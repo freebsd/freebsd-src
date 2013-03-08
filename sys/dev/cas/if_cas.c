@@ -768,7 +768,7 @@ cas_reset_rx(struct cas_softc *sc)
 	 * Resetting while DMA is in progress can cause a bus hang, so we
 	 * disable DMA first.
 	 */
-	cas_disable_rx(sc);
+	(void)cas_disable_rx(sc);
 	CAS_WRITE_4(sc, CAS_RX_CONF, 0);
 	CAS_BARRIER(sc, CAS_RX_CONF, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
@@ -780,7 +780,7 @@ cas_reset_rx(struct cas_softc *sc)
 	    ((sc->sc_flags & CAS_SERDES) != 0 ? CAS_RESET_PCS_DIS : 0));
 	CAS_BARRIER(sc, CAS_RESET, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!cas_bitwait(sc, CAS_RESET, CAS_RESET_RX | CAS_RESET_TX, 0)) {
+	if (!cas_bitwait(sc, CAS_RESET, CAS_RESET_RX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset receiver\n");
 		return (1);
 	}
@@ -795,7 +795,7 @@ cas_reset_tx(struct cas_softc *sc)
 	 * Resetting while DMA is in progress can cause a bus hang, so we
 	 * disable DMA first.
 	 */
-	cas_disable_tx(sc);
+	(void)cas_disable_tx(sc);
 	CAS_WRITE_4(sc, CAS_TX_CONF, 0);
 	CAS_BARRIER(sc, CAS_TX_CONF, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
@@ -807,7 +807,7 @@ cas_reset_tx(struct cas_softc *sc)
 	    ((sc->sc_flags & CAS_SERDES) != 0 ? CAS_RESET_PCS_DIS : 0));
 	CAS_BARRIER(sc, CAS_RESET, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!cas_bitwait(sc, CAS_RESET, CAS_RESET_RX | CAS_RESET_TX, 0)) {
+	if (!cas_bitwait(sc, CAS_RESET, CAS_RESET_TX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset transmitter\n");
 		return (1);
 	}
@@ -822,7 +822,11 @@ cas_disable_rx(struct cas_softc *sc)
 	    CAS_READ_4(sc, CAS_MAC_RX_CONF) & ~CAS_MAC_RX_CONF_EN);
 	CAS_BARRIER(sc, CAS_MAC_RX_CONF, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	return (cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_EN, 0));
+	if (cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_EN, 0))
+		return (1);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
+	return (0);
 }
 
 static int
@@ -833,7 +837,11 @@ cas_disable_tx(struct cas_softc *sc)
 	    CAS_READ_4(sc, CAS_MAC_TX_CONF) & ~CAS_MAC_TX_CONF_EN);
 	CAS_BARRIER(sc, CAS_MAC_TX_CONF, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	return (cas_bitwait(sc, CAS_MAC_TX_CONF, CAS_MAC_TX_CONF_EN, 0));
+	if (cas_bitwait(sc, CAS_MAC_TX_CONF, CAS_MAC_TX_CONF_EN, 0))
+		return (1);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "cannot disable TX MAC\n");
+	return (0);
 }
 
 static inline void
@@ -996,7 +1004,6 @@ cas_init_locked(struct cas_softc *sc)
 	cas_init_regs(sc);
 
 	/* step 5.  RX MAC registers & counters */
-	cas_setladrf(sc);
 
 	/* step 6 & 7.  Program Ring Base Addresses. */
 	CAS_WRITE_4(sc, CAS_TX_DESC3_BASE_HI,
@@ -1036,7 +1043,8 @@ cas_init_locked(struct cas_softc *sc)
 	/*
 	 * Enable infinite bursts for revisions without PCI issues if
 	 * applicable.  Doing so greatly improves the TX performance on
-	 * !__sparc64__.
+	 * !__sparc64__ (on sparc64, setting CAS_INF_BURST improves TX
+	 * performance only marginally but hurts RX throughput quite a bit).
 	 */
 	CAS_WRITE_4(sc, CAS_INF_BURST,
 #if !defined(__sparc64__)
@@ -1141,23 +1149,20 @@ cas_init_locked(struct cas_softc *sc)
 	/* step 11.  Configure Media. */
 
 	/* step 12.  RX_MAC Configuration Register */
-	v = CAS_READ_4(sc, CAS_MAC_RX_CONF) & ~CAS_MAC_RX_CONF_STRPPAD;
-	v |= CAS_MAC_RX_CONF_EN | CAS_MAC_RX_CONF_STRPFCS;
-	CAS_WRITE_4(sc, CAS_MAC_RX_CONF, 0);
-	CAS_BARRIER(sc, CAS_MAC_RX_CONF, 4,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_EN, 0))
-		device_printf(sc->sc_dev, "cannot configure RX MAC\n");
-	CAS_WRITE_4(sc, CAS_MAC_RX_CONF, v);
+	v = CAS_READ_4(sc, CAS_MAC_RX_CONF);
+	v &= ~(CAS_MAC_RX_CONF_STRPPAD | CAS_MAC_RX_CONF_EN);
+	v |= CAS_MAC_RX_CONF_STRPFCS;
+	sc->sc_mac_rxcfg = v;
+	/*
+	 * Clear the RX filter and reprogram it.  This will also set the
+	 * current RX MAC configuration and enable it.
+	 */
+	cas_setladrf(sc);
 
 	/* step 13.  TX_MAC Configuration Register */
 	v = CAS_READ_4(sc, CAS_MAC_TX_CONF);
 	v |= CAS_MAC_TX_CONF_EN;
-	CAS_WRITE_4(sc, CAS_MAC_TX_CONF, 0);
-	CAS_BARRIER(sc, CAS_MAC_TX_CONF, 4,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!cas_bitwait(sc, CAS_MAC_TX_CONF, CAS_MAC_TX_CONF_EN, 0))
-		device_printf(sc->sc_dev, "cannot configure TX MAC\n");
+	(void)cas_disable_tx(sc);
 	CAS_WRITE_4(sc, CAS_MAC_TX_CONF, v);
 
 	/* step 14.  Issue Transmit Pending command. */
@@ -1753,7 +1758,7 @@ cas_rint(struct cas_softc *sc)
 				(*ifp->if_input)(ifp, m);
 				CAS_LOCK(sc);
 			} else
-				ifp->if_ierrors++;
+				ifp->if_iqdrops++;
 
 			if ((word1 & CAS_RC1_RELEASE_HDR) != 0 &&
 			    refcount_release(&rxds->rxds_refcount) != 0)
@@ -1851,7 +1856,7 @@ cas_rint(struct cas_softc *sc)
 				(*ifp->if_input)(ifp, m);
 				CAS_LOCK(sc);
 			} else
-				ifp->if_ierrors++;
+				ifp->if_iqdrops++;
 
 			if ((word1 & CAS_RC1_RELEASE_DATA) != 0 &&
 			    refcount_release(&rxds->rxds_refcount) != 0)
@@ -2342,8 +2347,8 @@ cas_mii_statchg(device_t dev)
 	 * the Cassini+ ASIC Specification.
 	 */
 
-	rxcfg = CAS_READ_4(sc, CAS_MAC_RX_CONF);
-	rxcfg &= ~(CAS_MAC_RX_CONF_EN | CAS_MAC_RX_CONF_CARR);
+	rxcfg = sc->sc_mac_rxcfg;
+	rxcfg &= ~CAS_MAC_RX_CONF_CARR;
 	txcfg = CAS_MAC_TX_CONF_EN_IPG0 | CAS_MAC_TX_CONF_NGU |
 	    CAS_MAC_TX_CONF_NGUL;
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) != 0)
@@ -2352,17 +2357,9 @@ cas_mii_statchg(device_t dev)
 		rxcfg |= CAS_MAC_RX_CONF_CARR;
 		txcfg |= CAS_MAC_TX_CONF_CARR;
 	}
-	CAS_WRITE_4(sc, CAS_MAC_TX_CONF, 0);
-	CAS_BARRIER(sc, CAS_MAC_TX_CONF, 4,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!cas_bitwait(sc, CAS_MAC_TX_CONF, CAS_MAC_TX_CONF_EN, 0))
-		device_printf(sc->sc_dev, "cannot disable TX MAC\n");
+	(void)cas_disable_tx(sc);
 	CAS_WRITE_4(sc, CAS_MAC_TX_CONF, txcfg);
-	CAS_WRITE_4(sc, CAS_MAC_RX_CONF, 0);
-	CAS_BARRIER(sc, CAS_MAC_RX_CONF, 4,
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_EN, 0))
-		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
+	(void)cas_disable_rx(sc);
 	CAS_WRITE_4(sc, CAS_MAC_RX_CONF, rxcfg);
 
 	v = CAS_READ_4(sc, CAS_MAC_CTRL_CONF) &
@@ -2420,6 +2417,7 @@ cas_mii_statchg(device_t dev)
 		v |= CAS_MAC_XIF_CONF_FDXLED;
 	CAS_WRITE_4(sc, CAS_MAC_XIF_CONF, v);
 
+	sc->sc_mac_rxcfg = rxcfg;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 	    (sc->sc_flags & CAS_LINK) != 0) {
 		CAS_WRITE_4(sc, CAS_MAC_TX_CONF,
@@ -2534,23 +2532,21 @@ cas_setladrf(struct cas_softc *sc)
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
-	/* Get the current RX configuration. */
-	v = CAS_READ_4(sc, CAS_MAC_RX_CONF);
-
 	/*
-	 * Turn off promiscuous mode, promiscuous group mode (all multicast),
-	 * and hash filter.  Depending on the case, the right bit will be
-	 * enabled.
+	 * Turn off the RX MAC and the hash filter as required by the Sun
+	 * Cassini programming restrictions.
 	 */
-	v &= ~(CAS_MAC_RX_CONF_PROMISC | CAS_MAC_RX_CONF_HFILTER |
-	    CAS_MAC_RX_CONF_PGRP);
-
+	v = sc->sc_mac_rxcfg & ~(CAS_MAC_RX_CONF_HFILTER |
+	    CAS_MAC_RX_CONF_EN);
 	CAS_WRITE_4(sc, CAS_MAC_RX_CONF, v);
 	CAS_BARRIER(sc, CAS_MAC_RX_CONF, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	if (!cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_HFILTER, 0))
-		device_printf(sc->sc_dev, "cannot disable RX hash filter\n");
+	if (!cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_HFILTER |
+	    CAS_MAC_RX_CONF_EN, 0))
+		device_printf(sc->sc_dev,
+		    "cannot disable RX MAC or hash filter\n");
 
+	v &= ~(CAS_MAC_RX_CONF_PROMISC | CAS_MAC_RX_CONF_PGRP);
 	if ((ifp->if_flags & IFF_PROMISC) != 0) {
 		v |= CAS_MAC_RX_CONF_PROMISC;
 		goto chipit;
@@ -2596,7 +2592,8 @@ cas_setladrf(struct cas_softc *sc)
 		    hash[i]);
 
  chipit:
-	CAS_WRITE_4(sc, CAS_MAC_RX_CONF, v);
+	sc->sc_mac_rxcfg = v;
+	CAS_WRITE_4(sc, CAS_MAC_RX_CONF, v | CAS_MAC_RX_CONF_EN);
 }
 
 static int	cas_pci_attach(device_t dev);
@@ -2697,7 +2694,10 @@ cas_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	pci_enable_busmaster(dev);
+	/* PCI configuration */
+	pci_write_config(dev, PCIR_COMMAND,
+	    pci_read_config(dev, PCIR_COMMAND, 2) | PCIM_CMD_BUSMASTEREN |
+	    PCIM_CMD_MWRICEN | PCIM_CMD_PERRESPEN | PCIM_CMD_SERRESPEN, 2);
 
 	sc->sc_dev = dev;
 	if (sc->sc_variant == CAS_CAS && pci_get_devid(dev) < 0x02)
