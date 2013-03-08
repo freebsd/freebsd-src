@@ -2976,7 +2976,7 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 					 * (leave PR-SCTP ones that are to skip alone though)
 					 */
 					if ((tp1->sent != SCTP_FORWARD_TSN_SKIP) &&
-					    (tp1->sent != SCTP_DATAGRAM_NR_MARKED)) {
+					    (tp1->sent != SCTP_DATAGRAM_NR_ACKED)) {
 						tp1->sent = SCTP_DATAGRAM_MARKED;
 					}
 					if (tp1->rec.data.chunk_was_revoked) {
@@ -2985,8 +2985,16 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 						tp1->rec.data.chunk_was_revoked = 0;
 					}
 					/* NR Sack code here */
-					if (nr_sacking) {
-						tp1->sent = SCTP_DATAGRAM_NR_MARKED;
+					if (nr_sacking &&
+					    (tp1->sent != SCTP_DATAGRAM_NR_ACKED)) {
+						if (stcb->asoc.strmout[tp1->rec.data.stream_number].chunks_on_queues > 0) {
+							stcb->asoc.strmout[tp1->rec.data.stream_number].chunks_on_queues--;
+#ifdef INVARIANTS
+						} else {
+							panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
+#endif
+						}
+						tp1->sent = SCTP_DATAGRAM_NR_ACKED;
 						if (tp1->data) {
 							/*
 							 * sa_ignore
@@ -3091,7 +3099,6 @@ sctp_check_for_revoked(struct sctp_tcb *stcb,
     uint32_t biggest_tsn_acked)
 {
 	struct sctp_tmit_chunk *tp1;
-	int tot_revoked = 0;
 
 	TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
 		if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, cumack)) {
@@ -3126,7 +3133,6 @@ sctp_check_for_revoked(struct sctp_tcb *stcb,
 				 * artificial inflation of the flight_size.
 				 */
 				tp1->whoTo->cwnd += tp1->book_size;
-				tot_revoked++;
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SACK_LOGGING_ENABLE) {
 					sctp_log_sack(asoc->last_acked_seq,
 					    cumack,
@@ -3603,13 +3609,13 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 	TAILQ_FOREACH_SAFE(tp1, &asoc->sent_queue, sctp_next, tp2) {
 		if (tp1->sent != SCTP_FORWARD_TSN_SKIP &&
 		    tp1->sent != SCTP_DATAGRAM_RESEND &&
-		    tp1->sent != SCTP_DATAGRAM_NR_MARKED) {
+		    tp1->sent != SCTP_DATAGRAM_NR_ACKED) {
 			/* no chance to advance, out of here */
 			break;
 		}
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
 			if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) ||
-			    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
+			    (tp1->sent == SCTP_DATAGRAM_NR_ACKED)) {
 				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
 				    asoc->advanced_peer_ack_point,
 				    tp1->rec.data.TSN_seq, 0, 0);
@@ -3658,7 +3664,7 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 		 * the next chunk.
 		 */
 		if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) ||
-		    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
+		    (tp1->sent == SCTP_DATAGRAM_NR_ACKED)) {
 			/* advance PeerAckPoint goes forward */
 			if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, asoc->advanced_peer_ack_point)) {
 				asoc->advanced_peer_ack_point = tp1->rec.data.TSN_seq;
@@ -3963,7 +3969,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					tp1->whoTo->cwnd -= tp1->book_size;
 					tp1->rec.data.chunk_was_revoked = 0;
 				}
-				if (tp1->sent != SCTP_DATAGRAM_NR_MARKED) {
+				if (tp1->sent != SCTP_DATAGRAM_NR_ACKED) {
 					if (asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues > 0) {
 						asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues--;
 #ifdef INVARIANTS
@@ -4630,7 +4636,9 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 					tp1->whoTo->cwnd -= tp1->book_size;
 					tp1->rec.data.chunk_was_revoked = 0;
 				}
-				tp1->sent = SCTP_DATAGRAM_ACKED;
+				if (tp1->sent != SCTP_DATAGRAM_NR_ACKED) {
+					tp1->sent = SCTP_DATAGRAM_ACKED;
+				}
 			}
 		} else {
 			break;
@@ -4707,7 +4715,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, cum_ack)) {
 			break;
 		}
-		if (tp1->sent != SCTP_DATAGRAM_NR_MARKED) {
+		if (tp1->sent != SCTP_DATAGRAM_NR_ACKED) {
 			if (asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues > 0) {
 				asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues--;
 #ifdef INVARIANTS
