@@ -168,11 +168,15 @@ STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/include
 .include "meta.sys.mk"
 .endif
 
-# most dirs can be satisfied with one Makefile.depend
-.undef .MAKE.DEPENDFILE
+# this is sufficient for most of the tree.
+.MAKE.DEPENDFILE_DEFAULT = ${.MAKE.DEPENDFILE_PREFIX}
+
+# but if we have a machine qualified file it should be used in preference
 .MAKE.DEPENDFILE_PREFERENCE = \
-	${.MAKE.DEPENDFILE_PREFIX} \
-	${.MAKE.DEPENDFILE_PREFIX}.${MACHINE}
+	${.MAKE.DEPENDFILE_PREFIX}.${MACHINE} \
+	${.MAKE.DEPENDFILE_PREFIX}
+
+.undef .MAKE.DEPENDFILE
 
 .include "sys.dependfile.mk"
 
