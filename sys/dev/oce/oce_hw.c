@@ -340,8 +340,10 @@ oce_hw_shutdown(POCE_SOFTC sc)
 	oce_stats_free(sc);
 	/* disable hardware interrupts */
 	oce_hw_intr_disable(sc);
+#if defined(INET6) || defined(INET)
 	/* Free LRO resources */
 	oce_free_lro(sc);
+#endif
 	/* Release queue*/
 	oce_queue_release_all(sc);
 	/*Delete Network Interface*/
@@ -402,11 +404,6 @@ oce_create_nw_interface(POCE_SOFTC sc)
 	atomic_inc_32(&sc->nifs);
 
 	sc->if_cap_flags = capab_en_flags;
-
-	/* Enable VLAN Promisc on HW */
-	rc = oce_config_vlan(sc, (uint8_t) sc->if_id, NULL, 0, 1, 1);
-	if (rc)
-		goto error;
 
 	/* set default flow control */
 	rc = oce_set_flow_control(sc, sc->flow_control);
@@ -475,12 +472,9 @@ oce_hw_start(POCE_SOFTC sc)
 		return 1;
 	
 	if (link.logical_link_status == NTWK_LOGICAL_LINK_UP) {
-		sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		sc->link_status = NTWK_LOGICAL_LINK_UP;
 		if_link_state_change(sc->ifp, LINK_STATE_UP);
 	} else {
-		sc->ifp->if_drv_flags &=
-			~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 		sc->link_status = NTWK_LOGICAL_LINK_DOWN;
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
 	}
@@ -494,11 +488,16 @@ oce_hw_start(POCE_SOFTC sc)
 
 	rc = oce_start_mq(sc->mq);
 	
-	/* we need to get MCC aync events.
-	   So enable intrs and also arm first EQ
+	/* we need to get MCC aync events. So enable intrs and arm
+	   first EQ, Other EQs will be armed after interface is UP 
 	*/
 	oce_hw_intr_enable(sc);
 	oce_arm_eq(sc, sc->eq[0]->eq_id, 0, TRUE, FALSE);
+
+	/* Send first mcc cmd and after that we get gracious
+	   MCC notifications from FW
+	*/
+	oce_first_mcc_cmd(sc);
 
 	return rc;
 }
@@ -537,8 +536,8 @@ oce_hw_intr_disable(POCE_SOFTC sc)
 
 
 /**
- * @brief               Function for hardware update multicast filter
- * @param sc            software handle to the device
+ * @brief		Function for hardware update multicast filter
+ * @param sc		software handle to the device
  */
 int
 oce_hw_update_multicast(POCE_SOFTC sc)
