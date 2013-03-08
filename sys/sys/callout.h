@@ -63,8 +63,6 @@ struct callout_handle {
 };
 
 #ifdef _KERNEL
-extern int ncallout;
-
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
 #define	callout_drain(c)	_callout_stop_safe(c, 1)
