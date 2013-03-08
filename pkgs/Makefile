@@ -131,16 +131,18 @@ dirdeps: ${_begin} .WAIT
 $t: dirdeps
 .endfor
 
+elapsed_time= seconds=`expr ${now_utc} - ${start_utc}`
+
 count-makefiles: .NOMETA
-	@echo "${TIME_STAMP} Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} seconds=`expr ${now_utc} - ${start_utc}`"
+	@echo "${TIME_STAMP} Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} ${elapsed_time}"
 
 .END: _build_finish
 _build_finish:	.NOMETA
-	@echo "${TIME_STAMP} Finished ${.TARGETS}"
+	@echo "${TIME_STAMP} Finished ${.TARGETS} ${elapsed_time}"
 
 .ERROR: _build_failed
 _build_failed: .NOMETA
-	@echo "${TIME_STAMP} Failed ${.TARGETS}"
+	@echo "${TIME_STAMP} Failed ${.TARGETS} ${elapsed_time}"
 
 .endif					# !empty(DIRDEPS)
 
