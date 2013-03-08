@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
+#include <sys/file.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -101,6 +102,11 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls_dir, CTLFLAG_RD, &avg_mpcalls_dir,
     0, "Average number of MP direct callouts made per callout_process call. "
     "Units = 1/1000");
 #endif
+
+static int ncallout;
+SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
+    "Number of entries in callwheel and size of timeout() preallocation");
+
 /*
  * TODO:
  *	allocate more timeout table slots when table overflows.
@@ -252,6 +258,14 @@ kern_timeout_callwheel_alloc(caddr_t v)
 
 	timeout_cpu = PCPU_GET(cpuid);
 	cc = CC_CPU(timeout_cpu);
+
+	/*
+	 * Calculate the size of the callout wheel and the preallocated
+	 * timeout() structures.
+	 */
+	ncallout = imin(16 + maxproc + maxfiles, 18508);
+	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
+
 	/*
 	 * Calculate callout wheel size, should be next power of two higher
 	 * than 'ncallout'.

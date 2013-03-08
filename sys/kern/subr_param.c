@@ -91,7 +91,6 @@ int	maxprocperuid;			/* max # of procs per user */
 int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
 int	msgbufsize;			/* size of kernel message buffer */
-int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
@@ -109,8 +108,6 @@ u_long	sgrowsiz;			/* amount to grow stack */
 
 SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN, &hz, 0,
     "Number of clock ticks per second");
-SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
-    "Number of pre-allocated timer events");
 SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
@@ -325,15 +322,6 @@ init_param2(long physpages)
 	 */
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
-
-	/*
-	 * XXX: Does the callout wheel have to be so big?
-	 *
-	 * Clip callout to result of previous function of maxusers maximum
-	 * 384.  This is still huge, but acceptable.
-	 */
-	ncallout = imin(16 + maxproc + maxfiles, 18508);
-	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 
 	/*
 	 * The default for maxpipekva is min(1/64 of the kernel address space,
