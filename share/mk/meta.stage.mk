@@ -208,4 +208,7 @@ stage_as.$s:	.dirdep
 .endfor
 .endif
 
+# if we have to do any of these, do them in this order
+.ORDER: stage_incs stage_libs stage_files stage_as stage_links stage_symlinks
+
 .endif
