@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.18 2013/02/26 05:40:49 sjg Exp $
+# $Id: meta.stage.mk,v 1.20 2013/03/08 00:00:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -58,13 +58,13 @@ STAGE_DIRDEP_SCRIPT = StageDirdep() { \
 	exit 1; \
   fi; \
   ln .dirdep $$t.dirdep 2> /dev/null || \
-  cp .dirdep $$t.dirdep; }
+  cp .dirdep $$t.dirdep || exit 1; }
 
 # common logic for staging files
 # this all relies on RELDIR being set to a subdir of SRCTOP
 # we use ln(1) if we can, else cp(1)
 STAGE_FILE_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageFiles() { \
-  case "$$1" in -m) mode=$$2; shift 2;; *) mode=;; esac; \
+  case "$$1" in "") return;; -m) mode=$$2; shift 2;; *) mode=;; esac; \
   dest=$$1; shift; \
   mkdir -p $$dest; \
   [ -s .dirdep ] || echo '${_dirdep}' > .dirdep; \
@@ -73,12 +73,12 @@ STAGE_FILE_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageFiles() { \
 	StageDirdep $$t; \
 	rm -f $$t; \
 	{ ln $$f $$t 2> /dev/null || \
-	cp -p $$f $$t; }; \
+	cp -p $$f $$t; } || exit 1; \
 	[ -z "$$mode" ] || chmod $$mode $$t; \
   done; :; }
 
 STAGE_LINKS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageLinks() { \
-  case "$$1" in --) shift;; -*) ldest= lnf=$$1; shift;; /*) ldest=$$1/;; esac; \
+  case "$$1" in "") return;; --) shift;; -*) ldest= lnf=$$1; shift;; /*) ldest=$$1/;; esac; \
   dest=$$1; shift; \
   mkdir -p $$dest; \
   [ -s .dirdep ] || echo '${_dirdep}' > .dirdep; \
@@ -89,11 +89,11 @@ STAGE_LINKS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageLinks() { \
 	shift; \
 	StageDirdep $$t; \
 	rm -f $$t 2>/dev/null; \
-	ln $$lnf $$l $$t; \
+	ln $$lnf $$l $$t || exit 1; \
   done; :; }
 
 STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
-  case "$$1" in -m) mode=$$2; shift 2;; *) mode=;; esac; \
+  case "$$1" in "") return;; -m) mode=$$2; shift 2;; *) mode=;; esac; \
   dest=$$1; shift; \
   mkdir -p $$dest; \
   [ -s .dirdep ] || echo '${_dirdep}' > .dirdep; \
@@ -105,7 +105,7 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
 	StageDirdep $$t; \
 	rm -f $$t; \
 	{ ln $$s $$t 2> /dev/null || \
-	cp -p $$s $$t; }; \
+	cp -p $$s $$t; } || exit 1; \
 	[ -z "$$mode" ] || chmod $$mode $$t; \
   done; :; }
 
