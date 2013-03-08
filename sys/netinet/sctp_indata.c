@@ -4420,7 +4420,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			    cum_ack, send_s);
 			if (tp1) {
 				SCTP_PRINTF("Got send_s from tsn:%x + 1 of tp1:%p\n",
-				    tp1->rec.data.TSN_seq, tp1);
+				    tp1->rec.data.TSN_seq, (void *)tp1);
 			}
 	hopeless_peer:
 			*abort_now = 1;
