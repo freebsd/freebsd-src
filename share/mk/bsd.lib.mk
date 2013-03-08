@@ -114,10 +114,6 @@ PO_FLAG=-pg
 .if !defined(_SKIP_BUILD)
 all: beforebuild .WAIT
 beforebuild: objwarn
-.if !defined(.PARSEDIR)
-# this is a no-op
-.WAIT:
-.endif
 .endif
 
 .include <bsd.symver.mk>
