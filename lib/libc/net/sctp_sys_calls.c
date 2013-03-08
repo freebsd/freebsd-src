@@ -446,6 +446,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	opt_len = (socklen_t) ((size_t)asoc + sizeof(struct sctp_getaddresses));
 	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
+		errno = ENOMEM;
 		return (-1);
 	}
 	addrs->sget_assoc_id = id;
@@ -774,6 +775,7 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	}
 	buf = malloc(len);
 	if (buf == NULL) {
+		errno = ENOMEM;
 		return (-1);
 	}
 	aa = (int *)buf;
@@ -1049,7 +1051,7 @@ sctp_sendv(int sd,
 	    CMSG_SPACE(sizeof(struct sctp_authinfo)) +
 	    (size_t)addrcnt * CMSG_SPACE(sizeof(struct in6_addr)));
 	if (cmsgbuf == NULL) {
-		errno = ENOBUFS;
+		errno = ENOMEM;
 		return (-1);
 	}
 	msg.msg_control = cmsgbuf;
