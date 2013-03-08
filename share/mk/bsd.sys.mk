@@ -180,6 +180,12 @@ stage_libs: ${_LIBS}
 beforebuild: buildincludes
 .endif
 
+.for t in stage_libs stage_files stage_as
+.if target($t)
+all: $t
+.endif
+.endfor
+
 .if !empty(STAGE_AS_SETS)
 all: stage_as
 .endif
@@ -188,30 +194,17 @@ all: stage_as
 
 .if !empty(LINKS)
 all: stage_links
-.ORDER: stage_files stage_links
-.if !empty(STAGE_AS_SETS)
-.ORDER: stage_as stage_links
-.endif
 STAGE_SETS+= links
 STAGE_LINKS.links= ${LINKS}
 .endif
 
 .if !empty(SYMLINKS)
 all: stage_symlinks
-.if !empty(STAGE_AS_SETS)
-.ORDER: stage_as stage_symlinks
-.endif
 STAGE_SETS+= links
 STAGE_SYMLINKS.links= ${SYMLINKS}
 .endif
 
 .endif
-
-.for t in stage_libs stage_files stage_as
-.if target($t)
-all: $t
-.endif
-.endfor
 
 .include <meta.stage.mk>
 .endif
