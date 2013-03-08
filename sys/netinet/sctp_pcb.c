@@ -2757,7 +2757,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 					return (EINVAL);
 				}
 				lport = sin6->sin6_port;
-
 				/*
 				 * For LOOPBACK the prison_local_ip6() call
 				 * will transmute the ipv6 address to the
@@ -2795,7 +2794,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	SCTP_INP_INCR_REF(inp);
 	if (lport) {
 		/*
-		 * Did the caller specify a port? if so we must see if a ep
+		 * Did the caller specify a port? if so we must see if an ep
 		 * already has this one bound.
 		 */
 		/* got to be root to get at low ports */
@@ -2876,8 +2875,7 @@ continue_anyway:
 		if (bindall) {
 			/* verify that no lport is not used by a singleton */
 			if ((port_reuse_active == 0) &&
-			    (inp_tmp = sctp_isport_inuse(inp, lport, vrf_id))
-			    ) {
+			    (inp_tmp = sctp_isport_inuse(inp, lport, vrf_id))) {
 				/* Sorry someone already has this one bound */
 				if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PORTREUSE)) &&
 				    (sctp_is_feature_on(inp_tmp, SCTP_PCB_FLAGS_PORTREUSE))) {
@@ -3043,9 +3041,9 @@ continue_anyway:
 		 * zero out the port to find the address! yuck! can't do
 		 * this earlier since need port for sctp_pcb_findep()
 		 */
-		if (sctp_ifap != NULL)
+		if (sctp_ifap != NULL) {
 			ifa = sctp_ifap;
-		else {
+		} else {
 			/*
 			 * Note for BSD we hit here always other O/S's will
 			 * pass things in via the sctp_ifap argument
