@@ -11399,11 +11399,11 @@ sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn, u
 	struct sctp_cwr_chunk *cwr;
 	struct sctp_tmit_chunk *chk;
 
-	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	if (net == NULL) {
 		return;
 	}
+	asoc = &stcb->asoc;
 	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
 		if ((chk->rec.chunk_id.id == SCTP_ECN_CWR) && (net == chk->whoTo)) {
 			/*
@@ -11458,13 +11458,11 @@ sctp_add_stream_reset_out(struct sctp_tmit_chunk *chk,
     int number_entries, uint16_t * list,
     uint32_t seq, uint32_t resp_seq, uint32_t last_sent)
 {
-	int len, old_len, i;
+	uint16_t len, old_len, i;
 	struct sctp_stream_reset_out_request *req_out;
 	struct sctp_chunkhdr *ch;
 
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
-
-
 	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
 
 	/* get to new offset for the param. */
@@ -11498,19 +11496,16 @@ sctp_add_stream_reset_out(struct sctp_tmit_chunk *chk,
 	return;
 }
 
-
-void
+static void
 sctp_add_stream_reset_in(struct sctp_tmit_chunk *chk,
     int number_entries, uint16_t * list,
     uint32_t seq)
 {
-	int len, old_len, i;
+	uint16_t len, old_len, i;
 	struct sctp_stream_reset_in_request *req_in;
 	struct sctp_chunkhdr *ch;
 
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
-
-
 	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
 
 	/* get to new offset for the param. */
@@ -11542,18 +11537,15 @@ sctp_add_stream_reset_in(struct sctp_tmit_chunk *chk,
 	return;
 }
 
-
-void
+static void
 sctp_add_stream_reset_tsn(struct sctp_tmit_chunk *chk,
     uint32_t seq)
 {
-	int len, old_len;
+	uint16_t len, old_len;
 	struct sctp_stream_reset_tsn_request *req_tsn;
 	struct sctp_chunkhdr *ch;
 
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
-
-
 	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
 
 	/* get to new offset for the param. */
@@ -11577,13 +11569,11 @@ void
 sctp_add_stream_reset_result(struct sctp_tmit_chunk *chk,
     uint32_t resp_seq, uint32_t result)
 {
-	int len, old_len;
+	uint16_t len, old_len;
 	struct sctp_stream_reset_response *resp;
 	struct sctp_chunkhdr *ch;
 
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
-
-
 	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
 
 	/* get to new offset for the param. */
@@ -11602,22 +11592,18 @@ sctp_add_stream_reset_result(struct sctp_tmit_chunk *chk,
 	chk->send_size = SCTP_SIZE32(chk->book_size);
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
 	return;
-
 }
-
 
 void
 sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
     uint32_t resp_seq, uint32_t result,
     uint32_t send_una, uint32_t recv_next)
 {
-	int len, old_len;
+	uint16_t len, old_len;
 	struct sctp_stream_reset_response_tsn *resp;
 	struct sctp_chunkhdr *ch;
 
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
-
-
 	old_len = len = SCTP_SIZE32(ntohs(ch->chunk_length));
 
 	/* get to new offset for the param. */
@@ -11645,7 +11631,7 @@ sctp_add_an_out_stream(struct sctp_tmit_chunk *chk,
     uint32_t seq,
     uint16_t adding)
 {
-	int len, old_len;
+	uint16_t len, old_len;
 	struct sctp_chunkhdr *ch;
 	struct sctp_stream_reset_add_strm *addstr;
 
@@ -11678,7 +11664,7 @@ sctp_add_an_in_stream(struct sctp_tmit_chunk *chk,
     uint32_t seq,
     uint16_t adding)
 {
-	int len, old_len;
+	uint16_t len, old_len;
 	struct sctp_chunkhdr *ch;
 	struct sctp_stream_reset_add_strm *addstr;
 
@@ -11705,8 +11691,6 @@ sctp_add_an_in_stream(struct sctp_tmit_chunk *chk,
 	return;
 }
 
-
-
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
     int number_entries, uint16_t * list,
@@ -11715,8 +11699,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
     uint8_t send_tsn_req,
     uint8_t add_stream,
     uint16_t adding_o,
-    uint16_t adding_i, uint8_t peer_asked
-)
+    uint16_t adding_i, uint8_t peer_asked)
 {
 
 	struct sctp_association *asoc;
