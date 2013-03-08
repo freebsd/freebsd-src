@@ -172,12 +172,17 @@ hq_num_avail(struct vring_hqueue *hq)
 {
 	int ndesc;
 
-	if (*hq->hq_avail_idx >= hq->hq_cur_aidx)
-		ndesc = *hq->hq_avail_idx - hq->hq_cur_aidx;
-	else
-		ndesc = UINT16_MAX - hq->hq_cur_aidx + *hq->hq_avail_idx + 1;
+	/*
+	 * We're just computing (a-b) in GF(216).
+	 *
+	 * The only glitch here is that in standard C,
+	 * uint16_t promotes to (signed) int when int has
+	 * more than 16 bits (pretty much always now), so
+	 * we have to force it back to unsigned.
+	 */
+	ndesc = (unsigned)*hq->hq_avail_idx - (unsigned)hq->hq_cur_aidx;
 
-	assert(ndesc >= 0 && ndesc <= hq->hq_size);
+	assert(ndesc <= hq->hq_size);
 
 	return (ndesc);
 }

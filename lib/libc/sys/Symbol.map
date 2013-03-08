@@ -378,6 +378,7 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	bindat;
 	cap_fcntls_get;
 	cap_fcntls_limit;
 	cap_ioctls_get;
@@ -386,6 +387,7 @@ FBSD_1.3 {
 	cap_rights_limit;
 	cap_sandboxed;
 	clock_getcpuclockid2;
+	connectat;
 	ffclock_getcounter;
 	ffclock_getestimate;
 	ffclock_setestimate;

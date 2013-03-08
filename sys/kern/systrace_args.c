@@ -3328,6 +3328,26 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* bindat */
+	case 538: {
+		struct bindat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->s; /* int */
+		uarg[2] = (intptr_t) p->name; /* caddr_t */
+		iarg[3] = p->namelen; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* connectat */
+	case 539: {
+		struct connectat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->s; /* int */
+		uarg[2] = (intptr_t) p->name; /* caddr_t */
+		iarg[3] = p->namelen; /* int */
+		*n_args = 4;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8858,6 +8878,44 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* bindat */
+	case 538:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "caddr_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* connectat */
+	case 539:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "caddr_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10773,6 +10831,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* cap_fcntls_get */
 	case 537:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* bindat */
+	case 538:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* connectat */
+	case 539:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

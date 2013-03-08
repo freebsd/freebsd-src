@@ -38,6 +38,30 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130302: NTFS support removed
+OLD_FILES+=rescue/mount_ntfs
+OLD_FILES+=sbin/mount_ntfs
+OLD_FILES+=usr/include/fs/ntfs/ntfs.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_compr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_ihash.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_inode.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_subr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_vfsops.h
+OLD_FILES+=usr/include/fs/ntfs/ntfsmount.h
+OLD_DIRS+=usr/include/fs/ntfs
+OLD_FILES+=usr/share/man/man8/mount_ntfs.8.gz
+# 20130302: PORTALFS support removed
+OLD_FILES+=usr/include/fs/portalfs/portal.h
+OLD_DIRS+=usr/include/fs/portalfs
+OLD_FILES+=usr/sbin/mount_portalfs
+OLD_FILES+=usr/share/examples/portal/README
+OLD_FILES+=usr/share/examples/portal/portal.conf
+OLD_DIRS+=usr/share/examples/portal
+OLD_FILES+=usr/share/man/man8/mount_portalfs.8.gz
+# 20130302: CODAFS support removed
+OLD_FILES+=usr/share/man/man4/coda.4.gz
+# 20130302: XFS support removed
+OLD_FILES+=usr/share/man/man5/xfs.5.gz
 # 20130116: removed long unused directories for .1aout section manpages
 OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
 OLD_FILES+=usr/share/man/en.UTF-8/man1aout
@@ -58,9 +82,10 @@ OLD_DIRS+=var/remote
 # 20121114: zpool-features manual page moved from section 5 to 7
 OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
 # 20121022: remove harp, hfa and idt man page
-OLD_FILES+=share/man/man4/harp.4
-OLD_FILES+=share/man/man4/hfa.4
-OLD_FILES+=share/man/man4/idt.4
+OLD_FILES+=usr/share/man/man4/harp.4.gz
+OLD_FILES+=usr/share/man/man4/hfa.4.gz
+OLD_FILES+=usr/share/man/man4/idt.4.gz
+OLD_FILES+=usr/share/man/man4/if_idt.4.gz
 # 20121022: VFS_LOCK_GIANT elimination
 OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
 OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz

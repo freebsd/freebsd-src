@@ -1497,6 +1497,29 @@ c_size(OPTION *option, char ***argvp)
 }
 
 /*
+ * -sparse functions --
+ *
+ *      Check if a file is sparse by finding if it occupies fewer blocks
+ *      than we expect based on its size.
+ */
+int
+f_sparse(PLAN *plan __unused, FTSENT *entry)
+{
+	off_t expected_blocks;
+
+	expected_blocks = (entry->fts_statp->st_size + 511) / 512;
+	return entry->fts_statp->st_blocks < expected_blocks;
+}
+
+PLAN *
+c_sparse(OPTION *option, char ***argvp __unused)
+{
+	ftsoptions &= ~FTS_NOSTAT;
+
+	return palloc(option);
+}
+
+/*
  * -type c functions --
  *
  *	True if the type of the file is c, where c is b, c, d, p, f or w

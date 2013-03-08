@@ -965,5 +965,9 @@
 					    uint32_t fcntlrights); }
 537	AUE_CAP_FCNTLS_GET	STD	{ int cap_fcntls_get(int fd, \
 					    uint32_t *fcntlrightsp); }
+538	AUE_BINDAT	STD	{ int bindat(int fd, int s, caddr_t name, \
+				    int namelen); }
+539	AUE_CONNECTAT	STD	{ int connectat(int fd, int s, caddr_t name, \
+				    int namelen); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
