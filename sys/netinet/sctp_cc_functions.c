@@ -1917,10 +1917,9 @@ measure_achieved_throughput(struct sctp_nets *net)
 		return;
 	}
 	net->cc_mod.htcp_ca.bytecount += net->net_ack;
-
-	if (net->cc_mod.htcp_ca.bytecount >= net->cwnd - ((net->cc_mod.htcp_ca.alpha >> 7 ? : 1) * net->mtu)
-	    && now - net->cc_mod.htcp_ca.lasttime >= net->cc_mod.htcp_ca.minRTT
-	    && net->cc_mod.htcp_ca.minRTT > 0) {
+	if ((net->cc_mod.htcp_ca.bytecount >= net->cwnd - (((net->cc_mod.htcp_ca.alpha >> 7) ? (net->cc_mod.htcp_ca.alpha >> 7) : 1) * net->mtu)) &&
+	    (now - net->cc_mod.htcp_ca.lasttime >= net->cc_mod.htcp_ca.minRTT) &&
+	    (net->cc_mod.htcp_ca.minRTT > 0)) {
 		uint32_t cur_Bi = net->cc_mod.htcp_ca.bytecount / net->mtu * hz / (now - net->cc_mod.htcp_ca.lasttime);
 
 		if (htcp_ccount(&net->cc_mod.htcp_ca) <= 3) {
