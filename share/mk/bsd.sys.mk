@@ -142,16 +142,21 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}
 
+.if !defined(.PARSEDIR)
+# this is a no-op
+.WAIT:
+.endif
+
 .if ${MK_STAGING} != "no"
 .if defined(_SKIP_BUILD) || !make(all)
-stage_libs stage_files stage_as stage_links stage_symlinks:
+staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
 DESTDIR= ${STAGE_OBJTOP}
 
-.if target(beforeinstall)
+.if commands(beforeinstall)
 .if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
-stage_files: beforeinstall
+staging: beforeinstall
 .endif
 .endif
 
@@ -167,7 +172,7 @@ stage_as.prog: ${PROG}
 .else
 STAGE_SETS+= prog
 stage_files.prog: ${PROG}
-all: stage_files
+staging: stage_files
 .endif
 .endif
 .endif
@@ -182,24 +187,24 @@ beforebuild: buildincludes
 
 .for t in stage_libs stage_files stage_as
 .if target($t)
-all: $t
+staging: $t
 .endif
 .endfor
 
 .if !empty(STAGE_AS_SETS)
-all: stage_as
+staging: stage_as
 .endif
 
 .if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
 
 .if !empty(LINKS)
-all: stage_links
+staging: stage_links
 STAGE_SETS+= links
 STAGE_LINKS.links= ${LINKS}
 .endif
 
 .if !empty(SYMLINKS)
-all: stage_symlinks
+staging: stage_symlinks
 STAGE_SETS+= links
 STAGE_SYMLINKS.links= ${SYMLINKS}
 .endif

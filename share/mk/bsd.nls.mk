@@ -63,7 +63,7 @@ NLSDIR?=	${SHAREDIR}/nls
 #
 .if ${MK_STAGING_PROG} == "yes"
 .if !defined(_SKIP_BUILD)
-all:   stage_symlinks
+staging:   stage_symlinks
 .endif
 STAGE_SYMLINKS.NLS= ${NLSSYMLINKS}
 STAGE_SYMLINKS_DIR.NLS= ${STAGE_OBJTOP}

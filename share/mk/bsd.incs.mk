@@ -99,7 +99,7 @@ buildincludes: stage_as
 .endif
 .endif
 .if !empty(INCSLINKS)
-stage_files: stage_symlinks
+staging: stage_symlinks
 STAGE_SYMLINKS.INCS= ${INCSLINKS}
 .endif
 .endif

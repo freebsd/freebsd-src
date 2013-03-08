@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.20 2013/03/08 00:00:57 sjg Exp $
+# $Id: meta.stage.mk,v 1.22 2013/03/08 17:52:11 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -114,8 +114,7 @@ _STAGE_BASENAME_USE:	.USE ${.TARGET:T}
 	@${STAGE_FILE_SCRIPT}; StageFiles ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T}
 
 .if !empty(STAGE_INCSDIR)
-CLEANFILES += stage_incs
-
+STAGE_TARGETS += stage_incs
 STAGE_INCS ?= ${.ALLSRC:N.dirdep}
 
 stage_incs:	.dirdep
@@ -124,7 +123,7 @@ stage_incs:	.dirdep
 .endif
 
 .if !empty(STAGE_LIBDIR)
-CLEANFILES += stage_libs
+STAGE_TARGETS += stage_libs
 
 STAGE_LIBS ?= ${.ALLSRC:N.dirdep}
 
@@ -161,6 +160,7 @@ STAGE_SYMLINKS.$s ?= ${.ALLSRC:N.dirdep}
 STAGE_LINKS_DIR.$s ?= ${STAGE_OBJTOP}
 STAGE_SYMLINKS_DIR.$s ?= ${STAGE_OBJTOP}
 
+STAGE_TARGETS += stage_files
 .if $s != "_default"
 stage_files:	stage_files.$s
 stage_files.$s:	.dirdep
@@ -170,6 +170,7 @@ stage_files:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s}
 	@touch $@
 
+STAGE_TARGETS += stage_links
 .if $s != "_default"
 stage_links:	stage_links.$s
 stage_links.$s:	.dirdep
@@ -179,6 +180,7 @@ stage_links:	.dirdep
 	@${STAGE_LINKS_SCRIPT}; StageLinks ${STAGE_LINKS_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_LINKS.$s}
 	@touch $@
 
+STAGE_TARGETS += stage_symlinks
 .if $s != "_default"
 stage_symlinks:	stage_symlinks.$s
 stage_symlinks.$s:	.dirdep
@@ -194,6 +196,8 @@ stage_symlinks:	.dirdep
 .if !empty(STAGE_AS_SETS)
 CLEANFILES += ${STAGE_AS_SETS:@s@stage*$s@}
 
+STAGE_TARGETS += stage_as
+
 # sometimes things need to be renamed as they are staged
 # each ${file} will be staged as ${STAGE_AS_${file:T}}
 # one could achieve the same with SYMLINKS
@@ -208,7 +212,20 @@ stage_as.$s:	.dirdep
 .endfor
 .endif
 
-# if we have to do any of these, do them in this order
-.ORDER: stage_incs stage_libs stage_files stage_as stage_links stage_symlinks
+CLEANFILES += ${STAGE_TARGETS}
+
+# stage_*links usually needs to follow any others.
+.for t in ${STAGE_TARGETS:N*links:O:u}
+.ORDER: $t stage_links
+.ORDER: $t stage_symlinks
+.endfor
+
+# make sure this exists
+staging:
+
+# generally we want staging to wait until everything else is done
+STAGING_WAIT ?= .WAIT
+
+all: ${STAGING_WAIT} staging
 
 .endif
