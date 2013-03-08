@@ -38,8 +38,6 @@
 
 /* $FreeBSD$ */
 
-/* $FreeBSD$ */
-
 
 #include "oce_if.h"
 
