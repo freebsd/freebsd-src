@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
@@ -1244,9 +1245,9 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 		bufobj_wwait(bo, 0, 0);
 		BO_UNLOCK(bo);
 		if (bo->bo_object != NULL) {
-			VM_OBJECT_LOCK(bo->bo_object);
+			VM_OBJECT_WLOCK(bo->bo_object);
 			vm_object_pip_wait(bo->bo_object, "bovlbx");
-			VM_OBJECT_UNLOCK(bo->bo_object);
+			VM_OBJECT_WUNLOCK(bo->bo_object);
 		}
 		BO_LOCK(bo);
 	} while (bo->bo_numoutput > 0);
@@ -1257,10 +1258,10 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	 */
 	if (bo->bo_object != NULL &&
 	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0) {
-		VM_OBJECT_LOCK(bo->bo_object);
+		VM_OBJECT_WLOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
 		    OBJPR_CLEANONLY : 0);
-		VM_OBJECT_UNLOCK(bo->bo_object);
+		VM_OBJECT_WUNLOCK(bo->bo_object);
 	}
 
 #ifdef INVARIANTS
@@ -2520,9 +2521,9 @@ vinactive(struct vnode *vp, struct thread *td)
 	 */
 	obj = vp->v_object;
 	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
-		VM_OBJECT_LOCK(obj);
+		VM_OBJECT_WLOCK(obj);
 		vm_object_page_clean(obj, 0, 0, OBJPC_NOSYNC);
-		VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_WUNLOCK(obj);
 	}
 	VOP_INACTIVE(vp, td);
 	VI_LOCK(vp);
@@ -2603,9 +2604,9 @@ loop:
 		 */
 		if (flags & WRITECLOSE) {
 			if (vp->v_object != NULL) {
-				VM_OBJECT_LOCK(vp->v_object);
+				VM_OBJECT_WLOCK(vp->v_object);
 				vm_object_page_clean(vp->v_object, 0, 0, 0);
-				VM_OBJECT_UNLOCK(vp->v_object);
+				VM_OBJECT_WUNLOCK(vp->v_object);
 			}
 			error = VOP_FSYNC(vp, MNT_WAIT, td);
 			if (error != 0) {
@@ -3503,11 +3504,11 @@ vfs_msync(struct mount *mp, int flags)
 
 				obj = vp->v_object;
 				if (obj != NULL) {
-					VM_OBJECT_LOCK(obj);
+					VM_OBJECT_WLOCK(obj);
 					vm_object_page_clean(obj, 0, 0,
 					    flags == MNT_WAIT ?
 					    OBJPC_SYNC : OBJPC_NOSYNC);
-					VM_OBJECT_UNLOCK(obj);
+					VM_OBJECT_WUNLOCK(obj);
 				}
 				vput(vp);
 			}

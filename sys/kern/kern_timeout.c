@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
+#include <sys/file.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -101,6 +102,11 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls_dir, CTLFLAG_RD, &avg_mpcalls_dir,
     0, "Average number of MP direct callouts made per callout_process call. "
     "Units = 1/1000");
 #endif
+
+static int ncallout;
+SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
+    "Number of entries in callwheel and size of timeout() preallocation");
+
 /*
  * TODO:
  *	allocate more timeout table slots when table overflows.
@@ -181,6 +187,7 @@ struct callout_cpu cc_cpu;
 
 static int timeout_cpu;
 
+static void	callout_cpu_init(struct callout_cpu *cc);
 static void	softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 #ifdef CALLOUT_PROFILING
 		    int *mpcalls, int *lockcalls, int *gcalls,
@@ -240,18 +247,21 @@ cc_cce_migrating(struct callout_cpu *cc, int direct)
 }
 
 /*
- * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization
- *
- *	This code is called very early in the kernel initialization sequence,
- *	and may be called more then once.
+ * Kernel low level callwheel initialization
+ * called on cpu0 during kernel startup.
  */
-caddr_t
-kern_timeout_callwheel_alloc(caddr_t v)
+static void
+callout_callwheel_init(void *dummy)
 {
 	struct callout_cpu *cc;
 
-	timeout_cpu = PCPU_GET(cpuid);
-	cc = CC_CPU(timeout_cpu);
+	/*
+	 * Calculate the size of the callout wheel and the preallocated
+	 * timeout() structures.
+	 */
+	ncallout = imin(16 + maxproc + maxfiles, 18508);
+	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
+
 	/*
 	 * Calculate callout wheel size, should be next power of two higher
 	 * than 'ncallout'.
@@ -259,13 +269,23 @@ kern_timeout_callwheel_alloc(caddr_t v)
 	callwheelsize = 1 << fls(ncallout);
 	callwheelmask = callwheelsize - 1;
 
-	cc->cc_callout = (struct callout *)v;
-	v = (caddr_t)(cc->cc_callout + ncallout);
-	cc->cc_callwheel = (struct callout_list *)v;
-	v = (caddr_t)(cc->cc_callwheel + callwheelsize);
-	return(v);
+	/*
+	 * Only cpu0 handles timeout(9) and receives a preallocation.
+	 *
+	 * XXX: Once all timeout(9) consumers are converted this can
+	 * be removed.
+	 */
+	timeout_cpu = PCPU_GET(cpuid);
+	cc = CC_CPU(timeout_cpu);
+	cc->cc_callout = malloc(ncallout * sizeof(struct callout),
+	    M_CALLOUT, M_WAITOK);
+	callout_cpu_init(cc);
 }
+SYSINIT(callwheel_init, SI_SUB_CPU, SI_ORDER_ANY, callout_callwheel_init, NULL);
 
+/*
+ * Initialize the per-cpu callout structures.
+ */
 static void
 callout_cpu_init(struct callout_cpu *cc)
 {
@@ -274,13 +294,15 @@ callout_cpu_init(struct callout_cpu *cc)
 
 	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
 	SLIST_INIT(&cc->cc_callfree);
+	cc->cc_callwheel = malloc(sizeof(struct callout_tailq) * callwheelsize,
+	    M_CALLOUT, M_WAITOK);
 	for (i = 0; i < callwheelsize; i++)
 		LIST_INIT(&cc->cc_callwheel[i]);
 	TAILQ_INIT(&cc->cc_expireq);
 	cc->cc_firstevent = INT64_MAX;
 	for (i = 0; i < 2; i++)
 		cc_cce_cleanup(cc, i);
-	if (cc->cc_callout == NULL)
+	if (cc->cc_callout == NULL)	/* Only cpu0 handles timeout(9) */
 		return;
 	for (i = 0; i < ncallout; i++) {
 		c = &cc->cc_callout[i];
@@ -321,19 +343,6 @@ callout_cpu_switch(struct callout *c, struct callout_cpu *cc, int new_cpu)
 #endif
 
 /*
- * kern_timeout_callwheel_init() - initialize previously reserved callwheel
- *				   space.
- *
- *	This code is called just once, after the space reserved for the
- *	callout wheel has been finalized.
- */
-void
-kern_timeout_callwheel_init(void)
-{
-	callout_cpu_init(CC_CPU(timeout_cpu));
-}
-
-/*
  * Start standard softclock thread.
  */
 static void
@@ -353,18 +362,14 @@ start_softclock(void *dummy)
 		if (cpu == timeout_cpu)
 			continue;
 		cc = CC_CPU(cpu);
+		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(9). */
+		callout_cpu_init(cc);
 		if (swi_add(NULL, "clock", softclock, cc, SWI_CLOCK,
 		    INTR_MPSAFE, &cc->cc_cookie))
 			panic("died while creating standard software ithreads");
-		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(). */
-		cc->cc_callwheel = malloc(
-		    sizeof(struct callout_list) * callwheelsize, M_CALLOUT,
-		    M_WAITOK);
-		callout_cpu_init(cc);
 	}
 #endif
 }
-
 SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
 
 #define	CC_HASH_SHIFT	8

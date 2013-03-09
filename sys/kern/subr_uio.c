@@ -45,9 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
@@ -106,7 +106,7 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 			   &upindex, &prot, &wired)) != KERN_SUCCESS) {
 		return(EFAULT);
 	}
-	VM_OBJECT_LOCK(uobject);
+	VM_OBJECT_WLOCK(uobject);
 	if (vm_page_insert(kern_pg, uobject, upindex) != 0) {
 		kern_pg->valid = vbits;
 		VM_OBJECT_UNLOCK(uobject);
@@ -131,7 +131,7 @@ retry:
 		if (uobject->backing_object != NULL)
 			pmap_remove(map->pmap, uaddr, uaddr + PAGE_SIZE);
 	}
-	VM_OBJECT_UNLOCK(uobject);
+	VM_OBJECT_WUNLOCK(uobject);
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
 }

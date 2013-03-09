@@ -125,8 +125,6 @@ static ssize_t ttm_mem_zone_store(struct ttm_mem_zone *zone,
 
 static void ttm_mem_global_kobj_release(struct ttm_mem_global *glob)
 {
-
-	free(glob, M_TTM_ZONE);
 }
 
 static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,

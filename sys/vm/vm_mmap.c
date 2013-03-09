@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
@@ -881,12 +882,12 @@ RestartScan:
 				m = PHYS_TO_VM_PAGE(locked_pa);
 				if (m->object != object) {
 					if (object != NULL)
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 					object = m->object;
-					locked = VM_OBJECT_TRYLOCK(object);
+					locked = VM_OBJECT_TRYWLOCK(object);
 					vm_page_unlock(m);
 					if (!locked) {
-						VM_OBJECT_LOCK(object);
+						VM_OBJECT_WLOCK(object);
 						vm_page_lock(m);
 						goto retry;
 					}
@@ -904,9 +905,9 @@ RestartScan:
 				 */
 				if (current->object.vm_object != object) {
 					if (object != NULL)
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 					object = current->object.vm_object;
-					VM_OBJECT_LOCK(object);
+					VM_OBJECT_WLOCK(object);
 				}
 				if (object->type == OBJT_DEFAULT ||
 				    object->type == OBJT_SWAP ||
@@ -948,7 +949,7 @@ RestartScan:
 					mincoreinfo |= MINCORE_REFERENCED_OTHER;
 			}
 			if (object != NULL)
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 
 			/*
 			 * subyte may page fault.  In case it needs to modify

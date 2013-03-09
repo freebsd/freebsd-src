@@ -285,7 +285,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 
 	obj = ttm->swap_storage;
 
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	vm_object_pip_add(obj, 1);
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = vm_page_grab(obj, i, VM_ALLOC_RETRY);
@@ -312,7 +312,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 		vm_page_wakeup(from_page);
 	}
 	vm_object_pip_wakeup(obj);
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP))
 		vm_object_deallocate(obj);
@@ -322,7 +322,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 
 err_ret:
 	vm_object_pip_wakeup(obj);
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 	return (ret);
 }
 
@@ -346,7 +346,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, vm_object_t persistent_swap_storage)
 	} else
 		obj = persistent_swap_storage;
 
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	vm_object_pip_add(obj, 1);
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];
@@ -359,7 +359,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, vm_object_t persistent_swap_storage)
 		vm_page_wakeup(to_page);
 	}
 	vm_object_pip_wakeup(obj);
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 
 	ttm->bdev->driver->ttm_tt_unpopulate(ttm);
 	ttm->swap_storage = obj;

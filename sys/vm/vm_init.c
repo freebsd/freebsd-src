@@ -68,8 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/selinfo.h>
@@ -159,8 +159,6 @@ vm_ksubmap_init(struct kva_md_info *kmi)
 again:
 	v = (caddr_t)firstaddr;
 
-	v = kern_timeout_callwheel_alloc(v);
-
 	/*
 	 * Discount the physical memory larger than the size of kernel_map
 	 * to avoid eating up all of KVA space.
@@ -204,10 +202,5 @@ again:
 	 * XXX: Mbuf system machine-specific initializations should
 	 *      go here, if anywhere.
 	 */
-
-	/*
-	 * Initialize the callouts we just allocated.
-	 */
-	kern_timeout_callwheel_init();
 }
 
