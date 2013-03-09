@@ -580,6 +580,7 @@ smbfs_rename(ap)
 	u_int16_t flags = 6;
 	int error=0;
 
+	scred = NULL;
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
@@ -730,7 +731,7 @@ smbfs_mkdir(ap)
 	*ap->a_vpp = vp;
 out:
 	smbfs_free_scred(scred);
-	return 0;
+	return error;
 }
 
 /*
