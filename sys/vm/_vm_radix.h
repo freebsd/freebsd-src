@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
  * All rights reserved.
@@ -27,21 +26,14 @@
  *
  */
 
-#ifndef _VM_RADIX_H_
-#define _VM_RADIX_H_
+#ifndef __VM_RADIX_H_
+#define __VM_RADIX_H_
 
-#include <vm/_vm_radix.h>
+/*
+ * Radix tree root.
+ */
+struct vm_radix {
+	uintptr_t	rt_root;
+};
 
-#ifdef _KERNEL
-
-void		vm_radix_init(void);
-void		vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index,
-		    vm_page_t page);
-vm_page_t	vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index);
-void		vm_radix_reclaim_allnodes(struct vm_radix *rtree);
-void		vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index);
-
-#endif /* _KERNEL */
-#endif /* !_VM_RADIX_H_ */
+#endif /* !__VM_RADIX_H_ */

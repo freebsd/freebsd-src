@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
  * All rights reserved.
@@ -26,184 +27,103 @@
  *
  */
 
-
 /*
- * Radix tree implementation.
+ * Path-compressed radix trie implementation.
+ * The following code is not generalized into a general purpose library
+ * because there are way too many parameters embedded that should really
+ * be decided by the library consumers.  At the same time, consumers
+ * of this code must achieve highest possible performance.
+ *
+ * The implementation takes into account the following rationale:
+ * - Size of the nodes should be as small as possible.
+ * - There is no bias toward lookup operations over inserts or removes,
+ *   and vice-versa.
+ * - On average not many nodes are expected to be full, hence level
+ *   compression may just complicate things.
  */
 
 #include <sys/cdefs.h>
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/queue.h>
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/ktr.h>
+#include <sys/vmmeter.h>
+
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
-#ifndef UMA_MD_SMALL_ALLOC
-#include <vm/vm_map.h>
-#endif
 #include <vm/vm_radix.h>
-#include <vm/vm_object.h>
 
-#include <sys/kdb.h>
-
-#ifndef UMA_MD_SMALL_ALLOC
-#define	VM_RADIX_RNODE_MAP_SCALE	(1024 * 1024 / 2)
-#define	VM_RADIX_WIDTH	4
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 /*
- * Bits of height in root.
- * The mask of smaller power of 2 containing VM_RADIX_LIMIT.
+ * These widths should allow the pointers to a node's children to fit within
+ * a single cache line.  The extra levels from a narrow width should not be
+ * a problem thanks to path compression.
  */
-#define	VM_RADIX_HEIGHT	0x1f
+#ifdef __LP64__
+#define	VM_RADIX_WIDTH	4
 #else
-#define	VM_RADIX_WIDTH	5
-
-/* See the comment above. */
-#define	VM_RADIX_HEIGHT	0xf
+#define	VM_RADIX_WIDTH	3
 #endif
 
 #define	VM_RADIX_COUNT	(1 << VM_RADIX_WIDTH)
 #define	VM_RADIX_MASK	(VM_RADIX_COUNT - 1)
-#define	VM_RADIX_MAXVAL	((vm_pindex_t)-1)
-#define	VM_RADIX_LIMIT	howmany((sizeof(vm_pindex_t) * NBBY), VM_RADIX_WIDTH)
+#define	VM_RADIX_LIMIT							\
+	(howmany((sizeof(vm_pindex_t) * NBBY), VM_RADIX_WIDTH) - 1)
 
 /* Flag bits stored in node pointers. */
-#define VM_RADIX_FLAGS	0x3
+#define	VM_RADIX_ISLEAF	0x1
+#define	VM_RADIX_FLAGS	0x1
+#define	VM_RADIX_PAD	VM_RADIX_FLAGS
 
-/* Calculates maximum value for a tree of height h. */
-#define	VM_RADIX_MAX(h)							\
-	    ((h) == VM_RADIX_LIMIT ? VM_RADIX_MAXVAL :			\
-	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
-
-/*
- * On 32-bits architectures KTR cannot handle 64-bits values.
- * Add macros for splitting in 32-bits quantity and provide format strings.
- * Note that braces are not used because they would break compilation.
- * Also, note that arguments are cast to u_long in order to follow KTR
- * convention.
- */
-#ifdef KTR
-#define	KFRMT64(x)	__STRING(x)"l 0x%08lx, "__STRING(x)"h 0x%08lx"
-#define	KSPLT64L(x)	((u_long)((x) & 0xFFFFFFFF))
-#define	KSPLT64H(x)	((u_long)(((x) >> 32) & 0xFFFFFFFF))
-#endif
+/* Returns one unit associated with specified level. */
+#define	VM_RADIX_UNITLEVEL(lev)						\
+	((vm_pindex_t)1 << ((VM_RADIX_LIMIT - (lev)) * VM_RADIX_WIDTH))
 
 struct vm_radix_node {
 	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
-	volatile uint32_t rn_count;			/* Valid children. */
+	vm_pindex_t	 rn_owner;			/* Owner of record. */
+	uint16_t	 rn_count;			/* Valid children. */
+	uint16_t	 rn_clev;			/* Current level. */
 };
-
-CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
-CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
 
 static uma_zone_t vm_radix_node_zone;
 
-#ifndef UMA_MD_SMALL_ALLOC
-static vm_map_t rnode_map;
-static u_long rnode_map_scale;
-
-static void *
-vm_radix_node_zone_allocf(uma_zone_t zone, int size, uint8_t *flags, int wait)
-{
-	vm_offset_t addr;
-	vm_page_t m;
-	int pflags;
-
-	/* Inform UMA that this allocator uses rnode_map. */
-	*flags = UMA_SLAB_KERNEL;
-
-	pflags = VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
-
-	/*
-	 * As kmem_alloc_nofault() can however fail, let just assume that
-	 * M_NOWAIT is on and act accordingly.
-	 */
-	pflags |= ((wait & M_USE_RESERVE) != 0) ? VM_ALLOC_INTERRUPT :
-	    VM_ALLOC_SYSTEM;
-	if ((wait & M_ZERO) != 0)
-		pflags |= VM_ALLOC_ZERO; 
-	addr = kmem_alloc_nofault(rnode_map, size);
-	if (addr == 0)
-		return (NULL);
-
-	/* Just one page allocation is assumed here. */
-	m = vm_page_alloc(NULL, OFF_TO_IDX(addr - VM_MIN_KERNEL_ADDRESS),
-	    pflags);
-	if (m == NULL) {
-		kmem_free(rnode_map, addr, size);
-		return (NULL);
-	}
-	if ((wait & M_ZERO) != 0 && (m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
-	pmap_qenter(addr, &m, 1);
-	return ((void *)addr);
-}
-
-static void
-vm_radix_node_zone_freef(void *item, int size, uint8_t flags)
-{
-	vm_page_t m;
-	vm_offset_t voitem;
-
-	MPASS((flags & UMA_SLAB_KERNEL) != 0);
-
-	/* Just one page allocation is assumed here. */
-	voitem = (vm_offset_t)item;
-	m = PHYS_TO_VM_PAGE(pmap_kextract(voitem));
-	pmap_qremove(voitem, 1);
-	vm_page_lock(m);
-	vm_page_unwire(m, 0);
-	vm_page_free(m);
-	vm_page_unlock(m);
-	kmem_free(rnode_map, voitem, size);
-}
-
-static void
-init_vm_radix_alloc(void *dummy __unused)
-{
-
-	uma_zone_set_max(vm_radix_node_zone, rnode_map_scale);
-	uma_zone_set_allocf(vm_radix_node_zone, vm_radix_node_zone_allocf);
-	uma_zone_set_freef(vm_radix_node_zone, vm_radix_node_zone_freef);
-}
-SYSINIT(vm_radix, SI_SUB_KMEM, SI_ORDER_SECOND, init_vm_radix_alloc, NULL);
-#endif
-
 /*
- * Radix node zone destructor.
+ * Allocate a radix node.  Pre-allocation should ensure that the request
+ * will always be satisfied.
  */
-#ifdef INVARIANTS
-static void
-vm_radix_node_zone_dtor(void *mem, int size, void *arg)
+static __inline struct vm_radix_node *
+vm_radix_node_get(vm_pindex_t owner, uint16_t count, uint16_t clevel)
 {
 	struct vm_radix_node *rnode;
 
-	rnode = mem;
-	KASSERT(rnode->rn_count == 0,
-	    ("vm_radix_node_put: Freeing a node with %d children\n",
-	    rnode->rn_count));
-}
-#endif
+	rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO);
 
-/*
- * Allocate a radix node.  Initializes all elements to 0.
- */
-static __inline struct vm_radix_node *
-vm_radix_node_get(void)
-{
-
-	return (uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO));
+	/*
+	 * The required number of nodes should already be pre-allocated
+	 * by vm_radix_prealloc().  However, UMA can hold a few nodes
+	 * in per-CPU buckets, which will not be accessible by the
+	 * current CPU.  Thus, the allocation could return NULL when
+	 * the pre-allocated pool is close to exhaustion.  Anyway,
+	 * in practice this should never occur because a new node
+	 * is not always required for insert.  Thus, the pre-allocated
+	 * pool should have some extra pages that prevent this from
+	 * becoming a problem.
+	 */
+	if (rnode == NULL)
+		panic("%s: uma_zalloc() returned NULL for a new node",
+		    __func__);
+	rnode->rn_owner = owner;
+	rnode->rn_count = count;
+	rnode->rn_clev = clevel;
+	return (rnode);
 }
 
 /*
@@ -220,37 +140,217 @@ vm_radix_node_put(struct vm_radix_node *rnode)
  * Return the position in the array for a given level.
  */
 static __inline int
-vm_radix_slot(vm_pindex_t index, int level)
+vm_radix_slot(vm_pindex_t index, uint16_t level)
 {
 
-	return ((index >> (level * VM_RADIX_WIDTH)) & VM_RADIX_MASK);
+	return ((index >> ((VM_RADIX_LIMIT - level) * VM_RADIX_WIDTH)) &
+	    VM_RADIX_MASK);
+}
+
+/* Trims the key after the specified level. */
+static __inline vm_pindex_t
+vm_radix_trimkey(vm_pindex_t index, uint16_t level)
+{
+	vm_pindex_t ret;
+
+	ret = index;
+	if (level < VM_RADIX_LIMIT) {
+		ret >>= (VM_RADIX_LIMIT - level) * VM_RADIX_WIDTH;
+		ret <<= (VM_RADIX_LIMIT - level) * VM_RADIX_WIDTH;
+	}
+	return (ret);
 }
 
 /*
- * Initialize the radix node submap (for architectures not supporting
- * direct-mapping) and the radix node zone.
- *
- * WITNESS reports a lock order reversal, for architectures not
- * supporting direct-mapping,  between the "system map" lock
- * and the "vm object" lock.  This is because the well established ordering
- * "system map" -> "vm object" is not honoured in this case as allocating
- * from the radix node submap ends up adding a mapping entry to it, meaning
- * it is necessary to lock the submap.  However, the radix node submap is
- * a leaf and self-contained, thus a deadlock cannot happen here and
- * adding MTX_NOWITNESS to all map locks would be largerly sub-optimal.
+ * Get the root node for a radix tree.
+ */
+static __inline struct vm_radix_node *
+vm_radix_getroot(struct vm_radix *rtree)
+{
+
+	return ((struct vm_radix_node *)(rtree->rt_root & ~VM_RADIX_FLAGS));
+}
+
+/*
+ * Set the root node for a radix tree.
+ */
+static __inline void
+vm_radix_setroot(struct vm_radix *rtree, struct vm_radix_node *rnode)
+{
+
+	rtree->rt_root = (uintptr_t)rnode;
+}
+
+/*
+ * Returns the associated page extracted from rnode if available,
+ * and NULL otherwise.
+ */
+static __inline vm_page_t
+vm_radix_node_page(struct vm_radix_node *rnode)
+{
+
+	return ((((uintptr_t)rnode & VM_RADIX_ISLEAF) != 0) ?
+	    (vm_page_t)((uintptr_t)rnode & ~VM_RADIX_FLAGS) : NULL);
+}
+
+/*
+ * Adds the page as a child of the provided node.
+ */
+static __inline void
+vm_radix_addpage(struct vm_radix_node *rnode, vm_pindex_t index, uint16_t clev,
+    vm_page_t page)
+{
+	int slot;
+
+	slot = vm_radix_slot(index, clev);
+	rnode->rn_child[slot] = (void *)((uintptr_t)page | VM_RADIX_ISLEAF);
+}
+
+/*
+ * Returns the slot where two keys differ.
+ * It cannot accept 2 equal keys.
+ */
+static __inline uint16_t
+vm_radix_keydiff(vm_pindex_t index1, vm_pindex_t index2)
+{
+	uint16_t clev;
+
+	KASSERT(index1 != index2, ("%s: passing the same key value %jx",
+	    __func__, (uintmax_t)index1));
+
+	index1 ^= index2;
+	for (clev = 0; clev <= VM_RADIX_LIMIT ; clev++)
+		if (vm_radix_slot(index1, clev))
+			return (clev);
+	panic("%s: cannot reach this point", __func__);
+	return (0);
+}
+
+/*
+ * Returns TRUE if it can be determined that key does not belong to the
+ * specified rnode.  Otherwise, returns FALSE.
+ */
+static __inline boolean_t
+vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
+{
+
+	if (rnode->rn_clev > 0) {
+		idx = vm_radix_trimkey(idx, rnode->rn_clev - 1);
+		idx -= rnode->rn_owner;
+		if (idx != 0)
+			return (TRUE);
+	}
+	return (FALSE);
+}
+
+/*
+ * Adjusts the idx key to the first upper level available, based on a valid
+ * initial level and map of available levels.
+ * Returns a value bigger than 0 to signal that there are not valid levels
+ * available.
+ */
+static __inline int
+vm_radix_addlev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
+{
+	vm_pindex_t wrapidx;
+
+	for (; levels[ilev] == FALSE ||
+	    vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1); ilev--)
+		if (ilev == 0)
+			break;
+	KASSERT(ilev > 0 || levels[0],
+	    ("%s: levels back-scanning problem", __func__));
+	if (ilev == 0 && vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1))
+		return (1);
+	wrapidx = *idx;
+	*idx = vm_radix_trimkey(*idx, ilev);
+	*idx += VM_RADIX_UNITLEVEL(ilev);
+	return (*idx < wrapidx);
+}
+
+/*
+ * Adjusts the idx key to the first lower level available, based on a valid
+ * initial level and map of available levels.
+ * Returns a value bigger than 0 to signal that there are not valid levels
+ * available.
+ */
+static __inline int
+vm_radix_declev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
+{
+	vm_pindex_t wrapidx;
+
+	for (; levels[ilev] == FALSE ||
+	    vm_radix_slot(*idx, ilev) == 0; ilev--)
+		if (ilev == 0)
+			break;
+	KASSERT(ilev > 0 || levels[0],
+	    ("%s: levels back-scanning problem", __func__));
+	if (ilev == 0 && vm_radix_slot(*idx, ilev) == 0)
+		return (1);
+	wrapidx = *idx;
+	*idx = vm_radix_trimkey(*idx, ilev);
+	*idx |= VM_RADIX_UNITLEVEL(ilev) - 1;
+	*idx -= VM_RADIX_UNITLEVEL(ilev);
+	return (*idx > wrapidx);
+}
+
+/*
+ * Internal helper for vm_radix_reclaim_allnodes().
+ * This function is recursive.
+ */
+static void
+vm_radix_reclaim_allnodes_int(struct vm_radix_node *rnode)
+{
+	int slot;
+
+	for (slot = 0; slot < VM_RADIX_COUNT && rnode->rn_count != 0; slot++) {
+		if (rnode->rn_child[slot] == NULL)
+			continue;
+		if (vm_radix_node_page(rnode->rn_child[slot]) == NULL)
+			vm_radix_reclaim_allnodes_int(rnode->rn_child[slot]);
+		rnode->rn_count--;
+	}
+	vm_radix_node_put(rnode);
+}
+
+#ifdef INVARIANTS
+/*
+ * Radix node zone destructor.
+ */
+static void
+vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
+{
+	struct vm_radix_node *rnode;
+
+	rnode = mem;
+	KASSERT(rnode->rn_count == 0,
+	    ("vm_radix_node_put: Freeing node %p with %d children\n", mem,
+	    rnode->rn_count));
+}
+#endif
+
+/*
+ * Pre-allocate intermediate nodes from the UMA slab zone.
+ */
+static void
+vm_radix_prealloc(void *arg __unused)
+{
+
+	if (!uma_zone_reserve_kva(vm_radix_node_zone, cnt.v_page_count))
+		panic("%s: unable to create new zone", __func__);
+	uma_prealloc(vm_radix_node_zone, cnt.v_page_count);
+}
+SYSINIT(vm_radix_prealloc, SI_SUB_KMEM, SI_ORDER_SECOND, vm_radix_prealloc,
+    NULL);
+
+/*
+ * Initialize the UMA slab zone.
+ * Until vm_radix_prealloc() is called, the zone will be served by the
+ * UMA boot-time pre-allocated pool of pages.
  */
 void
 vm_radix_init(void)
 {
-#ifndef UMA_MD_SMALL_ALLOC
-	vm_offset_t maxaddr, minaddr;
-
-	rnode_map_scale = VM_RADIX_RNODE_MAP_SCALE;
-	TUNABLE_ULONG_FETCH("hw.rnode_map_scale", &rnode_map_scale);
-	rnode_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-	    rnode_map_scale * sizeof(struct vm_radix_node), FALSE);
-	rnode_map->system_map = 1;
-#endif
 
 	vm_radix_node_zone = uma_zcreate("RADIX NODE",
 	    sizeof(struct vm_radix_node), NULL,
@@ -259,698 +359,391 @@ vm_radix_init(void)
 #else
 	    NULL,
 #endif
-	    NULL, NULL, VM_RADIX_HEIGHT, UMA_ZONE_VM);
+	    NULL, NULL, VM_RADIX_PAD, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 }
 
 /*
- * Extract the root node and height from a radix tree with a single load.
- */
-static __inline int
-vm_radix_height(struct vm_radix *rtree, struct vm_radix_node **rnode)
-{
-	uintptr_t root;
-	int height;
-
-	root = rtree->rt_root;
-	height = root & VM_RADIX_HEIGHT;
-	*rnode = (struct vm_radix_node *)(root - height);
-	return (height);
-}
-
-
-/*
- * Set the root node and height for a radix tree.
- */
-static inline void
-vm_radix_setroot(struct vm_radix *rtree, struct vm_radix_node *rnode,
-    int height)
-{
-	uintptr_t root;
-
-	root = (uintptr_t)rnode | height;
-	rtree->rt_root = root;
-}
-
-static inline void
-vm_radix_unwind_heightup(struct vm_radix *rtree, struct vm_radix_node *root,
-    struct vm_radix_node *iroot, int ilevel)
-{
-	struct vm_radix_node *rnode;
-
-	CTR4(KTR_VM, "unwind: tree %p, root %p, iroot %p, ilevel %d",
-	    rtree, root, iroot, ilevel);
-	while (iroot != root && root != NULL) {
-		rnode = root;
-		MPASS(rnode->rn_count == 0 || rnode->rn_count == 1);
-		rnode->rn_count = 0;
-		root = rnode->rn_child[0];
-		vm_radix_node_put(rnode);
-	}
-	vm_radix_setroot(rtree, iroot, ilevel);
-}
-
-static inline void *
-vm_radix_match(void *child, int color)
-{
-	uintptr_t c;
-
-	c = (uintptr_t)child;
-
-	if ((c & color) == 0)
-		return (NULL);
-	return ((void *)(c & ~VM_RADIX_FLAGS));
-}
-
-static void
-vm_radix_reclaim_allnodes_internal(struct vm_radix_node *rnode, int level)
-{
-	int slot;
-
-	MPASS(rnode != NULL && level >= 0);
-
-	/*
-	 * Level 0 just contains pages as children, thus make it a special
-	 * case, free the node and return.
-	 */
-	if (level == 0) {
-		CTR2(KTR_VM, "reclaiming: node %p, level %d", rnode, level);
-		rnode->rn_count = 0;
-		vm_radix_node_put(rnode);
-		return;
-	}
-	for (slot = 0; slot < VM_RADIX_COUNT && rnode->rn_count != 0; slot++) {
-		if (rnode->rn_child[slot] == NULL)
-			continue;
-		CTR3(KTR_VM,
-		    "reclaiming: node %p, level %d recursing in slot %d",
-		    rnode, level, slot);
-		vm_radix_reclaim_allnodes_internal(rnode->rn_child[slot],
-		    level - 1);
-		rnode->rn_count--;
-	}
-	MPASS(rnode->rn_count == 0);
-	CTR2(KTR_VM, "reclaiming: node %p, level %d", rnode, level);
-	vm_radix_node_put(rnode);
-}
-
-/*
- * Remove the specified index from the tree.  If possible the height of the
- * tree is adjusted after deletion. May be used to cleanup intermediate
- * nodes of the path if the key is not entirely present.
- */
-static void
-vm_radix_sweep(struct vm_radix *rtree, vm_pindex_t index, int color, int hard)
-{
-	struct vm_radix_node *stack[VM_RADIX_LIMIT];
-	struct vm_radix_node *rnode, *root;
-	int level;
-	int slot;
-
-	level = vm_radix_height(rtree, &root);
-	KASSERT(index <= VM_RADIX_MAX(level),
-	    ("vm_radix_sweep: %p index out of range %jd.", rtree,
-	    VM_RADIX_MAX(level)));
-	rnode = root;
-	level--;
-	/*
-	 * Find the node and record the path in stack.
-	 */
-	while (level && rnode) {
-		stack[level] = rnode;
-		slot = vm_radix_slot(index, level);
-		CTR6(KTR_VM,
-	    "remove: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR4(KTR_VM, "remove: tree %p, rnode %p, child %p, count %u",
-		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
-		rnode = rnode->rn_child[slot];
-		level--;
-	}
-	if (rnode == NULL) {
-		if (hard)
-			panic("vm_radix_sweep: index not present.\n");
-
-		/*
-		 * Almost certainly it got an half-constructed tree it was
-		 * expected.
-		 */
-		KASSERT(level < (VM_RADIX_LIMIT - 1),
-		    ("vm_radix_sweep: level %d not consistent.\n", level));
-		++level;
-		rnode = stack[level];
-		slot = vm_radix_slot(index, level);
-	} else {
-		slot = vm_radix_slot(index, 0);
-		if (hard &&
-		    vm_radix_match(rnode->rn_child[slot], color) == NULL)
-			panic("vm_radix_sweep: index not present as leaf.\n");
-	}
-
-	for (;;) {
-		CTR6(KTR_VM,
-"remove: resetting tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR4(KTR_VM,
-		    "remove: resetting tree %p, rnode %p, child %p, count %u",
-		    rtree, rnode,
-		    (rnode != NULL) ? rnode->rn_child[slot] : NULL,
-		    (rnode != NULL) ? rnode->rn_count : 0);
-		rnode->rn_child[slot] = NULL;
-		/*
-		 * Use atomics for the last level since red and black
-		 * will both adjust it.
-		 * Use a write memory barrier here in order to avoid
-		 * rn_count reaching 0 before to fetch the actual pointer.
-		 * Concurrent black removal, infact, may want to reclaim
-		 * the radix node itself before to read it.
-		 */
-		MPASS(rnode->rn_count != 0);
-		if (level == 0)
-			atomic_add_rel_32(&rnode->rn_count, -1);
-		else
-			rnode->rn_count--;
-
-		/*
-		 * Only allow black removes to prune the tree.
-		 */
-		if ((color & VM_RADIX_BLACK) == 0 || rnode->rn_count > 0)
-			break;
-		vm_radix_node_put(rnode);
-		if (rnode == root) {
-			vm_radix_setroot(rtree, NULL, 0);
-			break;
-		}
-		rnode = stack[++level];
-		slot = vm_radix_slot(index, level);
-			
-	}
-}
-
-/*
- * Inserts the key-value pair in to the radix tree.  Returns errno.
+ * Inserts the key-value pair into the trie.
  * Panics if the key already exists.
  */
-int
-vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
+void
+vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, vm_page_t page)
 {
-	struct vm_radix_node *iroot, *rnode, *root;
-	int ilevel, level, slot;
+	vm_pindex_t newind;
+	struct vm_radix_node *rnode, *tmp, *tmp2;
+	vm_page_t m;
+	int slot;
+	uint16_t clev;
 
-	CTR4(KTR_VM,
-	    "insert: tree %p, " KFRMT64(index) ", val %p", rtree,
-	    KSPLT64L(index), KSPLT64H(index), val);
-	if (index == -1)
-		panic("vm_radix_insert: -1 is not a valid index.\n");
-	level = vm_radix_height(rtree, &root);
 	/*
-	 * Increase the height by adding nodes at the root until
-	 * there is sufficient space.
+	 * The owner of record for root is not really important because it
+	 * will never be used.
 	 */
-	ilevel = level;
-	iroot = root;
-	while (level == 0 || index > VM_RADIX_MAX(level)) {
-		CTR5(KTR_VM,
-	    "insert: expanding " KFRMT64(index) ">" KFRMT64(mxl) ", height %d",
-		    KSPLT64L(index), KSPLT64H(index),
-		    KSPLT64L(VM_RADIX_MAX(level)),
-		    KSPLT64H(VM_RADIX_MAX(level)), level);
-		level++;
-		KASSERT(level <= VM_RADIX_LIMIT,
-		    ("vm_radix_insert: Tree %p height %d too tall",
-		    rtree, level));
-		/*
-		 * Only allocate tree nodes if they are needed.
-		 */
-		if (root == NULL || root->rn_count != 0) {
-			rnode = vm_radix_node_get();
-			if (rnode == NULL) {
-				CTR5(KTR_VM,
-	    "insert: tree %p, root %p, " KFRMT64(index) ", level %d ENOMEM",
-				    rtree, root, KSPLT64L(index),
-				    KSPLT64H(index), level);
-				vm_radix_unwind_heightup(rtree, root, iroot,
-				    ilevel);
-				return (ENOMEM);
-			}
-			/*
-			 * Store the new pointer with a memory barrier so
-			 * that it is visible before the new root.
-			 */
-			if (root) {
-				atomic_store_rel_ptr((volatile uintptr_t *)
-				    &rnode->rn_child[0], (uintptr_t)root);
-				rnode->rn_count = 1;
-			}
-			root = rnode;
-		}
-		vm_radix_setroot(rtree, root, level);
+	rnode = vm_radix_getroot(rtree);
+	if (rnode == NULL) {
+		rnode = vm_radix_node_get(0, 1, 0);
+		vm_radix_setroot(rtree, rnode);
+		vm_radix_addpage(rnode, index, 0, page);
+		return;
 	}
-
-	/* Now that the tree is tall enough, fill in the path to the index. */
-	rnode = root;
-	for (level = level - 1; level > 0; level--) {
-		slot = vm_radix_slot(index, level);
-		/* Add the required intermidiate nodes. */
+	while (rnode != NULL) {
+		if (vm_radix_keybarr(rnode, index))
+			break;
+		slot = vm_radix_slot(index, rnode->rn_clev);
+		m = vm_radix_node_page(rnode->rn_child[slot]);
+		if (m != NULL) {
+			if (m->pindex == index)
+				panic("%s: key %jx is already present",
+				    __func__, (uintmax_t)index);
+			clev = vm_radix_keydiff(m->pindex, index);
+			tmp = vm_radix_node_get(vm_radix_trimkey(index,
+			    clev - 1), 2, clev);
+			rnode->rn_child[slot] = tmp;
+			vm_radix_addpage(tmp, index, clev, page);
+			vm_radix_addpage(tmp, m->pindex, clev, m);
+			return;
+		}
 		if (rnode->rn_child[slot] == NULL) {
-
-			/*
-			 * In case of failed allocation, the vm_radix_sweep()
-			 * will unwind back rn_count appropriately.
-			 */
 			rnode->rn_count++;
-			rnode->rn_child[slot] = vm_radix_node_get();
-    			if (rnode->rn_child[slot] == NULL) {
-				CTR6(KTR_VM,
-    "insert: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p ENOMEM",
-				     rtree, KSPLT64L(index), KSPLT64H(index),
-				    level, slot, rnode);
-				CTR4(KTR_VM,
-			"insert: tree %p, rnode %p, child %p, count %u ENOMEM",
-		    		    rtree, rnode, rnode->rn_child[slot],
-				    rnode->rn_count);
-				vm_radix_sweep(rtree, index, VM_RADIX_BLACK, 0);
-
-				/*
-				 * vm_radix_sweep() may have changed the shape
-				 * of the tree, refetch the root.
-				 */
-				vm_radix_height(rtree, &root);
-				vm_radix_unwind_heightup(rtree, root, iroot,
-				    ilevel);
-		    		return (ENOMEM);
-			}
-	    	}
-		CTR6(KTR_VM,
-	    "insert: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR4(KTR_VM,
-		    "insert: tree %p, rnode %p, child %p, count %u",
-		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
+			vm_radix_addpage(rnode, index, rnode->rn_clev, page);
+			return;
+		}
 		rnode = rnode->rn_child[slot];
 	}
+	if (rnode == NULL)
+		panic("%s: path traversal ended unexpectedly", __func__);
 
-	slot = vm_radix_slot(index, 0);
-	MPASS(rnode != NULL);
-	KASSERT(rnode->rn_child[slot] == NULL,
-	    ("vm_radix_insert: Duplicate value %p at index: %lu\n", 
-	    rnode->rn_child[slot], (u_long)index));
-	val = (void *)((uintptr_t)val | VM_RADIX_BLACK);
-	rnode->rn_child[slot] = val;
-	atomic_add_32(&rnode->rn_count, 1);
-	CTR5(KTR_VM,
-	    "insert: tree %p, " KFRMT64(index) ", level %d, slot %d",
-	    rtree, KSPLT64L(index), KSPLT64H(index), level, slot);
-	CTR3(KTR_VM, "insert: slot %d, rnode %p, count %u", slot, rnode,
-	    rnode->rn_count);
+	/*
+	 * Scan the trie from the top and find the parent to insert
+	 * the new object.
+	 */
+	newind = rnode->rn_owner;
+	clev = vm_radix_keydiff(newind, index);
+	slot = VM_RADIX_COUNT;
+	for (rnode = vm_radix_getroot(rtree); ; rnode = tmp) {
+		KASSERT(rnode != NULL, ("%s: edge cannot be NULL in the scan",
+		    __func__));
+		KASSERT(clev >= rnode->rn_clev,
+		    ("%s: unexpected trie depth: clev: %d, rnode->rn_clev: %d",
+		    __func__, clev, rnode->rn_clev));
+		slot = vm_radix_slot(index, rnode->rn_clev);
+		tmp = rnode->rn_child[slot];
+		KASSERT(tmp != NULL && vm_radix_node_page(tmp) == NULL,
+		    ("%s: unexpected lookup interruption", __func__));
+		if (tmp->rn_clev > clev)
+			break;
+	}
+	KASSERT(rnode != NULL && tmp != NULL && slot < VM_RADIX_COUNT,
+	    ("%s: invalid scan parameters rnode: %p, tmp: %p, slot: %d",
+	    __func__, (void *)rnode, (void *)tmp, slot));
 
-	return 0;
+	/*
+	 * A new node is needed because the right insertion level is reached.
+	 * Setup the new intermediate node and add the 2 children: the
+	 * new object and the older edge.
+	 */
+	tmp2 = vm_radix_node_get(vm_radix_trimkey(page->pindex, clev - 1), 2,
+	    clev);
+	rnode->rn_child[slot] = tmp2;
+	vm_radix_addpage(tmp2, index, clev, page);
+	slot = vm_radix_slot(newind, clev);
+	tmp2->rn_child[slot] = tmp;
 }
 
 /*
- * Returns the value stored at the index.  If the index is not present
+ * Returns the value stored at the index.  If the index is not present,
  * NULL is returned.
  */
-void *
-vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index, int color)
+vm_page_t
+vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *rnode;
+	vm_page_t m;
 	int slot;
-	int level;
 
-	level = vm_radix_height(rtree, &rnode);
-	if (index > VM_RADIX_MAX(level))
-		return NULL;
-	level--;
-	while (rnode) {
-		slot = vm_radix_slot(index, level);
-		CTR6(KTR_VM,
-	    "lookup: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR2(KTR_VM, "lookup: rnode %p, child %p", rnode,
-		    rnode->rn_child[slot]);
-		if (level == 0)
-			return vm_radix_match(rnode->rn_child[slot], color);
+	rnode = vm_radix_getroot(rtree);
+	while (rnode != NULL) {
+		if (vm_radix_keybarr(rnode, index))
+			return (NULL);
+		slot = vm_radix_slot(index, rnode->rn_clev);
 		rnode = rnode->rn_child[slot];
-		level--;
-	}
-	CTR3(KTR_VM, "lookup: tree %p, " KFRMT64(index) " failed", rtree,
-	     KSPLT64L(index), KSPLT64H(index));
-
-	return NULL;
-}
-
-void *
-vm_radix_color(struct vm_radix *rtree, vm_pindex_t index, int color)
-{
-	struct vm_radix_node *rnode;
-	uintptr_t child;
-	int slot;
-	int level;
-
-	level = vm_radix_height(rtree, &rnode);
-	if (index > VM_RADIX_MAX(level))
-		return NULL;
-	level--;
-	while (rnode) {
-		slot = vm_radix_slot(index, level);
-		CTR6(KTR_VM,
-	    "color: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR2(KTR_VM, "color: rnode %p, child %p", rnode,
-		    rnode->rn_child[slot]);
-		if (level == 0)
-			break;
-		rnode = rnode->rn_child[slot];
-		level--;
-	}
-	if (rnode == NULL || rnode->rn_child[slot] == NULL)
-		return (NULL);
-	child = (uintptr_t)rnode->rn_child[slot];
-	child &= ~VM_RADIX_FLAGS;
-	rnode->rn_child[slot] = (void *)(child | color);
-
-	return (void *)child;
-}
-
-/*
- * Find the first leaf with a valid node between *startp and end.  Return
- * the index of the first valid item in the leaf in *startp.
- */
-static struct vm_radix_node *
-vm_radix_leaf(struct vm_radix *rtree, vm_pindex_t *startp, vm_pindex_t end)
-{
-	struct vm_radix_node *rnode;
-	vm_pindex_t start;
-	vm_pindex_t inc;
-	int slot;
-	int level;
-
-	start = *startp;
-restart:
-	level = vm_radix_height(rtree, &rnode);
-	if (start > VM_RADIX_MAX(level) || (end && start >= end)) {
-		rnode = NULL;
-		goto out;
-	}
-	/*
-	 * Search the tree from the top for any leaf node holding an index
-	 * between start and end.
-	 */
-	for (level--; level; level--) {
-		slot = vm_radix_slot(start, level);
-		CTR6(KTR_VM,
-	    "leaf: tree %p, " KFRMT64(start) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(start), KSPLT64H(start), level, slot,
-		    rnode);
-		CTR2(KTR_VM, "leaf: rnode %p, child %p", rnode,
-		    rnode->rn_child[slot]);
-		if (rnode->rn_child[slot] != NULL) {
-			rnode = rnode->rn_child[slot];
-			continue;
-		}
-		/*
-		 * Calculate how much to increment our index by
-		 * based on the tree level.  We must truncate the
-		 * lower bits to start from the begnning of the
-		 * next leaf.
-	 	 */
-		inc = 1LL << (level * VM_RADIX_WIDTH);
-		start &= ~VM_RADIX_MAX(level);
-
-		/* Avoid start address wrapping up. */
-		if ((VM_RADIX_MAXVAL - start) < inc) {
-			rnode = NULL;
-			goto out;
-		}
-		start += inc;
-		slot++;
-		CTR6(KTR_VM,
-		    "leaf: " KFRMT64(start) ", " KFRMT64(end) ", " KFRMT64(inc),
-		    KSPLT64L(start), KSPLT64H(start), KSPLT64L(end),
-		    KSPLT64H(end), KSPLT64L(inc), KSPLT64H(inc));
-		CTR2(KTR_VM, "leaf: level %d, slot %d", level, slot);
-		for (; slot < VM_RADIX_COUNT; slot++, start += inc) {
-			if (end != 0 && start >= end) {
-				rnode = NULL;
-				goto out;
-			}
-			if (rnode->rn_child[slot]) {
-				rnode = rnode->rn_child[slot];
-				break;
-			}
-			if ((VM_RADIX_MAXVAL - start) < inc) {
-				rnode = NULL;
-				goto out;
-			}
-		}
-		if (slot == VM_RADIX_COUNT)
-			goto restart;
-	}
-
-out:
-	*startp = start;
-	return (rnode);
-}
-
-    
-
-/*
- * Looks up as many as cnt values between start and end, and stores
- * them in the caller allocated array out.  The next index can be used
- * to restart the scan.  This optimizes forward scans in the tree.
- */
-int
-vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
-    vm_pindex_t end, int color, void **out, int cnt, vm_pindex_t *next,
-    u_int *exhausted)
-{
-	struct vm_radix_node *rnode;
-	void *val;
-	int slot;
-	int outidx;
-
-	CTR5(KTR_VM, "lookupn: tree %p, " KFRMT64(start) ", " KFRMT64(end),
-	    rtree, KSPLT64L(start), KSPLT64H(start), KSPLT64L(end),
-	    KSPLT64H(end));
-	if (end == 0)
-		*exhausted = 0;
-	if (rtree->rt_root == 0)
-		return (0);
-	outidx = 0;
-	while ((rnode = vm_radix_leaf(rtree, &start, end)) != NULL) {
-		slot = vm_radix_slot(start, 0);
-		for (; slot < VM_RADIX_COUNT; slot++, start++) {
-			if (end != 0 && start >= end)
-				goto out;
-			val = vm_radix_match(rnode->rn_child[slot], color);
-			if (val == NULL) {
-
-				/*
-				 * The start address can wrap at the
-				 * VM_RADIX_MAXVAL value.
-				 * We need to make sure that start address
-				 * point to the next chunk (even if wrapping)
-				 * to stay consistent with default scanning
-				 * behaviour. Also, because of the nature
-				 * of the wrapping, the wrap up checks must
-				 * be done after all the necessary controls
-				 * on start are completed.
-				 */
-				if ((VM_RADIX_MAXVAL - start) == 0) {
-					start++;
-					if (end == 0)
-						*exhausted = 1;
-					goto out;
-				}
-				continue;
-			}
-			CTR5(KTR_VM,
-	    "lookupn: tree %p " KFRMT64(index) " slot %d found child %p",
-			    rtree, KSPLT64L(start), KSPLT64H(start), slot, val);
-			out[outidx] = val;
-			if (++outidx == cnt ||
-			    (VM_RADIX_MAXVAL - start) == 0) {
-				start++;
-				if ((VM_RADIX_MAXVAL - start) == 0 && end == 0)
-					*exhausted = 1;
-				goto out;
-			}
-		} 
-		MPASS((VM_RADIX_MAXVAL - start) != 0);
-		if (end != 0 && start >= end)
-			break;
-	}
-out:
-	*next = start;
-	return (outidx);
-}
-
-#if 0
-void
-vm_radix_foreach(struct vm_radix *rtree, vm_pindex_t start, vm_pindex_t end,
-    int color, void (*iter)(void *))
-{
-	struct vm_radix_node *rnode;
-	void *val;
-	int slot;
-
-	if (rtree->rt_root == 0)
-		return;
-	while ((rnode = vm_radix_leaf(rtree, &start, end)) != NULL) {
-		slot = vm_radix_slot(start, 0);
-		for (; slot < VM_RADIX_COUNT; slot++, start++) {
-			if (end != 0 && start >= end)
-				return;
-			val = vm_radix_match(rnode->rn_child[slot], color);
-			if (val)
-				iter(val);
-		}
-		if (end != 0 && start >= end)
-			return;
-	}
-}
-#endif
-
-
-/*
- * Look up any entry at a position less than or equal to index.
- */
-void *
-vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index, int color)
-{
-	struct vm_radix_node *rnode;
-	struct vm_radix_node *child;
-	vm_pindex_t max;
-	vm_pindex_t inc;
-	void *val;
-	int slot;
-	int level;
-
-	CTR3(KTR_VM, "lookup_le: tree %p, " KFRMT64(index),  rtree,
-	    KSPLT64L(index), KSPLT64H(index));
-restart:
-	level = vm_radix_height(rtree, &rnode);
-	if (rnode == NULL)
-		return (NULL);
-	max = VM_RADIX_MAX(level);
-	if (index > max || index == 0)
-		index = max;
-	/*
-	 * Search the tree from the top for any leaf node holding an index
-	 * lower than 'index'.
-	 */
-	level--;
-	while (rnode) {
-		slot = vm_radix_slot(index, level);
-		CTR6(KTR_VM,
-	"lookup_le: tree %p, " KFRMT64(index) ", level %d, slot %d, rnode %p",
-		    rtree, KSPLT64L(index), KSPLT64H(index), level, slot,
-		    rnode);
-		CTR2(KTR_VM, "lookup_le:  rnode %p, child %p", rnode,
-		    rnode->rn_child[slot]);
-		if (level == 0)
-			break;
-		/*
-		 * If we don't have an exact match we must start our search
-		 * from the next leaf and adjust our index appropriately.
-		 */
-		if ((child = rnode->rn_child[slot]) == NULL) {
-			/*
-			 * Calculate how much to decrement our index by
-			 * based on the tree level.  We must set the
-			 * lower bits to start from the end of the next
-			 * leaf.
-		 	 */
-			inc = 1LL << (level * VM_RADIX_WIDTH);
-			index |= VM_RADIX_MAX(level);
-			index -= inc;
-			slot--;
-			CTR6(KTR_VM,
-	    "lookup_le: " KFRMT64(start) ", " KFRMT64(inc) ", level %d slot %d",
-			    KSPLT64L(index), KSPLT64H(index), KSPLT64L(inc),
-			    KSPLT64H(inc), level, slot);
-			for (; slot >= 0; slot--, index -= inc) {
-				child = rnode->rn_child[slot];
-				if (child)
-					break;
-			}
-		}
-		rnode = child;
-		level--;
-	}
-	if (rnode) {
-		for (; slot >= 0; slot--, index--) {
-			val = vm_radix_match(rnode->rn_child[slot], color);
-			if (val)
-				return (val);
+		m = vm_radix_node_page(rnode);
+		if (m != NULL) {
+			if (m->pindex == index)
+				return (m);
+			else
+				return (NULL);
 		}
 	}
-	if (index != -1)
-		goto restart;
 	return (NULL);
 }
 
 /*
- * Remove an entry from the tree. Expects the entry to be already present.
+ * Look up the nearest entry at a position bigger than or equal to index.
+ */
+vm_page_t
+vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
+{
+	vm_pindex_t inc;
+	vm_page_t m;
+	struct vm_radix_node *rnode;
+	int slot;
+	uint16_t difflev;
+	boolean_t maplevels[VM_RADIX_LIMIT + 1];
+#ifdef INVARIANTS
+	int loops = 0;
+#endif
+
+restart:
+	KASSERT(++loops < 1000, ("%s: too many loops", __func__));
+	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
+		maplevels[difflev] = FALSE;
+	rnode = vm_radix_getroot(rtree);
+	while (rnode != NULL) {
+		maplevels[rnode->rn_clev] = TRUE;
+
+		/*
+		 * If the keys differ before the current bisection node
+		 * the search key might rollback to the earlierst
+		 * available bisection node, or to the smaller value
+		 * in the current domain (if the owner is bigger than the
+		 * search key).
+		 * The maplevels array records any node has been seen
+		 * at a given level.  This aids the search for a valid
+		 * bisection node.
+		 */
+		if (vm_radix_keybarr(rnode, index)) {
+			difflev = vm_radix_keydiff(index, rnode->rn_owner);
+			if (index > rnode->rn_owner) {
+				if (vm_radix_addlev(&index, maplevels,
+				    difflev) > 0)
+					break;
+			} else
+				index = vm_radix_trimkey(rnode->rn_owner,
+				    difflev);
+			goto restart;
+		}
+		slot = vm_radix_slot(index, rnode->rn_clev);
+		m = vm_radix_node_page(rnode->rn_child[slot]);
+		if (m != NULL && m->pindex >= index)
+			return (m);
+		if (rnode->rn_child[slot] != NULL && m == NULL) {
+			rnode = rnode->rn_child[slot];
+			continue;
+		}
+
+		/*
+		 * Look for an available edge or page within the current
+		 * bisection node.
+		 */
+                if (slot < (VM_RADIX_COUNT - 1)) {
+			inc = VM_RADIX_UNITLEVEL(rnode->rn_clev);
+			index = vm_radix_trimkey(index, rnode->rn_clev);
+			index += inc;
+			slot++;
+			for (;; index += inc, slot++) {
+				m = vm_radix_node_page(rnode->rn_child[slot]);
+				if (m != NULL && m->pindex >= index)
+					return (m);
+				if ((rnode->rn_child[slot] != NULL &&
+				    m == NULL) || slot == (VM_RADIX_COUNT - 1))
+					break;
+			}
+		}
+
+		/*
+		 * If a valid page or edge bigger than the search slot is
+		 * found in the traversal, skip to the next higher-level key.
+		 */
+		if (slot == (VM_RADIX_COUNT - 1) &&
+		    (rnode->rn_child[slot] == NULL || m != NULL)) {
+			if (rnode->rn_clev == 0  || vm_radix_addlev(&index,
+			    maplevels, rnode->rn_clev - 1) > 0)
+				break;
+			goto restart;
+		}
+		rnode = rnode->rn_child[slot];
+	}
+	return (NULL);
+}
+
+/*
+ * Look up the nearest entry at a position less than or equal to index.
+ */
+vm_page_t
+vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
+{
+	vm_pindex_t inc;
+	vm_page_t m;
+	struct vm_radix_node *rnode;
+	int slot;
+	uint16_t difflev;
+	boolean_t maplevels[VM_RADIX_LIMIT + 1];
+#ifdef INVARIANTS
+	int loops = 0;
+#endif
+
+restart:
+	KASSERT(++loops < 1000, ("%s: too many loops", __func__));
+	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
+		maplevels[difflev] = FALSE;
+	rnode = vm_radix_getroot(rtree);
+	while (rnode != NULL) {
+		maplevels[rnode->rn_clev] = TRUE;
+
+		/*
+		 * If the keys differ before the current bisection node
+		 * the search key might rollback to the earlierst
+		 * available bisection node, or to the higher value
+		 * in the current domain (if the owner is smaller than the
+		 * search key).
+		 * The maplevels array records any node has been seen
+		 * at a given level.  This aids the search for a valid
+		 * bisection node.
+		 */
+		if (vm_radix_keybarr(rnode, index)) {
+			difflev = vm_radix_keydiff(index, rnode->rn_owner);
+			if (index > rnode->rn_owner) {
+				index = vm_radix_trimkey(rnode->rn_owner,
+				    difflev);
+				index |= VM_RADIX_UNITLEVEL(difflev) - 1;
+			} else if (vm_radix_declev(&index, maplevels,
+			    difflev) > 0)
+				break;
+			goto restart;
+		}
+		slot = vm_radix_slot(index, rnode->rn_clev);
+		m = vm_radix_node_page(rnode->rn_child[slot]);
+		if (m != NULL && m->pindex <= index)
+			return (m);
+		if (rnode->rn_child[slot] != NULL && m == NULL) {
+			rnode = rnode->rn_child[slot];
+			continue;
+		}
+
+		/*
+		 * Look for an available edge or page within the current
+		 * bisection node.
+		 */
+		if (slot > 0) {
+			inc = VM_RADIX_UNITLEVEL(rnode->rn_clev);
+			index = vm_radix_trimkey(index, rnode->rn_clev);
+			index |= inc - 1;
+			index -= inc;
+			slot--;
+			for (;; index -= inc, slot--) {
+				m = vm_radix_node_page(rnode->rn_child[slot]);
+				if (m != NULL && m->pindex <= index)
+					return (m);
+				if ((rnode->rn_child[slot] != NULL &&
+				    m == NULL) || slot == 0)
+					break;
+			}
+		}
+
+		/*
+		 * If a valid page or edge smaller than the search slot is
+		 * found in the traversal, skip to the next higher-level key.
+		 */
+		if (slot == 0 && (rnode->rn_child[slot] == NULL || m != NULL)) {
+			if (rnode->rn_clev == 0 || vm_radix_declev(&index,
+			    maplevels, rnode->rn_clev - 1) > 0)
+				break;
+			goto restart;
+		}
+		rnode = rnode->rn_child[slot];
+	}
+	return (NULL);
+}
+
+/*
+ * Remove the specified index from the tree.
+ * Panics if the key is not present.
  */
 void
-vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
+vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 {
+	struct vm_radix_node *rnode, *parent;
+	vm_page_t m;
+	int i, slot;
 
-	vm_radix_sweep(rtree, index, color, 1);
+	parent = NULL;
+	rnode = vm_radix_getroot(rtree);
+	for (;;) {
+		if (rnode == NULL)
+			panic("vm_radix_remove: impossible to locate the key");
+		slot = vm_radix_slot(index, rnode->rn_clev);
+		m = vm_radix_node_page(rnode->rn_child[slot]);
+		if (m != NULL && m->pindex == index) {
+			rnode->rn_child[slot] = NULL;
+			rnode->rn_count--;
+			if (rnode->rn_count > 1)
+				break;
+			if (parent == NULL) {
+				if (rnode->rn_count == 0) {
+					vm_radix_node_put(rnode);
+					vm_radix_setroot(rtree, NULL);
+				}
+				break;
+			}
+			for (i = 0; i < VM_RADIX_COUNT; i++)
+				if (rnode->rn_child[i] != NULL)
+					break;
+			KASSERT(i != VM_RADIX_COUNT,
+			    ("%s: invalid node configuration", __func__));
+			slot = vm_radix_slot(index, parent->rn_clev);
+			KASSERT(parent->rn_child[slot] == rnode,
+			    ("%s: invalid child value", __func__));
+			parent->rn_child[slot] = rnode->rn_child[i];
+			rnode->rn_count--;
+			rnode->rn_child[i] = NULL;
+			vm_radix_node_put(rnode);
+			break;
+		}
+		if (m != NULL && m->pindex != index)
+			panic("%s: invalid key found", __func__);
+		parent = rnode;
+		rnode = rnode->rn_child[slot];
+	}
 }
 
 /*
  * Remove and free all the nodes from the radix tree.
- * This function is recrusive but there is a tight control on it as the
+ * This function is recursive but there is a tight control on it as the
  * maximum depth of the tree is fixed.
  */
 void
 vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 {
 	struct vm_radix_node *root;
-	int level;
 
-	if (rtree->rt_root == 0)
+	root = vm_radix_getroot(rtree);
+	if (root == NULL)
 		return;
-	level = vm_radix_height(rtree, &root);
-	vm_radix_reclaim_allnodes_internal(root, level - 1);
-	rtree->rt_root = 0;
+	vm_radix_reclaim_allnodes_int(root);
+	vm_radix_setroot(rtree, NULL);
 }
 
-#ifdef notyet
+#ifdef DDB
 /*
- * Attempts to reduce the height of the tree.
+ * Show details about the given radix node.
  */
-void 
-vm_radix_shrink(struct vm_radix *rtree)
+DB_SHOW_COMMAND(radixnode, db_show_radixnode)
 {
-	struct vm_radix_node *tmp, *root;
-	int level;
+	struct vm_radix_node *rnode;
+	int i;
 
-	if (rtree->rt_root == 0)
-		return;
-	level = vm_radix_height(rtree, &root);
-
-	/* Adjust the height of the tree. */
-	while (root->rn_count == 1 && root->rn_child[0] != NULL) {
-		tmp = root;
-		root->rn_count--;
-		root = root->rn_child[0];
-		level--;
-		vm_radix_node_put(tmp);
-	}
-	/* Finally see if we have an empty tree. */
-	if (root->rn_count == 0) {
-		vm_radix_node_put(root);
-		root = NULL;
-		level--;
-	}
-	vm_radix_setroot(rtree, root, level);
+        if (!have_addr)
+                return;
+	rnode = (struct vm_radix_node *)addr;
+	db_printf("radixnode %p, owner %jx, children count %u, level %u:\n",
+	    (void *)rnode, (uintmax_t)rnode->rn_owner, rnode->rn_count,
+	    rnode->rn_clev);
+	for (i = 0; i < VM_RADIX_COUNT; i++)
+		if (rnode->rn_child[i] != NULL)
+			db_printf("slot: %d, val: %p, page: %p, clev: %d\n",
+			    i, (void *)rnode->rn_child[i],
+			    (void *)vm_radix_node_page(rnode->rn_child[i]),
+			    rnode->rn_clev);
 }
-#endif
+#endif /* DDB */
