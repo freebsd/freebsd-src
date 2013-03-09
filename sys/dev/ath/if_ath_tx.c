@@ -4340,12 +4340,23 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	    __func__, tap->txa_start, tx_ok, ts.ts_status, ts.ts_flags,
 	    isaggr, seq_st, hasba, ba[0], ba[1]);
 
+	/*
+	 * The reference driver doesn't do this; it simply ignores
+	 * this check in its entirety.
+	 *
+	 * I've seen this occur when using iperf to send traffic
+	 * out tid 1 - the aggregate frames are all marked as TID 1,
+	 * but the TXSTATUS has TID=0.  So, let's just ignore this
+	 * check.
+	 */
+#if 0
 	/* Occasionally, the MAC sends a tx status for the wrong TID. */
 	if (tid != ts.ts_tid) {
 		device_printf(sc->sc_dev, "%s: tid %d != hw tid %d\n",
 		    __func__, tid, ts.ts_tid);
 		tx_ok = 0;
 	}
+#endif
 
 	/* AR5416 BA bug; this requires an interface reset */
 	if (isaggr && tx_ok && (! hasba)) {
