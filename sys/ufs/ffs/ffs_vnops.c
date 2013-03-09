@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -842,7 +843,7 @@ ffs_getpages(ap)
 	 * user programs might reference data beyond the actual end of file
 	 * occuring within the page.  We have to zero that data.
 	 */
-	VM_OBJECT_LOCK(mreq->object);
+	VM_OBJECT_WLOCK(mreq->object);
 	if (mreq->valid) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
@@ -853,10 +854,10 @@ ffs_getpages(ap)
 				vm_page_unlock(ap->a_m[i]);
 			}
 		}
-		VM_OBJECT_UNLOCK(mreq->object);
+		VM_OBJECT_WUNLOCK(mreq->object);
 		return VM_PAGER_OK;
 	}
-	VM_OBJECT_UNLOCK(mreq->object);
+	VM_OBJECT_WUNLOCK(mreq->object);
 
 	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
 					    ap->a_count,

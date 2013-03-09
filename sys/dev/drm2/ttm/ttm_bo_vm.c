@@ -118,7 +118,7 @@ ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
 	} else
 		oldm = NULL;
 retry:
-	VM_OBJECT_UNLOCK(vm_obj);
+	VM_OBJECT_WUNLOCK(vm_obj);
 	m = NULL;
 
 reserve:
@@ -213,7 +213,7 @@ reserve:
 		    VM_MEMATTR_WRITE_BACK : ttm_io_prot(bo->mem.placement));
 	}
 
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	if ((m->flags & VPO_BUSY) != 0) {
 		vm_page_sleep(m, "ttmpbs");
 		ttm_mem_io_unlock(man);
@@ -241,11 +241,11 @@ out_unlock1:
 	return (retval);
 
 out_io_unlock:
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	goto out_io_unlock1;
 
 out_unlock:
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	goto out_unlock1;
 }
 
