@@ -1480,7 +1480,7 @@ mesh_recv_indiv_data_to_fwrd(struct ieee80211vap *vap, struct mbuf *m,
 	struct ieee80211com *ic = vap->iv_ic;
 
 	/* This is called from the RX path - don't hold this lock */
-	IEEE80211_TX_UNLOCK_ASSERT(ic);
+	IEEE80211_TX_UNLOCK_ASSERT(vap->iv_ic);
 
 	qwh = (struct ieee80211_qosframe_addr4 *)wh;
 
@@ -1540,7 +1540,7 @@ mesh_recv_indiv_data_to_me(struct ieee80211vap *vap, struct mbuf *m,
 	int ae;
 
 	/* This is called from the RX path - don't hold this lock */
-	IEEE80211_TX_UNLOCK_ASSERT(ic);
+	IEEE80211_TX_UNLOCK_ASSERT(vap->iv_ic);
 
 	qwh = (struct ieee80211_qosframe_addr4 *)wh;
 	mc10 = (const struct ieee80211_meshcntl_ae10 *)mc;
@@ -1606,7 +1606,7 @@ mesh_recv_group_data(struct ieee80211vap *vap, struct mbuf *m,
 	struct ieee80211com *ic = vap->iv_ic;
 
 	/* This is called from the RX path - don't hold this lock */
-	IEEE80211_TX_UNLOCK_ASSERT(ic);
+	IEEE80211_TX_UNLOCK_ASSERT(vap->iv_ic);
 
 	mesh_forward(vap, m, mc);
 
