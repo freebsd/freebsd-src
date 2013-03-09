@@ -46,7 +46,8 @@ MLINKS+=strcasecmp.3 strncasecmp.3 \
 	strcasecmp.3 strcasecmp_l.3 \
 	strcasecmp.3 strncasecmp_l.3
 MLINKS+=strcat.3 strncat.3
-MLINKS+=strchr.3 strrchr.3
+MLINKS+=strchr.3 strrchr.3 \
+	strchr.3 strchrnul.3
 MLINKS+=strcmp.3 strncmp.3
 MLINKS+=strcoll.3 strcoll_l.3
 MLINKS+=strcpy.3 stpcpy.3 \

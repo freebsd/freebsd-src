@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -406,21 +407,20 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 */
 			off = tbp->b_offset;
 			tsize = size;
-			VM_OBJECT_LOCK(tbp->b_bufobj->bo_object);
+			VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);
 			for (j = 0; tsize > 0; j++) {
 				toff = off & PAGE_MASK;
 				tinc = tsize;
 				if (toff + tinc > PAGE_SIZE)
 					tinc = PAGE_SIZE - toff;
-				VM_OBJECT_LOCK_ASSERT(tbp->b_pages[j]->object,
-				    MA_OWNED);
+				VM_OBJECT_ASSERT_WLOCKED(tbp->b_pages[j]->object);
 				if ((tbp->b_pages[j]->valid &
 				    vm_page_bits(toff, tinc)) != 0)
 					break;
 				off += tinc;
 				tsize -= tinc;
 			}
-			VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
+			VM_OBJECT_WUNLOCK(tbp->b_bufobj->bo_object);
 			if (tsize > 0) {
 				bqrelse(tbp);
 				break;
@@ -455,7 +455,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		BUF_KERNPROC(tbp);
 		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 			tbp, b_cluster.cluster_entry);
-		VM_OBJECT_LOCK(tbp->b_bufobj->bo_object);
+		VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
@@ -469,7 +469,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			if (m->valid == VM_PAGE_BITS_ALL)
 				tbp->b_pages[j] = bogus_page;
 		}
-		VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
+		VM_OBJECT_WUNLOCK(tbp->b_bufobj->bo_object);
 		/*
 		 * Don't inherit tbp->b_bufsize as it may be larger due to
 		 * a non-page-aligned size.  Instead just aggregate using
@@ -487,13 +487,13 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	 * Fully valid pages in the cluster are already good and do not need
 	 * to be re-read from disk.  Replace the page with bogus_page
 	 */
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 	for (j = 0; j < bp->b_npages; j++) {
-		VM_OBJECT_LOCK_ASSERT(bp->b_pages[j]->object, MA_OWNED);
+		VM_OBJECT_ASSERT_WLOCKED(bp->b_pages[j]->object);
 		if (bp->b_pages[j]->valid == VM_PAGE_BITS_ALL)
 			bp->b_pages[j] = bogus_page;
 	}
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 	if (bp->b_bufsize > bp->b_kvasize)
 		panic("cluster_rbuild: b_bufsize(%ld) > b_kvasize(%d)\n",
 		    bp->b_bufsize, bp->b_kvasize);
@@ -918,12 +918,12 @@ cluster_wbuild(vp, size, start_lbn, len)
 			if (tbp->b_flags & B_VMIO) {
 				vm_page_t m;
 
-				VM_OBJECT_LOCK(tbp->b_bufobj->bo_object);
+				VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);
 				if (i != 0) { /* if not first buffer */
 					for (j = 0; j < tbp->b_npages; j += 1) {
 						m = tbp->b_pages[j];
 						if (m->oflags & VPO_BUSY) {
-							VM_OBJECT_UNLOCK(
+							VM_OBJECT_WUNLOCK(
 							    tbp->b_object);
 							bqrelse(tbp);
 							goto finishcluster;
@@ -940,7 +940,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 						bp->b_npages++;
 					}
 				}
-				VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
+				VM_OBJECT_WUNLOCK(tbp->b_bufobj->bo_object);
 			}
 			bp->b_bcount += size;
 			bp->b_bufsize += size;

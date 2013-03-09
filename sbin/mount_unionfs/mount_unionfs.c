@@ -129,7 +129,7 @@ int
 main(int argc, char *argv[])
 {
 	struct iovec	*iov;
-	int ch, mntflags, iovlen;
+	int ch, iovlen;
 	char source [MAXPATHLEN], target[MAXPATHLEN], errmsg[255];
 	char uid_str[20], gid_str[20];
 	char fstype[] = "unionfs";
@@ -137,7 +137,6 @@ main(int argc, char *argv[])
 
 	iov = NULL;
 	iovlen = 0;
-	mntflags = 0;
 	memset(errmsg, 0, sizeof(errmsg));
 
 	while ((ch = getopt(argc, argv, "bo:")) != -1) {
@@ -190,7 +189,7 @@ main(int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "from", target, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 
-	if (nmount(iov, iovlen, mntflags))
+	if (nmount(iov, iovlen, 0))
 		err(EX_OSERR, "%s: %s", source, errmsg);
 	exit(0);
 }

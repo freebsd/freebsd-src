@@ -36,7 +36,10 @@
  * Costa Mesa, CA 92626
  */
 
+
+
 /* $FreeBSD$ */
+
 
 #include "oce_if.h"
 
@@ -89,6 +92,7 @@ oce_queue_init_all(POCE_SOFTC sc)
 	int rc = 0, i, vector;
 	struct oce_wq *wq;
 	struct oce_rq *rq;
+	struct oce_aic_obj *aic;
 
 	/* alloc TX/RX queues */
 	for_all_wq_queues(sc, wq, i) {
@@ -113,6 +117,13 @@ oce_queue_init_all(POCE_SOFTC sc)
 
 	/* create all of the event queues */
 	for (vector = 0; vector < sc->intr_count; vector++) {
+		/* setup aic defaults for each event queue */
+		aic = &sc->aic_obj[vector];
+		aic->max_eqd = OCE_MAX_EQD;
+		aic->min_eqd = OCE_MIN_EQD;
+		aic->et_eqd = OCE_MIN_EQD;
+		aic->enable = TRUE;
+
 		sc->eq[vector] = oce_eq_create(sc, EQ_LEN_1024, EQE_SIZE_4,
 						 0, vector);
 		if (!sc->eq[vector])
@@ -657,8 +668,7 @@ oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 	oce_mq_ext_ctx_t *ctx;
 	uint32_t num_pages;
 	uint32_t page_size;
-	uint32_t version;
-
+	int version;
 
 	cq = oce_cq_create(sc, eq, CQ_LEN_256,
 			sizeof(struct oce_mq_cqe), 1, 1, 0, 0);
@@ -680,8 +690,8 @@ oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 
 	bzero(&mbx, sizeof(struct oce_mbx));
 
+	IS_XE201(sc) ? (version = OCE_MBX_VER_V1) : (version = OCE_MBX_VER_V0);
 	fwcmd = (struct mbx_create_common_mq_ex *)&mbx.payload;
-	version = OCE_MBX_VER_V0;
 	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
 				MBX_SUBSYSTEM_COMMON,
 				OPCODE_COMMON_CREATE_MQ_EXT,
@@ -693,21 +703,41 @@ oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 	page_size = mq->ring->num_items * mq->ring->item_size;
 
 	ctx = &fwcmd->params.req.context;
-	ctx->v0.num_pages = num_pages;
-	ctx->v0.cq_id = cq->cq_id;
-	ctx->v0.ring_size = OCE_LOG2(q_len) + 1;
-	ctx->v0.valid = 1;
-	/* Subscribe to Link State and Group 5 Events(bits 1 and 5 set) */
-	ctx->v0.async_evt_bitmap = 0xffffffff;
+
+	if (IS_XE201(sc)) {
+		ctx->v1.num_pages = num_pages;
+		ctx->v1.ring_size = OCE_LOG2(q_len) + 1;
+		ctx->v1.cq_id = cq->cq_id;
+		ctx->v1.valid = 1;
+		ctx->v1.async_cq_id = cq->cq_id;
+		ctx->v1.async_cq_valid = 1;
+		/* Subscribe to Link State and Group 5 Events(bits 1 & 5 set) */
+		ctx->v1.async_evt_bitmap |= LE_32(0x00000022);
+		ctx->v1.async_evt_bitmap |= LE_32(1 << ASYNC_EVENT_CODE_DEBUG);
+		ctx->v1.async_evt_bitmap |=
+					LE_32(1 << ASYNC_EVENT_CODE_SLIPORT);
+	}
+	else {
+		ctx->v0.num_pages = num_pages;
+		ctx->v0.cq_id = cq->cq_id;
+		ctx->v0.ring_size = OCE_LOG2(q_len) + 1;
+		ctx->v0.valid = 1;
+		/* Subscribe to Link State and Group5 Events(bits 1 & 5 set) */
+		ctx->v0.async_evt_bitmap = 0xffffffff;
+	}
 
 	mbx.u0.s.embedded = 1;
 	mbx.payload_length = sizeof(struct mbx_create_common_mq_ex);
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc)
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 		goto error;
-
+	}
 	mq->mq_id = LE_16(fwcmd->params.rsp.mq_id);
 	mq->cq = cq;
 	eq->cq[eq->cq_valid] = cq;
@@ -824,10 +854,11 @@ oce_destroy_q(POCE_SOFTC sc, struct oce_mbx *mbx, size_t req_size,
 	DW_SWAP(u32ptr(mbx), mbx->payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, mbx, NULL);
-
-	if (rc != 0)
-		device_printf(sc->dev, "Failed to del q\n");
-
+	if (!rc)
+                rc = hdr->u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc;
 }
 
