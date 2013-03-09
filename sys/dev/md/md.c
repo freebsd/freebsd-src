@@ -75,6 +75,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
@@ -657,17 +658,17 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
 
 	rv = VM_PAGER_OK;
-	VM_OBJECT_LOCK(sc->object);
+	VM_OBJECT_WLOCK(sc->object);
 	vm_object_pip_add(sc->object, 1);
 	for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
 		len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
 
 		m = vm_page_grab(sc->object, i,
 		    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
-		VM_OBJECT_UNLOCK(sc->object);
+		VM_OBJECT_WUNLOCK(sc->object);
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-		VM_OBJECT_LOCK(sc->object);
+		VM_OBJECT_WLOCK(sc->object);
 		if (bp->bio_cmd == BIO_READ) {
 			if (m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
@@ -732,7 +733,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		offs = 0;
 	}
 	vm_object_pip_subtract(sc->object, 1);
-	VM_OBJECT_UNLOCK(sc->object);
+	VM_OBJECT_WUNLOCK(sc->object);
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }
 
@@ -1068,7 +1069,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 		oldpages = OFF_TO_IDX(round_page(sc->mediasize));
 		newpages = OFF_TO_IDX(round_page(mdio->md_mediasize));
 		if (newpages < oldpages) {
-			VM_OBJECT_LOCK(sc->object);
+			VM_OBJECT_WLOCK(sc->object);
 			vm_object_page_remove(sc->object, newpages, 0, 0);
 			swap_pager_freespace(sc->object, newpages,
 			    oldpages - newpages);
@@ -1076,7 +1077,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 			    newpages), sc->cred);
 			sc->object->charge = IDX_TO_OFF(newpages);
 			sc->object->size = newpages;
-			VM_OBJECT_UNLOCK(sc->object);
+			VM_OBJECT_WUNLOCK(sc->object);
 		} else if (newpages > oldpages) {
 			res = swap_reserve_by_cred(IDX_TO_OFF(newpages -
 			    oldpages), sc->cred);
@@ -1093,10 +1094,10 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 					return (EDOM);
 				}
 			}
-			VM_OBJECT_LOCK(sc->object);
+			VM_OBJECT_WLOCK(sc->object);
 			sc->object->charge = IDX_TO_OFF(newpages);
 			sc->object->size = newpages;
-			VM_OBJECT_UNLOCK(sc->object);
+			VM_OBJECT_WUNLOCK(sc->object);
 		}
 		break;
 	default:

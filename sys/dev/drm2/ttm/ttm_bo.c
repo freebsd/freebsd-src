@@ -1400,7 +1400,6 @@ static void ttm_bo_global_kobj_release(struct ttm_bo_global *glob)
 
 	ttm_mem_unregister_shrink(glob->mem_glob, &glob->shrink);
 	vm_page_free(glob->dummy_read_page);
-	free(glob, M_DRM_GLOBAL);
 }
 
 void ttm_bo_global_release(struct drm_global_reference *ref)

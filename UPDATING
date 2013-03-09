@@ -26,6 +26,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130308:
+	CTL_DISABLE has also been added to the sparc64 GENERIC (for further
+	information, see the respective 20130304 entry).
+
 20130304:
 	Recent commits to callout(9) changed the size of struct callout,
 	so the KBI is probably heavily disturbed. Also, some functions

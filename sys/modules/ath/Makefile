@@ -123,6 +123,15 @@ SRCS+=  ah_eeprom_9287.c
 .PATH:  ${.CURDIR}/../../dev/ath/ath_hal/ar9002
 SRCS+=  ar9287.c ar9287_reset.c ar9287_attach.c ar9287_cal.c ar9287_olc.c
 
+# + AR9300 HAL
+# .PATH:  ${.CURDIR}/../../dev/ath/ath_hal/ar9003
+#SRCS+= ar9300_interrupts.c ar9300_radar.c ar9300_ani.c ar9300_keycache.c
+#SRCS+= ar9300_radio.c ar9300_xmit.c ar9300_attach.c ar9300_mci.c ar9300_stub.c
+#SRCS+= ar9300_xmit_ds.c ar9300_beacon.c ar9300_misc.c ar9300_recv.c
+#SRCS+= ar9300_stub_funcs.c ar9300_eeprom.c ar9300_paprd.c ar9300_recv_ds.c
+#SRCS+= ar9300_freebsd.c ar9300_phy.c ar9300_reset.c ar9300_gpio.c
+#SRCS+= ar9300_power.c ar9300_timer.c
+
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"
 .PATH:	${.CURDIR}/../../dev/ath/ath_rate/sample

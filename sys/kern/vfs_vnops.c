@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/filio.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/ttycom.h>
@@ -1892,9 +1893,9 @@ vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
 
 	if ((object = vp->v_object) == NULL)
 		return;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	vm_object_page_remove(object, start, end, 0);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 }
 
 int

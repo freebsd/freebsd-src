@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 
 #include <dev/agp/agppriv.h>
 #include <dev/agp/agpreg.h>
@@ -1967,10 +1968,10 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 			 * Allocate and wire down the page now so that we can
 			 * get its physical address.
 			 */
-			VM_OBJECT_LOCK(mem->am_obj);
+			VM_OBJECT_WLOCK(mem->am_obj);
 			m = vm_page_grab(mem->am_obj, 0, VM_ALLOC_NOBUSY |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-			VM_OBJECT_UNLOCK(mem->am_obj);
+			VM_OBJECT_WUNLOCK(mem->am_obj);
 			mem->am_physical = VM_PAGE_TO_PHYS(m);
 		} else {
 			/* Our allocation is already nicely wired down for us.
@@ -2005,12 +2006,12 @@ agp_i810_free_memory(device_t dev, struct agp_memory *mem)
 			/*
 			 * Unwire the page which we wired in alloc_memory.
 			 */
-			VM_OBJECT_LOCK(mem->am_obj);
+			VM_OBJECT_WLOCK(mem->am_obj);
 			m = vm_page_lookup(mem->am_obj, 0);
 			vm_page_lock(m);
 			vm_page_unwire(m, 0);
 			vm_page_unlock(m);
-			VM_OBJECT_UNLOCK(mem->am_obj);
+			VM_OBJECT_WUNLOCK(mem->am_obj);
 		} else {
 			contigfree(sc->argb_cursor, mem->am_size, M_AGP);
 			sc->argb_cursor = NULL;

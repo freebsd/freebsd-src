@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -312,7 +313,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	int i, index, n;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(npages != 0, ("vm_reserv_alloc_contig: npages is 0"));
 
 	/*
@@ -485,7 +486,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	vm_reserv_t rv;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
 	 * Is a reservation fundamentally impossible?
@@ -849,7 +850,7 @@ vm_reserv_rename(vm_page_t m, vm_object_t new_object, vm_object_t old_object,
 {
 	vm_reserv_t rv;
 
-	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(new_object);
 	rv = vm_reserv_from_page(m);
 	if (rv->object == old_object) {
 		mtx_lock(&vm_page_queue_free_mtx);
