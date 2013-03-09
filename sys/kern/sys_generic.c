@@ -1051,16 +1051,17 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			error = EINVAL;
 			goto done;
 		}
-		if (rtv.tv_sec == 0 && rtv.tv_usec == 0)
+		if (!timevalisset(&rtv))
 			asbt = 0;
-		else if (rtv.tv_sec < INT32_MAX) {
+		else if (rtv.tv_sec <= INT32_MAX) {
 			rsbt = tvtosbt(rtv);
 			precision = rsbt;
 			precision >>= tc_precexp;
 			if (TIMESEL(&asbt, rsbt))
 				asbt += tc_tick_sbt;
-			asbt += rsbt;
-			if (asbt < rsbt)
+			if (asbt <= INT64_MAX - rsbt)
+				asbt += rsbt;
+			else
 				asbt = -1;
 		} else
 			asbt = -1;
