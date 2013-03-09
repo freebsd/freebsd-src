@@ -119,6 +119,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvmmapi} \
 	libwrap \
 	liby \
+	libyaml \
 	libz \
 	${_atf} \
 	${_bind} \

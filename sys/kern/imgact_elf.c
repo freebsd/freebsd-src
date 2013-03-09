@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/namei.h>
 #include <sys/pioctl.h>
@@ -53,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
@@ -1278,15 +1278,15 @@ each_writable_segment(td, func, closure)
 			continue;
 
 		/* Ignore memory-mapped devices and such things. */
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		while ((backing_object = object->backing_object) != NULL) {
-			VM_OBJECT_LOCK(backing_object);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WLOCK(backing_object);
+			VM_OBJECT_WUNLOCK(object);
 			object = backing_object;
 		}
 		ignore_entry = object->type != OBJT_DEFAULT &&
 		    object->type != OBJT_SWAP && object->type != OBJT_VNODE;
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		if (ignore_entry)
 			continue;
 

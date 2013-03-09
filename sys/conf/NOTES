@@ -259,6 +259,8 @@ options 	SX_NOINLINE
 
 # SMP Debugging Options:
 #
+# CALLOUT_PROFILING enables rudimentary profiling of the callwheel data
+#	  structure used as backend in callout(9).
 # PREEMPTION allows the threads that are in the kernel to be preempted by
 #	  higher priority [interrupt] threads.  It helps with interactivity
 #	  and allows interrupt threads to run sooner rather than waiting.
@@ -296,6 +298,9 @@ options 	LOCK_PROFILING
 # than the number of buffers.  Hash size should be prime.
 options 	MPROF_BUFFERS="1536"
 options 	MPROF_HASH_SIZE="1543"
+
+# Profiling for the callout(9) backend.
+options 	CALLOUT_PROFILING
 
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING

@@ -200,13 +200,11 @@ nvme_modevent(module_t mod, int type, void *arg)
 void
 nvme_dump_command(struct nvme_command *cmd)
 {
-	printf("opc:%x f:%x r1:%x cid:%x nsid:%x r2:%x r3:%x "
-	    "mptr:%qx prp1:%qx prp2:%qx cdw:%x %x %x %x %x %x\n",
+	printf(
+"opc:%x f:%x r1:%x cid:%x nsid:%x r2:%x r3:%x mptr:%jx prp1:%jx prp2:%jx cdw:%x %x %x %x %x %x\n",
 	    cmd->opc, cmd->fuse, cmd->rsvd1, cmd->cid, cmd->nsid,
 	    cmd->rsvd2, cmd->rsvd3,
-	    (long long unsigned int)cmd->mptr,
-	    (long long unsigned int)cmd->prp1,
-	    (long long unsigned int)cmd->prp2,
+	    (uintmax_t)cmd->mptr, (uintmax_t)cmd->prp1, (uintmax_t)cmd->prp2,
 	    cmd->cdw10, cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14,
 	    cmd->cdw15);
 }
