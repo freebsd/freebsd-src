@@ -107,14 +107,9 @@ nsmb_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	else if (dev_stdclone(name, NULL, NSMB_NAME, &u) != 1)
 		return;
 	i = clone_create(&nsmb_clones, &nsmb_cdevsw, &u, dev, 0);
-	if (i) {
-		*dev = make_dev(&nsmb_cdevsw, u, UID_ROOT, GID_WHEEL, 0600,
-		    "%s%d", NSMB_NAME, u);
-		if (*dev != NULL) {
-			dev_ref(*dev);
-			(*dev)->si_flags |= SI_CHEAPCLONE;
-		}
-	}
+	if (i)
+		*dev = make_dev_credf(MAKEDEV_REF, &nsmb_cdevsw, u, cred,
+		    UID_ROOT, GID_WHEEL, 0600, "%s%d", NSMB_NAME, u);
 }
 
 static int
