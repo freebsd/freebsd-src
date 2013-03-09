@@ -173,7 +173,7 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	    ("object %p has reservations",
 	    object));
 #endif
-	KASSERT(object->cache == NULL,
+	KASSERT(vm_object_cache_is_empty(object),
 	    ("object %p has cached pages",
 	    object));
 	KASSERT(object->paging_in_progress == 0,
@@ -752,7 +752,7 @@ vm_object_terminate(vm_object_t object)
 	if (__predict_false(!LIST_EMPTY(&object->rvq)))
 		vm_reserv_break_all(object);
 #endif
-	if (__predict_false(object->cache != NULL))
+	if (__predict_false(!vm_object_cache_is_empty(object)))
 		vm_page_cache_free(object, 0, 0);
 
 	/*
@@ -1377,7 +1377,7 @@ retry:
 		 * should still be OBJT_DEFAULT and orig_object should not
 		 * contain any cached pages within the specified range.
 		 */
-		if (__predict_false(orig_object->cache != NULL))
+		if (__predict_false(!vm_object_cache_is_empty(orig_object)))
 			vm_page_cache_transfer(orig_object, offidxstart,
 			    new_object);
 	}
@@ -1726,7 +1726,8 @@ vm_object_collapse(vm_object_t object)
 				/*
 				 * Free any cached pages from backing_object.
 				 */
-				if (__predict_false(backing_object->cache != NULL))
+				if (__predict_false(
+				    !vm_object_cache_is_empty(backing_object)))
 					vm_page_cache_free(backing_object, 0, 0);
 			}
 			/*
@@ -1920,7 +1921,7 @@ again:
 	}
 	vm_object_pip_wakeup(object);
 skipmemq:
-	if (__predict_false(object->cache != NULL))
+	if (__predict_false(!vm_object_cache_is_empty(object)))
 		vm_page_cache_free(object, start, end);
 }
 

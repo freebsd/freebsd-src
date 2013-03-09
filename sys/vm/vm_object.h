@@ -229,6 +229,13 @@ void vm_object_pip_wakeup(vm_object_t object);
 void vm_object_pip_wakeupn(vm_object_t object, short i);
 void vm_object_pip_wait(vm_object_t object, char *waitid);
 
+static __inline boolean_t
+vm_object_cache_is_empty(vm_object_t object)
+{
+
+	return (object->cache == NULL);
+}
+
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    boolean_t);
