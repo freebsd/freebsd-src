@@ -3718,7 +3718,7 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 
 no_split:
 		if (rxbuf->m_pack == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;

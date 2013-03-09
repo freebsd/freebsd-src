@@ -394,7 +394,7 @@ lance_get(struct lance_softc *sc, int boff, int totlen)
 		return (NULL);
 	}
 
-	MGETHDR(m0, M_DONTWAIT, MT_DATA);
+	MGETHDR(m0, M_NOWAIT, MT_DATA);
 	if (m0 == NULL)
 		return (NULL);
 	m0->m_pkthdr.rcvif = ifp;
@@ -404,7 +404,7 @@ lance_get(struct lance_softc *sc, int boff, int totlen)
 
 	while (totlen > 0) {
 		if (totlen >= MINCLSIZE) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if ((m->m_flags & M_EXT) == 0)
 				goto bad;
 			len = MCLBYTES;
@@ -423,7 +423,7 @@ lance_get(struct lance_softc *sc, int boff, int totlen)
 
 		totlen -= len;
 		if (totlen > 0) {
-			MGET(newm, M_DONTWAIT, MT_DATA);
+			MGET(newm, M_NOWAIT, MT_DATA);
 			if (newm == 0)
 				goto bad;
 			len = MLEN;

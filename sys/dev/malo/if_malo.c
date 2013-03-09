@@ -854,7 +854,7 @@ malo_tx_dmasetup(struct malo_softc *sc, struct malo_txbuf *bf, struct mbuf *m0)
 	 */
 	if (error == EFBIG) {		/* too many desc's, linearize */
 		sc->malo_stats.mst_tx_linear++;
-		m = m_defrag(m0, M_DONTWAIT);
+		m = m_defrag(m0, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(m0);
 			sc->malo_stats.mst_tx_nombuf++;
@@ -1396,7 +1396,7 @@ malo_getrxmbuf(struct malo_softc *sc, struct malo_rxbuf *bf)
 	int error;
 
 	/* XXX don't need mbuf, just dma buffer */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 	if (m == NULL) {
 		sc->malo_stats.mst_rx_nombuf++;	/* XXX */
 		return NULL;

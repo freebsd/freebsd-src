@@ -987,7 +987,7 @@ wpi_alloc_rx_ring(struct wpi_softc *sc, struct wpi_rx_ring *ring)
 			    __func__, error);
 			goto fail;
 		}
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 		if (m == NULL) {
 			device_printf(sc->sc_dev,
 			   "%s: could not allocate rx mbuf\n", __func__);
@@ -1491,7 +1491,7 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	}
 
 	/* XXX don't need mbuf, just dma buffer */
-	mnew = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	mnew = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 	if (mnew == NULL) {
 		DPRINTFN(WPI_DEBUG_RX, ("%s: no mbuf to restock ring\n",
 		    __func__));
@@ -1973,7 +1973,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	}
 	if (error != 0) {
 		/* XXX use m_collapse */
-		mnew = m_defrag(m0, M_DONTWAIT);
+		mnew = m_defrag(m0, M_NOWAIT);
 		if (mnew == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not defragment mbuf\n");
@@ -2573,7 +2573,7 @@ wpi_scan(struct wpi_softc *sc)
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 
-	data->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	data->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (data->m == NULL) {
 		device_printf(sc->sc_dev,
 		    "could not allocate mbuf for scan command\n");

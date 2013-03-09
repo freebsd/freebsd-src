@@ -410,12 +410,12 @@ udbp_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* allocate new mbuf */
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 
 		if (m == NULL) {
 			goto tr_setup;
 		}
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		if (!(m->m_flags & M_EXT)) {
 			m_freem(m);
