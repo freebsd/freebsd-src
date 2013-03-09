@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/sema.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -841,9 +842,9 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_object);
+		VM_OBJECT_WLOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -128,7 +129,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	 * allow the pager to zero-out the blanks.  Partially valid pages
 	 * can only occur at the file EOF.
 	 */
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	if (pages[ap->a_reqpage]->valid != 0) {
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage) {
@@ -137,10 +138,10 @@ nfs_getpages(struct vop_getpages_args *ap)
 				vm_page_unlock(pages[i]);
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		return (0);
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
@@ -170,7 +171,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		nfs_printf("nfs_getpages: error %d\n", error);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage) {
 				vm_page_lock(pages[i]);
@@ -178,7 +179,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 				vm_page_unlock(pages[i]);
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		return (VM_PAGER_ERROR);
 	}
 
@@ -189,7 +190,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	 */
 
 	size = count - uio.uio_resid;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -225,7 +226,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 		if (i != ap->a_reqpage)
 			vm_page_readahead_finish(m);
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return (0);
 }
 
@@ -1296,9 +1297,9 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	 * Now, flush as required.
 	 */
 	if ((flags & V_SAVE) && (vp->v_bufobj.bo_object != NULL)) {
-		VM_OBJECT_LOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
 		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_UNLOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
 		/*
 		 * If the page clean was interrupted, fail the invalidation.
 		 * Not doing so, we run the risk of losing dirty pages in the 
