@@ -70,15 +70,16 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_rwlock.h>
 
 /*
  *	Types defined:
  *
  *	vm_object_t		Virtual memory object.
  *
- *	The root of cached pages pool is protected by both the per-object mutex
+ *	The root of cached pages pool is protected by both the per-object lock
  *	and the free pages queue mutex.
- *	On insert in the cache splay tree, the per-object mutex is expected
+ *	On insert in the cache splay tree, the per-object lock is expected
  *	to be already held and the free pages queue mutex will be
  *	acquired during the operation too.
  *	On remove and lookup from the cache splay tree, only the free
@@ -89,13 +90,13 @@
  *
  * List of locks
  *	(c)	const until freed
- *	(o)	per-object mutex
+ *	(o)	per-object lock 
  *	(f)	free pages queue mutex
  *
  */
 
 struct vm_object {
-	struct mtx mtx;
+	struct rwlock lock;
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
@@ -203,14 +204,26 @@ extern struct vm_object kmem_object_store;
 #define	kernel_object	(&kernel_object_store)
 #define	kmem_object	(&kmem_object_store)
 
-#define	VM_OBJECT_LOCK(object)		mtx_lock(&(object)->mtx)
-#define	VM_OBJECT_LOCK_ASSERT(object, type) \
-					mtx_assert(&(object)->mtx, (type))
-#define	VM_OBJECT_SLEEP(object, wchan, pri, wmesg, timo) \
-					msleep((wchan), &(object)->mtx, (pri), \
-					    (wmesg), (timo))
-#define	VM_OBJECT_TRYLOCK(object)	mtx_trylock(&(object)->mtx)
-#define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
+#define	VM_OBJECT_ASSERT_LOCKED(object)					\
+	rw_assert(&(object)->lock, RA_LOCKED)
+#define	VM_OBJECT_ASSERT_RLOCKED(object)				\
+	rw_assert(&(object)->lock, RA_RLOCKED)
+#define	VM_OBJECT_ASSERT_WLOCKED(object)				\
+	rw_assert(&(object)->lock, RA_WLOCKED)
+#define	VM_OBJECT_RLOCK(object)						\
+	rw_rlock(&(object)->lock)
+#define	VM_OBJECT_RUNLOCK(object)					\
+	rw_runlock(&(object)->lock)
+#define	VM_OBJECT_SLEEP(object, wchan, pri, wmesg, timo)		\
+	rw_sleep((wchan), &(object)->lock, (pri), (wmesg), (timo))
+#define	VM_OBJECT_TRYRLOCK(object)					\
+	rw_try_rlock(&(object)->lock)
+#define	VM_OBJECT_TRYWLOCK(object)					\
+	rw_try_wlock(&(object)->lock)
+#define	VM_OBJECT_WLOCK(object)						\
+	rw_wlock(&(object)->lock)
+#define	VM_OBJECT_WUNLOCK(object)					\
+	rw_wunlock(&(object)->lock)
 
 /*
  *	The object must be locked or thread private.
