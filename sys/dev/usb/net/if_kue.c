@@ -165,7 +165,7 @@ static void	kue_reset(struct kue_softc *);
 #ifdef USB_DEBUG
 static int kue_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
 SYSCTL_INT(_hw_usb_kue, OID_AUTO, debug, CTLFLAG_RW, &kue_debug, 0,
     "Debug level");
 #endif

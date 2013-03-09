@@ -132,7 +132,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int mos_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, mos, CTLFLAG_RW, 0, "USB mos");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, mos, CTLFLAG_RW, 0, "USB mos");
 SYSCTL_INT(_hw_usb_mos, OID_AUTO, debug, CTLFLAG_RW, &mos_debug, 0,
     "Debug level");
 #endif

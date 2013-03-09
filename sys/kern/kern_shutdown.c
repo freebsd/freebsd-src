@@ -126,7 +126,8 @@ SYSCTL_INT(_kern, OID_AUTO, stop_scheduler_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
     &stop_scheduler_on_panic, 0, "stop scheduler upon entering panic");
 TUNABLE_INT("kern.stop_scheduler_on_panic", &stop_scheduler_on_panic);
 
-SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
+static SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0,
+    "Shutdown environment");
 
 #ifndef DIAGNOSTIC
 static int show_busybufs;

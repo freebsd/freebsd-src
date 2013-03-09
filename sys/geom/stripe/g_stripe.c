@@ -68,7 +68,8 @@ struct g_class g_stripe_class = {
 };
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0, "GEOM_STRIPE stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0,
+    "GEOM_STRIPE stuff");
 static u_int g_stripe_debug = 0;
 TUNABLE_INT("kern.geom.stripe.debug", &g_stripe_debug);
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RW, &g_stripe_debug, 0,

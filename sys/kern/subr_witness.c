@@ -376,7 +376,8 @@ static void	witness_setflag(struct lock_object *lock, int flag, int set);
 #define	witness_debugger(c)
 #endif
 
-SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL, "Witness Locking");
+static SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL,
+    "Witness Locking");
 
 /*
  * If set to 0, lock order checking is disabled.  If set to -1,

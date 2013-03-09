@@ -136,7 +136,7 @@ static int	rt_miibus_writereg(device_t, int, int, int);
 static int	rt_ifmedia_upd(struct ifnet *);
 static void	rt_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-SYSCTL_NODE(_hw, OID_AUTO, rt, CTLFLAG_RD, 0, "RT driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, rt, CTLFLAG_RD, 0, "RT driver parameters");
 #ifdef IF_RT_DEBUG
 static int rt_debug = 0;
 SYSCTL_INT(_hw_rt, OID_AUTO, debug, CTLFLAG_RW, &rt_debug, 0,

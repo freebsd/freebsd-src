@@ -283,7 +283,7 @@ static const STRUCT_USB_HOST_ID uhso_devs[] = {
 #undef UHSO_DEV
 };
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uhso, CTLFLAG_RW, 0, "USB uhso");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhso, CTLFLAG_RW, 0, "USB uhso");
 static int uhso_autoswitch = 1;
 SYSCTL_INT(_hw_usb_uhso, OID_AUTO, auto_switch, CTLFLAG_RW,
     &uhso_autoswitch, 0, "Automatically switch to modem mode");

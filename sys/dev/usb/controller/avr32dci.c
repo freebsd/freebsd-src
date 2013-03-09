@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int avr32dci_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, avr32dci, CTLFLAG_RW, 0, "USB AVR32 DCI");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, avr32dci, CTLFLAG_RW, 0, "USB AVR32 DCI");
 SYSCTL_INT(_hw_usb_avr32dci, OID_AUTO, debug, CTLFLAG_RW,
     &avr32dci_debug, 0, "AVR32 DCI debug level");
 #endif

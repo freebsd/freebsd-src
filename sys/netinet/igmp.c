@@ -280,8 +280,9 @@ SYSCTL_VNET_PROC(_net_inet_igmp, OID_AUTO, gsrdelay,
 /*
  * Non-virtualized sysctls.
  */
-SYSCTL_NODE(_net_inet_igmp, OID_AUTO, ifinfo, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    sysctl_igmp_ifinfo, "Per-interface IGMPv3 state");
+static SYSCTL_NODE(_net_inet_igmp, OID_AUTO, ifinfo,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_igmp_ifinfo,
+    "Per-interface IGMPv3 state");
 
 static __inline void
 igmp_save_context(struct mbuf *m, struct ifnet *ifp)

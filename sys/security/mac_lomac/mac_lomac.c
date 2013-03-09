@@ -93,7 +93,7 @@ struct mac_lomac_proc {
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
     "TrustedBSD mac_lomac policy controls");
 
 static int	lomac_label_size = sizeof(struct mac_lomac);

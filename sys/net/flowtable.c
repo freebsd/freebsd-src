@@ -248,7 +248,8 @@ static VNET_DEFINE(int, flowtable_ready) = 0;
 #define	V_flowtable_nmbflows		VNET(flowtable_nmbflows)
 #define	V_flowtable_ready		VNET(flowtable_ready)
 
-SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
+static SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
+    "flowtable");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, debug, CTLFLAG_RW,
     &VNET_NAME(flowtable_debug), 0, "print debug info.");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,

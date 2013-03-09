@@ -335,7 +335,7 @@ static const uint8_t snakemap[][2] = {
 	{ SEG_B,	SEG_F },
 };
 
-SYSCTL_NODE(_hw, OID_AUTO, sevenseg, CTLFLAG_RD, 0, "7 seg");
+static SYSCTL_NODE(_hw, OID_AUTO, sevenseg, CTLFLAG_RD, 0, "7 seg");
 static int freq = 20;
 SYSCTL_INT(_hw_sevenseg, OID_AUTO, freq, CTLFLAG_RW, &freq, 0, 
     "7 Seg update frequency");
