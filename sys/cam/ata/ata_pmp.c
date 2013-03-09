@@ -134,7 +134,7 @@ static int pmp_retry_count = PMP_DEFAULT_RETRY;
 static int pmp_default_timeout = PMP_DEFAULT_TIMEOUT;
 static int pmp_hide_special = PMP_DEFAULT_HIDE_SPECIAL;
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
 SYSCTL_INT(_kern_cam_pmp, OID_AUTO, retry_count, CTLFLAG_RW,
            &pmp_retry_count, 0, "Normal I/O retry count");

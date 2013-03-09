@@ -488,7 +488,7 @@ DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, NULL, NULL);
 /****************************************************************************/
 /* Tunable device values                                                    */
 /****************************************************************************/
-SYSCTL_NODE(_hw, OID_AUTO, bce, CTLFLAG_RD, 0, "bce driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bce, CTLFLAG_RD, 0, "bce driver parameters");
 
 /* Allowable values are TRUE or FALSE */
 static int bce_verbose = TRUE;

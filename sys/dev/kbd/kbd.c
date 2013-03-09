@@ -81,7 +81,7 @@ static keyboard_switch_t *kbdsw_ini;
        keyboard_switch_t **kbdsw = &kbdsw_ini;
 
 static int keymap_restrict_change;
-SYSCTL_NODE(_hw, OID_AUTO, kbd, CTLFLAG_RD, 0, "kbd");
+static SYSCTL_NODE(_hw, OID_AUTO, kbd, CTLFLAG_RD, 0, "kbd");
 SYSCTL_INT(_hw_kbd, OID_AUTO, keymap_restrict_change, CTLFLAG_RW,
     &keymap_restrict_change, 0, "restrict ability to change keymap");
 

@@ -83,7 +83,8 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int atmegadci_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0,
+    "USB ATMEGA DCI");
 SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif

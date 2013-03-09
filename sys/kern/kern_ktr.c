@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
 
-SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
+static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
 int	ktr_mask = KTR_MASK;
 TUNABLE_INT("debug.ktr.mask", &ktr_mask);

@@ -57,7 +57,7 @@
 #ifdef USB_DEBUG
 static int uep_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uep, CTLFLAG_RW, 0, "USB uep");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uep, CTLFLAG_RW, 0, "USB uep");
 SYSCTL_INT(_hw_usb_uep, OID_AUTO, debug, CTLFLAG_RW,
     &uep_debug, 0, "Debug level");
 #endif

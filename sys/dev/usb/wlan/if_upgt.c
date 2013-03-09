@@ -70,7 +70,7 @@
  * Sebastien Bourdeauducq <lekernel@prism54.org>.
  */
 
-SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
     "USB PrismGT GW3887 driver parameters");
 
 #ifdef UPGT_DEBUG

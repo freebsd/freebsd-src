@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 static int xhcidebug;
 static int xhciroute;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &xhcidebug, 0, "Debug level");
 TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);

@@ -133,7 +133,7 @@ struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 static int next_ioapic_base;
 static u_int next_id;
 
-SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
+static SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 static int enable_extint;
 SYSCTL_INT(_hw_apic, OID_AUTO, enable_extint, CTLFLAG_RDTUN, &enable_extint, 0,
     "Enable the ExtINT pin in the first I/O APIC");

@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef	RUN_DEBUG
 int run_debug = 0;
-SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
 SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
     "run debug level");
 #endif

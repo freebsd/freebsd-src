@@ -87,7 +87,8 @@ static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 static int mca_count;		/* Number of records stored. */
 static int mca_banks;		/* Number of per-CPU register banks. */
 
-SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL, "Machine Check Architecture");
+static SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL,
+    "Machine Check Architecture");
 
 static int mca_enabled = 1;
 TUNABLE_INT("hw.mca.enabled", &mca_enabled);

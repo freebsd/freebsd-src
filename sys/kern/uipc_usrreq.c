@@ -159,10 +159,11 @@ static u_long	unpdg_recvspace = 4*1024;
 static u_long	unpsp_sendspace = PIPSIZ;	/* really max datagram size */
 static u_long	unpsp_recvspace = PIPSIZ;
 
-SYSCTL_NODE(_net, PF_LOCAL, local, CTLFLAG_RW, 0, "Local domain");
-SYSCTL_NODE(_net_local, SOCK_STREAM, stream, CTLFLAG_RW, 0, "SOCK_STREAM");
-SYSCTL_NODE(_net_local, SOCK_DGRAM, dgram, CTLFLAG_RW, 0, "SOCK_DGRAM");
-SYSCTL_NODE(_net_local, SOCK_SEQPACKET, seqpacket, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net, PF_LOCAL, local, CTLFLAG_RW, 0, "Local domain");
+static SYSCTL_NODE(_net_local, SOCK_STREAM, stream, CTLFLAG_RW, 0,
+    "SOCK_STREAM");
+static SYSCTL_NODE(_net_local, SOCK_DGRAM, dgram, CTLFLAG_RW, 0, "SOCK_DGRAM");
+static SYSCTL_NODE(_net_local, SOCK_SEQPACKET, seqpacket, CTLFLAG_RW, 0,
     "SOCK_SEQPACKET");
 
 SYSCTL_ULONG(_net_local_stream, OID_AUTO, sendspace, CTLFLAG_RW,

@@ -84,7 +84,7 @@ static struct balloon_stats balloon_stats;
 #define bs balloon_stats
 
 SYSCTL_DECL(_dev_xen);
-SYSCTL_NODE(_dev_xen, OID_AUTO, balloon, CTLFLAG_RD, NULL, "Balloon");
+static SYSCTL_NODE(_dev_xen, OID_AUTO, balloon, CTLFLAG_RD, NULL, "Balloon");
 SYSCTL_ULONG(_dev_xen_balloon, OID_AUTO, current, CTLFLAG_RD,
     &bs.current_pages, 0, "Current allocation");
 SYSCTL_ULONG(_dev_xen_balloon, OID_AUTO, target, CTLFLAG_RD,

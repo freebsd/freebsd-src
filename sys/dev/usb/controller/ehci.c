@@ -94,7 +94,7 @@ static int ehcinohighspeed = 0;
 static int ehciiaadbug = 0;
 static int ehcilostintrbug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &ehcidebug, 0, "Debug level");
 TUNABLE_INT("hw.usb.ehci.debug", &ehcidebug);
