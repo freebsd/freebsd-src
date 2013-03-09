@@ -73,7 +73,7 @@
  *		* The page daemon can acquire and hold any pair of page queue
  *		  locks in any order.
  *
- *	- The object mutex is held when inserting or removing
+ *	- The object lock is required when inserting or removing
  *	  pages from an object (vm_page_insert() or vm_page_remove()).
  *
  */
