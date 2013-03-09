@@ -62,6 +62,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+	.cpu arm1136js
+
 #if 0
 #define Invalidate_I_cache(Rtmp1, Rtmp2) \
 	mcr	p15, 0, Rtmp1, c7, c5, 0	/* Invalidate Entire I cache */

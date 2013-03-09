@@ -167,7 +167,7 @@ bootstrap_pkg(void)
 		warnx("No MIRROR_TYPE defined");
 		return (-1);
 	}
-	snprintf(url, MAXPATHLEN, "%s/latest/Latest/pkg.txz", packagesite);
+	snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz", packagesite);
 
 	snprintf(tmppkg, MAXPATHLEN, "%s/pkg.txz.XXXXXX",
 	    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
