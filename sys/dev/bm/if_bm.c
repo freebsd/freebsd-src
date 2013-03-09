@@ -540,7 +540,7 @@ bm_dummypacket(struct bm_softc *sc)
 
 	ifp = sc->sc_ifp;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 
 	if (m == NULL)
 		return;
@@ -794,7 +794,7 @@ bm_encap(struct bm_softc *sc, struct mbuf **m_head)
 	    *m_head, segs, &nsegs, BUS_DMA_NOWAIT);
 
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, nsegs);
+		m = m_collapse(*m_head, M_NOWAIT, nsegs);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -1239,7 +1239,7 @@ bm_add_rxbuf(struct bm_softc *sc, int idx)
 	bus_dma_segment_t segs[1];
 	int error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;

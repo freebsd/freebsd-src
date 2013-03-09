@@ -3024,7 +3024,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	    }
 
 	    if(count >= max_fragments) {
-	        m_buf = m_defrag(m_head, M_DONTWAIT);
+	        m_buf = m_defrag(m_head, M_NOWAIT);
 	        if(m_buf != NULL) m_head = m_buf;
 	        XGE_DRV_STATS(tx_defrag);
 	    }
@@ -3132,7 +3132,7 @@ xge_get_buf(xge_hal_dtr_h dtrh, xge_rx_priv_t *rxd_priv,
 
 	if(buffer_size <= MCLBYTES) {
 	    cluster_size = MCLBYTES;
-	    mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	    mp = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	}
 	else {
 	    cluster_size = MJUMPAGESIZE;
@@ -3140,7 +3140,7 @@ xge_get_buf(xge_hal_dtr_h dtrh, xge_rx_priv_t *rxd_priv,
 	        (buffer_size > MJUMPAGESIZE)) {
 	        cluster_size = MJUM9BYTES;
 	    }
-	    mp = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, cluster_size);
+	    mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, cluster_size);
 	}
 	if(!mp) {
 	    xge_trace(XGE_ERR, "Out of memory to allocate mbuf");

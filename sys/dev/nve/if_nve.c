@@ -765,7 +765,7 @@ nve_init_rings(struct nve_softc *sc)
 		struct nve_rx_desc *desc = sc->rx_desc + i;
 		struct nve_map_buffer *buf = &desc->buf;
 
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			device_printf(sc->dev, "couldn't allocate mbuf\n");
 			nve_free_rings(sc);
@@ -919,7 +919,7 @@ nve_ifstart_locked(struct ifnet *ifp)
 		 * cluster
 		 */
 		if (error) {
-			m = m_defrag(m0, M_DONTWAIT);
+			m = m_defrag(m0, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(m0);
 				sc->tx_errors++;
@@ -1481,7 +1481,7 @@ nve_osallocrxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID *id)
 	buf = &desc->buf;
 
 	if (buf->mbuf == NULL) {
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			device_printf(sc->dev, "failed to allocate memory\n");
 			goto fail;

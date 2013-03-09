@@ -2710,7 +2710,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	
 	if (recycle_enable && len <= SGE_RX_COPY_THRES &&
 	    sopeop == RSPQ_SOP_EOP) {
-		if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+		if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 			goto skip_recycle;
 		cl = mtod(m, void *);
 		memcpy(cl, sd->rxsd_cl, len);
@@ -2866,10 +2866,10 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 				printf("async notification\n");
 
 			if (mh->mh_head == NULL) {
-				mh->mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+				mh->mh_head = m_gethdr(M_NOWAIT, MT_DATA);
 				m = mh->mh_head;
 			} else {
-				m = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = m_gethdr(M_NOWAIT, MT_DATA);
 			}
 			if (m == NULL)
 				goto no_mem;
@@ -2882,7 +2882,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
                         rspq->async_notif++;
 			goto skip;
 		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
-			struct mbuf *m = m_gethdr(M_DONTWAIT, MT_DATA);
+			struct mbuf *m = m_gethdr(M_NOWAIT, MT_DATA);
 
 			if (m == NULL) {	
 		no_mem:

@@ -333,7 +333,7 @@ fwip_init(void *arg)
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
 		for (i = 0; i < xferq->bnchunk; i ++) {
-			m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
 			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
 			STAILQ_INSERT_TAIL(&xferq->stfree,
@@ -349,7 +349,7 @@ fwip_init(void *arg)
 			xfer = fw_xfer_alloc(M_FWIP);
 			if (xfer == NULL)
 				break;
-			m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			xfer->recv.payload = mtod(m, uint32_t *);
 			xfer->recv.pay_len = MCLBYTES;
 			xfer->hand = fwip_unicast_input;
@@ -657,7 +657,7 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 			 */
 			uint32_t *p;
 
-			M_PREPEND(m, 2*sizeof(uint32_t), M_DONTWAIT);
+			M_PREPEND(m, 2*sizeof(uint32_t), M_NOWAIT);
 			p = mtod(m, uint32_t *);
 			fp->mode.stream.len = m->m_pkthdr.len;
 			fp->mode.stream.chtag = broadcast_channel;
@@ -778,7 +778,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		m = sxfer->mbuf;
 
 		/* insert new rbuf */
-		sxfer->mbuf = m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		sxfer->mbuf = m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m0 != NULL) {
 			m0->m_len = m0->m_pkthdr.len = m0->m_ext.ext_size;
 			STAILQ_INSERT_TAIL(&xferq->stfree, sxfer, link);
@@ -871,7 +871,7 @@ fwip_unicast_input_recycle(struct fwip_softc *fwip, struct fw_xfer *xfer)
 	 * We have finished with a unicast xfer. Allocate a new
 	 * cluster and stick it on the back of the input queue.
 	 */
-	m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 	xfer->mbuf = m;
 	xfer->recv.payload = mtod(m, uint32_t *);
 	xfer->recv.pay_len = MCLBYTES;
