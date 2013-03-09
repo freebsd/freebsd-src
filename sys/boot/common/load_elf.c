@@ -297,15 +297,16 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	 * the MI code below uses the p_vaddr fields with an offset added for
 	 * loading (doing so is arguably wrong).  To make loading work, we need
 	 * an offset that represents the difference between physical and virtual
-	 * addressing.  ARM kernels are always linked at 0xC0000000.  Depending
+	 * addressing.  ARM kernels are always linked at 0xCnnnnnnn.  Depending
 	 * on the headers, the offset value passed in may be physical or virtual
 	 * (because it typically comes from e_entry), but we always replace
 	 * whatever is passed in with the va<->pa offset.  On the other hand, we
-	 * only adjust the entry point if it's a virtual address to begin with.
+	 * always remove the high-order part of the entry address whether it's
+	 * physical or virtual, because it will be adjusted later for the actual
+	 * physical entry point based on where the image gets loaded.
 	 */
-	off = -0xc0000000u;
-	if ((ehdr->e_entry & 0xc0000000u) == 0xc0000000u)
-		ehdr->e_entry += off;
+	off = -0xc0000000;
+	ehdr->e_entry &= ~0xf0000000;
 #ifdef ELF_VERBOSE
 	printf("ehdr->e_entry 0x%08x, va<->pa off %llx\n", ehdr->e_entry, off);
 #endif
