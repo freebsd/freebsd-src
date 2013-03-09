@@ -1129,7 +1129,7 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	boolean_t empty;
 
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (__predict_false(object->cache == NULL)) {
+	if (__predict_false(vm_object_cache_is_empty(object))) {
 		mtx_unlock(&vm_page_queue_free_mtx);
 		return;
 	}
@@ -1173,7 +1173,7 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		cnt.v_cache_count--;
 		cnt.v_free_count++;
 	}
-	empty = object->cache == NULL;
+	empty = vm_object_cache_is_empty(object);
 	mtx_unlock(&vm_page_queue_free_mtx);
 	if (object->type == OBJT_VNODE && empty)
 		vdrop(object->handle);
@@ -1257,7 +1257,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 	 * not.
 	 */
 	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
-	KASSERT(new_object->cache == NULL,
+	KASSERT(vm_object_cache_is_empty(new_object),
 	    ("vm_page_cache_transfer: object %p has cached pages",
 	    new_object));
 	mtx_lock(&vm_page_queue_free_mtx);
@@ -1300,7 +1300,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 			m_next->left = m;
 			new_object->cache = m_next;
 		}
-		KASSERT(new_object->cache == NULL ||
+		KASSERT(vm_object_cache_is_empty(new_object) ||
 		    new_object->type == OBJT_SWAP,
 		    ("vm_page_cache_transfer: object %p's type is incompatible"
 		    " with cached pages", new_object));
@@ -1327,7 +1327,7 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 	 * exist.
 	 */
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if (__predict_true(object->cache == NULL))
+	if (__predict_true(vm_object_cache_is_empty(object)))
 		return (FALSE);
 	mtx_lock(&vm_page_queue_free_mtx);
 	m = vm_page_cache_lookup(object, pindex);
@@ -1465,7 +1465,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			m->valid = 0;
 		m_object = m->object;
 		vm_page_cache_remove(m);
-		if (m_object->type == OBJT_VNODE && m_object->cache == NULL)
+		if (m_object->type == OBJT_VNODE &&
+		    vm_object_cache_is_empty(m_object))
 			vp = m_object->handle;
 	} else {
 		KASSERT(VM_PAGE_IS_FREE(m),
@@ -1722,7 +1723,8 @@ vm_page_alloc_init(vm_page_t m)
 		m->valid = 0;
 		m_object = m->object;
 		vm_page_cache_remove(m);
-		if (m_object->type == OBJT_VNODE && m_object->cache == NULL)
+		if (m_object->type == OBJT_VNODE &&
+		    vm_object_cache_is_empty(m_object))
 			drop = m_object->handle;
 	} else {
 		KASSERT(VM_PAGE_IS_FREE(m),
