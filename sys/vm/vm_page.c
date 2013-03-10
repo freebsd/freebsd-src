@@ -1018,7 +1018,7 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	boolean_t empty;
 
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (__predict_false(vm_object_cache_is_empty(object))) {
+	if (__predict_false(vm_radix_is_empty(&object->cache))) {
 		mtx_unlock(&vm_page_queue_free_mtx);
 		return;
 	}
@@ -1035,7 +1035,7 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		cnt.v_cache_count--;
 		cnt.v_free_count++;
 	}
-	empty = vm_object_cache_is_empty(object);
+	empty = vm_radix_is_empty(&object->cache);
 	mtx_unlock(&vm_page_queue_free_mtx);
 	if (object->type == OBJT_VNODE && empty)
 		vdrop(object->handle);
@@ -1096,7 +1096,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 	 * not.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(new_object);
-	KASSERT(vm_object_cache_is_empty(new_object),
+	KASSERT(vm_radix_is_empty(&new_object->cache),
 	    ("vm_page_cache_transfer: object %p has cached pages",
 	    new_object));
 	mtx_lock(&vm_page_queue_free_mtx);
@@ -2186,7 +2186,7 @@ vm_page_cache(vm_page_t m)
 	mtx_lock(&vm_page_queue_free_mtx);
 	m->flags |= PG_CACHED;
 	cnt.v_cache_count++;
-	cache_was_empty = vm_object_cache_is_empty(object);
+	cache_was_empty = vm_radix_is_empty(&object->cache);
 	vm_radix_insert(&object->cache, m->pindex, m);
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m)) {

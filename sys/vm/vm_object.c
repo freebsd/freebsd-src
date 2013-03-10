@@ -168,7 +168,7 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	object = (vm_object_t)mem;
 	KASSERT(TAILQ_EMPTY(&object->memq),
 	    ("object %p has resident pages in its memq", object));
-	KASSERT(object->rtree.rt_root == 0,
+	KASSERT(vm_radix_is_empty(&object->rtree),
 	    ("object %p has resident pages in its trie", object));
 #if VM_NRESERVLEVEL > 0
 	KASSERT(LIST_EMPTY(&object->rvq),
