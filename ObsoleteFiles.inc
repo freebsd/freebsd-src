@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20130902: NWFS and NCP supports removed
+# 20130309: NWFS and NCP supports removed
 OLD_FILES+=usr/bin/ncplist
 OLD_FILES+=usr/bin/ncplogin
 OLD_FILES+=usr/bin/ncplogout
@@ -73,6 +73,7 @@ OLD_FILES+=usr/lib32/libncp_p.a
 OLD_FILES+=usr/sbin/mount_nwfs
 OLD_FILES+=usr/share/examples/nwclient/dot.nwfsrc
 OLD_FILES+=usr/share/examples/nwclient/nwfs.sh.sample
+OLD_DIRS+=usr/share/examples/nwclient
 OLD_FILES+=usr/share/man/man1/ncplist.1.gz
 OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
 OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
