@@ -397,6 +397,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	    "_loadimage: failed to read section headers");
 	goto nosyms;
     }
+    file_addmetadata(fp, MODINFOMD_SHDR, chunk, shdr);
+
     symtabindex = -1;
     symstrindex = -1;
     for (i = 0; i < ehdr->e_shnum; i++) {
