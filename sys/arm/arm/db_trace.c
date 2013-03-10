@@ -612,10 +612,13 @@ db_trace_self(void)
 {
 #ifdef __ARM_EABI__
 	struct unwind_state state;
-	register uint32_t sp __asm__ ("sp");
+	uint32_t sp;
+
+	/* Read the stack pointer */
+	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
 	state.registers[FP] = (uint32_t)__builtin_frame_address(0);
-	state.registers[SP] = (uint32_t)sp;
+	state.registers[SP] = sp;
 	state.registers[LR] = (uint32_t)__builtin_return_address(0);
 	state.registers[PC] = (uint32_t)db_trace_self;
 
