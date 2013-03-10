@@ -99,6 +99,12 @@ OLD_FILES+=usr/share/man/man8/mount_portalfs.8.gz
 OLD_FILES+=usr/share/man/man4/coda.4.gz
 # 20130302: XFS support removed
 OLD_FILES+=usr/share/man/man5/xfs.5.gz
+# 20130302: Capsicum overhaul
+OLD_FILES+=usr/share/man/man2/cap_getrights.2.gz
+OLD_FILES+=usr/share/man/man2/cap_new.2.gz
+# 20130213: OpenSSL 1.0.1e import
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover_init.3.gz
 # 20130116: removed long unused directories for .1aout section manpages
 OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
 OLD_FILES+=usr/share/man/en.UTF-8/man1aout
