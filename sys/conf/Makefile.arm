@@ -39,12 +39,18 @@ SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 STRIP_FLAGS = -S
 .endif
 
+.if ${COMPILER_TYPE} != "clang"
 CFLAGS += -mno-thumb-interwork
+.endif
 
 .if empty(DDB_ENABLED)
 CFLAGS += -mno-apcs-frame
 .elif defined(WITH_ARM_EABI)
 CFLAGS += -funwind-tables
+.if ${COMPILER_TYPE} == "clang"
+# clang requires us to tell it to emit assembly with unwind information
+CFLAGS += -mllvm -arm-enable-ehabi
+.endif
 .endif
 
 SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${LDFLAGS} \
