@@ -377,7 +377,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 		index = db_find_index(state->start_pc);
 
 		if (index->insn == EXIDX_CANTUNWIND) {
-			printf("Unable to unwind\n");
+			db_printf("Unable to unwind\n");
 			break;
 		} else if (index->insn & (1 << 31)) {
 			/* The data is within the instruction */
