@@ -258,6 +258,8 @@ callout_callwheel_init(void *dummy)
 	/*
 	 * Calculate the size of the callout wheel and the preallocated
 	 * timeout() structures.
+	 * XXX: Clip callout to result of previous function of maxusers
+	 * maximum 384.  This is still huge, but acceptable.
 	 */
 	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
