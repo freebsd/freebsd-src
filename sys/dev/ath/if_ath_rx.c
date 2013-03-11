@@ -403,11 +403,27 @@ ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_v.evm[3] = rs->rs_evm3;
 	sc->sc_rx_th.wr_v.evm[4] = rs->rs_evm4;
 
+	/* direction */
+	sc->sc_rx_th.wr_v.vh_flags = ATH_VENDOR_PKT_RX;
+
+	/* RX rate */
+	sc->sc_rx_th.wr_v.vh_rx_hwrate = rs->rs_rate;
+
+	/* RX flags */
+	sc->sc_rx_th.wr_v.vh_rs_flags = rs->rs_flags;
+
+	if (rs->rs_isaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_ISAGGR;
+	if (rs->rs_moreaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_MOREAGGR;
+
 	/* phyerr info */
-	if (rs->rs_status & HAL_RXERR_PHY)
+	if (rs->rs_status & HAL_RXERR_PHY) {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = rs->rs_phyerr;
-	else
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_RXPHYERR;
+	} else {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = 0xff;
+	}
 	sc->sc_rx_th.wr_v.vh_rs_status = rs->rs_status;
 	sc->sc_rx_th.wr_v.vh_rssi = rs->rs_rssi;
 }
