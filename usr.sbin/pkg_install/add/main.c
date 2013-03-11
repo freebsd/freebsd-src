@@ -88,6 +88,7 @@ struct {
 	{ 801000, 801499, "/packages-8.1-release" },
 	{ 802000, 802499, "/packages-8.2-release" },
 	{ 803000, 803499, "/packages-8.3-release" },
+	{ 804000, 804499, "/packages-8.4-release" },
 	{ 900000, 900499, "/packages-9.0-release" },
 	{ 901000, 901499, "/packages-9.1-release" },
 	{ 300000, 399000, "/packages-3-stable" },
