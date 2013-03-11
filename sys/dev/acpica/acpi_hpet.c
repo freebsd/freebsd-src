@@ -675,7 +675,7 @@ hpet_attach(device_t dev)
 		if (t->pcpu_master >= 0) {
 			t->et.et_flags |= ET_FLAGS_PERCPU;
 			t->et.et_quality += 100;
-		} if (mp_ncpus >= 8)
+		} else if (mp_ncpus >= 8)
 			t->et.et_quality -= 100;
 		if ((t->caps & HPET_TCAP_PER_INT) == 0)
 			t->et.et_quality -= 10;
