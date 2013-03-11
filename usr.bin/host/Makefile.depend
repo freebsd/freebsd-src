@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/bind/isccfg \
 	lib/bind/lwres \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libthr \
 	secure/lib/libcrypto \
 

@@ -8,7 +8,9 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libgeom \
+	sbin/geom/core \
 
 
 .include <dirdeps.mk>

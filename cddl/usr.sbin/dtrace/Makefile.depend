@@ -10,6 +10,7 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libelf \
 	lib/libproc \
 	lib/librtld_db \
@@ -17,6 +18,7 @@ DIRDEPS = \
 	lib/libutil \
 	lib/liby \
 	lib/libz \
+	usr.bin/lex/lib \
 
 
 .include <dirdeps.mk>

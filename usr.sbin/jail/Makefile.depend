@@ -9,9 +9,11 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libjail \
 	lib/libkvm \
 	lib/libutil \
+	usr.bin/lex/lib \
 
 
 .include <dirdeps.mk>

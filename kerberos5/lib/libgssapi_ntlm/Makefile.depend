@@ -14,6 +14,7 @@ DIRDEPS = \
 	kerberos5/lib/libroken \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libgssapi \
 	secure/lib/libcrypto \
 
