@@ -8,8 +8,10 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/liby \
 	lib/msun \
+	usr.bin/lex/lib \
 
 
 .include <dirdeps.mk>

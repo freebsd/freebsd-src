@@ -15,6 +15,7 @@ DIRDEPS = \
 	kerberos5/lib/libvers \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libcrypt \
 	secure/lib/libcrypto \
 

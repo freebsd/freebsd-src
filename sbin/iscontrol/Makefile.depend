@@ -10,6 +10,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcam \
+	lib/libcompiler_rt \
 	lib/libmd \
 
 

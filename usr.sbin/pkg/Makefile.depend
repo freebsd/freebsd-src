@@ -10,6 +10,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libarchive \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libelf \
 	lib/libfetch \
 

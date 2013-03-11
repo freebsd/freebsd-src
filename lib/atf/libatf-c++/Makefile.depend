@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/atf/libatf-c \
 	lib/libc \
+	lib/libcompiler_rt \
 
 
 .include <dirdeps.mk>

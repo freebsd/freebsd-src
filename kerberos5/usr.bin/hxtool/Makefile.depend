@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcom_err \
+	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libedit \
 	secure/lib/libcrypto \

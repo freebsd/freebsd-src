@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libbegemot \
 	lib/libbsnmp/libbsnmp \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/libwrap \
 
 
