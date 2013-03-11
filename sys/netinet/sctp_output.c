@@ -4447,9 +4447,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #if defined(SCTP_WITH_NO_CSUM)
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-				m->m_pkthdr.csum_flags = CSUM_SCTP;
-				m->m_pkthdr.csum_data = 0;
-				SCTP_STAT_INCR(sctps_sendhwcrc);
+				sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip6_hdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
 			}
 			/* send it out. table id is taken from stcb */
@@ -11023,9 +11022,8 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-			mout->m_pkthdr.csum_flags = CSUM_SCTP;
-			mout->m_pkthdr.csum_data = 0;
-			SCTP_STAT_INCR(sctps_sendhwcrc);
+			shout->checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr));
+			SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
 		}
 #ifdef SCTP_PACKET_LOGGING
