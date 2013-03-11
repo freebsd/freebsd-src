@@ -273,6 +273,12 @@ struct ath_rateioctl {
 #define	ATH_RADIOTAP_MAX_CHAINS		4
 
 /*
+ * AR9380 and later chips are 3x3, which requires
+ * 5 EVM DWORDs in HT40 mode.
+ */
+#define	ATH_RADIOTAP_MAX_EVM		5
+
+/*
  * The vendor radiotap header data needs to be:
  *
  * + Aligned to a 4 byte address
@@ -291,7 +297,7 @@ struct ath_radiotap_vendor_hdr {		/* 30 bytes */
 	uint8_t		vh_rx_chainmask;	/* 1 */
 
 	/* At this point it should be 4 byte aligned */
-	uint32_t	evm[ATH_RADIOTAP_MAX_CHAINS];	/* 4 * 4 = 16 */
+	uint32_t	evm[ATH_RADIOTAP_MAX_EVM];	/* 5 * 4 = 20 */
 
 	uint8_t		rssi_ctl[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
 	uint8_t		rssi_ext[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
