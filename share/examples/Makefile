@@ -52,9 +52,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	csh/dot.cshrc \
 	cvsup/README \
 	cvsup/cvs-supfile \
-	cvsup/ports-supfile \
-	cvsup/refuse \
-	cvsup/refuse.README \
 	cvsup/stable-supfile \
 	cvsup/standard-supfile \
 	diskless/ME \
