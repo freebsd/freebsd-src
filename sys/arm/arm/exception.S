@@ -77,6 +77,9 @@ Lreset_panicmsg:
  *	Handler for the Software Interrupt exception.
  */
 ASENTRY_NP(swi_entry)
+	.fnstart
+	.cantunwind			/* Don't unwind past here */
+
 	PUSHFRAME
 
 	mov	r0, sp			/* Pass the frame to any function */
@@ -88,6 +91,7 @@ ASENTRY_NP(swi_entry)
 	DO_AST
 	PULLFRAME
 	movs	pc, lr			/* Exit */
+	.fnend
 
 /*
  * prefetch_abort_entry:

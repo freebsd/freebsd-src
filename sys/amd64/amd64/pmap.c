@@ -670,7 +670,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
-	kernel_pmap->pm_root = NULL;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 
