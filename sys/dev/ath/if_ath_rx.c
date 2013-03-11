@@ -399,7 +399,9 @@ ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_v.evm[0] = rs->rs_evm0;
 	sc->sc_rx_th.wr_v.evm[1] = rs->rs_evm1;
 	sc->sc_rx_th.wr_v.evm[2] = rs->rs_evm2;
-	/* XXX TODO: extend this to include 3-stream EVM */
+	/* These are only populated from the AR9300 or later */
+	sc->sc_rx_th.wr_v.evm[3] = rs->rs_evm3;
+	sc->sc_rx_th.wr_v.evm[4] = rs->rs_evm4;
 
 	/* phyerr info */
 	if (rs->rs_status & HAL_RXERR_PHY)
