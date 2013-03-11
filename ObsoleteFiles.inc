@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130311: Ports are no more available via cvsup
+OLD_FILES+=usr/share/examples/cvsup/ports-supfile
+OLD_FILES+=usr/share/examples/cvsup/refuse
+OLD_FILES+=usr/share/examples/cvsup/refuse.README
 # 20130309: NWFS and NCP supports removed
 OLD_FILES+=usr/bin/ncplist
 OLD_FILES+=usr/bin/ncplogin
