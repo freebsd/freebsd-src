@@ -349,7 +349,7 @@ call_again:
 	/*
 	 * Leave space to pre-pend the record mark.
 	 */
-	MGETHDR(mreq, M_WAITOK, MT_DATA);
+	mreq = m_gethdr(M_WAITOK, MT_DATA);
 	mreq->m_data += sizeof(uint32_t);
 	KASSERT(ct->ct_mpos + sizeof(uint32_t) <= MHLEN,
 	    ("RPC header too big"));
