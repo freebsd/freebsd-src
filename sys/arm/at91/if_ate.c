@@ -900,8 +900,8 @@ ate_intr(void *xsc)
 			remain = (sc->rx_descs[idx].status & ETH_LEN_MASK) - 4;
 
 			/* Get an appropriately sized mbuf. */
-			mb = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR,
-			    remain + ETHER_ALIGN);
+			mb = m_get2(remain + ETHER_ALIGN, M_NOWAIT, MT_DATA,
+			    M_PKTHDR);
 			if (mb == NULL) {
 				sc->ifp->if_iqdrops++;
 				rxdhead->status = 0;

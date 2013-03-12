@@ -1760,7 +1760,7 @@ m_megapullup(struct mbuf *m, int len) {
 	if (m->m_next == NULL && M_WRITABLE(m) && M_TRAILINGSPACE(m) >= RESERVE)
 		return (m);
 
-	mcl = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR, len + RESERVE);
+	mcl = m_get2(len + RESERVE, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mcl == NULL)
 		goto bad;
  
