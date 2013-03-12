@@ -83,6 +83,10 @@ HOST_OBJTOP ?= ${OBJROOT}${HOST_TARGET}
 
 .if ${OBJTOP} == ${HOST_OBJTOP} || ${REQUESTED_MACHINE:U${MACHINE}} == "host"
 MACHINE= host
+.if ${TARGET_MACHINE:Uno} == ${HOST_TARGET}
+# not what we want
+TARGET_MACHINE= host
+.endif
 .endif
 .if ${MACHINE} == "host"
 OBJTOP := ${HOST_OBJTOP}
