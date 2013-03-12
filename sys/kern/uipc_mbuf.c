@@ -88,7 +88,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
  * m_get2() allocates minimum mbuf that would fit "size" argument.
  */
 struct mbuf *
-m_get2(int how, short type, int flags, int size)
+m_get2(int size, int how, short type, int flags)
 {
 	struct mb_args args;
 	struct mbuf *m, *n;
