@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 /*
  * This file contains the amd64 physical->virtual mapping management code.
  * This code used to reside in pmap.c previously and has been excised
- * out to make things a bit more modularised.
+ * to make things a bit more modularised.
  */
 
 #include <sys/param.h>
@@ -135,6 +135,8 @@ static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
 static struct mtx pv_chunks_mutex;
 static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 
+vm_map_t	pv_map; /* Kernel submap for pc chunk alloc */
+
 /***************************************************
  * page management routines.
  ***************************************************/
@@ -164,6 +166,8 @@ pv_to_chunk(pv_entry_t pv)
  *
  */
 
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 pv_entry_t
 pmap_get_pv_entry(pmap_t pmap)
 {
@@ -210,13 +214,22 @@ pmap_get_pv_entry(pmap_t pmap)
 	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
 	dump_add_page(VM_PAGE_TO_PHYS(m));
 
-	pc = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+	if (!gdtset) {
+		/* pmap_init() has not been run yet - use the kernel_map */
+		pc = (void *) kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	}
+	else {
+		pc = (void *) kmem_alloc_nofault(pv_map, PAGE_SIZE);
+	}
+
+	KASSERT(pc != NULL, ("Failed to allocate VA for pv chunk\n"));
 
 	/* 
 	 * DMAP entries are kernel only, and don't need tracking, so
 	 * we just wire in the va.
 	 */
 	pmap_kenter_ma((vm_offset_t)pc, xpmap_ptom(VM_PAGE_TO_PHYS(m)));
+
 
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
@@ -240,7 +253,7 @@ pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv_entry_t pv;
 
 	KASSERT(m != NULL, ("Invalid page"));
-	pa = VM_PAGE_TO_PHYS(m);
+	pa = VM_PAGE_TO_PHYS(m); /* XXX: What's this for ? */
 
 //	if ((m->oflags & VPO_UNMANAGED) == 0) { /* XXX: exclude
 //	unmanaged */
@@ -254,6 +267,51 @@ pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		PMAP_UNLOCK(pmap);
 //	}
 }
+
+
+bool
+pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	bool found = false;
+	pv_entry_t pv;
+
+	PMAP_LOCK(pmap);
+	rw_rlock(&pvh_global_lock);
+
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+			found = true;
+			break;
+		}
+	}
+
+	rw_runlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
+	return found;
+}
+
+/* Find an existing p->v mapping. Returns NULL if nonexistent */
+pv_entry_t
+pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	pv_entry_t pv = NULL;
+
+	PMAP_LOCK(pmap);
+	rw_rlock(&pvh_global_lock);
+
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
+			break;
+		}
+	}
+
+	rw_runlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
+	return pv;
+
+}
+
 
 /* This function may be called after pmap_pv_pmap_init() */
 void

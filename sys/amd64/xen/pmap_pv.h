@@ -43,5 +43,7 @@ vm_offset_t pmap_pv_vm_page_to_v(pmap_t pmap, vm_page_t m);
 bool pmap_pv_vm_page_mapped(pmap_t pmap, vm_page_t m);
 pv_entry_t pmap_get_pv_entry(pmap_t pmap);
 void pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
+bool pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
+pv_entry_t pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
 #endif /* !_MACHINE_PMAP_PV_H_ */
