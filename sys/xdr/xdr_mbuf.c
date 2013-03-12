@@ -228,9 +228,9 @@ xdrmbuf_putbytes(XDR *xdrs, const char *addr, u_int len)
 
 		if (xdrs->x_handy == m->m_len && M_TRAILINGSPACE(m) == 0) {
 			if (!m->m_next) {
-				MGET(n, M_TRYWAIT, m->m_type);
+				MGET(n, M_WAITOK, m->m_type);
 				if (m->m_flags & M_EXT)
-					MCLGET(n, M_TRYWAIT);
+					MCLGET(n, M_WAITOK);
 				m->m_next = n;
 			}
 			m = m->m_next;
