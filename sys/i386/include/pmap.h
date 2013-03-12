@@ -159,6 +159,8 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+#include <vm/_vm_radix.h>
+
 #ifdef PAE
 
 typedef uint64_t pdpt_entry_t;
@@ -426,19 +428,9 @@ struct	pv_entry;
 struct	pv_chunk;
 
 struct md_page {
-	union {
-		TAILQ_HEAD(,pv_entry)	pvi_list;
-		struct {
-			vm_page_t	pii_left;
-			vm_page_t	pii_right;
-		} pvi_siters;
-	} pv_structs;
-	int				pat_mode;
+	TAILQ_HEAD(,pv_entry)	pv_list;
+	int			pat_mode;
 };
-
-#define	pv_list		pv_structs.pvi_list
-#define	pv_left		pv_structs.pvi_siters.pii_left
-#define	pv_right	pv_structs.pvi_siters.pii_right
 
 struct pmap {
 	struct mtx		pm_mtx;
@@ -451,7 +443,7 @@ struct pmap {
 	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
 						   table */
 #endif
-	vm_page_t		pm_root;	/* spare page table pages */
+	struct vm_radix		pm_root;	/* spare page table pages */
 };
 
 typedef struct pmap	*pmap_t;
