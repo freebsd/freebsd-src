@@ -140,32 +140,32 @@
  * Allocate mbufs. Must succeed and never set the mbuf ptr to NULL.
  */
 #define	NFSMGET(m)	do { 					\
-		MGET((m), M_TRYWAIT, MT_DATA); 			\
+		MGET((m), M_WAITOK, MT_DATA); 			\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGET((m), M_TRYWAIT, MT_DATA); 		\
+			MGET((m), M_WAITOK, MT_DATA); 		\
 		} 						\
 	} while (0)
 #define	NFSMGETHDR(m)	do { 					\
-		MGETHDR((m), M_TRYWAIT, MT_DATA);		\
+		MGETHDR((m), M_WAITOK, MT_DATA);		\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGETHDR((m), M_TRYWAIT, MT_DATA); 	\
+			MGETHDR((m), M_WAITOK, MT_DATA); 	\
 		} 						\
 	} while (0)
 #define	NFSMCLGET(m, w)	do { 					\
-		MGET((m), M_TRYWAIT, MT_DATA); 			\
+		MGET((m), M_WAITOK, MT_DATA); 			\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGET((m), M_TRYWAIT, MT_DATA); 		\
+			MGET((m), M_WAITOK, MT_DATA); 		\
 		} 						\
 		MCLGET((m), (w));				\
 	} while (0)
 #define	NFSMCLGETHDR(m, w) do { 				\
-		MGETHDR((m), M_TRYWAIT, MT_DATA);		\
+		MGETHDR((m), M_WAITOK, MT_DATA);		\
 		while ((m) == NULL ) { 				\
 			(void) nfs_catnap(PZERO, 0, "nfsmget");	\
-			MGETHDR((m), M_TRYWAIT, MT_DATA); 	\
+			MGETHDR((m), M_WAITOK, MT_DATA); 	\
 		} 						\
 	} while (0)
 #define	NFSMTOD	mtod
