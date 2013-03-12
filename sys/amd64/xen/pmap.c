@@ -155,15 +155,26 @@ extern unsigned long physfree; /* from machdep.c */
 
 struct pmap kernel_pmap_store;
 
+#define ISDMAPVA(va) ((va) >= DMAP_MIN_ADDRESS && \
+		      (va) <= DMAP_MAX_ADDRESS)
+#define ISKERNELVA(va) ((va) >= VM_MIN_KERNEL_ADDRESS && \
+			(va) <= VM_MAX_KERNEL_ADDRESS)
 #define ISBOOTVA(va) ((va) >= KERNBASE && (va) <= virtual_avail) /* XXX: keep an eye on virtual_avail */
 
 uintptr_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 uintptr_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
-#ifdef SUPERPAGESUPPORT
+/* 
+ * VA for temp mapping to zero.
+ * We need this because on xen, the DMAP is R/O
+ */
+const uintptr_t zerova = VM_MAX_KERNEL_ADDRESS;
+
+#define DMAP4KSUPPORT /* Temporary 4K based DMAP support */
+#ifdef DMAPSUPPORT
 static int ndmpdp;
 static vm_paddr_t dmaplimit;
-#endif /* SUPERPAGESUPPORT */
+#endif
 
 uintptr_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx; /* XXX: do we need this ? */
@@ -175,10 +186,13 @@ static u_int64_t	KPDphys;	/* phys addr of kernel level 2 */
 u_int64_t		KPDPphys;	/* phys addr of kernel level 3 */
 u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 
-#ifdef SUPERPAGESUPPORT
+#if defined(DMAPSUPPORT) || defined(DMAP4KSUPPORT)
+#ifdef DMAP4KSUPPORT
+static u_int64_t	DMPTphys;	/* phys addr of direct mapped level 1 */
+#endif
 static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
 static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
-#endif /* SUPERPAGESUPPORT */
+#endif /* DMAPSUPPORT || DMAP4KSUPPORT */
 
 static vm_paddr_t	boot_ptphys;	/* phys addr of start of
 					 * kernel bootstrap tables
@@ -187,7 +201,6 @@ static vm_paddr_t	boot_ptendphys;	/* phys addr of end of kernel
 					 * bootstrap page tables
 					 */
 
-static uma_zone_t xen_pagezone;
 static size_t tsz; /* mmu_map.h opaque cookie size */
 static uintptr_t (*ptmb_mappedalloc)(void) = NULL;
 static void (*ptmb_mappedfree)(uintptr_t) = NULL;
@@ -197,6 +210,8 @@ static vm_paddr_t (*ptmb_vtop)(uintptr_t) = NULL;
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
 extern char *console_page; /* The shared ring for console i/o */
 extern struct xenstore_domain_interface *xen_store; /* xenstore page */
+
+extern vm_map_t pv_map;
 
 /* return kernel virtual address of  'n' claimed physical pages at boot. */
 static uintptr_t
@@ -262,6 +277,7 @@ pmap_xen_kernel_vaflags(uintptr_t va)
 
 	return 0;
 }
+uintptr_t tmpva;
 
 static void
 create_boot_pagetables(vm_paddr_t *firstaddr)
@@ -282,22 +298,61 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 	KPDphys = vallocpages(firstaddr, nkpdpe);
 	KPTphys = vallocpages(firstaddr, nkpt);
 
-#ifdef SUPERPAGESUPPORT
+#ifdef DMAPSUPPORT
 	int ndm1g;
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
-	DMPDPphys = vallocpages(firstaddr, NDMPML4E, VALLOC_MAPPED);
+	DMPDPphys = vallocpages(firstaddr, NDMPML4E);
 	ndm1g = 0;
 	if ((amd_feature & AMDID_PAGE1GB) != 0)
 		ndm1g = ptoa(Maxmem) >> PDPSHIFT;
 
 	if (ndm1g < ndmpdp)
-		DMPDphys = vallocpages(firstaddr, ndmpdp - ndm1g, 
-				       VALLOC_MAPPED);
+		DMPDphys = vallocpages(firstaddr, ndmpdp - ndm1g);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
-#endif /* SUPERPAGESUPPORT */
+#endif /* DMAPSUPPORT */
+#ifdef DMAP4KSUPPORT
+	int ndmapped = physmem;
+	int ndmpt = howmany(ndmapped, NPTEPG);
+	int ndmpdpe = howmany(ndmpt, NPDEPG);
+	tmpva = ptoa(ndmapped);
 
+	DMPDPphys = vallocpages(firstaddr, NDMPML4E);
+	DMPDphys = vallocpages(firstaddr, ndmpdpe);
+	DMPTphys = vallocpages(firstaddr, ndmpt);
+
+	for (i = 0;ptoa(i) < ptoa(ndmapped); i++) {
+		((pt_entry_t *)DMPTphys)[i] = phystomach(i << PAGE_SHIFT);
+		((pt_entry_t *)DMPTphys)[i] |= PG_V | PG_U;
+	}
+
+	pmap_xen_setpages_ro(DMPTphys, (i - 1) / NPTEPG + 1);
+
+	for (i = 0; i < ndmpt; i ++) {
+		((pd_entry_t *)DMPDphys)[i] = phystomach(VTOP(DMPTphys) +
+							 (i << PAGE_SHIFT));
+		((pd_entry_t *)DMPDphys)[i] |= PG_V | PG_U;
+
+	}
+
+	pmap_xen_setpages_ro(DMPDphys, (ndmpt - 1) / NPDEPG + 1);
+
+	for (i = 0; i < ndmpdpe; i++) {
+		((pdp_entry_t *)DMPDPphys)[i] = phystomach(VTOP(DMPDphys) +
+			(i << PAGE_SHIFT));
+		((pdp_entry_t *)DMPDPphys)[i] |= PG_V | PG_U;
+	}
+
+	pmap_xen_setpages_ro(DMPDPphys, (ndmpdpe - 1) / NPDPEPG + 1);
+
+	/* Connect the Direct Map slot(s) up to the PML4. */
+	for (i = 0; i < NDMPML4E - 1; i++) {
+		((pdp_entry_t *)KPML4phys)[DMPML4I + i] = phystomach(VTOP(DMPDPphys) +
+			(i << PAGE_SHIFT));
+		((pdp_entry_t *)KPML4phys)[DMPML4I + i] |= PG_V | PG_U;
+	}
+#endif /* DMAP4KSUPPORT */	
 
 	boot_ptendphys = *firstaddr - 1;
 
@@ -323,8 +378,6 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 
 	}
 
-	pmap_xen_setpages_ro(KPDphys, (nkpt - 1) / NPDEPG + 1);
-
 #ifdef SUPERPAGESUPPORT /* XXX: work out r/o overlaps and 2M machine pages*/
 	/* Map from zero to end of allocations under 2M pages */
 	/* This replaces some of the KPTphys entries above */
@@ -333,6 +386,8 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 		((pd_entry_t *)KPDphys)[i] |= PG_U | PG_RW | PG_V | PG_PS | PG_G;
 	}
 #endif
+
+	pmap_xen_setpages_ro(KPDphys, (nkpt - 1) / NPDEPG + 1);
 
 	/* And connect up the PD to the PDP */
 	for (i = 0; i < nkpdpe; i++) {
@@ -343,7 +398,7 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 
 	pmap_xen_setpages_ro(KPDPphys, (nkpdpe - 1) / NPDPEPG + 1);
 
-#ifdef SUPERPAGESUPPORT
+#ifdef DMAPSUPPORT
 	int j;
 
 	/*
@@ -404,7 +459,7 @@ create_boot_pagetables(vm_paddr_t *firstaddr)
 			(i << PAGE_SHIFT));
 		((pdp_entry_t *)KPML4phys)[DMPML4I + i] |= PG_V | PG_U;
 	}
-#endif /* SUPERPAGESUPPORT */
+#endif /* DMAPSUPPORT */
 
 	/* And recursively map PML4 to itself in order to get PTmap */
 	((pdp_entry_t *)KPML4phys)[PML4PML4I] = phystomach(VTOP(KPML4phys));
@@ -562,7 +617,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = (uintptr_t) xenstack + 512 * 1024;
 	/* XXX: Check we don't overlap xen pgdir entries. */
-	virtual_end = VM_MAX_KERNEL_ADDRESS; 
+	virtual_end = VM_MAX_KERNEL_ADDRESS - PAGE_SIZE; 
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
@@ -664,8 +719,6 @@ pmap_init(void)
 		pmap_put_pv_entry(kernel_pmap, PTOV(pa), m);
 	}
 
-	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
-
 	/* Get a va for console and map the console mfn into it */
 	vm_paddr_t ma = xen_start_info->console.domU.mfn << PAGE_SHIFT;
 
@@ -683,6 +736,16 @@ pmap_init(void)
 
 	pmap_kenter_ma(va, ma);
 	xen_store = (void *)va;
+
+	/* Reserve pv VA space by allocating a submap */
+	vm_offset_t pv_minva, pv_maxva;
+	KASSERT(kernel_map != 0, ("Initialising kernel submap before kernel_map!"));
+	pv_map = kmem_suballoc(kernel_map, &pv_minva, &pv_maxva, 
+			       sizeof(struct pv_chunk) * 100 /* XXX: Totally arbitrary */, 0);
+	KASSERT(pv_map != NULL, ("Could not allocate kernel submap for pv_map!"));
+
+	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
+
 }
 
 void
@@ -1190,14 +1253,9 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 void
 pmap_zero_page(vm_page_t m)
 {
-	vm_offset_t va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-
-	/* XXX: temp fix, dmap not yet implemented. */
-	pmap_kenter(va, VM_PAGE_TO_PHYS(m));
-
-	pagezero((void *)va);
-
-	pmap_kremove(va);
+	pmap_kenter(zerova, VM_PAGE_TO_PHYS(m));
+	pagezero((void *)zerova);
+	pmap_kremove(zerova);
 }
 
 void
@@ -1369,87 +1427,33 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 static uintptr_t
 xen_vm_ptov(vm_paddr_t pa)
 {
-	vm_page_t m;
-
-	m = PHYS_TO_VM_PAGE(pa);
-
 	/* Assert for valid PA *after* the VM has been init-ed */
-	KASSERT((gdtset == 1 && m != NULL) || pa < physfree, ("Stray PA 0x%lx passed\n", pa));
-
-	if (m == NULL) { /* Early boottime page - obeys early mapping rules */
-		/* XXX: KASSERT() for this */
-		return PTOV(pa);
-	}
-
-#if 0
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-		("%s: page %p is not managed", __func__, m));
-#endif
-	return pmap_pv_vm_page_to_v(kernel_pmap, m) | (pa & ~PG_FRAME);
+	KASSERT((gdtset == 1 || pa < physfree), ("Stray PA 0x%lx passed\n", pa));
+	return PHYS_TO_DMAP(pa);
 }
 
 static vm_paddr_t
 xen_vm_vtop(uintptr_t va)
 {
-	int result;
-
-	/* 
-	 * The kernel expects to have at least read access to its
-	 * address space. On Xen we don't have full access, since
-	 * page-table pages, for eg: are read-only.
-	 */
-	const vm_prot_t accesstype = VM_PROT_READ;
-
-	vm_page_t m;
-	vm_object_t object; /* Backing object for this va */
-	vm_pindex_t pindex; /* Index into backing object */
-	vm_map_entry_t entry;
-	vm_prot_t tmp_prot; /* Our Access rights */
-        boolean_t wired;   /* Is the va wired */
-
-	KASSERT((va >= VM_MIN_KERNEL_ADDRESS &&
-		 va <= VM_MAX_KERNEL_ADDRESS),
-		("Invalid kernel virtual address"));
-
-	if (ISBOOTVA(va)) { /* 
-						      * Boot time page
-						      */
+	if (ISBOOTVA(va) && gdtset != 1) { /* 
+					    * Boot time page
+					    */
 		return VTOP(va);
 	}
 
-	/* Get the specific object and pindex where the va may be mapped */
-	result = vm_map_lookup(&kernel_map, va, accesstype, &entry,
-			       &object, &pindex, &tmp_prot, &wired);
+	if (ISDMAPVA(va)) {
+		return DMAP_TO_PHYS(va);
+	}
 
-	KASSERT(result == KERN_SUCCESS, ("Couldn't find va = 0x%lx in the  kernel map. \n", va));
-
-	KASSERT(accesstype | tmp_prot, ("Kernel access permissions disparity for va = 0x%lx: %s\n", va, ((tmp_prot & VM_PROT_READ) ? "VM_PROT_READ" : (
-																     (tmp_prot & VM_PROT_WRITE) ? "| VM_PROT_WRITE" : ((tmp_prot & VM_PROT_EXECUTE) ? "| VM_PROT_EXECUTE" : "")))));
-
-	VM_OBJECT_LOCK(object);
-
-	m = vm_page_lookup(object, pindex);
-
-	vm_map_lookup_done(kernel_map, entry);
-
-	KASSERT(m != NULL, 
-		("%s: %d:: va = 0x%lx is unbacked in kernel_map()\n",
-		 __func__, __LINE__, va));
-
-	VM_OBJECT_UNLOCK(object);
-
-	return VM_PAGE_TO_PHYS(m) | (va & PAGE_MASK);
+	return 0;
 }
 
 static uintptr_t
 xen_pagezone_alloc(void)
 {
-	uintptr_t ret;
+	vm_page_t m = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 
-	ret = (uintptr_t)uma_zalloc(xen_pagezone, M_NOWAIT);
-	if (ret == 0)
-		panic("%s: failed allocation\n", __func__);
-	return (ret);
+	return PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 }
 
 static void
@@ -1461,37 +1465,7 @@ xen_pagezone_free(vm_offset_t page)
 		return;
 	}
 
-	uma_zfree(xen_pagezone, (void *)page);
-}
-
-static int
-xen_pagezone_init(void *mem, int size, int flags)
-{
-	uintptr_t va;
-
-	va = (uintptr_t)mem;
-
-	/* Zero the zone chunk */
-	memset(mem, 0, size);
-
-	/* Xen requires the page table hierarchy to be R/O. */
-	pmap_xen_setpages_ro(va, atop(size));
-	return (0);
-}
-
-static void
-xen_pagezone_fini(void *mem, int size)
-{
-	uintptr_t va;
-
-	va = (uintptr_t)mem;
-
-	/* Xen requires the page table hierarchy to be R/O. */
-	pmap_xen_setpages_rw(va, atop(size));
-
-	/* Zero the zone chunk before returning it */
-	memset(mem, 0, size);
-
+	vm_page_free(PHYS_TO_VM_PAGE(page));
 	return;
 }
 
@@ -1502,9 +1476,6 @@ xen_pagezone_fini(void *mem, int size)
 static void
 setup_xen_pagezone(void *dummy __unused)
 {
-
-	xen_pagezone = uma_zcreate("XEN PAGEZONE", PAGE_SIZE, NULL, NULL,
-	     xen_pagezone_init, xen_pagezone_fini, UMA_ALIGN_PTR, 0);
 	ptmb_mappedalloc = xen_pagezone_alloc;
 	ptmb_mappedfree = xen_pagezone_free;
 	ptmb_vtop = xen_vm_vtop;
