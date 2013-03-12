@@ -2222,8 +2222,14 @@ retry_space:
 				sf_buf_mext((void *)sf_buf_kva(sf), sf);
 				break;
 			}
-			MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext,
-			    sfs, sf, M_RDONLY, EXT_SFBUF);
+			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
+			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
+			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
+				error = (mnw ? EAGAIN : ENOBUFS);
+				sf_buf_mext((void *)sf_buf_kva(sf), sf);
+				m_freem(m0);
+				break;
+			}
 			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
 			m0->m_len = xfsize;
 
