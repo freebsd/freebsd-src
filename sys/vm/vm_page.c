@@ -1110,10 +1110,10 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 		if ((m->pindex - offidxstart) >= new_object->size)
 			break;
 		vm_radix_remove(&orig_object->cache, m->pindex);
-		vm_radix_insert(&new_object->cache, m->pindex - offidxstart, m);
 		/* Update the page's object and offset. */
 		m->object = new_object;
 		m->pindex -= offidxstart;
+		vm_radix_insert(&new_object->cache, m->pindex, m);
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
 }
