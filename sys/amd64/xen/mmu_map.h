@@ -131,7 +131,7 @@ bool mmu_map_inspect_va(struct pmap *, mmu_map_t, vm_offset_t);
  * Unconditionally allocate resources to setup and "inspect" (as
  * above) a given va->pa mapping 
  */
-void mmu_map_hold_va(struct pmap *,  mmu_map_t, vm_offset_t);
+bool mmu_map_hold_va(struct pmap *,  mmu_map_t, vm_offset_t);
 
 /* Optionally release resources after tear down of a va->pa mapping */
 void mmu_map_release_va(struct pmap *, mmu_map_t, vm_offset_t);

@@ -173,7 +173,7 @@ pmap_get_pt(uintptr_t va, pd_entry_t *pdt)
  * stateful api.
  */
 
-static const uint64_t SANE = 0xcafebabe;
+static const uint32_t SANE = 0xcafebabe;
 
 struct mmu_map_index {
 	pml4_entry_t *pml4t; /* Page Map Level 4 Table */
@@ -309,7 +309,7 @@ mmu_map_inspect_va(struct pmap *pm, void *addr, uintptr_t va)
 	return true;
 }
 
-void
+bool
 mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 {
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
@@ -317,6 +317,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 	struct mmu_map_index *pti = addr;
 	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
 
+	bool alloced = false; /* Did we have to alloc backing pages ? */
 	vm_paddr_t pt;
 
 	pti->pml4t = pmap_get_pml4t(pm);
@@ -329,6 +330,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 		pml4_entry_t pml4te;
 
 		pti->pdpt = (pdp_entry_t *)pti->ptmb.alloc();
+		alloced = true;
 
 		pml4tep = &pti->pml4t[pml4t_index(va)];
 		pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep));
@@ -347,6 +349,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 		pdp_entry_t pdpte;
 
 		pti->pdt = (pd_entry_t *)pti->ptmb.alloc();
+		alloced = true;
 
 		pdptep = &pti->pdpt[pdpt_index(va)];
 		pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
@@ -359,12 +362,14 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 
 	pt = pmap_get_pt(va, pti->pdt);
 
+
 	if (pt == 0) {
 		pd_entry_t *pdtep;
 		vm_paddr_t pdtep_ma;
 		pd_entry_t pdte;
 
 		pti->pt = (pt_entry_t *) pti->ptmb.alloc();
+		alloced = true;
 
 		pdtep = &pti->pdt[pdt_index(va)];
 		pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
@@ -374,6 +379,8 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 	} else {
 		pti->pt = (pt_entry_t *) pti->ptmb.ptov(pt);
 	}
+
+	return alloced;
 }
 
 /*$FreeBSD: head/lib/libc/string/memrchr.c 178051 2008-04-10 00:12:44Z delphij $*/
@@ -381,16 +388,19 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
  * Reverse memchr()
  * Find the last occurrence of 'c' in the buffer 's' of size 'n'.
  */
-static void *
+
+static const void * memrchr(const void *, int, size_t);
+
+static const void *
 memrchr(const void *s, int c, size_t n)
 {
 	const unsigned char *cp;
 
 	if (n != 0) {
-		cp = (unsigned char *)s + n;
+		cp = (const unsigned char *)s + n;
 		do {
 			if (*(--cp) == (unsigned char)c)
-				return((void *)cp);
+				return((const void *)cp);
 		} while (--n != 0);
 	}
 	return(NULL);
