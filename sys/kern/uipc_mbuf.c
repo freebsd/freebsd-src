@@ -255,25 +255,30 @@ m_freem(struct mbuf *mb)
  * Returns:
  *    Nothing.
  */
-void
+int
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(void *, void *), void *arg1, void *arg2, int flags, int type)
+    void (*freef)(void *, void *), void *arg1, void *arg2, int flags, int type,
+    int wait)
 {
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
 
 	if (type != EXT_EXTREF)
-		mb->m_ext.ref_cnt = (u_int *)uma_zalloc(zone_ext_refcnt, M_NOWAIT);
-	if (mb->m_ext.ref_cnt != NULL) {
-		*(mb->m_ext.ref_cnt) = 1;
-		mb->m_flags |= (M_EXT | flags);
-		mb->m_ext.ext_buf = buf;
-		mb->m_data = mb->m_ext.ext_buf;
-		mb->m_ext.ext_size = size;
-		mb->m_ext.ext_free = freef;
-		mb->m_ext.ext_arg1 = arg1;
-		mb->m_ext.ext_arg2 = arg2;
-		mb->m_ext.ext_type = type;
-        }
+		mb->m_ext.ref_cnt = uma_zalloc(zone_ext_refcnt, wait);
+
+	if (mb->m_ext.ref_cnt == NULL)
+		return (ENOMEM);
+
+	*(mb->m_ext.ref_cnt) = 1;
+	mb->m_flags |= (M_EXT | flags);
+	mb->m_ext.ext_buf = buf;
+	mb->m_data = mb->m_ext.ext_buf;
+	mb->m_ext.ext_size = size;
+	mb->m_ext.ext_free = freef;
+	mb->m_ext.ext_arg1 = arg1;
+	mb->m_ext.ext_arg2 = arg2;
+	mb->m_ext.ext_type = type;
+
+	return (0);
 }
 
 /*
