@@ -329,6 +329,12 @@ xen_set_ldt(vm_paddr_t ptr, unsigned long len)
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
 
+void
+xen_set_descriptor(vm_paddr_t dte_ma, uint64_t *dte_ptr)
+{
+  PANIC_IF(HYPERVISOR_update_descriptor(dte_ma, *dte_ptr) < 0);
+}
+
 void xen_tlb_flush(void)
 {
 	struct mmuext_op op;
