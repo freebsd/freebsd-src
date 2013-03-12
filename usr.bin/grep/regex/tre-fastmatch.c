@@ -103,7 +103,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
   ((!fg->reversed							\
     ? ((type == STR_WIDE) ? ((j + fg->wlen) > len)			\
 			  : ((j + fg->len) > len))			\
-    : (j <= 0)))
+    : (j < 0)))
 
 /*
  * Checks whether the new position after shifting in the input string
