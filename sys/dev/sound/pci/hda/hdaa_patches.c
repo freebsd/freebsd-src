@@ -344,7 +344,9 @@ hdac_pin_patch(struct hdaa_widget *w)
 			break;
 		}
 	} else if (id == HDA_CODEC_ALC269 &&
-	    subid == LENOVO_X1CRBN_SUBVENDOR) {
+	    (subid == LENOVO_X1CRBN_SUBVENDOR ||
+	    subid == LENOVO_T430_SUBVENDOR ||
+	    subid == LENOVO_T430S_SUBVENDOR)) {
 		switch (nid) {
 		case 21:
 			patch = "as=1 seq=15";

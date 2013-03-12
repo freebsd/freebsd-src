@@ -85,7 +85,7 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
 
 int	hogticks;
-static int pause_wchan;
+static uint8_t pause_wchan[MAXCPU];
 
 static struct callout loadav_callout;
 
@@ -198,7 +198,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	if (TD_ON_SLEEPQ(td))
 		sleepq_remove(td, td->td_wchan);
 
-	if (ident == &pause_wchan)
+	if ((uint8_t *)ident >= &pause_wchan[0] &&
+	    (uint8_t *)ident <= &pause_wchan[MAXCPU - 1])
 		sleepq_flags = SLEEPQ_PAUSE;
 	else
 		sleepq_flags = SLEEPQ_SLEEP;
@@ -372,7 +373,7 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 		DELAY((sbt & 0xffffffff) / SBT_1US);
 		return (0);
 	}
-	return (_sleep(&pause_wchan, NULL, 0, wmesg, sbt, pr, flags));
+	return (_sleep(&pause_wchan[curcpu], NULL, 0, wmesg, sbt, pr, flags));
 }
 
 /*
