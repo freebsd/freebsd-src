@@ -477,7 +477,7 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 	return (0);
 }
 
-static int nanowait;
+static uint8_t nanowait[MAXCPU];
 
 int
 kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
@@ -503,8 +503,8 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 	if (TIMESEL(&sbt, tmp))
 		sbt += tc_tick_sbt;
 	sbt += tmp;
-	error = tsleep_sbt(&nanowait, PWAIT | PCATCH, "nanslp", sbt, prec,
-	    C_ABSOLUTE);
+	error = tsleep_sbt(&nanowait[curcpu], PWAIT | PCATCH, "nanslp",
+	    sbt, prec, C_ABSOLUTE);
 	if (error != EWOULDBLOCK) {
 		if (error == ERESTART)
 			error = EINTR;
