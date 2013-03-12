@@ -298,7 +298,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 	nfsstats.rpccnt[NFSPROC_FSSTAT]++;
-	mreq = nfsm_reqhead(vp, NFSPROC_FSSTAT, NFSX_FH(v3));
+	mreq = m_get2(M_WAITOK, MT_DATA, 0, NFSX_FH(v3));
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, v3);
@@ -356,7 +356,7 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	u_int64_t maxfsize;
 	
 	nfsstats.rpccnt[NFSPROC_FSINFO]++;
-	mreq = nfsm_reqhead(vp, NFSPROC_FSINFO, NFSX_FH(1));
+	mreq = m_get2(M_WAITOK, MT_DATA, 0, NFSX_FH(1));
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, 1);
