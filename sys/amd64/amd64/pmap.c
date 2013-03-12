@@ -131,6 +131,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
@@ -306,7 +307,6 @@ static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
 static void pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
     pd_entry_t newpde);
 static void pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde);
-static vm_page_t pmap_vmpage_splay(vm_pindex_t pindex, vm_page_t root);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex,
 		struct rwlock **lockp);
@@ -1528,31 +1528,12 @@ pmap_add_delayed_free_list(vm_page_t m, vm_page_t *free, boolean_t set_PG_ZERO)
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
  */
-static void
+static __inline void
 pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
 {
-	vm_page_t root;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	root = pmap->pm_root;
-	if (root == NULL) {
-		mpte->md.pv_left = NULL;
-		mpte->md.pv_right = NULL;
-	} else {
-		root = pmap_vmpage_splay(mpte->pindex, root);
-		if (mpte->pindex < root->pindex) {
-			mpte->md.pv_left = root->md.pv_left;
-			mpte->md.pv_right = root;
-			root->md.pv_left = NULL;
-		} else if (mpte->pindex == root->pindex)
-			panic("pmap_insert_pt_page: pindex already inserted");
-		else {
-			mpte->md.pv_right = root->md.pv_right;
-			mpte->md.pv_left = root;
-			root->md.pv_right = NULL;
-		}
-	}
-	pmap->pm_root = mpte;
+	vm_radix_insert(&pmap->pm_root, mpte->pindex, mpte);
 }
 
 /*
@@ -1560,19 +1541,12 @@ pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
  * specified pmap's collection of idle page table pages.  Returns NULL if there
  * is no page table page corresponding to the specified virtual address.
  */
-static vm_page_t
+static __inline vm_page_t
 pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va)
 {
-	vm_page_t mpte;
-	vm_pindex_t pindex = pmap_pde_pindex(va);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((mpte = pmap->pm_root) != NULL && mpte->pindex != pindex) {
-		mpte = pmap_vmpage_splay(pindex, mpte);
-		if ((pmap->pm_root = mpte)->pindex != pindex)
-			mpte = NULL;
-	}
-	return (mpte);
+	return (vm_radix_lookup(&pmap->pm_root, pmap_pde_pindex(va)));
 }
 
 /*
@@ -1580,31 +1554,12 @@ pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va)
  * of idle page table pages.  The specified page table page must be a member of
  * the pmap's collection.
  */
-static void
+static __inline void
 pmap_remove_pt_page(pmap_t pmap, vm_page_t mpte)
 {
-	vm_page_t root;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (mpte != pmap->pm_root) {
-		root = pmap_vmpage_splay(mpte->pindex, pmap->pm_root);
-		KASSERT(mpte == root,
-		    ("pmap_remove_pt_page: mpte %p is missing from pmap %p",
-		    mpte, pmap));
-	}
-	if (mpte->md.pv_left == NULL)
-		root = mpte->md.pv_right;
-	else {
-		root = pmap_vmpage_splay(mpte->pindex, mpte->md.pv_left);
-		root->md.pv_right = mpte->md.pv_right;
-	}
-	pmap->pm_root = root;
-
-	/*
-	 * Reinitialize the pv_list which could be dirty now because of the
-	 * splay tree work.
-	 */
-	TAILQ_INIT(&mpte->md.pv_list);
+	vm_radix_remove(&pmap->pm_root, mpte->pindex);
 }
 
 /*
@@ -1680,61 +1635,6 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t *free)
 }
 
 /*
- *	Implements Sleator and Tarjan's top-down splay algorithm.  Returns
- *	the vm_page containing the given pindex.  If, however, that
- *	pindex is not found in the pmap, returns a vm_page that is
- *	adjacent to the pindex, coming before or after it.
- */
-static vm_page_t
-pmap_vmpage_splay(vm_pindex_t pindex, vm_page_t root)
-{
-	struct vm_page dummy;
-	vm_page_t lefttreemax, righttreemin, y;
-
-	if (root == NULL)
-		return (root);
-	lefttreemax = righttreemin = &dummy;
-	for (;; root = y) {
-		if (pindex < root->pindex) {
-			if ((y = root->md.pv_left) == NULL)
-				break;
-			if (pindex < y->pindex) {
-				/* Rotate right. */
-				root->md.pv_left = y->md.pv_right;
-				y->md.pv_right = root;
-				root = y;
-				if ((y = root->md.pv_left) == NULL)
-					break;
-			}
-			/* Link into the new root's right tree. */
-			righttreemin->md.pv_left = root;
-			righttreemin = root;
-		} else if (pindex > root->pindex) {
-			if ((y = root->md.pv_right) == NULL)
-				break;
-			if (pindex > y->pindex) {
-				/* Rotate left. */
-				root->md.pv_right = y->md.pv_left;
-				y->md.pv_left = root;
-				root = y;
-				if ((y = root->md.pv_right) == NULL)
-					break;
-			}
-			/* Link into the new root's left tree. */
-			lefttreemax->md.pv_right = root;
-			lefttreemax = root;
-		} else
-			break;
-	}
-	/* Assemble the new root. */
-	lefttreemax->md.pv_right = root->md.pv_left;
-	righttreemin->md.pv_left = root->md.pv_right;
-	root->md.pv_left = dummy.md.pv_right;
-	root->md.pv_right = dummy.md.pv_left;
-	return (root);
-}
-
-/*
  * After removing a page table entry, this routine is used to
  * conditionally free the page, and manage the hold/wire counts.
  */
@@ -1756,7 +1656,7 @@ pmap_pinit0(pmap_t pmap)
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
-	pmap->pm_root = NULL;
+	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -1797,7 +1697,7 @@ pmap_pinit(pmap_t pmap)
 	/* install self-referential address mapping entry(s) */
 	pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
 
-	pmap->pm_root = NULL;
+	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -2039,7 +1939,7 @@ pmap_release(pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
-	KASSERT(pmap->pm_root == NULL,
+	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
