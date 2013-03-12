@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -62,7 +62,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	 */
 	if (vd->vdev_path == NULL || vd->vdev_path[0] != '/') {
 		vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 
 	/*
@@ -100,7 +100,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	 */
 	if (vp->v_type != VREG) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
-		return (ENODEV);
+		return (SET_ERROR(ENODEV));
 	}
 #endif
 
@@ -155,7 +155,7 @@ vdev_file_io_intr(buf_t *bp)
 
 	zio->io_error = (geterror(bp) != 0 ? EIO : 0);
 	if (zio->io_error == 0 && bp->b_resid != 0)
-		zio->io_error = ENOSPC;
+		zio->io_error = SET_ERROR(ENOSPC);
 
 	kmem_free(vb, sizeof (vdev_buf_t));
 	zio_interrupt(zio);
@@ -194,7 +194,7 @@ vdev_file_io_start(zio_t *zio)
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
 		/* XXPOLICY */
 		if (!vdev_readable(vd)) {
-			zio->io_error = ENXIO;
+			zio->io_error = SET_ERROR(ENXIO);
 			return (ZIO_PIPELINE_CONTINUE);
 		}
 
@@ -204,7 +204,7 @@ vdev_file_io_start(zio_t *zio)
 			    kcred, NULL);
 			break;
 		default:
-			zio->io_error = ENOTSUP;
+			zio->io_error = SET_ERROR(ENOTSUP);
 		}
 
 		return (ZIO_PIPELINE_CONTINUE);
