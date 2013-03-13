@@ -375,6 +375,8 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, vm_page_t page)
 	int slot;
 	uint16_t clev;
 
+	KASSERT(index == page->index, ("%s: index != page->index", __func__));
+
 	/*
 	 * The owner of record for root is not really important because it
 	 * will never be used.
