@@ -1034,6 +1034,7 @@ fasttrap_pid_probe(struct reg *rp)
 #endif
 
 	PROC_LOCK(p);
+	_PHOLD(p);
 	pid = p->p_pid;
 #if defined(sun)
 	pid_mtx = &cpu_core[CPU->cpu_id].cpuc_pid_lock;
@@ -1059,6 +1060,7 @@ fasttrap_pid_probe(struct reg *rp)
 #if defined(sun)
 		mutex_exit(pid_mtx);
 #endif
+		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (-1);
 	}
@@ -1732,7 +1734,6 @@ fasttrap_pid_probe(struct reg *rp)
 
 		ASSERT(i <= sizeof (scratch));
 
-
 #if defined(sun)
 		if (fasttrap_copyout(scratch, (char *)addr, i)) {
 #else
@@ -1794,7 +1795,11 @@ done:
 	}
 
 	rp->r_rip = new_pc;
-	set_regs(curthread, rp);
+
+	PROC_LOCK(p);
+	proc_write_regs(curthread, rp);
+	_PRELE(p);
+	PROC_UNLOCK(p);
 
 	return (0);
 }
