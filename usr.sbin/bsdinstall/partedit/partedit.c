@@ -41,6 +41,7 @@
 #include "partedit.h"
 
 struct pmetadata_head part_metadata;
+static int sade_mode = 0;
 
 static int apply_changes(struct gmesh *mesh);
 static struct partedit_item *read_geom_mesh(struct gmesh *mesh, int *nitems);
@@ -75,12 +76,15 @@ main(int argc, const char **argv)
 	int i, op, nitems, nscroll;
 	int error;
 
+	if (strcmp(basename(argv[0]), "sade") == 0)
+		sade_mode = 1;
+
 	TAILQ_INIT(&part_metadata);
 
 	init_fstab_metadata();
 
 	init_dialog(stdin, stdout);
-	if (strcmp(basename(argv[0]), "sade") != 0)
+	if (!sade_mode)
 		dialog_vars.backtitle = __DECONST(char *, "FreeBSD Installer");
 	dialog_vars.item_help = TRUE;
 	nscroll = i = 0;
@@ -261,7 +265,7 @@ validate_setup(void)
 	 * Check for root partitions that we aren't formatting, which is 
 	 * usually a mistake
 	 */
-	if (root->newfs == NULL) {
+	if (root->newfs == NULL && !sade_mode) {
 		dialog_vars.defaultno = TRUE;
 		cancel = dialog_yesno("Warning", "The chosen root partition "
 		    "has a preexisting filesystem. If it contains an existing "
