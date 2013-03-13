@@ -1910,9 +1910,9 @@ usbd_setup_device_desc(struct usb_device *udev, struct mtx *mtx)
 		break;
 
 	default:
-		DPRINTF("Minimum MaxPacketSize is large enough "
+		DPRINTF("Minimum bMaxPacketSize is large enough "
 		    "to hold the complete device descriptor or "
-		    "only once MaxPacketSize choice\n");
+		    "only one bMaxPacketSize choice\n");
 
 		/* get the full device descriptor */
 		err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
