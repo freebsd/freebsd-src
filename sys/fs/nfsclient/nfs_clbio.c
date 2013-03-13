@@ -1297,7 +1297,7 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
  		sigset_t oldset;
 
  		newnfs_set_sigmask(td, &oldset);
-		bp = getblk(vp, bn, size, NFS_PCATCH, 0, 0);
+		bp = getblk(vp, bn, size, PCATCH, 0, 0);
  		newnfs_restore_sigmask(td, &oldset);
 		while (bp == NULL) {
 			if (newnfs_sigintr(nmp, td))
@@ -1332,7 +1332,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF))
 		intrflg = 1;
 	if (intrflg) {
-		slpflag = NFS_PCATCH;
+		slpflag = PCATCH;
 		slptimeo = 2 * hz;
 	} else {
 		slpflag = 0;
@@ -1413,7 +1413,7 @@ ncl_asyncio(struct nfsmount *nmp, struct buf *bp, struct ucred *cred, struct thr
 	}
 again:
 	if (nmp->nm_flag & NFSMNT_INT)
-		slpflag = NFS_PCATCH;
+		slpflag = PCATCH;
 	gotiod = FALSE;
 
 	/*
@@ -1478,7 +1478,7 @@ again:
 					mtx_unlock(&ncl_iod_mutex);					
 					return (error2);
 				}
-				if (slpflag == NFS_PCATCH) {
+				if (slpflag == PCATCH) {
 					slpflag = 0;
 					slptimeo = 2 * hz;
 				}
