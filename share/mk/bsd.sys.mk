@@ -148,7 +148,7 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 .endif
 
 .if ${MK_STAGING} != "no"
-.if defined(_SKIP_BUILD) || !make(all)
+.if defined(_SKIP_BUILD) || (!make(all) && !make(clean*))
 staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
