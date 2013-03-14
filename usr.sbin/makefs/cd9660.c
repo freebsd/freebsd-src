@@ -621,10 +621,6 @@ static void
 cd9660_finalize_PVD(void)
 {
 	time_t tim;
-	unsigned char *temp;
-
-	/* Copy the root directory record */
-	temp = (unsigned char *) &diskStructure.primaryDescriptor;
 
 	/* root should be a fixed size of 34 bytes since it has no name */
 	memcpy(diskStructure.primaryDescriptor.root_directory_record,
@@ -1051,7 +1047,7 @@ static cd9660node *
 cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 {
 	int i = 0;
-	int numbts, dot, semi, digit, digits, temp, powers, multiplier, count;
+	int numbts, digit, digits, temp, powers, count;
 	char *naming;
 	int maxlength;
         char *tmp;
@@ -1073,7 +1069,6 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		powers = 1;
 		count = 0;
 		digits = 1;
-		multiplier = 1;
 		while (((int)(i / powers) ) >= 10) {
 			digits++;
 			powers = powers * 10;
@@ -1088,15 +1083,9 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		}
 		*/
 
-		dot = -1;
-		semi = -1;
 		while (count < maxlength) {
-			if (*naming == '.')
-				dot = count;
-			else if (*naming == ';') {
-				semi = count;
+			if (*naming == ';')
 				break;
-			}
 			naming++;
 			count++;
 		}
@@ -1527,7 +1516,6 @@ cd9660_generate_path_table(void)
 	cd9660node *last = dirNode;
 	int pathTableSize = 0;	/* computed as we go */
 	int counter = 1;	/* root gets a count of 0 */
-	int parentRecNum = 0;	/* root's parent is '0' */
 
 	TAILQ_HEAD(cd9660_pt_head, ptq_entry) pt_head;
 	TAILQ_INIT(&pt_head);
@@ -1556,10 +1544,6 @@ cd9660_generate_path_table(void)
 			dirNode->ptprev = last;
 		}
 		last = dirNode;
-
-		parentRecNum = 1;
-		if (dirNode->parent != 0)
-			parentRecNum = dirNode->parent->ptnumber;
 
 		/* Push children onto queue */
 		TAILQ_FOREACH(cn, &dirNode->cn_children, cn_next_child) {
