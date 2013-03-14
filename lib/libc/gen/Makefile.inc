@@ -491,6 +491,20 @@ MLINKS+=ttyname.3 isatty.3 \
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=unvis.3 strunvis.3 \
 	unvis.3 strunvisx.3
-MLINKS+=vis.3 strvis.3 \
-	vis.3 strvisx.3
+MLINKS+=vis.3 nvis.3 \
+	vis.3 snvis.3 \
+	vis.3 strenvisx.3 \
+	vis.3 strnunvis.3 \
+	vis.3 strnunvisx.3 \
+	vis.3 strnvis.3 \
+	vis.3 strnvisx.3 \
+	vis.3 strsenvisx.3 \
+	vis.3 strsnvis.3 \
+	vis.3 strsnvisx.3 \
+	vis.3 strsvis.3 \
+	vis.3 strsvisx.3 \
+	vis.3 strvis.3 \
+	vis.3 strvisx.3 \
+	vis.3 svis.3
+
 MLINKS+=wordexp.3 wordfree.3
