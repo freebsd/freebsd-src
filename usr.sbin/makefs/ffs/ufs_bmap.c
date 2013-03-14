@@ -117,7 +117,6 @@ ufs_getlbns(struct inode *ip, daddr_t bn, struct indir *ap, int *nump)
 	 */
 	ap->in_lbn = metalbn;
 	ap->in_off = off = NIADDR - i;
-	ap->in_exists = 0;
 	ap++;
 	for (++numlevels; i <= NIADDR; i++) {
 		/* If searching for a meta-data block, quit when found. */
@@ -131,7 +130,6 @@ ufs_getlbns(struct inode *ip, daddr_t bn, struct indir *ap, int *nump)
 		++numlevels;
 		ap->in_lbn = metalbn;
 		ap->in_off = off;
-		ap->in_exists = 0;
 		++ap;
 
 		metalbn -= -1 + (off << lbc);

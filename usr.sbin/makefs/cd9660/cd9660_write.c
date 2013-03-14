@@ -305,10 +305,10 @@ cd9660_write_file(FILE *fd, cd9660node *writenode)
 		}
 	} else {
 		/*
-		 * Here is a new revelation that ECMA didnt explain
+		 * Here is a new revelation that ECMA didn't explain
 		 * (at least not well).
 		 * ALL . and .. records store the name "\0" and "\1"
-		 * resepctively. So, for each directory, we have to
+		 * respectively. So, for each directory, we have to
 		 * make a new node.
 		 *
 		 * This is where it gets kinda messy, since we have to

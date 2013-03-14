@@ -135,6 +135,47 @@ mtree_warning(const char *fmt, ...)
 	fputc('\n', stderr);
 }
 
+#ifndef MAKEFS_MAX_TREE_DEPTH
+# define MAKEFS_MAX_TREE_DEPTH (MAXPATHLEN/2)
+#endif
+
+/* construct path to node->name */
+static char *
+mtree_file_path(fsnode *node)
+{
+	fsnode *pnode;
+	struct sbuf *sb;
+	char *res, *rp[MAKEFS_MAX_TREE_DEPTH];
+	int depth;
+
+	depth = 0;
+	rp[depth] = node->name;
+	for (pnode = node->parent; pnode && depth < MAKEFS_MAX_TREE_DEPTH;
+	     pnode = pnode->parent) {
+		if (strcmp(pnode->name, ".") == 0)
+			break;
+		rp[++depth] = pnode->name;
+	}
+	
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	if (sb == NULL) {
+		errno = ENOMEM;
+		return (NULL);
+	}
+	while (depth > 0) {
+		sbuf_cat(sb, rp[depth--]);
+		sbuf_putc(sb, '/');
+	}
+	sbuf_cat(sb, rp[depth]);
+	sbuf_finish(sb);
+	res = strdup(sbuf_data(sb));
+	sbuf_delete(sb);
+	if (res == NULL)
+		errno = ENOMEM;
+	return res;
+
+}
+
 /* mtree_resolve() sets errno to indicate why NULL was returned. */
 static char *
 mtree_resolve(const char *spec, int *istemp)
@@ -467,8 +508,8 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 {
 	char keyword[PATH_MAX];
 	char *name, *p, *value;
-	struct group *grent;
-	struct passwd *pwent;
+	gid_t gid;
+	uid_t uid;
 	struct stat *st, sb;
 	intmax_t num;
 	u_long flset, flclr;
@@ -544,11 +585,10 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				grent = getgrnam(value);
-				if (grent != NULL)
-					st->st_gid = grent->gr_gid;
+				if (gid_from_group(value, &gid) == 0)
+					st->st_gid = gid;
 				else
-					error = errno;
+					error = EINVAL;
 			} else
 				error = ENOSYS;
 			break;
@@ -657,11 +697,10 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				pwent = getpwnam(value);
-				if (pwent != NULL)
-					st->st_uid = pwent->pw_uid;
+				if (uid_from_user(value, &uid) == 0)
+					st->st_uid = uid;
 				else
-					error = errno;
+					error = EINVAL;
 			} else
 				error = ENOSYS;
 			break;
@@ -706,6 +745,12 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 			return (0);
 		}
 		type = S_IFREG;
+	} else if (node->type != 0) {
+		type = node->type;
+		if (type == S_IFREG) {
+			/* the named path is the default contents */
+			node->contents = mtree_file_path(node);
+		}
 	} else
 		type = (node->symlink != NULL) ? S_IFLNK : S_IFDIR;
 
@@ -732,6 +777,24 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 		    name);
 		free(name);
 		return (0);
+	}
+
+	/*
+         * Check for hardlinks. If the contents key is used, then the check
+         * will only trigger if the contents file is a link even if it is used
+         * by more than one file
+	 */
+	if (sb.st_nlink > 1) {
+		fsinode *curino;
+
+		st->st_ino = sb.st_ino;
+		st->st_dev = sb.st_dev;
+		curino = link_check(node->inode);
+		if (curino != NULL) {
+			free(node->inode);
+			node->inode = curino;
+			node->inode->nlink++;
+		}
 	}
 
 	free(node->contents);
@@ -834,8 +897,14 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 
 		if (strcmp(name, node->name) == 0) {
 			if (def == true) {
-				mtree_error("duplicate definition of %s",
-				    name);
+				if (!dupsok)
+					mtree_error(
+					    "duplicate definition of %s",
+					    name);
+				else
+					mtree_warning(
+					    "duplicate definition of %s",
+					    name);
 				return (0);
 			}
 
@@ -923,15 +992,15 @@ read_mtree_spec(FILE *fp)
 		do {
 			*cp++ = '\0';
 
-			/* Disallow '.' and '..' as components. */
-			if (IS_DOT(pathspec) || IS_DOTDOT(pathspec)) {
-				mtree_error("absolute path cannot contain . "
-				    "or .. components");
+			/* Disallow '..' as a component. */
+			if (IS_DOTDOT(pathspec)) {
+				mtree_error("absolute path cannot contain "
+				    ".. component");
 				goto out;
 			}
 
-			/* Ignore multiple adjacent slashes. */
-			if (pathspec[0] != '\0')
+			/* Ignore multiple adjacent slashes and '.'. */
+			if (pathspec[0] != '\0' && !IS_DOT(pathspec))
 				error = read_mtree_spec1(fp, false, pathspec);
 			memmove(pathspec, cp, strlen(cp) + 1);
 			cp = strchr(pathspec, '/');
