@@ -519,7 +519,8 @@ ffs_read(ap)
 			 * doing sequential access.
 			 */
 			error = cluster_read(vp, ip->i_size, lbn,
-				size, NOCRED, blkoffset + uio->uio_resid, seqcount, &bp);
+			    size, NOCRED, blkoffset + uio->uio_resid,
+			    seqcount, 0, &bp);
 		} else if (seqcount > 1) {
 			/*
 			 * If we are NOT allowed to cluster, then
@@ -784,7 +785,8 @@ ffs_write(ap)
 		} else if (xfersize + blkoffset == fs->fs_bsize) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
 				bp->b_flags |= B_CLUSTEROK;
-				cluster_write(vp, bp, ip->i_size, seqcount);
+				cluster_write(vp, bp, ip->i_size, seqcount,
+				    0);
 			} else {
 				bawrite(bp);
 			}

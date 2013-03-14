@@ -478,8 +478,9 @@ udf_read(struct vop_read_args *ap)
 		rablock = lbn + 1;
 		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			if (lblktosize(udfmp, rablock) < fsize) {
-				error = cluster_read(vp, fsize, lbn, size, NOCRED,
-					uio->uio_resid, (ap->a_ioflag >> 16), &bp);
+				error = cluster_read(vp, fsize, lbn, size,
+				    NOCRED, uio->uio_resid,
+				    (ap->a_ioflag >> 16), 0, &bp);
 			} else {
 				error = bread(vp, lbn, size, NOCRED, &bp);
 			}
