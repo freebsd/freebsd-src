@@ -162,3 +162,7 @@ CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLO
 # XXX Work around clang warnings, until maintainer approves fix.
 CWARNFLAGS.if_ath.c=		${NO_WSOMETIMES_UNINITIALIZED}
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
+
+# AR9300 HAL build overrides, as there's still some code to tidy up
+#CWARNFLAGS.ar9300_eeprom.c=	${NO_WCONSTANT_CONVERSION}
+#CWARNFLAGS.ar9300_reset.c=	${NO_WSOMETIMES_UNINITIALIZED}
