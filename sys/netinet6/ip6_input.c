@@ -497,21 +497,16 @@ ip6_input(struct mbuf *m)
 	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_NOWAIT, MT_HEADER);
-		if (n)
-			M_MOVE_PKTHDR(n, m);
-		if (n && n->m_pkthdr.len > MHLEN) {
-			MCLGET(n, M_NOWAIT);
-			if ((n->m_flags & M_EXT) == 0) {
-				m_freem(n);
-				n = NULL;
-			}
-		}
+		if (m->m_pkthdr.len > MHLEN)
+			n = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		else
+			n = m_gethdr(M_NOWAIT, MT_DATA);
 		if (n == NULL) {
 			m_freem(m);
 			return;	/* ENOBUFS */
 		}
 
+		M_MOVE_PKTHDR(n, m);
 		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
 		n->m_len = n->m_pkthdr.len;
 		m_freem(m);
