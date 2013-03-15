@@ -12,8 +12,11 @@ DIRDEPS += pkgs/pseudo/stage
 # we want to supress these dependencies for host tools
 DEP_DIRDEPS_FILTER.host = \
 	Ninclude* \
-	Nlib/* \
-	Ngnu/lib/* \
+	Nlib/lib* \
+	Nlib/csu* \
+	Nlib/[mn]* \
+	Ngnu/lib/csu* \
+	Ngnu/lib/lib[a-r]* \
 
 
 .if !empty(DIRDEPS) && !empty(DEP_DIRDEPS_FILTER.${DEP_MACHINE})
