@@ -9,6 +9,7 @@
  *
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  * Copyright (c) 2013 The FreeBSD Foundation
+ *
  * Portions of this software were developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.
  *
