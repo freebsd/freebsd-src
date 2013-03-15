@@ -329,6 +329,15 @@ struct ath_txq {
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
+	/*
+	 * XXX the holdingbf field is protected by the TXBUF lock
+	 * for now, NOT the TX lock.
+	 *
+	 * Architecturally, it would likely be better to move
+	 * the holdingbf field to a separate array in ath_softc
+	 * just to highlight that it's not protected by the normal
+	 * TX path lock.
+	 */
 	struct ath_buf		*axq_holdingbf;	/* holding TX buffer */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
