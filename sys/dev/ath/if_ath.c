@@ -4156,14 +4156,13 @@ ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf)
 static void
 ath_txq_freeholdingbuf(struct ath_softc *sc, struct ath_txq *txq)
 {
+	ATH_TXBUF_LOCK_ASSERT(sc);
 
 	if (txq->axq_holdingbf == NULL)
 		return;
 
 	txq->axq_holdingbf->bf_flags &= ~ATH_BUF_BUSY;
-	ATH_TXBUF_LOCK(sc);
 	ath_returnbuf_tail(sc, txq->axq_holdingbf);
-	ATH_TXBUF_UNLOCK(sc);
 	txq->axq_holdingbf = NULL;
 }
 
@@ -4175,6 +4174,8 @@ static void
 ath_txq_addholdingbuf(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_txq *txq;
+
+	ATH_TXBUF_LOCK_ASSERT(sc);
 
 	/* XXX assert ATH_BUF_BUSY is set */
 
@@ -4188,10 +4189,8 @@ ath_txq_addholdingbuf(struct ath_softc *sc, struct ath_buf *bf)
 		ath_returnbuf_tail(sc, bf);
 		return;
 	}
-
 	txq = &sc->sc_txq[bf->bf_state.bfs_tx_queue];
 	ath_txq_freeholdingbuf(sc, txq);
-
 	txq->axq_holdingbf = bf;
 }
 
@@ -4219,7 +4218,9 @@ ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 	 * If this buffer is busy, push it onto the holding queue
 	 */
 	if (bf->bf_flags & ATH_BUF_BUSY) {
+		ATH_TXBUF_LOCK(sc);
 		ath_txq_addholdingbuf(sc, bf);
+		ATH_TXBUF_UNLOCK(sc);
 		return;
 	}
 
@@ -4342,7 +4343,9 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	/*
 	 * Free the holding buffer if it exists
 	 */
+	ATH_TXBUF_LOCK(sc);
 	ath_txq_freeholdingbuf(sc, txq);
+	ATH_TXBUF_UNLOCK(sc);
 
 	/*
 	 * Drain software queued frames which are on
