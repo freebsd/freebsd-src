@@ -774,9 +774,7 @@ again:
 				/*
 				 * XXX: ip6_mforward expects that rcvif is NULL
 				 * when it is called from the originating path.
-				 * However, it is not always the case, since
-				 * some versions of MGETHDR() does not
-				 * initialize the field.
+				 * However, it may not always be the case.
 				 */
 				m->m_pkthdr.rcvif = NULL;
 				if (ip6_mforward(ip6, ifp, m) != 0) {
@@ -1122,13 +1120,12 @@ passout:
 		 */
 		m0 = m;
 		for (off = hlen; off < tlen; off += len) {
-			MGETHDR(m, M_NOWAIT, MT_HEADER);
+			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (!m) {
 				error = ENOBUFS;
 				V_ip6stat.ip6s_odropped++;
 				goto sendorfree;
 			}
-			m->m_pkthdr.rcvif = NULL;
 			m->m_flags = m0->m_flags & M_COPYFLAGS;	/* incl. FIB */
 			*mnext = m;
 			mnext = &m->m_nextpkt;
@@ -3045,8 +3042,8 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (m->m_len > sizeof(*ip6)) {
-		MGETHDR(mh, M_NOWAIT, MT_HEADER);
-		if (mh == 0) {
+		mh = m_gethdr(M_NOWAIT, MT_DATA);
+		if (mh == NULL) {
 			m_freem(m);
 			return ENOBUFS;
 		}

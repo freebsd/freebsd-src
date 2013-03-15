@@ -581,7 +581,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			const int maxlen = sizeof(*nip6) + sizeof(*nicmp6);
 			int n0len;
 
-			MGETHDR(n, M_NOWAIT, n0->m_type);
+			n = m_gethdr(M_NOWAIT, n0->m_type);
 			n0len = n0->m_pkthdr.len;	/* save for use below */
 			if (n)
 				M_MOVE_PKTHDR(n, n0);	/* FIB copied. */
@@ -699,7 +699,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 				/* Give up remote */
 				break;
 			}
-			MGETHDR(n, M_NOWAIT, m->m_type);
+			n = m_gethdr(M_NOWAIT, m->m_type);
 			if (n && maxlen > MHLEN) {
 				MCLGET(n, M_NOWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
@@ -1495,7 +1495,7 @@ ni6_input(struct mbuf *m, int off)
 	}
 
 	/* allocate an mbuf to reply. */
-	MGETHDR(n, M_NOWAIT, m->m_type);
+	n = m_gethdr(M_NOWAIT, m->m_type);
 	if (n == NULL) {
 		m_freem(m);
 		return (NULL);
@@ -1608,16 +1608,13 @@ ni6_nametodns(const char *name, int namelen, int old)
 	else
 		len = MCLBYTES;
 
-	/* because MAXHOSTNAMELEN is usually 256, we use cluster mbuf */
-	MGET(m, M_NOWAIT, MT_DATA);
-	if (m && len > MLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0)
-			goto fail;
-	}
-	if (!m)
+	/* Because MAXHOSTNAMELEN is usually 256, we use cluster mbuf. */
+	if (len > MLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, 0);
+	else
+		m = m_get(M_NOWAIT, MT_DATA);
+	if (m == NULL)
 		goto fail;
-	m->m_next = NULL;
 
 	if (old) {
 		m->m_len = len;
@@ -2063,7 +2060,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			 */
 			if ((m->m_flags & M_EXT) && m->m_next == NULL &&
 			    m->m_len <= MHLEN) {
-				MGET(n, M_NOWAIT, m->m_type);
+				n = m_get(M_NOWAIT, m->m_type);
 				if (n != NULL) {
 					if (m_dup_pkthdr(n, m, M_NOWAIT)) {
 						bcopy(m->m_data, n->m_data,
@@ -2113,7 +2110,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		    m->m_len <= MHLEN) {
 			struct mbuf *n;
 
-			MGET(n, M_NOWAIT, m->m_type);
+			n = m_get(M_NOWAIT, m->m_type);
 			if (n != NULL) {
 				if (m_dup_pkthdr(n, m, M_NOWAIT)) {
 					bcopy(m->m_data, n->m_data, m->m_len);
@@ -2592,14 +2589,10 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 #if IPV6_MMTU >= MCLBYTES
 # error assumption failed about IPV6_MMTU and MCLBYTES
 #endif
-	MGETHDR(m, M_NOWAIT, MT_HEADER);
-	if (m && IPV6_MMTU >= MHLEN)
-		MCLGET(m, M_NOWAIT);
-	if (!m)
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
 		goto fail;
 	M_SETFIB(m, rt->rt_fibnum);
-	m->m_pkthdr.rcvif = NULL;
-	m->m_len = 0;
 	maxlen = M_TRAILINGSPACE(m);
 	maxlen = min(IPV6_MMTU, maxlen);
 	/* just for safety */
