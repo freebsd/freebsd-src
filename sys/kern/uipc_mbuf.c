@@ -92,7 +92,6 @@ m_get2(int size, int how, short type, int flags)
 {
 	struct mb_args args;
 	struct mbuf *m, *n;
-	uma_zone_t zone;
 
 	args.flags = flags;
 	args.type = type;
@@ -101,24 +100,15 @@ m_get2(int size, int how, short type, int flags)
 		return (uma_zalloc_arg(zone_mbuf, &args, how));
 	if (size <= MCLBYTES)
 		return (uma_zalloc_arg(zone_pack, &args, how));
-	if (size > MJUM16BYTES)
+
+	if (size > MJUMPAGESIZE)
 		return (NULL);
 
 	m = uma_zalloc_arg(zone_mbuf, &args, how);
 	if (m == NULL)
 		return (NULL);
 
-#if MJUMPAGESIZE != MCLBYTES
-	if (size <= MJUMPAGESIZE)
-		zone = zone_jumbop;
-	else
-#endif
-	if (size <= MJUM9BYTES)
-		zone = zone_jumbo9;
-	else
-		zone = zone_jumbo16;
-
-	n = uma_zalloc_arg(zone, m, how);
+	n = uma_zalloc_arg(zone_jumbop, m, how);
 	if (n == NULL) {
 		uma_zfree(zone_mbuf, m);
 		return (NULL);
