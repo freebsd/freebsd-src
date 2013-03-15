@@ -288,26 +288,39 @@ distribution:
 		${DESTDIR}/etc/nsswitch.conf
 .endif
 
-distrib-dirs:
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
-		-p ${DESTDIR}/usr/include
+MTREE_CMD?=	mtree
+
+MTREES=		mtree/BSD.root.dist		/		\
+		mtree/BSD.var.dist		/var		\
+		mtree/BSD.usr.dist		/usr		\
+		mtree/BSD.include.dist		/usr/include
 .if ${MK_BIND_LIBS} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
-	    -p ${DESTDIR}/usr/include
+MTREES+=	mtree/BIND.include.dist		/usr/include
 .endif
 .if ${MK_BIND_MTREE} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
-	    -p ${DESTDIR}/var/named
+MTREES+=	mtree/BIND.chroot.dist		/var/named
 .endif
 .if ${MK_GROFF} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.groff.dist -p ${DESTDIR}/usr
+MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
 .if ${MK_SENDMAIL} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
+MTREES+=	mtree/BSD.sendmail.dist		/
 .endif
+.for mtree in ${LOCAL_MTREE}
+MTREES+=	../${mtree}			/
+.endfor
+
+distrib-dirs:
+	@set ${MTREES}; \
+	while test $$# -ge 2; do \
+		m=${.CURDIR}/$$1; \
+		shift; \
+		d=${DESTDIR}$$1; \
+		shift; \
+		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
+		    -f $$m -p $$d; \
+		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
+	done; true
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/man/en.ISO8859-1; ln -sf ../man* .
 	cd ${DESTDIR}/usr/share/man/en.UTF-8; ln -sf ../man* .
