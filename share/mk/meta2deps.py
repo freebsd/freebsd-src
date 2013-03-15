@@ -192,8 +192,11 @@ class MetaFile:
                 if not _srctop in self.srctops:
                     self.srctops.append(_srctop)
 
+            trim_list = ['/' + self.machine, '/' + self.machine + '/']
+            if self.machine == 'host':
+                trim_list += ['/' + self.host_target, '/' + self.host_target + '/']
             for objroot in getv(conf, 'OBJROOTS', []):
-                for e in ['/' + self.machine, '/' + self.machine + '/']:
+                for e in trim_list:
                     if objroot.endswith(e):
                         # this is not what we want - fix it
                         objroot = objroot[0:-len(e)]
