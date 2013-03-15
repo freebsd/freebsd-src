@@ -213,7 +213,8 @@ DMenu MenuIndex = {
       { " Media, UFS",		"Select UFS installation media.",	NULL, mediaSetUFS },
       { " Media, FTP",		"Select FTP installation media.",	NULL, mediaSetFTP },
       { " Media, FTP Passive",	"Select passive FTP installation media.", NULL, mediaSetFTPPassive },
-      { " Media, HTTP",		"Select FTP via HTTP proxy install media.", NULL, mediaSetHTTP },
+      { " Media, HTTP Proxy",	"Select FTP via HTTP proxy install media.", NULL, mediaSetHTTP },
+      { " Media, HTTP Direct",	"Select HTTP direct installation media.", NULL, mediaSetHTTPDirect },
       { " Network Interfaces",	"Configure network interfaces",		NULL, tcpMenuSelect },
       { " Networking Services",	"The network services menu.",		NULL, dmenuSubmenu, NULL, &MenuNetworking },
       { " NFS, client",		"Set NFS client flag.",			dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
@@ -881,6 +882,21 @@ DMenu MenuMediaFTP = {
       { NULL } }
 };
 
+DMenu MenuMediaHTTPDirect = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Please select a FreeBSD HTTP distribution site",
+    "Please select the site closest to you or \"other\" if you'd like to\n"
+    "specify a different choice.  Also note that not every site listed here\n"
+    "carries more than the base distribution kits. Only Primary sites are\n"
+    "guaranteed to carry the full range of possible distributions.",
+    "Select a site that's close!",
+    NULL,
+    { { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
+	VAR_HTTP_PATH "=other" },
+
+      { NULL } }
+};
+
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
@@ -926,12 +942,13 @@ DMenu MenuMedia = {
     { { "1 CD/DVD",		"Install from a FreeBSD CD/DVD",	NULL, mediaSetCDROM },
       { "2 FTP",		"Install from an FTP server",		NULL, mediaSetFTPActive },
       { "3 FTP Passive",	"Install from an FTP server through a firewall", NULL, mediaSetFTPPassive },
-      { "4 HTTP",		"Install from an FTP server through a http proxy", NULL, mediaSetHTTP },
-      { "5 DOS",		"Install from a DOS partition",		NULL, mediaSetDOS },
-      { "6 NFS",		"Install over NFS",			NULL, mediaSetNFS },
-      { "7 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
-      { "8 Floppy",		"Install from a floppy disk set",	NULL, mediaSetFloppy },
-      { "9 USB",		"Install from a USB drive",		NULL, mediaSetUSB },
+      { "4 HTTP Proxy",		"Install from an FTP server through a http proxy", NULL, mediaSetHTTP },
+      { "5 HTTP Direct",	"Install from an HTTP server",		NULL, mediaSetHTTPDirect },
+      { "6 DOS",		"Install from a DOS partition",		NULL, mediaSetDOS },
+      { "7 NFS",		"Install over NFS",			NULL, mediaSetNFS },
+      { "8 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
+      { "9 Floppy",		"Install from a floppy disk set",	NULL, mediaSetFloppy },
+      { "A USB",		"Install from a USB drive",		NULL, mediaSetUSB },
       { "X Options",		"Go to the Options screen",		NULL, optionsEditor },
       { NULL } },
 };
