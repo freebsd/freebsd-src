@@ -51,7 +51,12 @@ _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
 _OBJTOP ?= ${OBJTOP}
 _OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
-_objroot ?= ${_OBJROOT:tA}
+.if ${_OBJROOT:M*/}
+_slash=/
+.else
+_slash=
+.endif
+_objroot ?= ${_OBJROOT:tA}${_slash}
 
 _this = ${.PARSEDIR}/${.PARSEFILE}
 
