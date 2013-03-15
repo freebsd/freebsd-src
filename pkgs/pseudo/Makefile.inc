@@ -5,7 +5,9 @@
 
 UPDATE_DEPENDFILE= no
 
+.if !target(all)
 all:
 	@echo Done!
+.endif
 
 
