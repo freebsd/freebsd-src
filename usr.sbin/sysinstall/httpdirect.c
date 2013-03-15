@@ -37,125 +37,20 @@
 extern const char *ftp_dirs[]; /* defined in ftp.c */
 
 Boolean
-checkAccess(Boolean connectCheckOnly, Boolean isProxy)
-{
-    int rv, s, af;
-    bool el, found=FALSE;		    /* end of header line */
-    char *cp, buf[PATH_MAX], req[BUFSIZ];
-    struct addrinfo hints, *res, *res0;
-
-    af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = af;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = 0;
-    if ((rv = getaddrinfo(variable_get(VAR_HTTP_HOST),
-			  variable_get(VAR_HTTP_PORT), &hints, &res0)) != 0) {
-	msgConfirm("%s", gai_strerror(rv));
-	variable_unset(VAR_HTTP_HOST);
-	return FALSE;
-    }
-    s = -1;
-    for (res = res0; res; res = res->ai_next) {
-	if ((s = socket(res->ai_family, res->ai_socktype,
-			res->ai_protocol)) < 0)
-	    continue;
-	if (connect(s, res->ai_addr, res->ai_addrlen) >= 0)
-	    break;
-	close(s);
-	s = -1;
-    }
-    freeaddrinfo(res0);
-    if (s == -1) {
-	if (isProxy) {
-		msgConfirm("Couldn't connect to proxy %s:%s",
-			    variable_get(VAR_HTTP_HOST),variable_get(VAR_HTTP_PORT));
-	} else {
-		msgConfirm("Couldn't connect to server http://%s:%s/",
-			    variable_get(VAR_HTTP_HOST),variable_get(VAR_HTTP_PORT));
-	}
-	variable_unset(VAR_HTTP_HOST);
-	return FALSE;
-    }
-    if (connectCheckOnly) {
-       close(s);
-       return TRUE;
-    }
-
-    msgNotify("Checking access to\n %s", variable_get(VAR_HTTP_PATH));
-    if (isProxy)
-	sprintf(req,"GET %s/ HTTP/1.0\r\n\r\n", variable_get(VAR_HTTP_PATH));
-    else
-	sprintf(req,"GET /%s/ HTTP/1.0\r\n\r\n", variable_get(VAR_HTTP_PATH));
-    write(s,req,strlen(req));
-/*
- *  scan the headers of the response
- *  this is extremely quick'n dirty
- *
- */
-    bzero(buf, PATH_MAX);
-    cp=buf;
-    el=FALSE;
-    rv=read(s,cp,1);
-    variable_set2(VAR_HTTP_FTP_MODE,"",0);
-    while (rv>0) {
-	if ((*cp == '\012') && el) { 
-	    /* reached end of a header line */
-	    if (!strncmp(buf,"HTTP",4)) {
-		if (strtol((char *)(buf+9),0,0) == 200) {
-		    found = TRUE;
-		}
-	    }
-
-	    /* 
-	     * Some proxies fetch files with certain extensions in "ascii mode"
-	     * instead of "binary mode" for FTP. The FTP server then translates
-	     * all LF to CRLF.
-	     *
-	     * You can force Squid to use binary mode by appending ";type=i" to
-	     * the URL, which is what I do here. For other proxies, the
-	     * LF->CRLF substitution is reverted in distExtract().
-	     */
-	    if (isProxy && !strncmp(buf,"Server: ",8)) {
-		if (!strncmp(buf,"Server: Squid",13)) {
-		    variable_set2(VAR_HTTP_FTP_MODE,";type=i",0);
-		} else {
-		    variable_set2(VAR_HTTP_FTP_MODE,"",0);
-		}
-	    }
-	    /* ignore other headers */
-	    /* check for "\015\012" at beginning of line, i.e. end of headers */
-	    if ((cp-buf) == 1)
-		break;
-	    cp=buf;
-	    rv=read(s,cp,1);
-	} else {
-	    el=FALSE;
-	    if (*cp == '\015')
-		el=TRUE;
-	    cp++;
-	    rv=read(s,cp,1);
-	}
-    }
-    close(s);
-    return found;
-} 
-
-Boolean
-mediaInitHTTP(Device *dev)
+mediaInitHTTPDirect(Device *dev)
 {
     bool found=FALSE;		    /* end of header line */
     char *rel, req[BUFSIZ];
     int fdir;
 
     /* 
-     * First verify the proxy access
+     * First verify basic access
      */
-    checkAccess(TRUE, TRUE);
+    checkAccess(TRUE, FALSE);
     while (variable_get(VAR_HTTP_HOST) == NULL) {
-        if (DITEM_STATUS(mediaSetHTTP(NULL)) == DITEM_FAILURE)
+        if (DITEM_STATUS(mediaSetHTTPDirect(NULL)) == DITEM_FAILURE)
             return FALSE;
-        checkAccess(TRUE, TRUE);
+        checkAccess(TRUE, FALSE);
     }
 again:
     /* If the release is specified as "__RELEASE" or "any", then just
@@ -168,17 +63,17 @@ again:
 
     if (strcmp(rel, "__RELEASE") && strcmp(rel, "any"))  {
         for (fdir = 0; ftp_dirs[fdir]; fdir++) {
-            sprintf(req, "%s/%s/%s", variable_get(VAR_FTP_PATH),
+            sprintf(req, "%s/%s/%s", variable_get(VAR_HTTP_DIR),
                 ftp_dirs[fdir], rel);
             variable_set2(VAR_HTTP_PATH, req, 0);
-            if (checkAccess(FALSE, TRUE)) {
+            if (checkAccess(FALSE, FALSE)) {
                 found = TRUE;
                 break;
             }
         }
     } else {
-        variable_set2(VAR_HTTP_PATH, variable_get(VAR_FTP_PATH), 0);
-        found = checkAccess(FALSE, TRUE);
+        variable_set2(VAR_HTTP_PATH, variable_get(VAR_HTTP_DIR), 0);
+        found = checkAccess(FALSE, FALSE);
     }
     if (!found) {
     	msgConfirm("No such directory: %s\n"
@@ -186,13 +81,13 @@ again:
         variable_unset(VAR_HTTP_PATH);
         dialog_clear_norefresh();
         clear();
-        if (DITEM_STATUS(mediaSetHTTP(NULL)) != DITEM_FAILURE) goto again;
+        if (DITEM_STATUS(mediaSetHTTPDirect(NULL)) != DITEM_FAILURE) goto again;
     }
     return found;
 }
 
 FILE *
-mediaGetHTTP(Device *dev, char *file, Boolean probe)
+mediaGetHTTPDirect(Device *dev, char *file, Boolean probe)
 {
     FILE *fp;
     int rv, s, af;
@@ -222,13 +117,13 @@ mediaGetHTTP(Device *dev, char *file, Boolean probe)
     }
     freeaddrinfo(res0);
     if (s == -1) {
-	msgConfirm("Couldn't connect to proxy %s:%s",
+	msgConfirm("Couldn't connect to http://%s:%s/",
 		    variable_get(VAR_HTTP_HOST),variable_get(VAR_HTTP_PORT));
 	return NULL;
     }
 						   
-    sprintf(req,"GET %s/%s%s HTTP/1.0\r\n\r\n",
-	    variable_get(VAR_HTTP_PATH), file, variable_get(VAR_HTTP_FTP_MODE));
+    sprintf(req,"GET /%s/%s HTTP/1.0\r\n\r\n",
+	    variable_get(VAR_HTTP_PATH), file);
 
     if (isDebug()) {
 	msgDebug("sending http request: %s\n",req);

@@ -41,6 +41,14 @@ You can install from the following types of media:
             Options screen.
 
 
+   HTTP Direct
+            Get the distribution files directly from an HTTP server.
+
+            If you chose to enter your own URL in the HTTP Direct menu,
+            please note that all paths are *relative* to the root
+            directory of the web server.
+
+
    NFS      Get the distribution files from an NFS server somewhere
             (make sure that permissions on the server allow this!).
             If this install method hangs on you or refuses to work
