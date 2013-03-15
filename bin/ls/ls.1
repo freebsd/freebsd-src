@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2012
+.Dd March 15, 2013
 .Dt LS 1
 .Os
 .Sh NAME
@@ -718,6 +718,24 @@ for more information.
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+List the contents of the current working directory in long format:
+.Pp
+.Dl $ ls -l
+.Pp
+In addition to listing the contents of the current working directory in
+long format, show inode numbers, file flags (see
+.Xr chflags 1 ) ,
+and suffix each filename with a symbol representing its file type:
+.Pp
+.Dl $ ls -lioF
+.Pp
+List the files in
+.Pa /var/log ,
+sorting the output such that the mostly recently modified entries are
+printed first:
+.Pp
+.Dl $ ls -lt /var/log
 .Sh COMPATIBILITY
 The group field is now automatically included in the long listing for
 files in order to be compatible with the
