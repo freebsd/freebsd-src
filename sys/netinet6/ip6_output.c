@@ -1219,17 +1219,12 @@ ip6_copyexthdr(struct mbuf **mp, caddr_t hdr, int hlen)
 	if (hlen > MCLBYTES)
 		return (ENOBUFS); /* XXX */
 
-	MGET(m, M_NOWAIT, MT_DATA);
-	if (!m)
+	if (hlen > MLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, 0);
+	else
+		m = m_get(M_NOWAIT, MT_DATA);
+	if (m == NULL)
 		return (ENOBUFS);
-
-	if (hlen > MLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			return (ENOBUFS);
-		}
-	}
 	m->m_len = hlen;
 	if (hdr)
 		bcopy(hdr, mtod(m, caddr_t), hlen);
@@ -1257,8 +1252,8 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 	 * Otherwise, use it to store the options.
 	 */
 	if (exthdrs->ip6e_hbh == 0) {
-		MGET(mopt, M_NOWAIT, MT_DATA);
-		if (mopt == 0)
+		mopt = m_get(M_NOWAIT, MT_DATA);
+		if (mopt == NULL)
 			return (ENOBUFS);
 		mopt->m_len = JUMBOOPTLEN;
 		optbuf = mtod(mopt, u_char *);
@@ -1289,15 +1284,8 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 			 * As a consequence, we must always prepare a cluster
 			 * at this point.
 			 */
-			MGET(n, M_NOWAIT, MT_DATA);
-			if (n) {
-				MCLGET(n, M_NOWAIT);
-				if ((n->m_flags & M_EXT) == 0) {
-					m_freem(n);
-					n = NULL;
-				}
-			}
-			if (!n)
+			n = m_getcl(M_NOWAIT, MT_DATA, 0);
+			if (n == NULL)
 				return (ENOBUFS);
 			n->m_len = oldoptlen + JUMBOOPTLEN;
 			bcopy(mtod(mopt, caddr_t), mtod(n, caddr_t),
@@ -1366,8 +1354,8 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 		/* allocate a new mbuf for the fragment header */
 		struct mbuf *mfrg;
 
-		MGET(mfrg, M_NOWAIT, MT_DATA);
-		if (mfrg == 0)
+		mfrg = m_get(M_NOWAIT, MT_DATA);
+		if (mfrg == NULL)
 			return (ENOBUFS);
 		mfrg->m_len = sizeof(struct ip6_frag);
 		*frghdrp = mtod(mfrg, struct ip6_frag *);
@@ -3047,7 +3035,7 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 			m_freem(m);
 			return ENOBUFS;
 		}
-		M_MOVE_PKTHDR(mh, m);
+		m_move_pkthdr(mh, m);
 		MH_ALIGN(mh, sizeof(*ip6));
 		m->m_len -= sizeof(*ip6);
 		m->m_data += sizeof(*ip6);
