@@ -4176,8 +4176,6 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 /*
  * Handle completion of an set of aggregate frames.
  *
- * XXX for now, simply complete each sub-frame.
- *
  * Note: the completion handler is the last descriptor in the aggregate,
  * not the last descriptor in the first frame.
  */
