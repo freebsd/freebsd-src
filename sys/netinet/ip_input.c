@@ -1406,7 +1406,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	 * assume exclusive access to the IP header in `m', so any
 	 * data in a cluster may change before we reach icmp_error().
 	 */
-	MGETHDR(mcopy, M_NOWAIT, m->m_type);
+	mcopy = m_gethdr(M_NOWAIT, m->m_type);
 	if (mcopy != NULL && !m_dup_pkthdr(mcopy, m, M_NOWAIT)) {
 		/*
 		 * It's probably ok if the pkthdr dup fails (because
