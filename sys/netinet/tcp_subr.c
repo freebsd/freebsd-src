@@ -1860,7 +1860,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 
 	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
 		return (0);
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (!m)
 		return (0);
 
