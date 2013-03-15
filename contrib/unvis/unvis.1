@@ -1,3 +1,5 @@
+.\"	$NetBSD: unvis.1,v 1.10 2012/12/15 02:08:13 uwe Exp $
+.\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -9,7 +11,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -26,9 +28,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unvis.1	8.1 (Berkeley) 6/6/93
-.\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd November 27, 2010
 .Dt UNVIS 1
 .Os
 .Sh NAME
@@ -36,14 +37,38 @@
 .Nd "revert a visual representation of data back to original form"
 .Sh SYNOPSIS
 .Nm
-.Op Ar
+.Op Fl e
+.Op Fl Hh | Fl m
+.Op Ar file ...
 .Sh DESCRIPTION
-The
 .Nm
-utility is the inverse function of
+is the inverse function of
 .Xr vis 1 .
 It reverts
 a visual representation of data back to its original form on standard output.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl e
+Don't decode \e escaped sequences.
+.It Fl H
+Decode entity references and numeric character references from RFC 1866.
+.Pq Dv VIS_HTTP1866
+.It Fl h
+Decode using the URI encoding from RFC 1808.
+.Pq Dv VIS_HTTP1808
+.It Fl m
+Decode using mime style.
+.Pq Dv VIS_MIMESTYLE
+.El
+.Pp
+Mixing
+.Fl h
+or
+.Fl H
+with
+.Fl m
+is not supported.
 .Sh SEE ALSO
 .Xr vis 1 ,
 .Xr unvis 3 ,
@@ -51,5 +76,5 @@ a visual representation of data back to its original form on standard output.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+command appears in
 .Bx 4.4 .
