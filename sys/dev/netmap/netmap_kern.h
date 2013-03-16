@@ -203,6 +203,9 @@ struct netmap_adapter {
 	void (*nm_lock)(struct ifnet *, int what, u_int ringid);
 	int (*nm_txsync)(struct ifnet *, u_int ring, int lock);
 	int (*nm_rxsync)(struct ifnet *, u_int ring, int lock);
+	/* return configuration information */
+	int (*nm_config)(struct ifnet *, u_int *txr, u_int *txd,
+					u_int *rxr, u_int *rxd);
 
 	int bdg_port;
 #ifdef linux

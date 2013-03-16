@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangrewritecore
 
 SRCDIR=	tools/clang/lib/Rewrite/Core

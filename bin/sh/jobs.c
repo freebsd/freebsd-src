@@ -458,14 +458,15 @@ freejob(struct job *jp)
 
 
 int
-waitcmd(int argc, char **argv)
+waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
 	int status, retval;
 	struct job *jp;
 
-	if (argc > 1) {
-		job = getjob(argv[1]);
+	nextopt("");
+	if (*argptr != NULL) {
+		job = getjob(*argptr);
 	} else {
 		job = NULL;
 	}
@@ -521,7 +522,7 @@ waitcmd(int argc, char **argv)
 	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
-	return 0;
+	return pendingsig + 128;
 }
 
 
@@ -1030,7 +1031,7 @@ dowait(int mode, struct job *job)
 	int wflags;
 	int restore_sigchld;
 
-	TRACE(("dowait(%d) called\n", block));
+	TRACE(("dowait(%d, %p) called\n", mode, job));
 	restore_sigchld = 0;
 	if ((mode & DOWAIT_SIG) != 0) {
 		sigfillset(&mask);
@@ -1297,6 +1298,10 @@ until:
 	case NDEFUN:
 		cmdputs(n->narg.text);
 		cmdputs("() ...");
+		break;
+	case NNOT:
+		cmdputs("! ");
+		cmdtxt(n->nnot.com);
 		break;
 	case NCMD:
 		for (np = n->ncmd.args ; np ; np = np->narg.next) {

@@ -69,7 +69,7 @@ file_sanity_check "installMode installType installMedium packageType"
 check_value installMode "fresh upgrade extract"
 check_value installType "PCBSD FreeBSD"
 check_value installMedium "dvd usb ftp rsync image local"
-check_value packageType "uzip tar rsync split"
+check_value packageType "uzip tar rsync split dist"
 if_check_value_exists mirrorbal "load prefer round-robin split"
 
 # We passed all sanity checks! Yay, lets start the install

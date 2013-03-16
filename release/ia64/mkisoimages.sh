@@ -75,8 +75,9 @@ else
     BOOTOPTS=""
 fi
 
+publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $BASE/etc/fstab
-makefs -t cd9660 $BOOTOPTS -o rockridge -o label=$LABEL $NAME $BASE $*
+makefs -t cd9660 $BOOTOPTS -o rockridge -o label=$LABEL -o publisher="$publisher" $NAME $BASE $*
 rm $BASE/etc/fstab
 rm -f $EFIPART
 exit 0

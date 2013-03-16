@@ -91,7 +91,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
      /* 
       | mbuf for the iSCSI header
       */
-     MGETHDR(mh, M_TRYWAIT, MT_DATA);
+     MGETHDR(mh, M_WAITOK, MT_DATA);
      mh->m_pkthdr.rcvif = NULL;
      mh->m_next = NULL;
      mh->m_len = sizeof(union ipdu_u);
@@ -132,7 +132,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
           while(len > 0) {
 	       int l;
 
-	       MGET(md, M_TRYWAIT, MT_DATA);
+	       MGET(md, M_WAITOK, MT_DATA);
 	       md->m_ext.ref_cnt = &ou_refcnt;
 	       l = min(MCLBYTES, len);
 	       debug(4, "setting ext_free(arg=%p len/l=%d/%d)", pq->buf, len, l);
@@ -150,7 +150,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
 	       off += l;
           }
 	  if(((pp->ds_len & 03) != 0) || ISOK2DIG(sp->dataDigest, pp)) {
-	       MGET(md, M_TRYWAIT, MT_DATA);
+	       MGET(md, M_WAITOK, MT_DATA);
 	       if(pp->ds_len & 03)
 		    len = 4 - (pp->ds_len & 03);
 	       else

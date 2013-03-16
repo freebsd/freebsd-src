@@ -143,6 +143,15 @@ typedef	__uid_t		uid_t;
 #endif
 
 /*
+ * Space reserved for new socket options added by third-party vendors.
+ * This range applies to all socket option levels.  New socket options
+ * in FreeBSD should always use an option value less than SO_VENDOR.
+ */
+#if __BSD_VISIBLE
+#define	SO_VENDOR	0x80000000
+#endif
+
+/*
  * Structure used for manipulating linger option.
  */
 struct linger {
@@ -611,7 +620,9 @@ struct sf_hdtr {
 __BEGIN_DECLS
 int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
+int	bindat(int, int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
+int	connectat(int, int, const struct sockaddr *, socklen_t);
 int	getpeername(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockname(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockopt(int, int, int, void * __restrict, socklen_t * __restrict);

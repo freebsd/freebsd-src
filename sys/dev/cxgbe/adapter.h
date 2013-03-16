@@ -577,7 +577,8 @@ struct adapter {
 	int flags;
 
 	char fw_version[32];
-	unsigned int cfcsum;
+	char cfg_file[32];
+	u_int cfcsum;
 	struct adapter_params params;
 	struct t4_virt_res vres;
 
@@ -599,7 +600,7 @@ struct adapter {
 	struct callout sfl_callout;
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[4];	/* NUM_FW6_TYPES */
+	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
 
 #ifdef INVARIANTS

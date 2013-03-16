@@ -27,7 +27,9 @@
 #ifndef __LIBUSB10_H__
 #define	__LIBUSB10_H__
 
+#ifndef LIBUSB_GLOBAL_INCLUDE_FILE
 #include <sys/queue.h>
+#endif
 
 #define	GET_CONTEXT(ctx) (((ctx) == NULL) ? usbi_default_context : (ctx))
 #define	UNEXPORTED __attribute__((__visibility__("hidden")))

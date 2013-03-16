@@ -153,7 +153,7 @@ static device_method_t my_methods[] = {
 	DEVMETHOD(device_detach, my_detach),
 	DEVMETHOD(device_shutdown, my_shutdown),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t my_driver = {

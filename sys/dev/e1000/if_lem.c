@@ -262,7 +262,7 @@ static device_method_t lem_methods[] = {
 	DEVMETHOD(device_shutdown, lem_shutdown),
 	DEVMETHOD(device_suspend, lem_suspend),
 	DEVMETHOD(device_resume, lem_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t lem_driver = {
@@ -3782,10 +3782,6 @@ lem_setup_vlan_hw_support(struct adapter *adapter)
 	reg &= ~E1000_RCTL_CFIEN;
 	reg |= E1000_RCTL_VFE;
 	E1000_WRITE_REG(hw, E1000_RCTL, reg);
-
-	/* Update the frame size */
-	E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
-	    adapter->max_frame_size + VLAN_TAG_SIZE);
 }
 
 static void

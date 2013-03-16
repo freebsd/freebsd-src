@@ -432,6 +432,7 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 	return m;
 }
 
+#ifndef __NO_STRICT_ALIGNMENT
 /*
  * Re-align the payload in the mbuf.  This is mainly used (right now)
  * to handle IP header alignment requirements on certain architectures.
@@ -468,6 +469,7 @@ ieee80211_realign(struct ieee80211vap *vap, struct mbuf *m, size_t align)
 	m_freem(m);
 	return n;
 }
+#endif /* !__NO_STRICT_ALIGNMENT */
 
 int
 ieee80211_add_callback(struct mbuf *m,
@@ -500,6 +502,44 @@ ieee80211_process_callback(struct ieee80211_node *ni,
 		struct ieee80211_cb *cb = (struct ieee80211_cb *)(mtag+1);
 		cb->func(ni, cb->arg, status);
 	}
+}
+
+/*
+ * Transmit a frame to the parent interface.
+ *
+ * TODO: if the transmission fails, make sure the parent node is freed
+ *   (the callers will first need modifying.)
+ */
+int
+ieee80211_parent_transmit(struct ieee80211com *ic,
+	struct mbuf *m)
+{
+	struct ifnet *parent = ic->ic_ifp;
+	/*
+	 * Assert the IC TX lock is held - this enforces the
+	 * processing -> queuing order is maintained
+	 */
+	IEEE80211_TX_LOCK_ASSERT(ic);
+
+	return (parent->if_transmit(parent, m));
+}
+
+/*
+ * Transmit a frame to the VAP interface.
+ */
+int
+ieee80211_vap_transmit(struct ieee80211vap *vap, struct mbuf *m)
+{
+	struct ifnet *ifp = vap->iv_ifp;
+
+	/*
+	 * When transmitting via the VAP, we shouldn't hold
+	 * any IC TX lock as the VAP TX path will acquire it.
+	 */
+	IEEE80211_TX_UNLOCK_ASSERT(vap->iv_ic);
+
+	return (ifp->if_transmit(ifp, m));
+
 }
 
 #include <sys/libkern.h>

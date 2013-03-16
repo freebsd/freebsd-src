@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvminstrumentation
 
 SRCDIR=	lib/Transforms/Instrumentation

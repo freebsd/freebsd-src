@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
 #ifndef _ZFEATURE_COMMON_H
@@ -51,6 +52,7 @@ typedef int (zfeature_func_t)(zfeature_info_t *fi, void *arg);
 static enum spa_feature {
 	SPA_FEATURE_ASYNC_DESTROY,
 	SPA_FEATURE_EMPTY_BPOBJ,
+	SPA_FEATURE_LZ4_COMPRESS,
 	SPA_FEATURES
 } spa_feature_t;
 

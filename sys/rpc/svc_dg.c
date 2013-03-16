@@ -238,8 +238,7 @@ svc_dg_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	bool_t stat = TRUE;
 	int error;
 
-	MGETHDR(mrep, M_WAITOK, MT_DATA);
-	mrep->m_len = 0;
+	mrep = m_gethdr(M_WAITOK, MT_DATA);
 
 	xdrmbuf_create(&xdrs, mrep, XDR_ENCODE);
 

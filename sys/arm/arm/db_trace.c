@@ -126,29 +126,6 @@ struct unwind_state {
 	uint16_t update_mask;
 };
 
-/* We need to provide these but never use them */
-void __aeabi_unwind_cpp_pr0(void);
-void __aeabi_unwind_cpp_pr1(void);
-void __aeabi_unwind_cpp_pr2(void);
-
-void
-__aeabi_unwind_cpp_pr0(void)
-{
-	panic("__aeabi_unwind_cpp_pr0");
-}
-
-void
-__aeabi_unwind_cpp_pr1(void)
-{
-	panic("__aeabi_unwind_cpp_pr1");
-}
-
-void
-__aeabi_unwind_cpp_pr2(void)
-{
-	panic("__aeabi_unwind_cpp_pr2");
-}
-
 /* Expand a 31-bit signed value to a 32-bit signed value */
 static __inline int32_t
 db_expand_prel31(uint32_t prel31)
@@ -377,7 +354,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 		index = db_find_index(state->start_pc);
 
 		if (index->insn == EXIDX_CANTUNWIND) {
-			printf("Unable to unwind\n");
+			db_printf("Unable to unwind\n");
 			break;
 		} else if (index->insn & (1 << 31)) {
 			/* The data is within the instruction */
@@ -612,10 +589,13 @@ db_trace_self(void)
 {
 #ifdef __ARM_EABI__
 	struct unwind_state state;
-	register uint32_t sp __asm__ ("sp");
+	uint32_t sp;
+
+	/* Read the stack pointer */
+	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
 	state.registers[FP] = (uint32_t)__builtin_frame_address(0);
-	state.registers[SP] = (uint32_t)sp;
+	state.registers[SP] = sp;
 	state.registers[LR] = (uint32_t)__builtin_return_address(0);
 	state.registers[PC] = (uint32_t)db_trace_self;
 

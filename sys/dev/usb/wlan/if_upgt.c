@@ -259,26 +259,26 @@ upgt_attach(device_t dev)
 	callout_init(&sc->sc_led_ch, 0);
 	callout_init(&sc->sc_watchdog_ch, 0);
 
-	/* Allocate TX and RX xfers.  */
-	error = upgt_alloc_tx(sc);
-	if (error)
-		goto fail1;
-	error = upgt_alloc_rx(sc);
-	if (error)
-		goto fail2;
-
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    upgt_config, UPGT_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
 		    "err=%s\n", usbd_errstr(error));
-		goto fail3;
+		goto fail1;
 	}
 
 	sc->sc_rx_dma_buf = usbd_xfer_get_frame_buffer(
 	    sc->sc_xfer[UPGT_BULK_RX], 0);
 	sc->sc_tx_dma_buf = usbd_xfer_get_frame_buffer(
 	    sc->sc_xfer[UPGT_BULK_TX], 0);
+
+	/* Setup TX and RX buffers */
+	error = upgt_alloc_tx(sc);
+	if (error)
+		goto fail2;
+	error = upgt_alloc_rx(sc);
+	if (error)
+		goto fail3;
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
@@ -382,9 +382,9 @@ upgt_attach(device_t dev)
 	return (0);
 
 fail5:	if_free(ifp);
-fail4:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
-fail3:	upgt_free_rx(sc);
-fail2:	upgt_free_tx(sc);
+fail4:	upgt_free_rx(sc);
+fail3:	upgt_free_tx(sc);
+fail2:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 fail1:	mtx_destroy(&sc->sc_mtx);
 
 	return (error);
@@ -466,7 +466,14 @@ upgt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct upgt_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	int error;
+	int startall = 0;
+
+	UPGT_LOCK(sc);
+	error = (sc->sc_flags & UPGT_FLAG_DETACHED) ? ENXIO : 0;
+	UPGT_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -1125,11 +1132,22 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 	    (sizeof(struct upgt_eeprom_header) + preamble_len));
 
 	while (!option_end) {
+
+		/* sanity check */
+		if (eeprom_option >= (struct upgt_eeprom_option *)
+		    (sc->sc_eeprom + UPGT_EEPROM_SIZE)) {
+			return (EINVAL);
+		}
+
 		/* the eeprom option length is stored in words */
 		option_len =
 		    (le16toh(eeprom_option->len) - 1) * sizeof(uint16_t);
 		option_type =
 		    le16toh(eeprom_option->type);
+
+		/* sanity check */
+		if (option_len == 0 || option_len >= UPGT_EEPROM_SIZE)
+			return (EINVAL);
 
 		switch (option_type) {
 		case UPGT_EEPROM_TYPE_NAME:
@@ -1201,7 +1219,6 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 		eeprom_option = (struct upgt_eeprom_option *)
 		    (eeprom_option->data + option_len);
 	}
-
 	return (0);
 }
 
@@ -1210,7 +1227,9 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 {
 	struct upgt_eeprom_freq3_header *freq3_header;
 	struct upgt_lmac_freq3 *freq3;
-	int i, elements, flags;
+	int i;
+	int elements;
+	int flags;
 	unsigned channel;
 
 	freq3_header = (struct upgt_eeprom_freq3_header *)data;
@@ -1221,6 +1240,9 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d\n",
 	    flags, elements);
+
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq3[0])))
+		return;
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq3[i].freq), 0);
@@ -1240,7 +1262,11 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 	struct upgt_eeprom_freq4_header *freq4_header;
 	struct upgt_eeprom_freq4_1 *freq4_1;
 	struct upgt_eeprom_freq4_2 *freq4_2;
-	int i, j, elements, settings, flags;
+	int i;
+	int j;
+	int elements;
+	int settings;
+	int flags;
 	unsigned channel;
 
 	freq4_header = (struct upgt_eeprom_freq4_header *)data;
@@ -1254,6 +1280,9 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d settings=%d\n",
 	    flags, elements, settings);
+
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq4_1[0])))
+		return;
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq4_1[i].freq), 0);
@@ -1275,13 +1304,17 @@ void
 upgt_eeprom_parse_freq6(struct upgt_softc *sc, uint8_t *data, int len)
 {
 	struct upgt_lmac_freq6 *freq6;
-	int i, elements;
+	int i;
+	int elements;
 	unsigned channel;
 
 	freq6 = (struct upgt_lmac_freq6 *)data;
 	elements = len / sizeof(struct upgt_lmac_freq6);
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "elements=%d\n", elements);
+
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq6[0])))
+		return;
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq6[i].freq), 0);
@@ -1560,7 +1593,6 @@ upgt_tx_done(struct upgt_softc *sc, uint8_t *data)
 			data_tx->ni = NULL;
 			data_tx->addr = 0;
 			data_tx->m = NULL;
-			data_tx->use = 0;
 
 			DPRINTF(sc, UPGT_DEBUG_TX_PROC,
 			    "TX done: memaddr=0x%08x, status=0x%04x, rssi=%d, ",
@@ -1976,7 +2008,6 @@ upgt_alloc_rx(struct upgt_softc *sc)
 		data->buf = ((uint8_t *)sc->sc_rx_dma_buf) + (i * MCLBYTES);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 	}
-
 	return (0);
 }
 
@@ -1986,22 +2017,42 @@ upgt_detach(device_t dev)
 	struct upgt_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	unsigned int x;
 
-	if (!device_is_attached(dev))
-		return 0;
+	/*
+	 * Prevent further allocations from RX/TX/CMD
+	 * data lists and ioctls
+	 */
+	UPGT_LOCK(sc);
+	sc->sc_flags |= UPGT_FLAG_DETACHED;
+
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
+
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
+	UPGT_UNLOCK(sc);
 
 	upgt_stop(sc);
 
 	callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	ieee80211_ifdetach(ic);
+	/* drain USB transfers */
+	for (x = 0; x != UPGT_N_XFERS; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
 
-	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
-
+	/* free data buffers */
+	UPGT_LOCK(sc);
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
+	UPGT_UNLOCK(sc);
 
+	/* free USB transfers and some data buffers */
+	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+
+	ieee80211_ifdetach(ic);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 
@@ -2028,6 +2079,9 @@ upgt_free_tx(struct upgt_softc *sc)
 
 	for (i = 0; i < UPGT_TX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_tx_data[i];
+
+		if (data->ni != NULL)
+			ieee80211_free_node(data->ni);
 
 		data->buf = NULL;
 		data->ni = NULL;

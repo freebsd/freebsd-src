@@ -3071,16 +3071,15 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 					  SSQ_PRINT_SENSE;
 			}
 		}
-		if ((action & SS_MASK) >= SS_START &&
-		    (sense_flags & SF_NO_RECOVERY)) {
-			action &= ~SS_MASK;
-			action |= SS_FAIL;
-		} else if ((action & SS_MASK) == SS_RETRY &&
-		    (sense_flags & SF_NO_RETRY)) {
-			action &= ~SS_MASK;
-			action |= SS_FAIL;
-		}
-
+	}
+	if ((action & SS_MASK) >= SS_START &&
+	    (sense_flags & SF_NO_RECOVERY)) {
+		action &= ~SS_MASK;
+		action |= SS_FAIL;
+	} else if ((action & SS_MASK) == SS_RETRY &&
+	    (sense_flags & SF_NO_RETRY)) {
+		action &= ~SS_MASK;
+		action |= SS_FAIL;
 	}
 	if ((sense_flags & SF_PRINT_ALWAYS) != 0)
 		action |= SSQ_PRINT_SENSE;
@@ -3140,7 +3139,7 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 	*cdb_string = '\0';
 	for (i = 0; i < cdb_len; i++)
 		snprintf(cdb_string + strlen(cdb_string),
-			 len - strlen(cdb_string), "%x ", cdb_ptr[i]);
+			 len - strlen(cdb_string), "%02hhx ", cdb_ptr[i]);
 
 	return(cdb_string);
 }

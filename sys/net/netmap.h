@@ -32,7 +32,7 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap.h 10601 2012-02-21 16:40:14Z luigi $
+ * $Id: netmap.h 11997 2013-01-17 21:59:12Z luigi $
  *
  * Definitions of constants and the structures used by the netmap
  * framework, for the part visible to both kernel and userspace.
@@ -113,15 +113,28 @@
  * In the kernel, buffers do not necessarily need to be contiguous,
  * and the virtual and physical addresses are derived through
  * a lookup table.
- * To associate a different buffer to a slot, applications must
- * write the new index in buf_idx, and set NS_BUF_CHANGED flag to
- * make sure that the kernel updates the hardware ring as needed.
  *
- * Normally the driver is not requested to report the result of
- * transmissions (this can dramatically speed up operation).
- * However the user may request to report completion by setting
- * NS_REPORT.
+ * struct netmap_slot:
+ *
+ * buf_idx	is the index of the buffer associated to the slot.
+ * len		is the length of the payload
+ * NS_BUF_CHANGED	must be set whenever userspace wants
+ *		to change buf_idx (it might be necessary to
+ *		reprogram the NIC slot)
+ * NS_REPORT	must be set if we want the NIC to generate an interrupt
+ *		when this slot is used. Leaving it to 0 improves
+ *		performance.
+ * NS_FORWARD	if set on a receive ring, and the device is in
+ *		transparent mode, buffers released with the flag set
+ *		will be forwarded to the 'other' side (host stack
+ *		or NIC, respectively) on the next select() or ioctl()
+ * NS_NO_LEARN	on a VALE switch, do not 'learn' the source port for
+ *		this packet.
+ * NS_PORT_MASK	the high 8 bits of the flag, if not zero, indicate the
+ *		destination port for the VALE switch, overriding
+ *		the lookup table.
  */
+
 struct netmap_slot {
 	uint32_t buf_idx; /* buffer index */
 	uint16_t len;	/* packet length, to be copied to/from the hw ring */
@@ -130,6 +143,12 @@ struct netmap_slot {
 #define	NS_REPORT	0x0002	/* ask the hardware to report results
 				 * e.g. by generating an interrupt
 				 */
+#define	NS_FORWARD	0x0004	/* pass packet to the other endpoint
+				 * (host stack or device)
+				 */
+#define	NS_NO_LEARN	0x0008
+#define	NS_PORT_SHIFT	8
+#define	NS_PORT_MASK	(0xff << NS_PORT_SHIFT)
 };
 
 /*
@@ -186,6 +205,18 @@ struct netmap_slot {
  *	a system call.
  *
  *	The netmap_kring is only modified by the upper half of the kernel.
+ *
+ * FLAGS
+ *	NR_TIMESTAMP	updates the 'ts' field on each syscall. This is
+ *			a global timestamp for all packets.
+ *	NR_RX_TSTMP	if set, the last 64 byte in each buffer will
+ *			contain a timestamp for the frame supplied by
+ *			the hardware (if supported)
+ *	NR_FORWARD	if set, the NS_FORWARD flag in each slot of the
+ *			RX ring is checked, and if set the packet is
+ *			passed to the other side (host stack or device,
+ *			respectively). This permits bpf-like behaviour
+ *			or transparency for selected packets.
  */
 struct netmap_ring {
 	/*
@@ -202,6 +233,8 @@ struct netmap_ring {
 	const uint16_t	nr_buf_size;
 	uint16_t	flags;
 #define	NR_TIMESTAMP	0x0002		/* set timestamp on *sync() */
+#define	NR_FORWARD	0x0004		/* enable NS_FORWARD for ring */
+#define	NR_RX_TSTMP	0x0008		/* set rx timestamp in slots */
 
 	struct timeval	ts;		/* time of last *sync() */
 

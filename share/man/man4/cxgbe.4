@@ -178,6 +178,15 @@ Bit 0 represents INTx (line interrupts), bit 1 MSI, bit 2 MSI-X.
 The default is 7 (all allowed).
 The driver will select the best possible type out of the allowed types by
 itself.
+.It Va hw.cxgbe.fw_install
+0 prohibits the driver from installing a firmware on the card.
+1 allows the driver to install a new firmware if internal driver
+heuristics indicate that the new firmware is preferable to the one
+already on the card.
+2 instructs the driver to always install the new firmware on the card as
+long as it is compatible with the driver and is a different version than
+the one already on the card.
+The default is 1.
 .It Va hw.cxgbe.config_file
 Select a pre-packaged device configuration file.
 A configuration file contains a recipe for partitioning and configuring the

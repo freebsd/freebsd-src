@@ -5,6 +5,8 @@
 
 .include "fpu/Makefile.inc"
 
+SRCS+=	__vdso_gettc.c
+
 # Long double is quad precision
 GDTOASRCS+=strtorQ.c
 MDSRCS+=machdep_ldisQ.c

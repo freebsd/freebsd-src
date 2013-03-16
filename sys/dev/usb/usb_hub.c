@@ -30,6 +30,9 @@
  * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -69,6 +72,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #define	UHUB_INTR_INTERVAL 250		/* ms */
 #define	UHUB_N_TRANSFER 1
@@ -239,7 +243,9 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 	/* check if device should be re-enumerated */
 
 	if (child->flags.usb_mode == USB_MODE_HOST) {
-		usbd_enum_lock(child);
+		uint8_t do_unlock;
+		
+		do_unlock = usbd_enum_lock(child);
 		if (child->re_enumerate_wait) {
 			err = usbd_set_config_index(child,
 			    USB_UNCONFIG_INDEX);
@@ -258,7 +264,8 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 			child->re_enumerate_wait = 0;
 			err = 0;
 		}
-		usbd_enum_unlock(child);
+		if (do_unlock)
+			usbd_enum_unlock(child);
 	}
 
 	/* check if probe and attach should be done */
@@ -712,6 +719,7 @@ uhub_explore(struct usb_device *udev)
 	usb_error_t err;
 	uint8_t portno;
 	uint8_t x;
+	uint8_t do_unlock;
 
 	hub = udev->hub;
 	sc = hub->hubsoftc;
@@ -733,7 +741,7 @@ uhub_explore(struct usb_device *udev)
 	 * Make sure we don't race against user-space applications
 	 * like LibUSB:
 	 */
-	usbd_enum_lock(udev);
+	do_unlock = usbd_enum_lock(udev);
 
 	for (x = 0; x != hub->nports; x++) {
 		up = hub->ports + x;
@@ -813,7 +821,8 @@ uhub_explore(struct usb_device *udev)
 		up->restartcnt = 0;
 	}
 
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	/* initial status checked */
 	sc->sc_flags |= UHUB_FLAG_DID_EXPLORE;
@@ -1913,7 +1922,7 @@ usb_needs_explore(struct usb_bus *bus, uint8_t do_probe)
 	if (do_probe) {
 		bus->do_probe = 1;
 	}
-	if (usb_proc_msignal(&bus->explore_proc,
+	if (usb_proc_msignal(USB_BUS_EXPLORE_PROC(bus),
 	    &bus->explore_msg[0], &bus->explore_msg[1])) {
 		/* ignore */
 	}

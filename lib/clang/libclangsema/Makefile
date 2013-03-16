@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangsema
 
 SRCDIR=	tools/clang/lib/Sema

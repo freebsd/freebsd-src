@@ -3,7 +3,7 @@
 NO_OBJ=
 
 FILESDIR=	${LIBEXECDIR}/bsdconfig/120.networking/include
-FILES=		messages.subr tcp.hlp
+FILES=		messages.subr
 
 beforeinstall:
 	mkdir -p ${DESTDIR}${FILESDIR}

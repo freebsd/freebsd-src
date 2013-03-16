@@ -719,20 +719,24 @@ tcp_timer_active(struct tcpcb *tp, int timer_type)
 #define	ticks_to_msecs(t)	(1000*(t) / hz)
 
 void
-tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer, struct xtcp_timer *xtimer)
+tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
+    struct xtcp_timer *xtimer)
 {
-	bzero(xtimer, sizeof(struct xtcp_timer));
+	sbintime_t now;
+
+	bzero(xtimer, sizeof(*xtimer));
 	if (timer == NULL)
 		return;
+	now = getsbinuptime();
 	if (callout_active(&timer->tt_delack))
-		xtimer->tt_delack = ticks_to_msecs(timer->tt_delack.c_time - ticks);
+		xtimer->tt_delack = (timer->tt_delack.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_rexmt))
-		xtimer->tt_rexmt = ticks_to_msecs(timer->tt_rexmt.c_time - ticks);
+		xtimer->tt_rexmt = (timer->tt_rexmt.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_persist))
-		xtimer->tt_persist = ticks_to_msecs(timer->tt_persist.c_time - ticks);
+		xtimer->tt_persist = (timer->tt_persist.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_keep))
-		xtimer->tt_keep = ticks_to_msecs(timer->tt_keep.c_time - ticks);
+		xtimer->tt_keep = (timer->tt_keep.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_2msl))
-		xtimer->tt_2msl = ticks_to_msecs(timer->tt_2msl.c_time - ticks);
+		xtimer->tt_2msl = (timer->tt_2msl.c_time - now) / SBT_1MS;
 	xtimer->t_rcvtime = ticks_to_msecs(ticks - tp->t_rcvtime);
 }

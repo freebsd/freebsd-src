@@ -36,6 +36,7 @@
  * Costa Mesa, CA 92626
  */
 
+
 /* $FreeBSD$ */
 
 #include <sys/param.h>
@@ -87,9 +88,7 @@
 
 #include "oce_hw.h"
 
-/* OCE device driver module component revision informaiton */
-#define COMPONENT_REVISION "4.2.127.0"
-
+#define COMPONENT_REVISION "4.6.95.0"
 
 /* OCE devices supported by this driver */
 #define PCI_VENDOR_EMULEX		0x10df	/* Emulex */
@@ -132,7 +131,7 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_RQ_BUF_SIZE			2048
 #define OCE_LSO_MAX_SIZE		(64 * 1024)
 #define LONG_TIMEOUT			30
-#define OCE_MAX_JUMBO_FRAME_SIZE	16360
+#define OCE_MAX_JUMBO_FRAME_SIZE	9018
 #define OCE_MAX_MTU			(OCE_MAX_JUMBO_FRAME_SIZE - \
 						ETHER_VLAN_ENCAP_LEN - \
 						ETHER_HDR_LEN)
@@ -481,7 +480,27 @@ struct oce_drv_stats {
 	} u0;
 };
 
+#define INTR_RATE_HWM                   15000
+#define INTR_RATE_LWM                   10000
 
+#define OCE_MAX_EQD 128u
+#define OCE_MIN_EQD 50u
+
+struct oce_set_eqd {
+	uint32_t eq_id;
+	uint32_t phase;
+	uint32_t delay_multiplier;
+};
+
+struct oce_aic_obj {             /* Adaptive interrupt coalescing (AIC) info */
+	boolean_t enable;
+	uint32_t  min_eqd;            /* in usecs */
+	uint32_t  max_eqd;            /* in usecs */
+	uint32_t  cur_eqd;            /* in usecs */
+	uint32_t  et_eqd;             /* configured value when aic is off */
+	uint64_t  ticks;
+	uint64_t  intr_prev;
+};
 
 #define MAX_LOCK_DESC_LEN			32
 struct oce_lock {
@@ -493,7 +512,7 @@ struct oce_lock {
 #define LOCK_CREATE(lock, desc) 		{ \
 	strncpy((lock)->name, (desc), MAX_LOCK_DESC_LEN); \
 	(lock)->name[MAX_LOCK_DESC_LEN] = '\0'; \
-	mtx_init(&(lock)->mutex, (lock)->name, MTX_NETWORK_LOCK, MTX_DEF); \
+	mtx_init(&(lock)->mutex, (lock)->name, NULL, MTX_DEF); \
 }
 #define LOCK_DESTROY(lock) 			\
 		if (mtx_initialized(&(lock)->mutex))\
@@ -565,6 +584,7 @@ struct oce_eq {
 	int cq_valid; 
 	struct eq_config eq_cfg;
 	int vector;
+	uint64_t intr;
 };
 
 enum cq_len {
@@ -827,6 +847,9 @@ typedef struct oce_softc {
 
 	uint32_t flow_control;
 	uint32_t promisc;
+
+	struct oce_aic_obj aic_obj[OCE_MAX_EQ];
+
 	/*Vlan Filtering related */
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
@@ -837,7 +860,9 @@ typedef struct oce_softc {
 	struct oce_drv_stats oce_stats_info;
 	struct callout  timer;
 	int8_t be3_native;
-	uint32_t pvid;
+	uint16_t qnq_debug_event;
+	uint16_t qnqid;
+	uint16_t pvid;
 
 } OCE_SOFTC, *POCE_SOFTC;
 
@@ -996,6 +1021,9 @@ int oce_mbox_create_wq(struct oce_wq *wq);
 int oce_mbox_create_eq(struct oce_eq *eq);
 int oce_mbox_cq_create(struct oce_cq *cq, uint32_t ncoalesce,
 			 uint32_t is_eventable);
+int oce_mbox_read_transrecv_data(POCE_SOFTC sc, uint32_t page_num);
+void oce_mbox_eqd_modify_periodic(POCE_SOFTC sc, struct oce_set_eqd *set_eqd,
+					int num);
 void mbx_common_req_hdr_init(struct mbx_hdr *hdr,
 			     uint8_t dom,
 			     uint8_t port,
@@ -1075,4 +1103,13 @@ static inline uint32_t oce_highbit(uint32_t x)
 
 	return 0;
 }
+
+#define TRANSCEIVER_DATA_NUM_ELE 64
+#define TRANSCEIVER_DATA_SIZE 256
+#define TRANSCEIVER_A0_SIZE 128
+#define TRANSCEIVER_A2_SIZE 128
+#define PAGE_NUM_A0 0xa0
+#define PAGE_NUM_A2 0xa2
+#define IS_QNQ_OR_UMC(sc) ((sc->pvid && (sc->function_mode & FNM_UMC_MODE ))\
+		     || (sc->qnqid && (sc->function_mode & FNM_FLEX10_MODE)))
 

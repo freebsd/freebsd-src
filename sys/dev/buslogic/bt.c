@@ -1158,6 +1158,7 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			struct ccb_scsiio *csio;
 			struct ccb_hdr *ccbh;
+			int error;
 
 			csio = &ccb->csio;
 			ccbh = &csio->ccb_h;
@@ -1205,67 +1206,21 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 			 * If we have any data to send with this command,
 			 * map it into bus space.
 			 */
-		        /* Only use S/G if there is a transfer */
-			if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-				if ((ccbh->flags & CAM_SCATTER_VALID) == 0) {
-					/*
-					 * We've been given a pointer
-					 * to a single buffer.
-					 */
-					if ((ccbh->flags & CAM_DATA_PHYS)==0) {
-						int error;
-
-						error = bus_dmamap_load(
-						    bt->buffer_dmat,
-						    bccb->dmamap,
-						    csio->data_ptr,
-						    csio->dxfer_len,
-						    btexecuteccb,
-						    bccb,
-						    /*flags*/0);
-						if (error == EINPROGRESS) {
-							/*
-							 * So as to maintain
-							 * ordering, freeze the
-							 * controller queue
-							 * until our mapping is
-							 * returned.
-							 */
-							xpt_freeze_simq(bt->sim,
-									1);
-							csio->ccb_h.status |=
-							    CAM_RELEASE_SIMQ;
-						}
-					} else {
-						struct bus_dma_segment seg; 
-
-						/* Pointer to physical buffer */
-						seg.ds_addr =
-						    (bus_addr_t)csio->data_ptr;
-						seg.ds_len = csio->dxfer_len;
-						btexecuteccb(bccb, &seg, 1, 0);
-					}
-				} else {
-					struct bus_dma_segment *segs;
-
-					if ((ccbh->flags & CAM_DATA_PHYS) != 0)
-						panic("btaction - Physical "
-						      "segment pointers "
-						      "unsupported");
-
-					if ((ccbh->flags&CAM_SG_LIST_PHYS)==0)
-						panic("btaction - Virtual "
-						      "segment addresses "
-						      "unsupported");
-
-					/* Just use the segments provided */
-					segs = (struct bus_dma_segment *)
-					    csio->data_ptr;
-					btexecuteccb(bccb, segs,
-						     csio->sglist_cnt, 0);
-				}
-			} else {
-				btexecuteccb(bccb, NULL, 0, 0);
+			error = bus_dmamap_load_ccb(
+			    bt->buffer_dmat,
+			    bccb->dmamap,
+			    ccb,
+			    btexecuteccb,
+			    bccb,
+			    /*flags*/0);
+			if (error == EINPROGRESS) {
+				/*
+				 * So as to maintain ordering, freeze the
+				 * controller queue until our mapping is
+				 * returned.
+				 */
+				xpt_freeze_simq(bt->sim, 1);
+				csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 			}
 		} else {
 			hccb->opcode = INITIATOR_BUS_DEV_RESET;

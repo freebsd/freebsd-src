@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2007
+.Dd February 14, 2013
 .Dt GETNAMEINFO 3
 .Os
 .Sh NAME
@@ -157,7 +157,7 @@ char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
 if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), sbuf,
     sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV)) {
 	errx(1, "could not get numeric hostname");
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 printf("host=%s, serv=%s\en", hbuf, sbuf);
 .Ed
@@ -170,7 +170,7 @@ char hbuf[NI_MAXHOST];
 if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), NULL, 0,
     NI_NAMEREQD)) {
 	errx(1, "could not resolve hostname");
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 printf("host=%s\en", hbuf);
 .Ed

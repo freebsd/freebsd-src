@@ -75,9 +75,10 @@ safe_write(struct cached_connection_ *connection, const void *data,
 		nevents = _kevent(connection->write_queue, NULL, 0, &eventlist,
 		    1, &timeout);
 		if ((nevents == 1) && (eventlist.filter == EVFILT_WRITE)) {
-			s_result = _write(connection->sockfd, data + result,
+			s_result = _sendto(connection->sockfd, data + result,
 			    eventlist.data < data_size - result ?
-			    eventlist.data : data_size - result);
+			    eventlist.data : data_size - result, MSG_NOSIGNAL,
+			    NULL, 0);
 			if (s_result == -1)
 				return (-1);
 			else
@@ -175,8 +176,8 @@ send_credentials(struct cached_connection_ *connection, int type)
 	nevents = _kevent(connection->write_queue, NULL, 0, &eventlist, 1,
 	    NULL);
 	if (nevents == 1 && eventlist.filter == EVFILT_WRITE) {
-		result = (_sendmsg(connection->sockfd, &cred_hdr, 0) == -1) ?
-		    -1 : 0;
+		result = (_sendmsg(connection->sockfd, &cred_hdr,
+		    MSG_NOSIGNAL) == -1) ?  -1 : 0;
 		EV_SET(&eventlist, connection->sockfd, EVFILT_WRITE, EV_ADD,
 		    0, 0, NULL);
 		_kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);

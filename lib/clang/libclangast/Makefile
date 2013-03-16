@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangast
 
 SRCDIR=	tools/clang/lib/AST

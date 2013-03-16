@@ -160,6 +160,10 @@ CmCleanupAndExit (
     void);
 
 ACPI_STATUS
+FlCheckForAcpiTable (
+    FILE                    *Handle);
+
+ACPI_STATUS
 FlCheckForAscii (
     FILE                    *Handle,
     char                    *Filename,
@@ -509,9 +513,25 @@ ApCheckForPredefinedObject (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name);
 
+ACPI_STATUS
+ApCheckObjectType (
+    const char              *PredefinedName,
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  ExpectedBtypes,
+    UINT32                  PackageIndex);
+
 void
 ApDisplayReservedNames (
     void);
+
+
+/*
+ * aslprepkg - ACPI predefined names support for packages
+ */
+void
+ApCheckPackage (
+    ACPI_PARSE_OBJECT           *ParentOp,
+    const ACPI_PREDEFINED_INFO  *Predefined);
 
 
 /*

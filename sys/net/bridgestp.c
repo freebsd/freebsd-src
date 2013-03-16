@@ -234,7 +234,7 @@ bstp_transmit_tcn(struct bstp_state *bs, struct bstp_port *bp)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 
@@ -348,7 +348,7 @@ bstp_send_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 
