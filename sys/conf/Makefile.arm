@@ -96,8 +96,8 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker \
 	    ldscript.$M.tramp.noheader \
 	    tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
-	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader 
-	    ${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
+	    ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader 
+	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
 	    ${KERNEL_KO}.tramp.bin 
 	${OBJCOPY} ${STRIP_FLAGS} ${KERNEL_KO}.tmp 
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp.gz\"" >opt_kernname.h 
@@ -116,7 +116,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    -DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
 	    $S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
-	${KERNEL_KO}.gz.tramp.bin
+	    ${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
 	    inflate-tramp.o tmphack.S
 
