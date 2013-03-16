@@ -134,6 +134,26 @@ static uint16_t colors[16] = {
 	0xffe0,	/* yellow */
 	0xffff,	/* white */
 };
+static uint32_t colors_24[16] = {
+	0x000000,/* Black	*/
+	0x000080,/* Blue	*/
+	0x008000,/* Green 	*/
+	0x008080,/* Cyan 	*/
+	0x800000,/* Red 	*/
+	0x800080,/* Magenta	*/
+	0xcc6600,/* brown	*/
+	0xC0C0C0,/* Silver 	*/
+	0x808080,/* Gray 	*/
+	0x0000FF,/* Light Blue 	*/
+	0x00FF00,/* Light Green */
+	0x00FFFF,/* Light Cyan 	*/
+	0xFF0000,/* Light Red 	*/
+	0xFF00FF,/* Light Magenta */
+	0xFFFF00,/* Yellow 	*/
+	0xFFFFFF,/* White 	*/
+
+
+};
 
 #define	IPUV3_READ(ipuv3, module, reg)					\
 	bus_space_read_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg))
@@ -775,7 +795,7 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	int b, i, j, k;
 	uint8_t *addr;
 	u_char *p;
-	uint16_t fg, bg, color;
+	uint32_t fg, bg, color;
 
 	sc = (struct video_adapter_softc *)adp;
 	bpp = sc->bpp;
@@ -789,8 +809,15 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	    + (row + sc->ymargin) * (sc->stride)
 	    + bpp * (col + sc->xmargin);
 
-	bg = colors[(a >> 4) & 0x0f];
-	fg = colors[a & 0x0f];
+	if (bpp == 2) {
+		bg = colors[(a >> 4) & 0x0f];
+		fg = colors[a & 0x0f];
+	} else if (bpp == 3) {
+		bg = colors_24[(a >> 4) & 0x0f];
+		fg = colors_24[a & 0x0f];
+	} else {
+		return (ENXIO);
+	}
 
 	for (i = 0; i < IPU3FB_FONT_HEIGHT; i++) {
 		for (j = 0, k = 7; j < 8; j++, k--) {
