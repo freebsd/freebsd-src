@@ -1968,43 +1968,18 @@ m_unshare(struct mbuf *m0, int how)
 		}
 
 		/*
-		 * Allocate new space to hold the copy...
-		 */
-		/* XXX why can M_PKTHDR be set past the first mbuf? */
-		if (mprev == NULL && (m->m_flags & M_PKTHDR)) {
-			/*
-			 * NB: if a packet header is present we must
-			 * allocate the mbuf separately from any cluster
-			 * because M_MOVE_PKTHDR will smash the data
-			 * pointer and drop the M_EXT marker.
-			 */
-			MGETHDR(n, how, m->m_type);
-			if (n == NULL) {
-				m_freem(m0);
-				return (NULL);
-			}
-			M_MOVE_PKTHDR(n, m);
-			MCLGET(n, how);
-			if ((n->m_flags & M_EXT) == 0) {
-				m_free(n);
-				m_freem(m0);
-				return (NULL);
-			}
-		} else {
-			n = m_getcl(how, m->m_type, m->m_flags);
-			if (n == NULL) {
-				m_freem(m0);
-				return (NULL);
-			}
-		}
-		/*
-		 * ... and copy the data.  We deal with jumbo mbufs
-		 * (i.e. m_len > MCLBYTES) by splitting them into
-		 * clusters.  We could just malloc a buffer and make
-		 * it external but too many device drivers don't know
-		 * how to break up the non-contiguous memory when
+		 * Allocate new space to hold the copy and copy the data.
+		 * We deal with jumbo mbufs (i.e. m_len > MCLBYTES) by
+		 * splitting them into clusters.  We could just malloc a
+		 * buffer and make it external but too many device drivers
+		 * don't know how to break up the non-contiguous memory when
 		 * doing DMA.
 		 */
+		n = m_getcl(how, m->m_type, m->m_flags);
+		if (n == NULL) {
+			m_freem(m0);
+			return (NULL);
+		}
 		len = m->m_len;
 		off = 0;
 		mfirst = n;
