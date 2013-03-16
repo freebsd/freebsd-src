@@ -44,7 +44,9 @@ CFLAGS += -mno-thumb-interwork
 .endif
 
 .if empty(DDB_ENABLED)
+.if !defined(WITH_ARM_EABI)
 CFLAGS += -mno-apcs-frame
+.endif
 .elif defined(WITH_ARM_EABI)
 CFLAGS += -funwind-tables
 .if ${COMPILER_TYPE} == "clang"
