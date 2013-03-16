@@ -971,7 +971,7 @@ flags_to_rights(int flags)
 			/* FALLTHROUGH */
 		case O_WRONLY:
 			rights |= CAP_WRITE;
-			if (!(flags & O_APPEND))
+			if (!(flags & (O_APPEND | O_TRUNC)))
 				rights |= CAP_SEEK;
 			break;
 		}
