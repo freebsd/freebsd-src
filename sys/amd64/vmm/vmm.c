@@ -937,7 +937,7 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
 
-	if (state < 0 || state >= X2APIC_STATE_LAST)
+	if (state >= X2APIC_STATE_LAST)
 		return (EINVAL);
 
 	vm->vcpu[vcpuid].x2apic_state = state;
