@@ -2203,7 +2203,7 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 
 	ifp = inm->inm_ifp;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOMEM);
 	MH_ALIGN(m, sizeof(struct ip) + sizeof(struct igmp));
