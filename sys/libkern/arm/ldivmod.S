@@ -53,6 +53,7 @@ ENTRY_NP(__aeabi_ldivmod)
 	add	sp, sp, #8	/* Move sp to the remainder value */
 	ldmfd	sp!, {r2, r3}	/* Load the remainder */
 	RET
+END(__aeabi_ldivmod)
 
 ENTRY_NP(__aeabi_uldivmod)
 	sub	sp, sp, #8	/* Space for the remainder */
@@ -62,6 +63,7 @@ ENTRY_NP(__aeabi_uldivmod)
 	add	sp, sp, #8	/* Move sp to the remainder value */
 	ldmfd	sp!, {r2, r3}	/* Load the remainder */
 	RET
+END(__aeabi_uldivmod)
 
 #endif
 

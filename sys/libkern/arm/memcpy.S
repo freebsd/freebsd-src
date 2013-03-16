@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Andrew Turner
+ * Copyright (C) 2013 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 ENTRY_NP(__aeabi_memcpy)
 	b	memcpy
+END(__aeabi_memcpy)
 
 #endif
 
