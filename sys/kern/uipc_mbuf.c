@@ -530,8 +530,8 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 #if 0
 	/*
 	 * The mbuf allocator only initializes the pkthdr
-	 * when the mbuf is allocated with MGETHDR. Many users
-	 * (e.g. m_copy*, m_prepend) use MGET and then
+	 * when the mbuf is allocated with m_gethdr(). Many users
+	 * (e.g. m_copy*, m_prepend) use m_get() and then
 	 * smash the pkthdr as needed causing these
 	 * assertions to trip.  For now just disable them.
 	 */
@@ -563,15 +563,15 @@ m_prepend(struct mbuf *m, int len, int how)
 	struct mbuf *mn;
 
 	if (m->m_flags & M_PKTHDR)
-		MGETHDR(mn, how, m->m_type);
+		mn = m_gethdr(how, m->m_type);
 	else
-		MGET(mn, how, m->m_type);
+		mn = m_get(how, m->m_type);
 	if (mn == NULL) {
 		m_freem(m);
 		return (NULL);
 	}
 	if (m->m_flags & M_PKTHDR)
-		M_MOVE_PKTHDR(mn, m);
+		m_move_pkthdr(mn, m);
 	mn->m_next = m;
 	m = mn;
 	if(m->m_flags & M_PKTHDR) {
@@ -621,9 +621,9 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 			break;
 		}
 		if (copyhdr)
-			MGETHDR(n, wait, m->m_type);
+			n = m_gethdr(wait, m->m_type);
 		else
-			MGET(n, wait, m->m_type);
+			n = m_get(wait, m->m_type);
 		*np = n;
 		if (n == NULL)
 			goto nospace;
@@ -822,7 +822,7 @@ m_copypacket(struct mbuf *m, int how)
 	struct mbuf *top, *n, *o;
 
 	MBUF_CHECKSLEEP(how);
-	MGET(n, how, m->m_type);
+	n = m_get(how, m->m_type);
 	top = n;
 	if (n == NULL)
 		goto nospace;
@@ -840,7 +840,7 @@ m_copypacket(struct mbuf *m, int how)
 
 	m = m->m_next;
 	while (m) {
-		MGET(o, how, m->m_type);
+		o = m_get(how, m->m_type);
 		if (o == NULL)
 			goto nospace;
 
@@ -1096,12 +1096,11 @@ m_pullup(struct mbuf *n, int len)
 	} else {
 		if (len > MHLEN)
 			goto bad;
-		MGET(m, M_NOWAIT, n->m_type);
+		m = m_get(M_NOWAIT, n->m_type);
 		if (m == NULL)
 			goto bad;
-		m->m_len = 0;
 		if (n->m_flags & M_PKTHDR)
-			M_MOVE_PKTHDR(m, n);
+			m_move_pkthdr(m, n);
 	}
 	space = &m->m_dat[MLEN] - (m->m_data + m->m_len);
 	do {
@@ -1144,12 +1143,11 @@ m_copyup(struct mbuf *n, int len, int dstoff)
 
 	if (len > (MHLEN - dstoff))
 		goto bad;
-	MGET(m, M_NOWAIT, n->m_type);
+	m = m_get(M_NOWAIT, n->m_type);
 	if (m == NULL)
 		goto bad;
-	m->m_len = 0;
 	if (n->m_flags & M_PKTHDR)
-		M_MOVE_PKTHDR(m, n);
+		m_move_pkthdr(m, n);
 	m->m_data += dstoff;
 	space = &m->m_dat[MLEN] - (m->m_data + m->m_len);
 	do {
@@ -1200,7 +1198,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 		return (NULL);
 	remain = m->m_len - len;
 	if (m0->m_flags & M_PKTHDR) {
-		MGETHDR(n, wait, m0->m_type);
+		n = m_gethdr(wait, m0->m_type);
 		if (n == NULL)
 			return (NULL);
 		n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
@@ -1226,7 +1224,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 		m->m_next = NULL;
 		return (n);
 	} else {
-		MGET(n, wait, m->m_type);
+		n = m_get(wait, m->m_type);
 		if (n == NULL)
 			return (NULL);
 		M_ALIGN(n, remain);
