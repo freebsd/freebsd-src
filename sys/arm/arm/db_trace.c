@@ -126,29 +126,6 @@ struct unwind_state {
 	uint16_t update_mask;
 };
 
-/* We need to provide these but never use them */
-void __aeabi_unwind_cpp_pr0(void);
-void __aeabi_unwind_cpp_pr1(void);
-void __aeabi_unwind_cpp_pr2(void);
-
-void
-__aeabi_unwind_cpp_pr0(void)
-{
-	panic("__aeabi_unwind_cpp_pr0");
-}
-
-void
-__aeabi_unwind_cpp_pr1(void)
-{
-	panic("__aeabi_unwind_cpp_pr1");
-}
-
-void
-__aeabi_unwind_cpp_pr2(void)
-{
-	panic("__aeabi_unwind_cpp_pr2");
-}
-
 /* Expand a 31-bit signed value to a 32-bit signed value */
 static __inline int32_t
 db_expand_prel31(uint32_t prel31)
