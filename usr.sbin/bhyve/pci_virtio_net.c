@@ -170,7 +170,7 @@ pci_vtnet_iosize(struct pci_devinst *pi)
 static int
 hq_num_avail(struct vring_hqueue *hq)
 {
-	int ndesc;
+	uint16_t ndesc;
 
 	/*
 	 * We're just computing (a-b) in GF(216).
