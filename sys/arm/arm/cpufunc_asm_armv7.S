@@ -78,6 +78,7 @@ ENTRY(armv7_setttb)
  	dsb
  	isb
 	RET
+END(armv7_setttb)
 
 ENTRY(armv7_tlb_flushID)
 	dsb
@@ -91,6 +92,7 @@ ENTRY(armv7_tlb_flushID)
 	dsb
 	isb
 	mov	pc, lr
+END(armv7_tlb_flushID)
 
 ENTRY(armv7_tlb_flushID_SE)
 	ldr	r1, .Lpage_mask
@@ -105,6 +107,7 @@ ENTRY(armv7_tlb_flushID_SE)
 	dsb
 	isb
 	mov	pc, lr
+END(armv7_tlb_flushID_SE)
 
 /* Based on algorithm from ARM Architecture Reference Manual */
 ENTRY(armv7_dcache_wbinv_all)
@@ -157,6 +160,7 @@ Finished:
 	dsb
 	ldmia	sp!, {r4, r5, r6, r7, r8, r9}
 	RET
+END(armv7_dcache_wbinv_all)
 
 ENTRY(armv7_idcache_wbinv_all)
 	stmdb	sp!, {lr}
@@ -170,6 +174,7 @@ ENTRY(armv7_idcache_wbinv_all)
 	isb
 	ldmia	sp!, {lr}
 	RET
+END(armv7_idcache_wbinv_all)
 
 /* XXX Temporary set it to 32 for MV cores, however this value should be
  * get from Cache Type register
@@ -190,6 +195,7 @@ ENTRY(armv7_dcache_wb_range)
 	bhi	.Larmv7_wb_next
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_dcache_wb_range)
 
 ENTRY(armv7_dcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
@@ -204,6 +210,7 @@ ENTRY(armv7_dcache_wbinv_range)
 	bhi	.Larmv7_wbinv_next
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_dcache_wbinv_range)
 
 /*
  * Note, we must not invalidate everything.  If the range is too big we
@@ -222,6 +229,7 @@ ENTRY(armv7_dcache_inv_range)
 	bhi	.Larmv7_inv_next
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_dcache_inv_range)
 
 ENTRY(armv7_idcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
@@ -238,6 +246,7 @@ ENTRY(armv7_idcache_wbinv_range)
 	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_idcache_wbinv_range)
 
 ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_line_size
@@ -250,11 +259,13 @@ ENTRY_NP(armv7_icache_sync_range)
 	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_icache_sync_range)
 
 ENTRY(armv7_cpu_sleep)
 	dsb				/* data synchronization barrier */
 	wfi  				/* wait for interrupt */
 	RET
+END(armv7_cpu_sleep)
 
 ENTRY(armv7_context_switch)
 	dsb
@@ -269,16 +280,19 @@ ENTRY(armv7_context_switch)
 	dsb
 	isb
 	RET
+END(armv7_context_switch)
 
 ENTRY(armv7_drain_writebuf)
 	dsb
 	RET
+END(armv7_drain_writebuf)
 
 ENTRY(armv7_sev)
 	dsb
 	sev
 	nop
 	RET
+END(armv7_sev)
 
 ENTRY(armv7_auxctrl)
 	mrc p15, 0, r2, c1, c0, 1
@@ -289,3 +303,5 @@ ENTRY(armv7_auxctrl)
 	mcrne p15, 0, r3, c1, c0, 1
 	mov r0, r2
 	RET
+END(armv7_auxctrl)
+
