@@ -38,6 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+OLD_FILES+=usr/share/man/man4/vinum.4.gz
 # 20130311: Ports are no more available via cvsup
 OLD_FILES+=usr/share/examples/cvsup/ports-supfile
 OLD_FILES+=usr/share/examples/cvsup/refuse
