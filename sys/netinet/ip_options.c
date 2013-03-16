@@ -500,7 +500,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 			*phlen = 0;
 			return (m);
 		}
-		M_MOVE_PKTHDR(n, m);
+		m_move_pkthdr(n, m);
 		n->m_pkthdr.rcvif = NULL;
 		n->m_pkthdr.len += optlen;
 		m->m_len -= sizeof(struct ip);
