@@ -207,27 +207,27 @@ try_file_ops(int filefd, int dirfd, cap_rights_t rights)
 	ret = openat(dirfd, "cap_fsync", O_CREAT, 0600);
 	CHECK(ret >= 0);
 	CHECK(close(ret) == 0);
-	ret = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDONLY, 0600);
+	ret = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDONLY);
 	CHECK_RESULT(openat(O_FSYNC | O_RDONLY),
 	    CAP_FSYNC | CAP_READ | CAP_LOOKUP, ret >= 0);
 	CHECK(ret == -1 || close(ret) == 0);
-	ret = openat(dfd_cap, "cap_fsync", O_FSYNC | O_WRONLY, 0600);
+	ret = openat(dfd_cap, "cap_fsync", O_FSYNC | O_WRONLY);
 	CHECK_RESULT(openat(O_FSYNC | O_WRONLY),
 	    CAP_FSYNC | CAP_WRITE | CAP_LOOKUP, ret >= 0);
 	CHECK(ret == -1 || close(ret) == 0);
-	ret = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDWR, 0600);
+	ret = openat(dfd_cap, "cap_fsync", O_FSYNC | O_RDWR);
 	CHECK_RESULT(openat(O_FSYNC | O_RDWR),
 	    CAP_FSYNC | CAP_READ | CAP_WRITE | CAP_LOOKUP, ret >= 0);
 	CHECK(ret == -1 || close(ret) == 0);
-	ret = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDONLY, 0600);
+	ret = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDONLY);
 	CHECK_RESULT(openat(O_SYNC | O_RDONLY),
 	    CAP_FSYNC | CAP_READ | CAP_LOOKUP, ret >= 0);
 	CHECK(ret == -1 || close(ret) == 0);
-	ret = openat(dfd_cap, "cap_fsync", O_SYNC | O_WRONLY, 0600);
+	ret = openat(dfd_cap, "cap_fsync", O_SYNC | O_WRONLY);
 	CHECK_RESULT(openat(O_SYNC | O_WRONLY),
 	    CAP_FSYNC | CAP_WRITE | CAP_LOOKUP, ret >= 0);
 	CHECK(ret == -1 || close(ret) == 0);
-	ret = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDWR, 0600);
+	ret = openat(dfd_cap, "cap_fsync", O_SYNC | O_RDWR);
 	CHECK_RESULT(openat(O_SYNC | O_RDWR),
 	    CAP_FSYNC | CAP_READ | CAP_WRITE | CAP_LOOKUP, ret >= 0);
 	CHECK(ret == -1 || close(ret) == 0);
