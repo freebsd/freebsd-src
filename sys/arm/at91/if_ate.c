@@ -899,12 +899,9 @@ ate_intr(void *xsc)
 			/* FCS is not coppied into mbuf. */
 			remain = (sc->rx_descs[idx].status & ETH_LEN_MASK) - 4;
 
-			/* Get an appropriately sized mbuf  */
-			if (remain + ETHER_ALIGN >= MINCLSIZE)
-				mb = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-			else
-				MGETHDR(mb, M_NOWAIT, MT_DATA);
-
+			/* Get an appropriately sized mbuf. */
+			mb = m_get2(remain + ETHER_ALIGN, M_NOWAIT, MT_DATA,
+			    M_PKTHDR);
 			if (mb == NULL) {
 				sc->ifp->if_iqdrops++;
 				rxdhead->status = 0;

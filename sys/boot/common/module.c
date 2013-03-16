@@ -351,6 +351,7 @@ file_load_dependencies(struct preloaded_file *base_file)
     }
     return (error);
 }
+
 /*
  * We've been asked to load (name) as (type), so just suck it in,
  * no arguments or anything.

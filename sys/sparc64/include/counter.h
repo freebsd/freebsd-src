@@ -30,17 +30,43 @@
 #define __MACHINE_COUNTER_H__
 
 #include <sys/pcpu.h>
+#include <machine/asi.h>
+#include <machine/asmacros.h>
 
-static __inline void
+extern char pcpu0[1];
+
+static inline void
 counter_u64_inc(counter_u64_t c, uint64_t inc)
 {
 
-	critical_enter();
-	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) += inc;
-	critical_exit();
+	__asm __volatile(
+	"add	%" __XSTRING(PCPU_REG) ", %0, %%g1\n\t"
+	"ldx	[%%g1], %%g3\n\t"
+"1:\n\t"
+	"mov	%%g3, %%g2\n\t"
+	"add	%%g2, %1, %%g3\n\t"
+	"casxa	[%%g1] " __XSTRING(ASI_N) " , %%g2, %%g3\n\t"
+	"bne,pn	%%xcc, 1b\n\t"
+	" cmp	%%g2, %%g3\n\t"
+	:
+	: "r" ((char *)c - pcpu0), "r" (inc)
+	: "memory", "cc", "g1", "g2", "g3");
+
+#if 0
+	__asm __volatile(
+	"wrpr	%%g0, %2, %%pstate\n\t"
+	"ldx	[%" __XSTRING(PCPU_REG) " + %0], %%g2\n\t"
+	"add	%%g2, %1, %%g1\n\t"
+	"stx	%%g1, [%" __XSTRING(PCPU_REG) " + %0]\n\t"
+	"wrpr	%%g0, %3, %%pstate\n\t"
+	:
+	: "r" ((char *)c - pcpu0), "r" (inc),
+	  "i" (PSTATE_NORMAL), "i" (PSTATE_KERNEL)
+	: "memory", "cc", "g2", "g1");
+#endif
 }
 
-static __inline void
+static inline void
 counter_u64_dec(counter_u64_t c, uint64_t dec)
 {
 

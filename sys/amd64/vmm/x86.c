@@ -54,8 +54,6 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 	unsigned int 	func, regs[4];
 	enum x2apic_state x2apic_state;
 
-	func = *eax;
-
 	/*
 	 * Requests for invalid CPUID levels should map to the highest
 	 * available level instead.
@@ -69,6 +67,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 	} else if (*eax > cpu_high) {
 		*eax = cpu_high;
 	}
+
+	func = *eax;
 
 	/*
 	 * In general the approach used for CPU topology is to

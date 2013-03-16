@@ -97,8 +97,12 @@ main(int argc, const char **argv)
 		    "the Finish button.";
 		part_wizard();
 	} else if (strcmp(basename(argv[0]), "scriptedpart") == 0) {
-		scripted_editor(argc, argv);
+		error = scripted_editor(argc, argv);
 		prompt = NULL;
+		if (error != 0) {
+			end_dialog();
+			return (error);
+		}
 	} else {
 		prompt = "Create partitions for FreeBSD. No changes will be "
 		    "made until you select Finish.";

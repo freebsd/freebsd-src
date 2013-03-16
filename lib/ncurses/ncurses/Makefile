@@ -2,6 +2,10 @@
 
 SHLIBDIR?=	/lib
 
+.if !defined(ENABLE_WIDEC)
+NO_MAN=
+.endif
+
 .include <bsd.own.mk>
 
 .include "${.CURDIR}/../config.mk"
@@ -304,8 +308,10 @@ SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtermlib${LIB_SUFFIX}_p.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtinfo${LIB_SUFFIX}_p.a
 .endif
 
+.if defined(ENABLE_WIDEC)
 DOCSDIR=	${SHAREDIR}/doc/ncurses
 DOCS=		ncurses-intro.html hackguide.html
+.endif
 
 .if ${MK_HTML} != "no"
 .PATH: ${NCURSES_DIR}/doc/html
@@ -457,6 +463,7 @@ terminfo.5: MKterminfo.sh terminfo.head Caps
 
 CLEANFILES+=	terminfo.5
 
+.if defined(ENABLE_WIDEC)
 .PATH: ${NCURSES_DIR}/man
 MAN=	\
 	curs_addch.3 \
@@ -517,7 +524,6 @@ MAN=	\
 	resizeterm.3 \
 	wresize.3
 
-.if defined(ENABLE_WIDEC)
 MAN+=	\
 	curs_add_wch.3 \
 	curs_add_wchstr.3 \

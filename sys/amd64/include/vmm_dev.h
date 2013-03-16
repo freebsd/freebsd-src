@@ -51,11 +51,6 @@ struct vm_seg_desc {			/* data or code segment */
 	struct seg_desc desc;
 };
 
-struct vm_pin {
-	int		vm_cpuid;
-	int		host_cpuid;	/* -1 to unpin */
-};
-
 struct vm_run {
 	int		cpuid;
 	uint64_t	rip;		/* start running here */
@@ -142,8 +137,6 @@ struct vm_x2apic {
 
 enum {
 	IOCNUM_RUN,
-	IOCNUM_SET_PINNING,
-	IOCNUM_GET_PINNING,
 	IOCNUM_MAP_MEMORY,
 	IOCNUM_GET_MEMORY_SEG,
 	IOCNUM_SET_REGISTER,
@@ -168,10 +161,6 @@ enum {
 
 #define	VM_RUN		\
 	_IOWR('v', IOCNUM_RUN, struct vm_run)
-#define	VM_SET_PINNING	\
-	_IOW('v', IOCNUM_SET_PINNING, struct vm_pin)
-#define	VM_GET_PINNING	\
-	_IOWR('v', IOCNUM_GET_PINNING, struct vm_pin)
 #define	VM_MAP_MEMORY	\
 	_IOWR('v', IOCNUM_MAP_MEMORY, struct vm_memory_segment)
 #define	VM_GET_MEMORY_SEG \

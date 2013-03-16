@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -206,6 +207,9 @@ SYSCTL_INT(_vfs, OID_AUTO, flushbufqtarget, CTLFLAG_RW, &flushbufqtarget, 0,
 static long notbufdflashes;
 SYSCTL_LONG(_vfs, OID_AUTO, notbufdflashes, CTLFLAG_RD, &notbufdflashes, 0,
     "Number of dirty buffer flushes done by the bufdaemon helpers");
+static long barrierwrites;
+SYSCTL_LONG(_vfs, OID_AUTO, barrierwrites, CTLFLAG_RW, &barrierwrites, 0,
+    "Number of barrier writes");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -455,7 +459,7 @@ vfs_buf_test_cache(struct buf *bp,
 		  vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if (bp->b_flags & B_CACHE) {
 		int base = (foff + off) & PAGE_MASK;
 		if (vm_page_is_valid(m, base, size) == 0)
@@ -826,9 +830,8 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
  * getblk(). Also starts asynchronous I/O on read-ahead blocks.
  */
 int
-breadn_flags(struct vnode * vp, daddr_t blkno, int size,
-    daddr_t * rablkno, int *rabsize, int cnt,
-    struct ucred * cred, int flags, struct buf **bpp)
+breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
+    int *rabsize, int cnt, struct ucred *cred, int flags, struct buf **bpp)
 {
 	struct buf *bp;
 	int rv = 0, readwait = 0;
@@ -887,6 +890,9 @@ bufwrite(struct buf *bp)
 		brelse(bp);
 		return (0);
 	}
+
+	if (bp->b_flags & B_BARRIER)
+		barrierwrites++;
 
 	oldflags = bp->b_flags;
 
@@ -1007,6 +1013,8 @@ bdwrite(struct buf *bp)
 
 	CTR3(KTR_BUF, "bdwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
+	KASSERT((bp->b_flags & B_BARRIER) == 0,
+	    ("Barrier request in delayed write %p", bp));
 	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_flags & B_INVAL) {
@@ -1167,6 +1175,40 @@ bawrite(struct buf *bp)
 }
 
 /*
+ *	babarrierwrite:
+ *
+ *	Asynchronous barrier write.  Start output on a buffer, but do not
+ *	wait for it to complete.  Place a write barrier after this write so
+ *	that this buffer and all buffers written before it are committed to
+ *	the disk before any buffers written after this write are committed
+ *	to the disk.  The buffer is released when the output completes.
+ */
+void
+babarrierwrite(struct buf *bp)
+{
+
+	bp->b_flags |= B_ASYNC | B_BARRIER;
+	(void) bwrite(bp);
+}
+
+/*
+ *	bbarrierwrite:
+ *
+ *	Synchronous barrier write.  Start output on a buffer and wait for
+ *	it to complete.  Place a write barrier after this write so that
+ *	this buffer and all buffers written before it are committed to 
+ *	the disk before any buffers written after this write are committed
+ *	to the disk.  The buffer is released when the output completes.
+ */
+int
+bbarrierwrite(struct buf *bp)
+{
+
+	bp->b_flags |= B_BARRIER;
+	return (bwrite(bp));
+}
+
+/*
  *	bwillwrite:
  *
  *	Called prior to the locking of any vnodes when we are expecting to
@@ -1225,6 +1267,15 @@ brelse(struct buf *bp)
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
+
+	if (BUF_LOCKRECURSED(bp)) {
+		/*
+		 * Do not process, in particular, do not handle the
+		 * B_INVAL/B_RELBUF and do not release to free list.
+		 */
+		BUF_UNLOCK(bp);
+		return;
+	}
 
 	if (bp->b_flags & B_MANAGED) {
 		bqrelse(bp);
@@ -1337,7 +1388,7 @@ brelse(struct buf *bp)
 		 */
 		resid = bp->b_bufsize;
 		foff = bp->b_offset;
-		VM_OBJECT_LOCK(obj);
+		VM_OBJECT_WLOCK(obj);
 		for (i = 0; i < bp->b_npages; i++) {
 			int had_bogus = 0;
 
@@ -1385,7 +1436,7 @@ brelse(struct buf *bp)
 			resid -= PAGE_SIZE - (foff & PAGE_MASK);
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
-		VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_WUNLOCK(obj);
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
 
@@ -1402,12 +1453,6 @@ brelse(struct buf *bp)
 			brelvp(bp);
 	}
 			
-	if (BUF_LOCKRECURSED(bp)) {
-		/* do not release to free list */
-		BUF_UNLOCK(bp);
-		return;
-	}
-
 	/* enqueue */
 	mtx_lock(&bqlock);
 	/* Handle delayed bremfree() processing. */
@@ -1613,7 +1658,7 @@ vfs_vmio_release(struct buf *bp)
 	vm_page_t m;
 
 	pmap_qremove(trunc_page((vm_offset_t)bp->b_data), bp->b_npages);
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
@@ -1645,7 +1690,7 @@ vfs_vmio_release(struct buf *bp)
 		}
 		vm_page_unlock(m);
 	}
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 	
 	if (bp->b_bufsize) {
 		bufspacewakeup();
@@ -1748,8 +1793,9 @@ vfs_bio_awrite(struct buf *bp)
 		 */
 		if (ncl != 1) {
 			BUF_UNLOCK(bp);
-			nwritten = cluster_wbuild(vp, size, lblkno - j, ncl);
-			return nwritten;
+			nwritten = cluster_wbuild(vp, size, lblkno - j, ncl,
+			    0);
+			return (nwritten);
 		}
 	}
 	bremfree(bp);
@@ -1762,7 +1808,7 @@ vfs_bio_awrite(struct buf *bp)
 	nwritten = bp->b_bufsize;
 	(void) bwrite(bp);
 
-	return nwritten;
+	return (nwritten);
 }
 
 /*
@@ -2422,7 +2468,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 		size = vp->v_mount->mnt_stat.f_iosize;
 	off = (vm_ooffset_t)blkno * (vm_ooffset_t)vp->v_mount->mnt_stat.f_iosize;
 
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	for (toff = 0; toff < vp->v_mount->mnt_stat.f_iosize; toff += tinc) {
 		m = vm_page_lookup(obj, OFF_TO_IDX(off + toff));
 		if (!m)
@@ -2434,11 +2480,11 @@ inmem(struct vnode * vp, daddr_t blkno)
 		    (vm_offset_t) ((toff + off) & PAGE_MASK), tinc) == 0)
 			goto notinmem;
 	}
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 	return 1;
 
 notinmem:
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 	return (0);
 }
 
@@ -2468,7 +2514,7 @@ vfs_clean_pages_dirty_buf(struct buf *bp)
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_clean_pages_dirty_buf: no buffer offset"));
 
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 	vfs_drain_busy_pages(bp);
 	vfs_setdirty_locked_object(bp);
 	for (i = 0; i < bp->b_npages; i++) {
@@ -2481,7 +2527,7 @@ vfs_clean_pages_dirty_buf(struct buf *bp)
 		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
 		foff = noff;
 	}
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 }
 
 static void
@@ -2491,7 +2537,7 @@ vfs_setdirty_locked_object(struct buf *bp)
 	int i;
 
 	object = bp->b_bufobj->bo_object;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
 	 * We qualify the scan for modified pages on whether the
@@ -2584,7 +2630,7 @@ vfs_setdirty_locked_object(struct buf *bp)
  *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
 struct buf *
-getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
+getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
     int flags)
 {
 	struct buf *bp;
@@ -2639,6 +2685,9 @@ loop:
 		/* We timed out or were interrupted. */
 		else if (error)
 			return (NULL);
+		/* If recursed, assume caller knows the rules. */
+		else if (BUF_LOCKRECURSED(bp))
+			goto end;
 
 		/*
 		 * The buffer is locked.  B_CACHE is cleared if the buffer is 
@@ -2659,9 +2708,8 @@ loop:
 		}
 
 		/*
-		 * check for size inconsistancies for non-VMIO case.
+		 * check for size inconsistencies for non-VMIO case.
 		 */
-
 		if (bp->b_bcount != size) {
 			if ((bp->b_flags & B_VMIO) == 0 ||
 			    (size > bp->b_kvasize)) {
@@ -2822,6 +2870,7 @@ loop:
 	}
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
 	BUF_ASSERT_HELD(bp);
+end:
 	KASSERT(bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 	return (bp);
@@ -2993,7 +3042,7 @@ allocbuf(struct buf *bp, int size)
 				    (vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT),
 				    (bp->b_npages - desiredpages));
-				VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+				VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
 					 * the page is not freed here -- it
@@ -3012,7 +3061,7 @@ allocbuf(struct buf *bp, int size)
 					vm_page_unwire(m, 0);
 					vm_page_unlock(m);
 				}
-				VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+				VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 				bp->b_npages = desiredpages;
 			}
 		} else if (size > bp->b_bcount) {
@@ -3033,7 +3082,7 @@ allocbuf(struct buf *bp, int size)
 
 			obj = bp->b_bufobj->bo_object;
 
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			while (bp->b_npages < desiredpages) {
 				vm_page_t m;
 
@@ -3095,7 +3144,7 @@ allocbuf(struct buf *bp, int size)
 				toff += tinc;
 				tinc = PAGE_SIZE;
 			}
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 
 			/*
 			 * Step 3, fixup the KVM pmap.  Remember that
@@ -3350,7 +3399,7 @@ bufdone_finish(struct buf *bp)
 			bp->b_flags |= B_CACHE;
 		}
 		bogus = 0;
-		VM_OBJECT_LOCK(obj);
+		VM_OBJECT_WLOCK(obj);
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			int resid;
@@ -3392,7 +3441,7 @@ bufdone_finish(struct buf *bp)
 			iosize -= resid;
 		}
 		vm_object_pip_wakeupn(obj, 0);
-		VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_WUNLOCK(obj);
 		if (bogus)
 			pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
 			    bp->b_pages, bp->b_npages);
@@ -3430,7 +3479,7 @@ vfs_unbusy_pages(struct buf *bp)
 		return;
 
 	obj = bp->b_bufobj->bo_object;
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		if (m == bogus_page) {
@@ -3445,7 +3494,7 @@ vfs_unbusy_pages(struct buf *bp)
 		vm_page_io_finish(m);
 	}
 	vm_object_pip_wakeupn(obj, 0);
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 }
 
 /*
@@ -3524,7 +3573,7 @@ vfs_drain_busy_pages(struct buf *bp)
 	vm_page_t m;
 	int i, last_busied;
 
-	VM_OBJECT_LOCK_ASSERT(bp->b_bufobj->bo_object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(bp->b_bufobj->bo_object);
 	last_busied = 0;
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -3566,7 +3615,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	foff = bp->b_offset;
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_busy_pages: no buffer offset"));
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	vfs_drain_busy_pages(bp);
 	if (bp->b_bufsize != 0)
 		vfs_setdirty_locked_object(bp);
@@ -3603,7 +3652,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 		}
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	}
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 	if (bogus)
 		pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
 		    bp->b_pages, bp->b_npages);
@@ -3634,7 +3683,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 	base += (bp->b_offset & PAGE_MASK);
 	n = PAGE_SIZE - (base & PAGE_MASK);
 
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 	for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 		m = bp->b_pages[i];
 		if (n > size)
@@ -3644,7 +3693,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 		size -= n;
 		n = PAGE_SIZE;
 	}
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 }
 
 /*
@@ -3662,8 +3711,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 void
 vfs_bio_clrbuf(struct buf *bp) 
 {
-	int i, j, mask;
-	caddr_t sa, ea;
+	int i, j, mask, sa, ea, slide;
 
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) != B_VMIO) {
 		clrbuf(bp);
@@ -3671,46 +3719,49 @@ vfs_bio_clrbuf(struct buf *bp)
 	}
 	bp->b_flags &= ~B_INVAL;
 	bp->b_ioflags &= ~BIO_ERROR;
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 	if ((bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 	    (bp->b_offset & PAGE_MASK) == 0) {
 		if (bp->b_pages[0] == bogus_page)
 			goto unlock;
 		mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;
-		VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
+		VM_OBJECT_ASSERT_WLOCKED(bp->b_pages[0]->object);
 		if ((bp->b_pages[0]->valid & mask) == mask)
 			goto unlock;
 		if ((bp->b_pages[0]->valid & mask) == 0) {
-			bzero(bp->b_data, bp->b_bufsize);
+			pmap_zero_page_area(bp->b_pages[0], 0, bp->b_bufsize);
 			bp->b_pages[0]->valid |= mask;
 			goto unlock;
 		}
 	}
-	ea = sa = bp->b_data;
-	for(i = 0; i < bp->b_npages; i++, sa = ea) {
-		ea = (caddr_t)trunc_page((vm_offset_t)sa + PAGE_SIZE);
-		ea = (caddr_t)(vm_offset_t)ulmin(
-		    (u_long)(vm_offset_t)ea,
-		    (u_long)(vm_offset_t)bp->b_data + bp->b_bufsize);
+	sa = bp->b_offset & PAGE_MASK;
+	slide = 0;
+	for (i = 0; i < bp->b_npages; i++, sa = 0) {
+		slide = imin(slide + PAGE_SIZE, bp->b_offset + bp->b_bufsize);
+		ea = slide & PAGE_MASK;
+		if (ea == 0)
+			ea = PAGE_SIZE;
 		if (bp->b_pages[i] == bogus_page)
 			continue;
-		j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
+		j = sa / DEV_BSIZE;
 		mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
-		VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
+		VM_OBJECT_ASSERT_WLOCKED(bp->b_pages[i]->object);
 		if ((bp->b_pages[i]->valid & mask) == mask)
 			continue;
 		if ((bp->b_pages[i]->valid & mask) == 0)
-			bzero(sa, ea - sa);
+			pmap_zero_page_area(bp->b_pages[i], sa, ea - sa);
 		else {
 			for (; sa < ea; sa += DEV_BSIZE, j++) {
-				if ((bp->b_pages[i]->valid & (1 << j)) == 0)
-					bzero(sa, DEV_BSIZE);
+				if ((bp->b_pages[i]->valid & (1 << j)) == 0) {
+					pmap_zero_page_area(bp->b_pages[i],
+					    sa, DEV_BSIZE);
+				}
 			}
 		}
 		bp->b_pages[i]->valid |= mask;
 	}
 unlock:
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 	bp->b_resid = 0;
 }
 

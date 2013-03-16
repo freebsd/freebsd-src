@@ -242,10 +242,10 @@ random_kthread(void *arg __unused)
 	local_count = 0;
 
 	/* Process until told to stop */
+	mtx_lock_spin(&harvest_mtx);
 	for (; random_kthread_control >= 0;) {
 
 		/* Cycle through all the entropy sources */
-		mtx_lock_spin(&harvest_mtx);
 		for (source = RANDOM_START; source < ENTROPYSOURCE; source++) {
 			/*
 			 * Drain entropy source records into a thread-local
@@ -270,7 +270,6 @@ random_kthread(void *arg __unused)
 			emptyfifo.count += local_count;
 			local_count = 0;
 		}
-		mtx_unlock_spin(&harvest_mtx);
 
 		KASSERT(local_count == 0, ("random_kthread: local_count %d",
 		    local_count));
@@ -283,9 +282,11 @@ random_kthread(void *arg __unused)
 			random_kthread_control = 0;
 
 		/* Work done, so don't belabour the issue */
-		pause("-", hz / 10);
+		msleep_spin_sbt(&random_kthread_control, &harvest_mtx,
+		    "-", SBT_1S / 10, 0, C_PREL(1));
 
 	}
+	mtx_unlock_spin(&harvest_mtx);
 
 	random_set_wakeup_exit(&random_kthread_control);
 	/* NOTREACHED */
@@ -391,7 +392,7 @@ random_yarrow_block(int flag)
 	mtx_lock(&random_reseed_mtx);
 
 	/* Blocking logic */
-	while (random_systat.seeded && !error) {
+	while (!random_systat.seeded && !error) {
 		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {

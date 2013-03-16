@@ -1039,7 +1039,8 @@ static device_method_t ums_methods[] = {
 	DEVMETHOD(device_probe, ums_probe),
 	DEVMETHOD(device_attach, ums_attach),
 	DEVMETHOD(device_detach, ums_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ums_driver = {

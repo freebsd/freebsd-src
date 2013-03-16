@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2012
+.Dd February 8, 2013
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -171,7 +171,7 @@ argument,
 which is rounded up to the nearest block size.
 A zero value in
 .Fa arg
-turns off read ahead.
+turns off read ahead, a negative value restores the system default.
 .It Dv F_RDAHEAD
 Equivalent to Darwin counterpart which sets read ahead amount of 128KB
 when the third argument,

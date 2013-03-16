@@ -204,6 +204,35 @@ AcpiNsCompareNames (
 
 
 /*
+ * nsconvert - Dynamic object conversion routines
+ */
+ACPI_STATUS
+AcpiNsConvertToInteger (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToString (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToBuffer (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToUnicode (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToResource (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+
+/*
  * nsdump - Namespace dump/print utilities
  */
 void
@@ -377,7 +406,7 @@ AcpiNsGetAttachedData (
  * predefined methods/objects
  */
 ACPI_STATUS
-AcpiNsRepairObject (
+AcpiNsSimpleRepair (
     ACPI_PREDEFINED_DATA    *Data,
     UINT32                  ExpectedBtypes,
     UINT32                  PackageIndex,

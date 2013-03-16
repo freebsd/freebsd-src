@@ -521,7 +521,7 @@ static device_method_t acpi_dock_methods[] = {
 	DEVMETHOD(device_probe, acpi_dock_probe),
 	DEVMETHOD(device_attach, acpi_dock_attach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_dock_driver = {

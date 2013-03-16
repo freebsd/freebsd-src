@@ -420,10 +420,12 @@ ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
 #ifdef ACPI_DISASSEMBLER
 
-ACPI_EXTERN BOOLEAN     ACPI_INIT_GLOBAL (AcpiGbl_IgnoreNoopOperator, FALSE);
+ACPI_EXTERN BOOLEAN                     ACPI_INIT_GLOBAL (AcpiGbl_IgnoreNoopOperator, FALSE);
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
+ACPI_EXTERN BOOLEAN                     AcpiGbl_NumExternalMethods;
+ACPI_EXTERN UINT32                      AcpiGbl_ResolvedExternalMethods;
 ACPI_EXTERN ACPI_EXTERNAL_LIST         *AcpiGbl_ExternalList;
 ACPI_EXTERN ACPI_EXTERNAL_FILE         *AcpiGbl_ExternalFileList;
 #endif

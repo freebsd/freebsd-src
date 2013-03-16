@@ -1215,7 +1215,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_ALL, &fp))
+		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_CLIENT, &fp))
 		    != 0) {
 			return (error);
 		}

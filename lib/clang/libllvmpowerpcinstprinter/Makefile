@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmpowerpcinstprinter
 
 SRCDIR=	lib/Target/PowerPC/InstPrinter

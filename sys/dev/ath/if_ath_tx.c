@@ -473,11 +473,6 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 			    bf->bf_state.bfs_ndelim);
 		}
 		isFirstDesc = 0;
-#ifdef	ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_XMIT)
-			ath_printtxbuf(sc, bf, bf->bf_state.bfs_tx_queue,
-			    0, 0);
-#endif
 		bf->bf_lastds = (struct ath_desc *) ds;
 
 		/*
@@ -1124,11 +1119,7 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			dur = rt->info[rix].lpAckDuration;
 		if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
 			dur += dur;		/* additional SIFS+ACK */
-			if (bf->bf_state.bfs_nextpktlen == 0) {
-				device_printf(sc->sc_dev,
-				    "%s: next txfrag len=0?\n",
-				    __func__);
-			}
+			KASSERT(bf->bf_m->m_nextpkt != NULL, ("no fragment"));
 			/*
 			 * Include the size of next fragment so NAV is
 			 * updated properly.  The last fragment uses only
@@ -1139,7 +1130,7 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			 * first fragment!
 			 */
 			dur += ath_hal_computetxtime(ah, rt,
-					bf->bf_state.bfs_nextpktlen,
+					bf->bf_m->m_nextpkt->m_pkthdr.len,
 					rix, shortPreamble);
 		}
 		if (isfrag) {
@@ -2999,9 +2990,11 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	}
 
 	ath_tx_tid_sched(sc, tid);
-	/* Punt some frames to the hardware if needed */
-	//ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+
+	/*
+	 * Queue the software TX scheduler.
+	 */
+	ath_tx_swq_kick(sc);
 }
 
 /*
@@ -3156,7 +3149,7 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		 * Don't allow a filtered frame to live forever.
 		 */
 		if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
-		sc->sc_stats.ast_tx_swretrymax++;
+			sc->sc_stats.ast_tx_swretrymax++;
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 			    "%s: bf=%p, seqno=%d, exceeded retries\n",
 			    __func__,
@@ -3380,6 +3373,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_update_baw(sc, an, tid, bf);
 			bf->bf_state.bfs_dobaw = 0;
 		}
+#if 0
 		/*
 		 * This has become a non-fatal error now
 		 */
@@ -3387,6 +3381,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			device_printf(sc->sc_dev,
 			    "%s: wasn't added: seqno %d\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno));
+#endif
 	}
 	TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
 }
@@ -3762,7 +3757,6 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (bf->bf_state.bfs_isretried) {
 			bf_next = TAILQ_NEXT(bf, bf_list);
 			ATH_TID_REMOVE(atid, bf, bf_list);
-			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw) {
 				ath_tx_update_baw(sc, an, atid, bf);
 				if (! bf->bf_state.bfs_addedbaw)
@@ -4145,11 +4139,10 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 	int tid = bf_first->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 
-	bf = bf_first;
-
 	ATH_TX_LOCK(sc);
 
 	/* update incomp */
+	bf = bf_first;
 	while (bf) {
 		atid->incomp--;
 		bf = bf->bf_next;
@@ -4165,12 +4158,17 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 	/* Send BAR if required */
 	/* XXX why would we send a BAR when transitioning to non-aggregation? */
+	/*
+	 * XXX TODO: we should likely just tear down the BAR state here,
+	 * rather than sending a BAR.
+	 */
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
 		ath_tx_tid_bar_tx(sc, atid);
 
 	ATH_TX_UNLOCK(sc);
 
 	/* Handle frame completion */
+	bf = bf_first;
 	while (bf) {
 		bf_next = bf->bf_next;
 		ath_tx_default_comp(sc, bf, 1);
@@ -4180,8 +4178,6 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 /*
  * Handle completion of an set of aggregate frames.
- *
- * XXX for now, simply complete each sub-frame.
  *
  * Note: the completion handler is the last descriptor in the aggregate,
  * not the last descriptor in the first frame.
@@ -4345,12 +4341,23 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	    __func__, tap->txa_start, tx_ok, ts.ts_status, ts.ts_flags,
 	    isaggr, seq_st, hasba, ba[0], ba[1]);
 
+	/*
+	 * The reference driver doesn't do this; it simply ignores
+	 * this check in its entirety.
+	 *
+	 * I've seen this occur when using iperf to send traffic
+	 * out tid 1 - the aggregate frames are all marked as TID 1,
+	 * but the TXSTATUS has TID=0.  So, let's just ignore this
+	 * check.
+	 */
+#if 0
 	/* Occasionally, the MAC sends a tx status for the wrong TID. */
 	if (tid != ts.ts_tid) {
 		device_printf(sc->sc_dev, "%s: tid %d != hw tid %d\n",
 		    __func__, tid, ts.ts_tid);
 		tx_ok = 0;
 	}
+#endif
 
 	/* AR5416 BA bug; this requires an interface reset */
 	if (isaggr && tx_ok && (! hasba)) {

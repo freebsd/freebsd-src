@@ -40,7 +40,7 @@
 #ifdef _KERNEL
 
 /*
- * Flags passed to rm_init(9).
+ * Flags passed to rm_init_flags(9).
  */
 #define	RM_NOWITNESS	0x00000001
 #define	RM_RECURSE	0x00000002

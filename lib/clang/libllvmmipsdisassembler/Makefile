@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmipsdisassembler
 
 SRCDIR=	lib/Target/Mips/Disassembler

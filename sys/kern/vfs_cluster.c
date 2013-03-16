@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -83,15 +84,9 @@ extern vm_page_t	bogus_page;
  * cluster_read replaces bread.
  */
 int
-cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
-	struct vnode *vp;
-	u_quad_t filesize;
-	daddr_t lblkno;
-	long size;
-	struct ucred *cred;
-	long totread;
-	int seqcount;
-	struct buf **bpp;
+cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
+    struct ucred *cred, long totread, int seqcount, int gbflags,
+    struct buf **bpp)
 {
 	struct buf *bp, *rbp, *reqbp;
 	struct bufobj *bo;
@@ -406,21 +401,20 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 */
 			off = tbp->b_offset;
 			tsize = size;
-			VM_OBJECT_LOCK(tbp->b_bufobj->bo_object);
+			VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);
 			for (j = 0; tsize > 0; j++) {
 				toff = off & PAGE_MASK;
 				tinc = tsize;
 				if (toff + tinc > PAGE_SIZE)
 					tinc = PAGE_SIZE - toff;
-				VM_OBJECT_LOCK_ASSERT(tbp->b_pages[j]->object,
-				    MA_OWNED);
+				VM_OBJECT_ASSERT_WLOCKED(tbp->b_pages[j]->object);
 				if ((tbp->b_pages[j]->valid &
 				    vm_page_bits(toff, tinc)) != 0)
 					break;
 				off += tinc;
 				tsize -= tinc;
 			}
-			VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
+			VM_OBJECT_WUNLOCK(tbp->b_bufobj->bo_object);
 			if (tsize > 0) {
 				bqrelse(tbp);
 				break;
@@ -455,7 +449,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		BUF_KERNPROC(tbp);
 		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 			tbp, b_cluster.cluster_entry);
-		VM_OBJECT_LOCK(tbp->b_bufobj->bo_object);
+		VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
@@ -469,7 +463,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			if (m->valid == VM_PAGE_BITS_ALL)
 				tbp->b_pages[j] = bogus_page;
 		}
-		VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
+		VM_OBJECT_WUNLOCK(tbp->b_bufobj->bo_object);
 		/*
 		 * Don't inherit tbp->b_bufsize as it may be larger due to
 		 * a non-page-aligned size.  Instead just aggregate using
@@ -487,13 +481,13 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	 * Fully valid pages in the cluster are already good and do not need
 	 * to be re-read from disk.  Replace the page with bogus_page
 	 */
-	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 	for (j = 0; j < bp->b_npages; j++) {
-		VM_OBJECT_LOCK_ASSERT(bp->b_pages[j]->object, MA_OWNED);
+		VM_OBJECT_ASSERT_WLOCKED(bp->b_pages[j]->object);
 		if (bp->b_pages[j]->valid == VM_PAGE_BITS_ALL)
 			bp->b_pages[j] = bogus_page;
 	}
-	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 	if (bp->b_bufsize > bp->b_kvasize)
 		panic("cluster_rbuild: b_bufsize(%ld) > b_kvasize(%d)\n",
 		    bp->b_bufsize, bp->b_kvasize);
@@ -569,14 +563,14 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
 {
 	int r = 0;
 
-	switch(write_behind) {
+	switch (write_behind) {
 	case 2:
 		if (start_lbn < len)
 			break;
 		start_lbn -= len;
 		/* FALLTHROUGH */
 	case 1:
-		r = cluster_wbuild(vp, size, start_lbn, len);
+		r = cluster_wbuild(vp, size, start_lbn, len, 0);
 		/* FALLTHROUGH */
 	default:
 		/* FALLTHROUGH */
@@ -596,7 +590,8 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
  *	4.	end of a cluster - asynchronously write cluster
  */
 void
-cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount)
+cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
+    int gbflags)
 {
 	daddr_t lbn;
 	int maxclen, cursize;
@@ -742,11 +737,8 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount)
  * the current block (if last_bp == NULL).
  */
 int
-cluster_wbuild(vp, size, start_lbn, len)
-	struct vnode *vp;
-	long size;
-	daddr_t start_lbn;
-	int len;
+cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
+    int gbflags)
 {
 	struct buf *bp, *tbp;
 	struct bufobj *bo;
@@ -918,12 +910,12 @@ cluster_wbuild(vp, size, start_lbn, len)
 			if (tbp->b_flags & B_VMIO) {
 				vm_page_t m;
 
-				VM_OBJECT_LOCK(tbp->b_bufobj->bo_object);
+				VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);
 				if (i != 0) { /* if not first buffer */
 					for (j = 0; j < tbp->b_npages; j += 1) {
 						m = tbp->b_pages[j];
 						if (m->oflags & VPO_BUSY) {
-							VM_OBJECT_UNLOCK(
+							VM_OBJECT_WUNLOCK(
 							    tbp->b_object);
 							bqrelse(tbp);
 							goto finishcluster;
@@ -940,15 +932,21 @@ cluster_wbuild(vp, size, start_lbn, len)
 						bp->b_npages++;
 					}
 				}
-				VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
+				VM_OBJECT_WUNLOCK(tbp->b_bufobj->bo_object);
 			}
 			bp->b_bcount += size;
 			bp->b_bufsize += size;
-			bundirty(tbp);
-			tbp->b_flags &= ~B_DONE;
-			tbp->b_ioflags &= ~BIO_ERROR;
+			/*
+			 * If any of the clustered buffers have their
+			 * B_BARRIER flag set, transfer that request to
+			 * the cluster.
+			 */
+			bp->b_flags |= (tbp->b_flags & B_BARRIER);
+			tbp->b_flags &= ~(B_DONE | B_BARRIER);
 			tbp->b_flags |= B_ASYNC;
+			tbp->b_ioflags &= ~BIO_ERROR;
 			tbp->b_iocmd = BIO_WRITE;
+			bundirty(tbp);
 			reassignbuf(tbp);		/* put on clean list */
 			bufobj_wref(tbp->b_bufobj);
 			BUF_KERNPROC(tbp);

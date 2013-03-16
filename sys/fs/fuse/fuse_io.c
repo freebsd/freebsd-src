@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/sx.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
@@ -86,9 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_object.h>
-#include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
 #include <vm/vm_object.h>
 
 #include "fuse.h"
@@ -787,9 +785,9 @@ fuse_io_invalbuf(struct vnode *vp, struct thread *td)
 	fvdat->flag |= FN_FLUSHINPROG;
 
 	if (vp->v_bufobj.bo_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
 		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_UNLOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
 	}
 	error = vinvalbuf(vp, V_SAVE, PCATCH, 0);
 	while (error) {

@@ -323,8 +323,6 @@ ichwd_tmr_reload(struct ichwd_softc *sc)
 		ichwd_write_tco_1(sc, TCO_RLD, 1);
 	else
 		ichwd_write_tco_2(sc, TCO_RLD, 1);
-
-	ichwd_verbose_printf(sc->device, "timer reloaded\n");
 }
 
 /*

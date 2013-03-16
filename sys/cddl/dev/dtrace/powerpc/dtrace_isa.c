@@ -19,6 +19,8 @@
  *
  * CDDL HEADER END
  *
+ * Portions Copyright 2012,2013 Justin Hibbits <jhibbits@freebsd.org>
+ *
  * $FreeBSD$
  */
 /*
@@ -44,11 +46,6 @@
 #include <vm/pmap.h>
 
 #include "regset.h"
-
-uint8_t dtrace_fuword8_nocheck(void *);
-uint16_t dtrace_fuword16_nocheck(void *);
-uint32_t dtrace_fuword32_nocheck(void *);
-uint64_t dtrace_fuword64_nocheck(void *);
 
 /* Offset to the LR Save word (ppc32) */
 #define RETURN_OFFSET	4
@@ -462,31 +459,63 @@ dtrace_copyin(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 {
 	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copy(uaddr, kaddr, size);
+		if (copyin((const void *)uaddr, (void *)kaddr, size)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
 }
 
 void
 dtrace_copyout(uintptr_t kaddr, uintptr_t uaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copy(kaddr, uaddr, size);
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		if (copyout((const void *)kaddr, (void *)uaddr, size)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
 }
 
 void
 dtrace_copyinstr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copystr(uaddr, kaddr, size, flags);
+	size_t actual;
+	int    error;
+
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		error = copyinstr((const void *)uaddr, (void *)kaddr,
+		    size, &actual);
+		
+		/* ENAMETOOLONG is not a fault condition. */
+		if (error && error != ENAMETOOLONG) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
 }
 
+/*
+ * The bulk of this function could be replaced to match dtrace_copyinstr() 
+ * if we ever implement a copyoutstr().
+ */
 void
 dtrace_copyoutstr(uintptr_t kaddr, uintptr_t uaddr, size_t size,
     volatile uint16_t *flags)
 {
-	if (dtrace_copycheck(uaddr, kaddr, size))
-		dtrace_copystr(kaddr, uaddr, size, flags);
+	size_t len;
+
+	if (dtrace_copycheck(uaddr, kaddr, size)) {
+		len = strlen((const char *)kaddr);
+		if (len > size)
+			len = size;
+
+		if (copyout((const void *)kaddr, (void *)uaddr, len)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
 }
 
 uint8_t
@@ -497,18 +526,21 @@ dtrace_fuword8(void *uaddr)
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword8_nocheck(uaddr));
+	return (fubyte(uaddr));
 }
 
 uint16_t
 dtrace_fuword16(void *uaddr)
 {
-	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
-		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
-		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
-		return (0);
+	uint16_t ret = 0;
+
+	if (dtrace_copycheck((uintptr_t)uaddr, (uintptr_t)&ret, sizeof(ret))) {
+		if (copyin((const void *)uaddr, (void *)&ret, sizeof(ret))) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
 	}
-	return (dtrace_fuword16_nocheck(uaddr));
+	return ret;
 }
 
 uint32_t
@@ -519,16 +551,19 @@ dtrace_fuword32(void *uaddr)
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
 	}
-	return (dtrace_fuword32_nocheck(uaddr));
+	return (fuword32(uaddr));
 }
 
 uint64_t
 dtrace_fuword64(void *uaddr)
 {
-	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
-		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
-		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
-		return (0);
+	uint64_t ret = 0;
+
+	if (dtrace_copycheck((uintptr_t)uaddr, (uintptr_t)&ret, sizeof(ret))) {
+		if (copyin((const void *)uaddr, (void *)&ret, sizeof(ret))) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
 	}
-	return (dtrace_fuword64_nocheck(uaddr));
+	return ret;
 }

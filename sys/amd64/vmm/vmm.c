@@ -70,7 +70,6 @@ struct vcpu {
 	int		flags;
 	enum vcpu_state	state;
 	struct mtx	mtx;
-	int		pincpu;		/* host cpuid this vcpu is bound to */
 	int		hostcpu;	/* host cpuid this vcpu last ran on */
 	uint64_t	guest_msrs[VMM_MSR_NUM];
 	struct vlapic	*vlapic;
@@ -81,18 +80,6 @@ struct vcpu {
 	enum x2apic_state x2apic_state;
 	int		nmi_pending;
 };
-#define	VCPU_F_PINNED	0x0001
-
-#define	VCPU_PINCPU(vm, vcpuid)	\
-    ((vm->vcpu[vcpuid].flags & VCPU_F_PINNED) ? vm->vcpu[vcpuid].pincpu : -1)
-
-#define	VCPU_UNPIN(vm, vcpuid)	(vm->vcpu[vcpuid].flags &= ~VCPU_F_PINNED)
-
-#define	VCPU_PIN(vm, vcpuid, host_cpuid)				\
-do {									\
-	vm->vcpu[vcpuid].flags |= VCPU_F_PINNED;			\
-	vm->vcpu[vcpuid].pincpu = host_cpuid;				\
-} while(0)
 
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
@@ -594,52 +581,6 @@ vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 	return (VMSETDESC(vm->cookie, vcpu, reg, desc));
 }
 
-int
-vm_get_pinning(struct vm *vm, int vcpuid, int *cpuid)
-{
-
-	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
-		return (EINVAL);
-
-	*cpuid = VCPU_PINCPU(vm, vcpuid);
-
-	return (0);
-}
-
-int
-vm_set_pinning(struct vm *vm, int vcpuid, int host_cpuid)
-{
-	struct thread *td;
-
-	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
-		return (EINVAL);
-
-	td = curthread;		/* XXXSMP only safe when muxing vcpus */
-
-	/* unpin */
-	if (host_cpuid < 0) {
-		VCPU_UNPIN(vm, vcpuid);
-		thread_lock(td);
-		sched_unbind(td);
-		thread_unlock(td);
-		return (0);
-	}
-
-	if (CPU_ABSENT(host_cpuid))
-		return (EINVAL);
-
-	/*
-	 * XXX we should check that 'host_cpuid' has not already been pinned
-	 * by another vm.
-	 */
-	thread_lock(td);
-	sched_bind(td, host_cpuid);
-	thread_unlock(td);
-	VCPU_PIN(vm, vcpuid, host_cpuid);
-
-	return (0);
-}
-
 static void
 restore_guest_fpustate(struct vcpu *vcpu)
 {
@@ -862,30 +803,42 @@ vm_lapic(struct vm *vm, int cpu)
 boolean_t
 vmm_is_pptdev(int bus, int slot, int func)
 {
-	int found, b, s, f, n;
+	int found, i, n;
+	int b, s, f;
 	char *val, *cp, *cp2;
 
 	/*
-	 * setenv pptdevs "1/2/3 4/5/6 7/8/9 10/11/12"
+	 * XXX
+	 * The length of an environment variable is limited to 128 bytes which
+	 * puts an upper limit on the number of passthru devices that may be
+	 * specified using a single environment variable.
+	 *
+	 * Work around this by scanning multiple environment variable
+	 * names instead of a single one - yuck!
 	 */
+	const char *names[] = { "pptdevs", "pptdevs2", "pptdevs3", NULL };
+
+	/* set pptdevs="1/2/3 4/5/6 7/8/9 10/11/12" */
 	found = 0;
-	cp = val = getenv("pptdevs");
-	while (cp != NULL && *cp != '\0') {
-		if ((cp2 = strchr(cp, ' ')) != NULL)
-			*cp2 = '\0';
+	for (i = 0; names[i] != NULL && !found; i++) {
+		cp = val = getenv(names[i]);
+		while (cp != NULL && *cp != '\0') {
+			if ((cp2 = strchr(cp, ' ')) != NULL)
+				*cp2 = '\0';
 
-		n = sscanf(cp, "%d/%d/%d", &b, &s, &f);
-		if (n == 3 && bus == b && slot == s && func == f) {
-			found = 1;
-			break;
-		}
+			n = sscanf(cp, "%d/%d/%d", &b, &s, &f);
+			if (n == 3 && bus == b && slot == s && func == f) {
+				found = 1;
+				break;
+			}
 		
-		if (cp2 != NULL)
-			*cp2++ = ' ';
+			if (cp2 != NULL)
+				*cp2++ = ' ';
 
-		cp = cp2;
+			cp = cp2;
+		}
+		freeenv(val);
 	}
-	freeenv(val);
 	return (found);
 }
 

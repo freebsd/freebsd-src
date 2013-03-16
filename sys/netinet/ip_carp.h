@@ -148,6 +148,7 @@ void		carp_carpdev_state(struct ifnet *);
 void		carp_input (struct mbuf *, int);
 int		carp6_input (struct mbuf **, int *, int);
 int		carp_output (struct ifnet *, struct mbuf *, struct sockaddr *);
+int		carp_master(struct ifaddr *);
 int		carp_iamatch(struct ifaddr *, uint8_t **);
 struct ifaddr	*carp_iamatch6(struct ifnet *, struct in6_addr *);
 caddr_t		carp_macmatch6(struct ifnet *, struct mbuf *, const struct in6_addr *);
@@ -160,6 +161,7 @@ extern int (*carp_attach_p)(struct ifaddr *, int);
 extern void (*carp_detach_p)(struct ifaddr *);
 extern void (*carp_linkstate_p)(struct ifnet *);
 extern void (*carp_demote_adj_p)(int, char *);
+extern int (*carp_master_p)(struct ifaddr *);
 /* net/if_bridge.c net/if_ethersubr.c */
 extern int (*carp_forus_p)(struct ifnet *, u_char *);
 /* net/if_ethersubr.c */

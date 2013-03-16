@@ -82,6 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
@@ -118,6 +119,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvmmapi} \
 	libwrap \
 	liby \
+	libyaml \
 	libz \
 	${_atf} \
 	${_bind} \
@@ -177,6 +179,15 @@ _libiconv_modules=	libiconv_modules
 _libipx=	libipx
 .endif
 
+.if ${MK_LDNS} != "no"
+_libldns=	libldns
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
+.endif
+
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
 .endif
@@ -219,11 +230,6 @@ _librtld_db=	librtld_db
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
-.endif
-
-.if ${MK_LIBCPLUSPLUS} != "no"
-_libcxxrt=	libcxxrt
-_libcplusplus=	libc++
 .endif
 
 .if ${MK_PMC} != "no"

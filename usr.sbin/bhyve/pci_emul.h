@@ -96,6 +96,8 @@ struct msix_table_entry {
  * for the size that should be emulated.
  */
 #define	MSIX_TABLE_ENTRY_SIZE	16
+#define MAX_MSIX_TABLE_ENTRIES	2048
+#define PBA_TABLE_ENTRY_SIZE	8
 
 struct pci_devinst {
 	struct pci_devemu *pi_d;
@@ -103,7 +105,6 @@ struct pci_devinst {
 	uint8_t	  pi_bus, pi_slot, pi_func;
 	uint8_t   pi_lintr_pin;
 	char	  pi_name[PI_NAMESZ];
-	uint16_t  pi_iobase;
 	int	  pi_bar_getsize;
 
 	struct {
@@ -120,6 +121,8 @@ struct pci_devinst {
 		size_t	table_offset;
 		int	table_count;
 		size_t	pba_offset;
+		size_t	pba_size;
+		int	function_mask; 	
 		struct msix_table_entry *table;	/* allocated at runtime */
 	} pi_msix;
 
@@ -146,6 +149,40 @@ struct msixcap {
 	uint32_t	pba_info;	/* bar index and offset within it */
 } __packed;
 
+struct pciecap {
+	uint8_t		capid;
+	uint8_t		nextptr;
+	uint16_t	pcie_capabilities;
+
+	uint32_t	dev_capabilities;	/* all devices */
+	uint16_t	dev_control;
+	uint16_t	dev_status;
+
+	uint32_t	link_capabilities;	/* devices with links */
+	uint16_t	link_control;
+	uint16_t	link_status;
+
+	uint32_t	slot_capabilities;	/* ports with slots */
+	uint16_t	slot_control;
+	uint16_t	slot_status;
+
+	uint16_t	root_control;		/* root ports */
+	uint16_t	root_capabilities;
+	uint32_t	root_status;
+
+	uint32_t	dev_capabilities2;	/* all devices */
+	uint16_t	dev_control2;
+	uint16_t	dev_status2;
+
+	uint32_t	link_capabilities2;	/* devices with links */
+	uint16_t	link_control2;
+	uint16_t	link_status2;
+
+	uint32_t	slot_capabilities2;	/* ports with slots */
+	uint16_t	slot_control2;
+	uint16_t	slot_status2;
+} __packed;
+
 void	init_pci(struct vmctx *ctx);
 void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	    int bytes, uint32_t val);
@@ -157,6 +194,7 @@ int	pci_emul_alloc_bar(struct pci_devinst *pdi, int idx,
 int	pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx,
 	    uint64_t hostbase, enum pcibar_type type, uint64_t size);
 int	pci_emul_add_msicap(struct pci_devinst *pi, int msgnum);
+int	pci_emul_add_pciecap(struct pci_devinst *pi, int pcie_device_type);
 int	pci_is_legacy(struct pci_devinst *pi);
 void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
 void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
@@ -165,9 +203,15 @@ void	pci_lintr_deassert(struct pci_devinst *pi);
 int	pci_lintr_request(struct pci_devinst *pi, int ivec);
 int	pci_msi_enabled(struct pci_devinst *pi);
 int	pci_msix_enabled(struct pci_devinst *pi);
+int	pci_msix_table_bar(struct pci_devinst *pi);
+int	pci_msix_pba_bar(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
 void	pci_parse_slot(char *opt, int legacy);
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
+int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
+int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
+			     uint64_t value);
+uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
 
 static __inline void 
 pci_set_cfgdata8(struct pci_devinst *pi, int offset, uint8_t val)

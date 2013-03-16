@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=llvm-diff
 
 SRCDIR=	tools/llvm-diff

@@ -3079,6 +3079,7 @@ s_arm_unwind_fnend (int ignored ATTRIBUTE_UNUSED)
   record_alignment (now_seg, 2);
 
   ptr = frag_more (8);
+  memset(ptr, 0, 8);
   where = frag_now_fix () - 8;
 
   /* Self relative offset of the function start.  */
@@ -17350,6 +17351,7 @@ create_unwind_entry (int have_data)
 
   /* Allocate the table entry.	*/
   ptr = frag_more ((size << 2) + 4);
+  memset(ptr, 0, (size << 2) + 4);
   where = frag_now_fix () - ((size << 2) + 4);
 
   switch (unwind.personality_index)

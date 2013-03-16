@@ -881,7 +881,10 @@ ddf_vol_meta_update(struct ddf_vol_meta *dst, struct ddf_meta *src,
 	hdr = src->hdr;
 	vde = &src->vdr->entry[ddf_meta_find_vd(src, GUID)];
 	vdc = ddf_meta_find_vdc(src, GUID);
-	bvd = GET8D(src, vdc->Secondary_Element_Seq);
+	if (GET8D(src, vdc->Secondary_Element_Count) == 1)
+		bvd = 0;
+	else
+		bvd = GET8D(src, vdc->Secondary_Element_Seq);
 	size = GET16(src, hdr->Configuration_Record_Length) * src->sectorsize;
 
 	if (dst->vdc == NULL ||

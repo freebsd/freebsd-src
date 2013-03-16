@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/reboot.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
@@ -94,7 +95,8 @@ static void psycho_intr_clear(void *);
 static driver_filter_t psycho_ue;
 static driver_filter_t psycho_ce;
 static driver_filter_t psycho_pci_bus;
-static driver_filter_t psycho_powerfail;
+static driver_filter_t psycho_powerdebug;
+static driver_intr_t psycho_powerdown;
 static driver_intr_t psycho_overtemp;
 #ifdef PSYCHO_MAP_WAKEUP
 static driver_filter_t psycho_wakeup;
@@ -159,8 +161,15 @@ static devclass_t psycho_devclass;
 
 DEFINE_CLASS_0(pcib, psycho_driver, psycho_methods,
     sizeof(struct psycho_softc));
-EARLY_DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0,
+EARLY_DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, NULL, NULL,
     BUS_PASS_BUS);
+
+static SYSCTL_NODE(_hw, OID_AUTO, psycho, CTLFLAG_RD, 0, "psycho parameters");
+
+static u_int psycho_powerfail = 1;
+TUNABLE_INT("hw.psycho.powerfail", &psycho_powerfail);
+SYSCTL_UINT(_hw_psycho, OID_AUTO, powerfail, CTLFLAG_RDTUN, &psycho_powerfail,
+    0, "powerfail action (0: none, 1: shutdown (default), 2: debugger)");
 
 static SLIST_HEAD(, psycho_softc) psycho_softcs =
     SLIST_HEAD_INITIALIZER(psycho_softcs);
@@ -191,7 +200,7 @@ struct psycho_icarg {
  * "Sabre" is the UltraSPARC IIi onboard UPA to PCI bridge.  It manages a
  * single PCI bus and does not have a streaming buffer.  It often has an APB
  * (advanced PCI bridge) connected to it, which was designed specifically for
- * the IIi.  The APB let's the IIi handle two independednt PCI buses, and
+ * the IIi.  The APB lets the IIi handle two independent PCI buses, and
  * appears as two "Simba"'s underneath the Sabre.
  *
  * "Hummingbird" is the UltraSPARC IIe onboard UPA to PCI bridge. It's
@@ -612,13 +621,18 @@ psycho_attach(device_t dev)
 		 */
 		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, psycho_ue, NULL);
 		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, psycho_ce, NULL);
-#ifdef DEBUGGER_ON_POWERFAIL
-		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, psycho_powerfail,
-		    NULL);
-#else
-		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
-		    (driver_intr_t *)psycho_powerfail);
-#endif
+		switch (psycho_powerfail) {
+		case 0:
+			break;
+		case 2:
+			psycho_set_intr(sc, 3, PSR_POWER_INT_MAP,
+			    psycho_powerdebug, NULL);
+			break;
+		default:
+			psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
+			    psycho_powerdown);
+			break;
+		}
 		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
 			/*
 			 * Hummingbirds/Sabres do not have the following two
@@ -629,8 +643,8 @@ psycho_attach(device_t dev)
 			 * The spare hardware interrupt is used for the
 			 * over-temperature interrupt.
 			 */
-			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP,
-			    NULL, psycho_overtemp);
+			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP, NULL,
+			    psycho_overtemp);
 #ifdef PSYCHO_MAP_WAKEUP
 			/*
 			 * psycho_wakeup() doesn't do anything useful right
@@ -837,27 +851,28 @@ psycho_pci_bus(void *arg)
 }
 
 static int
-psycho_powerfail(void *arg)
+psycho_powerdebug(void *arg __unused)
 {
-#ifdef DEBUGGER_ON_POWERFAIL
-	struct psycho_softc *sc = arg;
 
 	kdb_enter(KDB_WHY_POWERFAIL, "powerfail");
-#else
-	static int shutdown;
-
-	/* As the interrupt is cleared we may be called multiple times. */
-	if (shutdown != 0)
-		return (FILTER_HANDLED);
-	shutdown++;
-	printf("Power Failure Detected: Shutting down NOW.\n");
-	shutdown_nice(0);
-#endif
 	return (FILTER_HANDLED);
 }
 
 static void
-psycho_overtemp(void *arg)
+psycho_powerdown(void *arg __unused)
+{
+	static int shutdown;
+
+	/* As the interrupt is cleared we may be called multiple times. */
+	if (shutdown != 0)
+		return;
+	shutdown++;
+	printf("Power Failure Detected: Shutting down NOW.\n");
+	shutdown_nice(RB_POWEROFF);
+}
+
+static void
+psycho_overtemp(void *arg __unused)
 {
 	static int shutdown;
 

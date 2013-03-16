@@ -74,6 +74,9 @@ char	*strcasestr(const char *, const char *) __pure;
 #endif
 char	*strcat(char * __restrict, const char * __restrict);
 char	*strchr(const char *, int) __pure;
+#if __BSD_VISIBLE
+char	*strchrnul(const char*, int) __pure;
+#endif
 int	 strcmp(const char *, const char *) __pure;
 int	 strcoll(const char *, const char *);
 char	*strcpy(char * __restrict, const char * __restrict);

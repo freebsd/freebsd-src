@@ -36,6 +36,7 @@
 #define VRING_DESC_F_INDIRECT	(1 << 2)
 
 #define VRING_AVAIL_F_NO_INTERRUPT   1
+#define VIRTIO_MSI_NO_VECTOR	0xFFFF
 
 struct virtio_desc {
 	uint64_t	vd_addr;
@@ -78,8 +79,25 @@ struct virtio_used {
 #define VTCFG_R_QNOTIFY		16
 #define VTCFG_R_STATUS		18
 #define VTCFG_R_ISR		19
+#define VTCFG_R_CFGVEC		20
+#define VTCFG_R_QVEC		22
 #define VTCFG_R_CFG0		20	/* No MSI-X */
 #define VTCFG_R_CFG1		24	/* With MSI-X */
 #define VTCFG_R_MSIX		20
+
+/* From section 2.3, "Virtqueue Configuration", of the virtio specification */
+static inline u_int
+vring_size(u_int qsz)
+{
+	u_int size;
+
+	size = sizeof(struct virtio_desc) * qsz + sizeof(uint16_t) * (3 + qsz);
+	size = roundup2(size, VRING_ALIGN);
+
+	size += sizeof(uint16_t) * 3 + sizeof(struct virtio_used) * qsz;
+	size = roundup2(size, VRING_ALIGN);
+
+	return (size);
+}
 
 #endif	/* _VIRTIO_H_ */

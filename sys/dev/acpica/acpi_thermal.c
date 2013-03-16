@@ -152,7 +152,7 @@ static device_method_t acpi_tz_methods[] = {
     DEVMETHOD(device_probe,	acpi_tz_probe),
     DEVMETHOD(device_attach,	acpi_tz_attach),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_tz_driver = {

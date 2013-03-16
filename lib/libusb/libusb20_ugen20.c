@@ -24,23 +24,27 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
-#include <sys/types.h>
-
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include "libusb20.h"
-#include "libusb20_desc.h"
-#include "libusb20_int.h"
+#include <time.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_ioctl.h>
+
+#include "libusb20.h"
+#include "libusb20_desc.h"
+#include "libusb20_int.h"
 
 static libusb20_init_backend_t ugen20_init_backend;
 static libusb20_open_device_t ugen20_open_device;
@@ -69,6 +73,7 @@ static libusb20_reset_device_t ugen20_reset_device;
 static libusb20_check_connected_t ugen20_check_connected;
 static libusb20_set_power_mode_t ugen20_set_power_mode;
 static libusb20_get_power_mode_t ugen20_get_power_mode;
+static libusb20_get_power_usage_t ugen20_get_power_usage;
 static libusb20_kernel_driver_active_t ugen20_kernel_driver_active;
 static libusb20_detach_kernel_driver_t ugen20_detach_kernel_driver;
 static libusb20_do_request_sync_t ugen20_do_request_sync;
@@ -635,6 +640,18 @@ ugen20_get_power_mode(struct libusb20_device *pdev, uint8_t *power_mode)
 		break;
 	}
 	*power_mode = temp;
+	return (0);			/* success */
+}
+
+static int
+ugen20_get_power_usage(struct libusb20_device *pdev, uint16_t *power_usage)
+{
+	int temp;
+
+	if (ioctl(pdev->file_ctrl, USB_GET_POWER_USAGE, &temp)) {
+		return (LIBUSB20_ERROR_OTHER);
+	}
+	*power_usage = temp;
 	return (0);			/* success */
 }
 

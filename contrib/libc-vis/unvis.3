@@ -1,4 +1,4 @@
-.\"	$NetBSD: unvis.3,v 1.23 2011/03/17 14:06:29 wiz Exp $
+.\"	$NetBSD: unvis.3,v 1.27 2012/12/15 07:34:36 wiz Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1989, 1991, 1993
@@ -126,15 +126,17 @@ The
 function has several return codes that must be handled properly.
 They are:
 .Bl -tag -width UNVIS_VALIDPUSH
-.It Li \&0 (zero)
+.It Li \&0 No (zero)
 Another character is necessary; nothing has been recognized yet.
 .It Dv UNVIS_VALID
 A valid character has been recognized and is available at the location
-pointed to by cp.
+pointed to by
+.Fa cp .
 .It Dv UNVIS_VALIDPUSH
 A valid character has been recognized and is available at the location
-pointed to by cp; however, the character currently passed in should
-be passed in again.
+pointed to by
+.Fa cp ;
+however, the character currently passed in should be passed in again.
 .It Dv UNVIS_NOCHAR
 A valid sequence was detected, but no character was produced.
 This return code is necessary to indicate a logical break between characters.
@@ -150,7 +152,7 @@ one more time with flag set to
 to extract any remaining character (the character passed in is ignored).
 .Pp
 The
-.Ar flag
+.Fa flag
 argument is also used to specify the encoding style of the source.
 If set to
 .Dv VIS_HTTPSTYLE
@@ -161,7 +163,8 @@ will decode URI strings as specified in RFC 1808.
 If set to
 .Dv VIS_HTTP1866 ,
 .Fn unvis
-will decode URI strings as specified in RFC 1866.
+will decode entity references and numeric character references
+as specified in RFC 1866.
 If set to
 .Dv VIS_MIMESTYLE ,
 .Fn unvis
@@ -169,7 +172,9 @@ will decode MIME Quoted-Printable strings as specified in RFC 2045.
 If set to
 .Dv VIS_NOESCAPE ,
 .Fn unvis
-will not decode \e quoted characters.
+will not decode
+.Ql \e
+quoted characters.
 .Pp
 The following code fragment illustrates a proper use of
 .Fn unvis .
@@ -204,7 +209,7 @@ The functions
 and
 .Fn strnunvisx
 will return \-1 on error and set
-.Va errno 
+.Va errno
 to:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -212,7 +217,7 @@ An invalid escape sequence was detected, or the decoder is in an unknown state.
 .El
 .Pp
 In addition the functions
-.Fn strnunvis 
+.Fn strnunvis
 and
 .Fn strnunvisx
 will can also set
@@ -244,4 +249,14 @@ and
 functions appeared in
 .Nx 6.0
 and
-.Fx 10.0 .
+.Fx 9.2 .
+.Sh BUGS
+The names
+.Dv VIS_HTTP1808
+and
+.Dv VIS_HTTP1866
+are wrong.
+Percent-encoding was defined in RFC 1738, the original RFC for URL.
+RFC 1866 defines HTML 2.0, an application of SGML, from which it
+inherits concepts of numeric character references and entity
+references.

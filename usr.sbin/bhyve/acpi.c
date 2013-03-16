@@ -683,13 +683,20 @@ static int
 basl_load(int fd, uint64_t off)
 {
         struct stat sb;
+	void *gaddr;
 	int err;
 
 	err = 0;
-
-	if (fstat(fd, &sb) < 0 ||
-	    read(fd, paddr_guest2host(basl_acpi_base + off), sb.st_size) < 0)
-			err = errno;
+        if (fstat(fd, &sb) < 0) {
+		err = errno;
+        } else {
+		gaddr = paddr_guest2host(basl_acpi_base + off, sb.st_size);
+		if (gaddr != NULL) {
+			if (read(fd, gaddr, sb.st_size) < 0)
+				err = errno;
+		} else
+			err = EFAULT;
+        }
 
 	return (err);
 }

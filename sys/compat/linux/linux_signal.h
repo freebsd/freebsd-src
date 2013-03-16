@@ -33,6 +33,9 @@
 
 #define	LINUX_SI_TKILL		-6;
 
+extern int bsd_to_linux_signal[];
+extern int linux_to_bsd_signal[];
+
 void linux_to_bsd_sigset(l_sigset_t *, sigset_t *);
 void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
 int linux_do_sigaction(struct thread *, int, l_sigaction_t *, l_sigaction_t *);

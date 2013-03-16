@@ -342,7 +342,7 @@ fork_norfproc(struct thread *td, int flags)
 	if (flags & RFCFDG) {
 		struct filedesc *fdtmp;
 		fdtmp = fdinit(td->td_proc->p_fd);
-		fdfree(td);
+		fdescfree(td);
 		p1->p_fd = fdtmp;
 	}
 
@@ -942,7 +942,7 @@ fail1:
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 #ifdef PROCDESC
-	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL)) {
+	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
 		fdrop(fp_procdesc, td);
 	}

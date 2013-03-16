@@ -157,17 +157,19 @@ usage(int code)
 }
 
 void *
-paddr_guest2host(uintptr_t gaddr)
+paddr_guest2host(uintptr_t gaddr, size_t len)
 {
-	if (lomem_sz == 0)
-		return (NULL);
 
-	if (gaddr < lomem_sz) {
+	if (gaddr < lomem_sz && gaddr + len <= lomem_sz)
 		return ((void *)(lomem_addr + gaddr));
-	} else if (gaddr >= 4*GB && gaddr < (4*GB + himem_sz)) {
-		return ((void *)(himem_addr + gaddr - 4*GB));
-	} else
-		return (NULL);
+
+	if (gaddr >= 4*GB) {
+		gaddr -= 4*GB;
+		if (gaddr < himem_sz && gaddr + len <= himem_sz)
+			return ((void *)(himem_addr + gaddr));
+	}
+
+	return (NULL);
 }
 
 int
@@ -520,13 +522,17 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 static void
 vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
+	cpuset_t mask;
 	int error, rc, prevcpu;
 
 	if (guest_vcpu_mux)
 		setup_timeslice();
 
 	if (pincpu >= 0) {
-		error = vm_set_pinning(ctx, vcpu, pincpu + vcpu);
+		CPU_ZERO(&mask);
+		CPU_SET(pincpu + vcpu, &mask);
+		error = pthread_setaffinity_np(pthread_self(),
+					       sizeof(mask), &mask);
 		assert(error == 0);
 	}
 

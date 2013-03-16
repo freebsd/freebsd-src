@@ -116,6 +116,7 @@ struct ciss_request
 #define CISS_REQ_DATAOUT	(1<<3)		/* data host->adapter */
 #define CISS_REQ_DATAIN		(1<<4)		/* data adapter->host */
 #define CISS_REQ_BUSY		(1<<5)		/* controller has req */
+#define CISS_REQ_CCB		(1<<6)		/* data is ccb */
 
     void			(* cr_complete)(struct ciss_request *);
     void			*cr_private;

@@ -696,8 +696,11 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * do the right thing, even if there isn't data to map, but since CCBs
 	 * without data are a reasonably common occurance (e.g. test unit
 	 * ready), it will save a few cycles if we check for it here.
+	 *
+	 * XXX What happens if a sg list is supplied?  We don't filter that
+	 * out.
 	 */
-	if (((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0)
+	if (((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR)
 	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO ||
 	       ccb->ccb_h.func_code == XPT_ATA_IO)
 	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))

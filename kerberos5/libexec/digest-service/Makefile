@@ -11,7 +11,7 @@ CFLAGS+=	-I${KRB5DIR}/kdc \
 DPADD=	${LIBHDB} ${LIBKDC} ${LIBHEIMIPCS} ${LIBKRB5} ${LIBROKEN} ${LIBASN1} ${LIBCRYPTO} \
 	${LIBCRYPT} ${LIBVERS}
 LDADD=	-lhdb -lkdc ${LIBHEIMIPCS} -lkrb5 -lroken -lasn1 -lcrypto -lcrypt \
-	${LIBVERS}
+	${LIBVERS} -lheimntlm
 
 .include <bsd.prog.mk>
 

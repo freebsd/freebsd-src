@@ -361,11 +361,13 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, axq_fifo_depth=%d\n",
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, "
+			    "axq_fifo_depth=%d, holdingbf=%p\n",
 			    i,
 			    sc->sc_txq[i].axq_depth,
 			    sc->sc_txq[i].axq_aggr_depth,
-			    sc->sc_txq[i].axq_fifo_depth);
+			    sc->sc_txq[i].axq_fifo_depth,
+			    sc->sc_txq[i].axq_holdingbf);
 		}
 	}
 
@@ -704,13 +706,26 @@ ath_sysctlattach(struct ath_softc *sc)
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
-		"");
+		"Hardware queue depth before software-queuing TX frames");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
 		"");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
+
+	/* Aggregate length twiddles */
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"aggr_limit", CTLFLAG_RW, &sc->sc_aggr_limit, 0,
+		"Maximum A-MPDU size, or 0 for 'default'");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"rts_aggr_limit", CTLFLAG_RW, &sc->sc_rts_aggr_limit, 0,
+		"Maximum A-MPDU size for RTS-protected frames, or '0' "
+		"for default");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"delim_min_pad", CTLFLAG_RW, &sc->sc_delim_min_pad, 0,
+		"Enforce a minimum number of delimiters per A-MPDU "
+		" sub-frame");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,

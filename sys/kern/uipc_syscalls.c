@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/sysent.h>
 #include <sys/socket.h>
@@ -121,38 +122,20 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
     "Number of sendfile(2) sf_bufs in use");
 
 /*
- * Convert a user file descriptor to a kernel file entry and check that, if
- * it is a capability, the right rights are present. A reference on the file
- * entry is held upon returning.
+ * Convert a user file descriptor to a kernel file entry and check if required
+ * capability rights are present.
+ * A reference on the file entry is held upon returning.
  */
 static int
 getsock_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
     struct file **fpp, u_int *fflagp)
 {
 	struct file *fp;
-#ifdef CAPABILITIES
-	struct file *fp_fromcap;
 	int error;
-#endif
 
-	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
-		return (EBADF);
-#ifdef CAPABILITIES
-	/*
-	 * If the file descriptor is for a capability, test rights and use
-	 * the file descriptor referenced by the capability.
-	 */
-	error = cap_funwrap(fp, rights, &fp_fromcap);
-	if (error) {
-		fdrop(fp, curthread);
+	error = fget_unlocked(fdp, fd, rights, 0, &fp, NULL);
+	if (error != 0)
 		return (error);
-	}
-	if (fp != fp_fromcap) {
-		fhold(fp_fromcap);
-		fdrop(fp, curthread);
-		fp = fp_fromcap;
-	}
-#endif /* CAPABILITIES */
 	if (fp->f_type != DTYPE_SOCKET) {
 		fdrop(fp, curthread);
 		return (ENOTSOCK);
@@ -219,25 +202,23 @@ sys_bind(td, uap)
 	struct sockaddr *sa;
 	int error;
 
-	if ((error = getsockaddr(&sa, uap->name, uap->namelen)) != 0)
-		return (error);
-
-	error = kern_bind(td, uap->s, sa);
-	free(sa, M_SONAME);
+	error = getsockaddr(&sa, uap->name, uap->namelen);
+	if (error == 0) {
+		error = kern_bind(td, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
-int
-kern_bind(td, fd, sa)
-	struct thread *td;
-	int fd;
-	struct sockaddr *sa;
+static int
+kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
 	int error;
 
 	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_BIND, &fp, NULL);
 	if (error)
 		return (error);
@@ -248,10 +229,45 @@ kern_bind(td, fd, sa)
 #endif
 #ifdef MAC
 	error = mac_socket_check_bind(td->td_ucred, so, sa);
-	if (error == 0)
+	if (error == 0) {
 #endif
-		error = sobind(so, sa, td);
+		if (dirfd == AT_FDCWD)
+			error = sobind(so, sa, td);
+		else
+			error = sobindat(dirfd, so, sa, td);
+#ifdef MAC
+	}
+#endif
 	fdrop(fp, td);
+	return (error);
+}
+
+int
+kern_bind(struct thread *td, int fd, struct sockaddr *sa)
+{
+
+	return (kern_bindat(td, AT_FDCWD, fd, sa));
+}
+
+/* ARGSUSED */
+int
+sys_bindat(td, uap)
+	struct thread *td;
+	struct bindat_args /* {
+		int	fd;
+		int	s;
+		caddr_t	name;
+		int	namelen;
+	} */ *uap;
+{
+	struct sockaddr *sa;
+	int error;
+
+	error = getsockaddr(&sa, uap->name, uap->namelen);
+	if (error == 0) {
+		error = kern_bindat(td, uap->fd, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
@@ -452,6 +468,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 			*namelen = 0;
 		goto done;
 	}
+	AUDIT_ARG_SOCKADDR(td, AT_FDCWD, sa);
 	if (name) {
 		/* check sa_len before it is destroyed */
 		if (*namelen > sa->sa_len)
@@ -526,20 +543,15 @@ sys_connect(td, uap)
 	int error;
 
 	error = getsockaddr(&sa, uap->name, uap->namelen);
-	if (error)
-		return (error);
-
-	error = kern_connect(td, uap->s, sa);
-	free(sa, M_SONAME);
+	if (error == 0) {
+		error = kern_connect(td, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
-
-int
-kern_connect(td, fd, sa)
-	struct thread *td;
-	int fd;
-	struct sockaddr *sa;
+static int
+kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
@@ -547,6 +559,7 @@ kern_connect(td, fd, sa)
 	int interrupted = 0;
 
 	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_CONNECT, &fp, NULL);
 	if (error)
 		return (error);
@@ -564,7 +577,10 @@ kern_connect(td, fd, sa)
 	if (error)
 		goto bad;
 #endif
-	error = soconnect(so, sa, td);
+	if (dirfd == AT_FDCWD)
+		error = soconnect(so, sa, td);
+	else
+		error = soconnectat(dirfd, so, sa, td);
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
@@ -593,6 +609,35 @@ bad:
 		error = EINTR;
 done1:
 	fdrop(fp, td);
+	return (error);
+}
+
+int
+kern_connect(struct thread *td, int fd, struct sockaddr *sa)
+{
+
+	return (kern_connectat(td, AT_FDCWD, fd, sa));
+}
+
+/* ARGSUSED */
+int
+sys_connectat(td, uap)
+	struct thread *td;
+	struct connectat_args /* {
+		int	fd;
+		int	s;
+		caddr_t	name;
+		int	namelen;
+	} */ *uap;
+{
+	struct sockaddr *sa;
+	int error;
+
+	error = getsockaddr(&sa, uap->name, uap->namelen);
+	if (error == 0) {
+		error = kern_connectat(td, uap->fd, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
@@ -762,9 +807,11 @@ kern_sendit(td, s, mp, flags, control, segflg)
 #endif
 
 	AUDIT_ARG_FD(s);
-	rights = CAP_WRITE;
-	if (mp->msg_name != NULL)
+	rights = CAP_SEND;
+	if (mp->msg_name != NULL) {
+		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
 		rights |= CAP_CONNECT;
+	}
 	error = getsock_cap(td->td_proc->p_fd, s, rights, &fp, NULL);
 	if (error)
 		return (error);
@@ -956,11 +1003,11 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	int i;
 	ssize_t len;
 	int error;
-	struct mbuf *m, *control = 0;
+	struct mbuf *m, *control = NULL;
 	caddr_t ctlbuf;
 	struct file *fp;
 	struct socket *so;
-	struct sockaddr *fromsa = 0;
+	struct sockaddr *fromsa = NULL;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -969,7 +1016,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s, CAP_READ, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, s, CAP_RECV, &fp, NULL);
 	if (error)
 		return (error);
 	so = fp->f_data;
@@ -1001,14 +1048,16 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
-	error = soreceive(so, &fromsa, &auio, (struct mbuf **)0,
-	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
+	error = soreceive(so, &fromsa, &auio, NULL,
+	    (mp->msg_control || controlp) ? &control : NULL,
 	    &mp->msg_flags);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	}
+	if (fromsa != NULL)
+		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, fromsa);
 #ifdef KTRACE
 	if (ktruio != NULL) {
 		ktruio->uio_resid = len - auio.uio_resid;
@@ -1020,7 +1069,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	td->td_retval[0] = len - auio.uio_resid;
 	if (mp->msg_name) {
 		len = mp->msg_namelen;
-		if (len <= 0 || fromsa == 0)
+		if (len <= 0 || fromsa == NULL)
 			len = 0;
 		else {
 			/* save sa_len before it is destroyed by MSG_COMPAT */
@@ -1095,7 +1144,7 @@ out:
 	if (fromsa)
 		free(fromsa, M_SONAME);
 
-	if (error == 0 && controlp != NULL)  
+	if (error == 0 && controlp != NULL)
 		*controlp = control;
 	else  if (control)
 		m_freem(control);
@@ -1652,18 +1701,16 @@ sockargs(mp, buf, buflen, type)
 	struct mbuf *m;
 	int error;
 
-	if ((u_int)buflen > MLEN) {
+	if (buflen > MLEN) {
 #ifdef COMPAT_OLDSOCK
-		if (type == MT_SONAME && (u_int)buflen <= 112)
+		if (type == MT_SONAME && buflen <= 112)
 			buflen = MLEN;		/* unix domain compat. hack */
 		else
 #endif
-			if ((u_int)buflen > MCLBYTES)
+			if (buflen > MCLBYTES)
 				return (EINVAL);
 	}
-	m = m_get(M_WAITOK, type);
-	if ((u_int)buflen > MLEN)
-		MCLGET(m, M_WAITOK);
+	m = m_get2(buflen, M_WAITOK, type, 0);
 	m->m_len = buflen;
 	error = copyin(buf, mtod(m, caddr_t), (u_int)buflen);
 	if (error)
@@ -1716,7 +1763,7 @@ getsockaddr(namp, uaddr, len)
 struct sendfile_sync {
 	struct mtx	mtx;
 	struct cv	cv;
-	unsigned 	count;
+	unsigned	count;
 };
 
 /*
@@ -1843,7 +1890,11 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * we send only the header/trailer and no payload data.
 	 */
 	AUDIT_ARG_FD(uap->fd);
-	if ((error = fgetvp_read(td, uap->fd, CAP_READ, &vp)) != 0)
+	/*
+	 * sendfile(2) can start at any offset within a file so we require
+	 * CAP_READ+CAP_SEEK = CAP_PREAD.
+	 */
+	if ((error = fgetvp_read(td, uap->fd, CAP_PREAD, &vp)) != 0)
 		goto out;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (vp->v_type == VREG) {
@@ -1855,12 +1906,12 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 			 * reclamation of its vnode does not
 			 * immediately destroy it.
 			 */
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			if ((obj->flags & OBJ_DEAD) == 0) {
 				vm_object_reference_locked(obj);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 			} else {
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				obj = NULL;
 			}
 		}
@@ -1879,7 +1930,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * The socket must be a stream socket and connected.
 	 * Remember if it a blocking or non-blocking socket.
 	 */
-	if ((error = getsock_cap(td->td_proc->p_fd, uap->s, CAP_WRITE,
+	if ((error = getsock_cap(td->td_proc->p_fd, uap->s, CAP_SEND,
 	    &sock_fp, NULL)) != 0)
 		goto out;
 	so = sock_fp->f_data;
@@ -2037,7 +2088,7 @@ retry_space:
 			vm_offset_t pgoff;
 			struct mbuf *m0;
 
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			/*
 			 * Calculate the amount to transfer.
 			 * Not to exceed a page, the EOF,
@@ -2055,7 +2106,7 @@ retry_space:
 			xfsize = omin(rem, xfsize);
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				done = 1;		/* all data sent */
 				break;
 			}
@@ -2076,7 +2127,7 @@ retry_space:
 			 * block.
 			 */
 			if (pg->valid && vm_page_is_valid(pg, pgoff, xfsize))
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 			else if (m != NULL)
 				error = EAGAIN;	/* send what we already got */
 			else if (uap->flags & SF_NODISKIO)
@@ -2090,7 +2141,7 @@ retry_space:
 				 * when the I/O completes.
 				 */
 				vm_page_io_start(pg);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 
 				/*
 				 * Get the page from backing store.
@@ -2112,10 +2163,10 @@ retry_space:
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
 			after_read:
-				VM_OBJECT_LOCK(obj);
+				VM_OBJECT_WLOCK(obj);
 				vm_page_io_finish(pg);
 				if (!error)
-					VM_OBJECT_UNLOCK(obj);
+					VM_OBJECT_WUNLOCK(obj);
 				mbstat.sf_iocnt++;
 			}
 			if (error) {
@@ -2130,7 +2181,7 @@ retry_space:
 				    pg->busy == 0 && !(pg->oflags & VPO_BUSY))
 					vm_page_free(pg);
 				vm_page_unlock(pg);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				if (error == EAGAIN)
 					error = 0;	/* not a real error */
 				break;
@@ -2169,8 +2220,14 @@ retry_space:
 				sf_buf_mext((void *)sf_buf_kva(sf), sf);
 				break;
 			}
-			MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext,
-			    sfs, sf, M_RDONLY, EXT_SFBUF);
+			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
+			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
+			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
+				error = (mnw ? EAGAIN : ENOBUFS);
+				sf_buf_mext((void *)sf_buf_kva(sf), sf);
+				m_freem(m0);
+				break;
+			}
 			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
 			m0->m_len = xfsize;
 
@@ -2233,7 +2290,7 @@ retry_space:
 		}
 
 		/* Quit outer loop on error or when we're done. */
-		if (done) 
+		if (done)
 			break;
 		if (error)
 			goto done;
@@ -2333,8 +2390,10 @@ sys_sctp_peeloff(td, uap)
 
 	CURVNET_SET(head->so_vnet);
 	so = sonewconn(head, SS_ISCONNECTED);
-	if (so == NULL) 
+	if (so == NULL) {
+		error = ENOMEM;
 		goto noconnection;
+	}
 	/*
 	 * Before changing the flags on the socket, we have to bump the
 	 * reference count.  Otherwise, if the protocol calls sofree(),
@@ -2387,12 +2446,12 @@ int
 sys_sctp_generic_sendmsg (td, uap)
 	struct thread *td;
 	struct sctp_generic_sendmsg_args /* {
-		int sd, 
-		caddr_t msg, 
-		int mlen, 
-		caddr_t to, 
-		__socklen_t tolen, 
-		struct sctp_sndrcvinfo *sinfo, 
+		int sd,
+		caddr_t msg,
+		int mlen,
+		caddr_t to,
+		__socklen_t tolen,
+		struct sctp_sndrcvinfo *sinfo,
 		int flags
 	} */ *uap;
 {
@@ -2416,7 +2475,7 @@ sys_sctp_generic_sendmsg (td, uap)
 		u_sinfo = &sinfo;
 	}
 
-	rights = CAP_WRITE;
+	rights = CAP_SEND;
 	if (uap->tolen) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error) {
@@ -2498,12 +2557,12 @@ int
 sys_sctp_generic_sendmsg_iov(td, uap)
 	struct thread *td;
 	struct sctp_generic_sendmsg_iov_args /* {
-		int sd, 
-		struct iovec *iov, 
-		int iovlen, 
-		caddr_t to, 
-		__socklen_t tolen, 
-		struct sctp_sndrcvinfo *sinfo, 
+		int sd,
+		struct iovec *iov,
+		int iovlen,
+		caddr_t to,
+		__socklen_t tolen,
+		struct sctp_sndrcvinfo *sinfo,
 		int flags
 	} */ *uap;
 {
@@ -2527,7 +2586,7 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 			return (error);
 		u_sinfo = &sinfo;
 	}
-	rights = CAP_WRITE;
+	rights = CAP_SEND;
 	if (uap->tolen) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error) {
@@ -2625,12 +2684,12 @@ int
 sys_sctp_generic_recvmsg(td, uap)
 	struct thread *td;
 	struct sctp_generic_recvmsg_args /* {
-		int sd, 
-		struct iovec *iov, 
+		int sd,
+		struct iovec *iov,
 		int iovlen,
-		struct sockaddr *from, 
+		struct sockaddr *from,
 		__socklen_t *fromlenaddr,
-		struct sctp_sndrcvinfo *sinfo, 
+		struct sctp_sndrcvinfo *sinfo,
 		int *msg_flags
 	} */ *uap;
 {
@@ -2651,7 +2710,7 @@ sys_sctp_generic_recvmsg(td, uap)
 #endif
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, CAP_READ, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, uap->sd, CAP_RECV, &fp, NULL);
 	if (error) {
 		return (error);
 	}
@@ -2696,7 +2755,7 @@ sys_sctp_generic_recvmsg(td, uap)
 	}
 	auio.uio_iov = iov;
 	auio.uio_iovcnt = uap->iovlen;
-  	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
@@ -2767,7 +2826,7 @@ sys_sctp_generic_recvmsg(td, uap)
 out:
 	free(iov, M_IOV);
 out1:
-	if (fp) 
+	if (fp)
 		fdrop(fp, td);
 
 	return (error);

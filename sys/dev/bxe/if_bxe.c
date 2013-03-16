@@ -9506,24 +9506,15 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 
 	BXE_FP_LOCK_ASSERT(fp);
 
-	if (m == NULL) {
-		/* No new work, check for pending frames. */
-		next = drbr_dequeue(ifp, fp->br);
-	} else if (drbr_needs_enqueue(ifp, fp->br)) {
-		/* Both new and pending work, maintain packet order. */
+	if (m != NULL) {
 		rc = drbr_enqueue(ifp, fp->br, m);
 		if (rc != 0) {
 			fp->tx_soft_errors++;
 			goto bxe_tx_mq_start_locked_exit;
 		}
-		next = drbr_dequeue(ifp, fp->br);
-	} else
-		/* New work only, nothing pending. */
-		next = m;
-
+	}
  	/* Keep adding entries while there are frames to send. */
-	while (next != NULL) {
-
+	while ((next = drbr_peek(ifp, fp->br)) != NULL) {
 		/* The transmit mbuf now belongs to us, keep track of it. */
 		fp->tx_mbuf_alloc++;
 
@@ -9537,23 +9528,22 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 		if (__predict_false(rc != 0)) {
 			fp->tx_encap_failures++;
 			/* Very Bad Frames(tm) may have been dropped. */
-			if (next != NULL) {
+			if (next == NULL) {
+				drbr_advance(ifp, fp->br);
+			} else {
+				drbr_putback(ifp, fp->br, next);
 				/*
 				 * Mark the TX queue as full and save
 				 * the frame.
 				 */
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				fp->tx_frame_deferred++;
-
-				/* This may reorder frame. */
-				rc = drbr_enqueue(ifp, fp->br, next);
 				fp->tx_mbuf_alloc--;
 			}
-
 			/* Stop looking for more work. */
 			break;
 		}
-
+		drbr_advance(ifp, fp->br);
 		/* The transmit frame was enqueued successfully. */
 		tx_count++;
 
@@ -9574,8 +9564,6 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			break;
 		}
-
-		next = drbr_dequeue(ifp, fp->br);
 	}
 
 	/* No TX packets were dequeued. */
