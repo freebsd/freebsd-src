@@ -124,24 +124,29 @@ ENTRY(arm11x6_setttb)
 	mcr	p15, 0, r1, c8, c7, 0	/* invalidate I+D TLBs */
 	mcr	p15, 0, r1, c7, c10, 4	/* drain write buffer */
 	RET
+END(arm11x6_setttb)
 
 ENTRY_NP(arm11x6_idcache_wbinv_all)
 	Flush_D_cache(r0)
 	Invalidate_I_cache(r0, r1)
 	RET
+END(arm11x6_idcache_wbinv_all)
 
 ENTRY_NP(arm11x6_dcache_wbinv_all)
 	Flush_D_cache(r0)
 	RET
+END(arm11x6_dcache_wbinv_all)
 
 ENTRY_NP(arm11x6_icache_sync_all)
 	Flush_D_cache(r0)
 	Invalidate_I_cache(r0, r1)
 	RET
+END(arm11x6_icache_sync_all)
 
 ENTRY_NP(arm11x6_flush_prefetchbuf)
 	mcr	p15, 0, r0, c7, c5, 4	/* Flush Prefetch Buffer */
 	RET
+END(arm11x6_flush_prefetchbuf)
 
 ENTRY_NP(arm11x6_icache_sync_range)
 	add	r1, r1, r0
@@ -168,6 +173,7 @@ ENTRY_NP(arm11x6_icache_sync_range)
 	mcrr	p15, 0, r1, r0, c12	/* clean and invalidate D cache range */ /* XXXNH */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(arm11x6_icache_sync_range)
 
 ENTRY_NP(arm11x6_idcache_wbinv_range)
 	add	r1, r1, r0
@@ -194,6 +200,7 @@ ENTRY_NP(arm11x6_idcache_wbinv_range)
 	mcrr	p15, 0, r1, r0, c14	/* clean and invalidate D cache range */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(arm11x6_idcache_wbinv_range)
 
 /*
  * Preload the cache before issuing the WFI by conditionally disabling the
@@ -216,3 +223,5 @@ ENTRY_NP(arm11x6_sleep)
 	nop
 	bne	1b
 	RET
+END(arm11x6_sleep)
+

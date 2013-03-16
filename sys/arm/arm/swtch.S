@@ -213,6 +213,7 @@ ENTRY(cpu_throw)
 
 	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
+END(cpu_throw)
 
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
@@ -502,6 +503,8 @@ ENTRY(cpu_switch)
 .Lswitch_panic_str:
 	.asciz	"cpu_switch: sched_qs empty with non-zero sched_whichqs!\n"
 #endif
+END(cpu_switch)
+
 ENTRY(savectx)
 	stmfd   sp!, {r4-r7, lr}
 	sub	sp, sp, #4
@@ -534,6 +537,7 @@ ENTRY(savectx)
 #endif		/* ARM_VFP_SUPPORT */
 	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
+END(savectx)
 
 ENTRY(fork_trampoline)
 	mov	r1, r5
@@ -551,3 +555,5 @@ ENTRY(fork_trampoline)
 	movs	pc, lr			/* Exit */
 
 AST_LOCALS
+END(fork_trampoline)
+
