@@ -107,15 +107,15 @@
 #define		SSI_SRCR_RFSL		(1 << 1) /* RX Frame Sync Length */
 #define		SSI_SRCR_REFS		(1 << 0) /* RX Early Frame Sync */
 
-#define		IMX51_SSI_STCCR_REG	0x0024 /* TX Clock Control */
-#define		IMX51_SSI_SRCCR_REG	0x0028 /* RX Clock Control */
+#define	IMX51_SSI_STCCR_REG	0x0024 /* TX Clock Control */
+#define	IMX51_SSI_SRCCR_REG	0x0028 /* RX Clock Control */
 #define		SSI_SXCCR_DIV2		(1 << 18) /* Divide By 2 */
 #define		SSI_SXCCR_PSR		(1 << 17) /* Prescaler Range */
-#define		SSI_SXCCR_WL_MASK		0x0001e000
+#define		SSI_SXCCR_WL_MASK	0x0001e000
 #define		SSI_SXCCR_WL_SHIFT	13 /* Word Length Control */
-#define		SSI_SXCCR_DC_MASK		0x00001f00
+#define		SSI_SXCCR_DC_MASK	0x00001f00
 #define		SSI_SXCCR_DC_SHIFT	8 /* Frame Rate Divider */
-#define		SSI_SXCCR_PM_MASK		0x000000ff
+#define		SSI_SXCCR_PM_MASK	0x000000ff
 #define		SSI_SXCCR_PM_SHIFT	0 /* Prescaler Modulus */
 
 #define	IMX51_SSI_SFCSR_REG	0x002C /* SSI FIFO Control/Status Register */
