@@ -128,7 +128,7 @@ iomux_attach(device_t dev)
 	iomuxsc = sc;
 
 	/*
-	 * XXX: place to fetch all into about pinmuxing from loader data
+	 * XXX: place to fetch all info about pinmuxing from loader data
 	 * (FDT blob) and apply. Loader (1st one) must care about
 	 * device-to-device difference.
 	 */
@@ -148,6 +148,9 @@ iomux_set_function_sub(struct iomux_softc *sc, uint32_t pin, uint32_t fn)
 void
 iomux_set_function(unsigned int pin, unsigned int fn)
 {
+
+	if (iomuxsc == NULL)
+		return;
 	iomux_set_function_sub(iomuxsc, pin, fn);
 }
 
@@ -163,6 +166,9 @@ iomux_set_pad_sub(struct iomux_softc *sc, uint32_t pin, uint32_t config)
 void
 iomux_set_pad(unsigned int pin, unsigned int config)
 {
+
+	if (iomuxsc == NULL)
+		return;
 	iomux_set_pad_sub(iomuxsc, pin, config);
 }
 
@@ -182,6 +188,8 @@ iomux_mux_config(const struct iomux_conf *conflist)
 {
 	int i;
 
+	if (iomuxsc == NULL)
+		return;
 	for (i = 0; conflist[i].pin != IOMUX_CONF_EOT; i++) {
 		iomux_set_pad_sub(iomuxsc, conflist[i].pin, conflist[i].pad);
 		iomux_set_function_sub(iomuxsc, conflist[i].pin,
@@ -195,6 +203,8 @@ iomux_input_config(const struct iomux_input_conf *conflist)
 {
 	int i;
 
+	if (iomuxsc == NULL)
+		return;
 	for (i = 0; conflist[i].inout != -1; i++) {
 		iomux_set_inout(iomuxsc, conflist[i].inout,
 		    conflist[i].inout_mode);
