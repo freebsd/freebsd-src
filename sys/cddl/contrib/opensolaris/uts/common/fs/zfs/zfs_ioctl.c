@@ -5862,6 +5862,8 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		error = EFAULT;
 		goto out;
 	}
+#else
+	error = 0;
 #endif
 
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
