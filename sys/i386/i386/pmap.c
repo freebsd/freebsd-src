@@ -1609,7 +1609,7 @@ pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	vm_radix_insert(&pmap->pm_root, mpte->pindex, mpte);
+	vm_radix_insert(&pmap->pm_root, mpte);
 }
 
 /*

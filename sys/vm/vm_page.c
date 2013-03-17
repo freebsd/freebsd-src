@@ -836,7 +836,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 		} else 
 			TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	}
-	vm_radix_insert(&object->rtree, pindex, m);
+	vm_radix_insert(&object->rtree, m);
 
 	/*
 	 * Show that the object has one more resident page.
@@ -1113,7 +1113,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 		/* Update the page's object and offset. */
 		m->object = new_object;
 		m->pindex -= offidxstart;
-		vm_radix_insert(&new_object->cache, m->pindex, m);
+		vm_radix_insert(&new_object->cache, m);
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
 }
@@ -2187,7 +2187,7 @@ vm_page_cache(vm_page_t m)
 	m->flags |= PG_CACHED;
 	cnt.v_cache_count++;
 	cache_was_empty = vm_radix_is_empty(&object->cache);
-	vm_radix_insert(&object->cache, m->pindex, m);
+	vm_radix_insert(&object->cache, m);
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m)) {
 #else

@@ -373,16 +373,15 @@ vm_radix_init(void)
  * Panics if the key already exists.
  */
 void
-vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, vm_page_t page)
+vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 {
-	vm_pindex_t newind;
+	vm_pindex_t index, newind;
 	struct vm_radix_node *rnode, *tmp, *tmp2;
 	vm_page_t m;
 	int slot;
 	uint16_t clev;
 
-	KASSERT(index == page->pindex, ("%s: index != page->pindex",
-	    __func__));
+	index = page->pindex;
 
 	/*
 	 * The owner of record for root is not really important because it
