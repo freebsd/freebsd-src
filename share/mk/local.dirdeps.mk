@@ -1,7 +1,11 @@
 
+.if ${DEP_MACHINE} != "host"
+
 # this is how we can handle optional dependencies
 .if ${MK_SSP:Uno} != "no" && defined(PROG)
 DIRDEPS += gnu/lib/libssp/libssp_nonshared
+.endif
+
 .endif
 
 # we need pkgs/pseudo/stage to prep the stage tree
