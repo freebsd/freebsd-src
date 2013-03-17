@@ -5805,7 +5805,7 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 #ifdef illumos
 	minor_t minor = getminor(dev);
 #else
-	int cflag, cmd;
+	int cflag, cmd, oldvecnum;
 	cred_t *cr = td->td_ucred;
 #endif
 	const zfs_ioc_vec_t *vec;
@@ -5821,7 +5821,10 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 	 * and translate zfs_cmd if necessary
 	 */
 	if (len < sizeof(zfs_cmd_t))
-		if (len == sizeof(zfs_cmd_v28_t)) {
+		if (len == sizeof(zfs_cmd_deadman_t)) {
+			cflag = ZFS_CMD_COMPAT_DEADMAN;
+			vecnum = cmd;
+		} else if (len == sizeof(zfs_cmd_v28_t)) {
 			cflag = ZFS_CMD_COMPAT_V28;
 			vecnum = cmd;
 		} else if (len == sizeof(zfs_cmd_v15_t)) {
@@ -5870,7 +5873,12 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
 		bzero(zc, sizeof(zfs_cmd_t));
 		zfs_cmd_compat_get(zc, arg, cflag);
-		zfs_ioctl_compat_pre(zc, &vecnum, cflag);
+		oldvecnum = vecnum;
+		error = zfs_ioctl_compat_pre(zc, &vecnum, cflag);
+		if (error != 0)
+			goto out;
+		if (oldvecnum != vecnum)
+			vec = &zfs_ioc_vec[vecnum];
 	} else
 		zc = (void *)arg;
 
@@ -5881,6 +5889,10 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		if (error != 0)
 			goto out;
 	}
+
+	/* rewrite innvl for backwards compatibility */
+	if (cflag != ZFS_CMD_COMPAT_NONE)
+		innvl = zfs_ioctl_compat_innvl(zc, innvl, vecnum, cflag);
 
 	/*
 	 * Ensure that all pool/dataset names are valid before we pass down to
@@ -5954,6 +5966,11 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 			spa_close(spa, FTAG);
 		}
 		fnvlist_free(lognv);
+
+		/* rewrite outnvl for backwards compatibility */
+		if (cflag != ZFS_CMD_COMPAT_NONE)
+			outnvl = zfs_ioctl_compat_outnvl(zc, outnvl, vecnum,
+			    cflag);
 
 		if (!nvlist_empty(outnvl) || zc->zc_nvlist_dst_size != 0) {
 			int smusherror = 0;
