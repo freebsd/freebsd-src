@@ -43,17 +43,17 @@ static int zfs_ioctl_version = 0;
 static __inline int
 zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 {
-	unsigned long cmd;
 	size_t oldsize, zfs_kernel_version_size, zfs_ioctl_version_size;
 	int version, ret, cflag = ZFS_CMD_COMPAT_NONE;
-
-	cmd = _IOWR('Z', request, struct zfs_cmd);
 
 	zfs_ioctl_version_size = sizeof(zfs_ioctl_version);
 	if (zfs_ioctl_version == 0) {
 		sysctlbyname("vfs.zfs.version.ioctl", &zfs_ioctl_version,
 		    &zfs_ioctl_version_size, NULL, 0);
 	}
+
+	if (zfs_ioctl_version == ZFS_IOCVER_DEADMAN)
+		cflag = ZFS_CMD_COMPAT_DEADMAN;
 
 	/*
 	 * If vfs.zfs.version.ioctl is not defined, assume we have v28
@@ -76,7 +76,7 @@ zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 	}
 
 	oldsize = zc->zc_nvlist_dst_size;
-	ret = zcmd_ioctl_compat(fd, cmd, zc, cflag);
+	ret = zcmd_ioctl_compat(fd, request, zc, cflag);
 
 	if (ret == 0 && oldsize < zc->zc_nvlist_dst_size) {
 		ret = -1;
@@ -85,7 +85,7 @@ zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 
 	return (ret);
 }
-#define	ioctl(fd, cmd, zc)	zcmd_ioctl((fd), (cmd), (zc))
+#define	ioctl(fd, ioc, zc)	zcmd_ioctl((fd), (ioc), (zc))
 
 #ifdef	__cplusplus
 }
