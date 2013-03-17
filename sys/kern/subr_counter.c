@@ -91,9 +91,6 @@ sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
-	if (!arg1)
-		return (EPERM);
-
 	/*
 	 * Any write attempt to a counter zeroes it.
 	 */
