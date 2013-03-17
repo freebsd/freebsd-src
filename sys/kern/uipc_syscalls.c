@@ -1701,18 +1701,16 @@ sockargs(mp, buf, buflen, type)
 	struct mbuf *m;
 	int error;
 
-	if ((u_int)buflen > MLEN) {
+	if (buflen > MLEN) {
 #ifdef COMPAT_OLDSOCK
-		if (type == MT_SONAME && (u_int)buflen <= 112)
+		if (type == MT_SONAME && buflen <= 112)
 			buflen = MLEN;		/* unix domain compat. hack */
 		else
 #endif
-			if ((u_int)buflen > MCLBYTES)
+			if (buflen > MCLBYTES)
 				return (EINVAL);
 	}
-	m = m_get(M_WAITOK, type);
-	if ((u_int)buflen > MLEN)
-		MCLGET(m, M_WAITOK);
+	m = m_get2(buflen, M_WAITOK, type, 0);
 	m->m_len = buflen;
 	error = copyin(buf, mtod(m, caddr_t), (u_int)buflen);
 	if (error)

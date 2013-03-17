@@ -55,9 +55,9 @@ aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
 #
 fdt_dtb_file			optional fdt \
-	compile-with "if [ -f $S/boot/fdt/dts/${FDT_DTS_FILE} ]; then dtc -O dtb -o `echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 -p 1024 $S/boot/fdt/dts/${FDT_DTS_FILE}; fi" \
+	compile-with "if [ -f $S/boot/fdt/dts/${FDT_DTS_FILE} ]; then dtc -O dtb -o ${FDT_DTS_FILE:R}.dtb -b 0 -p 1024 $S/boot/fdt/dts/${FDT_DTS_FILE}; fi" \
 	no-obj no-implicit-rule before-depend	\
-	clean		"`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb"
+	clean		"${FDT_DTS_FILE:R}.dtb"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
 	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ." \
 	no-obj no-implicit-rule before-depend \

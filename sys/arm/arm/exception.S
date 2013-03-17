@@ -70,6 +70,7 @@ ASENTRY_NP(reset_entry)
 Lreset_panicmsg:
 	.asciz	"Reset vector called, LR = 0x%08x"
 	.balign	4
+END(reset_entry)
 
 /*
  * swi_entry
@@ -77,8 +78,7 @@ Lreset_panicmsg:
  *	Handler for the Software Interrupt exception.
  */
 ASENTRY_NP(swi_entry)
-	.fnstart
-	.cantunwind			/* Don't unwind past here */
+	STOP_UNWINDING			/* Don't unwind past here */
 
 	PUSHFRAME
 
@@ -91,7 +91,7 @@ ASENTRY_NP(swi_entry)
 	DO_AST
 	PULLFRAME
 	movs	pc, lr			/* Exit */
-	.fnend
+END(swi_entry)
 
 /*
  * prefetch_abort_entry:
@@ -128,6 +128,7 @@ abortprefetch:
 abortprefetchmsg:
         .asciz  "abortprefetch"
         .align  0
+END(prefetch_abort_entry)
 
 /*
  * data_abort_entry:
@@ -163,6 +164,7 @@ abortdata:
 abortdatamsg:
         .asciz  "abortdata"
         .align  0
+END(data_abort_entry)
 
 /*
  * address_exception_entry:
@@ -183,6 +185,7 @@ ASENTRY_NP(address_exception_entry)
 Laddress_exception_msg:
 	.asciz	"Address Exception CPSR=0x%08x SPSR=0x%08x LR=0x%08x\n"
 	.balign	4
+END(address_exception_entry)
 
 /*
  * General exception exit handler
@@ -224,6 +227,7 @@ ASENTRY_NP(undefined_entry)
 
 Lundefined_handler_indirection:
 	.word	Lundefined_handler_indirection_data
+END(undefined_entry)
 
 /*
  * assembly bounce code for calling the kernel
@@ -254,3 +258,4 @@ Lundefined_handler_indirection_data:
 	.global	_C_LABEL(undefined_handler_address)
 _C_LABEL(undefined_handler_address):
 	.word	_C_LABEL(undefinedinstruction_bounce)
+END(undefinedinstruction_bounce)

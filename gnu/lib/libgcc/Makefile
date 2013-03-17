@@ -123,10 +123,10 @@ CFLAGS+=	-fheinous-gnu-extensions
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
 .if ${MK_ARM_EABI} != "no"
-LIB1ASMFUNCS+=	_addsubdf3 _addsubsf3 _cmpdf2 _cmpsf2 _fixdfsi _fixsfsi \
-		_fixunsdfsi _fixunsdfsi _muldivdf3 _muldivsf3 _udivsi3
-
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
+# Some compilers generate __aeabi_ functions libgcc_s is missing
+DPADD+=		${LIBGCC}
+LDADD+=		-lgcc
 .else
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 .endif
