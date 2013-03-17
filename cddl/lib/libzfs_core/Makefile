@@ -9,7 +9,7 @@ LIB=	zfs_core
 DPADD=	${LIBNVPAIR}
 LDADD=	-lnvpair
 
-SRCS=	libzfs_core.c
+SRCS=	libzfs_core.c libzfs_core_compat.c
 
 WARNS?=	0
 CSTD=	c99
