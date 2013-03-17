@@ -21,8 +21,4 @@ DIRDEPS = \
 	pkgs/pseudo/usr.bin \
 	pkgs/pseudo/usr.sbin \
 
-
-#	pkgs/pseudo/clang \
-#	pkgs/pseudo/gcc \
-
 .include <dirdeps.mk>

@@ -5,10 +5,10 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	pkgs/pseudo/kernel \
+	pkgs/pseudo/toolchain \
+	pkgs/pseudo/toolchain.host \
 	pkgs/pseudo/userland \
 
-
-#	pkgs/pseudo/clang \
-#	pkgs/pseudo/gcc \
 
 .include <dirdeps.mk>
