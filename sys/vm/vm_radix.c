@@ -110,7 +110,7 @@ vm_radix_node_get(vm_pindex_t owner, uint16_t count, uint16_t clevel)
 {
 	struct vm_radix_node *rnode;
 
-	rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO);
+	rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT);
 
 	/*
 	 * The required number of nodes should already be pre-allocated
@@ -314,6 +314,7 @@ vm_radix_reclaim_allnodes_int(struct vm_radix_node *rnode)
 			continue;
 		if (vm_radix_node_page(rnode->rn_child[slot]) == NULL)
 			vm_radix_reclaim_allnodes_int(rnode->rn_child[slot]);
+		rnode->rn_child[slot] = NULL;
 		rnode->rn_count--;
 	}
 	vm_radix_node_put(rnode);
@@ -327,13 +328,30 @@ static void
 vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
 {
 	struct vm_radix_node *rnode;
+	int slot;
 
 	rnode = mem;
 	KASSERT(rnode->rn_count == 0,
-	    ("vm_radix_node_put: Freeing node %p with %d children\n", mem,
+	    ("vm_radix_node_put: rnode %p has %d children", rnode,
 	    rnode->rn_count));
+	for (slot = 0; slot < VM_RADIX_COUNT; slot++)
+		KASSERT(rnode->rn_child[slot] == NULL,
+		    ("vm_radix_node_put: rnode %p has a child", rnode));
 }
 #endif
+
+/*
+ * Radix node zone initializer.
+ */
+static int
+vm_radix_node_zone_init(void *mem, int size __unused, int flags __unused)
+{
+	struct vm_radix_node *rnode;
+
+	rnode = mem;
+	memset(rnode->rn_child, 0, sizeof(rnode->rn_child));
+	return (0);
+}
 
 /*
  * Pre-allocate intermediate nodes from the UMA slab zone.
@@ -365,7 +383,8 @@ vm_radix_init(void)
 #else
 	    NULL,
 #endif
-	    NULL, NULL, VM_RADIX_PAD, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	    vm_radix_node_zone_init, NULL, VM_RADIX_PAD, UMA_ZONE_VM |
+	    UMA_ZONE_NOFREE);
 }
 
 /*
