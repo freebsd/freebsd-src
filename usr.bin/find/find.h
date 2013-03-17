@@ -88,7 +88,7 @@ typedef struct _plandata {
 		nlink_t _l_data;		/* link count */
 		short _d_data;			/* level depth (-1 to N) */
 		off_t _o_data;			/* file size */
-		time_t _t_data;			/* time value */
+		struct timespec _t_data;	/* time value */
 		uid_t _u_data;			/* uid */
 		short _mt_data;			/* mount flags */
 		struct _plandata *_p_data[2];	/* PLAN trees */
