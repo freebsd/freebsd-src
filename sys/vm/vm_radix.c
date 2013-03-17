@@ -35,11 +35,17 @@
  * of this code must achieve highest possible performance.
  *
  * The implementation takes into account the following rationale:
- * - Size of the nodes should be as small as possible.
- * - There is no bias toward lookup operations over inserts or removes,
- *   and vice-versa.
- * - On average not many nodes are expected to be full, hence level
- *   compression may just complicate things.
+ * - Size of the nodes should be as small as possible but still big enough
+ *   to avoid a large maximum depth for the trie.  This is a balance
+ *   between the necessity to not wire too much physical memory for the nodes
+ *   and the necessity to avoid too much cache pollution during the trie
+ *   operations.
+ * - There is not a huge bias toward the number of lookup operations over
+ *   the number of insert and remove operations.  This basically implies
+ *   that optimizations supposedly helping one operation but hurting the
+ *   other might be carefully evaluated.
+ * - On average not many nodes are expected to be fully populated, hence
+ *   level compression may just complicate things.
  */
 
 #include <sys/cdefs.h>
