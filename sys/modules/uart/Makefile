@@ -4,6 +4,9 @@
 
 .if ${MACHINE_CPUARCH} == "sparc64"
 uart_bus_ebus=	uart_bus_ebus.c
+.endif
+
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "sparc64"
 ofw_bus_if=	ofw_bus_if.h
 .endif
 
