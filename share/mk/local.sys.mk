@@ -93,8 +93,10 @@ OBJTOP := ${HOST_OBJTOP}
 .endif
 
 # if you want objdirs make them automatic
-.if ${MKOBJDIRS:Uno} == "auto"
+# we need .OBJDIR made before we start populating .PATH
+.if ${MKOBJDIRS:Uno} == "auto" || defined(WITH_AUTO_OBJ)
 WITH_AUTO_OBJ= yes
+MKOBJDIRS=auto
 .include <auto.obj.mk>
 .endif
 
