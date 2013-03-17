@@ -52,7 +52,7 @@ counter_64_inc_8b(uint64_t *p, uint64_t inc)
 	: "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
 
-static __inline void
+static inline void
 counter_u64_inc(counter_u64_t c, uint64_t inc)
 {
 
@@ -65,7 +65,7 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 	}
 }
 
-static __inline void
+static inline void
 counter_u64_dec(counter_u64_t c, uint64_t dec)
 {
 
