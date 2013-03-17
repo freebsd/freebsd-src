@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -22,6 +22,10 @@ BasicBlock.o: Intrinsics.inc.h
 BasicBlock.po: Intrinsics.inc.h
 Core.o: Intrinsics.inc.h
 Core.po: Intrinsics.inc.h
+DIBuilder.o: Intrinsics.inc.h
+DIBuilder.po: Intrinsics.inc.h
+DebugInfo.o: Intrinsics.inc.h
+DebugInfo.po: Intrinsics.inc.h
 Function.o: Intrinsics.inc.h
 Function.po: Intrinsics.inc.h
 IRBuilder.o: Intrinsics.inc.h

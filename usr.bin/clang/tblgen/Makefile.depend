@@ -2,8 +2,6 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
 	gnu/lib/libgcc \
 	gnu/lib/libstdc++ \
@@ -14,6 +12,7 @@ DIRDEPS = \
 	lib/clang/libllvmsupport \
 	lib/clang/libllvmtablegen \
 	lib/libc \
+	lib/libcompiler_rt \
 	lib/msun \
 
 

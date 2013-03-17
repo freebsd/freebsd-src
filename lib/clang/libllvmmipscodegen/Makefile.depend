@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -14,6 +14,24 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
+Mips16FrameLowering.o: MipsGenInstrInfo.inc.h
+Mips16FrameLowering.o: MipsGenRegisterInfo.inc.h
+Mips16FrameLowering.o: MipsGenSubtargetInfo.inc.h
+Mips16FrameLowering.po: MipsGenInstrInfo.inc.h
+Mips16FrameLowering.po: MipsGenRegisterInfo.inc.h
+Mips16FrameLowering.po: MipsGenSubtargetInfo.inc.h
+Mips16InstrInfo.o: MipsGenInstrInfo.inc.h
+Mips16InstrInfo.o: MipsGenRegisterInfo.inc.h
+Mips16InstrInfo.o: MipsGenSubtargetInfo.inc.h
+Mips16InstrInfo.po: MipsGenInstrInfo.inc.h
+Mips16InstrInfo.po: MipsGenRegisterInfo.inc.h
+Mips16InstrInfo.po: MipsGenSubtargetInfo.inc.h
+Mips16RegisterInfo.o: MipsGenInstrInfo.inc.h
+Mips16RegisterInfo.o: MipsGenRegisterInfo.inc.h
+Mips16RegisterInfo.o: MipsGenSubtargetInfo.inc.h
+Mips16RegisterInfo.po: MipsGenInstrInfo.inc.h
+Mips16RegisterInfo.po: MipsGenRegisterInfo.inc.h
+Mips16RegisterInfo.po: MipsGenSubtargetInfo.inc.h
 MipsAnalyzeImmediate.o: MipsGenInstrInfo.inc.h
 MipsAnalyzeImmediate.o: MipsGenRegisterInfo.inc.h
 MipsAnalyzeImmediate.o: MipsGenSubtargetInfo.inc.h
@@ -21,9 +39,11 @@ MipsAnalyzeImmediate.po: MipsGenInstrInfo.inc.h
 MipsAnalyzeImmediate.po: MipsGenRegisterInfo.inc.h
 MipsAnalyzeImmediate.po: MipsGenSubtargetInfo.inc.h
 MipsAsmPrinter.o: MipsGenInstrInfo.inc.h
+MipsAsmPrinter.o: MipsGenMCPseudoLowering.inc.h
 MipsAsmPrinter.o: MipsGenRegisterInfo.inc.h
 MipsAsmPrinter.o: MipsGenSubtargetInfo.inc.h
 MipsAsmPrinter.po: MipsGenInstrInfo.inc.h
+MipsAsmPrinter.po: MipsGenMCPseudoLowering.inc.h
 MipsAsmPrinter.po: MipsGenRegisterInfo.inc.h
 MipsAsmPrinter.po: MipsGenSubtargetInfo.inc.h
 MipsCodeEmitter.o: MipsGenCodeEmitter.inc.h
@@ -40,18 +60,6 @@ MipsDelaySlotFiller.o: MipsGenSubtargetInfo.inc.h
 MipsDelaySlotFiller.po: MipsGenInstrInfo.inc.h
 MipsDelaySlotFiller.po: MipsGenRegisterInfo.inc.h
 MipsDelaySlotFiller.po: MipsGenSubtargetInfo.inc.h
-MipsEmitGPRestore.o: MipsGenInstrInfo.inc.h
-MipsEmitGPRestore.o: MipsGenRegisterInfo.inc.h
-MipsEmitGPRestore.o: MipsGenSubtargetInfo.inc.h
-MipsEmitGPRestore.po: MipsGenInstrInfo.inc.h
-MipsEmitGPRestore.po: MipsGenRegisterInfo.inc.h
-MipsEmitGPRestore.po: MipsGenSubtargetInfo.inc.h
-MipsExpandPseudo.o: MipsGenInstrInfo.inc.h
-MipsExpandPseudo.o: MipsGenRegisterInfo.inc.h
-MipsExpandPseudo.o: MipsGenSubtargetInfo.inc.h
-MipsExpandPseudo.po: MipsGenInstrInfo.inc.h
-MipsExpandPseudo.po: MipsGenRegisterInfo.inc.h
-MipsExpandPseudo.po: MipsGenSubtargetInfo.inc.h
 MipsFrameLowering.o: MipsGenInstrInfo.inc.h
 MipsFrameLowering.o: MipsGenRegisterInfo.inc.h
 MipsFrameLowering.o: MipsGenSubtargetInfo.inc.h
@@ -90,6 +98,12 @@ MipsJITInfo.o: MipsGenSubtargetInfo.inc.h
 MipsJITInfo.po: MipsGenInstrInfo.inc.h
 MipsJITInfo.po: MipsGenRegisterInfo.inc.h
 MipsJITInfo.po: MipsGenSubtargetInfo.inc.h
+MipsLongBranch.o: MipsGenInstrInfo.inc.h
+MipsLongBranch.o: MipsGenRegisterInfo.inc.h
+MipsLongBranch.o: MipsGenSubtargetInfo.inc.h
+MipsLongBranch.po: MipsGenInstrInfo.inc.h
+MipsLongBranch.po: MipsGenRegisterInfo.inc.h
+MipsLongBranch.po: MipsGenSubtargetInfo.inc.h
 MipsMCInstLower.o: MipsGenInstrInfo.inc.h
 MipsMCInstLower.o: MipsGenRegisterInfo.inc.h
 MipsMCInstLower.o: MipsGenSubtargetInfo.inc.h
@@ -108,6 +122,24 @@ MipsRegisterInfo.o: MipsGenSubtargetInfo.inc.h
 MipsRegisterInfo.po: MipsGenInstrInfo.inc.h
 MipsRegisterInfo.po: MipsGenRegisterInfo.inc.h
 MipsRegisterInfo.po: MipsGenSubtargetInfo.inc.h
+MipsSEFrameLowering.o: MipsGenInstrInfo.inc.h
+MipsSEFrameLowering.o: MipsGenRegisterInfo.inc.h
+MipsSEFrameLowering.o: MipsGenSubtargetInfo.inc.h
+MipsSEFrameLowering.po: MipsGenInstrInfo.inc.h
+MipsSEFrameLowering.po: MipsGenRegisterInfo.inc.h
+MipsSEFrameLowering.po: MipsGenSubtargetInfo.inc.h
+MipsSEInstrInfo.o: MipsGenInstrInfo.inc.h
+MipsSEInstrInfo.o: MipsGenRegisterInfo.inc.h
+MipsSEInstrInfo.o: MipsGenSubtargetInfo.inc.h
+MipsSEInstrInfo.po: MipsGenInstrInfo.inc.h
+MipsSEInstrInfo.po: MipsGenRegisterInfo.inc.h
+MipsSEInstrInfo.po: MipsGenSubtargetInfo.inc.h
+MipsSERegisterInfo.o: MipsGenInstrInfo.inc.h
+MipsSERegisterInfo.o: MipsGenRegisterInfo.inc.h
+MipsSERegisterInfo.o: MipsGenSubtargetInfo.inc.h
+MipsSERegisterInfo.po: MipsGenInstrInfo.inc.h
+MipsSERegisterInfo.po: MipsGenRegisterInfo.inc.h
+MipsSERegisterInfo.po: MipsGenSubtargetInfo.inc.h
 MipsSelectionDAGInfo.o: MipsGenInstrInfo.inc.h
 MipsSelectionDAGInfo.o: MipsGenRegisterInfo.inc.h
 MipsSelectionDAGInfo.o: MipsGenSubtargetInfo.inc.h

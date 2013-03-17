@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -14,10 +14,10 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ExecuteCompilerInvocation.o: CC1Options.inc.h
 ExecuteCompilerInvocation.o: DiagnosticCommonKinds.inc.h
 ExecuteCompilerInvocation.o: DiagnosticFrontendKinds.inc.h
-ExecuteCompilerInvocation.po: CC1Options.inc.h
+ExecuteCompilerInvocation.o: Options.inc.h
 ExecuteCompilerInvocation.po: DiagnosticCommonKinds.inc.h
 ExecuteCompilerInvocation.po: DiagnosticFrontendKinds.inc.h
+ExecuteCompilerInvocation.po: Options.inc.h
 .endif

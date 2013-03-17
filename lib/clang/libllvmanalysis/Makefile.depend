@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -24,20 +24,20 @@ CodeMetrics.o: Intrinsics.inc.h
 CodeMetrics.po: Intrinsics.inc.h
 ConstantFolding.o: Intrinsics.inc.h
 ConstantFolding.po: Intrinsics.inc.h
-DIBuilder.o: Intrinsics.inc.h
-DIBuilder.po: Intrinsics.inc.h
 DbgInfoPrinter.o: Intrinsics.inc.h
 DbgInfoPrinter.po: Intrinsics.inc.h
-DebugInfo.o: Intrinsics.inc.h
-DebugInfo.po: Intrinsics.inc.h
 InlineCost.o: Intrinsics.inc.h
 InlineCost.po: Intrinsics.inc.h
+InstCount.o: Intrinsics.inc.h
+InstCount.po: Intrinsics.inc.h
 LazyValueInfo.o: Intrinsics.inc.h
 LazyValueInfo.po: Intrinsics.inc.h
 Lint.o: Intrinsics.inc.h
 Lint.po: Intrinsics.inc.h
 Loads.o: Intrinsics.inc.h
 Loads.po: Intrinsics.inc.h
+MemoryBuiltins.o: Intrinsics.inc.h
+MemoryBuiltins.po: Intrinsics.inc.h
 MemoryDependenceAnalysis.o: Intrinsics.inc.h
 MemoryDependenceAnalysis.po: Intrinsics.inc.h
 ScalarEvolutionExpander.o: Intrinsics.inc.h

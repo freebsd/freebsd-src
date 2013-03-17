@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -46,6 +46,10 @@ ObjCARC.o: Intrinsics.inc.h
 ObjCARC.po: Intrinsics.inc.h
 Reassociate.o: Intrinsics.inc.h
 Reassociate.po: Intrinsics.inc.h
+SCCP.o: Intrinsics.inc.h
+SCCP.po: Intrinsics.inc.h
+SROA.o: Intrinsics.inc.h
+SROA.po: Intrinsics.inc.h
 ScalarReplAggregates.o: Intrinsics.inc.h
 ScalarReplAggregates.po: Intrinsics.inc.h
 SimplifyCFGPass.o: Intrinsics.inc.h
