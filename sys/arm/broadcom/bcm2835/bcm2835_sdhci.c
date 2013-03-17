@@ -122,9 +122,7 @@ struct bcm_sdhci_softc {
 	int			sc_dma_ch;
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;
-	void			*sc_dma_buffer;
-	vm_paddr_t		sc_dma_buffer_phys;
-	vm_paddr_t		sc_sdhci_buffer_phys;;
+	vm_paddr_t		sc_sdhci_buffer_phys;
 };
 
 static int bcm_sdhci_probe(device_t);
@@ -171,8 +169,6 @@ bcm_sdhci_attach(device_t dev)
 	phandle_t node;
 	pcell_t cell;
 	int default_freq;
-	void *buffer;
-	vm_paddr_t buffer_phys;
 
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
@@ -209,7 +205,7 @@ bcm_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
+	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, bcm_sdhci_intr, sc, &sc->sc_intrhand))
 	{
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
@@ -242,7 +238,7 @@ bcm_sdhci_attach(device_t dev)
 
 	bcm_dma_setup_intr(sc->sc_dma_ch, bcm_sdhci_dma_intr, sc);
 
-	/* Allocate DMA buffers */
+	/* Allocate bus_dma resources. */
 	err = bus_dma_tag_create(bus_get_dma_tag(dev),
 	    1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,
@@ -255,34 +251,12 @@ bcm_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	err = bus_dmamem_alloc(sc->sc_dma_tag, &buffer,
-	    BUS_DMA_WAITOK | BUS_DMA_COHERENT| BUS_DMA_ZERO,
-	    &sc->sc_dma_map);
-
+	err = bus_dmamap_create(sc->sc_dma_tag, 0, &sc->sc_dma_map);
 	if (err) {
-		device_printf(dev, "cannot allocate DMA memory\n");
+		device_printf(dev, "bus_dmamap_create failed\n");
 		goto fail;
 	}
 
-	err = bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map, buffer,
-	    BCM_SDHCI_BUFFER_SIZE, bcm_dmamap_cb, &buffer_phys,
-	    BUS_DMA_WAITOK);
-	if (err) {
-		device_printf(dev, "cannot load DMA memory\n");
-		goto fail;
-	}
-
-	/* 
-	 * Sanity check: two least bits of address should be zero
-	 */
-	if ((uintptr_t)buffer & 3) {
-		device_printf(dev,
-		    "DMA address is not word-aligned\n");
-		goto fail;
-	}
-
-	sc->sc_dma_buffer = buffer;
-	sc->sc_dma_buffer_phys = buffer_phys;
 	sc->sc_sdhci_buffer_phys = BUS_SPACE_PHYSADDR(sc->sc_mem_res, 
 	    SDHCI_BUFFER);
 
@@ -445,27 +419,23 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 	struct bcm_sdhci_softc *sc = (struct bcm_sdhci_softc *)arg;
 	struct sdhci_slot *slot = &sc->sc_slot;
 	uint32_t reg, mask;
-	void *buffer;
+	bus_addr_t pmem;
+	vm_paddr_t pdst, psrc;
 	size_t len;
-	int left;
+	int left, sync_op;
 
 	mtx_lock(&slot->mtx);
 
-	/* copy DMA buffer to VA if READ */
 	len = bcm_dma_length(sc->sc_dma_ch);
 	if (slot->curcmd->data->flags & MMC_DATA_READ) {
-		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-		    BUS_DMASYNC_POSTREAD);
-
+		sync_op = BUS_DMASYNC_POSTREAD;
 		mask = SDHCI_INT_DATA_AVAIL;
-		/* all dma data in single or contiguous page */
-		buffer = (uint8_t*)(slot->curcmd->data->data) + slot->offset;
-		memcpy(buffer, sc->sc_dma_buffer, len);
 	} else {
-		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-		    BUS_DMASYNC_POSTWRITE);
+		sync_op = BUS_DMASYNC_POSTWRITE;
 		mask = SDHCI_INT_SPACE_AVAIL;
 	}
+	bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map, sync_op);
+	bus_dmamap_unload(sc->sc_dma_tag, sc->sc_dma_map);
 
 	slot->offset += len;
 	sc->sc_dma_inuse = 0;
@@ -499,27 +469,22 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 			    SDHCI_INT_STATUS, mask);
 
 			/* continue next DMA transfer */
+			bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map, 
+			    (uint8_t *)slot->curcmd->data->data + 
+			    slot->offset, left, bcm_dmamap_cb, &pmem, 0);
 			if (slot->curcmd->data->flags & MMC_DATA_READ) {
-				bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-				    BUS_DMASYNC_PREREAD);
-
-				/* DMA start */
-				if (bcm_dma_start(sc->sc_dma_ch,
-				    sc->sc_sdhci_buffer_phys,
-				    sc->sc_dma_buffer_phys, left) != 0)
-					device_printf(sc->sc_dev, "failed DMA start\n");
+				psrc = sc->sc_sdhci_buffer_phys;
+				pdst = pmem;
+				sync_op = BUS_DMASYNC_PREREAD;
 			} else {
-				buffer = (char*)slot->curcmd->data->data + slot->offset;
-				memcpy(sc->sc_dma_buffer, buffer, left);
-
-				bus_dmamap_sync(sc->sc_dma_tag,
-				    sc->sc_dma_map, BUS_DMASYNC_PREWRITE);
-
-				/* DMA start */
-				if (bcm_dma_start(sc->sc_dma_ch, 
-				    sc->sc_dma_buffer_phys,
-				    sc->sc_sdhci_buffer_phys, left) != 0)
-					device_printf(sc->sc_dev, "failed DMA start\n");
+				psrc = pmem;
+				pdst = sc->sc_sdhci_buffer_phys;
+				sync_op = BUS_DMASYNC_PREWRITE;
+			}
+			bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map, sync_op);
+			if (bcm_dma_start(sc->sc_dma_ch, psrc, pdst, left)) {
+				/* XXX stop xfer, other error recovery? */
+				device_printf(sc->sc_dev, "failed DMA start\n");
 			}
 		} else {
 			/* wait for next data by INT */
@@ -540,6 +505,7 @@ bcm_sdhci_read_dma(struct sdhci_slot *slot)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(slot->bus);
 	size_t left;
+	bus_addr_t paddr;
 
 	if (sc->sc_dma_inuse) {
 		device_printf(sc->sc_dev, "DMA in use\n");
@@ -560,12 +526,16 @@ bcm_sdhci_read_dma(struct sdhci_slot *slot)
 	    BCM_DMA_INC_ADDR,
 	    (left & 0xf) ? BCM_DMA_32BIT : BCM_DMA_128BIT);
 
+	bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map, 
+	    (uint8_t *)slot->curcmd->data->data + slot->offset, left, 
+	    bcm_dmamap_cb, &paddr, 0);
+
 	bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
 	    BUS_DMASYNC_PREREAD);
 
 	/* DMA start */
 	if (bcm_dma_start(sc->sc_dma_ch, sc->sc_sdhci_buffer_phys,
-	    sc->sc_dma_buffer_phys, left) != 0)
+	    paddr, left) != 0)
 		device_printf(sc->sc_dev, "failed DMA start\n");
 }
 
@@ -573,8 +543,8 @@ static void
 bcm_sdhci_write_dma(struct sdhci_slot *slot)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(slot->bus);
-	char *buffer;
 	size_t left;
+	bus_addr_t paddr;
 
 	if (sc->sc_dma_inuse) {
 		device_printf(sc->sc_dev, "DMA in use\n");
@@ -589,8 +559,9 @@ bcm_sdhci_write_dma(struct sdhci_slot *slot)
 	KASSERT((left & 3) == 0,
 	    ("%s: len = %d, not word-aligned", __func__, left));
 
-	buffer = (char*)slot->curcmd->data->data + slot->offset;
-	memcpy(sc->sc_dma_buffer, buffer, left);
+	bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map,
+	    (uint8_t *)slot->curcmd->data->data + slot->offset, left, 
+	    bcm_dmamap_cb, &paddr, 0);
 
 	bcm_dma_setup_src(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
 	    BCM_DMA_INC_ADDR,
@@ -602,7 +573,7 @@ bcm_sdhci_write_dma(struct sdhci_slot *slot)
 	    BUS_DMASYNC_PREWRITE);
 
 	/* DMA start */
-	if (bcm_dma_start(sc->sc_dma_ch, sc->sc_dma_buffer_phys,
+	if (bcm_dma_start(sc->sc_dma_ch, paddr,
 	    sc->sc_sdhci_buffer_phys, left) != 0)
 		device_printf(sc->sc_dev, "failed DMA start\n");
 }
@@ -612,10 +583,15 @@ bcm_sdhci_will_handle_transfer(device_t dev, struct sdhci_slot *slot)
 {
 	size_t left;
 
-	/* Do not use DMA for transfers less then block size */
+	/*
+	 * Do not use DMA for transfers less than block size or with a length
+	 * that is not a multiple of four.
+	 */
 	left = min(BCM_DMA_BLOCK_SIZE,
 	    slot->curcmd->data->len - slot->offset);
 	if (left < BCM_DMA_BLOCK_SIZE)
+		return (0);
+	if (left & 0x03)
 		return (0);
 
 	return (1);
