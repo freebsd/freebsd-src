@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -195,12 +195,14 @@ TransformActions.po: DeclNodes.inc.h
 TransformActions.po: DiagnosticCommonKinds.inc.h
 TransformActions.po: StmtNodes.inc.h
 Transforms.o: AttrList.inc.h
+Transforms.o: AttrParsedAttrList.inc.h
 Transforms.o: Attrs.inc.h
 Transforms.o: DeclNodes.inc.h
 Transforms.o: DiagnosticCommonKinds.inc.h
 Transforms.o: DiagnosticSemaKinds.inc.h
 Transforms.o: StmtNodes.inc.h
 Transforms.po: AttrList.inc.h
+Transforms.po: AttrParsedAttrList.inc.h
 Transforms.po: Attrs.inc.h
 Transforms.po: DeclNodes.inc.h
 Transforms.po: DiagnosticCommonKinds.inc.h

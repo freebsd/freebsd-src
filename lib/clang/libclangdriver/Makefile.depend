@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -20,8 +20,6 @@ ArgList.po: DiagnosticCommonKinds.inc.h
 ArgList.po: DiagnosticDriverKinds.inc.h
 CC1AsOptions.o: CC1AsOptions.inc.h
 CC1AsOptions.po: CC1AsOptions.inc.h
-CC1Options.o: CC1Options.inc.h
-CC1Options.po: CC1Options.inc.h
 Compilation.o: DiagnosticCommonKinds.inc.h
 Compilation.o: DiagnosticDriverKinds.inc.h
 Compilation.o: Options.inc.h
@@ -36,6 +34,8 @@ Driver.po: DiagnosticDriverKinds.inc.h
 Driver.po: Options.inc.h
 DriverOptions.o: Options.inc.h
 DriverOptions.po: Options.inc.h
+OptTable.o: Options.inc.h
+OptTable.po: Options.inc.h
 ToolChain.o: DiagnosticCommonKinds.inc.h
 ToolChain.o: DiagnosticDriverKinds.inc.h
 ToolChain.o: Options.inc.h

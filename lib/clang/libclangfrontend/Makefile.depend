@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -44,7 +44,6 @@ ASTUnit.o: Attrs.inc.h
 ASTUnit.o: DeclNodes.inc.h
 ASTUnit.o: DiagnosticCommonKinds.inc.h
 ASTUnit.o: DiagnosticFrontendKinds.inc.h
-ASTUnit.o: Options.inc.h
 ASTUnit.o: StmtNodes.inc.h
 ASTUnit.po: AttrList.inc.h
 ASTUnit.po: AttrParsedAttrList.inc.h
@@ -52,7 +51,6 @@ ASTUnit.po: Attrs.inc.h
 ASTUnit.po: DeclNodes.inc.h
 ASTUnit.po: DiagnosticCommonKinds.inc.h
 ASTUnit.po: DiagnosticFrontendKinds.inc.h
-ASTUnit.po: Options.inc.h
 ASTUnit.po: StmtNodes.inc.h
 CacheTokens.o: DiagnosticCommonKinds.inc.h
 CacheTokens.po: DiagnosticCommonKinds.inc.h
@@ -86,16 +84,16 @@ CompilerInstance.po: DiagnosticFrontendKinds.inc.h
 CompilerInstance.po: StmtNodes.inc.h
 CompilerInvocation.o: AttrList.inc.h
 CompilerInvocation.o: Attrs.inc.h
-CompilerInvocation.o: CC1Options.inc.h
 CompilerInvocation.o: DeclNodes.inc.h
 CompilerInvocation.o: DiagnosticCommonKinds.inc.h
 CompilerInvocation.o: DiagnosticDriverKinds.inc.h
+CompilerInvocation.o: Options.inc.h
 CompilerInvocation.po: AttrList.inc.h
 CompilerInvocation.po: Attrs.inc.h
-CompilerInvocation.po: CC1Options.inc.h
 CompilerInvocation.po: DeclNodes.inc.h
 CompilerInvocation.po: DiagnosticCommonKinds.inc.h
 CompilerInvocation.po: DiagnosticDriverKinds.inc.h
+CompilerInvocation.po: Options.inc.h
 CreateInvocationFromCommandLine.o: DiagnosticCommonKinds.inc.h
 CreateInvocationFromCommandLine.o: DiagnosticFrontendKinds.inc.h
 CreateInvocationFromCommandLine.o: Options.inc.h
@@ -148,8 +146,14 @@ HeaderIncludeGen.po: DiagnosticCommonKinds.inc.h
 HeaderIncludeGen.po: DiagnosticFrontendKinds.inc.h
 InitHeaderSearch.o: DiagnosticCommonKinds.inc.h
 InitHeaderSearch.po: DiagnosticCommonKinds.inc.h
+InitPreprocessor.o: AttrList.inc.h
+InitPreprocessor.o: Attrs.inc.h
+InitPreprocessor.o: DeclNodes.inc.h
 InitPreprocessor.o: DiagnosticCommonKinds.inc.h
 InitPreprocessor.o: DiagnosticFrontendKinds.inc.h
+InitPreprocessor.po: AttrList.inc.h
+InitPreprocessor.po: Attrs.inc.h
+InitPreprocessor.po: DeclNodes.inc.h
 InitPreprocessor.po: DiagnosticCommonKinds.inc.h
 InitPreprocessor.po: DiagnosticFrontendKinds.inc.h
 LayoutOverrideSource.o: AttrList.inc.h

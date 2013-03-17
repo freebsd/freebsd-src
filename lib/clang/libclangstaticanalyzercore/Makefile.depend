@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -24,16 +24,6 @@ AnalysisManager.po: Attrs.inc.h
 AnalysisManager.po: DeclNodes.inc.h
 AnalysisManager.po: DiagnosticCommonKinds.inc.h
 AnalysisManager.po: StmtNodes.inc.h
-BasicConstraintManager.o: AttrList.inc.h
-BasicConstraintManager.o: Attrs.inc.h
-BasicConstraintManager.o: DeclNodes.inc.h
-BasicConstraintManager.o: DiagnosticCommonKinds.inc.h
-BasicConstraintManager.o: StmtNodes.inc.h
-BasicConstraintManager.po: AttrList.inc.h
-BasicConstraintManager.po: Attrs.inc.h
-BasicConstraintManager.po: DeclNodes.inc.h
-BasicConstraintManager.po: DiagnosticCommonKinds.inc.h
-BasicConstraintManager.po: StmtNodes.inc.h
 BasicValueFactory.o: AttrList.inc.h
 BasicValueFactory.o: Attrs.inc.h
 BasicValueFactory.o: DeclNodes.inc.h
@@ -64,6 +54,16 @@ BugReporterVisitors.po: Attrs.inc.h
 BugReporterVisitors.po: DeclNodes.inc.h
 BugReporterVisitors.po: DiagnosticCommonKinds.inc.h
 BugReporterVisitors.po: StmtNodes.inc.h
+CallEvent.o: AttrList.inc.h
+CallEvent.o: Attrs.inc.h
+CallEvent.o: DeclNodes.inc.h
+CallEvent.o: DiagnosticCommonKinds.inc.h
+CallEvent.o: StmtNodes.inc.h
+CallEvent.po: AttrList.inc.h
+CallEvent.po: Attrs.inc.h
+CallEvent.po: DeclNodes.inc.h
+CallEvent.po: DiagnosticCommonKinds.inc.h
+CallEvent.po: StmtNodes.inc.h
 Checker.o: AttrList.inc.h
 Checker.o: Attrs.inc.h
 Checker.o: DeclNodes.inc.h
@@ -114,6 +114,16 @@ CheckerRegistry.po: Attrs.inc.h
 CheckerRegistry.po: DeclNodes.inc.h
 CheckerRegistry.po: DiagnosticCommonKinds.inc.h
 CheckerRegistry.po: StmtNodes.inc.h
+ConstraintManager.o: AttrList.inc.h
+ConstraintManager.o: Attrs.inc.h
+ConstraintManager.o: DeclNodes.inc.h
+ConstraintManager.o: DiagnosticCommonKinds.inc.h
+ConstraintManager.o: StmtNodes.inc.h
+ConstraintManager.po: AttrList.inc.h
+ConstraintManager.po: Attrs.inc.h
+ConstraintManager.po: DeclNodes.inc.h
+ConstraintManager.po: DiagnosticCommonKinds.inc.h
+ConstraintManager.po: StmtNodes.inc.h
 CoreEngine.o: AttrList.inc.h
 CoreEngine.o: Attrs.inc.h
 CoreEngine.o: DeclNodes.inc.h
@@ -222,16 +232,6 @@ MemRegion.po: Attrs.inc.h
 MemRegion.po: DeclNodes.inc.h
 MemRegion.po: DiagnosticCommonKinds.inc.h
 MemRegion.po: StmtNodes.inc.h
-ObjCMessage.o: AttrList.inc.h
-ObjCMessage.o: Attrs.inc.h
-ObjCMessage.o: DeclNodes.inc.h
-ObjCMessage.o: DiagnosticCommonKinds.inc.h
-ObjCMessage.o: StmtNodes.inc.h
-ObjCMessage.po: AttrList.inc.h
-ObjCMessage.po: Attrs.inc.h
-ObjCMessage.po: DeclNodes.inc.h
-ObjCMessage.po: DiagnosticCommonKinds.inc.h
-ObjCMessage.po: StmtNodes.inc.h
 PathDiagnostic.o: AttrList.inc.h
 PathDiagnostic.o: Attrs.inc.h
 PathDiagnostic.o: DeclNodes.inc.h

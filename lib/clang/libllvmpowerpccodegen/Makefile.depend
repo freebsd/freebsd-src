@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -26,6 +26,12 @@ PPCBranchSelector.o: PPCGenSubtargetInfo.inc.h
 PPCBranchSelector.po: PPCGenInstrInfo.inc.h
 PPCBranchSelector.po: PPCGenRegisterInfo.inc.h
 PPCBranchSelector.po: PPCGenSubtargetInfo.inc.h
+PPCCTRLoops.o: PPCGenInstrInfo.inc.h
+PPCCTRLoops.o: PPCGenRegisterInfo.inc.h
+PPCCTRLoops.o: PPCGenSubtargetInfo.inc.h
+PPCCTRLoops.po: PPCGenInstrInfo.inc.h
+PPCCTRLoops.po: PPCGenRegisterInfo.inc.h
+PPCCTRLoops.po: PPCGenSubtargetInfo.inc.h
 PPCCodeEmitter.o: PPCGenCodeEmitter.inc.h
 PPCCodeEmitter.o: PPCGenInstrInfo.inc.h
 PPCCodeEmitter.o: PPCGenRegisterInfo.inc.h

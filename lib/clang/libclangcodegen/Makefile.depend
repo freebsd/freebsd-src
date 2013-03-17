@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -372,10 +372,12 @@ CodeGenTBAA.o: AttrList.inc.h
 CodeGenTBAA.o: Attrs.inc.h
 CodeGenTBAA.o: DeclNodes.inc.h
 CodeGenTBAA.o: DiagnosticCommonKinds.inc.h
+CodeGenTBAA.o: StmtNodes.inc.h
 CodeGenTBAA.po: AttrList.inc.h
 CodeGenTBAA.po: Attrs.inc.h
 CodeGenTBAA.po: DeclNodes.inc.h
 CodeGenTBAA.po: DiagnosticCommonKinds.inc.h
+CodeGenTBAA.po: StmtNodes.inc.h
 CodeGenTypes.o: AttrList.inc.h
 CodeGenTypes.o: Attrs.inc.h
 CodeGenTypes.o: DeclNodes.inc.h

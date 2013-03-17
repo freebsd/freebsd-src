@@ -2,11 +2,12 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
+	lib/clang/include \
 	lib/msun \
 
 
@@ -18,6 +19,7 @@ Diagnostic.o: DiagnosticCommonKinds.inc.h
 Diagnostic.po: DiagnosticCommonKinds.inc.h
 DiagnosticIDs.o: DiagnosticASTKinds.inc.h
 DiagnosticIDs.o: DiagnosticAnalysisKinds.inc.h
+DiagnosticIDs.o: DiagnosticCommentKinds.inc.h
 DiagnosticIDs.o: DiagnosticCommonKinds.inc.h
 DiagnosticIDs.o: DiagnosticDriverKinds.inc.h
 DiagnosticIDs.o: DiagnosticFrontendKinds.inc.h
@@ -28,6 +30,7 @@ DiagnosticIDs.o: DiagnosticSemaKinds.inc.h
 DiagnosticIDs.o: DiagnosticSerializationKinds.inc.h
 DiagnosticIDs.po: DiagnosticASTKinds.inc.h
 DiagnosticIDs.po: DiagnosticAnalysisKinds.inc.h
+DiagnosticIDs.po: DiagnosticCommentKinds.inc.h
 DiagnosticIDs.po: DiagnosticCommonKinds.inc.h
 DiagnosticIDs.po: DiagnosticDriverKinds.inc.h
 DiagnosticIDs.po: DiagnosticFrontendKinds.inc.h

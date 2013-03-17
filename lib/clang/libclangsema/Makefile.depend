@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -71,11 +71,13 @@ DeclSpec.po: DiagnosticParseKinds.inc.h
 DeclSpec.po: DiagnosticSemaKinds.inc.h
 DeclSpec.po: StmtNodes.inc.h
 DelayedDiagnostic.o: AttrList.inc.h
+DelayedDiagnostic.o: AttrParsedAttrList.inc.h
 DelayedDiagnostic.o: Attrs.inc.h
 DelayedDiagnostic.o: DeclNodes.inc.h
 DelayedDiagnostic.o: DiagnosticCommonKinds.inc.h
 DelayedDiagnostic.o: StmtNodes.inc.h
 DelayedDiagnostic.po: AttrList.inc.h
+DelayedDiagnostic.po: AttrParsedAttrList.inc.h
 DelayedDiagnostic.po: Attrs.inc.h
 DelayedDiagnostic.po: DeclNodes.inc.h
 DelayedDiagnostic.po: DiagnosticCommonKinds.inc.h
@@ -102,8 +104,30 @@ JumpDiagnostics.po: DeclNodes.inc.h
 JumpDiagnostics.po: DiagnosticCommonKinds.inc.h
 JumpDiagnostics.po: DiagnosticSemaKinds.inc.h
 JumpDiagnostics.po: StmtNodes.inc.h
+MultiplexExternalSemaSource.o: AttrList.inc.h
+MultiplexExternalSemaSource.o: AttrParsedAttrList.inc.h
+MultiplexExternalSemaSource.o: Attrs.inc.h
+MultiplexExternalSemaSource.o: DeclNodes.inc.h
+MultiplexExternalSemaSource.o: DiagnosticCommonKinds.inc.h
+MultiplexExternalSemaSource.o: StmtNodes.inc.h
+MultiplexExternalSemaSource.po: AttrList.inc.h
+MultiplexExternalSemaSource.po: AttrParsedAttrList.inc.h
+MultiplexExternalSemaSource.po: Attrs.inc.h
+MultiplexExternalSemaSource.po: DeclNodes.inc.h
+MultiplexExternalSemaSource.po: DiagnosticCommonKinds.inc.h
+MultiplexExternalSemaSource.po: StmtNodes.inc.h
 Scope.o: DiagnosticCommonKinds.inc.h
 Scope.po: DiagnosticCommonKinds.inc.h
+ScopeInfo.o: AttrList.inc.h
+ScopeInfo.o: Attrs.inc.h
+ScopeInfo.o: DeclNodes.inc.h
+ScopeInfo.o: DiagnosticCommonKinds.inc.h
+ScopeInfo.o: StmtNodes.inc.h
+ScopeInfo.po: AttrList.inc.h
+ScopeInfo.po: Attrs.inc.h
+ScopeInfo.po: DeclNodes.inc.h
+ScopeInfo.po: DiagnosticCommonKinds.inc.h
+ScopeInfo.po: StmtNodes.inc.h
 Sema.o: AttrList.inc.h
 Sema.o: AttrParsedAttrList.inc.h
 Sema.o: Attrs.inc.h
@@ -210,6 +234,7 @@ SemaDecl.o: AttrList.inc.h
 SemaDecl.o: AttrParsedAttrList.inc.h
 SemaDecl.o: Attrs.inc.h
 SemaDecl.o: DeclNodes.inc.h
+SemaDecl.o: DiagnosticCommentKinds.inc.h
 SemaDecl.o: DiagnosticCommonKinds.inc.h
 SemaDecl.o: DiagnosticParseKinds.inc.h
 SemaDecl.o: DiagnosticSemaKinds.inc.h
@@ -218,6 +243,7 @@ SemaDecl.po: AttrList.inc.h
 SemaDecl.po: AttrParsedAttrList.inc.h
 SemaDecl.po: Attrs.inc.h
 SemaDecl.po: DeclNodes.inc.h
+SemaDecl.po: DiagnosticCommentKinds.inc.h
 SemaDecl.po: DiagnosticCommonKinds.inc.h
 SemaDecl.po: DiagnosticParseKinds.inc.h
 SemaDecl.po: DiagnosticSemaKinds.inc.h
@@ -444,6 +470,20 @@ SemaStmt.po: DeclNodes.inc.h
 SemaStmt.po: DiagnosticCommonKinds.inc.h
 SemaStmt.po: DiagnosticSemaKinds.inc.h
 SemaStmt.po: StmtNodes.inc.h
+SemaStmtAsm.o: AttrList.inc.h
+SemaStmtAsm.o: AttrParsedAttrList.inc.h
+SemaStmtAsm.o: Attrs.inc.h
+SemaStmtAsm.o: DeclNodes.inc.h
+SemaStmtAsm.o: DiagnosticCommonKinds.inc.h
+SemaStmtAsm.o: DiagnosticSemaKinds.inc.h
+SemaStmtAsm.o: StmtNodes.inc.h
+SemaStmtAsm.po: AttrList.inc.h
+SemaStmtAsm.po: AttrParsedAttrList.inc.h
+SemaStmtAsm.po: Attrs.inc.h
+SemaStmtAsm.po: DeclNodes.inc.h
+SemaStmtAsm.po: DiagnosticCommonKinds.inc.h
+SemaStmtAsm.po: DiagnosticSemaKinds.inc.h
+SemaStmtAsm.po: StmtNodes.inc.h
 SemaStmtAttr.o: AttrList.inc.h
 SemaStmtAttr.o: AttrParsedAttrList.inc.h
 SemaStmtAttr.o: Attrs.inc.h

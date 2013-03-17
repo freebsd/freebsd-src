@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -24,13 +24,23 @@ APValue.po: Attrs.inc.h
 APValue.po: DeclNodes.inc.h
 APValue.po: DiagnosticCommonKinds.inc.h
 APValue.po: StmtNodes.inc.h
+ASTConsumer.o: AttrList.inc.h
+ASTConsumer.o: Attrs.inc.h
+ASTConsumer.o: DeclNodes.inc.h
+ASTConsumer.o: DiagnosticCommonKinds.inc.h
+ASTConsumer.po: AttrList.inc.h
+ASTConsumer.po: Attrs.inc.h
+ASTConsumer.po: DeclNodes.inc.h
+ASTConsumer.po: DiagnosticCommonKinds.inc.h
 ASTContext.o: AttrList.inc.h
 ASTContext.o: Attrs.inc.h
+ASTContext.o: CommentNodes.inc.h
 ASTContext.o: DeclNodes.inc.h
 ASTContext.o: DiagnosticCommonKinds.inc.h
 ASTContext.o: StmtNodes.inc.h
 ASTContext.po: AttrList.inc.h
 ASTContext.po: Attrs.inc.h
+ASTContext.po: CommentNodes.inc.h
 ASTContext.po: DeclNodes.inc.h
 ASTContext.po: DiagnosticCommonKinds.inc.h
 ASTContext.po: StmtNodes.inc.h
@@ -39,11 +49,13 @@ ASTDiagnostic.o: Attrs.inc.h
 ASTDiagnostic.o: DeclNodes.inc.h
 ASTDiagnostic.o: DiagnosticASTKinds.inc.h
 ASTDiagnostic.o: DiagnosticCommonKinds.inc.h
+ASTDiagnostic.o: StmtNodes.inc.h
 ASTDiagnostic.po: AttrList.inc.h
 ASTDiagnostic.po: Attrs.inc.h
 ASTDiagnostic.po: DeclNodes.inc.h
 ASTDiagnostic.po: DiagnosticASTKinds.inc.h
 ASTDiagnostic.po: DiagnosticCommonKinds.inc.h
+ASTDiagnostic.po: StmtNodes.inc.h
 ASTImporter.o: AttrList.inc.h
 ASTImporter.o: Attrs.inc.h
 ASTImporter.o: DeclNodes.inc.h
@@ -78,6 +90,60 @@ CXXInheritance.po: Attrs.inc.h
 CXXInheritance.po: DeclNodes.inc.h
 CXXInheritance.po: DiagnosticCommonKinds.inc.h
 CXXInheritance.po: StmtNodes.inc.h
+Comment.o: AttrList.inc.h
+Comment.o: Attrs.inc.h
+Comment.o: CommentNodes.inc.h
+Comment.o: DeclNodes.inc.h
+Comment.o: DiagnosticCommonKinds.inc.h
+Comment.o: StmtNodes.inc.h
+Comment.po: AttrList.inc.h
+Comment.po: Attrs.inc.h
+Comment.po: CommentNodes.inc.h
+Comment.po: DeclNodes.inc.h
+Comment.po: DiagnosticCommonKinds.inc.h
+Comment.po: StmtNodes.inc.h
+CommentCommandTraits.o: CommentCommandInfo.inc.h
+CommentCommandTraits.po: CommentCommandInfo.inc.h
+CommentDumper.o: AttrList.inc.h
+CommentDumper.o: Attrs.inc.h
+CommentDumper.o: CommentNodes.inc.h
+CommentDumper.o: DeclNodes.inc.h
+CommentDumper.o: DiagnosticCommonKinds.inc.h
+CommentDumper.po: AttrList.inc.h
+CommentDumper.po: Attrs.inc.h
+CommentDumper.po: CommentNodes.inc.h
+CommentDumper.po: DeclNodes.inc.h
+CommentDumper.po: DiagnosticCommonKinds.inc.h
+CommentLexer.o: CommentHTMLTags.inc.h
+CommentLexer.po: CommentHTMLTags.inc.h
+CommentParser.o: AttrList.inc.h
+CommentParser.o: Attrs.inc.h
+CommentParser.o: CommentNodes.inc.h
+CommentParser.o: DeclNodes.inc.h
+CommentParser.o: DiagnosticCommentKinds.inc.h
+CommentParser.o: DiagnosticCommonKinds.inc.h
+CommentParser.po: AttrList.inc.h
+CommentParser.po: Attrs.inc.h
+CommentParser.po: CommentNodes.inc.h
+CommentParser.po: DeclNodes.inc.h
+CommentParser.po: DiagnosticCommentKinds.inc.h
+CommentParser.po: DiagnosticCommonKinds.inc.h
+CommentSema.o: AttrList.inc.h
+CommentSema.o: Attrs.inc.h
+CommentSema.o: CommentHTMLTagsProperties.inc.h
+CommentSema.o: CommentNodes.inc.h
+CommentSema.o: DeclNodes.inc.h
+CommentSema.o: DiagnosticCommentKinds.inc.h
+CommentSema.o: DiagnosticCommonKinds.inc.h
+CommentSema.o: StmtNodes.inc.h
+CommentSema.po: AttrList.inc.h
+CommentSema.po: Attrs.inc.h
+CommentSema.po: CommentHTMLTagsProperties.inc.h
+CommentSema.po: CommentNodes.inc.h
+CommentSema.po: DeclNodes.inc.h
+CommentSema.po: DiagnosticCommentKinds.inc.h
+CommentSema.po: DiagnosticCommonKinds.inc.h
+CommentSema.po: StmtNodes.inc.h
 Decl.o: AttrList.inc.h
 Decl.o: Attrs.inc.h
 Decl.o: DeclNodes.inc.h
@@ -300,10 +366,12 @@ NSAPI.o: AttrList.inc.h
 NSAPI.o: Attrs.inc.h
 NSAPI.o: DeclNodes.inc.h
 NSAPI.o: DiagnosticCommonKinds.inc.h
+NSAPI.o: StmtNodes.inc.h
 NSAPI.po: AttrList.inc.h
 NSAPI.po: Attrs.inc.h
 NSAPI.po: DeclNodes.inc.h
 NSAPI.po: DiagnosticCommonKinds.inc.h
+NSAPI.po: StmtNodes.inc.h
 NestedNameSpecifier.o: AttrList.inc.h
 NestedNameSpecifier.o: Attrs.inc.h
 NestedNameSpecifier.o: DeclNodes.inc.h
@@ -324,6 +392,16 @@ ParentMap.po: Attrs.inc.h
 ParentMap.po: DeclNodes.inc.h
 ParentMap.po: DiagnosticCommonKinds.inc.h
 ParentMap.po: StmtNodes.inc.h
+RawCommentList.o: AttrList.inc.h
+RawCommentList.o: Attrs.inc.h
+RawCommentList.o: CommentNodes.inc.h
+RawCommentList.o: DeclNodes.inc.h
+RawCommentList.o: DiagnosticCommonKinds.inc.h
+RawCommentList.po: AttrList.inc.h
+RawCommentList.po: Attrs.inc.h
+RawCommentList.po: CommentNodes.inc.h
+RawCommentList.po: DeclNodes.inc.h
+RawCommentList.po: DiagnosticCommonKinds.inc.h
 RecordLayout.o: AttrList.inc.h
 RecordLayout.o: Attrs.inc.h
 RecordLayout.o: DeclNodes.inc.h

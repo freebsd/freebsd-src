@@ -2,8 +2,6 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
 	gnu/lib/libstdc++ \
 	gnu/lib/libsupc++ \
@@ -26,6 +24,16 @@ AnalysisDeclContext.po: Attrs.inc.h
 AnalysisDeclContext.po: DeclNodes.inc.h
 AnalysisDeclContext.po: DiagnosticCommonKinds.inc.h
 AnalysisDeclContext.po: StmtNodes.inc.h
+BodyFarm.o: AttrList.inc.h
+BodyFarm.o: Attrs.inc.h
+BodyFarm.o: DeclNodes.inc.h
+BodyFarm.o: DiagnosticCommonKinds.inc.h
+BodyFarm.o: StmtNodes.inc.h
+BodyFarm.po: AttrList.inc.h
+BodyFarm.po: Attrs.inc.h
+BodyFarm.po: DeclNodes.inc.h
+BodyFarm.po: DiagnosticCommonKinds.inc.h
+BodyFarm.po: StmtNodes.inc.h
 CFG.o: AttrList.inc.h
 CFG.o: Attrs.inc.h
 CFG.o: DeclNodes.inc.h
@@ -98,6 +106,16 @@ LiveVariables.po: Attrs.inc.h
 LiveVariables.po: DeclNodes.inc.h
 LiveVariables.po: DiagnosticCommonKinds.inc.h
 LiveVariables.po: StmtNodes.inc.h
+ObjCNoReturn.o: AttrList.inc.h
+ObjCNoReturn.o: Attrs.inc.h
+ObjCNoReturn.o: DeclNodes.inc.h
+ObjCNoReturn.o: DiagnosticCommonKinds.inc.h
+ObjCNoReturn.o: StmtNodes.inc.h
+ObjCNoReturn.po: AttrList.inc.h
+ObjCNoReturn.po: Attrs.inc.h
+ObjCNoReturn.po: DeclNodes.inc.h
+ObjCNoReturn.po: DiagnosticCommonKinds.inc.h
+ObjCNoReturn.po: StmtNodes.inc.h
 PostOrderCFGView.o: AttrList.inc.h
 PostOrderCFGView.o: Attrs.inc.h
 PostOrderCFGView.o: DeclNodes.inc.h

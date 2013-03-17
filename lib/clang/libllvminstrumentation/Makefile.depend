@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -16,6 +16,8 @@ DIRDEPS = \
 # local dependencies - needed for -jN in clean tree
 AddressSanitizer.o: Intrinsics.inc.h
 AddressSanitizer.po: Intrinsics.inc.h
+BoundsChecking.o: Intrinsics.inc.h
+BoundsChecking.po: Intrinsics.inc.h
 ThreadSanitizer.o: Intrinsics.inc.h
 ThreadSanitizer.po: Intrinsics.inc.h
 .endif

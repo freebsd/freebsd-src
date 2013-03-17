@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -14,18 +14,6 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AdjustedReturnValueChecker.o: AttrList.inc.h
-AdjustedReturnValueChecker.o: Attrs.inc.h
-AdjustedReturnValueChecker.o: Checkers.inc.h
-AdjustedReturnValueChecker.o: DeclNodes.inc.h
-AdjustedReturnValueChecker.o: DiagnosticCommonKinds.inc.h
-AdjustedReturnValueChecker.o: StmtNodes.inc.h
-AdjustedReturnValueChecker.po: AttrList.inc.h
-AdjustedReturnValueChecker.po: Attrs.inc.h
-AdjustedReturnValueChecker.po: Checkers.inc.h
-AdjustedReturnValueChecker.po: DeclNodes.inc.h
-AdjustedReturnValueChecker.po: DiagnosticCommonKinds.inc.h
-AdjustedReturnValueChecker.po: StmtNodes.inc.h
 AnalyzerStatsChecker.o: AttrList.inc.h
 AnalyzerStatsChecker.o: Attrs.inc.h
 AnalyzerStatsChecker.o: Checkers.inc.h
@@ -290,6 +278,18 @@ DereferenceChecker.po: Checkers.inc.h
 DereferenceChecker.po: DeclNodes.inc.h
 DereferenceChecker.po: DiagnosticCommonKinds.inc.h
 DereferenceChecker.po: StmtNodes.inc.h
+DirectIvarAssignment.o: AttrList.inc.h
+DirectIvarAssignment.o: Attrs.inc.h
+DirectIvarAssignment.o: Checkers.inc.h
+DirectIvarAssignment.o: DeclNodes.inc.h
+DirectIvarAssignment.o: DiagnosticCommonKinds.inc.h
+DirectIvarAssignment.o: StmtNodes.inc.h
+DirectIvarAssignment.po: AttrList.inc.h
+DirectIvarAssignment.po: Attrs.inc.h
+DirectIvarAssignment.po: Checkers.inc.h
+DirectIvarAssignment.po: DeclNodes.inc.h
+DirectIvarAssignment.po: DiagnosticCommonKinds.inc.h
+DirectIvarAssignment.po: StmtNodes.inc.h
 DivZeroChecker.o: AttrList.inc.h
 DivZeroChecker.o: Attrs.inc.h
 DivZeroChecker.o: Checkers.inc.h
@@ -302,6 +302,30 @@ DivZeroChecker.po: Checkers.inc.h
 DivZeroChecker.po: DeclNodes.inc.h
 DivZeroChecker.po: DiagnosticCommonKinds.inc.h
 DivZeroChecker.po: StmtNodes.inc.h
+DynamicTypePropagation.o: AttrList.inc.h
+DynamicTypePropagation.o: Attrs.inc.h
+DynamicTypePropagation.o: Checkers.inc.h
+DynamicTypePropagation.o: DeclNodes.inc.h
+DynamicTypePropagation.o: DiagnosticCommonKinds.inc.h
+DynamicTypePropagation.o: StmtNodes.inc.h
+DynamicTypePropagation.po: AttrList.inc.h
+DynamicTypePropagation.po: Attrs.inc.h
+DynamicTypePropagation.po: Checkers.inc.h
+DynamicTypePropagation.po: DeclNodes.inc.h
+DynamicTypePropagation.po: DiagnosticCommonKinds.inc.h
+DynamicTypePropagation.po: StmtNodes.inc.h
+ExprInspectionChecker.o: AttrList.inc.h
+ExprInspectionChecker.o: Attrs.inc.h
+ExprInspectionChecker.o: Checkers.inc.h
+ExprInspectionChecker.o: DeclNodes.inc.h
+ExprInspectionChecker.o: DiagnosticCommonKinds.inc.h
+ExprInspectionChecker.o: StmtNodes.inc.h
+ExprInspectionChecker.po: AttrList.inc.h
+ExprInspectionChecker.po: Attrs.inc.h
+ExprInspectionChecker.po: Checkers.inc.h
+ExprInspectionChecker.po: DeclNodes.inc.h
+ExprInspectionChecker.po: DiagnosticCommonKinds.inc.h
+ExprInspectionChecker.po: StmtNodes.inc.h
 FixedAddressChecker.o: AttrList.inc.h
 FixedAddressChecker.o: Attrs.inc.h
 FixedAddressChecker.o: Checkers.inc.h
@@ -338,18 +362,18 @@ IdempotentOperationChecker.po: Checkers.inc.h
 IdempotentOperationChecker.po: DeclNodes.inc.h
 IdempotentOperationChecker.po: DiagnosticCommonKinds.inc.h
 IdempotentOperationChecker.po: StmtNodes.inc.h
-IteratorsChecker.o: AttrList.inc.h
-IteratorsChecker.o: Attrs.inc.h
-IteratorsChecker.o: Checkers.inc.h
-IteratorsChecker.o: DeclNodes.inc.h
-IteratorsChecker.o: DiagnosticCommonKinds.inc.h
-IteratorsChecker.o: StmtNodes.inc.h
-IteratorsChecker.po: AttrList.inc.h
-IteratorsChecker.po: Attrs.inc.h
-IteratorsChecker.po: Checkers.inc.h
-IteratorsChecker.po: DeclNodes.inc.h
-IteratorsChecker.po: DiagnosticCommonKinds.inc.h
-IteratorsChecker.po: StmtNodes.inc.h
+IvarInvalidationChecker.o: AttrList.inc.h
+IvarInvalidationChecker.o: Attrs.inc.h
+IvarInvalidationChecker.o: Checkers.inc.h
+IvarInvalidationChecker.o: DeclNodes.inc.h
+IvarInvalidationChecker.o: DiagnosticCommonKinds.inc.h
+IvarInvalidationChecker.o: StmtNodes.inc.h
+IvarInvalidationChecker.po: AttrList.inc.h
+IvarInvalidationChecker.po: Attrs.inc.h
+IvarInvalidationChecker.po: Checkers.inc.h
+IvarInvalidationChecker.po: DeclNodes.inc.h
+IvarInvalidationChecker.po: DiagnosticCommonKinds.inc.h
+IvarInvalidationChecker.po: StmtNodes.inc.h
 LLVMConventionsChecker.o: AttrList.inc.h
 LLVMConventionsChecker.o: Attrs.inc.h
 LLVMConventionsChecker.o: Checkers.inc.h
@@ -458,18 +482,6 @@ NoReturnFunctionChecker.po: Checkers.inc.h
 NoReturnFunctionChecker.po: DeclNodes.inc.h
 NoReturnFunctionChecker.po: DiagnosticCommonKinds.inc.h
 NoReturnFunctionChecker.po: StmtNodes.inc.h
-OSAtomicChecker.o: AttrList.inc.h
-OSAtomicChecker.o: Attrs.inc.h
-OSAtomicChecker.o: Checkers.inc.h
-OSAtomicChecker.o: DeclNodes.inc.h
-OSAtomicChecker.o: DiagnosticCommonKinds.inc.h
-OSAtomicChecker.o: StmtNodes.inc.h
-OSAtomicChecker.po: AttrList.inc.h
-OSAtomicChecker.po: Attrs.inc.h
-OSAtomicChecker.po: Checkers.inc.h
-OSAtomicChecker.po: DeclNodes.inc.h
-OSAtomicChecker.po: DiagnosticCommonKinds.inc.h
-OSAtomicChecker.po: StmtNodes.inc.h
 ObjCAtSyncChecker.o: AttrList.inc.h
 ObjCAtSyncChecker.o: Attrs.inc.h
 ObjCAtSyncChecker.o: Checkers.inc.h
@@ -506,6 +518,18 @@ ObjCContainersChecker.po: Checkers.inc.h
 ObjCContainersChecker.po: DeclNodes.inc.h
 ObjCContainersChecker.po: DiagnosticCommonKinds.inc.h
 ObjCContainersChecker.po: StmtNodes.inc.h
+ObjCMissingSuperCallChecker.o: AttrList.inc.h
+ObjCMissingSuperCallChecker.o: Attrs.inc.h
+ObjCMissingSuperCallChecker.o: Checkers.inc.h
+ObjCMissingSuperCallChecker.o: DeclNodes.inc.h
+ObjCMissingSuperCallChecker.o: DiagnosticCommonKinds.inc.h
+ObjCMissingSuperCallChecker.o: StmtNodes.inc.h
+ObjCMissingSuperCallChecker.po: AttrList.inc.h
+ObjCMissingSuperCallChecker.po: Attrs.inc.h
+ObjCMissingSuperCallChecker.po: Checkers.inc.h
+ObjCMissingSuperCallChecker.po: DeclNodes.inc.h
+ObjCMissingSuperCallChecker.po: DiagnosticCommonKinds.inc.h
+ObjCMissingSuperCallChecker.po: StmtNodes.inc.h
 ObjCSelfInitChecker.o: AttrList.inc.h
 ObjCSelfInitChecker.o: Attrs.inc.h
 ObjCSelfInitChecker.o: Checkers.inc.h
@@ -602,6 +626,18 @@ ReturnUndefChecker.po: Checkers.inc.h
 ReturnUndefChecker.po: DeclNodes.inc.h
 ReturnUndefChecker.po: DiagnosticCommonKinds.inc.h
 ReturnUndefChecker.po: StmtNodes.inc.h
+SimpleStreamChecker.o: AttrList.inc.h
+SimpleStreamChecker.o: Attrs.inc.h
+SimpleStreamChecker.o: Checkers.inc.h
+SimpleStreamChecker.o: DeclNodes.inc.h
+SimpleStreamChecker.o: DiagnosticCommonKinds.inc.h
+SimpleStreamChecker.o: StmtNodes.inc.h
+SimpleStreamChecker.po: AttrList.inc.h
+SimpleStreamChecker.po: Attrs.inc.h
+SimpleStreamChecker.po: Checkers.inc.h
+SimpleStreamChecker.po: DeclNodes.inc.h
+SimpleStreamChecker.po: DiagnosticCommonKinds.inc.h
+SimpleStreamChecker.po: StmtNodes.inc.h
 StackAddrEscapeChecker.o: AttrList.inc.h
 StackAddrEscapeChecker.o: Attrs.inc.h
 StackAddrEscapeChecker.o: Checkers.inc.h
@@ -638,6 +674,18 @@ TaintTesterChecker.po: Checkers.inc.h
 TaintTesterChecker.po: DeclNodes.inc.h
 TaintTesterChecker.po: DiagnosticCommonKinds.inc.h
 TaintTesterChecker.po: StmtNodes.inc.h
+TraversalChecker.o: AttrList.inc.h
+TraversalChecker.o: Attrs.inc.h
+TraversalChecker.o: Checkers.inc.h
+TraversalChecker.o: DeclNodes.inc.h
+TraversalChecker.o: DiagnosticCommonKinds.inc.h
+TraversalChecker.o: StmtNodes.inc.h
+TraversalChecker.po: AttrList.inc.h
+TraversalChecker.po: Attrs.inc.h
+TraversalChecker.po: Checkers.inc.h
+TraversalChecker.po: DeclNodes.inc.h
+TraversalChecker.po: DiagnosticCommonKinds.inc.h
+TraversalChecker.po: StmtNodes.inc.h
 UndefBranchChecker.o: AttrList.inc.h
 UndefBranchChecker.o: Attrs.inc.h
 UndefBranchChecker.o: Checkers.inc.h

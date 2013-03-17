@@ -2,9 +2,9 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -19,12 +19,14 @@ ParseAST.o: AttrParsedAttrList.inc.h
 ParseAST.o: Attrs.inc.h
 ParseAST.o: DeclNodes.inc.h
 ParseAST.o: DiagnosticCommonKinds.inc.h
+ParseAST.o: DiagnosticParseKinds.inc.h
 ParseAST.o: StmtNodes.inc.h
 ParseAST.po: AttrList.inc.h
 ParseAST.po: AttrParsedAttrList.inc.h
 ParseAST.po: Attrs.inc.h
 ParseAST.po: DeclNodes.inc.h
 ParseAST.po: DiagnosticCommonKinds.inc.h
+ParseAST.po: DiagnosticParseKinds.inc.h
 ParseAST.po: StmtNodes.inc.h
 ParseCXXInlineMethods.o: AttrList.inc.h
 ParseCXXInlineMethods.o: AttrParsedAttrList.inc.h
@@ -62,6 +64,7 @@ ParseDeclCXX.o: Attrs.inc.h
 ParseDeclCXX.o: DeclNodes.inc.h
 ParseDeclCXX.o: DiagnosticCommonKinds.inc.h
 ParseDeclCXX.o: DiagnosticParseKinds.inc.h
+ParseDeclCXX.o: DiagnosticSemaKinds.inc.h
 ParseDeclCXX.o: StmtNodes.inc.h
 ParseDeclCXX.po: AttrList.inc.h
 ParseDeclCXX.po: AttrParsedAttrList.inc.h
@@ -69,6 +72,7 @@ ParseDeclCXX.po: Attrs.inc.h
 ParseDeclCXX.po: DeclNodes.inc.h
 ParseDeclCXX.po: DiagnosticCommonKinds.inc.h
 ParseDeclCXX.po: DiagnosticParseKinds.inc.h
+ParseDeclCXX.po: DiagnosticSemaKinds.inc.h
 ParseDeclCXX.po: StmtNodes.inc.h
 ParseExpr.o: AttrList.inc.h
 ParseExpr.o: AttrParsedAttrList.inc.h
