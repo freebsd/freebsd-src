@@ -32,8 +32,23 @@
 extern "C" {
 #endif
 
+static int zfs_ioctl_version = -1;
 static int zfs_kernel_version = 0;
-static int zfs_ioctl_version = 0;
+
+/*
+ * Get zfs_ioctl_version
+ */
+static __inline int
+get_zfs_ioctl_version(void)
+{
+	size_t ver_size;
+	int ver = 0;
+
+	ver_size = sizeof(ver);
+	sysctlbyname("vfs.zfs.version.ioctl", &ver, &ver_size, NULL, 0);
+
+	return (ver);
+}
 
 /*
  * This is FreeBSD version of ioctl, because Solaris' ioctl() updates
@@ -43,14 +58,11 @@ static int zfs_ioctl_version = 0;
 static __inline int
 zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 {
-	size_t oldsize, zfs_kernel_version_size, zfs_ioctl_version_size;
+	size_t oldsize, zfs_kernel_version_size;
 	int version, ret, cflag = ZFS_CMD_COMPAT_NONE;
 
-	zfs_ioctl_version_size = sizeof(zfs_ioctl_version);
-	if (zfs_ioctl_version == 0) {
-		sysctlbyname("vfs.zfs.version.ioctl", &zfs_ioctl_version,
-		    &zfs_ioctl_version_size, NULL, 0);
-	}
+	if (zfs_ioctl_version == -1)
+		zfs_ioctl_version = get_zfs_ioctl_version();
 
 	if (zfs_ioctl_version == ZFS_IOCVER_DEADMAN)
 		cflag = ZFS_CMD_COMPAT_DEADMAN;
