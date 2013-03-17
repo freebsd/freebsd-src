@@ -99,14 +99,15 @@ Subtract value of
 from
 .Nm
 .Fa cnt .
-The API does not guarantee any protection from underflow.
+The KPI does not guarantee any protection from underflow.
 See
 .Sx IMPLEMENTATION DETAILS .
 .It Fn counter_u64_fetch cnt
 Obtain current snapshot of the data collected in
 .Nm
 .Fa cnt .
-The data obtained is not guaranteed to be precise.
+The data obtained is not guaranteed to reflect the real cumulative
+value for any moment.
 .It Fn counter_u64_zero cnt
 Clear data collected in
 .Nm
@@ -140,8 +141,9 @@ Any write to oid zeroes it.
 .Sh IMPLEMENTATION DETAILS
 On all architectures
 .Nm
-is implemented using per-CPU data fields, that are specially aligned in
-memory, to avoid excessive CPU cache invalidation during updates.
+is implemented using per-CPU data fields that are specially aligned
+in memory, to avoid inter-CPU bus traffic due to shared use
+of the variables between CPUs.
 These are allocated using
 .Va UMA_ZONE_PCPU
 .Xr uma 9
