@@ -31,9 +31,6 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/fs/zfs.h>
-#ifdef __FreeBSD__
-#include "libzfs_core_compat.h"
-#endif
 
 #ifdef	__cplusplus
 extern "C" {

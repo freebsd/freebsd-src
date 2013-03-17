@@ -24,9 +24,10 @@
  */
 
 #include <sys/zfs_ioctl.h>
-#include <libzfs_compat.h>
+#include <zfs_ioctl_compat.h>
+#include "libzfs_core_compat.h"
 
-extern int zfs_ioctl_version;
+extern int lzc_ioctl_version;
 
 int
 lzc_compat_pre(zfs_cmd_t *zc, zfs_ioc_t *ioc, nvlist_t **source)
@@ -39,7 +40,7 @@ lzc_compat_pre(zfs_cmd_t *zc, zfs_ioc_t *ioc, nvlist_t **source)
 	int error = 0;
 	int pos;
 
-	if (zfs_ioctl_version >= ZFS_IOCVER_LZC)
+	if (lzc_ioctl_version >= ZFS_IOCVER_LZC)
 		return (0);
 
 	vecnum = *ioc;
@@ -98,7 +99,7 @@ lzc_compat_pre(zfs_cmd_t *zc, zfs_ioc_t *ioc, nvlist_t **source)
 void
 lzc_compat_post(zfs_cmd_t *zc, const zfs_ioc_t ioc)
 {
-	if (zfs_ioctl_version >= ZFS_IOCVER_LZC)
+	if (lzc_ioctl_version >= ZFS_IOCVER_LZC)
 		return;
 
 	switch (ioc) {
@@ -117,7 +118,7 @@ lzc_compat_outnvl(zfs_cmd_t *zc, const zfs_ioc_t ioc, nvlist_t **outnvl)
 {
 	nvlist_t *nvl;
 
-	if (zfs_ioctl_version >= ZFS_IOCVER_LZC)
+	if (lzc_ioctl_version >= ZFS_IOCVER_LZC)
 		return (0);
 
 	switch (ioc) {
