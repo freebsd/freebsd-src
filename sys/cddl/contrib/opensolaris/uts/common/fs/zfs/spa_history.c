@@ -444,8 +444,10 @@ log_internal(nvlist_t *nvl, const char *operation, spa_t *spa,
 	 * initialized yet, so don't bother logging the internal events.
 	 * Likewise if the pool is not writeable.
 	 */
-	if (tx->tx_txg == TXG_INITIAL || !spa_writeable(spa))
+	if (tx->tx_txg == TXG_INITIAL || !spa_writeable(spa)) {
+		fnvlist_free(nvl);
 		return;
+	}
 
 	va_copy(adx2, adx);
 
