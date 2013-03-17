@@ -827,14 +827,14 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	if (object->resident_page_count == 0) {
 		TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	} else {
-		neighbor = vm_radix_lookup_ge(&object->rtree, pindex);
+		neighbor = vm_radix_lookup_le(&object->rtree, pindex);
 		if (neighbor != NULL) {
-		    	KASSERT(pindex < neighbor->pindex,
-			    ("vm_page_insert: offset %ju not minor than %ju",
+		    	KASSERT(pindex > neighbor->pindex,
+			    ("vm_page_insert: offset %ju less than %ju",
 			    (uintmax_t)pindex, (uintmax_t)neighbor->pindex));
-			TAILQ_INSERT_BEFORE(neighbor, m, listq);
+			TAILQ_INSERT_AFTER(&object->memq, neighbor, m, listq);
 		} else 
-			TAILQ_INSERT_TAIL(&object->memq, m, listq);
+			TAILQ_INSERT_HEAD(&object->memq, m, listq);
 	}
 	vm_radix_insert(&object->rtree, m);
 
