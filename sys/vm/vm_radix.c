@@ -531,7 +531,7 @@ restart:
 
 		/*
 		 * If the keys differ before the current bisection node
-		 * the search key might rollback to the earlierst
+		 * the search key might rollback to the earliest
 		 * available bisection node, or to the smaller value
 		 * in the current domain (if the owner is bigger than the
 		 * search key).
@@ -620,7 +620,7 @@ restart:
 
 		/*
 		 * If the keys differ before the current bisection node
-		 * the search key might rollback to the earlierst
+		 * the search key might rollback to the earliest
 		 * available bisection node, or to the higher value
 		 * in the current domain (if the owner is smaller than the
 		 * search key).
