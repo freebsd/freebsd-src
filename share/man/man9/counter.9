@@ -49,38 +49,39 @@
 .Fn SYSCTL_COUNTER_U64 parent nbr name access ptr val descr
 .Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
 .Sh DESCRIPTION
-The
 .Nm
-is a generic facility, which allows to create counters,
-that can be utilized to collect statistical data or for other purposes.
+is a generic facility to create counters
+that can be utilized for purpose (such as collecting statistical
+data).
 A
 .Nm
 is guaranteed to be lossless when several kernel threads do simultaneous
-update.
+updates.
 However,
 .Nm
 does not imply any
 .Xr locking 9 ,
-neither any
+or
 .Xr atomic 9
-operations, thus are expected to be fast.
+operations and are therefore expected to be fast.
 Moreover,
 .Nm
-has special optimisations for SMP environment making
+has special optimisations for SMP environments making
 .Nm
-update faster than simple "+=" or "++" operation.
+update faster than simple addition operations.
 .Bl -tag -width indent
 .It Fn counter_u64_alloc how
 Allocate a new 64-bit unsigned counter.
 The
 .Fa wait
-argument is
+argument is the
 .Xr malloc 9
 wait flag, should be either
 .Va M_NOWAIT
 or
 .Va M_WAITOK .
-With no-wait semantics operation may fail.
+If
+.Va M_WAITOK is specified the operation may fail.
 .It Fn counter_u64_free cnt
 Free previously allocated
 .Nm
@@ -97,14 +98,14 @@ Subtract value of
 from
 .Nm
 .Fa cnt .
-API doesn't guarantee any protection from underflow.
+The API does not guarantee any protection from underflow.
 See
 .Sx IMPLEMENTATION DETAILS .
 .It Fn counter_u64_fetch cnt
 Obtain current snapshot of the data collected in
 .Nm
 .Fa cnt .
-The data obtained isn't guaranteed to be precise.
+The data obtained is not guaranteed to be precise.
 .It Fn counter_u64_zero cnt
 Clear data collected in
 .Nm
@@ -144,7 +145,7 @@ These are allocated using
 .Va UMA_ZONE_PCPU
 .Xr uma 9
 zone.
-Update operation touches only the field that is private to current CPU.
+The update operation only touches the field that is private to current CPU.
 Fetch operation loops through all per-CPU fields and obtains a snapshot
 sum of all fields.
 .Pp
