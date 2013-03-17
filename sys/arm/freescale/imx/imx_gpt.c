@@ -45,18 +45,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 
+#include <machine/fdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <machine/bus.h>
-#include <machine/fdt.h>
 #include <arm/freescale/imx/imx_gptvar.h>
 #include <arm/freescale/imx/imx_gptreg.h>
 
 #include <sys/kdb.h>
 #include <arm/freescale/imx/imx51_ccmvar.h>
+
+#define	MIN_PERIOD		100LLU
 
 #define	WRITE4(_sc, _r, _v)						\
 	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
@@ -68,8 +69,8 @@ __FBSDID("$FreeBSD$");
 	    WRITE4((_sc), (_r), READ4((_sc), (_r)) & ~(_m))
 
 static u_int	imx_gpt_get_timecount(struct timecounter *);
-static int	imx_gpt_timer_start(struct eventtimer *,
-    struct bintime *, struct bintime *);
+static int	imx_gpt_timer_start(struct eventtimer *, sbintime_t,
+    sbintime_t);
 static int	imx_gpt_timer_stop(struct eventtimer *);
 
 static int imx_gpt_intr(void *);
@@ -174,12 +175,8 @@ imx_gpt_attach(device_t dev)
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period.sec = 0;
-	sc->et.et_min_period.frac =
-	    ((0x00000002LLU << 32) / sc->et.et_frequency) << 32;
-	sc->et.et_max_period.sec = 0xfffffff0U / sc->et.et_frequency;
-	sc->et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_min_period = (MIN_PERIOD << 32) / sc->et.et_frequency;
+	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = imx_gpt_timer_start;
 	sc->et.et_stop = imx_gpt_timer_stop;
 	sc->et.et_priv = sc;
@@ -208,26 +205,21 @@ imx_gpt_attach(device_t dev)
 }
 
 static int
-imx_gpt_timer_start(struct eventtimer *et, struct bintime *first,
-    struct bintime *period)
+imx_gpt_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct imx_gpt_softc *sc;
 	uint32_t ticks;
 
 	sc = (struct imx_gpt_softc *)et->et_priv;
 
-	if (period != NULL) {
-		sc->sc_period = (et->et_frequency * (first->frac >> 32)) >> 32;
-		sc->sc_period += et->et_frequency * first->sec;
+	if (period != 0) {
+		sc->sc_period = ((uint32_t)et->et_frequency * period) >> 32;
 		/* Set expected value */
 		WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) + sc->sc_period);
 		/* Enable compare register 2 Interrupt */
 		SET4(sc, IMX_GPT_IR, GPT_IR_OF2);
-	} else if (first != NULL) {
-
-		ticks = (et->et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			ticks += et->et_frequency * first->sec;
+	} else if (first != 0) {
+		ticks = ((uint32_t)et->et_frequency * first) >> 32;
 
 		/*
 		 * TODO: setupt second compare reg with time which will save
