@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/counter.h>
 #include <sys/kernel.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <vm/uma.h>
  
 static uma_zone_t uint64_pcpu_zone;
@@ -75,6 +76,30 @@ counter_u64_free(counter_u64_t c)
 {
 
 	uma_zfree(uint64_pcpu_zone, c);
+}
+
+int
+sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t out;
+	int error;
+
+	out = counter_u64_fetch(*(counter_u64_t *)arg1);
+
+	error = SYSCTL_OUT(req, &out, sizeof(uint64_t));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		return (EPERM);
+
+	/*
+	 * Any write attempt to a counter zeroes it.
+	 */
+	counter_u64_zero(*(counter_u64_t *)arg1);
+
+	return (0);
 }
 
 static void
