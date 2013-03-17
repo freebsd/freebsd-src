@@ -352,7 +352,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 			goto found;
 		msucc = TAILQ_NEXT(mpred, listq);
 	} else
-		msucc = vm_radix_lookup_ge(&object->rtree, pindex);
+		msucc = TAILQ_FIRST(&object->memq);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex > pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));
@@ -507,7 +507,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 			goto found;
 		msucc = TAILQ_NEXT(mpred, listq);
 	} else
-		msucc = vm_radix_lookup_ge(&object->rtree, pindex);
+		msucc = TAILQ_FIRST(&object->memq);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex > pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));
