@@ -253,6 +253,7 @@ SKIP_DIR += .host *.WAIT ${SKIP_DIRDEPS}
 SKIP_DIR.host += ${SKIP_HOSTDIR}
 
 DEP_SKIP_DIR = ${SKIP_DIR} \
+	${SKIP_DIR.${DEP_TARGET_SPEC}:U} \
 	${SKIP_DIR.${DEP_MACHINE}:U} \
 	${SKIP_DIRDEPS.${DEP_MACHINE}:U}
 
@@ -375,7 +376,10 @@ _build_dirs += ${_machines:N${DEP_TARGET_SPEC}:@m@${_CURDIR}.$m@}
 
 .if !empty(DIRDEPS)
 # these we reset each time through as they can depend on DEP_MACHINE
-DEP_DIRDEPS_FILTER = ${DIRDEPS_FILTER.${DEP_MACHINE}:U} ${DIRDEPS_FILTER:U} 
+DEP_DIRDEPS_FILTER = \
+	${DIRDEPS_FILTER.${DEP_TARGET_SPEC}:U} \
+	${DIRDEPS_FILTER.${DEP_MACHINE}:U} \
+	${DIRDEPS_FILTER:U} 
 .if empty(DEP_DIRDEPS_FILTER)
 # something harmless
 DEP_DIRDEPS_FILTER = U
