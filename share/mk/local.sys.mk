@@ -186,9 +186,9 @@ STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/include
 
 .include "sys.dependfile.mk"
 
-.if ${MACHINE} == "host"
-# need a machine specific file
-.MAKE.DEPENDFILE= ${.MAKE.DEPENDFILE_PREFIX}.${MACHINE}
+.if ${.MAKE.LEVEL} > 0 && ${MACHINE} == "host" && ${.MAKE.DEPENDFILE:E} != "host"
+# we can use this but should not update it.
+UPDATE_DEPENDFILE= NO
 .endif
 
 .MAKE.META.BAILIWICK = ${SB} ${OBJROOT} ${STAGE_ROOT}
