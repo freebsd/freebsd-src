@@ -587,7 +587,7 @@ zcmd_ioctl_compat(int fd, int request, zfs_cmd_t *zc, const int cflag)
 	case ZFS_CMD_COMPAT_V15:
 		nc = zfs_ioctl_v28_to_v15[request];
 		zc_c = malloc(sizeof(zfs_cmd_v15_t));
-		ncmd = _IOWR('Z', request, struct zfs_cmd_v15);
+		ncmd = _IOWR('Z', nc, struct zfs_cmd_v15);
 		break;
 	default:
 		return (EINVAL);
