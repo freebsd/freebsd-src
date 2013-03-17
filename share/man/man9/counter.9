@@ -1,0 +1,179 @@
+.\" Copyright (c) 2013 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 17, 2013
+.Dt COUNTER 9
+.Os
+.Sh NAME
+.Nm counter
+.Nd "generic kernel counter implementation"
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/counter.h
+.Ft counter_u64_t
+.Fn counter_u64_alloc "int wait"
+.Ft void
+.Fn counter_u64_free "counter_u64_t cnt"
+.Ft void
+.Fn counter_u64_inc "counter_u64_t cnt" "uint64_t inc"
+.Ft void
+.Fn counter_u64_dec "counter_u64_t cnt "uint64_t dec"
+.Ft uint64_t
+.Fn counter_u64_fetch "counter_u64_t cnt"
+.Ft void
+.Fn counter_u64_zero "counter_u64_t cnt"
+.In sys/sysctl.h
+.Fn SYSCTL_COUNTER_U64 parent nbr name access ptr val descr
+.Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
+.Sh DESCRIPTION
+The
+.Nm
+is a generic facility, which allows to create counters,
+that can be utilized to collect statistical data or for other purposes.
+A
+.Nm
+is guaranteed to be lossless when several kernel threads do simultaneous
+update.
+However,
+.Nm
+does not imply any
+.Xr locking 9 ,
+neither any
+.Xr atomic 9
+operations, thus are expected to be fast.
+Moreover,
+.Nm
+has special optimisations for SMP environment making
+.Nm
+update faster than simple "+=" or "++" operation.
+.Bl -tag -width indent
+.It Fn counter_u64_alloc how
+Allocate a new 64-bit unsigned counter.
+The
+.Fa wait
+argument is
+.Xr malloc 9
+wait flag, should be either
+.Va M_NOWAIT
+or
+.Va M_WAITOK .
+With no-wait semantics operation may fail.
+.It Fn counter_u64_free cnt
+Free previously allocated
+.Nm
+.Fa cnt .
+.It Fn counter_u64_inc cnt inc
+Add value of
+.Fa inc
+to
+.Nm
+.Fa cnt .
+.It Fn counter_u64_dec cnt dec
+Subtract value of
+.Fa dec
+from
+.Nm
+.Fa cnt .
+API doesn't guarantee any protection from underflow.
+See
+.Sx IMPLEMENTATION DETAILS .
+.It Fn counter_u64_fetch cnt
+Obtain current snapshot of the data collected in
+.Nm
+.Fa cnt .
+The data obtained isn't guaranteed to be precise.
+.It Fn counter_u64_zero cnt
+Clear data collected in
+.Nm
+.Fa cnt
+and set its value to zero.
+.It Fn SYSCTL_COUNTER_U64 parent nbr name access ptr val descr
+Declare a static
+.Xr sysctl
+oid that would represent a
+.Nm .
+The
+.Fa ptr
+argument should be a pointer to allocated
+.Vt counter_u64_t .
+Any read of oid returns value obtained through
+.Fn counter_u64_fetch .
+Any write to oid zeroes it.
+.It Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
+Create a
+.Xr sysctl
+oid that would represent a
+.Nm .
+The
+.Fa ptr
+argument should be a pointer to allocated
+.Vt counter_u64_t .
+Any read of oid returns value obtained through
+.Fn counter_u64_fetch .
+Any write to oid zeroes it.
+.El
+.Sh IMPLEMENTATION DETAILS
+On all architectures
+.Nm
+is implemented using per-CPU data fields, that are specially aligned in
+memory, to avoid excessive CPU cache invalidation during updates.
+These are allocated using
+.Va UMA_ZONE_PCPU
+.Xr uma 9
+zone.
+Update operation touches only the field that is private to current CPU.
+Fetch operation loops through all per-CPU fields and obtains a snapshot
+sum of all fields.
+.Pp
+On amd64 a
+.Nm counter
+update is implemented as a single instruction without lock semantics.
+.Pp
+On i386 with cmpxchg8 instruction available, this instruction is used.
+.Pp
+On some architectures updating a counter require a
+.Xr critical 9
+section.
+.Sh SEE ALSO
+.Xr atomic 9 ,
+.Xr critical 9 ,
+.Xr locking 9 ,
+.Xr malloc 9 ,
+.Xr sysctl ,
+.Xr uma 9
+.Sh HISTORY
+The
+.Nm
+facility first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+facility was written by
+.An Gleb Smirnoff
+and
+.An Konstantin Belousov .
