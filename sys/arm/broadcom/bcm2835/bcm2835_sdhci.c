@@ -173,7 +173,6 @@ bcm_sdhci_attach(device_t dev)
 	int default_freq;
 	void *buffer;
 	vm_paddr_t buffer_phys;
-	void *va;
 
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
@@ -284,9 +283,8 @@ bcm_sdhci_attach(device_t dev)
 
 	sc->sc_dma_buffer = buffer;
 	sc->sc_dma_buffer_phys = buffer_phys;
-	va = (void*)rman_get_start(sc->sc_mem_res);
-	sc->sc_sdhci_buffer_phys =
-	    pmap_kextract((vm_offset_t)va) + SDHCI_BUFFER;
+	sc->sc_sdhci_buffer_phys = BUS_SPACE_PHYSADDR(sc->sc_mem_res, 
+	    SDHCI_BUFFER);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
