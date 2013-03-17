@@ -20,47 +20,28 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
-#ifndef	_LIBZFS_CORE_H
-#define	_LIBZFS_CORE_H
+#ifndef	_LIBZFS_CORE_COMPAT_H
+#define	_LIBZFS_CORE_COMPAT_H
 
 #include <libnvpair.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/fs/zfs.h>
-#ifdef __FreeBSD__
-#include "libzfs_core_compat.h"
-#endif
+#include <sys/zfs_ioctl.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-int libzfs_core_init(void);
-void libzfs_core_fini(void);
-
-int lzc_snapshot(nvlist_t *snaps, nvlist_t *props, nvlist_t **errlist);
-int lzc_create(const char *fsname, dmu_objset_type_t type, nvlist_t *props);
-int lzc_clone(const char *fsname, const char *origin, nvlist_t *props);
-int lzc_destroy_snaps(nvlist_t *snaps, boolean_t defer, nvlist_t **errlist);
-
-int lzc_snaprange_space(const char *firstsnap, const char *lastsnap,
-    uint64_t *usedp);
-
-int lzc_send(const char *snapname, const char *fromsnap, int fd);
-int lzc_receive(const char *snapname, nvlist_t *props, const char *origin,
-    boolean_t force, int fd);
-int lzc_send_space(const char *snapname, const char *fromsnap,
-    uint64_t *result);
-
-boolean_t lzc_exists(const char *dataset);
-
+int lzc_compat_pre(zfs_cmd_t *, zfs_ioc_t *, nvlist_t **);
+void lzc_compat_post(zfs_cmd_t *, const zfs_ioc_t);
+int lzc_compat_outnvl(zfs_cmd_t *, const zfs_ioc_t, nvlist_t **);
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* _LIBZFS_CORE_H */
+#endif	/* _LIBZFS_CORE_COMPAT_H */
