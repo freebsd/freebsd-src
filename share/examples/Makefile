@@ -7,6 +7,7 @@
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	IPv6 \
+	bhyve \
 	bootforth \
 	csh \
 	cvsup \
@@ -42,6 +43,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	FreeBSD_version/Makefile \
 	FreeBSD_version/README \
 	IPv6/USAGE \
+	bhyve/vmrun.sh \
 	bootforth/README \
 	bootforth/boot.4th \
 	bootforth/frames.4th \
