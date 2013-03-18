@@ -55,7 +55,7 @@ issig(int why)
 		p = td->td_proc;
 		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		sig = cursig(td, SIG_STOP_ALLOWED);
+		sig = cursig(td);
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
 		if (sig != 0)
