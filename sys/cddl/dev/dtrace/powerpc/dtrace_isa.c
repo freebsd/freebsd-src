@@ -567,3 +567,17 @@ dtrace_fuword64(void *uaddr)
 	}
 	return ret;
 }
+
+uintptr_t
+dtrace_fulword(void *uaddr)
+{
+	uintptr_t ret = 0;
+
+	if (dtrace_copycheck((uintptr_t)uaddr, (uintptr_t)&ret, sizeof(ret))) {
+		if (copyin((const void *)uaddr, (void *)&ret, sizeof(ret))) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
+		}
+	}
+	return ret;
+}

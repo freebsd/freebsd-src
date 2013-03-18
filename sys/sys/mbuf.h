@@ -195,7 +195,7 @@ struct mbuf {
 #define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
 #define	M_LASTFRAG	0x00002000 /* packet is last fragment */
 #define	M_SKIP_FIREWALL	0x00004000 /* skip firewall processing */
-#define	M_FREELIST	0x00008000 /* mbuf is on the free list */
+		     /*	0x00008000    free */
 #define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
 #define	M_PROMISC	0x00020000 /* packet was not for us */
 #define	M_NOFREE	0x00040000 /* do not free mbuf, embedded in cluster */
@@ -705,6 +705,18 @@ m_last(struct mbuf *m)
 	KASSERT((m)->m_data == (m)->m_pktdat,				\
 		("%s: MH_ALIGN not a virgin mbuf", __func__));		\
 	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
+} while (0)
+
+/*
+ * As above, for mbuf with external storage.
+ */
+#define	MEXT_ALIGN(m, len) do {						\
+	KASSERT((m)->m_flags & M_EXT,					\
+		("%s: MEXT_ALIGN not an M_EXT mbuf", __func__));	\
+	KASSERT((m)->m_data == (m)->m_ext.ext_buf,			\
+		("%s: MEXT_ALIGN not a virgin mbuf", __func__));	\
+	(m)->m_data += ((m)->m_ext.ext_size - (len)) &			\
+	    ~(sizeof(long) - 1); 					\
 } while (0)
 
 /*
