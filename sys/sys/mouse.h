@@ -141,6 +141,7 @@ typedef struct synapticshw {
 #define MOUSE_MODEL_4D			11
 #define MOUSE_MODEL_4DPLUS		12
 #define MOUSE_MODEL_SYNAPTICS		13
+#define	MOUSE_MODEL_TRACKPOINT		14
 
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
