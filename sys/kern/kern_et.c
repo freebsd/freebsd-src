@@ -168,7 +168,7 @@ et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	KASSERT(period >= 0, ("et_start: negative period"));
 	KASSERT((et->et_flags & ET_FLAGS_PERIODIC) || period == 0,
 		("et_start: period specified for oneshot-only timer"));
-	KASSERT((et->et_flags & ET_FLAGS_ONESHOT) && period == 0,
+	KASSERT((et->et_flags & ET_FLAGS_ONESHOT) || period != 0,
 		("et_start: period not specified for periodic-only timer"));
 	if (period != 0) {
 		if (period < et->et_min_period)

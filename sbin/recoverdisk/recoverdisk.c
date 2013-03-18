@@ -156,7 +156,7 @@ main(int argc, char * const argv[])
 	int error, state;
 	u_char *buf;
 	u_int sectorsize;
-	u_int stripesize;
+	off_t stripesize;
 	time_t t1, t2;
 	struct stat sb;
 	u_int n, snapshot = 60;

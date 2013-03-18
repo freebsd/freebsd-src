@@ -72,10 +72,13 @@ font.h				optional	sc			\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 kern/subr_busdma_bufalloc.c	standard
 kern/subr_dummy_vdso_tc.c	standard
+libkern/arm/aeabi_unwind.c	standard
 libkern/arm/divsi3.S		standard
 libkern/arm/ffs.S		standard
 libkern/arm/ldivmod.S		standard
 libkern/arm/ldivmod_helper.c	standard
+libkern/arm/memcpy.S		standard
+libkern/arm/memset.S		standard
 libkern/arm/muldi3.c		standard
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard

@@ -661,9 +661,12 @@ ath_edma_rxfifo_alloc(struct ath_softc *sc, HAL_RX_QUEUE qtype, int nbufs)
 		bf = ath_edma_rxbuf_alloc(sc);
 		/* XXX should ensure the FIFO is not NULL? */
 		if (bf == NULL) {
-			device_printf(sc->sc_dev, "%s: Q%d: alloc failed?\n",
+			device_printf(sc->sc_dev,
+			    "%s: Q%d: alloc failed: i=%d, nbufs=%d?\n",
 			    __func__,
-			    qtype);
+			    qtype,
+			    i,
+			    nbufs);
 			break;
 		}
 

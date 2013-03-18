@@ -361,11 +361,13 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, axq_fifo_depth=%d\n",
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, "
+			    "axq_fifo_depth=%d, holdingbf=%p\n",
 			    i,
 			    sc->sc_txq[i].axq_depth,
 			    sc->sc_txq[i].axq_aggr_depth,
-			    sc->sc_txq[i].axq_fifo_depth);
+			    sc->sc_txq[i].axq_fifo_depth,
+			    sc->sc_txq[i].axq_holdingbf);
 		}
 	}
 
@@ -394,6 +396,23 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	ATH_TXBUF_UNLOCK(sc);
 	printf("Total mgmt TX buffers: %d; Total mgmt TX buffers busy: %d\n",
 	    t, i);
+
+	ATH_RX_LOCK(sc);
+	for (i = 0; i < 2; i++) {
+		printf("%d: fifolen: %d/%d; head=%d; tail=%d\n",
+		    i,
+		    sc->sc_rxedma[i].m_fifo_depth,
+		    sc->sc_rxedma[i].m_fifolen,
+		    sc->sc_rxedma[i].m_fifo_head,
+		    sc->sc_rxedma[i].m_fifo_tail);
+	}
+	i = 0;
+	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
+		i++;
+	}
+	printf("Total RX buffers in free list: %d buffers\n",
+	    i);
+	ATH_RX_UNLOCK(sc);
 
 	return 0;
 }

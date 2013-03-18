@@ -88,16 +88,14 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Constants for the hash table of sleep queue chains.  These constants are
- * the same ones that 4BSD (and possibly earlier versions of BSD) used.
- * Basically, we ignore the lower 8 bits of the address since most wait
- * channel pointers are aligned and only look at the next 7 bits for the
- * hash.  SC_TABLESIZE must be a power of two for SC_MASK to work properly.
+ * Constants for the hash table of sleep queue chains.
+ * SC_TABLESIZE must be a power of two for SC_MASK to work properly.
  */
-#define	SC_TABLESIZE	128			/* Must be power of 2. */
+#define	SC_TABLESIZE	256			/* Must be power of 2. */
 #define	SC_MASK		(SC_TABLESIZE - 1)
 #define	SC_SHIFT	8
-#define	SC_HASH(wc)	(((uintptr_t)(wc) >> SC_SHIFT) & SC_MASK)
+#define	SC_HASH(wc)	((((uintptr_t)(wc) >> SC_SHIFT) ^ (uintptr_t)(wc)) & \
+			    SC_MASK)
 #define	SC_LOOKUP(wc)	&sleepq_chains[SC_HASH(wc)]
 #define NR_SLEEPQS      2
 /*

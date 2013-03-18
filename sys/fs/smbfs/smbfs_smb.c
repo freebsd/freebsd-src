@@ -1455,15 +1455,9 @@ smbfs_smb_lookup(struct smbnode *dnp, const char *name, int nmlen,
 		fap->fa_ino = 2;
 		return 0;
 	}
-	if (nmlen == 1 && name[0] == '.') {
-		error = smbfs_smb_lookup(dnp, NULL, 0, fap, scred);
-		return error;
-	} else if (nmlen == 2 && name[0] == '.' && name[1] == '.') {
-		error = smbfs_smb_lookup(VTOSMB(dnp->n_parent), NULL, 0, fap,
-		    scred);
-		printf("%s: knows NOTHING about '..'\n", __func__);
-		return error;
-	}
+	MPASS(!(nmlen == 2 && name[0] == '.' && name[1] == '.'));
+	MPASS(!(nmlen == 1 && name[0] == '.'));
+	ASSERT_VOP_ELOCKED(dnp->n_vnode, "smbfs_smb_lookup");
 	error = smbfs_findopen(dnp, name, nmlen,
 	    SMB_FA_SYSTEM | SMB_FA_HIDDEN | SMB_FA_DIR, scred, &ctx);
 	if (error)

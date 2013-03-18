@@ -279,6 +279,7 @@ msix_table_read(struct passthru_softc *sc, uint64_t offset, int size)
 	int index;
 
 	pi = sc->psc_pi;
+	offset -= pi->pi_msix.table_offset;
 
 	index = offset / MSIX_TABLE_ENTRY_SIZE;
 	if (index >= pi->pi_msix.table_count)
@@ -323,6 +324,8 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 	int error, index;
 
 	pi = sc->psc_pi;
+	offset -= pi->pi_msix.table_offset;
+
 	index = offset / MSIX_TABLE_ENTRY_SIZE;
 	if (index >= pi->pi_msix.table_count)
 		return;

@@ -600,7 +600,7 @@ msdosfs_read(ap)
 			error = bread(vp, lbn, blsize, NOCRED, &bp);
 		} else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			error = cluster_read(vp, dep->de_FileSize, lbn, blsize,
-			    NOCRED, on + uio->uio_resid, seqcount, &bp);
+			    NOCRED, on + uio->uio_resid, seqcount, 0, &bp);
 		} else if (seqcount > 1) {
 			rasize = blsize;
 			error = breadn(vp, lbn,
@@ -820,7 +820,7 @@ msdosfs_write(ap)
 		else if (n + croffset == pmp->pm_bpcluster) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
 				cluster_write(vp, bp, dep->de_FileSize,
-				    seqcount);
+				    seqcount, 0);
 			else
 				bawrite(bp);
 		} else

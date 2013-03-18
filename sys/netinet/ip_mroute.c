@@ -2083,13 +2083,12 @@ bw_upcalls_send(void)
      * Allocate a new mbuf, initialize it with the header and
      * the payload for the pending calls.
      */
-    MGETHDR(m, M_NOWAIT, MT_DATA);
+    m = m_gethdr(M_NOWAIT, MT_DATA);
     if (m == NULL) {
 	log(LOG_WARNING, "bw_upcalls_send: cannot allocate mbuf\n");
 	return;
     }
 
-    m->m_len = m->m_pkthdr.len = 0;
     m_copyback(m, 0, sizeof(struct igmpmsg), (caddr_t)&igmpmsg);
     m_copyback(m, sizeof(struct igmpmsg), len, (caddr_t)&V_bw_upcalls[0]);
 
@@ -2430,7 +2429,7 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
     /*
      * Add a new mbuf with an upcall header
      */
-    MGETHDR(mb_first, M_NOWAIT, MT_DATA);
+    mb_first = m_gethdr(M_NOWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;
@@ -2488,7 +2487,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     /*
      * Add a new mbuf with the encapsulating header
      */
-    MGETHDR(mb_first, M_NOWAIT, MT_DATA);
+    mb_first = m_gethdr(M_NOWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;

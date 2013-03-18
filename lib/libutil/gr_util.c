@@ -50,7 +50,7 @@ static char group_file[PATH_MAX];
 static char tempname[PATH_MAX];
 static int initialized;
 static size_t grmemlen(const struct group *, const char *, int *);
-static struct group *grcopy(const struct group *gr, struct group *newgr, const char *, int ndx);
+static struct group *grcopy(const struct group *gr, char *mem, const char *, int ndx);
 
 /*
  * Initialize statics
@@ -361,26 +361,30 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 	if (gr1->gr_gid != gr2->gr_gid)
 		return (false);
 
-	/* Check all members in both groups. */
-	if (gr1->gr_mem == NULL || gr2->gr_mem == NULL) {
-		if (gr1->gr_mem != gr2->gr_mem)
-			return (false);
-	} else {
-		for (gr1_ndx = 0; gr1->gr_mem[gr1_ndx] != NULL; gr1_ndx++) {
-			for (gr2_ndx = 0;; gr2_ndx++) {
-				if (gr2->gr_mem[gr2_ndx] == NULL)
-					return (false);
-				if (strcmp(gr1->gr_mem[gr1_ndx],
-				    gr2->gr_mem[gr2_ndx]) == 0) {
-					break;
-				}
-			}
-		}
+	/* Check all members in both groups.
+	 * getgrnam can return gr_mem with a pointer to NULL.
+	 * gr_dup and gr_add strip out this superfluous NULL, setting
+	 * gr_mem to NULL for no members.
+	*/
+	if (gr1->gr_mem != NULL && gr2->gr_mem != NULL) {
+		int i;
 
-		/* Check that group2 does not have more members than group1. */
-		if (gr2->gr_mem[gr1_ndx] != NULL)
-			return (false);
+		for (i = 0; gr1->gr_mem[i] != NULL; i++) {
+			if (strcmp(gr1->gr_mem[i], gr2->gr_mem[i]) != 0)
+				return (false);
+		}
 	}
+	/* Count number of members in both structs */
+	gr2_ndx = 0;
+	if (gr2->gr_mem != NULL)
+		for(; gr2->gr_mem[gr2_ndx] != NULL; gr2_ndx++)
+			/* empty */;
+	gr1_ndx = 0;
+	if (gr1->gr_mem != NULL)
+		for(; gr1->gr_mem[gr1_ndx] != NULL; gr1_ndx++)
+			/* empty */;
+	if (gr1_ndx != gr2_ndx)
+		return (false);
 
 	return (true);
 }
@@ -439,21 +443,21 @@ gr_dup(const struct group *gr)
 struct group *
 gr_add(const struct group *gr, const char *newmember)
 {
-	struct group *newgr;
+	char *mem;
 	size_t len;
 	int num_mem;
 
 	num_mem = 0;
 	len = grmemlen(gr, newmember, &num_mem);
 	/* Create new group and copy old group into it. */
-	if ((newgr = malloc(len)) == NULL)
+	if ((mem = malloc(len)) == NULL)
 		return (NULL);
-	return (grcopy(gr, newgr, newmember, num_mem));
+	return (grcopy(gr, mem, newmember, num_mem));
 }
 
 /* It is safer to walk the pointers given at gr_mem since there is no
- * guarantee the gr_mem + strings are continguous in the given struct group
- * but compact the new group into the following form.
+ * guarantee the gr_mem + strings are contiguous in the given struct group
+ * but compactify the new group into the following form.
  *
  * The new struct is laid out like this in memory. The example given is
  * for a group with two members only.
@@ -474,23 +478,21 @@ gr_add(const struct group *gr, const char *newmember)
  * }
  */
 /*
- * Copy the guts of a group plus given name to a preallocated group struct
+ * Copy the contents of a group plus given name to a preallocated group struct
  */
 static struct group *
-grcopy(const struct group *gr, struct group *newgr, const char *name, int ndx)
+grcopy(const struct group *gr, char *dst, const char *name, int ndx)
 {
-	char *dst;
 	int i;
+	struct group *newgr;
 
-	if (name != NULL)
-		ndx++;
-	/* point new gr_mem to end of struct + 1 if there are names */
-	if (ndx != 0)
-		newgr->gr_mem = (char **)(newgr + 1);
-	else
+	newgr = (struct group *)(void *)dst;	/* avoid alignment warning */
+	dst += sizeof(*newgr);
+	if (ndx != 0) {
+		newgr->gr_mem = (char **)(void *)(dst);	/* avoid alignment warning */
+		dst += (ndx + 1) * sizeof(*newgr->gr_mem);
+	} else
 		newgr->gr_mem = NULL;
-	/* point dst after the end of all the gr_mem pointers in newgr */
-	dst = (char *)&newgr->gr_mem[ndx + 1];
 	if (gr->gr_name != NULL) {
 		newgr->gr_name = dst;
 		dst = stpcpy(dst, gr->gr_name) + 1;
@@ -502,17 +504,23 @@ grcopy(const struct group *gr, struct group *newgr, const char *name, int ndx)
 	} else
 		newgr->gr_passwd = NULL;
 	newgr->gr_gid = gr->gr_gid;
-	if (ndx != 0) {
-		for (i = 0; gr->gr_mem[i] != NULL; i++) {
+	i = 0;
+	/* Original group struct might have a NULL gr_mem */
+	if (gr->gr_mem != NULL) {
+		for (; gr->gr_mem[i] != NULL; i++) {
 			newgr->gr_mem[i] = dst;
 			dst = stpcpy(dst, gr->gr_mem[i]) + 1;
 		}
-		if (name != NULL) {
-			newgr->gr_mem[i++] = dst;
-			dst = stpcpy(dst, name) + 1;
-		}
-		newgr->gr_mem[i] = NULL;
 	}
+	/* If name is not NULL, newgr->gr_mem is known to be not NULL */
+	if (name != NULL) {
+		newgr->gr_mem[i++] = dst;
+		dst = stpcpy(dst, name) + 1;
+	}
+	/* if newgr->gr_mem is not NULL add NULL marker */
+	if (newgr->gr_mem != NULL)
+		newgr->gr_mem[i] = NULL;
+
 	return (newgr);
 }
 
@@ -533,18 +541,22 @@ grmemlen(const struct group *gr, const char *name, int *num_mem)
 		len += strlen(gr->gr_name) + 1;
 	if (gr->gr_passwd != NULL)
 		len += strlen(gr->gr_passwd) + 1;
+	i = 0;
 	if (gr->gr_mem != NULL) {
-		for (len = i = 0; gr->gr_mem[i] != NULL; i++) {
+		for (; gr->gr_mem[i] != NULL; i++) {
 			len += strlen(gr->gr_mem[i]) + 1;
 			len += sizeof(*gr->gr_mem);
 		}
-		*num_mem = i;
 	}
 	if (name != NULL) {
+		i++;
 		len += strlen(name) + 1;
-		if (gr->gr_mem == NULL)
-			len += sizeof(*gr->gr_mem);
+		len += sizeof(*gr->gr_mem);
 	}
+	/* Allow for NULL pointer */
+	if (i != 0)
+		len += sizeof(*gr->gr_mem);
+	*num_mem = i;
 	return(len);
 }
 

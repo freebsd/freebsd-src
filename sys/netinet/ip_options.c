@@ -495,12 +495,12 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
-		MGETHDR(n, M_NOWAIT, MT_DATA);
+		n = m_gethdr(M_NOWAIT, MT_DATA);
 		if (n == NULL) {
 			*phlen = 0;
 			return (m);
 		}
-		M_MOVE_PKTHDR(n, m);
+		m_move_pkthdr(n, m);
 		n->m_pkthdr.rcvif = NULL;
 		n->m_pkthdr.len += optlen;
 		m->m_len -= sizeof(struct ip);

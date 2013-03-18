@@ -282,7 +282,7 @@ static void	unp_dispose(struct mbuf *);
 static void	unp_shutdown(struct unpcb *);
 static void	unp_drop(struct unpcb *, int);
 static void	unp_gc(__unused void *, int);
-static void	unp_scan(struct mbuf *, void (*)(struct file *));
+static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
 static void	unp_discard(struct file *);
 static void	unp_freerights(struct filedescent **, int);
 static void	unp_init(void);
@@ -2135,17 +2135,22 @@ static int	unp_marked;
 static int	unp_unreachable;
 
 static void
-unp_accessable(struct file *fp)
+unp_accessable(struct filedescent **fdep, int fdcount)
 {
 	struct unpcb *unp;
+	struct file *fp;
+	int i;
 
-	if ((unp = fptounp(fp)) == NULL)
-		return;
-	if (unp->unp_gcflag & UNPGC_REF)
-		return;
-	unp->unp_gcflag &= ~UNPGC_DEAD;
-	unp->unp_gcflag |= UNPGC_REF;
-	unp_marked++;
+	for (i = 0; i < fdcount; i++) {
+		fp = fdep[i]->fde_file;
+		if ((unp = fptounp(fp)) == NULL)
+			continue;
+		if (unp->unp_gcflag & UNPGC_REF)
+			continue;
+		unp->unp_gcflag &= ~UNPGC_DEAD;
+		unp->unp_gcflag |= UNPGC_REF;
+		unp_marked++;
+	}
 }
 
 static void
@@ -2292,19 +2297,16 @@ unp_dispose(struct mbuf *m)
 {
 
 	if (m)
-		unp_scan(m, unp_discard);
+		unp_scan(m, unp_freerights);
 }
 
 static void
-unp_scan(struct mbuf *m0, void (*op)(struct file *))
+unp_scan(struct mbuf *m0, void (*op)(struct filedescent **, int))
 {
 	struct mbuf *m;
-	struct filedescent **fdep;
 	struct cmsghdr *cm;
 	void *data;
-	int i;
 	socklen_t clen, datalen;
-	int qfds;
 
 	while (m0 != NULL) {
 		for (m = m0; m; m = m->m_next) {
@@ -2324,10 +2326,8 @@ unp_scan(struct mbuf *m0, void (*op)(struct file *))
 
 				if (cm->cmsg_level == SOL_SOCKET &&
 				    cm->cmsg_type == SCM_RIGHTS) {
-					qfds = datalen / sizeof(*fdep);
-					fdep = data;
-					for (i = 0; i < qfds; i++)
-						(*op)(fdep[i]->fde_file);
+					(*op)(data, datalen /
+					    sizeof(struct filedescent *));
 				}
 
 				if (CMSG_SPACE(datalen) < clen) {

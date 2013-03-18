@@ -1335,7 +1335,8 @@ pmap_free_zero_pages(vm_page_t free)
 
 	while (free != NULL) {
 		m = free;
-		free = m->right;
+		free = (void *)m->object;
+		m->object = NULL;
 		vm_page_free_zero(m);
 	}
 }
@@ -1393,7 +1394,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	 * Put page on a list so that it is released after
 	 * *ALL* TLB shootdown is done
 	 */
-	m->right = *free;
+	m->object = (void *)*free;
 	*free = m;
 }
 
@@ -2090,7 +2091,7 @@ out:
 	}
 	if (m_pc == NULL && pv_vafree != 0 && free != NULL) {
 		m_pc = free;
-		free = m_pc->right;
+		free = (void *)m_pc->object;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
@@ -3441,6 +3442,46 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	PT_SET_MA(sysmaps->CADDR1, PG_V | VM_PAGE_TO_MACH(src) | PG_A);
 	PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW | VM_PAGE_TO_MACH(dst) | PG_A | PG_M);
 	bcopy(sysmaps->CADDR1, sysmaps->CADDR2, PAGE_SIZE);
+	PT_SET_MA(sysmaps->CADDR1, 0);
+	PT_SET_MA(sysmaps->CADDR2, 0);
+	sched_unpin();
+	mtx_unlock(&sysmaps->lock);
+}
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	struct sysmaps *sysmaps;
+	vm_page_t a_pg, b_pg;
+	char *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
+	mtx_lock(&sysmaps->lock);
+	if (*sysmaps->CMAP1 != 0)
+		panic("pmap_copy_pages: CMAP1 busy");
+	if (*sysmaps->CMAP2 != 0)
+		panic("pmap_copy_pages: CMAP2 busy");
+	sched_pin();
+	while (xfersize > 0) {
+		a_pg = ma[a_offset >> PAGE_SHIFT];
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		b_pg = mb[b_offset >> PAGE_SHIFT];
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		PT_SET_MA(sysmaps->CADDR1, PG_V | VM_PAGE_TO_MACH(a_pg) | PG_A);
+		PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW |
+		    VM_PAGE_TO_MACH(b_pg) | PG_A | PG_M);
+		a_cp = sysmaps->CADDR1 + a_pg_offset;
+		b_cp = sysmaps->CADDR2 + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
 	PT_SET_MA(sysmaps->CADDR1, 0);
 	PT_SET_MA(sysmaps->CADDR2, 0);
 	sched_unpin();
