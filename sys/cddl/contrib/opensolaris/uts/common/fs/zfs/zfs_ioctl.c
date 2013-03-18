@@ -3268,6 +3268,10 @@ zfs_ioc_create(const char *fsname, nvlist_t *innvl, nvlist_t *outnvl)
 		if (error != 0)
 			(void) dmu_objset_destroy(fsname, B_FALSE);
 	}
+#ifdef __FreeBSD__
+	if (error == 0 && type == DMU_OST_ZVOL)
+		zvol_create_minors(fsname);
+#endif
 	return (error);
 }
 
