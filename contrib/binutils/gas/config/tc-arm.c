@@ -5164,10 +5164,6 @@ parse_neon_mov (char **str, int *which_operand)
              Case 10: VMOV.F32 <Sd>, #<imm>
              Case 11: VMOV.F64 <Dd>, #<imm>  */
         inst.operands[i].immisfloat = 1;
-      else if (parse_big_immediate (&ptr, i) == SUCCESS)
-          /* Case 2: VMOV<c><q>.<dt> <Qd>, #<imm>
-             Case 3: VMOV<c><q>.<dt> <Dd>, #<imm>  */
-        ;
       else if ((val = arm_typed_reg_parse (&ptr, REG_TYPE_NSDQ, &rtype,
                                            &optype)) != FAIL)
         {
@@ -5207,6 +5203,10 @@ parse_neon_mov (char **str, int *which_operand)
               inst.operands[i++].present = 1;
             }
         }
+      else if (parse_big_immediate (&ptr, i) == SUCCESS)
+          /* Case 2: VMOV<c><q>.<dt> <Qd>, #<imm>
+             Case 3: VMOV<c><q>.<dt> <Dd>, #<imm>  */
+        ;
       else
         {
           first_error (_("expected <Rm> or <Dm> or <Qm> operand"));
