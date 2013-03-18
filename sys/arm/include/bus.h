@@ -731,6 +731,6 @@ bs_c_8_proto(f);
  * designed.  It also serves to mark the locations needing that fix.
  */
 #define BUS_SPACE_PHYSADDR(res, offs) \
-	(vtophys(rman_get_start(res)+(offs)))
+	((u_int)(rman_get_start(res)+(offs)))
 
 #endif /* _MACHINE_BUS_H_ */
