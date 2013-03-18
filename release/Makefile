@@ -611,6 +611,7 @@ fetch-distfiles:
 		cd ${CHROOTDIR}/usr/ports/$$i && \
 			make PORTSDIR=${CHROOTDIR}/usr/ports BATCH=yes \
 			WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes \
+			WITHOUT_SVN=yes \
 			checksum-recursive ; \
 	done
 
@@ -1172,7 +1173,7 @@ doc.1:
 	    cd /usr/ports/$$i && \
 	    env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \
 		make all install clean BATCH=yes WITHOUT_X11=yes JADETEX=no \
-		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
+		WITHOUT_PYTHON=yes WITHOUT_SVN=yes FORCE_PKG_REGISTER=yes; \
 	done
 	touch ${.TARGET}
 
