@@ -78,6 +78,9 @@ mediaCheck(Option *opt)
 	case DEVICE_TYPE_HTTP:
 	    return "HTTP Proxy";
 
+	case DEVICE_TYPE_HTTP_DIRECT:
+	    return "HTTP Direct";
+
 	case DEVICE_TYPE_CDROM:
 	    return "CDROM";
 
