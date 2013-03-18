@@ -131,6 +131,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
@@ -1497,7 +1498,8 @@ pmap_free_zero_pages(vm_page_t free)
 
 	while (free != NULL) {
 		m = free;
-		free = m->right;
+		free = (void *)m->object;
+		m->object = NULL;
 		/* Preserve the page's PG_ZERO setting. */
 		vm_page_free_toq(m);
 	}
@@ -1516,7 +1518,7 @@ pmap_add_delayed_free_list(vm_page_t m, vm_page_t *free, boolean_t set_PG_ZERO)
 		m->flags |= PG_ZERO;
 	else
 		m->flags &= ~PG_ZERO;
-	m->right = *free;
+	m->object = (void *)*free;
 	*free = m;
 }
 	
@@ -1526,31 +1528,12 @@ pmap_add_delayed_free_list(vm_page_t m, vm_page_t *free, boolean_t set_PG_ZERO)
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
  */
-static void
+static __inline void
 pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
 {
-	vm_page_t root;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	root = pmap->pm_root;
-	if (root == NULL) {
-		mpte->left = NULL;
-		mpte->right = NULL;
-	} else {
-		root = vm_page_splay(mpte->pindex, root);
-		if (mpte->pindex < root->pindex) {
-			mpte->left = root->left;
-			mpte->right = root;
-			root->left = NULL;
-		} else if (mpte->pindex == root->pindex)
-			panic("pmap_insert_pt_page: pindex already inserted");
-		else {
-			mpte->right = root->right;
-			mpte->left = root;
-			root->right = NULL;
-		}
-	}
-	pmap->pm_root = mpte;
+	vm_radix_insert(&pmap->pm_root, mpte);
 }
 
 /*
@@ -1558,19 +1541,12 @@ pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
  * specified pmap's collection of idle page table pages.  Returns NULL if there
  * is no page table page corresponding to the specified virtual address.
  */
-static vm_page_t
+static __inline vm_page_t
 pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va)
 {
-	vm_page_t mpte;
-	vm_pindex_t pindex = pmap_pde_pindex(va);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((mpte = pmap->pm_root) != NULL && mpte->pindex != pindex) {
-		mpte = vm_page_splay(pindex, mpte);
-		if ((pmap->pm_root = mpte)->pindex != pindex)
-			mpte = NULL;
-	}
-	return (mpte);
+	return (vm_radix_lookup(&pmap->pm_root, pmap_pde_pindex(va)));
 }
 
 /*
@@ -1578,25 +1554,12 @@ pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va)
  * of idle page table pages.  The specified page table page must be a member of
  * the pmap's collection.
  */
-static void
+static __inline void
 pmap_remove_pt_page(pmap_t pmap, vm_page_t mpte)
 {
-	vm_page_t root;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (mpte != pmap->pm_root) {
-		root = vm_page_splay(mpte->pindex, pmap->pm_root);
-		KASSERT(mpte == root,
-		    ("pmap_remove_pt_page: mpte %p is missing from pmap %p",
-		    mpte, pmap));
-	}
-	if (mpte->left == NULL)
-		root = mpte->right;
-	else {
-		root = vm_page_splay(mpte->pindex, mpte->left);
-		root->right = mpte->right;
-	}
-	pmap->pm_root = root;
+	vm_radix_remove(&pmap->pm_root, mpte->pindex);
 }
 
 /*
@@ -1693,7 +1656,7 @@ pmap_pinit0(pmap_t pmap)
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
-	pmap->pm_root = NULL;
+	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -1734,7 +1697,7 @@ pmap_pinit(pmap_t pmap)
 	/* install self-referential address mapping entry(s) */
 	pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
 
-	pmap->pm_root = NULL;
+	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1976,7 +1939,7 @@ pmap_release(pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
-	KASSERT(pmap->pm_root == NULL,
+	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
@@ -2273,7 +2236,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	}
 	if (m_pc == NULL && free != NULL) {
 		m_pc = free;
-		free = m_pc->right;
+		free = (void *)m_pc->object;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
