@@ -52,6 +52,7 @@
 
 static Boolean got_intr = FALSE;
 static Boolean ftp_skip_resolve = FALSE;
+static Boolean http_skip_resolve = FALSE;
 
 /* timeout handler */
 static void
@@ -507,6 +508,139 @@ int mediaSetHTTP(dialogMenuItem *self)
     mediaDevice->get = mediaGetHTTP;
     mediaDevice->shutdown = dummyShutdown;
     return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
+}
+
+/*
+ * Return 0 if we successfully found and set the installation type to
+ * be an http server
+ */
+int
+mediaSetHTTPDirect(dialogMenuItem *self)
+{
+    static Device httpDevice;
+    char *cp, hbuf[MAXPATHLEN], *hostname, *dir;
+    struct addrinfo hints, *res;
+    int af;
+    size_t urllen;
+    int HttpPort;
+    static Device *networkDev = NULL;
+
+    mediaClose();
+    cp = variable_get(VAR_HTTP_PATH);
+    /* If we've been through here before ... */
+    if (networkDev && cp && msgYesNo("Re-use old HTTP site selection values?"))
+	cp = NULL;
+    if (!cp) {
+	if (!dmenuOpenSimple(&MenuMediaHTTPDirect, FALSE))
+	    return DITEM_FAILURE;
+	else
+	    cp = variable_get(VAR_HTTP_PATH);
+    }
+    if (!cp)
+	return DITEM_FAILURE;
+    else if (!strcmp(cp, "other")) {
+	variable_set2(VAR_HTTP_PATH, "http://", 0);
+	cp = variable_get_value(VAR_HTTP_PATH, "Please specify the URL of a FreeBSD distribution on a\n"
+				"remote http site.\n"
+				"A URL looks like this:  http://<hostname>/<path>", 0);
+	if (!cp || !*cp || !strcmp(cp, "http://")) {
+	    variable_unset(VAR_HTTP_PATH);
+	    return DITEM_FAILURE;
+	}
+	urllen = strlen(cp);
+	if (urllen >= sizeof(httpDevice.name)) {
+	    msgConfirm("Length of specified URL is %zu characters. Allowable maximum is %zu.",
+			urllen,sizeof(httpDevice.name)-1);
+	    variable_unset(VAR_HTTP_PATH);
+	    return DITEM_FAILURE;
+	}
+    }
+    if (strncmp("http://", cp, 7)) {
+	msgConfirm("Sorry, %s is an invalid URL!", cp);
+	variable_unset(VAR_HTTP_PATH);
+	return DITEM_FAILURE;
+    }
+    SAFE_STRCPY(httpDevice.name, cp);
+    SAFE_STRCPY(hbuf, cp + 7);
+    hostname = hbuf;
+
+    if (!networkDev || msgYesNo("You've already done the network configuration once,\n"
+				"would you like to skip over it now?") != 0) {
+	if (networkDev)
+	    DEVICE_SHUTDOWN(networkDev);
+	if (!(networkDev = tcpDeviceSelect())) {
+	    variable_unset(VAR_HTTP_PATH);
+	    return DITEM_FAILURE;
+	}
+    }
+    if (!DEVICE_INIT(networkDev)) {
+	if (isDebug())
+	    msgDebug("mediaSetHTTPDirect: Net device init failed.\n");
+	variable_unset(VAR_HTTP_PATH);
+	return DITEM_FAILURE;
+    }
+    if (*hostname == '[' && (cp = index(hostname + 1, ']')) != NULL &&
+	(*++cp == '\0' || *cp == '/' || *cp == ':')) {
+	++hostname;
+	*(cp - 1) = '\0';
+    }
+    else
+	cp = index(hostname, ':');
+    if (cp != NULL && *cp == ':') {
+	*(cp++) = '\0';
+	HttpPort = strtol(cp, 0, 0);
+    }
+    else
+	HttpPort = 80;
+    if ((dir = index(cp ? cp : hostname, '/')) != NULL)
+	*(dir++) = '\0';
+    if (isDebug()) {
+	msgDebug("hostname = `%s'\n", hostname);
+	msgDebug("dir = `%s'\n", dir ? dir : "/");
+	msgDebug("port # = `%d'\n", HttpPort);
+    }
+    if (!http_skip_resolve && variable_get(VAR_NAMESERVER)) {
+	msgNotify("Looking up host %s.", hostname);
+    	if (isDebug())
+	    msgDebug("Starting DNS.\n");
+	kickstart_dns();
+    	if (isDebug())
+	    msgDebug("Looking up hostname, %s, using getaddrinfo(AI_NUMERICHOST).\n", hostname);
+	af = variable_cmp(VAR_IPV6_ENABLE, "YES") ? AF_INET : AF_UNSPEC;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+	if (getaddrinfo(hostname, NULL, &hints, &res) != 0) {
+	    if (isDebug())
+		msgDebug("Looking up hostname, %s, using getaddrinfo().\n",
+			 hostname);
+	    hints.ai_flags = AI_PASSIVE;
+	    if (getaddrinfo(hostname, NULL, &hints, &res) != 0) {
+		msgConfirm("Cannot resolve hostname `%s'!  Are you sure that"
+			" your\nname server, gateway and network interface are"
+			" correctly configured?", hostname);
+		if (networkDev)
+		    DEVICE_SHUTDOWN(networkDev);
+		networkDev = NULL;
+		variable_unset(VAR_HTTP_PATH);
+		return DITEM_FAILURE;
+	    }
+	}
+	freeaddrinfo(res);
+	if (isDebug())
+	    msgDebug("Found DNS entry for %s successfully..\n", hostname);
+    }
+    variable_set2(VAR_HTTP_HOST, hostname, 0);
+    variable_set2(VAR_HTTP_DIR, dir ? dir : "/", 0);
+    variable_set2(VAR_HTTP_PORT, itoa(HttpPort), 0);
+    httpDevice.type = DEVICE_TYPE_HTTP_DIRECT;
+    httpDevice.init = mediaInitHTTPDirect;
+    httpDevice.get = mediaGetHTTPDirect;
+    httpDevice.shutdown = dummyShutdown;
+    httpDevice.private = networkDev;
+    mediaDevice = &httpDevice;
+    return DITEM_SUCCESS | DITEM_LEAVE_MENU | DITEM_RESTORE;
 }
    
 
