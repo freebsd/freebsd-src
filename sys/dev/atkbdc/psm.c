@@ -747,8 +747,8 @@ model_name(int model)
 		{ MOUSE_MODEL_4D,		"4D Mouse" },
 		{ MOUSE_MODEL_4DPLUS,		"4D+ Mouse" },
 		{ MOUSE_MODEL_SYNAPTICS,	"Synaptics Touchpad" },
-		{ MOUSE_MODEL_GENERIC,		"Generic PS/2 mouse" },
 		{ MOUSE_MODEL_TRACKPOINT,	"IBM/Lenovo TrackPoint" },
+		{ MOUSE_MODEL_GENERIC,		"Generic PS/2 mouse" },
 		{ MOUSE_MODEL_UNKNOWN,		"Unknown" },
 	};
 	int i;
