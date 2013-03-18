@@ -986,7 +986,7 @@ options 	DUMMYNET
 # See zero_copy(9) for more details.
 # XXX: The COW based send mechanism is not safe and may result in
 # kernel crashes.
-# XXX: None of the current NIC drivers support disposeable pages.
+# XXX: None of the current NIC drivers support disposable pages.
 options		SOCKET_SEND_COW
 options		SOCKET_RECV_PFLIP
 

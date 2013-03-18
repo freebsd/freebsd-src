@@ -24,23 +24,27 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
-#include <sys/types.h>
-
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include "libusb20.h"
-#include "libusb20_desc.h"
-#include "libusb20_int.h"
+#include <time.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_ioctl.h>
+
+#include "libusb20.h"
+#include "libusb20_desc.h"
+#include "libusb20_int.h"
 
 static libusb20_init_backend_t ugen20_init_backend;
 static libusb20_open_device_t ugen20_open_device;

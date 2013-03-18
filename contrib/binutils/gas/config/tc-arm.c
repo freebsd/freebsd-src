@@ -651,6 +651,7 @@ struct asm_opcode
 
 #define BAD_ARGS	_("bad arguments to instruction")
 #define BAD_PC		_("r15 not allowed here")
+#define BAD_SP		_("r13 not allowed here")
 #define BAD_COND	_("instruction cannot be conditional")
 #define BAD_OVERLAP	_("registers may not be the same")
 #define BAD_HIREG	_("lo register required")
@@ -659,6 +660,7 @@ struct asm_opcode
 #define BAD_BRANCH	_("branch must be last instruction in IT block")
 #define BAD_NOT_IT	_("instruction not allowed in IT block")
 #define BAD_FPU		_("selected FPU does not support instruction")
+#define BAD_VMRS	_("APSR_nzcv may only be used with fpscr")
 
 static struct hash_control *arm_ops_hsh;
 static struct hash_control *arm_cond_hsh;
@@ -5164,10 +5166,6 @@ parse_neon_mov (char **str, int *which_operand)
              Case 10: VMOV.F32 <Sd>, #<imm>
              Case 11: VMOV.F64 <Dd>, #<imm>  */
         inst.operands[i].immisfloat = 1;
-      else if (parse_big_immediate (&ptr, i) == SUCCESS)
-          /* Case 2: VMOV<c><q>.<dt> <Qd>, #<imm>
-             Case 3: VMOV<c><q>.<dt> <Dd>, #<imm>  */
-        ;
       else if ((val = arm_typed_reg_parse (&ptr, REG_TYPE_NSDQ, &rtype,
                                            &optype)) != FAIL)
         {
@@ -5207,6 +5205,10 @@ parse_neon_mov (char **str, int *which_operand)
               inst.operands[i++].present = 1;
             }
         }
+      else if (parse_big_immediate (&ptr, i) == SUCCESS)
+          /* Case 2: VMOV<c><q>.<dt> <Qd>, #<imm>
+             Case 3: VMOV<c><q>.<dt> <Dd>, #<imm>  */
+        ;
       else
         {
           first_error (_("expected <Rm> or <Dm> or <Qm> operand"));
@@ -7091,6 +7093,68 @@ do_vfp_nsyn_msr (void)
     do_vfp_nsyn_opcode ("fmxr");
   else
     return FAIL;
+
+  return SUCCESS;
+}
+
+static int
+do_vfp_vmrs (void)
+{
+  int rt;
+
+  /* The destination register can be r0-r14 or APSR_nzcv */
+  if (inst.operands[0].reg > 14)
+    {
+      inst.error = BAD_PC;
+      return FAIL;
+    }
+
+  /* If the destination is r13 and not in ARM mode then unprefictable */
+  if (thumb_mode && inst.operands[0].reg == REG_SP)
+    {
+      inst.error = BAD_SP;
+      return FAIL;
+    }
+
+  /* If the destination is APSR_nzcv */
+  if (inst.operands[0].isvec && inst.operands[1].reg != 1)
+    {
+      inst.error = BAD_VMRS;
+      return FAIL;
+    }
+
+  if (inst.operands[0].isvec)
+    rt = 15;
+  else
+    rt = inst.operands[0].reg;
+
+  /* Or in the registers to use */
+  inst.instruction |= rt << 12;
+  inst.instruction |= inst.operands[1].reg << 16;
+
+  return SUCCESS;
+}
+
+static int
+do_vfp_vmsr (void)
+{
+  /* The destination register can be r0-r14 or APSR_nzcv */
+  if (inst.operands[1].reg > 14)
+    {
+      inst.error = BAD_PC;
+      return FAIL;
+    }
+
+  /* If the destination is r13 and not in ARM mode then unprefictable */
+  if (thumb_mode && inst.operands[0].reg == REG_SP)
+    {
+      inst.error = BAD_SP;
+      return FAIL;
+    }
+
+  /* Or in the registers to use */
+  inst.instruction |= inst.operands[1].reg << 12;
+  inst.instruction |= inst.operands[0].reg << 16;
 
   return SUCCESS;
 }
@@ -15726,6 +15790,8 @@ static const struct asm_opcode insns[] =
  cCE(ftouizs,	ebc0ac0, 2, (RVS, RVS),	      vfp_sp_monadic),
  cCE(fmrx,	ef00a10, 2, (RR, RVC),	      rd_rn),
  cCE(fmxr,	ee00a10, 2, (RVC, RR),	      rn_rd),
+ cCE(vmrs,	ef00a10, 2, (APSR_RR, RVC),   vfp_vmrs),
+ cCE(vmsr,	ee00a10, 2, (RVC, RR),        vfp_vmsr),
 
   /* Memory operations.	 */
  cCE(flds,	d100a00, 2, (RVS, ADDRGLDC),  vfp_sp_ldst),

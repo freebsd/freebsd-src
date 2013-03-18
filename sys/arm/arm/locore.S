@@ -242,6 +242,9 @@ Lstartup_pagetable:
 Lstartup_pagetable_secondary:
 	.word	temp_pagetable
 #endif
+END(btext)
+END(_start)
+
 mmu_init_table:
 	/* fill all table VA==PA */
 	/* map SDRAM VA==PA, WT cacheable */
@@ -324,6 +327,7 @@ ASENTRY_NP(mptramp)
 
 Lpmureg:
         .word   0xd0022124
+END(mptramp)
 
 ASENTRY_NP(mpentry)
 
@@ -408,6 +412,7 @@ mpvirt_done:
 .Lmpreturned:
 	.asciz	"main() returned"
 	.align	0
+END(mpentry)
 #endif
 
 ENTRY_NP(cpu_halt)
@@ -461,6 +466,7 @@ ENTRY_NP(cpu_halt)
 	 */
 .Lcpu_reset_needs_v4_MMU_disable:
 	.word	_C_LABEL(cpu_reset_needs_v4_MMU_disable)
+END(cpu_halt)
 
 
 /*
@@ -470,11 +476,13 @@ ENTRY(setjmp)
 	stmia	r0, {r4-r14}
 	mov	r0, #0x00000000
 	RET
+END(setjmp)
 
 ENTRY(longjmp)
 	ldmia	r0, {r4-r14}
 	mov	r0, #0x00000001
 	RET
+END(longjmp)
 
 	.data
 	.global _C_LABEL(esym)
@@ -482,6 +490,7 @@ _C_LABEL(esym):	.word	_C_LABEL(end)
 
 ENTRY_NP(abort)
 	b	_C_LABEL(abort)
+END(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
@@ -517,4 +526,5 @@ ENTRY_NP(sigcode)
 	.global szsigcode
 szsigcode:
 	.long esigcode-sigcode
+END(sigcode)
 /* End of locore.S */

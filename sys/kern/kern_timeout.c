@@ -258,6 +258,8 @@ callout_callwheel_init(void *dummy)
 	/*
 	 * Calculate the size of the callout wheel and the preallocated
 	 * timeout() structures.
+	 * XXX: Clip callout to result of previous function of maxusers
+	 * maximum 384.  This is still huge, but acceptable.
 	 */
 	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
@@ -294,7 +296,7 @@ callout_cpu_init(struct callout_cpu *cc)
 
 	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
 	SLIST_INIT(&cc->cc_callfree);
-	cc->cc_callwheel = malloc(sizeof(struct callout_tailq) * callwheelsize,
+	cc->cc_callwheel = malloc(sizeof(struct callout_list) * callwheelsize,
 	    M_CALLOUT, M_WAITOK);
 	for (i = 0; i < callwheelsize; i++)
 		LIST_INIT(&cc->cc_callwheel[i]);

@@ -25,17 +25,23 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/queue.h>
-
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <time.h>
+#include <sys/fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/queue.h>
+#include <sys/endian.h>
+#endif
 
 #define	libusb_device_handle libusb20_device
 
@@ -1331,7 +1337,7 @@ failure:
 
 	/* make sure our event loop spins the done handler */
 	dummy = 0;
-	write(dev->ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
+	err = write(dev->ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
 }
 
 /* The following function must be called unlocked */

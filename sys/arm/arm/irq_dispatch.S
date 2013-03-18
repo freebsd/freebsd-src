@@ -97,6 +97,7 @@ ASENTRY_NP(irq_entry)
 	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
 	movs	pc, lr			/* Exit */
+END(irq_entry)
 
 	.data
 	.align	0

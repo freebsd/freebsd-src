@@ -3313,6 +3313,45 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 }
 
 void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	vm_page_t a_pg, b_pg;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	mtx_lock(&cmtx);
+	while (xfersize > 0) {
+		a_pg = ma[a_offset >> PAGE_SHIFT];
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		b_pg = mb[b_offset >> PAGE_SHIFT];
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		*csrc_pte = L2_S_PROTO | VM_PAGE_TO_PHYS(a_pg) |
+		    pte_l2_s_cache_mode;
+		pmap_set_prot(csrc_pte, VM_PROT_READ, 0);
+		PTE_SYNC(csrc_pte);
+		*cdst_pte = L2_S_PROTO | VM_PAGE_TO_PHYS(b_pg) |
+		    pte_l2_s_cache_mode;
+		pmap_set_prot(cdst_pte, VM_PROT_READ | VM_PROT_WRITE, 0);
+		PTE_SYNC(cdst_pte);
+		cpu_tlb_flushD_SE(csrcp);
+		cpu_tlb_flushD_SE(cdstp);
+		cpu_cpwait();
+		bcopy((char *)csrcp + a_pg_offset, (char *)cdstp + b_pg_offset,
+		    cnt);
+		cpu_idcache_wbinv_range(cdstp + b_pg_offset, cnt);
+		pmap_l2cache_wbinv_range(cdstp + b_pg_offset,
+		    VM_PAGE_TO_PHYS(b_pg) + b_pg_offset, cnt);
+		xfersize -= cnt;
+		a_offset += cnt;
+		b_offset += cnt;
+	}
+	mtx_unlock(&cmtx);
+}
+
+void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
 

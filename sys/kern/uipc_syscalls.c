@@ -1701,18 +1701,16 @@ sockargs(mp, buf, buflen, type)
 	struct mbuf *m;
 	int error;
 
-	if ((u_int)buflen > MLEN) {
+	if (buflen > MLEN) {
 #ifdef COMPAT_OLDSOCK
-		if (type == MT_SONAME && (u_int)buflen <= 112)
+		if (type == MT_SONAME && buflen <= 112)
 			buflen = MLEN;		/* unix domain compat. hack */
 		else
 #endif
-			if ((u_int)buflen > MCLBYTES)
+			if (buflen > MCLBYTES)
 				return (EINVAL);
 	}
-	m = m_get(M_WAITOK, type);
-	if ((u_int)buflen > MLEN)
-		MCLGET(m, M_WAITOK);
+	m = m_get2(buflen, M_WAITOK, type, 0);
 	m->m_len = buflen;
 	error = copyin(buf, mtod(m, caddr_t), (u_int)buflen);
 	if (error)
@@ -2222,8 +2220,14 @@ retry_space:
 				sf_buf_mext((void *)sf_buf_kva(sf), sf);
 				break;
 			}
-			MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext,
-			    sfs, sf, M_RDONLY, EXT_SFBUF);
+			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
+			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
+			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
+				error = (mnw ? EAGAIN : ENOBUFS);
+				sf_buf_mext((void *)sf_buf_kva(sf), sf);
+				m_freem(m0);
+				break;
+			}
 			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
 			m0->m_len = xfsize;
 
@@ -2386,8 +2390,10 @@ sys_sctp_peeloff(td, uap)
 
 	CURVNET_SET(head->so_vnet);
 	so = sonewconn(head, SS_ISCONNECTED);
-	if (so == NULL)
+	if (so == NULL) {
+		error = ENOMEM;
 		goto noconnection;
+	}
 	/*
 	 * Before changing the flags on the socket, we have to bump the
 	 * reference count.  Otherwise, if the protocol calls sofree(),

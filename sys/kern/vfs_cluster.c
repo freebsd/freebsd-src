@@ -84,15 +84,9 @@ extern vm_page_t	bogus_page;
  * cluster_read replaces bread.
  */
 int
-cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
-	struct vnode *vp;
-	u_quad_t filesize;
-	daddr_t lblkno;
-	long size;
-	struct ucred *cred;
-	long totread;
-	int seqcount;
-	struct buf **bpp;
+cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
+    struct ucred *cred, long totread, int seqcount, int gbflags,
+    struct buf **bpp)
 {
 	struct buf *bp, *rbp, *reqbp;
 	struct bufobj *bo;
@@ -569,14 +563,14 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
 {
 	int r = 0;
 
-	switch(write_behind) {
+	switch (write_behind) {
 	case 2:
 		if (start_lbn < len)
 			break;
 		start_lbn -= len;
 		/* FALLTHROUGH */
 	case 1:
-		r = cluster_wbuild(vp, size, start_lbn, len);
+		r = cluster_wbuild(vp, size, start_lbn, len, 0);
 		/* FALLTHROUGH */
 	default:
 		/* FALLTHROUGH */
@@ -596,7 +590,8 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
  *	4.	end of a cluster - asynchronously write cluster
  */
 void
-cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount)
+cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
+    int gbflags)
 {
 	daddr_t lbn;
 	int maxclen, cursize;
@@ -742,11 +737,8 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount)
  * the current block (if last_bp == NULL).
  */
 int
-cluster_wbuild(vp, size, start_lbn, len)
-	struct vnode *vp;
-	long size;
-	daddr_t start_lbn;
-	int len;
+cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
+    int gbflags)
 {
 	struct buf *bp, *tbp;
 	struct bufobj *bo;

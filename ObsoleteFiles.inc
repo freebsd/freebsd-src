@@ -38,6 +38,51 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+OLD_FILES+=usr/share/man/man4/vinum.4.gz
+# 20130311: Ports are no more available via cvsup
+OLD_FILES+=usr/share/examples/cvsup/ports-supfile
+OLD_FILES+=usr/share/examples/cvsup/refuse
+OLD_FILES+=usr/share/examples/cvsup/refuse.README
+# 20130309: NWFS and NCP supports removed
+OLD_FILES+=usr/bin/ncplist
+OLD_FILES+=usr/bin/ncplogin
+OLD_FILES+=usr/bin/ncplogout
+OLD_FILES+=usr/include/fs/nwfs/nwfs.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_mount.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_node.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_subr.h
+OLD_DIRS+=usr/include/fs/nwfs
+OLD_FILES+=usr/include/netncp/ncp.h
+OLD_FILES+=usr/include/netncp/ncp_cfg.h
+OLD_FILES+=usr/include/netncp/ncp_conn.h
+OLD_FILES+=usr/include/netncp/ncp_file.h
+OLD_FILES+=usr/include/netncp/ncp_lib.h
+OLD_FILES+=usr/include/netncp/ncp_ncp.h
+OLD_FILES+=usr/include/netncp/ncp_nls.h
+OLD_FILES+=usr/include/netncp/ncp_rcfile.h
+OLD_FILES+=usr/include/netncp/ncp_rq.h
+OLD_FILES+=usr/include/netncp/ncp_sock.h
+OLD_FILES+=usr/include/netncp/ncp_subr.h
+OLD_FILES+=usr/include/netncp/ncp_user.h
+OLD_FILES+=usr/include/netncp/ncpio.h
+OLD_FILES+=usr/include/netncp/nwerror.h
+OLD_DIRS+=usr/include/netncp
+OLD_FILES+=usr/lib/libncp.a
+OLD_FILES+=usr/lib/libncp.so
+OLD_LIBS+=usr/lib/libncp.so.4
+OLD_FILES+=usr/lib/libncp_p.a
+OLD_FILES+=usr/lib32/libncp.a
+OLD_FILES+=usr/lib32/libncp.so
+OLD_LIBS+=usr/lib32/libncp.so.4
+OLD_FILES+=usr/lib32/libncp_p.a
+OLD_FILES+=usr/sbin/mount_nwfs
+OLD_FILES+=usr/share/examples/nwclient/dot.nwfsrc
+OLD_FILES+=usr/share/examples/nwclient/nwfs.sh.sample
+OLD_DIRS+=usr/share/examples/nwclient
+OLD_FILES+=usr/share/man/man1/ncplist.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
+OLD_FILES+=usr/share/man/man8/mount_nwfs.8.gz
 # 20130302: NTFS support removed
 OLD_FILES+=rescue/mount_ntfs
 OLD_FILES+=sbin/mount_ntfs
@@ -62,6 +107,12 @@ OLD_FILES+=usr/share/man/man8/mount_portalfs.8.gz
 OLD_FILES+=usr/share/man/man4/coda.4.gz
 # 20130302: XFS support removed
 OLD_FILES+=usr/share/man/man5/xfs.5.gz
+# 20130302: Capsicum overhaul
+OLD_FILES+=usr/share/man/man2/cap_getrights.2.gz
+OLD_FILES+=usr/share/man/man2/cap_new.2.gz
+# 20130213: OpenSSL 1.0.1e import
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover_init.3.gz
 # 20130116: removed long unused directories for .1aout section manpages
 OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
 OLD_FILES+=usr/share/man/en.UTF-8/man1aout

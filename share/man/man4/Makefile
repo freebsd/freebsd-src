@@ -525,7 +525,6 @@ MAN=	aac.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
-	vinum.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \
