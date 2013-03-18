@@ -251,8 +251,9 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 		rle = resource_list_find(&di->di_res, type, *rid);
 		if (rle == NULL) {
-			device_printf(bus, "no default resources for "
-			    "rid = %d, type = %d\n", *rid, type);
+			if (bootverbose)
+				device_printf(bus, "no default resources for "
+				    "rid = %d, type = %d\n", *rid, type);
 			return (NULL);
 		}
 		start = rle->start;
