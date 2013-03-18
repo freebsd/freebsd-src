@@ -45,8 +45,10 @@ extern "C" {
  */
 
 /* ioctl versions for vfs.zfs.version.ioctl */
-#define	ZFS_IOCVER_LZC		2
+#define	ZFS_IOCVER_UNDEF	-1
+#define	ZFS_IOCVER_NONE		0
 #define	ZFS_IOCVER_DEADMAN	1
+#define	ZFS_IOCVER_LZC		2
 #define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_LZC
 
 /* compatibility conversion flag */

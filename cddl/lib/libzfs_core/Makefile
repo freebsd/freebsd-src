@@ -4,12 +4,16 @@
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs_core/common
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
 
 LIB=	zfs_core
 DPADD=	${LIBNVPAIR}
 LDADD=	-lnvpair
 
-SRCS=	libzfs_core.c libzfs_core_compat.c
+SRCS=	libzfs_core.c \
+	libzfs_core_compat.c
+
+SRCS+=	libzfs_compat.c
 
 WARNS?=	0
 CSTD=	c99
