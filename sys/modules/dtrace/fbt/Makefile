@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../../cddl/dev/fbt
 
 KMOD=		fbt
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 SRCS=		fbt_powerpc.c
 .else
 SRCS=		fbt.c
