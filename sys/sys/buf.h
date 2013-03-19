@@ -480,7 +480,10 @@ int	buf_dirty_count_severe(void);
 void	bremfree(struct buf *);
 void	bremfreef(struct buf *);	/* XXX Force bremfree, only for nfs. */
 #define bread(vp, blkno, size, cred, bpp) \
-	    breadn_flags(vp, blkno, size, 0, 0, 0, cred, 0, bpp)
+	    breadn_flags(vp, blkno, size, NULL, NULL, 0, cred, 0, bpp)
+#define bread_gb(vp, blkno, size, cred, gbflags, bpp) \
+	    breadn_flags(vp, blkno, size, NULL, NULL, 0, cred, \
+		gbflags, bpp)
 #define breadn(vp, blkno, size, rablkno, rabsize, cnt, cred, bpp) \
 	    breadn_flags(vp, blkno, size, rablkno, rabsize, cnt, cred, 0, bpp)
 int	breadn_flags(struct vnode *, daddr_t, int, daddr_t *, int *, int,
