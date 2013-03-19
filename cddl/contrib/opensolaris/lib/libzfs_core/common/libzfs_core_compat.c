@@ -33,10 +33,11 @@ int
 lzc_compat_pre(zfs_cmd_t *zc, zfs_ioc_t *ioc, nvlist_t **source)
 {
 	nvlist_t *nvl = NULL;
-	nvpair_t *pair;
-	char *buf;
+	nvpair_t *pair, *hpair;
+	char *buf, *val;
 	zfs_ioc_t vecnum;
 	uint32_t type32;
+	int32_t cleanup_fd;
 	int error = 0;
 	int pos;
 
@@ -68,7 +69,7 @@ lzc_compat_pre(zfs_cmd_t *zc, zfs_ioc_t *ioc, nvlist_t **source)
 			strlcpy(zc->zc_name, buf, pos + 1);
 			strlcpy(zc->zc_value, buf + pos + 1, MAXPATHLEN);
 		} else
-			error = EOPNOTSUPP;
+			error = EINVAL;
 		/* old kernel cannot create multiple snapshots */
 		if (!error && nvlist_next_nvpair(nvl, pair) != NULL)
 			error = EOPNOTSUPP;
@@ -88,8 +89,61 @@ lzc_compat_pre(zfs_cmd_t *zc, zfs_ioc_t *ioc, nvlist_t **source)
 			buf = nvpair_name(pair);
 			pos = strcspn(buf, "@");
 			strlcpy(zc->zc_name, buf, pos + 1);
-		}
+		} else
+			error = EINVAL;
+		/* old kernel cannot atomically destroy multiple snaps */
+		if (!error && nvlist_next_nvpair(nvl, pair) != NULL)
+			error = EOPNOTSUPP;
 		*source = nvl;
+	break;
+	case ZFS_IOC_HOLD:
+		nvl = fnvlist_lookup_nvlist(*source, "holds");
+		pair = nvlist_next_nvpair(nvl, NULL);
+		if (pair != NULL) {
+			buf = nvpair_name(pair);
+			pos = strcspn(buf, "@");
+			strlcpy(zc->zc_name, buf, pos + 1);
+			strlcpy(zc->zc_value, buf + pos + 1, MAXPATHLEN);
+			if (nvpair_value_string(pair, &val) == 0)
+				strlcpy(zc->zc_string, val, MAXNAMELEN);
+			else
+				error = EINVAL;
+		} else
+			error = EINVAL;
+		/* old kernel cannot atomically create multiple holds */
+		if (!error && nvlist_next_nvpair(nvl, pair) != NULL)
+			error = EOPNOTSUPP;
+		nvlist_free(nvl);
+		if (nvlist_lookup_int32(*source, "cleanup_fd",
+		    &cleanup_fd) == 0)
+			zc->zc_cleanup_fd = cleanup_fd;
+		else
+			zc->zc_cleanup_fd = -1;
+	break;
+	case ZFS_IOC_RELEASE:
+		pair = nvlist_next_nvpair(*source, NULL);
+		if (pair != NULL) {
+			buf = nvpair_name(pair);
+			pos = strcspn(buf, "@");
+			strlcpy(zc->zc_name, buf, pos + 1);
+			strlcpy(zc->zc_value, buf + pos + 1, MAXPATHLEN);
+			if (nvpair_value_nvlist(pair, &nvl) == 0) {
+				hpair = nvlist_next_nvpair(nvl, NULL);
+				if (hpair != NULL)
+					strlcpy(zc->zc_string,
+					    nvpair_name(hpair), MAXNAMELEN);
+				else
+					error = EINVAL;
+				if (!error && nvlist_next_nvpair(nvl,
+				    hpair) != NULL)
+					error = EOPNOTSUPP;
+			} else
+				error = EINVAL;
+		} else
+			error = EINVAL;
+		/* old kernel cannot atomically release multiple holds */
+		if (!error && nvlist_next_nvpair(nvl, pair) != NULL)
+			error = EOPNOTSUPP;
 	break;
 	}
 

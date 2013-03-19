@@ -59,7 +59,6 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		strlcpy(zc->zc_name, zcdm_c->zc_name, MAXPATHLEN);
 		strlcpy(zc->zc_value, zcdm_c->zc_value, MAXPATHLEN * 2);
 		strlcpy(zc->zc_string, zcdm_c->zc_string, MAXPATHLEN);
-		strlcpy(zc->zc_top_ds, zcdm_c->zc_top_ds, MAXPATHLEN);
 		zc->zc_guid = zcdm_c->zc_guid;
 		zc->zc_nvlist_conf = zcdm_c->zc_nvlist_conf;
 		zc->zc_nvlist_conf_size = zcdm_c->zc_nvlist_conf_size;
@@ -104,7 +103,6 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		strlcpy(zc->zc_name, zc28_c->zc_name, MAXPATHLEN);
 		strlcpy(zc->zc_value, zc28_c->zc_value, MAXPATHLEN * 2);
 		strlcpy(zc->zc_string, zc28_c->zc_string, MAXPATHLEN);
-		strlcpy(zc->zc_top_ds, zc28_c->zc_top_ds, MAXPATHLEN);
 		zc->zc_guid = zc28_c->zc_guid;
 		zc->zc_nvlist_conf = zc28_c->zc_nvlist_conf;
 		zc->zc_nvlist_conf_size = zc28_c->zc_nvlist_conf_size;
@@ -220,7 +218,8 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 }
 
 void
-zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
+zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
+    const int cflag)
 {
 	zfs_cmd_v15_t *zc_c;
 	zfs_cmd_v28_t *zc28_c;
@@ -233,7 +232,6 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		strlcpy(zcdm_c->zc_name, zc->zc_name, MAXPATHLEN);
 		strlcpy(zcdm_c->zc_value, zc->zc_value, MAXPATHLEN * 2);
 		strlcpy(zcdm_c->zc_string, zc->zc_string, MAXPATHLEN);
-		strlcpy(zcdm_c->zc_top_ds, zc->zc_top_ds, MAXPATHLEN);
 		zcdm_c->zc_guid = zc->zc_guid;
 		zcdm_c->zc_nvlist_conf = zc->zc_nvlist_conf;
 		zcdm_c->zc_nvlist_conf_size = zc->zc_nvlist_conf_size;
@@ -266,7 +264,12 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 
 		/* zc_inject_record doesn't change in libzfs_core */
 		zc->zc_inject_record = zcdm_c->zc_inject_record;
-
+#ifndef _KERNEL
+		if (request == ZFS_IOC_RECV)
+			strlcpy(zcdm_c->zc_top_ds,
+			    zc->zc_value + strlen(zc->zc_value) + 1,
+			    (MAXPATHLEN * 2) - strlen(zc->zc_value) - 1);
+#endif
 	break;
 
 	case ZFS_CMD_COMPAT_V28:
@@ -275,7 +278,6 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		strlcpy(zc28_c->zc_name, zc->zc_name, MAXPATHLEN);
 		strlcpy(zc28_c->zc_value, zc->zc_value, MAXPATHLEN * 2);
 		strlcpy(zc28_c->zc_string, zc->zc_string, MAXPATHLEN);
-		strlcpy(zc28_c->zc_top_ds, zc->zc_top_ds, MAXPATHLEN);
 		zc28_c->zc_guid = zc->zc_guid;
 		zc28_c->zc_nvlist_conf = zc->zc_nvlist_conf;
 		zc28_c->zc_nvlist_conf_size = zc->zc_nvlist_conf_size;
@@ -305,7 +307,12 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		zc28_c->zc_fromobj = zc->zc_fromobj;
 		zc28_c->zc_createtxg = zc->zc_createtxg;
 		zc28_c->zc_stat = zc->zc_stat;
-
+#ifndef _KERNEL
+		if (request == ZFS_IOC_RECV)
+			strlcpy(zc28_c->zc_top_ds,
+			    zc->zc_value + strlen(zc->zc_value) + 1,
+			    MAXPATHLEN * 2 - strlen(zc->zc_value) - 1);
+#endif
 		/* zc_inject_record */
 		zc28_c->zc_inject_record.zi_objset =
 		    zc->zc_inject_record.zi_objset;
@@ -596,7 +603,8 @@ zcmd_ioctl_compat(int fd, int request, zfs_cmd_t *zc, const int cflag)
 	if (ZFS_IOCREQ(ncmd) == ZFS_IOC_COMPAT_FAIL)
 		return (ENOTSUP);
 
-	zfs_cmd_compat_put(zc, (caddr_t)zc_c, cflag);
+	zfs_cmd_compat_put(zc, (caddr_t)zc_c, request, cflag);
+
 	ret = ioctl(fd, ncmd, zc_c);
 	if (cflag == ZFS_CMD_COMPAT_V15 &&
 	    nc == ZFS_IOC_POOL_IMPORT)
@@ -664,7 +672,8 @@ nvlist_t *
 zfs_ioctl_compat_innvl(zfs_cmd_t *zc, nvlist_t * innvl, const int vec,
     const int cflag)
 {
-	nvlist_t *nvl, *tmpnvl;
+	nvlist_t *nvl, *tmpnvl, *hnvl;
+	nvpair_t *elem;
 	char *poolname, *snapname;
 	int err;
 
@@ -745,6 +754,69 @@ zfs_ioctl_compat_innvl(zfs_cmd_t *zc, nvlist_t * innvl, const int vec,
 		zc->zc_name[strcspn(zc->zc_name, "/@")] = '\0';
 		return (nvl);
 	break;
+	case ZFS_IOC_HOLD:
+		nvl = fnvlist_alloc();
+		tmpnvl = fnvlist_alloc();
+		if (zc->zc_cleanup_fd != -1)
+			fnvlist_add_int32(nvl, "cleanup_fd",
+			    (int32_t)zc->zc_cleanup_fd);
+		if (zc->zc_cookie) {
+			hnvl = fnvlist_alloc();
+			if (dmu_get_recursive_snaps_nvl(zc->zc_name,
+			    zc->zc_value, hnvl) == 0) {
+				elem = NULL;
+				while ((elem = nvlist_next_nvpair(hnvl,
+				    elem)) != NULL) {
+					nvlist_add_string(tmpnvl,
+					    nvpair_name(elem), zc->zc_string);
+				}
+			}
+			nvlist_free(hnvl);
+		} else {
+			snapname = kmem_asprintf("%s@%s", zc->zc_name,
+			    zc->zc_value);
+			nvlist_add_string(tmpnvl, snapname, zc->zc_string);
+			kmem_free(snapname, strlen(snapname + 1));
+		}
+		fnvlist_add_nvlist(nvl, "holds", tmpnvl);
+		nvlist_free(tmpnvl);
+		if (innvl != NULL)
+			nvlist_free(innvl);
+		/* strip dataset part from zc->zc_name */
+		zc->zc_name[strcspn(zc->zc_name, "/@")] = '\0';
+		return (nvl);
+	break;
+	case ZFS_IOC_RELEASE:
+		nvl = fnvlist_alloc();
+		tmpnvl = fnvlist_alloc();
+		if (zc->zc_cookie) {
+			hnvl = fnvlist_alloc();
+			if (dmu_get_recursive_snaps_nvl(zc->zc_name,
+			    zc->zc_value, hnvl) == 0) {
+				elem = NULL;
+				while ((elem = nvlist_next_nvpair(hnvl,
+				    elem)) != NULL) {
+					fnvlist_add_boolean(tmpnvl,
+					    zc->zc_string);
+					fnvlist_add_nvlist(nvl,
+					    nvpair_name(elem), tmpnvl);
+				}
+			}
+			nvlist_free(hnvl);
+		} else {
+			snapname = kmem_asprintf("%s@%s", zc->zc_name,
+			    zc->zc_value);
+			fnvlist_add_boolean(tmpnvl, zc->zc_string);
+			fnvlist_add_nvlist(nvl, snapname, tmpnvl);
+			kmem_free(snapname, strlen(snapname + 1));
+		}
+		nvlist_free(tmpnvl);
+		if (innvl != NULL)
+			nvlist_free(innvl);
+		/* strip dataset part from zc->zc_name */
+		zc->zc_name[strcspn(zc->zc_name, "/@")] = '\0';
+		return (nvl);
+	break;
 	}
 out:
 	return (innvl);
@@ -773,6 +845,8 @@ zfs_ioctl_compat_outnvl(zfs_cmd_t *zc, nvlist_t * outnvl, const int vec,
 	break;
 	case ZFS_IOC_CREATE:
 	case ZFS_IOC_CLONE:
+	case ZFS_IOC_HOLD:
+	case ZFS_IOC_RELEASE:
 		nvlist_free(outnvl);
 		/* return empty outnvl */
 		tmpnvl = fnvlist_alloc();

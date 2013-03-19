@@ -326,7 +326,7 @@ nvlist_t *zfs_ioctl_compat_outnvl(zfs_cmd_t *, nvlist_t *, const int,
 int zcmd_ioctl_compat(int, int, zfs_cmd_t *, const int);
 #endif	/* _KERNEL */
 void zfs_cmd_compat_get(zfs_cmd_t *, caddr_t, const int);
-void zfs_cmd_compat_put(zfs_cmd_t *, caddr_t, const int);
+void zfs_cmd_compat_put(zfs_cmd_t *, caddr_t, const int, const int);
 
 #ifdef	__cplusplus
 }
