@@ -128,6 +128,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+/* XXX */
+int	do_pipe(struct thread *td, int fildes[2], int flags);
+
 /*
  * Use this define if you want to disable *fancy* VM things.  Expect an
  * approx 30% decrease in transfer rate.  This could be useful for
@@ -324,11 +327,18 @@ pipe_zone_fini(void *mem, int size)
 int
 kern_pipe(struct thread *td, int fildes[2])
 {
+
+	return (do_pipe(td, fildes, 0));
+}
+
+int
+do_pipe(struct thread *td, int fildes[2], int flags)
+{
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *rf, *wf;
 	struct pipepair *pp;
 	struct pipe *rpipe, *wpipe;
-	int fd, error;
+	int fd, fflags, error;
 
 	pp = uma_zalloc(pipe_zone, M_WAITOK);
 #ifdef MAC
@@ -357,7 +367,7 @@ kern_pipe(struct thread *td, int fildes[2])
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
-	error = falloc(td, &rf, &fd, 0);
+	error = falloc(td, &rf, &fd, flags);
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
@@ -366,14 +376,18 @@ kern_pipe(struct thread *td, int fildes[2])
 	/* An extra reference on `rf' has been held for us by falloc(). */
 	fildes[0] = fd;
 
+	fflags = FREAD | FWRITE;
+	if ((flags & O_NONBLOCK) != 0)
+		fflags |= FNONBLOCK;
+
 	/*
 	 * Warning: once we've gotten past allocation of the fd for the
 	 * read-side, we can only drop the read side via fdrop() in order
 	 * to avoid races against processes which manage to dup() the read
 	 * side while we are blocked trying to allocate the write side.
 	 */
-	finit(rf, FREAD | FWRITE, DTYPE_PIPE, rpipe, &pipeops);
-	error = falloc(td, &wf, &fd, 0);
+	finit(rf, fflags, DTYPE_PIPE, rpipe, &pipeops);
+	error = falloc(td, &wf, &fd, flags);
 	if (error) {
 		fdclose(fdp, rf, fildes[0], td);
 		fdrop(rf, td);
@@ -382,7 +396,7 @@ kern_pipe(struct thread *td, int fildes[2])
 		return (error);
 	}
 	/* An extra reference on `wf' has been held for us by falloc(). */
-	finit(wf, FREAD | FWRITE, DTYPE_PIPE, wpipe, &pipeops);
+	finit(wf, fflags, DTYPE_PIPE, wpipe, &pipeops);
 	fdrop(wf, td);
 	fildes[1] = fd;
 	fdrop(rf, td);
