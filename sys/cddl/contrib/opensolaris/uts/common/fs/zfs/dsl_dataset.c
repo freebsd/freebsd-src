@@ -1287,6 +1287,15 @@ dsl_dataset_snapshot(nvlist_t *snaps, nvlist_t *props, nvlist_t *errors)
 		fnvlist_free(suspended);
 	}
 
+#ifdef __FreeBSD__
+#ifdef _KERNEL
+	for (pair = nvlist_next_nvpair(snaps, NULL); pair != NULL;
+	    pair = nvlist_next_nvpair(snaps, pair)) {
+		char *snapname = nvpair_name(pair);
+		zvol_create_minors(snapname);
+	}
+#endif
+#endif
 	return (error);
 }
 
