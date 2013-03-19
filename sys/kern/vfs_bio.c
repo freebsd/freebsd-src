@@ -4279,7 +4279,7 @@ vm_hold_free_pages(struct buf *bp, int newbsize)
  * check the return value.
  */
 int
-vmapbuf(struct buf *bp)
+vmapbuf(struct buf *bp, int mapbuf)
 {
 	caddr_t kva;
 	vm_prot_t prot;
@@ -4294,12 +4294,19 @@ vmapbuf(struct buf *bp)
 	    (vm_offset_t)bp->b_data, bp->b_bufsize, prot, bp->b_pages,
 	    btoc(MAXPHYS))) < 0)
 		return (-1);
-	pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
-	
-	kva = bp->b_saveaddr;
 	bp->b_npages = pidx;
-	bp->b_saveaddr = bp->b_data;
-	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
+	if (mapbuf || !unmapped_buf_allowed) {
+		pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
+		kva = bp->b_saveaddr;
+		bp->b_saveaddr = bp->b_data;
+		bp->b_data = kva + (((vm_offset_t)bp->b_data) & PAGE_MASK);
+		bp->b_flags &= ~B_UNMAPPED;
+	} else {
+		bp->b_flags |= B_UNMAPPED;
+		bp->b_offset = ((vm_offset_t)bp->b_data) & PAGE_MASK;
+		bp->b_saveaddr = bp->b_data;
+		bp->b_data = unmapped_buf;
+	}
 	return(0);
 }
 
@@ -4313,7 +4320,10 @@ vunmapbuf(struct buf *bp)
 	int npages;
 
 	npages = bp->b_npages;
-	pmap_qremove(trunc_page((vm_offset_t)bp->b_data), npages);
+	if (bp->b_flags & B_UNMAPPED)
+		bp->b_flags &= ~B_UNMAPPED;
+	else
+		pmap_qremove(trunc_page((vm_offset_t)bp->b_data), npages);
 	vm_page_unhold_pages(bp->b_pages, npages);
 	
 	bp->b_data = bp->b_saveaddr;
