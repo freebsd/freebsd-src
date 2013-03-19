@@ -92,6 +92,7 @@ int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
 int	msgbufsize;			/* size of kernel message buffer */
 int	nbuf;
+int	bio_transient_maxcnt;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
 pid_t	pid_max = PID_MAX;
@@ -118,6 +119,9 @@ SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "Maximum memory for swap metadata");
 SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
     "Maximum value of vfs.maxbufspace");
+SYSCTL_INT(_kern, OID_AUTO, bio_transient_maxcnt, CTLFLAG_RDTUN,
+    &bio_transient_maxcnt, 0,
+    "Maximum number of transient BIOs mappings");
 SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxtsiz, 0,
     "Maximum text size");
 SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RW | CTLFLAG_TUN, &dfldsiz, 0,
@@ -266,6 +270,8 @@ init_param1(void)
 		pid_max = PID_MAX;
 	else if (pid_max < 300)
 		pid_max = 300;
+
+	TUNABLE_INT_FETCH("vfs.unmapped_buf_allowed", &unmapped_buf_allowed);
 }
 
 /*
@@ -322,6 +328,7 @@ init_param2(long physpages)
 	 */
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
+	TUNABLE_INT_FETCH("kern.bio_transient_maxcnt", &bio_transient_maxcnt);
 
 	/*
 	 * The default for maxpipekva is min(1/64 of the kernel address space,
