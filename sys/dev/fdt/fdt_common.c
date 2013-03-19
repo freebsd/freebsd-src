@@ -447,8 +447,8 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 	regptr = reg;
 	for (i = 0; i < tuples; i++) {
 
-		rv = fdt_data_to_res(reg, addr_cells, size_cells, &start,
-		    &count);
+		rv = fdt_data_to_res(reg, addr_cells, size_cells,
+		    (u_long *)&start, &count);
 		if (rv != 0) {
 			resource_list_free(rl);
 			goto out;
