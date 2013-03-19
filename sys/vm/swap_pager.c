@@ -758,6 +758,17 @@ swp_pager_strategy(struct buf *bp)
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (bp->b_blkno >= sp->sw_first && bp->b_blkno < sp->sw_end) {
 			mtx_unlock(&sw_dev_mtx);
+			if ((sp->sw_flags & SW_UNMAPPED) != 0 &&
+			    unmapped_buf_allowed) {
+				bp->b_kvaalloc = bp->b_data;
+				bp->b_data = unmapped_buf;
+				bp->b_kvabase = unmapped_buf;
+				bp->b_offset = 0;
+				bp->b_flags |= B_UNMAPPED;
+			} else {
+				pmap_qenter((vm_offset_t)bp->b_data,
+				    &bp->b_pages[0], bp->b_bcount / PAGE_SIZE);
+			}
 			sp->sw_strategy(bp, sp);
 			return;
 		}
@@ -1155,11 +1166,6 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	bp = getpbuf(&nsw_rcount);
 	bp->b_flags |= B_PAGING;
 
-	/*
-	 * map our page(s) into kva for input
-	 */
-	pmap_qenter((vm_offset_t)bp->b_data, m + i, j - i);
-
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = swp_pager_async_iodone;
 	bp->b_rcred = crhold(thread0.td_ucred);
@@ -1371,8 +1377,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_flags |= B_PAGING;
 		bp->b_iocmd = BIO_WRITE;
 
-		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
-
 		bp->b_rcred = crhold(thread0.td_ucred);
 		bp->b_wcred = crhold(thread0.td_ucred);
 		bp->b_bcount = PAGE_SIZE * n;
@@ -1484,7 +1488,12 @@ swp_pager_async_iodone(struct buf *bp)
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
+	if ((bp->b_flags & B_UNMAPPED) != 0) {
+		bp->b_data = bp->b_kvaalloc;
+		bp->b_kvabase = bp->b_kvaalloc;
+		bp->b_flags &= ~B_UNMAPPED;
+	} else
+		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
 
 	if (bp->b_npages) {
 		object = bp->b_pages[0]->object;
@@ -2144,7 +2153,8 @@ swapon_check_swzone(unsigned long npages)
 }
 
 static void
-swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strategy, sw_close_t *close, dev_t dev)
+swaponsomething(struct vnode *vp, void *id, u_long nblks,
+    sw_strategy_t *strategy, sw_close_t *close, dev_t dev, int flags)
 {
 	struct swdevt *sp, *tsp;
 	swblk_t dvbase;
@@ -2180,6 +2190,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	sp->sw_used = 0;
 	sp->sw_strategy = strategy;
 	sp->sw_close = close;
+	sp->sw_flags = flags;
 
 	sp->sw_blist = blist_create(nblks, M_WAITOK);
 	/*
@@ -2537,10 +2548,19 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 
 	bio->bio_caller2 = bp;
 	bio->bio_cmd = bp->b_iocmd;
-	bio->bio_data = bp->b_data;
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
 	bio->bio_length = bp->b_bcount;
 	bio->bio_done = swapgeom_done;
+	if ((bp->b_flags & B_UNMAPPED) != 0) {
+		bio->bio_ma = bp->b_pages;
+		bio->bio_data = unmapped_buf;
+		bio->bio_ma_offset = (vm_offset_t)bp->b_offset & PAGE_MASK;
+		bio->bio_ma_n = bp->b_npages;
+		bio->bio_flags |= BIO_UNMAPPED;
+	} else {
+		bio->bio_data = bp->b_data;
+		bio->bio_ma = NULL;
+	}
 	g_io_request(bio, cp);
 	return;
 }
@@ -2630,9 +2650,9 @@ swapongeom_ev(void *arg, int flags)
 	}
 	nblks = pp->mediasize / DEV_BSIZE;
 	swaponsomething(swh->vp, cp, nblks, swapgeom_strategy,
-	    swapgeom_close, dev2udev(swh->dev));
+	    swapgeom_close, dev2udev(swh->dev),
+	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
 	swh->error = 0;
-	return;
 }
 
 static int
@@ -2721,6 +2741,6 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 		return (error);
 
 	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
-	    NODEV);
+	    NODEV, 0);
 	return (0);
 }
