@@ -695,7 +695,7 @@ zvol_last_close(zvol_state_t *zv)
 	if (dsl_dataset_is_dirty(dmu_objset_ds(zv->zv_objset)) &&
 	    !(zv->zv_flags & ZVOL_RDONLY))
 		txg_wait_synced(dmu_objset_pool(zv->zv_objset), 0);
-	(void) dmu_objset_evict_dbufs(zv->zv_objset);
+	dmu_objset_evict_dbufs(zv->zv_objset);
 
 	dmu_objset_disown(zv->zv_objset, zvol_tag);
 	zv->zv_objset = NULL;
@@ -742,7 +742,7 @@ zvol_prealloc(zvol_state_t *zv)
 }
 #endif	/* sun */
 
-int
+static int
 zvol_update_volsize(objset_t *os, uint64_t volsize)
 {
 	dmu_tx_t *tx;
@@ -1225,6 +1225,9 @@ zvol_dumpio(zvol_state_t *zv, void *addr, uint64_t offset, uint64_t size,
 		ze = list_next(&zv->zv_extents, ze);
 	}
 
+	if (ze == NULL)
+		return (EINVAL);
+
 	if (!ddi_in_panic())
 		spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
 
@@ -1354,6 +1357,9 @@ zvol_dump(dev_t dev, caddr_t addr, daddr_t blkno, int nblocks)
 	zv = zfsdev_get_soft_state(minor, ZSST_ZVOL);
 	if (zv == NULL)
 		return (ENXIO);
+
+	if ((zv->zv_flags & ZVOL_DUMPIFIED) == 0)
+		return (EINVAL);
 
 	boff = ldbtob(blkno);
 	resid = ldbtob(nblocks);
@@ -2178,8 +2184,10 @@ zvol_create_snapshots(objset_t *os, const char *name)
 	cookie = obj = 0;
 	sname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
 
+#if 0
 	(void) dmu_objset_find(name, dmu_objset_prefetch, NULL,
 	    DS_FIND_SNAPSHOTS);
+#endif
 
 	for (;;) {
 		len = snprintf(sname, MAXPATHLEN, "%s@", name);
@@ -2248,12 +2256,14 @@ zvol_create_minors(const char *name)
 	p = osname + strlen(osname);
 	len = MAXPATHLEN - (p - osname);
 
+#if 0
 	/* Prefetch the datasets. */
 	cookie = 0;
 	while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0) {
 		if (!dataset_name_hidden(osname))
 			(void) dmu_objset_prefetch(osname, NULL);
 	}
+#endif
 
 	cookie = 0;
 	while (dmu_dir_list_next(os, MAXPATHLEN - (p - osname), p, NULL,

@@ -1692,7 +1692,9 @@ dump_dir(objset_t *os)
 	int print_header = 1;
 	int i, error;
 
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
 	dmu_objset_fast_stat(os, &dds);
+	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 
 	if (dds.dds_type < DMU_OST_NUMTYPES)
 		type = objset_types[dds.dds_type];
@@ -2101,7 +2103,6 @@ zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 		    NULL, NULL, ZIO_PRIORITY_ASYNC_READ, flags, zb));
 
 		free(data);
-
 		if (ioerr && !(flags & ZIO_FLAG_SPECULATIVE)) {
 			zcb->zcb_haderrors = 1;
 			zcb->zcb_errors[ioerr]++;
