@@ -186,9 +186,8 @@ usage(void)
 	"       [--set-x2apic-state=<state>]\n"
 	"       [--get-x2apic-state]\n"
 	"       [--unassign-pptdev=<bus/slot/func>]\n"
-	"       [--set-lowmem=<memory below 4GB in units of MB>]\n"
+	"       [--set-mem=<memory in units of MB>]\n"
 	"       [--get-lowmem]\n"
-	"       [--set-highmem=<memory above 4GB in units of MB>]\n"
 	"       [--get-highmem]\n",
 	progname);
 	exit(1);
@@ -197,7 +196,7 @@ usage(void)
 static int get_stats, getcap, setcap, capval;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
-static uint64_t lowmem, highmem;
+static uint64_t memsize;
 static int set_cr0, get_cr0, set_cr3, get_cr3, set_cr4, get_cr4;
 static int set_efer, get_efer;
 static int set_dr7, get_dr7;
@@ -351,8 +350,7 @@ vm_set_vmcs_field(struct vmctx *ctx, int vcpu, int field, uint64_t val)
 enum {
 	VMNAME = 1000,	/* avoid collision with return values from getopt */
 	VCPU,
-	SET_LOWMEM,
-	SET_HIGHMEM,
+	SET_MEM,
 	SET_EFER,
 	SET_CR0,
 	SET_CR3,
@@ -400,8 +398,7 @@ main(int argc, char *argv[])
 	struct option opts[] = {
 		{ "vm",		REQ_ARG,	0,	VMNAME },
 		{ "cpu",	REQ_ARG,	0,	VCPU },
-		{ "set-lowmem",	REQ_ARG,	0,	SET_LOWMEM },
-		{ "set-highmem",REQ_ARG,	0,	SET_HIGHMEM },
+		{ "set-mem",	REQ_ARG,	0,	SET_MEM },
 		{ "set-efer",	REQ_ARG,	0,	SET_EFER },
 		{ "set-cr0",	REQ_ARG,	0,	SET_CR0 },
 		{ "set-cr3",	REQ_ARG,	0,	SET_CR3 },
@@ -572,13 +569,9 @@ main(int argc, char *argv[])
 		case VCPU:
 			vcpu = atoi(optarg);
 			break;
-		case SET_LOWMEM:
-			lowmem = atoi(optarg) * MB;
-			lowmem = roundup(lowmem, 2 * MB);
-			break;
-		case SET_HIGHMEM:
-			highmem = atoi(optarg) * MB;
-			highmem = roundup(highmem, 2 * MB);
+		case SET_MEM:
+			memsize = atoi(optarg) * MB;
+			memsize = roundup(memsize, 2 * MB);
 			break;
 		case SET_EFER:
 			efer = strtoul(optarg, NULL, 0);
@@ -702,11 +695,8 @@ main(int argc, char *argv[])
 			error = -1;
 	}
 
-	if (!error && lowmem)
-		error = vm_setup_memory(ctx, 0, lowmem, NULL);
-
-	if (!error && highmem)
-		error = vm_setup_memory(ctx, 4 * GB, highmem, NULL);
+	if (!error && memsize)
+		error = vm_setup_memory(ctx, memsize, VM_MMAP_NONE);
 
 	if (!error && set_efer)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_EFER, efer);

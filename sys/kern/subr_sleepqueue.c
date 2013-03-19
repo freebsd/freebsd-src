@@ -405,7 +405,7 @@ sleepq_catch_signals(void *wchan, int pri)
 	struct thread *td;
 	struct proc *p;
 	struct sigacts *ps;
-	int sig, ret, stop_allowed;
+	int sig, ret;
 
 	td = curthread;
 	p = curproc;
@@ -429,8 +429,6 @@ sleepq_catch_signals(void *wchan, int pri)
 		sleepq_switch(wchan, pri);
 		return (0);
 	}
-	stop_allowed = (td->td_flags & TDF_SBDRY) ? SIG_STOP_NOT_ALLOWED :
-	    SIG_STOP_ALLOWED;
 	thread_unlock(td);
 	mtx_unlock_spin(&sc->sc_lock);
 	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
@@ -438,7 +436,7 @@ sleepq_catch_signals(void *wchan, int pri)
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
-	sig = cursig(td, stop_allowed);
+	sig = cursig(td);
 	if (sig == 0) {
 		mtx_unlock(&ps->ps_mtx);
 		ret = thread_suspend_check(1);

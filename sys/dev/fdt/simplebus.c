@@ -135,6 +135,8 @@ EARLY_DRIVER_MODULE(simplebus, fdtbus, simplebus_driver, simplebus_devclass,
     0, 0, BUS_PASS_BUS);
 EARLY_DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass,
     0, 0, BUS_PASS_BUS);
+DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass, 0,
+    0);
 
 static int
 simplebus_probe(device_t dev)
@@ -145,7 +147,7 @@ simplebus_probe(device_t dev)
 
 	device_set_desc(dev, "Flattened device tree simple bus");
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
