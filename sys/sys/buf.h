@@ -524,7 +524,7 @@ void	vfs_bio_set_valid(struct buf *, int base, int size);
 void	vfs_bio_clrbuf(struct buf *);
 void	vfs_busy_pages(struct buf *, int clear_modify);
 void	vfs_unbusy_pages(struct buf *);
-int	vmapbuf(struct buf *);
+int	vmapbuf(struct buf *, int);
 void	vunmapbuf(struct buf *);
 void	relpbuf(struct buf *, int *);
 void	brelvp(struct buf *);
