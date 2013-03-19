@@ -1727,7 +1727,7 @@ dontblock:
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				VNET_SO_ASSERT(so);
 				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp);
+				    (cm, controlp, flags);
 				SOCKBUF_LOCK(&so->so_rcv);
 			} else if (controlp != NULL)
 				*controlp = cm;
@@ -2361,7 +2361,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			cm->m_next = NULL;
 			if (pr->pr_domain->dom_externalize != NULL) {
 				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp);
+				    (cm, controlp, flags);
 			} else if (controlp != NULL)
 				*controlp = cm;
 			else
