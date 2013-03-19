@@ -421,12 +421,11 @@ fdt_regsize(phandle_t node, u_long *base, u_long *size)
 int
 fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 {
-	u_long count;
+	u_long end, count, start;
 	pcell_t *reg, *regptr;
 	pcell_t addr_cells, size_cells;
 	int tuple_size, tuples;
 	int i, rv;
-	bus_space_handle_t start, end;
 	long busaddr, bussize;
 
 	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
@@ -447,8 +446,8 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 	regptr = reg;
 	for (i = 0; i < tuples; i++) {
 
-		rv = fdt_data_to_res(reg, addr_cells, size_cells,
-		    (u_long *)&start, &count);
+		rv = fdt_data_to_res(reg, addr_cells, size_cells, &start,
+		    &count);
 		if (rv != 0) {
 			resource_list_free(rl);
 			goto out;
