@@ -90,6 +90,7 @@ vm_map_t kmem_map;
 vm_map_t exec_map;
 vm_map_t pipe_map;
 vm_map_t buffer_map;
+vm_map_t bio_transient_map;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);

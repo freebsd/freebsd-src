@@ -117,6 +117,7 @@ struct buf {
 	long	b_bufsize;		/* Allocated buffer size. */
 	long	b_runningbufspace;	/* when I/O is running, pipelining */
 	caddr_t	b_kvabase;		/* base kva for buffer */
+	caddr_t	b_kvaalloc;		/* allocated kva for B_KVAALLOC */
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t b_lblkno;		/* Logical block number. */
 	struct	vnode *b_vp;		/* Device vnode. */
@@ -202,8 +203,8 @@ struct buf {
 #define	B_PERSISTENT	0x00000100	/* Perm. ref'ed while EXT2FS mounted. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
-#define	B_00000800	0x00000800	/* Available flag. */
-#define	B_00001000	0x00001000	/* Available flag. */
+#define	B_UNMAPPED	0x00000800	/* KVA is not mapped. */
+#define	B_KVAALLOC	0x00001000	/* But allocated. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_BARRIER	0x00004000	/* Write this and all preceeding first. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
@@ -453,7 +454,9 @@ buf_countdeps(struct buf *bp, int i)
  */
 #define	GB_LOCK_NOWAIT	0x0001		/* Fail if we block on a buf lock. */
 #define	GB_NOCREAT	0x0002		/* Don't create a buf if not found. */
-#define	GB_NOWAIT_BD	0x0004		/* Do not wait for bufdaemon */
+#define	GB_NOWAIT_BD	0x0004		/* Do not wait for bufdaemon. */
+#define	GB_UNMAPPED	0x0008		/* Do not mmap buffer pages. */
+#define	GB_KVAALLOC	0x0010		/* But allocate KVA. */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
@@ -470,11 +473,13 @@ extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 extern int	cluster_pbuf_freecnt;	/* Number of pbufs for clusters */
 extern int	vnode_pbuf_freecnt;	/* Number of pbufs for vnode pager */
+extern caddr_t	unmapped_buf;
 
 void	runningbufwakeup(struct buf *);
 void	waitrunningbufspace(void);
 caddr_t	kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est);
 void	bufinit(void);
+void	bdata2bio(struct buf *bp, struct bio *bip);
 void	bwillwrite(void);
 int	buf_dirty_count_severe(void);
 void	bremfree(struct buf *);
