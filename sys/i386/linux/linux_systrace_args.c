@@ -295,7 +295,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_pipe */
 	case 42: {
 		struct linux_pipe_args *p = params;
-		uarg[0] = (intptr_t) p->pipefds; /* l_ulong * */
+		uarg[0] = (intptr_t) p->pipefds; /* l_int * */
 		*n_args = 1;
 		break;
 	}
@@ -2262,7 +2262,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_pipe2 */
 	case 331: {
-		*n_args = 0;
+		struct linux_pipe2_args *p = params;
+		uarg[0] = (intptr_t) p->pipefds; /* l_int * */
+		iarg[1] = p->flags; /* l_int */
+		*n_args = 2;
 		break;
 	}
 	/* linux_inotify_init1 */
@@ -2792,7 +2795,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 42:
 		switch(ndx) {
 		case 0:
-			p = "l_ulong *";
+			p = "l_int *";
 			break;
 		default:
 			break;
@@ -5660,6 +5663,16 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pipe2 */
 	case 331:
+		switch(ndx) {
+		case 0:
+			p = "l_int *";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_inotify_init1 */
 	case 332:
