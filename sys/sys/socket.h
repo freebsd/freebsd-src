@@ -95,6 +95,14 @@ typedef	__uid_t		uid_t;
 #endif
 #define	SOCK_SEQPACKET	5		/* sequenced packet stream */
 
+#if __BSD_VISIBLE
+/*
+ * Creation flags, OR'ed into socket() and socketpair() type argument.
+ */
+#define	SOCK_CLOEXEC	0x10000000
+#define	SOCK_NONBLOCK	0x20000000
+#endif
+
 /*
  * Option flags per-socket.
  */
@@ -459,6 +467,7 @@ struct msghdr {
 #endif
 #if __BSD_VISIBLE
 #define	MSG_NOSIGNAL	0x20000		/* do not generate SIGPIPE on EOF */
+#define	MSG_CMSG_CLOEXEC 0x40000	/* make received fds close-on-exec */
 #endif
 
 /*
