@@ -509,7 +509,8 @@ ffs_read(ap)
 			/*
 			 * Don't do readahead if this is the end of the file.
 			 */
-			error = bread(vp, lbn, size, NOCRED, &bp);
+			error = bread_gb(vp, lbn, size, NOCRED,
+			    GB_UNMAPPED, &bp);
 		} else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			/*
 			 * Otherwise if we are allowed to cluster,
@@ -520,7 +521,7 @@ ffs_read(ap)
 			 */
 			error = cluster_read(vp, ip->i_size, lbn,
 			    size, NOCRED, blkoffset + uio->uio_resid,
-			    seqcount, 0, &bp);
+			    seqcount, GB_UNMAPPED, &bp);
 		} else if (seqcount > 1) {
 			/*
 			 * If we are NOT allowed to cluster, then
@@ -531,15 +532,16 @@ ffs_read(ap)
 			 * the 6th argument.
 			 */
 			int nextsize = blksize(fs, ip, nextlbn);
-			error = breadn(vp, lbn,
-			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
+			error = breadn_flags(vp, lbn, size, &nextlbn,
+			    &nextsize, 1, NOCRED, GB_UNMAPPED, &bp);
 		} else {
 			/*
 			 * Failing all of the above, just read what the
 			 * user asked for. Interestingly, the same as
 			 * the first option above.
 			 */
-			error = bread(vp, lbn, size, NOCRED, &bp);
+			error = bread_gb(vp, lbn, size, NOCRED,
+			    GB_UNMAPPED, &bp);
 		}
 		if (error) {
 			brelse(bp);
@@ -570,8 +572,13 @@ ffs_read(ap)
 			xfersize = size;
 		}
 
-		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
-		    (int)xfersize, uio);
+		if ((bp->b_flags & B_UNMAPPED) == 0) {
+			error = vn_io_fault_uiomove((char *)bp->b_data +
+			    blkoffset, (int)xfersize, uio);
+		} else {
+			error = vn_io_fault_pgmove(bp->b_pages, blkoffset,
+			    (int)xfersize, uio);
+		}
 		if (error)
 			break;
 
@@ -702,6 +709,7 @@ ffs_write(ap)
 		flags = seqcount << BA_SEQSHIFT;
 	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
 		flags |= IO_SYNC;
+	flags |= BA_UNMAPPED;
 
 	for (error = 0; uio->uio_resid > 0;) {
 		lbn = lblkno(fs, uio->uio_offset);
@@ -741,8 +749,13 @@ ffs_write(ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
-		    (int)xfersize, uio);
+		if ((bp->b_flags & B_UNMAPPED) == 0) {
+			error = vn_io_fault_uiomove((char *)bp->b_data +
+			    blkoffset, (int)xfersize, uio);
+		} else {
+			error = vn_io_fault_pgmove(bp->b_pages, blkoffset,
+			    (int)xfersize, uio);
+		}
 		/*
 		 * If the buffer is not already filled and we encounter an
 		 * error while trying to fill it, we have to clear out any
@@ -786,7 +799,7 @@ ffs_write(ap)
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
 				bp->b_flags |= B_CLUSTEROK;
 				cluster_write(vp, bp, ip->i_size, seqcount,
-				    0);
+				    GB_UNMAPPED);
 			} else {
 				bawrite(bp);
 			}
