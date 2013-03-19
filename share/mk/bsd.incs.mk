@@ -73,7 +73,7 @@ installincludes:
 		t=${DESTDIR}$$1; \
 		shift; \
 		${ECHO} $$t -\> $$l; \
-		${INSTALL_SYMLINK} $$l $$t; \
+		ln -fs $$l $$t; \
 	done; true
 .endif
 .endif # !target(installincludes)
