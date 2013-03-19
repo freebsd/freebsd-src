@@ -99,7 +99,7 @@ typedef enum {
 	CAM_MSGB_VALID		= 0x10000000,/* Message buffer valid	      */
 	CAM_STATUS_VALID	= 0x20000000,/* Status buffer valid	      */
 	CAM_DATAB_VALID		= 0x40000000,/* Data buffer valid	      */
-	
+
 /* Host target Mode flags */
 	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
 	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
