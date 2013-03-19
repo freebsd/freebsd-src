@@ -42,7 +42,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/ata/ata_all.h>
 
-
 /* General allocation length definitions for CCB structures */
 #define	IOCDBLEN	CAM_MAX_CDBLEN	/* Space for CDB bytes/pointer */
 #define	VUHBALEN	14		/* Vendor Unique HBA length */
@@ -572,7 +571,8 @@ typedef enum {
 	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
 	PIM_NOBUSRESET	= 0x10,	/* User has disabled initial BUS RESET */
 	PIM_NO_6_BYTE	= 0x08,	/* Do not send 6-byte commands */
-	PIM_SEQSCAN	= 0x04	/* Do bus scans sequentially, not in parallel */
+	PIM_SEQSCAN	= 0x04,	/* Do bus scans sequentially, not in parallel */
+	PIM_UNMAPPED	= 0x02,
 } pi_miscflag;
 
 /* Path Inquiry CCB */
