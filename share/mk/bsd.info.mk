@@ -113,7 +113,7 @@ DVIPS2ASCII?=	dvips2ascii
 
 .info.html:
 	${INFO2HTML} ${.IMPSRC}
-	${INSTALL_LINK} ${.TARGET:R}.info.Top.html ${.TARGET}
+	ln -f ${.TARGET:R}.info.Top.html ${.TARGET}
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
