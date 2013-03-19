@@ -4176,6 +4176,32 @@ unlock:
 	bp->b_resid = 0;
 }
 
+void
+vfs_bio_bzero_buf(struct buf *bp, int base, int size)
+{
+	vm_page_t m;
+	int i, n;
+
+	if ((bp->b_flags & B_UNMAPPED) == 0) {
+		BUF_CHECK_MAPPED(bp);
+		bzero(bp->b_data + base, size);
+	} else {
+		BUF_CHECK_UNMAPPED(bp);
+		n = PAGE_SIZE - (base & PAGE_MASK);
+		VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+		for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
+			m = bp->b_pages[i];
+			if (n > size)
+				n = size;
+			pmap_zero_page_area(m, base & PAGE_MASK, n);
+			base += n;
+			size -= n;
+			n = PAGE_SIZE;
+		}
+		VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
+	}
+}
+
 /*
  * vm_hold_load_pages and vm_hold_free_pages get pages into
  * a buffers address space.  The pages are anonymous and are
