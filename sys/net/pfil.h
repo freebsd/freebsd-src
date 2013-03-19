@@ -123,14 +123,14 @@ struct pfil_head *pfil_head_get(int, u_long);
 	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK)	\
 		PFIL_LOCK_DESTROY_REAL((p)->ph_plock);	\
 } while (0)
-#define PFIL_TRY_RLOCK(p, t)	rm_try_rlock((p)->ph_plock, (t))
-#define PFIL_RLOCK(p, t)	rm_rlock((p)->ph_plock, (t))
-#define PFIL_WLOCK(p)		rm_wlock((p)->ph_plock)
-#define PFIL_RUNLOCK(p, t)	rm_runlock((p)->ph_plock, (t))
-#define PFIL_WUNLOCK(p)		rm_wunlock((p)->ph_plock)
-#define PFIL_WOWNED(p)		rm_wowned((p)->ph_plock)
-#define PFIL_LIST_LOCK()	mtx_lock(&pfil_global_lock)
-#define PFIL_LIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
+#define	PFIL_TRY_RLOCK(p, t)	rm_try_rlock((p)->ph_plock, (t))
+#define	PFIL_RLOCK(p, t)	rm_rlock((p)->ph_plock, (t))
+#define	PFIL_WLOCK(p)		rm_wlock((p)->ph_plock)
+#define	PFIL_RUNLOCK(p, t)	rm_runlock((p)->ph_plock, (t))
+#define	PFIL_WUNLOCK(p)		rm_wunlock((p)->ph_plock)
+#define	PFIL_WOWNED(p)		rm_wowned((p)->ph_plock)
+#define	PFIL_LIST_LOCK()	mtx_lock(&pfil_global_lock)
+#define	PFIL_LIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
 
 static __inline struct packet_filter_hook *
 pfil_hook_get(int dir, struct pfil_head *ph)
