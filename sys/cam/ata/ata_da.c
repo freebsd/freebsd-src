@@ -1167,6 +1167,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	    ((softc->flags & ADA_FLAG_CAN_CFA) &&
 	    !(softc->flags & ADA_FLAG_CAN_48BIT)))
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
+	if ((cpi.hba_misc & PIM_UNMAPPED) != 0)
+		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cgd->ident_data.model)));
 	strlcpy(softc->disk->d_ident, cgd->ident_data.serial,
@@ -1431,13 +1433,19 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 				return;
 			}
 #endif
+			KASSERT((bp->bio_flags & BIO_UNMAPPED) == 0 ||
+			    round_page(bp->bio_bcount + bp->bio_ma_offset) /
+			    PAGE_SIZE == bp->bio_ma_n,
+			    ("Short bio %p", bp));
 			cam_fill_ataio(ataio,
 			    ada_retry_count,
 			    adadone,
-			    bp->bio_cmd == BIO_READ ?
-			        CAM_DIR_IN : CAM_DIR_OUT,
+			    (bp->bio_cmd == BIO_READ ? CAM_DIR_IN :
+				CAM_DIR_OUT) | ((bp->bio_flags & BIO_UNMAPPED)
+				!= 0 ? CAM_DATA_BIO : 0),
 			    tag_code,
-			    bp->bio_data,
+			    ((bp->bio_flags & BIO_UNMAPPED) != 0) ? (void *)bp :
+				bp->bio_data,
 			    bp->bio_bcount,
 			    ada_default_timeout*1000);
 
