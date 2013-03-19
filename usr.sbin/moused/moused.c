@@ -245,6 +245,7 @@ static symtab_t	rmodels[] = {
     { "4D Mouse",		MOUSE_MODEL_4D,			0 },
     { "4D+ Mouse",		MOUSE_MODEL_4DPLUS,		0 },
     { "Synaptics Touchpad",	MOUSE_MODEL_SYNAPTICS,		0 },
+    { "TrackPoint",		MOUSE_MODEL_TRACKPOINT,		0 },
     { "generic",		MOUSE_MODEL_GENERIC,		0 },
     { NULL,			MOUSE_MODEL_UNKNOWN,		0 },
 };

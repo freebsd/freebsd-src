@@ -86,6 +86,8 @@ static struct lirqinfo {
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
 
+static uint32_t	pci_hole_startaddr;
+
 static uint64_t pci_emul_iobase;
 static uint64_t pci_emul_membase32;
 static uint64_t pci_emul_membase64;
@@ -93,7 +95,6 @@ static uint64_t pci_emul_membase64;
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
 
-#define	PCI_EMUL_MEMBASE32	(lomem_sz)
 #define	PCI_EMUL_MEMLIMIT32	0xE0000000		/* 3.5GB */
 
 #define	PCI_EMUL_MEMBASE64	0xD000000000UL
@@ -870,8 +871,10 @@ init_pci(struct vmctx *ctx)
 	int slot, func;
 	int error;
 
+	pci_hole_startaddr = vm_get_lowmem_limit(ctx);
+
 	pci_emul_iobase = PCI_EMUL_IOBASE;
-	pci_emul_membase32 = PCI_EMUL_MEMBASE32;
+	pci_emul_membase32 = pci_hole_startaddr;
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
 	for (slot = 0; slot < MAXSLOTS; slot++) {
@@ -904,8 +907,8 @@ init_pci(struct vmctx *ctx)
 	memset(&memp, 0, sizeof(struct mem_range));
 	memp.name = "PCI hole";
 	memp.flags = MEM_F_RW;
-	memp.base = lomem_sz;
-	memp.size = (4ULL * 1024 * 1024 * 1024) - lomem_sz;
+	memp.base = pci_hole_startaddr;
+	memp.size = (4ULL * 1024 * 1024 * 1024) - pci_hole_startaddr;
 	memp.handler = pci_emul_fallback_handler;
 
 	error = register_mem_fallback(&memp);

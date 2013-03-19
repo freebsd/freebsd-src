@@ -7097,7 +7097,7 @@ do_vfp_nsyn_msr (void)
   return SUCCESS;
 }
 
-static int
+static void
 do_vfp_vmrs (void)
 {
   int rt;
@@ -7106,21 +7106,21 @@ do_vfp_vmrs (void)
   if (inst.operands[0].reg > 14)
     {
       inst.error = BAD_PC;
-      return FAIL;
+      return;
     }
 
   /* If the destination is r13 and not in ARM mode then unprefictable */
   if (thumb_mode && inst.operands[0].reg == REG_SP)
     {
       inst.error = BAD_SP;
-      return FAIL;
+      return;
     }
 
   /* If the destination is APSR_nzcv */
   if (inst.operands[0].isvec && inst.operands[1].reg != 1)
     {
       inst.error = BAD_VMRS;
-      return FAIL;
+      return;
     }
 
   if (inst.operands[0].isvec)
@@ -7131,32 +7131,28 @@ do_vfp_vmrs (void)
   /* Or in the registers to use */
   inst.instruction |= rt << 12;
   inst.instruction |= inst.operands[1].reg << 16;
-
-  return SUCCESS;
 }
 
-static int
+static void
 do_vfp_vmsr (void)
 {
   /* The destination register can be r0-r14 or APSR_nzcv */
   if (inst.operands[1].reg > 14)
     {
       inst.error = BAD_PC;
-      return FAIL;
+      return;
     }
 
   /* If the destination is r13 and not in ARM mode then unprefictable */
   if (thumb_mode && inst.operands[0].reg == REG_SP)
     {
       inst.error = BAD_SP;
-      return FAIL;
+      return;
     }
 
   /* Or in the registers to use */
   inst.instruction |= inst.operands[1].reg << 12;
   inst.instruction |= inst.operands[0].reg << 16;
-
-  return SUCCESS;
 }
 
 static void
