@@ -217,6 +217,8 @@
             ..
             atf
             ..
+            bhyve
+            ..
             bootforth
             ..
             csh
