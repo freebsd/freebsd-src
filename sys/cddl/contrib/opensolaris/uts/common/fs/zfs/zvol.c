@@ -2233,13 +2233,16 @@ zvol_create_minors(const char *name)
 		return (error);
 	}
 	if (dmu_objset_type(os) == DMU_OST_ZVOL) {
+		dsl_dataset_long_hold(os->os_dsl_dataset, FTAG);
+		dsl_pool_rele(dmu_objset_pool(os), FTAG);
 		if ((error = zvol_create_minor(name)) == 0)
 			error = zvol_create_snapshots(os, name);
 		else {
 			printf("ZFS WARNING: Unable to create ZVOL %s (error=%d).\n",
 			    name, error);
 		}
-		dmu_objset_rele(os, FTAG);
+		dsl_dataset_long_rele(os->os_dsl_dataset, FTAG);
+		dsl_dataset_rele(os->os_dsl_dataset, FTAG);
 		return (error);
 	}
 	if (dmu_objset_type(os) != DMU_OST_ZFS) {
