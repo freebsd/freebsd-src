@@ -203,6 +203,7 @@ enum tokens {
 	TOK_SETFIB,
 	TOK_LOOKUP,
 	TOK_SOCKARG,
+	TOK_SETDSCP,
 };
 /*
  * the following macro returns an error message if we run out of
