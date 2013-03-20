@@ -64,6 +64,7 @@ struct uart_bas {
  */
 struct uart_class;
 
+extern struct uart_class uart_imx_class __attribute__((weak));
 extern struct uart_class uart_ns8250_class __attribute__((weak));
 extern struct uart_class uart_quicc_class __attribute__((weak));
 extern struct uart_class uart_sab82532_class __attribute__((weak));
