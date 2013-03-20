@@ -105,6 +105,8 @@ uart_fdt_probe(device_t dev)
 		sc->sc_class = &uart_ns8250_class;
 	else if (ofw_bus_is_compatible(dev, "lpc,uart"))
 		sc->sc_class = &uart_lpc_class;
+	else if (ofw_bus_is_compatible(dev, "fsl,imx-uart"))
+		sc->sc_class = &uart_imx_class;
 	else if (ofw_bus_is_compatible(dev, "arm,pl011"))
 		sc->sc_class = &uart_pl011_class;
 	else
@@ -184,6 +186,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * Finalize configuration.
 	 */
+	if (fdt_is_compatible(node, "fsl,imx-uart"))
+		class = &uart_imx_class;
 	if (fdt_is_compatible(node, "quicc"))
 		class = &uart_quicc_class;
 	if (fdt_is_compatible(node, "lpc"))
