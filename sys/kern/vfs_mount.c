@@ -1256,12 +1256,14 @@ dounmount(mp, flags, td)
 		return (error);
 	}
 
+	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
 			VOP_UNLOCK(coveredvp, 0);
+		vn_finished_write(mp);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
@@ -1281,7 +1283,6 @@ dounmount(mp, flags, td)
 	KASSERT(error == 0,
 	    ("%s: invalid return value for msleep in the drain path @ %s:%d",
 	    __func__, __FILE__, __LINE__));
-	vn_start_write(NULL, &mp, V_WAIT);
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
