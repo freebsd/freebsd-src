@@ -947,7 +947,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	if ((bp->b_ioflags & BIO_ERROR) != 0)
 		error = EIO;
 
-	if (error != 0 && size != count * PAGE_SIZE) {
+	if (error == 0 && size != count * PAGE_SIZE) {
 		if ((bp->b_flags & B_UNMAPPED) != 0) {
 			bp->b_flags &= ~B_UNMAPPED;
 			pmap_qenter(kva, m, count);
