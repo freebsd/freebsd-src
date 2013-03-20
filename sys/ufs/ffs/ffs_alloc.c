@@ -254,7 +254,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	struct buf *bp;
 	struct ufsmount *ump;
 	u_int cg, request, reclaimed;
-	int error;
+	int error, gbflags;
 	ufs2_daddr_t bno;
 	static struct timeval lastfail;
 	static int curfail;
@@ -265,6 +265,8 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	fs = ip->i_fs;
 	bp = NULL;
 	ump = ip->i_ump;
+	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
+
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 #ifdef INVARIANTS
 	if (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
@@ -296,7 +298,7 @@ retry:
 	/*
 	 * Allocate the extra space in the buffer.
 	 */
-	error = bread(vp, lbprev, osize, NOCRED, &bp);
+	error = bread_gb(vp, lbprev, osize, NOCRED, gbflags, &bp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -332,7 +334,7 @@ retry:
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
-		bzero(bp->b_data + osize, nsize - osize);
+		vfs_bio_bzero_buf(bp, osize, nsize - osize);
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) == B_VMIO)
 			vfs_bio_set_valid(bp, osize, nsize - osize);
 		*bpp = bp;
@@ -400,7 +402,7 @@ retry:
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
-		bzero(bp->b_data + osize, nsize - osize);
+		vfs_bio_bzero_buf(bp, osize, nsize - osize);
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) == B_VMIO)
 			vfs_bio_set_valid(bp, osize, nsize - osize);
 		*bpp = bp;

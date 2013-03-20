@@ -570,7 +570,14 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 
 			/*
 			 * Move frames from the s/w mcast q to the h/w cab q.
-			 * XXX MORE_DATA bit
+			 * XXX TODO: walk the list, update MORE_DATA bit
+			 * XXX TODO: or maybe, set the MORE data bit in the
+			 *           TX descriptor(s) here?
+			 *
+			 * XXX TODO: we're still pushing a CABQ frame list to
+			 *           AR9380 hosts; but we don't (yet) populate
+			 *           the ATH_BUF_BUSY flag in the EDMA
+			 *           completion task (for CABQ, though!)
 			 */
 			bfm = TAILQ_FIRST(&avp->av_mcastq.axq_q);
 			if (cabq->axq_link != NULL) {

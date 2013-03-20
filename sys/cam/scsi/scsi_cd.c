@@ -1575,7 +1575,8 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					/*retries*/ cd_retry_count,
 					/* cbfcnp */ cddone,
 					MSG_SIMPLE_Q_TAG,
-					/* read */bp->bio_cmd == BIO_READ,
+					/* read */bp->bio_cmd == BIO_READ ?
+					SCSI_RW_READ : SCSI_RW_WRITE,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,
 					/* lba */ bp->bio_offset /
