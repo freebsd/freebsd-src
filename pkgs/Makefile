@@ -102,7 +102,7 @@ $v = yes
 # This allows us to work out how long reading 
 # Makefile.depend* takes.
 .if ${.MAKEFLAGS:M-V} == ""
-.info ${TIME_STAMP} Start ${.TARGETS}
+.info ${.newline}${TIME_STAMP} Start ${.TARGETS}
 now_utc = ${%s:L:gmtime}
 start_utc := ${now_utc}
 .endif
