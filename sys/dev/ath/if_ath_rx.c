@@ -399,13 +399,31 @@ ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_v.evm[0] = rs->rs_evm0;
 	sc->sc_rx_th.wr_v.evm[1] = rs->rs_evm1;
 	sc->sc_rx_th.wr_v.evm[2] = rs->rs_evm2;
-	/* XXX TODO: extend this to include 3-stream EVM */
+	/* These are only populated from the AR9300 or later */
+	sc->sc_rx_th.wr_v.evm[3] = rs->rs_evm3;
+	sc->sc_rx_th.wr_v.evm[4] = rs->rs_evm4;
+
+	/* direction */
+	sc->sc_rx_th.wr_v.vh_flags = ATH_VENDOR_PKT_RX;
+
+	/* RX rate */
+	sc->sc_rx_th.wr_v.vh_rx_hwrate = rs->rs_rate;
+
+	/* RX flags */
+	sc->sc_rx_th.wr_v.vh_rs_flags = rs->rs_flags;
+
+	if (rs->rs_isaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_ISAGGR;
+	if (rs->rs_moreaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_MOREAGGR;
 
 	/* phyerr info */
-	if (rs->rs_status & HAL_RXERR_PHY)
+	if (rs->rs_status & HAL_RXERR_PHY) {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = rs->rs_phyerr;
-	else
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_RXPHYERR;
+	} else {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = 0xff;
+	}
 	sc->sc_rx_th.wr_v.vh_rs_status = rs->rs_status;
 	sc->sc_rx_th.wr_v.vh_rssi = rs->rs_rssi;
 }
@@ -1012,7 +1030,7 @@ rx_proc_next:
 	 * will reduce latency.
 	 */
 	if (npkts >= ATH_RX_MAX)
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+		sc->sc_rx.recv_sched(sc, resched);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt--;
@@ -1163,6 +1181,21 @@ ath_legacy_dma_rxteardown(struct ath_softc *sc)
 	return (0);
 }
 
+static void
+ath_legacy_recv_sched(struct ath_softc *sc, int dosched)
+{
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+}
+
+static void
+ath_legacy_recv_sched_queue(struct ath_softc *sc, HAL_RX_QUEUE q,
+    int dosched)
+{
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+}
+
 void
 ath_recv_setup_legacy(struct ath_softc *sc)
 {
@@ -1182,4 +1215,6 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 
 	sc->sc_rx.recv_setup = ath_legacy_dma_rxsetup;
 	sc->sc_rx.recv_teardown = ath_legacy_dma_rxteardown;
+	sc->sc_rx.recv_sched = ath_legacy_recv_sched;
+	sc->sc_rx.recv_sched_queue = ath_legacy_recv_sched_queue;
 }

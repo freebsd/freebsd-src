@@ -273,6 +273,12 @@ struct ath_rateioctl {
 #define	ATH_RADIOTAP_MAX_CHAINS		4
 
 /*
+ * AR9380 and later chips are 3x3, which requires
+ * 5 EVM DWORDs in HT40 mode.
+ */
+#define	ATH_RADIOTAP_MAX_EVM		5
+
+/*
  * The vendor radiotap header data needs to be:
  *
  * + Aligned to a 4 byte address
@@ -291,7 +297,7 @@ struct ath_radiotap_vendor_hdr {		/* 30 bytes */
 	uint8_t		vh_rx_chainmask;	/* 1 */
 
 	/* At this point it should be 4 byte aligned */
-	uint32_t	evm[ATH_RADIOTAP_MAX_CHAINS];	/* 4 * 4 = 16 */
+	uint32_t	evm[ATH_RADIOTAP_MAX_EVM];	/* 5 * 4 = 20 */
 
 	uint8_t		rssi_ctl[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
 	uint8_t		rssi_ext[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
@@ -299,7 +305,16 @@ struct ath_radiotap_vendor_hdr {		/* 30 bytes */
 	uint8_t		vh_phyerr_code;	/* Phy error code, or 0xff */
 	uint8_t		vh_rs_status;	/* RX status */
 	uint8_t		vh_rssi;	/* Raw RSSI */
-	uint8_t		vh_pad1[1];	/* Pad to 4 byte boundary */
+	uint8_t		vh_flags;	/* General flags */
+#define	ATH_VENDOR_PKT_RX	0x01
+#define	ATH_VENDOR_PKT_TX	0x02
+#define	ATH_VENDOR_PKT_RXPHYERR	0x04
+#define	ATH_VENDOR_PKT_ISAGGR	0x08
+#define	ATH_VENDOR_PKT_MOREAGGR	0x10
+
+	uint8_t		vh_rx_hwrate;	/* hardware RX ratecode */
+	uint8_t		vh_rs_flags;	/* RX HAL flags */
+	uint8_t		vh_pad[2];	/* pad to DWORD boundary */
 } __packed;
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 

@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/rwlock.h>
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -856,8 +856,12 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 				error = ENOMEM;
 				goto out;
 			}
-			bcopy(dp->d_name, buf + i, dp->d_namlen);
-			error = 0;
+			if (dp->d_namlen == 1 && dp->d_name[0] == '.') {
+				error = ENOENT;
+			} else {
+				bcopy(dp->d_name, buf + i, dp->d_namlen);
+				error = 0;
+			}
 			goto out;
 		}
 	} while (len > 0 || !eofflag);
@@ -1043,10 +1047,10 @@ vop_stdadvise(struct vop_advise_args *ap)
 		if (vp->v_object != NULL) {
 			start = trunc_page(ap->a_start);
 			end = round_page(ap->a_end);
-			VM_OBJECT_LOCK(vp->v_object);
+			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_cache(vp->v_object, OFF_TO_IDX(start),
 			    OFF_TO_IDX(end));
-			VM_OBJECT_UNLOCK(vp->v_object);
+			VM_OBJECT_WUNLOCK(vp->v_object);
 		}
 		VOP_UNLOCK(vp, 0);
 		break;

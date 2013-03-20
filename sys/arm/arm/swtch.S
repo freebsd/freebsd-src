@@ -211,10 +211,13 @@ ENTRY(cpu_throw)
 	GET_PCPU(r6)
 	str	r7, [r6, #PC_CURPCB]
 
+	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
+END(cpu_throw)
 
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
+	sub	sp, sp, #4;
 	mov	r6, r2 /* Save the mutex */
 
 .Lswitch_resume:
@@ -488,6 +491,7 @@ ENTRY(cpu_switch)
 	 * Pull the registers that got pushed when either savectx() or
 	 * cpu_switch() was called and return.
 	 */
+	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
 #ifdef DIAGNOSTIC
 .Lswitch_bogons:
@@ -499,8 +503,11 @@ ENTRY(cpu_switch)
 .Lswitch_panic_str:
 	.asciz	"cpu_switch: sched_qs empty with non-zero sched_whichqs!\n"
 #endif
+END(cpu_switch)
+
 ENTRY(savectx)
 	stmfd   sp!, {r4-r7, lr}
+	sub	sp, sp, #4
 	/*
 	 * r0 = pcb
 	 */
@@ -528,7 +535,9 @@ ENTRY(savectx)
 	bl	_C_LABEL(vfp_store)
 1:
 #endif		/* ARM_VFP_SUPPORT */
+	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
+END(savectx)
 
 ENTRY(fork_trampoline)
 	mov	r1, r5
@@ -546,3 +555,5 @@ ENTRY(fork_trampoline)
 	movs	pc, lr			/* Exit */
 
 AST_LOCALS
+END(fork_trampoline)
+

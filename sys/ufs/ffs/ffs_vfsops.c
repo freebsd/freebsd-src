@@ -1076,7 +1076,7 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_NO_IOPF;
+	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1351,9 +1351,10 @@ ffs_flushfiles(mp, flags, td)
 	struct thread *td;
 {
 	struct ufsmount *ump;
-	int error;
+	int qerror, error;
 
 	ump = VFSTOUFS(mp);
+	qerror = 0;
 #ifdef QUOTA
 	if (mp->mnt_flag & MNT_QUOTA) {
 		int i;
@@ -1361,11 +1362,19 @@ ffs_flushfiles(mp, flags, td)
 		if (error)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
-			quotaoff(td, mp, i);
+			error = quotaoff(td, mp, i);
+			if (error != 0) {
+				if ((flags & EARLYFLUSH) == 0)
+					return (error);
+				else
+					qerror = error;
+			}
 		}
+
 		/*
-		 * Here we fall through to vflush again to ensure
-		 * that we have gotten rid of all the system vnodes.
+		 * Here we fall through to vflush again to ensure that
+		 * we have gotten rid of all the system vnodes, unless
+		 * quotas must not be closed.
 		 */
 	}
 #endif
@@ -1380,11 +1389,21 @@ ffs_flushfiles(mp, flags, td)
 		 * that we have gotten rid of all the system vnodes.
 		 */
 	}
-        /*
-	 * Flush all the files.
+
+	/*
+	 * Do not close system files if quotas were not closed, to be
+	 * able to sync the remaining dquots.  The freeblks softupdate
+	 * workitems might hold a reference on a dquot, preventing
+	 * quotaoff() from completing.  Next round of
+	 * softdep_flushworklist() iteration should process the
+	 * blockers, allowing the next run of quotaoff() to finally
+	 * flush held dquots.
+	 *
+	 * Otherwise, flush all the files.
 	 */
-	if ((error = vflush(mp, 0, flags, td)) != 0)
+	if (qerror == 0 && (error = vflush(mp, 0, flags, td)) != 0)
 		return (error);
+
 	/*
 	 * Flush filesystem metadata.
 	 */
@@ -2091,6 +2110,7 @@ ffs_bufwrite(struct buf *bp)
 		 * set b_lblkno and BKGRDMARKER before calling bgetvp()
 		 * to avoid confusing the splay tree and gbincore().
 		 */
+		KASSERT((bp->b_flags & B_UNMAPPED) == 0, ("Unmapped cg"));
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
 		newbp->b_lblkno = bp->b_lblkno;
 		newbp->b_xflags |= BX_BKGRDMARKER;

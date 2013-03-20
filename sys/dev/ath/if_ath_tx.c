@@ -384,14 +384,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 	 */
 
 	/*
-	 * For now the HAL doesn't implement halNumTxMaps for non-EDMA
-	 * (ie it's 0.)  So just work around it.
-	 *
-	 * XXX TODO: populate halNumTxMaps for each HAL chip and
-	 * then undo this hack.
+	 * We need the number of TX data pointers in each descriptor.
+	 * EDMA and later chips support 4 TX buffers per descriptor;
+	 * previous chips just support one.
 	 */
-	if (sc->sc_ah->ah_magic == 0x19741014)
-		numTxMaps = 4;
+	numTxMaps = sc->sc_tx_nmaps;
 
 	/*
 	 * For EDMA and later chips ensure the TX map is fully populated
@@ -3757,7 +3754,6 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (bf->bf_state.bfs_isretried) {
 			bf_next = TAILQ_NEXT(bf, bf_list);
 			ATH_TID_REMOVE(atid, bf, bf_list);
-			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw) {
 				ath_tx_update_baw(sc, an, atid, bf);
 				if (! bf->bf_state.bfs_addedbaw)
@@ -4140,11 +4136,10 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 	int tid = bf_first->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 
-	bf = bf_first;
-
 	ATH_TX_LOCK(sc);
 
 	/* update incomp */
+	bf = bf_first;
 	while (bf) {
 		atid->incomp--;
 		bf = bf->bf_next;
@@ -4160,12 +4155,17 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 	/* Send BAR if required */
 	/* XXX why would we send a BAR when transitioning to non-aggregation? */
+	/*
+	 * XXX TODO: we should likely just tear down the BAR state here,
+	 * rather than sending a BAR.
+	 */
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
 		ath_tx_tid_bar_tx(sc, atid);
 
 	ATH_TX_UNLOCK(sc);
 
 	/* Handle frame completion */
+	bf = bf_first;
 	while (bf) {
 		bf_next = bf->bf_next;
 		ath_tx_default_comp(sc, bf, 1);
@@ -4175,8 +4175,6 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 /*
  * Handle completion of an set of aggregate frames.
- *
- * XXX for now, simply complete each sub-frame.
  *
  * Note: the completion handler is the last descriptor in the aggregate,
  * not the last descriptor in the first frame.
@@ -4340,12 +4338,23 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	    __func__, tap->txa_start, tx_ok, ts.ts_status, ts.ts_flags,
 	    isaggr, seq_st, hasba, ba[0], ba[1]);
 
+	/*
+	 * The reference driver doesn't do this; it simply ignores
+	 * this check in its entirety.
+	 *
+	 * I've seen this occur when using iperf to send traffic
+	 * out tid 1 - the aggregate frames are all marked as TID 1,
+	 * but the TXSTATUS has TID=0.  So, let's just ignore this
+	 * check.
+	 */
+#if 0
 	/* Occasionally, the MAC sends a tx status for the wrong TID. */
 	if (tid != ts.ts_tid) {
 		device_printf(sc->sc_dev, "%s: tid %d != hw tid %d\n",
 		    __func__, tid, ts.ts_tid);
 		tx_ok = 0;
 	}
+#endif
 
 	/* AR5416 BA bug; this requires an interface reset */
 	if (isaggr && tx_ok && (! hasba)) {

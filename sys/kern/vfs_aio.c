@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/sema.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -841,9 +842,9 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_object);
+		VM_OBJECT_WLOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 
@@ -1322,7 +1323,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Bring buffer into kernel space.
 	 */
-	if (vmapbuf(bp) < 0) {
+	if (vmapbuf(bp, 1) < 0) {
 		error = EFAULT;
 		goto doerror;
 	}
@@ -1593,16 +1594,16 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	fd = aiocbe->uaiocb.aio_fildes;
 	switch (opcode) {
 	case LIO_WRITE:
-		error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
+		error = fget_write(td, fd, CAP_PWRITE, &fp);
 		break;
 	case LIO_READ:
-		error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
+		error = fget_read(td, fd, CAP_PREAD, &fp);
 		break;
 	case LIO_SYNC:
 		error = fget(td, fd, CAP_FSYNC, &fp);
 		break;
 	case LIO_NOP:
-		error = fget(td, fd, 0, &fp);
+		error = fget(td, fd, CAP_NONE, &fp);
 		break;
 	default:
 		error = EINVAL;

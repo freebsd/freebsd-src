@@ -139,7 +139,7 @@ static MALLOC_DEFINE(M_VM, "vm", "vm");
 CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 
 /* statistics */
-static VMM_STAT_DEFINE(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
+static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
 
 static void
 vcpu_cleanup(struct vcpu *vcpu)
@@ -612,7 +612,7 @@ save_guest_fpustate(struct vcpu *vcpu)
 	fpu_start_emulating();
 }
 
-static VMM_STAT_DEFINE(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
+static VMM_STAT(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
 
 int
 vm_run(struct vm *vm, struct vm_run *vmrun)
@@ -717,7 +717,7 @@ vm_inject_event(struct vm *vm, int vcpuid, int type,
 	return (VMINJECT(vm->cookie, vcpuid, type, vector, code, code_valid));
 }
 
-static VMM_STAT_DEFINE(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
+static VMM_STAT(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
 
 int
 vm_inject_nmi(struct vm *vm, int vcpuid)
@@ -937,7 +937,7 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
 
-	if (state < 0 || state >= X2APIC_STATE_LAST)
+	if (state >= X2APIC_STATE_LAST)
 		return (EINVAL);
 
 	vm->vcpu[vcpuid].x2apic_state = state;

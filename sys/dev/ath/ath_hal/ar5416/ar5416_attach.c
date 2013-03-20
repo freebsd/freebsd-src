@@ -194,6 +194,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_set11nMac2040		= ar5416Set11nMac2040;
 	ah->ah_get11nRxClear		= ar5416Get11nRxClear;
 	ah->ah_set11nRxClear		= ar5416Set11nRxClear;
+	ah->ah_set11nVirtMoreFrag	= ar5416Set11nVirtualMoreFrag;
 
 	/* Interrupt functions */
 	ah->ah_isInterruptPending	= ar5416IsInterruptPending;

@@ -534,7 +534,7 @@ fdesc_readdir(ap)
 			dp->d_type = DT_DIR;
 			break;
 		default:
-			if (fdp->fd_ofiles[fcnt] == NULL)
+			if (fdp->fd_ofiles[fcnt].fde_file == NULL)
 				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;

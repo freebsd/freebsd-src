@@ -73,6 +73,7 @@ creat_f	c_regex;
 creat_f	c_samefile;
 creat_f	c_simple;
 creat_f	c_size;
+creat_f	c_sparse;
 creat_f	c_type;
 creat_f	c_user;
 creat_f	c_xdev;
@@ -109,6 +110,7 @@ exec_f	f_prune;
 exec_f	f_quit;
 exec_f	f_regex;
 exec_f	f_size;
+exec_f	f_sparse;
 exec_f	f_type;
 exec_f	f_user;
 

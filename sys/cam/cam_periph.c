@@ -734,6 +734,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_CONT_TARGET_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
+		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
+		    ("not VADDR for SCSI_IO %p %x\n", ccb, ccb->ccb_h.flags));
 
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		lengths[0] = ccb->csio.dxfer_len;
@@ -743,6 +745,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_ATA_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
+		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
+		    ("not VADDR for ATA_IO %p %x\n", ccb, ccb->ccb_h.flags));
 
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		lengths[0] = ccb->ataio.dxfer_len;
@@ -846,7 +850,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * into a larger area of VM, or if userland races against
 		 * vmapbuf() after the useracc() check.
 		 */
-		if (vmapbuf(mapinfo->bp[i]) < 0) {
+		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
 			for (j = 0; j < i; ++j) {
 				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
 				vunmapbuf(mapinfo->bp[j]);

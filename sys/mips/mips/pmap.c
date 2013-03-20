@@ -2399,7 +2399,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m, mpte;
 	vm_pindex_t diff, psize;
 
-	VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m_start->object);
 	psize = atop(end - start);
 	mpte = NULL;
 	m = m_start;
@@ -2423,7 +2423,7 @@ void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size)
 {
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
@@ -2573,6 +2573,53 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 		bcopy((void *)va_src, (void *)va_dst, PAGE_SIZE);
 		mips_dcache_wbinv_range(va_dst, PAGE_SIZE);
 		pmap_lmem_unmap();
+	}
+}
+
+int unmapped_buf_allowed;
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	char *a_cp, *b_cp;
+	vm_page_t a_m, b_m;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	vm_paddr_t a_phys, b_phys;
+	int cnt;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		a_m = ma[a_offset >> PAGE_SHIFT];
+		a_phys = VM_PAGE_TO_PHYS(a_m);
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		b_m = mb[b_offset >> PAGE_SHIFT];
+		b_phys = VM_PAGE_TO_PHYS(b_m);
+		if (MIPS_DIRECT_MAPPABLE(a_phys) &&
+		    MIPS_DIRECT_MAPPABLE(b_phys)) {
+			pmap_flush_pvcache(a_m);
+			mips_dcache_wbinv_range_index(
+			    MIPS_PHYS_TO_DIRECT(b_phys), PAGE_SIZE);
+			a_cp = (char *)MIPS_PHYS_TO_DIRECT(a_phys) +
+			    a_pg_offset;
+			b_cp = (char *)MIPS_PHYS_TO_DIRECT(b_phys) +
+			    b_pg_offset;
+			bcopy(a_cp, b_cp, cnt);
+			mips_dcache_wbinv_range((vm_offset_t)b_cp, cnt);
+		} else {
+			a_cp = (char *)pmap_lmem_map2(a_phys, b_phys);
+			b_cp = (char *)a_cp + PAGE_SIZE;
+			a_cp += a_pg_offset;
+			b_cp += b_pg_offset;
+			bcopy(a_cp, b_cp, cnt);
+			mips_dcache_wbinv_range((vm_offset_t)b_cp, cnt);
+			pmap_lmem_unmap();
+		}
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
 	}
 }
 
@@ -2768,7 +2815,7 @@ pmap_remove_write(vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
@@ -2834,7 +2881,7 @@ pmap_is_modified(vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have PTE_D set.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
@@ -2882,7 +2929,7 @@ pmap_clear_modify(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("pmap_clear_modify: page %p is busy", m));
 

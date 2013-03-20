@@ -329,6 +329,16 @@ struct ath_txq {
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
+	/*
+	 * XXX the holdingbf field is protected by the TXBUF lock
+	 * for now, NOT the TX lock.
+	 *
+	 * Architecturally, it would likely be better to move
+	 * the holdingbf field to a separate array in ath_softc
+	 * just to highlight that it's not protected by the normal
+	 * TX path lock.
+	 */
+	struct ath_buf		*axq_holdingbf;	/* holding TX buffer */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
 	/* Per-TID traffic queue for software -> hardware TX */
@@ -432,6 +442,9 @@ typedef enum {
 } ATH_RESET_TYPE;
 
 struct ath_rx_methods {
+	void		(*recv_sched_queue)(struct ath_softc *sc,
+			    HAL_RX_QUEUE q, int dosched);
+	void		(*recv_sched)(struct ath_softc *sc, int dosched);
 	void		(*recv_stop)(struct ath_softc *sc, int dodelay);
 	int		(*recv_start)(struct ath_softc *sc);
 	void		(*recv_flush)(struct ath_softc *sc);
@@ -646,6 +659,7 @@ struct ath_softc {
 
 	struct ath_descdma	sc_rxdma;	/* RX descriptors */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
+	ath_bufhead		sc_rx_rxlist;	/* deferred RX completion */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	u_int8_t		sc_defant;	/* current default antenna */
@@ -1297,6 +1311,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
 #define	ath_hal_clr11n_aggr(_ah, _ds) \
 	((*(_ah)->ah_clr11nAggr)((_ah), (_ds)))
+#define	ath_hal_set11n_virtmorefrag(_ah, _ds, _v) \
+	((*(_ah)->ah_set11nVirtMoreFrag)((_ah), (_ds), (_v)))
 
 #define	ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
 	((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

@@ -774,9 +774,7 @@ again:
 				/*
 				 * XXX: ip6_mforward expects that rcvif is NULL
 				 * when it is called from the originating path.
-				 * However, it is not always the case, since
-				 * some versions of MGETHDR() does not
-				 * initialize the field.
+				 * However, it may not always be the case.
 				 */
 				m->m_pkthdr.rcvif = NULL;
 				if (ip6_mforward(ip6, ifp, m) != 0) {
@@ -1122,13 +1120,12 @@ passout:
 		 */
 		m0 = m;
 		for (off = hlen; off < tlen; off += len) {
-			MGETHDR(m, M_NOWAIT, MT_HEADER);
+			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (!m) {
 				error = ENOBUFS;
 				V_ip6stat.ip6s_odropped++;
 				goto sendorfree;
 			}
-			m->m_pkthdr.rcvif = NULL;
 			m->m_flags = m0->m_flags & M_COPYFLAGS;	/* incl. FIB */
 			*mnext = m;
 			mnext = &m->m_nextpkt;
@@ -1222,17 +1219,12 @@ ip6_copyexthdr(struct mbuf **mp, caddr_t hdr, int hlen)
 	if (hlen > MCLBYTES)
 		return (ENOBUFS); /* XXX */
 
-	MGET(m, M_NOWAIT, MT_DATA);
-	if (!m)
+	if (hlen > MLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, 0);
+	else
+		m = m_get(M_NOWAIT, MT_DATA);
+	if (m == NULL)
 		return (ENOBUFS);
-
-	if (hlen > MLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			return (ENOBUFS);
-		}
-	}
 	m->m_len = hlen;
 	if (hdr)
 		bcopy(hdr, mtod(m, caddr_t), hlen);
@@ -1260,8 +1252,8 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 	 * Otherwise, use it to store the options.
 	 */
 	if (exthdrs->ip6e_hbh == 0) {
-		MGET(mopt, M_NOWAIT, MT_DATA);
-		if (mopt == 0)
+		mopt = m_get(M_NOWAIT, MT_DATA);
+		if (mopt == NULL)
 			return (ENOBUFS);
 		mopt->m_len = JUMBOOPTLEN;
 		optbuf = mtod(mopt, u_char *);
@@ -1292,15 +1284,8 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 			 * As a consequence, we must always prepare a cluster
 			 * at this point.
 			 */
-			MGET(n, M_NOWAIT, MT_DATA);
-			if (n) {
-				MCLGET(n, M_NOWAIT);
-				if ((n->m_flags & M_EXT) == 0) {
-					m_freem(n);
-					n = NULL;
-				}
-			}
-			if (!n)
+			n = m_getcl(M_NOWAIT, MT_DATA, 0);
+			if (n == NULL)
 				return (ENOBUFS);
 			n->m_len = oldoptlen + JUMBOOPTLEN;
 			bcopy(mtod(mopt, caddr_t), mtod(n, caddr_t),
@@ -1369,8 +1354,8 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 		/* allocate a new mbuf for the fragment header */
 		struct mbuf *mfrg;
 
-		MGET(mfrg, M_NOWAIT, MT_DATA);
-		if (mfrg == 0)
+		mfrg = m_get(M_NOWAIT, MT_DATA);
+		if (mfrg == NULL)
 			return (ENOBUFS);
 		mfrg->m_len = sizeof(struct ip6_frag);
 		*frghdrp = mtod(mfrg, struct ip6_frag *);
@@ -3045,12 +3030,12 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (m->m_len > sizeof(*ip6)) {
-		MGETHDR(mh, M_NOWAIT, MT_HEADER);
-		if (mh == 0) {
+		mh = m_gethdr(M_NOWAIT, MT_DATA);
+		if (mh == NULL) {
 			m_freem(m);
 			return ENOBUFS;
 		}
-		M_MOVE_PKTHDR(mh, m);
+		m_move_pkthdr(mh, m);
 		MH_ALIGN(mh, sizeof(*ip6));
 		m->m_len -= sizeof(*ip6);
 		m->m_data += sizeof(*ip6);

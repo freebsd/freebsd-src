@@ -80,6 +80,7 @@ struct g_part_alias_list {
 	{ "bios-boot", G_PART_ALIAS_BIOS_BOOT },
 	{ "ebr", G_PART_ALIAS_EBR },
 	{ "efi", G_PART_ALIAS_EFI },
+	{ "fat16", G_PART_ALIAS_MS_FAT16 },
 	{ "fat32", G_PART_ALIAS_MS_FAT32 },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
@@ -427,6 +428,7 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	entry->gpe_pp->stripeoffset = pp->stripeoffset + entry->gpe_offset;
 	if (pp->stripesize > 0)
 		entry->gpe_pp->stripeoffset %= pp->stripesize;
+	entry->gpe_pp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	g_error_provider(entry->gpe_pp, 0);
 }
 

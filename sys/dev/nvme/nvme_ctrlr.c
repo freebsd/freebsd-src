@@ -131,8 +131,8 @@ nvme_ctrlr_setup_chatham(struct nvme_controller *ctrlr)
 	ctrlr->chatham_lbas = chatham_read_4(ctrlr, 0x8068) - 0x110;
 	ctrlr->chatham_size = ctrlr->chatham_lbas * 512;
 
-	device_printf(ctrlr->dev, "Chatham size: %lld\n",
-	    (long long)ctrlr->chatham_size);
+	device_printf(ctrlr->dev, "Chatham size: %jd\n",
+	    (intmax_t)ctrlr->chatham_size);
 
 	reg1 = reg2 = reg3 = ctrlr->chatham_size - 1;
 

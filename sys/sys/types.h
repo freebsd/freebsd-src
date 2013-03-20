@@ -188,6 +188,8 @@ typedef	__rlim_t	rlim_t;		/* resource limit */
 #define	_RLIM_T_DECLARED
 #endif
 
+typedef	__int64_t	sbintime_t;
+
 typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
 
 #ifndef _SIZE_T_DECLARED

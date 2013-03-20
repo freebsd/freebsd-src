@@ -919,7 +919,8 @@ dsl_check_snap_cb(const char *name, void *arg)
 	char *dsname;
 
 	dsname = kmem_asprintf("%s@%s", name, da->snapname);
-	VERIFY(nvlist_add_boolean(da->nvl, dsname) == 0);
+	fnvlist_add_boolean(da->nvl, dsname);
+	kmem_free(dsname, strlen(dsname) + 1);
 
 	return (0);
 }
@@ -2344,6 +2345,8 @@ dsl_dataset_stats(dsl_dataset_t *ds, nvlist_t *nv)
 	    (ds->ds_phys->ds_uncompressed_bytes * 100 /
 	    ds->ds_phys->ds_compressed_bytes);
 	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_REFRATIO, ratio);
+	dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_LOGICALREFERENCED,
+	    ds->ds_phys->ds_uncompressed_bytes);
 
 	if (ds->ds_phys->ds_next_snap_obj) {
 		/*

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -169,7 +169,6 @@ static device_method_t ixv_methods[] = {
 	DEVMETHOD(device_attach, ixv_attach),
 	DEVMETHOD(device_detach, ixv_detach),
 	DEVMETHOD(device_shutdown, ixv_shutdown),
-
 	DEVMETHOD_END
 };
 
@@ -1891,7 +1890,6 @@ ixv_config_link(struct adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32	autoneg, err = 0;
-	bool	negotiate = TRUE;
 
 	if (hw->mac.ops.check_link)
 		err = hw->mac.ops.check_link(hw, &autoneg,
@@ -1900,8 +1898,8 @@ ixv_config_link(struct adapter *adapter)
 		goto out;
 
 	if (hw->mac.ops.setup_link)
-               	err = hw->mac.ops.setup_link(hw, autoneg,
-		    negotiate, adapter->link_up);
+               	err = hw->mac.ops.setup_link(hw,
+		    autoneg, adapter->link_up);
 out:
 	return;
 }

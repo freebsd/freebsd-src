@@ -980,8 +980,8 @@ ipfw_dyn_tick(void * vnetx)
 
 	chain = &V_layer3_chain;
 
-	/* Run keepalive checks every keepalive_interval iff ka is enabled */
-	if ((V_dyn_keepalive_last + V_dyn_keepalive_interval >= time_uptime) &&
+	/* Run keepalive checks every keepalive_period iff ka is enabled */
+	if ((V_dyn_keepalive_last + V_dyn_keepalive_period <= time_uptime) &&
 	    (V_dyn_keepalive != 0)) {
 		V_dyn_keepalive_last = time_uptime;
 		check_ka = 1;
@@ -1320,7 +1320,7 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
         V_dyn_keepalive_interval = 20;
         V_dyn_keepalive_period = 5;
         V_dyn_keepalive = 1;    /* do send keepalives */
-	V_dyn_keepalive = time_uptime;
+	V_dyn_keepalive_last = time_uptime;
         
         V_dyn_max = 4096;       /* max # of dynamic rules */
 
