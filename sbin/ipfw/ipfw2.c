@@ -4122,10 +4122,9 @@ ipfw_table_handler(int ac, char *av[])
 	int do_add;
 	int is_all;
 	size_t len;
-	uint32_t a, mask;
+	uint32_t a;
 	uint32_t tables_max;
 
-	mask = 0;	// XXX uninitialized ?
 	len = sizeof(tables_max);
 	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
 	    NULL, 0) == -1) {
