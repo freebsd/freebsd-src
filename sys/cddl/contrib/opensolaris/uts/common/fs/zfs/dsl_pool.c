@@ -78,10 +78,11 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_max, CTLFLAG_RDTUN,
     &zfs_write_limit_max, 0, "Maximum data payload per txg");
 TUNABLE_QUAD("vfs.zfs.write_limit_inflated", &zfs_write_limit_inflated);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_inflated, CTLFLAG_RDTUN,
-    &zfs_write_limit_inflated, 0, "");
+    &zfs_write_limit_inflated, 0, "Maximum size of the dynamic write limit");
 TUNABLE_QUAD("vfs.zfs.write_limit_override", &zfs_write_limit_override);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_override, CTLFLAG_RDTUN,
-    &zfs_write_limit_override, 0, "");
+    &zfs_write_limit_override, 0,
+    "Force a txg if dirty buffers exceed this value (bytes)");
 
 int
 dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **ddp)
