@@ -26,7 +26,6 @@
 #ifndef _SYS_ZFEATURE_H
 #define	_SYS_ZFEATURE_H
 
-#include <sys/dmu.h>
 #include <sys/nvpair.h>
 #include "zfeature_common.h"
 
@@ -34,14 +33,18 @@
 extern "C" {
 #endif
 
-extern boolean_t feature_is_supported(objset_t *os, uint64_t obj,
+struct spa;
+struct dmu_tx;
+struct objset;
+
+extern boolean_t feature_is_supported(struct objset *os, uint64_t obj,
     uint64_t desc_obj, nvlist_t *unsup_feat, nvlist_t *enabled_feat);
 
-struct spa;
-extern void spa_feature_create_zap_objects(struct spa *, dmu_tx_t *);
-extern void spa_feature_enable(struct spa *, zfeature_info_t *, dmu_tx_t *);
-extern void spa_feature_incr(struct spa *, zfeature_info_t *, dmu_tx_t *);
-extern void spa_feature_decr(struct spa *, zfeature_info_t *, dmu_tx_t *);
+extern void spa_feature_create_zap_objects(struct spa *, struct dmu_tx *);
+extern void spa_feature_enable(struct spa *, zfeature_info_t *,
+    struct dmu_tx *);
+extern void spa_feature_incr(struct spa *, zfeature_info_t *, struct dmu_tx *);
+extern void spa_feature_decr(struct spa *, zfeature_info_t *, struct dmu_tx *);
 extern boolean_t spa_feature_is_enabled(struct spa *, zfeature_info_t *);
 extern boolean_t spa_feature_is_active(struct spa *, zfeature_info_t *);
 

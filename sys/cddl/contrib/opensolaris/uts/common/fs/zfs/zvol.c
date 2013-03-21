@@ -23,6 +23,7 @@
  *
  * Copyright (c) 2006-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -144,7 +145,7 @@ typedef struct zvol_state {
 int zvol_maxphys = DMU_MAX_ACCESS/2;
 
 extern int zfs_set_prop_nvlist(const char *, zprop_source_t,
-    nvlist_t *, nvlist_t **);
+    nvlist_t *, nvlist_t *);
 static int zvol_remove_zv(zvol_state_t *);
 static int zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio);
 static int zvol_dumpify(zvol_state_t *zv);
@@ -694,7 +695,7 @@ zvol_last_close(zvol_state_t *zv)
 	if (dsl_dataset_is_dirty(dmu_objset_ds(zv->zv_objset)) &&
 	    !(zv->zv_flags & ZVOL_RDONLY))
 		txg_wait_synced(dmu_objset_pool(zv->zv_objset), 0);
-	(void) dmu_objset_evict_dbufs(zv->zv_objset);
+	dmu_objset_evict_dbufs(zv->zv_objset);
 
 	dmu_objset_disown(zv->zv_objset, zvol_tag);
 	zv->zv_objset = NULL;
@@ -741,7 +742,7 @@ zvol_prealloc(zvol_state_t *zv)
 }
 #endif	/* sun */
 
-int
+static int
 zvol_update_volsize(objset_t *os, uint64_t volsize)
 {
 	dmu_tx_t *tx;
@@ -1224,6 +1225,9 @@ zvol_dumpio(zvol_state_t *zv, void *addr, uint64_t offset, uint64_t size,
 		ze = list_next(&zv->zv_extents, ze);
 	}
 
+	if (ze == NULL)
+		return (EINVAL);
+
 	if (!ddi_in_panic())
 		spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
 
@@ -1353,6 +1357,9 @@ zvol_dump(dev_t dev, caddr_t addr, daddr_t blkno, int nblocks)
 	zv = zfsdev_get_soft_state(minor, ZSST_ZVOL);
 	if (zv == NULL)
 		return (ENXIO);
+
+	if ((zv->zv_flags & ZVOL_DUMPIFIED) == 0)
+		return (EINVAL);
 
 	boff = ldbtob(blkno);
 	resid = ldbtob(nblocks);
@@ -1878,7 +1885,7 @@ zvol_dumpify(zvol_state_t *zv)
 
 	if (zap_lookup(zv->zv_objset, ZVOL_ZAP_OBJ, ZVOL_DUMPSIZE,
 	    8, 1, &dumpsize) != 0 || dumpsize != zv->zv_volsize) {
-		boolean_t resize = (dumpsize > 0) ? B_TRUE : B_FALSE;
+		boolean_t resize = (dumpsize > 0);
 
 		if ((error = zvol_dump_init(zv, resize)) != 0) {
 			(void) zvol_dump_fini(zv);
@@ -2177,8 +2184,10 @@ zvol_create_snapshots(objset_t *os, const char *name)
 	cookie = obj = 0;
 	sname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
 
+#if 0
 	(void) dmu_objset_find(name, dmu_objset_prefetch, NULL,
 	    DS_FIND_SNAPSHOTS);
+#endif
 
 	for (;;) {
 		len = snprintf(sname, MAXPATHLEN, "%s@", name);
@@ -2224,13 +2233,16 @@ zvol_create_minors(const char *name)
 		return (error);
 	}
 	if (dmu_objset_type(os) == DMU_OST_ZVOL) {
+		dsl_dataset_long_hold(os->os_dsl_dataset, FTAG);
+		dsl_pool_rele(dmu_objset_pool(os), FTAG);
 		if ((error = zvol_create_minor(name)) == 0)
 			error = zvol_create_snapshots(os, name);
 		else {
 			printf("ZFS WARNING: Unable to create ZVOL %s (error=%d).\n",
 			    name, error);
 		}
-		dmu_objset_rele(os, FTAG);
+		dsl_dataset_long_rele(os->os_dsl_dataset, FTAG);
+		dsl_dataset_rele(os->os_dsl_dataset, FTAG);
 		return (error);
 	}
 	if (dmu_objset_type(os) != DMU_OST_ZFS) {
@@ -2247,12 +2259,14 @@ zvol_create_minors(const char *name)
 	p = osname + strlen(osname);
 	len = MAXPATHLEN - (p - osname);
 
+#if 0
 	/* Prefetch the datasets. */
 	cookie = 0;
 	while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0) {
 		if (!dataset_name_hidden(osname))
 			(void) dmu_objset_prefetch(osname, NULL);
 	}
+#endif
 
 	cookie = 0;
 	while (dmu_dir_list_next(os, MAXPATHLEN - (p - osname), p, NULL,
