@@ -831,7 +831,8 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 #endif
 #ifdef HAS_LCHFLAGS
 	case ACTION_LCHFLAGS:
-		rval = lchflags(STR(0), (int)str2flags(chflags_flags, STR(1)));
+		rval = lchflags(STR(0),
+		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
 	case ACTION_TRUNCATE:
