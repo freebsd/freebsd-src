@@ -27,6 +27,7 @@
 #include <sys/spa_impl.h>
 #include <sys/vdev_impl.h>
 #include <sys/trim_map.h>
+#include <sys/time.h>
 
 /*
  * Calculate the zio end, upgrading based on ashift which would be
@@ -54,6 +55,7 @@ typedef struct trim_seg {
 	uint64_t	ts_start;	/* Starting offset of this segment. */
 	uint64_t	ts_end;		/* Ending offset (non-inclusive). */
 	uint64_t	ts_txg;		/* Segment creation txg. */
+	hrtime_t	ts_time;	/* Segment creation time. */
 } trim_seg_t;
 
 extern boolean_t zfs_notrim;
@@ -64,6 +66,11 @@ static int trim_txg_limit = 64;
 TUNABLE_INT("vfs.zfs.trim_txg_limit", &trim_txg_limit);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, trim_txg_limit, CTLFLAG_RW, &trim_txg_limit, 0,
     "Delay TRIMs by that many TXGs.");
+
+static int trim_l2arc_limit = 30;
+TUNABLE_INT("vfs.zfs.trim_l2arc_limit", &trim_l2arc_limit);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, trim_l2arc_limit, CTLFLAG_RWTUN, &trim_l2arc_limit, 0,
+    "Delay TRIMs by this many seconds for cache devices.");
 
 static void trim_map_vdev_commit_done(spa_t *spa, vdev_t *vd);
 
@@ -176,10 +183,12 @@ trim_map_segment_add(trim_map_t *tm, uint64_t start, uint64_t end, uint64_t txg)
 	avl_index_t where;
 	trim_seg_t tsearch, *ts_before, *ts_after, *ts;
 	boolean_t merge_before, merge_after;
+	hrtime_t time;
 
 	ASSERT(MUTEX_HELD(&tm->tm_lock));
 	VERIFY(start < end);
 
+	time = gethrtime();
 	tsearch.ts_start = start;
 	tsearch.ts_end = end;
 
@@ -214,6 +223,7 @@ trim_map_segment_add(trim_map_t *tm, uint64_t start, uint64_t end, uint64_t txg)
 		ts->ts_start = start;
 		ts->ts_end = end;
 		ts->ts_txg = txg;
+		ts->ts_time = time;
 		avl_insert(&tm->tm_queued_frees, ts, where);
 		list_insert_tail(&tm->tm_head, ts);
 	}
@@ -236,6 +246,7 @@ trim_map_segment_remove(trim_map_t *tm, trim_seg_t *ts, uint64_t start,
 		nts->ts_start = end;
 		nts->ts_end = ts->ts_end;
 		nts->ts_txg = ts->ts_txg;
+		nts->ts_time = ts->ts_time;
 		ts->ts_end = start;
 		avl_insert_here(&tm->tm_queued_frees, nts, ts, AVL_AFTER);
 		list_insert_after(&tm->tm_head, ts, nts);
@@ -359,17 +370,18 @@ trim_map_write_done(zio_t *zio)
 /*
  * Return the oldest segment (the one with the lowest txg) or false if
  * the list is empty or the first element's txg is greater than txg given
- * as function argument.
+ * as function argument, or the first element's time is greater than time
+ * given as function argument
  */
 static trim_seg_t *
-trim_map_first(trim_map_t *tm, uint64_t txg)
+trim_map_first(trim_map_t *tm, uint64_t txg, hrtime_t time)
 {
 	trim_seg_t *ts;
 
 	ASSERT(MUTEX_HELD(&tm->tm_lock));
 
 	ts = list_head(&tm->tm_head);
-	if (ts != NULL && ts->ts_txg <= txg)
+	if (ts != NULL && ts->ts_txg <= txg && ts->ts_time <= time)
 		return (ts);
 	return (NULL);
 }
@@ -380,20 +392,28 @@ trim_map_vdev_commit(spa_t *spa, zio_t *zio, vdev_t *vd)
 	trim_map_t *tm = vd->vdev_trimmap;
 	trim_seg_t *ts;
 	uint64_t start, size, txglimit;
+	hrtime_t timelimit;
 
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 
 	if (tm == NULL)
 		return;
 
-	txglimit = MIN(spa_last_synced_txg(spa), spa_freeze_txg(spa)) -
-	    trim_txg_limit;
+	if (vd->vdev_isl2cache) {
+		timelimit = gethrtime() - trim_l2arc_limit * NANOSEC;
+		txglimit = UINT64_MAX;
+	} else {
+		timelimit = TIME_MAX;
+		txglimit = MIN(spa_last_synced_txg(spa), spa_freeze_txg(spa)) -
+		    trim_txg_limit;
+	}
 
 	mutex_enter(&tm->tm_lock);
 	/*
-	 * Loop until we send all frees up to the txglimit.
+	 * Loop until we send all frees up to the txglimit
+	 * or time limit if this is a cache device.
 	 */
-	while ((ts = trim_map_first(tm, txglimit)) != NULL) {
+	while ((ts = trim_map_first(tm, txglimit, timelimit)) != NULL) {
 		list_remove(&tm->tm_head, ts);
 		avl_remove(&tm->tm_queued_frees, ts);
 		avl_add(&tm->tm_inflight_frees, ts);
