@@ -26,11 +26,15 @@
 #include "bsdtar_platform.h"
 __FBSDID("$FreeBSD: src/usr.bin/tar/subst.c,v 1.4 2008/06/15 10:08:16 kientzle Exp $");
 
-#if HAVE_REGEX_H
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
 #include "bsdtar.h"
 
 #include <errno.h>
+#ifdef HAVE_PCREPOSIX_H
+#include <pcreposix.h>
+#else
 #include <regex.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -317,4 +321,4 @@ cleanup_substitution(struct bsdtar *bsdtar)
 	}
 	free(subst);
 }
-#endif /* HAVE_REGEX_H */
+#endif /* defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H) */

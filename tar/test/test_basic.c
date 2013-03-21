@@ -58,14 +58,19 @@ verify_files(const char *target)
 	assertChdir(target);
 
 	/* Regular file with 2 links. */
+	failure("%s", target);
 	assertIsReg("file", -1);
+	failure("%s", target);
 	assertFileSize("file", 10);
+	failure("%s", target);
 	assertFileContents("123456789", 10, "file");
 	failure("%s", target);
 	assertFileNLinks("file", 2);
 
 	/* Another name for the same file. */
+	failure("%s", target);
 	assertIsReg("linkfile", -1);
+	failure("%s", target);
 	assertFileSize("linkfile", 10);
 	assertFileContents("123456789", 10, "linkfile");
 	assertFileNLinks("linkfile", 2);
@@ -76,6 +81,7 @@ verify_files(const char *target)
 		assertIsSymlink("symlink", "file");
 
 	/* dir */
+	failure("%s", target);
 	assertIsDir("dir", 0775);
 	assertChdir("..");
 }

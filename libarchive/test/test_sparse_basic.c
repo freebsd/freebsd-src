@@ -118,14 +118,15 @@ create_sparse_file(const char *path, const struct sparse *s)
 			assert(SetFilePointerEx(handle, distance,
 			    NULL, FILE_CURRENT) != 0);
 		} else {
-			DWORD w, wr, size;
+			DWORD w, wr;
+			size_t size;
 
 			size = s->size;
 			while (size) {
 				if (size > sizeof(buff))
 					w = sizeof(buff);
 				else
-					w = size;
+					w = (DWORD)size;
 				assert(WriteFile(handle, buff, w, &wr, NULL) != 0);
 				size -= wr;
 			}
@@ -172,6 +173,7 @@ is_sparse_supported(const char *path)
 	const char *testfile = "can_sparse";
 
 	(void)path; /* UNUSED */
+	memset(buff, 0, sizeof(buff));
 	create_sparse_file(testfile, sparse_file);
 	fd = open(testfile,  O_RDWR);
 	if (fd < 0)

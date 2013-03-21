@@ -46,6 +46,7 @@ rm -rf _cmtest
 #
 # Construct and verify the autoconf build system
 #
+export MAKE_LIBARCHIVE_RELEASE="1"
 /bin/sh build/autogen.sh
 
 # Get the newest config.guess/config.sub from savannah.gnu.org

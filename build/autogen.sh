@@ -48,6 +48,11 @@ perl -p -i -e "s/^(#define\tARCHIVE_VERSION_STRING).*/\$1 \"libarchive $VS\"/" l
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_S\]),.*\)/$1,['"$VS"'])/' configure.ac
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_N\]),.*\)/$1,['"$VN"'])/' configure.ac
 
+# Remove developer CFLAGS if a release build is being made
+if [ -n "${MAKE_LIBARCHIVE_RELEASE}" ]; then
+  perl -p -i -e "s/^(DEV_CFLAGS.*)/# \$1/" Makefile.am
+fi
+
 set -xe
 aclocal -I build/autoconf
 

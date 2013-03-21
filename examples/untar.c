@@ -158,8 +158,8 @@ extract(const char *filename, int do_extract, int flags)
 	 */
 	if (filename != NULL && strcmp(filename, "-") == 0)
 		filename = NULL;
-	if ((r = archive_read_open_file(a, filename, 10240)))
-		fail("archive_read_open_file()",
+	if ((r = archive_read_open_filename(a, filename, 10240)))
+		fail("archive_read_open_filename()",
 		    archive_error_string(a), r);
 	for (;;) {
 		r = archive_read_next_header(a, &entry);

@@ -633,35 +633,22 @@ __la_stat(const char *path, struct stat *st)
  * This waitpid is limited implementation.
  */
 pid_t
-__la_waitpid(pid_t wpid, int *status, int option)
+__la_waitpid(HANDLE child, int *status, int option)
 {
-	HANDLE child;
-	DWORD cs, ret;
+	DWORD cs;
 
 	(void)option;/* UNUSED */
-	*status = 0;
-	child = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, wpid);
-	if (child == NULL) {
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	ret = WaitForSingleObject(child, INFINITE);
-	if (ret == WAIT_FAILED) {
-		CloseHandle(child);
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	if (GetExitCodeProcess(child, &cs) == 0) {
-		CloseHandle(child);
-		la_dosmaperr(GetLastError());
-		return (-1);
-	}
-	if (cs == STILL_ACTIVE)
-		*status = 0x100;
-	else
-		*status = (int)(cs & 0xff);
-	CloseHandle(child);
-	return (wpid);
+	do {
+		if (GetExitCodeProcess(child, &cs) == 0) {
+			CloseHandle(child);
+			la_dosmaperr(GetLastError());
+			*status = 0;
+			return (-1);
+		}
+	} while (cs == STILL_ACTIVE);
+
+	*status = (int)(cs & 0xff);
+	return (0);
 }
 
 ssize_t

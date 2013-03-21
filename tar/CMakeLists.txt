@@ -10,6 +10,7 @@ IF(ENABLE_TAR)
     bsdtar.h
     bsdtar_platform.h
     cmdline.c
+    creation_set.c
     read.c
     subst.c
     util.c
