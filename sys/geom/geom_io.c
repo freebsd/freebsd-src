@@ -718,8 +718,17 @@ g_io_schedule_down(struct thread *tp __unused)
 			 */
 			excess = bp->bio_offset + bp->bio_length;
 			if (excess > bp->bio_to->mediasize) {
+				KASSERT((bp->bio_flags & BIO_UNMAPPED) == 0 ||
+				    round_page(bp->bio_ma_offset +
+				    bp->bio_length) / PAGE_SIZE == bp->bio_ma_n,
+				    ("excess bio %p too short", bp));
 				excess -= bp->bio_to->mediasize;
 				bp->bio_length -= excess;
+				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+					bp->bio_ma_n = round_page(
+					    bp->bio_ma_offset +
+					    bp->bio_length) / PAGE_SIZE;
+				}
 				if (excess > 0)
 					CTR3(KTR_GEOM, "g_down truncated bio "
 					    "%p provider %s by %d", bp,
