@@ -36,8 +36,8 @@
  * than it would otherwise be as well as ensuring that entire
  * blocks are invalidated by writes.
  */
-#define	TRIM_ZIO_END(zio)	((zio)->io_offset +		\
- 	P2ROUNDUP((zio)->io_size, 1ULL << (zio)->io_vd->vdev_top->vdev_ashift))
+#define	TRIM_ZIO_END(vd, offset, size)	(offset +		\
+ 	P2ROUNDUP(size, 1ULL << vd->vdev_top->vdev_ashift))
 
 typedef struct trim_map {
 	list_t		tm_head;		/* List of segments sorted by txg. */
@@ -272,16 +272,15 @@ trim_map_free_locked(trim_map_t *tm, uint64_t start, uint64_t end, uint64_t txg)
 }
 
 void
-trim_map_free(zio_t *zio)
+trim_map_free(vdev_t *vd, uint64_t offset, uint64_t size)
 {
-	vdev_t *vd = zio->io_vd;
 	trim_map_t *tm = vd->vdev_trimmap;
 
 	if (zfs_notrim || vd->vdev_notrim || tm == NULL)
 		return;
 
 	mutex_enter(&tm->tm_lock);
-	trim_map_free_locked(tm, zio->io_offset, TRIM_ZIO_END(zio),
+	trim_map_free_locked(tm, offset, TRIM_ZIO_END(vd, offset, size),
 	    vd->vdev_spa->spa_syncing_txg);
 	mutex_exit(&tm->tm_lock);
 }
@@ -299,7 +298,7 @@ trim_map_write_start(zio_t *zio)
 		return (B_TRUE);
 
 	start = zio->io_offset;
-	end = TRIM_ZIO_END(zio);
+	end = TRIM_ZIO_END(zio->io_vd, start, zio->io_size);
 	tsearch.ts_start = start;
 	tsearch.ts_end = end;
 
