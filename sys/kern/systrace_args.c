@@ -252,8 +252,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* chflags */
 	case 34: {
 		struct chflags_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = p->flags; /* u_long */
 		*n_args = 2;
 		break;
 	}
@@ -261,7 +261,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 35: {
 		struct fchflags_args *p = params;
 		iarg[0] = p->fd; /* int */
-		iarg[1] = p->flags; /* int */
+		uarg[1] = p->flags; /* u_long */
 		*n_args = 2;
 		break;
 	}
@@ -2134,7 +2134,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 391: {
 		struct lchflags_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* const char * */
-		iarg[1] = p->flags; /* int */
+		uarg[1] = p->flags; /* u_long */
 		*n_args = 2;
 		break;
 	}
@@ -3741,10 +3741,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 34:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
-			p = "int";
+			p = "u_long";
 			break;
 		default:
 			break;
@@ -3757,7 +3757,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "int";
+			p = "u_long";
 			break;
 		default:
 			break;
@@ -6799,7 +6799,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const char *";
 			break;
 		case 1:
-			p = "int";
+			p = "u_long";
 			break;
 		default:
 			break;
