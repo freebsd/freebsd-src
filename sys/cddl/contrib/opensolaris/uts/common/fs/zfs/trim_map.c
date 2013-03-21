@@ -44,7 +44,7 @@
 	atomic_add_64(&(tm)->tm_bytes, (size))
 
 #define TRIM_MAP_SDEC(tm, size)					\
-	atomic_subtract_64(&(tm)->tm_bytes, (size))
+	atomic_add_64(&(tm)->tm_bytes, -(size))
 
 #define TRIM_MAP_QINC(tm)					\
 	atomic_inc_64(&(tm)->tm_pending);			\
