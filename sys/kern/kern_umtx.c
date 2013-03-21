@@ -542,19 +542,19 @@ umtxq_insert_queue(struct umtx_q *uq, int q)
 		uh = uq->uq_spare_queue;
 		uh->key = uq->uq_key;
 		LIST_INSERT_HEAD(&uc->uc_queue[q], uh, link);
+#ifdef UMTX_PROFILING
+		uc->length++;
+		if (uc->length > uc->max_length) {
+			uc->max_length = uc->length;
+			if (uc->max_length > max_length)
+				max_length = uc->max_length;	
+		}
+#endif
 	}
 	uq->uq_spare_queue = NULL;
 
 	TAILQ_INSERT_TAIL(&uh->head, uq, uq_link);
 	uh->length++;
-#ifdef UMTX_PROFILING
-	uc->length++;
-	if (uc->length > uc->max_length) {
-		uc->max_length = uc->length;
-		if (uc->max_length > max_length)
-			max_length = uc->max_length;	
-	}
-#endif
 	uq->uq_flags |= UQF_UMTXQ;
 	uq->uq_cur_queue = uh;
 	return;
@@ -572,13 +572,13 @@ umtxq_remove_queue(struct umtx_q *uq, int q)
 		uh = uq->uq_cur_queue;
 		TAILQ_REMOVE(&uh->head, uq, uq_link);
 		uh->length--;
-#ifdef UMTX_PROFILING
-		uc->length--;
-#endif
 		uq->uq_flags &= ~UQF_UMTXQ;
 		if (TAILQ_EMPTY(&uh->head)) {
 			KASSERT(uh->length == 0,
 			    ("inconsistent umtxq_queue length"));
+#ifdef UMTX_PROFILING
+			uc->length--;
+#endif
 			LIST_REMOVE(uh, link);
 		} else {
 			uh = LIST_FIRST(&uc->uc_spare_queue);
