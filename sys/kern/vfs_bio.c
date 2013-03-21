@@ -586,7 +586,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	 * allows to not trim the buffer KVA for the architectures
 	 * with ample KVA space.
 	 */
-	if (bio_transient_maxcnt == 0) {
+	if (bio_transient_maxcnt == 0 && unmapped_buf_allowed) {
 		maxbuf_sz = maxbcache != 0 ? maxbcache : maxbuf * BKVASIZE;
 		buf_sz = (long)nbuf * BKVASIZE;
 		if (buf_sz < maxbuf_sz / 10 * 9) {
