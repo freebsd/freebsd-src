@@ -795,6 +795,17 @@ thread_suspend_check(int return_instead)
 			return (ERESTART);
 
 		/*
+		 * Ignore suspend requests for stop signals if they
+		 * are deferred.
+		 */
+		if (P_SHOULDSTOP(p) == P_STOPPED_SIG &&
+		    td->td_flags & TDF_SBDRY) {
+			KASSERT(return_instead,
+			    ("TDF_SBDRY set for unsafe thread_suspend_check"));
+			return (0);
+		}
+
+		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
