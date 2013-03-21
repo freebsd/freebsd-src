@@ -663,9 +663,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	}
 
 	/* Only support headers that fit within first page for now      */
-	/*    (multiplication of two Elf_Half fields will not overflow) */
 	if ((hdr->e_phoff > PAGE_SIZE) ||
-	    (hdr->e_phentsize * hdr->e_phnum) > PAGE_SIZE - hdr->e_phoff) {
+	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
 		error = ENOEXEC;
 		goto fail;
 	}
@@ -747,7 +746,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 
 	if ((hdr->e_phoff > PAGE_SIZE) ||
-	    (hdr->e_phoff + hdr->e_phentsize * hdr->e_phnum) > PAGE_SIZE) {
+	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
 		/* Only support headers in first page for now */
 		return (ENOEXEC);
 	}
@@ -766,8 +765,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_INTERP:
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
-			    phdr[i].p_offset >= PAGE_SIZE ||
-			    phdr[i].p_offset + phdr[i].p_filesz >= PAGE_SIZE)
+			    phdr[i].p_offset > PAGE_SIZE ||
+			    phdr[i].p_filesz > PAGE_SIZE - phdr[i].p_offset)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
 			interp_name_len = phdr[i].p_filesz;
@@ -1555,9 +1554,8 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
 	const char *note_name;
 	int i;
 
-	if (pnote == NULL || pnote->p_offset >= PAGE_SIZE ||
-	    pnote->p_filesz > PAGE_SIZE ||
-	    pnote->p_offset + pnote->p_filesz >= PAGE_SIZE)
+	if (pnote == NULL || pnote->p_offset > PAGE_SIZE ||
+	    pnote->p_filesz > PAGE_SIZE - pnote->p_offset)
 		return (FALSE);
 
 	note = note0 = (const Elf_Note *)(imgp->image_header + pnote->p_offset);
