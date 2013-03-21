@@ -105,6 +105,9 @@ enum action {
 #ifdef HAS_FCHFLAGS
 	ACTION_FCHFLAGS,
 #endif
+#ifdef HAS_CHFLAGSAT
+	ACTION_CHFLAGSAT,
+#endif
 #ifdef HAS_LCHFLAGS
 	ACTION_LCHFLAGS,
 #endif
@@ -182,6 +185,9 @@ static struct syscall_desc syscalls[] = {
 #endif
 #ifdef HAS_FCHFLAGS
 	{ "fchflags", ACTION_FCHFLAGS, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
+#ifdef HAS_CHFLAGSAT
+	{ "chflagsat", ACTION_CHFLAGSAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 #endif
 #ifdef HAS_LCHFLAGS
 	{ "lchflags", ACTION_LCHFLAGS, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
@@ -303,6 +309,11 @@ static struct flag unlinkat_flags[] = {
 
 static struct flag linkat_flags[] = {
 	{ AT_SYMLINK_FOLLOW, "AT_SYMLINK_FOLLOW" },
+	{ 0, NULL }
+};
+
+static struct flag chflagsat_flags[] = {
+	{ AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW" },
 	{ 0, NULL }
 };
 
@@ -827,6 +838,13 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	case ACTION_FCHFLAGS:
 		rval = fchflags(NUM(0),
 		    (unsigned long)str2flags(chflags_flags, STR(1)));
+		break;
+#endif
+#ifdef HAS_CHFLAGSAT
+	case ACTION_CHFLAGSAT:
+		rval = chflagsat(NUM(0), STR(1),
+		    (unsigned long)str2flags(chflags_flags, STR(2)),
+		    (int)str2flags(chflagsat_flags, STR(3)));
 		break;
 #endif
 #ifdef HAS_LCHFLAGS
