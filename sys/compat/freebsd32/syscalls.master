@@ -1020,3 +1020,5 @@
 				    int namelen); }
 539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, caddr_t name, \
 				    int namelen); }
+540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, const char *path, \
+				    u_long flags, int atflag); }

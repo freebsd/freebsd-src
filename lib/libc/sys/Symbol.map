@@ -386,6 +386,7 @@ FBSD_1.3 {
 	cap_rights_get;
 	cap_rights_limit;
 	cap_sandboxed;
+	chflagsat;
 	clock_getcpuclockid2;
 	connectat;
 	ffclock_getcounter;

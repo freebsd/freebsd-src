@@ -970,5 +970,7 @@
 				    int namelen); }
 539	AUE_CONNECTAT	STD	{ int connectat(int fd, int s, caddr_t name, \
 				    int namelen); }
+540	AUE_CHFLAGSAT	STD	{ int chflagsat(int fd, const char *path, \
+				    u_long flags, int atflag); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

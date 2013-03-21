@@ -101,6 +101,10 @@ SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
+static int kern_chflags(struct thread *td, const char *path,
+    enum uio_seg pathseg, u_long flags);
+static int kern_chflagsat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, u_long flags, int atflag);
 static int setfflags(struct thread *td, struct vnode *, u_long);
 static int setutimes(struct thread *td, struct vnode *,
     const struct timespec *, int, int);
@@ -2669,17 +2673,38 @@ sys_chflags(td, uap)
 		u_long flags;
 	} */ *uap;
 {
-	int error;
-	struct nameidata nd;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, uap->flags);
-	vrele(nd.ni_vp);
-	return (error);
+	return (kern_chflags(td, uap->path, UIO_USERSPACE, uap->flags));
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct chflagsat_args {
+	int	fd;
+	const char *path;
+	u_long	flags;
+	int	atflag;
+}
+#endif
+int
+sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
+{
+	int fd = uap->fd;
+	char *path = uap->path;
+	u_long flags = uap->flags;
+	int atflag = uap->atflag;
+
+	if (atflag & ~AT_SYMLINK_NOFOLLOW)
+		return (EINVAL);
+
+	return (kern_chflagsat(td, fd, path, UIO_USERSPACE, flags, atflag));
+}
+
+static int
+kern_chflags(struct thread *td, const char *path, enum uio_seg pathseg,
+    u_long flags)
+{
+
+	return (kern_chflagsat(td, AT_FDCWD, path, pathseg, flags, 0));
 }
 
 /*
@@ -2693,16 +2718,26 @@ sys_lchflags(td, uap)
 		u_long flags;
 	} */ *uap;
 {
-	int error;
-	struct nameidata nd;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
-	NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path,
-	    td);
+	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
+	    uap->flags, AT_SYMLINK_NOFOLLOW));
+}
+
+static int
+kern_chflagsat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, u_long flags, int atflag)
+{
+	struct nameidata nd;
+	int error, follow;
+
+	AUDIT_ARG_FFLAGS(flags);
+	follow = (atflag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
+	NDINIT_ATRIGHTS(&nd, LOOKUP, follow | AUDITVNODE1, pathseg, path, fd,
+	    CAP_FCHFLAGS, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, uap->flags);
+	error = setfflags(td, nd.ni_vp, flags);
 	vrele(nd.ni_vp);
 	return (error);
 }
