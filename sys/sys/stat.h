@@ -293,6 +293,7 @@ struct nstat {
 __BEGIN_DECLS
 #if __BSD_VISIBLE
 int	chflags(const char *, unsigned long);
+int	chflagsat(int, const char *, unsigned long, int);
 #endif
 int	chmod(const char *, mode_t);
 #if __BSD_VISIBLE
