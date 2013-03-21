@@ -115,8 +115,8 @@
 				    struct sockaddr * __restrict asa, \
 				    __socklen_t * __restrict alen); }
 33	AUE_ACCESS	STD	{ int access(char *path, int amode); }
-34	AUE_CHFLAGS	STD	{ int chflags(char *path, int flags); }
-35	AUE_FCHFLAGS	STD	{ int fchflags(int fd, int flags); }
+34	AUE_CHFLAGS	STD	{ int chflags(const char *path, u_long flags); }
+35	AUE_FCHFLAGS	STD	{ int fchflags(int fd, u_long flags); }
 36	AUE_SYNC	STD	{ int sync(void); }
 37	AUE_KILL	STD	{ int kill(int pid, int signum); }
 38	AUE_STAT	COMPAT	{ int stat(char *path, struct ostat *ub); }
@@ -696,7 +696,8 @@
 				    struct mac *mac_p); }
 390	AUE_NULL	STD	{ int kenv(int what, const char *name, \
 				    char *value, int len); }
-391	AUE_LCHFLAGS	STD	{ int lchflags(const char *path, int flags); }
+391	AUE_LCHFLAGS	STD	{ int lchflags(const char *path, \
+				    u_long flags); }
 392	AUE_NULL	STD	{ int uuidgen(struct uuid *store, \
 				    int count); }
 393	AUE_SENDFILE	STD	{ int sendfile(int fd, int s, off_t offset, \

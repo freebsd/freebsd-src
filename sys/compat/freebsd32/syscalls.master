@@ -114,8 +114,8 @@
 32	AUE_GETSOCKNAME	NOPROTO	{ int getsockname(int fdes, caddr_t asa, \
 				    int *alen); }
 33	AUE_ACCESS	NOPROTO	{ int access(char *path, int amode); }
-34	AUE_CHFLAGS	NOPROTO	{ int chflags(char *path, int flags); }
-35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, int flags); }
+34	AUE_CHFLAGS	NOPROTO	{ int chflags(const char *path, u_long flags); }
+35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, u_long flags); }
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
 37	AUE_KILL	NOPROTO	{ int kill(int pid, int signum); }
 38	AUE_STAT	COMPAT	{ int freebsd32_stat(char *path, \
@@ -693,7 +693,8 @@
 389	AUE_NULL	UNIMPL	__mac_set_file
 390	AUE_NULL	NOPROTO	{ int kenv(int what, const char *name, \
 				    char *value, int len); }
-391	AUE_LCHFLAGS	NOPROTO	{ int lchflags(const char *path, int flags); }
+391	AUE_LCHFLAGS	NOPROTO	{ int lchflags(const char *path, \
+				    u_long flags); }
 392	AUE_NULL	NOPROTO	{ int uuidgen(struct uuid *store, \
 				    int count); }
 393	AUE_SENDFILE	STD	{ int freebsd32_sendfile(int fd, int s, \

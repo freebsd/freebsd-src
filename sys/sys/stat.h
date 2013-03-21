@@ -306,7 +306,7 @@ int	fchmodat(int, const char *, mode_t, int);
 #endif
 int	fstat(int, struct stat *);
 #if __BSD_VISIBLE
-int	lchflags(const char *, int);
+int	lchflags(const char *, unsigned long);
 int	lchmod(const char *, mode_t);
 #endif
 #if __POSIX_VISIBLE >= 200112
