@@ -48,6 +48,7 @@
 #include <sys/types.h>
 
 #include <libzfs.h>
+#include <libzfs_core.h>
 
 #include "libzfs_impl.h"
 #include "zfs_prop.h"
@@ -659,6 +660,14 @@ libzfs_init(void)
 
 	hdl->libzfs_sharetab = fopen(ZFS_EXPORTS_PATH, "r");
 
+	if (libzfs_core_init() != 0) {
+		(void) close(hdl->libzfs_fd);
+		(void) fclose(hdl->libzfs_mnttab);
+		(void) fclose(hdl->libzfs_sharetab);
+		free(hdl);
+		return (NULL);
+	}
+
 	zfs_prop_init();
 	zpool_prop_init();
 	zpool_feature_init();
@@ -676,14 +685,13 @@ libzfs_fini(libzfs_handle_t *hdl)
 	if (hdl->libzfs_sharetab)
 		(void) fclose(hdl->libzfs_sharetab);
 	zfs_uninit_libshare(hdl);
-	if (hdl->libzfs_log_str)
-		(void) free(hdl->libzfs_log_str);
 	zpool_free_handles(hdl);
 #ifdef sun
 	libzfs_fru_clear(hdl, B_TRUE);
 #endif
 	namespace_clear(hdl);
 	libzfs_mnttab_fini(hdl);
+	libzfs_core_fini();
 	free(hdl);
 }
 
@@ -857,19 +865,9 @@ zcmd_read_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, nvlist_t **nvlp)
 }
 
 int
-zfs_ioctl(libzfs_handle_t *hdl, unsigned long request, zfs_cmd_t *zc)
+zfs_ioctl(libzfs_handle_t *hdl, int request, zfs_cmd_t *zc)
 {
-	int error;
-
-	zc->zc_history = (uint64_t)(uintptr_t)hdl->libzfs_log_str;
-	error = ioctl(hdl->libzfs_fd, request, zc);
-	if (hdl->libzfs_log_str) {
-		free(hdl->libzfs_log_str);
-		hdl->libzfs_log_str = NULL;
-	}
-	zc->zc_history = 0;
-
-	return (error);
+	return (ioctl(hdl->libzfs_fd, request, zc));
 }
 
 /*

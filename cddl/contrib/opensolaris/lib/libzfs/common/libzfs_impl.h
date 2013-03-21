@@ -23,12 +23,12 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
-#ifndef	_LIBFS_IMPL_H
-#define	_LIBFS_IMPL_H
+#ifndef	_LIBZFS_IMPL_H
+#define	_LIBZFS_IMPL_H
 
 #include <sys/dmu.h>
 #include <sys/fs/zfs.h>
@@ -39,8 +39,8 @@
 #include <libshare.h>
 #include <libuutil.h>
 #include <libzfs.h>
-
-#include "zfs_ioctl_compat.h"
+#include <libzfs_core.h>
+#include <libzfs_compat.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -70,7 +70,6 @@ struct libzfs_handle {
 	int libzfs_desc_active;
 	char libzfs_action[1024];
 	char libzfs_desc[1024];
-	char *libzfs_log_str;
 	int libzfs_printerr;
 	int libzfs_storeerr; /* stuff error messages into buffer */
 	void *libzfs_sharehdl; /* libshare handle */
@@ -215,62 +214,8 @@ extern int zfs_unshare_proto(zfs_handle_t *,
 
 extern void libzfs_fru_clear(libzfs_handle_t *, boolean_t);
 
-#ifndef sun
-static int zfs_kernel_version = 0;
-static int zfs_ioctl_version = 0;
-
-/*
- * This is FreeBSD version of ioctl, because Solaris' ioctl() updates
- * zc_nvlist_dst_size even if an error is returned, on FreeBSD if an
- * error is returned zc_nvlist_dst_size won't be updated.
- */
-static __inline int
-zcmd_ioctl(int fd, unsigned long cmd, zfs_cmd_t *zc)
-{
-	size_t oldsize, zfs_kernel_version_size, zfs_ioctl_version_size;
-	int version, ret, cflag = ZFS_CMD_COMPAT_NONE;
-
-	zfs_ioctl_version_size = sizeof(zfs_ioctl_version);
-	if (zfs_ioctl_version == 0) {
-		sysctlbyname("vfs.zfs.version.ioctl", &zfs_ioctl_version,
-		    &zfs_ioctl_version_size, NULL, 0);
-	}
-
-	/*
-	 * If vfs.zfs.version.ioctl is not defined, assume we have v28
-	 * compatible binaries and use vfs.zfs.version.spa to test for v15
-	 */
-	if (zfs_ioctl_version < ZFS_IOCVER_DEADMAN) {
-		cflag = ZFS_CMD_COMPAT_V28;
-		zfs_kernel_version_size = sizeof(zfs_kernel_version);
-
-		if (zfs_kernel_version == 0) {
-			sysctlbyname("vfs.zfs.version.spa",
-			    &zfs_kernel_version,
-			    &zfs_kernel_version_size, NULL, 0);
-		}
-
-		if (zfs_kernel_version == SPA_VERSION_15 ||
-		    zfs_kernel_version == SPA_VERSION_14 ||
-		    zfs_kernel_version == SPA_VERSION_13)
-			cflag = ZFS_CMD_COMPAT_V15;
-	}
-
-	oldsize = zc->zc_nvlist_dst_size;
-	ret = zcmd_ioctl_compat(fd, cmd, zc, cflag);
-
-	if (ret == 0 && oldsize < zc->zc_nvlist_dst_size) {
-		ret = -1;
-		errno = ENOMEM;
-	}
-
-	return (ret);
-}
-#define	ioctl(fd, cmd, zc)	zcmd_ioctl((fd), (cmd), (zc))
-#endif	/* !sun */
-
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* _LIBFS_IMPL_H */
+#endif	/* _LIBZFS_IMPL_H */
