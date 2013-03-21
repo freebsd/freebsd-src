@@ -1511,7 +1511,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	 * that SUID, SGID, etc, require additional work to ensure
 	 * security, so we never restore them at this point.
 	 */
-	mode = final_mode & 0777 & a->user_umask;
+	mode = final_mode & 0777 & ~a->user_umask;
 
 	switch (a->mode & AE_IFMT) {
 	default:

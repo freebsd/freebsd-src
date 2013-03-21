@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 #
 # Simple script to repopulate the 'doc' tree from
 # the mdoc man pages stored in each project.

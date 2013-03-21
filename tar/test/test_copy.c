@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_copy.c,v 1.3 2008/08/15 06:12:02 k
 # include <limits.h>
 # include <sys/cygwin.h>
 #endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+# include <direct.h>
+#endif
 
 /*
  * Try to figure out how deep we can go in our tests.  Assumes that
@@ -119,7 +122,7 @@ compute_filenames(void)
 		if (i > 9) {
 			buff[j--] = '0' + ((i / 10) % 10);
 			if (i > 99)
-				buff[j--] = '0' + (i / 100);
+				buff[j--] = '0' + (char)(i / 100);
 		}
 		buff[j] = '_';
 		/* Guard against obvious screwups in the above code. */
@@ -202,7 +205,7 @@ verify_tree(size_t limit)
 		sprintf(name1, "f/%s", filenames[i]);
 		if (i <= limit) {
 			assertFileExists(name1);
-			assertFileContents(name1, strlen(name1), name1);
+			assertFileContents(name1, (int)strlen(name1), name1);
 		}
 
 		sprintf(name2, "l/%s", filenames[i]);

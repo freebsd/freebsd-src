@@ -231,27 +231,27 @@ create(const char *filename, int compress, const char **argv)
 	switch (compress) {
 #ifndef NO_BZIP2_CREATE
 	case 'j': case 'y':
-		archive_write_set_compression_bzip2(a);
+		archive_write_add_filter_bzip2(a);
 		break;
 #endif
 #ifndef NO_COMPRESS_CREATE
 	case 'Z':
-		archive_write_set_compression_compress(a);
+		archive_write_add_filter_compress(a);
 		break;
 #endif
 #ifndef NO_GZIP_CREATE
 	case 'z':
-		archive_write_set_compression_gzip(a);
+		archive_write_add_filter_gzip(a);
 		break;
 #endif
 	default:
-		archive_write_set_compression_none(a);
+		archive_write_add_filter_none(a);
 		break;
 	}
 	archive_write_set_format_ustar(a);
 	if (strcmp(filename, "-") == 0)
 		filename = NULL;
-	archive_write_open_file(a, filename);
+	archive_write_open_filename(a, filename);
 
 	disk = archive_read_disk_new();
 #ifndef NO_LOOKUP
@@ -361,7 +361,7 @@ extract(const char *filename, int do_extract, int flags)
 #endif
 	if (filename != NULL && strcmp(filename, "-") == 0)
 		filename = NULL;
-	if ((r = archive_read_open_file(a, filename, 10240))) {
+	if ((r = archive_read_open_filename(a, filename, 10240))) {
 		errmsg(archive_error_string(a));
 		errmsg("\n");
 		exit(r);

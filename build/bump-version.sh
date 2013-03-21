@@ -31,6 +31,6 @@ echo $ANNOUNCE
 # Add a version notice to NEWS
 mv NEWS NEWS.bak
 chmod +w NEWS.bak
-echo > NEWS
 echo $ANNOUNCE >> NEWS
+echo >> NEWS
 cat NEWS.bak >> NEWS

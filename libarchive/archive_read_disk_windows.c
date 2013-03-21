@@ -597,7 +597,7 @@ start_next_async_read(struct archive_read_disk *a, struct tree *t)
 	} else
 		ResetEvent(olp->ol.hEvent);
 
-	buffbytes = olp->buff_size;
+	buffbytes = (DWORD)olp->buff_size;
 	if (buffbytes > t->current_sparse->length)
 		buffbytes = (DWORD)t->current_sparse->length;
 
@@ -669,7 +669,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	struct tree *t = a->tree;
 	struct la_overlapped *olp;
 	DWORD bytes_transferred;
-	int r;
+	int r = ARCHIVE_FATAL;
 
 	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
 	    "archive_read_data_block");
@@ -698,7 +698,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	olp = &(t->ol[t->ol_idx_done]);
 	t->ol_idx_done = (t->ol_idx_done + 1) % MAX_OVERLAPPED;
 	if (olp->bytes_transferred)
-		bytes_transferred = olp->bytes_transferred;
+		bytes_transferred = (DWORD)olp->bytes_transferred;
 	else if (!GetOverlappedResult(t->entry_fh, &(olp->ol),
 	    &bytes_transferred, TRUE)) {
 		la_dosmaperr(GetLastError());
@@ -1208,7 +1208,7 @@ _archive_read_disk_open_w(struct archive *_a, const wchar_t *pathname)
 		a->tree = tree_open(pathname, a->symlink_mode, a->restore_time);
 	if (a->tree == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate direcotry traversal data");
+		    "Can't allocate directory traversal data");
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
@@ -1257,16 +1257,18 @@ update_current_filesystem(struct archive_read_disk *a, int64_t dev)
 	fid = t->max_filesystem_id++;
 	if (t->max_filesystem_id > t->allocated_filesytem) {
 		size_t s;
+		void *p;
 
 		s = t->max_filesystem_id * 2;
-		t->filesystem_table = realloc(t->filesystem_table,
-		    s * sizeof(*t->filesystem_table));
-		if (t->filesystem_table == NULL) {
+		p = realloc(t->filesystem_table,
+			s * sizeof(*t->filesystem_table));
+		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate tar data");
 			return (ARCHIVE_FATAL);
 		}
-		t->allocated_filesytem = s;
+		t->filesystem_table = (struct filesystem *)p;
+		t->allocated_filesytem = (int)s;
 	}
 	t->current_filesystem_id = fid;
 	t->current_filesystem = &(t->filesystem_table[fid]);
@@ -2040,7 +2042,7 @@ tree_free(struct tree *t)
 	free(t->filesystem_table);
 	for (i = 0; i < MAX_OVERLAPPED; i++) {
 		if (t->ol[i].buff)
-			VirtualFree(t->ol[i].buff, t->ol[i].buff_size, MEM_DECOMMIT);
+			VirtualFree(t->ol[i].buff, 0, MEM_RELEASE);
 		CloseHandle(t->ol[i].ol.hEvent);
 	}
 	free(t);
@@ -2234,7 +2236,7 @@ setup_sparse_from_disk(struct archive_read_disk *a,
 			ret = DeviceIoControl(handle,
 			    FSCTL_QUERY_ALLOCATED_RANGES,
 			    &range, sizeof(range), outranges,
-			    outranges_size, &retbytes, NULL);
+			    (DWORD)outranges_size, &retbytes, NULL);
 			if (ret == 0 && GetLastError() == ERROR_MORE_DATA) {
 				free(outranges);
 				outranges_size *= 2;

@@ -52,7 +52,7 @@ DEFINE_TEST(test_read_format_cpio_bin)
 	assertEqualIntA(a, 0, archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
 	assertEqualInt(1, archive_file_count(a));
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CPIO_BIN_LE, archive_format(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

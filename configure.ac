@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.0.4])
-m4_define([LIBARCHIVE_VERSION_N],[3000004])
+m4_define([LIBARCHIVE_VERSION_S],[3.1.2])
+m4_define([LIBARCHIVE_VERSION_N],[3001002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -26,6 +26,7 @@ AC_CONFIG_AUX_DIR([build/autoconf])
 AC_CONFIG_MACRO_DIR([build/autoconf])
 # Must follow AC_CONFIG macros above...
 AM_INIT_AUTOMAKE()
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Libtool's "interface version" can be computed from the libarchive version.
 
@@ -36,8 +37,8 @@ ARCHIVE_MINOR=$(( (LIBARCHIVE_VERSION_N() / 1000) % 1000 ))
 # Libarchive 2.8 == libtool interface 10 = 2 + 8
 # Libarchive 2.9 == libtool interface 11 = 2 + 8
 # Libarchive 3.0 == libtool interface 12
-# Libarchive 3.x == libtool interface 12 + x
-ARCHIVE_INTERFACE=`echo $((12 + ${ARCHIVE_MINOR}))`
+# Libarchive 3.1 == libtool interface 13
+ARCHIVE_INTERFACE=`echo $((13 + ${ARCHIVE_MINOR}))`
 # Libarchive revision is bumped on any source change === libtool revision
 ARCHIVE_REVISION=$(( LIBARCHIVE_VERSION_N() % 1000 ))
 # Libarchive minor is bumped on any interface addition === libtool age
@@ -217,10 +218,10 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
-AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h regex.h signal.h stdarg.h])
-AC_CHECK_HEADERS([stdint.h stdlib.h string.h])
-AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h sys/ioctl.h])
-AC_CHECK_HEADERS([sys/mkdev.h sys/mount.h])
+AC_CHECK_HEADERS([locale.h paths.h poll.h pwd.h signal.h spawn.h])
+AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h])
+AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/select.h sys/statfs.h sys/statvfs.h])
 AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
@@ -246,7 +247,29 @@ AC_ARG_WITH([bz2lib],
 
 if test "x$with_bz2lib" != "xno"; then
   AC_CHECK_HEADERS([bzlib.h])
-  AC_CHECK_LIB(bz2,BZ2_bzDecompressInit)
+  case "$host_os" in
+    *mingw* | *cygwin*)
+      dnl AC_CHECK_LIB cannot be used on the Windows port of libbz2, therefore
+	  dnl use AC_LINK_IFELSE.
+	  AC_MSG_CHECKING([for BZ2_bzDecompressInit in -lbz2])
+      old_LIBS="$LIBS"
+      LIBS="-lbz2 $LIBS"
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#include <bzlib.h>
+          int main() { return BZ2_bzDecompressInit(NULL, 0, 0); })],
+        [ac_cv_lib_bz2_BZ2_bzDecompressInit=yes],
+        [ac_cv_lib_bz2_BZ2_bzDecompressInit=no])
+      LIBS="$old_LIBS"
+	  AC_MSG_RESULT($ac_cv_lib_bz2_BZ2_bzDecompressInit)
+      if test "x$ac_cv_lib_bz2_BZ2_bzDecompressInit" = xyes; then
+        AC_DEFINE([HAVE_LIBBZ2], [1], [Define to 1 if you have the `bz2' library (-lbz2).])
+        LIBS="-lbz2 $LIBS"
+      fi
+    ;;
+    *)
+      AC_CHECK_LIB(bz2,BZ2_bzDecompressInit)
+    ;;
+  esac
 fi
 
 AC_ARG_WITH([lzmadec],
@@ -284,6 +307,14 @@ if test "x$with_lzma" != "xno"; then
   AC_CHECK_LIB(lzma,lzma_stream_decoder)
 fi
 
+AC_ARG_WITH([lzo2],
+  AS_HELP_STRING([--without-lzo2], [Don't build support for lzop through liblzo2]))
+
+if test "x$with_lzo2" != "xno"; then
+  AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
+  AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
+fi
+
 AC_ARG_WITH([nettle],
   AS_HELP_STRING([--without-nettle], [Don't build with crypto support from Nettle]))
 AC_ARG_WITH([openssl],
@@ -315,12 +346,61 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   fi
 fi
 
-AC_ARG_WITH([libregex],
-  AS_HELP_STRING([--without-libregex], [Don't build support for regex through libregex]))
+AC_ARG_ENABLE([posix-regex-lib],
+  [AS_HELP_STRING([--enable-posix-regex-lib],
+    [choose what library to use for POSIX regular expression support (default: auto)])
+  AS_HELP_STRING([--enable-posix-regex-lib=libc], [use libc POSIX regular expression support])
+  AS_HELP_STRING([--enable-posix-regex-lib=libregex], [use libregex POSIX regular expression support])
+  AS_HELP_STRING([--enable-posix-regex-lib=libpcreposix], [use libpcreposix POSIX regular expression support])
+  AS_HELP_STRING([--disable-posix-regex-lib], [don't enable POSIX regular expression support])],
+  [], [enable_posix_regex_lib=auto])
 
-if test "x$with_libregex" != "xno"; then
+posix_regex_lib_found=
+if test "$enable_posix_regex_lib" = "auto" || test "$enable_posix_regex_lib" = "libc" || test "$enable_posix_regex_lib" = "libregex"; then
+  AC_CHECK_HEADERS([regex.h])
   if test "x$ac_cv_header_regex_h" != "xno"; then
-    AC_CHECK_FUNC(regcomp, , [AC_CHECK_LIB(regex,regcomp)])
+    AC_CHECK_FUNC(regcomp)
+    if test "x$ac_cv_func_regcomp" = xyes; then
+      posix_regex_lib_found=1
+    else
+      AC_CHECK_LIB(regex,regcomp)
+      if test "x$ac_cv_lib_regex_regcomp" = xyes; then
+        posix_regex_lib_found=1
+      fi
+    fi
+  fi
+fi
+if test -z $posix_regex_lib_found && (test "$enable_posix_regex_lib" = "auto" || test "$enable_posix_regex_lib" = "libpcreposix"); then
+  AC_CHECK_HEADERS([pcreposix.h])
+  AC_CHECK_LIB(pcreposix,regcomp)
+  if test "x$ac_cv_lib_pcreposix_regcomp" != xyes; then
+    AC_MSG_NOTICE(trying libpcreposix check again with libpcre)
+	unset ac_cv_lib_pcreposix_regcomp
+	AC_CHECK_LIB(pcre,pcre_exec)
+    AC_CHECK_LIB(pcreposix,regcomp)
+    if test "x$ac_cv_lib_pcre_pcre_exec" = xyes && test "x$ac_cv_lib_pcreposix_regcomp" = xyes; then
+      AC_MSG_CHECKING(if PCRE_STATIC needs to be defined)
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#include <pcreposix.h>
+          int main() { return regcomp(NULL, NULL, 0); })],
+        [without_pcre_static=yes],
+        [without_pcre_static=no])
+      AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(#define PCRE_STATIC
+          #include <pcreposix.h>
+          int main() { return regcomp(NULL, NULL, 0); })],
+        [with_pcre_static=yes],
+        [with_pcre_static=no])
+      if test "x$without_pcre_static" != xyes && test "x$with_pcre_static" = xyes; then
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([PCRE_STATIC], [1], [Define to 1 if PCRE_STATIC needs to be defined.])
+      elif test "x$without_pcre_static" = xyes || test "x$with_pcre_static" = xyes; then
+        AC_MSG_RESULT(no)
+      fi
+      posix_regex_lib_found=1
+    fi
+  else
+    posix_regex_lib_found=1
   fi
 fi
 
@@ -432,7 +512,7 @@ AC_FUNC_VPRINTF
 # To avoid necessity for including windows.h or special forward declaration
 # workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
-AC_CHECK_FUNCS([chflags chown chroot ctime_r])
+AC_CHECK_FUNCS([chflags chown chroot ctime_r dirfd])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
@@ -441,7 +521,7 @@ AC_CHECK_FUNCS([getpwnam_r getpwuid_r getvfsbyname gmtime_r])
 AC_CHECK_FUNCS([lchflags lchmod lchown link localtime_r lstat lutimes])
 AC_CHECK_FUNCS([mbrtowc memmove memset])
 AC_CHECK_FUNCS([mkdir mkfifo mknod mkstemp])
-AC_CHECK_FUNCS([nl_langinfo openat pipe poll readlink readlinkat])
+AC_CHECK_FUNCS([nl_langinfo openat pipe poll posix_spawnp readlink readlinkat])
 AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strrchr symlink timegm])
 AC_CHECK_FUNCS([tzset unsetenv utime utimensat utimes vfork])
@@ -553,10 +633,8 @@ AC_SYS_LARGEFILE
 dnl NOTE: Crypto checks must run last.
 AC_DEFUN([CRYPTO_CHECK], [
   if test "$found_$1" != yes; then
-    saved_LIBS="$LIBS"
     saved_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS -I. -I$srcdir -I$srcdir/libarchive"
-    LIBS="$LIBS $mdLIBS $4"
     touch "check_crypto_md.h"
     AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_$2])
     AC_LINK_IFELSE([AC_LANG_SOURCE([
@@ -578,63 +656,133 @@ main(int argc, char **argv)
 ])],
     [ AC_MSG_RESULT([yes])
       found_$1=yes
-      if [[ -n "$4" ]]; then
-        # The .$4 avoids -e, which doesn't work on Solaris 10
-	# The _$mdLIBS allows .$4 to match at beginning of string <sigh>
-        test -n "$(echo _$mdLIBS | $GREP .$4)" || mdLIBS="$mdLIBS $4"
-      fi
+      found_$2=yes
       AC_DEFINE(ARCHIVE_CRYPTO_$1_$2, 1, [ $1 via ARCHIVE_CRYPTO_$1_$2 supported.])
     ],
     [ AC_MSG_RESULT([no])])
-    LIBS="$saved_LIBS"
     CPPFLAGS="$saved_CPPFLAGS"
     rm "check_crypto_md.h"
   fi
 ])
 
-CRYPTO_CHECK(MD5, LIBC, md5)
-CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
-CRYPTO_CHECK(RMD160, LIBC, rmd160)
-CRYPTO_CHECK(SHA1, LIBC, sha1)
-CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
-CRYPTO_CHECK(SHA256, LIBC, sha256)
-CRYPTO_CHECK(SHA256, LIBC2, sha256)
-CRYPTO_CHECK(SHA256, LIBC3, sha256)
-CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
-CRYPTO_CHECK(SHA384, LIBC, sha384)
-CRYPTO_CHECK(SHA384, LIBC2, sha384)
-CRYPTO_CHECK(SHA384, LIBC3, sha384)
-CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
-CRYPTO_CHECK(SHA512, LIBC, sha512)
-CRYPTO_CHECK(SHA512, LIBC2, sha512)
-CRYPTO_CHECK(SHA512, LIBC3, sha512)
-CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
+AC_DEFUN([CRYPTO_CHECK_WIN], [
+  if test "$found_$1" != yes; then
+    AC_MSG_CHECKING([support for ARCHIVE_CRYPTO_$1_WIN])
+    AC_LINK_IFELSE([AC_LANG_SOURCE([
+#define ARCHIVE_$1_COMPILE_TEST
+#include <windows.h>
+#include <wincrypt.h>
+
+int
+main(int argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
+
+	return ($2);
+}
+])],
+    [ AC_MSG_RESULT([yes])
+      found_$1=yes
+      found_WIN=yes
+      AC_DEFINE(ARCHIVE_CRYPTO_$1_WIN, 1, [ $1 via ARCHIVE_CRYPTO_$1_WIN supported.])
+    ],
+    [ AC_MSG_RESULT([no])])
+  fi
+])
+
+case "$host_os" in
+  *mingw* | *cygwin*)
+	;;
+  *)
+	CRYPTO_CHECK(MD5, LIBC, md5)
+	CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
+	CRYPTO_CHECK(RMD160, LIBC, rmd160)
+	CRYPTO_CHECK(SHA1, LIBC, sha1)
+	CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
+	CRYPTO_CHECK(SHA256, LIBC, sha256)
+	CRYPTO_CHECK(SHA256, LIBC2, sha256)
+	CRYPTO_CHECK(SHA256, LIBC3, sha256)
+	CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
+	CRYPTO_CHECK(SHA384, LIBC, sha384)
+	CRYPTO_CHECK(SHA384, LIBC2, sha384)
+	CRYPTO_CHECK(SHA384, LIBC3, sha384)
+	CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
+	CRYPTO_CHECK(SHA512, LIBC, sha512)
+	CRYPTO_CHECK(SHA512, LIBC2, sha512)
+	CRYPTO_CHECK(SHA512, LIBC3, sha512)
+	CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
+	;;
+esac
 
 if test "x$with_nettle" != "xno"; then
-    CRYPTO_CHECK(MD5, NETTLE, md5, -lnettle)
-    CRYPTO_CHECK(RMD160, NETTLE, rmd160, -lnettle)
-    CRYPTO_CHECK(SHA1, NETTLE, sha1, -lnettle)
-    CRYPTO_CHECK(SHA256, NETTLE, sha256, -lnettle)
-    CRYPTO_CHECK(SHA384, NETTLE, sha384, -lnettle)
-    CRYPTO_CHECK(SHA512, NETTLE, sha512, -lnettle)
+    AC_CHECK_HEADERS([nettle/md5.h nettle/ripemd160.h nettle/sha.h])
+    saved_LIBS=$LIBS
+    AC_CHECK_LIB(nettle,main)
+    CRYPTO_CHECK(MD5, NETTLE, md5)
+    CRYPTO_CHECK(RMD160, NETTLE, rmd160)
+    CRYPTO_CHECK(SHA1, NETTLE, sha1)
+    CRYPTO_CHECK(SHA256, NETTLE, sha256)
+    CRYPTO_CHECK(SHA384, NETTLE, sha384)
+    CRYPTO_CHECK(SHA512, NETTLE, sha512)
+    if test "x$found_NETTLE" != "xyes"; then
+      LIBS=$saved_LIBS
+    fi
 fi
 if test "x$with_openssl" != "xno"; then
-    CRYPTO_CHECK(MD5, OPENSSL, md5, -lcrypto)
-    CRYPTO_CHECK(RMD160, OPENSSL, rmd160, -lcrypto)
-    CRYPTO_CHECK(SHA1, OPENSSL, sha1, -lcrypto)
-    CRYPTO_CHECK(SHA256, OPENSSL, sha256, -lcrypto)
-    CRYPTO_CHECK(SHA384, OPENSSL, sha384, -lcrypto)
-    CRYPTO_CHECK(SHA512, OPENSSL, sha512, -lcrypto)
+    AC_CHECK_HEADERS([openssl/evp.h])
+    saved_LIBS=$LIBS
+    case "$host_os" in
+      *mingw* | *cygwin*)
+        case "$host_cpu" in
+          x86_64)
+            AC_CHECK_LIB(eay64,main)
+            if test "x$ac_cv_lib_eay64_main" != "xyes"; then
+              AC_CHECK_LIB(eay32,main)
+            fi
+            ;;
+          *)
+            AC_CHECK_LIB(eay32,main)
+            ;;
+        esac
+        ;;
+      *)
+        AC_CHECK_LIB(crypto,main)
+        ;;
+    esac
+    CRYPTO_CHECK(MD5, OPENSSL, md5)
+    CRYPTO_CHECK(RMD160, OPENSSL, rmd160)
+    CRYPTO_CHECK(SHA1, OPENSSL, sha1)
+    CRYPTO_CHECK(SHA256, OPENSSL, sha256)
+    CRYPTO_CHECK(SHA384, OPENSSL, sha384)
+    CRYPTO_CHECK(SHA512, OPENSSL, sha512)
+    if test "x$found_OPENSSL" != "xyes"; then
+      LIBS=$saved_LIBS
+    fi
 fi
 
 # Probe libmd AFTER OpenSSL/libcrypto.
 # The two are incompatible and OpenSSL is more complete.
-CRYPTO_CHECK(MD5, LIBMD, md5, -lmd)
-CRYPTO_CHECK(RMD160, LIBMD, rmd160, -lmd)
-CRYPTO_CHECK(SHA1, LIBMD, sha1, -lmd)
-CRYPTO_CHECK(SHA256, LIBMD, sha256, -lmd)
-CRYPTO_CHECK(SHA512, LIBMD, sha512, -lmd)
+AC_CHECK_HEADERS([md5.h ripemd.h sha.h sha256.h sha512.h])
+saved_LIBS=$LIBS
+AC_CHECK_LIB(md,main)
+CRYPTO_CHECK(MD5, LIBMD, md5)
+CRYPTO_CHECK(RMD160, LIBMD, rmd160)
+CRYPTO_CHECK(SHA1, LIBMD, sha1)
+CRYPTO_CHECK(SHA256, LIBMD, sha256)
+CRYPTO_CHECK(SHA512, LIBMD, sha512)
+if test "x$found_LIBMD" != "xyes"; then
+  LIBS=$saved_LIBS
+fi
 
-LIBS="$LIBS $mdLIBS"
+case "$host_os" in
+  *mingw* | *cygwin*)
+	CRYPTO_CHECK_WIN(MD5, CALG_MD5)
+	CRYPTO_CHECK_WIN(SHA1, CALG_SHA1)
+	CRYPTO_CHECK_WIN(SHA256, CALG_SHA_256)
+	CRYPTO_CHECK_WIN(SHA384, CALG_SHA_384)
+	CRYPTO_CHECK_WIN(SHA512, CALG_SHA_512)
+	;;
+esac
 
 AC_OUTPUT
