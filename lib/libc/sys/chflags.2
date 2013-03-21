@@ -42,11 +42,11 @@
 .In sys/stat.h
 .In unistd.h
 .Ft int
-.Fn chflags "const char *path" "u_long flags"
+.Fn chflags "const char *path" "unsigned long flags"
 .Ft int
-.Fn lchflags "const char *path" "int flags"
+.Fn lchflags "const char *path" "unsigned long flags"
 .Ft int
-.Fn fchflags "int fd" "u_long flags"
+.Fn fchflags "int fd" "unsigned long flags"
 .Sh DESCRIPTION
 The file whose name
 is given by
