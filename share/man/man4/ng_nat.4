@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2008
+.Dd March 21, 2013
 .Dt NG_NAT 4
 .Os
 .Sh NAME
@@ -239,6 +239,31 @@ supplied as argument).
 See
 .Xr libalias 3
 for details.
+.It Dv NGM_NAT_LIBALIAS_INFO Pq Ic libaliasinfo
+Return internal statistics of
+.Xr libalias 3
+instance as
+.Vt "struct ng_nat_libalias_info" .
+.Bd -literal
+struct ng_nat_libalias_info {
+	uint32_t	icmpLinkCount;
+	uint32_t	udpLinkCount;
+	uint32_t	tcpLinkCount;
+	uint32_t	sctpLinkCount;
+	uint32_t	pptpLinkCount;
+	uint32_t	protoLinkCount;
+	uint32_t	fragmentIdLinkCount;
+	uint32_t	fragmentPtrLinkCount;
+	uint32_t	sockCount;
+};
+.Ed
+In case of
+.Nm
+failed to retreive a certain counter
+from its
+.Xr libalias
+instance, the corresponding field is returned as
+.Va UINT32_MAX .
 .El
 .Pp
 In all redirection messages
