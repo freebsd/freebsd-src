@@ -189,10 +189,12 @@ again:
 	buffer_map = kmem_suballoc(clean_map, &kmi->buffer_sva,
 	    &kmi->buffer_eva, (long)nbuf * BKVASIZE, FALSE);
 	buffer_map->system_map = 1;
-	bio_transient_map = kmem_suballoc(clean_map, &kmi->bio_transient_sva,
-	    &kmi->bio_transient_eva, (long)bio_transient_maxcnt * MAXPHYS,
-	    FALSE);
-	bio_transient_map->system_map = 1;
+	if (bio_transient_maxcnt != 0) {
+		bio_transient_map = kmem_suballoc(clean_map,
+		    &kmi->bio_transient_sva, &kmi->bio_transient_eva,
+		    (long)bio_transient_maxcnt * MAXPHYS, FALSE);
+		bio_transient_map->system_map = 1;
+	}
 	pager_map = kmem_suballoc(clean_map, &kmi->pager_sva, &kmi->pager_eva,
 	    (long)nswbuf * MAXPHYS, FALSE);
 	pager_map->system_map = 1;
