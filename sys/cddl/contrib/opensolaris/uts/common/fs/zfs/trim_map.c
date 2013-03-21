@@ -496,6 +496,11 @@ trim_thread(void *arg)
 	spa_t *spa = arg;
 	zio_t *zio;
 
+#ifdef _KERNEL
+	(void) snprintf(curthread->td_name, sizeof(curthread->td_name),
+	    "trim %s", spa_name(spa));
+#endif
+
 	for (;;) {
 		mutex_enter(&spa->spa_trim_lock);
 		if (spa->spa_trim_thread == NULL) {
