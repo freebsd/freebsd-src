@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2012
+.Dd March 21, 2013
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm uma_zalloc_arg ,
 .Nm uma_zfree ,
 .Nm uma_zfree_arg ,
+.Nm uma_find_refcnt ,
 .Nm uma_zdestroy ,
 .Nm uma_zone_set_max,
 .Nm uma_zone_get_max,
@@ -58,6 +59,8 @@
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
+.Ft "uint32_t *"
+.Fn uma_find_refcnt "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zdestroy "uma_zone_t zone"
 .Ft int
@@ -174,6 +177,13 @@ specify an argument for the
 and
 .Dv dtor
 functions, respectively.
+.Pp
+If zone was created with
+.Dv UMA_ZONE_REFCNT
+flag, then pointer to reference counter for an item can be retrieved with
+help of the
+.Fn uma_find_refcnt
+function.
 .Pp
 Created zones,
 which are empty,
