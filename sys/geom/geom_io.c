@@ -628,6 +628,8 @@ g_io_transient_map_bio(struct bio *bp)
 	u_int retried;
 	int rv;
 
+	KASSERT(unmapped_buf_allowed, ("unmapped disabled"));
+
 	size = round_page(bp->bio_ma_offset + bp->bio_length);
 	KASSERT(size / PAGE_SIZE == bp->bio_ma_n, ("Bio too short %p", bp));
 	addr = 0;
