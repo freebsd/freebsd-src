@@ -35,6 +35,7 @@
 #define MILLISEC	1000
 #define MICROSEC	1000000
 #define NANOSEC		1000000000
+#define TIME_MAX	LLONG_MAX
 
 typedef longlong_t	hrtime_t;
 
