@@ -72,6 +72,8 @@
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
 
+#include <vm/_vm_radix.h>
+
 /*
  *	Types defined:
  *
@@ -79,10 +81,10 @@
  *
  *	The root of cached pages pool is protected by both the per-object lock
  *	and the free pages queue mutex.
- *	On insert in the cache splay tree, the per-object lock is expected
+ *	On insert in the cache radix trie, the per-object lock is expected
  *	to be already held and the free pages queue mutex will be
  *	acquired during the operation too.
- *	On remove and lookup from the cache splay tree, only the free
+ *	On remove and lookup from the cache radix trie, only the free
  *	pages queue mutex is expected to be locked.
  *	These rules allow for reliably checking for the presence of cached
  *	pages with only the per-object lock held, thereby reducing contention
@@ -101,7 +103,7 @@ struct vm_object {
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
-	vm_page_t root;			/* root of the resident page splay tree */
+	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
@@ -116,7 +118,7 @@ struct vm_object {
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	LIST_HEAD(, vm_reserv) rvq;	/* list of reservations */
-	vm_page_t cache;		/* (o + f) root of the cache page splay tree */
+	struct vm_radix cache;		/* (o + f) root of the cache page radix trie */
 	void *handle;
 	union {
 		/*
@@ -246,7 +248,7 @@ static __inline boolean_t
 vm_object_cache_is_empty(vm_object_t object)
 {
 
-	return (object->cache == NULL);
+	return (vm_radix_is_empty(&object->cache));
 }
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);

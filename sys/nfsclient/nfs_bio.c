@@ -475,7 +475,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	    case VREG:
 		nfsstats.biocache_reads++;
 		lbn = uio->uio_offset / biosize;
-		on = uio->uio_offset & (biosize - 1);
+		on = uio->uio_offset - (lbn * biosize);
 
 		/*
 		 * Start the read ahead(s), as required.
@@ -1011,7 +1011,7 @@ flush_and_restart:
 	do {
 		nfsstats.biocache_writes++;
 		lbn = uio->uio_offset / biosize;
-		on = uio->uio_offset & (biosize-1);
+		on = uio->uio_offset - (lbn * biosize);
 		n = MIN((unsigned)(biosize - on), uio->uio_resid);
 again:
 		/*
@@ -1781,7 +1781,7 @@ nfs_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 		 */
 		error = vtruncbuf(vp, cred, nsize, biosize);
 		lbn = nsize / biosize;
-		bufsize = nsize & (biosize - 1);
+		bufsize = nsize - (lbn * biosize);
 		bp = nfs_getcacheblk(vp, lbn, bufsize, td);
  		if (!bp)
  			return EINTR;

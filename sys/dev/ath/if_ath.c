@@ -837,6 +837,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 
 	/*
+	 * Initialise the deferred completed RX buffer list.
+	 */
+	TAILQ_INIT(&sc->sc_rx_rxlist);
+
+	/*
 	 * Indicate we need the 802.11 header padded to a
 	 * 32-bit boundary for 4-address and QoS frames.
 	 */
@@ -1711,7 +1716,7 @@ ath_intr(void *arg)
 				 * traffic so any frames held on the staging
 				 * queue are aged and potentially flushed.
 				 */
-				taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+				sc->sc_rx.recv_sched(sc, 1);
 #endif
 			}
 		}
@@ -1751,13 +1756,13 @@ ath_intr(void *arg)
 			if (! sc->sc_kickpcu)
 				sc->sc_rxlink = NULL;
 			sc->sc_kickpcu = 1;
+			ATH_PCU_UNLOCK(sc);
 			/*
 			 * Enqueue an RX proc, to handled whatever
 			 * is in the RX queue.
 			 * This will then kick the PCU.
 			 */
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
-			ATH_PCU_UNLOCK(sc);
+			sc->sc_rx.recv_sched(sc, 1);
 		}
 		if (status & HAL_INT_TXURN) {
 			sc->sc_stats.ast_txurn++;
@@ -1770,7 +1775,7 @@ ath_intr(void *arg)
 		 */
 		if (status & (HAL_INT_RX | HAL_INT_RXHP | HAL_INT_RXLP)) {
 			sc->sc_stats.ast_rx_intr++;
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+			sc->sc_rx.recv_sched(sc, 1);
 		}
 		if (status & HAL_INT_TX) {
 			sc->sc_stats.ast_tx_intr++;

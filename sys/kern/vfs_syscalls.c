@@ -445,7 +445,7 @@ sys_getfsstat(td, uap)
 
 /*
  * If (bufsize > 0 && bufseg == UIO_SYSSPACE)
- * 	The caller is responsible for freeing memory which will be allocated
+ *	The caller is responsible for freeing memory which will be allocated
  *	in '*buf'.
  */
 int
@@ -971,7 +971,7 @@ flags_to_rights(int flags)
 			/* FALLTHROUGH */
 		case O_WRONLY:
 			rights |= CAP_WRITE;
-			if (!(flags & O_APPEND))
+			if (!(flags & (O_APPEND | O_TRUNC)))
 				rights |= CAP_SEEK;
 			break;
 		}
@@ -2843,7 +2843,6 @@ sys_lchmod(td, uap)
 	    uap->mode, AT_SYMLINK_NOFOLLOW));
 }
 
-
 int
 kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     mode_t mode, int flag)
@@ -2854,7 +2853,7 @@ kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 	AUDIT_ARG_MODE(mode);
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
-	NDINIT_ATRIGHTS(&nd, LOOKUP,  follow | AUDITVNODE1, pathseg, path, fd,
+	NDINIT_ATRIGHTS(&nd, LOOKUP, follow | AUDITVNODE1, pathseg, path, fd,
 	    CAP_FCHMOD, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -4679,7 +4678,7 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 				new = fa;
 				fp->f_advice = NULL;
 			} else if (offset <= fa->fa_start &&
- 			    end >= fa->fa_start)
+			    end >= fa->fa_start)
 				fa->fa_start = end + 1;
 			else if (offset <= fa->fa_end && end >= fa->fa_end)
 				fa->fa_end = offset - 1;

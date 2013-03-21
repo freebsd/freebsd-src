@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * resource, and only deactivate it when there are no powered devices.
  *
  * Note that this only manages resources for known devices.  There is an
- * ugly case where we may turn of power to a device which is in use because
+ * ugly case where we may turn off power to a device which is in use because
  * we don't know that it depends on a given resource.  We should perhaps
  * try to be smarter about this, but a more complete solution would involve
  * scanning all of the ACPI namespace to find devices we're not currently

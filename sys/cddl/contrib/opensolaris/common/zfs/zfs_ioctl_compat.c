@@ -33,6 +33,7 @@
 #include <sys/nvpair.h>
 #include <sys/dsl_deleg.h>
 #include <sys/zfs_ioctl.h>
+#include "zfs_namecheck.h"
 #include "zfs_ioctl_compat.h"
 
 static int zfs_version_ioctl = ZFS_IOCVER_CURRENT;
@@ -49,8 +50,52 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 {
 	zfs_cmd_v15_t *zc_c;
 	zfs_cmd_v28_t *zc28_c;
+	zfs_cmd_deadman_t *zcdm_c;
 
 	switch (cflag) {
+	case ZFS_CMD_COMPAT_DEADMAN:
+		zcdm_c = (void *)addr;
+		/* zc */
+		strlcpy(zc->zc_name, zcdm_c->zc_name, MAXPATHLEN);
+		strlcpy(zc->zc_value, zcdm_c->zc_value, MAXPATHLEN * 2);
+		strlcpy(zc->zc_string, zcdm_c->zc_string, MAXPATHLEN);
+		zc->zc_guid = zcdm_c->zc_guid;
+		zc->zc_nvlist_conf = zcdm_c->zc_nvlist_conf;
+		zc->zc_nvlist_conf_size = zcdm_c->zc_nvlist_conf_size;
+		zc->zc_nvlist_src = zcdm_c->zc_nvlist_src;
+		zc->zc_nvlist_src_size = zcdm_c->zc_nvlist_src_size;
+		zc->zc_nvlist_dst = zcdm_c->zc_nvlist_dst;
+		zc->zc_nvlist_dst_size = zcdm_c->zc_nvlist_dst_size;
+		zc->zc_cookie = zcdm_c->zc_cookie;
+		zc->zc_objset_type = zcdm_c->zc_objset_type;
+		zc->zc_perm_action = zcdm_c->zc_perm_action;
+		zc->zc_history = zcdm_c->zc_history;
+		zc->zc_history_len = zcdm_c->zc_history_len;
+		zc->zc_history_offset = zcdm_c->zc_history_offset;
+		zc->zc_obj = zcdm_c->zc_obj;
+		zc->zc_iflags = zcdm_c->zc_iflags;
+		zc->zc_share = zcdm_c->zc_share;
+		zc->zc_jailid = zcdm_c->zc_jailid;
+		zc->zc_objset_stats = zcdm_c->zc_objset_stats;
+		zc->zc_begin_record = zcdm_c->zc_begin_record;
+		zc->zc_defer_destroy = zcdm_c->zc_defer_destroy;
+		zc->zc_temphold = zcdm_c->zc_temphold;
+		zc->zc_action_handle = zcdm_c->zc_action_handle;
+		zc->zc_cleanup_fd = zcdm_c->zc_cleanup_fd;
+		zc->zc_simple = zcdm_c->zc_simple;
+		bcopy(zcdm_c->zc_pad, zc->zc_pad, sizeof(zc->zc_pad));
+		zc->zc_sendobj = zcdm_c->zc_sendobj;
+		zc->zc_fromobj = zcdm_c->zc_fromobj;
+		zc->zc_createtxg = zcdm_c->zc_createtxg;
+		zc->zc_stat = zcdm_c->zc_stat;
+
+		/* zc_inject_record doesn't change in libzfs_core */
+		zcdm_c->zc_inject_record = zc->zc_inject_record;
+
+		/* we always assume zc_nvlist_dst_filled is true */
+		zc->zc_nvlist_dst_filled = B_TRUE;
+	break;
+
 	case ZFS_CMD_COMPAT_V28:
 		zc28_c = (void *)addr;
 
@@ -58,7 +103,6 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		strlcpy(zc->zc_name, zc28_c->zc_name, MAXPATHLEN);
 		strlcpy(zc->zc_value, zc28_c->zc_value, MAXPATHLEN * 2);
 		strlcpy(zc->zc_string, zc28_c->zc_string, MAXPATHLEN);
-		strlcpy(zc->zc_top_ds, zc28_c->zc_top_ds, MAXPATHLEN);
 		zc->zc_guid = zc28_c->zc_guid;
 		zc->zc_nvlist_conf = zc28_c->zc_nvlist_conf;
 		zc->zc_nvlist_conf_size = zc28_c->zc_nvlist_conf_size;
@@ -174,19 +218,66 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 }
 
 void
-zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
+zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
+    const int cflag)
 {
 	zfs_cmd_v15_t *zc_c;
 	zfs_cmd_v28_t *zc28_c;
+	zfs_cmd_deadman_t *zcdm_c;
 
 	switch (cflag) {
+	case ZFS_CMD_COMPAT_DEADMAN:
+		zcdm_c = (void *)addr;
+
+		strlcpy(zcdm_c->zc_name, zc->zc_name, MAXPATHLEN);
+		strlcpy(zcdm_c->zc_value, zc->zc_value, MAXPATHLEN * 2);
+		strlcpy(zcdm_c->zc_string, zc->zc_string, MAXPATHLEN);
+		zcdm_c->zc_guid = zc->zc_guid;
+		zcdm_c->zc_nvlist_conf = zc->zc_nvlist_conf;
+		zcdm_c->zc_nvlist_conf_size = zc->zc_nvlist_conf_size;
+		zcdm_c->zc_nvlist_src = zc->zc_nvlist_src;
+		zcdm_c->zc_nvlist_src_size = zc->zc_nvlist_src_size;
+		zcdm_c->zc_nvlist_dst = zc->zc_nvlist_dst;
+		zcdm_c->zc_nvlist_dst_size = zc->zc_nvlist_dst_size;
+		zcdm_c->zc_cookie = zc->zc_cookie;
+		zcdm_c->zc_objset_type = zc->zc_objset_type;
+		zcdm_c->zc_perm_action = zc->zc_perm_action;
+		zcdm_c->zc_history = zc->zc_history;
+		zcdm_c->zc_history_len = zc->zc_history_len;
+		zcdm_c->zc_history_offset = zc->zc_history_offset;
+		zcdm_c->zc_obj = zc->zc_obj;
+		zcdm_c->zc_iflags = zc->zc_iflags;
+		zcdm_c->zc_share = zc->zc_share;
+		zcdm_c->zc_jailid = zc->zc_jailid;
+		zcdm_c->zc_objset_stats = zc->zc_objset_stats;
+		zcdm_c->zc_begin_record = zc->zc_begin_record;
+		zcdm_c->zc_defer_destroy = zc->zc_defer_destroy;
+		zcdm_c->zc_temphold = zc->zc_temphold;
+		zcdm_c->zc_action_handle = zc->zc_action_handle;
+		zcdm_c->zc_cleanup_fd = zc->zc_cleanup_fd;
+		zcdm_c->zc_simple = zc->zc_simple;
+		bcopy(zc->zc_pad, zcdm_c->zc_pad, sizeof(zcdm_c->zc_pad));
+		zcdm_c->zc_sendobj = zc->zc_sendobj;
+		zcdm_c->zc_fromobj = zc->zc_fromobj;
+		zcdm_c->zc_createtxg = zc->zc_createtxg;
+		zcdm_c->zc_stat = zc->zc_stat;
+
+		/* zc_inject_record doesn't change in libzfs_core */
+		zc->zc_inject_record = zcdm_c->zc_inject_record;
+#ifndef _KERNEL
+		if (request == ZFS_IOC_RECV)
+			strlcpy(zcdm_c->zc_top_ds,
+			    zc->zc_value + strlen(zc->zc_value) + 1,
+			    (MAXPATHLEN * 2) - strlen(zc->zc_value) - 1);
+#endif
+	break;
+
 	case ZFS_CMD_COMPAT_V28:
 		zc28_c = (void *)addr;
 
 		strlcpy(zc28_c->zc_name, zc->zc_name, MAXPATHLEN);
 		strlcpy(zc28_c->zc_value, zc->zc_value, MAXPATHLEN * 2);
 		strlcpy(zc28_c->zc_string, zc->zc_string, MAXPATHLEN);
-		strlcpy(zc28_c->zc_top_ds, zc->zc_top_ds, MAXPATHLEN);
 		zc28_c->zc_guid = zc->zc_guid;
 		zc28_c->zc_nvlist_conf = zc->zc_nvlist_conf;
 		zc28_c->zc_nvlist_conf_size = zc->zc_nvlist_conf_size;
@@ -216,7 +307,12 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		zc28_c->zc_fromobj = zc->zc_fromobj;
 		zc28_c->zc_createtxg = zc->zc_createtxg;
 		zc28_c->zc_stat = zc->zc_stat;
-
+#ifndef _KERNEL
+		if (request == ZFS_IOC_RECV)
+			strlcpy(zc28_c->zc_top_ds,
+			    zc->zc_value + strlen(zc->zc_value) + 1,
+			    MAXPATHLEN * 2 - strlen(zc->zc_value) - 1);
+#endif
 		/* zc_inject_record */
 		zc28_c->zc_inject_record.zi_objset =
 		    zc->zc_inject_record.zi_objset;
@@ -476,7 +572,7 @@ zfs_ioctl_compat_pool_get_props(zfs_cmd_t *zc)
 
 #ifndef _KERNEL
 int
-zcmd_ioctl_compat(int fd, unsigned long cmd, zfs_cmd_t *zc, const int cflag)
+zcmd_ioctl_compat(int fd, int request, zfs_cmd_t *zc, const int cflag)
 {
 	int nc, ret;
 	void *zc_c;
@@ -484,14 +580,19 @@ zcmd_ioctl_compat(int fd, unsigned long cmd, zfs_cmd_t *zc, const int cflag)
 
 	switch (cflag) {
 	case ZFS_CMD_COMPAT_NONE:
-		ret = ioctl(fd, cmd, zc);
+		ncmd = _IOWR('Z', request, struct zfs_cmd);
+		ret = ioctl(fd, ncmd, zc);
 		return (ret);
+	case ZFS_CMD_COMPAT_DEADMAN:
+		zc_c = malloc(sizeof(zfs_cmd_deadman_t));
+		ncmd = _IOWR('Z', request, struct zfs_cmd_deadman);
+		break;
 	case ZFS_CMD_COMPAT_V28:
 		zc_c = malloc(sizeof(zfs_cmd_v28_t));
-		ncmd = _IOWR('Z', ZFS_IOC(cmd), struct zfs_cmd_v28);
+		ncmd = _IOWR('Z', request, struct zfs_cmd_v28);
 		break;
 	case ZFS_CMD_COMPAT_V15:
-		nc = zfs_ioctl_v28_to_v15[ZFS_IOC(cmd)];
+		nc = zfs_ioctl_v28_to_v15[request];
 		zc_c = malloc(sizeof(zfs_cmd_v15_t));
 		ncmd = _IOWR('Z', nc, struct zfs_cmd_v15);
 		break;
@@ -499,24 +600,25 @@ zcmd_ioctl_compat(int fd, unsigned long cmd, zfs_cmd_t *zc, const int cflag)
 		return (EINVAL);
 	}
 
-	if (ZFS_IOC(ncmd) == ZFS_IOC_COMPAT_FAIL)
+	if (ZFS_IOCREQ(ncmd) == ZFS_IOC_COMPAT_FAIL)
 		return (ENOTSUP);
 
-	zfs_cmd_compat_put(zc, (caddr_t)zc_c, cflag);
+	zfs_cmd_compat_put(zc, (caddr_t)zc_c, request, cflag);
+
 	ret = ioctl(fd, ncmd, zc_c);
 	if (cflag == ZFS_CMD_COMPAT_V15 &&
-	    nc == 2 /* ZFS_IOC_POOL_IMPORT */)
-		ret = ioctl(fd, _IOWR('Z', 4 /* ZFS_IOC_POOL_CONFIGS */,
+	    nc == ZFS_IOC_POOL_IMPORT)
+		ret = ioctl(fd, _IOWR('Z', ZFS_IOC_POOL_CONFIGS,
 		    struct zfs_cmd_v15), zc_c);
 	zfs_cmd_compat_get(zc, (caddr_t)zc_c, cflag);
 	free(zc_c);
 
 	if (cflag == ZFS_CMD_COMPAT_V15) {
 		switch (nc) {
-		case 2:	/* ZFS_IOC_POOL_IMPORT */
-		case 4: /* ZFS_IOC_POOL_CONFIGS */
-		case 5: /* ZFS_IOC_POOL_STATS */
-		case 6: /* ZFS_IOC_POOL_TRYIMPORT */
+		case ZFS_IOC_POOL_IMPORT:
+		case ZFS_IOC_POOL_CONFIGS:
+		case ZFS_IOC_POOL_STATS:
+		case ZFS_IOC_POOL_TRYIMPORT:
 			zfs_ioctl_compat_fix_stats(zc, nc);
 			break;
 		case 41: /* ZFS_IOC_POOL_GET_PROPS (v15) */
@@ -528,16 +630,25 @@ zcmd_ioctl_compat(int fd, unsigned long cmd, zfs_cmd_t *zc, const int cflag)
 	return (ret);
 }
 #else /* _KERNEL */
-void
+int
 zfs_ioctl_compat_pre(zfs_cmd_t *zc, int *vec, const int cflag)
 {
-	if (cflag == ZFS_CMD_COMPAT_V15)
+	int error = 0;
+
+	/* are we creating a clone? */
+	if (*vec == ZFS_IOC_CREATE && zc->zc_value[0] != '\0')
+		*vec = ZFS_IOC_CLONE;
+
+	if (cflag == ZFS_CMD_COMPAT_V15) {
 		switch (*vec) {
 
 		case 7: /* ZFS_IOC_POOL_SCRUB (v15) */
 			zc->zc_cookie = POOL_SCAN_SCRUB;
 			break;
 		}
+	}
+
+	return (error);
 }
 
 void
@@ -545,9 +656,9 @@ zfs_ioctl_compat_post(zfs_cmd_t *zc, int vec, const int cflag)
 {
 	if (cflag == ZFS_CMD_COMPAT_V15) {
 		switch (vec) {
-		case 4:	/* ZFS_IOC_POOL_CONFIGS */
-		case 5:	/* ZFS_IOC_POOL_STATS */
-		case 6:	/* ZFS_IOC_POOL_TRYIMPORT */
+		case ZFS_IOC_POOL_CONFIGS:
+		case ZFS_IOC_POOL_STATS:
+		case ZFS_IOC_POOL_TRYIMPORT:
 			zfs_ioctl_compat_fix_stats(zc, vec);
 			break;
 		case 41: /* ZFS_IOC_POOL_GET_PROPS (v15) */
@@ -555,5 +666,194 @@ zfs_ioctl_compat_post(zfs_cmd_t *zc, int vec, const int cflag)
 			break;
 		}
 	}
+}
+
+nvlist_t *
+zfs_ioctl_compat_innvl(zfs_cmd_t *zc, nvlist_t * innvl, const int vec,
+    const int cflag)
+{
+	nvlist_t *nvl, *tmpnvl, *hnvl;
+	nvpair_t *elem;
+	char *poolname, *snapname;
+	int err;
+
+	if (cflag == ZFS_CMD_COMPAT_NONE)
+		goto out;
+
+	switch (vec) {
+	case ZFS_IOC_CREATE:
+		nvl = fnvlist_alloc();
+		fnvlist_add_int32(nvl, "type", zc->zc_objset_type);
+		if (innvl != NULL) {
+			fnvlist_add_nvlist(nvl, "props", innvl);
+			nvlist_free(innvl);
+		}
+		return (nvl);
+	break;
+	case ZFS_IOC_CLONE:
+		nvl = fnvlist_alloc();
+		fnvlist_add_string(nvl, "origin", zc->zc_value);
+		if (innvl != NULL) {
+			fnvlist_add_nvlist(nvl, "props", innvl);
+			nvlist_free(innvl);
+		}
+		return (nvl);
+	break;
+	case ZFS_IOC_SNAPSHOT:
+		if (innvl == NULL)
+			goto out;
+		nvl = fnvlist_alloc();
+		fnvlist_add_nvlist(nvl, "props", innvl);
+		tmpnvl = fnvlist_alloc();
+		snapname = kmem_asprintf("%s@%s", zc->zc_name, zc->zc_value);
+		fnvlist_add_boolean(tmpnvl, snapname);
+		kmem_free(snapname, strlen(snapname + 1));
+		/* check if we are doing a recursive snapshot */
+		if (zc->zc_cookie)
+			dmu_get_recursive_snaps_nvl(zc->zc_name, zc->zc_value,
+			    tmpnvl);
+		fnvlist_add_nvlist(nvl, "snaps", tmpnvl);
+		fnvlist_free(tmpnvl);
+		nvlist_free(innvl);
+		/* strip dataset part from zc->zc_name */
+		zc->zc_name[strcspn(zc->zc_name, "/@")] = '\0';
+		return (nvl);
+	break;
+	case ZFS_IOC_SPACE_SNAPS:
+		nvl = fnvlist_alloc();
+		fnvlist_add_string(nvl, "firstsnap", zc->zc_value);
+		if (innvl != NULL)
+			nvlist_free(innvl);
+		return (nvl);
+	break;
+	case ZFS_IOC_DESTROY_SNAPS:
+		if (innvl == NULL && cflag == ZFS_CMD_COMPAT_DEADMAN)
+			goto out;
+		nvl = fnvlist_alloc();
+		if (innvl != NULL) {
+			fnvlist_add_nvlist(nvl, "snaps", innvl);
+		} else {
+			/*
+			 * We are probably called by even older binaries,
+			 * allocate and populate nvlist with recursive
+			 * snapshots
+			 */
+			if (snapshot_namecheck(zc->zc_value, NULL,
+			    NULL) == 0) {
+				tmpnvl = fnvlist_alloc();
+				if (dmu_get_recursive_snaps_nvl(zc->zc_name,
+				    zc->zc_value, tmpnvl) == 0)
+					fnvlist_add_nvlist(nvl, "snaps",
+					    tmpnvl);
+				nvlist_free(tmpnvl);
+			}
+		}
+		if (innvl != NULL)
+			nvlist_free(innvl);
+		/* strip dataset part from zc->zc_name */
+		zc->zc_name[strcspn(zc->zc_name, "/@")] = '\0';
+		return (nvl);
+	break;
+	case ZFS_IOC_HOLD:
+		nvl = fnvlist_alloc();
+		tmpnvl = fnvlist_alloc();
+		if (zc->zc_cleanup_fd != -1)
+			fnvlist_add_int32(nvl, "cleanup_fd",
+			    (int32_t)zc->zc_cleanup_fd);
+		if (zc->zc_cookie) {
+			hnvl = fnvlist_alloc();
+			if (dmu_get_recursive_snaps_nvl(zc->zc_name,
+			    zc->zc_value, hnvl) == 0) {
+				elem = NULL;
+				while ((elem = nvlist_next_nvpair(hnvl,
+				    elem)) != NULL) {
+					nvlist_add_string(tmpnvl,
+					    nvpair_name(elem), zc->zc_string);
+				}
+			}
+			nvlist_free(hnvl);
+		} else {
+			snapname = kmem_asprintf("%s@%s", zc->zc_name,
+			    zc->zc_value);
+			nvlist_add_string(tmpnvl, snapname, zc->zc_string);
+			kmem_free(snapname, strlen(snapname + 1));
+		}
+		fnvlist_add_nvlist(nvl, "holds", tmpnvl);
+		nvlist_free(tmpnvl);
+		if (innvl != NULL)
+			nvlist_free(innvl);
+		/* strip dataset part from zc->zc_name */
+		zc->zc_name[strcspn(zc->zc_name, "/@")] = '\0';
+		return (nvl);
+	break;
+	case ZFS_IOC_RELEASE:
+		nvl = fnvlist_alloc();
+		tmpnvl = fnvlist_alloc();
+		if (zc->zc_cookie) {
+			hnvl = fnvlist_alloc();
+			if (dmu_get_recursive_snaps_nvl(zc->zc_name,
+			    zc->zc_value, hnvl) == 0) {
+				elem = NULL;
+				while ((elem = nvlist_next_nvpair(hnvl,
+				    elem)) != NULL) {
+					fnvlist_add_boolean(tmpnvl,
+					    zc->zc_string);
+					fnvlist_add_nvlist(nvl,
+					    nvpair_name(elem), tmpnvl);
+				}
+			}
+			nvlist_free(hnvl);
+		} else {
+			snapname = kmem_asprintf("%s@%s", zc->zc_name,
+			    zc->zc_value);
+			fnvlist_add_boolean(tmpnvl, zc->zc_string);
+			fnvlist_add_nvlist(nvl, snapname, tmpnvl);
+			kmem_free(snapname, strlen(snapname + 1));
+		}
+		nvlist_free(tmpnvl);
+		if (innvl != NULL)
+			nvlist_free(innvl);
+		/* strip dataset part from zc->zc_name */
+		zc->zc_name[strcspn(zc->zc_name, "/@")] = '\0';
+		return (nvl);
+	break;
+	}
+out:
+	return (innvl);
+}
+
+nvlist_t *
+zfs_ioctl_compat_outnvl(zfs_cmd_t *zc, nvlist_t * outnvl, const int vec,
+    const int cflag)
+{
+	nvlist_t *tmpnvl;
+
+	if (cflag == ZFS_CMD_COMPAT_NONE)
+		return (outnvl);
+
+	switch (vec) {
+	case ZFS_IOC_SPACE_SNAPS:
+		(void) nvlist_lookup_uint64(outnvl, "used", &zc->zc_cookie);
+		(void) nvlist_lookup_uint64(outnvl, "compressed",
+		    &zc->zc_objset_type);
+		(void) nvlist_lookup_uint64(outnvl, "uncompressed",
+		    &zc->zc_perm_action);
+		nvlist_free(outnvl);
+		/* return empty outnvl */
+		tmpnvl = fnvlist_alloc();
+		return (tmpnvl);
+	break;
+	case ZFS_IOC_CREATE:
+	case ZFS_IOC_CLONE:
+	case ZFS_IOC_HOLD:
+	case ZFS_IOC_RELEASE:
+		nvlist_free(outnvl);
+		/* return empty outnvl */
+		tmpnvl = fnvlist_alloc();
+		return (tmpnvl);
+	break;
+	}
+
+	return (outnvl);
 }
 #endif /* KERNEL */

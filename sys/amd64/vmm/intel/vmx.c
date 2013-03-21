@@ -153,10 +153,7 @@ static int cap_unrestricted_guest;
 static int cap_monitor_trap;
  
 /* statistics */
-static VMM_STAT_DEFINE(VCPU_MIGRATIONS, "vcpu migration across host cpus");
-static VMM_STAT_DEFINE(VMEXIT_EXTINT, "vm exits due to external interrupt");
-static VMM_STAT_DEFINE(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
-static VMM_STAT_DEFINE(VMEXIT_HLT, "number of times hlt was intercepted");
+static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
 
 #ifdef KTR
 static const char *
@@ -1215,6 +1212,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	vmxctx = &vmx->ctx[vcpu];
 	qual = vmexit->u.vmx.exit_qualification;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
+
+	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
 
 	switch (vmexit->u.vmx.exit_reason) {
 	case EXIT_REASON_CR_ACCESS:

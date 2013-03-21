@@ -442,6 +442,9 @@ typedef enum {
 } ATH_RESET_TYPE;
 
 struct ath_rx_methods {
+	void		(*recv_sched_queue)(struct ath_softc *sc,
+			    HAL_RX_QUEUE q, int dosched);
+	void		(*recv_sched)(struct ath_softc *sc, int dosched);
 	void		(*recv_stop)(struct ath_softc *sc, int dodelay);
 	int		(*recv_start)(struct ath_softc *sc);
 	void		(*recv_flush)(struct ath_softc *sc);
@@ -656,6 +659,7 @@ struct ath_softc {
 
 	struct ath_descdma	sc_rxdma;	/* RX descriptors */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
+	ath_bufhead		sc_rx_rxlist;	/* deferred RX completion */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	u_int8_t		sc_defant;	/* current default antenna */

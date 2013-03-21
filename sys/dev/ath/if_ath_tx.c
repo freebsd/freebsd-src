@@ -384,14 +384,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 	 */
 
 	/*
-	 * For now the HAL doesn't implement halNumTxMaps for non-EDMA
-	 * (ie it's 0.)  So just work around it.
-	 *
-	 * XXX TODO: populate halNumTxMaps for each HAL chip and
-	 * then undo this hack.
+	 * We need the number of TX data pointers in each descriptor.
+	 * EDMA and later chips support 4 TX buffers per descriptor;
+	 * previous chips just support one.
 	 */
-	if (sc->sc_ah->ah_magic == 0x19741014)
-		numTxMaps = 4;
+	numTxMaps = sc->sc_tx_nmaps;
 
 	/*
 	 * For EDMA and later chips ensure the TX map is fully populated

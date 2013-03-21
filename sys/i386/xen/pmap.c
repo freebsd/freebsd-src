@@ -1335,7 +1335,8 @@ pmap_free_zero_pages(vm_page_t free)
 
 	while (free != NULL) {
 		m = free;
-		free = m->right;
+		free = (void *)m->object;
+		m->object = NULL;
 		vm_page_free_zero(m);
 	}
 }
@@ -1393,7 +1394,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	 * Put page on a list so that it is released after
 	 * *ALL* TLB shootdown is done
 	 */
-	m->right = *free;
+	m->object = (void *)*free;
 	*free = m;
 }
 
@@ -2090,7 +2091,7 @@ out:
 	}
 	if (m_pc == NULL && pv_vafree != 0 && free != NULL) {
 		m_pc = free;
-		free = m_pc->right;
+		free = (void *)m_pc->object;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
@@ -3446,6 +3447,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	sched_unpin();
 	mtx_unlock(&sysmaps->lock);
 }
+
+int unmapped_buf_allowed = 1;
 
 void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],

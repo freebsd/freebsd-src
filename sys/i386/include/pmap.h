@@ -159,6 +159,8 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+#include <vm/_vm_radix.h>
+
 #ifdef PAE
 
 typedef uint64_t pdpt_entry_t;
@@ -441,7 +443,7 @@ struct pmap {
 	pdpt_entry_t		*pm_pdpt;	/* KVA of page director pointer
 						   table */
 #endif
-	vm_page_t		pm_root;	/* spare page table pages */
+	struct vm_radix		pm_root;	/* spare page table pages */
 };
 
 typedef struct pmap	*pmap_t;

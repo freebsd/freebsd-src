@@ -1939,7 +1939,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
 		cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 15;
 		cpi->max_lun = 0;

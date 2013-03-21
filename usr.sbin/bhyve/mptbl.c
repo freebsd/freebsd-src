@@ -349,7 +349,7 @@ mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
 	char 			*curraddr;
 	char 			*startaddr;
 
-	startaddr = paddr_guest2host(MPTABLE_BASE, MPTABLE_MAX_LENGTH);
+	startaddr = paddr_guest2host(ctx, MPTABLE_BASE, MPTABLE_MAX_LENGTH);
 	if (startaddr == NULL) {
 		printf("mptable requires mapped mem\n");
 		return (ENOMEM);

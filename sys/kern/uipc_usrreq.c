@@ -288,7 +288,7 @@ static void	unp_freerights(struct filedescent **, int);
 static void	unp_init(void);
 static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
-static int	unp_externalize(struct mbuf *, struct mbuf **);
+static int	unp_externalize(struct mbuf *, struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
 static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
 static void	unp_process_defers(void * __unused, int);
@@ -1695,7 +1695,7 @@ unp_freerights(struct filedescent **fdep, int fdcount)
 }
 
 static int
-unp_externalize(struct mbuf *control, struct mbuf **controlp)
+unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 {
 	struct thread *td = curthread;		/* XXX */
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
@@ -1765,6 +1765,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				fde->fde_file = fdep[0]->fde_file;
 				filecaps_move(&fdep[0]->fde_caps,
 				    &fde->fde_caps);
+				if ((flags & MSG_CMSG_CLOEXEC) != 0)
+					fde->fde_flags |= UF_EXCLOSE;
 				unp_externalize_fp(fde->fde_file);
 				*fdp = f;
 			}

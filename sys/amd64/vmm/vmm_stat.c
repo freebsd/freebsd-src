@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 
 #include <machine/vmm.h>
+#include "vmm_util.h"
 #include "vmm_stat.h"
 
 static int vstnum;
@@ -50,6 +51,12 @@ vmm_stat_init(void *arg)
 
 	/* We require all stats to identify themselves with a description */
 	if (vst->desc == NULL)
+		return;
+
+	if (vst->scope == VMM_STAT_SCOPE_INTEL && !vmm_is_intel())
+		return;
+
+	if (vst->scope == VMM_STAT_SCOPE_AMD && !vmm_is_amd())
 		return;
 
 	if (vstnum >= MAX_VMM_STAT_TYPES) {
@@ -102,3 +109,9 @@ vmm_stat_desc(int index)
 	else
 		return (NULL);
 }
+
+/* global statistics */
+VMM_STAT(VCPU_MIGRATIONS, "vcpu migration across host cpus");
+VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
+VMM_STAT(VMEXIT_EXTINT, "vm exits due to external interrupt");
+VMM_STAT(VMEXIT_HLT, "number of times hlt was intercepted");

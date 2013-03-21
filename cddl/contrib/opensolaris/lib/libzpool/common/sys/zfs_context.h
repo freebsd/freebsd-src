@@ -60,6 +60,8 @@ extern "C" {
 #include <umem.h>
 #include <inttypes.h>
 #include <fsshare.h>
+#include <pthread.h>
+#include <sys/debug.h>
 #include <sys/note.h>
 #include <sys/types.h>
 #include <sys/cred.h>
@@ -242,6 +244,9 @@ typedef int krw_t;
 #define	RW_WRITE_HELD(x)	((x)->rw_owner == curthread)
 #define	RW_LOCK_HELD(x)		rw_lock_held(x)
 
+#undef RW_LOCK_HELD
+#define	RW_LOCK_HELD(x)		(RW_READ_HELD(x) || RW_WRITE_HELD(x))
+
 extern void rw_init(krwlock_t *rwlp, char *name, int type, void *arg);
 extern void rw_destroy(krwlock_t *rwlp);
 extern void rw_enter(krwlock_t *rwlp, krw_t rw);
@@ -252,6 +257,7 @@ extern int rw_lock_held(krwlock_t *rwlp);
 #define	rw_downgrade(rwlp) do { } while (0)
 
 extern uid_t crgetuid(cred_t *cr);
+extern uid_t crgetruid(cred_t *cr);
 extern gid_t crgetgid(cred_t *cr);
 extern int crgetngroups(cred_t *cr);
 extern gid_t *crgetgroups(cred_t *cr);
@@ -269,6 +275,14 @@ extern void cv_wait(kcondvar_t *cv, kmutex_t *mp);
 extern clock_t cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime);
 extern void cv_signal(kcondvar_t *cv);
 extern void cv_broadcast(kcondvar_t *cv);
+
+/*
+ * Thread-specific data
+ */
+#define	tsd_get(k) pthread_getspecific(k)
+#define	tsd_set(k, v) pthread_setspecific(k, v)
+#define	tsd_create(kp, d) pthread_key_create(kp, d)
+#define	tsd_destroy(kp) /* nothing */
 
 /*
  * Kernel memory
@@ -519,7 +533,7 @@ typedef struct callb_cpr {
 #define	INGLOBALZONE(z)			(1)
 
 extern char *kmem_asprintf(const char *fmt, ...);
-#define	strfree(str) kmem_free((str), strlen(str)+1)
+#define	strfree(str) kmem_free((str), strlen(str) + 1)
 
 /*
  * Hostname information

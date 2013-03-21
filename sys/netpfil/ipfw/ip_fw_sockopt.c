@@ -671,6 +671,10 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPID:
 		case O_IPTTL:
 		case O_IPLEN:
+		case O_DSCP:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1)
+				goto bad_size;
+			break;
 		case O_TCPDATALEN:
 		case O_TCPWIN:
 		case O_TAGGED:
@@ -738,6 +742,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_ACCEPT:
 		case O_DENY:
 		case O_REJECT:
+		case O_SETDSCP:
 #ifdef INET6
 		case O_UNREACH6:
 #endif

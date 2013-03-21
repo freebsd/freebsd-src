@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 
 /*
@@ -342,33 +343,22 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	/*
 	 * Look for an existing reservation.
 	 */
-	msucc = NULL;
-	mpred = object->root;
-	while (mpred != NULL) {
-		KASSERT(mpred->pindex != pindex,
+	mpred = vm_radix_lookup_le(&object->rtree, pindex);
+	if (mpred != NULL) {
+		KASSERT(mpred->pindex < pindex,
 		    ("vm_reserv_alloc_contig: pindex already allocated"));
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
-		else if (mpred->pindex < pindex) {
-			if (msucc != NULL ||
-			    (msucc = TAILQ_NEXT(mpred, listq)) == NULL)
-				break;
-			KASSERT(msucc->pindex != pindex,
-		    ("vm_reserv_alloc_contig: pindex already allocated"));
-			rv = vm_reserv_from_page(msucc);
-			if (rv->object == object &&
-			    vm_reserv_has_pindex(rv, pindex))
-				goto found;
-			else if (pindex < msucc->pindex)
-				break;
-		} else if (msucc == NULL) {
-			msucc = mpred;
-			mpred = TAILQ_PREV(msucc, pglist, listq);
-			continue;
-		}
-		msucc = NULL;
-		mpred = object->root = vm_page_splay(pindex, object->root);
+		msucc = TAILQ_NEXT(mpred, listq);
+	} else
+		msucc = TAILQ_FIRST(&object->memq);
+	if (msucc != NULL) {
+		KASSERT(msucc->pindex > pindex,
+		    ("vm_reserv_alloc_page: pindex already allocated"));
+		rv = vm_reserv_from_page(msucc);
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
+			goto found;
 	}
 
 	/*
@@ -508,33 +498,22 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Look for an existing reservation.
 	 */
-	msucc = NULL;
-	mpred = object->root;
-	while (mpred != NULL) {
-		KASSERT(mpred->pindex != pindex,
+	mpred = vm_radix_lookup_le(&object->rtree, pindex);
+	if (mpred != NULL) {
+		KASSERT(mpred->pindex < pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
-		else if (mpred->pindex < pindex) {
-			if (msucc != NULL ||
-			    (msucc = TAILQ_NEXT(mpred, listq)) == NULL)
-				break;
-			KASSERT(msucc->pindex != pindex,
-			    ("vm_reserv_alloc_page: pindex already allocated"));
-			rv = vm_reserv_from_page(msucc);
-			if (rv->object == object &&
-			    vm_reserv_has_pindex(rv, pindex))
-				goto found;
-			else if (pindex < msucc->pindex)
-				break;
-		} else if (msucc == NULL) {
-			msucc = mpred;
-			mpred = TAILQ_PREV(msucc, pglist, listq);
-			continue;
-		}
-		msucc = NULL;
-		mpred = object->root = vm_page_splay(pindex, object->root);
+		msucc = TAILQ_NEXT(mpred, listq);
+	} else
+		msucc = TAILQ_FIRST(&object->memq);
+	if (msucc != NULL) {
+		KASSERT(msucc->pindex > pindex,
+		    ("vm_reserv_alloc_page: pindex already allocated"));
+		rv = vm_reserv_from_page(msucc);
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
+			goto found;
 	}
 
 	/*

@@ -205,8 +205,6 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 		sleepq_flags = SLEEPQ_SLEEP;
 	if (catch)
 		sleepq_flags |= SLEEPQ_INTERRUPTIBLE;
-	if (priority & PBDRY)
-		sleepq_flags |= SLEEPQ_STOP_ON_BDRY;
 
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",

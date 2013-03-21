@@ -45,16 +45,22 @@ extern "C" {
  */
 
 /* ioctl versions for vfs.zfs.version.ioctl */
+#define	ZFS_IOCVER_UNDEF	-1
+#define	ZFS_IOCVER_NONE		0
 #define	ZFS_IOCVER_DEADMAN	1
-#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_DEADMAN
+#define	ZFS_IOCVER_LZC		2
+#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_LZC
 
 /* compatibility conversion flag */
 #define	ZFS_CMD_COMPAT_NONE	0
 #define	ZFS_CMD_COMPAT_V15	1
 #define	ZFS_CMD_COMPAT_V28	2
+#define	ZFS_CMD_COMPAT_DEADMAN	3
 
 #define	ZFS_IOC_COMPAT_PASS	254
 #define	ZFS_IOC_COMPAT_FAIL	255
+
+#define	ZFS_IOCREQ(ioreq)	((ioreq) & 0xff)
 
 typedef struct zinject_record_v15 {
 	uint64_t	zi_objset;
@@ -147,6 +153,44 @@ typedef struct zfs_cmd_v28 {
 	uint64_t	zc_createtxg;
 	zfs_stat_t	zc_stat;
 } zfs_cmd_v28_t;
+
+typedef struct zfs_cmd_deadman {
+	char		zc_name[MAXPATHLEN];
+	char		zc_value[MAXPATHLEN * 2];
+	char		zc_string[MAXNAMELEN];
+	char		zc_top_ds[MAXPATHLEN];
+	uint64_t	zc_guid;
+	uint64_t	zc_nvlist_conf;		/* really (char *) */
+	uint64_t	zc_nvlist_conf_size;
+	uint64_t	zc_nvlist_src;		/* really (char *) */
+	uint64_t	zc_nvlist_src_size;
+	uint64_t	zc_nvlist_dst;		/* really (char *) */
+	uint64_t	zc_nvlist_dst_size;
+	uint64_t	zc_cookie;
+	uint64_t	zc_objset_type;
+	uint64_t	zc_perm_action;
+	uint64_t 	zc_history;		/* really (char *) */
+	uint64_t 	zc_history_len;
+	uint64_t	zc_history_offset;
+	uint64_t	zc_obj;
+	uint64_t	zc_iflags;		/* internal to zfs(7fs) */
+	zfs_share_t	zc_share;
+	uint64_t	zc_jailid;
+	dmu_objset_stats_t zc_objset_stats;
+	struct drr_begin zc_begin_record;
+	/* zc_inject_record doesn't change in libzfs_core */
+	zinject_record_t zc_inject_record;
+	boolean_t	zc_defer_destroy;
+	boolean_t	zc_temphold;
+	uint64_t	zc_action_handle;
+	int		zc_cleanup_fd;
+	uint8_t		zc_simple;
+	uint8_t		zc_pad[3];		/* alignment */
+	uint64_t	zc_sendobj;
+	uint64_t	zc_fromobj;
+	uint64_t	zc_createtxg;
+	zfs_stat_t	zc_stat;
+} zfs_cmd_deadman_t;
 
 #ifdef _KERNEL
 unsigned static long zfs_ioctl_v15_to_v28[] = {
@@ -272,13 +316,17 @@ unsigned static long zfs_ioctl_v28_to_v15[] = {
 #endif	/* ! _KERNEL */
 
 #ifdef _KERNEL
-void zfs_ioctl_compat_pre(zfs_cmd_t *, int *, const int);
+int zfs_ioctl_compat_pre(zfs_cmd_t *, int *, const int);
 void zfs_ioctl_compat_post(zfs_cmd_t *, const int, const int);
+nvlist_t *zfs_ioctl_compat_innvl(zfs_cmd_t *, nvlist_t *, const int,
+    const int);
+nvlist_t *zfs_ioctl_compat_outnvl(zfs_cmd_t *, nvlist_t *, const int,
+    const int);
 #else
-int zcmd_ioctl_compat(int, unsigned long, zfs_cmd_t *, const int);
+int zcmd_ioctl_compat(int, int, zfs_cmd_t *, const int);
 #endif	/* _KERNEL */
 void zfs_cmd_compat_get(zfs_cmd_t *, caddr_t, const int);
-void zfs_cmd_compat_put(zfs_cmd_t *, caddr_t, const int);
+void zfs_cmd_compat_put(zfs_cmd_t *, caddr_t, const int, const int);
 
 #ifdef	__cplusplus
 }

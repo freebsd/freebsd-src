@@ -395,7 +395,7 @@ m_demote(struct mbuf *m0, int all)
 			m_freem(m->m_nextpkt);
 			m->m_nextpkt = NULL;
 		}
-		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_FREELIST|M_NOFREE);
+		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_NOFREE);
 	}
 }
 
@@ -1877,14 +1877,22 @@ m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
 void
 m_align(struct mbuf *m, int len)
 {
+#ifdef INVARIANTS
+	const char *msg = "%s: not a virgin mbuf";
+#endif
 	int adjust;
 
-	if (m->m_flags & M_EXT)
+	if (m->m_flags & M_EXT) {
+		KASSERT(m->m_data == m->m_ext.ext_buf, (msg, __func__));
 		adjust = m->m_ext.ext_size - len;
-	else if (m->m_flags & M_PKTHDR)
+	} else if (m->m_flags & M_PKTHDR) {
+		KASSERT(m->m_data == m->m_pktdat, (msg, __func__));
 		adjust = MHLEN - len;
-	else
+	} else {
+		KASSERT(m->m_data == m->m_dat, (msg, __func__));
 		adjust = MLEN - len;
+	}
+
 	m->m_data += adjust &~ (sizeof(long)-1);
 }
 

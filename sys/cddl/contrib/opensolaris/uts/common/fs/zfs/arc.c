@@ -130,6 +130,7 @@
 #endif
 #include <sys/callb.h>
 #include <sys/kstat.h>
+#include <sys/trim_map.h>
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
@@ -1691,6 +1692,8 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 		}
 
 		if (l2hdr != NULL) {
+			trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
+			    hdr->b_size, 0);
 			list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
 			kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
@@ -1787,12 +1790,12 @@ arc_buf_free(arc_buf_t *buf, void *tag)
 	}
 }
 
-int
+boolean_t
 arc_buf_remove_ref(arc_buf_t *buf, void* tag)
 {
 	arc_buf_hdr_t *hdr = buf->b_hdr;
 	kmutex_t *hash_lock = HDR_LOCK(hdr);
-	int no_callback = (buf->b_efunc == NULL);
+	boolean_t no_callback = (buf->b_efunc == NULL);
 
 	if (hdr->b_state == arc_anon) {
 		ASSERT(hdr->b_datacnt == 1);
@@ -2042,7 +2045,7 @@ evict_start:
 		ARCSTAT_INCR(arcstat_mutex_miss, missed);
 
 	/*
-	 * We have just evicted some date into the ghost state, make
+	 * We have just evicted some data into the ghost state, make
 	 * sure we also adjust the ghost state size if necessary.
 	 */
 	if (arc_no_grow &&
@@ -2875,7 +2878,7 @@ arc_bcopy_func(zio_t *zio, arc_buf_t *buf, void *arg)
 {
 	if (zio == NULL || zio->io_error == 0)
 		bcopy(buf->b_data, arg, buf->b_hdr->b_size);
-	VERIFY(arc_buf_remove_ref(buf, arg) == 1);
+	VERIFY(arc_buf_remove_ref(buf, arg));
 }
 
 /* a generic arc_done_func_t */
@@ -2884,7 +2887,7 @@ arc_getbuf_func(zio_t *zio, arc_buf_t *buf, void *arg)
 {
 	arc_buf_t **bufp = arg;
 	if (zio && zio->io_error) {
-		VERIFY(arc_buf_remove_ref(buf, arg) == 1);
+		VERIFY(arc_buf_remove_ref(buf, arg));
 		*bufp = NULL;
 	} else {
 		*bufp = buf;
@@ -3528,6 +3531,8 @@ arc_release(arc_buf_t *buf, void *tag)
 	buf->b_private = NULL;
 
 	if (l2hdr) {
+		trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
+		    hdr->b_size, 0);
 		list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 		kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
 		ARCSTAT_INCR(arcstat_l2_size, -buf_size);
@@ -4442,6 +4447,8 @@ l2arc_write_done(zio_t *zio)
 			list_remove(buflist, ab);
 			abl2 = ab->b_l2hdr;
 			ab->b_l2hdr = NULL;
+			trim_map_free(abl2->b_dev->l2ad_vdev, abl2->b_daddr,
+			    ab->b_size, 0);
 			kmem_free(abl2, sizeof (l2arc_buf_hdr_t));
 			ARCSTAT_INCR(arcstat_l2_size, -ab->b_size);
 		}
