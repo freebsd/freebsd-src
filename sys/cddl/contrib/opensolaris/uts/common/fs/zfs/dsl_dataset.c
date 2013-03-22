@@ -2520,6 +2520,7 @@ struct renamesnaparg {
 	char failed[MAXPATHLEN];
 	char *oldsnap;
 	char *newsnap;
+	int error;
 };
 
 static int
@@ -2557,6 +2558,9 @@ dsl_snapshot_rename_one(const char *name, void *arg)
 	dsl_sync_task_create(ra->dstg, dsl_dataset_snapshot_rename_check,
 	    dsl_dataset_snapshot_rename_sync, ds, ra->newsnap, 0);
 
+	/* First successful rename clears the error. */
+	ra->error = 0;
+
 	return (0);
 }
 
@@ -2585,14 +2589,16 @@ dsl_recursive_rename(char *oldname, const char *newname)
 	ra->oldsnap = strchr(oldname, '@') + 1;
 	ra->newsnap = strchr(newname, '@') + 1;
 	*ra->failed = '\0';
+	ra->error = ENOENT;
 
 	err = dmu_objset_find(fsname, dsl_snapshot_rename_one, ra,
 	    DS_FIND_CHILDREN);
 	kmem_free(fsname, len);
+	if (err == 0)
+		err = ra->error;
 
-	if (err == 0) {
+	if (err == 0)
 		err = dsl_sync_task_group_wait(ra->dstg);
-	}
 
 	for (dst = list_head(&ra->dstg->dstg_tasks); dst;
 	    dst = list_next(&ra->dstg->dstg_tasks, dst)) {
