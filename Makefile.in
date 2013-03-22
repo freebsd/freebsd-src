@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.326 2012/04/04 01:27:57 djm Exp $
+# $Id: Makefile.in,v 1.336 2013/03/07 15:37:13 tim Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -37,13 +37,15 @@ PATHS= -DSSHDIR=\"$(sysconfdir)\" \
 	-D_PATH_SSH_KEY_SIGN=\"$(SSH_KEYSIGN)\" \
 	-D_PATH_SSH_PKCS11_HELPER=\"$(SSH_PKCS11_HELPER)\" \
 	-D_PATH_SSH_PIDDIR=\"$(piddir)\" \
-	-D_PATH_PRIVSEP_CHROOT_DIR=\"$(PRIVSEP_PATH)\" \
+	-D_PATH_PRIVSEP_CHROOT_DIR=\"$(PRIVSEP_PATH)\"
 
 CC=@CC@
 LD=@LD@
 CFLAGS=@CFLAGS@
 CPPFLAGS=-I. -I$(srcdir) @CPPFLAGS@ $(PATHS) @DEFS@
 LIBS=@LIBS@
+K5LIBS=@K5LIBS@
+GSSLIBS=@GSSLIBS@
 SSHLIBS=@SSHLIBS@
 SSHDLIBS=@SSHDLIBS@
 LIBEDIT=@LIBEDIT@
@@ -61,8 +63,8 @@ MANFMT=@MANFMT@
 
 TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) sftp-server$(EXEEXT) sftp$(EXEEXT)
 
-LIBSSH_OBJS=acss.o authfd.o authfile.o bufaux.o bufbn.o buffer.o \
-	canohost.o channels.o cipher.o cipher-acss.o cipher-aes.o \
+LIBSSH_OBJS=authfd.o authfile.o bufaux.o bufbn.o buffer.o \
+	canohost.o channels.o cipher.o cipher-aes.o \
 	cipher-bf1.o cipher-ctr.o cipher-3des1.o cleanup.o \
 	compat.o compress.o crc32.o deattack.o fatal.o hostfile.o \
 	log.o match.o md-sha256.o moduli.o nchan.o packet.o \
@@ -70,8 +72,8 @@ LIBSSH_OBJS=acss.o authfd.o authfile.o bufaux.o bufbn.o buffer.o \
 	atomicio.o key.o dispatch.o kex.o mac.o uidswap.o uuencode.o misc.o \
 	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
 	kexdh.o kexgex.o kexdhc.o kexgexc.o bufec.o kexecdh.o kexecdhc.o \
-	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o jpake.o \
-	schnorr.o ssh-pkcs11.o
+	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o umac128.o \
+	jpake.o schnorr.o ssh-pkcs11.o krl.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 	sshconnect.o sshconnect1.o sshconnect2.o mux.o \
@@ -139,10 +141,10 @@ libssh.a: $(LIBSSH_OBJS)
 	$(RANLIB) $@
 
 ssh$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHOBJS)
-	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHLIBS) $(LIBS)
+	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHLIBS) $(LIBS) $(GSSLIBS)
 
 sshd$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
-	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS)
+	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS)
 
 scp$(EXEEXT): $(LIBCOMPAT) libssh.a scp.o progressmeter.o
 	$(LD) -o $@ scp.o progressmeter.o bufaux.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -194,6 +196,13 @@ $(CONFIGFILES): $(CONFIGFILES_IN)
 # fake rule to stop make trying to compile moduli.o into a binary "moduli.o"
 moduli:
 	echo
+
+# special case target for umac128
+umac128.o:	umac.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o umac128.o -c $(srcdir)/umac.c \
+	    -DUMAC_OUTPUT_LEN=16 -Dumac_new=umac128_new \
+	    -Dumac_update=umac128_update -Dumac_final=umac128_final \
+	    -Dumac_delete=umac128_delete
 
 clean:	regressclean
 	rm -f *.o *.a $(TARGETS) logintest config.cache config.log
@@ -372,7 +381,12 @@ uninstall:
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)8/ssh-pkcs11-helper.8
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
 
-tests interop-tests:	$(TARGETS)
+regress/modpipe$(EXEEXT): $(srcdir)/regress/modpipe.c
+	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress; \
+	$(CC) $(CPPFLAGS) -o $@ $? \
+	$(LDFLAGS) -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+tests interop-tests:	$(TARGETS) regress/modpipe$(EXEEXT)
 	BUILDDIR=`pwd`; \
 	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress; \
 	[ -f `pwd`/regress/Makefile ]  || \

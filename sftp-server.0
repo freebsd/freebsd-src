@@ -4,7 +4,8 @@ NAME
      sftp-server - SFTP server subsystem
 
 SYNOPSIS
-     sftp-server [-ehR] [-f log_facility] [-l log_level] [-u umask]
+     sftp-server [-ehR] [-d start_directory] [-f log_facility] [-l log_level]
+                 [-u umask]
 
 DESCRIPTION
      sftp-server is a program that speaks the server side of SFTP protocol to
@@ -16,6 +17,15 @@ DESCRIPTION
      declaration.  See sshd_config(5) for more information.
 
      Valid options are:
+
+     -d start_directory
+             specifies an alternate starting directory for users.  The
+             pathname may contain the following tokens that are expanded at
+             runtime: %% is replaced by a literal '%', %h is replaced by the
+             home directory of the user being authenticated, and %u is
+             replaced by the username of that user.  The default is to use the
+             user's home directory.  This option is useful in conjunction with
+             the sshd_config(5) ChrootDirectory option.
 
      -e      Causes sftp-server to print logging information to stderr instead
              of syslog for debugging.
@@ -61,4 +71,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 5.2                     January 9, 2010                    OpenBSD 5.2
+OpenBSD 5.3                     January 4, 2013                    OpenBSD 5.3

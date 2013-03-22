@@ -97,10 +97,13 @@ DESCRIPTION
              preference.  Multiple ciphers must be comma-separated.  The
              supported ciphers are ``3des-cbc'', ``aes128-cbc'',
              ``aes192-cbc'', ``aes256-cbc'', ``aes128-ctr'', ``aes192-ctr'',
-             ``aes256-ctr'', ``arcfour128'', ``arcfour256'', ``arcfour'',
-             ``blowfish-cbc'', and ``cast128-cbc''.  The default is:
+             ``aes256-ctr'', ``aes128-gcm@openssh.com'',
+             ``aes256-gcm@openssh.com'', ``arcfour128'', ``arcfour256'',
+             ``arcfour'', ``blowfish-cbc'', and ``cast128-cbc''.  The default
+             is:
 
                 aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
+                aes128-gcm@openssh.com,aes256-gcm@openssh.com,
                 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
                 aes256-cbc,arcfour
 
@@ -354,11 +357,11 @@ DESCRIPTION
 
      IdentitiesOnly
              Specifies that ssh(1) should only use the authentication identity
-             files configured in the ssh_config files, even if ssh-agent(1)
-             offers more identities.  The argument to this keyword must be
-             ``yes'' or ``no''.  This option is intended for situations where
-             ssh-agent offers many different identities.  The default is
-             ``no''.
+             files configured in the ssh_config files, even if ssh-agent(1) or
+             a PKCS11Provider offers more identities.  The argument to this
+             keyword must be ``yes'' or ``no''.  This option is intended for
+             situations where ssh-agent offers many different identities.  The
+             default is ``no''.
 
      IdentityFile
              Specifies a file from which the user's DSA, ECDSA or RSA
@@ -460,9 +463,16 @@ DESCRIPTION
      MACs    Specifies the MAC (message authentication code) algorithms in
              order of preference.  The MAC algorithm is used in protocol
              version 2 for data integrity protection.  Multiple algorithms
-             must be comma-separated.  The default is:
+             must be comma-separated.  The algorithms that contain ``-etm''
+             calculate the MAC after encryption (encrypt-then-mac).  These are
+             considered safer and their use recommended.  The default is:
 
-                   hmac-md5,hmac-sha1,umac-64@openssh.com,
+                   hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
+                   umac-64-etm@openssh.com,umac-128-etm@openssh.com,
+                   hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
+                   hmac-ripemd160-etm@openssh.com,hmac-sha1-96-etm@openssh.com,
+                   hmac-md5-96-etm@openssh.com,
+                   hmac-md5,hmac-sha1,umac-64@openssh.com,umac-128@openssh.com,
                    hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
                    hmac-sha1-96,hmac-md5-96
 
@@ -763,4 +773,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.2                      June 29, 2012                     OpenBSD 5.2
+OpenBSD 5.3                     January 8, 2013                    OpenBSD 5.3

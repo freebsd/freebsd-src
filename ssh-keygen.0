@@ -25,6 +25,9 @@ SYNOPSIS
                 [-O option] [-V validity_interval] [-z serial_number] file ...
      ssh-keygen -L [-f input_keyfile]
      ssh-keygen -A
+     ssh-keygen -k -f krl_file [-u] [-s ca_public] [-z version_number]
+                file ...
+     ssh-keygen -Q -f krl_file file ...
 
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
@@ -36,6 +39,10 @@ DESCRIPTION
 
      ssh-keygen is also used to generate groups for use in Diffie-Hellman
      group exchange (DH-GEX).  See the MODULI GENERATION section for details.
+
+     Finally, ssh-keygen can be used to generate and update Key Revocation
+     Lists, and to test whether given keys have been revoked by one.  See the
+     KEY REVOCATION LISTS section for details.
 
      Normally each user wishing to use SSH with public key authentication runs
      this once to create the authentication key in ~/.ssh/identity,
@@ -167,6 +174,13 @@ DESCRIPTION
              keys from other software, including several commercial SSH
              implementations.  The default import format is ``RFC4716''.
 
+     -k      Generate a KRL file.  In this mode, ssh-keygen will generate a
+             KRL file at the location specified via the -f flag that revokes
+             every key or certificate presented on the command line.
+             Keys/certificates to be revoked may be specified by public key
+             file or using the format described in the KEY REVOCATION LISTS
+             section.
+
      -L      Prints the contents of a certificate.
 
      -l      Show fingerprint of specified public key file.  Private RSA1 keys
@@ -256,6 +270,8 @@ DESCRIPTION
              containing the private key, for the old passphrase, and twice for
              the new passphrase.
 
+     -Q      Test whether keys have been revoked in a KRL.
+
      -q      Silence ssh-keygen.
 
      -R hostname
@@ -275,6 +291,10 @@ DESCRIPTION
              Certify (sign) a public key using the specified CA key.  Please
              see the CERTIFICATES section for details.
 
+             When generating a KRL, -s specifies a path to a CA public key
+             file used to revoke certificates directly by key ID or serial
+             number.  See the KEY REVOCATION LISTS section for details.
+
      -T output_file
              Test DH group exchange candidate primes (generated using the -G
              option) for safety.
@@ -283,6 +303,10 @@ DESCRIPTION
              Specifies the type of key to create.  The possible values are
              ``rsa1'' for protocol version 1 and ``dsa'', ``ecdsa'' or ``rsa''
              for protocol version 2.
+
+     -u      Update a KRL.  When specified with -k, keys listed via the
+             command line are added to the existing KRL rather than a new KRL
+             being created.
 
      -V validity_interval
              Specify a validity interval when signing a certificate.  A
@@ -320,6 +344,9 @@ DESCRIPTION
              Specifies a serial number to be embedded in the certificate to
              distinguish this certificate from others from the same CA.  The
              default serial number is zero.
+
+             When generating a KRL, the -z flag is used to specify a KRL
+             version number.
 
 MODULI GENERATION
      ssh-keygen may be used to generate groups for the Diffie-Hellman Group
@@ -404,12 +431,63 @@ CERTIFICATES
      Finally, certificates may be defined with a validity lifetime.  The -V
      option allows specification of certificate start and end times.  A
      certificate that is presented at a time outside this range will not be
-     considered valid.  By default, certificates have a maximum validity
-     interval.
+     considered valid.  By default, certificates are valid from UNIX Epoch to
+     the distant future.
 
      For certificates to be used for user or host authentication, the CA
      public key must be trusted by sshd(8) or ssh(1).  Please refer to those
      manual pages for details.
+
+KEY REVOCATION LISTS
+     ssh-keygen is able to manage OpenSSH format Key Revocation Lists (KRLs).
+     These binary files specify keys or certificates to be revoked using a
+     compact format, taking as little a one bit per certificate if they are
+     being revoked by serial number.
+
+     KRLs may be generated using the -k flag.  This option reads one or more
+     files from the command line and generates a new KRL.  The files may
+     either contain a KRL specification (see below) or public keys, listed one
+     per line.  Plain public keys are revoked by listing their hash or
+     contents in the KRL and certificates revoked by serial number or key ID
+     (if the serial is zero or not available).
+
+     Revoking keys using a KRL specification offers explicit control over the
+     types of record used to revoke keys and may be used to directly revoke
+     certificates by serial number or key ID without having the complete
+     original certificate on hand.  A KRL specification consists of lines
+     containing one of the following directives followed by a colon and some
+     directive-specific information.
+
+     serial: serial_number[-serial_number]
+             Revokes a certificate with the specified serial number.  Serial
+             numbers are 64-bit values, not including zero and may be
+             expressed in decimal, hex or octal.  If two serial numbers are
+             specified separated by a hyphen, then the range of serial numbers
+             including and between each is revoked.  The CA key must have been
+             specified on the ssh-keygen command line using the -s option.
+
+     id: key_id
+             Revokes a certificate with the specified key ID string.  The CA
+             key must have been specified on the ssh-keygen command line using
+             the -s option.
+
+     key: public_key
+             Revokes the specified key.  If a certificate is listed, then it
+             is revoked as a plain public key.
+
+     sha1: public_key
+             Revokes the specified key by its SHA1 hash.
+
+     KRLs may be updated using the -u flag in addition to -k.  When this
+     option is specified, keys listed via the command line are merged into the
+     KRL, adding to those already there.
+
+     It is also possible, given a KRL, to test whether it revokes a particular
+     key (or keys).  The -Q flag will query an existing KRL, testing each key
+     specified on the commandline.  If any key listed on the command line has
+     been revoked (or an error encountered) then ssh-keygen will exit with a
+     non-zero exit status.  A zero exit status will only be returned if no key
+     was revoked.
 
 FILES
      ~/.ssh/identity
@@ -465,4 +543,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.2                      July 6, 2012                      OpenBSD 5.2
+OpenBSD 5.3                    January 19, 2013                    OpenBSD 5.3

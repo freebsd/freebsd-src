@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp-server.8,v 1.19 2010/01/09 03:36:00 jmc Exp $
+.\" $OpenBSD: sftp-server.8,v 1.21 2013/01/04 19:26:38 jmc Exp $
 .\"
 .\" Copyright (c) 2000 Markus Friedl.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: January 9 2010 $
+.Dd $Mdocdate: January 4 2013 $
 .Dt SFTP-SERVER 8
 .Os
 .Sh NAME
@@ -31,6 +31,7 @@
 .Sh SYNOPSIS
 .Nm sftp-server
 .Op Fl ehR
+.Op Fl d Ar start_directory
 .Op Fl f Ar log_facility
 .Op Fl l Ar log_level
 .Op Fl u Ar umask
@@ -56,6 +57,17 @@ for more information.
 .Pp
 Valid options are:
 .Bl -tag -width Ds
+.It Fl d Ar start_directory
+specifies an alternate starting directory for users.
+The pathname may contain the following tokens that are expanded at runtime:
+%% is replaced by a literal '%',
+%h is replaced by the home directory of the user being authenticated,
+and %u is replaced by the username of that user.
+The default is to use the user's home directory.
+This option is useful in conjunction with the
+.Xr sshd_config 5
+.Cm ChrootDirectory
+option.
 .It Fl e
 Causes
 .Nm

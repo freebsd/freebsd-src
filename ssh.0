@@ -396,8 +396,8 @@ AUTHENTICATION
      since it provides additional mechanisms for confidentiality (the traffic
      is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour) and
      integrity (hmac-md5, hmac-sha1, hmac-sha2-256, hmac-sha2-512, umac-64,
-     hmac-ripemd160).  Protocol 1 lacks a strong mechanism for ensuring the
-     integrity of the connection.
+     umac-128, hmac-ripemd160).  Protocol 1 lacks a strong mechanism for
+     ensuring the integrity of the connection.
 
      The methods available for authentication are: GSSAPI-based
      authentication, host-based authentication, public key authentication,
@@ -536,6 +536,12 @@ ESCAPE CHARACTERS
 
      ~R      Request rekeying of the connection (only useful for SSH protocol
              version 2 and if the peer supports it).
+
+     ~V      Decrease the verbosity (LogLevel) when errors are being written
+             to stderr.
+
+     ~v      Increase the verbosity (LogLevel) when errors are being written
+             to stderr.
 
 TCP FORWARDING
      Forwarding of arbitrary TCP connections over the secure channel can be
@@ -862,36 +868,45 @@ SEE ALSO
      scp(1), sftp(1), ssh-add(1), ssh-agent(1), ssh-keygen(1), ssh-keyscan(1),
      tun(4), hosts.equiv(5), ssh_config(5), ssh-keysign(8), sshd(8)
 
-     The Secure Shell (SSH) Protocol Assigned Numbers, RFC 4250, 2006.
+STANDARDS
+     S. Lehtinen and C. Lonvick, The Secure Shell (SSH) Protocol Assigned
+     Numbers, RFC 4250, January 2006.
 
-     The Secure Shell (SSH) Protocol Architecture, RFC 4251, 2006.
+     T. Ylonen and C. Lonvick, The Secure Shell (SSH) Protocol Architecture,
+     RFC 4251, January 2006.
 
-     The Secure Shell (SSH) Authentication Protocol, RFC 4252, 2006.
+     T. Ylonen and C. Lonvick, The Secure Shell (SSH) Authentication Protocol,
+     RFC 4252, January 2006.
 
-     The Secure Shell (SSH) Transport Layer Protocol, RFC 4253, 2006.
+     T. Ylonen and C. Lonvick, The Secure Shell (SSH) Transport Layer
+     Protocol, RFC 4253, January 2006.
 
-     The Secure Shell (SSH) Connection Protocol, RFC 4254, 2006.
+     T. Ylonen and C. Lonvick, The Secure Shell (SSH) Connection Protocol, RFC
+     4254, January 2006.
 
-     Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints, RFC
-     4255, 2006.
+     J. Schlyter and W. Griffin, Using DNS to Securely Publish Secure Shell
+     (SSH) Key Fingerprints, RFC 4255, January 2006.
 
-     Generic Message Exchange Authentication for the Secure Shell Protocol
-     (SSH), RFC 4256, 2006.
+     F. Cusack and M. Forssen, Generic Message Exchange Authentication for the
+     Secure Shell Protocol (SSH), RFC 4256, January 2006.
 
-     The Secure Shell (SSH) Session Channel Break Extension, RFC 4335, 2006.
+     J. Galbraith and P. Remaker, The Secure Shell (SSH) Session Channel Break
+     Extension, RFC 4335, January 2006.
 
-     The Secure Shell (SSH) Transport Layer Encryption Modes, RFC 4344, 2006.
+     M. Bellare, T. Kohno, and C. Namprempre, The Secure Shell (SSH) Transport
+     Layer Encryption Modes, RFC 4344, January 2006.
 
-     Improved Arcfour Modes for the Secure Shell (SSH) Transport Layer
-     Protocol, RFC 4345, 2006.
+     B. Harris, Improved Arcfour Modes for the Secure Shell (SSH) Transport
+     Layer Protocol, RFC 4345, January 2006.
 
-     Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer
-     Protocol, RFC 4419, 2006.
+     M. Friedl, N. Provos, and W. Simpson, Diffie-Hellman Group Exchange for
+     the Secure Shell (SSH) Transport Layer Protocol, RFC 4419, March 2006.
 
-     The Secure Shell (SSH) Public Key File Format, RFC 4716, 2006.
+     J. Galbraith and R. Thayer, The Secure Shell (SSH) Public Key File
+     Format, RFC 4716, November 2006.
 
-     Elliptic Curve Algorithm Integration in the Secure Shell Transport Layer,
-     RFC 5656, 2009.
+     D. Stebila and J. Green, Elliptic Curve Algorithm Integration in the
+     Secure Shell Transport Layer, RFC 5656, December 2009.
 
      A. Perrig and D. Song, Hash Visualization: a New Technique to improve
      Real-World Security, 1999, International Workshop on Cryptographic
@@ -904,4 +919,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.2                      June 18, 2012                     OpenBSD 5.2
+OpenBSD 5.3                     October 4, 2012                    OpenBSD 5.3

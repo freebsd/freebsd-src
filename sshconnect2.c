@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.189 2012/06/22 12:30:26 dtucker Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.191 2013/02/15 00:21:01 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -40,7 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H)
+#if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H) && !defined(BROKEN_STRNVIS)
 #include <vis.h>
 #endif
 
@@ -248,6 +248,7 @@ struct identity {
 	char	*filename;		/* comment for agent-only keys */
 	int	tried;
 	int	isprivate;		/* key points to the private key */
+	int	userprovided;
 };
 TAILQ_HEAD(idlist, identity);
 
@@ -312,7 +313,7 @@ void	userauth(Authctxt *, char *);
 static int sign_and_send_pubkey(Authctxt *, Identity *);
 static void pubkey_prepare(Authctxt *);
 static void pubkey_cleanup(Authctxt *);
-static Key *load_identity_file(char *);
+static Key *load_identity_file(char *, int);
 
 static Authmethod *authmethod_get(char *authlist);
 static Authmethod *authmethod_lookup(const char *name);
@@ -1186,7 +1187,7 @@ identity_sign(Identity *id, u_char **sigp, u_int *lenp,
 	if (id->isprivate || (id->key->flags & KEY_FLAG_EXT))
 		return (key_sign(id->key, sigp, lenp, data, datalen));
 	/* load the private key from the file */
-	if ((prv = load_identity_file(id->filename)) == NULL)
+	if ((prv = load_identity_file(id->filename, id->userprovided)) == NULL)
 		return (-1);
 	ret = key_sign(prv, sigp, lenp, data, datalen);
 	key_free(prv);
@@ -1311,7 +1312,7 @@ send_pubkey_test(Authctxt *authctxt, Identity *id)
 }
 
 static Key *
-load_identity_file(char *filename)
+load_identity_file(char *filename, int userprovided)
 {
 	Key *private;
 	char prompt[300], *passphrase;
@@ -1319,7 +1320,8 @@ load_identity_file(char *filename)
 	struct stat st;
 
 	if (stat(filename, &st) < 0) {
-		debug3("no such identity: %s", filename);
+		(userprovided ? logit : debug3)("no such identity: %s: %s",
+		    filename, strerror(errno));
 		return NULL;
 	}
 	private = key_load_private_type(KEY_UNSPEC, filename, "", NULL, &perm_ok);
@@ -1359,7 +1361,7 @@ load_identity_file(char *filename)
 static void
 pubkey_prepare(Authctxt *authctxt)
 {
-	Identity *id;
+	Identity *id, *id2, *tmp;
 	Idlist agent, files, *preferred;
 	Key *key;
 	AuthenticationConnection *ac;
@@ -1371,7 +1373,7 @@ pubkey_prepare(Authctxt *authctxt)
 	preferred = &authctxt->keys;
 	TAILQ_INIT(preferred);	/* preferred order of keys */
 
-	/* list of keys stored in the filesystem */
+	/* list of keys stored in the filesystem and PKCS#11 */
 	for (i = 0; i < options.num_identity_files; i++) {
 		key = options.identity_keys[i];
 		if (key && key->type == KEY_RSA1)
@@ -1382,7 +1384,31 @@ pubkey_prepare(Authctxt *authctxt)
 		id = xcalloc(1, sizeof(*id));
 		id->key = key;
 		id->filename = xstrdup(options.identity_files[i]);
+		id->userprovided = 1;
 		TAILQ_INSERT_TAIL(&files, id, next);
+	}
+	/* Prefer PKCS11 keys that are explicitly listed */
+	TAILQ_FOREACH_SAFE(id, &files, next, tmp) {
+		if (id->key == NULL || (id->key->flags & KEY_FLAG_EXT) == 0)
+			continue;
+		found = 0;
+		TAILQ_FOREACH(id2, &files, next) {
+			if (id2->key == NULL ||
+			    (id2->key->flags & KEY_FLAG_EXT) != 0)
+				continue;
+			if (key_equal(id->key, id2->key)) {
+				TAILQ_REMOVE(&files, id, next);
+				TAILQ_INSERT_TAIL(preferred, id, next);
+				found = 1;
+				break;
+			}
+		}
+		/* If IdentitiesOnly set and key not found then don't use it */
+		if (!found && options.identities_only) {
+			TAILQ_REMOVE(&files, id, next);
+			bzero(id, sizeof(id));
+			free(id);
+		}
 	}
 	/* list of keys supported by the agent */
 	if ((ac = ssh_get_authentication_connection())) {
@@ -1423,7 +1449,8 @@ pubkey_prepare(Authctxt *authctxt)
 		TAILQ_INSERT_TAIL(preferred, id, next);
 	}
 	TAILQ_FOREACH(id, preferred, next) {
-		debug2("key: %s (%p)", id->filename, id->key);
+		debug2("key: %s (%p),%s", id->filename, id->key,
+		    id->userprovided ? " explicit" : "");
 	}
 }
 
@@ -1468,7 +1495,8 @@ userauth_pubkey(Authctxt *authctxt)
 			sent = send_pubkey_test(authctxt, id);
 		} else if (id->key == NULL) {
 			debug("Trying private key: %s", id->filename);
-			id->key = load_identity_file(id->filename);
+			id->key = load_identity_file(id->filename,
+			    id->userprovided);
 			if (id->key != NULL) {
 				id->isprivate = 1;
 				sent = sign_and_send_pubkey(authctxt, id);
