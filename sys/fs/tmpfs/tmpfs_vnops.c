@@ -1592,7 +1592,7 @@ tmpfs_print(struct vop_print_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%x, links %d\n",
+	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%lx, links %d\n",
 	    node, node->tn_flags, node->tn_links);
 	printf("\tmode 0%o, owner %d, group %d, size %jd, status 0x%x\n",
 	    node->tn_mode, node->tn_uid, node->tn_gid,

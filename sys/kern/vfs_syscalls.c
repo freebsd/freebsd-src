@@ -2689,7 +2689,7 @@ int
 sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
 {
 	int fd = uap->fd;
-	char *path = uap->path;
+	const char *path = uap->path;
 	u_long flags = uap->flags;
 	int atflag = uap->atflag;
 
