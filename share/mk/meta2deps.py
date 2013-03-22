@@ -35,7 +35,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.8 2013/02/10 19:21:46 sjg Exp $
+	$Id: meta2deps.py,v 1.10 2013/03/17 03:10:09 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -150,6 +150,7 @@ class MetaFile:
 
         MACHINE	the machine we built for.
         	set to 'none' if we are not cross-building.
+		More specifically if machine cannot be deduced from objdirs.
 
         HOST_TARGET
 		when we build for the psuedo machine 'host'
@@ -176,6 +177,9 @@ class MetaFile:
         self.debug_out = getv(conf, 'debug_out', sys.stderr)
 
         self.machine = getv(conf, 'MACHINE', '')
+        self.curdir = getv(conf, 'CURDIR')
+        self.reldir = getv(conf, 'RELDIR')
+        self.dpdeps = getv(conf, 'DPDEPS')
 
         if not self.conf:
             # some of the steps below we want to do only once
@@ -221,9 +225,6 @@ class MetaFile:
 
             self.dirdep_re = re.compile(r'([^/]+)/(.+)')
 
-        self.curdir = getv(conf, 'CURDIR')
-        self.reldir = getv(conf, 'RELDIR')
-        self.dpdeps = getv(conf, 'DPDEPS')
         if self.dpdeps and not self.reldir:
             if self.debug:
                 print >> self.debug_out, "need reldir:",
