@@ -232,6 +232,10 @@ __archive_write_filter(struct archive_write_filter *f,
 	int r;
 	if (length == 0)
 		return(ARCHIVE_OK);
+	if (f->write == NULL)
+		/* If unset, a fatal error has already ocuured, so this filter
+		 * didn't open. We cannot write anything. */
+		return(ARCHIVE_FATAL);
 	r = (f->write)(f, buff, length);
 	f->bytes_written += length;
 	return (r);
@@ -437,6 +441,8 @@ archive_write_client_close(struct archive_write_filter *f)
 		(*a->client_closer)(&a->archive, a->client_data);
 	free(state->buffer);
 	free(state);
+	/* Clear the close handler myself not to be called again. */
+	f->close = NULL;
 	a->client_data = NULL;
 	return (ret);
 }

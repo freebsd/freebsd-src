@@ -55,6 +55,7 @@ INCS=	archive.h archive_entry.h
 # Sources to be compiled.
 SRCS=	archive_acl.c					\
 	archive_check_magic.c				\
+	archive_cmdline.c				\
 	archive_crypto.c				\
 	archive_entry.c					\
 	archive_entry_copy_stat.c			\
@@ -70,6 +71,7 @@ SRCS=	archive_acl.c					\
 	archive_ppmd7.c					\
 	archive_rb.c					\
 	archive_read.c					\
+	archive_read_append_filter.c			\
 	archive_read_data_into_fd.c			\
 	archive_read_disk_entry_from_file.c		\
 	archive_read_disk_posix.c			\
@@ -79,11 +81,15 @@ SRCS=	archive_acl.c					\
 	archive_read_open_file.c			\
 	archive_read_open_filename.c			\
 	archive_read_open_memory.c			\
+	archive_read_set_format.c			\
 	archive_read_set_options.c			\
 	archive_read_support_filter_all.c		\
 	archive_read_support_filter_bzip2.c		\
 	archive_read_support_filter_compress.c		\
 	archive_read_support_filter_gzip.c		\
+	archive_read_support_filter_grzip.c		\
+	archive_read_support_filter_lrzip.c		\
+	archive_read_support_filter_lzop.c		\
 	archive_read_support_filter_none.c		\
 	archive_read_support_filter_program.c		\
 	archive_read_support_filter_rpm.c		\
@@ -117,11 +123,17 @@ SRCS=	archive_acl.c					\
 	archive_write_open_file.c			\
 	archive_write_open_filename.c			\
 	archive_write_open_memory.c			\
+	archive_write_add_filter_b64encode.c		\
+	archive_write_add_filter_by_name.c		\
 	archive_write_add_filter_bzip2.c		\
 	archive_write_add_filter_compress.c		\
+	archive_write_add_filter_grzip.c		\
 	archive_write_add_filter_gzip.c			\
+	archive_write_add_filter_lrzip.c		\
+	archive_write_add_filter_lzop.c			\
 	archive_write_add_filter_none.c			\
 	archive_write_add_filter_program.c		\
+	archive_write_add_filter_uuencode.c		\
 	archive_write_add_filter_xz.c			\
 	archive_write_set_format.c			\
 	archive_write_set_format_7zip.c			\
@@ -135,10 +147,11 @@ SRCS=	archive_acl.c					\
 	archive_write_set_format_pax.c			\
 	archive_write_set_format_shar.c			\
 	archive_write_set_format_ustar.c		\
+	archive_write_set_format_v7tar.c		\
 	archive_write_set_format_xar.c			\
 	archive_write_set_format_zip.c			\
 	archive_write_set_options.c			\
-	filter_fork.c
+	filter_fork_posix.c
 
 # Man pages to be installed.
 MAN=	archive_entry.3					\
@@ -174,6 +187,7 @@ MAN=	archive_entry.3					\
 	archive_write_set_options.3			\
 	cpio.5						\
 	libarchive.3					\
+	libarchive_changes.3				\
 	libarchive_internals.3				\
 	libarchive-formats.5				\
 	tar.5
@@ -382,6 +396,7 @@ MLINKS+=	archive_write_format.3 archive_write_set_format_shar.3
 MLINKS+=	archive_write_format.3 archive_write_set_format_shar_dump.3
 MLINKS+=	archive_write_format.3 archive_write_set_format_ustar.3
 MLINKS+=	archive_write_free.3 archive_write_close.3
+MLINKS+=	archive_write_free.3 archive_write_fail.3
 MLINKS+=	archive_write_free.3 archive_write_finish.3
 MLINKS+=	archive_write_open.3 archive_write_open_FILE.3
 MLINKS+=	archive_write_open.3 archive_write_open_fd.3
