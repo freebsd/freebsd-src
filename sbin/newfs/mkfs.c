@@ -444,6 +444,12 @@ restart:
 	if (sblock.fs_sbsize > SBLOCKSIZE)
 		sblock.fs_sbsize = SBLOCKSIZE;
 	sblock.fs_minfree = minfree;
+	if (metaspace > 0 && metaspace < sblock.fs_fpg / 2)
+		sblock.fs_metaspace = blknum(&sblock, metaspace);
+	else if (metaspace != -1)
+		/* reserve half of minfree for metadata blocks */
+		sblock.fs_metaspace = blknum(&sblock,
+		    (sblock.fs_fpg * minfree) / 200);
 	if (maxbpg == 0)
 		sblock.fs_maxbpg = MAXBLKPG(sblock.fs_bsize);
 	else

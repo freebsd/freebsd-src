@@ -246,7 +246,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	lbns_remfree = lbns;
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
+		pref = ffs_blkpref_ufs1(ip, lbn, -indirs[0].in_off - 1,
+		    (ufs1_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
 			curthread_pflags_restore(saved_inbdflush);
@@ -299,7 +300,8 @@ retry:
 		}
 		UFS_LOCK(ump);
 		if (pref == 0)
-			pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
+			pref = ffs_blkpref_ufs1(ip, lbn, i - num - 1,
+			    (ufs1_daddr_t *)0);
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
@@ -794,7 +796,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	lbns_remfree = lbns;
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
+		pref = ffs_blkpref_ufs2(ip, lbn, -indirs[0].in_off - 1,
+		    (ufs2_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
 			curthread_pflags_restore(saved_inbdflush);
@@ -848,7 +851,8 @@ retry:
 		}
 		UFS_LOCK(ump);
 		if (pref == 0)
-			pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
+			pref = ffs_blkpref_ufs2(ip, lbn, i - num - 1,
+			    (ufs2_daddr_t *)0);
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
