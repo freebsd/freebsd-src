@@ -29,7 +29,7 @@ do_restart_sanity_check()
 {
 	$SSHD -t
 	RETVAL=$?
-	if [ ! "$RETVAL" = 0 ]; then
+	if [ $RETVAL -ne 0 ]; then
 		failure $"Configuration file or keys are invalid"
 		echo
 	fi
@@ -49,7 +49,7 @@ start()
 	echo -n $"Starting $prog:"
 	$SSHD $OPTIONS && success || failure
 	RETVAL=$?
-	[ "$RETVAL" = 0 ] && touch /var/lock/subsys/sshd
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/sshd
 	echo
 }
 
@@ -58,7 +58,7 @@ stop()
 	echo -n $"Stopping $prog:"
 	killproc $SSHD -TERM
 	RETVAL=$?
-	[ "$RETVAL" = 0 ] && rm -f /var/lock/subsys/sshd
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/sshd
 	echo
 }
 
@@ -87,7 +87,7 @@ case "$1" in
 	condrestart)
 		if [ -f /var/lock/subsys/sshd ] ; then
 			do_restart_sanity_check
-			if [ "$RETVAL" = 0 ] ; then
+			if [ $RETVAL -eq 0 ] ; then
 				stop
 				# avoid race
 				sleep 3

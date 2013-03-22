@@ -169,7 +169,7 @@ AUTHENTICATION
      client selects the encryption algorithm to use from those offered by the
      server.  Additionally, session integrity is provided through a
      cryptographic message authentication code (hmac-md5, hmac-sha1, umac-64,
-     hmac-ripemd160, hmac-sha2-256 or hmac-sha2-512).
+     umac-128, hmac-ripemd160, hmac-sha2-256 or hmac-sha2-512).
 
      Finally, the server and the client enter an authentication dialog.  The
      client tries to authenticate itself using host-based authentication,
@@ -634,4 +634,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are
      disabled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 5.2                      June 18, 2012                     OpenBSD 5.2
+OpenBSD 5.3                     October 4, 2012                    OpenBSD 5.3

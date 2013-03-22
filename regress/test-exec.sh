@@ -140,6 +140,10 @@ if [ "x$TEST_SSH_LOGFILE" = "x" ]; then
 	TEST_SSH_LOGFILE=/dev/null
 fi
 
+# Some data for test copies
+DATA=$OBJ/testdata
+cat $SSHD${EXEEXT} $SSHD${EXEEXT} $SSHD${EXEEXT} $SSHD${EXEEXT} >$DATA
+
 # these should be used in tests
 export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER SCP
 #echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER $SCP

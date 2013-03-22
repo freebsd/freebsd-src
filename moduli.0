@@ -25,7 +25,7 @@ DESCRIPTION
 
                         0     Unknown, not tested.
                         2     "Safe" prime; (p-1)/2 is also prime.
-                        4     Sophie Germain; (p+1)*2 is also prime.
+                        4     Sophie Germain; 2p+1 is also prime.
 
                         Moduli candidates initially produced by ssh-keygen(1)
                         are Sophie Germain primes (type 4).  Further primality
@@ -66,7 +66,9 @@ DESCRIPTION
 SEE ALSO
      ssh-keygen(1), sshd(8)
 
-     Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer
-     Protocol, RFC 4419, 2006.
+STANDARDS
+     M. Friedl, N. Provos, and W. Simpson, Diffie-Hellman Group Exchange for
+     the Secure Shell (SSH) Transport Layer Protocol, RFC 4419, March 2006,
+     2006.
 
-OpenBSD 5.2                    October 14, 2010                    OpenBSD 5.2
+OpenBSD 5.3                   September 26, 2012                   OpenBSD 5.3

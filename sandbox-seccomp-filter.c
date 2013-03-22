@@ -44,6 +44,7 @@
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <elf.h>
 
 #include <asm/unistd.h>
 
@@ -90,7 +91,9 @@ static const struct sock_filter preauth_insns[] = {
 	SC_DENY(open, EACCES),
 	SC_ALLOW(getpid),
 	SC_ALLOW(gettimeofday),
+#ifdef __NR_time /* not defined on EABI ARM */
 	SC_ALLOW(time),
+#endif
 	SC_ALLOW(read),
 	SC_ALLOW(write),
 	SC_ALLOW(close),
@@ -102,7 +105,12 @@ static const struct sock_filter preauth_insns[] = {
 	SC_ALLOW(select),
 #endif
 	SC_ALLOW(madvise),
+#ifdef __NR_mmap2 /* EABI ARM only has mmap2() */
+	SC_ALLOW(mmap2),
+#endif
+#ifdef __NR_mmap
 	SC_ALLOW(mmap),
+#endif
 	SC_ALLOW(munmap),
 	SC_ALLOW(exit_group),
 #ifdef __NR_rt_sigprocmask

@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-userkey.sh,v 1.8 2011/05/17 07:13:31 djm Exp $
+#	$OpenBSD: cert-userkey.sh,v 1.10 2013/01/18 00:45:29 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified user keys"
@@ -22,9 +22,8 @@ for ktype in rsa dsa $ecdsa ; do
 	${SSHKEYGEN} -q -N '' -t ${ktype} \
 	    -f $OBJ/cert_user_key_${ktype} || \
 		fail "ssh-keygen of cert_user_key_${ktype} failed"
-	${SSHKEYGEN} -q -s $OBJ/user_ca_key -I \
-	    "regress user key for $USER" \
-	    -n ${USER},mekmitasdigoat $OBJ/cert_user_key_${ktype} ||
+	${SSHKEYGEN} -q -s $OBJ/user_ca_key -I "regress user key for $USER" \
+	    -z $$ -n ${USER},mekmitasdigoat $OBJ/cert_user_key_${ktype} ||
 		fail "couldn't sign cert_user_key_${ktype}"
 	# v00 ecdsa certs do not exist
 	test "${ktype}" = "ecdsa" && continue
@@ -185,13 +184,31 @@ basic_tests() {
 			(
 				cat $OBJ/sshd_proxy_bak
 				echo "UsePrivilegeSeparation $privsep"
-				echo "RevokedKeys $OBJ/cert_user_key_${ktype}.pub"
+				echo "RevokedKeys $OBJ/cert_user_key_revoked"
 				echo "$extra_sshd"
 			) > $OBJ/sshd_proxy
+			cp $OBJ/cert_user_key_${ktype}.pub \
+			    $OBJ/cert_user_key_revoked
 			${SSH} -2i $OBJ/cert_user_key_${ktype} \
 			    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 			if [ $? -eq 0 ]; then
 				fail "ssh cert connect succeeded unexpecedly"
+			fi
+			verbose "$tid: ${_prefix} revoked via KRL"
+			rm $OBJ/cert_user_key_revoked
+			${SSHKEYGEN} -kqf $OBJ/cert_user_key_revoked \
+			    $OBJ/cert_user_key_${ktype}.pub
+			${SSH} -2i $OBJ/cert_user_key_${ktype} \
+			    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+			if [ $? -eq 0 ]; then
+				fail "ssh cert connect succeeded unexpecedly"
+			fi
+			verbose "$tid: ${_prefix} empty KRL"
+			${SSHKEYGEN} -kqf $OBJ/cert_user_key_revoked
+			${SSH} -2i $OBJ/cert_user_key_${ktype} \
+			    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+			if [ $? -ne 0 ]; then
+				fail "ssh cert connect failed"
 			fi
 		done
 	

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: moduli.5,v 1.15 2010/10/14 20:41:28 jmc Exp $
+.\"	$OpenBSD: moduli.5,v 1.17 2012/09/26 17:34:38 jmc Exp $
 .\"
 .\" Copyright (c) 2008 Damien Miller <djm@mindrot.org>
 .\"
@@ -13,7 +13,7 @@
 .\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-.Dd $Mdocdate: October 14 2010 $
+.Dd $Mdocdate: September 26 2012 $
 .Dt MODULI 5
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ Unknown, not tested.
 .It 2
 "Safe" prime; (p-1)/2 is also prime.
 .It 4
-Sophie Germain; (p+1)*2 is also prime.
+Sophie Germain; 2p+1 is also prime.
 .El
 .Pp
 Moduli candidates initially produced by
@@ -115,8 +115,13 @@ that best meets the size requirement.
 .Sh SEE ALSO
 .Xr ssh-keygen 1 ,
 .Xr sshd 8
+.Sh STANDARDS
 .Rs
+.%A M. Friedl
+.%A N. Provos
+.%A W. Simpson
+.%D March 2006
 .%R RFC 4419
-.%T "Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol"
+.%T Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol
 .%D 2006
 .Re

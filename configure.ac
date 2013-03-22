@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.496 2012/07/06 01:49:29 djm Exp $
+# $Id: configure.ac,v 1.518 2013/03/20 01:55:15 djm Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT([OpenSSH], [Portable], [openssh-unix-dev@mindrot.org])
-AC_REVISION($Revision: 1.496 $)
+AC_REVISION($Revision: 1.518 $)
 AC_CONFIG_SRCDIR([ssh.c])
 AC_LANG([C])
 
@@ -120,32 +120,6 @@ AC_CHECK_DECL([PR_SET_NO_NEW_PRIVS], [have_linux_no_new_privs=1], , [
 	#include <sys/types.h>
 	#include <linux/prctl.h>
 ])
-if test "x$have_linux_no_new_privs" = "x1" ; then
-AC_CHECK_DECL([SECCOMP_MODE_FILTER], [have_seccomp_filter=1], , [
-	#include <sys/types.h>
-	#include <linux/seccomp.h>
-])
-fi
-if test "x$have_seccomp_filter" = "x1" ; then
-AC_MSG_CHECKING([kernel for seccomp_filter support])
-AC_RUN_IFELSE([AC_LANG_PROGRAM([[
-		#include <errno.h>
-		#include <linux/seccomp.h>
-		#include <stdlib.h>
-		#include <sys/prctl.h>
-	]],
-	[[ errno = 0;
-	   prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, NULL, 0, 0);
-	   exit(errno == EFAULT ? 0 : 1); ]])],
-	[ AC_MSG_RESULT([yes]) ], [
-		AC_MSG_RESULT([no])
-		# Disable seccomp filter as a target
-		have_seccomp_filter=0
-	],
-	[ AC_MSG_RESULT([cross-compiling, assuming yes]) ]
-)
-fi
-
 use_stack_protector=1
 AC_ARG_WITH([stackprotect],
     [  --without-stackprotect  Don't use compiler's stack protection], [
@@ -239,6 +213,18 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	fi
 fi
 
+AC_MSG_CHECKING([if compiler allows __attribute__ on return types])
+AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM([[
+#include <stdlib.h>
+__attribute__((__unused__)) static void foo(void){return;}]],
+    [[ exit(0); ]])],
+    [ AC_MSG_RESULT([yes]) ],
+    [ AC_MSG_RESULT([no])
+      AC_DEFINE(NO_ATTRIBUTE_ON_RETURN_TYPE, 1,
+	 [compiler does not accept __attribute__ on return types]) ]
+)
+
 if test "x$no_attrib_nonnull" != "x1" ; then
 	AC_DEFINE([HAVE_ATTRIBUTE__NONNULL__], [1], [Have attribute nonnull])
 fi
@@ -310,6 +296,7 @@ AC_CHECK_HEADERS([ \
 	crypto/sha2.h \
 	dirent.h \
 	endian.h \
+	elf.h \
 	features.h \
 	fcntl.h \
 	floatingpoint.h \
@@ -493,6 +480,7 @@ case "$host" in
 	AC_DEFINE([SSHPAM_CHAUTHTOK_NEEDS_RUID], [1],
 	    [AIX 5.2 and 5.3 (and presumably newer) require this])
 	AC_DEFINE([PTY_ZEROREAD], [1], [read(1) can return 0 for a non-closed fd])
+	AC_DEFINE([PLATFORM_SYS_DIR_UID], 2, [System dirs owned by bin (uid 2)])
 	;;
 *-*-cygwin*)
 	check_for_libcrypt_later=1
@@ -578,6 +566,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE([LOCKED_PASSWD_STRING], ["*"],
 		[String used in /etc/passwd to denote locked account])
 	AC_DEFINE([SPT_TYPE], [SPT_PSTAT])
+	AC_DEFINE([PLATFORM_SYS_DIR_UID], 2, [System dirs owned by bin (uid 2)])
 	maildir="/var/mail"
 	LIBS="$LIBS -lsec"
 	AC_CHECK_LIB([xnet], [t_error], ,
@@ -689,20 +678,26 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_CHECK_HEADERS([linux/seccomp.h linux/filter.h linux/audit.h], [],
 	    [], [#include <linux/types.h>])
 	AC_CHECK_FUNCS([prctl])
-	have_seccomp_audit_arch=1
+	AC_MSG_CHECKING([for seccomp architecture])
+	seccomp_audit_arch=
 	case "$host" in
 	x86_64-*)
-		AC_DEFINE([SECCOMP_AUDIT_ARCH], [AUDIT_ARCH_X86_64],
-		    [Specify the system call convention in use])
+		seccomp_audit_arch=AUDIT_ARCH_X86_64
 		;;
 	i*86-*)
-		AC_DEFINE([SECCOMP_AUDIT_ARCH], [AUDIT_ARCH_I386],
-		    [Specify the system call convention in use])
+		seccomp_audit_arch=AUDIT_ARCH_I386
 		;;
-	*)
-		have_seccomp_audit_arch=0
-		;;
+        arm*-*)
+		seccomp_audit_arch=AUDIT_ARCH_ARM
+                ;;
 	esac
+	if test "x$seccomp_audit_arch" != "x" ; then
+		AC_MSG_RESULT(["$seccomp_audit_arch"])
+                AC_DEFINE_UNQUOTED([SECCOMP_AUDIT_ARCH], [$seccomp_audit_arch],
+                    [Specify the system call convention in use])
+	else
+		AC_MSG_RESULT([architecture not supported])
+	fi
 	;;
 mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE([NEED_SETPGRP], [1], [Need setpgrp to acquire controlling tty])
@@ -726,6 +721,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_CHECK_HEADER([net/if_tap.h], ,
 	    AC_DEFINE([SSH_TUN_NO_L2], [1], [No layer 2 tunnel support]))
 	AC_DEFINE([BROKEN_GLOB], [1], [FreeBSD glob does not do what we need])
+	AC_DEFINE([BROKEN_STRNVIS], [1], [FreeBSD strnvis does not do what we need])
 	;;
 *-*-bsdi*)
 	AC_DEFINE([SETEUID_BREAKS_SETUID])
@@ -902,6 +898,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_CHECK_FUNCS([getluid setluid])
 	MANTYPE=man
 	TEST_SHELL=ksh
+	SKIP_DISABLE_LASTLOG_DEFINE=yes
 	;;
 *-*-unicosmk*)
 	AC_DEFINE([NO_SSH_LASTLOG], [1],
@@ -1170,7 +1167,7 @@ AC_CHECK_FUNCS([utimes],
 )
 
 dnl    Checks for libutil functions
-AC_CHECK_HEADERS([libutil.h])
+AC_CHECK_HEADERS([bsd/libutil.h libutil.h])
 AC_SEARCH_LIBS([fmt_scaled], [util bsd])
 AC_SEARCH_LIBS([login], [util bsd])
 AC_SEARCH_LIBS([logout], [util bsd])
@@ -1539,6 +1536,8 @@ AC_CHECK_FUNCS([ \
 	getopt \
 	getpeereid \
 	getpeerucred \
+	getpgid \
+	getpgrp \
 	_getpty \
 	getrlimit \
 	getttyent \
@@ -1598,6 +1597,7 @@ AC_CHECK_FUNCS([ \
 	strtonum \
 	strtoll \
 	strtoul \
+	strtoull \
 	swap32 \
 	sysconf \
 	tcgetpgrp \
@@ -1606,6 +1606,7 @@ AC_CHECK_FUNCS([ \
 	unsetenv \
 	updwtmpx \
 	user_from_uid \
+	usleep \
 	vasprintf \
 	vhangup \
 	vsnprintf \
@@ -2299,6 +2300,56 @@ AC_LINK_IFELSE(
 	]
 )
 
+# Check for OpenSSL with EVP_aes_*ctr
+AC_MSG_CHECKING([whether OpenSSL has AES CTR via EVP])
+AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <string.h>
+#include <openssl/evp.h>
+	]], [[
+	exit(EVP_aes_128_ctr() == NULL ||
+	    EVP_aes_192_cbc() == NULL ||
+	    EVP_aes_256_cbc() == NULL);
+	]])],
+	[
+		AC_MSG_RESULT([yes])
+		AC_DEFINE([OPENSSL_HAVE_EVPCTR], [1],
+		    [libcrypto has EVP AES CTR])
+	],
+	[
+		AC_MSG_RESULT([no])
+	]
+)
+
+# Check for OpenSSL with EVP_aes_*gcm
+AC_MSG_CHECKING([whether OpenSSL has AES GCM via EVP])
+AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <string.h>
+#include <openssl/evp.h>
+	]], [[
+	exit(EVP_aes_128_gcm() == NULL ||
+	    EVP_aes_256_gcm() == NULL ||
+	    EVP_CTRL_GCM_SET_IV_FIXED == 0 ||
+	    EVP_CTRL_GCM_IV_GEN == 0 ||
+	    EVP_CTRL_GCM_SET_TAG == 0 ||
+	    EVP_CTRL_GCM_GET_TAG == 0 ||
+	    EVP_CIPHER_CTX_ctrl(NULL, 0, 0, NULL) == 0);
+	]])],
+	[
+		AC_MSG_RESULT([yes])
+		AC_DEFINE([OPENSSL_HAVE_EVPGCM], [1],
+		    [libcrypto has EVP AES GCM])
+	],
+	[
+		AC_MSG_RESULT([no])
+	]
+)
+
+AC_SEARCH_LIBS([EVP_CIPHER_CTX_ctrl], [crypto],
+	[AC_DEFINE([HAVE_EVP_CIPHER_CTX_CTRL], [1],
+	    [Define if libcrypto has EVP_CIPHER_CTX_ctrl])])
+
 AC_MSG_CHECKING([if EVP_DigestUpdate returns an int])
 AC_LINK_IFELSE(
 	[AC_LANG_PROGRAM([[
@@ -2565,6 +2616,34 @@ AC_DEFINE_UNQUOTED([SSH_PRIVSEP_USER], ["$SSH_PRIVSEP_USER"],
 	[non-privileged user for privilege separation])
 AC_SUBST([SSH_PRIVSEP_USER])
 
+if test "x$have_linux_no_new_privs" = "x1" ; then
+AC_CHECK_DECL([SECCOMP_MODE_FILTER], [have_seccomp_filter=1], , [
+	#include <sys/types.h>
+	#include <linux/seccomp.h>
+])
+fi
+if test "x$have_seccomp_filter" = "x1" ; then
+AC_MSG_CHECKING([kernel for seccomp_filter support])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+		#include <errno.h>
+		#include <elf.h>
+		#include <linux/audit.h>
+		#include <linux/seccomp.h>
+		#include <stdlib.h>
+		#include <sys/prctl.h>
+	]],
+	[[ int i = $seccomp_audit_arch;
+	   errno = 0;
+	   prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, NULL, 0, 0);
+	   exit(errno == EFAULT ? 0 : 1); ]])],
+	[ AC_MSG_RESULT([yes]) ], [
+		AC_MSG_RESULT([no])
+		# Disable seccomp filter as a target
+		have_seccomp_filter=0
+	]
+)
+fi
+
 # Decide which sandbox style to use
 sandbox_arg=""
 AC_ARG_WITH([sandbox],
@@ -2599,6 +2678,7 @@ AC_RUN_IFELSE(
 	struct rlimit rl_zero;
 	int fd, r;
 	fd_set fds;
+	struct timeval tv;
 
 	fd = open("/dev/null", O_RDONLY);
 	FD_ZERO(&fds);
@@ -2606,13 +2686,41 @@ AC_RUN_IFELSE(
 	rl_zero.rlim_cur = rl_zero.rlim_max = 0;
 	setrlimit(RLIMIT_FSIZE, &rl_zero);
 	setrlimit(RLIMIT_NOFILE, &rl_zero);
-	r = select(fd+1, &fds, NULL, NULL, NULL);
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	r = select(fd+1, &fds, NULL, NULL, &tv);
 	exit (r == -1 ? 1 : 0);
 	]])],
 	[AC_MSG_RESULT([yes])
 	 select_works_with_rlimit=yes],
 	[AC_MSG_RESULT([no])
 	 select_works_with_rlimit=no],
+	[AC_MSG_WARN([cross compiling: assuming yes])]
+)
+
+AC_MSG_CHECKING([if setrlimit(RLIMIT_NOFILE,{0,0}) works])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <sys/types.h>
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+#include <sys/resource.h>
+#include <errno.h>
+#include <stdlib.h>
+	]],[[
+	struct rlimit rl_zero;
+	int fd, r;
+	fd_set fds;
+
+	rl_zero.rlim_cur = rl_zero.rlim_max = 0;
+	r = setrlimit(RLIMIT_NOFILE, &rl_zero);
+	exit (r == -1 ? 1 : 0);
+	]])],
+	[AC_MSG_RESULT([yes])
+	 rlimit_nofile_zero_works=yes],
+	[AC_MSG_RESULT([no])
+	 rlimit_nofile_zero_works=no],
 	[AC_MSG_WARN([cross compiling: assuming yes])]
 )
 
@@ -2652,11 +2760,13 @@ elif test "x$sandbox_arg" = "xdarwin" || \
 elif test "x$sandbox_arg" = "xseccomp_filter" || \
      ( test -z "$sandbox_arg" && \
        test "x$have_seccomp_filter" = "x1" && \
+       test "x$ac_cv_header_elf_h" = "xyes" && \
        test "x$ac_cv_header_linux_audit_h" = "xyes" && \
-       test "x$have_seccomp_audit_arch" = "x1" && \
+       test "x$ac_cv_header_linux_filter_h" = "xyes" && \
+       test "x$seccomp_audit_arch" != "x" && \
        test "x$have_linux_no_new_privs" = "x1" && \
        test "x$ac_cv_func_prctl" = "xyes" ) ; then
-	test "x$have_seccomp_audit_arch" != "x1" && \
+	test "x$seccomp_audit_arch" = "x" && \
 		AC_MSG_ERROR([seccomp_filter sandbox not supported on $host])
 	test "x$have_linux_no_new_privs" != "x1" && \
 		AC_MSG_ERROR([seccomp_filter sandbox requires PR_SET_NO_NEW_PRIVS])
@@ -2668,7 +2778,8 @@ elif test "x$sandbox_arg" = "xseccomp_filter" || \
 	AC_DEFINE([SANDBOX_SECCOMP_FILTER], [1], [Sandbox using seccomp filter])
 elif test "x$sandbox_arg" = "xrlimit" || \
      ( test -z "$sandbox_arg" && test "x$ac_cv_func_setrlimit" = "xyes" && \
-       test "x$select_works_with_rlimit" == "xyes" ) ; then
+       test "x$select_works_with_rlimit" = "xyes" && \
+       test "x$rlimit_nofile_zero_works" = "xyes" ) ; then
 	test "x$ac_cv_func_setrlimit" != "xyes" && \
 		AC_MSG_ERROR([rlimit sandbox requires setrlimit function])
 	test "x$select_works_with_rlimit" != "xyes" && \
@@ -3560,6 +3671,9 @@ AC_ARG_WITH([kerberos5],
 			     [$KRB5ROOT/bin/krb5-config],
 			     [$KRB5ROOT/bin:$PATH])
 		if test -x $KRB5CONF ; then
+			K5CFLAGS="`$KRB5CONF --cflags`"
+			K5LIBS="`$KRB5CONF --libs`"
+			CPPFLAGS="$CPPFLAGS $K5CFLAGS"
 
 			AC_MSG_CHECKING([for gssapi support])
 			if $KRB5CONF | grep gssapi >/dev/null ; then
@@ -3567,14 +3681,12 @@ AC_ARG_WITH([kerberos5],
 				AC_DEFINE([GSSAPI], [1],
 					[Define this if you want GSSAPI
 					support in the version 2 protocol])
-				k5confopts=gssapi
+				GSSCFLAGS="`$KRB5CONF --cflags gssapi`"
+				GSSLIBS="`$KRB5CONF --libs gssapi`"
+				CPPFLAGS="$CPPFLAGS $GSSCFLAGS"
 			else
 				AC_MSG_RESULT([no])
-				k5confopts=""
 			fi
-			K5CFLAGS="`$KRB5CONF --cflags $k5confopts`"
-			K5LIBS="`$KRB5CONF --libs $k5confopts`"
-			CPPFLAGS="$CPPFLAGS $K5CFLAGS"
 			AC_MSG_CHECKING([whether we are using Heimdal])
 			AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <krb5.h>
 				]], [[ char *tmp = heimdal_version; ]])],
@@ -3606,14 +3718,16 @@ AC_ARG_WITH([kerberos5],
 
 			AC_CHECK_LIB([gssapi_krb5], [gss_init_sec_context],
 				[ AC_DEFINE([GSSAPI])
-				  K5LIBS="-lgssapi_krb5 $K5LIBS" ],
+				  GSSLIBS="-lgssapi_krb5" ],
 				[ AC_CHECK_LIB([gssapi], [gss_init_sec_context],
 					[ AC_DEFINE([GSSAPI])
-					  K5LIBS="-lgssapi $K5LIBS" ],
-					AC_MSG_WARN([Cannot find any suitable gss-api library - build may fail]),
-					$K5LIBS)
-				],
-				$K5LIBS)
+					  GSSLIBS="-lgssapi" ],
+					[ AC_CHECK_LIB([gss], [gss_init_sec_context],
+						[ AC_DEFINE([GSSAPI])
+						  GSSLIBS="-lgss" ],
+						AC_MSG_WARN([Cannot find any suitable gss-api library - build may fail]))
+					])
+				])
 
 			AC_CHECK_HEADER([gssapi.h], ,
 				[ unset ac_cv_header_gssapi_h
@@ -3641,12 +3755,27 @@ AC_ARG_WITH([kerberos5],
 		AC_CHECK_HEADERS([gssapi_krb5.h gssapi/gssapi_krb5.h])
 		AC_CHECK_HEADERS([gssapi_generic.h gssapi/gssapi_generic.h])
 
-		LIBS="$LIBS $K5LIBS"
 		AC_SEARCH_LIBS([k_hasafs], [kafs], [AC_DEFINE([USE_AFS], [1],
 			[Define this if you want to use libkafs' AFS support])])
+
+		AC_CHECK_DECLS([GSS_C_NT_HOSTBASED_SERVICE], [], [], [[
+#ifdef HAVE_GSSAPI_H
+# include <gssapi.h>
+#elif defined(HAVE_GSSAPI_GSSAPI_H)
+# include <gssapi/gssapi.h>
+#endif
+
+#ifdef HAVE_GSSAPI_GENERIC_H
+# include <gssapi_generic.h>
+#elif defined(HAVE_GSSAPI_GSSAPI_GENERIC_H)
+# include <gssapi/gssapi_generic.h>
+#endif
+		]])
 	fi
 	]
 )
+AC_SUBST([GSSLIBS])
+AC_SUBST([K5LIBS])
 
 # Looking for programs, paths and files
 
@@ -4313,7 +4442,6 @@ if test -n "$conf_wtmp_location"; then
 		[Define if you want to specify the path to your wtmp file])
 fi
 
-
 dnl wtmpx detection
 AC_MSG_CHECKING([if your system defines WTMPX_FILE])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
@@ -4344,6 +4472,43 @@ if test ! -z "$blibpath" ; then
 	LDFLAGS="$LDFLAGS $blibflags$blibpath"
 	AC_MSG_WARN([Please check and edit blibpath in LDFLAGS in Makefile])
 fi
+
+AC_CHECK_MEMBER([struct lastlog.ll_line], [], [
+    if test x$SKIP_DISABLE_LASTLOG_DEFINE != "xyes" ; then
+	AC_DEFINE([DISABLE_LASTLOG])
+    fi
+	], [
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_UTMP_H
+#include <utmp.h>
+#endif
+#ifdef HAVE_UTMPX_H
+#include <utmpx.h>
+#endif
+#ifdef HAVE_LASTLOG_H
+#include <lastlog.h>
+#endif
+	])
+
+AC_CHECK_MEMBER([struct utmp.ut_line], [], [
+	AC_DEFINE([DISABLE_UTMP])
+	AC_DEFINE([DISABLE_WTMP])
+	], [
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_UTMP_H
+#include <utmp.h>
+#endif
+#ifdef HAVE_UTMPX_H
+#include <utmpx.h>
+#endif
+#ifdef HAVE_LASTLOG_H
+#include <lastlog.h>
+#endif
+	])
 
 dnl Adding -Werror to CFLAGS early prevents configure tests from running.
 dnl Add now.

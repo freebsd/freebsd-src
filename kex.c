@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.86 2010/09/22 05:01:29 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.88 2013/01/08 18:49:04 markus Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -242,8 +242,18 @@ kex_input_kexinit(int type, u_int32_t seq, void *ctxt)
 		packet_get_char();
 	for (i = 0; i < PROPOSAL_MAX; i++)
 		xfree(packet_get_string(NULL));
-	(void) packet_get_char();
-	(void) packet_get_int();
+	/*
+	 * XXX RFC4253 sec 7: "each side MAY guess" - currently no supported
+	 * KEX method has the server move first, but a server might be using
+	 * a custom method or one that we otherwise don't support. We should
+	 * be prepared to remember first_kex_follows here so we can eat a
+	 * packet later.
+	 * XXX2 - RFC4253 is kind of ambiguous on what first_kex_follows means
+	 * for cases where the server *doesn't* go first. I guess we should
+	 * ignore it when it is set for these cases, which is what we do now.
+	 */
+	(void) packet_get_char();	/* first_kex_follows */
+	(void) packet_get_int();	/* reserved */
 	packet_check_eom();
 
 	kex_kexinit_finish(kex);
@@ -294,6 +304,7 @@ choose_enc(Enc *enc, char *client, char *server)
 	enc->name = name;
 	enc->enabled = 0;
 	enc->iv = NULL;
+	enc->iv_len = cipher_ivlen(enc->cipher);
 	enc->key = NULL;
 	enc->key_len = cipher_keylen(enc->cipher);
 	enc->block_size = cipher_blocksize(enc->cipher);
@@ -405,7 +416,7 @@ kex_choose_conf(Kex *kex)
 	char **my, **peer;
 	char **cprop, **sprop;
 	int nenc, nmac, ncomp;
-	u_int mode, ctos, need;
+	u_int mode, ctos, need, authlen;
 	int first_kex_follows, type;
 
 	my   = kex_buf2prop(&kex->my, NULL);
@@ -438,13 +449,16 @@ kex_choose_conf(Kex *kex)
 		nenc  = ctos ? PROPOSAL_ENC_ALGS_CTOS  : PROPOSAL_ENC_ALGS_STOC;
 		nmac  = ctos ? PROPOSAL_MAC_ALGS_CTOS  : PROPOSAL_MAC_ALGS_STOC;
 		ncomp = ctos ? PROPOSAL_COMP_ALGS_CTOS : PROPOSAL_COMP_ALGS_STOC;
-		choose_enc (&newkeys->enc,  cprop[nenc],  sprop[nenc]);
-		choose_mac (&newkeys->mac,  cprop[nmac],  sprop[nmac]);
+		choose_enc(&newkeys->enc, cprop[nenc], sprop[nenc]);
+		/* ignore mac for authenticated encryption */
+		authlen = cipher_authlen(newkeys->enc.cipher);
+		if (authlen == 0)
+			choose_mac(&newkeys->mac, cprop[nmac], sprop[nmac]);
 		choose_comp(&newkeys->comp, cprop[ncomp], sprop[ncomp]);
 		debug("kex: %s %s %s %s",
 		    ctos ? "client->server" : "server->client",
 		    newkeys->enc.name,
-		    newkeys->mac.name,
+		    authlen == 0 ? newkeys->mac.name : "<implicit>",
 		    newkeys->comp.name);
 	}
 	choose_kex(kex, cprop[PROPOSAL_KEX_ALGS], sprop[PROPOSAL_KEX_ALGS]);
@@ -457,6 +471,8 @@ kex_choose_conf(Kex *kex)
 			need = newkeys->enc.key_len;
 		if (need < newkeys->enc.block_size)
 			need = newkeys->enc.block_size;
+		if (need < newkeys->enc.iv_len)
+			need = newkeys->enc.iv_len;
 		if (need < newkeys->mac.key_len)
 			need = newkeys->mac.key_len;
 	}

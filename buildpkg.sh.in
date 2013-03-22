@@ -337,17 +337,17 @@ then
 else
 	if [ "\${USE_SYM_LINKS}" = yes ]
 	then
-		[ "$RCS_D" = yes ]  &&  \
+		[ "$RCS_D" = yes ]  &&  \\
 	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
-		[ "$RC1_D" = no ]  ||  \
+		[ "$RC1_D" = no ]  ||  \\
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME}=../init.d/${SYSVINIT_NAME} s
 	else
-		[ "$RCS_D" = yes ]  &&  \
+		[ "$RCS_D" = yes ]  &&  \\
 	installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rcS.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc0.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
-		[ "$RC1_D" = no ]  ||  \
+		[ "$RC1_D" = no ]  ||  \\
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc1.d/${SYSVINITSTOPT}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
 		installf ${PKGNAME} \${PKG_INSTALL_ROOT}$TEST_DIR/etc/rc2.d/${SYSVINITSTART}${SYSVINIT_NAME}=\${PKG_INSTALL_ROOT}$TEST_DIR/etc/init.d/${SYSVINIT_NAME} l
 	fi
@@ -538,10 +538,10 @@ then
 PRE_INS_STOP=no
 POST_INS_START=no
 # determine if should restart the daemon
-if [ -s ${piddir}/sshd.pid  ] && \
+if [ -s ${piddir}/sshd.pid  ] && \\
     /usr/bin/svcs -H $OPENSSH_FMRI 2>&1 | egrep "^online" > /dev/null 2>&1
 then
-	ans=\`ckyorn -d n \
+	ans=\`ckyorn -d n \\
 -p "Should the running sshd daemon be restarted? ${DEF_MSG}"\` || exit \$?
 	case \$ans in
 		[y,Y]*)	PRE_INS_STOP=yes
@@ -552,7 +552,7 @@ then
 else
 
 # determine if we should start sshd
-	ans=\`ckyorn -d n \
+	ans=\`ckyorn -d n \\
 -p "Start the sshd daemon after installing this package? ${DEF_MSG}"\` || exit \$?
 	case \$ans in
 		[y,Y]*)	POST_INS_START=yes ;;
@@ -573,7 +573,7 @@ USE_SYM_LINKS=no
 PRE_INS_STOP=no
 POST_INS_START=no
 # Use symbolic links?
-ans=\`ckyorn -d n \
+ans=\`ckyorn -d n \\
 -p "Do you want symbolic links for the start/stop scripts? ${DEF_MSG}"\` || exit \$?
 case \$ans in
 	[y,Y]*)	USE_SYM_LINKS=yes ;;
@@ -582,7 +582,7 @@ esac
 # determine if should restart the daemon
 if [ -s ${piddir}/sshd.pid  -a  -f ${TEST_DIR}/etc/init.d/${SYSVINIT_NAME} ]
 then
-	ans=\`ckyorn -d n \
+	ans=\`ckyorn -d n \\
 -p "Should the running sshd daemon be restarted? ${DEF_MSG}"\` || exit \$?
 	case \$ans in
 		[y,Y]*)	PRE_INS_STOP=yes
@@ -593,7 +593,7 @@ then
 else
 
 # determine if we should start sshd
-	ans=\`ckyorn -d n \
+	ans=\`ckyorn -d n \\
 -p "Start the sshd daemon after installing this package? ${DEF_MSG}"\` || exit \$?
 	case \$ans in
 		[y,Y]*)	POST_INS_START=yes ;;

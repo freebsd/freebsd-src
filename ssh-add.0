@@ -37,16 +37,17 @@ DESCRIPTION
 
      -d      Instead of adding identities, removes identities from the agent.
              If ssh-add has been run without arguments, the keys for the
-             default identities will be removed.  Otherwise, the argument list
-             will be interpreted as a list of paths to public key files and
-             matching keys will be removed from the agent.  If no public key
-             is found at a given path, ssh-add will append .pub and retry.
+             default identities and their corresponding certificates will be
+             removed.  Otherwise, the argument list will be interpreted as a
+             list of paths to public key files to specify keys and
+             certificates to be removed from the agent.  If no public key is
+             found at a given path, ssh-add will append .pub and retry.
 
      -e pkcs11
              Remove keys provided by the PKCS#11 shared library pkcs11.
 
-     -k      When loading keys into the agent, load plain private keys only
-             and skip certificates.
+     -k      When loading keys into or deleting keys from the agent, process
+             plain private keys only and skip certificates.
 
      -L      Lists public key parameters of all identities currently
              represented by the agent.
@@ -115,4 +116,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.2                    October 18, 2011                    OpenBSD 5.2
+OpenBSD 5.3                    December 3, 2012                    OpenBSD 5.3
