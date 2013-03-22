@@ -202,6 +202,14 @@ extern struct pcpu *cpuid_to_pcpu[];
 #endif
 #define	curvidata	PCPU_GET(vidata)
 
+/* Accessor to elements allocated via UMA_ZONE_PCPU zone. */
+static inline void *
+zpcpu_get(void *base)
+{
+
+	return ((char *)(base) + sizeof(struct pcpu) * curcpu);
+}
+
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
  * initializing machine dependent fields of struct pcpu, and

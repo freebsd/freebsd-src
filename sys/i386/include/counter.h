@@ -58,7 +58,7 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 
 	if ((cpu_feature & CPUID_CX8) == 0) {
 		critical_enter();
-		*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) += inc;
+		*(uint64_t *)zpcpu_get(c) += inc;
 		critical_exit();
 	} else {
 		counter_64_inc_8b(c, inc);

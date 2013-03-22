@@ -36,7 +36,7 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 {
 
 	critical_enter();
-	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) += inc;
+	*(uint64_t *)zpcpu_get(c) += inc;
 	critical_exit();
 }
 
@@ -45,7 +45,7 @@ counter_u64_dec(counter_u64_t c, uint64_t dec)
 {
 
 	critical_enter();
-	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) -= dec;
+	*(uint64_t *)zpcpu_get(c) -= dec;
 	critical_exit();
 }
 
