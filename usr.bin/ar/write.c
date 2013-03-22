@@ -277,7 +277,6 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
-	archive_read_support_compression_none(a);
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, archive, DEF_BLKSZ));
 	for (;;) {
@@ -363,7 +362,7 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 		TAILQ_INSERT_TAIL(&bsdar->v_obj, obj, objs);
 	}
 	AC(archive_read_close(a));
-	AC(archive_read_finish(a));
+	AC(archive_read_free(a));
 }
 
 /*
@@ -628,7 +627,6 @@ write_objs(struct bsdar *bsdar)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_write_new failed");
 
 	archive_write_set_format_ar_svr4(a);
-	archive_write_set_compression_none(a);
 
 	AC(archive_write_open_filename(a, bsdar->filename));
 
@@ -682,7 +680,7 @@ write_objs(struct bsdar *bsdar)
 	}
 
 	AC(archive_write_close(a));
-	AC(archive_write_finish(a));
+	AC(archive_write_free(a));
 }
 
 /*
