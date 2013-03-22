@@ -163,13 +163,13 @@ dir_list != cd ${_OBJDIR} && \
 _nonlibs := ${DPADD:T:Nlib*:N*include}
 .if !empty(_nonlibs)
 ddep_list =
-.for f in ${_nonlibs:@x@${DPADD:M*/$x}@:tA}
+.for f in ${_nonlibs:@x@${DPADD:M*/$x}@}
 .if exists($f.dirdep)
 ddep_list += $f.dirdep
 .elif exists(${f:H}.dirdep)
 ddep_list += ${f:H}.dirdep
 .else
-dir_list += ${f:H}
+dir_list += ${f:H:tA}
 .endif
 .endfor
 .if !empty(ddep_list)
