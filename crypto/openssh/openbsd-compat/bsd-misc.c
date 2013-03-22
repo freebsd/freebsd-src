@@ -165,6 +165,17 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
 }
 #endif
 
+#if !defined(HAVE_USLEEP)
+int usleep(unsigned int useconds)
+{
+	struct timespec ts;
+
+	ts.tv_sec = useconds / 1000000;
+	ts.tv_nsec = (useconds % 1000000) * 1000;
+	return nanosleep(&ts, NULL);
+}
+#endif
+
 #ifndef HAVE_TCGETPGRP
 pid_t
 tcgetpgrp(int fd)
@@ -242,8 +253,25 @@ strdup(const char *str)
 #endif
 
 #ifndef HAVE_ISBLANK
-int isblank(int c)
+int
+isblank(int c)
 {
 	return (c == ' ' || c == '\t');
+}
+#endif
+
+#ifndef HAVE_GETPGID
+pid_t
+getpgid(pid_t pid)
+{
+#if defined(HAVE_GETPGRP) && !defined(GETPGRP_VOID)
+	return getpgrp(pid);
+#elif defined(HAVE_GETPGRP)
+	if (pid == 0)
+		return getpgrp();
+#endif
+
+	errno = ESRCH;
+	return -1;
 }
 #endif
