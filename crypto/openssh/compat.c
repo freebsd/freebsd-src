@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.79 2011/09/23 07:45:05 markus Exp $ */
+/* $OpenBSD: compat.c,v 1.80 2012/08/17 01:30:00 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
@@ -46,6 +46,8 @@ int datafellows = 0;
 void
 enable_compat20(void)
 {
+	if (compat20)
+		return;
 	debug("Enabling compatibility mode for protocol 2.0");
 	compat20 = 1;
 }
