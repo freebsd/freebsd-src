@@ -86,7 +86,7 @@ static const struct fmt athstats[] = {
 #define	S_TX_LINEAR	AFTER(S_MIB)
 	{ 5,	"txlinear",	"txlinear",	"tx linearized to cluster" },
 #define	S_BSTUCK	AFTER(S_TX_LINEAR)
-	{ 5,	"bstuck",	"bstuck",	"stuck beacon conditions" },
+	{ 6,	"bstuck",	"bstuck",	"stuck beacon conditions" },
 #define	S_INTRCOAL	AFTER(S_BSTUCK)
 	{ 5,	"intrcoal",	"intrcoal",	"interrupts coalesced" },
 #define	S_RATE		AFTER(S_INTRCOAL)
@@ -292,15 +292,15 @@ static const struct fmt athstats[] = {
 	{ 7,	"txaggrfailall",	"TXAFALL",	"A-MPDU TX frame failures" },
 #ifndef __linux__
 #define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAILALL)
-	{ 5,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
+	{ 7,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
 #define	S_CABQ_BUSY	AFTER(S_CABQ_XMIT)
-	{ 5,	"cabqbusy",	"cabqbusy",	"cabq xmit overflowed beacon interval" },
+	{ 8,	"cabqbusy",	"cabqbusy",	"cabq xmit overflowed beacon interval" },
 #define	S_TX_NODATA	AFTER(S_CABQ_BUSY)
-	{ 5,	"txnodata",	"txnodata",	"tx discarded empty frame" },
+	{ 8,	"txnodata",	"txnodata",	"tx discarded empty frame" },
 #define	S_TX_BUSDMA	AFTER(S_TX_NODATA)
-	{ 5,	"txbusdma",	"txbusdma",	"tx failed for dma resrcs" },
+	{ 8,	"txbusdma",	"txbusdma",	"tx failed for dma resrcs" },
 #define	S_RX_BUSDMA	AFTER(S_TX_BUSDMA)
-	{ 5,	"rxbusdma",	"rxbusdma",	"rx setup failed for dma resrcs" },
+	{ 8,	"rxbusdma",	"rxbusdma",	"rx setup failed for dma resrcs" },
 #define	S_FF_TXOK	AFTER(S_RX_BUSDMA)
 #else
 #define	S_FF_TXOK	AFTER(S_TX_AGGR_FAILALL)
