@@ -205,7 +205,7 @@ struct buf {
 #define	B_00000800	0x00000800	/* Available flag. */
 #define	B_00001000	0x00001000	/* Available flag. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
-#define	B_00004000	0x00004000	/* Available flag. */
+#define	B_BARRIER	0x00004000	/* Write this and all preceeding first. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
@@ -491,6 +491,8 @@ int	breadn_flags(struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, int, struct buf **);
 void	bdwrite(struct buf *);
 void	bawrite(struct buf *);
+void	babarrierwrite(struct buf *);
+int	bbarrierwrite(struct buf *);
 void	bdirty(struct buf *);
 void	bundirty(struct buf *);
 void	bufstrategy(struct bufobj *, struct buf *);

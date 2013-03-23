@@ -168,6 +168,10 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	bip->bio_done = g_vfs_done;
 	bip->bio_caller2 = bp;
 	bip->bio_length = bp->b_bcount;
+	if (bp->b_flags & B_BARRIER) {
+		bip->bio_flags |= BIO_ORDERED;
+		bp->b_flags &= ~B_BARRIER;
+	}
 	g_io_request(bip, cp);
 }
 
