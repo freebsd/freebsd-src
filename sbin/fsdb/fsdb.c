@@ -441,8 +441,7 @@ CMDFUNCSTART(findblk)
     ino_t inum, inosused;
     uint32_t *wantedblk32;
     uint64_t *wantedblk64;
-    struct bufarea *cgbp;
-    struct cg *cgp;
+    struct cg *cgp = &cgrp;
     int c, i, is_ufs2;
 
     wantedblksize = (argc - 1);
@@ -474,8 +473,8 @@ CMDFUNCSTART(findblk)
 	 */
 	inum = c * sblock.fs_ipg;
 	/* Read cylinder group. */
-	cgbp = cgget(c);
-	cgp = cgbp->b_un.b_cg;
+	getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
+	memcpy(cgp, cgblk.b_un.b_cg, sblock.fs_cgsize);
 	/*
 	 * Get a highest used inode number for a given cylinder group.
 	 * For UFS1 all inodes initialized at the newfs stage.
