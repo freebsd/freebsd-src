@@ -252,6 +252,11 @@ ttm_bo_vm_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
 
+	/*
+	 * We don't acquire a reference on bo->kref here, because it was
+	 * already done in ttm_bo_mmap_single().
+	 */
+
 	*color = 0;
 	return (0);
 }
