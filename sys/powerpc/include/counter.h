@@ -31,6 +31,34 @@
 
 #include <sys/pcpu.h>
 
+#if defined(AIM) && defined(__powerpc64__)
+
+static inline void
+counter_u64_inc(counter_u64_t c, uint64_t inc)
+{
+	uint64_t ccpu, old;
+
+	__asm __volatile("\n"
+      "1:\n\t"
+	    "mfsprg	%0, 0\n\t"
+	    "ldarx	%1, %0, %2\n\t"
+	    "add	%1, %1, %3\n\t"
+	    "stdcx.	%1, %0, %2\n\t"
+	    "bne-	1b"
+	    : "=&b" (ccpu), "=&r" (old)
+	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (inc)
+	    : "cc", "memory");
+}
+
+static inline void
+counter_u64_dec(counter_u64_t c, uint64_t dec)
+{
+
+	counter_u64_inc(c, -dec);
+}
+
+#else	/* !AIM || !64bit */
+
 static inline void
 counter_u64_inc(counter_u64_t c, uint64_t inc)
 {
@@ -48,5 +76,7 @@ counter_u64_dec(counter_u64_t c, uint64_t dec)
 	*(uint64_t *)zpcpu_get(c) -= dec;
 	critical_exit();
 }
+
+#endif	/* AIM 64bit */
 
 #endif	/* ! __MACHINE_COUNTER_H__ */
