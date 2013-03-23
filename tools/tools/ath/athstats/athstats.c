@@ -418,12 +418,14 @@ static const struct fmt athstats[] = {
 	{ 4,	"asignal",	"asig",	"signal of last ack (dBm)" },
 #define	S_RX_SIGNAL	AFTER(S_TX_SIGNAL)
 	{ 4,	"signal",	"sig",	"avg recv signal (dBm)" },
+#define	S_BMISSCOUNT		AFTER(S_RX_SIGNAL)
+	{ 8,	"bmisscount",	"bmisscnt",	"beacon miss count" },
 
 };
 #define	S_PHY_MIN	S_RX_PHY_UNDERRUN
 #define	S_PHY_MAX	S_RX_PHY_CCK_RESTART
 #define	S_LAST		S_ANT_TX0
-#define	S_MAX	S_ANT_RX7+1
+#define	S_MAX		S_BMISSCOUNT+1
 
 /*
  * XXX fold this into the external HAL definitions! -adrian
@@ -752,6 +754,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_FF_RX:		STAT(ff_rx);
 	case S_FF_FLUSH:	STAT(ff_flush);
 	case S_TX_QFULL:	STAT(tx_qfull);
+	case S_BMISSCOUNT:	STAT(be_missed);
 	case S_RX_NOISE:
 		snprintf(b, bs, "%d", wf->cur.ath.ast_rx_noise);
 		return 1;
@@ -993,6 +996,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_FF_RX:		STAT(ff_rx);
 	case S_FF_FLUSH:	STAT(ff_flush);
 	case S_TX_QFULL:	STAT(tx_qfull);
+	case S_BMISSCOUNT:	STAT(be_missed);
 	case S_RX_NOISE:
 		snprintf(b, bs, "%d", wf->total.ath.ast_rx_noise);
 		return 1;
