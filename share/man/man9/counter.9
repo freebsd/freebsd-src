@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm counter
-.Nd "generic kernel counter implementation"
+.Nd "SMP-friendly kernel counter implementation"
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/counter.h
@@ -60,16 +60,20 @@ is guaranteed to be lossless when several kernel threads do simultaneous
 updates.
 However,
 .Nm
-does not imply any
-.Xr locking 9
-or
+does not block the calling thread,
+also no
 .Xr atomic 9
-operations and is therefore expected to be fast.
+operations are used for the update, therefore the counters
+can be used in any non-interrupt context.
 Moreover,
 .Nm
-has special optimisations for SMP environments making
+has special optimisations for SMP environments, making
 .Nm
-update faster than simple addition operations.
+update faster than simple arithmetic on the global variable.
+Thus
+.Nm
+is considered suitable for accounting in the performance-critical
+code pathes.
 .Bl -tag -width indent
 .It Fn counter_u64_alloc how
 Allocate a new 64-bit unsigned counter.
@@ -123,9 +127,9 @@ The
 .Fa ptr
 argument should be a pointer to allocated
 .Vt counter_u64_t .
-Any read of oid returns value obtained through
+A read of the oid returns value obtained through
 .Fn counter_u64_fetch .
-Any write to oid zeroes it.
+Any write to the oid zeroes it.
 .It Fn SYSCTL_ADD_COUNTER_U64 ctx parent nbr name access ptr descr
 Create a
 .Xr sysctl
@@ -135,9 +139,9 @@ The
 .Fa ptr
 argument should be a pointer to allocated
 .Vt counter_u64_t .
-Any read of oid returns value obtained through
+A read of the oid returns value obtained through
 .Fn counter_u64_fetch .
-Any write to oid zeroes it.
+Any write to the oid zeroes it.
 .El
 .Sh IMPLEMENTATION DETAILS
 On all architectures
@@ -155,9 +159,14 @@ sum of all fields.
 .Pp
 On amd64 a
 .Nm counter
-update is implemented as a single instruction without lock semantics.
+update is implemented as a single instruction without lock semantics,
+operating on the private data for the current CPU,
+which is safe against preemption and interrupts.
 .Pp
-On i386 with cmpxchg8 instruction available, this instruction is used.
+On i386 architecture, when machine supports the cmpxchg8 instruction,
+this instruction is used.
+The multi-instruction sequence provides the same guarantees as the
+amd64 single-instruction implementation.
 .Pp
 On some architectures updating a counter require a
 .Xr critical 9
@@ -167,7 +176,7 @@ section.
 .Xr critical 9 ,
 .Xr locking 9 ,
 .Xr malloc 9 ,
-.Xr sysctl ,
+.Xr sysctl 9,
 .Xr uma 9
 .Sh HISTORY
 The
