@@ -1115,7 +1115,7 @@ alloc:
 #if defined(sun)
 	dtp->dt_prcmode = DT_PROC_STOP_PREINIT;
 #else
-	dtp->dt_prcmode = DT_PROC_STOP_MAIN;
+	dtp->dt_prcmode = DT_PROC_STOP_POSTINIT;
 #endif
 	dtp->dt_linkmode = DT_LINK_KERNEL;
 	dtp->dt_linktype = DT_LTYP_ELF;
