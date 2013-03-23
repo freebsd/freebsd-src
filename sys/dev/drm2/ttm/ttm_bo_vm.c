@@ -122,9 +122,7 @@ retry:
 	m = NULL;
 
 reserve:
-	mtx_lock(&bo->glob->lru_lock);
-	ret = ttm_bo_reserve_locked(bo, false, false, false, 0);
-	mtx_unlock(&bo->glob->lru_lock);
+	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (unlikely(ret != 0)) {
 		if (ret == -EBUSY) {
 			kern_yield(0);
@@ -253,10 +251,8 @@ static int
 ttm_bo_vm_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
-	struct ttm_buffer_object *bo = handle;
 
 	*color = 0;
-	(void)ttm_bo_reference(bo);
 	return (0);
 }
 
