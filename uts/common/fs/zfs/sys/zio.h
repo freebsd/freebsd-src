@@ -408,7 +408,7 @@ struct zio {
 
 	uint64_t	io_offset;
 	uint64_t	io_deadline;
-	uint64_t	io_timestamp;
+	hrtime_t	io_timestamp;
 	avl_node_t	io_offset_node;
 	avl_node_t	io_deadline_node;
 	avl_tree_t	*io_vdev_tree;
