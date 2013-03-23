@@ -161,7 +161,7 @@ errmalloc(size_t n)
 {
 	void *a;
 
-	a = Malloc(n);
+	a = malloc(n);
 	if (a == NULL)
 		err(EX_OSERR, "malloc(%zu)", n);
 	return (a);
@@ -194,7 +194,7 @@ opendisk(const char *devnam)
 {
 	if (disk != NULL)
 		return;
-	disk = Malloc(sizeof(*disk));
+	disk = malloc(sizeof(*disk));
 	if (disk == NULL)
 		err(EX_OSERR, "malloc(%zu)", sizeof(*disk));
 	if (ufs_disk_fillout(disk, devnam) == -1) {

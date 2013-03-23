@@ -59,14 +59,14 @@ pass5(void)
 	int c, i, j, blk, frags, basesize, mapsize;
 	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
+	struct cg *cg = &cgrp;
 	ufs2_daddr_t d, dbase, dmax, start;
 	int rewritecg = 0;
 	struct csum *cs;
 	struct csum_total cstotal;
 	struct inodesc idesc[3];
 	char buf[MAXBSIZE];
-	struct cg *cg, *newcg = (struct cg *)buf;
-	struct bufarea *cgbp;
+	struct cg *newcg = (struct cg *)buf;
 
 	inoinfo(WINO)->ino_state = USTATE;
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
@@ -162,8 +162,7 @@ pass5(void)
 			    c * 100 / sblock.fs_ncg);
 			got_sigalarm = 0;
 		}
-		cgbp = cgget(c);
-		cg = cgbp->b_un.b_cg;
+		getblk(&cgblk, cgtod(fs, c), fs->fs_cgsize);
 		if (!cg_chkmagic(cg))
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);
 		newcg->cg_time = cg->cg_time;
@@ -325,14 +324,14 @@ pass5(void)
 		}
 		if (rewritecg) {
 			memmove(cg, newcg, (size_t)fs->fs_cgsize);
-			dirty(cgbp);
+			cgdirty();
 			continue;
 		}
 		if (cursnapshot == 0 &&
 		    memcmp(newcg, cg, basesize) != 0 &&
 		    dofix(&idesc[2], "SUMMARY INFORMATION BAD")) {
 			memmove(cg, newcg, (size_t)basesize);
-			dirty(cgbp);
+			cgdirty();
 		}
 		if (bkgrdflag != 0 || usedsoftdep || debug)
 			update_maps(cg, newcg, bkgrdflag);
@@ -341,7 +340,7 @@ pass5(void)
 		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
 			memmove(cg_inosused(cg), cg_inosused(newcg),
 			      (size_t)mapsize);
-			dirty(cgbp);
+			cgdirty();
 		}
 	}
 	if (cursnapshot == 0 &&
