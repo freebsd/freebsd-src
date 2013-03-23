@@ -1801,7 +1801,6 @@ gotit:
 	/*
 	 * Check to see if we need to initialize more inodes.
 	 */
-	ibp = NULL;
 	if (fs->fs_magic == FS_UFS2_MAGIC &&
 	    ipref + INOPB(fs) > cgp->cg_initediblk &&
 	    cgp->cg_initediblk < cgp->cg_niblk) {
@@ -1814,6 +1813,16 @@ gotit:
 			dp2->di_gen = arc4random() / 2 + 1;
 			dp2++;
 		}
+		/*
+		 * Rather than adding a soft updates dependency to ensure
+		 * that the new inode block is written before it is claimed
+		 * by the cylinder group map, we just do a barrier write
+		 * here. The barrier write will ensure that the inode block
+		 * gets written before the updated cylinder group map can be
+		 * written. The barrier write should only slow down bulk
+		 * loading of newly created filesystems.
+		 */
+		babarrierwrite(ibp);
 		cgp->cg_initediblk += INOPB(fs);
 	}
 	UFS_LOCK(ump);
@@ -1832,8 +1841,6 @@ gotit:
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref, mode);
 	bdwrite(bp);
-	if (ibp != NULL)
-		bawrite(ibp);
 	return ((ino_t)(cg * fs->fs_ipg + ipref));
 }
 
