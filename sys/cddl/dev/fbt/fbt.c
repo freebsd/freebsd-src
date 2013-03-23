@@ -777,6 +777,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 		pop[kind]++;
 	}
 
+	/* account for a sentinel value below */
+	ctf_typemax++;
 	*lc->typlenp = ctf_typemax;
 
 	if ((xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER, M_ZERO | M_WAITOK)) == NULL)
