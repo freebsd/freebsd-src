@@ -240,7 +240,7 @@ setup(char *dev)
 	 * read in the summary info.
 	 */
 	asked = 0;
-	sblock.fs_csp = Calloc(1, sblock.fs_cssize);
+	sblock.fs_csp = calloc(1, sblock.fs_cssize);
 	if (sblock.fs_csp == NULL) {
 		printf("cannot alloc %u bytes for cg summary info\n",
 		    (unsigned)sblock.fs_cssize);
@@ -265,13 +265,13 @@ setup(char *dev)
 	 * allocate and initialize the necessary maps
 	 */
 	bmapsize = roundup(howmany(maxfsblock, CHAR_BIT), sizeof(short));
-	blockmap = Calloc((unsigned)bmapsize, sizeof (char));
+	blockmap = calloc((unsigned)bmapsize, sizeof (char));
 	if (blockmap == NULL) {
 		printf("cannot alloc %u bytes for blockmap\n",
 		    (unsigned)bmapsize);
 		goto badsb;
 	}
-	inostathead = Calloc((unsigned)(sblock.fs_ncg),
+	inostathead = calloc((unsigned)(sblock.fs_ncg),
 	    sizeof(struct inostatlist));
 	if (inostathead == NULL) {
 		printf("cannot alloc %u bytes for inostathead\n",
@@ -282,9 +282,9 @@ setup(char *dev)
 	dirhash = numdirs;
 	inplast = 0;
 	listmax = numdirs + 10;
-	inpsort = (struct inoinfo **)Calloc((unsigned)listmax,
+	inpsort = (struct inoinfo **)calloc((unsigned)listmax,
 	    sizeof(struct inoinfo *));
-	inphead = (struct inoinfo **)Calloc((unsigned)numdirs,
+	inphead = (struct inoinfo **)calloc((unsigned)numdirs,
 	    sizeof(struct inoinfo *));
 	if (inpsort == NULL || inphead == NULL) {
 		printf("cannot alloc %ju bytes for inphead\n",
@@ -444,8 +444,8 @@ sblock_init(void)
 	lfdir = 0;
 	initbarea(&sblk, BT_SUPERBLK);
 	initbarea(&asblk, BT_SUPERBLK);
-	sblk.b_un.b_buf = Malloc(SBLOCKSIZE);
-	asblk.b_un.b_buf = Malloc(SBLOCKSIZE);
+	sblk.b_un.b_buf = malloc(SBLOCKSIZE);
+	asblk.b_un.b_buf = malloc(SBLOCKSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	if ((lp = getdisklabel(NULL, fsreadfd)))
