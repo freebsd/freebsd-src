@@ -203,7 +203,7 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TXQ_LOCK(txq);
 
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
@@ -234,6 +234,7 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 		txq->axq_fifo_depth++;
 		ath_hal_txstart(ah, txq->axq_qnum);
 	}
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -252,6 +253,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
 
+	ATH_TXQ_LOCK(txq);
 	/*
 	 * XXX this is mostly duplicated in ath_tx_handoff_mcast().
 	 */
@@ -278,6 +280,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
