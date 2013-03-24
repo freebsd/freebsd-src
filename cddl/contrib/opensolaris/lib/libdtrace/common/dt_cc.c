@@ -685,7 +685,8 @@ dt_action_tracemem(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
 
 	dt_node_t *addr = dnp->dn_args;
-	dt_node_t *size = dnp->dn_args->dn_list;
+	dt_node_t *max = dnp->dn_args->dn_list;
+	dt_node_t *size;
 
 	char n[DT_TYPE_NAMELEN];
 
@@ -697,17 +698,37 @@ dt_action_tracemem(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 		    dt_node_type_name(addr, n, sizeof (n)));
 	}
 
-	if (dt_node_is_posconst(size) == 0) {
-		dnerror(size, D_TRACEMEM_SIZE, "tracemem( ) argument #2 must "
+	if (dt_node_is_posconst(max) == 0) {
+		dnerror(max, D_TRACEMEM_SIZE, "tracemem( ) argument #2 must "
 		    "be a non-zero positive integral constant expression\n");
+	}
+
+	if ((size = max->dn_list) != NULL) {
+		if (size->dn_list != NULL) {
+			dnerror(size, D_TRACEMEM_ARGS, "tracemem ( ) prototype "
+			    "mismatch: expected at most 3 args\n");
+		}
+
+		if (!dt_node_is_scalar(size)) {
+			dnerror(size, D_TRACEMEM_DYNSIZE, "tracemem ( ) "
+			    "dynamic size (argument #3) must be of "
+			    "scalar type\n");
+		}
+
+		dt_cg(yypcb, size);
+		ap->dtad_difo = dt_as(yypcb);
+		ap->dtad_difo->dtdo_rtype = dt_int_rtype;
+		ap->dtad_kind = DTRACEACT_TRACEMEM_DYNSIZE;
+
+		ap = dt_stmt_action(dtp, sdp);
 	}
 
 	dt_cg(yypcb, addr);
 	ap->dtad_difo = dt_as(yypcb);
-	ap->dtad_kind = DTRACEACT_DIFEXPR;
+	ap->dtad_kind = DTRACEACT_TRACEMEM;
 
 	ap->dtad_difo->dtdo_rtype.dtdt_flags |= DIF_TF_BYREF;
-	ap->dtad_difo->dtdo_rtype.dtdt_size = size->dn_value;
+	ap->dtad_difo->dtdo_rtype.dtdt_size = max->dn_value;
 }
 
 static void
