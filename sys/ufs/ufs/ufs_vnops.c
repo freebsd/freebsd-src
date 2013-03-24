@@ -1562,6 +1562,7 @@ relock:
 	cache_purge(fvp);
 	if (tvp)
 		cache_purge(tvp);
+	cache_purge_negative(tdvp);
 
 unlockout:
 	vput(fdvp);
