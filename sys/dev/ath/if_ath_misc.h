@@ -72,6 +72,9 @@ extern void ath_tx_update_ratectrl(struct ath_softc *sc,
 	    struct ieee80211_node *ni, struct ath_rc_series *rc,
 	    struct ath_tx_status *ts, int frmlen, int nframes, int nbad);
 
+extern	int ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask,
+	    uint32_t *hangs);
+
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
 
