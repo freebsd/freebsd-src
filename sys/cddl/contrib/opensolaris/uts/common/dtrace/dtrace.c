@@ -6015,6 +6015,7 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 		dtrace_buffer_t *aggbuf = &state->dts_aggbuffer[cpuid];
 		dtrace_vstate_t *vstate = &state->dts_vstate;
 		dtrace_provider_t *prov = probe->dtpr_provider;
+		uint64_t tracememsize = 0;
 		int committed = 0;
 		caddr_t tomax;
 
@@ -6466,6 +6467,11 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 			case DTRACEACT_PRINTA:
 			case DTRACEACT_SYSTEM:
 			case DTRACEACT_FREOPEN:
+			case DTRACEACT_TRACEMEM:
+				break;
+
+			case DTRACEACT_TRACEMEM_DYNSIZE:
+				tracememsize = val;
 				break;
 
 			case DTRACEACT_SYM:
@@ -6536,6 +6542,12 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 
 			if (dp->dtdo_rtype.dtdt_flags & DIF_TF_BYREF) {
 				uintptr_t end = valoffs + size;
+
+				if (tracememsize != 0 &&
+				    valoffs + tracememsize < end) {
+					end = valoffs + tracememsize;
+					tracememsize = 0;
+				}
 
 				if (!dtrace_vcanload((void *)(uintptr_t)val,
 				    &dp->dtdo_rtype, &mstate, vstate))
@@ -10147,6 +10159,8 @@ dtrace_ecb_action_add(dtrace_ecb_t *ecb, dtrace_actdesc_t *desc)
 			/*FALLTHROUGH*/
 		case DTRACEACT_LIBACT:
 		case DTRACEACT_DIFEXPR:
+		case DTRACEACT_TRACEMEM:
+		case DTRACEACT_TRACEMEM_DYNSIZE:
 			if (dp == NULL)
 				return (EINVAL);
 
