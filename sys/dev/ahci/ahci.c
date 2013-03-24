@@ -1208,8 +1208,8 @@ ahci_dmainit(device_t dev)
 	    NULL, NULL, AHCI_WORK_SIZE, 1, AHCI_WORK_SIZE,
 	    0, NULL, NULL, &ch->dma.work_tag))
 		goto error;
-	if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work, 0,
-	    &ch->dma.work_map))
+	if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work,
+	    BUS_DMA_ZERO, &ch->dma.work_map))
 		goto error;
 	if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map, ch->dma.work,
 	    AHCI_WORK_SIZE, ahci_dmasetupc_cb, &dcba, 0) || dcba.error) {
@@ -2602,7 +2602,7 @@ ahci_setup_fis(device_t dev, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
 	struct ahci_channel *ch = device_get_softc(dev);
 	u_int8_t *fis = &ctp->cfis[0];
 
-	bzero(ctp->cfis, 64);
+	bzero(ctp->cfis, 16);
 	fis[0] = 0x27;  		/* host to device */
 	fis[1] = (ccb->ccb_h.target_id & 0x0f);
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
@@ -2617,10 +2617,10 @@ ahci_setup_fis(device_t dev, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
 		}
 		fis[7] = ATA_D_LBA;
 		fis[15] = ATA_A_4BIT;
-		bzero(ctp->acmd, 32);
 		bcopy((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes,
 		    ctp->acmd, ccb->csio.cdb_len);
+		bzero(ctp->acmd + ccb->csio.cdb_len, 32 - ccb->csio.cdb_len);
 	} else if ((ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) == 0) {
 		fis[1] |= 0x80;
 		fis[2] = ccb->ataio.cmd.command;
