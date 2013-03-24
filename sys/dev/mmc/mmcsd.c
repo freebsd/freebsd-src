@@ -322,6 +322,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		memset(&req, 0, sizeof(req));
     		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
+		cmd.mrq = &req;
 		req.cmd = &cmd;
 		cmd.data = &data;
 		if (bp->bio_cmd == BIO_READ) {
@@ -351,6 +352,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 			stop.opcode = MMC_STOP_TRANSMISSION;
 			stop.arg = 0;
 			stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+			stop.mrq = &req;
 			req.stop = &stop;
 		}
 		MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
@@ -398,6 +400,7 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	/* Set erase start position. */
 	memset(&req, 0, sizeof(req));
 	memset(&cmd, 0, sizeof(cmd));
+	cmd.mrq = &req;
 	req.cmd = &cmd;
 	if (mmc_get_card_type(dev) == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_START;
