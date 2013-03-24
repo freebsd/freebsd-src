@@ -38,7 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130316: vinum.4 removed
 OLD_FILES+=usr/share/man/man4/vinum.4.gz
+# 20130312: fortunes-o removed
+OLD_FILES+=usr/share/games/fortune/fortunes-o
+OLD_FILES+=usr/share/games/fortune/fortunes-o.dat
 # 20130311: Ports are no more available via cvsup
 OLD_FILES+=usr/share/examples/cvsup/ports-supfile
 OLD_FILES+=usr/share/examples/cvsup/refuse
