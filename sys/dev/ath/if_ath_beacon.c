@@ -379,6 +379,39 @@ ath_beacon_update(struct ieee80211vap *vap, int item)
 }
 
 /*
+ * Handle a beacon miss.
+ */
+static void
+ath_beacon_miss(struct ath_softc *sc)
+{
+	HAL_SURVEY_SAMPLE hs;
+	HAL_BOOL ret;
+	uint32_t hangs;
+
+	bzero(&hs, sizeof(hs));
+
+	ret = ath_hal_get_mib_cycle_counts(sc->sc_ah, &hs);
+
+	if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) && hangs != 0) {
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: hang=0x%08x\n",
+		    __func__,
+		    hangs);
+	}
+
+	DPRINTF(sc, ATH_DEBUG_BEACON,
+	    "%s: valid=%d, txbusy=%u, rxbusy=%u, chanbusy=%u, "
+	    "extchanbusy=%u, cyclecount=%u\n",
+	    __func__,
+	    ret,
+	    hs.tx_busy,
+	    hs.rx_busy,
+	    hs.chan_busy,
+	    hs.ext_chan_busy,
+	    hs.cycle_count);
+}
+
+/*
  * Transmit a beacon frame at SWBA.  Dynamic updates to the
  * frame contents are done as needed and the slot time is
  * also adjusted based on current state.
@@ -405,6 +438,7 @@ ath_beacon_proc(void *arg, int pending)
 	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
 		sc->sc_bmisscount++;
 		sc->sc_stats.ast_be_missed++;
+		ath_beacon_miss(sc);
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
@@ -478,6 +512,12 @@ ath_beacon_proc(void *arg, int pending)
 		sc->sc_ant_tx[1] = sc->sc_ant_tx[2] = 0;
 	}
 
+	/* Program the CABQ with the contents of the CABQ txq and start it */
+	ATH_TXQ_LOCK(sc->sc_cabq);
+	ath_beacon_cabq_start(sc);
+	ATH_TXQ_UNLOCK(sc->sc_cabq);
+
+	/* Program the new beacon frame if we have one for this interval */
 	if (bfaddr != 0) {
 		/*
 		 * Stop any current dma and put the new frame on the queue.
@@ -498,6 +538,33 @@ ath_beacon_proc(void *arg, int pending)
 
 		sc->sc_stats.ast_be_xmit++;
 	}
+}
+
+/*
+ * Start CABQ transmission - this assumes that all frames are prepped
+ * and ready in the CABQ.
+ *
+ * XXX TODO: methodize this; for the EDMA case it should only push
+ * into the hardware if the FIFO isn't full _AND_ then it should
+ * tag the final buffer in the queue as ATH_BUF_FIFOEND so the FIFO
+ * depth is correctly accounted for.
+ */
+void
+ath_beacon_cabq_start(struct ath_softc *sc)
+{
+	struct ath_buf *bf;
+	struct ath_txq *cabq = sc->sc_cabq;
+
+	ATH_TXQ_LOCK_ASSERT(cabq);
+	if (TAILQ_EMPTY(&cabq->axq_q))
+		return;
+	bf = TAILQ_FIRST(&cabq->axq_q);
+
+	/* Push the first entry into the hardware */
+	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+
+	/* NB: gated by beacon so safe to start here */
+	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
 }
 
 struct ath_buf *
@@ -561,38 +628,43 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	 * insure cab frames are triggered by this beacon.
 	 */
 	if (avp->av_boff.bo_tim[4] & 1) {
-		struct ath_hal *ah = sc->sc_ah;
 
 		/* NB: only at DTIM */
-		ATH_TX_LOCK(sc);
+		ATH_TXQ_LOCK(&avp->av_mcastq);
 		if (nmcastq) {
 			struct ath_buf *bfm;
 
 			/*
 			 * Move frames from the s/w mcast q to the h/w cab q.
-			 * XXX TODO: walk the list, update MORE_DATA bit
-			 * XXX TODO: or maybe, set the MORE data bit in the
-			 *           TX descriptor(s) here?
 			 *
-			 * XXX TODO: we're still pushing a CABQ frame list to
-			 *           AR9380 hosts; but we don't (yet) populate
-			 *           the ATH_BUF_BUSY flag in the EDMA
-			 *           completion task (for CABQ, though!)
+			 * XXX TODO: This should be methodized - the EDMA
+			 * CABQ setup code may look different!
+			 *
+			 * XXX TODO: if we chain together multiple VAPs
+			 * worth of CABQ traffic, should we keep the
+			 * MORE data bit set on the last frame of each
+			 * intermediary VAP (ie, only clear the MORE
+			 * bit of the last frame on the last vap?)
+			 *
+			 * XXX TODO: once we append this, what happens
+			 * to cabq->axq_link? It'll point at the avp
+			 * mcastq link pointer, so things should be OK.
+			 * Just double-check this is what actually happens.
 			 */
 			bfm = TAILQ_FIRST(&avp->av_mcastq.axq_q);
-			if (cabq->axq_link != NULL) {
+			ATH_TXQ_LOCK(cabq);
+			if (cabq->axq_link != NULL)
 				*cabq->axq_link = bfm->bf_daddr;
-			} else
-				ath_hal_puttxbuf(ah, cabq->axq_qnum,
-					bfm->bf_daddr);
 			ath_txqmove(cabq, &avp->av_mcastq);
-
+			ATH_TXQ_UNLOCK(cabq);
+			/*
+			 * XXX not entirely accurate, in case a mcast
+			 * queue frame arrived before we grabbed the TX
+			 * lock.
+			 */
 			sc->sc_stats.ast_cabq_xmit += nmcastq;
 		}
-		/* NB: gated by beacon so safe to start here */
-		if (! TAILQ_EMPTY(&(cabq->axq_q)))
-			ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TX_UNLOCK(sc);
+		ATH_TXQ_UNLOCK(&avp->av_mcastq);
 	}
 	return bf;
 }
