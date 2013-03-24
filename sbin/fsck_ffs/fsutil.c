@@ -507,7 +507,7 @@ static void printIOstats(void)
 
 	clock_gettime(CLOCK_REALTIME_PRECISE, &finishpass);
 	timespecsub(&finishpass, &startpass);
-	printf("Running time: %jd.%03ld msec\n",
+	printf("Running time: %jd.%03ld sec\n",
 		(intmax_t)finishpass.tv_sec, finishpass.tv_nsec / 1000000);
 	printf("buffer reads by type:\n");
 	for (totalmsec = 0, i = 0; i < BT_NUMBUFTYPES; i++)
@@ -518,7 +518,8 @@ static void printIOstats(void)
 	for (i = 0; i < BT_NUMBUFTYPES; i++) {
 		if (readcnt[i] == 0)
 			continue;
-		msec = readtime[i].tv_sec * 1000 + readtime[i].tv_nsec / 1000000;
+		msec =
+		    readtime[i].tv_sec * 1000 + readtime[i].tv_nsec / 1000000;
 		printf("%21s:%8ld %2ld.%ld%% %4jd.%03ld sec %2lld.%lld%%\n",
 		    buftype[i], readcnt[i], readcnt[i] * 100 / diskreads,
 		    (readcnt[i] * 1000 / diskreads) % 10,
