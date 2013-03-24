@@ -116,8 +116,9 @@
 #define	DT_VERS_1_6_2	DT_VERSION_NUMBER(1, 6, 2)
 #define	DT_VERS_1_6_3	DT_VERSION_NUMBER(1, 6, 3)
 #define	DT_VERS_1_7	DT_VERSION_NUMBER(1, 7, 0)
-#define	DT_VERS_LATEST	DT_VERS_1_7
-#define	DT_VERS_STRING	"Sun D 1.7"
+#define	DT_VERS_1_7_1	DT_VERSION_NUMBER(1, 7, 1)
+#define	DT_VERS_LATEST	DT_VERS_1_7_1
+#define	DT_VERS_STRING	"Sun D 1.7.1"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -134,6 +135,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_6_2,	/* D API 1.6.2 */
 	DT_VERS_1_6_3,	/* D API 1.6.3 */
 	DT_VERS_1_7,	/* D API 1.7 */
+	DT_VERS_1_7_1,	/* D API 1.7.1 */
 	0
 };
 
@@ -461,7 +463,7 @@ static const dt_ident_t _dtrace_globals[] = {
 	&dt_idops_func, "void(@)" },
 { "tracemem", DT_IDENT_ACTFUNC, 0, DT_ACT_TRACEMEM,
 	DT_ATTR_STABCMN, DT_VERS_1_0,
-	&dt_idops_func, "void(@, size_t)" },
+	&dt_idops_func, "void(@, size_t, ...)" },
 { "trunc", DT_IDENT_ACTFUNC, 0, DT_ACT_TRUNC, DT_ATTR_STABCMN,
 	DT_VERS_1_0, &dt_idops_func, "void(...)" },
 { "typeref", DT_IDENT_FUNC, 0, DIF_SUBR_TYPEREF, DT_ATTR_STABCMN, DT_VERS_1_1,

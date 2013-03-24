@@ -189,6 +189,8 @@ typedef enum {
 	D_TRACE_DYN,			/* trace() argument has dynamic type */
 	D_TRACEMEM_ADDR,		/* tracemem() address bad type */
 	D_TRACEMEM_SIZE,		/* tracemem() size bad type */
+	D_TRACEMEM_ARGS,		/* tracemem() illegal number of args */
+	D_TRACEMEM_DYNSIZE,		/* tracemem() dynamic size bad type */
 	D_STACK_PROTO,			/* stack() prototype mismatch */
 	D_STACK_SIZE,			/* stack() size argument bad type */
 	D_USTACK_FRAMES,		/* ustack() frames arg bad type */

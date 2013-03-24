@@ -832,7 +832,7 @@ dt_print_stddev(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 /*ARGSUSED*/
 int
 dt_print_bytes(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
-    size_t nbytes, int width, int quiet, int raw)
+    size_t nbytes, int width, int quiet, int forceraw)
 {
 	/*
 	 * If the byte stream is a series of printable characters, followed by
@@ -845,7 +845,10 @@ dt_print_bytes(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 	if (nbytes == 0)
 		return (0);
 
-	if (raw || dtp->dt_options[DTRACEOPT_RAWBYTES] != DTRACEOPT_UNSET)
+	if (forceraw)
+		goto raw;
+
+	if (dtp->dt_options[DTRACEOPT_RAWBYTES] != DTRACEOPT_UNSET)
 		goto raw;
 
 	for (i = 0; i < nbytes; i++) {
@@ -2019,6 +2022,7 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu, dtrace_bufdesc_t *buf,
 	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
 	int rval, i, n;
 	dtrace_epid_t last = DTRACE_EPIDNONE;
+	uint64_t tracememsize = 0;
 	dtrace_probedata_t data;
 	uint64_t drops;
 	caddr_t addr;
@@ -2185,6 +2189,12 @@ again:
 				default:
 					continue;
 				}
+			}
+
+			if (act == DTRACEACT_TRACEMEM_DYNSIZE &&
+			    rec->dtrd_size == sizeof (uint64_t)) {
+				tracememsize = *((unsigned long long *)addr);
+				continue;
 			}
 
 			rval = (*rfunc)(&data, rec, arg);
@@ -2355,6 +2365,23 @@ nofmt:
 				}
 
 				dt_free(dtp, aggvars);
+				goto nextrec;
+			}
+
+			if (act == DTRACEACT_TRACEMEM) {
+				if (tracememsize == 0 ||
+				    tracememsize > rec->dtrd_size) {
+					tracememsize = rec->dtrd_size;
+				}
+
+				n = dt_print_bytes(dtp, fp, addr,
+				    tracememsize, 33, quiet, 1);
+
+				tracememsize = 0;
+
+				if (n < 0)
+					return (-1);
+
 				goto nextrec;
 			}
 

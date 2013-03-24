@@ -20,20 +20,10 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
- */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
-/*
- * ASSERTION:
- *  Test tracemem() with too many arguments.
- *
- * SECTION: Actions and Subroutines/tracemem()
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
  */
 
 BEGIN
 {
-	tracemem(123, 456, 789);
+	tracemem(`dtrace_zero, 256, 0, "fishpong");
 }
