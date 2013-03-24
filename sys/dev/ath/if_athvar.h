@@ -329,9 +329,11 @@ struct ath_txq {
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
+	struct mtx		axq_lock;	/* lock on q and link */
+
 	/*
 	 * XXX the holdingbf field is protected by the TXBUF lock
-	 * for now, NOT the TX lock.
+	 * for now, NOT the TXQ lock.
 	 *
 	 * Architecturally, it would likely be better to move
 	 * the holdingbf field to a separate array in ath_softc
@@ -342,8 +344,23 @@ struct ath_txq {
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
 	/* Per-TID traffic queue for software -> hardware TX */
+	/*
+	 * This is protected by the general TX path lock, not (for now)
+	 * by the TXQ lock.
+	 */
 	TAILQ_HEAD(axq_t_s,ath_tid)	axq_tidq;
 };
+
+#define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
+	    snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
+	      device_get_nameunit((_sc)->sc_dev), (_tq)->axq_qnum); \
+	    mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, NULL, MTX_DEF); \
+	} while (0)
+#define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
+#define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
+#define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
+#define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+
 
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
 #define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
@@ -583,6 +600,9 @@ struct ath_softc {
 	u_int32_t		sc_use_ent  : 1,
 				sc_rx_stbc  : 1,
 				sc_tx_stbc  : 1;
+
+
+	int			sc_cabq_enable;	/* Enable cabq transmission */
 
 	/*
 	 * Enterprise mode configuration for AR9380 and later chipsets.
