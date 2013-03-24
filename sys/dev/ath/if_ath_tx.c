@@ -702,6 +702,8 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
+
+	ATH_TXQ_LOCK(txq);
 	if (txq->axq_link != NULL) {
 		struct ath_buf *last = ATH_TXQ_LAST(txq, axq_q_s);
 		struct ieee80211_frame *wh;
@@ -715,7 +717,6 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		/* link descriptor */
 		*txq->axq_link = bf->bf_daddr;
 	}
-	ATH_TXQ_LOCK(txq);
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 	ATH_TXQ_UNLOCK(txq);
