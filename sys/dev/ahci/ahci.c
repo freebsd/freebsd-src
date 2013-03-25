@@ -1449,7 +1449,7 @@ ahci_ch_intr(void *data)
 {
 	device_t dev = (device_t)data;
 	struct ahci_channel *ch = device_get_softc(dev);
-	uint32_t istatus, sstatus, cstatus, serr = 0, sntf = 0, ok, err;
+	uint32_t istatus, cstatus, serr = 0, sntf = 0, ok, err;
 	enum ahci_err_type et;
 	int i, ccs, port, reset = 0;
 
@@ -1459,8 +1459,13 @@ ahci_ch_intr(void *data)
 		return;
 	ATA_OUTL(ch->r_mem, AHCI_P_IS, istatus);
 	/* Read command statuses. */
-	sstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
-	cstatus = ATA_INL(ch->r_mem, AHCI_P_CI);
+	if (ch->numtslots != 0)
+		cstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
+	else
+		cstatus = 0;
+	if (ch->numrslots != ch->numtslots)
+		cstatus |= ATA_INL(ch->r_mem, AHCI_P_CI);
+	/* Read SNTF in one of possible ways. */
 	if (istatus & AHCI_P_IX_SDB) {
 		if (ch->caps & AHCI_CAP_SSNTF)
 			sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
@@ -1520,14 +1525,14 @@ ahci_ch_intr(void *data)
 				}
 			}
 		}
-		err = ch->rslots & (cstatus | sstatus);
+		err = ch->rslots & cstatus;
 	} else {
 		ccs = 0;
 		err = 0;
 		port = -1;
 	}
 	/* Complete all successfull commands. */
-	ok = ch->rslots & ~(cstatus | sstatus);
+	ok = ch->rslots & ~cstatus;
 	for (i = 0; i < ch->numslots; i++) {
 		if ((ok >> i) & 1)
 			ahci_end_transaction(&ch->slot[i], AHCI_ERR_NONE);
