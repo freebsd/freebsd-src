@@ -168,6 +168,58 @@ pv_to_chunk(pv_entry_t pv)
 
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+
+
+static void
+free_pv_chunk(struct pv_chunk *pc)
+{
+	vm_page_t m;
+
+	mtx_lock(&pv_chunks_mutex);
+ 	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+	mtx_unlock(&pv_chunks_mutex);
+	PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
+	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
+	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
+	/* entire chunk is free, return it */
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	pmap_kremove((vm_offset_t)pc);
+	dump_drop_page(m->phys_addr);
+	vm_page_unwire(m, 0);
+	vm_page_free(m);
+}
+
+/*
+ * free the pv_entry back to the free list
+ */
+static void
+free_pv_entry(pmap_t pmap, pv_entry_t pv)
+{
+	struct pv_chunk *pc;
+	int idx, field, bit;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	PV_STAT(atomic_add_long(&pv_entry_frees, 1));
+	PV_STAT(atomic_add_int(&pv_entry_spare, 1));
+	PV_STAT(atomic_subtract_long(&pv_entry_count, 1));
+	pc = pv_to_chunk(pv);
+	idx = pv - &pc->pc_pventry[0];
+	field = idx / 64;
+	bit = idx % 64;
+	pc->pc_map[field] |= 1ul << bit;
+	if (pc->pc_map[0] != PC_FREE0 || pc->pc_map[1] != PC_FREE1 ||
+	    pc->pc_map[2] != PC_FREE2) {
+		/* 98% of the time, pc is already at the head of the list. */
+		if (__predict_false(pc != TAILQ_FIRST(&pmap->pm_pvchunk))) {
+			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+			TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+		}
+		return;
+	}
+	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+	free_pv_chunk(pc);
+}
+
 pv_entry_t
 pmap_get_pv_entry(pmap_t pmap)
 {
@@ -281,6 +333,7 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+			free_pv_entry(pmap, pv);
 			found = true;
 			break;
 		}
@@ -383,4 +436,41 @@ pmap_pv_vm_page_mapped(pmap_t pmap, vm_page_t m)
 	return (pmap_pv_vm_page_to_v(pmap, m) == 
 		(VM_MAX_KERNEL_ADDRESS + 1)) ? false : true;
 
+}
+
+/*
+ * Iterate through all mappings, until callback returns 'true'
+ * Returns the number of iterations.
+ */
+
+int
+pmap_pv_iterate(vm_page_t m, pv_cb_t cb)
+{
+	int iter = 0;
+	pv_entry_t next_pv, pv;
+
+	rw_wlock(&pvh_global_lock);
+
+	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
+		iter++;
+		if (cb(PV_PMAP(pv), pv->pv_va, m)) break;
+	}
+	rw_wunlock(&pvh_global_lock);
+	return iter;
+}
+
+/*
+ * Destroy all pv mappings for a given physical page.
+ */
+void
+pmap_pv_page_unmap(vm_page_t m)
+{
+	pv_entry_t pv, next_pv;
+
+	rw_wlock(&pvh_global_lock);
+	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
+		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+	}
+	rw_wunlock(&pvh_global_lock);
+	return;
 }

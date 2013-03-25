@@ -36,6 +36,12 @@
 #ifndef _MACHINE_PMAP_PV_H_
 #define	_MACHINE_PMAP_PV_H_
 
+/* 
+ * Used as a callback when iterating through multiple pmaps 
+ * If the callback returns 'true', iteration is stopped.
+ */
+typedef bool pv_cb_t(pmap_t pmap, vm_offset_t va, vm_page_t m) ;
+
 void pmap_pv_init(void);
 void pmap_pv_pmap_init(pmap_t pmap);
 void pmap_pv_vm_page_init(vm_page_t m);
@@ -45,5 +51,7 @@ pv_entry_t pmap_get_pv_entry(pmap_t pmap);
 void pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 bool pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 pv_entry_t pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
+int pmap_pv_iterate(vm_page_t m, pv_cb_t cb);
+void pmap_pv_page_unmap(vm_page_t m);
 
 #endif /* !_MACHINE_PMAP_PV_H_ */
