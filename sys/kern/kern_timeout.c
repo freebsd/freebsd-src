@@ -131,6 +131,7 @@ struct cc_exec {
 	void			*ce_migration_arg;
 	int			ce_migration_cpu;
 	sbintime_t		ce_migration_time;
+	sbintime_t		ce_migration_prec;
 #endif
 	bool			cc_cancel;
 	bool			cc_waiting;
@@ -167,10 +168,12 @@ struct callout_cpu {
 #define	cc_migration_arg	cc_exec_entity[0].ce_migration_arg
 #define	cc_migration_cpu	cc_exec_entity[0].ce_migration_cpu
 #define	cc_migration_time	cc_exec_entity[0].ce_migration_time
+#define	cc_migration_prec	cc_exec_entity[0].ce_migration_prec
 #define	cc_migration_func_dir	cc_exec_entity[1].ce_migration_func
 #define	cc_migration_arg_dir	cc_exec_entity[1].ce_migration_arg
 #define	cc_migration_cpu_dir	cc_exec_entity[1].ce_migration_cpu
 #define	cc_migration_time_dir	cc_exec_entity[1].ce_migration_time
+#define	cc_migration_prec_dir	cc_exec_entity[1].ce_migration_prec
 
 struct callout_cpu cc_cpu[MAXCPU];
 #define	CPUBLOCK	MAXCPU
@@ -227,6 +230,7 @@ cc_cce_cleanup(struct callout_cpu *cc, int direct)
 #ifdef SMP
 	cc->cc_exec_entity[direct].ce_migration_cpu = CPUBLOCK;
 	cc->cc_exec_entity[direct].ce_migration_time = 0;
+	cc->cc_exec_entity[direct].ce_migration_prec = 0;
 	cc->cc_exec_entity[direct].ce_migration_func = NULL;
 	cc->cc_exec_entity[direct].ce_migration_arg = NULL;
 #endif
@@ -605,7 +609,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	void (*new_func)(void *);
 	void *new_arg;
 	int flags, new_cpu;
-	sbintime_t new_time;
+	sbintime_t new_prec, new_time;
 #endif
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING) 
 	sbintime_t sbt1, sbt2;
@@ -721,6 +725,7 @@ skip:
 		 */
 		new_cpu = cc->cc_exec_entity[direct].ce_migration_cpu;
 		new_time = cc->cc_exec_entity[direct].ce_migration_time;
+		new_prec = cc->cc_exec_entity[direct].ce_migration_prec;
 		new_func = cc->cc_exec_entity[direct].ce_migration_func;
 		new_arg = cc->cc_exec_entity[direct].ce_migration_arg;
 		cc_cce_cleanup(cc, direct);
@@ -742,7 +747,7 @@ skip:
 
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		flags = (direct) ? C_DIRECT_EXEC : 0;
-		callout_cc_add(c, new_cc, new_time, c->c_precision, new_func,
+		callout_cc_add(c, new_cc, new_time, new_prec, new_func,
 		    new_arg, new_cpu, flags);
 		CC_UNLOCK(new_cc);
 		CC_LOCK(cc);
@@ -996,6 +1001,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 			cc->cc_exec_entity[direct].ce_migration_cpu = cpu;
 			cc->cc_exec_entity[direct].ce_migration_time
 			    = to_sbt;
+			cc->cc_exec_entity[direct].ce_migration_prec 
+			    = precision;
 			cc->cc_exec_entity[direct].ce_migration_func = ftn;
 			cc->cc_exec_entity[direct].ce_migration_arg = arg;
 			c->c_flags |= CALLOUT_DFRMIGRATION;
