@@ -303,13 +303,15 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_INET_NTOP		41
 #define	DIF_SUBR_INET_NTOA		42
 #define	DIF_SUBR_INET_NTOA6		43
-#define	DIF_SUBR_MEMREF			44
-#define	DIF_SUBR_TYPEREF		45
-#define	DIF_SUBR_SX_SHARED_HELD		46
-#define	DIF_SUBR_SX_EXCLUSIVE_HELD	47
-#define	DIF_SUBR_SX_ISEXCLUSIVE		48
+#define	DIF_SUBR_TOUPPER		44
+#define	DIF_SUBR_TOLOWER		45
+#define	DIF_SUBR_MEMREF			46
+#define	DIF_SUBR_TYPEREF		47
+#define	DIF_SUBR_SX_SHARED_HELD		48
+#define	DIF_SUBR_SX_EXCLUSIVE_HELD	49
+#define	DIF_SUBR_SX_ISEXCLUSIVE		50
 
-#define	DIF_SUBR_MAX			48	/* max subroutine value */
+#define	DIF_SUBR_MAX			50	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
