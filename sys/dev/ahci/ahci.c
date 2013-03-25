@@ -1466,7 +1466,8 @@ ahci_ch_intr(void *data)
 	if (ch->numrslots != ch->numtslots)
 		cstatus |= ATA_INL(ch->r_mem, AHCI_P_CI);
 	/* Read SNTF in one of possible ways. */
-	if (istatus & AHCI_P_IX_SDB) {
+	if ((istatus & AHCI_P_IX_SDB) &&
+	    (ch->pm_present || ch->curr[0].atapi != 0)) {
 		if (ch->caps & AHCI_CAP_SSNTF)
 			sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
 		else if (ch->fbs_enabled) {
