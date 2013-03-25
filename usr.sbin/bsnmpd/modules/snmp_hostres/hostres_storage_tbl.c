@@ -442,10 +442,9 @@ static void
 storage_OS_get_fs(void)
 {
 	struct storage_entry *entry;
-	uint64_t used_blocks_count = 0;
+	uint64_t size, used;
+	int i, mounted_fs_count, units;
 	char fs_string[SE_DESC_MLEN];
-	int mounted_fs_count;
-	int i = 0;
 
 	if ((mounted_fs_count = getfsstat(NULL, 0, MNT_NOWAIT)) < 0) {
 		syslog(LOG_ERR, "hrStorageTable: getfsstat() failed: %m");
@@ -488,22 +487,17 @@ storage_OS_get_fs(void)
 		entry->flags |= HR_STORAGE_FOUND;
 		entry->type = fs_get_type(&fs_buf[i]); /*XXX - This is wrong*/
 
-		if (fs_buf[i].f_bsize > INT_MAX)
-			entry->allocationUnits = INT_MAX;
-		else
-			entry->allocationUnits = fs_buf[i].f_bsize;
-
-		if (fs_buf[i].f_blocks > INT_MAX)
-			entry->size = INT_MAX;
-		else
-			entry->size = fs_buf[i].f_blocks;
-
-		used_blocks_count = fs_buf[i].f_blocks - fs_buf[i].f_bfree;
-
-		if (used_blocks_count > INT_MAX)
-			entry->used = INT_MAX;
-		else
-			entry->used = used_blocks_count;
+		units = fs_buf[i].f_bsize;
+		size = fs_buf[i].f_blocks;
+		used = fs_buf[i].f_blocks - fs_buf[i].f_bfree;
+		while (size > INT_MAX) {
+			units <<= 1;
+			size >>= 1;
+			used >>= 1;
+		}
+		entry->allocationUnits = units;
+		entry->size = size;
+		entry->used = used;
 
 		entry->allocationFailures = 0;
 
