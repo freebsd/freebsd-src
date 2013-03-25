@@ -132,6 +132,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #endif
 
+#include <sys/proc.h>
+#include <sys/sched.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -511,7 +514,7 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 
 	HYPERVISOR_shared_info = (void *) va;
 
-
+#if 0
 	/* ii) Userland page table base */
 	va = vallocpages(firstaddr, 1);
 	bzero((void *)va, PAGE_SIZE);
@@ -530,7 +533,8 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 	xen_pgdir_pin(phystomach(VTOP(va)));
 
 	/* Register user page table with Xen */
-	xen_pt_user_switch(VTOP(va));
+	xen_pt_user_switch(xpmap_ptom(VTOP(va)));
+#endif
 }
 
 /* Boot time ptov - xen guarantees bootpages to be offset */
@@ -578,7 +582,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	create_boot_pagetables(firstaddr);
 
 	/* Switch to the new kernel tables */
-	xen_pt_switch(VTOP(KPML4phys));
+	xen_pt_switch(xpmap_ptom(VTOP(KPML4phys)));
 
 	/* Unpin old page table hierarchy, and mark all its pages r/w */
 	xen_pgdir_unpin(phystomach(VTOP(xen_start_info->pt_base)));
@@ -774,37 +778,21 @@ pmap_pinit(pmap_t pmap)
 	 */
 	pmap->pm_pml4 = (void *) kmem_alloc(kernel_map, PAGE_SIZE);
 	bzero(pmap->pm_pml4, PAGE_SIZE);
-
+	printf("%s: pmap->pm_pml4 == %p\n", __func__, pmap->pm_pml4);
 	/* 
 	 * We do not wire in kernel space, or the self-referencial
-	 * entry in userspace pmaps for two reasons:
-	 * i)  both kernel and userland run in ring3 (same CPU
-	 *     privilege level). This means that userland that has kernel
-	 *     address space mapped in, can access kernel memory!
-	 *     Instead, we make the kernel pmap is exclusive and
-	 *     unshared, and we switch to it on *every* kernel
-	 *     entry. This is facilitated by the hypervisor.
-	 * ii) we access the user pmap from within kernel VA. The
-	 *     self-referencing entry is useful if we access the pmap
-	 *     from the *user* VA.
-	 * XXX: review this when userland is up.
+	 * entry in userspace pmaps becase both kernel and userland
+	 * share ring3 privilege. The user/kernel context switch is
+	 * arbitrated by the hypervisor by means of pre-loaded values
+	 * for kernel and user %cr3. The userland parts of kernel VA
+	 * may be conditionally overlaid with the VA of curthread,
+	 * since the kernel occasionally needs to access userland
+	 * process VA space.
 	 */
-
-#if 1 /* XXX: DEBUG ONLY - EXPOSES KERNEL TO USERLAND - TERRIBLE SECURITY RISK! */
-	/* Wire in kernel global address entries. */
-	pmap->pm_pml4[KPML4I] = phystomach(VTOP(KPDPphys)) | PG_RW | PG_V | PG_U;
-
-	/* Copy over Direct mapping entries, from kernel_pmap. */
-	int i;
-	for (i = 0; i < NDMPML4E; i++) {
-		pmap->pm_pml4[DMPML4I + i] = ((pdp_entry_t *)KPML4phys)[DMPML4I + i];
-	}
 
 	pmap_xen_setpages_ro((uintptr_t)pmap->pm_pml4, 1);
 
 	xen_pgdir_pin(phystomach(ptmb_vtop((uintptr_t)pmap->pm_pml4)));
-
-#endif
 
 	pmap->pm_root = NULL;
 	CPU_ZERO(&pmap->pm_active);
@@ -814,14 +802,33 @@ pmap_pinit(pmap_t pmap)
 	return 1;
 }
 
+void pmap_xen_userload(pmap_t pmap)
+{
+	KASSERT(pmap != kernel_pmap, 
+		("Kernel pmap requested on user load.\n"));
+
+	printf("%s: pmap->pm_pml4 == %p\n", __func__, pmap->pm_pml4);
+	printf("%s: curthread %s\n", __func__, curthread->td_name);
+	int i;
+	for (i = 0; i < NUPML4E; i++) {
+		pml4_entry_t pml4e;
+		pml4e = (pmap->pm_pml4[i]);
+		PT_SET_VA_MA((pml4_entry_t *)KPML4phys + i, pml4e, false);
+	}
+	PT_UPDATES_FLUSH();
+
+	/* Tell xen about user pmap switch */
+	xen_pt_user_switch(vtomach(pmap->pm_pml4));
+}
+
 void
 pmap_release(pmap_t pmap)
 {
 	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
-pt_entry_t *
-vtopte_hold(uintptr_t va, void *addr)
+static pt_entry_t *
+pmap_vtopte_hold(pmap_t pmap, uintptr_t va, void *addr)
 {
 	KASSERT(addr != NULL, ("addr == NULL"));
 
@@ -850,14 +857,26 @@ vtopte_hold(uintptr_t va, void *addr)
 	return pte;
 }
 
-void
-vtopte_release(uintptr_t va, void *addr)
+pt_entry_t *
+vtopte_hold(uintptr_t va, void *addr)
+{
+	return pmap_vtopte_hold(kernel_pmap, va, addr);
+}
+
+static void
+pmap_vtopte_release(pmap_t pmap, uintptr_t va, void *addr)
 {
 	mmu_map_t tptr = *(mmu_map_t *)addr;
 
-	mmu_map_release_va(kernel_pmap, tptr, va);
+	mmu_map_release_va(pmap, tptr, va);
 	mmu_map_t_fini(tptr);
 
+}
+
+void
+vtopte_release(uintptr_t va, void *addr)
+{
+	pmap_vtopte_release(kernel_pmap, va, addr);
 }
 
 #ifdef SMP
@@ -943,6 +962,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
 	va = trunc_page(va);
+
 	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
@@ -998,10 +1018,57 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pmap_qremove(sva, atop(eva - sva));
 }
 
+static bool
+pv_remove(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	pt_entry_t *pte, tpte;
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	PMAP_LOCK(pmap);
+	pte = pmap_vtopte_hold(pmap, va, &tptr);
+	tpte = *pte;
+	PT_CLEAR_VA(pte, TRUE);
+	if (tpte & PG_A)
+		vm_page_aflag_set(m, PGA_REFERENCED);
+
+	/*
+	 * Update the vm_page_t clean and reference bits.
+	 */
+	if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+		vm_page_dirty(m);
+
+	/* XXX: Tell mmu_xxx about backing page */
+	pmap_vtopte_release(pmap, va, &tptr);
+
+	pmap_invalidate_page(pmap, va);
+	PMAP_UNLOCK(pmap);
+
+	return false;
+}
+
+/*
+ *	Routine:	pmap_remove_all
+ *	Function:
+ *		Removes this physical page from
+ *		all physical maps in which it resides.
+ *		Reflects back modify bits to the pager.
+ */
 void
 pmap_remove_all(vm_page_t m)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
+
+	pmap_pv_iterate(m, pv_remove);
+
+	/* free pv entry from all pmaps */
+	pmap_pv_page_unmap(m);
 }
 
 vm_paddr_t 
@@ -1225,7 +1292,21 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+
+	vm_offset_t addr;
+	/* XXX: TODO SMP */
+	sched_pin();
+
+	for (addr = sva; addr < eva; addr += PAGE_SIZE)
+		invlpg(addr);
+
+	sched_unpin();
+}
+
+void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+{
+	pmap_invalidate_range(pmap, va, va + PAGE_SIZE);
 }
 
 void
@@ -1288,11 +1369,21 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
+static bool
+pv_dummy(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	printf("%s: va == 0x%lx, pa == 0x%lx\n",
+	       __func__, va, VM_PAGE_TO_PHYS(m));
+	return true; /* stop at the first iteration */
+}
+
 boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
-	return 0;
+	if ((m->oflags & VPO_UNMANAGED) != 0)
+		return (FALSE);
+	printf("pmap_pv_iterate(m, pv_dummy) == %d\n", pmap_pv_iterate(m, pv_dummy));
+	return pmap_pv_iterate(m, pv_dummy);
 }
 
 boolean_t
@@ -1342,10 +1433,55 @@ pmap_clear_reference(vm_page_t m)
 	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
+/* Callback to remove write access on given va and pmap */
+static bool
+pv_remove_write(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+
+	pt_entry_t oldpte, *pte;
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	PMAP_LOCK(pmap);
+	pte = pmap_vtopte_hold(pmap, va, &tptr);
+
+	oldpte = *pte;
+	if (oldpte & PG_RW) {
+		PT_SET_MA(va, oldpte & ~(PG_RW | PG_M));
+		if ((oldpte & PG_M) != 0)
+			vm_page_dirty(m);
+		pmap_invalidate_page(pmap, va);
+	}
+	pmap_vtopte_release(pmap, va, &tptr);
+	PMAP_UNLOCK(pmap);
+
+	return false; /* Iterate through every mapping */
+}
+
+/*
+ * Clear the write and modified bits in each of the given page's mappings.
+ */
 void
 pmap_remove_write(vm_page_t m)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+	    ("pmap_remove_write: page %p is not managed", m));
+
+	/*
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
+	 * is clear, no page table entries need updating.
+	 */
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->aflags & PGA_WRITEABLE) == 0)
+		return;
+
+	pmap_pv_iterate(m, pv_remove_write);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 }
 
 int

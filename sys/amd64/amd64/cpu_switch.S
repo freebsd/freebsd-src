@@ -138,7 +138,6 @@ ctx_switch_xsave:
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
 	movq	TD_PCB(%rsi),%r8
-
 	/* switch address space */
 	movq	PCB_CR3(%r8),%rcx
 	movq	%cr3,%rax
@@ -155,9 +154,23 @@ swinact:
 	pushq	%rdx
 	pushq	%r8
 
-	movq	%rcx, %rdi
-	callq	xen_pt_switch
+	/*
+	 * On xen, the hypervisor loads %cr3 for us on return to
+	 * userland. We use a separate "kernel space" for kernel mode,
+	 * which is setup at boot time (see: pmap.c:pmap_bootstrap)
+	 *
+	 * We need to tell the hypervisor via xen_pt_user_switch()
+	 * about the new user pmap. Additionally, we modify the kernel VA
+	 * space by copying in the userland bits of the new pmap, in
+	 * case the kernel needs to access them.
+	 */
 
+	movq	TD_PROC(%rsi), %rdx		/* newproc */
+	movq	P_VMSPACE(%rdx), %rdx
+	addq	$VM_PMAP, %rdx
+	movq	%rdx, %rdi
+	callq	pmap_xen_userload
+	
 	popq	%r8
 	popq	%rdx
 	popq	%rsi

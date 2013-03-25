@@ -220,7 +220,7 @@ cpu_fork(td1, p2, td2, flags)
 	 */
 	pmap2 = vmspace_pmap(p2->p_vmspace);
 #ifdef XEN
-	pcb2->pcb_cr3 = pmap_kextract((vm_offset_t)pmap2->pm_pml4);
+	pcb2->pcb_cr3 = pmap_kextract_ma((vm_offset_t)pmap2->pm_pml4);
 #else
 	pcb2->pcb_cr3 = DMAP_TO_PHYS((vm_offset_t)pmap2->pm_pml4);
 #endif

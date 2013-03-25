@@ -163,12 +163,13 @@ xen_invlpg(vm_offset_t va)
 inline void
 xen_load_cr3(u_long val)
 {
-	xen_pt_switch(val);
+	xen_pt_switch(xpmap_ptom(val));
 }
 
 void
-xen_pt_switch(vm_paddr_t kpml4phys)
+xen_pt_switch(vm_paddr_t kpml4mach)
 {
+	printk("%s: kpml4mach == 0x%lx\n", __func__, kpml4mach);
 	struct mmuext_op op;
 #ifdef INVARIANTS
 	SET_VCPU();
@@ -176,12 +177,12 @@ xen_pt_switch(vm_paddr_t kpml4phys)
 	KASSERT(XPQ_IDX == 0, ("pending operations XPQ_IDX=%d", XPQ_IDX));
 #endif
 	op.cmd = MMUEXT_NEW_BASEPTR;
-	op.arg1.mfn = xpmap_ptom(kpml4phys) >> PAGE_SHIFT;
+	op.arg1.mfn = kpml4mach >> PAGE_SHIFT;
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
 
 void
-xen_pt_user_switch(vm_paddr_t upml4phys)
+xen_pt_user_switch(vm_paddr_t upml4mach)
 {
 	struct mmuext_op op;
 #ifdef INVARIANTS
@@ -190,7 +191,7 @@ xen_pt_user_switch(vm_paddr_t upml4phys)
 	KASSERT(XPQ_IDX == 0, ("pending operations XPQ_IDX=%d", XPQ_IDX));
 #endif
 	op.cmd = MMUEXT_NEW_USER_BASEPTR;
-	op.arg1.mfn = xpmap_ptom(upml4phys) >> PAGE_SHIFT;
+	op.arg1.mfn = upml4mach >> PAGE_SHIFT;
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
 
