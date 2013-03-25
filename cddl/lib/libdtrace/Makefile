@@ -32,6 +32,7 @@ SRCS=		dt_aggregate.c \
 		dt_pcb.c \
 		dt_pid.c \
 		dt_pragma.c \
+		dt_print.c \
 		dt_printf.c \
 		dt_proc.c \
 		dt_program.c \
