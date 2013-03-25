@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, Joyent Inc. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 /*
@@ -679,6 +680,51 @@ dt_action_trace(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 	ap->dtad_kind = DTRACEACT_DIFEXPR;
 }
 
+/*
+ * The print() action behaves identically to trace(), except that it stores the
+ * CTF type of the argument (if present) within the DOF for the DIFEXPR action.
+ * To do this, we set the 'dtsd_strdata' to point to the fully-qualified CTF
+ * type ID for the result of the DIF action.  We use the ID instead of the name
+ * to handles complex types like arrays and function pointers that can't be
+ * resolved by ctf_type_lookup().  This is later processed by
+ * dtrace_dof_create() and turned into a reference into the string table so
+ * that we can get the type information when we process the data after the
+ * fact.
+ */
+static void
+dt_action_print(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
+{
+	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
+	dt_node_t *dret;
+	size_t len;
+	dt_module_t *dmp;
+
+	if (dt_node_is_void(dnp->dn_args)) {
+		dnerror(dnp->dn_args, D_PRINT_VOID,
+		    "print( ) may not be applied to a void expression\n");
+	}
+
+	if (dt_node_is_dynamic(dnp->dn_args)) {
+		dnerror(dnp->dn_args, D_PRINT_DYN,
+		    "print( ) may not be applied to a dynamic expression\n");
+	}
+
+	dt_cg(yypcb, dnp->dn_args);
+
+	dret = yypcb->pcb_dret;
+	dmp = dt_module_lookup_by_ctf(dtp, dret->dn_ctfp);
+
+	len = snprintf(NULL, 0, "%s`%ld", dmp->dm_name, dret->dn_type) + 1;
+	sdp->dtsd_strdata = dt_alloc(dtp, len);
+	if (sdp->dtsd_strdata == NULL)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOMEM);
+	(void) snprintf(sdp->dtsd_strdata, len, "%s`%ld", dmp->dm_name,
+	    dret->dn_type);
+
+	ap->dtad_difo = dt_as(yypcb);
+	ap->dtad_kind = DTRACEACT_DIFEXPR;
+}
+
 static void
 dt_action_tracemem(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 {
@@ -1134,6 +1180,9 @@ dt_compile_fun(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 		break;
 	case DT_ACT_TRACE:
 		dt_action_trace(dtp, dnp->dn_expr, sdp);
+		break;
+	case DT_ACT_PRINT:
+		dt_action_print(dtp, dnp->dn_expr, sdp);
 		break;
 	case DT_ACT_TRACEMEM:
 		dt_action_tracemem(dtp, dnp->dn_expr, sdp);

@@ -24,10 +24,13 @@
  * Use is subject to license terms.
  */
 
+ /*
+  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+  * Copyright (c) 2011 by Delphix. All rights reserved.
+  */
+
 #ifndef	_DT_ERRTAGS_H
 #define	_DT_ERRTAGS_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -187,6 +190,8 @@ typedef enum {
 	D_PRINTA_AGGPROTO,		/* printa() aggregation mismatch */
 	D_TRACE_VOID,			/* trace() argument has void type */
 	D_TRACE_DYN,			/* trace() argument has dynamic type */
+	D_PRINT_VOID,			/* print() argument has void type */
+	D_PRINT_DYN,			/* print() argument has dynamic type */
 	D_TRACEMEM_ADDR,		/* tracemem() address bad type */
 	D_TRACEMEM_SIZE,		/* tracemem() size bad type */
 	D_TRACEMEM_ARGS,		/* tracemem() illegal number of args */

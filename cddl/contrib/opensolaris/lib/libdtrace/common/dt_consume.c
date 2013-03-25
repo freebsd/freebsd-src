@@ -25,6 +25,7 @@
 
 /*
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <stdlib.h>
@@ -2193,6 +2194,7 @@ again:
 
 			if (act == DTRACEACT_TRACEMEM_DYNSIZE &&
 			    rec->dtrd_size == sizeof (uint64_t)) {
+			    	/* LINTED - alignment */
 				tracememsize = *((unsigned long long *)addr);
 				continue;
 			}
@@ -2298,6 +2300,35 @@ again:
 				if (n > 0)
 					i += n - 1;
 				goto nextrec;
+			}
+
+			/*
+			 * If this is a DIF expression, and the record has a
+			 * format set, this indicates we have a CTF type name
+			 * associated with the data and we should try to print
+			 * it out by type.
+			 */
+			if (act == DTRACEACT_DIFEXPR) {
+				const char *strdata = dt_strdata_lookup(dtp,
+				    rec->dtrd_format);
+				if (strdata != NULL) {
+					n = dtrace_print(dtp, fp, strdata,
+					    addr, rec->dtrd_size);
+
+					/*
+					 * dtrace_print() will return -1 on
+					 * error, or return the number of bytes
+					 * consumed.  It will return 0 if the
+					 * type couldn't be determined, and we
+					 * should fall through to the normal
+					 * trace method.
+					 */
+					if (n < 0)
+						return (-1);
+
+					if (n > 0)
+						goto nextrec;
+				}
 			}
 
 nofmt:
