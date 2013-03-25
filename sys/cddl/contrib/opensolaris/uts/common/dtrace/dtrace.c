@@ -4019,6 +4019,53 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		break;
 	}
 
+	case DIF_SUBR_TOUPPER:
+	case DIF_SUBR_TOLOWER: {
+		uintptr_t s = tupregs[0].dttk_value;
+		uint64_t size = state->dts_options[DTRACEOPT_STRSIZE];
+		char *dest = (char *)mstate->dtms_scratch_ptr, c;
+		size_t len = dtrace_strlen((char *)s, size);
+		char lower, upper, convert;
+		int64_t i;
+
+		if (subr == DIF_SUBR_TOUPPER) {
+			lower = 'a';
+			upper = 'z';
+			convert = 'A';
+		} else {
+			lower = 'A';
+			upper = 'Z';
+			convert = 'a';
+		}
+
+		if (!dtrace_canload(s, len + 1, mstate, vstate)) {
+			regs[rd] = 0;
+			break;
+		}
+
+		if (!DTRACE_INSCRATCH(mstate, size)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOSCRATCH);
+			regs[rd] = 0;
+			break;
+		}
+
+		for (i = 0; i < size - 1; i++) {
+			if ((c = dtrace_load8(s + i)) == '\0')
+				break;
+
+			if (c >= lower && c <= upper)
+				c = convert + (c - lower);
+
+			dest[i] = c;
+		}
+
+		ASSERT(i < size);
+		dest[i] = '\0';
+		regs[rd] = (uintptr_t)dest;
+		mstate->dtms_scratch_ptr += size;
+		break;
+	}
+
 #if defined(sun)
 	case DIF_SUBR_GETMAJOR:
 #ifdef _LP64
@@ -4283,9 +4330,20 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 
 	case DIF_SUBR_LLTOSTR: {
 		int64_t i = (int64_t)tupregs[0].dttk_value;
-		int64_t val = i < 0 ? i * -1 : i;
-		uint64_t size = 22;	/* enough room for 2^64 in decimal */
+		uint64_t val, digit;
+		uint64_t size = 65;	/* enough room for 2^64 in binary */
 		char *end = (char *)mstate->dtms_scratch_ptr + size - 1;
+		int base = 10;
+
+		if (nargs > 1) {
+			if ((base = tupregs[1].dttk_value) <= 1 ||
+			    base > ('z' - 'a' + 1) + ('9' - '0' + 1)) {
+				*flags |= CPU_DTRACE_ILLOP;
+				break;
+			}
+		}
+
+		val = (base == 10 && i < 0) ? i * -1 : i;
 
 		if (!DTRACE_INSCRATCH(mstate, size)) {
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOSCRATCH);
@@ -4293,13 +4351,24 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 
-		for (*end-- = '\0'; val; val /= 10)
-			*end-- = '0' + (val % 10);
+		for (*end-- = '\0'; val; val /= base) {
+			if ((digit = val % base) <= '9' - '0') {
+				*end-- = '0' + digit;
+			} else {
+				*end-- = 'a' + (digit - ('9' - '0') - 1);
+			}
+		}
 
-		if (i == 0)
+		if (i == 0 && base == 16)
 			*end-- = '0';
 
-		if (i < 0)
+		if (base == 16)
+			*end-- = 'x';
+
+		if (i == 0 || base == 8 || base == 16)
+			*end-- = '0';
+
+		if (i < 0 && base == 10)
 			*end-- = '-';
 
 		regs[rd] = (uintptr_t)end + 1;
