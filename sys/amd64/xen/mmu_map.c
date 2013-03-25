@@ -103,7 +103,7 @@ pmap_get_pml4t(struct pmap *pm)
 	KASSERT(pm_pml4 != NULL,
 		("pmap has NULL pml4!\n"));
 
-	return pm->pm_pml4;
+	return pm_pml4;
 }
 
 /* Returns physical address */
