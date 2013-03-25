@@ -154,6 +154,7 @@ typedef struct dtrace_stmtdesc {
 	dtrace_actdesc_t *dtsd_action_last;	/* last action in action list */
 	void *dtsd_aggdata;			/* aggregation data */
 	void *dtsd_fmtdata;			/* type-specific output data */
+	void *dtsd_strdata;			/* type-specific string data */
 	void (*dtsd_callback)(void);		/* callback function for EPID */
 	void *dtsd_data;			/* callback data pointer */
 	dtrace_attribute_t dtsd_descattr;	/* probedesc attributes */
@@ -244,6 +245,18 @@ extern int dtrace_system(dtrace_hdl_t *, FILE *, void *,
 extern int dtrace_freopen(dtrace_hdl_t *, FILE *, void *,
     const dtrace_probedata_t *, const dtrace_recdesc_t *, uint_t,
     const void *, size_t);
+
+/*
+ * Type-specific output printing
+ *
+ * The print() action will associate a string data record that is actually the
+ * fully-qualified type name of the data traced by the DIFEXPR action.  This is
+ * stored in the same 'format' record from the kernel, but we know by virtue of
+ * the fact that the action is still DIFEXPR that it is actually a reference to
+ * plain string data.
+ */
+extern int dtrace_print(dtrace_hdl_t *, FILE *, const char *,
+    caddr_t, size_t);
 
 /*
  * DTrace Work Interface
