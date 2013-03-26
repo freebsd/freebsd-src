@@ -117,7 +117,7 @@ __<bsd.own.mk>__:
 
 .if !defined(_WITHOUT_SRCCONF)
 SRCCONF?=	/etc/src.conf
-.if exists(${SRCCONF})
+.if exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf"
 .include "${SRCCONF}"
 .endif
 .endif
