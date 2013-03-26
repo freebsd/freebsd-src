@@ -574,7 +574,7 @@ ng_netflow_fib_init(priv_p priv, int fib)
 
 	if ((fe = malloc(sizeof(struct fib_export), M_NETGRAPH,
 	    M_NOWAIT | M_ZERO)) == NULL)
-		return (1);
+		return (ENOMEM);
 
 	mtx_init(&fe->export_mtx, "export dgram lock", NULL, MTX_DEF);
 	mtx_init(&fe->export9_mtx, "export9 dgram lock", NULL, MTX_DEF);
