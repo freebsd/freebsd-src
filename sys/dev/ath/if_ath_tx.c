@@ -704,18 +704,20 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
 
 	ATH_TXQ_LOCK(txq);
-	if (txq->axq_link != NULL) {
-		struct ath_buf *last = ATH_TXQ_LAST(txq, axq_q_s);
+	if (ATH_TXQ_LAST(txq, axq_q_s) != NULL) {
+		struct ath_buf *bf_last = ATH_TXQ_LAST(txq, axq_q_s);
 		struct ieee80211_frame *wh;
 
 		/* mark previous frame */
-		wh = mtod(last->bf_m, struct ieee80211_frame *);
+		wh = mtod(bf_last->bf_m, struct ieee80211_frame *);
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
-		bus_dmamap_sync(sc->sc_dmat, last->bf_dmamap,
+		bus_dmamap_sync(sc->sc_dmat, bf_last->bf_dmamap,
 		    BUS_DMASYNC_PREWRITE);
 
 		/* link descriptor */
-		*txq->axq_link = bf->bf_daddr;
+		ath_hal_settxdesclink(sc->sc_ah,
+		    bf_last->bf_lastds,
+		    bf->bf_daddr);
 	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
