@@ -123,6 +123,25 @@ nvme_sysctl_int_coal_threshold(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+nvme_sysctl_timeout_period(SYSCTL_HANDLER_ARGS)
+{
+	struct nvme_controller *ctrlr = arg1;
+	uint32_t oldval = ctrlr->timeout_period;
+	int error = sysctl_handle_int(oidp, &ctrlr->timeout_period, 0, req);
+
+	if (error)
+		return (error);
+
+	if (ctrlr->timeout_period > NVME_MAX_TIMEOUT_PERIOD ||
+	    ctrlr->timeout_period < NVME_MIN_TIMEOUT_PERIOD) {
+		ctrlr->timeout_period = oldval;
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
 static void
 nvme_qpair_reset_stats(struct nvme_qpair *qpair)
 {
@@ -242,6 +261,11 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 		    "int_coal_threshold", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
 		    nvme_sysctl_int_coal_threshold, "IU",
 		    "Interrupt coalescing threshold");
+
+		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+		    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
+		    nvme_sysctl_timeout_period, "IU",
+		    "Timeout period (in seconds)");
 
 		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 		    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD,
