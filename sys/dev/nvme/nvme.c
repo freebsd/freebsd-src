@@ -40,11 +40,14 @@ __FBSDID("$FreeBSD$");
 #include "nvme_private.h"
 
 struct nvme_consumer {
-	nvme_consumer_cb_fn_t		cb_fn;
-	void				*cb_arg;
+	uint32_t		id;
+	nvme_cons_ns_fn_t	ns_fn;
+	nvme_cons_ctrlr_fn_t	ctrlr_fn;
+	nvme_cons_async_fn_t	async_fn;
 };
 
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
+#define	INVALID_CONSUMER_ID	0xFFFF
 
 uma_zone_t nvme_request_zone;
 
@@ -118,8 +121,13 @@ nvme_probe (device_t device)
 static void
 nvme_init(void)
 {
+	uint32_t	i;
+
 	nvme_request_zone = uma_zcreate("nvme_request",
 	    sizeof(struct nvme_request), NULL, NULL, NULL, NULL, 0, 0);
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
+		nvme_consumer[i].id = INVALID_CONSUMER_ID;
 }
 
 SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
@@ -292,26 +300,52 @@ nvme_detach (device_t dev)
 }
 
 static void
-nvme_notify_consumer(struct nvme_consumer *consumer)
+nvme_notify_consumer(struct nvme_consumer *cons)
 {
 	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	int			dev, ns, devcount;
+	struct nvme_namespace	*ns;
+	void			*ctrlr_cookie;
+	int			dev_idx, ns_idx, devcount;
 
 	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
 		return;
 
-	for (dev = 0; dev < devcount; dev++) {
-		ctrlr = DEVICE2SOFTC(devlist[dev]);
-		for (ns = 0; ns < ctrlr->cdata.nn; ns++)
-			(*consumer->cb_fn)(consumer->cb_arg, &ctrlr->ns[ns]);
+	for (dev_idx = 0; dev_idx < devcount; dev_idx++) {
+		ctrlr = DEVICE2SOFTC(devlist[dev_idx]);
+		if (cons->ctrlr_fn != NULL)
+			ctrlr_cookie = (*cons->ctrlr_fn)(ctrlr);
+		else
+			ctrlr_cookie = NULL;
+		ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
+		for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
+			ns = &ctrlr->ns[ns_idx];
+			if (cons->ns_fn != NULL)
+				ns->cons_cookie[cons->id] =
+				    (*cons->ns_fn)(ns, ctrlr_cookie);
+		}
 	}
 
 	free(devlist, M_TEMP);
 }
 
+void
+nvme_notify_async_consumers(struct nvme_controller *ctrlr,
+			    const struct nvme_completion *async_cpl)
+{
+	struct nvme_consumer	*cons;
+	uint32_t		i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		cons = &nvme_consumer[i];
+		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL)
+			(*cons->async_fn)(ctrlr->cons_cookie[i], async_cpl);
+	}
+}
+
 struct nvme_consumer *
-nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn, void *cb_arg)
+nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
+		       nvme_cons_async_fn_t async_fn)
 {
 	int i;
 
@@ -320,9 +354,11 @@ nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn, void *cb_arg)
 	 *  right now since we only have one nvme consumer - nvd(4).
 	 */
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
-		if (nvme_consumer[i].cb_fn == NULL) {
-			nvme_consumer[i].cb_fn = cb_fn;
-			nvme_consumer[i].cb_arg = cb_arg;
+		if (nvme_consumer[i].id == INVALID_CONSUMER_ID) {
+			nvme_consumer[i].id = i;
+			nvme_consumer[i].ns_fn = ns_fn;
+			nvme_consumer[i].ctrlr_fn = ctrlr_fn;
+			nvme_consumer[i].async_fn = async_fn;
 
 			nvme_notify_consumer(&nvme_consumer[i]);
 			return (&nvme_consumer[i]);
@@ -336,7 +372,6 @@ void
 nvme_unregister_consumer(struct nvme_consumer *consumer)
 {
 
-	consumer->cb_fn = NULL;
-	consumer->cb_arg = NULL;
+	consumer->id = INVALID_CONSUMER_ID;
 }
 
