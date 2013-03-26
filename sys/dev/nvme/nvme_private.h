@@ -116,6 +116,12 @@ MALLOC_DECLARE(M_NVME);
 extern uma_zone_t	nvme_request_zone;
 extern int32_t		nvme_retry_count;
 
+struct nvme_completion_poll_status {
+
+	struct nvme_completion	cpl;
+	boolean_t		done;
+};
+
 struct nvme_request {
 
 	struct nvme_command		cmd;
@@ -399,6 +405,7 @@ void	nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg,
 			 int error);
 void	nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
 			     bus_size_t mapsize, int error);
+void	nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl);
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);

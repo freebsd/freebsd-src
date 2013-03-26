@@ -397,3 +397,18 @@ nvme_unregister_consumer(struct nvme_consumer *consumer)
 	consumer->id = INVALID_CONSUMER_ID;
 }
 
+void
+nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_completion_poll_status	*status = arg;
+
+	/*
+	 * Copy status into the argument passed by the caller, so that
+	 *  the caller can check the status to determine if the
+	 *  the request passed or failed.
+	 */
+	memcpy(&status->cpl, cpl, sizeof(*cpl));
+	wmb();
+	status->done = TRUE;
+}
+
