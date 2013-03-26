@@ -91,11 +91,21 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 			bp->b_blkno = btodb(bp->b_offset);
 
-			if (uio->uio_segflg == UIO_USERSPACE)
-				if (vmapbuf(bp, 0) < 0) {
+			if (uio->uio_segflg == UIO_USERSPACE) {
+				struct cdevsw *csw;
+				int mapped;
+
+				csw = dev->si_devsw;
+				if (csw != NULL &&
+                                    (csw->d_flags & D_UNMAPPED_IO) != 0)
+					mapped = 0;
+				else
+					mapped = 1;
+				if (vmapbuf(bp, mapped) < 0) {
 					error = EFAULT;
 					goto doerror;
 				}
+			}
 
 			dev_strategy(dev, bp);
 			if (uio->uio_rw == UIO_READ)

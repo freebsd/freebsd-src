@@ -78,7 +78,7 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_ioctl =	g_dev_ioctl,
 	.d_strategy =	g_dev_strategy,
 	.d_name =	"g_dev",
-	.d_flags =	D_DISK | D_TRACKCLOSE,
+	.d_flags =	D_DISK | D_TRACKCLOSE | D_UNMAPPED_IO,
 };
 
 static g_taste_t g_dev_taste;

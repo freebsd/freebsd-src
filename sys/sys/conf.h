@@ -167,6 +167,7 @@ typedef int dumper_t(
 #define	D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define	D_NEEDGIANT	0x00400000	/* driver want Giant */
 #define	D_NEEDMINOR	0x00800000	/* driver uses clone_create() */
+#define	D_UNMAPPED_IO   0x01000000	/* d_strategy can accept unmapped IO */
 
 /*
  * Version numbers.
