@@ -291,6 +291,10 @@ typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 
 #define	ATH_BUF_MGMT	0x00000001	/* (tx) desc is a mgmt desc */
 #define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
+#define	ATH_BUF_FIFOEND	0x00000004
+#define	ATH_BUF_FIFOPTR	0x00000008
+
+#define	ATH_BUF_FLAGS_CLONE	(ATH_BUF_MGMT)
 
 /*
  * DMA state for tx/rx descriptors.
@@ -325,11 +329,28 @@ struct ath_txq {
 #define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_aggr_depth;	/* how many aggregates are queued */
-	u_int			axq_fifo_depth;	/* depth of FIFO frames */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
+
+	/*
+	 * This is the FIFO staging buffer when doing EDMA.
+	 *
+	 * For legacy chips, we just push the head pointer to
+	 * the hardware and we ignore this list.
+	 *
+	 * For EDMA, the staging buffer is treated as normal;
+	 * when it's time to push a list of frames to the hardware
+	 * we move that list here and we stamp buffers with
+	 * flags to identify the beginning/end of that particular
+	 * FIFO entry.
+	 */
+	struct {
+		TAILQ_HEAD(axq_q_f_s, ath_buf)	axq_q;
+		u_int				axq_depth;
+	} fifo;
+	u_int			axq_fifo_depth;	/* depth of FIFO frames */
 
 	/*
 	 * XXX the holdingbf field is protected by the TXBUF lock
