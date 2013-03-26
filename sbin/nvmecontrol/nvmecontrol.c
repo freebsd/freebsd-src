@@ -56,6 +56,9 @@ __FBSDID("$FreeBSD$");
 "                            <-i intr|wait> [-f refthread] [-p]\n"	       \
 "                            <namespace id>\n"
 
+#define RESET_USAGE							       \
+"       nvmecontrol reset <controller id>\n"
+
 static void perftest_usage(void);
 
 static void
@@ -64,6 +67,7 @@ usage(void)
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, DEVLIST_USAGE);
 	fprintf(stderr, IDENTIFY_USAGE);
+	fprintf(stderr, RESET_USAGE);
 	fprintf(stderr, PERFTEST_USAGE);
 	exit(EX_USAGE);
 }
@@ -580,6 +584,41 @@ perftest(int argc, char *argv[])
 	exit(EX_OK);
 }
 
+static void
+reset_ctrlr(int argc, char *argv[])
+{
+	struct stat			devstat;
+	char				path[64];
+	int				ch, fd;
+
+	while ((ch = getopt(argc, argv, "")) != -1) {
+		switch ((char)ch) {
+		default:
+			usage();
+		}
+	}
+
+	sprintf(path, "/dev/%s", argv[optind]);
+
+	if (stat(path, &devstat) != 0) {
+		printf("Invalid device node '%s'.\n", path);
+		exit(EX_IOERR);
+	}
+
+	fd = open(path, O_RDWR);
+	if (fd < 0) {
+		printf("Could not open %s.\n", path);
+		exit(EX_NOPERM);
+	}
+
+	if (ioctl(fd, NVME_RESET_CONTROLLER) == -1) {
+		printf("ioctl to %s failed.\n", path);
+		exit(EX_IOERR);
+	}
+
+	exit(EX_OK);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -593,6 +632,8 @@ main(int argc, char *argv[])
 		identify(argc-1, &argv[1]);
 	else if (strcmp(argv[1], "perftest") == 0)
 		perftest(argc-1, &argv[1]);
+	else if (strcmp(argv[1], "reset") == 0)
+		reset_ctrlr(argc-1, &argv[1]);
 
 	usage();
 

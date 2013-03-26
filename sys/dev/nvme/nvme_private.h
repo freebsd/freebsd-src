@@ -180,6 +180,8 @@ struct nvme_qpair {
 
 	struct nvme_tracker	**act_tr;
 
+	boolean_t		is_enabled;
+
 	struct mtx		lock __aligned(CACHE_LINE_SIZE);
 
 } __aligned(CACHE_LINE_SIZE);
@@ -233,6 +235,7 @@ struct nvme_controller {
 	struct intr_config_hook	config_hook;
 	uint32_t		ns_identified;
 	uint32_t		queues_created;
+	uint32_t		num_start_attempts;
 
 	/* For shared legacy interrupt. */
 	int			rid;
@@ -361,7 +364,8 @@ void	nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);
-int	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
+int	nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr);
+void	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void	nvme_ctrlr_start(void *ctrlr_arg);
 void	nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
@@ -373,21 +377,23 @@ void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
 			     uint32_t num_trackers, uint32_t max_xfer_size,
 			     struct nvme_controller *ctrlr);
-void	nvme_qpair_submit_cmd(struct nvme_qpair *qpair,
-			      struct nvme_tracker *tr);
+void	nvme_qpair_submit_tracker(struct nvme_qpair *qpair,
+				  struct nvme_tracker *tr);
 void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
 void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
 				  struct nvme_request *req);
-void	nvme_qpair_manual_abort_request(struct nvme_qpair *qpair,
-					struct nvme_request *req, uint32_t sct,
-					uint32_t sc, boolean_t print_on_error);
 
+void	nvme_admin_qpair_enable(struct nvme_qpair *qpair);
+void	nvme_admin_qpair_disable(struct nvme_qpair *qpair);
 void	nvme_admin_qpair_destroy(struct nvme_qpair *qpair);
 
+void	nvme_io_qpair_enable(struct nvme_qpair *qpair);
+void	nvme_io_qpair_disable(struct nvme_qpair *qpair);
 void	nvme_io_qpair_destroy(struct nvme_qpair *qpair);
 
 int	nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 			  struct nvme_controller *ctrlr);
+void	nvme_ns_destruct(struct nvme_namespace *ns);
 
 int	nvme_ns_physio(struct cdev *dev, struct uio *uio, int ioflag);
 

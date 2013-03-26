@@ -345,6 +345,13 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	if (ctrlr->cdata.vwc.present)
 		ns->flags |= NVME_NS_FLUSH_SUPPORTED;
 
+	/*
+	 * cdev may have already been created, if we are reconstructing the
+	 *  namespace after a controller-level reset.
+	 */
+	if (ns->cdev != NULL)
+		return (0);
+
 /*
  * MAKEDEV_ETERNAL was added in r210923, for cdevs that will never
  *  be destroyed.  This avoids refcounting on the cdev object.
@@ -361,9 +368,15 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	    device_get_unit(ctrlr->dev), ns->id);
 #endif
 
-	if (ns->cdev) {
+	if (ns->cdev != NULL)
 		ns->cdev->si_drv1 = ns;
-	}
 
 	return (0);
+}
+
+void nvme_ns_destruct(struct nvme_namespace *ns)
+{
+
+	if (ns->cdev != NULL)
+		destroy_dev(ns->cdev);
 }
