@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
+						struct nvme_async_event_request *aer);
+
 static void
 nvme_ctrlr_cb(void *arg, const struct nvme_completion *status)
 {
@@ -409,30 +412,6 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 	return (nvme_ctrlr_enable(ctrlr));
 }
 
-/*
- * Disable this code for now, since Chatham doesn't support
- *  AERs so I have no good way to test them.
- */
-#if 0
-static void
-nvme_async_event_cb(void *arg, const struct nvme_completion *status)
-{
-	struct nvme_controller *ctrlr = arg;
-
-	printf("Asynchronous event occurred.\n");
-
-	/* TODO: decode async event type based on status */
-	/* TODO: check status for any error bits */
-
-	/*
-	 * Repost an asynchronous event request so that it can be
-	 *  used again by the controller.
-	 */
-	nvme_ctrlr_cmd_asynchronous_event_request(ctrlr, nvme_async_event_cb,
-	    ctrlr);
-}
-#endif
-
 static int
 nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 {
@@ -558,27 +537,71 @@ nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 }
 
 static void
+nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_async_event_request *aer = arg;
+
+	if (cpl->sf_sc == NVME_SC_ABORTED_SQ_DELETION) {
+		/*
+		 *  This is simulated when controller is being shut down, to
+		 *  effectively abort outstanding asynchronous event requests
+		 *  and make sure all memory is freed.  Do not repost the
+		 *  request in this case.
+		 */
+		return;
+	}
+
+	/* TODO: decode async event type based on status */
+
+	/*
+	 * Repost another asynchronous event request to replace the one that
+	 *  just completed.
+	 */
+	printf("Asynchronous event occurred.\n");
+	nvme_ctrlr_construct_and_submit_aer(aer->ctrlr, aer);
+}
+
+static void
+nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
+    struct nvme_async_event_request *aer)
+{
+	struct nvme_request *req;
+
+	aer->ctrlr = ctrlr;
+	req = nvme_allocate_request(NULL, 0, nvme_ctrlr_async_event_cb, aer);
+	aer->req = req;
+
+	/*
+	 * Override default timeout value here, since asynchronous event
+	 *  requests should by nature never be timed out.
+	 */
+	req->timeout = 0;
+	req->cmd.opc = NVME_OPC_ASYNC_EVENT_REQUEST;
+	nvme_ctrlr_submit_admin_request(ctrlr, req);
+}
+
+static void
 nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 {
 	union nvme_critical_warning_state	state;
-	uint8_t					num_async_events;
+	struct nvme_async_event_request		*aer;
+	uint32_t				i;
 
 	state.raw = 0xFF;
 	state.bits.reserved = 0;
-	nvme_ctrlr_cmd_set_asynchronous_event_config(ctrlr, state, NULL, NULL);
+	nvme_ctrlr_cmd_set_async_event_config(ctrlr, state, NULL, NULL);
 
 	/* aerl is a zero-based value, so we need to add 1 here. */
-	num_async_events = min(NVME_MAX_ASYNC_EVENTS, (ctrlr->cdata.aerl+1));
+	ctrlr->num_aers = min(NVME_MAX_ASYNC_EVENTS, (ctrlr->cdata.aerl+1));
 
-	/*
-	 * Disable this code for now, since Chatham doesn't support
-	 *  AERs so I have no good way to test them.
-	 */
-#if 0
-	for (int i = 0; i < num_async_events; i++)
-		nvme_ctrlr_cmd_asynchronous_event_request(ctrlr,
-		    nvme_async_event_cb, ctrlr);
-#endif
+	/* Chatham doesn't support AERs. */
+	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
+		ctrlr->num_aers = 0;
+
+	for (i = 0; i < ctrlr->num_aers; i++) {
+		aer = &ctrlr->aer[i];
+		nvme_ctrlr_construct_and_submit_aer(ctrlr, aer);
+	}
 }
 
 static void
@@ -810,8 +833,8 @@ intx:
 void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
-	struct nvme_namespace	*ns;
-	int			i;
+	struct nvme_namespace		*ns;
+	int				i;
 
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++) {
 		ns = &ctrlr->ns[i];
@@ -827,6 +850,13 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	}
 
 	free(ctrlr->ioq, M_NVME);
+
+	/* Manually abort outstanding async event requests. */
+	for (i = 0; i < ctrlr->num_aers; i++) {
+		nvme_qpair_manual_abort_request(&ctrlr->adminq,
+		    ctrlr->aer[i].req, NVME_SCT_GENERIC,
+		    NVME_SC_ABORTED_SQ_DELETION, FALSE);
+	}
 
 	nvme_admin_qpair_destroy(&ctrlr->adminq);
 

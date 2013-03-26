@@ -211,7 +211,7 @@ nvme_ctrlr_cmd_set_num_queues(struct nvme_controller *ctrlr,
 }
 
 void
-nvme_ctrlr_cmd_set_asynchronous_event_config(struct nvme_controller *ctrlr,
+nvme_ctrlr_cmd_set_async_event_config(struct nvme_controller *ctrlr,
     union nvme_critical_warning_state state, nvme_cb_fn_t cb_fn,
     void *cb_arg)
 {
@@ -219,7 +219,7 @@ nvme_ctrlr_cmd_set_asynchronous_event_config(struct nvme_controller *ctrlr,
 
 	cdw11 = state.raw;
 	nvme_ctrlr_cmd_set_feature(ctrlr,
-	    NVME_FEAT_ASYNCHRONOUS_EVENT_CONFIGURATION, cdw11, NULL, 0, cb_fn,
+	    NVME_FEAT_ASYNC_EVENT_CONFIGURATION, cdw11, NULL, 0, cb_fn,
 	    cb_arg);
 }
 
@@ -246,27 +246,6 @@ nvme_ctrlr_cmd_set_interrupt_coalescing(struct nvme_controller *ctrlr,
 	cdw11 = ((microseconds/100) << 8) | threshold;
 	nvme_ctrlr_cmd_set_feature(ctrlr, NVME_FEAT_INTERRUPT_COALESCING, cdw11,
 	    NULL, 0, cb_fn, cb_arg);
-}
-
-void
-nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
-    nvme_cb_fn_t cb_fn, void *cb_arg)
-{
-	struct nvme_request *req;
-	struct nvme_command *cmd;
-
-	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
-
-	/*
-	 * Override default timeout value here, since asynchronous event
-	 *  requests should by nature never be timed out.
-	 */
-	req->timeout = 0;
-
-	cmd = &req->cmd;
-	cmd->opc = NVME_OPC_ASYNC_EVENT_REQUEST;
-
-	nvme_ctrlr_submit_admin_request(ctrlr, req);
 }
 
 void
