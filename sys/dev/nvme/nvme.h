@@ -37,6 +37,7 @@
 #define	NVME_IDENTIFY_NAMESPACE		_IOR('n', 1, struct nvme_namespace_data)
 #define	NVME_IO_TEST			_IOWR('n', 2, struct nvme_io_test)
 #define	NVME_BIO_TEST			_IOWR('n', 4, struct nvme_io_test)
+#define	NVME_RESET_CONTROLLER		_IO('n', 5)
 
 /*
  * Use to mark a command to apply to all namespaces, or to retrieve global
