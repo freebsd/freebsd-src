@@ -44,6 +44,7 @@ struct nvme_consumer {
 	nvme_cons_ns_fn_t	ns_fn;
 	nvme_cons_ctrlr_fn_t	ctrlr_fn;
 	nvme_cons_async_fn_t	async_fn;
+	nvme_cons_fail_fn_t	fail_fn;
 };
 
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
@@ -349,9 +350,23 @@ nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 	}
 }
 
+void
+nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
+{
+	struct nvme_consumer	*cons;
+	uint32_t		i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		cons = &nvme_consumer[i];
+		if (cons->id != INVALID_CONSUMER_ID && cons->fail_fn != NULL)
+			cons->fail_fn(ctrlr->cons_cookie[i]);
+	}
+}
+
 struct nvme_consumer *
 nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
-		       nvme_cons_async_fn_t async_fn)
+		       nvme_cons_async_fn_t async_fn,
+		       nvme_cons_fail_fn_t fail_fn)
 {
 	int i;
 
@@ -365,6 +380,7 @@ nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
 			nvme_consumer[i].ns_fn = ns_fn;
 			nvme_consumer[i].ctrlr_fn = ctrlr_fn;
 			nvme_consumer[i].async_fn = async_fn;
+			nvme_consumer[i].fail_fn = fail_fn;
 
 			nvme_notify_consumer(&nvme_consumer[i]);
 			return (&nvme_consumer[i]);

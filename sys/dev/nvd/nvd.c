@@ -49,6 +49,7 @@ static void *nvd_new_disk(struct nvme_namespace *ns, void *ctrlr);
 static void destroy_geom_disk(struct nvd_disk *ndisk);
 
 static void *nvd_new_controller(struct nvme_controller *ctrlr);
+static void nvd_controller_fail(void *ctrlr);
 
 static int nvd_load(void);
 static void nvd_unload(void);
@@ -118,7 +119,7 @@ nvd_load()
 	TAILQ_INIT(&disk_head);
 
 	consumer_handle = nvme_register_consumer(nvd_new_disk,
-	    nvd_new_controller, NULL);
+	    nvd_new_controller, NULL, nvd_controller_fail);
 
 	return (consumer_handle != NULL ? 0 : -1);
 }
@@ -351,3 +352,22 @@ destroy_geom_disk(struct nvd_disk *ndisk)
 
 	mtx_destroy(&ndisk->bioqlock);
 }
+
+static void
+nvd_controller_fail(void *ctrlr_arg)
+{
+	struct nvd_controller	*ctrlr = ctrlr_arg;
+	struct nvd_disk		*disk;
+
+	while (!TAILQ_EMPTY(&ctrlr->disk_head)) {
+		disk = TAILQ_FIRST(&ctrlr->disk_head);
+		TAILQ_REMOVE(&disk_head, disk, global_tailq);
+		TAILQ_REMOVE(&ctrlr->disk_head, disk, ctrlr_tailq);
+		destroy_geom_disk(disk);
+		free(disk, M_NVD);
+	}
+
+	TAILQ_REMOVE(&ctrlr_head, ctrlr, tailq);
+	free(ctrlr, M_NVD);
+}
+

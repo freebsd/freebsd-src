@@ -733,6 +733,7 @@ typedef void *(*nvme_cons_ns_fn_t)(struct nvme_namespace *, void *);
 typedef void *(*nvme_cons_ctrlr_fn_t)(struct nvme_controller *);
 typedef void (*nvme_cons_async_fn_t)(void *, const struct nvme_completion *,
 				     uint32_t, void *, uint32_t);
+typedef void (*nvme_cons_fail_fn_t)(void *);
 
 enum nvme_namespace_flags {
 	NVME_NS_DEALLOCATE_SUPPORTED	= 0x1,
@@ -769,7 +770,8 @@ int	nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn,
 /* Registration functions */
 struct nvme_consumer *	nvme_register_consumer(nvme_cons_ns_fn_t    ns_fn,
 					       nvme_cons_ctrlr_fn_t ctrlr_fn,
-					       nvme_cons_async_fn_t async_fn);
+					       nvme_cons_async_fn_t async_fn,
+					       nvme_cons_fail_fn_t  fail_fn);
 void		nvme_unregister_consumer(struct nvme_consumer *consumer);
 
 /* Controller helper functions */
