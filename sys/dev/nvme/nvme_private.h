@@ -190,6 +190,7 @@ struct nvme_namespace {
 	uint16_t			id;
 	uint16_t			flags;
 	struct cdev			*cdev;
+	void				*cons_cookie[NVME_MAX_CONSUMERS];
 };
 
 /*
@@ -263,6 +264,8 @@ struct nvme_controller {
 
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
+
+	void				*cons_cookie[NVME_MAX_CONSUMERS];
 
 #ifdef CHATHAM2
 	uint64_t		chatham_size;
@@ -445,5 +448,8 @@ nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
 }
 
 #define nvme_free_request(req)	uma_zfree(nvme_request_zone, req)
+
+void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
+				    const struct nvme_completion *async_cpl);
 
 #endif /* __NVME_PRIVATE_H__ */
