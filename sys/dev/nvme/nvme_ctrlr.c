@@ -457,6 +457,14 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 		nvme_chatham_populate_cdata(ctrlr);
 #endif
 
+	/*
+	 * Use MDTS to ensure our default max_xfer_size doesn't exceed what the
+	 *  controller supports.
+	 */
+	if (ctrlr->cdata.mdts > 0)
+		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size,
+		    ctrlr->min_page_size * (1 << (ctrlr->cdata.mdts)));
+
 	return (0);
 }
 
@@ -922,6 +930,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	cap_hi.raw = nvme_mmio_read_4(ctrlr, cap_hi);
 	if (cap_hi.bits.dstrd != 0)
 		return (ENXIO);
+
+	ctrlr->min_page_size = 1 << (12 + cap_hi.bits.mpsmin);
 
 	/* Get ready timeout value from controller, in units of 500ms. */
 	cap_lo.raw = nvme_mmio_read_4(ctrlr, cap_lo);

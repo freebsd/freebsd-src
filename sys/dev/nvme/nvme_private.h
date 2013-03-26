@@ -265,6 +265,9 @@ struct nvme_controller {
 	/** maximum i/o size in bytes */
 	uint32_t		max_xfer_size;
 
+	/** minimum page size supported by this controller in bytes */
+	uint32_t		min_page_size;
+
 	/** interrupt coalescing time period (in microseconds) */
 	uint32_t		int_coal_time;
 
