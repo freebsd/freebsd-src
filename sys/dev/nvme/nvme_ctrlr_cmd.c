@@ -257,6 +257,12 @@ nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
 
 	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
 
+	/*
+	 * Override default timeout value here, since asynchronous event
+	 *  requests should by nature never be timed out.
+	 */
+	req->timeout = 0;
+
 	cmd = &req->cmd;
 	cmd->opc = NVME_OPC_ASYNC_EVENT_REQUEST;
 
