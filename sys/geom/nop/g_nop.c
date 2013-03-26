@@ -242,6 +242,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		goto fail;
 	}
 
+	newpp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	g_error_provider(newpp, 0);
 	G_NOP_DEBUG(0, "Device %s created.", gp->name);
 	return (0);
