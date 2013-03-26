@@ -480,20 +480,23 @@ nvme_timeout(void *arg)
 void
 nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 {
-	struct nvme_request *req;
+	struct nvme_request	*req;
+	struct nvme_controller	*ctrlr;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
 	req = tr->req;
 	req->cmd.cid = tr->cid;
 	qpair->act_tr[tr->cid] = tr;
+	ctrlr = qpair->ctrlr;
 
-	if (req->timeout > 0)
+	if (req->timeout)
 #if __FreeBSD_version >= 800030
-		callout_reset_curcpu(&tr->timer, req->timeout * hz,
+		callout_reset_curcpu(&tr->timer, ctrlr->timeout_period * hz,
 		    nvme_timeout, tr);
 #else
-		callout_reset(&tr->timer, req->timeout * hz, nvme_timeout, tr);
+		callout_reset(&tr->timer, ctrlr->timeout_period * hz,
+		    nvme_timeout, tr);
 #endif
 
 	/* Copy the command from the tracker to the submission queue. */

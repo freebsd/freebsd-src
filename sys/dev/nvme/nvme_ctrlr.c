@@ -592,10 +592,10 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 	aer->req = req;
 
 	/*
-	 * Override default timeout value here, since asynchronous event
-	 *  requests should by nature never be timed out.
+	 * Disable timeout here, since asynchronous event requests should by
+	 *  nature never be timed out.
 	 */
-	req->timeout = 0;
+	req->timeout = FALSE;
 	req->cmd.opc = NVME_OPC_ASYNC_EVENT_REQUEST;
 	nvme_ctrlr_submit_admin_request(ctrlr, req);
 }
@@ -791,6 +791,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
 	int			num_vectors, per_cpu_io_queues, status = 0;
+	int			timeout_period;
 
 	ctrlr->dev = dev;
 	ctrlr->is_started = FALSE;
@@ -821,6 +822,12 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	/* Get ready timeout value from controller, in units of 500ms. */
 	cap_lo.raw = nvme_mmio_read_4(ctrlr, cap_lo);
 	ctrlr->ready_timeout_in_ms = cap_lo.bits.to * 500;
+
+	timeout_period = NVME_DEFAULT_TIMEOUT_PERIOD;
+	TUNABLE_INT_FETCH("hw.nvme.timeout_period", &timeout_period);
+	timeout_period = min(timeout_period, NVME_MAX_TIMEOUT_PERIOD);
+	timeout_period = max(timeout_period, NVME_MIN_TIMEOUT_PERIOD);
+	ctrlr->timeout_period = timeout_period;
 
 	per_cpu_io_queues = 1;
 	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
