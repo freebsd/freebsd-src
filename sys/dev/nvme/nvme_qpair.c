@@ -87,6 +87,23 @@ nvme_completion_is_retry(const struct nvme_completion *cpl)
 	}
 }
 
+static struct nvme_tracker *
+nvme_qpair_find_tracker(struct nvme_qpair *qpair, struct nvme_request *req)
+{
+	struct nvme_tracker	*tr;
+	uint32_t		i;
+
+	KASSERT(req != NULL, ("%s: called with NULL req\n", __func__));
+
+	for (i = 0; i < qpair->num_entries; ++i) {
+		tr = qpair->act_tr[i];
+		if (tr != NULL && tr->req == req)
+			return (tr);
+	}
+
+	return (NULL);
+}
+
 static void
 nvme_qpair_construct_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
     uint16_t cid)
@@ -137,6 +154,7 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 			    tr->payload_dma_map);
 
 		nvme_free_request(req);
+		tr->req = NULL;
 
 		SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
 
@@ -297,7 +315,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 static void
 nvme_qpair_destroy(struct nvme_qpair *qpair)
 {
-	struct nvme_tracker *tr;
+	struct nvme_tracker	*tr;
 
 	if (qpair->tag)
 		bus_teardown_intr(qpair->ctrlr->dev, qpair->res, qpair->tag);
@@ -393,9 +411,41 @@ nvme_io_qpair_destroy(struct nvme_qpair *qpair)
 }
 
 static void
-nvme_abort_complete(void *arg, const struct nvme_completion *status)
+nvme_qpair_manual_abort_tracker(struct nvme_qpair *qpair,
+    struct nvme_tracker *tr, uint32_t sct, uint32_t sc,
+    boolean_t print_on_error)
 {
 	struct nvme_completion	cpl;
+
+	memset(&cpl, 0, sizeof(cpl));
+	cpl.sqid = qpair->id;
+	cpl.cid = tr->cid;
+	cpl.sf_sct = sct;
+	cpl.sf_sc = sc;
+	nvme_qpair_complete_tracker(qpair, tr, &cpl, print_on_error);
+}
+
+void
+nvme_qpair_manual_abort_request(struct nvme_qpair *qpair,
+    struct nvme_request *req, uint32_t sct, uint32_t sc,
+    boolean_t print_on_error)
+{
+	struct nvme_tracker	*tr;
+
+	tr = nvme_qpair_find_tracker(qpair, req);
+
+	if (tr == NULL) {
+		printf("%s: request not found\n", __func__);
+		nvme_dump_command(&req->cmd);
+		return;
+	}
+
+	nvme_qpair_manual_abort_tracker(qpair, tr, sct, sc, print_on_error);
+}
+
+static void
+nvme_abort_complete(void *arg, const struct nvme_completion *status)
+{
 	struct nvme_tracker	*tr = arg;
 
 	/*
@@ -411,12 +461,8 @@ nvme_abort_complete(void *arg, const struct nvme_completion *status)
 		 *  status, and then complete the I/O's tracker manually.
 		 */
 		printf("abort command failed, aborting command manually\n");
-		memset(&cpl, 0, sizeof(cpl));
-		cpl.sqid = tr->qpair->id;
-		cpl.cid = tr->cid;
-		cpl.sf_sct = NVME_SCT_GENERIC;
-		cpl.sf_sc = NVME_SC_ABORTED_BY_REQUEST;
-		nvme_qpair_complete_tracker(tr->qpair, tr, &cpl, TRUE);
+		nvme_qpair_manual_abort_tracker(tr->qpair, tr,
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
 	}
 }
 
