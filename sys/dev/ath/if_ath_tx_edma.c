@@ -249,7 +249,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
 
@@ -257,7 +257,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	/*
 	 * XXX this is mostly duplicated in ath_tx_handoff_mcast().
 	 */
-	if (ATH_TXQ_FIRST(txq) != NULL) {
+	if (ATH_TXQ_LAST(txq, axq_q_s) != NULL) {
 		struct ath_buf *bf_last = ATH_TXQ_LAST(txq, axq_q_s);
 		struct ieee80211_frame *wh;
 
@@ -270,7 +270,9 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		   BUS_DMASYNC_PREWRITE);
 
 		/* link descriptor */
-		*txq->axq_link = bf->bf_daddr;
+		ath_hal_settxdesclink(sc->sc_ah,
+		    bf_last->bf_lastds,
+		    bf->bf_daddr);
 	}
 
 #ifdef	ATH_DEBUG_ALQ
