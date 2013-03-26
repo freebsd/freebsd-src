@@ -172,14 +172,14 @@ nvme_ns_bio_test(void *arg)
 }
 
 static void
-nvme_ns_io_test_cb(void *arg, const struct nvme_completion *status)
+nvme_ns_io_test_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_io_test_thread	*tth = arg;
 	struct timeval			t;
 
 	tth->io_completed++;
 
-	if (status->sf_sc || status->sf_sct) {
+	if (nvme_completion_is_error(cpl)) {
 		printf("%s: error occurred\n", __func__);
 		wakeup_one(tth);
 		return;

@@ -153,7 +153,7 @@ nvd_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
 }
 
 static void
-nvd_done(void *arg, const struct nvme_completion *status)
+nvd_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct bio *bp;
 	struct nvd_disk *ndisk;
@@ -168,7 +168,7 @@ nvd_done(void *arg, const struct nvme_completion *status)
 	 * TODO: add more extensive translation of NVMe status codes
 	 *  to different bio error codes (i.e. EIO, EINVAL, etc.)
 	 */
-	if (status->sf_sc || status->sf_sct) {
+	if (nvme_completion_is_error(cpl)) {
 		bp->bio_error = EIO;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;

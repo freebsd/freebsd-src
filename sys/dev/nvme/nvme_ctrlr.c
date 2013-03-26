@@ -447,7 +447,7 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 	    nvme_ctrlr_cb, &cpl);
 	status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
 	mtx_unlock(mtx);
-	if ((status != 0) || cpl.sf_sc || cpl.sf_sct) {
+	if ((status != 0) || nvme_completion_is_error(&cpl)) {
 		printf("nvme_identify_controller failed!\n");
 		return (ENXIO);
 	}
@@ -474,7 +474,7 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	    nvme_ctrlr_cb, &cpl);
 	status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
 	mtx_unlock(mtx);
-	if ((status != 0) || cpl.sf_sc || cpl.sf_sct) {
+	if ((status != 0) || nvme_completion_is_error(&cpl)) {
 		printf("nvme_set_num_queues failed!\n");
 		return (ENXIO);
 	}
@@ -522,7 +522,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		    nvme_ctrlr_cb, &cpl);
 		status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
 		mtx_unlock(mtx);
-		if ((status != 0) || cpl.sf_sc || cpl.sf_sct) {
+		if ((status != 0) || nvme_completion_is_error(&cpl)) {
 			printf("nvme_create_io_cq failed!\n");
 			return (ENXIO);
 		}
@@ -532,7 +532,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		    nvme_ctrlr_cb, &cpl);
 		status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
 		mtx_unlock(mtx);
-		if ((status != 0) || cpl.sf_sc || cpl.sf_sct) {
+		if ((status != 0) || nvme_completion_is_error(&cpl)) {
 			printf("nvme_create_io_sq failed!\n");
 			return (ENXIO);
 		}
@@ -562,7 +562,7 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_async_event_request *aer = arg;
 
-	if (cpl->sf_sc == NVME_SC_ABORTED_SQ_DELETION) {
+	if (cpl->status.sc == NVME_SC_ABORTED_SQ_DELETION) {
 		/*
 		 *  This is simulated when controller is being shut down, to
 		 *  effectively abort outstanding asynchronous event requests
@@ -783,7 +783,7 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		    nvme_ctrlr_cb, &cpl);
 		msleep(&cpl, mtx, PRIBIO, "nvme_ioctl", 0);
 		mtx_unlock(mtx);
-		if (cpl.sf_sc || cpl.sf_sct)
+		if (nvme_completion_is_error(&cpl))
 			return (ENXIO);
 		memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
 		break;

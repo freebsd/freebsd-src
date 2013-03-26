@@ -38,13 +38,6 @@ static void	_nvme_qpair_submit_request(struct nvme_qpair *qpair,
 					   struct nvme_request *req);
 
 static boolean_t
-nvme_completion_is_error(struct nvme_completion *cpl)
-{
-
-	return (cpl->sf_sc != 0 || cpl->sf_sct != 0);
-}
-
-static boolean_t
 nvme_completion_is_retry(const struct nvme_completion *cpl)
 {
 	/*
@@ -53,13 +46,13 @@ nvme_completion_is_retry(const struct nvme_completion *cpl)
 	 *  NAMESPACE_NOT_READY is the only case where we should
 	 *  look at the DNR bit.
 	 */
-	switch (cpl->sf_sct) {
+	switch (cpl->status.sct) {
 	case NVME_SCT_GENERIC:
-		switch (cpl->sf_sc) {
+		switch (cpl->status.sc) {
 		case NVME_SC_ABORTED_BY_REQUEST:
 			return (1);
 		case NVME_SC_NAMESPACE_NOT_READY:
-			if (cpl->sf_dnr)
+			if (cpl->status.dnr)
 				return (0);
 			else
 				return (1);
@@ -168,8 +161,8 @@ nvme_qpair_manual_complete_tracker(struct nvme_qpair *qpair,
 	memset(&cpl, 0, sizeof(cpl));
 	cpl.sqid = qpair->id;
 	cpl.cid = tr->cid;
-	cpl.sf_sct = sct;
-	cpl.sf_sc = sc;
+	cpl.status.sct = sct;
+	cpl.status.sc = sc;
 	nvme_qpair_complete_tracker(qpair, tr, &cpl, print_on_error);
 }
 
@@ -193,7 +186,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	while (1) {
 		cpl = &qpair->cpl[qpair->cq_head];
 
-		if (cpl->p != qpair->phase)
+		if (cpl->status.p != qpair->phase)
 			break;
 
 		tr = qpair->act_tr[cpl->cid];

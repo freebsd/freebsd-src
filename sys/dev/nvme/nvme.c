@@ -223,8 +223,8 @@ nvme_dump_completion(struct nvme_completion *cpl)
 	printf("cdw0:%08x sqhd:%04x sqid:%04x "
 	    "cid:%04x p:%x sc:%02x sct:%x m:%x dnr:%x\n",
 	    cpl->cdw0, cpl->sqhd, cpl->sqid,
-	    cpl->cid, cpl->p, cpl->sf_sc, cpl->sf_sct, cpl->sf_m,
-	    cpl->sf_dnr);
+	    cpl->cid, cpl->status.p, cpl->status.sc, cpl->status.sct,
+	    cpl->status.m, cpl->status.dnr);
 }
 
 void
