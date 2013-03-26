@@ -393,12 +393,40 @@ nvme_io_qpair_destroy(struct nvme_qpair *qpair)
 }
 
 static void
+nvme_abort_complete(void *arg, const struct nvme_completion *status)
+{
+	struct nvme_completion	cpl;
+	struct nvme_tracker	*tr = arg;
+
+	/*
+	 * If cdw0 == 1, the controller was not able to abort the command
+	 *  we requested.  We still need to check the active tracker array,
+	 *  to cover race where I/O timed out at same time controller was
+	 *  completing the I/O.
+	 */
+	if (status->cdw0 == 1 && tr->qpair->act_tr[tr->cid] != NULL) {
+		/*
+		 * An I/O has timed out, and the controller was unable to
+		 *  abort it for some reason.  Construct a fake completion
+		 *  status, and then complete the I/O's tracker manually.
+		 */
+		printf("abort command failed, aborting command manually\n");
+		memset(&cpl, 0, sizeof(cpl));
+		cpl.sqid = tr->qpair->id;
+		cpl.cid = tr->cid;
+		cpl.sf_sct = NVME_SCT_GENERIC;
+		cpl.sf_sc = NVME_SC_ABORTED_BY_REQUEST;
+		nvme_qpair_complete_tracker(tr->qpair, tr, &cpl, TRUE);
+	}
+}
+
+static void
 nvme_timeout(void *arg)
 {
 	struct nvme_tracker	*tr = arg;
 
 	nvme_ctrlr_cmd_abort(tr->qpair->ctrlr, tr->cid, tr->qpair->id,
-	    NULL, NULL);
+	    nvme_abort_complete, tr);
 }
 
 void
