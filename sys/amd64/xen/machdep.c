@@ -559,7 +559,7 @@ initxen(struct start_info *si)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_pcb->pcb_cr3 = VTOP(KPML4phys);
+	thread0.td_pcb->pcb_cr3 = xpmap_ptom(VTOP(KPML4phys));
 	thread0.td_frame = &proc0_tf;
 
         env = getenv("kernelname");
@@ -1295,6 +1295,12 @@ xen_set_proc(struct pcb *newpcb)
 }
 
 char *console_page;
+
+/* 
+ * We don't use the tss on xen pv - this is a dummy to not break
+ * common assembler code - see cpu_switch.S:cpu_switch
+ */
+
 #include <machine/tss.h>
 struct amd64tss common_tss[MAXCPU];
 
