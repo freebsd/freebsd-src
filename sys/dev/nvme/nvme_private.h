@@ -130,6 +130,7 @@ struct nvme_async_event_request {
 	struct nvme_controller		*ctrlr;
 	struct nvme_request		*req;
 	struct nvme_completion		cpl;
+	uint32_t			log_page_id;
 	uint32_t			log_page_size;
 	uint8_t				log_page_buffer[NVME_MAX_AER_LOG_SIZE];
 };
@@ -475,6 +476,8 @@ nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
 #define nvme_free_request(req)	uma_zfree(nvme_request_zone, req)
 
 void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
-				    const struct nvme_completion *async_cpl);
+				    const struct nvme_completion *async_cpl,
+				    uint32_t log_page_id, void *log_page_buffer,
+				    uint32_t log_page_size);
 
 #endif /* __NVME_PRIVATE_H__ */

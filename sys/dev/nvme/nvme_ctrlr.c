@@ -602,7 +602,21 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_async_event_request	*aer = arg;
 
-	nvme_notify_async_consumers(aer->ctrlr, &aer->cpl);
+	/*
+	 * If the log page fetch for some reason completed with an error,
+	 *  don't pass log page data to the consumers.  In practice, this case
+	 *  should never happen.
+	 */
+	if (nvme_completion_is_error(cpl))
+		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
+		    aer->log_page_id, NULL, 0);
+	else
+		/*
+		 * Pass the cpl data from the original async event completion,
+		 *  not the log page fetch.
+		 */
+		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
+		    aer->log_page_id, aer->log_page_buffer, aer->log_page_size);
 
 	/*
 	 * Repost another asynchronous event request to replace the one
@@ -615,7 +629,6 @@ static void
 nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_async_event_request	*aer = arg;
-	uint8_t				log_page_id;
 
 	if (cpl->status.sc == NVME_SC_ABORTED_SQ_DELETION) {
 		/*
@@ -630,19 +643,20 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 	printf("Asynchronous event occurred.\n");
 
 	/* Associated log page is in bits 23:16 of completion entry dw0. */
-	log_page_id = (cpl->cdw0 & 0xFF0000) >> 16;
+	aer->log_page_id = (cpl->cdw0 & 0xFF0000) >> 16;
 
-	if (is_log_page_id_valid(log_page_id)) {
+	if (is_log_page_id_valid(aer->log_page_id)) {
 		aer->log_page_size = nvme_ctrlr_get_log_page_size(aer->ctrlr,
-		    log_page_id);
+		    aer->log_page_id);
 		memcpy(&aer->cpl, cpl, sizeof(*cpl));
-		nvme_ctrlr_cmd_get_log_page(aer->ctrlr, log_page_id,
+		nvme_ctrlr_cmd_get_log_page(aer->ctrlr, aer->log_page_id,
 		    NVME_GLOBAL_NAMESPACE_TAG, aer->log_page_buffer,
 		    aer->log_page_size, nvme_ctrlr_async_event_log_page_cb,
 		    aer);
 		/* Wait to notify consumers until after log page is fetched. */
 	} else {
-		nvme_notify_async_consumers(aer->ctrlr, cpl);
+		nvme_notify_async_consumers(aer->ctrlr, cpl, aer->log_page_id,
+		    NULL, 0);
 
 		/*
 		 * Repost another asynchronous event request to replace the one
