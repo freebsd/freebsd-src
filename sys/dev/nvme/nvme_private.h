@@ -112,6 +112,7 @@ struct nvme_request {
 	struct nvme_command		cmd;
 	void				*payload;
 	uint32_t			payload_size;
+	uint32_t			timeout;
 	struct uio			*uio;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
@@ -411,6 +412,7 @@ nvme_allocate_request(void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn,
 	req->payload_size = payload_size;
 	req->cb_fn = cb_fn;
 	req->cb_arg = cb_arg;
+	req->timeout = NVME_TIMEOUT_IN_SEC;
 
 	return (req);
 }
@@ -427,6 +429,7 @@ nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
 	req->uio = uio;
 	req->cb_fn = cb_fn;
 	req->cb_arg = cb_arg;
+	req->timeout = NVME_TIMEOUT_IN_SEC;
 
 	return (req);
 }
