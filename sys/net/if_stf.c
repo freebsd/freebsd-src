@@ -799,7 +799,7 @@ stf_rtrequest(cmd, rt, info)
 	struct rt_addrinfo *info;
 {
 	RT_LOCK_ASSERT(rt);
-	rt->rt_rmx.rmx_mtu = IPV6_MMTU;
+	rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
 }
 
 static int
@@ -812,7 +812,7 @@ stf_ioctl(ifp, cmd, data)
 	struct ifreq *ifr;
 	struct sockaddr_in6 *sin6;
 	struct in_addr addr;
-	int error;
+	int error, mtu;
 
 	error = 0;
 	switch (cmd) {
@@ -844,6 +844,18 @@ stf_ioctl(ifp, cmd, data)
 			;
 		else
 			error = EAFNOSUPPORT;
+		break;
+
+	case SIOCGIFMTU:
+		break;
+
+	case SIOCSIFMTU:
+		ifr = (struct ifreq *)data;
+		mtu = ifr->ifr_mtu;
+		/* RFC 4213 3.2 ideal world MTU */
+		if (mtu < IPV6_MINMTU || mtu > IF_MAXMTU - 20)
+			return (EINVAL);
+		ifp->if_mtu = mtu;
 		break;
 
 	default:
