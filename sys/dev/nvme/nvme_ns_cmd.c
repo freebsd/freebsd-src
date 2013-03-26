@@ -96,7 +96,7 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 	cmd->nsid = ns->id;
 
 	/* TODO: create a delete command data structure */
-	cmd->cdw10 = num_ranges;
+	cmd->cdw10 = num_ranges - 1;
 	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
 
 	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
