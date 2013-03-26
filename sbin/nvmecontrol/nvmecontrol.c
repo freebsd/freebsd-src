@@ -245,13 +245,15 @@ devlist(int argc, char *argv[])
 
 		fd = open(path, O_RDWR);
 		if (fd < 0) {
-			printf("Could not open %s.\n", path);
+			printf("Could not open %s. errno=%d (%s)\n", path,
+			    errno, strerror(errno));
 			exit_code = EX_NOPERM;
 			continue;
 		}
 
-		if (ioctl(fd, NVME_IDENTIFY_CONTROLLER, &cdata) == -1) {
-			printf("ioctl to %s failed.\n", path);
+		if (ioctl(fd, NVME_IDENTIFY_CONTROLLER, &cdata) < 0) {
+			printf("Identify request to %s failed. errno=%d (%s)\n",
+			    path, errno, strerror(errno));
 			exit_code = EX_IOERR;
 			continue;
 		}
@@ -264,12 +266,15 @@ devlist(int argc, char *argv[])
 
 			fd = open(path, O_RDWR);
 			if (fd < 0) {
-				printf("Could not open %s.\n", path);
+				printf("Could not open %s. errno=%d (%s)\n",
+				    path, errno, strerror(errno));
 				exit_code = EX_NOPERM;
 				continue;
 			}
-			if (ioctl(fd, NVME_IDENTIFY_NAMESPACE, &nsdata) == -1) {
-				printf("ioctl to %s failed.\n", path);
+			if (ioctl(fd, NVME_IDENTIFY_NAMESPACE, &nsdata) < 0) {
+				printf("Identify request to %s failed. "
+				    "errno=%d (%s)\n", path, errno,
+				    strerror(errno));
 				exit_code = EX_IOERR;
 				continue;
 			}
@@ -311,19 +316,22 @@ identify_ctrlr(int argc, char *argv[])
 
 	sprintf(path, "/dev/%s", argv[optind]);
 
-	if (stat(path, &devstat) != 0) {
-		printf("Invalid device node '%s'.\n", path);
+	if (stat(path, &devstat) < 0) {
+		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
+		    strerror(errno));
 		exit(EX_IOERR);
 	}
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		printf("Could not open %s.\n", path);
+		printf("Could not open %s. errno=%d (%s)\n", path, errno,
+		    strerror(errno));
 		exit(EX_NOPERM);
 	}
 
-	if (ioctl(fd, NVME_IDENTIFY_CONTROLLER, &cdata) == -1) {
-		printf("ioctl to %s failed.\n", path);
+	if (ioctl(fd, NVME_IDENTIFY_CONTROLLER, &cdata) < 0) {
+		printf("Identify request to %s failed. errno=%d (%s)\n", path,
+		    errno, strerror(errno));
 		exit(EX_IOERR);
 	}
 
@@ -370,19 +378,22 @@ identify_ns(int argc, char *argv[])
 
 	sprintf(path, "/dev/%s", argv[optind]);
 
-	if (stat(path, &devstat) != 0) {
-		printf("Invalid device node '%s'.\n", path);
+	if (stat(path, &devstat) < 0) {
+		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
+		    strerror(errno));
 		exit(EX_IOERR);
 	}
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		printf("Could not open %s.\n", path);
+		printf("Could not open %s. errno=%d (%s)\n", path, errno,
+		    strerror(errno));
 		exit(EX_NOPERM);
 	}
 
-	if (ioctl(fd, NVME_IDENTIFY_NAMESPACE, &nsdata) == -1) {
-		printf("ioctl to %s failed.\n", path);
+	if (ioctl(fd, NVME_IDENTIFY_NAMESPACE, &nsdata) < 0) {
+		printf("Identify request to %s failed. errno=%d (%s)\n", path,
+		    errno, strerror(errno));
 		exit(EX_IOERR);
 	}
 
@@ -479,7 +490,7 @@ perftest(int argc, char *argv[])
 	char				path[64];
 	u_long				ioctl_cmd = NVME_IO_TEST;
 	bool				nflag, oflag, sflag, tflag;
-	int				err, perthread = 0;
+	int				perthread = 0;
 
 	nflag = oflag = sflag = tflag = false;
 	name = NULL;
@@ -569,14 +580,14 @@ perftest(int argc, char *argv[])
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		fprintf(stderr, "%s not valid device.\n", path);
+		fprintf(stderr, "%s not valid device. errno=%d (%s)\n", path,
+		    errno, strerror(errno));
 		perftest_usage();
 	}
 
-	err = ioctl(fd, ioctl_cmd, &io_test);
-
-	if (err) {
-		fprintf(stderr, "NVME_IO_TEST returned %d\n", errno);
+	if (ioctl(fd, ioctl_cmd, &io_test) < 0) {
+		fprintf(stderr, "NVME_IO_TEST failed. errno=%d (%s)\n", errno,
+		    strerror(errno));
 		exit(EX_IOERR);
 	}
 
@@ -600,19 +611,22 @@ reset_ctrlr(int argc, char *argv[])
 
 	sprintf(path, "/dev/%s", argv[optind]);
 
-	if (stat(path, &devstat) != 0) {
-		printf("Invalid device node '%s'.\n", path);
+	if (stat(path, &devstat) < 0) {
+		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
+		    strerror(errno));
 		exit(EX_IOERR);
 	}
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		printf("Could not open %s.\n", path);
+		printf("Could not open %s. errno=%d (%s)\n", path, errno,
+		    strerror(errno));
 		exit(EX_NOPERM);
 	}
 
-	if (ioctl(fd, NVME_RESET_CONTROLLER) == -1) {
-		printf("ioctl to %s failed.\n", path);
+	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0) {
+		printf("Reset request to %s failed. errno=%d (%s)\n", path,
+		    errno, strerror(errno));
 		exit(EX_IOERR);
 	}
 
