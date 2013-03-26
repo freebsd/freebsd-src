@@ -733,7 +733,7 @@ nvme_ctrlr_configure_int_coalescing(struct nvme_controller *ctrlr)
 	    ctrlr->int_coal_threshold, NULL, NULL);
 }
 
-void
+static void
 nvme_ctrlr_start(void *ctrlr_arg)
 {
 	struct nvme_controller *ctrlr = ctrlr_arg;
@@ -746,40 +746,31 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	nvme_admin_qpair_enable(&ctrlr->adminq);
 
 	if (nvme_ctrlr_identify(ctrlr) != 0)
-		goto err;
+		return;
 
 	if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0)
-		goto err;
+		return;
 
 	if (nvme_ctrlr_create_qpairs(ctrlr) != 0)
-		goto err;
+		return;
 
 	if (nvme_ctrlr_construct_namespaces(ctrlr) != 0)
-		goto err;
+		return;
 
 	nvme_ctrlr_configure_aer(ctrlr);
 	nvme_ctrlr_configure_int_coalescing(ctrlr);
 
 	for (i = 0; i < ctrlr->num_io_queues; i++)
 		nvme_io_qpair_enable(&ctrlr->ioq[i]);
+}
 
-	ctrlr->is_started = TRUE;
+void
+nvme_ctrlr_start_config_hook(void *arg)
+{
+	struct nvme_controller *ctrlr = arg;
 
-err:
-
-	if (ctrlr->num_start_attempts == 0) {
-		/*
-		 * Initialize sysctls, even if controller failed to start, to
-		 *  assist with debugging admin queue pair.  Only run this
-		 *  code on the initial start attempt though, and not
-		 *  subsequent start attempts due to controller-level resets.
-		 *
-		 */
-		nvme_sysctl_initialize_ctrlr(ctrlr);
-		config_intrhook_disestablish(&ctrlr->config_hook);
-	}
-
-	ctrlr->num_start_attempts++;
+	nvme_ctrlr_start(ctrlr);
+	config_intrhook_disestablish(&ctrlr->config_hook);
 }
 
 static void
@@ -906,8 +897,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	int			timeout_period;
 
 	ctrlr->dev = dev;
-	ctrlr->is_started = FALSE;
-	ctrlr->num_start_attempts = 0;
 
 	status = nvme_ctrlr_allocate_bar(ctrlr);
 

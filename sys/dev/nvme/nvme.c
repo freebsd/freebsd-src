@@ -283,7 +283,9 @@ nvme_attach(device_t dev)
 	if (status != 0)
 		return (status);
 
-	ctrlr->config_hook.ich_func = nvme_ctrlr_start;
+	nvme_sysctl_initialize_ctrlr(ctrlr);
+
+	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;
 
 	config_intrhook_establish(&ctrlr->config_hook);

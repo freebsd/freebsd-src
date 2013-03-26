@@ -250,7 +250,6 @@ struct nvme_controller {
 	struct intr_config_hook	config_hook;
 	uint32_t		ns_identified;
 	uint32_t		queues_created;
-	uint32_t		num_start_attempts;
 	struct task		reset_task;
 	struct taskqueue	*taskqueue;
 
@@ -286,8 +285,6 @@ struct nvme_controller {
 	struct nvme_namespace		ns[NVME_MAX_NAMESPACES];
 
 	struct cdev			*cdev;
-
-	boolean_t			is_started;
 
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
@@ -401,7 +398,7 @@ void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);
 int	nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr);
 void	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
-void	nvme_ctrlr_start(void *ctrlr_arg);
+void	nvme_ctrlr_start_config_hook(void *ctrlr_arg);
 void	nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
 					struct nvme_request *req);
 void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
