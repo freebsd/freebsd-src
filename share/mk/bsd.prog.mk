@@ -41,6 +41,7 @@ PROG=	${PROG_CXX}
 .endif
 
 .if defined(PROG)
+PROGNAME?=	${PROG}
 .if defined(SRCS)
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
@@ -153,13 +154,8 @@ realinstall: _proginstall
 .ORDER: beforeinstall _proginstall
 _proginstall:
 .if defined(PROG)
-.if defined(PROGNAME)
 	${INSTALL} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
-.else
-	${INSTALL} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
-.endif
 .endif
 .endif	# !target(realinstall)
 
