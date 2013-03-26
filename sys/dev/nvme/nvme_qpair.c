@@ -156,7 +156,8 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 		nvme_free_request(req);
 		tr->req = NULL;
 
-		SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
+		TAILQ_REMOVE(&qpair->outstanding_tr, tr, tailq);
+		TAILQ_INSERT_HEAD(&qpair->free_tr, tr, tailq);
 
 		if (!STAILQ_EMPTY(&qpair->queued_req)) {
 			req = STAILQ_FIRST(&qpair->queued_req);
@@ -293,7 +294,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->sq_tdbl_off = nvme_mmio_offsetof(doorbell[id].sq_tdbl);
 	qpair->cq_hdbl_off = nvme_mmio_offsetof(doorbell[id].cq_hdbl);
 
-	SLIST_INIT(&qpair->free_tr);
+	TAILQ_INIT(&qpair->free_tr);
+	TAILQ_INIT(&qpair->outstanding_tr);
 	STAILQ_INIT(&qpair->queued_req);
 
 	for (i = 0; i < qpair->num_trackers; i++) {
@@ -305,7 +307,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		}
 
 		nvme_qpair_construct_tracker(qpair, tr, i);
-		SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
+		TAILQ_INSERT_HEAD(&qpair->free_tr, tr, tailq);
 	}
 
 	qpair->act_tr = malloc(sizeof(struct nvme_tracker *) * qpair->num_entries,
@@ -330,9 +332,9 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 	if (qpair->act_tr)
 		free(qpair->act_tr, M_NVME);
 
-	while (!SLIST_EMPTY(&qpair->free_tr)) {
-		tr = SLIST_FIRST(&qpair->free_tr);
-		SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
+	while (!TAILQ_EMPTY(&qpair->free_tr)) {
+		tr = TAILQ_FIRST(&qpair->free_tr);
+		TAILQ_REMOVE(&qpair->free_tr, tr, tailq);
 		bus_dmamap_destroy(qpair->dma_tag, tr->payload_dma_map);
 		bus_dmamap_destroy(qpair->dma_tag, tr->prp_dma_map);
 		free(tr, M_NVME);
@@ -513,7 +515,7 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
-	tr = SLIST_FIRST(&qpair->free_tr);
+	tr = TAILQ_FIRST(&qpair->free_tr);
 
 	if (tr == NULL) {
 		/*
@@ -525,7 +527,8 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		return;
 	}
 
-	SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
+	TAILQ_REMOVE(&qpair->free_tr, tr, tailq);
+	TAILQ_INSERT_TAIL(&qpair->outstanding_tr, tr, tailq);
 	tr->req = req;
 
 	if (req->uio == NULL) {
