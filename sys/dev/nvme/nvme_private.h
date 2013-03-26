@@ -100,7 +100,9 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_MAX_CONSUMERS	(2)
 #define NVME_MAX_ASYNC_EVENTS	(8)
 
-#define NVME_TIMEOUT_IN_SEC	(30)
+#define NVME_DEFAULT_TIMEOUT_PERIOD	(30)	/* in seconds */
+#define NVME_MIN_TIMEOUT_PERIOD		(5)
+#define NVME_MAX_TIMEOUT_PERIOD		(120)
 
 #ifndef CACHE_LINE_SIZE
 #define CACHE_LINE_SIZE		(64)
@@ -113,7 +115,7 @@ struct nvme_request {
 	struct nvme_command		cmd;
 	void				*payload;
 	uint32_t			payload_size;
-	uint32_t			timeout;
+	boolean_t			timeout;
 	struct uio			*uio;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
@@ -256,6 +258,9 @@ struct nvme_controller {
 
 	/** interrupt coalescing threshold */
 	uint32_t		int_coal_threshold;
+
+	/** timeout period in seconds */
+	uint32_t		timeout_period;
 
 	struct nvme_qpair	adminq;
 	struct nvme_qpair	*ioq;
@@ -427,7 +432,7 @@ nvme_allocate_request(void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn,
 	req->payload_size = payload_size;
 	req->cb_fn = cb_fn;
 	req->cb_arg = cb_arg;
-	req->timeout = NVME_TIMEOUT_IN_SEC;
+	req->timeout = TRUE;
 
 	return (req);
 }
@@ -444,7 +449,7 @@ nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
 	req->uio = uio;
 	req->cb_fn = cb_fn;
 	req->cb_arg = cb_arg;
-	req->timeout = NVME_TIMEOUT_IN_SEC;
+	req->timeout = TRUE;
 
 	return (req);
 }
