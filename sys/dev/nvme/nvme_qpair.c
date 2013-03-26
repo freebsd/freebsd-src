@@ -98,7 +98,7 @@ nvme_qpair_construct_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 	bus_dmamap_load(qpair->dma_tag, tr->prp_dma_map, tr->prp,
 	    sizeof(tr->prp), nvme_single_map, &tr->prp_bus_addr, 0);
 
-	callout_init_mtx(&tr->timer, &qpair->lock, 0);
+	callout_init(&tr->timer, 1);
 	tr->cid = cid;
 	tr->qpair = qpair;
 }
@@ -456,8 +456,24 @@ static void
 nvme_timeout(void *arg)
 {
 	struct nvme_tracker	*tr = arg;
+	struct nvme_qpair	*qpair = tr->qpair;
+	struct nvme_controller	*ctrlr = qpair->ctrlr;
+	union csts_register	csts;
 
-	nvme_ctrlr_cmd_abort(tr->qpair->ctrlr, tr->cid, tr->qpair->id,
+	csts.raw = nvme_mmio_read_4(ctrlr, csts);
+	if (csts.bits.cfs == 1) {
+		/*
+		 * The controller is reporting fatal status.  Don't bother
+		 *  trying to abort the timed out command - proceed
+		 *  immediately to a controller-level reset.
+		 */
+		device_printf(ctrlr->dev,
+		    "controller reports fatal status, resetting...\n");
+		nvme_ctrlr_reset(ctrlr);
+		return;
+	}
+
+	nvme_ctrlr_cmd_abort(ctrlr, tr->cid, qpair->id,
 	    nvme_abort_complete, tr);
 }
 
