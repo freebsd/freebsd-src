@@ -77,7 +77,7 @@ static int is_dry_run = 0;  /* do not arm the watchdog, only
 			       report on timing of the watch
 			       program */
 static int do_timedog = 0;
-static int do_syslog = 0;
+static int do_syslog = 1;
 static int fd = -1;
 static int nap = 1;
 static int carp_thresh_seconds = -1;
@@ -125,11 +125,9 @@ main(int argc, char *argv[])
 		
 	parseargs(argc, argv);
 
-	if (do_syslog) {
+	if (do_syslog)
 		openlog("watchdogd", LOG_CONS|LOG_NDELAY|LOG_PERROR,
 		    LOG_DAEMON);
-
-	}
 
 	rtp.type = RTP_PRIO_REALTIME;
 	rtp.prio = 0;
@@ -234,8 +232,9 @@ static long
 watchdog_check_dogfunction_time(struct timespec *tp_start,
     struct timespec *tp_end)
 {
-	struct timeval tv_start, tv_end, tv;
+	struct timeval tv_start, tv_end, tv_now, tv;
 	const char *cmd_prefix, *cmd;
+	struct timespec tp_now;
 	int sec;
 
 	if (!do_timedog)
@@ -257,15 +256,27 @@ watchdog_check_dogfunction_time(struct timespec *tp_start,
 	}
 	if (do_syslog)
 		syslog(LOG_CRIT, "%s: '%s' took too long: "
-		    "%d.%06ld seconds >= %d seconds threshhold",
+		    "%d.%06ld seconds >= %d seconds threshold",
 		    cmd_prefix, cmd, sec, (long)tv.tv_usec,
 		    carp_thresh_seconds);
-	warnx("%s: '%s' took too long: "
-	    "%d.%06ld seconds >= %d seconds threshhold",
-	    cmd_prefix, cmd, sec, (long)tv.tv_usec, carp_thresh_seconds);
+	else
+		warnx("%s: '%s' took too long: "
+		    "%d.%06ld seconds >= %d seconds threshold",
+		    cmd_prefix, cmd, sec, (long)tv.tv_usec,
+		    carp_thresh_seconds);
+
+	/*
+	 * Adjust the sleep interval again in case syslog(3) took a non-trivial
+	 * amount of time to run.
+	 */
+	if (watchdog_getuptime(&tp_now))
+		return (sec);
+	TIMESPEC_TO_TIMEVAL(&tv_now, &tp_now);
+	timersub(&tv_now, &tv_start, &tv);
+	sec = tv.tv_sec;
+
 	return (sec);
 }
-
 
 /*
  * Main program loop which is iterated every second.
@@ -298,10 +309,10 @@ watchdog_loop(void)
 			goto try_end;
 		}
 
-		waited = watchdog_check_dogfunction_time(&ts_start, &ts_end);
-
 		if (failed == 0)
 			watchdog_patpat(timeout|WD_ACTIVE);
+
+		waited = watchdog_check_dogfunction_time(&ts_start, &ts_end);
 		if (nap - waited > 0)
 			sleep(nap - waited);
 
@@ -404,7 +415,7 @@ usage(void)
 {
 	if (is_daemon)
 		fprintf(stderr, "usage:\n"
-"  watchdogd [-dnw] [-e cmd] [-I file] [-s sleep] [-t timeout]\n"
+"  watchdogd [-dnSw] [-e cmd] [-I file] [-s sleep] [-t timeout]\n"
 "            [-T script_timeout]\n"
 "            [--debug]\n"
 "            [--pretimeout seconds] [-pretimeout-action action]\n"
@@ -551,7 +562,7 @@ parseargs(int argc, char *argv[])
 			nap = fetchtimeout(c, NULL, optarg);
 			break;
 		case 'S':
-			do_syslog = 1;
+			do_syslog = 0;
 			break;
 		case 't':
 			p = NULL;
