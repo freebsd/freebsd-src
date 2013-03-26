@@ -315,7 +315,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 		while (status.done == FALSE)
 			DELAY(5);
 		if (nvme_completion_is_error(&status.cpl)) {
-			printf("nvme_identify_namespace failed!\n");
+			nvme_printf(ctrlr, "nvme_identify_namespace failed\n");
 			return (ENXIO);
 		}
 #ifdef CHATHAM2

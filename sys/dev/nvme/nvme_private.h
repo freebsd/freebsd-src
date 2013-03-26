@@ -30,6 +30,7 @@
 #define __NVME_PRIVATE_H__
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -352,6 +353,9 @@ struct nvme_controller {
 #define wmb()	__asm volatile("sfence" ::: "memory")
 #define mb()	__asm volatile("mfence" ::: "memory")
 #endif
+
+#define nvme_printf(ctrlr, fmt, args...)	\
+    device_printf(ctrlr->dev, fmt, ##args)
 
 void	nvme_ns_test(struct nvme_namespace *ns, u_long cmd, caddr_t arg);
 
