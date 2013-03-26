@@ -189,6 +189,16 @@ vm_radix_setroot(struct vm_radix *rtree, struct vm_radix_node *rnode)
 }
 
 /*
+ * Returns TRUE if the specified radix node is a leaf and FALSE otherwise.
+ */
+static __inline boolean_t
+vm_radix_isleaf(struct vm_radix_node *rnode)
+{
+
+	return (((uintptr_t)rnode & VM_RADIX_ISLEAF) != 0);
+}
+
+/*
  * Returns the associated page extracted from rnode if available,
  * and NULL otherwise.
  */
@@ -315,7 +325,7 @@ vm_radix_reclaim_allnodes_int(struct vm_radix_node *rnode)
 	for (slot = 0; rnode->rn_count != 0; slot++) {
 		if (rnode->rn_child[slot] == NULL)
 			continue;
-		if (vm_radix_node_page(rnode->rn_child[slot]) == NULL)
+		if (!vm_radix_isleaf(rnode->rn_child[slot]))
 			vm_radix_reclaim_allnodes_int(rnode->rn_child[slot]);
 		rnode->rn_child[slot] = NULL;
 		rnode->rn_count--;
@@ -454,7 +464,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 		    __func__, clev, rnode->rn_clev));
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		tmp = rnode->rn_child[slot];
-		KASSERT(tmp != NULL && vm_radix_node_page(tmp) == NULL,
+		KASSERT(tmp != NULL && !vm_radix_isleaf(tmp),
 		    ("%s: unexpected lookup interruption", __func__));
 		if (tmp->rn_clev > clev)
 			break;
