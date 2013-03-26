@@ -41,24 +41,6 @@ __FBSDID("$FreeBSD$");
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
 
-static void
-nvme_ctrlr_cb(void *arg, const struct nvme_completion *status)
-{
-	struct nvme_completion	*cpl = arg;
-	struct mtx		*mtx;
-
-	/*
-	 * Copy status into the argument passed by the caller, so that
-	 *  the caller can check the status to determine if the
-	 *  the request passed or failed.
-	 */
-	memcpy(cpl, status, sizeof(*cpl));
-	mtx = mtx_pool_find(mtxpool_sleep, cpl);
-	mtx_lock(mtx);
-	wakeup(cpl);
-	mtx_unlock(mtx);
-}
-
 static int
 nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 {
@@ -479,18 +461,14 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 static int
 nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 {
-	struct mtx		*mtx;
-	struct nvme_completion	cpl;
-	int			status;
+	struct nvme_completion_poll_status	status;
 
-	mtx = mtx_pool_find(mtxpool_sleep, &cpl);
-
-	mtx_lock(mtx);
+	status.done = FALSE;
 	nvme_ctrlr_cmd_identify_controller(ctrlr, &ctrlr->cdata,
-	    nvme_ctrlr_cb, &cpl);
-	status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
-	mtx_unlock(mtx);
-	if ((status != 0) || nvme_completion_is_error(&cpl)) {
+	    nvme_completion_poll_cb, &status);
+	while (status.done == FALSE)
+		DELAY(5);
+	if (nvme_completion_is_error(&status.cpl)) {
 		printf("nvme_identify_controller failed!\n");
 		return (ENXIO);
 	}
@@ -514,18 +492,15 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 static int
 nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 {
-	struct mtx		*mtx;
-	struct nvme_completion	cpl;
-	int			cq_allocated, sq_allocated, status;
+	struct nvme_completion_poll_status	status;
+	int					cq_allocated, sq_allocated;
 
-	mtx = mtx_pool_find(mtxpool_sleep, &cpl);
-
-	mtx_lock(mtx);
+	status.done = FALSE;
 	nvme_ctrlr_cmd_set_num_queues(ctrlr, ctrlr->num_io_queues,
-	    nvme_ctrlr_cb, &cpl);
-	status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
-	mtx_unlock(mtx);
-	if ((status != 0) || nvme_completion_is_error(&cpl)) {
+	    nvme_completion_poll_cb, &status);
+	while (status.done == FALSE)
+		DELAY(5);
+	if (nvme_completion_is_error(&status.cpl)) {
 		printf("nvme_set_num_queues failed!\n");
 		return (ENXIO);
 	}
@@ -535,8 +510,8 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	 * Lower 16-bits indicate number of submission queues allocated.
 	 * Upper 16-bits indicate number of completion queues allocated.
 	 */
-	sq_allocated = (cpl.cdw0 & 0xFFFF) + 1;
-	cq_allocated = (cpl.cdw0 >> 16) + 1;
+	sq_allocated = (status.cpl.cdw0 & 0xFFFF) + 1;
+	cq_allocated = (status.cpl.cdw0 >> 16) + 1;
 
 	/*
 	 * Check that the controller was able to allocate the number of
@@ -558,32 +533,29 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 static int
 nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 {
-	struct mtx		*mtx;
-	struct nvme_qpair	*qpair;
-	struct nvme_completion	cpl;
-	int			i, status;
-
-	mtx = mtx_pool_find(mtxpool_sleep, &cpl);
+	struct nvme_completion_poll_status	status;
+	struct nvme_qpair			*qpair;
+	int					i;
 
 	for (i = 0; i < ctrlr->num_io_queues; i++) {
 		qpair = &ctrlr->ioq[i];
 
-		mtx_lock(mtx);
+		status.done = FALSE;
 		nvme_ctrlr_cmd_create_io_cq(ctrlr, qpair, qpair->vector,
-		    nvme_ctrlr_cb, &cpl);
-		status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
-		mtx_unlock(mtx);
-		if ((status != 0) || nvme_completion_is_error(&cpl)) {
+		    nvme_completion_poll_cb, &status);
+		while (status.done == FALSE)
+			DELAY(5);
+		if (nvme_completion_is_error(&status.cpl)) {
 			printf("nvme_create_io_cq failed!\n");
 			return (ENXIO);
 		}
 
-		mtx_lock(mtx);
+		status.done = FALSE;
 		nvme_ctrlr_cmd_create_io_sq(qpair->ctrlr, qpair,
-		    nvme_ctrlr_cb, &cpl);
-		status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
-		mtx_unlock(mtx);
-		if ((status != 0) || nvme_completion_is_error(&cpl)) {
+		    nvme_completion_poll_cb, &status);
+		while (status.done == FALSE)
+			DELAY(5);
+		if (nvme_completion_is_error(&status.cpl)) {
 			printf("nvme_create_io_sq failed!\n");
 			return (ENXIO);
 		}
@@ -906,9 +878,8 @@ static int
 nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
-	struct nvme_controller	*ctrlr;
-	struct nvme_completion	cpl;
-	struct mtx		*mtx;
+	struct nvme_completion_poll_status	status;
+	struct nvme_controller			*ctrlr;
 
 	ctrlr = cdev->si_drv1;
 
@@ -925,13 +896,12 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		}
 #endif
 		/* Refresh data before returning to user. */
-		mtx = mtx_pool_find(mtxpool_sleep, &cpl);
-		mtx_lock(mtx);
+		status.done = FALSE;
 		nvme_ctrlr_cmd_identify_controller(ctrlr, &ctrlr->cdata,
-		    nvme_ctrlr_cb, &cpl);
-		msleep(&cpl, mtx, PRIBIO, "nvme_ioctl", 0);
-		mtx_unlock(mtx);
-		if (nvme_completion_is_error(&cpl))
+		    nvme_completion_poll_cb, &status);
+		while (status.done == FALSE)
+			DELAY(5);
+		if (nvme_completion_is_error(&status.cpl))
 			return (ENXIO);
 		memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
 		break;

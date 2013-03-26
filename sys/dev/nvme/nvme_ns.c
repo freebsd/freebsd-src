@@ -41,32 +41,13 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
-static void
-nvme_ns_cb(void *arg, const struct nvme_completion *status)
-{
-	struct nvme_completion	*cpl = arg;
-	struct mtx		*mtx;
-
-	/*
-	 * Copy status into the argument passed by the caller, so that
-	 *  the caller can check the status to determine if the
-	 *  the request passed or failed.
-	 */
-	memcpy(cpl, status, sizeof(*cpl));
-	mtx = mtx_pool_find(mtxpool_sleep, cpl);
-	mtx_lock(mtx);
-	wakeup(cpl);
-	mtx_unlock(mtx);
-}
-
 static int
 nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
-	struct nvme_namespace	*ns;
-	struct nvme_controller	*ctrlr;
-	struct nvme_completion	cpl;
-	struct mtx		*mtx;
+	struct nvme_completion_poll_status	status;
+	struct nvme_namespace			*ns;
+	struct nvme_controller			*ctrlr;
 
 	ns = cdev->si_drv1;
 	ctrlr = ns->ctrlr;
@@ -84,13 +65,12 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		}
 #endif
 		/* Refresh data before returning to user. */
-		mtx = mtx_pool_find(mtxpool_sleep, &cpl);
-		mtx_lock(mtx);
+		status.done = FALSE;
 		nvme_ctrlr_cmd_identify_namespace(ctrlr, ns->id, &ns->data,
-		    nvme_ns_cb, &cpl);
-		msleep(&cpl, mtx, PRIBIO, "nvme_ioctl", 0);
-		mtx_unlock(mtx);
-		if (nvme_completion_is_error(&cpl))
+		    nvme_completion_poll_cb, &status);
+		while (status.done == FALSE)
+			DELAY(5);
+		if (nvme_completion_is_error(&status.cpl))
 			return (ENXIO);
 		memcpy(arg, &ns->data, sizeof(ns->data));
 		break;
@@ -319,9 +299,7 @@ int
 nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
     struct nvme_controller *ctrlr)
 {
-	struct nvme_completion	cpl;
-	struct mtx		*mtx;
-	int			status;
+	struct nvme_completion_poll_status	status;
 
 	ns->ctrlr = ctrlr;
 	ns->id = id;
@@ -331,14 +309,12 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 		nvme_ns_populate_chatham_data(ns);
 	else {
 #endif
-		mtx = mtx_pool_find(mtxpool_sleep, &cpl);
-
-		mtx_lock(mtx);
+		status.done = FALSE;
 		nvme_ctrlr_cmd_identify_namespace(ctrlr, id, &ns->data,
-		    nvme_ns_cb, &cpl);
-		status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
-		mtx_unlock(mtx);
-		if ((status != 0) || nvme_completion_is_error(&cpl)) {
+		    nvme_completion_poll_cb, &status);
+		while (status.done == FALSE)
+			DELAY(5);
+		if (nvme_completion_is_error(&status.cpl)) {
 			printf("nvme_identify_namespace failed!\n");
 			return (ENXIO);
 		}
