@@ -97,7 +97,7 @@ MALLOC_DECLARE(M_NVME);
 
 #define NVME_MAX_NAMESPACES	(16)
 #define NVME_MAX_CONSUMERS	(2)
-#define NVME_MAX_ASYNC_EVENTS	(4)
+#define NVME_MAX_ASYNC_EVENTS	(8)
 
 #define NVME_TIMEOUT_IN_SEC	(30)
 
@@ -117,6 +117,12 @@ struct nvme_request {
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
 	STAILQ_ENTRY(nvme_request)	stailq;
+};
+
+struct nvme_async_event_request {
+
+	struct nvme_controller		*ctrlr;
+	struct nvme_request		*req;
 };
 
 struct nvme_tracker {
@@ -255,6 +261,9 @@ struct nvme_controller {
 
 	boolean_t			is_started;
 
+	uint32_t			num_aers;
+	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
+
 #ifdef CHATHAM2
 	uint64_t		chatham_size;
 	uint64_t		chatham_lbas;
@@ -343,12 +352,9 @@ void	nvme_ctrlr_cmd_delete_io_sq(struct nvme_controller *ctrlr,
 void	nvme_ctrlr_cmd_set_num_queues(struct nvme_controller *ctrlr,
 				      uint32_t num_queues, nvme_cb_fn_t cb_fn,
 				      void *cb_arg);
-void	nvme_ctrlr_cmd_set_asynchronous_event_config(struct nvme_controller *ctrlr,
-					   union nvme_critical_warning_state state,
-					   nvme_cb_fn_t cb_fn, void *cb_arg);
-void	nvme_ctrlr_cmd_asynchronous_event_request(struct nvme_controller *ctrlr,
-						  nvme_cb_fn_t cb_fn,
-						  void *cb_arg);
+void	nvme_ctrlr_cmd_set_async_event_config(struct nvme_controller *ctrlr,
+					      union nvme_critical_warning_state state,
+					      nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_abort(struct nvme_controller *ctrlr, uint16_t cid,
 			     uint16_t sqid, nvme_cb_fn_t cb_fn, void *cb_arg);
 
@@ -376,6 +382,9 @@ void	nvme_qpair_submit_cmd(struct nvme_qpair *qpair,
 void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
 void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
 				  struct nvme_request *req);
+void	nvme_qpair_manual_abort_request(struct nvme_qpair *qpair,
+					struct nvme_request *req, uint32_t sct,
+					uint32_t sc, boolean_t print_on_error);
 
 void	nvme_admin_qpair_destroy(struct nvme_qpair *qpair);
 
