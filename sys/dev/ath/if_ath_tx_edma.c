@@ -279,9 +279,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
 		ath_tx_alq_post(sc, bf);
 #endif	/* ATH_DEBUG_ALQ */
-
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 	ATH_TXQ_UNLOCK(txq);
 }
 
