@@ -251,38 +251,36 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	ctrlr_tree = device_get_sysctl_tree(ctrlr->dev);
 	ctrlr_list = SYSCTL_CHILDREN(ctrlr_tree);
 
-	if (ctrlr->is_started) {
-		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
-		    nvme_sysctl_int_coal_time, "IU",
-		    "Interrupt coalescing timeout (in microseconds)");
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
+	    nvme_sysctl_int_coal_time, "IU",
+	    "Interrupt coalescing timeout (in microseconds)");
 
-		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    "int_coal_threshold", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
-		    nvme_sysctl_int_coal_threshold, "IU",
-		    "Interrupt coalescing threshold");
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "int_coal_threshold", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
+	    nvme_sysctl_int_coal_threshold, "IU",
+	    "Interrupt coalescing threshold");
 
-		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
-		    nvme_sysctl_timeout_period, "IU",
-		    "Timeout period (in seconds)");
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
+	    nvme_sysctl_timeout_period, "IU",
+	    "Timeout period (in seconds)");
 
-		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD,
-		    ctrlr, 0, nvme_sysctl_num_cmds, "IU",
-		    "Number of commands submitted");
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD,
+	    ctrlr, 0, nvme_sysctl_num_cmds, "IU",
+	    "Number of commands submitted");
 
-		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    "num_intr_handler_calls", CTLTYPE_S64 | CTLFLAG_RD,
-		    ctrlr, 0, nvme_sysctl_num_intr_handler_calls, "IU",
-		    "Number of times interrupt handler was invoked (will "
-		    "typically be less than number of actual interrupts "
-		    "generated due to coalescing)");
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "num_intr_handler_calls", CTLTYPE_S64 | CTLFLAG_RD,
+	    ctrlr, 0, nvme_sysctl_num_intr_handler_calls, "IU",
+	    "Number of times interrupt handler was invoked (will "
+	    "typically be less than number of actual interrupts "
+	    "generated due to coalescing)");
 
-		SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-		    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
-		    nvme_sysctl_reset_stats, "IU", "Reset statistics to zero");
-	}
+	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
+	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW, ctrlr, 0,
+	    nvme_sysctl_reset_stats, "IU", "Reset statistics to zero");
 
 	que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO, "adminq",
 	    CTLFLAG_RD, NULL, "Admin Queue");
