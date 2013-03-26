@@ -104,6 +104,9 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_MIN_TIMEOUT_PERIOD		(5)
 #define NVME_MAX_TIMEOUT_PERIOD		(120)
 
+/* Maximum log page size to fetch for AERs. */
+#define NVME_MAX_AER_LOG_SIZE		(4096)
+
 #ifndef CACHE_LINE_SIZE
 #define CACHE_LINE_SIZE		(64)
 #endif
@@ -126,6 +129,9 @@ struct nvme_async_event_request {
 
 	struct nvme_controller		*ctrlr;
 	struct nvme_request		*req;
+	struct nvme_completion		cpl;
+	uint32_t			log_page_size;
+	uint8_t				log_page_buffer[NVME_MAX_AER_LOG_SIZE];
 };
 
 struct nvme_tracker {

@@ -557,10 +557,65 @@ nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 	return (0);
 }
 
+static boolean_t
+is_log_page_id_valid(uint8_t page_id)
+{
+
+	switch (page_id) {
+	case NVME_LOG_ERROR:
+	case NVME_LOG_HEALTH_INFORMATION:
+	case NVME_LOG_FIRMWARE_SLOT:
+		return (TRUE);
+	}
+
+	return (FALSE);
+}
+
+static uint32_t
+nvme_ctrlr_get_log_page_size(struct nvme_controller *ctrlr, uint8_t page_id)
+{
+	uint32_t	log_page_size;
+
+	switch (page_id) {
+	case NVME_LOG_ERROR:
+		log_page_size = min(
+		    sizeof(struct nvme_error_information_entry) *
+		    ctrlr->cdata.elpe,
+		    NVME_MAX_AER_LOG_SIZE);
+		break;
+	case NVME_LOG_HEALTH_INFORMATION:
+		log_page_size = sizeof(struct nvme_health_information_page);
+		break;
+	case NVME_LOG_FIRMWARE_SLOT:
+		log_page_size = sizeof(struct nvme_firmware_page);
+		break;
+	default:
+		log_page_size = 0;
+		break;
+	}
+
+	return (log_page_size);
+}
+
+static void
+nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_async_event_request	*aer = arg;
+
+	nvme_notify_async_consumers(aer->ctrlr, &aer->cpl);
+
+	/*
+	 * Repost another asynchronous event request to replace the one
+	 *  that just completed.
+	 */
+	nvme_ctrlr_construct_and_submit_aer(aer->ctrlr, aer);
+}
+
 static void
 nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 {
-	struct nvme_async_event_request *aer = arg;
+	struct nvme_async_event_request	*aer = arg;
+	uint8_t				log_page_id;
 
 	if (cpl->status.sc == NVME_SC_ABORTED_SQ_DELETION) {
 		/*
@@ -572,16 +627,29 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 		return;
 	}
 
-	nvme_notify_async_consumers(aer->ctrlr, cpl);
-
-	/* TODO: decode async event type based on status */
-
-	/*
-	 * Repost another asynchronous event request to replace the one that
-	 *  just completed.
-	 */
 	printf("Asynchronous event occurred.\n");
-	nvme_ctrlr_construct_and_submit_aer(aer->ctrlr, aer);
+
+	/* Associated log page is in bits 23:16 of completion entry dw0. */
+	log_page_id = (cpl->cdw0 & 0xFF0000) >> 16;
+
+	if (is_log_page_id_valid(log_page_id)) {
+		aer->log_page_size = nvme_ctrlr_get_log_page_size(aer->ctrlr,
+		    log_page_id);
+		memcpy(&aer->cpl, cpl, sizeof(*cpl));
+		nvme_ctrlr_cmd_get_log_page(aer->ctrlr, log_page_id,
+		    NVME_GLOBAL_NAMESPACE_TAG, aer->log_page_buffer,
+		    aer->log_page_size, nvme_ctrlr_async_event_log_page_cb,
+		    aer);
+		/* Wait to notify consumers until after log page is fetched. */
+	} else {
+		nvme_notify_async_consumers(aer->ctrlr, cpl);
+
+		/*
+		 * Repost another asynchronous event request to replace the one
+		 *  that just completed.
+		 */
+		nvme_ctrlr_construct_and_submit_aer(aer->ctrlr, aer);
+	}
 }
 
 static void
