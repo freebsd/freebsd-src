@@ -49,6 +49,8 @@ nvme_completion_check_retry(const struct nvme_completion *cpl)
 	switch (cpl->sf_sct) {
 	case NVME_SCT_GENERIC:
 		switch (cpl->sf_sc) {
+		case NVME_SC_ABORTED_BY_REQUEST:
+			return (1);
 		case NVME_SC_NAMESPACE_NOT_READY:
 			if (cpl->sf_dnr)
 				return (0);
@@ -60,7 +62,6 @@ nvme_completion_check_retry(const struct nvme_completion *cpl)
 		case NVME_SC_DATA_TRANSFER_ERROR:
 		case NVME_SC_ABORTED_POWER_LOSS:
 		case NVME_SC_INTERNAL_DEVICE_ERROR:
-		case NVME_SC_ABORTED_BY_REQUEST:
 		case NVME_SC_ABORTED_SQ_DELETION:
 		case NVME_SC_ABORTED_FAILED_FUSED:
 		case NVME_SC_ABORTED_MISSING_FUSED:
@@ -378,10 +379,10 @@ nvme_io_qpair_destroy(struct nvme_qpair *qpair)
 static void
 nvme_timeout(void *arg)
 {
-	/*
-	 * TODO: Add explicit abort operation here, once nvme(4) supports
-	 *  abort commands.
-	 */
+	struct nvme_tracker	*tr = arg;
+
+	nvme_ctrlr_cmd_abort(tr->qpair->ctrlr, tr->cid, tr->qpair->id,
+	    NULL, NULL);
 }
 
 void
