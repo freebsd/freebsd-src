@@ -105,7 +105,8 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 
 	req = tr->req;
 	error = nvme_completion_is_error(cpl);
-	retry = error && nvme_completion_is_retry(cpl);
+	retry = error && nvme_completion_is_retry(cpl) &&
+	   req->retries < nvme_retry_count;
 
 	if (error && print_on_error) {
 		nvme_dump_completion(cpl);
@@ -122,9 +123,10 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 	mtx_lock(&qpair->lock);
 	callout_stop(&tr->timer);
 
-	if (retry)
+	if (retry) {
+		req->retries++;
 		nvme_qpair_submit_tracker(qpair, tr);
-	else {
+	} else {
 		if (req->payload_size > 0 || req->uio != NULL)
 			bus_dmamap_unload(qpair->dma_tag,
 			    tr->payload_dma_map);
@@ -568,6 +570,12 @@ nvme_qpair_enable(struct nvme_qpair *qpair)
 {
 
 	qpair->is_enabled = TRUE;
+}
+
+void
+nvme_qpair_reset(struct nvme_qpair *qpair)
+{
+
 	qpair->sq_head = qpair->sq_tail = qpair->cq_head = 0;
 
 	/*
@@ -597,18 +605,24 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 {
 	STAILQ_HEAD(, nvme_request)	temp;
 	struct nvme_tracker		*tr;
+	struct nvme_tracker		*tr_temp;
 	struct nvme_request		*req;
+
+	/*
+	 * Manually abort each outstanding I/O.  This normally results in a
+	 *  retry, unless the retry count on the associated request has
+	 *  reached its limit.
+	 */
+	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
+		device_printf(qpair->ctrlr->dev,
+		    "aborting outstanding i/o\n");
+		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
+		    NVME_SC_ABORTED_BY_REQUEST, TRUE);
+	}
 
 	mtx_lock(&qpair->lock);
 
 	nvme_qpair_enable(qpair);
-
-	TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
-		device_printf(qpair->ctrlr->dev,
-		    "resubmitting outstanding i/o\n");
-		nvme_dump_command(&tr->req->cmd);
-		nvme_qpair_submit_tracker(qpair, tr);
-	}
 
 	STAILQ_INIT(&temp);
 	STAILQ_SWAP(&qpair->queued_req, &temp, nvme_request);
