@@ -263,10 +263,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 		ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
 
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
-	    M_NVME, M_ZERO | M_NOWAIT);
-
-	if (ctrlr->ioq == NULL)
-		return (ENOMEM);
+	    M_NVME, M_ZERO | M_WAITOK);
 
 	for (i = 0; i < ctrlr->num_io_queues; i++) {
 		qpair = &ctrlr->ioq[i];
