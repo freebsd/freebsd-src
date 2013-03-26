@@ -1013,6 +1013,7 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
 	int				i;
 
+	nvme_ctrlr_disable(ctrlr);
 	taskqueue_free(ctrlr->taskqueue);
 
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
