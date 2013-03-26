@@ -38,7 +38,14 @@ static void	_nvme_qpair_submit_request(struct nvme_qpair *qpair,
 					   struct nvme_request *req);
 
 static boolean_t
-nvme_completion_check_retry(const struct nvme_completion *cpl)
+nvme_completion_is_error(struct nvme_completion *cpl)
+{
+
+	return (cpl->sf_sc != 0 || cpl->sf_sct != 0);
+}
+
+static boolean_t
+nvme_completion_is_retry(const struct nvme_completion *cpl)
 {
 	/*
 	 * TODO: spec is not clear how commands that are aborted due
@@ -96,13 +103,58 @@ nvme_qpair_construct_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 	tr->qpair = qpair;
 }
 
+static void
+nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
+    struct nvme_completion *cpl, boolean_t print_on_error)
+{
+	struct nvme_request	*req;
+	boolean_t		retry, error;
+
+	req = tr->req;
+	error = nvme_completion_is_error(cpl);
+	retry = error && nvme_completion_is_retry(cpl);
+
+	if (error && print_on_error) {
+		nvme_dump_completion(cpl);
+		nvme_dump_command(&req->cmd);
+	}
+
+	qpair->act_tr[cpl->cid] = NULL;
+
+	KASSERT(cpl->cid == req->cmd.cid, ("cpl cid does not match cmd cid\n"));
+
+	if (req->cb_fn && !retry)
+		req->cb_fn(req->cb_arg, cpl);
+
+	mtx_lock(&qpair->lock);
+	callout_stop(&tr->timer);
+
+	if (retry)
+		nvme_qpair_submit_cmd(qpair, tr);
+	else {
+		if (req->payload_size > 0 || req->uio != NULL)
+			bus_dmamap_unload(qpair->dma_tag,
+			    tr->payload_dma_map);
+
+		nvme_free_request(req);
+
+		SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
+
+		if (!STAILQ_EMPTY(&qpair->queued_req)) {
+			req = STAILQ_FIRST(&qpair->queued_req);
+			STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
+			_nvme_qpair_submit_request(qpair, req);
+		}
+	}
+
+	mtx_unlock(&qpair->lock);
+}
+
 void
 nvme_qpair_process_completions(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
-	struct nvme_request	*req;
 	struct nvme_completion	*cpl;
-	boolean_t		retry, error;
 
 	qpair->num_intr_handler_calls++;
 
@@ -113,51 +165,15 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			break;
 
 		tr = qpair->act_tr[cpl->cid];
-		req = tr->req;
 
-		KASSERT(tr,
-		    ("completion queue has entries but no active trackers\n"));
-
-		error = cpl->sf_sc || cpl->sf_sct;
-		retry = error && nvme_completion_check_retry(cpl);
-
-		if (error) {
+		if (tr != NULL) {
+			nvme_qpair_complete_tracker(qpair, tr, cpl, TRUE);
+			qpair->sq_head = cpl->sqhd;
+		} else {
+			printf("cpl does not map to outstanding cmd\n");
 			nvme_dump_completion(cpl);
-			nvme_dump_command(&tr->req->cmd);
+			KASSERT(0, ("received completion for unknown cmd\n"));
 		}
-
-		qpair->act_tr[cpl->cid] = NULL;
-
-		KASSERT(cpl->cid == req->cmd.cid,
-		    ("cpl cid does not match cmd cid\n"));
-
-		if (req->cb_fn && !retry)
-			req->cb_fn(req->cb_arg, cpl);
-
-		qpair->sq_head = cpl->sqhd;
-
-		mtx_lock(&qpair->lock);
-		callout_stop(&tr->timer);
-
-		if (retry)
-			nvme_qpair_submit_cmd(qpair, tr);
-		else {
-			if (req->payload_size > 0 || req->uio != NULL)
-				bus_dmamap_unload(qpair->dma_tag,
-				    tr->payload_dma_map);
-
-			nvme_free_request(req);
-
-			SLIST_INSERT_HEAD(&qpair->free_tr, tr, slist);
-
-			if (!STAILQ_EMPTY(&qpair->queued_req)) {
-				req = STAILQ_FIRST(&qpair->queued_req);
-				STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
-				_nvme_qpair_submit_request(qpair, req);
-			}
-		}
-
-		mtx_unlock(&qpair->lock);
 
 		if (++qpair->cq_head == qpair->num_entries) {
 			qpair->cq_head = 0;
