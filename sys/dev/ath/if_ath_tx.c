@@ -720,7 +720,6 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		    bf->bf_daddr);
 	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 	ATH_TXQ_UNLOCK(txq);
 }
 
