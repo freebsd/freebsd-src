@@ -427,7 +427,7 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 	status = nvme_ctrlr_hw_reset(ctrlr);
 	DELAY(100*1000);
 	if (status == 0)
-		nvme_ctrlr_start(ctrlr);
+		taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->restart_task);
 }
 
 static int
@@ -686,6 +686,14 @@ err:
 }
 
 static void
+nvme_ctrlr_restart_task(void *arg, int pending)
+{
+	struct nvme_controller *ctrlr = arg;
+
+	nvme_ctrlr_start(ctrlr);
+}
+
+static void
 nvme_ctrlr_intx_handler(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
@@ -864,6 +872,11 @@ intx:
 
 	ctrlr->cdev->si_drv1 = (void *)ctrlr;
 
+	TASK_INIT(&ctrlr->restart_task, 0, nvme_ctrlr_restart_task, ctrlr);
+	ctrlr->taskqueue = taskqueue_create("nvme_taskq", M_WAITOK,
+	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
+	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
+
 	return (0);
 }
 
@@ -871,6 +884,8 @@ void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
 	int				i;
+
+	taskqueue_free(ctrlr->taskqueue);
 
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
 		nvme_ns_destruct(&ctrlr->ns[i]);
