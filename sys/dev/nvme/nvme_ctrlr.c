@@ -422,6 +422,13 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 void
 nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 {
+	int cmpset;
+
+	cmpset = atomic_cmpset_32(&ctrlr->is_resetting, 0, 1);
+
+	if (cmpset == 0)
+		/* Controller is already resetting. */
+		return;
 
 	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
 }
@@ -700,6 +707,8 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	pause("nvmereset", hz / 10);
 	if (status == 0)
 		nvme_ctrlr_start(ctrlr);
+
+	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 }
 
 static void
@@ -895,6 +904,8 @@ intx:
 	ctrlr->taskqueue = taskqueue_create("nvme_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
 	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
+
+	ctrlr->is_resetting = 0;
 
 	return (0);
 }
