@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+static void	_nvme_qpair_submit_request(struct nvme_qpair *qpair,
+					   struct nvme_request *req);
+
 static boolean_t
 nvme_completion_check_retry(const struct nvme_completion *cpl)
 {
@@ -149,7 +152,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			if (!STAILQ_EMPTY(&qpair->queued_req)) {
 				req = STAILQ_FIRST(&qpair->queued_req);
 				STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
-				nvme_qpair_submit_request(qpair, req);
+				_nvme_qpair_submit_request(qpair, req);
 			}
 		}
 
@@ -410,13 +413,13 @@ nvme_qpair_submit_cmd(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	qpair->num_cmds++;
 }
 
-void
-nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
+static void
+_nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
 	int			err;
 
-	mtx_lock(&qpair->lock);
+	mtx_assert(&qpair->lock, MA_OWNED);
 
 	tr = SLIST_FIRST(&qpair->free_tr);
 
@@ -427,7 +430,7 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		 *  via a command completion.
 		 */
 		STAILQ_INSERT_TAIL(&qpair->queued_req, req, stailq);
-		goto ret;
+		return;
 	}
 
 	SLIST_REMOVE_HEAD(&qpair->free_tr, slist);
@@ -450,7 +453,13 @@ nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		if (err != 0)
 			panic("bus_dmamap_load returned non-zero!\n");
 	}
+}
 
-ret:
+void
+nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
+{
+
+	mtx_lock(&qpair->lock);
+	_nvme_qpair_submit_request(qpair, req);
 	mtx_unlock(&qpair->lock);
 }
