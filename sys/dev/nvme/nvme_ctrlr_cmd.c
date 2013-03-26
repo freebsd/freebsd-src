@@ -281,3 +281,19 @@ nvme_ctrlr_cmd_get_health_information_page(struct nvme_controller *ctrlr,
 
 	nvme_ctrlr_submit_admin_request(ctrlr, req);
 }
+
+void
+nvme_ctrlr_cmd_abort(struct nvme_controller *ctrlr, uint16_t cid,
+    uint16_t sqid, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request *req;
+	struct nvme_command *cmd;
+
+	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
+
+	cmd = &req->cmd;
+	cmd->opc = NVME_OPC_ABORT;
+	cmd->cdw10 = (cid << 16) | sqid;
+
+	nvme_ctrlr_submit_admin_request(ctrlr, req);
+}
