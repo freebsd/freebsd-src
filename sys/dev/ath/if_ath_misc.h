@@ -77,6 +77,8 @@ extern	int ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask,
 
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
+extern	void ath_txq_freeholdingbuf(struct ath_softc *sc,
+	    struct ath_txq *txq);
 
 extern void ath_txqmove(struct ath_txq *dst, struct ath_txq *src);
 
