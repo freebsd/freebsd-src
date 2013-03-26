@@ -464,21 +464,30 @@ nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 }
 
 static __inline struct nvme_request *
+_nvme_allocate_request(nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
+	if (req != NULL) {
+		req->cb_fn = cb_fn;
+		req->cb_arg = cb_arg;
+		req->timeout = TRUE;
+	}
+	return (req);
+}
+
+static __inline struct nvme_request *
 nvme_allocate_request(void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn, 
 		      void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
-	if (req == NULL)
-		return (NULL);
-
-	req->payload = payload;
-	req->payload_size = payload_size;
-	req->cb_fn = cb_fn;
-	req->cb_arg = cb_arg;
-	req->timeout = TRUE;
-
+	req = _nvme_allocate_request(cb_fn, cb_arg);
+	if (req != NULL) {
+		req->payload = payload;
+		req->payload_size = payload_size;
+	}
 	return (req);
 }
 
@@ -487,15 +496,9 @@ nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
-	if (req == NULL)
-		return (NULL);
-
-	req->uio = uio;
-	req->cb_fn = cb_fn;
-	req->cb_arg = cb_arg;
-	req->timeout = TRUE;
-
+	req = _nvme_allocate_request(cb_fn, cb_arg);
+	if (req != NULL)
+		req->uio = uio;
 	return (req);
 }
 
