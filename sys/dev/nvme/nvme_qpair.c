@@ -37,6 +37,215 @@ __FBSDID("$FreeBSD$");
 static void	_nvme_qpair_submit_request(struct nvme_qpair *qpair,
 					   struct nvme_request *req);
 
+struct nvme_opcode_string {
+
+	uint16_t	opc;
+	const char *	str;
+};
+
+static struct nvme_opcode_string admin_opcode[] = {
+	{ NVME_OPC_DELETE_IO_SQ, "DELETE IO SQ" },
+	{ NVME_OPC_CREATE_IO_SQ, "CREATE IO SQ" },
+	{ NVME_OPC_GET_LOG_PAGE, "GET LOG PAGE" },
+	{ NVME_OPC_DELETE_IO_CQ, "DELETE IO CQ" },
+	{ NVME_OPC_CREATE_IO_CQ, "CREATE IO CQ" },
+	{ NVME_OPC_IDENTIFY, "IDENTIFY" },
+	{ NVME_OPC_ABORT, "ABORT" },
+	{ NVME_OPC_SET_FEATURES, "SET FEATURES" },
+	{ NVME_OPC_GET_FEATURES, "GET FEATURES" },
+	{ NVME_OPC_ASYNC_EVENT_REQUEST, "ASYNC EVENT REQUEST" },
+	{ NVME_OPC_FIRMWARE_ACTIVATE, "FIRMWARE ACTIVATE" },
+	{ NVME_OPC_FIRMWARE_IMAGE_DOWNLOAD, "FIRMWARE IMAGE DOWNLOAD" },
+	{ NVME_OPC_FORMAT_NVM, "FORMAT NVM" },
+	{ NVME_OPC_SECURITY_SEND, "SECURITY SEND" },
+	{ NVME_OPC_SECURITY_RECEIVE, "SECURITY RECEIVE" },
+	{ 0xFFFF, "ADMIN COMMAND" }
+};
+
+static struct nvme_opcode_string io_opcode[] = {
+	{ NVME_OPC_FLUSH, "FLUSH" },
+	{ NVME_OPC_WRITE, "WRITE" },
+	{ NVME_OPC_READ, "READ" },
+	{ NVME_OPC_WRITE_UNCORRECTABLE, "WRITE UNCORRECTABLE" },
+	{ NVME_OPC_COMPARE, "COMPARE" },
+	{ NVME_OPC_DATASET_MANAGEMENT, "DATASET MANAGEMENT" },
+	{ 0xFFFF, "IO COMMAND" }
+};
+
+static const char *
+get_admin_opcode_string(uint16_t opc)
+{
+	struct nvme_opcode_string *entry;
+
+	entry = admin_opcode;
+
+	while (entry->opc != 0xFFFF) {
+		if (entry->opc == opc)
+			return (entry->str);
+		entry++;
+	}
+	return (entry->str);
+}
+
+static const char *
+get_io_opcode_string(uint16_t opc)
+{
+	struct nvme_opcode_string *entry;
+
+	entry = io_opcode;
+
+	while (entry->opc != 0xFFFF) {
+		if (entry->opc == opc)
+			return (entry->str);
+		entry++;
+	}
+	return (entry->str);
+}
+
+
+static void
+nvme_admin_qpair_print_command(struct nvme_qpair *qpair,
+    struct nvme_command *cmd)
+{
+
+	nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%x "
+	    "cdw10:%08x cdw11:%08x\n",
+	    get_admin_opcode_string(cmd->opc), cmd->opc, qpair->id, cmd->cid,
+	    cmd->nsid, cmd->cdw10, cmd->cdw11);
+}
+
+static void
+nvme_io_qpair_print_command(struct nvme_qpair *qpair,
+    struct nvme_command *cmd)
+{
+
+	switch (cmd->opc) {
+	case NVME_OPC_WRITE:
+	case NVME_OPC_READ:
+	case NVME_OPC_WRITE_UNCORRECTABLE:
+	case NVME_OPC_COMPARE:
+		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d "
+		    "lba:%lu len:%d\n",
+		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid,
+		    cmd->nsid, ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10,
+		    (cmd->cdw12 & 0xFFFF) + 1);
+		break;
+	case NVME_OPC_FLUSH:
+	case NVME_OPC_DATASET_MANAGEMENT:
+		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d\n",
+		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid,
+		    cmd->nsid);
+		break;
+	default:
+		nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%d\n",
+		    get_io_opcode_string(cmd->opc), cmd->opc, qpair->id,
+		    cmd->cid, cmd->nsid);
+		break;
+	}
+}
+
+static void
+nvme_qpair_print_command(struct nvme_qpair *qpair, struct nvme_command *cmd)
+{
+	if (qpair->id == 0)
+		nvme_admin_qpair_print_command(qpair, cmd);
+	else
+		nvme_io_qpair_print_command(qpair, cmd);
+}
+
+struct nvme_status_string {
+
+	uint16_t	sc;
+	const char *	str;
+};
+
+static struct nvme_status_string generic_status[] = {
+	{ NVME_SC_SUCCESS, "SUCCESS" },
+	{ NVME_SC_INVALID_OPCODE, "INVALID OPCODE" },
+	{ NVME_SC_INVALID_FIELD, "INVALID_FIELD" },
+	{ NVME_SC_COMMAND_ID_CONFLICT, "COMMAND ID CONFLICT" },
+	{ NVME_SC_DATA_TRANSFER_ERROR, "DATA TRANSFER ERROR" },
+	{ NVME_SC_ABORTED_POWER_LOSS, "ABORTED - POWER LOSS" },
+	{ NVME_SC_INTERNAL_DEVICE_ERROR, "INTERNAL DEVICE ERROR" },
+	{ NVME_SC_ABORTED_BY_REQUEST, "ABORTED - BY REQUEST" },
+	{ NVME_SC_ABORTED_SQ_DELETION, "ABORTED - SQ DELETION" },
+	{ NVME_SC_ABORTED_FAILED_FUSED, "ABORTED - FAILED FUSED" },
+	{ NVME_SC_ABORTED_MISSING_FUSED, "ABORTED - MISSING FUSED" },
+	{ NVME_SC_INVALID_NAMESPACE_OR_FORMAT, "INVALID NAMESPACE OR FORMAT" },
+	{ NVME_SC_COMMAND_SEQUENCE_ERROR, "COMMAND SEQUENCE ERROR" },
+	{ NVME_SC_LBA_OUT_OF_RANGE, "LBA OUT OF RANGE" },
+	{ NVME_SC_CAPACITY_EXCEEDED, "CAPACITY EXCEEDED" },
+	{ NVME_SC_NAMESPACE_NOT_READY, "NAMESPACE NOT READY" },
+	{ 0xFFFF, "GENERIC" }
+};
+
+static struct nvme_status_string command_specific_status[] = {
+	{ NVME_SC_COMPLETION_QUEUE_INVALID, "INVALID COMPLETION QUEUE" },
+	{ NVME_SC_INVALID_QUEUE_IDENTIFIER, "INVALID QUEUE IDENTIFIER" },
+	{ NVME_SC_MAXIMUM_QUEUE_SIZE_EXCEEDED, "MAX QUEUE SIZE EXCEEDED" },
+	{ NVME_SC_ABORT_COMMAND_LIMIT_EXCEEDED, "ABORT CMD LIMIT EXCEEDED" },
+	{ NVME_SC_ASYNC_EVENT_REQUEST_LIMIT_EXCEEDED, "ASYNC LIMIT EXCEEDED" },
+	{ NVME_SC_INVALID_FIRMWARE_SLOT, "INVALID FIRMWARE SLOT" },
+	{ NVME_SC_INVALID_FIRMWARE_IMAGE, "INVALID FIRMWARE IMAGE" },
+	{ NVME_SC_INVALID_INTERRUPT_VECTOR, "INVALID INTERRUPT VECTOR" },
+	{ NVME_SC_INVALID_LOG_PAGE, "INVALID LOG PAGE" },
+	{ NVME_SC_INVALID_FORMAT, "INVALID FORMAT" },
+	{ NVME_SC_FIRMWARE_REQUIRES_RESET, "FIRMWARE REQUIRES RESET" },
+	{ NVME_SC_CONFLICTING_ATTRIBUTES, "CONFLICTING ATTRIBUTES" },
+	{ NVME_SC_INVALID_PROTECTION_INFO, "INVALID PROTECTION INFO" },
+	{ NVME_SC_ATTEMPTED_WRITE_TO_RO_PAGE, "WRITE TO RO PAGE" },
+	{ 0xFFFF, "COMMAND SPECIFIC" }
+};
+
+static struct nvme_status_string media_error_status[] = {
+	{ NVME_SC_WRITE_FAULTS, "WRITE FAULTS" },
+	{ NVME_SC_UNRECOVERED_READ_ERROR, "UNRECOVERED READ ERROR" },
+	{ NVME_SC_GUARD_CHECK_ERROR, "GUARD CHECK ERROR" },
+	{ NVME_SC_APPLICATION_TAG_CHECK_ERROR, "APPLICATION TAG CHECK ERROR" },
+	{ NVME_SC_REFERENCE_TAG_CHECK_ERROR, "REFERENCE TAG CHECK ERROR" },
+	{ NVME_SC_COMPARE_FAILURE, "COMPARE FAILURE" },
+	{ NVME_SC_ACCESS_DENIED, "ACCESS DENIED" },
+	{ 0xFFFF, "MEDIA ERROR" }
+};
+
+static const char *
+get_status_string(uint16_t sct, uint16_t sc)
+{
+	struct nvme_status_string *entry;
+
+	switch (sct) {
+	case NVME_SCT_GENERIC:
+		entry = generic_status;
+		break;
+	case NVME_SCT_COMMAND_SPECIFIC:
+		entry = command_specific_status;
+		break;
+	case NVME_SCT_MEDIA_ERROR:
+		entry = media_error_status;
+		break;
+	case NVME_SCT_VENDOR_SPECIFIC:
+		return ("VENDOR SPECIFIC");
+	default:
+		return ("RESERVED");
+	}
+
+	while (entry->sc != 0xFFFF) {
+		if (entry->sc == sc)
+			return (entry->str);
+		entry++;
+	}
+	return (entry->str);
+}
+
+static void
+nvme_qpair_print_completion(struct nvme_qpair *qpair, 
+    struct nvme_completion *cpl)
+{
+	nvme_printf(qpair->ctrlr, "%s (%02x/%02x) sqid:%d cid:%d cdw0:%x\n",
+	    get_status_string(cpl->status.sct, cpl->status.sc),
+	    cpl->status.sct, cpl->status.sc, cpl->sqid, cpl->cid, cpl->cdw0);
+}
+
 static boolean_t
 nvme_completion_is_retry(const struct nvme_completion *cpl)
 {
@@ -108,8 +317,8 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 	   req->retries < nvme_retry_count;
 
 	if (error && print_on_error) {
-		nvme_dump_completion(cpl);
-		nvme_dump_command(&req->cmd);
+		nvme_qpair_print_command(qpair, &req->cmd);
+		nvme_qpair_print_completion(qpair, cpl);
 	}
 
 	qpair->act_tr[cpl->cid] = NULL;
@@ -184,8 +393,8 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 	error = nvme_completion_is_error(&cpl);
 
 	if (error && print_on_error) {
-		nvme_dump_completion(&cpl);
-		nvme_dump_command(&req->cmd);
+		nvme_qpair_print_command(qpair, &req->cmd);
+		nvme_qpair_print_completion(qpair, &cpl);
 	}
 
 	if (req->cb_fn)
@@ -223,7 +432,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 			nvme_qpair_complete_tracker(qpair, tr, cpl, TRUE);
 			qpair->sq_head = cpl->sqhd;
 		} else {
-			printf("cpl does not map to outstanding cmd\n");
+			nvme_printf(qpair->ctrlr, 
+			    "cpl does not map to outstanding cmd\n");
 			nvme_dump_completion(cpl);
 			KASSERT(0, ("received completion for unknown cmd\n"));
 		}
@@ -423,7 +633,8 @@ nvme_abort_complete(void *arg, const struct nvme_completion *status)
 		 *  abort it for some reason.  Construct a fake completion
 		 *  status, and then complete the I/O's tracker manually.
 		 */
-		printf("abort command failed, aborting command manually\n");
+		nvme_printf(tr->qpair->ctrlr,
+		    "abort command failed, aborting command manually\n");
 		nvme_qpair_manual_complete_tracker(tr->qpair, tr,
 		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, TRUE);
 	}
@@ -597,7 +808,7 @@ nvme_admin_qpair_enable(struct nvme_qpair *qpair)
 	 *  command was issued no longer applies.
 	 */
 	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
-		device_printf(qpair->ctrlr->dev,
+		nvme_printf(qpair->ctrlr,
 		    "aborting outstanding admin command\n");
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST, 1 /* do not retry */, TRUE);
@@ -620,8 +831,7 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 	 *  reached its limit.
 	 */
 	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
-		device_printf(qpair->ctrlr->dev,
-		    "aborting outstanding i/o\n");
+		nvme_printf(qpair->ctrlr, "aborting outstanding i/o\n");
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST, 0, TRUE);
 	}
@@ -636,9 +846,8 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 	while (!STAILQ_EMPTY(&temp)) {
 		req = STAILQ_FIRST(&temp);
 		STAILQ_REMOVE_HEAD(&temp, stailq);
-		device_printf(qpair->ctrlr->dev,
-		    "resubmitting queued i/o\n");
-		nvme_dump_command(&req->cmd);
+		nvme_printf(qpair->ctrlr, "resubmitting queued i/o\n");
+		nvme_qpair_print_command(qpair, &req->cmd);
 		_nvme_qpair_submit_request(qpair, req);
 	}
 
@@ -683,8 +892,7 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 	while (!STAILQ_EMPTY(&qpair->queued_req)) {
 		req = STAILQ_FIRST(&qpair->queued_req);
 		STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
-		device_printf(qpair->ctrlr->dev,
-		    "failing queued i/o\n");
+		nvme_printf(qpair->ctrlr, "failing queued i/o\n");
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_request(qpair, req, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST, TRUE);
@@ -698,8 +906,7 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 		 * Do not remove the tracker.  The abort_tracker path will
 		 *  do that for us.
 		 */
-		device_printf(qpair->ctrlr->dev,
-		    "failing outstanding i/o\n");
+		nvme_printf(qpair->ctrlr, "failing outstanding i/o\n");
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
 		    NVME_SC_ABORTED_BY_REQUEST, 1 /* do not retry */, TRUE);
