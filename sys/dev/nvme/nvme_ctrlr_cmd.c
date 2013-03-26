@@ -298,6 +298,16 @@ nvme_ctrlr_cmd_get_health_information_page(struct nvme_controller *ctrlr,
 }
 
 void
+nvme_ctrlr_cmd_get_firmware_page(struct nvme_controller *ctrlr,
+    struct nvme_firmware_page *payload, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+
+	nvme_ctrlr_cmd_get_log_page(ctrlr, NVME_LOG_FIRMWARE_SLOT, 
+	    NVME_GLOBAL_NAMESPACE_TAG, payload, sizeof(*payload), cb_fn,
+	    cb_arg);
+}
+
+void
 nvme_ctrlr_cmd_abort(struct nvme_controller *ctrlr, uint16_t cid,
     uint16_t sqid, nvme_cb_fn_t cb_fn, void *cb_arg)
 {

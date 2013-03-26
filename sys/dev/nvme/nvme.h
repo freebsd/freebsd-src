@@ -682,6 +682,18 @@ struct nvme_health_information_page {
 	uint8_t			reserved2[320];
 } __packed __aligned(4);
 
+struct nvme_firmware_page {
+
+	struct {
+		uint8_t	slot		: 3; /* slot for current FW */
+		uint8_t	reserved	: 5;
+	} __packed afi;
+
+	uint8_t			reserved[7];
+	uint64_t		revision[7]; /* revisions for 7 slots */
+	uint8_t			reserved2[448];
+} __packed __aligned(4);
+
 #define NVME_TEST_MAX_THREADS	128
 
 struct nvme_io_test {
