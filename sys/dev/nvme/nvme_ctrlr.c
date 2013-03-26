@@ -762,6 +762,16 @@ nvme_ctrlr_start(void *ctrlr_arg)
 
 	for (i = 0; i < ctrlr->num_io_queues; i++)
 		nvme_io_qpair_enable(&ctrlr->ioq[i]);
+
+	/*
+	 * Clear software progress marker to 0, to indicate to pre-boot
+	 *  software that OS driver load was successful.
+	 *
+	 * Chatham does not support this feature.
+	 */
+	if (pci_get_devid(ctrlr->dev) != CHATHAM_PCI_ID)
+		nvme_ctrlr_cmd_set_feature(ctrlr,
+		    NVME_FEAT_SOFTWARE_PROGRESS_MARKER, 0, NULL, 0, NULL, NULL);
 }
 
 void
