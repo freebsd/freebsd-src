@@ -339,7 +339,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	}
 #endif
 
-	if (ctrlr->cdata.oncs.dsm && ns->data.nsfeat.thin_prov)
+	if (ctrlr->cdata.oncs.dsm)
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
 
 	if (ctrlr->cdata.vwc.present)
