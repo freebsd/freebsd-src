@@ -90,7 +90,7 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		    nvme_ns_cb, &cpl);
 		msleep(&cpl, mtx, PRIBIO, "nvme_ioctl", 0);
 		mtx_unlock(mtx);
-		if (cpl.sf_sc || cpl.sf_sct)
+		if (nvme_completion_is_error(&cpl))
 			return (ENXIO);
 		memcpy(arg, &ns->data, sizeof(ns->data));
 		break;
@@ -132,7 +132,7 @@ nvme_ns_close(struct cdev *dev __unused, int flags, int fmt __unused,
 }
 
 static void
-nvme_ns_strategy_done(void *arg, const struct nvme_completion *status)
+nvme_ns_strategy_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct bio *bp = arg;
 
@@ -140,7 +140,7 @@ nvme_ns_strategy_done(void *arg, const struct nvme_completion *status)
 	 * TODO: add more extensive translation of NVMe status codes
 	 *  to different bio error codes (i.e. EIO, EINVAL, etc.)
 	 */
-	if (status->sf_sc || status->sf_sct) {
+	if (nvme_completion_is_error(cpl)) {
 		bp->bio_error = EIO;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
@@ -338,7 +338,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 		    nvme_ns_cb, &cpl);
 		status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
 		mtx_unlock(mtx);
-		if ((status != 0) || cpl.sf_sc || cpl.sf_sct) {
+		if ((status != 0) || nvme_completion_is_error(&cpl)) {
 			printf("nvme_identify_namespace failed!\n");
 			return (ENXIO);
 		}
