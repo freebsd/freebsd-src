@@ -91,19 +91,19 @@ static const char rcs_id[] =
  */
 #define	SMALL(fle)	(fle->f.packets <= 4)
 
-
-MALLOC_DECLARE(M_NETFLOW_HASH);
 MALLOC_DEFINE(M_NETFLOW_HASH, "netflow_hash", "NetFlow hash");
 
 static int export_add(item_p, struct flow_entry *);
 static int export_send(priv_p, fib_export_p, item_p, int);
 
-static int hash_insert(priv_p, struct flow_hash_entry *, struct flow_rec *, int, uint8_t, uint8_t);
+static int hash_insert(priv_p, struct flow_hash_entry *, struct flow_rec *,
+    int, uint8_t, uint8_t);
 #ifdef INET6
-static int hash6_insert(priv_p, struct flow_hash_entry *, struct flow6_rec *, int, uint8_t, uint8_t);
+static int hash6_insert(priv_p, struct flow_hash_entry *, struct flow6_rec *,
+    int, uint8_t, uint8_t);
 #endif
 
-static __inline void expire_flow(priv_p, fib_export_p, struct flow_entry *, int);
+static void expire_flow(priv_p, fib_export_p, struct flow_entry *, int);
 
 /*
  * Generate hash for a given flow record.
@@ -115,9 +115,10 @@ static __inline void expire_flow(priv_p, fib_export_p, struct flow_entry *, int)
  * all globally unique (it's not fully true, there is FC00::/7 for example,
  * but chances of address overlap are MUCH smaller)
  */
-static __inline uint32_t
+static inline uint32_t
 ip_hash(struct flow_rec *r)
 {
+
 	switch (r->r_ip_p) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
@@ -130,9 +131,10 @@ ip_hash(struct flow_rec *r)
 
 #ifdef INET6
 /* Generate hash for a given flow6 record. Use lower 4 octets from v6 addresses */
-static __inline uint32_t
+static inline uint32_t
 ip6_hash(struct flow6_rec *r)
 {
+
 	switch (r->r_ip_p) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
@@ -224,7 +226,6 @@ get_export_dgram(priv_p priv, fib_export_p fe)
 		dgram->header.count = 0;
 		dgram->header.version = htons(NETFLOW_V5);
 		dgram->header.pad = 0;
-
 	}
 
 	return (item);
@@ -236,6 +237,7 @@ get_export_dgram(priv_p priv, fib_export_p fe)
 static void
 return_export_dgram(priv_p priv, fib_export_p fe, item_p item, int flags)
 {
+
 	/*
 	 * It may happen on SMP, that some thread has already
 	 * put its item there, in this case we bail out and
@@ -255,7 +257,7 @@ return_export_dgram(priv_p priv, fib_export_p fe, item_p item, int flags)
  * The flow is over. Call export_add() and free it. If datagram is
  * full, then call export_send().
  */
-static __inline void
+static void
 expire_flow(priv_p priv, fib_export_p fe, struct flow_entry *fle, int flags)
 {
 	struct netflow_export_item exp;
@@ -267,7 +269,7 @@ expire_flow(priv_p priv, fib_export_p fe, struct flow_entry *fle, int flags)
 			atomic_add_32(&priv->info.nfinfo_export_failed, 1);
 			if (priv->export9 != NULL)
 				atomic_add_32(&priv->info.nfinfo_export9_failed, 1);
-			/* fle definitely contains IPv4 flow */
+			/* fle definitely contains IPv4 flow. */
 			uma_zfree_arg(priv->zone, fle, priv);
 			return;
 		}
@@ -289,14 +291,16 @@ expire_flow(priv_p priv, fib_export_p fe, struct flow_entry *fle, int flags)
 				uma_zfree_arg(priv->zone6, fle, priv);
 #endif
 			else
-				panic("ng_netflow: Unknown IP proto: %d", version);
+				panic("ng_netflow: Unknown IP proto: %d",
+				    version);
 			return;
 		}
 
 		if (export9_add(exp.item9, exp.item9_opt, fle) > 0)
 			export9_send(priv, fe, exp.item9, exp.item9_opt, flags);
 		else
-			return_export9_dgram(priv, fe, exp.item9, exp.item9_opt, NG_QUEUE);
+			return_export9_dgram(priv, fe, exp.item9,
+			    exp.item9_opt, NG_QUEUE);
 	}
 
 	if (version == IPVERSION)
@@ -311,6 +315,7 @@ expire_flow(priv_p priv, fib_export_p fe, struct flow_entry *fle, int flags)
 void
 ng_netflow_copyinfo(priv_p priv, struct ng_netflow_info *i)
 {
+
 	/* XXX: atomic */
 	memcpy((void *)i, (void *)&priv->info, sizeof(priv->info));
 }
@@ -345,7 +350,6 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 	 * Now fle is totally ours. It is detached from all lists,
 	 * we can safely edit it.
 	 */
-
 	fle->f.version = IPVERSION;
 	bcopy(r, &fle->f.r, sizeof(struct flow_rec));
 	fle->f.bytes = plen;
@@ -373,8 +377,8 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 				    ((struct sockaddr_in *)(rt->rt_gateway))->sin_addr;
 
 			if (rt_mask(rt))
-				fle->f.dst_mask = bitcount32(((struct sockaddr_in *)
-				    rt_mask(rt))->sin_addr.s_addr);
+				fle->f.dst_mask =
+				    bitcount32(((struct sockaddr_in *)rt_mask(rt))->sin_addr.s_addr);
 			else if (rt->rt_flags & RTF_HOST)
 				/* Give up. We can't determine mask :( */
 				fle->f.dst_mask = 32;
@@ -392,8 +396,8 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 		rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
 		if (rt != NULL) {
 			if (rt_mask(rt))
-				fle->f.src_mask = bitcount32(((struct sockaddr_in *)
-				    rt_mask(rt))->sin_addr.s_addr);
+				fle->f.src_mask =
+				    bitcount32(((struct sockaddr_in *)rt_mask(rt))->sin_addr.s_addr);
 			else if (rt->rt_flags & RTF_HOST)
 				/* Give up. We can't determine mask :( */
 				fle->f.src_mask = 32;
@@ -449,8 +453,7 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	 * First we do route table lookup on destination address. So we can
 	 * fill in out_ifx, dst_mask, nexthop, and dst_as in future releases.
 	 */
-	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0)
-	{
+	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
 		bzero(&rin6, sizeof(struct route_in6));
 		dst = (struct sockaddr_in6 *)&rin6.ro_dst;
 		dst->sin6_len = sizeof(struct sockaddr_in6);
@@ -477,8 +480,7 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 		}
 	}
 
-	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0)
-	{
+	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
 		/* Do route lookup on source address, to fill in src_mask. */
 		bzero(&rin6, sizeof(struct route_in6));
 		src = (struct sockaddr_in6 *)&rin6.ro_dst;
@@ -522,12 +524,14 @@ ng_netflow_cache_init(priv_p priv)
 	int i;
 
 	/* Initialize cache UMA zone. */
-	priv->zone = uma_zcreate("NetFlow IPv4 cache", sizeof(struct flow_entry),
-	    uma_ctor_flow, uma_dtor_flow, NULL, NULL, UMA_ALIGN_CACHE, 0);
+	priv->zone = uma_zcreate("NetFlow IPv4 cache",
+	    sizeof(struct flow_entry), uma_ctor_flow, uma_dtor_flow, NULL,
+	    NULL, UMA_ALIGN_CACHE, 0);
 	uma_zone_set_max(priv->zone, CACHESIZE);
 #ifdef INET6	
-	priv->zone6 = uma_zcreate("NetFlow IPv6 cache", sizeof(struct flow6_entry),
-	    uma_ctor_flow6, uma_dtor_flow6, NULL, NULL, UMA_ALIGN_CACHE, 0);
+	priv->zone6 = uma_zcreate("NetFlow IPv6 cache",
+	    sizeof(struct flow6_entry), uma_ctor_flow6, uma_dtor_flow6, NULL,
+	    NULL, UMA_ALIGN_CACHE, 0);
 	uma_zone_set_max(priv->zone6, CACHESIZE);
 #endif	
 
@@ -568,7 +572,8 @@ ng_netflow_fib_init(priv_p priv, int fib)
 	if (fe != NULL)
 		return (0);
 
-	if ((fe = malloc(sizeof(struct fib_export), M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL)
+	if ((fe = malloc(sizeof(struct fib_export), M_NETGRAPH,
+	    M_NOWAIT | M_ZERO)) == NULL)
 		return (1);
 
 	mtx_init(&fe->export_mtx, "export dgram lock", NULL, MTX_DEF);
@@ -576,15 +581,18 @@ ng_netflow_fib_init(priv_p priv, int fib)
 	fe->fib = fib;
 	fe->domain_id = fib;
 
-	if (atomic_cmpset_ptr((volatile uintptr_t *)&priv->fib_data[fib], (uintptr_t)NULL, (uintptr_t)fe) == 0) {
+	if (atomic_cmpset_ptr((volatile uintptr_t *)&priv->fib_data[fib],
+	    (uintptr_t)NULL, (uintptr_t)fe) == 0) {
 		/* FIB already set up by other ISR */
-		CTR3(KTR_NET, "ng_netflow(): fib init: %d setup %p but got %p", fib, fe, priv_to_fib(priv, fib));
+		CTR3(KTR_NET, "ng_netflow(): fib init: %d setup %p but got %p",
+		    fib, fe, priv_to_fib(priv, fib));
 		mtx_destroy(&fe->export_mtx);
 		mtx_destroy(&fe->export9_mtx);
 		free(fe, M_NETGRAPH);
 	} else {
 		/* Increase counter for statistics */
-		CTR3(KTR_NET, "ng_netflow(): fib %d setup to %p (%p)", fib, fe, priv_to_fib(priv, fib));
+		CTR3(KTR_NET, "ng_netflow(): fib %d setup to %p (%p)",
+		    fib, fe, priv_to_fib(priv, fib));
 		atomic_fetchadd_32(&priv->info.nfinfo_alloc_fibs, 1);
 	}
 	
@@ -650,7 +658,8 @@ ng_netflow_cache_flush(priv_p priv)
 			export_send(priv, fe, fe->exp.item, NG_QUEUE);
 
 		if (fe->exp.item9 != NULL)
-			export9_send(priv, fe, fe->exp.item9, fe->exp.item9_opt, NG_QUEUE);
+			export9_send(priv, fe, fe->exp.item9,
+			    fe->exp.item9_opt, NG_QUEUE);
 
 		mtx_destroy(&fe->export_mtx);
 		mtx_destroy(&fe->export9_mtx);
@@ -662,26 +671,24 @@ ng_netflow_cache_flush(priv_p priv)
 
 /* Insert packet from into flow cache. */
 int
-ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_ptr, uint8_t upper_proto, 
-		uint8_t flags, unsigned int src_if_index)
+ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip,
+    caddr_t upper_ptr, uint8_t upper_proto, uint8_t flags,
+    unsigned int src_if_index)
 {
-	register struct flow_entry	*fle, *fle1;
+	struct flow_entry	*fle, *fle1;
 	struct flow_hash_entry	*hsh;
 	struct flow_rec		r;
 	int			hlen, plen;
 	int			error = 0;
-	uint8_t			tcp_flags = 0;
 	uint16_t		eproto;
+	uint8_t			tcp_flags = 0;
 
-	/* Try to fill flow_rec r */
 	bzero(&r, sizeof(r));
-	/* check version */
+
 	if (ip->ip_v != IPVERSION)
 		return (EINVAL);
 
-	/* verify min header length */
 	hlen = ip->ip_hl << 2;
-
 	if (hlen < sizeof(struct ip))
 		return (EINVAL);
 
@@ -693,7 +700,6 @@ ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_p
 	r.r_dst = ip->ip_dst;
 	r.fib = fe->fib;
 
-	/* save packet length */
 	plen = ntohs(ip->ip_len);
 
 	r.r_ip_p = ip->ip_p;
@@ -713,16 +719,16 @@ ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_p
 	if ((ip->ip_off & htons(IP_OFFMASK)) == 0)
 		switch(r.r_ip_p) {
 		case IPPROTO_TCP:
-		{
-			register struct tcphdr *tcp;
+		    {
+			struct tcphdr *tcp;
 
 			tcp = (struct tcphdr *)((caddr_t )ip + hlen);
 			r.r_sport = tcp->th_sport;
 			r.r_dport = tcp->th_dport;
 			tcp_flags = tcp->th_flags;
 			break;
-		}
-			case IPPROTO_UDP:
+		    }
+		case IPPROTO_UDP:
 			r.r_ports = *(uint32_t *)((caddr_t )ip + hlen);
 			break;
 		}
@@ -747,7 +753,8 @@ ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_p
 			break;
 		if ((INACTIVE(fle) && SMALL(fle)) || AGED(fle)) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, priv_to_fib(priv, fle->f.r.fib), fle, NG_QUEUE);
+			expire_flow(priv, priv_to_fib(priv, fle->f.r.fib),
+			    fle, NG_QUEUE);
 			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
 		}
 	}
@@ -768,7 +775,8 @@ ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_p
 		if (tcp_flags & TH_FIN || tcp_flags & TH_RST || AGED(fle) ||
 		    (fle->f.bytes >= (CNTR_MAX - IF_MAXMTU)) ) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, priv_to_fib(priv, fle->f.r.fib), fle, NG_QUEUE);
+			expire_flow(priv, priv_to_fib(priv, fle->f.r.fib),
+			    fle, NG_QUEUE);
 			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
 		} else {
 			/*
@@ -792,13 +800,14 @@ ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_p
 #ifdef INET6
 /* Insert IPv6 packet from into flow cache. */
 int
-ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6, caddr_t upper_ptr, uint8_t upper_proto, 
-		uint8_t flags, unsigned int src_if_index)
+ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6,
+    caddr_t upper_ptr, uint8_t upper_proto, uint8_t flags,
+    unsigned int src_if_index)
 {
-	register struct flow_entry	*fle = NULL, *fle1;
-	register struct flow6_entry	*fle6;
-	struct flow_hash_entry		*hsh;
-	struct flow6_rec		r;
+	struct flow_entry	*fle = NULL, *fle1;
+	struct flow6_entry	*fle6;
+	struct flow_hash_entry	*hsh;
+	struct flow6_rec	r;
 	int			plen;
 	int			error = 0;
 	uint8_t			tcp_flags = 0;
@@ -816,31 +825,27 @@ ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6, caddr_t 
 	/* Assume L4 template by default */
 	r.flow_type = NETFLOW_V9_FLOW_V6_L4;
 
-	/* save packet length */
 	plen = ntohs(ip6->ip6_plen) + sizeof(struct ip6_hdr);
 
-	/* XXX: set DSCP/CoS value */
 #if 0
+	/* XXX: set DSCP/CoS value */
 	r.r_tos = ip->ip_tos;
 #endif
 	if ((flags & NG_NETFLOW_IS_FRAG) == 0) {
 		switch(upper_proto) {
 		case IPPROTO_TCP:
-		{
-			register struct tcphdr *tcp;
+		    {
+			struct tcphdr *tcp;
 
 			tcp = (struct tcphdr *)upper_ptr;
 			r.r_ports = *(uint32_t *)upper_ptr;
 			tcp_flags = tcp->th_flags;
 			break;
-		}
+		    }
  		case IPPROTO_UDP:
 		case IPPROTO_SCTP:
-		{
 			r.r_ports = *(uint32_t *)upper_ptr;
 			break;
-		}
-
 		}
 	}	
 
@@ -1145,7 +1150,8 @@ ng_netflow_expire(void *arg)
 			if ((INACTIVE(fle) && (SMALL(fle) ||
 			    (used > (NBUCKETS*2)))) || AGED(fle)) {
 				TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-				expire_flow(priv, priv_to_fib(priv, fle->f.r.fib), fle, NG_NOFLAGS);
+				expire_flow(priv, priv_to_fib(priv,
+				    fle->f.r.fib), fle, NG_NOFLAGS);
 				used--;
 				atomic_add_32(&priv->info.nfinfo_inact_exp, 1);
 			}
