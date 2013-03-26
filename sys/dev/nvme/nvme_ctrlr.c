@@ -731,6 +731,10 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	struct nvme_controller *ctrlr = ctrlr_arg;
 	int i;
 
+	nvme_qpair_reset(&ctrlr->adminq);
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		nvme_qpair_reset(&ctrlr->ioq[i]);
+
 	nvme_admin_qpair_enable(&ctrlr->adminq);
 
 	if (nvme_ctrlr_identify(ctrlr) != 0)
@@ -928,6 +932,9 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	timeout_period = min(timeout_period, NVME_MAX_TIMEOUT_PERIOD);
 	timeout_period = max(timeout_period, NVME_MIN_TIMEOUT_PERIOD);
 	ctrlr->timeout_period = timeout_period;
+
+	nvme_retry_count = NVME_DEFAULT_RETRY_COUNT;
+	TUNABLE_INT_FETCH("hw.nvme.retry_count", &nvme_retry_count);
 
 	per_cpu_io_queues = 1;
 	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
