@@ -324,6 +324,21 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 		bus_release_resource(qpair->ctrlr->dev, SYS_RES_IRQ,
 		    rman_get_rid(qpair->res), qpair->res);
 
+	if (qpair->cmd) {
+		bus_dmamap_unload(qpair->dma_tag, qpair->cmd_dma_map);
+		bus_dmamap_destroy(qpair->dma_tag, qpair->cmd_dma_map);
+		contigfree(qpair->cmd,
+		    qpair->num_entries * sizeof(struct nvme_command), M_NVME);
+	}
+
+	if (qpair->cpl) {
+		bus_dmamap_unload(qpair->dma_tag, qpair->cpl_dma_map);
+		bus_dmamap_destroy(qpair->dma_tag, qpair->cpl_dma_map);
+		contigfree(qpair->cpl,
+		    qpair->num_entries * sizeof(struct nvme_completion),
+		    M_NVME);
+	}
+
 	if (qpair->dma_tag)
 		bus_dma_tag_destroy(qpair->dma_tag);
 
@@ -362,72 +377,14 @@ nvme_admin_qpair_destroy(struct nvme_qpair *qpair)
 {
 
 	nvme_admin_qpair_abort_aers(qpair);
-
-	/*
-	 * For NVMe, you don't send delete queue commands for the admin
-	 *  queue, so we just need to unload and free the cmd and cpl memory.
-	 */
-	bus_dmamap_unload(qpair->dma_tag, qpair->cmd_dma_map);
-	bus_dmamap_destroy(qpair->dma_tag, qpair->cmd_dma_map);
-
-	contigfree(qpair->cmd,
-	    qpair->num_entries * sizeof(struct nvme_command), M_NVME);
-
-	bus_dmamap_unload(qpair->dma_tag, qpair->cpl_dma_map);
-	bus_dmamap_destroy(qpair->dma_tag, qpair->cpl_dma_map);
-	contigfree(qpair->cpl,
-	    qpair->num_entries * sizeof(struct nvme_completion), M_NVME);
-
 	nvme_qpair_destroy(qpair);
-}
-
-static void
-nvme_free_cmd_ring(void *arg, const struct nvme_completion *status)
-{
-	struct nvme_qpair *qpair;
-
-	qpair = (struct nvme_qpair *)arg;
-	bus_dmamap_unload(qpair->dma_tag, qpair->cmd_dma_map);
-	bus_dmamap_destroy(qpair->dma_tag, qpair->cmd_dma_map);
-	contigfree(qpair->cmd,
-	    qpair->num_entries * sizeof(struct nvme_command), M_NVME);
-	qpair->cmd = NULL;
-}
-
-static void
-nvme_free_cpl_ring(void *arg, const struct nvme_completion *status)
-{
-	struct nvme_qpair *qpair;
-
-	qpair = (struct nvme_qpair *)arg;
-	bus_dmamap_unload(qpair->dma_tag, qpair->cpl_dma_map);
-	bus_dmamap_destroy(qpair->dma_tag, qpair->cpl_dma_map);
-	contigfree(qpair->cpl,
-	    qpair->num_entries * sizeof(struct nvme_completion), M_NVME);
-	qpair->cpl = NULL;
 }
 
 void
 nvme_io_qpair_destroy(struct nvme_qpair *qpair)
 {
-	struct nvme_controller *ctrlr = qpair->ctrlr;
 
-	if (qpair->num_entries > 0) {
-
-		nvme_ctrlr_cmd_delete_io_sq(ctrlr, qpair, nvme_free_cmd_ring,
-		    qpair);
-		/* Spin until free_cmd_ring sets qpair->cmd to NULL. */
-		while (qpair->cmd)
-			DELAY(5);
-
-		nvme_ctrlr_cmd_delete_io_cq(ctrlr, qpair, nvme_free_cpl_ring,
-		    qpair);
-		/* Spin until free_cpl_ring sets qpair->cmd to NULL. */
-		while (qpair->cpl)
-			DELAY(5);
-
-		nvme_qpair_destroy(qpair);
-	}
+	nvme_qpair_destroy(qpair);
 }
 
 static void
