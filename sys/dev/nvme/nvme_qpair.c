@@ -460,21 +460,20 @@ nvme_timeout(void *arg)
 	struct nvme_controller	*ctrlr = qpair->ctrlr;
 	union csts_register	csts;
 
+	/* Read csts to get value of cfs - controller fatal status. */
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
-	if (csts.bits.cfs == 1) {
-		/*
-		 * The controller is reporting fatal status.  Don't bother
-		 *  trying to abort the timed out command - proceed
-		 *  immediately to a controller-level reset.
-		 */
-		device_printf(ctrlr->dev,
-		    "controller reports fatal status, resetting...\n");
-		nvme_ctrlr_reset(ctrlr);
-		return;
-	}
+	device_printf(ctrlr->dev, "i/o timeout, csts.cfs=%d\n", csts.bits.cfs);
+	nvme_dump_command(&tr->req->cmd);
 
-	nvme_ctrlr_cmd_abort(ctrlr, tr->cid, qpair->id,
-	    nvme_abort_complete, tr);
+	if (ctrlr->enable_aborts && csts.bits.cfs == 0) {
+		/*
+		 * If aborts are enabled, only use them if the controller is
+		 *  not reporting fatal status.
+		 */
+		nvme_ctrlr_cmd_abort(ctrlr, tr->cid, qpair->id,
+		    nvme_abort_complete, tr);
+	} else
+		nvme_ctrlr_reset(ctrlr);
 }
 
 void
