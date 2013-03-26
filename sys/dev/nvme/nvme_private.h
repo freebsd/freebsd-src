@@ -358,6 +358,7 @@ void	nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
 			     bus_size_t mapsize, int error);
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
+void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);
 int	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void	nvme_ctrlr_start(void *ctrlr_arg);

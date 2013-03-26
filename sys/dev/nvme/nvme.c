@@ -286,53 +286,8 @@ static int
 nvme_detach (device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
-	struct nvme_namespace	*ns;
-	int			i;
 
-	for (i = 0; i < NVME_MAX_NAMESPACES; i++) {
-		ns = &ctrlr->ns[i];
-		if (ns->cdev)
-			destroy_dev(ns->cdev);
-	}
-
-	if (ctrlr->cdev)
-		destroy_dev(ctrlr->cdev);
-
-	for (i = 0; i < ctrlr->num_io_queues; i++) {
-		nvme_io_qpair_destroy(&ctrlr->ioq[i]);
-	}
-
-	free(ctrlr->ioq, M_NVME);
-
-	nvme_admin_qpair_destroy(&ctrlr->adminq);
-
-	if (ctrlr->resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->resource_id, ctrlr->resource);
-	}
-
-	if (ctrlr->bar4_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
-	}
-
-#ifdef CHATHAM2
-	if (ctrlr->chatham_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->chatham_resource_id, ctrlr->chatham_resource);
-	}
-#endif
-
-	if (ctrlr->tag)
-		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);
-
-	if (ctrlr->res)
-		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
-		    rman_get_rid(ctrlr->res), ctrlr->res);
-
-	if (ctrlr->msix_enabled)
-		pci_release_msi(dev);
-
+	nvme_ctrlr_destruct(ctrlr, dev);
 	return (0);
 }
 
