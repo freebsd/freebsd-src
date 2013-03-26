@@ -127,7 +127,7 @@ struct nvme_async_event_request {
 
 struct nvme_tracker {
 
-	SLIST_ENTRY(nvme_tracker)	slist;
+	TAILQ_ENTRY(nvme_tracker)	tailq;
 	struct nvme_request		*req;
 	struct nvme_qpair		*qpair;
 	struct callout			timer;
@@ -174,7 +174,8 @@ struct nvme_qpair {
 	bus_dmamap_t		cpl_dma_map;
 	uint64_t		cpl_bus_addr;
 
-	SLIST_HEAD(, nvme_tracker)	free_tr;
+	TAILQ_HEAD(, nvme_tracker)	free_tr;
+	TAILQ_HEAD(, nvme_tracker)	outstanding_tr;
 	STAILQ_HEAD(, nvme_request)	queued_req;
 
 	struct nvme_tracker	**act_tr;
