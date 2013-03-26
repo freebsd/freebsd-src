@@ -331,7 +331,9 @@ nvme_notify_consumer(struct nvme_consumer *cons)
 
 void
 nvme_notify_async_consumers(struct nvme_controller *ctrlr,
-			    const struct nvme_completion *async_cpl)
+			    const struct nvme_completion *async_cpl,
+			    uint32_t log_page_id, void *log_page_buffer,
+			    uint32_t log_page_size)
 {
 	struct nvme_consumer	*cons;
 	uint32_t		i;
@@ -339,7 +341,8 @@ nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
 		cons = &nvme_consumer[i];
 		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL)
-			(*cons->async_fn)(ctrlr->cons_cookie[i], async_cpl);
+			(*cons->async_fn)(ctrlr->cons_cookie[i], async_cpl,
+			    log_page_id, log_page_buffer, log_page_size);
 	}
 }
 
