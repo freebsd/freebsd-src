@@ -223,26 +223,31 @@ struct nvme_command
 	uint32_t cdw15;		/* command-specific */
 } __packed;
 
+struct nvme_status {
+
+	uint16_t p	:  1;	/* phase tag */
+	uint16_t sc	:  8;	/* status code */
+	uint16_t sct	:  3;	/* status code type */
+	uint16_t rsvd2	:  2;
+	uint16_t m	:  1;	/* more */
+	uint16_t dnr	:  1;	/* do not retry */
+} __packed;
+
 struct nvme_completion {
 
 	/* dword 0 */
-	uint32_t cdw0;		/* command-specific */
+	uint32_t		cdw0;	/* command-specific */
 
 	/* dword 1 */
-	uint32_t rsvd1;
+	uint32_t		rsvd1;
 
 	/* dword 2 */
-	uint16_t sqhd;		/* submission queue head pointer */
-	uint16_t sqid;		/* submission queue identifier */
+	uint16_t		sqhd;	/* submission queue head pointer */
+	uint16_t		sqid;	/* submission queue identifier */
 
 	/* dword 3 */
-	uint16_t cid;		/* command identifier */
-	uint16_t p	:  1;	/* phase tag */
-	uint16_t sf_sc	:  8;	/* status field - status code */
-	uint16_t sf_sct	:  3;	/* status field - status code type */
-	uint16_t rsvd2	:  2;
-	uint16_t sf_m	:  1;	/* status field - more */
-	uint16_t sf_dnr	:  1;	/* status field - do not retry */
+	uint16_t		cid;	/* command identifier */
+	struct nvme_status	status;
 } __packed;
 
 struct nvme_dsm_range {
@@ -685,6 +690,9 @@ enum nvme_io_test_flags {
 	 */
 	NVME_TEST_FLAG_REFTHREAD =	0x1,
 };
+
+#define nvme_completion_is_error(cpl)					\
+	((cpl)->status.sc != 0 || (cpl)->status.sct != 0)
 
 #ifdef _KERNEL
 
