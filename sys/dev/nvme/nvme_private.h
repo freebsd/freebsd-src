@@ -352,6 +352,10 @@ void	nvme_ctrlr_cmd_get_health_information_page(struct nvme_controller *ctrlr,
 						   struct nvme_health_information_page *payload,
 						   nvme_cb_fn_t cb_fn,
 						   void *cb_arg);
+void	nvme_ctrlr_cmd_get_firmware_page(struct nvme_controller *ctrlr,
+					 struct nvme_firmware_page *payload,
+					 nvme_cb_fn_t cb_fn,
+					 void *cb_arg);
 void	nvme_ctrlr_cmd_create_io_cq(struct nvme_controller *ctrlr,
 				    struct nvme_qpair *io_que, uint16_t vector,
 				    nvme_cb_fn_t cb_fn, void *cb_arg);
