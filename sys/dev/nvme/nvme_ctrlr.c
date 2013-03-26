@@ -55,7 +55,7 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	    &ctrlr->resource_id, 0, ~0, 1, RF_ACTIVE);
 
 	if(ctrlr->resource == NULL) {
-		device_printf(ctrlr->dev, "unable to allocate pci resource\n");
+		nvme_printf(ctrlr, "unable to allocate pci resource\n");
 		return (ENOMEM);
 	}
 
@@ -88,7 +88,7 @@ nvme_ctrlr_allocate_chatham_bar(struct nvme_controller *ctrlr)
 	    RF_ACTIVE);
 
 	if(ctrlr->chatham_resource == NULL) {
-		device_printf(ctrlr->dev, "unable to alloc pci resource\n");
+		nvme_printf(ctrlr, "unable to alloc pci resource\n");
 		return (ENOMEM);
 	}
 
@@ -204,8 +204,8 @@ nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 	 */
 	if (num_entries < NVME_MIN_ADMIN_ENTRIES ||
 	    num_entries > NVME_MAX_ADMIN_ENTRIES) {
-		printf("nvme: invalid hw.nvme.admin_entries=%d specified\n",
-		    num_entries);
+		nvme_printf(ctrlr, "invalid hw.nvme.admin_entries=%d "
+		    "specified\n", num_entries);
 		num_entries = NVME_ADMIN_ENTRIES;
 	}
 
@@ -340,8 +340,7 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr)
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
 	if (!cc.bits.en) {
-		device_printf(ctrlr->dev, "%s called with cc.en = 0\n",
-		    __func__);
+		nvme_printf(ctrlr, "%s called with cc.en = 0\n", __func__);
 		return (ENXIO);
 	}
 
@@ -350,8 +349,8 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr)
 	while (!csts.bits.rdy) {
 		DELAY(1000);
 		if (ms_waited++ > ctrlr->ready_timeout_in_ms) {
-			device_printf(ctrlr->dev, "controller did not become "
-			    "ready within %d ms\n", ctrlr->ready_timeout_in_ms);
+			nvme_printf(ctrlr, "controller did not become ready "
+			    "within %d ms\n", ctrlr->ready_timeout_in_ms);
 			return (ENXIO);
 		}
 		csts.raw = nvme_mmio_read_4(ctrlr, csts);
@@ -466,7 +465,7 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 	while (status.done == FALSE)
 		DELAY(5);
 	if (nvme_completion_is_error(&status.cpl)) {
-		printf("nvme_identify_controller failed!\n");
+		nvme_printf(ctrlr, "nvme_identify_controller failed!\n");
 		return (ENXIO);
 	}
 
@@ -498,7 +497,7 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	while (status.done == FALSE)
 		DELAY(5);
 	if (nvme_completion_is_error(&status.cpl)) {
-		printf("nvme_set_num_queues failed!\n");
+		nvme_printf(ctrlr, "nvme_set_num_queues failed!\n");
 		return (ENXIO);
 	}
 
@@ -543,7 +542,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		while (status.done == FALSE)
 			DELAY(5);
 		if (nvme_completion_is_error(&status.cpl)) {
-			printf("nvme_create_io_cq failed!\n");
+			nvme_printf(ctrlr, "nvme_create_io_cq failed!\n");
 			return (ENXIO);
 		}
 
@@ -553,7 +552,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		while (status.done == FALSE)
 			DELAY(5);
 		if (nvme_completion_is_error(&status.cpl)) {
-			printf("nvme_create_io_sq failed!\n");
+			nvme_printf(ctrlr, "nvme_create_io_sq failed!\n");
 			return (ENXIO);
 		}
 	}
@@ -660,10 +659,11 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 		return;
 	}
 
-	printf("Asynchronous event occurred.\n");
-
 	/* Associated log page is in bits 23:16 of completion entry dw0. */
 	aer->log_page_id = (cpl->cdw0 & 0xFF0000) >> 16;
+
+	nvme_printf(aer->ctrlr, "async event occurred (log page id=0x%x)\n",
+	    aer->log_page_id);
 
 	if (is_log_page_id_valid(aer->log_page_id)) {
 		aer->log_page_size = nvme_ctrlr_get_log_page_size(aer->ctrlr,
@@ -809,7 +809,7 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	struct nvme_controller	*ctrlr = arg;
 	int			status;
 
-	device_printf(ctrlr->dev, "resetting controller");
+	nvme_printf(ctrlr, "resetting controller\n");
 	status = nvme_ctrlr_hw_reset(ctrlr);
 	/*
 	 * Use pause instead of DELAY, so that we yield to any nvme interrupt
@@ -854,7 +854,7 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 	    &ctrlr->rid, RF_SHAREABLE | RF_ACTIVE);
 
 	if (ctrlr->res == NULL) {
-		device_printf(ctrlr->dev, "unable to allocate shared IRQ\n");
+		nvme_printf(ctrlr, "unable to allocate shared IRQ\n");
 		return (ENOMEM);
 	}
 
@@ -863,8 +863,7 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 	    ctrlr, &ctrlr->tag);
 
 	if (ctrlr->tag == NULL) {
-		device_printf(ctrlr->dev,
-		    "unable to setup legacy interrupt handler\n");
+		nvme_printf(ctrlr, "unable to setup intx handler\n");
 		return (ENOMEM);
 	}
 
