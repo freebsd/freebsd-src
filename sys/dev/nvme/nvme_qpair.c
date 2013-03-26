@@ -142,7 +142,13 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 		TAILQ_REMOVE(&qpair->outstanding_tr, tr, tailq);
 		TAILQ_INSERT_HEAD(&qpair->free_tr, tr, tailq);
 
-		if (!STAILQ_EMPTY(&qpair->queued_req)) {
+		/*
+		 * If the controller is in the middle of resetting, don't
+		 *  try to submit queued requests here - let the reset logic
+		 *  handle that instead.
+		 */
+		if (!STAILQ_EMPTY(&qpair->queued_req) &&
+		    !qpair->ctrlr->is_resetting) {
 			req = STAILQ_FIRST(&qpair->queued_req);
 			STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
 			_nvme_qpair_submit_request(qpair, req);
@@ -462,8 +468,6 @@ nvme_timeout(void *arg)
 
 	/* Read csts to get value of cfs - controller fatal status. */
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
-	device_printf(ctrlr->dev, "i/o timeout, csts.cfs=%d\n", csts.bits.cfs);
-	nvme_dump_command(&tr->req->cmd);
 
 	if (ctrlr->enable_aborts && csts.bits.cfs == 0) {
 		/*
@@ -606,8 +610,12 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 
 	nvme_qpair_enable(qpair);
 
-	TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq)
+	TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
+		device_printf(qpair->ctrlr->dev,
+		    "resubmitting outstanding i/o\n");
+		nvme_dump_command(&tr->req->cmd);
 		nvme_qpair_submit_tracker(qpair, tr);
+	}
 
 	STAILQ_INIT(&temp);
 	STAILQ_SWAP(&qpair->queued_req, &temp, nvme_request);
@@ -615,6 +623,9 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 	while (!STAILQ_EMPTY(&temp)) {
 		req = STAILQ_FIRST(&temp);
 		STAILQ_REMOVE_HEAD(&temp, stailq);
+		device_printf(qpair->ctrlr->dev,
+		    "resubmitting queued i/o\n");
+		nvme_dump_command(&req->cmd);
 		_nvme_qpair_submit_request(qpair, req);
 	}
 

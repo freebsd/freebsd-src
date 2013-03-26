@@ -100,7 +100,7 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_MAX_CONSUMERS	(2)
 #define NVME_MAX_ASYNC_EVENTS	(8)
 
-#define NVME_DEFAULT_TIMEOUT_PERIOD	(30)	/* in seconds */
+#define NVME_DEFAULT_TIMEOUT_PERIOD	(30)    /* in seconds */
 #define NVME_MIN_TIMEOUT_PERIOD		(5)
 #define NVME_MAX_TIMEOUT_PERIOD		(120)
 
@@ -279,6 +279,8 @@ struct nvme_controller {
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
 
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
+
+	uint32_t		is_resetting;
 
 #ifdef CHATHAM2
 	uint64_t		chatham_size;
