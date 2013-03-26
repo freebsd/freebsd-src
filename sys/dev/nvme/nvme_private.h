@@ -36,6 +36,7 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 
 #include <vm/uma.h>
 
@@ -236,6 +237,8 @@ struct nvme_controller {
 	uint32_t		ns_identified;
 	uint32_t		queues_created;
 	uint32_t		num_start_attempts;
+	struct task		restart_task;
+	struct taskqueue	*taskqueue;
 
 	/* For shared legacy interrupt. */
 	int			rid;
