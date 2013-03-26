@@ -104,6 +104,8 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_MIN_TIMEOUT_PERIOD		(5)
 #define NVME_MAX_TIMEOUT_PERIOD		(120)
 
+#define NVME_DEFAULT_RETRY_COUNT	(4)
+
 /* Maximum log page size to fetch for AERs. */
 #define NVME_MAX_AER_LOG_SIZE		(4096)
 
@@ -111,7 +113,8 @@ MALLOC_DECLARE(M_NVME);
 #define CACHE_LINE_SIZE		(64)
 #endif
 
-extern uma_zone_t nvme_request_zone;
+extern uma_zone_t	nvme_request_zone;
+extern int32_t		nvme_retry_count;
 
 struct nvme_request {
 
@@ -122,6 +125,7 @@ struct nvme_request {
 	struct uio			*uio;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
+	int32_t				retries;
 	STAILQ_ENTRY(nvme_request)	stailq;
 };
 
@@ -409,6 +413,7 @@ void	nvme_qpair_submit_tracker(struct nvme_qpair *qpair,
 void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
 void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
 				  struct nvme_request *req);
+void	nvme_qpair_reset(struct nvme_qpair *qpair);
 
 void	nvme_admin_qpair_enable(struct nvme_qpair *qpair);
 void	nvme_admin_qpair_disable(struct nvme_qpair *qpair);
