@@ -342,6 +342,11 @@ void	nvme_ctrlr_cmd_set_interrupt_coalescing(struct nvme_controller *ctrlr,
 						uint32_t threshold,
 						nvme_cb_fn_t cb_fn,
 						void *cb_arg);
+void	nvme_ctrlr_cmd_get_error_page(struct nvme_controller *ctrlr,
+				      struct nvme_error_information_entry *payload,
+				      uint32_t num_entries, /* 0 = max */
+				      nvme_cb_fn_t cb_fn,
+				      void *cb_arg);
 void	nvme_ctrlr_cmd_get_health_information_page(struct nvme_controller *ctrlr,
 						   uint32_t nsid,
 						   struct nvme_health_information_page *payload,
