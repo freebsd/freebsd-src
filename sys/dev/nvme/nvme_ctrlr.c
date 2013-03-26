@@ -311,6 +311,45 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	return (0);
 }
 
+static void
+nvme_ctrlr_fail(struct nvme_controller *ctrlr)
+{
+	int i;
+
+	ctrlr->is_failed = TRUE;
+	nvme_qpair_fail(&ctrlr->adminq);
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		nvme_qpair_fail(&ctrlr->ioq[i]);
+	nvme_notify_fail_consumers(ctrlr);
+}
+
+void
+nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
+    struct nvme_request *req)
+{
+
+	mtx_lock(&ctrlr->fail_req_lock);
+	STAILQ_INSERT_TAIL(&ctrlr->fail_req, req, stailq);
+	mtx_unlock(&ctrlr->fail_req_lock);
+	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->fail_req_task);
+}
+
+static void
+nvme_ctrlr_fail_req_task(void *arg, int pending)
+{
+	struct nvme_controller	*ctrlr = arg;
+	struct nvme_request	*req;
+
+	mtx_lock(&ctrlr->fail_req_lock);
+	while (!STAILQ_EMPTY(&ctrlr->fail_req)) {
+		req = STAILQ_FIRST(&ctrlr->fail_req);
+		STAILQ_REMOVE_HEAD(&ctrlr->fail_req, stailq);
+		nvme_qpair_manual_complete_request(req->qpair, req,
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
+	}
+	mtx_unlock(&ctrlr->fail_req_lock);
+}
+
 static int
 nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr)
 {
@@ -426,8 +465,12 @@ nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 
 	cmpset = atomic_cmpset_32(&ctrlr->is_resetting, 0, 1);
 
-	if (cmpset == 0)
-		/* Controller is already resetting. */
+	if (cmpset == 0 || ctrlr->is_failed)
+		/*
+		 * Controller is already resetting or has failed.  Return
+		 *  immediately since there is no need to kick off another
+		 *  reset in these cases.
+		 */
 		return;
 
 	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
@@ -745,17 +788,25 @@ nvme_ctrlr_start(void *ctrlr_arg)
 
 	nvme_admin_qpair_enable(&ctrlr->adminq);
 
-	if (nvme_ctrlr_identify(ctrlr) != 0)
+	if (nvme_ctrlr_identify(ctrlr) != 0) {
+		nvme_ctrlr_fail(ctrlr);
 		return;
+	}
 
-	if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0)
+	if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
+		nvme_ctrlr_fail(ctrlr);
 		return;
+	}
 
-	if (nvme_ctrlr_create_qpairs(ctrlr) != 0)
+	if (nvme_ctrlr_create_qpairs(ctrlr) != 0) {
+		nvme_ctrlr_fail(ctrlr);
 		return;
+	}
 
-	if (nvme_ctrlr_construct_namespaces(ctrlr) != 0)
+	if (nvme_ctrlr_construct_namespaces(ctrlr) != 0) {
+		nvme_ctrlr_fail(ctrlr);
 		return;
+	}
 
 	nvme_ctrlr_configure_aer(ctrlr);
 	nvme_ctrlr_configure_int_coalescing(ctrlr);
@@ -802,6 +853,8 @@ nvme_ctrlr_reset_task(void *arg, int pending)
 	pause("nvmereset", hz / 10);
 	if (status == 0)
 		nvme_ctrlr_start(ctrlr);
+	else
+		nvme_ctrlr_fail(ctrlr);
 
 	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 }
@@ -998,12 +1051,18 @@ intx:
 
 	ctrlr->cdev->si_drv1 = (void *)ctrlr;
 
-	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 	ctrlr->taskqueue = taskqueue_create("nvme_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
 	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
 
 	ctrlr->is_resetting = 0;
+	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
+
+	TASK_INIT(&ctrlr->fail_req_task, 0, nvme_ctrlr_fail_req_task, ctrlr);
+	mtx_init(&ctrlr->fail_req_lock, "nvme ctrlr fail req lock", NULL,
+	    MTX_DEF);
+	STAILQ_INIT(&ctrlr->fail_req);
+	ctrlr->is_failed = FALSE;
 
 	return (0);
 }

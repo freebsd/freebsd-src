@@ -50,7 +50,6 @@ nvme_completion_is_retry(const struct nvme_completion *cpl)
 	case NVME_SCT_GENERIC:
 		switch (cpl->status.sc) {
 		case NVME_SC_ABORTED_BY_REQUEST:
-			return (1);
 		case NVME_SC_NAMESPACE_NOT_READY:
 			if (cpl->status.dnr)
 				return (0);
@@ -155,7 +154,7 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 
 static void
 nvme_qpair_manual_complete_tracker(struct nvme_qpair *qpair,
-    struct nvme_tracker *tr, uint32_t sct, uint32_t sc,
+    struct nvme_tracker *tr, uint32_t sct, uint32_t sc, uint32_t dnr,
     boolean_t print_on_error)
 {
 	struct nvme_completion	cpl;
@@ -165,7 +164,34 @@ nvme_qpair_manual_complete_tracker(struct nvme_qpair *qpair,
 	cpl.cid = tr->cid;
 	cpl.status.sct = sct;
 	cpl.status.sc = sc;
+	cpl.status.dnr = dnr;
 	nvme_qpair_complete_tracker(qpair, tr, &cpl, print_on_error);
+}
+
+void
+nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
+    struct nvme_request *req, uint32_t sct, uint32_t sc,
+    boolean_t print_on_error)
+{
+	struct nvme_completion	cpl;
+	boolean_t		error;
+
+	memset(&cpl, 0, sizeof(cpl));
+	cpl.sqid = qpair->id;
+	cpl.status.sct = sct;
+	cpl.status.sc = sc;
+
+	error = nvme_completion_is_error(&cpl);
+
+	if (error && print_on_error) {
+		nvme_dump_completion(&cpl);
+		nvme_dump_command(&req->cmd);
+	}
+
+	if (req->cb_fn)
+		req->cb_fn(req->cb_arg, &cpl);
+
+	nvme_free_request(req);
 }
 
 void
@@ -363,7 +389,7 @@ nvme_admin_qpair_abort_aers(struct nvme_qpair *qpair)
 	while (tr != NULL) {
 		if (tr->req->cmd.opc == NVME_OPC_ASYNC_EVENT_REQUEST) {
 			nvme_qpair_manual_complete_tracker(qpair, tr,
-			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION,
+			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
 			    FALSE);
 			tr = TAILQ_FIRST(&qpair->outstanding_tr);
 		} else {
@@ -406,7 +432,7 @@ nvme_abort_complete(void *arg, const struct nvme_completion *status)
 		 */
 		printf("abort command failed, aborting command manually\n");
 		nvme_qpair_manual_complete_tracker(tr->qpair, tr,
-		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, TRUE);
 	}
 }
 
@@ -476,17 +502,32 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	mtx_assert(&qpair->lock, MA_OWNED);
 
 	tr = TAILQ_FIRST(&qpair->free_tr);
+	req->qpair = qpair;
 
 	if (tr == NULL || !qpair->is_enabled) {
 		/*
 		 * No tracker is available, or the qpair is disabled due to
-		 *  an in-progress controller-level reset.
-		 *
-		 * Put the request on the qpair's request queue to be processed
-		 *  when a tracker frees up via a command completion or when
-		 *  the controller reset is completed.
+		 *  an in-progress controller-level reset or controller
+		 *  failure.
 		 */
-		STAILQ_INSERT_TAIL(&qpair->queued_req, req, stailq);
+
+		if (qpair->ctrlr->is_failed) {
+			/*
+			 * The controller has failed.  Post the request to a
+			 *  task where it will be aborted, so that we do not
+			 *  invoke the request's callback in the context
+			 *  of the submission.
+			 */
+			nvme_ctrlr_post_failed_request(qpair->ctrlr, req);
+		} else {
+			/*
+			 * Put the request on the qpair's request queue to be
+			 *  processed when a tracker frees up via a command
+			 *  completion or when the controller reset is
+			 *  completed.
+			 */
+			STAILQ_INSERT_TAIL(&qpair->queued_req, req, stailq);
+		}
 		return;
 	}
 
@@ -574,7 +615,7 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 		device_printf(qpair->ctrlr->dev,
 		    "aborting outstanding i/o\n");
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
-		    NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		    NVME_SC_ABORTED_BY_REQUEST, 0, TRUE);
 	}
 
 	mtx_lock(&qpair->lock);
@@ -622,3 +663,41 @@ nvme_io_qpair_disable(struct nvme_qpair *qpair)
 
 	nvme_qpair_disable(qpair);
 }
+
+void
+nvme_qpair_fail(struct nvme_qpair *qpair)
+{
+	struct nvme_tracker		*tr;
+	struct nvme_request		*req;
+
+	mtx_lock(&qpair->lock);
+
+	while (!STAILQ_EMPTY(&qpair->queued_req)) {
+		req = STAILQ_FIRST(&qpair->queued_req);
+		STAILQ_REMOVE_HEAD(&qpair->queued_req, stailq);
+		device_printf(qpair->ctrlr->dev,
+		    "failing queued i/o\n");
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_request(qpair, req, NVME_SCT_GENERIC,
+		    NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		mtx_lock(&qpair->lock);
+	}
+
+	/* Manually abort each outstanding I/O. */
+	while (!TAILQ_EMPTY(&qpair->outstanding_tr)) {
+		tr = TAILQ_FIRST(&qpair->outstanding_tr);
+		/*
+		 * Do not remove the tracker.  The abort_tracker path will
+		 *  do that for us.
+		 */
+		device_printf(qpair->ctrlr->dev,
+		    "failing outstanding i/o\n");
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
+		    NVME_SC_ABORTED_BY_REQUEST, 1 /* do not retry */, TRUE);
+		mtx_lock(&qpair->lock);
+	}
+
+	mtx_unlock(&qpair->lock);
+}
+
