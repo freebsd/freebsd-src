@@ -73,7 +73,7 @@ SRCS=	${PROG}.c
 # - the name of the object gets put into the executable symbol table instead of
 #   the name of a variable temporary object.
 # - it's useful to keep objects around for crunching.
-OBJS=	${PROG}.o
+OBJS+=	${PROG}.o
 
 .if target(beforelinking)
 beforelinking: ${OBJS}
