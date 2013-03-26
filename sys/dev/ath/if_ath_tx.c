@@ -1816,7 +1816,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * XXX duplicated in ath_raw_xmit().
 	 */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
+		if (sc->sc_cabq->axq_depth + sc->sc_cabq->fifo.axq_depth
+		    > sc->sc_txq_mcastq_maxdepth) {
 			sc->sc_stats.ast_tx_mcastq_overflow++;
 			r = ENOBUFS;
 		}
@@ -2219,7 +2220,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * XXX duplicated in ath_tx_start().
 	 */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
+		if (sc->sc_cabq->axq_depth + sc->sc_cabq->fifo.axq_depth
+		    > sc->sc_txq_mcastq_maxdepth) {
 			sc->sc_stats.ast_tx_mcastq_overflow++;
 			error = ENOBUFS;
 		}
@@ -2845,7 +2847,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		 *
 		 * Otherwise, schedule the TID.
 		 */
-		if (txq->axq_depth < sc->sc_hwq_limit) {
+		if (txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit) {
 			bf = ATH_TID_FIRST(atid);
 			ATH_TID_REMOVE(atid, bf, bf_list);
 
@@ -2869,7 +2871,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 
 			ath_tx_tid_sched(sc, atid);
 		}
-	} else if (txq->axq_depth < sc->sc_hwq_limit) {
+	} else if (txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit) {
 		/* AMPDU not running, attempt direct dispatch */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
 		/* See if clrdmask needs to be set */
