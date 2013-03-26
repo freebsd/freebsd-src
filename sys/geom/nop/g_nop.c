@@ -136,8 +136,6 @@ g_nop_start(struct bio *bp)
 	}
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
-	cbp->bio_data = bp->bio_data;
-	cbp->bio_length = bp->bio_length;
 	pp = LIST_FIRST(&gp->provider);
 	KASSERT(pp != NULL, ("NULL pp"));
 	cbp->bio_to = pp;
