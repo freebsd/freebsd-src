@@ -260,7 +260,7 @@ nvd_new_controller(struct nvme_controller *ctrlr)
 	struct nvd_controller	*nvd_ctrlr;
 
 	nvd_ctrlr = malloc(sizeof(struct nvd_controller), M_NVD,
-	    M_ZERO | M_NOWAIT);
+	    M_ZERO | M_WAITOK);
 
 	TAILQ_INIT(&nvd_ctrlr->disk_head);
 	TAILQ_INSERT_TAIL(&ctrlr_head, nvd_ctrlr, tailq);
@@ -275,7 +275,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	struct disk		*disk;
 	struct nvd_controller	*ctrlr = ctrlr_arg;
 
-	ndisk = malloc(sizeof(struct nvd_disk), M_NVD, M_ZERO | M_NOWAIT);
+	ndisk = malloc(sizeof(struct nvd_disk), M_NVD, M_ZERO | M_WAITOK);
 
 	disk = disk_alloc();
 	disk->d_strategy = nvd_strategy;

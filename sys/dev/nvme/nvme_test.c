@@ -96,7 +96,7 @@ nvme_ns_bio_test(void *arg)
 	int				ref;
 #endif
 
-	buf = malloc(io_test->size, M_NVME, M_NOWAIT);
+	buf = malloc(io_test->size, M_NVME, M_WAITOK);
 	idx = atomic_fetchadd_int(&io_test->td_idx, 1);
 	dev = io_test->ns->cdev;
 
@@ -217,11 +217,11 @@ nvme_ns_io_test(void *arg)
 	struct nvme_completion		cpl;
 	int				error;
 
-	tth = malloc(sizeof(*tth), M_NVME, M_NOWAIT | M_ZERO);
+	tth = malloc(sizeof(*tth), M_NVME, M_WAITOK | M_ZERO);
 	tth->ns = io_test->ns;
 	tth->opc = io_test->opc;
 	memcpy(&tth->start, &io_test->start, sizeof(tth->start));
-	tth->buf = malloc(io_test->size, M_NVME, M_NOWAIT);
+	tth->buf = malloc(io_test->size, M_NVME, M_WAITOK);
 	tth->size = io_test->size;
 	tth->time = io_test->time;
 	tth->idx = atomic_fetchadd_int(&io_test->td_idx, 1);
@@ -269,7 +269,7 @@ nvme_ns_test(struct nvme_namespace *ns, u_long cmd, caddr_t arg)
 		return;
 
 	io_test_internal = malloc(sizeof(*io_test_internal), M_NVME,
-	    M_NOWAIT | M_ZERO);
+	    M_WAITOK | M_ZERO);
 	io_test_internal->opc = io_test->opc;
 	io_test_internal->ns = ns;
 	io_test_internal->td_active = io_test->num_threads;

@@ -254,7 +254,7 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 		 */
 		dsm_range =
 		    malloc(sizeof(struct nvme_dsm_range), M_NVME,
-		    M_ZERO | M_NOWAIT);
+		    M_ZERO | M_WAITOK);
 		dsm_range->length =
 		    bp->bio_bcount/nvme_ns_get_sector_size(ns);
 		dsm_range->starting_lba =
