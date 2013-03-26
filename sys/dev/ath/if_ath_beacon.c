@@ -632,7 +632,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* NB: only at DTIM */
 		ATH_TXQ_LOCK(&avp->av_mcastq);
 		if (nmcastq) {
-			struct ath_buf *bfm;
+			struct ath_buf *bfm, *bfc_last;
 
 			/*
 			 * Move frames from the s/w mcast q to the h/w cab q.
@@ -645,16 +645,23 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			 * MORE data bit set on the last frame of each
 			 * intermediary VAP (ie, only clear the MORE
 			 * bit of the last frame on the last vap?)
-			 *
-			 * XXX TODO: once we append this, what happens
-			 * to cabq->axq_link? It'll point at the avp
-			 * mcastq link pointer, so things should be OK.
-			 * Just double-check this is what actually happens.
 			 */
 			bfm = TAILQ_FIRST(&avp->av_mcastq.axq_q);
 			ATH_TXQ_LOCK(cabq);
-			if (cabq->axq_link != NULL)
-				*cabq->axq_link = bfm->bf_daddr;
+
+			/*
+			 * If there's already a frame on the CABQ, we
+			 * need to link to the end of the last frame.
+			 * We can't use axq_link here because
+			 * EDMA descriptors require some recalculation
+			 * (checksum) to occur.
+			 */
+			bfc_last = ATH_TXQ_LAST(cabq, axq_q_s);
+			if (bfc_last != NULL) {
+				ath_hal_settxdesclink(sc->sc_ah,
+				    bfc_last->bf_lastds,
+				    bfm->bf_daddr);
+			}
 			ath_txqmove(cabq, &avp->av_mcastq);
 			ATH_TXQ_UNLOCK(cabq);
 			/*
