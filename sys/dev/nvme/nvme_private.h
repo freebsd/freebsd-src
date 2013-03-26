@@ -85,7 +85,7 @@ MALLOC_DECLARE(M_NVME);
  */
 #define NVME_IO_ENTRIES		(256)
 #define NVME_IO_TRACKERS	(128)
-#define NVME_MIN_IO_TRACKERS	(16)
+#define NVME_MIN_IO_TRACKERS	(4)
 #define NVME_MAX_IO_TRACKERS	(1024)
 
 /*
@@ -119,6 +119,7 @@ extern int32_t		nvme_retry_count;
 struct nvme_request {
 
 	struct nvme_command		cmd;
+	struct nvme_qpair		*qpair;
 	void				*payload;
 	uint32_t			payload_size;
 	boolean_t			timeout;
@@ -250,7 +251,9 @@ struct nvme_controller {
 	struct intr_config_hook	config_hook;
 	uint32_t		ns_identified;
 	uint32_t		queues_created;
+
 	struct task		reset_task;
+	struct task		fail_req_task;
 	struct taskqueue	*taskqueue;
 
 	/* For shared legacy interrupt. */
@@ -292,6 +295,10 @@ struct nvme_controller {
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
 
 	uint32_t		is_resetting;
+
+	struct mtx			fail_req_lock;
+	boolean_t			is_failed;
+	STAILQ_HEAD(, nvme_request)	fail_req;
 
 #ifdef CHATHAM2
 	uint64_t		chatham_size;
@@ -403,6 +410,8 @@ void	nvme_ctrlr_submit_admin_request(struct nvme_controller *ctrlr,
 					struct nvme_request *req);
 void	nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 				     struct nvme_request *req);
+void	nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
+				       struct nvme_request *req);
 
 void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
@@ -414,6 +423,11 @@ void	nvme_qpair_process_completions(struct nvme_qpair *qpair);
 void	nvme_qpair_submit_request(struct nvme_qpair *qpair,
 				  struct nvme_request *req);
 void	nvme_qpair_reset(struct nvme_qpair *qpair);
+void	nvme_qpair_fail(struct nvme_qpair *qpair);
+void	nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
+					   struct nvme_request *req,
+					   uint32_t sct, uint32_t sc,
+					   boolean_t print_on_error);
 
 void	nvme_admin_qpair_enable(struct nvme_qpair *qpair);
 void	nvme_admin_qpair_disable(struct nvme_qpair *qpair);
@@ -484,5 +498,6 @@ void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 				    const struct nvme_completion *async_cpl,
 				    uint32_t log_page_id, void *log_page_buffer,
 				    uint32_t log_page_size);
+void	nvme_notify_fail_consumers(struct nvme_controller *ctrlr);
 
 #endif /* __NVME_PRIVATE_H__ */
