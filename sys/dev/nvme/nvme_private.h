@@ -230,6 +230,7 @@ struct nvme_controller {
 
 	uint32_t		msix_enabled;
 	uint32_t		force_intx;
+	uint32_t		enable_aborts;
 
 	uint32_t		num_io_queues;
 	boolean_t		per_cpu_io_queues;
@@ -239,7 +240,7 @@ struct nvme_controller {
 	uint32_t		ns_identified;
 	uint32_t		queues_created;
 	uint32_t		num_start_attempts;
-	struct task		restart_task;
+	struct task		reset_task;
 	struct taskqueue	*taskqueue;
 
 	/* For shared legacy interrupt. */
