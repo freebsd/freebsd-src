@@ -474,6 +474,10 @@ ath_beacon_proc(void *arg, int pending)
 			vap = sc->sc_bslot[slot];
 			if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
 				bf = ath_beacon_generate(sc, vap);
+				/*
+				 * XXX TODO: this should use settxdesclinkptr()
+				 * otherwise it won't work for EDMA chipsets!
+				 */
 				if (bf != NULL) {
 					/* XXX should do this using the ds */
 					*bflink = bf->bf_daddr;
@@ -482,6 +486,10 @@ ath_beacon_proc(void *arg, int pending)
 				}
 			}
 		}
+		/*
+		 * XXX TODO: this should use settxdesclinkptr()
+		 * otherwise it won't work for EDMA chipsets!
+		 */
 		*bflink = 0;				/* terminate list */
 	}
 
@@ -540,17 +548,99 @@ ath_beacon_proc(void *arg, int pending)
 	}
 }
 
-/*
- * Start CABQ transmission - this assumes that all frames are prepped
- * and ready in the CABQ.
- *
- * XXX TODO: methodize this; for the EDMA case it should only push
- * into the hardware if the FIFO isn't full _AND_ then it should
- * tag the final buffer in the queue as ATH_BUF_FIFOEND so the FIFO
- * depth is correctly accounted for.
- */
-void
-ath_beacon_cabq_start(struct ath_softc *sc)
+static void
+ath_beacon_cabq_start_edma(struct ath_softc *sc)
+{
+	struct ath_buf *bf, *bf_last;
+	struct ath_txq *cabq = sc->sc_cabq;
+#if 0
+	struct ath_buf *bfi;
+	int i = 0;
+#endif
+
+	ATH_TXQ_LOCK_ASSERT(cabq);
+
+	if (TAILQ_EMPTY(&cabq->axq_q))
+		return;
+	bf = TAILQ_FIRST(&cabq->axq_q);
+	bf_last = TAILQ_LAST(&cabq->axq_q, axq_q_s);
+
+	/*
+	 * This is a dirty, dirty hack to push the contents of
+	 * the cabq staging queue into the FIFO.
+	 *
+	 * This ideally should live in the EDMA code file
+	 * and only push things into the CABQ if there's a FIFO
+	 * slot.
+	 *
+	 * We can't treat this like a normal TX queue because
+	 * in the case of multi-VAP traffic, we may have to flush
+	 * the CABQ each new (staggered) beacon that goes out.
+	 * But for non-staggered beacons, we could in theory
+	 * handle multicast traffic for all VAPs in one FIFO
+	 * push.  Just keep all of this in mind if you're wondering
+	 * how to correctly/better handle multi-VAP CABQ traffic
+	 * with EDMA.
+	 */
+
+	/*
+	 * Is the CABQ FIFO free? If not, complain loudly and
+	 * don't queue anything.  Maybe we'll flush the CABQ
+	 * traffic, maybe we won't.  But that'll happen next
+	 * beacon interval.
+	 */
+	if (cabq->axq_fifo_depth >= HAL_TXFIFO_DEPTH) {
+		device_printf(sc->sc_dev,
+		    "%s: Q%d: CAB FIFO queue=%d?\n",
+		    __func__,
+		    cabq->axq_qnum,
+		    cabq->axq_fifo_depth);
+		return;
+	}
+
+	/*
+	 * Ok, so here's the gymnastics reqiured to make this
+	 * all sensible.
+	 */
+
+	/*
+	 * Tag the first/last buffer appropriately.
+	 */
+	bf->bf_flags |= ATH_BUF_FIFOPTR;
+	bf_last->bf_flags |= ATH_BUF_FIFOEND;
+
+#if 0
+	i = 0;
+	TAILQ_FOREACH(bfi, &cabq->axq_q, bf_list) {
+		ath_printtxbuf(sc, bf, cabq->axq_qnum, i, 0);
+		i++;
+	}
+#endif
+
+	/*
+	 * We now need to push this set of frames onto the tail
+	 * of the FIFO queue.  We don't adjust the aggregate
+	 * count, only the queue depth counter(s).
+	 * We also need to blank the link pointer now.
+	 */
+	TAILQ_CONCAT(&cabq->fifo.axq_q, &cabq->axq_q, bf_list);
+	cabq->axq_link = NULL;
+	cabq->fifo.axq_depth += cabq->axq_depth;
+	cabq->axq_depth = 0;
+
+	/* Bump FIFO queue */
+	cabq->axq_fifo_depth++;
+
+	/* Push the first entry into the hardware */
+	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+
+	/* NB: gated by beacon so safe to start here */
+	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
+
+}
+
+static void
+ath_beacon_cabq_start_legacy(struct ath_softc *sc)
 {
 	struct ath_buf *bf;
 	struct ath_txq *cabq = sc->sc_cabq;
@@ -565,6 +655,26 @@ ath_beacon_cabq_start(struct ath_softc *sc)
 
 	/* NB: gated by beacon so safe to start here */
 	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
+}
+
+/*
+ * Start CABQ transmission - this assumes that all frames are prepped
+ * and ready in the CABQ.
+ */
+void
+ath_beacon_cabq_start(struct ath_softc *sc)
+{
+	struct ath_txq *cabq = sc->sc_cabq;
+
+	ATH_TXQ_LOCK_ASSERT(cabq);
+
+	if (TAILQ_EMPTY(&cabq->axq_q))
+		return;
+
+	if (sc->sc_isedma)
+		ath_beacon_cabq_start_edma(sc);
+	else
+		ath_beacon_cabq_start_legacy(sc);
 }
 
 struct ath_buf *
@@ -636,9 +746,6 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 
 			/*
 			 * Move frames from the s/w mcast q to the h/w cab q.
-			 *
-			 * XXX TODO: This should be methodized - the EDMA
-			 * CABQ setup code may look different!
 			 *
 			 * XXX TODO: if we chain together multiple VAPs
 			 * worth of CABQ traffic, should we keep the
