@@ -169,7 +169,6 @@ xen_load_cr3(u_long val)
 void
 xen_pt_switch(vm_paddr_t kpml4mach)
 {
-	printk("%s: kpml4mach == 0x%lx\n", __func__, kpml4mach);
 	struct mmuext_op op;
 #ifdef INVARIANTS
 	SET_VCPU();
