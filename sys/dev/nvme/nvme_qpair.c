@@ -297,12 +297,11 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	qpair->num_cmds = 0;
 	qpair->num_intr_handler_calls = 0;
 
-	/* TODO: error checking on contigmalloc, bus_dmamap_load calls */
 	qpair->cmd = contigmalloc(qpair->num_entries *
-	    sizeof(struct nvme_command), M_NVME, M_ZERO | M_NOWAIT,
+	    sizeof(struct nvme_command), M_NVME, M_ZERO,
 	    0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 	qpair->cpl = contigmalloc(qpair->num_entries *
-	    sizeof(struct nvme_completion), M_NVME, M_ZERO | M_NOWAIT,
+	    sizeof(struct nvme_completion), M_NVME, M_ZERO,
 	    0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 
 	bus_dmamap_create(qpair->dma_tag, 0, &qpair->cmd_dma_map);
@@ -323,19 +322,13 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 	STAILQ_INIT(&qpair->queued_req);
 
 	for (i = 0; i < qpair->num_trackers; i++) {
-		tr = malloc(sizeof(*tr), M_NVME, M_ZERO | M_NOWAIT);
-
-		if (tr == NULL) {
-			printf("warning: nvme tracker malloc failed\n");
-			break;
-		}
-
+		tr = malloc(sizeof(*tr), M_NVME, M_ZERO | M_WAITOK);
 		nvme_qpair_construct_tracker(qpair, tr, i);
 		TAILQ_INSERT_HEAD(&qpair->free_tr, tr, tailq);
 	}
 
 	qpair->act_tr = malloc(sizeof(struct nvme_tracker *) * qpair->num_entries,
-	    M_NVME, M_ZERO | M_NOWAIT);
+	    M_NVME, M_ZERO | M_WAITOK);
 }
 
 static void
