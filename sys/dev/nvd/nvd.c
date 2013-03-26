@@ -45,7 +45,7 @@ struct nvd_disk;
 static disk_ioctl_t nvd_ioctl;
 static disk_strategy_t nvd_strategy;
 
-static void create_geom_disk(void *, struct nvme_namespace *ns);
+static void *create_geom_disk(struct nvme_namespace *ns, void *ctrlr);
 static void destroy_geom_disk(struct nvd_disk *ndisk);
 
 static int nvd_load(void);
@@ -105,7 +105,7 @@ nvd_load()
 {
 
 	TAILQ_INIT(&nvd_head);
-	consumer_handle = nvme_register_consumer(create_geom_disk, NULL);
+	consumer_handle = nvme_register_consumer(create_geom_disk, NULL, NULL);
 
 	return (consumer_handle != NULL ? 0 : -1);
 }
@@ -233,8 +233,8 @@ nvd_bioq_process(void *arg, int pending)
 	}
 }
 
-static void
-create_geom_disk(void *arg, struct nvme_namespace *ns)
+static void *
+create_geom_disk(struct nvme_namespace *ns, void *ctrlr)
 {
 	struct nvd_disk *ndisk;
 	struct disk *disk;
@@ -287,6 +287,8 @@ create_geom_disk(void *arg, struct nvme_namespace *ns)
 	taskqueue_start_threads(&ndisk->tq, 1, PI_DISK, "nvd taskq");
 
 	TAILQ_INSERT_HEAD(&nvd_head, ndisk, tailq);
+
+	return (NULL);
 }
 
 static void

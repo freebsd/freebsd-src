@@ -551,6 +551,8 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 		return;
 	}
 
+	nvme_notify_async_consumers(aer->ctrlr, cpl);
+
 	/* TODO: decode async event type based on status */
 
 	/*
@@ -908,4 +910,11 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 		qpair = &ctrlr->ioq[0];
 
 	nvme_qpair_submit_request(qpair, req);
+}
+
+device_t
+nvme_ctrlr_get_device(struct nvme_controller *ctrlr)
+{
+
+	return (ctrlr->dev);
 }
