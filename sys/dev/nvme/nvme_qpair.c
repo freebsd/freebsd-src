@@ -594,6 +594,21 @@ nvme_qpair_reset(struct nvme_qpair *qpair)
 void
 nvme_admin_qpair_enable(struct nvme_qpair *qpair)
 {
+	struct nvme_tracker		*tr;
+	struct nvme_tracker		*tr_temp;
+
+	/*
+	 * Manually abort each outstanding admin command.  Do not retry
+	 *  admin commands found here, since they will be left over from
+	 *  a controller reset and its likely the context in which the
+	 *  command was issued no longer applies.
+	 */
+	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
+		device_printf(qpair->ctrlr->dev,
+		    "aborting outstanding admin command\n");
+		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
+		    NVME_SC_ABORTED_BY_REQUEST, 1 /* do not retry */, TRUE);
+	}
 
 	nvme_qpair_enable(qpair);
 }
