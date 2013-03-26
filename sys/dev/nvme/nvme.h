@@ -740,6 +740,8 @@ void		nvme_unregister_consumer(struct nvme_consumer *consumer);
 
 /* Controller helper functions */
 device_t	nvme_ctrlr_get_device(struct nvme_controller *ctrlr);
+const struct nvme_controller_data *
+		nvme_ctrlr_get_data(struct nvme_controller *ctrlr);
 
 /* Namespace helper functions */
 uint32_t	nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns);
@@ -749,6 +751,8 @@ uint64_t	nvme_ns_get_size(struct nvme_namespace *ns);
 uint32_t	nvme_ns_get_flags(struct nvme_namespace *ns);
 const char *	nvme_ns_get_serial_number(struct nvme_namespace *ns);
 const char *	nvme_ns_get_model_number(struct nvme_namespace *ns);
+const struct nvme_namespace_data *
+		nvme_ns_get_data(struct nvme_namespace *ns);
 
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			    nvme_cb_fn_t cb_fn);
