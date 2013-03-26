@@ -318,14 +318,6 @@ ath_edma_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
 		ath_edma_xmit_handoff_mcast(sc, txq, bf);
 	else
 		ath_edma_xmit_handoff_hw(sc, txq, bf);
-
-#if 0
-	/*
-	 * XXX For now this is a placeholder; free the buffer
-	 * and inform the stack that the TX failed.
-	 */
-	ath_tx_default_comp(sc, bf, 1);
-#endif
 }
 
 static int
