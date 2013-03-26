@@ -221,6 +221,13 @@ nvme_ns_get_model_number(struct nvme_namespace *ns)
 	return ((const char *)ns->ctrlr->cdata.mn);
 }
 
+const struct nvme_namespace_data *
+nvme_ns_get_data(struct nvme_namespace *ns)
+{
+
+	return (&ns->data);
+}
+
 static void
 nvme_ns_bio_done(void *arg, const struct nvme_completion *status)
 {

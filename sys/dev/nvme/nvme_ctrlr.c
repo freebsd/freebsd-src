@@ -942,3 +942,10 @@ nvme_ctrlr_get_device(struct nvme_controller *ctrlr)
 
 	return (ctrlr->dev);
 }
+
+const struct nvme_controller_data *
+nvme_ctrlr_get_data(struct nvme_controller *ctrlr)
+{
+
+	return (&ctrlr->cdata);
+}
