@@ -405,11 +405,29 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 }
 
 int
-nvme_ctrlr_reset(struct nvme_controller *ctrlr)
+nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
+	int i;
+
+	nvme_admin_qpair_disable(&ctrlr->adminq);
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		nvme_io_qpair_disable(&ctrlr->ioq[i]);
+
+	DELAY(100*1000);
 
 	nvme_ctrlr_disable(ctrlr);
 	return (nvme_ctrlr_enable(ctrlr));
+}
+
+void
+nvme_ctrlr_reset(struct nvme_controller *ctrlr)
+{
+	int status;
+
+	status = nvme_ctrlr_hw_reset(ctrlr);
+	DELAY(100*1000);
+	if (status == 0)
+		nvme_ctrlr_start(ctrlr);
 }
 
 static int
@@ -626,6 +644,9 @@ void
 nvme_ctrlr_start(void *ctrlr_arg)
 {
 	struct nvme_controller *ctrlr = ctrlr_arg;
+	int i;
+
+	nvme_admin_qpair_enable(&ctrlr->adminq);
 
 	if (nvme_ctrlr_identify(ctrlr) != 0)
 		goto err;
@@ -642,16 +663,26 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	nvme_ctrlr_configure_aer(ctrlr);
 	nvme_ctrlr_configure_int_coalescing(ctrlr);
 
+	for (i = 0; i < ctrlr->num_io_queues; i++)
+		nvme_io_qpair_enable(&ctrlr->ioq[i]);
+
 	ctrlr->is_started = TRUE;
 
 err:
 
-	/*
-	 * Initialize sysctls, even if controller failed to start, to
-	 *  assist with debugging admin queue pair.
-	 */
-	nvme_sysctl_initialize_ctrlr(ctrlr);
-	config_intrhook_disestablish(&ctrlr->config_hook);
+	if (ctrlr->num_start_attempts == 0) {
+		/*
+		 * Initialize sysctls, even if controller failed to start, to
+		 *  assist with debugging admin queue pair.  Only run this
+		 *  code on the initial start attempt though, and not
+		 *  subsequent start attempts due to controller-level resets.
+		 *
+		 */
+		nvme_sysctl_initialize_ctrlr(ctrlr);
+		config_intrhook_disestablish(&ctrlr->config_hook);
+	}
+
+	ctrlr->num_start_attempts++;
 }
 
 static void
@@ -730,6 +761,9 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 			return (ENXIO);
 		memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
 		break;
+	case NVME_RESET_CONTROLLER:
+		nvme_ctrlr_reset(ctrlr);
+		break;
 	default:
 		return (ENOTTY);
 	}
@@ -752,6 +786,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	ctrlr->dev = dev;
 	ctrlr->is_started = FALSE;
+	ctrlr->num_start_attempts = 0;
 
 	status = nvme_ctrlr_allocate_bar(ctrlr);
 
@@ -835,14 +870,10 @@ intx:
 void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
-	struct nvme_namespace		*ns;
 	int				i;
 
-	for (i = 0; i < NVME_MAX_NAMESPACES; i++) {
-		ns = &ctrlr->ns[i];
-		if (ns->cdev)
-			destroy_dev(ns->cdev);
-	}
+	for (i = 0; i < NVME_MAX_NAMESPACES; i++)
+		nvme_ns_destruct(&ctrlr->ns[i]);
 
 	if (ctrlr->cdev)
 		destroy_dev(ctrlr->cdev);
@@ -852,13 +883,6 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	}
 
 	free(ctrlr->ioq, M_NVME);
-
-	/* Manually abort outstanding async event requests. */
-	for (i = 0; i < ctrlr->num_aers; i++) {
-		nvme_qpair_manual_abort_request(&ctrlr->adminq,
-		    ctrlr->aer[i].req, NVME_SCT_GENERIC,
-		    NVME_SC_ABORTED_SQ_DELETION, FALSE);
-	}
 
 	nvme_admin_qpair_destroy(&ctrlr->adminq);
 

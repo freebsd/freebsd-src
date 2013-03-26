@@ -255,7 +255,7 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 		}
 	}
 
-	nvme_qpair_submit_cmd(tr->qpair, tr);
+	nvme_qpair_submit_tracker(tr->qpair, tr);
 }
 
 static int
@@ -274,11 +274,11 @@ nvme_attach(device_t dev)
 	 *  to cc.en==0.  This is because we don't really know what status
 	 *  the controller was left in when boot handed off to OS.
 	 */
-	status = nvme_ctrlr_reset(ctrlr);
+	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status != 0)
 		return (status);
 
-	status = nvme_ctrlr_reset(ctrlr);
+	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status != 0)
 		return (status);
 
