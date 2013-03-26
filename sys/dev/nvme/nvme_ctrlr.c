@@ -422,12 +422,8 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 void
 nvme_ctrlr_reset(struct nvme_controller *ctrlr)
 {
-	int status;
 
-	status = nvme_ctrlr_hw_reset(ctrlr);
-	DELAY(100*1000);
-	if (status == 0)
-		taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->restart_task);
+	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->reset_task);
 }
 
 static int
@@ -686,11 +682,24 @@ err:
 }
 
 static void
-nvme_ctrlr_restart_task(void *arg, int pending)
+nvme_ctrlr_reset_task(void *arg, int pending)
 {
-	struct nvme_controller *ctrlr = arg;
+	struct nvme_controller	*ctrlr = arg;
+	int			status;
 
-	nvme_ctrlr_start(ctrlr);
+	device_printf(ctrlr->dev, "resetting controller");
+	status = nvme_ctrlr_hw_reset(ctrlr);
+	/*
+	 * Use pause instead of DELAY, so that we yield to any nvme interrupt
+	 *  handlers on this CPU that were blocked on a qpair lock. We want
+	 *  all nvme interrupts completed before proceeding with restarting the
+	 *  controller.
+	 *
+	 * XXX - any way to guarantee the interrupt handlers have quiesced?
+	 */
+	pause("nvmereset", hz / 10);
+	if (status == 0)
+		nvme_ctrlr_start(ctrlr);
 }
 
 static void
@@ -841,6 +850,9 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->force_intx = 0;
 	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
 
+	ctrlr->enable_aborts = 0;
+	TUNABLE_INT_FETCH("hw.nvme.enable_aborts", &ctrlr->enable_aborts);
+
 	ctrlr->msix_enabled = 1;
 
 	if (ctrlr->force_intx) {
@@ -879,7 +891,7 @@ intx:
 
 	ctrlr->cdev->si_drv1 = (void *)ctrlr;
 
-	TASK_INIT(&ctrlr->restart_task, 0, nvme_ctrlr_restart_task, ctrlr);
+	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 	ctrlr->taskqueue = taskqueue_create("nvme_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
 	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
