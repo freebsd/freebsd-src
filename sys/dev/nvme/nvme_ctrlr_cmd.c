@@ -267,6 +267,25 @@ nvme_ctrlr_cmd_get_log_page(struct nvme_controller *ctrlr, uint8_t log_page,
 	nvme_ctrlr_submit_admin_request(ctrlr, req);
 }
 
+void
+nvme_ctrlr_cmd_get_error_page(struct nvme_controller *ctrlr,
+    struct nvme_error_information_entry *payload, uint32_t num_entries,
+    nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+
+	KASSERT(num_entries > 0, ("%s called with num_entries==0\n", __func__));
+
+	/* Controller's error log page entries is 0-based. */
+	if (num_entries > (ctrlr->cdata.elpe + 1)) {
+		printf("%s num_entries=%d cdata.elpe=%d\n",
+		    __func__, num_entries, ctrlr->cdata.elpe);
+		num_entries = ctrlr->cdata.elpe + 1;
+	}
+
+	nvme_ctrlr_cmd_get_log_page(ctrlr, NVME_LOG_ERROR,
+	    NVME_GLOBAL_NAMESPACE_TAG, payload, sizeof(*payload) * num_entries,
+	    cb_fn, cb_arg);
+}
 
 void
 nvme_ctrlr_cmd_get_health_information_page(struct nvme_controller *ctrlr,

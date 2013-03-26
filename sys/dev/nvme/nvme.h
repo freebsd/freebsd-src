@@ -622,6 +622,19 @@ enum nvme_log_page {
 	/* 0xC0-0xFF - vendor specific */
 };
 
+struct nvme_error_information_entry {
+
+	uint64_t		error_count;
+	uint16_t		sqid;
+	uint16_t		cid;
+	struct nvme_status	status;
+	uint16_t		error_location;
+	uint64_t		lba;
+	uint32_t		nsid;
+	uint8_t			vendor_specific;
+	uint8_t			reserved[35];
+} __packed __aligned(4);
+
 union nvme_critical_warning_state {
 
 	uint8_t		raw;
