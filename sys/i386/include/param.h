@@ -140,9 +140,12 @@
  * Ceiling on size of buffer cache (really only effects write queueing,
  * the VM page cache is not effected), can be changed via
  * the kern.maxbcache /boot/loader.conf variable.
+ *
+ * The value is equal to the size of the auto-tuned buffer map for
+ * the machine with 4GB of RAM, see vfs_bio.c:kern_vfs_bio_buffer_alloc().
  */
 #ifndef VM_BCACHE_SIZE_MAX
-#define VM_BCACHE_SIZE_MAX	(200 * 1024 * 1024)
+#define VM_BCACHE_SIZE_MAX	(7224 * 16 * 1024)
 #endif
 
 /*
