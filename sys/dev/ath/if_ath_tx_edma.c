@@ -633,7 +633,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		if (status == HAL_EIO) {
 			device_printf(sc->sc_dev, "%s: invalid TX status?\n",
 			    __func__);
-			continue;
+			break;
 		}
 
 #ifdef	ATH_DEBUG_ALQ
@@ -676,6 +676,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 			device_printf(sc->sc_dev, "%s: Q%d: empty?\n",
 			    __func__,
 			    ts.ts_queue_id);
+			ATH_TXQ_UNLOCK(txq);
 			continue;
 		}
 
