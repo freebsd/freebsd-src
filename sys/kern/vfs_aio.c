@@ -1252,9 +1252,11 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	struct file *fp;
 	struct buf *bp;
 	struct vnode *vp;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	struct kaioinfo *ki;
 	struct aioliojob *lj;
-	int error;
+	int error, ref;
 
 	cb = &aiocbe->uaiocb;
 	fp = aiocbe->fd_file;
@@ -1282,9 +1284,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
  	if (cb->aio_nbytes % vp->v_bufobj.bo_bsize)
 		return (-1);
 
-	if (cb->aio_nbytes > vp->v_rdev->si_iosize_max)
-		return (-1);
-
 	if (cb->aio_nbytes >
 	    MAXPHYS - (((vm_offset_t) cb->aio_buf) & PAGE_MASK))
 		return (-1);
@@ -1292,6 +1291,15 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	ki = p->p_aioinfo;
 	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count)
 		return (-1);
+
+	ref = 0;
+	csw = devvn_refthread(vp, &dev, &ref);
+	if (csw == NULL)
+		return (ENXIO);
+	if (cb->aio_nbytes > dev->si_iosize_max) {
+		error = -1;
+		goto unref;
+	}
 
 	/* Create and build a buffer header for a transfer. */
 	bp = (struct buf *)getpbuf(NULL);
@@ -1323,7 +1331,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Bring buffer into kernel space.
 	 */
-	if (vmapbuf(bp, 1) < 0) {
+	if (vmapbuf(bp, (csw->d_flags & D_UNMAPPED_IO) == 0) < 0) {
 		error = EFAULT;
 		goto doerror;
 	}
@@ -1345,7 +1353,8 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	TASK_INIT(&aiocbe->biotask, 0, biohelper, aiocbe);
 
 	/* Perform transfer. */
-	dev_strategy(vp->v_rdev, bp);
+	dev_strategy_csw(dev, csw, bp);
+	dev_relthread(dev, ref);
 	return (0);
 
 doerror:
@@ -1357,6 +1366,8 @@ doerror:
 	aiocbe->bp = NULL;
 	AIO_UNLOCK(ki);
 	relpbuf(bp, NULL);
+unref:
+	dev_relthread(dev, ref);
 	return (error);
 }
 
