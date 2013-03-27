@@ -1819,6 +1819,6 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .else
-xdev xdev-buil xdev-install:
+xdev xdev-build xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
