@@ -295,7 +295,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	/*
 	 * Return ENOMEM to the caller so that it can pass it up the stack.
-	 * This error only happens when NOWAIT is set, so deferal is disabled.
+	 * This error only happens when NOWAIT is set, so deferral is disabled.
 	 */
 	if (error == ENOMEM)
 		return (error);
@@ -396,7 +396,7 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		(*callback)(callback_arg, segs, nsegs, error);
 	/*
 	 * Return ENOMEM to the caller so that it can pass it up the stack.
-	 * This error only happens when NOWAIT is set, so deferal is disabled.
+	 * This error only happens when NOWAIT is set, so deferral is disabled.
 	 */
 	if (error == ENOMEM)
 		return (error);
@@ -468,7 +468,7 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	/*
 	 * Return ENOMEM to the caller so that it can pass it up the stack.
-	 * This error only happens when NOWAIT is set, so deferal is disabled.
+	 * This error only happens when NOWAIT is set, so deferral is disabled.
 	 */
 	if (error == ENOMEM)
 		return (error);
