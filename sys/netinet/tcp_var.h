@@ -615,7 +615,7 @@ VNET_DECLARE(struct tcpstat_p, tcpstatp);	/* tcp statistics */
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	TCPSTAT_ADD(name, val)	counter_u64_inc(V_tcpstatp.name, (val))
+#define	TCPSTAT_ADD(name, val)	counter_u64_add(V_tcpstatp.name, (val))
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
 
 /*

@@ -32,7 +32,7 @@
 #include <sys/pcpu.h>
 
 static inline void
-counter_u64_inc(counter_u64_t c, uint64_t inc)
+counter_u64_add(counter_u64_t c, uint64_t inc)
 {
 
 	critical_enter();
@@ -41,7 +41,7 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 }
 
 static inline void
-counter_u64_dec(counter_u64_t c, uint64_t dec)
+counter_u64_subtract(counter_u64_t c, uint64_t dec)
 {
 
 	critical_enter();

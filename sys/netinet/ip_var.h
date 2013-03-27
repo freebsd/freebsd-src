@@ -172,8 +172,8 @@ VNET_DECLARE(struct ipstat_p, ipstatp);
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	IPSTAT_ADD(name, val)	counter_u64_inc(V_ipstatp.name, (val))
-#define	IPSTAT_SUB(name, val)	counter_u64_dec(V_ipstatp.name, (val))
+#define	IPSTAT_ADD(name, val)	counter_u64_add(V_ipstatp.name, (val))
+#define	IPSTAT_SUB(name, val)	counter_u64_subtract(V_ipstatp.name, (val))
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
 #define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
 

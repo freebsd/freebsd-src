@@ -39,9 +39,9 @@
 .Ft void
 .Fn counter_u64_free "counter_u64_t cnt"
 .Ft void
-.Fn counter_u64_inc "counter_u64_t cnt" "uint64_t inc"
+.Fn counter_u64_add "counter_u64_t cnt" "uint64_t inc"
 .Ft void
-.Fn counter_u64_dec "counter_u64_t cnt" "uint64_t dec"
+.Fn counter_u64_subtract "counter_u64_t cnt" "uint64_t dec"
 .Ft uint64_t
 .Fn counter_u64_fetch "counter_u64_t cnt"
 .Ft void
@@ -92,13 +92,13 @@ is specified the operation may fail.
 Free previously allocated
 .Nm
 .Fa cnt .
-.It Fn counter_u64_inc cnt inc
+.It Fn counter_u64_add cnt inc
 Add value of
 .Fa inc
 to
 .Nm
 .Fa cnt .
-.It Fn counter_u64_dec cnt dec
+.It Fn counter_u64_subtract cnt dec
 Subtract value of
 .Fa dec
 from

@@ -53,7 +53,7 @@ counter_64_inc_8b(uint64_t *p, uint64_t inc)
 }
 
 static inline void
-counter_u64_inc(counter_u64_t c, uint64_t inc)
+counter_u64_add(counter_u64_t c, uint64_t inc)
 {
 
 	if ((cpu_feature & CPUID_CX8) == 0) {
@@ -66,10 +66,10 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 }
 
 static inline void
-counter_u64_dec(counter_u64_t c, uint64_t dec)
+counter_u64_subtract(counter_u64_t c, uint64_t dec)
 {
 
-	counter_u64_inc(c, -(int64_t)dec);
+	counter_u64_add(c, -(int64_t)dec);
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */

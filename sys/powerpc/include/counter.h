@@ -34,7 +34,7 @@
 #if defined(AIM) && defined(__powerpc64__)
 
 static inline void
-counter_u64_inc(counter_u64_t c, uint64_t inc)
+counter_u64_add(counter_u64_t c, uint64_t inc)
 {
 	uint64_t ccpu, old;
 
@@ -51,16 +51,16 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 }
 
 static inline void
-counter_u64_dec(counter_u64_t c, uint64_t dec)
+counter_u64_subtract(counter_u64_t c, uint64_t dec)
 {
 
-	counter_u64_inc(c, -dec);
+	counter_u64_add(c, -dec);
 }
 
 #else	/* !AIM || !64bit */
 
 static inline void
-counter_u64_inc(counter_u64_t c, uint64_t inc)
+counter_u64_add(counter_u64_t c, uint64_t inc)
 {
 
 	critical_enter();
@@ -69,7 +69,7 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 }
 
 static inline void
-counter_u64_dec(counter_u64_t c, uint64_t dec)
+counter_u64_subtract(counter_u64_t c, uint64_t dec)
 {
 
 	critical_enter();
