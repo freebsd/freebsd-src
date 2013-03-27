@@ -125,9 +125,10 @@ nvme_io_qpair_print_command(struct nvme_qpair *qpair,
 	case NVME_OPC_WRITE_UNCORRECTABLE:
 	case NVME_OPC_COMPARE:
 		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d "
-		    "lba:%lu len:%d\n",
+		    "lba:%llu len:%d\n",
 		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid,
-		    cmd->nsid, ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10,
+		    cmd->nsid,
+		    ((unsigned long long)cmd->cdw11 << 32) + cmd->cdw10,
 		    (cmd->cdw12 & 0xFFFF) + 1);
 		break;
 	case NVME_OPC_FLUSH:
