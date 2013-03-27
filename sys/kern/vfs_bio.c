@@ -520,6 +520,12 @@ bd_speedup(void)
 	mtx_unlock(&bdlock);
 }
 
+#ifdef __i386__
+#define	TRANSIENT_DENOM	5
+#else
+#define	TRANSIENT_DENOM 10
+#endif
+
 /*
  * Calculating buffer cache scaling values and reserve space for buffer
  * headers.  This is called during low level kernel initialization and
@@ -579,8 +585,8 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	 * to the amount of the buffer mapped for typical UFS load.
 	 *
 	 * Clip the buffer map to reserve space for the transient
-	 * BIOs, if its extent is bigger than 90% of the maximum
-	 * buffer map extent on the platform.
+	 * BIOs, if its extent is bigger than 90% (80% on i386) of the
+	 * maximum buffer map extent on the platform.
 	 *
 	 * The fall-back to the maxbuf in case of maxbcache unset,
 	 * allows to not trim the buffer KVA for the architectures
@@ -589,7 +595,8 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	if (bio_transient_maxcnt == 0 && unmapped_buf_allowed) {
 		maxbuf_sz = maxbcache != 0 ? maxbcache : maxbuf * BKVASIZE;
 		buf_sz = (long)nbuf * BKVASIZE;
-		if (buf_sz < maxbuf_sz / 10 * 9) {
+		if (buf_sz < maxbuf_sz / TRANSIENT_DENOM *
+		    (TRANSIENT_DENOM - 1)) {
 			/*
 			 * There is more KVA than memory.  Do not
 			 * adjust buffer map size, and assign the rest
@@ -599,10 +606,10 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 		} else {
 			/*
 			 * Buffer map spans all KVA we could afford on
-			 * this platform.  Give 10% of the buffer map
-			 * to the transient bio map.
+			 * this platform.  Give 10% (20% on i386) of
+			 * the buffer map to the transient bio map.
 			 */
- 			biotmap_sz = buf_sz / 10;
+			biotmap_sz = buf_sz / TRANSIENT_DENOM;
 			buf_sz -= biotmap_sz;
 		}
 		if (biotmap_sz / INT_MAX > MAXPHYS)
