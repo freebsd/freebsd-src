@@ -158,6 +158,10 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_IVYBRIDGE_XEON;
 			nclasses = 3;
 			break;
+		case 0x3C:	/* Per Intel document 325462-045US 01/2013. */
+			cputype = PMC_CPU_INTEL_HASWELL;
+			nclasses = 5;
+			break;
 		}
 		break;
 #if	defined(__i386__) || defined(__amd64__)
@@ -201,6 +205,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_WESTMERE:
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
+	case PMC_CPU_INTEL_HASWELL:
 		error = pmc_core_initialize(pmc_mdep, ncpus);
 		break;
 
@@ -251,6 +256,7 @@ pmc_intel_initialize(void)
 		 * Intel Corei7 and Westmere processors.
 		 */
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
 		error = pmc_uncore_initialize(pmc_mdep, ncpus);
@@ -281,6 +287,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_IVYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
@@ -315,6 +322,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 #if	defined(__i386__) || defined(__amd64__)
 	switch (md->pmd_cputype) {
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
 		pmc_uncore_finalize(md);
