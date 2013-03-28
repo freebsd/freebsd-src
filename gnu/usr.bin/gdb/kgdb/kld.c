@@ -78,6 +78,7 @@ kld_ok (char *path)
  */
 static const char *kld_suffixes[] = {
 	".debug",
+	".symbols",
 	"",
 	NULL
 };
