@@ -169,7 +169,6 @@ arptimer(void *arg)
 {
 	struct llentry *lle = (struct llentry *)arg;
 	struct ifnet *ifp;
-	size_t pkts_dropped;
 
 	if (lle->la_flags & LLE_STATIC) {
 		LLE_WUNLOCK(lle);
@@ -186,11 +185,20 @@ arptimer(void *arg)
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
 
-	LLE_REMREF(lle);
-	pkts_dropped = llentry_free(lle);
+	/* Guard against race with other llentry_free(). */
+	if (lle->la_flags & LLE_LINKED) {
+		size_t pkts_dropped;
+
+		LLE_REMREF(lle);
+		pkts_dropped = llentry_free(lle);
+		ARPSTAT_ADD(dropped, pkts_dropped);
+	} else
+		LLE_FREE_LOCKED(lle);
+
 	IF_AFDATA_UNLOCK(ifp);
-	ARPSTAT_ADD(dropped, pkts_dropped);
+
 	ARPSTAT_INC(timeouts);
+
 	CURVNET_RESTORE();
 }
 

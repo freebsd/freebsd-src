@@ -112,12 +112,6 @@ llentry_free(struct llentry *lle)
 	IF_AFDATA_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
 	LLE_WLOCK_ASSERT(lle);
 
-	/* XXX: guard against race with other llentry_free(). */
-	if (!(lle->la_flags & LLE_LINKED)) {
-		LLE_FREE_LOCKED(lle);
-		return (0);
-	}
-
 	LIST_REMOVE(lle, lle_next);
 	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
 
