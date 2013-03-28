@@ -277,6 +277,8 @@ static void		mmu_booke_clear_reference(mmu_t, vm_page_t);
 static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
     vm_size_t, vm_offset_t);
 static void		mmu_booke_copy_page(mmu_t, vm_page_t, vm_page_t);
+static void		mmu_booke_copy_pages(mmu_t, vm_page_t *,
+    vm_offset_t, vm_page_t *, vm_offset_t, int);
 static void		mmu_booke_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t,
     vm_prot_t, boolean_t);
 static void		mmu_booke_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t,
@@ -337,6 +339,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_clear_reference,	mmu_booke_clear_reference),
 	MMUMETHOD(mmu_copy,		mmu_booke_copy),
 	MMUMETHOD(mmu_copy_page,	mmu_booke_copy_page),
+	MMUMETHOD(mmu_copy_pages,	mmu_booke_copy_pages),
 	MMUMETHOD(mmu_enter,		mmu_booke_enter),
 	MMUMETHOD(mmu_enter_object,	mmu_booke_enter_object),
 	MMUMETHOD(mmu_enter_quick,	mmu_booke_enter_quick),
@@ -2134,6 +2137,36 @@ mmu_booke_copy_page(mmu_t mmu, vm_page_t sm, vm_page_t dm)
 	memcpy((caddr_t)dva, (caddr_t)sva, PAGE_SIZE);
 	mmu_booke_kremove(mmu, dva);
 	mmu_booke_kremove(mmu, sva);
+	mtx_unlock(&copy_page_mutex);
+}
+
+static inline void
+mmu_booke_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	mtx_lock(&copy_page_mutex);
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		mmu_booke_kenter(mmu, copy_page_src_va,
+		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
+		a_cp = (char *)copy_page_src_va + a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		mmu_booke_kenter(mmu, copy_page_dst_va,
+		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
+		b_cp = (char *)copy_page_dst_va + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		mmu_booke_kremove(mmu, copy_page_dst_va);
+		mmu_booke_kremove(mmu, copy_page_src_va);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
 	mtx_unlock(&copy_page_mutex);
 }
 

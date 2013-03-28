@@ -277,6 +277,8 @@ void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea_clear_modify(mmu_t, vm_page_t);
 void moea_clear_reference(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
+void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize);
 void moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
 void moea_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
     vm_prot_t);
@@ -322,6 +324,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
 	MMUMETHOD(mmu_clear_reference,	moea_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
+	MMUMETHOD(mmu_copy_pages,	moea_copy_pages),
 	MMUMETHOD(mmu_enter,		moea_enter),
 	MMUMETHOD(mmu_enter_object,	moea_enter_object),
 	MMUMETHOD(mmu_enter_quick,	moea_enter_quick),
@@ -992,6 +995,30 @@ moea_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	src = VM_PAGE_TO_PHYS(msrc);
 
 	bcopy((void *)src, (void *)dst, PAGE_SIZE);
+}
+
+void
+moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		a_cp = (char *)VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]) +
+		    a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		b_cp = (char *)VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]) +
+		    b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
 }
 
 /*

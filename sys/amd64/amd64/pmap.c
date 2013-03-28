@@ -4245,6 +4245,30 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	pagecopy((void *)src, (void *)dst);
 }
 
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		a_cp = (char *)PHYS_TO_DMAP(ma[a_offset >> PAGE_SHIFT]->
+		    phys_addr) + a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		b_cp = (char *)PHYS_TO_DMAP(mb[b_offset >> PAGE_SHIFT]->
+		    phys_addr) + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+}
+
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may

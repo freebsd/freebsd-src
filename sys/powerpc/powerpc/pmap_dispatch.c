@@ -119,6 +119,16 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 }
 
 void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+
+	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %#x, %#x)", __func__, ma,
+	    a_offset, mb, b_offset, xfersize);
+	MMU_COPY_PAGES(mmu_obj, ma, a_offset, mb, b_offset, xfersize);
+}
+
+void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t p,
     vm_prot_t prot, boolean_t wired)
 {

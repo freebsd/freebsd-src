@@ -4256,6 +4256,49 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	mtx_unlock(&sysmaps->lock);
 }
 
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	struct sysmaps *sysmaps;
+	vm_page_t a_pg, b_pg;
+	char *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
+	mtx_lock(&sysmaps->lock);
+	if (*sysmaps->CMAP1 != 0)
+		panic("pmap_copy_pages: CMAP1 busy");
+	if (*sysmaps->CMAP2 != 0)
+		panic("pmap_copy_pages: CMAP2 busy");
+	sched_pin();
+	while (xfersize > 0) {
+		invlpg((u_int)sysmaps->CADDR1);
+		invlpg((u_int)sysmaps->CADDR2);
+		a_pg = ma[a_offset >> PAGE_SHIFT];
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		b_pg = mb[b_offset >> PAGE_SHIFT];
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		*sysmaps->CMAP1 = PG_V | VM_PAGE_TO_PHYS(a_pg) | PG_A |
+		    pmap_cache_bits(b_pg->md.pat_mode, 0);
+		*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(b_pg) | PG_A |
+		    PG_M | pmap_cache_bits(b_pg->md.pat_mode, 0);
+		a_cp = sysmaps->CADDR1 + a_pg_offset;
+		b_cp = sysmaps->CADDR2 + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+	*sysmaps->CMAP1 = 0;
+	*sysmaps->CMAP2 = 0;
+	sched_unpin();
+	mtx_unlock(&sysmaps->lock);
+}
+
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may
