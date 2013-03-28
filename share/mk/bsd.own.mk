@@ -401,8 +401,9 @@ __DEFAULT_NO_OPTIONS+=CLANG_FULL
 .else
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
-# Clang the default system compiler only on x86.
-.if ${__T} == "amd64" || ${__T} == "i386"
+# Clang the default system compiler only on little-endian arm and x86.
+.if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
+    ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
 .else
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC
