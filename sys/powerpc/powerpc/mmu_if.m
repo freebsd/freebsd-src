@@ -215,6 +215,14 @@ METHOD void copy_page {
 	vm_page_t	_dst;
 };
 
+METHOD void copy_pages {
+	mmu_t		_mmu;
+	vm_page_t	*_ma;
+	vm_offset_t	_a_offset;
+	vm_page_t	*_mb;
+	vm_offset_t	_b_offset;
+	int		_xfersize;
+};
 
 /**
  * @brief Create a mapping between a virtual/physical address pair in the
