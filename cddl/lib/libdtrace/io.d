@@ -27,8 +27,6 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-#pragma D depends_on provider io
-
 typedef struct devinfo {
         int dev_major;                  /* major number */
         int dev_minor;                  /* minor number */
