@@ -119,25 +119,19 @@ ar933x_chip_detect_sys_frequency(void)
 static void
 ar933x_chip_device_stop(uint32_t mask)
 {
-	uint32_t mask_inv, reg;
+	uint32_t reg;
 
-	mask_inv = mask;
 	reg = ATH_READ_REG(AR933X_RESET_REG_RESET_MODULE);
-	reg |= mask;
-	reg &= ~mask_inv;
-	ATH_WRITE_REG(AR933X_RESET_REG_RESET_MODULE, reg);
+	ATH_WRITE_REG(AR933X_RESET_REG_RESET_MODULE, reg | mask);
 }
 
 static void
 ar933x_chip_device_start(uint32_t mask)
 {
-	uint32_t mask_inv, reg;
+	uint32_t reg;
 
-	mask_inv = mask;
 	reg = ATH_READ_REG(AR933X_RESET_REG_RESET_MODULE);
-	reg &= ~mask;
-	reg |= mask_inv;
-	ATH_WRITE_REG(AR933X_RESET_REG_RESET_MODULE, reg);
+	ATH_WRITE_REG(AR933X_RESET_REG_RESET_MODULE, reg & ~mask);
 }
 
 static int
