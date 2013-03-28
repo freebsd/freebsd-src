@@ -248,10 +248,6 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 		err = nvme_ns_cmd_flush(ns, nvme_ns_bio_done, bp);
 		break;
 	case BIO_DELETE:
-		/*
-		 * Note: Chatham2 doesn't support DSM, so this code
-		 *  can't be fully tested yet.
-		 */
 		dsm_range =
 		    malloc(sizeof(struct nvme_dsm_range), M_NVME,
 		    M_ZERO | M_WAITOK);
