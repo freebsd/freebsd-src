@@ -8245,8 +8245,13 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	 *  Scale against driver configuration limits.
 	 */
 	if (tip->width  > SYM_SETUP_MAX_WIDE) tip->width  = SYM_SETUP_MAX_WIDE;
-	if (tip->offset > SYM_SETUP_MAX_OFFS) tip->offset = SYM_SETUP_MAX_OFFS;
-	if (tip->period < SYM_SETUP_MIN_SYNC) tip->period = SYM_SETUP_MIN_SYNC;
+	if (tip->period && tip->offset) {
+		if (tip->offset > SYM_SETUP_MAX_OFFS) tip->offset = SYM_SETUP_MAX_OFFS;
+		if (tip->period < SYM_SETUP_MIN_SYNC) tip->period = SYM_SETUP_MIN_SYNC;
+	} else {
+		tip->offset = 0;
+		tip->period = 0;
+	}
 
 	/*
 	 *  Scale against actual controller BUS width.
@@ -8265,21 +8270,23 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	/*
 	 *  Scale period factor and offset against controller limits.
 	 */
-	if (tip->options & PPR_OPT_DT) {
-		if (tip->period < np->minsync_dt)
-			tip->period = np->minsync_dt;
-		if (tip->period > np->maxsync_dt)
-			tip->period = np->maxsync_dt;
-		if (tip->offset > np->maxoffs_dt)
-			tip->offset = np->maxoffs_dt;
-	}
-	else {
-		if (tip->period < np->minsync)
-			tip->period = np->minsync;
-		if (tip->period > np->maxsync)
-			tip->period = np->maxsync;
-		if (tip->offset > np->maxoffs)
-			tip->offset = np->maxoffs;
+	if (tip->offset && tip->period) {
+		if (tip->options & PPR_OPT_DT) {
+			if (tip->period < np->minsync_dt)
+				tip->period = np->minsync_dt;
+			if (tip->period > np->maxsync_dt)
+				tip->period = np->maxsync_dt;
+			if (tip->offset > np->maxoffs_dt)
+				tip->offset = np->maxoffs_dt;
+		}
+		else {
+			if (tip->period < np->minsync)
+				tip->period = np->minsync;
+			if (tip->period > np->maxsync)
+				tip->period = np->maxsync;
+			if (tip->offset > np->maxoffs)
+				tip->offset = np->maxoffs;
+		}
 	}
 }
 
