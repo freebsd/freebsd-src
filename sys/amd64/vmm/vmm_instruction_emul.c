@@ -790,17 +790,19 @@ decode_immediate(struct vie *vie)
 	return (0);
 }
 
-#define	VERIFY_GLA
 /*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
  */
-#ifdef VERIFY_GLA
 static int
 verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 {
 	int error;
 	uint64_t base, idx;
+
+	/* Skip 'gla' verification */
+	if (gla == VIE_INVALID_GLA)
+		return (0);
 
 	base = 0;
 	if (vie->base_register != VM_REG_LAST) {
@@ -832,7 +834,6 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 
 	return (0);
 }
-#endif	/* VERIFY_GLA */
 
 int
 vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
@@ -856,10 +857,8 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 	if (decode_immediate(vie))
 		return (-1);
 
-#ifdef VERIFY_GLA
 	if (verify_gla(vm, cpuid, gla, vie))
 		return (-1);
-#endif
 
 	vie->decoded = 1;	/* success */
 
