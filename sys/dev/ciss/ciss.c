@@ -4301,6 +4301,9 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
 }
 
 #ifdef CISS_DEBUG
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
 /************************************************************************
  * Print information about the controller/driver.
  */
@@ -4335,8 +4338,7 @@ ciss_print_adapter(struct ciss_softc *sc)
 }
 
 /* DDB hook */
-static void
-ciss_print0(void)
+DB_COMMAND(ciss_prt, db_ciss_prt)
 {
     struct ciss_softc	*sc;
 
@@ -4347,6 +4349,7 @@ ciss_print0(void)
 	ciss_print_adapter(sc);
     }
 }
+#endif
 #endif
 
 /************************************************************************
