@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2012-2013 Baptiste Daroussin <bapt@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,175 +28,23 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/elf_common.h>
-#include <sys/endian.h>
 #include <sys/wait.h>
 
 #include <archive.h>
 #include <archive_entry.h>
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <fetch.h>
-#include <gelf.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
-#include "elf_tables.h"
 #include "dns_utils.h"
-
-#define _LOCALBASE "/usr/local"
-#define _PKGS_URL "http://pkg.FreeBSD.org"
-
-static const char *
-elf_corres_to_string(struct _elf_corres *m, int e)
-{
-	int i;
-
-	for (i = 0; m[i].string != NULL; i++)
-		if (m[i].elf_nb == e)
-			return (m[i].string);
-
-	return ("unknown");
-}
-
-static int
-pkg_get_myabi(char *dest, size_t sz)
-{
-	Elf *elf;
-	Elf_Data *data;
-	Elf_Note note;
-	Elf_Scn *scn;
-	char *src, *osname;
-	const char *abi;
-	GElf_Ehdr elfhdr;
-	GElf_Shdr shdr;
-	int fd, i, ret;
-	uint32_t version;
-
-	version = 0;
-	ret = -1;
-	scn = NULL;
-	abi = NULL;
-
-	if (elf_version(EV_CURRENT) == EV_NONE) {
-		warnx("ELF library initialization failed: %s",
-		    elf_errmsg(-1));
-		return (-1);
-	}
-
-	if ((fd = open("/bin/sh", O_RDONLY)) < 0) {
-		warn("open()");
-		return (-1);
-	}
-
-	if ((elf = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		ret = -1;
-		warnx("elf_begin() failed: %s.", elf_errmsg(-1));
-		goto cleanup;
-	}
-
-	if (gelf_getehdr(elf, &elfhdr) == NULL) {
-		ret = -1;
-		warn("getehdr() failed: %s.", elf_errmsg(-1));
-		goto cleanup;
-	}
-
-	while ((scn = elf_nextscn(elf, scn)) != NULL) {
-		if (gelf_getshdr(scn, &shdr) != &shdr) {
-			ret = -1;
-			warn("getshdr() failed: %s.", elf_errmsg(-1));
-			goto cleanup;
-		}
-
-		if (shdr.sh_type == SHT_NOTE)
-			break;
-	}
-
-	if (scn == NULL) {
-		ret = -1;
-		warn("failed to get the note section");
-		goto cleanup;
-	}
-
-	data = elf_getdata(scn, NULL);
-	src = data->d_buf;
-	for (;;) {
-		memcpy(&note, src, sizeof(Elf_Note));
-		src += sizeof(Elf_Note);
-		if (note.n_type == NT_VERSION)
-			break;
-		src += note.n_namesz + note.n_descsz;
-	}
-	osname = src;
-	src += note.n_namesz;
-	if (elfhdr.e_ident[EI_DATA] == ELFDATA2MSB)
-		version = be32dec(src);
-	else
-		version = le32dec(src);
-
-	for (i = 0; osname[i] != '\0'; i++)
-		osname[i] = (char)tolower(osname[i]);
-
-	snprintf(dest, sz, "%s:%d:%s:%s",
-	    osname, version / 100000,
-	    elf_corres_to_string(mach_corres, (int)elfhdr.e_machine),
-	    elf_corres_to_string(wordsize_corres,
-	    (int)elfhdr.e_ident[EI_CLASS]));
-
-	ret = 0;
-
-	switch (elfhdr.e_machine) {
-	case EM_ARM:
-		snprintf(dest + strlen(dest), sz - strlen(dest),
-		    ":%s:%s:%s", elf_corres_to_string(endian_corres,
-		    (int)elfhdr.e_ident[EI_DATA]),
-		    (elfhdr.e_flags & EF_ARM_NEW_ABI) > 0 ?
-		    "eabi" : "oabi",
-		    (elfhdr.e_flags & EF_ARM_VFP_FLOAT) > 0 ?
-		    "softfp" : "vfp");
-		break;
-	case EM_MIPS:
-		/*
-		 * this is taken from binutils sources:
-		 * include/elf/mips.h
-		 * mapping is figured out from binutils:
-		 * gas/config/tc-mips.c
-		 */
-		switch (elfhdr.e_flags & EF_MIPS_ABI) {
-		case E_MIPS_ABI_O32:
-			abi = "o32";
-			break;
-		case E_MIPS_ABI_N32:
-			abi = "n32";
-			break;
-		default:
-			if (elfhdr.e_ident[EI_DATA] ==
-			    ELFCLASS32)
-				abi = "o32";
-			else if (elfhdr.e_ident[EI_DATA] ==
-			    ELFCLASS64)
-				abi = "n64";
-			break;
-		}
-		snprintf(dest + strlen(dest), sz - strlen(dest),
-		    ":%s:%s", elf_corres_to_string(endian_corres,
-		    (int)elfhdr.e_ident[EI_DATA]), abi);
-		break;
-	}
-
-cleanup:
-	if (elf != NULL)
-		elf_end(elf);
-
-	close(fd);
-	return (ret);
-}
+#include "config.h"
 
 static int
 extract_pkg_static(int fd, char *p, int sz)
@@ -212,7 +60,7 @@ extract_pkg_static(int fd, char *p, int sz)
 		warn("archive_read_new");
 		return (ret);
 	}
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_tar(a);
 
 	if (lseek(fd, 0, 0) == -1) {
@@ -247,7 +95,7 @@ extract_pkg_static(int fd, char *p, int sz)
 		warnx("fail to extract pkg-static");
 
 cleanup:
-	archive_read_finish(a);
+	archive_read_free(a);
 	return (ret);
 
 }
@@ -291,8 +139,8 @@ bootstrap_pkg(void)
 	char zone[MAXHOSTNAMELEN + 13];
 	char url[MAXPATHLEN];
 	char conf[MAXPATHLEN];
-	char abi[BUFSIZ];
 	char tmppkg[MAXPATHLEN];
+	const char *packagesite, *mirror_type;
 	char buf[10240];
 	char pkgstatic[MAXPATHLEN];
 	int fd, retry, ret, max_retry;
@@ -311,17 +159,15 @@ bootstrap_pkg(void)
 
 	printf("Bootstrapping pkg please wait\n");
 
-	if (pkg_get_myabi(abi, MAXPATHLEN) != 0) {
-		warnx("failed to determine the system ABI");
+	if (config_string(PACKAGESITE, &packagesite) != 0) {
+		warnx("No PACKAGESITE defined");
 		return (-1);
 	}
-
-	if (getenv("PACKAGESITE") != NULL)
-		snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz", getenv("PACKAGESITE"));
-	else
-		snprintf(url, MAXPATHLEN, "%s/%s/latest/Latest/pkg.txz",
-		    getenv("PACKAGEROOT") ? getenv("PACKAGEROOT") : _PKGS_URL,
-		    getenv("ABI") ? getenv("ABI") : abi);
+	if (config_string(MIRROR_TYPE, &mirror_type) != 0) {
+		warnx("No MIRROR_TYPE defined");
+		return (-1);
+	}
+	snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz", packagesite);
 
 	snprintf(tmppkg, MAXPATHLEN, "%s/pkg.txz.XXXXXX",
 	    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
@@ -336,10 +182,10 @@ bootstrap_pkg(void)
 	u = fetchParseURL(url);
 	while (remote == NULL) {
 		if (retry == max_retry) {
-			if (strcmp(u->scheme, "file") != 0) {
+			if (strcmp(u->scheme, "file") != 0 &&
+			    strcasecmp(mirror_type, "srv") == 0) {
 				snprintf(zone, sizeof(zone),
 				    "_%s._tcp.%s", u->scheme, u->host);
-				printf("%s\n", zone);
 				mirrors = dns_getsrvinfo(zone);
 				current = mirrors;
 			}
@@ -449,6 +295,7 @@ int
 main(__unused int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
+	bool yes = false;
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
@@ -467,7 +314,9 @@ main(__unused int argc, char *argv[])
 		 * not tty. Check the environment to see if user has answer
 		 * tucked in there already.
 		 */
-		if (getenv("ASSUME_ALWAYS_YES") == NULL) {
+		config_init();
+		config_bool(ASSUME_ALWAYS_YES, &yes);
+		if (!yes) {
 			printf("%s", confirmation_message);
 			if (!isatty(fileno(stdin)))
 				exit(EXIT_FAILURE);
@@ -477,6 +326,7 @@ main(__unused int argc, char *argv[])
 		}
 		if (bootstrap_pkg() != 0)
 			exit(EXIT_FAILURE);
+		config_finish();
 	}
 
 	execv(pkgpath, argv);

@@ -27,10 +27,11 @@
 #ifndef _LIBUSB20_COMPAT_01_H_
 #define	_LIBUSB20_COMPAT_01_H_
 
+#ifndef LIBUSB_GLOBAL_INCLUDE_FILE
+#include <stdint.h>
 #include <sys/param.h>
 #include <sys/endian.h>
-
-#include <stdint.h>
+#endif
 
 /* USB interface class codes */
 

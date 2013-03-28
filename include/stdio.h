@@ -346,6 +346,7 @@ char	*tempnam(const char *, const char *);
 FILE	*fmemopen(void * __restrict, size_t, const char * __restrict);
 ssize_t	 getdelim(char ** __restrict, size_t * __restrict, int,
 	    FILE * __restrict);
+FILE	*open_memstream(char **, size_t *);
 int	 renameat(int, const char *, int, const char *);
 int	 vdprintf(int, const char * __restrict, __va_list);
 

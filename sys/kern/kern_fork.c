@@ -342,7 +342,7 @@ fork_norfproc(struct thread *td, int flags)
 	if (flags & RFCFDG) {
 		struct filedesc *fdtmp;
 		fdtmp = fdinit(td->td_proc->p_fd);
-		fdfree(td);
+		fdescfree(td);
 		p1->p_fd = fdtmp;
 	}
 

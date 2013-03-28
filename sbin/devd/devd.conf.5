@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd December 16, 2011
+.Dd February 22, 2013
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -181,9 +181,8 @@ Valid media types are:
 .Dq Li Tokenring ,
 .Dq Li FDDI ,
 .Dq Li 802.11 ,
-.Dq Li ATM ,
 and
-.Dq Li CARP .
+.Dq Li ATM .
 .It Ic subdevice Qq Ar string ;
 This is shorthand for
 .Dq Ic match Qo Li subdevice Qc Qq Ar string .
@@ -350,6 +349,7 @@ The network interface is attached to the system.
 The network interface is detached from the system.
 .El
 .El
+.Pp
 .It Li DEVFS
 Events related to the
 .Xr devfs 5
@@ -369,6 +369,7 @@ The
 node is destroyed.
 .El
 .El
+.Pp
 .It Li USB
 Events related to the USB subsystem.
 .Bl -tag -width ".Sy Subsystem" -compact
@@ -390,6 +391,7 @@ USB interface is attached to a device.
 USB interface is detached from a device.
 .El
 .El
+.Pp
 .It Li coretemp
 Events related to the
 .Xr coretemp 4
@@ -404,6 +406,7 @@ Notification that the CPU core has reached critical temperature.
 String containing the temperature of the core that has become too hot.
 .El
 .El
+.Pp
 .It Li kern
 Events related to the kernel.
 .Bl -tag -width ".Sy Subsystem" -compact

@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 int
 physio(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int i;
-	int error;
+	struct buf *bp;
+	struct cdevsw *csw;
 	caddr_t sa;
 	u_int iolen;
-	struct buf *bp;
+	int error, i, mapped;
 
 	/* Keep the process UPAGES from being swapped. XXX: why ? */
 	PHOLD(curproc);
@@ -91,13 +91,20 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 			bp->b_blkno = btodb(bp->b_offset);
 
-			if (uio->uio_segflg == UIO_USERSPACE)
-				if (vmapbuf(bp) < 0) {
+			csw = dev->si_devsw;
+			if (uio->uio_segflg == UIO_USERSPACE) {
+				if (csw != NULL &&
+                                    (csw->d_flags & D_UNMAPPED_IO) != 0)
+					mapped = 0;
+				else
+					mapped = 1;
+				if (vmapbuf(bp, mapped) < 0) {
 					error = EFAULT;
 					goto doerror;
 				}
+			}
 
-			dev_strategy(dev, bp);
+			dev_strategy_csw(dev, csw, bp);
 			if (uio->uio_rw == UIO_READ)
 				bwait(bp, PRIBIO, "physrd");
 			else

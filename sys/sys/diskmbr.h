@@ -45,6 +45,7 @@
 #define	DOSMAGIC	0xAA55
 
 #define	DOSPTYP_EXT	0x05	/* DOS extended partition */
+#define	DOSPTYP_FAT16	0x06	/* FAT16 partition */
 #define	DOSPTYP_NTFS	0x07	/* NTFS partition */
 #define	DOSPTYP_FAT32	0x0b	/* FAT32 partition */
 #define	DOSPTYP_EXTLBA	0x0f	/* DOS extended partition */

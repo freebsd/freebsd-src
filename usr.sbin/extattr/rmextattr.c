@@ -237,7 +237,8 @@ main(int argc, char *argv[])
 			    printf("%s%*.*s", i ? "\t" : "",
 				ch, ch, buf + i + 1);
 			}
-			printf("\n");
+			if (!flag_quiet || error > 0)
+				printf("\n");
 			continue;
 		case EAGET:
 			if (flag_nofollow)

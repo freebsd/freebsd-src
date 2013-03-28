@@ -59,16 +59,14 @@ ifcmd(const char *cmd, const char *args)
 	} else if (prefix(cmd, "match")) {
 		if (args != NULL && *args != '\0' && memcmp(args, "*", 2) != 0) {
 			/* We got a valid match line */
-			if (matchline != NULL) {
+			if (matchline != NULL)
 				free(matchline);
-			}
 			needsort = 1;
 			matchline = strdup(args);
 		} else {
 			/* Empty or * pattern, turn filtering off */
-			if (matchline != NULL) {
+			if (matchline != NULL)
 				free(matchline);
-			}
 			needsort = 1;
 			matchline = NULL;
 		}

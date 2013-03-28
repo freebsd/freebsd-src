@@ -84,6 +84,8 @@ void	ath_rate_detach(struct ath_ratectrl *);
 #define	ATH_RC_SGI_FLAG		0x04	/* use short-GI */
 #define	ATH_RC_HT_FLAG		0x08	/* use HT */
 #define	ATH_RC_RTSCTS_FLAG	0x10	/* enable RTS/CTS protection */
+#define	ATH_RC_STBC_FLAG	0x20	/* enable STBC */
+#define	ATH_RC_LDPC_FLAG	0x40	/* enable STBC */
 
 struct ath_rc_series {
 	uint8_t rix;		/* ratetable index, not rate code */

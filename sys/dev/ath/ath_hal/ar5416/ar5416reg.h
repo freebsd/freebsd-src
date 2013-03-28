@@ -521,6 +521,7 @@
 #define	AR_PCU_TBTT_PROTECT		0x00200000 /* no xmit upto tbtt+20 uS */
 #define	AR_PCU_CLEAR_VMF		0x01000000 /* clear vmf mode (fast cc)*/
 #define	AR_PCU_CLEAR_BA_VALID		0x04000000 /* clear ba state */
+#define	AR_PCU_SEL_EVM			0x08000000 /* select EVM data or PLCP header */
 
 #define	AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE		0x00000002
 #define	AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT	0x00000004

@@ -1840,22 +1840,14 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	int error, ref;
 
 	/* Validate the file descriptor. */
-	if ((fdp = p->p_fd) == NULL)
-		return (EBADF);
-
-	fp = fget_unlocked(fdp, fd);
-	if (fp == NULL)
-		return (EBADF);
+	fdp = p->p_fd;
+	error = fget_unlocked(fdp, fd, CAP_TTYHOOK, 0, &fp, NULL);
+	if (error != 0)
+		return (error);
 	if (fp->f_ops == &badfileops) {
 		error = EBADF;
 		goto done1;
 	}
-
-#ifdef CAPABILITIES
-	error = cap_funwrap(fp, CAP_TTYHOOK, &fp);
-	if (error)
-		goto done1;
-#endif
 
 	/*
 	 * Make sure the vnode is bound to a character device.

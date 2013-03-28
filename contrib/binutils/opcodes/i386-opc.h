@@ -73,14 +73,15 @@ typedef struct template
 #define CpuSSE4_2    0x800000	/* SSE4.2 Instructions required */
 #define CpuXSAVE    0x1000000	/* XSAVE Instructions required */
 #define CpuAES      0x2000000	/* AES Instructions required */
-#define CpuPCLMUL   0x4000000	/* Carry-less Multiplication extensions */
-
-/* SSE4.1/4.2 Instructions required */
-#define CpuSSE4	     (CpuSSE4_1|CpuSSE4_2)
 
   /* These flags are set by gas depending on the flag_code.  */
 #define Cpu64	     0x4000000   /* 64bit support required  */
 #define CpuNo64      0x8000000   /* Not supported in the 64bit mode  */
+
+#define CpuPCLMUL   0x10000000	/* Carry-less Multiplication extensions */
+
+/* SSE4.1/4.2 Instructions required */
+#define CpuSSE4	     (CpuSSE4_1|CpuSSE4_2)
 
   /* The default value for unknown CPUs - enable all features to avoid problems.  */
 #define CpuUnknownFlags (Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|Cpu686 \

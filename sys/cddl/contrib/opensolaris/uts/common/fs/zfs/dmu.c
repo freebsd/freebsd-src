@@ -408,8 +408,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 
 	if (dn->dn_objset->os_dsl_dataset)
 		dp = dn->dn_objset->os_dsl_dataset->ds_dir->dd_pool;
-	if (dp && dsl_pool_sync_context(dp))
-		start = gethrtime();
+	start = gethrtime();
 	zio = zio_root(dn->dn_objset->os_spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 	blkid = dbuf_whichblock(dn, offset);
 	for (i = 0; i < nblks; i++) {
@@ -1205,7 +1204,7 @@ void
 dmu_return_arcbuf(arc_buf_t *buf)
 {
 	arc_return_buf(buf, FTAG);
-	VERIFY(arc_buf_remove_ref(buf, FTAG) == 1);
+	VERIFY(arc_buf_remove_ref(buf, FTAG));
 }
 
 /*
@@ -1712,7 +1711,7 @@ dmu_object_info_from_dnode(dnode_t *dn, dmu_object_info_t *doi)
 	doi->doi_checksum = dn->dn_checksum;
 	doi->doi_compress = dn->dn_compress;
 	doi->doi_physical_blocks_512 = (DN_USED_BYTES(dnp) + 256) >> 9;
-	doi->doi_max_offset = (dnp->dn_maxblkid + 1) * dn->dn_datablksz;
+	doi->doi_max_offset = (dn->dn_maxblkid + 1) * dn->dn_datablksz;
 	doi->doi_fill_count = 0;
 	for (int i = 0; i < dnp->dn_nblkptr; i++)
 		doi->doi_fill_count += dnp->dn_blkptr[i].blk_fill;

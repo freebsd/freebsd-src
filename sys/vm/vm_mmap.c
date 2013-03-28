@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
@@ -305,13 +306,13 @@ sys_mmap(td, uap)
 		 */
 		rights = CAP_MMAP;
 		if (prot & PROT_READ)
-			rights |= CAP_READ;
+			rights |= CAP_MMAP_R;
 		if ((flags & MAP_SHARED) != 0) {
 			if (prot & PROT_WRITE)
-				rights |= CAP_WRITE;
+				rights |= CAP_MMAP_W;
 		}
 		if (prot & PROT_EXEC)
-			rights |= CAP_MAPEXEC;
+			rights |= CAP_MMAP_X;
 		if ((error = fget_mmap(td, uap->fd, rights, &cap_maxprot,
 		    &fp)) != 0)
 			goto done;
@@ -880,12 +881,12 @@ RestartScan:
 				m = PHYS_TO_VM_PAGE(locked_pa);
 				if (m->object != object) {
 					if (object != NULL)
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 					object = m->object;
-					locked = VM_OBJECT_TRYLOCK(object);
+					locked = VM_OBJECT_TRYWLOCK(object);
 					vm_page_unlock(m);
 					if (!locked) {
-						VM_OBJECT_LOCK(object);
+						VM_OBJECT_WLOCK(object);
 						vm_page_lock(m);
 						goto retry;
 					}
@@ -903,9 +904,9 @@ RestartScan:
 				 */
 				if (current->object.vm_object != object) {
 					if (object != NULL)
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 					object = current->object.vm_object;
-					VM_OBJECT_LOCK(object);
+					VM_OBJECT_WLOCK(object);
 				}
 				if (object->type == OBJT_DEFAULT ||
 				    object->type == OBJT_SWAP ||
@@ -942,7 +943,7 @@ RestartScan:
 					mincoreinfo |= MINCORE_REFERENCED_OTHER;
 			}
 			if (object != NULL)
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 
 			/*
 			 * subyte may page fault.  In case it needs to modify
@@ -1344,6 +1345,10 @@ mark_atime:
 	vfs_mark_atime(vp, cred);
 
 done:
+	if (error != 0 && *writecounted) {
+		*writecounted = FALSE;
+		vnode_pager_update_writecount(obj, objsize, 0);
+	}
 	vput(vp);
 	return (error);
 }

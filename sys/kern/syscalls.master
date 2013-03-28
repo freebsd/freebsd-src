@@ -115,8 +115,8 @@
 				    struct sockaddr * __restrict asa, \
 				    __socklen_t * __restrict alen); }
 33	AUE_ACCESS	STD	{ int access(char *path, int amode); }
-34	AUE_CHFLAGS	STD	{ int chflags(char *path, int flags); }
-35	AUE_FCHFLAGS	STD	{ int fchflags(int fd, int flags); }
+34	AUE_CHFLAGS	STD	{ int chflags(const char *path, u_long flags); }
+35	AUE_FCHFLAGS	STD	{ int fchflags(int fd, u_long flags); }
 36	AUE_SYNC	STD	{ int sync(void); }
 37	AUE_KILL	STD	{ int kill(int pid, int signum); }
 38	AUE_STAT	COMPAT	{ int stat(char *path, struct ostat *ub); }
@@ -696,7 +696,8 @@
 				    struct mac *mac_p); }
 390	AUE_NULL	STD	{ int kenv(int what, const char *name, \
 				    char *value, int len); }
-391	AUE_LCHFLAGS	STD	{ int lchflags(const char *path, int flags); }
+391	AUE_LCHFLAGS	STD	{ int lchflags(const char *path, \
+				    u_long flags); }
 392	AUE_NULL	STD	{ int uuidgen(struct uuid *store, \
 				    int count); }
 393	AUE_SENDFILE	STD	{ int sendfile(int fd, int s, off_t offset, \
@@ -917,7 +918,7 @@
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	STD	{ int lpathconf(char *path, int name); }
 514	AUE_CAP_NEW	STD	{ int cap_new(int fd, uint64_t rights); }
-515	AUE_CAP_GETRIGHTS	STD	{ int cap_getrights(int fd, \
+515	AUE_CAP_RIGHTS_GET	STD	{ int cap_rights_get(int fd, \
 				    uint64_t *rightsp); }
 516	AUE_CAP_ENTER	STD	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	STD	{ int cap_getmode(u_int *modep); }
@@ -955,5 +956,21 @@
 				    int *status, int options, \
 				    struct __wrusage *wrusage, \
 				    siginfo_t *info); }
+533	AUE_CAP_RIGHTS_LIMIT	STD	{ int cap_rights_limit(int fd, \
+					    uint64_t rights); }
+534	AUE_CAP_IOCTLS_LIMIT	STD	{ int cap_ioctls_limit(int fd, \
+					    const u_long *cmds, size_t ncmds); }
+535	AUE_CAP_IOCTLS_GET	STD	{ ssize_t cap_ioctls_get(int fd, \
+					    u_long *cmds, size_t maxcmds); }
+536	AUE_CAP_FCNTLS_LIMIT	STD	{ int cap_fcntls_limit(int fd, \
+					    uint32_t fcntlrights); }
+537	AUE_CAP_FCNTLS_GET	STD	{ int cap_fcntls_get(int fd, \
+					    uint32_t *fcntlrightsp); }
+538	AUE_BINDAT	STD	{ int bindat(int fd, int s, caddr_t name, \
+				    int namelen); }
+539	AUE_CONNECTAT	STD	{ int connectat(int fd, int s, caddr_t name, \
+				    int namelen); }
+540	AUE_CHFLAGSAT	STD	{ int chflagsat(int fd, const char *path, \
+				    u_long flags, int atflag); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

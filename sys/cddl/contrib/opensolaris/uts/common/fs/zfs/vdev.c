@@ -23,6 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -1846,6 +1847,7 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 
 	space_map_truncate(smo, mos, tx);
 	space_map_sync(&smsync, SM_ALLOC, smo, mos, tx);
+	space_map_vacate(&smsync, NULL, NULL);
 
 	space_map_destroy(&smsync);
 
@@ -3172,4 +3174,45 @@ vdev_split(vdev_t *vd)
 		cvd->vdev_splitting = B_TRUE;
 	}
 	vdev_propagate_state(cvd);
+}
+
+void
+vdev_deadman(vdev_t *vd)
+{
+	for (int c = 0; c < vd->vdev_children; c++) {
+		vdev_t *cvd = vd->vdev_child[c];
+
+		vdev_deadman(cvd);
+	}
+
+	if (vd->vdev_ops->vdev_op_leaf) {
+		vdev_queue_t *vq = &vd->vdev_queue;
+
+		mutex_enter(&vq->vq_lock);
+		if (avl_numnodes(&vq->vq_pending_tree) > 0) {
+			spa_t *spa = vd->vdev_spa;
+			zio_t *fio;
+			uint64_t delta;
+
+			/*
+			 * Look at the head of all the pending queues,
+			 * if any I/O has been outstanding for longer than
+			 * the spa_deadman_synctime we panic the system.
+			 */
+			fio = avl_first(&vq->vq_pending_tree);
+			delta = ddi_get_lbolt64() - fio->io_timestamp;
+			if (delta > NSEC_TO_TICK(spa_deadman_synctime(spa))) {
+				zfs_dbgmsg("SLOW IO: zio timestamp %llu, "
+				    "delta %llu, last io %llu",
+				    fio->io_timestamp, delta,
+				    vq->vq_io_complete_ts);
+				fm_panic("I/O to pool '%s' appears to be "
+				    "hung on vdev guid %llu at '%s'.",
+				    spa_name(spa),
+				    (long long unsigned int) vd->vdev_guid,
+				    vd->vdev_path);
+			}
+		}
+		mutex_exit(&vq->vq_lock);
+	}
 }

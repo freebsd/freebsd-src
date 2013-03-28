@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/malloc.h>
 #include <sys/signalvar.h>
@@ -59,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #ifdef COMPAT_FREEBSD32
@@ -382,7 +382,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 
 		obj = entry->object.vm_object;
 		if (obj != NULL)
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 	} while (0);
 
 	vm_map_unlock_read(map);
@@ -395,9 +395,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		lobj = obj;
 		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_LOCK(tobj);
+				VM_OBJECT_WLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_WUNLOCK(lobj);
 			lobj = tobj;
 			pve->pve_offset += tobj->backing_object_offset;
 		}
@@ -405,8 +405,8 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
-			VM_OBJECT_UNLOCK(lobj);
-		VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(lobj);
+		VM_OBJECT_WUNLOCK(obj);
 
 		if (vp != NULL) {
 			freepath = NULL;

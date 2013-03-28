@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /*
@@ -603,7 +604,7 @@ main(int argc, char **argv)
 	}
 
 	while ((c = getopt(argc, argv,
-	    ":aA:b:d:f:Fg:qhIc:t:T:l:mr:s:e:uL:p:")) != -1) {
+	    ":aA:b:d:D:f:Fg:qhIc:t:T:l:mr:s:e:uL:p:")) != -1) {
 		switch (c) {
 		case 'a':
 			flags |= ZINJECT_FLUSH_ARC;
@@ -628,6 +629,15 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			device = optarg;
+			break;
+		case 'D':
+			record.zi_timer = strtoull(optarg, &end, 10);
+			if (errno != 0 || *end != '\0') {
+				(void) fprintf(stderr, "invalid i/o delay "
+				    "value: '%s'\n", optarg);
+				usage();
+				return (1);
+			}
 			break;
 		case 'e':
 			if (strcasecmp(optarg, "io") == 0) {
@@ -693,6 +703,7 @@ main(int argc, char **argv)
 		case 'p':
 			(void) strlcpy(record.zi_func, optarg,
 			    sizeof (record.zi_func));
+			record.zi_cmd = ZINJECT_PANIC;
 			break;
 		case 'q':
 			quiet = 1;
@@ -766,13 +777,15 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (record.zi_duration != 0)
+		record.zi_cmd = ZINJECT_IGNORED_WRITES;
+
 	if (cancel != NULL) {
 		/*
 		 * '-c' is invalid with any other options.
 		 */
 		if (raw != NULL || range != NULL || type != TYPE_INVAL ||
-		    level != 0 || record.zi_func[0] != '\0' ||
-		    record.zi_duration != 0) {
+		    level != 0 || record.zi_cmd != ZINJECT_UNINITIALIZED) {
 			(void) fprintf(stderr, "cancel (-c) incompatible with "
 			    "any other options\n");
 			usage();
@@ -804,8 +817,7 @@ main(int argc, char **argv)
 		 * for doing injection, so handle it separately here.
 		 */
 		if (raw != NULL || range != NULL || type != TYPE_INVAL ||
-		    level != 0 || record.zi_func[0] != '\0' ||
-		    record.zi_duration != 0) {
+		    level != 0 || record.zi_cmd != ZINJECT_UNINITIALIZED) {
 			(void) fprintf(stderr, "device (-d) incompatible with "
 			    "data error injection\n");
 			usage();
@@ -839,7 +851,7 @@ main(int argc, char **argv)
 
 	} else if (raw != NULL) {
 		if (range != NULL || type != TYPE_INVAL || level != 0 ||
-		    record.zi_func[0] != '\0' || record.zi_duration != 0) {
+		    record.zi_cmd != ZINJECT_UNINITIALIZED) {
 			(void) fprintf(stderr, "raw (-b) format with "
 			    "any other options\n");
 			usage();
@@ -862,13 +874,14 @@ main(int argc, char **argv)
 			return (1);
 		}
 
+		record.zi_cmd = ZINJECT_DATA_FAULT;
 		if (translate_raw(raw, &record) != 0)
 			return (1);
 		if (!error)
 			error = EIO;
-	} else if (record.zi_func[0] != '\0') {
+	} else if (record.zi_cmd == ZINJECT_PANIC) {
 		if (raw != NULL || range != NULL || type != TYPE_INVAL ||
-		    level != 0 || device != NULL || record.zi_duration != 0) {
+		    level != 0 || device != NULL) {
 			(void) fprintf(stderr, "panic (-p) incompatible with "
 			    "other options\n");
 			usage();
@@ -886,7 +899,7 @@ main(int argc, char **argv)
 		if (argv[1] != NULL)
 			record.zi_type = atoi(argv[1]);
 		dataset[0] = '\0';
-	} else if (record.zi_duration != 0) {
+	} else if (record.zi_cmd == ZINJECT_IGNORED_WRITES) {
 		if (nowrites == 0) {
 			(void) fprintf(stderr, "-s or -g meaningless "
 			    "without -I (ignore writes)\n");
@@ -940,6 +953,7 @@ main(int argc, char **argv)
 			return (1);
 		}
 
+		record.zi_cmd = ZINJECT_DATA_FAULT;
 		if (translate_record(type, argv[0], range, level, &record, pool,
 		    dataset) != 0)
 			return (1);

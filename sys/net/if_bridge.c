@@ -2314,6 +2314,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 					BRIDGE_UNLOCK(sc);		\
 					return (NULL);			\
 				}					\
+				eh = mtod(m, struct ether_header *);	\
 			}						\
 		}							\
 		if (bif->bif_flags & IFBIF_LEARNING) {			\

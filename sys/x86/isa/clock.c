@@ -478,9 +478,10 @@ i8254_restore(void)
  *
  * This function is called from pmtimer_resume() to restore all the timers.
  * This should not be necessary, but there are broken laptops that do not
- * restore all the timers on resume.
- * As long as pmtimer is not part of amd64 suport, skip this for the amd64
- * case.
+ * restore all the timers on resume. The APM spec was at best vague on the
+ * subject.
+ * pmtimer is used only with the old APM power management, and not with
+ * acpi, which is required for amd64, so skip it in that case.
  */
 void
 timer_restore(void)
@@ -588,18 +589,17 @@ i8254_get_timecount(struct timecounter *tc)
 }
 
 static int
-attimer_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+attimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	device_t dev = (device_t)et->et_priv;
 	struct attimer_softc *sc = device_get_softc(dev);
 
-	if (period != NULL) {
+	if (period != 0) {
 		sc->mode = MODE_PERIODIC;
-		sc->period = period->frac >> 32;
+		sc->period = period;
 	} else {
 		sc->mode = MODE_ONESHOT;
-		sc->period = first->frac >> 32;
+		sc->period = first;
 	}
 	if (!sc->intr_en) {
 		i8254_intsrc->is_pic->pic_enable_source(i8254_intsrc);
@@ -754,12 +754,8 @@ attimer_attach(device_t dev)
 			sc->et.et_flags |= ET_FLAGS_ONESHOT;
 		sc->et.et_quality = 100;
 		sc->et.et_frequency = i8254_freq;
-		sc->et.et_min_period.sec = 0;
-		sc->et.et_min_period.frac =
-		    ((0x0002LLU << 48) / i8254_freq) << 16;
-		sc->et.et_max_period.sec = 0xffff / i8254_freq;
-		sc->et.et_max_period.frac =
-		    ((0xfffeLLU << 48) / i8254_freq) << 16;
+		sc->et.et_min_period = (0x0002LLU << 32) / i8254_freq;
+		sc->et.et_max_period = (0xfffeLLU << 32) / i8254_freq;
 		sc->et.et_start = attimer_start;
 		sc->et.et_stop = attimer_stop;
 		sc->et.et_priv = dev;

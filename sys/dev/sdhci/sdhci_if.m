@@ -131,6 +131,22 @@ METHOD void write_multi_4 {
 	bus_size_t		count;
 }
 
+METHOD int platform_will_handle {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+}
+
+METHOD void platform_start_transfer {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+	uint32_t		*intmask;
+}
+
+METHOD void platform_finish_transfer {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+}
+
 METHOD uint32_t min_freq {
 	device_t		brdev;
 	struct sdhci_slot	*slot;

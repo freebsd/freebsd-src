@@ -660,7 +660,8 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	int buf_space;
 	sa_attr_type_t *attrs, *attrs_start;
 	int i, lot_count;
-	int hdrsize, spillhdrsize;
+	int hdrsize;
+	int spillhdrsize = 0;
 	int used;
 	dmu_object_type_t bonustype;
 	sa_lot_t *lot;
@@ -837,7 +838,7 @@ sa_attr_table_setup(objset_t *os, sa_attr_reg_t *reg_attrs, int count)
 {
 	sa_os_t *sa = os->os_sa;
 	uint64_t sa_attr_count = 0;
-	uint64_t sa_reg_count;
+	uint64_t sa_reg_count = 0;
 	int error = 0;
 	uint64_t attr_value;
 	sa_attr_table_t *tb;
@@ -1003,10 +1004,10 @@ sa_setup(objset_t *os, uint64_t sa_obj, sa_attr_reg_t *reg_attrs, int count,
 	sa_attr_type_t *tb;
 	int error;
 
-	mutex_enter(&os->os_lock);
+	mutex_enter(&os->os_user_ptr_lock);
 	if (os->os_sa) {
 		mutex_enter(&os->os_sa->sa_lock);
-		mutex_exit(&os->os_lock);
+		mutex_exit(&os->os_user_ptr_lock);
 		tb = os->os_sa->sa_user_table;
 		mutex_exit(&os->os_sa->sa_lock);
 		*user_table = tb;
@@ -1019,7 +1020,7 @@ sa_setup(objset_t *os, uint64_t sa_obj, sa_attr_reg_t *reg_attrs, int count,
 
 	os->os_sa = sa;
 	mutex_enter(&sa->sa_lock);
-	mutex_exit(&os->os_lock);
+	mutex_exit(&os->os_user_ptr_lock);
 	avl_create(&sa->sa_layout_num_tree, layout_num_compare,
 	    sizeof (sa_lot_t), offsetof(sa_lot_t, lot_num_node));
 	avl_create(&sa->sa_layout_hash_tree, layout_hash_compare,
@@ -1645,7 +1646,8 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 	sa_bulk_attr_t *attr_desc;
 	void *old_data[2];
 	int bonus_attr_count = 0;
-	int bonus_data_size, spill_data_size;
+	int bonus_data_size = 0;
+	int spill_data_size = 0;
 	int spill_attr_count = 0;
 	int error;
 	uint16_t length;

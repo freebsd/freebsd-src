@@ -26,6 +26,37 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130308:
+	CTL_DISABLE has also been added to the sparc64 GENERIC (for further
+	information, see the respective 20130304 entry).
+
+20130304:
+	Recent commits to callout(9) changed the size of struct callout,
+	so the KBI is probably heavily disturbed. Also, some functions
+	in callout(9)/sleep(9)/sleepqueue(9)/condvar(9) KPIs were replaced
+	by macros. Every kernel module using it won't load, so rebuild
+	is requested.
+
+	The ctl device has been re-enabled in GENERIC for i386 and amd64,
+	but does not initialize by default (because of the new CTL_DISABLE
+	option) to save memory.  To re-enable it, remove the CTL_DISABLE
+	option from the kernel config file or set kern.cam.ctl.disable=0
+	in /boot/loader.conf.
+
+20130301:
+	The ctl device has been disabled in GENERIC for i386 and amd64.
+	This was done due to the extra memory being allocated at system
+	initialisation time by the ctl driver which was only used if
+	a CAM target device was created.  This makes a FreeBSD system
+	unusable on 128MB or less of RAM.
+
+20130208:
+	A new compression method (lz4) has been merged to -HEAD.  Please
+	refer to zpool-features(7) for more information.
+
+	Please refer to the "ZFS notes" section of this file for information
+	on upgrading boot ZFS pools.
+
 20130129:
 	A BSD-licensed patch(1) variant has been added and is installed
 	as bsdpatch, being the GNU version the default patch.
@@ -39,8 +70,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	unlikely event that -M was the last option on the command line
 	and the command line contained at least two files and a target
 	directory the first file will have logs appended to it.  The -M
-	option served little practical purpose in the last decade so it's
-	used expected to be extremely rare.
+	option served little practical purpose in the last decade so its
+	use is expected to be extremely rare.
 
 20121223:
 	After switching to Clang as the default compiler some users of ZFS

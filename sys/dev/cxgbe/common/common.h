@@ -64,8 +64,14 @@ enum {
 };
 
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 6
-#define FW_VERSION_MICRO 2
+#define FW_VERSION_MINOR 8
+#define FW_VERSION_MICRO 4
+#define FW_VERSION_BUILD 0
+
+#define FW_VERSION (V_FW_HDR_FW_VER_MAJOR(FW_VERSION_MAJOR) | \
+    V_FW_HDR_FW_VER_MINOR(FW_VERSION_MINOR) | \
+    V_FW_HDR_FW_VER_MICRO(FW_VERSION_MICRO) | \
+    V_FW_HDR_FW_VER_BUILD(FW_VERSION_BUILD))
 
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
@@ -546,7 +552,4 @@ int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type cty
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 val);
-int t4_config_scheduler(struct adapter *adapter, int mode, int level, int pktsize,
-                        int sched_class, int port, int rate, int unit,
-			int weight, int minrate, int maxrate);
 #endif /* __CHELSIO_COMMON_H */

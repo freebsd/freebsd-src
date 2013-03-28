@@ -1,6 +1,6 @@
 if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -99,6 +99,72 @@ f_isinteger()
 	# with error unless arg is a valid positive/negative whole integer).
 	#
 	( : $((0/$arg)) ) > /dev/null 2>&1
+}
+
+# f_uriencode [$text]
+#
+# Encode $text for the purpose of embedding safely into a URL. Non-alphanumeric
+# characters are converted to `%XX' sequence where XX represents the hexa-
+# decimal ordinal of the non-alphanumeric character. If $text is missing, data
+# is instead read from standard input.
+#
+f_uriencode_awk='
+BEGIN {
+	output = ""
+	for (n = 0; n < 256; n++) pack[sprintf("%c", n)] = sprintf("%%%02x", n)
+}
+{
+	sline = ""
+	slen = length($0)
+	for (n = 1; n <= slen; n++) {
+		char = substr($0, n, 1)
+		if ( char !~ /^[[:alnum:]_]$/ ) char = pack[char]
+		sline = sline char
+	}
+	output = output ( output ? "%0a" : "" ) sline
+}
+END { print output }
+'
+f_uriencode()
+{
+	if [ $# -gt 0 ]; then
+		echo "$1" | awk "$f_uriencode_awk"
+	else
+		awk "$f_uriencode_awk"
+	fi
+}
+
+# f_uridecode [$text]
+#
+# Decode $text from a URI. Encoded characters are converted from their `%XX'
+# sequence into original unencoded ASCII sequences. If $text is missing, data
+# is instead read from standard input.
+#
+f_uridecode_awk='
+BEGIN { for (n = 0; n < 256; n++) chr[n] = sprintf("%c", n) }
+{
+	sline = ""
+	slen = length($0)
+	for (n = 1; n <= slen; n++)
+	{
+		seq = substr($0, n, 3)
+		if ( seq ~ /^%[[:xdigit:]][[:xdigit:]]$/ ) {
+			hex = substr(seq, 2, 2)
+			sline = sline chr[sprintf("%u", "0x"hex)]
+			n += 2
+		} else
+			sline = sline substr(seq, 1, 1)
+	}
+	print sline
+}
+'
+f_uridecode()
+{
+	if [ $# -gt 0 ]; then
+		echo "$1" | awk "$f_uridecode_awk"
+	else
+		awk "$f_uridecode_awk"
+	fi
 }
 
 f_dprintf "%s: Successfully loaded." strings.subr

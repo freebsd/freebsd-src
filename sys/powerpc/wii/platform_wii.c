@@ -60,7 +60,7 @@ static void		wii_mem_regions(platform_t, struct mem_region **,
 			    int *, struct mem_region **, int *);
 static unsigned long	wii_timebase_freq(platform_t, struct cpuref *cpuref);
 static void		wii_reset(platform_t);
-static void		wii_cpu_idle(void);
+static void		wii_cpu_idle(sbintime_t sbt);
 
 static platform_method_t wii_methods[] = {
 	PLATFORMMETHOD(platform_probe,		wii_probe),
@@ -155,6 +155,6 @@ wii_reset(platform_t plat)
 }
 
 static void
-wii_cpu_idle(void)
+wii_cpu_idle(sbintime_t sbt)
 {
 }

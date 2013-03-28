@@ -196,7 +196,7 @@ cmdloop(int top)
 	TRACE(("cmdloop(%d) called\n", top));
 	setstackmark(&smark);
 	for (;;) {
-		if (pendingsigs)
+		if (pendingsig)
 			dotrap();
 		inter = 0;
 		if (iflag && top) {

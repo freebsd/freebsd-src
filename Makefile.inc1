@@ -1132,7 +1132,8 @@ _lex=		usr.bin/lex
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
-_yacc=		usr.bin/yacc
+_yacc=		lib/liby \
+		usr.bin/yacc
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
@@ -1388,6 +1389,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
+		${_cddl_lib_libzfs_core} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl}
@@ -1416,7 +1418,9 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
+_cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib= cddl/lib
+cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 .endif
 
 .if ${MK_CRYPT} != "no"
@@ -1815,6 +1819,6 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .else
-xdev xdev-buil xdev-install:
+xdev xdev-build xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif

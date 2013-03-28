@@ -172,23 +172,6 @@ nfs_xid_gen(void)
 }
 
 /*
- * Create the header for an rpc request packet
- * The hsiz is the size of the rest of the nfs request header.
- * (just used to decide if a cluster is a good idea)
- */
-struct mbuf *
-nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
-{
-	struct mbuf *mb;
-
-	MGET(mb, M_WAITOK, MT_DATA);
-	if (hsiz >= MINCLSIZE)
-		MCLGET(mb, M_WAITOK);
-	mb->m_len = 0;
-	return (mb);
-}
-
-/*
  * copies a uio scatter/gather list to an mbuf chain.
  * NOTE: can ony handle iovcnt == 1
  */
@@ -218,10 +201,10 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 		while (left > 0) {
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
-				MGET(mp, M_WAITOK, MT_DATA);
 				if (clflg)
-					MCLGET(mp, M_WAITOK);
-				mp->m_len = 0;
+					mp = m_getcl(M_WAITOK, MT_DATA, 0);
+				else
+					mp = m_get(M_WAITOK, MT_DATA);
 				mp2->m_next = mp;
 				mp2 = mp;
 				mlen = M_TRAILINGSPACE(mp);
@@ -251,8 +234,7 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 	}
 	if (rem > 0) {
 		if (rem > M_TRAILINGSPACE(mp)) {
-			MGET(mp, M_WAITOK, MT_DATA);
-			mp->m_len = 0;
+			mp = m_get(M_WAITOK, MT_DATA);
 			mp2->m_next = mp;
 		}
 		cp = mtod(mp, caddr_t)+mp->m_len;
@@ -296,10 +278,13 @@ nfsm_strtmbuf(struct mbuf **mb, char **bpos, const char *cp, long siz)
 	}
 	/* Loop around adding mbufs */
 	while (siz > 0) {
-		MGET(m1, M_WAITOK, MT_DATA);
-		if (siz > MLEN)
-			MCLGET(m1, M_WAITOK);
-		m1->m_len = NFSMSIZ(m1);
+		if (siz > MLEN) {
+			m1 = m_getcl(M_WAITOK, MT_DATA, 0);
+			m1->m_len = MCLBYTES;
+		} else {
+			m1 = m_get(M_WAITOK, MT_DATA);
+			m1->m_len = MLEN;
+		}
 		m2->m_next = m1;
 		m2 = m1;
 		tl = mtod(m1, u_int32_t *);

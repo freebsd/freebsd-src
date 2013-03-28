@@ -1,7 +1,7 @@
 if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
 #
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -127,15 +127,15 @@ f_have()
 #
 f_getvar()
 {
-	local var_to_get="$1" var_to_set="$2"
-	[ "$var_to_set" ] || local value
-	eval ${var_to_set:-value}=\"\${$var_to_get}\"
-	eval [ \"\${$var_to_get+set}\" ]
-	local retval=$?
+	local __var_to_get="$1" __var_to_set="$2"
+	[ "$__var_to_set" ] || local value
+	eval ${__var_to_set:-value}=\"\${$__var_to_get}\"
+	eval [ \"\${$__var_to_get+set}\" ]
+	local __retval=$?
 	eval f_dprintf '"f_getvar: var=[%s] value=[%s] r=%u"' \
-	               \"\$var_to_get\" \"\$${var_to_set:-value}\" \$retval
-	[ "$var_to_set" ] || { [ "$value" ] && echo "$value"; }
-	return $retval
+		\"\$__var_to_get\" \"\$${__var_to_set:-value}\" \$__retval
+	[ "$__var_to_set" ] || { [ "$value" ] && echo "$value"; }
+	return $__retval
 }
 
 # f_die [ $status [ $fmt [ $opts ... ]]]
@@ -572,6 +572,30 @@ f_index_menusel_command()
 	esac
 
 	echo "$command"
+}
+
+# f_running_as_init
+#
+# Returns true if running as init(1).
+#
+f_running_as_init()
+{
+	#
+	# When a custom init(8) performs an exec(3) to invoke a shell script,
+	# PID 1 becomes sh(1) and $PPID is set to 1 in the executed script.
+	#
+	[ ${PPID:-0} -eq 1 ] # Return status
+}
+
+# f_mounted $local_directory
+#
+# Return success if a filesystem is mounted on a particular directory.
+#
+f_mounted()
+{
+	local dir="$1"
+	[ -d "$dir" ] || return $FAILURE
+	mount | grep -Eq " on $dir \([^)]+\)$"
 }
 
 ############################################################ MAIN

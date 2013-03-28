@@ -2678,6 +2678,7 @@ set_error:
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
+		SOCK_LOCK(stcb->sctp_socket);
 		if (from_peer) {
 			if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT) {
 				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ECONNREFUSED);
@@ -2709,7 +2710,7 @@ set_error:
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
-		socantrcvmore(stcb->sctp_socket);
+		socantrcvmore_locked(stcb->sctp_socket);
 	}
 	sorwakeup(stcb->sctp_socket);
 	sowwakeup(stcb->sctp_socket);

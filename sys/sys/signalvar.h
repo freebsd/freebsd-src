@@ -318,18 +318,14 @@ struct thread;
 
 extern struct mtx	sigio_lock;
 
-/* Values for stop_allowed parameter for cursig(). */
-#define	SIG_STOP_ALLOWED	100
-#define	SIG_STOP_NOT_ALLOWED	101
-
 /* Flags for kern_sigprocmask(). */
 #define	SIGPROCMASK_OLD		0x0001
 #define	SIGPROCMASK_PROC_LOCKED	0x0002
 #define	SIGPROCMASK_PS_LOCKED	0x0004
 
-int	cursig(struct thread *td, int stop_allowed);
-void	sigdeferstop(struct thread *td);
-void	sigallowstop(struct thread *td);
+int	cursig(struct thread *td);
+int	sigdeferstop(void);
+void	sigallowstop(void);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);

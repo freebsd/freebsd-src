@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2013
+.Dd March 24, 2013
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1061,6 +1061,9 @@ A subshell environment may be implemented as a child process or differently.
 If job control is enabled in an interactive shell,
 commands grouped in parentheses can be suspended and continued as a unit.
 .Pp
+For compatibility with other shells,
+two open parentheses in sequence should be separated by whitespace.
+.Pp
 The second form never forks another shell,
 so it is slightly more efficient.
 Grouping commands together this way allows the user to
@@ -1618,6 +1621,16 @@ and
 .Ic times
 returns information about the same process
 if they are the only command in a command substitution.
+.Pp
+If a command substitution of the
+.Li $(
+form begins with a subshell,
+the
+.Li $(
+and
+.Li (
+must be separated by whitespace
+to avoid ambiguity with arithmetic expansion.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.

@@ -156,6 +156,8 @@ FBSD_1.3 {
 	putwc_l;
 	putwchar_l;
 	fmemopen;
+	open_memstream;
+	open_wmemstream;
 };
 
 FBSDprivate_1.0 {

@@ -154,6 +154,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 			SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 			    PROC_UNLOCK(p);
 			    sx_unlock(&proctree_lock);
+			    /* XXXPJD: Verify if TIOCSCTTY is allowed. */
 			    if (fp->f_type == DTYPE_VNODE)
 				    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
 					     td->td_ucred, td);
@@ -516,8 +517,7 @@ eof:
 	td->td_retval[0] = nbytes - resid;
 
 out:
-	if (cookies)
-		free(cookies, M_TEMP);
+	free(cookies, M_TEMP);
 
 	VOP_UNLOCK(vp, 0);
 	foffset_unlock(fp, off, 0);
@@ -1038,11 +1038,11 @@ linux_pread(td, uap)
 	error = sys_pread(td, &bsd);
 
 	if (error == 0) {
-   	   	/* This seems to violate POSIX but linux does it */
-		if ((error = fgetvp(td, uap->fd, CAP_READ, &vp)) != 0)
-   		   	return (error);
+		/* This seems to violate POSIX but linux does it */
+		if ((error = fgetvp(td, uap->fd, CAP_PREAD, &vp)) != 0)
+			return (error);
 		if (vp->v_type == VDIR) {
-   		   	vrele(vp);
+			vrele(vp);
 			return (EISDIR);
 		}
 		vrele(vp);

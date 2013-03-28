@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>	/* PROT_EXEC */
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <vm/vm.h>	/* vtophys */
 #include <vm/pmap.h>	/* vtophys */
 #include <sys/socket.h> /* sockaddrs */

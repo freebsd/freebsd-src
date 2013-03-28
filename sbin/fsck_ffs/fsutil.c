@@ -56,19 +56,24 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "fsck.h"
 
 static void slowio_start(void);
 static void slowio_end(void);
+static void printIOstats(void);
 
-long	diskreads, totalreads;	/* Disk cache statistics */
+static long diskreads, totaldiskreads, totalreads; /* Disk cache statistics */
+static struct timespec startpass, finishpass;
 struct timeval slowio_starttime;
 int slowio_delay_usec = 10000;	/* Initial IO delay for background fsck */
 int slowio_pollcnt;
+static struct bufarea cgblk;	/* backup buffer for cylinder group blocks */
 static TAILQ_HEAD(buflist, bufarea) bufhead;	/* head of buffer cache list */
 static int numbufs;				/* size of buffer cache */
+static char *buftype[BT_NUMBUFTYPES] = BT_NAMES;
 
 int
 ftypeok(union dinode *dp)
@@ -159,18 +164,18 @@ bufinit(void)
 	char *bufp;
 
 	pbp = pdirbp = (struct bufarea *)0;
-	bufp = malloc((unsigned int)sblock.fs_bsize);
+	bufp = Malloc((unsigned int)sblock.fs_bsize);
 	if (bufp == 0)
 		errx(EEXIT, "cannot allocate buffer pool");
 	cgblk.b_un.b_buf = bufp;
-	initbarea(&cgblk);
+	initbarea(&cgblk, BT_CYLGRP);
 	TAILQ_INIT(&bufhead);
 	bufcnt = MAXBUFS;
 	if (bufcnt < MINBUFS)
 		bufcnt = MINBUFS;
 	for (i = 0; i < bufcnt; i++) {
-		bp = (struct bufarea *)malloc(sizeof(struct bufarea));
-		bufp = malloc((unsigned int)sblock.fs_bsize);
+		bp = (struct bufarea *)Malloc(sizeof(struct bufarea));
+		bufp = Malloc((unsigned int)sblock.fs_bsize);
 		if (bp == NULL || bufp == NULL) {
 			if (i >= MINBUFS)
 				break;
@@ -178,16 +183,72 @@ bufinit(void)
 		}
 		bp->b_un.b_buf = bufp;
 		TAILQ_INSERT_HEAD(&bufhead, bp, b_list);
-		initbarea(bp);
+		initbarea(bp, BT_UNKNOWN);
 	}
 	numbufs = i;	/* save number of buffers */
+	for (i = 0; i < BT_NUMBUFTYPES; i++) {
+		readtime[i].tv_sec = totalreadtime[i].tv_sec = 0;
+		readtime[i].tv_nsec = totalreadtime[i].tv_nsec = 0;
+		readcnt[i] = totalreadcnt[i] = 0;
+	}
+}
+
+/*
+ * Manage cylinder group buffers.
+ */
+static struct bufarea *cgbufs;	/* header for cylinder group cache */
+static int flushtries;		/* number of tries to reclaim memory */
+
+struct bufarea *
+cgget(int cg)
+{
+	struct bufarea *cgbp;
+	struct cg *cgp;
+
+	if (cgbufs == NULL) {
+		cgbufs = Calloc(sblock.fs_ncg, sizeof(struct bufarea));
+		if (cgbufs == NULL)
+			errx(EEXIT, "cannot allocate cylinder group buffers");
+	}
+	cgbp = &cgbufs[cg];
+	if (cgbp->b_un.b_cg != NULL)
+		return (cgbp);
+	cgp = NULL;
+	if (flushtries == 0)
+		cgp = malloc((unsigned int)sblock.fs_cgsize);
+	if (cgp == NULL) {
+		getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
+		return (&cgblk);
+	}
+	cgbp->b_un.b_cg = cgp;
+	initbarea(cgbp, BT_CYLGRP);
+	getblk(cgbp, cgtod(&sblock, cg), sblock.fs_cgsize);
+	return (cgbp);
+}
+
+/*
+ * Attempt to flush a cylinder group cache entry.
+ * Return whether the flush was successful.
+ */
+int
+flushentry(void)
+{
+	struct bufarea *cgbp;
+
+	cgbp = &cgbufs[flushtries++];
+	if (cgbp->b_un.b_cg == NULL)
+		return (0);
+	flush(fswritefd, cgbp);
+	free(cgbp->b_un.b_buf);
+	cgbp->b_un.b_buf = NULL;
+	return (1);
 }
 
 /*
  * Manage a cache of directory blocks.
  */
 struct bufarea *
-getdatablk(ufs2_daddr_t blkno, long size)
+getdatablk(ufs2_daddr_t blkno, long size, int type)
 {
 	struct bufarea *bp;
 
@@ -199,26 +260,62 @@ getdatablk(ufs2_daddr_t blkno, long size)
 			break;
 	if (bp == NULL)
 		errx(EEXIT, "deadlocked buffer pool");
+	bp->b_type = type;
 	getblk(bp, blkno, size);
 	/* fall through */
 foundit:
+	if (debug && bp->b_type != type)
+		printf("Buffer type changed from %s to %s\n",
+		    buftype[bp->b_type], buftype[type]);
 	TAILQ_REMOVE(&bufhead, bp, b_list);
 	TAILQ_INSERT_HEAD(&bufhead, bp, b_list);
 	bp->b_flags |= B_INUSE;
 	return (bp);
 }
 
+/*
+ * Timespec operations (from <sys/time.h>).
+ */
+#define	timespecsub(vvp, uvp)						\
+	do {								\
+		(vvp)->tv_sec -= (uvp)->tv_sec;				\
+		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+#define	timespecadd(vvp, uvp)						\
+	do {								\
+		(vvp)->tv_sec += (uvp)->tv_sec;				\
+		(vvp)->tv_nsec += (uvp)->tv_nsec;			\
+		if ((vvp)->tv_nsec >= 1000000000) {			\
+			(vvp)->tv_sec++;				\
+			(vvp)->tv_nsec -= 1000000000;			\
+		}							\
+	} while (0)
+
 void
 getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 {
 	ufs2_daddr_t dblk;
+	struct timespec start, finish;
 
-	totalreads++;
 	dblk = fsbtodb(&sblock, blk);
-	if (bp->b_bno != dblk) {
+	if (bp->b_bno == dblk) {
+		totalreads++;
+	} else {
 		flush(fswritefd, bp);
-		diskreads++;
+		if (debug) {
+			readcnt[bp->b_type]++;
+			clock_gettime(CLOCK_REALTIME_PRECISE, &start);
+		}
 		bp->b_errs = blread(fsreadfd, bp->b_un.b_buf, dblk, size);
+		if (debug) {
+			clock_gettime(CLOCK_REALTIME_PRECISE, &finish);
+			timespecsub(&finish, &start);
+			timespecadd(&readtime[bp->b_type], &finish);
+		}
 		bp->b_bno = dblk;
 		bp->b_size = size;
 	}
@@ -292,8 +389,8 @@ ckfini(int markclean)
 	}
 	if (debug && totalreads > 0)
 		printf("cache with %d buffers missed %ld of %ld (%d%%)\n",
-		    numbufs, diskreads, totalreads,
-		    (int)(diskreads * 100 / totalreads));
+		    numbufs, totaldiskreads, totalreads,
+		    (int)(totaldiskreads * 100 / totalreads));
 	if (fswritefd < 0) {
 		(void)close(fsreadfd);
 		return;
@@ -318,6 +415,13 @@ ckfini(int markclean)
 	}
 	if (numbufs != cnt)
 		errx(EEXIT, "panic: lost %d buffers", numbufs - cnt);
+	for (cnt = 0; cnt < sblock.fs_ncg; cnt++) {
+		if (cgbufs[cnt].b_un.b_cg == NULL)
+			continue;
+		flush(fswritefd, &cgbufs[cnt]);
+		free(cgbufs[cnt].b_un.b_cg);
+	}
+	free(cgbufs);
 	pbp = pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		if ((sblock.fs_clean = markclean) != 0) {
@@ -347,6 +451,84 @@ ckfini(int markclean)
 	(void)close(fswritefd);
 }
 
+/*
+ * Print out I/O statistics.
+ */
+void
+IOstats(char *what)
+{
+	int i;
+
+	if (debug == 0)
+		return;
+	if (diskreads == 0) {
+		printf("%s: no I/O\n\n", what);
+		return;
+	}
+	if (startpass.tv_sec == 0)
+		startpass = startprog;
+	printf("%s: I/O statistics\n", what);
+	printIOstats();
+	totaldiskreads += diskreads;
+	diskreads = 0;
+	for (i = 0; i < BT_NUMBUFTYPES; i++) {
+		timespecadd(&totalreadtime[i], &readtime[i]);
+		totalreadcnt[i] += readcnt[i];
+		readtime[i].tv_sec = readtime[i].tv_nsec = 0;
+		readcnt[i] = 0;
+	}
+	clock_gettime(CLOCK_REALTIME_PRECISE, &startpass);
+}
+
+void
+finalIOstats(void)
+{
+	int i;
+
+	if (debug == 0)
+		return;
+	printf("Final I/O statistics\n");
+	totaldiskreads += diskreads;
+	diskreads = totaldiskreads;
+	startpass = startprog;
+	for (i = 0; i < BT_NUMBUFTYPES; i++) {
+		timespecadd(&totalreadtime[i], &readtime[i]);
+		totalreadcnt[i] += readcnt[i];
+		readtime[i] = totalreadtime[i];
+		readcnt[i] = totalreadcnt[i];
+	}
+	printIOstats();
+}
+
+static void printIOstats(void)
+{
+	long long msec, totalmsec;
+	int i;
+
+	clock_gettime(CLOCK_REALTIME_PRECISE, &finishpass);
+	timespecsub(&finishpass, &startpass);
+	printf("Running time: %jd.%03ld sec\n",
+		(intmax_t)finishpass.tv_sec, finishpass.tv_nsec / 1000000);
+	printf("buffer reads by type:\n");
+	for (totalmsec = 0, i = 0; i < BT_NUMBUFTYPES; i++)
+		totalmsec += readtime[i].tv_sec * 1000 +
+		    readtime[i].tv_nsec / 1000000;
+	if (totalmsec == 0)
+		totalmsec = 1;
+	for (i = 0; i < BT_NUMBUFTYPES; i++) {
+		if (readcnt[i] == 0)
+			continue;
+		msec =
+		    readtime[i].tv_sec * 1000 + readtime[i].tv_nsec / 1000000;
+		printf("%21s:%8ld %2ld.%ld%% %4jd.%03ld sec %2lld.%lld%%\n",
+		    buftype[i], readcnt[i], readcnt[i] * 100 / diskreads,
+		    (readcnt[i] * 1000 / diskreads) % 10,
+		    (intmax_t)readtime[i].tv_sec, readtime[i].tv_nsec / 1000000,
+		    msec * 100 / totalmsec, (msec * 1000 / totalmsec) % 10);
+	}
+	printf("\n");
+}
+
 int
 blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 {
@@ -358,6 +540,8 @@ blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 	offset *= dev_bsize;
 	if (bkgrdflag)
 		slowio_start();
+	totalreads++;
+	diskreads++;
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK BLK", blk);
 	else if (read(fd, buf, (int)size) == size) {
@@ -439,8 +623,9 @@ blerase(int fd, ufs2_daddr_t blk, long size)
  * test fails, offer an option to rebuild the whole cylinder group.
  */
 int
-check_cgmagic(int cg, struct cg *cgp)
+check_cgmagic(int cg, struct bufarea *cgbp)
 {
+	struct cg *cgp = cgbp->b_un.b_cg;
 
 	/*
 	 * Extended cylinder group checks.
@@ -500,7 +685,7 @@ check_cgmagic(int cg, struct cg *cgp)
 		cgp->cg_nextfreeoff = cgp->cg_clusteroff +
 		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
-	cgdirty();
+	dirty(cgbp);
 	return (0);
 }
 
@@ -511,7 +696,8 @@ ufs2_daddr_t
 allocblk(long frags)
 {
 	int i, j, k, cg, baseblk;
-	struct cg *cgp = &cgrp;
+	struct bufarea *cgbp;
+	struct cg *cgp;
 
 	if (frags <= 0 || frags > sblock.fs_frag)
 		return (0);
@@ -527,8 +713,9 @@ allocblk(long frags)
 				continue;
 			}
 			cg = dtog(&sblock, i + j);
-			getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
-			if (!check_cgmagic(cg, cgp))
+			cgbp = cgget(cg);
+			cgp = cgbp->b_un.b_cg;
+			if (!check_cgmagic(cg, cgbp))
 				return (0);
 			baseblk = dtogd(&sblock, i + j);
 			for (k = 0; k < frags; k++) {
@@ -540,7 +727,7 @@ allocblk(long frags)
 				cgp->cg_cs.cs_nbfree--;
 			else
 				cgp->cg_cs.cs_nffree -= frags;
-			cgdirty();
+			dirty(cgbp);
 			return (i + j);
 		}
 	}

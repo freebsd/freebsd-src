@@ -55,9 +55,9 @@ aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
 #
 fdt_dtb_file			optional fdt \
-	compile-with "if [ -f $S/boot/fdt/dts/${FDT_DTS_FILE} ]; then dtc -O dtb -o `echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 -p 1024 $S/boot/fdt/dts/${FDT_DTS_FILE}; fi" \
+	compile-with "if [ -f $S/boot/fdt/dts/${FDT_DTS_FILE} ]; then dtc -O dtb -o ${FDT_DTS_FILE:R}.dtb -b 0 -p 1024 $S/boot/fdt/dts/${FDT_DTS_FILE}; fi" \
 	no-obj no-implicit-rule before-depend	\
-	clean		"`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb"
+	clean		"${FDT_DTS_FILE:R}.dtb"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
 	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ." \
 	no-obj no-implicit-rule before-depend \
@@ -157,6 +157,7 @@ cddl/compat/opensolaris/kern/opensolaris_sysevent.c			optional zfs compile-with 
 cddl/compat/opensolaris/kern/opensolaris_taskq.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_uio.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_vfs.c				optional zfs compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris_vm.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_zone.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/acl/acl_common.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/avl/avl.c				optional zfs compile-with "${ZFS_C}"
@@ -196,10 +197,12 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/dnode_sync.c			optional zfs compile-w
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_dataset.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_deadlist.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_deleg.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_destroy.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_dir.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_pool.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_prop.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_scan.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_userhold.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_synctask.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/gzip.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/lz4.c			optional zfs compile-with "${ZFS_C}"
@@ -1123,7 +1126,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.6.2.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.8.4.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1742,7 +1745,6 @@ mwlboot.fw		optional mwlfw					\
 	no-obj no-implicit-rule						\
 	clean		"mwlboot.fw"
 dev/mxge/if_mxge.c		optional mxge pci
-dev/mxge/mxge_lro.c		optional mxge pci
 dev/mxge/mxge_eth_z8e.c		optional mxge pci
 dev/mxge/mxge_ethp_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
@@ -3641,6 +3643,7 @@ vm/vm_page.c			standard
 vm/vm_pageout.c			standard
 vm/vm_pager.c			standard
 vm/vm_phys.c			standard
+vm/vm_radix.c			standard
 vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard

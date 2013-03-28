@@ -60,6 +60,8 @@ extern "C" {
 #include <umem.h>
 #include <inttypes.h>
 #include <fsshare.h>
+#include <pthread.h>
+#include <sys/debug.h>
 #include <sys/note.h>
 #include <sys/types.h>
 #include <sys/cred.h>
@@ -242,6 +244,9 @@ typedef int krw_t;
 #define	RW_WRITE_HELD(x)	((x)->rw_owner == curthread)
 #define	RW_LOCK_HELD(x)		rw_lock_held(x)
 
+#undef RW_LOCK_HELD
+#define	RW_LOCK_HELD(x)		(RW_READ_HELD(x) || RW_WRITE_HELD(x))
+
 extern void rw_init(krwlock_t *rwlp, char *name, int type, void *arg);
 extern void rw_destroy(krwlock_t *rwlp);
 extern void rw_enter(krwlock_t *rwlp, krw_t rw);
@@ -252,6 +257,7 @@ extern int rw_lock_held(krwlock_t *rwlp);
 #define	rw_downgrade(rwlp) do { } while (0)
 
 extern uid_t crgetuid(cred_t *cr);
+extern uid_t crgetruid(cred_t *cr);
 extern gid_t crgetgid(cred_t *cr);
 extern int crgetngroups(cred_t *cr);
 extern gid_t *crgetgroups(cred_t *cr);
@@ -269,6 +275,14 @@ extern void cv_wait(kcondvar_t *cv, kmutex_t *mp);
 extern clock_t cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime);
 extern void cv_signal(kcondvar_t *cv);
 extern void cv_broadcast(kcondvar_t *cv);
+
+/*
+ * Thread-specific data
+ */
+#define	tsd_get(k) pthread_getspecific(k)
+#define	tsd_set(k, v) pthread_setspecific(k, v)
+#define	tsd_create(kp, d) pthread_key_create(kp, d)
+#define	tsd_destroy(kp) /* nothing */
 
 /*
  * Kernel memory
@@ -457,6 +471,9 @@ extern vnode_t *rootdir;
 
 extern void delay(clock_t ticks);
 
+#define	SEC_TO_TICK(sec)	((sec) * hz)
+#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
+
 #define	gethrestime_sec() time(NULL)
 #define	gethrestime(t) \
 	do {\
@@ -516,7 +533,7 @@ typedef struct callb_cpr {
 #define	INGLOBALZONE(z)			(1)
 
 extern char *kmem_asprintf(const char *fmt, ...);
-#define	strfree(str) kmem_free((str), strlen(str)+1)
+#define	strfree(str) kmem_free((str), strlen(str) + 1)
 
 /*
  * Hostname information
@@ -623,6 +640,36 @@ typedef	uint32_t	idmap_rid_t;
 #ifndef	ERESTART
 #define	ERESTART	(-1)
 #endif
+
+#ifdef illumos
+/*
+ * Cyclic information
+ */
+extern kmutex_t cpu_lock;
+
+typedef uintptr_t cyclic_id_t;
+typedef uint16_t cyc_level_t;
+typedef void (*cyc_func_t)(void *);
+
+#define	CY_LOW_LEVEL	0
+#define	CY_INFINITY	INT64_MAX
+#define	CYCLIC_NONE	((cyclic_id_t)0)
+
+typedef struct cyc_time {
+	hrtime_t cyt_when;
+	hrtime_t cyt_interval;
+} cyc_time_t;
+
+typedef struct cyc_handler {
+	cyc_func_t cyh_func;
+	void *cyh_arg;
+	cyc_level_t cyh_level;
+} cyc_handler_t;
+
+extern cyclic_id_t cyclic_add(cyc_handler_t *, cyc_time_t *);
+extern void cyclic_remove(cyclic_id_t);
+extern int cyclic_reprogram(cyclic_id_t, hrtime_t);
+#endif	/* illumos */
 
 #ifdef	__cplusplus
 }

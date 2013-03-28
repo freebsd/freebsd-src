@@ -145,6 +145,7 @@ static OPTION const options[] = {
 	{ "-regex",	c_regex,	f_regex,	0 },
 	{ "-samefile",	c_samefile,	f_inum,		0 },
 	{ "-size",	c_size,		f_size,		0 },
+	{ "-sparse",	c_sparse,	f_sparse,	0 },
 	{ "-true",	c_simple,	f_always_true,	0 },
 	{ "-type",	c_type,		f_type,		0 },
 	{ "-uid",	c_user,		f_user,		0 },

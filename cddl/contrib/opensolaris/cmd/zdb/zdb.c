@@ -57,6 +57,7 @@
 #include <sys/arc.h>
 #include <sys/ddt.h>
 #include <sys/zfeature.h>
+#include <zfs_comutil.h>
 #undef ZFS_MAXNAMELEN
 #undef verify
 #include <libzfs.h>
@@ -204,6 +205,27 @@ dump_packed_nvlist(objset_t *os, uint64_t object, void *data, size_t size)
 	dump_nvlist(nv, 8);
 
 	nvlist_free(nv);
+}
+
+/* ARGSUSED */
+static void
+dump_history_offsets(objset_t *os, uint64_t object, void *data, size_t size)
+{
+	spa_history_phys_t *shp = data;
+
+	if (shp == NULL)
+		return;
+
+	(void) printf("\t\tpool_create_len = %llu\n",
+	    (u_longlong_t)shp->sh_pool_create_len);
+	(void) printf("\t\tphys_max_off = %llu\n",
+	    (u_longlong_t)shp->sh_phys_max_off);
+	(void) printf("\t\tbof = %llu\n",
+	    (u_longlong_t)shp->sh_bof);
+	(void) printf("\t\teof = %llu\n",
+	    (u_longlong_t)shp->sh_eof);
+	(void) printf("\t\trecords_lost = %llu\n",
+	    (u_longlong_t)shp->sh_records_lost);
 }
 
 static void
@@ -545,7 +567,7 @@ static void
 dump_metaslab_stats(metaslab_t *msp)
 {
 	char maxbuf[32];
-	space_map_t *sm = &msp->ms_map;
+	space_map_t *sm = msp->ms_map;
 	avl_tree_t *t = sm->sm_pp_root;
 	int free_pct = sm->sm_space * 100 / sm->sm_size;
 
@@ -561,7 +583,7 @@ dump_metaslab(metaslab_t *msp)
 {
 	vdev_t *vd = msp->ms_group->mg_vd;
 	spa_t *spa = vd->vdev_spa;
-	space_map_t *sm = &msp->ms_map;
+	space_map_t *sm = msp->ms_map;
 	space_map_obj_t *smo = &msp->ms_smo;
 	char freebuf[32];
 
@@ -857,21 +879,22 @@ dump_history(spa_t *spa)
 	for (int i = 0; i < num; i++) {
 		uint64_t time, txg, ievent;
 		char *cmd, *intstr;
+		boolean_t printed = B_FALSE;
 
 		if (nvlist_lookup_uint64(events[i], ZPOOL_HIST_TIME,
 		    &time) != 0)
-			continue;
+			goto next;
 		if (nvlist_lookup_string(events[i], ZPOOL_HIST_CMD,
 		    &cmd) != 0) {
 			if (nvlist_lookup_uint64(events[i],
 			    ZPOOL_HIST_INT_EVENT, &ievent) != 0)
-				continue;
+				goto next;
 			verify(nvlist_lookup_uint64(events[i],
 			    ZPOOL_HIST_TXG, &txg) == 0);
 			verify(nvlist_lookup_string(events[i],
 			    ZPOOL_HIST_INT_STR, &intstr) == 0);
-			if (ievent >= LOG_END)
-				continue;
+			if (ievent >= ZFS_NUM_LEGACY_HISTORY_EVENTS)
+				goto next;
 
 			(void) snprintf(internalstr,
 			    sizeof (internalstr),
@@ -884,6 +907,14 @@ dump_history(spa_t *spa)
 		(void) localtime_r(&tsec, &t);
 		(void) strftime(tbuf, sizeof (tbuf), "%F.%T", &t);
 		(void) printf("%s %s\n", tbuf, cmd);
+		printed = B_TRUE;
+
+next:
+		if (dump_opt['h'] > 1) {
+			if (!printed)
+				(void) printf("unrecognized record:\n");
+			dump_nvlist(events[i], 2);
+		}
 	}
 }
 
@@ -1189,7 +1220,7 @@ dump_bpobj_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 }
 
 static void
-dump_bpobj(bpobj_t *bpo, char *name)
+dump_bpobj(bpobj_t *bpo, char *name, int indent)
 {
 	char bytes[32];
 	char comp[32];
@@ -1199,31 +1230,57 @@ dump_bpobj(bpobj_t *bpo, char *name)
 		return;
 
 	zdb_nicenum(bpo->bpo_phys->bpo_bytes, bytes);
-	if (bpo->bpo_havesubobj) {
+	if (bpo->bpo_havesubobj && bpo->bpo_phys->bpo_subobjs != 0) {
 		zdb_nicenum(bpo->bpo_phys->bpo_comp, comp);
 		zdb_nicenum(bpo->bpo_phys->bpo_uncomp, uncomp);
-		(void) printf("\n    %s: %llu local blkptrs, %llu subobjs, "
-		    "%s (%s/%s comp)\n",
-		    name, (u_longlong_t)bpo->bpo_phys->bpo_num_blkptrs,
+		(void) printf("    %*s: object %llu, %llu local blkptrs, "
+		    "%llu subobjs, %s (%s/%s comp)\n",
+		    indent * 8, name,
+		    (u_longlong_t)bpo->bpo_object,
+		    (u_longlong_t)bpo->bpo_phys->bpo_num_blkptrs,
 		    (u_longlong_t)bpo->bpo_phys->bpo_num_subobjs,
 		    bytes, comp, uncomp);
+
+		for (uint64_t i = 0; i < bpo->bpo_phys->bpo_num_subobjs; i++) {
+			uint64_t subobj;
+			bpobj_t subbpo;
+			int error;
+			VERIFY0(dmu_read(bpo->bpo_os,
+			    bpo->bpo_phys->bpo_subobjs,
+			    i * sizeof (subobj), sizeof (subobj), &subobj, 0));
+			error = bpobj_open(&subbpo, bpo->bpo_os, subobj);
+			if (error != 0) {
+				(void) printf("ERROR %u while trying to open "
+				    "subobj id %llu\n",
+				    error, (u_longlong_t)subobj);
+				continue;
+			}
+			dump_bpobj(&subbpo, "subobj", indent + 1);
+			bpobj_close(&subbpo);
+		}
 	} else {
-		(void) printf("\n    %s: %llu blkptrs, %s\n",
-		    name, (u_longlong_t)bpo->bpo_phys->bpo_num_blkptrs, bytes);
+		(void) printf("    %*s: object %llu, %llu blkptrs, %s\n",
+		    indent * 8, name,
+		    (u_longlong_t)bpo->bpo_object,
+		    (u_longlong_t)bpo->bpo_phys->bpo_num_blkptrs,
+		    bytes);
 	}
 
 	if (dump_opt['d'] < 5)
 		return;
 
-	(void) printf("\n");
 
-	(void) bpobj_iterate_nofree(bpo, dump_bpobj_cb, NULL, NULL);
+	if (indent == 0) {
+		(void) bpobj_iterate_nofree(bpo, dump_bpobj_cb, NULL, NULL);
+		(void) printf("\n");
+	}
 }
 
 static void
 dump_deadlist(dsl_deadlist_t *dl)
 {
 	dsl_deadlist_entry_t *dle;
+	uint64_t unused;
 	char bytes[32];
 	char comp[32];
 	char uncomp[32];
@@ -1242,14 +1299,24 @@ dump_deadlist(dsl_deadlist_t *dl)
 
 	(void) printf("\n");
 
+	/* force the tree to be loaded */
+	dsl_deadlist_space_range(dl, 0, UINT64_MAX, &unused, &unused, &unused);
+
 	for (dle = avl_first(&dl->dl_tree); dle;
 	    dle = AVL_NEXT(&dl->dl_tree, dle)) {
-		(void) printf("      mintxg %llu -> obj %llu\n",
-		    (longlong_t)dle->dle_mintxg,
-		    (longlong_t)dle->dle_bpobj.bpo_object);
+		if (dump_opt['d'] >= 5) {
+			char buf[128];
+			(void) snprintf(buf, sizeof (buf), "mintxg %llu -> ",
+			    (longlong_t)dle->dle_mintxg,
+			    (longlong_t)dle->dle_bpobj.bpo_object);
 
-		if (dump_opt['d'] >= 5)
-			dump_bpobj(&dle->dle_bpobj, "");
+			dump_bpobj(&dle->dle_bpobj, buf, 0);
+		} else {
+			(void) printf("mintxg %llu -> obj %llu\n",
+			    (longlong_t)dle->dle_mintxg,
+			    (longlong_t)dle->dle_bpobj.bpo_object);
+
+		}
 	}
 }
 
@@ -1272,7 +1339,7 @@ fuid_table_destroy()
  * print uid or gid information.
  * For normal POSIX id just the id is printed in decimal format.
  * For CIFS files with FUID the fuid is printed in hex followed by
- * the doman-rid string.
+ * the domain-rid string.
  */
 static void
 print_idstr(uint64_t id, const char *id_type)
@@ -1460,7 +1527,7 @@ static object_viewer_t *object_viewer[DMU_OT_NUMTYPES + 1] = {
 	dump_zap,		/* other ZAP			*/
 	dump_zap,		/* persistent error log		*/
 	dump_uint8,		/* SPA history			*/
-	dump_uint64,		/* SPA history offsets		*/
+	dump_history_offsets,	/* SPA history offsets		*/
 	dump_zap,		/* Pool properties		*/
 	dump_zap,		/* DSL permissions		*/
 	dump_acl,		/* ZFS ACL			*/
@@ -1625,7 +1692,9 @@ dump_dir(objset_t *os)
 	int print_header = 1;
 	int i, error;
 
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
 	dmu_objset_fast_stat(os, &dds);
+	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 
 	if (dds.dds_type < DMU_OST_NUMTYPES)
 		type = objset_types[dds.dds_type];
@@ -2034,7 +2103,6 @@ zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 		    NULL, NULL, ZIO_PRIORITY_ASYNC_READ, flags, zb));
 
 		free(data);
-
 		if (ioerr && !(flags & ZIO_FLAG_SPECULATIVE)) {
 			zcb->zcb_haderrors = 1;
 			zcb->zcb_errors[ioerr]++;
@@ -2160,11 +2228,11 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 			for (int m = 0; m < vd->vdev_ms_count; m++) {
 				metaslab_t *msp = vd->vdev_ms[m];
 				mutex_enter(&msp->ms_lock);
-				space_map_unload(&msp->ms_map);
-				VERIFY(space_map_load(&msp->ms_map,
+				space_map_unload(msp->ms_map);
+				VERIFY(space_map_load(msp->ms_map,
 				    &zdb_space_map_ops, SM_ALLOC, &msp->ms_smo,
 				    spa->spa_meta_objset) == 0);
-				msp->ms_map.sm_ppd = vd;
+				msp->ms_map->sm_ppd = vd;
 				mutex_exit(&msp->ms_lock);
 			}
 		}
@@ -2187,7 +2255,7 @@ zdb_leak_fini(spa_t *spa)
 			for (int m = 0; m < vd->vdev_ms_count; m++) {
 				metaslab_t *msp = vd->vdev_ms[m];
 				mutex_enter(&msp->ms_lock);
-				space_map_unload(&msp->ms_map);
+				space_map_unload(msp->ms_map);
 				mutex_exit(&msp->ms_lock);
 			}
 		}
@@ -2529,10 +2597,11 @@ dump_zpool(spa_t *spa)
 	if (dump_opt['d'] || dump_opt['i']) {
 		dump_dir(dp->dp_meta_objset);
 		if (dump_opt['d'] >= 3) {
-			dump_bpobj(&spa->spa_deferred_bpobj, "Deferred frees");
+			dump_bpobj(&spa->spa_deferred_bpobj,
+			    "Deferred frees", 0);
 			if (spa_version(spa) >= SPA_VERSION_DEADLISTS) {
 				dump_bpobj(&spa->spa_dsl_pool->dp_free_bpobj,
-				    "Pool snapshot frees");
+				    "Pool snapshot frees", 0);
 			}
 
 			if (spa_feature_is_active(spa,

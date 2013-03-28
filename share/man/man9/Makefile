@@ -1196,9 +1196,13 @@ MLINKS+=signal.9 cursig.9 \
 	signal.9 SIG_STOPSIGMASK.9 \
 	signal.9 trapsignal.9
 MLINKS+=sleep.9 msleep.9 \
+	sleep.9 msleep_sbt.9 \
 	sleep.9 msleep_spin.9 \
+	sleep.9 msleep_spin_sbt.9 \
 	sleep.9 pause.9 \
+	sleep.9 pause_sbt.9 \
 	sleep.9 tsleep.9 \
+	sleep.9 tsleep_sbt.9 \
 	sleep.9 wakeup.9 \
 	sleep.9 wakeup_one.9
 MLINKS+=sleepqueue.9 init_sleepqueues.9 \
@@ -1213,6 +1217,7 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_release.9 \
 	sleepqueue.9 sleepq_remove.9 \
 	sleepqueue.9 sleepq_set_timeout.9 \
+	sleepqueue.9 sleepq_set_timeout_sbt.9 \
 	sleepqueue.9 sleepq_signal.9 \
 	sleepqueue.9 sleepq_timedwait.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
@@ -1335,6 +1340,9 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_init_rw.9 \
 	timeout.9 callout_pending.9 \
 	timeout.9 callout_reset.9 \
+	timeout.9 callout_reset_sbt.9 \
+	timeout.9 callout_reset_on.9 \
+	timeout.9 callout_reset_sbt_on.9 \
 	timeout.9 callout_schedule.9 \
 	timeout.9 callout_stop.9 \
 	timeout.9 untimeout.9

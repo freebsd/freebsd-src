@@ -1698,11 +1698,10 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 #endif
 	++pim6stat.pim6s_snd_registers;
 
-	/* Make a copy of the packet to send to the user level process */
-	MGETHDR(mm, M_NOWAIT, MT_HEADER);
+	/* Make a copy of the packet to send to the user level process. */
+	mm = m_gethdr(M_NOWAIT, MT_DATA);
 	if (mm == NULL)
 		return (ENOBUFS);
-	mm->m_pkthdr.rcvif = NULL;
 	mm->m_data += max_linkhdr;
 	mm->m_len = sizeof(struct ip6_hdr);
 

@@ -458,14 +458,15 @@ freejob(struct job *jp)
 
 
 int
-waitcmd(int argc, char **argv)
+waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
 	int status, retval;
 	struct job *jp;
 
-	if (argc > 1) {
-		job = getjob(argv[1]);
+	nextopt("");
+	if (*argptr != NULL) {
+		job = getjob(*argptr);
 	} else {
 		job = NULL;
 	}
@@ -521,7 +522,7 @@ waitcmd(int argc, char **argv)
 	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
-	return 0;
+	return pendingsig + 128;
 }
 
 

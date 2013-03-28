@@ -62,7 +62,7 @@ struct mmio_rb_range {
 struct mmio_rb_tree;
 RB_PROTOTYPE(mmio_rb_tree, mmio_rb_range, mr_link, mmio_rb_range_compare);
 
-RB_HEAD(mmio_rb_tree, mmio_rb_range) mmio_rbroot;
+RB_HEAD(mmio_rb_tree, mmio_rb_range) mmio_rb_root, mmio_rb_fallback;
 
 /*
  * Per-vCPU cache. Since most accesses from a vCPU will be to
@@ -82,13 +82,14 @@ mmio_rb_range_compare(struct mmio_rb_range *a, struct mmio_rb_range *b)
 }
 
 static int
-mmio_rb_lookup(uint64_t addr, struct mmio_rb_range **entry)
+mmio_rb_lookup(struct mmio_rb_tree *rbt, uint64_t addr,
+    struct mmio_rb_range **entry)
 {
 	struct mmio_rb_range find, *res;
 
 	find.mr_base = find.mr_end = addr;
 
-	res = RB_FIND(mmio_rb_tree, &mmio_rbroot, &find);
+	res = RB_FIND(mmio_rb_tree, rbt, &find);
 
 	if (res != NULL) {
 		*entry = res;
@@ -99,11 +100,11 @@ mmio_rb_lookup(uint64_t addr, struct mmio_rb_range **entry)
 }
 
 static int
-mmio_rb_add(struct mmio_rb_range *new)
+mmio_rb_add(struct mmio_rb_tree *rbt, struct mmio_rb_range *new)
 {
 	struct mmio_rb_range *overlap;
 
-	overlap = RB_INSERT(mmio_rb_tree, &mmio_rbroot, new);
+	overlap = RB_INSERT(mmio_rb_tree, rbt, new);
 
 	if (overlap != NULL) {
 #ifdef RB_DEBUG
@@ -120,11 +121,11 @@ mmio_rb_add(struct mmio_rb_range *new)
 
 #if 0
 static void
-mmio_rb_dump(void)
+mmio_rb_dump(struct mmio_rb_tree *rbt)
 {
 	struct mmio_rb_range *np;
 
-	RB_FOREACH(np, mmio_rb_tree, &mmio_rbroot) {
+	RB_FOREACH(np, mmio_rb_tree, rbt) {
 		printf(" %lx:%lx, %s\n", np->mr_base, np->mr_end,
 		       np->mr_param.name);
 	}
@@ -172,22 +173,22 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 		entry = NULL;
 
 	if (entry == NULL) {
-		if (mmio_rb_lookup(paddr, &entry))
+		if (!mmio_rb_lookup(&mmio_rb_root, paddr, &entry)) {
+			/* Update the per-vCPU cache */
+			mmio_hint[vcpu] = entry;			
+		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
 			return (ESRCH);
-
-		/* Update the per-vCPU cache */
-		mmio_hint[vcpu] = entry;
+		}
 	}
 
-	assert(entry != NULL && entry == mmio_hint[vcpu]);
-
+	assert(entry != NULL);
 	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie,
 				      mem_read, mem_write, &entry->mr_param);
 	return (err);
 }
 
-int
-register_mem(struct mem_range *memp)
+static int
+register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 {
 	struct mmio_rb_range *mrp;
 	int		err;
@@ -201,7 +202,7 @@ register_mem(struct mem_range *memp)
 		mrp->mr_base = memp->base;
 		mrp->mr_end = memp->base + memp->size - 1;
 
-		err = mmio_rb_add(mrp);
+		err = mmio_rb_add(rbt, mrp);
 		if (err)
 			free(mrp);
 	} else
@@ -210,9 +211,24 @@ register_mem(struct mem_range *memp)
 	return (err);
 }
 
+int
+register_mem(struct mem_range *memp)
+{
+
+	return (register_mem_int(&mmio_rb_root, memp));
+}
+
+int
+register_mem_fallback(struct mem_range *memp)
+{
+
+	return (register_mem_int(&mmio_rb_fallback, memp));
+}
+
 void
 init_mem(void)
 {
 
-	RB_INIT(&mmio_rbroot);
+	RB_INIT(&mmio_rb_root);
+	RB_INIT(&mmio_rb_fallback);
 }

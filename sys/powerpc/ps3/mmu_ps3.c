@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_pager.h>
 #include <vm/uma.h>
 
 #include <powerpc/aim/mmu_oea64.h>

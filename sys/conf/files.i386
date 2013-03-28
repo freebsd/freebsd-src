@@ -375,11 +375,11 @@ dev/virtio/virtio.c			optional	virtio
 dev/virtio/virtqueue.c			optional	virtio
 dev/virtio/virtio_bus_if.m		optional	virtio
 dev/virtio/virtio_if.m			optional	virtio
-dev/virtio/pci/virtio_pci.c		optional	virtio_pci virtio pci
-dev/virtio/network/if_vtnet.c		optional	vtnet virtio
-dev/virtio/block/virtio_blk.c		optional	virtio_blk virtio
-dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon virtio
-dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi virtio scbus
+dev/virtio/pci/virtio_pci.c		optional	virtio_pci
+dev/virtio/network/if_vtnet.c		optional	vtnet
+dev/virtio/block/virtio_blk.c		optional	virtio_blk
+dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
+dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
 i386/acpica/acpi_machdep.c	optional acpi
 acpi_wakecode.o			optional acpi				\
 	dependency	"$S/i386/acpica/acpi_wakecode.S assym.s"	\

@@ -154,6 +154,36 @@ u32 t4_hw_pci_read_cfg4(adapter_t *adap, int reg)
 }
 
 /*
+ *	t4_report_fw_error - report firmware error
+ *	@adap: the adapter
+ *
+ *	The adapter firmware can indicate error conditions to the host.
+ *	This routine prints out the reason for the firmware error (as
+ *	reported by the firmware).
+ */
+static void t4_report_fw_error(struct adapter *adap)
+{
+	static const char *reason[] = {
+		"Crash",			/* PCIE_FW_EVAL_CRASH */
+		"During Device Preparation",	/* PCIE_FW_EVAL_PREP */
+		"During Device Configuration",	/* PCIE_FW_EVAL_CONF */
+		"During Device Initialization",	/* PCIE_FW_EVAL_INIT */
+		"Unexpected Event",		/* PCIE_FW_EVAL_UNEXPECTEDEVENT */
+		"Insufficient Airflow",		/* PCIE_FW_EVAL_OVERHEAT */
+		"Device Shutdown",		/* PCIE_FW_EVAL_DEVICESHUTDOWN */
+		"Reserved",			/* reserved */
+	};
+	u32 pcie_fw;
+
+	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
+	if (!(pcie_fw & F_PCIE_FW_ERR))
+		CH_ERR(adap, "Firmware error report called with no error\n");
+	else
+		CH_ERR(adap, "Firmware reports adapter error: %s\n",
+		       reason[G_PCIE_FW_EVAL(pcie_fw)]);
+}
+
+/*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */
 static void get_mbox_rpl(struct adapter *adap, __be64 *rpl, int nflit,
@@ -267,8 +297,15 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		}
 	}
 
+	/*
+	 * We timed out waiting for a reply to our mailbox command.  Report
+	 * the error and also check to see if the firmware reported any
+	 * errors ...
+	 */
 	CH_ERR(adap, "command %#x in mailbox %d timed out\n",
 	       *(const u8 *)cmd, mbox);
+	if (t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_ERR)
+		t4_report_fw_error(adap);
 	return -ETIMEDOUT;
 }
 
@@ -2033,8 +2070,10 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ F_TIMEOUTMAINT , "CIM PIF MA timeout", -1, 1 },
 		{ 0 }
 	};
-
 	int fat;
+
+	if (t4_read_reg(adapter, A_PCIE_FW) & F_PCIE_FW_ERR)
+		t4_report_fw_error(adapter);
 
 	fat = t4_handle_intr_status(adapter, A_CIM_HOST_INT_CAUSE,
 				    cim_intr_info) +
@@ -3909,13 +3948,13 @@ int t4_i2c_rd(struct adapter *adap, unsigned int mbox, unsigned int port_id,
 		F_FW_CMD_READ |
 		V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_I2C));
 	c.cycles_to_len16 = htonl(FW_LEN16(c));
-	c.u.i2c.pid_pkd = V_FW_LDST_CMD_PID(port_id);
-	c.u.i2c.base = dev_addr;
-	c.u.i2c.boffset = offset;
+	c.u.i2c_deprecated.pid_pkd = V_FW_LDST_CMD_PID(port_id);
+	c.u.i2c_deprecated.base = dev_addr;
+	c.u.i2c_deprecated.boffset = offset;
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0)
-		*valp = c.u.i2c.data;
+		*valp = c.u.i2c_deprecated.data;
 	return ret;
 }
 
@@ -4103,12 +4142,16 @@ retry:
 	/*
 	 * Issue the HELLO command to the firmware.  If it's not successful
 	 * but indicates that we got a "busy" or "timeout" condition, retry
-	 * the HELLO until we exhaust our retry limit.
+	 * the HELLO until we exhaust our retry limit.  If we do exceed our
+	 * retry limit, check to see if the firmware left us any error
+	 * information and report that if so ...
 	 */
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret != FW_SUCCESS) {
 		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
 			goto retry;
+		if (t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_ERR)
+			t4_report_fw_error(adap);
 		return ret;
 	}
 
@@ -4593,7 +4636,7 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		}
 	}
 	if (rss_size)
-		*rss_size = G_FW_VI_CMD_RSSSIZE(ntohs(c.rsssize_pkd));
+		*rss_size = G_FW_VI_CMD_RSSSIZE(ntohs(c.norss_rsssize));
 	return G_FW_VI_CMD_VIID(htons(c.type_to_viid));
 }
 
@@ -5303,44 +5346,4 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
 
 	return 0;
-}
-
-int t4_config_scheduler(struct adapter *adapter, int mode, int level,
-			int pktsize, int sched_class, int port, int unit,
-			int rate, int weight, int minrate, int maxrate)
-{
-	struct fw_sched_cmd cmd, rpl;
-
-	if (rate < 0 || unit < 0)
-		return -EINVAL;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
-	    F_FW_CMD_REQUEST | F_FW_CMD_WRITE);
-	cmd.retval_len16 = cpu_to_be32(V_FW_CMD_LEN16(sizeof(cmd)/16));
-
-	cmd.u.params.sc = 1;
-	cmd.u.params.level = level;
-	cmd.u.params.mode = mode;
-	cmd.u.params.ch = port;
-	cmd.u.params.cl = sched_class;
-	cmd.u.params.rate = rate;
-	cmd.u.params.unit = unit;
-
- 	switch (level) {
-		case FW_SCHED_PARAMS_LEVEL_CH_WRR:
-		case FW_SCHED_PARAMS_LEVEL_CL_WRR:
-			cmd.u.params.weight = cpu_to_be16(weight);
-			break;
-		case FW_SCHED_PARAMS_LEVEL_CH_RL:
-		case FW_SCHED_PARAMS_LEVEL_CL_RL:
-			cmd.u.params.max = cpu_to_be32(maxrate);
-			cmd.u.params.min = cpu_to_be32(minrate);
-			cmd.u.params.pktsize = cpu_to_be16(pktsize);
-			break;
-		default:
-			return -EINVAL;
-	}
-
-	return t4_wr_mbox_meat(adapter, adapter->mbox, &cmd, sizeof(cmd), &rpl, 1);
 }

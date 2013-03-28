@@ -45,6 +45,7 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_platform.h"
+#include "opt_sched.h"
 #include "opt_timer.h"
 
 #include <sys/cdefs.h>
@@ -70,6 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
+#include <sys/rwlock.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -433,19 +436,24 @@ void
 cpu_idle(int busy)
 {
 	
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
 	}
 #endif
-	cpu_sleep(0);
+	if (!sched_runnable())
+		cpu_sleep(0);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
 	}
 #endif
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int
@@ -1476,7 +1484,7 @@ initarm(struct arm_boot_params *abp)
 	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
-	pmap_bootstrap(freemempos, vm_max_kernel_address, &kernel_l1pt);
+	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();

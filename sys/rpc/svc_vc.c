@@ -796,8 +796,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	/*
 	 * Leave space for record mark.
 	 */
-	MGETHDR(mrep, M_WAITOK, MT_DATA);
-	mrep->m_len = 0;
+	mrep = m_gethdr(M_WAITOK, MT_DATA);
 	mrep->m_data += sizeof(uint32_t);
 
 	xdrmbuf_create(&xdrs, mrep, XDR_ENCODE);
@@ -850,8 +849,7 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	/*
 	 * Leave space for record mark.
 	 */
-	MGETHDR(mrep, M_WAITOK, MT_DATA);
-	mrep->m_len = 0;
+	mrep = m_gethdr(M_WAITOK, MT_DATA);
 	mrep->m_data += sizeof(uint32_t);
 
 	xdrmbuf_create(&xdrs, mrep, XDR_ENCODE);

@@ -373,14 +373,15 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 		/* 4. swap the maps (under BH_LOCK) */
 		map = swap_map(chain, map, chain->n_rules - n);
 		/* 5. now remove the rules deleted from the old map */
+		if (cmd == 1)
+			ipfw_expire_dyn_rules(chain, NULL, new_set);
 		for (i = start; i < end; i++) {
-			int l;
 			rule = map[i];
 			if (keep_rule(rule, cmd, new_set, num))
 				continue;
-			l = RULESIZE(rule);
-			chain->static_len -= l;
-			ipfw_expire_dyn_rules(chain, rule, RESVD_SET);
+			chain->static_len -= RULESIZE(rule);
+			if (cmd != 1)
+				ipfw_expire_dyn_rules(chain, rule, RESVD_SET);
 			rule->x_next = chain->reap;
 			chain->reap = rule;
 		}
@@ -671,6 +672,10 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPID:
 		case O_IPTTL:
 		case O_IPLEN:
+		case O_DSCP:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1)
+				goto bad_size;
+			break;
 		case O_TCPDATALEN:
 		case O_TCPWIN:
 		case O_TAGGED:
@@ -738,6 +743,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_ACCEPT:
 		case O_DENY:
 		case O_REJECT:
+		case O_SETDSCP:
 #ifdef INET6
 		case O_UNREACH6:
 #endif

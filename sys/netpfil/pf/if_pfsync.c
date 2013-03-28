@@ -1505,7 +1505,7 @@ pfsync_sendout(int schedswi)
 		return;
 	}
 
-	m = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR, max_linkhdr + sc->sc_len);
+	m = m_get2(max_linkhdr + sc->sc_len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		sc->sc_ifp->if_oerrors++;
 		V_pfsyncstats.pfsyncs_onomem++;

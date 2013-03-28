@@ -223,6 +223,10 @@ struct pr_usrreqs {
 		    struct ucred *cred, struct thread *td);
 	void	(*pru_sosetlabel)(struct socket *so);
 	void	(*pru_close)(struct socket *so);
+	int	(*pru_bindat)(int fd, struct socket *so, struct sockaddr *nam,
+		    struct thread *td);
+	int	(*pru_connectat)(int fd, struct socket *so,
+		    struct sockaddr *nam, struct thread *td);
 };
 
 /*
@@ -232,7 +236,11 @@ int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
 int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
 int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
+int	pru_bindat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
 int	pru_connect_notsupp(struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
+int	pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
 int	pru_connect2_notsupp(struct socket *so1, struct socket *so2);
 int	pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,

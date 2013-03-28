@@ -1,6 +1,6 @@
 if [ ! "$_VARIABLE_SUBR" ]; then _VARIABLE_SUBR=1
 #
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,15 @@ f_variable_set_defaults()
 	#
 	# Initialize various user-edittable values to their defaults
 	#
-	setvar $VAR_RELNAME "$UNAME_R"
+	setvar $VAR_EDITOR		"${EDITOR:-/usr/bin/ee}"
+	setvar $VAR_FTP_STATE		"passive"
+	setvar $VAR_FTP_USER		"ftp"
+	setvar $VAR_HOSTNAME		"$( hostname )"
+	setvar $VAR_MEDIA_TIMEOUT	"300"
+	setvar $VAR_NFS_SECURE		"NO"
+	setvar $VAR_NFS_TCP		"NO"
+	setvar $VAR_NFS_V3		"YES"
+	setvar $VAR_RELNAME		"$UNAME_R"
 
 	f_dprintf "f_variable_set_defaults: Defaults initialized."
 }
@@ -158,17 +166,71 @@ f_interactive()
 	! f_getvar $VAR_NONINTERACTIVE value || [ ! "$value" ]
 }
 
+# f_netinteractive()
+#
+# Has the user specifically requested the network-portion of configuration and
+# setup to be performed interactively? Returns success if the user has asked
+# for the network configuration to be done interactively even if perhaps over-
+# all non-interactive mode has been requested (by setting nonInteractive).
+#
+# Returns success if $netInteractive is set and non-NULL.
+#
+f_netinteractive()
+{
+	local value
+	f_getvar $VAR_NETINTERACTIVE value && [ "$value" ]
+}
+
 ############################################################ MAIN
 
 #
 # Variables that can be tweaked from config files
 #
+#              Handle                   Variable Name
 f_variable_new VAR_CONFIG_FILE		configFile
 f_variable_new VAR_DEBUG		debug
 f_variable_new VAR_DEBUG_FILE		debugFile
-f_variable_new VAR_NO_ERROR		noError
+f_variable_new VAR_DIRECTORY_PATH	_directoryPath
+f_variable_new VAR_DOMAINNAME		domainname
+f_variable_new VAR_EDITOR		editor
+f_variable_new VAR_EXTRAS		ifconfig_
+f_variable_new VAR_FTP_DIR		ftpDirectory
+f_variable_new VAR_FTP_HOST		ftpHost
+f_variable_new VAR_FTP_PASS		ftpPass
+f_variable_new VAR_FTP_PATH		_ftpPath
+f_variable_new VAR_FTP_PORT		ftpPort
+f_variable_new VAR_FTP_STATE		ftpState
+f_variable_new VAR_FTP_USER		ftpUser
+f_variable_new VAR_GATEWAY		defaultrouter
+f_variable_new VAR_HOSTNAME		hostname
+f_variable_new VAR_HTTP_FTP_MODE	httpFtpMode
+f_variable_new VAR_HTTP_PROXY		httpProxy
+f_variable_new VAR_HTTP_PROXY_HOST	httpProxyHost
+f_variable_new VAR_HTTP_PROXY_PATH	_httpProxyPath
+f_variable_new VAR_HTTP_PROXY_PORT	httpProxyPort
+f_variable_new VAR_IFCONFIG		ifconfig_
+f_variable_new VAR_IPADDR		ipaddr
+f_variable_new VAR_IPV6ADDR		ipv6addr
+f_variable_new VAR_IPV6_ENABLE		ipv6_activate_all_interfaces
+f_variable_new VAR_MEDIA_TIMEOUT	MEDIA_TIMEOUT
+f_variable_new VAR_MEDIA_TYPE		mediaType
+f_variable_new VAR_NAMESERVER		nameserver
+f_variable_new VAR_NETINTERACTIVE	netInteractive
+f_variable_new VAR_NETMASK		netmask
+f_variable_new VAR_NETWORK_DEVICE	netDev
+f_variable_new VAR_NFS_HOST		nfsHost
+f_variable_new VAR_NFS_PATH		nfsPath
+f_variable_new VAR_NFS_SECURE		nfs_reserved_port_only
+f_variable_new VAR_NFS_TCP		nfs_use_tcp
+f_variable_new VAR_NFS_V3		nfs_use_v3
 f_variable_new VAR_NONINTERACTIVE	nonInteractive
+f_variable_new VAR_NO_ERROR		noError
+f_variable_new VAR_NO_INET6		noInet6
 f_variable_new VAR_RELNAME		releaseName
+f_variable_new VAR_SLOW_ETHER		slowEthernetCard
+f_variable_new VAR_TRY_DHCP		tryDHCP
+f_variable_new VAR_TRY_RTSOL		tryRTSOL
+f_variable_new VAR_UFS_PATH		ufs
 
 #
 # Self-initialize unless requested otherwise

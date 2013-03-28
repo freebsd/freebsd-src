@@ -37,6 +37,7 @@
 #define	NVME_IDENTIFY_NAMESPACE		_IOR('n', 1, struct nvme_namespace_data)
 #define	NVME_IO_TEST			_IOWR('n', 2, struct nvme_io_test)
 #define	NVME_BIO_TEST			_IOWR('n', 4, struct nvme_io_test)
+#define	NVME_RESET_CONTROLLER		_IO('n', 5)
 
 /*
  * Use to mark a command to apply to all namespaces, or to retrieve global
@@ -222,26 +223,31 @@ struct nvme_command
 	uint32_t cdw15;		/* command-specific */
 } __packed;
 
+struct nvme_status {
+
+	uint16_t p	:  1;	/* phase tag */
+	uint16_t sc	:  8;	/* status code */
+	uint16_t sct	:  3;	/* status code type */
+	uint16_t rsvd2	:  2;
+	uint16_t m	:  1;	/* more */
+	uint16_t dnr	:  1;	/* do not retry */
+} __packed;
+
 struct nvme_completion {
 
 	/* dword 0 */
-	uint32_t cdw0;		/* command-specific */
+	uint32_t		cdw0;	/* command-specific */
 
 	/* dword 1 */
-	uint32_t rsvd1;
+	uint32_t		rsvd1;
 
 	/* dword 2 */
-	uint16_t sqhd;		/* submission queue head pointer */
-	uint16_t sqid;		/* submission queue identifier */
+	uint16_t		sqhd;	/* submission queue head pointer */
+	uint16_t		sqid;	/* submission queue identifier */
 
 	/* dword 3 */
-	uint16_t cid;		/* command identifier */
-	uint16_t p	:  1;	/* phase tag */
-	uint16_t sf_sc	:  8;	/* status field - status code */
-	uint16_t sf_sct	:  3;	/* status field - status code type */
-	uint16_t rsvd2	:  2;
-	uint16_t sf_m	:  1;	/* status field - more */
-	uint16_t sf_dnr	:  1;	/* status field - do not retry */
+	uint16_t		cid;	/* command identifier */
+	struct nvme_status	status;
 } __packed;
 
 struct nvme_dsm_range {
@@ -360,7 +366,7 @@ enum nvme_feature {
 	NVME_FEAT_INTERRUPT_COALESCING		= 0x08,
 	NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION = 0x09,
 	NVME_FEAT_WRITE_ATOMICITY		= 0x0A,
-	NVME_FEAT_ASYNCHRONOUS_EVENT_CONFIGURATION = 0x0B,
+	NVME_FEAT_ASYNC_EVENT_CONFIGURATION	= 0x0B,
 	/* 0x0C-0x7F - reserved */
 	NVME_FEAT_SOFTWARE_PROGRESS_MARKER	= 0x80,
 	/* 0x81-0xBF - command set specific (reserved) */
@@ -616,6 +622,19 @@ enum nvme_log_page {
 	/* 0xC0-0xFF - vendor specific */
 };
 
+struct nvme_error_information_entry {
+
+	uint64_t		error_count;
+	uint16_t		sqid;
+	uint16_t		cid;
+	struct nvme_status	status;
+	uint16_t		error_location;
+	uint64_t		lba;
+	uint32_t		nsid;
+	uint8_t			vendor_specific;
+	uint8_t			reserved[35];
+} __packed __aligned(4);
+
 union nvme_critical_warning_state {
 
 	uint8_t		raw;
@@ -663,6 +682,18 @@ struct nvme_health_information_page {
 	uint8_t			reserved2[320];
 } __packed __aligned(4);
 
+struct nvme_firmware_page {
+
+	struct {
+		uint8_t	slot		: 3; /* slot for current FW */
+		uint8_t	reserved	: 5;
+	} __packed afi;
+
+	uint8_t			reserved[7];
+	uint64_t		revision[7]; /* revisions for 7 slots */
+	uint8_t			reserved2[448];
+} __packed __aligned(4);
+
 #define NVME_TEST_MAX_THREADS	128
 
 struct nvme_io_test {
@@ -685,20 +716,43 @@ enum nvme_io_test_flags {
 	NVME_TEST_FLAG_REFTHREAD =	0x1,
 };
 
+#define nvme_completion_is_error(cpl)					\
+	((cpl)->status.sc != 0 || (cpl)->status.sct != 0)
+
 #ifdef _KERNEL
 
 struct bio;
 
 struct nvme_namespace;
+struct nvme_controller;
 struct nvme_consumer;
 
 typedef void (*nvme_cb_fn_t)(void *, const struct nvme_completion *);
-typedef void (*nvme_consumer_cb_fn_t)(void *, struct nvme_namespace *);
+
+typedef void *(*nvme_cons_ns_fn_t)(struct nvme_namespace *, void *);
+typedef void *(*nvme_cons_ctrlr_fn_t)(struct nvme_controller *);
+typedef void (*nvme_cons_async_fn_t)(void *, const struct nvme_completion *,
+				     uint32_t, void *, uint32_t);
+typedef void (*nvme_cons_fail_fn_t)(void *);
 
 enum nvme_namespace_flags {
 	NVME_NS_DEALLOCATE_SUPPORTED	= 0x1,
 	NVME_NS_FLUSH_SUPPORTED		= 0x2,
 };
+
+/* Admin functions */
+void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr,
+				   uint8_t feature, uint32_t cdw11,
+				   void *payload, uint32_t payload_size,
+				   nvme_cb_fn_t cb_fn, void *cb_arg);
+void	nvme_ctrlr_cmd_get_feature(struct nvme_controller *ctrlr,
+				   uint8_t feature, uint32_t cdw11,
+				   void *payload, uint32_t payload_size,
+				   nvme_cb_fn_t cb_fn, void *cb_arg);
+void	nvme_ctrlr_cmd_get_log_page(struct nvme_controller *ctrlr,
+				    uint8_t log_page, uint32_t nsid,
+				    void *payload, uint32_t payload_size,
+				    nvme_cb_fn_t cb_fn, void *cb_arg);
 
 /* NVM I/O functions */
 int	nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload,
@@ -714,9 +768,16 @@ int	nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn,
 			  void *cb_arg);
 
 /* Registration functions */
-struct nvme_consumer *	nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn,
-					       void *cb_arg);
+struct nvme_consumer *	nvme_register_consumer(nvme_cons_ns_fn_t    ns_fn,
+					       nvme_cons_ctrlr_fn_t ctrlr_fn,
+					       nvme_cons_async_fn_t async_fn,
+					       nvme_cons_fail_fn_t  fail_fn);
 void		nvme_unregister_consumer(struct nvme_consumer *consumer);
+
+/* Controller helper functions */
+device_t	nvme_ctrlr_get_device(struct nvme_controller *ctrlr);
+const struct nvme_controller_data *
+		nvme_ctrlr_get_data(struct nvme_controller *ctrlr);
 
 /* Namespace helper functions */
 uint32_t	nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns);
@@ -726,6 +787,8 @@ uint64_t	nvme_ns_get_size(struct nvme_namespace *ns);
 uint32_t	nvme_ns_get_flags(struct nvme_namespace *ns);
 const char *	nvme_ns_get_serial_number(struct nvme_namespace *ns);
 const char *	nvme_ns_get_model_number(struct nvme_namespace *ns);
+const struct nvme_namespace_data *
+		nvme_ns_get_data(struct nvme_namespace *ns);
 
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 			    nvme_cb_fn_t cb_fn);

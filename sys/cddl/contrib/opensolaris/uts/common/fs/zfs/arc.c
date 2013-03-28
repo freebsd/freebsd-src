@@ -130,6 +130,7 @@
 #endif
 #include <sys/callb.h>
 #include <sys/kstat.h>
+#include <sys/trim_map.h>
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
@@ -1691,6 +1692,8 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 		}
 
 		if (l2hdr != NULL) {
+			trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
+			    hdr->b_size, 0);
 			list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
 			kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
@@ -1787,12 +1790,12 @@ arc_buf_free(arc_buf_t *buf, void *tag)
 	}
 }
 
-int
+boolean_t
 arc_buf_remove_ref(arc_buf_t *buf, void* tag)
 {
 	arc_buf_hdr_t *hdr = buf->b_hdr;
 	kmutex_t *hash_lock = HDR_LOCK(hdr);
-	int no_callback = (buf->b_efunc == NULL);
+	boolean_t no_callback = (buf->b_efunc == NULL);
 
 	if (hdr->b_state == arc_anon) {
 		ASSERT(hdr->b_datacnt == 1);
@@ -2042,7 +2045,7 @@ evict_start:
 		ARCSTAT_INCR(arcstat_mutex_miss, missed);
 
 	/*
-	 * We have just evicted some date into the ghost state, make
+	 * We have just evicted some data into the ghost state, make
 	 * sure we also adjust the ghost state size if necessary.
 	 */
 	if (arc_no_grow &&
@@ -2875,7 +2878,7 @@ arc_bcopy_func(zio_t *zio, arc_buf_t *buf, void *arg)
 {
 	if (zio == NULL || zio->io_error == 0)
 		bcopy(buf->b_data, arg, buf->b_hdr->b_size);
-	VERIFY(arc_buf_remove_ref(buf, arg) == 1);
+	VERIFY(arc_buf_remove_ref(buf, arg));
 }
 
 /* a generic arc_done_func_t */
@@ -2884,7 +2887,7 @@ arc_getbuf_func(zio_t *zio, arc_buf_t *buf, void *arg)
 {
 	arc_buf_t **bufp = arg;
 	if (zio && zio->io_error) {
-		VERIFY(arc_buf_remove_ref(buf, arg) == 1);
+		VERIFY(arc_buf_remove_ref(buf, arg));
 		*bufp = NULL;
 	} else {
 		*bufp = buf;
@@ -3045,7 +3048,7 @@ arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp, arc_done_func_t *done,
     const zbookmark_t *zb)
 {
 	arc_buf_hdr_t *hdr;
-	arc_buf_t *buf;
+	arc_buf_t *buf = NULL;
 	kmutex_t *hash_lock;
 	zio_t *rzio;
 	uint64_t guid = spa_load_guid(spa);
@@ -3127,7 +3130,7 @@ top:
 		uint64_t size = BP_GET_LSIZE(bp);
 		arc_callback_t	*acb;
 		vdev_t *vd = NULL;
-		uint64_t addr;
+		uint64_t addr = 0;
 		boolean_t devw = B_FALSE;
 
 		if (hdr == NULL) {
@@ -3244,6 +3247,10 @@ top:
 				cb->l2rcb_bp = *bp;
 				cb->l2rcb_zb = *zb;
 				cb->l2rcb_flags = zio_flags;
+
+				ASSERT(addr >= VDEV_LABEL_START_SIZE &&
+				    addr + size < vd->vdev_psize -
+				    VDEV_LABEL_END_SIZE);
 
 				/*
 				 * l2arc read.  The SCL_L2ARC lock will be
@@ -3440,8 +3447,8 @@ arc_release(arc_buf_t *buf, void *tag)
 	if (l2hdr) {
 		mutex_enter(&l2arc_buflist_mtx);
 		hdr->b_l2hdr = NULL;
-		buf_size = hdr->b_size;
 	}
+	buf_size = hdr->b_size;
 
 	/*
 	 * Do we have more than one buf?
@@ -3524,6 +3531,8 @@ arc_release(arc_buf_t *buf, void *tag)
 	buf->b_private = NULL;
 
 	if (l2hdr) {
+		trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
+		    hdr->b_size, 0);
 		list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 		kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
 		ARCSTAT_INCR(arcstat_l2_size, -buf_size);
@@ -4438,6 +4447,8 @@ l2arc_write_done(zio_t *zio)
 			list_remove(buflist, ab);
 			abl2 = ab->b_l2hdr;
 			ab->b_l2hdr = NULL;
+			trim_map_free(abl2->b_dev->l2ad_vdev, abl2->b_daddr,
+			    ab->b_size, 0);
 			kmem_free(abl2, sizeof (l2arc_buf_hdr_t));
 			ARCSTAT_INCR(arcstat_l2_size, -ab->b_size);
 		}
@@ -4544,7 +4555,7 @@ l2arc_read_done(zio_t *zio)
 static list_t *
 l2arc_list_locked(int list_num, kmutex_t **lock)
 {
-	list_t *list;
+	list_t *list = NULL;
 	int idx;
 
 	ASSERT(list_num >= 0 && list_num < 2 * ARC_BUFC_NUMLISTS);

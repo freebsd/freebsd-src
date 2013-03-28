@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2012
+.Dd February 20, 2013
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -513,12 +513,12 @@ The following units are recognised: kbit, kbyte, mbit,
 mbyte, gbit, gbyte and auto.
 .It Cm pps
 Show statistics in packets per second instead of bytes/bits per second.
-A subsequent call of 
-.Ic pps 
+A subsequent call of
+.Ic pps
 switches this mode off.
 .It Cm match Op Ar patterns
-Display only interfaces that match pattern provided as an argument. 
-Patterns should be in shell syntax separated by whitespaces or commas. 
+Display only interfaces that match pattern provided as an argument.
+Patterns should be in shell syntax separated by whitespaces or commas.
 If this command is called without arguments then all interfaces are displayed.
 For example:
 .Pp
@@ -528,8 +528,8 @@ This will display em0 and bge1 interfaces.
 .Pp
 .Dl match em*, bge*, lo0
 .Pp
-This will display all 
-.Ic em 
+This will display all
+.Ic em
 interfaces, all
 .Ic bge
 interfaces and the loopback interface.

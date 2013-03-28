@@ -276,7 +276,7 @@ ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
 		if (seqcount && (vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			error = cluster_read(vp, ip->i_size, lbn,
 			    (int)fs->e2fs_bsize, NOCRED,
-			    MAXBSIZE, seqcount, &nbp);
+			    MAXBSIZE, seqcount, 0, &nbp);
 		} else {
 			error = bread(vp, lbn, (int)fs->e2fs_bsize, NOCRED, &nbp);
 		}

@@ -1908,7 +1908,12 @@ softdep_flushfiles(oldmnt, flags, td)
 	int flags;
 	struct thread *td;
 {
-	int error, depcount, loopcnt, retry_flush_count, retry;
+#ifdef QUOTA
+	struct ufsmount *ump;
+	int i;
+#endif
+	int error, early, depcount, loopcnt, retry_flush_count, retry;
+	int morework;
 
 	loopcnt = 10;
 	retry_flush_count = 3;
@@ -1926,7 +1931,9 @@ retry_flush:
 		 * Do another flush in case any vnodes were brought in
 		 * as part of the cleanup operations.
 		 */
-		if ((error = ffs_flushfiles(oldmnt, flags, td)) != 0)
+		early = retry_flush_count == 1 || (oldmnt->mnt_kern_flag &
+		    MNTK_UNMOUNT) == 0 ? 0 : EARLYFLUSH;
+		if ((error = ffs_flushfiles(oldmnt, flags | early, td)) != 0)
 			break;
 		if ((error = softdep_flushworklist(oldmnt, &depcount, td)) != 0 ||
 		    depcount == 0)
@@ -1950,7 +1957,17 @@ retry_flush:
 			MNT_ILOCK(oldmnt);
 			KASSERT((oldmnt->mnt_kern_flag & MNTK_NOINSMNTQ) != 0,
 			    ("softdep_flushfiles: !MNTK_NOINSMNTQ"));
-			if (oldmnt->mnt_nvnodelistsize > 0) {
+			morework = oldmnt->mnt_nvnodelistsize > 0;
+#ifdef QUOTA
+			ump = VFSTOUFS(oldmnt);
+			UFS_LOCK(ump);
+			for (i = 0; i < MAXQUOTAS; i++) {
+				if (ump->um_quotas[i] != NULLVP)
+					morework = 1;
+			}
+			UFS_UNLOCK(ump);
+#endif
+			if (morework) {
 				if (--retry_flush_count > 0) {
 					retry = 1;
 					loopcnt = 3;
