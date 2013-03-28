@@ -489,7 +489,7 @@ static int
 nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 {
 	struct nvme_completion_poll_status	status;
-	int					cq_allocated, sq_allocated;
+	int					cq_allocated, i, sq_allocated;
 
 	status.done = FALSE;
 	nvme_ctrlr_cmd_set_num_queues(ctrlr, ctrlr->num_io_queues,
@@ -511,16 +511,24 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 
 	/*
 	 * Check that the controller was able to allocate the number of
-	 *  queues we requested.  If not, revert to one IO queue.
+	 *  queues we requested.  If not, revert to one IO queue pair.
 	 */
 	if (sq_allocated < ctrlr->num_io_queues ||
 	    cq_allocated < ctrlr->num_io_queues) {
+
+		/*
+		 * Destroy extra IO queue pairs that were created at
+		 *  controller construction time but are no longer
+		 *  needed.  This will only happen when a controller
+		 *  supports fewer queues than MSI-X vectors.  This
+		 *  is not the normal case, but does occur with the
+		 *  Chatham prototype board.
+		 */
+		for (i = 1; i < ctrlr->num_io_queues; i++)
+			nvme_io_qpair_destroy(&ctrlr->ioq[i]);
+
 		ctrlr->num_io_queues = 1;
 		ctrlr->per_cpu_io_queues = 0;
-
-		/* TODO: destroy extra queues that were created
-		 *  previously but now found to be not needed.
-		 */
 	}
 
 	return (0);
