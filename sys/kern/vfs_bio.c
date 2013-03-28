@@ -3751,8 +3751,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 void
 vfs_bio_clrbuf(struct buf *bp) 
 {
-	int i, j, mask;
-	caddr_t sa, ea;
+	int i, j, mask, sa, ea, slide;
 
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) != B_VMIO) {
 		clrbuf(bp);
@@ -3770,30 +3769,33 @@ vfs_bio_clrbuf(struct buf *bp)
 		if ((bp->b_pages[0]->valid & mask) == mask)
 			goto unlock;
 		if ((bp->b_pages[0]->valid & mask) == 0) {
-			bzero(bp->b_data, bp->b_bufsize);
+			pmap_zero_page_area(bp->b_pages[0], 0, bp->b_bufsize);
 			bp->b_pages[0]->valid |= mask;
 			goto unlock;
 		}
 	}
-	ea = sa = bp->b_data;
-	for(i = 0; i < bp->b_npages; i++, sa = ea) {
-		ea = (caddr_t)trunc_page((vm_offset_t)sa + PAGE_SIZE);
-		ea = (caddr_t)(vm_offset_t)ulmin(
-		    (u_long)(vm_offset_t)ea,
-		    (u_long)(vm_offset_t)bp->b_data + bp->b_bufsize);
+	sa = bp->b_offset & PAGE_MASK;
+	slide = 0;
+	for (i = 0; i < bp->b_npages; i++, sa = 0) {
+		slide = imin(slide + PAGE_SIZE, bp->b_offset + bp->b_bufsize);
+		ea = slide & PAGE_MASK;
+		if (ea == 0)
+			ea = PAGE_SIZE;
 		if (bp->b_pages[i] == bogus_page)
 			continue;
-		j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
+		j = sa / DEV_BSIZE;
 		mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
 		VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
 		if ((bp->b_pages[i]->valid & mask) == mask)
 			continue;
 		if ((bp->b_pages[i]->valid & mask) == 0)
-			bzero(sa, ea - sa);
+			pmap_zero_page_area(bp->b_pages[i], sa, ea - sa);
 		else {
 			for (; sa < ea; sa += DEV_BSIZE, j++) {
-				if ((bp->b_pages[i]->valid & (1 << j)) == 0)
-					bzero(sa, DEV_BSIZE);
+				if ((bp->b_pages[i]->valid & (1 << j)) == 0) {
+					pmap_zero_page_area(bp->b_pages[i],
+					    sa, DEV_BSIZE);
+				}
 			}
 		}
 		bp->b_pages[i]->valid |= mask;
