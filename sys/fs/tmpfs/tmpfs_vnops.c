@@ -1282,6 +1282,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	cache_purge(fvp);
 	if (tvp != NULL)
 		cache_purge(tvp);
+	cache_purge_negative(tdvp);
 
 	error = 0;
 
