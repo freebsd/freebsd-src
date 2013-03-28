@@ -2115,7 +2115,7 @@ retry_space:
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
-		while (space > loopbytes) {
+		while (1) {
 			vm_pindex_t pindex;
 			vm_offset_t pgoff;
 			struct mbuf *m0;
@@ -2127,19 +2127,26 @@ retry_space:
 			 * or the passed in nbytes.
 			 */
 			pgoff = (vm_offset_t)(off & PAGE_MASK);
-			xfsize = omin(PAGE_SIZE - pgoff,
-			    obj->un_pager.vnp.vnp_size - uap->offset -
-			    fsbytes - loopbytes);
 			if (uap->nbytes)
 				rem = (uap->nbytes - fsbytes - loopbytes);
 			else
 				rem = obj->un_pager.vnp.vnp_size -
 				    uap->offset - fsbytes - loopbytes;
-			xfsize = omin(rem, xfsize);
+			xfsize = omin(PAGE_SIZE - pgoff, rem);
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
 				VM_OBJECT_WUNLOCK(obj);
 				done = 1;		/* all data sent */
+				break;
+			}
+
+			/*
+			 * We've already overfilled the socket.
+			 * Let the outer loop figure out how to handle it.
+			 */
+			if (space <= loopbytes) {
+				VM_OBJECT_WUNLOCK(obj);
+				done = 0;
 				break;
 			}
 
@@ -2249,14 +2256,14 @@ retry_space:
 			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
 			if (m0 == NULL) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				sf_buf_mext((void *)sf_buf_kva(sf), sf);
+				sf_buf_mext(NULL, sf);
 				break;
 			}
 			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
 			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
 			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				sf_buf_mext((void *)sf_buf_kva(sf), sf);
+				sf_buf_mext(NULL, sf);
 				m_freem(m0);
 				break;
 			}
