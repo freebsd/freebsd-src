@@ -72,7 +72,7 @@ uart_ar933x_probe(device_t dev)
 	struct uart_softc *sc;
 	uint64_t freq;
 
-	freq = ar71xx_ahb_freq();
+	freq = ar71xx_refclk();
 
 	sc = device_get_softc(dev);
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
