@@ -359,7 +359,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		(*callback)(callback_arg, segs, nsegs, uio->uio_resid, error);
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
-	    __func__, dmat, dmat, error, nsegs + 1);
+	    __func__, dmat, flags, error, nsegs + 1);
 	return (error);
 }
 
