@@ -183,6 +183,8 @@ void		cam_periph_freeze_after_event(struct cam_periph *periph,
 					      u_int duration_ms);
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 u_int32_t sense_flags, union ccb *save_ccb);
+void		xpt_lock_buses(void);
+void		xpt_unlock_buses(void);
 
 static __inline void
 cam_periph_lock(struct cam_periph *periph)
@@ -208,6 +210,43 @@ cam_periph_sleep(struct cam_periph *periph, void *chan, int priority,
 {
 	return (msleep(chan, periph->sim->mtx, priority, wmesg, timo));
 }
+
+static inline struct cam_periph *
+cam_periph_acquire_first(struct periph_driver *driver)
+{
+	struct cam_periph *periph;
+
+	xpt_lock_buses();
+	periph = TAILQ_FIRST(&driver->units);
+	while (periph != NULL && (periph->flags & CAM_PERIPH_INVALID) != 0)
+		periph = TAILQ_NEXT(periph, unit_links);
+	if (periph != NULL)
+		periph->refcount++;
+	xpt_unlock_buses();
+	return (periph);
+}
+
+static inline struct cam_periph *
+cam_periph_acquire_next(struct cam_periph *pperiph)
+{
+	struct cam_periph *periph = pperiph;
+
+	mtx_assert(pperiph->sim->mtx, MA_NOTOWNED);
+	xpt_lock_buses();
+	do {
+		periph = TAILQ_NEXT(periph, unit_links);
+	} while (periph != NULL && (periph->flags & CAM_PERIPH_INVALID) != 0);
+	if (periph != NULL)
+		periph->refcount++;
+	xpt_unlock_buses();
+	cam_periph_release(pperiph);
+	return (periph);
+}
+
+#define CAM_PERIPH_FOREACH(periph, driver)				\
+	for ((periph) = cam_periph_acquire_first(driver);		\
+	    (periph) != NULL;						\
+	    (periph) = cam_periph_acquire_next(periph))
 
 #endif /* _KERNEL */
 #endif /* _CAM_CAM_PERIPH_H */
