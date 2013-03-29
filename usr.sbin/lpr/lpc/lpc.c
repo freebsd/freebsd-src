@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 
 	euid = geteuid();
 	uid = getuid();
-	seteuid(uid);
+	PRIV_END
 	progname = argv[0];
 	openlog("lpd", 0, LOG_LPR);
 
@@ -405,9 +405,9 @@ setup_myprinter(char *pwanted, struct printer *pp, int sump_opts)
 		printf("%s:\n", pp->printer);
 
 	if (sump_opts & SUMP_CHDIR_SD) {
-		seteuid(euid);
+		PRIV_START
 		cdres = chdir(pp->spool_dir);
-		seteuid(uid);
+		PRIV_END
 		if (cdres < 0) {
 			printf("\tcannot chdir to %s\n", pp->spool_dir);
 			free_printer(pp);

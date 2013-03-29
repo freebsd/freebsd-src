@@ -901,39 +901,6 @@ is provided for error checking purposes.
 This function can be used if an already-aliased packet needs to have its
 original IP header restored for further processing (e.g.\& logging).
 .Ed
-.Sh AUTHORS
-.An Charles Mott Aq cm@linktel.net ,
-versions 1.0 - 1.8, 2.0 - 2.4.
-.An Eivind Eklund Aq eivind@FreeBSD.org ,
-versions 1.8b, 1.9 and 2.5.
-Added IRC DCC support as well as contributing a number of architectural
-improvements; added the firewall bypass for FTP/IRC DCC.
-.An Erik Salander Aq erik@whistle.com
-added support for PPTP and RTSP.
-.An Junichi Satoh Aq junichi@junichi.org
-added support for RTSP/PNA.
-.An Ruslan Ermilov Aq ru@FreeBSD.org
-added support for PPTP and LSNAT as well as general hacking.
-.An Paolo Pisati Aq piso@FreeBSD.org
-made the library modular, moving support for all
-protocols (except for IP, TCP and UDP) to external modules.
-.Sh ACKNOWLEDGEMENTS
-Listed below, in approximate chronological order, are individuals who
-have provided valuable comments and/or debugging assistance.
-.Bd -ragged -offset indent
-.An -split
-.An Gary Roberts
-.An Tom Torrance
-.An Reto Burkhalter
-.An Martin Renters
-.An Brian Somers
-.An Paul Traina
-.An Ari Suutari
-.An Dave Remien
-.An J. Fortes
-.An Andrzej Bialecki
-.An Gordon Burditt
-.Ed
 .Sh CONCEPTUAL BACKGROUND
 This section is intended for those who are planning to modify the source
 code or want to create somewhat esoteric applications using the packet
@@ -1475,3 +1442,38 @@ with the
 facility and the
 .Dv LOG_INFO
 level.
+.Sh AUTHORS
+.An Charles Mott Aq cm@linktel.net ,
+versions 1.0 - 1.8, 2.0 - 2.4.
+.An Eivind Eklund Aq eivind@FreeBSD.org ,
+versions 1.8b, 1.9 and 2.5.
+Added IRC DCC support as well as contributing a number of architectural
+improvements; added the firewall bypass for FTP/IRC DCC.
+.An Erik Salander Aq erik@whistle.com
+added support for PPTP and RTSP.
+.An Junichi Satoh Aq junichi@junichi.org
+added support for RTSP/PNA.
+.An Ruslan Ermilov Aq ru@FreeBSD.org
+added support for PPTP and LSNAT as well as general hacking.
+.An Gleb Smirnoff Aq glebius@FreeBSD.org
+ported the library to kernel space.
+.An Paolo Pisati Aq piso@FreeBSD.org
+made the library modular, moving support for all
+protocols (except for IP, TCP and UDP) to external modules.
+.Sh ACKNOWLEDGEMENTS
+Listed below, in approximate chronological order, are individuals who
+have provided valuable comments and/or debugging assistance.
+.Bd -ragged -offset indent
+.An -split
+.An Gary Roberts
+.An Tom Torrance
+.An Reto Burkhalter
+.An Martin Renters
+.An Brian Somers
+.An Paul Traina
+.An Ari Suutari
+.An Dave Remien
+.An J. Fortes
+.An Andrzej Bialecki
+.An Gordon Burditt
+.Ed

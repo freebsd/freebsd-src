@@ -23,6 +23,9 @@ savecore_prestart()
 		return 1
 		;;
 	[Aa][Uu][Tt][Oo])
+		if [ ! -L /dev/dumpdev ]; then
+			return 1
+		fi
 		dumpdev=`/bin/realpath /dev/dumpdev`
 		;;
 	esac
@@ -62,7 +65,7 @@ savecore_start()
 		;;
 	esac
 
-	if savecore -C "${dumpdir}" "${dev}" >/dev/null; then
+	if savecore -C "${dev}" >/dev/null; then
 		savecore ${savecore_flags} ${dumpdir} ${dumpdev}
 		if checkyesno crashinfo_enable; then
 			${crashinfo_program} -d ${dumpdir}

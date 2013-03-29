@@ -16,6 +16,7 @@
 #define LLVM_CLANG_DIAGNOSTIC_H
 
 #include "clang/Basic/DiagnosticIDs.h"
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -29,6 +30,7 @@
 namespace clang {
   class DiagnosticConsumer;
   class DiagnosticBuilder;
+  class DiagnosticOptions;
   class IdentifierInfo;
   class DeclContext;
   class LangOptions;
@@ -160,13 +162,6 @@ public:
     ak_qualtype_pair    ///< pair<QualType, QualType>
   };
 
-  /// \brief Specifies which overload candidates to display when overload
-  /// resolution fails.
-  enum OverloadsShown {
-    Ovl_All,  ///< Show all overloads.
-    Ovl_Best  ///< Show just the "best" overload candidates.
-  };
-
   /// \brief Represents on argument value, which is a union discriminated
   /// by ArgumentKind, with a value.
   typedef std::pair<ArgumentKind, intptr_t> ArgumentValue;
@@ -190,6 +185,7 @@ private:
                                     // backtrace stack, 0 -> no limit.
   ExtensionHandling ExtBehavior; // Map extensions onto warnings or errors?
   IntrusiveRefCntPtr<DiagnosticIDs> Diags;
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   DiagnosticConsumer *Client;
   bool OwnsDiagClient;
   SourceManager *SourceMgr;
@@ -341,6 +337,7 @@ private:
 public:
   explicit DiagnosticsEngine(
                       const IntrusiveRefCntPtr<DiagnosticIDs> &Diags,
+                      DiagnosticOptions *DiagOpts,
                       DiagnosticConsumer *client = 0,
                       bool ShouldOwnClient = true);
   ~DiagnosticsEngine();
@@ -348,6 +345,9 @@ public:
   const IntrusiveRefCntPtr<DiagnosticIDs> &getDiagnosticIDs() const {
     return Diags;
   }
+
+  /// \brief Retrieve the diagnostic options.
+  DiagnosticOptions &getDiagnosticOptions() const { return *DiagOpts; }
 
   DiagnosticConsumer *getClient() { return Client; }
   const DiagnosticConsumer *getClient() const { return Client; }
@@ -478,10 +478,13 @@ public:
   }
   OverloadsShown getShowOverloads() const { return ShowOverloads; }
   
-  /// \brief Pretend that the last diagnostic issued was ignored.
+  /// \brief Pretend that the last diagnostic issued was ignored, so any
+  /// subsequent notes will be suppressed.
   ///
   /// This can be used by clients who suppress diagnostics themselves.
   void setLastDiagnosticIgnored() {
+    if (LastDiagLevel == DiagnosticIDs::Fatal)
+      FatalErrorOccurred = true;
     LastDiagLevel = DiagnosticIDs::Ignored;
   }
   
@@ -584,7 +587,7 @@ public:
                           const char *Argument, unsigned ArgLen,
                           const ArgumentValue *PrevArgs, unsigned NumPrevArgs,
                           SmallVectorImpl<char> &Output,
-                          SmallVectorImpl<intptr_t> &QualTypeVals) const {
+                          ArrayRef<intptr_t> QualTypeVals) const {
     ArgToStringFn(Kind, Val, Modifier, ModLen, Argument, ArgLen,
                   PrevArgs, NumPrevArgs, Output, ArgToStringCookie,
                   QualTypeVals);
@@ -837,7 +840,7 @@ class DiagnosticBuilder {
   /// call to ForceEmit.
   mutable bool IsForceEmit;
 
-  void operator=(const DiagnosticBuilder&); // DO NOT IMPLEMENT
+  void operator=(const DiagnosticBuilder &) LLVM_DELETED_FUNCTION;
   friend class DiagnosticsEngine;
   
   DiagnosticBuilder()
@@ -960,6 +963,10 @@ public:
     assert(NumFixits < DiagnosticsEngine::MaxFixItHints &&
            "Too many arguments to diagnostic!");
     DiagObj->DiagFixItHints[NumFixits++] = Hint;
+  }
+
+  bool hasMaxRanges() const {
+    return NumRanges == DiagnosticsEngine::MaxRanges;
   }
 };
 

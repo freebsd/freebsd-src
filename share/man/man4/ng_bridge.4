@@ -98,7 +98,7 @@ node to the bridge node.
 This node type supports the generic control messages, plus the
 following:
 .Bl -tag -width foo
-.It Dv NGM_BRIDGE_SET_CONFIG
+.It Dv NGM_BRIDGE_SET_CONFIG Pq Ic setconfig
 Set the node configuration.
 This command takes a
 .Dv "struct ng_bridge_config"
@@ -140,13 +140,13 @@ determines how quickly a host must jump from one link to another
 before we declare a loopback condition.
 The default is one second.
 .Pp
-.It Dv NGM_BRIDGE_GET_CONFIG
+.It Dv NGM_BRIDGE_GET_CONFIG Pq Ic getconfig
 Returns the current configuration as a
 .Dv "struct ng_bridge_config" .
-.It Dv NGM_BRIDGE_RESET
+.It Dv NGM_BRIDGE_RESET Pq Ic reset
 Causes the node to forget all hosts and unmute all links.
 The node configuration is not changed.
-.It Dv NGM_BRIDGE_GET_STATS
+.It Dv NGM_BRIDGE_GET_STATS Pq Ic getstats
 This command takes a four byte link number as an argument and
 returns a
 .Dv "struct ng_bridge_link_stats"
@@ -171,17 +171,17 @@ struct ng_bridge_link_stats {
   uint64_t   memoryFailures; /* times couldn't get mem or mbuf */
 };
 .Ed
-.It Dv NGM_BRIDGE_CLR_STATS
+.It Dv NGM_BRIDGE_CLR_STATS Pq Ic clrstats
 This command takes a four byte link number as an argument and
 clears the statistics for that link.
-.It Dv NGM_BRIDGE_GETCLR_STATS
+.It Dv NGM_BRIDGE_GETCLR_STATS Pq Ic getclrstats
 Same as
 .Dv NGM_BRIDGE_GET_STATS ,
 but also atomically clears the statistics as well.
-.It Dv NGM_BRIDGE_GET_TABLE
+.It Dv NGM_BRIDGE_GET_TABLE Pq Ic gettable
 Returns the current host mapping table used to direct packets, in a
 .Dv "struct ng_bridge_host_ary" .
-.It Dv NGM_BRIDGE_SET_PERSISTENT
+.It Dv NGM_BRIDGE_SET_PERSISTENT Pq Ic setpersistent
 This command sets the persistent flag on the node, and takes no arguments.
 .El
 .Sh SHUTDOWN

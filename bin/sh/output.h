@@ -66,6 +66,8 @@ void emptyoutbuf(struct output *);
 void flushall(void);
 void flushout(struct output *);
 void freestdout(void);
+int outiserror(struct output *);
+void outclearerror(struct output *);
 void outfmt(struct output *, const char *, ...) __printflike(2, 3);
 void out1fmt(const char *, ...) __printflike(1, 2);
 void out2fmt_flush(const char *, ...) __printflike(1, 2);

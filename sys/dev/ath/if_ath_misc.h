@@ -72,8 +72,13 @@ extern void ath_tx_update_ratectrl(struct ath_softc *sc,
 	    struct ieee80211_node *ni, struct ath_rc_series *rc,
 	    struct ath_tx_status *ts, int frmlen, int nframes, int nbad);
 
+extern	int ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask,
+	    uint32_t *hangs);
+
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
+extern	void ath_txq_freeholdingbuf(struct ath_softc *sc,
+	    struct ath_txq *txq);
 
 extern void ath_txqmove(struct ath_txq *dst, struct ath_txq *src);
 
@@ -107,6 +112,9 @@ extern	void ath_tx_process_buf_completion(struct ath_softc *sc,
 
 extern	int ath_stoptxdma(struct ath_softc *sc);
 
+extern	void ath_tx_update_tim(struct ath_softc *sc,
+	    struct ieee80211_node *ni, int enable);
+
 /*
  * This is only here so that the RX proc function can call it.
  * It's very likely that the "start TX after RX" call should be
@@ -115,12 +123,28 @@ extern	int ath_stoptxdma(struct ath_softc *sc);
  * we can kill this.
  */
 extern void ath_start(struct ifnet *ifp);
+extern	void ath_start_task(void *arg, int npending);
 
+/*
+ * Kick the frame TX task.
+ */
 static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
+	ATH_TX_LOCK(sc);
 	ath_start(sc->sc_ifp);
+	ATH_TX_UNLOCK(sc);
+}
+
+/*
+ * Kick the software TX queue task.
+ */
+static inline void
+ath_tx_swq_kick(struct ath_softc *sc)
+{
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
 }
 
 #endif

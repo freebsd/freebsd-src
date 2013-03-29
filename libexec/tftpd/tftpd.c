@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -107,9 +108,9 @@ static void	tftp_xmitfile(int peer, const char *mode);
 static int	validate_access(int peer, char **, int);
 static char	peername[NI_MAXHOST];
 
-FILE *file;
+static FILE *file;
 
-struct formats {
+static struct formats {
 	const char	*f_mode;
 	int	f_convert;
 } formats[] = {
@@ -371,7 +372,10 @@ main(int argc, char *argv[])
 		}
 		chdir("/");
 		setgroups(1, &nobody->pw_gid);
-		setuid(nobody->pw_uid);
+		if (setuid(nobody->pw_uid) != 0) {
+			tftp_log(LOG_ERR, "setuid failed");
+			exit(1);
+		}
 	}
 
 	len = sizeof(me_sock);
@@ -796,8 +800,8 @@ tftp_xmitfile(int peer, const char *mode)
 	tftp_send(peer, &block, &ts);
 	read_close();
 	if (debug&DEBUG_SIMPLE)
-		tftp_log(LOG_INFO, "Sent %d bytes in %d seconds",
-		    ts.amount, time(NULL) - now);
+		tftp_log(LOG_INFO, "Sent %jd bytes in %jd seconds",
+		    (intmax_t)ts.amount, (intmax_t)time(NULL) - now);
 }
 
 static void
@@ -829,8 +833,8 @@ tftp_recvfile(int peer, const char *mode)
 		f = now2.tv_sec - now1.tv_sec +
 		    (now2.tv_usec - now1.tv_usec) / 100000.0;
 		tftp_log(LOG_INFO,
-		    "Download of %d bytes in %d blocks completed after %0.1f seconds\n",
-		    ts.amount, block, f);
+		    "Download of %jd bytes in %d blocks completed after %0.1f seconds\n",
+		    (intmax_t)ts.amount, block, f);
 	}
 
 	return;

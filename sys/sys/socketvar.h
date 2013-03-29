@@ -294,7 +294,6 @@ MALLOC_DECLARE(M_SONAME);
 
 extern int	maxsockets;
 extern u_long	sb_max;
-extern struct uma_zone *socket_zone;
 extern so_gen_t so_gencnt;
 
 struct mbuf;
@@ -319,8 +318,12 @@ void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 int	socheckuid(struct socket *so, uid_t uid);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
+int	sobindat(int fd, struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
 int	soclose(struct socket *so);
 int	soconnect(struct socket *so, struct sockaddr *nam, struct thread *td);
+int	soconnectat(int fd, struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
 int	soconnect2(struct socket *so1, struct socket *so2);
 int	socow_setup(struct mbuf *m0, struct uio *uio);
 int	socreate(int dom, struct socket **aso, int type, int proto,
@@ -368,8 +371,6 @@ void	soupcall_clear(struct socket *so, int which);
 void	soupcall_set(struct socket *so, int which,
 	    int (*func)(struct socket *, void *, int), void *arg);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
-int	selsocket(struct socket *so, int events, struct timeval *tv,
-	    struct thread *td);
 
 /*
  * Accept filter functions (duh).

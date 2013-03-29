@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 /****************************************************************************/
 #define BCE_DEVDESC_MAX		64
 
-static struct bce_type bce_devs[] = {
+static const struct bce_type bce_devs[] = {
 	/* BCM5706C Controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x3101,
 		"HP NC370T Multifunction Gigabit Server Adapter" },
@@ -161,7 +161,7 @@ static struct bce_type bce_devs[] = {
 /****************************************************************************/
 /* Supported Flash NVRAM device data.                                       */
 /****************************************************************************/
-static struct flash_spec flash_table[] =
+static const struct flash_spec flash_table[] =
 {
 #define BUFFERED_FLAGS		(BCE_NV_BUFFERED | BCE_NV_TRANSLATE)
 #define NONBUFFERED_FLAGS	(BCE_NV_WREN)
@@ -258,7 +258,7 @@ static struct flash_spec flash_table[] =
  * logical-to-physical mapping is required in the
  * driver.
  */
-static struct flash_spec flash_5709 = {
+static const struct flash_spec flash_5709 = {
 	.flags		= BCE_NV_BUFFERED,
 	.page_bits	= BCM5709_FLASH_PAGE_BITS,
 	.page_size	= BCM5709_FLASH_PAGE_SIZE,
@@ -481,8 +481,8 @@ MODULE_DEPEND(bce, pci, 1, 1, 1);
 MODULE_DEPEND(bce, ether, 1, 1, 1);
 MODULE_DEPEND(bce, miibus, 1, 1, 1);
 
-DRIVER_MODULE(bce, pci, bce_driver, bce_devclass, 0, 0);
-DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(bce, pci, bce_driver, bce_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, NULL, NULL);
 
 
 /****************************************************************************/
@@ -647,7 +647,7 @@ SYSCTL_UINT(_hw_bce, OID_AUTO, rx_ticks, CTLFLAG_RDTUN,
 static int
 bce_probe(device_t dev)
 {
-	struct bce_type *t;
+	const struct bce_type *t;
 	struct bce_softc *sc;
 	char *descbuf;
 	u16 vid = 0, did = 0, svid = 0, sdid = 0;
@@ -655,7 +655,6 @@ bce_probe(device_t dev)
 	t = bce_devs;
 
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(struct bce_softc));
 	sc->bce_unit = device_get_unit(dev);
 	sc->bce_dev = dev;
 
@@ -1040,7 +1039,7 @@ bce_attach(device_t dev)
 	struct bce_softc *sc;
 	struct ifnet *ifp;
 	u32 val;
-	int error, rid, rc = 0;
+	int count, error, rc = 0, rid;
 
 	sc = device_get_softc(dev);
 	sc->bce_dev = dev;
@@ -1077,6 +1076,7 @@ bce_attach(device_t dev)
 	bce_probe_pci_caps(dev, sc);
 
 	rid = 1;
+	count = 0;
 #if 0
 	/* Try allocating MSI-X interrupts. */
 	if ((sc->bce_cap_flags & BCE_MSIX_CAPABLE_FLAG) &&
@@ -1084,14 +1084,14 @@ bce_attach(device_t dev)
 		((sc->bce_res_irq = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		&rid, RF_ACTIVE)) != NULL)) {
 
-		msi_needed = sc->bce_msi_count = 1;
+		msi_needed = count = 1;
 
-		if (((error = pci_alloc_msix(dev, &sc->bce_msi_count)) != 0) ||
-			(sc->bce_msi_count != msi_needed)) {
+		if (((error = pci_alloc_msix(dev, &count)) != 0) ||
+			(count != msi_needed)) {
 			BCE_PRINTF("%s(%d): MSI-X allocation failed! Requested = %d,"
 				"Received = %d, error = %d\n", __FILE__, __LINE__,
-				msi_needed, sc->bce_msi_count, error);
-			sc->bce_msi_count = 0;
+				msi_needed, count, error);
+			count = 0;
 			pci_release_msi(dev);
 			bus_release_resource(dev, SYS_RES_MEMORY, rid,
 				sc->bce_res_irq);
@@ -1100,19 +1100,18 @@ bce_attach(device_t dev)
 			DBPRINT(sc, BCE_INFO_LOAD, "%s(): Using MSI-X interrupt.\n",
 				__FUNCTION__);
 			sc->bce_flags |= BCE_USING_MSIX_FLAG;
-			sc->bce_intr = bce_intr;
 		}
 	}
 #endif
 
 	/* Try allocating a MSI interrupt. */
 	if ((sc->bce_cap_flags & BCE_MSI_CAPABLE_FLAG) &&
-		(bce_msi_enable >= 1) && (sc->bce_msi_count == 0)) {
-		sc->bce_msi_count = 1;
-		if ((error = pci_alloc_msi(dev, &sc->bce_msi_count)) != 0) {
+		(bce_msi_enable >= 1) && (count == 0)) {
+		count = 1;
+		if ((error = pci_alloc_msi(dev, &count)) != 0) {
 			BCE_PRINTF("%s(%d): MSI allocation failed! "
 			    "error = %d\n", __FILE__, __LINE__, error);
-			sc->bce_msi_count = 0;
+			count = 0;
 			pci_release_msi(dev);
 		} else {
 			DBPRINT(sc, BCE_INFO_LOAD, "%s(): Using MSI "
@@ -1120,23 +1119,19 @@ bce_attach(device_t dev)
 			sc->bce_flags |= BCE_USING_MSI_FLAG;
 			if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
 				sc->bce_flags |= BCE_ONE_SHOT_MSI_FLAG;
-			sc->bce_irq_rid = 1;
-			sc->bce_intr = bce_intr;
+			rid = 1;
 		}
 	}
 
 	/* Try allocating a legacy interrupt. */
-	if (sc->bce_msi_count == 0) {
+	if (count == 0) {
 		DBPRINT(sc, BCE_INFO_LOAD, "%s(): Using INTx interrupt.\n",
 			__FUNCTION__);
 		rid = 0;
-		sc->bce_intr = bce_intr;
 	}
 
 	sc->bce_res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &rid, RF_SHAREABLE | RF_ACTIVE);
-
-	sc->bce_irq_rid = rid;
+	    &rid, RF_ACTIVE | (count != 0 ? 0 : RF_SHAREABLE));
 
 	/* Report any IRQ allocation errors. */
 	if (sc->bce_res_irq == NULL) {
@@ -1635,7 +1630,7 @@ bce_shutdown(device_t dev)
 static u32
 bce_reg_rd(struct bce_softc *sc, u32 offset)
 {
-	u32 val = bus_space_read_4(sc->bce_btag, sc->bce_bhandle, offset);
+	u32 val = REG_RD(sc, offset);
 	DBPRINT(sc, BCE_INSANE_REG, "%s(); offset = 0x%08X, val = 0x%08X\n",
 		__FUNCTION__, offset, val);
 	return val;
@@ -1653,7 +1648,7 @@ bce_reg_wr16(struct bce_softc *sc, u32 offset, u16 val)
 {
 	DBPRINT(sc, BCE_INSANE_REG, "%s(); offset = 0x%08X, val = 0x%04X\n",
 		__FUNCTION__, offset, val);
-	bus_space_write_2(sc->bce_btag, sc->bce_bhandle, offset, val);
+	REG_WR16(sc, offset, val);
 }
 
 
@@ -1668,7 +1663,7 @@ bce_reg_wr(struct bce_softc *sc, u32 offset, u32 val)
 {
 	DBPRINT(sc, BCE_INSANE_REG, "%s(); offset = 0x%08X, val = 0x%08X\n",
 		__FUNCTION__, offset, val);
-	bus_space_write_4(sc->bce_btag, sc->bce_bhandle, offset, val);
+	REG_WR(sc, offset, val);
 }
 #endif
 
@@ -1879,13 +1874,6 @@ bce_miibus_read_reg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	/* Make sure we are accessing the correct PHY address. */
-	if (phy != sc->bce_phy_addr) {
-		DBPRINT(sc, BCE_INSANE_PHY, "Invalid PHY address %d "
-		    "for PHY read!\n", phy);
-		return(0);
-	}
-
     /*
      * The 5709S PHY is an IEEE Clause 45 PHY
      * with special mappings to work with IEEE
@@ -1967,13 +1955,6 @@ bce_miibus_write_reg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-
-	/* Make sure we are accessing the correct PHY address. */
-	if (phy != sc->bce_phy_addr) {
-		DBPRINT(sc, BCE_INSANE_PHY, "Invalid PHY address %d "
-		    "for PHY write!\n", phy);
-		return(0);
-	}
 
 	DB_PRINT_PHY_REG(reg, val);
 
@@ -2535,7 +2516,7 @@ bce_init_nvram(struct bce_softc *sc)
 {
 	u32 val;
 	int j, entry_count, rc = 0;
-	struct flash_spec *flash;
+	const struct flash_spec *flash;
 
 	DBENTER(BCE_VERBOSE_NVRAM);
 
@@ -3949,8 +3930,8 @@ bce_release_resources(struct bce_softc *sc)
 
 	if (sc->bce_res_irq != NULL) {
 		DBPRINT(sc, BCE_INFO_RESET, "Releasing IRQ.\n");
-		bus_release_resource(dev, SYS_RES_IRQ, sc->bce_irq_rid,
-		    sc->bce_res_irq);
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    rman_get_rid(sc->bce_res_irq), sc->bce_res_irq);
 	}
 
 	if (sc->bce_flags & (BCE_USING_MSI_FLAG | BCE_USING_MSIX_FLAG)) {
@@ -5437,9 +5418,9 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 
 		/* This is a new mbuf allocation. */
 		if (bce_hdr_split == TRUE)
-			MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+			MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		else
-			m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+			m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 			    sc->rx_bd_mbuf_alloc_size);
 
 		if (m_new == NULL) {
@@ -5559,7 +5540,7 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 		    goto bce_get_pg_buf_exit);
 
 		/* This is a new mbuf allocation. */
-		m_new = m_getcl(M_DONTWAIT, MT_DATA, 0);
+		m_new = m_getcl(M_NOWAIT, MT_DATA, 0);
 		if (m_new == NULL) {
 			sc->mbuf_alloc_failed_count++;
 			rc = ENOBUFS;
@@ -7320,7 +7301,7 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 
 	/* Controller may modify mbuf chains. */
 	if (M_WRITABLE(*m_head) == 0) {
-		m = m_dup(*m_head, M_DONTWAIT);
+		m = m_dup(*m_head, M_NOWAIT);
 		m_freem(*m_head);
 		if (m == NULL) {
 			sc->mbuf_alloc_failed_count++;
@@ -7486,7 +7467,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 		sc->mbuf_frag_count++;
 
 		/* Try to defrag the mbuf. */
-		m0 = m_collapse(*m_head, M_DONTWAIT, BCE_MAX_SEGMENTS);
+		m0 = m_collapse(*m_head, M_NOWAIT, BCE_MAX_SEGMENTS);
 		if (m0 == NULL) {
 			/* Defrag was unsuccessful */
 			m_freem(*m_head);
@@ -9880,7 +9861,7 @@ bce_dump_mbuf(struct bce_softc *sc, struct mbuf *m)
 			    "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
 			    "\22M_PROMISC\23M_NOFREE",
 			    mp->m_pkthdr.csum_flags,
-			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP"
 			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
 			    "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
 			    "\14CSUM_PSEUDO_HDR");
@@ -11650,4 +11631,3 @@ bce_breakpoint(struct bce_softc *sc)
 	return;
 }
 #endif
-

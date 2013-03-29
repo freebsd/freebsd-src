@@ -5,7 +5,7 @@ XZ Utils
     0. Overview
     1. Documentation
        1.1. Overall documentation
-       1.2. Documentation for command line tools
+       1.2. Documentation for command-line tools
        1.3. Documentation for liblzma
     2. Version numbering
     3. Reporting bugs
@@ -17,21 +17,21 @@ XZ Utils
 0. Overview
 -----------
 
-    XZ Utils provide a general-purpose data compression library and
-    command line tools. The native file format is the .xz format, but
+    XZ Utils provide a general-purpose data-compression library plus
+    command-line tools. The native file format is the .xz format, but
     also the legacy .lzma format is supported. The .xz format supports
-    multiple compression algorithms, which are called "filters" in
+    multiple compression algorithms, which are called "filters" in the
     context of XZ Utils. The primary filter is currently LZMA2. With
     typical files, XZ Utils create about 30 % smaller files than gzip.
 
     To ease adapting support for the .xz format into existing applications
     and scripts, the API of liblzma is somewhat similar to the API of the
-    popular zlib library. For the same reason, the command line tool xz
-    has similar command line syntax than that of gzip.
+    popular zlib library. For the same reason, the command-line tool xz
+    has a command-line syntax similar to that of gzip.
 
-    When aiming for the highest compression ratio, LZMA2 encoder uses
+    When aiming for the highest compression ratio, the LZMA2 encoder uses
     a lot of CPU time and may use, depending on the settings, even
-    hundreds of megabytes of RAM. However, in fast modes, LZMA2 encoder
+    hundreds of megabytes of RAM. However, in fast modes, the LZMA2 encoder
     competes with bzip2 in compression speed, RAM usage, and compression
     ratio.
 
@@ -44,8 +44,8 @@ XZ Utils
     since that needs to be done only once to benefit many people.
 
     With some file types, combining (or "chaining") LZMA2 with an
-    additional filter can improve compression ratio. A filter chain may
-    contain up to four filters, although usually only one two is used.
+    additional filter can improve the compression ratio. A filter chain may
+    contain up to four filters, although usually only one or two are used.
     For example, putting a BCJ (Branch/Call/Jump) filter before LZMA2
     in the filter chain can improve compression ratio of executable files.
 
@@ -88,9 +88,9 @@ XZ Utils
     packages.
 
 
-1.2. Documentation for command line tools
+1.2. Documentation for command-line tools
 
-    The command line tools are documented as man pages. In source code
+    The command-line tools are documented as man pages. In source code
     releases (and possibly also in some binary packages), the man pages
     are also provided in plain text (ASCII only) and PDF formats in the
     directory "doc/man" to make the man pages more accessible to those
@@ -109,8 +109,8 @@ XZ Utils
     written yet.
 
     For now, if you have never used liblzma, libbzip2, or zlib, I
-    recommend learning *basics* of zlib API. Once you know that, it
-    should be easier to learn liblzma.
+    recommend learning the *basics* of the zlib API. Once you know that,
+    it should be easier to learn liblzma.
 
         http://zlib.net/manual.html
         http://zlib.net/zlib_how.html
@@ -124,23 +124,27 @@ XZ Utils
       - X is the major version. When this is incremented, the library
         API and ABI break.
 
-      - Y is the minor version. It is incremented when new features are
-        added without breaking existing API or ABI. Even Y indicates
-        stable release and odd Y indicates unstable (alpha or beta
-        version).
+      - Y is the minor version. It is incremented when new features
+        are added without breaking the existing API or ABI. An even Y
+        indicates a stable release and an odd Y indicates unstable
+        (alpha or beta version).
 
-      - Z is the revision. This has different meaning for stable and
+      - Z is the revision. This has a different meaning for stable and
         unstable releases:
+
           * Stable: Z is incremented when bugs get fixed without adding
-            any new features.
+            any new features. This is intended to be convenient for
+            downstream distributors that want bug fixes but don't want
+            any new features to minimize the risk of introducing new bugs.
+
           * Unstable: Z is just a counter. API or ABI of features added
             in earlier unstable releases having the same X.Y may break.
 
       - S indicates stability of the release. It is missing from the
-        stable releases where Y is an even number. When Y is odd, S
+        stable releases, where Y is an even number. When Y is odd, S
         is either "alpha" or "beta" to make it very clear that such
         versions are not stable releases. The same X.Y.Z combination is
-        not used for more than one stability level i.e. after X.Y.Zalpha,
+        not used for more than one stability level, i.e. after X.Y.Zalpha,
         the next version can be X.Y.(Z+1)beta but not X.Y.Zbeta.
 
 
@@ -176,7 +180,7 @@ XZ Utils
     Don't send core dump files or any executables. If you have a small
     example file(s) (total size less than 256 KiB), please include
     it/them as an attachment. If you have bigger test files, put them
-    online somewhere and include an URL to the file(s) in the bug report.
+    online somewhere and include a URL to the file(s) in the bug report.
 
     Always include the exact version number of XZ Utils in the bug report.
     If you are using a snapshot from the git repository, use "git describe"
@@ -193,7 +197,7 @@ XZ Utils
 
     The messages from the xz tool have been translated into a few
     languages. Before starting to translate into a new language, ask
-    the author that someone else hasn't already started working on it.
+    the author whether someone else hasn't already started working on it.
 
     Test your translation. Testing includes comparing the translated
     output to the original English version by running the same commands
@@ -214,7 +218,7 @@ XZ Utils
     Note especially the following:
 
       - The output of --help and --long-help must look nice on
-        a 80-column terminal. It's OK to add extra lines if needed.
+        an 80-column terminal. It's OK to add extra lines if needed.
 
       - In contrast, don't add extra lines to error messages and such.
         They are often preceded with e.g. a filename on the same line,

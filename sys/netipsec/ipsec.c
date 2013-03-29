@@ -597,10 +597,9 @@ ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(m->m_pkthdr.len >= sizeof(struct ip),("packet too short"));
 
-	/* NB: ip_input() flips it into host endian. XXX Need more checking. */
 	if (m->m_len >= sizeof (struct ip)) {
 		struct ip *ip = mtod(m, struct ip *);
-		if (ip->ip_off & (IP_MF | IP_OFFMASK))
+		if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
 			goto done;
 #ifdef _IP_VHL
 		off = _IP_VHL_HL(ip->ip_vhl) << 2;
@@ -612,7 +611,7 @@ ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 		struct ip ih;
 
 		m_copydata(m, 0, sizeof (struct ip), (caddr_t) &ih);
-		if (ih.ip_off & (IP_MF | IP_OFFMASK))
+		if (ih.ip_off & htons(IP_MF | IP_OFFMASK))
 			goto done;
 #ifdef _IP_VHL
 		off = _IP_VHL_HL(ih.ip_vhl) << 2;

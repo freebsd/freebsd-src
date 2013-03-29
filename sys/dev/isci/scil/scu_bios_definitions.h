@@ -299,7 +299,7 @@ typedef struct SCI_BIOS_OEM_PARAM_ELEMENT
         } sas_address;
 
         /**
-         * These are the per PHY equalization settings associated with the the
+         * These are the per PHY equalization settings associated with the
          * AFE XCVR Tx Amplitude and Equalization Control Register Set
          * (0 thru 3).
          *
@@ -496,7 +496,7 @@ typedef struct SCI_BIOS_OEM_PARAM_ELEMENT_v_1_1
         } sas_address;
 
         /**
-         * These are the per PHY equalization settings associated with the the
+         * These are the per PHY equalization settings associated with the
          * AFE XCVR Tx Amplitude and Equalization Control Register Set
          * (0 thru 3).
          *
@@ -706,7 +706,7 @@ typedef struct SCI_BIOS_OEM_PARAM_ELEMENT_v_1_2
         } sas_address;
 
         /**
-         * These are the per PHY equalization settings associated with the the
+         * These are the per PHY equalization settings associated with the
          * AFE XCVR Tx Amplitude and Equalization Control Register Set
          * (0 thru 3).
          *
@@ -927,7 +927,7 @@ typedef struct SCI_BIOS_OEM_PARAM_ELEMENT_v_1_3
         } sas_address;
 
         /**
-         * These are the per PHY equalization settings associated with the the
+         * These are the per PHY equalization settings associated with the
          * AFE XCVR Tx Amplitude and Equalization Control Register Set
          * (0 thru 3).
          *

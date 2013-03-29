@@ -28,7 +28,7 @@ void ExprEngine::VisitLvalObjCIvarRefExpr(const ObjCIvarRefExpr *Ex,
   SVal location = state->getLValue(Ex->getDecl(), baseVal);
   
   ExplodedNodeSet dstIvar;
-  StmtNodeBuilder Bldr(Pred, dstIvar, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, dstIvar, *currBldrCtx);
   Bldr.generateNode(Ex, Pred, state->BindExpr(Ex, LCtx, location));
   
   // Perform the post-condition check of the ObjCIvarRefExpr and store
@@ -88,7 +88,7 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   evalLocation(dstLocation, S, elem, Pred, state, elementV, NULL, false);
 
   ExplodedNodeSet Tmp;
-  StmtNodeBuilder Bldr(Pred, Tmp, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Tmp, *currBldrCtx);
 
   for (ExplodedNodeSet::iterator NI = dstLocation.begin(),
        NE = dstLocation.end(); NI!=NE; ++NI) {
@@ -112,8 +112,8 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
         //  For now, just 'conjure' up a symbolic value.
         QualType T = R->getValueType();
         assert(Loc::isLocType(T));
-        unsigned Count = currentBuilderContext->getCurrentBlockCount();
-        SymbolRef Sym = SymMgr.getConjuredSymbol(elem, LCtx, T, Count);
+        SymbolRef Sym = SymMgr.conjureSymbol(elem, LCtx, T,
+                                             currBldrCtx->blockCount());
         SVal V = svalBuilder.makeLoc(Sym);
         hasElems = hasElems->bindLoc(elementV, V);
         
@@ -130,14 +130,6 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   // Finally, run any custom checkers.
   // FIXME: Eventually all pre- and post-checks should live in VisitStmt.
   getCheckerManager().runCheckersForPostStmt(Dst, Tmp, S, *this);
-}
-
-static bool isSubclass(const ObjCInterfaceDecl *Class, IdentifierInfo *II) {
-  if (!Class)
-    return false;
-  if (Class->getIdentifier() == II)
-    return true;
-  return isSubclass(Class->getSuperClass(), II);
 }
 
 void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
@@ -157,7 +149,7 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
 
   // Proceed with evaluate the message expression.
   ExplodedNodeSet dstEval;
-  StmtNodeBuilder Bldr(dstGenericPrevisit, dstEval, *currentBuilderContext);
+  StmtNodeBuilder Bldr(dstGenericPrevisit, dstEval, *currBldrCtx);
 
   for (ExplodedNodeSet::iterator DI = dstGenericPrevisit.begin(),
        DE = dstGenericPrevisit.end(); DI != DE; ++DI) {
@@ -184,68 +176,30 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
         
         // Check if the "raise" message was sent.
         assert(notNilState);
-        if (Msg->getSelector() == RaiseSel) {
+        if (ObjCNoRet.isImplicitNoReturn(ME)) {
           // If we raise an exception, for now treat it as a sink.
           // Eventually we will want to handle exceptions properly.
-          Bldr.generateNode(currentStmt, Pred, State, true);
+          Bldr.generateSink(currStmt, Pred, State);
           continue;
         }
         
         // Generate a transition to non-Nil state.
-        if (notNilState != State)
-          Pred = Bldr.generateNode(currentStmt, Pred, notNilState);
+        if (notNilState != State) {
+          Pred = Bldr.generateNode(currStmt, Pred, notNilState);
+          assert(Pred && "Should have cached out already!");
+        }
       }
     } else {
-      // Check for special class methods.
-      if (const ObjCInterfaceDecl *Iface = Msg->getReceiverInterface()) {
-        if (!NSExceptionII) {
-          ASTContext &Ctx = getContext();
-          NSExceptionII = &Ctx.Idents.get("NSException");
-        }
-        
-        if (isSubclass(Iface, NSExceptionII)) {
-          enum { NUM_RAISE_SELECTORS = 2 };
-          
-          // Lazily create a cache of the selectors.
-          if (!NSExceptionInstanceRaiseSelectors) {
-            ASTContext &Ctx = getContext();
-            NSExceptionInstanceRaiseSelectors =
-              new Selector[NUM_RAISE_SELECTORS];
-            SmallVector<IdentifierInfo*, NUM_RAISE_SELECTORS> II;
-            unsigned idx = 0;
-            
-            // raise:format:
-            II.push_back(&Ctx.Idents.get("raise"));
-            II.push_back(&Ctx.Idents.get("format"));
-            NSExceptionInstanceRaiseSelectors[idx++] =
-              Ctx.Selectors.getSelector(II.size(), &II[0]);
-            
-            // raise:format:arguments:
-            II.push_back(&Ctx.Idents.get("arguments"));
-            NSExceptionInstanceRaiseSelectors[idx++] =
-              Ctx.Selectors.getSelector(II.size(), &II[0]);
-          }
-          
-          Selector S = Msg->getSelector();
-          bool RaisesException = false;
-          for (unsigned i = 0; i < NUM_RAISE_SELECTORS; ++i) {
-            if (S == NSExceptionInstanceRaiseSelectors[i]) {
-              RaisesException = true;
-              break;
-            }
-          }
-          if (RaisesException) {
-            // If we raise an exception, for now treat it as a sink.
-            // Eventually we will want to handle exceptions properly.
-            Bldr.generateNode(currentStmt, Pred, Pred->getState(), true);
-            continue;
-          }
-
-        }
+      // Check for special class methods that are known to not return
+      // and that we should treat as a sink.
+      if (ObjCNoRet.isImplicitNoReturn(ME)) {
+        // If we raise an exception, for now treat it as a sink.
+        // Eventually we will want to handle exceptions properly.
+        Bldr.generateSink(currStmt, Pred, Pred->getState());
+        continue;
       }
     }
 
-    // Evaluate the call.
     defaultEvalCall(Bldr, Pred, *UpdatedMsg);
   }
   

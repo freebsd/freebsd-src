@@ -114,14 +114,20 @@ static struct {
 #define AHCI_Q_NOAA	512
 #define AHCI_Q_NOCOUNT	1024
 #define AHCI_Q_ALTSIG	2048
+#define AHCI_Q_NOMSI	4096
 } ahci_ids[] = {
-	{0x43801002, 0x00, "ATI IXP600",	0},
+	{0x43801002, 0x00, "ATI IXP600",	AHCI_Q_NOMSI},
 	{0x43901002, 0x00, "ATI IXP700",	0},
 	{0x43911002, 0x00, "ATI IXP700",	0},
 	{0x43921002, 0x00, "ATI IXP700",	0},
 	{0x43931002, 0x00, "ATI IXP700",	0},
 	{0x43941002, 0x00, "ATI IXP800",	0},
 	{0x43951002, 0x00, "ATI IXP800",	0},
+	{0x78001022, 0x00, "AMD Hudson-2",	0},
+	{0x78011022, 0x00, "AMD Hudson-2",	0},
+	{0x78021022, 0x00, "AMD Hudson-2",	0},
+	{0x78031022, 0x00, "AMD Hudson-2",	0},
+	{0x78041022, 0x00, "AMD Hudson-2",	0},
 	{0x06121b21, 0x00, "ASMedia ASM1061",	0},
 	{0x26528086, 0x00, "Intel ICH6",	AHCI_Q_NOFORCE},
 	{0x26538086, 0x00, "Intel ICH6M",	AHCI_Q_NOFORCE},
@@ -174,6 +180,14 @@ static struct {
 	{0x1e078086, 0x00, "Intel Panther Point",	0},
 	{0x1e0e8086, 0x00, "Intel Panther Point",	0},
 	{0x1e0f8086, 0x00, "Intel Panther Point",	0},
+	{0x8c028086, 0x00, "Intel Lynx Point",	0},
+	{0x8c038086, 0x00, "Intel Lynx Point",	0},
+	{0x8c048086, 0x00, "Intel Lynx Point",	0},
+	{0x8c058086, 0x00, "Intel Lynx Point",	0},
+	{0x8c068086, 0x00, "Intel Lynx Point",	0},
+	{0x8c078086, 0x00, "Intel Lynx Point",	0},
+	{0x8c0e8086, 0x00, "Intel Lynx Point",	0},
+	{0x8c0f8086, 0x00, "Intel Lynx Point",	0},
 	{0x23238086, 0x00, "Intel DH89xxCC",	0},
 	{0x2360197b, 0x00, "JMicron JMB360",	0},
 	{0x2361197b, 0x00, "JMicron JMB361",	AHCI_Q_NOFORCE},
@@ -403,7 +417,7 @@ ahci_attach(device_t dev)
 	/* Get the HW capabilities */
 	version = ATA_INL(ctlr->r_mem, AHCI_VS);
 	ctlr->caps = ATA_INL(ctlr->r_mem, AHCI_CAP);
-	if (version >= 0x00010020)
+	if (version >= 0x00010200)
 		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
 	if (ctlr->caps & AHCI_CAP_EMS)
 		ctlr->capsem = ATA_INL(ctlr->r_mem, AHCI_EM_CTL);
@@ -483,7 +497,7 @@ ahci_attach(device_t dev)
 		    (ctlr->caps & AHCI_CAP_SXS) ? " eSATA":"",
 		    (ctlr->caps & AHCI_CAP_NPMASK) + 1);
 	}
-	if (bootverbose && version >= 0x00010020) {
+	if (bootverbose && version >= 0x00010200) {
 		device_printf(dev, "Caps2:%s%s%s\n",
 		    (ctlr->caps2 & AHCI_CAP2_APST) ? " APST":"",
 		    (ctlr->caps2 & AHCI_CAP2_NVMP) ? " NVMP":"",
@@ -543,7 +557,7 @@ ahci_ctlr_reset(device_t dev)
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	int timeout;
 
-	if (pci_read_config(dev, 0x00, 4) == 0x28298086 &&
+	if (pci_read_config(dev, PCIR_DEVVENDOR, 4) == 0x28298086 &&
 	    (pci_read_config(dev, 0x92, 1) & 0xfe) == 0x04)
 		pci_write_config(dev, 0x92, 0x01, 1);
 	/* Enable AHCI mode */
@@ -621,6 +635,8 @@ ahci_setup_interrupt(device_t dev)
 	int i, msi = 1;
 
 	/* Process hints. */
+	if (ctlr->quirks & AHCI_Q_NOMSI)
+		msi = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "msi", &msi);
 	if (msi < 0)
@@ -982,7 +998,7 @@ ahci_ch_attach(device_t dev)
 	}
 	ch->chcaps = ATA_INL(ch->r_mem, AHCI_P_CMD);
 	version = ATA_INL(ctlr->r_mem, AHCI_VS);
-	if (version < 0x00010020 && (ctlr->caps & AHCI_CAP_FBSS))
+	if (version < 0x00010200 && (ctlr->caps & AHCI_CAP_FBSS))
 		ch->chcaps |= AHCI_P_CMD_FBSCP;
 	if (bootverbose) {
 		device_printf(dev, "Caps:%s%s%s%s%s\n",
@@ -1192,8 +1208,8 @@ ahci_dmainit(device_t dev)
 	    NULL, NULL, AHCI_WORK_SIZE, 1, AHCI_WORK_SIZE,
 	    0, NULL, NULL, &ch->dma.work_tag))
 		goto error;
-	if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work, 0,
-	    &ch->dma.work_map))
+	if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work,
+	    BUS_DMA_ZERO, &ch->dma.work_map))
 		goto error;
 	if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map, ch->dma.work,
 	    AHCI_WORK_SIZE, ahci_dmasetupc_cb, &dcba, 0) || dcba.error) {
@@ -1433,7 +1449,7 @@ ahci_ch_intr(void *data)
 {
 	device_t dev = (device_t)data;
 	struct ahci_channel *ch = device_get_softc(dev);
-	uint32_t istatus, sstatus, cstatus, serr = 0, sntf = 0, ok, err;
+	uint32_t istatus, cstatus, serr = 0, sntf = 0, ok, err;
 	enum ahci_err_type et;
 	int i, ccs, port, reset = 0;
 
@@ -1443,9 +1459,15 @@ ahci_ch_intr(void *data)
 		return;
 	ATA_OUTL(ch->r_mem, AHCI_P_IS, istatus);
 	/* Read command statuses. */
-	sstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
-	cstatus = ATA_INL(ch->r_mem, AHCI_P_CI);
-	if (istatus & AHCI_P_IX_SDB) {
+	if (ch->numtslots != 0)
+		cstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
+	else
+		cstatus = 0;
+	if (ch->numrslots != ch->numtslots)
+		cstatus |= ATA_INL(ch->r_mem, AHCI_P_CI);
+	/* Read SNTF in one of possible ways. */
+	if ((istatus & AHCI_P_IX_SDB) &&
+	    (ch->pm_present || ch->curr[0].atapi != 0)) {
 		if (ch->caps & AHCI_CAP_SSNTF)
 			sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
 		else if (ch->fbs_enabled) {
@@ -1504,14 +1526,14 @@ ahci_ch_intr(void *data)
 				}
 			}
 		}
-		err = ch->rslots & (cstatus | sstatus);
+		err = ch->rslots & cstatus;
 	} else {
 		ccs = 0;
 		err = 0;
 		port = -1;
 	}
 	/* Complete all successfull commands. */
-	ok = ch->rslots & ~(cstatus | sstatus);
+	ok = ch->rslots & ~cstatus;
 	for (i = 0; i < ch->numslots; i++) {
 		if ((ok >> i) & 1)
 			ahci_end_transaction(&ch->slot[i], AHCI_ERR_NONE);
@@ -1667,21 +1689,10 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 	    (ccb->ataio.cmd.flags & (CAM_ATAIO_CONTROL | CAM_ATAIO_NEEDRESULT)))
 		ch->aslots |= (1 << slot->slot);
 	slot->dma.nsegs = 0;
-	/* If request moves data, setup and load SG list */
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		void *buf;
-		bus_size_t size;
-
 		slot->state = AHCI_SLOT_LOADING;
-		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-			buf = ccb->ataio.data_ptr;
-			size = ccb->ataio.dxfer_len;
-		} else {
-			buf = ccb->csio.data_ptr;
-			size = ccb->csio.dxfer_len;
-		}
-		bus_dmamap_load(ch->dma.data_tag, slot->dma.data_map,
-		    buf, size, ahci_dmasetprd, slot, 0);
+		bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map, ccb,
+		    ahci_dmasetprd, slot, 0);
 	} else
 		ahci_execute_transaction(slot);
 }
@@ -2597,7 +2608,7 @@ ahci_setup_fis(device_t dev, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
 	struct ahci_channel *ch = device_get_softc(dev);
 	u_int8_t *fis = &ctp->cfis[0];
 
-	bzero(ctp->cfis, 64);
+	bzero(ctp->cfis, 16);
 	fis[0] = 0x27;  		/* host to device */
 	fis[1] = (ccb->ccb_h.target_id & 0x0f);
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
@@ -2612,10 +2623,10 @@ ahci_setup_fis(device_t dev, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
 		}
 		fis[7] = ATA_D_LBA;
 		fis[15] = ATA_A_4BIT;
-		bzero(ctp->acmd, 32);
 		bcopy((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes,
 		    ctp->acmd, ccb->csio.cdb_len);
+		bzero(ctp->acmd + ccb->csio.cdb_len, 32 - ccb->csio.cdb_len);
 	} else if ((ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) == 0) {
 		fis[1] |= 0x80;
 		fis[2] = ccb->ataio.cmd.command;
@@ -2898,7 +2909,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->max_target = 15;

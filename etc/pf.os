@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $OpenBSD: pf.os,v 1.25 2010/10/18 15:55:27 deraadt Exp $
+# $OpenBSD: pf.os,v 1.26 2012/08/03 12:25:16 jsg Exp $
 # passive OS fingerprinting
 # -------------------------
 #
@@ -226,7 +226,13 @@ S2:64:1:60:M*,S,T,N,W0:		Linux:2.4::Linux 2.4 (big boy)
 S3:64:1:60:M*,S,T,N,W0:		Linux:2.4:.18-21:Linux 2.4.18 and newer
 S4:64:1:60:M*,S,T,N,W0:		Linux:2.4::Linux 2.4/2.6 <= 2.6.7
 S4:64:1:60:M*,S,T,N,W0:		Linux:2.6:.1-7:Linux 2.4/2.6 <= 2.6.7
-S4:64:1:60:M*,S,T,N,W7:		Linux:2.6:8:Linux 2.6.8 and newer (?)
+
+S4:64:1:60:M*,S,T,N,W5:		Linux:2.6::Linux 2.6 (newer, 1)
+S4:64:1:60:M*,S,T,N,W6:		Linux:2.6::Linux 2.6 (newer, 2)
+S4:64:1:60:M*,S,T,N,W7:		Linux:2.6::Linux 2.6 (newer, 3)
+T4:64:1:60:M*,S,T,N,W7:		Linux:2.6::Linux 2.6 (newer, 4)
+
+S10:64:1:60:M*,S,T,N,W4:	Linux:3.0::Linux 3.0
 
 S3:64:1:60:M*,S,T,N,W1:		Linux:2.5::Linux 2.5 (sometimes 2.4)
 S4:64:1:60:M*,S,T,N,W1:		Linux:2.5-2.6::Linux 2.5/2.6
@@ -428,6 +434,8 @@ S44:128:1:48:M*,N,N,S:			Windows:XP:SP1:Windows Pro SP1, 2000 SP3
 64512:128:1:48:M*,N,N,S:		Windows:XP:SP1:Windows SP1, 2000 SP3
 32767:128:1:48:M*,N,N,S:		Windows:2000:SP4:Windows SP1, 2000 SP4
 32767:128:1:48:M*,N,N,S:		Windows:XP:SP1:Windows SP1, 2000 SP4
+
+8192:128:1:52:M*,N,W2,N,N,S:		Windows:Vista::Windows Vista/7
 
 # Odds, ends, mods:
 

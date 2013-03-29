@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -173,7 +174,7 @@ printjob(struct printer *pp)
 		    pp->log_file);
 		(void) open(_PATH_DEVNULL, O_WRONLY);
 	}
-	setgid(getegid());
+	if(setgid(getegid()) != 0) err(1, "setgid() failed");
 	printpid = getpid();			/* for use with lprm */
 	setpgrp(0, printpid);
 
@@ -1788,7 +1789,7 @@ openpr(const struct printer *pp)
 		of_pid = 0;
 		return;
 	} else if (*pp->lp) {
-		if ((cp = strchr(pp->lp, '@')) != NULL)
+		if (strchr(pp->lp, '@') != NULL)
 			opennet(pp);
 		else
 			opentty(pp);

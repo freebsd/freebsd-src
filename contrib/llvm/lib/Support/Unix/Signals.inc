@@ -121,17 +121,29 @@ static void UnregisterHandlers() {
 /// NB: This must be an async signal safe function. It cannot allocate or free
 /// memory, even in debug builds.
 static void RemoveFilesToRemove() {
-  // Note: avoid iterators in case of debug iterators that allocate or release
+  // We avoid iterators in case of debug iterators that allocate or release
   // memory.
   for (unsigned i = 0, e = FilesToRemove.size(); i != e; ++i) {
-    // Note that we don't want to use any external code here, and we don't care
-    // about errors. We're going to try as hard as we can as often as we need
-    // to to make these files go away. If these aren't files, too bad.
-    //
-    // We do however rely on a std::string implementation for which repeated
-    // calls to 'c_str()' don't allocate memory. We pre-call 'c_str()' on all
-    // of these strings to try to ensure this is safe.
-    unlink(FilesToRemove[i].c_str());
+    // We rely on a std::string implementation for which repeated calls to
+    // 'c_str()' don't allocate memory. We pre-call 'c_str()' on all of these
+    // strings to try to ensure this is safe.
+    const char *path = FilesToRemove[i].c_str();
+
+    // Get the status so we can determine if it's a file or directory. If we
+    // can't stat the file, ignore it.
+    struct stat buf;
+    if (stat(path, &buf) != 0)
+      continue;
+
+    // If this is not a regular file, ignore it. We want to prevent removal of
+    // special files like /dev/null, even if the compiler is being run with the
+    // super-user permissions.
+    if (!S_ISREG(buf.st_mode))
+      continue;
+  
+    // Otherwise, remove the file. We ignore any errors here as there is nothing
+    // else we can do.
+    unlink(path);
   }
 }
 
@@ -243,7 +255,7 @@ void llvm::sys::AddSignalHandler(void (*FnPtr)(void *), void *Cookie) {
 // On glibc systems we have the 'backtrace' function, which works nicely, but
 // doesn't demangle symbols.
 static void PrintStackTrace(void *) {
-#ifdef HAVE_BACKTRACE
+#if defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES)
   static void* StackTrace[256];
   // Use backtrace() to output a backtrace on Linux systems with glibc.
   int depth = backtrace(StackTrace,
@@ -293,7 +305,7 @@ static void PrintStackTrace(void *) {
 #endif
 }
 
-/// PrintStackTraceOnErrorSignal - When an error signal (such as SIBABRT or
+/// PrintStackTraceOnErrorSignal - When an error signal (such as SIGABRT or
 /// SIGSEGV) is delivered to the process, print a stack trace and then exit.
 void llvm::sys::PrintStackTraceOnErrorSignal() {
   AddSignalHandler(PrintStackTrace, 0);
@@ -305,10 +317,10 @@ void llvm::sys::PrintStackTraceOnErrorSignal() {
 
     exception_mask_t mask = EXC_MASK_CRASH;
 
-    kern_return_t ret = task_set_exception_ports(self, 
+    kern_return_t ret = task_set_exception_ports(self,
                              mask,
                              MACH_PORT_NULL,
-                             EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES, 
+                             EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES,
                              THREAD_STATE_NONE);
     (void)ret;
   }

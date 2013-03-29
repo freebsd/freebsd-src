@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #define WRITE_BUFFER_WRITE_DATA              0x02
 #define WRITE_BUFFER_DOWNLOAD_SAVE           0x05
 #define WRITE_BUFFER_OFFSET_DOWNLOAD_SAVE    0x07
-#define BLOCK_SIZE                           512
+#define DOWNLOAD_MICROCODE_BLOCK_SIZE        512
 
 /**
 * @brief This method will translate the SCSI Write Buffer command
@@ -89,6 +89,7 @@ SATI_STATUS sati_write_buffer_translate_command(
    U8 * cdb = sati_cb_get_cdb_address(scsi_io);
    SATI_STATUS status = SATI_FAILURE;
    U32 allocation_length;
+   U32 allocation_blocks;
    U32 buffer_offset;
 
    allocation_length = ((sati_get_cdb_byte(cdb, 6) << 16) |
@@ -100,11 +101,13 @@ SATI_STATUS sati_write_buffer_translate_command(
                     (sati_get_cdb_byte(cdb, 5)));
 
    sequence->allocation_length = allocation_length;
+   allocation_blocks = allocation_length / DOWNLOAD_MICROCODE_BLOCK_SIZE;
 
    switch(sati_get_cdb_byte(cdb, 1))
    {
       case WRITE_BUFFER_WRITE_DATA:
-         if((allocation_length == BLOCK_SIZE) && (buffer_offset == 0) &&
+         if((allocation_length == DOWNLOAD_MICROCODE_BLOCK_SIZE) && 
+            (buffer_offset == 0) &&
             (sati_get_cdb_byte(cdb, 2) == 0))
          {
             sati_ata_write_buffer_construct(ata_io, sequence);
@@ -146,8 +149,9 @@ SATI_STATUS sati_write_buffer_translate_command(
       case WRITE_BUFFER_OFFSET_DOWNLOAD_SAVE:
          if(((allocation_length & 0x000001FF) == 0) && //Bits 08:00 need to be zero per SAT2v7
             ((buffer_offset & 0x000001FF) == 0)     &&
-            (allocation_length <= sequence->device->max_blocks_per_microcode_command) &&
-            (allocation_length >= sequence->device->min_blocks_per_microcode_command))
+            (allocation_blocks <= sequence->device->max_blocks_per_microcode_command) &&
+            ((allocation_blocks >= sequence->device->min_blocks_per_microcode_command) ||
+            (allocation_length == 0)))
          {
             sati_ata_download_microcode_construct(
                ata_io,

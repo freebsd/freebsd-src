@@ -93,6 +93,7 @@ vpipe(const char *fmt, ...)
     fp = popen(cmd, "r");
     if (fp == NULL) {
 	warnx("popen() failed");
+	va_end(args);
 	return NULL;
     }
     get_string(rp, MAXPATHLEN, fp);

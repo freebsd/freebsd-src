@@ -398,6 +398,12 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
 
 	/* AVM USB Bluetooth-Adapter BlueFritz! v2.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x3800, 0) },
+
+	/* Broadcom USB dongles, mostly BCM20702 and BCM20702A0 */
+	{ USB_VENDOR(USB_VENDOR_BROADCOM),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
 };
 
 /*
@@ -439,6 +445,7 @@ ubt_attach(device_t dev)
 	struct ubt_softc		*sc = device_get_softc(dev);
 	struct usb_endpoint_descriptor	*ed;
 	struct usb_interface_descriptor *id;
+	struct usb_interface		*iface;
 	uint16_t			wMaxPacketSize;
 	uint8_t				alt_index, i, j;
 	uint8_t				iface_index[2] = { 0, 1 };
@@ -554,10 +561,21 @@ ubt_attach(device_t dev)
 		goto detach;
 	}
 
-	/* Claim all interfaces on the device */
-	for (i = 1; usbd_get_iface(uaa->device, i) != NULL; i ++)
-		usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+	/* Claim all interfaces belonging to the Bluetooth part */
+	for (i = 1;; i++) {
+		iface = usbd_get_iface(uaa->device, i);
+		if (iface == NULL)
+			break;
+		id = usbd_get_interface_descriptor(iface);
 
+		if ((id != NULL) &&
+		    (id->bInterfaceClass == UICLASS_WIRELESS) &&
+		    (id->bInterfaceSubClass == UISUBCLASS_RF) &&
+		    (id->bInterfaceProtocol == UIPROTO_BLUETOOTH)) {
+			usbd_set_parent_iface(uaa->device, i,
+			    uaa->info.bIfaceIndex);
+		}
+	}
 	return (0); /* success */
 
 detach:
@@ -698,13 +716,13 @@ ubt_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		/* Allocate a new mbuf */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
 		}
 
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if (!(m->m_flags & M_EXT)) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
@@ -798,13 +816,13 @@ ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		/* Allocate new mbuf */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
 		}
 
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if (!(m->m_flags & M_EXT)) {
 			UBT_STAT_IERROR(sc);
 			goto submit_next;
@@ -1008,13 +1026,13 @@ ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
 	while (total > 0) {
 		if (m == NULL) {
 			/* Start new reassembly buffer */
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				UBT_STAT_IERROR(sc);
 				return (-1);	/* XXX out of sync! */
 			}
 
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if (!(m->m_flags & M_EXT)) {
 				UBT_STAT_IERROR(sc);
 				NG_FREE_M(m);
@@ -1748,7 +1766,7 @@ static device_method_t	ubt_methods[] =
 	DEVMETHOD(device_probe,	ubt_probe),
 	DEVMETHOD(device_attach, ubt_attach),
 	DEVMETHOD(device_detach, ubt_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t		ubt_driver =

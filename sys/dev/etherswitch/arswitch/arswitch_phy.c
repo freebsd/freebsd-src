@@ -75,13 +75,19 @@ static SYSCTL_NODE(_debug, OID_AUTO, arswitch, CTLFLAG_RD, 0, "arswitch");
 int
 arswitch_readphy(device_t dev, int phy, int reg)
 {
+	struct arswitch_softc *sc;
 	uint32_t data = 0, ctrl;
 	int err, timeout;
+
+	sc = device_get_softc(dev);
+	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
 
 	if (phy < 0 || phy >= 32)
 		return (ENXIO);
 	if (reg < 0 || reg >= 32)
 		return (ENXIO);
+
+	ARSWITCH_LOCK(sc);
 	err = arswitch_writereg_msb(dev, AR8X16_REG_MDIO_CTRL,
 	    AR8X16_MDIO_CTRL_BUSY | AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_READ |
@@ -89,41 +95,50 @@ arswitch_readphy(device_t dev, int phy, int reg)
 	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT));
 	DEVERR(dev, err, "arswitch_readphy()=%d: phy=%d.%02x\n", phy, reg);
 	if (err != 0)
-		return (-1);
+		goto fail;
 	for (timeout = 100; timeout--; ) {
 		ctrl = arswitch_readreg_msb(dev, AR8X16_REG_MDIO_CTRL);
 		if ((ctrl & AR8X16_MDIO_CTRL_BUSY) == 0)
 			break;
 	}
 	if (timeout < 0)
-		err = EIO;
+		goto fail;
 	data = arswitch_readreg_lsb(dev, AR8X16_REG_MDIO_CTRL) &
 	    AR8X16_MDIO_CTRL_DATA_MASK;
+	ARSWITCH_UNLOCK(sc);
 	return (data);
+
+fail:
+	ARSWITCH_UNLOCK(sc);
+	return (-1);
 }
 
 int
 arswitch_writephy(device_t dev, int phy, int reg, int data)
 {
+	struct arswitch_softc *sc;
 	uint32_t ctrl;
 	int err, timeout;
-	
+
+	sc = device_get_softc(dev);
+	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
+
 	if (reg < 0 || reg >= 32)
 		return (ENXIO);
+
+	ARSWITCH_LOCK(sc);
 	err = arswitch_writereg_lsb(dev, AR8X16_REG_MDIO_CTRL,
 	    (data & AR8X16_MDIO_CTRL_DATA_MASK));
-	DEVERR(dev, err, "arswitch_writephy()=%d: phy=%d.%02x\n", phy, reg);
 	if (err != 0)
-		return (err);
+		goto out;
 	err = arswitch_writereg_msb(dev, AR8X16_REG_MDIO_CTRL,
 	    AR8X16_MDIO_CTRL_BUSY |
 	    AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_WRITE |
 	    (phy << AR8X16_MDIO_CTRL_PHY_ADDR_SHIFT) |
 	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT));
-	DEVERR(dev, err, "arswitch_writephy()=%d: phy=%d.%02x\n", phy, reg);
 	if (err != 0)
-		return (err);
+		goto out;
 	for (timeout = 100; timeout--; ) {
 		ctrl = arswitch_readreg(dev, AR8X16_REG_MDIO_CTRL);
 		if ((ctrl & AR8X16_MDIO_CTRL_BUSY) == 0)
@@ -131,6 +146,8 @@ arswitch_writephy(device_t dev, int phy, int reg, int data)
 	}
 	if (timeout < 0)
 		err = EIO;
+out:
 	DEVERR(dev, err, "arswitch_writephy()=%d: phy=%d.%02x\n", phy, reg);
+	ARSWITCH_UNLOCK(sc);
 	return (err);
 }

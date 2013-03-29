@@ -241,8 +241,8 @@ dumpfs(const char *name)
 	    afs.fs_sblkno, afs.fs_cblkno, afs.fs_iblkno, afs.fs_dblkno);
 	printf("cgrotor\t%d\tfmod\t%d\tronly\t%d\tclean\t%d\n",
 	    afs.fs_cgrotor, afs.fs_fmod, afs.fs_ronly, afs.fs_clean);
-	printf("avgfpdir %d\tavgfilesize %d\n",
-	    afs.fs_avgfpdir, afs.fs_avgfilesize);
+	printf("metaspace %jd\tavgfpdir %d\tavgfilesize %d\n",
+	    afs.fs_metaspace, afs.fs_avgfpdir, afs.fs_avgfilesize);
 	printf("flags\t");
 	if (afs.fs_old_flags & FS_FLAGS_UPDATED)
 		fsflags = afs.fs_flags;
@@ -277,8 +277,9 @@ dumpfs(const char *name)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
 	printf("fsmnt\t%s\n", afs.fs_fsmnt);
-	printf("volname\t%s\tswuid\t%ju\n",
-		afs.fs_volname, (uintmax_t)afs.fs_swuid);
+	printf("volname\t%s\tswuid\t%ju\tprovidersize\t%ju\n",
+		afs.fs_volname, (uintmax_t)afs.fs_swuid,
+		(uintmax_t)afs.fs_providersize);
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
 	afs.fs_csp = calloc(1, afs.fs_cssize);
 	if (bread(&disk, fsbtodb(&afs, afs.fs_csaddr), afs.fs_csp, afs.fs_cssize) == -1)
@@ -419,6 +420,8 @@ marshal(const char *name)
 	/* -i is dumb */
 	if (fs->fs_flags & FS_SUJ)
 		printf("-j ");
+	if (fs->fs_flags & FS_GJOURNAL)
+		printf("-J ");
 	/* -k..l unimplemented */
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */

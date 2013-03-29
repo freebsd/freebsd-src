@@ -53,9 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
 
-#include <sys/module.h> /* XXX: Hack */
 #include <cam/scsi/scsi_low.h>
 
 #include <dev/ic/wd33c93reg.h>
@@ -80,9 +78,7 @@ typedef	unsigned long vaddr_t;
  * GENERIC MACHDEP FUNCTIONS
  *********************************************************/
 void
-bshw_synch_setup(ct, ti)
-	struct ct_softc *ct;
-	struct targ_info *ti;
+bshw_synch_setup(struct ct_softc *ct, struct targ_info *ti)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	struct ct_targ_info *cti = (void *) ti;
@@ -101,8 +97,7 @@ bshw_synch_setup(ct, ti)
 }
 
 void
-bshw_bus_reset(ct)
-	struct ct_softc *ct;
+bshw_bus_reset(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -115,8 +110,9 @@ bshw_bus_reset(ct)
 	/* open hardware busmaster mode */
 	if (hw->hw_dma_init != NULL && ((*hw->hw_dma_init)(ct)) != 0)
 	{
-		printf("%s: change mode using external DMA (%x)\n",
-		    slp->sl_xname, (u_int)ct_cr_read_1(chp, 0x37));
+		device_printf(slp->sl_dev,
+		    "change mode using external DMA (%x)\n",
+		    (u_int)ct_cr_read_1(chp, 0x37));
 	}
 
 	/* clear hardware synch registers */
@@ -150,9 +146,7 @@ bshw_bus_reset(ct)
 
 /* probe */
 int
-bshw_read_settings(chp, bs)
-	struct ct_bus_access_handle *chp;
-	struct bshw_softc *bs;
+bshw_read_settings(struct ct_bus_access_handle *chp, struct bshw_softc *bs)
 {
 	static int irq_tbl[] = { 3, 5, 6, 9, 12, 13 };
 
@@ -184,8 +178,7 @@ static __inline void bshw_lc_smit_stop(struct ct_softc *);
 static int bshw_lc_smit_fstat(struct ct_softc *, int, int);
 
 static __inline void
-bshw_lc_smit_stop(ct)
-	struct ct_softc *ct;
+bshw_lc_smit_stop(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 
@@ -194,10 +187,7 @@ bshw_lc_smit_stop(ct)
 }
 
 static __inline void
-bshw_lc_smit_start(ct, count, direction)
-	struct ct_softc *ct;
-	int count;
-	u_int direction;
+bshw_lc_smit_start(struct ct_softc *ct, int count, u_int direction)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	u_int8_t pval, val;
@@ -213,9 +203,7 @@ bshw_lc_smit_start(ct, count, direction)
 }
 
 static int
-bshw_lc_smit_fstat(ct, wc, read)
-	struct ct_softc *ct;
-	int wc, read;
+bshw_lc_smit_fstat(struct ct_softc *ct, int wc, int read)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	u_int8_t stat;
@@ -240,13 +228,12 @@ bshw_lc_smit_fstat(ct, wc, read)
 		}
 	}
 
-	printf("%s: SMIT fifo status timeout\n", ct->sc_sclow.sl_xname);
+	device_printf(ct->sc_sclow.sl_dev, "SMIT fifo status timeout\n");
 	return EIO;
 }
 
 void
-bshw_smit_xfer_stop(ct)
-	struct ct_softc *ct;
+bshw_smit_xfer_stop(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct bshw_softc *bs = ct->ct_hw;
@@ -279,21 +266,21 @@ bshw_smit_xfer_stop(ct)
 		else if (count > bs->sc_sdatalen)
 		{
 bad:
-			printf("%s: smit_xfer_end: cnt error\n", slp->sl_xname);
+			device_printf(slp->sl_dev,
+			    "smit_xfer_end: cnt error\n");
 			slp->sl_error |= PDMAERR;
 		}
 		scsi_low_data_finish(slp);
 	}
 	else
 	{
-		printf("%s: smit_xfer_end: phase miss\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "smit_xfer_end: phase miss\n");
 		slp->sl_error |= PDMAERR;
 	}
 }
 
 int
-bshw_smit_xfer_start(ct)
-	struct ct_softc *ct;
+bshw_smit_xfer_start(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -396,8 +383,7 @@ static void bshw_dmastart(struct ct_softc *);
 static void bshw_dmadone(struct ct_softc *);
 
 int
-bshw_dma_xfer_start(ct)
-	struct ct_softc *ct;
+bshw_dma_xfer_start(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct sc_p *sp = &slp->sl_scp;
@@ -458,8 +444,7 @@ bshw_dma_xfer_start(ct)
 }
 
 void
-bshw_dma_xfer_stop(ct)
-	struct ct_softc *ct;
+bshw_dma_xfer_stop(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct sc_p *sp = &slp->sl_scp;
@@ -488,8 +473,9 @@ bshw_dma_xfer_stop(ct)
 		}
 		else if (count > (u_int) bs->sc_seglen)
 		{
-			printf("%s: port data %x != seglen %x\n",
-				slp->sl_xname, count, bs->sc_seglen);
+			device_printf(slp->sl_dev,
+			    "port data %x != seglen %x\n",
+			    count, bs->sc_seglen);
 			slp->sl_error |= PDMAERR;
 		}
 
@@ -497,7 +483,7 @@ bshw_dma_xfer_stop(ct)
 	}
 	else
 	{
-		printf("%s: extra DMA interrupt\n", slp->sl_xname);
+		device_printf(slp->sl_dev, "extra DMA interrupt\n");
 		slp->sl_error |= PDMAERR;
 	}
 
@@ -522,10 +508,8 @@ bshw_dma_xfer_stop(ct)
 static bus_addr_t dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 
 static __inline void 
-bshw_dma_write_1(chp, port, val)
-	struct ct_bus_access_handle *chp;
-	bus_addr_t port;
-	u_int8_t val;
+bshw_dma_write_1(struct ct_bus_access_handle *chp, bus_addr_t port, 
+    u_int8_t val)
 {
 
 	CT_BUS_WEIGHT(chp);
@@ -533,8 +517,7 @@ bshw_dma_write_1(chp, port, val)
 }
 
 static void
-bshw_dmastart(ct)
-	struct ct_softc *ct;
+bshw_dmastart(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct bshw_softc *bs = ct->ct_hw;
@@ -580,8 +563,7 @@ bshw_dmastart(ct)
 }
 
 static void
-bshw_dmadone(ct)
-	struct ct_softc *ct;
+bshw_dmadone(struct ct_softc *ct)
 {
 	struct bshw_softc *bs = ct->ct_hw;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -608,8 +590,7 @@ static void bshw_dma_start_elecom(struct ct_softc *);
 static void bshw_dma_stop_elecom(struct ct_softc *);
 
 static int
-bshw_dma_init_texa(ct)
-	struct ct_softc *ct;
+bshw_dma_init_texa(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	u_int8_t regval;
@@ -624,8 +605,7 @@ bshw_dma_init_texa(ct)
 }
 
 static int
-bshw_dma_init_sc98(ct)
-	struct ct_softc *ct;
+bshw_dma_init_sc98(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 
@@ -651,8 +631,7 @@ bshw_dma_init_sc98(ct)
 }
 
 static void
-bshw_dma_start_sc98(ct)
-	struct ct_softc *ct;
+bshw_dma_start_sc98(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 
@@ -661,8 +640,7 @@ bshw_dma_start_sc98(ct)
 }
 
 static void
-bshw_dma_stop_sc98(ct)
-	struct ct_softc *ct;
+bshw_dma_stop_sc98(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 
@@ -671,8 +649,7 @@ bshw_dma_stop_sc98(ct)
 }
 
 static void
-bshw_dma_start_elecom(ct)
-	struct ct_softc *ct;
+bshw_dma_start_elecom(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	u_int8_t tmp = ct_cr_read_1(chp, 0x4c);
@@ -681,8 +658,7 @@ bshw_dma_start_elecom(ct)
 }
 
 static void
-bshw_dma_stop_elecom(ct)
-	struct ct_softc *ct;
+bshw_dma_stop_elecom(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	u_int8_t tmp = ct_cr_read_1(chp, 0x4c);

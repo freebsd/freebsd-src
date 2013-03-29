@@ -39,9 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
+#include <sys/lock.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/stat.h>
@@ -445,7 +447,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	vm_page_t	m;
 	int		error, rv;
 
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
@@ -455,20 +457,20 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 				vm_page_lock(m);
 				vm_page_free(m);
 				vm_page_unlock(m);
-				VM_OBJECT_UNLOCK(tobj);
+				VM_OBJECT_WUNLOCK(tobj);
 				return (EIO);
 			}
 		} else
 			vm_page_zero_invalid(m, TRUE);
 	}
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	vm_page_lock(m);
 	vm_page_unwire(m, TRUE);
 	vm_page_unlock(m);
 	vm_page_wakeup(m);
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 
 	return (error);
 }
@@ -511,11 +513,7 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) ||
-	    (vobj->resident_page_count == 0 && vobj->cache == NULL))
-		goto nocache;
-
-	VM_OBJECT_LOCK(vobj);
+	VM_OBJECT_WLOCK(vobj);
 lookupvpg:
 	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(m, offset, tlen)) {
@@ -529,11 +527,11 @@ lookupvpg:
 			goto lookupvpg;
 		}
 		vm_page_busy(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		error = uiomove_fromphys(&m, offset, tlen, uio);
-		VM_OBJECT_LOCK(vobj);
+		VM_OBJECT_WLOCK(vobj);
 		vm_page_wakeup(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		return	(error);
 	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
 		KASSERT(offset == 0,
@@ -548,7 +546,7 @@ lookupvpg:
 			goto lookupvpg;
 		}
 		vm_page_busy(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
 		ma = (char *)sf_buf_kva(sf);
@@ -561,15 +559,14 @@ lookupvpg:
 		}
 		sf_buf_free(sf);
 		sched_unpin();
-		VM_OBJECT_LOCK(vobj);
+		VM_OBJECT_WLOCK(vobj);
 		if (error == 0)
 			m->valid = VM_PAGE_BITS_ALL;
 		vm_page_wakeup(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		return	(error);
 	}
-	VM_OBJECT_UNLOCK(vobj);
-nocache:
+	VM_OBJECT_WUNLOCK(vobj);
 	error = tmpfs_nocacheread(tobj, idx, offset, tlen, uio);
 
 	return	(error);
@@ -639,13 +636,7 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) ||
-	    (vobj->resident_page_count == 0 && vobj->cache == NULL)) {
-		vpg = NULL;
-		goto nocache;
-	}
-
-	VM_OBJECT_LOCK(vobj);
+	VM_OBJECT_WLOCK(vobj);
 lookupvpg:
 	if (((vpg = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(vpg, offset, tlen)) {
@@ -660,16 +651,15 @@ lookupvpg:
 		}
 		vm_page_busy(vpg);
 		vm_page_undirty(vpg);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
 		if (vm_page_is_cached(vobj, idx))
 			vm_page_cache_free(vobj, idx, idx + 1);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		vpg = NULL;
 	}
-nocache:
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (tpg->valid != VM_PAGE_BITS_ALL) {
@@ -685,14 +675,14 @@ nocache:
 		} else
 			vm_page_zero_invalid(tpg, TRUE);
 	}
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 	if (vpg == NULL)
 		error = uiomove_fromphys(&tpg, offset, tlen, uio);
 	else {
 		KASSERT(vpg->valid == VM_PAGE_BITS_ALL, ("parts of vpg invalid"));
 		pmap_copy_page(vpg, tpg);
 	}
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	if (error == 0) {
 		KASSERT(tpg->valid == VM_PAGE_BITS_ALL,
 		    ("parts of tpg invalid"));
@@ -703,11 +693,11 @@ nocache:
 	vm_page_unlock(tpg);
 	vm_page_wakeup(tpg);
 out:
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 	if (vpg != NULL) {
-		VM_OBJECT_LOCK(vobj);
+		VM_OBJECT_WLOCK(vobj);
 		vm_page_wakeup(vpg);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 	}
 
 	return	(error);
@@ -847,7 +837,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	/* Free the directory entry we just deleted.  Note that the node
 	 * referred by it will not be removed until the vnode is really
 	 * reclaimed. */
-	tmpfs_free_dirent(tmp, de, TRUE);
+	tmpfs_free_dirent(tmp, de);
 
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
 	error = 0;
@@ -1263,26 +1253,25 @@ tmpfs_rename(struct vop_rename_args *v)
 			fdnode->tn_links--;
 			TMPFS_NODE_UNLOCK(fdnode);
 		}
-
-		/* Do the move: just remove the entry from the source directory
-		 * and insert it into the target one. */
-		tmpfs_dir_detach(fdvp, de);
-		if (fcnp->cn_flags & DOWHITEOUT)
-			tmpfs_dir_whiteout_add(fdvp, fcnp);
-		if (tcnp->cn_flags & ISWHITEOUT)
-			tmpfs_dir_whiteout_remove(tdvp, tcnp);
-		tmpfs_dir_attach(tdvp, de);
 	}
+
+	/* Do the move: just remove the entry from the source directory
+	 * and insert it into the target one. */
+	tmpfs_dir_detach(fdvp, de);
+
+	if (fcnp->cn_flags & DOWHITEOUT)
+		tmpfs_dir_whiteout_add(fdvp, fcnp);
+	if (tcnp->cn_flags & ISWHITEOUT)
+		tmpfs_dir_whiteout_remove(tdvp, tcnp);
 
 	/* If the name has changed, we need to make it effective by changing
 	 * it in the directory entry. */
 	if (newname != NULL) {
 		MPASS(tcnp->cn_namelen <= MAXNAMLEN);
 
-		free(de->td_name, M_TMPFSNAME);
-		de->td_namelen = (uint16_t)tcnp->cn_namelen;
-		memcpy(newname, tcnp->cn_nameptr, tcnp->cn_namelen);
-		de->td_name = newname;
+		free(de->ud.td_name, M_TMPFSNAME);
+		de->ud.td_name = newname;
+		tmpfs_dirent_init(de, tcnp->cn_nameptr, tcnp->cn_namelen);
 
 		fnode->tn_status |= TMPFS_NODE_CHANGED;
 		tdnode->tn_status |= TMPFS_NODE_MODIFIED;
@@ -1291,18 +1280,24 @@ tmpfs_rename(struct vop_rename_args *v)
 	/* If we are overwriting an entry, we have to remove the old one
 	 * from the target directory. */
 	if (tvp != NULL) {
+		struct tmpfs_dirent *tde;
+
 		/* Remove the old entry from the target directory. */
-		de = tmpfs_dir_lookup(tdnode, tnode, tcnp);
-		tmpfs_dir_detach(tdvp, de);
+		tde = tmpfs_dir_lookup(tdnode, tnode, tcnp);
+		tmpfs_dir_detach(tdvp, tde);
 
 		/* Free the directory entry we just deleted.  Note that the
 		 * node referred by it will not be removed until the vnode is
 		 * really reclaimed. */
-		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), de, TRUE);
+		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), tde);
 	}
+
+	tmpfs_dir_attach(tdvp, de);
+
 	cache_purge(fvp);
 	if (tvp != NULL)
 		cache_purge(tvp);
+	cache_purge_negative(tdvp);
 
 	error = 0;
 
@@ -1427,7 +1422,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	/* Free the directory entry we just deleted.  Note that the node
 	 * referred by it will not be removed until the vnode is really
 	 * reclaimed. */
-	tmpfs_free_dirent(tmp, de, TRUE);
+	tmpfs_free_dirent(tmp, de);
 
 	/* Release the deleted vnode (will destroy the node, notify
 	 * interested parties and clean it from the cache). */
@@ -1473,8 +1468,8 @@ tmpfs_readdir(struct vop_readdir_args *v)
 	int *ncookies = v->a_ncookies;
 
 	int error;
-	off_t startoff;
-	off_t cnt = 0;
+	ssize_t startresid;
+	int cnt = 0;
 	struct tmpfs_node *node;
 
 	/* This operation only makes sense on directory nodes. */
@@ -1483,68 +1478,28 @@ tmpfs_readdir(struct vop_readdir_args *v)
 
 	node = VP_TO_TMPFS_DIR(vp);
 
-	startoff = uio->uio_offset;
+	startresid = uio->uio_resid;
 
-	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOT) {
-		error = tmpfs_dir_getdotdent(node, uio);
-		if (error != 0)
-			goto outok;
-		cnt++;
+	if (cookies != NULL && ncookies != NULL) {
+		cnt = howmany(node->tn_size, sizeof(struct tmpfs_dirent)) + 2;
+		*cookies = malloc(cnt * sizeof(**cookies), M_TEMP, M_WAITOK);
+		*ncookies = 0;
 	}
 
-	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOTDOT) {
-		error = tmpfs_dir_getdotdotdent(node, uio);
-		if (error != 0)
-			goto outok;
-		cnt++;
-	}
+	if (cnt == 0)
+		error = tmpfs_dir_getdents(node, uio, 0, NULL, NULL);
+	else
+		error = tmpfs_dir_getdents(node, uio, cnt, *cookies, ncookies);
 
-	error = tmpfs_dir_getdents(node, uio, &cnt);
+	if (error == EJUSTRETURN)
+		error = (uio->uio_resid != startresid) ? 0 : EINVAL;
 
-outok:
-	MPASS(error >= -1);
-
-	if (error == -1)
-		error = (cnt != 0) ? 0 : EINVAL;
+	if (error != 0 && cnt != 0)
+		free(*cookies, M_TEMP);
 
 	if (eofflag != NULL)
 		*eofflag =
 		    (error == 0 && uio->uio_offset == TMPFS_DIRCOOKIE_EOF);
-
-	/* Update NFS-related variables. */
-	if (error == 0 && cookies != NULL && ncookies != NULL) {
-		off_t i;
-		off_t off = startoff;
-		struct tmpfs_dirent *de = NULL;
-
-		*ncookies = cnt;
-		*cookies = malloc(cnt * sizeof(off_t), M_TEMP, M_WAITOK);
-
-		for (i = 0; i < cnt; i++) {
-			MPASS(off != TMPFS_DIRCOOKIE_EOF);
-			if (off == TMPFS_DIRCOOKIE_DOT) {
-				off = TMPFS_DIRCOOKIE_DOTDOT;
-			} else {
-				if (off == TMPFS_DIRCOOKIE_DOTDOT) {
-					de = TAILQ_FIRST(&node->tn_dir.tn_dirhead);
-				} else if (de != NULL) {
-					de = TAILQ_NEXT(de, td_entries);
-				} else {
-					de = tmpfs_dir_lookupbycookie(node,
-					    off);
-					MPASS(de != NULL);
-					de = TAILQ_NEXT(de, td_entries);
-				}
-				if (de == NULL)
-					off = TMPFS_DIRCOOKIE_EOF;
-				else
-					off = tmpfs_dircookie(de);
-			}
-
-			(*cookies)[i] = off;
-		}
-		MPASS(uio->uio_offset == off);
-	}
 
 	return error;
 }
@@ -1637,7 +1592,7 @@ tmpfs_print(struct vop_print_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%x, links %d\n",
+	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%lx, links %d\n",
 	    node, node->tn_flags, node->tn_links);
 	printf("\tmode 0%o, owner %d, group %d, size %jd, status 0x%x\n",
 	    node->tn_mode, node->tn_uid, node->tn_gid,

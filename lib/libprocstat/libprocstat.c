@@ -184,15 +184,18 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 	struct kinfo_proc *p0, *p;
 	size_t len;
 	int name[4];
+	int cnt;
 	int error;
 
 	assert(procstat);
 	assert(count);
 	p = NULL;
 	if (procstat->type == PROCSTAT_KVM) {
-		p0 = kvm_getprocs(procstat->kd, what, arg, count);
-		if (p0 == NULL || count == 0)
+		*count = 0;
+		p0 = kvm_getprocs(procstat->kd, what, arg, &cnt);
+		if (p0 == NULL || cnt <= 0)
 			return (NULL);
+		*count = cnt;
 		len = *count * sizeof(*p);
 		p = malloc(len);
 		if (p == NULL) {
@@ -597,7 +600,6 @@ kinfo_fflags2fst(int kfflags)
 	} kfflags2fst[] = {
 		{ KF_FLAG_APPEND, PS_FST_FFLAG_APPEND },
 		{ KF_FLAG_ASYNC, PS_FST_FFLAG_ASYNC },
-		{ KF_FLAG_CAPABILITY, PS_FST_FFLAG_CAPABILITY },
 		{ KF_FLAG_CREAT, PS_FST_FFLAG_CREAT },
 		{ KF_FLAG_DIRECT, PS_FST_FFLAG_DIRECT },
 		{ KF_FLAG_EXCL, PS_FST_FFLAG_EXCL },
@@ -970,11 +972,6 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		FSTYPE(isofs),
 		FSTYPE(msdosfs),
 		FSTYPE(nfs),
-		FSTYPE(ntfs),
-#ifdef LIBPROCSTAT_NWFS
-		FSTYPE(nwfs), 
-#endif
-		FSTYPE(smbfs),
 		FSTYPE(udf), 
 		FSTYPE(ufs),
 #ifdef LIBPROCSTAT_ZFS

@@ -12,7 +12,11 @@ NO_MAN=
 SRCS=		start.S conf.c vers.c
 SRCS+=		ucmpdi2.c
 
+.if !defined(LOADER_NO_DISK_SUPPORT)
 LOADER_DISK_SUPPORT?=	yes
+.else
+LOADER_DISK_SUPPORT=	no
+.endif
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
@@ -99,7 +103,7 @@ LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-loader.help: help.common help.uboot
+loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 

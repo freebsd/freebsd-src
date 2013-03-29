@@ -34,6 +34,7 @@
 
 #define NG_NETFLOW_NODE_TYPE	"netflow"
 #define NGM_NETFLOW_COOKIE	1309868867
+#define NGM_NETFLOW_V9_COOKIE	1349865386
 
 #define	NG_NETFLOW_MAXIFACES	USHRT_MAX
 
@@ -58,6 +59,7 @@ enum {
     NGM_NETFLOW_SETCONFIG	= 7, 	/* set flow generation options */
     NGM_NETFLOW_SETTEMPLATE	= 8, 	/* set v9 flow template periodic */
     NGM_NETFLOW_SETMTU		= 9, 	/* set outgoing interface MTU */
+    NGM_NETFLOW_V9INFO = 10|NGM_READONLY|NGM_HASREPLY, 	/* get v9 info */
 };
 
 /* This structure is returned by the NGM_NETFLOW_INFO message */
@@ -145,6 +147,13 @@ struct ngnf_show_header {
 	uint32_t	hash_id;	/* current hash index */
 	uint32_t	list_id;	/* current record number in given hash */
 	uint32_t	nentries;	/* number of records in response */
+};
+
+/* This structure is used in NGM_NETFLOW_V9INFO message */
+struct ng_netflow_v9info {
+	uint16_t	templ_packets;	/* v9 template packets */
+	uint16_t	templ_time;	/* v9 template time */
+	uint16_t	mtu;		/* v9 MTU */
 };
 
 /* XXXGL
@@ -347,6 +356,14 @@ struct flow6_entry {
 	{ NULL }					\
 }
 
+/* Parse the v9info structure */
+#define	NG_NETFLOW_V9INFO_TYPE {			\
+	{ "v9 template packets",	&ng_parse_uint16_type },\
+	{ "v9 template time",	&ng_parse_uint16_type },\
+	{ "v9 MTU",		&ng_parse_uint16_type },\
+	{ NULL }					\
+}
+
 /* Private hook data */
 struct ng_netflow_iface {
 	hook_p		hook;		/* NULL when disconnected */
@@ -422,6 +439,7 @@ struct netflow {
 	fib_export_p		*fib_data; /* array of pointers to per-fib data */
 	uint16_t		maxfibs; /* number of allocated fibs */
 
+	/* Netflow v9 configuration options */
 	/*
 	 * RFC 3954 clause 7.3
 	 * "Both options MUST be configurable by the user on the Exporter."
@@ -472,6 +490,7 @@ void	ng_netflow_cache_init(priv_p);
 void	ng_netflow_cache_flush(priv_p);
 int	ng_netflow_fib_init(priv_p priv, int fib);
 void	ng_netflow_copyinfo(priv_p, struct ng_netflow_info *);
+void	ng_netflow_copyv9info(priv_p, struct ng_netflow_v9info *);
 timeout_t ng_netflow_expire;
 int 	ng_netflow_flow_add(priv_p, fib_export_p, struct ip *, caddr_t, uint8_t, uint8_t, unsigned int);
 int	ng_netflow_flow6_add(priv_p, fib_export_p, struct ip6_hdr *, caddr_t , uint8_t, uint8_t, unsigned int);

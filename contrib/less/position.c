@@ -162,7 +162,7 @@ empty_lines(s, e)
 	register int i;
 
 	for (i = s;  i <= e;  i++)
-		if (table[i] != NULL_POSITION)
+		if (table[i] != NULL_POSITION && table[i] != 0)
 			return (0);
 	return (1);
 }

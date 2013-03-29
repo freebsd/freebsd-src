@@ -63,8 +63,6 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-extern int debug;
-
 void
 process_request(CTL_MSG *mp, CTL_RESPONSE *rp)
 {

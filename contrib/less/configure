@@ -5188,8 +5188,7 @@ fi
 # Checks for regular expression functions.
 have_regex=no
 have_posix_regex=unknown
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for regcomp" >&5
-$as_echo_n "checking for regcomp... " >&6; }
+supported_regex=""
 
 # Select a regular expression library.
 WANT_REGEX=auto
@@ -5204,6 +5203,8 @@ if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = posix; then
 # Some versions of Solaris have a regcomp() function, but it doesn't work!
 # So we run a test program.  If we're cross-compiling, do it the old way.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for POSIX regcomp" >&5
+$as_echo_n "checking for POSIX regcomp... " >&6; }
 if test "$cross_compiling" = yes; then :
   have_posix_regex=unknown
 else
@@ -5232,10 +5233,10 @@ rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
 fi
 
 if test $have_posix_regex = yes; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: using POSIX regcomp" >&5
-$as_echo "using POSIX regcomp" >&6; }
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
   $as_echo "#define HAVE_POSIX_REGCOMP 1" >>confdefs.h
-
+ supported_regex="$supported_regex posix"
   have_regex=yes
 elif test $have_posix_regex = unknown; then
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -5252,10 +5253,10 @@ regex_t *r; regfree(r);
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: using POSIX regcomp" >&5
-$as_echo "using POSIX regcomp" >&6; }
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
   $as_echo "#define HAVE_POSIX_REGCOMP 1" >>confdefs.h
- have_regex=yes
+ have_regex=yes; supported_regex="$supported_regex posix"
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -5263,53 +5264,6 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
-fi
-fi
-
-if test $have_regex = no; then
-if test $WANT_REGEX = auto -o $WANT_REGEX = gnu; then
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for re_compile_pattern in -lc" >&5
-$as_echo_n "checking for re_compile_pattern in -lc... " >&6; }
-if ${ac_cv_lib_c_re_compile_pattern+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lc  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char re_compile_pattern ();
-int
-main ()
-{
-return re_compile_pattern ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_c_re_compile_pattern=yes
-else
-  ac_cv_lib_c_re_compile_pattern=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_c_re_compile_pattern" >&5
-$as_echo "$ac_cv_lib_c_re_compile_pattern" >&6; }
-if test "x$ac_cv_lib_c_re_compile_pattern" = xyes; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: using gnu" >&5
-$as_echo "using gnu" >&6; }; $as_echo "#define HAVE_GNU_REGEX 1" >>confdefs.h
- have_regex=yes
-fi
-
 fi
 fi
 
@@ -5352,9 +5306,54 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcre_pcre_compile" >&5
 $as_echo "$ac_cv_lib_pcre_pcre_compile" >&6; }
 if test "x$ac_cv_lib_pcre_pcre_compile" = xyes; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: using pcre" >&5
-$as_echo "using pcre" >&6; }; $as_echo "#define HAVE_PCRE 1" >>confdefs.h
- LIBS="$LIBS -lpcre" have_regex=yes
+  $as_echo "#define HAVE_PCRE 1" >>confdefs.h
+ LIBS="$LIBS -lpcre" have_regex=yes; supported_regex="$supported_regex pcre"
+fi
+
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = gnu; then
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for re_compile_pattern in -lc" >&5
+$as_echo_n "checking for re_compile_pattern in -lc... " >&6; }
+if ${ac_cv_lib_c_re_compile_pattern+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lc  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char re_compile_pattern ();
+int
+main ()
+{
+return re_compile_pattern ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_c_re_compile_pattern=yes
+else
+  ac_cv_lib_c_re_compile_pattern=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_c_re_compile_pattern" >&5
+$as_echo "$ac_cv_lib_c_re_compile_pattern" >&6; }
+if test "x$ac_cv_lib_c_re_compile_pattern" = xyes; then :
+  $as_echo "#define HAVE_GNU_REGEX 1" >>confdefs.h
+ have_regex=yes; supported_regex="$supported_regex gnu"
 fi
 
 fi
@@ -5364,9 +5363,8 @@ if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = regcmp; then
 ac_fn_c_check_func "$LINENO" "regcmp" "ac_cv_func_regcmp"
 if test "x$ac_cv_func_regcmp" = xyes; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: using regcmp" >&5
-$as_echo "using regcmp" >&6; }; $as_echo "#define HAVE_REGCMP 1" >>confdefs.h
- have_regex=yes
+  $as_echo "#define HAVE_REGCMP 1" >>confdefs.h
+ have_regex=yes; supported_regex="$supported_regex regcmp"
 fi
 
 fi
@@ -5374,6 +5372,8 @@ fi
 
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = regcomp; then
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for V8 regcomp" >&5
+$as_echo_n "checking for V8 regcomp... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5387,9 +5387,12 @@ regcomp("");
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: using V8 regcomp" >&5
-$as_echo "using V8 regcomp" >&6; }; $as_echo "#define HAVE_V8_REGCOMP 1" >>confdefs.h
- have_regex=yes
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }; $as_echo "#define HAVE_V8_REGCOMP 1" >>confdefs.h
+ have_regex=yes; supported_regex="$supported_regex regcomp"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
@@ -5400,18 +5403,21 @@ if test $have_regex = no && test -f ${srcdir}/regexp.c; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = regcomp-local; then
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: using V8 regcomp -- local source" >&5
 $as_echo "using V8 regcomp -- local source" >&6; }; $as_echo "#define HAVE_V8_REGCOMP 1" >>confdefs.h
- $as_echo "#define HAVE_REGEXEC2 1" >>confdefs.h
+
+supported_regex="$supported_regex regcomp-local"
+$as_echo "#define HAVE_REGEXEC2 1" >>confdefs.h
  REGEX_O='regexp.$(O)'  have_regex=yes
 fi
 fi
 
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = re_comp; then
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: using re_comp" >&5
-$as_echo "using re_comp" >&6; }; ac_fn_c_check_func "$LINENO" "re_comp" "ac_cv_func_re_comp"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for re_comp" >&5
+$as_echo_n "checking for re_comp... " >&6; }
+ac_fn_c_check_func "$LINENO" "re_comp" "ac_cv_func_re_comp"
 if test "x$ac_cv_func_re_comp" = xyes; then :
   $as_echo "#define HAVE_RE_COMP 1" >>confdefs.h
- have_regex=yes
+ have_regex=yes; supported_regex="$supported_regex re_comp"
 fi
 
 fi
@@ -5420,15 +5426,17 @@ fi
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = none; then
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: using no regex" >&5
-$as_echo "using no regex" >&6; }; have_regex=yes;
+$as_echo "using no regex" >&6; }
+else
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cannot find regular expression library" >&5
+$as_echo "$as_me: WARNING: cannot find regular expression library" >&2;}
 fi
+$as_echo "#define NO_REGEX 1" >>confdefs.h
+ supported_regex="$supported_regex none"
 fi
 
-if test $have_regex = no; then
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: cannot find regular expression library" >&5
-$as_echo "cannot find regular expression library" >&6; }; $as_echo "#define NO_REGEX 1" >>confdefs.h
-
-fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: regular expression library: $supported_regex" >&5
+$as_echo "regular expression library: $supported_regex" >&6; }
 
 
 # Check whether --with-editor was given.

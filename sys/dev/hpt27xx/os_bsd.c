@@ -133,7 +133,7 @@ HPT_U8 pcicfg_read_byte (HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
 }
 HPT_U32 pcicfg_read_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
 {
-	return (HPT_U32)pci_cfgregread(bus, dev, func, reg, 4);;
+	return (HPT_U32)pci_cfgregread(bus, dev, func, reg, 4);
 }
 void pcicfg_write_byte (HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg, HPT_U8 v)
 {

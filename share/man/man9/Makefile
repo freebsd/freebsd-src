@@ -280,7 +280,6 @@ MAN=	accept_filter.9 \
 	vfs_getnewfsid.9 \
 	vfs_getopt.9 \
 	vfs_getvfs.9 \
-	VFS_LOCK_GIANT.9 \
 	VFS_MOUNT.9 \
 	vfs_mount.9 \
 	vfs_mountedfrom.9 \
@@ -615,11 +614,13 @@ MLINKS+=devstat.9 devicestat.9 \
 MLINKS+=disk.9 disk_alloc.9 \
 	disk.9 disk_create.9 \
 	disk.9 disk_destroy.9 \
-	disk.9 disk_gone.9
+	disk.9 disk_gone.9 \
+	disk.9 disk_resize.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
 	domain.9 pfctlinput2.9 \
+	domain.9 pffinddomain.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
 MLINKS+=drbr.9 drbr_free.9 \
@@ -1195,9 +1196,13 @@ MLINKS+=signal.9 cursig.9 \
 	signal.9 SIG_STOPSIGMASK.9 \
 	signal.9 trapsignal.9
 MLINKS+=sleep.9 msleep.9 \
+	sleep.9 msleep_sbt.9 \
 	sleep.9 msleep_spin.9 \
+	sleep.9 msleep_spin_sbt.9 \
 	sleep.9 pause.9 \
+	sleep.9 pause_sbt.9 \
 	sleep.9 tsleep.9 \
+	sleep.9 tsleep_sbt.9 \
 	sleep.9 wakeup.9 \
 	sleep.9 wakeup_one.9
 MLINKS+=sleepqueue.9 init_sleepqueues.9 \
@@ -1212,6 +1217,7 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_release.9 \
 	sleepqueue.9 sleepq_remove.9 \
 	sleepqueue.9 sleepq_set_timeout.9 \
+	sleepqueue.9 sleepq_set_timeout_sbt.9 \
 	sleepqueue.9 sleepq_signal.9 \
 	sleepqueue.9 sleepq_timedwait.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
@@ -1334,6 +1340,9 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_init_rw.9 \
 	timeout.9 callout_pending.9 \
 	timeout.9 callout_reset.9 \
+	timeout.9 callout_reset_sbt.9 \
+	timeout.9 callout_reset_on.9 \
+	timeout.9 callout_reset_sbt_on.9 \
 	timeout.9 callout_schedule.9 \
 	timeout.9 callout_stop.9 \
 	timeout.9 untimeout.9
@@ -1413,7 +1422,6 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_setopt.9 \
 	vfs_getopt.9 vfs_setopt_part.9 \
 	vfs_getopt.9 vfs_setopts.9
-MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vhold.9 vdrop.9 \
 	vhold.9 vdropl.9 \
 	vhold.9 vholdl.9

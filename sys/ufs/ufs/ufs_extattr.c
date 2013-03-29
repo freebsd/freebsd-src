@@ -334,7 +334,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 		return (error);
 	}
 
-	vp->v_writecount++;
+	VOP_ADD_WRITECOUNT(vp, 1);
 	CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d", __func__, vp,
 	    vp->v_writecount);
 

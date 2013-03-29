@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -67,8 +68,6 @@ static char	root[] = "root";
 static int	all = 0;		/* eliminate all files (root only) */
 static int	cur_daemon;		/* daemon's pid */
 static char	current[7+MAXHOSTNAMELEN];  /* active control file name */
-
-extern uid_t	uid, euid;		/* real and effective user id's */
 
 static	void	alarmhandler(int _signo);
 static	void	do_unlink(char *_file);
@@ -110,12 +109,12 @@ rmjob(const char *printer)
 		person = root;
 	}
 
-	seteuid(euid);
+	PRIV_START
 	if (chdir(pp->spool_dir) < 0)
 		fatal(pp, "cannot chdir to spool directory");
 	if ((nitems = scandir(".", &files, iscf, NULL)) < 0)
 		fatal(pp, "cannot access spool directory");
-	seteuid(uid);
+	PRIV_END
 
 	if (nitems) {
 		/*
@@ -124,9 +123,9 @@ rmjob(const char *printer)
 		 *  (after which we have to restart the daemon).
 		 */
 		if (lockchk(pp, pp->lock_file) && chk(current)) {
-			seteuid(euid);
+			PRIV_START
 			assassinated = kill(cur_daemon, SIGINT) == 0;
-			seteuid(uid);
+			PRIV_END
 			if (!assassinated)
 				fatal(pp, "cannot kill printer daemon");
 		}
@@ -156,14 +155,14 @@ lockchk(struct printer *pp, char *slockf)
 	register FILE *fp;
 	register int i, n;
 
-	seteuid(euid);
+	PRIV_START
 	if ((fp = fopen(slockf, "r")) == NULL) {
 		if (errno == EACCES)
 			fatal(pp, "%s: %s", slockf, strerror(errno));
 		else
 			return(0);
 	}
-	seteuid(uid);
+	PRIV_END
 	if (!getline(fp)) {
 		(void) fclose(fp);
 		return(0);		/* no daemon present */
@@ -195,10 +194,10 @@ process(const struct printer *pp, char *file)
 
 	if (!chk(file))
 		return;
-	seteuid(euid);
+	PRIV_START
 	if ((cfp = fopen(file, "r")) == NULL)
 		fatal(pp, "cannot open %s", file);
-	seteuid(uid);
+	PRIV_END
 	while (getline(cfp)) {
 		switch (line[0]) {
 		case 'U':  /* unlink associated files */
@@ -218,9 +217,9 @@ do_unlink(char *file)
 
 	if (from_host != local_host)
 		printf("%s: ", local_host);
-	seteuid(euid);
+	PRIV_START
 	ret = unlink(file);
-	seteuid(uid);
+	PRIV_END
 	printf(ret ? "cannot dequeue %s\n" : "%s dequeued\n", file);
 }
 
@@ -248,10 +247,10 @@ chk(char *file)
 	/*
 	 * get the owner's name from the control file.
 	 */
-	seteuid(euid);
+	PRIV_START
 	if ((cfp = fopen(file, "r")) == NULL)
 		return(0);
-	seteuid(uid);
+	PRIV_END
 	while (getline(cfp)) {
 		if (line[0] == 'P')
 			break;

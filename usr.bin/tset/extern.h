@@ -30,9 +30,12 @@
  *	$FreeBSD$
  */
 
+#include <termios.h>
+
 extern struct termios mode, oldmode;
 extern int Columns, isreset, Lines;
 extern int erasech, intrchar, killch;
+extern speed_t Ospeed;
 
 void	 add_mapping(const char *, char *);
 void	 cat(char *);

@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2011
+.Dd November 14, 2012
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl ceoszW
+.Op Fl cemoszW
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
@@ -62,6 +62,12 @@ This option is incompatible with
 Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
+.It Fl m
+Report the mount options for all new NFS client mounts.
+This option overrides all others and
+.Nm
+will exit after completing the report.
+This option is only supported by the new NFS client.
 .It Fl N
 Extract the name list from the specified system instead of the default
 .Pa /boot/kernel/kernel .

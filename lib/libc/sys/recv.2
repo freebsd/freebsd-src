@@ -28,7 +28,7 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2006
+.Dd March 19, 2013
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Ft ssize_t
 .Fn recv "int s" "void *buf" "size_t len" "int flags"
 .Ft ssize_t
-.Fn recvfrom "int s" "void * restrict buf" "size_t len" "int flags" "struct sockaddr * restrict from" "socklen_t * restrict fromlen"
+.Fn recvfrom "int s" "void *buf" "size_t len" "int flags" "struct sockaddr * restrict from" "socklen_t * restrict fromlen"
 .Ft ssize_t
 .Fn recvmsg "int s" "struct msghdr *msg" "int flags"
 .Sh DESCRIPTION
@@ -121,11 +121,12 @@ argument to a
 function is formed by
 .Em or Ap ing
 one or more of the values:
-.Bl -column ".Dv MSG_DONTWAIT" -offset indent
+.Bl -column ".Dv MSG_CMSG_CLOEXEC" -offset indent
 .It Dv MSG_OOB Ta process out-of-band data
 .It Dv MSG_PEEK Ta peek at incoming message
 .It Dv MSG_WAITALL Ta wait for full request or error
 .It Dv MSG_DONTWAIT Ta do not block
+.It Dv MSG_CMSG_CLOEXEC Ta set received fds close-on-exec
 .El
 .Pp
 The
@@ -227,6 +228,10 @@ and
 .Fa cmsg_type
 set to
 .Dv SCM_RIGHTS .
+The close-on-exec flag on received descriptors is set according to the
+.Dv MSG_CMSG_CLOEXEC
+flag passed to
+.Fn recvmsg .
 .Pp
 Process credentials can also be passed as ancillary data for
 .Dv AF_UNIX
@@ -252,8 +257,21 @@ struct cmsgcred {
 };
 .Ed
 .Pp
-The kernel will fill in the credential information of the sending process
-and deliver it to the receiver.
+If a sender supplies ancillary data with enough space for the above struct
+tagged as
+.Dv SCM_CREDS
+control message type to the
+.Fn sendmsg
+system call, then kernel will fill in the credential information of the
+sending process and deliver it to the receiver.
+Since receiver usually has no control over a sender, this method of retrieving
+credential information isn't reliable.
+For reliable retrieval of remote side credentials it is advised to use the
+.Dv LOCAL_CREDS
+socket option on the receiving socket.
+See
+.Xr unix 4
+for details.
 .Pp
 The
 .Fa msg_flags
@@ -322,7 +340,8 @@ address space.
 .Xr getsockopt 2 ,
 .Xr read 2 ,
 .Xr select 2 ,
-.Xr socket 2
+.Xr socket 2 ,
+.Xr unix 4
 .Sh HISTORY
 The
 .Fn recv

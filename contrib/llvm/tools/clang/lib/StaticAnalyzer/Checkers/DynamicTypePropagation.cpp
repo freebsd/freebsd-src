@@ -83,14 +83,14 @@ void DynamicTypePropagation::checkPreCall(const CallEvent &Call,
 
   if (const CXXDestructorCall *Dtor = dyn_cast<CXXDestructorCall>(&Call)) {
     // C++11 [class.cdtor]p4 (see above)
+    if (!Dtor->isBaseDestructor())
+      return;
 
     const MemRegion *Target = Dtor->getCXXThisVal().getAsRegion();
     if (!Target)
       return;
 
-    // FIXME: getRuntimeDefinition() can be expensive. It would be better to do
-    // this when we are entering the stack frame for the destructor.
-    const Decl *D = Dtor->getRuntimeDefinition().getDecl();
+    const Decl *D = Dtor->getDecl();
     if (!D)
       return;
 
@@ -105,8 +105,7 @@ void DynamicTypePropagation::checkPostCall(const CallEvent &Call,
   if (const ObjCMethodCall *Msg = dyn_cast<ObjCMethodCall>(&Call)) {
 
     // Get the returned value if it's a region.
-    SVal Result = C.getSVal(Call.getOriginExpr());
-    const MemRegion *RetReg = Result.getAsRegion();
+    const MemRegion *RetReg = Call.getReturnValue().getAsRegion();
     if (!RetReg)
       return;
 

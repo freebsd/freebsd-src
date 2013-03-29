@@ -39,7 +39,9 @@
 #include <mmintrin.h>
 
 /* Get _mm_malloc () and _mm_free ().  */
+#if __STDC_HOSTED__
 #include <mm_malloc.h>
+#endif
 
 /* The Intel API is flexible enough that we must allow aliasing with other
    vector types, and their scalar components.  */

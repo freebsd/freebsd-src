@@ -59,7 +59,6 @@ static	void	 apply_specdir(const char *, NODE *, fsnode *, int);
 static	void	 apply_specentry(const char *, NODE *, fsnode *);
 static	fsnode	*create_fsnode(const char *, const char *, const char *,
 			       struct stat *);
-static	fsinode	*link_check(fsinode *);
 
 
 /*
@@ -644,7 +643,7 @@ inode_type(mode_t mode)
 /* This was borrowed from du.c and tweaked to keep an fsnode 
  * pointer instead. -- dbj@netbsd.org
  */
-static fsinode *
+fsinode *
 link_check(fsinode *entry)
 {
 	static struct entry {

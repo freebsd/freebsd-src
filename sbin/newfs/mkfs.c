@@ -263,6 +263,7 @@ restart:
 	}
 	sblock.fs_fsbtodb = ilog2(sblock.fs_fsize / sectorsize);
 	sblock.fs_size = fssize = dbtofsb(&sblock, fssize);
+	sblock.fs_providersize = dbtofsb(&sblock, mediasize / sectorsize);
 
 	/*
 	 * Before the filesystem is finally initialized, mark it
@@ -443,6 +444,12 @@ restart:
 	if (sblock.fs_sbsize > SBLOCKSIZE)
 		sblock.fs_sbsize = SBLOCKSIZE;
 	sblock.fs_minfree = minfree;
+	if (metaspace > 0 && metaspace < sblock.fs_fpg / 2)
+		sblock.fs_metaspace = blknum(&sblock, metaspace);
+	else if (metaspace != -1)
+		/* reserve half of minfree for metadata blocks */
+		sblock.fs_metaspace = blknum(&sblock,
+		    (sblock.fs_fpg * minfree) / 200);
 	if (maxbpg == 0)
 		sblock.fs_maxbpg = MAXBLKPG(sblock.fs_bsize);
 	else
@@ -1003,7 +1010,8 @@ iput(union dinode *ip, ino_t ino)
 	sblock.fs_cstotal.cs_nifree--;
 	fscs[0].cs_nifree--;
 	if (ino >= (unsigned long)sblock.fs_ipg * sblock.fs_ncg) {
-		printf("fsinit: inode value out of range (%d).\n", ino);
+		printf("fsinit: inode value out of range (%ju).\n",
+		    (uintmax_t)ino);
 		exit(32);
 	}
 	d = fsbtodb(&sblock, ino_to_fsba(&sblock, ino));

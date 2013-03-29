@@ -57,20 +57,20 @@ node should not have any hooks.
 .Sh CONTROL MESSAGES
 Interface membership in the FEC group is configured with the following
 control messages:
-.Bl -tag -width indent
-.It Dv NGM_FEC_ADD_IFACE Pq Dq Li add_iface
+.Bl -tag -width foo
+.It Dv NGM_FEC_ADD_IFACE Pq Ic add_iface
 Attach interface to the FEC group.
 The target interface name is passed as a string argument.
-.It Dv NGM_FEC_DEL_IFACE Pq Dq Li del_iface
+.It Dv NGM_FEC_DEL_IFACE Pq Ic del_iface
 Remove interface from the trunk.
 The target interface name is passed as a string argument.
 .El
 .Pp
 The following control messages define the forwarding method for a node:
-.Bl -tag -width indent
-.It Dv NGM_FEC_SET_MODE_MAC Pq Dq Li set_mode_mac
+.Bl -tag -width foo
+.It Dv NGM_FEC_SET_MODE_MAC Pq Ic set_mode_mac
 Forwarding decisions will be based on the link-layer MAC address of the destination.
-.It Dv NGM_FEC_SET_MODE_INET Pq Dq Li set_mode_inet
+.It Dv NGM_FEC_SET_MODE_INET Pq Ic set_mode_inet
 Forwarding decisions will be based on the IP address of the destination.
 .El
 .Sh SHUTDOWN

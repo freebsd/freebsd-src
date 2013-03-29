@@ -146,7 +146,7 @@ enum atmop {
 .Pp
 These codes correspond directly to the operations specified in the ATM
 Forum document with the following exceptions:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv ATMOP_RESP
 As discussed in
 .Xr ng_uni 4 ,
@@ -191,12 +191,12 @@ listening hooks or rejected.
 .Sh CONTROL MESSAGES
 Besides the generic messages the node understands the following special
 messages:
-.Bl -tag -width indent
-.It Dv NGM_CCATM_DUMP
+.Bl -tag -width foo
+.It Dv NGM_CCATM_DUMP Pq Ic dump
 This causes the internal state of the node to be dumped in ASCII to the
 .Va dump
 hook.
-.It Dv NGM_CCATM_STOP
+.It Dv NGM_CCATM_STOP Pq Ic stop
 This message causes all connections on that port to be aborted (not released!\&)
 and all ATM endpoints which are bound to that port to be closed.
 It stops processing of all messages from the UNI stack on that port UNI stack.
@@ -207,17 +207,17 @@ struct ngm_ccatm_port {
 };
 .Ed
 .Pp
-.It Dv NGM_CCATM_START
+.It Dv NGM_CCATM_START Pq Ic start
 Start processing on the port.
 The argument is a
 .Vt ngm_ccatm_port
 structure.
-.It Dv NGM_CCATM_CLEAR
+.It Dv NGM_CCATM_CLEAR Pq Ic clear
 This message takes a
 .Vt ngm_ccatm_port
 structure and clears all prefixes and addresses on that port.
 If the port number is zero, all ports are cleared.
-.It Dv NGM_CCATM_GET_ADDRESSES
+.It Dv NGM_CCATM_GET_ADDRESSES Pq Ic get_addresses
 Get the list of all registered addresses on the given port.
 The argument is a
 .Vt ngm_ccatm_port
@@ -243,7 +243,7 @@ If it is not zero, only the addresses on that port are reported.
 The number of addresses is returned in the
 .Va count
 field.
-.It Dv NGM_CCATM_ADDRESS_REGISTERED
+.It Dv NGM_CCATM_ADDRESS_REGISTERED Pq Ic address_reg
 This message is used by ILMI to inform the
 .Nm
 node that a previous address registration request was successful.
@@ -251,7 +251,7 @@ This causes the node to activate that address.
 The argument to the message is a
 .Vt ngm_ccatm_address_req
 structure.
-.It Dv NGM_CCATM_ADDRESS_UNREGISTERED
+.It Dv NGM_CCATM_ADDRESS_UNREGISTERED Pq Ic address_unreg
 This message is used by ILMI to inform the
 .Nm
 node that an address has been unregistered.
@@ -259,7 +259,7 @@ The node clears that address from its tables.
 The argument is a
 .Vt ngm_ccatm_address_req
 structure.
-.It Dv NGM_CCATM_SET_PORT_PARAM
+.It Dv NGM_CCATM_SET_PORT_PARAM Pq Ic set_port_param
 This request sets the parameters on the given port.
 The argument is a
 .Bd -literal
@@ -281,13 +281,13 @@ address and prefix tables of that port are empty.
 The
 .Va num_addr
 field is ignored.
-.It Dv NGM_CCATM_GET_PORT_PARAM
+.It Dv NGM_CCATM_GET_PORT_PARAM Pq Ic get_port_param
 Retrieve the parameters of the given port.
 The argument is a
 .Vt ngm_ccatm_port
 and the result a
 .Vt ngm_ccatm_atm_port .
-.It Dv NGM_CCATM_GET_PORTLIST
+.It Dv NGM_CCATM_GET_PORTLIST Pq Ic get_portlist
 Get a list of all available ports on that node.
 This is returned as a
 .Bd -literal
@@ -296,20 +296,20 @@ struct ngm_ccatm_portlist {
 	uint32_t	ports[];
 };
 .Ed
-.It Dv NGM_CCATM_GETSTATE
+.It Dv NGM_CCATM_GETSTATE Pq Ic getstate
 Return the state of a port.
 The argument is a
 .Vt "struct ngm_ccatm_port"
 and the return values as a
 .Vt uint32_t .
-.It Dv NGM_CCATM_SETLOG
+.It Dv NGM_CCATM_SETLOG Pq Ic setlog
 This requests sets a new logging level and returns the previous one.
 The argument is either a
 .Vt uint32_t
 in which case it specifies the new logging level, or may be empty
 in which case just the old level is returned as a
 .Vt uint32_t .
-.It Dv NGM_CCATM_RESET
+.It Dv NGM_CCATM_RESET Pq Ic reset
 Reset the node.
 This is allowed only if the number of user hooks and connected UNI stacks is
 zero.

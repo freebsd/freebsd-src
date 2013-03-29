@@ -3726,7 +3726,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	/*
 	 * Get the first mbuf for the request.
 	 */
-	MGET(m, M_WAIT, MT_DATA);
+	MGET(m, M_WAITOK, MT_DATA);
 	mbuf_setlen(m, 0);
 	nd->nd_mreq = nd->nd_mb = m;
 	nd->nd_bpos = NFSMTOD(m, caddr_t);
@@ -3780,7 +3780,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	newnfs_sndunlock(&clp->lc_req.nr_lock);
 	if (!error) {
 		error = newnfs_request(nd, NULL, clp, &clp->lc_req, NULL,
-		    NULL, cred, clp->lc_program, NFSV4_CBVERS, NULL, 1, NULL);
+		    NULL, cred, clp->lc_program, NFSV4_CBVERS, NULL, 1, NULL,
+		    NULL);
 	}
 	NFSFREECRED(cred);
 
@@ -3966,7 +3967,6 @@ nfsrv_setupstable(NFSPROC_T *p)
 	int error, i, tryagain;
 	off_t off = 0;
 	ssize_t aresid, len;
-	struct timeval curtime;
 
 	/*
 	 * If NFSNSF_UPDATEDONE is set, this is a restart of the nfsds without
@@ -3977,8 +3977,7 @@ nfsrv_setupstable(NFSPROC_T *p)
 	/*
 	 * Set Grace over just until the file reads successfully.
 	 */
-	NFSGETTIME(&curtime);
-	nfsrvboottime = curtime.tv_sec;
+	nfsrvboottime = time_second;
 	LIST_INIT(&sf->nsf_head);
 	sf->nsf_flags = (NFSNSF_GRACEOVER | NFSNSF_NEEDLOCK);
 	sf->nsf_eograce = NFSD_MONOSEC + NFSRV_LEASEDELTA;
@@ -4649,8 +4648,7 @@ out:
 APPLESTATIC void
 nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 {
-	struct timespec mytime;
-	int32_t starttime;
+	time_t starttime;
 	int error;
 
 	/*
@@ -4674,8 +4672,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	 * Now, call nfsrv_checkremove() in a loop while it returns
 	 * NFSERR_DELAY. Return upon any other error or when timed out.
 	 */
-	NFSGETNANOTIME(&mytime);
-	starttime = (u_int32_t)mytime.tv_sec;
+	starttime = NFSD_MONOSEC;
 	do {
 		if (NFSVOPLOCK(vp, LK_EXCLUSIVE) == 0) {
 			error = nfsrv_checkremove(vp, 0, p);
@@ -4683,11 +4680,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 		} else
 			error = EPERM;
 		if (error == NFSERR_DELAY) {
-			NFSGETNANOTIME(&mytime);
-			if (((u_int32_t)mytime.tv_sec - starttime) >
-			    NFS_REMOVETIMEO &&
-			    ((u_int32_t)mytime.tv_sec - starttime) <
-			    100000)
+			if (NFSD_MONOSEC - starttime > NFS_REMOVETIMEO)
 				break;
 			/* Sleep for a short period of time */
 			(void) nfs_catnap(PZERO, 0, "nfsremove");
@@ -4948,9 +4941,7 @@ nfsrv_notsamecredname(struct nfsrv_descript *nd, struct nfsclient *clp)
 static time_t
 nfsrv_leaseexpiry(void)
 {
-	struct timeval curtime;
 
-	NFSGETTIME(&curtime);
 	if (nfsrv_stablefirst.nsf_eograce > NFSD_MONOSEC)
 		return (NFSD_MONOSEC + 2 * (nfsrv_lease + NFSRV_LEASEDELTA));
 	return (NFSD_MONOSEC + nfsrv_lease + NFSRV_LEASEDELTA);

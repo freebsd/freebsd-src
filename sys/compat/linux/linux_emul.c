@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
+#include <compat/linux/linux_misc.h>
 
 /**
  * Special DTrace provider for the linuxulator.

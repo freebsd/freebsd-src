@@ -100,6 +100,7 @@ typedef	__useconds_t	useconds_t;
  * returns -1, the functions may be stubbed out.
  */
 #define	_POSIX_BARRIERS			200112L
+#define	_POSIX_CPUTIME			200112L
 #define	_POSIX_READER_WRITER_LOCKS	200112L
 #define	_POSIX_REGEXP			1
 #define	_POSIX_SHELL			1

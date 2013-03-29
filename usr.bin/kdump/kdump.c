@@ -1008,6 +1008,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				narg--;
 				break;
 			case SYS_cap_new:
+			case SYS_cap_rights_limit:
 				print_number(ip, narg, c);
 				putchar(',');
 				arg = *ip;
@@ -1034,6 +1035,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 					narg--;
 				}
 				capname(arg);
+				break;
+			case SYS_cap_fcntls_limit:
+				print_number(ip, narg, c);
+				putchar(',');
+				arg = *ip;
+				ip++;
+				narg--;
+				capfcntlname(arg);
 				break;
 			case SYS_posix_fadvise:
 				print_number(ip, narg, c);
@@ -1242,11 +1251,15 @@ ktrpsig(struct ktr_psig *psig)
 		printf("SIG%s ", signames[psig->signo]);
 	else
 		printf("SIG %d ", psig->signo);
-	if (psig->action == SIG_DFL)
-		printf("SIG_DFL code=0x%x\n", psig->code);
-	else {
-		printf("caught handler=0x%lx mask=0x%x code=0x%x\n",
-		    (u_long)psig->action, psig->mask.__bits[0], psig->code);
+	if (psig->action == SIG_DFL) {
+		printf("SIG_DFL code=");
+		sigcodename(psig->signo, psig->code);
+		putchar('\n');
+	} else {
+		printf("caught handler=0x%lx mask=0x%x code=",
+		    (u_long)psig->action, psig->mask.__bits[0]);
+		sigcodename(psig->signo, psig->code);
+		putchar('\n');
 	}
 }
 
@@ -1416,8 +1429,6 @@ ktrsockaddr(struct sockaddr *sa)
  TODO: Support additional address families
 	#include <netnatm/natm.h>
 	struct sockaddr_natm	*natm;
-	#include <netsmb/netbios.h>
-	struct sockaddr_nb	*nb;
 */
 	char addr[64];
 
@@ -1441,7 +1452,7 @@ ktrsockaddr(struct sockaddr *sa)
 		struct sockaddr_in sa_in;
 
 		memset(&sa_in, 0, sizeof(sa_in));
-		memcpy(&sa_in, sa, sizeof(sa));
+		memcpy(&sa_in, sa, sa->sa_len);
 		check_sockaddr_len(in);
 		inet_ntop(AF_INET, &sa_in.sin_addr, addr, sizeof addr);
 		printf("%s:%u", addr, ntohs(sa_in.sin_port));
@@ -1453,7 +1464,7 @@ ktrsockaddr(struct sockaddr *sa)
 		struct netrange		*nr;
 
 		memset(&sa_at, 0, sizeof(sa_at));
-		memcpy(&sa_at, sa, sizeof(sa));
+		memcpy(&sa_at, sa, sa->sa_len);
 		check_sockaddr_len(at);
 		nr = &sa_at.sat_range.r_netrange;
 		printf("%d.%d, %d-%d, %d", ntohs(sa_at.sat_addr.s_net),
@@ -1466,7 +1477,7 @@ ktrsockaddr(struct sockaddr *sa)
 		struct sockaddr_in6 sa_in6;
 
 		memset(&sa_in6, 0, sizeof(sa_in6));
-		memcpy(&sa_in6, sa, sizeof(sa));
+		memcpy(&sa_in6, sa, sa->sa_len);
 		check_sockaddr_len(in6);
 		inet_ntop(AF_INET6, &sa_in6.sin6_addr, addr, sizeof addr);
 		printf("[%s]:%u", addr, htons(sa_in6.sin6_port));
@@ -1477,7 +1488,7 @@ ktrsockaddr(struct sockaddr *sa)
 		struct sockaddr_ipx sa_ipx;
 
 		memset(&sa_ipx, 0, sizeof(sa_ipx));
-		memcpy(&sa_ipx, sa, sizeof(sa));
+		memcpy(&sa_ipx, sa, sa->sa_len);
 		check_sockaddr_len(ipx);
 		/* XXX wish we had ipx_ntop */
 		printf("%s", ipx_ntoa(sa_ipx.sipx_addr));
@@ -1489,8 +1500,7 @@ ktrsockaddr(struct sockaddr *sa)
 		struct sockaddr_un sa_un;
 
 		memset(&sa_un, 0, sizeof(sa_un));
-		memcpy(&sa_un, sa, sizeof(sa));
-		check_sockaddr_len(un);
+		memcpy(&sa_un, sa, sa->sa_len);
 		printf("%.*s", (int)sizeof(sa_un.sun_path), sa_un.sun_path);
 		break;
 	}
@@ -1614,8 +1624,7 @@ ktrstruct(char *buf, size_t buflen)
 		if (datalen > sizeof(ss))
 			goto invalid;
 		memcpy(&ss, data, datalen);
-		if (datalen < sizeof(struct sockaddr) ||
-		    datalen != ss.ss_len)
+		if (datalen != ss.ss_len)
 			goto invalid;
 		ktrsockaddr((struct sockaddr *)&ss);
 	} else {

@@ -292,7 +292,7 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
 	/*
 	 * Send the data.  We must put an atm_pseudohdr on first.
 	 */
-	M_PREPEND(m, sizeof(*aph), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*aph), M_NOWAIT);
 	if (m == NULL) {
 		NATM_UNLOCK();
 		m_freem(control);

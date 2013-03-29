@@ -1,10 +1,59 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1991 2011/05/15 04:28:16 ca Exp $
+      $Id: RELEASE_NOTES,v 8.2011 2012/12/21 18:42:16 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.6/8.14.6	2012/12/23
+	Fix a regression introduced in 8.14.5: if a server offers
+		two AUTH lines, the MTA would not read them after
+		STARTTLS has been used and hence SMTP AUTH for
+		the client side would fail.  Problem noted by Lena.
+	Do not cache hostnames internally in a non case sensitive way
+		as that may cause addresses to change from lower case
+		to upper case or vice versa. These header modifications
+		can cause problems with milters that rely on receiving
+		headers in the same way as they are being sent out such
+		as a DKIM signing milter.
+	If MaxQueueChildren is set then it was possible that new queue
+		runners could not be started anymore because an
+		internal counter was subject to a race condition.
+	If a milter decreases the timeout it waits for a communication
+		with the MTA, the MTA might experience a write() timeout.
+		In some situations, the resulting error might have been
+		ignored.  Problem noted by Werner Wiethege.
+		Note: decreasing the communication timeout in a milter
+		should not be done without considering the potential
+		problems.
+	smfi_setsymlist() now properly sets the list of macros for
+		the milter which invoked it, instead of a global
+		list for all milters.  Problem reported by
+		David Shrimpton of the University of Queensland.
+	If Timeout.resolver.retrans is set to a value larger than 20,
+		then resolver.retry was temporarily set to 0 for
+		gethostbyaddr() lookups. Now it is set to 1 instead.
+		Patch from Peter.
+	If sendmail could not lock the statistics file due to a system
+		error, and sendmail later sends a DSN for a mail that
+		triggered such an error, then sendmail tried to access
+		memory that was freed before (causing a crash on some
+		systems).  Problem reported by Ryan Stone.
+	Do not log negative values for size= nor pri= to avoid confusing
+		log parsers, instead limit the values to LONG_MAX.
+	Account for an API change in newer versions of Cyrus-SASL.
+		Patch from Hajimu UMEMOTO from FreeBSD.
+	Do not try to resolve link-local addresses for IPv4 (just as it
+		is done for IPv6).  Patch from John Beck of Oracle.
+	Improve logging of client and server STARTTLS connection failures
+		that may be due to incompatible cipher lists by including
+		the reason for the failure in a single log line.  Suggested
+		by James Carey of Boeing.
+	Portability:
+		Add support for Darwin 11.x and 12.x (Mac OS X 10.7 and 10.8).
+		Add support for SunOS 5.12 (aka Solaris 12). Patch from
+		John Beck of Oracle.
 
 8.14.5/8.14.5	2011/05/17
 	Do not cache SMTP extensions across connections as the cache

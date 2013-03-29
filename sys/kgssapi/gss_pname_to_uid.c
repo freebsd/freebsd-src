@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <kgssapi/gssapi.h>
 #include <kgssapi/gssapi_impl.h>
@@ -45,20 +47,23 @@ gss_pname_to_uid(OM_uint32 *minor_status, const gss_name_t pname,
 	struct pname_to_uid_res res;
 	struct pname_to_uid_args args;
 	enum clnt_stat stat;
+	CLIENT *cl;
 
 	*minor_status = 0;
 
-	if (!kgss_gssd_handle)
-		return (GSS_S_FAILURE);
-
 	if (pname == GSS_C_NO_NAME)
 		return (GSS_S_BAD_NAME);
+
+	cl = kgss_gssd_client();
+	if (cl == NULL)
+		return (GSS_S_FAILURE);
 
 	args.pname = pname->handle;
 	args.mech = mech;
 
 	bzero(&res, sizeof(res));
-	stat = gssd_pname_to_uid_1(&args, &res, kgss_gssd_handle);
+	stat = gssd_pname_to_uid_1(&args, &res, cl);
+	CLNT_RELEASE(cl);
 	if (stat != RPC_SUCCESS) {
 		*minor_status = stat;
 		return (GSS_S_FAILURE);
@@ -83,20 +88,23 @@ gss_pname_to_unix_cred(OM_uint32 *minor_status, const gss_name_t pname,
 	struct pname_to_uid_args args;
 	enum clnt_stat stat;
 	int i, n;
+	CLIENT *cl;
 
 	*minor_status = 0;
 
-	if (!kgss_gssd_handle)
-		return (GSS_S_FAILURE);
-
 	if (pname == GSS_C_NO_NAME)
 		return (GSS_S_BAD_NAME);
+
+	cl = kgss_gssd_client();
+	if (cl == NULL)
+		return (GSS_S_FAILURE);
 
 	args.pname = pname->handle;
 	args.mech = mech;
 
 	bzero(&res, sizeof(res));
-	stat = gssd_pname_to_uid_1(&args, &res, kgss_gssd_handle);
+	stat = gssd_pname_to_uid_1(&args, &res, cl);
+	CLNT_RELEASE(cl);
 	if (stat != RPC_SUCCESS) {
 		*minor_status = stat;
 		return (GSS_S_FAILURE);

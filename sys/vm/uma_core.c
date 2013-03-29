@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
@@ -79,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
@@ -158,7 +160,7 @@ static struct callout uma_callout;
  * a special allocation function just for zones.
  */
 struct uma_zctor_args {
-	char *name;
+	const char *name;
 	size_t size;
 	uma_ctor ctor;
 	uma_dtor dtor;
@@ -213,7 +215,7 @@ enum zfreeskip { SKIP_NONE, SKIP_DTOR, SKIP_FINI };
 
 /* Prototypes.. */
 
-static void *obj_alloc(uma_zone_t, int, u_int8_t *, int);
+static void *noobj_alloc(uma_zone_t, int, u_int8_t *, int);
 static void *page_alloc(uma_zone_t, int, u_int8_t *, int);
 static void *startup_alloc(uma_zone_t, int, u_int8_t *, int);
 static void page_free(void *, int, u_int8_t);
@@ -264,6 +266,11 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_count, CTLFLAG_RD|CTLTYPE_INT,
 
 SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
     0, 0, sysctl_vm_zone_stats, "s,struct uma_type_header", "Zone Stats");
+
+static int zone_warnings = 1;
+TUNABLE_INT("vm.zone_warnings", &zone_warnings);
+SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RW, &zone_warnings, 0,
+    "Warn when UMA zones becomes full");
 
 /*
  * This routine checks to see whether or not it's safe to enable buckets.
@@ -361,6 +368,18 @@ bucket_zone_drain(void)
 
 	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++)
 		zone_drain(ubz->ubz_zone);
+}
+
+static void
+zone_log_warning(uma_zone_t zone)
+{
+	static const struct timeval warninterval = { 300, 0 };
+
+	if (!zone_warnings || zone->uz_warning == NULL)
+		return;
+
+	if (ratecheck(&zone->uz_ratecheck, &warninterval))
+		printf("[zone: %s] %s\n", zone->uz_name, zone->uz_warning);
 }
 
 static inline uma_keg_t
@@ -1013,50 +1032,53 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
  *	NULL if M_NOWAIT is set.
  */
 static void *
-obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+noobj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	vm_object_t object;
+	TAILQ_HEAD(, vm_page) alloctail;
+	u_long npages;
 	vm_offset_t retkva, zkva;
-	vm_page_t p;
-	int pages, startpages;
+	vm_page_t p, p_next;
 	uma_keg_t keg;
 
+	TAILQ_INIT(&alloctail);
 	keg = zone_first_keg(zone);
-	object = keg->uk_obj;
-	retkva = 0;
 
-	/*
-	 * This looks a little weird since we're getting one page at a time.
-	 */
-	VM_OBJECT_LOCK(object);
-	p = TAILQ_LAST(&object->memq, pglist);
-	pages = p != NULL ? p->pindex + 1 : 0;
-	startpages = pages;
-	zkva = keg->uk_kva + pages * PAGE_SIZE;
-	for (; bytes > 0; bytes -= PAGE_SIZE) {
-		p = vm_page_alloc(object, pages,
-		    VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
-		if (p == NULL) {
-			if (pages != startpages)
-				pmap_qremove(retkva, pages - startpages);
-			while (pages != startpages) {
-				pages--;
-				p = TAILQ_LAST(&object->memq, pglist);
-				vm_page_unwire(p, 0);
-				vm_page_free(p);
-			}
-			retkva = 0;
-			goto done;
+	npages = howmany(bytes, PAGE_SIZE);
+	while (npages > 0) {
+		p = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT |
+		    VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+		if (p != NULL) {
+			/*
+			 * Since the page does not belong to an object, its
+			 * listq is unused.
+			 */
+			TAILQ_INSERT_TAIL(&alloctail, p, listq);
+			npages--;
+			continue;
 		}
-		pmap_qenter(zkva, &p, 1);
-		if (retkva == 0)
-			retkva = zkva;
-		zkva += PAGE_SIZE;
-		pages += 1;
+		if (wait & M_WAITOK) {
+			VM_WAIT;
+			continue;
+		}
+
+		/*
+		 * Page allocation failed, free intermediate pages and
+		 * exit.
+		 */
+		TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
+			vm_page_unwire(p, 0);
+			vm_page_free(p); 
+		}
+		return (NULL);
 	}
-done:
-	VM_OBJECT_UNLOCK(object);
 	*flags = UMA_SLAB_PRIV;
+	zkva = keg->uk_kva +
+	    atomic_fetchadd_long(&keg->uk_offset, round_page(bytes));
+	retkva = zkva;
+	TAILQ_FOREACH(p, &alloctail, listq) {
+		pmap_qenter(zkva, &p, 1);
+		zkva += PAGE_SIZE;
+	}
 
 	return ((void *)retkva);
 }
@@ -1127,7 +1149,9 @@ keg_small_init(uma_keg_t keg)
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = 1;
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
+	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
+		shsize = 0;
+	} else if (keg->uk_flags & UMA_ZONE_REFCNT) {
 		rsize += UMA_FRITMREF_SZ;	/* linkage & refcnt */
 		shsize = sizeof(struct uma_slab_refcnt);
 	} else {
@@ -1389,7 +1413,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		hash_alloc(&keg->uk_hash);
 
 #ifdef UMA_DEBUG
-	printf("UMA: %s(%p) size %d(%d) flags %d ipers %d ppera %d out %d free %d\n",
+	printf("UMA: %s(%p) size %d(%d) flags %#x ipers %d ppera %d out %d free %d\n",
 	    zone->uz_name, zone, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
 	    (keg->uk_ipers * keg->uk_pages) - keg->uk_free, keg->uk_free);
@@ -1430,6 +1454,8 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_sleeps = 0;
 	zone->uz_fills = zone->uz_count = 0;
 	zone->uz_flags = 0;
+	zone->uz_warning = NULL;
+	timevalclear(&zone->uz_ratecheck);
 	keg = arg->keg;
 
 	if (arg->flags & UMA_ZONE_SECONDARY) {
@@ -1681,7 +1707,7 @@ uma_startup(void *bootmem, int boot_pages)
 
 #ifdef UMA_DEBUG
 	printf("Calculated uma_max_ipers (for OFFPAGE) is %d\n", uma_max_ipers);
-	printf("Calculated uma_max_ipers_slab (for OFFPAGE) is %d\n",
+	printf("Calculated uma_max_ipers_ref (for OFFPAGE) is %d\n",
 	    uma_max_ipers_ref);
 #endif
 
@@ -1826,7 +1852,7 @@ uma_set_align(int align)
 
 /* See uma.h */
 uma_zone_t
-uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
+uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 		uma_init uminit, uma_fini fini, int align, u_int32_t flags)
 
 {
@@ -2189,8 +2215,10 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int flags)
 			 * If this is not a multi-zone, set the FULL bit.
 			 * Otherwise slab_multi() takes care of it.
 			 */
-			if ((zone->uz_flags & UMA_ZFLAG_MULTI) == 0)
+			if ((zone->uz_flags & UMA_ZFLAG_MULTI) == 0) {
 				zone->uz_flags |= UMA_ZFLAG_FULL;
+				zone_log_warning(zone);
+			}
 			if (flags & M_NOWAIT)
 				break;
 			zone->uz_sleeps++;
@@ -2337,6 +2365,7 @@ zone_fetch_slab_multi(uma_zone_t zone, uma_keg_t last, int rflags)
 		if (full && !empty) {
 			zone->uz_flags |= UMA_ZFLAG_FULL;
 			zone->uz_sleeps++;
+			zone_log_warning(zone);
 			msleep(zone, zone->uz_lock, PVM, "zonelimit", hz/100);
 			zone->uz_flags &= ~UMA_ZFLAG_FULL;
 			continue;
@@ -2879,6 +2908,16 @@ uma_zone_get_max(uma_zone_t zone)
 }
 
 /* See uma.h */
+void
+uma_zone_set_warning(uma_zone_t zone, const char *warning)
+{
+
+	ZONE_LOCK(zone);
+	zone->uz_warning = warning;
+	ZONE_UNLOCK(zone);
+}
+
+/* See uma.h */
 int
 uma_zone_get_cur(uma_zone_t zone)
 {
@@ -2978,7 +3017,7 @@ uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf)
 
 /* See uma.h */
 int
-uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
+uma_zone_reserve_kva(uma_zone_t zone, int count)
 {
 	uma_keg_t keg;
 	vm_offset_t kva;
@@ -2990,21 +3029,25 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	if (pages * keg->uk_ipers < count)
 		pages++;
 
-	kva = kmem_alloc_nofault(kernel_map, pages * UMA_SLAB_SIZE);
-
-	if (kva == 0)
-		return (0);
-	if (obj == NULL)
-		obj = vm_object_allocate(OBJT_PHYS, pages);
-	else {
-		VM_OBJECT_LOCK_INIT(obj, "uma object");
-		_vm_object_allocate(OBJT_PHYS, pages, obj);
-	}
+#ifdef UMA_MD_SMALL_ALLOC
+	if (keg->uk_ppera > 1) {
+#else
+	if (1) {
+#endif
+		kva = kmem_alloc_nofault(kernel_map, pages * UMA_SLAB_SIZE);
+		if (kva == 0)
+			return (0);
+	} else
+		kva = 0;
 	ZONE_LOCK(zone);
 	keg->uk_kva = kva;
-	keg->uk_obj = obj;
+	keg->uk_offset = 0;
 	keg->uk_maxpages = pages;
-	keg->uk_allocf = obj_alloc;
+#ifdef UMA_MD_SMALL_ALLOC
+	keg->uk_allocf = (keg->uk_ppera > 1) ? noobj_alloc : uma_small_alloc;
+#else
+	keg->uk_allocf = noobj_alloc;
+#endif
 	keg->uk_flags |= UMA_ZONE_NOFREE | UMA_ZFLAG_PRIVALLOC;
 	ZONE_UNLOCK(zone);
 	return (1);
@@ -3152,7 +3195,7 @@ uma_print_keg(uma_keg_t keg)
 {
 	uma_slab_t slab;
 
-	printf("keg: %s(%p) size %d(%d) flags %d ipers %d ppera %d "
+	printf("keg: %s(%p) size %d(%d) flags %#x ipers %d ppera %d "
 	    "out %d free %d limit %d\n",
 	    keg->uk_name, keg, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
@@ -3176,7 +3219,7 @@ uma_print_zone(uma_zone_t zone)
 	uma_klink_t kl;
 	int i;
 
-	printf("zone: %s(%p) size %d flags %d\n",
+	printf("zone: %s(%p) size %d flags %#x\n",
 	    zone->uz_name, zone, zone->uz_size, zone->uz_flags);
 	LIST_FOREACH(kl, &zone->uz_kegs, kl_link)
 		uma_print_keg(kl->kl_keg);

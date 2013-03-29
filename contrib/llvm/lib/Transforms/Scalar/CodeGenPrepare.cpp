@@ -27,6 +27,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Assembly/Writer.h"
@@ -37,12 +38,13 @@
 #include "llvm/Support/PatternMatch.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Transforms/Utils/AddrModeMatcher.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
+#include "llvm/Transforms/Utils/BypassSlowDivision.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 using namespace llvm::PatternMatch;
@@ -146,9 +148,18 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
   TLInfo = &getAnalysis<TargetLibraryInfo>();
   DT = getAnalysisIfAvailable<DominatorTree>();
   PFI = getAnalysisIfAvailable<ProfileInfo>();
-  OptSize = F.hasFnAttr(Attribute::OptimizeForSize);
+  OptSize = F.getFnAttributes().hasAttribute(Attributes::OptimizeForSize);
 
-  // First pass, eliminate blocks that contain only PHI nodes and an
+  /// This optimization identifies DIV instructions that can be
+  /// profitably bypassed and carried out with a shorter, faster divide.
+  if (TLI && TLI->isSlowDivBypassed()) {
+    const DenseMap<unsigned int, unsigned int> &BypassWidths =
+       TLI->getBypassSlowDivWidths();
+    for (Function::iterator I = F.begin(); I != F.end(); I++)
+      EverMadeChange |= bypassSlowDivision(F, I, BypassWidths);
+  }
+
+  // Eliminate blocks that contain only PHI nodes and an
   // unconditional branch.
   EverMadeChange |= EliminateMostlyEmptyBlocks(F);
 
@@ -160,7 +171,7 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
   bool MadeChange = true;
   while (MadeChange) {
     MadeChange = false;
-    for (Function::iterator I = F.begin(), E = F.end(); I != E; ) {
+    for (Function::iterator I = F.begin(); I != F.end(); ) {
       BasicBlock *BB = I++;
       MadeChange |= OptimizeBlock(*BB);
     }
@@ -215,11 +226,13 @@ bool CodeGenPrepare::EliminateFallThrough(Function &F) {
     // edge, just collapse it.
     BasicBlock *SinglePred = BB->getSinglePredecessor();
 
-    if (!SinglePred || SinglePred == BB) continue;
+    // Don't merge if BB's address is taken.
+    if (!SinglePred || SinglePred == BB || BB->hasAddressTaken()) continue;
 
     BranchInst *Term = dyn_cast<BranchInst>(SinglePred->getTerminator());
     if (Term && !Term->isConditional()) {
       Changed = true;
+      DEBUG(dbgs() << "To merge:\n"<< *SinglePred << "\n\n\n");
       // Remember if SinglePred was the entry block of the function.
       // If so, we will need to move BB back to the entry position.
       bool isEntry = SinglePred == &SinglePred->getParent()->getEntryBlock();
@@ -230,7 +243,6 @@ bool CodeGenPrepare::EliminateFallThrough(Function &F) {
 
       // We have erased a block. Update the iterator.
       I = BB;
-      DEBUG(dbgs() << "Merged:\n"<< *SinglePred << "\n\n\n");
     }
   }
   return Changed;
@@ -610,7 +622,7 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
     // happens.
     WeakVH IterHandle(CurInstIterator);
 
-    replaceAndRecursivelySimplify(CI, RetVal, TLI ? TLI->getTargetData() : 0,
+    replaceAndRecursivelySimplify(CI, RetVal, TLI ? TLI->getDataLayout() : 0,
                                   TLInfo, ModifiedDT ? 0 : DT);
 
     // If the iterator instruction was recursively deleted, start over at the
@@ -634,8 +646,8 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
   // From here on out we're working with named functions.
   if (CI->getCalledFunction() == 0) return false;
 
-  // We'll need TargetData from here on out.
-  const TargetData *TD = TLI ? TLI->getTargetData() : 0;
+  // We'll need DataLayout from here on out.
+  const DataLayout *TD = TLI ? TLI->getDataLayout() : 0;
   if (!TD) return false;
 
   // Lower all default uses of _chk calls.  This is very similar
@@ -649,6 +661,7 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
 /// DupRetToEnableTailCallOpts - Look for opportunities to duplicate return
 /// instructions to the predecessor to enable tail call optimizations. The
 /// case it is currently looking for is:
+/// @code
 /// bb0:
 ///   %tmp0 = tail call i32 @f0()
 ///   br label %return
@@ -661,9 +674,11 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
 /// return:
 ///   %retval = phi i32 [ %tmp0, %bb0 ], [ %tmp1, %bb1 ], [ %tmp2, %bb2 ]
 ///   ret i32 %retval
+/// @endcode
 ///
 /// =>
 ///
+/// @code
 /// bb0:
 ///   %tmp0 = tail call i32 @f0()
 ///   ret i32 %tmp0
@@ -673,7 +688,7 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
 /// bb2:
 ///   %tmp2 = tail call i32 @f2()
 ///   ret i32 %tmp2
-///
+/// @endcode
 bool CodeGenPrepare::DupRetToEnableTailCallOpts(ReturnInst *RI) {
   if (!TLI)
     return false;
@@ -699,7 +714,8 @@ bool CodeGenPrepare::DupRetToEnableTailCallOpts(ReturnInst *RI) {
   // See llvm::isInTailCallPosition().
   const Function *F = BB->getParent();
   Attributes CallerRetAttr = F->getAttributes().getRetAttributes();
-  if ((CallerRetAttr & Attribute::ZExt) || (CallerRetAttr & Attribute::SExt))
+  if (CallerRetAttr.hasAttribute(Attributes::ZExt) ||
+      CallerRetAttr.hasAttribute(Attributes::SExt))
     return false;
 
   // Make sure there are no instructions between the PHI and return, or that the
@@ -757,7 +773,10 @@ bool CodeGenPrepare::DupRetToEnableTailCallOpts(ReturnInst *RI) {
     // Conservatively require the attributes of the call to match those of the
     // return. Ignore noalias because it doesn't affect the call sequence.
     Attributes CalleeRetAttr = CS.getAttributes().getRetAttributes();
-    if ((CalleeRetAttr ^ CallerRetAttr) & ~Attribute::NoAlias)
+    if (AttrBuilder(CalleeRetAttr).
+          removeAttribute(Attributes::NoAlias) !=
+        AttrBuilder(CallerRetAttr).
+          removeAttribute(Attributes::NoAlias))
       continue;
 
     // Make sure the call instruction is followed by an unconditional branch to
@@ -774,7 +793,7 @@ bool CodeGenPrepare::DupRetToEnableTailCallOpts(ReturnInst *RI) {
   }
 
   // If we eliminated all predecessors of the block, delete the block now.
-  if (Changed && pred_begin(BB) == pred_end(BB))
+  if (Changed && !BB->hasAddressTaken() && pred_begin(BB) == pred_end(BB))
     BB->eraseFromParent();
 
   return Changed;
@@ -914,7 +933,7 @@ bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
     DEBUG(dbgs() << "CGP: SINKING nonlocal addrmode: " << AddrMode << " for "
                  << *MemoryInst);
     Type *IntPtrTy =
-          TLI->getTargetData()->getIntPtrType(AccessTy->getContext());
+          TLI->getDataLayout()->getIntPtrType(AccessTy->getContext());
 
     Value *Result = 0;
 
@@ -988,7 +1007,7 @@ bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
     WeakVH IterHandle(CurInstIterator);
     BasicBlock *BB = CurInstIterator->getParent();
 
-    RecursivelyDeleteTriviallyDeadInstructions(Repl);
+    RecursivelyDeleteTriviallyDeadInstructions(Repl, TLInfo);
 
     if (IterHandle != CurInstIterator) {
       // If the iterator instruction was recursively deleted, start over at the
@@ -1174,16 +1193,31 @@ static bool isFormingBranchFromSelectProfitable(SelectInst *SI) {
 }
 
 
+/// If we have a SelectInst that will likely profit from branch prediction,
+/// turn it into a branch.
 bool CodeGenPrepare::OptimizeSelectInst(SelectInst *SI) {
-  // If we have a SelectInst that will likely profit from branch prediction,
-  // turn it into a branch.
-  if (DisableSelectToBranch || OptSize || !TLI ||
-      !TLI->isPredictableSelectExpensive())
+  bool VectorCond = !SI->getCondition()->getType()->isIntegerTy(1);
+
+  // Can we convert the 'select' to CF ?
+  if (DisableSelectToBranch || OptSize || !TLI || VectorCond)
     return false;
 
-  if (!SI->getCondition()->getType()->isIntegerTy(1) ||
-      !isFormingBranchFromSelectProfitable(SI))
-    return false;
+  TargetLowering::SelectSupportKind SelectKind;
+  if (VectorCond)
+    SelectKind = TargetLowering::VectorMaskSelect;
+  else if (SI->getType()->isVectorTy())
+    SelectKind = TargetLowering::ScalarCondVectorVal;
+  else
+    SelectKind = TargetLowering::ScalarValSelect;
+
+  // Do we have efficient codegen support for this kind of 'selects' ?
+  if (TLI->isSelectSupported(SelectKind)) {
+    // We have efficient codegen support for the select instruction.
+    // Check if it is profitable to keep this 'select'.
+    if (!TLI->isPredictableSelectExpensive() ||
+        !isFormingBranchFromSelectProfitable(SI))
+      return false;
+  }
 
   ModifiedDT = true;
 
@@ -1302,7 +1336,7 @@ bool CodeGenPrepare::OptimizeBlock(BasicBlock &BB) {
   bool MadeChange = false;
 
   CurInstIterator = BB.begin();
-  for (BasicBlock::iterator E = BB.end(); CurInstIterator != E; )
+  while (CurInstIterator != BB.end())
     MadeChange |= OptimizeInst(CurInstIterator++);
 
   return MadeChange;

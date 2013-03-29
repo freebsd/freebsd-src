@@ -57,9 +57,6 @@ static struct sockaddr_in6 *local_in6;
 #endif
 
 static int bitmaskcmp(void *, void *, void *, int);
-#ifdef INET6
-static void in6_fillscopeid(struct sockaddr_in6 *);
-#endif
 
 /*
  * For all bits set in "mask", compare the corresponding bits in
@@ -77,26 +74,6 @@ bitmaskcmp(void *dst, void *src, void *mask, int bytelen)
 			return (1);
 	return (0);
 }
-
-/*
- * Similar to code in ifconfig.c. Fill in the scope ID for link-local
- * addresses returned by getifaddrs().
- */
-#ifdef INET6
-static void
-in6_fillscopeid(struct sockaddr_in6 *sin6)
-{
-	u_int16_t ifindex;
-
-        if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-		ifindex = ntohs(*(u_int16_t *)&sin6->sin6_addr.s6_addr[2]);
-		if (sin6->sin6_scope_id == 0 && ifindex != 0) {
-			sin6->sin6_scope_id = ifindex;
-			*(u_int16_t *)&sin6->sin6_addr.s6_addr[2] = 0;
-		}
-	}
-}
-#endif
 
 /*
  * Find a server address that can be used by `caller' to contact
@@ -202,7 +179,6 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 			 * a link-local address then use the scope id to see
 			 * which one.
 			 */
-			in6_fillscopeid(SA2SIN6(ifsa));
 			if (IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(ifsa)) &&
 			    IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(caller_sa)) &&
 			    IN6_IS_ADDR_LINKLOCAL(&SA2SIN6ADDR(hint_sa))) {

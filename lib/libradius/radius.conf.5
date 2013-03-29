@@ -44,7 +44,7 @@ Leading
 white space is ignored, as are empty lines and lines containing
 only comments.
 .Pp
-A RADIUS server is described by three to five fields on a line:
+A RADIUS server is described by three to seven fields on a line:
 .Pp
 .Bl -item -offset indent -compact
 .It
@@ -57,6 +57,10 @@ Shared secret
 Timeout
 .It
 Retries
+.It
+Dead time
+.It
+Bind address
 .El
 .Pp
 The fields are separated by white space.
@@ -139,6 +143,13 @@ If omitted, it defaults to 3 attempts.
 Note,
 this is the total number of attempts and not the number of retries.
 .Pp
+The sixth field contains a decimal integer specifying a time interval
+in seconds when the server will not requested if it was inaccessible
+on the last try. 0 means ask always.
+.Pp
+The seventh field contains an IP address on multihomed host. All
+requests will be binded to this IP.
+.Pp
 Up to 10 RADIUS servers may be specified for each service type.
 The servers are tried in
 round-robin fashion, until a valid response is received or the
@@ -160,6 +171,9 @@ acct  radius1.domain.com  OurLittleSecret
 # A server still using the obsolete RADIUS port, with increased
 # timeout and maximum tries:
 auth  auth.domain.com:1645  "I can't see you"  5  4
+
+# As above but set dead time and bind address
+auth  auth.domain.com:1645  "I can't see you"  5  4  60  192.168.1.8
 
 # A server specified by its IP address:
 auth  192.168.27.81  $X*#..38947ax-+=

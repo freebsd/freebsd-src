@@ -103,9 +103,12 @@
 #	define UINT64_MAX UINT64_C(18446744073709551615)
 #endif
 
-// Interix has broken header files, which typedef size_t to unsigned long,
-// but a few lines later define SIZE_MAX to INT32_MAX.
-#ifdef __INTERIX
+// Incorrect(?) SIZE_MAX:
+//   - Interix headers typedef size_t to unsigned long,
+//     but a few lines later define SIZE_MAX to INT32_MAX.
+//   - SCO OpenServer (x86) headers typedef size_t to unsigned int
+//     but define SIZE_MAX to INT32_MAX.
+#if defined(__INTERIX) || defined(_SCO_DS)
 #	undef SIZE_MAX
 #endif
 

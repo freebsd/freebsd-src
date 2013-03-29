@@ -26,11 +26,11 @@
 
 namespace llvm {
 
-class TargetData;
+class DataLayout;
 
 /// TargetFolder - Create constants with target dependent folding.
 class TargetFolder {
-  const TargetData *TD;
+  const DataLayout *TD;
 
   /// Fold - Fold the constant using target specific information.
   Constant *Fold(Constant *C) const {
@@ -41,7 +41,7 @@ class TargetFolder {
   }
 
 public:
-  explicit TargetFolder(const TargetData *TheTD) : TD(TheTD) {}
+  explicit TargetFolder(const DataLayout *TheTD) : TD(TheTD) {}
 
   //===--------------------------------------------------------------------===//
   // Binary Operators
@@ -177,7 +177,14 @@ public:
     return Fold(ConstantExpr::getIntegerCast(C, DestTy, isSigned));
   }
   Constant *CreatePointerCast(Constant *C, Type *DestTy) const {
-    return ConstantExpr::getPointerCast(C, DestTy);
+    if (C->getType() == DestTy)
+      return C; // avoid calling Fold
+    return Fold(ConstantExpr::getPointerCast(C, DestTy));
+  }
+  Constant *CreateFPCast(Constant *C, Type *DestTy) const {
+    if (C->getType() == DestTy)
+      return C; // avoid calling Fold
+    return Fold(ConstantExpr::getFPCast(C, DestTy));
   }
   Constant *CreateBitCast(Constant *C, Type *DestTy) const {
     return CreateCast(Instruction::BitCast, C, DestTy);

@@ -50,8 +50,7 @@ bm_alloc(int size)
 void
 bm_dealloc(struct bitmap * bm)
 {
-	if (bm->map)
-		free(bm->map);
+	free(bm->map);
 }
 
 static void

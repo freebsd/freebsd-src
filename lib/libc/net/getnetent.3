@@ -73,7 +73,7 @@ The order of the lookups is controlled by the
 `networks' entry in
 .Xr nsswitch.conf 5 .
 .Bd -literal -offset indent
-struct	netent {
+struct netent {
 	char		*n_name;	/* official name of net */
 	char		**n_aliases;	/* alias list */
 	int		n_addrtype;	/* net number type */
@@ -142,8 +142,7 @@ Network numbers are supplied in host order.
 .It Pa /etc/resolv.conf
 .El
 .Sh DIAGNOSTICS
-Null pointer
-(0) returned on
+Null pointer returned on
 .Dv EOF
 or error.
 .Sh SEE ALSO

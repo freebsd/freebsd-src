@@ -40,9 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <fcntl.h>
 
-extern const HASHINFO hinfo;
+#include "extern.h"
 
-void uniq(const char *);
 static int comp(const char *, char **, size_t *);
 
 /*

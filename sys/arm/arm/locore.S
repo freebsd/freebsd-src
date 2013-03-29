@@ -168,7 +168,7 @@ Lunmapped:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM11) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -178,10 +178,10 @@ Lunmapped:
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM11) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 #endif
-	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop
@@ -204,6 +204,7 @@ mmu_done:
 virt_done:
 	mov	r1, #20			/* loader info size is 20 bytes also second arg */
 	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
+	bic	sp, sp, #7		/* align stack to 8 bytes */
 	mov	r0, sp			/* loader info pointer is first arg */
 	str	r1, [r0]		/* Store length of loader info */
 	str	r9, [r0, #4]		/* Store r0 from boot loader */
@@ -241,6 +242,9 @@ Lstartup_pagetable:
 Lstartup_pagetable_secondary:
 	.word	temp_pagetable
 #endif
+END(btext)
+END(_start)
+
 mmu_init_table:
 	/* fill all table VA==PA */
 	/* map SDRAM VA==PA, WT cacheable */
@@ -323,6 +327,7 @@ ASENTRY_NP(mptramp)
 
 Lpmureg:
         .word   0xd0022124
+END(mptramp)
 
 ASENTRY_NP(mpentry)
 
@@ -363,7 +368,7 @@ Ltag:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -375,7 +380,7 @@ Ltag:
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
@@ -407,6 +412,7 @@ mpvirt_done:
 .Lmpreturned:
 	.asciz	"main() returned"
 	.align	0
+END(mpentry)
 #endif
 
 ENTRY_NP(cpu_halt)
@@ -460,6 +466,7 @@ ENTRY_NP(cpu_halt)
 	 */
 .Lcpu_reset_needs_v4_MMU_disable:
 	.word	_C_LABEL(cpu_reset_needs_v4_MMU_disable)
+END(cpu_halt)
 
 
 /*
@@ -469,11 +476,13 @@ ENTRY(setjmp)
 	stmia	r0, {r4-r14}
 	mov	r0, #0x00000000
 	RET
+END(setjmp)
 
 ENTRY(longjmp)
 	ldmia	r0, {r4-r14}
 	mov	r0, #0x00000001
 	RET
+END(longjmp)
 
 	.data
 	.global _C_LABEL(esym)
@@ -481,15 +490,33 @@ _C_LABEL(esym):	.word	_C_LABEL(end)
 
 ENTRY_NP(abort)
 	b	_C_LABEL(abort)
+END(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
+
+	/*
+	 * Call the sigreturn system call.
+	 * 
+	 * We have to load r7 manually rather than using
+	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
+	 * correct. Using the alternative places esigcode at the address
+	 * of the data rather than the address one past the data.
+	 */
+
+	ldr	r7, [pc, #12]	/* Load SYS_sigreturn */
 	swi	SYS_sigreturn
 
 	/* Well if that failed we better exit quick ! */
 
+	ldr	r7, [pc, #8]	/* Load SYS_exit */
 	swi	SYS_exit
-	b	. - 8
+
+	/* Branch back to retry SYS_sigreturn */
+	b	. - 16
+
+	.word	SYS_sigreturn
+	.word	SYS_exit
 
 	.align	0
 	.global _C_LABEL(esigcode)
@@ -499,4 +526,5 @@ ENTRY_NP(sigcode)
 	.global szsigcode
 szsigcode:
 	.long esigcode-sigcode
+END(sigcode)
 /* End of locore.S */

@@ -243,10 +243,15 @@ Set installMedium= to the source type we will be using for this install.
 
 Available Types:
   dvd - Search for and mount the DVD which contains the install archive
+local - Pull files directly from a local directory
   usb - Search for and mount the USB drive which contains the install archive
   ftp - The install archive will be fetched from a FTP / HTTP server before install
 rsync - Pull the system data from a ssh + rsync server, specified with variables below
 image - Install system from an image
+
+# localPath=/usr/freebsd-dist
+
+Location of the directory we will be pulling installation files from
 
 # installType=(PCBSD, FreeBSD)
 
@@ -256,9 +261,13 @@ Set the type of system we are installing, PCBSD or FreeBSD
 
 The installer archive, if not using the defaults specified in conf/pc-sysinstall.conf
 
-# packageType=(tar, uzip, split)
+# packageType=(tar, uzip, split, dist)
 
 The archive type we are extracting from when using dvd, usb or ftp
+
+# distFiles=base src kernel
+
+List of dist files to install when packageType=dist
 
 # ftpPath=ftp://ftp.pcbsd.org/pub/8.0/netinstall
 

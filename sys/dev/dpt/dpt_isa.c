@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
@@ -150,11 +152,11 @@ static int
 dpt_isa_attach (device_t dev)
 {
 	dpt_softc_t *	dpt;
-	int		s;
 	int		error = 0;
 
 	dpt = device_get_softc(dev);
 	dpt->dev = dev;
+	dpt_alloc(dev);
 
 	dpt->io_rid = 0;
 	dpt->io_type = SYS_RES_IOPORT;
@@ -176,10 +178,8 @@ dpt_isa_attach (device_t dev)
 	isa_dma_acquire(rman_get_start(dpt->drq_res));
 	isa_dmacascade(rman_get_start(dpt->drq_res));
 
-	dpt_alloc(dev);
-
 	/* Allocate a dmatag representing the capabilities of this attachment */
-	if (bus_dma_tag_create( /* parent    */	NULL,
+	if (bus_dma_tag_create( /* parent    */	bus_get_dma_tag(dev),
 				/* alignemnt */	1,
 				/* boundary  */	0,
 				/* lowaddr   */	BUS_SPACE_MAXADDR_32BIT,
@@ -190,17 +190,14 @@ dpt_isa_attach (device_t dev)
 				/* nsegments */	~0,
 				/* maxsegsz  */	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */	0,
-				/* lockfunc  */ busdma_lock_mutex,
-				/* lockarg   */ &Giant,
+				/* lockfunc  */ NULL,
+				/* lockarg   */ NULL,
 				&dpt->parent_dmat) != 0) {
 		error = ENXIO;
 		goto bad;
 	}
 
-	s = splcam();
-
 	if (dpt_init(dpt) != 0) {
-		splx(s);
 		error = ENXIO;
 		goto bad;
 	}
@@ -208,10 +205,8 @@ dpt_isa_attach (device_t dev)
 	/* Register with the XPT */
 	dpt_attach(dpt);
 
-	splx(s);
-
-	if (bus_setup_intr(dev, dpt->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			   dpt_intr, dpt, &dpt->ih)) {
+	if (bus_setup_intr(dev, dpt->irq_res, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, dpt_intr, dpt, &dpt->ih)) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		error = ENXIO;
 		goto bad;

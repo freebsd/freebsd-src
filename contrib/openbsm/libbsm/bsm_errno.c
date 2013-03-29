@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#19 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#22 $
  */
 
 #include <sys/types.h>
@@ -664,7 +664,7 @@ static const struct bsm_errno bsm_errnos[] = {
 #endif
 	ES("Required key not available") },
 	{ BSM_ERRNO_EKEYEXPIRED,
-#ifdef EKEEXPIRED
+#ifdef EKEYEXPIRED
 	EKEYEXPIRED,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
@@ -678,12 +678,26 @@ static const struct bsm_errno bsm_errnos[] = {
 #endif
 	ES("Key has been revoked") },
 	{ BSM_ERRNO_EKEYREJECTED,
-#ifdef EKEREJECTED
+#ifdef EKEYREJECTED
 	EKEYREJECTED,
 #else
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
 	ES("Key was rejected by service") },
+	{ BSM_ERRNO_ENOTCAPABLE,
+#ifdef ENOTCAPABLE
+	ENOTCAPABLE,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Capabilities insufficient") },
+	{ BSM_ERRNO_ECAPMODE,
+#ifdef ECAPMODE
+	ECAPMODE,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Not permitted in capability mode") },
 };
 static const int bsm_errnos_count = sizeof(bsm_errnos) / sizeof(bsm_errnos[0]);
 

@@ -128,9 +128,8 @@ ip6_ipsec_fwd(struct mbuf *m)
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
-	int s, error;
+	int error;
 	mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-	s = splnet();
 	if (mtag != NULL) {
 		tdbi = (struct tdb_ident *)(mtag + 1);
 		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
@@ -139,7 +138,6 @@ ip6_ipsec_fwd(struct mbuf *m)
 					   IP_FORWARDING, &error);
 	}
 	if (sp == NULL) {	/* NB: can happen if error */
-		splx(s);
 		/*XXX error stat???*/
 		DPRINTF(("%s: no SP for forwarding\n", __func__));	/*XXX*/
 		return 1;
@@ -150,7 +148,6 @@ ip6_ipsec_fwd(struct mbuf *m)
 	 */
 	error = ipsec_in_reject(sp, m);
 	KEY_FREESP(&sp);
-	splx(s);
 	if (error) {
 		V_ip6stat.ip6s_cantforward++;
 		return 1;
@@ -173,7 +170,7 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
-	int s, error;
+	int error;
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.
 	 * note that we do not visit this with protocols with pcb layer
@@ -189,7 +186,6 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 		 * packet is returned to the ip input queue for delivery.
 		 */
 		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-		s = splnet();
 		if (mtag != NULL) {
 			tdbi = (struct tdb_ident *)(mtag + 1);
 			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
@@ -209,7 +205,6 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 			DPRINTF(("%s: no SP, packet discarded\n", __func__));/*XXX*/
 			return 1;
 		}
-		splx(s);
 		if (error)
 			return 1;
 	}
@@ -283,7 +278,6 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 				 *     done: below.
 				 */
 				KEY_FREESP(sp), *sp = NULL;
-				/* XXX splx(s); */
 				goto done;
 			}
 		}

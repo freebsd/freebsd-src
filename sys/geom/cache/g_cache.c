@@ -502,7 +502,7 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 		return (NULL);
 	}
 
-	gp = g_new_geomf(mp, md->md_name);
+	gp = g_new_geomf(mp, "%s", md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_type = type;
 	sc->sc_bshift = bshift;

@@ -211,7 +211,7 @@ message_set_files(unsigned int files)
 static void
 print_filename(void)
 {
-	if (files_total != 1 || filename != stdin_filename) {
+	if (!opt_robot && (files_total != 1 || filename != stdin_filename)) {
 		signals_block();
 
 		FILE *file = opt_mode == MODE_LIST ? stdout : stderr;
@@ -859,6 +859,17 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
 	// the user might need to +1 MiB to get high enough limit.)
 	memusage = round_up_to_mib(memusage);
 
+	uint64_t memlimit = hardware_memlimit_get(opt_mode);
+
+	// Handle the case when there is no memory usage limit.
+	// This way we don't print a weird message with a huge number.
+	if (memlimit == UINT64_MAX) {
+		message(v, _("%s MiB of memory is required. "
+				"The limiter is disabled."),
+				uint64_to_str(memusage, 0));
+		return;
+	}
+
 	// With US-ASCII:
 	// 2^64 with thousand separators + " MiB" suffix + '\0' = 26 + 4 + 1
 	// But there may be multibyte chars so reserve enough space.
@@ -867,7 +878,6 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
 	// Show the memory usage limit as MiB unless it is less than 1 MiB.
 	// This way it's easy to notice errors where one has typed
 	// --memory=123 instead of --memory=123MiB.
-	uint64_t memlimit = hardware_memlimit_get(opt_mode);
 	if (memlimit < (UINT32_C(1) << 20)) {
 		snprintf(memlimitstr, sizeof(memlimitstr), "%s B",
 				uint64_to_str(memlimit, 1));

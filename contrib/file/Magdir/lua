@@ -19,3 +19,4 @@
 0	string		\033Lua			Lua bytecode,
 >4	byte		0x50			version 5.0
 >4	byte		0x51			version 5.1
+>4	byte		0x52			version 5.2

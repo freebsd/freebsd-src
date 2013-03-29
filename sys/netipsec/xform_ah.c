@@ -305,23 +305,10 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 		ip->ip_ttl = 0;
 		ip->ip_sum = 0;
 
-		/*
-		 * On input, fix ip_len which has been byte-swapped
-		 * at ip_input().
-		 */
-		if (!out) {
-			ip->ip_len = htons(ip->ip_len + skip);
-
-			if (alg == CRYPTO_MD5_KPDK || alg == CRYPTO_SHA1_KPDK)
-				ip->ip_off = htons(ip->ip_off & IP_DF);
-			else
-				ip->ip_off = 0;
-		} else {
-			if (alg == CRYPTO_MD5_KPDK || alg == CRYPTO_SHA1_KPDK)
-				ip->ip_off = htons(ntohs(ip->ip_off) & IP_DF);
-			else
-				ip->ip_off = 0;
-		}
+		if (alg == CRYPTO_MD5_KPDK || alg == CRYPTO_SHA1_KPDK)
+			ip->ip_off &= htons(IP_DF);
+		else
+			ip->ip_off = htons(0);
 
 		ptr = mtod(m, unsigned char *) + sizeof(struct ip);
 

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -114,8 +115,9 @@ pass4(void)
 				break;
 
 			default:
-				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-				    inoinfo(inumber)->ino_state, inumber);
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%ju",
+				    inoinfo(inumber)->ino_state,
+				    (uintmax_t)inumber);
 			}
 		}
 	}

@@ -8,6 +8,9 @@
 /* Bug report URL. */
 #define BUG_REPORT_URL "http://llvm.org/bugs/"
 
+/* Define if we have libxml2 */
+/* #undef CLANG_HAVE_LIBXML */
+
 /* Relative directory for resource files */
 #define CLANG_RESOURCE_DIR ""
 
@@ -16,6 +19,9 @@
 
 /* Default <path> to all compiler invocations for --sysroot=<path>. */
 /* #undef DEFAULT_SYSROOT */
+
+/* Define if you want backtraces on crash */
+#define ENABLE_BACKTRACES 1
 
 /* Define if position independent code is enabled */
 #define ENABLE_PIC 0

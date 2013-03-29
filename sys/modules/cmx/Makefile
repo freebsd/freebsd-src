@@ -1,7 +1,5 @@
 # $FreeBSD$
 #
-MAINTAINER=	daniel@roe.ch
-
 .PATH:	${.CURDIR}/../../dev/cmx
 
 KMOD=	cmx

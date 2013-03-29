@@ -47,9 +47,9 @@ private:
   /// block/record name information in the BlockInfo block. Only llvm-bcanalyzer
   /// uses this.
   bool IgnoreBlockInfoNames;
-  
-  BitstreamReader(const BitstreamReader&);  // DO NOT IMPLEMENT
-  void operator=(const BitstreamReader&);  // DO NOT IMPLEMENT
+
+  BitstreamReader(const BitstreamReader&) LLVM_DELETED_FUNCTION;
+  void operator=(const BitstreamReader&) LLVM_DELETED_FUNCTION;
 public:
   BitstreamReader() : IgnoreBlockInfoNames(true) {
   }
@@ -409,7 +409,7 @@ public:
   }
 
   /// EnterSubBlock - Having read the ENTER_SUBBLOCK abbrevid, enter
-  /// the block, and return true if the block is valid.
+  /// the block, and return true if the block has an error.
   bool EnterSubBlock(unsigned BlockID, unsigned *NumWordsP = 0) {
     // Save the current block's state on BlockScope.
     BlockScope.push_back(Block(CurCodeSize));

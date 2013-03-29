@@ -384,7 +384,7 @@ cngetc(void)
 	if (cn_mute)
 		return (-1);
 	while ((c = cncheckc()) == -1)
-		;
+		cpu_spinwait();
 	if (c == '\r')
 		c = '\n';		/* console input is always ICRNL */
 	return (c);

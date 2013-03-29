@@ -21,7 +21,6 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
 #include <cassert>
 #include <string>
@@ -54,6 +53,7 @@ class IdentifierInfo {
   // are for builtins.
   unsigned ObjCOrBuiltinID    :11;
   bool HasMacro               : 1; // True if there is a #define for this.
+  bool HadMacro               : 1; // True if there was a #define for this.
   bool IsExtension            : 1; // True if identifier is a lang extension.
   bool IsCXX11CompatKeyword   : 1; // True if identifier is a keyword in C++11.
   bool IsPoisoned             : 1; // True if identifier is poisoned.
@@ -70,13 +70,13 @@ class IdentifierInfo {
                                    // stored externally.
   bool IsModulesImport        : 1; // True if this is the 'import' contextual
                                    // keyword.
-  // 1 bit left in 32-bit word.
-  
+  // 32-bit word is filled.
+
   void *FETokenInfo;               // Managed by the language front-end.
   llvm::StringMapEntry<IdentifierInfo*> *Entry;
 
-  IdentifierInfo(const IdentifierInfo&);  // NONCOPYABLE.
-  void operator=(const IdentifierInfo&);  // NONASSIGNABLE.
+  IdentifierInfo(const IdentifierInfo&) LLVM_DELETED_FUNCTION;
+  void operator=(const IdentifierInfo&) LLVM_DELETED_FUNCTION;
 
   friend class IdentifierTable;
   
@@ -133,10 +133,21 @@ public:
     if (HasMacro == Val) return;
 
     HasMacro = Val;
-    if (Val)
+    if (Val) {
       NeedsHandleIdentifier = 1;
-    else
+      HadMacro = true;
+    } else {
       RecomputeNeedsHandleIdentifier();
+    }
+  }
+  /// \brief Returns true if this identifier was \#defined to some value at any
+  /// moment. In this case there should be an entry for the identifier in the
+  /// macro history table in Preprocessor.
+  bool hadMacroDefinition() const {
+    return HadMacro;
+  }
+  void setHadMacroDefinition(bool Val) {
+    HadMacro = Val;
   }
 
   /// getTokenID - If this is a source-language token (e.g. 'for'), this API
@@ -346,8 +357,8 @@ public:
 /// actual functionality.
 class IdentifierIterator {
 private:
-  IdentifierIterator(const IdentifierIterator&); // Do not implement
-  IdentifierIterator &operator=(const IdentifierIterator&); // Do not implement
+  IdentifierIterator(const IdentifierIterator &) LLVM_DELETED_FUNCTION;
+  void operator=(const IdentifierIterator &) LLVM_DELETED_FUNCTION;
 
 protected:
   IdentifierIterator() { }
@@ -695,8 +706,8 @@ public:
 /// multi-keyword caching.
 class SelectorTable {
   void *Impl;  // Actually a SelectorTableImpl
-  SelectorTable(const SelectorTable&); // DISABLED: DO NOT IMPLEMENT
-  void operator=(const SelectorTable&); // DISABLED: DO NOT IMPLEMENT
+  SelectorTable(const SelectorTable &) LLVM_DELETED_FUNCTION;
+  void operator=(const SelectorTable &) LLVM_DELETED_FUNCTION;
 public:
   SelectorTable();
   ~SelectorTable();

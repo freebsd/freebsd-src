@@ -66,40 +66,40 @@ __FBSDID("$FreeBSD$");
 
 
 #ifdef _POSIX_SOURCE
-sigjmp_buf env;
+static sigjmp_buf env;
 #else
-jmp_buf env;
+static jmp_buf env;
 #endif
 
 /* static buffers */
 char stdinbuf[1];		/* stdin buffer */
-char *shcmd;			/* shell command buffer */
-int shcmdsz;			/* shell command buffer size */
-int shcmdi;			/* shell command buffer index */
+static char *shcmd;		/* shell command buffer */
+static int shcmdsz;		/* shell command buffer size */
+static int shcmdi;		/* shell command buffer index */
 char *ibuf;			/* ed command-line buffer */
 int ibufsz;			/* ed command-line buffer size */
 char *ibufp;			/* pointer to ed command-line buffer */
 
 /* global flags */
 int des = 0;			/* if set, use crypt(3) for i/o */
-int garrulous = 0;		/* if set, print all error messages */
+static int garrulous = 0;	/* if set, print all error messages */
 int isbinary;			/* if set, buffer contains ASCII NULs */
 int isglobal;			/* if set, doing a global command */
 int modified;			/* if set, buffer modified since last write */
 int mutex = 0;			/* if set, signals set "sigflags" */
-int red = 0;			/* if set, restrict shell/directory access */
+static int red = 0;		/* if set, restrict shell/directory access */
 int scripted = 0;		/* if set, suppress diagnostics */
 int sigflags = 0;		/* if set, signals received while mutex set */
-int sigactive = 0;		/* if set, signal handlers are enabled */
+static int sigactive = 0;	/* if set, signal handlers are enabled */
 
-char old_filename[PATH_MAX] = "";	/* default filename */
+static char old_filename[PATH_MAX] = ""; /* default filename */
 long current_addr;		/* current address in editor buffer */
 long addr_last;			/* last address in editor buffer */
 int lineno;			/* script line number */
-const char *prompt;		/* command-line prompt */
-const char *dps = "*";		/* default command-line prompt */
+static const char *prompt;	/* command-line prompt */
+static const char *dps = "*";	/* default command-line prompt */
 
-const char usage[] = "usage: %s [-] [-sx] [-p string] [file]\n";
+static const char *usage = "usage: %s [-] [-sx] [-p string] [file]\n";
 
 /* ed: line editor */
 int
@@ -254,7 +254,8 @@ top:
 	/*NOTREACHED*/
 }
 
-long first_addr, second_addr, addr_cnt;
+long first_addr, second_addr;
+static long addr_cnt;
 
 /* extract_addr_range: get line addresses from the command buffer until an
    illegal address is seen; return status */
@@ -1241,8 +1242,8 @@ display_lines(long from, long to, int gflag)
 
 #define MAXMARK 26			/* max number of marks */
 
-line_t	*mark[MAXMARK];			/* line markers */
-int markno;				/* line marker count */
+static line_t *mark[MAXMARK];		/* line markers */
+static int markno;			/* line marker count */
 
 /* mark_line_node: set a line node mark */
 int

@@ -81,16 +81,18 @@ __FBSDID("$FreeBSD$");
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
-int	hz;
-int	tick;
+int	hz;				/* system clock's frequency */
+int	tick;				/* usec per tick (1000000 / hz) */
+struct bintime tick_bt;			/* bintime per tick (1s / hz) */
+sbintime_t tick_sbt;
 int	maxusers;			/* base tunable */
 int	maxproc;			/* maximum # of processes */
 int	maxprocperuid;			/* max # of procs per user */
 int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
 int	msgbufsize;			/* size of kernel message buffer */
-int	ncallout;			/* maximum # of timer events */
 int	nbuf;
+int	bio_transient_maxcnt;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
 pid_t	pid_max = PID_MAX;
@@ -107,8 +109,6 @@ u_long	sgrowsiz;			/* amount to grow stack */
 
 SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN, &hz, 0,
     "Number of clock ticks per second");
-SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
-    "Number of pre-allocated timer events");
 SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
@@ -119,6 +119,9 @@ SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "Maximum memory for swap metadata");
 SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
     "Maximum value of vfs.maxbufspace");
+SYSCTL_INT(_kern, OID_AUTO, bio_transient_maxcnt, CTLFLAG_RDTUN,
+    &bio_transient_maxcnt, 0,
+    "Maximum number of transient BIOs mappings");
 SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxtsiz, 0,
     "Maximum text size");
 SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RW | CTLFLAG_TUN, &dfldsiz, 0,
@@ -159,6 +162,8 @@ static const char *const vm_bnames[] = {
 	"Plex86",			/* Plex86 */
 	"Bochs",			/* Bochs */
 	"Xen",				/* Xen */
+	"BHYVE",			/* bhyve */
+	"Seabios",			/* KVM */
 	NULL
 };
 
@@ -167,6 +172,7 @@ static const char *const vm_pnames[] = {
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
 	"Parallels Virtual Platform",	/* Parallels VM */
+	"KVM",				/* KVM */
 	NULL
 };
 
@@ -218,6 +224,8 @@ init_param1(void)
 	if (hz == -1)
 		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
 	tick = 1000000 / hz;
+	tick_sbt = SBT_1S / hz;
+	tick_bt = sbttobt(tick_sbt);
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
@@ -262,6 +270,8 @@ init_param1(void)
 		pid_max = PID_MAX;
 	else if (pid_max < 300)
 		pid_max = 300;
+
+	TUNABLE_INT_FETCH("vfs.unmapped_buf_allowed", &unmapped_buf_allowed);
 }
 
 /*
@@ -278,47 +288,59 @@ init_param2(long physpages)
 		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 			maxusers = 32;
-		if (maxusers > 384)
-			maxusers = 384;
-	}
+#ifdef VM_MAX_AUTOTUNE_MAXUSERS
+                if (maxusers > VM_MAX_AUTOTUNE_MAXUSERS)
+                        maxusers = VM_MAX_AUTOTUNE_MAXUSERS;
+#endif
+                /*
+                 * Scales down the function in which maxusers grows once
+                 * we hit 384.
+                 */
+                if (maxusers > 384)
+                        maxusers = 384 + ((maxusers - 384) / 8);
+        }
 
 	/*
 	 * The following can be overridden after boot via sysctl.  Note:
 	 * unless overriden, these macros are ultimately based on maxusers.
-	 */
-	maxproc = NPROC;
-	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
-	/*
 	 * Limit maxproc so that kmap entries cannot be exhausted by
 	 * processes.
 	 */
+	maxproc = NPROC;
+	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
 	if (maxproc > (physpages / 12))
 		maxproc = physpages / 12;
-	maxfiles = MAXFILES;
-	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
 	maxprocperuid = (maxproc * 9) / 10;
-	maxfilesperproc = (maxfiles * 9) / 10;
+
+	/*
+	 * The default limit for maxfiles is 1/12 of the number of
+	 * physical page but not less than 16 times maxusers.
+	 * At most it can be 1/6 the number of physical pages.
+	 */
+	maxfiles = imax(MAXFILES, physpages / 8);
+	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
+	if (maxfiles > (physpages / 4))
+		maxfiles = physpages / 4;
+	maxfilesperproc = (maxfiles / 10) * 9;
 	
 	/*
 	 * Cannot be changed after boot.
 	 */
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
-
-	ncallout = 16 + maxproc + maxfiles;
-	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
+	TUNABLE_INT_FETCH("kern.bio_transient_maxcnt", &bio_transient_maxcnt);
 
 	/*
 	 * The default for maxpipekva is min(1/64 of the kernel address space,
 	 * max(1/64 of main memory, 512KB)).  See sys_pipe.c for more details.
 	 */
 	maxpipekva = (physpages / 64) * PAGE_SIZE;
+	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
 	if (maxpipekva > (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / 64)
 		maxpipekva = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) /
 		    64;
-	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
 
 /*

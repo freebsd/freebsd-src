@@ -770,13 +770,6 @@ __rpcb_findaddr_timed(program, version, nconf, host, clpp, tp)
 	}
 
 	parms.r_addr = NULL;
-	parms.r_netid = nconf->nc_netid;
-
-       /*
-	* According to wire captures, the reference implementation
-	* (OpenSolaris) sends a blank string here too.
-	*/
-	parms.r_owner = "";
 
 	/*
 	 * Use default total timeout if no timeout is specified.

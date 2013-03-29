@@ -151,7 +151,7 @@ visibility_work(struct wtap_plugin *plugin, struct packet *p)
 					struct wtap_softc *sc =
 					    hal->hal_devs[k];
 					struct mbuf *m =
-					    m_dup(p->m, M_DONTWAIT);
+					    m_dup(p->m, M_NOWAIT);
 					DWTAP_PRINTF("[%d] duplicated old_m=%p"
 					    "to new_m=%p\n", p->id, p->m, m);
 #if 0

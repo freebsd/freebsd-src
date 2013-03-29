@@ -26,7 +26,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#23 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#26 $
 .\"
 .Dd May 14, 2009
 .Dt AUDIT_CONTROL 5
@@ -52,6 +52,18 @@ audit system.
 See
 .Xr audit 8
 for a description of how to restart the audit system.
+.It Va dist
+When set to
+.Va on
+or
+.Va yes ,
+.Xr auditd 8
+will be creating hardlinks to all trail files in
+.Pa /var/audit/dist
+directory.
+Those hardlinks will be consumed by the
+.Xr auditdistd 8
+daemon.
 .It Va flags
 Specifies which audit event classes are audited for all users.
 .Xr audit_user 5
@@ -92,7 +104,7 @@ For example, 2M is the same as 2097152.
 .It Va expire-after
 Specifies when audit log files will expire and be removed.
 This may be after a time period has passed since the file was last
-written to or when the aggregate of all the trail files have reached a 
+written to or when the aggregate of all the trail files have reached a
 specified size or a combination of both.
 If no expire-after parameter is given then audit log files will not
 expire and be removed by the audit control system.
@@ -208,13 +220,13 @@ Disk space used in Bytes.
 .It Li K
 Disk space used in Kilobytes.
 .It Li M
-Disk space used in Megabytes. 
+Disk space used in Megabytes.
 .It Li G
-Disk space used in Gigabytes. 
+Disk space used in Gigabytes.
 .El
 .Pp
-The suffixes on the values are case sensitive.  
-If both an age and disk space value are used they are seperated by
+The suffixes on the values are case sensitive.
+If both an age and disk space value are used they are separated by
 AND or OR and both values are used to determine when audit
 log files expire.
 In the case of AND, both the age and disk space conditions must be met
@@ -222,7 +234,7 @@ before the log file is removed.
 In the case of OR, either condition may expire the log file.
 For example:
 .Bd -literal -offset indent
-expire-after: 60d AND 1G 
+expire-after: 60d AND 1G
 .Ed
 .Pp
 will expire files that are older than 60 days but only if 1

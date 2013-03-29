@@ -525,7 +525,7 @@ virtqueue_dequeue(struct virtqueue *vq, uint32_t *len)
 	used_idx = vq->vq_used_cons_idx++ & (vq->vq_nentries - 1);
 	uep = &vq->vq_ring.used->ring[used_idx];
 
-	mb();
+	rmb();
 	desc_idx = (uint16_t) uep->id;
 	if (len != NULL)
 		*len = uep->len;
@@ -623,7 +623,7 @@ vq_ring_update_avail(struct virtqueue *vq, uint16_t desc_idx)
 	avail_idx = vq->vq_ring.avail->idx & (vq->vq_nentries - 1);
 	vq->vq_ring.avail->ring[avail_idx] = desc_idx;
 
-	mb();
+	wmb();
 	vq->vq_ring.avail->idx++;
 
 	/* Keep pending count until virtqueue_notify(). */
@@ -780,8 +780,8 @@ vq_ring_free_chain(struct virtqueue *vq, uint16_t desc_idx)
 		VQ_RING_ASSERT_CHAIN_TERM(vq);
 
 	vq->vq_free_cnt += dxp->ndescs;
+	dxp->ndescs--;
 
-#ifdef INVARIANTS
 	if ((dp->flags & VRING_DESC_F_INDIRECT) == 0) {
 		while (dp->flags & VRING_DESC_F_NEXT) {
 			VQ_RING_ASSERT_VALID_IDX(vq, dp->next);
@@ -789,10 +789,9 @@ vq_ring_free_chain(struct virtqueue *vq, uint16_t desc_idx)
 			dxp->ndescs--;
 		}
 	}
-	VQASSERT(vq, dxp->ndescs == 1,
+
+	VQASSERT(vq, dxp->ndescs == 0,
 	    "failed to free entire desc chain, remaining: %d", dxp->ndescs);
-#endif
-	dxp->ndescs = 0;
 
 	/*
 	 * We must append the existing free chain, if any, to the end of

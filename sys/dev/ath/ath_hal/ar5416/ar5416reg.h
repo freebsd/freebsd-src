@@ -123,6 +123,12 @@
 #define	AR_RTC_DERIVED_CLK_PERIOD_S	1
 #endif	/* AH_SUPPORT_AR9130 */
 
+/* AR_USEC: 0x801c */
+#define	AR5416_USEC_TX_LAT	0x007FC000	/* tx latency to start of SIGNAL (usec) */
+#define	AR5416_USEC_TX_LAT_S	14		/* tx latency to start of SIGNAL (usec) */
+#define	AR5416_USEC_RX_LAT	0x1F800000	/* rx latency to start of SIGNAL (usec) */
+#define	AR5416_USEC_RX_LAT_S	23		/* rx latency to start of SIGNAL (usec) */
+
 #define	AR_RESET_TSF		0x8020
 
 /*
@@ -173,6 +179,7 @@
 #define	AR_2040_MODE		0x8318
 #define	AR_EXTRCCNT		0x8328	/* extension channel rx clear count */
 #define	AR_SELFGEN_MASK		0x832c	/* rx and cal chain masks */
+#define	AR_PHY_ERR_MASK_REG	0x8338
 #define	AR_PCU_TXBUF_CTRL	0x8340
 #define	AR_PCU_MISC_MODE2	0x8344
 
@@ -514,6 +521,7 @@
 #define	AR_PCU_TBTT_PROTECT		0x00200000 /* no xmit upto tbtt+20 uS */
 #define	AR_PCU_CLEAR_VMF		0x01000000 /* clear vmf mode (fast cc)*/
 #define	AR_PCU_CLEAR_BA_VALID		0x04000000 /* clear ba state */
+#define	AR_PCU_SEL_EVM			0x08000000 /* select EVM data or PLCP header */
 
 #define	AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE		0x00000002
 #define	AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT	0x00000004

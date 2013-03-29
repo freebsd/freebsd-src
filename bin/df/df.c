@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <err.h>
 #include <libutil.h>
+#include <locale.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,6 +96,7 @@ imax(int a, int b)
 }
 
 static int	aflag = 0, cflag, hflag, iflag, kflag, lflag = 0, nflag, Tflag;
+static int	thousands;
 static struct	ufs_args mdev;
 
 int
@@ -111,12 +113,12 @@ main(int argc, char *argv[])
 	int ch, rv;
 
 	fstype = "ufs";
-
+	(void)setlocale(LC_ALL, "");
 	memset(&totalbuf, 0, sizeof(totalbuf));
 	totalbuf.f_bsize = DEV_BSIZE;
 	strlcpy(totalbuf.f_mntfromname, "total", MNAMELEN);
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, "abcgHhiklmnPt:T")) != -1)
+	while ((ch = getopt(argc, argv, "abcgHhiklmnPt:T,")) != -1)
 		switch (ch) {
 		case 'a':
 			aflag = 1;
@@ -179,6 +181,9 @@ main(int argc, char *argv[])
 			break;
 		case 'T':
 			Tflag = 1;
+			break;
+		case ',':
+			thousands = 1;
 			break;
 		case '?':
 		default:
@@ -388,16 +393,11 @@ prthumanvalinode(int64_t bytes)
 
 /*
  * Convert statfs returned file system size into BLOCKSIZE units.
- * Attempts to avoid overflow for large file systems.
  */
 static intmax_t
 fsbtoblk(int64_t num, uint64_t fsbs, u_long bs)
 {
-
-	if (fsbs != 0 && fsbs < bs)
-		return (num / (intmax_t)(bs / fsbs));
-	else
-		return (num * (intmax_t)(fsbs / bs));
+	return (num * (intmax_t) fsbs / (int64_t) bs);
 }
 
 /*
@@ -410,10 +410,18 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	static int headerlen, timesthrough = 0;
 	static const char *header;
 	int64_t used, availblks, inodes;
+	const char *format;
 
 	if (++timesthrough == 1) {
 		mwp->mntfrom = imax(mwp->mntfrom, (int)strlen("Filesystem"));
 		mwp->fstype = imax(mwp->fstype, (int)strlen("Type"));
+		if (thousands) {		/* make space for commas */
+		    mwp->total += (mwp->total - 1) / 3;
+		    mwp->used  += (mwp->used - 1) / 3;
+		    mwp->avail += (mwp->avail - 1) / 3;
+		    mwp->iused += (mwp->iused - 1) / 3;
+		    mwp->ifree += (mwp->ifree - 1) / 3;
+		}
 		if (hflag) {
 			header = "   Size";
 			mwp->total = mwp->used = mwp->avail =
@@ -428,7 +436,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		(void)printf("%-*s", mwp->mntfrom, "Filesystem");
 		if (Tflag)
 			(void)printf("  %-*s", mwp->fstype, "Type");
-		(void)printf(" %-*s %*s %*s Capacity", mwp->total, header,
+		(void)printf(" %*s %*s %*s Capacity", mwp->total, header,
 		    mwp->used, "Used", mwp->avail, "Avail");
 		if (iflag) {
 			mwp->iused = imax(hflag ? 0 : mwp->iused,
@@ -440,6 +448,12 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		}
 		(void)printf("  Mounted on\n");
 	}
+	/* Check for 0 block size.  Can this happen? */
+	if (sfsp->f_bsize == 0) {
+		warnx ("File system %s does not have a block size, assuming 512.",
+		    sfsp->f_mntonname);
+		sfsp->f_bsize = 512;
+	}
 	(void)printf("%-*s", mwp->mntfrom, sfsp->f_mntfromname);
 	if (Tflag)
 		(void)printf("  %-*s", mwp->fstype, sfsp->f_fstypename);
@@ -448,7 +462,11 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (hflag) {
 		prthuman(sfsp, used);
 	} else {
-		(void)printf(" %*jd %*jd %*jd",
+		if (thousands)
+		    format = " %*j'd %*j'd %*j'd";
+		else
+		    format = " %*jd %*jd %*jd";
+		(void)printf(format,
 		    mwp->total, fsbtoblk(sfsp->f_blocks,
 		    sfsp->f_bsize, blocksize),
 		    mwp->used, fsbtoblk(used, sfsp->f_bsize, blocksize),
@@ -465,7 +483,11 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 			prthumanvalinode(used);
 			prthumanvalinode(sfsp->f_ffree);
 		} else {
-			(void)printf(" %*jd %*jd", mwp->iused, (intmax_t)used,
+			if (thousands)
+			    format = " %*j'd %*j'd";
+			else
+			    format = " %*jd %*jd";
+			(void)printf(format, mwp->iused, (intmax_t)used,
 			    mwp->ifree, (intmax_t)sfsp->f_ffree);
 		}
 		(void)printf(" %4.0f%% ", inodes == 0 ? 100.0 :
@@ -542,7 +564,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-"usage: df [-b | -g | -H | -h | -k | -m | -P] [-acilnT] [-t type] [file | filesystem ...]\n");
+"usage: df [-b | -g | -H | -h | -k | -m | -P] [-acilnT] [-t type] [-,]\n"
+"          [file | filesystem ...]\n");
 	exit(EX_USAGE);
 }
 

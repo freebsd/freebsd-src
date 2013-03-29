@@ -29,7 +29,8 @@
 #ifndef _MACHINE_VM_H_
 #define	_MACHINE_VM_H_
 
-/* Memory attribute configuration is not (yet) implemented. */
+/* Memory attribute configuration. */
 #define	VM_MEMATTR_DEFAULT	0
+#define	VM_MEMATTR_UNCACHEABLE	1
 
 #endif /* !_MACHINE_VM_H_ */

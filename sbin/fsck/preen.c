@@ -78,12 +78,12 @@ static int nrun = 0, ndisks = 0;
 static struct diskentry *finddisk(const char *);
 static void addpart(const char *, const char *, const char *);
 static int startdisk(struct diskentry *, 
-    int (*)(const char *, const char *, const char *, char *, pid_t *));
+    int (*)(const char *, const char *, const char *, const char *, pid_t *));
 static void printpart(void);
 
 int
 checkfstab(int flags, int (*docheck)(struct fstab *), 
-    int (*checkit)(const char *, const char *, const char *, char *, pid_t *))
+    int (*checkit)(const char *, const char *, const char *, const char *, pid_t *))
 {
 	struct fstab *fs;
 	struct diskentry *d, *nextdisk;
@@ -295,19 +295,19 @@ printpart(void)
 
 
 static void
-addpart(const char *type, const char *devname, const char *mntpt)
+addpart(const char *type, const char *dev, const char *mntpt)
 {
-	struct diskentry *d = finddisk(devname);
+	struct diskentry *d = finddisk(dev);
 	struct partentry *p;
 
 	TAILQ_FOREACH(p, &d->d_part, p_entries)
-		if (strcmp(p->p_devname, devname) == 0) {
-			warnx("%s in fstab more than once!\n", devname);
+		if (strcmp(p->p_devname, dev) == 0) {
+			warnx("%s in fstab more than once!\n", dev);
 			return;
 		}
 
 	p = emalloc(sizeof(*p));
-	p->p_devname = estrdup(devname);
+	p->p_devname = estrdup(dev);
 	p->p_mntpt = estrdup(mntpt);
 	p->p_type = estrdup(type);
 
@@ -317,7 +317,7 @@ addpart(const char *type, const char *devname, const char *mntpt)
 
 static int
 startdisk(struct diskentry *d, int (*checkit)(const char *, const char *,
-    const char *, char *, pid_t *))
+    const char *, const char *, pid_t *))
 {
 	struct partentry *p = TAILQ_FIRST(&d->d_part);
 	int rv;

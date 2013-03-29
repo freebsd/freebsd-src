@@ -163,19 +163,20 @@ __FBSDID("$FreeBSD$");
 #define	UDMASS_CBI	0x00400000	/* CBI transfers */
 #define	UDMASS_WIRE	(UDMASS_BBB|UDMASS_CBI)
 #define	UDMASS_ALL	0xffff0000	/* all of the above */
-static int umass_debug = 0;
+static int umass_debug;
+static int umass_throttle;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
-SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &umass_debug, 0, "umass debug level");
-
 TUNABLE_INT("hw.usb.umass.debug", &umass_debug);
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, throttle, CTLFLAG_RW | CTLFLAG_TUN,
+    &umass_throttle, 0, "Forced delay between commands in milliseconds");
+TUNABLE_INT("hw.usb.umass.throttle", &umass_throttle);
 #else
 #define	DIF(...) do { } while (0)
 #define	DPRINTF(...) do { } while (0)
 #endif
-
-#define	UMASS_GONE ((struct umass_softc *)1)
 
 #define	UMASS_BULK_SIZE (1 << 17)
 #define	UMASS_CBI_DIAGNOSTIC_CMDLEN 12	/* bytes */
@@ -364,6 +365,8 @@ typedef uint8_t (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
 	 * result.
 	 */
 #define	NO_SYNCHRONIZE_CACHE	0x4000
+	/* Device does not support 'PREVENT/ALLOW MEDIUM REMOVAL'. */
+#define	NO_PREVENT_ALLOW	0x8000
 
 struct umass_softc {
 
@@ -695,7 +698,8 @@ static device_method_t umass_methods[] = {
 	DEVMETHOD(device_probe, umass_probe),
 	DEVMETHOD(device_attach, umass_attach),
 	DEVMETHOD(device_detach, umass_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t umass_driver = {
@@ -834,6 +838,8 @@ umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 		quirks |= NO_INQUIRY;
 	if (usb_test_quirk(uaa, UQ_MSC_NO_INQUIRY_EVPD))
 		quirks |= NO_INQUIRY_EVPD;
+	if (usb_test_quirk(uaa, UQ_MSC_NO_PREVENT_ALLOW))
+		quirks |= NO_PREVENT_ALLOW;
 	if (usb_test_quirk(uaa, UQ_MSC_NO_SYNC_CACHE))
 		quirks |= NO_SYNCHRONIZE_CACHE;
 	if (usb_test_quirk(uaa, UQ_MSC_SHUTTLE_INIT))
@@ -880,7 +886,7 @@ umass_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umass_probe_proto temp = umass_probe_proto(dev, uaa);
 	struct usb_interface_descriptor *id;
-	int32_t err;
+	int err;
 
 	/*
 	 * NOTE: the softc struct is cleared in device_set_driver.
@@ -993,6 +999,24 @@ umass_attach(device_t dev)
 		    "transfers, %s\n", usbd_errstr(err));
 		goto detach;
 	}
+#ifdef USB_DEBUG
+	if (umass_throttle > 0) {
+		uint8_t x;
+		int iv;
+
+		iv = umass_throttle;
+
+		if (iv < 1)
+			iv = 1;
+		else if (iv > 8000)
+			iv = 8000;
+
+		for (x = 0; x != UMASS_T_MAX; x++) {
+			if (sc->sc_xfer[x] != NULL)
+				usbd_xfer_set_interval(sc->sc_xfer[x], iv);
+		}
+	}
+#endif
 	sc->sc_transform =
 	    (sc->sc_proto & UMASS_PROTO_SCSI) ? &umass_scsi_transform :
 	    (sc->sc_proto & UMASS_PROTO_UFI) ? &umass_ufi_transform :
@@ -2109,7 +2133,7 @@ umass_cam_detach_sim(struct umass_softc *sc)
 	if (sc->sc_sim != NULL) {
 		if (xpt_bus_deregister(cam_sim_path(sc->sc_sim))) {
 			/* accessing the softc is not possible after this */
-			sc->sc_sim->softc = UMASS_GONE;
+			sc->sc_sim->softc = NULL;
 			cam_sim_free(sc->sc_sim, /* free_devq */ TRUE);
 		} else {
 			panic("%s: CAM layer is busy\n",
@@ -2128,62 +2152,10 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct umass_softc *sc = (struct umass_softc *)sim->softc;
 
-	if (sc == UMASS_GONE ||
-	    (sc != NULL && !usbd_device_attached(sc->sc_udev))) {
+	if (sc == NULL) {
 		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
-	}
-	/*
-	 * Verify, depending on the operation to perform, that we either got
-	 * a valid sc, because an existing target was referenced, or
-	 * otherwise the SIM is addressed.
-	 *
-	 * This avoids bombing out at a printf and does give the CAM layer some
-	 * sensible feedback on errors.
-	 */
-	switch (ccb->ccb_h.func_code) {
-	case XPT_SCSI_IO:
-	case XPT_RESET_DEV:
-	case XPT_GET_TRAN_SETTINGS:
-	case XPT_SET_TRAN_SETTINGS:
-	case XPT_CALC_GEOMETRY:
-		/* the opcodes requiring a target. These should never occur. */
-		if (sc == NULL) {
-			DPRINTF(sc, UDMASS_GEN, "%s:%d:%d:%d:func_code 0x%04x: "
-			    "Invalid target (target needed)\n",
-			    DEVNAME_SIM, cam_sim_path(sc->sc_sim),
-			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
-			    ccb->ccb_h.func_code);
-
-			ccb->ccb_h.status = CAM_TID_INVALID;
-			xpt_done(ccb);
-			goto done;
-		}
-		break;
-	case XPT_PATH_INQ:
-	case XPT_NOOP:
-		/*
-		 * The opcodes sometimes aimed at a target (sc is valid),
-		 * sometimes aimed at the SIM (sc is invalid and target is
-		 * CAM_TARGET_WILDCARD)
-		 */
-		if ((sc == NULL) &&
-		    (ccb->ccb_h.target_id != CAM_TARGET_WILDCARD)) {
-			DPRINTF(sc, UDMASS_SCSI, "%s:%d:%d:%d:func_code 0x%04x: "
-			    "Invalid target (no wildcard)\n",
-			    DEVNAME_SIM, cam_sim_path(sc->sc_sim),
-			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
-			    ccb->ccb_h.func_code);
-
-			ccb->ccb_h.status = CAM_TID_INVALID;
-			xpt_done(ccb);
-			goto done;
-		}
-		break;
-	default:
-		/* XXX Hm, we should check the input parameters */
-		break;
 	}
 
 	/* Perform the requested action */
@@ -2280,8 +2252,11 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 							/*ascq*/ 0x00,
 							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
-						ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
-						    CAM_AUTOSNS_VALID;
+						ccb->ccb_h.status =
+						    CAM_SCSI_STATUS_ERROR |
+						    CAM_AUTOSNS_VALID |
+						    CAM_DEV_QFRZN;
+						xpt_freeze_devq(ccb->ccb_h.path, 1);
 						xpt_done(ccb);
 						goto done;
 					}
@@ -2299,6 +2274,13 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					}
 					if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
 						ccb->csio.dxfer_len = SHORT_INQUIRY_LENGTH;
+					}
+				} else if (sc->sc_transfer.cmd_data[0] == PREVENT_ALLOW) {
+					if (sc->sc_quirks & NO_PREVENT_ALLOW) {
+						ccb->csio.scsi_status = SCSI_STATUS_OK;
+						ccb->ccb_h.status = CAM_REQ_CMP;
+						xpt_done(ccb);
+						goto done;
 					}
 				} else if (sc->sc_transfer.cmd_data[0] == SYNCHRONIZE_CACHE) {
 					if (sc->sc_quirks & NO_SYNCHRONIZE_CACHE) {
@@ -2448,7 +2430,7 @@ umass_cam_poll(struct cam_sim *sim)
 {
 	struct umass_softc *sc = (struct umass_softc *)sim->softc;
 
-	if (sc == UMASS_GONE)
+	if (sc == NULL)
 		return;
 
 	DPRINTF(sc, UDMASS_SCSI, "CAM poll\n");
@@ -2534,7 +2516,8 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		 * recovered. We return an error to CAM and let CAM
 		 * retry the command if necessary.
 		 */
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 		break;
 	}
@@ -2597,8 +2580,9 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 			 * usual.
 			 */
 
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-			    | CAM_AUTOSNS_VALID;
+			    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 
 #if 0
@@ -2609,18 +2593,23 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 
 			/* the rest of the command was filled in at attach */
 
-			if (umass_std_transform(sc, ccb,
+			if ((sc->sc_transform)(sc,
 			    &sc->cam_scsi_test_unit_ready.opcode,
-			    sizeof(sc->cam_scsi_test_unit_ready))) {
+			    sizeof(sc->cam_scsi_test_unit_ready)) == 1) {
 				umass_command_start(sc, DIR_NONE, NULL, 0,
 				    ccb->ccb_h.timeout,
 				    &umass_cam_quirk_cb, ccb);
+				break;
 			}
-			break;
 		} else {
-			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-			    | CAM_AUTOSNS_VALID;
-			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
+			if (key >= 0) {
+				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
+				    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
+				ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+			} else
+				ccb->ccb_h.status = CAM_AUTOSENSE_FAIL
+				    | CAM_DEV_QFRZN;
 		}
 		xpt_done(ccb);
 		break;
@@ -2628,15 +2617,16 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Autosense failed, "
 		    "status %d\n", status);
-		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 	}
 }
 
 /*
  * This completion code just handles the fact that we sent a test-unit-ready
- * after having previously failed a READ CAPACITY with CHECK_COND.  Even
- * though this command succeeded, we have to tell CAM to retry.
+ * after having previously failed a READ CAPACITY with CHECK_COND.  The CCB
+ * status for CAM is already set earlier.
  */
 static void
 umass_cam_quirk_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
@@ -2645,9 +2635,6 @@ umass_cam_quirk_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 	DPRINTF(sc, UDMASS_SCSI, "Test unit ready "
 	    "returned status %d\n", status);
 
-	ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-	    | CAM_AUTOSNS_VALID;
-	ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 	xpt_done(ccb);
 }
 
@@ -2936,7 +2923,8 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 		xpt_done(ccb);
 		return (0);
 	} else if (retval == 0) {
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_REQ_INVALID | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 		return (0);
 	}

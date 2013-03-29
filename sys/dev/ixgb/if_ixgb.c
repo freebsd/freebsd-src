@@ -159,7 +159,8 @@ static device_method_t ixgb_methods[] = {
 	DEVMETHOD(device_attach, ixgb_attach),
 	DEVMETHOD(device_detach, ixgb_detach),
 	DEVMETHOD(device_shutdown, ixgb_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ixgb_driver = {
@@ -1790,7 +1791,7 @@ ixgb_get_buf(int i, struct adapter * adapter,
 
 	if (mp == NULL) {
 
-		mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		mp = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 
 		if (mp == NULL) {
 			adapter->mbuf_alloc_failed++;

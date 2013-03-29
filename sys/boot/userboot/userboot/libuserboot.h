@@ -28,7 +28,7 @@
 
 #include "userboot.h"
 
-extern struct loader_callbacks_v1 *callbacks;
+extern struct loader_callbacks *callbacks;
 extern void *callbacks_arg;
 
 #define	CALLBACK(fn, args...) (callbacks->fn(callbacks_arg , ##args))

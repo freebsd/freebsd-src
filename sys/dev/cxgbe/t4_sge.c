@@ -120,7 +120,7 @@ static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t,
     int *);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
-    int, char *);
+    int);
 static inline void init_fl(struct sge_fl *, int, int, char *);
 static inline void init_eq(struct sge_eq *, int, int, uint8_t, uint16_t,
     char *);
@@ -319,6 +319,12 @@ t4_sge_init(struct adapter *sc)
 		t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5,
 		    V_TIMERVALUE4(us_to_core_ticks(sc, intr_timer[4])) |
 		    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5])));
+
+		if (cong_drop == 0) {
+			t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
+			    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
+			    F_TUNNELCNGDROP3, 0);
+		}
 	}
 
 	v = t4_read_reg(sc, A_SGE_CONTROL);
@@ -417,22 +423,14 @@ t4_setup_adapter_queues(struct adapter *sc)
 	 * Firmware event queue
 	 */
 	rc = alloc_fwq(sc);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create firmware event queue: %d\n", rc);
+	if (rc != 0)
 		return (rc);
-	}
 
 	/*
 	 * Management queue.  This is just a control queue that uses the fwq as
 	 * its associated iq.
 	 */
 	rc = alloc_mgmtq(sc);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create management queue: %d\n", rc);
-		return (rc);
-	}
 
 	return (rc);
 }
@@ -595,10 +593,8 @@ t4_setup_port_queues(struct port_info *pi)
 	 */
 	for_each_rxq(pi, i, rxq) {
 
-		snprintf(name, sizeof(name), "%s rxq%d-iq",
-		    device_get_nameunit(pi->dev), i);
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
-		    RX_IQ_ESIZE, name);
+		    RX_IQ_ESIZE);
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
@@ -620,10 +616,8 @@ t4_setup_port_queues(struct port_info *pi)
 #ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
-		snprintf(name, sizeof(name), "%s ofld_rxq%d-iq",
-		    device_get_nameunit(pi->dev), i);
 		init_iq(&ofld_rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
-		    pi->qsize_rxq, RX_IQ_ESIZE, name);
+		    pi->qsize_rxq, RX_IQ_ESIZE);
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
@@ -1478,7 +1472,7 @@ can_resume_tx(struct sge_eq *eq)
 
 static inline void
 init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
-    int qsize, int esize, char *name)
+    int qsize, int esize)
 {
 	KASSERT(tmr_idx >= 0 && tmr_idx < SGE_NTIMERS,
 	    ("%s: bad tmr_idx %d", __func__, tmr_idx));
@@ -1495,7 +1489,6 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 	}
 	iq->qsize = roundup(qsize, 16);		/* See FW_IQ_CMD/iqsize */
 	iq->esize = max(esize, 16);		/* See FW_IQ_CMD/iqesize */
-	strlcpy(iq->lockname, name, sizeof(iq->lockname));
 }
 
 static inline void
@@ -1793,12 +1786,10 @@ alloc_fwq(struct adapter *sc)
 {
 	int rc, intr_idx;
 	struct sge_iq *fwq = &sc->sge.fwq;
-	char name[16];
 	struct sysctl_oid *oid = device_get_sysctl_tree(sc->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
-	snprintf(name, sizeof(name), "%s fwq", device_get_nameunit(sc->dev));
-	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE, name);
+	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE);
 	fwq->flags |= IQ_INTR;	/* always */
 	intr_idx = sc->intr_count > 1 ? 1 : 0;
 	rc = alloc_iq_fl(sc->port[0], fwq, NULL, intr_idx, -1);
@@ -2371,6 +2362,8 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "txpkts_pkts", CTLFLAG_RD,
 	    &txq->txpkts_pkts, "# of frames tx'd using txpkts work requests");
 
+	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "br_drops", CTLFLAG_RD,
+	    &txq->br->br_drops, "# of drops in the buf_ring for this queue");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_dmamap", CTLFLAG_RD,
 	    &txq->no_dmamap, 0, "# of times txq ran out of DMA maps");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_desc", CTLFLAG_RD,
@@ -2770,7 +2763,7 @@ start:	sgl->nsegs = 0;
 	rc = bus_dmamap_load_mbuf_sg(txq->tx_tag, txm->map, m, sgl->seg,
 	    &sgl->nsegs, BUS_DMA_NOWAIT);
 	if (rc == EFBIG && defragged == 0) {
-		m = m_defrag(m, M_DONTWAIT);
+		m = m_defrag(m, M_NOWAIT);
 		if (m == NULL)
 			return (EFBIG);
 
@@ -2957,13 +2950,13 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 
 	/* Checksum offload */
 	ctrl1 = 0;
-	if (!(m->m_pkthdr.csum_flags & CSUM_IP))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO)))
 		ctrl1 |= F_TXPKT_IPCSUM_DIS;
 	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
-	    CSUM_TCP_IPV6)))
+	    CSUM_TCP_IPV6 | CSUM_TSO)))
 		ctrl1 |= F_TXPKT_L4CSUM_DIS;
 	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP |
-	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6))
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6 | CSUM_TSO))
 		txq->txcsum++;	/* some hardware assistance provided */
 
 	/* VLAN tag insertion */
@@ -3159,11 +3152,13 @@ write_ulp_cpl_sgl(struct port_info *pi, struct sge_txq *txq,
 
 	/* Checksum offload */
 	ctrl = 0;
-	if (!(m->m_pkthdr.csum_flags & CSUM_IP))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO)))
 		ctrl |= F_TXPKT_IPCSUM_DIS;
-	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
+	    CSUM_TCP_IPV6 | CSUM_TSO)))
 		ctrl |= F_TXPKT_L4CSUM_DIS;
-	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP))
+	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP |
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6 | CSUM_TSO))
 		txq->txcsum++;	/* some hardware assistance provided */
 
 	/* VLAN tag insertion */
@@ -3514,6 +3509,10 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 	return (0);
 }
 
+/* handle_fw_msg works for both fw4_msg and fw6_msg because this is valid */
+CTASSERT(offsetof(struct cpl_fw4_msg, data) == \
+    offsetof(struct cpl_fw6_msg, data));
+
 static int
 handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
@@ -3522,6 +3521,13 @@ handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
+
+	if (cpl->type == FW_TYPE_RSSCPL || cpl->type == FW6_TYPE_RSSCPL) {
+		const struct rss_header *rss2;
+
+		rss2 = (const struct rss_header *)&cpl->data[0];
+		return (sc->cpl_handler[rss2->opcode](iq, rss2, m));
+	}
 
 	return (sc->fw_msg_handler[cpl->type](sc, &cpl->data[0]));
 }

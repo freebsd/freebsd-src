@@ -73,7 +73,7 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 	struct mbuf *mb2;
 
 	if (siz > M_TRAILINGSPACE(nd->nd_mb)) {
-		NFSMCLGET(mb2, M_DONTWAIT);
+		NFSMCLGET(mb2, M_NOWAIT);
 		if (siz > MLEN)
 			panic("build > MLEN");
 		mbuf_setlen(mb2, 0);

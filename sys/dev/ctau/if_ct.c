@@ -93,7 +93,8 @@ static device_method_t ct_isa_methods [] = {
 	DEVMETHOD(device_probe,		ct_probe),
 	DEVMETHOD(device_attach,	ct_attach),
 	DEVMETHOD(device_detach,	ct_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 typedef struct _ct_dma_mem_t {
@@ -205,10 +206,10 @@ static struct mbuf *makembuf (void *buf, u_int len)
 {
 	struct mbuf *m;
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_DONTWAIT);
+	MCLGET (m, M_NOWAIT);
 	if (! (m->m_flags & M_EXT)) {
 		m_freem (m);
 		return 0;

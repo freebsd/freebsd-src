@@ -107,7 +107,7 @@ put_uint32(struct mbuf **mp, uint32_t v)
 	struct mbuf *m = *mp;
 	uint32_t n;
 
-	M_PREPEND(m, sizeof(uint32_t), M_WAIT);
+	M_PREPEND(m, sizeof(uint32_t), M_WAITOK);
 	n = htonl(v);
 	bcopy(&n, mtod(m, uint32_t *), sizeof(uint32_t));
 	*mp = m;
@@ -241,7 +241,7 @@ xdr_rpc_gss_unwrap_data(struct mbuf **resultsp,
 		 */
 		len = get_uint32(&results);
 		message = results;
-		results = m_split(results, len, M_WAIT);
+		results = m_split(results, len, M_WAITOK);
 		if (!results) {
 			m_freem(message);
 			return (FALSE);

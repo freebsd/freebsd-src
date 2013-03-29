@@ -714,7 +714,7 @@ ece_new_rxbuf(struct ece_softc *sc, struct rx_desc_info* descinfo)
 
 	tag = sc->dmatag_ring_rx;
 
-	new_mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	new_mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 
 	if (new_mbuf == NULL)
 		return (ENOBUFS);

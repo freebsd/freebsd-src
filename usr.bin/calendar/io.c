@@ -60,10 +60,10 @@ __FBSDID("$FreeBSD$");
 #include "calendar.h"
 
 const char *calendarFile = "calendar";	/* default calendar file */
-const char *calendarHomes[] = {".calendar", _PATH_INCLUDE};	/* HOME */
-const char *calendarNoMail = "nomail";	/* don't sent mail if this file exist */
+static const char *calendarHomes[] = {".calendar", _PATH_INCLUDE}; /* HOME */
+static const char *calendarNoMail = "nomail";/* don't sent mail if file exist */
 
-char	path[MAXPATHLEN];
+static char path[MAXPATHLEN];
 
 struct fixs neaster, npaskha, ncny, nfullmoon, nnewmoon;
 struct fixs nmarequinox, nsepequinox, njunsolstice, ndecsolstice;

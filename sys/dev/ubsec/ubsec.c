@@ -1375,18 +1375,18 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 				ubsecstats.hst_unaligned++;
 				totlen = q->q_src_mapsize;
 				if (totlen >= MINCLSIZE) {
-					m = m_getcl(M_DONTWAIT, MT_DATA,
+					m = m_getcl(M_NOWAIT, MT_DATA,
 					    q->q_src_m->m_flags & M_PKTHDR);
 					len = MCLBYTES;
 				} else if (q->q_src_m->m_flags & M_PKTHDR) {
-					m = m_gethdr(M_DONTWAIT, MT_DATA);
+					m = m_gethdr(M_NOWAIT, MT_DATA);
 					len = MHLEN;
 				} else {
-					m = m_get(M_DONTWAIT, MT_DATA);
+					m = m_get(M_NOWAIT, MT_DATA);
 					len = MLEN;
 				}
 				if (m && q->q_src_m->m_flags & M_PKTHDR &&
-				    !m_dup_pkthdr(m, q->q_src_m, M_DONTWAIT)) {
+				    !m_dup_pkthdr(m, q->q_src_m, M_NOWAIT)) {
 					m_free(m);
 					m = NULL;
 				}
@@ -1402,11 +1402,11 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 
 				while (totlen > 0) {
 					if (totlen >= MINCLSIZE) {
-						m = m_getcl(M_DONTWAIT,
+						m = m_getcl(M_NOWAIT,
 						    MT_DATA, 0);
 						len = MCLBYTES;
 					} else {
-						m = m_get(M_DONTWAIT, MT_DATA);
+						m = m_get(M_NOWAIT, MT_DATA);
 						len = MLEN;
 					}
 					if (m == NULL) {

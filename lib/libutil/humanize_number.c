@@ -76,7 +76,7 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 		if (flags & HN_B)
 			prefixes = "B\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
 		else
-			prefixes = "\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
+			prefixes = "\0\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
 	} else {
 		baselen = 1;
 		if (flags & HN_DIVISOR_1000)

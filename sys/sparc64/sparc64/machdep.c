@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>
@@ -196,11 +197,6 @@ cpu_startup(void *arg)
 		printf("machine: %s\n", sparc64_model);
 
 	cpu_identify(rdpr(ver), PCPU_GET(clock), curcpu);
-
-	/*
-	 * Add BSP as an interrupt target.
-	 */
-	intr_add_cpu(0);
 }
 
 void

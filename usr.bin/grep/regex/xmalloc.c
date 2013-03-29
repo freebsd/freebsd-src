@@ -39,9 +39,9 @@ typedef struct {
 } hashTable;
 
 static int xmalloc_peak;
-int xmalloc_current;
+static int xmalloc_current;
 static int xmalloc_peak_blocks;
-int xmalloc_current_blocks;
+static int xmalloc_current_blocks;
 static int xmalloc_fail_after;
 
 #define TABLE_BITS 8

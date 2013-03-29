@@ -68,11 +68,6 @@ struct pmap {
 	struct	pmap_statistics pm_stats;
 };
 
-struct tte_list_lock {
-	struct rwlock lock;
-	char padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-};
-
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_ASSERT(pmap, type)					\
 				mtx_assert(&(pmap)->pm_mtx, (type))
@@ -108,8 +103,7 @@ void	pmap_set_kctx(void);
 
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
-extern	struct tte_list_lock tte_list_global;
-#define	tte_list_global_lock	tte_list_global.lock
+extern	struct rwlock_padalign tte_list_global_lock;
 extern	vm_paddr_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;

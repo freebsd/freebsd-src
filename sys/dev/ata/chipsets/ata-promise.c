@@ -130,7 +130,7 @@ ata_promise_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     const struct ata_chip_id *idx;
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_PDC20246,  0, PR_OLD, 0x00,     ATA_UDMA2, "PDC20246" },
      { ATA_PDC20262,  0, PR_NEW, 0x00,     ATA_UDMA4, "PDC20262" },
      { ATA_PDC20263,  0, PR_NEW, 0x00,     ATA_UDMA4, "PDC20263" },

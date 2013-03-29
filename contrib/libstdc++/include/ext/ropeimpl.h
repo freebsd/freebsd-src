@@ -1143,7 +1143,7 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
 	}
       else
 	{
-	  char* __kind;
+	  const char* __kind;
 	  
 	  switch (__r->_M_tag)
 	    {

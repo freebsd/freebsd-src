@@ -47,33 +47,15 @@ Type *Type::getScalarType() {
   return this;
 }
 
+const Type *Type::getScalarType() const {
+  if (const VectorType *VTy = dyn_cast<VectorType>(this))
+    return VTy->getElementType();
+  return this;
+}
+
 /// isIntegerTy - Return true if this is an IntegerType of the specified width.
 bool Type::isIntegerTy(unsigned Bitwidth) const {
   return isIntegerTy() && cast<IntegerType>(this)->getBitWidth() == Bitwidth;
-}
-
-/// isIntOrIntVectorTy - Return true if this is an integer type or a vector of
-/// integer types.
-///
-bool Type::isIntOrIntVectorTy() const {
-  if (isIntegerTy())
-    return true;
-  if (getTypeID() != Type::VectorTyID) return false;
-  
-  return cast<VectorType>(this)->getElementType()->isIntegerTy();
-}
-
-/// isFPOrFPVectorTy - Return true if this is a FP type or a vector of FP types.
-///
-bool Type::isFPOrFPVectorTy() const {
-  if (getTypeID() == Type::HalfTyID || getTypeID() == Type::FloatTyID ||
-      getTypeID() == Type::DoubleTyID ||
-      getTypeID() == Type::FP128TyID || getTypeID() == Type::X86_FP80TyID || 
-      getTypeID() == Type::PPC_FP128TyID)
-    return true;
-  if (getTypeID() != Type::VectorTyID) return false;
-  
-  return cast<VectorType>(this)->getElementType()->isFloatingPointTy();
 }
 
 // canLosslesslyBitCastTo - Return true if this type can be converted to
@@ -220,8 +202,6 @@ Type *Type::getStructElementType(unsigned N) const {
   return cast<StructType>(this)->getElementType(N);
 }
 
-
-
 Type *Type::getSequentialElementType() const {
   return cast<SequentialType>(this)->getElementType();
 }
@@ -235,10 +215,8 @@ unsigned Type::getVectorNumElements() const {
 }
 
 unsigned Type::getPointerAddressSpace() const {
-  return cast<PointerType>(this)->getAddressSpace();
+  return cast<PointerType>(getScalarType())->getAddressSpace();
 }
-
-
 
 
 //===----------------------------------------------------------------------===//
@@ -400,11 +378,9 @@ FunctionType *FunctionType::get(Type *ReturnType,
   return FT;
 }
 
-
 FunctionType *FunctionType::get(Type *Result, bool isVarArg) {
   return get(Result, ArrayRef<Type *>(), isVarArg);
 }
-
 
 /// isValidReturnType - Return true if the specified type is valid as a return
 /// type.
@@ -553,7 +529,6 @@ StructType *StructType::create(LLVMContext &Context) {
   return create(Context, StringRef());
 }
 
-
 StructType *StructType::create(ArrayRef<Type*> Elements, StringRef Name,
                                bool isPacked) {
   assert(!Elements.empty() &&
@@ -637,7 +612,6 @@ bool StructType::isLayoutIdentical(StructType *Other) const {
   return std::equal(element_begin(), element_end(), Other->element_begin());
 }
 
-
 /// getTypeByName - Return the type with the specified name, or null if there
 /// is none by that name.
 StructType *Module::getTypeByName(StringRef Name) const {
@@ -699,7 +673,6 @@ ArrayType::ArrayType(Type *ElType, uint64_t NumEl)
   : SequentialType(ArrayTyID, ElType) {
   NumElements = NumEl;
 }
-
 
 ArrayType *ArrayType::get(Type *elementType, uint64_t NumElements) {
   Type *ElementType = const_cast<Type*>(elementType);

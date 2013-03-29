@@ -128,8 +128,10 @@
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
 
 #if defined(SOC_MV_ARMADAXP)
+#define MV_MISC_BASE		(MV_BASE + 0x18200)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
+#define MV_MP_CLOCKS_BASE	(MV_MBUS_BRIDGE_BASE + 0x700)
 #define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x1800)
 #elif !defined(SOC_MV_FREY)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
@@ -255,14 +257,15 @@
 #define MV_WIN_PCIE_TARGET(n)		4
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
 #define MV_WIN_PCIE_IO_ATTR(n)		0x51
-#define MV_WIN_PCI_TARGET		3
-#define MV_WIN_PCI_MEM_ATTR		0x59
-#define MV_WIN_PCI_IO_ATTR		0x51
 #elif defined(SOC_MV_LOKIPLUS)
 #define MV_WIN_PCIE_TARGET(n)		(3 + (n))
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
 #define MV_WIN_PCIE_IO_ATTR(n)		0x51
 #endif
+
+#define MV_WIN_PCI_TARGET		3
+#define MV_WIN_PCI_MEM_ATTR		0x59
+#define MV_WIN_PCI_IO_ATTR		0x51
 
 #define MV_WIN_PCIE_CTRL(n)		(0x10 * (((n) < 5) ? (n) : \
 					    (n) + 1) + 0x1820)

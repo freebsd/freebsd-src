@@ -23,7 +23,6 @@ PSM_DEBUG		opt_psm.h
 PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 
-DEBUGGER_ON_POWERFAIL	opt_psycho.h
 PSYCHO_DEBUG		opt_psycho.h
 
 SCHIZO_DEBUG		opt_schizo.h

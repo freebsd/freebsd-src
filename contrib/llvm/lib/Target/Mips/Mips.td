@@ -77,6 +77,10 @@ def FeatureMips64r2    : SubtargetFeature<"mips64r2", "MipsArchVersion",
 def FeatureMips16  : SubtargetFeature<"mips16", "InMips16Mode", "true",
                                       "Mips16 mode">;
 
+def FeatureDSP : SubtargetFeature<"dsp", "HasDSP", "true", "Mips DSP ASE">;
+def FeatureDSPR2 : SubtargetFeature<"dspr2", "HasDSPR2", "true",
+                                    "Mips DSP-R2 ASE", [FeatureDSP]>;
+
 //===----------------------------------------------------------------------===//
 // Mips processors supported.
 //===----------------------------------------------------------------------===//
@@ -95,9 +99,20 @@ def MipsAsmWriter : AsmWriter {
   bit isMCAsmWriter = 1;
 }
 
-def Mips : Target {
-  let InstructionSet = MipsInstrInfo;
-
-  let AssemblyWriters = [MipsAsmWriter];
+def MipsAsmParser : AsmParser {
+  let ShouldEmitMatchRegisterName = 0;
 }
 
+def MipsAsmParserVariant : AsmParserVariant {
+  int Variant = 0;
+
+  // Recognize hard coded registers.
+  string RegisterPrefix = "$";
+}
+
+def Mips : Target {
+  let InstructionSet = MipsInstrInfo;
+  let AssemblyParsers = [MipsAsmParser];
+  let AssemblyWriters = [MipsAsmWriter];
+  let AssemblyParserVariants = [MipsAsmParserVariant];
+}

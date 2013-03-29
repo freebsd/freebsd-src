@@ -60,7 +60,8 @@ namespace llvm {
       FlagArtificial         = 1 << 6,
       FlagExplicit           = 1 << 7,
       FlagPrototyped         = 1 << 8,
-      FlagObjcClassComplete  = 1 << 9
+      FlagObjcClassComplete  = 1 << 9,
+      FlagObjectPointer      = 1 << 10
     };
   protected:
     const MDNode *DbgNode;
@@ -80,6 +81,7 @@ namespace llvm {
     GlobalVariable *getGlobalVariableField(unsigned Elt) const;
     Constant *getConstantField(unsigned Elt) const;
     Function *getFunctionField(unsigned Elt) const;
+    void replaceFunctionField(unsigned Elt, Function *F);
 
   public:
     explicit DIDescriptor() : DbgNode(0) {}
@@ -286,6 +288,9 @@ namespace llvm {
     }
     bool isArtificial() const {
       return (getFlags() & FlagArtificial) != 0;
+    }
+    bool isObjectPointer() const {
+      return (getFlags() & FlagObjectPointer) != 0;
     }
     bool isObjcClassComplete() const {
       return (getFlags() & FlagObjcClassComplete) != 0;
@@ -558,6 +563,7 @@ namespace llvm {
     bool describes(const Function *F);
 
     Function *getFunction() const { return getFunctionField(16); }
+    void replaceFunction(Function *F) { replaceFunctionField(16, F); }
     DIArray getTemplateParams() const { return getFieldAs<DIArray>(17); }
     DISubprogram getFunctionDeclaration() const {
       return getFieldAs<DISubprogram>(18);
@@ -642,6 +648,10 @@ namespace llvm {
       if (getVersion() <= llvm::LLVMDebugVersion8)
         return false;
       return (getUnsignedField(6) & FlagArtificial) != 0;
+    }
+
+    bool isObjectPointer() const {
+      return (getUnsignedField(6) & FlagObjectPointer) != 0;
     }
 
     /// getInlinedAt - If this variable is inlined then return inline location.

@@ -132,7 +132,7 @@ prn_printable(const char *s)
  * to fix this as an efficient fix would involve a lookup table. Same goes
  * for the rather inelegant code in prn_octal.
  *
- *                                              DES 1998/04/23
+ *						DES 1998/04/23
  */
 
 size_t
@@ -175,7 +175,7 @@ prn_octal(const char *s)
 	size_t clen;
 	unsigned char ch;
 	int goodchar, i, len, prtlen;
-	
+
 	memset(&mbs, 0, sizeof(mbs));
 	len = 0;
 	while ((clen = mbrtowc(&wc, s, MB_LEN_MAX, &mbs)) != 0) {
@@ -184,7 +184,10 @@ prn_octal(const char *s)
 			for (i = 0; i < (int)clen; i++)
 				putchar((unsigned char)s[i]);
 			len += wcwidth(wc);
-		} else if (goodchar && f_octal_escape && wc >= 0 &&
+		} else if (goodchar && f_octal_escape &&
+#if WCHAR_MIN < 0
+                    wc >= 0 &&
+#endif
 		    wc <= (wchar_t)UCHAR_MAX &&
 		    (p = strchr(esc, (char)wc)) != NULL) {
 			putchar('\\');
@@ -200,9 +203,9 @@ prn_octal(const char *s)
 			for (i = 0; i < prtlen; i++) {
 				ch = (unsigned char)s[i];
 				putchar('\\');
-		                putchar('0' + (ch >> 6));
-		                putchar('0' + ((ch >> 3) & 7));
-		                putchar('0' + (ch & 7));
+				putchar('0' + (ch >> 6));
+				putchar('0' + ((ch >> 3) & 7));
+				putchar('0' + (ch & 7));
 				len += 4;
 			}
 		}
@@ -222,9 +225,9 @@ usage(void)
 {
 	(void)fprintf(stderr,
 #ifdef COLORLS
-	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx1] [-D format]"
+	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [-D format]"
 #else
-	"usage: ls [-ABCFHILPRSTUWZabcdfghiklmnopqrstuwx1] [-D format]"
+	"usage: ls [-ABCFHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [-D format]"
 #endif
 		      " [file ...]\n");
 	exit(1);

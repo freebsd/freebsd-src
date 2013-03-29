@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -48,7 +48,7 @@ dmu_tx_create_dd(dsl_dir_t *dd)
 {
 	dmu_tx_t *tx = kmem_zalloc(sizeof (dmu_tx_t), KM_SLEEP);
 	tx->tx_dir = dd;
-	if (dd)
+	if (dd != NULL)
 		tx->tx_pool = dd->dd_pool;
 	list_create(&tx->tx_holds, sizeof (dmu_tx_hold_t),
 	    offsetof(dmu_tx_hold_t, txh_node));
@@ -284,6 +284,7 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			delta = P2NPHASE(off, dn->dn_datablksz);
 		}
 
+		min_ibs = max_ibs = dn->dn_indblkshift;
 		if (dn->dn_maxblkid > 0) {
 			/*
 			 * The blocksize can't change,
@@ -291,13 +292,6 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			 */
 			ASSERT(dn->dn_datablkshift != 0);
 			min_bs = max_bs = dn->dn_datablkshift;
-			min_ibs = max_ibs = dn->dn_indblkshift;
-		} else if (dn->dn_indblkshift > max_ibs) {
-			/*
-			 * This ensures that if we reduce DN_MAX_INDBLKSHIFT,
-			 * the code will still work correctly on older pools.
-			 */
-			min_ibs = max_ibs = dn->dn_indblkshift;
 		}
 
 		/*
@@ -572,7 +566,7 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 		    (dn->dn_indblkshift - SPA_BLKPTRSHIFT);
 
 		while (level++ < maxlevel) {
-			txh->txh_memory_tohold += MIN(blkcnt, (nl1blks >> epbs))
+			txh->txh_memory_tohold += MAX(MIN(blkcnt, nl1blks), 1)
 			    << dn->dn_indblkshift;
 			blkcnt = 1 + (blkcnt >> epbs);
 		}
@@ -904,14 +898,14 @@ dmu_tx_dirty_buf(dmu_tx_t *tx, dmu_buf_impl_t *db)
 #endif
 
 static int
-dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
+dmu_tx_try_assign(dmu_tx_t *tx, txg_how_t txg_how)
 {
 	dmu_tx_hold_t *txh;
 	spa_t *spa = tx->tx_pool->dp_spa;
 	uint64_t memory, asize, fsize, usize;
 	uint64_t towrite, tofree, tooverwrite, tounref, tohold, fudge;
 
-	ASSERT3U(tx->tx_txg, ==, 0);
+	ASSERT0(tx->tx_txg);
 
 	if (tx->tx_err)
 		return (tx->tx_err);
@@ -966,13 +960,6 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 		tohold += txh->txh_memory_tohold;
 		fudge += txh->txh_fudge;
 	}
-
-	/*
-	 * NB: This check must be after we've held the dnodes, so that
-	 * the dmu_tx_unassign() logic will work properly
-	 */
-	if (txg_how >= TXG_INITIAL && txg_how != tx->tx_txg)
-		return (ERESTART);
 
 	/*
 	 * If a snapshot has been taken since we made our estimates,
@@ -1054,25 +1041,24 @@ dmu_tx_unassign(dmu_tx_t *tx)
  *
  * (1)	TXG_WAIT.  If the current open txg is full, waits until there's
  *	a new one.  This should be used when you're not holding locks.
- *	If will only fail if we're truly out of space (or over quota).
+ *	It will only fail if we're truly out of space (or over quota).
  *
  * (2)	TXG_NOWAIT.  If we can't assign into the current open txg without
  *	blocking, returns immediately with ERESTART.  This should be used
  *	whenever you're holding locks.  On an ERESTART error, the caller
  *	should drop locks, do a dmu_tx_wait(tx), and try again.
- *
- * (3)	A specific txg.  Use this if you need to ensure that multiple
- *	transactions all sync in the same txg.  Like TXG_NOWAIT, it
- *	returns ERESTART if it can't assign you into the requested txg.
  */
 int
-dmu_tx_assign(dmu_tx_t *tx, uint64_t txg_how)
+dmu_tx_assign(dmu_tx_t *tx, txg_how_t txg_how)
 {
 	int err;
 
 	ASSERT(tx->tx_txg == 0);
-	ASSERT(txg_how != 0);
+	ASSERT(txg_how == TXG_WAIT || txg_how == TXG_NOWAIT);
 	ASSERT(!dsl_pool_sync_context(tx->tx_pool));
+
+	/* If we might wait, we must not hold the config lock. */
+	ASSERT(txg_how != TXG_WAIT || !dsl_pool_config_held(tx->tx_pool));
 
 	while ((err = dmu_tx_try_assign(tx, txg_how)) != 0) {
 		dmu_tx_unassign(tx);
@@ -1094,6 +1080,7 @@ dmu_tx_wait(dmu_tx_t *tx)
 	spa_t *spa = tx->tx_pool->dp_spa;
 
 	ASSERT(tx->tx_txg == 0);
+	ASSERT(!dsl_pool_config_held(tx->tx_pool));
 
 	/*
 	 * It's possible that the pool has become active after this thread
@@ -1219,6 +1206,14 @@ dmu_tx_get_txg(dmu_tx_t *tx)
 	ASSERT(tx->tx_txg != 0);
 	return (tx->tx_txg);
 }
+
+dsl_pool_t *
+dmu_tx_pool(dmu_tx_t *tx)
+{
+	ASSERT(tx->tx_pool != NULL);
+	return (tx->tx_pool);
+}
+
 
 void
 dmu_tx_callback_register(dmu_tx_t *tx, dmu_tx_callback_func_t *func, void *data)

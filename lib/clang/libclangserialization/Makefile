@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangserialization
 
 SRCDIR=	tools/clang/lib/Serialization

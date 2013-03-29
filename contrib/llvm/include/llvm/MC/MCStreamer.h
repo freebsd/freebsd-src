@@ -47,8 +47,8 @@ namespace llvm {
   class MCStreamer {
     MCContext &Context;
 
-    MCStreamer(const MCStreamer&); // DO NOT IMPLEMENT
-    MCStreamer &operator=(const MCStreamer&); // DO NOT IMPLEMENT
+    MCStreamer(const MCStreamer&) LLVM_DELETED_FUNCTION;
+    MCStreamer &operator=(const MCStreamer&) LLVM_DELETED_FUNCTION;
 
     bool EmitEHFrame;
     bool EmitDebugFrame;
@@ -342,7 +342,7 @@ namespace llvm {
     /// @name Generating Data
     /// @{
 
-    /// EmitBytes - Emit the bytes in \arg Data into the output.
+    /// EmitBytes - Emit the bytes in \p Data into the output.
     ///
     /// This is used to implement assembler directives such as .byte, .ascii,
     /// etc.
@@ -554,6 +554,11 @@ namespace llvm {
     virtual void EmitRegSave(const SmallVectorImpl<unsigned> &RegList,
                              bool isVector);
 
+    /// PPC-related methods.
+    /// FIXME: Eventually replace it with some "target MC streamer" and move
+    /// these methods there.
+    virtual void EmitTCEntry(const MCSymbol &S);
+
     /// FinishImpl - Streamer specific finalization.
     virtual void FinishImpl() = 0;
     /// Finish - Finish emission of machine code.
@@ -573,17 +578,14 @@ namespace llvm {
   /// InstPrint.
   ///
   /// \param CE - If given, a code emitter to use to show the instruction
-  /// encoding inline with the assembly. This method takes ownership of \arg CE.
+  /// encoding inline with the assembly. This method takes ownership of \p CE.
   ///
   /// \param TAB - If given, a target asm backend to use to show the fixup
   /// information in conjunction with encoding information. This method takes
-  /// ownership of \arg TAB.
+  /// ownership of \p TAB.
   ///
   /// \param ShowInst - Whether to show the MCInst representation inline with
   /// the assembly.
-  ///
-  /// \param DecodeLSDA - If true, emit comments that translates the LSDA into a
-  /// human readable format. Only usable with CFI.
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
                                 bool isVerboseAsm,
                                 bool useLoc,
@@ -597,7 +599,7 @@ namespace llvm {
   /// createMachOStreamer - Create a machine code streamer which will generate
   /// Mach-O format object files.
   ///
-  /// Takes ownership of \arg TAB and \arg CE.
+  /// Takes ownership of \p TAB and \p CE.
   MCStreamer *createMachOStreamer(MCContext &Ctx, MCAsmBackend &TAB,
                                   raw_ostream &OS, MCCodeEmitter *CE,
                                   bool RelaxAll = false);
@@ -605,7 +607,7 @@ namespace llvm {
   /// createWinCOFFStreamer - Create a machine code streamer which will
   /// generate Microsoft COFF format object files.
   ///
-  /// Takes ownership of \arg TAB and \arg CE.
+  /// Takes ownership of \p TAB and \p CE.
   MCStreamer *createWinCOFFStreamer(MCContext &Ctx,
                                     MCAsmBackend &TAB,
                                     MCCodeEmitter &CE, raw_ostream &OS,
@@ -620,7 +622,7 @@ namespace llvm {
   /// createPureStreamer - Create a machine code streamer which will generate
   /// "pure" MC object files, for use with MC-JIT and testing tools.
   ///
-  /// Takes ownership of \arg TAB and \arg CE.
+  /// Takes ownership of \p TAB and \p CE.
   MCStreamer *createPureStreamer(MCContext &Ctx, MCAsmBackend &TAB,
                                  raw_ostream &OS, MCCodeEmitter *CE);
 

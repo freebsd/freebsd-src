@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -147,16 +147,14 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
  *  function check the device id to see if the associated phy supports
  *  autoneg flow control.
  **/
-static s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
+s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 {
 
 	DEBUGFUNC("ixgbe_device_supports_autoneg_fc");
 
 	switch (hw->device_id) {
-	case IXGBE_DEV_ID_X540T:
-	case IXGBE_DEV_ID_X540T1:
-		return IXGBE_SUCCESS;
 	case IXGBE_DEV_ID_82599_T3_LOM:
+	case IXGBE_DEV_ID_X540T:
 		return IXGBE_SUCCESS;
 	default:
 		return IXGBE_ERR_FC_NOT_SUPPORTED;
@@ -174,6 +172,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	s32 ret_val = IXGBE_SUCCESS;
 	u32 reg = 0, reg_bp = 0;
 	u16 reg_cu = 0;
+	bool got_lock = FALSE;
 
 	DEBUGFUNC("ixgbe_setup_fc");
 
@@ -200,6 +199,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	 * we link at 10G, the 1G advertisement is harmless and vice versa.
 	 */
 	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 	case ixgbe_media_type_backplane:
 		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
@@ -297,7 +297,28 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	 */
 	if (hw->phy.media_type == ixgbe_media_type_backplane) {
 		reg_bp |= IXGBE_AUTOC_AN_RESTART;
+		/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+		 * LESM is on, likewise reset_pipeline requries the lock as
+		 * it also writes AUTOC.
+		 */
+		if ((hw->mac.type == ixgbe_mac_82599EB) &&
+		    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (ret_val != IXGBE_SUCCESS) {
+				ret_val = IXGBE_ERR_SWFW_SYNC;
+				goto out;
+			}
+			got_lock = TRUE;
+		}
+
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg_bp);
+		if (hw->mac.type == ixgbe_mac_82599EB)
+			ixgbe_reset_pipeline_82599(hw);
+
+		if (got_lock)
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
 	} else if ((hw->phy.media_type == ixgbe_media_type_copper) &&
 		    (ixgbe_device_supports_autoneg_fc(hw) == IXGBE_SUCCESS)) {
 		hw->phy.ops.write_reg(hw, IXGBE_MDIO_AUTO_NEG_ADVT,
@@ -675,6 +696,195 @@ s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num)
 		return ret_val;
 	}
 	*pba_num |= data;
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_read_pba_raw
+ *  @hw: pointer to the HW structure
+ *  @eeprom_buf: optional pointer to EEPROM image
+ *  @eeprom_buf_size: size of EEPROM image in words
+ *  @max_pba_block_size: PBA block size limit
+ *  @pba: pointer to output PBA structure
+ *
+ *  Reads PBA from EEPROM image when eeprom_buf is not NULL.
+ *  Reads PBA from physical EEPROM device when eeprom_buf is NULL.
+ *
+ **/
+s32 ixgbe_read_pba_raw(struct ixgbe_hw *hw, u16 *eeprom_buf,
+		       u32 eeprom_buf_size, u16 max_pba_block_size,
+		       struct ixgbe_pba *pba)
+{
+	s32 ret_val;
+	u16 pba_block_size;
+
+	if (pba == NULL)
+		return IXGBE_ERR_PARAM;
+
+	if (eeprom_buf == NULL) {
+		ret_val = hw->eeprom.ops.read_buffer(hw, IXGBE_PBANUM0_PTR, 2,
+						     &pba->word[0]);
+		if (ret_val)
+			return ret_val;
+	} else {
+		if (eeprom_buf_size > IXGBE_PBANUM1_PTR) {
+			pba->word[0] = eeprom_buf[IXGBE_PBANUM0_PTR];
+			pba->word[1] = eeprom_buf[IXGBE_PBANUM1_PTR];
+		} else {
+			return IXGBE_ERR_PARAM;
+		}
+	}
+
+	if (pba->word[0] == IXGBE_PBANUM_PTR_GUARD) {
+		if (pba->pba_block == NULL)
+			return IXGBE_ERR_PARAM;
+
+		ret_val = ixgbe_get_pba_block_size(hw, eeprom_buf,
+						   eeprom_buf_size,
+						   &pba_block_size);
+		if (ret_val)
+			return ret_val;
+
+		if (pba_block_size > max_pba_block_size)
+			return IXGBE_ERR_PARAM;
+
+		if (eeprom_buf == NULL) {
+			ret_val = hw->eeprom.ops.read_buffer(hw, pba->word[1],
+							     pba_block_size,
+							     pba->pba_block);
+			if (ret_val)
+				return ret_val;
+		} else {
+			if (eeprom_buf_size > (u32)(pba->word[1] +
+					      pba->pba_block[0])) {
+				memcpy(pba->pba_block,
+				       &eeprom_buf[pba->word[1]],
+				       pba_block_size * sizeof(u16));
+			} else {
+				return IXGBE_ERR_PARAM;
+			}
+		}
+	}
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_write_pba_raw
+ *  @hw: pointer to the HW structure
+ *  @eeprom_buf: optional pointer to EEPROM image
+ *  @eeprom_buf_size: size of EEPROM image in words
+ *  @pba: pointer to PBA structure
+ *
+ *  Writes PBA to EEPROM image when eeprom_buf is not NULL.
+ *  Writes PBA to physical EEPROM device when eeprom_buf is NULL.
+ *
+ **/
+s32 ixgbe_write_pba_raw(struct ixgbe_hw *hw, u16 *eeprom_buf,
+			u32 eeprom_buf_size, struct ixgbe_pba *pba)
+{
+	s32 ret_val;
+
+	if (pba == NULL)
+		return IXGBE_ERR_PARAM;
+
+	if (eeprom_buf == NULL) {
+		ret_val = hw->eeprom.ops.write_buffer(hw, IXGBE_PBANUM0_PTR, 2,
+						      &pba->word[0]);
+		if (ret_val)
+			return ret_val;
+	} else {
+		if (eeprom_buf_size > IXGBE_PBANUM1_PTR) {
+			eeprom_buf[IXGBE_PBANUM0_PTR] = pba->word[0];
+			eeprom_buf[IXGBE_PBANUM1_PTR] = pba->word[1];
+		} else {
+			return IXGBE_ERR_PARAM;
+		}
+	}
+
+	if (pba->word[0] == IXGBE_PBANUM_PTR_GUARD) {
+		if (pba->pba_block == NULL)
+			return IXGBE_ERR_PARAM;
+
+		if (eeprom_buf == NULL) {
+			ret_val = hw->eeprom.ops.write_buffer(hw, pba->word[1],
+							      pba->pba_block[0],
+							      pba->pba_block);
+			if (ret_val)
+				return ret_val;
+		} else {
+			if (eeprom_buf_size > (u32)(pba->word[1] +
+					      pba->pba_block[0])) {
+				memcpy(&eeprom_buf[pba->word[1]],
+				       pba->pba_block,
+				       pba->pba_block[0] * sizeof(u16));
+			} else {
+				return IXGBE_ERR_PARAM;
+			}
+		}
+	}
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_get_pba_block_size
+ *  @hw: pointer to the HW structure
+ *  @eeprom_buf: optional pointer to EEPROM image
+ *  @eeprom_buf_size: size of EEPROM image in words
+ *  @pba_data_size: pointer to output variable
+ *
+ *  Returns the size of the PBA block in words. Function operates on EEPROM
+ *  image if the eeprom_buf pointer is not NULL otherwise it accesses physical
+ *  EEPROM device.
+ *
+ **/
+s32 ixgbe_get_pba_block_size(struct ixgbe_hw *hw, u16 *eeprom_buf,
+			     u32 eeprom_buf_size, u16 *pba_block_size)
+{
+	s32 ret_val;
+	u16 pba_word[2];
+	u16 length;
+
+	DEBUGFUNC("ixgbe_get_pba_block_size");
+
+	if (eeprom_buf == NULL) {
+		ret_val = hw->eeprom.ops.read_buffer(hw, IXGBE_PBANUM0_PTR, 2,
+						     &pba_word[0]);
+		if (ret_val)
+			return ret_val;
+	} else {
+		if (eeprom_buf_size > IXGBE_PBANUM1_PTR) {
+			pba_word[0] = eeprom_buf[IXGBE_PBANUM0_PTR];
+			pba_word[1] = eeprom_buf[IXGBE_PBANUM1_PTR];
+		} else {
+			return IXGBE_ERR_PARAM;
+		}
+	}
+
+	if (pba_word[0] == IXGBE_PBANUM_PTR_GUARD) {
+		if (eeprom_buf == NULL) {
+			ret_val = hw->eeprom.ops.read(hw, pba_word[1] + 0,
+						      &length);
+			if (ret_val)
+				return ret_val;
+		} else {
+			if (eeprom_buf_size > pba_word[1])
+				length = eeprom_buf[pba_word[1] + 0];
+			else
+				return IXGBE_ERR_PARAM;
+		}
+
+		if (length == 0xFFFF || length == 0)
+			return IXGBE_ERR_PBA_SECTION;
+	} else {
+		/* PBA number in legacy format, there is no PBA Block. */
+		length = 0;
+	}
+
+	if (pba_block_size != NULL)
+		*pba_block_size = length;
 
 	return IXGBE_SUCCESS;
 }
@@ -1268,7 +1478,7 @@ s32 ixgbe_read_eerd_buffer_generic(struct ixgbe_hw *hw, u16 offset,
 	}
 
 	for (i = 0; i < words; i++) {
-		eerd = ((offset + i) << IXGBE_EEPROM_RW_ADDR_SHIFT) +
+		eerd = ((offset + i) << IXGBE_EEPROM_RW_ADDR_SHIFT) |
 		       IXGBE_EEPROM_RW_REG_START;
 
 		IXGBE_WRITE_REG(hw, IXGBE_EERD, eerd);
@@ -2719,6 +2929,7 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 	switch (hw->phy.media_type) {
 	/* Autoneg flow control on fiber adapters */
+	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 		if (speed == IXGBE_LINK_SPEED_1GB_FULL)
 			ret_val = ixgbe_fc_autoneg_fiber(hw);
@@ -2965,6 +3176,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	bool link_up = 0;
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	s32 ret_val = IXGBE_SUCCESS;
 
 	DEBUGFUNC("ixgbe_blink_led_start_generic");
 
@@ -2975,10 +3187,29 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
 
 	if (!link_up) {
+		/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+		 * LESM is on.
+		 */
+		bool got_lock = FALSE;
+		if ((hw->mac.type == ixgbe_mac_82599EB) &&
+		    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (ret_val != IXGBE_SUCCESS) {
+				ret_val = IXGBE_ERR_SWFW_SYNC;
+				goto out;
+			}
+			got_lock = TRUE;
+		}
+
 		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
 		IXGBE_WRITE_FLUSH(hw);
+
+		if (got_lock)
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
 		msec_delay(10);
 	}
 
@@ -2987,7 +3218,8 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
 	IXGBE_WRITE_FLUSH(hw);
 
-	return IXGBE_SUCCESS;
+out:
+	return ret_val;
 }
 
 /**
@@ -2999,13 +3231,34 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 {
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	s32 ret_val = IXGBE_SUCCESS;
+	bool got_lock = FALSE;
 
 	DEBUGFUNC("ixgbe_blink_led_stop_generic");
+	/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+	 * LESM is on.
+	 */
+	if ((hw->mac.type == ixgbe_mac_82599EB) &&
+	    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+						IXGBE_GSSR_MAC_CSR_SM);
+		if (ret_val != IXGBE_SUCCESS) {
+			ret_val = IXGBE_ERR_SWFW_SYNC;
+			goto out;
+		}
+		got_lock = TRUE;
+	}
 
 
 	autoc_reg &= ~IXGBE_AUTOC_FLU;
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
+
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		ixgbe_reset_pipeline_82599(hw);
+
+	if (got_lock)
+		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg &= ~IXGBE_LED_BLINK(index);
@@ -3013,7 +3266,8 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
 	IXGBE_WRITE_FLUSH(hw);
 
-	return IXGBE_SUCCESS;
+out:
+	return ret_val;
 }
 
 /**
@@ -3882,7 +4136,7 @@ void ixgbe_enable_relaxed_ordering_gen2(struct ixgbe_hw *hw)
  *  Calculates the checksum for some buffer on a specified length.  The
  *  checksum calculated is returned.
  **/
-static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
+u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
 {
 	u32 i;
 	u8 sum = 0;
@@ -3908,8 +4162,8 @@ static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
  *  Communicates with the manageability block.  On success return IXGBE_SUCCESS
  *  else return IXGBE_ERR_HOST_INTERFACE_COMMAND.
  **/
-static s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
-					u32 length)
+s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
+				 u32 length)
 {
 	u32 hicr, i, bi;
 	u32 hdr_size = sizeof(struct ixgbe_hic_hdr);

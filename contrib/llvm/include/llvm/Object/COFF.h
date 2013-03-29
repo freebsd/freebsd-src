@@ -116,6 +116,7 @@ protected:
   virtual error_code getSymbolType(DataRefImpl Symb, SymbolRef::Type &Res) const;
   virtual error_code getSymbolSection(DataRefImpl Symb,
                                       section_iterator &Res) const;
+  virtual error_code getSymbolValue(DataRefImpl Symb, uint64_t &Val) const;
 
   virtual error_code getSectionNext(DataRefImpl Sec, SectionRef &Res) const;
   virtual error_code getSectionName(DataRefImpl Sec, StringRef &Res) const;
@@ -128,6 +129,7 @@ protected:
   virtual error_code isSectionBSS(DataRefImpl Sec, bool &Res) const;
   virtual error_code isSectionVirtual(DataRefImpl Sec, bool &Res) const;
   virtual error_code isSectionZeroInit(DataRefImpl Sec, bool &Res) const;
+  virtual error_code isSectionReadOnlyData(DataRefImpl Sec, bool &Res) const;
   virtual error_code isSectionRequiredForExecution(DataRefImpl Sec,
                                                    bool &Res) const;
   virtual error_code sectionContainsSymbol(DataRefImpl Sec, DataRefImpl Symb,
@@ -197,7 +199,6 @@ public:
   static inline bool classof(const Binary *v) {
     return v->isCOFF();
   }
-  static inline bool classof(const COFFObjectFile *v) { return true; }
 };
 
 }

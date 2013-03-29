@@ -61,7 +61,7 @@ static device_method_t vx_methods[] = {
 	DEVMETHOD(device_attach, vx_pci_attach),
 	DEVMETHOD(device_shutdown, vx_pci_shutdown),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t vx_driver = {

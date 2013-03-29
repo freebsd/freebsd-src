@@ -640,9 +640,7 @@ main(int argc, char *argv[])
  * is not in the namelist, ignore this one.
  */
 static void
-printproto(tp, name)
-	struct protox *tp;
-	const char *name;
+printproto(struct protox *tp, const char *name)
 {
 	void (*pr)(u_long, const char *, int, int);
 	u_long off;

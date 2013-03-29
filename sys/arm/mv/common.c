@@ -249,12 +249,47 @@ write_cpu_ctrl(uint32_t reg, uint32_t val)
 	bus_space_write_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg, val);
 }
 
+#if defined(SOC_MV_ARMADAXP)
+uint32_t
+read_cpu_mp_clocks(uint32_t reg)
+{
+
+	return (bus_space_read_4(fdtbus_bs_tag, MV_MP_CLOCKS_BASE, reg));
+}
+
+void
+write_cpu_mp_clocks(uint32_t reg, uint32_t val)
+{
+
+	bus_space_write_4(fdtbus_bs_tag, MV_MP_CLOCKS_BASE, reg, val);
+}
+
+uint32_t
+read_cpu_misc(uint32_t reg)
+{
+
+	return (bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE, reg));
+}
+
+void
+write_cpu_misc(uint32_t reg, uint32_t val)
+{
+
+	bus_space_write_4(fdtbus_bs_tag, MV_MISC_BASE, reg, val);
+}
+#endif
+
 void
 cpu_reset(void)
 {
 
+#if defined(SOC_MV_ARMADAXP)
+	write_cpu_misc(RSTOUTn_MASK, SOFT_RST_OUT_EN);
+	write_cpu_misc(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
+#else
 	write_cpu_ctrl(RSTOUTn_MASK, SOFT_RST_OUT_EN);
 	write_cpu_ctrl(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
+#endif
 	while (1);
 }
 
@@ -2062,19 +2097,26 @@ fdt_fixup_busfreq(phandle_t root)
 	phandle_t sb;
 	pcell_t freq;
 
+	freq = cpu_to_fdt32(get_tclk());
+
+	/*
+	 * Fix bus speed in cpu node
+	 */
+	if ((sb = OF_finddevice("cpu")) != 0)
+		if (fdt_is_compatible_strict(sb, "ARM,88VS584"))
+			OF_setprop(sb, "bus-frequency", (void *)&freq,
+			    sizeof(freq));
+
 	/*
 	 * This fixup sets the simple-bus bus-frequency property.
 	 */
-
-	if ((sb = fdt_find_compatible(root, "simple-bus", 1)) == 0)
-		return;
-
-	freq = cpu_to_fdt32(get_tclk());
-	OF_setprop(sb, "bus-frequency", (void *)&freq, sizeof(freq));
+	if ((sb = fdt_find_compatible(root, "simple-bus", 1)) != 0)
+		OF_setprop(sb, "bus-frequency", (void *)&freq, sizeof(freq));
 }
 
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ "mrvl,DB-88F6281", &fdt_fixup_busfreq },
+	{ "mrvl,DB-78460", &fdt_fixup_busfreq },
 	{ NULL, NULL }
 };
 
@@ -2098,3 +2140,24 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&fdt_pic_decode_ic,
 	NULL
 };
+
+uint64_t
+get_sar_value(void)
+{
+	uint32_t sar_low, sar_high;
+
+#if defined(SOC_MV_ARMADAXP)
+	sar_high = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_HI);
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_LO);
+#else
+	/*
+	 * TODO: Add getting proper values for other SoC configurations
+	 */
+	sar_high = 0;
+	sar_low = 0;
+#endif
+
+	return (((uint64_t)sar_high << 32) | sar_low);
+}

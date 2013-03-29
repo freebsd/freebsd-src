@@ -46,7 +46,7 @@
  *      c - constant after initialization
  *      f - locked by vm_page_queue_free_mtx
  *      p - locked by being in the PCPU and atomicity respect to interrupts
- *      q - locked by vm_page_queue_mtx
+ *      q - changes are synchronized by the corresponding vm_pagequeue lock
  */
 struct vmmeter {
 	/*
@@ -61,6 +61,7 @@ struct vmmeter {
 	 * Virtual memory activity.
 	 */
 	u_int v_vm_faults;	/* (p) address memory faults */
+	u_int v_io_faults;	/* (p) page faults requiring I/O */
 	u_int v_cow_faults;	/* (p) copy-on-writes faults */
 	u_int v_cow_optim;	/* (p) optimized copy-on-writes faults */
 	u_int v_zfod;		/* (p) pages zero filled on demand */
@@ -76,7 +77,7 @@ struct vmmeter {
 	u_int v_intrans;	/* (p) intransit blocking page faults */
 	u_int v_reactivated;	/* (f) pages reactivated from free list */
 	u_int v_pdwakeups;	/* (f) times daemon has awaken from sleep */
-	u_int v_pdpages;	/* (q) pages analyzed by daemon */
+	u_int v_pdpages;	/* (p) pages analyzed by daemon */
 
 	u_int v_tcached;	/* (p) total pages cached */
 	u_int v_dfree;		/* (p) pages freed by daemon */

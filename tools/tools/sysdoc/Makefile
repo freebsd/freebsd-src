@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	trhodes@FreeBSD.org
-
 sysctl.5:
 	sh ${.CURDIR}/sysdoc.sh -k /boot/kernel
 

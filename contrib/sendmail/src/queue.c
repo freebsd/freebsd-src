@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2009, 2011 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009, 2011, 2012 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.991 2011/03/15 23:14:36 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.997 2012/06/14 23:54:03 ca Exp $")
 
 #include <dirent.h>
 
@@ -1493,6 +1493,7 @@ runqueue(forkflag, verbose, persistent, runall)
 	for (i = 0; i < NumWorkGroups && !NoMoreRunners; i++)
 	{
 		int rwgflags = RWG_NONE;
+		int wasblocked;
 
 		/*
 		**  If MaxQueueChildren active then test whether the start
@@ -1529,7 +1530,11 @@ runqueue(forkflag, verbose, persistent, runall)
 		**  increase if some queue runners "hang" for a long time.
 		*/
 
+		/* don't let proc_list_drop() change CurRunners */
+		wasblocked = sm_blocksignal(SIGCHLD);
 		CurRunners += WorkGrp[curnum].wg_maxact;
+		if (wasblocked == 0)
+			(void) sm_releasesignal(SIGCHLD);
 		if (forkflag)
 			rwgflags |= RWG_FORK;
 		if (verbose)
@@ -1549,7 +1554,13 @@ runqueue(forkflag, verbose, persistent, runall)
 
 		if (!ret)
 		{
+			/* don't let proc_list_drop() change CurRunners */
+			wasblocked = sm_blocksignal(SIGCHLD);
 			CurRunners -= WorkGrp[curnum].wg_maxact;
+			CHK_CUR_RUNNERS("runqueue", curnum,
+					WorkGrp[curnum].wg_maxact);
+			if (wasblocked == 0)
+				(void) sm_releasesignal(SIGCHLD);
 			break;
 		}
 
@@ -2031,6 +2042,9 @@ run_work_group(wgrp, flags)
 	{
 		IgnoreHostStatus = true;
 		MinQueueAge = 0;
+#if _FFR_EXPDELAY
+		MaxQueueAge = 0;
+#endif /* _FFR_EXPDELAY */
 	}
 
 	/*
@@ -2300,7 +2314,7 @@ run_work_group(wgrp, flags)
 	if (bitset(RWG_PERSISTENT, flags))
 	{
 		sequenceno = 1;
-		sm_setproctitle(true, CurEnv, "running queue: %s",
+		sm_setproctitle(true, NULL, "running queue: %s",
 				qid_printqueue(qgrp, qdir));
 
 		/*
@@ -2860,7 +2874,7 @@ gatherq(qgrp, qdir, doall, full, more, pnentries)
 #if _FFR_EXPDELAY
 				if (MaxQueueAge > 0)
 				{
-					time_t lasttry, delay;    
+					time_t lasttry, delay;
 
 					lasttry = (time_t) atol(&lbuf[1]);
 					delay = MIN(lasttry - w->w_ctime,
@@ -3704,6 +3718,7 @@ dowork(qgrp, qdir, id, forkflag, requeueflag, e)
 			(void) dropenvelope(e, true, false);
 			sm_rpool_free(rpool);
 			e->e_rpool = NULL;
+			e->e_message = NULL;
 		}
 	}
 	e->e_id = NULL;
@@ -4577,7 +4592,7 @@ readqf(e, openonly)
 			e->e_dfdev = st.st_dev;
 			e->e_dfino = ST_INODE(st);
 			(void) sm_snprintf(buf, sizeof(buf), "%ld",
-					   e->e_msgsize);
+					   PRT_NONNEGL(e->e_msgsize));
 			macdefine(&e->e_macro, A_TEMP, macid("{msg_size}"),
 				  buf);
 		}

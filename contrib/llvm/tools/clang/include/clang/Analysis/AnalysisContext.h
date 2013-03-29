@@ -72,7 +72,7 @@ class AnalysisDeclContext {
   /// AnalysisDeclContext. This may be null.
   AnalysisDeclContextManager *Manager;
 
-  const Decl *D;
+  const Decl * const D;
 
   OwningPtr<CFG> cfg, completeCFG;
   OwningPtr<CFGStmtMap> cfgStmtMap;
@@ -81,9 +81,6 @@ class AnalysisDeclContext {
   CFG::BuildOptions::ForcedBlkExprs *forcedBlkExprs;
 
   bool builtCFG, builtCompleteCFG;
-
-  OwningPtr<LiveVariables> liveness;
-  OwningPtr<LiveVariables> relaxedLiveness;
   OwningPtr<ParentMap> PM;
   OwningPtr<PseudoConstantAnalysis> PCA;
   OwningPtr<CFGReverseBlockReachabilityAnalysis> CFA;
@@ -104,9 +101,15 @@ public:
 
   ~AnalysisDeclContext();
 
-  ASTContext &getASTContext() { return D->getASTContext(); }
+  ASTContext &getASTContext() const { return D->getASTContext(); }
   const Decl *getDecl() const { return D; }
 
+  /// Return the AnalysisDeclContextManager (if any) that created
+  /// this AnalysisDeclContext.
+  AnalysisDeclContextManager *getManager() const {
+    return Manager;
+  }
+  
   /// Return the build options used to construct the CFG.
   CFG::BuildOptions &getCFGBuildOptions() {
     return cfgBuildOptions;
@@ -234,9 +237,10 @@ public:
 
   const StackFrameContext *getCurrentStackFrame() const;
 
-  virtual void Profile(llvm::FoldingSetNodeID &ID) = 0;
+  /// Return true if the current LocationContext has no caller context.
+  virtual bool inTopFrame() const;
 
-  static bool classof(const LocationContext*) { return true; }
+  virtual void Profile(llvm::FoldingSetNodeID &ID) = 0;
 
 public:
   static void ProfileCommon(llvm::FoldingSetNodeID &ID,
@@ -269,6 +273,9 @@ public:
   const Stmt *getCallSite() const { return CallSite; }
 
   const CFGBlock *getCallSiteBlock() const { return Block; }
+
+  /// Return true if the current LocationContext has no caller context.
+  virtual bool inTopFrame() const { return getParent() == 0;  }
 
   unsigned getIndex() const { return Index; }
 
@@ -379,11 +386,17 @@ class AnalysisDeclContextManager {
   ContextMap Contexts;
   LocationContextManager LocContexts;
   CFG::BuildOptions cfgBuildOptions;
+  
+  /// Flag to indicate whether or not bodies should be synthesized
+  /// for well-known functions.
+  bool SynthesizeBodies;
 
 public:
   AnalysisDeclContextManager(bool useUnoptimizedCFG = false,
-                         bool addImplicitDtors = false,
-                         bool addInitializers = false);
+                             bool addImplicitDtors = false,
+                             bool addInitializers = false,
+                             bool addTemporaryDtors = false,
+                             bool synthesizeBodies = false);
 
   ~AnalysisDeclContextManager();
 
@@ -396,6 +409,10 @@ public:
   CFG::BuildOptions &getCFGBuildOptions() {
     return cfgBuildOptions;
   }
+  
+  /// Return true if faux bodies should be synthesized for well-known
+  /// functions.
+  bool synthesizeBodies() const { return SynthesizeBodies; }
 
   const StackFrameContext *getStackFrame(AnalysisDeclContext *Ctx,
                                          LocationContext const *Parent,

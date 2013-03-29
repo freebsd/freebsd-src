@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	obrien@FreeBSD.org
-
 .PATH: ${.CURDIR}/../../dev/filemon
 
 KMOD=	filemon

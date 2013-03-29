@@ -934,7 +934,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 		mtx_unlock(&seq->mtx);
 
 		/* Prepend session ID to packet. */
-		M_PREPEND(m, 2, M_DONTWAIT);
+		M_PREPEND(m, 2, M_NOWAIT);
 		if (m == NULL) {
 			seq->inproc = 0;
 			priv->stats.memoryFailures++;
@@ -1071,7 +1071,7 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 	mtx_unlock(&seq->mtx);
 
 	/* Copy packet */
-	if ((m = L2TP_COPY_MBUF(m, M_DONTWAIT)) == NULL) {
+	if ((m = L2TP_COPY_MBUF(m, M_NOWAIT)) == NULL) {
 		priv->stats.memoryFailures++;
 		ERROUT(ENOBUFS);
 	}
@@ -1122,7 +1122,7 @@ ng_l2tp_rcvdata(hook_p hook, item_p item)
 	M_PREPEND(m, 6
 	    + (2 * (hpriv->conf.include_length != 0))
 	    + (4 * (hpriv->conf.enable_dseq != 0)),
-	    M_DONTWAIT);
+	    M_NOWAIT);
 	if (m == NULL) {
 		priv->stats.memoryFailures++;
 		NG_FREE_ITEM(item);
@@ -1406,7 +1406,7 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	 */
 	for (i = 0; i < j; i++) {
 		struct mbuf 	*m;
-		if ((m = L2TP_COPY_MBUF(xwin[i], M_DONTWAIT)) == NULL)
+		if ((m = L2TP_COPY_MBUF(xwin[i], M_NOWAIT)) == NULL)
 			priv->stats.memoryFailures++;
 		else
 			ng_l2tp_xmit_ctrl(priv, m, ns);
@@ -1482,7 +1482,7 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	seq->acks = 0;
 
 	/* Retransmit oldest unack'd packet */
-	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_DONTWAIT)) == NULL)
+	if ((m = L2TP_COPY_MBUF(seq->xwin[0], M_NOWAIT)) == NULL)
 		priv->stats.memoryFailures++;
 	else
 		ng_l2tp_xmit_ctrl(priv, m, seq->ns++);
@@ -1521,7 +1521,7 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	if (m == NULL) {
 
 		/* Create a new mbuf for ZLB packet */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
@@ -1539,7 +1539,7 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 		session_id = (mtod(m, u_int8_t *)[0] << 8) + mtod(m, u_int8_t *)[1];
 
 		/* Make room for L2TP header */
-		M_PREPEND(m, 10, M_DONTWAIT);	/* - 2 + 12 = 10 */
+		M_PREPEND(m, 10, M_NOWAIT);	/* - 2 + 12 = 10 */
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);

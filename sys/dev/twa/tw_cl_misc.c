@@ -641,7 +641,7 @@ tw_cli_dbg_printf(TW_UINT8 dbg_level,
 		va_end(ap);
 
 		tw_osl_strcpy(print_str + tw_osl_strlen(print_str), "\n");
-		tw_osl_dbg_printf(ctlr_handle, print_str);
+		tw_osl_dbg_printf(ctlr_handle, "%s", print_str);
 	}
 #endif /* TW_OSL_DEBUG */
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2011-2012 Matteo Landi, Luigi Rizzo. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -9,7 +9,7 @@
  *   2. Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_kern.h 11343 2012-07-03 09:08:38Z luigi $
+ * $Id: netmap_kern.h 11829 2012-09-26 04:06:34Z luigi $
  *
  * The header contains the definitions of constants and function
  * prototypes used only in kernelspace.
@@ -55,11 +55,10 @@
 #endif
 
 /*
- * IFCAP_NETMAP goes into net_device's flags (if_capabilities)
- * and priv_flags (if_capenable). The latter used to be 16 bits
- * up to linux 2.6.36, so we need to use a 16 bit value on older
+ * IFCAP_NETMAP goes into net_device's priv_flags (if_capenable).
+ * This was 16 bits up to linux 2.6.36, so we need a 16 bit value on older
  * platforms and tolerate the clash with IFF_DYNAMIC and IFF_BRIDGE_PORT.
- * For the 32-bit value, 0x100000 (bit 20) has no clashes up to 3.3.1
+ * For the 32-bit value, 0x100000 has no clashes until at least 3.5.1
  */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
 #define IFCAP_NETMAP	0x8000
@@ -68,7 +67,7 @@
 #endif
 
 #elif defined (__APPLE__)
-#warning apple support is experimental
+#warning apple support is incomplete.
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 #define	NM_LOCK_T	IOLock *
@@ -89,7 +88,19 @@
 		(int)__xxts.tv_sec % 1000, (int)__xxts.tv_usec,	\
 		__FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	} while (0)
- 
+
+/* rate limited, lps indicates how many per second */
+#define RD(lps, format, ...)					\
+	do {							\
+		static int t0, __cnt;				\
+		if (t0 != time_second) {			\
+			t0 = time_second;			\
+			__cnt = 0;				\
+		}						\
+		if (__cnt++ < lps)				\
+			D(format, ##__VA_ARGS__);		\
+	} while (0)
+
 struct netmap_adapter;
 
 /*
@@ -108,6 +119,10 @@ struct netmap_adapter;
  * RX rings: the next empty buffer (hwcur + hwavail + hwofs) coincides with
  * 	the next empty buffer as known by the hardware (next_to_check or so).
  * TX rings: hwcur + hwofs coincides with next_to_send
+ *
+ * For received packets, slot->flags is set to nkr_slot_flags
+ * so we can provide a proper initial value (e.g. set NS_FORWARD
+ * when operating in 'transparent' mode).
  */
 struct netmap_kring {
 	struct netmap_ring *ring;
@@ -117,6 +132,7 @@ struct netmap_kring {
 #define NKR_PENDINTR	0x1	// Pending interrupt.
 	u_int nkr_num_slots;
 
+	uint16_t	nkr_slot_flags;	/* initial value for flags */
 	int	nkr_hwofs;	/* offset between NIC and netmap ring */
 	struct netmap_adapter *na;
 	NM_SELINFO_T si;	/* poll/select wait queue */
@@ -129,6 +145,18 @@ struct netmap_kring {
  * support netmap operation.
  */
 struct netmap_adapter {
+	/*
+	 * On linux we do not have a good way to tell if an interface
+	 * is netmap-capable. So we use the following trick:
+	 * NA(ifp) points here, and the first entry (which hopefully
+	 * always exists and is at least 32 bits) contains a magic
+	 * value which we can use to detect that the interface is good.
+	 */
+	uint32_t magic;
+	uint32_t na_flags;	/* future place for IFCAP_NETMAP */
+#define NAF_SKIP_INTR	1	/* use the regular interrupt handler.
+				 * useful during initialization
+				 */
 	int refcount; /* number of user-space descriptors using this
 			 interface, which is equal to the number of
 			 struct netmap_if objs in the mapped region. */
@@ -149,7 +177,6 @@ struct netmap_adapter {
 
 	u_int num_tx_desc; /* number of descriptor in each queue */
 	u_int num_rx_desc;
-	//u_int buff_size;	// XXX deprecate, use NETMAP_BUF_SIZE
 
 	/* tx_rings and rx_rings are private but allocated
 	 * as a contiguous chunk of memory. Each array has
@@ -176,6 +203,9 @@ struct netmap_adapter {
 	void (*nm_lock)(struct ifnet *, int what, u_int ringid);
 	int (*nm_txsync)(struct ifnet *, u_int ring, int lock);
 	int (*nm_rxsync)(struct ifnet *, u_int ring, int lock);
+	/* return configuration information */
+	int (*nm_config)(struct ifnet *, u_int *txr, u_int *txd,
+					u_int *rxr, u_int *rxd);
 
 	int bdg_port;
 #ifdef linux
@@ -185,7 +215,7 @@ struct netmap_adapter {
 };
 
 /*
- * The combination of "enable" (ifp->if_capabilities &IFCAP_NETMAP)
+ * The combination of "enable" (ifp->if_capenable & IFCAP_NETMAP)
  * and refcount gives the status of the interface, namely:
  *
  *	enable	refcount	Status
@@ -268,6 +298,36 @@ enum {                                  /* verbose flags */
 #endif
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
 
+/*
+ * Macros to determine if an interface is netmap capable or netmap enabled.
+ * See the magic field in struct netmap_adapter.
+ */
+#ifdef __FreeBSD__
+/*
+ * on FreeBSD just use if_capabilities and if_capenable.
+ */
+#define NETMAP_CAPABLE(ifp)	(NA(ifp) &&		\
+	(ifp)->if_capabilities & IFCAP_NETMAP )
+
+#define	NETMAP_SET_CAPABLE(ifp)				\
+	(ifp)->if_capabilities |= IFCAP_NETMAP
+
+#else	/* linux */
+
+/*
+ * on linux:
+ * we check if NA(ifp) is set and its first element has a related
+ * magic value. The capenable is within the struct netmap_adapter.
+ */
+#define	NETMAP_MAGIC	0x52697a7a
+
+#define NETMAP_CAPABLE(ifp)	(NA(ifp) &&		\
+	((uint32_t)(uintptr_t)NA(ifp) ^ NA(ifp)->magic) == NETMAP_MAGIC )
+
+#define	NETMAP_SET_CAPABLE(ifp)				\
+	NA(ifp)->magic = ((uint32_t)(uintptr_t)NA(ifp)) ^ NETMAP_MAGIC
+
+#endif	/* linux */
 
 #ifdef __FreeBSD__
 /* Callback invoked by the dma machinery after a successfull dmamap_load */

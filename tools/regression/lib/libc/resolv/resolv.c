@@ -226,7 +226,7 @@ resolvloop(void *p)
 {
 	int *nhosts = (int *)p;
 	if (*nhosts == 0)
-		return;
+		return NULL;
 	do
 		resolvone(*nhosts);
 	while (--(*nhosts));

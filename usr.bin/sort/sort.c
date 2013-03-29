@@ -103,7 +103,7 @@ bool debug_sort;
 bool need_hint;
 
 #if defined(SORT_THREADS)
-size_t ncpu = 1;
+unsigned int ncpu = 1;
 size_t nthreads = 1;
 #endif
 
@@ -117,7 +117,7 @@ static bool print_symbols_on_debug;
 /*
  * Arguments from file (when file0-from option is used:
  */
-static int argc_from_file0 = -1;
+static size_t argc_from_file0 = (size_t)-1;
 static char **argv_from_file0;
 
 /*
@@ -146,7 +146,7 @@ enum
 #define	NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS 6
 static const char mutually_exclusive_flags[NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS] = { 'M', 'n', 'g', 'R', 'h', 'V' };
 
-struct option long_options[] = {
+static struct option long_options[] = {
 				{ "batch-size", required_argument, NULL, BS_OPT },
 				{ "buffer-size", required_argument, NULL, 'S' },
 				{ "check", optional_argument, NULL, 'c' },
@@ -244,9 +244,9 @@ read_fns_from_file0(const char *fn)
 			char *line = read_file0_line(&f0r);
 
 			if (line && *line) {
+				if (argc_from_file0 == (size_t)-1)
+					argc_from_file0 = 0;
 				++argc_from_file0;
-				if (argc_from_file0 < 1)
-					argc_from_file0 = 1;
 				argv_from_file0 = sort_realloc(argv_from_file0,
 				    argc_from_file0 * sizeof(char *));
 				if (argv_from_file0 == NULL)
@@ -265,31 +265,27 @@ read_fns_from_file0(const char *fn)
 static void
 set_hw_params(void)
 {
-#if defined(SORT_THREADS)
-	size_t ncpusz;
-#endif
-	size_t pages, psize, psz, pszsz;
+	long pages, psize;
 
 	pages = psize = 0;
+
 #if defined(SORT_THREADS)
 	ncpu = 1;
-	ncpusz = sizeof(size_t);
 #endif
-	psz = pszsz = sizeof(size_t);
 
-	if (sysctlbyname("vm.stats.vm.v_free_count", &pages, &psz,
-	    NULL, 0) < 0) {
-		perror("vm.stats.vm.v_free_count");
-		return;
+	pages = sysconf(_SC_PHYS_PAGES);
+	if (pages < 1) {
+		perror("sysconf pages");
+		psize = 1;
 	}
-	if (sysctlbyname("vm.stats.vm.v_page_size", &psize, &pszsz,
-	    NULL, 0) < 0) {
-		perror("vm.stats.vm.v_page_size");
-		return;
+	psize = sysconf(_SC_PAGESIZE);
+	if (psize < 1) {
+		perror("sysconf psize");
+		psize = 4096;
 	}
 #if defined(SORT_THREADS)
-	if (sysctlbyname("hw.ncpu", &ncpu, &ncpusz,
-	    NULL, 0) < 0)
+	ncpu = (unsigned int)sysconf(_SC_NPROCESSORS_ONLN);
+	if (ncpu < 1)
 		ncpu = 1;
 	else if(ncpu > 32)
 		ncpu = 32;
@@ -298,7 +294,10 @@ set_hw_params(void)
 #endif
 
 	free_memory = (unsigned long long) pages * (unsigned long long) psize;
-	available_free_memory = (free_memory * 9) / 10;
+	available_free_memory = free_memory / 2;
+
+	if (available_free_memory < 1024)
+		available_free_memory = 1024;
 }
 
 /*
@@ -435,8 +434,7 @@ parse_memory_buffer_value(const char *value)
 				    100;
 				break;
 			default:
-				fprintf(stderr, "%s: %s\n", strerror(EINVAL),
-				   optarg);
+				warnc(EINVAL, "%s", optarg);
 				membuf = available_free_memory;
 			}
 		}
@@ -659,7 +657,7 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 		errno = 0;
 		ks->f2 = (size_t) strtoul(f, NULL, 10);
 		if (errno != 0)
-			errx(2, "%s: -k", strerror(errno));
+			err(2, "-k");
 		if (ks->f2 == 0) {
 			warn("%s",getstr(5));
 			goto end;
@@ -668,7 +666,7 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 		errno = 0;
 		ks->f1 = (size_t) strtoul(f, NULL, 10);
 		if (errno != 0)
-			errx(2, "%s: -k", strerror(errno));
+			err(2, "-k");
 		if (ks->f1 == 0) {
 			warn("%s",getstr(5));
 			goto end;
@@ -686,12 +684,12 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 			errno = 0;
 			ks->c2 = (size_t) strtoul(c, NULL, 10);
 			if (errno != 0)
-				errx(2, "%s: -k", strerror(errno));
+				err(2, "-k");
 		} else {
 			errno = 0;
 			ks->c1 = (size_t) strtoul(c, NULL, 10);
 			if (errno != 0)
-				errx(2, "%s: -k", strerror(errno));
+				err(2, "-k");
 			if (ks->c1 == 0) {
 				warn("%s",getstr(6));
 				goto end;
@@ -988,21 +986,6 @@ main(int argc, char **argv)
 	set_tmpdir();
 	set_sort_opts();
 
-#if 0
-	{
-		static int counter = 0;
-		char fn[128];
-		sprintf(fn, "/var/tmp/debug.sort.%d", counter++);
-		FILE* f = fopen(fn, "w");
-		fprintf(f, ">>sort>>");
-		for (int i = 0; i < argc; i++) {
-			fprintf(f, "<%s>", argv[i]);
-		}
-		fprintf(f, "<<sort<<\n");
-		fclose(f);
-	}
-#endif
-
 	fix_obsolete_keys(&argc, argv);
 
 	while (((c = getopt_long(argc, argv, OPTIONS, long_options, NULL))
@@ -1042,8 +1025,7 @@ main(int argc, char **argv)
 
 				if (parse_k(optarg, &(keys[keys_num - 1]))
 				    < 0) {
-					errx(2, "%s: -k %s\n",
-					    strerror(EINVAL), optarg);
+					errc(2, EINVAL, "-k %s", optarg);
 				}
 
 				break;
@@ -1068,8 +1050,7 @@ main(int argc, char **argv)
 			case 't':
 				while (strlen(optarg) > 1) {
 					if (optarg[0] != '\\') {
-						errx(2, "%s: %s\n",
-						    strerror(EINVAL), optarg);
+						errc(2, EINVAL, "%s", optarg);
 					}
 					optarg += 1;
 					if (*optarg == '0') {
@@ -1156,8 +1137,7 @@ main(int argc, char **argv)
 				errno = 0;
 				long mof = strtol(optarg, NULL, 10);
 				if (errno != 0)
-					errx(2, "--batch-size: %s",
-					    strerror(errno));
+					err(2, "--batch-size");
 				if (mof >= 2)
 					max_open_files = (size_t) mof + 1;
 			}
@@ -1221,13 +1201,15 @@ main(int argc, char **argv)
 		ks->sm.func = get_sort_func(&(ks->sm));
 	}
 
-	if (argc_from_file0 >= 0) {
+	if (argv_from_file0) {
 		argc = argc_from_file0;
 		argv = argv_from_file0;
 	}
 
 	if (debug_sort) {
+		printf("Memory to be used for sorting: %llu\n",available_free_memory);
 #if defined(SORT_THREADS)
+		printf("Number of CPUs: %d\n",(int)ncpu);
 		nthreads = 1;
 #endif
 		printf("Using collate rules of %s locale\n",

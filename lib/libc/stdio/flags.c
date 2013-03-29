@@ -97,12 +97,17 @@ __sflags(mode, optr)
 
 	/* 'x' means exclusive (fail if the file exists) */
 	if (*mode == 'x') {
+		mode++;
 		if (m == O_RDONLY) {
 			errno = EINVAL;
 			return (0);
 		}
 		o |= O_EXCL;
 	}
+
+	/* set close-on-exec */
+	if (*mode == 'e')
+		o |= O_CLOEXEC;
 
 	*optr = m | o;
 	return (ret);

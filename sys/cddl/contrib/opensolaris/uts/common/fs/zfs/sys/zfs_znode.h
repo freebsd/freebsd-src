@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_FS_ZFS_ZNODE_H
@@ -207,8 +208,6 @@ typedef struct znode {
 	list_node_t	z_link_node;	/* all znodes in fs link */
 	sa_handle_t	*z_sa_hdl;	/* handle to sa data */
 	boolean_t	z_is_sa;	/* are we native sa? */
-	/* FreeBSD-specific field. */
-	struct task	z_task;
 } znode_t;
 
 
@@ -261,7 +260,7 @@ VTOZ(vnode_t *vp)
  */
 #define	ZFS_ENTER(zfsvfs) \
 	{ \
-		rrw_enter(&(zfsvfs)->z_teardown_lock, RW_READER, FTAG); \
+		rrw_enter_read(&(zfsvfs)->z_teardown_lock, FTAG); \
 		if ((zfsvfs)->z_unmounted) { \
 			ZFS_EXIT(zfsvfs); \
 			return (EIO); \

@@ -290,7 +290,7 @@ list_bars(int fd, struct pci_conf *p)
 		}
 		printf("    bar   [%02x] = type %s, range %2d, base %#jx, ",
 		    PCIR_BAR(i), type, range, (uintmax_t)base);
-		printf("size %2d, %s\n", (int)bar.pbi_length,
+		printf("size %ju, %s\n", (uintmax_t)bar.pbi_length,
 		    bar.pbi_enabled ? "enabled" : "disabled");
 	}
 }
@@ -345,6 +345,7 @@ static struct
 	{PCIC_STORAGE,		PCIS_STORAGE_ATA_ADMA,	"ATA (ADMA)"},
 	{PCIC_STORAGE,		PCIS_STORAGE_SATA,	"SATA"},
 	{PCIC_STORAGE,		PCIS_STORAGE_SAS,	"SAS"},
+	{PCIC_STORAGE,		PCIS_STORAGE_NVM,	"NVM"},
 	{PCIC_NETWORK,		-1,			"network"},
 	{PCIC_NETWORK,		PCIS_NETWORK_ETHERNET,	"ethernet"},
 	{PCIC_NETWORK,		PCIS_NETWORK_TOKENRING,	"token ring"},

@@ -102,7 +102,9 @@ typedef void (usb_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
 
 
 /* USB events */
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/eventhandler.h>
+#endif
 typedef void (*usb_dev_configured_t)(void *, struct usb_device *,
     struct usb_attach_arg *);
 EVENTHANDLER_DECLARE(usb_dev_configured, usb_dev_configured_t);
@@ -239,12 +241,21 @@ struct usb_config {
  * have your driver module automatically loaded in host, device or
  * both modes respectivly:
  */
+#if USB_HAVE_ID_SECTION
 #define	STRUCT_USB_HOST_ID \
     struct usb_device_id __section("usb_host_id")
 #define	STRUCT_USB_DEVICE_ID \
     struct usb_device_id __section("usb_device_id")
 #define	STRUCT_USB_DUAL_ID \
     struct usb_device_id __section("usb_dual_id")
+#else
+#define	STRUCT_USB_HOST_ID \
+    struct usb_device_id
+#define	STRUCT_USB_DEVICE_ID \
+    struct usb_device_id
+#define	STRUCT_USB_DUAL_ID \
+    struct usb_device_id
+#endif			/* USB_HAVE_ID_SECTION */
 
 /*
  * The following structure is used when looking up an USB driver for
@@ -530,8 +541,8 @@ usb_frlength_t
 	usbd_xfer_old_frame_length(struct usb_xfer *xfer, usb_frcount_t frindex);
 void	usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen,
 	    int *aframes, int *nframes);
-struct usb_page_cache *usbd_xfer_get_frame(struct usb_xfer *xfer,
-	    usb_frcount_t frindex);
+struct usb_page_cache *usbd_xfer_get_frame(struct usb_xfer *, usb_frcount_t);
+void	*usbd_xfer_get_frame_buffer(struct usb_xfer *, usb_frcount_t);
 void	*usbd_xfer_softc(struct usb_xfer *xfer);
 void	*usbd_xfer_get_priv(struct usb_xfer *xfer);
 void	usbd_xfer_set_priv(struct usb_xfer *xfer, void *);

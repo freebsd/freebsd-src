@@ -86,7 +86,7 @@ ar5210StopDmaReceive(struct ath_hal *ah)
 void
 ar5210StartPcuReceive(struct ath_hal *ah)
 {
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		OS_REG_READ(ah, AR_DIAG_SW) & ~(AR_DIAG_SW_DIS_RX));
 }
 
@@ -96,7 +96,7 @@ ar5210StartPcuReceive(struct ath_hal *ah)
 void
 ar5210StopPcuReceive(struct ath_hal *ah)
 {
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		OS_REG_READ(ah, AR_DIAG_SW) | AR_DIAG_SW_DIS_RX);
 }
 

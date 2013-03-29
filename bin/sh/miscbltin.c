@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
-#include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -60,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
+#include "syntax.h"
 
 #undef eflag
 
@@ -307,7 +307,7 @@ umaskcmd(int argc __unused, char **argv __unused)
 			out1fmt("%.4o\n", mask);
 		}
 	} else {
-		if (isdigit(*ap)) {
+		if (is_digit(*ap)) {
 			mask = 0;
 			do {
 				if (*ap >= '8' || *ap < '0')

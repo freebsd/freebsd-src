@@ -16,12 +16,20 @@ namespace comments {
 namespace {
 class CommentDumper: public comments::ConstCommentVisitor<CommentDumper> {
   raw_ostream &OS;
-  SourceManager *SM;
+  const CommandTraits *Traits;
+  const SourceManager *SM;
+
+  /// The \c FullComment parent of the comment being dumped.
+  const FullComment *FC;
+
   unsigned IndentLevel;
 
 public:
-  CommentDumper(raw_ostream &OS, SourceManager *SM) :
-      OS(OS), SM(SM), IndentLevel(0)
+  CommentDumper(raw_ostream &OS,
+                const CommandTraits *Traits,
+                const SourceManager *SM,
+                const FullComment *FC) :
+      OS(OS), Traits(Traits), SM(SM), FC(FC), IndentLevel(0)
   { }
 
   void dumpIndent() const {
@@ -56,6 +64,15 @@ public:
   void visitVerbatimLineComment(const VerbatimLineComment *C);
 
   void visitFullComment(const FullComment *C);
+
+  const char *getCommandName(unsigned CommandID) {
+    if (Traits)
+      return Traits->getCommandInfo(CommandID)->Name;
+    const CommandInfo *Info = CommandTraits::getBuiltinCommandInfo(CommandID);
+    if (Info)
+      return Info->Name;
+    return "<not a builtin command>";
+  }
 };
 
 void CommentDumper::dumpSourceRange(const Comment *C) {
@@ -107,7 +124,7 @@ void CommentDumper::visitTextComment(const TextComment *C) {
 void CommentDumper::visitInlineCommandComment(const InlineCommandComment *C) {
   dumpComment(C);
 
-  OS << " Name=\"" << C->getCommandName() << "\"";
+  OS << " Name=\"" << getCommandName(C->getCommandID()) << "\"";
   switch (C->getRenderKind()) {
   case InlineCommandComment::RenderNormal:
     OS << " RenderNormal";
@@ -155,7 +172,7 @@ void CommentDumper::visitParagraphComment(const ParagraphComment *C) {
 void CommentDumper::visitBlockCommandComment(const BlockCommandComment *C) {
   dumpComment(C);
 
-  OS << " Name=\"" << C->getCommandName() << "\"";
+  OS << " Name=\"" << getCommandName(C->getCommandID()) << "\"";
   for (unsigned i = 0, e = C->getNumArgs(); i != e; ++i)
     OS << " Arg[" << i << "]=\"" << C->getArgText(i) << "\"";
 }
@@ -170,8 +187,12 @@ void CommentDumper::visitParamCommandComment(const ParamCommandComment *C) {
   else
     OS << " implicitly";
 
-  if (C->hasParamName())
-    OS << " Param=\"" << C->getParamName() << "\"";
+  if (C->hasParamName()) {
+    if (C->isParamIndexValid())
+      OS << " Param=\"" << C->getParamName(FC) << "\"";
+    else
+      OS << " Param=\"" << C->getParamNameAsWritten() << "\"";
+  }
 
   if (C->isParamIndexValid())
     OS << " ParamIndex=" << C->getParamIndex();
@@ -181,7 +202,10 @@ void CommentDumper::visitTParamCommandComment(const TParamCommandComment *C) {
   dumpComment(C);
 
   if (C->hasParamName()) {
-    OS << " Param=\"" << C->getParamName() << "\"";
+    if (C->isPositionValid())
+      OS << " Param=\"" << C->getParamName(FC) << "\"";
+    else
+      OS << " Param=\"" << C->getParamNameAsWritten() << "\"";
   }
 
   if (C->isPositionValid()) {
@@ -198,7 +222,7 @@ void CommentDumper::visitTParamCommandComment(const TParamCommandComment *C) {
 void CommentDumper::visitVerbatimBlockComment(const VerbatimBlockComment *C) {
   dumpComment(C);
 
-  OS << " Name=\"" << C->getCommandName() << "\""
+  OS << " Name=\"" << getCommandName(C->getCommandID()) << "\""
         " CloseName=\"" << C->getCloseName() << "\"";
 }
 
@@ -220,8 +244,10 @@ void CommentDumper::visitFullComment(const FullComment *C) {
 
 } // unnamed namespace
 
-void Comment::dump(llvm::raw_ostream &OS, SourceManager *SM) const {
-  CommentDumper D(llvm::errs(), SM);
+void Comment::dump(llvm::raw_ostream &OS, const CommandTraits *Traits,
+                   const SourceManager *SM) const {
+  const FullComment *FC = dyn_cast<FullComment>(this);
+  CommentDumper D(llvm::errs(), Traits, SM, FC);
   D.dumpSubtree(this);
   llvm::errs() << '\n';
 }

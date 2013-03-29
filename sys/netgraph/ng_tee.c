@@ -305,7 +305,7 @@ ng_tee_rcvdata(hook_p hook, item_p item)
 		struct mbuf *m2;
 
 		/* Copy packet (failure will not stop the original)*/
-		m2 = m_dup(m, M_DONTWAIT);
+		m2 = m_dup(m, M_NOWAIT);
 		if (m2) {
 			/* Deliver duplicate */
 			h = hinfo->dup;

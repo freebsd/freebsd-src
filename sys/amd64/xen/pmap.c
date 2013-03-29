@@ -125,6 +125,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 
@@ -166,6 +167,8 @@ struct pmap kernel_pmap_store;
 
 uintptr_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 uintptr_t virtual_end;	/* VA of last avail page (end of kernel AS) */
+
+int nkpt;
 
 /* 
  * VA for temp mapping to zero.
@@ -286,7 +289,7 @@ static void
 create_boot_pagetables(vm_paddr_t *firstaddr)
 {
 	int i;
-	int nkpt, nkpdpe;
+	int nkpdpe;
 	int nkmapped = atop(VTOP(xenstack + 512 * 1024 + PAGE_SIZE));
 
 	kernel_vm_end = PTOV(ptoa(nkmapped - 1));
@@ -628,7 +631,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)KPML4phys;
-	kernel_pmap->pm_root = NULL;
+	kernel_pmap->pm_root.rt_root = 0;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	pmap_pv_init();
 	pmap_pv_pmap_init(kernel_pmap);
@@ -757,7 +760,7 @@ pmap_pinit0(pmap_t pmap)
 {
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (void *) KPML4phys;
-	pmap->pm_root = NULL;
+	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 	pmap_pv_pmap_init(pmap);
@@ -794,7 +797,7 @@ pmap_pinit(pmap_t pmap)
 
 	xen_pgdir_pin(phystomach(ptmb_vtop((uintptr_t)pmap->pm_pml4)));
 
-	pmap->pm_root = NULL;
+	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	pmap_pv_pmap_init(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -967,9 +970,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
-	    VM_OBJECT_LOCKED(m->object),
-	    ("pmap_enter: page %p is not busy", m));
+	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+		VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	KASSERT(pmap == kernel_pmap, ("XXX: TODO: Userland pmap\n"));
 	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
@@ -1331,6 +1333,15 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
+int unmapped_buf_allowed = 1;
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+}
+
 void
 pmap_zero_page(vm_page_t m)
 {
@@ -1475,7 +1486,7 @@ pmap_remove_write(vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;

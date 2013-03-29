@@ -146,29 +146,11 @@ static int varequal(const char *, const char *);
 static struct var *find_var(const char *, struct var ***, int *);
 static int localevar(const char *);
 
-/*
- * Initialize the variable symbol tables and import the environment.
- */
-
-#ifdef mkinit
-INCLUDE "var.h"
-MKINIT char **environ;
-INIT {
-	char **envp;
-
-	initvar();
-	for (envp = environ ; *envp ; envp++) {
-		if (strchr(*envp, '=')) {
-			setvareq(*envp, VEXPORT|VTEXTFIXED);
-		}
-	}
-}
-#endif
-
+extern char **environ;
 
 /*
- * This routine initializes the builtin variables.  It is called when the
- * shell is initialized.
+ * This routine initializes the builtin variables and imports the environment.
+ * It is called when the shell is initialized.
  */
 
 void
@@ -178,6 +160,7 @@ initvar(void)
 	const struct varinit *ip;
 	struct var *vp;
 	struct var **vpp;
+	char **envp;
 
 	for (ip = varinit ; (vp = ip->var) != NULL ; ip++) {
 		if (find_var(ip->text, &vpp, &vp->name_len) != NULL)
@@ -200,6 +183,11 @@ initvar(void)
 	if ((vppid.flags & VEXPORT) == 0) {
 		fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
 		setvarsafe("PPID", ppid, 0);
+	}
+	for (envp = environ ; *envp ; envp++) {
+		if (strchr(*envp, '=')) {
+			setvareq(*envp, VEXPORT|VTEXTFIXED);
+		}
 	}
 }
 
@@ -356,7 +344,7 @@ setvareq(char *s, int flags)
 		 * a regular variable function callback, but why bother?
 		 *
 		 * Note: this assumes iflag is not set to 1 initially.
-		 * As part of init(), this is called before arguments
+		 * As part of initvar(), this is called before arguments
 		 * are looked at.
 		 */
 		if ((vp == &vmpath || (vp == &vmail && ! mpathset())) &&
@@ -640,10 +628,11 @@ showvarscmd(int argc __unused, char **argv __unused)
  */
 
 int
-exportcmd(int argc, char **argv)
+exportcmd(int argc __unused, char **argv)
 {
 	struct var **vpp;
 	struct var *vp;
+	char **ap;
 	char *name;
 	char *p;
 	char *cmdname;
@@ -651,26 +640,19 @@ exportcmd(int argc, char **argv)
 	int flag = argv[0][0] == 'r'? VREADONLY : VEXPORT;
 
 	cmdname = argv[0];
-	optreset = optind = 1;
-	opterr = 0;
 	values = 0;
-	while ((ch = getopt(argc, argv, "p")) != -1) {
+	while ((ch = nextopt("p")) != '\0') {
 		switch (ch) {
 		case 'p':
 			values = 1;
 			break;
-		case '?':
-		default:
-			error("unknown option: -%c", optopt);
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
-	if (values && argc != 0)
+	if (values && *argptr != NULL)
 		error("-p requires no arguments");
-	if (argc != 0) {
-		while ((name = *argv++) != NULL) {
+	if (*argptr != NULL) {
+		for (ap = argptr; (name = *ap) != NULL; ap++) {
 			if ((p = strchr(name, '=')) != NULL) {
 				p++;
 			} else {

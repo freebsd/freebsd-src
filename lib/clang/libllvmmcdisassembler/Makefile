@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmcdisassembler
 
 SRCDIR=	lib/MC/MCDisassembler

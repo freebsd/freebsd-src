@@ -364,7 +364,19 @@ test_getmem(void *arg, uint64_t *lowmem, uint64_t *highmem)
         *highmem = 0;
 }
 
-struct loader_callbacks_v1 cb = {
+const char *
+test_getenv(void *arg, int idx)
+{
+	static const char *vars[] = {
+		"foo=bar",
+		"bar=barbar",
+		NULL
+	};
+
+	return (vars[idx]);
+}
+
+struct loader_callbacks cb = {
 	.putc = test_putc,
 	.getc = test_getc,
 	.poll = test_poll,
@@ -391,6 +403,8 @@ struct loader_callbacks_v1 cb = {
 	.delay = test_delay,
 	.exit = test_exit,
         .getmem = test_getmem,
+
+	.getenv = test_getenv,
 };
 
 void
@@ -405,7 +419,7 @@ int
 main(int argc, char** argv)
 {
 	void *h;
-	void (*func)(struct loader_callbacks_v1 *, void *, int, int);
+	void (*func)(struct loader_callbacks *, void *, int, int);
 	int opt;
 	char *disk_image = NULL;
 
@@ -450,5 +464,5 @@ main(int argc, char** argv)
 	term.c_lflag &= ~(ICANON|ECHO);
 	tcsetattr(0, TCSAFLUSH, &term);
 
-	func(&cb, NULL, USERBOOT_VERSION_2, disk_fd >= 0);
+	func(&cb, NULL, USERBOOT_VERSION_3, disk_fd >= 0);
 }

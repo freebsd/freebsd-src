@@ -32,4 +32,10 @@
  */
 void	ieee80211_hostap_attach(struct ieee80211com *);
 void	ieee80211_hostap_detach(struct ieee80211com *);
+
+/*
+ * This method can be overridden
+ */
+void ieee80211_recv_pspoll(struct ieee80211_node *, struct mbuf *);
+
 #endif /* !_NET80211_IEEE80211_HOSTAP_H_ */

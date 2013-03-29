@@ -839,7 +839,7 @@ out:
 			strlcat(buf, buf2, sizeof(buf));
 		}
 		strlcat(buf, " \n", sizeof(buf));
-		device_printf(dev, buf);
+		device_printf(dev, "%s", buf);
 	}
 
 	return (error);

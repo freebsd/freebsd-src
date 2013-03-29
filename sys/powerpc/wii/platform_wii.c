@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <powerpc/wii/wii_fbreg.h>
+#include <powerpc/wii/wii_ipcreg.h>
 
 #include "platform_if.h"
 
@@ -59,7 +60,7 @@ static void		wii_mem_regions(platform_t, struct mem_region **,
 			    int *, struct mem_region **, int *);
 static unsigned long	wii_timebase_freq(platform_t, struct cpuref *cpuref);
 static void		wii_reset(platform_t);
-static void		wii_cpu_idle(void);
+static void		wii_cpu_idle(sbintime_t sbt);
 
 static platform_method_t wii_methods[] = {
 	PLATFORMMETHOD(platform_probe,		wii_probe),
@@ -68,7 +69,7 @@ static platform_method_t wii_methods[] = {
 	PLATFORMMETHOD(platform_timebase_freq,	wii_timebase_freq),
 	PLATFORMMETHOD(platform_reset,		wii_reset),
  
-	{ 0, 0 }
+	PLATFORMMETHOD_END
 };
 
 static platform_def_t wii_platform = {
@@ -113,7 +114,7 @@ wii_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
 {
 	/* 24MB 1T-SRAM */
 	avail_regions[0].mr_start = 0x00000000;
-	avail_regions[0].mr_size  = 0x01800000 - 0x0004000;
+	avail_regions[0].mr_size  = 0x01800000;
 
 	/*
 	 * Reserve space for the framebuffer which is located
@@ -122,12 +123,19 @@ wii_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
 	avail_regions[0].mr_size -= WIIFB_FB_LEN;
 
 	/* 64MB GDDR3 SDRAM */
-	avail_regions[1].mr_start = 0x10000000 + 0x0004000;
-	avail_regions[1].mr_size  = 0x04000000 - 0x0004000;
+	avail_regions[1].mr_start = 0x10000000;
+	avail_regions[1].mr_size  = 0x04000000;
 
-	/* XXX for now only use the first memory region */
-#undef MEM_REGIONS
-#define MEM_REGIONS 1
+	/*
+	 * Reserve space for the DSP.
+	 */
+	avail_regions[1].mr_start += 0x4000;
+	avail_regions[1].mr_size -= 0x4000;
+
+	/*
+	 * Reserve space for the IOS I/O memory.
+	 */
+	avail_regions[1].mr_size -= WIIIPC_IOH_LEN + 1;
 
 	*phys = *avail = avail_regions;
 	*physsz = *availsz = MEM_REGIONS;
@@ -147,6 +155,6 @@ wii_reset(platform_t plat)
 }
 
 static void
-wii_cpu_idle(void)
+wii_cpu_idle(sbintime_t sbt)
 {
 }

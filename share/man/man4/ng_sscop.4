@@ -204,8 +204,8 @@ struct sscop_merr {
 The
 .Nm sscop
 node understands the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_SSCOP_SETPARAM
+.Bl -tag -width foo
+.It Dv NGM_SSCOP_SETPARAM Pq Ic setparam
 Sets operational parameters of the SSCOP instance and takes the
 following structure:
 .Bd -literal
@@ -312,28 +312,28 @@ but that could not be set and
 is an
 .Xr errno 2
 code describing why the parameter could not be set.
-.It Dv NGM_SSCOP_GETPARAM
+.It Dv NGM_SSCOP_GETPARAM Pq Ic getparam
 This message returns the current operational parameters of the SSCOP
 instance in a
 .Vt sscop_param
 structure.
-.It Dv NGM_SSCOP_ENABLE
+.It Dv NGM_SSCOP_ENABLE Pq Ic enable
 This message creates the actual SSCOP instance and initializes it.
 Until this is done, parameters may neither be retrieved nor set, and all
 messages received on any hook are discarded.
-.It Dv NGM_SSCOP_DISABLE
+.It Dv NGM_SSCOP_DISABLE Pq Ic disable
 Destroy the SSCOP instance.
 After this, all messages on any hooks are
 discarded.
-.It Dv NGM_SSCOP_SETDEBUG
+.It Dv NGM_SSCOP_SETDEBUG Pq Ic setdebug
 Set debugging flags.
 The argument is a
 .Vt uint32_t .
-.It Dv NGM_SSCOP_GETDEBUG
+.It Dv NGM_SSCOP_GETDEBUG Pq Ic getdebug
 Retrieve the actual debugging flags.
 Needs no arguments and responds with a
 .Vt uint32_t .
-.It Dv NGM_SSCOP_GETSTATE
+.It Dv NGM_SSCOP_GETSTATE Pq Ic getstate
 Responds with the current state of the SSCOP instance in a
 .Vt uint32_t .
 If the node is not enabled, the retrieved state is 0.
@@ -352,7 +352,7 @@ state of the protocol.
 At the upper layer interface, the
 .Nm sscop
 node handles three types of flow control messages:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NGM_HIGH_WATER_PASSED
 If this message is received, the SSCOP stops moving the receive window.
 Each time a data message is handed over to the upper layer, the receive

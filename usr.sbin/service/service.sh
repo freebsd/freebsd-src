@@ -33,28 +33,57 @@ usage () {
 	echo ''
 	echo 'Usage:'
 	echo "${0##*/} -e"
+	echo "${0##*/} -R"
 	echo "${0##*/} [-v] -l | -r"
 	echo "${0##*/} [-v] <rc.d script> start|stop|etc."
 	echo "${0##*/} -h"
 	echo ''
 	echo '-e	Show services that are enabled'
+	echo "-R	Stop and start enabled $local_startup services"
 	echo "-l	List all scripts in /etc/rc.d and $local_startup"
 	echo '-r	Show the results of boot time rcorder'
 	echo '-v	Verbose'
 	echo ''
 }
 
-while getopts 'ehlrv' COMMAND_LINE_ARGUMENT ; do
+while getopts 'ehlrRv' COMMAND_LINE_ARGUMENT ; do
 	case "${COMMAND_LINE_ARGUMENT}" in
 	e)	ENABLED=eopt ;;
 	h)	usage ; exit 0 ;;
 	l)	LIST=lopt ;;
 	r)	RCORDER=ropt ;;
+	R)	RESTART=Ropt ;;
 	v)	VERBOSE=vopt ;;
 	*)	usage ; exit 1 ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
+
+if [ -n "$RESTART" ]; then
+	skip="-s nostart"
+	if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
+		skip="$skip -s nojail"
+	fi
+	[ -n "$local_startup" ] && find_local_scripts_new
+	files=`rcorder ${skip} ${local_rc} 2>/dev/null`
+
+	for file in `reverse_list ${files}`; do
+		if grep -q ^rcvar $file; then
+			eval `grep ^name= $file`
+			eval `grep ^rcvar $file`
+			checkyesno $rcvar 2>/dev/null && run_rc_script ${file} stop
+		fi
+	done
+	for file in $files; do
+		if grep -q ^rcvar $file; then
+			eval `grep ^name= $file`
+			eval `grep ^rcvar $file`
+			checkyesno $rcvar 2>/dev/null && run_rc_script ${file} start
+		fi
+	done
+
+	exit 0
+fi
 
 if [ -n "$ENABLED" -o -n "$RCORDER" ]; then
 	# Copied from /etc/rc

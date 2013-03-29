@@ -28,8 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
@@ -92,7 +95,7 @@ aic_isa_alloc_resources(device_t dev)
 	else
 		bs_iat = aicport_generic;
 
-	sc->sc_port = sc->sc_irq = sc->sc_drq = 0;
+	sc->sc_port = sc->sc_irq = sc->sc_drq = NULL;
 
 	rid = 0;
 	sc->sc_port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
@@ -102,6 +105,7 @@ aic_isa_alloc_resources(device_t dev)
 		return (ENOMEM);
 	}
 	isa_load_resourcev(sc->sc_port, bs_iat, AIC_ISA_PORTSIZE);
+	mtx_init(&sc->sc_aic.lock, "aic", NULL, MTX_DEF);
 
 	if (isa_get_irq(dev) != -1) {
 		rid = 0;
@@ -126,9 +130,7 @@ aic_isa_alloc_resources(device_t dev)
 	}
 
 	sc->sc_aic.dev = dev;
-	sc->sc_aic.unit = device_get_unit(dev);
-	sc->sc_aic.tag = rman_get_bustag(sc->sc_port);
-	sc->sc_aic.bsh = rman_get_bushandle(sc->sc_port);
+	sc->sc_aic.res = sc->sc_port;
 	return (0);
 }
 
@@ -143,7 +145,8 @@ aic_isa_release_resources(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
 	if (sc->sc_drq)
 		bus_release_resource(dev, SYS_RES_DRQ, 0, sc->sc_drq);
-	sc->sc_port = sc->sc_irq = sc->sc_drq = 0;
+	sc->sc_port = sc->sc_irq = sc->sc_drq = NULL;
+	mtx_destroy(&sc->sc_aic.lock);
 }
 
 static int
@@ -172,10 +175,8 @@ aic_isa_probe(device_t dev)
 			continue;
 		if (aic_isa_alloc_resources(dev))
 			continue;
-		if (!aic_probe(aic)) {
-			aic_isa_release_resources(dev);
+		if (aic_probe(aic) == 0)
 			break;
-		}
 		aic_isa_release_resources(dev);
 	}
 
@@ -183,6 +184,7 @@ aic_isa_probe(device_t dev)
 		return (ENXIO);
 
 	porta = aic_inb(aic, PORTA);
+	aic_isa_release_resources(dev);
 	if (isa_get_irq(dev) == -1)
 		bus_set_resource(dev, SYS_RES_IRQ, 0, PORTA_IRQ(porta), 1);
 	if ((aic->flags & AIC_DMA_ENABLE) && isa_get_drq(dev) == -1)
@@ -211,8 +213,8 @@ aic_isa_attach(device_t dev)
 		return (error);
 	}
 
-	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM|INTR_ENTROPY,
-				NULL, aic_intr, aic, &sc->sc_ih);
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, aic_intr, aic, &sc->sc_ih);
 	if (error) {
 		device_printf(dev, "failed to register interrupt handler\n");
 		aic_isa_release_resources(dev);

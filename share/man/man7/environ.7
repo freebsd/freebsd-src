@@ -56,13 +56,9 @@ The size of the block units used by several commands, most notably
 .Xr du 1
 and
 .Xr ls 1 .
-.Ev BLOCKSIZE
-may be specified in units of a byte by specifying a number,
-in units of a kilobyte by specifying a number followed by ``K'' or
-``k'', in units of a megabyte by specifying a number followed by ``M''
-or ``m'' and in units of a gigabyte by specifying a number followed
-by ``G'' or ``g''.
-Sizes less than 512 bytes or greater than a gigabyte are ignored.
+This variable is processed by the
+.Xr getbsize 3
+function.
 .It Ev COLUMNS
 The user's preferred width in column positions for the terminal.
 Utilities such as
@@ -259,6 +255,7 @@ built-in command in
 .Xr execve 2 ,
 .Xr execle 3 ,
 .Xr getenv 3 ,
+.Xr getbsize 3 ,
 .Xr setenv 3 ,
 .Xr setlocale 3 ,
 .Xr system 3 ,

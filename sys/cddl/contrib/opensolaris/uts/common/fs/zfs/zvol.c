@@ -23,6 +23,7 @@
  *
  * Copyright (c) 2006-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -78,6 +79,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/zvol.h>
 #include <sys/zil_impl.h>
+#include <sys/dbuf.h>
 #include <geom/geom.h>
 
 #include "zfs_namecheck.h"
@@ -143,7 +145,7 @@ typedef struct zvol_state {
 int zvol_maxphys = DMU_MAX_ACCESS/2;
 
 extern int zfs_set_prop_nvlist(const char *, zprop_source_t,
-    nvlist_t *, nvlist_t **);
+    nvlist_t *, nvlist_t *);
 static int zvol_remove_zv(zvol_state_t *);
 static int zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio);
 static int zvol_dumpify(zvol_state_t *zv);
@@ -266,7 +268,7 @@ struct maparg {
 
 /*ARGSUSED*/
 static int
-zvol_map_block(spa_t *spa, zilog_t *zilog, const blkptr_t *bp, arc_buf_t *pbuf,
+zvol_map_block(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	struct maparg *ma = arg;
@@ -475,6 +477,7 @@ zvol_create_minor(const char *name)
 	zvol_state_t *zv;
 	objset_t *os;
 	dmu_object_info_t doi;
+	uint64_t volsize;
 	int error;
 
 	ZFS_LOG(1, "Creating ZVOL %s...", name);
@@ -535,9 +538,20 @@ zvol_create_minor(const char *name)
 	zv = zs->zss_data = kmem_zalloc(sizeof (zvol_state_t), KM_SLEEP);
 #else	/* !sun */
 
+	error = zap_lookup(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize);
+	if (error) {
+		ASSERT(error == 0);
+		dmu_objset_disown(os, zvol_tag);
+		mutex_exit(&spa_namespace_lock);
+		return (error);
+	}
+
 	DROP_GIANT();
 	g_topology_lock();
 	zv = zvol_geom_create(name);
+	zv->zv_volsize = volsize;
+	zv->zv_provider->mediasize = zv->zv_volsize;
+
 #endif	/* !sun */
 
 	(void) strlcpy(zv->zv_name, name, MAXPATHLEN);
@@ -681,7 +695,7 @@ zvol_last_close(zvol_state_t *zv)
 	if (dsl_dataset_is_dirty(dmu_objset_ds(zv->zv_objset)) &&
 	    !(zv->zv_flags & ZVOL_RDONLY))
 		txg_wait_synced(dmu_objset_pool(zv->zv_objset), 0);
-	(void) dmu_objset_evict_dbufs(zv->zv_objset);
+	dmu_objset_evict_dbufs(zv->zv_objset);
 
 	dmu_objset_disown(zv->zv_objset, zvol_tag);
 	zv->zv_objset = NULL;
@@ -728,7 +742,7 @@ zvol_prealloc(zvol_state_t *zv)
 }
 #endif	/* sun */
 
-int
+static int
 zvol_update_volsize(objset_t *os, uint64_t volsize)
 {
 	dmu_tx_t *tx;
@@ -878,27 +892,36 @@ zvol_open(struct g_provider *pp, int flag, int count)
 {
 	zvol_state_t *zv;
 	int err = 0;
+	boolean_t locked = B_FALSE;
 
-	if (MUTEX_HELD(&spa_namespace_lock)) {
-		/*
-		 * If the spa_namespace_lock is being held, it means that ZFS
-		 * is trying to open ZVOL as its VDEV. This is not supported.
-		 */
-		return (EOPNOTSUPP);
+	/*
+	 * Protect against recursively entering spa_namespace_lock
+	 * when spa_open() is used for a pool on a (local) ZVOL(s).
+	 * This is needed since we replaced upstream zfsdev_state_lock
+	 * with spa_namespace_lock in the ZVOL code.
+	 * We are using the same trick as spa_open().
+	 * Note that calls in zvol_first_open which need to resolve
+	 * pool name to a spa object will enter spa_open()
+	 * recursively, but that function already has all the
+	 * necessary protection.
+	 */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
 	}
-
-	mutex_enter(&spa_namespace_lock);
 
 	zv = pp->private;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (ENXIO);
 	}
 
 	if (zv->zv_total_opens == 0)
 		err = zvol_first_open(zv);
 	if (err) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (err);
 	}
 	if ((flag & FWRITE) && (zv->zv_flags & ZVOL_RDONLY)) {
@@ -920,13 +943,15 @@ zvol_open(struct g_provider *pp, int flag, int count)
 #endif
 
 	zv->zv_total_opens += count;
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 
 	return (err);
 out:
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	return (err);
 }
 
@@ -936,12 +961,18 @@ zvol_close(struct g_provider *pp, int flag, int count)
 {
 	zvol_state_t *zv;
 	int error = 0;
+	boolean_t locked = B_FALSE;
 
-	mutex_enter(&spa_namespace_lock);
+	/* See comment in zvol_open(). */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
+	}
 
 	zv = pp->private;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (ENXIO);
 	}
 
@@ -964,7 +995,8 @@ zvol_close(struct g_provider *pp, int flag, int count)
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
 
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	return (error);
 }
 
@@ -1021,6 +1053,12 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 		error = dmu_buf_hold(os, object, offset, zgd, &db,
 		    DMU_READ_NO_PREFETCH);
 		if (error == 0) {
+			blkptr_t *obp = dmu_buf_get_blkptr(db);
+			if (obp) {
+				ASSERT(BP_IS_HOLE(bp));
+				*bp = *obp;
+			}
+
 			zgd->zgd_db = db;
 			zgd->zgd_bp = bp;
 
@@ -1187,6 +1225,9 @@ zvol_dumpio(zvol_state_t *zv, void *addr, uint64_t offset, uint64_t size,
 		ze = list_next(&zv->zv_extents, ze);
 	}
 
+	if (ze == NULL)
+		return (EINVAL);
+
 	if (!ddi_in_panic())
 		spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
 
@@ -1316,6 +1357,9 @@ zvol_dump(dev_t dev, caddr_t addr, daddr_t blkno, int nblocks)
 	zv = zfsdev_get_soft_state(minor, ZSST_ZVOL);
 	if (zv == NULL)
 		return (ENXIO);
+
+	if ((zv->zv_flags & ZVOL_DUMPIFIED) == 0)
+		return (EINVAL);
 
 	boff = ldbtob(blkno);
 	resid = ldbtob(nblocks);
@@ -1841,7 +1885,7 @@ zvol_dumpify(zvol_state_t *zv)
 
 	if (zap_lookup(zv->zv_objset, ZVOL_ZAP_OBJ, ZVOL_DUMPSIZE,
 	    8, 1, &dumpsize) != 0 || dumpsize != zv->zv_volsize) {
-		boolean_t resize = (dumpsize > 0) ? B_TRUE : B_FALSE;
+		boolean_t resize = (dumpsize > 0);
 
 		if ((error = zvol_dump_init(zv, resize)) != 0) {
 			(void) zvol_dump_fini(zv);
@@ -2140,8 +2184,10 @@ zvol_create_snapshots(objset_t *os, const char *name)
 	cookie = obj = 0;
 	sname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
 
+#if 0
 	(void) dmu_objset_find(name, dmu_objset_prefetch, NULL,
 	    DS_FIND_SNAPSHOTS);
+#endif
 
 	for (;;) {
 		len = snprintf(sname, MAXPATHLEN, "%s@", name);
@@ -2187,13 +2233,16 @@ zvol_create_minors(const char *name)
 		return (error);
 	}
 	if (dmu_objset_type(os) == DMU_OST_ZVOL) {
+		dsl_dataset_long_hold(os->os_dsl_dataset, FTAG);
+		dsl_pool_rele(dmu_objset_pool(os), FTAG);
 		if ((error = zvol_create_minor(name)) == 0)
 			error = zvol_create_snapshots(os, name);
 		else {
 			printf("ZFS WARNING: Unable to create ZVOL %s (error=%d).\n",
 			    name, error);
 		}
-		dmu_objset_rele(os, FTAG);
+		dsl_dataset_long_rele(os->os_dsl_dataset, FTAG);
+		dsl_dataset_rele(os->os_dsl_dataset, FTAG);
 		return (error);
 	}
 	if (dmu_objset_type(os) != DMU_OST_ZFS) {
@@ -2210,12 +2259,14 @@ zvol_create_minors(const char *name)
 	p = osname + strlen(osname);
 	len = MAXPATHLEN - (p - osname);
 
+#if 0
 	/* Prefetch the datasets. */
 	cookie = 0;
 	while (dmu_dir_list_next(os, len, p, NULL, &cookie) == 0) {
 		if (!dataset_name_hidden(osname))
 			(void) dmu_objset_prefetch(osname, NULL);
 	}
+#endif
 
 	cookie = 0;
 	while (dmu_dir_list_next(os, MAXPATHLEN - (p - osname), p, NULL,

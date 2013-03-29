@@ -201,6 +201,46 @@ create last_module_option sizeof module.next allot 0 last_module_option !
 
 : getenv?  getenv -1 = if false else drop true then ;
 
+\ determine if a word appears in a string, case-insensitive
+: contains? ( addr1 len1 addr2 len2 -- 0 | -1 )
+	2 pick 0= if 2drop 2drop true exit then
+	dup 0= if 2drop 2drop false exit then
+	begin
+		begin
+			swap dup c@ dup 32 = over 9 = or over 10 = or
+			over 13 = or over 44 = or swap drop
+		while 1+ swap 1- repeat
+		swap 2 pick 1- over <
+	while
+		2over 2over drop over compare-insensitive 0= if
+			2 pick over = if 2drop 2drop true exit then
+			2 pick tuck - -rot + swap over c@ dup 32 =
+			over 9 = or over 10 = or over 13 = or over 44 = or
+			swap drop if 2drop 2drop true exit then
+		then begin
+			swap dup c@ dup 32 = over 9 = or over 10 = or
+			over 13 = or over 44 = or swap drop
+			if false else true then 2 pick 0> and
+		while 1+ swap 1- repeat
+		swap
+	repeat
+	2drop 2drop false
+;
+
+: boot_serial? ( -- 0 | -1 )
+	s" console" getenv dup -1 <> if
+		s" comconsole" 2swap contains?
+	else drop false then
+	s" boot_serial" getenv dup -1 <> if
+		swap drop 0>
+	else drop false then
+	or \ console contains comconsole ( or ) boot_serial
+	s" boot_multicons" getenv dup -1 <> if
+		swap drop 0>
+	else drop false then
+	or \ previous boolean ( or ) boot_multicons
+;
+
 \ Private definitions
 
 vocabulary support-functions

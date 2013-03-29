@@ -3,107 +3,98 @@
 # generate-release.sh: check out source trees, and build release components with
 #  totally clean, fresh trees.
 #
-#  Usage: generate-release.sh [-r revision] svn-branch scratch-dir
+#  Usage: generate-release.sh svn-branch[@revision] scratch-dir
 #
 # Environment variables:
-#  CVSUP_HOST: Host of a cvsup server to obtain the ports and documentation
-#   trees. This or CVSROOT must be set to include ports and documentation.
-#  CVSROOT:    CVS root to obtain the ports and documentation trees. This or
-#   CVSUP_HOST must be set to include ports and documentation.
-#  CVS_TAG:    CVS tag for ports and documentation (HEAD by default)
-#  SVNROOT:    SVN URL to FreeBSD source repository (by default, 
-#   svn://svn.freebsd.org/base)
-#  MAKE_FLAGS: optional flags to pass to make (e.g. -j)
-#  RELSTRING:  optional base name for media images (e.g. FreeBSD-9.0-RC2-amd64)
-# 
-#  Note: Since this requires a chroot, release cross-builds will not work!
+#  SVNROOTBASE: SVN base URL to FreeBSD repository (svn://svn.freebsd.org)
+#  SVNROOTSRC:  URL to FreeBSD src tree (${SVNROOTBASE}/base)
+#  SVNROOTDOC:  URL to FreeBSD doc tree (${SVNROOTBASE}/doc)
+#  SVNROOTPORTS:URL to FreeBSD ports tree (${SVNROOTBASE}/ports)
+#  BRANCHSRC:   branch name of src (svn-branch[@revision])
+#  BRANCHDOC:   branch name of doc (head)
+#  BRANCHPORTS: branch name of ports (head)
+#  WORLD_FLAGS: optional flags to pass to buildworld (e.g. -j)
+#  KERNEL_FLAGS: optional flags to pass to buildkernel (e.g. -j)
 #
 # $FreeBSD$
 #
 
 usage()
 {
-	echo "Usage: $0 [-r revision] svn-branch scratch-dir"
+	echo "Usage: $0 svn-branch[@revision] scratch-dir" 2>&1
 	exit 1
 }
-
-REVISION=
-while getopts r: opt; do
-	case $opt in
-	r)
-		REVISION="-r $OPTARG"
-		;;
-	\?)
-		usage
-		;;
-	esac
-done
-shift $(($OPTIND - 1))
 
 if [ $# -lt 2 ]; then
 	usage
 fi
 
+: ${SVNROOTBASE:=svn://svn.freebsd.org}
+: ${SVNROOTSRC:=${SVNROOTBASE}/base}
+: ${SVNROOTDOC:=${SVNROOTBASE}/doc}
+: ${SVNROOTPORTS:=${SVNROOTBASE}/ports}
+: ${SVNROOT:=${SVNROOTSRC}} # for backward compatibility
+: ${SVN_CMD:=/usr/local/bin/svn}
+BRANCHSRC=$1
+: ${BRANCHDOC:=head}
+: ${BRANCHPORTS:=head}
+: ${WORLD_FLAGS:=${MAKE_FLAGS}}
+: ${KERNEL_FLAGS:=${MAKE_FLAGS}}
+: ${CHROOTDIR:=$2}
+ 
+if [ ! -r "${CHROOTDIR}" ]; then
+	echo "${CHROOTDIR}: scratch dir not found."
+	exit 1
+fi
+
+CHROOT_CMD="/usr/sbin/chroot ${CHROOTDIR}"
+case ${TARGET} in
+"")	;;
+*)	SETENV_TARGET="TARGET=$TARGET" ;;
+esac
+case ${TARGET_ARCH} in
+"")	;;
+*)	SETENV_TARGET_ARCH="TARGET_ARCH=$TARGET_ARCH" ;;
+esac
+SETENV="env -i PATH=/bin:/usr/bin:/sbin:/usr/sbin"
+CROSSENV="${SETENV_TARGET} ${SETENV_TARGET_ARCH}"
+WMAKE="make -C /usr/src ${WORLD_FLAGS}"
+NWMAKE="${WMAKE} __MAKE_CONF=/dev/null SRCCONF=/dev/null"
+KMAKE="make -C /usr/src ${KERNEL_FLAGS}"
+RMAKE="make -C /usr/src/release"
+
+if [ $(id -u) -ne 0 ]; then
+	echo "Needs to be run as root."
+	exit 1
+fi
+
 set -e # Everything must succeed
 
-case $MAKE_FLAGS in
-	*-j*)
-		;;
-	*)
-		MAKE_FLAGS="$MAKE_FLAGS -j "$(sysctl -n hw.ncpu)
-		;;
-esac
+mkdir -p ${CHROOTDIR}/usr/src
+${SVN_CMD} co ${SVNROOT}/${BRANCHSRC} ${CHROOTDIR}/usr/src
+${SVN_CMD} co ${SVNROOTDOC}/${BRANCHDOC} ${CHROOTDIR}/usr/doc
+${SVN_CMD} co ${SVNROOTPORTS}/${BRANCHPORTS} ${CHROOTDIR}/usr/ports
 
-mkdir -p $2/usr/src
+${SETENV} ${NWMAKE} -C ${CHROOTDIR}/usr/src ${WORLD_FLAGS} buildworld
+${SETENV} ${NWMAKE} -C ${CHROOTDIR}/usr/src installworld distribution DESTDIR=${CHROOTDIR}
+mount -t devfs devfs ${CHROOTDIR}/dev
+trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 
-svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src $REVISION
-if [ ! -z $CVSUP_HOST ]; then
-	cat > $2/docports-supfile << EOF
-	*default host=$CVSUP_HOST
-	*default base=/var/db
-	*default prefix=/usr
-	*default release=cvs tag=${CVS_TAG:-.}
-	*default delete use-rel-suffix
-	*default compress
-	ports-all
-	doc-all
-EOF
-elif [ ! -z $CVSROOT ]; then
-	cd $2/usr
-	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} ports
-	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} doc
+if [ -d ${CHROOTDIR}/usr/doc ]; then 
+	cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
+
+	# Install docproj to build release documentation
+	${CHROOT_CMD} /bin/sh -c \
+		'make -C /usr/ports/textproc/docproj \
+			BATCH=yes \
+			WITHOUT_SVN=yes \
+			WITHOUT_JADETEX=yes \
+			WITHOUT_X11=yes \
+			WITHOUT_PYTHON=yes \
+			install'
 fi
 
-cd $2/usr/src
-make $MAKE_FLAGS buildworld
-make installworld distribution DESTDIR=$2
-mount -t devfs devfs $2/dev
-trap "umount $2/dev" EXIT # Clean up devfs mount on exit
-
-if [ ! -z $CVSUP_HOST ]; then 
-	cp /etc/resolv.conf $2/etc/resolv.conf
-
-	# Checkout ports and doc trees
-	chroot $2 /usr/bin/csup /docports-supfile
-fi
-
-if [ -d $2/usr/doc ]; then 
-	cp /etc/resolv.conf $2/etc/resolv.conf
-
-	# Build ports to build release documentation
-	chroot $2 /bin/sh -c 'pkg_add -r docproj || (cd /usr/ports/textproc/docproj && make install clean BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes)'
-fi
-
-chroot $2 make -C /usr/src $MAKE_FLAGS buildworld buildkernel
-chroot $2 make -C /usr/src/release release
-chroot $2 make -C /usr/src/release install DESTDIR=/R
-
-: ${RELSTRING=`chroot $2 uname -s`-`chroot $2 uname -r`-`chroot $2 uname -p`}
-
-cd $2/R
-for i in release.iso bootonly.iso memstick; do
-	mv $i $RELSTRING-$i
-done
-sha256 $RELSTRING-* > CHECKSUM.SHA256
-md5 $RELSTRING-* > CHECKSUM.MD5
-
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${WMAKE} buildworld
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${KMAKE} buildkernel
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${RMAKE} release
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${RMAKE} install DESTDIR=/R

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmarminfo
 
 SRCDIR=	lib/Target/ARM/TargetInfo

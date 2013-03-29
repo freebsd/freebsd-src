@@ -332,21 +332,30 @@ CallInst::CallInst(const CallInst &CI)
 
 void CallInst::addAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.addAttr(i, attr);
+  PAL = PAL.addAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
 void CallInst::removeAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.removeAttr(i, attr);
+  PAL = PAL.removeAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
-bool CallInst::paramHasAttr(unsigned i, Attributes attr) const {
-  if (AttributeList.paramHasAttr(i, attr))
+bool CallInst::hasFnAttr(Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(AttrListPtr::FunctionIndex)
+      .hasAttribute(A))
     return true;
   if (const Function *F = getCalledFunction())
-    return F->paramHasAttr(i, attr);
+    return F->getParamAttributes(AttrListPtr::FunctionIndex).hasAttribute(A);
+  return false;
+}
+
+bool CallInst::paramHasAttr(unsigned i, Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(i).hasAttribute(A))
+    return true;
+  if (const Function *F = getCalledFunction())
+    return F->getParamAttributes(i).hasAttribute(A);
   return false;
 }
 
@@ -562,23 +571,32 @@ void InvokeInst::setSuccessorV(unsigned idx, BasicBlock *B) {
   return setSuccessor(idx, B);
 }
 
-bool InvokeInst::paramHasAttr(unsigned i, Attributes attr) const {
-  if (AttributeList.paramHasAttr(i, attr))
+bool InvokeInst::hasFnAttr(Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(AttrListPtr::FunctionIndex).
+      hasAttribute(A))
     return true;
   if (const Function *F = getCalledFunction())
-    return F->paramHasAttr(i, attr);
+    return F->getParamAttributes(AttrListPtr::FunctionIndex).hasAttribute(A);
+  return false;
+}
+
+bool InvokeInst::paramHasAttr(unsigned i, Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(i).hasAttribute(A))
+    return true;
+  if (const Function *F = getCalledFunction())
+    return F->getParamAttributes(i).hasAttribute(A);
   return false;
 }
 
 void InvokeInst::addAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.addAttr(i, attr);
+  PAL = PAL.addAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
 void InvokeInst::removeAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.removeAttr(i, attr);
+  PAL = PAL.removeAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
@@ -1381,18 +1399,6 @@ Type *GetElementPtrInst::getIndexedType(Type *Ptr, ArrayRef<uint64_t> IdxList) {
   return getIndexedTypeInternal(Ptr, IdxList);
 }
 
-unsigned GetElementPtrInst::getAddressSpace(Value *Ptr) {
-  Type *Ty = Ptr->getType();
-
-  if (VectorType *VTy = dyn_cast<VectorType>(Ty))
-    Ty = VTy->getElementType();
-
-  if (PointerType *PTy = dyn_cast<PointerType>(Ty))
-    return PTy->getAddressSpace();
-
-  llvm_unreachable("Invalid GEP pointer type");
-}
-
 /// hasAllZeroIndices - Return true if all of the indices of this GEP are
 /// zeros.  If so, the result pointer and the first operand have the same
 /// value, just potentially different types.
@@ -2112,7 +2118,8 @@ bool CastInst::isNoopCast(Type *IntPtrTy) const {
 /// If no such cast is permited, the function returns 0.
 unsigned CastInst::isEliminableCastPair(
   Instruction::CastOps firstOp, Instruction::CastOps secondOp,
-  Type *SrcTy, Type *MidTy, Type *DstTy, Type *IntPtrTy) {
+  Type *SrcTy, Type *MidTy, Type *DstTy, Type *SrcIntPtrTy, Type *MidIntPtrTy,
+  Type *DstIntPtrTy) {
   // Define the 144 possibilities for these two cast instructions. The values
   // in this matrix determine what to do in a given situation and select the
   // case in the switch below.  The rows correspond to firstOp, the columns 
@@ -2215,9 +2222,9 @@ unsigned CastInst::isEliminableCastPair(
       return 0;
     case 7: { 
       // ptrtoint, inttoptr -> bitcast (ptr -> ptr) if int size is >= ptr size
-      if (!IntPtrTy)
+      if (!SrcIntPtrTy || DstIntPtrTy != SrcIntPtrTy)
         return 0;
-      unsigned PtrSize = IntPtrTy->getScalarSizeInBits();
+      unsigned PtrSize = SrcIntPtrTy->getScalarSizeInBits();
       unsigned MidSize = MidTy->getScalarSizeInBits();
       if (MidSize >= PtrSize)
         return Instruction::BitCast;
@@ -2256,9 +2263,9 @@ unsigned CastInst::isEliminableCastPair(
       return 0;
     case 13: {
       // inttoptr, ptrtoint -> bitcast if SrcSize<=PtrSize and SrcSize==DstSize
-      if (!IntPtrTy)
+      if (!MidIntPtrTy)
         return 0;
-      unsigned PtrSize = IntPtrTy->getScalarSizeInBits();
+      unsigned PtrSize = MidIntPtrTy->getScalarSizeInBits();
       unsigned SrcSize = SrcTy->getScalarSizeInBits();
       unsigned DstSize = DstTy->getScalarSizeInBits();
       if (SrcSize <= PtrSize && SrcSize == DstSize)
@@ -2836,7 +2843,7 @@ BitCastInst::BitCastInst(
 //                               CmpInst Classes
 //===----------------------------------------------------------------------===//
 
-void CmpInst::Anchor() const {}
+void CmpInst::anchor() {}
 
 CmpInst::CmpInst(Type *ty, OtherOps op, unsigned short predicate,
                  Value *LHS, Value *RHS, const Twine &Name,

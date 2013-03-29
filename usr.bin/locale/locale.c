@@ -31,7 +31,7 @@
  *	nl_langinfo(3) extensions)
  *
  * XXX: correctly handle reserved 'charmap' keyword and '-m' option (require
- *      localedef(1) implementation).  Currently it's handled via
+ *	localedef(1) implementation).  Currently it's handled via
  *	nl_langinfo(CODESET).
  */
 
@@ -79,32 +79,32 @@ struct _lcinfo {
 	{ "LC_MONETARY",	LC_MONETARY },
 	{ "LC_MESSAGES",	LC_MESSAGES }
 };
-#define NLCINFO (sizeof(lcinfo)/sizeof(lcinfo[0]))
+#define	NLCINFO (sizeof(lcinfo)/sizeof(lcinfo[0]))
 
 /* ids for values not referenced by nl_langinfo() */
 #define	KW_ZERO			10000
 #define	KW_GROUPING		(KW_ZERO+1)
-#define KW_INT_CURR_SYMBOL 	(KW_ZERO+2)
-#define KW_CURRENCY_SYMBOL 	(KW_ZERO+3)
-#define KW_MON_DECIMAL_POINT 	(KW_ZERO+4)
-#define KW_MON_THOUSANDS_SEP 	(KW_ZERO+5)
-#define KW_MON_GROUPING 	(KW_ZERO+6)
-#define KW_POSITIVE_SIGN 	(KW_ZERO+7)
-#define KW_NEGATIVE_SIGN 	(KW_ZERO+8)
-#define KW_INT_FRAC_DIGITS 	(KW_ZERO+9)
-#define KW_FRAC_DIGITS 		(KW_ZERO+10)
-#define KW_P_CS_PRECEDES 	(KW_ZERO+11)
-#define KW_P_SEP_BY_SPACE 	(KW_ZERO+12)
-#define KW_N_CS_PRECEDES 	(KW_ZERO+13)
-#define KW_N_SEP_BY_SPACE 	(KW_ZERO+14)
-#define KW_P_SIGN_POSN 		(KW_ZERO+15)
-#define KW_N_SIGN_POSN 		(KW_ZERO+16)
-#define KW_INT_P_CS_PRECEDES 	(KW_ZERO+17)
-#define KW_INT_P_SEP_BY_SPACE 	(KW_ZERO+18)
-#define KW_INT_N_CS_PRECEDES 	(KW_ZERO+19)
-#define KW_INT_N_SEP_BY_SPACE 	(KW_ZERO+20)
-#define KW_INT_P_SIGN_POSN 	(KW_ZERO+21)
-#define KW_INT_N_SIGN_POSN 	(KW_ZERO+22)
+#define	KW_INT_CURR_SYMBOL	(KW_ZERO+2)
+#define	KW_CURRENCY_SYMBOL	(KW_ZERO+3)
+#define	KW_MON_DECIMAL_POINT	(KW_ZERO+4)
+#define	KW_MON_THOUSANDS_SEP	(KW_ZERO+5)
+#define	KW_MON_GROUPING		(KW_ZERO+6)
+#define	KW_POSITIVE_SIGN	(KW_ZERO+7)
+#define	KW_NEGATIVE_SIGN	(KW_ZERO+8)
+#define	KW_INT_FRAC_DIGITS	(KW_ZERO+9)
+#define	KW_FRAC_DIGITS		(KW_ZERO+10)
+#define	KW_P_CS_PRECEDES	(KW_ZERO+11)
+#define	KW_P_SEP_BY_SPACE	(KW_ZERO+12)
+#define	KW_N_CS_PRECEDES	(KW_ZERO+13)
+#define	KW_N_SEP_BY_SPACE	(KW_ZERO+14)
+#define	KW_P_SIGN_POSN		(KW_ZERO+15)
+#define	KW_N_SIGN_POSN		(KW_ZERO+16)
+#define	KW_INT_P_CS_PRECEDES	(KW_ZERO+17)
+#define	KW_INT_P_SEP_BY_SPACE	(KW_ZERO+18)
+#define	KW_INT_N_CS_PRECEDES	(KW_ZERO+19)
+#define	KW_INT_N_SEP_BY_SPACE	(KW_ZERO+20)
+#define	KW_INT_P_SIGN_POSN	(KW_ZERO+21)
+#define	KW_INT_N_SIGN_POSN	(KW_ZERO+22)
 
 struct _kwinfo {
 	const char	*name;
@@ -218,7 +218,7 @@ struct _kwinfo {
 	  "(POSIX legacy)" }					/* compat */
 
 };
-#define NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
+#define	NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
 
 const char *boguslocales[] = { "UTF-8" };
 #define	NBOGUS	(sizeof(boguslocales)/sizeof(boguslocales[0]))
@@ -253,11 +253,9 @@ main(int argc, char *argv[])
 	/* validate arguments */
 	if (all_locales && all_charmaps)
 		usage();
-	if ((all_locales || all_charmaps) && argc > 0) 
+	if ((all_locales || all_charmaps) && argc > 0)
 		usage();
 	if ((all_locales || all_charmaps) && (prt_categories || prt_keywords))
-		usage();
-	if ((prt_categories || prt_keywords) && argc <= 0)
 		usage();
 
 	/* process '-a' */
@@ -281,13 +279,19 @@ main(int argc, char *argv[])
 				exit(0);
 			}
 
-	/* process '-c' and/or '-k' */
+	/* process '-c', '-k', or command line arguments. */
 	if (prt_categories || prt_keywords || argc > 0) {
-		setlocale(LC_ALL, "");
-		while (argc > 0) {
-			showdetails(*argv);
-			argv++;
-			argc--;
+		if (argc > 0) {
+			setlocale(LC_ALL, "");
+			while (argc > 0) {
+				showdetails(*argv);
+				argv++;
+				argc--;
+			}
+		} else {
+			uint i;
+			for (i = 0; i < sizeof (kwinfo) / sizeof (struct _kwinfo); i++)
+				showdetails ((char *)kwinfo [i].name);
 		}
 		exit(0);
 	}
@@ -302,8 +306,8 @@ void
 usage(void)
 {
 	printf("Usage: locale [ -a | -m ]\n"
-               "       locale -k list [prefix]\n"
-               "       locale [ -ck ] keyword ...\n");
+	       "       locale -k list [prefix]\n"
+	       "       locale [ -ck ] [keyword ...]\n");
 	exit(1);
 }
 
@@ -423,10 +427,10 @@ init_locales_list(void)
 	}
 	closedir(dirp);
 
-        /* make sure that 'POSIX' and 'C' locales are present in the list.
+	/* make sure that 'POSIX' and 'C' locales are present in the list.
 	 * POSIX 1003.1-2001 requires presence of 'POSIX' name only here, but
-         * we also list 'C' for constistency
-         */
+	 * we also list 'C' for constistency
+	 */
 	if (sl_find(locales, "POSIX") == NULL)
 		sl_add(locales, "POSIX");
 
@@ -612,7 +616,10 @@ showdetails(char *kw)
 	}
 
 	if (prt_categories) {
-		printf("%s\n", lookup_localecat(cat));
+		  if (prt_keywords)
+			printf("%-20s ", lookup_localecat(cat));
+		  else
+			printf("%-20s\t%s\n", kw, lookup_localecat(cat));
 	}
 
 	if (prt_keywords) {
@@ -657,7 +664,7 @@ showkeywordslist(char *substring)
 {
 	size_t	i;
 
-#define FMT "%-20s %-12s %-7s %-20s\n"
+#define	FMT "%-20s %-12s %-7s %-20s\n"
 
 	if (substring == NULL)
 		printf("List of available keywords\n\n");

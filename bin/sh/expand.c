@@ -127,19 +127,6 @@ collate_range_cmp(wchar_t c1, wchar_t c2)
 	return (wcscoll(s1, s2));
 }
 
-/*
- * Expand shell variables and backquotes inside a here document.
- *	union node *arg		the document
- *	int fd;			where to write the expanded version
- */
-
-void
-expandhere(union node *arg, int fd)
-{
-	expandarg(arg, (struct arglist *)NULL, 0);
-	xwrite(fd, stackblock(), expdest - stackblock());
-}
-
 static char *
 stputs_quotes(const char *data, const char *syntax, char *p)
 {

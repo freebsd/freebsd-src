@@ -186,7 +186,8 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 
 static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct amd64_frame *);
-static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t);
+static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t,
+    void *);
 static void decode_syscall(int, struct thread *);
 
 static const char * watchtype_str(int type);
@@ -230,12 +231,13 @@ db_numargs(fp)
 }
 
 static void
-db_print_stack_entry(name, narg, argnp, argp, callpc)
+db_print_stack_entry(name, narg, argnp, argp, callpc, frame)
 	const char *name;
 	int narg;
 	char **argnp;
 	long *argp;
 	db_addr_t callpc;
+	void *frame;
 {
 	db_printf("%s(", name);
 #if 0
@@ -250,6 +252,8 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 #endif
 	db_printf(") at ");
 	db_printsym(callpc, DB_STGY_PROC);
+	if (frame != NULL)
+		db_printf("/frame 0x%lx", (register_t)frame);
 	db_printf("\n");
 }
 
@@ -341,7 +345,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		return;
 	}
 
-	db_print_stack_entry(name, 0, 0, 0, rip);
+	db_print_stack_entry(name, 0, 0, 0, rip, &(*fp)->f_frame);
 
 	/*
 	 * Point to base of trapframe which is just above the
@@ -437,7 +441,8 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, pc);
+				db_print_stack_entry(name, 0, 0, 0, pc,
+				    actframe);
 				break;
 			}
 			first = FALSE;
@@ -451,7 +456,7 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 			narg = db_numargs(frame);
 		}
 
-		db_print_stack_entry(name, narg, argnp, argp, pc);
+		db_print_stack_entry(name, narg, argnp, argp, pc, actframe);
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
@@ -465,7 +470,7 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 		if (INKERNEL((long)pc) && !INKERNEL((long)frame)) {
 			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, 0, 0, 0, pc);
+			db_print_stack_entry(name, 0, 0, 0, pc, frame);
 			break;
 		}
 		if (!INKERNEL((long) frame)) {

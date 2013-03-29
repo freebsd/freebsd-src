@@ -7,6 +7,8 @@ PROG=	athratestats
 
 SRCS=	main.c opt_ah.h ah_osdep.h
 
+LDADD+=	-lcurses
+
 CLEANFILES+=	opt_ah.h ah_osdep.h
 
 .include <../Makefile.inc>

@@ -1,7 +1,9 @@
 # $FreeBSD$
 
-PROG_CXX=llvm-objdump
 NO_MAN=
+.include <bsd.own.mk>
+
+PROG_CXX=llvm-objdump
 
 SRCDIR=	tools/llvm-objdump
 SRCS=	llvm-objdump.cpp \
@@ -16,12 +18,12 @@ LIBDEPS=llvmmcdisassembler \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
-	llvmmipsdisassembler \
 	llvmmipsasmparser \
+	llvmmipscodegen \
 	llvmmipsdesc \
-	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \

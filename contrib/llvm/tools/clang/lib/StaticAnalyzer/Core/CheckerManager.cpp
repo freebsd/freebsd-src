@@ -36,8 +36,7 @@ bool CheckerManager::hasPathSensitiveCheckers() const {
          !DeadSymbolsCheckers.empty()       ||
          !RegionChangesCheckers.empty()     ||
          !EvalAssumeCheckers.empty()        ||
-         !EvalCallCheckers.empty()          ||
-         !InlineCallCheckers.empty();
+         !EvalCallCheckers.empty();
 }
 
 void CheckerManager::finishedCheckerRegistration() {
@@ -314,20 +313,19 @@ namespace {
     SVal Val;
     const Stmt *S;
     ExprEngine &Eng;
-    ProgramPoint::Kind PointKind;
+    const ProgramPoint &PP;
 
     CheckersTy::const_iterator checkers_begin() { return Checkers.begin(); }
     CheckersTy::const_iterator checkers_end() { return Checkers.end(); }
 
     CheckBindContext(const CheckersTy &checkers,
                      SVal loc, SVal val, const Stmt *s, ExprEngine &eng,
-                     ProgramPoint::Kind PK)
-      : Checkers(checkers), Loc(loc), Val(val), S(s), Eng(eng), PointKind(PK) {}
+                     const ProgramPoint &pp)
+      : Checkers(checkers), Loc(loc), Val(val), S(s), Eng(eng), PP(pp) {}
 
     void runChecker(CheckerManager::CheckBindFunc checkFn,
                     NodeBuilder &Bldr, ExplodedNode *Pred) {
-      const ProgramPoint &L = ProgramPoint::getProgramPoint(S, PointKind,
-                                Pred->getLocationContext(), checkFn.Checker);
+      const ProgramPoint &L = PP.withTag(checkFn.Checker);
       CheckerContext C(Bldr, Eng, Pred, L);
 
       checkFn(Loc, Val, S, C);
@@ -340,8 +338,8 @@ void CheckerManager::runCheckersForBind(ExplodedNodeSet &Dst,
                                         const ExplodedNodeSet &Src,
                                         SVal location, SVal val,
                                         const Stmt *S, ExprEngine &Eng,
-                                        ProgramPoint::Kind PointKind) {
-  CheckBindContext C(BindCheckers, location, val, S, Eng, PointKind);
+                                        const ProgramPoint &PP) {
+  CheckBindContext C(BindCheckers, location, val, S, Eng, PP);
   expandGraphWithCheckers(C, Dst, Src);
 }
 
@@ -357,8 +355,8 @@ void CheckerManager::runCheckersForEndAnalysis(ExplodedGraph &G,
 // for this callback since end of path nodes are expected to be final.
 void CheckerManager::runCheckersForEndPath(NodeBuilderContext &BC,
                                            ExplodedNodeSet &Dst,
+                                           ExplodedNode *Pred,
                                            ExprEngine &Eng) {
-  ExplodedNode *Pred = BC.Pred;
   
   // We define the builder outside of the loop bacause if at least one checkers
   // creates a sucsessor for Pred, we do not need to generate an 
@@ -509,41 +507,13 @@ void CheckerManager::runCheckersForEvalCall(ExplodedNodeSet &Dst,
   const CallExpr *CE = cast<CallExpr>(Call.getOriginExpr());
   for (ExplodedNodeSet::iterator
          NI = Src.begin(), NE = Src.end(); NI != NE; ++NI) {
-
     ExplodedNode *Pred = *NI;
     bool anyEvaluated = false;
 
-    // First, check if any of the InlineCall callbacks can evaluate the call.
-    assert(InlineCallCheckers.size() <= 1 &&
-           "InlineCall is a special hacky callback to allow intrusive"
-           "evaluation of the call (which simulates inlining). It is "
-           "currently only used by OSAtomicChecker and should go away "
-           "at some point.");
-    for (std::vector<InlineCallFunc>::iterator
-           EI = InlineCallCheckers.begin(), EE = InlineCallCheckers.end();
-         EI != EE; ++EI) {
-      ExplodedNodeSet checkDst;
-      bool evaluated = (*EI)(CE, Eng, Pred, checkDst);
-      assert(!(evaluated && anyEvaluated)
-             && "There are more than one checkers evaluating the call");
-      if (evaluated) {
-        anyEvaluated = true;
-        Dst.insert(checkDst);
-#ifdef NDEBUG
-        break; // on release don't check that no other checker also evals.
-#endif
-      }
-    }
-
-#ifdef NDEBUG // on release don't check that no other checker also evals.
-    if (anyEvaluated) {
-      break;
-    }
-#endif
-
     ExplodedNodeSet checkDst;
     NodeBuilder B(Pred, checkDst, Eng.getBuilderContext());
-    // Next, check if any of the EvalCall callbacks can evaluate the call.
+
+    // Check if any of the EvalCall callbacks can evaluate the call.
     for (std::vector<EvalCallFunc>::iterator
            EI = EvalCallCheckers.begin(), EE = EvalCallCheckers.end();
          EI != EE; ++EI) {
@@ -677,10 +647,6 @@ void CheckerManager::_registerForEvalAssume(EvalAssumeFunc checkfn) {
 
 void CheckerManager::_registerForEvalCall(EvalCallFunc checkfn) {
   EvalCallCheckers.push_back(checkfn);
-}
-
-void CheckerManager::_registerForInlineCall(InlineCallFunc checkfn) {
-  InlineCallCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForEndOfTranslationUnit(

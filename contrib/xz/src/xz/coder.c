@@ -284,7 +284,10 @@ coder_set_compression_settings(void)
 static bool
 is_format_xz(void)
 {
-	return strm.avail_in >= 6 && memcmp(in_buf.u8, "\3757zXZ", 6) == 0;
+	// Specify the magic as hex to be compatible with EBCDIC systems.
+	static const uint8_t magic[6] = { 0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00 };
+	return strm.avail_in >= sizeof(magic)
+			&& memcmp(in_buf.u8, magic, sizeof(magic)) == 0;
 }
 
 

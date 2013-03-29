@@ -648,7 +648,7 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 		 *  [dmac] [smac] [TPID] [PCP/CFI/VID] [ether_type] [payload]
 		 *  |-----------| |-- inserted tag --| |--------------------|
 		 */
-		M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_DONTWAIT);
+		M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_NOWAIT);
 		if (m == NULL)
 			error = ENOMEM;
 		else

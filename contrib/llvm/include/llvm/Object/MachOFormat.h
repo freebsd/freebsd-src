@@ -61,7 +61,10 @@ namespace mach {
     CSARM_V6     = 6,
     CSARM_V5TEJ  = 7,
     CSARM_XSCALE = 8,
-    CSARM_V7     = 9
+    CSARM_V7     = 9,
+    CSARM_V7F    = 10,
+    CSARM_V7S    = 11,
+    CSARM_V7K    = 12
   };
 
   /// \brief PowerPC Machine Subtypes.
@@ -273,6 +276,10 @@ namespace macho {
     uint16_t Flags;
     uint32_t Value;
   };
+  // Despite containing a uint64_t, this structure is only 4-byte aligned within
+  // a MachO file.
+#pragma pack(push)
+#pragma pack(4)
   struct Symbol64TableEntry {
     uint32_t StringIndex;
     uint8_t Type;
@@ -280,6 +287,7 @@ namespace macho {
     uint16_t Flags;
     uint64_t Value;
   };
+#pragma pack(pop)
 
   /// @}
   /// @name Data-in-code Table Entry

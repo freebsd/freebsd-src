@@ -190,7 +190,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 		atm_flags = ATM_PH_FLAGS(&atmdst);
 		if (atm_flags & ATM_PH_LLCSNAP)
 			sz += 8;	/* sizeof snap == 8 */
-		M_PREPEND(m, sz, M_DONTWAIT);
+		M_PREPEND(m, sz, M_NOWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		ad = mtod(m, struct atm_pseudohdr *);

@@ -39,13 +39,23 @@ SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 STRIP_FLAGS = -S
 .endif
 
-DDB_ENABLED!=	grep DDB opt_ddb.h || true
-
-.if empty(DDB_ENABLED)
-CFLAGS += -mno-apcs-frame
+.if ${COMPILER_TYPE} != "clang"
+CFLAGS += -mno-thumb-interwork
 .endif
 
-SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader \
+.if empty(DDB_ENABLED)
+.if !defined(WITH_ARM_EABI) && ${COMPILER_TYPE} != "clang"
+CFLAGS += -mno-apcs-frame
+.endif
+.elif defined(WITH_ARM_EABI)
+CFLAGS += -funwind-tables
+.if ${COMPILER_TYPE} == "clang"
+# clang requires us to tell it to emit assembly with unwind information
+CFLAGS += -mllvm -arm-enable-ehabi
+.endif
+.endif
+
+SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${LDFLAGS} \
 	  -warn-common -export-dynamic -dynamic-linker /red/herring -o \
 	   ${FULLKERNEL}.noheader -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
@@ -74,44 +84,43 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp\"" >opt_kernname.h 
 	sed s/${KERNVIRTADDR}/${KERNPHYSADDR}/ ldscript.$M > ldscript.$M.tramp
 	sed s/" + SIZEOF_HEADERS"// ldscript.$M.tramp > \
-	ldscript.$M.tramp.noheader
+	    ldscript.$M.tramp.noheader
 	echo "#include <machine/asm.h>" >tmphack.S
 	echo "ENTRY(_start)" >>tmphack.S
 	echo "bl _startC" >>tmphack.S
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
-	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
+	    -g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp) && \
-	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
+	    echo "#define KERNSIZE $$st_size" >>opt_kernname.h
 	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker ldscript.$M.tramp \
-	tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
-	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp
+	    tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
+	    ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp
 	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker \
-	ldscript.$M.tramp.noheader \
-	tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
-	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader 
+	    ldscript.$M.tramp.noheader \
+	    tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
+	    ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader 
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
-	${KERNEL_KO}.tramp.bin 
+	    ${KERNEL_KO}.tramp.bin 
 	${OBJCOPY} ${STRIP_FLAGS} ${KERNEL_KO}.tmp 
-	echo "#define KERNNAME \"${KERNEL_KO}.tmp.gz\"" \
-	>opt_kernname.h 
+	echo "#define KERNNAME \"${KERNEL_KO}.tmp.gz\"" >opt_kernname.h 
 	eval $$(stat -s ${KERNEL_KO}.tmp) && \
-	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
+	    echo "#define KERNSIZE $$st_size" >>opt_kernname.h
 	gzip -f9 ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
-	echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
+	    echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -ffreestanding -DKZIP -I. -I$S -c $S/kern/inflate.c -o \
 	    inflate-tramp.o
 	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker ldscript.$M.tramp \
-	-DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
-	$S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.gz.tramp
+	    -DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
+	    $S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.gz.tramp
 	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker \
-	ldscript.$M.tramp.noheader \
-	-DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
-	$S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader
+	    ldscript.$M.tramp.noheader \
+	    -DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
+	    $S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
-	${KERNEL_KO}.gz.tramp.bin
+	    ${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
-	inflate-tramp.o tmphack.S
+	    inflate-tramp.o tmphack.S
 
 MKMODULESENV+=	MACHINE=${MACHINE}
 
@@ -129,12 +138,10 @@ MKMODULESENV+=	MACHINE=${MACHINE}
 
 CLEAN+=	ldscript.$M ${KERNEL_KO}.bin ldscript.$M.noheader
 
-.if ${DDB_ENABLED} != ""
 CLEAN+= ${KERNEL_KO}.tramp ${KERNEL_KO}.tramp.bin ldscript.$M.tramp \
 	ldscript.$M.tramp.noheader ${KERNEL_KO}.gz.tramp \
 	${KERNEL_KO}.gz.tramp.bin
 
-.endif
 ldscript.$M: $S/conf/ldscript.$M
 	cat $S/conf/ldscript.$M|sed s/KERNPHYSADDR/${KERNPHYSADDR}/g| \
 	  sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M

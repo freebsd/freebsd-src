@@ -288,7 +288,7 @@ void ASTStmtReader::VisitDeclStmt(DeclStmt *S) {
   }
 }
 
-void ASTStmtReader::VisitAsmStmt(AsmStmt *S) {
+void ASTStmtReader::VisitGCCAsmStmt(GCCAsmStmt *S) {
   VisitStmt(S);
   unsigned NumOutputs = Record[Idx++];
   unsigned NumInputs = Record[Idx++];
@@ -297,7 +297,6 @@ void ASTStmtReader::VisitAsmStmt(AsmStmt *S) {
   S->setRParenLoc(ReadSourceLocation(Record, Idx));
   S->setVolatile(Record[Idx++]);
   S->setSimple(Record[Idx++]);
-  S->setMSAsm(Record[Idx++]);
 
   S->setAsmString(cast_or_null<StringLiteral>(Reader.ReadSubStmt()));
 
@@ -566,6 +565,7 @@ void ASTStmtReader::VisitBinaryOperator(BinaryOperator *E) {
   E->setRHS(Reader.ReadSubExpr());
   E->setOpcode((BinaryOperator::Opcode)Record[Idx++]);
   E->setOperatorLoc(ReadSourceLocation(Record, Idx));
+  E->setFPContractable((bool)Record[Idx++]);
 }
 
 void ASTStmtReader::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
@@ -627,7 +627,8 @@ void ASTStmtReader::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
 
 void ASTStmtReader::VisitInitListExpr(InitListExpr *E) {
   VisitExpr(E);
-  E->setSyntacticForm(cast_or_null<InitListExpr>(Reader.ReadSubStmt()));
+  if (InitListExpr *SyntForm = cast_or_null<InitListExpr>(Reader.ReadSubStmt()))
+    E->setSyntacticForm(SyntForm);
   E->setLBraceLoc(ReadSourceLocation(Record, Idx));
   E->setRBraceLoc(ReadSourceLocation(Record, Idx));
   bool isArrayFiller = Record[Idx++];
@@ -1087,6 +1088,7 @@ void ASTStmtReader::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   VisitCallExpr(E);
   E->Operator = (OverloadedOperatorKind)Record[Idx++];
   E->Range = Reader.ReadSourceRange(F, Record, Idx);
+  E->setFPContractable((bool)Record[Idx++]);
 }
 
 void ASTStmtReader::VisitCXXConstructExpr(CXXConstructExpr *E) {
@@ -1242,7 +1244,7 @@ void ASTStmtReader::VisitCXXNewExpr(CXXNewExpr *E) {
   E->setOperatorDelete(ReadDeclAs<FunctionDecl>(Record, Idx));
   E->AllocatedTypeInfo = GetTypeSourceInfo(Record, Idx);
   E->TypeIdParens = ReadSourceRange(Record, Idx);
-  E->StartLoc = ReadSourceLocation(Record, Idx);
+  E->Range = ReadSourceRange(Record, Idx);
   E->DirectInitRange = ReadSourceRange(Record, Idx);
 
   E->AllocateArgsArray(Reader.getContext(), isArray, NumPlacementArgs,
@@ -1367,8 +1369,6 @@ void ASTStmtReader::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E) {
 void ASTStmtReader::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E) {
   VisitOverloadExpr(E);
   E->RequiresADL = Record[Idx++];
-  if (E->RequiresADL)
-    E->StdIsAssociatedNamespace = Record[Idx++];
   E->Overloaded = Record[Idx++];
   E->NamingClass = ReadDeclAs<CXXRecordDecl>(Record, Idx);
 }
@@ -1467,6 +1467,16 @@ void ASTStmtReader::VisitSubstNonTypeTemplateParmPackExpr(
   E->Arguments = ArgPack.pack_begin();
   E->NumArguments = ArgPack.pack_size();
   E->NameLoc = ReadSourceLocation(Record, Idx);
+}
+
+void ASTStmtReader::VisitFunctionParmPackExpr(FunctionParmPackExpr *E) {
+  VisitExpr(E);
+  E->NumParameters = Record[Idx++];
+  E->ParamPack = ReadDeclAs<ParmVarDecl>(Record, Idx);
+  E->NameLoc = ReadSourceLocation(Record, Idx);
+  ParmVarDecl **Parms = reinterpret_cast<ParmVarDecl**>(E+1);
+  for (unsigned i = 0, n = E->NumParameters; i != n; ++i)
+    Parms[i] = ReadDeclAs<ParmVarDecl>(Record, Idx);
 }
 
 void ASTStmtReader::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
@@ -1701,8 +1711,12 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = new (Context) DeclStmt(Empty);
       break;
 
-    case STMT_ASM:
-      S = new (Context) AsmStmt(Empty);
+    case STMT_GCCASM:
+      S = new (Context) GCCAsmStmt(Empty);
+      break;
+
+    case STMT_MSASM:
+      S = new (Context) MSAsmStmt(Empty);
       break;
 
     case EXPR_PREDEFINED:
@@ -2179,6 +2193,11 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
         
     case EXPR_SUBST_NON_TYPE_TEMPLATE_PARM_PACK:
       S = new (Context) SubstNonTypeTemplateParmPackExpr(Empty);
+      break;
+
+    case EXPR_FUNCTION_PARM_PACK:
+      S = FunctionParmPackExpr::CreateEmpty(Context,
+                                          Record[ASTStmtReader::NumExprFields]);
       break;
         
     case EXPR_MATERIALIZE_TEMPORARY:

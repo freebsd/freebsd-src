@@ -151,10 +151,6 @@ struct inode {
 		(ip)->i_din2->d##field = (val); \
 	} while (0)
 
-#define	MAXSYMLINKLEN(ip) \
-	((ip)->i_ump->um_fstype == UFS1) ? \
-	((NDADDR + NIADDR) * sizeof(ufs1_daddr_t)) : \
-	((NDADDR + NIADDR) * sizeof(ufs2_daddr_t))
 #define	SHORTLINK(ip) \
 	(((ip)->i_ump->um_fstype == UFS1) ? \
 	(caddr_t)(ip)->i_din1->di_db : (caddr_t)(ip)->i_din2->di_db)
@@ -183,7 +179,7 @@ struct indir {
 struct ufid {
 	u_int16_t ufid_len;	/* Length of structure. */
 	u_int16_t ufid_pad;	/* Force 32-bit alignment. */
-	ino_t	  ufid_ino;	/* File number (ino). */
+	uint32_t  ufid_ino;	/* File number (ino). */
 	int32_t	  ufid_gen;	/* Generation number. */
 };
 #endif /* _KERNEL */

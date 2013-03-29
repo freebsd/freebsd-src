@@ -698,6 +698,13 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 		;
 
 	for (to = dev->si_name; *from != '\0'; from++, to++) {
+		/*
+		 * Spaces and double quotation marks cause
+		 * problems for the devctl(4) protocol.
+		 * Reject names containing those characters.
+		 */
+		if (isspace(*from) || *from == '"')
+			return (EINVAL);
 		/* Treat multiple sequential slashes as single. */
 		while (from[0] == '/' && from[1] == '/')
 			from++;

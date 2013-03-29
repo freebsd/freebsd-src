@@ -29,8 +29,6 @@
 #ifndef _FS_EXT2FS_EXT2_DINODE_H_
 #define _FS_EXT2FS_EXT2_DINODE_H_
 
-#define e2di_size_high	e2di_dacl
-
 /*
  * Special inode numbers
  * The root inode is the root of the file system.  Inode 0 can't be used for
@@ -61,7 +59,15 @@
 #define EXT2_NODUMP		0x00000040	/* do not dump file */
 #define EXT2_NOATIME		0x00000080	/* do not update atime */
 
-#define EXT2_HTREE		0x00001000	/* HTree-indexed directory */
+#define EXT4_INDEX		0x00001000 	/* hash-indexed directory */
+#define EXT4_IMAGIC		0x00002000 	/* AFS directory */
+#define EXT4_JOURNAL_DATA	0x00004000 /* file data should be journaled */
+#define EXT4_NOTAIL		0x00008000 /* file tail should not be merged */
+#define EXT4_DIRSYNC		0x00010000	/* dirsync behaviour */
+#define EXT4_TOPDIR		0x00020000 /* Top of directory hierarchies*/
+#define EXT4_HUGE_FILE		0x00040000	/* Set to each huge file */
+#define EXT4_EXTENTS		0x00080000	/* Inode uses extents */
+#define EXT4_EOFBLOCKS		0x00400000 /* Blocks allocated beyond EOF */
 
 /*
  * Definitions for nanosecond timestamps.
@@ -71,8 +77,7 @@
 #define EXT3_EPOCH_MASK	((1 << EXT3_EPOCH_BITS) - 1)
 #define EXT3_NSEC_MASK	(~0UL << EXT3_EPOCH_BITS)
 
-#define E2DI_HAS_XTIME(ip)	(EXT2_INODE_SIZE((ip)->i_e2fs) > \
-				    E2FS_REV0_INODE_SIZE)
+#define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs, EXT2F_ROCOMPAT_EXTRA_ISIZE))
 
 /*
  * Structure of an inode on the disk
@@ -80,11 +85,11 @@
 struct ext2fs_dinode {
 	uint16_t	e2di_mode;	/*   0: IFMT, permissions; see below. */
 	uint16_t	e2di_uid;	/*   2: Owner UID */
-	uint32_t	e2di_size;	/*	 4: Size (in bytes) */
-	uint32_t	e2di_atime;	/*	 8: Access time */
-	uint32_t	e2di_ctime;	/*	12: Change time */
-	uint32_t	e2di_mtime;	/*	16: Modification time */
-	uint32_t	e2di_dtime;	/*	20: Deletion time */
+	uint32_t	e2di_size;	/*   4: Size (in bytes) */
+	uint32_t	e2di_atime;	/*   8: Access time */
+	uint32_t	e2di_ctime;	/*  12: Change time */
+	uint32_t	e2di_mtime;	/*  16: Modification time */
+	uint32_t	e2di_dtime;	/*  20: Deletion time */
 	uint16_t	e2di_gid;	/*  24: Owner GID */
 	uint16_t	e2di_nlink;	/*  26: File link count */
 	uint32_t	e2di_nblock;	/*  28: Blocks count */
@@ -92,23 +97,23 @@ struct ext2fs_dinode {
 	uint32_t	e2di_version;	/*  36: Low 32 bits inode version */
 	uint32_t	e2di_blocks[EXT2_N_BLOCKS]; /* 40: disk blocks */
 	uint32_t	e2di_gen;	/* 100: generation number */
-	uint32_t	e2di_facl;	/* 104: file ACL (not implemented) */
-	uint32_t	e2di_dacl;	/* 108: dir ACL (not implemented) */
-	uint32_t	e2di_faddr;	/* 112: fragment address */
-	uint8_t		e2di_nfrag;	/* 116: fragment number */
-	uint8_t		e2di_fsize;	/* 117: fragment size */
-	uint16_t	e2di_linux_reserved2; /* 118 */
+	uint32_t	e2di_facl;	/* 104: Low EA block */
+	uint32_t	e2di_size_high;	/* 108: Upper bits of file size */
+	uint32_t	e2di_faddr;	/* 112: Fragment address (obsolete) */
+	uint16_t	e2di_nblock_high; /* 116: Blocks count bits 47:32 */
+	uint16_t	e2di_facl_high;	/* 118: File EA bits 47:32 */
 	uint16_t	e2di_uid_high;	/* 120: Owner UID top 16 bits */
 	uint16_t	e2di_gid_high;	/* 122: Owner GID top 16 bits */
-	uint32_t	e2di_linux_reserved3; /* 124 */
-	uint16_t	e2di_extra_isize;
-	uint16_t	e2di_pad1;
-	uint32_t        e2di_ctime_extra; /* Extra change time */
-	uint32_t        e2di_mtime_extra; /* Extra modification time */
-	uint32_t        e2di_atime_extra; /* Extra access time */
-	uint32_t        e2di_crtime;	  /* Creation (birth)time */
-	uint32_t        e2di_crtime_extra; /* Extra creation (birth)time */
-	uint32_t        e2di_version_hi;  /* High 30 bits of inode version */
+	uint16_t	e2di_chksum_lo;   /* 124: Lower inode checksum */
+	uint16_t	e2di_lx_reserved; /* 126: Unused */
+	uint16_t	e2di_extra_isize; /* 128: Size of this inode */
+	uint16_t	e2di_chksum_hi;	/* 130: High inode checksum */
+	uint32_t        e2di_ctime_extra; /* 132: Extra change time */
+	uint32_t        e2di_mtime_extra; /* 136: Extra modification time */
+	uint32_t        e2di_atime_extra; /* 140: Extra access time */
+	uint32_t        e2di_crtime;	/* 144: Creation (birth)time */
+	uint32_t        e2di_crtime_extra; /* 148: Extra creation (birth)time */
+	uint32_t        e2di_version_hi;  /* 152: High bits of inode version */
 };
 
 #endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */

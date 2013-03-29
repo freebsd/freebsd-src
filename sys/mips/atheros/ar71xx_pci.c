@@ -81,6 +81,7 @@ struct ar71xx_pci_softc {
 	device_t		sc_dev;
 
 	int			sc_busno;
+	int			sc_baseslot;
 	struct rman		sc_mem_rman;
 	struct rman		sc_irq_rman;
 
@@ -395,6 +396,16 @@ ar71xx_pci_attach(device_t dev)
 	        AR71XX_PCI_IRQ_END) != 0)
 		panic("ar71xx_pci_attach: failed to set up IRQ rman");
 
+	/*
+	 * Check if there is a base slot hint. Otherwise use default value.
+	 */
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "baseslot", &sc->sc_baseslot) != 0) {
+		device_printf(dev,
+		    "%s: missing hint '%s', default to AR71XX_PCI_BASE_SLOT\n",
+		    __func__, "baseslot");
+		sc->sc_baseslot = AR71XX_PCI_BASE_SLOT;
+	}
 
 	ATH_WRITE_REG(AR71XX_PCI_INTR_STATUS, 0);
 	ATH_WRITE_REG(AR71XX_PCI_INTR_MASK, 0);
@@ -648,11 +659,13 @@ ar71xx_pci_maxslots(device_t dev)
 static int
 ar71xx_pci_route_interrupt(device_t pcib, device_t device, int pin)
 {
-	if (pci_get_slot(device) < AR71XX_PCI_BASE_SLOT)
+	struct ar71xx_pci_softc *sc = device_get_softc(pcib);
+	
+	if (pci_get_slot(device) < sc->sc_baseslot)
 		panic("%s: PCI slot %d is less then AR71XX_PCI_BASE_SLOT",
 		    __func__, pci_get_slot(device));
 
-	return (pci_get_slot(device) - AR71XX_PCI_BASE_SLOT);
+	return (pci_get_slot(device) - sc->sc_baseslot);
 }
 
 static device_method_t ar71xx_pci_methods[] = {

@@ -287,7 +287,7 @@ int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req, int max)
 	}
 	i--;
 	if (i >= max) {
-		tx_req->mb = mb = m_defrag(mb, M_DONTWAIT);
+		tx_req->mb = mb = m_defrag(mb, M_NOWAIT);
 		if (mb == NULL)
 			return -EIO;
 		for (m = mb, i = 0; m != NULL; m = m->m_next, i++);

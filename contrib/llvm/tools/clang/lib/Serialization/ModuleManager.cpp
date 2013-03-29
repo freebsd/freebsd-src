@@ -50,6 +50,7 @@ ModuleManager::addModule(StringRef FileName, ModuleKind Type,
     // Allocate a new module.
     ModuleFile *New = new ModuleFile(Type, Generation);
     New->FileName = FileName.str();
+    New->File = Entry;
     Chain.push_back(New);
     NewModule = true;
     ModuleEntry = New;
@@ -87,6 +88,45 @@ ModuleManager::addModule(StringRef FileName, ModuleKind Type,
   return std::make_pair(ModuleEntry, NewModule);
 }
 
+namespace {
+  /// \brief Predicate that checks whether a module file occurs within
+  /// the given set.
+  class IsInModuleFileSet : public std::unary_function<ModuleFile *, bool> {
+    llvm::SmallPtrSet<ModuleFile *, 4> &Removed;
+
+  public:
+    IsInModuleFileSet(llvm::SmallPtrSet<ModuleFile *, 4> &Removed)
+    : Removed(Removed) { }
+
+    bool operator()(ModuleFile *MF) const {
+      return Removed.count(MF);
+    }
+  };
+}
+
+void ModuleManager::removeModules(ModuleIterator first, ModuleIterator last) {
+  if (first == last)
+    return;
+
+  // Collect the set of module file pointers that we'll be removing.
+  llvm::SmallPtrSet<ModuleFile *, 4> victimSet(first, last);
+
+  // Remove any references to the now-destroyed modules.
+  IsInModuleFileSet checkInSet(victimSet);
+  for (unsigned i = 0, n = Chain.size(); i != n; ++i) {
+    Chain[i]->ImportedBy.remove_if(checkInSet);
+  }
+
+  // Delete the modules and erase them from the various structures.
+  for (ModuleIterator victim = first; victim != last; ++victim) {
+    Modules.erase((*victim)->File);
+    delete *victim;
+  }
+
+  // Remove the modules from the chain.
+  Chain.erase(first, last);
+}
+
 void ModuleManager::addInMemoryBuffer(StringRef FileName, 
                                       llvm::MemoryBuffer *Buffer) {
   
@@ -95,7 +135,7 @@ void ModuleManager::addInMemoryBuffer(StringRef FileName,
   InMemoryBuffers[Entry] = Buffer;
 }
 
-ModuleManager::ModuleManager(const FileSystemOptions &FSO) : FileMgr(FSO) { }
+ModuleManager::ModuleManager(FileManager &FileMgr) : FileMgr(FileMgr) { }
 
 ModuleManager::~ModuleManager() {
   for (unsigned i = 0, e = Chain.size(); i != e; ++i)

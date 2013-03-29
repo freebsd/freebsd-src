@@ -207,6 +207,7 @@ hdspe_running(struct sc_info *sc)
 		}
 	}
 
+	free(devlist, M_TEMP);
 	return 0;
 bad:
 
@@ -214,6 +215,7 @@ bad:
 	device_printf(sc->dev,"hdspe is running\n");
 #endif
 
+	free(devlist, M_TEMP);
 	return 1;
 }
 

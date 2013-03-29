@@ -69,7 +69,7 @@ struct cdev_priv {
 	LIST_HEAD(, cdev_privdata) cdp_fdpriv;
 };
 
-#define	cdev2priv(c)	member2struct(cdev_priv, cdp_c, c)
+#define	cdev2priv(c)	__containerof(c, struct cdev_priv, cdp_c)
 
 struct cdev	*devfs_alloc(int);
 int	devfs_dev_exists(const char *);

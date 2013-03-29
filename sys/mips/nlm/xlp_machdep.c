@@ -157,6 +157,20 @@ xlp_setup_mmu(void)
 }
 
 static void
+xlp_enable_blocks(void)
+{
+	uint64_t sysbase;
+	int i;
+
+	for (i = 0; i < XLP_MAX_NODES; i++) {
+		if (!nlm_dev_exists(XLP_IO_SYS_OFFSET(i)))
+			continue;
+		sysbase = nlm_get_sys_regbase(i);
+		nlm_sys_enable_block(sysbase, DFS_DEVICE_RSA);
+	}
+}
+
+static void
 xlp_parse_mmu_options(void)
 {
 	uint64_t sysbase;
@@ -420,9 +434,8 @@ xlp_pic_init(void)
 #define	XLP_MEM_LIM	0xfffff000UL
 #endif
 static vm_paddr_t xlp_mem_excl[] = {
-	0,          0,		/* entry for kernel image, set by xlp_mem_init*/
-	0x0c000000, 0x0d000000,	/* uboot mess */
-	0x10000000, 0x14000000,	/* cms queue and other stuff */
+	0,          0,		/* for kernel image region, see xlp_mem_init */
+	0x0c000000, 0x14000000,	/* uboot area, cms queue and other stuff */
 	0x1fc00000, 0x1fd00000,	/* reset vec */
 	0x1e000000, 0x1e200000,	/* poe buffers */
 };
@@ -558,6 +571,8 @@ platform_start(__register_t a0 __unused,
 #endif
 	/* setup for the startup core */
 	xlp_setup_mmu();
+
+	xlp_enable_blocks();
 
 	/* Read/Guess/setup board information */
 	nlm_board_info_setup();

@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #ifdef PADLOCK_RNG
 extern struct random_systat random_nehemiah;
 #endif
-#ifdef IVY_RNG
+#ifdef RDRAND_RNG
 extern struct random_systat random_ivy;
 #endif
 #endif
@@ -79,7 +79,7 @@ random_ident_hardware(struct random_systat *systat)
 			*systat = random_nehemiah;
 	}
 #endif
-#ifdef IVY_RNG
+#ifdef RDRAND_RNG
 	if (cpu_feature2 & CPUID2_RDRAND) {
 		int enable;
 

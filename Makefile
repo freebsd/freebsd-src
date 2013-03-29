@@ -216,7 +216,7 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s ; echo
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif
@@ -280,12 +280,14 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
+.if !defined(.PARSEDIR)
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
 	    (cd ${.CURDIR} && ${MAKE} make); \
 	fi
+.endif
 
 #
 # Upgrade make(1) to the current version using the installed
@@ -441,3 +443,6 @@ universe_epilogue:
 	fi
 .endif
 .endif
+
+buildLINT:
+	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT

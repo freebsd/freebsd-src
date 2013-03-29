@@ -262,7 +262,7 @@ static device_method_t lem_methods[] = {
 	DEVMETHOD(device_shutdown, lem_shutdown),
 	DEVMETHOD(device_suspend, lem_suspend),
 	DEVMETHOD(device_resume, lem_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t lem_driver = {
@@ -389,11 +389,6 @@ lem_attach(device_t dev)
 	int		error = 0;
 
 	INIT_DEBUGOUT("lem_attach: begin");
-
-	if (resource_disabled("lem", device_get_unit(dev))) {
-		device_printf(dev, "Disabled by device hint\n");
-		return (ENXIO);
-	}
 
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
@@ -1571,7 +1566,7 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_alloc_failed++;
 			m_freem(*m_headp);
@@ -3080,7 +3075,7 @@ lem_get_buf(struct adapter *adapter, int i)
 	struct em_buffer	*rx_buffer;
 	int			error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		adapter->mbuf_cluster_failed++;
 		return (ENOBUFS);
@@ -3425,7 +3420,7 @@ lem_free_receive_structures(struct adapter *adapter)
 static bool
 lem_rxeof(struct adapter *adapter, int count, int *done)
 {
-	struct ifnet	*ifp = adapter->ifp;;
+	struct ifnet	*ifp = adapter->ifp;
 	struct mbuf	*mp;
 	u8		status = 0, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
@@ -3562,7 +3557,7 @@ skip:
 				adapter->lmp = NULL;
 			}
 		} else {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 discard:
 			/* Reuse loaded DMA map and just update mbuf chain */
 			mp = adapter->rx_buffer_area[i].m_head;
@@ -3638,7 +3633,7 @@ lem_fixup_rx(struct adapter *adapter)
 		bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
 		m->m_data += ETHER_HDR_LEN;
 	} else {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n != NULL) {
 			bcopy(m->m_data, n->m_data, ETHER_HDR_LEN);
 			m->m_data += ETHER_HDR_LEN;
@@ -3787,10 +3782,6 @@ lem_setup_vlan_hw_support(struct adapter *adapter)
 	reg &= ~E1000_RCTL_CFIEN;
 	reg |= E1000_RCTL_VFE;
 	E1000_WRITE_REG(hw, E1000_RCTL, reg);
-
-	/* Update the frame size */
-	E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
-	    adapter->max_frame_size + VLAN_TAG_SIZE);
 }
 
 static void

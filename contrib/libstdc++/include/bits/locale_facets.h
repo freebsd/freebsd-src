@@ -4335,8 +4335,9 @@ _GLIBCXX_END_LDBL_NAMESPACE
   /**
    *  @brief  Messages facet base class providing catalog typedef.
    */
-  struct messages_base
+  class messages_base
   {
+  public:
     typedef int catalog;
   };
 

@@ -255,11 +255,6 @@ ptctor(struct cam_periph *periph, void *arg)
 	struct ccb_pathinq cpi;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("ptregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("ptregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);

@@ -288,13 +288,16 @@ do_all(int action)
 
 	rval = 0;
 	egid = getegid();
-	setegid(getgid());
+	if (setegid(getgid()) != 0)
+		err(1, "setegid failed");
 	if ((f = fopen(ccdconf, "r")) == NULL) {
-		setegid(egid);
+		if (setegid(egid) != 0)
+			err(1, "setegid failed");
 		warn("fopen: %s", ccdconf);
 		return (1);
 	}
-	setegid(egid);
+	if (setegid(egid) != 0)
+		err(1, "setegid failed");
 
 	while (fgets(line, sizeof(line), f) != NULL) {
 		argc = 0;

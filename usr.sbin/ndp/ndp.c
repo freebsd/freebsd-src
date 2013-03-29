@@ -404,12 +404,8 @@ set(argc, argv)
 		return 1;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
-#ifdef __KAME__
-	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
-		*(u_int16_t *)&sin->sin6_addr.s6_addr[2] =
-		    htons(((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id);
-	}
-#endif
+	sin->sin6_scope_id =
+	    ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id;
 	ea = (u_char *)LLADDR(&sdl_m);
 	if (ndp_ether_aton(eaddr, ea) == 0)
 		sdl_m.sdl_alen = 6;
@@ -440,9 +436,6 @@ set(argc, argv)
 				goto overwrite;
 			}
 		}
-		/*
-		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
-		 */
 		fprintf(stderr, "set: cannot configure a new entry\n");
 		return 1;
 	}
@@ -478,12 +471,6 @@ get(host)
 		return;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
-#ifdef __KAME__
-	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
-		*(u_int16_t *)&sin->sin6_addr.s6_addr[2] =
-		    htons(((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id);
-	}
-#endif
 	dump(&sin->sin6_addr, 0);
 	if (found_entry == 0) {
 		getnameinfo((struct sockaddr *)sin, sin->sin6_len, host_buf,
@@ -520,12 +507,8 @@ delete(host)
 		return 1;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
-#ifdef __KAME__
-	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
-		*(u_int16_t *)&sin->sin6_addr.s6_addr[2] =
-		    htons(((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id);
-	}
-#endif
+	sin->sin6_scope_id =
+	    ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id;
 	if (rtmsg(RTM_GET) < 0) {
 		errx(1, "RTM_GET(%s) failed", host);
 		/* NOTREACHED */
@@ -537,9 +520,6 @@ delete(host)
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
 			goto delete;
 		}
-		/*
-		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
-		 */
 		fprintf(stderr, "delete: cannot delete non-NDP entry\n");
 		return 1;
 	}
@@ -556,16 +536,8 @@ delete:
 	NEXTADDR(RTA_DST, sin_m);
 	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE) == 0) {
-		struct sockaddr_in6 s6 = *sin; /* XXX: for safety */
-
-#ifdef __KAME__
-		if (IN6_IS_ADDR_LINKLOCAL(&s6.sin6_addr)) {
-			s6.sin6_scope_id = ntohs(*(u_int16_t *)&s6.sin6_addr.s6_addr[2]);
-			*(u_int16_t *)&s6.sin6_addr.s6_addr[2] = 0;
-		}
-#endif
-		getnameinfo((struct sockaddr *)&s6,
-		    s6.sin6_len, host_buf,
+		getnameinfo((struct sockaddr *)sin,
+		    sin->sin6_len, host_buf,
 		    sizeof(host_buf), NULL, 0,
 		    (nflag ? NI_NUMERICHOST : 0));
 		printf("%s (%s) deleted\n", host, host_buf);
@@ -666,10 +638,6 @@ again:;
 			/* XXX: should scope id be filled in the kernel? */
 			if (sin->sin6_scope_id == 0)
 				sin->sin6_scope_id = sdl->sdl_index;
-#ifdef __KAME__
-			/* KAME specific hack; removed the embedded id */
-			*(u_int16_t *)&sin->sin6_addr.s6_addr[2] = 0;
-#endif
 		}
 		getnameinfo((struct sockaddr *)sin, sin->sin6_len, host_buf,
 		    sizeof(host_buf), NULL, 0, (nflag ? NI_NUMERICHOST : 0));
@@ -1008,6 +976,9 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		SETFLAG("auto_linklocal", ND6_IFF_AUTO_LINKLOCAL);
 #endif
+#ifdef ND6_IFF_NO_PREFER_IFACE
+		SETFLAG("no_prefer_iface", ND6_IFF_NO_PREFER_IFACE);
+#endif
 		SETVALUE("basereachable", ND.basereachable);
 		SETVALUE("retrans", ND.retrans);
 		SETVALUE("curhlim", ND.chlim);
@@ -1080,6 +1051,10 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		if ((ND.flags & ND6_IFF_AUTO_LINKLOCAL))
 			printf("auto_linklocal ");
+#endif
+#ifdef ND6_IFF_NO_PREFER_IFACE
+		if ((ND.flags & ND6_IFF_NO_PREFER_IFACE))
+			printf("no_prefer_iface ");
 #endif
 	}
 	putc('\n', stdout);
@@ -1331,22 +1306,6 @@ plist()
 		p6.sin6_len = sizeof(p6);
 		p6.sin6_addr = PR.prefix;
 #endif
-
-		/*
-		 * copy link index to sin6_scope_id field.
-		 * XXX: KAME specific.
-		 */
-		if (IN6_IS_ADDR_LINKLOCAL(&p6.sin6_addr)) {
-			u_int16_t linkid;
-
-			memcpy(&linkid, &p6.sin6_addr.s6_addr[2],
-			    sizeof(linkid));
-			linkid = ntohs(linkid);
-			p6.sin6_scope_id = linkid;
-			p6.sin6_addr.s6_addr[2] = 0;
-			p6.sin6_addr.s6_addr[3] = 0;
-		}
-
 		niflags = NI_NUMERICHOST;
 		if (getnameinfo((struct sockaddr *)&p6,
 		    sizeof(p6), namebuf, sizeof(namebuf),

@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define HPET_VENDID_AMD		0x4353
+#define HPET_VENDID_AMD2	0x1022
 #define HPET_VENDID_INTEL	0x8086
 #define HPET_VENDID_NVIDIA	0x10de
 #define HPET_VENDID_SW		0x1166
@@ -146,8 +147,7 @@ hpet_disable(struct hpet_softc *sc)
 }
 
 static int
-hpet_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+hpet_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct hpet_timer *mt = (struct hpet_timer *)et->et_priv;
 	struct hpet_timer *t;
@@ -155,20 +155,16 @@ hpet_start(struct eventtimer *et,
 	uint32_t fdiv, now;
 
 	t = (mt->pcpu_master < 0) ? mt : &sc->t[mt->pcpu_slaves[curcpu]];
-	if (period != NULL) {
+	if (period != 0) {
 		t->mode = 1;
-		t->div = (sc->freq * (period->frac >> 32)) >> 32;
-		if (period->sec != 0)
-			t->div += sc->freq * period->sec;
+		t->div = (sc->freq * period) >> 32;
 	} else {
 		t->mode = 2;
 		t->div = 0;
 	}
-	if (first != NULL) {
-		fdiv = (sc->freq * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			fdiv += sc->freq * first->sec;
-	} else
+	if (first != 0)
+		fdiv = (sc->freq * first) >> 32;
+	else
 		fdiv = t->div;
 	if (t->irq < 0)
 		bus_write_4(sc->mem_res, HPET_ISR, 1 << t->num);
@@ -505,7 +501,7 @@ hpet_attach(device_t dev)
 	 * properly, that makes it very unreliable - it freezes after any
 	 * interrupt loss. Avoid legacy IRQs for AMD.
 	 */
-	if (vendor == HPET_VENDID_AMD)
+	if (vendor == HPET_VENDID_AMD || vendor == HPET_VENDID_AMD2)
 		sc->allowed_irqs = 0x00000000;
 	/*
 	 * NVidia MCP5x chipsets have number of unexplained interrupt
@@ -679,16 +675,14 @@ hpet_attach(device_t dev)
 		if (t->pcpu_master >= 0) {
 			t->et.et_flags |= ET_FLAGS_PERCPU;
 			t->et.et_quality += 100;
-		}
+		} else if (mp_ncpus >= 8)
+			t->et.et_quality -= 100;
 		if ((t->caps & HPET_TCAP_PER_INT) == 0)
 			t->et.et_quality -= 10;
 		t->et.et_frequency = sc->freq;
-		t->et.et_min_period.sec = 0;
-		t->et.et_min_period.frac =
-		    (((uint64_t)(HPET_MIN_CYCLES * 2) << 32) / sc->freq) << 32;
-		t->et.et_max_period.sec = 0xfffffffeLLU / sc->freq;
-		t->et.et_max_period.frac =
-		    ((0xfffffffeLLU << 32) / sc->freq) << 32;
+		t->et.et_min_period =
+		    ((uint64_t)(HPET_MIN_CYCLES * 2) << 32) / sc->freq;
+		t->et.et_max_period = (0xfffffffeLLU << 32) / sc->freq;
 		t->et.et_start = hpet_start;
 		t->et.et_stop = hpet_stop;
 		t->et.et_priv = &sc->t[i];
@@ -848,7 +842,7 @@ static device_method_t hpet_methods[] = {
 	DEVMETHOD(bus_remap_intr, hpet_remap_intr),
 #endif
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	hpet_driver = {

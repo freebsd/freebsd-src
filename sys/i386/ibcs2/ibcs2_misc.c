@@ -331,23 +331,20 @@ ibcs2_getdents(td, uap)
 	struct iovec aiov;
 	struct ibcs2_dirent idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag, vfslocked;
+	int buflen, error, eofflag;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
 #define	IBCS2_RECLEN(reclen)	(reclen + sizeof(u_short))
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
-	    CAP_READ | CAP_SEEK, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {	/* XXX  vnode readdir op should do this */
-		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
@@ -464,7 +461,6 @@ eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);
@@ -490,12 +486,12 @@ ibcs2_read(td, uap)
 		char name[14];
 	} idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag, size, vfslocked;
+	int buflen, error, eofflag, size;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
-	    CAP_READ | CAP_SEEK, &fp)) != 0) {
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ,
+	    &fp)) != 0) {
 		if (error == EINVAL)
 			return sys_read(td, (struct read_args *)uap);
 		else
@@ -506,9 +502,7 @@ ibcs2_read(td, uap)
 		return (EBADF);
 	}
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
-		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return sys_read(td, (struct read_args *)uap);
 	}
@@ -631,7 +625,6 @@ eof:
 	td->td_retval[0] = uap->nbytes - resid;
 out:
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	if (cookies)
 		free(cookies, M_TEMP);

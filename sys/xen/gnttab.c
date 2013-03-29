@@ -534,8 +534,8 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 	}
 
 	for (i = 0; i < nr_gframes; i++)
-		PT_SET_MA(((caddr_t)shared) + i*PAGE_SIZE, 
-		    ((vm_paddr_t)frames[i]) << PAGE_SHIFT | PG_RW | PG_V);
+		pmap_kenter_ma((vm_offset_t)shared + i * PAGE_SIZE, 
+			((vm_paddr_t)frames[i]) << PAGE_SHIFT);
 
 	free(frames, M_DEVBUF);
 

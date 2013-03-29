@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmarmasmparser
 
 SRCDIR=	lib/Target/ARM/AsmParser

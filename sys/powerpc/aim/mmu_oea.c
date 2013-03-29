@@ -96,11 +96,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Manages physical address maps.
  *
- * In addition to hardware address maps, this module is called upon to
- * provide software-use-only maps which may or may not be stored in the
- * same form as hardware maps.  These pseudo-maps are used to store
- * intermediate results from copy operations to and from address spaces.
- *
  * Since the information managed by this module is also stored by the
  * logical address mapping module, this module may throw away valid virtual
  * to physical mappings at almost any time.  However, invalidations of
@@ -141,7 +136,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_pager.h>
 #include <vm/uma.h>
 
 #include <machine/cpu.h>
@@ -205,16 +199,7 @@ struct	pvo_head *moea_pvo_table;		/* pvo entries by pteg index */
 struct	pvo_head moea_pvo_kunmanaged =
     LIST_HEAD_INITIALIZER(moea_pvo_kunmanaged);	/* list of unmanaged pages */
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 uma_zone_t	moea_upvo_zone;	/* zone for pvo entries for unmanaged pages */
 uma_zone_t	moea_mpvo_zone;	/* zone for pvo entries for managed pages */
@@ -290,6 +275,8 @@ void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea_clear_modify(mmu_t, vm_page_t);
 void moea_clear_reference(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
+void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize);
 void moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
 void moea_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
     vm_prot_t);
@@ -335,6 +322,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
 	MMUMETHOD(mmu_clear_reference,	moea_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
+	MMUMETHOD(mmu_copy_pages,	moea_copy_pages),
 	MMUMETHOD(mmu_enter,		moea_enter),
 	MMUMETHOD(mmu_enter_object,	moea_enter_object),
 	MMUMETHOD(mmu_enter_quick,	moea_enter_quick),
@@ -634,8 +622,17 @@ moea_cpu_bootstrap(mmu_t mmup, int ap)
 		isync();
 	}
 
-	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+	/*
+	 * Special case for the Wii: don't install the PCI BAT.
+	 */
+	if (strcmp(installed_platform(), "wii") != 0) {
+#endif
+		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+	}
+#endif
 	isync();
 
 	__asm __volatile("mtibatu 1,%0" :: "r"(0));
@@ -674,26 +671,26 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
         battable[0x0].batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
         battable[0x0].batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
 
-        /*
-         * Map PCI memory space.
-         */
-        battable[0x8].batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0x8].batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
+	/*
+	 * Map PCI memory space.
+	 */
+	battable[0x8].batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0x8].batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
 
-        battable[0x9].batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0x9].batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
+	battable[0x9].batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0x9].batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
 
-        battable[0xa].batl = BATL(0xa0000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0xa].batu = BATU(0xa0000000, BAT_BL_256M, BAT_Vs);
+	battable[0xa].batl = BATL(0xa0000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0xa].batu = BATU(0xa0000000, BAT_BL_256M, BAT_Vs);
 
-        battable[0xb].batl = BATL(0xb0000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0xb].batu = BATU(0xb0000000, BAT_BL_256M, BAT_Vs);
+	battable[0xb].batl = BATL(0xb0000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0xb].batu = BATU(0xb0000000, BAT_BL_256M, BAT_Vs);
 
-        /*
-         * Map obio devices.
-         */
-        battable[0xf].batl = BATL(0xf0000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0xf].batu = BATU(0xf0000000, BAT_BL_256M, BAT_Vs);
+	/*
+	 * Map obio devices.
+	 */
+	battable[0xf].batl = BATL(0xf0000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0xf].batu = BATU(0xf0000000, BAT_BL_256M, BAT_Vs);
 
 	/*
 	 * Use an IBAT and a DBAT to map the bottom segment of memory
@@ -708,9 +705,15 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	    :: "r"(battable[0].batu), "r"(battable[0].batl));
 	mtmsr(msr);
 
-	/* map pci space */
-	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+        if (strcmp(installed_platform(), "wii") != 0) {
+#endif
+		/* map pci space */
+		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+	}
+#endif
 	isync();
 
 	/* set global direct map flag */
@@ -1043,6 +1046,30 @@ moea_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	bcopy((void *)src, (void *)dst, PAGE_SIZE);
 }
 
+void
+moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		a_cp = (char *)VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]) +
+		    a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		b_cp = (char *)VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]) +
+		    b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+}
+
 /*
  * Zero a page of physical memory by temporarily mapping it into the tlb.
  */
@@ -1121,9 +1148,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
-	    VM_OBJECT_LOCKED(m->object),
-	    ("moea_enter_locked: page %p is not busy", m));
+	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+		VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
@@ -1292,7 +1318,7 @@ moea_is_modified(mmu_t mmu, vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have PTE_CHG set.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
@@ -1332,7 +1358,7 @@ moea_clear_modify(mmu_t mmu, vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("moea_clear_modify: page %p is busy", m));
 
@@ -1367,7 +1393,7 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;

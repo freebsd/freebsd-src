@@ -12,9 +12,9 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/STLExtras.h"
 #include <climits>
 
@@ -33,7 +33,9 @@ class FileEntry;
 /// Indicating that a line expects an error or a warning is simple. Put a
 /// comment on the line that has the diagnostic, use:
 ///
-///     expected-{error,warning,note}
+/// \code
+///   expected-{error,warning,note}
+/// \endcode
 ///
 /// to tag if it's an expected error or warning, and place the expected text
 /// between {{ and }} markers. The full text doesn't have to be included, only
@@ -94,12 +96,15 @@ class FileEntry;
 ///
 /// In this example, the diagnostic may appear only once, if at all.
 ///
-/// Regex matching mode may be selected by appending '-re' to type. Example:
+/// Regex matching mode may be selected by appending '-re' to type, such as:
 ///
+/// \code
 ///   expected-error-re
+/// \endcode
 ///
 /// Examples matching error: "variable has incomplete type 'struct s'"
 ///
+/// \code
 ///   // expected-error {{variable has incomplete type 'struct s'}}
 ///   // expected-error {{variable has incomplete type}}
 ///
@@ -107,6 +112,15 @@ class FileEntry;
 ///   // expected-error-re {{variable has has type 'struct .*'}}
 ///   // expected-error-re {{variable has has type 'struct (.*)'}}
 ///   // expected-error-re {{variable has has type 'struct[[:space:]](.*)'}}
+/// \endcode
+///
+/// VerifyDiagnosticConsumer expects at least one expected-* directive to
+/// be found inside the source code.  If no diagnostics are expected the
+/// following directive can be used to indicate this:
+///
+/// \code
+///   // expected-no-diagnostics
+/// \endcode
 ///
 class VerifyDiagnosticConsumer: public DiagnosticConsumer,
                                 public CommentHandler {
@@ -146,8 +160,8 @@ public:
     }
 
   private:
-    Directive(const Directive&); // DO NOT IMPLEMENT
-    void operator=(const Directive&); // DO NOT IMPLEMENT
+    Directive(const Directive &) LLVM_DELETED_FUNCTION;
+    void operator=(const Directive &) LLVM_DELETED_FUNCTION;
   };
 
   typedef std::vector<Directive*> DirectiveList;
@@ -166,10 +180,12 @@ public:
     }
   };
 
-#ifndef NDEBUG
-  typedef llvm::DenseSet<FileID> FilesWithDiagnosticsSet;
-  typedef llvm::SmallPtrSet<const FileEntry *, 4> FilesParsedForDirectivesSet;
-#endif
+  enum DirectiveStatus {
+    HasNoDirectives,
+    HasNoDirectivesReported,
+    HasExpectedNoDiagnostics,
+    HasOtherExpectedDirectives
+  };
 
 private:
   DiagnosticsEngine &Diags;
@@ -177,13 +193,36 @@ private:
   bool OwnsPrimaryClient;
   OwningPtr<TextDiagnosticBuffer> Buffer;
   const Preprocessor *CurrentPreprocessor;
+  const LangOptions *LangOpts;
+  SourceManager *SrcManager;
   unsigned ActiveSourceFiles;
-#ifndef NDEBUG
-  FilesWithDiagnosticsSet FilesWithDiagnostics;
-  FilesParsedForDirectivesSet FilesParsedForDirectives;
-#endif
+  DirectiveStatus Status;
   ExpectedData ED;
+
   void CheckDiagnostics();
+  void setSourceManager(SourceManager &SM) {
+    assert((!SrcManager || SrcManager == &SM) && "SourceManager changed!");
+    SrcManager = &SM;
+  }
+
+#ifndef NDEBUG
+  class UnparsedFileStatus {
+    llvm::PointerIntPair<const FileEntry *, 1, bool> Data;
+
+  public:
+    UnparsedFileStatus(const FileEntry *File, bool FoundDirectives)
+      : Data(File, FoundDirectives) {}
+
+    const FileEntry *getFile() const { return Data.getPointer(); }
+    bool foundDirectives() const { return Data.getInt(); }
+  };
+
+  typedef llvm::DenseMap<FileID, const FileEntry *> ParsedFilesMap;
+  typedef llvm::DenseMap<FileID, UnparsedFileStatus> UnparsedFilesMap;
+
+  ParsedFilesMap ParsedFiles;
+  UnparsedFilesMap UnparsedFiles;
+#endif
 
 public:
   /// Create a new verifying diagnostic client, which will issue errors to
@@ -197,12 +236,19 @@ public:
 
   virtual void EndSourceFile();
 
-  /// \brief Manually register a file as parsed.
-  inline void appendParsedFile(const FileEntry *File) {
-#ifndef NDEBUG
-    FilesParsedForDirectives.insert(File);
-#endif
-  }
+  enum ParsedStatus {
+    /// File has been processed via HandleComment.
+    IsParsed,
+
+    /// File has diagnostics and may have directives.
+    IsUnparsed,
+
+    /// File has diagnostics but guaranteed no directives.
+    IsUnparsedNoDirectives
+  };
+
+  /// \brief Update lists of parsed and unparsed files.
+  void UpdateParsedFileStatus(SourceManager &SM, FileID FID, ParsedStatus PS);
 
   virtual bool HandleComment(Preprocessor &PP, SourceRange Comment);
 

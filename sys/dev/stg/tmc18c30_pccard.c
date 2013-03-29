@@ -49,14 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/bus.h>
-#include <compat/netbsd/dvcfg.h>
 
 #include <sys/bus.h>
 
 #include <dev/pccard/pccardvar.h>
 
 #include <cam/scsi/scsi_low.h>
-#include <cam/scsi/scsi_low_pisa.h>
 
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>

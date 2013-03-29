@@ -115,6 +115,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -206,6 +210,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_dodfs)
 		rfilt |= HAL_RX_FILTER_PHYRADAR;
 
+	/*
+	 * Enable spectral PHY errors if requested by the
+	 * spectral module.
+	 */
+	if (sc->sc_dospectral)
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -228,7 +239,7 @@ ath_legacy_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 		 * multiple of the cache line size.  Not doing this
 		 * causes weird stuff to happen (for the 5210 at least).
 		 */
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF(sc, ATH_DEBUG_ANY,
 				"%s: no mbuf/cluster\n", __func__);
@@ -388,13 +399,31 @@ ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_v.evm[0] = rs->rs_evm0;
 	sc->sc_rx_th.wr_v.evm[1] = rs->rs_evm1;
 	sc->sc_rx_th.wr_v.evm[2] = rs->rs_evm2;
-	/* XXX TODO: extend this to include 3-stream EVM */
+	/* These are only populated from the AR9300 or later */
+	sc->sc_rx_th.wr_v.evm[3] = rs->rs_evm3;
+	sc->sc_rx_th.wr_v.evm[4] = rs->rs_evm4;
+
+	/* direction */
+	sc->sc_rx_th.wr_v.vh_flags = ATH_VENDOR_PKT_RX;
+
+	/* RX rate */
+	sc->sc_rx_th.wr_v.vh_rx_hwrate = rs->rs_rate;
+
+	/* RX flags */
+	sc->sc_rx_th.wr_v.vh_rs_flags = rs->rs_flags;
+
+	if (rs->rs_isaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_ISAGGR;
+	if (rs->rs_moreaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_MOREAGGR;
 
 	/* phyerr info */
-	if (rs->rs_status & HAL_RXERR_PHY)
+	if (rs->rs_status & HAL_RXERR_PHY) {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = rs->rs_phyerr;
-	else
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_RXPHYERR;
+	} else {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = 0xff;
+	}
 	sc->sc_rx_th.wr_v.vh_rs_status = rs->rs_status;
 	sc->sc_rx_th.wr_v.vh_rssi = rs->rs_rssi;
 }
@@ -419,7 +448,19 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
 #ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
-	if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
+	if (rs->rs_status & HAL_RXERR_PHY) {
+		/*
+		 * PHY error - make sure the channel flags
+		 * reflect the actual channel configuration,
+		 * not the received frame.
+		 */
+		if (IEEE80211_IS_CHAN_HT40U(sc->sc_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
+		else if (IEEE80211_IS_CHAN_HT40D(sc->sc_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
+		else if (IEEE80211_IS_CHAN_HT20(sc->sc_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
+	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
 		struct ieee80211com *ic = ifp->if_l2com;
 
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
@@ -431,6 +472,7 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 		if ((rs->rs_flags & HAL_RX_GI) == 0)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
+
 #endif
 	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
@@ -797,6 +839,8 @@ rx_next:
 	return (is_good);
 }
 
+#define	ATH_RX_MAX		128
+
 static void
 ath_rx_proc(struct ath_softc *sc, int resched)
 {
@@ -817,6 +861,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
+	int kickpcu = 0;
 
 	/* XXX we must not hold the ATH_LOCK here */
 	ATH_UNLOCK_ASSERT(sc);
@@ -824,6 +869,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
+	kickpcu = sc->sc_kickpcu;
 	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
@@ -832,6 +878,15 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	sc->sc_stats.ast_rx_noise = nf;
 	tsf = ath_hal_gettsf64(ah);
 	do {
+		/*
+		 * Don't process too many packets at a time; give the
+		 * TX thread time to also run - otherwise the TX
+		 * latency can jump by quite a bit, causing throughput
+		 * degredation.
+		 */
+		if (!kickpcu && npkts >= ATH_RX_MAX)
+			break;
+
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
 			if_printf(ifp, "%s: no buffer!\n", __func__);
@@ -880,6 +935,13 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
 #endif
+
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS))
+		    if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS,
+		    sc->sc_rx_statuslen, (char *) ds);
+#endif	/* ATH_DEBUG_ALQ */
+
 		if (status == HAL_EINPROGRESS)
 			break;
 
@@ -900,7 +962,7 @@ rx_proc_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
-	CTR2(ATH_KTR_INTR, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
+	ATH_KTR(sc, ATH_KTR_RXPROC, 2, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
 	/* Queue DFS tasklet if needed */
 	if (resched && ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
@@ -910,13 +972,31 @@ rx_proc_next:
 	 * need to be handled, kick the PCU if there's
 	 * been an RXEOL condition.
 	 */
-	ATH_PCU_LOCK(sc);
-	if (resched && sc->sc_kickpcu) {
-		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
+	if (resched && kickpcu) {
+		ATH_PCU_LOCK(sc);
+		ATH_KTR(sc, ATH_KTR_ERROR, 0, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
 
-		/* XXX rxslink? */
+		/*
+		 * Go through the process of fully tearing down
+		 * the RX buffers and reinitialising them.
+		 *
+		 * There's a hardware bug that causes the RX FIFO
+		 * to get confused under certain conditions and
+		 * constantly write over the same frame, leading
+		 * the RX driver code here to get heavily confused.
+		 */
+#if 1
+		ath_startrecv(sc);
+#else
+		/*
+		 * Disabled for now - it'd be nice to be able to do
+		 * this in order to limit the amount of CPU time spent
+		 * reinitialising the RX side (and thus minimise RX
+		 * drops) however there's a hardware issue that
+		 * causes things to get too far out of whack.
+		 */
 		/*
 		 * XXX can we hold the PCU lock here?
 		 * Are there any net80211 buffer calls involved?
@@ -926,11 +1006,12 @@ rx_proc_next:
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+#endif
 
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
+		ATH_PCU_UNLOCK(sc);
 	}
-	ATH_PCU_UNLOCK(sc);
 
 	/* XXX check this inside of IF_LOCK? */
 	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
@@ -942,10 +1023,21 @@ rx_proc_next:
 	}
 #undef PA2DESC
 
+	/*
+	 * If we hit the maximum number of frames in this round,
+	 * reschedule for another immediate pass.  This gives
+	 * the TX and TX completion routines time to run, which
+	 * will reduce latency.
+	 */
+	if (npkts >= ATH_RX_MAX)
+		sc->sc_rx.recv_sched(sc, resched);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 }
+
+#undef	ATH_RX_MAX
 
 /*
  * Only run the RX proc if it's not already running.
@@ -957,7 +1049,7 @@ ath_legacy_rx_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 
-	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
+	ATH_KTR(sc, ATH_KTR_RXPROC, 1, "ath_rx_proc: pending=%d", npending);
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
@@ -1089,12 +1181,31 @@ ath_legacy_dma_rxteardown(struct ath_softc *sc)
 	return (0);
 }
 
+static void
+ath_legacy_recv_sched(struct ath_softc *sc, int dosched)
+{
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+}
+
+static void
+ath_legacy_recv_sched_queue(struct ath_softc *sc, HAL_RX_QUEUE q,
+    int dosched)
+{
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+}
+
 void
 ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
 	/* Sensible legacy defaults */
-	sc->sc_rx_statuslen = 0;
+	/*
+	 * XXX this should be changed to properly support the
+	 * exact RX descriptor size for each HAL.
+	 */
+	sc->sc_rx_statuslen = sizeof(struct ath_desc);
 
 	sc->sc_rx.recv_start = ath_legacy_startrecv;
 	sc->sc_rx.recv_stop = ath_legacy_stoprecv;
@@ -1104,4 +1215,6 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 
 	sc->sc_rx.recv_setup = ath_legacy_dma_rxsetup;
 	sc->sc_rx.recv_teardown = ath_legacy_dma_rxteardown;
+	sc->sc_rx.recv_sched = ath_legacy_recv_sched;
+	sc->sc_rx.recv_sched_queue = ath_legacy_recv_sched_queue;
 }

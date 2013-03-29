@@ -28,9 +28,9 @@ mapper.dir.${ESUBDIR}: ${CODE}.part
 	echo "# ${ESUBDIR}" > ${.TARGET}
 .for i in ${PART}
 	printf "%-32s%-32s%s\n" ${ENCID:S@%%PART%%@${i}@}/UCS ${MAPPER} \
-		${ESUBDIR}/${TABLENAME:S@%%PART%%@${i}@}${ENCEXT} >> ${.TARGET}
+		${ESUBDIR}/${TABLENAME:S@%%PART%%@${i}@:S/:/@/}${ENCEXT} >> ${.TARGET}
 	printf "%-32s%-32s%s\n" UCS/${ENCID:S@%%PART%%@${i}@} ${MAPPER} \
-		${REVSYMBOL}${ESUBDIR}/${RTABLENAME:S@%%PART%%@${i}@}${ENCEXT} >> ${.TARGET}
+		${REVSYMBOL}${ESUBDIR}/${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}${ENCEXT} >> ${.TARGET}
 .endfor
 	echo >> ${.TARGET}
 .else
@@ -59,13 +59,13 @@ CLEANFILES+= charset.pivot.${ESUBDIR}
 
 .if !defined(MAPS)
 .for i in ${PART}
-.if exists(${TABLENAME:S@%%PART%%@${i}@}.src)
-FILES+=	${TABLENAME:S@%%PART%%@${i}@}.mps
-CLEANFILES+= ${TABLENAME:S@%%PART%%@${i}@}.mps
+.if exists(${TABLENAME:S@%%PART%%@${i}@:S/:/@/}.src)
+FILES+=	${TABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
+CLEANFILES+= ${TABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
 .endif
-.if exists(${RTABLENAME:S@%%PART%%@${i}@}.src)
-FILES+=	${RTABLENAME:S@%%PART%%@${i}@}.mps
-CLEANFILES+= ${RTABLENAME:S@%%PART%%@${i}@}.mps
+.if exists(${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}.src)
+FILES+=	${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
+CLEANFILES+= ${RTABLENAME:S@%%PART%%@${i}@:S/:/@/}.mps
 .endif
 .endfor
 .else

@@ -25,7 +25,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
@@ -83,7 +83,7 @@ namespace {
                                const GlobalStatus &GS);
     bool OptimizeEmptyGlobalCXXDtors(Function *CXAAtExitFn);
 
-    TargetData *TD;
+    DataLayout *TD;
     TargetLibraryInfo *TLI;
   };
 }
@@ -225,6 +225,7 @@ static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
 
         // Don't hack on volatile stores.
         if (SI->isVolatile()) return true;
+
         GS.Ordering = StrongerOrdering(GS.Ordering, SI->getOrdering());
 
         // If this is a direct store to the global (i.e., the global is a scalar
@@ -234,6 +235,14 @@ static bool AnalyzeGlobal(const Value *V, GlobalStatus &GS,
           if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(
                                                            SI->getOperand(1))) {
             Value *StoredVal = SI->getOperand(0);
+
+            if (Constant *C = dyn_cast<Constant>(StoredVal)) {
+              if (C->isThreadDependent()) {
+                // The stored value changes between threads; don't track it.
+                return true;
+              }
+            }
+
             if (StoredVal == GV->getInitializer()) {
               if (GS.StoredType < GlobalStatus::isInitializerStored)
                 GS.StoredType = GlobalStatus::isInitializerStored;
@@ -346,7 +355,7 @@ static bool isLeakCheckerRoot(GlobalVariable *GV) {
 /// Given a value that is stored to a global but never read, determine whether
 /// it's safe to remove the store and the chain of computation that feeds the
 /// store.
-static bool IsSafeComputationToRemove(Value *V) {
+static bool IsSafeComputationToRemove(Value *V, const TargetLibraryInfo *TLI) {
   do {
     if (isa<Constant>(V))
       return true;
@@ -355,7 +364,7 @@ static bool IsSafeComputationToRemove(Value *V) {
     if (isa<LoadInst>(V) || isa<InvokeInst>(V) || isa<Argument>(V) ||
         isa<GlobalValue>(V))
       return false;
-    if (isAllocationFn(V))
+    if (isAllocationFn(V, TLI))
       return true;
 
     Instruction *I = cast<Instruction>(V);
@@ -376,7 +385,8 @@ static bool IsSafeComputationToRemove(Value *V) {
 /// of the global and clean up any that obviously don't assign the global a
 /// value that isn't dynamically allocated.
 ///
-static bool CleanupPointerRootUsers(GlobalVariable *GV) {
+static bool CleanupPointerRootUsers(GlobalVariable *GV,
+                                    const TargetLibraryInfo *TLI) {
   // A brief explanation of leak checkers.  The goal is to find bugs where
   // pointers are forgotten, causing an accumulating growth in memory
   // usage over time.  The common strategy for leak checkers is to whitelist the
@@ -432,18 +442,18 @@ static bool CleanupPointerRootUsers(GlobalVariable *GV) {
         C->destroyConstant();
         // This could have invalidated UI, start over from scratch.
         Dead.clear();
-        CleanupPointerRootUsers(GV);
+        CleanupPointerRootUsers(GV, TLI);
         return true;
       }
     }
   }
 
   for (int i = 0, e = Dead.size(); i != e; ++i) {
-    if (IsSafeComputationToRemove(Dead[i].first)) {
+    if (IsSafeComputationToRemove(Dead[i].first, TLI)) {
       Dead[i].second->eraseFromParent();
       Instruction *I = Dead[i].first;
       do {
-	if (isAllocationFn(I))
+	if (isAllocationFn(I, TLI))
 	  break;
         Instruction *J = dyn_cast<Instruction>(I->getOperand(0));
         if (!J)
@@ -463,7 +473,7 @@ static bool CleanupPointerRootUsers(GlobalVariable *GV) {
 /// quick scan over the use list to clean up the easy and obvious cruft.  This
 /// returns true if it made a change.
 static bool CleanupConstantGlobalUsers(Value *V, Constant *Init,
-                                       TargetData *TD, TargetLibraryInfo *TLI) {
+                                       DataLayout *TD, TargetLibraryInfo *TLI) {
   bool Changed = false;
   for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI != E;) {
     User *U = *UI++;
@@ -655,7 +665,7 @@ static bool GlobalUsersSafeToSRA(GlobalValue *GV) {
 /// behavior of the program in a more fine-grained way.  We have determined that
 /// this transformation is safe already.  We return the first global variable we
 /// insert so that the caller can reprocess it.
-static GlobalVariable *SRAGlobal(GlobalVariable *GV, const TargetData &TD) {
+static GlobalVariable *SRAGlobal(GlobalVariable *GV, const DataLayout &TD) {
   // Make sure this global only has simple uses that we can SRA.
   if (!GlobalUsersSafeToSRA(GV))
     return 0;
@@ -931,7 +941,7 @@ static bool OptimizeAwayTrappingUsesOfValue(Value *V, Constant *NewV) {
 /// if the loaded value is dynamically null, then we know that they cannot be
 /// reachable with a null optimize away the load.
 static bool OptimizeAwayTrappingUsesOfLoads(GlobalVariable *GV, Constant *LV,
-                                            TargetData *TD,
+                                            DataLayout *TD,
                                             TargetLibraryInfo *TLI) {
   bool Changed = false;
 
@@ -961,7 +971,9 @@ static bool OptimizeAwayTrappingUsesOfLoads(GlobalVariable *GV, Constant *LV,
       // If we get here we could have other crazy uses that are transitively
       // loaded.
       assert((isa<PHINode>(GlobalUser) || isa<SelectInst>(GlobalUser) ||
-              isa<ConstantExpr>(GlobalUser) || isa<CmpInst>(GlobalUser)) &&
+              isa<ConstantExpr>(GlobalUser) || isa<CmpInst>(GlobalUser) ||
+              isa<BitCastInst>(GlobalUser) ||
+              isa<GetElementPtrInst>(GlobalUser)) &&
              "Only expect load and stores!");
     }
   }
@@ -975,7 +987,7 @@ static bool OptimizeAwayTrappingUsesOfLoads(GlobalVariable *GV, Constant *LV,
   // nor is the global.
   if (AllNonStoreUsesGone) {
     if (isLeakCheckerRoot(GV)) {
-      Changed |= CleanupPointerRootUsers(GV);
+      Changed |= CleanupPointerRootUsers(GV, TLI);
     } else {
       Changed = true;
       CleanupConstantGlobalUsers(GV, 0, TD, TLI);
@@ -993,7 +1005,7 @@ static bool OptimizeAwayTrappingUsesOfLoads(GlobalVariable *GV, Constant *LV,
 /// ConstantPropUsersOf - Walk the use list of V, constant folding all of the
 /// instructions that are foldable.
 static void ConstantPropUsersOf(Value *V,
-                                TargetData *TD, TargetLibraryInfo *TLI) {
+                                DataLayout *TD, TargetLibraryInfo *TLI) {
   for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI != E; )
     if (Instruction *I = dyn_cast<Instruction>(*UI++))
       if (Constant *NewC = ConstantFoldInstruction(I, TD, TLI)) {
@@ -1016,7 +1028,7 @@ static GlobalVariable *OptimizeGlobalAddressOfMalloc(GlobalVariable *GV,
                                                      CallInst *CI,
                                                      Type *AllocTy,
                                                      ConstantInt *NElements,
-                                                     TargetData *TD,
+                                                     DataLayout *TD,
                                                      TargetLibraryInfo *TLI) {
   DEBUG(errs() << "PROMOTING GLOBAL: " << *GV << "  CALL = " << *CI << '\n');
 
@@ -1465,9 +1477,10 @@ static void RewriteUsesOfLoadForHeapSRoA(LoadInst *Load,
 /// PerformHeapAllocSRoA - CI is an allocation of an array of structures.  Break
 /// it up into multiple allocations of arrays of the fields.
 static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV, CallInst *CI,
-                                            Value *NElems, TargetData *TD) {
+                                            Value *NElems, DataLayout *TD,
+                                            const TargetLibraryInfo *TLI) {
   DEBUG(dbgs() << "SROA HEAP ALLOC: " << *GV << "  MALLOC = " << *CI << '\n');
-  Type *MAT = getMallocAllocatedType(CI);
+  Type *MAT = getMallocAllocatedType(CI, TLI);
   StructType *STy = cast<StructType>(MAT);
 
   // There is guaranteed to be at least one use of the malloc (storing
@@ -1656,7 +1669,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
                                                Type *AllocTy,
                                                AtomicOrdering Ordering,
                                                Module::global_iterator &GVI,
-                                               TargetData *TD,
+                                               DataLayout *TD,
                                                TargetLibraryInfo *TLI) {
   if (!TD)
     return false;
@@ -1688,7 +1701,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
   // This eliminates dynamic allocation, avoids an indirection accessing the
   // data, and exposes the resultant global to further GlobalOpt.
   // We cannot optimize the malloc if we cannot determine malloc array size.
-  Value *NElems = getMallocArraySize(CI, TD, true);
+  Value *NElems = getMallocArraySize(CI, TD, TLI, true);
   if (!NElems)
     return false;
 
@@ -1725,7 +1738,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
 
     // If this is a fixed size array, transform the Malloc to be an alloc of
     // structs.  malloc [100 x struct],1 -> malloc struct, 100
-    if (ArrayType *AT = dyn_cast<ArrayType>(getMallocAllocatedType(CI))) {
+    if (ArrayType *AT = dyn_cast<ArrayType>(getMallocAllocatedType(CI, TLI))) {
       Type *IntPtrTy = TD->getIntPtrType(CI->getContext());
       unsigned TypeSize = TD->getStructLayout(AllocSTy)->getSizeInBytes();
       Value *AllocSize = ConstantInt::get(IntPtrTy, TypeSize);
@@ -1742,7 +1755,8 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
         CI = cast<CallInst>(Malloc);
     }
 
-    GVI = PerformHeapAllocSRoA(GV, CI, getMallocArraySize(CI, TD, true), TD);
+    GVI = PerformHeapAllocSRoA(GV, CI, getMallocArraySize(CI, TD, TLI, true),
+                               TD, TLI);
     return true;
   }
 
@@ -1754,7 +1768,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
 static bool OptimizeOnceStoredGlobal(GlobalVariable *GV, Value *StoredOnceVal,
                                      AtomicOrdering Ordering,
                                      Module::global_iterator &GVI,
-                                     TargetData *TD, TargetLibraryInfo *TLI) {
+                                     DataLayout *TD, TargetLibraryInfo *TLI) {
   // Ignore no-op GEPs and bitcasts.
   StoredOnceVal = StoredOnceVal->stripPointerCasts();
 
@@ -1771,8 +1785,8 @@ static bool OptimizeOnceStoredGlobal(GlobalVariable *GV, Value *StoredOnceVal,
       // Optimize away any trapping uses of the loaded value.
       if (OptimizeAwayTrappingUsesOfLoads(GV, SOVC, TD, TLI))
         return true;
-    } else if (CallInst *CI = extractMallocCall(StoredOnceVal)) {
-      Type *MallocType = getMallocAllocatedType(CI);
+    } else if (CallInst *CI = extractMallocCall(StoredOnceVal, TLI)) {
+      Type *MallocType = getMallocAllocatedType(CI, TLI);
       if (MallocType &&
           TryToOptimizeStoreOfMallocToGlobal(GV, CI, MallocType, Ordering, GVI,
                                              TD, TLI))
@@ -1964,7 +1978,7 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
     bool Changed;
     if (isLeakCheckerRoot(GV)) {
       // Delete any constant stores to the global.
-      Changed = CleanupPointerRootUsers(GV);
+      Changed = CleanupPointerRootUsers(GV, TLI);
     } else {
       // Delete any stores we can find to the global.  We may not be able to
       // make it completely dead though.
@@ -1997,7 +2011,7 @@ bool GlobalOpt::ProcessInternalGlobal(GlobalVariable *GV,
     ++NumMarked;
     return true;
   } else if (!GV->getInitializer()->getType()->isSingleValueType()) {
-    if (TargetData *TD = getAnalysisIfAvailable<TargetData>())
+    if (DataLayout *TD = getAnalysisIfAvailable<DataLayout>())
       if (GlobalVariable *FirstNewGV = SRAGlobal(GV, *TD)) {
         GVI = FirstNewGV;  // Don't skip the newly produced globals!
         return true;
@@ -2056,25 +2070,26 @@ static void ChangeCalleesToFastCall(Function *F) {
   }
 }
 
-static AttrListPtr StripNest(const AttrListPtr &Attrs) {
+static AttrListPtr StripNest(LLVMContext &C, const AttrListPtr &Attrs) {
   for (unsigned i = 0, e = Attrs.getNumSlots(); i != e; ++i) {
-    if ((Attrs.getSlot(i).Attrs & Attribute::Nest) == 0)
+    if (!Attrs.getSlot(i).Attrs.hasAttribute(Attributes::Nest))
       continue;
 
     // There can be only one.
-    return Attrs.removeAttr(Attrs.getSlot(i).Index, Attribute::Nest);
+    return Attrs.removeAttr(C, Attrs.getSlot(i).Index,
+                            Attributes::get(C, Attributes::Nest));
   }
 
   return Attrs;
 }
 
 static void RemoveNestAttribute(Function *F) {
-  F->setAttributes(StripNest(F->getAttributes()));
+  F->setAttributes(StripNest(F->getContext(), F->getAttributes()));
   for (Value::use_iterator UI = F->use_begin(), E = F->use_end(); UI != E;++UI){
     if (isa<BlockAddress>(*UI))
       continue;
     CallSite User(cast<Instruction>(*UI));
-    User.setAttributes(StripNest(User.getAttributes()));
+    User.setAttributes(StripNest(F->getContext(), User.getAttributes()));
   }
 }
 
@@ -2103,7 +2118,7 @@ bool GlobalOpt::OptimizeFunctions(Module &M) {
         Changed = true;
       }
 
-      if (F->getAttributes().hasAttrSomewhere(Attribute::Nest) &&
+      if (F->getAttributes().hasAttrSomewhere(Attributes::Nest) &&
           !F->hasAddressTaken()) {
         // The function is not used by a trampoline intrinsic, so it is safe
         // to remove the 'nest' attribute.
@@ -2251,7 +2266,7 @@ static GlobalVariable *InstallGlobalCtors(GlobalVariable *GCL,
 static inline bool 
 isSimpleEnoughValueToCommit(Constant *C,
                             SmallPtrSet<Constant*, 8> &SimpleConstants,
-                            const TargetData *TD);
+                            const DataLayout *TD);
 
 
 /// isSimpleEnoughValueToCommit - Return true if the specified constant can be
@@ -2264,7 +2279,7 @@ isSimpleEnoughValueToCommit(Constant *C,
 /// time.
 static bool isSimpleEnoughValueToCommitHelper(Constant *C,
                                    SmallPtrSet<Constant*, 8> &SimpleConstants,
-                                   const TargetData *TD) {
+                                   const DataLayout *TD) {
   // Simple integer, undef, constant aggregate zero, global addresses, etc are
   // all supported.
   if (C->getNumOperands() == 0 || isa<BlockAddress>(C) ||
@@ -2319,7 +2334,7 @@ static bool isSimpleEnoughValueToCommitHelper(Constant *C,
 static inline bool 
 isSimpleEnoughValueToCommit(Constant *C,
                             SmallPtrSet<Constant*, 8> &SimpleConstants,
-                            const TargetData *TD) {
+                            const DataLayout *TD) {
   // If we already checked this constant, we win.
   if (!SimpleConstants.insert(C)) return true;
   // Check the constant.
@@ -2450,7 +2465,7 @@ namespace {
 /// Once an evaluation call fails, the evaluation object should not be reused.
 class Evaluator {
 public:
-  Evaluator(const TargetData *TD, const TargetLibraryInfo *TLI)
+  Evaluator(const DataLayout *TD, const TargetLibraryInfo *TLI)
     : TD(TD), TLI(TLI) {
     ValueStack.push_back(new DenseMap<Value*, Constant*>);
   }
@@ -2531,7 +2546,7 @@ private:
   /// simple enough to live in a static initializer of a global.
   SmallPtrSet<Constant*, 8> SimpleConstants;
 
-  const TargetData *TD;
+  const DataLayout *TD;
   const TargetLibraryInfo *TLI;
 };
 
@@ -2869,7 +2884,7 @@ bool Evaluator::EvaluateFunction(Function *F, Constant *&RetVal,
 
 /// EvaluateStaticConstructor - Evaluate static constructors in the function, if
 /// we can.  Return true if we can, false otherwise.
-static bool EvaluateStaticConstructor(Function *F, const TargetData *TD,
+static bool EvaluateStaticConstructor(Function *F, const DataLayout *TD,
                                       const TargetLibraryInfo *TLI) {
   // Call the function.
   Evaluator Eval(TD, TLI);
@@ -3110,7 +3125,7 @@ bool GlobalOpt::OptimizeEmptyGlobalCXXDtors(Function *CXAAtExitFn) {
 bool GlobalOpt::runOnModule(Module &M) {
   bool Changed = false;
 
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   TLI = &getAnalysis<TargetLibraryInfo>();
 
   // Try to find the llvm.globalctors list.

@@ -352,7 +352,7 @@ void ElementRegion::Profile(llvm::FoldingSetNodeID& ID) const {
 }
 
 void FunctionTextRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
-                                       const FunctionDecl *FD,
+                                       const NamedDecl *FD,
                                        const MemRegion*) {
   ID.AddInteger(MemRegion::FunctionTextRegionKind);
   ID.AddPointer(FD);
@@ -444,7 +444,7 @@ void MemRegion::dumpToStream(raw_ostream &os) const {
 }
 
 void AllocaRegion::dumpToStream(raw_ostream &os) const {
-  os << "alloca{" << (void*) Ex << ',' << Cnt << '}';
+  os << "alloca{" << (const void*) Ex << ',' << Cnt << '}';
 }
 
 void FunctionTextRegion::dumpToStream(raw_ostream &os) const {
@@ -452,7 +452,7 @@ void FunctionTextRegion::dumpToStream(raw_ostream &os) const {
 }
 
 void BlockTextRegion::dumpToStream(raw_ostream &os) const {
-  os << "block_code{" << (void*) this << '}';
+  os << "block_code{" << (const void*) this << '}';
 }
 
 void BlockDataRegion::dumpToStream(raw_ostream &os) const {
@@ -461,12 +461,12 @@ void BlockDataRegion::dumpToStream(raw_ostream &os) const {
 
 void CompoundLiteralRegion::dumpToStream(raw_ostream &os) const {
   // FIXME: More elaborate pretty-printing.
-  os << "{ " << (void*) CL <<  " }";
+  os << "{ " << (const void*) CL <<  " }";
 }
 
 void CXXTempObjectRegion::dumpToStream(raw_ostream &os) const {
   os << "temp_object{" << getValueType().getAsString() << ','
-     << (void*) Ex << '}';
+     << (const void*) Ex << '}';
 }
 
 void CXXBaseObjectRegion::dumpToStream(raw_ostream &os) const {
@@ -748,11 +748,11 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
       }
       else {
         assert(D->isStaticLocal());
-        const Decl *D = STC->getDecl();
-        if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+        const Decl *STCD = STC->getDecl();
+        if (isa<FunctionDecl>(STCD) || isa<ObjCMethodDecl>(STCD))
           sReg = getGlobalsRegion(MemRegion::StaticGlobalSpaceRegionKind,
-                                  getFunctionTextRegion(FD));
-        else if (const BlockDecl *BD = dyn_cast<BlockDecl>(D)) {
+                                  getFunctionTextRegion(cast<NamedDecl>(STCD)));
+        else if (const BlockDecl *BD = dyn_cast<BlockDecl>(STCD)) {
           const BlockTextRegion *BTR =
             getBlockTextRegion(BD,
                      C.getCanonicalType(BD->getSignatureAsWritten()->getType()),
@@ -761,8 +761,6 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
                                   BTR);
         }
         else {
-          // FIXME: For ObjC-methods, we need a new CodeTextRegion.  For now
-          // just use the main global memspace.
           sReg = getGlobalsRegion();
         }
       }
@@ -845,7 +843,7 @@ MemRegionManager::getElementRegion(QualType elementType, NonLoc Idx,
 }
 
 const FunctionTextRegion *
-MemRegionManager::getFunctionTextRegion(const FunctionDecl *FD) {
+MemRegionManager::getFunctionTextRegion(const NamedDecl *FD) {
   return getSubRegion<FunctionTextRegion>(FD, getCodeRegion());
 }
 
@@ -990,6 +988,10 @@ const MemRegion *MemRegion::getBaseRegion() const {
   return R;
 }
 
+bool MemRegion::isSubRegionOf(const MemRegion *R) const {
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 // View handling.
 //===----------------------------------------------------------------------===//
@@ -1107,7 +1109,7 @@ RegionOffset MemRegion::getAsOffset() const {
         // If our base region is symbolic, we don't know what type it really is.
         // Pretend the type of the symbol is the true dynamic type.
         // (This will at least be self-consistent for the life of the symbol.)
-        Ty = SR->getSymbol()->getType(getContext())->getPointeeType();
+        Ty = SR->getSymbol()->getType()->getPointeeType();
       }
       
       const CXXRecordDecl *Child = Ty->getAsCXXRecordDecl();
@@ -1166,8 +1168,12 @@ RegionOffset MemRegion::getAsOffset() const {
       R = FR->getSuperRegion();
 
       const RecordDecl *RD = FR->getDecl()->getParent();
-      if (!RD->isCompleteDefinition()) {
+      if (RD->isUnion() || !RD->isCompleteDefinition()) {
         // We cannot compute offset for incomplete type.
+        // For unions, we could treat everything as offset 0, but we'd rather
+        // treat each field as a symbolic offset so they aren't stored on top
+        // of each other, since we depend on things in typed regions actually
+        // matching their types.
         SymbolicOffsetBase = R;
       }
 

@@ -590,3 +590,12 @@ uart_bus_detach(device_t dev)
 
 	return (0);
 }
+
+int
+uart_bus_resume(device_t dev)
+{
+	struct uart_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (UART_ATTACH(sc));
+}

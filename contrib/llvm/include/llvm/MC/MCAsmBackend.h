@@ -30,12 +30,13 @@ class raw_ostream;
 
 /// MCAsmBackend - Generic interface to target specific assembler backends.
 class MCAsmBackend {
-  MCAsmBackend(const MCAsmBackend &);   // DO NOT IMPLEMENT
-  void operator=(const MCAsmBackend &);  // DO NOT IMPLEMENT
+  MCAsmBackend(const MCAsmBackend &) LLVM_DELETED_FUNCTION;
+  void operator=(const MCAsmBackend &) LLVM_DELETED_FUNCTION;
 protected: // Can only create subclasses.
   MCAsmBackend();
 
   unsigned HasReliableSymbolDifference : 1;
+  unsigned HasDataInCodeSupport : 1;
 
 public:
   virtual ~MCAsmBackend();
@@ -63,6 +64,12 @@ public:
   /// eventually should be eliminated.
   bool hasReliableSymbolDifference() const {
     return HasReliableSymbolDifference;
+  }
+
+  /// hasDataInCodeSupport - Check whether this target implements data-in-code
+  /// markers. If not, data region directives will be ignored.
+  bool hasDataInCodeSupport() const {
+    return HasDataInCodeSupport;
   }
 
   /// doesSectionRequireSymbols - Check whether the given section requires that
@@ -99,7 +106,7 @@ public:
 
   /// @}
 
-  /// applyFixup - Apply the \arg Value for given \arg Fixup into the provided
+  /// applyFixup - Apply the \p Value for given \p Fixup into the provided
   /// data fragment, at the offset specified by the fixup and following the
   /// fixup kind as appropriate.
   virtual void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
@@ -126,12 +133,19 @@ public:
   /// RelaxInstruction - Relax the instruction in the given fragment to the next
   /// wider instruction.
   ///
-  /// \param Inst - The instruction to relax, which may be the same as the
+  /// \param Inst The instruction to relax, which may be the same as the
   /// output.
-  /// \parm Res [output] - On return, the relaxed instruction.
+  /// \param [out] Res On return, the relaxed instruction.
   virtual void relaxInstruction(const MCInst &Inst, MCInst &Res) const = 0;
 
   /// @}
+
+  /// getMinimumNopSize - Returns the minimum size of a nop in bytes on this
+  /// target. The assembler will use this to emit excess padding in situations
+  /// where the padding required for simple alignment would be less than the
+  /// minimum nop size.
+  ///
+  virtual unsigned getMinimumNopSize() const { return 1; }
 
   /// writeNopData - Write an (optimal) nop sequence of Count bytes to the given
   /// output. If the target cannot generate such a sequence, it should return an

@@ -23,7 +23,7 @@
 # $FreeBSD$
 
 # The version of this send-pr.
-VERSION=3.113
+VERSION=3.114
 
 # The submitter-id for your site.
 # "current-users" is the only allowable value for FreeBSD.
@@ -92,11 +92,16 @@ elif [ -f $HOME/.fullname ]; then
   ORIGINATOR="`sed -e '1q' $HOME/.fullname`"
 else
   PTEMP=`mktemp -t p` || exit 1
+  PTEMP2=`mktemp -t p` || exit 1
   # Must use temp file due to incompatibilities in quoting behavior
   # and to protect shell metacharacters in the expansion of $LOGNAME
-  $PW usershow $LOGNAME | awk -F: '{ print $8 }' | sed -e 's/,.*//' > $PTEMP
+  $ECHON1 $LOGNAME | awk '{print toupper(substr($1,1,1))substr($1,2)}' > $PTEMP2
+  ICLOGNAME="`cat $PTEMP2`"
+  $PW usershow $LOGNAME | awk -F: '{ print $8 }'    \
+			| sed -e "s/\&/$ICLOGNAME/" \
+			| sed -e 's/,.*//' > $PTEMP
   ORIGINATOR="`cat $PTEMP`"
-  rm -f $PTEMP
+  rm -f "$PTEMP" "$PTEMP2"
 fi
 
 FROM="$ORIGINATOR <$LOGNAME>"

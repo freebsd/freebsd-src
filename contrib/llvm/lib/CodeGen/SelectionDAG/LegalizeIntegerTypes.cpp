@@ -644,8 +644,9 @@ SDValue DAGTypeLegalizer::PromoteIntRes_XMULO(SDNode *N, unsigned ResNo) {
   EVT SmallVT = LHS.getValueType();
 
   // To determine if the result overflowed in a larger type, we extend the
-  // input to the larger type, do the multiply, then check the high bits of
-  // the result to see if the overflow happened.
+  // input to the larger type, do the multiply (checking if it overflows),
+  // then also check the high bits of the result to see if overflow happened
+  // there.
   if (N->getOpcode() == ISD::SMULO) {
     LHS = SExtPromotedInteger(LHS);
     RHS = SExtPromotedInteger(RHS);
@@ -653,23 +654,30 @@ SDValue DAGTypeLegalizer::PromoteIntRes_XMULO(SDNode *N, unsigned ResNo) {
     LHS = ZExtPromotedInteger(LHS);
     RHS = ZExtPromotedInteger(RHS);
   }
-  SDValue Mul = DAG.getNode(ISD::MUL, DL, LHS.getValueType(), LHS, RHS);
+  SDVTList VTs = DAG.getVTList(LHS.getValueType(), N->getValueType(1));
+  SDValue Mul = DAG.getNode(N->getOpcode(), DL, VTs, LHS, RHS);
 
-  // Overflow occurred iff the high part of the result does not
-  // zero/sign-extend the low part.
+  // Overflow occurred if it occurred in the larger type, or if the high part
+  // of the result does not zero/sign-extend the low part.  Check this second
+  // possibility first.
   SDValue Overflow;
   if (N->getOpcode() == ISD::UMULO) {
-    // Unsigned overflow occurred iff the high part is non-zero.
+    // Unsigned overflow occurred if the high part is non-zero.
     SDValue Hi = DAG.getNode(ISD::SRL, DL, Mul.getValueType(), Mul,
                              DAG.getIntPtrConstant(SmallVT.getSizeInBits()));
     Overflow = DAG.getSetCC(DL, N->getValueType(1), Hi,
                             DAG.getConstant(0, Hi.getValueType()), ISD::SETNE);
   } else {
-    // Signed overflow occurred iff the high part does not sign extend the low.
+    // Signed overflow occurred if the high part does not sign extend the low.
     SDValue SExt = DAG.getNode(ISD::SIGN_EXTEND_INREG, DL, Mul.getValueType(),
                                Mul, DAG.getValueType(SmallVT));
     Overflow = DAG.getSetCC(DL, N->getValueType(1), SExt, Mul, ISD::SETNE);
   }
+
+  // The only other way for overflow to occur is if the multiplication in the
+  // larger type itself overflowed.
+  Overflow = DAG.getNode(ISD::OR, DL, N->getValueType(1), Overflow,
+                         SDValue(Mul.getNode(), 1));
 
   // Use the calculated overflow everywhere.
   ReplaceValueWith(SDValue(N, 1), Overflow);
@@ -2253,32 +2261,35 @@ void DAGTypeLegalizer::ExpandIntRes_UADDSUBO(SDNode *N,
 void DAGTypeLegalizer::ExpandIntRes_XMULO(SDNode *N,
                                           SDValue &Lo, SDValue &Hi) {
   EVT VT = N->getValueType(0);
-  Type *RetTy = VT.getTypeForEVT(*DAG.getContext());
-  EVT PtrVT = TLI.getPointerTy();
-  Type *PtrTy = PtrVT.getTypeForEVT(*DAG.getContext());
   DebugLoc dl = N->getDebugLoc();
 
   // A divide for UMULO should be faster than a function call.
   if (N->getOpcode() == ISD::UMULO) {
     SDValue LHS = N->getOperand(0), RHS = N->getOperand(1);
-    DebugLoc DL = N->getDebugLoc();
 
-    SDValue MUL = DAG.getNode(ISD::MUL, DL, LHS.getValueType(), LHS, RHS);
+    SDValue MUL = DAG.getNode(ISD::MUL, dl, LHS.getValueType(), LHS, RHS);
     SplitInteger(MUL, Lo, Hi);
 
     // A divide for UMULO will be faster than a function call. Select to
     // make sure we aren't using 0.
     SDValue isZero = DAG.getSetCC(dl, TLI.getSetCCResultType(VT),
-                                  RHS, DAG.getConstant(0, VT), ISD::SETNE);
+                                  RHS, DAG.getConstant(0, VT), ISD::SETEQ);
     SDValue NotZero = DAG.getNode(ISD::SELECT, dl, VT, isZero,
                                   DAG.getConstant(1, VT), RHS);
-    SDValue DIV = DAG.getNode(ISD::UDIV, DL, LHS.getValueType(), MUL, NotZero);
-    SDValue Overflow;
-    Overflow = DAG.getSetCC(DL, N->getValueType(1), DIV, LHS, ISD::SETNE);
+    SDValue DIV = DAG.getNode(ISD::UDIV, dl, VT, MUL, NotZero);
+    SDValue Overflow = DAG.getSetCC(dl, N->getValueType(1), DIV, LHS,
+                                    ISD::SETNE);
+    Overflow = DAG.getNode(ISD::SELECT, dl, N->getValueType(1), isZero,
+                           DAG.getConstant(0, N->getValueType(1)),
+                           Overflow);
     ReplaceValueWith(SDValue(N, 1), Overflow);
     return;
   }
 
+  Type *RetTy = VT.getTypeForEVT(*DAG.getContext());
+  EVT PtrVT = TLI.getPointerTy();
+  Type *PtrTy = PtrVT.getTypeForEVT(*DAG.getContext());
+  
   // Replace this with a libcall that will check overflow.
   RTLIB::Libcall LC = RTLIB::UNKNOWN_LIBCALL;
   if (VT == MVT::i32)

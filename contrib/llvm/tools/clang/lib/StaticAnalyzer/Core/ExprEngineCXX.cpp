@@ -25,20 +25,28 @@ using namespace ento;
 void ExprEngine::CreateCXXTemporaryObject(const MaterializeTemporaryExpr *ME,
                                           ExplodedNode *Pred,
                                           ExplodedNodeSet &Dst) {
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   const Expr *tempExpr = ME->GetTemporaryExpr()->IgnoreParens();
   ProgramStateRef state = Pred->getState();
   const LocationContext *LCtx = Pred->getLocationContext();
 
   // Bind the temporary object to the value of the expression. Then bind
   // the expression to the location of the object.
-  SVal V = state->getSVal(tempExpr, Pred->getLocationContext());
+  SVal V = state->getSVal(tempExpr, LCtx);
 
-  const MemRegion *R =
-    svalBuilder.getRegionManager().getCXXTempObjectRegion(ME, LCtx);
+  // If the value is already a CXXTempObjectRegion, it is fine as it is.
+  // Otherwise, create a new CXXTempObjectRegion, and copy the value into it.
+  const MemRegion *MR = V.getAsRegion();
+  if (!MR || !isa<CXXTempObjectRegion>(MR)) {
+    const MemRegion *R =
+      svalBuilder.getRegionManager().getCXXTempObjectRegion(ME, LCtx);
 
-  state = state->bindLoc(loc::MemRegionVal(R), V);
-  Bldr.generateNode(ME, Pred, state->BindExpr(ME, LCtx, loc::MemRegionVal(R)));
+    SVal L = loc::MemRegionVal(R);
+    state = state->bindLoc(L, V);
+    V = L;
+  }
+
+  Bldr.generateNode(ME, Pred, state->BindExpr(ME, LCtx, V));
 }
 
 void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
@@ -53,9 +61,9 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
   case CXXConstructExpr::CK_Complete: {
     // See if we're constructing an existing region by looking at the next
     // element in the CFG.
-    const CFGBlock *B = currentBuilderContext->getBlock();
-    if (currentStmtIdx + 1 < B->size()) {
-      CFGElement Next = (*B)[currentStmtIdx+1];
+    const CFGBlock *B = currBldrCtx->getBlock();
+    if (currStmtIdx + 1 < B->size()) {
+      CFGElement Next = (*B)[currStmtIdx+1];
 
       // Is this a constructor for a local variable?
       if (const CFGStmt *StmtElem = dyn_cast<CFGStmt>(&Next)) {
@@ -101,8 +109,12 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
       // FIXME: This will eventually need to handle new-expressions as well.
     }
 
-    // If we couldn't find an existing region to construct into, we'll just
-    // generate a symbolic region, which is fine.
+    // If we couldn't find an existing region to construct into, assume we're
+    // constructing a temporary.
+    if (!Target) {
+      MemRegionManager &MRMgr = getSValBuilder().getRegionManager();
+      Target = MRMgr.getCXXTempObjectRegion(CE, LCtx);
+    }
 
     break;
   }
@@ -137,7 +149,7 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
                                             *Call, *this);
 
   ExplodedNodeSet DstInvalidated;
-  StmtNodeBuilder Bldr(DstPreCall, DstInvalidated, *currentBuilderContext);
+  StmtNodeBuilder Bldr(DstPreCall, DstInvalidated, *currBldrCtx);
   for (ExplodedNodeSet::iterator I = DstPreCall.begin(), E = DstPreCall.end();
        I != E; ++I)
     defaultEvalCall(Bldr, *I, *Call);
@@ -151,6 +163,7 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
 void ExprEngine::VisitCXXDestructor(QualType ObjectType,
                                     const MemRegion *Dest,
                                     const Stmt *S,
+                                    bool IsBaseDtor,
                                     ExplodedNode *Pred, 
                                     ExplodedNodeSet &Dst) {
   const LocationContext *LCtx = Pred->getLocationContext();
@@ -171,7 +184,7 @@ void ExprEngine::VisitCXXDestructor(QualType ObjectType,
 
   CallEventManager &CEMgr = getStateManager().getCallEventManager();
   CallEventRef<CXXDestructorCall> Call =
-    CEMgr.getCXXDestructorCall(DtorDecl, S, Dest, State, LCtx);
+    CEMgr.getCXXDestructorCall(DtorDecl, S, Dest, IsBaseDtor, State, LCtx);
 
   PrettyStackTraceLoc CrashInfo(getContext().getSourceManager(),
                                 Call->getSourceRange().getBegin(),
@@ -182,7 +195,7 @@ void ExprEngine::VisitCXXDestructor(QualType ObjectType,
                                             *Call, *this);
 
   ExplodedNodeSet DstInvalidated;
-  StmtNodeBuilder Bldr(DstPreCall, DstInvalidated, *currentBuilderContext);
+  StmtNodeBuilder Bldr(DstPreCall, DstInvalidated, *currBldrCtx);
   for (ExplodedNodeSet::iterator I = DstPreCall.begin(), E = DstPreCall.end();
        I != E; ++I)
     defaultEvalCall(Bldr, *I, *Call);
@@ -198,12 +211,13 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   // Also, we need to decide how allocators actually work -- they're not
   // really part of the CXXNewExpr because they happen BEFORE the
   // CXXConstructExpr subexpression. See PR12014 for some discussion.
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   
-  unsigned blockCount = currentBuilderContext->getCurrentBlockCount();
+  unsigned blockCount = currBldrCtx->blockCount();
   const LocationContext *LCtx = Pred->getLocationContext();
-  DefinedOrUnknownSVal symVal =
-    svalBuilder.getConjuredSymbolVal(0, CNE, LCtx, CNE->getType(), blockCount);
+  DefinedOrUnknownSVal symVal = svalBuilder.conjureSymbolVal(0, CNE, LCtx,
+                                                             CNE->getType(),
+                                                             blockCount);
   ProgramStateRef State = Pred->getState();
 
   CallEventManager &CEMgr = getStateManager().getCallEventManager();
@@ -214,6 +228,18 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   // FIXME: Once we figure out how we want allocators to work,
   // we should be using the usual pre-/(default-)eval-/post-call checks here.
   State = Call->invalidateRegions(blockCount);
+
+  // If we're compiling with exceptions enabled, and this allocation function
+  // is not declared as non-throwing, failures /must/ be signalled by
+  // exceptions, and thus the return value will never be NULL.
+  // C++11 [basic.stc.dynamic.allocation]p3.
+  FunctionDecl *FD = CNE->getOperatorNew();
+  if (FD && getContext().getLangOpts().CXXExceptions) {
+    QualType Ty = FD->getType();
+    if (const FunctionProtoType *ProtoType = Ty->getAs<FunctionProtoType>())
+      if (!ProtoType->isNothrow(getContext()))
+        State = State->assume(symVal, true);
+  }
 
   if (CNE->isArray()) {
     // FIXME: allocating an array requires simulating the constructors.
@@ -232,11 +258,12 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   // CXXNewExpr, we need to make sure that the constructed object is not
   // immediately invalidated here. (The placement call should happen before
   // the constructor call anyway.)
-  FunctionDecl *FD = CNE->getOperatorNew();
   if (FD && FD->isReservedGlobalPlacementOperator()) {
     // Non-array placement new should always return the placement location.
     SVal PlacementLoc = State->getSVal(CNE->getPlacementArg(0), LCtx);
-    State = State->BindExpr(CNE, LCtx, PlacementLoc);
+    SVal Result = svalBuilder.evalCast(PlacementLoc, CNE->getType(),
+                                       CNE->getPlacementArg(0)->getType());
+    State = State->BindExpr(CNE, LCtx, Result);
   } else {
     State = State->BindExpr(CNE, LCtx, symVal);
   }
@@ -259,7 +286,7 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
 
 void ExprEngine::VisitCXXDeleteExpr(const CXXDeleteExpr *CDE, 
                                     ExplodedNode *Pred, ExplodedNodeSet &Dst) {
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   ProgramStateRef state = Pred->getState();
   Bldr.generateNode(CDE, Pred, state);
 }
@@ -274,18 +301,18 @@ void ExprEngine::VisitCXXCatchStmt(const CXXCatchStmt *CS,
   }
 
   const LocationContext *LCtx = Pred->getLocationContext();
-  SVal V = svalBuilder.getConjuredSymbolVal(CS, LCtx, VD->getType(),
-                                 currentBuilderContext->getCurrentBlockCount());
+  SVal V = svalBuilder.conjureSymbolVal(CS, LCtx, VD->getType(),
+                                        currBldrCtx->blockCount());
   ProgramStateRef state = Pred->getState();
   state = state->bindLoc(state->getLValue(VD, LCtx), V);
 
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   Bldr.generateNode(CS, Pred, state);
 }
 
 void ExprEngine::VisitCXXThisExpr(const CXXThisExpr *TE, ExplodedNode *Pred,
                                     ExplodedNodeSet &Dst) {
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
 
   // Get the this object region from StoreManager.
   const LocationContext *LCtx = Pred->getLocationContext();

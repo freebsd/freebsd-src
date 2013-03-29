@@ -37,7 +37,7 @@ template<typename ValueSubClass, typename ItemParentClass>
 /// MDString is always unnamed.
 class MDString : public Value {
   virtual void anchor();
-  MDString(const MDString &);            // DO NOT IMPLEMENT
+  MDString(const MDString &) LLVM_DELETED_FUNCTION;
 
   explicit MDString(LLVMContext &C);
 public:
@@ -59,7 +59,6 @@ public:
   iterator end() const { return getName().end(); }
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const MDString *) { return true; }
   static bool classof(const Value *V) {
     return V->getValueID() == MDStringVal;
   }
@@ -71,8 +70,8 @@ class MDNodeOperand;
 //===----------------------------------------------------------------------===//
 /// MDNode - a tuple of other values.
 class MDNode : public Value, public FoldingSetNode {
-  MDNode(const MDNode &);                // DO NOT IMPLEMENT
-  void operator=(const MDNode &);        // DO NOT IMPLEMENT
+  MDNode(const MDNode &) LLVM_DELETED_FUNCTION;
+  void operator=(const MDNode &) LLVM_DELETED_FUNCTION;
   friend class MDNodeOperand;
   friend class LLVMContextImpl;
   friend struct FoldingSetTrait<MDNode>;
@@ -161,7 +160,6 @@ public:
   void Profile(FoldingSetNodeID &ID) const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const MDNode *) { return true; }
   static bool classof(const Value *V) {
     return V->getValueID() == MDNodeVal;
   }
@@ -195,7 +193,7 @@ class NamedMDNode : public ilist_node<NamedMDNode> {
   friend struct ilist_traits<NamedMDNode>;
   friend class LLVMContextImpl;
   friend class Module;
-  NamedMDNode(const NamedMDNode &);      // DO NOT IMPLEMENT
+  NamedMDNode(const NamedMDNode &) LLVM_DELETED_FUNCTION;
 
   std::string Name;
   Module *Parent;

@@ -42,6 +42,16 @@ LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic
 
+.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+# Some of the required math functions (div & mod) are implemented in libgcc
+# on ARM. The library also needs to be placed first to be correctly linked.
+# As some of the functions are used before we have shared libraries.
+DPADD+=		${LIBGCC}
+LDADD+=		-lgcc
+.endif
+
+
+
 .if ${MK_SYMVER} == "yes"
 LIBCDIR=	${TOPSRCDIR}/lib/libc
 VERSION_DEF=	${LIBCDIR}/Versions.def
@@ -62,7 +72,7 @@ SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 # Fixup the existing binary that's there so we can symlink over it.
 beforeinstall:
 .if exists(${DESTDIR}/usr/libexec/${PROG})
-	-chflags noschg ${DESTDIR}/usr/libexec/${PROG}
+	-chflags -h noschg ${DESTDIR}/usr/libexec/${PROG}
 .endif
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}

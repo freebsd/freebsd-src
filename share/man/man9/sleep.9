@@ -25,14 +25,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2009
+.Dd February 19, 2013
 .Dt SLEEP 9
 .Os
 .Sh NAME
 .Nm msleep ,
+.Nm msleep_sbt ,
 .Nm msleep_spin ,
+.Nm msleep_spin_sbt ,
 .Nm pause ,
+.Nm pause_sbt ,
 .Nm tsleep ,
+.Nm tsleep_sbt ,
 .Nm wakeup
 .Nd wait for events
 .Sh SYNOPSIS
@@ -42,11 +46,23 @@
 .Ft int
 .Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
+.Fn msleep_sbt "void *chan" "struct mtx *mtx" "int priority" \
+"const char *wmesg" "sbintime_t sbt" "sbintime_t pr" "int flags"
+.Ft int
 .Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
+.Ft int
+.Fn msleep_spin_sbt "void *chan" "struct mtx *mtx" "const char *wmesg" \
+"sbintime_t sbt" "sbintime_t pr" "int flags"
 .Ft void
 .Fn pause "const char *wmesg" "int timo"
+.Ft void
+.Fn pause_sbt "const char *wmesg" "sbintime_t sbt" "sbintime_t pr" \
+ "int flags"
 .Ft int
 .Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn tsleep_sbt "void *chan" "int priority" "const char *wmesg" \
+"sbintime_t sbt" "sbintime_t pr" "int flags"
 .Ft void
 .Fn wakeup "void *chan"
 .Ft void
@@ -102,11 +118,11 @@ If
 .Fa priority
 includes the
 .Dv PCATCH
-flag, signals are checked before and after sleeping, otherwise signals are
-not checked.
+flag, pending signals are allowed to interrupt the sleep, otherwise
+pending signals are ignored during the sleep.
 If
 .Dv PCATCH
-is set and a signal needs to be delivered,
+is set and a signal becomes pending,
 .Er ERESTART
 is returned if the current system call should be restarted if
 possible, and
@@ -114,17 +130,19 @@ possible, and
 is returned if the system call should be interrupted by the signal
 (return
 .Er EINTR ) .
-If
+If the
 .Dv PBDRY
 flag is specified in addition to
 .Dv PCATCH ,
-then the sleeping thread is not stopped while sleeping upon delivery of
+then the sleeping thread is not stopped when
 .Dv SIGSTOP
-or other stop action.
-Instead, it is waken up, assuming that stop occurs on reaching a stop
+becomes pending
+or some other stop action occurs while it is sleeping.
+Instead, it is woken up, with the assumption
+that the stop will occur on reaching a stop
 point when returning to usermode.
-The flag should be used when sleeping thread owns resources, for instance
-vnode locks, that should be freed timely.
+The flag should be used when the sleeping thread owns resources, for instance
+vnode locks, that should be released in a timely fashion.
 .Pp
 The parameter
 .Fa wmesg
@@ -145,6 +163,27 @@ seconds.
 If the timeout expires,
 then the sleep function will return
 .Er EWOULDBLOCK .
+.Pp
+.Fn msleep_sbt ,
+.Fn msleep_spin_sbt ,
+.Fn pause_sbt
+and
+.Fn tsleep_sbt
+functions take
+.Fa sbt
+parameter instead of
+.Fa timo .
+It allows to specify relative or absolite wakeup time with higher resolution
+in form of
+.Vt sbintime_t .
+The parameter
+.Fa pr
+allows to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows to pass additional
+.Fn callout_reset_sbt
+flags.
 .Pp
 Several of the sleep functions including
 .Fn msleep ,
@@ -299,7 +338,8 @@ A non-zero timeout was specified and the timeout expired.
 .Xr mi_switch 9 ,
 .Xr mtx_sleep 9 ,
 .Xr rw_sleep 9 ,
-.Xr sx_sleep 9
+.Xr sx_sleep 9 ,
+.Xr timeout 9
 .Sh HISTORY
 The functions
 .Fn sleep

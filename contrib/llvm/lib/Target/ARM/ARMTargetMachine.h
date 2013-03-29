@@ -15,7 +15,6 @@
 #define ARMTARGETMACHINE_H
 
 #include "ARMInstrInfo.h"
-#include "ARMELFWriterInfo.h"
 #include "ARMFrameLowering.h"
 #include "ARMJITInfo.h"
 #include "ARMSubtarget.h"
@@ -25,7 +24,8 @@
 #include "Thumb1FrameLowering.h"
 #include "Thumb2InstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetTransformImpl.h"
+#include "llvm/DataLayout.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/ADT/OwningPtr.h"
 
@@ -62,11 +62,12 @@ public:
 class ARMTargetMachine : public ARMBaseTargetMachine {
   virtual void anchor();
   ARMInstrInfo        InstrInfo;
-  const TargetData    DataLayout;       // Calculates type size & alignment
-  ARMELFWriterInfo    ELFWriterInfo;
+  const DataLayout    DL;       // Calculates type size & alignment
   ARMTargetLowering   TLInfo;
   ARMSelectionDAGInfo TSInfo;
   ARMFrameLowering    FrameLowering;
+  ScalarTargetTransformImpl STTI;
+  VectorTargetTransformImpl VTTI;
  public:
   ARMTargetMachine(const Target &T, StringRef TT,
                    StringRef CPU, StringRef FS,
@@ -88,12 +89,14 @@ class ARMTargetMachine : public ARMBaseTargetMachine {
   virtual const ARMFrameLowering *getFrameLowering() const {
     return &FrameLowering;
   }
-
-  virtual const ARMInstrInfo     *getInstrInfo() const { return &InstrInfo; }
-  virtual const TargetData       *getTargetData() const { return &DataLayout; }
-  virtual const ARMELFWriterInfo *getELFWriterInfo() const {
-    return Subtarget.isTargetELF() ? &ELFWriterInfo : 0;
+  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
+    return &STTI;
   }
+  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
+    return &VTTI;
+  }
+  virtual const ARMInstrInfo     *getInstrInfo() const { return &InstrInfo; }
+  virtual const DataLayout       *getDataLayout() const { return &DL; }
 };
 
 /// ThumbTargetMachine - Thumb target machine.
@@ -104,12 +107,13 @@ class ThumbTargetMachine : public ARMBaseTargetMachine {
   virtual void anchor();
   // Either Thumb1InstrInfo or Thumb2InstrInfo.
   OwningPtr<ARMBaseInstrInfo> InstrInfo;
-  const TargetData    DataLayout;   // Calculates type size & alignment
-  ARMELFWriterInfo    ELFWriterInfo;
+  const DataLayout    DL;   // Calculates type size & alignment
   ARMTargetLowering   TLInfo;
   ARMSelectionDAGInfo TSInfo;
   // Either Thumb1FrameLowering or ARMFrameLowering.
   OwningPtr<ARMFrameLowering> FrameLowering;
+  ScalarTargetTransformImpl STTI;
+  VectorTargetTransformImpl VTTI;
 public:
   ThumbTargetMachine(const Target &T, StringRef TT,
                      StringRef CPU, StringRef FS,
@@ -138,10 +142,13 @@ public:
   virtual const ARMFrameLowering *getFrameLowering() const {
     return FrameLowering.get();
   }
-  virtual const TargetData       *getTargetData() const { return &DataLayout; }
-  virtual const ARMELFWriterInfo *getELFWriterInfo() const {
-    return Subtarget.isTargetELF() ? &ELFWriterInfo : 0;
+  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
+    return &STTI;
   }
+  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
+    return &VTTI;
+  }
+  virtual const DataLayout       *getDataLayout() const { return &DL; }
 };
 
 } // end namespace llvm

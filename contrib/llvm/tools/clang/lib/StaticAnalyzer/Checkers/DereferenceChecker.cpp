@@ -39,7 +39,7 @@ public:
                      CheckerContext &C) const;
   void checkBind(SVal L, SVal V, const Stmt *S, CheckerContext &C) const;
 
-  static const MemRegion *AddDerefSource(raw_ostream &os,
+  static void AddDerefSource(raw_ostream &os,
                              SmallVectorImpl<SourceRange> &Ranges,
                              const Expr *Ex, const ProgramState *state,
                              const LocationContext *LCtx,
@@ -47,7 +47,7 @@ public:
 };
 } // end anonymous namespace
 
-const MemRegion *
+void
 DereferenceChecker::AddDerefSource(raw_ostream &os,
                                    SmallVectorImpl<SourceRange> &Ranges,
                                    const Expr *Ex,
@@ -55,7 +55,6 @@ DereferenceChecker::AddDerefSource(raw_ostream &os,
                                    const LocationContext *LCtx,
                                    bool loadedFrom) {
   Ex = Ex->IgnoreParenLValueCasts();
-  const MemRegion *sourceR = 0;
   switch (Ex->getStmtClass()) {
     default:
       break;
@@ -65,7 +64,6 @@ DereferenceChecker::AddDerefSource(raw_ostream &os,
         os << " (" << (loadedFrom ? "loaded from" : "from")
            << " variable '" <<  VD->getName() << "')";
         Ranges.push_back(DR->getSourceRange());
-        sourceR = state->getLValue(VD, LCtx).getAsRegion();
       }
       break;
     }
@@ -78,7 +76,6 @@ DereferenceChecker::AddDerefSource(raw_ostream &os,
       break;
     }
   }
-  return sourceR;
 }
 
 void DereferenceChecker::reportBug(ProgramStateRef State, const Stmt *S,
@@ -94,14 +91,14 @@ void DereferenceChecker::reportBug(ProgramStateRef State, const Stmt *S,
     BT_null.reset(new BuiltinBug("Dereference of null pointer"));
 
   SmallString<100> buf;
+  llvm::raw_svector_ostream os(buf);
+
   SmallVector<SourceRange, 2> Ranges;
 
   // Walk through lvalue casts to get the original expression
   // that syntactically caused the load.
   if (const Expr *expr = dyn_cast<Expr>(S))
     S = expr->IgnoreParenLValueCasts();
-
-  const MemRegion *sourceR = 0;
 
   if (IsBind) {
     if (const BinaryOperator *BO = dyn_cast<BinaryOperator>(S)) {
@@ -117,68 +114,55 @@ void DereferenceChecker::reportBug(ProgramStateRef State, const Stmt *S,
 
   switch (S->getStmtClass()) {
   case Stmt::ArraySubscriptExprClass: {
-    llvm::raw_svector_ostream os(buf);
     os << "Array access";
     const ArraySubscriptExpr *AE = cast<ArraySubscriptExpr>(S);
-    sourceR = AddDerefSource(os, Ranges, AE->getBase()->IgnoreParenCasts(),
-                             State.getPtr(), N->getLocationContext());
+    AddDerefSource(os, Ranges, AE->getBase()->IgnoreParenCasts(),
+                   State.getPtr(), N->getLocationContext());
     os << " results in a null pointer dereference";
     break;
   }
   case Stmt::UnaryOperatorClass: {
-    llvm::raw_svector_ostream os(buf);
     os << "Dereference of null pointer";
     const UnaryOperator *U = cast<UnaryOperator>(S);
-    sourceR = AddDerefSource(os, Ranges, U->getSubExpr()->IgnoreParens(),
-                             State.getPtr(), N->getLocationContext(), true);
+    AddDerefSource(os, Ranges, U->getSubExpr()->IgnoreParens(),
+                   State.getPtr(), N->getLocationContext(), true);
     break;
   }
   case Stmt::MemberExprClass: {
     const MemberExpr *M = cast<MemberExpr>(S);
-    if (M->isArrow()) {
-      llvm::raw_svector_ostream os(buf);
+    if (M->isArrow() || bugreporter::isDeclRefExprToReference(M->getBase())) {
       os << "Access to field '" << M->getMemberNameInfo()
          << "' results in a dereference of a null pointer";
-      sourceR = AddDerefSource(os, Ranges, M->getBase()->IgnoreParenCasts(),
-                               State.getPtr(), N->getLocationContext(), true);
+      AddDerefSource(os, Ranges, M->getBase()->IgnoreParenCasts(),
+                     State.getPtr(), N->getLocationContext(), true);
     }
     break;
   }
   case Stmt::ObjCIvarRefExprClass: {
     const ObjCIvarRefExpr *IV = cast<ObjCIvarRefExpr>(S);
-    if (const DeclRefExpr *DR =
-        dyn_cast<DeclRefExpr>(IV->getBase()->IgnoreParenCasts())) {
-      if (const VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
-        llvm::raw_svector_ostream os(buf);
-        os << "Instance variable access (via '" << VD->getName()
-           << "') results in a null pointer dereference";
-      }
-    }
-    Ranges.push_back(IV->getSourceRange());
+    os << "Access to instance variable '" << *IV->getDecl()
+       << "' results in a dereference of a null pointer";
+    AddDerefSource(os, Ranges, IV->getBase()->IgnoreParenCasts(),
+                   State.getPtr(), N->getLocationContext(), true);
     break;
   }
   default:
     break;
   }
 
+  os.flush();
   BugReport *report =
     new BugReport(*BT_null,
                   buf.empty() ? BT_null->getDescription() : buf.str(),
                   N);
 
-  bugreporter::addTrackNullOrUndefValueVisitor(N, bugreporter::GetDerefExpr(N),
-                                               report);
+  bugreporter::trackNullOrUndefValue(N, bugreporter::GetDerefExpr(N), *report);
 
   for (SmallVectorImpl<SourceRange>::iterator
        I = Ranges.begin(), E = Ranges.end(); I!=E; ++I)
     report->addRange(*I);
 
-  if (sourceR) {
-    report->markInteresting(sourceR);
-    report->markInteresting(State->getRawSVal(loc::MemRegionVal(sourceR)));
-  }
-
-  C.EmitReport(report);
+  C.emitReport(report);
 }
 
 void DereferenceChecker::checkLocation(SVal l, bool isLoad, const Stmt* S,
@@ -191,11 +175,9 @@ void DereferenceChecker::checkLocation(SVal l, bool isLoad, const Stmt* S,
 
       BugReport *report =
         new BugReport(*BT_undef, BT_undef->getDescription(), N);
-      bugreporter::addTrackNullOrUndefValueVisitor(N,
-                                                   bugreporter::GetDerefExpr(N),
-                                                   report);
-      report->disablePathPruning();
-      C.EmitReport(report);
+      bugreporter::trackNullOrUndefValue(N, bugreporter::GetDerefExpr(N),
+                                         *report);
+      C.emitReport(report);
     }
     return;
   }

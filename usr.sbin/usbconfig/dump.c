@@ -225,13 +225,17 @@ dump_device_info(struct libusb20_device *pdev, uint8_t show_ifdrv)
 {
 	char buf[128];
 	uint8_t n;
+	unsigned int usage;
 
-	printf("%s, cfg=%u md=%s spd=%s pwr=%s\n",
+	usage = libusb20_dev_get_power_usage(pdev);
+
+	printf("%s, cfg=%u md=%s spd=%s pwr=%s (%umA)\n",
 	    libusb20_dev_get_desc(pdev),
 	    libusb20_dev_get_config_index(pdev),
 	    dump_mode(libusb20_dev_get_mode(pdev)),
 	    dump_speed(libusb20_dev_get_speed(pdev)),
-	    dump_power_mode(libusb20_dev_get_power_mode(pdev)));
+	    dump_power_mode(libusb20_dev_get_power_mode(pdev)),
+	    usage);
 
 	if (!show_ifdrv)
 		return;

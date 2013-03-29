@@ -102,10 +102,25 @@ struct mfi_command {
 #define MFI_CMD_DATAOUT		(1<<2)
 #define MFI_CMD_COMPLETED	(1<<3)
 #define MFI_CMD_POLLED		(1<<4)
-#define MFI_ON_MFIQ_FREE	(1<<5)
-#define MFI_ON_MFIQ_READY	(1<<6)
-#define MFI_ON_MFIQ_BUSY	(1<<7)
-#define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
+#define MFI_CMD_SCSI		(1<<5)
+#define MFI_CMD_CCB		(1<<6)
+#define MFI_CMD_TBOLT		(1<<7)
+#define MFI_ON_MFIQ_FREE	(1<<8)
+#define MFI_ON_MFIQ_READY	(1<<9)
+#define MFI_ON_MFIQ_BUSY	(1<<10)
+#define MFI_ON_MFIQ_MASK	(MFI_ON_MFIQ_FREE | MFI_ON_MFIQ_READY| \
+    MFI_ON_MFIQ_BUSY)
+#define MFI_CMD_FLAGS_FMT	"\20" \
+    "\1MAPPED" \
+    "\2DATAIN" \
+    "\3DATAOUT" \
+    "\4COMPLETED" \
+    "\5POLLED" \
+    "\6SCSI" \
+    "\7TBOLT" \
+    "\10Q_FREE" \
+    "\11Q_READY" \
+    "\12Q_BUSY"
 	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
@@ -126,6 +141,11 @@ struct mfi_disk {
 #define	MFI_DISK_FLAGS_DISABLED	0x02
 };
 
+struct mfi_disk_pending {
+	TAILQ_ENTRY(mfi_disk_pending)	ld_link;
+	int		ld_id;
+};
+
 struct mfi_system_pd {
 	TAILQ_ENTRY(mfi_system_pd) pd_link;
 	device_t	pd_dev;
@@ -135,6 +155,11 @@ struct mfi_system_pd {
 	struct mfi_pd_info *pd_info;
 	struct disk	*pd_disk;
 	int		pd_flags;
+};
+
+struct mfi_system_pending {
+	TAILQ_ENTRY(mfi_system_pending) pd_link;
+	int		pd_id;
 };
 
 struct mfi_evt_queue_elm {
@@ -256,10 +281,6 @@ struct mfi_softc {
 	 */
 	struct mfi_command		*mfi_commands;
 	/*
-	 * How many commands were actually allocated
-	 */
-	int				mfi_total_cmds;
-	/*
 	 * How many commands the firmware can handle.  Also how big the reply
 	 * queue is, minus 1.
 	 */
@@ -285,11 +306,15 @@ struct mfi_softc {
 
 	TAILQ_HEAD(,mfi_disk)		mfi_ld_tqh;
 	TAILQ_HEAD(,mfi_system_pd)	mfi_syspd_tqh;
+	TAILQ_HEAD(,mfi_disk_pending)	mfi_ld_pend_tqh;
+	TAILQ_HEAD(,mfi_system_pending)	mfi_syspd_pend_tqh;
 	eventhandler_tag		mfi_eh;
 	struct cdev			*mfi_cdev;
 
 	TAILQ_HEAD(, ccb_hdr)		mfi_cam_ccbq;
 	struct mfi_command *		(* mfi_cam_start)(void *);
+	void				(*mfi_cam_rescan_cb)(struct mfi_softc *,
+					    uint32_t);
 	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
 	struct sx			mfi_config_lock;
@@ -303,6 +328,7 @@ struct mfi_softc {
 		    uint32_t frame_cnt);
 	int	(*mfi_adp_reset)(struct mfi_softc *sc);
 	int	(*mfi_adp_check_reset)(struct mfi_softc *sc);
+	void				(*mfi_intr_ptr)(void *sc);
 
 	/* ThunderBolt */
 	uint32_t			mfi_tbolt;
@@ -421,7 +447,8 @@ extern int mfi_tbolt_reset(struct mfi_softc *sc);
 extern void mfi_tbolt_sync_map_info(struct mfi_softc *sc);
 extern void mfi_handle_map_sync(void *context, int pending);
 extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
-		    uint32_t, void **, size_t);
+     uint32_t, void **, size_t);
+extern int mfi_build_cdb(int, uint8_t, u_int64_t, u_int32_t, uint8_t *);
 
 #define MFIQ_ADD(sc, qname)					\
 	do {							\
@@ -452,9 +479,8 @@ extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
 	mfi_enqueue_ ## name (struct mfi_command *cm)			\
 	{								\
 		if ((cm->cm_flags & MFI_ON_MFIQ_MASK) != 0) {		\
-			printf("command %p is on another queue, "	\
+			panic("command %p is on another queue, "	\
 			    "flags = %#x\n", cm, cm->cm_flags);		\
-			panic("command is on another queue");		\
 		}							\
 		TAILQ_INSERT_TAIL(&cm->cm_sc->mfi_ ## name, cm, cm_link); \
 		cm->cm_flags |= MFI_ON_ ## index;			\
@@ -464,9 +490,8 @@ extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
 	mfi_requeue_ ## name (struct mfi_command *cm)			\
 	{								\
 		if ((cm->cm_flags & MFI_ON_MFIQ_MASK) != 0) {		\
-			printf("command %p is on another queue, "	\
+			panic("command %p is on another queue, "	\
 			    "flags = %#x\n", cm, cm->cm_flags);		\
-			panic("command is on another queue");		\
 		}							\
 		TAILQ_INSERT_HEAD(&cm->cm_sc->mfi_ ## name, cm, cm_link); \
 		cm->cm_flags |= MFI_ON_ ## index;			\
@@ -479,10 +504,9 @@ extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
 									\
 		if ((cm = TAILQ_FIRST(&sc->mfi_ ## name)) != NULL) {	\
 			if ((cm->cm_flags & MFI_ON_ ## index) == 0) {	\
-				printf("command %p not in queue, "	\
+				panic("command %p not in queue, "	\
 				    "flags = %#x, bit = %#x\n", cm,	\
 				    cm->cm_flags, MFI_ON_ ## index);	\
-				panic("command not in queue");		\
 			}						\
 			TAILQ_REMOVE(&sc->mfi_ ## name, cm, cm_link);	\
 			cm->cm_flags &= ~MFI_ON_ ## index;		\
@@ -494,10 +518,9 @@ extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
 	mfi_remove_ ## name (struct mfi_command *cm)			\
 	{								\
 		if ((cm->cm_flags & MFI_ON_ ## index) == 0) {		\
-			printf("command %p not in queue, flags = %#x, " \
+			panic("command %p not in queue, flags = %#x, " \
 			    "bit = %#x\n", cm, cm->cm_flags,		\
 			    MFI_ON_ ## index);				\
-			panic("command not in queue");			\
 		}							\
 		TAILQ_REMOVE(&cm->cm_sc->mfi_ ## name, cm, cm_link);	\
 		cm->cm_flags &= ~MFI_ON_ ## index;			\
@@ -590,7 +613,8 @@ SYSCTL_DECL(_hw_mfi);
 #ifdef MFI_DEBUG
 extern void mfi_print_cmd(struct mfi_command *cm);
 extern void mfi_dump_cmds(struct mfi_softc *sc);
-extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *, const char *, int );
+extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *,
+    const char *, int);
 #define MFI_PRINT_CMD(cm)	mfi_print_cmd(cm)
 #define MFI_DUMP_CMDS(sc)	mfi_dump_cmds(sc)
 #define MFI_VALIDATE_CMD(sc, cm) mfi_validate_sg(sc, cm, __FUNCTION__, __LINE__)
@@ -600,6 +624,8 @@ extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *, const char
 #define MFI_VALIDATE_CMD(sc, cm)
 #endif
 
-extern void mfi_release_command(struct mfi_command *cm);
+extern void mfi_release_command(struct mfi_command *);
+extern void mfi_tbolt_return_cmd(struct mfi_softc *,
+    struct mfi_cmd_tbolt *, struct mfi_command *);
 
 #endif /* _MFIVAR_H */

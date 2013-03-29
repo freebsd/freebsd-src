@@ -211,6 +211,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(LOGITEC,		RT2870_3),
     RUN_DEV(LOGITEC,		LANW300NU2),
     RUN_DEV(LOGITEC,		LANW150NU2),
+    RUN_DEV(LOGITEC,		LANW300NU2S),
     RUN_DEV(MELCO,		RT2870_1),
     RUN_DEV(MELCO,		RT2870_2),
     RUN_DEV(MELCO,		WLIUCAG300N),
@@ -716,11 +717,14 @@ run_detach(device_t self)
 	struct ieee80211com *ic;
 	int i;
 
+	RUN_LOCK(sc);
+	sc->sc_detached = 1;
+	RUN_UNLOCK(sc);
+
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, RUN_N_XFER);
 
 	RUN_LOCK(sc);
-
 	sc->ratectl_run = RUN_RATECTL_OFF;
 	sc->cmdq_run = sc->cmdq_key_set = RUN_CMDQ_ABORT;
 
@@ -2019,7 +2023,8 @@ run_key_set_cb(void *arg)
 		wcid = 0;	/* NB: update WCID0 for group keys */
 		base = RT2860_SKEY(RUN_VAP(vap)->rvp_id, k->wk_keyix);
 	} else {
-		wcid = RUN_AID2WCID(associd);
+		wcid = (vap->iv_opmode == IEEE80211_M_STA) ?
+		    1 : RUN_AID2WCID(associd);
 		base = RT2860_PKEY(wcid);
 	}
 
@@ -2374,8 +2379,11 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 	struct run_softc *sc = ic->ic_ifp->if_softc;
 	uint8_t rate;
 	uint8_t ridx;
-	uint8_t wcid = RUN_AID2WCID(ni->ni_associd);
+	uint8_t wcid;
 	int i, j;
+
+	wcid = (vap->iv_opmode == IEEE80211_M_STA) ?
+	    1 : RUN_AID2WCID(ni->ni_associd);
 
 	if (wcid > RT2870_WCID_MAX) {
 		device_printf(sc->sc_dev, "wcid=%d out of range\n", wcid);
@@ -2595,7 +2603,7 @@ run_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->rx_m == NULL) {
-			sc->rx_m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+			sc->rx_m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 			    MJUMPAGESIZE /* xfer can be bigger than MCLBYTES */);
 		}
 		if (sc->rx_m == NULL) {
@@ -2669,7 +2677,7 @@ tr_setup:
 		}
 
 		/* copy aggregated frames to another mbuf */
-		m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (__predict_false(m0 == NULL)) {
 			DPRINTF("could not allocate mbuf\n");
 			ifp->if_ierrors++;
@@ -3044,8 +3052,12 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	txd->flags = qflags;
 	txwi = (struct rt2860_txwi *)(txd + 1);
 	txwi->xflags = xflags;
-	txwi->wcid = IEEE80211_IS_MULTICAST(wh->i_addr1) ?
-	    0 : RUN_AID2WCID(ni->ni_associd);
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		txwi->wcid = 0;
+	} else {
+		txwi->wcid = (vap->iv_opmode == IEEE80211_M_STA) ?
+		    1 : RUN_AID2WCID(ni->ni_associd);
+	}
 	/* clear leftover garbage bits */
 	txwi->flags = 0;
 	txwi->txop = 0;
@@ -3433,7 +3445,13 @@ run_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int startall = 0;
-	int error = 0;
+	int error;
+
+	RUN_LOCK(sc);
+	error = sc->sc_detached ? ENXIO : 0;
+	RUN_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -4955,8 +4973,7 @@ static device_method_t run_methods[] = {
 	DEVMETHOD(device_probe,		run_match),
 	DEVMETHOD(device_attach,	run_attach),
 	DEVMETHOD(device_detach,	run_detach),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t run_driver = {

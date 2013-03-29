@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/atomic.h>
 
 #ifdef __sparc64__
 #include <dev/ofw/openfirm.h>
@@ -135,6 +136,8 @@ typedef	u_int32_t u32;
 #define MEMORY_BARRIER()	__asm__ volatile("mf.a; mf" : : : "memory")
 #elif	defined	__sparc64__
 #define MEMORY_BARRIER()	__asm__ volatile("membar #Sync" : : : "memory")
+#elif	defined	__arm__
+#define MEMORY_BARRIER()	dmb()
 #else
 #error	"Not supported platform"
 #endif
@@ -3424,7 +3427,6 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 	/*
 	 *  Check against our hardware limits, or bugs :).
 	 */
-	if (fak < 0)	{fak = 0; ret = -1;}
 	if (fak > 2)	{fak = 2; ret = -1;}
 
 	/*
@@ -7875,51 +7877,15 @@ sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		return;
 	}
 
-	if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
-		/* Single buffer */
-		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
-			/* Buffer is virtual */
-			cp->dmamapped = (dir == CAM_DIR_IN) ?
-						SYM_DMA_READ : SYM_DMA_WRITE;
-			retv = bus_dmamap_load(np->data_dmat, cp->dmamap,
-					       csio->data_ptr, csio->dxfer_len,
-					       sym_execute_ccb, cp, 0);
-			if (retv == EINPROGRESS) {
-				cp->host_status	= HS_WAIT;
-				xpt_freeze_simq(np->sim, 1);
-				csio->ccb_h.status |= CAM_RELEASE_SIMQ;
-			}
-		} else {
-			/* Buffer is physical */
-			struct bus_dma_segment seg;
-
-			seg.ds_addr = (bus_addr_t) csio->data_ptr;
-			sym_execute_ccb(cp, &seg, 1, 0);
-		}
-	} else {
-		/* Scatter/gather list */
-		struct bus_dma_segment *segs;
-
-		if ((ccb_h->flags & CAM_SG_LIST_PHYS) != 0) {
-			/* The SG list pointer is physical */
-			sym_set_cam_status(cp->cam_ccb, CAM_REQ_INVALID);
-			goto out_abort;
-		}
-
-		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
-			/* SG buffer pointers are virtual */
-			sym_set_cam_status(cp->cam_ccb, CAM_REQ_INVALID);
-			goto out_abort;
-		}
-
-		/* SG buffer pointers are physical */
-		segs  = (struct bus_dma_segment *)csio->data_ptr;
-		sym_execute_ccb(cp, segs, csio->sglist_cnt, 0);
+	cp->dmamapped = (dir == CAM_DIR_IN) ?  SYM_DMA_READ : SYM_DMA_WRITE;
+	retv = bus_dmamap_load_ccb(np->data_dmat, cp->dmamap,
+			       (union ccb *)csio, sym_execute_ccb, cp, 0);
+	if (retv == EINPROGRESS) {
+		cp->host_status	= HS_WAIT;
+		xpt_freeze_simq(np->sim, 1);
+		csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
 	return;
-out_abort:
-	sym_xpt_done(np, (union ccb *) csio, cp);
-	sym_free_ccb(np, cp);
 }
 
 /*
@@ -8245,8 +8211,13 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	 *  Scale against driver configuration limits.
 	 */
 	if (tip->width  > SYM_SETUP_MAX_WIDE) tip->width  = SYM_SETUP_MAX_WIDE;
-	if (tip->offset > SYM_SETUP_MAX_OFFS) tip->offset = SYM_SETUP_MAX_OFFS;
-	if (tip->period < SYM_SETUP_MIN_SYNC) tip->period = SYM_SETUP_MIN_SYNC;
+	if (tip->period && tip->offset) {
+		if (tip->offset > SYM_SETUP_MAX_OFFS) tip->offset = SYM_SETUP_MAX_OFFS;
+		if (tip->period < SYM_SETUP_MIN_SYNC) tip->period = SYM_SETUP_MIN_SYNC;
+	} else {
+		tip->offset = 0;
+		tip->period = 0;
+	}
 
 	/*
 	 *  Scale against actual controller BUS width.
@@ -8265,21 +8236,23 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 	/*
 	 *  Scale period factor and offset against controller limits.
 	 */
-	if (tip->options & PPR_OPT_DT) {
-		if (tip->period < np->minsync_dt)
-			tip->period = np->minsync_dt;
-		if (tip->period > np->maxsync_dt)
-			tip->period = np->maxsync_dt;
-		if (tip->offset > np->maxoffs_dt)
-			tip->offset = np->maxoffs_dt;
-	}
-	else {
-		if (tip->period < np->minsync)
-			tip->period = np->minsync;
-		if (tip->period > np->maxsync)
-			tip->period = np->maxsync;
-		if (tip->offset > np->maxoffs)
-			tip->offset = np->maxoffs;
+	if (tip->offset && tip->period) {
+		if (tip->options & PPR_OPT_DT) {
+			if (tip->period < np->minsync_dt)
+				tip->period = np->minsync_dt;
+			if (tip->period > np->maxsync_dt)
+				tip->period = np->maxsync_dt;
+			if (tip->offset > np->maxoffs_dt)
+				tip->offset = np->maxoffs_dt;
+		}
+		else {
+			if (tip->period < np->minsync)
+				tip->period = np->minsync;
+			if (tip->period > np->maxsync)
+				tip->period = np->maxsync;
+			if (tip->offset > np->maxoffs)
+				tip->offset = np->maxoffs;
+		}
 	}
 }
 

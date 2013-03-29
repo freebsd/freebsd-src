@@ -615,6 +615,14 @@ camperiphfree(struct cam_periph *periph)
 	}
 
 	/*
+	 * We need to set this flag before dropping the topology lock, to
+	 * let anyone who is traversing the list that this peripheral is
+	 * about to be freed, and there will be no more reference count
+	 * checks.
+	 */
+	periph->flags |= CAM_PERIPH_FREE;
+
+	/*
 	 * The peripheral destructor semantics dictate calling with only the
 	 * SIM mutex held.  Since it might sleep, it should not be called
 	 * with the topology lock held.
@@ -726,6 +734,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_CONT_TARGET_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
+		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
+		    ("not VADDR for SCSI_IO %p %x\n", ccb, ccb->ccb_h.flags));
 
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		lengths[0] = ccb->csio.dxfer_len;
@@ -735,6 +745,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_ATA_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
+		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
+		    ("not VADDR for ATA_IO %p %x\n", ccb, ccb->ccb_h.flags));
 
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		lengths[0] = ccb->ataio.dxfer_len;
@@ -838,7 +850,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * into a larger area of VM, or if userland races against
 		 * vmapbuf() after the useracc() check.
 		 */
-		if (vmapbuf(mapinfo->bp[i]) < 0) {
+		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
 			for (j = 0; j < i; ++j) {
 				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
 				vunmapbuf(mapinfo->bp[j]);
@@ -1249,6 +1261,9 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 {
 	struct timeval delta;
 	struct timeval duration_tv;
+
+	if (!timevalisset(event_time))
+		return;
 
 	microtime(&delta);
 	timevalsub(&delta, event_time);

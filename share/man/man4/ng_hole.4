@@ -57,19 +57,19 @@ as long as the name is unique.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the
 following:
-.Bl -tag -width indent
-.It Dv NGM_HOLE_GET_STATS
+.Bl -tag -width foo
+.It Dv NGM_HOLE_GET_STATS Pq Ic getstats
 This command takes an
 .Tn ASCII
 string argument, the hook name, and returns the statistics
 associated with the hook as a
 .Vt "struct ng_hole_hookstat" .
-.It Dv NGM_HOLE_CLR_STATS
+.It Dv NGM_HOLE_CLR_STATS Pq Ic clrstats
 This command takes an
 .Tn ASCII
 string argument, the hook name, and clears the statistics
 associated with the hook.
-.It Dv NGM_HOLE_GETCLR_STATS
+.It Dv NGM_HOLE_GETCLR_STATS Pq Ic getclrstats
 This command is identical to
 .Dv NGM_HOLE_GET_STATS ,
 except that the statistics are also atomically cleared.

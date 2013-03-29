@@ -55,15 +55,15 @@ protected:
                                     StubMap &Stubs);
 
 public:
-  virtual void resolveRelocation(uint8_t *LocalAddress,
-                                 uint64_t FinalAddress,
+  virtual void resolveRelocation(const SectionEntry &Section,
+                                 uint64_t Offset,
                                  uint64_t Value,
                                  uint32_t Type,
                                  int64_t Addend);
 
   RuntimeDyldMachO(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
 
-  bool isCompatibleFormat(const MemoryBuffer *InputBuffer) const;
+  bool isCompatibleFormat(const ObjectBuffer *Buffer) const;
 };
 
 } // end namespace llvm

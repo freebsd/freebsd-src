@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmipscodegen
 
 SRCDIR=	lib/Target/Mips
@@ -33,6 +35,7 @@ TGHDRS=	Intrinsics \
 	MipsGenCodeEmitter \
 	MipsGenDAGISel \
 	MipsGenInstrInfo \
+	MipsGenMCPseudoLowering \
 	MipsGenRegisterInfo \
 	MipsGenSubtargetInfo
 

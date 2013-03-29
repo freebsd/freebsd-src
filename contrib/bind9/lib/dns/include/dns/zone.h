@@ -1815,7 +1815,7 @@ dns_zone_setsignatures(dns_zone_t *zone, isc_uint32_t signatures);
 
 isc_result_t
 dns_zone_signwithkey(dns_zone_t *zone, dns_secalg_t algorithm,
-		     isc_uint16_t keyid, isc_boolean_t delete);
+		     isc_uint16_t keyid, isc_boolean_t deleteit);
 /*%<
  * Initiate/resume signing of the entire zone with the zone DNSKEY(s)
  * that match the given algorithm and keyid.

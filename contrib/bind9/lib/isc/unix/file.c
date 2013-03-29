@@ -98,6 +98,20 @@ file_stats(const char *file, struct stat *stats) {
 }
 
 isc_result_t
+isc_file_mode(const char *file, mode_t *modep) {
+	isc_result_t result;
+	struct stat stats;
+
+	REQUIRE(modep != NULL);
+
+	result = file_stats(file, &stats);
+	if (result == ISC_R_SUCCESS)
+		*modep = (stats.st_mode & 07777);
+
+	return (result);
+}
+
+isc_result_t
 isc_file_getmodtime(const char *file, isc_time_t *time) {
 	isc_result_t result;
 	struct stat stats;
@@ -310,6 +324,23 @@ isc_file_openuniquemode(char *templet, int mode, FILE **fp) {
 		*fp = f;
 
 	return (result);
+}
+
+isc_result_t
+isc_file_bopenunique(char *templet, FILE **fp) {
+	int mode = S_IWUSR|S_IRUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+	return (isc_file_openuniquemode(templet, mode, fp));
+}
+
+isc_result_t
+isc_file_bopenuniqueprivate(char *templet, FILE **fp) {
+	int mode = S_IWUSR|S_IRUSR;
+	return (isc_file_openuniquemode(templet, mode, fp));
+}
+
+isc_result_t
+isc_file_bopenuniquemode(char *templet, int mode, FILE **fp) {
+	return (isc_file_openuniquemode(templet, mode, fp));
 }
 
 isc_result_t

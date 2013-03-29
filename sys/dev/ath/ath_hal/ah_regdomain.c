@@ -613,6 +613,8 @@ ath_hal_mapgsm(int sku, int freq)
 		return 1544 + freq;
 	if (sku == SKU_SR9)
 		return 3344 - freq;
+	if (sku == SKU_XC900M)
+		return 1517 + freq;
 	HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
 	    "%s: cannot map freq %u unknown gsm sku %u\n",
 	    __func__, freq, sku);
@@ -727,6 +729,7 @@ ath_hal_set_channels(struct ath_hal *ah,
 	case SKU_SR9:
 	case SKU_XR9:
 	case SKU_GZ901:
+	case SKU_XC900M:
 		/*
 		 * Map 900MHz sku's.  The frequencies will be mapped
 		 * according to the sku to compensate for the down-converter.

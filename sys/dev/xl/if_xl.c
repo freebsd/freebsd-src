@@ -161,7 +161,7 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct xl_type const xl_devs[] = {
+static const struct xl_type xl_devs[] = {
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT,
 		"3Com 3c900-TPO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT_COMBO,
@@ -1762,7 +1762,7 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 
 	XL_LOCK_ASSERT(sc);
 
-	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m_new == NULL)
 		return (ENOBUFS);
 
@@ -2358,7 +2358,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 	 * and would waste cycles.
 	 */
 	if (error) {
-		m_new = m_collapse(*m_head, M_DONTWAIT, XL_MAXFRAGS);
+		m_new = m_collapse(*m_head, M_NOWAIT, XL_MAXFRAGS);
 		if (m_new == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

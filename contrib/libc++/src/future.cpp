@@ -47,7 +47,7 @@ __future_error_category::message(int ev) const
 }
 
 const error_category&
-future_category()
+future_category() _NOEXCEPT
 {
     static __future_error_category __f;
     return __f;
@@ -78,8 +78,8 @@ __assoc_sub_state::set_value()
         throw future_error(make_error_code(future_errc::promise_already_satisfied));
 #endif
     __state_ |= __constructed | ready;
-    __lk.unlock();
     __cv_.notify_all();
+    __lk.unlock();
 }
 
 void

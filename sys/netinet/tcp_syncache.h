@@ -112,7 +112,6 @@ struct tcp_syncache {
 	u_int	hashsize;
 	u_int	hashmask;
 	u_int	bucket_limit;
-	u_int	cache_count;		/* XXX: unprotected */
 	u_int	cache_limit;
 	u_int	rexmt_limit;
 	u_int	hash_secret;

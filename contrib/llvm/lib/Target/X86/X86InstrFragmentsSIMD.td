@@ -29,6 +29,13 @@ def SDTX86VFCMP : SDTypeProfile<1, 3, [SDTCisInt<0>, SDTCisSameAs<1, 2>,
 
 def X86fmin    : SDNode<"X86ISD::FMIN",      SDTFPBinOp>;
 def X86fmax    : SDNode<"X86ISD::FMAX",      SDTFPBinOp>;
+
+// Commutative and Associative FMIN and FMAX.
+def X86fminc    : SDNode<"X86ISD::FMINC", SDTFPBinOp,
+    [SDNPCommutative, SDNPAssociative]>;
+def X86fmaxc    : SDNode<"X86ISD::FMAXC", SDTFPBinOp,
+    [SDNPCommutative, SDNPAssociative]>;
+
 def X86fand    : SDNode<"X86ISD::FAND",      SDTFPBinOp,
                         [SDNPCommutative, SDNPAssociative]>;
 def X86for     : SDNode<"X86ISD::FOR",       SDTFPBinOp,
@@ -73,16 +80,28 @@ def X86vzmovl  : SDNode<"X86ISD::VZEXT_MOVL",
                  SDTypeProfile<1, 1, [SDTCisSameAs<0,1>]>>;
 
 def X86vzmovly  : SDNode<"X86ISD::VZEXT_MOVL",
-                 SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>, 
+                 SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>,
                                       SDTCisOpSmallerThanOp<1, 0> ]>>;
 
 def X86vsmovl  : SDNode<"X86ISD::VSEXT_MOVL",
-                 SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisInt<1>, SDTCisInt<0>]>>;
+                 SDTypeProfile<1, 1,
+                 [SDTCisVec<0>, SDTCisInt<1>, SDTCisInt<0>]>>;
 
 def X86vzload  : SDNode<"X86ISD::VZEXT_LOAD", SDTLoad,
                         [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
 
+def X86vzext   : SDNode<"X86ISD::VZEXT",
+                         SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>,
+                                              SDTCisInt<0>, SDTCisInt<1>]>>;
+
+def X86vsext   : SDNode<"X86ISD::VSEXT",
+                         SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>,
+                                              SDTCisInt<0>, SDTCisInt<1>]>>;
+
 def X86vfpext  : SDNode<"X86ISD::VFPEXT",
+                        SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>,
+                                             SDTCisFP<0>, SDTCisFP<1>]>>;
+def X86vfpround: SDNode<"X86ISD::VFPROUND",
                         SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVec<1>,
                                              SDTCisFP<0>, SDTCisFP<1>]>>;
 
@@ -175,8 +194,8 @@ def X86Fmadd     : SDNode<"X86ISD::FMADD",     SDTFma>;
 def X86Fnmadd    : SDNode<"X86ISD::FNMADD",    SDTFma>;
 def X86Fmsub     : SDNode<"X86ISD::FMSUB",     SDTFma>;
 def X86Fnmsub    : SDNode<"X86ISD::FNMSUB",    SDTFma>;
-def X86Fmaddsub  : SDNode<"X86ISD::FMSUBADD",  SDTFma>;
-def X86Fmsubadd  : SDNode<"X86ISD::FMADDSUB",  SDTFma>;
+def X86Fmaddsub  : SDNode<"X86ISD::FMADDSUB",  SDTFma>;
+def X86Fmsubadd  : SDNode<"X86ISD::FMSUBADD",  SDTFma>;
 
 def SDT_PCMPISTRI : SDTypeProfile<2, 3, [SDTCisVT<0, i32>, SDTCisVT<1, i32>,
                                          SDTCisVT<2, v16i8>, SDTCisVT<3, v16i8>,
@@ -231,6 +250,10 @@ def loadv2i64    : PatFrag<(ops node:$ptr), (v2i64 (load node:$ptr))>;
 def loadv8f32    : PatFrag<(ops node:$ptr), (v8f32 (load node:$ptr))>;
 def loadv4f64    : PatFrag<(ops node:$ptr), (v4f64 (load node:$ptr))>;
 def loadv4i64    : PatFrag<(ops node:$ptr), (v4i64 (load node:$ptr))>;
+
+// 128-/256-bit extload pattern fragments
+def extloadv2f32 : PatFrag<(ops node:$ptr), (v2f64 (extloadvf32 node:$ptr))>;
+def extloadv4f32 : PatFrag<(ops node:$ptr), (v4f64 (extloadvf32 node:$ptr))>;
 
 // Like 'store', but always requires 128-bit vector alignment.
 def alignedstore : PatFrag<(ops node:$val, node:$ptr),

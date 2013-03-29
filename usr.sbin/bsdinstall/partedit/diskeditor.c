@@ -77,7 +77,7 @@ diskeditor_show(const char *title, const char *cprompt,
 	int partlist_height, partlist_width;
 	int cur_scroll = 0;
 	int key, fkey;
-	int cur_button = 0, cur_part = 0;
+	int cur_button = 5, cur_part = 0;
 	int result = DLG_EXIT_UNKNOWN;
 
 	static DLG_KEYS_BINDING binding[] = {

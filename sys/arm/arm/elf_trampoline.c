@@ -63,7 +63,7 @@ void __startC(void);
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 #elif defined(CPU_ARM10)
 #define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
-#elif defined(CPU_ARM11)
+#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
 #elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
     defined(CPU_IXP12X0)
@@ -701,3 +701,18 @@ __start(void)
 	do_call(dst, kernel, dst + (unsigned int)(&func_end) -
 	    (unsigned int)(&load_kernel) + 800, sp);
 }
+
+#ifdef __ARM_EABI__
+/* We need to provide these functions but never call them */
+void __aeabi_unwind_cpp_pr0(void);
+void __aeabi_unwind_cpp_pr1(void);
+void __aeabi_unwind_cpp_pr2(void);
+
+__strong_reference(__aeabi_unwind_cpp_pr0, __aeabi_unwind_cpp_pr1);
+__strong_reference(__aeabi_unwind_cpp_pr0, __aeabi_unwind_cpp_pr2);
+void
+__aeabi_unwind_cpp_pr0(void)
+{
+}
+#endif
+

@@ -88,8 +88,6 @@ public:
       return static_cast<const ElemTy*>(this);
     return 0;
   }
-
-  static bool classof(const CFGElement *E) { return true; }
 };
 
 class CFGStmt : public CFGElement {
@@ -568,6 +566,7 @@ public:
     bool AddEHEdges;
     bool AddInitializers;
     bool AddImplicitDtors;
+    bool AddTemporaryDtors;
 
     bool alwaysAdd(const Stmt *stmt) const {
       return alwaysAddMask[stmt->getStmtClass()];
@@ -587,7 +586,8 @@ public:
     : forcedBlkExprs(0), PruneTriviallyFalseEdges(true)
       ,AddEHEdges(false)
       ,AddInitializers(false)
-      ,AddImplicitDtors(false) {}
+      ,AddImplicitDtors(false)
+      ,AddTemporaryDtors(false) {}
   };
 
   /// \brief Provides a custom implementation of the iterator class to have the

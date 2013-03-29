@@ -288,6 +288,11 @@ error_code COFFObjectFile::getSymbolSection(DataRefImpl Symb,
   return object_error::success;
 }
 
+error_code COFFObjectFile::getSymbolValue(DataRefImpl Symb,
+                                          uint64_t &Val) const {
+  report_fatal_error("getSymbolValue unimplemented in COFFObjectFile");
+}
+
 error_code COFFObjectFile::getSectionNext(DataRefImpl Sec,
                                           SectionRef &Result) const {
   const coff_section *sec = toSec(Sec);
@@ -372,7 +377,14 @@ error_code COFFObjectFile::isSectionVirtual(DataRefImpl Sec,
 
 error_code COFFObjectFile::isSectionZeroInit(DataRefImpl Sec,
                                              bool &Result) const {
-  // FIXME: Unimplemented
+  // FIXME: Unimplemented.
+  Result = false;
+  return object_error::success;
+}
+
+error_code COFFObjectFile::isSectionReadOnlyData(DataRefImpl Sec,
+                                                bool &Result) const {
+  // FIXME: Unimplemented.
   Result = false;
   return object_error::success;
 }

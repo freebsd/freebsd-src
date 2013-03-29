@@ -37,7 +37,7 @@
 struct	ext2fs_direct {
 	uint32_t e2d_ino;		/* inode number of entry */
 	uint16_t e2d_reclen;		/* length of this record */
-	uint16_t e2d_namlen;		/* length of string in d_name */
+	uint16_t e2d_namlen;		/* length of string in e2d_name */
 	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
 };
 /*
@@ -49,7 +49,7 @@ struct	ext2fs_direct {
 struct	ext2fs_direct_2 {
 	uint32_t e2d_ino;		/* inode number of entry */
 	uint16_t e2d_reclen;		/* length of this record */
-	uint8_t e2d_namlen;		/* length of string in d_name */
+	uint8_t e2d_namlen;		/* length of string in e2d_name */
 	uint8_t e2d_type;		/* file type */
 	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
 };

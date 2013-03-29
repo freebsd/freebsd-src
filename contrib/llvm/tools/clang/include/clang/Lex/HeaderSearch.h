@@ -17,6 +17,7 @@
 #include "clang/Lex/DirectoryLookup.h"
 #include "clang/Lex/ModuleMap.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Allocator.h"
@@ -29,6 +30,7 @@ class DiagnosticsEngine;
 class ExternalIdentifierLookup;
 class FileEntry;
 class FileManager;
+class HeaderSearchOptions;
 class IdentifierInfo;
 
 /// \brief The preprocessor keeps track of this information for each
@@ -131,8 +133,10 @@ class HeaderSearch {
     bool IsUserSpecifiedSystemFramework;
   };
 
+  /// \brief Header-search options used to initialize this header search.
+  llvm::IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts;
+
   FileManager &FileMgr;
-  DiagnosticsEngine &Diags;
   /// \#include search path information.  Requests for \#include "x" search the
   /// directory of the \#including file first, then each directory in SearchDirs
   /// consecutively. Requests for <x> search the current dir first, then each
@@ -207,17 +211,21 @@ class HeaderSearch {
   unsigned NumFrameworkLookups, NumSubFrameworkLookups;
 
   // HeaderSearch doesn't support default or copy construction.
-  explicit HeaderSearch();
-  explicit HeaderSearch(const HeaderSearch&);
-  void operator=(const HeaderSearch&);
-  
+  HeaderSearch(const HeaderSearch&) LLVM_DELETED_FUNCTION;
+  void operator=(const HeaderSearch&) LLVM_DELETED_FUNCTION;
+
   friend class DirectoryLookup;
   
 public:
-  HeaderSearch(FileManager &FM, DiagnosticsEngine &Diags,
+  HeaderSearch(llvm::IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts,
+               FileManager &FM, DiagnosticsEngine &Diags,
                const LangOptions &LangOpts, const TargetInfo *Target);
   ~HeaderSearch();
 
+  /// \brief Retrieve the header-search options with which this header search
+  /// was initialized.
+  HeaderSearchOptions &getHeaderSearchOpts() const { return *HSOpts; }
+  
   FileManager &getFileMgr() const { return FileMgr; }
 
   /// \brief Interface for setting the file search paths.
@@ -283,6 +291,11 @@ public:
   
   /// \brief Retrieve the path to the module cache.
   StringRef getModuleCachePath() const { return ModuleCachePath; }
+
+  /// \brief Consider modules when including files from this directory.
+  void setDirectoryHasModuleMap(const DirectoryEntry* Dir) {
+    DirectoryHasModuleMap[Dir] = true;
+  }
   
   /// \brief Forget everything we know about headers so far.
   void ClearFileInfo() {

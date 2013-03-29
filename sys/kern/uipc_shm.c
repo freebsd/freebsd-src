@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
@@ -253,9 +254,9 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 	int base, rv;
 
 	object = shmfd->shm_object;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	if (length == shmfd->shm_size) {
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		return (0);
 	}
 	nobjsize = OFF_TO_IDX(length + PAGE_MASK);
@@ -267,7 +268,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		 * object is mapped into the kernel.
 		 */
 		if (shmfd->shm_kmappings > 0) {
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			return (EBUSY);
 		}
 
@@ -288,9 +289,9 @@ retry:
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
 				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 					VM_WAIT;
-					VM_OBJECT_LOCK(object);
+					VM_OBJECT_WLOCK(object);
 					goto retry;
 				} else if (m->valid != VM_PAGE_BITS_ALL) {
 					ma[0] = m;
@@ -308,7 +309,7 @@ retry:
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 					return (EIO);
 				}
 			}
@@ -338,7 +339,7 @@ retry:
 		/* Attempt to reserve the swap */
 		delta = ptoa(nobjsize - object->size);
 		if (!swap_reserve_by_cred(delta, object->cred)) {
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			return (ENOMEM);
 		}
 		object->charge += delta;
@@ -349,7 +350,7 @@ retry:
 	shmfd->shm_mtime = shmfd->shm_ctime;
 	mtx_unlock(&shm_timestamp_lock);
 	object->size = nobjsize;
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return (0);
 }
 
@@ -370,10 +371,10 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	shmfd->shm_object = vm_pager_allocate(OBJT_DEFAULT, NULL,
 	    shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
 	KASSERT(shmfd->shm_object != NULL, ("shm_create: vm_pager_allocate"));
-	VM_OBJECT_LOCK(shmfd->shm_object);
+	VM_OBJECT_WLOCK(shmfd->shm_object);
 	vm_object_clear_flag(shmfd->shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shmfd->shm_object, OBJ_NOSPLIT);
-	VM_OBJECT_UNLOCK(shmfd->shm_object);
+	VM_OBJECT_WUNLOCK(shmfd->shm_object);
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
@@ -629,8 +630,8 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	finit(fp, FFLAGS(uap->flags & O_ACCMODE), DTYPE_SHM, shmfd, &shm_ops);
 
 	FILEDESC_XLOCK(fdp);
-	if (fdp->fd_ofiles[fd] == fp)
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+	if (fdp->fd_ofiles[fd].fde_file == fp)
+		fdp->fd_ofiles[fd].fde_flags |= UF_EXCLOSE;
 	FILEDESC_XUNLOCK(fdp);
 	td->td_retval[0] = fd;
 	fdrop(fp, td);
@@ -761,20 +762,20 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 		return (EINVAL);
 	shmfd = fp->f_data;
 	obj = shmfd->shm_object;
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	/*
 	 * XXXRW: This validation is probably insufficient, and subject to
 	 * sign errors.  It should be fixed.
 	 */
 	if (offset >= shmfd->shm_size ||
 	    offset + size > round_page(shmfd->shm_size)) {
-		VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_WUNLOCK(obj);
 		return (EINVAL);
 	}
 
 	shmfd->shm_kmappings++;
 	vm_object_reference_locked(obj);
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 
 	/* Map the object into the kernel_map and wire it. */
 	kva = vm_map_min(kernel_map);
@@ -796,9 +797,9 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 		vm_object_deallocate(obj);
 
 	/* On failure, drop our mapping reference. */
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	shmfd->shm_kmappings--;
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 
 	return (vm_mmap_to_errno(rv));
 }
@@ -840,10 +841,10 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 	if (obj != shmfd->shm_object)
 		return (EINVAL);
 	vm_map_remove(map, kva, kva + size);
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	KASSERT(shmfd->shm_kmappings > 0, ("shm_unmap: object not mapped"));
 	shmfd->shm_kmappings--;
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 	return (0);
 }
 

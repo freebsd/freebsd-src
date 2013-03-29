@@ -511,7 +511,7 @@ pkg_do(char *pkg)
 	zapLogDir = 1;
 	if (Verbose)
 	    printf("Attempting to record package into %s..\n", LogDir);
-	if (make_hierarchy(LogDir)) {
+	if (make_hierarchy(LogDir, FALSE)) {
 	    warnx("can't record package into '%s', you're on your own!",
 		   LogDir);
 	    bzero(LogDir, FILENAME_MAX);

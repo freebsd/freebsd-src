@@ -153,7 +153,7 @@ arc4_stir(void)
 	if (arc4_sysctl((u_char *)&rdat, KEYSIZE) == KEYSIZE)
 		done = 1;
 	if (!done) {
-		fd = _open(RANDOMDEV, O_RDONLY, 0);
+		fd = _open(RANDOMDEV, O_RDONLY | O_CLOEXEC, 0);
 		if (fd >= 0) {
 			if (_read(fd, &rdat, KEYSIZE) == KEYSIZE)
 				done = 1;

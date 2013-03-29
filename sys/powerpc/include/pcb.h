@@ -89,6 +89,7 @@ extern struct pmap *curpm;
 extern struct proc *fpuproc;
 
 void	makectx(struct trapframe *, struct pcb *);
+void	savectx(struct pcb *) __returns_twice;
 
 #endif
 #endif	/* _MACHINE_PCB_H_ */

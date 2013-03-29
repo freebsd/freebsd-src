@@ -505,7 +505,7 @@ octm_rx_intr(void *arg)
 	}
 
 	for (;;) {
-		struct mbuf *m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		struct mbuf *m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			device_printf(sc->sc_dev, "no memory for receive mbuf.\n");
 			return;

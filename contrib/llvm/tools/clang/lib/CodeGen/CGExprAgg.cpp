@@ -549,8 +549,10 @@ AggExprEmitter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
 void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   switch (E->getCastKind()) {
   case CK_Dynamic: {
+    // FIXME: Can this actually happen? We have no test coverage for it.
     assert(isa<CXXDynamicCastExpr>(E) && "CK_Dynamic without a dynamic_cast?");
-    LValue LV = CGF.EmitCheckedLValue(E->getSubExpr());
+    LValue LV = CGF.EmitCheckedLValue(E->getSubExpr(),
+                                      CodeGenFunction::TCK_Load);
     // FIXME: Do we also need to handle property references here?
     if (LV.isSimple())
       CGF.EmitDynamicCast(LV.getAddress(), cast<CXXDynamicCastExpr>(E));
@@ -645,6 +647,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   case CK_ARCReclaimReturnedObject:
   case CK_ARCExtendBlockObject:
   case CK_CopyAndAutoreleaseBlockObject:
+  case CK_BuiltinFnToFnPtr:
     llvm_unreachable("cast kind invalid for aggregate types");
   }
 }
@@ -771,7 +774,7 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
     Visit(E->getRHS());
 
     // Now emit the LHS and copy into it.
-    LValue LHS = CGF.EmitLValue(E->getLHS());
+    LValue LHS = CGF.EmitCheckedLValue(E->getLHS(), CodeGenFunction::TCK_Store);
 
     EmitCopy(E->getLHS()->getType(),
              AggValueSlot::forLValue(LHS, AggValueSlot::IsDestructed,
@@ -1205,7 +1208,7 @@ static void CheckAggExprForMemSetUse(AggValueSlot &Slot, const Expr *E,
   if (Slot.isZeroed() || Slot.isVolatile() || Slot.getAddr() == 0) return;
 
   // C++ objects with a user-declared constructor don't need zero'ing.
-  if (CGF.getContext().getLangOpts().CPlusPlus)
+  if (CGF.getLangOpts().CPlusPlus)
     if (const RecordType *RT = CGF.getContext()
                        .getBaseElementType(E->getType())->getAs<RecordType>()) {
       const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
@@ -1271,10 +1274,11 @@ LValue CodeGenFunction::EmitAggExprToLValue(const Expr *E) {
 void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
                                         llvm::Value *SrcPtr, QualType Ty,
                                         bool isVolatile,
-                                        CharUnits alignment) {
+                                        CharUnits alignment,
+                                        bool isAssignment) {
   assert(!Ty->isAnyComplexType() && "Shouldn't happen for complex");
 
-  if (getContext().getLangOpts().CPlusPlus) {
+  if (getLangOpts().CPlusPlus) {
     if (const RecordType *RT = Ty->getAs<RecordType>()) {
       CXXRecordDecl *Record = cast<CXXRecordDecl>(RT->getDecl());
       assert((Record->hasTrivialCopyConstructor() || 
@@ -1300,9 +1304,13 @@ void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
   // implementation handles this case safely.  If there is a libc that does not
   // safely handle this, we can add a target hook.
 
-  // Get size and alignment info for this aggregate.
-  std::pair<CharUnits, CharUnits> TypeInfo = 
-    getContext().getTypeInfoInChars(Ty);
+  // Get data size and alignment info for this aggregate. If this is an
+  // assignment don't copy the tail padding. Otherwise copying it is fine.
+  std::pair<CharUnits, CharUnits> TypeInfo;
+  if (isAssignment)
+    TypeInfo = getContext().getTypeInfoDataSizeInChars(Ty);
+  else
+    TypeInfo = getContext().getTypeInfoInChars(Ty);
 
   if (alignment.isZero())
     alignment = TypeInfo.second;
@@ -1359,11 +1367,17 @@ void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
       }
     }
   }
+
+  // Determine the metadata to describe the position of any padding in this
+  // memcpy, as well as the TBAA tags for the members of the struct, in case
+  // the optimizer wishes to expand it in to scalar memory operations.
+  llvm::MDNode *TBAAStructTag = CGM.getTBAAStructInfo(Ty);
   
   Builder.CreateMemCpy(DestPtr, SrcPtr,
                        llvm::ConstantInt::get(IntPtrTy, 
                                               TypeInfo.first.getQuantity()),
-                       alignment.getQuantity(), isVolatile);
+                       alignment.getQuantity(), isVolatile,
+                       /*TBAATag=*/0, TBAAStructTag);
 }
 
 void CodeGenFunction::MaybeEmitStdInitializerListCleanup(llvm::Value *loc,

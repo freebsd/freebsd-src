@@ -452,8 +452,8 @@ netfilter_platform_finddevs(pcap_if_t **alldevsp, char *err_str)
 	
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_NETFILTER);
 	if (sock < 0) {
-		/* if netlink is not supported this this is not fatal */
-		if (errno == EAFNOSUPPORT)
+		/* if netlink is not supported this is not fatal */
+		if (errno == EAFNOSUPPORT || errno == EPROTONOSUPPORT)
 			return 0;
 		snprintf(err_str, PCAP_ERRBUF_SIZE, "Can't open netlink socket %d:%s",
 			errno, pcap_strerror(errno));

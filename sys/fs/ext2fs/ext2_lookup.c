@@ -88,9 +88,8 @@ static u_char ext2_ft_to_dt[] = {
 	DT_SOCK,		/* EXT2_FT_SOCK */
 	DT_LNK,			/* EXT2_FT_SYMLINK */
 };
-#define	FTTODT(ft)						\
-    ((ft) > sizeof(ext2_ft_to_dt) / sizeof(ext2_ft_to_dt[0]) ?	\
-    DT_UNKNOWN : ext2_ft_to_dt[(ft)])
+#define	FTTODT(ft) \
+    ((ft) < nitems(ext2_ft_to_dt) ? ext2_ft_to_dt[(ft)] : DT_UNKNOWN)
 
 static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* DT_UNKNOWN */
@@ -109,9 +108,8 @@ static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* unused */
 	EXT2_FT_UNKNOWN,	/* DT_WHT */
 };
-#define	DTTOFT(dt)						\
-    ((dt) > sizeof(dt_to_ext2_ft) / sizeof(dt_to_ext2_ft[0]) ?	\
-    EXT2_FT_UNKNOWN : dt_to_ext2_ft[(dt)])
+#define	DTTOFT(dt) \
+    ((dt) < nitems(dt_to_ext2_ft) ? dt_to_ext2_ft[(dt)] : EXT2_FT_UNKNOWN)
 
 static int	ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 		    int entryoffsetinblock);
@@ -131,12 +129,7 @@ static int	ext2_lookup_ino(struct vnode *vdp, struct vnode **vpp,
  * the whole buffer to uiomove
  */
 int
-ext2_readdir(ap)
-	struct vop_readdir_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-	} */ *ap;
+ext2_readdir(struct vop_readdir_args *ap)
 {
 	struct uio *uio = ap->a_uio;
 	int count, error;
@@ -280,12 +273,7 @@ ext2_readdir(ap)
  *	  nor deleting, add name to cache
  */
 int
-ext2_lookup(ap)
-	struct vop_cachedlookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
+ext2_lookup(struct vop_cachedlookup_args *ap)
 {
 
 	return (ext2_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
@@ -724,10 +712,7 @@ found:
 }
 
 void
-ext2_dirbad(ip, offset, how)
-	struct inode *ip;
-	doff_t offset;
-	char *how;
+ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 {
 	struct mount *mp;
 
@@ -753,10 +738,8 @@ ext2_dirbad(ip, offset, how)
  *	changed so that it confirms to ext2_check_dir_entry
  */
 static int
-ext2_dirbadentry(dp, de, entryoffsetinblock)
-	struct vnode *dp;
-	struct ext2fs_direct_2 *de;
-	int entryoffsetinblock;
+ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
+    int entryoffsetinblock)
 {
 	int	DIRBLKSIZ = VTOI(dp)->i_e2fs->e2fs_bsize;
 
@@ -793,10 +776,7 @@ ext2_dirbadentry(dp, de, entryoffsetinblock)
  * entry is to be obtained.
  */
 int
-ext2_direnter(ip, dvp, cnp)
-	struct inode *ip;
-	struct vnode *dvp;
-	struct componentname *cnp;
+ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 {
 	struct ext2fs_direct_2 *ep, *nep;
 	struct inode *dp;
@@ -812,7 +792,7 @@ ext2_direnter(ip, dvp, cnp)
 
 #ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & SAVENAME) == 0)
-		panic("direnter: missing name");
+		panic("ext2_direnter: missing name");
 #endif
 	dp = VTOI(dvp);
 	newdir.e2d_ino = ip->i_number;
@@ -946,9 +926,7 @@ ext2_direnter(ip, dvp, cnp)
  * to the size of the previous entry.
  */
 int
-ext2_dirremove(dvp, cnp)
-	struct vnode *dvp;
-	struct componentname *cnp;
+ext2_dirremove(struct vnode *dvp, struct componentname *cnp)
 {
 	struct inode *dp;
 	struct ext2fs_direct_2 *ep, *rep;
@@ -996,9 +974,7 @@ ext2_dirremove(dvp, cnp)
  * set up by a call to namei.
  */
 int
-ext2_dirrewrite(dp, ip, cnp)
-	struct inode *dp, *ip;
-	struct componentname *cnp;
+ext2_dirrewrite(struct inode *dp, struct inode *ip, struct componentname *cnp)
 {
 	struct buf *bp;
 	struct ext2fs_direct_2 *ep;
@@ -1029,10 +1005,7 @@ ext2_dirrewrite(dp, ip, cnp)
  * NB: does not handle corrupted directories.
  */
 int
-ext2_dirempty(ip, parentino, cred)
-	struct inode *ip;
-	ino_t parentino;
-	struct ucred *cred;
+ext2_dirempty(struct inode *ip, ino_t parentino, struct ucred *cred)
 {
 	off_t off;
 	struct dirtemplate dbuf;
@@ -1083,12 +1056,10 @@ ext2_dirempty(ip, parentino, cred)
  * The target is always vput before returning.
  */
 int
-ext2_checkpath(source, target, cred)
-	struct inode *source, *target;
-	struct ucred *cred;
+ext2_checkpath(struct inode *source, struct inode *target, struct ucred *cred)
 {
 	struct vnode *vp;
-	int error, rootino, namlen;
+	int error, namlen;
 	struct dirtemplate dirbuf;
 
 	vp = ITOV(target);
@@ -1096,10 +1067,10 @@ ext2_checkpath(source, target, cred)
 		error = EEXIST;
 		goto out;
 	}
-	rootino = EXT2_ROOTINO;
-	error = 0;
-	if (target->i_number == rootino)
+	if (target->i_number == EXT2_ROOTINO) {
+		error = 0;
 		goto out;
+	}
 
 	for (;;) {
 		if (vp->v_type != VDIR) {
@@ -1123,7 +1094,7 @@ ext2_checkpath(source, target, cred)
 			error = EINVAL;
 			break;
 		}
-		if (dirbuf.dotdot_ino == rootino)
+		if (dirbuf.dotdot_ino == EXT2_ROOTINO)
 			break;
 		vput(vp);
 		if ((error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino,

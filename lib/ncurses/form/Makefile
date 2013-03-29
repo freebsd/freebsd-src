@@ -59,7 +59,6 @@ LDADD=	-lncurses${LIB_SUFFIX}
 
 .if defined(ENABLE_WIDEC)
 INCS=	form.h
-.endif
 
 .PATH: ${NCURSES_DIR}/man
 MAN=	\
@@ -157,6 +156,9 @@ MLINKS=	form_cursor.3 pos_form_cursor.3 \
 	form_win.3 scale_form.3 \
 	form_win.3 set_form_sub.3 \
 	form_win.3 set_form_win.3
+.else
+NO_MAN=
+.endif
 
 .include <bsd.lib.mk>
 

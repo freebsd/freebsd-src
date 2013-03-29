@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asldefine.h - Common defines for the iASL compiler
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,8 +125,9 @@
 /* Types for input files */
 
 #define ASL_INPUT_TYPE_BINARY       0
-#define ASL_INPUT_TYPE_ASCII_ASL    1
-#define ASL_INPUT_TYPE_ASCII_DATA   2
+#define ASL_INPUT_TYPE_ACPI_TABLE   1
+#define ASL_INPUT_TYPE_ASCII_ASL    2
+#define ASL_INPUT_TYPE_ASCII_DATA   3
 
 
 /* Misc */
@@ -174,4 +174,3 @@
     RsCreateResourceField (Op, Name, ByteOffset, 0, 64);
 
 #endif /* ASLDEFINE.H */
-

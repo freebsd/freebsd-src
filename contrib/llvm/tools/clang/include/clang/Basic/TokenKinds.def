@@ -217,6 +217,7 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //   KEYALTIVEC - This is a keyword in AltiVec
 //   KEYBORLAND - This is a keyword if Borland extensions are enabled
 //   BOOLSUPPORT - This is a keyword if 'bool' is a built-in type
+//   WCHARSUPPORT - This is a keyword if 'wchar_t' is a built-in type
 //
 KEYWORD(auto                        , KEYALL)
 KEYWORD(break                       , KEYALL)
@@ -295,7 +296,7 @@ KEYWORD(typename                    , KEYCXX)
 KEYWORD(typeid                      , KEYCXX)
 KEYWORD(using                       , KEYCXX)
 KEYWORD(virtual                     , KEYCXX)
-KEYWORD(wchar_t                     , KEYCXX)
+KEYWORD(wchar_t                     , WCHARSUPPORT)
 
 // C++ 2.5p2: Alternative Representations.
 CXX_KEYWORD_OPERATOR(and     , ampamp)
@@ -364,6 +365,7 @@ KEYWORD(__is_convertible_to         , KEYCXX)
 KEYWORD(__is_empty                  , KEYCXX)
 KEYWORD(__is_enum                   , KEYCXX)
 KEYWORD(__is_final                  , KEYCXX)
+KEYWORD(__is_interface_class        , KEYCXX)
 // Tentative name - there's no implementation of std::is_literal_type yet.
 KEYWORD(__is_literal                , KEYCXX)
 // Name for GCC 4.6 compatibility - people have already written libraries using
@@ -505,6 +507,7 @@ KEYWORD(__if_not_exists               , KEYMS)
 KEYWORD(__single_inheritance          , KEYMS)
 KEYWORD(__multiple_inheritance        , KEYMS)
 KEYWORD(__virtual_inheritance         , KEYMS)
+KEYWORD(__interface                   , KEYMS)
 ALIAS("__int8"           , char       , KEYMS)
 ALIAS("__int16"          , short      , KEYMS)
 ALIAS("__int32"          , int        , KEYMS)
@@ -518,7 +521,6 @@ ALIAS("_thiscall"        , __thiscall , KEYMS)
 ALIAS("_uuidof"          , __uuidof   , KEYMS | KEYBORLAND)
 ALIAS("_inline"          , inline     , KEYMS)
 ALIAS("_declspec"        , __declspec , KEYMS)
-ALIAS("__interface"      , struct     , KEYMS)
 
 // Borland Extensions which should be disabled in strict conformance mode.
 ALIAS("_pascal"      , __pascal   , KEYBORLAND)
@@ -599,6 +601,41 @@ ANNOTATION(pragma_pack)
 // The lexer produces these so that they only take effect when the parser
 // handles them.
 ANNOTATION(pragma_parser_crash)
+
+// Annotation for #pragma ms_struct...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_msstruct)
+
+// Annotation for #pragma align...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_align)
+
+// Annotation for #pragma weak id
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_weak)
+
+// Annotation for #pragma weak id = id
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_weakalias)
+
+// Annotation for #pragma redefine_extname...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_redefine_extname)
+
+// Annotation for #pragma STDC FP_CONTRACT...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_fp_contract)
+
+// Annotation for #pragma OPENCL EXTENSION...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_opencl_extension)
 
 #undef ANNOTATION
 #undef TESTING_KEYWORD

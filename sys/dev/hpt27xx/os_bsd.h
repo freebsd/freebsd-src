@@ -135,9 +135,9 @@ INQUIRYDATA, *PINQUIRYDATA;
 #include <dev/hpt27xx/ldm.h>
 
 /* driver parameters */
-extern char driver_name[];
-extern char driver_name_long[];
-extern char driver_ver[];
+extern const char driver_name[];
+extern const char driver_name_long[];
+extern const char driver_ver[];
 extern int  osm_max_targets;
 
 /*

@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -67,6 +70,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_UGEN
 
@@ -127,9 +131,8 @@ struct usb_fifo_methods usb_ugen_methods = {
 static int ugen_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
-SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW, &ugen_debug,
+SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &ugen_debug,
     0, "Debug level");
-
 TUNABLE_INT("hw.usb.ugen.debug", &ugen_debug);
 #endif
 
@@ -716,12 +719,19 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	return (error);
 }
 
+/*
+ * This function is called having the enumeration SX locked which
+ * protects the scratch area used.
+ */
 static int
 ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 {
-	void *ptr = f->udev->bus->scratch[0].data;
-	uint16_t size = sizeof(f->udev->bus->scratch[0].data);
+	void *ptr;
+	uint16_t size;
 	int error;
+
+	ptr = f->udev->scratch.data;
+	size = sizeof(f->udev->scratch.data);
 
 	if (usbd_req_get_string_desc(f->udev, NULL, ptr,
 	    size, ugd->ugd_lang_id, ugd->ugd_string_index)) {
@@ -1831,6 +1841,17 @@ ugen_get_power_mode(struct usb_fifo *f)
 }
 
 static int
+ugen_get_power_usage(struct usb_fifo *f)
+{
+	struct usb_device *udev = f->udev;
+
+	if (udev == NULL)
+		return (0);
+
+	return (udev->power);
+}
+
+static int
 ugen_do_port_feature(struct usb_fifo *f, uint8_t port_no,
     uint8_t set, uint16_t feature)
 {
@@ -2190,6 +2211,10 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_GET_POWER_MODE:
 		*u.pint = ugen_get_power_mode(f);
+		break;
+
+	case USB_GET_POWER_USAGE:
+		*u.pint = ugen_get_power_usage(f);
 		break;
 
 	case USB_SET_PORT_ENABLE:

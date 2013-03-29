@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -100,7 +101,7 @@ addino(ino_t inum, struct entry *np)
 	struct entry **epp;
 
 	if (inum < WINO || inum >= maxino)
-		panic("addino: out of range %d\n", inum);
+		panic("addino: out of range %ju\n", (uintmax_t)inum);
 	epp = &entry[inum % entrytblsize];
 	np->e_ino = inum;
 	np->e_next = *epp;
@@ -121,7 +122,7 @@ deleteino(ino_t inum)
 	struct entry **prev;
 
 	if (inum < WINO || inum >= maxino)
-		panic("deleteino: out of range %d\n", inum);
+		panic("deleteino: out of range %ju\n", (uintmax_t)inum);
 	prev = &entry[inum % entrytblsize];
 	for (next = *prev; next != NULL; next = next->e_next) {
 		if (next->e_ino == inum) {
@@ -131,7 +132,7 @@ deleteino(ino_t inum)
 		}
 		prev = &next->e_next;
 	}
-	panic("deleteino: %d not found\n", inum);
+	panic("deleteino: %ju not found\n", (uintmax_t)inum);
 }
 
 /*

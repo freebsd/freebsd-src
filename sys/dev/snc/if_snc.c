@@ -66,9 +66,7 @@ devclass_t snc_devclass;
  * Allocate a port resource with the given resource id.
  */
 int
-snc_alloc_port(dev, rid)
-	device_t dev;
-	int rid;
+snc_alloc_port(device_t dev, int rid)
 {
 	struct snc_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -91,9 +89,7 @@ snc_alloc_port(dev, rid)
  * Allocate a memory resource with the given resource id.
  */
 int
-snc_alloc_memory(dev, rid)
-	device_t dev;
-	int rid;
+snc_alloc_memory(device_t dev, int rid)
 {
 	struct snc_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -116,10 +112,7 @@ snc_alloc_memory(dev, rid)
  * Allocate an irq resource with the given resource id.
  */
 int
-snc_alloc_irq(dev, rid, flags)
-	device_t dev;
-	int rid;
-	int flags;
+snc_alloc_irq(device_t dev, int rid, int flags)
 {
 	struct snc_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -139,8 +132,7 @@ snc_alloc_irq(dev, rid, flags)
  * Release all resources
  */
 void
-snc_release_resources(dev)
-	device_t dev;
+snc_release_resources(device_t dev)
 {
 	struct snc_softc *sc = device_get_softc(dev);
 
@@ -170,9 +162,7 @@ snc_release_resources(dev)
  ****************************************************************/
 
 int
-snc_probe(dev, type)
-     device_t dev;
-     int type;
+snc_probe(device_t dev, int type)
 {
 	struct snc_softc *sc = device_get_softc(dev);
 
@@ -188,8 +178,7 @@ snc_probe(dev, type)
  ****************************************************************/
 
 int
-snc_attach(dev)
-	device_t dev;
+snc_attach(device_t dev)
 {
 	struct snc_softc *sc = device_get_softc(dev);
 	u_int8_t myea[ETHER_ADDR_LEN];
@@ -253,8 +242,7 @@ snc_attach(dev)
  ****************************************************************/
 
 int
-snc_shutdown(dev)
-	device_t dev;
+snc_shutdown(device_t dev)
 {
 	struct snc_softc *sc = device_get_softc(dev);
 

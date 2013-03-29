@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/signalvar.h>
+#include <vm/uma.h>
 
 #include <machine/cputypes.h>
 #include <machine/frame.h>
@@ -134,6 +135,7 @@ SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
 static int use_xsaveopt;
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
+static	uma_zone_t fpu_save_area_zone;
 static	struct savefpu *fpu_initialstate;
 
 struct xsave_area_elm_descr {
@@ -151,7 +153,7 @@ fpusave(void *addr)
 		fxsave((char *)addr);
 }
 
-static void
+void
 fpurestore(void *addr)
 {
 
@@ -311,6 +313,10 @@ fpuinitstate(void *arg __unused)
 			xsave_area_desc[i].size = cp[0];
 		}
 	}
+
+	fpu_save_area_zone = uma_zcreate("FPU_save_area",
+	    cpu_max_ext_state_size, NULL, NULL, NULL, NULL,
+	    XSAVE_AREA_ALIGN - 1, 0);
 
 	start_emulating();
 	intr_restore(saveintr);
@@ -979,4 +985,28 @@ is_fpu_kern_thread(u_int flags)
 	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
 		return (0);
 	return ((curpcb->pcb_flags & PCB_KERNFPU) != 0);
+}
+
+/*
+ * FPU save area alloc/free/init utility routines
+ */
+struct savefpu *
+fpu_save_area_alloc(void)
+{
+
+	return (uma_zalloc(fpu_save_area_zone, 0));
+}
+
+void
+fpu_save_area_free(struct savefpu *fsa)
+{
+
+	uma_zfree(fpu_save_area_zone, fsa);
+}
+
+void
+fpu_save_area_reset(struct savefpu *fsa)
+{
+
+	bcopy(fpu_initialstate, fsa, cpu_max_ext_state_size);
 }

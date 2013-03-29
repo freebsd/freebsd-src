@@ -69,7 +69,7 @@ struct g_slicer {
 };
 
 g_dumpconf_t g_slice_dumpconf;
-int g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...);
+int g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...) __printflike(7, 8);
 void g_slice_spoiled(struct g_consumer *cp);
 void g_slice_orphan(struct g_consumer *cp);
 #define G_SLICE_CONFIG_CHECK	0

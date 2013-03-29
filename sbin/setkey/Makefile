@@ -61,7 +61,7 @@ CLEANFILES+=	scriptdump y.tab.h
 
 #SCRIPTS= scriptdump
 
-LOCALPREFIX=	/usr
+LOCALPREFIX=	/usr/local
 
 scriptdump: scriptdump.pl
 	sed -e 's#@LOCALPREFIX@#${LOCALPREFIX}#' < $> > scriptdump

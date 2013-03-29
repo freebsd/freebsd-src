@@ -50,16 +50,33 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/cpu.h>
 
+#define	INTRNAME_LEN	(MAXCOMLEN + 1)
+
 typedef void (*mask_fn)(void *);
 
 static struct intr_event *intr_events[NIRQ];
-static int intrcnt_tab[NIRQ];
-static int intrcnt_index = 0;
-static int last_printed = 0;
 
 void	arm_handler_execute(struct trapframe *, int);
 
 void (*arm_post_filter)(void *) = NULL;
+
+/*
+ * Pre-format intrnames into an array of fixed-size strings containing spaces.
+ * This allows us to avoid the need for an intermediate table of indices into
+ * the names and counts arrays, while still meeting the requirements and
+ * assumptions of vmstat(8) and the kdb "show intrcnt" command, the two
+ * consumers of this data.
+ */
+void
+arm_intrnames_init(void)
+{
+	int i;
+
+	for (i = 0; i < NIRQ; ++i) {
+		snprintf(&intrnames[i * INTRNAME_LEN], INTRNAME_LEN, "%-*s",
+		    INTRNAME_LEN - 1, "");
+	}
+}
 
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt,
@@ -78,14 +95,8 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		if (error)
 			return;
 		intr_events[irq] = event;
-		last_printed +=
-		    snprintf(intrnames + last_printed,
-		    MAXCOMLEN + 1,
-		    "irq%d: %s", irq, name);
-		last_printed++;
-		intrcnt_tab[irq] = intrcnt_index;
-		intrcnt_index++;
-		
+		snprintf(&intrnames[irq * INTRNAME_LEN], INTRNAME_LEN, 
+		    "irq%d: %-*s", irq, INTRNAME_LEN - 1, name);
 	}
 	intr_event_add_handler(event, name, filt, hand, arg,
 	    intr_priority(flags), flags, cookiep);
@@ -122,7 +133,7 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 	PCPU_INC(cnt.v_intr);
 	i = -1;
 	while ((i = arm_get_next_irq(i)) != -1) {
-		intrcnt[intrcnt_tab[i]]++;
+		intrcnt[i]++;
 		event = intr_events[i];
 		if (intr_event_handle(event, frame) != 0) {
 			/* XXX: Log stray IRQs */

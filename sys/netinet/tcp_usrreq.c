@@ -370,7 +370,8 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 		tp->t_state = TCPS_LISTEN;
 		solisten_proto(so, backlog);
 #ifdef TCP_OFFLOAD
-		tcp_offload_listen_start(tp);
+		if ((so->so_options & SO_NO_OFFLOAD) == 0)
+			tcp_offload_listen_start(tp);
 #endif
 	}
 	SOCK_UNLOCK(so);
@@ -414,7 +415,8 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 		tp->t_state = TCPS_LISTEN;
 		solisten_proto(so, backlog);
 #ifdef TCP_OFFLOAD
-		tcp_offload_listen_start(tp);
+		if ((so->so_options & SO_NO_OFFLOAD) == 0)
+			tcp_offload_listen_start(tp);
 #endif
 	}
 	SOCK_UNLOCK(so);
@@ -468,6 +470,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
+	    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 	    (error = tcp_offload_connect(so, nam)) == 0)
 		goto out;
 #endif
@@ -534,6 +537,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			goto out;
 #ifdef TCP_OFFLOAD
 		if (registered_toedevs > 0 &&
+		    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 		    (error = tcp_offload_connect(so, nam)) == 0)
 			goto out;
 #endif
@@ -550,6 +554,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
+	    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 	    (error = tcp_offload_connect(so, nam)) == 0)
 		goto out;
 #endif
@@ -766,6 +771,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_rcvd(tp);
+	else
 #endif
 	tcp_output(tp);
 
@@ -1473,7 +1479,6 @@ unlock_and_done:
 
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
-		case TCP_KEEPCNT:
 		case TCP_KEEPINIT:
 			INP_WUNLOCK(inp);
 			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
@@ -1506,13 +1511,6 @@ unlock_and_done:
 					tcp_timer_activate(tp, TT_2MSL,
 					    TP_MAXIDLE(tp));
 				break;
-			case TCP_KEEPCNT:
-				tp->t_keepcnt = ui;
-				if ((tp->t_state == TCPS_FIN_WAIT_2) &&
-				    (TP_MAXIDLE(tp) > 0))
-					tcp_timer_activate(tp, TT_2MSL,
-					    TP_MAXIDLE(tp));
-				break;
 			case TCP_KEEPINIT:
 				tp->t_keepinit = ui;
 				if (tp->t_state == TCPS_SYN_RECEIVED ||
@@ -1521,6 +1519,20 @@ unlock_and_done:
 					    TP_KEEPINIT(tp));
 				break;
 			}
+			goto unlock_and_done;
+
+		case TCP_KEEPCNT:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &ui, sizeof(ui), sizeof(ui));
+			if (error)
+				return (error);
+
+			INP_WLOCK_RECHECK(inp);
+			tp->t_keepcnt = ui;
+			if ((tp->t_state == TCPS_FIN_WAIT_2) &&
+			    (TP_MAXIDLE(tp) > 0))
+				tcp_timer_activate(tp, TT_2MSL,
+				    TP_MAXIDLE(tp));
 			goto unlock_and_done;
 
 		default:

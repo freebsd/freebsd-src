@@ -61,7 +61,7 @@
 #else
 #define PTE_NOCACHE	1
 #endif
-#define PTE_CACHE	4
+#define PTE_CACHE	6
 #define PTE_DEVICE	2
 #define PTE_PAGETABLE	4
 #else
@@ -92,15 +92,14 @@ enum mem_type {
 
 #ifdef _KERNEL
 
-#define vtophys(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
-#define pmap_kextract(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
+#define vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 #endif
 
-#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
+#define	pmap_page_get_memattr(m)	((m)->md.pv_memattr)
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
-#define	pmap_page_set_memattr(m, ma)	(void)0
+void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 
 /*
  * Pmap stuff
@@ -120,6 +119,7 @@ struct	pv_entry;
 
 struct	md_page {
 	int pvh_attrs;
+	vm_memattr_t	 pv_memattr;
 	vm_offset_t pv_kva;		/* first kernel VA mapping */
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
@@ -222,12 +222,13 @@ extern vm_paddr_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
+void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
+vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
@@ -532,6 +533,8 @@ extern pt_entry_t		pte_l1_c_proto;
 extern pt_entry_t		pte_l2_s_proto;
 
 extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
+extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
+    vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
 #if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
@@ -550,7 +553,7 @@ void	pmap_pte_init_arm10(void);
 #endif /* CPU_ARM10 */
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
-#endif /* CPU_ARM11 */
+#endif /* (ARM_MMU_V6 + ARM_MMU_V7) != 0 */
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
 #if /* ARM_MMU_SA1 == */1
@@ -615,8 +618,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	PVF_UNMAN	0x80		/* mapping is unmanaged */
 
 void vector_page_setprot(int);
-
-void pmap_update(pmap_t);
 
 /*
  * This structure is used by machine-dependent code to describe

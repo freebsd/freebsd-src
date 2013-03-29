@@ -17,7 +17,7 @@
 .\"     @(#)pkg_delete.1
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2008
+.Dd November 9, 2012
 .Dt PKG_DELETE 1
 .Os
 .Sh NAME
@@ -276,6 +276,10 @@ specifies an alternative location for the installed package database.
 .Bl -tag -width /var/db/pkg -compact
 .It Pa /var/db/pkg
 Default location of the installed package database.
+.It Ev PKG_OLD_NOWARN
+If set
+.Nm
+will not warn about its use in the presence of pkgng databases.
 .El
 .Sh SEE ALSO
 .Xr pkg_add 1 ,

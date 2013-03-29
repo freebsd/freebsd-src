@@ -36,7 +36,7 @@
 #include <string.h>
 #include <libproc.h>
 
-int
+int __noinline
 t1_bkpt_t()
 {
 	printf("TEST OK\n");

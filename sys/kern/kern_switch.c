@@ -176,6 +176,12 @@ retry:
 /*
  * Kernel thread preemption implementation.  Critical sections mark
  * regions of code in which preemptions are not allowed.
+ *
+ * It might seem a good idea to inline critical_enter() but, in order
+ * to prevent instructions reordering by the compiler, a __compiler_membar()
+ * would have to be used here (the same as sched_pin()).  The performance
+ * penalty imposed by the membar could, then, produce slower code than
+ * the function call itself, for most cases.
  */
 void
 critical_enter(void)

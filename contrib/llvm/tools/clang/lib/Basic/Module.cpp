@@ -23,8 +23,8 @@ using namespace clang;
 
 Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent, 
                bool IsFramework, bool IsExplicit)
-  : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent), 
-    Umbrella(), IsAvailable(true), IsFromModuleFile(false), 
+  : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent),
+    Umbrella(), ASTFile(0), IsAvailable(true), IsFromModuleFile(false),
     IsFramework(IsFramework), IsExplicit(IsExplicit), IsSystem(false),
     InferSubmodules(false), InferExplicitSubmodules(false), 
     InferExportWildcard(false), NameVisibility(Hidden) 
@@ -217,6 +217,13 @@ void Module::print(llvm::raw_ostream &OS, unsigned Indent) const {
     OS.indent(Indent + 2);
     OS << "header \"";
     OS.write_escaped(Headers[I]->getName());
+    OS << "\"\n";
+  }
+
+  for (unsigned I = 0, N = ExcludedHeaders.size(); I != N; ++I) {
+    OS.indent(Indent + 2);
+    OS << "exclude header \"";
+    OS.write_escaped(ExcludedHeaders[I]->getName());
     OS << "\"\n";
   }
   

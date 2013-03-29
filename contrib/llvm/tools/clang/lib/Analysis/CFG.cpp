@@ -467,6 +467,30 @@ private:
         CachedBoolEvals[S] = Result; // update or insert
         return Result;
       }
+      else {
+        switch (Bop->getOpcode()) {
+          default: break;
+          // For 'x & 0' and 'x * 0', we can determine that
+          // the value is always false.
+          case BO_Mul:
+          case BO_And: {
+            // If either operand is zero, we know the value
+            // must be false.
+            llvm::APSInt IntVal;
+            if (Bop->getLHS()->EvaluateAsInt(IntVal, *Context)) {
+              if (IntVal.getBoolValue() == false) {
+                return TryResult(false);
+              }
+            }
+            if (Bop->getRHS()->EvaluateAsInt(IntVal, *Context)) {
+              if (IntVal.getBoolValue() == false) {
+                return TryResult(false);
+              }
+            }
+          }
+          break;
+        }
+      }
     }
 
     return evaluateAsBooleanConditionNoCache(S);
@@ -682,7 +706,7 @@ CFGBlock *CFGBuilder::addInitializer(CXXCtorInitializer *I) {
       IsReference = FD->getType()->isReferenceType();
     HasTemporaries = isa<ExprWithCleanups>(Init);
 
-    if (BuildOpts.AddImplicitDtors && HasTemporaries) {
+    if (BuildOpts.AddTemporaryDtors && HasTemporaries) {
       // Generate destructors for temporaries in initialization expression.
       VisitForTemporaryDtors(cast<ExprWithCleanups>(Init)->getSubExpr(),
           IsReference);
@@ -1021,6 +1045,14 @@ CFGBlock *CFGBuilder::Visit(Stmt * S, AddStmtChoice asc) {
 
     case Stmt::ExprWithCleanupsClass:
       return VisitExprWithCleanups(cast<ExprWithCleanups>(S), asc);
+
+    case Stmt::CXXDefaultArgExprClass:
+      // FIXME: The expression inside a CXXDefaultArgExpr is owned by the
+      // called function's declaration, not by the caller. If we simply add
+      // this expression to the CFG, we could end up with the same Expr
+      // appearing multiple times.
+      // PR13385 / <rdar://problem/12156507>
+      return VisitStmt(S, asc);
 
     case Stmt::CXXBindTemporaryExprClass:
       return VisitCXXBindTemporaryExpr(cast<CXXBindTemporaryExpr>(S), asc);
@@ -1585,7 +1617,7 @@ CFGBlock *CFGBuilder::VisitDeclSubExpr(DeclStmt *DS) {
     IsReference = VD->getType()->isReferenceType();
     HasTemporaries = isa<ExprWithCleanups>(Init);
 
-    if (BuildOpts.AddImplicitDtors && HasTemporaries) {
+    if (BuildOpts.AddTemporaryDtors && HasTemporaries) {
       // Generate destructors for temporaries in initialization expression.
       VisitForTemporaryDtors(cast<ExprWithCleanups>(Init)->getSubExpr(),
           IsReference);
@@ -1616,8 +1648,10 @@ CFGBlock *CFGBuilder::VisitDeclSubExpr(DeclStmt *DS) {
 
   // If the type of VD is a VLA, then we must process its size expressions.
   for (const VariableArrayType* VA = FindVA(VD->getType().getTypePtr());
-       VA != 0; VA = FindVA(VA->getElementType().getTypePtr()))
-    Block = addStmt(VA->getSizeExpr());
+       VA != 0; VA = FindVA(VA->getElementType().getTypePtr())) {
+    if (CFGBlock *newBlock = addStmt(VA->getSizeExpr()))
+      LastBlock = newBlock;
+  }
 
   // Remove variable from local scope.
   if (ScopePos && VD == *ScopePos)
@@ -1735,7 +1769,7 @@ CFGBlock *CFGBuilder::VisitIfStmt(IfStmt *I) {
   // Add the condition as the last statement in the new block.  This may create
   // new blocks as the condition may contain control-flow.  Any newly created
   // blocks will be pointed to be "Block".
-  Block = addStmt(I->getCond());
+  CFGBlock *LastBlock = addStmt(I->getCond());
 
   // Finally, if the IfStmt contains a condition variable, add both the IfStmt
   // and the condition variable initialization to the CFG.
@@ -1743,11 +1777,11 @@ CFGBlock *CFGBuilder::VisitIfStmt(IfStmt *I) {
     if (Expr *Init = VD->getInit()) {
       autoCreateBlock();
       appendStmt(Block, I->getConditionVariableDeclStmt());
-      addStmt(Init);
+      LastBlock = addStmt(Init);
     }
   }
 
-  return Block;
+  return LastBlock;
 }
 
 
@@ -2254,7 +2288,7 @@ CFGBlock *CFGBuilder::VisitWhileStmt(WhileStmt *W) {
       }
 
     // The default case when not handling logical operators.
-    EntryConditionBlock = ExitConditionBlock = createBlock(false);
+    ExitConditionBlock = createBlock(false);
     ExitConditionBlock->setTerminator(W);
 
     // Now add the actual condition to the condition block.
@@ -2579,7 +2613,7 @@ CFGBlock *CFGBuilder::VisitSwitchStmt(SwitchStmt *Terminator) {
   // Add the terminator and condition in the switch block.
   SwitchTerminatedBlock->setTerminator(Terminator);
   Block = SwitchTerminatedBlock;
-  Block = addStmt(Terminator->getCond());
+  CFGBlock *LastBlock = addStmt(Terminator->getCond());
 
   // Finally, if the SwitchStmt contains a condition variable, add both the
   // SwitchStmt and the condition variable initialization to the CFG.
@@ -2587,11 +2621,11 @@ CFGBlock *CFGBuilder::VisitSwitchStmt(SwitchStmt *Terminator) {
     if (Expr *Init = VD->getInit()) {
       autoCreateBlock();
       appendStmt(Block, Terminator->getConditionVariableDeclStmt());
-      addStmt(Init);
+      LastBlock = addStmt(Init);
     }
   }
 
-  return Block;
+  return LastBlock;
 }
   
 static bool shouldAddCase(bool &switchExclusivelyCovered,
@@ -2775,8 +2809,7 @@ CFGBlock *CFGBuilder::VisitCXXTryStmt(CXXTryStmt *Terminator) {
 
   assert(Terminator->getTryBlock() && "try must contain a non-NULL body");
   Block = NULL;
-  Block = addStmt(Terminator->getTryBlock());
-  return Block;
+  return addStmt(Terminator->getTryBlock());
 }
 
 CFGBlock *CFGBuilder::VisitCXXCatchStmt(CXXCatchStmt *CS) {
@@ -2917,15 +2950,15 @@ CFGBlock *CFGBuilder::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
     addLocalScopeAndDtors(S->getLoopVarStmt());
 
     // Populate a new block to contain the loop body and loop variable.
-    Block = addStmt(S->getBody());
+    addStmt(S->getBody());
     if (badCFG)
       return 0;
-    Block = addStmt(S->getLoopVarStmt());
+    CFGBlock *LoopVarStmtBlock = addStmt(S->getLoopVarStmt());
     if (badCFG)
       return 0;
     
     // This new body block is a successor to our condition block.
-    addSuccessor(ConditionBlock, KnownVal.isFalse() ? 0 : Block);
+    addSuccessor(ConditionBlock, KnownVal.isFalse() ? 0 : LoopVarStmtBlock);
   }
 
   // Link up the condition block with the code that follows the loop (the
@@ -2940,7 +2973,7 @@ CFGBlock *CFGBuilder::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
 
 CFGBlock *CFGBuilder::VisitExprWithCleanups(ExprWithCleanups *E,
     AddStmtChoice asc) {
-  if (BuildOpts.AddImplicitDtors) {
+  if (BuildOpts.AddTemporaryDtors) {
     // If adding implicit destructors visit the full expression for adding
     // destructors of temporaries.
     VisitForTemporaryDtors(E->getSubExpr());
@@ -3020,6 +3053,8 @@ CFGBlock *CFGBuilder::VisitIndirectGotoStmt(IndirectGotoStmt *I) {
 }
 
 CFGBlock *CFGBuilder::VisitForTemporaryDtors(Stmt *E, bool BindToTemporary) {
+  assert(BuildOpts.AddImplicitDtors && BuildOpts.AddTemporaryDtors);
+
 tryAgain:
   if (!E) {
     badCFG = true;
@@ -3449,12 +3484,12 @@ class StmtPrinterHelper : public PrinterHelper  {
   StmtMapTy StmtMap;
   DeclMapTy DeclMap;
   signed currentBlock;
-  unsigned currentStmt;
+  unsigned currStmt;
   const LangOptions &LangOpts;
 public:
 
   StmtPrinterHelper(const CFG* cfg, const LangOptions &LO)
-    : currentBlock(0), currentStmt(0), LangOpts(LO)
+    : currentBlock(0), currStmt(0), LangOpts(LO)
   {
     for (CFG::const_iterator I = cfg->begin(), E = cfg->end(); I != E; ++I ) {
       unsigned j = 1;
@@ -3515,7 +3550,7 @@ public:
 
   const LangOptions &getLangOpts() const { return LangOpts; }
   void setBlockID(signed i) { currentBlock = i; }
-  void setStmtID(unsigned i) { currentStmt = i; }
+  void setStmtID(unsigned i) { currStmt = i; }
 
   virtual bool handledStmt(Stmt *S, raw_ostream &OS) {
     StmtMapTy::iterator I = StmtMap.find(S);
@@ -3524,7 +3559,7 @@ public:
       return false;
 
     if (currentBlock >= 0 && I->second.first == (unsigned) currentBlock
-                          && I->second.second == currentStmt) {
+                          && I->second.second == currStmt) {
       return false;
     }
 
@@ -3539,7 +3574,7 @@ public:
       return false;
 
     if (currentBlock >= 0 && I->second.first == (unsigned) currentBlock
-                          && I->second.second == currentStmt) {
+                          && I->second.second == currStmt) {
       return false;
     }
 
@@ -3831,8 +3866,8 @@ static void print_block(raw_ostream &OS, const CFG* cfg,
 
     if (Helper) Helper->setBlockID(-1);
 
-    CFGBlockTerminatorPrint TPrinter(OS, Helper,
-                                     PrintingPolicy(Helper->getLangOpts()));
+    PrintingPolicy PP(Helper ? Helper->getLangOpts() : LangOptions());
+    CFGBlockTerminatorPrint TPrinter(OS, Helper, PP);
     TPrinter.Visit(const_cast<Stmt*>(B.getTerminator().getStmt()));
     OS << '\n';
     

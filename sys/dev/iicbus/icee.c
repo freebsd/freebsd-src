@@ -262,7 +262,7 @@ static device_method_t icee_methods[] = {
 	DEVMETHOD(device_probe,		icee_probe),
 	DEVMETHOD(device_attach,	icee_attach),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t icee_driver = {

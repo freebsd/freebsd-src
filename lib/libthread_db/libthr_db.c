@@ -765,7 +765,7 @@ pt_thr_tls_get_addr(const td_thrhandle_t *th, psaddr_t _linkmap, size_t offset,
 	return (TD_OK);
 }
 
-struct ta_ops libthr_db_ops = {
+static struct ta_ops libthr_db_ops = {
 	.to_init		= pt_init,
 	.to_ta_clear_event	= pt_ta_clear_event,
 	.to_ta_delete		= pt_ta_delete,

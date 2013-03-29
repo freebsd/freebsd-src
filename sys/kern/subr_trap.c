@@ -136,8 +136,33 @@ userret(struct thread *td, struct trapframe *frame)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
+#ifdef XEN
+	PT_UPDATES_FLUSH();
+#endif
+
+	/*
+	 * Check for misbehavior.
+	 *
+	 * In case there is a callchain tracing ongoing because of
+	 * hwpmc(4), skip the scheduler pinning check.
+	 * hwpmc(4) subsystem, infact, will collect callchain informations
+	 * at ast() checkpoint, which is past userret().
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "userret: returning");
+	KASSERT(td->td_critnest == 0,
+	    ("userret: Returning in a critical section"));
 	KASSERT(td->td_locks == 0,
-	    ("userret: Returning with %d locks held.", td->td_locks));
+	    ("userret: Returning with %d locks held", td->td_locks));
+	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
+	    ("userret: Returning with pagefaults disabled"));
+	KASSERT(td->td_no_sleeping == 0,
+	    ("userret: Returning with sleep disabled"));
+	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,
+	    ("userret: Returning with with pinned thread"));
+	KASSERT(td->td_vp_reserv == 0,
+	    ("userret: Returning while holding vnode reservation"));
+	KASSERT((td->td_flags & TDF_SBDRY) == 0,
+	    ("userret: Returning with stop signals deferred"));
 #ifdef VIMAGE
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,
@@ -145,8 +170,11 @@ userret(struct thread *td, struct trapframe *frame)
 	    __func__, td, p->p_pid, td->td_name, curvnet,
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
 #endif
-#ifdef XEN
-	PT_UPDATES_FLUSH();
+#ifdef	RACCT
+	PROC_LOCK(p);
+	while (p->p_throttled == 1)
+		msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
+	PROC_UNLOCK(p);
 #endif
 }
 
@@ -239,7 +267,7 @@ ast(struct trapframe *framep)
 	    !SIGISEMPTY(p->p_siglist)) {
 		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td, SIG_STOP_ALLOWED)) != 0)
+		while ((sig = cursig(td)) != 0)
 			postsig(sig);
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
@@ -260,7 +288,6 @@ ast(struct trapframe *framep)
 	}
 
 	userret(td, framep);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 const char *

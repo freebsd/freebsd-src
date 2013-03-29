@@ -364,7 +364,7 @@ loop:
 				newnfsstats.srvcache_nonidemdonehits++;
 				NFSUNLOCKCACHE();
 				nd->nd_mreq = m_copym(rp->rc_reply, 0,
-					M_COPYALL, M_WAIT);
+					M_COPYALL, M_WAITOK);
 				ret = RC_REPLY;
 				rp->rc_timestamp = NFSD_MONOSEC +
 					NFSRVCACHE_UDPTIMEOUT;
@@ -437,7 +437,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 		if (!(rp->rc_flag & RC_REPMBUF))
 			panic("reply from cache");
 		nd->nd_mreq = m_copym(rp->rc_reply, 0,
-		    M_COPYALL, M_WAIT);
+		    M_COPYALL, M_WAITOK);
 		rp->rc_timestamp = NFSD_MONOSEC + NFSRVCACHE_TCPTIMEOUT;
 		nfsrc_unlock(rp);
 		goto out;
@@ -473,7 +473,7 @@ nfsrvd_updatecache(struct nfsrv_descript *nd, struct socket *so)
 				    nfsrc_tcpsavedreplies;
 			}
 			NFSUNLOCKCACHE();
-			m = m_copym(nd->nd_mreq, 0, M_COPYALL, M_WAIT);
+			m = m_copym(nd->nd_mreq, 0, M_COPYALL, M_WAITOK);
 			NFSLOCKCACHE();
 			rp->rc_reply = m;
 			rp->rc_flag |= RC_REPMBUF;
@@ -654,7 +654,7 @@ tryagain:
 				nfsrc_marksametcpconn(rp->rc_sockref);
 			ret = RC_REPLY;
 			nd->nd_mreq = m_copym(rp->rc_reply, 0,
-				M_COPYALL, M_WAIT);
+				M_COPYALL, M_WAITOK);
 			rp->rc_timestamp = NFSD_MONOSEC +
 				NFSRVCACHE_TCPTIMEOUT;
 		} else {

@@ -15,7 +15,7 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # Disable a few warnings for clang, since there are several places in the
 # kernel where fixing them is more trouble than it is worth, or where there is
 # a false positive.
-.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if ${COMPILER_TYPE} == "clang"
 NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
 NO_WARRAY_BOUNDS=		-Wno-array-bounds
 NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
@@ -52,7 +52,7 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 # Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 #
 .if ${MACHINE_CPUARCH} == "i386"
-.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
+.if ${COMPILER_TYPE} != "clang"
 CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
 .else
 CFLAGS+=	-mno-aes -mno-avx
@@ -100,7 +100,7 @@ INLINE_LIMIT?=	15000
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if ${COMPILER_TYPE} == "clang"
 CFLAGS+=	-mno-aes -mno-avx
 .endif
 CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -msoft-float \

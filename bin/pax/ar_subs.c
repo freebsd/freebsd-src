@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 static void wr_archive(ARCHD *, int is_app);
 static int get_arc(void);
 static int next_head(ARCHD *);
-extern sigset_t s_mask;
 
 /*
  * Routines which control the overall operation modes of pax as specified by

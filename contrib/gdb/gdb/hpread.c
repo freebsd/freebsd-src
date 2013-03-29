@@ -4939,8 +4939,9 @@ hpread_type_lookup (dnttpointer hp_type, struct objfile *objfile)
        * "m_void" modifiers?  Is static_flag really needed here?
        * (m_static used for methods of classes, elsewhere).
        */
-      tmp_type = make_cv_type (dn_bufp->dmodifier.m_const,
+      tmp_type = make_cvr_type (dn_bufp->dmodifier.m_const,
 			       dn_bufp->dmodifier.m_volatile,
+                               0,
 		      hpread_type_lookup (dn_bufp->dmodifier.type, objfile),
 			       0);
       return tmp_type;

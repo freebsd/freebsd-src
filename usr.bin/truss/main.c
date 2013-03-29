@@ -79,6 +79,9 @@ static struct ex_types {
 	void (*enter_syscall)(struct trussinfo *, int);
 	long (*exit_syscall)(struct trussinfo *, int);
 } ex_types[] = {
+#ifdef __arm__
+	{ "FreeBSD ELF32", arm_syscall_entry, arm_syscall_exit },
+#endif
 #ifdef __amd64__
 	{ "FreeBSD ELF64", amd64_syscall_entry, amd64_syscall_exit },
 	{ "FreeBSD ELF32", amd64_fbsd32_syscall_entry, amd64_fbsd32_syscall_exit },
@@ -163,13 +166,15 @@ strsig(int sig)
 int
 main(int ac, char **av)
 {
+	struct timespec timediff;
+	struct sigaction sa;
 	struct ex_types *funcs;
 	struct trussinfo *trussinfo;
 	char *fname;
 	char *signame;
 	char **command;
 	pid_t childpid;
-	int c, i, initial_open, status;
+	int c, initial_open, status;
 
 	fname = NULL;
 	initial_open = 1;
@@ -232,15 +237,12 @@ main(int ac, char **av)
 		usage();
 
 	if (fname != NULL) { /* Use output file */
-		if ((trussinfo->outfile = fopen(fname, "w")) == NULL)
-			errx(1, "cannot open %s", fname);
 		/*
-		 * Set FD_CLOEXEC, so that the output file is not shared with
-		 * the traced process.
+		 * Set close-on-exec ('e'), so that the output file is not
+		 * shared with the traced process.
 		 */
-		if (fcntl(fileno(trussinfo->outfile), F_SETFD, FD_CLOEXEC) ==
-		    -1)
-			warn("fcntl()");
+		if ((trussinfo->outfile = fopen(fname, "we")) == NULL)
+			err(1, "cannot open %s", fname);
 	}
 
 	/*
@@ -257,10 +259,13 @@ main(int ac, char **av)
 		signal(SIGTERM, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 	} else {
+		sa.sa_handler = restore_proc;
+		sa.sa_flags = 0;
+		sigemptyset(&sa.sa_mask);
+		sigaction(SIGINT, &sa, NULL);
+		sigaction(SIGQUIT, &sa, NULL);
+		sigaction(SIGTERM, &sa, NULL);
 		start_tracing(trussinfo->pid);
-		signal(SIGINT, restore_proc);
-		signal(SIGTERM, restore_proc);
-		signal(SIGQUIT, restore_proc);
 	}
 
 
@@ -282,18 +287,17 @@ START_TRACE:
 	clock_gettime(CLOCK_REALTIME, &trussinfo->start_time);
 
 	do {
-		struct timespec timediff;
 		waitevent(trussinfo);
 
-		switch (i = trussinfo->pr_why) {
+		switch (trussinfo->pr_why) {
 		case S_SCE:
 			funcs->enter_syscall(trussinfo, MAXARGS);
 			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->before);
+			    &trussinfo->curthread->before);
 			break;
 		case S_SCX:
 			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->after);
+			    &trussinfo->curthread->after);
 
 			if (trussinfo->curthread->in_fork &&
 			    (trussinfo->flags & FOLLOWFORKS)) {
@@ -322,15 +326,15 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
+				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
-				    &trussinfo->before, &timediff);
+				timespecsubt(&trussinfo->curthread->after,
+				    &trussinfo->curthread->before, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
@@ -348,15 +352,15 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
+				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
-				    &trussinfo->before, &timediff);
+				timespecsubt(&trussinfo->curthread->after,
+				    &trussinfo->curthread->before, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec, timediff.tv_nsec);
 			}
@@ -366,7 +370,8 @@ START_TRACE:
 		default:
 			break;
 		}
-	} while (trussinfo->pr_why != S_EXIT);
+	} while (trussinfo->pr_why != S_EXIT &&
+	    trussinfo->pr_why != S_DETACHED);
 
 	if (trussinfo->flags & FOLLOWFORKS) {
 		do {

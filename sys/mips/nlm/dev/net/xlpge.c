@@ -444,6 +444,8 @@ nlm_xlpnae_init(int node, struct nlm_xlpnae_softc *sc)
 	val = nlm_set_device_frequency(node, DFS_DEVICE_NAE, sc->freq);
 	printf("Setup NAE frequency to %dMHz\n", val);
 
+	nlm_mdio_reset_all(nae_base);
+
 	printf("Initialze SGMII PCS for blocks 0x%x\n", sc->sgmiimask);
 	nlm_sgmii_pcs_init(nae_base, sc->sgmiimask);
 
@@ -797,8 +799,9 @@ nlm_xlpge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				nlm_xlpge_init(sc);
-		    	nlm_xlpge_mac_set_rx_mode(sc);
-			nlm_xlpge_port_enable(sc);
+			else
+				nlm_xlpge_port_enable(sc);
+			nlm_xlpge_mac_set_rx_mode(sc);
 			sc->link = NLM_LINK_UP;
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -866,6 +869,7 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 		vm_offset_t buf = (vm_offset_t) m->m_data;
 		int	len = m->m_len;
 		int	frag_sz;
+		uint64_t desc;
 
 		/*printf("m_data = %p len %d\n", m->m_data, len); */
 		while (len) {
@@ -880,8 +884,9 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 			frag_sz = PAGE_SIZE - (buf & PAGE_MASK);
 			if (len < frag_sz)
 				frag_sz = len;
-			p2p->frag[pos] = nae_tx_desc(P2D_NEOP, 0, 127,
+			desc = nae_tx_desc(P2D_NEOP, 0, 127,
 			    frag_sz, paddr);
+			p2p->frag[pos] = htobe64(desc);
 			pos++;
 			len -= frag_sz;
 			buf += frag_sz;
@@ -891,7 +896,7 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 	KASSERT(pos != 0, ("Zero-length mbuf chain?\n"));
 
 	/* Make the last one P2D EOP */
-	p2p->frag[pos-1] |= (uint64_t)P2D_EOP << 62;
+	p2p->frag[pos-1] |= htobe64((uint64_t)P2D_EOP << 62);
 
 	/* stash useful pointers in the desc */
 	p2p->frag[XLP_NTXFRAGS-3] = 0xf00bad;
@@ -1125,10 +1130,11 @@ get_buf(void)
 	vm_paddr_t      temp1, temp2;
 #endif
 
-	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+	if ((m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	m_adj(m_new, NAE_CACHELINE_SIZE - ((uintptr_t)m_new->m_data & 0x1f));
+	KASSERT(((uintptr_t)m_new->m_data & (NAE_CACHELINE_SIZE - 1)) == 0,
+	    ("m_new->m_data is not cacheline aligned"));
 	md = (uint64_t *)m_new->m_data;
 	md[0] = (intptr_t)m_new;        /* Back Ptr */
 	md[1] = 0xf00bad;
@@ -1137,10 +1143,9 @@ get_buf(void)
 #ifdef INVARIANTS
 	temp1 = vtophys((vm_offset_t) m_new->m_data);
 	temp2 = vtophys((vm_offset_t) m_new->m_data + 1536);
-	KASSERT(temp1 + 1536) != temp2,
+	KASSERT((temp1 + 1536) != temp2,
 	    ("Alloced buffer is not contiguous"));
 #endif
-
 	return ((void *)m_new->m_data);
 }
 
@@ -1288,6 +1293,7 @@ nlm_xlpge_attach(device_t dev)
 	nlm_xlpge_ifinit(sc);
 	ifp_ports[port].xlpge_sc = sc;
 	nlm_xlpge_mii_init(dev, sc);
+
 	nlm_xlpge_setup_stats_sysctl(dev, sc);
 
 	return (0);
@@ -1364,13 +1370,13 @@ nlm_xlpge_mii_statchg(device_t dev)
 	if (mii->mii_media_status & IFM_ACTIVE) {
 		if (IFM_SUBTYPE(mii->mii_media_active) ==  IFM_10_T) {
 			sc->speed = NLM_SGMII_SPEED_10;
-			speed =  "10-Mbps";
+			speed =  "10Mbps";
 		} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 			sc->speed = NLM_SGMII_SPEED_100;
-			speed = "100-Mbps";
+			speed = "100Mbps";
 		} else { /* default to 1G */
 			sc->speed = NLM_SGMII_SPEED_1000;
-			speed =  "1-Gbps";
+			speed =  "1Gbps";
 		}
 
 		if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
@@ -1381,11 +1387,11 @@ nlm_xlpge_mii_statchg(device_t dev)
 			duplexity = "half";
 		}
 
-		printf("Setup [complex=%d, port=%d] with speed=%s duplex=%s\n",
+		printf("Port [%d, %d] setup with speed=%s duplex=%s\n",
 		    sc->block, sc->port, speed, duplexity);
 
 		nlm_nae_setup_mac(sc->base_addr, sc->block, sc->port, 0, 1, 1,
-			sc->speed, sc->duplexity);
+		    sc->speed, sc->duplexity);
 	}
 }
 
@@ -1548,7 +1554,7 @@ nlm_xlpge_msgring_handler(int vc, int size, int code, int src_id,
 		ifp->if_opackets++;
 
 	} else if (size > 1) { /* Recieve packet */
-		phys_addr = msg->msg[1] & 0xffffffffe0ULL;
+		phys_addr = msg->msg[1] & 0xffffffffc0ULL;
 		length = (msg->msg[1] >> 40) & 0x3fff;
 		length -= MAC_CRC_LEN;
 

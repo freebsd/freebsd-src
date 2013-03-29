@@ -43,8 +43,8 @@ CXXCPP = @CXXCPP@
 # Both C and C++ compiler
 OBJEXT = @OBJEXT@
 # Other
-AR = ar
-AR_FLAGS = rc
+AR = @AR@
+ARFLAGS = @ARFLAGS@
 RANLIB = @RANLIB@
 MV = mv
 LN = ln
@@ -71,7 +71,7 @@ all : $(TARGETLIB)
 
 $(TARGETLIB): $(OBJECTS)
 	$(RM) $@
-	$(AR) $(AR_FLAGS) $@ $(OBJECTS)
+	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 	$(RANLIB) $@
 
 # Don't use implicit rules, since AIX "make" and OSF/1 "make" don't always

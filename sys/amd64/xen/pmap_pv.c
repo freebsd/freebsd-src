@@ -314,7 +314,7 @@ pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		rw_rlock(&pvh_global_lock);
 		pv = pmap_get_pv_entry(pmap);
 		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		rw_runlock(&pvh_global_lock);
 		PMAP_UNLOCK(pmap);
 //	}
@@ -330,9 +330,9 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	PMAP_LOCK(pmap);
 	rw_rlock(&pvh_global_lock);
 
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
-			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 			free_pv_entry(pmap, pv);
 			found = true;
 			break;
@@ -353,7 +353,7 @@ pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	PMAP_LOCK(pmap);
 	rw_rlock(&pvh_global_lock);
 
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			break;
 		}
@@ -416,7 +416,7 @@ pmap_pv_vm_page_to_v(pmap_t pmap, vm_page_t m)
 	pv_entry_t pv;
 
 	rw_rlock(&pvh_global_lock);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (PV_PMAP(pv) == pmap) { /* We return the first hit */
 			rw_runlock(&pvh_global_lock);
 			return pv->pv_va;
@@ -451,7 +451,7 @@ pmap_pv_iterate(vm_page_t m, pv_cb_t cb)
 
 	rw_wlock(&pvh_global_lock);
 
-	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
+	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_next, next_pv) {
 		iter++;
 		if (cb(PV_PMAP(pv), pv->pv_va, m)) break;
 	}
@@ -468,8 +468,8 @@ pmap_pv_page_unmap(vm_page_t m)
 	pv_entry_t pv, next_pv;
 
 	rw_wlock(&pvh_global_lock);
-	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_next, next_pv) {
+		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 	}
 	rw_wunlock(&pvh_global_lock);
 	return;

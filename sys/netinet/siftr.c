@@ -952,7 +952,8 @@ siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 			 * the mbuf cluster "at" at offset "offset" bytes from
 			 * the beginning of the "at" mbuf's data pointer.
 			 */
-			th->th_sum = in_cksum_skip(*m, ip->ip_len, ip_hl);
+			th->th_sum = in_cksum_skip(*m, ntohs(ip->ip_len),
+			    ip_hl);
 		}
 
 		/*
@@ -1313,7 +1314,7 @@ siftr_manage_ops(uint8_t action)
 		 * flow seen and freeing any malloc'd memory.
 		 * The hash consists of an array of LISTs (man 3 queue).
 		 */
-		for (i = 0; i < siftr_hashmask; i++) {
+		for (i = 0; i <= siftr_hashmask; i++) {
 			LIST_FOREACH_SAFE(counter, counter_hash + i, nodes,
 			    tmp_counter) {
 				key = counter->key;

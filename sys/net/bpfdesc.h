@@ -63,6 +63,7 @@ struct bpf_d {
 	caddr_t		bd_sbuf;	/* store slot */
 	caddr_t		bd_hbuf;	/* hold slot */
 	caddr_t		bd_fbuf;	/* free slot */
+	int		bd_hbuf_in_use;	/* don't rotate buffers */
 	int 		bd_slen;	/* current length of store buffer */
 	int 		bd_hlen;	/* current length of hold buffer */
 

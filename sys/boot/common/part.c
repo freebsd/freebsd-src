@@ -645,9 +645,13 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	/* Do we have some invalid values? */
 	if (i != NDOSPART ||
 	    (table->type == PTABLE_GPT && count > 1)) {
-		table->type = PTABLE_NONE;
-		DEBUG("invalid values detected, ignore partition table");
-		goto out;
+		if (dp[1].dp_typ != DOSPTYP_HFS) {
+			table->type = PTABLE_NONE;
+			DEBUG("invalid values detected, ignore "
+			    "partition table");
+			goto out;
+		}
+		DEBUG("Bootcamp detected");
 	}
 #ifdef LOADER_GPT_SUPPORT
 	if (table->type == PTABLE_GPT) {
@@ -661,8 +665,8 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	for (i = has_ext = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_typ == 0)
 			continue;
-		start = le32toh(dp[i].dp_start);
-		end = le32toh(dp[i].dp_size);
+		start = le32dec(&(dp[i].dp_start));
+		end = le32dec(&(dp[i].dp_size));
 		if (start == 0 || end == 0)
 			continue;
 #if 0	/* Some BIOSes return an incorrect number of sectors */

@@ -174,7 +174,7 @@ lwapp_control_print(const u_char *pptr, u_int len, int has_ap_ident) {
     const struct lwapp_transport_header *lwapp_trans_header;
     const struct lwapp_control_header *lwapp_control_header;
     const u_char *tptr;
-    int hexdump,tlen;
+    int  tlen;
     int  msg_tlen;
 
     tptr=pptr;
@@ -247,7 +247,6 @@ lwapp_control_print(const u_char *pptr, u_int len, int has_ap_ident) {
         /* did we capture enough for fully decoding the message */
         if (!TTEST2(*tptr, msg_tlen))
             goto trunc;
-        hexdump=FALSE;
 
 	/* XXX - Decode sub messages for each message */
         switch(lwapp_control_header->msg_type) {

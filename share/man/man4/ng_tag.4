@@ -112,8 +112,8 @@ configure a hook with a structure pointing to hooks which do not exist yet.
 The safe way is to create all hooks first, then begin to configure them.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_TAG_SET_HOOKIN
+.Bl -tag -width foo
+.It Dv NGM_TAG_SET_HOOKIN Pq Ic sethookin
 This command sets tag values which will be searched in the tag list of
 incoming packets on a hook.
 The following structure must be supplied as an argument:
@@ -149,14 +149,14 @@ respectively.
 If
 .Va strip
 flag is non-zero, then found tag is deleted from list of packet tags.
-.It Dv NGM_TAG_GET_HOOKIN
+.It Dv NGM_TAG_GET_HOOKIN Pq Ic gethookin
 This command takes an
 .Tn ASCII
 string argument, the hook name, and returns the
 corresponding
 .Vt "struct ng_tag_hookin"
 as shown above.
-.It Dv NGM_TAG_SET_HOOKOUT
+.It Dv NGM_TAG_SET_HOOKOUT Pq Ic sethookout
 This command sets tags values which will be applied to outgoing
 packets.
 The following structure must be supplied as an argument:
@@ -175,25 +175,25 @@ The hook to be updated is specified in
 Other variables mean basically the same as in
 .Vt "struct ng_tag_hookin"
 shown above, except used for setting values in a new tag.
-.It Dv NGM_TAG_GET_HOOKOUT
+.It Dv NGM_TAG_GET_HOOKOUT Pq Ic gethookout
 This command takes an
 .Tn ASCII
 string argument, the hook name, and returns the
 corresponding
 .Vt "struct ng_tag_hookout"
 as shown above.
-.It Dv NGM_TAG_GET_STATS
+.It Dv NGM_TAG_GET_STATS Pq Ic getstats
 This command takes an
 .Tn ASCII
 string argument, the hook name, and returns the
 statistics associated with the hook as a
 .Vt "struct ng_tag_hookstat" .
-.It Dv NGM_TAG_CLR_STATS
+.It Dv NGM_TAG_CLR_STATS Pq Ic clrstats
 This command takes an
 .Tn ASCII
 string argument, the hook name, and clears the
 statistics associated with the hook.
-.It Dv NGM_TAG_GETCLR_STATS
+.It Dv NGM_TAG_GETCLR_STATS Pq Ic getclrstats
 This command is identical to
 .Dv NGM_TAG_GET_STATS ,
 except that the statistics are also atomically cleared.

@@ -237,7 +237,7 @@ static device_method_t cdce_methods[] = {
 	DEVMETHOD(device_suspend, cdce_suspend),
 	DEVMETHOD(device_resume, cdce_resume),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t cdce_driver = {
@@ -500,6 +500,7 @@ cdce_attach(device_t dev)
 	const struct usb_interface_descriptor *id;
 	const struct usb_cdc_ethernet_descriptor *ued;
 	const struct usb_config *pcfg;
+	uint32_t seed;
 	int error;
 	uint8_t i;
 	uint8_t data_iface_no;
@@ -612,8 +613,9 @@ alloc_transfers:
 		/* fake MAC address */
 
 		device_printf(dev, "faking MAC address\n");
+		seed = ticks;
 		sc->sc_ue.ue_eaddr[0] = 0x2a;
-		memcpy(&sc->sc_ue.ue_eaddr[1], &ticks, sizeof(uint32_t));
+		memcpy(&sc->sc_ue.ue_eaddr[1], &seed, sizeof(uint32_t));
 		sc->sc_ue.ue_eaddr[5] = device_get_unit(dev);
 
 	} else {
@@ -753,7 +755,7 @@ tr_setup:
 				}
 			}
 			if (m->m_len != m->m_pkthdr.len) {
-				mt = m_defrag(m, M_DONTWAIT);
+				mt = m_defrag(m, M_NOWAIT);
 				if (mt == NULL) {
 					m_freem(m);
 					ifp->if_oerrors++;
@@ -1369,9 +1371,9 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				/* silently ignore this frame */
 				continue;
 			} else if (temp > (int)(MHLEN - ETHER_ALIGN)) {
-				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			} else {
-				m = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = m_gethdr(M_NOWAIT, MT_DATA);
 			}
 
 			DPRINTFN(16, "frame %u, offset = %u, length = %u \n",

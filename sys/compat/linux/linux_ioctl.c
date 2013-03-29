@@ -2260,8 +2260,9 @@ again:
 
 	ifc.ifc_len = valid_len; 
 	sbuf_finish(sb);
-	memcpy(PTRIN(ifc.ifc_buf), sbuf_data(sb), ifc.ifc_len);
-	error = copyout(&ifc, uifc, sizeof(ifc));
+	error = copyout(sbuf_data(sb), PTRIN(ifc.ifc_buf), ifc.ifc_len);
+	if (error == 0)
+		error = copyout(&ifc, uifc, sizeof(ifc));
 	sbuf_delete(sb);
 	CURVNET_RESTORE();
 

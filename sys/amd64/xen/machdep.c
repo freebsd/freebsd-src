@@ -70,6 +70,7 @@
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h> /* XXX: remove with RB_XXX */
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>
@@ -734,11 +735,6 @@ cpu_startup(void *dummy)
 	vm_pager_bufferinit();
 
 	cpu_setregs();
-
-	/*
-	 * Add BSP as an interrupt target.
-	 */
-	intr_add_cpu(0);
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);

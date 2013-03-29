@@ -202,7 +202,7 @@ struct uma_keg {
 	struct mtx	uk_lock;	/* Lock for the keg */
 	struct uma_hash	uk_hash;
 
-	char		*uk_name;		/* Name of creating zone. */
+	const char	*uk_name;		/* Name of creating zone. */
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 	LIST_HEAD(,uma_slab)	uk_part_slab;	/* partially allocated slabs */
 	LIST_HEAD(,uma_slab)	uk_free_slab;	/* empty slab list */
@@ -221,8 +221,8 @@ struct uma_keg {
 	uma_alloc	uk_allocf;	/* Allocation function */
 	uma_free	uk_freef;	/* Free routine */
 
-	struct vm_object	*uk_obj;	/* Zone specific object */
-	vm_offset_t	uk_kva;		/* Base kva for zones with objs */
+	u_long		uk_offset;	/* Next free offset from base KVA */
+	vm_offset_t	uk_kva;		/* Zone base KVA */
 	uma_zone_t	uk_slabzone;	/* Slab zone backing us, if OFFPAGE */
 
 	u_int16_t	uk_pgoff;	/* Offset to uma_slab struct */
@@ -305,7 +305,7 @@ typedef struct uma_klink *uma_klink_t;
  *
  */
 struct uma_zone {
-	char		*uz_name;	/* Text name of the zone */
+	const char	*uz_name;	/* Text name of the zone */
 	struct mtx	*uz_lock;	/* Lock for the zone (keg's lock) */
 
 	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */
@@ -329,7 +329,11 @@ struct uma_zone {
 	u_int64_t	uz_fails;	/* Total number of alloc failures */
 	u_int64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
-	uint16_t	uz_count;	/* Highest value ub_ptr can have */
+	uint16_t	uz_count;	/* Highest amount of items in bucket */
+
+	/* The next three fields are used to print a rate-limited warnings. */
+	const char	*uz_warning;	/* Warning to print on failure */
+	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
 
 	/*
 	 * This HAS to be the last item because we adjust the zone size

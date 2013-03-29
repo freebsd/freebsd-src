@@ -52,7 +52,7 @@ struct pim6stat {
 };
 
 #if (defined(KERNEL)) || (defined(_KERNEL))
-int pim6_input __P((struct mbuf **, int*, int));
+int pim6_input(struct mbuf **, int*, int);
 #endif /* KERNEL */
 
 /*

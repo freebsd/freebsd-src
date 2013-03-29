@@ -163,6 +163,33 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			OS_REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
  			txctl &~ AR_PHY_CCK_TX_CTRL_JAPAN);
 		}
+	/*
+	 * Handle programming the RF synth for odd frequencies in the
+	 * 4.9->5GHz range.  This matches the programming from the
+	 * later model 802.11abg RF synths.
+	 *
+	 * This interoperates on the quarter rate channels with the
+	 * AR5112 and later RF synths.  Please note that the synthesiser
+	 * isn't able to completely accurately represent these frequencies
+	 * (as the resolution in this reference is 2.5MHz) and thus it will
+	 * be slightly "off centre."  This matches the same slightly
+	 * incorrect * centre frequency behaviour that the AR5112 and later
+	 * channel selection code has.
+	 *
+	 * This is disabled because it hasn't been tested for regulatory
+	 * compliance and neither have the NICs which would use it.
+	 * So if you enable this code, you must first ensure that you've
+	 * re-certified the NICs in question beforehand or you will be
+	 * violating your local regulatory rules and breaking the law.
+	 */
+#if 0
+	} else if (((freq % 5) == 2) && (freq <= 5435)) {
+		freq = freq - 2;
+		channelSel = ath_hal_reverseBits(
+		    (uint32_t) (((freq - 4800) * 10) / 25 + 1), 8);
+		/* XXX what about for Howl/Sowl? */
+		aModeRefSel = ath_hal_reverseBits(0, 2);
+#endif
 	} else if ((freq % 20) == 0 && freq >= 5120) {
 		channelSel = ath_hal_reverseBits(((freq - 4800) / 20 << 2), 8);
 		if (AR_SREV_HOWL(ah) || AR_SREV_SOWL_10_OR_LATER(ah))
@@ -179,7 +206,8 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		channelSel = ath_hal_reverseBits((freq - 4800) / 5, 8);
 		aModeRefSel = ath_hal_reverseBits(1, 2);
 	} else {
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel %u MHz\n",
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+		    "%s: invalid channel %u MHz\n",
 		    __func__, freq);
 		return AH_FALSE;
 	}

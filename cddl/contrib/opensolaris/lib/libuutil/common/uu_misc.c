@@ -25,6 +25,8 @@
 
 #include "libuutil_common.h"
 
+#define HAVE_ASSFAIL	1
+
 #include <assert.h>
 #include <errno.h>
 #include <libintl.h>

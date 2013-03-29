@@ -39,14 +39,18 @@ static ASTReader *createASTReader(CompilerInstance &CI,
     Reader->addInMemoryBuffer(sr, memBufs[ti]);
   }
   Reader->setDeserializationListener(deserialListener);
-  switch (Reader->ReadAST(pchFile, serialization::MK_PCH)) {
+  switch (Reader->ReadAST(pchFile, serialization::MK_PCH,
+                          ASTReader::ARR_None)) {
   case ASTReader::Success:
     // Set the predefines buffer as suggested by the PCH reader.
     PP.setPredefines(Reader->getSuggestedPredefines());
     return Reader.take();
 
   case ASTReader::Failure:
-  case ASTReader::IgnorePCH:
+  case ASTReader::OutOfDate:
+  case ASTReader::VersionMismatch:
+  case ASTReader::ConfigurationMismatch:
+  case ASTReader::HadErrors:
     break;
   }
   return 0;
@@ -63,7 +67,7 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
   assert(!includes.empty() && "No '-chain-include' in options!");
 
   OwningPtr<ChainedIncludesSource> source(new ChainedIncludesSource());
-  InputKind IK = CI.getFrontendOpts().Inputs[0].Kind;
+  InputKind IK = CI.getFrontendOpts().Inputs[0].getKind();
 
   SmallVector<llvm::MemoryBuffer *, 4> serialBufs;
   SmallVector<std::string, 4> serialBufNames;
@@ -82,14 +86,14 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
     CInvok->getPreprocessorOpts().Macros.clear();
     
     CInvok->getFrontendOpts().Inputs.clear();
-    CInvok->getFrontendOpts().Inputs.push_back(FrontendInputFile(includes[i],
-                                                                 IK));
+    FrontendInputFile InputFile(includes[i], IK);
+    CInvok->getFrontendOpts().Inputs.push_back(InputFile);
 
     TextDiagnosticPrinter *DiagClient =
-      new TextDiagnosticPrinter(llvm::errs(), DiagnosticOptions());
+      new TextDiagnosticPrinter(llvm::errs(), new DiagnosticOptions());
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
-        new DiagnosticsEngine(DiagID, DiagClient));
+        new DiagnosticsEngine(DiagID, &CI.getDiagnosticOpts(), DiagClient));
 
     OwningPtr<CompilerInstance> Clang(new CompilerInstance());
     Clang->setInvocation(CInvok.take());
@@ -108,6 +112,8 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
     OwningPtr<ASTConsumer> consumer;
     consumer.reset(new PCHGenerator(Clang->getPreprocessor(), "-", 0,
                                     /*isysroot=*/"", &OS));
+    Clang->getPreprocessor().setPPMutationListener(
+                                            consumer->GetPPMutationListener());
     Clang->getASTContext().setASTMutationListener(
                                             consumer->GetASTMutationListener());
     Clang->setASTConsumer(consumer.take());
@@ -141,7 +147,7 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
       Clang->getASTContext().setExternalSource(Reader);
     }
     
-    if (!Clang->InitializeSourceManager(includes[i]))
+    if (!Clang->InitializeSourceManager(InputFile))
       return 0;
 
     ParseAST(Clang->getSema());

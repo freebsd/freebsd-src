@@ -38,6 +38,122 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130316: vinum.4 removed
+OLD_FILES+=usr/share/man/man4/vinum.4.gz
+# 20130312: fortunes-o removed
+OLD_FILES+=usr/share/games/fortune/fortunes-o
+OLD_FILES+=usr/share/games/fortune/fortunes-o.dat
+# 20130311: Ports are no more available via cvsup
+OLD_FILES+=usr/share/examples/cvsup/ports-supfile
+OLD_FILES+=usr/share/examples/cvsup/refuse
+OLD_FILES+=usr/share/examples/cvsup/refuse.README
+# 20130309: NWFS and NCP supports removed
+OLD_FILES+=usr/bin/ncplist
+OLD_FILES+=usr/bin/ncplogin
+OLD_FILES+=usr/bin/ncplogout
+OLD_FILES+=usr/include/fs/nwfs/nwfs.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_mount.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_node.h
+OLD_FILES+=usr/include/fs/nwfs/nwfs_subr.h
+OLD_DIRS+=usr/include/fs/nwfs
+OLD_FILES+=usr/include/netncp/ncp.h
+OLD_FILES+=usr/include/netncp/ncp_cfg.h
+OLD_FILES+=usr/include/netncp/ncp_conn.h
+OLD_FILES+=usr/include/netncp/ncp_file.h
+OLD_FILES+=usr/include/netncp/ncp_lib.h
+OLD_FILES+=usr/include/netncp/ncp_ncp.h
+OLD_FILES+=usr/include/netncp/ncp_nls.h
+OLD_FILES+=usr/include/netncp/ncp_rcfile.h
+OLD_FILES+=usr/include/netncp/ncp_rq.h
+OLD_FILES+=usr/include/netncp/ncp_sock.h
+OLD_FILES+=usr/include/netncp/ncp_subr.h
+OLD_FILES+=usr/include/netncp/ncp_user.h
+OLD_FILES+=usr/include/netncp/ncpio.h
+OLD_FILES+=usr/include/netncp/nwerror.h
+OLD_DIRS+=usr/include/netncp
+OLD_FILES+=usr/lib/libncp.a
+OLD_FILES+=usr/lib/libncp.so
+OLD_LIBS+=usr/lib/libncp.so.4
+OLD_FILES+=usr/lib/libncp_p.a
+OLD_FILES+=usr/lib32/libncp.a
+OLD_FILES+=usr/lib32/libncp.so
+OLD_LIBS+=usr/lib32/libncp.so.4
+OLD_FILES+=usr/lib32/libncp_p.a
+OLD_FILES+=usr/sbin/mount_nwfs
+OLD_FILES+=usr/share/examples/nwclient/dot.nwfsrc
+OLD_FILES+=usr/share/examples/nwclient/nwfs.sh.sample
+OLD_DIRS+=usr/share/examples/nwclient
+OLD_FILES+=usr/share/man/man1/ncplist.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogin.1.gz
+OLD_FILES+=usr/share/man/man1/ncplogout.1.gz
+OLD_FILES+=usr/share/man/man8/mount_nwfs.8.gz
+# 20130302: NTFS support removed
+OLD_FILES+=rescue/mount_ntfs
+OLD_FILES+=sbin/mount_ntfs
+OLD_FILES+=usr/include/fs/ntfs/ntfs.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_compr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_ihash.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_inode.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_subr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_vfsops.h
+OLD_FILES+=usr/include/fs/ntfs/ntfsmount.h
+OLD_DIRS+=usr/include/fs/ntfs
+OLD_FILES+=usr/share/man/man8/mount_ntfs.8.gz
+# 20130302: PORTALFS support removed
+OLD_FILES+=usr/include/fs/portalfs/portal.h
+OLD_DIRS+=usr/include/fs/portalfs
+OLD_FILES+=usr/sbin/mount_portalfs
+OLD_FILES+=usr/share/examples/portal/README
+OLD_FILES+=usr/share/examples/portal/portal.conf
+OLD_DIRS+=usr/share/examples/portal
+OLD_FILES+=usr/share/man/man8/mount_portalfs.8.gz
+# 20130302: CODAFS support removed
+OLD_FILES+=usr/share/man/man4/coda.4.gz
+# 20130302: XFS support removed
+OLD_FILES+=usr/share/man/man5/xfs.5.gz
+# 20130302: Capsicum overhaul
+OLD_FILES+=usr/share/man/man2/cap_getrights.2.gz
+OLD_FILES+=usr/share/man/man2/cap_new.2.gz
+# 20130213: OpenSSL 1.0.1e import
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_verifyrecover_init.3.gz
+# 20130116: removed long unused directories for .1aout section manpages
+OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
+OLD_FILES+=usr/share/man/en.UTF-8/man1aout
+OLD_DIRS+=usr/share/man/man1aout
+OLD_DIRS+=usr/share/man/cat1aout
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat1aout
+OLD_DIRS+=usr/share/man/en.UTF-8/cat1aout
+# 20130110: bsd.compat.mk removed
+OLD_FILES+=usr/share/mk/bsd.compat.mk
+# 20130103: gnats-supfile removed
+OLD_FILES+=usr/share/examples/cvsup/gnats-supfile
+# 20121230: libdisk removed
+OLD_FILES+=usr/share/man/man3/libdisk.3.gz usr/include/libdisk.h
+OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a
+# 20121230: remove wrongly created directories for auditdistd
+OLD_DIRS+=var/dist
+OLD_DIRS+=var/remote
+# 20121114: zpool-features manual page moved from section 5 to 7
+OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
+# 20121022: remove harp, hfa and idt man page
+OLD_FILES+=usr/share/man/man4/harp.4.gz
+OLD_FILES+=usr/share/man/man4/hfa.4.gz
+OLD_FILES+=usr/share/man/man4/idt.4.gz
+OLD_FILES+=usr/share/man/man4/if_idt.4.gz
+# 20121022: VFS_LOCK_GIANT elimination
+OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
+OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz
+# 20121004: remove incomplete unwind.h
+OLD_FILES+=usr/include/clang/3.2/unwind.h
+# 20120910: NetBSD compat shims removed
+OLD_FILES+=usr/include/cam/scsi/scsi_low_pisa.h
+OLD_FILES+=usr/include/sys/device_port.h
+# 20120909: doc and www supfiles removed
+OLD_FILES+=usr/share/examples/cvsup/doc-supfile
+OLD_FILES+=usr/share/examples/cvsup/www-supfile
+# 20120908: pf cleanup
+OLD_FILES+=usr/include/net/if_pflow.h
 # 20120816: new clang import which bumps version from 3.1 to 3.2
 OLD_FILES+=usr/bin/llvm-ld
 OLD_FILES+=usr/bin/llvm-stub
@@ -84,13 +200,19 @@ OLD_FILES+=usr/include/openssl/ui_locl.h
 OLD_FILES+=usr/share/openssl/man/man3/CRYPTO_set_id_callback.3.gz
 # 20120621: remove old man page
 OLD_FILES+=usr/share/man/man8/vnconfig.8.gz
+# 20120619: TOE support updated
+OLD_FILES+=usr/include/netinet/toedev.h
 # 20120613: auth.conf removed
 OLD_FILES+=etc/auth.conf
 OLD_FILES+=usr/share/examples/etc/auth.conf
 OLD_FILES+=usr/share/man/man3/auth.3.gz
+OLD_FILES+=usr/share/man/man3/auth_getval.3.gz
 OLD_FILES+=usr/share/man/man5/auth.conf.5.gz
 # 20120530: kde pam lives now in ports
 OLD_FILES+=etc/pam.d/kde
+# 20120521: byacc import
+OLD_FILES+=usr/bin/yyfix
+OLD_FILES+=usr/share/man/man1/yyfix.1.gz
 # 20120505: new clang import installed a redundant internal header
 OLD_FILES+=usr/include/clang/3.1/stdalign.h
 # 20120428: MD2 removed from libmd
@@ -1170,12 +1292,6 @@ OLD_FILES+=usr/include/sys/linedisc.h
 OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
 # 20080725: sgtty.h removed
 OLD_FILES+=usr/include/sgtty.h
-# 20080719: sade(8) removed on all but amd64, i386 and sparc64
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386" && \
-    ${TARGET_ARCH} != "sparc64"
-OLD_FILES+=usr/sbin/sade
-OLD_FILES+=usr/share/man/man8/sade.8.gz
-.endif
 # 20080706: bsdlabel(8) removed on powerpc
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=sbin/bsdlabel

@@ -47,11 +47,11 @@ __FBSDID("$FreeBSD$");
 struct key_specs *keys;
 size_t keys_num = 0;
 
-wchar_t symbol_decimal_point = L'.';
+wint_t symbol_decimal_point = L'.';
 /* there is no default thousands separator in collate rules: */
-wchar_t symbol_thousands_sep = 0;
-wchar_t symbol_negative_sign = L'-';
-wchar_t symbol_positive_sign = L'+';
+wint_t symbol_thousands_sep = 0;
+wint_t symbol_negative_sign = L'-';
+wint_t symbol_positive_sign = L'+';
 
 static int wstrcoll(struct key_value *kv1, struct key_value *kv2, size_t offset);
 static int gnumcoll(struct key_value*, struct key_value *, size_t offset);
@@ -260,7 +260,7 @@ skip_fields_to_start(const struct bwstring *s, size_t fields, bool *empty_field)
 		while (cpos < BWSLEN(s)) {
 			bool isblank;
 
-			isblank = iswblank(BWS_GET(s,cpos));
+			isblank = iswblank(BWS_GET(s, cpos));
 
 			if (isblank && !pb) {
 				--fields;
@@ -277,7 +277,7 @@ skip_fields_to_start(const struct bwstring *s, size_t fields, bool *empty_field)
 		size_t cpos = 0;
 
 		while (cpos < BWSLEN(s)) {
-			if (BWS_GET(s,cpos) == sort_opts_vals.field_sep) {
+			if (BWS_GET(s,cpos) == (wchar_t)sort_opts_vals.field_sep) {
 				--fields;
 				if (fields <= 1)
 					return (cpos + 1);
@@ -328,7 +328,7 @@ find_field_end(const struct bwstring *s, struct key_specs *ks)
 			next_field_start = skip_fields_to_start(s, f2 + 1,
 			    &empty_field);
 			if ((next_field_start > 0) && sort_opts_vals.tflag &&
-			    (sort_opts_vals.field_sep == BWS_GET(s,
+			    ((wchar_t)sort_opts_vals.field_sep == BWS_GET(s,
 			    next_field_start - 1)))
 				--next_field_start;
 		} else
@@ -699,7 +699,7 @@ static void setsuffix(wchar_t c, unsigned char *si)
  * point is in sfrac, tail is the pointer to the remainder of the string.
  */
 static int
-read_number(struct bwstring *s0, int *sign, wchar_t *smain, int *main_len, wchar_t *sfrac, int *frac_len, unsigned char *si)
+read_number(struct bwstring *s0, int *sign, wchar_t *smain, size_t *main_len, wchar_t *sfrac, size_t *frac_len, unsigned char *si)
 {
 	bwstring_iterator s;
 
@@ -711,7 +711,7 @@ read_number(struct bwstring *s0, int *sign, wchar_t *smain, int *main_len, wchar
 	while (iswblank(bws_get_iter_value(s)))
 		s = bws_iterator_inc(s, 1);
 
-	if (bws_get_iter_value(s) == symbol_negative_sign) {
+	if (bws_get_iter_value(s) == (wchar_t)symbol_negative_sign) {
 		*sign = -1;
 		s = bws_iterator_inc(s, 1);
 	}
@@ -727,7 +727,7 @@ read_number(struct bwstring *s0, int *sign, wchar_t *smain, int *main_len, wchar
 			s = bws_iterator_inc(s, 1);
 			*main_len += 1;
 		} else if (symbol_thousands_sep &&
-		    (bws_get_iter_value(s) == symbol_thousands_sep))
+		    (bws_get_iter_value(s) == (wchar_t)symbol_thousands_sep))
 			s = bws_iterator_inc(s, 1);
 		else
 			break;
@@ -735,7 +735,7 @@ read_number(struct bwstring *s0, int *sign, wchar_t *smain, int *main_len, wchar
 
 	smain[*main_len] = 0;
 
-	if (bws_get_iter_value(s) == symbol_decimal_point) {
+	if (bws_get_iter_value(s) == (wchar_t)symbol_decimal_point) {
 		s = bws_iterator_inc(s, 1);
 		while (iswdigit(bws_get_iter_value(s)) &&
 		    *frac_len < MAX_NUM_SIZE) {
@@ -798,7 +798,8 @@ numcoll_impl(struct key_value *kv1, struct key_value *kv2,
 	struct bwstring *s1, *s2;
 	wchar_t sfrac1[MAX_NUM_SIZE + 1], sfrac2[MAX_NUM_SIZE + 1];
 	wchar_t smain1[MAX_NUM_SIZE + 1], smain2[MAX_NUM_SIZE + 1];
-	int cmp_res, frac1, frac2, main1, main2, sign1, sign2;
+	int cmp_res, sign1, sign2;
+	size_t frac1, frac2, main1, main2;
 	unsigned char SI1, SI2;
 	bool e1, e2, key1_read, key2_read;
 

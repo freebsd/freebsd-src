@@ -367,11 +367,6 @@ pmpregister(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("pmpregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("pmpregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -600,7 +595,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			 * causes timeouts if external SEP is not connected
 			 * to PMP over I2C.
 			 */
-			if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
+			if ((softc->pm_pid == 0x37261095 ||
+			     softc->pm_pid == 0x38261095) &&
+			    softc->pm_ports == 6)
 				softc->pm_ports = 5;
 
 			/*

@@ -179,7 +179,7 @@ platform_mp_start_ap(void)
 
 	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
 		bus_space_write_4(fdtbus_bs_tag, CPU_PMU(cpu_num), CPU_PMU_BOOT,
-		    pmap_kextract(mpentry));
+		    pmap_kextract((vm_offset_t)mpentry));
 
 	cpu_idcache_wbinv_all();
 

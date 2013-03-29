@@ -79,6 +79,11 @@
 #define	BAW_WITHIN(_start, _bawsz, _seqno)	\
 	    ((((_seqno) - (_start)) & 4095) < (_bawsz))
 
+/*
+ * Maximum aggregate size
+ */
+#define	ATH_AGGR_MAXSIZE	65530
+
 extern void ath_freetx(struct mbuf *m);
 extern void ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an);
 extern void ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq);
@@ -122,6 +127,20 @@ extern	void ath_bar_response(struct ieee80211_node *ni,
      struct ieee80211_tx_ampdu *tap, int status);
 extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap);
+
+/*
+ * AP mode power save handling (of stations)
+ */
+extern	void ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an);
+extern	void ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an);
+extern	int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
+
+/*
+ * Misc debugging stuff
+ */
+#ifdef	ATH_DEBUG_ALQ
+extern	void ath_tx_alq_post(struct ath_softc *sc, struct ath_buf *bf_first);
+#endif	/* ATH_DEBUG_ALQ */
 
 /*
  * Setup path

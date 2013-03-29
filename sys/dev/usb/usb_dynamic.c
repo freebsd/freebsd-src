@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -50,6 +53,7 @@
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_dynamic.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /* function prototypes */
 static usb_handle_req_t usb_temp_get_desc_w;
@@ -64,7 +68,7 @@ usb_temp_setup_by_index_t *usb_temp_setup_by_index_p = &usb_temp_setup_by_index_
 usb_temp_unsetup_t *usb_temp_unsetup_p = &usb_temp_unsetup_w;
 usb_test_quirk_t *usb_test_quirk_p = &usb_test_quirk_w;
 usb_quirk_ioctl_t *usb_quirk_ioctl_p = &usb_quirk_ioctl_w;
-devclass_t usb_devclass_ptr = NULL;
+devclass_t usb_devclass_ptr;
 
 static usb_error_t
 usb_temp_setup_by_index_w(struct usb_device *udev, uint16_t index)

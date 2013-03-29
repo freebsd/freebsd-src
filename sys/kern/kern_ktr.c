@@ -47,7 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/time.h>
@@ -62,9 +66,16 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_output.h>
 #endif
 
+#ifndef KTR_BOOT_ENTRIES
+#define	KTR_BOOT_ENTRIES	1024
+#endif
+
 #ifndef KTR_ENTRIES
 #define	KTR_ENTRIES	1024
 #endif
+
+/* Limit the allocations to something manageable. */
+#define	KTR_ENTRIES_MAX	(8 * 1024 * 1024)
 
 #ifndef KTR_MASK
 #define	KTR_MASK	(0)
@@ -82,30 +93,31 @@ __FBSDID("$FreeBSD$");
 #define	KTR_CPU		PCPU_GET(cpuid)
 #endif
 
+static MALLOC_DEFINE(M_KTR, "KTR", "KTR");
+
 FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
+
+volatile int	ktr_idx = 0;
+int	ktr_mask = KTR_MASK;
+int	ktr_compile = KTR_COMPILE;
+int	ktr_entries = KTR_BOOT_ENTRIES;
+int	ktr_version = KTR_VERSION;
+struct	ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
+struct	ktr_entry *ktr_buf = ktr_buf_init;
+cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
+static char ktr_cpumask_str[CPUSETBUFSIZ];
+
+TUNABLE_INT("debug.ktr.mask", &ktr_mask);
+
+TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask_str, sizeof(ktr_cpumask_str));
 
 static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
-int	ktr_mask = KTR_MASK;
-TUNABLE_INT("debug.ktr.mask", &ktr_mask);
-SYSCTL_INT(_debug_ktr, OID_AUTO, mask, CTLFLAG_RW,
-    &ktr_mask, 0, "Bitmask of KTR event classes for which logging is enabled");
-
-int	ktr_compile = KTR_COMPILE;
-SYSCTL_INT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
-    &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
-
-int	ktr_entries = KTR_ENTRIES;
-SYSCTL_INT(_debug_ktr, OID_AUTO, entries, CTLFLAG_RD,
-    &ktr_entries, 0, "Number of entries in the KTR buffer");
-
-int	ktr_version = KTR_VERSION;
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
 
-cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
-static char ktr_cpumask_str[CPUSETBUFSIZ];
-TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask_str, sizeof(ktr_cpumask_str));
+SYSCTL_UINT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
+    &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
 
 static void
 ktr_cpumask_initializer(void *dummy __unused)
@@ -145,9 +157,6 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, cpumask,
     sysctl_debug_ktr_cpumask, "S",
     "Bitmask of CPUs on which KTR logging is enabled");
 
-volatile int	ktr_idx = 0;
-struct	ktr_entry ktr_buf[KTR_ENTRIES];
-
 static int
 sysctl_debug_ktr_clear(SYSCTL_HANDLER_ARGS)
 {
@@ -159,7 +168,7 @@ sysctl_debug_ktr_clear(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (clear) {
-		bzero(ktr_buf, sizeof(ktr_buf));
+		bzero(ktr_buf, sizeof(*ktr_buf) * ktr_entries);
 		ktr_idx = 0;
 	}
 
@@ -167,6 +176,94 @@ sysctl_debug_ktr_clear(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_debug_ktr, OID_AUTO, clear, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
     sysctl_debug_ktr_clear, "I", "Clear KTR Buffer");
+
+/*
+ * This is a sysctl proc so that it is serialized as !MPSAFE along with
+ * the other ktr sysctl procs.
+ */
+static int
+sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
+{
+	int mask, error;
+
+	mask = ktr_mask;
+	error = sysctl_handle_int(oidp, &mask, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	ktr_mask = mask;
+	return (error);
+}
+
+SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
+    sysctl_debug_ktr_mask, "IU",
+    "Bitmask of KTR event classes for which logging is enabled");
+
+#if KTR_ENTRIES > KTR_BOOT_ENTRIES
+/*
+ * A simplified version of sysctl_debug_ktr_entries.
+ * No need to care about SMP, scheduling, etc.
+ */
+static void
+ktr_entries_initializer(void *dummy __unused)
+{
+	int mask;
+
+	/* Temporarily disable ktr in case malloc() is being traced. */
+	mask = ktr_mask;
+	ktr_mask = 0;
+	ktr_buf = malloc(sizeof(*ktr_buf) * KTR_ENTRIES, M_KTR,
+	    M_WAITOK | M_ZERO);
+	memcpy(ktr_buf, ktr_buf_init + ktr_idx,
+	    (KTR_BOOT_ENTRIES - ktr_idx) * sizeof(*ktr_buf));
+	if (ktr_idx != 0)
+		memcpy(ktr_buf + KTR_BOOT_ENTRIES - ktr_idx, ktr_buf_init,
+		    ktr_idx * sizeof(*ktr_buf));
+	ktr_entries = KTR_ENTRIES;
+	ktr_mask = mask;
+}
+SYSINIT(ktr_entries_initializer, SI_SUB_KMEM, SI_ORDER_ANY,
+    ktr_entries_initializer, NULL);
+#endif
+
+static int
+sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
+{
+	int entries, error, mask;
+	struct ktr_entry *buf, *oldbuf;
+
+	entries = ktr_entries;
+	error = sysctl_handle_int(oidp, &entries, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (entries > KTR_ENTRIES_MAX)
+		return (ERANGE);
+	/* Disable ktr temporarily. */
+	mask = ktr_mask;
+	atomic_store_rel_int(&ktr_mask, 0);
+	/* Wait for threads to go idle. */
+	if ((error = quiesce_all_cpus("ktrent", PCATCH)) != 0) {
+		ktr_mask = mask;
+		return (error);
+	}
+	if (ktr_buf != ktr_buf_init)
+		oldbuf = ktr_buf;
+	else
+		oldbuf = NULL;
+	/* Allocate a new buffer. */
+	buf = malloc(sizeof(*buf) * entries, M_KTR, M_WAITOK | M_ZERO);
+	/* Install the new buffer and restart ktr. */
+	ktr_buf = buf;
+	ktr_entries = entries;
+	ktr_idx = 0;
+	atomic_store_rel_int(&ktr_mask, mask);
+	if (oldbuf != NULL)
+		free(oldbuf, M_KTR);
+
+	return (error);
+}
+
+SYSCTL_PROC(_debug_ktr, OID_AUTO, entries, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
+    sysctl_debug_ktr_entries, "I", "Number of entries in the KTR buffer");
 
 #ifdef KTR_VERBOSE
 int	ktr_verbose = KTR_VERBOSE;
@@ -249,7 +346,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 
 	if (panicstr)
 		return;
-	if ((ktr_mask & mask) == 0)
+	if ((ktr_mask & mask) == 0 || ktr_buf == NULL)
 		return;
 	cpu = KTR_CPU;
 	if (!CPU_ISSET(cpu, &ktr_cpumask))
@@ -281,7 +378,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	{
 		do {
 			saveindex = ktr_idx;
-			newindex = (saveindex + 1) % KTR_ENTRIES;
+			newindex = (saveindex + 1) % ktr_entries;
 		} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 		entry = &ktr_buf[saveindex];
 	}
@@ -336,7 +433,7 @@ static	int db_mach_vtrace(void);
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
 	
-	tstate.cur = (ktr_idx - 1) % KTR_ENTRIES;
+	tstate.cur = (ktr_idx - 1) % ktr_entries;
 	tstate.first = -1;
 	db_ktr_verbose = 0;
 	db_ktr_verbose |= (strchr(modif, 'v') != NULL) ? 2 : 0;
@@ -358,7 +455,7 @@ db_mach_vtrace(void)
 {
 	struct ktr_entry	*kp;
 
-	if (tstate.cur == tstate.first) {
+	if (tstate.cur == tstate.first || ktr_buf == NULL) {
 		db_printf("--- End of trace buffer ---\n");
 		return (0);
 	}
@@ -390,7 +487,7 @@ db_mach_vtrace(void)
 		tstate.first = tstate.cur;
 
 	if (--tstate.cur < 0)
-		tstate.cur = KTR_ENTRIES - 1;
+		tstate.cur = ktr_entries - 1;
 
 	return (1);
 }

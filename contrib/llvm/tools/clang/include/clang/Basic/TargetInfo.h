@@ -23,7 +23,9 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/DataTypes.h"
 #include "clang/Basic/AddressSpaces.h"
+#include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/VersionTuple.h"
+#include "clang/Basic/Specifiers.h"
 #include <cassert>
 #include <vector>
 #include <string>
@@ -38,7 +40,6 @@ class LangOptions;
 class MacroBuilder;
 class SourceLocation;
 class SourceManager;
-class TargetOptions;
 
 namespace Builtin { struct Info; }
 
@@ -61,6 +62,7 @@ enum TargetCXXABI {
 /// \brief Exposes information about the current target.
 ///
 class TargetInfo : public RefCountedBase<TargetInfo> {
+  llvm::IntrusiveRefCntPtr<TargetOptions> TargetOpts;
   llvm::Triple Triple;
 protected:
   // Target values set by the ctor of the actual target implementation.  Default
@@ -111,6 +113,16 @@ public:
 
   virtual ~TargetInfo();
 
+  /// \brief Retrieve the target options.
+  TargetOptions &getTargetOpts() const { 
+    assert(TargetOpts && "Missing target options");
+    return *TargetOpts; 
+  }
+
+  void setTargetOpts(TargetOptions &TargetOpts) {
+    this->TargetOpts = &TargetOpts;
+  }
+
   ///===---- Target Data Type Query Methods -------------------------------===//
   enum IntType {
     NoInt = 0,
@@ -150,12 +162,18 @@ public:
 
     /// __builtin_va_list as defined by the x86-64 ABI:
     /// http://www.x86-64.org/documentation/abi.pdf
-    X86_64ABIBuiltinVaList
+    X86_64ABIBuiltinVaList,
+
+    /// __builtin_va_list as defined by ARM AAPCS ABI
+    /// http://infocenter.arm.com
+    //        /help/topic/com.arm.doc.ihi0042d/IHI0042D_aapcs.pdf
+    AAPCSABIBuiltinVaList
   };
 
 protected:
   IntType SizeType, IntMaxType, UIntMaxType, PtrDiffType, IntPtrType, WCharType,
-          WIntType, Char16Type, Char32Type, Int64Type, SigAtomicType;
+          WIntType, Char16Type, Char32Type, Int64Type, SigAtomicType,
+          ProcessIDType;
 
   /// \brief Whether Objective-C's built-in boolean type should be signed char.
   ///
@@ -196,7 +214,7 @@ public:
   IntType getChar32Type() const { return Char32Type; }
   IntType getInt64Type() const { return Int64Type; }
   IntType getSigAtomicType() const { return SigAtomicType; }
-
+  IntType getProcessIDType() const { return ProcessIDType; }
 
   /// \brief Return the width (in bits) of the specified integer type enum.
   ///
@@ -500,6 +518,11 @@ public:
   bool validateInputConstraint(ConstraintInfo *OutputConstraints,
                                unsigned NumOutputs,
                                ConstraintInfo &info) const;
+  virtual bool validateConstraintModifier(StringRef /*Constraint*/,
+                                          const char /*Modifier*/,
+                                          unsigned /*Size*/) const {
+    return true;
+  }
   bool resolveSymbolicName(const char *&Name,
                            ConstraintInfo *OutputConstraints,
                            unsigned NumOutputs, unsigned &Index) const;
@@ -711,6 +734,34 @@ public:
   VersionTuple getPlatformMinVersion() const { return PlatformMinVersion; }
 
   bool isBigEndian() const { return BigEndian; }
+
+  /// \brief Gets the default calling convention for the given target and
+  /// declaration context.
+  virtual CallingConv getDefaultCallingConv() const {
+    // Not all targets will specify an explicit calling convention that we can
+    // express.  This will always do the right thing, even though it's not
+    // an explicit calling convention.
+    return CC_Default;
+  }
+
+  enum CallingConvCheckResult {
+    CCCR_OK,
+    CCCR_Warning
+  };
+
+  /// \brief Determines whether a given calling convention is valid for the
+  /// target. A calling convention can either be accepted, produce a warning 
+  /// and be substituted with the default calling convention, or (someday)
+  /// produce an error (such as using thiscall on a non-instance function).
+  virtual CallingConvCheckResult checkCallingConvention(CallingConv CC) const {
+    switch (CC) {
+      default:
+        return CCCR_Warning;
+      case CC_C:
+      case CC_Default:
+        return CCCR_OK;
+    }
+  }
 
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {

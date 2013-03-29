@@ -83,7 +83,7 @@ enum elf_member {
 
 typedef enum elf_member elf_member_t;
 
-int elf32_offsets[] = {
+static int elf32_offsets[] = {
 	0,
 
 	offsetof(Elf32_Dyn, d_tag), offsetof(Elf32_Dyn, d_un.d_ptr),
@@ -124,7 +124,7 @@ int elf32_offsets[] = {
 	offsetof(Elf32_Rela, r_addend)
 };
 
-int elf64_offsets[] = {
+static int elf64_offsets[] = {
 	0,
 
 	offsetof(Elf64_Dyn, d_tag), offsetof(Elf64_Dyn, d_un.d_ptr),
@@ -266,23 +266,23 @@ e_machines(u_int mach)
 	return (machdesc);
 }
 
-const char *e_types[] = {
+static const char *e_types[] = {
 	"ET_NONE", "ET_REL", "ET_EXEC", "ET_DYN", "ET_CORE"
 };
 
-const char *ei_versions[] = {
+static const char *ei_versions[] = {
 	"EV_NONE", "EV_CURRENT"
 };
 
-const char *ei_classes[] = {
+static const char *ei_classes[] = {
 	"ELFCLASSNONE", "ELFCLASS32", "ELFCLASS64"
 };
 
-const char *ei_data[] = {
+static const char *ei_data[] = {
 	"ELFDATANONE", "ELFDATA2LSB", "ELFDATA2MSB"
 };
 
-const char *ei_abis[256] = {
+static const char *ei_abis[256] = {
 	"ELFOSABI_SYSV", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
 	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS", "ELFOSABI_AIX",
 	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
@@ -290,12 +290,12 @@ const char *ei_abis[256] = {
 	[255] = "ELFOSABI_STANDALONE"
 };
 
-const char *p_types[] = {
+static const char *p_types[] = {
 	"PT_NULL", "PT_LOAD", "PT_DYNAMIC", "PT_INTERP", "PT_NOTE",
 	"PT_SHLIB", "PT_PHDR", "PT_TLS"
 };
 
-const char *p_flags[] = {
+static const char *p_flags[] = {
 	"", "PF_X", "PF_W", "PF_X|PF_W", "PF_R", "PF_X|PF_R", "PF_W|PF_R",
 	"PF_X|PF_W|PF_R"
 };
@@ -339,44 +339,47 @@ sh_types(u_int64_t sht) {
 	}
 }
 
-const char *sh_flags[] = {
+static const char *sh_flags[] = {
 	"", "SHF_WRITE", "SHF_ALLOC", "SHF_WRITE|SHF_ALLOC", "SHF_EXECINSTR",
 	"SHF_WRITE|SHF_EXECINSTR", "SHF_ALLOC|SHF_EXECINSTR",
 	"SHF_WRITE|SHF_ALLOC|SHF_EXECINSTR"
 };
 
-const char *st_types[] = {
+static const char *st_types[] = {
 	"STT_NOTYPE", "STT_OBJECT", "STT_FUNC", "STT_SECTION", "STT_FILE"
 };
 
-const char *st_bindings[] = {
+static const char *st_bindings[] = {
 	"STB_LOCAL", "STB_GLOBAL", "STB_WEAK"
 };
 
-char *dynstr;
-char *shstrtab;
-char *strtab;
-FILE *out;
+static char *dynstr;
+static char *shstrtab;
+static char *strtab;
+static FILE *out;
 
-u_int64_t elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member);
-u_int64_t elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member);
+static u_int64_t elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member);
+static u_int64_t elf_get_quarter(Elf32_Ehdr *e, void *base,
+    elf_member_t member);
+#if 0
+static u_int64_t elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member);
+#endif
+static u_int64_t elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member);
+static u_int64_t elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member);
 
-void elf_print_ehdr(Elf32_Ehdr *e);
-void elf_print_phdr(Elf32_Ehdr *e, void *p);
-void elf_print_shdr(Elf32_Ehdr *e, void *sh);
-void elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str);
-void elf_print_dynamic(Elf32_Ehdr *e, void *sh);
-void elf_print_rel(Elf32_Ehdr *e, void *r);
-void elf_print_rela(Elf32_Ehdr *e, void *ra);
-void elf_print_interp(Elf32_Ehdr *e, void *p);
-void elf_print_got(Elf32_Ehdr *e, void *sh);
-void elf_print_hash(Elf32_Ehdr *e, void *sh);
-void elf_print_note(Elf32_Ehdr *e, void *sh);
+static void elf_print_ehdr(Elf32_Ehdr *e);
+static void elf_print_phdr(Elf32_Ehdr *e, void *p);
+static void elf_print_shdr(Elf32_Ehdr *e, void *sh);
+static void elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str);
+static void elf_print_dynamic(Elf32_Ehdr *e, void *sh);
+static void elf_print_rel(Elf32_Ehdr *e, void *r);
+static void elf_print_rela(Elf32_Ehdr *e, void *ra);
+static void elf_print_interp(Elf32_Ehdr *e, void *p);
+static void elf_print_got(Elf32_Ehdr *e, void *sh);
+static void elf_print_hash(Elf32_Ehdr *e, void *sh);
+static void elf_print_note(Elf32_Ehdr *e, void *sh);
 
-void usage(void);
+static void usage(void);
 
 int
 main(int ac, char **av)
@@ -551,7 +554,7 @@ main(int ac, char **av)
 	return 0;
 }
 
-void
+static void
 elf_print_ehdr(Elf32_Ehdr *e)
 {
 	u_int64_t class;
@@ -606,7 +609,7 @@ elf_print_ehdr(Elf32_Ehdr *e)
 	fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
 }
 
-void
+static void
 elf_print_phdr(Elf32_Ehdr *e, void *p)
 {
 	u_int64_t phentsize;
@@ -648,7 +651,7 @@ elf_print_phdr(Elf32_Ehdr *e, void *p)
 	}
 }
 
-void
+static void
 elf_print_shdr(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t shentsize;
@@ -696,7 +699,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 {
 	u_int64_t offset;
@@ -735,7 +738,7 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 	}
 }
 
-void
+static void
 elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -795,7 +798,7 @@ elf_print_dynamic(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_rela(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -827,7 +830,7 @@ elf_print_rela(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_rel(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -856,7 +859,7 @@ elf_print_rel(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_interp(Elf32_Ehdr *e, void *p)
 {
 	u_int64_t offset;
@@ -868,7 +871,7 @@ elf_print_interp(Elf32_Ehdr *e, void *p)
 	fprintf(out, "\t%s\n", s);
 }
 
-void
+static void
 elf_print_got(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -891,12 +894,12 @@ elf_print_got(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-void
+static void
 elf_print_hash(Elf32_Ehdr *e __unused, void *sh __unused)
 {
 }
 
-void
+static void
 elf_print_note(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -922,7 +925,7 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	}
 }
 
-u_int64_t
+static u_int64_t
 elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -942,7 +945,7 @@ elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-u_int64_t
+static u_int64_t
 elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -982,7 +985,8 @@ elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-u_int64_t
+#if 0
+static u_int64_t
 elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -1021,8 +1025,9 @@ elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member)
 
 	return val;
 }
+#endif
 
-u_int64_t
+static u_int64_t
 elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -1062,7 +1067,7 @@ elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-u_int64_t
+static u_int64_t
 elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
@@ -1102,7 +1107,7 @@ elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 	return val;
 }
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: elfdump -a | -cdeGhinprs [-w file] file\n");

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: mail
-# REQUIRE: LOGIN cleanvar
+# REQUIRE: LOGIN FILESYSTEMS
 #	we make mail start late, so that things like .forward's are not
 #	processed until the system is fully operational
 # KEYWORD: shutdown

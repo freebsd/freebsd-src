@@ -25,7 +25,14 @@
 #define MY_ZCALLOC
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
-#define inflate	inflate_ppp	/* FreeBSD already has an inflate :-( */
+#define	_tr_init		_zlib104_tr_init
+#define	_tr_align		_zlib104_tr_align
+#define	_tr_tally		_zlib104_tr_tally
+#define	_tr_flush_block		_zlib104_tr_flush_block
+#define	_tr_stored_block	_zlib104_tr_stored_block
+#define	inflate_fast		_zlib104_inflate_fast
+#define	inflate			_zlib104_inflate
+#define	zlibVersion		_zlib104_Version
 #endif
 
 

@@ -117,21 +117,17 @@ bool SymExpr::symbol_iterator::operator!=(const symbol_iterator &X) const {
 
 SymExpr::symbol_iterator::symbol_iterator(const SymExpr *SE) {
   itr.push_back(SE);
-  while (!isa<SymbolData>(itr.back())) expand();
 }
 
 SymExpr::symbol_iterator &SymExpr::symbol_iterator::operator++() {
   assert(!itr.empty() && "attempting to iterate on an 'end' iterator");
-  assert(isa<SymbolData>(itr.back()));
-  itr.pop_back();
-  if (!itr.empty())
-    while (!isa<SymbolData>(itr.back())) expand();
+  expand();
   return *this;
 }
 
 SymbolRef SymExpr::symbol_iterator::operator*() {
   assert(!itr.empty() && "attempting to dereference an 'end' iterator");
-  return cast<SymbolData>(itr.back());
+  return itr.back();
 }
 
 void SymExpr::symbol_iterator::expand() {
@@ -187,11 +183,11 @@ SymbolManager::getRegionValueSymbol(const TypedValueRegion* R) {
   return cast<SymbolRegionValue>(SD);
 }
 
-const SymbolConjured*
-SymbolManager::getConjuredSymbol(const Stmt *E, const LocationContext *LCtx,
-                                 QualType T, unsigned Count,
-                                 const void *SymbolTag) {
-
+const SymbolConjured* SymbolManager::conjureSymbol(const Stmt *E,
+                                                   const LocationContext *LCtx,
+                                                   QualType T,
+                                                   unsigned Count,
+                                                   const void *SymbolTag) {
   llvm::FoldingSetNodeID profile;
   SymbolConjured::Profile(profile, E, T, Count, LCtx, SymbolTag);
   void *InsertPos;
@@ -328,23 +324,24 @@ const SymSymExpr *SymbolManager::getSymSymExpr(const SymExpr *lhs,
   return cast<SymSymExpr>(data);
 }
 
-QualType SymbolConjured::getType(ASTContext&) const {
+QualType SymbolConjured::getType() const {
   return T;
 }
 
-QualType SymbolDerived::getType(ASTContext &Ctx) const {
+QualType SymbolDerived::getType() const {
   return R->getValueType();
 }
 
-QualType SymbolExtent::getType(ASTContext &Ctx) const {
+QualType SymbolExtent::getType() const {
+  ASTContext &Ctx = R->getMemRegionManager()->getContext();
   return Ctx.getSizeType();
 }
 
-QualType SymbolMetadata::getType(ASTContext&) const {
+QualType SymbolMetadata::getType() const {
   return T;
 }
 
-QualType SymbolRegionValue::getType(ASTContext &C) const {
+QualType SymbolRegionValue::getType() const {
   return R->getValueType();
 }
 
@@ -466,41 +463,56 @@ bool SymbolReaper::isLive(SymbolRef sym) {
     markDependentsLive(sym);
     return true;
   }
-
-  if (const SymbolDerived *derived = dyn_cast<SymbolDerived>(sym)) {
-    if (isLive(derived->getParentSymbol())) {
-      markLive(sym);
-      return true;
-    }
-    return false;
+  
+  bool KnownLive;
+  
+  switch (sym->getKind()) {
+  case SymExpr::RegionValueKind:
+    // FIXME: We should be able to use isLiveRegion here (this behavior
+    // predates isLiveRegion), but doing so causes test failures. Investigate.
+    KnownLive = true;
+    break;
+  case SymExpr::ConjuredKind:
+    KnownLive = false;
+    break;
+  case SymExpr::DerivedKind:
+    KnownLive = isLive(cast<SymbolDerived>(sym)->getParentSymbol());
+    break;
+  case SymExpr::ExtentKind:
+    KnownLive = isLiveRegion(cast<SymbolExtent>(sym)->getRegion());
+    break;
+  case SymExpr::MetadataKind:
+    KnownLive = MetadataInUse.count(sym) &&
+                isLiveRegion(cast<SymbolMetadata>(sym)->getRegion());
+    if (KnownLive)
+      MetadataInUse.erase(sym);
+    break;
+  case SymExpr::SymIntKind:
+    KnownLive = isLive(cast<SymIntExpr>(sym)->getLHS());
+    break;
+  case SymExpr::IntSymKind:
+    KnownLive = isLive(cast<IntSymExpr>(sym)->getRHS());
+    break;
+  case SymExpr::SymSymKind:
+    KnownLive = isLive(cast<SymSymExpr>(sym)->getLHS()) &&
+                isLive(cast<SymSymExpr>(sym)->getRHS());
+    break;
+  case SymExpr::CastSymbolKind:
+    KnownLive = isLive(cast<SymbolCast>(sym)->getOperand());
+    break;
   }
 
-  if (const SymbolExtent *extent = dyn_cast<SymbolExtent>(sym)) {
-    if (isLiveRegion(extent->getRegion())) {
-      markLive(sym);
-      return true;
-    }
-    return false;
-  }
+  if (KnownLive)
+    markLive(sym);
 
-  if (const SymbolMetadata *metadata = dyn_cast<SymbolMetadata>(sym)) {
-    if (MetadataInUse.count(sym)) {
-      if (isLiveRegion(metadata->getRegion())) {
-        markLive(sym);
-        MetadataInUse.erase(sym);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Interogate the symbol.  It may derive from an input value to
-  // the analyzed function/method.
-  return isa<SymbolRegionValue>(sym);
+  return KnownLive;
 }
 
 bool
 SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
+  if (LCtx == 0)
+    return false;
+
   if (LCtx != ELCtx) {
     // If the reaper's location context is a parent of the expression's
     // location context, then the expression value is now "out of scope".
@@ -508,6 +520,7 @@ SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
       return false;
     return true;
   }
+
   // If no statement is provided, everything is this and parent contexts is live.
   if (!Loc)
     return true;
@@ -517,10 +530,16 @@ SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
 
 bool SymbolReaper::isLive(const VarRegion *VR, bool includeStoreBindings) const{
   const StackFrameContext *VarContext = VR->getStackFrame();
+
+  if (!VarContext)
+    return true;
+
+  if (!LCtx)
+    return false;
   const StackFrameContext *CurrentContext = LCtx->getCurrentStackFrame();
 
   if (VarContext == CurrentContext) {
-    // If no statemetnt is provided, everything is live.
+    // If no statement is provided, everything is live.
     if (!Loc)
       return true;
 

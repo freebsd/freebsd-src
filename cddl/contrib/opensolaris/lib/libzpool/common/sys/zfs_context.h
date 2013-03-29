@@ -34,7 +34,6 @@ extern "C" {
 #define	_SYS_RWLOCK_H
 #define	_SYS_CONDVAR_H
 #define	_SYS_SYSTM_H
-#define	_SYS_DEBUG_H
 #define	_SYS_T_LOCK_H
 #define	_SYS_VNODE_H
 #define	_SYS_VFS_H
@@ -61,6 +60,8 @@ extern "C" {
 #include <umem.h>
 #include <inttypes.h>
 #include <fsshare.h>
+#include <pthread.h>
+#include <sys/debug.h>
 #include <sys/note.h>
 #include <sys/types.h>
 #include <sys/cred.h>
@@ -75,7 +76,6 @@ extern "C" {
 #include <sys/mntent.h>
 #include <sys/mnttab.h>
 #include <sys/zfs_debug.h>
-#include <sys/debug.h>
 #include <sys/sdt.h>
 #include <sys/kstat.h>
 #include <sys/u8_textprep.h>
@@ -85,6 +85,7 @@ extern "C" {
 #include <sys/sysevent/eventdefs.h>
 #include <sys/sysevent/dev.h>
 #include <machine/atomic.h>
+#include <sys/debug.h>
 
 #define	ZFS_EXPORTS_PATH	"/etc/zfs/exports"
 
@@ -123,60 +124,6 @@ extern void vpanic(const char *, __va_list);
 #define	fm_panic	panic
 
 extern int aok;
-
-/* This definition is copied from assert.h. */
-#if defined(__STDC__)
-#if __STDC_VERSION__ - 0 >= 199901L
-#define	zverify(EX) (void)((EX) || (aok) || \
-	(__assert(#EX, __FILE__, __LINE__), 0))
-#else
-#define	zverify(EX) (void)((EX) || (aok) || \
-	(__assert(#EX, __FILE__, __LINE__), 0))
-#endif /* __STDC_VERSION__ - 0 >= 199901L */
-#else
-#define	zverify(EX) (void)((EX) || (aok) || \
-	(_assert("EX", __FILE__, __LINE__), 0))
-#endif	/* __STDC__ */
-
-
-#define	VERIFY	zverify
-#define	ASSERT	zverify
-#undef	assert
-#define	assert	zverify
-
-extern void __assert(const char *, const char *, int);
-
-#ifdef lint
-#define	VERIFY3_IMPL(x, y, z, t)	if (x == z) ((void)0)
-#else
-/* BEGIN CSTYLED */
-#define	VERIFY3_IMPL(LEFT, OP, RIGHT, TYPE) do { \
-	const TYPE __left = (TYPE)(LEFT); \
-	const TYPE __right = (TYPE)(RIGHT); \
-	if (!(__left OP __right) && (!aok)) { \
-		char *__buf = alloca(256); \
-		(void) snprintf(__buf, 256, "%s %s %s (0x%llx %s 0x%llx)", \
-			#LEFT, #OP, #RIGHT, \
-			(u_longlong_t)__left, #OP, (u_longlong_t)__right); \
-		__assert(__buf, __FILE__, __LINE__); \
-	} \
-_NOTE(CONSTCOND) } while (0)
-/* END CSTYLED */
-#endif /* lint */
-
-#define	VERIFY3S(x, y, z)	VERIFY3_IMPL(x, y, z, int64_t)
-#define	VERIFY3U(x, y, z)	VERIFY3_IMPL(x, y, z, uint64_t)
-#define	VERIFY3P(x, y, z)	VERIFY3_IMPL(x, y, z, uintptr_t)
-
-#ifdef NDEBUG
-#define	ASSERT3S(x, y, z)	((void)0)
-#define	ASSERT3U(x, y, z)	((void)0)
-#define	ASSERT3P(x, y, z)	((void)0)
-#else
-#define	ASSERT3S(x, y, z)	VERIFY3S(x, y, z)
-#define	ASSERT3U(x, y, z)	VERIFY3U(x, y, z)
-#define	ASSERT3P(x, y, z)	VERIFY3P(x, y, z)
-#endif
 
 /*
  * DTrace SDT probes have different signatures in userland than they do in
@@ -297,6 +244,9 @@ typedef int krw_t;
 #define	RW_WRITE_HELD(x)	((x)->rw_owner == curthread)
 #define	RW_LOCK_HELD(x)		rw_lock_held(x)
 
+#undef RW_LOCK_HELD
+#define	RW_LOCK_HELD(x)		(RW_READ_HELD(x) || RW_WRITE_HELD(x))
+
 extern void rw_init(krwlock_t *rwlp, char *name, int type, void *arg);
 extern void rw_destroy(krwlock_t *rwlp);
 extern void rw_enter(krwlock_t *rwlp, krw_t rw);
@@ -307,6 +257,7 @@ extern int rw_lock_held(krwlock_t *rwlp);
 #define	rw_downgrade(rwlp) do { } while (0)
 
 extern uid_t crgetuid(cred_t *cr);
+extern uid_t crgetruid(cred_t *cr);
 extern gid_t crgetgid(cred_t *cr);
 extern int crgetngroups(cred_t *cr);
 extern gid_t *crgetgroups(cred_t *cr);
@@ -324,6 +275,14 @@ extern void cv_wait(kcondvar_t *cv, kmutex_t *mp);
 extern clock_t cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime);
 extern void cv_signal(kcondvar_t *cv);
 extern void cv_broadcast(kcondvar_t *cv);
+
+/*
+ * Thread-specific data
+ */
+#define	tsd_get(k) pthread_getspecific(k)
+#define	tsd_set(k, v) pthread_setspecific(k, v)
+#define	tsd_create(kp, d) pthread_key_create(kp, d)
+#define	tsd_destroy(kp) /* nothing */
 
 /*
  * Kernel memory
@@ -485,14 +444,6 @@ extern int fop_getattr(vnode_t *vp, vattr_t *vap);
 
 #define	vn_lock(vp, type)
 #define	VOP_UNLOCK(vp, type)
-#ifdef VFS_LOCK_GIANT
-#undef VFS_LOCK_GIANT
-#endif
-#define	VFS_LOCK_GIANT(mp)	0
-#ifdef VFS_UNLOCK_GIANT
-#undef VFS_UNLOCK_GIANT
-#endif
-#define	VFS_UNLOCK_GIANT(vfslocked)
 
 extern int vn_open(char *path, int x1, int oflags, int mode, vnode_t **vpp,
     int x2, int x3);
@@ -519,6 +470,9 @@ extern vnode_t *rootdir;
 #define	hz	119	/* frequency when using gethrtime() >> 23 for lbolt */
 
 extern void delay(clock_t ticks);
+
+#define	SEC_TO_TICK(sec)	((sec) * hz)
+#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
 
 #define	gethrestime_sec() time(NULL)
 #define	gethrestime(t) \
@@ -579,7 +533,7 @@ typedef struct callb_cpr {
 #define	INGLOBALZONE(z)			(1)
 
 extern char *kmem_asprintf(const char *fmt, ...);
-#define	strfree(str) kmem_free((str), strlen(str)+1)
+#define	strfree(str) kmem_free((str), strlen(str) + 1)
 
 /*
  * Hostname information
@@ -686,6 +640,36 @@ typedef	uint32_t	idmap_rid_t;
 #ifndef	ERESTART
 #define	ERESTART	(-1)
 #endif
+
+#ifdef illumos
+/*
+ * Cyclic information
+ */
+extern kmutex_t cpu_lock;
+
+typedef uintptr_t cyclic_id_t;
+typedef uint16_t cyc_level_t;
+typedef void (*cyc_func_t)(void *);
+
+#define	CY_LOW_LEVEL	0
+#define	CY_INFINITY	INT64_MAX
+#define	CYCLIC_NONE	((cyclic_id_t)0)
+
+typedef struct cyc_time {
+	hrtime_t cyt_when;
+	hrtime_t cyt_interval;
+} cyc_time_t;
+
+typedef struct cyc_handler {
+	cyc_func_t cyh_func;
+	void *cyh_arg;
+	cyc_level_t cyh_level;
+} cyc_handler_t;
+
+extern cyclic_id_t cyclic_add(cyc_handler_t *, cyc_time_t *);
+extern void cyclic_remove(cyclic_id_t);
+extern int cyclic_reprogram(cyclic_id_t, hrtime_t);
+#endif	/* illumos */
 
 #ifdef	__cplusplus
 }

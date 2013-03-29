@@ -339,7 +339,7 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	TR(bulk * 1024);
 
 	printf("\tinside:      ");
-	b0 = sectorcount - bulk * (1024*1024 / sectorsize) - 1;;
+	b0 = sectorcount - bulk * (1024*1024 / sectorsize) - 1;
 	rdsect(fd, b0, sectorsize);
 	T0();
 	for (i = 0; i < bulk; i++) {

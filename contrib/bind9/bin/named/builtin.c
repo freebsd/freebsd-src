@@ -99,9 +99,9 @@ static size_t
 dns64_rdata(unsigned char *v, size_t start, unsigned char *rdata) {
 	size_t i, j = 0;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4U; i++) {
 		unsigned char c = v[start++];
-		if (start == 7)
+		if (start == 7U)
 			start++;
 		if (c > 99) {
 			rdata[j++] = 3;
@@ -164,7 +164,7 @@ dns64_cname(const dns_name_t *zone, const dns_name_t *name,
 	i = (nlen % 4) == 2U ? 1 : 0;
 	j = nlen;
 	memset(v, 0, sizeof(v));
-	while (j != 0) {
+	while (j != 0U) {
 		INSIST((i/2) < sizeof(v));
 		if (ndata[0] != 1)
 			return (ISC_R_NOTFOUND);

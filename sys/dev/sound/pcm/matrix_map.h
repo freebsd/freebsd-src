@@ -195,6 +195,49 @@
 		    -1, -1, -1, -1, -1, -1, -1, -1, -1  }		\
 }
 
+#define SND_CHN_MATRIX_MAP_3_1	{					\
+	.id = SND_CHN_MATRIX_3_1,					\
+	.channels = 4,							\
+	.ext = 1,							\
+	.map = {							\
+		/* Left */						\
+		[0] = {							\
+			.type = SND_CHN_T_FL,				\
+			.members =					\
+			    SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FC |	\
+			    SND_CHN_T_MASK_SL				\
+		},							\
+		/* Right */						\
+		[1] = {							\
+			.type = SND_CHN_T_FR,				\
+			.members =					\
+			    SND_CHN_T_MASK_FR | SND_CHN_T_MASK_FC |	\
+			    SND_CHN_T_MASK_SR				\
+		},							\
+		/* LFE */						\
+		[2] = {							\
+			.type = SND_CHN_T_LF,				\
+			.members = SND_CHN_T_MASK_LF			\
+		},							\
+		/* Rear Center */					\
+		[3] = {							\
+			.type = SND_CHN_T_BC,				\
+			.members =					\
+			    SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BR |	\
+			    SND_CHN_T_MASK_BC |				\
+			    SND_CHN_T_MASK_SL | SND_CHN_T_MASK_SR	\
+		},							\
+		[4] = {							\
+			.type = SND_CHN_T_MAX,				\
+			.members = 0					\
+		}							\
+	},								\
+	.mask = SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FR |			\
+		SND_CHN_T_MASK_LF | SND_CHN_T_MASK_BC,			\
+	.offset = {  0,  1, -1,  2, -1, -1, -1, -1,  3,			\
+		    -1, -1, -1, -1, -1, -1, -1, -1, -1  }		\
+}
+
 #define SND_CHN_MATRIX_MAP_4_0	{					\
 	.id = SND_CHN_MATRIX_4_0,					\
 	.channels = 4,							\
@@ -502,6 +545,68 @@
 		SND_CHN_T_MASK_BC,					\
 	.offset = {  0,  1,  4,  5,  2,  3, -1, -1,  6,			\
 		    -1, -1, -1, -1, -1, -1, -1, -1, -1  }		\
+}
+
+#define SND_CHN_MATRIX_MAP_7_0	{					\
+	.id = SND_CHN_MATRIX_7_0,					\
+	.channels = 7,							\
+	.ext = 0,							\
+	.map = {							\
+		/* Left */						\
+		[0] = {							\
+			.type = SND_CHN_T_FL,				\
+			.members =					\
+			    SND_CHN_T_MASK_FL | SND_CHN_T_MASK_LF	\
+		},							\
+		/* Right */						\
+		[1] = {							\
+			.type = SND_CHN_T_FR,				\
+			.members =					\
+			    SND_CHN_T_MASK_FR | SND_CHN_T_MASK_LF	\
+		},							\
+		/* Rear Left */						\
+		[2] = {							\
+			.type = SND_CHN_T_BL,				\
+			.members =					\
+			    SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BC |	\
+			    SND_CHN_T_MASK_LF				\
+		},							\
+		/* Rear Right */					\
+		[3] = {							\
+			.type = SND_CHN_T_BR,				\
+			.members =					\
+			    SND_CHN_T_MASK_BR | SND_CHN_T_MASK_BC |	\
+			    SND_CHN_T_MASK_LF				\
+		},							\
+		/* Center */						\
+		[4] = {							\
+			.type = SND_CHN_T_FC,				\
+			.members =					\
+			    SND_CHN_T_MASK_FC | SND_CHN_T_MASK_LF	\
+		},							\
+		/* Side Left */						\
+		[5] = {							\
+			.type = SND_CHN_T_SL,				\
+			.members =					\
+			    SND_CHN_T_MASK_SL | SND_CHN_T_MASK_LF	\
+		},							\
+		/* Side Right */					\
+		[6] = {							\
+			.type = SND_CHN_T_SR,				\
+			.members =					\
+			    SND_CHN_T_MASK_SR | SND_CHN_T_MASK_LF	\
+		},							\
+		[7] = {							\
+			.type = SND_CHN_T_MAX,				\
+			.members = 0					\
+		}							\
+	},								\
+	.mask = SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FR |			\
+		SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BR |			\
+		SND_CHN_T_MASK_FC |					\
+		SND_CHN_T_MASK_SL | SND_CHN_T_MASK_SR,			\
+	.offset = {  0,  1,  4, -1,  2,  3, -1, -1, -1,			\
+		     5,  6, -1, -1, -1, -1, -1, -1, -1  }		\
 }
 
 #define SND_CHN_MATRIX_MAP_7_1	{					\

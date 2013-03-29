@@ -116,7 +116,7 @@ static device_method_t ipheth_methods[] = {
 	DEVMETHOD(device_attach, ipheth_attach),
 	DEVMETHOD(device_detach, ipheth_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ipheth_driver = {
@@ -159,6 +159,9 @@ static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_4,
+	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
+	    IPHETH_USBINTF_PROTO)},
+	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_5,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
 };

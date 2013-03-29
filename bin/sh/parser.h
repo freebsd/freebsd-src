@@ -39,7 +39,7 @@
 #define CTLENDVAR '\371'
 #define CTLBACKQ '\372'
 #define CTLQUOTE 01		/* ored with CTLBACKQ code if in quotes */
-/*	CTLBACKQ | CTLQUOTE == '\205' */
+/*	CTLBACKQ | CTLQUOTE == '\373' */
 #define	CTLARI	'\374'
 #define	CTLENDARI '\375'
 #define	CTLQUOTEMARK '\376'

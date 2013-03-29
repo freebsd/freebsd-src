@@ -29,12 +29,14 @@
 #ifndef _USB_IOCTL_H_
 #define	_USB_IOCTL_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/ioccom.h>
 
 /* Building "kdump" depends on these includes */
 
 #include <dev/usb/usb_endian.h>
 #include <dev/usb/usb.h>
+#endif
 
 #define	USB_DEVICE_NAME "usbctl"
 #define	USB_DEVICE_DIR "usb"
@@ -275,7 +277,8 @@ struct usb_gen_quirk {
 #define	USB_IFACE_DRIVER_DETACH	_IOW ('U', 125, int)
 #define	USB_GET_PLUGTIME	_IOR ('U', 126, uint32_t)
 #define	USB_READ_DIR		_IOW ('U', 127, struct usb_read_dir)
-/* 128 - 135 unused */
+/* 128 - 134 unused */
+#define	USB_GET_POWER_USAGE	_IOR ('U', 135, int)
 #define	USB_SET_TX_FORCE_SHORT	_IOW ('U', 136, int)
 #define	USB_SET_TX_TIMEOUT	_IOW ('U', 137, int)
 #define	USB_GET_TX_FRAME_SIZE	_IOR ('U', 138, int)

@@ -23,7 +23,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -46,7 +46,7 @@ namespace {
     /// runOnFunction - Remove instructions that simplify.
     bool runOnFunction(Function &F) {
       const DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>();
-      const TargetData *TD = getAnalysisIfAvailable<TargetData>();
+      const DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
       const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
       SmallPtrSet<const Instruction*, 8> S1, S2, *ToSimplify = &S1, *Next = &S2;
       bool Changed = false;
@@ -72,7 +72,7 @@ namespace {
                 ++NumSimplified;
                 Changed = true;
               }
-            Changed |= RecursivelyDeleteTriviallyDeadInstructions(I);
+            Changed |= RecursivelyDeleteTriviallyDeadInstructions(I, TLI);
           }
 
         // Place the list of instructions to simplify on the next loop iteration

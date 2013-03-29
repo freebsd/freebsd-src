@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -483,12 +484,7 @@ slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		realmax = platform_real_maxaddr();
 
 	*flags = UMA_SLAB_PRIV;
-	if ((wait & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
-	if (wait & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
+	pflags = malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
 
 	for (;;) {
 		m = vm_page_alloc_contig(NULL, 0, pflags, 1, 0, realmax,

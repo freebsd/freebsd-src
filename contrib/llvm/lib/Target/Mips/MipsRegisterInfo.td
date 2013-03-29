@@ -14,6 +14,8 @@ let Namespace = "Mips" in {
 def sub_fpeven : SubRegIndex;
 def sub_fpodd  : SubRegIndex;
 def sub_32     : SubRegIndex;
+def sub_lo     : SubRegIndex;
+def sub_hi     : SubRegIndex;
 }
 
 // We have banks of 32 registers each.
@@ -71,7 +73,7 @@ class HWR<bits<5> num, string n> : MipsReg<n> {
 let Namespace = "Mips" in {
   // General Purpose Registers
   def ZERO : MipsGPRReg< 0, "zero">, DwarfRegNum<[0]>;
-  def AT   : MipsGPRReg< 1, "at">,   DwarfRegNum<[1]>;
+  def AT   : MipsGPRReg< 1, "1">,    DwarfRegNum<[1]>;
   def V0   : MipsGPRReg< 2, "2">,    DwarfRegNum<[2]>;
   def V1   : MipsGPRReg< 3, "3">,    DwarfRegNum<[3]>;
   def A0   : MipsGPRReg< 4, "4">,    DwarfRegNum<[4]>;
@@ -105,7 +107,7 @@ let Namespace = "Mips" in {
 
   // General Purpose 64-bit Registers
   def ZERO_64 : Mips64GPRReg< 0, "zero", [ZERO]>, DwarfRegNum<[0]>;
-  def AT_64   : Mips64GPRReg< 1, "at",   [AT]>, DwarfRegNum<[1]>;
+  def AT_64   : Mips64GPRReg< 1, "1",    [AT]>, DwarfRegNum<[1]>;
   def V0_64   : Mips64GPRReg< 2, "2",    [V0]>, DwarfRegNum<[2]>;
   def V1_64   : Mips64GPRReg< 3, "3",    [V1]>, DwarfRegNum<[3]>;
   def A0_64   : Mips64GPRReg< 4, "4",    [A0]>, DwarfRegNum<[4]>;
@@ -239,16 +241,29 @@ let Namespace = "Mips" in {
   // fcc0 register
   def FCC0 : Register<"fcc0">;
 
+  // PC register
+  def PC : Register<"pc">;
+
   // Hardware register $29
   def HWR29 : Register<"29">;
   def HWR29_64 : Register<"29">;
+
+  // Accum registers
+  let SubRegIndices = [sub_lo, sub_hi] in
+  def AC0 : RegisterWithSubRegs<"ac0", [LO, HI]>;
+  def AC1 : Register<"ac1">;
+  def AC2 : Register<"ac2">;
+  def AC3 : Register<"ac3">;
+
+  def DSPCtrl : Register<"dspctrl">;
 }
 
 //===----------------------------------------------------------------------===//
 // Register Classes
 //===----------------------------------------------------------------------===//
 
-def CPURegs : RegisterClass<"Mips", [i32], 32, (add
+class CPURegsClass<list<ValueType> regTypes> :
+  RegisterClass<"Mips", regTypes, 32, (add
   // Reserved
   ZERO, AT,
   // Return Values and Arguments
@@ -261,6 +276,9 @@ def CPURegs : RegisterClass<"Mips", [i32], 32, (add
   T8, T9,
   // Reserved
   K0, K1, GP, SP, FP, RA)>;
+
+def CPURegs : CPURegsClass<[i32]>;
+def DSPRegs : CPURegsClass<[v4i8, v2i16]>;
 
 def CPU64Regs : RegisterClass<"Mips", [i64], 64, (add
 // Reserved
@@ -284,6 +302,7 @@ def CPU16Regs : RegisterClass<"Mips", [i32], 32, (add
 
 def CPURAReg : RegisterClass<"Mips", [i32], 32, (add RA)>;
 
+def CPUSPReg : RegisterClass<"Mips", [i32], 32, (add SP)>;
 
 // 64bit fp:
 // * FGR64  - 32 64-bit registers
@@ -319,3 +338,5 @@ def HILO64 : RegisterClass<"Mips", [i64], 64, (add HI64, LO64)>;
 def HWRegs : RegisterClass<"Mips", [i32], 32, (add HWR29)>;
 def HWRegs64 : RegisterClass<"Mips", [i64], 32, (add HWR29_64)>;
 
+// Accumulator Registers
+def ACRegs : RegisterClass<"Mips", [i64], 64, (sequence "AC%u", 0, 3)>;

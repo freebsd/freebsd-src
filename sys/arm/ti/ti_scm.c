@@ -155,8 +155,10 @@ ti_scm_padconf_set_internal(struct ti_scm_softc *sc,
 	}
 
 	/* couldn't find the mux mode */
-	if (mode >= 8)
+	if (mode >= 8) {
+		printf("Invalid mode \"%s\"\n", muxmode);
 		return (EINVAL);
+	}
 
 	/* set the mux mode */
 	reg_val |= (uint16_t)(mode & ti_scm_dev.padconf_muxmode_mask);
@@ -202,7 +204,7 @@ ti_scm_padconf_set(const char *padname, const char *muxmode, unsigned int state)
  *	ti_scm_padconf_get - gets the muxmode and state for a pad/pin
  *	@padname: the name of the pad, i.e. "c12"
  *	@muxmode: upon return will contain the name of the muxmode of the pin
- *	@state: upon return will contain the state of the the pad/pin
+ *	@state: upon return will contain the state of the pad/pin
  *	
  *
  *	LOCKING:
@@ -391,13 +393,16 @@ ti_scm_padconf_init_from_fdt(struct ti_scm_softc *sc)
 				while (padstates->state != NULL) {
 					if (strcmp(padstates->state, padstate) == 0) {
 						err = ti_scm_padconf_set_internal(sc,
-							padconf, muxname, padstates->reg);
+						    padconf, muxname, padstates->reg);
 					}
 					padstates++;
 				}
 				if (err)
-					device_printf(sc->sc_dev, "err: failed to configure"
-						"pin \"%s\"\n", padconf->ballname);
+					device_printf(sc->sc_dev,
+					    "err: failed to configure "
+					    "pin \"%s\" as \"%s\"\n",
+					    padconf->ballname,
+					    muxname);
 			}
 			padconf++;
 		}

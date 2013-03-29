@@ -6,6 +6,7 @@
 
 #ifndef _calendar_birthday_
 #define _calendar_birthday_
+#undef	unix
 
 01/01	J.D. Salinger born, 1919
 01/01	Paul Revere born in Boston, 1735

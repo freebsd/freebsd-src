@@ -272,12 +272,29 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 			continue;
 		}
 
+		/*
+		 * The following code stops trying to sample
+		 * non-MCS rates when speaking to an MCS node.
+		 * However, at least for CCK rates in 2.4GHz mode,
+		 * the non-MCS rates MAY actually provide better
+		 * PER at the very far edge of reception.
+		 *
+		 * However! Until ath_rate_form_aggr() grows
+		 * some logic to not form aggregates if the
+		 * selected rate is non-MCS, this won't work.
+		 *
+		 * So don't disable this code until you've taught
+		 * ath_rate_form_aggr() to drop out if any of
+		 * the selected rates are non-MCS.
+		 */
+#if 1
 		/* if the node is HT and the rate isn't HT, don't bother sample */
 		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
 		    (rt->info[rix].phy != IEEE80211_T_HT)) {
 			mask &= ~((uint64_t) 1<<rix);
 			goto nextrate;
 		}
+#endif
 
 		/* this bit-rate is always worse than the current one */
 		if (sn->stats[size_bin][rix].perfect_tx_time > current_tt) {
@@ -293,26 +310,16 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 		}
 
 		/*
-		 * When doing aggregation, successive failures don't happen
-		 * as often, as sometimes some of the sub-frames get through.
-		 *
-		 * If the sample rix average tx time is greater than the
-		 * average tx time of the current rix, don't immediately use
-		 * the rate for sampling.
+		 * For HT, only sample a few rates on either side of the
+		 * current rix; there's quite likely a lot of them.
 		 */
 		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
-			if ((sn->stats[size_bin][rix].average_tx_time * 10 >
-			    sn->stats[size_bin][current_rix].average_tx_time * 9) &&
-			    (ticks - sn->stats[size_bin][rix].last_tx < ssc->stale_failure_timeout)) {
+			if (rix < (current_rix - 3) ||
+			    rix > (current_rix + 3)) {
 				mask &= ~((uint64_t) 1<<rix);
 				goto nextrate;
 			}
 		}
-
-		/*
-		 * XXX TODO
-		 * For HT, limit sample somehow?
-		 */
 
 		/* Don't sample more than 2 rates higher for rates > 11M for non-HT rates */
 		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
@@ -701,71 +708,6 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 	    s3code, sched->t3);		/* series 3 */
 }
 
-/*
- * Update the EWMA percentage.
- *
- * This is a simple hack to track an EWMA based on the current
- * rate scenario. For the rate codes which failed, this will
- * record a 0% against it. For the rate code which succeeded,
- * EWMA will record the nbad*100/nframes percentage against it.
- */
-static void
-update_ewma_stats(struct ath_softc *sc, struct ath_node *an,
-    int frame_size,
-    int rix0, int tries0,
-    int rix1, int tries1,
-    int rix2, int tries2,
-    int rix3, int tries3,
-    int short_tries, int tries, int status,
-    int nframes, int nbad)
-{
-	struct sample_node *sn = ATH_NODE_SAMPLE(an);
-	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
-	const int size_bin = size_to_bin(frame_size);
-	int tries_so_far;
-	int pct;
-	int rix = rix0;
-
-	/* Calculate percentage based on current rate */
-	if (nframes == 0)
-		nframes = nbad = 1;
-	pct = ((nframes - nbad) * 1000) / nframes;
-
-	/* Figure out which rate index succeeded */
-	tries_so_far = tries0;
-
-	if (tries1 && tries_so_far < tries) {
-		tries_so_far += tries1;
-		rix = rix1;
-		/* XXX bump ewma pct */
-	}
-
-	if (tries2 && tries_so_far < tries) {
-		tries_so_far += tries2;
-		rix = rix2;
-		/* XXX bump ewma pct */
-	}
-
-	if (tries3 && tries_so_far < tries) {
-		rix = rix3;
-		/* XXX bump ewma pct */
-	}
-
-	/* rix is the successful rate, update EWMA for final rix */
-	if (sn->stats[size_bin][rix].total_packets <
-	    ssc->smoothing_minpackets) {
-		/* just average the first few packets */
-		int a_pct = (sn->stats[size_bin][rix].packets_acked * 1000) /
-		    (sn->stats[size_bin][rix].total_packets);
-		sn->stats[size_bin][rix].ewma_pct = a_pct;
-	} else {
-		/* use a ewma */
-		sn->stats[size_bin][rix].ewma_pct =
-			((sn->stats[size_bin][rix].ewma_pct * ssc->smoothing_rate) +
-			 (pct * (100 - ssc->smoothing_rate))) / 100;
-	}
-}
-
 static void
 update_stats(struct ath_softc *sc, struct ath_node *an, 
 		  int frame_size,
@@ -785,6 +727,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	const int size = bin_to_size(size_bin);
 	int tt, tries_so_far;
 	int is_ht40 = (an->an_node.ni_chw == 40);
+	int pct;
 
 	if (!IS_RATE_DEFINED(sn, rix0))
 		return;
@@ -858,6 +801,27 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	sn->stats[size_bin][rix0].last_tx = ticks;
 	sn->stats[size_bin][rix0].total_packets += nframes;
 
+	/* update EWMA for this rix */
+
+	/* Calculate percentage based on current rate */
+	if (nframes == 0)
+		nframes = nbad = 1;
+	pct = ((nframes - nbad) * 1000) / nframes;
+
+	if (sn->stats[size_bin][rix0].total_packets <
+	    ssc->smoothing_minpackets) {
+		/* just average the first few packets */
+		int a_pct = (sn->stats[size_bin][rix0].packets_acked * 1000) /
+		    (sn->stats[size_bin][rix0].total_packets);
+		sn->stats[size_bin][rix0].ewma_pct = a_pct;
+	} else {
+		/* use a ewma */
+		sn->stats[size_bin][rix0].ewma_pct =
+			((sn->stats[size_bin][rix0].ewma_pct * ssc->smoothing_rate) +
+			 (pct * (100 - ssc->smoothing_rate))) / 100;
+	}
+
+
 	if (rix0 == sn->current_sample_rix[size_bin]) {
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		   &an->an_node,
@@ -900,6 +864,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	short_tries = ts->ts_shortretry;
 	long_tries = ts->ts_longretry + 1;
 
+	if (nframes == 0) {
+		device_printf(sc->sc_dev, "%s: nframes=0?\n", __func__);
+		return;
+	}
+
 	if (frame_size == 0)		    /* NB: should not happen */
 		frame_size = 1500;
 
@@ -937,13 +906,6 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix),
 		     short_tries, long_tries, nframes, nbad);
 		update_stats(sc, an, frame_size, 
-			     final_rix, long_tries,
-			     0, 0,
-			     0, 0,
-			     0, 0,
-			     short_tries, long_tries, status,
-			     nframes, nbad);
-		update_ewma_stats(sc, an, frame_size, 
 			     final_rix, long_tries,
 			     0, 0,
 			     0, 0,
@@ -1038,16 +1000,6 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     status,
 				     nframes, nbad);
 		}
-
-		update_ewma_stats(sc, an, frame_size,
-			     rc[0].rix, rc[0].tries,
-			     rc[1].rix, rc[1].tries,
-			     rc[2].rix, rc[2].tries,
-			     rc[3].rix, rc[3].tries,
-			     short_tries, long_tries,
-			     long_tries > rc[0].tries,
-			     nframes, nbad);
-
 	}
 }
 
@@ -1420,7 +1372,7 @@ ath_rate_attach(struct ath_softc *sc)
 	if (ssc == NULL)
 		return NULL;
 	ssc->arc.arc_space = sizeof(struct sample_node);
-	ssc->smoothing_rate = 95;		/* ewma percentage ([0..99]) */
+	ssc->smoothing_rate = 75;		/* ewma percentage ([0..99]) */
 	ssc->smoothing_minpackets = 100 / (100 - ssc->smoothing_rate);
 	ssc->sample_rate = 10;			/* %time to try diff tx rates */
 	ssc->max_successive_failures = 3;	/* threshold for rate sampling*/

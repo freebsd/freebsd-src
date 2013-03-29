@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 				  if (np != NULL) {				\
 				  	np->name = strdup(n);			\
 					np->path = NULL;			\
+					np->catd = NLERR;			\
 					np->lang = (l == NULL) ? NULL :		\
 					    strdup(l);				\
 					np->caterrno = e;			\
@@ -384,7 +385,7 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	}
 	UNLOCK;
 
-	if ((fd = _open(path, O_RDONLY)) == -1) {
+	if ((fd = _open(path, O_RDONLY | O_CLOEXEC)) == -1) {
 		SAVEFAIL(name, lang, errno);
 		NLRETERR(errno);
 	}

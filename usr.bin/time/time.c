@@ -112,7 +112,7 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (ofn) {
-	        if ((out = fopen(ofn, aflag ? "a" : "w")) == NULL)
+	        if ((out = fopen(ofn, aflag ? "ae" : "we")) == NULL)
 		        err(1, "%s", ofn);
 		setvbuf(out, (char *)NULL, _IONBF, (size_t)0);
 	}
@@ -123,8 +123,6 @@ main(int argc, char **argv)
 		err(1, "time");
 		/* NOTREACHED */
 	case 0:				/* child */
-		if (ofn)
-			fclose(out);
 		execvp(*argv, argv);
 		err(errno == ENOENT ? 127 : 126, "%s", *argv);
 		/* NOTREACHED */

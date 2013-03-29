@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd December 27, 2007
+.Dd November 13, 2012
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -67,8 +67,8 @@ the
 control message.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width [unspecified]
-.It Dv ethernet
+.Bl -tag -width ".Va [unspecified]"
+.It Va ethernet
 The hook that should normally be connected to an
 .Xr ng_ether 4
 node.
@@ -77,9 +77,9 @@ Once connected,
 will send a message down this hook to determine Ethernet address of
 the underlying node.
 Obtained address will be stored and then used for outgoing datagrams.
-.It Dv debug
+.It Va debug
 Presently no use.
-.It Dv [unspecified]
+.It Va [unspecified]
 Any other name is assumed to be a session hook that will be connected to
 a PPP client agent, or a PPP server agent.
 .El
@@ -98,7 +98,7 @@ struct ngpppoestat {
 .It Dv NGM_TEXT_STATUS
 This generic message returns a human-readable version of the node status.
 (not yet)
-.It Dv NGM_PPPOE_CONNECT
+.It Dv NGM_PPPOE_CONNECT Pq Ic pppoe_connect
 Tell a nominated newly created hook that its session should enter
 the state machine as a client.
 It must be newly created and a service name can be given as an argument.
@@ -110,7 +110,7 @@ A session request packet will be broadcasted on the Ethernet.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
-.It Dv NGM_PPPOE_LISTEN
+.It Dv NGM_PPPOE_LISTEN Pq Ic pppoe_listen
 Tell a nominated newly created hook that its session should enter
 the state machine as a server listener.
 The argument
@@ -124,7 +124,7 @@ the session that is started to answer the request.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
-.It Dv NGM_PPPOE_OFFER
+.It Dv NGM_PPPOE_OFFER Pq Ic pppoe_offer
 Tell a nominated newly created hook that its session should enter
 the state machine as a server.
 The argument given is the name of the service to offer.
@@ -148,18 +148,18 @@ The three commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_init_data {
     char       hook[NG_HOOKSIZ];       /* hook to monitor on */
-    uint16_t   data_len;               /* service name length */
+    uint16_t   data_len;               /* length of the service name */
     char       data[0];                /* init data goes here */
 };
 .Ed
 .Bl -tag -width 3n
-.It Dv NGM_PPPOE_SUCCESS
+.It Dv NGM_PPPOE_SUCCESS Pq Ic pppoe_success
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change.
 This message reports successful Session negotiation.
 It uses the structure shown below, and
 reports back the hook name corresponding to the successful session.
-.It Dv NGM_PPPOE_FAIL
+.It Dv NGM_PPPOE_FAIL Pq Ic pppoe_fail
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change.
 This message reports failed Session negotiation.
@@ -167,7 +167,7 @@ It uses the structure shown below, and
 reports back the hook name corresponding to the failed session.
 The hook will probably have been removed immediately after sending this
 message.
-.It Dv NGM_PPPOE_CLOSE
+.It Dv NGM_PPPOE_CLOSE Pq Ic pppoe_close
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change.
 This message reports a request to close a session.
@@ -191,7 +191,7 @@ struct ngpppoe_sts {
 };
 .Ed
 .Bl -tag -width 3n
-.It Dv NGM_PPPOE_GETMODE
+.It Dv NGM_PPPOE_GETMODE Pq Ic pppoe_getmode
 This command returns the current compatibility mode of the node
 as a string.
 .Tn ASCII
@@ -221,7 +221,7 @@ This option is necessary for compatibility with D-Link DI-614+ and DI-624+
 SOHO routers as clients, when serving only specific Service-Name.
 This compatibility option does not affect client mode.
 .El
-.It Dv NGM_PPPOE_SETMODE
+.It Dv NGM_PPPOE_SETMODE Pq Ic pppoe_setmode
 Configure node to the specified mode.
 The string argument is required.
 This command understands the same keywords that are returned by the
@@ -235,7 +235,7 @@ the next session in the proprietary 3Com mode:
 .Bd -literal -offset indent
 ngctl msg fxp0:orphans pppoe_setmode '"3Com"'
 .Ed
-.It Dv NGM_PPPOE_SETENADDR
+.It Dv NGM_PPPOE_SETENADDR Pq Ic setenaddr
 Set the node Ethernet address for outgoing datagrams.
 This message is important when a node has failed to obtain an Ethernet
 address from its peer on the

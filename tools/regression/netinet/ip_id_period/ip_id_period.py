@@ -51,26 +51,26 @@ id_minperiod = {}
 count = 0
 for line in open('results.txt').readlines():
     id = int(line.split(' id ')[1].split(',')[0])
-    if id_lastseen.has_key(id):
+    if id in id_lastseen:
         period = count - id_lastseen[id]
-        if not id_minperiod.has_key(id) or period < id_minperiod[id]:
+        if id not in id_minperiod or period < id_minperiod[id]:
             id_minperiod[id] = period
     id_lastseen[id] = count
     count += 1
 
-sorted_minperiod = zip(*reversed(zip(*id_minperiod.items())))
+sorted_minperiod = list(zip(*reversed(list(zip(*list(id_minperiod.items()))))))
 sorted_minperiod.sort()
 
-print "Lowest 10 ID periods detected:"
+print("Lowest 10 ID periods detected:")
 x = 0
 while x < 10:
     id_tuple = sorted_minperiod.pop(0)
-    print "id: %d period: %d" % (id_tuple[1], id_tuple[0])
+    print("id: %d period: %d" % (id_tuple[1], id_tuple[0]))
     x += 1
 
-print "Highest 10 ID periods detected:"
+print("Highest 10 ID periods detected:")
 x = 0
 while x < 10:
     id_tuple = sorted_minperiod.pop()
-    print "id: %d period: %d" % (id_tuple[1], id_tuple[0])
+    print("id: %d period: %d" % (id_tuple[1], id_tuple[0]))
     x += 1

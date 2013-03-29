@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
@@ -117,6 +118,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, keepcnt, CTLFLAG_RW, &tcp_keepcnt, 0,
 
 	/* max idle probes */
 int	tcp_maxpersistidle;
+
+static int	tcp_rexmit_drop_options = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
+    &tcp_rexmit_drop_options, 0,
+    "Drop TCP options from 3rd and later retransmitted SYN");
 
 static int	per_cpu_timers = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, per_cpu_timers, CTLFLAG_RW,
@@ -447,6 +453,16 @@ tcp_timer_persist(void *xtp)
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;
 	}
+	/*
+	 * If the user has closed the socket then drop a persisting
+	 * connection after a much reduced timeout.
+	 */
+	if (tp->t_state > TCPS_CLOSE_WAIT &&
+	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
+		TCPSTAT_INC(tcps_persistdrop);
+		tp = tcp_drop(tp, ETIMEDOUT);
+		goto out;
+	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
 	(void) tcp_output(tp);
@@ -539,7 +555,13 @@ tcp_timer_rexmt(void * xtp)
 	}
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	headlocked = 0;
-	if (tp->t_rxtshift == 1) {
+	if (tp->t_state == TCPS_SYN_SENT) {
+		/*
+		 * If the SYN was retransmitted, indicate CWND to be
+		 * limited to 1 segment in cc_conn_init().
+		 */
+		tp->snd_cwnd = 1;
+	} else if (tp->t_rxtshift == 1) {
 		/*
 		 * first retransmit; record ssthresh and cwnd so they can
 		 * be recovered if this turns out to be a "bad" retransmit.
@@ -566,20 +588,21 @@ tcp_timer_rexmt(void * xtp)
 		tp->t_flags &= ~TF_PREVVALID;
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if (tp->t_state == TCPS_SYN_SENT)
-		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];
+		rexmt = TCPTV_RTOBASE * tcp_syn_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
-	 * Disable rfc1323 if we haven't got any response to
+	 * Disable RFC1323 and SACK if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers
 	 * (most of which have hopefully been retired) that have bad VJ
 	 * header compression code which trashes TCP segments containing
 	 * unknown-to-them TCP options.
 	 */
-	if ((tp->t_state == TCPS_SYN_SENT) && (tp->t_rxtshift == 3))
-		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP);
+	if (tcp_rexmit_drop_options && (tp->t_state == TCPS_SYN_SENT) &&
+	    (tp->t_rxtshift == 3))
+		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_SACK_PERMIT);
 	/*
 	 * If we backed off this far, our srtt estimate is probably bogus.
 	 * Clobber it so we'll take the next rtt measurement as our srtt;
@@ -590,7 +613,6 @@ tcp_timer_rexmt(void * xtp)
 #ifdef INET6
 		if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
 			in6_losing(tp->t_inpcb);
-		else
 #endif
 		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
 		tp->t_srtt = 0;
@@ -697,20 +719,24 @@ tcp_timer_active(struct tcpcb *tp, int timer_type)
 #define	ticks_to_msecs(t)	(1000*(t) / hz)
 
 void
-tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer, struct xtcp_timer *xtimer)
+tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
+    struct xtcp_timer *xtimer)
 {
-	bzero(xtimer, sizeof(struct xtcp_timer));
+	sbintime_t now;
+
+	bzero(xtimer, sizeof(*xtimer));
 	if (timer == NULL)
 		return;
+	now = getsbinuptime();
 	if (callout_active(&timer->tt_delack))
-		xtimer->tt_delack = ticks_to_msecs(timer->tt_delack.c_time - ticks);
+		xtimer->tt_delack = (timer->tt_delack.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_rexmt))
-		xtimer->tt_rexmt = ticks_to_msecs(timer->tt_rexmt.c_time - ticks);
+		xtimer->tt_rexmt = (timer->tt_rexmt.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_persist))
-		xtimer->tt_persist = ticks_to_msecs(timer->tt_persist.c_time - ticks);
+		xtimer->tt_persist = (timer->tt_persist.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_keep))
-		xtimer->tt_keep = ticks_to_msecs(timer->tt_keep.c_time - ticks);
+		xtimer->tt_keep = (timer->tt_keep.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_2msl))
-		xtimer->tt_2msl = ticks_to_msecs(timer->tt_2msl.c_time - ticks);
+		xtimer->tt_2msl = (timer->tt_2msl.c_time - now) / SBT_1MS;
 	xtimer->t_rcvtime = ticks_to_msecs(ticks - tp->t_rcvtime);
 }

@@ -95,6 +95,14 @@ typedef	__uid_t		uid_t;
 #endif
 #define	SOCK_SEQPACKET	5		/* sequenced packet stream */
 
+#if __BSD_VISIBLE
+/*
+ * Creation flags, OR'ed into socket() and socketpair() type argument.
+ */
+#define	SOCK_CLOEXEC	0x10000000
+#define	SOCK_NONBLOCK	0x20000000
+#endif
+
 /*
  * Option flags per-socket.
  */
@@ -140,6 +148,15 @@ typedef	__uid_t		uid_t;
 #define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
 #define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
 #define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
+#endif
+
+/*
+ * Space reserved for new socket options added by third-party vendors.
+ * This range applies to all socket option levels.  New socket options
+ * in FreeBSD should always use an option value less than SO_VENDOR.
+ */
+#if __BSD_VISIBLE
+#define	SO_VENDOR	0x80000000
 #endif
 
 /*
@@ -450,6 +467,7 @@ struct msghdr {
 #endif
 #if __BSD_VISIBLE
 #define	MSG_NOSIGNAL	0x20000		/* do not generate SIGPIPE on EOF */
+#define	MSG_CMSG_CLOEXEC 0x40000	/* make received fds close-on-exec */
 #endif
 
 /*
@@ -611,7 +629,9 @@ struct sf_hdtr {
 __BEGIN_DECLS
 int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
+int	bindat(int, int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
+int	connectat(int, int, const struct sockaddr *, socklen_t);
 int	getpeername(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockname(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockopt(int, int, int, void * __restrict, socklen_t * __restrict);

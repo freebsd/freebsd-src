@@ -119,6 +119,13 @@
 #define	PROF_ARTIFICIAL_FRAMES	3
 #endif
 
+#ifdef __powerpc__
+/*
+ * This value is bogus just to make module compilable on powerpc
+ */
+#define	PROF_ARTIFICIAL_FRAMES	3
+#endif
+
 typedef struct profile_probe {
 	char		prof_name[PROF_NAMELEN];
 	dtrace_id_t	prof_id;

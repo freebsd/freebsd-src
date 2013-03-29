@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2011 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2012 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1089 2011/03/15 23:14:36 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1096 2012/11/16 20:25:03 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -946,6 +946,8 @@ struct envelope
 #endif /* _FFR_MILTER_ENHSC */
 };
 
+#define PRT_NONNEGL(v)	((v) < 0 ? LONG_MAX : (v))
+
 /* values for e_flags */
 #define EF_OLDSTYLE	0x00000001L	/* use spaces (not commas) in hdrs */
 #define EF_INQUEUE	0x00000002L	/* this message is fully queued */
@@ -1486,7 +1488,6 @@ struct symtab
 	union
 	{
 		BITMAP256	sv_class;	/* bit-map of word classes */
-		ADDRESS		*sv_addr;	/* pointer to address header */
 		MAILER		*sv_mailer;	/* pointer to mailer */
 		char		*sv_alias;	/* alias */
 		MAPCLASS	sv_mapclass;	/* mapping function class */
@@ -1516,7 +1517,7 @@ typedef struct symtab	STAB;
 /* symbol types */
 #define ST_UNDEF	0	/* undefined type */
 #define ST_CLASS	1	/* class map */
-#define ST_ADDRESS	2	/* an address in parsed format */
+/* #define ST_unused	2	UNUSED */
 #define ST_MAILER	3	/* a mailer header */
 #define ST_ALIAS	4	/* an alias */
 #define ST_MAPCLASS	5	/* mapping function class */
@@ -1543,7 +1544,6 @@ typedef struct symtab	STAB;
 #define ST_MCI		17	/* mailer connection info (offset) */
 
 #define s_class		s_value.sv_class
-#define s_address	s_value.sv_addr
 #define s_mailer	s_value.sv_mailer
 #define s_alias		s_value.sv_alias
 #define s_mci		s_value.sv_mci
@@ -1785,6 +1785,8 @@ struct milter
 	char		*mf_conn;	/* connection info */
 	int		mf_sock;	/* connected socket */
 	char		mf_state;	/* state of filter */
+	char		mf_lflags;	/* "local" flags */
+	int		mf_idx;		/* milter number (index) */
 	time_t		mf_timeout[SMFTO_NUM_TO]; /* timeouts */
 #if _FFR_MILTER_CHECK
 	/* for testing only */
@@ -1793,6 +1795,9 @@ struct milter
 	mi_int32	mf_mta_actions;
 #endif /* _FFR_MILTER_CHECK */
 };
+
+#define MI_LFL_NONE	0x00000000
+#define MI_LFLAGS_SYM(st) (1 << (st))	/* has its own symlist for stage st */
 
 struct milters
 {
@@ -2240,6 +2245,19 @@ extern unsigned char	tTdvect[100];	/* trace vector */
 	} while (0)
 
 # define CHECK_RESTART _CHECK_RESTART
+
+#define CHK_CUR_RUNNERS(fct, idx, count)	\
+	do	\
+	{	\
+		if (CurRunners < 0)	\
+		{	\
+			if (LogLevel > 3)	\
+				sm_syslog(LOG_ERR, NOQID,	\
+					"%s: CurRunners=%d, i=%d, count=%d, status=should not happen",	\
+					fct, CurRunners, idx, count);	\
+			CurRunners = 0;	\
+		}	\
+	} while (0)
 
 /* reply types (text in SmtpMsgBuffer) */
 #define XS_DEFAULT	0

@@ -65,12 +65,12 @@ will have a 0x03 byte prepended to them before being forwarded out on the
 hook.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobar
-.It Dv downstream
+.Bl -tag -width ".Va downstream"
+.It Va downstream
 Downstream connection.
 Packets on this side of the node have a 0x03 as
 their first byte.
-.It Dv upstream
+.It Va upstream
 Upstream connection.
 Packets on this side of the node have the
 initial 0x03 byte stripped off.

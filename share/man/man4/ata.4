@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2012
+.Dd October 3, 2012
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -99,7 +99,7 @@ set to 0 to disable the 80pin cable check (the default is 1, check the cable).
 set to 1 to allow Message Signalled Interrupts (MSI) to be used by the
 specified PCI ATA controller, if supported.
 .It Va hint.ata.X.devX.mode
-limits the initial ATA mode for the specified device on specified the channel.
+limits the initial ATA mode for the specified device on the specified channel.
 .It Va hint.ata.X.mode
 limits the initial ATA mode for every device on the specified channel.
 .It Va hint.ata.X.pm_level
@@ -120,6 +120,12 @@ host initiates SLUMBER PM state transition every time port becomes idle.
 .El
 .Pp
 Modes 2 and 3 are only supported for AHCI.
+.It Va hint.ata. Ns Ar X Ns Va .dev Ns Ar X Ns Va .sata_rev
+limits the initial SATA revision (speed) for the specified device
+on the specified channel.
+Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
+.It Va hint.ata. Ns Ar X Ns Va .sata_rev
+Same, but for every device on the specified channel.
 .El
 .Sh DESCRIPTION
 The

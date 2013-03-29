@@ -86,7 +86,6 @@ options		SCSI_NO_OP_STRINGS
 options		RWLOCK_NOINLINE
 options		SX_NOINLINE
 options		NO_SWAPPING
-options 	ZERO_COPY_SOCKETS
 options         MROUTING                # Multicast routing
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
 

@@ -81,7 +81,7 @@ static int
 ata_acard_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_ATP850R, 0, ATP_OLD, 0x00, ATA_UDMA2, "ATP850" },
      { ATA_ATP860A, 0, 0,       0x00, ATA_UDMA4, "ATP860A" },
      { ATA_ATP860R, 0, 0,       0x00, ATA_UDMA4, "ATP860R" },

@@ -514,6 +514,13 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 			clks <<= 1;
 	} else
 		clks = usecs * CLOCK_RATE[WIRELESS_MODE_11b];
+
+	/* Compensate for half/quarter rate */
+	if (c != AH_NULL && IEEE80211_IS_CHAN_HALF(c))
+		clks = clks / 2;
+	else if (c != AH_NULL && IEEE80211_IS_CHAN_QUARTER(c))
+		clks = clks / 4;
+
 	return clks;
 }
 
@@ -685,6 +692,10 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->hal4AddrAggrSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_EXT_CHAN_DFS:
 		return pCap->halExtChanDfsSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_RX_STBC:
+		return pCap->halRxStbcSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_TX_STBC:
+		return pCap->halTxStbcSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_COMBINED_RADAR_RSSI:
 		return pCap->halUseCombinedRadarRssi ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_AUTO_SLEEP:
@@ -727,6 +738,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_BT_COEX:
 		return pCap->halBtCoexSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_SPECTRAL_SCAN:
+		return pCap->halSpectralScanSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_HT20_SGI:
 		return pCap->halHTSGI20Support ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
@@ -1046,7 +1059,7 @@ ath_hal_getChanNoise(struct ath_hal *ah, const struct ieee80211_channel *chan)
  * populated with values from NOISE_FLOOR[] + ath_hal_getNfAdjust().
  *
  * The caller must supply ctl/ext NF arrays which are at least
- * AH_MIMO_MAX_CHAINS entries long.
+ * AH_MAX_CHAINS entries long.
  */
 int
 ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
@@ -1062,7 +1075,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "%s: invalid channel %u/0x%x; no mapping\n",
 		    __func__, chan->ic_freq, chan->ic_flags);
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = nf_ext[i] = 0;
 		}
 		return 0;
@@ -1070,7 +1083,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 
 	/* Return 0 if there's no valid MIMO values (yet) */
 	if (! (ichan->privFlags & CHANNEL_MIMO_NF_VALID)) {
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = nf_ext[i] = 0;
 		}
 		return 0;
@@ -1083,7 +1096,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		 * stations which have a very low RSSI, below the
 		 * 'normalised' NF values in NOISE_FLOOR[].
 		 */
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = nf_ext[i] = NOISE_FLOOR[mode] +
 			    ath_hal_getNfAdjust(ah, ichan);
 		}
@@ -1102,7 +1115,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		 * don't "wrap" when RSSI is less than the "adjusted" NF value.
 		 * ("Adjust" here is via ichan->noiseFloorAdjust.)
 		 */
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = ichan->noiseFloorCtl[i] + ath_hal_getNfAdjust(ah, ichan);
 			nf_ext[i] = ichan->noiseFloorExt[i] + ath_hal_getNfAdjust(ah, ichan);
 		}

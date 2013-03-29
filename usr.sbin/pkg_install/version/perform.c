@@ -27,9 +27,9 @@ __FBSDID("$FreeBSD$");
 #include <fetch.h>
 #include <signal.h>
 
-FILE *IndexFile;
-char IndexPath[PATH_MAX] = "";
-struct index_head Index = SLIST_HEAD_INITIALIZER(Index);
+static FILE *IndexFile;
+static char IndexPath[PATH_MAX] = "";
+static struct index_head Index = SLIST_HEAD_INITIALIZER(Index);
 
 static int pkg_do(char *);
 static void show_version(Package, const char *, const char *);
@@ -56,10 +56,11 @@ pkg_perform(char **indexarg)
     struct utsname u;
 
     if (uname(&u) == -1) {
-	warn("%s(): failed to determine uname information", __func__);
+	warn("%s: failed to determine uname information", __func__);
 	return 1;
     } else if ((rel_major_ver = (int) strtol(u.release, NULL, 10)) <= 0) {
-
+	warnx("%s: bad release version specified: %s", __func__, u.release);
+	return 1;
     }
 
     /*
@@ -321,19 +322,31 @@ show_version(Package plist, const char *latest, const char *source)
 	ver = strrchr(latest, '-');
 	ver = ver ? &ver[1] : latest;
 	if (cmp < 0 && OUTPUT('<')) {
-	    printf("%-34s  %c", tmp, Quiet ? '\0' : '<');
-	    if (Verbose)
-		printf("   needs updating (%s has %s)", source, ver);
+	    if (Quiet)
+		printf("%s", tmp);
+	    else {
+		printf("%-34s  <", tmp);
+		if (Verbose)
+		    printf("   needs updating (%s has %s)", source, ver);
+	    }
 	    printf("\n");
 	} else if (cmp == 0 && OUTPUT('=')) {
-	    printf("%-34s  %c", tmp, Quiet ? '\0' : '=');
-	    if (Verbose)
-		printf("   up-to-date with %s", source);
+	    if (Quiet)
+		printf("%s", tmp);
+	    else {
+		printf("%-34s  =", tmp);
+		if (Verbose)
+		    printf("   up-to-date with %s", source);
+	    }
 	    printf("\n");
 	} else if (cmp > 0 && OUTPUT('>')) {
-	    printf("%-34s  %c", tmp, Quiet ? '\0' : '>');
-	    if (Verbose)
-		printf("   succeeds %s (%s has %s)", source, source, ver);
+	    if (Quiet)
+		printf("%s", tmp);
+	    else {
+		printf("%-34s  >", tmp);
+		if (Verbose)
+		    printf("   succeeds %s (%s has %s)", source, source, ver);
+	    }
 	    printf("\n");
 	}
     }

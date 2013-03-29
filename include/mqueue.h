@@ -32,8 +32,8 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/mqueue.h>
+#include <sys/signal.h>
 
-struct sigevent;
 struct timespec;
 
 __BEGIN_DECLS

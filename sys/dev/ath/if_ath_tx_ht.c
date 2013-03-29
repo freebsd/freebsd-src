@@ -236,9 +236,9 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		rate = rt->info[rc[i].rix].rateCode;
 
 		/*
-		 * XXX only do this for legacy rates?
+		 * Only enable short preamble for legacy rates
 		 */
-		if (bf->bf_state.bfs_shpream)
+		if ((! IS_HT_RATE(rate)) && bf->bf_state.bfs_shpream)
 			rate |= rt->info[rc[i].rix].shortPreamble;
 
 		/*
@@ -266,6 +266,19 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
 			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
 				rc[i].flags |= ATH_RC_SGI_FLAG;
+
+			/*
+			 * If we have STBC TX enabled and the receiver
+			 * can receive (at least) 1 stream STBC, AND it's
+			 * MCS 0-7, AND we have at least two chains enabled,
+			 * enable STBC.
+			 */
+			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+			    (sc->sc_cur_txchainmask > 1) &&
+			    HT_RC_2_STREAMS(rate) == 1) {
+				rc[i].flags |= ATH_RC_STBC_FLAG;
+			}
 
 			/* XXX dual stream? and 3-stream? */
 		}
@@ -346,8 +359,30 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	 * crypto hardware catch up. This could be tuned per-MAC and
 	 * per-rate, but for now we'll simply assume encryption is
 	 * always enabled.
+	 *
+	 * Also note that the Atheros reference driver inserts two
+	 * delimiters by default for pre-AR9380 peers.  This will
+	 * include "that" required delimiter.
 	 */
 	ndelim += ATH_AGGR_ENCRYPTDELIM;
+
+	/*
+	 * For AR9380, there's a minimum number of delimeters
+	 * required when doing RTS.
+	 *
+	 * XXX TODO: this is only needed if (a) RTS/CTS is enabled, and
+	 * XXX (b) this is the first sub-frame in the aggregate.
+	 */
+	if (sc->sc_use_ent && (sc->sc_ent_cfg & AH_ENT_RTSCTS_DELIM_WAR)
+	    && ndelim < AH_FIRST_DESC_NDELIMS)
+		ndelim = AH_FIRST_DESC_NDELIMS;
+
+	/*
+	 * If sc_delim_min_pad is non-zero, enforce it as the minimum
+	 * pad delimiter count.
+	 */
+	if (sc->sc_delim_min_pad != 0)
+		ndelim = MAX(ndelim, sc->sc_delim_min_pad);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: pktlen=%d, ndelim=%d, mpdudensity=%d\n",
@@ -412,8 +447,11 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 static int
 ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
 {
-	int amin = 65530;
+	int amin = ATH_AGGR_MAXSIZE;
 	int i;
+
+	if (sc->sc_aggr_limit > 0 && sc->sc_aggr_limit < ATH_AGGR_MAXSIZE)
+		amin = sc->sc_aggr_limit;
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		if (bf->bf_state.bfs_rc[i].tries == 0)
@@ -434,6 +472,9 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
  *
  * It, along with ath_buf_set_rate, must be called -after- a burst
  * or aggregate is setup.
+ *
+ * XXX TODO: it should use the rate series information from the
+ * ath_buf, rather than recalculating it here!
  */
 static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
@@ -474,45 +515,70 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		series[i].Tries = rc[i].tries;
 
 		/*
-		 * XXX this isn't strictly correct - sc_txchainmask
-		 * XXX isn't the currently active chainmask;
-		 * XXX it's the interface chainmask at startup.
-		 * XXX It's overridden in the HAL rate scenario function
-		 * XXX for now.
+		 * XXX TODO: When the NIC is capable of three stream TX,
+		 * transmit 1/2 stream rates on two streams.
+		 *
+		 * This reduces the power consumption of the NIC and
+		 * keeps it within the PCIe slot power limits.
 		 */
-		series[i].ChSel = sc->sc_txchainmask;
-
-		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
-			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
+		series[i].ChSel = sc->sc_cur_txchainmask;
 
 		/*
-		 * Transmit 40MHz frames only if the node has negotiated
-		 * it rather than whether the node is capable of it or not.
-	 	 * It's subtly different in the hostap case.
-	 	 */
-		if (ni->ni_chw == 40)
-			series[i].RateFlags |= HAL_RATESERIES_2040;
-
-		/*
-		 * Set short-GI only if the node has advertised it
-		 * the channel width is suitable, and we support it.
-		 * We don't currently have a "negotiated" set of bits -
-		 * ni_htcap is what the remote end sends, not what this
-		 * node is capable of.
+		 * Setup rate and TX power cap for this series.
 		 */
-		if (ni->ni_chw == 40 &&
-		    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
-		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
-			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
-
-		if (ni->ni_chw == 20 &&
-		    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
-		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
-			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
-
 		series[i].Rate = rt->info[rc[i].rix].rateCode;
 		series[i].RateIndex = rc[i].rix;
 		series[i].tx_power_cap = 0x3f;	/* XXX for now */
+
+		/*
+		 * Enable RTS/CTS as appropriate.
+		 */
+		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
+			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
+
+
+		if (IS_HT_RATE(rt->info[rc[i].rix].rateCode)) {
+			/*
+			 * Transmit 40MHz frames only if the node has negotiated
+			 * it rather than whether the node is capable of it or not.
+			 * It's subtly different in the hostap case.
+			 */
+			if (ni->ni_chw == 40)
+				series[i].RateFlags |= HAL_RATESERIES_2040;
+
+			/*
+			 * Set short-GI only if the node has advertised it
+			 * the channel width is suitable, and we support it.
+			 * We don't currently have a "negotiated" set of bits -
+			 * ni_htcap is what the remote end sends, not what this
+			 * node is capable of.
+			 */
+			if (ni->ni_chw == 40 &&
+			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
+			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+				series[i].RateFlags |= HAL_RATESERIES_HALFGI;
+
+			if (ni->ni_chw == 20 &&
+			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
+			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+				series[i].RateFlags |= HAL_RATESERIES_HALFGI;
+
+			/*
+			 * If we have STBC TX enabled and the receiver
+			 * can receive (at least) 1 stream STBC, AND it's
+			 * MCS 0-7, AND we have at least two chains enabled,
+			 * enable STBC.
+			 */
+			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+			    (sc->sc_cur_txchainmask > 1) &&
+			    HT_RC_2_STREAMS(series[i].Rate) == 1) {
+				series[i].RateFlags |= HAL_RATESERIES_STBC;
+			}
+			/*
+			 * XXX TODO: LDPC if it's possible
+			 */
+		}
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
@@ -542,12 +608,13 @@ ath_rateseries_print(struct ath_softc *sc, HAL_11N_RATE_SERIES *series)
 	int i;
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		device_printf(sc->sc_dev ,"series %d: rate %x; tries %d; "
-		    "pktDuration %d; chSel %d; rateFlags %x\n",
+		    "pktDuration %d; chSel %d; txpowcap %d, rateFlags %x\n",
 		    i,
 		    series[i].Rate,
 		    series[i].Tries,
 		    series[i].PktDuration,
 		    series[i].ChSel,
+		    series[i].tx_power_cap,
 		    series[i].RateFlags);
 	}
 }
@@ -577,7 +644,6 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	ath_rateseries_setup(sc, ni, bf, series);
 
 #if 0
-	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
 	ath_rateseries_print(sc, series);
 #endif
 
@@ -650,7 +716,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 	int prev_frames = 0;	/* XXX for AR5416 burst, not done here */
 	int prev_al = 0;	/* XXX also for AR5416 burst */
 
-	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	if (tap == NULL) {
@@ -661,7 +727,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 	h_baw = tap->txa_wnd / 2;
 
 	for (;;) {
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf_first == NULL)
 			bf_first = bf;
 		if (bf == NULL) {
@@ -678,11 +744,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 
 		/* Set this early just so things don't get confused */
 		bf->bf_next = NULL;
-
-		/*
-		 * Don't unlock the tid lock until we're sure we are going
-		 * to queue this frame.
-		 */
 
 		/*
 		 * If the frame doesn't have a sequence number that we're
@@ -741,11 +802,13 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * that differs from the first frame, override the
 		 * subsequent frame with this config.
 		 */
-		bf->bf_state.bfs_txflags &=
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
-		bf->bf_state.bfs_txflags |=
-		    bf_first->bf_state.bfs_txflags &
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		if (bf != bf_first) {
+			bf->bf_state.bfs_txflags &=
+			    ~ (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+			bf->bf_state.bfs_txflags |=
+			    bf_first->bf_state.bfs_txflags &
+			    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		}
 
 		/*
 		 * If the packet has a sequence number, do not
@@ -760,7 +823,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		/*
 		 * this packet is part of an aggregate.
 		 */
-		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TID_REMOVE(tid, bf, bf_list);
 
 		/* The TID lock is required for the BAW update */
 		ath_tx_addto_baw(sc, an, tid, bf);

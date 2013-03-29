@@ -28,7 +28,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2010
+.Dd September 27, 2012
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -586,13 +586,6 @@ system call
 will fail and no new signal handler will be installed if one
 of the following occurs:
 .Bl -tag -width Er
-.It Bq Er EFAULT
-Either
-.Fa act
-or
-.Fa oact
-points to memory that is not a valid part of the process
-address space.
 .It Bq Er EINVAL
 The
 .Fa sig

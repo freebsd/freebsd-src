@@ -250,15 +250,13 @@ restartjob(struct job *jp)
 
 
 int
-jobscmd(int argc, char *argv[])
+jobscmd(int argc __unused, char *argv[] __unused)
 {
 	char *id;
 	int ch, mode;
 
-	optind = optreset = 1;
-	opterr = 0;
 	mode = SHOWJOBS_DEFAULT;
-	while ((ch = getopt(argc, argv, "lps")) != -1) {
+	while ((ch = nextopt("lps")) != '\0') {
 		switch (ch) {
 		case 'l':
 			mode = SHOWJOBS_VERBOSE;
@@ -269,18 +267,13 @@ jobscmd(int argc, char *argv[])
 		case 's':
 			mode = SHOWJOBS_PIDS;
 			break;
-		case '?':
-		default:
-			error("unknown option: -%c", optopt);
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
-	if (argc == 0)
+	if (*argptr == NULL)
 		showjobs(0, mode);
 	else
-		while ((id = *argv++) != NULL)
+		while ((id = *argptr++) != NULL)
 			showjob(getjob(id), mode);
 
 	return (0);
@@ -305,6 +298,7 @@ showjob(struct job *jp, int mode)
 {
 	char s[64];
 	char statestr[64];
+	const char *sigstr;
 	struct procstat *ps;
 	struct job *j;
 	int col, curr, i, jobno, prev, procno;
@@ -331,8 +325,9 @@ showjob(struct job *jp, int mode)
 			i = WSTOPSIG(ps->status);
 		else
 			i = -1;
-		if (i > 0 && i < sys_nsig && sys_siglist[i])
-			strcpy(statestr, sys_siglist[i]);
+		sigstr = strsignal(i);
+		if (sigstr != NULL)
+			strcpy(statestr, sigstr);
 		else
 			strcpy(statestr, "Suspended");
 #endif
@@ -344,10 +339,11 @@ showjob(struct job *jp, int mode)
 			    WEXITSTATUS(ps->status));
 	} else {
 		i = WTERMSIG(ps->status);
-		if (i > 0 && i < sys_nsig && sys_siglist[i])
-			strcpy(statestr, sys_siglist[i]);
+		sigstr = strsignal(i);
+		if (sigstr != NULL)
+			strcpy(statestr, sigstr);
 		else
-			fmtstr(statestr, 64, "Signal %d", i);
+			strcpy(statestr, "Unknown signal");
 		if (WCOREDUMP(ps->status))
 			strcat(statestr, " (core dumped)");
 	}
@@ -462,14 +458,15 @@ freejob(struct job *jp)
 
 
 int
-waitcmd(int argc, char **argv)
+waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
 	int status, retval;
 	struct job *jp;
 
-	if (argc > 1) {
-		job = getjob(argv[1]);
+	nextopt("");
+	if (*argptr != NULL) {
+		job = getjob(*argptr);
 	} else {
 		job = NULL;
 	}
@@ -525,7 +522,7 @@ waitcmd(int argc, char **argv)
 	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
-	return 0;
+	return pendingsig + 128;
 }
 
 
@@ -1026,6 +1023,7 @@ dowait(int mode, struct job *job)
 	struct procstat *sp;
 	struct job *jp;
 	struct job *thisjob;
+	const char *sigstr;
 	int done;
 	int stopped;
 	int sig;
@@ -1033,7 +1031,7 @@ dowait(int mode, struct job *job)
 	int wflags;
 	int restore_sigchld;
 
-	TRACE(("dowait(%d) called\n", block));
+	TRACE(("dowait(%d, %p) called\n", mode, job));
 	restore_sigchld = 0;
 	if ((mode & DOWAIT_SIG) != 0) {
 		sigfillset(&mask);
@@ -1136,10 +1134,11 @@ dowait(int mode, struct job *job)
 				coredump = WCOREDUMP(sp->status);
 			}
 		if (sig > 0 && sig != SIGINT && sig != SIGPIPE) {
-			if (sig < sys_nsig && sys_siglist[sig])
-				out2str(sys_siglist[sig]);
+			sigstr = strsignal(sig);
+			if (sigstr != NULL)
+				out2str(sigstr);
 			else
-				outfmt(out2, "Signal %d", sig);
+				out2str("Unknown signal");
 			if (coredump)
 				out2str(" (core dumped)");
 			out2c('\n');
@@ -1299,6 +1298,10 @@ until:
 	case NDEFUN:
 		cmdputs(n->narg.text);
 		cmdputs("() ...");
+		break;
+	case NNOT:
+		cmdputs("! ");
+		cmdtxt(n->nnot.com);
 		break;
 	case NCMD:
 		for (np = n->ncmd.args ; np ; np = np->narg.next) {

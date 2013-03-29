@@ -165,7 +165,6 @@ arptimer(void *arg)
 {
 	struct llentry *lle = (struct llentry *)arg;
 	struct ifnet *ifp;
-	size_t pkts_dropped;
 
 	if (lle->la_flags & LLE_STATIC) {
 		LLE_WUNLOCK(lle);
@@ -192,11 +191,20 @@ arptimer(void *arg)
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
 
-	LLE_REMREF(lle);
-	pkts_dropped = llentry_free(lle);
+	/* Guard against race with other llentry_free(). */
+	if (lle->la_flags & LLE_LINKED) {
+		size_t pkts_dropped;
+
+		LLE_REMREF(lle);
+		pkts_dropped = llentry_free(lle);
+		ARPSTAT_ADD(dropped, pkts_dropped);
+	} else
+		LLE_FREE_LOCKED(lle);
+
 	IF_AFDATA_UNLOCK(ifp);
-	ARPSTAT_ADD(dropped, pkts_dropped);
+
 	ARPSTAT_INC(timeouts);
+
 	CURVNET_RESTORE();
 }
 
@@ -249,7 +257,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	if (enaddr == NULL)
 		enaddr = carpaddr ? carpaddr : (u_char *)IF_LLADDR(ifp);
 
-	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+	if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 		return;
 	m->m_len = sizeof(*ah) + 2*sizeof(struct in_addr) +
 		2*ifp->if_data.ifi_addrlen;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2008 Apple Inc.
+ * Copyright (c) 2004-2009 Apple Inc.
  * Copyright (c) 2006 Martin Voros
  * All rights reserved.
  *
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#14 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#16 $
  */
 
 /*
@@ -35,7 +35,7 @@
  */
 
 /*
- * praudit [-lpx] [-r | -s] [-d del] [file ...]
+ * praudit [-lnpx] [-r | -s] [-d del] [file ...]
  */
 
 #include <bsm/libbsm.h>
@@ -49,16 +49,14 @@ extern int	 optind, optopt, opterr,optreset;
 
 static char	*del = ",";	/* Default delimiter. */
 static int	 oneline = 0;
-static int	 raw = 0;
-static int	 shortfrm = 0;
 static int	 partial = 0;
-static int	 xml = 0;
+static int	 oflags = AU_OFLAG_NONE;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: praudit [-lpx] [-r | -s] [-d del] "
+	fprintf(stderr, "usage: praudit [-lnpx] [-r | -s] [-d del] "
 	    "[file ...]\n");
 	exit(1);
 }
@@ -91,15 +89,10 @@ print_tokens(FILE *fp)
 			if (-1 == au_fetch_tok(&tok, buf + bytesread,
 			    reclen - bytesread))
 				break;
-			if (xml)
-				au_print_tok_xml(stdout, &tok, del, raw,
-				    shortfrm);
-			else
-				au_print_tok(stdout, &tok, del, raw,
-				    shortfrm);
+			au_print_flags_tok(stdout, &tok, del, oflags);
 			bytesread += tok.len;
 			if (oneline) {
-				if (!xml)
+				if (!(oflags & AU_OFLAG_XML))
 					printf("%s", del);
 			} else
 				printf("\n");
@@ -119,7 +112,7 @@ main(int argc, char **argv)
 	int i;
 	FILE *fp;
 
-	while ((ch = getopt(argc, argv, "d:lprsx")) != -1) {
+	while ((ch = getopt(argc, argv, "d:lnprsx")) != -1) {
 		switch(ch) {
 		case 'd':
 			del = optarg;
@@ -129,24 +122,28 @@ main(int argc, char **argv)
 			oneline = 1;
 			break;
 
+		case 'n':
+			oflags |= AU_OFLAG_NORESOLVE;
+			break;
+
 		case 'p':
 			partial = 1;
 			break;
 
 		case 'r':
-			if (shortfrm)
+			if (oflags & AU_OFLAG_SHORT)
 				usage();	/* Exclusive from shortfrm. */
-			raw = 1;
+			oflags |= AU_OFLAG_RAW;
 			break;
 
 		case 's':
-			if (raw)
+			if (oflags & AU_OFLAG_RAW)
 				usage();	/* Exclusive from raw. */
-			shortfrm = 1;
+			oflags |= AU_OFLAG_SHORT;
 			break;
 
 		case 'x':
-			xml = 1;
+			oflags |= AU_OFLAG_XML;
 			break;
 
 		case '?':
@@ -155,7 +152,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (xml)
+	if (oflags & AU_OFLAG_XML)
 		au_print_xml_header(stdout);
 
 	/* For each of the files passed as arguments dump the contents. */
@@ -171,7 +168,7 @@ main(int argc, char **argv)
 			fclose(fp);
 	}
 
-	if (xml)
+	if (oflags & AU_OFLAG_XML)
 		au_print_xml_footer(stdout);
 
 	return (1);

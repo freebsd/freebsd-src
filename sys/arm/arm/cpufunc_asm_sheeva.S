@@ -62,6 +62,7 @@ ENTRY(sheeva_setttb)
 
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	RET
+END(sheeva_setttb)
 
 ENTRY(sheeva_dcache_wbinv_range)
 	str	lr, [sp, #-4]!
@@ -104,6 +105,7 @@ ENTRY(sheeva_dcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_dcache_wbinv_range)
 
 ENTRY(sheeva_idcache_wbinv_range)
 	str	lr, [sp, #-4]!
@@ -155,6 +157,7 @@ ENTRY(sheeva_idcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_idcache_wbinv_range)
 
 ENTRY(sheeva_dcache_inv_range)
 	str	lr, [sp, #-4]!
@@ -197,6 +200,7 @@ ENTRY(sheeva_dcache_inv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_dcache_inv_range)
 
 ENTRY(sheeva_dcache_wb_range)
 	str	lr, [sp, #-4]!
@@ -239,6 +243,7 @@ ENTRY(sheeva_dcache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_dcache_wb_range)
 
 ENTRY(sheeva_l2cache_wbinv_range)
 	str	lr, [sp, #-4]!
@@ -283,6 +288,7 @@ ENTRY(sheeva_l2cache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_l2cache_wbinv_range)
 
 ENTRY(sheeva_l2cache_inv_range)
 	str	lr, [sp, #-4]!
@@ -325,6 +331,7 @@ ENTRY(sheeva_l2cache_inv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_l2cache_inv_range)
 
 ENTRY(sheeva_l2cache_wb_range)
 	str	lr, [sp, #-4]!
@@ -367,6 +374,7 @@ ENTRY(sheeva_l2cache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	ldr	lr, [sp], #4
 	RET
+END(sheeva_l2cache_wb_range)
 
 ENTRY(sheeva_l2cache_wbinv_all)
 	mov	r0, #0
@@ -374,6 +382,7 @@ ENTRY(sheeva_l2cache_wbinv_all)
 	mcr	p15, 1, r0, c15, c11, 0	/* Invalidate L2 */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(sheeva_l2cache_wbinv_all)
 
 /* This function modifies register value as follows:
  *
@@ -392,10 +401,12 @@ ENTRY(sheeva_control_ext)
 	mcrne	p15, 1, r2, c15, c1, 0	/* Write new control register */
 	mov	r0, r3			/* Return old value */
 	RET
+END(sheeva_control_ext)
 
 ENTRY(sheeva_cpu_sleep)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4	/* Drain write buffer */
 	mcr	p15, 0, r0, c7, c0, 4	/* Wait for interrupt */
 	mov	pc, lr
+END(sheeva_cpu_sleep)
 

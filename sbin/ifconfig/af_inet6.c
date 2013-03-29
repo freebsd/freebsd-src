@@ -62,7 +62,6 @@ static	struct in6_aliasreq in6_addreq =
     .ifra_lifetime = { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
 static	int ip6lifetime;
 
-static	void in6_fillscopeid(struct sockaddr_in6 *sin6);
 static	int prefix(void *, int);
 static	char *sec2str(time_t);
 static	int explicit_prefix = 0;
@@ -166,18 +165,6 @@ setip6eui64(const char *cmd, int dummy __unused, int s,
 }
 
 static void
-in6_fillscopeid(struct sockaddr_in6 *sin6)
-{
-#if defined(__KAME__) && defined(KAME_SCOPEID)
-	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-		sin6->sin6_scope_id =
-			ntohs(*(u_int16_t *)&sin6->sin6_addr.s6_addr[2]);
-		sin6->sin6_addr.s6_addr[2] = sin6->sin6_addr.s6_addr[3] = 0;
-	}
-#endif
-}
-
-static void
 in6_status(int s __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in6 *sin, null_sin;
@@ -187,7 +174,6 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	struct in6_addrlifetime lifetime;
 	time_t t = time(NULL);
 	int error;
-	u_int32_t scopeid;
 
 	memset(&null_sin, 0, sizeof(null_sin));
 
@@ -217,18 +203,6 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	lifetime = ifr6.ifr_ifru.ifru_lifetime;
 	close(s6);
 
-	/* XXX: embedded link local addr check */
-	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr) &&
-	    *(u_short *)&sin->sin6_addr.s6_addr[2] != 0) {
-		u_short index;
-
-		index = *(u_short *)&sin->sin6_addr.s6_addr[2];
-		*(u_short *)&sin->sin6_addr.s6_addr[2] = 0;
-		if (sin->sin6_scope_id == 0)
-			sin->sin6_scope_id = ntohs(index);
-	}
-	scopeid = sin->sin6_scope_id;
-
 	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len, addr_buf,
 			    sizeof(addr_buf), NULL, 0, NI_NUMERICHOST);
 	if (error != 0)
@@ -244,17 +218,6 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 		 */
 		if (sin != NULL && sin->sin6_family == AF_INET6) {
 			int error;
-
-			/* XXX: embedded link local addr check */
-			if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr) &&
-			    *(u_short *)&sin->sin6_addr.s6_addr[2] != 0) {
-				u_short index;
-
-				index = *(u_short *)&sin->sin6_addr.s6_addr[2];
-				*(u_short *)&sin->sin6_addr.s6_addr[2] = 0;
-				if (sin->sin6_scope_id == 0)
-					sin->sin6_scope_id = ntohs(index);
-			}
 
 			error = getnameinfo((struct sockaddr *)sin,
 					    sin->sin6_len, addr_buf,
@@ -288,8 +251,9 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	if ((flags6 & IN6_IFF_TEMPORARY) != 0)
 		printf("temporary ");
 
-        if (scopeid)
-		printf("scopeid 0x%x ", scopeid);
+	if (((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id)
+		printf("scopeid 0x%x ",
+		    ((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id);
 
 	if (ip6lifetime && (lifetime.ia6t_preferred || lifetime.ia6t_expire)) {
 		printf("pltime ");
@@ -458,7 +422,6 @@ in6_status_tunnel(int s)
 		return;
 	if (sa->sa_family != AF_INET6)
 		return;
-	in6_fillscopeid(&in6_ifr.ifr_addr);
 	if (getnameinfo(sa, sa->sa_len, src, sizeof(src), 0, 0,
 	    NI_NUMERICHOST) != 0)
 		src[0] = '\0';
@@ -467,7 +430,6 @@ in6_status_tunnel(int s)
 		return;
 	if (sa->sa_family != AF_INET6)
 		return;
-	in6_fillscopeid(&in6_ifr.ifr_addr);
 	if (getnameinfo(sa, sa->sa_len, dst, sizeof(dst), 0, 0,
 	    NI_NUMERICHOST) != 0)
 		dst[0] = '\0';
@@ -511,6 +473,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-nud",		-ND6_IFF_PERFORMNUD,	setnd6flags),
 	DEF_CMD("auto_linklocal",ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
 	DEF_CMD("-auto_linklocal",-ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
+	DEF_CMD("no_prefer_iface",ND6_IFF_NO_PREFER_IFACE,setnd6flags),
+	DEF_CMD("-no_prefer_iface",-ND6_IFF_NO_PREFER_IFACE,setnd6flags),
 	DEF_CMD_ARG("pltime",        			setip6pltime),
 	DEF_CMD_ARG("vltime",        			setip6vltime),
 	DEF_CMD("eui64",	0,			setip6eui64),

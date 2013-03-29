@@ -97,7 +97,7 @@
 #define	atomic_cas_acq(p, e, s, sz) ({					\
 	itype(sz) v;							\
 	v = atomic_cas((p), (e), (s), sz);				\
-	__asm __volatile("" : : : "memory");				\
+	__compiler_membar();						\
 	v;								\
 })
 
@@ -122,7 +122,7 @@
 #define	atomic_op_acq(p, op, v, sz) ({					\
 	itype(sz) t;							\
 	t = atomic_op((p), op, (v), sz);				\
-	__asm __volatile("" : : : "memory");				\
+	__compiler_membar();						\
 	t;								\
 })
 
@@ -139,7 +139,7 @@
 #define	atomic_load_acq(p, sz) ({					\
 	itype(sz) v;							\
 	v = atomic_load((p), sz);					\
-	__asm __volatile("" : : : "memory");				\
+	__compiler_membar();						\
 	v;								\
 })
 

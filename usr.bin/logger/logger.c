@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #define	SYSLOG_NAMES
 #include <syslog.h>
 
-static int	decode(char *, CODE *);
+static int	decode(char *, const CODE *);
 static int	pencode(char *);
 static void	logmessage(int, const char *, const char *, const char *,
 			   const char *);
@@ -271,9 +271,9 @@ pencode(char *s)
 }
 
 static int
-decode(char *name, CODE *codetab)
+decode(char *name, const CODE *codetab)
 {
-	CODE *c;
+	const CODE *c;
 
 	if (isdigit(*name))
 		return (atoi(name));

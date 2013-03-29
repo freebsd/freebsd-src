@@ -30,7 +30,6 @@
  * $FreeBSD$
  */
 
-
 extern	int use_ampm;
 
 struct kinfo_proc;

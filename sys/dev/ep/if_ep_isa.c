@@ -391,7 +391,7 @@ static device_method_t ep_isa_methods[] = {
 	DEVMETHOD(device_attach, ep_isa_attach),
 	DEVMETHOD(device_detach, ep_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ep_isa_driver = {

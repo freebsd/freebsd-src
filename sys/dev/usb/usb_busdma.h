@@ -27,10 +27,12 @@
 #ifndef _USB_BUSDMA_H_
 #define	_USB_BUSDMA_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/uio.h>
 #include <sys/mbuf.h>
 
 #include <machine/bus.h>
+#endif
 
 /* defines */
 

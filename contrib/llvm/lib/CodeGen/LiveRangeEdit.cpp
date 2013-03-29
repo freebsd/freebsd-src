@@ -87,7 +87,7 @@ bool LiveRangeEdit::allUsesAvailableAt(const MachineInstr *OrigMI,
 
     // We can't remat physreg uses, unless it is a constant.
     if (TargetRegisterInfo::isPhysicalRegister(MO.getReg())) {
-      if (MRI.isConstantPhysReg(MO.getReg(), VRM->getMachineFunction()))
+      if (MRI.isConstantPhysReg(MO.getReg(), *OrigMI->getParent()->getParent()))
         continue;
       return false;
     }
@@ -96,6 +96,13 @@ bool LiveRangeEdit::allUsesAvailableAt(const MachineInstr *OrigMI,
     const VNInfo *OVNI = li.getVNInfoAt(OrigIdx);
     if (!OVNI)
       continue;
+
+    // Don't allow rematerialization immediately after the original def.
+    // It would be incorrect if OrigMI redefines the register.
+    // See PR14098.
+    if (SlotIndex::isSameInstr(OrigIdx, UseIdx))
+      return false;
+
     if (OVNI != li.getVNInfoAt(UseIdx))
       return false;
   }
@@ -249,7 +256,7 @@ void LiveRangeEdit::eliminateDeadDefs(SmallVectorImpl<MachineInstr*> &Dead,
         unsigned Reg = MOI->getReg();
         if (!TargetRegisterInfo::isVirtualRegister(Reg)) {
           // Check if MI reads any unreserved physregs.
-          if (Reg && MOI->readsReg() && !LIS.isReserved(Reg))
+          if (Reg && MOI->readsReg() && !MRI.isReserved(Reg))
             ReadsPhysRegs = true;
           continue;
         }

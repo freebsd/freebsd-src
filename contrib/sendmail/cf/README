@@ -1144,7 +1144,7 @@ relay_hosts_only
 		For example, if you specify ``foo.com'', then mail to or
 		from foo.com, abc.foo.com, or a.very.deep.domain.foo.com
 		will all be accepted for relaying.  This feature changes
-		the behaviour to lookup individual host names only.
+		the behaviour to look up individual host names only.
 
 relay_based_on_MX
 		Turns on the ability to allow relaying based on the MX
@@ -2230,9 +2230,9 @@ command:
  FEATURE(`ldap_routing', <mailHost>, <mailRoutingAddress>, <bounce>,
 		 <detail>, <nodomain>, <tempfail>)
 
-where <mailHost> is a map definition describing how to lookup an alternative
+where <mailHost> is a map definition describing how to look up an alternative
 mail host for a particular address; <mailRoutingAddress> is a map definition
-describing how to lookup an alternative address for a particular address;
+describing how to look up an alternative address for a particular address;
 the <bounce> argument, if present and not the word "passthru", dictates
 that mail should be bounced if neither a mailHost nor mailRoutingAddress
 is found, if set to "sendertoo", the sender will be rejected if not
@@ -4701,4 +4701,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.727 $, Last updated $Date: 2009/05/07 23:46:17 $
+$Revision: 8.728 $, Last updated $Date: 2012/09/07 16:29:13 $

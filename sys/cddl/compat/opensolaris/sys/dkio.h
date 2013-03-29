@@ -75,6 +75,8 @@ extern "C" {
  */
 #define	DKIOCFLUSHWRITECACHE	(DKIOC|34)	/* flush cache to phys medium */
 
+#define	DKIOCTRIM		(DKIOC|35)	/* TRIM a block */
+
 struct dk_callback {
 	void (*dkc_callback)(void *dkc_cookie, int error);
 	void *dkc_cookie;

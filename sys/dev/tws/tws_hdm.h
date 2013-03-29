@@ -174,7 +174,7 @@ enum tws_sense_severity {
 #define TWS_FW_CMD_INIT_CONNECTION         0x01
 #define TWS_FW_CMD_EXECUTE_SCSI            0x10
 
-#define TWS_FW_CMD_ATA_PASSTHROUGH         0x11
+#define TWS_FW_CMD_ATA_PASSTHROUGH         0x11 // This is really a PASSTHROUGH for both ATA and SCSI commands.
 #define TWS_FW_CMD_GET_PARAM               0x12
 #define TWS_FW_CMD_SET_PARAM               0x13
 

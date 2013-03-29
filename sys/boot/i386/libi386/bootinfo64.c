@@ -134,7 +134,8 @@ bi_checkcpu(void)
 {
     char *cpu_vendor;
     int vendor[3];
-    int eflags, regs[4];
+    int eflags;
+    unsigned int regs[4];
 
     /* Check for presence of "cpuid". */
     eflags = read_eflags();

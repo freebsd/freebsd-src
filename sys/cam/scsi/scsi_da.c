@@ -387,6 +387,15 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * USB DISK Pro PMAP
+		 * Reported by: jhs
+		 * PR: usb/96381
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, " ", "USB DISK Pro", "PMAP"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Motorola E398 Mobile Phone (TransFlash memory card).
 		 * Reported by: Wojciech A. Koszek <dunstan@FreeBSD.czest.pl>
 		 * PR: usb/89889
@@ -597,6 +606,10 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_PREVENT
+	},
+	{
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Kingston", "DataTraveler G3",
+		 "1.00"}, /*quirks*/ DA_Q_NO_PREVENT
 	},
 	/* ATA/SATA devices over SAS/USB/... */
 	{
@@ -835,6 +848,15 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB 2.0", "(HS) Flash Disk",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * LaCie external 250GB Hard drive des by Porsche
+		 * Submitted by: Ben Stuyts <ben@altesco.nl>
+		 * PR: 121474
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HM250JI", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -845,6 +867,8 @@ static	void		daasync(void *callback_arg, u_int32_t code,
 static	void		dasysctlinit(void *context, int pending);
 static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
+static	int		dadeletemethodset(struct da_softc *softc,
+					  da_delete_methods delete_method);
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
 static	periph_start_t	dastart;
@@ -1061,6 +1085,9 @@ daschedule(struct cam_periph *periph)
 	struct da_softc *softc = (struct da_softc *)periph->softc;
 	uint32_t prio;
 
+	if (softc->state != DA_STATE_NORMAL)
+		return;
+
 	/* Check if cam_periph_getccb() was called. */
 	prio = periph->immediate_priority;
 
@@ -1157,7 +1184,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*retries*/0,
 				dadone,
 				MSG_ORDERED_Q_TAG,
-				/*read*/FALSE,
+				/*read*/SCSI_RW_WRITE,
 				/*byte2*/0,
 				/*minimum_cmd_size*/ softc->minimum_cmd_size,
 				offset / secsize,
@@ -1211,17 +1238,17 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 static int
 dagetattr(struct bio *bp)
 {
-	int ret = -1;
+	int ret;
 	struct cam_periph *periph;
 
-	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
-		return ENXIO;
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph->path == NULL)
-		return ENXIO;
+	if (periph == NULL)
+		return (ENXIO);
 
+	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
 	    periph->path);
+	cam_periph_unlock(periph);
 	if (ret == 0)
 		bp->bio_completed = bp->bio_length;
 	return ret;
@@ -1405,10 +1432,10 @@ daasync(void *callback_arg, u_int32_t code,
 	}
 	case AC_SCSI_AEN:
 		softc = (struct da_softc *)periph->softc;
-		if (softc->state == DA_STATE_NORMAL && !softc->tur) {
+		if (!softc->tur) {
 			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 				softc->tur = 1;
-				xpt_schedule(periph, CAM_PRIORITY_DEV);
+				daschedule(periph);
 			}
 		}
 		/* FALLTHROUGH */
@@ -1471,7 +1498,7 @@ dasysctlinit(void *context, int pending)
 	 */
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "delete_method", CTLTYPE_STRING | CTLFLAG_RW,
-		&softc->delete_method, 0, dadeletemethodsysctl, "A",
+		softc, 0, dadeletemethodsysctl, "A",
 		"BIO_DELETE execution method");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
@@ -1492,7 +1519,7 @@ dasysctlinit(void *context, int pending)
 	 * Add some addressing info.
 	 */
 	memset(&cts, 0, sizeof (cts));
-	xpt_setup_ccb(&cts.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	cam_periph_lock(periph);
@@ -1548,14 +1575,33 @@ dacmdsizesysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
+{
+
+	if (delete_method < 0 || delete_method > DA_DELETE_MAX)
+		return (EINVAL);
+
+	softc->delete_method = delete_method;
+
+	if (softc->delete_method > DA_DELETE_DISABLE)
+		softc->disk->d_flags |= DISKFLAG_CANDELETE;
+	else
+		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
+
+	return (0);
+}
+
+static int
 dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 {
 	char buf[16];
-	int error;
 	const char *p;
-	int i, value;
+	struct da_softc *softc;
+	int i, error, value;
 
-	value = *(int *)arg1;
+	softc = (struct da_softc *)arg1;
+
+	value = softc->delete_method;
 	if (value < 0 || value > DA_DELETE_MAX)
 		p = "UNKNOWN";
 	else
@@ -1567,8 +1613,7 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
 		if (strcmp(buf, da_delete_method_names[i]) != 0)
 			continue;
-		*(int *)arg1 = i;
-		return (0);
+		return dadeletemethodset(softc, i);
 	}
 	return (EINVAL);
 }
@@ -1583,11 +1628,6 @@ daregister(struct cam_periph *periph, void *arg)
 	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("daregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("daregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -1717,6 +1757,8 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	if ((cpi.hba_misc & PIM_UNMAPPED) != 0)
+		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
 	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
 	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
@@ -1945,14 +1987,18 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 					/*retries*/da_retry_count,
 					/*cbfcnp*/dadone,
 					/*tag_action*/tag_code,
-					/*read_op*/bp->bio_cmd
-						== BIO_READ,
+					/*read_op*/(bp->bio_cmd == BIO_READ ?
+					SCSI_RW_READ : SCSI_RW_WRITE) |
+					((bp->bio_flags & BIO_UNMAPPED) != 0 ?
+					SCSI_RW_BIO : 0),
 					/*byte2*/0,
 					softc->minimum_cmd_size,
 					/*lba*/bp->bio_pblkno,
 					/*block_count*/bp->bio_bcount /
 					softc->params.secsize,
-					/*data_ptr*/ bp->bio_data,
+					/*data_ptr*/ (bp->bio_flags &
+					BIO_UNMAPPED) != 0 ? (void *)bp :
+					bp->bio_data,
 					/*dxfer_len*/ bp->bio_bcount,
 					/*sense_len*/SSD_FULL_SIZE,
 					da_default_timeout * 1000);
@@ -2001,7 +2047,6 @@ out:
 	}
 	case DA_STATE_PROBE:
 	{
-		struct ccb_scsiio *csio;
 		struct scsi_read_capacity_data *rcap;
 
 		rcap = (struct scsi_read_capacity_data *)
@@ -2011,9 +2056,8 @@ out:
 			/* da_free_periph??? */
 			break;
 		}
-		csio = &start_ccb->csio;
-		scsi_read_capacity(csio,
-				   /*retries*/4,
+		scsi_read_capacity(&start_ccb->csio,
+				   /*retries*/da_retry_count,
 				   dadone,
 				   MSG_SIMPLE_Q_TAG,
 				   rcap,
@@ -2026,7 +2070,6 @@ out:
 	}
 	case DA_STATE_PROBE2:
 	{
-		struct ccb_scsiio *csio;
 		struct scsi_read_capacity_data_long *rcaplong;
 
 		rcaplong = (struct scsi_read_capacity_data_long *)
@@ -2036,9 +2079,8 @@ out:
 			/* da_free_periph??? */
 			break;
 		}
-		csio = &start_ccb->csio;
-		scsi_read_capacity_16(csio,
-				      /*retries*/ 4,
+		scsi_read_capacity_16(&start_ccb->csio,
+				      /*retries*/ da_retry_count,
 				      /*cbfcnp*/ dadone,
 				      /*tag_action*/ MSG_SIMPLE_Q_TAG,
 				      /*lba*/ 0,
@@ -2047,7 +2089,7 @@ out:
 				      /*rcap_buf*/ (uint8_t *)rcaplong,
 				      /*rcap_buf_len*/ sizeof(*rcaplong),
 				      /*sense_len*/ SSD_FULL_SIZE,
-				      /*timeout*/ 60000);
+				      /*timeout*/ da_default_timeout * 1000);
 		start_ccb->ccb_h.ccb_bp = NULL;
 		start_ccb->ccb_h.ccb_state = DA_CCB_PROBE2;
 		xpt_action(start_ccb);	
@@ -2073,24 +2115,24 @@ cmd6workaround(union ccb *ccb)
 		if (softc->delete_method == DA_DELETE_UNMAP) {
 			xpt_print(ccb->ccb_h.path, "UNMAP is not supported, "
 			    "switching to WRITE SAME(16) with UNMAP.\n");
-			softc->delete_method = DA_DELETE_WS16;
+			dadeletemethodset(softc, DA_DELETE_WS16);
 		} else if (softc->delete_method == DA_DELETE_WS16) {
 			xpt_print(ccb->ccb_h.path,
 			    "WRITE SAME(16) with UNMAP is not supported, "
 			    "disabling BIO_DELETE.\n");
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		} else if (softc->delete_method == DA_DELETE_WS10) {
 			xpt_print(ccb->ccb_h.path,
 			    "WRITE SAME(10) with UNMAP is not supported, "
 			    "disabling BIO_DELETE.\n");
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		} else if (softc->delete_method == DA_DELETE_ZERO) {
 			xpt_print(ccb->ccb_h.path,
 			    "WRITE SAME(10) is not supported, "
 			    "disabling BIO_DELETE.\n");
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		} else
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		while ((bp = bioq_takefirst(&softc->delete_run_queue))
 		    != NULL)
 			bioq_disksort(&softc->delete_queue, bp);
@@ -2139,6 +2181,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
 	u_int32_t  priority;
+	da_ccb_state state;
 
 	softc = (struct da_softc *)periph->softc;
 	priority = done_ccb->ccb_h.pinfo.priority;
@@ -2146,7 +2189,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone\n"));
 
 	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) {
+	state = csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK;
+	switch (state) {
 	case DA_CCB_BUFFER_IO:
 	case DA_CCB_DELETE:
 	{
@@ -2244,8 +2288,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				  softc->outstanding_cmds);
 		}
 
-		if ((csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) ==
-		    DA_CCB_DELETE) {
+		if (state == DA_CCB_DELETE) {
 			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))
 			    != NULL) {
 				bp1->bio_resid = bp->bio_resid;
@@ -2271,7 +2314,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		rdcap = NULL;
 		rcaplong = NULL;
-		if (softc->state == DA_STATE_PROBE)
+		if (state == DA_CCB_PROBE)
 			rdcap =(struct scsi_read_capacity_data *)csio->data_ptr;
 		else
 			rcaplong = (struct scsi_read_capacity_data_long *)
@@ -2284,7 +2327,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			u_int lbppbe;	/* LB per physical block exponent. */
 			u_int lalba;	/* Lowest aligned LBA. */
 
-			if (softc->state == DA_STATE_PROBE) {
+			if (state == DA_CCB_PROBE) {
 				block_size = scsi_4btoul(rdcap->length);
 				maxsector = scsi_4btoul(rdcap->addr);
 				lbppbe = 0;
@@ -2336,7 +2379,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					  rcaplong, sizeof(*rcaplong));
 				if ((lalba & SRC16_LBPME_A)
 				 && softc->delete_method == DA_DELETE_NONE)
-					softc->delete_method = DA_DELETE_UNMAP;
+					dadeletemethodset(softc, DA_DELETE_UNMAP);
 				dp = &softc->params;
 				snprintf(announce_buf, sizeof(announce_buf),
 				        "%juMB (%ju %u byte sectors: %dH %dS/T "
@@ -2397,7 +2440,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * If we tried READ CAPACITY(16) and failed,
 				 * fallback to READ CAPACITY(10).
 				 */
-				if ((softc->state == DA_STATE_PROBE2) &&
+				if ((state == DA_CCB_PROBE2) &&
 				    (softc->flags & DA_FLAG_CAN_RC16) &&
 				    (((csio->ccb_h.status & CAM_STATUS_MASK) ==
 					CAM_REQ_INVALID) ||
@@ -2477,7 +2520,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		 * operation.
 		 */
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_NORMAL;	
+		softc->state = DA_STATE_NORMAL;
+		daschedule(periph);
 		wakeup(&softc->disk->d_mediasize);
 		if ((softc->flags & DA_FLAG_PROBED) == 0) {
 			softc->flags |= DA_FLAG_PROBED;
@@ -2602,7 +2646,7 @@ damediapoll(void *arg)
 	struct cam_periph *periph = arg;
 	struct da_softc *softc = periph->softc;
 
-	if (softc->state == DA_STATE_NORMAL && !softc->tur) {
+	if (!softc->tur && softc->outstanding_cmds == 0) {
 		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 			softc->tur = 1;
 			daschedule(periph);
@@ -2660,6 +2704,7 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 	struct da_softc *softc;
 	struct disk_params *dp;
 	u_int lbppbe, lalba;
+	int error;
 
 	softc = (struct da_softc *)periph->softc;
 
@@ -2766,10 +2811,9 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 	else
 		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
 
-/* Currently as of 6/13/2012, panics if DIAGNOSTIC is set */
-#ifndef	DIAGNOSTIC
-	disk_resize(softc->disk);
-#endif
+	error = disk_resize(softc->disk, M_NOWAIT);
+	if (error != 0)
+		xpt_print(periph->path, "disk_resize(9) failed, error = %d\n", error);
 }
 
 static void

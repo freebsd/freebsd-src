@@ -146,10 +146,13 @@ scan_option(s)
 			 */
 			plusoption = TRUE;
 			s = optstring(s, &str, propt('+'), NULL);
+			if (s == NULL)
+				return;
 			if (*str == '+')
-				every_first_cmd = save(++str);
+				every_first_cmd = save(str+1);
 			else
 				ungetsc(str);
+			free(str);
 			continue;
 		case '0':  case '1':  case '2':  case '3':  case '4':
 		case '5':  case '6':  case '7':  case '8':  case '9':
@@ -202,7 +205,7 @@ scan_option(s)
 					parg.p_string = printopt;
 					error("The %s option should not be followed by =",
 						&parg);
-					quit(QUIT_ERROR);
+					return;
 				}
 				s++;
 			} else
@@ -223,7 +226,7 @@ scan_option(s)
 			else
 				error("There is no %s option (\"less --help\" for help)",
 					&parg);
-			quit(QUIT_ERROR);
+			return;
 		}
 
 		str = NULL;
@@ -260,6 +263,8 @@ scan_option(s)
 			while (*s == ' ')
 				s++;
 			s = optstring(s, &str, printopt, o->odesc[1]);
+			if (s == NULL)
+				return;
 			break;
 		case NUMBER:
 			if (*s == '\0')
@@ -275,6 +280,8 @@ scan_option(s)
 		 */
 		if (o->ofunc != NULL)
 			(*o->ofunc)(INIT, str);
+		if (str != NULL)
+			free(str);
 	}
 }
 
@@ -558,35 +565,33 @@ optstring(s, p_str, printopt, validchars)
 	char *validchars;
 {
 	register char *p;
+	register char *out;
 
 	if (*s == '\0')
 	{
 		nostring(printopt);
-		quit(QUIT_ERROR);
+		return (NULL);
 	}
-	*p_str = s;
+	/* Alloc could be more than needed, but not worth trimming. */
+	*p_str = (char *) ecalloc(strlen(s)+1, sizeof(char));
+	out = *p_str;
+
 	for (p = s;  *p != '\0';  p++)
 	{
-		if (*p == END_OPTION_STRING ||
-		    (validchars != NULL && strchr(validchars, *p) == NULL))
+		if (*p == '\\' && p[1] != '\0')
 		{
-			switch (*p)
-			{
-			case END_OPTION_STRING:
-			case ' ':  case '\t':  case '-':
-				/* Replace the char with a null to terminate string. */
-				*p++ = '\0';
+			/* Take next char literally. */
+			++p;
+		} else 
+		{
+			if (*p == END_OPTION_STRING || 
+			    (validchars != NULL && strchr(validchars, *p) == NULL))
+				/* End of option string. */
 				break;
-			default:
-				/* Cannot replace char; make a copy of the string. */
-				*p_str = (char *) ecalloc(p-s+1, sizeof(char));
-				strncpy(*p_str, s, p-s);
-				(*p_str)[p-s] = '\0';
-				break;
-			}
-			break;
 		}
+		*out++ = *p;
 	}
+	*out = '\0';
 	return (p);
 }
 
@@ -609,8 +614,6 @@ num_error(printopt, errp)
 		parg.p_string = printopt;
 		error("Number is required after %s", &parg);
 	}
-	quit(QUIT_ERROR);
-	/* NOTREACHED */
 	return (-1);
 }
 

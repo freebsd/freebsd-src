@@ -44,9 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_mode.h>
 
 #ifdef DRM_DEBUG_DEFAULT_ON
-int drm_debug_flag = 1;
+int drm_debug_flag = (DRM_DEBUGBITS_DEBUG | DRM_DEBUGBITS_KMS |
+    DRM_DEBUGBITS_FAILED_IOCTL);
 #else
-int drm_debug_flag = 2;
+int drm_debug_flag = 0;
 #endif
 int drm_notyet_flag = 0;
 
@@ -57,6 +58,8 @@ static int drm_load(struct drm_device *dev);
 static void drm_unload(struct drm_device *dev);
 static drm_pci_id_list_t *drm_find_description(int vendor, int device,
     drm_pci_id_list_t *idlist);
+static int drm_mmap_single(struct cdev *kdev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **obj_res, int nprot);
 
 static int
 drm_modevent(module_t mod, int type, void *data)
@@ -186,7 +189,7 @@ static struct cdevsw drm_cdevsw = {
 	.d_ioctl =	drm_ioctl,
 	.d_poll =	drm_poll,
 	.d_mmap =	drm_mmap,
-	.d_mmap_single = drm_gem_mmap_single,
+	.d_mmap_single = drm_mmap_single,
 	.d_name =	"drm",
 	.d_flags =	D_TRACKCLOSE
 };
@@ -952,6 +955,23 @@ drm_add_busid_modesetting(struct drm_device *dev, struct sysctl_ctx_list *ctx,
 		return (ENOMEM);
 
 	return (0);
+}
+
+static int
+drm_mmap_single(struct cdev *kdev, vm_ooffset_t *offset, vm_size_t size,
+    struct vm_object **obj_res, int nprot)
+{
+	struct drm_device *dev;
+
+	dev = drm_get_device_from_kdev(kdev);
+	if ((dev->driver->driver_features & DRIVER_GEM) != 0) {
+		return (drm_gem_mmap_single(dev, offset, size, obj_res, nprot));
+	} else if (dev->drm_ttm_bo != NULL) {
+		return (ttm_bo_mmap_single(dev->drm_ttm_bo, offset, size,
+		    obj_res, nprot));
+	} else {
+		return (ENODEV);
+	}
 }
 
 #if DRM_LINUX

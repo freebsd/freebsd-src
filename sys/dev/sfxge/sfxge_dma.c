@@ -97,7 +97,7 @@ retry:
 		goto err_out;
 	} else if (err == EFBIG || seg_count >= maxsegs) {
 		if (!defragged) {
-			m = m_defrag(*mp, M_DONTWAIT);
+			m = m_defrag(*mp, M_NOWAIT);
 			if (m == NULL) {
 				err = ENOBUFS;
 				goto err_out;

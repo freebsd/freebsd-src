@@ -118,7 +118,6 @@ private:
   typedef std::vector<AllowedSet> AllowedSetMap;
   typedef std::pair<unsigned, unsigned> RegPair;
   typedef std::map<RegPair, PBQP::PBQPNum> CoalesceMap;
-  typedef std::vector<PBQP::Graph::NodeItr> NodeVector;
   typedef std::set<unsigned> RegSet;
 
 
@@ -192,7 +191,6 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
                                                 const MachineLoopInfo *loopInfo,
                                                 const RegSet &vregs) {
 
-  typedef std::vector<const LiveInterval*> LIVector;
   LiveIntervals *LIS = const_cast<LiveIntervals*>(lis);
   MachineRegisterInfo *mri = &mf->getRegInfo();
   const TargetRegisterInfo *tri = mf->getTarget().getRegisterInfo();
@@ -209,8 +207,6 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
     mri->setPhysRegUsed(Reg);
   }
 
-  BitVector reservedRegs = tri->getReservedRegs(*mf);
-
   // Iterate over vregs.
   for (RegSet::const_iterator vregItr = vregs.begin(), vregEnd = vregs.end();
        vregItr != vregEnd; ++vregItr) {
@@ -219,7 +215,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
     LiveInterval *vregLI = &LIS->getInterval(vreg);
 
     // Record any overlaps with regmask operands.
-    BitVector regMaskOverlaps(tri->getNumRegs());
+    BitVector regMaskOverlaps;
     LIS->checkRegMaskInterference(*vregLI, regMaskOverlaps);
 
     // Compute an initial allowed set for the current vreg.
@@ -228,7 +224,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilder::build(MachineFunction *mf,
     ArrayRef<uint16_t> rawOrder = trc->getRawAllocationOrder(*mf);
     for (unsigned i = 0; i != rawOrder.size(); ++i) {
       unsigned preg = rawOrder[i];
-      if (reservedRegs.test(preg))
+      if (mri->isReserved(preg))
         continue;
 
       // vregLI crosses a regmask operand that clobbers preg.
@@ -358,7 +354,7 @@ std::auto_ptr<PBQPRAProblem> PBQPBuilderWithCoalescing::build(
                                                    loopInfo->getLoopDepth(mbb));
 
       if (cp.isPhys()) {
-        if (!lis->isAllocatable(dst)) {
+        if (!mf->getRegInfo().isAllocatable(dst)) {
           continue;
         }
 
@@ -433,6 +429,7 @@ void RegAllocPBQP::getAnalysisUsage(AnalysisUsage &au) const {
   au.addRequired<SlotIndexes>();
   au.addPreserved<SlotIndexes>();
   au.addRequired<LiveIntervals>();
+  au.addPreserved<LiveIntervals>();
   //au.addRequiredID(SplitCriticalEdgesID);
   if (customPassID)
     au.addRequiredID(*customPassID);
@@ -444,6 +441,7 @@ void RegAllocPBQP::getAnalysisUsage(AnalysisUsage &au) const {
   au.addRequired<MachineLoopInfo>();
   au.addPreserved<MachineLoopInfo>();
   au.addRequired<VirtRegMap>();
+  au.addPreserved<VirtRegMap>();
   MachineFunctionPass::getAnalysisUsage(au);
 }
 
@@ -556,7 +554,7 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
 
   mri->freezeReservedRegs(MF);
 
-  DEBUG(dbgs() << "PBQP Register Allocating for " << mf->getFunction()->getName() << "\n");
+  DEBUG(dbgs() << "PBQP Register Allocating for " << mf->getName() << "\n");
 
   // Allocator main loop:
   //
@@ -570,11 +568,12 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
   // Find the vreg intervals in need of allocation.
   findVRegIntervalsToAlloc();
 
+#ifndef NDEBUG
   const Function* func = mf->getFunction();
   std::string fqn =
     func->getParent()->getModuleIdentifier() + "." +
     func->getName().str();
-  (void)fqn;
+#endif
 
   // If there are non-empty intervals allocate them using pbqp.
   if (!vregsToAlloc.empty()) {

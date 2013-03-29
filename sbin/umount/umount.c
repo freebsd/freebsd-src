@@ -359,8 +359,10 @@ umountfs(struct statfs *sfs)
 			do_rpc = 1;
 	}
 
-	if (!namematch(ai))
+	if (!namematch(ai)) {
+		free(orignfsdirname);
 		return (1);
+	}
 	/* First try to unmount using the file system ID. */
 	snprintf(fsidbuf, sizeof(fsidbuf), "FSID:%d:%d", sfs->f_fsid.val[0],
 	    sfs->f_fsid.val[1]);
@@ -369,13 +371,16 @@ umountfs(struct statfs *sfs)
 		if (errno != ENOENT || sfs->f_fsid.val[0] != 0 ||
 		    sfs->f_fsid.val[1] != 0)
 			warn("unmount of %s failed", sfs->f_mntonname);
-		if (errno != ENOENT)
+		if (errno != ENOENT) {
+			free(orignfsdirname);
 			return (1);
+		}
 		/* Compatibility for old kernels. */
 		if (sfs->f_fsid.val[0] != 0 || sfs->f_fsid.val[1] != 0)
 			warnx("retrying using path instead of file system ID");
 		if (unmount(sfs->f_mntonname, fflag) != 0) {
 			warn("unmount of %s failed", sfs->f_mntonname);
+			free(orignfsdirname);
 			return (1);
 		}
 	}
@@ -393,6 +398,7 @@ umountfs(struct statfs *sfs)
 		if (clp  == NULL) {
 			warnx("%s: %s", hostp,
 			    clnt_spcreateerror("MOUNTPROG"));
+			free(orignfsdirname);
 			return (1);
 		}
 		clp->cl_auth = authsys_create_default();
@@ -403,6 +409,7 @@ umountfs(struct statfs *sfs)
 		if (clnt_stat != RPC_SUCCESS) {
 			warnx("%s: %s", hostp,
 			    clnt_sperror(clp, "RPCMNT_UMOUNT"));
+			free(orignfsdirname);
 			return (1);
 		}
 		/*
@@ -415,10 +422,10 @@ umountfs(struct statfs *sfs)
 				    hostp, nfsdirname);
 			free_mtab();
 		}
-		free(orignfsdirname);
 		auth_destroy(clp->cl_auth);
 		clnt_destroy(clp);
 	}
+	free(orignfsdirname);
 	return (0);
 }
 

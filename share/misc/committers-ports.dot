@@ -15,14 +15,15 @@ digraph ports {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
 #
 # ????/??/?? is the date when the commit bit was obtained, usually the one you
-# can find looking at CVS logs for the access (or avail) file under CVSROOT.
+# can find looking at svn logs for the svnadmin/access file.
+# Use YYYY/MM/DD format.
 #
 # For returned commit bits, the node definition will follow this example:
 #
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
 #
 # The first date is the same as for an active committer, the second date is
-# the date when the commit bit has been returned. Again, check CVS logs.
+# the date when the commit bit has been returned. Again, check svn logs.
 
 node [color=grey62, style=filled, bgcolor=black];
 
@@ -57,6 +58,7 @@ avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2010/07/27"]
+bar [label="Barbara Guida\nbar@FreeBSD.org\n2012/11/25"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2012/07/31"]
 beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
 beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
@@ -75,6 +77,7 @@ culot [label="Frederic Culot\nculot@FreeBSD.org\n2010/10/16"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
+dbn [label="David Naylor\ndbn@FreeBSD.org\n2013/01/14"]
 decke [label="Bernhard Froehlich\ndecke@FreeBSD.org\n2010/03/21"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
@@ -93,6 +96,7 @@ flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 gahr [label="Pietro Cerutti\ngahr@FreeBSD.org\n2008/02/20"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
+gblach [label="Grzegorz Blach\ngblach@FreeBSD.org\n2012/11/03"]
 gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
@@ -104,6 +108,7 @@ jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
 jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
+jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
@@ -136,6 +141,7 @@ maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
 mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
 marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
+marius [label="Marius Strobl\nmarius@FreeBSD.org\n2012/12/29"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2004/02/21"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
@@ -158,13 +164,14 @@ osa [label="Sergey A. Osokin\nosa@FreeBSD.org\n2003/06/04"]
 pat [label="Patrick Li\npat@FreeBSD.org\n2001/11/14"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
 pawel [label="Pawel Pekala\npawel@FreeBSD.org\n2011/03/11"]
+pclin [label="Po-Chien Lin\npclin@FreeBSD.org\n2013/02/11"]
 pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
-rm [label="Ruslan Mahmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
+rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
@@ -187,6 +194,7 @@ sylvio [label="Sylvio Cesar Teixeira\nsylvio@FreeBSD.org\n2009/10/29"]
 tabthorpe [label="Thomas Abthorpe\ntabthorpe@FreeBSD.org\n2007/08/20"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
+tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2013/03/27"]
 timur [label="Timur Bakeyev\ntimur@FreeBSD.org\n2007/06/07"]
 tj [label="Tom Judge\ntj@FreeBSD.org\n2012/05/28"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
@@ -218,6 +226,7 @@ ahze -> shaun
 ahze -> tmclaugh
 
 araujo -> lippe
+araujo -> pclin
 araujo -> pgollucci
 
 arved -> markus
@@ -225,13 +234,18 @@ arved -> stefan
 
 asami -> obrien
 
+avilla -> jhale
 avilla -> rakuco
+
+bdrewery -> dbn
 
 bapt -> bdrewery
 bapt -> eadler
 bapt -> jlaffaye
+bapt -> marius
 
 beat -> decke
+beat -> marius
 beat -> sperber
 beat -> uqs
 
@@ -252,6 +266,8 @@ clsung -> tabthorpe
 crees -> gjb
 crees -> jgh
 crees -> madpilot
+crees -> gblach
+crees -> tijl
 
 culot -> jase
 
@@ -265,6 +281,7 @@ delphij -> rafan
 demon -> mat
 
 eadler -> ak
+eadler -> dbn
 eadler -> bdrewery
 eadler -> gjb
 eadler -> tj
@@ -292,6 +309,7 @@ fjoe -> flo
 fjoe -> krion
 fjoe -> osa
 
+flo -> bar
 flo -> jase
 
 flz -> garga
@@ -368,6 +386,7 @@ marcus -> eik
 marcus -> jmallett
 
 makc -> bf
+makc -> jhale
 makc -> rakuco
 
 mat -> thierry
@@ -431,6 +450,7 @@ philip -> koitsu
 
 rafan -> chinsan
 
+rene -> bar
 rene -> crees
 rene -> jgh
 rene -> olivierd
@@ -458,6 +478,8 @@ stas -> araujo
 
 steve -> netchild
 
+swills -> pclin
+
 tabthorpe -> ashish
 tabthorpe -> avilla
 tabthorpe -> avl
@@ -472,6 +494,7 @@ tabthorpe -> madpilot
 tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi
+tabthorpe -> gblach
 
 thierry -> jadawin
 

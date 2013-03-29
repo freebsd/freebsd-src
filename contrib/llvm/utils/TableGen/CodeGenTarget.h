@@ -9,8 +9,8 @@
 //
 // This file defines wrappers for the Target class and related global
 // functionality.  This makes it easier to access the data and provides a single
-// place that needs to check it for validity.  All of these classes throw
-// exceptions on error conditions.
+// place that needs to check it for validity.  All of these classes abort
+// on error conditions.
 //
 //===----------------------------------------------------------------------===//
 
@@ -176,6 +176,10 @@ public:
   /// isLittleEndianEncoding - are instruction bit patterns defined as  [0..n]?
   ///
   bool isLittleEndianEncoding() const;
+
+  /// guessInstructionProperties - should we just guess unset instruction
+  /// properties?
+  bool guessInstructionProperties() const;
 
 private:
   void ComputeInstrsByEnum() const;

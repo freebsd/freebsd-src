@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.38 2012/01/14 01:01:15 tom Exp $ */
+/* $Id: main.c,v 1.39 2012/05/26 00:50:20 tom Exp $ */
 
 #include <signal.h>
 #include <unistd.h>		/* for _exit() */
@@ -163,7 +163,7 @@ done(int k)
 }
 
 static void
-onintr(__unused int sig)
+onintr(int sig GCC_UNUSED)
 {
     got_intr = 1;
     done(EXIT_FAILURE);
@@ -367,7 +367,7 @@ allocate(size_t n)
 }
 
 #define CREATE_FILE_NAME(dest, suffix) \
-	dest = MALLOC(len + strlen(suffix) + 1); \
+	dest = TMALLOC(char, len + strlen(suffix) + 1); \
 	NO_SPACE(dest); \
 	strcpy(dest, file_prefix); \
 	strcpy(dest + len, suffix)
@@ -398,7 +398,7 @@ create_file_names(void)
     if (prefix != NULL)
     {
 	len = (size_t) (prefix - output_file_name);
-	file_prefix = (char *)MALLOC(len + 1);
+	file_prefix = TMALLOC(char, len + 1);
 	NO_SPACE(file_prefix);
 	strncpy(file_prefix, output_file_name, len)[len] = 0;
     }

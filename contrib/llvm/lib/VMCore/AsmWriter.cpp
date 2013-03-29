@@ -66,6 +66,25 @@ static const Module *getModuleFromVal(const Value *V) {
   return 0;
 }
 
+static void PrintCallingConv(unsigned cc, raw_ostream &Out)
+{
+  switch (cc) {
+    case CallingConv::Fast:         Out << "fastcc"; break;
+    case CallingConv::Cold:         Out << "coldcc"; break;
+    case CallingConv::X86_StdCall:  Out << "x86_stdcallcc"; break;
+    case CallingConv::X86_FastCall: Out << "x86_fastcallcc"; break;
+    case CallingConv::X86_ThisCall: Out << "x86_thiscallcc"; break;
+    case CallingConv::Intel_OCL_BI: Out << "intel_ocl_bicc"; break;
+    case CallingConv::ARM_APCS:     Out << "arm_apcscc"; break;
+    case CallingConv::ARM_AAPCS:    Out << "arm_aapcscc"; break;
+    case CallingConv::ARM_AAPCS_VFP:Out << "arm_aapcs_vfpcc"; break;
+    case CallingConv::MSP430_INTR:  Out << "msp430_intrcc"; break;
+    case CallingConv::PTX_Kernel:   Out << "ptx_kernel"; break;
+    case CallingConv::PTX_Device:   Out << "ptx_device"; break;
+    default:                        Out << "cc" << cc; break;
+  }
+}
+ 
 // PrintEscapedString - Print each character of the specified string, escaping
 // it if it is not printable or if it is an escape char.
 static void PrintEscapedString(StringRef Name, raw_ostream &Out) {
@@ -141,8 +160,8 @@ static void PrintLLVMName(raw_ostream &OS, const Value *V) {
 /// TypePrinting - Type printing machinery.
 namespace {
 class TypePrinting {
-  TypePrinting(const TypePrinting &);   // DO NOT IMPLEMENT
-  void operator=(const TypePrinting&);  // DO NOT IMPLEMENT
+  TypePrinting(const TypePrinting &) LLVM_DELETED_FUNCTION;
+  void operator=(const TypePrinting&) LLVM_DELETED_FUNCTION;
 public:
 
   /// NamedTypes - The named types that are used by the current module.
@@ -380,8 +399,8 @@ private:
   /// Add all of the functions arguments, basic blocks, and instructions.
   void processFunction();
 
-  SlotTracker(const SlotTracker &);  // DO NOT IMPLEMENT
-  void operator=(const SlotTracker &);  // DO NOT IMPLEMENT
+  SlotTracker(const SlotTracker &) LLVM_DELETED_FUNCTION;
+  void operator=(const SlotTracker &) LLVM_DELETED_FUNCTION;
 };
 
 }  // end anonymous namespace
@@ -1029,6 +1048,9 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
       Out << "sideeffect ";
     if (IA->isAlignStack())
       Out << "alignstack ";
+    // We don't emit the AD_ATT dialect as it's the assumed default.
+    if (IA->getDialect() == InlineAsm::AD_Intel)
+      Out << "inteldialect ";
     Out << '"';
     PrintEscapedString(IA->getAsmString(), Out);
     Out << "\", \"";
@@ -1222,8 +1244,8 @@ void AssemblyWriter::writeParamOperand(const Value *Operand,
   // Print the type
   TypePrinter.print(Operand->getType(), Out);
   // Print parameter attributes list
-  if (Attrs != Attribute::None)
-    Out << ' ' << Attribute::getAsString(Attrs);
+  if (Attrs.hasAttributes())
+    Out << ' ' << Attrs.getAsString();
   Out << ' ';
   // Print the operand
   WriteAsOperandInternal(Out, Operand, &TypePrinter, &Machine, TheModule);
@@ -1285,8 +1307,9 @@ void AssemblyWriter::printModule(const Module *M) {
   // Output all globals.
   if (!M->global_empty()) Out << '\n';
   for (Module::const_global_iterator I = M->global_begin(), E = M->global_end();
-       I != E; ++I)
-    printGlobal(I);
+       I != E; ++I) {
+    printGlobal(I); Out << '\n';
+  }
 
   // Output all aliases.
   if (!M->alias_empty()) Out << "\n";
@@ -1353,12 +1376,12 @@ static void PrintLinkage(GlobalValue::LinkageTypes LT,
   case GlobalValue::LinkerPrivateWeakLinkage:
     Out << "linker_private_weak ";
     break;
-  case GlobalValue::LinkerPrivateWeakDefAutoLinkage:
-    Out << "linker_private_weak_def_auto ";
-    break;
   case GlobalValue::InternalLinkage:      Out << "internal ";       break;
   case GlobalValue::LinkOnceAnyLinkage:   Out << "linkonce ";       break;
   case GlobalValue::LinkOnceODRLinkage:   Out << "linkonce_odr ";   break;
+  case GlobalValue::LinkOnceODRAutoHideLinkage:
+    Out << "linkonce_odr_auto_hide ";
+    break;
   case GlobalValue::WeakAnyLinkage:       Out << "weak ";           break;
   case GlobalValue::WeakODRLinkage:       Out << "weak_odr ";       break;
   case GlobalValue::CommonLinkage:        Out << "common ";         break;
@@ -1436,7 +1459,6 @@ void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
     Out << ", align " << GV->getAlignment();
 
   printInfoComment(*GV);
-  Out << '\n';
 }
 
 void AssemblyWriter::printAlias(const GlobalAlias *GA) {
@@ -1527,27 +1549,16 @@ void AssemblyWriter::printFunction(const Function *F) {
   PrintVisibility(F->getVisibility(), Out);
 
   // Print the calling convention.
-  switch (F->getCallingConv()) {
-  case CallingConv::C: break;   // default
-  case CallingConv::Fast:         Out << "fastcc "; break;
-  case CallingConv::Cold:         Out << "coldcc "; break;
-  case CallingConv::X86_StdCall:  Out << "x86_stdcallcc "; break;
-  case CallingConv::X86_FastCall: Out << "x86_fastcallcc "; break;
-  case CallingConv::X86_ThisCall: Out << "x86_thiscallcc "; break;
-  case CallingConv::ARM_APCS:     Out << "arm_apcscc "; break;
-  case CallingConv::ARM_AAPCS:    Out << "arm_aapcscc "; break;
-  case CallingConv::ARM_AAPCS_VFP:Out << "arm_aapcs_vfpcc "; break;
-  case CallingConv::MSP430_INTR:  Out << "msp430_intrcc "; break;
-  case CallingConv::PTX_Kernel:   Out << "ptx_kernel "; break;
-  case CallingConv::PTX_Device:   Out << "ptx_device "; break;
-  default: Out << "cc" << F->getCallingConv() << " "; break;
+  if (F->getCallingConv() != CallingConv::C) {
+    PrintCallingConv(F->getCallingConv(), Out);
+    Out << " ";
   }
 
   FunctionType *FT = F->getFunctionType();
   const AttrListPtr &Attrs = F->getAttributes();
   Attributes RetAttrs = Attrs.getRetAttributes();
-  if (RetAttrs != Attribute::None)
-    Out <<  Attribute::getAsString(Attrs.getRetAttributes()) << ' ';
+  if (RetAttrs.hasAttributes())
+    Out <<  Attrs.getRetAttributes().getAsString() << ' ';
   TypePrinter.print(F->getReturnType(), Out);
   Out << ' ';
   WriteAsOperandInternal(Out, F, &TypePrinter, &Machine, F->getParent());
@@ -1576,8 +1587,8 @@ void AssemblyWriter::printFunction(const Function *F) {
       TypePrinter.print(FT->getParamType(i), Out);
 
       Attributes ArgAttrs = Attrs.getParamAttributes(i+1);
-      if (ArgAttrs != Attribute::None)
-        Out << ' ' << Attribute::getAsString(ArgAttrs);
+      if (ArgAttrs.hasAttributes())
+        Out << ' ' << ArgAttrs.getAsString();
     }
   }
 
@@ -1590,8 +1601,8 @@ void AssemblyWriter::printFunction(const Function *F) {
   if (F->hasUnnamedAddr())
     Out << " unnamed_addr";
   Attributes FnAttrs = Attrs.getFnAttributes();
-  if (FnAttrs != Attribute::None)
-    Out << ' ' << Attribute::getAsString(Attrs.getFnAttributes());
+  if (FnAttrs.hasAttributes())
+    Out << ' ' << Attrs.getFnAttributes().getAsString();
   if (F->hasSection()) {
     Out << " section \"";
     PrintEscapedString(F->getSection(), Out);
@@ -1624,8 +1635,8 @@ void AssemblyWriter::printArgument(const Argument *Arg,
   TypePrinter.print(Arg->getType(), Out);
 
   // Output parameter attributes list
-  if (Attrs != Attribute::None)
-    Out << ' ' << Attribute::getAsString(Attrs);
+  if (Attrs.hasAttributes())
+    Out << ' ' << Attrs.getAsString();
 
   // Output name, if available...
   if (Arg->hasName()) {
@@ -1828,20 +1839,9 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     Out << " void";
   } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Print the calling convention being used.
-    switch (CI->getCallingConv()) {
-    case CallingConv::C: break;   // default
-    case CallingConv::Fast:  Out << " fastcc"; break;
-    case CallingConv::Cold:  Out << " coldcc"; break;
-    case CallingConv::X86_StdCall:  Out << " x86_stdcallcc"; break;
-    case CallingConv::X86_FastCall: Out << " x86_fastcallcc"; break;
-    case CallingConv::X86_ThisCall: Out << " x86_thiscallcc"; break;
-    case CallingConv::ARM_APCS:     Out << " arm_apcscc "; break;
-    case CallingConv::ARM_AAPCS:    Out << " arm_aapcscc "; break;
-    case CallingConv::ARM_AAPCS_VFP:Out << " arm_aapcs_vfpcc "; break;
-    case CallingConv::MSP430_INTR:  Out << " msp430_intrcc "; break;
-    case CallingConv::PTX_Kernel:   Out << " ptx_kernel"; break;
-    case CallingConv::PTX_Device:   Out << " ptx_device"; break;
-    default: Out << " cc" << CI->getCallingConv(); break;
+    if (CI->getCallingConv() != CallingConv::C) {
+      Out << " ";
+      PrintCallingConv(CI->getCallingConv(), Out);
     }
 
     Operand = CI->getCalledValue();
@@ -1850,8 +1850,8 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     Type *RetTy = FTy->getReturnType();
     const AttrListPtr &PAL = CI->getAttributes();
 
-    if (PAL.getRetAttributes() != Attribute::None)
-      Out << ' ' << Attribute::getAsString(PAL.getRetAttributes());
+    if (PAL.getRetAttributes().hasAttributes())
+      Out << ' ' << PAL.getRetAttributes().getAsString();
 
     // If possible, print out the short form of the call instruction.  We can
     // only do this if the first argument is a pointer to a nonvararg function,
@@ -1874,8 +1874,8 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
       writeParamOperand(CI->getArgOperand(op), PAL.getParamAttributes(op + 1));
     }
     Out << ')';
-    if (PAL.getFnAttributes() != Attribute::None)
-      Out << ' ' << Attribute::getAsString(PAL.getFnAttributes());
+    if (PAL.getFnAttributes().hasAttributes())
+      Out << ' ' << PAL.getFnAttributes().getAsString();
   } else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I)) {
     Operand = II->getCalledValue();
     PointerType *PTy = cast<PointerType>(Operand->getType());
@@ -1884,24 +1884,13 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     const AttrListPtr &PAL = II->getAttributes();
 
     // Print the calling convention being used.
-    switch (II->getCallingConv()) {
-    case CallingConv::C: break;   // default
-    case CallingConv::Fast:  Out << " fastcc"; break;
-    case CallingConv::Cold:  Out << " coldcc"; break;
-    case CallingConv::X86_StdCall:  Out << " x86_stdcallcc"; break;
-    case CallingConv::X86_FastCall: Out << " x86_fastcallcc"; break;
-    case CallingConv::X86_ThisCall: Out << " x86_thiscallcc"; break;
-    case CallingConv::ARM_APCS:     Out << " arm_apcscc "; break;
-    case CallingConv::ARM_AAPCS:    Out << " arm_aapcscc "; break;
-    case CallingConv::ARM_AAPCS_VFP:Out << " arm_aapcs_vfpcc "; break;
-    case CallingConv::MSP430_INTR:  Out << " msp430_intrcc "; break;
-    case CallingConv::PTX_Kernel:   Out << " ptx_kernel"; break;
-    case CallingConv::PTX_Device:   Out << " ptx_device"; break;
-    default: Out << " cc" << II->getCallingConv(); break;
+    if (II->getCallingConv() != CallingConv::C) {
+      Out << " ";
+      PrintCallingConv(II->getCallingConv(), Out);
     }
 
-    if (PAL.getRetAttributes() != Attribute::None)
-      Out << ' ' << Attribute::getAsString(PAL.getRetAttributes());
+    if (PAL.getRetAttributes().hasAttributes())
+      Out << ' ' << PAL.getRetAttributes().getAsString();
 
     // If possible, print out the short form of the invoke instruction. We can
     // only do this if the first argument is a pointer to a nonvararg function,
@@ -1925,8 +1914,8 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     }
 
     Out << ')';
-    if (PAL.getFnAttributes() != Attribute::None)
-      Out << ' ' << Attribute::getAsString(PAL.getFnAttributes());
+    if (PAL.getFnAttributes().hasAttributes())
+      Out << ' ' << PAL.getFnAttributes().getAsString();
 
     Out << "\n          to ";
     writeOperand(II->getNormalDest(), true);

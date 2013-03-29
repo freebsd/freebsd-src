@@ -11,6 +11,8 @@ let Component = "Driver" in {
 
 def err_drv_no_such_file : Error<"no such file or directory: '%0'">;
 def err_drv_unsupported_opt : Error<"unsupported option '%0'">;
+def err_drv_unsupported_opt_for_target : Error<
+  "unsupported option '%0' for target '%1'">;
 def err_drv_unsupported_option_argument : Error<
   "unsupported argument '%1' to option '%0'">;
 def err_drv_unknown_stdin_type : Error<
@@ -91,10 +93,10 @@ def err_drv_invalid_arch_for_deployment_target : Error<
   "invalid architecture '%0' for deployment target '%1'">;
 def err_drv_objc_gc_arr : Error<
   "cannot specify both '-fobjc-arc' and '%0'">;
-def err_arc_nonfragile_abi : Error<
-  "-fobjc-arc is not supported with legacy abi">;
-def err_arc_unsupported : Error<
-  "-fobjc-arc is not supported on current deployment target">;
+def err_arc_unsupported_on_runtime : Error<
+  "-fobjc-arc is not supported on platforms using the legacy runtime">;
+def err_arc_unsupported_on_toolchain : Error< // feel free to generalize this
+  "-fobjc-arc is not supported on versions of OS X prior to 10.6">;
 def err_drv_mg_requires_m_or_mm : Error<
   "option '-MG' requires '-M' or '-MM'">;
 def err_drv_asan_android_requires_pie : Error<
@@ -119,14 +121,10 @@ def warn_drv_unused_argument : Warning<
 def warn_drv_empty_joined_argument : Warning<
   "joined argument expects additional value: '%0'">,
   InGroup<DiagGroup<"unused-command-line-argument">>;
-def warn_drv_not_using_clang_cpp : Warning<
-  "not using the clang preprocessor due to user override">;
-def warn_drv_not_using_clang_cxx : Warning<
-  "not using the clang compiler for C++ inputs">;
-def warn_drv_not_using_clang_arch : Warning<
-  "not using the clang compiler for the '%0' architecture">;
 def warn_drv_clang_unsupported : Warning<
   "the clang compiler does not support '%0'">;
+def warn_drv_deprecated_arg : Warning<
+  "argument '%0' is deprecated, use '%1' instead">, InGroup<Deprecated>;
 def warn_drv_assuming_mfloat_abi_is : Warning<
   "unknown platform, assuming -mfloat-abi=%0">;
 def warn_ignoring_ftabstop_value : Warning<
@@ -141,5 +139,9 @@ def warn_drv_pch_not_first_include : Warning<
 
 def note_drv_command_failed_diag_msg : Note<
   "diagnostic msg: %0">;
-
+  
+def err_analyzer_config_no_value : Error<
+  "analyzer-config option '%0' has a key but no value">;
+def err_analyzer_config_multiple_values : Error<
+  "analyzer-config option '%0' should contain only one '='">;
 }

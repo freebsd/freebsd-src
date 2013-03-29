@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/refcount.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
@@ -208,7 +209,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	np->netc_anon = crget();
 	np->netc_anon->cr_uid = argp->ex_anon.cr_uid;
 	crsetgroups(np->netc_anon, argp->ex_anon.cr_ngroups,
-	    np->netc_anon->cr_groups);
+	    argp->ex_anon.cr_groups);
 	np->netc_anon->cr_prison = &prison0;
 	prison_hold(np->netc_anon->cr_prison);
 	np->netc_numsecflavors = argp->ex_numsecflavors;

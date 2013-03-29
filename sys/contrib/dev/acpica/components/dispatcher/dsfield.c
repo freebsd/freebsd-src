@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -305,7 +305,7 @@ Cleanup:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Process all named fields in a field declaration.  Names are
+ * DESCRIPTION: Process all named fields in a field declaration. Names are
  *              entered into the namespace.
  *
  ******************************************************************************/
@@ -828,5 +828,3 @@ AcpiDsCreateIndexField (
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);
     return_ACPI_STATUS (Status);
 }
-
-

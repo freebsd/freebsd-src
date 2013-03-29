@@ -73,7 +73,7 @@ static device_method_t wiipic_methods[] = {
 	DEVMETHOD(pic_mask,		wiipic_mask),
 	DEVMETHOD(pic_unmask,		wiipic_unmask),
 
-        { 0, 0 },
+        DEVMETHOD_END
 };
 
 static driver_t wiipic_driver = {

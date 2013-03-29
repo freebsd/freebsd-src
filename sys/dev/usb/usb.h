@@ -40,22 +40,28 @@
 #define	_USB_STANDARD_H_
 
 #if defined(_KERNEL)
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include "opt_usb.h"
+#endif
 
 /* Declare parent SYSCTL USB node. */
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_hw_usb);
 #endif
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/malloc.h>
+#endif
 
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
 MALLOC_DECLARE(M_USBHC);
 #endif /* _KERNEL */
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <dev/usb/usb_endian.h>
 #include <dev/usb/usb_freebsd.h>
+#endif
 
 #define	USB_STACK_VERSION 2000		/* 2.0 */
 
@@ -93,31 +99,29 @@ MALLOC_DECLARE(M_USBHC);
 #define	USB_POWER_MODE_SUSPEND 3	/* force suspend */
 #define	USB_POWER_MODE_RESUME 4		/* force resume */
 
-#if 0
 /* These are the values from the USB specification. */
-#define	USB_PORT_RESET_DELAY	10	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY 50	/* ms */
-#define	USB_PORT_RESET_RECOVERY	10	/* ms */
-#define	USB_PORT_POWERUP_DELAY	100	/* ms */
-#define	USB_PORT_RESUME_DELAY	20	/* ms */
-#define	USB_SET_ADDRESS_SETTLE	2	/* ms */
-#define	USB_RESUME_DELAY	(20*5)	/* ms */
-#define	USB_RESUME_WAIT		10	/* ms */
-#define	USB_RESUME_RECOVERY	10	/* ms */
-#define	USB_EXTRA_POWER_UP_TIME	0	/* ms */
-#else
+#define	USB_PORT_RESET_DELAY_SPEC	10	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY_SPEC	50	/* ms */
+#define	USB_PORT_RESET_RECOVERY_SPEC	10	/* ms */
+#define	USB_PORT_POWERUP_DELAY_SPEC	100	/* ms */
+#define	USB_PORT_RESUME_DELAY_SPEC	20	/* ms */
+#define	USB_SET_ADDRESS_SETTLE_SPEC	2	/* ms */
+#define	USB_RESUME_DELAY_SPEC		(20*5)	/* ms */
+#define	USB_RESUME_WAIT_SPEC		10	/* ms */
+#define	USB_RESUME_RECOVERY_SPEC	10	/* ms */
+#define	USB_EXTRA_POWER_UP_TIME_SPEC	0	/* ms */
+
 /* Allow for marginal and non-conforming devices. */
-#define	USB_PORT_RESET_DELAY	50	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY 250	/* ms */
-#define	USB_PORT_RESET_RECOVERY	250	/* ms */
-#define	USB_PORT_POWERUP_DELAY	300	/* ms */
-#define	USB_PORT_RESUME_DELAY	(20*2)	/* ms */
-#define	USB_SET_ADDRESS_SETTLE	10	/* ms */
-#define	USB_RESUME_DELAY	(50*5)	/* ms */
-#define	USB_RESUME_WAIT		50	/* ms */
-#define	USB_RESUME_RECOVERY	50	/* ms */
-#define	USB_EXTRA_POWER_UP_TIME	20	/* ms */
-#endif
+#define	USB_PORT_RESET_DELAY		50	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY	250	/* ms */
+#define	USB_PORT_RESET_RECOVERY		250	/* ms */
+#define	USB_PORT_POWERUP_DELAY		300	/* ms */
+#define	USB_PORT_RESUME_DELAY		(20*2)	/* ms */
+#define	USB_SET_ADDRESS_SETTLE		10	/* ms */
+#define	USB_RESUME_DELAY		(50*5)	/* ms */
+#define	USB_RESUME_WAIT			50	/* ms */
+#define	USB_RESUME_RECOVERY		50	/* ms */
+#define	USB_EXTRA_POWER_UP_TIME		20	/* ms */
 
 #define	USB_MIN_POWER		100	/* mA */
 #define	USB_MAX_POWER		500	/* mA */
@@ -562,16 +566,22 @@ struct usb_string_descriptor {
 typedef struct usb_string_descriptor usb_string_descriptor_t;
 
 #define	USB_MAKE_STRING_DESC(m,name)	\
-struct name {				\
+static const struct {			\
   uByte bLength;			\
   uByte bDescriptorType;		\
   uByte bData[sizeof((uint8_t []){m})];	\
-} __packed;				\
-static const struct name name = {	\
-  .bLength = sizeof(struct name),	\
+} __packed name = {			\
+  .bLength = sizeof(name),		\
   .bDescriptorType = UDESC_STRING,	\
   .bData = { m },			\
 }
+
+struct usb_string_lang {
+	uByte bLength;
+	uByte bDescriptorType;
+	uByte bData[2];
+} __packed;
+typedef struct usb_string_lang usb_string_lang_t;
 
 struct usb_hub_descriptor {
 	uByte	bDescLength;

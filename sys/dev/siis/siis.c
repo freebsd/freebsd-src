@@ -996,19 +996,9 @@ siis_begin_transaction(device_t dev, union ccb *ccb)
 	slot->dma.nsegs = 0;
 	/* If request moves data, setup and load SG list */
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		void *buf;
-		bus_size_t size;
-
 		slot->state = SIIS_SLOT_LOADING;
-		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-			buf = ccb->ataio.data_ptr;
-			size = ccb->ataio.dxfer_len;
-		} else {
-			buf = ccb->csio.data_ptr;
-			size = ccb->csio.dxfer_len;
-		}
-		bus_dmamap_load(ch->dma.data_tag, slot->dma.data_map,
-		    buf, size, siis_dmasetprd, slot, 0);
+		bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map,
+		    ccb, siis_dmasetprd, slot, 0);
 	} else
 		siis_execute_transaction(slot);
 }
@@ -1032,24 +1022,26 @@ siis_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	}
 	KASSERT(nsegs <= SIIS_SG_ENTRIES, ("too many DMA segment entries\n"));
-	/* Get a piece of the workspace for this request */
-	ctp = (struct siis_cmd *)
-		(ch->dma.work + SIIS_CT_OFFSET + (SIIS_CT_SIZE * slot->slot));
-	/* Fill S/G table */
-	if (slot->ccb->ccb_h.func_code == XPT_ATA_IO) 
-		prd = &ctp->u.ata.prd[0];
-	else
-		prd = &ctp->u.atapi.prd[0];
-	for (i = 0; i < nsegs; i++) {
-		prd[i].dba = htole64(segs[i].ds_addr);
-		prd[i].dbc = htole32(segs[i].ds_len);
-		prd[i].control = 0;
-	}
-	prd[nsegs - 1].control = htole32(SIIS_PRD_TRM);
 	slot->dma.nsegs = nsegs;
-	bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,
-	    ((slot->ccb->ccb_h.flags & CAM_DIR_IN) ?
-	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE));
+	if (nsegs != 0) {
+		/* Get a piece of the workspace for this request */
+		ctp = (struct siis_cmd *)(ch->dma.work + SIIS_CT_OFFSET +
+		    (SIIS_CT_SIZE * slot->slot));
+		/* Fill S/G table */
+		if (slot->ccb->ccb_h.func_code == XPT_ATA_IO) 
+			prd = &ctp->u.ata.prd[0];
+		else
+			prd = &ctp->u.atapi.prd[0];
+		for (i = 0; i < nsegs; i++) {
+			prd[i].dba = htole64(segs[i].ds_addr);
+			prd[i].dbc = htole32(segs[i].ds_len);
+			prd[i].control = 0;
+		}
+			prd[nsegs - 1].control = htole32(SIIS_PRD_TRM);
+		bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,
+		    ((slot->ccb->ccb_h.flags & CAM_DIR_IN) ?
+		    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE));
+	}
 	siis_execute_transaction(slot);
 }
 
@@ -1947,7 +1939,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
 		cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 15;
 		cpi->max_lun = 0;

@@ -1059,10 +1059,12 @@ bool ResultBuilder::IsClassOrStruct(NamedDecl *ND) const {
   // Allow us to find class templates, too.
   if (ClassTemplateDecl *ClassTemplate = dyn_cast<ClassTemplateDecl>(ND))
     ND = ClassTemplate->getTemplatedDecl();
-  
+
+  // For purposes of this check, interfaces match too.
   if (RecordDecl *RD = dyn_cast<RecordDecl>(ND))
     return RD->getTagKind() == TTK_Class ||
-    RD->getTagKind() == TTK_Struct;
+    RD->getTagKind() == TTK_Struct ||
+    RD->getTagKind() == TTK_Interface;
   
   return false;
 }
@@ -1422,7 +1424,8 @@ static const char *GetCompletionTypeString(QualType T,
         if (!Tag->getIdentifier() && !Tag->getTypedefNameForAnonDecl()) {
           switch (Tag->getTagKind()) {
           case TTK_Struct: return "struct <anonymous>";
-          case TTK_Class:  return "class <anonymous>";            
+          case TTK_Interface: return "__interface <anonymous>";
+          case TTK_Class:  return "class <anonymous>";
           case TTK_Union:  return "union <anonymous>";
           case TTK_Enum:   return "enum <anonymous>";
           }
@@ -1449,7 +1452,7 @@ static void addThisCompletion(Sema &S, ResultBuilder &Results) {
                                                      Policy,
                                                      Allocator));
   Builder.AddTypedTextChunk("this");
-  Results.AddResult(CodeCompletionResult(Builder.TakeString()));            
+  Results.AddResult(CodeCompletionResult(Builder.TakeString()));
 }
 
 /// \brief Add language constructs that show up for "ordinary" names.
@@ -2480,7 +2483,6 @@ CodeCompletionResult::CreateCodeCompletionString(ASTContext &Ctx,
     
     if (Declaration) {
       Result.addParentContext(Declaration->getDeclContext());
-      Pattern->ParentKind = Result.getParentKind();
       Pattern->ParentName = Result.getParentName();
     }
     
@@ -2493,7 +2495,7 @@ CodeCompletionResult::CreateCodeCompletionString(ASTContext &Ctx,
   }
   
   if (Kind == RK_Macro) {
-    MacroInfo *MI = PP.getMacroInfo(Macro);
+    MacroInfo *MI = PP.getMacroInfoHistory(Macro);
     assert(MI && "Not a macro?");
 
     Result.AddTypedTextChunk(
@@ -2880,10 +2882,14 @@ CXCursorKind clang::getCursorKindForDecl(Decl *D) {
       case ObjCPropertyImplDecl::Synthesize:
         return CXCursor_ObjCSynthesizeDecl;
       }
+
+      case Decl::Import:
+        return CXCursor_ModuleImportDecl;
       
     default:
       if (TagDecl *TD = dyn_cast<TagDecl>(D)) {
         switch (TD->getTagKind()) {
+          case TTK_Interface:  // fall through
           case TTK_Struct: return CXCursor_StructDecl;
           case TTK_Class:  return CXCursor_ClassDecl;
           case TTK_Union:  return CXCursor_UnionDecl;
@@ -2896,6 +2902,7 @@ CXCursorKind clang::getCursorKindForDecl(Decl *D) {
 }
 
 static void AddMacroResults(Preprocessor &PP, ResultBuilder &Results,
+                            bool IncludeUndefined,
                             bool TargetTypeIsPointer = false) {
   typedef CodeCompletionResult Result;
   
@@ -2904,7 +2911,8 @@ static void AddMacroResults(Preprocessor &PP, ResultBuilder &Results,
   for (Preprocessor::macro_iterator M = PP.macro_begin(), 
                                  MEnd = PP.macro_end();
        M != MEnd; ++M) {
-    Results.AddResult(Result(M->first, 
+    if (IncludeUndefined || M->first->hasMacroDefinition())
+      Results.AddResult(Result(M->first,
                              getMacroUsagePriority(M->first->getName(),
                                                    PP.getLangOpts(),
                                                    TargetTypeIsPointer)));
@@ -3125,7 +3133,6 @@ void Sema::CodeCompleteModuleImport(SourceLocation ImportLoc,
 
 void Sema::CodeCompleteOrdinaryName(Scope *S, 
                                     ParserCompletionContext CompletionContext) {
-  typedef CodeCompletionResult Result;
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
                         CodeCompleter->getCodeCompletionTUInfo(),
                         mapCodeCompletionContext(*this, CompletionContext));
@@ -3204,7 +3211,7 @@ void Sema::CodeCompleteOrdinaryName(Scope *S,
   }
   
   if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
+    AddMacroResults(PP, Results, false);
   
   HandleCodeCompleteResults(this, CodeCompleter, Results.getCompletionContext(),
                             Results.data(),Results.size());
@@ -3296,7 +3303,6 @@ struct Sema::CodeCompleteExpressionData {
 /// type we're looking for.
 void Sema::CodeCompleteExpression(Scope *S, 
                                   const CodeCompleteExpressionData &Data) {
-  typedef CodeCompletionResult Result;
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
                         CodeCompleter->getCodeCompletionTUInfo(),
                         CodeCompletionContext::CCC_Expression);
@@ -3336,7 +3342,7 @@ void Sema::CodeCompleteExpression(Scope *S,
     AddPrettyFunctionResults(PP.getLangOpts(), Results);        
 
   if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results, PreferredTypeIsPointer);
+    AddMacroResults(PP, Results, false, PreferredTypeIsPointer);
   HandleCodeCompleteResults(this, CodeCompleter, 
                 CodeCompletionContext(CodeCompletionContext::CCC_Expression, 
                                       Data.PreferredType),
@@ -3580,7 +3586,6 @@ void Sema::CodeCompleteTag(Scope *S, unsigned TagSpec) {
   if (!CodeCompleter)
     return;
   
-  typedef CodeCompletionResult Result;
   ResultBuilder::LookupFilter Filter = 0;
   enum CodeCompletionContext::Kind ContextKind
     = CodeCompletionContext::CCC_Other;
@@ -3597,6 +3602,7 @@ void Sema::CodeCompleteTag(Scope *S, unsigned TagSpec) {
     
   case DeclSpec::TST_struct:
   case DeclSpec::TST_class:
+  case DeclSpec::TST_interface:
     Filter = &ResultBuilder::IsClassOrStruct;
     ContextKind = CodeCompletionContext::CCC_ClassOrStructTag;
     break;
@@ -3728,7 +3734,7 @@ void Sema::CodeCompleteCase(Scope *S) {
   //so only say we include macros if the code completer says we do
   enum CodeCompletionContext::Kind kind = CodeCompletionContext::CCC_Other;
   if (CodeCompleter->includeMacros()) {
-    AddMacroResults(PP, Results);
+    AddMacroResults(PP, Results, false);
     kind = CodeCompletionContext::CCC_OtherWithMacros;
   }
   
@@ -3898,7 +3904,6 @@ void Sema::CodeCompleteReturn(Scope *S) {
 }
 
 void Sema::CodeCompleteAfterIf(Scope *S) {
-  typedef CodeCompletionResult Result;
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
                         CodeCompleter->getCodeCompletionTUInfo(),
                         mapCodeCompletionContext(*this, PCC_Statement));
@@ -3952,7 +3957,7 @@ void Sema::CodeCompleteAfterIf(Scope *S) {
     AddPrettyFunctionResults(PP.getLangOpts(), Results);        
   
   if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
+    AddMacroResults(PP, Results, false);
   
   HandleCodeCompleteResults(this, CodeCompleter, Results.getCompletionContext(),
                             Results.data(),Results.size());
@@ -4408,7 +4413,6 @@ static void AddObjCTopLevelResults(ResultBuilder &Results, bool NeedAt) {
 }
 
 void Sema::CodeCompleteObjCAtDirective(Scope *S) {
-  typedef CodeCompletionResult Result;
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
                         CodeCompleter->getCodeCompletionTUInfo(),
                         CodeCompletionContext::CCC_Other);
@@ -4595,26 +4599,23 @@ static bool ObjCPropertyFlagConflicts(unsigned Attributes, unsigned NewFlag) {
   
   // Check for collisions with "readonly".
   if ((Attributes & ObjCDeclSpec::DQ_PR_readonly) &&
-      (Attributes & (ObjCDeclSpec::DQ_PR_readwrite |
-                     ObjCDeclSpec::DQ_PR_assign |
-                     ObjCDeclSpec::DQ_PR_unsafe_unretained |
-                     ObjCDeclSpec::DQ_PR_copy |
-                     ObjCDeclSpec::DQ_PR_retain |
-                     ObjCDeclSpec::DQ_PR_strong)))
+      (Attributes & ObjCDeclSpec::DQ_PR_readwrite))
     return true;
   
-  // Check for more than one of { assign, copy, retain, strong }.
+  // Check for more than one of { assign, copy, retain, strong, weak }.
   unsigned AssignCopyRetMask = Attributes & (ObjCDeclSpec::DQ_PR_assign |
                                          ObjCDeclSpec::DQ_PR_unsafe_unretained |
                                              ObjCDeclSpec::DQ_PR_copy |
-                                             ObjCDeclSpec::DQ_PR_retain|
-                                             ObjCDeclSpec::DQ_PR_strong);
+                                             ObjCDeclSpec::DQ_PR_retain |
+                                             ObjCDeclSpec::DQ_PR_strong |
+                                             ObjCDeclSpec::DQ_PR_weak);
   if (AssignCopyRetMask &&
       AssignCopyRetMask != ObjCDeclSpec::DQ_PR_assign &&
       AssignCopyRetMask != ObjCDeclSpec::DQ_PR_unsafe_unretained &&
       AssignCopyRetMask != ObjCDeclSpec::DQ_PR_copy &&
       AssignCopyRetMask != ObjCDeclSpec::DQ_PR_retain &&
-      AssignCopyRetMask != ObjCDeclSpec::DQ_PR_strong)
+      AssignCopyRetMask != ObjCDeclSpec::DQ_PR_strong &&
+      AssignCopyRetMask != ObjCDeclSpec::DQ_PR_weak)
     return true;
   
   return false;
@@ -4626,7 +4627,6 @@ void Sema::CodeCompleteObjCPropertyFlags(Scope *S, ObjCDeclSpec &ODS) {
   
   unsigned Attributes = ODS.getPropertyAttributes();
   
-  typedef CodeCompletionResult Result;
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
                         CodeCompleter->getCodeCompletionTUInfo(),
                         CodeCompletionContext::CCC_Other);
@@ -4650,6 +4650,12 @@ void Sema::CodeCompleteObjCPropertyFlags(Scope *S, ObjCDeclSpec &ODS) {
     Results.AddResult(CodeCompletionResult("nonatomic"));
   if (!ObjCPropertyFlagConflicts(Attributes, ObjCDeclSpec::DQ_PR_atomic))
     Results.AddResult(CodeCompletionResult("atomic"));
+
+  // Only suggest "weak" if we're compiling for ARC-with-weak-references or GC.
+  if (getLangOpts().ObjCARCWeak || getLangOpts().getGC() != LangOptions::NonGC)
+    if (!ObjCPropertyFlagConflicts(Attributes, ObjCDeclSpec::DQ_PR_weak))
+      Results.AddResult(CodeCompletionResult("weak"));
+
   if (!ObjCPropertyFlagConflicts(Attributes, ObjCDeclSpec::DQ_PR_setter)) {
     CodeCompletionBuilder Setter(Results.getAllocator(),
                                  Results.getCodeCompletionTUInfo());
@@ -4837,8 +4843,6 @@ static void AddObjCMethods(ObjCContainerDecl *Container,
 
 
 void Sema::CodeCompleteObjCPropertyGetter(Scope *S) {
-  typedef CodeCompletionResult Result;
-
   // Try to find the interface where getters might live.
   ObjCInterfaceDecl *Class = dyn_cast_or_null<ObjCInterfaceDecl>(CurContext);
   if (!Class) {
@@ -4866,8 +4870,6 @@ void Sema::CodeCompleteObjCPropertyGetter(Scope *S) {
 }
 
 void Sema::CodeCompleteObjCPropertySetter(Scope *S) {
-  typedef CodeCompletionResult Result;
-
   // Try to find the interface where setters might live.
   ObjCInterfaceDecl *Class
     = dyn_cast_or_null<ObjCInterfaceDecl>(CurContext);
@@ -4898,7 +4900,6 @@ void Sema::CodeCompleteObjCPropertySetter(Scope *S) {
 
 void Sema::CodeCompleteObjCPassingType(Scope *S, ObjCDeclSpec &DS,
                                        bool IsParameter) {
-  typedef CodeCompletionResult Result;
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
                         CodeCompleter->getCodeCompletionTUInfo(),
                         CodeCompletionContext::CCC_Type);
@@ -4957,7 +4958,7 @@ void Sema::CodeCompleteObjCPassingType(Scope *S, ObjCDeclSpec &DS,
                      CodeCompleter->includeGlobals());
   
   if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
+    AddMacroResults(PP, Results, false);
 
   HandleCodeCompleteResults(this, CodeCompleter,
                             CodeCompletionContext::CCC_Type,
@@ -5041,7 +5042,7 @@ static ObjCInterfaceDecl *GetAssumedMessageSendExprType(Expr *E) {
 ///
 /// \param S The semantic analysis object.
 ///
-/// \param S NeedSuperKeyword Whether we need to prefix this completion with
+/// \param NeedSuperKeyword Whether we need to prefix this completion with
 /// the "super" keyword. Otherwise, we just need to provide the arguments.
 ///
 /// \param SelIdents The identifiers in the selector that have already been
@@ -5187,7 +5188,7 @@ void Sema::CodeCompleteObjCMessageReceiver(Scope *S) {
   Results.ExitScope();
   
   if (CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
+    AddMacroResults(PP, Results, false);
   HandleCodeCompleteResults(this, CodeCompleter, Results.getCompletionContext(),
                             Results.data(), Results.size());
   
@@ -5339,11 +5340,11 @@ static void AddClassMessageCompletions(Sema &SemaRef, Scope *S,
     
     // If we have an external source, load the entire class method
     // pool from the AST file.
-    if (SemaRef.ExternalSource) {
+    if (SemaRef.getExternalSource()) {
       for (uint32_t I = 0, 
-                    N = SemaRef.ExternalSource->GetNumExternalSelectors();
+                    N = SemaRef.getExternalSource()->GetNumExternalSelectors();
            I != N; ++I) {
-        Selector Sel = SemaRef.ExternalSource->GetExternalSelector(I);
+        Selector Sel = SemaRef.getExternalSource()->GetExternalSelector(I);
         if (Sel.isNull() || SemaRef.MethodPool.count(Sel))
           continue;
         
@@ -5868,7 +5869,6 @@ void Sema::CodeCompleteObjCImplementationCategory(Scope *S,
 }
 
 void Sema::CodeCompleteObjCPropertyDefinition(Scope *S) {
-  typedef CodeCompletionResult Result;
   ResultBuilder Results(*this, CodeCompleter->getAllocator(),
                         CodeCompleter->getCodeCompletionTUInfo(),
                         CodeCompletionContext::CCC_Other);
@@ -7169,7 +7169,9 @@ void Sema::CodeCompletePreprocessorMacroName(bool IsDefinition) {
          M != MEnd; ++M) {
       Builder.AddTypedTextChunk(Builder.getAllocator().CopyString(
                                            M->first->getName()));
-      Results.AddResult(Builder.TakeString());
+      Results.AddResult(CodeCompletionResult(Builder.TakeString(),
+                                             CCP_CodePattern,
+                                             CXCursor_MacroDefinition));
     }
     Results.ExitScope();
   } else if (IsDefinition) {
@@ -7186,7 +7188,7 @@ void Sema::CodeCompletePreprocessorExpression() {
                         CodeCompletionContext::CCC_PreprocessorExpression);
   
   if (!CodeCompleter || CodeCompleter->includeMacros())
-    AddMacroResults(PP, Results);
+    AddMacroResults(PP, Results, true);
   
     // defined (<macro>)
   Results.EnterNewScope();
@@ -7235,7 +7237,7 @@ void Sema::GatherGlobalCodeCompletions(CodeCompletionAllocator &Allocator,
   }
   
   if (!CodeCompleter || CodeCompleter->includeMacros())
-    AddMacroResults(PP, Builder);
+    AddMacroResults(PP, Builder, true);
   
   Results.clear();
   Results.insert(Results.end(), 

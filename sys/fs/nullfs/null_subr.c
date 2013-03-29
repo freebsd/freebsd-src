@@ -46,9 +46,6 @@
 
 #include <fs/nullfs/null.h>
 
-#define LOG2_SIZEVNODE 8		/* log2(sizeof struct vnode) */
-#define	NNULLNODECACHE 16
-
 /*
  * Null layer cache:
  * Each cache entry holds a reference to the lower vnode
@@ -57,17 +54,15 @@
  * alias is removed the lower vnode is vrele'd.
  */
 
-#define	NULL_NHASH(vp) \
-	(&null_node_hashtbl[(((uintptr_t)vp)>>LOG2_SIZEVNODE) & null_node_hash])
+#define	NULL_NHASH(vp) (&null_node_hashtbl[vfs_hash_index(vp) & null_hash_mask])
 
 static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
-static u_long null_node_hash;
-struct mtx null_hashmtx;
+static struct mtx null_hashmtx;
+static u_long null_hash_mask;
 
 static MALLOC_DEFINE(M_NULLFSHASH, "nullfs_hash", "NULLFS hash table");
 MALLOC_DEFINE(M_NULLFSNODE, "nullfs_node", "NULLFS vnode private part");
 
-static struct vnode * null_hashget(struct mount *, struct vnode *);
 static struct vnode * null_hashins(struct mount *, struct null_node *);
 
 /*
@@ -78,8 +73,8 @@ nullfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
-	NULLFSDEBUG("nullfs_init\n");		/* printed during system boot */
-	null_node_hashtbl = hashinit(NNULLNODECACHE, M_NULLFSHASH, &null_node_hash);
+	null_node_hashtbl = hashinit(desiredvnodes, M_NULLFSHASH,
+	    &null_hash_mask);
 	mtx_init(&null_hashmtx, "nullhs", NULL, MTX_DEF);
 	return (0);
 }
@@ -90,7 +85,7 @@ nullfs_uninit(vfsp)
 {
 
 	mtx_destroy(&null_hashmtx);
-	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_node_hash);
+	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_hash_mask);
 	return (0);
 }
 
@@ -98,7 +93,7 @@ nullfs_uninit(vfsp)
  * Return a VREF'ed alias for lower vnode if already exists, else 0.
  * Lower vnode should be locked on entry and will be left locked on exit.
  */
-static struct vnode *
+struct vnode *
 null_hashget(mp, lowervp)
 	struct mount *mp;
 	struct vnode *lowervp;
@@ -209,14 +204,10 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
-	/*
-	 * The insmntque1() call below requires the exclusive lock on
-	 * the nullfs vnode.
-	 */
-	ASSERT_VOP_ELOCKED(lowervp, "lowervp");
-	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", lowervp));
+	ASSERT_VOP_LOCKED(lowervp, "lowervp");
+	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p", lowervp));
 
-	/* Lookup the hash firstly */
+	/* Lookup the hash firstly. */
 	*vpp = null_hashget(mp, lowervp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
@@ -224,17 +215,28 @@ null_nodeget(mp, lowervp, vpp)
 	}
 
 	/*
+	 * The insmntque1() call below requires the exclusive lock on
+	 * the nullfs vnode.  Upgrade the lock now if hash failed to
+	 * provide ready to use vnode.
+	 */
+	if (VOP_ISLOCKED(lowervp) != LK_EXCLUSIVE) {
+		KASSERT((MOUNTTONULLMOUNT(mp)->nullm_flags & NULLM_CACHE) != 0,
+		    ("lowervp %p is not excl locked and cache is disabled",
+		    lowervp));
+		vn_lock(lowervp, LK_UPGRADE | LK_RETRY);
+		if ((lowervp->v_iflag & VI_DOOMED) != 0) {
+			vput(lowervp);
+			return (ENOENT);
+		}
+	}
+
+	/*
 	 * We do not serialize vnode creation, instead we will check for
 	 * duplicates later, when adding new vnode to hash.
 	 * Note that duplicate can only appear in hash if the lowervp is
 	 * locked LK_SHARED.
-	 *
-	 * Do the MALLOC before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
 	 */
-	xp = malloc(sizeof(struct null_node),
-	    M_NULLFSNODE, M_WAITOK);
+	xp = malloc(sizeof(struct null_node), M_NULLFSNODE, M_WAITOK);
 
 	error = getnewvnode("null", mp, &null_vnodeops, &vp);
 	if (error) {
@@ -248,8 +250,6 @@ null_nodeget(mp, lowervp, vpp)
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;
-	if (vp->v_vnlock == NULL)
-		panic("null_nodeget: Passed a NULL vnlock.\n");
 	error = insmntque1(vp, mp, null_insmntque_dtr, xp);
 	if (error != 0)
 		return (error);

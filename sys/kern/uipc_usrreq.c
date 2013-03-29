@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>		/* XXX must be before <sys/file.h> */
@@ -101,6 +102,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+MALLOC_DECLARE(M_FILECAPS);
+
 /*
  * Locking key:
  * (l)	Locked using list lock
@@ -131,7 +134,7 @@ static const struct sockaddr	sun_noname = { sizeof(sun_noname), AF_LOCAL };
  * reentrance in the UNIX domain socket, file descriptor, and socket layer
  * code.  See unp_gc() for a full description.
  */
-static struct task	unp_gc_task;
+static struct timeout_task unp_gc_task;
 
 /*
  * The close of unix domain sockets attached as SCM_RIGHTS is
@@ -271,19 +274,21 @@ static int	uipc_connect2(struct socket *, struct socket *);
 static int	uipc_ctloutput(struct socket *, struct sockopt *);
 static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
+static int	unp_connectat(int, struct socket *, struct sockaddr *,
+		    struct thread *);
 static int	unp_connect2(struct socket *so, struct socket *so2, int);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct mbuf *);
 static void	unp_shutdown(struct unpcb *);
 static void	unp_drop(struct unpcb *, int);
 static void	unp_gc(__unused void *, int);
-static void	unp_scan(struct mbuf *, void (*)(struct file *));
+static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
 static void	unp_discard(struct file *);
-static void	unp_freerights(struct file **, int);
+static void	unp_freerights(struct filedescent **, int);
 static void	unp_init(void);
 static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
-static int	unp_externalize(struct mbuf *, struct mbuf **);
+static int	unp_externalize(struct mbuf *, struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
 static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
 static void	unp_process_defers(void * __unused, int);
@@ -450,11 +455,11 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 }
 
 static int
-uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
+uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vattr vattr;
-	int error, namelen, vfslocked;
+	int error, namelen;
 	struct nameidata nd;
 	struct unpcb *unp;
 	struct vnode *vp;
@@ -496,15 +501,13 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	buf[namelen] = 0;
 
 restart:
-	vfslocked = 0;
-	NDINIT(&nd, CREATE, MPSAFE | NOFOLLOW | LOCKPARENT | SAVENAME,
-	    UIO_SYSSPACE, buf, td);
+	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME,
+	    UIO_SYSSPACE, buf, fd, CAP_BINDAT, td);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
 		goto error;
 	vp = nd.ni_vp;
-	vfslocked = NDHASGIANT(&nd);
 	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == vp)
@@ -519,7 +522,6 @@ restart:
 		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
 		if (error)
 			goto error;
-		VFS_UNLOCK_GIANT(vfslocked);
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
@@ -551,17 +553,22 @@ restart:
 	UNP_LINK_WUNLOCK();
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	free(buf, M_TEMP);
 	return (0);
 
 error:
-	VFS_UNLOCK_GIANT(vfslocked);
 	UNP_PCB_LOCK(unp);
 	unp->unp_flags &= ~UNP_BINDING;
 	UNP_PCB_UNLOCK(unp);
 	free(buf, M_TEMP);
 	return (error);
+}
+
+static int
+uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+
+	return (uipc_bindat(AT_FDCWD, so, nam, td));
 }
 
 static int
@@ -572,6 +579,19 @@ uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
 	UNP_LINK_WLOCK();
 	error = unp_connect(so, nam, td);
+	UNP_LINK_WUNLOCK();
+	return (error);
+}
+
+static int
+uipc_connectat(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
+{
+	int error;
+
+	KASSERT(td == curthread, ("uipc_connectat: td != curthread"));
+	UNP_LINK_WLOCK();
+	error = unp_connectat(fd, so, nam, td);
 	UNP_LINK_WUNLOCK();
 	return (error);
 }
@@ -674,15 +694,10 @@ uipc_detach(struct socket *so)
 		uma_zfree(unp_zone, unp);
 	} else
 		UNP_PCB_UNLOCK(unp);
-	if (vp) {
-		int vfslocked;
-
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (vp)
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (local_unp_rights)
-		taskqueue_enqueue(taskqueue_thread, &unp_gc_task);
+		taskqueue_enqueue_timeout(taskqueue_thread, &unp_gc_task, -1);
 }
 
 static int
@@ -936,7 +951,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (unp2->unp_flags & UNP_WANTCRED) {
 			/*
-			 * Credentials are passed only once on SOCK_STREAM.
+			 * Credentials are passed only once on SOCK_STREAM
+			 * and SOCK_SEQPACKET.
 			 */
 			unp2->unp_flags &= ~UNP_WANTCRED;
 			control = unp_addsockcred(td, control);
@@ -1090,7 +1106,9 @@ static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_accept =		uipc_accept,
 	.pru_attach =		uipc_attach,
 	.pru_bind =		uipc_bind,
+	.pru_bindat =		uipc_bindat,
 	.pru_connect =		uipc_connect,
+	.pru_connectat =	uipc_connectat,
 	.pru_connect2 =		uipc_connect2,
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
@@ -1110,7 +1128,9 @@ static struct pr_usrreqs uipc_usrreqs_seqpacket = {
 	.pru_accept =		uipc_accept,
 	.pru_attach =		uipc_attach,
 	.pru_bind =		uipc_bind,
+	.pru_bindat =		uipc_bindat,
 	.pru_connect =		uipc_connect,
+	.pru_connectat =	uipc_connectat,
 	.pru_connect2 =		uipc_connect2,
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
@@ -1130,7 +1150,9 @@ static struct pr_usrreqs uipc_usrreqs_stream = {
 	.pru_accept =		uipc_accept,
 	.pru_attach =		uipc_attach,
 	.pru_bind =		uipc_bind,
+	.pru_bindat =		uipc_bindat,
 	.pru_connect =		uipc_connect,
+	.pru_connectat =	uipc_connectat,
 	.pru_connect2 =		uipc_connect2,
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
@@ -1242,11 +1264,19 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 static int
 unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+
+	return (unp_connectat(AT_FDCWD, so, nam, td));
+}
+
+static int
+unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
+{
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vnode *vp;
 	struct socket *so2, *so3;
 	struct unpcb *unp, *unp2, *unp3;
-	int error, len, vfslocked;
+	int error, len;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
@@ -1274,15 +1304,14 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKSHARED | LOCKLEAF,
-	    UIO_SYSSPACE, buf, td);
+	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
+	    UIO_SYSSPACE, buf, fd, CAP_CONNECTAT, td);
 	error = namei(&nd);
 	if (error)
 		vp = NULL;
 	else
 		vp = nd.ni_vp;
 	ASSERT_VOP_LOCKED(vp, "unp_connect");
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error)
 		goto bad;
@@ -1299,7 +1328,6 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
 	if (error)
 		goto bad;
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
@@ -1382,16 +1410,9 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 bad2:
 	UNP_LINK_WUNLOCK();
-	if (vfslocked)
-		/* 
-		 * Giant has been previously acquired. This means filesystem
-		 * isn't MPSAFE.  Do it once again.
-		 */
-		mtx_lock(&Giant);
 bad:
 	if (vp != NULL)
 		vput(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	free(sa, M_SONAME);
 	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
@@ -1660,27 +1681,28 @@ unp_drop(struct unpcb *unp, int errno)
 }
 
 static void
-unp_freerights(struct file **rp, int fdcount)
+unp_freerights(struct filedescent **fdep, int fdcount)
 {
-	int i;
 	struct file *fp;
+	int i;
 
 	for (i = 0; i < fdcount; i++) {
-		fp = *rp;
-		*rp++ = NULL;
+		fp = fdep[i]->fde_file;
+		filecaps_free(&fdep[i]->fde_caps);
 		unp_discard(fp);
 	}
+	free(fdep[0], M_FILECAPS);
 }
 
 static int
-unp_externalize(struct mbuf *control, struct mbuf **controlp)
+unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 {
 	struct thread *td = curthread;		/* XXX */
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	int i;
 	int *fdp;
-	struct file **rp;
-	struct file *fp;
+	struct filedesc *fdesc = td->td_proc->p_fd;
+	struct filedescent *fde, **fdep;
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, newfds;
@@ -1701,20 +1723,20 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 		if (cm->cmsg_level == SOL_SOCKET
 		    && cm->cmsg_type == SCM_RIGHTS) {
-			newfds = datalen / sizeof(struct file *);
-			rp = data;
+			newfds = datalen / sizeof(*fdep);
+			fdep = data;
 
 			/* If we're not outputting the descriptors free them. */
 			if (error || controlp == NULL) {
-				unp_freerights(rp, newfds);
+				unp_freerights(fdep, newfds);
 				goto next;
 			}
-			FILEDESC_XLOCK(td->td_proc->p_fd);
+			FILEDESC_XLOCK(fdesc);
 			/* if the new FD's will not fit free them.  */
 			if (!fdavail(td, newfds)) {
-				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				FILEDESC_XUNLOCK(fdesc);
 				error = EMSGSIZE;
-				unp_freerights(rp, newfds);
+				unp_freerights(fdep, newfds);
 				goto next;
 			}
 
@@ -1728,23 +1750,28 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
-				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				FILEDESC_XUNLOCK(fdesc);
 				error = E2BIG;
-				unp_freerights(rp, newfds);
+				unp_freerights(fdep, newfds);
 				goto next;
 			}
 
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
-			for (i = 0; i < newfds; i++) {
+			for (i = 0; i < newfds; i++, fdp++) {
 				if (fdalloc(td, 0, &f))
 					panic("unp_externalize fdalloc failed");
-				fp = *rp++;
-				td->td_proc->p_fd->fd_ofiles[f] = fp;
-				unp_externalize_fp(fp);
-				*fdp++ = f;
+				fde = &fdesc->fd_ofiles[f];
+				fde->fde_file = fdep[0]->fde_file;
+				filecaps_move(&fdep[0]->fde_caps,
+				    &fde->fde_caps);
+				if ((flags & MSG_CMSG_CLOEXEC) != 0)
+					fde->fde_flags |= UF_EXCLOSE;
+				unp_externalize_fp(fde->fde_file);
+				*fdp = f;
 			}
-			FILEDESC_XUNLOCK(td->td_proc->p_fd);
+			FILEDESC_XUNLOCK(fdesc);
+			free(fdep[0], M_FILECAPS);
 		} else {
 			/* We can just copy anything else across. */
 			if (error || controlp == NULL)
@@ -1796,13 +1823,14 @@ unp_init(void)
 	if (unp_zone == NULL)
 		panic("unp_init");
 	uma_zone_set_max(unp_zone, maxsockets);
+	uma_zone_set_warning(unp_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, unp_zone_change,
 	    NULL, EVENTHANDLER_PRI_ANY);
 	LIST_INIT(&unp_dhead);
 	LIST_INIT(&unp_shead);
 	LIST_INIT(&unp_sphead);
 	SLIST_INIT(&unp_defers);
-	TASK_INIT(&unp_gc_task, 0, unp_gc, NULL);
+	TIMEOUT_TASK_INIT(taskqueue_thread, &unp_gc_task, 0, unp_gc, NULL);
 	TASK_INIT(&unp_defer_task, 0, unp_process_defers, NULL);
 	UNP_LINK_LOCK_INIT();
 	UNP_LIST_LOCK_INIT();
@@ -1814,10 +1842,11 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 {
 	struct mbuf *control = *controlp;
 	struct proc *p = td->td_proc;
-	struct filedesc *fdescp = p->p_fd;
+	struct filedesc *fdesc = p->p_fd;
+	struct bintime *bt;
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	struct cmsgcred *cmcred;
-	struct file **rp;
+	struct filedescent *fde, **fdep, *fdev;
 	struct file *fp;
 	struct timeval *tv;
 	int i, fd, *fdp;
@@ -1870,18 +1899,17 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 * files.  If not, reject the entire operation.
 			 */
 			fdp = data;
-			FILEDESC_SLOCK(fdescp);
+			FILEDESC_SLOCK(fdesc);
 			for (i = 0; i < oldfds; i++) {
 				fd = *fdp++;
-				if (fd < 0 || fd >= fdescp->fd_nfiles ||
-				    fdescp->fd_ofiles[fd] == NULL) {
-					FILEDESC_SUNLOCK(fdescp);
+				if (fget_locked(fdesc, fd) == NULL) {
+					FILEDESC_SUNLOCK(fdesc);
 					error = EBADF;
 					goto out;
 				}
-				fp = fdescp->fd_ofiles[fd];
+				fp = fdesc->fd_ofiles[fd].fde_file;
 				if (!(fp->f_ops->fo_flags & DFLAG_PASSABLE)) {
-					FILEDESC_SUNLOCK(fdescp);
+					FILEDESC_SUNLOCK(fdesc);
 					error = EOPNOTSUPP;
 					goto out;
 				}
@@ -1890,25 +1918,30 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 
 			/*
 			 * Now replace the integer FDs with pointers to the
-			 * associated global file table entry..
+			 * file structure and capability rights.
 			 */
-			newlen = oldfds * sizeof(struct file *);
+			newlen = oldfds * sizeof(fdep[0]);
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
-				FILEDESC_SUNLOCK(fdescp);
+				FILEDESC_SUNLOCK(fdesc);
 				error = E2BIG;
 				goto out;
 			}
 			fdp = data;
-			rp = (struct file **)
+			fdep = (struct filedescent **)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
-			for (i = 0; i < oldfds; i++) {
-				fp = fdescp->fd_ofiles[*fdp++];
-				*rp++ = fp;
-				unp_internalize_fp(fp);
+			fdev = malloc(sizeof(*fdev) * oldfds, M_FILECAPS,
+			    M_WAITOK);
+			for (i = 0; i < oldfds; i++, fdev++, fdp++) {
+				fde = &fdesc->fd_ofiles[*fdp];
+				fdep[i] = fdev;
+				fdep[i]->fde_file = fde->fde_file;
+				filecaps_copy(&fde->fde_caps,
+				    &fdep[i]->fde_caps);
+				unp_internalize_fp(fdep[i]->fde_file);
 			}
-			FILEDESC_SUNLOCK(fdescp);
+			FILEDESC_SUNLOCK(fdesc);
 			break;
 
 		case SCM_TIMESTAMP:
@@ -1921,6 +1954,18 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			tv = (struct timeval *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			microtime(tv);
+			break;
+
+		case SCM_BINTIME:
+			*controlp = sbcreatecontrol(NULL, sizeof(*bt),
+			    SCM_BINTIME, SOL_SOCKET);
+			if (*controlp == NULL) {
+				error = ENOBUFS;
+				goto out;
+			}
+			bt = (struct bintime *)
+			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			bintime(bt);
 			break;
 
 		default:
@@ -2092,17 +2137,22 @@ static int	unp_marked;
 static int	unp_unreachable;
 
 static void
-unp_accessable(struct file *fp)
+unp_accessable(struct filedescent **fdep, int fdcount)
 {
 	struct unpcb *unp;
+	struct file *fp;
+	int i;
 
-	if ((unp = fptounp(fp)) == NULL)
-		return;
-	if (unp->unp_gcflag & UNPGC_REF)
-		return;
-	unp->unp_gcflag &= ~UNPGC_DEAD;
-	unp->unp_gcflag |= UNPGC_REF;
-	unp_marked++;
+	for (i = 0; i < fdcount; i++) {
+		fp = fdep[i]->fde_file;
+		if ((unp = fptounp(fp)) == NULL)
+			continue;
+		if (unp->unp_gcflag & UNPGC_REF)
+			continue;
+		unp->unp_gcflag &= ~UNPGC_DEAD;
+		unp->unp_gcflag |= UNPGC_REF;
+		unp_marked++;
+	}
 }
 
 static void
@@ -2249,19 +2299,16 @@ unp_dispose(struct mbuf *m)
 {
 
 	if (m)
-		unp_scan(m, unp_discard);
+		unp_scan(m, unp_freerights);
 }
 
 static void
-unp_scan(struct mbuf *m0, void (*op)(struct file *))
+unp_scan(struct mbuf *m0, void (*op)(struct filedescent **, int))
 {
 	struct mbuf *m;
-	struct file **rp;
 	struct cmsghdr *cm;
 	void *data;
-	int i;
 	socklen_t clen, datalen;
-	int qfds;
 
 	while (m0 != NULL) {
 		for (m = m0; m; m = m->m_next) {
@@ -2281,10 +2328,8 @@ unp_scan(struct mbuf *m0, void (*op)(struct file *))
 
 				if (cm->cmsg_level == SOL_SOCKET &&
 				    cm->cmsg_type == SCM_RIGHTS) {
-					qfds = datalen / sizeof (struct file *);
-					rp = data;
-					for (i = 0; i < qfds; i++)
-						(*op)(*rp++);
+					(*op)(data, datalen /
+					    sizeof(struct filedescent *));
 				}
 
 				if (CMSG_SPACE(datalen) < clen) {
@@ -2430,7 +2475,7 @@ DB_SHOW_COMMAND(unpcb, db_show_unpcb)
 	db_printf("unp_socket: %p   unp_vnode: %p\n", unp->unp_socket,
 	    unp->unp_vnode);
 
-	db_printf("unp_ino: %d   unp_conn: %p\n", unp->unp_ino,
+	db_printf("unp_ino: %ju   unp_conn: %p\n", (uintmax_t)unp->unp_ino,
 	    unp->unp_conn);
 
 	db_printf("unp_refs:\n");

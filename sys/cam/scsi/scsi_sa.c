@@ -1445,11 +1445,6 @@ saregister(struct cam_periph *periph, void *arg)
 	int i;
 	
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("saregister: periph was NULL!!\n");
-		return (CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("saregister: no getdev CCB, can't register device\n");
 		return (CAM_REQ_CMP_ERR);

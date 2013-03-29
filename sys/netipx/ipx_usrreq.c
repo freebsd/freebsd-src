@@ -257,7 +257,7 @@ ipx_output(struct ipxpcb *ipxp, struct mbuf *m0)
 			(m->m_len + m->m_data < &m->m_dat[MLEN])) {
 			mtod(m, char*)[m->m_len++] = 0;
 		} else {
-			struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
+			struct mbuf *m1 = m_get(M_NOWAIT, MT_DATA);
 
 			if (m1 == NULL) {
 				m_freem(m0);
@@ -278,7 +278,7 @@ ipx_output(struct ipxpcb *ipxp, struct mbuf *m0)
 	if (ipxp->ipxp_flags & IPXP_RAWOUT) {
 		ipx = mtod(m, struct ipx *);
 	} else {
-		M_PREPEND(m, sizeof(struct ipx), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct ipx), M_NOWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
 		ipx = mtod(m, struct ipx *);

@@ -332,7 +332,7 @@ retry:
 			continue;
 
 		if (pos >= len)
-			break;;
+			break;
 	}
 	*sent = len - 1;
 	return 0;

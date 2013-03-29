@@ -109,10 +109,10 @@ struct console
     const char	*c_name;
     const char	*c_desc;
     int		c_flags;
-#define C_PRESENTIN	(1<<0)
-#define C_PRESENTOUT	(1<<1)
-#define C_ACTIVEIN	(1<<2)
-#define C_ACTIVEOUT	(1<<3)
+#define C_PRESENTIN	(1<<0)	    /* console can provide input */
+#define C_PRESENTOUT	(1<<1)	    /* console can provide output */
+#define C_ACTIVEIN	(1<<2)	    /* user wants input from console */
+#define C_ACTIVEOUT	(1<<3)	    /* user wants output to console */
     void	(* c_probe)(struct console *cp);	/* set c_flags to match hardware */
     int		(* c_init)(int arg);			/* reinit XXX may need more args */
     void	(* c_out)(int c);			/* emit c */

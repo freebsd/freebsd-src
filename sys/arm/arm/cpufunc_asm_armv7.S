@@ -70,35 +70,44 @@ ENTRY(armv7_setttb)
 				
 	orr 	r0, r0, #PT_ATTR
  	mcr	p15, 0, r0, c2, c0, 0	/* Translation Table Base Register 0 (TTBR0) */
+#ifdef SMP
+ 	mcr     p15, 0, r0, c8, c3, 0   /* invalidate I+D TLBs Inner Shareable*/
+#else
  	mcr     p15, 0, r0, c8, c7, 0   /* invalidate I+D TLBs */
+#endif
  	dsb
  	isb
 	RET
+END(armv7_setttb)
 
 ENTRY(armv7_tlb_flushID)
 	dsb
 #ifdef SMP
-	mcr 	p15, 0, r0, c8, c3, 0
+	mcr	p15, 0, r0, c8, c3, 0	/* flush I+D tlb */
+	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB */
 #else
 	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
-#endif
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
+#endif
 	dsb
 	isb
 	mov	pc, lr
+END(armv7_tlb_flushID)
 
 ENTRY(armv7_tlb_flushID_SE)
 	ldr	r1, .Lpage_mask
 	bic	r0, r0, r1
 #ifdef SMP
-	mcr	p15, 0, r0, c8, c3, 1	/* flush D tlb single entry */
+	mcr	p15, 0, r0, c8, c3, 1	/* flush D tlb single entry Inner Shareable*/
+	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB Inner Shareable */
 #else
 	mcr	p15, 0, r0, c8, c7, 1	/* flush D tlb single entry */
-#endif
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
+#endif
 	dsb
 	isb
 	mov	pc, lr
+END(armv7_tlb_flushID_SE)
 
 /* Based on algorithm from ARM Architecture Reference Manual */
 ENTRY(armv7_dcache_wbinv_all)
@@ -151,15 +160,21 @@ Finished:
 	dsb
 	ldmia	sp!, {r4, r5, r6, r7, r8, r9}
 	RET
+END(armv7_dcache_wbinv_all)
 
 ENTRY(armv7_idcache_wbinv_all)
 	stmdb	sp!, {lr}
 	bl armv7_dcache_wbinv_all
+#ifdef SMP
+	mcr	p15, 0, r0, c7, c1, 0	/* Invalidate all I caches to PoU (ICIALLUIS) */
+#else
 	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate all I caches to PoU (ICIALLU) */
+#endif
 	dsb
 	isb
 	ldmia	sp!, {lr}
 	RET
+END(armv7_idcache_wbinv_all)
 
 /* XXX Temporary set it to 32 for MV cores, however this value should be
  * get from Cache Type register
@@ -180,6 +195,7 @@ ENTRY(armv7_dcache_wb_range)
 	bhi	.Larmv7_wb_next
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_dcache_wb_range)
 
 ENTRY(armv7_dcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
@@ -194,6 +210,7 @@ ENTRY(armv7_dcache_wbinv_range)
 	bhi	.Larmv7_wbinv_next
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_dcache_wbinv_range)
 
 /*
  * Note, we must not invalidate everything.  If the range is too big we
@@ -212,6 +229,7 @@ ENTRY(armv7_dcache_inv_range)
 	bhi	.Larmv7_inv_next
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_dcache_inv_range)
 
 ENTRY(armv7_idcache_wbinv_range)
 	ldr	ip, .Larmv7_line_size
@@ -228,6 +246,7 @@ ENTRY(armv7_idcache_wbinv_range)
 	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_idcache_wbinv_range)
 
 ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_line_size
@@ -240,31 +259,40 @@ ENTRY_NP(armv7_icache_sync_range)
 	isb				/* instruction synchronization barrier */
 	dsb				/* data synchronization barrier */
 	RET
+END(armv7_icache_sync_range)
 
 ENTRY(armv7_cpu_sleep)
 	dsb				/* data synchronization barrier */
 	wfi  				/* wait for interrupt */
 	RET
+END(armv7_cpu_sleep)
 
 ENTRY(armv7_context_switch)
 	dsb
 	orr     r0, r0, #PT_ATTR
 			
 	mcr	p15, 0, r0, c2, c0, 0	/* set the new TTB */
+#ifdef SMP
+	mcr	p15, 0, r0, c8, c3, 0	/* and flush the I+D tlbs Inner Sharable */
+#else
 	mcr	p15, 0, r0, c8, c7, 0	/* and flush the I+D tlbs */
+#endif
 	dsb
 	isb
 	RET
+END(armv7_context_switch)
 
 ENTRY(armv7_drain_writebuf)
 	dsb
 	RET
+END(armv7_drain_writebuf)
 
 ENTRY(armv7_sev)
 	dsb
 	sev
 	nop
 	RET
+END(armv7_sev)
 
 ENTRY(armv7_auxctrl)
 	mrc p15, 0, r2, c1, c0, 1
@@ -275,3 +303,5 @@ ENTRY(armv7_auxctrl)
 	mcrne p15, 0, r3, c1, c0, 1
 	mov r0, r2
 	RET
+END(armv7_auxctrl)
+

@@ -1,3 +1,335 @@
+commit 20778053a07eb90c159c1377ca8dc05a90fd530b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 22 14:36:16 2012 +0300
+
+    xz: Update man page date to match the latest update.
+
+commit 2cefa84af676da37d7e9c466d55d46c67ab00c22
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 22 10:25:43 2012 +0300
+
+    Bump version and soname for 5.0.4.
+
+commit 433fec191a17e45690809e54146ea7a773f54cff
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 22 10:25:09 2012 +0300
+
+    Update NEWS for 5.0.4.
+
+commit 711fa680f552a4003df73b37e6dc4d6e00b47bcd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Jun 18 21:27:47 2012 +0300
+
+    Docs: Language fix to 01_compress_easy.c.
+    
+    Thanks to Jonathan Nieder.
+
+commit 3d7ab1dc61a75c560828be5df96598388b771456
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jun 14 20:15:30 2012 +0300
+
+    Fix the top-level Makefile.am for the new example programs.
+
+commit ef8b8e5f111469b5bc005975f7abb9abbd372b25
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jun 14 10:52:33 2012 +0300
+
+    Docs: Add new example programs.
+    
+    These have more comments than the old examples and
+    human-readable error messages. More tutorial-like examples
+    are needed but these are a start.
+
+commit 75c149bc8045a26f8bc719cb8ed20668dab79091
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jun 14 10:33:27 2012 +0300
+
+    Docs: Move xz_pipe_comp.c and xz_pipe_decomp.c to doc/examples_old.
+    
+    It is good to keep these around to so that if someone has
+    copied the decompressor bug from xz_pipe_decomp.c he has
+    an example how to easily fix it.
+
+commit 456307ebf947a5f50bd995d617b99c1215572308
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Jun 14 10:33:01 2012 +0300
+
+    Docs: Fix a bug in xz_pipe_decomp.c example program.
+
+commit 4c310b8a29bc257e6ccbd2310f12f258678f3fef
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 31 15:53:25 2012 +0300
+
+    Translations: Update the Italian translation.
+    
+    Thanks to Milo Casagrande.
+
+commit ec32b79366dc47a55ea877589df9e8509ba113a7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed May 30 23:15:07 2012 +0300
+
+    Translations: Update the French translation.
+    
+    Thanks to Adrien Nader.
+
+commit dd06f40e4dd7649525e4f28d890dc238a3aa37e5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue May 29 22:26:27 2012 +0300
+
+    Translations: Update the German translation.
+
+commit c66808d1f55d0149ed57c536cc9b52e9c8b583bc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue May 29 22:12:57 2012 +0300
+
+    Translations: Update Polish translation.
+
+commit 556c22dfed195c1466b298183b850d6c28544900
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue May 29 13:10:36 2012 +0300
+
+    Preliminary NEWS for 5.0.4.
+
+commit dd13b66bf582f49d3aec36e3410ff8541b7506da
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon May 28 20:42:11 2012 +0300
+
+    liblzma: Fix possibility of incorrect LZMA_BUF_ERROR.
+    
+    lzma_code() could incorrectly return LZMA_BUF_ERROR if
+    all of the following was true:
+    
+      - The caller knows how many bytes of output to expect
+        and only provides that much output space.
+    
+      - When the last output bytes are decoded, the
+        caller-provided input buffer ends right before
+        the LZMA2 end of payload marker. So LZMA2 won't
+        provide more output anymore, but it won't know it
+        yet and thus won't return LZMA_STREAM_END yet.
+    
+      - A BCJ filter is in use and it hasn't left any
+        unfiltered bytes in the temp buffer. This can happen
+        with any BCJ filter, but in practice it's more likely
+        with filters other than the x86 BCJ.
+    
+    Another situation where the bug can be triggered happens
+    if the uncompressed size is zero bytes and no output space
+    is provided. In this case the decompression can fail even
+    if the whole input file is given to lzma_code().
+    
+    A similar bug was fixed in XZ Embedded on 2011-09-19.
+
+commit a0223bf796fdaad51a11ad02c4195c694849cc78
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon May 28 15:38:32 2012 +0300
+
+    Update THANKS.
+
+commit 86e57e4bfefe3fd8e13615c41604165bb2359501
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon May 28 15:37:43 2012 +0300
+
+    xz: Don't show a huge number in -vv when memory limit is disabled.
+
+commit 13e44a94da19d1ef14832ff12d3877a6fd2c54c0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun May 27 22:30:17 2012 +0300
+
+    xz: Document the "summary" lines of --robot -lvv.
+    
+    This documents only the columns that are in v5.0.
+    The new columns added in the master branch aren't
+    necessarily stable yet.
+
+commit 2f90345e13ab8fea4de45a4f1caa73ebc63a62e7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun May 27 21:53:20 2012 +0300
+
+    xz: Fix output of verbose --robot --list modes.
+    
+    It printed the filename in "filename (x/y)" format
+    which it obviously shouldn't do in robot mode.
+
+commit 8d4864f53ffae5d862c691a0b334a6b69bc5366e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 10 21:15:17 2012 +0300
+
+    Update THANKS.
+
+commit 35e9c58abb0ce3993da844aaeaa3e7231cd2be8f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 10 21:14:16 2012 +0300
+
+    Docs: Cleanup line wrapping a bit.
+
+commit 532b3e4c568a228309b56f95c13435fd078dbe02
+Author: Benno Schulenberg <bensberg@justemail.net>
+Date:   Tue Mar 13 22:04:04 2012 +0100
+
+    Fix a few typos and add some missing articles in some documents.
+    
+    Also hyphenate several compound adjectives.
+    
+    Signed-off-by: Benno Schulenberg <bensberg@justemail.net>
+
+commit afb6ce8c82ffef8f2505a3759da72a733c7b0b8f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Apr 29 11:51:25 2012 +0300
+
+    Windows: Update notes about static linking with MSVC.
+
+commit 7c3ba2ed5c3c878d4a14ca549b46dbff60c6d565
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Apr 19 15:25:26 2012 +0300
+
+    liblzma: Remove outdated comments.
+
+commit f55db9c187651094f43881c49db2b2d9ffee6b80
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Apr 19 14:17:52 2012 +0300
+
+    DOS: Link against DJGPP's libemu to support FPU emulation.
+    
+    This way xz should work on 386SX and 486SX. Floating point
+    only is needed for verbose output in xz.
+
+commit 203edff4c761dbd7cac76ea66e4eed501c23e7a3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Apr 19 13:58:55 2012 +0300
+
+    Docs: Update MINIX 3 information in INSTALL.
+
+commit f0a8f95c215628967b7cf9bd9b0a9e4172f50bb4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Feb 22 14:23:13 2012 +0200
+
+    Update THANKS.
+
+commit b7ad23fa78646036c0290cd91eada939c9a31526
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Feb 22 14:02:34 2012 +0200
+
+    Fix exit status of xzgrep when grepping binary files.
+    
+    When grepping binary files, grep may exit before it has
+    read all the input. In this case, gzip -q returns 2 (eating
+    SIGPIPE), but xz and bzip2 show SIGPIPE as the exit status
+    (e.g. 141). This causes wrong exit status when grepping
+    xz- or bzip2-compressed binary files.
+    
+    The fix checks for the special exit status that indicates SIGPIPE.
+    It uses kill -l which should be supported everywhere since it
+    is in both SUSv2 (1997) and POSIX.1-2008.
+    
+    Thanks to James Buren for the bug report.
+
+commit 4e19fbb04a0035030406482319e264426459eb24
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Feb 22 12:08:43 2012 +0200
+
+    Update THANKS.
+
+commit c6fa03a427e3d1320794102cee3ff4f5ae00eb36
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 24 18:47:52 2012 +0300
+
+    Fix compiling with IBM XL C on AIX.
+
+commit 7b6ffc98645e1b3b302b6680be0a901d1ebf7358
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 24 18:37:08 2012 +0300
+
+    Build: Upgrade m4/acx_pthread.m4 to the latest version.
+    
+    It was renamed to ax_pthread.m4 in Autoconf Archive.
+
+commit bfac2be5023994fcc53de2844e7dd3af61910dc2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jan 10 17:13:03 2012 +0200
+
+    Tests: Fix a compiler warning with _FORTIFY_SOURCE.
+    
+    Reported here:
+    http://sourceforge.net/projects/lzmautils/forums/forum/708858/topic/4927385
+
+commit df85e156716a4eecb7e2978691f03f729444d998
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Dec 19 21:21:29 2011 +0200
+
+    Docs: Explain the stable releases better in README.
+
+commit d06d32f108c8278c25c24b2e8666bda7b2ec23b5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Nov 4 17:57:16 2011 +0200
+
+    xz: Fix a typo in a comment.
+    
+    Thanks to Bela Lubkin.
+
+commit 636fdcfbf542f1e84db2c4736004d84be4b12c84
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Nov 3 17:08:02 2011 +0200
+
+    Update THANKS.
+
+commit 55fd02f83ecd6cbd6925a3e8a3d43b8d4ef2a17c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Nov 3 17:07:22 2011 +0200
+
+    xz: Fix xz on EBCDIC systems.
+    
+    Thanks to Chris Donawa.
+
+commit 4052f36053b931bad847a36aabf1a07d0034e297
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 6 12:03:41 2011 +0300
+
+    Build: Fix "make check" on Windows.
+
+commit 0f25758459c74c366a73f35d47ee12b75890bb79
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Aug 9 21:19:13 2011 +0300
+
+    Update THANKS.
+
+commit 70f03b51ffcb783646b20de8d97b6986c4280eec
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Aug 9 21:16:44 2011 +0300
+
+    Workaround unusual SIZE_MAX on SCO OpenServer.
+
+commit f138bdf76a70029e8360062a0b227936b83b24c9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Aug 6 20:37:28 2011 +0300
+
+    Run the scripts with the correct shell in test_scripts.sh.
+    
+    The scripts are now made executable in the build tree.
+    This way the scripts can be run like programs in
+    test_scripts.sh. Previously test_scripts.sh always
+    used sh but it's not correct if @POSIX_SHELL@ is set
+    to something else by configure.
+    
+    Thanks to Jonathan Nieder for the patch.
+
+commit 2c144a0365c84dbf1b6722466746d42f2563a319
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Jul 31 11:01:47 2011 +0300
+
+    Fix exit status of "xzdiff foo.xz bar.xz".
+    
+    xzdiff was clobbering the exit status from diff in a case
+    statement used to analyze the exit statuses from "xz" when
+    its operands were two compressed files. Save and restore
+    diff's exit status to fix this.
+    
+    The bug is inherited from zdiff in GNU gzip and was fixed
+    there on 2009-10-09.
+    
+    Thanks to Jonathan Nieder for the patch and
+    to Peter Pallinger for reporting the bug.
+
 commit edf339227a966f24aebe1845fcca9429b8f6e318
 Author: Anders F Bjorklund <afb@users.sourceforge.net>
 Date:   Fri Nov 5 12:56:11 2010 +0100

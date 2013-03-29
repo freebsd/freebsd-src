@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -86,6 +88,11 @@ __FBSDID("$FreeBSD$");
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
+
+int old_mlock = 0;
+SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RW | CTLFLAG_TUN, &old_mlock, 0,
+    "Do not apply RLIMIT_MEMLOCK on mlockall");
+TUNABLE_INT("vm.old_mlock", &old_mlock);
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
@@ -299,13 +306,13 @@ sys_mmap(td, uap)
 		 */
 		rights = CAP_MMAP;
 		if (prot & PROT_READ)
-			rights |= CAP_READ;
+			rights |= CAP_MMAP_R;
 		if ((flags & MAP_SHARED) != 0) {
 			if (prot & PROT_WRITE)
-				rights |= CAP_WRITE;
+				rights |= CAP_MMAP_W;
 		}
 		if (prot & PROT_EXEC)
-			rights |= CAP_MAPEXEC;
+			rights |= CAP_MMAP_X;
 		if ((error = fget_mmap(td, uap->fd, rights, &cap_maxprot,
 		    &fp)) != 0)
 			goto done;
@@ -874,12 +881,12 @@ RestartScan:
 				m = PHYS_TO_VM_PAGE(locked_pa);
 				if (m->object != object) {
 					if (object != NULL)
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 					object = m->object;
-					locked = VM_OBJECT_TRYLOCK(object);
+					locked = VM_OBJECT_TRYWLOCK(object);
 					vm_page_unlock(m);
 					if (!locked) {
-						VM_OBJECT_LOCK(object);
+						VM_OBJECT_WLOCK(object);
 						vm_page_lock(m);
 						goto retry;
 					}
@@ -897,9 +904,9 @@ RestartScan:
 				 */
 				if (current->object.vm_object != object) {
 					if (object != NULL)
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 					object = current->object.vm_object;
-					VM_OBJECT_LOCK(object);
+					VM_OBJECT_WLOCK(object);
 				}
 				if (object->type == OBJT_DEFAULT ||
 				    object->type == OBJT_SWAP ||
@@ -936,7 +943,7 @@ RestartScan:
 					mincoreinfo |= MINCORE_REFERENCED_OTHER;
 			}
 			if (object != NULL)
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 
 			/*
 			 * subyte may page fault.  In case it needs to modify
@@ -1032,6 +1039,7 @@ sys_mlock(td, uap)
 	struct proc *proc;
 	vm_offset_t addr, end, last, start;
 	vm_size_t npages, size;
+	vm_map_t map;
 	unsigned long nsize;
 	int error;
 
@@ -1049,8 +1057,9 @@ sys_mlock(td, uap)
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
 	proc = td->td_proc;
+	map = &proc->p_vmspace->vm_map;
 	PROC_LOCK(proc);
-	nsize = ptoa(npages + vmspace_wired_count(proc->p_vmspace));
+	nsize = ptoa(npages + pmap_wired_count(map->pmap));
 	if (nsize > lim_cur(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		return (ENOMEM);
@@ -1065,13 +1074,13 @@ sys_mlock(td, uap)
 	if (error != 0)
 		return (ENOMEM);
 #endif
-	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
+	error = vm_map_wire(map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 #ifdef RACCT
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(proc);
 		racct_set(proc, RACCT_MEMLOCK,
-		    ptoa(vmspace_wired_count(proc->p_vmspace)));
+		    ptoa(pmap_wired_count(map->pmap)));
 		PROC_UNLOCK(proc);
 	}
 #endif
@@ -1096,27 +1105,25 @@ sys_mlockall(td, uap)
 	int error;
 
 	map = &td->td_proc->p_vmspace->vm_map;
-	error = 0;
+	error = priv_check(td, PRIV_VM_MLOCK);
+	if (error)
+		return (error);
 
 	if ((uap->how == 0) || ((uap->how & ~(MCL_CURRENT|MCL_FUTURE)) != 0))
 		return (EINVAL);
 
-#if 0
 	/*
 	 * If wiring all pages in the process would cause it to exceed
 	 * a hard resource limit, return ENOMEM.
 	 */
-	PROC_LOCK(td->td_proc);
-	if (map->size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+	if (!old_mlock && uap->how & MCL_CURRENT) {
+		PROC_LOCK(td->td_proc);
+		if (map->size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+			PROC_UNLOCK(td->td_proc);
+			return (ENOMEM);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (ENOMEM);
 	}
-	PROC_UNLOCK(td->td_proc);
-#else
-	error = priv_check(td, PRIV_VM_MLOCK);
-	if (error)
-		return (error);
-#endif
 #ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	error = racct_set(td->td_proc, RACCT_MEMLOCK, map->size);
@@ -1147,7 +1154,7 @@ sys_mlockall(td, uap)
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK,
-		    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)));
+		    ptoa(pmap_wired_count(map->pmap)));
 		PROC_UNLOCK(td->td_proc);
 	}
 #endif
@@ -1256,7 +1263,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	vm_offset_t foff;
 	struct mount *mp;
 	struct ucred *cred;
-	int error, flags, locktype, vfslocked;
+	int error, flags, locktype;
 
 	mp = vp->v_mount;
 	cred = td->td_ucred;
@@ -1264,11 +1271,8 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		locktype = LK_EXCLUSIVE;
 	else
 		locktype = LK_SHARED;
-	vfslocked = VFS_LOCK_GIANT(mp);
-	if ((error = vget(vp, locktype, td)) != 0) {
-		VFS_UNLOCK_GIANT(vfslocked);
+	if ((error = vget(vp, locktype, td)) != 0)
 		return (error);
-	}
 	foff = *foffp;
 	flags = *flagsp;
 	obj = vp->v_object;
@@ -1288,10 +1292,8 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			 * underlying fs.
 			 */
 			error = vget(vp, locktype, td);
-			if (error != 0) {
-				VFS_UNLOCK_GIANT(vfslocked);
+			if (error != 0)
 				return (error);
-			}
 		}
 		if (locktype == LK_EXCLUSIVE) {
 			*writecounted = TRUE;
@@ -1343,8 +1345,11 @@ mark_atime:
 	vfs_mark_atime(vp, cred);
 
 done:
+	if (error != 0 && *writecounted) {
+		*writecounted = FALSE;
+		vnode_pager_update_writecount(obj, objsize, 0);
+	}
 	vput(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -1485,6 +1490,23 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (racct_set(td->td_proc, RACCT_VMEM, map->size + size)) {
 			PROC_UNLOCK(td->td_proc);
 			return (ENOMEM);
+		}
+		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+			if (ptoa(pmap_wired_count(map->pmap)) + size >
+			    lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+				racct_set_force(td->td_proc, RACCT_VMEM,
+				    map->size);
+				PROC_UNLOCK(td->td_proc);
+				return (ENOMEM);
+			}
+			error = racct_set(td->td_proc, RACCT_MEMLOCK,
+			    ptoa(pmap_wired_count(map->pmap)) + size);
+			if (error != 0) {
+				racct_set_force(td->td_proc, RACCT_VMEM,
+				    map->size);
+				PROC_UNLOCK(td->td_proc);
+				return (error);
+			}
 		}
 		PROC_UNLOCK(td->td_proc);
 	}

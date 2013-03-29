@@ -210,13 +210,13 @@ RuleAdd(struct libalias *la, struct proxy_entry *entry)
 
 	LIBALIAS_LOCK_ASSERT(la);
 
+	entry->la = la;
 	if (la->proxyList == NULL) {
 		la->proxyList = entry;
 		entry->last = NULL;
 		entry->next = NULL;
 		return;
 	}
-	entry->la = la;
 
 	rule_index = entry->rule_index;
 	ptr = la->proxyList;

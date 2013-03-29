@@ -142,6 +142,10 @@ static vm_offset_t heapva;
 static char bootpath[64];
 static phandle_t root;
 
+#ifdef LOADER_ZFS_SUPPORT
+static struct zfs_devdesc zfs_currdev;
+#endif
+
 /*
  * Machine dependent structures that the machine independent
  * loader part uses.
@@ -170,14 +174,14 @@ struct file_format *file_formats[] = {
 };
 
 struct fs_ops *file_system[] = {
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_fsops,
+#endif
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
 #ifdef LOADER_CD9660_SUPPORT
 	&cd9660_fsops,
-#endif
-#ifdef LOADER_ZFS_SUPPORT
-	&zfs_fsops,
 #endif
 #ifdef LOADER_ZIP_SUPPORT
 	&zipfs_fsops,
@@ -732,7 +736,6 @@ static void
 sparc64_zfs_probe(void)
 {
 	struct vtoc8 vtoc;
-	struct zfs_devdesc zfs_currdev;
 	char alias[64], devname[sizeof(alias) + sizeof(":x") - 1];
 	char type[sizeof("device_type")];
 	char *bdev, *dev, *odev;
@@ -805,9 +808,6 @@ sparc64_zfs_probe(void)
 		zfs_currdev.root_guid = 0;
 		zfs_currdev.d_dev = &zfs_dev;
 		zfs_currdev.d_type = zfs_currdev.d_dev->dv_type;
-		(void)strncpy(bootpath, zfs_fmtdev(&zfs_currdev),
-		    sizeof(bootpath) - 1);
-		bootpath[sizeof(bootpath) - 1] = '\0';
 	}
 }
 #endif /* LOADER_ZFS_SUPPORT */
@@ -878,10 +878,14 @@ main(int (*openfirm)(void *))
 		if ((*dp)->dv_init != 0)
 			(*dp)->dv_init();
 
-	/*
-	 * Now that sparc64_zfs_probe() might have altered bootpath,
-	 * export it.
-	 */
+#ifdef LOADER_ZFS_SUPPORT
+	if (zfs_currdev.pool_guid != 0) {
+		(void)strncpy(bootpath, zfs_fmtdev(&zfs_currdev),
+		    sizeof(bootpath) - 1);
+		bootpath[sizeof(bootpath) - 1] = '\0';
+	}
+#endif
+
 	env_setenv("currdev", EV_VOLATILE, bootpath,
 	    ofw_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, bootpath,

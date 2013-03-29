@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd June 17, 2007
+.Dd October 30, 2012
 .Dt ATRUN 8
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@ e.g., locked out or expired.
 .Bl -tag -width indent
 .It Fl l Ar load_avg
 Specify a limiting load factor, over which batch jobs should
-not be run, instead of the compiled in default of 1.5.
+not be run, instead of the default of 1.5 * number of active CPUs.
 .It Fl d
 Debug; print error messages to standard error instead of using
 .Xr syslog 3 .

@@ -11,7 +11,7 @@ o  Security advisories and updated errata information for all releases are
 o  The Handbook and FAQ documents are at http://www.FreeBSD.org/ and,
    along with the mailing lists, can be searched by going to
    http://www.FreeBSD.org/search/.  If the doc package has been installed
-   (or fetched via pkg_add -r lang-freebsd-doc, where lang is the
+   (or fetched via pkg install lang-freebsd-doc, where lang is the
    2-letter language code, e.g. en), they are also available formatted
    in /usr/local/share/doc/freebsd.
 

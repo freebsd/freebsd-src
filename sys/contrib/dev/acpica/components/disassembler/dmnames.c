@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,6 @@
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
@@ -128,7 +127,7 @@ AcpiDmDumpName (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Diplay the pathname associated with a named object.  Two
+ * DESCRIPTION: Diplay the pathname associated with a named object. Two
  *              versions. One searches the parse tree (for parser-only
  *              applications suchas AcpiDump), and the other searches the
  *              ACPI namespace (the parse tree is probably deleted)
@@ -166,7 +165,7 @@ AcpiPsDisplayObjectPathname (
         {
             /*
              * We can't get the pathname since the object
-             * is not in the namespace.  This can happen during single
+             * is not in the namespace. This can happen during single
              * stepping where a dynamic named object is *about* to be created.
              */
             AcpiOsPrintf ("  [Path not found]");
@@ -226,7 +225,8 @@ AcpiDmNamestring (
 
     /* Handle all Scope Prefix operators */
 
-    while (AcpiPsIsPrefixChar (ACPI_GET8 (Name)))
+    while (ACPI_IS_ROOT_PREFIX (ACPI_GET8 (Name)) ||
+           ACPI_IS_PARENT_PREFIX (ACPI_GET8 (Name)))
     {
         /* Append prefix character */
 
@@ -323,7 +323,7 @@ AcpiDmDisplayPath (
 
         if ((NamePath) &&
             (NamePath->Common.Value.String) &&
-            (NamePath->Common.Value.String[0] == '\\'))
+            (ACPI_IS_ROOT_PREFIX (NamePath->Common.Value.String[0])))
         {
             AcpiDmNamestring (NamePath->Common.Value.String);
             return;
@@ -437,9 +437,9 @@ AcpiDmValidateName (
     if (!TargetOp)
     {
         /*
-         * Didn't find the name in the parse tree.  This may be
+         * Didn't find the name in the parse tree. This may be
          * a problem, or it may simply be one of the predefined names
-         * (such as _OS_).  Rather than worry about looking up all
+         * (such as _OS_). Rather than worry about looking up all
          * the predefined names, just display the name as given
          */
         AcpiOsPrintf (
@@ -449,5 +449,3 @@ AcpiDmValidateName (
 #endif
 
 #endif
-
-

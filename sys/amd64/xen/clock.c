@@ -774,7 +774,7 @@ resettodr()
 
 static int
 xen_et_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+    sbintime_t first, sbintime_t period)
 {
 	struct xen_et_state *state = DPCPU_PTR(et_state);
 	struct shadow_time_info *shadow;
@@ -782,20 +782,15 @@ xen_et_start(struct eventtimer *et,
 
 	__get_time_values_from_xen();
 
-	if (period != NULL) {
+	if (period != 0) {
 		state->mode = MODE_PERIODIC;
-		state->period = (1000000000LL *
-		    (uint32_t)(period->frac >> 32)) >> 32;
-		if (period->sec != 0)
-			state->period += 1000000000LL * period->sec;
+		state->period = (1000000000LLU * period) >> 32;
 	} else {
 		state->mode = MODE_ONESHOT;
 		state->period = 0;
 	}
-	if (first != NULL) {
-		fperiod = (1000000000LL * (uint32_t)(first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			fperiod += 1000000000LL * first->sec;
+	if (first != 0) {
+		fperiod = (1000000000LLU * first) >> 32;
 	} else
 		fperiod = state->period;
 
@@ -837,11 +832,9 @@ cpu_initclocks(void)
 	xen_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
 	    ET_FLAGS_PERCPU;
 	xen_et.et_quality = 600;
-	xen_et.et_frequency = 0;
-	xen_et.et_min_period.sec = 0;
-	xen_et.et_min_period.frac = 0x00400000LL << 32;
-	xen_et.et_max_period.sec = 2;
-	xen_et.et_max_period.frac = 0;
+	xen_et.et_frequency = 1000000000;
+	xen_et.et_min_period = 0x00400000LL;
+	xen_et.et_max_period = (0xfffffffeLLU << 32) / xen_et.et_frequency;
 	xen_et.et_start = xen_et_start;
 	xen_et.et_stop = xen_et_stop;
 	xen_et.et_priv = NULL;

@@ -31,5 +31,6 @@
 
 # debugging aid for development
 # f_dprintf() {
-#   echo "$(date):$pgm: $1" >> $HOME/out
+#   local format="$1"; shift
+#   printf "$(date):$pgm:$format\n" "$@" >> $HOME/out
 # }

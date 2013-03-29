@@ -17,7 +17,6 @@ SUBDIR= ${_binutils} \
 	${_rcs} \
 	sdiff \
 	send-pr \
-	sort \
 	${_texinfo}
 
 .if ${MK_CXX} != "no"
@@ -31,7 +30,7 @@ _groff=		groff
 _cvs=		cvs
 .endif
 
-.if ${MK_FDT}	!= "no"
+.if ${MK_GPL_DTC} != "no"
 _dtc=		dtc
 .endif
 

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stab.c,v 8.89 2006/08/15 23:24:58 ca Exp $")
+SM_RCSID("@(#)$Id: stab.c,v 8.91 2011/08/08 17:33:34 ca Exp $")
 
 /*
 **  STAB -- manage the symbol table
@@ -65,7 +65,7 @@ stab(name, type, op)
 		sm_dprintf("(hfunc=%d) ", hfunc);
 
 	ps = &SymTab[hfunc];
-	if (type == ST_MACRO || type == ST_RULESET)
+	if (type == ST_MACRO || type == ST_RULESET || type == ST_NAMECANON)
 	{
 		while ((s = *ps) != NULL &&
 		       (s->s_symtype != type || strcmp(name, s->s_name)))
@@ -111,10 +111,6 @@ stab(name, type, op)
 	{
 	  case ST_CLASS:
 		len = sizeof(s->s_class);
-		break;
-
-	  case ST_ADDRESS:
-		len = sizeof(s->s_address);
 		break;
 
 	  case ST_MAILER:

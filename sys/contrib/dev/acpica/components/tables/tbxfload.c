@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -208,7 +208,7 @@ AcpiTbLoadNamespace (
         (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
+    ACPI_INFO ((AE_INFO, "All ACPI Tables successfully acquired"));
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
@@ -228,7 +228,7 @@ UnlockAndExit:
  * DESCRIPTION: Dynamically load an ACPI table from the caller's buffer. Must
  *              be a valid ACPI table with a valid ACPI table header.
  *              Note1: Mainly intended to support hotplug addition of SSDTs.
- *              Note2: Does not copy the incoming table. User is reponsible
+ *              Note2: Does not copy the incoming table. User is responsible
  *              to ensure that the table is not deleted or unmapped.
  *
  ******************************************************************************/

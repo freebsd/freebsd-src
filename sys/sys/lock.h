@@ -304,16 +304,5 @@ void	witness_thread_exit(struct thread *);
 #define	WITNESS_LINE(lock) (0)
 #endif	/* WITNESS */
 
-/*
- * Helper macros to allow developers to add explicit lock order checks
- * wherever they please without having to actually grab a lock to do so.
- */
-#define	witness_check(l)						\
-	WITNESS_CHECKORDER(&(l)->lock_object, LOP_EXCLUSIVE, LOCK_FILE,	\
-	    LOCK_LINE, NULL)
-
-#define	witness_check_shared(l)						\
-	WITNESS_CHECKORDER(&(l)->lock_object, 0, LOCK_FILE, LOCK_LINE, NULL)
-	
 #endif	/* _KERNEL */
 #endif	/* _SYS_LOCK_H_ */

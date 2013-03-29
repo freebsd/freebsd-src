@@ -135,11 +135,11 @@ exec_global(int interact, int gflag)
 }
 
 
-line_t **active_list;		/* list of lines active in a global command */
-long active_last;		/* index of last active line in active_list */
-long active_size;		/* size of active_list */
-long active_ptr;		/* active_list index (non-decreasing) */
-long active_ndx;		/* active_list index (modulo active_last) */
+static line_t **active_list;	/* list of lines active in a global command */
+static long active_last;	/* index of last active line in active_list */
+static long active_size;	/* size of active_list */
+static long active_ptr;		/* active_list index (non-decreasing) */
+static long active_ndx;		/* active_list index (modulo active_last) */
 
 /* set_active_node: add a line node to the global-active list */
 int

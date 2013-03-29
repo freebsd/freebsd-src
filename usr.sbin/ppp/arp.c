@@ -91,7 +91,7 @@
  */
 static struct {
   struct rt_msghdr hdr;
-  struct sockaddr_inarp dst;
+  struct sockaddr_in dst;
   struct sockaddr_dl hwa;
   char extra[128];
 } arpmsg;
@@ -124,10 +124,9 @@ arp_ProxySub(struct bundle *bundle, struct in_addr addr, int add)
   arpmsg.hdr.rtm_seq = ++bundle->routing_seq;
   arpmsg.hdr.rtm_addrs = RTA_DST | RTA_GATEWAY;
   arpmsg.hdr.rtm_inits = RTV_EXPIRE;
-  arpmsg.dst.sin_len = sizeof(struct sockaddr_inarp);
+  arpmsg.dst.sin_len = sizeof(struct sockaddr_in);
   arpmsg.dst.sin_family = AF_INET;
   arpmsg.dst.sin_addr.s_addr = addr.s_addr;
-  arpmsg.dst.sin_other = SIN_PROXY;
 
   arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
     + arpmsg.hwa.sdl_len;

@@ -68,28 +68,22 @@ __FBSDID("$FreeBSD$");
  * global variables and related macros
  */
 
-enum { 					/* encrypt, decrypt, authenticate */
-	MODE_ENCRYPT, MODE_DECRYPT, MODE_AUTHENTICATE
-} mode = MODE_ENCRYPT;
-
 #ifdef DES
-DES_cblock ivec;			/* initialization vector */
-DES_cblock pvec;			/* padding vector */
-#endif
+static DES_cblock ivec;			/* initialization vector */
+static DES_cblock pvec;			/* padding vector */
 
-char bits[] = {				/* used to extract bits from a char */
+static char bits[] = {			/* used to extract bits from a char */
 	'\200', '\100', '\040', '\020', '\010', '\004', '\002', '\001'
 };
 
-int pflag;				/* 1 to preserve parity bits */
+static int pflag;			/* 1 to preserve parity bits */
 
-#ifdef DES
-DES_key_schedule schedule;		/* expanded DES key */
+static DES_key_schedule schedule;	/* expanded DES key */
+
+static unsigned char des_buf[8];/* shared buffer for get_des_char/put_des_char */
+static int des_ct = 0;		/* count for get_des_char/put_des_char */
+static int des_n = 0;		/* index for put_des_char/get_des_char */
 #endif
-
-unsigned char des_buf[8];	/* shared buffer for get_des_char/put_des_char */
-int des_ct = 0;			/* count for get_des_char/put_des_char */
-int des_n = 0;			/* index for put_des_char/get_des_char */
 
 /* init_des_cipher: initialize DES */
 void

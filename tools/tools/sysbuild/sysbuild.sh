@@ -225,37 +225,49 @@ ports_build() (
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
 	do
+		b=`echo $p | tr / _`
 		t=`echo $p | sed 's,/usr/ports/,,'`
 		pn=`cd $p && make package-name`
-		if [ "x${PKG_DIR}" != "x" -a -f ${PKG_DIR}/$pn.tbz ] ; then
+
+		if pkg info $pn > /dev/null 2>&1 ; then
+			log_it "Already installed: $t ($pn)"
+			continue
+		fi
+
+		if [ "x$p" == "x/usr/ports/ports-mgmt/pkg" ] ; then
+			log_it "Very Special: $t ($pn)"
+			(
+			cd $p
+			make clean all install ${PORTS_OPTS}
+			) > _.$b 2>&1 < /dev/null
+			continue
+		fi
+
+		if [ "x${PKG_DIR}" != "x" -a -f ${PKG_DIR}/$pn.txz ] ; then
 			if [ "x$use_pkg" = "x-p" ] ; then
-				log_it "install $p from ${PKG_DIR}/$pn.tbz"
-				pkg_add ${PKG_DIR}/$pn.tbz
+				log_it "Install $t ($pn)"
+				(
+				set +e
+				pkg add ${PKG_DIR}/$pn.txz || true
+				) > _.$b 2>&1 < /dev/null
+				continue
 			fi
 		fi
-		i=`pkg_info -qO $t`
-		if [ -z "$i" ] ; then
-			log_it "build $p"
-			b=`echo $p | tr / _`
-			(
-				set -x
-				cd /usr/ports
-				cd $p
-				set +e
-				make clean ${PORTS_OPTS}
-				if make install ${PORTS_OPTS} ; then
-					if [ "x${PKG_DIR}" != "x" ] ; then
-						make package ${PORTS_OPTS}
-						mkdir -p ${PKG_DIR}
-						mv *.tbz ${PKG_DIR}
-					fi
-				else
-					log_it FAIL build $p
+
+		log_it "build $pn ($p)"
+		(
+			set +e
+			cd $p
+			make clean ${PORTS_OPTS}
+			if make install ${PORTS_OPTS} ; then
+				if [ "x${PKG_DIR}" != "x" ] ; then
+					make package ${PORTS_OPTS}
 				fi
-				make clean
-			) > _.$b 2>&1 < /dev/null
-			date
-		fi
+			else
+				log_it FAIL build $p
+			fi
+			make clean
+		) > _.$b 2>&1 < /dev/null
 	done
 )
 
@@ -463,7 +475,7 @@ export PORTS_OPTS
 #######################################################################
 
 log_it Prepare destination partition
-newfs -O2 -U /dev/${TARGET_PART} > /dev/null
+newfs -t -E -O2 -U /dev/${TARGET_PART} > /dev/null
 mount /dev/${TARGET_PART} ${SBMNT}
 mkdir -p ${SBMNT}/dev
 mount -t devfs devfs ${SBMNT}/dev
@@ -564,7 +576,7 @@ sed "/[ 	]\/[ 	]/s;^[^ 	]*[ 	];/dev/${TARGET_PART}	;" \
 	/etc/fstab > ${SBMNT}/etc/fstab
 
 log_it build ports
-pwd
+
 cp $0 ${SBMNT}/root
 cp /tmp/_sb_log ${SBMNT}/tmp
 b=`basename $0`

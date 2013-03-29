@@ -329,6 +329,26 @@ null_bypass(struct vop_generic_args *ap)
 	return (error);
 }
 
+static int
+null_add_writecount(struct vop_add_writecount_args *ap)
+{
+	struct vnode *lvp, *vp;
+	int error;
+
+	vp = ap->a_vp;
+	lvp = NULLVPTOLOWERVP(vp);
+	KASSERT(vp->v_writecount + ap->a_inc >= 0, ("wrong writecount inc"));
+	if (vp->v_writecount > 0 && vp->v_writecount + ap->a_inc == 0)
+		error = VOP_ADD_WRITECOUNT(lvp, -1);
+	else if (vp->v_writecount == 0 && vp->v_writecount + ap->a_inc > 0)
+		error = VOP_ADD_WRITECOUNT(lvp, 1);
+	else
+		error = 0;
+	if (error == 0)
+		vp->v_writecount += ap->a_inc;
+	return (error);
+}
+
 /*
  * We have to carry on the locking protocol on the null layer vnodes
  * as we progress through the tree. We also have to enforce read-only
@@ -665,33 +685,35 @@ null_unlock(struct vop_unlock_args *ap)
 }
 
 /*
- * There is no way to tell that someone issued remove/rmdir operation
- * on the underlying filesystem. For now we just have to release lowervp
- * as soon as possible.
- *
- * Note, we can't release any resources nor remove vnode from hash before 
- * appropriate VXLOCK stuff is done because other process can find this
- * vnode in hash during inactivation and may be sitting in vget() and waiting
- * for null_inactive to unlock vnode. Thus we will do all those in VOP_RECLAIM.
+ * Do not allow the VOP_INACTIVE to be passed to the lower layer,
+ * since the reference count on the lower vnode is not related to
+ * ours.
  */
 static int
-null_inactive(struct vop_inactive_args *ap)
+null_inactive(struct vop_inactive_args *ap __unused)
 {
-	struct vnode *vp = ap->a_vp;
+	struct vnode *vp;
+	struct mount *mp;
+	struct null_mount *xmp;
 
-	vp->v_object = NULL;
-
-	/*
-	 * If this is the last reference, then free up the vnode
-	 * so as not to tie up the lower vnodes.
-	 */
-	vrecycle(vp);
-
+	vp = ap->a_vp;
+	mp = vp->v_mount;
+	xmp = MOUNTTONULLMOUNT(mp);
+	if ((xmp->nullm_flags & NULLM_CACHE) == 0) {
+		/*
+		 * If this is the last reference and caching of the
+		 * nullfs vnodes is not enabled, then free up the
+		 * vnode so as not to tie up the lower vnodes.
+		 */
+		vp->v_object = NULL;
+		vrecycle(vp);
+	}
 	return (0);
 }
 
 /*
- * Now, the VXLOCK is in force and we're free to destroy the null vnode.
+ * Now, the nullfs vnode and, due to the sharing lock, the lower
+ * vnode, are exclusively locked, and we shall destroy the null vnode.
  */
 static int
 null_reclaim(struct vop_reclaim_args *ap)
@@ -718,6 +740,14 @@ null_reclaim(struct vop_reclaim_args *ap)
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	VI_UNLOCK(vp);
+
+	/*
+	 * If we were opened for write, we leased one write reference
+	 * to the lower vnode.  If this is a reclamation due to the
+	 * forced unmount, undo the reference now.
+	 */
+	if (vp->v_writecount > 0)
+		VOP_ADD_WRITECOUNT(lowervp, -1);
 	vput(lowervp);
 	free(xp, M_NULLFSNODE);
 
@@ -839,4 +869,5 @@ struct vop_vector null_vnodeops = {
 	.vop_unlock =		null_unlock,
 	.vop_vptocnp =		null_vptocnp,
 	.vop_vptofh =		null_vptofh,
+	.vop_add_writecount =	null_add_writecount,
 };

@@ -401,14 +401,11 @@ tbr_set(ifq, profile)
 		return (0);
 	}
 
-	IFQ_UNLOCK(ifq);
-	tbr = malloc(sizeof(struct tb_regulator),
-	       M_DEVBUF, M_WAITOK);
-	if (tbr == NULL) {		/* can not happen */
+	tbr = malloc(sizeof(struct tb_regulator), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (tbr == NULL) {
 		IFQ_UNLOCK(ifq);
 		return (ENOMEM);
 	}
-	bzero(tbr, sizeof(struct tb_regulator));
 
 	tbr->tbr_rate = TBR_SCALE(profile->rate / 8) / machclk_freq;
 	tbr->tbr_depth = TBR_SCALE(profile->depth);
@@ -420,7 +417,6 @@ tbr_set(ifq, profile)
 	tbr->tbr_last = read_machclk();
 	tbr->tbr_lastop = ALTDQ_REMOVE;
 
-	IFQ_LOCK(ifq);
 	otbr = ifq->altq_tbr;
 	ifq->altq_tbr = tbr;	/* set the new tbr */
 

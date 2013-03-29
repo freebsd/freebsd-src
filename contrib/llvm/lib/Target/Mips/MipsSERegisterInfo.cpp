@@ -26,6 +26,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
@@ -40,8 +41,18 @@
 using namespace llvm;
 
 MipsSERegisterInfo::MipsSERegisterInfo(const MipsSubtarget &ST,
-                                       const TargetInstrInfo &TII)
-  : MipsRegisterInfo(ST, TII) {}
+                                       const MipsSEInstrInfo &I)
+  : MipsRegisterInfo(ST), TII(I) {}
+
+bool MipsSERegisterInfo::
+requiresRegisterScavenging(const MachineFunction &MF) const {
+  return true;
+}
+
+bool MipsSERegisterInfo::
+requiresFrameIndexScavenging(const MachineFunction &MF) const {
+  return true;
+}
 
 // This function eliminate ADJCALLSTACKDOWN,
 // ADJCALLSTACKUP pseudo instructions
@@ -72,7 +83,6 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
   MachineFrameInfo *MFI = MF.getFrameInfo();
-  MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
 
   const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
   int MinCSFI = 0;
@@ -91,8 +101,7 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
   // getFrameRegister() returns.
   unsigned FrameReg;
 
-  if (MipsFI->isOutArgFI(FrameIndex) ||
-      (FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI))
+  if (FrameIndex >= MinCSFI && FrameIndex <= MaxCSFI)
     FrameReg = Subtarget.isABI_N64() ? Mips::SP_64 : Mips::SP;
   else
     FrameReg = getFrameRegister(MF);
@@ -104,14 +113,11 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
   // - If the frame object is any of the following, its offset must be adjusted
   //   by adding the size of the stack:
   //   incoming argument, callee-saved register location or local variable.
+  bool IsKill = false;
   int64_t Offset;
 
-  if (MipsFI->isOutArgFI(FrameIndex))
-    Offset = SPOffset;
-  else
-    Offset = SPOffset + (int64_t)StackSize;
-
-  Offset    += MI.getOperand(OpNo + 1).getImm();
+  Offset = SPOffset + (int64_t)StackSize;
+  Offset += MI.getOperand(OpNo + 1).getImm();
 
   DEBUG(errs() << "Offset     : " << Offset << "\n" << "<--------->\n");
 
@@ -121,18 +127,17 @@ void MipsSERegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
     MachineBasicBlock &MBB = *MI.getParent();
     DebugLoc DL = II->getDebugLoc();
     unsigned ADDu = Subtarget.isABI_N64() ? Mips::DADDu : Mips::ADDu;
-    unsigned ATReg = Subtarget.isABI_N64() ? Mips::AT_64 : Mips::AT;
-    MipsAnalyzeImmediate::Inst LastInst(0, 0);
+    unsigned NewImm;
 
-    MipsFI->setEmitNOAT();
-    Mips::loadImmediate(Offset, Subtarget.isABI_N64(), TII, MBB, II, DL, true,
-                        &LastInst);
-    BuildMI(MBB, II, DL, TII.get(ADDu), ATReg).addReg(FrameReg).addReg(ATReg);
+    unsigned Reg = TII.loadImmediate(Offset, MBB, II, DL, &NewImm);
+    BuildMI(MBB, II, DL, TII.get(ADDu), Reg).addReg(FrameReg)
+      .addReg(Reg, RegState::Kill);
 
-    FrameReg = ATReg;
-    Offset = SignExtend64<16>(LastInst.ImmOpnd);
+    FrameReg = Reg;
+    Offset = SignExtend64<16>(NewImm);
+    IsKill = true;
   }
 
-  MI.getOperand(OpNo).ChangeToRegister(FrameReg, false);
+  MI.getOperand(OpNo).ChangeToRegister(FrameReg, false, false, IsKill);
   MI.getOperand(OpNo + 1).ChangeToImmediate(Offset);
 }

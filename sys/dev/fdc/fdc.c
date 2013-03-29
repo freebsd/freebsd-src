@@ -865,7 +865,7 @@ fdc_worker(struct fdc_data *fdc)
 		g_orphan_provider(fd->fd_provider, ENXIO);
 		fd->fd_provider->flags |= G_PF_WITHER;
 		fd->fd_provider =
-		    g_new_providerf(fd->fd_geom, fd->fd_geom->name);
+		    g_new_providerf(fd->fd_geom, "%s", fd->fd_geom->name);
 		g_error_provider(fd->fd_provider, 0);
 		g_topology_unlock();
 		return (fdc_biodone(fdc, ENXIO));
@@ -2011,7 +2011,7 @@ fd_attach2(void *arg, int flag)
 
 	fd->fd_geom = g_new_geomf(&g_fd_class,
 	    "fd%d", device_get_unit(fd->dev));
-	fd->fd_provider = g_new_providerf(fd->fd_geom, fd->fd_geom->name);
+	fd->fd_provider = g_new_providerf(fd->fd_geom, "%s", fd->fd_geom->name);
 	fd->fd_geom->softc = fd;
 	g_error_provider(fd->fd_provider, 0);
 }

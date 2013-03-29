@@ -227,7 +227,11 @@ print_igmpv3_query(register const u_char *bp, register u_int len)
     }
     if (mrc != 100) {
 	(void)printf(" [max resp time ");
-	relts_print(mrt);
+        if (mrt < 600) {
+            (void)printf("%.1fs", mrt * 0.1);
+        } else {
+            relts_print(mrt / 10);
+        }
 	(void)printf("]");
     }
     TCHECK2(bp[4], 4);

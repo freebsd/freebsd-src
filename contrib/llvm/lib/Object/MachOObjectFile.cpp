@@ -363,6 +363,10 @@ error_code MachOObjectFile::getSymbolType(DataRefImpl Symb,
   return object_error::success;
 }
 
+error_code MachOObjectFile::getSymbolValue(DataRefImpl Symb,
+                                           uint64_t &Val) const {
+  report_fatal_error("getSymbolValue unimplemented in MachOObjectFile");
+}
 
 symbol_iterator MachOObjectFile::begin_symbols() const {
   // DRI.d.a = segment number; DRI.d.b = symbol index.
@@ -581,14 +585,14 @@ error_code MachOObjectFile::isSectionBSS(DataRefImpl DRI,
 
 error_code MachOObjectFile::isSectionRequiredForExecution(DataRefImpl Sec,
                                                           bool &Result) const {
-  // FIXME: Unimplemented
+  // FIXME: Unimplemented.
   Result = true;
   return object_error::success;
 }
 
 error_code MachOObjectFile::isSectionVirtual(DataRefImpl Sec,
-                                            bool &Result) const {
-  // FIXME: Unimplemented
+                                             bool &Result) const {
+  // FIXME: Unimplemented.
   Result = false;
   return object_error::success;
 }
@@ -609,6 +613,17 @@ error_code MachOObjectFile::isSectionZeroInit(DataRefImpl DRI,
               SectionType == MachO::SectionTypeZeroFillLarge);
   }
 
+  return object_error::success;
+}
+
+error_code MachOObjectFile::isSectionReadOnlyData(DataRefImpl Sec,
+                                                  bool &Result) const {
+  // Consider using the code from isSectionText to look for __const sections.
+  // Alternately, emit S_ATTR_PURE_INSTRUCTIONS and/or S_ATTR_SOME_INSTRUCTIONS
+  // to use section attributes to distinguish code from data.
+
+  // FIXME: Unimplemented.
+  Result = false;
   return object_error::success;
 }
 

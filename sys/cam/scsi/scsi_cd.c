@@ -581,7 +581,7 @@ cdasync(void *callback_arg, u_int32_t code,
 		if (softc->state == CD_STATE_NORMAL && !softc->tur) {
 			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 				softc->tur = 1;
-				xpt_schedule(periph, CAM_PRIORITY_DEV);
+				xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 			}
 		}
 		/* FALLTHROUGH */
@@ -692,10 +692,6 @@ cdregister(struct cam_periph *periph, void *arg)
 	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("cdregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
 	if (cgd == NULL) {
 		printf("cdregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -1579,7 +1575,8 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					/*retries*/ cd_retry_count,
 					/* cbfcnp */ cddone,
 					MSG_SIMPLE_Q_TAG,
-					/* read */bp->bio_cmd == BIO_READ,
+					/* read */bp->bio_cmd == BIO_READ ?
+					SCSI_RW_READ : SCSI_RW_WRITE,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,
 					/* lba */ bp->bio_offset /
@@ -1616,9 +1613,11 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 
 			xpt_action(start_ccb);
 		}
-		if (bp != NULL || softc->tur) {
+		if (bp != NULL || softc->tur ||
+		    periph->immediate_priority != CAM_PRIORITY_NONE) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
+			xpt_schedule(periph, min(CAM_PRIORITY_NORMAL,
+			    periph->immediate_priority));
 		}
 		break;
 	}
@@ -1745,6 +1744,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 					       * bytes.
 					       */
 		struct	   cd_params *cdp;
+		int error;
 
 		cdp = &softc->params;
 
@@ -1753,28 +1753,26 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		cdp->disksize = scsi_4btoul (rdcap->addr) + 1;
 		cdp->blksize = scsi_4btoul (rdcap->length);
 
-		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		/*
+		 * Retry any UNIT ATTENTION type errors.  They
+		 * are expected at boot.
+		 */
+		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP ||
+		    (error = cderror(done_ccb, CAM_RETRY_SELTO,
+				SF_RETRY_UA | SF_NO_PRINT)) == 0) {
 
 			snprintf(announce_buf, sizeof(announce_buf),
 				"cd present [%lu x %lu byte records]",
 				cdp->disksize, (u_long)cdp->blksize);
 
 		} else {
-			int	error;
-			/*
-			 * Retry any UNIT ATTENTION type errors.  They
-			 * are expected at boot.
-			 */
-			error = cderror(done_ccb, CAM_RETRY_SELTO,
-					SF_RETRY_UA | SF_NO_PRINT);
 			if (error == ERESTART) {
 				/*
 				 * A retry was scheuled, so
 				 * just return.
 				 */
 				return;
-			} else if (error != 0) {
-
+			} else {
 				int asc, ascq;
 				int sense_key, error_code;
 				int have_sense;
@@ -2080,6 +2078,7 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			 	 || (st > (softc->toc.header.ending_track -
 				     softc->toc.header.starting_track))) {
 					error = EINVAL;
+					cam_periph_unlock(periph);
 					break;
 				}
 				sentry = &softc->toc.entries[st].addr;
@@ -3297,10 +3296,11 @@ cdmediapoll(void *arg)
 	if (softc->flags & CD_FLAG_CHANGER)
 		return;
 
-	if (softc->state == CD_STATE_NORMAL && !softc->tur) {
+	if (softc->state == CD_STATE_NORMAL && !softc->tur &&
+	    softc->outstanding_cmds == 0) {
 		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 			softc->tur = 1;
-			xpt_schedule(periph, CAM_PRIORITY_DEV);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 	}
 	/* Queue us up again */

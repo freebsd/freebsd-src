@@ -58,6 +58,7 @@ enum {
 	CIM_PIFLA_SIZE = 64,    /* # of 192-bit words in CIM PIF LA */
 	CIM_MALA_SIZE  = 64,    /* # of 160-bit words in CIM MA LA */
 	CIM_IBQ_SIZE   = 128,   /* # of 128-bit words in a CIM IBQ */
+	CIM_OBQ_SIZE   = 128,   /* # of 128-bit words in a CIM OBQ */
 	TPLA_SIZE      = 128,   /* # of 64-bit words in TP LA */
 	ULPRX_LA_SIZE  = 512,   /* # of 256-bit words in ULP_RX LA */
 };

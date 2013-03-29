@@ -36,6 +36,7 @@
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 #include <sys/time.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

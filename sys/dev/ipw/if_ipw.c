@@ -709,7 +709,7 @@ ipw_dma_alloc(struct ipw_softc *sc)
 		sbuf = &sc->rx_sbuf_list[i];
 		sbd->bd = &sc->rbd_list[i];
 
-		sbuf->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		sbuf->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (sbuf->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not allocate rx mbuf\n");
@@ -1207,7 +1207,7 @@ ipw_rx_data_intr(struct ipw_softc *sc, struct ipw_status *status,
 	 * drop the received packet and reuse the old mbuf. In the unlikely
 	 * case that the old mbuf can't be reloaded either, explicitly panic.
 	 */
-	mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
 		ifp->if_ierrors++;
 		return;
@@ -1651,7 +1651,7 @@ ipw_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 		return error;
 	}
 	if (error != 0) {
-		mnew = m_defrag(m0, M_DONTWAIT);
+		mnew = m_defrag(m0, M_NOWAIT);
 		if (mnew == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not defragment mbuf\n");

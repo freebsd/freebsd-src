@@ -137,7 +137,7 @@ domode(struct icmp6stat *ret)
 	switch(currentmode) {
 	case display_RATE:
 		sub = &oldstat;
-		divisor = naptime;
+		divisor = (delay > 1000000) ? delay / 1000000 : 1;
 		break;
 	case display_DELTA:
 		sub = &oldstat;

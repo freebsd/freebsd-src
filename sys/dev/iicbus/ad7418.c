@@ -219,7 +219,7 @@ static device_method_t ad7418_methods[] = {
 	DEVMETHOD(device_probe,		ad7418_probe),
 	DEVMETHOD(device_attach,	ad7418_attach),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t ad7418_driver = {

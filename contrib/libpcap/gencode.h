@@ -240,8 +240,8 @@ struct block {
 	struct slist *stmts;	/* side effect stmts */
 	struct stmt s;		/* branch stmt */
 	int mark;
-	int longjt;		/* jt branch requires long jump */
-	int longjf;		/* jf branch requires long jump */
+	u_int longjt;		/* jt branch requires long jump */
+	u_int longjf;		/* jf branch requires long jump */
 	int level;
 	int offset;
 	int sense;
@@ -330,7 +330,7 @@ void bpf_error(const char *, ...)
 void finish_parse(struct block *);
 char *sdup(const char *);
 
-struct bpf_insn *icode_to_fcode(struct block *, int *);
+struct bpf_insn *icode_to_fcode(struct block *, u_int *);
 int pcap_parse(void);
 void lex_init(const char *);
 void lex_cleanup(void);

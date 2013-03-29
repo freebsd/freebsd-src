@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2012
+.Dd November 18, 2012
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ Each
 .Em port
 contains any patches necessary to make the original
 application source code compile and run on
-.Bx .
+.Fx .
 Compiling an
 application is as simple as typing
 .Nm make Cm build
@@ -55,19 +55,6 @@ If all goes well,
 simply type
 .Nm make Cm install
 to install the application.
-.Pp
-It is possible to download and use ports from the
-.Fx
-repository
-that are newer than the installed system; however it is important to
-install the appropriate
-.Dq "Upgrade Kit"
-from
-.Pa http://www.FreeBSD.org/ports/
-first!
-The
-.Xr portcheckout 1 Pq Pa ports/ports-mgmt/portcheckout
-script (also a port, of course!) will help to download new ports.
 .Pp
 For more information about using ports, see
 .Dq "Packages and Ports"
@@ -503,27 +490,17 @@ single file
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
 .It Pa /usr/ports
 The default ports directory
-.No ( Fx
-and
-.Ox ) .
-.It Pa /usr/pkgsrc
-The default ports directory
-.Pq Nx .
 .It Pa /usr/ports/Mk/bsd.port.mk
 The big Kahuna.
 .El
 .Sh SEE ALSO
 .Xr make 1 ,
-.Xr pkg_add 1 ,
-.Xr pkg_create 1 ,
-.Xr pkg_delete 1 ,
-.Xr pkg_info 1 ,
-.Xr pkg_version 1
+.Xr pkg 8 ,
+.Xr portsnap 8
 .Pp
 The following are part of the ports collection:
 .Pp
 .Xr portaudit 1 ,
-.Xr portcheckout 1 ,
 .Xr portlint 1
 .Rs
 .%B "The FreeBSD Handbook"

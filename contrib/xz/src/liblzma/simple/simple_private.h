@@ -22,8 +22,7 @@ struct lzma_coder_s {
 	/// Next filter in the chain
 	lzma_next_coder next;
 
-	/// True if the next coder in the chain has returned LZMA_STREAM_END
-	/// or if we have processed uncompressed_size bytes.
+	/// True if the next coder in the chain has returned LZMA_STREAM_END.
 	bool end_was_reached;
 
 	/// True if filter() should encode the data; false to decode.

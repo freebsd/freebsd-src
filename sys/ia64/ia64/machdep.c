@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/random.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscall.h>
@@ -97,6 +98,22 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/unwind.h>
 #include <machine/vmparam.h>
+
+/*
+ * For atomicity reasons, we demand that pc_curthread is the first
+ * field in the struct pcpu. It allows us to read the pointer with
+ * a single atomic instruction:
+ *	ld8 %curthread = [r13]
+ * Otherwise we would first have to calculate the load address and
+ * store the result in a temporary register and that for the load:
+ *	add %temp = %offsetof(struct pcpu), r13
+ *	ld8 %curthread = [%temp]
+ * A context switch inbetween the add and the ld8 could have the
+ * thread migrate to a different core. In that case,  %curthread
+ * would be the thread running on the original core and not actually
+ * the current thread.
+ */
+CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 
 static SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
 static SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
@@ -155,7 +172,7 @@ extern vm_offset_t ksym_start, ksym_end;
 struct msgbuf *msgbufp = NULL;
 
 /* Other subsystems (e.g., ACPI) can hook this later. */
-void (*cpu_idle_hook)(void) = NULL;
+void (*cpu_idle_hook)(sbintime_t) = NULL;
 
 struct kva_md_info kmi;
 
@@ -392,10 +409,11 @@ void
 cpu_idle(int busy)
 {
 	register_t ie;
+	sbintime_t sbt = -1;
 
 	if (!busy) {
 		critical_enter();
-		cpu_idleclock();
+		sbt = cpu_idleclock();
 	}
 
 	ie = intr_disable();
@@ -404,7 +422,7 @@ cpu_idle(int busy)
 	if (sched_runnable())
 		ia64_enable_intr();
 	else if (cpu_idle_hook != NULL) {
-		(*cpu_idle_hook)();
+		(*cpu_idle_hook)(sbt);
 		/* The hook must enable interrupts! */
 	} else {
 		ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);

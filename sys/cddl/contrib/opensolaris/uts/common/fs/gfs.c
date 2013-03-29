@@ -665,8 +665,10 @@ gfs_file_inactive(vnode_t *vp)
 	ge = NULL;
 
 found:
+#ifdef TODO
 	if (vp->v_flag & V_XATTRDIR)
 		VI_LOCK(fp->gfs_parent);
+#endif
 	VI_LOCK(vp);
 	/*
 	 * Really remove this vnode
@@ -687,16 +689,17 @@ found:
 	if (fp->gfs_parent) {
 		if (dp)
 			gfs_dir_unlock(dp);
-		VI_LOCK(fp->gfs_parent);
-		fp->gfs_parent->v_usecount--;
-		VI_UNLOCK(fp->gfs_parent);
+		VOP_UNLOCK(vp, 0);
+		VN_RELE(fp->gfs_parent);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	} else {
 		ASSERT(vp->v_vfsp != NULL);
 		VFS_RELE(vp->v_vfsp);
 	}
+#ifdef TODO
 	if (vp->v_flag & V_XATTRDIR)
 		VI_UNLOCK(fp->gfs_parent);
-
+#endif
 	return (data);
 }
 

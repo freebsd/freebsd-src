@@ -65,7 +65,7 @@
  * so that an arbitrary element can be removed without a need to
  * traverse the list. New elements can be added to the list before
  * or after an existing element or at the head of the list. A list
- * may only be traversed in the forward direction.
+ * may be traversed in either direction.
  *
  * A tail queue is headed by a pair of pointers, one to the head of the
  * list and the other to the tail of the list. The elements are doubly
@@ -85,7 +85,7 @@
  * _EMPTY			+	+	+	+
  * _FIRST			+	+	+	+
  * _NEXT			+	+	+	+
- * _PREV			-	-	-	+
+ * _PREV			-	+	-	+
  * _LAST			-	-	+	+
  * _FOREACH			+	+	+	+
  * _FOREACH_SAFE		+	+	+	+
@@ -105,13 +105,14 @@
 #ifdef QUEUE_MACRO_DEBUG
 /* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
-	char * lastfile;
-	int lastline;
-	char * prevfile;
-	int prevline;
+	unsigned long	 lastline;
+	unsigned long	 prevline;
+	const char	*lastfile;
+	const char	*prevfile;
 };
 
 #define	TRACEBUF	struct qm_trace trace;
+#define	TRACEBUF_INITIALIZER	{ __FILE__, __LINE__, NULL, 0 } ,
 #define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
 #define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
 
@@ -134,6 +135,7 @@ struct qm_trace {
 #define	QMD_TRACE_HEAD(head)
 #define	QMD_SAVELINK(name, link)
 #define	TRACEBUF
+#define	TRACEBUF_INITIALIZER
 #define	TRASHIT(x)
 #endif	/* QUEUE_MACRO_DEBUG */
 
@@ -287,10 +289,8 @@ struct {								\
 } while (0)
 
 #define	STAILQ_LAST(head, type, field)					\
-	(STAILQ_EMPTY((head)) ?						\
-		NULL :							\
-	        ((struct type *)(void *)				\
-		((char *)((head)->stqh_last) - __offsetof(struct type, field))))
+	(STAILQ_EMPTY((head)) ? NULL :					\
+	    __containerof((head)->stqh_last, struct type, field.stqe_next))
 
 #define	STAILQ_NEXT(elm, field)	((elm)->field.stqe_next)
 
@@ -425,6 +425,10 @@ struct {								\
 
 #define	LIST_NEXT(elm, field)	((elm)->field.le_next)
 
+#define	LIST_PREV(elm, head, type, field)				\
+	((elm)->field.le_prev == &LIST_FIRST((head)) ? NULL :		\
+	    __containerof((elm)->field.le_prev, struct type, field.le_next))
+
 #define	LIST_REMOVE(elm, field) do {					\
 	QMD_SAVELINK(oldnext, (elm)->field.le_next);			\
 	QMD_SAVELINK(oldprev, (elm)->field.le_prev);			\
@@ -459,7 +463,7 @@ struct name {								\
 }
 
 #define	TAILQ_HEAD_INITIALIZER(head)					\
-	{ NULL, &(head).tqh_first }
+	{ NULL, &(head).tqh_first, TRACEBUF_INITIALIZER }
 
 #define	TAILQ_ENTRY(type)						\
 struct {								\

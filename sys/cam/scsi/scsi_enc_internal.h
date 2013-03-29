@@ -148,6 +148,7 @@ struct enc_softc {
 	union ccb		 saved_ccb;
 	struct cdev		*enc_dev;
 	struct cam_periph	*periph;
+	int			 open_count;
 
 	/* Bitmap of pending operations. */
 	uint32_t		 pending_actions;

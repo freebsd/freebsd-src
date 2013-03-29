@@ -52,7 +52,8 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 int ftsoptions = FTS_PHYSICAL;
-int cflag, dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, Uflag, wflag;
+int dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, wflag;
+static int cflag, Uflag;
 u_int keys;
 char fullpath[MAXPATHLEN];
 

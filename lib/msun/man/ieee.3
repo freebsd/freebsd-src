@@ -156,59 +156,60 @@ Wordsize: 32 bits.
 .Pp
 Precision: 24 significant bits,
 roughly like 7 significant decimals.
-.Bd -ragged -offset indent -compact
+.Pp
 If x and x' are consecutive positive single-precision
 numbers (they differ by 1
 .Em ulp ) ,
 then
-.Bd -ragged -compact
+.Bl -column "XXX" -compact
 5.9e\-08 < 0.5**24 < (x'\-x)/x \(<= 0.5**23 < 1.2e\-07.
-.Ed
-.Ed
+.El
 .Pp
 .Bl -column "XXX" -compact
 Range:	Overflow threshold  = 2.0**128 = 3.4e38
 	Underflow threshold = 0.5**126 = 1.2e\-38
 .El
-.Bd -ragged -offset indent -compact
+.Pp
 Underflowed results round to the nearest
-integer multiple of 0.5**149 = 1.4e\-45.
-.Ed
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**149 = 1.4e\-45.
+.El
 .Ed
 .Pp
 Double-precision:
 .Bd -ragged -offset indent -compact
 Type name:
 .Vt double
-.Bd -ragged -offset indent -compact
-On some architectures,
+.Po On some architectures,
 .Vt long double
 is the same as
-.Vt double .
-.Ed
+.Vt double
+.Pc
 .Pp
 Wordsize: 64 bits.
 .Pp
 Precision: 53 significant bits,
 roughly like 16 significant decimals.
-.Bd -ragged -offset indent -compact
+.Pp
 If x and x' are consecutive positive double-precision
 numbers (they differ by 1
 .Em ulp ) ,
 then
-.Bd -ragged -compact
+.Bl -column "XXX" -compact
 1.1e\-16 < 0.5**53 < (x'\-x)/x \(<= 0.5**52 < 2.3e\-16.
-.Ed
-.Ed
+.El
 .Pp
 .Bl -column "XXX" -compact
 Range:	Overflow threshold  = 2.0**1024 = 1.8e308
 	Underflow threshold = 0.5**1022 = 2.2e\-308
 .El
-.Bd -ragged -offset indent -compact
+.Pp
 Underflowed results round to the nearest
-integer multiple of 0.5**1074 = 4.9e\-324.
-.Ed
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**1074 = 4.9e\-324.
+.El
 .Ed
 .Pp
 Extended-precision:
@@ -221,24 +222,25 @@ Wordsize: 96 bits.
 .Pp
 Precision: 64 significant bits,
 roughly like 19 significant decimals.
-.Bd -ragged -offset indent -compact
+.Pp
 If x and x' are consecutive positive extended-precision
 numbers (they differ by 1
 .Em ulp ) ,
 then
-.Bd -ragged -compact
+.Bl -column "XXX" -compact
 1.0e\-19 < 0.5**63 < (x'\-x)/x \(<= 0.5**62 < 2.2e\-19.
-.Ed
-.Ed
+.El
 .Pp
 .Bl -column "XXX" -compact
 Range:	Overflow threshold  = 2.0**16384 = 1.2e4932
 	Underflow threshold = 0.5**16382 = 3.4e\-4932
 .El
-.Bd -ragged -offset indent -compact
+.Pp
 Underflowed results round to the nearest
-integer multiple of 0.5**16445 = 5.7e\-4953.
-.Ed
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**16445 = 5.7e\-4953.
+.El
 .Ed
 .Pp
 Quad-extended-precision:
@@ -251,24 +253,25 @@ Wordsize: 128 bits.
 .Pp
 Precision: 113 significant bits,
 roughly like 34 significant decimals.
-.Bd -ragged -offset indent -compact
+.Pp
 If x and x' are consecutive positive quad-extended-precision
 numbers (they differ by 1
 .Em ulp ) ,
 then
-.Bd -ragged -compact
+.Bl -column "XXX" -compact
 9.6e\-35 < 0.5**113 < (x'\-x)/x \(<= 0.5**112 < 2.0e\-34.
-.Ed
-.Ed
+.El
 .Pp
 .Bl -column "XXX" -compact
 Range:	Overflow threshold  = 2.0**16384 = 1.2e4932
 	Underflow threshold = 0.5**16382 = 3.4e\-4932
 .El
-.Bd -ragged -offset indent -compact
+.Pp
 Underflowed results round to the nearest
-integer multiple of 0.5**16494 = 6.5e\-4966.
-.Ed
+integer multiple of
+.Bl -column "XXX" -compact
+0.5**16494 = 6.5e\-4966.
+.El
 .Ed
 .Ss Additional Information Regarding Exceptions
 For each kind of floating-point exception, IEEE 754

@@ -486,8 +486,7 @@ init_pltgot(Obj_Entry *obj)
 void
 allocate_initial_tls(Obj_Entry *list)
 {
-	register Elf_Addr **tp __asm__("r13");
-	Elf_Addr **_tp;
+	Elf_Addr **tp;
 
 	/*
 	* Fix the size of the static TLS block by using the maximum
@@ -497,22 +496,19 @@ allocate_initial_tls(Obj_Entry *list)
 
 	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-	_tp = (Elf_Addr **) ((char *)allocate_tls(list, NULL, TLS_TCB_SIZE, 16) 
+	tp = (Elf_Addr **) ((char *)allocate_tls(list, NULL, TLS_TCB_SIZE, 16) 
 	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
 
-	/*
-	 * XXX gcc seems to ignore 'tp = _tp;' 
-	 */
-	 
-	__asm __volatile("mr %0,%1" : "=r"(tp) : "r"(_tp));
+	__asm __volatile("mr 13,%0" :: "r"(tp));
 }
 
 void*
 __tls_get_addr(tls_index* ti)
 {
-	register Elf_Addr **tp __asm__("r13");
+	Elf_Addr **tp;
 	char *p;
 
+	__asm __volatile("mr %0,13" : "=r"(tp));
 	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)tp - TLS_TP_OFFSET 
 	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset);
 

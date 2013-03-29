@@ -278,6 +278,5 @@ ia32_trap(int vector, struct trapframe *tf)
 
 out:
 	userret(td, tf);
-	mtx_assert(&Giant, MA_NOTOWNED);
 	do_ast(tf);
 }

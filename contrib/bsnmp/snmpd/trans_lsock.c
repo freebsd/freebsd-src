@@ -343,12 +343,21 @@ lsock_init_port(struct tport *tp)
 		}
 	} else {
 		struct lsock_peer *peer;
+		const int on = 1;
 
 		peer = LIST_FIRST(&p->peers);
 
 		if ((peer->input.fd = socket(PF_LOCAL, SOCK_DGRAM, 0)) < 0) {
 			syslog(LOG_ERR, "creating local socket: %m");
 			return (SNMP_ERR_RES_UNAVAIL);
+		}
+
+		if (setsockopt(peer->input.fd, 0, LOCAL_CREDS, &on,
+		    sizeof(on)) == -1) {
+			syslog(LOG_ERR, "setsockopt(LOCAL_CREDS): %m");
+			close(peer->input.fd);
+			peer->input.fd = -1;
+			return (SNMP_ERR_GENERR);
 		}
 
 		strcpy(sa.sun_path, p->name);

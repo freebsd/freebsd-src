@@ -1,23 +1,11 @@
 $FreeBSD$
 
-sendmail 8.14.5
+sendmail 8.14.6
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
 For the import of sendmail, the following directories were renamed:
 
 	sendmail -> src
-
-For the merge of sendmail, the following files were removed:
-
-	Build
-	cf/cf/Build
-	cf/cf/generic-*.cf
-	devtools/*
-	doc/op/op.ps
-	*/Build
-	[e-v]*/*.0
-	sendmail/makesendmail
-	sendmail/sysexits.h
 
 Imported using the instructions at:
 
@@ -39,9 +27,8 @@ Then merged using:
 % svn commit
 
 After importing, bump the version of src/etc/sendmail/freebsd*mc
-so mergemaster will merge /etc/mail/freebsd*cf:
-
-	(svn command TBD) cvs commit -f src/etc/sendmail/freebsd*mc
+so mergemaster will merge /etc/mail/freebsd*cf by making a minor
+change and committing.
 
 To make local changes to sendmail, simply patch and commit to the head.
 Never make local changes in the vendor area (/vendor/sendmail/).
@@ -57,7 +44,7 @@ infrastructure in FreeBSD:
 	bin/rmail/Makefile
 	contrib/sendmail/
 	etc/Makefile
-	etc/defaults/make.conf (RELENG_4)
+	etc/defaults/make.conf (obsolete)
 	etc/defaults/periodic.conf
 	etc/defaults/rc.conf
 	etc/mail/Makefile
@@ -90,7 +77,7 @@ infrastructure in FreeBSD:
 	share/Makefile
 	share/doc/smm/Makefile
 	share/doc/smm/08.sendmailop/Makefile
-	share/examples/etc/make.conf (HEAD)
+	share/examples/etc/make.conf
 	share/man/man5/make.conf.5
 	share/man/man5/periodic.conf.5
 	share/man/man5/rc.conf.5
@@ -110,4 +97,4 @@ infrastructure in FreeBSD:
 	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
-13-June-2011
+29-December-2012
