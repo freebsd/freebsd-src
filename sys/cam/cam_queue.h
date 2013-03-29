@@ -58,7 +58,8 @@ SLIST_HEAD(ccb_hdr_slist, ccb_hdr);
 struct cam_ccbq {
 	struct	camq queue;
 	int	devq_openings;
-	int	dev_openings;	
+	int	devq_allocating;
+	int	dev_openings;
 	int	dev_active;
 	int	held;
 };
@@ -66,11 +67,7 @@ struct cam_ccbq {
 struct cam_ed;
 
 struct cam_devq {
-	struct	camq alloc_queue;
 	struct	camq send_queue;
-	struct	cam_ed *active_dev;
-	int	alloc_openings;
-	int	alloc_active;
 	int	send_openings;
 	int	send_active;
 };
