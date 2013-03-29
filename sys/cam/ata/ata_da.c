@@ -953,8 +953,6 @@ adaasync(void *callback_arg, u_int32_t code,
 		else
 		    break;
 		cam_periph_acquire(periph);
-		cam_freeze_devq_arg(periph->path,
-		    RELSIM_RELEASE_RUNLEVEL, CAM_RL_DEV + 1);
 		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	}
 	default:
@@ -1261,15 +1259,11 @@ adaregister(struct cam_periph *periph, void *arg)
 	    cgd->ident_data.support.command1 & ATA_SUPPORT_LOOKAHEAD) {
 		softc->state = ADA_STATE_RAHEAD;
 		cam_periph_acquire(periph);
-		cam_freeze_devq_arg(periph->path,
-		    RELSIM_RELEASE_RUNLEVEL, CAM_RL_DEV + 1);
 		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	} else if (ADA_WC >= 0 &&
 	    cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) {
 		softc->state = ADA_STATE_WCACHE;
 		cam_periph_acquire(periph);
-		cam_freeze_devq_arg(periph->path,
-		    RELSIM_RELEASE_RUNLEVEL, CAM_RL_DEV + 1);
 		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	} else
 		softc->state = ADA_STATE_NORMAL;
@@ -1551,8 +1545,6 @@ out:
 		if (softc->flags & ADA_FLAG_PACK_INVALID) {
 			softc->state = ADA_STATE_NORMAL;
 			xpt_release_ccb(start_ccb);
-			cam_release_devq(periph->path,
-			    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_DEV + 1, FALSE);
 			adaschedule(periph);
 			cam_periph_release_locked(periph);
 			return;
@@ -1576,6 +1568,7 @@ out:
 			    ATA_SF_ENAB_WCACHE : ATA_SF_DIS_WCACHE, 0, 0);
 			start_ccb->ccb_h.ccb_state = ADA_CCB_WCACHE;
 		}
+		start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 		xpt_action(start_ccb);
 		break;
 	}
@@ -1675,6 +1668,9 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if (adaerror(done_ccb, 0, 0) == ERESTART) {
+out:
+				/* Drop freeze taken due to CAM_DEV_QFREEZE */
+				cam_release_devq(path, 0, 0, 0, FALSE);
 				return;
 			} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 				cam_release_devq(done_ccb->ccb_h.path,
@@ -1702,12 +1698,12 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 			softc->state = ADA_STATE_WCACHE;
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, CAM_PRIORITY_DEV);
-			return;
+			goto out;
 		}
 		softc->state = ADA_STATE_NORMAL;
 		xpt_release_ccb(done_ccb);
-		cam_release_devq(periph->path,
-		    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_DEV + 1, FALSE);
+		/* Drop freeze taken due to CAM_DEV_QFREEZE */
+		cam_release_devq(path, 0, 0, 0, FALSE);
 		adaschedule(periph);
 		cam_periph_release_locked(periph);
 		return;
@@ -1716,7 +1712,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if (adaerror(done_ccb, 0, 0) == ERESTART) {
-				return;
+				goto out;
 			} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 				cam_release_devq(done_ccb->ccb_h.path,
 				    /*relsim_flags*/0,
@@ -1736,8 +1732,8 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		 * operation.
 		 */
 		xpt_release_ccb(done_ccb);
-		cam_release_devq(periph->path,
-		    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_DEV + 1, FALSE);
+		/* Drop freeze taken due to CAM_DEV_QFREEZE */
+		cam_release_devq(path, 0, 0, 0, FALSE);
 		adaschedule(periph);
 		cam_periph_release_locked(periph);
 		return;
