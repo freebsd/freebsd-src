@@ -528,6 +528,9 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
 
 	SBLASTMBUFCHK(sb);
 
+	/* Remove all packet headers and mbuf tags to get a pure data chain. */
+	m_demote(m, 1);
+	
 	sbcompress(sb, m, sb->sb_mbtail);
 
 	sb->sb_lastrecord = sb->sb_mb;
