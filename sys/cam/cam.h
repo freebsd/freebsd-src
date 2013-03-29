@@ -80,6 +80,7 @@ typedef struct {
 #define CAM_PRIORITY_BUS	((CAM_RL_BUS << 8) + 0x80)
 #define CAM_PRIORITY_XPT	((CAM_RL_XPT << 8) + 0x80)
 #define CAM_PRIORITY_DEV	((CAM_RL_DEV << 8) + 0x80)
+#define CAM_PRIORITY_OOB	(CAM_RL_DEV << 8)
 #define CAM_PRIORITY_NORMAL	((CAM_RL_NORMAL << 8) + 0x80)
 #define CAM_PRIORITY_NONE	(u_int32_t)-1
 #define CAM_PRIORITY_TO_RL(x)	((x) >> 8)
