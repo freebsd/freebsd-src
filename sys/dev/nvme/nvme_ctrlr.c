@@ -701,7 +701,7 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 	struct nvme_request *req;
 
 	aer->ctrlr = ctrlr;
-	req = nvme_allocate_request(NULL, 0, nvme_ctrlr_async_event_cb, aer);
+	req = nvme_allocate_request_null(nvme_ctrlr_async_event_cb, aer);
 	aer->req = req;
 
 	/*
