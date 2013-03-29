@@ -45,7 +45,7 @@ options 	NO_SYSCTL_DESCR
 options		NBUF=128
 
 # Limit UMTX hash size
-options		UMTX_NUM_CHAINS=64
+# options		UMTX_NUM_CHAINS=64
 
 # PMC
 #options		HWPMC_HOOKS
