@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (C) 2012 Ian Lepore. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,13 +36,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
+#include <sys/poll.h>
 #include <sys/rman.h>
+#include <sys/selinfo.h>
+#include <sys/sx.h>
+#include <sys/uio.h>
+#include <machine/at91_gpio.h>
 #include <machine/bus.h>
 
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91_pioreg.h>
 #include <arm/at91/at91_piovar.h>
+
+#define	MAX_CHANGE	64
 
 struct at91_pio_softc
 {
@@ -49,8 +56,11 @@ struct at91_pio_softc
 	void *intrhand;			/* Interrupt handle */
 	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
-	struct mtx sc_mtx;		/* basically a perimeter lock */
+	struct sx sc_mtx;		/* basically a perimeter lock */
 	struct cdev *cdev;
+	struct selinfo selp;
+	int buflen;
+	uint8_t buf[MAX_CHANGE];
 	int flags;
 #define	OPENED 1
 };
@@ -69,14 +79,13 @@ WR4(struct at91_pio_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
-#define	AT91_PIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
-#define	AT91_PIO_UNLOCK(_sc)		mtx_unlock_spin(&(_sc)->sc_mtx)
+#define	AT91_PIO_LOCK(_sc)		sx_xlock(&(_sc)->sc_mtx)
+#define	AT91_PIO_UNLOCK(_sc)		sx_xunlock(&(_sc)->sc_mtx)
 #define	AT91_PIO_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
-	    "pio", MTX_SPIN)
-#define	AT91_PIO_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define	AT91_PIO_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define	AT91_PIO_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+	sx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev))
+#define	AT91_PIO_LOCK_DESTROY(_sc)	sx_destroy(&_sc->sc_mtx);
+#define	AT91_PIO_ASSERT_LOCKED(_sc)	sx_assert(&_sc->sc_mtx, SA_XLOCKED);
+#define	AT91_PIO_ASSERT_UNLOCKED(_sc)	sx_assert(&_sc->sc_mtx, SA_UNLOCKED);
 #define	CDEV2SOFTC(dev)			((dev)->si_drv1)
 
 static devclass_t at91_pio_devclass;
@@ -86,7 +95,7 @@ static devclass_t at91_pio_devclass;
 static int at91_pio_probe(device_t dev);
 static int at91_pio_attach(device_t dev);
 static int at91_pio_detach(device_t dev);
-static int at91_pio_intr(void *);
+static void at91_pio_intr(void *);
 
 /* helper routines */
 static int at91_pio_activate(device_t dev);
@@ -95,6 +104,8 @@ static void at91_pio_deactivate(device_t dev);
 /* cdev routines */
 static d_open_t at91_pio_open;
 static d_close_t at91_pio_close;
+static d_read_t at91_pio_read;
+static d_poll_t at91_pio_poll;
 static d_ioctl_t at91_pio_ioctl;
 
 static struct cdevsw at91_pio_cdevsw =
@@ -102,6 +113,8 @@ static struct cdevsw at91_pio_cdevsw =
 	.d_version = D_VERSION,
 	.d_open = at91_pio_open,
 	.d_close = at91_pio_close,
+	.d_read = at91_pio_read,
+	.d_poll = at91_pio_poll,
 	.d_ioctl = at91_pio_ioctl
 };
 
@@ -154,7 +167,7 @@ at91_pio_attach(device_t dev)
 	 */
 	WR4(sc, PIO_IDR, 0xffffffff);
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
-	    at91_pio_intr, NULL, sc, &sc->intrhand);
+	    NULL, at91_pio_intr, sc, &sc->intrhand);
 	if (err) {
 		AT91_PIO_LOCK_DESTROY(sc);
 		goto out;
@@ -213,7 +226,7 @@ at91_pio_deactivate(device_t dev)
 	sc->intrhand = 0;
 	bus_generic_detach(sc->dev);
 	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_IOPORT,
+		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	sc->mem_res = 0;
 	if (sc->irq_res)
@@ -222,22 +235,26 @@ at91_pio_deactivate(device_t dev)
 	sc->irq_res = 0;
 }
 
-static int
+static void
 at91_pio_intr(void *xsc)
 {
 	struct at91_pio_softc *sc = xsc;
-#if 0
 	uint32_t status;
+	int i;
 
 	/* Reading the status also clears the interrupt. */
-	status = RD4(sc, PIO_SR);
-	if (status == 0)
-		return;
-	AT91_PIO_LOCK(sc);
-	AT91_PIO_UNLOCK(sc);
-#endif
-	wakeup(sc);
-	return (FILTER_HANDLED);
+	status = RD4(sc, PIO_ISR) & RD4(sc, PIO_IMR);
+	if (status != 0) {
+		AT91_PIO_LOCK(sc);
+		for (i = 0; status != 0 && sc->buflen < MAX_CHANGE; ++i) {
+			if (status & 1)
+				sc->buf[sc->buflen++] = (uint8_t)i;
+			status >>= 1;
+		}
+		AT91_PIO_UNLOCK(sc);
+		wakeup(sc);
+		selwakeup(&sc->selp);
+	}
 }
 
 static int
@@ -249,9 +266,6 @@ at91_pio_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	AT91_PIO_LOCK(sc);
 	if (!(sc->flags & OPENED)) {
 		sc->flags |= OPENED;
-#if 0
-	/* Enable interrupts. */
-#endif
 	}
 	AT91_PIO_UNLOCK(sc);
 	return (0);
@@ -265,19 +279,192 @@ at91_pio_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	sc = CDEV2SOFTC(dev);
 	AT91_PIO_LOCK(sc);
 	sc->flags &= ~OPENED;
-#if 0
-	/* Disable interrupts. */
-#endif
 	AT91_PIO_UNLOCK(sc);
 	return (0);
+}
+
+static int
+at91_pio_poll(struct cdev *dev, int events, struct thread *td)
+{
+	struct at91_pio_softc *sc;
+	int revents = 0;
+
+	sc = CDEV2SOFTC(dev);
+	AT91_PIO_LOCK(sc);
+	if (events & (POLLIN | POLLRDNORM)) {
+		if (sc->buflen != 0)
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(td, &sc->selp);
+	}
+	AT91_PIO_UNLOCK(sc);
+
+	return (revents);
+}
+
+static int
+at91_pio_read(struct cdev *dev, struct uio *uio, int flag)
+{
+	struct at91_pio_softc *sc;
+	int err, ret, len;
+
+	sc = CDEV2SOFTC(dev);
+	AT91_PIO_LOCK(sc);
+	err = 0;
+	ret = 0;
+	while (uio->uio_resid) {
+		while (sc->buflen == 0 && err == 0)
+			err = msleep(sc, &sc->sc_mtx, PCATCH | PZERO, "prd", 0);
+		if (err != 0)
+			break;
+		len = MIN(sc->buflen, uio->uio_resid);
+		err = uiomove(sc->buf, len, uio);
+		if (err != 0)
+			break;
+		/*
+		 * If we read the whole thing no datacopy is needed,
+		 * otherwise we move the data down.
+		 */
+		ret += len;
+		if (sc->buflen == len)
+			sc->buflen = 0;
+		else {
+			bcopy(sc->buf + len, sc->buf, sc->buflen - len);
+			sc->buflen -= len;
+		}
+		/* If there's no data left, end the read. */
+		if (sc->buflen == 0)
+			break;
+	}
+	AT91_PIO_UNLOCK(sc);
+	return (err);
+}
+
+static void
+at91_pio_bang32(struct at91_pio_softc *sc, uint32_t bits, uint32_t datapin,
+    uint32_t clockpin)
+{
+	int i;
+
+	for (i = 0; i < 32; i++) {
+		if (bits & 0x80000000)
+			WR4(sc, PIO_SODR, datapin);
+		else
+			WR4(sc, PIO_CODR, datapin);
+		bits <<= 1;
+		WR4(sc, PIO_CODR, clockpin);
+		WR4(sc, PIO_SODR, clockpin);
+	}
+}
+
+static void
+at91_pio_bang(struct at91_pio_softc *sc, uint8_t bits, uint32_t bitcount, 
+              uint32_t datapin, uint32_t clockpin)
+{
+	int i;
+
+	for (i = 0; i < bitcount; i++) {
+		if (bits & 0x80)
+			WR4(sc, PIO_SODR, datapin);
+		else
+			WR4(sc, PIO_CODR, datapin);
+		bits <<= 1;
+		WR4(sc, PIO_CODR, clockpin);
+		WR4(sc, PIO_SODR, clockpin);
+	}
 }
 
 static int
 at91_pio_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
+	struct at91_pio_softc *sc;
+	struct at91_gpio_cfg *cfg;
+	struct at91_gpio_info *info;
+	struct at91_gpio_bang *bang;
+	struct at91_gpio_bang_many *bangmany;
+	uint32_t i, num;
+	uint8_t many[1024], *walker;
+	int err;
+        int bitcount;
 
-	return (ENXIO);
+	sc = CDEV2SOFTC(dev);
+	switch(cmd) {
+	case AT91_GPIO_SET:	/* turn bits on */
+		WR4(sc, PIO_SODR, *(uint32_t *)data);
+		return (0);
+	case AT91_GPIO_CLR:	/* turn bits off */
+		WR4(sc, PIO_CODR, *(uint32_t *)data);
+		return (0);
+	case AT91_GPIO_READ:	/* Get the status of input bits */
+		*(uint32_t *)data = RD4(sc, PIO_PDSR);
+		return (0);
+	case AT91_GPIO_CFG:	/* Configure AT91_GPIO pins */
+		cfg = (struct at91_gpio_cfg *)data;
+		if (cfg->cfgmask & AT91_GPIO_CFG_INPUT) {
+			WR4(sc, PIO_OER, cfg->iomask & ~cfg->input);
+			WR4(sc, PIO_ODR, cfg->iomask & cfg->input);
+		}
+		if (cfg->cfgmask & AT91_GPIO_CFG_HI_Z) {
+			WR4(sc, PIO_MDDR, cfg->iomask & ~cfg->hi_z);
+			WR4(sc, PIO_MDER, cfg->iomask & cfg->hi_z);
+		}
+		if (cfg->cfgmask & AT91_GPIO_CFG_PULLUP) {
+			WR4(sc, PIO_PUDR, cfg->iomask & ~cfg->pullup);
+			WR4(sc, PIO_PUER, cfg->iomask & cfg->pullup);
+		}
+		if (cfg->cfgmask & AT91_GPIO_CFG_GLITCH) {
+			WR4(sc, PIO_IFDR, cfg->iomask & ~cfg->glitch);
+			WR4(sc, PIO_IFER, cfg->iomask & cfg->glitch);
+		}
+		if (cfg->cfgmask & AT91_GPIO_CFG_GPIO) {
+			WR4(sc, PIO_PDR, cfg->iomask & ~cfg->gpio);
+			WR4(sc, PIO_PER, cfg->iomask & cfg->gpio);
+		}
+		if (cfg->cfgmask & AT91_GPIO_CFG_PERIPH) {
+			WR4(sc, PIO_ASR, cfg->iomask & ~cfg->periph);
+			WR4(sc, PIO_BSR, cfg->iomask & cfg->periph);
+		}
+		if (cfg->cfgmask & AT91_GPIO_CFG_INTR) {
+			WR4(sc, PIO_IDR, cfg->iomask & ~cfg->intr);
+			WR4(sc, PIO_IER, cfg->iomask & cfg->intr);
+		}
+		return (0);
+	case AT91_GPIO_BANG:
+		bang = (struct at91_gpio_bang *)data;
+		at91_pio_bang32(sc, bang->bits, bang->datapin, bang->clockpin);
+		return (0);
+	case AT91_GPIO_BANG_MANY:
+		bangmany = (struct at91_gpio_bang_many *)data;
+		walker = (uint8_t *)bangmany->bits;
+		bitcount = bangmany->numbits;
+		while (bitcount > 0) {
+			num = MIN((bitcount + 7) / 8, sizeof(many));
+			err = copyin(walker, many, num);
+			if (err)
+				return err;
+			for (i = 0; i < num && bitcount > 0; i++, bitcount -= 8) 
+				if (bitcount >= 8)
+					at91_pio_bang(sc, many[i], 8, bangmany->datapin, bangmany->clockpin);
+				else
+					at91_pio_bang(sc, many[i], bitcount, bangmany->datapin, bangmany->clockpin);
+			walker += num;
+		}
+		return (0);
+	case AT91_GPIO_INFO:	/* Learn about this device's AT91_GPIO bits */
+		info = (struct at91_gpio_info *)data;
+		info->output_status = RD4(sc, PIO_ODSR);
+		info->input_status = RD4(sc, PIO_OSR);
+		info->highz_status = RD4(sc, PIO_MDSR);
+		info->pullup_status = RD4(sc, PIO_PUSR);
+		info->glitch_status = RD4(sc, PIO_IFSR);
+		info->enabled_status = RD4(sc, PIO_PSR);
+		info->periph_status = RD4(sc, PIO_ABSR);
+		info->intr_status = RD4(sc, PIO_IMR);
+		memset(info->extra_status, 0, sizeof(info->extra_status));
+		return (0);
+	}
+	return (ENOTTY);
 }
 
 /*
@@ -338,6 +525,17 @@ at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask, int use_pullup)
 		PIO[PIO_PUER / 4] = output_enable_mask;
 	else
 		PIO[PIO_PUDR / 4] = output_enable_mask;
+}
+
+void
+at91_pio_gpio_high_z(uint32_t pio, uint32_t high_z_mask, int enable)
+{
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
+
+	if (enable)
+		PIO[PIO_MDER / 4] = high_z_mask;
+	else
+		PIO[PIO_MDDR / 4] = high_z_mask;
 }
 
 void
