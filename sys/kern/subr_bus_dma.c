@@ -409,6 +409,45 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 }
 
 int
+bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
+		    bus_dmamap_callback_t *callback, void *callback_arg,
+		    int flags)
+{
+	bus_dma_segment_t *segs;
+	struct memdesc mem;
+	int error;
+	int nsegs;
+
+	if ((flags & BUS_DMA_NOWAIT) == 0) {
+		mem = memdesc_bio(bio);
+		_bus_dmamap_waitok(dmat, map, &mem, callback, callback_arg);
+	}
+	nsegs = -1;
+	error = _bus_dmamap_load_bio(dmat, map, bio, &nsegs, flags);
+	nsegs++;
+
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, flags, error, nsegs);
+
+	if (error == EINPROGRESS)
+		return (error);
+
+	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
+	if (error)
+		(*callback)(callback_arg, segs, 0, error);
+	else
+		(*callback)(callback_arg, segs, nsegs, error);
+	/*
+	 * Return ENOMEM to the caller so that it can pass it up the stack.
+	 * This error only happens when NOWAIT is set, so deferral is disabled.
+	 */
+	if (error == ENOMEM)
+		return (error);
+
+	return (0);
+}
+
+int
 bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
     struct memdesc *mem, bus_dmamap_callback_t *callback,
     void *callback_arg, int flags)
