@@ -36,6 +36,8 @@
 
 #ifdef _KERNEL
 
+#include <cam/cam_xpt.h>
+
 struct devstat;
 
 extern struct cam_periph *xpt_periph;
@@ -183,8 +185,6 @@ void		cam_periph_freeze_after_event(struct cam_periph *periph,
 					      u_int duration_ms);
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 u_int32_t sense_flags, union ccb *save_ccb);
-void		xpt_lock_buses(void);
-void		xpt_unlock_buses(void);
 
 static __inline void
 cam_periph_lock(struct cam_periph *periph)
