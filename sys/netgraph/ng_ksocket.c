@@ -1047,9 +1047,8 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	struct uio auio;
 	int flags, error;
 
-	/* so = priv->so; *//* XXX could have derived this like so */
 	KASSERT(so == priv->so, ("%s: wrong socket", __func__));
-	
+
 	/* Allow next incoming event to be queued. */
 	atomic_store_rel_int(&priv->fn_sent, 0);
 
@@ -1105,7 +1104,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 
 		/* Try to get next packet from socket */
 		if ((error = soreceive(so, (so->so_state & SS_ISCONNECTED) ?
-		    NULL : &sa, &auio, &m, (struct mbuf **)0, &flags)) != 0)
+		    NULL : &sa, &auio, &m, NULL, &flags)) != 0)
 			break;
 
 		/* See if we got anything */
@@ -1153,12 +1152,13 @@ sendit:		/* Forward data with optional peer sockaddr as packet tag */
 	 * If the peer has closed the connection, forward a 0-length mbuf
 	 * to indicate end-of-file.
 	 */
-	if (so->so_rcv.sb_state & SBS_CANTRCVMORE && !(priv->flags & KSF_EOFSEEN)) {
-		MGETHDR(m, M_NOWAIT, MT_DATA);
-		if (m != NULL) {
-			m->m_len = m->m_pkthdr.len = 0;
+	if (so->so_rcv.sb_state & SBS_CANTRCVMORE &&
+	    !(priv->flags & KSF_EOFSEEN)) {
+		struct mbuf *m;
+
+		m = m_gethdr(M_NOWAIT, MT_DATA);
+		if (m != NULL)
 			NG_SEND_DATA_ONLY(error, priv->hook, m);
-		}
 		priv->flags |= KSF_EOFSEEN;
 	}
 }
