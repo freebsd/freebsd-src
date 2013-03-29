@@ -1581,11 +1581,13 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ada_softc *softc;
 	struct ccb_ataio *ataio;
 	struct ccb_getdev *cgd;
+	struct cam_path *path;
 
 	softc = (struct ada_softc *)periph->softc;
 	ataio = &done_ccb->ataio;
+	path = done_ccb->ccb_h.path;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("adadone\n"));
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("adadone\n"));
 
 	switch (ataio->ccb_h.ccb_state & ADA_CCB_TYPE_MASK) {
 	case ADA_CCB_BUFFER_IO:
@@ -1613,8 +1615,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 					 * XXX See if this is really a media
 					 * XXX change first?
 					 */
-					xpt_print(periph->path,
-					    "Invalidating pack\n");
+					xpt_print(path, "Invalidating pack\n");
 					softc->flags |= ADA_FLAG_PACK_INVALID;
 				}
 				bp->bio_error = error;
@@ -1627,7 +1628,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp->bio_flags |= BIO_ERROR;
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-				cam_release_devq(done_ccb->ccb_h.path,
+				cam_release_devq(path,
 						 /*relsim_flags*/0,
 						 /*reduction*/0,
 						 /*timeout*/0,
@@ -1673,7 +1674,7 @@ out:
 				cam_release_devq(path, 0, 0, 0, FALSE);
 				return;
 			} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
+				cam_release_devq(path,
 				    /*relsim_flags*/0,
 				    /*reduction*/0,
 				    /*timeout*/0,
@@ -1690,7 +1691,7 @@ out:
 		 * operation.
 		 */
 		cgd = (struct ccb_getdev *)done_ccb;
-		xpt_setup_ccb(&cgd->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		xpt_setup_ccb(&cgd->ccb_h, path, CAM_PRIORITY_NORMAL);
 		cgd->ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)cgd);
 		if (ADA_WC >= 0 &&
@@ -1714,7 +1715,7 @@ out:
 			if (adaerror(done_ccb, 0, 0) == ERESTART) {
 				goto out;
 			} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
+				cam_release_devq(path,
 				    /*relsim_flags*/0,
 				    /*reduction*/0,
 				    /*timeout*/0,
