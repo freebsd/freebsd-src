@@ -1860,6 +1860,7 @@ dontblock:
 				nextrecord = m->m_nextpkt;
 				sbfree(&so->so_rcv, m);
 				if (mp != NULL) {
+					m->m_nextpkt = NULL;
 					*mp = m;
 					mp = &m->m_next;
 					so->so_rcv.sb_mb = m = m->m_next;
