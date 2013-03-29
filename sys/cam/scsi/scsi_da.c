@@ -2848,7 +2848,7 @@ dashutdown(void * arg, int howto)
 	struct da_softc *softc;
 	int error;
 
-	TAILQ_FOREACH(periph, &dadriver.units, unit_links) {
+	CAM_PERIPH_FOREACH(periph, &dadriver) {
 		union ccb ccb;
 
 		cam_periph_lock(periph);
