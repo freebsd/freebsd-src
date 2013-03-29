@@ -768,15 +768,6 @@ tcp_input(struct mbuf *m, int off0)
 	} else
 		ti_locked = TI_UNLOCKED;
 
-findpcb:
-#ifdef INVARIANTS
-	if (ti_locked == TI_WLOCKED) {
-		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-	} else {
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-	}
-#endif
-
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
@@ -793,6 +784,14 @@ findpcb:
 	    )
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
+findpcb:
+#ifdef INVARIANTS
+	if (ti_locked == TI_WLOCKED) {
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	} else {
+		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+	}
+#endif
 #ifdef INET6
 	if (isipv6 && fwd_tag != NULL) {
 		struct sockaddr_in6 *next_hop6;
@@ -817,10 +816,6 @@ findpcb:
 			    th->th_dport, INPLOOKUP_WILDCARD |
 			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
 		}
-		/* Remove the tag from the packet.  We don't need it anymore. */
-		m_tag_delete(m, fwd_tag);
-		m->m_flags &= ~M_IP6_NEXTHOP;
-		fwd_tag = NULL;
 	} else if (isipv6) {
 		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
 		    th->th_sport, &ip6->ip6_dst, th->th_dport,
@@ -855,10 +850,6 @@ findpcb:
 			    th->th_dport, INPLOOKUP_WILDCARD |
 			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
 		}
-		/* Remove the tag from the packet.  We don't need it anymore. */
-		m_tag_delete(m, fwd_tag);
-		m->m_flags &= ~M_IP_NEXTHOP;
-		fwd_tag = NULL;
 	} else
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
 		    th->th_sport, ip->ip_dst, th->th_dport,
