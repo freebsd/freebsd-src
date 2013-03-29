@@ -1083,6 +1083,45 @@ vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio)
 	return (error);
 }
 
+int
+vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
+    struct uio *uio)
+{
+	struct thread *td;
+	vm_offset_t iov_base;
+	int cnt, pgadv;
+
+	td = curthread;
+	if ((td->td_pflags & TDP_UIOHELD) == 0 ||
+	    uio->uio_segflg != UIO_USERSPACE)
+		return (uiomove_fromphys(ma, offset, xfersize, uio));
+
+	KASSERT(uio->uio_iovcnt == 1, ("uio_iovcnt %d", uio->uio_iovcnt));
+	cnt = xfersize > uio->uio_resid ? uio->uio_resid : xfersize;
+	iov_base = (vm_offset_t)uio->uio_iov->iov_base;
+	switch (uio->uio_rw) {
+	case UIO_WRITE:
+		pmap_copy_pages(td->td_ma, iov_base & PAGE_MASK, ma,
+		    offset, cnt);
+		break;
+	case UIO_READ:
+		pmap_copy_pages(ma, offset, td->td_ma, iov_base & PAGE_MASK,
+		    cnt);
+		break;
+	}
+	pgadv = ((iov_base + cnt) >> PAGE_SHIFT) - (iov_base >> PAGE_SHIFT);
+	td->td_ma += pgadv;
+	KASSERT(td->td_ma_cnt >= pgadv, ("consumed pages %d %d", td->td_ma_cnt,
+	    pgadv));
+	td->td_ma_cnt -= pgadv;
+	uio->uio_iov->iov_base = (char *)(iov_base + cnt);
+	uio->uio_iov->iov_len -= cnt;
+	uio->uio_resid -= cnt;
+	uio->uio_offset += cnt;
+	return (0);
+}
+
+
 /*
  * File table truncate routine.
  */

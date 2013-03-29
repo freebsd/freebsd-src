@@ -690,6 +690,8 @@ int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
 
 int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
+int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
+	    struct uio *uio);
 
 #define	vn_rangelock_unlock(vp, cookie)					\
 	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
