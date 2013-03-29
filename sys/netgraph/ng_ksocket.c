@@ -647,7 +647,7 @@ ng_ksocket_connect(hook_p hook)
 	 * This is a bad byproduct of the complicated way in which hooks
 	 * are now created (3 daisy chained async events).
 	 *
-	 * Since we are a netgraph operation 
+	 * Since we are a netgraph operation
 	 * We know that we hold a lock on this node. This forces the
 	 * request we make below to be queued rather than implemented
 	 * immediatly which will cause the upcall function to be called a bit
@@ -787,7 +787,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Get function */
 			if (msg->header.cmd == NGM_KSOCKET_GETPEERNAME) {
 				if ((so->so_state
-				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) 
+				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
 					ERROUT(ENOTCONN);
 				func = so->so_proto->pr_usrreqs->pru_peeraddr;
 			} else
@@ -815,7 +815,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		case NGM_KSOCKET_GETOPT:
 		    {
-			struct ng_ksocket_sockopt *ksopt = 
+			struct ng_ksocket_sockopt *ksopt =
 			    (struct ng_ksocket_sockopt *)msg->data;
 			struct sockopt sopt;
 
@@ -852,7 +852,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		case NGM_KSOCKET_SETOPT:
 		    {
-			struct ng_ksocket_sockopt *const ksopt = 
+			struct ng_ksocket_sockopt *const ksopt =
 			    (struct ng_ksocket_sockopt *)msg->data;
 			const int valsize = msg->header.arglen - sizeof(*ksopt);
 			struct sockopt sopt;
@@ -997,11 +997,11 @@ ng_ksocket_disconnect(hook_p hook)
 /************************************************************************
 			HELPER STUFF
  ************************************************************************/
-/* 
+/*
  * You should not "just call" a netgraph node function from an external
  * asynchronous event. This is because in doing so you are ignoring the
  * locking on the netgraph nodes. Instead call your function via ng_send_fn().
- * This will call the function you chose, but will first do all the 
+ * This will call the function you chose, but will first do all the
  * locking rigmarole. Your function MAY only be called at some distant future
  * time (several millisecs away) so don't give it any arguments
  * that may be revoked soon (e.g. on your stack).
@@ -1033,7 +1033,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 /*
  * When incoming data is appended to the socket, we get notified here.
  * This is also called whenever a significant event occurs for the socket.
- * Our original caller may have queued this even some time ago and 
+ * Our original caller may have queued this even some time ago and
  * we cannot trust that he even still exists. The node however is being
  * held with a reference by the queueing code and guarantied to be valid.
  */
@@ -1065,7 +1065,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 				response->header.flags |= NGF_RESP;
 				response->header.token = priv->response_token;
 				*(int32_t *)response->data = error;
-				/* 
+				/*
 				 * send an async "response" message
 				 * to the node that set us up
 				 * (if it still exists)
@@ -1237,8 +1237,8 @@ ng_ksocket_finish_accept(priv_p priv)
 	resp->header.token = priv->response_token;
 
 	/* Clone a ksocket node to wrap the new socket */
-        error = ng_make_node_common(&ng_ksocket_typestruct, &node);
-        if (error) {
+	error = ng_make_node_common(&ng_ksocket_typestruct, &node);
+	if (error) {
 		free(resp, M_NETGRAPH);
 		soclose(so);
 		goto out;
