@@ -499,7 +499,6 @@ static struct {
 	{ "kexalgorithms", sKexAlgorithms, SSHCFG_GLOBAL },
 	{ "ipqos", sIPQoS, SSHCFG_ALL },
 	{ "versionaddendum", sVersionAddendum, SSHCFG_GLOBAL },
-	{ "versionaddendum", sVersionAddendum, SSHCFG_GLOBAL },
 	{ "hpndisabled", sHPNDisabled, SSHCFG_ALL },
 	{ "hpnbuffersize", sHPNBufferSize, SSHCFG_ALL },
 	{ "tcprcvbufpoll", sTcpRcvBufPoll, SSHCFG_ALL },
