@@ -2846,11 +2846,10 @@ dashutdown(void * arg, int howto)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
+	union ccb *ccb;
 	int error;
 
 	CAM_PERIPH_FOREACH(periph, &dadriver) {
-		union ccb ccb;
-
 		cam_periph_lock(periph);
 		softc = (struct da_softc *)periph->softc;
 
@@ -2864,10 +2863,8 @@ dashutdown(void * arg, int howto)
 			continue;
 		}
 
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-
-		ccb.ccb_h.ccb_state = DA_CCB_DUMP;
-		scsi_synchronize_cache(&ccb.csio,
+		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+		scsi_synchronize_cache(&ccb->csio,
 				       /*retries*/0,
 				       /*cbfcnp*/dadone,
 				       MSG_SIMPLE_Q_TAG,
@@ -2876,13 +2873,9 @@ dashutdown(void * arg, int howto)
 				       SSD_FULL_SIZE,
 				       60 * 60 * 1000);
 
-		xpt_polled_action(&ccb);
-
-		error = cam_periph_error(&ccb,
-		    0, SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR, NULL);
-		if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb.ccb_h.path, /*relsim_flags*/0,
-			    /*reduction*/0, /*timeout*/0, /*getcount_only*/0);
+		error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+		    /*sense_flags*/ SF_NO_RECOVERY | SF_NO_RETRY | SF_QUIET_IR,
+		    softc->disk->d_devstat);
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
 		cam_periph_unlock(periph);
