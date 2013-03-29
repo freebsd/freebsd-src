@@ -3180,7 +3180,7 @@ xpt_run_dev_allocq(struct cam_ed *device)
 	drvq = &device->drvq;
 	while ((drvq->entries > 0) &&
 	    (device->ccbq.devq_openings > 0 ||
-	     CAMQ_GET_PRIO(drvq) >= CAM_PRIORITY_OOB) &&
+	     CAMQ_GET_PRIO(drvq) <= CAM_PRIORITY_OOB) &&
 	    (cam_ccbq_frozen(&device->ccbq, CAM_PRIORITY_TO_RL(
 	     CAMQ_GET_PRIO(drvq))) == 0)) {
 		union	ccb *work_ccb;
