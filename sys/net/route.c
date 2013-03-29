@@ -1112,6 +1112,14 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			error = 0;
 		}
 #endif
+		if ((flags & RTF_PINNED) == 0) {
+			/* Check if target route can be deleted */
+			rt = (struct rtentry *)rnh->rnh_lookup(dst,
+			    netmask, rnh);
+			if ((rt != NULL) && (rt->rt_flags & RTF_PINNED))
+				senderr(EADDRINUSE);
+		}
+
 		/*
 		 * Remove the item from the tree and return it.
 		 * Complain if it is not there and do no more processing.
@@ -1435,6 +1443,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	int didwork = 0;
 	int a_failure = 0;
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+	struct radix_node_head *rnh;
 
 	if (flags & RTF_HOST) {
 		dst = ifa->ifa_dstaddr;
@@ -1493,7 +1502,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	 */
 	for ( fibnum = startfib; fibnum <= endfib; fibnum++) {
 		if (cmd == RTM_DELETE) {
-			struct radix_node_head *rnh;
 			struct radix_node *rn;
 			/*
 			 * Look up an rtentry that is in the routing tree and
@@ -1543,7 +1551,8 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		 */
 		bzero((caddr_t)&info, sizeof(info));
 		info.rti_ifa = ifa;
-		info.rti_flags = flags | (ifa->ifa_flags & ~IFA_RTSELF);
+		info.rti_flags = flags |
+		    (ifa->ifa_flags & ~IFA_RTSELF) | RTF_PINNED;
 		info.rti_info[RTAX_DST] = dst;
 		/* 
 		 * doing this for compatibility reasons
@@ -1555,6 +1564,33 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 		info.rti_info[RTAX_NETMASK] = netmask;
 		error = rtrequest1_fib(cmd, &info, &rt, fibnum);
+
+		if ((error == EEXIST) && (cmd == RTM_ADD)) {
+			/*
+			 * Interface route addition failed.
+			 * Atomically delete current prefix generating
+			 * RTM_DELETE message, and retry adding
+			 * interface prefix.
+			 */
+			rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
+			RADIX_NODE_HEAD_LOCK(rnh);
+
+			/* Delete old prefix */
+			info.rti_ifa = NULL;
+			info.rti_flags = RTF_RNH_LOCKED;
+
+			error = rtrequest1_fib(RTM_DELETE, &info, &rt, fibnum);
+			if (error == 0) {
+				info.rti_ifa = ifa;
+				info.rti_flags = flags | RTF_RNH_LOCKED |
+				    (ifa->ifa_flags & ~IFA_RTSELF) | RTF_PINNED;
+				error = rtrequest1_fib(cmd, &info, &rt, fibnum);
+			}
+
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
+
+
 		if (error == 0 && rt != NULL) {
 			/*
 			 * notify any listening routing agents of the change
