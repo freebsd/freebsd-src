@@ -58,7 +58,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	uint64_t freq;
 
-	freq = ar71xx_ahb_freq();
+	freq = ar71xx_refclk();
 
 	di->ops = uart_getops(&uart_ar933x_class);
 	di->bas.chan = 0;
