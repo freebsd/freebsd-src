@@ -361,9 +361,7 @@ at91_pio_gpio_get(uint32_t pio, uint32_t data_mask)
 {
 	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
-	data_mask &= PIO[PIO_PDSR / 4];
-
-	return (data_mask ? 1 : 0);
+	return ((PIO[PIO_PDSR / 4] & data_mask));
 }
 
 void
