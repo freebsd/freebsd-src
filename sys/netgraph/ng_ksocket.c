@@ -1042,7 +1042,6 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	struct socket *so = arg1;
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct mbuf *m;
 	struct ng_mesg *response;
 	struct uio auio;
 	int flags, error;
@@ -1096,11 +1095,11 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 
 	/* Read and forward available mbuf's */
 	auio.uio_td = NULL;
-	auio.uio_resid = 1000000000;
+	auio.uio_resid = MJUMPAGESIZE;	/* XXXGL: sane limit? */
 	flags = MSG_DONTWAIT;
 	while (1) {
 		struct sockaddr *sa = NULL;
-		struct mbuf *n;
+		struct mbuf *m;
 
 		/* Try to get next packet from socket */
 		if ((error = soreceive(so, (so->so_state & SS_ISCONNECTED) ?
@@ -1114,17 +1113,28 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 			break;
 		}
 
+		KASSERT(m->m_nextpkt == NULL, ("%s: nextpkt", __func__));
+
 		/*
-		 * Don't trust the various socket layers to get the
-		 * packet header and length correct (e.g. kern/15175).
-		 *
-		 * Also, do not trust that soreceive() will clear m_nextpkt
-		 * for us (e.g. kern/84952, kern/82413).
+		 * Stream sockets do not have packet boundaries, so
+		 * we have to allocate a header mbuf and attach the
+		 * stream of data to it.
 		 */
-		m->m_pkthdr.csum_flags = 0;
-		for (n = m, m->m_pkthdr.len = 0; n != NULL; n = n->m_next) {
-			m->m_pkthdr.len += n->m_len;
-			n->m_nextpkt = NULL;
+		if (so->so_type == SOCK_STREAM) {
+			struct mbuf *mh;
+
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
+			if (mh == NULL) {
+				m_freem(m);
+				if (sa != NULL)
+					free(sa, M_SONAME);
+				break;
+			}
+
+			mh->m_next = m;
+			for (; m; m = m->m_next)
+				mh->m_pkthdr.len += m->m_len;
+			m = mh;
 		}
 
 		/* Put peer's socket address (if any) into a tag */
