@@ -1835,7 +1835,7 @@ adaflush(void)
 	struct ada_softc *softc;
 	int error;
 
-	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
+	CAM_PERIPH_FOREACH(periph, &adadriver) {
 		union ccb ccb;
 
 		/* If we paniced with lock held - not recurse here. */
@@ -1889,7 +1889,7 @@ adaspindown(uint8_t cmd, int flags)
 	struct ada_softc *softc;
 	int error;
 
-	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
+	CAM_PERIPH_FOREACH(periph, &adadriver) {
 		union ccb ccb;
 
 		/* If we paniced with lock held - not recurse here. */
@@ -1962,7 +1962,7 @@ adaresume(void *arg)
 	if (ada_spindown_suspend == 0)
 		return;
 
-	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
+	CAM_PERIPH_FOREACH(periph, &adadriver) {
 		cam_periph_lock(periph);
 		softc = (struct ada_softc *)periph->softc;
 		/*
