@@ -228,8 +228,8 @@ static void	 xpt_run_dev_sendq(struct cam_eb *bus);
 static timeout_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
 static void	 xpt_release_bus(struct cam_eb *bus);
-static void	 xpt_release_devq_device(struct cam_ed *dev, cam_rl rl,
-		    u_int count, int run_queue);
+static void	 xpt_release_devq_device(struct cam_ed *dev, u_int count,
+		    int run_queue);
 static struct cam_et*
 		 xpt_alloc_target(struct cam_eb *bus, target_id_t target_id);
 static void	 xpt_release_target(struct cam_et *target);
@@ -306,7 +306,7 @@ xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
 
 	if ((dev->ccbq.queue.entries > 0) &&
 	    (dev->ccbq.dev_openings > 0) &&
-	    (cam_ccbq_frozen_top(&dev->ccbq) == 0)) {
+	    (cam_ccbq_frozen(&dev->ccbq) == 0)) {
 		/*
 		 * The priority of a device waiting for controller
 		 * resources is that of the highest priority CCB
@@ -2938,13 +2938,9 @@ xpt_action_default(union ccb *start_ccb)
 			}
 		}
 
-		if ((start_ccb->ccb_h.flags & CAM_DEV_QFREEZE) == 0) {
-			xpt_release_devq_rl(path, /*runlevel*/
-			    (crs->release_flags & RELSIM_RELEASE_RUNLEVEL) ?
-				crs->release_timeout : 0,
-			    /*count*/1, /*run_queue*/TRUE);
-		}
-		start_ccb->crs.qfrozen_cnt = dev->ccbq.queue.qfrozen_cnt[0];
+		if ((start_ccb->ccb_h.flags & CAM_DEV_QFREEZE) == 0)
+			xpt_release_devq(path, /*count*/1, /*run_queue*/TRUE);
+		start_ccb->crs.qfrozen_cnt = dev->ccbq.queue.qfrozen_cnt;
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -2985,16 +2981,6 @@ xpt_action_default(union ccb *start_ccb)
 			}
 		} else
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
-		break;
-	}
-	case XPT_FREEZE_QUEUE:
-	{
-		struct ccb_relsim *crs = &start_ccb->crs;
-
-		xpt_freeze_devq_rl(path, /*runlevel*/
-		    (crs->release_flags & RELSIM_RELEASE_RUNLEVEL) ?
-		    crs->release_timeout : 0, /*count*/1);
-		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 	case XPT_NOOP:
@@ -3181,8 +3167,7 @@ xpt_run_dev_allocq(struct cam_ed *device)
 	while ((drvq->entries > 0) &&
 	    (device->ccbq.devq_openings > 0 ||
 	     CAMQ_GET_PRIO(drvq) <= CAM_PRIORITY_OOB) &&
-	    (cam_ccbq_frozen(&device->ccbq, CAM_PRIORITY_TO_RL(
-	     CAMQ_GET_PRIO(drvq))) == 0)) {
+	    (cam_ccbq_frozen(&device->ccbq) == 0)) {
 		union	ccb *work_ccb;
 		struct	cam_periph *drv;
 
@@ -3220,10 +3205,10 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 
 	devq = bus->sim->devq;
 
-	devq->send_queue.qfrozen_cnt[0]++;
+	devq->send_queue.qfrozen_cnt++;
 	while ((devq->send_queue.entries > 0)
 	    && (devq->send_openings > 0)
-	    && (devq->send_queue.qfrozen_cnt[0] <= 1)) {
+	    && (devq->send_queue.qfrozen_cnt <= 1)) {
 		struct	cam_ed_qinfo *qinfo;
 		struct	cam_ed *device;
 		union ccb *work_ccb;
@@ -3305,7 +3290,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		sim = work_ccb->ccb_h.path->bus->sim;
 		(*(sim->sim_action))(sim, work_ccb);
 	}
-	devq->send_queue.qfrozen_cnt[0]--;
+	devq->send_queue.qfrozen_cnt--;
 }
 
 /*
@@ -4115,26 +4100,18 @@ xpt_dev_async_default(u_int32_t async_code, struct cam_eb *bus,
 }
 
 u_int32_t
-xpt_freeze_devq_rl(struct cam_path *path, cam_rl rl, u_int count)
+xpt_freeze_devq(struct cam_path *path, u_int count)
 {
 	struct cam_ed *dev = path->device;
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-	cam_ccbq_freeze(&dev->ccbq, rl, count);
+	dev->ccbq.queue.qfrozen_cnt += count;
 	/* Remove frozen device from sendq. */
-	if (device_is_send_queued(dev) &&
-	    cam_ccbq_frozen_top(&dev->ccbq)) {
+	if (device_is_send_queued(dev)) {
 		camq_remove(&dev->sim->devq->send_queue,
 		    dev->send_ccb_entry.pinfo.index);
 	}
-	return (dev->ccbq.queue.qfrozen_cnt[rl]);
-}
-
-u_int32_t
-xpt_freeze_devq(struct cam_path *path, u_int count)
-{
-
-	return (xpt_freeze_devq_rl(path, 0, count));
+	return (dev->ccbq.queue.qfrozen_cnt);
 }
 
 u_int32_t
@@ -4142,8 +4119,8 @@ xpt_freeze_simq(struct cam_sim *sim, u_int count)
 {
 
 	mtx_assert(sim->mtx, MA_OWNED);
-	sim->devq->send_queue.qfrozen_cnt[0] += count;
-	return (sim->devq->send_queue.qfrozen_cnt[0]);
+	sim->devq->send_queue.qfrozen_cnt += count;
+	return (sim->devq->send_queue.qfrozen_cnt);
 }
 
 static void
@@ -4152,42 +4129,32 @@ xpt_release_devq_timeout(void *arg)
 	struct cam_ed *device;
 
 	device = (struct cam_ed *)arg;
-
-	xpt_release_devq_device(device, /*rl*/0, /*count*/1, /*run_queue*/TRUE);
+	xpt_release_devq_device(device, /*count*/1, /*run_queue*/TRUE);
 }
 
 void
 xpt_release_devq(struct cam_path *path, u_int count, int run_queue)
 {
-	mtx_assert(path->bus->sim->mtx, MA_OWNED);
 
-	xpt_release_devq_device(path->device, /*rl*/0, count, run_queue);
+	mtx_assert(path->bus->sim->mtx, MA_OWNED);
+	xpt_release_devq_device(path->device, count, run_queue);
 }
 
 void
-xpt_release_devq_rl(struct cam_path *path, cam_rl rl, u_int count, int run_queue)
-{
-	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-
-	xpt_release_devq_device(path->device, rl, count, run_queue);
-}
-
-static void
-xpt_release_devq_device(struct cam_ed *dev, cam_rl rl, u_int count, int run_queue)
+xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 {
 
-	if (count > dev->ccbq.queue.qfrozen_cnt[rl]) {
+	if (count > dev->ccbq.queue.qfrozen_cnt) {
 #ifdef INVARIANTS
-		printf("xpt_release_devq(%d): requested %u > present %u\n",
-		    rl, count, dev->ccbq.queue.qfrozen_cnt[rl]);
+		printf("xpt_release_devq(): requested %u > present %u\n",
+		    count, dev->ccbq.queue.qfrozen_cnt);
 #endif
-		count = dev->ccbq.queue.qfrozen_cnt[rl];
+		count = dev->ccbq.queue.qfrozen_cnt;
 	}
-	cam_ccbq_release(&dev->ccbq, rl, count);
-	if (cam_ccbq_frozen(&dev->ccbq, CAM_PRIORITY_TO_RL(
-	    CAMQ_GET_PRIO(&dev->drvq))) == 0)
+	dev->ccbq.queue.qfrozen_cnt -= count;
+	if (cam_ccbq_frozen(&dev->ccbq) == 0)
 		xpt_run_dev_allocq(dev);
-	if (cam_ccbq_frozen_top(&dev->ccbq) == 0) {
+	if (cam_ccbq_frozen(&dev->ccbq) == 0) {
 		/*
 		 * No longer need to wait for a successful
 		 * command completion.
@@ -4220,14 +4187,14 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 
 	mtx_assert(sim->mtx, MA_OWNED);
 	sendq = &(sim->devq->send_queue);
-	if (sendq->qfrozen_cnt[0] <= 0) {
+	if (sendq->qfrozen_cnt <= 0) {
 #ifdef INVARIANTS
 		printf("xpt_release_simq: requested 1 > present %u\n",
-		    sendq->qfrozen_cnt[0]);
+		    sendq->qfrozen_cnt);
 #endif
 	} else
-		sendq->qfrozen_cnt[0]--;
-	if (sendq->qfrozen_cnt[0] == 0) {
+		sendq->qfrozen_cnt--;
+	if (sendq->qfrozen_cnt == 0) {
 		/*
 		 * If there is a timeout scheduled to release this
 		 * sim queue, remove it.  The queue frozen count is

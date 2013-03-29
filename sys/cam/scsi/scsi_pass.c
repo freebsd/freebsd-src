@@ -613,8 +613,8 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 
 		/* Compatibility for RL/priority-unaware code. */
 		priority = inccb->ccb_h.pinfo.priority;
-		if (priority < CAM_RL_TO_PRIORITY(CAM_RL_NORMAL))
-		    priority += CAM_RL_TO_PRIORITY(CAM_RL_NORMAL);
+		if (priority <= CAM_PRIORITY_OOB)
+		    priority += CAM_PRIORITY_OOB + 1;
 
 		/*
 		 * Non-immediate CCBs need a CCB from the per-device pool
