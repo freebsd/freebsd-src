@@ -386,6 +386,10 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 	nsegs = -1;
 	error = _bus_dmamap_load_ccb(dmat, map, ccb, &nsegs, flags);
 	nsegs++;
+
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, flags, error, nsegs);
+
 	if (error == EINPROGRESS)
 		return (error);
 
