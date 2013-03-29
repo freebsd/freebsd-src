@@ -130,6 +130,7 @@ struct ada_softc {
 	ada_state state;
 	ada_flags flags;	
 	ada_quirks quirks;
+	int	 sort_io_queue;
 	int	 ordered_tag_count;
 	int	 outstanding_cmds;
 	int	 trim_max_ranges;
@@ -449,6 +450,8 @@ static void		adaresume(void *arg);
 		 softc->read_ahead : ada_read_ahead)
 #define	ADA_WC	(softc->write_cache >= 0 ? \
 		 softc->write_cache : ada_write_cache)
+#define	ADA_SIO	(softc->sort_io_queue >= 0 ? \
+		 softc->sort_io_queue : cam_sort_io_queues)
 
 /*
  * Most platforms map firmware geometry to actual, but some don't.  If
@@ -670,10 +673,17 @@ adastrategy(struct bio *bp)
 	 * Place it in the queue of disk activities for this disk
 	 */
 	if (bp->bio_cmd == BIO_DELETE &&
-	    (softc->flags & ADA_FLAG_CAN_TRIM))
-		bioq_disksort(&softc->trim_queue, bp);
-	else
-		bioq_disksort(&softc->bio_queue, bp);
+	    (softc->flags & ADA_FLAG_CAN_TRIM)) {
+		if (ADA_SIO)
+		    bioq_disksort(&softc->trim_queue, bp);
+		else
+		    bioq_insert_tail(&softc->trim_queue, bp);
+	} else {
+		if (ADA_SIO)
+		    bioq_disksort(&softc->bio_queue, bp);
+		else
+		    bioq_insert_tail(&softc->bio_queue, bp);
+	}
 
 	/*
 	 * Schedule ourselves for performing the work.
@@ -999,6 +1009,10 @@ adasysctlinit(void *context, int pending)
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "write_cache", CTLFLAG_RW | CTLFLAG_MPSAFE,
 		&softc->write_cache, 0, "Enable disk write cache.");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "sort_io_queue", CTLFLAG_RW | CTLFLAG_MPSAFE,
+		&softc->sort_io_queue, 0,
+		"Sort IO queue to try and optimise disk access patterns");
 #ifdef ADA_TEST_FAILURE
 	/*
 	 * Add a 'door bell' sysctl which allows one to set it from userland
@@ -1134,6 +1148,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	snprintf(announce_buf, sizeof(announce_buf),
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
+	softc->sort_io_queue = -1;
 	adagetparams(periph, cgd);
 	softc->disk = disk_alloc();
 	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,

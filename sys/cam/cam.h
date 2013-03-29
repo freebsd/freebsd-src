@@ -228,6 +228,9 @@ struct cam_status_entry
 
 extern const struct cam_status_entry cam_status_table[];
 extern const int num_cam_status_entries;
+#ifdef _KERNEL
+extern int cam_sort_io_queues;
+#endif
 union ccb;
 
 #ifdef SYSCTL_DECL	/* from sysctl.h */
