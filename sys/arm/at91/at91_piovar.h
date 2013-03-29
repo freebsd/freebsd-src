@@ -36,6 +36,7 @@ void at91_pio_use_gpio(uint32_t pio, uint32_t gpio_mask);
 void at91_pio_gpio_input(uint32_t pio, uint32_t input_enable_mask);
 void at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask,
     int use_pullup);
+void at91_pio_gpio_high_z(uint32_t pio, uint32_t high_z_mask, int enable);
 void at91_pio_gpio_set(uint32_t pio, uint32_t data_mask);
 void at91_pio_gpio_clear(uint32_t pio, uint32_t data_mask);
 uint8_t at91_pio_gpio_get(uint32_t pio, uint32_t data_mask);
