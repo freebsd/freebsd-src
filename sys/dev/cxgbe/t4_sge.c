@@ -68,6 +68,12 @@ static struct fl_buf_info fl_buf_info[FL_BUF_SIZES];
 #define FL_BUF_TYPE(x)	(fl_buf_info[x].type)
 #define FL_BUF_ZONE(x)	(fl_buf_info[x].zone)
 
+#ifdef T4_PKT_TIMESTAMP
+#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
+#else
+#define RX_COPY_THRESHOLD MINCLSIZE
+#endif
+
 /*
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
  * 0-7 are valid values.
@@ -262,29 +268,38 @@ t4_sge_modload(void)
 	}
 }
 
-/**
- *	t4_sge_init - initialize SGE
- *	@sc: the adapter
- *
- *	Performs SGE initialization needed every time after a chip reset.
- *	We do not initialize any of the queues here, instead the driver
- *	top-level must request them individually.
- */
-int
-t4_sge_init(struct adapter *sc)
+void
+t4_init_sge_cpl_handlers(struct adapter *sc)
 {
-	struct sge *s = &sc->sge;
-	int i, rc = 0;
-	uint32_t ctrl_mask, ctrl_val, hpsize, v;
 
-	ctrl_mask = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE |
-	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) |
-	    F_EGRSTATUSPAGESIZE;
-	ctrl_val = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
+	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_msg);
+	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
+	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
+	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
+
+	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
+}
+
+void
+t4_tweak_chip_settings(struct adapter *sc)
+{
+	int i;
+	uint32_t v, m;
+	int intr_timer[SGE_NTIMERS] = {1, 5, 10, 50, 100, 200};
+	int intr_pktcount[SGE_NCOUNTERS] = {1, 8, 16, 32}; /* 63 max */
+	uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
+
+	KASSERT(sc->flags & MASTER_PF,
+	    ("%s: trying to change chip settings when not master.", __func__));
+
+	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE |
+	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) | F_EGRSTATUSPAGESIZE;
+	v = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
 	    V_INGPADBOUNDARY(ilog2(fl_pad) - 5) |
 	    V_EGRSTATUSPAGESIZE(spg_len == 128);
+	t4_set_reg_field(sc, A_SGE_CONTROL, m, v);
 
-	hpsize = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
+	v = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF1(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF2(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF3(PAGE_SHIFT - 10) |
@@ -292,50 +307,80 @@ t4_sge_init(struct adapter *sc)
 	    V_HOSTPAGESIZEPF5(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF6(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF7(PAGE_SHIFT - 10);
+	t4_write_reg(sc, A_SGE_HOST_PAGE_SIZE, v);
 
-	if (sc->flags & MASTER_PF) {
-		int intr_timer[SGE_NTIMERS] = {1, 5, 10, 50, 100, 200};
-		int intr_pktcount[SGE_NCOUNTERS] = {1, 8, 16, 32}; /* 63 max */
-
-		t4_set_reg_field(sc, A_SGE_CONTROL, ctrl_mask, ctrl_val);
-		t4_write_reg(sc, A_SGE_HOST_PAGE_SIZE, hpsize);
-		for (i = 0; i < FL_BUF_SIZES; i++) {
-			t4_write_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i),
-			    FL_BUF_SIZE(i));
-		}
-
-		t4_write_reg(sc, A_SGE_INGRESS_RX_THRESHOLD,
-		    V_THRESHOLD_0(intr_pktcount[0]) |
-		    V_THRESHOLD_1(intr_pktcount[1]) |
-		    V_THRESHOLD_2(intr_pktcount[2]) |
-		    V_THRESHOLD_3(intr_pktcount[3]));
-
-		t4_write_reg(sc, A_SGE_TIMER_VALUE_0_AND_1,
-		    V_TIMERVALUE0(us_to_core_ticks(sc, intr_timer[0])) |
-		    V_TIMERVALUE1(us_to_core_ticks(sc, intr_timer[1])));
-		t4_write_reg(sc, A_SGE_TIMER_VALUE_2_AND_3,
-		    V_TIMERVALUE2(us_to_core_ticks(sc, intr_timer[2])) |
-		    V_TIMERVALUE3(us_to_core_ticks(sc, intr_timer[3])));
-		t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5,
-		    V_TIMERVALUE4(us_to_core_ticks(sc, intr_timer[4])) |
-		    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5])));
-
-		if (cong_drop == 0) {
-			t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
-			    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
-			    F_TUNNELCNGDROP3, 0);
-		}
+	for (i = 0; i < FL_BUF_SIZES; i++) {
+		t4_write_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i),
+		    FL_BUF_SIZE(i));
 	}
 
-	v = t4_read_reg(sc, A_SGE_CONTROL);
-	if ((v & ctrl_mask) != ctrl_val) {
-		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", v);
+	v = V_THRESHOLD_0(intr_pktcount[0]) | V_THRESHOLD_1(intr_pktcount[1]) |
+	    V_THRESHOLD_2(intr_pktcount[2]) | V_THRESHOLD_3(intr_pktcount[3]);
+	t4_write_reg(sc, A_SGE_INGRESS_RX_THRESHOLD, v);
+
+	/* adap->params.vpd.cclk must be set up before this */
+	v = V_TIMERVALUE0(us_to_core_ticks(sc, intr_timer[0])) |
+	    V_TIMERVALUE1(us_to_core_ticks(sc, intr_timer[1]));
+	t4_write_reg(sc, A_SGE_TIMER_VALUE_0_AND_1, v);
+	v = V_TIMERVALUE2(us_to_core_ticks(sc, intr_timer[2])) |
+	    V_TIMERVALUE3(us_to_core_ticks(sc, intr_timer[3]));
+	t4_write_reg(sc, A_SGE_TIMER_VALUE_2_AND_3, v);
+	v = V_TIMERVALUE4(us_to_core_ticks(sc, intr_timer[4])) |
+	    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5]));
+	t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5, v);
+
+	if (cong_drop == 0) {
+		m = F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
+		    F_TUNNELCNGDROP3;
+		t4_set_reg_field(sc, A_TP_PARA_REG3, m, 0);
+	}
+
+	/* 4K, 16K, 64K, 256K DDP "page sizes" */
+	v = V_HPZ0(0) | V_HPZ1(2) | V_HPZ2(4) | V_HPZ3(6);
+	t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, v);
+
+	m = v = F_TDDPTAGTCB;
+	t4_set_reg_field(sc, A_ULP_RX_CTL, m, v);
+
+	m = V_INDICATESIZE(M_INDICATESIZE) | F_REARMDDPOFFSET |
+	    F_RESETDDPOFFSET;
+	v = V_INDICATESIZE(indsz) | F_REARMDDPOFFSET | F_RESETDDPOFFSET;
+	t4_set_reg_field(sc, A_TP_PARA_REG5, m, v);
+}
+
+/*
+ * XXX: driver really should be able to deal with unexpected settings.
+ */
+int
+t4_read_chip_settings(struct adapter *sc)
+{
+	struct sge *s = &sc->sge;
+	int i, rc = 0;
+	uint32_t m, v, r;
+	uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
+
+	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE |
+	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) | F_EGRSTATUSPAGESIZE;
+	v = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
+	    V_INGPADBOUNDARY(ilog2(fl_pad) - 5) |
+	    V_EGRSTATUSPAGESIZE(spg_len == 128);
+	r = t4_read_reg(sc, A_SGE_CONTROL);
+	if ((r & m) != v) {
+		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
 		rc = EINVAL;
 	}
 
-	v = t4_read_reg(sc, A_SGE_HOST_PAGE_SIZE);
-	if (v != hpsize) {
-		device_printf(sc->dev, "invalid SGE_HOST_PAGE_SIZE(0x%x)\n", v);
+	v = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
+	    V_HOSTPAGESIZEPF1(PAGE_SHIFT - 10) |
+	    V_HOSTPAGESIZEPF2(PAGE_SHIFT - 10) |
+	    V_HOSTPAGESIZEPF3(PAGE_SHIFT - 10) |
+	    V_HOSTPAGESIZEPF4(PAGE_SHIFT - 10) |
+	    V_HOSTPAGESIZEPF5(PAGE_SHIFT - 10) |
+	    V_HOSTPAGESIZEPF6(PAGE_SHIFT - 10) |
+	    V_HOSTPAGESIZEPF7(PAGE_SHIFT - 10);
+	r = t4_read_reg(sc, A_SGE_HOST_PAGE_SIZE);
+	if (r != v) {
+		device_printf(sc->dev, "invalid SGE_HOST_PAGE_SIZE(0x%x)\n", r);
 		rc = EINVAL;
 	}
 
@@ -348,31 +393,75 @@ t4_sge_init(struct adapter *sc)
 		}
 	}
 
-	v = t4_read_reg(sc, A_SGE_CONM_CTRL);
-	s->fl_starve_threshold = G_EGRTHRESHOLD(v) * 2 + 1;
+	r = t4_read_reg(sc, A_SGE_INGRESS_RX_THRESHOLD);
+	s->counter_val[0] = G_THRESHOLD_0(r);
+	s->counter_val[1] = G_THRESHOLD_1(r);
+	s->counter_val[2] = G_THRESHOLD_2(r);
+	s->counter_val[3] = G_THRESHOLD_3(r);
 
-	v = t4_read_reg(sc, A_SGE_INGRESS_RX_THRESHOLD);
-	sc->sge.counter_val[0] = G_THRESHOLD_0(v);
-	sc->sge.counter_val[1] = G_THRESHOLD_1(v);
-	sc->sge.counter_val[2] = G_THRESHOLD_2(v);
-	sc->sge.counter_val[3] = G_THRESHOLD_3(v);
+	r = t4_read_reg(sc, A_SGE_TIMER_VALUE_0_AND_1);
+	s->timer_val[0] = G_TIMERVALUE0(r) / core_ticks_per_usec(sc);
+	s->timer_val[1] = G_TIMERVALUE1(r) / core_ticks_per_usec(sc);
+	r = t4_read_reg(sc, A_SGE_TIMER_VALUE_2_AND_3);
+	s->timer_val[2] = G_TIMERVALUE2(r) / core_ticks_per_usec(sc);
+	s->timer_val[3] = G_TIMERVALUE3(r) / core_ticks_per_usec(sc);
+	r = t4_read_reg(sc, A_SGE_TIMER_VALUE_4_AND_5);
+	s->timer_val[4] = G_TIMERVALUE4(r) / core_ticks_per_usec(sc);
+	s->timer_val[5] = G_TIMERVALUE5(r) / core_ticks_per_usec(sc);
 
-	v = t4_read_reg(sc, A_SGE_TIMER_VALUE_0_AND_1);
-	sc->sge.timer_val[0] = G_TIMERVALUE0(v) / core_ticks_per_usec(sc);
-	sc->sge.timer_val[1] = G_TIMERVALUE1(v) / core_ticks_per_usec(sc);
-	v = t4_read_reg(sc, A_SGE_TIMER_VALUE_2_AND_3);
-	sc->sge.timer_val[2] = G_TIMERVALUE2(v) / core_ticks_per_usec(sc);
-	sc->sge.timer_val[3] = G_TIMERVALUE3(v) / core_ticks_per_usec(sc);
-	v = t4_read_reg(sc, A_SGE_TIMER_VALUE_4_AND_5);
-	sc->sge.timer_val[4] = G_TIMERVALUE4(v) / core_ticks_per_usec(sc);
-	sc->sge.timer_val[5] = G_TIMERVALUE5(v) / core_ticks_per_usec(sc);
+	if (cong_drop == 0) {
+		m = F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
+		    F_TUNNELCNGDROP3;
+		r = t4_read_reg(sc, A_TP_PARA_REG3);
+		if (r & m) {
+			device_printf(sc->dev,
+			    "invalid TP_PARA_REG3(0x%x)\n", r);
+			rc = EINVAL;
+		}
+	}
 
-	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_msg);
-	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
-	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
-	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
+	v = V_HPZ0(0) | V_HPZ1(2) | V_HPZ2(4) | V_HPZ3(6);
+	r = t4_read_reg(sc, A_ULP_RX_TDDP_PSZ);
+	if (r != v) {
+		device_printf(sc->dev, "invalid ULP_RX_TDDP_PSZ(0x%x)\n", r);
+		rc = EINVAL;
+	}
 
-	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
+	m = v = F_TDDPTAGTCB;
+	r = t4_read_reg(sc, A_ULP_RX_CTL);
+	if ((r & m) != v) {
+		device_printf(sc->dev, "invalid ULP_RX_CTL(0x%x)\n", r);
+		rc = EINVAL;
+	}
+
+	m = V_INDICATESIZE(M_INDICATESIZE) | F_REARMDDPOFFSET |
+	    F_RESETDDPOFFSET;
+	v = V_INDICATESIZE(indsz) | F_REARMDDPOFFSET | F_RESETDDPOFFSET;
+	r = t4_read_reg(sc, A_TP_PARA_REG5);
+	if ((r & m) != v) {
+		device_printf(sc->dev, "invalid TP_PARA_REG5(0x%x)\n", r);
+		rc = EINVAL;
+	}
+
+	r = t4_read_reg(sc, A_SGE_CONM_CTRL);
+	s->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
+
+	if (is_t5(sc)) {
+		r = t4_read_reg(sc, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
+		r >>= S_QUEUESPERPAGEPF0 +
+		    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * sc->pf;
+		s->s_qpp = r & M_QUEUESPERPAGEPF0;
+	}
+
+	r = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
+	sc->params.tp.tre = G_TIMERRESOLUTION(r);
+	sc->params.tp.dack_re = G_DELAYEDACKRESOLUTION(r);
+
+	t4_read_mtu_tbl(sc, sc->params.mtus, NULL);
+	t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd, sc->params.b_wnd);
+
+	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &sc->filter_mode, 1,
+	    A_TP_VLAN_PRI_MAP);
 
 	return (rc);
 }
@@ -549,7 +638,7 @@ mtu_to_bufsize(int mtu)
 
 	/* large enough for a frame even when VLAN extraction is disabled */
 	bufsize = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + mtu;
-	bufsize = roundup(bufsize + fl_pktshift, fl_pad);
+	bufsize = roundup2(bufsize + fl_pktshift, fl_pad);
 
 	return (bufsize);
 }
@@ -1487,7 +1576,7 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 		iq->intr_params |= F_QINTR_CNT_EN;
 		iq->intr_pktc_idx = pktc_idx;
 	}
-	iq->qsize = roundup(qsize, 16);		/* See FW_IQ_CMD/iqsize */
+	iq->qsize = roundup2(qsize, 16);	/* See FW_IQ_CMD/iqsize */
 	iq->esize = max(esize, 16);		/* See FW_IQ_CMD/iqesize */
 }
 
@@ -1661,7 +1750,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			return (rc);
 		}
 		fl->needed = fl->cap;
-		fl->lowat = roundup(sc->sge.fl_starve_threshold, 8);
+		fl->lowat = roundup2(sc->sge.fl_starve_threshold, 8);
 
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
@@ -2164,6 +2253,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 	eq->spg = (void *)&eq->desc[eq->cap];
 	eq->avail = eq->cap - 1;	/* one less to avoid cidx = pidx */
 	eq->pidx = eq->cidx = 0;
+	eq->doorbells = sc->doorbells;
 
 	switch (eq->flags & EQ_TYPEMASK) {
 	case EQ_CTRL:
@@ -2191,6 +2281,25 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 	}
 
 	eq->tx_callout.c_cpu = eq->cntxt_id % mp_ncpus;
+
+	if (isset(&eq->doorbells, DOORBELL_UDB) ||
+	    isset(&eq->doorbells, DOORBELL_UDBWC) ||
+	    isset(&eq->doorbells, DOORBELL_WRWC)) {
+		uint32_t s_qpp = sc->sge.s_qpp;
+		uint32_t mask = (1 << s_qpp) - 1;
+		volatile uint8_t *udb;
+
+		udb = sc->udbs_base + UDBS_DB_OFFSET;
+		udb += (eq->cntxt_id >> s_qpp) << PAGE_SHIFT;	/* pg offset */
+		eq->udb_qid = eq->cntxt_id & mask;		/* id in page */
+		if (eq->udb_qid > PAGE_SIZE / UDBS_SEG_SIZE)
+	    		clrbit(&eq->doorbells, DOORBELL_WRWC);
+		else {
+			udb += eq->udb_qid << UDBS_SEG_SHIFT;	/* seg offset */
+			eq->udb_qid = 0;
+		}
+		eq->udb = (volatile void *)udb;
+	}
 
 	return (rc);
 }
@@ -2437,6 +2546,7 @@ static inline void
 ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 {
 	int ndesc = fl->pending / 8;
+	uint32_t v;
 
 	if (FL_HW_IDX(fl->pidx) == FL_HW_IDX(fl->cidx))
 		ndesc--;	/* hold back one credit */
@@ -2444,10 +2554,13 @@ ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 	if (ndesc <= 0)
 		return;		/* nothing to do */
 
+	v = F_DBPRIO | V_QID(fl->cntxt_id) | V_PIDX(ndesc);
+	if (is_t5(sc))
+		v |= F_DBTYPE;
+
 	wmb();
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), F_DBPRIO |
-	    V_QID(fl->cntxt_id) | V_PIDX(ndesc));
+	t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), v);
 	fl->pending -= ndesc * 8;
 }
 
@@ -3312,10 +3425,53 @@ copy_to_txd(struct sge_eq *eq, caddr_t from, caddr_t *to, int len)
 static inline void
 ring_eq_db(struct adapter *sc, struct sge_eq *eq)
 {
-	wmb();
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
-	    V_QID(eq->cntxt_id) | V_PIDX(eq->pending));
+	u_int db, pending;
+
+	db = eq->doorbells;
+	pending = eq->pending;
+	if (pending > 1)
+		clrbit(&db, DOORBELL_WRWC);
 	eq->pending = 0;
+	wmb();
+
+	switch (ffs(db) - 1) {
+	case DOORBELL_UDB:
+		*eq->udb = htole32(V_QID(eq->udb_qid) | V_PIDX(pending));
+		return;
+
+	case DOORBELL_WRWC: {
+		volatile uint64_t *dst, *src;
+		int i;
+
+		/*
+		 * Queues whose 128B doorbell segment fits in the page do not
+		 * use relative qid (udb_qid is always 0).  Only queues with
+		 * doorbell segments can do WRWC.
+		 */
+		KASSERT(eq->udb_qid == 0 && pending == 1,
+		    ("%s: inappropriate doorbell (0x%x, %d, %d) for eq %p",
+		    __func__, eq->doorbells, pending, eq->pidx, eq));
+
+		dst = (volatile void *)((uintptr_t)eq->udb + UDBS_WR_OFFSET -
+		    UDBS_DB_OFFSET);
+		i = eq->pidx ? eq->pidx - 1 : eq->cap - 1;
+		src = (void *)&eq->desc[i];
+		while (src != (void *)&eq->desc[i + 1])
+			*dst++ = *src++;
+		wmb();
+		return;
+	}
+
+	case DOORBELL_UDBWC:
+		*eq->udb = htole32(V_QID(eq->udb_qid) | V_PIDX(pending));
+		wmb();
+		return;
+
+	case DOORBELL_KDB:
+		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		    V_QID(eq->cntxt_id) | V_PIDX(pending));
+		return;
+	}
 }
 
 static inline int
