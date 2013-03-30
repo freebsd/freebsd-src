@@ -123,14 +123,21 @@ struct nvme_completion_poll_status {
 	boolean_t		done;
 };
 
+#define NVME_REQUEST_VADDR	1
+#define NVME_REQUEST_NULL	2 /* For requests with no payload. */
+#define NVME_REQUEST_UIO	3
+
 struct nvme_request {
 
 	struct nvme_command		cmd;
 	struct nvme_qpair		*qpair;
-	void				*payload;
+	union {
+		void			*payload;
+		struct uio		*uio;
+	} u;
+	uint32_t			type;
 	uint32_t			payload_size;
 	boolean_t			timeout;
-	struct uio			*uio;
 	nvme_cb_fn_t			cb_fn;
 	void				*cb_arg;
 	int32_t				retries;
@@ -482,16 +489,28 @@ _nvme_allocate_request(nvme_cb_fn_t cb_fn, void *cb_arg)
 }
 
 static __inline struct nvme_request *
-nvme_allocate_request(void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn, 
-		      void *cb_arg)
+nvme_allocate_request_vaddr(void *payload, uint32_t payload_size,
+    nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 
 	req = _nvme_allocate_request(cb_fn, cb_arg);
 	if (req != NULL) {
-		req->payload = payload;
+		req->type = NVME_REQUEST_VADDR;
+		req->u.payload = payload;
 		req->payload_size = payload_size;
 	}
+	return (req);
+}
+
+static __inline struct nvme_request *
+nvme_allocate_request_null(nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request *req;
+
+	req = _nvme_allocate_request(cb_fn, cb_arg);
+	if (req != NULL)
+		req->type = NVME_REQUEST_NULL;
 	return (req);
 }
 
@@ -501,8 +520,10 @@ nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
 	struct nvme_request *req;
 
 	req = _nvme_allocate_request(cb_fn, cb_arg);
-	if (req != NULL)
-		req->uio = uio;
+	if (req != NULL) {
+		req->type = NVME_REQUEST_UIO;
+		req->u.uio = uio;
+	}
 	return (req);
 }
 

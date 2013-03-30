@@ -145,6 +145,7 @@ struct da_softc {
 	da_state state;
 	da_flags flags;	
 	da_quirks quirks;
+	int	 sort_io_queue;
 	int	 minimum_cmd_size;
 	int	 error_inject;
 	int	 ordered_tag_count;
@@ -903,6 +904,8 @@ static timeout_t	damediapoll;
 #define	DA_DEFAULT_SEND_ORDERED	1
 #endif
 
+#define DA_SIO (softc->sort_io_queue >= 0 ? \
+    softc->sort_io_queue : cam_sort_io_queues)
 
 static int da_poll_period = DA_DEFAULT_POLL_PERIOD;
 static int da_retry_count = DA_DEFAULT_RETRY;
@@ -1140,10 +1143,15 @@ dastrategy(struct bio *bp)
 	if (bp->bio_cmd == BIO_DELETE) {
 		if (bp->bio_bcount == 0)
 			biodone(bp);
-		else
+		else if (DA_SIO)
 			bioq_disksort(&softc->delete_queue, bp);
-	} else
+		else
+			bioq_insert_tail(&softc->delete_queue, bp);
+	} else if (DA_SIO) {
 		bioq_disksort(&softc->bio_queue, bp);
+	} else {
+		bioq_insert_tail(&softc->bio_queue, bp);
+	}
 
 	/*
 	 * Schedule ourselves for performing the work.
@@ -1504,6 +1512,9 @@ dasysctlinit(void *context, int pending)
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "sort_io_queue", CTLFLAG_RW, &softc->sort_io_queue, 0,
+		"Sort IO queue to try and optimise disk access patterns");
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx,
 		       SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -1651,6 +1662,7 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->flags |= DA_FLAG_PACK_REMOVABLE;
 	softc->unmap_max_ranges = UNMAP_MAX_RANGES;
 	softc->unmap_max_lba = 1024*1024*2;
+	softc->sort_io_queue = -1;
 
 	periph->softc = softc;
 
@@ -2133,9 +2145,16 @@ cmd6workaround(union ccb *ccb)
 			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		} else
 			dadeletemethodset(softc, DA_DELETE_DISABLE);
-		while ((bp = bioq_takefirst(&softc->delete_run_queue))
-		    != NULL)
-			bioq_disksort(&softc->delete_queue, bp);
+
+		if (DA_SIO) {
+			while ((bp = bioq_takefirst(&softc->delete_run_queue))
+			    != NULL)
+				bioq_disksort(&softc->delete_queue, bp);
+		} else {
+			while ((bp = bioq_takefirst(&softc->delete_run_queue))
+			    != NULL)
+				bioq_insert_tail(&softc->delete_queue, bp);
+		}
 		bioq_insert_tail(&softc->delete_queue,
 		    (struct bio *)ccb->ccb_h.ccb_bp);
 		ccb->ccb_h.ccb_bp = NULL;
