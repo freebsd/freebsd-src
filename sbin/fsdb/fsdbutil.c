@@ -238,7 +238,6 @@ printindir(ufs2_daddr_t blk, int level, char *bufp)
 	/* for the final indirect level, don't use the cache */
 	bp = &buf;
 	bp->b_un.b_buf = bufp;
-	bp->b_prev = bp->b_next = bp;
 	initbarea(bp);
 
 	getblk(bp, blk, sblock.fs_bsize);
