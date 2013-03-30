@@ -360,13 +360,13 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	/* The wrqe will have two WRs - a flowc followed by an abort_req */
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
-	wr = alloc_wrqe(roundup(flowclen, EQ_ESIZE) + sizeof(*req), ofld_txq);
+	wr = alloc_wrqe(roundup2(flowclen, EQ_ESIZE) + sizeof(*req), ofld_txq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
 	}
 	flowc = wrtod(wr);
-	req = (void *)((caddr_t)flowc + roundup(flowclen, EQ_ESIZE));
+	req = (void *)((caddr_t)flowc + roundup2(flowclen, EQ_ESIZE));
 
 	/* First the flowc ... */
 	memset(flowc, 0, wr->wr_len);
@@ -944,7 +944,7 @@ get_qids_from_mbuf(struct mbuf *m, int *txqid, int *rxqid)
 static struct synq_entry *
 mbuf_to_synqe(struct mbuf *m)
 {
-	int len = roundup(sizeof (struct synq_entry), 8);
+	int len = roundup2(sizeof (struct synq_entry), 8);
 	int tspace = M_TRAILINGSPACE(m);
 	struct synq_entry *synqe = NULL;
 
@@ -1006,8 +1006,11 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 		opt2 |= F_CCTRL_ECN;
 
 	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
-	opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
 	opt2 |= F_RSS_QUEUE_VALID | V_RSS_QUEUE(ofld_rxq->iq.abs_id);
+	if (is_t4(sc))
+		opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
+	else
+		opt2 |= F_T5_OPT_2_VALID | V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (ulp_mode == ULP_MODE_TCPDDP)
