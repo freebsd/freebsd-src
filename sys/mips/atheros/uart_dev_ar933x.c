@@ -41,12 +41,16 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
-#define	DEFAULT_RCLK	1843200
+/*
+ * Default system clock is 25MHz; see ar933x_chip.c for how
+ * the startup process determines whether it's 25MHz or 40MHz.
+ */
+#define	DEFAULT_RCLK	(25 * 1000 * 1000)
 
 #define	ar933x_getreg(bas, reg)           \
-	bus_space_read_4((bas)->bst, (bas)->bsh, uart_regofs(bas, reg))
+	bus_space_read_4((bas)->bst, (bas)->bsh, reg)
 #define	ar933x_setreg(bas, reg, value)    \
-	bus_space_write_4((bas)->bst, (bas)->bsh, uart_regofs(bas, reg), value)
+	bus_space_write_4((bas)->bst, (bas)->bsh, reg, value)
 
 
 #if 0
@@ -325,14 +329,7 @@ ar933x_getc(struct uart_bas *bas, struct mtx *hwmtx)
  */
 struct ar933x_softc {
 	struct uart_softc base;
-#if 0
-	uint8_t		fcr;
-	uint8_t		ier;
-	uint8_t		mcr;
-	
-	uint8_t		ier_mask;
-	uint8_t		ier_rxbits;
-#endif
+
 	uint32_t	u_ier;
 };
 
