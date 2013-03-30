@@ -381,7 +381,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * know what the blocksize of this device is, if 
 	 * it even has a blocksize.
 	 */
-	mtx_unlock(periph->sim->mtx);
+	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
 	softc->device_stats = devstat_new_entry("pass",
 			  periph->unit_number, 0,
@@ -417,7 +417,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 */
 	dev_ref(softc->dev);
 
-	mtx_lock(periph->sim->mtx);
+	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
 	TASK_INIT(&softc->add_physpath_task, /*priority*/0,
