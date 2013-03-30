@@ -1706,6 +1706,17 @@ fail:
 	return (0);
 }
 
+static inline struct buf *
+getinobuf(struct inode *ip, u_int cg, u_int32_t cginoblk, int gbflags)
+{
+	struct fs *fs;
+
+	fs = ip->i_fs;
+	return (getblk(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs,
+	    cg * fs->fs_ipg + cginoblk)), (int)fs->fs_bsize, 0, 0,
+	    gbflags));
+}
+
 /*
  * Determine whether an inode can be allocated.
  *
@@ -1729,9 +1740,11 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 	u_int8_t *inosused;
 	struct ufs2_dinode *dp2;
 	int error, start, len, loc, map, i;
+	u_int32_t old_initediblk;
 
 	fs = ip->i_fs;
 	ump = ip->i_ump;
+check_nifree:
 	if (fs->fs_cs(fs, cg).cs_nifree == 0)
 		return (0);
 	UFS_UNLOCK(ump);
@@ -1743,13 +1756,13 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 		return (0);
 	}
 	cgp = (struct cg *)bp->b_data;
+restart:
 	if (!cg_chkmagic(cgp) || cgp->cg_cs.cs_nifree == 0) {
 		brelse(bp);
 		UFS_LOCK(ump);
 		return (0);
 	}
 	bp->b_xflags |= BX_BKGRDWRITE;
-	cgp->cg_old_time = cgp->cg_time = time_second;
 	inosused = cg_inosused(cgp);
 	if (ipref) {
 		ipref %= fs->fs_ipg;
@@ -1777,26 +1790,83 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 		panic("ffs_nodealloccg: block not in map");
 	}
 	ipref = i * NBBY + ffs(map) - 1;
-	cgp->cg_irotor = ipref;
 gotit:
 	/*
 	 * Check to see if we need to initialize more inodes.
 	 */
-	ibp = NULL;
 	if (fs->fs_magic == FS_UFS2_MAGIC &&
 	    ipref + INOPB(fs) > cgp->cg_initediblk &&
 	    cgp->cg_initediblk < cgp->cg_niblk) {
-		ibp = getblk(ip->i_devvp, fsbtodb(fs,
-		    ino_to_fsba(fs, cg * fs->fs_ipg + cgp->cg_initediblk)),
-		    (int)fs->fs_bsize, 0, 0, 0);
+		old_initediblk = cgp->cg_initediblk;
+
+		/*
+		 * Free the cylinder group lock before writing the
+		 * initialized inode block.  Entering the
+		 * babarrierwrite() with the cylinder group lock
+		 * causes lock order violation between the lock and
+		 * snaplk.
+		 *
+		 * Another thread can decide to initialize the same
+		 * inode block, but whichever thread first gets the
+		 * cylinder group lock after writing the newly
+		 * allocated inode block will update it and the other
+		 * will realize that it has lost and leave the
+		 * cylinder group unchanged.
+		 */
+		ibp = getinobuf(ip, cg, old_initediblk, GB_LOCK_NOWAIT);
+		brelse(bp);
+		if (ibp == NULL) {
+			/*
+			 * The inode block buffer is already owned by
+			 * another thread, which must initialize it.
+			 * Wait on the buffer to allow another thread
+			 * to finish the updates, with dropped cg
+			 * buffer lock, then retry.
+			 */
+			ibp = getinobuf(ip, cg, old_initediblk, 0);
+			brelse(ibp);
+			UFS_LOCK(ump);
+			goto check_nifree;
+		}
 		bzero(ibp->b_data, (int)fs->fs_bsize);
 		dp2 = (struct ufs2_dinode *)(ibp->b_data);
 		for (i = 0; i < INOPB(fs); i++) {
 			dp2->di_gen = arc4random() / 2 + 1;
 			dp2++;
 		}
-		cgp->cg_initediblk += INOPB(fs);
+		/*
+		 * Rather than adding a soft updates dependency to ensure
+		 * that the new inode block is written before it is claimed
+		 * by the cylinder group map, we just do a barrier write
+		 * here. The barrier write will ensure that the inode block
+		 * gets written before the updated cylinder group map can be
+		 * written. The barrier write should only slow down bulk
+		 * loading of newly created filesystems.
+		 */
+		babarrierwrite(ibp);
+
+		/*
+		 * After the inode block is written, try to update the
+		 * cg initediblk pointer.  If another thread beat us
+		 * to it, then leave it unchanged as the other thread
+		 * has already set it correctly.
+		 */
+		error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
+		    (int)fs->fs_cgsize, NOCRED, &bp);
+		UFS_LOCK(ump);
+		ACTIVECLEAR(fs, cg);
+		UFS_UNLOCK(ump);
+		if (error != 0) {
+			brelse(bp);
+			return (error);
+		}
+		cgp = (struct cg *)bp->b_data;
+		if (cgp->cg_initediblk == old_initediblk)
+			cgp->cg_initediblk += INOPB(fs);
+		goto restart;
 	}
+	cgp->cg_old_time = cgp->cg_time = time_second;
+	cgp->cg_irotor = ipref;
 	UFS_LOCK(ump);
 	ACTIVECLEAR(fs, cg);
 	setbit(inosused, ipref);
@@ -1813,8 +1883,6 @@ gotit:
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref);
 	bdwrite(bp);
-	if (ibp != NULL)
-		bawrite(ibp);
 	return ((ino_t)(cg * fs->fs_ipg + ipref));
 }
 
