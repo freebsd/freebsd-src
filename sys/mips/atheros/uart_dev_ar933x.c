@@ -147,45 +147,94 @@ ar933x_flush(struct uart_bas *bas, int what)
 }
 #endif
 
-#if 0
+/*
+ * Calculate the baud from the given chip configuration parameters.
+ */
+static unsigned long
+ar933x_uart_get_baud(unsigned int clk, unsigned int scale,
+    unsigned int step)
+{
+	uint64_t t;
+	uint32_t div;
+
+	div = (2 << 16) * (scale + 1);
+	t = clk;
+	t *= step;
+	t += (div / 2);
+	t = t / div;
+
+	return (t);
+}
+
+/*
+ * Calculate the scale/step with the lowest possible deviation from
+ * the target baudrate.
+ */
+static void
+ar933x_uart_get_scale_step(struct uart_bas *bas, unsigned int baud,
+    unsigned int *scale, unsigned int *step)
+{
+	unsigned int tscale;
+	uint32_t clk;
+	long min_diff;
+
+	clk = bas->rclk;
+	*scale = 0;
+	*step = 0;
+
+	min_diff = baud;
+	for (tscale = 0; tscale < AR933X_UART_MAX_SCALE; tscale++) {
+		uint64_t tstep;
+		int diff;
+
+		tstep = baud * (tscale + 1);
+		tstep *= (2 << 16);
+		tstep = tstep / clk;
+
+		if (tstep > AR933X_UART_MAX_STEP)
+			break;
+
+		diff = abs(ar933x_uart_get_baud(clk, tscale, tstep) - baud);
+		if (diff < min_diff) {
+			min_diff = diff;
+			*scale = tscale;
+			*step = tstep;
+		}
+	}
+}
+
 static int
 ar933x_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
-	int divisor;
-	uint8_t lcr;
+	/* UART always 8 bits */
 
-	lcr = 0;
-	if (databits >= 8)
-		lcr |= LCR_8BITS;
-	else if (databits == 7)
-		lcr |= LCR_7BITS;
-	else if (databits == 6)
-		lcr |= LCR_6BITS;
-	else
-		lcr |= LCR_5BITS;
-	if (stopbits > 1)
-		lcr |= LCR_STOPB;
-	lcr |= parity << 3;
+	/* UART always 1 stop bit */
 
-	/* Set baudrate. */
+	/* UART parity is controllable by bits 0:1, ignore for now */
+
+	/* Set baudrate if required. */
 	if (baudrate > 0) {
-		divisor = ar933x_divisor(bas->rclk, baudrate);
-		if (divisor == 0)
-			return (EINVAL);
-		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
-		uart_barrier(bas);
-		uart_setreg(bas, REG_DLL, divisor & 0xff);
-		uart_setreg(bas, REG_DLH, (divisor >> 8) & 0xff);
-		uart_barrier(bas);
+		uint32_t clock_scale, clock_step;
+
+		/* Find the best fit for the given baud rate */
+		ar933x_uart_get_scale_step(bas, baudrate, &clock_scale,
+		    &clock_step);
+
+		/*
+		 * Program the clock register in its entirety - no need
+		 * for Read-Modify-Write.
+		 */
+		ar933x_setreg(bas, AR933X_UART_CLOCK_REG,
+		    ((clock_scale & AR933X_UART_CLOCK_SCALE_M)
+		      << AR933X_UART_CLOCK_SCALE_S) |
+		    (clock_step & AR933X_UART_CLOCK_STEP_M));
 	}
 
-	/* Set LCR and clear DLAB. */
-	uart_setreg(bas, REG_LCR, lcr);
 	uart_barrier(bas);
 	return (0);
 }
-#endif
+
 
 /*
  * Low-level UART interface.
@@ -209,23 +258,8 @@ static struct uart_ops uart_ar933x_ops = {
 static int
 ar933x_probe(struct uart_bas *bas)
 {
-#if 0
-	u_char val;
 
-	/* Check known 0 bits that don't depend on DLAB. */
-	val = uart_getreg(bas, REG_IIR);
-	if (val & 0x30)
-		return (ENXIO);
-	/*
-	 * Bit 6 of the MCR (= 0x40) appears to be 1 for the Sun1699
-	 * chip, but otherwise doesn't seem to have a function. In
-	 * other words, uart(4) works regardless. Ignore that bit so
-	 * the probe succeeds.
-	 */
-	val = uart_getreg(bas, REG_MCR);
-	if (val & 0xa0)
-		return (ENXIO);
-#endif
+	/* We always know this will be here */
 	return (0);
 }
 
@@ -233,43 +267,34 @@ static void
 ar933x_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
-#if 0
-	u_char	ier;
+	uint32_t reg;
 
-	if (bas->rclk == 0)
-		bas->rclk = DEFAULT_RCLK;
+	/* Setup default parameters */
 	ar933x_param(bas, baudrate, databits, stopbits, parity);
 
-	/* Disable all interrupt sources. */
-	/*
-	 * We use 0xe0 instead of 0xf0 as the mask because the XScale PXA
-	 * UARTs split the receive time-out interrupt bit out separately as
-	 * 0x10.  This gets handled by ier_mask and ier_rxbits below.
-	 */
-	ier = uart_getreg(bas, REG_IER) & 0xe0;
-	uart_setreg(bas, REG_IER, ier);
+	/* XXX Force enable UART in case it was disabled */
+
+	/* Disable all interrupts */
+	ar933x_setreg(bas, AR933X_UART_INT_EN_REG, 0x00000000);
+
+	/* Disable the host interrupt */
+	reg = ar933x_getreg(bas, AR933X_UART_CS_REG);
+	reg &= ~AR933X_UART_CS_HOST_INT_EN;
+	ar933x_setreg(bas, AR933X_UART_CS_REG, reg);
+
 	uart_barrier(bas);
 
-	/* Disable the FIFO (if present). */
-	uart_setreg(bas, REG_FCR, 0);
-	uart_barrier(bas);
-
-	/* Set RTS & DTR. */
-	uart_setreg(bas, REG_MCR, MCR_IE | MCR_RTS | MCR_DTR);
-	uart_barrier(bas);
-
-	ar933x_clrint(bas);
-#endif
+	/* XXX Set RTS/DTR? */
 }
 
+/*
+ * Detach from console.
+ */
 static void
 ar933x_term(struct uart_bas *bas)
 {
-#if 0
-	/* Clear RTS & DTR. */
-	uart_setreg(bas, REG_MCR, MCR_IE);
-	uart_barrier(bas);
-#endif
+
+	/* XXX TODO */
 }
 
 static void
