@@ -508,9 +508,9 @@ done:
 	 */
 	ip->i_size = length;
 	DIP_SET(ip, i_size, length);
-	DIP_SET(ip, i_blocks, DIP(ip, i_blocks) - blocksreleased);
-
-	if (DIP(ip, i_blocks) < 0)			/* sanity */
+	if (DIP(ip, i_blocks) >= blocksreleased)
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) - blocksreleased);
+	else	/* sanity */
 		DIP_SET(ip, i_blocks, 0);
 	ip->i_flag |= IN_CHANGE;
 #ifdef QUOTA
