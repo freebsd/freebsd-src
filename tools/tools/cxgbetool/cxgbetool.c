@@ -77,6 +77,7 @@ struct field_desc {
 
 #include "reg_defs_t4.c"
 #include "reg_defs_t4vf.c"
+#include "reg_defs_t5.c"
 
 static void
 usage(FILE *fp)
@@ -354,34 +355,75 @@ dump_regs_t4vf(int argc, const char *argv[], const uint32_t *regs)
 	    ARRAY_SIZE(t4vf_mod));
 }
 
+#define T5_MODREGS(name) { #name, t5_##name##_regs }
+static int
+dump_regs_t5(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t5_mod[] = {
+		T5_MODREGS(sge),
+		{ "pci", t5_pcie_regs },
+		T5_MODREGS(dbg),
+		{ "mc0", t5_mc_0_regs },
+		{ "mc1", t5_mc_1_regs },
+		T5_MODREGS(ma),
+		{ "edc0", t5_edc_t50_regs },
+		{ "edc1", t5_edc_t51_regs },
+		T5_MODREGS(cim),
+		T5_MODREGS(tp),
+		{ "ulprx", t5_ulp_rx_regs },
+		{ "ulptx", t5_ulp_tx_regs },
+		{ "pmrx", t5_pm_rx_regs },
+		{ "pmtx", t5_pm_tx_regs },
+		T5_MODREGS(mps),
+		{ "cplsw", t5_cpl_switch_regs },
+		T5_MODREGS(smb),
+		{ "i2c", t5_i2cm_regs },
+		T5_MODREGS(mi),
+		T5_MODREGS(uart),
+		T5_MODREGS(pmu),
+		T5_MODREGS(sf),
+		T5_MODREGS(pl),
+		T5_MODREGS(le),
+		T5_MODREGS(ncsi),
+		T5_MODREGS(mac),
+		{ "hma", t5_hma_t5_regs }
+	};
+
+	return dump_regs_table(argc, argv, regs, t5_mod, ARRAY_SIZE(t5_mod));
+}
+#undef T5_MODREGS
+
 static int
 dump_regs(int argc, const char *argv[])
 {
-	int vers, revision, is_pcie, rc;
+	int vers, revision, rc;
 	struct t4_regdump regs;
+	uint32_t len;
 
-	regs.data = calloc(1, T4_REGDUMP_SIZE);
+	len = max(T4_REGDUMP_SIZE, T5_REGDUMP_SIZE);
+	regs.data = calloc(1, len);
 	if (regs.data == NULL) {
 		warnc(ENOMEM, "regdump");
 		return (ENOMEM);
 	}
 
-	regs.len = T4_REGDUMP_SIZE;
+	regs.len = len;
 	rc = doit(CHELSIO_T4_REGDUMP, &regs);
 	if (rc != 0)
 		return (rc);
 
 	vers = get_card_vers(regs.version);
 	revision = (regs.version >> 10) & 0x3f;
-	is_pcie = (regs.version & 0x80000000) != 0;
 
 	if (vers == 4) {
 		if (revision == 0x3f)
 			rc = dump_regs_t4vf(argc, argv, regs.data);
 		else
 			rc = dump_regs_t4(argc, argv, regs.data);
-	} else {
-		warnx("%s (type %d, rev %d) is not a T4 card.",
+	} else if (vers == 5)
+		rc = dump_regs_t5(argc, argv, regs.data);
+	else {
+		warnx("%s (type %d, rev %d) is not a known card.",
 		    nexus, vers, revision);
 		return (ENOTSUP);
 	}

@@ -50,9 +50,6 @@
 #include "offload.h"
 #include "firmware/t4fw_interface.h"
 
-#define T4_CFGNAME "t4fw_cfg"
-#define T4_FWNAME "t4fw"
-
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
@@ -143,12 +140,6 @@ enum {
 	TX_SGL_SEGS = 36,
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
-
-#ifdef T4_PKT_TIMESTAMP
-#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
-#else
-#define RX_COPY_THRESHOLD MINCLSIZE
-#endif
 
 enum {
 	/* adapter intr_type */
@@ -327,6 +318,9 @@ enum {
 	EQ_STALLED	= (1 << 6),	/* out of hw descriptors or dmamaps */
 };
 
+/* Listed in order of preference.  Update t4_sysctls too if you change these */
+enum {DOORBELL_UDB, DOORBELL_WRWC, DOORBELL_UDBWC, DOORBELL_KDB};
+
 /*
  * Egress Queue: driver is producer, T4 is consumer.
  *
@@ -344,6 +338,9 @@ struct sge_eq {
 	struct tx_desc *desc;	/* KVA of descriptor ring */
 	bus_addr_t ba;		/* bus address of descriptor ring */
 	struct sge_qstat *spg;	/* status page, for convenience */
+	int doorbells;
+	volatile uint32_t *udb;	/* KVA of doorbell (lies within BAR2) */
+	u_int udb_qid;		/* relative qid within the doorbell page */
 	uint16_t cap;		/* max # of desc, for convenience */
 	uint16_t avail;		/* available descriptors, for convenience */
 	uint16_t qsize;		/* size (# of entries) of the queue */
@@ -496,6 +493,7 @@ struct sge {
 	int timer_val[SGE_NTIMERS];
 	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
+	int s_qpp;
 
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
@@ -541,6 +539,9 @@ struct adapter {
 	bus_space_handle_t bh;
 	bus_space_tag_t bt;
 	bus_size_t mmio_len;
+	int udbs_rid;
+	struct resource *udbs_res;
+	volatile uint8_t *udbs_base;
 
 	unsigned int pf;
 	unsigned int mbox;
@@ -570,6 +571,7 @@ struct adapter {
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
+	int doorbells;
 	int open_device_map;
 #ifdef TCP_OFFLOAD
 	int offload_map;
@@ -748,13 +750,15 @@ t4_os_set_hw_addr(struct adapter *sc, int idx, uint8_t hw_addr[])
 	bcopy(hw_addr, sc->port[idx]->hw_addr, ETHER_ADDR_LEN);
 }
 
-static inline bool is_10G_port(const struct port_info *pi)
+static inline bool
+is_10G_port(const struct port_info *pi)
 {
 
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
-static inline int tx_resume_threshold(struct sge_eq *eq)
+static inline int
+tx_resume_threshold(struct sge_eq *eq)
 {
 
 	return (eq->qsize / 4);
@@ -778,7 +782,9 @@ void end_synchronized_op(struct adapter *, int);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
-int t4_sge_init(struct adapter *);
+void t4_init_sge_cpl_handlers(struct adapter *);
+void t4_tweak_chip_settings(struct adapter *);
+int t4_read_chip_settings(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);

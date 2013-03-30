@@ -241,8 +241,11 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 		opt2 |= F_CCTRL_ECN;
 
 	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
-	opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
 	opt2 |= F_RSS_QUEUE_VALID | V_RSS_QUEUE(toep->ofld_rxq->iq.abs_id);
+	if (is_t4(sc))
+		opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
+	else
+		opt2 |= F_T5_OPT_2_VALID | V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
@@ -265,6 +268,24 @@ t4_init_connect_cpl_handlers(struct adapter *sc)
 	rc = (x); \
 	goto failed; \
 } while (0)
+
+static inline int
+act_open_cpl_size(struct adapter *sc, int isipv6)
+{
+	static const int sz_t4[] = {
+		sizeof (struct cpl_act_open_req),
+		sizeof (struct cpl_act_open_req6)
+	};
+	static const int sz_t5[] = {
+		sizeof (struct cpl_t5_act_open_req),
+		sizeof (struct cpl_t5_act_open_req6)
+	};
+
+	if (is_t4(sc))
+		return (sz_t4[!!isipv6]);
+	else
+		return (sz_t5[!!isipv6]);
+}
 
 /*
  * active open (soconnect).
@@ -320,8 +341,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
 	isipv6 = nam->sa_family == AF_INET6;
-	wr = alloc_wrqe(isipv6 ? sizeof(struct cpl_act_open_req6) :
-	    sizeof(struct cpl_act_open_req), toep->ctrlq);
+	wr = alloc_wrqe(act_open_cpl_size(sc, isipv6), toep->ctrlq);
 	if (wr == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
@@ -373,8 +393,17 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->peer_ip_lo = *(uint64_t *)&inp->in6p_faddr.s6_addr[8];
 		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
-		cpl->params = select_ntuple(pi, toep->l2te, sc->filter_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
+		if (is_t4(sc)) {
+			cpl->params = select_ntuple(pi, toep->l2te,
+			    sc->filter_mode);
+		} else {
+			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
+
+			c5->rsvd = 0;
+			c5->params = select_ntuple(pi, toep->l2te,
+			    sc->filter_mode);
+		}
 	} else {
 		struct cpl_act_open_req *cpl = wrtod(wr);
 
@@ -385,8 +414,17 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		    &cpl->peer_ip, &cpl->peer_port);
 		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
-		cpl->params = select_ntuple(pi, toep->l2te, sc->filter_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
+		if (is_t4(sc)) {
+			cpl->params = select_ntuple(pi, toep->l2te,
+			    sc->filter_mode);
+		} else {
+			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
+
+			c5->rsvd = 0;
+			c5->params = select_ntuple(pi, toep->l2te,
+			    sc->filter_mode);
+		}
 	}
 
 	CTR5(KTR_CXGBE, "%s: atid %u (%s), toep %p, inp %p", __func__,
