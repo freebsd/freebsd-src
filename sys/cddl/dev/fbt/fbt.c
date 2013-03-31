@@ -1260,6 +1260,11 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 	uint32_t offset;
 	ushort_t info, kind, n;
 
+	if (fbt->fbtp_roffset != 0 && desc->dtargd_ndx == 0) {
+		(void) strcpy(desc->dtargd_native, "int");
+		return;
+	}
+
 	desc->dtargd_ndx = DTRACE_ARGNONE;
 
 	/* Get a pointer to the CTF data and it's length. */
@@ -1310,12 +1315,19 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 		return;
 	}
 
-	/* Check if the requested argument doesn't exist. */
-	if (ndx >= n)
-		return;
+	if (fbt->fbtp_roffset != 0) {
+		/* Only return type is available for args[1] in return probe. */
+		if (ndx > 1)
+			return;
+		ASSERT(ndx == 1);
+	} else {
+		/* Check if the requested argument doesn't exist. */
+		if (ndx >= n)
+			return;
 
-	/* Skip the return type and arguments up to the one requested. */
-	dp += ndx + 1;
+		/* Skip the return type and arguments up to the one requested. */
+		dp += ndx + 1;
+	}
 
 	if (fbt_type_name(&lc, *dp, desc->dtargd_native, sizeof(desc->dtargd_native)) > 0)
 		desc->dtargd_ndx = ndx;
