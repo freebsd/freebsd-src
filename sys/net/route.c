@@ -1515,7 +1515,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			if (rnh == NULL)
 				/* this table doesn't exist but others might */
 				continue;
-			RADIX_NODE_HEAD_LOCK(rnh);
+			RADIX_NODE_HEAD_RLOCK(rnh);
 #ifdef RADIX_MPATH
 			if (rn_mpath_capable(rnh)) {
 
@@ -1544,7 +1544,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			    (rn->rn_flags & RNF_ROOT) ||
 			    RNTORT(rn)->rt_ifa != ifa ||
 			    !sa_equal((struct sockaddr *)rn->rn_key, dst));
-			RADIX_NODE_HEAD_UNLOCK(rnh);
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
 			if (error) {
 				/* this is only an error if bad on ALL tables */
 				continue;
