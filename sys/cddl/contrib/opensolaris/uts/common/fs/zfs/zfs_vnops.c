@@ -450,7 +450,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 			    ("zfs update_pages: invalid page in putpages case"));
 			KASSERT(pp->busy > 0,
 			    ("zfs update_pages: unbusy page in putpages case"));
-			KASSERT(!pmap_page_is_write_mapped(pp),
+			KASSERT((pp->flags & PG_WRITEABLE) == 0,
 			    ("zfs update_pages: writable page in putpages case"));
 			VM_OBJECT_UNLOCK(obj);
 
