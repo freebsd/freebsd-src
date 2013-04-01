@@ -680,10 +680,12 @@ ath_edma_rxbuf_free(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_RX_LOCK_ASSERT(sc);
 
-	/* We're doing this multiple times? */
-	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-
+	/*
+	 * Only unload the frame if we haven't consumed
+	 * the mbuf via ath_rx_pkt().
+	 */
 	if (bf->bf_m) {
+		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		m_freem(bf->bf_m);
 		bf->bf_m = NULL;
 	}
