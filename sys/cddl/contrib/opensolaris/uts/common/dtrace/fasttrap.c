@@ -175,6 +175,9 @@ static volatile uint64_t fasttrap_mod_gen;
 static uint32_t fasttrap_max;
 static uint32_t fasttrap_total;
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
 
 #define	FASTTRAP_TPOINTS_DEFAULT_SIZE	0x4000
 #define	FASTTRAP_PROVIDERS_DEFAULT_SIZE	0x100
@@ -317,7 +320,7 @@ fasttrap_pid_cleanup_cb(void *data)
 	fasttrap_provider_t **fpp, *fp;
 	fasttrap_bucket_t *bucket;
 	dtrace_provider_id_t provid;
-	int i, later = 0;
+	int i, later = 0, rval;
 
 	static volatile int in = 0;
 	ASSERT(in == 0);
@@ -378,9 +381,13 @@ fasttrap_pid_cleanup_cb(void *data)
 				 * clean out the unenabled probes.
 				 */
 				provid = fp->ftp_provid;
-				if (dtrace_unregister(provid) != 0) {
+				if ((rval = dtrace_unregister(provid)) != 0) {
 					if (fasttrap_total > fasttrap_max / 2)
 						(void) dtrace_condense(provid);
+
+					if (rval == EAGAIN)
+						fp->ftp_marked = 1;
+
 					later += fp->ftp_marked;
 					fpp = &fp->ftp_next;
 				} else {
@@ -408,12 +415,15 @@ fasttrap_pid_cleanup_cb(void *data)
 	 * get a chance to do that work if and when the timeout is reenabled
 	 * (if detach fails).
 	 */
-	if (later > 0 && callout_active(&fasttrap_timeout))
-		callout_reset(&fasttrap_timeout, hz, &fasttrap_pid_cleanup_cb,
-		    NULL);
+	if (later > 0) {
+		if (callout_active(&fasttrap_timeout)) {
+			callout_reset(&fasttrap_timeout, hz,
+			    &fasttrap_pid_cleanup_cb, NULL);
+		}
+ 
 	else if (later > 0)
 		fasttrap_cleanup_work = 1;
-	else {
+	} else {
 #if !defined(sun)
 		/* Nothing to be done for FreeBSD */
 #endif
