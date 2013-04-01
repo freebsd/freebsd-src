@@ -306,7 +306,7 @@ xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
 
 	if ((dev->ccbq.queue.entries > 0) &&
 	    (dev->ccbq.dev_openings > 0) &&
-	    (cam_ccbq_frozen(&dev->ccbq) == 0)) {
+	    (dev->ccbq.queue.qfrozen_cnt == 0)) {
 		/*
 		 * The priority of a device waiting for controller
 		 * resources is that of the highest priority CCB
@@ -3156,7 +3156,7 @@ xpt_run_dev_allocq(struct cam_ed *device)
 	while ((drvq->entries > 0) &&
 	    (device->ccbq.devq_openings > 0 ||
 	     CAMQ_GET_PRIO(drvq) <= CAM_PRIORITY_OOB) &&
-	    (cam_ccbq_frozen(&device->ccbq) == 0)) {
+	    (device->ccbq.queue.qfrozen_cnt == 0)) {
 		union	ccb *work_ccb;
 		struct	cam_periph *drv;
 
@@ -4156,9 +4156,7 @@ xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 		count = dev->ccbq.queue.qfrozen_cnt;
 	}
 	dev->ccbq.queue.qfrozen_cnt -= count;
-	if (cam_ccbq_frozen(&dev->ccbq) == 0)
-		xpt_run_dev_allocq(dev);
-	if (cam_ccbq_frozen(&dev->ccbq) == 0) {
+	if (dev->ccbq.queue.qfrozen_cnt == 0) {
 		/*
 		 * No longer need to wait for a successful
 		 * command completion.
@@ -4172,6 +4170,7 @@ xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 			callout_stop(&dev->callout);
 			dev->flags &= ~CAM_DEV_REL_TIMEOUT_PENDING;
 		}
+		xpt_run_dev_allocq(dev);
 		if (run_queue == 0)
 			return;
 		/*

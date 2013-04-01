@@ -243,12 +243,5 @@ cam_ccbq_release_opening(struct cam_ccbq *ccbq)
 	ccbq->devq_openings++;
 }
 
-static __inline u_int32_t
-cam_ccbq_frozen(struct cam_ccbq *ccbq)
-{
-
-	return (ccbq->queue.qfrozen_cnt);
-}
-
 #endif /* _KERNEL */
 #endif  /* _CAM_CAM_QUEUE_H */
