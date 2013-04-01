@@ -758,9 +758,13 @@ void	nvme_ctrlr_cmd_get_log_page(struct nvme_controller *ctrlr,
 int	nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload,
 			  uint64_t lba, uint32_t lba_count, nvme_cb_fn_t cb_fn,
 			  void *cb_arg);
+int	nvme_ns_cmd_write_bio(struct nvme_namespace *ns, struct bio *bp,
+			      nvme_cb_fn_t cb_fn, void *cb_arg);
 int	nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload,
 			 uint64_t lba, uint32_t lba_count, nvme_cb_fn_t cb_fn,
 			 void *cb_arg);
+int	nvme_ns_cmd_read_bio(struct nvme_namespace *ns, struct bio *bp,
+			      nvme_cb_fn_t cb_fn, void *cb_arg);
 int	nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 			       uint8_t num_ranges, nvme_cb_fn_t cb_fn,
 			       void *cb_arg);
