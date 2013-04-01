@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_smp.h"
 
 
+#include <sys/libkern.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -383,30 +384,6 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 	return alloced;
 }
 
-/*$FreeBSD: head/lib/libc/string/memrchr.c 178051 2008-04-10 00:12:44Z delphij $*/
-/*
- * Reverse memchr()
- * Find the last occurrence of 'c' in the buffer 's' of size 'n'.
- */
-
-static const void * memrchr(const void *, int, size_t);
-
-static const void *
-memrchr(const void *s, int c, size_t n)
-{
-	const unsigned char *cp;
-
-	if (n != 0) {
-		cp = (const unsigned char *)s + n;
-		do {
-			if (*(--cp) == (unsigned char)c)
-				return((const void *)cp);
-		} while (--n != 0);
-	}
-	return(NULL);
-}
-
-
 void
 mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 {
@@ -461,7 +438,7 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 			}
 
 			/* We can free the PT only after the PDT entry is zapped */
-			if (memrchr(pti->pt, 0, PAGE_SIZE) == ((char *)pti->pt + PAGE_SIZE - 1)) {
+			if (memcchr(pti->pt, 0, PAGE_SIZE) == NULL) {
 				/* Zap the backing PDT entry */
 				pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
 				xen_queue_pt_update(pdtep_ma, 0);
@@ -509,7 +486,7 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 		}
 
 		/* We can free the PDT only after the PDPT entry is zapped */
-		if (memrchr(pti->pdt, 0, PAGE_SIZE) == ((char *)pti->pdt + PAGE_SIZE - 1)) {
+		if (memcchr(pti->pt, 0, PAGE_SIZE) == NULL) {
 			pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
 			xen_queue_pt_update(pdptep_ma, 0);
 			xen_flush_queue();
@@ -551,7 +528,7 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 			return;
 		}
 
-		if (memrchr(pti->pdpt, 0, PAGE_SIZE) == ((char *)pti->pdpt + PAGE_SIZE - 1)) {
+		if (memcchr(pti->pt, 0, PAGE_SIZE) == NULL) {
 			pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep)
 );
 			xen_queue_pt_update(pml4tep_ma, 0);
