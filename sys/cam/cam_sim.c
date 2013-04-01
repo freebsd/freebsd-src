@@ -87,7 +87,6 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	sim->flags = 0;
 	sim->refcount = 1;
 	sim->devq = queue;
-	sim->max_ccbs = 8;	/* Reserve for management purposes. */
 	sim->mtx = mtx;
 	if (mtx == &Giant) {
 		sim->flags |= 0;
@@ -97,7 +96,6 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 		callout_init(&sim->callout, 1);
 	}
 
-	SLIST_INIT(&sim->ccb_freeq);
 	TAILQ_INIT(&sim->sim_doneq);
 
 	return (sim);
@@ -106,7 +104,6 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 void
 cam_sim_free(struct cam_sim *sim, int free_devq)
 {
-	union ccb *ccb;
 	int error;
 
 	sim->refcount--;
@@ -117,10 +114,6 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 
 	KASSERT(sim->refcount == 0, ("sim->refcount == 0"));
 
-	while ((ccb = (union ccb *)SLIST_FIRST(&sim->ccb_freeq)) != NULL) {
-		SLIST_REMOVE_HEAD(&sim->ccb_freeq, xpt_links.sle);
-		xpt_free_ccb(ccb);
-	}
 	if (free_devq)
 		cam_simq_free(sim->devq);
 	free(sim, M_CAMSIM);

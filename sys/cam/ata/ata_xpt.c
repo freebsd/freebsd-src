@@ -1549,11 +1549,6 @@ ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	device->serial_num = NULL;
 	device->serial_num_len = 0;
 
-	/*
-	 * XXX should be limited by number of CCBs this bus can
-	 * do.
-	 */
-	bus->sim->max_ccbs += device->ccbq.devq_openings;
 	/* Insertion sort into our target's device list */
 	cur_device = TAILQ_FIRST(&target->ed_entries);
 	while (cur_device != NULL && cur_device->lun_id < lun_id)

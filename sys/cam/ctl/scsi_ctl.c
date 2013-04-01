@@ -2063,12 +2063,6 @@ ctlfe_dump_sim(struct cam_sim *sim)
 	printf("%s%d: max tagged openings: %d, max dev openings: %d\n",
 	       sim->sim_name, sim->unit_number,
 	       sim->max_tagged_dev_openings, sim->max_dev_openings);
-	printf("%s%d: max_ccbs: %u, ccb_count: %u\n", 
-	       sim->sim_name, sim->unit_number,
-	       sim->max_ccbs, sim->ccb_count);
-	printf("%s%d: ccb_freeq is %sempty\n",
-	       sim->sim_name, sim->unit_number,
-	       (SLIST_FIRST(&sim->ccb_freeq) == NULL) ? "" : "NOT ");
 	printf("\n");
 }
 

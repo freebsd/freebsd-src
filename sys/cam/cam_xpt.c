@@ -3756,13 +3756,7 @@ xpt_release_ccb(union ccb *free_ccb)
 		cam_ccbq_resize(&device->ccbq,
 		    device->ccbq.dev_openings + device->ccbq.dev_active);
 	}
-	if (sim->ccb_count > sim->max_ccbs) {
-		xpt_free_ccb(free_ccb);
-		sim->ccb_count--;
-	} else {
-		SLIST_INSERT_HEAD(&sim->ccb_freeq, &free_ccb->ccb_h,
-		    xpt_links.sle);
-	}
+	xpt_free_ccb(free_ccb);
 	xpt_run_dev_allocq(device);
 }
 
@@ -4326,22 +4320,11 @@ static union ccb *
 xpt_get_ccb(struct cam_ed *device)
 {
 	union ccb *new_ccb;
-	struct cam_sim *sim;
 
-	sim = device->sim;
-	if ((new_ccb = (union ccb *)SLIST_FIRST(&sim->ccb_freeq)) == NULL) {
-		new_ccb = xpt_alloc_ccb_nowait();
-                if (new_ccb == NULL) {
-			return (NULL);
-		}
-		if ((sim->flags & CAM_SIM_MPSAFE) == 0)
-			callout_handle_init(&new_ccb->ccb_h.timeout_ch);
-		SLIST_INSERT_HEAD(&sim->ccb_freeq, &new_ccb->ccb_h,
-				  xpt_links.sle);
-		sim->ccb_count++;
-	}
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_NOWAIT);
+	if (new_ccb == NULL)
+		return (NULL);
 	cam_ccbq_take_opening(&device->ccbq);
-	SLIST_REMOVE_HEAD(&sim->ccb_freeq, xpt_links.sle);
 	return (new_ccb);
 }
 
@@ -4431,7 +4414,6 @@ xpt_alloc_device_default(struct cam_eb *bus, struct cam_et *target,
 
 	device->mintags = 1;
 	device->maxtags = 1;
-	bus->sim->max_ccbs += device->ccbq.devq_openings;
 	cur_device = TAILQ_FIRST(&target->ed_entries);
 	while (cur_device != NULL && cur_device->lun_id < lun_id)
 		cur_device = TAILQ_NEXT(cur_device, links);
@@ -4525,7 +4507,6 @@ xpt_release_device(struct cam_ed *device)
 
 		TAILQ_REMOVE(&device->target->ed_entries, device,links);
 		device->target->generation++;
-		device->target->bus->sim->max_ccbs -= device->ccbq.devq_openings;
 		/* Release our slot in the devq */
 		devq = device->target->bus->sim->devq;
 		cam_devq_resize(devq, devq->send_queue.array_size - 1);
@@ -4565,8 +4546,6 @@ xpt_dev_ccbq_resize(struct cam_path *path, int newopenings)
 	if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
 	 || (dev->inq_flags & SID_CmdQue) != 0)
 		dev->tag_saved_openings = newopenings;
-	/* Adjust the global limit */
-	dev->sim->max_ccbs += diff;
 	return (result);
 }
 

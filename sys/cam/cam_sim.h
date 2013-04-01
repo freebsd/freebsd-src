@@ -110,17 +110,6 @@ struct cam_sim {
 	struct callout		callout;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
-
-	/* "Pool" of inactive ccbs managed by xpt_get_ccb and xpt_release_ccb */
-	SLIST_HEAD(,ccb_hdr)	ccb_freeq;
-	/*
-	 * Maximum size of ccb pool.  Modified as devices are added/removed
-	 * or have their * opening counts changed.
-	 */
-	u_int			max_ccbs;
-	/* Current count of allocated ccbs */
-	u_int			ccb_count;
-
 };
 
 #define CAM_SIM_LOCK(sim)	mtx_lock((sim)->mtx);
