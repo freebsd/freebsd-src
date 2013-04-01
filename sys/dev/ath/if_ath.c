@@ -2510,12 +2510,6 @@ _ath_getbuf_locked(struct ath_softc *sc, ath_buf_type_t btype)
  * so the link is correct.
  *
  * The caller must free the buffer using ath_freebuf().
- *
- * XXX TODO: this call shouldn't fail as it'll cause packet loss
- * XXX in the TX pathway when retries are needed.
- * XXX Figure out how to keep some buffers free, or factor the
- * XXX number of busy buffers into the xmit path (ath_start())
- * XXX so we don't over-commit.
  */
 struct ath_buf *
 ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
