@@ -2512,7 +2512,7 @@ _ath_getbuf_locked(struct ath_softc *sc, ath_buf_type_t btype)
  * The caller must free the buffer using ath_freebuf().
  */
 struct ath_buf *
-ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
+ath_buf_clone(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_buf *tbf;
 
@@ -2528,14 +2528,6 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 	tbf->bf_flags = bf->bf_flags & ATH_BUF_FLAGS_CLONE;
 	tbf->bf_status = bf->bf_status;
 	tbf->bf_m = bf->bf_m;
-	/*
-	 * XXX Copy the node reference, the caller is responsible
-	 * for deleting the node reference before it frees its
-	 * buffer.
-	 *
-	 * XXX It's done like this so we don't call the net80211
-	 * code whilst having active TX queue locks held.
-	 */
 	tbf->bf_node = bf->bf_node;
 	/* will be setup by the chain/setup function */
 	tbf->bf_lastds = NULL;
@@ -2546,6 +2538,23 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 	/* NOTE: DMA segments will be setup by the setup/chain functions */
 
 	/* The caller has to re-init the descriptor + links */
+
+	/*
+	 * Free the DMA mapping here, before we NULL the mbuf.
+	 * We must only call bus_dmamap_unload() once per mbuf chain
+	 * or behaviour is undefined.
+	 */
+	if (bf->bf_m != NULL) {
+		/*
+		 * XXX is this POSTWRITE call required?
+		 */
+		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+	}
+
+	bf->bf_m = NULL;
+	bf->bf_node = NULL;
 
 	/* Copy state */
 	memcpy(&tbf->bf_state, &bf->bf_state, sizeof(bf->bf_state));
@@ -4220,9 +4229,6 @@ ath_txq_addholdingbuf(struct ath_softc *sc, struct ath_buf *bf)
 void
 ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 {
-	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTWRITE);
-
 	KASSERT((bf->bf_node == NULL), ("%s: bf->bf_node != NULL\n", __func__));
 	KASSERT((bf->bf_m == NULL), ("%s: bf->bf_m != NULL\n", __func__));
 
@@ -4256,6 +4262,17 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 	struct ieee80211_node *ni = bf->bf_node;
 	struct mbuf *m0 = bf->bf_m;
 
+	/*
+	 * Make sure that we only sync/unload if there's an mbuf.
+	 * If not (eg we cloned a buffer), the unload will have already
+	 * occured.
+	 */
+	if (bf->bf_m != NULL) {
+		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+	}
+
 	bf->bf_node = NULL;
 	bf->bf_m = NULL;
 
@@ -4270,13 +4287,9 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 			ieee80211_process_callback(ni, m0, status);
 		ieee80211_free_node(ni);
 	}
-	m_freem(m0);
 
-	/*
-	 * XXX the buffer used to be freed -after-, but the DMA map was
-	 * freed where ath_freebuf() now is. I've no idea what this
-	 * will do.
-	 */
+	/* Finally, we don't need this mbuf any longer */
+	m_freem(m0);
 }
 
 static struct ath_buf *

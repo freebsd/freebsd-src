@@ -59,7 +59,7 @@ extern struct ath_buf * ath_getbuf(struct ath_softc *sc,
 extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc,
 	    ath_buf_type_t btype);
 extern struct ath_buf * ath_buf_clone(struct ath_softc *sc,
-	    const struct ath_buf *bf);
+	    struct ath_buf *bf);
 /* XXX change this to NULL the buffer pointer? */
 extern void ath_freebuf(struct ath_softc *sc, struct ath_buf *bf);
 extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
