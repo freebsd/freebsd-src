@@ -111,7 +111,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.42 2013/01/25 20:20:33 sjg Exp $
+#	$Id: boot-strap,v 1.43 2013/03/02 18:55:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -158,6 +158,9 @@ source_rc() {
 }
 
 cmd_args="$@"
+
+# clear some things from the environment that we care about
+unset MAKEOBJDIR MAKEOBJDIRPREFIX
 
 # --install[-host-target] will set this
 INSTALL_PREFIX=
