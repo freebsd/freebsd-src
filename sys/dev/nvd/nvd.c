@@ -301,6 +301,11 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	if (nvme_ns_get_flags(ns) & NVME_NS_FLUSH_SUPPORTED)
 		disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 
+/* ifdef used here to ease porting to stable branches at a later point. */
+#ifdef DISKFLAG_UNMAPPED_BIO
+	disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
+#endif
+
 	strlcpy(disk->d_ident, nvme_ns_get_serial_number(ns),
 	    sizeof(disk->d_ident));
 

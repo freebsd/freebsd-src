@@ -150,11 +150,17 @@ nvme_ns_strategy(struct bio *bp)
 
 static struct cdevsw nvme_ns_cdevsw = {
 	.d_version =	D_VERSION,
+#ifdef NVME_UNMAPPED_BIO_SUPPORT
+	.d_flags =	D_DISK | D_UNMAPPED_IO,
+	.d_read =	physread,
+	.d_write =	physwrite,
+#else
 	.d_flags =	D_DISK,
-	.d_open =	nvme_ns_open,
-	.d_close =	nvme_ns_close,
 	.d_read =	nvme_ns_physio,
 	.d_write =	nvme_ns_physio,
+#endif
+	.d_open =	nvme_ns_open,
+	.d_close =	nvme_ns_close,
 	.d_strategy =	nvme_ns_strategy,
 	.d_ioctl =	nvme_ns_ioctl
 };
@@ -233,16 +239,10 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		err = nvme_ns_cmd_read(ns, bp->bio_data,
-			bp->bio_offset/nvme_ns_get_sector_size(ns),
-			bp->bio_bcount/nvme_ns_get_sector_size(ns),
-			nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_read_bio(ns, bp, nvme_ns_bio_done, bp);
 		break;
 	case BIO_WRITE:
-		err = nvme_ns_cmd_write(ns, bp->bio_data,
-			bp->bio_offset/nvme_ns_get_sector_size(ns),
-			bp->bio_bcount/nvme_ns_get_sector_size(ns),
-			nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_write_bio(ns, bp, nvme_ns_bio_done, bp);
 		break;
 	case BIO_FLUSH:
 		err = nvme_ns_cmd_flush(ns, nvme_ns_bio_done, bp);
