@@ -3842,6 +3842,12 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 	struct ath_buf *nbf;
 	int error;
 
+	/*
+	 * Clone the buffer.  This will handle the dma unmap and
+	 * copy the node reference to the new buffer.  If this
+	 * works out, 'bf' will have no DMA mapping, no mbuf
+	 * pointer and no node reference.
+	 */
 	nbf = ath_buf_clone(sc, bf);
 
 #if 0
@@ -3879,9 +3885,7 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_dobaw)
 		ath_tx_switch_baw_buf(sc, an, tid, bf, nbf);
 
-	/* Free current buffer; return the older buffer */
-	bf->bf_m = NULL;
-	bf->bf_node = NULL;
+	/* Free original buffer; return new buffer */
 	ath_freebuf(sc, bf);
 
 	return nbf;
