@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $	*/
+/*	$NetBSD: main.c,v 1.210 2013/03/23 05:31:29 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.210 2013/03/23 05:31:29 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $");
+__RCSID("$NetBSD: main.c,v 1.210 2013/03/23 05:31:29 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -119,9 +119,7 @@ __RCSID("$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $");
 #include <sys/resource.h>
 #include <signal.h>
 #include <sys/stat.h>
-#ifdef MAKE_NATIVE
 #include <sys/utsname.h>
-#endif
 #include "wait.h"
 
 #include <errno.h>
@@ -768,7 +766,7 @@ MakeMode(const char *mode)
 	}
 #if USE_META
 	if (strstr(mode, "meta"))
-	    meta_init(mode);
+	    meta_mode_init(mode);
 #endif
     }
     if (mp)
@@ -813,9 +811,7 @@ main(int argc, char **argv)
 	static char defsyspath[] = _PATH_DEFSYSPATH;
 	char found_path[MAXPATHLEN + 1];	/* for searching for sys.mk */
 	struct timeval rightnow;		/* to initialize random seed */
-#ifdef MAKE_NATIVE
 	struct utsname utsname;
-#endif
 
 	/* default to writing debug to stderr */
 	debug_file = stderr;
@@ -834,7 +830,7 @@ main(int argc, char **argv)
 		progname++;
 	else
 		progname = argv[0];
-#ifdef RLIMIT_NOFILE
+#if defined(MAKE_NATIVE) || (defined(HAVE_SETRLIMIT) && defined(RLIMIT_NOFILE))
 	/*
 	 * get rid of resource limit on file descriptors
 	 */
@@ -848,6 +844,12 @@ main(int argc, char **argv)
 	}
 #endif
 
+	if (uname(&utsname) == -1) {
+	    (void)fprintf(stderr, "%s: uname failed (%s).\n", progname,
+		strerror(errno));
+	    exit(2);
+	}
+
 	/*
 	 * Get the name of this type of MACHINE from utsname
 	 * so we can share an executable for similar machines.
@@ -858,11 +860,6 @@ main(int argc, char **argv)
 	 */
 	if (!machine) {
 #ifdef MAKE_NATIVE
-	    if (uname(&utsname) == -1) {
-		(void)fprintf(stderr, "%s: uname failed (%s).\n", progname,
-		    strerror(errno));
-		exit(2);
-	    }
 	    machine = utsname.machine;
 #else
 #ifdef MAKE_MACHINE
@@ -892,6 +889,7 @@ main(int argc, char **argv)
 	 */
 	Var_Init();		/* Initialize the lists of variables for
 				 * parsing arguments */
+	Var_Set(".MAKE.OS", utsname.sysname, VAR_GLOBAL, 0);
 	Var_Set("MACHINE", machine, VAR_GLOBAL, 0);
 	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL, 0);
 #ifdef MAKE_VERSION
@@ -987,6 +985,9 @@ main(int argc, char **argv)
 	}
 	Job_SetPrefix();
 
+#ifdef USE_META
+	meta_init();
+#endif
 	/*
 	 * First snag any flags out of the MAKE environment variable.
 	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
@@ -1697,7 +1698,7 @@ Finish(int errors)
 }
 
 /*
- * enunlink --
+ * eunlink --
  *	Remove a file carefully, avoiding directories.
  */
 int
