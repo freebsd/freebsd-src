@@ -145,26 +145,33 @@ int dtls1_new(SSL *s)
 	return(1);
 	}
 
-void dtls1_free(SSL *s)
+static void dtls1_clear_queues(SSL *s)
 	{
     pitem *item = NULL;
     hm_fragment *frag = NULL;
-
-	ssl3_free(s);
+	DTLS1_RECORD_DATA *rdata;
 
     while( (item = pqueue_pop(s->d1->unprocessed_rcds.q)) != NULL)
         {
+		rdata = (DTLS1_RECORD_DATA *) item->data;
+		if (rdata->rbuf.buf)
+			{
+			OPENSSL_free(rdata->rbuf.buf);
+			}
         OPENSSL_free(item->data);
         pitem_free(item);
         }
-    pqueue_free(s->d1->unprocessed_rcds.q);
 
     while( (item = pqueue_pop(s->d1->processed_rcds.q)) != NULL)
         {
+		rdata = (DTLS1_RECORD_DATA *) item->data;
+		if (rdata->rbuf.buf)
+			{
+			OPENSSL_free(rdata->rbuf.buf);
+			}
         OPENSSL_free(item->data);
         pitem_free(item);
         }
-    pqueue_free(s->d1->processed_rcds.q);
 
     while( (item = pqueue_pop(s->d1->buffered_messages)) != NULL)
         {
@@ -173,7 +180,6 @@ void dtls1_free(SSL *s)
         OPENSSL_free(frag);
         pitem_free(item);
         }
-    pqueue_free(s->d1->buffered_messages);
 
     while ( (item = pqueue_pop(s->d1->sent_messages)) != NULL)
         {
@@ -182,15 +188,26 @@ void dtls1_free(SSL *s)
         OPENSSL_free(frag);
         pitem_free(item);
         }
-	pqueue_free(s->d1->sent_messages);
 
 	while ( (item = pqueue_pop(s->d1->buffered_app_data.q)) != NULL)
-	{
+		{
 		frag = (hm_fragment *)item->data;
 		OPENSSL_free(frag->fragment);
 		OPENSSL_free(frag);
 		pitem_free(item);
+		}
 	}
+
+void dtls1_free(SSL *s)
+	{
+	ssl3_free(s);
+
+	dtls1_clear_queues(s);
+
+    pqueue_free(s->d1->unprocessed_rcds.q);
+    pqueue_free(s->d1->processed_rcds.q);
+    pqueue_free(s->d1->buffered_messages);
+	pqueue_free(s->d1->sent_messages);
 	pqueue_free(s->d1->buffered_app_data.q);
 	
 	pq_64bit_free(&(s->d1->bitmap.map));
@@ -204,6 +221,61 @@ void dtls1_free(SSL *s)
 
 void dtls1_clear(SSL *s)
 	{
+    pqueue unprocessed_rcds;
+    pqueue processed_rcds;
+    pqueue buffered_messages;
+	pqueue sent_messages;
+	pqueue buffered_app_data;
+	unsigned int mtu;
+
+	if (s->d1)
+		{
+		unprocessed_rcds = s->d1->unprocessed_rcds.q;
+		processed_rcds = s->d1->processed_rcds.q;
+		buffered_messages = s->d1->buffered_messages;
+		sent_messages = s->d1->sent_messages;
+		buffered_app_data = s->d1->buffered_app_data.q;
+		mtu = s->d1->mtu;
+
+		dtls1_clear_queues(s);
+
+		pq_64bit_free(&(s->d1->bitmap.map));
+		pq_64bit_free(&(s->d1->bitmap.max_seq_num));
+
+		pq_64bit_free(&(s->d1->next_bitmap.map));
+		pq_64bit_free(&(s->d1->next_bitmap.max_seq_num));
+
+		memset(s->d1, 0, sizeof(*(s->d1)));
+
+		if (s->server)
+			{
+			s->d1->cookie_len = sizeof(s->d1->cookie);
+			}
+
+		if (SSL_get_options(s) & SSL_OP_NO_QUERY_MTU)
+			{
+			s->d1->mtu = mtu;
+			}
+
+		s->d1->unprocessed_rcds.q = unprocessed_rcds;
+		s->d1->processed_rcds.q = processed_rcds;
+		s->d1->buffered_messages = buffered_messages;
+		s->d1->sent_messages = sent_messages;
+		s->d1->buffered_app_data.q = buffered_app_data;
+
+#if defined(OPENSSL_SYS_VMS) || defined(VMS_TEST)
+		s->d1->bitmap.length=64;
+#else
+		s->d1->bitmap.length=sizeof(s->d1->bitmap.map) * 8;
+#endif
+		pq_64bit_init(&(s->d1->bitmap.map));
+		pq_64bit_init(&(s->d1->bitmap.max_seq_num));
+		
+		s->d1->next_bitmap.length = s->d1->bitmap.length;
+		pq_64bit_init(&(s->d1->next_bitmap.map));
+		pq_64bit_init(&(s->d1->next_bitmap.max_seq_num));
+		}
+
 	ssl3_clear(s);
 	if (s->options & SSL_OP_CISCO_ANYCONNECT)
 		s->version=DTLS1_BAD_VER;
@@ -349,15 +421,36 @@ void dtls1_double_timeout(SSL *s)
 void dtls1_stop_timer(SSL *s)
 	{
 	/* Reset everything */
+	memset(&(s->d1->timeout), 0, sizeof(struct dtls1_timeout_st));
 	memset(&(s->d1->next_timeout), 0, sizeof(struct timeval));
 	s->d1->timeout_duration = 1;
 	BIO_ctrl(SSL_get_rbio(s), BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT, 0, &(s->d1->next_timeout));
+	/* Clear retransmission buffer */
+	dtls1_clear_record_buffer(s);
+	}
+
+int dtls1_check_timeout_num(SSL *s)
+	{
+	s->d1->timeout.num_alerts++;
+
+	/* Reduce MTU after 2 unsuccessful retransmissions */
+	if (s->d1->timeout.num_alerts > 2)
+		{
+		s->d1->mtu = BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_GET_FALLBACK_MTU, 0, NULL);		
+		}
+
+	if (s->d1->timeout.num_alerts > DTLS1_TMO_ALERT_COUNT)
+		{
+		/* fail the connection, enough alerts have been sent */
+		SSLerr(SSL_F_DTLS1_CHECK_TIMEOUT_NUM,SSL_R_READ_TIMEOUT_EXPIRED);
+		return -1;
+		}
+
+	return 0;
 	}
 
 int dtls1_handle_timeout(SSL *s)
 	{
-	DTLS1_STATE *state;
-
 	/* if no timer is expired, don't do anything */
 	if (!dtls1_is_timer_expired(s))
 		{
@@ -365,19 +458,14 @@ int dtls1_handle_timeout(SSL *s)
 		}
 
 	dtls1_double_timeout(s);
-	state = s->d1;
-	state->timeout.num_alerts++;
-	if ( state->timeout.num_alerts > DTLS1_TMO_ALERT_COUNT)
-		{
-		/* fail the connection, enough alerts have been sent */
-		SSLerr(SSL_F_DTLS1_HANDLE_TIMEOUT,SSL_R_READ_TIMEOUT_EXPIRED);
-		return 0;
-		}
 
-	state->timeout.read_timeouts++;
-	if ( state->timeout.read_timeouts > DTLS1_TMO_READ_COUNT)
+	if (dtls1_check_timeout_num(s) < 0)
+		return -1;
+
+	s->d1->timeout.read_timeouts++;
+	if (s->d1->timeout.read_timeouts > DTLS1_TMO_READ_COUNT)
 		{
-		state->timeout.read_timeouts = 1;
+		s->d1->timeout.read_timeouts = 1;
 		}
 
 	dtls1_start_timer(s);

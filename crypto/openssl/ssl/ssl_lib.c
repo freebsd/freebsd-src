@@ -1000,6 +1000,11 @@ long SSL_ctrl(SSL *s,int cmd,long larg,void *parg)
 		s->max_cert_list=larg;
 		return(l);
 	case SSL_CTRL_SET_MTU:
+#ifndef OPENSSL_NO_DTLS1
+		if (larg < (long)dtls1_min_mtu())
+			return 0;
+#endif
+
 		if (SSL_version(s) == DTLS1_VERSION ||
 		    SSL_version(s) == DTLS1_BAD_VER)
 			{
@@ -1938,7 +1943,7 @@ int check_srvr_ecc_cert_and_alg(X509 *x, SSL_CIPHER *cs)
 	}
 
 /* THIS NEEDS CLEANING UP */
-X509 *ssl_get_server_send_cert(SSL *s)
+CERT_PKEY *ssl_get_server_send_pkey(const SSL *s)
 	{
 	unsigned long alg,kalg;
 	CERT *c;
@@ -1988,12 +1993,20 @@ X509 *ssl_get_server_send_cert(SSL *s)
 		}
 	else /* if (kalg & SSL_aNULL) */
 		{
-		SSLerr(SSL_F_SSL_GET_SERVER_SEND_CERT,ERR_R_INTERNAL_ERROR);
+		SSLerr(SSL_F_SSL_GET_SERVER_SEND_PKEY,ERR_R_INTERNAL_ERROR);
 		return(NULL);
 		}
-	if (c->pkeys[i].x509 == NULL) return(NULL);
 
-	return(c->pkeys[i].x509);
+	return c->pkeys + i;
+	}
+
+X509 *ssl_get_server_send_cert(const SSL *s)
+	{
+	CERT_PKEY *cpk;
+	cpk = ssl_get_server_send_pkey(s);
+	if (!cpk)
+		return NULL;
+	return cpk->x509;
 	}
 
 EVP_PKEY *ssl_get_sign_pkey(SSL *s,SSL_CIPHER *cipher)
@@ -2415,7 +2428,9 @@ void ssl_clear_cipher_ctx(SSL *s)
 /* Fix this function so that it takes an optional type parameter */
 X509 *SSL_get_certificate(const SSL *s)
 	{
-	if (s->cert != NULL)
+	if (s->server)
+		return(ssl_get_server_send_cert(s));
+	else if (s->cert != NULL)
 		return(s->cert->key->x509);
 	else
 		return(NULL);

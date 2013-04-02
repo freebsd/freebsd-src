@@ -68,7 +68,7 @@ see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
 
 =item B<-verify filename>
 
-verify the signature using the the public key in "filename".
+verify the signature using the public key in "filename".
 The output is either "Verification OK" or "Verification Failure".
 
 =item B<-prverify filename>
