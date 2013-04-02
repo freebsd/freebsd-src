@@ -194,6 +194,7 @@ sylvio [label="Sylvio Cesar Teixeira\nsylvio@FreeBSD.org\n2009/10/29"]
 tabthorpe [label="Thomas Abthorpe\ntabthorpe@FreeBSD.org\n2007/08/20"]
 tdb [label="Tim Bishop\ntdb@FreeBSD.org\n2005/11/30"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
+tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2013/03/27"]
 timur [label="Timur Bakeyev\ntimur@FreeBSD.org\n2007/06/07"]
 tj [label="Tom Judge\ntj@FreeBSD.org\n2012/05/28"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
@@ -266,6 +267,7 @@ crees -> gjb
 crees -> jgh
 crees -> madpilot
 crees -> gblach
+crees -> tijl
 
 culot -> jase
 

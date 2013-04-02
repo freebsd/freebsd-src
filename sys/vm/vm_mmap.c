@@ -1345,6 +1345,10 @@ mark_atime:
 	vfs_mark_atime(vp, cred);
 
 done:
+	if (error != 0 && *writecounted) {
+		*writecounted = FALSE;
+		vnode_pager_update_writecount(obj, objsize, 0);
+	}
 	vput(vp);
 	return (error);
 }

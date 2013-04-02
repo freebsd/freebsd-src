@@ -1191,10 +1191,10 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			 * XXX which I gather is because of such a long
 			 * XXX cabq time.)
 			 */
-			value = (ahp->ah_beaconInterval * 70 / 100)
-				- (ah->ah_config.ah_sw_beacon_response_time
-				+ ah->ah_config.ah_dma_beacon_response_time)
-				- ah->ah_config.ah_additional_swba_backoff;
+			value = (ahp->ah_beaconInterval * 50 / 100)
+				- ah->ah_config.ah_additional_swba_backoff
+				- ah->ah_config.ah_sw_beacon_response_time
+				+ ah->ah_config.ah_dma_beacon_response_time;
 			/*
 			 * XXX Ensure it isn't too low - nothing lower
 			 * XXX than 10 TU

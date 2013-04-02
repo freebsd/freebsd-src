@@ -2,7 +2,7 @@
 #
 # unifdefall: remove all the #if's from a source file
 #
-# Copyright (c) 2002 - 2010 Tony Finch <dot@dotat.at>
+# Copyright (c) 2002 - 2013 Tony Finch <dot@dotat.at>
 # Copyright (c) 2009 - 2010 Jonathan Nieder <jrnieder@gmail.com>
 #
 # Redistribution and use in source and binary forms, with or without

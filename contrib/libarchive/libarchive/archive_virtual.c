@@ -67,6 +67,13 @@ archive_read_close(struct archive *a)
 }
 
 int
+archive_write_fail(struct archive *a)
+{
+	a->state = ARCHIVE_STATE_FATAL;
+	return a->state;
+}
+
+int
 archive_write_free(struct archive *a)
 {
 	if (a == NULL)

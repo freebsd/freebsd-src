@@ -455,19 +455,19 @@ struct msghdr {
 #define	MSG_TRUNC	0x10		/* data discarded before delivery */
 #define	MSG_CTRUNC	0x20		/* control data lost before delivery */
 #define	MSG_WAITALL	0x40		/* wait for full request or error */
-#define MSG_NOTIFICATION 0x2000         /* SCTP notification */
+#if __POSIX_VISIBLE >= 200809
+#define	MSG_NOSIGNAL	0x20000		/* do not generate SIGPIPE on EOF */
+#endif
 #if __BSD_VISIBLE
 #define	MSG_DONTWAIT	0x80		/* this message should be nonblocking */
 #define	MSG_EOF		0x100		/* data completes connection */
+#define	MSG_NOTIFICATION 0x2000         /* SCTP notification */
 #define	MSG_NBIO	0x4000		/* FIONBIO mode, used by fifofs */
 #define	MSG_COMPAT      0x8000		/* used in sendit() */
+#define	MSG_CMSG_CLOEXEC 0x40000	/* make received fds close-on-exec */
 #endif
 #ifdef _KERNEL
 #define	MSG_SOCALLBCK   0x10000		/* for use by socket callbacks - soreceive (TCP) */
-#endif
-#if __BSD_VISIBLE
-#define	MSG_NOSIGNAL	0x20000		/* do not generate SIGPIPE on EOF */
-#define	MSG_CMSG_CLOEXEC 0x40000	/* make received fds close-on-exec */
 #endif
 
 /*
@@ -597,10 +597,13 @@ struct omsghdr {
 #define	SHUT_WR		1		/* shut down the writing side */
 #define	SHUT_RDWR	2		/* shut down both sides */
 
+#if __BSD_VISIBLE
+/* for SCTP */
 /* we cheat and use the SHUT_XX defines for these */
 #define PRU_FLUSH_RD     SHUT_RD
 #define PRU_FLUSH_WR     SHUT_WR
 #define PRU_FLUSH_RDWR   SHUT_RDWR
+#endif
 
 
 #if __BSD_VISIBLE
@@ -629,9 +632,11 @@ struct sf_hdtr {
 __BEGIN_DECLS
 int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
-int	bindat(int, int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
+#if __BSD_VISIBLE
+int	bindat(int, int, const struct sockaddr *, socklen_t);
 int	connectat(int, int, const struct sockaddr *, socklen_t);
+#endif
 int	getpeername(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockname(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	getsockopt(int, int, int, void * __restrict, socklen_t * __restrict);

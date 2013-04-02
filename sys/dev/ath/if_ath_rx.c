@@ -621,6 +621,7 @@ rx_error:
 		    (rs->rs_status & sc->sc_monpass)) {
 			bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
 			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 			/* NB: bpf needs the mbuf length setup */
 			len = rs->rs_datalen;
 			m->m_pkthdr.len = m->m_len = len;

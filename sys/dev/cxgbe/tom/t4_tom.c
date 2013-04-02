@@ -512,7 +512,7 @@ calc_opt0(struct socket *so, struct port_info *pi, struct l2t_entry *e,
 #define VLAN_NONE 0xfff
 #define FILTER_SEL_VLAN_NONE 0xffff
 
-uint32_t
+uint64_t
 select_ntuple(struct port_info *pi, struct l2t_entry *e, uint32_t filter_mode)
 {
 	uint16_t viid = pi->viid;
@@ -535,7 +535,10 @@ select_ntuple(struct port_info *pi, struct l2t_entry *e, uint32_t filter_mode)
 		ntuple |= IPPROTO_TCP << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
         }
 
-	return (htobe32(ntuple));
+	if (is_t4(pi->adapter))
+		return (htobe32(ntuple));
+	else
+		return (htobe64(V_FILTER_TUPLE(ntuple)));
 }
 
 void

@@ -520,6 +520,12 @@ bd_speedup(void)
 	mtx_unlock(&bdlock);
 }
 
+#ifdef __i386__
+#define	TRANSIENT_DENOM	5
+#else
+#define	TRANSIENT_DENOM 10
+#endif
+
 /*
  * Calculating buffer cache scaling values and reserve space for buffer
  * headers.  This is called during low level kernel initialization and
@@ -579,8 +585,8 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	 * to the amount of the buffer mapped for typical UFS load.
 	 *
 	 * Clip the buffer map to reserve space for the transient
-	 * BIOs, if its extent is bigger than 90% of the maximum
-	 * buffer map extent on the platform.
+	 * BIOs, if its extent is bigger than 90% (80% on i386) of the
+	 * maximum buffer map extent on the platform.
 	 *
 	 * The fall-back to the maxbuf in case of maxbcache unset,
 	 * allows to not trim the buffer KVA for the architectures
@@ -589,7 +595,8 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	if (bio_transient_maxcnt == 0 && unmapped_buf_allowed) {
 		maxbuf_sz = maxbcache != 0 ? maxbcache : maxbuf * BKVASIZE;
 		buf_sz = (long)nbuf * BKVASIZE;
-		if (buf_sz < maxbuf_sz / 10 * 9) {
+		if (buf_sz < maxbuf_sz / TRANSIENT_DENOM *
+		    (TRANSIENT_DENOM - 1)) {
 			/*
 			 * There is more KVA than memory.  Do not
 			 * adjust buffer map size, and assign the rest
@@ -599,10 +606,10 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 		} else {
 			/*
 			 * Buffer map spans all KVA we could afford on
-			 * this platform.  Give 10% of the buffer map
-			 * to the transient bio map.
+			 * this platform.  Give 10% (20% on i386) of
+			 * the buffer map to the transient bio map.
 			 */
- 			biotmap_sz = buf_sz / 10;
+			biotmap_sz = buf_sz / TRANSIENT_DENOM;
 			buf_sz -= biotmap_sz;
 		}
 		if (biotmap_sz / INT_MAX > MAXPHYS)
@@ -3680,11 +3687,34 @@ void
 dev_strategy(struct cdev *dev, struct buf *bp)
 {
 	struct cdevsw *csw;
-	struct bio *bip;
 	int ref;
 
-	if ((!bp->b_iocmd) || (bp->b_iocmd & (bp->b_iocmd - 1)))
-		panic("b_iocmd botch");
+	KASSERT(dev->si_refcount > 0,
+	    ("dev_strategy on un-referenced struct cdev *(%s) %p",
+	    devtoname(dev), dev));
+
+	csw = dev_refthread(dev, &ref);
+	dev_strategy_csw(dev, csw, bp);
+	dev_relthread(dev, ref);
+}
+
+void
+dev_strategy_csw(struct cdev *dev, struct cdevsw *csw, struct buf *bp)
+{
+	struct bio *bip;
+
+	KASSERT(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE,
+	    ("b_iocmd botch"));
+	KASSERT(((dev->si_flags & SI_ETERNAL) != 0 && csw != NULL) ||
+	    dev->si_threadcount > 0,
+	    ("dev_strategy_csw threadcount cdev *(%s) %p", devtoname(dev),
+	    dev));
+	if (csw == NULL) {
+		bp->b_error = ENXIO;
+		bp->b_ioflags = BIO_ERROR;
+		bufdone(bp);
+		return;
+	}
 	for (;;) {
 		bip = g_new_bio();
 		if (bip != NULL)
@@ -3700,19 +3730,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 	bip->bio_done = bufdonebio;
 	bip->bio_caller2 = bp;
 	bip->bio_dev = dev;
-	KASSERT(dev->si_refcount > 0,
-	    ("dev_strategy on un-referenced struct cdev *(%s)",
-	    devtoname(dev)));
-	csw = dev_refthread(dev, &ref);
-	if (csw == NULL) {
-		g_destroy_bio(bip);
-		bp->b_error = ENXIO;
-		bp->b_ioflags = BIO_ERROR;
-		bufdone(bp);
-		return;
-	}
 	(*csw->d_strategy)(bip);
-	dev_relthread(dev, ref);
 }
 
 /*

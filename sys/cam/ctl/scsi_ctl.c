@@ -225,11 +225,28 @@ static struct periph_driver ctlfe_driver =
 	ctlfeinit, "ctl",
 	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0
 };
-PERIPHDRIVER_DECLARE(ctl, ctlfe_driver);
+
+static int ctlfe_module_event_handler(module_t, int /*modeventtype_t*/, void *);
+
+/*
+ * We're not using PERIPHDRIVER_DECLARE(), because it runs at SI_SUB_DRIVERS,
+ * and that happens before CTL gets initialised.
+ */
+static moduledata_t ctlfe_moduledata = {
+	"ctlfe",
+	ctlfe_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctlfe, ctlfe_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
+MODULE_VERSION(ctlfe, 1);
+MODULE_DEPEND(ctlfe, ctl, 1, 1, 1);
+MODULE_DEPEND(ctlfe, cam, 1, 1, 1);
 
 extern struct ctl_softc *control_softc;
 extern int ctl_disable;
 
+#ifdef seems_unused
 int
 ctlfeinitialize(void)
 {
@@ -257,6 +274,7 @@ ctlfeinitialize(void)
 
 	return (0);
 }
+#endif
 
 void
 ctlfeshutdown(void)
@@ -285,6 +303,21 @@ ctlfeinit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("ctl: Failed to attach async callback due to CAM "
 		       "status 0x%x!\n", status);
+	}
+}
+
+static int
+ctlfe_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		periphdriver_register(&ctlfe_driver);
+		return (0);
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
 	}
 }
 
@@ -1971,7 +2004,6 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 	struct cam_sim *sim;
 	cam_status status;
 
-	
 	bus_softc = (struct ctlfe_softc *)arg;
 	sim = bus_softc->sim;
 

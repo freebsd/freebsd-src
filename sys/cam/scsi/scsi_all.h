@@ -908,6 +908,19 @@ struct scsi_start_stop_unit
 struct ata_pass_12 {
 	u_int8_t opcode;
 	u_int8_t protocol;
+#define	AP_PROTO_HARD_RESET	(0x00 << 1)
+#define	AP_PROTO_SRST		(0x01 << 1)
+#define	AP_PROTO_NON_DATA	(0x03 << 1)
+#define	AP_PROTO_PIO_IN		(0x04 << 1)
+#define	AP_PROTO_PIO_OUT	(0x05 << 1)
+#define	AP_PROTO_DMA		(0x06 << 1)
+#define	AP_PROTO_DMA_QUEUED	(0x07 << 1)
+#define	AP_PROTO_DEVICE_DIAG	(0x08 << 1)
+#define	AP_PROTO_DEVICE_RESET	(0x09 << 1)
+#define	AP_PROTO_UDMA_IN	(0x10 << 1)
+#define	AP_PROTO_UDMA_OUT	(0x11 << 1)
+#define	AP_PROTO_FPDMA		(0x12 << 1)
+#define	AP_PROTO_RESP_INFO	(0x15 << 1)
 #define	AP_MULTI	0xe0
 	u_int8_t flags;
 #define	AP_T_LEN	0x03
@@ -943,6 +956,15 @@ struct ata_pass_16 {
 	u_int8_t protocol;
 #define	AP_EXTEND	0x01
 	u_int8_t flags;
+#define	AP_FLAG_TLEN_NO_DATA	(0 << 0)
+#define	AP_FLAG_TLEN_FEAT	(1 << 0)
+#define	AP_FLAG_TLEN_SECT_CNT	(2 << 0)
+#define	AP_FLAG_TLEN_STPSIU	(3 << 0)
+#define	AP_FLAG_BYT_BLOK_BYTES	(0 << 2)  
+#define	AP_FLAG_BYT_BLOK_BLOCKS	(1 << 2)  
+#define	AP_FLAG_TDIR_TO_DEV	(0 << 3)  
+#define	AP_FLAG_TDIR_FROM_DEV	(1 << 3)  
+#define	AP_FLAG_CHK_COND	(1 << 5)  
 	u_int8_t features_ext;
 	u_int8_t features;
 	u_int8_t sector_count_ext;
@@ -1064,7 +1086,7 @@ struct ata_pass_16 {
 
 /*
  * This length is the initial inquiry length used by the probe code, as    
- * well as the legnth necessary for scsi_print_inquiry() to function 
+ * well as the length necessary for scsi_print_inquiry() to function 
  * correctly.  If either use requires a different length in the future, 
  * the two values should be de-coupled.
  */
@@ -2373,6 +2395,14 @@ void scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
 		     u_int32_t block_count, u_int8_t *data_ptr,
 		     u_int32_t dxfer_len, u_int8_t sense_len,
 		     u_int32_t timeout);
+
+void scsi_ata_pass_16(struct ccb_scsiio *csio, u_int32_t retries,
+		      void (*cbfcnp)(struct cam_periph *, union ccb *),
+		      u_int32_t flags, u_int8_t tag_action,
+		      u_int8_t protocol, u_int8_t ata_flags, u_int16_t features,
+		      u_int16_t sector_count, uint64_t lba, u_int8_t command,
+		      u_int8_t control, u_int8_t *data_ptr, u_int16_t dxfer_len,
+		      u_int8_t sense_len, u_int32_t timeout);
 
 void scsi_unmap(struct ccb_scsiio *csio, u_int32_t retries,
 		void (*cbfcnp)(struct cam_periph *, union ccb *),

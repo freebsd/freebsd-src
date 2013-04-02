@@ -5713,11 +5713,11 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 {
 	zfs_cmd_t *zc;
 	uint_t vecnum;
-	int error, rc, len;
 #ifdef illumos
+	int error, rc, len;
 	minor_t minor = getminor(dev);
 #else
-	int cflag, cmd, oldvecnum;
+	int error, len, cflag, cmd, oldvecnum;
 	cred_t *cr = td->td_ucred;
 #endif
 	const zfs_ioc_vec_t *vec;
@@ -5904,8 +5904,11 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 
 out:
 	nvlist_free(innvl);
+#ifdef illumos
+	rc = ddi_copyout(zc, (void *)arg, sizeof (zfs_cmd_t), flag);
 	if (error == 0 && rc != 0)
 		error = EFAULT;
+#endif
 	if (error == 0 && vec->zvec_allow_log) {
 		char *s = tsd_get(zfs_allow_log_key);
 		if (s != NULL)

@@ -55,6 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/if_vlan_var.h>
+#if defined(__i386__) || defined(__amd64__)
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif
 
 #include "common/common.h"
 #include "common/t4_msg.h"
@@ -110,6 +114,38 @@ static struct cdevsw t4_cdevsw = {
        .d_name = "t4nex",
 };
 
+/* T5 bus driver interface */
+static int t5_probe(device_t);
+static device_method_t t5_methods[] = {
+	DEVMETHOD(device_probe,		t5_probe),
+	DEVMETHOD(device_attach,	t4_attach),
+	DEVMETHOD(device_detach,	t4_detach),
+
+	DEVMETHOD_END
+};
+static driver_t t5_driver = {
+	"t5nex",
+	t5_methods,
+	sizeof(struct adapter)
+};
+
+
+/* T5 port (cxl) interface */
+static driver_t cxl_driver = {
+	"cxl",
+	cxgbe_methods,
+	sizeof(struct port_info)
+};
+
+static struct cdevsw t5_cdevsw = {
+       .d_version = D_VERSION,
+       .d_flags = 0,
+       .d_open = t4_open,
+       .d_close = t4_close,
+       .d_ioctl = t4_ioctl,
+       .d_name = "t5nex",
+};
+
 /* ifnet + media interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
@@ -118,7 +154,7 @@ static void cxgbe_qflush(struct ifnet *);
 static int cxgbe_media_change(struct ifnet *);
 static void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
 
-MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4 Ethernet driver and services");
+MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
 
 /*
  * Correct lock order when you need to acquire multiple locks is t4_list_lock,
@@ -133,6 +169,13 @@ static SLIST_HEAD(, uld_info) t4_uld_list;
 
 /*
  * Tunables.  See tweak_tunables() too.
+ *
+ * Each tunable is set to a default value here if it's known at compile-time.
+ * Otherwise it is set to -1 as an indication to tweak_tunables() that it should
+ * provide a reasonable default when the driver is loaded.
+ *
+ * Tunables applicable to both T4 and T5 are under hw.cxgbe.  Those specific to
+ * T5 are under hw.cxl.
  */
 
 /*
@@ -209,7 +252,10 @@ TUNABLE_INT("hw.cxgbe.interrupt_types", &t4_intr_types);
 /*
  * Configuration file.
  */
-static char t4_cfg_file[32] = "default";
+#define DEFAULT_CF	"default"
+#define FLASH_CF	"flash"
+#define UWIRE_CF	"uwire"
+static char t4_cfg_file[32] = DEFAULT_CF;
 TUNABLE_STR("hw.cxgbe.config_file", t4_cfg_file, sizeof(t4_cfg_file));
 
 /*
@@ -240,6 +286,9 @@ TUNABLE_INT("hw.cxgbe.iscsicaps_allowed", &t4_iscsicaps_allowed);
 
 static int t4_fcoecaps_allowed = 0;
 TUNABLE_INT("hw.cxgbe.fcoecaps_allowed", &t4_fcoecaps_allowed);
+
+static int t5_write_combine = 0;
+TUNABLE_INT("hw.cxl.write_combine", &t5_write_combine);
 
 struct intrs_and_queues {
 	int intr_type;		/* INTx, MSI, or MSI-X */
@@ -278,14 +327,19 @@ enum {
 	XGMAC_ALL	= 0xffff
 };
 
-static int map_bars(struct adapter *);
+static int map_bars_0_and_4(struct adapter *);
+static int map_bar_2(struct adapter *);
 static void setup_memwin(struct adapter *);
+static int validate_mem_range(struct adapter *, uint32_t, int);
+static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
+    uint32_t *);
+static void memwin_info(struct adapter *, int, uint32_t *, uint32_t *);
+static uint32_t position_memwin(struct adapter *, int, uint32_t);
 static int cfg_itype_and_nqueues(struct adapter *, int, int,
     struct intrs_and_queues *);
 static int prep_firmware(struct adapter *);
-static int upload_config_file(struct adapter *, const struct firmware *,
-    uint32_t *, uint32_t *);
-static int partition_resources(struct adapter *, const struct firmware *);
+static int partition_resources(struct adapter *, const struct firmware *,
+    const char *);
 static int get_params__pre_init(struct adapter *);
 static int get_params__post_init(struct adapter *);
 static int set_params__post_init(struct adapter *);
@@ -342,6 +396,7 @@ static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
+static int sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS);
 #endif
 static inline void txq_start(struct ifnet *, struct sge_txq *);
 static uint32_t fconf_to_mode(uint32_t);
@@ -358,14 +413,14 @@ static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int load_fw(struct adapter *, struct t4_data *);
-static int read_card_mem(struct adapter *, struct t4_mem_range *);
+static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct port_info *, int);
 #endif
 static int t4_mod_event(module_t, int, void *);
 
-struct t4_pciids {
+struct {
 	uint16_t device;
 	char *desc;
 } t4_pciids[] = {
@@ -382,6 +437,9 @@ struct t4_pciids {
 	{0x4409, "Chelsio T420-BT"},
 	{0x440a, "Chelsio T404-BT"},
 	{0x440e, "Chelsio T440-LP-CR"},
+}, t5_pciids[] = {
+	{0xb000, "Chelsio Terminator 5 FPGA"},
+	{0x5400, "Chelsio T580-dbg"},
 };
 
 #ifdef TCP_OFFLOAD
@@ -415,6 +473,31 @@ t4_probe(device_t dev)
 	for (i = 0; i < nitems(t4_pciids); i++) {
 		if (d == t4_pciids[i].device) {
 			device_set_desc(dev, t4_pciids[i].desc);
+			return (BUS_PROBE_DEFAULT);
+		}
+	}
+
+	return (ENXIO);
+}
+
+static int
+t5_probe(device_t dev)
+{
+	int i;
+	uint16_t v = pci_get_vendor(dev);
+	uint16_t d = pci_get_device(dev);
+	uint8_t f = pci_get_function(dev);
+
+	if (v != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
+
+	/* Attach only to PF0 of the FPGA */
+	if (d == 0xb000 && f != 0)
+		return (ENXIO);
+
+	for (i = 0; i < nitems(t5_pciids); i++) {
+		if (d == t5_pciids[i].device) {
+			device_set_desc(dev, t5_pciids[i].desc);
 			return (BUS_PROBE_DEFAULT);
 		}
 	}
@@ -457,7 +540,7 @@ t4_attach(device_t dev)
 	TAILQ_INIT(&sc->sfl);
 	callout_init(&sc->sfl_callout, CALLOUT_MPSAFE);
 
-	rc = map_bars(sc);
+	rc = map_bars_0_and_4(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
@@ -477,6 +560,7 @@ t4_attach(device_t dev)
 	for (i = 0; i < nitems(sc->fw_msg_handler); i++)
 		sc->fw_msg_handler[i] = fw_msg_not_handled;
 	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
+	t4_init_sge_cpl_handlers(sc);
 
 	/* Prepare the adapter for operation */
 	rc = -t4_prep_adapter(sc);
@@ -491,9 +575,13 @@ t4_attach(device_t dev)
 	 * will work even in "recovery mode".
 	 */
 	setup_memwin(sc);
-	sc->cdev = make_dev(&t4_cdevsw, device_get_unit(dev), UID_ROOT,
-	    GID_WHEEL, 0600, "%s", device_get_nameunit(dev));
-	sc->cdev->si_drv1 = sc;
+	sc->cdev = make_dev(is_t4(sc) ? &t4_cdevsw : &t5_cdevsw,
+	    device_get_unit(dev), UID_ROOT, GID_WHEEL, 0600, "%s",
+	    device_get_nameunit(dev));
+	if (sc->cdev == NULL)
+		device_printf(dev, "failed to create nexus char device.\n");
+	else
+		sc->cdev->si_drv1 = sc;
 
 	/* Go no further if recovery mode has been requested. */
 	if (TUNABLE_INT_FETCH("hw.cxgbe.sos", &i) && i != 0) {
@@ -506,23 +594,6 @@ t4_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
-	rc = get_params__pre_init(sc);
-	if (rc != 0)
-		goto done; /* error message displayed already */
-
-	rc = t4_sge_init(sc);
-	if (rc != 0)
-		goto done; /* error message displayed already */
-
-	if (sc->flags & MASTER_PF) {
-		/* get basic stuff going */
-		rc = -t4_fw_initialize(sc, sc->mbox);
-		if (rc != 0) {
-			device_printf(dev, "early init failed: %d.\n", rc);
-			goto done;
-		}
-	}
-
 	rc = get_params__post_init(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
@@ -531,32 +602,9 @@ t4_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
-	if (sc->flags & MASTER_PF) {
-		uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
-
-		/* final tweaks to some settings */
-
-		t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd,
-		    sc->params.b_wnd);
-		/* 4K, 16K, 64K, 256K DDP "page sizes" */
-		t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(0) | V_HPZ1(2) |
-		    V_HPZ2(4) | V_HPZ3(6));
-		t4_set_reg_field(sc, A_ULP_RX_CTL, F_TDDPTAGTCB, F_TDDPTAGTCB);
-		t4_set_reg_field(sc, A_TP_PARA_REG5,
-		    V_INDICATESIZE(M_INDICATESIZE) |
-		    F_REARMDDPOFFSET | F_RESETDDPOFFSET,
-		    V_INDICATESIZE(indsz) |
-		    F_REARMDDPOFFSET | F_RESETDDPOFFSET);
-	} else {
-		/*
-		 * XXX: Verify that we can live with whatever the master driver
-		 * has done so far, and hope that it doesn't change any global
-		 * setting from underneath us in the future.
-		 */
-	}
-
-	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &sc->filter_mode, 1,
-	    A_TP_VLAN_PRI_MAP);
+	rc = map_bar_2(sc);
+	if (rc != 0)
+		goto done; /* error message displayed already */
 
 	for (i = 0; i < NCHAN; i++)
 		sc->params.tp.tx_modq[i] = i;
@@ -611,7 +659,7 @@ t4_attach(device_t dev)
 		pi->qsize_rxq = t4_qsize_rxq;
 		pi->qsize_txq = t4_qsize_txq;
 
-		pi->dev = device_add_child(dev, "cxgbe", -1);
+		pi->dev = device_add_child(dev, is_t4(sc) ? "cxgbe" : "cxl", -1);
 		if (pi->dev == NULL) {
 			device_printf(dev,
 			    "failed to add device for port %d.\n", i);
@@ -807,6 +855,10 @@ t4_detach(device_t dev)
 	if (sc->regs_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->regs_rid,
 		    sc->regs_res);
+
+	if (sc->udbs_res)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->udbs_rid,
+		    sc->udbs_res);
 
 	if (sc->msix_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->msix_rid,
@@ -1296,7 +1348,7 @@ t4_fatal_err(struct adapter *sc)
 }
 
 static int
-map_bars(struct adapter *sc)
+map_bars_0_and_4(struct adapter *sc)
 {
 	sc->regs_rid = PCIR_BAR(0);
 	sc->regs_res = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
@@ -1308,6 +1360,7 @@ map_bars(struct adapter *sc)
 	sc->bt = rman_get_bustag(sc->regs_res);
 	sc->bh = rman_get_bushandle(sc->regs_res);
 	sc->mmio_len = rman_get_size(sc->regs_res);
+	setbit(&sc->doorbells, DOORBELL_KDB);
 
 	sc->msix_rid = PCIR_BAR(4);
 	sc->msix_res = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
@@ -1320,35 +1373,271 @@ map_bars(struct adapter *sc)
 	return (0);
 }
 
+static int
+map_bar_2(struct adapter *sc)
+{
+
+	/*
+	 * T4: only iWARP driver uses the userspace doorbells.  There is no need
+	 * to map it if RDMA is disabled.
+	 */
+	if (is_t4(sc) && sc->rdmacaps == 0)
+		return (0);
+
+	sc->udbs_rid = PCIR_BAR(2);
+	sc->udbs_res = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
+	    &sc->udbs_rid, RF_ACTIVE);
+	if (sc->udbs_res == NULL) {
+		device_printf(sc->dev, "cannot map doorbell BAR.\n");
+		return (ENXIO);
+	}
+	sc->udbs_base = rman_get_virtual(sc->udbs_res);
+
+	if (is_t5(sc)) {
+		setbit(&sc->doorbells, DOORBELL_UDB);
+#if defined(__i386__) || defined(__amd64__)
+		if (t5_write_combine) {
+			int rc;
+
+			/*
+			 * Enable write combining on BAR2.  This is the
+			 * userspace doorbell BAR and is split into 128B
+			 * (UDBS_SEG_SIZE) doorbell regions, each associated
+			 * with an egress queue.  The first 64B has the doorbell
+			 * and the second 64B can be used to submit a tx work
+			 * request with an implicit doorbell.
+			 */
+
+			rc = pmap_change_attr((vm_offset_t)sc->udbs_base,
+			    rman_get_size(sc->udbs_res), PAT_WRITE_COMBINING);
+			if (rc == 0) {
+				clrbit(&sc->doorbells, DOORBELL_UDB);
+				setbit(&sc->doorbells, DOORBELL_WRWC);
+				setbit(&sc->doorbells, DOORBELL_UDBWC);
+			} else {
+				device_printf(sc->dev,
+				    "couldn't enable write combining: %d\n",
+				    rc);
+			}
+
+			t4_write_reg(sc, A_SGE_STAT_CFG,
+			    V_STATSOURCE_T5(7) | V_STATMODE(0));
+		}
+#endif
+	}
+
+	return (0);
+}
+
+static const struct memwin t4_memwin[] = {
+	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
+	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
+	{ MEMWIN2_BASE_T4, MEMWIN2_APERTURE_T4 }
+};
+
+static const struct memwin t5_memwin[] = {
+	{ MEMWIN0_BASE, MEMWIN0_APERTURE },
+	{ MEMWIN1_BASE, MEMWIN1_APERTURE },
+	{ MEMWIN2_BASE_T5, MEMWIN2_APERTURE_T5 },
+};
+
 static void
 setup_memwin(struct adapter *sc)
 {
+	const struct memwin *mw;
+	int i, n;
 	uint32_t bar0;
 
-	/*
-	 * Read low 32b of bar0 indirectly via the hardware backdoor mechanism.
-	 * Works from within PCI passthrough environments too, where
-	 * rman_get_start() can return a different value.  We need to program
-	 * the memory window decoders with the actual addresses that will be
-	 * coming across the PCIe link.
-	 */
-	bar0 = t4_hw_pci_read_cfg4(sc, PCIR_BAR(0));
-	bar0 &= (uint32_t) PCIM_BAR_MEM_BASE;
+	if (is_t4(sc)) {
+		/*
+		 * Read low 32b of bar0 indirectly via the hardware backdoor
+		 * mechanism.  Works from within PCI passthrough environments
+		 * too, where rman_get_start() can return a different value.  We
+		 * need to program the T4 memory window decoders with the actual
+		 * addresses that will be coming across the PCIe link.
+		 */
+		bar0 = t4_hw_pci_read_cfg4(sc, PCIR_BAR(0));
+		bar0 &= (uint32_t) PCIM_BAR_MEM_BASE;
 
-	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 0),
-	    	     (bar0 + MEMWIN0_BASE) | V_BIR(0) |
-		     V_WINDOW(ilog2(MEMWIN0_APERTURE) - 10));
+		mw = &t4_memwin[0];
+		n = nitems(t4_memwin);
+	} else {
+		/* T5 uses the relative offset inside the PCIe BAR */
+		bar0 = 0;
 
-	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 1),
-		     (bar0 + MEMWIN1_BASE) | V_BIR(0) |
-		     V_WINDOW(ilog2(MEMWIN1_APERTURE) - 10));
+		mw = &t5_memwin[0];
+		n = nitems(t5_memwin);
+	}
 
-	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2),
-		     (bar0 + MEMWIN2_BASE) | V_BIR(0) |
-		     V_WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
+	for (i = 0; i < n; i++, mw++) {
+		t4_write_reg(sc,
+		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i),
+		    (mw->base + bar0) | V_BIR(0) |
+		    V_WINDOW(ilog2(mw->aperture) - 10));
+	}
 
 	/* flush */
 	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, 2));
+}
+
+/*
+ * Verify that the memory range specified by the addr/len pair is valid and lies
+ * entirely within a single region (EDCx or MCx).
+ */
+static int
+validate_mem_range(struct adapter *sc, uint32_t addr, int len)
+{
+	uint32_t em, addr_len, maddr, mlen;
+
+	/* Memory can only be accessed in naturally aligned 4 byte units */
+	if (addr & 3 || len & 3 || len == 0)
+		return (EINVAL);
+
+	/* Enabled memories */
+	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
+	if (em & F_EDRAM0_ENABLE) {
+		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
+		maddr = G_EDRAM0_BASE(addr_len) << 20;
+		mlen = G_EDRAM0_SIZE(addr_len) << 20;
+		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
+		    addr + len <= maddr + mlen)
+			return (0);
+	}
+	if (em & F_EDRAM1_ENABLE) {
+		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
+		maddr = G_EDRAM1_BASE(addr_len) << 20;
+		mlen = G_EDRAM1_SIZE(addr_len) << 20;
+		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
+		    addr + len <= maddr + mlen)
+			return (0);
+	}
+	if (em & F_EXT_MEM_ENABLE) {
+		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
+		maddr = G_EXT_MEM_BASE(addr_len) << 20;
+		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
+		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
+		    addr + len <= maddr + mlen)
+			return (0);
+	}
+	if (!is_t4(sc) && em & F_EXT_MEM1_ENABLE) {
+		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
+		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
+		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
+		if (mlen > 0 && addr >= maddr && addr < maddr + mlen &&
+		    addr + len <= maddr + mlen)
+			return (0);
+	}
+
+	return (EFAULT);
+}
+
+/*
+ * Verify that the memory range specified by the memtype/offset/len pair is
+ * valid and lies entirely within the memtype specified.  The global address of
+ * the start of the range is returned in addr.
+ */
+static int
+validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
+    uint32_t *addr)
+{
+	uint32_t em, addr_len, maddr, mlen;
+
+	/* Memory can only be accessed in naturally aligned 4 byte units */
+	if (off & 3 || len & 3 || len == 0)
+		return (EINVAL);
+
+	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
+	switch (mtype) {
+	case MEM_EDC0:
+		if (!(em & F_EDRAM0_ENABLE))
+			return (EINVAL);
+		addr_len = t4_read_reg(sc, A_MA_EDRAM0_BAR);
+		maddr = G_EDRAM0_BASE(addr_len) << 20;
+		mlen = G_EDRAM0_SIZE(addr_len) << 20;
+		break;
+	case MEM_EDC1:
+		if (!(em & F_EDRAM1_ENABLE))
+			return (EINVAL);
+		addr_len = t4_read_reg(sc, A_MA_EDRAM1_BAR);
+		maddr = G_EDRAM1_BASE(addr_len) << 20;
+		mlen = G_EDRAM1_SIZE(addr_len) << 20;
+		break;
+	case MEM_MC:
+		if (!(em & F_EXT_MEM_ENABLE))
+			return (EINVAL);
+		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
+		maddr = G_EXT_MEM_BASE(addr_len) << 20;
+		mlen = G_EXT_MEM_SIZE(addr_len) << 20;
+		break;
+	case MEM_MC1:
+		if (is_t4(sc) || !(em & F_EXT_MEM1_ENABLE))
+			return (EINVAL);
+		addr_len = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
+		maddr = G_EXT_MEM1_BASE(addr_len) << 20;
+		mlen = G_EXT_MEM1_SIZE(addr_len) << 20;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if (mlen > 0 && off < mlen && off + len <= mlen) {
+		*addr = maddr + off;	/* global address */
+		return (0);
+	}
+
+	return (EFAULT);
+}
+
+static void
+memwin_info(struct adapter *sc, int win, uint32_t *base, uint32_t *aperture)
+{
+	const struct memwin *mw;
+
+	if (is_t4(sc)) {
+		KASSERT(win >= 0 && win < nitems(t4_memwin),
+		    ("%s: incorrect memwin# (%d)", __func__, win));
+		mw = &t4_memwin[win];
+	} else {
+		KASSERT(win >= 0 && win < nitems(t5_memwin),
+		    ("%s: incorrect memwin# (%d)", __func__, win));
+		mw = &t5_memwin[win];
+	}
+
+	if (base != NULL)
+		*base = mw->base;
+	if (aperture != NULL)
+		*aperture = mw->aperture;
+}
+
+/*
+ * Positions the memory window such that it can be used to access the specified
+ * address in the chip's address space.  The return value is the offset of addr
+ * from the start of the window.
+ */
+static uint32_t
+position_memwin(struct adapter *sc, int n, uint32_t addr)
+{
+	uint32_t start, pf;
+	uint32_t reg;
+
+	KASSERT(n >= 0 && n <= 3,
+	    ("%s: invalid window %d.", __func__, n));
+	KASSERT((addr & 3) == 0,
+	    ("%s: addr (0x%x) is not at a 4B boundary.", __func__, addr));
+
+	if (is_t4(sc)) {
+		pf = 0;
+		start = addr & ~0xf;	/* start must be 16B aligned */
+	} else {
+		pf = V_PFNUM(sc->pf);
+		start = addr & ~0x7f;	/* start must be 128B aligned */
+	}
+	reg = PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, n);
+
+	t4_write_reg(sc, reg, start | pf);
+	t4_read_reg(sc, reg);
+
+	return (addr - start);
 }
 
 static int
@@ -1509,56 +1798,152 @@ allocate:
 	return (ENXIO);
 }
 
+#define FW_VERSION(chip) ( \
+    V_FW_HDR_FW_VER_MAJOR(FW_VERSION_MAJOR_##chip) | \
+    V_FW_HDR_FW_VER_MINOR(FW_VERSION_MINOR_##chip) | \
+    V_FW_HDR_FW_VER_MICRO(FW_VERSION_MICRO_##chip) | \
+    V_FW_HDR_FW_VER_BUILD(FW_VERSION_BUILD_##chip))
+#define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
+
+struct fw_info {
+	uint8_t chip;
+	char *kld_name;
+	char *fw_mod_name;
+	struct fw_hdr fw_hdr;	/* XXX: waste of space, need a sparse struct */
+} fw_info[] = {
+	{
+		.chip = CHELSIO_T4,
+		.kld_name = "t4fw_cfg",
+		.fw_mod_name = "t4fw",
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T4,
+			.fw_ver = htobe32_const(FW_VERSION(T4)),
+			.intfver_nic = FW_INTFVER(T4, NIC),
+			.intfver_vnic = FW_INTFVER(T4, VNIC),
+			.intfver_ofld = FW_INTFVER(T4, OFLD),
+			.intfver_ri = FW_INTFVER(T4, RI),
+			.intfver_iscsipdu = FW_INTFVER(T4, ISCSIPDU),
+			.intfver_iscsi = FW_INTFVER(T4, ISCSI),
+			.intfver_fcoepdu = FW_INTFVER(T4, FCOEPDU),
+			.intfver_fcoe = FW_INTFVER(T4, FCOE),
+		},
+	}, {
+		.chip = CHELSIO_T5,
+		.kld_name = "t5fw_cfg",
+		.fw_mod_name = "t5fw",
+		.fw_hdr = {
+			.chip = FW_HDR_CHIP_T5,
+			.fw_ver = htobe32_const(FW_VERSION(T5)),
+			.intfver_nic = FW_INTFVER(T5, NIC),
+			.intfver_vnic = FW_INTFVER(T5, VNIC),
+			.intfver_ofld = FW_INTFVER(T5, OFLD),
+			.intfver_ri = FW_INTFVER(T5, RI),
+			.intfver_iscsipdu = FW_INTFVER(T5, ISCSIPDU),
+			.intfver_iscsi = FW_INTFVER(T5, ISCSI),
+			.intfver_fcoepdu = FW_INTFVER(T5, FCOEPDU),
+			.intfver_fcoe = FW_INTFVER(T5, FCOE),
+		},
+	}
+};
+
+static struct fw_info *
+find_fw_info(int chip)
+{
+	int i;
+
+	for (i = 0; i < nitems(fw_info); i++) {
+		if (fw_info[i].chip == chip)
+			return (&fw_info[i]);
+	}
+	return (NULL);
+}
+
 /*
- * Is the given firmware compatible with the one the driver was compiled with?
+ * Is the given firmware API compatible with the one the driver was compiled
+ * with?
  */
 static int
-fw_compatible(const struct fw_hdr *hdr)
+fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
 {
 
-	if (hdr->fw_ver == htonl(FW_VERSION))
+	/* short circuit if it's the exact same firmware version */
+	if (hdr1->chip == hdr2->chip && hdr1->fw_ver == hdr2->fw_ver)
 		return (1);
 
 	/*
 	 * XXX: Is this too conservative?  Perhaps I should limit this to the
 	 * features that are supported in the driver.
 	 */
-	if (hdr->intfver_nic == FW_HDR_INTFVER_NIC &&
-	    hdr->intfver_vnic == FW_HDR_INTFVER_VNIC &&
-	    hdr->intfver_ofld == FW_HDR_INTFVER_OFLD &&
-	    hdr->intfver_ri == FW_HDR_INTFVER_RI &&
-	    hdr->intfver_iscsipdu == FW_HDR_INTFVER_ISCSIPDU &&
-	    hdr->intfver_iscsi == FW_HDR_INTFVER_ISCSI &&
-	    hdr->intfver_fcoepdu == FW_HDR_INTFVER_FCOEPDU &&
-	    hdr->intfver_fcoe == FW_HDR_INTFVER_FCOEPDU)
+#define SAME_INTF(x) (hdr1->intfver_##x == hdr2->intfver_##x)
+	if (hdr1->chip == hdr2->chip && SAME_INTF(nic) && SAME_INTF(vnic) &&
+	    SAME_INTF(ofld) && SAME_INTF(ri) && SAME_INTF(iscsipdu) &&
+	    SAME_INTF(iscsi) && SAME_INTF(fcoepdu) && SAME_INTF(fcoe))
 		return (1);
+#undef SAME_INTF
 
 	return (0);
 }
 
 /*
- * Install a compatible firmware (if required), establish contact with it (by
- * saying hello), and reset the device.  If we end up as the master driver,
- * partition adapter resources by providing a configuration file to the
- * firmware.
+ * Establish contact with the firmware and determine if we are the master driver
+ * or not, and whether we are responsible for chip initialization.
  */
 static int
 prep_firmware(struct adapter *sc)
 {
-	const struct firmware *fw = NULL, *cfg = NULL, *default_cfg;
-	int rc, card_fw_usable, kld_fw_usable;
+	const struct firmware *fw = NULL, *default_cfg;
+	int rc, pf, card_fw_usable, kld_fw_usable, need_fw_reset = 1;
 	enum dev_state state;
-	struct fw_hdr *card_fw;
-	const struct fw_hdr *kld_fw;
+	struct fw_info *fw_info;
+	struct fw_hdr *card_fw;		/* fw on the card */
+	const struct fw_hdr *kld_fw;	/* fw in the KLD */
+	const struct fw_hdr *drv_fw;	/* fw header the driver was compiled
+					   against */
 
-	default_cfg = firmware_get(T4_CFGNAME);
+	/* Contact firmware. */
+	rc = t4_fw_hello(sc, sc->mbox, sc->mbox, MASTER_MAY, &state);
+	if (rc < 0 || state == DEV_STATE_ERR) {
+		rc = -rc;
+		device_printf(sc->dev,
+		    "failed to connect to the firmware: %d, %d.\n", rc, state);
+		return (rc);
+	}
+	pf = rc;
+	if (pf == sc->mbox)
+		sc->flags |= MASTER_PF;
+	else if (state == DEV_STATE_UNINIT) {
+		/*
+		 * We didn't get to be the master so we definitely won't be
+		 * configuring the chip.  It's a bug if someone else hasn't
+		 * configured it already.
+		 */
+		device_printf(sc->dev, "couldn't be master(%d), "
+		    "device not already initialized either(%d).\n", rc, state);
+		return (EDOOFUS);
+	}
+
+	/* This is the firmware whose headers the driver was compiled against */
+	fw_info = find_fw_info(chip_id(sc));
+	if (fw_info == NULL) {
+		device_printf(sc->dev,
+		    "unable to look up firmware information for chip %d.\n",
+		    chip_id(sc));
+		return (EINVAL);
+	}
+	drv_fw = &fw_info->fw_hdr;
+
+	/*
+	 * The firmware KLD contains many modules.  The KLD name is also the
+	 * name of the module that contains the default config file.
+	 */
+	default_cfg = firmware_get(fw_info->kld_name);
 
 	/* Read the header of the firmware on the card */
 	card_fw = malloc(sizeof(*card_fw), M_CXGBE, M_ZERO | M_WAITOK);
 	rc = -t4_read_flash(sc, FLASH_FW_START,
 	    sizeof (*card_fw) / sizeof (uint32_t), (uint32_t *)card_fw, 1);
 	if (rc == 0)
-		card_fw_usable = fw_compatible((const void*)card_fw);
+		card_fw_usable = fw_compatible(drv_fw, (const void*)card_fw);
 	else {
 		device_printf(sc->dev,
 		    "Unable to read card's firmware header: %d\n", rc);
@@ -1566,29 +1951,29 @@ prep_firmware(struct adapter *sc)
 	}
 
 	/* This is the firmware in the KLD */
-	fw = firmware_get(T4_FWNAME);
+	fw = firmware_get(fw_info->fw_mod_name);
 	if (fw != NULL) {
 		kld_fw = (const void *)fw->data;
-		kld_fw_usable = fw_compatible(kld_fw);
+		kld_fw_usable = fw_compatible(drv_fw, kld_fw);
 	} else {
 		kld_fw = NULL;
 		kld_fw_usable = 0;
 	}
 
-	/*
-	 * Short circuit for the common case: the firmware on the card is an
-	 * exact match and the KLD is an exact match too, or it's
-	 * absent/incompatible, or we're prohibited from using it.  Note that
-	 * t4_fw_install = 2 is ignored here -- use cxgbetool loadfw if you want
-	 * to reinstall the same firmware as the one on the card.
-	 */
-	if (card_fw_usable && card_fw->fw_ver == htonl(FW_VERSION) &&
-	    (!kld_fw_usable || kld_fw->fw_ver == htonl(FW_VERSION) ||
-	    t4_fw_install == 0))
-		goto hello;
-
-	if (kld_fw_usable && (!card_fw_usable ||
-	    ntohl(kld_fw->fw_ver) > ntohl(card_fw->fw_ver) ||
+	if (card_fw_usable && card_fw->fw_ver == drv_fw->fw_ver &&
+	    (!kld_fw_usable || kld_fw->fw_ver == drv_fw->fw_ver ||
+	    t4_fw_install == 0)) {
+		/*
+		 * Common case: the firmware on the card is an exact match and
+		 * the KLD is an exact match too, or the KLD is
+		 * absent/incompatible, or we're prohibited from using it.  Note
+		 * that t4_fw_install = 2 is ignored here -- use cxgbetool
+		 * loadfw if you want to reinstall the same firmware as the one
+		 * on the card.
+		 */
+	} else if (kld_fw_usable && state == DEV_STATE_UNINIT &&
+	    (!card_fw_usable ||
+	    be32toh(kld_fw->fw_ver) > be32toh(card_fw->fw_ver) ||
 	    (t4_fw_install == 2 && kld_fw->fw_ver != card_fw->fw_ver))) {
 		uint32_t v = ntohl(kld_fw->fw_ver);
 
@@ -1607,30 +1992,31 @@ prep_firmware(struct adapter *sc)
 		/* Installed successfully, update the cached header too. */
 		memcpy(card_fw, kld_fw, sizeof(*card_fw));
 		card_fw_usable = 1;
+		need_fw_reset = 0;	/* already reset as part of load_fw */
 	}
 
 	if (!card_fw_usable) {
-		uint32_t c, k;
+		uint32_t d, c, k;
 
+		d = ntohl(drv_fw->fw_ver);
 		c = ntohl(card_fw->fw_ver);
 		k = kld_fw ? ntohl(kld_fw->fw_ver) : 0;
 
 		device_printf(sc->dev, "Cannot find a usable firmware: "
-		    "fw_install %d, driver compiled with %d.%d.%d.%d, "
+		    "fw_install %d, chip state %d, "
+		    "driver compiled with %d.%d.%d.%d, "
 		    "card has %d.%d.%d.%d, KLD has %d.%d.%d.%d\n",
-		    t4_fw_install,
-		    G_FW_HDR_FW_VER_MAJOR(FW_VERSION),
-		    G_FW_HDR_FW_VER_MINOR(FW_VERSION),
-		    G_FW_HDR_FW_VER_MICRO(FW_VERSION),
-		    G_FW_HDR_FW_VER_BUILD(FW_VERSION),
+		    t4_fw_install, state,
+		    G_FW_HDR_FW_VER_MAJOR(d), G_FW_HDR_FW_VER_MINOR(d),
+		    G_FW_HDR_FW_VER_MICRO(d), G_FW_HDR_FW_VER_BUILD(d),
 		    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
 		    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c),
 		    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
 		    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k));
+		rc = EINVAL;
 		goto done;
 	}
 
-hello:
 	/* We're using whatever's on the card and it's known to be good. */
 	sc->params.fw_vers = ntohl(card_fw->fw_ver);
 	snprintf(sc->fw_version, sizeof(sc->fw_version), "%u.%u.%u.%u",
@@ -1639,60 +2025,48 @@ hello:
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
 
-	/* Contact firmware.  */
-	rc = t4_fw_hello(sc, sc->mbox, sc->mbox, MASTER_MAY, &state);
-	if (rc < 0) {
-		rc = -rc;
-		device_printf(sc->dev,
-		    "failed to connect to the firmware: %d.\n", rc);
-		goto done;
-	}
-	if (rc == sc->mbox)
-		sc->flags |= MASTER_PF;
-
 	/* Reset device */
-	rc = -t4_fw_reset(sc, sc->mbox, F_PIORSTMODE | F_PIORST);
-	if (rc != 0) {
+	if (need_fw_reset &&
+	    (rc = -t4_fw_reset(sc, sc->mbox, F_PIORSTMODE | F_PIORST)) != 0) {
 		device_printf(sc->dev, "firmware reset failed: %d.\n", rc);
 		if (rc != ETIMEDOUT && rc != EIO)
 			t4_fw_bye(sc, sc->mbox);
 		goto done;
 	}
+	sc->flags |= FW_OK;
+
+	rc = get_params__pre_init(sc);
+	if (rc != 0)
+		goto done; /* error message displayed already */
 
 	/* Partition adapter resources as specified in the config file. */
-	if (sc->flags & MASTER_PF) {
-		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s",
-		    pci_get_device(sc->dev) == 0x440a ? "uwire" : t4_cfg_file);
-		if (strncmp(sc->cfg_file, "default", sizeof(sc->cfg_file))) {
-			char s[32];
+	if (state == DEV_STATE_UNINIT) {
 
-			snprintf(s, sizeof(s), "t4fw_cfg_%s", sc->cfg_file);
-			cfg = firmware_get(s);
-			if (cfg == NULL) {
-				device_printf(sc->dev,
-				    "unable to locate %s module, "
-				    "will use default config file.\n", s);
-				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
-				    "%s", "default");
-			}
-		}
+		KASSERT(sc->flags & MASTER_PF,
+		    ("%s: trying to change chip settings when not master.",
+		    __func__));
 
-		rc = partition_resources(sc, cfg ? cfg : default_cfg);
+		rc = partition_resources(sc, default_cfg, fw_info->kld_name);
 		if (rc != 0)
 			goto done;	/* error message displayed already */
-	} else {
-		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s", "notme");
-		sc->cfcsum = (u_int)-1;
-	}
 
-	sc->flags |= FW_OK;
+		t4_tweak_chip_settings(sc);
+
+		/* get basic stuff going */
+		rc = -t4_fw_initialize(sc, sc->mbox);
+		if (rc != 0) {
+			device_printf(sc->dev, "fw init failed: %d.\n", rc);
+			goto done;
+		}
+	} else {
+		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "pf%d", pf);
+		sc->cfcsum = 0;
+	}
 
 done:
 	free(card_fw, M_CXGBE);
 	if (fw != NULL)
 		firmware_put(fw, FIRMWARE_UNLOAD);
-	if (cfg != NULL)
-		firmware_put(cfg, FIRMWARE_UNLOAD);
 	if (default_cfg != NULL)
 		firmware_put(default_cfg, FIRMWARE_UNLOAD);
 
@@ -1707,115 +2081,131 @@ done:
 	 V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_##param))
 
 /*
- * Upload configuration file to card's memory.
+ * Partition chip resources for use between various PFs, VFs, etc.
  */
 static int
-upload_config_file(struct adapter *sc, const struct firmware *fw, uint32_t *mt,
-    uint32_t *ma)
+partition_resources(struct adapter *sc, const struct firmware *default_cfg,
+    const char *name_prefix)
 {
-	int rc, i;
-	uint32_t param, val, mtype, maddr, bar, off, win, remaining;
-	const uint32_t *b;
-
-	/* Figure out where the firmware wants us to upload it. */
-	param = FW_PARAM_DEV(CF);
-	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
-	if (rc != 0) {
-		/* Firmwares without config file support will fail this way */
-		device_printf(sc->dev,
-		    "failed to query config file location: %d.\n", rc);
-		return (rc);
-	}
-	*mt = mtype = G_FW_PARAMS_PARAM_Y(val);
-	*ma = maddr = G_FW_PARAMS_PARAM_Z(val) << 16;
-
-	if (maddr & 3) {
-		device_printf(sc->dev,
-		    "cannot upload config file (type %u, addr %x).\n",
-		    mtype, maddr);
-		return (EFAULT);
-	}
-
-	/* Translate mtype/maddr to an address suitable for the PCIe window */
-	val = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
-	val &= F_EDRAM0_ENABLE | F_EDRAM1_ENABLE | F_EXT_MEM_ENABLE;
-	switch (mtype) {
-	case FW_MEMTYPE_CF_EDC0:
-		if (!(val & F_EDRAM0_ENABLE))
-			goto err;
-		bar = t4_read_reg(sc, A_MA_EDRAM0_BAR);
-		maddr += G_EDRAM0_BASE(bar) << 20;
-		break;
-
-	case FW_MEMTYPE_CF_EDC1:
-		if (!(val & F_EDRAM1_ENABLE))
-			goto err;
-		bar = t4_read_reg(sc, A_MA_EDRAM1_BAR);
-		maddr += G_EDRAM1_BASE(bar) << 20;
-		break;
-
-	case FW_MEMTYPE_CF_EXTMEM:
-		if (!(val & F_EXT_MEM_ENABLE))
-			goto err;
-		bar = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
-		maddr += G_EXT_MEM_BASE(bar) << 20;
-		break;
-
-	default:
-err:
-		device_printf(sc->dev,
-		    "cannot upload config file (type %u, enabled %u).\n",
-		    mtype, val);
-		return (EFAULT);
-	}
-
-	/*
-	 * Position the PCIe window (we use memwin2) to the 16B aligned area
-	 * just at/before the upload location.
-	 */
-	win = maddr & ~0xf;
-	off = maddr - win;  /* offset from the start of the window. */
-	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2), win);
-	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2));
-
-	remaining = fw->datasize;
-	if (remaining > FLASH_CFG_MAX_SIZE ||
-	    remaining > MEMWIN2_APERTURE - off) {
-		device_printf(sc->dev, "cannot upload config file all at once "
-		    "(size %u, max %u, room %u).\n",
-		    remaining, FLASH_CFG_MAX_SIZE, MEMWIN2_APERTURE - off);
-		return (EFBIG);
-	}
-
-	/*
-	 * XXX: sheer laziness.  We deliberately added 4 bytes of useless
-	 * stuffing/comments at the end of the config file so it's ok to simply
-	 * throw away the last remaining bytes when the config file is not an
-	 * exact multiple of 4.
-	 */
-	b = fw->data;
-	for (i = 0; remaining >= 4; i += 4, remaining -= 4)
-		t4_write_reg(sc, MEMWIN2_BASE + off + i, *b++);
-
-	return (rc);
-}
-
-/*
- * Partition chip resources for use between various PFs, VFs, etc.  This is done
- * by uploading the firmware configuration file to the adapter and instructing
- * the firmware to process it.
- */
-static int
-partition_resources(struct adapter *sc, const struct firmware *cfg)
-{
-	int rc;
+	const struct firmware *cfg = NULL;
+	int rc = 0;
 	struct fw_caps_config_cmd caps;
-	uint32_t mtype, maddr, finicsum, cfcsum;
+	uint32_t mtype, moff, finicsum, cfcsum;
 
-	rc = cfg ? upload_config_file(sc, cfg, &mtype, &maddr) : ENOENT;
-	if (rc != 0) {
+	/*
+	 * Figure out what configuration file to use.  Pick the default config
+	 * file for the card if the user hasn't specified one explicitly.
+	 */
+	snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s", t4_cfg_file);
+	if (strncmp(t4_cfg_file, DEFAULT_CF, sizeof(t4_cfg_file)) == 0) {
+		/* Card specific overrides go here. */
+		if (pci_get_device(sc->dev) == 0x440a)
+			snprintf(sc->cfg_file, sizeof(sc->cfg_file), UWIRE_CF);
+	}
+
+	/*
+	 * We need to load another module if the profile is anything except
+	 * "default" or "flash".
+	 */
+	if (strncmp(sc->cfg_file, DEFAULT_CF, sizeof(sc->cfg_file)) != 0 &&
+	    strncmp(sc->cfg_file, FLASH_CF, sizeof(sc->cfg_file)) != 0) {
+		char s[32];
+
+		snprintf(s, sizeof(s), "%s_%s", name_prefix, sc->cfg_file);
+		cfg = firmware_get(s);
+		if (cfg == NULL) {
+			device_printf(sc->dev, "unable to load module \"%s\" "
+			    "for configuration profile \"%s\", ",
+			    s, sc->cfg_file);
+			if (default_cfg != NULL) {
+				device_printf(sc->dev, "will use the default "
+				    "config file instead.\n");
+				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
+				    "%s", DEFAULT_CF);
+			} else {
+				device_printf(sc->dev, "will use the config "
+				    "file on the card's flash instead.\n");
+				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
+				    "%s", FLASH_CF);
+			}
+		}
+	}
+
+	if (strncmp(sc->cfg_file, DEFAULT_CF, sizeof(sc->cfg_file)) == 0 &&
+	    default_cfg == NULL) {
+		device_printf(sc->dev,
+		    "default config file not available, will use the config "
+		    "file on the card's flash instead.\n");
+		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s", FLASH_CF);
+	}
+
+	if (strncmp(sc->cfg_file, FLASH_CF, sizeof(sc->cfg_file)) != 0) {
+		u_int cflen, i, n;
+		const uint32_t *cfdata;
+		uint32_t param, val, addr, off, mw_base, mw_aperture;
+
+		KASSERT(cfg != NULL || default_cfg != NULL,
+		    ("%s: no config to upload", __func__));
+
+		/*
+		 * Ask the firmware where it wants us to upload the config file.
+		 */
+		param = FW_PARAM_DEV(CF);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			/* No support for config file?  Shouldn't happen. */
+			device_printf(sc->dev,
+			    "failed to query config file location: %d.\n", rc);
+			goto done;
+		}
+		mtype = G_FW_PARAMS_PARAM_Y(val);
+		moff = G_FW_PARAMS_PARAM_Z(val) << 16;
+
+		/*
+		 * XXX: sheer laziness.  We deliberately added 4 bytes of
+		 * useless stuffing/comments at the end of the config file so
+		 * it's ok to simply throw away the last remaining bytes when
+		 * the config file is not an exact multiple of 4.  This also
+		 * helps with the validate_mt_off_len check.
+		 */
+		if (cfg != NULL) {
+			cflen = cfg->datasize & ~3;
+			cfdata = cfg->data;
+		} else {
+			cflen = default_cfg->datasize & ~3;
+			cfdata = default_cfg->data;
+		}
+
+		if (cflen > FLASH_CFG_MAX_SIZE) {
+			device_printf(sc->dev,
+			    "config file too long (%d, max allowed is %d).  "
+			    "Will try to use the config on the card, if any.\n",
+			    cflen, FLASH_CFG_MAX_SIZE);
+			goto use_config_on_flash;
+		}
+
+		rc = validate_mt_off_len(sc, mtype, moff, cflen, &addr);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "%s: addr (%d/0x%x) or len %d is not valid: %d.  "
+			    "Will try to use the config on the card, if any.\n",
+			    __func__, mtype, moff, cflen, rc);
+			goto use_config_on_flash;
+		}
+
+		memwin_info(sc, 2, &mw_base, &mw_aperture);
+		while (cflen) {
+			off = position_memwin(sc, 2, addr);
+			n = min(cflen, mw_aperture - off);
+			for (i = 0; i < n; i += 4)
+				t4_write_reg(sc, mw_base + off + i, *cfdata++);
+			cflen -= n;
+			addr += n;
+		}
+	} else {
+use_config_on_flash:
 		mtype = FW_MEMTYPE_CF_FLASH;
-		maddr = t4_flash_cfg_addr(sc);
+		moff = t4_flash_cfg_addr(sc);
 	}
 
 	bzero(&caps, sizeof(caps));
@@ -1823,12 +2213,13 @@ partition_resources(struct adapter *sc, const struct firmware *cfg)
 	    F_FW_CMD_REQUEST | F_FW_CMD_READ);
 	caps.cfvalid_to_len16 = htobe32(F_FW_CAPS_CONFIG_CMD_CFVALID |
 	    V_FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
-	    V_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) | FW_LEN16(caps));
+	    V_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(moff >> 16) | FW_LEN16(caps));
 	rc = -t4_wr_mbox(sc, sc->mbox, &caps, sizeof(caps), &caps);
 	if (rc != 0) {
 		device_printf(sc->dev,
-		    "failed to pre-process config file: %d.\n", rc);
-		return (rc);
+		    "failed to pre-process config file: %d (mtype %d).\n", rc,
+		    mtype);
+		goto done;
 	}
 
 	finicsum = be32toh(caps.finicsum);
@@ -1864,15 +2255,15 @@ partition_resources(struct adapter *sc, const struct firmware *cfg)
 	if (rc != 0) {
 		device_printf(sc->dev,
 		    "failed to process config file: %d.\n", rc);
-		return (rc);
 	}
-
-	return (0);
+done:
+	if (cfg != NULL)
+		firmware_put(cfg, FIRMWARE_UNLOAD);
+	return (rc);
 }
 
 /*
- * Retrieve parameters that are needed (or nice to have) prior to calling
- * t4_sge_init and t4_fw_initialize.
+ * Retrieve parameters that are needed (or nice to have) very early.
  */
 static int
 get_params__pre_init(struct adapter *sc)
@@ -2037,11 +2428,11 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.iscsi.size = val[1] - val[0] + 1;
 	}
 
-	/* These are finalized by FW initialization, load their values now */
-	val[0] = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
-	sc->params.tp.tre = G_TIMERRESOLUTION(val[0]);
-	sc->params.tp.dack_re = G_DELAYEDACKRESOLUTION(val[0]);
-	t4_read_mtu_tbl(sc, sc->params.mtus, NULL);
+	/*
+	 * We've got the params we wanted to query via the firmware.  Now grab
+	 * some others directly from the chip.
+	 */
+	rc = t4_read_chip_settings(sc);
 
 	return (rc);
 }
@@ -2083,7 +2474,8 @@ t4_set_desc(struct adapter *sc)
 	struct adapter_params *p = &sc->params;
 
 	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, E/C:%s",
-	    p->vpd.id, is_offload(sc) ? "R" : "", p->rev, p->vpd.sn, p->vpd.ec);
+	    p->vpd.id, is_offload(sc) ? "R" : "", chip_rev(sc), p->vpd.sn,
+	    p->vpd.ec);
 
 	device_set_desc_copy(sc->dev, buf);
 }
@@ -2804,8 +3196,9 @@ reg_block_dump(struct adapter *sc, uint8_t *buf, unsigned int start,
 static void
 t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 {
-	int i;
-	static const unsigned int reg_ranges[] = {
+	int i, n;
+	const unsigned int *reg_ranges;
+	static const unsigned int t4_reg_ranges[] = {
 		0x1008, 0x1108,
 		0x1180, 0x11b4,
 		0x11fc, 0x123c,
@@ -3024,9 +3417,455 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 		0x27c80, 0x27d7c,
 		0x27e00, 0x27e04
 	};
+	static const unsigned int t5_reg_ranges[] = {
+		0x1008, 0x1148,
+		0x1180, 0x11b4,
+		0x11fc, 0x123c,
+		0x1280, 0x173c,
+		0x1800, 0x18fc,
+		0x3000, 0x3028,
+		0x3060, 0x30d8,
+		0x30e0, 0x30fc,
+		0x3140, 0x357c,
+		0x35a8, 0x35cc,
+		0x35ec, 0x35ec,
+		0x3600, 0x5624,
+		0x56cc, 0x575c,
+		0x580c, 0x5814,
+		0x5890, 0x58bc,
+		0x5940, 0x59dc,
+		0x59fc, 0x5a18,
+		0x5a60, 0x5a9c,
+		0x5b94, 0x5bfc,
+		0x6000, 0x6040,
+		0x6058, 0x614c,
+		0x7700, 0x7798,
+		0x77c0, 0x78fc,
+		0x7b00, 0x7c54,
+		0x7d00, 0x7efc,
+		0x8dc0, 0x8de0,
+		0x8df8, 0x8e84,
+		0x8ea0, 0x8f84,
+		0x8fc0, 0x90f8,
+		0x9400, 0x9470,
+		0x9600, 0x96f4,
+		0x9800, 0x9808,
+		0x9820, 0x983c,
+		0x9850, 0x9864,
+		0x9c00, 0x9c6c,
+		0x9c80, 0x9cec,
+		0x9d00, 0x9d6c,
+		0x9d80, 0x9dec,
+		0x9e00, 0x9e6c,
+		0x9e80, 0x9eec,
+		0x9f00, 0x9f6c,
+		0x9f80, 0xa020,
+		0xd004, 0xd03c,
+		0xdfc0, 0xdfe0,
+		0xe000, 0x11088,
+		0x1109c, 0x1117c,
+		0x11190, 0x11204,
+		0x19040, 0x1906c,
+		0x19078, 0x19080,
+		0x1908c, 0x19124,
+		0x19150, 0x191b0,
+		0x191d0, 0x191e8,
+		0x19238, 0x19290,
+		0x193f8, 0x19474,
+		0x19490, 0x194cc,
+		0x194f0, 0x194f8,
+		0x19c00, 0x19c60,
+		0x19c94, 0x19e10,
+		0x19e50, 0x19f34,
+		0x19f40, 0x19f50,
+		0x19f90, 0x19fe4,
+		0x1a000, 0x1a06c,
+		0x1a0b0, 0x1a120,
+		0x1a128, 0x1a138,
+		0x1a190, 0x1a1c4,
+		0x1a1fc, 0x1a1fc,
+		0x1e008, 0x1e00c,
+		0x1e040, 0x1e04c,
+		0x1e284, 0x1e290,
+		0x1e2c0, 0x1e2c0,
+		0x1e2e0, 0x1e2e0,
+		0x1e300, 0x1e384,
+		0x1e3c0, 0x1e3c8,
+		0x1e408, 0x1e40c,
+		0x1e440, 0x1e44c,
+		0x1e684, 0x1e690,
+		0x1e6c0, 0x1e6c0,
+		0x1e6e0, 0x1e6e0,
+		0x1e700, 0x1e784,
+		0x1e7c0, 0x1e7c8,
+		0x1e808, 0x1e80c,
+		0x1e840, 0x1e84c,
+		0x1ea84, 0x1ea90,
+		0x1eac0, 0x1eac0,
+		0x1eae0, 0x1eae0,
+		0x1eb00, 0x1eb84,
+		0x1ebc0, 0x1ebc8,
+		0x1ec08, 0x1ec0c,
+		0x1ec40, 0x1ec4c,
+		0x1ee84, 0x1ee90,
+		0x1eec0, 0x1eec0,
+		0x1eee0, 0x1eee0,
+		0x1ef00, 0x1ef84,
+		0x1efc0, 0x1efc8,
+		0x1f008, 0x1f00c,
+		0x1f040, 0x1f04c,
+		0x1f284, 0x1f290,
+		0x1f2c0, 0x1f2c0,
+		0x1f2e0, 0x1f2e0,
+		0x1f300, 0x1f384,
+		0x1f3c0, 0x1f3c8,
+		0x1f408, 0x1f40c,
+		0x1f440, 0x1f44c,
+		0x1f684, 0x1f690,
+		0x1f6c0, 0x1f6c0,
+		0x1f6e0, 0x1f6e0,
+		0x1f700, 0x1f784,
+		0x1f7c0, 0x1f7c8,
+		0x1f808, 0x1f80c,
+		0x1f840, 0x1f84c,
+		0x1fa84, 0x1fa90,
+		0x1fac0, 0x1fac0,
+		0x1fae0, 0x1fae0,
+		0x1fb00, 0x1fb84,
+		0x1fbc0, 0x1fbc8,
+		0x1fc08, 0x1fc0c,
+		0x1fc40, 0x1fc4c,
+		0x1fe84, 0x1fe90,
+		0x1fec0, 0x1fec0,
+		0x1fee0, 0x1fee0,
+		0x1ff00, 0x1ff84,
+		0x1ffc0, 0x1ffc8,
+		0x30000, 0x30040,
+		0x30100, 0x30144,
+		0x30190, 0x301d0,
+		0x30200, 0x30318,
+		0x30400, 0x3052c,
+		0x30540, 0x3061c,
+		0x30800, 0x30834,
+		0x308c0, 0x30908,
+		0x30910, 0x309ac,
+		0x30a00, 0x30a04,
+		0x30a0c, 0x30a2c,
+		0x30a44, 0x30a50,
+		0x30a74, 0x30c24,
+		0x30d08, 0x30d14,
+		0x30d1c, 0x30d20,
+		0x30d3c, 0x30d50,
+		0x31200, 0x3120c,
+		0x31220, 0x31220,
+		0x31240, 0x31240,
+		0x31600, 0x31600,
+		0x31608, 0x3160c,
+		0x31a00, 0x31a1c,
+		0x31e04, 0x31e20,
+		0x31e38, 0x31e3c,
+		0x31e80, 0x31e80,
+		0x31e88, 0x31ea8,
+		0x31eb0, 0x31eb4,
+		0x31ec8, 0x31ed4,
+		0x31fb8, 0x32004,
+		0x32208, 0x3223c,
+		0x32248, 0x3227c,
+		0x32288, 0x322bc,
+		0x322c8, 0x322fc,
+		0x32600, 0x32630,
+		0x32a00, 0x32abc,
+		0x32b00, 0x32b70,
+		0x33000, 0x33048,
+		0x33060, 0x3309c,
+		0x330f0, 0x33148,
+		0x33160, 0x3319c,
+		0x331f0, 0x332e4,
+		0x332f8, 0x333e4,
+		0x333f8, 0x33448,
+		0x33460, 0x3349c,
+		0x334f0, 0x33548,
+		0x33560, 0x3359c,
+		0x335f0, 0x336e4,
+		0x336f8, 0x337e4,
+		0x337f8, 0x337fc,
+		0x33814, 0x33814,
+		0x3382c, 0x3382c,
+		0x33880, 0x3388c,
+		0x338e8, 0x338ec,
+		0x33900, 0x33948,
+		0x33960, 0x3399c,
+		0x339f0, 0x33ae4,
+		0x33af8, 0x33b10,
+		0x33b28, 0x33b28,
+		0x33b3c, 0x33b50,
+		0x33bf0, 0x33c10,
+		0x33c28, 0x33c28,
+		0x33c3c, 0x33c50,
+		0x33cf0, 0x33cfc,
+		0x34000, 0x34040,
+		0x34100, 0x34144,
+		0x34190, 0x341d0,
+		0x34200, 0x34318,
+		0x34400, 0x3452c,
+		0x34540, 0x3461c,
+		0x34800, 0x34834,
+		0x348c0, 0x34908,
+		0x34910, 0x349ac,
+		0x34a00, 0x34a04,
+		0x34a0c, 0x34a2c,
+		0x34a44, 0x34a50,
+		0x34a74, 0x34c24,
+		0x34d08, 0x34d14,
+		0x34d1c, 0x34d20,
+		0x34d3c, 0x34d50,
+		0x35200, 0x3520c,
+		0x35220, 0x35220,
+		0x35240, 0x35240,
+		0x35600, 0x35600,
+		0x35608, 0x3560c,
+		0x35a00, 0x35a1c,
+		0x35e04, 0x35e20,
+		0x35e38, 0x35e3c,
+		0x35e80, 0x35e80,
+		0x35e88, 0x35ea8,
+		0x35eb0, 0x35eb4,
+		0x35ec8, 0x35ed4,
+		0x35fb8, 0x36004,
+		0x36208, 0x3623c,
+		0x36248, 0x3627c,
+		0x36288, 0x362bc,
+		0x362c8, 0x362fc,
+		0x36600, 0x36630,
+		0x36a00, 0x36abc,
+		0x36b00, 0x36b70,
+		0x37000, 0x37048,
+		0x37060, 0x3709c,
+		0x370f0, 0x37148,
+		0x37160, 0x3719c,
+		0x371f0, 0x372e4,
+		0x372f8, 0x373e4,
+		0x373f8, 0x37448,
+		0x37460, 0x3749c,
+		0x374f0, 0x37548,
+		0x37560, 0x3759c,
+		0x375f0, 0x376e4,
+		0x376f8, 0x377e4,
+		0x377f8, 0x377fc,
+		0x37814, 0x37814,
+		0x3782c, 0x3782c,
+		0x37880, 0x3788c,
+		0x378e8, 0x378ec,
+		0x37900, 0x37948,
+		0x37960, 0x3799c,
+		0x379f0, 0x37ae4,
+		0x37af8, 0x37b10,
+		0x37b28, 0x37b28,
+		0x37b3c, 0x37b50,
+		0x37bf0, 0x37c10,
+		0x37c28, 0x37c28,
+		0x37c3c, 0x37c50,
+		0x37cf0, 0x37cfc,
+		0x38000, 0x38040,
+		0x38100, 0x38144,
+		0x38190, 0x381d0,
+		0x38200, 0x38318,
+		0x38400, 0x3852c,
+		0x38540, 0x3861c,
+		0x38800, 0x38834,
+		0x388c0, 0x38908,
+		0x38910, 0x389ac,
+		0x38a00, 0x38a04,
+		0x38a0c, 0x38a2c,
+		0x38a44, 0x38a50,
+		0x38a74, 0x38c24,
+		0x38d08, 0x38d14,
+		0x38d1c, 0x38d20,
+		0x38d3c, 0x38d50,
+		0x39200, 0x3920c,
+		0x39220, 0x39220,
+		0x39240, 0x39240,
+		0x39600, 0x39600,
+		0x39608, 0x3960c,
+		0x39a00, 0x39a1c,
+		0x39e04, 0x39e20,
+		0x39e38, 0x39e3c,
+		0x39e80, 0x39e80,
+		0x39e88, 0x39ea8,
+		0x39eb0, 0x39eb4,
+		0x39ec8, 0x39ed4,
+		0x39fb8, 0x3a004,
+		0x3a208, 0x3a23c,
+		0x3a248, 0x3a27c,
+		0x3a288, 0x3a2bc,
+		0x3a2c8, 0x3a2fc,
+		0x3a600, 0x3a630,
+		0x3aa00, 0x3aabc,
+		0x3ab00, 0x3ab70,
+		0x3b000, 0x3b048,
+		0x3b060, 0x3b09c,
+		0x3b0f0, 0x3b148,
+		0x3b160, 0x3b19c,
+		0x3b1f0, 0x3b2e4,
+		0x3b2f8, 0x3b3e4,
+		0x3b3f8, 0x3b448,
+		0x3b460, 0x3b49c,
+		0x3b4f0, 0x3b548,
+		0x3b560, 0x3b59c,
+		0x3b5f0, 0x3b6e4,
+		0x3b6f8, 0x3b7e4,
+		0x3b7f8, 0x3b7fc,
+		0x3b814, 0x3b814,
+		0x3b82c, 0x3b82c,
+		0x3b880, 0x3b88c,
+		0x3b8e8, 0x3b8ec,
+		0x3b900, 0x3b948,
+		0x3b960, 0x3b99c,
+		0x3b9f0, 0x3bae4,
+		0x3baf8, 0x3bb10,
+		0x3bb28, 0x3bb28,
+		0x3bb3c, 0x3bb50,
+		0x3bbf0, 0x3bc10,
+		0x3bc28, 0x3bc28,
+		0x3bc3c, 0x3bc50,
+		0x3bcf0, 0x3bcfc,
+		0x3c000, 0x3c040,
+		0x3c100, 0x3c144,
+		0x3c190, 0x3c1d0,
+		0x3c200, 0x3c318,
+		0x3c400, 0x3c52c,
+		0x3c540, 0x3c61c,
+		0x3c800, 0x3c834,
+		0x3c8c0, 0x3c908,
+		0x3c910, 0x3c9ac,
+		0x3ca00, 0x3ca04,
+		0x3ca0c, 0x3ca2c,
+		0x3ca44, 0x3ca50,
+		0x3ca74, 0x3cc24,
+		0x3cd08, 0x3cd14,
+		0x3cd1c, 0x3cd20,
+		0x3cd3c, 0x3cd50,
+		0x3d200, 0x3d20c,
+		0x3d220, 0x3d220,
+		0x3d240, 0x3d240,
+		0x3d600, 0x3d600,
+		0x3d608, 0x3d60c,
+		0x3da00, 0x3da1c,
+		0x3de04, 0x3de20,
+		0x3de38, 0x3de3c,
+		0x3de80, 0x3de80,
+		0x3de88, 0x3dea8,
+		0x3deb0, 0x3deb4,
+		0x3dec8, 0x3ded4,
+		0x3dfb8, 0x3e004,
+		0x3e208, 0x3e23c,
+		0x3e248, 0x3e27c,
+		0x3e288, 0x3e2bc,
+		0x3e2c8, 0x3e2fc,
+		0x3e600, 0x3e630,
+		0x3ea00, 0x3eabc,
+		0x3eb00, 0x3eb70,
+		0x3f000, 0x3f048,
+		0x3f060, 0x3f09c,
+		0x3f0f0, 0x3f148,
+		0x3f160, 0x3f19c,
+		0x3f1f0, 0x3f2e4,
+		0x3f2f8, 0x3f3e4,
+		0x3f3f8, 0x3f448,
+		0x3f460, 0x3f49c,
+		0x3f4f0, 0x3f548,
+		0x3f560, 0x3f59c,
+		0x3f5f0, 0x3f6e4,
+		0x3f6f8, 0x3f7e4,
+		0x3f7f8, 0x3f7fc,
+		0x3f814, 0x3f814,
+		0x3f82c, 0x3f82c,
+		0x3f880, 0x3f88c,
+		0x3f8e8, 0x3f8ec,
+		0x3f900, 0x3f948,
+		0x3f960, 0x3f99c,
+		0x3f9f0, 0x3fae4,
+		0x3faf8, 0x3fb10,
+		0x3fb28, 0x3fb28,
+		0x3fb3c, 0x3fb50,
+		0x3fbf0, 0x3fc10,
+		0x3fc28, 0x3fc28,
+		0x3fc3c, 0x3fc50,
+		0x3fcf0, 0x3fcfc,
+		0x40000, 0x4000c,
+		0x40040, 0x40068,
+		0x4007c, 0x40144,
+		0x40180, 0x4018c,
+		0x40200, 0x40298,
+		0x402ac, 0x4033c,
+		0x403f8, 0x403fc,
+		0x41300, 0x413c4,
+		0x41400, 0x4141c,
+		0x41480, 0x414d0,
+		0x44000, 0x44078,
+		0x440c0, 0x44278,
+		0x442c0, 0x44478,
+		0x444c0, 0x44678,
+		0x446c0, 0x44878,
+		0x448c0, 0x449fc,
+		0x45000, 0x45068,
+		0x45080, 0x45084,
+		0x450a0, 0x450b0,
+		0x45200, 0x45268,
+		0x45280, 0x45284,
+		0x452a0, 0x452b0,
+		0x460c0, 0x460e4,
+		0x47000, 0x4708c,
+		0x47200, 0x47250,
+		0x47400, 0x47420,
+		0x47600, 0x47618,
+		0x47800, 0x47814,
+		0x48000, 0x4800c,
+		0x48040, 0x48068,
+		0x4807c, 0x48144,
+		0x48180, 0x4818c,
+		0x48200, 0x48298,
+		0x482ac, 0x4833c,
+		0x483f8, 0x483fc,
+		0x49300, 0x493c4,
+		0x49400, 0x4941c,
+		0x49480, 0x494d0,
+		0x4c000, 0x4c078,
+		0x4c0c0, 0x4c278,
+		0x4c2c0, 0x4c478,
+		0x4c4c0, 0x4c678,
+		0x4c6c0, 0x4c878,
+		0x4c8c0, 0x4c9fc,
+		0x4d000, 0x4d068,
+		0x4d080, 0x4d084,
+		0x4d0a0, 0x4d0b0,
+		0x4d200, 0x4d268,
+		0x4d280, 0x4d284,
+		0x4d2a0, 0x4d2b0,
+		0x4e0c0, 0x4e0e4,
+		0x4f000, 0x4f08c,
+		0x4f200, 0x4f250,
+		0x4f400, 0x4f420,
+		0x4f600, 0x4f618,
+		0x4f800, 0x4f814,
+		0x50000, 0x500cc,
+		0x50400, 0x50400,
+		0x50800, 0x508cc,
+		0x50c00, 0x50c00,
+		0x51000, 0x5101c,
+		0x51300, 0x51308,
+	};
 
-	regs->version = 4 | (sc->params.rev << 10);
-	for (i = 0; i < nitems(reg_ranges); i += 2)
+	if (is_t4(sc)) {
+		reg_ranges = &t4_reg_ranges[0];
+		n = nitems(t4_reg_ranges);
+	} else {
+		reg_ranges = &t5_reg_ranges[0];
+		n = nitems(t5_reg_ranges);
+	}
+
+	regs->version = chip_id(sc) | chip_rev(sc) << 10;
+	for (i = 0; i < n; i += 2)
 		reg_block_dump(sc, buf, reg_ranges[i], reg_ranges[i + 1]);
 }
 
@@ -3190,6 +4029,7 @@ t4_sysctls(struct adapter *sc)
 		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
 		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
 	};
+	static char *doorbells = {"\20\1UDB\2WRWC\3UDBWC\4KDB"};
 
 	ctx = device_get_sysctl_ctx(sc->dev);
 
@@ -3199,11 +4039,11 @@ t4_sysctls(struct adapter *sc)
 	oid = device_get_sysctl_tree(sc->dev);
 	c0 = children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nports", CTLFLAG_RD,
-	    &sc->params.nports, 0, "# of ports");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nports", CTLFLAG_RD, NULL,
+	    sc->params.nports, "# of ports");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
-	    &sc->params.rev, 0, "chip hardware revision");
+	    NULL, chip_rev(sc), "chip hardware revision");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
 	    CTLFLAG_RD, &sc->fw_version, 0, "firmware version");
@@ -3211,8 +4051,12 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "cf",
 	    CTLFLAG_RD, &sc->cfg_file, 0, "configuration file");
 
-	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cfcsum", CTLFLAG_RD,
-	    &sc->cfcsum, 0, "config file checksum");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cfcsum", CTLFLAG_RD, NULL,
+	    sc->cfcsum, "config file checksum");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "doorbells",
+	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
+	    sysctl_bitfield, "A", "available doorbells");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "linkcaps",
 	    CTLTYPE_STRING | CTLFLAG_RD, caps[0], sc->linkcaps,
@@ -3238,8 +4082,8 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, caps[5], sc->fcoecaps,
 	    sysctl_bitfield, "A", "available FCoE capabilities");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD,
-	    &sc->params.vpd.cclk, 0, "core clock frequency (in KHz)");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
+	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc->sge.timer_val,
@@ -3316,6 +4160,16 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 5 + CIM_NUM_IBQ,
 	    sysctl_cim_ibq_obq, "A", "CIM OBQ 5 (NCSI)");
 
+	if (is_t5(sc)) {
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge0_rx",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 6 + CIM_NUM_IBQ,
+		    sysctl_cim_ibq_obq, "A", "CIM OBQ 6 (SGE0-RX)");
+
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge1_rx",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 7 + CIM_NUM_IBQ,
+		    sysctl_cim_ibq_obq, "A", "CIM OBQ 7 (SGE1-RX)");
+	}
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_qcfg",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_cim_qcfg, "A", "CIM queue configuration");
@@ -3379,6 +4233,12 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_rate",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tx_rate, "A", "Tx rate");
+
+	if (is_t5(sc)) {
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "wrwc_stats",
+		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+		    sysctl_wrwc_stats, "A", "work request (WC) statistics");
+	}
 #endif
 
 #ifdef TCP_OFFLOAD
@@ -3843,9 +4703,10 @@ sysctl_cctrl(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
-static const char *qname[CIM_NUM_IBQ + CIM_NUM_OBQ] = {
+static const char *qname[CIM_NUM_IBQ + CIM_NUM_OBQ_T5] = {
 	"TP0", "TP1", "ULP", "SGE0", "SGE1", "NC-SI",	/* ibq's */
-	"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI"	/* obq's */
+	"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI",	/* obq's */
+	"SGE0-RX", "SGE1-RX"	/* additional obq's (T5 onwards) */
 };
 
 static int
@@ -3856,8 +4717,9 @@ sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
 	int rc, i, n, qid = arg2;
 	uint32_t *buf, *p;
 	char *qtype;
+	u_int cim_num_obq = is_t4(sc) ? CIM_NUM_OBQ : CIM_NUM_OBQ_T5;
 
-	KASSERT(qid >= 0 && qid < nitems(qname),
+	KASSERT(qid >= 0 && qid < CIM_NUM_IBQ + cim_num_obq,
 	    ("%s: bad qid %d\n", __func__, qid));
 
 	if (qid < CIM_NUM_IBQ) {
@@ -3870,7 +4732,7 @@ sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
 		/* outbound queue */
 		qtype = "OBQ";
 		qid -= CIM_NUM_IBQ;
-		n = 4 * 6 * CIM_OBQ_SIZE;
+		n = 4 * cim_num_obq * CIM_OBQ_SIZE;
 		buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
 		rc = t4_read_cim_obq(sc, qid, buf, n);
 	}
@@ -3885,7 +4747,7 @@ sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
 	if (rc != 0)
 		goto done;
 
-	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
 	if (sb == NULL) {
 		rc = ENOMEM;
 		goto done;
@@ -3971,16 +4833,27 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
 	int rc, i;
-	uint16_t base[CIM_NUM_IBQ + CIM_NUM_OBQ];
-	uint16_t size[CIM_NUM_IBQ + CIM_NUM_OBQ];
+	uint16_t base[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
+	uint16_t size[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
 	uint16_t thres[CIM_NUM_IBQ];
-	uint32_t obq_wr[2 * CIM_NUM_OBQ], *wr = obq_wr;
-	uint32_t stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ)], *p = stat;
+	uint32_t obq_wr[2 * CIM_NUM_OBQ_T5], *wr = obq_wr;
+	uint32_t stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ_T5)], *p = stat;
+	u_int cim_num_obq, ibq_rdaddr, obq_rdaddr, nq;
 
-	rc = -t4_cim_read(sc, A_UP_IBQ_0_RDADDR, nitems(stat), stat);
+	if (is_t4(sc)) {
+		cim_num_obq = CIM_NUM_OBQ;
+		ibq_rdaddr = A_UP_IBQ_0_RDADDR;
+		obq_rdaddr = A_UP_OBQ_0_REALADDR;
+	} else {
+		cim_num_obq = CIM_NUM_OBQ_T5;
+		ibq_rdaddr = A_UP_IBQ_0_SHADOW_RDADDR;
+		obq_rdaddr = A_UP_OBQ_0_SHADOW_REALADDR;
+	}
+	nq = CIM_NUM_IBQ + cim_num_obq;
+
+	rc = -t4_cim_read(sc, ibq_rdaddr, 4 * nq, stat);
 	if (rc == 0)
-		rc = -t4_cim_read(sc, A_UP_OBQ_0_REALADDR, nitems(obq_wr),
-		    obq_wr);
+		rc = -t4_cim_read(sc, obq_rdaddr, 2 * cim_num_obq, obq_wr);
 	if (rc != 0)
 		return (rc);
 
@@ -3990,19 +4863,19 @@ sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
 	if (rc != 0)
 		return (rc);
 
-	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	sb = sbuf_new_for_sysctl(NULL, NULL, PAGE_SIZE, req);
 	if (sb == NULL)
 		return (ENOMEM);
 
 	sbuf_printf(sb, "Queue  Base  Size Thres RdPtr WrPtr  SOP  EOP Avail");
 
 	for (i = 0; i < CIM_NUM_IBQ; i++, p += 4)
-		sbuf_printf(sb, "\n%5s %5x %5u %4u %6x  %4x %4u %4u %5u",
+		sbuf_printf(sb, "\n%7s %5x %5u %5u %6x  %4x %4u %4u %5u",
 		    qname[i], base[i], size[i], thres[i], G_IBQRDADDR(p[0]),
 		    G_IBQWRADDR(p[1]), G_QUESOPCNT(p[3]), G_QUEEOPCNT(p[3]),
 		    G_QUEREMFLITS(p[2]) * 16);
-	for ( ; i < CIM_NUM_IBQ + CIM_NUM_OBQ; i++, p += 4, wr += 2)
-		sbuf_printf(sb, "\n%5s %5x %5u %11x  %4x %4u %4u %5u", qname[i],
+	for ( ; i < nq; i++, p += 4, wr += 2)
+		sbuf_printf(sb, "\n%7s %5x %5u %12x  %4x %4u %4u %5u", qname[i],
 		    base[i], size[i], G_QUERDADDR(p[0]) & 0x3fff,
 		    wr[0] - base[i], G_QUESOPCNT(p[3]), G_QUEEOPCNT(p[3]),
 		    G_QUEREMFLITS(p[2]) * 16);
@@ -4117,8 +4990,11 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	uint64_t ftstamp = UINT64_MAX;
 
-	if (dparams->start == 0)
-		return (ENXIO);
+	if (dparams->start == 0) {
+		dparams->memtype = 0;
+		dparams->start = 0x84000;
+		dparams->size = 32768;
+	}
 
 	nentries = dparams->size / sizeof(struct fw_devlog_e);
 
@@ -4359,17 +5235,18 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
 	int rc, i, n;
-	uint32_t lo, hi;
-	static const char *memory[] = { "EDC0:", "EDC1:", "MC:" };
+	uint32_t lo, hi, used, alloc;
+	static const char *memory[] = {"EDC0:", "EDC1:", "MC:", "MC0:", "MC1:"};
 	static const char *region[] = {
 		"DBQ contexts:", "IMSG contexts:", "FLM cache:", "TCBs:",
 		"Pstructs:", "Timers:", "Rx FL:", "Tx FL:", "Pstruct FL:",
 		"Tx payload:", "Rx payload:", "LE hash:", "iSCSI region:",
 		"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
-		"RQUDP region:", "PBL region:", "TXPBL region:", "ULPRX state:",
-		"ULPTX state:", "On-chip queues:"
+		"RQUDP region:", "PBL region:", "TXPBL region:",
+		"DBVFIFO region:", "ULPRX state:", "ULPTX state:",
+		"On-chip queues:"
 	};
-	struct mem_desc avail[3];
+	struct mem_desc avail[4];
 	struct mem_desc mem[nitems(region) + 3];	/* up to 3 holes */
 	struct mem_desc *md = mem;
 
@@ -4406,8 +5283,17 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	if (lo & F_EXT_MEM_ENABLE) {
 		hi = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
 		avail[i].base = G_EXT_MEM_BASE(hi) << 20;
-		avail[i].limit = avail[i].base + (G_EXT_MEM_SIZE(hi) << 20);
-		avail[i].idx = 2;
+		avail[i].limit = avail[i].base +
+		    (G_EXT_MEM_SIZE(hi) << 20);
+		avail[i].idx = is_t4(sc) ? 2 : 3;	/* Call it MC for T4 */
+		i++;
+	}
+	if (!is_t4(sc) && lo & F_EXT_MEM1_ENABLE) {
+		hi = t4_read_reg(sc, A_MA_EXT_MEMORY1_BAR);
+		avail[i].base = G_EXT_MEM1_BASE(hi) << 20;
+		avail[i].limit = avail[i].base +
+		    (G_EXT_MEM1_SIZE(hi) << 20);
+		avail[i].idx = 4;
 		i++;
 	}
 	if (!i)                                    /* no memory available */
@@ -4460,6 +5346,15 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	ulp_region(RX_PBL);
 	ulp_region(TX_PBL);
 #undef ulp_region
+
+	md->base = 0;
+	md->idx = nitems(region);
+	if (!is_t4(sc) && t4_read_reg(sc, A_SGE_CONTROL2) & F_VFIFO_ENABLE) {
+		md->base = G_BASEADDR(t4_read_reg(sc, A_SGE_DBVFIFO_BADDR));
+		md->limit = md->base + (G_DBVFIFO_SIZE((t4_read_reg(sc,
+		    A_SGE_DBVFIFO_SIZE))) << 2) - 1;
+	}
+	md++;
 
 	md->base = t4_read_reg(sc, A_ULP_RX_CTX_BASE);
 	md->limit = md->base + sc->tids.ntids - 1;
@@ -4525,14 +5420,28 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < 4; i++) {
 		lo = t4_read_reg(sc, A_MPS_RX_PG_RSV0 + i * 4);
+		if (is_t4(sc)) {
+			used = G_USED(lo);
+			alloc = G_ALLOC(lo);
+		} else {
+			used = G_T5_USED(lo);
+			alloc = G_T5_ALLOC(lo);
+		}
 		sbuf_printf(sb, "\nPort %d using %u pages out of %u allocated",
-			   i, G_USED(lo), G_ALLOC(lo));
+			   i, used, alloc);
 	}
 	for (i = 0; i < 4; i++) {
 		lo = t4_read_reg(sc, A_MPS_RX_PG_RSV4 + i * 4);
+		if (is_t4(sc)) {
+			used = G_USED(lo);
+			alloc = G_ALLOC(lo);
+		} else {
+			used = G_T5_USED(lo);
+			alloc = G_T5_ALLOC(lo);
+		}
 		sbuf_printf(sb,
 			   "\nLoopback %d using %u pages out of %u allocated",
-			   i, G_USED(lo), G_ALLOC(lo));
+			   i, used, alloc);
 	}
 
 	rc = sbuf_finish(sb);
@@ -4807,6 +5716,39 @@ sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 
 	return (rc);
 }
+
+static int
+sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, v;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	v = t4_read_reg(sc, A_SGE_STAT_CFG);
+	if (G_STATSOURCE_T5(v) == 7) {
+		if (G_STATMODE(v) == 0) {
+			sbuf_printf(sb, "\ntotal %d, incomplete %d",
+			    t4_read_reg(sc, A_SGE_STAT_TOTAL),
+			    t4_read_reg(sc, A_SGE_STAT_MATCH));
+		} else if (G_STATMODE(v) == 1) {
+			sbuf_printf(sb, "\ntotal %d, data overflow %d",
+			    t4_read_reg(sc, A_SGE_STAT_TOTAL),
+			    t4_read_reg(sc, A_SGE_STAT_MATCH));
+		}
+	}
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
 #endif
 
 static inline void
@@ -5061,13 +6003,13 @@ done:
 static inline uint64_t
 get_filter_hits(struct adapter *sc, uint32_t fid)
 {
-	uint32_t tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
+	uint32_t mw_base, off, tcb_base = t4_read_reg(sc, A_TP_CMM_TCB_BASE);
 	uint64_t hits;
 
-	t4_write_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 0),
+	memwin_info(sc, 0, &mw_base, NULL);
+	off = position_memwin(sc, 0,
 	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
-	t4_read_reg(sc, PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 0));
-	hits = t4_read_reg64(sc, MEMWIN0_BASE + 16);
+	hits = t4_read_reg64(sc, mw_base + off + 16);
 
 	return (be64toh(hits));
 }
@@ -5533,80 +6475,43 @@ done:
 }
 
 static int
-read_card_mem(struct adapter *sc, struct t4_mem_range *mr)
+read_card_mem(struct adapter *sc, int win, struct t4_mem_range *mr)
 {
-	uint32_t base, size, lo, hi, win, off, remaining, i, n;
+	uint32_t addr, off, remaining, i, n;
 	uint32_t *buf, *b;
+	uint32_t mw_base, mw_aperture;
 	int rc;
+	uint8_t *dst;
 
-	/* reads are in multiples of 32 bits */
-	if (mr->addr & 3 || mr->len & 3 || mr->len == 0)
-		return (EINVAL);
+	rc = validate_mem_range(sc, mr->addr, mr->len);
+	if (rc != 0)
+		return (rc);
 
-	/*
-	 * We don't want to deal with potential holes so we mandate that the
-	 * requested region must lie entirely within one of the 3 memories.
-	 */
-	lo = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
-	if (lo & F_EDRAM0_ENABLE) {
-		hi = t4_read_reg(sc, A_MA_EDRAM0_BAR);
-		base = G_EDRAM0_BASE(hi) << 20;
-		size = G_EDRAM0_SIZE(hi) << 20;
-		if (size > 0 &&
-		    mr->addr >= base && mr->addr < base + size &&
-		    mr->addr + mr->len <= base + size)
-			goto proceed;
-	}
-	if (lo & F_EDRAM1_ENABLE) {
-		hi = t4_read_reg(sc, A_MA_EDRAM1_BAR);
-		base = G_EDRAM1_BASE(hi) << 20;
-		size = G_EDRAM1_SIZE(hi) << 20;
-		if (size > 0 &&
-		    mr->addr >= base && mr->addr < base + size &&
-		    mr->addr + mr->len <= base + size)
-			goto proceed;
-	}
-	if (lo & F_EXT_MEM_ENABLE) {
-		hi = t4_read_reg(sc, A_MA_EXT_MEMORY_BAR);
-		base = G_EXT_MEM_BASE(hi) << 20;
-		size = G_EXT_MEM_SIZE(hi) << 20;
-		if (size > 0 &&
-		    mr->addr >= base && mr->addr < base + size &&
-		    mr->addr + mr->len <= base + size)
-			goto proceed;
-	}
-	return (ENXIO);
-
-proceed:
-	buf = b = malloc(mr->len, M_CXGBE, M_WAITOK);
-
-	/*
-	 * Position the PCIe window (we use memwin2) to the 16B aligned area
-	 * just at/before the requested region.
-	 */
-	win = mr->addr & ~0xf;
-	off = mr->addr - win;  /* offset of the requested region in the win */
+	memwin_info(sc, win, &mw_base, &mw_aperture);
+	buf = b = malloc(min(mr->len, mw_aperture), M_CXGBE, M_WAITOK);
+	addr = mr->addr;
 	remaining = mr->len;
+	dst = (void *)mr->data;
 
 	while (remaining) {
-		t4_write_reg(sc,
-		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2), win);
-		t4_read_reg(sc,
-		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_OFFSET, 2));
+		off = position_memwin(sc, win, addr);
 
 		/* number of bytes that we'll copy in the inner loop */
-		n = min(remaining, MEMWIN2_APERTURE - off);
+		n = min(remaining, mw_aperture - off);
+		for (i = 0; i < n; i += 4)
+			*b++ = t4_read_reg(sc, mw_base + off + i);
 
-		for (i = 0; i < n; i += 4, remaining -= 4)
-			*b++ = t4_read_reg(sc, MEMWIN2_BASE + off + i);
+		rc = copyout(buf, dst, n);
+		if (rc != 0)
+			break;
 
-		win += MEMWIN2_APERTURE;
-		off = 0;
+		b = buf;
+		dst += n;
+		remaining -= n;
+		addr += n;
 	}
 
-	rc = copyout(buf, mr->data, mr->len);
 	free(buf, M_CXGBE);
-
 	return (rc);
 }
 
@@ -5776,7 +6681,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	}
 	case CHELSIO_T4_REGDUMP: {
 		struct t4_regdump *regs = (struct t4_regdump *)data;
-		int reglen = T4_REGDUMP_SIZE;
+		int reglen = is_t4(sc) ? T4_REGDUMP_SIZE : T5_REGDUMP_SIZE;
 		uint8_t *buf;
 
 		if (regs->len < reglen) {
@@ -5813,7 +6718,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = load_fw(sc, (struct t4_data *)data);
 		break;
 	case CHELSIO_T4_GET_MEM:
-		rc = read_card_mem(sc, (struct t4_mem_range *)data);
+		rc = read_card_mem(sc, 2, (struct t4_mem_range *)data);
 		break;
 	case CHELSIO_T4_GET_I2C:
 		rc = read_i2c(sc, (struct t4_i2c_data *)data);
@@ -6133,11 +7038,17 @@ t4_mod_event(module_t mod, int cmd, void *arg)
 	return (rc);
 }
 
-static devclass_t t4_devclass;
-static devclass_t cxgbe_devclass;
+static devclass_t t4_devclass, t5_devclass;
+static devclass_t cxgbe_devclass, cxl_devclass;
 
 DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, t4_mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 
+DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, 0, 0);
+MODULE_VERSION(t5nex, 1);
+
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);
 MODULE_VERSION(cxgbe, 1);
+
+DRIVER_MODULE(cxl, t5nex, cxl_driver, cxl_devclass, 0, 0);
+MODULE_VERSION(cxl, 1);

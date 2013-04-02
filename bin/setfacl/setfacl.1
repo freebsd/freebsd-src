@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2013
+.Dd April 1, 2013
 .Dt SETFACL 1
 .Os
 .Sh NAME
@@ -401,6 +401,10 @@ NFSv4 ACL entries are evaluated in their visible order.
 .Pp
 Multiple ACL entries specified on the command line are
 separated by commas.
+.Pp
+Note that the file owner is always granted the read_acl, write_acl,
+read_attributes, and write_attributes permissions, even if the ACL
+would deny it.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES

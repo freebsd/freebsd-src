@@ -89,10 +89,9 @@ main(int argc, char *argv[])
 	const char *special, *on;
 	const char *name;
 	int active;
-	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, Lflag;
-	int lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue, pflag, sflag;
-	int tflag;
-	int svalue, Svalue;
+	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, kflag;
+	int kvalue, Lflag, lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue;
+	int pflag, sflag, svalue, Svalue, tflag;
 	int ch, found_arg, i;
 	const char *chg[2];
 	struct ufs_args args;
@@ -100,13 +99,13 @@ main(int argc, char *argv[])
 
 	if (argc < 3)
 		usage();
-	Aflag = aflag = eflag = fflag = jflag = Jflag = Lflag = lflag = 0;
-	mflag = Nflag = nflag = oflag = pflag = sflag = tflag = 0;
+	Aflag = aflag = eflag = fflag = jflag = Jflag = kflag = Lflag = 0;
+	lflag = mflag = Nflag = nflag = oflag = pflag = sflag = tflag = 0;
 	avalue = jvalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = Svalue = 0;
 	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
-	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:L:l:m:N:n:o:ps:S:t:"))
+	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:k:L:l:m:N:n:o:ps:S:t:"))
 	    != -1)
 		switch (ch) {
 
@@ -171,6 +170,14 @@ main(int argc, char *argv[])
 			Jflag = 1;
 			break;
 
+		case 'k':
+			found_arg = 1;
+			name = "space to hold for metadata blocks";
+			kvalue = atoi(optarg);
+			if (mvalue < 0)
+				errx(10, "bad %s (%s)", name, optarg);
+			kflag = 1;
+			break;
 
 		case 'L':
 			found_arg = 1;
@@ -402,6 +409,22 @@ main(int argc, char *argv[])
 				sblock.fs_flags &= ~FS_GJOURNAL;
 				warnx("%s cleared", name);
 			}
+		}
+	}
+	if (kflag) {
+		name = "space to hold for metadata blocks";
+		if (sblock.fs_metaspace == kvalue)
+			warnx("%s remains unchanged as %d", name, kvalue);
+		else {
+			kvalue = blknum(&sblock, kvalue);
+			if (kvalue > sblock.fs_fpg / 2) {
+				kvalue = blknum(&sblock, sblock.fs_fpg / 2);
+				warnx("%s cannot exceed half the file system "
+				    "space", name);
+			}
+			warnx("%s changes from %jd to %d",
+				    name, sblock.fs_metaspace, kvalue);
+			sblock.fs_metaspace = kvalue;
 		}
 	}
 	if (lflag) {
@@ -1064,7 +1087,7 @@ usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
-"              [-J enable | disable] [-j enable | disable]", 
+"              [-J enable | disable] [-j enable | disable] [-k metaspace]",
 "              [-L volname] [-l enable | disable] [-m minfree]",
 "              [-N enable | disable] [-n enable | disable]",
 "              [-o space | time] [-p] [-s avgfpdir] [-t enable | disable]",
@@ -1097,6 +1120,8 @@ printfs(void)
 	      sblock.fs_avgfpdir);
 	warnx("minimum percentage of free space: (-m)             %d%%",
 	      sblock.fs_minfree);
+	warnx("space to hold for metadata blocks: (-k)            %jd",
+	      sblock.fs_metaspace);
 	warnx("optimization preference: (-o)                      %s",
 	      sblock.fs_optim == FS_OPTSPACE ? "space" : "time");
 	if (sblock.fs_minfree >= MINFREE &&

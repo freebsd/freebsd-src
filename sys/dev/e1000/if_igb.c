@@ -42,7 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 #include <sys/buf_ring.h>
 #endif
 #include <sys/bus.h>
@@ -179,7 +179,7 @@ static int	igb_detach(device_t);
 static int	igb_shutdown(device_t);
 static int	igb_suspend(device_t);
 static int	igb_resume(device_t);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 static int	igb_mq_start(struct ifnet *, struct mbuf *);
 static int	igb_mq_start_locked(struct ifnet *, struct tx_ring *);
 static void	igb_qflush(struct ifnet *);
@@ -850,7 +850,7 @@ igb_resume(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) && adapter->link_active) {
 		for (int i = 0; i < adapter->num_queues; i++, txr++) {
 			IGB_TX_LOCK(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			/* Process the stack queue only if not depleted */
 			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 			    !drbr_empty(ifp, txr->br))
@@ -868,7 +868,7 @@ igb_resume(device_t dev)
 }
 
 
-#if __FreeBSD_version < 800000
+#ifdef IGB_LEGACY_TX
 
 /*********************************************************************
  *  Transmit entry point
@@ -946,7 +946,7 @@ igb_start(struct ifnet *ifp)
 	return;
 }
 
-#else /* __FreeBSD_version >= 800000 */
+#else /* ~IGB_LEGACY_TX */
 
 /*
 ** Multiqueue Transmit Entry:
@@ -1061,7 +1061,7 @@ igb_qflush(struct ifnet *ifp)
 	}
 	if_qflush(ifp);
 }
-#endif /* __FreeBSD_version >= 800000 */
+#endif /* ~IGB_LEGACY_TX */
 
 /*********************************************************************
  *  Ioctl entry point
@@ -1387,7 +1387,7 @@ igb_handle_que(void *context, int pending)
 
 		IGB_TX_LOCK(txr);
 		igb_txeof(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		/* Process the stack queue only if not depleted */
 		if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 		    !drbr_empty(ifp, txr->br))
@@ -1438,7 +1438,7 @@ igb_handle_link_locked(struct adapter *adapter)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && adapter->link_active) {
 		for (int i = 0; i < adapter->num_queues; i++, txr++) {
 			IGB_TX_LOCK(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			/* Process the stack queue only if not depleted */
 			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 			    !drbr_empty(ifp, txr->br))
@@ -1540,7 +1540,7 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		do {
 			more = igb_txeof(txr);
 		} while (loop-- && more);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		if (!drbr_empty(ifp, txr->br))
 			igb_mq_start_locked(ifp, txr);
 #else
@@ -1575,7 +1575,7 @@ igb_msix_que(void *arg)
 
 	IGB_TX_LOCK(txr);
 	igb_txeof(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	/* Process the stack queue only if not depleted */
 	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 	    !drbr_empty(ifp, txr->br))
@@ -2466,7 +2466,7 @@ igb_allocate_legacy(struct adapter *adapter)
 		return (ENXIO);
 	}
 
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	TASK_INIT(&txr->txq_task, 0, igb_deferred_mq_start, txr);
 #endif
 
@@ -2550,7 +2550,7 @@ igb_allocate_msix(struct adapter *adapter)
 				i,igb_last_bind_cpu);
 			igb_last_bind_cpu = CPU_NEXT(igb_last_bind_cpu);
 		}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start,
 		    que->txr);
 #endif
@@ -2776,7 +2776,7 @@ igb_free_pci_resources(struct adapter *adapter)
 
 	for (int i = 0; i < adapter->num_queues; i++, que++) {
 		if (que->tq != NULL) {
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			taskqueue_drain(que->tq, &que->txr->txq_task);
 #endif
 			taskqueue_drain(que->tq, &que->que_task);
@@ -3086,7 +3086,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = igb_ioctl;
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	ifp->if_transmit = igb_mq_start;
 	ifp->if_qflush = igb_qflush;
 #else
@@ -3330,7 +3330,7 @@ igb_allocate_queues(struct adapter *adapter)
 			error = ENOMEM;
 			goto err_tx_desc;
         	}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		/* Allocate a buf ring */
 		txr->br = buf_ring_alloc(igb_buf_ring_size, M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
@@ -3391,7 +3391,7 @@ err_tx_desc:
 		igb_dma_free(adapter, &txr->txdma);
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	buf_ring_free(txr->br, M_DEVBUF);
 #endif
 	free(adapter->tx_rings, M_DEVBUF);
@@ -3649,7 +3649,7 @@ igb_free_transmit_buffers(struct tx_ring *txr)
 			tx_buffer->map = NULL;
 		}
 	}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	if (txr->br != NULL)
 		buf_ring_free(txr->br, M_DEVBUF);
 #endif
@@ -4870,7 +4870,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 				rxr->fmp->m_pkthdr.ether_vtag = vtag;
 				rxr->fmp->m_flags |= M_VLANTAG;
 			}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			rxr->fmp->m_pkthdr.flowid = que->msix;
 			rxr->fmp->m_flags |= M_FLOWID;
 #endif

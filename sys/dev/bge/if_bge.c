@@ -680,7 +680,7 @@ bge_ape_lock_init(struct bge_softc *sc)
 			bit = BGE_APE_LOCK_GRANT_DRIVER0;
 			break;
 		default:
-			if (sc->bge_func_addr != 0)
+			if (sc->bge_func_addr == 0)
 				bit = BGE_APE_LOCK_GRANT_DRIVER0;
 			else
 				bit = (1 << sc->bge_func_addr);

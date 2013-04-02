@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/fcntl.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
 #include <sys/malloc.h>
@@ -338,7 +339,7 @@ TUNABLE_INT("kern.cam.ctl.disable", &ctl_disable);
 static void ctl_isc_event_handler(ctl_ha_channel chanel, ctl_ha_event event,
 				  int param);
 static void ctl_copy_sense_data(union ctl_ha_msg *src, union ctl_io *dest);
-static void ctl_init(void);
+static int ctl_init(void);
 void ctl_shutdown(void);
 static int ctl_open(struct cdev *dev, int flags, int fmt, struct thread *td);
 static int ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td);
@@ -458,11 +459,16 @@ static struct cdevsw ctl_cdevsw = {
 
 MALLOC_DEFINE(M_CTL, "ctlmem", "Memory used for CTL");
 
-/*
- * If we have the CAM SIM, we may or may not have another SIM that will
- * cause CTL to get initialized.  If not, we need to initialize it.
- */
-SYSINIT(ctl_init, SI_SUB_CONFIGURE, SI_ORDER_THIRD, ctl_init, NULL);
+static int ctl_module_event_handler(module_t, int /*modeventtype_t*/, void *);
+
+static moduledata_t ctl_moduledata = {
+	"ctl",
+	ctl_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctl, ctl_moduledata, SI_SUB_CONFIGURE, SI_ORDER_THIRD);
+MODULE_VERSION(ctl, 1);
 
 static void
 ctl_isc_handler_finish_xfer(struct ctl_softc *ctl_softc,
@@ -942,7 +948,7 @@ ctl_copy_sense_data(union ctl_ha_msg *src, union ctl_io *dest)
 	dest->io_hdr.status = src->hdr.status;
 }
 
-static void
+static int
 ctl_init(void)
 {
 	struct ctl_softc *softc;
@@ -953,7 +959,7 @@ ctl_init(void)
 #if 0
 	int i;
 #endif
-	int retval;
+	int error, retval;
 	//int isc_retval;
 
 	retval = 0;
@@ -962,7 +968,7 @@ ctl_init(void)
 
 	/* If we're disabled, don't initialize. */
 	if (ctl_disable != 0)
-		return;
+		return (0);
 
 	control_softc = malloc(sizeof(*control_softc), M_DEVBUF,
 			       M_WAITOK | M_ZERO);
@@ -991,7 +997,7 @@ ctl_init(void)
 		destroy_dev(softc->dev);
 		free(control_softc, M_DEVBUF);
 		control_softc = NULL;
-		return;
+		return (ENOMEM);
 	}
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx,
@@ -1053,7 +1059,7 @@ ctl_init(void)
 			    &internal_pool)!= 0){
 		printf("ctl: can't allocate %d entry internal pool, "
 		       "exiting\n", CTL_POOL_ENTRIES_INTERNAL);
-		return;
+		return (ENOMEM);
 	}
 
 	if (ctl_pool_create(softc, CTL_POOL_EMERGENCY,
@@ -1061,7 +1067,7 @@ ctl_init(void)
 		printf("ctl: can't allocate %d entry emergency pool, "
 		       "exiting\n", CTL_POOL_ENTRIES_EMERGENCY);
 		ctl_pool_free(softc, internal_pool);
-		return;
+		return (ENOMEM);
 	}
 
 	if (ctl_pool_create(softc, CTL_POOL_4OTHERSC, CTL_POOL_ENTRIES_OTHER_SC,
@@ -1071,7 +1077,7 @@ ctl_init(void)
 		       "exiting\n", CTL_POOL_ENTRIES_OTHER_SC);
 		ctl_pool_free(softc, internal_pool);
 		ctl_pool_free(softc, emergency_pool);
-		return;
+		return (ENOMEM);
 	}
 
 	softc->internal_pool = internal_pool;
@@ -1092,14 +1098,15 @@ ctl_init(void)
 	mtx_unlock(&softc->ctl_lock);
 #endif
 
-	if (kproc_create(ctl_work_thread, softc, &softc->work_thread, 0, 0,
-			 "ctl_thrd") != 0) {
+	error = kproc_create(ctl_work_thread, softc, &softc->work_thread, 0, 0,
+			 "ctl_thrd");
+	if (error != 0) {
 		printf("error creating CTL work thread!\n");
 		ctl_free_lun(lun);
 		ctl_pool_free(softc, internal_pool);
 		ctl_pool_free(softc, emergency_pool);
 		ctl_pool_free(softc, other_pool);
-		return;
+		return (error);
 	}
 	printf("ctl: CAM Target Layer loaded\n");
 
@@ -1139,10 +1146,11 @@ ctl_init(void)
 	if (sizeof(struct callout) > CTL_TIMER_BYTES) {
 		printf("sizeof(struct callout) %zd > CTL_TIMER_BYTES %zd\n",
 		       sizeof(struct callout), CTL_TIMER_BYTES);
-		return;
+		return (EINVAL);
 	}
 #endif /* CTL_IO_DELAY */
 
+	return (0);
 }
 
 void
@@ -1197,6 +1205,20 @@ ctl_shutdown(void)
 	control_softc = NULL;
 
 	printf("ctl: CAM Target Layer unloaded\n");
+}
+
+static int
+ctl_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		return (ctl_init());
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
 /*

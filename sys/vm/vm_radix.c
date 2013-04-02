@@ -189,6 +189,16 @@ vm_radix_setroot(struct vm_radix *rtree, struct vm_radix_node *rnode)
 }
 
 /*
+ * Returns TRUE if the specified radix node is a leaf and FALSE otherwise.
+ */
+static __inline boolean_t
+vm_radix_isleaf(struct vm_radix_node *rnode)
+{
+
+	return (((uintptr_t)rnode & VM_RADIX_ISLEAF) != 0);
+}
+
+/*
  * Returns the associated page extracted from rnode if available,
  * and NULL otherwise.
  */
@@ -310,10 +320,12 @@ vm_radix_reclaim_allnodes_int(struct vm_radix_node *rnode)
 {
 	int slot;
 
-	for (slot = 0; slot < VM_RADIX_COUNT && rnode->rn_count != 0; slot++) {
+	KASSERT(rnode->rn_count <= VM_RADIX_COUNT,
+	    ("vm_radix_reclaim_allnodes_int: bad count in rnode %p", rnode));
+	for (slot = 0; rnode->rn_count != 0; slot++) {
 		if (rnode->rn_child[slot] == NULL)
 			continue;
-		if (vm_radix_node_page(rnode->rn_child[slot]) == NULL)
+		if (!vm_radix_isleaf(rnode->rn_child[slot]))
 			vm_radix_reclaim_allnodes_int(rnode->rn_child[slot]);
 		rnode->rn_child[slot] = NULL;
 		rnode->rn_count--;
@@ -414,9 +426,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 		vm_radix_addpage(rnode, index, 0, page);
 		return;
 	}
-	while (rnode != NULL) {
-		if (vm_radix_keybarr(rnode, index))
-			break;
+	do {
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		m = vm_radix_node_page(rnode->rn_child[slot]);
 		if (m != NULL) {
@@ -437,9 +447,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 			return;
 		}
 		rnode = rnode->rn_child[slot];
-	}
-	if (rnode == NULL)
-		panic("%s: path traversal ended unexpectedly", __func__);
+	} while (!vm_radix_keybarr(rnode, index));
 
 	/*
 	 * Scan the trie from the top and find the parent to insert
@@ -456,7 +464,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 		    __func__, clev, rnode->rn_clev));
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		tmp = rnode->rn_child[slot];
-		KASSERT(tmp != NULL && vm_radix_node_page(tmp) == NULL,
+		KASSERT(tmp != NULL && !vm_radix_isleaf(tmp),
 		    ("%s: unexpected lookup interruption", __func__));
 		if (tmp->rn_clev > clev)
 			break;
@@ -748,8 +756,8 @@ vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 	root = vm_radix_getroot(rtree);
 	if (root == NULL)
 		return;
-	vm_radix_reclaim_allnodes_int(root);
 	vm_radix_setroot(rtree, NULL);
+	vm_radix_reclaim_allnodes_int(root);
 }
 
 #ifdef DDB

@@ -35,12 +35,12 @@ __FBSDID("$FreeBSD$");
 #include "nvme_private.h"
 
 static void
-nvme_uio_done(void *arg, const struct nvme_completion *status)
+nvme_uio_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct mtx *mtx;
 	struct uio *uio = arg;
 
-	if (status->sf_sc == 0 && status->sf_sct == 0)
+	if (!nvme_completion_is_error(cpl))
 		uio->uio_resid = 0;
 
 	mtx = mtx_pool_find(mtxpool_sleep, arg);
