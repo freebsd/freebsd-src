@@ -392,6 +392,14 @@ universe_${target}_${target_arch}: universe_${target}_prologue
 .endfor
 .endif
 .if !defined(MAKE_JUST_WORLDS)
+# If we are building world and kernels wait for the required worlds to finish
+.if !defined(MAKE_JUST_KERNELS)
+.for target_arch in ${TARGET_ARCHES_${target}}
+universe_${target}_kernels: universe_${target}_${target_arch}
+.endfor
+.endif
+universe_${target}: universe_${target}_kernels
+universe_${target}_kernels: universe_${target}_prologue
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \

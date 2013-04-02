@@ -9493,7 +9493,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_file */
 	case 356:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_file */
 	case 357:
@@ -9530,7 +9530,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_fd */
 	case 371:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_fd */
 	case 372:
@@ -9645,7 +9645,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_link */
 	case 412:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_link */
 	case 413:

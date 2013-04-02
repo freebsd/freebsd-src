@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 struct strpush {
 	struct strpush *prev;	/* preceding string on stack */
-	char *prevstring;
+	const char *prevstring;
 	int prevnleft;
 	int prevlleft;
 	struct alias *ap;	/* if push was associated with an alias */
@@ -83,7 +83,7 @@ struct parsefile {
 	int fd;			/* file descriptor (or -1 if string) */
 	int nleft;		/* number of chars left in this line */
 	int lleft;		/* number of lines left in this buffer */
-	char *nextc;		/* next char in buffer */
+	const char *nextc;	/* next char in buffer */
 	char *buf;		/* input buffer */
 	struct strpush *strpush; /* for pushing strings at this level */
 	struct strpush basestrpush; /* so pushing one is fast */
@@ -93,7 +93,7 @@ struct parsefile {
 int plinno = 1;			/* input line number */
 int parsenleft;			/* copy of parsefile->nleft */
 MKINIT int parselleft;		/* copy of parsefile->lleft */
-char *parsenextc;		/* copy of parsefile->nextc */
+const char *parsenextc;		/* copy of parsefile->nextc */
 static char basebuf[BUFSIZ + 1];/* buffer for top level input file */
 static struct parsefile basepf = {	/* top level input file */
 	.nextc = basebuf,
@@ -185,7 +185,7 @@ retry:
 			nr = el_len;
 			if (nr > BUFSIZ)
 				nr = BUFSIZ;
-			memcpy(parsenextc, rl_cp, nr);
+			memcpy(parsefile->buf, rl_cp, nr);
 			if (nr != el_len) {
 				el_len -= nr;
 				rl_cp += nr;
@@ -194,7 +194,7 @@ retry:
 		}
 	} else
 #endif
-		nr = read(parsefile->fd, parsenextc, BUFSIZ);
+		nr = read(parsefile->fd, parsefile->buf, BUFSIZ);
 
 	if (nr <= 0) {
                 if (nr < 0) {
@@ -252,7 +252,7 @@ again:
 		}
 	}
 
-	q = p = parsenextc;
+	q = p = parsefile->buf + (parsenextc - parsefile->buf);
 
 	/* delete nul characters */
 	something = 0;
@@ -439,7 +439,7 @@ setinputfd(int fd, int push)
  */
 
 void
-setinputstring(char *string, int push)
+setinputstring(const char *string, int push)
 {
 	INTOFF;
 	if (push)

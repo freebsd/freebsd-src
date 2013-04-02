@@ -2197,8 +2197,10 @@ zvol_create_snapshots(objset_t *os, const char *name)
 			break;
 		}
 
+		dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
 		error = dmu_snapshot_list_next(os, MAXPATHLEN - len,
 		    sname + len, &obj, &cookie, NULL);
+		dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 		if (error != 0) {
 			if (error == ENOENT)
 				error = 0;

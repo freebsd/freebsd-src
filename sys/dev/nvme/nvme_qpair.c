@@ -757,6 +757,14 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		if (err != 0)
 			panic("bus_dmamap_load_uio returned non-zero!\n");
 		break;
+#ifdef NVME_UNMAPPED_BIO_SUPPORT
+	case NVME_REQUEST_BIO:
+		err = bus_dmamap_load_bio(tr->qpair->dma_tag,
+		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
+		if (err != 0)
+			panic("bus_dmamap_load_bio returned non-zero!\n");
+		break;
+#endif
 	default:
 		panic("unknown nvme request type 0x%x\n", req->type);
 		break;

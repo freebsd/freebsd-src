@@ -150,7 +150,7 @@ printsignals(void)
  * The trap builtin.
  */
 int
-trapcmd(int argc, char **argv)
+trapcmd(int argc __unused, char **argv)
 {
 	char *action;
 	int signo;

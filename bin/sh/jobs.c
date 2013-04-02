@@ -668,7 +668,8 @@ makejob(union node *node __unused, int nprocs)
 				jobtab = jp;
 			}
 			jp = jobtab + njobs;
-			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = 0);
+			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = 0)
+				;
 			INTON;
 			break;
 		}
@@ -1005,7 +1006,7 @@ waitforjob(struct job *jp, int *origstatus)
 
 
 static void
-dummy_handler(int sig)
+dummy_handler(int sig __unused)
 {
 }
 

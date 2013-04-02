@@ -312,7 +312,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 				     BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		/* XXX packet requires too many descriptors */
-		bf->bf_nseg = ATH_TXDESC+1;
+		bf->bf_nseg = ATH_MAX_SCATTER + 1;
 	} else if (error != 0) {
 		sc->sc_stats.ast_tx_busdma++;
 		ath_freetx(m0);
@@ -323,9 +323,9 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 	 * require too many TX descriptors.  We try to convert
 	 * the latter to a cluster.
 	 */
-	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
+	if (bf->bf_nseg > ATH_MAX_SCATTER) {		/* too many desc's, linearize */
 		sc->sc_stats.ast_tx_linear++;
-		m = m_collapse(m0, M_NOWAIT, ATH_TXDESC);
+		m = m_collapse(m0, M_NOWAIT, ATH_MAX_SCATTER);
 		if (m == NULL) {
 			ath_freetx(m0);
 			sc->sc_stats.ast_tx_nombuf++;
@@ -340,7 +340,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 			ath_freetx(m0);
 			return error;
 		}
-		KASSERT(bf->bf_nseg <= ATH_TXDESC,
+		KASSERT(bf->bf_nseg <= ATH_MAX_SCATTER,
 		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
 	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
 		sc->sc_stats.ast_tx_nodata++;
@@ -1615,6 +1615,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
 			wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
 		/* XXX statistic */
+		/* XXX free tx dmamap */
 		ath_freetx(m0);
 		return EIO;
 	}
@@ -1670,6 +1671,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		DPRINTF(sc, ATH_DEBUG_TDMA,
 		    "%s: discard frame, ACK required w/ TDMA\n", __func__);
 		sc->sc_stats.ast_tdma_ack++;
+		/* XXX free tx dmamap */
 		ath_freetx(m0);
 		return EIO;
 	}
@@ -3842,6 +3844,12 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 	struct ath_buf *nbf;
 	int error;
 
+	/*
+	 * Clone the buffer.  This will handle the dma unmap and
+	 * copy the node reference to the new buffer.  If this
+	 * works out, 'bf' will have no DMA mapping, no mbuf
+	 * pointer and no node reference.
+	 */
 	nbf = ath_buf_clone(sc, bf);
 
 #if 0
@@ -3879,9 +3887,7 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_dobaw)
 		ath_tx_switch_baw_buf(sc, an, tid, bf, nbf);
 
-	/* Free current buffer; return the older buffer */
-	bf->bf_m = NULL;
-	bf->bf_node = NULL;
+	/* Free original buffer; return new buffer */
 	ath_freebuf(sc, bf);
 
 	return nbf;
