@@ -1615,6 +1615,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
 			wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
 		/* XXX statistic */
+		/* XXX free tx dmamap */
 		ath_freetx(m0);
 		return EIO;
 	}
@@ -1670,6 +1671,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		DPRINTF(sc, ATH_DEBUG_TDMA,
 		    "%s: discard frame, ACK required w/ TDMA\n", __func__);
 		sc->sc_stats.ast_tdma_ack++;
+		/* XXX free tx dmamap */
 		ath_freetx(m0);
 		return EIO;
 	}
