@@ -224,7 +224,7 @@ static path_id_t xptnextfreepathid(void);
 static path_id_t xptpathid(const char *sim_name, int sim_unit, int sim_bus);
 static union ccb *xpt_get_ccb(struct cam_ed *device);
 static void	 xpt_run_dev_allocq(struct cam_ed *device);
-static void	 xpt_run_dev_sendq(struct cam_eb *bus);
+static void	 xpt_run_devq(struct cam_devq *devq);
 static timeout_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
 static void	 xpt_release_bus(struct cam_eb *bus);
@@ -300,7 +300,7 @@ static __inline int device_is_alloc_queued(struct cam_ed *device);
 static __inline int device_is_send_queued(struct cam_ed *device);
 
 static __inline int
-xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
+xpt_schedule_devq(struct cam_devq *devq, struct cam_ed *dev)
 {
 	int	retval;
 
@@ -313,7 +313,7 @@ xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
 		 * enqueued.
 		 */
 		retval =
-		    xpt_schedule_dev(&bus->sim->devq->send_queue,
+		    xpt_schedule_dev(&devq->send_queue,
 				     &dev->send_ccb_entry.pinfo,
 				     CAMQ_GET_PRIO(&dev->ccbq.queue));
 	} else {
@@ -2494,8 +2494,8 @@ xpt_action_default(union ccb *start_ccb)
 		frozen = cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
 		if (frozen > 0)
 			xpt_run_dev_allocq(path->device);
-		if (xpt_schedule_dev_sendq(path->bus, path->device))
-			xpt_run_dev_sendq(path->bus);
+		if (xpt_schedule_devq(path->bus->sim->devq, path->device))
+			xpt_run_devq(path->bus->sim->devq);
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
@@ -3186,14 +3186,11 @@ xpt_run_dev_allocq(struct cam_ed *device)
 }
 
 static void
-xpt_run_dev_sendq(struct cam_eb *bus)
+xpt_run_devq(struct cam_devq *devq)
 {
-	struct	cam_devq *devq;
 	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 
-	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_dev_sendq\n"));
-
-	devq = bus->sim->devq;
+	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_devq\n"));
 
 	devq->send_queue.qfrozen_cnt++;
 	while ((devq->send_queue.entries > 0)
@@ -3248,7 +3245,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		devq->send_openings--;
 		devq->send_active++;
 
-		xpt_schedule_dev_sendq(bus, device);
+		xpt_schedule_devq(devq, device);
 
 		if (work_ccb && (work_ccb->ccb_h.flags & CAM_DEV_QFREEZE) != 0){
 			/*
@@ -4178,8 +4175,8 @@ xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 		 * device so any pending transactions are
 		 * run.
 		 */
-		if (xpt_schedule_dev_sendq(dev->target->bus, dev))
-			xpt_run_dev_sendq(dev->target->bus);
+		if (xpt_schedule_devq(dev->sim->devq, dev))
+			xpt_run_devq(dev->sim->devq);
 	}
 }
 
@@ -4208,14 +4205,10 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 			sim->flags &= ~CAM_SIM_REL_TIMEOUT_PENDING;
 		}
 		if (run_queue) {
-			struct cam_eb *bus;
-
 			/*
 			 * Now that we are unfrozen run the send queue.
 			 */
-			bus = xpt_find_bus(sim->path_id);
-			xpt_run_dev_sendq(bus);
-			xpt_release_bus(bus);
+			xpt_run_devq(sim->devq);
 		}
 	}
 }
@@ -4973,8 +4966,8 @@ camisr_runqueue(void *V_queue)
 			 && (--dev->tag_delay_count == 0))
 				xpt_start_tags(ccb_h->path);
 			if (!device_is_send_queued(dev)) {
-				(void)xpt_schedule_dev_sendq(ccb_h->path->bus, 
-							     dev);
+				(void)xpt_schedule_devq(
+				    ccb_h->path->bus->sim->devq, dev);
 			}
 		}
 
@@ -4991,7 +4984,7 @@ camisr_runqueue(void *V_queue)
 					 /*run_queue*/TRUE);
 			ccb_h->status &= ~CAM_DEV_QFRZN;
 		} else if (runq) {
-			xpt_run_dev_sendq(ccb_h->path->bus);
+			xpt_run_devq(ccb_h->path->bus->sim->devq);
 		}
 
 		/* Call the peripheral driver's callback */
