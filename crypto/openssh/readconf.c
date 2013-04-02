@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.194 2011/09/23 07:45:05 markus Exp $ */
+/* $OpenBSD: readconf.c,v 1.195 2013/02/17 23:16:57 dtucker Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -356,6 +356,26 @@ clear_forwardings(Options *options)
 	options->tun_open = SSH_TUNMODE_NO;
 }
 
+void
+add_identity_file(Options *options, const char *dir, const char *filename,
+    int userprovided)
+{
+	char *path;
+
+	if (options->num_identity_files >= SSH_MAX_IDENTITY_FILES)
+		fatal("Too many identity files specified (max %d)",
+		    SSH_MAX_IDENTITY_FILES);
+
+	if (dir == NULL) /* no dir, filename is absolute */
+		path = xstrdup(filename);
+	else
+		(void)xasprintf(&path, "%.100s%.100s", dir, filename);
+
+	options->identity_file_userprovided[options->num_identity_files] =
+	    userprovided;
+	options->identity_files[options->num_identity_files++] = path;
+}
+
 /*
  * Returns the number of the token pointed to by cp or oBadOption.
  */
@@ -616,9 +636,7 @@ parse_yesnoask:
 			if (*intptr >= SSH_MAX_IDENTITY_FILES)
 				fatal("%.200s line %d: Too many identity files specified (max %d).",
 				    filename, linenum, SSH_MAX_IDENTITY_FILES);
-			charptr = &options->identity_files[*intptr];
-			*charptr = xstrdup(arg);
-			*intptr = *intptr + 1;
+			add_identity_file(options, NULL, arg, 1);
 		}
 		break;
 
