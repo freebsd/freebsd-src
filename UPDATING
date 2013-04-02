@@ -9,6 +9,11 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130402:	p7	FreeBSD-SA-13:03.openssl FreeBSD-SA-13:04.bind
+	Fix multiple vulnerabilities in OpenSSL.
+
+	Fix Denial of Service vulnerability in named(8).
+
 20130218:	p6	FreeBSD-SA-13:01.bind FreeBSD-SA-13:02.libc
 	Fix Denial of Service vulnerability in named(8) with DNS64.
 

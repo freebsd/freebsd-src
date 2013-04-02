@@ -264,7 +264,7 @@ int tls1_change_cipher_state(SSL *s, int which)
 	{
         int ki;
         for (ki=0; ki<s->s3->tmp.key_block_length; ki++)
-		printf("%02x", key_block[ki]);  printf("\n");
+		printf("%02x", s->s3->tmp.key_block[ki]);  printf("\n");
         }
 #endif	/* KSSL_DEBUG */
 
@@ -528,12 +528,21 @@ err:
 	return(0);
 	}
 
+/* tls1_enc encrypts/decrypts the record in |s->wrec| / |s->rrec|, respectively.
+ *
+ * Returns:
+ *   0: (in non-constant time) if the record is publically invalid (i.e. too
+ *       short etc).
+ *   1: if the record's padding is valid / the encryption was successful.
+ *   -1: if the record's padding/AEAD-authenticator is invalid or, if sending,
+ *       an internal error occured.
+ */
 int tls1_enc(SSL *s, int send)
 	{
 	SSL3_RECORD *rec;
 	EVP_CIPHER_CTX *ds;
 	unsigned long l;
-	int bs,i,ii,j,k;
+	int bs,i,j,k,pad=0,ret,mac_size=0;
 	const EVP_CIPHER *enc;
 
 	if (send)
@@ -559,11 +568,11 @@ int tls1_enc(SSL *s, int send)
 	printf("tls1_enc(%d)\n", send);
 #endif    /* KSSL_DEBUG */
 
-	if ((s->session == NULL) || (ds == NULL) ||
-		(enc == NULL))
+	if ((s->session == NULL) || (ds == NULL) || (enc == NULL))
 		{
 		memmove(rec->data,rec->input,rec->length);
 		rec->input=rec->data;
+		ret = 1;
 		}
 	else
 		{
@@ -591,14 +600,13 @@ int tls1_enc(SSL *s, int send)
 
 #ifdef KSSL_DEBUG
 		{
-                unsigned long ui;
+		unsigned long ui;
 		printf("EVP_Cipher(ds=%p,rec->data=%p,rec->input=%p,l=%ld) ==>\n",
-                        (void *)ds,rec->data,rec->input,l);
-		printf("\tEVP_CIPHER_CTX: %d buf_len, %d key_len [%ld %ld], %d iv_len\n",
-                        ds->buf_len, ds->cipher->key_len,
-                        (unsigned long)DES_KEY_SZ,
-			(unsigned long)DES_SCHEDULE_SZ,
-                        ds->cipher->iv_len);
+			ds,rec->data,rec->input,l);
+		printf("\tEVP_CIPHER_CTX: %d buf_len, %d key_len [%d %d], %d iv_len\n",
+			ds->buf_len, ds->cipher->key_len,
+			DES_KEY_SZ, DES_SCHEDULE_SZ,
+			ds->cipher->iv_len);
 		printf("\t\tIV: ");
 		for (i=0; i<ds->cipher->iv_len; i++) printf("%02X", ds->iv[i]);
 		printf("\n");
@@ -611,11 +619,7 @@ int tls1_enc(SSL *s, int send)
 		if (!send)
 			{
 			if (l == 0 || l%bs != 0)
-				{
-				SSLerr(SSL_F_TLS1_ENC,SSL_R_BLOCK_CIPHER_PAD_IS_WRONG);
-				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_DECRYPTION_FAILED);
 				return 0;
-				}
 			}
 		
 		EVP_Cipher(ds,rec->data,rec->input,l);
@@ -629,49 +633,15 @@ int tls1_enc(SSL *s, int send)
                 }
 #endif	/* KSSL_DEBUG */
 
+		ret = 1;
+		if (s->read_hash != NULL)
+			mac_size = EVP_MD_size(s->read_hash);
 		if ((bs != 1) && !send)
-			{
-			ii=i=rec->data[l-1]; /* padding_length */
-			i++;
-			/* NB: if compression is in operation the first packet
-			 * may not be of even length so the padding bug check
-			 * cannot be performed. This bug workaround has been
-			 * around since SSLeay so hopefully it is either fixed
-			 * now or no buggy implementation supports compression 
-			 * [steve]
-			 */
-			if ( (s->options&SSL_OP_TLS_BLOCK_PADDING_BUG)
-				&& !s->expand)
-				{
-				/* First packet is even in size, so check */
-				if ((memcmp(s->s3->read_sequence,
-					"\0\0\0\0\0\0\0\0",8) == 0) && !(ii & 1))
-					s->s3->flags|=TLS1_FLAGS_TLS_PADDING_BUG;
-				if (s->s3->flags & TLS1_FLAGS_TLS_PADDING_BUG)
-					i--;
-				}
-			/* TLS 1.0 does not bound the number of padding bytes by the block size.
-			 * All of them must have value 'padding_length'. */
-			if (i > (int)rec->length)
-				{
-				/* Incorrect padding. SSLerr() and ssl3_alert are done
-				 * by caller: we don't want to reveal whether this is
-				 * a decryption error or a MAC verification failure
-				 * (see http://www.openssl.org/~bodo/tls-cbc.txt) */
-				return -1;
-				}
-			for (j=(int)(l-i); j<(int)l; j++)
-				{
-				if (rec->data[j] != ii)
-					{
-					/* Incorrect padding */
-					return -1;
-					}
-				}
-			rec->length-=i;
-			}
+			ret = tls1_cbc_remove_padding(s, rec, bs, mac_size);
+		if (pad && !send)
+			rec->length -= pad;
 		}
-	return(1);
+	return ret;
 	}
 
 int tls1_cert_verify_mac(SSL *s, EVP_MD_CTX *in_ctx, unsigned char *out)
@@ -719,10 +689,10 @@ int tls1_mac(SSL *ssl, unsigned char *md, int send)
 	SSL3_RECORD *rec;
 	unsigned char *mac_sec,*seq;
 	const EVP_MD *hash;
-	unsigned int md_size;
+	size_t md_size, orig_len;
 	int i;
 	HMAC_CTX hmac;
-	unsigned char buf[5]; 
+	unsigned char header[13];
 
 	if (send)
 		{
@@ -741,20 +711,6 @@ int tls1_mac(SSL *ssl, unsigned char *md, int send)
 
 	md_size=EVP_MD_size(hash);
 
-	buf[0]=rec->type;
-	if (ssl->version == DTLS1_VERSION && ssl->client_version == DTLS1_BAD_VER)
-		{
-		buf[1]=TLS1_VERSION_MAJOR;
-		buf[2]=TLS1_VERSION_MINOR;
-		}
-	else	{
-		buf[1]=(unsigned char)(ssl->version>>8);
-		buf[2]=(unsigned char)(ssl->version);
-		}
-
-	buf[3]=rec->length>>8;
-	buf[4]=rec->length&0xff;
-
 	/* I should fix this up TLS TLS TLS TLS TLS XXXXXXXX */
 	HMAC_CTX_init(&hmac);
 	HMAC_Init_ex(&hmac,mac_sec,EVP_MD_size(hash),hash,NULL);
@@ -766,16 +722,57 @@ int tls1_mac(SSL *ssl, unsigned char *md, int send)
 		s2n(send?ssl->d1->w_epoch:ssl->d1->r_epoch, p);
 		memcpy (p,&seq[2],6);
 
-		HMAC_Update(&hmac,dtlsseq,8);
+		memcpy(header, dtlsseq, 8);
 		}
 	else
-		HMAC_Update(&hmac,seq,8);
+		memcpy(header, seq, 8);
 
-	HMAC_Update(&hmac,buf,5);
-	HMAC_Update(&hmac,rec->input,rec->length);
-	HMAC_Final(&hmac,md,&md_size);
+	/* kludge: tls1_cbc_remove_padding passes padding length in rec->type */
+	orig_len = rec->length+md_size+((unsigned int)rec->type>>8);
+	rec->type &= 0xff;
+
+	header[8]=rec->type;
+	header[9]=(unsigned char)(ssl->version>>8);
+	header[10]=(unsigned char)(ssl->version);
+	header[11]=(rec->length)>>8;
+	header[12]=(rec->length)&0xff;
+
+	if (!send &&
+	    EVP_CIPHER_CTX_mode(ssl->enc_read_ctx) == EVP_CIPH_CBC_MODE &&
+	    ssl3_cbc_record_digest_supported(hash))
+		{
+		/* This is a CBC-encrypted record. We must avoid leaking any
+		 * timing-side channel information about how many blocks of
+		 * data we are hashing because that gives an attacker a
+		 * timing-oracle. */
+		ssl3_cbc_digest_record(
+		        hash,
+			md, &md_size,
+			header, rec->input,
+			rec->length + md_size, orig_len,
+			ssl->s3->read_mac_secret,
+			EVP_MD_size(ssl->read_hash),
+			0 /* not SSLv3 */);
+		}
+	else
+		{
+		unsigned mds;
+
+		HMAC_Update(&hmac,header,sizeof(header));
+		HMAC_Update(&hmac,rec->input,rec->length);
+		HMAC_Final(&hmac,md,&mds);
+		md_size = mds;
+#ifdef OPENSSL_FIPS
+		if (!send && FIPS_mode())
+			tls_fips_digest_extra(
+	    				ssl->enc_read_ctx,
+					hash,
+					&hmac, rec->input,
+					rec->length, orig_len);
+#endif
+		}
+		
 	HMAC_CTX_cleanup(&hmac);
-
 #ifdef TLS_DEBUG
 printf("sec=");
 {unsigned int z; for (z=0; z<md_size; z++) printf("%02X ",mac_sec[z]); printf("\n"); }
