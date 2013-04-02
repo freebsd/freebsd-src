@@ -632,7 +632,7 @@
 355	AUE_EXTATTRCTL	STD	{ int extattrctl(const char *path, int cmd, \
 				    const char *filename, int attrnamespace, \
 				    const char *attrname); }
-356	AUE_EXTATTR_SET_FILE	STD	{ int extattr_set_file( \
+356	AUE_EXTATTR_SET_FILE	STD	{ ssize_t extattr_set_file( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname, void *data, \
 				    size_t nbytes); }
@@ -662,7 +662,7 @@
 368	AUE_NULL	UNIMPL	__cap_set_fd
 369	AUE_NULL	UNIMPL	__cap_set_file
 370	AUE_NULL	UNIMPL	nosys
-371	AUE_EXTATTR_SET_FD	STD	{ int extattr_set_fd(int fd, \
+371	AUE_EXTATTR_SET_FD	STD	{ ssize_t extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
 372	AUE_EXTATTR_GET_FD	STD	{ ssize_t extattr_get_fd(int fd, \
@@ -731,7 +731,7 @@
 				    struct mac *mac_p); }
 411	AUE_NULL	STD	{ int __mac_set_link(const char *path_p, \
 				    struct mac *mac_p); }
-412	AUE_EXTATTR_SET_LINK	STD	{ int extattr_set_link( \
+412	AUE_EXTATTR_SET_LINK	STD	{ ssize_t extattr_set_link( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname, void *data, \
 				    size_t nbytes); }
