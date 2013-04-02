@@ -75,6 +75,7 @@ struct cam_ed {
 	struct	cam_et	 *target;
 	struct	cam_sim  *sim;
 	lun_id_t	 lun_id;
+	struct mtx	 mtx;
 	struct	camq drvq;		/*
 					 * Queue of type drivers wanting to do
 					 * work on this device.

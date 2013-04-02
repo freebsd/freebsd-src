@@ -4339,8 +4339,7 @@ xpt_release_bus(struct cam_eb *bus)
 
 	mtx_lock(&xsoftc.xpt_topo_lock);
 	KASSERT(bus->refcount >= 1, ("bus->refcount >= 1"));
-	if ((--bus->refcount == 0)
-	 && (TAILQ_FIRST(&bus->et_entries) == NULL)) {
+	if (--bus->refcount == 0) {
 		TAILQ_REMOVE(&xsoftc.xpt_busses, bus, links);
 		xsoftc.bus_generation++;
 		mtx_unlock(&xsoftc.xpt_topo_lock);
@@ -4353,40 +4352,38 @@ xpt_release_bus(struct cam_eb *bus)
 static struct cam_et *
 xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 {
-	struct cam_et *target;
+	struct cam_et *cur_target, *target;
 
 	target = (struct cam_et *)malloc(sizeof(*target), M_CAMXPT,
 					 M_NOWAIT|M_ZERO);
-	if (target != NULL) {
-		struct cam_et *cur_target;
+	if (target == NULL)
+		return (NULL);
 
-		TAILQ_INIT(&target->ed_entries);
-		target->bus = bus;
-		target->target_id = target_id;
-		target->refcount = 1;
-		target->generation = 0;
-		target->luns = NULL;
-		timevalclear(&target->last_reset);
-		/*
-		 * Hold a reference to our parent bus so it
-		 * will not go away before we do.
-		 */
-		mtx_lock(&xsoftc.xpt_topo_lock);
-		bus->refcount++;
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+	TAILQ_INIT(&target->ed_entries);
+	target->bus = bus;
+	target->target_id = target_id;
+	target->refcount = 1;
+	target->generation = 0;
+	target->luns = NULL;
+	timevalclear(&target->last_reset);
+	/*
+	 * Hold a reference to our parent bus so it
+	 * will not go away before we do.
+	 */
+	mtx_lock(&xsoftc.xpt_topo_lock);
+	bus->refcount++;
+	mtx_unlock(&xsoftc.xpt_topo_lock);
 
-		/* Insertion sort into our bus's target list */
-		cur_target = TAILQ_FIRST(&bus->et_entries);
-		while (cur_target != NULL && cur_target->target_id < target_id)
-			cur_target = TAILQ_NEXT(cur_target, links);
-
-		if (cur_target != NULL) {
-			TAILQ_INSERT_BEFORE(cur_target, target, links);
-		} else {
-			TAILQ_INSERT_TAIL(&bus->et_entries, target, links);
-		}
-		bus->generation++;
+	/* Insertion sort into our bus's target list */
+	cur_target = TAILQ_FIRST(&bus->et_entries);
+	while (cur_target != NULL && cur_target->target_id < target_id)
+		cur_target = TAILQ_NEXT(cur_target, links);
+	if (cur_target != NULL) {
+		TAILQ_INSERT_BEFORE(cur_target, target, links);
+	} else {
+		TAILQ_INSERT_TAIL(&bus->et_entries, target, links);
 	}
+	bus->generation++;
 	return (target);
 }
 
@@ -4394,24 +4391,21 @@ static void
 xpt_release_target(struct cam_et *target)
 {
 
-	if (target->refcount == 1) {
-		if (TAILQ_FIRST(&target->ed_entries) == NULL) {
-			TAILQ_REMOVE(&target->bus->et_entries, target, links);
-			target->bus->generation++;
-			xpt_release_bus(target->bus);
-			if (target->luns)
-				free(target->luns, M_CAMXPT);
-			free(target, M_CAMXPT);
-		}
-	} else
-		target->refcount--;
+	if (--target->refcount > 0)
+		return;
+	TAILQ_REMOVE(&target->bus->et_entries, target, links);
+	target->bus->generation++;
+	xpt_release_bus(target->bus);
+	if (target->luns)
+		free(target->luns, M_CAMXPT);
+	free(target, M_CAMXPT);
 }
 
 static struct cam_ed *
 xpt_alloc_device_default(struct cam_eb *bus, struct cam_et *target,
 			 lun_id_t lun_id)
 {
-	struct cam_ed *device, *cur_device;
+	struct cam_ed *device;
 
 	device = xpt_alloc_device(bus, target, lun_id);
 	if (device == NULL)
@@ -4419,70 +4413,61 @@ xpt_alloc_device_default(struct cam_eb *bus, struct cam_et *target,
 
 	device->mintags = 1;
 	device->maxtags = 1;
-	cur_device = TAILQ_FIRST(&target->ed_entries);
-	while (cur_device != NULL && cur_device->lun_id < lun_id)
-		cur_device = TAILQ_NEXT(cur_device, links);
-	if (cur_device != NULL) {
-		TAILQ_INSERT_BEFORE(cur_device, device, links);
-	} else {
-		TAILQ_INSERT_TAIL(&target->ed_entries, device, links);
-	}
-	target->generation++;
-
 	return (device);
 }
 
 struct cam_ed *
 xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
-	struct	   cam_ed *device;
-	struct	   cam_devq *devq;
+	struct cam_ed	*cur_device, *device;
+	struct cam_devq	*devq;
 	cam_status status;
 
 	/* Make space for us in the device queue on our bus */
 	devq = bus->sim->devq;
 	status = cam_devq_resize(devq, devq->send_queue.array_size + 1);
+	if (status != CAM_REQ_CMP)
+		return (NULL);
 
-	if (status != CAM_REQ_CMP) {
-		device = NULL;
-	} else {
-		device = (struct cam_ed *)malloc(sizeof(*device),
-						 M_CAMDEV, M_NOWAIT|M_ZERO);
+	device = (struct cam_ed *)malloc(sizeof(*device),
+					 M_CAMDEV, M_NOWAIT|M_ZERO);
+	if (device == NULL)
+		return (NULL);
+
+	cam_init_pinfo(&device->devq_entry.pinfo);
+	device->devq_entry.device = device;
+	device->target = target;
+	device->lun_id = lun_id;
+	device->sim = bus->sim;
+	/* Initialize our queues */
+	if (camq_init(&device->drvq, 0) != 0) {
+		free(device, M_CAMDEV);
+		return (NULL);
 	}
-
-	if (device != NULL) {
-		cam_init_pinfo(&device->devq_entry.pinfo);
-		device->devq_entry.device = device;
-		device->target = target;
-		device->lun_id = lun_id;
-		device->sim = bus->sim;
-		/* Initialize our queues */
-		if (camq_init(&device->drvq, 0) != 0) {
-			free(device, M_CAMDEV);
-			return (NULL);
-		}
-		if (cam_ccbq_init(&device->ccbq,
-				  bus->sim->max_dev_openings) != 0) {
-			camq_fini(&device->drvq);
-			free(device, M_CAMDEV);
-			return (NULL);
-		}
-		SLIST_INIT(&device->asyncs);
-		SLIST_INIT(&device->periphs);
-		device->generation = 0;
-		device->flags = CAM_DEV_UNCONFIGURED;
-		device->tag_delay_count = 0;
-		device->tag_saved_openings = 0;
-		device->refcount = 1;
-		callout_init_mtx(&device->callout, bus->sim->mtx, 0);
-
-		/*
-		 * Hold a reference to our parent target so it
-		 * will not go away before we do.
-		 */
-		target->refcount++;
-
+	if (cam_ccbq_init(&device->ccbq,
+			  bus->sim->max_dev_openings) != 0) {
+		camq_fini(&device->drvq);
+		free(device, M_CAMDEV);
+		return (NULL);
 	}
+	SLIST_INIT(&device->asyncs);
+	SLIST_INIT(&device->periphs);
+	device->generation = 0;
+	device->flags = CAM_DEV_UNCONFIGURED;
+	device->tag_delay_count = 0;
+	device->tag_saved_openings = 0;
+	device->refcount = 1;
+	callout_init_mtx(&device->callout, bus->sim->mtx, 0);
+
+	cur_device = TAILQ_FIRST(&target->ed_entries);
+	while (cur_device != NULL && cur_device->lun_id < lun_id)
+		cur_device = TAILQ_NEXT(cur_device, links);
+	if (cur_device != NULL)
+		TAILQ_INSERT_BEFORE(cur_device, device, links);
+	else
+		TAILQ_INSERT_TAIL(&target->ed_entries, device, links);
+	target->refcount++;
+	target->generation++;
 	return (device);
 }
 
@@ -4496,38 +4481,37 @@ xpt_acquire_device(struct cam_ed *device)
 void
 xpt_release_device(struct cam_ed *device)
 {
+	struct cam_devq *devq;
 
-	if (device->refcount == 1) {
-		struct cam_devq *devq;
+	if (--device->refcount > 0)
+		return;
 
-		if (device->devq_entry.pinfo.index != CAM_UNQUEUED_INDEX)
-			panic("Removing device while still queued for ccbs");
+	if (device->devq_entry.pinfo.index != CAM_UNQUEUED_INDEX)
+		panic("Removing device while still queued for ccbs");
 
-		if ((device->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0)
-			callout_stop(&device->callout);
+	if ((device->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0)
+		callout_stop(&device->callout);
 
-		TAILQ_REMOVE(&device->target->ed_entries, device,links);
-		device->target->generation++;
-		/* Release our slot in the devq */
-		devq = device->target->bus->sim->devq;
-		cam_devq_resize(devq, devq->send_queue.array_size - 1);
-		camq_fini(&device->drvq);
-		cam_ccbq_fini(&device->ccbq);
-		/*
-		 * Free allocated memory.  free(9) does nothing if the
-		 * supplied pointer is NULL, so it is safe to call without
-		 * checking.
-		 */
-		free(device->supported_vpds, M_CAMXPT);
-		free(device->device_id, M_CAMXPT);
-		free(device->physpath, M_CAMXPT);
-		free(device->rcap_buf, M_CAMXPT);
-		free(device->serial_num, M_CAMXPT);
+	TAILQ_REMOVE(&device->target->ed_entries, device,links);
+	device->target->generation++;
+	/* Release our slot in the devq */
+	devq = device->target->bus->sim->devq;
+	cam_devq_resize(devq, devq->send_queue.array_size - 1);
+	camq_fini(&device->drvq);
+	cam_ccbq_fini(&device->ccbq);
+	/*
+	 * Free allocated memory.  free(9) does nothing if the
+	 * supplied pointer is NULL, so it is safe to call without
+	 * checking.
+	 */
+	free(device->supported_vpds, M_CAMXPT);
+	free(device->device_id, M_CAMXPT);
+	free(device->physpath, M_CAMXPT);
+	free(device->rcap_buf, M_CAMXPT);
+	free(device->serial_num, M_CAMXPT);
 
-		xpt_release_target(device->target);
-		free(device, M_CAMDEV);
-	} else
-		device->refcount--;
+	xpt_release_target(device->target);
+	free(device, M_CAMDEV);
 }
 
 u_int32_t
