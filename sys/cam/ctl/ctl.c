@@ -92,9 +92,9 @@ struct ctl_softc *control_softc = NULL;
 #define CTL_DONE_THREAD
 
 /*
- *  * Use the serial number and device ID provided by the backend, rather than
- *   * making up our own.
- *    */
+ * Use the serial number and device ID provided by the backend, rather than
+ * making up our own.
+ */
 #define CTL_USE_BACKEND_SN
 
 /*
@@ -7893,7 +7893,7 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 				return (CTL_RETVAL_COMPLETE);
 			}
 		} else if ((cdb->action & SPRO_ACTION_MASK) != SPRO_REGISTER) {
-		    /*
+			/*
 			 * We are not registered
 			 */
 			mtx_unlock(&softc->ctl_lock);
