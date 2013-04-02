@@ -594,7 +594,8 @@ xenbusb_release_confighook(struct xenbusb_softc *xbs)
 	KASSERT(xbs->xbs_connecting_children > 0,
 		("Connecting device count error\n"));
 	xbs->xbs_connecting_children--;
-	if ((xbs->xbs_flags & XBS_ATTACH_CH_ACTIVE) != 0) {
+	if (xbs->xbs_connecting_children == 0
+         && (xbs->xbs_flags & XBS_ATTACH_CH_ACTIVE) != 0) {
 		xbs->xbs_flags &= ~XBS_ATTACH_CH_ACTIVE;
 		mtx_unlock(&xbs->xbs_lock);
 		config_intrhook_disestablish(&xbs->xbs_attach_ch);
