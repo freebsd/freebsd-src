@@ -121,12 +121,23 @@ struct cfcs_softc cfcs_softc;
 static int cfcs_max_sense = sizeof(struct scsi_sense_data);
 extern int ctl_disable;
 
-SYSINIT(cfcs_init, SI_SUB_CONFIGURE, SI_ORDER_FOURTH, cfcs_init, NULL);
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl2cam, CTLFLAG_RD, 0,
 	    "CAM Target Layer SIM frontend");
 SYSCTL_INT(_kern_cam_ctl2cam, OID_AUTO, max_sense, CTLFLAG_RW,
            &cfcs_max_sense, 0, "Maximum sense data size");
 
+static int cfcs_module_event_handler(module_t, int /*modeventtype_t*/, void *);
+
+static moduledata_t cfcs_moduledata = {
+	"ctlcfcs",
+	cfcs_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctlcfcs, cfcs_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
+MODULE_VERSION(ctlcfcs, 1);
+MODULE_DEPEND(ctlcfi, ctl, 1, 1, 1);
+MODULE_DEPEND(ctlcfi, cam, 1, 1, 1);
 
 int
 cfcs_init(void)
@@ -176,7 +187,7 @@ cfcs_init(void)
 		printf("%s: ctl_frontend_register() failed with error %d!\n",
 		       __func__, retval);
 		mtx_destroy(&softc->lock);
-		return (1);
+		return (retval);
 	}
 
 	/*
@@ -236,7 +247,7 @@ cfcs_init(void)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: error creating path\n", __func__);
 		xpt_bus_deregister(cam_sim_path(softc->sim));
-		retval = 1;
+		retval = EINVAL;
 		goto bailout;
 	}
 
@@ -272,6 +283,20 @@ void
 cfcs_shutdown(void)
 {
 
+}
+
+static int
+cfcs_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		return (cfcs_init());
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
 static void

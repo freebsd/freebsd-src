@@ -99,6 +99,7 @@ MAN=	aac.4 \
 	${_cpuctl.4} \
 	cpufreq.4 \
 	crypto.4 \
+	ctl.4 \
 	cue.4 \
 	cxgb.4 \
 	cxgbe.4 \
