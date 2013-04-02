@@ -2481,16 +2481,10 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	case XPT_SMP_IO:
-	{
-		int frozen;
-
-		frozen = cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
-		if (frozen > 0)
-			xpt_run_dev_allocq(path->device);
+		cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
 		if (xpt_schedule_devq(path->bus->sim->devq, path->device))
 			xpt_run_devq(path->bus->sim->devq);
 		break;
-	}
 	case XPT_CALC_GEOMETRY:
 	{
 		struct cam_sim *sim;
@@ -3244,7 +3238,7 @@ xpt_run_devq(struct cam_devq *devq)
 
 		xpt_schedule_devq(devq, device);
 
-		if (work_ccb && (work_ccb->ccb_h.flags & CAM_DEV_QFREEZE) != 0){
+		if ((work_ccb->ccb_h.flags & CAM_DEV_QFREEZE) != 0) {
 			/*
 			 * The client wants to freeze the queue
 			 * after this CCB is sent.
