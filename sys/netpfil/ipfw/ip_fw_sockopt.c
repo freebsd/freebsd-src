@@ -377,14 +377,15 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 		/* 4. swap the maps (under BH_LOCK) */
 		map = swap_map(chain, map, chain->n_rules - n);
 		/* 5. now remove the rules deleted from the old map */
+		if (cmd == 1)
+			ipfw_expire_dyn_rules(chain, NULL, new_set);
 		for (i = start; i < end; i++) {
-			int l;
 			rule = map[i];
 			if (keep_rule(rule, cmd, new_set, num))
 				continue;
-			l = RULESIZE(rule);
-			chain->static_len -= l;
-			ipfw_expire_dyn_rules(chain, rule, RESVD_SET);
+			chain->static_len -= RULESIZE(rule);
+			if (cmd != 1)
+				ipfw_expire_dyn_rules(chain, rule, RESVD_SET);
 			rule->x_next = chain->reap;
 			chain->reap = rule;
 		}
