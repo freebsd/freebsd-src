@@ -158,8 +158,6 @@ static int
 _bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		    int *nsegs, int flags)
 {
-	struct ccb_ataio *ataio;
-	struct ccb_scsiio *csio;
 	struct ccb_hdr *ccb_h;
 	void *data_ptr;
 	int error;
@@ -169,18 +167,33 @@ _bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 	error = 0;
 	ccb_h = &ccb->ccb_h;
 	switch (ccb_h->func_code) {
-	case XPT_SCSI_IO:
+	case XPT_SCSI_IO: {
+		struct ccb_scsiio *csio;
+
 		csio = &ccb->csio;
 		data_ptr = csio->data_ptr;
 		dxfer_len = csio->dxfer_len;
 		sglist_cnt = csio->sglist_cnt;
 		break;
-	case XPT_ATA_IO:
+	}
+	case XPT_CONT_TARGET_IO: {
+		struct ccb_scsiio *ctio;
+
+		ctio = &ccb->ctio;
+		data_ptr = ctio->data_ptr;
+		dxfer_len = ctio->dxfer_len;
+		sglist_cnt = ctio->sglist_cnt;
+		break;
+	}
+	case XPT_ATA_IO: {
+		struct ccb_ataio *ataio;
+
 		ataio = &ccb->ataio;
 		data_ptr = ataio->data_ptr;
 		dxfer_len = ataio->dxfer_len;
 		sglist_cnt = 0;
 		break;
+	}
 	default:
 		panic("_bus_dmamap_load_ccb: Unsupported func code %d",
 		    ccb_h->func_code);
