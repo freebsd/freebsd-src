@@ -246,36 +246,6 @@ MODULE_DEPEND(ctlfe, cam, 1, 1, 1);
 extern struct ctl_softc *control_softc;
 extern int ctl_disable;
 
-#ifdef seems_unused
-int
-ctlfeinitialize(void)
-{
-	cam_status status;
-
-	/* Don't initialize if we're disabled */
-	if (ctl_disable != 0)
-		return (0);
-
-	STAILQ_INIT(&ctlfe_softc_list);
-
-	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
-
-	xpt_lock_buses();
-	periphdriver_register(&ctlfe_driver);
-	xpt_unlock_buses();
-
-	status = xpt_register_async(AC_PATH_REGISTERED | AC_PATH_DEREGISTERED | 
-				    AC_CONTRACT, ctlfeasync, NULL, NULL);
-
-	if (status != CAM_REQ_CMP) {
-		printf("ctl: Failed to attach async callback due to CAM "
-		       "status 0x%x!\n", status);
-	}
-
-	return (0);
-}
-#endif
-
 void
 ctlfeshutdown(void)
 {
