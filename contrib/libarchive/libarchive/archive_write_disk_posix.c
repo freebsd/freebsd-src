@@ -3707,7 +3707,7 @@ set_xattrs(struct archive_write_disk *a)
 		size_t size;
 		archive_entry_xattr_next(entry, &name, &value, &size);
 		if (name != NULL) {
-			int e;
+			ssize_t e;
 			int namespace;
 
 			if (strncmp(name, "user.", 5) == 0) {
@@ -3734,7 +3734,7 @@ set_xattrs(struct archive_write_disk *a)
 				e = extattr_set_file(archive_entry_pathname(entry),
 				    namespace, name, value, size);
 			}
-			if (e != (int)size) {
+			if (e != (ssize_t)size) {
 				if (errno == ENOTSUP || errno == ENOSYS) {
 					if (!warning_done) {
 						warning_done = 1;
