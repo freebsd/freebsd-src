@@ -2742,6 +2742,7 @@ ath_start(struct ifnet *ifp)
 				    "%s: flush fragmented packet, state %s\n",
 				    __func__,
 				    ieee80211_state_name[ni->ni_vap->iv_state]);
+				/* XXX dmamap */
 				ath_freetx(next);
 				goto reclaim;
 			}
@@ -3031,6 +3032,9 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 
 	/*
 	 * Setup DMA descriptor area.
+	 *
+	 * BUS_DMA_ALLOCNOW is not used; we never use bounce
+	 * buffers for the descriptors themselves.
 	 */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 		       PAGE_SIZE, 0,		/* alignment, bounds */
@@ -3040,7 +3044,7 @@ ath_descdma_alloc_desc(struct ath_softc *sc,
 		       dd->dd_desc_len,		/* maxsize */
 		       1,			/* nsegments */
 		       dd->dd_desc_len,		/* maxsegsize */
-		       BUS_DMA_ALLOCNOW,	/* flags */
+		       0,			/* flags */
 		       NULL,			/* lockfunc */
 		       NULL,			/* lockarg */
 		       &dd->dd_dmat);
@@ -3237,6 +3241,7 @@ ath_descdma_cleanup(struct ath_softc *sc,
 {
 	struct ath_buf *bf;
 	struct ieee80211_node *ni;
+	int do_warning = 0;
 
 	if (dd->dd_dmamap != 0) {
 		bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
@@ -3247,6 +3252,23 @@ ath_descdma_cleanup(struct ath_softc *sc,
 	if (head != NULL) {
 		TAILQ_FOREACH(bf, head, bf_list) {
 			if (bf->bf_m) {
+				/*
+				 * XXX warn if there's buffers here.
+				 * XXX it should have been freed by the
+				 * owner!
+				 */
+				
+				if (do_warning == 0) {
+					do_warning = 1;
+					device_printf(sc->sc_dev,
+					    "%s: %s: mbuf should've been"
+					    " unmapped/freed!\n",
+					    __func__,
+					    dd->dd_name);
+				}
+				bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+				    BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 				m_freem(bf->bf_m);
 				bf->bf_m = NULL;
 			}
