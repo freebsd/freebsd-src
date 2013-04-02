@@ -1,3 +1,47 @@
+2013-03-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130330
+	  Merge with NetBSD make, pick up
+	  o meta.c: refine the handling of .OODATE in commands.
+	    Rather than suppress command comparison for the entire script
+	    as though .NOMETA_CMP had been used, only suppress it for the
+	    one command line.
+	    This allows something like ${.OODATE:M.NOMETA_CMP} to be used to 
+	    suppress comparison of a command without otherwise affecting it.
+	  o make.1: document that
+
+2013-03-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130321
+	  yes, not quite right but its a cooler number.
+	  Merge with NetBSD make, pick up
+	  o parse.c: fix ParseGmakeExport to be portable 
+	    and add a unit-test.
+	* meta.c: call meta_init() before makefiles are read and if built
+	  with filemon support set .MAKE.PATH_FILEMON to _PATH_FILEMON
+	  this let's makefiles test for support.
+	  Call meta_mode_init() to process .MAKE.MODE.
+
+2013-03-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130305
+	  Merge with NetBSD make, pick up
+	  o run .STALE: target when a dependency from .depend is missing.
+	  o job.c: add Job_RunTarget() for the above and .BEGIN
+
+2013-03-03  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130303
+	  Merge with NetBSD make, pick up
+	  o main.c: set .MAKE.OS to utsname.sysname
+	  o job.c: more checks for read and poll errors
+	  o var.c: lose VarChangeCase() saves 4% time
+
+2013-03-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: remove MAKEOBJDIRPREFIX from environment since we
+	  want to use MAKEOBJDIR
+
 2013-01-27  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Merge with NetBSD make, pick up
