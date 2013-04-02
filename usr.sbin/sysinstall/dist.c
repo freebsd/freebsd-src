@@ -756,7 +756,9 @@ distExtract(char *parent, Distribution *me)
 		&me[i] == BASE_DIST);
 	    if (!status) {
 		dialog_clear_norefresh();
-		if (me[i].my_bit != DIST_LOCAL) {
+		if (me[i].my_bit != DIST_LOCAL &&
+		    me[i].my_bit != DIST_KERNEL_DEBUG)
+		{
 		    status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"
 			              "Do you want to try to retrieve it again?",
 				      me[i].my_name, mediaDevice->name);
@@ -767,7 +769,7 @@ distExtract(char *parent, Distribution *me)
 
 		    status = FALSE;
 		} else {
-			// ignore any failures with DIST_LOCAL
+			// ignore any failures with DIST_LOCAL/_KERNEL_DEBUG
 			status = TRUE;
 		}
 	    }
@@ -906,8 +908,8 @@ distExtractAll(dialogMenuItem *self)
     if ((old_dists & DIST_KERNEL) && !(Dists & DIST_KERNEL))
 	status |= installFixupKernel(self, old_kernel);
 
-    /* Clear any local dist flags now */
-    Dists &= ~DIST_LOCAL;
+    /* Clear any optional dist flags now */
+    Dists &= ~(DIST_LOCAL|DIST_KERNEL_DEBUG);
 
     if (Dists) {
 	int col = 0;
