@@ -3009,7 +3009,9 @@ xpt_polled_action(union ccb *start_ccb)
 	mtx_assert(sim->mtx, MA_OWNED);
 
 	/* Don't use ISR for this SIM while polling. */
-	sim->flags |= CAM_SIM_POLLED;
+	mtx_lock(&sim->sim_doneq_mtx);
+	sim->sim_doneq_flags |= CAM_SIM_DQ_POLLED;
+	mtx_unlock(&sim->sim_doneq_mtx);
 
 	/*
 	 * Steal an opening so that no other queued requests
@@ -3052,7 +3054,9 @@ xpt_polled_action(union ccb *start_ccb)
 	}
 
 	/* We will use CAM ISR for this SIM again. */
-	sim->flags &= ~CAM_SIM_POLLED;
+	mtx_lock(&sim->sim_doneq_mtx);
+	sim->sim_doneq_flags &= ~CAM_SIM_DQ_POLLED;
+	mtx_unlock(&sim->sim_doneq_mtx);
 }
 
 /*
@@ -4238,19 +4242,22 @@ xpt_done(union ccb *done_ccb)
 		 * any of the "non-immediate" type of ccbs.
 		 */
 		sim = done_ccb->ccb_h.path->bus->sim;
+		mtx_lock(&sim->sim_doneq_mtx);
 		TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
 		    sim_links.tqe);
 		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-		if ((sim->flags & (CAM_SIM_ON_DONEQ | CAM_SIM_POLLED |
-		    CAM_SIM_BATCH)) == 0) {
+		if ((sim->sim_doneq_flags & (CAM_SIM_DQ_ONQ |
+		    CAM_SIM_DQ_POLLED | CAM_SIM_DQ_BATCH)) == 0) {
 			mtx_lock(&cam_simq_lock);
 			first = TAILQ_EMPTY(&cam_simq);
 			TAILQ_INSERT_TAIL(&cam_simq, sim, links);
 			mtx_unlock(&cam_simq_lock);
-			sim->flags |= CAM_SIM_ON_DONEQ;
-			if (first)
-				swi_sched(cambio_ih, 0);
-		}
+			sim->sim_doneq_flags |= CAM_SIM_DQ_ONQ;
+		} else
+			first = 0;
+		mtx_unlock(&sim->sim_doneq_mtx);
+		if (first)
+			swi_sched(cambio_ih, 0);
 	}
 }
 
@@ -4258,19 +4265,32 @@ void
 xpt_batch_start(struct cam_sim *sim)
 {
 
-	KASSERT((sim->flags & CAM_SIM_BATCH) == 0, ("Batch flag already set"));
-	sim->flags |= CAM_SIM_BATCH;
+	mtx_lock(&sim->sim_doneq_mtx);
+	KASSERT((sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) == 0,
+	    ("Batch flag already set"));
+	sim->sim_doneq_flags |= CAM_SIM_DQ_BATCH;
+	mtx_unlock(&sim->sim_doneq_mtx);
 }
 
 void
 xpt_batch_done(struct cam_sim *sim)
 {
+	int runq;
 
-	KASSERT((sim->flags & CAM_SIM_BATCH) != 0, ("Batch flag was not set"));
-	sim->flags &= ~CAM_SIM_BATCH;
-	if (!TAILQ_EMPTY(&sim->sim_doneq) &&
-	    (sim->flags & CAM_SIM_ON_DONEQ) == 0)
+	mtx_lock(&sim->sim_doneq_mtx);
+	KASSERT((sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) != 0,
+	    ("Batch flag was not set"));
+	sim->sim_doneq_flags &= ~CAM_SIM_DQ_BATCH;
+	runq = ((sim->sim_doneq_flags & (CAM_SIM_DQ_ONQ |
+	    CAM_SIM_DQ_POLLED)) == 0);
+	if (runq)
+		sim->sim_doneq_flags |= CAM_SIM_DQ_ONQ;
+	mtx_unlock(&sim->sim_doneq_mtx);
+	if (runq) {
+		CAM_SIM_UNLOCK(sim);
 		camisr_runqueue(sim);
+		CAM_SIM_LOCK(sim);
+	}
 }
 
 union ccb *
@@ -4883,10 +4903,7 @@ camisr(void *dummy)
 
 		while ((sim = TAILQ_FIRST(&queue)) != NULL) {
 			TAILQ_REMOVE(&queue, sim, links);
-			CAM_SIM_LOCK(sim);
 			camisr_runqueue(sim);
-			sim->flags &= ~CAM_SIM_ON_DONEQ;
-			CAM_SIM_UNLOCK(sim);
 		}
 		mtx_lock(&cam_simq_lock);
 	}
@@ -4897,11 +4914,13 @@ static void
 camisr_runqueue(struct cam_sim *sim)
 {
 	struct	ccb_hdr *ccb_h;
+	int	runq;
 
+	mtx_lock(&sim->sim_doneq_mtx);
 	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
-		int	runq;
-
 		TAILQ_REMOVE(&sim->sim_doneq, ccb_h, sim_links.tqe);
+		mtx_unlock(&sim->sim_doneq_mtx);
+		CAM_SIM_LOCK(sim);
 		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 
 		CAM_DEBUG(ccb_h->path, CAM_DEBUG_TRACE,
@@ -4986,5 +5005,9 @@ camisr_runqueue(struct cam_sim *sim)
 
 		/* Call the peripheral driver's callback */
 		(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
+		CAM_SIM_UNLOCK(sim);
+		mtx_lock(&sim->sim_doneq_mtx);
 	}
+	sim->sim_doneq_flags &= ~CAM_SIM_DQ_ONQ;
+	mtx_unlock(&sim->sim_doneq_mtx);
 }

@@ -95,7 +95,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 		sim->flags |= CAM_SIM_MPSAFE;
 		callout_init(&sim->callout, 1);
 	}
-
+	mtx_init(&sim->sim_doneq_mtx, "CAM doneq", NULL, MTX_DEF);
 	TAILQ_INIT(&sim->sim_doneq);
 
 	return (sim);
@@ -116,6 +116,7 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 
 	if (free_devq)
 		cam_simq_free(sim->devq);
+	mtx_destroy(&sim->sim_doneq_mtx);
 	free(sim, M_CAMSIM);
 }
 

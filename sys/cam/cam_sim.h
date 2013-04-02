@@ -95,6 +95,11 @@ struct cam_sim {
 	void			*softc;
 	struct mtx		*mtx;
 	TAILQ_HEAD(, ccb_hdr)	sim_doneq;
+	struct mtx		sim_doneq_mtx;
+	int			sim_doneq_flags;
+#define	CAM_SIM_DQ_ONQ		0x04
+#define	CAM_SIM_DQ_POLLED	0x08
+#define	CAM_SIM_DQ_BATCH	0x10
 	TAILQ_ENTRY(cam_sim)	links;
 	u_int32_t		path_id;/* The Boot device may set this to 0? */
 	u_int32_t		unit_number;
@@ -104,9 +109,6 @@ struct cam_sim {
 	u_int32_t		flags;
 #define	CAM_SIM_REL_TIMEOUT_PENDING	0x01
 #define	CAM_SIM_MPSAFE			0x02
-#define	CAM_SIM_ON_DONEQ		0x04
-#define	CAM_SIM_POLLED			0x08
-#define	CAM_SIM_BATCH			0x10
 	struct callout		callout;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
