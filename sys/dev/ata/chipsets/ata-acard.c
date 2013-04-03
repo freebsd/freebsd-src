@@ -124,6 +124,10 @@ ata_acard_chipinit(device_t dev)
 			      M_ATAPCI, M_WAITOK | M_ZERO);
 	ata_serialize_init(serial);
 	ctlr->chipset_data = serial;
+#else
+	/* Work around the lack of channel serialization in ATA_CAM. */
+	ctlr->channels = 1;
+	device_printf(dev, "second channel ignored\n");
 #endif
     }
     else
