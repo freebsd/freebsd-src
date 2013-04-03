@@ -166,6 +166,15 @@ static void	rtmsg_input(struct sockinfo *);
 static void	set_short_delay(struct ifinfo *);
 static int	check_accept_rtadv(int);
 
+static void
+usage(void)
+{
+
+	fprintf(stderr, "usage: rtadvd [-dDfRs] "
+	    "[-c configfile] [-C ctlsock] [-M ifname] [-p pidfile]\n");
+	exit(1);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -177,7 +186,7 @@ main(int argc, char *argv[])
 	pid_t pid, otherpid;
 
 	/* get command line options and arguments */
-	while ((ch = getopt(argc, argv, "c:C:dDfM:p:Rs")) != -1) {
+	while ((ch = getopt(argc, argv, "c:C:dDfhM:p:Rs")) != -1) {
 		switch (ch) {
 		case 'c':
 			conffile = optarg;
@@ -209,17 +218,12 @@ main(int argc, char *argv[])
 		case 'p':
 			pidfilename = optarg;
 			break;
+		default:
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
-	if (argc == 0) {
-		fprintf(stderr,
-		    "usage: rtadvd [-dDfRs] [-c conffile] "
-		    "[-C ctrlsockname] [-M ifname] "
-		    "[-p pidfile] interfaces...\n");
-		exit(1);
-	}
 
 	logopt = LOG_NDELAY | LOG_PID;
 	if (fflag)
