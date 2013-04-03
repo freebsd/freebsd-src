@@ -68,6 +68,8 @@ TEXTDUMP_VERBOSE	opt_ddb.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+BOOTHOWTO	opt_global.h
+BOOTVERBOSE	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
