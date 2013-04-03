@@ -580,9 +580,11 @@ struct ata_channel {
 #define         ATA_ACTIVE              0x0001
 #define         ATA_STALL_QUEUE         0x0002
 
+#ifndef ATA_CAM
     struct mtx                  queue_mtx;      /* queue lock */
     TAILQ_HEAD(, ata_request)   ata_queue;      /* head of ATA queue */
     struct ata_request          *freezepoint;   /* composite freezepoint */
+#endif
     struct ata_request          *running;       /* currently running request */
     struct task			conntask;	/* PHY events handling task */
 #ifdef ATA_CAM
@@ -621,24 +623,24 @@ int ata_resume(device_t dev);
 void ata_interrupt(void *data);
 int ata_device_ioctl(device_t dev, u_long cmd, caddr_t data);
 int ata_getparam(struct ata_device *atadev, int init);
-int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);
-void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
 const char *ata_unit2str(struct ata_device *atadev);
 const char *ata_mode2str(int mode);
+void ata_setmode(device_t dev);
+void ata_print_cable(device_t dev, u_int8_t *who);
 int ata_str2mode(const char *str);
 const char *ata_satarev2str(int rev);
 int ata_atapi(device_t dev, int target);
+#ifndef ATA_CAM
+int ata_identify(device_t dev);
+void ata_modify_if_48bit(struct ata_request *request);
 int ata_pmode(struct ata_params *ap);
 int ata_wmode(struct ata_params *ap);
 int ata_umode(struct ata_params *ap);
 int ata_limit_mode(device_t dev, int mode, int maxmode);
-void ata_setmode(device_t dev);
-void ata_print_cable(device_t dev, u_int8_t *who);
 int ata_check_80pin(device_t dev, int mode);
-#ifdef ATA_CAM
-void ata_cam_begin_transaction(device_t dev, union ccb *ccb);
+#else
 void ata_cam_end_transaction(device_t dev, struct ata_request *request);
 #endif
 
