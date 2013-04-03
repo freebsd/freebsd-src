@@ -375,7 +375,8 @@ SYSCTL_INT(_hw_igb, OID_AUTO, header_split, CTLFLAG_RDTUN, &igb_header_split, 0,
 
 /*
 ** This will autoconfigure based on
-** the number of CPUs if left at 0.
+** the number of CPUs and max supported MSI-X messages
+** if left at 0.
 */
 static int igb_num_queues = 0;
 TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
