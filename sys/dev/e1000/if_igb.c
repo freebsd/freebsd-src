@@ -100,7 +100,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.9";
+char igb_driver_version[] = "version - 2.3.10";
 
 
 /*********************************************************************
@@ -374,9 +374,9 @@ SYSCTL_INT(_hw_igb, OID_AUTO, header_split, CTLFLAG_RDTUN, &igb_header_split, 0,
     "Enable receive mbuf header split");
 
 /*
-** This will autoconfigure based on
-** the number of CPUs and max supported MSI-X messages
-** if left at 0.
+** This will autoconfigure based on the
+** number of CPUs and max supported
+** MSIX messages if left at 0.
 */
 static int igb_num_queues = 0;
 TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
@@ -2096,7 +2096,9 @@ static void
 igb_disable_promisc(struct adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	struct ifnet	*ifp = adapter->ifp;
 	u32		reg;
+	int		mcnt = 0;
 
 	if (adapter->vf_ifp) {
 		e1000_promisc_set_vf(hw, e1000_promisc_disabled);
@@ -2104,7 +2106,31 @@ igb_disable_promisc(struct adapter *adapter)
 	}
 	reg = E1000_READ_REG(hw, E1000_RCTL);
 	reg &=  (~E1000_RCTL_UPE);
-	reg &=  (~E1000_RCTL_MPE);
+	if (ifp->if_flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else {
+		struct  ifmultiaddr *ifma;
+#if __FreeBSD_version < 800000
+		IF_ADDR_LOCK(ifp);
+#else   
+		if_maddr_rlock(ifp);
+#endif
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+				break;
+			mcnt++;
+		}
+#if __FreeBSD_version < 800000
+		IF_ADDR_UNLOCK(ifp);
+#else
+		if_maddr_runlock(ifp);
+#endif
+	}
+	/* Don't disable if in MAX groups */
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg &=  (~E1000_RCTL_MPE);
 	E1000_WRITE_REG(hw, E1000_RCTL, reg);
 }
 
