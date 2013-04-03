@@ -6997,6 +6997,7 @@ get_FORM_name (unsigned long form)
     case DW_FORM_ref8:		return "DW_FORM_ref8";
     case DW_FORM_ref_udata:	return "DW_FORM_ref_udata";
     case DW_FORM_indirect:	return "DW_FORM_indirect";
+    case DW_FORM_flag_present:	return "DW_FORM_flag_present";
     default:
       {
 	static char buffer[100];
@@ -7888,6 +7889,10 @@ read_and_display_attr_value (unsigned long attribute,
       data += offset_size;
       break;
 
+    case DW_FORM_flag_present:
+      uvalue = 1;
+      break;
+
     case DW_FORM_ref1:
     case DW_FORM_flag:
     case DW_FORM_data1:
@@ -7943,6 +7948,7 @@ read_and_display_attr_value (unsigned long attribute,
       printf (" %#lx", uvalue);
       break;
 
+    case DW_FORM_flag_present:
     case DW_FORM_flag:
     case DW_FORM_data1:
     case DW_FORM_data2:
