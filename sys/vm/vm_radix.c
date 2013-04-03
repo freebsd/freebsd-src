@@ -199,15 +199,13 @@ vm_radix_isleaf(struct vm_radix_node *rnode)
 }
 
 /*
- * Returns the associated page extracted from rnode if available,
- * and NULL otherwise.
+ * Returns the associated page extracted from rnode.
  */
 static __inline vm_page_t
-vm_radix_node_page(struct vm_radix_node *rnode)
+vm_radix_topage(struct vm_radix_node *rnode)
 {
 
-	return ((((uintptr_t)rnode & VM_RADIX_ISLEAF) != 0) ?
-	    (vm_page_t)((uintptr_t)rnode & ~VM_RADIX_FLAGS) : NULL);
+	return ((vm_page_t)((uintptr_t)rnode & ~VM_RADIX_FLAGS));
 }
 
 /*
@@ -428,8 +426,8 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	}
 	do {
 		slot = vm_radix_slot(index, rnode->rn_clev);
-		m = vm_radix_node_page(rnode->rn_child[slot]);
-		if (m != NULL) {
+		if (vm_radix_isleaf(rnode->rn_child[slot])) {
+			m = vm_radix_topage(rnode->rn_child[slot]);
 			if (m->pindex == index)
 				panic("%s: key %jx is already present",
 				    __func__, (uintmax_t)index);
@@ -503,8 +501,8 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 			return (NULL);
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		rnode = rnode->rn_child[slot];
-		m = vm_radix_node_page(rnode);
-		if (m != NULL) {
+		if (vm_radix_isleaf(rnode)) {
+			m = vm_radix_topage(rnode);
 			if (m->pindex == index)
 				return (m);
 			else
@@ -522,7 +520,7 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 {
 	vm_pindex_t inc;
 	vm_page_t m;
-	struct vm_radix_node *rnode;
+	struct vm_radix_node *child, *rnode;
 	int slot;
 	uint16_t difflev;
 	boolean_t maplevels[VM_RADIX_LIMIT + 1];
@@ -560,13 +558,13 @@ restart:
 			goto restart;
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
-		m = vm_radix_node_page(rnode->rn_child[slot]);
-		if (m != NULL && m->pindex >= index)
-			return (m);
-		if (rnode->rn_child[slot] != NULL && m == NULL) {
-			rnode = rnode->rn_child[slot];
-			continue;
-		}
+		child = rnode->rn_child[slot];
+		if (vm_radix_isleaf(child)) {
+			m = vm_radix_topage(child);
+			if (m->pindex >= index)
+				return (m);
+		} else if (child != NULL)
+			goto descend;
 
 		/*
 		 * Look for an available edge or page within the current
@@ -575,30 +573,31 @@ restart:
                 if (slot < (VM_RADIX_COUNT - 1)) {
 			inc = VM_RADIX_UNITLEVEL(rnode->rn_clev);
 			index = vm_radix_trimkey(index, rnode->rn_clev);
-			index += inc;
-			slot++;
-			for (;; index += inc, slot++) {
-				m = vm_radix_node_page(rnode->rn_child[slot]);
-				if (m != NULL && m->pindex >= index)
-					return (m);
-				if ((rnode->rn_child[slot] != NULL &&
-				    m == NULL) || slot == (VM_RADIX_COUNT - 1))
-					break;
-			}
+			do {
+				index += inc;
+				slot++;
+				child = rnode->rn_child[slot];
+				if (vm_radix_isleaf(child)) {
+					m = vm_radix_topage(child);
+					if (m->pindex >= index)
+						return (m);
+				} else if (child != NULL)
+					goto descend;
+			} while (slot < (VM_RADIX_COUNT - 1));
 		}
+		KASSERT(child == NULL || vm_radix_isleaf(child),
+		    ("vm_radix_lookup_ge: child is radix node"));
 
 		/*
 		 * If a valid page or edge bigger than the search slot is
 		 * found in the traversal, skip to the next higher-level key.
 		 */
-		if (slot == (VM_RADIX_COUNT - 1) &&
-		    (rnode->rn_child[slot] == NULL || m != NULL)) {
-			if (rnode->rn_clev == 0  || vm_radix_addlev(&index,
-			    maplevels, rnode->rn_clev - 1) > 0)
-				break;
-			goto restart;
-		}
-		rnode = rnode->rn_child[slot];
+		if (rnode->rn_clev == 0 || vm_radix_addlev(&index, maplevels,
+		    rnode->rn_clev - 1) > 0)
+			break;
+		goto restart;
+descend:
+		rnode = child;
 	}
 	return (NULL);
 }
@@ -611,7 +610,7 @@ vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 {
 	vm_pindex_t inc;
 	vm_page_t m;
-	struct vm_radix_node *rnode;
+	struct vm_radix_node *child, *rnode;
 	int slot;
 	uint16_t difflev;
 	boolean_t maplevels[VM_RADIX_LIMIT + 1];
@@ -649,13 +648,13 @@ restart:
 			goto restart;
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
-		m = vm_radix_node_page(rnode->rn_child[slot]);
-		if (m != NULL && m->pindex <= index)
-			return (m);
-		if (rnode->rn_child[slot] != NULL && m == NULL) {
-			rnode = rnode->rn_child[slot];
-			continue;
-		}
+		child = rnode->rn_child[slot];
+		if (vm_radix_isleaf(child)) {
+			m = vm_radix_topage(child);
+			if (m->pindex <= index)
+				return (m);
+		} else if (child != NULL)
+			goto descend;
 
 		/*
 		 * Look for an available edge or page within the current
@@ -665,29 +664,31 @@ restart:
 			inc = VM_RADIX_UNITLEVEL(rnode->rn_clev);
 			index = vm_radix_trimkey(index, rnode->rn_clev);
 			index |= inc - 1;
-			index -= inc;
-			slot--;
-			for (;; index -= inc, slot--) {
-				m = vm_radix_node_page(rnode->rn_child[slot]);
-				if (m != NULL && m->pindex <= index)
-					return (m);
-				if ((rnode->rn_child[slot] != NULL &&
-				    m == NULL) || slot == 0)
-					break;
-			}
+			do {
+				index -= inc;
+				slot--;
+				child = rnode->rn_child[slot];
+				if (vm_radix_isleaf(child)) {
+					m = vm_radix_topage(child);
+					if (m->pindex <= index)
+						return (m);
+				} else if (child != NULL)
+					goto descend;
+			} while (slot > 0);
 		}
+		KASSERT(child == NULL || vm_radix_isleaf(child),
+		    ("vm_radix_lookup_le: child is radix node"));
 
 		/*
 		 * If a valid page or edge smaller than the search slot is
 		 * found in the traversal, skip to the next higher-level key.
 		 */
-		if (slot == 0 && (rnode->rn_child[slot] == NULL || m != NULL)) {
-			if (rnode->rn_clev == 0 || vm_radix_declev(&index,
-			    maplevels, rnode->rn_clev - 1) > 0)
-				break;
-			goto restart;
-		}
-		rnode = rnode->rn_child[slot];
+		if (rnode->rn_clev == 0 || vm_radix_declev(&index, maplevels,
+		    rnode->rn_clev - 1) > 0)
+			break;
+		goto restart;
+descend:
+		rnode = child;
 	}
 	return (NULL);
 }
@@ -709,8 +710,10 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 		if (rnode == NULL)
 			panic("vm_radix_remove: impossible to locate the key");
 		slot = vm_radix_slot(index, rnode->rn_clev);
-		m = vm_radix_node_page(rnode->rn_child[slot]);
-		if (m != NULL && m->pindex == index) {
+		if (vm_radix_isleaf(rnode->rn_child[slot])) {
+			m = vm_radix_topage(rnode->rn_child[slot]);
+			if (m->pindex != index)
+				panic("%s: invalid key found", __func__);
 			rnode->rn_child[slot] = NULL;
 			rnode->rn_count--;
 			if (rnode->rn_count > 1)
@@ -736,8 +739,6 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
 			vm_radix_node_put(rnode);
 			break;
 		}
-		if (m != NULL && m->pindex != index)
-			panic("%s: invalid key found", __func__);
 		parent = rnode;
 		rnode = rnode->rn_child[slot];
 	}
@@ -779,7 +780,8 @@ DB_SHOW_COMMAND(radixnode, db_show_radixnode)
 		if (rnode->rn_child[i] != NULL)
 			db_printf("slot: %d, val: %p, page: %p, clev: %d\n",
 			    i, (void *)rnode->rn_child[i],
-			    (void *)vm_radix_node_page(rnode->rn_child[i]),
+			    vm_radix_isleaf(rnode->rn_child[i]) ?
+			    vm_radix_topage(rnode->rn_child[i]) : NULL,
 			    rnode->rn_clev);
 }
 #endif /* DDB */
