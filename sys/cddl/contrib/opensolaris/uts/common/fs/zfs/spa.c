@@ -2885,7 +2885,7 @@ spa_open_common(const char *pool, spa_t **spapp, void *tag, nvlist_t *nvpolicy,
 #ifdef __FreeBSD__
 #ifdef _KERNEL
 		if (firstopen)
-			zvol_create_minors(pool);
+			zvol_create_minors(spa->spa_name);
 #endif
 #endif
 	}
