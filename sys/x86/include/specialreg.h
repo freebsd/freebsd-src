@@ -81,6 +81,7 @@
 #define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
 #define	EFER_LMA 0x000000400	/* Long mode active (R) */
 #define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+#define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
 
 /*
  * Intel Extended Features registers
@@ -691,6 +692,11 @@
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 #define	MSR_MC0_CTL_MASK	0xc0010044
+#define	MSR_VM_CR		0xC0010114 /* SVM: feature control */
+#define	MSR_VM_HSAVE_PA		0xC0010117 /* SVM: host save area address */
+
+/* AMD VM_CR related */
+#define	VM_CR_SVMDIS		0x10	/* SVM: disabled by BIOS */
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */
