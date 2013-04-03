@@ -52,7 +52,7 @@ struct pmap;
 	register_t	pc_dbsave[CPUSAVE_LEN];
 
 #define PCPU_MD_AIM32_FIELDS						\
-	char		__pad[0]		/* no pad for now */
+	/* char		__pad[0] */
 
 #define PCPU_MD_AIM64_FIELDS						\
 	struct slb	pc_slb[64];					\
