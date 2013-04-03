@@ -45,6 +45,9 @@ rtadvd_precmd()
 			fi
 		done
 		;;
+	[Nn][Oo][Nn][Ee])
+		rtadvd_interfaces=""
+		;;
 	esac
 	command_args="${rtadvd_interfaces}"
 
