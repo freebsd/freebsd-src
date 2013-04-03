@@ -35,6 +35,7 @@ pfsync_start()
 	if [ -n "${pfsync_syncpeer}" ]; then
 		_syncpeer="syncpeer ${pfsync_syncpeer}"
 	fi
+	load_kld pfsync
 	ifconfig pfsync0 $_syncpeer syncdev $pfsync_syncdev $pfsync_ifconfig up
 }
 
