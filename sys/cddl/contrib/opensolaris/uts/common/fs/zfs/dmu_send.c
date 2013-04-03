@@ -500,13 +500,13 @@ dmu_send_impl(void *tag, dsl_pool_t *dp, dsl_dataset_t *ds,
 	list_insert_head(&ds->ds_sendstreams, dsp);
 	mutex_exit(&ds->ds_sendstream_lock);
 
+	dsl_dataset_long_hold(ds, FTAG);
+	dsl_pool_rele(dp, tag);
+
 	if (dump_bytes(dsp, drr, sizeof (dmu_replay_record_t)) != 0) {
 		err = dsp->dsa_err;
 		goto out;
 	}
-
-	dsl_dataset_long_hold(ds, FTAG);
-	dsl_pool_rele(dp, tag);
 
 	err = traverse_dataset(ds, fromtxg, TRAVERSE_PRE | TRAVERSE_PREFETCH,
 	    backup_cb, dsp);
