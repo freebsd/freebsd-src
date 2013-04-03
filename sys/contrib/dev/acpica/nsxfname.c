@@ -361,6 +361,7 @@ AcpiGetObjectInfo (
     if (!Node)
     {
         (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+        Status = AE_BAD_PARAMETER;
         goto Cleanup;
     }
 
