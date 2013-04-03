@@ -438,7 +438,7 @@ identify(int argc, char *argv[])
 	optind = 1;
 
 	/*
-	 * If devicde node contains "ns", we consider it a namespace,
+	 * If device node contains "ns", we consider it a namespace,
 	 *  otherwise, consider it a controller.
 	 */
 	if (strstr(target, "ns") == NULL)
