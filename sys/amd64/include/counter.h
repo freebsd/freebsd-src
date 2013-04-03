@@ -33,23 +33,18 @@
 
 extern struct pcpu __pcpu[1];
 
+#define	counter_enter()	do {} while (0)
+#define	counter_exit()	do {} while (0)
+
+#define	counter_u64_add_protected(c, i)	counter_u64_add(c, i)
+
 static inline void
-counter_u64_add(counter_u64_t c, uint64_t inc)
+counter_u64_add(counter_u64_t c, int64_t inc)
 {
 
 	__asm __volatile("addq\t%1,%%gs:(%0)"
 	    :
 	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (inc)
-	    : "memory", "cc");
-}
-
-static inline void
-counter_u64_subtract(counter_u64_t c, uint64_t dec)
-{
-
-	__asm __volatile("subq\t%1,%%gs:(%0)"
-	    :
-	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (dec)
 	    : "memory", "cc");
 }
 

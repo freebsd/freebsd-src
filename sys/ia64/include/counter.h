@@ -31,22 +31,21 @@
 
 #include <sys/pcpu.h>
 
+#define	counter_enter()	critical_enter()
+#define	counter_exit()	critical_exit()
+
+#define	counter_u64_add_protected(c, inc)	do {	\
+	CRITICAL_ASSERT(td);				\
+	*(uint64_t *)zpcpu_get(c) += (inc);		\
+} while (0)
+
 static inline void
-counter_u64_add(counter_u64_t c, uint64_t inc)
+counter_u64_add(counter_u64_t c, int64_t inc)
 {
 
-	critical_enter();
-	*(uint64_t *)zpcpu_get(c) += inc;
-	critical_exit();
-}
-
-static inline void
-counter_u64_subtract(counter_u64_t c, uint64_t dec)
-{
-
-	critical_enter();
-	*(uint64_t *)zpcpu_get(c) -= dec;
-	critical_exit();
+	counter_enter();
+	counter_u64_add_protected(c, inc);
+	counter_exit();
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */

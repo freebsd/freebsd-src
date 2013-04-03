@@ -33,8 +33,18 @@
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
+#define	counter_enter()	do {				\
+	if ((cpu_feature & CPUID_CX8) == 0)		\
+		critical_enter();			\
+} while (0)
+
+#define	counter_exit()	do {				\
+	if ((cpu_feature & CPUID_CX8) == 0)		\
+		critical_exit();			\
+} while (0)
+
 static inline void
-counter_64_inc_8b(uint64_t *p, uint64_t inc)
+counter_64_inc_8b(uint64_t *p, int64_t inc)
 {
 
 	__asm __volatile(
@@ -52,8 +62,16 @@ counter_64_inc_8b(uint64_t *p, uint64_t inc)
 	: "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
 
+#define	counter_u64_add_protected(c, inc)	do {	\
+	if ((cpu_feature & CPUID_CX8) == 0) {		\
+		CRITICAL_ASSERT(td);			\
+		*(uint64_t *)zpcpu_get(c) += (inc);	\
+	} else						\
+		counter_64_inc_8b((c), (inc));		\
+} while (0)
+
 static inline void
-counter_u64_add(counter_u64_t c, uint64_t inc)
+counter_u64_add(counter_u64_t c, int64_t inc)
 {
 
 	if ((cpu_feature & CPUID_CX8) == 0) {
@@ -63,13 +81,6 @@ counter_u64_add(counter_u64_t c, uint64_t inc)
 	} else {
 		counter_64_inc_8b(c, inc);
 	}
-}
-
-static inline void
-counter_u64_subtract(counter_u64_t c, uint64_t dec)
-{
-
-	counter_u64_add(c, -(int64_t)dec);
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */
