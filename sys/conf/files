@@ -1051,6 +1051,7 @@ dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
 dev/cas/if_cas.c		optional cas
+dev/cfi/cfi_bus_nexus.c		optional cfi
 dev/cfi/cfi_core.c		optional cfi
 dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
