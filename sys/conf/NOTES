@@ -139,6 +139,12 @@ options 	MAXPHYS=(128*1024)
 #
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
+#
+# Compile-time defaults for various boot parameters
+#
+options 	BOOTVERBOSE=1
+options 	BOOTHOWTO=RB_MULTIPLE
+
 options 	GEOM_AES		# Don't use, use GEOM_BDE
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels
