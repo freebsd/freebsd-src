@@ -571,10 +571,6 @@ ath_edma_recv_tasklet(void *arg, int npending)
  *
  * + Allocate a 4KB mbuf;
  * + Setup the DMA map for the given buffer;
- * + Keep a pointer to the start of the mbuf - that's where the
- *   descriptor lies;
- * + Take a pointer to the start of the RX buffer, set the
- *   mbuf "start" to be there;
  * + Return that.
  */
 static int
