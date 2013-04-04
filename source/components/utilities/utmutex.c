@@ -96,7 +96,7 @@ AcpiUtMutexInitialize (
         }
     }
 
-    /* Create the spinlocks for use at interrupt level */
+    /* Create the spinlocks for use at interrupt level or for speed */
 
     Status = AcpiOsCreateLock (&AcpiGbl_GpeLock);
     if (ACPI_FAILURE (Status))
@@ -110,7 +110,14 @@ AcpiUtMutexInitialize (
         return_ACPI_STATUS (Status);
     }
 
+    Status = AcpiOsCreateLock (&AcpiGbl_ReferenceCountLock);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
     /* Mutex for _OSI support */
+
     Status = AcpiOsCreateMutex (&AcpiGbl_OsiMutex);
     if (ACPI_FAILURE (Status))
     {
@@ -160,6 +167,7 @@ AcpiUtMutexTerminate (
 
     AcpiOsDeleteLock (AcpiGbl_GpeLock);
     AcpiOsDeleteLock (AcpiGbl_HardwareLock);
+    AcpiOsDeleteLock (AcpiGbl_ReferenceCountLock);
 
     /* Delete the reader/writer lock */
 

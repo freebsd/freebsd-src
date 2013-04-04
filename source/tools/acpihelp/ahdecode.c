@@ -41,9 +41,10 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include "acpihelp.h"
-
 #define ACPI_CREATE_PREDEFINED_TABLE
+#define ACPI_CREATE_RESOURCE_TABLE
+
+#include "acpihelp.h"
 #include "acpredef.h"
 
 
@@ -93,15 +94,6 @@ static const AH_DEVICE_ID  AhDeviceIds[] =
 
 static char         Gbl_Buffer[BUFFER_LENGTH];
 static char         Gbl_LineBuffer[LINE_BUFFER_LENGTH];
-static const char   *AcpiRtypeNames[] =
-{
-    "/Integer",
-    "/String",
-    "/Buffer",
-    "/Package",
-    "/Reference",
-};
-
 
 /* Local prototypes */
 
@@ -115,9 +107,8 @@ AhDisplayPredefinedInfo (
     char                    *Name);
 
 static void
-AhGetExpectedTypes (
-    char                    *Buffer,
-    UINT32                  ExpectedBtypes);
+AhDisplayResourceName (
+    const ACPI_PREDEFINED_INFO  *ThisName);
 
 static void
 AhDisplayAmlOpcode (
@@ -279,83 +270,57 @@ AhDisplayPredefinedName (
 
 static void
 AhDisplayPredefinedInfo (
-    char                    *Name)
+    char                        *Name)
 {
     const ACPI_PREDEFINED_INFO  *ThisName;
-    BOOLEAN                     Matched;
-    UINT32                      i;
 
 
-    /* Find/display only the exact input name */
+    /* NOTE: we check both tables always because there are some dupes */
 
-    for (ThisName = PredefinedNames; ThisName->Info.Name[0]; ThisName++)
+    /* Check against the predefine methods first */
+
+    ThisName = AcpiUtMatchPredefinedMethod (Name);
+    if (ThisName)
     {
-        Matched = TRUE;
-        for (i = 0; i < ACPI_NAME_SIZE; i++)
-        {
-            if (ThisName->Info.Name[i] != Name[i])
-            {
-                Matched = FALSE;
-                break;
-            }
-        }
+        AcpiUtDisplayPredefinedMethod (Gbl_Buffer, ThisName, TRUE);
+    }
 
-        if (Matched)
-        {
-            AhGetExpectedTypes (Gbl_Buffer, ThisName->Info.ExpectedBtypes);
+    /* Check against the predefined resource descriptor names */
 
-            printf ("%*s%4.4s has %u arguments, returns: %s\n",
-                6, " ", ThisName->Info.Name, ThisName->Info.ParamCount,
-                ThisName->Info.ExpectedBtypes ? Gbl_Buffer : "-Nothing-");
-            return;
-        }
-
-        if (ThisName->Info.ExpectedBtypes & ACPI_RTYPE_PACKAGE)
-        {
-            ThisName++;
-        }
+    ThisName = AcpiUtMatchResourceName (Name);
+    if (ThisName)
+    {
+        AhDisplayResourceName (ThisName);
     }
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AhGetExpectedTypes
+ * FUNCTION:    AhDisplayResourceName
  *
- * PARAMETERS:  Buffer              - Where the formatted string is returned
- *              ExpectedBTypes      - Bitfield of expected data types
+ * PARAMETERS:  ThisName            - Entry in the predefined method/name table
  *
- * RETURN:      Formatted string in Buffer.
+ * RETURN:      None
  *
- * DESCRIPTION: Format the expected object types into a printable string.
+ * DESCRIPTION: Display information about a resource descriptor name.
  *
  ******************************************************************************/
 
 static void
-AhGetExpectedTypes (
-    char                    *Buffer,
-    UINT32                  ExpectedBtypes)
+AhDisplayResourceName (
+    const ACPI_PREDEFINED_INFO  *ThisName)
 {
-    UINT32                  ThisRtype;
-    UINT32                  i;
-    UINT32                  j;
+    UINT32                      NumTypes;
 
 
-    j = 1;
-    Buffer[0] = 0;
-    ThisRtype = ACPI_RTYPE_INTEGER;
+    NumTypes = AcpiUtGetResourceBitWidth (Gbl_Buffer,
+        ThisName->Info.ArgumentList);
 
-    for (i = 0; i < ACPI_NUM_RTYPES; i++)
-    {
-        /* If one of the expected types, concatenate the name of this type */
-
-        if (ExpectedBtypes & ThisRtype)
-        {
-            strcat (Buffer, &AcpiRtypeNames[i][j]);
-            j = 0;              /* Use name separator from now on */
-        }
-        ThisRtype <<= 1;    /* Next Rtype */
-    }
+    printf ("      %4.4s resource descriptor field is %s bits wide%s\n",
+        ThisName->Info.Name,
+        Gbl_Buffer,
+        (NumTypes > 1) ? " (depending on descriptor type)" : "");
 }
 
 

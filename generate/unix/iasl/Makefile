@@ -58,12 +58,14 @@ OBJECTS = \
 	$(OBJDIR)/aslhex.o\
 	$(OBJDIR)/asllength.o\
 	$(OBJDIR)/asllisting.o\
+	$(OBJDIR)/asllistsup.o\
 	$(OBJDIR)/aslload.o\
 	$(OBJDIR)/asllookup.o\
 	$(OBJDIR)/aslmain.o\
 	$(OBJDIR)/aslmap.o\
 	$(OBJDIR)/aslmethod.o\
 	$(OBJDIR)/aslnamesp.o\
+	$(OBJDIR)/asloffset.o\
 	$(OBJDIR)/aslopcodes.o\
 	$(OBJDIR)/asloperands.o\
 	$(OBJDIR)/aslopt.o\
@@ -188,6 +190,7 @@ OBJECTS = \
 	$(OBJDIR)/utmutex.o\
 	$(OBJDIR)/utobject.o\
 	$(OBJDIR)/utownerid.o\
+	$(OBJDIR)/utpredef.o\
 	$(OBJDIR)/utresrc.o\
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstring.o\

@@ -156,6 +156,7 @@ Options (
     ACPI_OPTION ("-sc -sa",         "Create source file in C or assembler (*.c or *.asm)");
     ACPI_OPTION ("-ic -ia",         "Create include file in C or assembler (*.h or *.inc)");
     ACPI_OPTION ("-tc -ta -ts",     "Create hex AML table in C, assembler, or ASL (*.hex)");
+    ACPI_OPTION ("-so",             "Create offset table in C (*.offset.h)");
 
     printf ("\nOptional Listing Files:\n");
     ACPI_OPTION ("-l",              "Create mixed listing file (ASL source and AML) (*.lst)");
@@ -782,6 +783,13 @@ AslDoOptions (
             /* Produce C hex output file */
 
             Gbl_C_OutputFlag = TRUE;
+            break;
+
+        case 'o':
+
+            /* Produce AML offset table in C */
+
+            Gbl_C_OffsetTableFlag = TRUE;
             break;
 
         default:
