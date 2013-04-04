@@ -49,7 +49,6 @@ void		xpt_release_devq(struct cam_path *path,
 		    u_int count, int run_queue);
 void		xpt_release_devq_rl(struct cam_path *path, cam_rl rl,
 		    u_int count, int run_queue);
-int		xpt_sim_opened(struct cam_sim *sim);
 void		xpt_done(union ccb *done_ccb);
 void		xpt_batch_start(struct cam_sim *sim);
 void		xpt_batch_done(struct cam_sim *sim);
