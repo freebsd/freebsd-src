@@ -295,10 +295,6 @@ AcpiNsCheckPredefinedNames (
     ACPI_STATUS             ReturnStatus,
     ACPI_OPERAND_OBJECT     **ReturnObject);
 
-const ACPI_PREDEFINED_INFO *
-AcpiNsCheckForPredefinedName (
-    ACPI_NAMESPACE_NODE     *Node);
-
 void
 AcpiNsCheckParameterCount (
     char                        *Pathname,
