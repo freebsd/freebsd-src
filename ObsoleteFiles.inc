@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130404: legacy ATA stack removed
+OLD_FILES+=sbin/atacontrol
+OLD_FILES+=usr/share/man/man8/atacontrol.8.gz
+OLD_FILES+=usr/share/man/man4/atapicam.4.gz
+OLD_FILES+=usr/share/man/man4/ataraid.4.gz
 # 20130316: vinum.4 removed
 OLD_FILES+=usr/share/man/man4/vinum.4.gz
 # 20130312: fortunes-o removed
