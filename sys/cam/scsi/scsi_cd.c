@@ -386,7 +386,6 @@ cddiskgonecb(struct disk *dp)
 	struct cam_periph *periph;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-
 	cam_periph_release(periph);
 }
 
@@ -1073,9 +1072,6 @@ cdopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	softc = (struct cd_softc *)periph->softc;
 
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
@@ -1120,9 +1116,6 @@ cdclose(struct disk *dp)
 	struct	cd_softc *softc;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	softc = (struct cd_softc *)periph->softc;
 
 	cam_periph_lock(periph);
@@ -1473,11 +1466,6 @@ cdstrategy(struct bio *bp)
 	struct cd_softc *softc;
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph == NULL) {
-		biofinish(bp, NULL, ENXIO);
-		return;
-	}
-
 	cam_periph_lock(periph);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 	    ("cdstrategy(%p)\n", bp));
@@ -1972,9 +1960,6 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	int	nocopyout, error = 0;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return(ENXIO);	
-
 	cam_periph_lock(periph);
 
 	softc = (struct cd_softc *)periph->softc;
