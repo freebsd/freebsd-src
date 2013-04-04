@@ -1446,7 +1446,7 @@ cdgetccb(struct cam_periph *periph, u_int32_t priority)
 				softc->changer->flags |= CHANGER_MANUAL_CALL;
 				cdrunchangerqueue(softc->changer);
 			} else
-				msleep(&softc->changer, periph->sim->mtx,
+				cam_periph_sleep(periph, &softc->changer,
 				    PRIBIO, "cgticb", 0);
 		}
 	}
