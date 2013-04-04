@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2013
+.Dd April 4, 2013
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -305,7 +305,7 @@ Time to wait for missing array components on startup.
 .It Va kern.geom.raid. Ns Ar X Ns Va .enable : No 1
 Enable taste for specific metadata or transformation module.
 .It Va kern.geom.raid.legacy_aliases : No 0
-Enable geom raid emulation of /dev/ar%d devices from ataraid(4)
+Enable geom raid emulation of legacy /dev/ar%d devices.
 This should aid the upgrade of systems from legacy to modern releases.
 .El
 .Sh EXIT STATUS
