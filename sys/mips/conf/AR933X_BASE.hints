@@ -14,7 +14,7 @@ hint.uart.0.at="apb0"
 # NB: This isn't an ns8250 UART
 hint.uart.0.maddr=0x18020000
 hint.uart.0.msize=0x18
-hint.uart.0.irq=3
+# hint.uart.0.irq=3
 
 #ehci - note the 0x100 offset for the AR913x/AR724x
 hint.ehci.0.at="nexus0"
