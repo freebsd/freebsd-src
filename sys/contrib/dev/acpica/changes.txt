@@ -1,4 +1,79 @@
 ----------------------------------------
+28 March 2013. Summary of changes for version 20130328:
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed several possible race conditions with the internal object reference 
+counting mechanism. Some of the external ACPICA interfaces update object 
+reference counts without holding the interpreter or namespace lock. This 
+change adds a spinlock to protect reference count updates on the internal 
+ACPICA objects. Reported by and with assistance from Andriy Gapon 
+(avg@FreeBSD.org).
+
+FADT support: Removed an extraneous warning for very large GPE register 
+sets. This change removes a size mismatch warning if the legacy length 
+field for a GPE register set is larger than the 64-bit GAS structure can 
+accommodate. GPE register sets can be larger than the 255-bit width 
+limitation of the GAS structure. Linn Crosetto (linn@hp.com).
+
+_OSI Support: handle any errors from AcpiOsAcquireMutex. Check for error 
+return from this interface. Handles a possible timeout case if 
+ACPI_WAIT_FOREVER is modified by the host to be a value less than 
+"forever". Jung-uk Kim.
+
+Predefined name support: Add allowed/required argument type information to 
+the master predefined info table. This change adds the infrastructure to 
+enable typechecking on incoming arguments for all predefined 
+methods/objects. It does not actually contain the code that will fully 
+utilize this information, this is still under development. Also condenses 
+some duplicate code for the predefined names into a new module, 
+utilities/utpredef.c
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  95.0K Code, 25.9K Data, 120.9K Total
+    Debug Version:     182.9K Code, 75.6K Data, 258.5K Total
+  Current Release:
+    Non-Debug Version:  95.2K Code, 26.4K Data, 121.6K Total
+    Debug Version:     183.0K Code, 76.0K Data, 259.0K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented a new option to simplify the development of ACPI-related 
+BIOS code. Adds support for a new "offset table" output file. The -so 
+option will create a C table containing the AML table offsets of various 
+named objects in the namespace so that BIOS code can modify them easily at 
+boot time. This can simplify BIOS runtime code by eliminating expensive 
+searches for "magic values", enhancing boot times and adding greater 
+reliability. With assistance from Lee Hamel.
+
+iASL: Allow additional predefined names to return zero-length packages. 
+Now, all predefined names that are defined by the ACPI specification to 
+return a "variable-length package of packages" are allowed to return a 
+zero length top-level package. This allows the BIOS to tell the host that 
+the requested feature is not supported, and supports existing BIOS/ASL 
+code and practices.
+
+iASL: Changed the "result not used" warning to an error. This is the case 
+where an ASL operator is effectively a NOOP because the result of the 
+operation is not stored anywhere. For example:
+    Add (4, Local0)
+There is no target (missing 3rd argument), nor is the function return 
+value used. This is potentially a very serious problem -- since the code 
+was probably intended to do something, but for whatever reason, the value 
+was not stored. Therefore, this issue has been upgraded from a warning to 
+an error.
+
+AcpiHelp: Added allowable/required argument types to the predefined names 
+info display. This feature utilizes the recent update to the predefined 
+names table (above).
+
+----------------------------------------
 14 February 2013. Summary of changes for version 20130214:
 
 1) ACPICA Kernel-resident Subsystem:
