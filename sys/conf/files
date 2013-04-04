@@ -705,12 +705,6 @@ dev/ata/chipsets/ata-serverworks.c	optional ata pci | ataserverworks
 dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage | ataati
 dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
-dev/ata/ata-disk.c		optional atadisk
-dev/ata/ata-raid.c		optional ataraid
-dev/ata/atapi-cd.c		optional atapicd
-dev/ata/atapi-fd.c		optional atapifd
-dev/ata/atapi-tape.c		optional atapist
-dev/ata/atapi-cam.c		optional atapicam
 #
 dev/ath/if_ath_pci.c		optional ath_pci pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
