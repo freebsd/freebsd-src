@@ -2430,7 +2430,6 @@ xpt_action(union ccb *start_ccb)
 void
 xpt_action_default(union ccb *start_ccb)
 {
-	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 	struct cam_path *path;
 
 	path = start_ccb->ccb_h.path;
@@ -2466,11 +2465,6 @@ xpt_action_default(union ccb *start_ccb)
 			    start_ccb->ccb_h.target_lun << 5;
 		}
 		start_ccb->csio.scsi_status = SCSI_STATUS_OK;
-		CAM_DEBUG(path, CAM_DEBUG_CDB,("%s. CDB: %s\n",
-			  scsi_op_desc(start_ccb->csio.cdb_io.cdb_bytes[0],
-			  	       &path->device->inq_data),
-			  scsi_cdb_string(start_ccb->csio.cdb_io.cdb_bytes,
-					  cdb_str, sizeof(cdb_str))));
 	}
 	/* FALLTHROUGH */
 	case XPT_TARGET_IO:
@@ -2479,13 +2473,8 @@ xpt_action_default(union ccb *start_ccb)
 		start_ccb->csio.resid = 0;
 		/* FALLTHROUGH */
 	case XPT_ATA_IO:
-		if (start_ccb->ccb_h.func_code == XPT_ATA_IO) {
+		if (start_ccb->ccb_h.func_code == XPT_ATA_IO)
 			start_ccb->ataio.resid = 0;
-			CAM_DEBUG(path, CAM_DEBUG_CDB,("%s. ACB: %s\n",
-			    ata_op_string(&start_ccb->ataio.cmd),
-			    ata_cmd_string(&start_ccb->ataio.cmd,
-					  cdb_str, sizeof(cdb_str))));
-		}
 		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
@@ -3228,6 +3217,7 @@ static void
 xpt_run_dev_sendq(struct cam_eb *bus)
 {
 	struct	cam_devq *devq;
+	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_dev_sendq\n"));
 
@@ -3307,6 +3297,26 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 				 * failed due to a rejected tag.
 				 */
 				work_ccb->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
+		}
+
+		switch (work_ccb->ccb_h.func_code) {
+		case XPT_SCSI_IO:
+			CAM_DEBUG(work_ccb->ccb_h.path,
+			    CAM_DEBUG_CDB,("%s. CDB: %s\n",
+			     scsi_op_desc(work_ccb->csio.cdb_io.cdb_bytes[0],
+					  &device->inq_data),
+			     scsi_cdb_string(work_ccb->csio.cdb_io.cdb_bytes,
+					     cdb_str, sizeof(cdb_str))));
+			break;
+		case XPT_ATA_IO:
+			CAM_DEBUG(work_ccb->ccb_h.path,
+			    CAM_DEBUG_CDB,("%s. ACB: %s\n",
+			     ata_op_string(&work_ccb->ataio.cmd),
+			     ata_cmd_string(&work_ccb->ataio.cmd,
+					    cdb_str, sizeof(cdb_str))));
+			break;
+		default:
+			break;
 		}
 
 		/*
