@@ -865,8 +865,7 @@ zpool_do_create(int argc, char **argv)
 		    ZPOOL_PROP_VERSION), "28", &props, B_TRUE))
 			goto errout;
 		enable_all_pool_feat = B_FALSE;
-	} else if (enable_all_pool_feat)
-		nvlist_remove_all(props, zpool_prop_to_name(ZPOOL_PROP_VERSION));
+	}
 #endif /* __FreeBSD__ */
 
 	argc -= optind;
