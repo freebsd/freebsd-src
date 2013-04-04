@@ -392,7 +392,8 @@ AcpiUtOsiImplementation (
     Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        AcpiUtDeleteObjectDesc (ReturnDesc);
+        return_ACPI_STATUS (Status);
     }
 
     /* Lookup the interface in the global _OSI list */
