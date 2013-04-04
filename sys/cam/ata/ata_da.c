@@ -411,11 +411,7 @@ static void		adasuspend(void *arg);
 static void		adaresume(void *arg);
 
 #ifndef	ADA_DEFAULT_LEGACY_ALIASES
-#ifdef ATA_CAM
 #define	ADA_DEFAULT_LEGACY_ALIASES	1
-#else
-#define	ADA_DEFAULT_LEGACY_ALIASES	0
-#endif
 #endif
 
 #ifndef ADA_DEFAULT_TIMEOUT
