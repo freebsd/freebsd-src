@@ -8,6 +8,5 @@ SUBDIR += atacbus
 SUBDIR += ataisa
 .endif
 SUBDIR += atapci 
-SUBDIR += atadisk atapicd atapifd atapist ataraid atapicam #atacam
 
 .include <bsd.subdir.mk>

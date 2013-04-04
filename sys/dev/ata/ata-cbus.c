@@ -53,12 +53,6 @@ struct ata_cbus_controller {
     struct resource *bankio;
     struct resource *irq;
     void *ih;
-#ifndef ATA_CAM
-    struct mtx bank_mtx;
-    int locked_bank;
-    int restart_bank;
-    int hardware_bank;
-#endif
     int channels;
     struct {
 	void (*function)(void *);
@@ -68,9 +62,6 @@ struct ata_cbus_controller {
 
 /* local prototypes */
 static void ata_cbus_intr(void *);
-#ifndef ATA_CAM
-static int ata_cbuschannel_banking(device_t dev, int flags);
-#endif
 
 static int
 ata_cbus_probe(device_t dev)
@@ -160,17 +151,9 @@ ata_cbus_attach(device_t dev)
 	return ENXIO;
     }
 
-#ifndef ATA_CAM
-	ctlr->channels = 2;
-    mtx_init(&ctlr->bank_mtx, "ATA cbus bank lock", NULL, MTX_DEF);
-    ctlr->hardware_bank = -1;
-    ctlr->locked_bank = -1;
-    ctlr->restart_bank = -1;
-#else
 	/* Work around the lack of channel serialization in ATA_CAM. */
 	ctlr->channels = 1;
 	device_printf(dev, "second channel ignored\n");
-#endif
 
     for (unit = 0; unit < ctlr->channels; unit++) {
 	child = device_add_child(dev, "ata", unit);
@@ -244,10 +227,7 @@ ata_cbus_intr(void *data)
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-#ifndef ATA_CAM
-	if (ata_cbuschannel_banking(ch->dev, ATA_LF_WHICH) == unit)
-#endif
-	    ctlr->interrupt[unit].function(ch);
+	ctlr->interrupt[unit].function(ch);
     }
 }
 
@@ -349,50 +329,6 @@ ata_cbuschannel_resume(device_t dev)
     return ata_resume(dev);
 }
 
-#ifndef ATA_CAM
-static int
-ata_cbuschannel_banking(device_t dev, int flags)
-{
-    struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
-    struct ata_channel *ch = device_get_softc(dev);
-    int res;
-
-    mtx_lock(&ctlr->bank_mtx);
-    switch (flags) {
-    case ATA_LF_LOCK:
-	if (ctlr->locked_bank == -1)
-	    ctlr->locked_bank = ch->unit;
-	if (ctlr->locked_bank == ch->unit) {
-	    ctlr->hardware_bank = ch->unit;
-	    ATA_OUTB(ctlr->bankio, 0, ch->unit);
-	}
-	else
-	    ctlr->restart_bank = ch->unit;
-	break;
-
-    case ATA_LF_UNLOCK:
-	if (ctlr->locked_bank == ch->unit) {
-	    ctlr->locked_bank = -1;
-	    if (ctlr->restart_bank != -1) {
-		if ((ch = ctlr->interrupt[ctlr->restart_bank].argument)) {
-		    ctlr->restart_bank = -1;
-		    mtx_unlock(&ctlr->bank_mtx);
-		    ata_start(ch->dev);
-		    return -1;
-		}
-	    }
-	}
-	break;
-
-    case ATA_LF_WHICH:
-	break;
-    }
-    res = ctlr->locked_bank;
-    mtx_unlock(&ctlr->bank_mtx);
-    return res;
-}
-#endif
-
 static device_method_t ata_cbuschannel_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,     ata_cbuschannel_probe),
@@ -400,11 +336,6 @@ static device_method_t ata_cbuschannel_methods[] = {
     DEVMETHOD(device_detach,    ata_cbuschannel_detach),
     DEVMETHOD(device_suspend,   ata_cbuschannel_suspend),
     DEVMETHOD(device_resume,    ata_cbuschannel_resume),
-
-#ifndef ATA_CAM
-    /* ATA methods */
-    DEVMETHOD(ata_locking,      ata_cbuschannel_banking),
-#endif
     DEVMETHOD_END
 };
 
