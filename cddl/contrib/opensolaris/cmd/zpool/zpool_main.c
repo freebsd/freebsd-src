@@ -856,6 +856,16 @@ zpool_do_create(int argc, char **argv)
 		}
 	}
 
+#ifdef __FreeBSD__
+	/* Compatiblity with FreeBSD 9.0 and 9.1: Use version 28 if unspecified */
+	if (enable_all_pool_feat && !prop_list_contains_feature(props)) {
+		if (add_prop_list(zpool_prop_to_name(
+		    ZPOOL_PROP_VERSION), "28", &props, B_TRUE))
+			goto errout;
+		enable_all_pool_feat = B_FALSE;
+	}
+#endif /* __FreeBSD__ */
+
 	argc -= optind;
 	argv += optind;
 
