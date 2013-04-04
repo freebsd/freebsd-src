@@ -228,6 +228,21 @@
 .Op Fl y
 .Op Fl s
 .Nm
+.Ic security
+.Op device id
+.Op generic args
+.Op Fl d Ar pwd
+.Op Fl e Ar pwd
+.Op Fl f
+.Op Fl h Ar pwd
+.Op Fl k Ar pwd
+.Op Fl l Ar high|maximum
+.Op Fl q
+.Op Fl s Ar pwd
+.Op Fl T Ar timeout
+.Op Fl U Ar user|master
+.Op Fl y
+.Nm
 .Ic help
 .Sh DESCRIPTION
 The
@@ -1072,6 +1087,123 @@ specifies automatic standby timer value in seconds. Value 0 disables timer.
 .It Ic sleep
 Put ATA device into SLEEP state. Note that the only way get device out of
 this state may be reset.
+.It Ic security
+Update or report security settings, using an ATA identify command (0xec).
+By default,
+.Nm
+will print out the security support and associated settings of the device.
+The
+.Ic security
+command takes several arguments:
+.Bl -tag -width 0n
+.It Fl d Ar pwd
+.Pp
+Disable device security using the given password for the selected user according
+to the devices configured security level.
+.It Fl e Ar pwd
+.Pp
+Erase the device using the given password for the selected user.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Issuing a secure erase will
+.Em ERASE ALL
+user data on the device and may take several hours to complete.
+.Pp
+When this command is used against an SSD drive all its cells will be marked as
+empty, restoring it to factory default write performance. For SSD's this action
+usually takes just a few seconds.
+.It Fl f
+.Pp
+Freeze the security configuration of the specified device.
+.Pp
+After command completion any other commands that update the device lock mode
+shall be command aborted. Frozen mode is disabled by power-off or hardware reset. 
+.It Fl h Ar pwd
+.Pp
+Enhanced erase the device using the given password for the selected user.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Issuing an enhanced secure erase will 
+.Em ERASE ALL
+user data on the device and may take several hours to complete.
+.Pp
+An enhanced erase writes predetermined data patterns to all user data areas,
+all previously written user data shall be overwritten, including sectors that
+are no longer in use due to reallocation.
+.It Fl k Ar pwd
+.Pp
+Unlock the device using the given password for the selected user according to
+the devices configured security level.
+.It Fl l Ar high|maximum
+.Pp
+Specifies which security level to set when issuing a
+.Fl s Ar pwd
+command. The security level determines device behavior when the master
+password is used to unlock the device. When the security level is set to high
+the device requires the unlock command and the master password to unlock.
+When the security level is set to maximum the device requires a secure erase
+with the master password to unlock.
+.Pp
+This option must be used in conjunction with one of the security action commands.
+.Pp
+Defaults to
+.Em high
+.It Fl q
+.Pp
+Be quiet, do not print any status messages.
+This option will not disable the questions, however.
+To disable questions, use the
+.Fl y
+argument, below.
+.It Fl s Ar pwd
+.Pp
+Password the device (enable security) using the given password for the selected
+user. This option can be combined with other options such as
+.Fl e Em pwd
+.Pp
+A master password may be set in a addition to the user password. The purpose of
+the master password is to allow an administrator to establish a password that
+is kept secret from the user, and which may be used to unlock the device if the
+user password is lost.
+.Pp
+.Em Note:
+Setting the master password does not enable device security.
+.Pp
+If the master password is set and the drive supports a Master Revision Code
+feature the Master Password Revision Code will be decremented.
+.It Fl T Ar timeout
+.Pp
+Overrides the default timeout, specified in seconds, used for both
+.Fl e
+and
+.Fl h
+this is useful if your system has problems processing long timeouts correctly.
+.Pp
+Usually the timeout is calculated from the information stored on the drive if
+present, otherwise it defaults to 2 hours.
+.It Fl U Ar user|master
+.Pp
+Specifies which user to set / use for the running action command, valid values
+are user or master and defaults to master if not set.
+.Pp
+This option must be used in conjunction with one of the security action commands.
+.Pp
+Defaults to
+.Em master
+.It Fl y
+.Pp
+Confirm yes to dangerous options such as
+.Fl e
+without prompting for confirmation.
+.Pp
+.El
+If the password specified for any action commands doesn't match the configured
+password for the specified user the command will fail.
+.Pp
+The password in all cases is limited to 32 characters, longer passwords will
+fail.
 .It Ic fwdownload
 Program firmware of the named SCSI device using the image file provided.
 .Pp
@@ -1240,6 +1372,33 @@ camcontrol smpcmd ses0 -v -r 4 "40 0 00 0" -R 1020 "s9 i1"
 Send the SMP REPORT GENERAL command to ses0, and display the number of PHYs
 it contains.
 Display SMP errors if the command fails.
+.Pp
+.Bd -literal -offset indent
+camcontrol security ada0
+.Ed
+.Pp
+Report security support and settings for ada0
+.Pp
+.Bd -literal -offset indent
+camcontrol security ada0 -u user -s MyPass 
+.Ed
+.Pp
+Enable security on device ada0 with the password MyPass
+.Pp
+.Bd -literal -offset indent
+camcontrol security ada0 -u user -e MyPass
+.Ed
+.Pp
+Secure erase ada0 which has had security enabled with user password MyPass
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+This will
+.Em ERASE ALL
+data from the device, so backup your data before using!
+.Pp
+This command can be used used against an SSD drive to restoring it to
+factory default write performance.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,
