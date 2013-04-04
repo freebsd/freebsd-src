@@ -106,6 +106,7 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 {
 	int error;
 
+	mtx_assert(sim->mtx, MA_OWNED);
 	sim->refcount--;
 	if (sim->refcount > 0) {
 		error = msleep(sim, sim->mtx, PRIBIO, "simfree", 0);
