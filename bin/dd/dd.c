@@ -98,6 +98,13 @@ main(int argc __unused, char *argv[])
 		dd_in();
 
 	dd_close();
+	/*
+	 * Some devices such as cfi(4) may perform significant amounts
+	 * of work when a write descriptor is closed.  Close the out
+	 * descriptor explicitly so that the summary handler (called
+	 * from an atexit() hook) includes this work.
+	 */
+	close(out.fd);
 	exit(0);
 }
 

@@ -157,13 +157,9 @@ ata_sata_phy_reset(device_t dev, int port, int quick)
     int loop, retry, sata_rev;
     uint32_t val, val1;
 
-#ifdef ATA_CAM
     sata_rev = ch->user[port < 0 ? 0 : port].revision;
     if (sata_rev > 0)
 	quick = 0;
-#else
-    sata_rev = 0;
-#endif
 
     if (quick) {
 	if (ata_sata_scr_read(ch, port, ATA_SCONTROL, &val))

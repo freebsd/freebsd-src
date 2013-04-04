@@ -119,9 +119,7 @@ ata_ite_ch_attach(device_t dev)
  
 	error = ata_pci_ch_attach(dev);
 	ch->flags |= ATA_CHECKS_CABLE;
-#ifdef ATA_CAM
 	ch->flags |= ATA_NO_ATAPI_DMA;
-#endif
 	return (error);
 }
 

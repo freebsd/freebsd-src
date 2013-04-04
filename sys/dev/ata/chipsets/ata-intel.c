@@ -908,9 +908,6 @@ static void
 ata_intel_31244_tf_write(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(request->parent);
-#ifndef ATA_CAM
-    struct ata_device *atadev = device_get_softc(request->dev);
-#endif
 
     if (request->flags & ATA_R_48BIT) {
 	ATA_IDX_OUTW(ch, ATA_FEATURE, request->u.ata.feature);
@@ -926,38 +923,12 @@ ata_intel_31244_tf_write(struct ata_request *request)
     else {
 	ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
 	ATA_IDX_OUTB(ch, ATA_COUNT, request->u.ata.count);
-#ifndef ATA_CAM
-	if (atadev->flags & ATA_D_USE_CHS) {
-	    int heads, sectors;
-    
-	    if (atadev->param.atavalid & ATA_FLAG_54_58) {
-		heads = atadev->param.current_heads;
-		sectors = atadev->param.current_sectors;
-	    }
-	    else {
-		heads = atadev->param.heads;
-		sectors = atadev->param.sectors;
-	    }
-	    ATA_IDX_OUTB(ch, ATA_SECTOR, (request->u.ata.lba % sectors)+1);
-	    ATA_IDX_OUTB(ch, ATA_CYL_LSB,
-			 (request->u.ata.lba / (sectors * heads)));
-	    ATA_IDX_OUTB(ch, ATA_CYL_MSB,
-			 (request->u.ata.lba / (sectors * heads)) >> 8);
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(request->unit) | 
-			 (((request->u.ata.lba% (sectors * heads)) /
-			   sectors) & 0xf));
-	}
-	else {
-#endif
 	    ATA_IDX_OUTB(ch, ATA_SECTOR, request->u.ata.lba);
 	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
 	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
 	    ATA_IDX_OUTB(ch, ATA_DRIVE,
 			 ATA_D_IBM | ATA_D_LBA | ATA_DEV(request->unit) |
 			 ((request->u.ata.lba >> 24) & 0x0f));
-#ifndef ATA_CAM
-	}
-#endif
     }
 }
 
