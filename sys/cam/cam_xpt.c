@@ -2062,39 +2062,6 @@ xptbustraverse(struct cam_eb *start_bus, xpt_busfunc_t *tr_func, void *arg)
 	return(retval);
 }
 
-int
-xpt_sim_opened(struct cam_sim *sim)
-{
-	struct cam_eb *bus;
-	struct cam_et *target;
-	struct cam_ed *device;
-	struct cam_periph *periph;
-
-	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
-	mtx_assert(sim->mtx, MA_OWNED);
-
-	xpt_lock_buses();
-	TAILQ_FOREACH(bus, &xsoftc.xpt_busses, links) {
-		if (bus->sim != sim)
-			continue;
-
-		TAILQ_FOREACH(target, &bus->et_entries, links) {
-			TAILQ_FOREACH(device, &target->ed_entries, links) {
-				SLIST_FOREACH(periph, &device->periphs,
-				    periph_links) {
-					if (periph->refcount > 0) {
-						xpt_unlock_buses();
-						return (1);
-					}
-				}
-			}
-		}
-	}
-
-	xpt_unlock_buses();
-	return (0);
-}
-
 static int
 xpttargettraverse(struct cam_eb *bus, struct cam_et *start_target,
 		  xpt_targetfunc_t *tr_func, void *arg)
