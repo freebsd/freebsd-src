@@ -126,15 +126,35 @@ ApCheckPackage (
     Count = (UINT32) Op->Asl.Value.Integer;
 
     /*
-     * Most packages must have at least one element. The only exception
-     * is the variable-length package (ACPI_PTYPE1_VAR).
+     * Many of the variable-length top-level packages are allowed to simply
+     * have zero elements. This allows the BIOS to tell the host that even
+     * though the predefined name/method exists, the feature is not supported.
+     * Other package types require one or more elements. In any case, there
+     * is no need to continue validation.
      */
     if (!Count)
     {
-        if (Package->RetInfo.Type != ACPI_PTYPE1_VAR)
+        switch (Package->RetInfo.Type)
         {
+        case ACPI_PTYPE1_FIXED:
+        case ACPI_PTYPE1_OPTION:
+        case ACPI_PTYPE2_PKG_COUNT:
+        case ACPI_PTYPE2_REV_FIXED:
+
             ApZeroLengthPackage (Predefined->Info.Name, ParentOp);
+            break;
+
+        case ACPI_PTYPE1_VAR:
+        case ACPI_PTYPE2:
+        case ACPI_PTYPE2_COUNT:
+        case ACPI_PTYPE2_FIXED:
+        case ACPI_PTYPE2_MIN:
+        case ACPI_PTYPE2_FIX_VAR:
+        default:
+
+            break;
         }
+
         return;
     }
 

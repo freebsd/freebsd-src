@@ -109,18 +109,22 @@ AcpiNsEvaluate (
     Info->ReturnObject = NULL;
     Info->ParamCount = 0;
 
-    /*
-     * Get the actual namespace node for the target object. Handles these cases:
-     *
-     * 1) Null node, Pathname (absolute path)
-     * 2) Node, Pathname (path relative to Node)
-     * 3) Node, Null Pathname
-     */
-    Status = AcpiNsGetNode (Info->PrefixNode, Info->Pathname,
-                ACPI_NS_NO_UPSEARCH, &Info->ResolvedNode);
-    if (ACPI_FAILURE (Status))
+    if (!Info->ResolvedNode)
     {
-        return_ACPI_STATUS (Status);
+        /*
+         * Get the actual namespace node for the target object if we need to.
+         * Handles these cases:
+         *
+         * 1) Null node, Pathname (absolute path)
+         * 2) Node, Pathname (path relative to Node)
+         * 3) Node, Null Pathname
+         */
+        Status = AcpiNsGetNode (Info->PrefixNode, Info->Pathname,
+                    ACPI_NS_NO_UPSEARCH, &Info->ResolvedNode);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
     }
 
     /*

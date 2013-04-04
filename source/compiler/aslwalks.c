@@ -499,13 +499,13 @@ AnOtherSemanticAnalysisWalkBegin (
                     (PrevArgNode) &&
                     (PrevArgNode->Asl.ParseOpcode == PARSEOP_ZERO))
                 {
-                    AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+                    AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                         Op, Op->Asl.ExternalName);
                 }
             }
             else if (ArgNode->Asl.ParseOpcode == PARSEOP_ZERO)
             {
-                AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+                AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                     Op, Op->Asl.ExternalName);
             }
         }
@@ -523,7 +523,7 @@ AnOtherSemanticAnalysisWalkBegin (
                 break;
 
             default:
-                AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+                AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                     Op, Op->Asl.ExternalName);
                 break;
             }

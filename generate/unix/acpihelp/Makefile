@@ -34,7 +34,8 @@ OBJECTS = \
 	$(OBJDIR)/ahpredef.o\
 	$(OBJDIR)/ahmain.o\
 	$(OBJDIR)/getopt.o\
-	$(OBJDIR)/utexcep.o
+	$(OBJDIR)/utexcep.o\
+	$(OBJDIR)/utpredef.o
 
 #
 # Flags specific to acpihelp

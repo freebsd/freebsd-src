@@ -119,9 +119,10 @@ typedef struct acpi_pkg_info
 
 } ACPI_PKG_INFO;
 
+/* Object reference counts */
+
 #define REF_INCREMENT       (UINT16) 0
 #define REF_DECREMENT       (UINT16) 1
-#define REF_FORCE_DELETE    (UINT16) 2
 
 /* AcpiUtDumpBuffer */
 
@@ -614,7 +615,7 @@ ACPI_STATUS
 AcpiUtInitializeInterfaces (
     void);
 
-void
+ACPI_STATUS
 AcpiUtInterfaceTerminate (
     void);
 
@@ -633,6 +634,38 @@ AcpiUtGetInterface (
 ACPI_STATUS
 AcpiUtOsiImplementation (
     ACPI_WALK_STATE         *WalkState);
+
+
+/*
+ * utpredef - support for predefined names
+ */
+const ACPI_PREDEFINED_INFO *
+AcpiUtGetNextPredefinedMethod (
+    const ACPI_PREDEFINED_INFO  *ThisName);
+
+const ACPI_PREDEFINED_INFO *
+AcpiUtMatchPredefinedMethod (
+    char                        *Name);
+
+const ACPI_PREDEFINED_INFO *
+AcpiUtMatchResourceName (
+    char                        *Name);
+
+void
+AcpiUtDisplayPredefinedMethod (
+    char                        *Buffer,
+    const ACPI_PREDEFINED_INFO  *ThisName,
+    BOOLEAN                     MultiLine);
+
+void
+AcpiUtGetExpectedReturnTypes (
+    char                    *Buffer,
+    UINT32                  ExpectedBtypes);
+
+UINT32
+AcpiUtGetResourceBitWidth (
+    char                    *Buffer,
+    UINT16                  Types);
 
 
 /*

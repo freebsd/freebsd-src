@@ -282,6 +282,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_OBJECT_BUFFER_FIELD",            SRC_TYPE_STRUCT},
     {"ACPI_OBJECT_CACHE_LIST",              SRC_TYPE_STRUCT},
     {"ACPI_OBJECT_COMMON",                  SRC_TYPE_STRUCT},
+    {"ACPI_OBJECT_CONVERTER",               SRC_TYPE_SIMPLE},
     {"ACPI_OBJECT_DATA",                    SRC_TYPE_STRUCT},
     {"ACPI_OBJECT_DEVICE",                  SRC_TYPE_STRUCT},
     {"ACPI_OBJECT_EVENT",                   SRC_TYPE_STRUCT},

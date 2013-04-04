@@ -727,7 +727,7 @@ AcpiDsExecEndOp (
         default:
 
             ACPI_ERROR ((AE_INFO,
-                "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
+                "Unimplemented opcode, class=0x%X type=0x%X Opcode=0x%X Op=%p",
                 OpClass, OpType, Op->Common.AmlOpcode, Op));
 
             Status = AE_NOT_IMPLEMENTED;
