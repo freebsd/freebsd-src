@@ -527,10 +527,6 @@ adaopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL) {
-		return (ENXIO);	
-	}
-
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		return(ENXIO);
 	}
@@ -566,9 +562,6 @@ adaclose(struct disk *dp)
 	union ccb *ccb;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	cam_periph_lock(periph);
 	if (cam_periph_hold(periph, PRIBIO) != 0) {
 		cam_periph_unlock(periph);
@@ -646,10 +639,6 @@ adastrategy(struct bio *bp)
 	struct ada_softc *softc;
 	
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph == NULL) {
-		biofinish(bp, NULL, ENXIO);
-		return;
-	}
 	softc = (struct ada_softc *)periph->softc;
 
 	cam_periph_lock(periph);
@@ -704,8 +693,6 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 
 	dp = arg;
 	periph = dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);
 	softc = (struct ada_softc *)periph->softc;
 	cam_periph_lock(periph);
 	secsize = softc->params.secsize;
@@ -1038,9 +1025,6 @@ adagetattr(struct bio *bp)
 	struct cam_periph *periph;
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
 	    periph->path);
