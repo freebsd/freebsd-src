@@ -663,16 +663,12 @@ f_network() {  f_device_name_set $DEVICE_TYPE_NETWORK "$1" "$2";       }
 ############################################################ MAIN
 
 # CDROM, Disk, Floppy, Serial, and USB devices/names
-f_cdrom  "acd%d"  "ATAPI/IDE CDROM"                   4
 f_cdrom  "cd%d"   "SCSI CDROM drive"                  4
 f_cdrom  "mcd%d"  "Mitsumi (old model) CDROM drive"   4
 f_cdrom  "scd%d"  "Sony CDROM drive - CDU31/33A type" 4
 f_disk   "aacd%d" "Adaptec FSA RAID array"            4
-f_disk   "ad%d"   "ATA/IDE disk device"               16
-f_disk   "ada%d"  "SATA disk device"                  16
-f_disk   "afd%d"  "ATAPI/IDE floppy device"           4
+f_disk   "ada%d"  "ATA/SATA disk device"              16
 f_disk   "amrd%d" "AMI MegaRAID drive"                4
-f_disk   "ar%d"   "ATA/IDE RAID device"               16
 f_disk   "da%d"   "SCSI disk device"                  16
 f_disk   "idad%d" "Compaq RAID array"                 4
 f_disk   "ipsd%d" "IBM ServeRAID RAID array"          4
