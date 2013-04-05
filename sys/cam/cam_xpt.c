@@ -4053,6 +4053,7 @@ xpt_async_string(u_int32_t async_code)
 	case AC_GETDEV_CHANGED: return ("AC_GETDEV_CHANGED");
 	case AC_CONTRACT: return ("AC_CONTRACT");
 	case AC_ADVINFO_CHANGED: return ("AC_ADVINFO_CHANGED");
+	case AC_UNIT_ATTENTION: return ("AC_UNIT_ATTENTION");
 	}
 	return ("AC_UNKNOWN");
 }

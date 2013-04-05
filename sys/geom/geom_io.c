@@ -311,6 +311,8 @@ g_io_check(struct bio *bp)
 	/* if provider is marked for error, don't disturb. */
 	if (pp->error)
 		return (pp->error);
+	if (cp->flags & G_CF_ORPHAN)
+		return (ENXIO);
 
 	switch(bp->bio_cmd) {
 	case BIO_READ:

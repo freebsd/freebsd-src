@@ -465,6 +465,7 @@ g_slice_spoiled(struct g_consumer *cp)
 	g_topology_assert();
 	gp = cp->geom;
 	g_trace(G_T_TOPOLOGY, "g_slice_spoiled(%p/%s)", cp, gp->name);
+	cp->flags |= G_CF_ORPHAN;
 	gsp = gp->softc;
 	gp->softc = NULL;
 	g_slice_free(gsp);

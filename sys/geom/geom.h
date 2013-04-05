@@ -169,7 +169,9 @@ struct g_consumer {
 	struct g_provider	*provider;
 	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
 	int			acr, acw, ace;
-	int			spoiled;
+	int			flags;
+#define G_CF_SPOILED		0x1
+#define G_CF_ORPHAN		0x4
 	struct devstat		*stat;
 	u_int			nstart, nend;
 
@@ -242,6 +244,8 @@ int g_post_event(g_event_t *func, void *arg, int flag, ...);
 int g_waitfor_event(g_event_t *func, void *arg, int flag, ...);
 void g_cancel_event(void *ref);
 int g_attr_changed(struct g_provider *pp, const char *attr, int flag);
+int g_media_changed(struct g_provider *pp, int flag);
+int g_media_gone(struct g_provider *pp, int flag);
 void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidlelock(void);
 
