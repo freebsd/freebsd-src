@@ -54,7 +54,7 @@ static int smb_vcnext = 1;	/* next unique id for VC */
 
 SYSCTL_NODE(_net, OID_AUTO, smb, CTLFLAG_RW, NULL, "SMB protocol");
 
-MALLOC_DEFINE(M_SMBCONN, "smb_conn", "SMB connection");
+static MALLOC_DEFINE(M_SMBCONN, "smb_conn", "SMB connection");
 
 static void smb_co_init(struct smb_connobj *cp, int level, char *ilockname,
     char *lockname);

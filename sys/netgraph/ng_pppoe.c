@@ -58,7 +58,7 @@
 #include <netgraph/ng_ether.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
+static MALLOC_DEFINE(M_NETGRAPH_PPPOE, "netgraph_pppoe", "netgraph pppoe node");
 #else
 #define M_NETGRAPH_PPPOE M_NETGRAPH
 #endif

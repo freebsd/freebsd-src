@@ -118,7 +118,7 @@ SYSCTL_UINT(_net, OID_AUTO, ifdescr_maxlen, CTLFLAG_RW,
 	&ifdescr_maxlen, 0,
 	"administrative maximum length for interface description");
 
-MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
+static MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
 
 /* global sx for non-critical path ifdescr */
 static struct sx ifdescr_sx;
@@ -215,7 +215,7 @@ struct sx ifnet_sxlock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
-MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
+static MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 

@@ -134,7 +134,7 @@ static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
 
 /* XXX: should be in an arp support file, not here */
-MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
+static MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 
 #define	ETHER_IS_BROADCAST(addr) \
 	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)

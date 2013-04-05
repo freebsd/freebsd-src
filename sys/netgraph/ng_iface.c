@@ -87,7 +87,7 @@
 #include <netgraph/ng_cisco.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_IFACE, "netgraph_iface", "netgraph iface node ");
+static MALLOC_DEFINE(M_NETGRAPH_IFACE, "netgraph_iface", "netgraph iface node");
 #else
 #define M_NETGRAPH_IFACE M_NETGRAPH
 #endif

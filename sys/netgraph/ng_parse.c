@@ -62,7 +62,7 @@
 #include <netgraph/ng_parse.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PARSE, "netgraph_parse", "netgraph parse info");
+static MALLOC_DEFINE(M_NETGRAPH_PARSE, "netgraph_parse", "netgraph parse info");
 #else
 #define M_NETGRAPH_PARSE M_NETGRAPH
 #endif

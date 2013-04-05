@@ -84,7 +84,7 @@ SYSCTL_INT(_hw_firewire_fwmem, OID_AUTO, speed, CTLFLAG_RW, &fwmem_speed, 0,
 SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 	"Fwmem driver debug flag");
 
-MALLOC_DEFINE(M_FWMEM, "fwmem", "fwmem/FireWire");
+static MALLOC_DEFINE(M_FWMEM, "fwmem", "fwmem/FireWire");
 
 #define MAXLEN (512 << fwmem_speed)
 

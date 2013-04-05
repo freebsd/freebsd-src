@@ -185,7 +185,7 @@ static struct acpi_video_output_queue crt_units, tv_units,
  */
 ACPI_SERIAL_DECL(video, "ACPI video");
 ACPI_SERIAL_DECL(video_output, "ACPI video output");
-MALLOC_DEFINE(M_ACPIVIDEO, "acpivideo", "ACPI video extension");
+static MALLOC_DEFINE(M_ACPIVIDEO, "acpivideo", "ACPI video extension");
 
 static int
 acpi_video_modevent(struct module *mod __unused, int evt, void *cookie __unused)

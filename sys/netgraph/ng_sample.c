@@ -58,7 +58,7 @@
 /* If you do complicated mallocs you may want to do this */
 /* and use it for your mallocs */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_XXX, "netgraph_xxx", "netgraph xxx node ");
+static MALLOC_DEFINE(M_NETGRAPH_XXX, "netgraph_xxx", "netgraph xxx node");
 #else
 #define M_NETGRAPH_XXX M_NETGRAPH
 #endif

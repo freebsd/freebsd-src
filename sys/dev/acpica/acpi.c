@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_param.h>
 
-MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
+static MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUS

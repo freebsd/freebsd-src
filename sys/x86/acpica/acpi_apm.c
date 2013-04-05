@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 static int apm_active;
 static struct clonedevs *apm_clones;
 
-MALLOC_DEFINE(M_APMDEV, "apmdev", "APM device emulation");
+static MALLOC_DEFINE(M_APMDEV, "apmdev", "APM device emulation");
 
 static d_open_t		apmopen;
 static d_close_t	apmclose;

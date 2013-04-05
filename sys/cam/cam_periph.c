@@ -91,7 +91,7 @@ static int nperiph_drivers;
 static int initialized = 0;
 struct periph_driver **periph_drivers;
 
-MALLOC_DEFINE(M_CAMPERIPH, "CAM periph", "CAM peripheral buffers");
+static MALLOC_DEFINE(M_CAMPERIPH, "CAM periph", "CAM peripheral buffers");
 
 static int periph_selto_delay = 1000;
 TUNABLE_INT("kern.cam.periph_selto_delay", &periph_selto_delay);

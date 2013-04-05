@@ -46,8 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_rq.h>
 #include <netsmb/smb_subr.h>
 
-MALLOC_DEFINE(M_SMBDATA, "SMBDATA", "Misc netsmb data");
-MALLOC_DEFINE(M_SMBSTR, "SMBSTR", "netsmb string data");
+static MALLOC_DEFINE(M_SMBDATA, "SMBDATA", "Misc netsmb data");
+static MALLOC_DEFINE(M_SMBSTR, "SMBSTR", "netsmb string data");
 MALLOC_DEFINE(M_SMBTEMP, "SMBTEMP", "Temp netsmb data");
 
 smb_unichar smb_unieol = 0;

@@ -104,7 +104,7 @@ static driver_t	aac_pass_driver = {
 DRIVER_MODULE(aacp, aac, aac_pass_driver, aac_pass_devclass, 0, 0);
 MODULE_DEPEND(aacp, cam, 1, 1, 1);
 
-MALLOC_DEFINE(M_AACCAM, "aaccam", "AAC CAM info");
+static MALLOC_DEFINE(M_AACCAM, "aaccam", "AAC CAM info");
 
 static void
 aac_cam_rescan(struct aac_softc *sc, uint32_t channel, uint32_t target_id)

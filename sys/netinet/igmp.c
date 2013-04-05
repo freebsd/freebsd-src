@@ -185,7 +185,7 @@ static const struct netisr_handler igmp_nh = {
 struct mtx		 igmp_mtx;
 
 struct mbuf		*m_raopt;		 /* Router Alert option */
-MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
+static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 
 /*
  * VIMAGE-wide globals.

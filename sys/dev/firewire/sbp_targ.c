@@ -95,7 +95,7 @@
 #define F_HOLD		(1 << 3)
 #define F_FREEZED	(1 << 4)
 
-MALLOC_DEFINE(M_SBP_TARG, "sbp_targ", "SBP-II/FireWire target mode");
+static MALLOC_DEFINE(M_SBP_TARG, "sbp_targ", "SBP-II/FireWire target mode");
 
 static int debug = 0;
 

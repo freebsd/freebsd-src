@@ -928,7 +928,7 @@ static struct periph_driver dadriver =
 
 PERIPHDRIVER_DECLARE(da, dadriver);
 
-MALLOC_DEFINE(M_SCSIDA, "scsi_da", "scsi_da buffers");
+static MALLOC_DEFINE(M_SCSIDA, "scsi_da", "scsi_da buffers");
 
 static int
 daopen(struct disk *dp)

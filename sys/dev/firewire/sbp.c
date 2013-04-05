@@ -277,7 +277,7 @@ static void sbp_mgm_timeout (void *arg);
 static void sbp_timeout (void *arg);
 static void sbp_mgm_orb (struct sbp_dev *, int, struct sbp_ocb *);
 
-MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
+static MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
 /* cam related functions */
 static void	sbp_action(struct cam_sim *sim, union ccb *ccb);

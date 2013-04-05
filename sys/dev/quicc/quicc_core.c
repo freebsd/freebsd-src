@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 devclass_t quicc_devclass;
 char quicc_driver_name[] = "quicc";
 
-MALLOC_DEFINE(M_QUICC, "QUICC", "QUICC driver");
+static MALLOC_DEFINE(M_QUICC, "QUICC", "QUICC driver");
 
 struct quicc_device {
 	struct rman	*qd_rman;
