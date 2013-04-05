@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2011-2012 Spectra Logic Corporation
+ * Copyright (c) 2011-2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * This software was developed by Cherry G. Mathew <cherry@FreeBSD.org>
@@ -216,7 +216,7 @@ void mmu_map_t_fini(void *addr)
 	KASSERT(addr != NULL, ("NULL args given!"));
 
 	struct mmu_map_index *pti = addr;
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 	struct mmu_map_mbackend *mb = &pti->ptmb;
 
 	pti->sanity = 0;
@@ -233,7 +233,7 @@ mmu_map_pml4t(void *addr)
 	KASSERT(addr != NULL, ("NULL args given!"));
 	struct mmu_map_index *pti = addr;
 
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
 	return pti->pml4t;
 }
@@ -244,7 +244,7 @@ mmu_map_pdpt(void *addr)
 	KASSERT(addr != NULL, ("NULL args given!"));
 	struct mmu_map_index *pti = addr;
 
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
 	return pti->pdpt;
 }
@@ -255,7 +255,7 @@ mmu_map_pdt(void *addr)
 	KASSERT(addr != NULL, ("NULL args given!"));
 	struct mmu_map_index *pti = addr;
 
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
 	return pti->pdt;
 }
@@ -266,7 +266,7 @@ mmu_map_pt(void *addr)
 	KASSERT(addr != NULL, ("NULL args given!"));
 	struct mmu_map_index *pti = addr;
 
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
 	return pti->pt;
 }
@@ -277,7 +277,7 @@ mmu_map_inspect_va(struct pmap *pm, void *addr, uintptr_t va)
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
 
 	struct mmu_map_index *pti = addr;
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
 	vm_paddr_t pt;
 
@@ -316,7 +316,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
 
 	struct mmu_map_index *pti = addr;
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
 	bool alloced = false; /* Did we have to alloc backing pages ? */
 	vm_paddr_t pt;
@@ -391,7 +391,7 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 	KASSERT(addr != NULL && pm != NULL, ("NULL arg(s) given"));
 
 	struct mmu_map_index *pti = addr;
-	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
+	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
 	/*
 	 * We're expected to be called after an init-ed pti has either
