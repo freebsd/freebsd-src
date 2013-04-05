@@ -148,11 +148,13 @@ ar71xx_detect_sys_type(void)
 		rev = (id & AR933X_REV_ID_REVISION_MASK);
 		chip = "9330";
 		ar71xx_cpu_ops = &ar933x_chip_def;
+		ar71xx_soc = AR71XX_SOC_AR9330;
 		break;
 	case REV_ID_MAJOR_AR9331:
 		minor = 1;
 		rev = (id & AR933X_REV_ID_REVISION_MASK);
 		chip = "9331";
+		ar71xx_soc = AR71XX_SOC_AR9331;
 		ar71xx_cpu_ops = &ar933x_chip_def;
 		break;
 

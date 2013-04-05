@@ -318,7 +318,7 @@ static struct scsi_control_page control_page_changeable = {
 static int rcv_sync_msg;
 static int persis_offset;
 static uint8_t ctl_pause_rtr;
-static int     ctl_is_single;
+static int     ctl_is_single = 1;
 static int     index_to_aps_page;
 #ifdef CTL_DISABLE
 int	   ctl_disable = 1;

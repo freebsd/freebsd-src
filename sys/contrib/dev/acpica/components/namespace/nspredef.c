@@ -82,28 +82,9 @@ AcpiNsCheckReference (
     ACPI_PREDEFINED_DATA        *Data,
     ACPI_OPERAND_OBJECT         *ReturnObject);
 
-static void
-AcpiNsGetExpectedTypes (
-    char                        *Buffer,
-    UINT32                      ExpectedBtypes);
-
 static UINT32
 AcpiNsGetBitmappedType (
     ACPI_OPERAND_OBJECT         *ReturnObject);
-
-
-/*
- * Names for the types that can be returned by the predefined objects.
- * Used for warning messages. Must be in the same order as the ACPI_RTYPEs
- */
-static const char   *AcpiRtypeNames[] =
-{
-    "/Integer",
-    "/String",
-    "/Buffer",
-    "/Package",
-    "/Reference",
-};
 
 
 /*******************************************************************************
@@ -137,7 +118,7 @@ AcpiNsCheckPredefinedNames (
 
     /* Match the name for this method/object against the predefined list */
 
-    Predefined = AcpiNsCheckForPredefinedName (Node);
+    Predefined = AcpiUtMatchPredefinedMethod (Node->Name.Ascii);
 
     /* Get the full pathname to the object, for use in warning messages */
 
@@ -321,8 +302,8 @@ AcpiNsCheckParameterCount (
      * Validate the user-supplied parameter count.
      * Allow two different legal argument counts (_SCP, etc.)
      */
-    RequiredParamsCurrent = Predefined->Info.ParamCount & 0x0F;
-    RequiredParamsOld = Predefined->Info.ParamCount >> 4;
+    RequiredParamsCurrent = Predefined->Info.ArgumentList & METHOD_ARG_MASK;
+    RequiredParamsOld = Predefined->Info.ArgumentList >> METHOD_ARG_BIT_WIDTH;
 
     if (UserParamCount != ACPI_UINT32_MAX)
     {
@@ -348,58 +329,6 @@ AcpiNsCheckParameterCount (
             "Parameter count mismatch - ASL declared %u, ACPI requires %u",
             ParamCount, RequiredParamsCurrent));
     }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsCheckForPredefinedName
- *
- * PARAMETERS:  Node            - Namespace node for the method/object
- *
- * RETURN:      Pointer to entry in predefined table. NULL indicates not found.
- *
- * DESCRIPTION: Check an object name against the predefined object list.
- *
- ******************************************************************************/
-
-const ACPI_PREDEFINED_INFO *
-AcpiNsCheckForPredefinedName (
-    ACPI_NAMESPACE_NODE         *Node)
-{
-    const ACPI_PREDEFINED_INFO  *ThisName;
-
-
-    /* Quick check for a predefined name, first character must be underscore */
-
-    if (Node->Name.Ascii[0] != '_')
-    {
-        return (NULL);
-    }
-
-    /* Search info table for a predefined method/object name */
-
-    ThisName = PredefinedNames;
-    while (ThisName->Info.Name[0])
-    {
-        if (ACPI_COMPARE_NAME (Node->Name.Ascii, ThisName->Info.Name))
-        {
-            return (ThisName);
-        }
-
-        /*
-         * Skip next entry in the table if this name returns a Package
-         * (next entry contains the package info)
-         */
-        if (ThisName->Info.ExpectedBtypes & ACPI_RTYPE_PACKAGE)
-        {
-            ThisName++;
-        }
-
-        ThisName++;
-    }
-
-    return (NULL); /* Not found */
 }
 
 
@@ -480,7 +409,7 @@ TypeErrorExit:
 
     /* Create a string with all expected types for this predefined object */
 
-    AcpiNsGetExpectedTypes (TypeBuffer, ExpectedBtypes);
+    AcpiUtGetExpectedReturnTypes (TypeBuffer, ExpectedBtypes);
 
     if (PackageIndex == ACPI_NOT_PACKAGE_ELEMENT)
     {
@@ -599,46 +528,4 @@ AcpiNsGetBitmappedType (
     }
 
     return (ReturnBtype);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetExpectedTypes
- *
- * PARAMETERS:  Buffer          - Pointer to where the string is returned
- *              ExpectedBtypes  - Bitmap of expected return type(s)
- *
- * RETURN:      Buffer is populated with type names.
- *
- * DESCRIPTION: Translate the expected types bitmap into a string of ascii
- *              names of expected types, for use in warning messages.
- *
- ******************************************************************************/
-
-static void
-AcpiNsGetExpectedTypes (
-    char                        *Buffer,
-    UINT32                      ExpectedBtypes)
-{
-    UINT32                      ThisRtype;
-    UINT32                      i;
-    UINT32                      j;
-
-
-    j = 1;
-    Buffer[0] = 0;
-    ThisRtype = ACPI_RTYPE_INTEGER;
-
-    for (i = 0; i < ACPI_NUM_RTYPES; i++)
-    {
-        /* If one of the expected types, concatenate the name of this type */
-
-        if (ExpectedBtypes & ThisRtype)
-        {
-            ACPI_STRCAT (Buffer, &AcpiRtypeNames[i][j]);
-            j = 0;              /* Use name separator from now on */
-        }
-        ThisRtype <<= 1;    /* Next Rtype */
-    }
 }
