@@ -463,6 +463,12 @@ negotiate:
 		    0, 0x02);
 		break;
 	case PROBE_SETAN:
+		/* Remember what transport thinks about AEN. */
+		if (softc->caps & CTS_SATA_CAPS_H_AN)
+			path->device->inq_flags |= SID_AEN;
+		else
+			path->device->inq_flags &= ~SID_AEN;
+		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		    1,
 		    probedone,
@@ -1157,6 +1163,12 @@ notsata:
 		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
+		/* Remember what transport thinks about AEN. */
+		if (softc->caps & CTS_SATA_CAPS_H_AN)
+			path->device->inq_flags |= SID_AEN;
+		else
+			path->device->inq_flags &= ~SID_AEN;
+		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 			xpt_acquire_device(path->device);
