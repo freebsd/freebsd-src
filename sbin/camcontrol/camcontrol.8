@@ -1372,19 +1372,16 @@ camcontrol smpcmd ses0 -v -r 4 "40 0 00 0" -R 1020 "s9 i1"
 Send the SMP REPORT GENERAL command to ses0, and display the number of PHYs
 it contains.
 Display SMP errors if the command fails.
-.Pp
 .Bd -literal -offset indent
 camcontrol security ada0
 .Ed
 .Pp
 Report security support and settings for ada0
-.Pp
 .Bd -literal -offset indent
 camcontrol security ada0 -u user -s MyPass 
 .Ed
 .Pp
 Enable security on device ada0 with the password MyPass
-.Pp
 .Bd -literal -offset indent
 camcontrol security ada0 -u user -e MyPass
 .Ed
