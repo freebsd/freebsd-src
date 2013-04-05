@@ -190,7 +190,37 @@
       <sect3 id="fs">
 	<title>File Systems</title>
 
-	<para></para>
+	<para>ZFS is upgraded to support zpool feature flags.  ZFS
+	  pool creation defaults to version 28 allowing upgrades to
+	  &os;&nbsp;9.1-RELEASE, which does not support
+	  zpool feature flags.</para>
+
+	<para>Users who wish to enable these features can upgrade
+	  storage pools created on &os;&nbsp;8.4-RC1 and later by
+	  running <command>zpool upgrade</command>.</para>
+
+	<para>The new features available are:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para><literal>async_destroy</literal>: allows a ZFS
+	      dataset to be destroyed asynchronously, reclaiming space
+	      by a background process.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para><literal>empty_bpobj</literal>: improves performance
+	      and reduces disk space needed by snapshots.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para><literal>lz4_compress</literal>: a new high
+	      performance compression algorithm thatfeatures better
+	      performance and compression ratio than lzjb.</para>
+	  </listitem>
+	</itemizedlist>
+
+	<para>For more information, see &man.zpool-features.7;.</para>
       </sect3>
     </sect2>
 
