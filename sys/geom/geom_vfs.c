@@ -214,8 +214,10 @@ g_vfs_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	gp = cp->geom;
-	sc = gp->softc;
 	g_trace(G_T_TOPOLOGY, "g_vfs_orphan(%p(%s))", cp, gp->name);
+	sc = gp->softc;
+	if (sc == NULL)
+		return;
 	mtx_lock(&sc->sc_mtx);
 	sc->sc_orphaned = 1;
 	destroy = (sc->sc_active == 0);
