@@ -658,8 +658,12 @@ disk_media_changed(struct disk *dp, int flag)
 
 	gp = dp->d_geom;
 	if (gp != NULL) {
-		LIST_FOREACH(pp, &gp->provider, provider)
+		pp = LIST_FIRST(&gp->provider);
+		if (pp != NULL) {
+			KASSERT(LIST_NEXT(pp, provider) == NULL,
+			    ("geom %p has more than one provider", gp));
 			g_media_changed(pp, flag);
+		}
 	}
 }
 
@@ -671,8 +675,12 @@ disk_media_gone(struct disk *dp, int flag)
 
 	gp = dp->d_geom;
 	if (gp != NULL) {
-		LIST_FOREACH(pp, &gp->provider, provider)
+		pp = LIST_FIRST(&gp->provider);
+		if (pp != NULL) {
+			KASSERT(LIST_NEXT(pp, provider) == NULL,
+			    ("geom %p has more than one provider", gp));
 			g_media_gone(pp, flag);
+		}
 	}
 }
 
