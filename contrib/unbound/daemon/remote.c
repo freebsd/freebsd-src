@@ -1286,6 +1286,74 @@ do_flush_zone(SSL* ssl, struct worker* worker, char* arg)
 		(unsigned)inf.num_msgs, (unsigned)inf.num_keys);
 }
 
+/** callback to delete bogus rrsets */
+static void
+bogus_del_rrset(struct lruhash_entry* e, void* arg)
+{
+	/* entry is locked */
+	struct del_info* inf = (struct del_info*)arg;
+	struct packed_rrset_data* d = (struct packed_rrset_data*)e->data;
+	if(d->security == sec_status_bogus) {
+		d->ttl = inf->expired;
+		inf->num_rrsets++;
+	}
+}
+
+/** callback to delete bogus messages */
+static void
+bogus_del_msg(struct lruhash_entry* e, void* arg)
+{
+	/* entry is locked */
+	struct del_info* inf = (struct del_info*)arg;
+	struct reply_info* d = (struct reply_info*)e->data;
+	if(d->security == sec_status_bogus) {
+		d->ttl = inf->expired;
+		inf->num_msgs++;
+	}
+}
+
+/** callback to delete bogus keys */
+static void
+bogus_del_kcache(struct lruhash_entry* e, void* arg)
+{
+	/* entry is locked */
+	struct del_info* inf = (struct del_info*)arg;
+	struct key_entry_data* d = (struct key_entry_data*)e->data;
+	if(d->isbad) {
+		d->ttl = inf->expired;
+		inf->num_keys++;
+	}
+}
+
+/** remove all rrsets and keys from zone from cache */
+static void
+do_flush_bogus(SSL* ssl, struct worker* worker)
+{
+	struct del_info inf;
+	/* what we do is to set them all expired */
+	inf.worker = worker;
+	inf.now = *worker->env.now;
+	inf.expired = *worker->env.now;
+	inf.expired -= 3; /* handle 3 seconds skew between threads */
+	inf.num_rrsets = 0;
+	inf.num_msgs = 0;
+	inf.num_keys = 0;
+	slabhash_traverse(&worker->env.rrset_cache->table, 1, 
+		&bogus_del_rrset, &inf);
+
+	slabhash_traverse(worker->env.msg_cache, 1, &bogus_del_msg, &inf);
+
+	/* and validator cache */
+	if(worker->env.key_cache) {
+		slabhash_traverse(worker->env.key_cache->slab, 1, 
+			&bogus_del_kcache, &inf);
+	}
+
+	(void)ssl_printf(ssl, "ok removed %u rrsets, %u messages "
+		"and %u key entries\n", (unsigned)inf.num_rrsets, 
+		(unsigned)inf.num_msgs, (unsigned)inf.num_keys);
+}
+
 /** remove name rrset from cache */
 static void
 do_flush_name(SSL* ssl, struct worker* w, char* arg)
@@ -1393,6 +1461,7 @@ parse_delegpt(SSL* ssl, char* args, uint8_t* nm, int allow_names)
 				}
 				if(!delegpt_add_ns_mlc(dp, n, 0)) {
 					(void)ssl_printf(ssl, "error out of memory\n");
+					free(n);
 					delegpt_free_mlc(dp);
 					return NULL;
 				}
@@ -1442,7 +1511,6 @@ do_forward(SSL* ssl, struct worker* worker, char* args)
 			return;
 		if(!forwards_add_zone(fwd, LDNS_RR_CLASS_IN, dp)) {
 			(void)ssl_printf(ssl, "error out of memory\n");
-			delegpt_free_mlc(dp);
 			return;
 		}
 	}
@@ -1514,7 +1582,6 @@ do_forward_add(SSL* ssl, struct worker* worker, char* args)
 	}
 	if(!forwards_add_zone(fwd, LDNS_RR_CLASS_IN, dp)) {
 		(void)ssl_printf(ssl, "error out of memory\n");
-		delegpt_free_mlc(dp);
 		free(nm);
 		return;
 	}
@@ -1571,7 +1638,6 @@ do_stub_add(SSL* ssl, struct worker* worker, char* args)
 		forwards_delete_stub_hole(fwd, LDNS_RR_CLASS_IN, nm);
 		if(insecure) anchors_delete_insecure(worker->env.anchors,
 			LDNS_RR_CLASS_IN, nm);
-		delegpt_free_mlc(dp);
 		free(nm);
 		return;
 	}
@@ -2040,6 +2106,8 @@ execute_cmd(struct daemon_remote* rc, SSL* ssl, char* cmd,
 		do_set_option(ssl, worker, skipwhite(p+10));
 	} else if(cmdcmp(p, "get_option", 10)) {
 		do_get_option(ssl, worker, skipwhite(p+10));
+	} else if(cmdcmp(p, "flush_bogus", 11)) {
+		do_flush_bogus(ssl, worker);
 	} else {
 		(void)ssl_printf(ssl, "error unknown command '%s'\n", p);
 	}

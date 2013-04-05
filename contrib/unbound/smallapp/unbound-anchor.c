@@ -134,6 +134,7 @@
 #include <openssl/rand.h>
 #endif
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/pem.h>
 
 /** name of server in URL to fetch HTTPS from */
@@ -142,6 +143,8 @@
 #define XMLNAME "root-anchors/root-anchors.xml"
 /** path on HTTPS server to p7s file */
 #define P7SNAME "root-anchors/root-anchors.p7s"
+/** name of the signer of the certificate */
+#define P7SIGNER "dnssec@iana.org"
 /** port number for https access */
 #define HTTPS_PORT 443
 
@@ -184,6 +187,7 @@ usage()
 	printf("-u name		server in https url, default %s\n", URLNAME);
 	printf("-x path		pathname to xml in url, default %s\n", XMLNAME);
 	printf("-s path		pathname to p7s in url, default %s\n", P7SNAME);
+	printf("-n name		signer's subject emailAddress, default %s\n", P7SIGNER);
 	printf("-4		work using IPv4 only\n");
 	printf("-6		work using IPv6 only\n");
 	printf("-f resolv.conf	use given resolv.conf to resolve -u name\n");
@@ -539,6 +543,11 @@ resolve_host_ip(struct ub_ctx* ctx, char* host, int port, int tp, int cl,
 		if(verb) printf("out of memory\n");
 		ub_ctx_delete(ctx);
 		exit(0);
+	}
+	if(!res->havedata || res->rcode || !res->data) {
+		if(verb) printf("resolve %s %s: no result\n", host,
+			(tp==LDNS_RR_TYPE_A)?"A":"AAAA");
+		return;
 	}
 	for(i = 0; res->data[i]; i++) {
 		struct ip_list* ip = RR_to_ip(tp, res->data[i], res->len[i],
@@ -1498,6 +1507,20 @@ xml_endelem(void *userData, const XML_Char *name)
 	}
 }
 
+/* Stop the parser when an entity declaration is encountered. For safety. */
+static void
+xml_entitydeclhandler(void *userData,
+	const XML_Char *ATTR_UNUSED(entityName),
+	int ATTR_UNUSED(is_parameter_entity),
+	const XML_Char *ATTR_UNUSED(value), int ATTR_UNUSED(value_length),
+	const XML_Char *ATTR_UNUSED(base),
+	const XML_Char *ATTR_UNUSED(systemId),
+	const XML_Char *ATTR_UNUSED(publicId),
+	const XML_Char *ATTR_UNUSED(notationName))
+{
+	(void)XML_StopParser((XML_Parser)userData, XML_FALSE);
+}
+
 /**
  * XML parser setup of the callbacks for the tags
  */
@@ -1526,6 +1549,7 @@ xml_parse_setup(XML_Parser parser, struct xml_data* data, time_t now)
 		if(verb) printf("out of memory\n");
 		exit(0);
 	}
+	XML_SetEntityDeclHandler(parser, xml_entitydeclhandler);
 	XML_SetElementHandler(parser, xml_startelem, xml_endelem);
 	XML_SetCharacterDataHandler(parser, xml_charhandle);
 }
@@ -1603,12 +1627,113 @@ xml_parse(BIO* xml, time_t now)
 	}
 }
 
+/* get key usage out of its extension, returns 0 if no key_usage extension */
+static unsigned long
+get_usage_of_ex(X509* cert)
+{
+	unsigned long val = 0;
+	ASN1_BIT_STRING* s;
+	if((s=X509_get_ext_d2i(cert, NID_key_usage, NULL, NULL))) {
+		if(s->length > 0) {
+			val = s->data[0];
+			if(s->length > 1)
+				val |= s->data[1] << 8;
+		}
+		ASN1_BIT_STRING_free(s);
+	}
+	return val;
+}
+
+/** get valid signers from the list of signers in the signature */
+static STACK_OF(X509)*
+get_valid_signers(PKCS7* p7, char* p7signer)
+{
+	int i;
+	STACK_OF(X509)* validsigners = sk_X509_new_null();
+	STACK_OF(X509)* signers = PKCS7_get0_signers(p7, NULL, 0);
+	unsigned long usage = 0;
+	if(!validsigners) {
+		if(verb) printf("out of memory\n");
+		sk_X509_free(signers);
+		return NULL;
+	}
+	if(!signers) {
+		if(verb) printf("no signers in pkcs7 signature\n");
+		sk_X509_free(validsigners);
+		return NULL;
+	}
+	for(i=0; i<sk_X509_num(signers); i++) {
+		X509_NAME* nm = X509_get_subject_name(
+			sk_X509_value(signers, i));
+		char buf[1024];
+		if(!nm) {
+			if(verb) printf("signer %d: cert has no subject name\n", i);
+			continue;
+		}
+		if(verb && nm) {
+			char* nmline = X509_NAME_oneline(nm, buf,
+				(int)sizeof(buf));
+			printf("signer %d: Subject: %s\n", i,
+				nmline?nmline:"no subject");
+			if(verb >= 3 && X509_NAME_get_text_by_NID(nm,
+				NID_commonName, buf, (int)sizeof(buf)))
+				printf("commonName: %s\n", buf);
+			if(verb >= 3 && X509_NAME_get_text_by_NID(nm,
+				NID_pkcs9_emailAddress, buf, (int)sizeof(buf)))
+				printf("emailAddress: %s\n", buf);
+		}
+		if(verb) {
+			int ku_loc = X509_get_ext_by_NID(
+				sk_X509_value(signers, i), NID_key_usage, -1);
+			if(verb >= 3 && ku_loc >= 0) {
+				X509_EXTENSION *ex = X509_get_ext(
+					sk_X509_value(signers, i), ku_loc);
+				if(ex) {
+					printf("keyUsage: ");
+					X509V3_EXT_print_fp(stdout, ex, 0, 0);
+					printf("\n");
+				}
+			}
+		}
+		if(!p7signer || strcmp(p7signer, "")==0) {
+			/* there is no name to check, return all records */
+			if(verb) printf("did not check commonName of signer\n");
+		} else {
+			if(!X509_NAME_get_text_by_NID(nm,
+				NID_pkcs9_emailAddress,
+				buf, (int)sizeof(buf))) {
+				if(verb) printf("removed cert with no name\n");
+				continue; /* no name, no use */
+			}
+			if(strcmp(buf, p7signer) != 0) {
+				if(verb) printf("removed cert with wrong name\n");
+				continue; /* wrong name, skip it */
+			}
+		}
+
+		/* check that the key usage allows digital signatures
+		 * (the p7s) */
+		usage = get_usage_of_ex(sk_X509_value(signers, i));
+		if(!(usage & KU_DIGITAL_SIGNATURE)) {
+			if(verb) printf("removed cert with no key usage Digital Signature allowed\n");
+			continue;
+		}
+
+		/* we like this cert, add it to our list of valid
+		 * signers certificates */
+		sk_X509_push(validsigners, sk_X509_value(signers, i));
+	}
+	sk_X509_free(signers);
+	return validsigners;
+}
+
 /** verify a PKCS7 signature, false on failure */
 static int
-verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust)
+verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust, char* p7signer)
 {
 	PKCS7* p7;
 	X509_STORE *store = X509_STORE_new();
+	STACK_OF(X509)* validsigners;
 	int secure = 0;
 	int i;
 #ifdef X509_V_FLAG_CHECK_SS_SIGNATURE
@@ -1630,6 +1755,9 @@ verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust)
 #endif
 		return 0;
 	}
+#ifdef X509_V_FLAG_CHECK_SS_SIGNATURE
+	X509_VERIFY_PARAM_free(param);
+#endif
 
 	(void)BIO_reset(p7s);
 	(void)BIO_reset(data);
@@ -1654,7 +1782,15 @@ verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust)
 	}
 	if(verb >= 2) printf("setup the X509_STORE\n");
 
-	if(PKCS7_verify(p7, NULL, store, data, NULL, 0) == 1) {
+	/* check what is in the Subject name of the certificates,
+	 * and build a stack that contains only the right certificates */
+	validsigners = get_valid_signers(p7, p7signer);
+	if(!validsigners) {
+			X509_STORE_free(store);
+			PKCS7_free(p7);
+			return 0;
+	}
+	if(PKCS7_verify(p7, validsigners, store, data, NULL, PKCS7_NOINTERN) == 1) {
 		secure = 1;
 		if(verb) printf("the PKCS7 signature verified\n");
 	} else {
@@ -1663,6 +1799,7 @@ verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust)
 		}
 	}
 
+	sk_X509_free(validsigners);
 	X509_STORE_free(store);
 	PKCS7_free(p7);
 	return secure;
@@ -1723,12 +1860,12 @@ write_root_anchor(char* root_anchor_file, BIO* ds)
 /** Perform the verification and update of the trustanchor file */
 static void
 verify_and_update_anchor(char* root_anchor_file, BIO* xml, BIO* p7s,
-	STACK_OF(X509)* cert)
+	STACK_OF(X509)* cert, char* p7signer)
 {
 	BIO* ds;
 
 	/* verify xml file */
-	if(!verify_p7sig(xml, p7s, cert)) {
+	if(!verify_p7sig(xml, p7s, cert, p7signer)) {
 		printf("the PKCS7 signature failed\n");
 		exit(0);
 	}
@@ -1752,7 +1889,7 @@ static void do_wsa_cleanup(void) { WSACleanup(); }
 /** perform actual certupdate work */
 static int
 do_certupdate(char* root_anchor_file, char* root_cert_file,
-	char* urlname, char* xmlname, char* p7sname,
+	char* urlname, char* xmlname, char* p7sname, char* p7signer,
 	char* res_conf, char* root_hints, char* debugconf,
 	int ip4only, int ip6only, int port, struct ub_result* dnskey)
 {
@@ -1785,7 +1922,7 @@ do_certupdate(char* root_anchor_file, char* root_cert_file,
 	p7s = https(ip_list, p7sname, urlname);
 
 	/* verify and update the root anchor */
-	verify_and_update_anchor(root_anchor_file, xml, p7s, cert);
+	verify_and_update_anchor(root_anchor_file, xml, p7s, cert, p7signer);
 	if(verb) printf("success: the anchor has been updated "
 			"using the cert\n");
 
@@ -2035,7 +2172,7 @@ probe_date_allows_certupdate(char* root_anchor_file)
 /** perform the unbound-anchor work */
 static int
 do_root_update_work(char* root_anchor_file, char* root_cert_file,
-	char* urlname, char* xmlname, char* p7sname,
+	char* urlname, char* xmlname, char* p7sname, char* p7signer,
 	char* res_conf, char* root_hints, char* debugconf,
 	int ip4only, int ip6only, int force, int port)
 {
@@ -2068,8 +2205,8 @@ do_root_update_work(char* root_anchor_file, char* root_cert_file,
 	if((dnskey->rcode == 0 &&
 		probe_date_allows_certupdate(root_anchor_file)) || force) {
 		if(do_certupdate(root_anchor_file, root_cert_file, urlname,
-			xmlname, p7sname, res_conf, root_hints, debugconf,
-			ip4only, ip6only, port, dnskey))
+			xmlname, p7sname, p7signer, res_conf, root_hints,
+			debugconf, ip4only, ip6only, port, dnskey))
 			return 1;
 		return used_builtin;
 	}
@@ -2092,12 +2229,13 @@ int main(int argc, char* argv[])
 	char* urlname = URLNAME;
 	char* xmlname = XMLNAME;
 	char* p7sname = P7SNAME;
+	char* p7signer = P7SIGNER;
 	char* res_conf = NULL;
 	char* root_hints = NULL;
 	char* debugconf = NULL;
 	int dolist=0, ip4only=0, ip6only=0, force=0, port = HTTPS_PORT;
 	/* parse the options */
-	while( (c=getopt(argc, argv, "46C:FP:a:c:f:hlr:s:u:vx:")) != -1) {
+	while( (c=getopt(argc, argv, "46C:FP:a:c:f:hln:r:s:u:vx:")) != -1) {
 		switch(c) {
 		case 'l':
 			dolist = 1;
@@ -2122,6 +2260,9 @@ int main(int argc, char* argv[])
 			break;
 		case 's':
 			p7sname = optarg;
+			break;
+		case 'n':
+			p7signer = optarg;
 			break;
 		case 'f':
 			res_conf = optarg;
@@ -2160,6 +2301,6 @@ int main(int argc, char* argv[])
 	if(dolist) do_list_builtin();
 
 	return do_root_update_work(root_anchor_file, root_cert_file, urlname,
-		xmlname, p7sname, res_conf, root_hints, debugconf, ip4only,
-		ip6only, force, port);
+		xmlname, p7sname, p7signer, res_conf, root_hints, debugconf,
+		ip4only, ip6only, force, port);
 }

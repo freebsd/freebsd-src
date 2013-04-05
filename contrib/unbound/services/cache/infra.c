@@ -403,6 +403,11 @@ infra_rtt_update(struct infra_cache* infra, struct sockaddr_storage* addr,
 				data->timeout_other++;
 		}
 	} else {
+		/* if we got a reply, but the old timeout was above server
+		 * selection height, delete the timeout so the server is
+		 * fully available again */
+		if(rtt_unclamped(&data->rtt) >= USEFUL_SERVER_TOP_TIMEOUT)
+			rtt_init(&data->rtt);
 		rtt_update(&data->rtt, roundtrip);
 		data->probedelay = 0;
 		if(qtype == LDNS_RR_TYPE_A)

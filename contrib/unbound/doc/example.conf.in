@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.4.17.
+# See unbound.conf(5) man page, version 1.4.20.
 #
 # this is a comment.
 
@@ -67,6 +67,8 @@ server:
 	# Use this to make sure unbound does not grab a UDP port that some
 	# other server on this computer needs. The default is to avoid
 	# IANA-assigned port numbers.
+	# If multiple outgoing-port-permit and outgoing-port-avoid options
+	# are present, they are processed in order.
 	# outgoing-port-avoid: "3200-3208"
 
 	# number of outgoing simultaneous tcp buffers to hold per thread.

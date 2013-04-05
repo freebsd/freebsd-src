@@ -53,6 +53,10 @@
 #include "util/regional.h"
 #include "util/fptr_wlist.h"
 #include "util/data/dname.h"
+#ifdef HAVE_GLOB_H
+# include <glob.h>
+#endif
+
 /** global config during parsing */
 struct config_parser_state* cfg_parser = 0;
 /** lex in file */
@@ -286,7 +290,7 @@ struct config_file* config_create_forlib(void)
 	{ return cfg_strlist_insert(&cfg->var, strdup(val)); }
 
 int config_set_option(struct config_file* cfg, const char* opt,
-        const char* val)
+	const char* val)
 {
 	S_NUMBER_OR_ZERO("verbosity:", verbosity)
 	else if(strcmp(opt, "statistics-interval:") == 0) {
@@ -458,7 +462,7 @@ void config_collate_func(char* line, void* arg)
 }
 
 int config_get_option_list(struct config_file* cfg, const char* opt,
-        struct config_strlist** list)
+	struct config_strlist** list)
 {
 	struct config_collate_arg m;
 	memset(&m, 0, sizeof(m));
@@ -687,8 +691,69 @@ config_read(struct config_file* cfg, const char* filename, const char* chroot)
 {
 	FILE *in;
 	char *fname = (char*)filename;
+#ifdef HAVE_GLOB
+	glob_t g;
+	size_t i;
+	int r, flags;
+#endif
 	if(!fname)
 		return 1;
+
+	/* check for wildcards */
+#ifdef HAVE_GLOB
+	if(!(!strchr(fname, '*') && !strchr(fname, '?') && !strchr(fname, '[') &&
+		!strchr(fname, '{') && !strchr(fname, '~'))) {
+		verbose(VERB_QUERY, "wildcard found, processing %s", fname);
+		flags = 0
+#ifdef GLOB_ERR
+			| GLOB_ERR
+#endif
+#ifdef GLOB_NOSORT
+			| GLOB_NOSORT
+#endif
+#ifdef GLOB_BRACE
+			| GLOB_BRACE
+#endif
+#ifdef GLOB_TILDE
+			| GLOB_TILDE
+#endif
+		;
+		memset(&g, 0, sizeof(g));
+		r = glob(fname, flags, NULL, &g);
+		if(r) {
+			/* some error */
+			globfree(&g);
+			if(r == GLOB_NOMATCH) {
+				verbose(VERB_QUERY, "include: "
+				"no matches for %s", fname);
+				return 1; 
+			} else if(r == GLOB_NOSPACE) {
+				log_err("include: %s: "
+					"fnametern out of memory", fname);
+			} else if(r == GLOB_ABORTED) {
+				log_err("wildcard include: %s: expansion "
+					"aborted (%s)", fname, strerror(errno));
+			} else {
+				log_err("wildcard include: %s: expansion "
+					"failed (%s)", fname, strerror(errno));
+			}
+			/* ignore globs that yield no files */
+			return 1;
+		}
+		/* process files found, if any */
+		for(i=0; i<(size_t)g.gl_pathc; i++) {
+			if(!config_read(cfg, g.gl_pathv[i], chroot)) {
+				log_err("error reading wildcard "
+					"include: %s", g.gl_pathv[i]);
+				globfree(&g);
+				return 0;
+			}
+		}
+		globfree(&g);
+		return 1;
+	}
+#endif /* HAVE_GLOB */
+
 	in = fopen(fname, "r");
 	if(!in) {
 		log_err("Could not open %s: %s", fname, strerror(errno));
@@ -1003,26 +1068,26 @@ cfg_convert_timeval(const char* str)
 int 
 cfg_count_numbers(const char* s)
 {
-        /* format ::= (sp num)+ sp      */
-        /* num ::= [-](0-9)+            */
-        /* sp ::= (space|tab)*          */
-        int num = 0;
-        while(*s) {
-                while(*s && isspace((int)*s))
-                        s++;
-                if(!*s) /* end of string */
-                        break;
-                if(*s == '-')
-                        s++;
-                if(!*s) /* only - not allowed */
-                        return 0;
-                if(!isdigit((int)*s)) /* bad character */
-                        return 0;
-                while(*s && isdigit((int)*s))
-                        s++;
-                num++;
-        }
-        return num;
+	/* format ::= (sp num)+ sp  */
+	/* num ::= [-](0-9)+        */
+	/* sp ::= (space|tab)*      */
+	int num = 0;
+	while(*s) {
+		while(*s && isspace((int)*s))
+			s++;
+		if(!*s) /* end of string */
+			break;
+		if(*s == '-')
+			s++;
+		if(!*s) /* only - not allowed */
+			return 0;
+		if(!isdigit((int)*s)) /* bad character */
+			return 0;
+		while(*s && isdigit((int)*s))
+			s++;
+		num++;
+	}
+	return num;
 }
 
 /** all digit number */
@@ -1038,9 +1103,9 @@ static int isalldigit(const char* str, size_t l)
 int 
 cfg_parse_memsize(const char* str, size_t* res)
 {
-	size_t len = (size_t)strlen(str);
+	size_t len;
 	size_t mult = 1;
-	if(!str || len == 0) {
+	if(!str || (len=(size_t)strlen(str)) == 0) {
 		log_err("not a size: '%s'", str);
 		return 0;
 	}

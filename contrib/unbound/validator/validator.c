@@ -1023,6 +1023,13 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 			chase_reply->security = sec_status_bogus;
 			return;
 		}
+
+		/* If we have found a CNAME, stop looking for one.
+		 * The iterator has placed the CNAME chain in correct
+		 * order. */
+		if (ntohs(s->rk.type) == LDNS_RR_TYPE_CNAME) {
+			break;
+		}
 	}
 
 	/* AUTHORITY section */
@@ -1881,7 +1888,8 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	/* store overall validation result in orig_msg */
 	if(vq->rrset_skip == 0)
 		vq->orig_msg->rep->security = vq->chase_reply->security;
-	else if(vq->rrset_skip < vq->orig_msg->rep->an_numrrsets + 
+	else if(subtype != VAL_CLASS_REFERRAL ||
+		vq->rrset_skip < vq->orig_msg->rep->an_numrrsets + 
 		vq->orig_msg->rep->ns_numrrsets) {
 		/* ignore sec status of additional section if a referral 
 		 * type message skips there and

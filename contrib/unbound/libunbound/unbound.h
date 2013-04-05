@@ -193,6 +193,12 @@ struct ub_result {
 	 * Is NULL if the result is not bogus.
 	 */
 	char* why_bogus;
+
+	/**
+	 * TTL for the result, in seconds.  If the security is bogus, then
+	 * you also cannot trust this value.
+	 */
+	int ttl;
 };
 
 /**

@@ -69,8 +69,10 @@ struct rc_state {
 	struct comm_point* c;
 	/** in the handshake part */
 	enum { rc_none, rc_hs_read, rc_hs_write } shake_state;
+#ifdef HAVE_SSL
 	/** the ssl state */
 	SSL* ssl;
+#endif
 	/** the rc this is part of */
 	struct daemon_remote* rc;
 };
@@ -93,8 +95,10 @@ struct daemon_remote {
 	int max_active;
 	/** current commpoints busy; should be a short list, malloced */
 	struct rc_state* busy_list;
+#ifdef HAVE_SSL
 	/** the SSL context for creating new SSL streams */
 	SSL_CTX* ctx;
+#endif
 };
 
 /**
@@ -159,6 +163,7 @@ int remote_accept_callback(struct comm_point*, void*, int, struct comm_reply*);
 /** handle remote control data callbacks */
 int remote_control_callback(struct comm_point*, void*, int, struct comm_reply*);
 
+#ifdef HAVE_SSL
 /** 
  * Print fixed line of text over ssl connection in blocking mode
  * @param ssl: print to
@@ -185,6 +190,7 @@ int ssl_printf(SSL* ssl, const char* format, ...)
  * @return false on connection failure.
  */
 int ssl_read_line(SSL* ssl, char* buf, size_t max);
+#endif /* HAVE_SSL */
 
 /** routine to printout option values over SSL */
 void remote_get_opt_ssl(char* line, void* arg);
