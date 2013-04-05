@@ -51,6 +51,7 @@ alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 alexbl [label="Alexander Botero-Lowry\nalexbl@FreeBSD.org\n2006/09/11"]
 amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
+antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2013/04/03"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
 ashish [label="Ashish SHUKLA\nashish@FreeBSD.org\n2010/06/10"]
@@ -283,6 +284,7 @@ delphij -> rafan
 demon -> mat
 
 eadler -> ak
+eadler -> antoine
 eadler -> dbn
 eadler -> bdrewery
 eadler -> gjb
@@ -398,6 +400,7 @@ mat -> thierry
 mezz -> tmclaugh
 
 miwi -> amdmi3
+miwi -> antoine
 miwi -> avilla
 miwi -> beat
 miwi -> bf
