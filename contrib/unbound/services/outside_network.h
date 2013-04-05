@@ -279,9 +279,9 @@ struct service_callback {
 };
 
 /** fallback size for fragmentation for EDNS in IPv4 */
-#define EDNS_FRAG_SIZE_IP4 1480
+#define EDNS_FRAG_SIZE_IP4 1472
 /** fallback size for EDNS in IPv6, fits one fragment with ip6-tunnel-ids */
-#define EDNS_FRAG_SIZE_IP6 1260
+#define EDNS_FRAG_SIZE_IP6 1232
 
 /**
  * Query service record.
@@ -468,8 +468,6 @@ void pending_delete(struct outside_network* outnet, struct pending* p);
 	authoritative.
  * @param zonelen: length of zone.
  * @param buff: scratch buffer to create query contents in. Empty on exit.
- * @param arg_compare: function to compare callback args, return true if 
- * 	identical. It is given the callback_arg and args that are listed.
  * @return 0 on error, or pointer to serviced query that is used to answer
  *	this serviced query may be shared with other callbacks as well.
  */
@@ -478,8 +476,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	uint16_t flags, int dnssec, int want_dnssec, int tcp_upstream,
 	int ssl_upstream, struct sockaddr_storage* addr, socklen_t addrlen,
 	uint8_t* zone, size_t zonelen, comm_point_callback_t* callback,
-	void* callback_arg, ldns_buffer* buff,
-	int (*arg_compare)(void*,void*));
+	void* callback_arg, ldns_buffer* buff);
 
 /**
  * Remove service query callback.

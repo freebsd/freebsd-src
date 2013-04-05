@@ -1,4 +1,4 @@
-.TH "unbound-anchor" "8" "May 24, 2012" "NLnet Labs" "unbound 1.4.17"
+.TH "unbound-anchor" "8" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
 .\"
 .\" unbound-anchor.8 -- unbound anchor maintenance utility manual
 .\"
@@ -45,7 +45,7 @@ all checks are successful, it updates the root anchor file.  Otherwise
 the root anchor file is unchanged.  It performs RFC5011 tracking if the
 DNSSEC information available via the DNS makes that possible.
 .P
-If does not perform an update if the certificate is expired, if the network
+It does not perform an update if the certificate is expired, if the network
 is down or other errors occur.
 .P
 The available options are:
@@ -76,6 +76,11 @@ The default is /root\-anchors/root\-anchors.xml.
 The pathname to the root\-anchors.p7s file on the server. (forms URL with \-u).
 The default is /root\-anchors/root\-anchors.p7s.  This file has to be a PKCS7
 signature over the xml file, using the pem file (\-c) as trust anchor.
+.TP
+.B \-n \fIname
+The emailAddress for the Subject of the signer's certificate from the p7s
+signature file.  Only signatures from this name are allowed.  default is
+dnssec@iana.org.  If you pass "" then the emailAddress is not checked.
 .TP
 .B \-4
 Use IPv4 for domain resolution and contacting the server on https.  Default is
@@ -126,9 +131,6 @@ but then ignores the result and goes on to use the xml fallback method.
 .TP
 .B \-h
 Show the version and commandline option help.
-.TP
-.B \-v
-More verbose.  Prints output detailing what happens.
 .SH "EXIT CODE"
 This tool exits with value 1 if the root anchor was updated using the
 certificate or if the builtin root-anchor was used.  It exits with code

@@ -54,7 +54,6 @@
 #include "util/net_help.h"
 #include "util/module.h"
 #include "util/regional.h"
-#include "util/config_file.h"
 
 enum val_classification 
 val_classify_response(uint16_t query_flags, struct query_info* origqinf,

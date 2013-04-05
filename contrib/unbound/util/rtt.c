@@ -41,7 +41,6 @@
  */
 #include "config.h"
 #include "util/rtt.h"
-#include "util/log.h"
 
 /** calculate RTO from rtt information */
 static int

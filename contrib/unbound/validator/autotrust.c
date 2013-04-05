@@ -466,7 +466,7 @@ add_trustanchor_frm_str(struct val_anchors* anchors, char* str,
  * @param anchors: all points.
  * @param str: comments line
  * @param fname: filename
- * @param origin: $ORIGIN.
+ * @param origin: the $ORIGIN.
  * @param prev: passed to ldns.
  * @param skip: if true, the result is NULL, but not an error, skip it.
  * @return false on failure, otherwise the tp read.
@@ -1851,6 +1851,7 @@ static void
 autr_tp_remove(struct module_env* env, struct trust_anchor* tp,
 	struct ub_packed_rrset_key* dnskey_rrset)
 {
+	struct trust_anchor* del_tp;
 	struct trust_anchor key;
 	struct autr_point_data pd;
 	time_t mold, mnew;
@@ -1876,19 +1877,24 @@ autr_tp_remove(struct module_env* env, struct trust_anchor* tp,
 
 	/* take from tree. It could be deleted by someone else,hence (void). */
 	lock_basic_lock(&env->anchors->lock);
-	(void)rbtree_delete(env->anchors->tree, &key);
+	del_tp = (struct trust_anchor*)rbtree_delete(env->anchors->tree, &key);
 	mold = wait_probe_time(env->anchors);
 	(void)rbtree_delete(&env->anchors->autr->probe, &key);
 	mnew = wait_probe_time(env->anchors);
 	anchors_init_parents_locked(env->anchors);
 	lock_basic_unlock(&env->anchors->lock);
 
-	/* save on disk */
-	tp->autr->next_probe_time = 0; /* no more probing for it */
-	autr_write_file(env, tp);
+	/* if !del_tp then the trust point is no longer present in the tree,
+	 * it was deleted by someone else, who will write the zonefile and
+	 * clean up the structure */
+	if(del_tp) {
+		/* save on disk */
+		del_tp->autr->next_probe_time = 0; /* no more probing for it */
+		autr_write_file(env, del_tp);
 
-	/* delete */
-	autr_point_delete(tp);
+		/* delete */
+		autr_point_delete(del_tp);
+	}
 	if(mold != mnew) {
 		reset_worker_timer(env);
 	}
