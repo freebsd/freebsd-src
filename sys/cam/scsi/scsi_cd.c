@@ -335,7 +335,7 @@ static struct mtx changerq_mtx;
 static STAILQ_HEAD(changerlist, cdchanger) changerq;
 static int num_changers;
 
-MALLOC_DEFINE(M_SCSICD, "scsi_cd", "scsi_cd buffers");
+static MALLOC_DEFINE(M_SCSICD, "scsi_cd", "scsi_cd buffers");
 
 static void
 cdinit(void)

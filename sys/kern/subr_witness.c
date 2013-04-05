@@ -184,7 +184,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_INDEX_ASSERT(i)						\
 	MPASS((i) > 0 && (i) <= w_max_used_index && (i) < WITNESS_COUNT)
 
-MALLOC_DEFINE(M_WITNESS, "Witness", "Witness");
+static MALLOC_DEFINE(M_WITNESS, "Witness", "Witness");
 
 /*
  * Lock instances.  A lock instance is the data associated with a lock while

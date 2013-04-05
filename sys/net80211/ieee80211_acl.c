@@ -87,7 +87,7 @@ struct aclstate {
 #define	ACL_HASH(addr)	\
 	(((const uint8_t *)(addr))[IEEE80211_ADDR_LEN - 1] % ACL_HASHSIZE)
 
-MALLOC_DEFINE(M_80211_ACL, "acl", "802.11 station acl");
+static MALLOC_DEFINE(M_80211_ACL, "acl", "802.11 station acl");
 
 static	int acl_free_all(struct ieee80211vap *);
 

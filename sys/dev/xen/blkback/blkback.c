@@ -124,7 +124,7 @@ __FBSDID("$FreeBSD$");
 /**
  * Custom malloc type for all driver allocations.
  */
-MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
+static MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
 
 #ifdef XBB_DEBUG
 #define DPRINTF(fmt, args...)					\

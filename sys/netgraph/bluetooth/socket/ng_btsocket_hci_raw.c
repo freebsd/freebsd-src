@@ -61,7 +61,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_HCI_RAW, "netgraph_btsocks_hci_raw",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_HCI_RAW, "netgraph_btsocks_hci_raw",
 	"Netgraph Bluetooth raw HCI sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_HCI_RAW M_NETGRAPH

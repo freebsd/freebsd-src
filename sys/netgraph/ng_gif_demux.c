@@ -89,7 +89,7 @@
 #include <netgraph/ng_gif_demux.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux",
+static MALLOC_DEFINE(M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux",
     "netgraph gif demux node");
 #else
 #define M_NETGRAPH_GIF_DEMUX M_NETGRAPH

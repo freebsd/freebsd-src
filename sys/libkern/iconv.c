@@ -43,7 +43,7 @@ SYSCTL_DECL(_kern_iconv);
 SYSCTL_NODE(_kern, OID_AUTO, iconv, CTLFLAG_RW, NULL, "kernel iconv interface");
 
 MALLOC_DEFINE(M_ICONV, "iconv", "ICONV structures");
-MALLOC_DEFINE(M_ICONVDATA, "iconv_data", "ICONV data");
+static MALLOC_DEFINE(M_ICONVDATA, "iconv_data", "ICONV data");
 
 MODULE_VERSION(libiconv, 2);
 

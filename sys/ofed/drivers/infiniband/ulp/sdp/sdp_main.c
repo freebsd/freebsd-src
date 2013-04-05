@@ -85,7 +85,7 @@ RW_SYSINIT(sdplockinit, &sdp_lock, "SDP lock");
 #define	SDP_LIST_RLOCK_ASSERT()	rw_assert(&sdp_lock, RW_RLOCKED)
 #define	SDP_LIST_LOCK_ASSERT()	rw_assert(&sdp_lock, RW_LOCKED)
 
-MALLOC_DEFINE(M_SDP, "sdp", "Socket Direct Protocol");
+static MALLOC_DEFINE(M_SDP, "sdp", "Socket Direct Protocol");
 
 static void sdp_stop_keepalive_timer(struct socket *so);
 

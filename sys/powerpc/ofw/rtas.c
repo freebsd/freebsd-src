@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 
-MALLOC_DEFINE(M_RTAS, "rtas", "Run Time Abstraction Service");
+static MALLOC_DEFINE(M_RTAS, "rtas", "Run Time Abstraction Service");
 
 static vm_offset_t	rtas_bounce_phys;
 static caddr_t		rtas_bounce_virt;

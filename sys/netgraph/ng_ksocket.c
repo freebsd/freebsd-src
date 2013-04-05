@@ -69,7 +69,8 @@
 #include <netatalk/at.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock", "netgraph ksock node ");
+static MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock",
+    "netgraph ksock node");
 #else
 #define M_NETGRAPH_KSOCKET M_NETGRAPH
 #endif

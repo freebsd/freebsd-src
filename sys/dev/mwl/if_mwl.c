@@ -262,7 +262,7 @@ static	void mwl_printtxbuf(const struct mwl_txbuf *bf, u_int qnum, u_int ix);
 } while (0)
 #endif
 
-MALLOC_DEFINE(M_MWLDEV, "mwldev", "mwl driver dma buffers");
+static MALLOC_DEFINE(M_MWLDEV, "mwldev", "mwl driver dma buffers");
 
 /*
  * Each packet has fixed front matter: a 2-byte length

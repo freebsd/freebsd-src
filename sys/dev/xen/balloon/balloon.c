@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
-MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
+static MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
 
 struct mtx balloon_mutex;
 

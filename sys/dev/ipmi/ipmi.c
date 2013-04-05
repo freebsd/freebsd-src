@@ -76,7 +76,7 @@ static struct cdevsw ipmi_cdevsw = {
 	.d_name =	"ipmi",
 };
 
-MALLOC_DEFINE(M_IPMI, "ipmi", "ipmi");
+static MALLOC_DEFINE(M_IPMI, "ipmi", "ipmi");
 
 static int
 ipmi_open(struct cdev *cdev, int flags, int fmt, struct thread *td)

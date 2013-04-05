@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/taskqueue.h>
 
-MALLOC_DEFINE(M_NMDM, "nullmodem", "nullmodem data structures");
+static MALLOC_DEFINE(M_NMDM, "nullmodem", "nullmodem data structures");
 
 static tsw_inwakeup_t	nmdm_outwakeup;
 static tsw_outwakeup_t	nmdm_inwakeup;

@@ -175,7 +175,7 @@ static void	amr_init_sysctl(struct amr_softc *sc);
 static int	amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr,
 		    int32_t flag, struct thread *td);
 
-MALLOC_DEFINE(M_AMR, "amr", "AMR memory");
+static MALLOC_DEFINE(M_AMR, "amr", "AMR memory");
 
 /********************************************************************************
  ********************************************************************************
