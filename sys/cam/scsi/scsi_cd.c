@@ -293,6 +293,9 @@ PERIPHDRIVER_DECLARE(cd, cddriver);
 #ifndef	CD_DEFAULT_RETRY
 #define	CD_DEFAULT_RETRY	4
 #endif
+#ifndef	CD_DEFAULT_TIMEOUT
+#define	CD_DEFAULT_TIMEOUT	30000
+#endif
 #ifndef CHANGER_MIN_BUSY_SECONDS
 #define CHANGER_MIN_BUSY_SECONDS	5
 #endif
@@ -301,6 +304,7 @@ PERIPHDRIVER_DECLARE(cd, cddriver);
 #endif
 
 static int cd_retry_count = CD_DEFAULT_RETRY;
+static int cd_timeout = CD_DEFAULT_TIMEOUT;
 static int changer_min_busy_seconds = CHANGER_MIN_BUSY_SECONDS;
 static int changer_max_busy_seconds = CHANGER_MAX_BUSY_SECONDS;
 
@@ -310,6 +314,9 @@ static SYSCTL_NODE(_kern_cam_cd, OID_AUTO, changer, CTLFLAG_RD, 0,
 SYSCTL_INT(_kern_cam_cd, OID_AUTO, retry_count, CTLFLAG_RW,
            &cd_retry_count, 0, "Normal I/O retry count");
 TUNABLE_INT("kern.cam.cd.retry_count", &cd_retry_count);
+SYSCTL_INT(_kern_cam_cd, OID_AUTO, timeout, CTLFLAG_RW,
+	   &cd_timeout, 0, "Timeout, in us, for read operations");
+TUNABLE_INT("kern.cam.cd.timeout", &cd_timeout);
 SYSCTL_INT(_kern_cam_cd_changer, OID_AUTO, min_busy_seconds, CTLFLAG_RW,
 	   &changer_min_busy_seconds, 0, "Minimum changer scheduling quantum");
 TUNABLE_INT("kern.cam.cd.changer.min_busy_seconds", &changer_min_busy_seconds);
@@ -1505,8 +1512,9 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					bp->bio_bcount / softc->params.blksize,
 					/* data_ptr */ bp->bio_data,
 					/* dxfer_len */ bp->bio_bcount,
-					/* sense_len */ SSD_FULL_SIZE,
-					/* timeout */ 30000);
+					/* sense_len */ cd_retry_count ?
+					  SSD_FULL_SIZE : SF_NO_PRINT,
+					/* timeout */ cd_timeout);
 			/* Use READ CD command for audio tracks. */
 			if (softc->params.blksize == 2352) {
 				start_ccb->csio.cdb_io.cdb_bytes[0] = READ_CD;
