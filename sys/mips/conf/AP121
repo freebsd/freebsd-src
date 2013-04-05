@@ -18,7 +18,7 @@ ident           AP121
 hints           "AP121.hints"
 
 # Force the board memory - the base AP121 only has 16MB RAM
-options         AR71XX_REALMEM=16*1024*1024
+options         AR71XX_REALMEM=(16*1024*1024)
 
 # i2c GPIO bus
 #device		gpioiic
@@ -26,11 +26,12 @@ options         AR71XX_REALMEM=16*1024*1024
 #device		iicbus
 #device		iic
 
-# ethernet switch device
-#device		etherswitch
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
 
-# RTL8366RB support
-#device		rtl8366rb
+device		etherswitch
+device		arswitch
 
 # read MSDOS formatted disks - USB
 #options		MSDOSFS
