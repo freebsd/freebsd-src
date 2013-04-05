@@ -59,6 +59,9 @@ static int	download_firmware	(struct libusb20_device *dev,
 					 char const *firmware);
 static void	usage			(void);
 
+static int			vendor_id = ATH3KFW_VENDOR_ID;
+static int			product_id = ATH3KFW_PRODUCT_ID;
+
 /*
  * Firmware downloader for Atheros AR3011 based USB Bluetooth devices
  */
@@ -78,7 +81,7 @@ main(int argc, char **argv)
 	addr = 0;
 	firmware = ATH3KFW_FW;
 
-	while ((n = getopt(argc, argv, "d:f:h")) != -1) {
+	while ((n = getopt(argc, argv, "d:f:hp:v:")) != -1) {
 		switch (n) {
 		case 'd': /* ugen device name */
 			if (parse_ugen_name(optarg, &bus, &addr) < 0)
@@ -88,7 +91,12 @@ main(int argc, char **argv)
 		case 'f': /* firmware file */
 			firmware = optarg;
 			break;
-
+		case 'p': /* product id */
+			product_id = strtol(optarg, NULL, 0);
+			break;
+		case 'v': /* vendor id */
+			vendor_id = strtol(optarg, NULL, 0);
+			break;
 		case 'h':
 		default:
 			usage();
@@ -166,8 +174,8 @@ find_device(struct libusb20_backend *be, uint8_t bus, uint8_t addr,
 		if (desc == NULL)
 			continue;
 
-		if (desc->idVendor != ATH3KFW_VENDOR_ID ||
-		    desc->idProduct != ATH3KFW_PRODUCT_ID)
+		if (desc->idVendor != vendor_id ||
+		    desc->idProduct != product_id)
 			continue;
 
 		break;
@@ -280,6 +288,8 @@ usage(void)
 "Where:\n" \
 "\t-d ugenX.Y           ugen device name\n" \
 "\t-f firmware image    firmware image file name for download\n" \
+"\t-v vendor_id         vendor id\n" \
+"\t-p vendor_id         product id\n" \
 "\t-h                   display this message\n", ATH3KFW, ATH3KFW);
 
         exit(255);
