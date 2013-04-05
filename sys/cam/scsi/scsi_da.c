@@ -1081,6 +1081,9 @@ daschedule(struct cam_periph *periph)
 	struct da_softc *softc = (struct da_softc *)periph->softc;
 	uint32_t prio;
 
+	if (softc->state != DA_STATE_NORMAL)
+		return;
+
 	/* Check if cam_periph_getccb() was called. */
 	prio = periph->immediate_priority;
 
@@ -1425,10 +1428,10 @@ daasync(void *callback_arg, u_int32_t code,
 	}
 	case AC_SCSI_AEN:
 		softc = (struct da_softc *)periph->softc;
-		if (softc->state == DA_STATE_NORMAL && !softc->tur) {
+		if (!softc->tur) {
 			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 				softc->tur = 1;
-				xpt_schedule(periph, CAM_PRIORITY_DEV);
+				daschedule(periph);
 			}
 		}
 		/* FALLTHROUGH */
@@ -2167,6 +2170,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
 	u_int32_t  priority;
+	da_ccb_state state;
 
 	softc = (struct da_softc *)periph->softc;
 	priority = done_ccb->ccb_h.pinfo.priority;
@@ -2174,7 +2178,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone\n"));
 
 	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) {
+	state = csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK;
+	switch (state) {
 	case DA_CCB_BUFFER_IO:
 	case DA_CCB_DELETE:
 	{
@@ -2272,8 +2277,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				  softc->outstanding_cmds);
 		}
 
-		if ((csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) ==
-		    DA_CCB_DELETE) {
+		if (state == DA_CCB_DELETE) {
 			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))
 			    != NULL) {
 				bp1->bio_resid = bp->bio_resid;
@@ -2299,7 +2303,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		rdcap = NULL;
 		rcaplong = NULL;
-		if (softc->state == DA_STATE_PROBE)
+		if (state == DA_CCB_PROBE)
 			rdcap =(struct scsi_read_capacity_data *)csio->data_ptr;
 		else
 			rcaplong = (struct scsi_read_capacity_data_long *)
@@ -2312,7 +2316,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			u_int lbppbe;	/* LB per physical block exponent. */
 			u_int lalba;	/* Lowest aligned LBA. */
 
-			if (softc->state == DA_STATE_PROBE) {
+			if (state == DA_CCB_PROBE) {
 				block_size = scsi_4btoul(rdcap->length);
 				maxsector = scsi_4btoul(rdcap->addr);
 				lbppbe = 0;
@@ -2425,7 +2429,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * If we tried READ CAPACITY(16) and failed,
 				 * fallback to READ CAPACITY(10).
 				 */
-				if ((softc->state == DA_STATE_PROBE2) &&
+				if ((state == DA_CCB_PROBE2) &&
 				    (softc->flags & DA_FLAG_CAN_RC16) &&
 				    (((csio->ccb_h.status & CAM_STATUS_MASK) ==
 					CAM_REQ_INVALID) ||
@@ -2505,7 +2509,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		 * operation.
 		 */
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_NORMAL;	
+		softc->state = DA_STATE_NORMAL;
+		daschedule(periph);
 		wakeup(&softc->disk->d_mediasize);
 		if ((softc->flags & DA_FLAG_PROBED) == 0) {
 			softc->flags |= DA_FLAG_PROBED;
@@ -2630,7 +2635,7 @@ damediapoll(void *arg)
 	struct cam_periph *periph = arg;
 	struct da_softc *softc = periph->softc;
 
-	if (softc->state == DA_STATE_NORMAL && !softc->tur) {
+	if (!softc->tur && softc->outstanding_cmds == 0) {
 		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 			softc->tur = 1;
 			daschedule(periph);
