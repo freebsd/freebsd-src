@@ -2044,7 +2044,7 @@ out:
 			break;
 		}
 		scsi_read_capacity(&start_ccb->csio,
-				   /*retries*/4,
+				   /*retries*/da_retry_count,
 				   dadone,
 				   MSG_SIMPLE_Q_TAG,
 				   rcap,
@@ -2067,7 +2067,7 @@ out:
 			break;
 		}
 		scsi_read_capacity_16(&start_ccb->csio,
-				      /*retries*/ 4,
+				      /*retries*/ da_retry_count,
 				      /*cbfcnp*/ dadone,
 				      /*tag_action*/ MSG_SIMPLE_Q_TAG,
 				      /*lba*/ 0,
@@ -2075,7 +2075,7 @@ out:
 				      /*pmi*/ 0,
 				      rcaplong,
 				      /*sense_len*/ SSD_FULL_SIZE,
-				      /*timeout*/ 60000);
+				      /*timeout*/ da_default_timeout * 1000);
 		start_ccb->ccb_h.ccb_bp = NULL;
 		start_ccb->ccb_h.ccb_state = DA_CCB_PROBE2;
 		xpt_action(start_ccb);	
