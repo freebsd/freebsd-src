@@ -82,7 +82,8 @@ typedef enum {
 	DA_FLAG_RETRY_UA	= 0x080,
 	DA_FLAG_OPEN		= 0x100,
 	DA_FLAG_SCTX_INIT	= 0x200,
-	DA_FLAG_CAN_RC16	= 0x400
+	DA_FLAG_CAN_RC16	= 0x400,
+	DA_FLAG_PROBED		= 0x800		
 } da_flags;
 
 typedef enum {
@@ -867,7 +868,7 @@ static	void		dadone(struct cam_periph *periph,
 static  int		daerror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
 static void		daprevent(struct cam_periph *periph, int action);
-static int		dagetcapacity(struct cam_periph *periph);
+static void		dareprobe(struct cam_periph *periph);
 static void		dasetgeom(struct cam_periph *periph, uint32_t block_len,
 				  uint64_t maxsector,
 				  struct scsi_read_capacity_data_long *rcaplong,
@@ -966,36 +967,31 @@ daopen(struct disk *dp)
 		softc->flags &= ~DA_FLAG_PACK_INVALID;
 	}
 
-	error = dagetcapacity(periph);
+	dareprobe(periph);
 
-	if (error == 0) {
+	/* Wait for the disk size update.  */
+	error = msleep(&softc->disk->d_mediasize, periph->sim->mtx, PRIBIO,
+	    "dareprobe", 0);
+	if (error != 0)
+		xpt_print(periph->path, "unable to retrieve capacity data");
 
-		softc->disk->d_sectorsize = softc->params.secsize;
-		softc->disk->d_mediasize = softc->params.secsize * (off_t)softc->params.sectors;
-		softc->disk->d_stripesize = softc->params.stripesize;
-		softc->disk->d_stripeoffset = softc->params.stripeoffset;
-		/* XXX: these are not actually "firmware" values, so they may be wrong */
-		softc->disk->d_fwsectors = softc->params.secs_per_track;
-		softc->disk->d_fwheads = softc->params.heads;
-		softc->disk->d_devstat->block_size = softc->params.secsize;
-		softc->disk->d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
-		if (softc->delete_method > DA_DELETE_DISABLE)
-			softc->disk->d_flags |= DISKFLAG_CANDELETE;
-		else
-			softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
+	if (periph->flags & CAM_PERIPH_INVALID ||
+	    softc->disk->d_sectorsize == 0 ||
+	    softc->disk->d_mediasize == 0)
+		error = ENXIO;
 
-		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
-		    (softc->quirks & DA_Q_NO_PREVENT) == 0)
-			daprevent(periph, PR_PREVENT);
-	} else
-		softc->flags &= ~DA_FLAG_OPEN;
+	if (error == 0 && (softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
+	    (softc->quirks & DA_Q_NO_PREVENT) == 0)
+		daprevent(periph, PR_PREVENT);
 
 	cam_periph_unhold(periph);
 	cam_periph_unlock(periph);
 
 	if (error != 0) {
+		softc->flags &= ~DA_FLAG_OPEN;
 		cam_periph_release(periph);
 	}
+
 	return (error);
 }
 
@@ -2400,7 +2396,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 		free(csio->data_ptr, M_SCSIDA);
-		if (announce_buf[0] != '\0') {
+		if (announce_buf[0] != '\0' && ((softc->flags & DA_FLAG_PROBED) == 0)) {
 			/*
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
@@ -2414,9 +2410,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				xpt_print(periph->path, "fatal error, "
 				    "could not acquire reference count\n");
 			}
-				
 		}
-		softc->state = DA_STATE_NORMAL;	
 		/*
 		 * Since our peripheral may be invalidated by an error
 		 * above or an external event, we must release our CCB
@@ -2426,7 +2420,13 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		 * operation.
 		 */
 		xpt_release_ccb(done_ccb);
-		cam_periph_unhold(periph);
+		softc->state = DA_STATE_NORMAL;	
+		wakeup(&softc->disk->d_mediasize);
+		if ((softc->flags & DA_FLAG_PROBED) == 0) {
+			softc->flags |= DA_FLAG_PROBED;
+			cam_periph_unhold(periph);
+		} else
+			cam_periph_release_locked(periph);
 		return;
 	}
 	case DA_CCB_WAITING:
@@ -2442,6 +2442,30 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	}
 	xpt_release_ccb(done_ccb);
+}
+
+static void
+dareprobe(struct cam_periph *periph)
+{
+	struct da_softc	  *softc;
+	cam_status status;
+
+	softc = (struct da_softc *)periph->softc;
+
+	/* Probe in progress; don't interfere. */
+	if ((softc->flags & DA_FLAG_PROBED) == 0)
+		return;
+
+	status = cam_periph_acquire(periph);
+	KASSERT(status == CAM_REQ_CMP,
+	    ("dareprobe: cam_periph_acquire failed"));
+
+	if (softc->flags & DA_FLAG_CAN_RC16)
+		softc->state = DA_STATE_PROBE2;
+	else
+		softc->state = DA_STATE_PROBE;
+
+	xpt_schedule(periph, CAM_PRIORITY_DEV);
 }
 
 static int
@@ -2473,6 +2497,16 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 				   &error_code, &sense_key, &asc, &ascq);
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
  			error = cmd6workaround(ccb);
+		/*
+		 * If the target replied with CAPACITY DATA HAS CHANGED UA,
+		 * query the capacity and notify upper layers.
+		 */
+		else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
+		    asc == 0x2A && ascq == 0x09) {
+			xpt_print(periph->path, "capacity data has changed\n");
+			dareprobe(periph);
+			sense_flags |= SF_NO_PRINT;
+		}
 	}
 	if (error == ERESTART)
 		return (ERESTART);
@@ -2524,162 +2558,6 @@ daprevent(struct cam_periph *periph, int action)
 	}
 
 	xpt_release_ccb(ccb);
-}
-
-static int
-dagetcapacity(struct cam_periph *periph)
-{
-	struct da_softc *softc;
-	union ccb *ccb;
-	struct scsi_read_capacity_data *rcap;
-	struct scsi_read_capacity_data_long *rcaplong;
-	uint32_t block_len;
-	uint64_t maxsector;
-	int error, rc16failed;
-	u_int32_t sense_flags;
-	u_int lbppbe;	/* Logical blocks per physical block exponent. */
-	u_int lalba;	/* Lowest aligned LBA. */
-
-	softc = (struct da_softc *)periph->softc;
-	block_len = 0;
-	maxsector = 0;
-	lbppbe = 0;
-	lalba = 0;
-	error = 0;
-	rc16failed = 0;
-	rcaplong = NULL;
-	sense_flags = SF_RETRY_UA;
-	if (softc->flags & DA_FLAG_PACK_REMOVABLE)
-		sense_flags |= SF_NO_PRINT;
-
-	/* Do a read capacity */
-	rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcaplong),
-							M_SCSIDA,
-							M_NOWAIT | M_ZERO);
-	if (rcap == NULL)
-		return (ENOMEM);
-	rcaplong = (struct scsi_read_capacity_data_long *)rcap;
-
-	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
-
-	/* Try READ CAPACITY(16) first if we think it should work. */
-	if (softc->flags & DA_FLAG_CAN_RC16) {
-		scsi_read_capacity_16(&ccb->csio,
-				      /*retries*/ 4,
-				      /*cbfcnp*/ dadone,
-				      /*tag_action*/ MSG_SIMPLE_Q_TAG,
-				      /*lba*/ 0,
-				      /*reladr*/ 0,
-				      /*pmi*/ 0,
-				      /*rcap_buf*/ rcaplong,
-				      /*sense_len*/ SSD_FULL_SIZE,
-				      /*timeout*/ 60000);
-		ccb->ccb_h.ccb_bp = NULL;
-
-		error = cam_periph_runccb(ccb, daerror,
-					  /*cam_flags*/CAM_RETRY_SELTO,
-					  sense_flags, softc->disk->d_devstat);
-		if (error == 0)
-			goto rc16ok;
-
-		/* If we got ILLEGAL REQUEST, do not prefer RC16 any more. */
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INVALID) {
-			softc->flags &= ~DA_FLAG_CAN_RC16;
-		} else if (((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR)
-			&& (ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND)
-			&& (ccb->ccb_h.status & CAM_AUTOSNS_VALID)
-			&& ((ccb->ccb_h.flags & CAM_SENSE_PHYS) == 0)
-			&& ((ccb->ccb_h.flags & CAM_SENSE_PTR) == 0)) {
-			int sense_key, error_code, asc, ascq;
-
-			scsi_extract_sense_len(&ccb->csio.sense_data,
-					       ccb->csio.sense_len -
-					       ccb->csio.sense_resid,
-					       &error_code, &sense_key,
-					       &asc, &ascq, /*show_errors*/1);
-			/*
-			 * If we don't have enough sense to get the sense
-			 * key, or if it's illegal request, turn off
-			 * READ CAPACITY (16).
-			 */
-			if ((sense_key == -1)
-			 || (sense_key == SSD_KEY_ILLEGAL_REQUEST))
-				softc->flags &= ~DA_FLAG_CAN_RC16;
-		}
-		rc16failed = 1;
-	}
-
-	/* Do READ CAPACITY(10). */
-	scsi_read_capacity(&ccb->csio,
-			   /*retries*/4,
-			   /*cbfncp*/dadone,
-			   MSG_SIMPLE_Q_TAG,
-			   rcap,
-			   SSD_FULL_SIZE,
-			   /*timeout*/60000);
-	ccb->ccb_h.ccb_bp = NULL;
-
-	error = cam_periph_runccb(ccb, daerror,
-				  /*cam_flags*/CAM_RETRY_SELTO,
-				  sense_flags,
-				  softc->disk->d_devstat);
-	if (error == 0) {
-		block_len = scsi_4btoul(rcap->length);
-		maxsector = scsi_4btoul(rcap->addr);
-
-		if (maxsector != 0xffffffff || rc16failed)
-			goto done;
-	} else
-		goto done;
-
-	/* If READ CAPACITY(10) returned overflow, use READ CAPACITY(16) */
-	scsi_read_capacity_16(&ccb->csio,
-			      /*retries*/ 4,
-			      /*cbfcnp*/ dadone,
-			      /*tag_action*/ MSG_SIMPLE_Q_TAG,
-			      /*lba*/ 0,
-			      /*reladr*/ 0,
-			      /*pmi*/ 0,
-			      rcaplong,
-			      /*sense_len*/ SSD_FULL_SIZE,
-			      /*timeout*/ 60000);
-	ccb->ccb_h.ccb_bp = NULL;
-
-	error = cam_periph_runccb(ccb, daerror,
-				  /*cam_flags*/CAM_RETRY_SELTO,
-				  sense_flags,
-				  softc->disk->d_devstat);
-	if (error == 0) {
-rc16ok:
-		block_len = scsi_4btoul(rcaplong->length);
-		maxsector = scsi_8btou64(rcaplong->addr);
-		lbppbe = rcaplong->prot_lbppbe & SRC16_LBPPBE;
-		lalba = scsi_2btoul(rcaplong->lalba_lbp);
-	}
-
-done:
-
-	if (error == 0) {
-		if (block_len >= MAXPHYS || block_len == 0) {
-			xpt_print(periph->path,
-			    "unsupportable block size %ju\n",
-			    (uintmax_t) block_len);
-			error = EINVAL;
-		} else {
-			dasetgeom(periph, block_len, maxsector,
-				  rcaplong, sizeof(*rcaplong));
-			if ((lalba & SRC16_LBPME)
-			 && softc->delete_method == DA_DELETE_NONE)
-				softc->delete_method = DA_DELETE_UNMAP;
-		}
-	}
-
-	xpt_release_ccb(ccb);
-
-	free(rcap, M_SCSIDA);
-
-	return (error);
 }
 
 static void
@@ -2781,6 +2659,20 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 			      min(sizeof(softc->rcaplong), rcap_len));
 		}
 	}
+
+	softc->disk->d_sectorsize = softc->params.secsize;
+	softc->disk->d_mediasize = softc->params.secsize * (off_t)softc->params.sectors;
+	softc->disk->d_stripesize = softc->params.stripesize;
+	softc->disk->d_stripeoffset = softc->params.stripeoffset;
+	/* XXX: these are not actually "firmware" values, so they may be wrong */
+	softc->disk->d_fwsectors = softc->params.secs_per_track;
+	softc->disk->d_fwheads = softc->params.heads;
+	softc->disk->d_devstat->block_size = softc->params.secsize;
+	softc->disk->d_devstat->flags &= ~DEVSTAT_BS_UNAVAILABLE;
+	if (softc->delete_method > DA_DELETE_DISABLE)
+		softc->disk->d_flags |= DISKFLAG_CANDELETE;
+	else
+		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
 }
 
 static void
