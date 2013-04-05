@@ -200,8 +200,23 @@ ar933x_chip_ddr_flush_ip2(void)
 static uint32_t
 ar933x_chip_get_eth_pll(unsigned int mac, int speed)
 {
+	uint32_t pll;
 
-	return (0);
+	switch (speed) {
+	case 10:
+		pll = AR933X_PLL_VAL_10;
+		break;
+	case 100:
+		pll = AR933X_PLL_VAL_100;
+		break;
+	case 1000:
+		pll = AR933X_PLL_VAL_1000;
+		break;
+	default:
+		printf("%s%d: invalid speed %d\n", __func__, mac, speed);
+		pll = 0;
+	}
+	return (pll);
 }
 
 static void
