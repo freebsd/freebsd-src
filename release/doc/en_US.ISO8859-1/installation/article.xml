@@ -21,7 +21,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2012</year>
+      <year>2013</year>
 
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
@@ -62,8 +62,8 @@
 	<ulink url="&url.books.handbook;//makeworld.html"></ulink>.</para>
 
       <para>The branch tag to use for updating the source is
-	<literal>RELENG_8_3</literal> for CVS.  For SVN use
-	<filename>releng/8.3</filename>.</para>
+	<literal>RELENG_8_4</literal> for CVS.  For SVN use
+	<filename>releng/8.4</filename>.</para>
     </sect2>
 
     <sect2>
@@ -73,11 +73,11 @@
 	upgrades of &arch.i386; and &arch.amd64; systems running
 	earlier FreeBSD releases. Systems running
 	<literal>7.[01234]-RELEASE</literal>,
-	<literal>8.[012]-RELEASE</literal>,
-	<literal>8.3-BETA1</literal>, or
-	<literal>8.3-RC[12]</literal> can upgrade as follows:</para>
+	<literal>8.[0123]-RELEASE</literal>,
+	<literal>8.4-BETA1</literal>, or
+	<literal>8.4-RC[12]</literal> can upgrade as follows:</para>
 
-      <screen>&prompt.root; freebsd-update upgrade -r 8.3-RELEASE</screen>
+      <screen>&prompt.root; freebsd-update upgrade -r 8.4-RELEASE</screen>
 
       <para>During this process, FreeBSD Update may ask the user to
 	help by merging some configuration files or by confirming that
