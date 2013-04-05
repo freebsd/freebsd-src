@@ -40,11 +40,11 @@ options         AR71XX_REALMEM=16*1024*1024
 options		AR71XX_ENV_UBOOT
 
 # uzip - to boot natively from flash
-#device		geom_uzip
-#options		GEOM_UZIP
+device		geom_uncompress
+options 	GEOM_UNCOMPRESS
 
 # Used for the static uboot partition map
 device          geom_map
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options		ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+options		ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
