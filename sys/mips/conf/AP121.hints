@@ -3,21 +3,28 @@
 #
 # $FreeBSD$
 
-# Hard-code the PHY for now, until there's switch phy support.
-# hint.arge.0.phymask=0x000c
-hint.arge.0.phymask=0x0000
-hint.arge.0.media=1000
-hint.arge.0.fduplex=1
-# Where is the MAC address stored in flash for this particular unit.
-hint.arge.0.eeprommac=0x1f01fc00
+# mdiobus on arge1
+hint.argemdio.0.at="nexus0"
+hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.msize=0x1000
+hint.argemdio.0.order=0
 
-# This isn't used, but configure it anyway.
-# This should eventually just not be configured, but the if then
-# needs to be properly disabled or spurious interrupts occur.
-hint.arge.1.phymask=0x0
+# Embedded Atheros Switch
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=1
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1	# phy 4 is a "CPU" separate PHY
+hint.arswitch.0.is_rgmii=0
+hint.arswitch.0.is_gmii=1	# arge1 <-> switch PHY is GMII
 
-# Where the ART is
-# hint.ath.0.eepromaddr=0x1fff1000
+# arge0 - MII, autoneg, phy(4)
+hint.arge.0.phymask=0x10	# PHY4
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
+
+# arge1 - GMII, 1000/full
+hint.arge.1.phymask=0x0		# No directly mapped PHYs
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
 
 # The AP121 4MB flash layout:
 #
@@ -114,17 +121,3 @@ hint.gpio.0.pinmask=0x0
 #hint.gpioled.3.at="gpiobus0"
 #hint.gpioled.3.name="wlan"
 #hint.gpioled.3.pins=0x0200
-
-# GPIO I2C bus
-#hint.gpioiic.0.at="gpiobus0"
-#hint.gpioiic.0.pins=0xc0000
-#hint.gpioiic.0.scl=1
-#hint.gpioiic.0.sda=0
-
-# I2C bus
-# Don't be strict about I2C protocol - the relaxed semantics are required
-# by the realtek switch PHY.
-# hint.iicbus.0.strict=0
-
-# Bit bang bus - override default delay
-#hint.iicbb.0.udelay=3
