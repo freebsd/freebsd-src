@@ -119,39 +119,42 @@ compile_time_root_prime(int do_ip4, int do_ip6)
 	 ;           on server           FTP.INTERNIC.NET
 	 ;       -OR-                    RS.INTERNIC.NET
 	 ;
-	 ;       related version of root zone:   2010061700
+	 ;       related version of root zone:   changes-on-20120103
 	 */
 	struct delegpt* dp = delegpt_create_mlc((uint8_t*)"\000");
 	if(!dp)
 		return NULL;
 	dp->has_parent_side_NS = 1;
       if(do_ip4) {
-	if(!ah(dp, "A.ROOT-SERVERS.NET.", "198.41.0.4"))	return 0;
-	if(!ah(dp, "B.ROOT-SERVERS.NET.", "192.228.79.201")) return 0;
-	if(!ah(dp, "C.ROOT-SERVERS.NET.", "192.33.4.12"))	return 0;
-	if(!ah(dp, "D.ROOT-SERVERS.NET.", "128.8.10.90"))	return 0;
-	if(!ah(dp, "E.ROOT-SERVERS.NET.", "192.203.230.10")) return 0;
-	if(!ah(dp, "F.ROOT-SERVERS.NET.", "192.5.5.241"))	return 0;
-	if(!ah(dp, "G.ROOT-SERVERS.NET.", "192.112.36.4"))	return 0;
-	if(!ah(dp, "H.ROOT-SERVERS.NET.", "128.63.2.53"))	return 0;
-	if(!ah(dp, "I.ROOT-SERVERS.NET.", "192.36.148.17"))	return 0;
-	if(!ah(dp, "J.ROOT-SERVERS.NET.", "192.58.128.30"))	return 0;
-	if(!ah(dp, "K.ROOT-SERVERS.NET.", "193.0.14.129"))	return 0;
-	if(!ah(dp, "L.ROOT-SERVERS.NET.", "199.7.83.42"))	return 0;
-	if(!ah(dp, "M.ROOT-SERVERS.NET.", "202.12.27.33"))	return 0;
+	if(!ah(dp, "A.ROOT-SERVERS.NET.", "198.41.0.4"))	goto failed;
+	if(!ah(dp, "B.ROOT-SERVERS.NET.", "192.228.79.201")) goto failed;
+	if(!ah(dp, "C.ROOT-SERVERS.NET.", "192.33.4.12"))	goto failed;
+	if(!ah(dp, "D.ROOT-SERVERS.NET.", "199.7.91.13"))	goto failed;
+	if(!ah(dp, "E.ROOT-SERVERS.NET.", "192.203.230.10")) goto failed;
+	if(!ah(dp, "F.ROOT-SERVERS.NET.", "192.5.5.241"))	goto failed;
+	if(!ah(dp, "G.ROOT-SERVERS.NET.", "192.112.36.4"))	goto failed;
+	if(!ah(dp, "H.ROOT-SERVERS.NET.", "128.63.2.53"))	goto failed;
+	if(!ah(dp, "I.ROOT-SERVERS.NET.", "192.36.148.17"))	goto failed;
+	if(!ah(dp, "J.ROOT-SERVERS.NET.", "192.58.128.30"))	goto failed;
+	if(!ah(dp, "K.ROOT-SERVERS.NET.", "193.0.14.129"))	goto failed;
+	if(!ah(dp, "L.ROOT-SERVERS.NET.", "199.7.83.42"))	goto failed;
+	if(!ah(dp, "M.ROOT-SERVERS.NET.", "202.12.27.33"))	goto failed;
       }
       if(do_ip6) {
-	if(!ah(dp, "A.ROOT-SERVERS.NET.", "2001:503:ba3e::2:30")) return 0;
-	if(!ah(dp, "D.ROOT-SERVERS.NET.", "2001:500:2d::d")) return 0;
-	if(!ah(dp, "F.ROOT-SERVERS.NET.", "2001:500:2f::f")) return 0;
-	if(!ah(dp, "H.ROOT-SERVERS.NET.", "2001:500:1::803f:235")) return 0;
-	if(!ah(dp, "I.ROOT-SERVERS.NET.", "2001:7fe::53")) return 0;
-	if(!ah(dp, "J.ROOT-SERVERS.NET.", "2001:503:c27::2:30")) return 0;
-	if(!ah(dp, "K.ROOT-SERVERS.NET.", "2001:7fd::1")) return 0;
-	if(!ah(dp, "L.ROOT-SERVERS.NET.", "2001:500:3::42")) return 0;
-	if(!ah(dp, "M.ROOT-SERVERS.NET.", "2001:dc3::35")) return 0;
+	if(!ah(dp, "A.ROOT-SERVERS.NET.", "2001:503:ba3e::2:30")) goto failed;
+	if(!ah(dp, "D.ROOT-SERVERS.NET.", "2001:500:2d::d")) goto failed;
+	if(!ah(dp, "F.ROOT-SERVERS.NET.", "2001:500:2f::f")) goto failed;
+	if(!ah(dp, "H.ROOT-SERVERS.NET.", "2001:500:1::803f:235")) goto failed;
+	if(!ah(dp, "I.ROOT-SERVERS.NET.", "2001:7fe::53")) goto failed;
+	if(!ah(dp, "J.ROOT-SERVERS.NET.", "2001:503:c27::2:30")) goto failed;
+	if(!ah(dp, "K.ROOT-SERVERS.NET.", "2001:7fd::1")) goto failed;
+	if(!ah(dp, "L.ROOT-SERVERS.NET.", "2001:500:3::42")) goto failed;
+	if(!ah(dp, "M.ROOT-SERVERS.NET.", "2001:dc3::35")) goto failed;
       }
 	return dp;
+failed:
+	delegpt_free_mlc(dp);
+	return 0;
 }
 
 /** insert new hint info into hint structure */
@@ -169,7 +172,9 @@ hints_insert(struct iter_hints* hints, uint16_t c, struct delegpt* dp,
 	node->noprime = (uint8_t)noprime;
 	if(!name_tree_insert(&hints->tree, &node->node, dp->name, dp->namelen,
 		dp->namelabs, c)) {
-		log_err("second hints ignored.");
+		char buf[257];
+		dname_str(dp->name, buf);
+		log_err("second hints for zone %s ignored.", buf);
 		delegpt_free_mlc(dp);
 		free(node);
 	}
@@ -253,17 +258,19 @@ read_stubs(struct iter_hints* hints, struct config_file* cfg)
 	struct config_stub* s;
 	struct delegpt* dp;
 	for(s = cfg->stubs; s; s = s->next) {
-		if(!(dp=read_stubs_name(s)) ||
-			!read_stubs_host(s, dp) ||
-			!read_stubs_addr(s, dp))
+		if(!(dp=read_stubs_name(s)))
 			return 0;
+		if(!read_stubs_host(s, dp) || !read_stubs_addr(s, dp)) {
+			delegpt_free_mlc(dp);
+			return 0;
+		}
 		/* the flag is turned off for 'stub-first' so that the
 		 * last resort will ask for parent-side NS record and thus
 		 * fallback to the internet name servers on a failure */
 		dp->has_parent_side_NS = (uint8_t)!s->isfirst;
+		delegpt_log(VERB_QUERY, dp);
 		if(!hints_insert(hints, LDNS_RR_CLASS_IN, dp, !s->isprime))
 			return 0;
-		delegpt_log(VERB_QUERY, dp);
 	}
 	return 1;
 }

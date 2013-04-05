@@ -58,7 +58,9 @@
 #include "util/net_help.h"
 #include "util/random.h"
 #include "util/fptr_wlist.h"
+#ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
+#endif
 
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
@@ -297,9 +299,11 @@ decomission_pending_tcp(struct outside_network* outnet,
 	struct pending_tcp* pend)
 {
 	if(pend->c->ssl) {
+#ifdef HAVE_SSL
 		SSL_shutdown(pend->c->ssl);
 		SSL_free(pend->c->ssl);
 		pend->c->ssl = NULL;
+#endif
 	}
 	comm_point_close(pend->c);
 	pend->next_free = outnet->tcp_free;
@@ -1439,7 +1443,7 @@ static void
 serviced_callbacks(struct serviced_query* sq, int error, struct comm_point* c,
 	struct comm_reply* rep)
 {
-	struct service_callback* p = sq->cblist, *n;
+	struct service_callback* p;
 	int dobackup = (sq->cblist && sq->cblist->next); /* >1 cb*/
 	uint8_t *backup_p = NULL;
 	size_t backlen = 0;
@@ -1498,8 +1502,9 @@ serviced_callbacks(struct serviced_query* sq, int error, struct comm_point* c,
 		}
 		sq->outnet->svcd_overhead = backlen;
 	}
-	while(p) {
-		n = p->next;
+	/* test the actual sq->cblist, because the next elem could be deleted*/
+	while((p=sq->cblist) != NULL) {
+		sq->cblist = p->next; /* remove this element */
 		if(dobackup && c) {
 			ldns_buffer_clear(c->buffer);
 			ldns_buffer_write(c->buffer, backup_p, backlen);
@@ -1507,7 +1512,7 @@ serviced_callbacks(struct serviced_query* sq, int error, struct comm_point* c,
 		}
 		fptr_ok(fptr_whitelist_serviced_query(p->cb));
 		(void)(*p->cb)(c, p->cb_arg, error, rep);
-		p = n;
+		free(p);
 	}
 	if(backup_p) {
 		free(backup_p);
@@ -1781,37 +1786,21 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 	return 0;
 }
 
-/** find callback in list */
-static struct service_callback*
-callback_list_find(struct serviced_query* sq, void* cb_arg, 
-	int (*arg_compare)(void*,void*))
-{
-	struct service_callback* p;
-	for(p = sq->cblist; p; p = p->next) {
-		if(arg_compare(p->cb_arg, cb_arg))
-			return p;
-	}
-	return NULL;
-}
-
 struct serviced_query* 
 outnet_serviced_query(struct outside_network* outnet,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
 	uint16_t flags, int dnssec, int want_dnssec, int tcp_upstream,
 	int ssl_upstream, struct sockaddr_storage* addr, socklen_t addrlen,
 	uint8_t* zone, size_t zonelen, comm_point_callback_t* callback,
-	void* callback_arg, ldns_buffer* buff, int (*arg_compare)(void*,void*))
+	void* callback_arg, ldns_buffer* buff)
 {
 	struct serviced_query* sq;
 	struct service_callback* cb;
 	serviced_gen_query(buff, qname, qnamelen, qtype, qclass, flags);
 	sq = lookup_serviced(outnet, buff, dnssec, addr, addrlen);
-	if(sq) {
-		/* see if it is a duplicate notification request for cb_arg */
-		if(callback_list_find(sq, callback_arg, arg_compare)) {
-			return sq;
-		}
-	}
+	/* duplicate entries are included in the callback list, because
+	 * there is a counterpart registration by our caller that needs to
+	 * be doubly-removed (with callbacks perhaps). */
 	if(!(cb = (struct service_callback*)malloc(sizeof(*cb))))
 		return NULL;
 	if(!sq) {

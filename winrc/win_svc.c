@@ -380,6 +380,9 @@ service_deinit(struct daemon* daemon, struct config_file* cfg)
 	daemon_delete(daemon);
 }
 
+#ifdef DOXYGEN
+#define ATTR_UNUSED(x) x
+#endif
 /**
  * The main function for the service.
  * Called by the services API when starting unbound on windows in background.

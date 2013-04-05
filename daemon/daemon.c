@@ -55,6 +55,12 @@
 #ifdef HAVE_OPENSSL_ENGINE_H
 #include <openssl/engine.h>
 #endif
+
+#ifdef HAVE_NSS
+/* nss3 */
+#include "nss.h"
+#endif
+
 #include <ldns/ldns.h>
 #include "daemon/daemon.h"
 #include "daemon/worker.h"
@@ -73,6 +79,7 @@
 #include "util/module.h"
 #include "util/random.h"
 #include "util/tube.h"
+#include "util/net_help.h"
 #include <signal.h>
 
 /** How many quit requests happened. */
@@ -189,20 +196,29 @@ daemon_init(void)
 #endif /* USE_WINSOCK */
 	signal_handling_record();
 	checklock_start();
+#ifdef HAVE_SSL
 	ERR_load_crypto_strings();
 	ERR_load_SSL_strings();
-#ifdef HAVE_OPENSSL_CONFIG
+#  ifdef HAVE_OPENSSL_CONFIG
 	OPENSSL_config("unbound");
-#endif
-#ifdef USE_GOST
+#  endif
+#  ifdef USE_GOST
 	(void)ldns_key_EVP_load_gost_id();
-#endif
+#  endif
 	OpenSSL_add_all_algorithms();
-#if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS
+#  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS
 	/* grab the COMP method ptr because openssl leaks it */
 	comp_meth = (void*)SSL_COMP_get_compression_methods();
-#endif
+#  endif
 	(void)SSL_library_init();
+#  if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
+	if(!ub_openssl_lock_init())
+		fatal_exit("could not init openssl locks");
+#  endif
+#elif defined(HAVE_NSS)
+	if(NSS_NoDB_Init(NULL) != SECSuccess)
+		fatal_exit("could not init NSS");
+#endif /* HAVE_SSL or HAVE_NSS */
 #ifdef HAVE_TZSET
 	/* init timezone info while we are not chrooted yet */
 	tzset();
@@ -530,31 +546,40 @@ daemon_delete(struct daemon* daemon)
 	free(daemon->chroot);
 	free(daemon->pidfile);
 	free(daemon->env);
+#ifdef HAVE_SSL
 	SSL_CTX_free((SSL_CTX*)daemon->listen_sslctx);
 	SSL_CTX_free((SSL_CTX*)daemon->connect_sslctx);
+#endif
 	free(daemon);
 #ifdef LEX_HAS_YYLEX_DESTROY
 	/* lex cleanup */
 	ub_c_lex_destroy();
 #endif
 	/* libcrypto cleanup */
-#if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
+#ifdef HAVE_SSL
+#  if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
 	ldns_key_EVP_unload_gost();
-#endif
-#if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS && HAVE_DECL_SK_SSL_COMP_POP_FREE
-#ifndef S_SPLINT_S
+#  endif
+#  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS && HAVE_DECL_SK_SSL_COMP_POP_FREE
+#    ifndef S_SPLINT_S
 	sk_SSL_COMP_pop_free(comp_meth, (void(*)())CRYPTO_free);
-#endif
-#endif
-#ifdef HAVE_OPENSSL_CONFIG
+#    endif
+#  endif
+#  ifdef HAVE_OPENSSL_CONFIG
 	EVP_cleanup();
 	ENGINE_cleanup();
 	CONF_modules_free();
-#endif
+#  endif
 	CRYPTO_cleanup_all_ex_data(); /* safe, no more threads right now */
 	ERR_remove_state(0);
 	ERR_free_strings();
 	RAND_cleanup();
+#  if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
+	ub_openssl_lock_delete();
+#  endif
+#elif defined(HAVE_NSS)
+	NSS_Shutdown();
+#endif /* HAVE_SSL or HAVE_NSS */
 	checklock_stop();
 #ifdef USE_WINSOCK
 	if(WSACleanup() != 0) {

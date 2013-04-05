@@ -193,7 +193,7 @@ replay_range_read(char* remain, FILE* in, const char* name, int* lineno,
 		/* set position before line; read entry */
 		(*lineno)--;
 		fseeko(in, pos, SEEK_SET);
-		entry = read_entry(in, name, lineno, ttl, or, prev);
+		entry = read_entry(in, name, lineno, ttl, or, prev, 1);
 		if(!entry)
 			fatal_exit("%d: bad entry", *lineno);
 		entry->next = NULL;
@@ -393,7 +393,7 @@ replay_moment_read(char* remain, FILE* in, const char* name, int* lineno,
 	} 
 
 	if(readentry) {
-		mom->match = read_entry(in, name, lineno, ttl, or, prev);
+		mom->match = read_entry(in, name, lineno, ttl, or, prev, 1);
 		if(!mom->match) {
 			free(mom);
 			return NULL;

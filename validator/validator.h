@@ -56,13 +56,13 @@ struct config_strlist;
  * will be primed no more often than this interval.  Used when harden-
  * dnssec-stripped is off and the trust anchor fails.
  */
-#define NULL_KEY_TTL	900 /* seconds */
+#define NULL_KEY_TTL	60 /* seconds */
 
 /**
  * TTL for bogus key entries.  When a DS or DNSKEY fails in the chain of
  * trust the entire zone for that name is blacked out for this TTL.
  */
-#define BOGUS_KEY_TTL	900 /* seconds */
+#define BOGUS_KEY_TTL	60 /* seconds */
 
 /** max number of query restarts, number of IPs to probe */
 #define VAL_MAX_RESTART_COUNT 5

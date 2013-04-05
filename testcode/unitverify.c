@@ -42,6 +42,7 @@
 #include "util/log.h"
 #include "testcode/unitmain.h"
 #include "validator/val_sigcrypt.h"
+#include "validator/val_secalgo.h"
 #include "validator/val_nsec.h"
 #include "validator/val_nsec3.h"
 #include "validator/validator.h"
@@ -297,7 +298,7 @@ verifytest_file(const char* fname, const char* at_date)
 	struct alloc_cache alloc;
 	ldns_buffer* buf = ldns_buffer_new(65535);
 	struct entry* e;
-	struct entry* list = read_datafile(fname);
+	struct entry* list = read_datafile(fname, 1);
 	struct module_env env;
 	struct val_env ve;
 	uint32_t now = time(NULL);
@@ -341,7 +342,7 @@ dstest_file(const char* fname)
 	struct alloc_cache alloc;
 	ldns_buffer* buf = ldns_buffer_new(65535);
 	struct entry* e;
-	struct entry* list = read_datafile(fname);
+	struct entry* list = read_datafile(fname, 1);
 	struct module_env env;
 
 	if(!list)
@@ -474,7 +475,7 @@ nsec3_hash_test(const char* fname)
 	struct alloc_cache alloc;
 	ldns_buffer* buf = ldns_buffer_new(65535);
 	struct entry* e;
-	struct entry* list = read_datafile(fname);
+	struct entry* list = read_datafile(fname, 1);
 
 	if(!list)
 		fatal_exit("could not read %s: %s", fname, strerror(errno));
@@ -505,12 +506,12 @@ verify_test(void)
 	verifytest_file("testdata/test_signatures.6", "20080416005004");
 	verifytest_file("testdata/test_signatures.7", "20070829144150");
 	verifytest_file("testdata/test_signatures.8", "20070829144150");
-#if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
+#if (defined(HAVE_EVP_SHA256) || defined(HAVE_NSS)) && defined(USE_SHA2)
 	verifytest_file("testdata/test_sigs.rsasha256", "20070829144150");
 	verifytest_file("testdata/test_sigs.sha1_and_256", "20070829144150");
 	verifytest_file("testdata/test_sigs.rsasha256_draft", "20090101000000");
 #endif
-#if defined(HAVE_EVP_SHA512) && defined(USE_SHA2)
+#if (defined(HAVE_EVP_SHA512) || defined(HAVE_NSS)) && defined(USE_SHA2)
 	verifytest_file("testdata/test_sigs.rsasha512_draft", "20070829144150");
 #endif
 	verifytest_file("testdata/test_sigs.hinfo", "20090107100022");
@@ -521,8 +522,11 @@ verify_test(void)
 	else printf("Warning: skipped GOST, openssl does not provide gost.\n");
 #endif
 #ifdef USE_ECDSA
-	verifytest_file("testdata/test_sigs.ecdsa_p256", "20100908100439");
-	verifytest_file("testdata/test_sigs.ecdsa_p384", "20100908100439");
+	/* test for support in case we use libNSS and ECC is removed */
+	if(dnskey_algo_id_is_supported(LDNS_ECDSAP256SHA256)) {
+		verifytest_file("testdata/test_sigs.ecdsa_p256", "20100908100439");
+		verifytest_file("testdata/test_sigs.ecdsa_p384", "20100908100439");
+	}
 	dstest_file("testdata/test_ds.sha384");
 #endif
 	dstest_file("testdata/test_ds.sha1");

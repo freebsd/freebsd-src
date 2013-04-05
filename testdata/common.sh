@@ -116,7 +116,7 @@ get_random_port () {
 		# depending on uname try to check for collisions in port numbers
 		case "`uname`" in
 		linux|Linux)
-			plist=`netstat -n -A ip -A ip6 -a | sed -e 's/^.*:\([0-9]*\) .*$/\1/'`
+			plist=`netstat -n -A ip -A ip6 -a 2>/dev/null | sed -e 's/^.*:\([0-9]*\) .*$/\1/'`
 		;;
 		FreeBSD|freebsd|NetBSD|netbsd|OpenBSD|openbsd)
 			plist=`netstat -n -a | grep "^[ut][dc]p[46] " | sed -e 's/^.*\.\([0-9]*\) .*$/\1/'`

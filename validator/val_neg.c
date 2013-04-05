@@ -44,6 +44,9 @@
 #include "config.h"
 #ifdef HAVE_OPENSSL_SSL_H
 #include "openssl/ssl.h"
+#define NSEC3_SHA_LEN SHA_DIGEST_LENGTH
+#else
+#define NSEC3_SHA_LEN 20
 #endif
 #include "validator/val_neg.h"
 #include "validator/val_nsec.h"
@@ -1174,7 +1177,7 @@ neg_find_nsec3_ce(struct val_neg_zone* zone, uint8_t* qname, size_t qname_len,
 		int qlabs, ldns_buffer* buf, uint8_t* hashnc, size_t* nclen)
 {
 	struct val_neg_data* data;
-	uint8_t hashce[SHA_DIGEST_LENGTH];
+	uint8_t hashce[NSEC3_SHA_LEN];
 	uint8_t b32[257];
 	size_t celen, b32len;
 
@@ -1259,7 +1262,7 @@ neg_nsec3_proof_ds(struct val_neg_zone* zone, uint8_t* qname, size_t qname_len,
 {
 	struct dns_msg* msg;
 	struct val_neg_data* data;
-	uint8_t hashnc[SHA_DIGEST_LENGTH];
+	uint8_t hashnc[NSEC3_SHA_LEN];
 	size_t nclen;
 	struct ub_packed_rrset_key* ce_rrset, *nc_rrset;
 	struct nsec3_cached_hash c;

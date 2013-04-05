@@ -360,6 +360,7 @@ int tube_read_msg(struct tube* tube, uint8_t** buf, uint32_t* len,
 		}
 		d += r;
 	}
+	log_assert(*len < 65536*2);
 	*buf = (uint8_t*)malloc(*len);
 	if(!*buf) {
 		log_err("tube read out of memory");

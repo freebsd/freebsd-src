@@ -323,7 +323,7 @@ data_buffer2wire(ldns_buffer *data_buffer)
 	uint8_t *hexbuf;
 	int hexbufpos = 0;
 	size_t wirelen;
-	uint8_t *data_wire = (uint8_t *) ldns_buffer_export(data_buffer);
+	uint8_t *data_wire = (uint8_t *) ldns_buffer_begin(data_buffer);
 	uint8_t *wire = LDNS_XMALLOC(uint8_t, LDNS_MAX_PACKETLEN);
 	
 	hexbuf = LDNS_XMALLOC(uint8_t, LDNS_MAX_PACKETLEN);
@@ -340,6 +340,12 @@ data_buffer2wire(ldns_buffer *data_buffer)
 					(c >= 'a' && c <= 'f') ||
 					(c >= 'A' && c <= 'F') )
 				{
+					if (hexbufpos >= LDNS_MAX_PACKETLEN) {
+						error("buffer overflow");
+						LDNS_FREE(hexbuf);
+						return 0;
+
+					}
 					hexbuf[hexbufpos] = (uint8_t) c;
 					hexbufpos++;
 				} else if (c == ';') {
@@ -354,13 +360,13 @@ data_buffer2wire(ldns_buffer *data_buffer)
 				}
 				break;
 			case 2:
+				if (hexbufpos >= LDNS_MAX_PACKETLEN) {
+					error("buffer overflow");
+					LDNS_FREE(hexbuf);
+					return 0;
+				}
 				hexbuf[hexbufpos] = (uint8_t) c;
 				hexbufpos++;
-				break;
-			default:
-				error("unknown state while reading");
-				LDNS_FREE(hexbuf);
-				return 0;
 				break;
 		}
 	}
@@ -371,6 +377,11 @@ data_buffer2wire(ldns_buffer *data_buffer)
 	
 	/* lenient mode: length must be multiple of 2 */
 	if (hexbufpos % 2 != 0) {
+		if (hexbufpos >= LDNS_MAX_PACKETLEN) {
+			error("buffer overflow");
+			LDNS_FREE(hexbuf);
+			return 0;
+		}
 		hexbuf[hexbufpos] = (uint8_t) '0';
 		hexbufpos++;
 	}
@@ -415,7 +426,7 @@ get_origin(const char* name, int lineno, ldns_rdf** origin, char* parse)
 /* Reads one entry from file. Returns entry or NULL on error. */
 struct entry*
 read_entry(FILE* in, const char* name, int *lineno, uint32_t* default_ttl, 
-	ldns_rdf** origin, ldns_rdf** prev_rr)
+	ldns_rdf** origin, ldns_rdf** prev_rr, int skip_whitespace)
 {
 	struct entry* current = NULL;
 	char line[MAX_LINE];
@@ -485,7 +496,10 @@ read_entry(FILE* in, const char* name, int *lineno, uint32_t* default_ttl,
 			reading_hex = false;
 			cur_reply->reply_from_hex = data_buffer2wire(hex_data_buffer);
 			ldns_buffer_free(hex_data_buffer);
+			hex_data_buffer = NULL;
 		} else if(str_keyword(&parse, "ENTRY_END")) {
+			if (hex_data_buffer)
+				ldns_buffer_free(hex_data_buffer);
 			return current;
 		} else if(reading_hex) {
 			ldns_buffer_printf(hex_data_buffer, line);
@@ -493,14 +507,17 @@ read_entry(FILE* in, const char* name, int *lineno, uint32_t* default_ttl,
 			/* it must be a RR, parse and add to packet. */
 			ldns_rr* n = NULL;
 			ldns_status status;
+			char* rrstr = line;
+			if (skip_whitespace)
+				rrstr = parse;
 			if(add_section == LDNS_SECTION_QUESTION)
 				status = ldns_rr_new_question_frm_str(
-					&n, parse, *origin, prev_rr);
-			else status = ldns_rr_new_frm_str(&n, parse, 
+					&n, rrstr, *origin, prev_rr);
+			else status = ldns_rr_new_frm_str(&n, rrstr,
 				*default_ttl, *origin, prev_rr);
 			if(status != LDNS_STATUS_OK)
 				error("%s line %d:\n\t%s: %s", name, *lineno,
-					ldns_get_errorstr_by_id(status), parse);
+					ldns_get_errorstr_by_id(status), rrstr);
 			ldns_pkt_push_rr(cur_reply->reply, add_section, n);
 		}
 
@@ -518,7 +535,7 @@ read_entry(FILE* in, const char* name, int *lineno, uint32_t* default_ttl,
 
 /* reads the canned reply file and returns a list of structs */
 struct entry* 
-read_datafile(const char* name)
+read_datafile(const char* name, int skip_whitespace)
 {
 	struct entry* list = NULL;
 	struct entry* last = NULL;
@@ -535,7 +552,7 @@ read_datafile(const char* name)
 	}
 
 	while((current = read_entry(in, name, &lineno, &default_ttl, 
-		&origin, &prev_rr)))
+		&origin, &prev_rr, skip_whitespace)))
 	{
 		if(last)
 			last->next = current;
@@ -815,7 +832,7 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 				/* still try to adjust ID */
 				answer_size = ldns_buffer_capacity(p->reply_from_hex);
 				outbuf = LDNS_XMALLOC(uint8_t, answer_size);
-				memcpy(outbuf, ldns_buffer_export(p->reply_from_hex), answer_size);
+				memcpy(outbuf, ldns_buffer_begin(p->reply_from_hex), answer_size);
 				if(entry->copy_id) {
 					ldns_write_uint16(outbuf, 
 						ldns_pkt_id(query_pkt));

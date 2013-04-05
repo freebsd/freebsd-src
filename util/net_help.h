@@ -369,4 +369,15 @@ void* incoming_ssl_fd(void* sslctx, int fd);
  */
 void* outgoing_ssl_fd(void* sslctx, int fd);
 
+/**
+ * Initialize openssl locking for thread safety
+ * @return false on failure (alloc failure).
+ */
+int ub_openssl_lock_init(void);
+
+/**
+ * De-init the allocated openssl locks
+ */
+void ub_openssl_lock_delete(void);
+
 #endif /* NET_HELP_H */

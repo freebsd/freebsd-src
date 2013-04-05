@@ -55,6 +55,12 @@
 #ifdef HAVE_OPENSSL_ENGINE_H
 #include <openssl/engine.h>
 #endif
+
+#ifdef HAVE_NSS
+/* nss3 */
+#include "nss.h"
+#endif
+
 #include <ldns/ldns.h>
 #include "util/log.h"
 #include "testcode/unitmain.h"
@@ -555,13 +561,18 @@ main(int argc, char* argv[])
 		return 1;
 	}
 	printf("Start of %s unit test.\n", PACKAGE_STRING);
+#ifdef HAVE_SSL
 	ERR_load_crypto_strings();
-#ifdef HAVE_OPENSSL_CONFIG
+#  ifdef HAVE_OPENSSL_CONFIG
 	OPENSSL_config("unbound");
-#endif
-#ifdef USE_GOST
+#  endif
+#  ifdef USE_GOST
 	(void)ldns_key_EVP_load_gost_id();
-#endif
+#  endif
+#elif defined(HAVE_NSS)
+	if(NSS_NoDB_Init(".") != SECSuccess)
+		fatal_exit("could not init NSS");
+#endif /* HAVE_SSL or HAVE_NSS*/
 	checklock_start();
 	neg_test();
 	rnd_test();
@@ -579,18 +590,23 @@ main(int argc, char* argv[])
 	msgparse_test();
 	checklock_stop();
 	printf("%d checks ok.\n", testcount);
-#if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
+#ifdef HAVE_SSL
+#  if defined(USE_GOST) && defined(HAVE_LDNS_KEY_EVP_UNLOAD_GOST)
 	ldns_key_EVP_unload_gost();
-#endif
-#ifdef HAVE_OPENSSL_CONFIG
+#  endif
+#  ifdef HAVE_OPENSSL_CONFIG
 	EVP_cleanup();
 	ENGINE_cleanup();
 	CONF_modules_free();
-#endif
+#  endif
 	CRYPTO_cleanup_all_ex_data();
 	ERR_remove_state(0);
 	ERR_free_strings();
 	RAND_cleanup();
+#elif defined(HAVE_NSS)
+	if(NSS_Shutdown() != SECSuccess)
+		fatal_exit("could not shutdown NSS");
+#endif /* HAVE_SSL or HAVE_NSS */
 #ifdef HAVE_PTHREAD
 	/* dlopen frees its thread specific state */
 	pthread_exit(NULL);

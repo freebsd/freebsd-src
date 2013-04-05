@@ -124,9 +124,13 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  * @param pside: true if dp is parentside, thus message is 'fresh' and NS
  * 	can be prefetch-updates.
  * @param region: to copy modified (cache is better) rrs back to.
- * @return 0 on alloc error (out of memory).
+ * @return void, because we are not interested in alloc errors,
+ * 	the iterator and validator can operate on the results in their
+ * 	scratch space (the qstate.region) and are not dependent on the cache.
+ * 	It is useful to log the alloc failure (for the server operator),
+ * 	but the query resolution can continue without cache storage.
  */
-int iter_dns_store(struct module_env* env, struct query_info* qinf,
+void iter_dns_store(struct module_env* env, struct query_info* qinf,
 	struct reply_info* rep, int is_referral, uint32_t leeway, int pside,
 	struct regional* region);
 
