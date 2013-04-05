@@ -676,6 +676,7 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 	/* find it, if not, create it */
 	struct mesh_area* mesh = qstate->env->mesh;
 	struct mesh_state* sub = mesh_area_find(mesh, qinfo, qflags, prime);
+	int was_detached;
 	if(mesh_detect_cycle_found(qstate, sub)) {
 		verbose(VERB_ALGO, "attach failed, cycle detected");
 		return 0;
@@ -706,9 +707,12 @@ int mesh_attach_sub(struct module_qstate* qstate, struct query_info* qinfo,
 		*newq = &sub->s;
 	} else
 		*newq = NULL;
+	was_detached = (sub->super_set.count == 0);
 	if(!mesh_state_attachment(qstate->mesh_info, sub))
 		return 0;
-	if(!sub->reply_list && !sub->cb_list && sub->super_set.count == 1) {
+	/* if it was a duplicate  attachment, the count was not zero before */
+	if(!sub->reply_list && !sub->cb_list && was_detached && 
+		sub->super_set.count == 1) {
 		/* it used to be detached, before this one got added */
 		log_assert(mesh->num_detached_states > 0);
 		mesh->num_detached_states--;
@@ -735,16 +739,20 @@ int mesh_state_attachment(struct mesh_state* super, struct mesh_state* sub)
 	superref->s = super;
 	subref->node.key = subref;
 	subref->s = sub;
-#ifdef UNBOUND_DEBUG
-	n =
-#endif
-	rbtree_insert(&sub->super_set, &superref->node);
-	log_assert(n != NULL);
+	if(!rbtree_insert(&sub->super_set, &superref->node)) {
+		/* this should not happen, iterator and validator do not
+		 * attach subqueries that are identical. */
+		/* already attached, we are done, nothing todo.
+		 * since superref and subref already allocated in region,
+		 * we cannot free them */
+		return 1;
+	}
 #ifdef UNBOUND_DEBUG
 	n =
 #endif
 	rbtree_insert(&super->sub_set, &subref->node);
-	log_assert(n != NULL);
+	log_assert(n != NULL); /* we checked above if statement, the reverse
+	  administration should not fail now, unless they are out of sync */
 	return 1;
 }
 

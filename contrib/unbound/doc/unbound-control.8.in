@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "May 24, 2012" "NLnet Labs" "unbound 1.4.17"
+.TH "unbound-control" "8" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -14,7 +14,7 @@
 \- Unbound remote server control utility.
 .SH "SYNOPSIS"
 .B unbound\-control
-.RB [ \-h ]
+.RB [ \-hq ]
 .RB [ \-c 
 .IR cfgfile ]
 .RB [ \-s 
@@ -38,6 +38,9 @@ config file @ub_conf_file@ is used.
 .B \-s \fIserver[@port]
 IPv4 or IPv6 address of the server to contact.  If not given, the
 address is read from the config file.
+.TP
+.B \-q
+quiet, if the option is given it does not print anything if it works ok.
 .SH "COMMANDS"
 There are several commands that the server understands.
 .TP
@@ -126,6 +129,9 @@ Remove the name, type information from the cache.
 Remove all information at or below the name from the cache. 
 The rrsets and key entries are removed so that new lookups will be performed.
 This needs to walk and inspect the entire cache, and is a slow operation.
+.TP
+.B flush_bogus
+Remove all bogus data from the cache.
 .TP
 .B flush_stats
 Reset statistics to zero.

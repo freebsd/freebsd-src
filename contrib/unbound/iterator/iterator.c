@@ -259,9 +259,7 @@ error_response_cache(struct module_qstate* qstate, int id, int rcode)
 	/* do not waste time trying to validate this servfail */
 	err.security = sec_status_indeterminate;
 	verbose(VERB_ALGO, "store error response in message cache");
-	if(!iter_dns_store(qstate->env, &qstate->qinfo, &err, 0, 0, 0, NULL)) {
-		log_err("error_response_cache: could not store error (nomem)");
-	}
+	iter_dns_store(qstate->env, &qstate->qinfo, &err, 0, 0, 0, NULL);
 	return error_response(qstate, id, rcode);
 }
 
@@ -1432,7 +1430,25 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 	verbose(VERB_ALGO, "No more query targets, attempting last resort");
 	log_assert(iq->dp);
 
-	if(!iq->dp->has_parent_side_NS) {
+	if(!iq->dp->has_parent_side_NS && dname_is_root(iq->dp->name)) {
+		struct delegpt* p = hints_lookup_root(qstate->env->hints,
+			iq->qchase.qclass);
+		if(p) {
+			struct delegpt_ns* ns;
+			struct delegpt_addr* a;
+			iq->chase_flags &= ~BIT_RD; /* go to authorities */
+			for(ns = p->nslist; ns; ns=ns->next) {
+				(void)delegpt_add_ns(iq->dp, qstate->region,
+					ns->name, (int)ns->lame);
+			}
+			for(a = p->target_list; a; a=a->next_target) {
+				(void)delegpt_add_addr(iq->dp, qstate->region,
+					&a->addr, a->addrlen, a->bogus,
+					a->lame);
+			}
+		}
+		iq->dp->has_parent_side_NS = 1;
+	} else if(!iq->dp->has_parent_side_NS) {
 		if(!iter_lookup_parent_NS_from_cache(qstate->env, iq->dp,
 			qstate->region, &qstate->qinfo) 
 			|| !iq->dp->has_parent_side_NS) {
@@ -1440,6 +1456,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 			/* if: no parent NS in cache - go up one level */
 			verbose(VERB_ALGO, "try to grab parent NS");
 			iq->store_parent_NS = iq->dp;
+			iq->chase_flags &= ~BIT_RD; /* go to authorities */
 			iq->deleg_msg = NULL;
 			iq->refetch_glue = 1;
 			iq->query_restart_count++;
@@ -1541,8 +1558,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
  *         the final state (i.e., on answer).
  */
 static int
-processDSNSFind(struct module_qstate* qstate, struct iter_qstate* iq,
-	int id)
+processDSNSFind(struct module_qstate* qstate, struct iter_qstate* iq, int id)
 {
 	struct module_qstate* subq = NULL;
 	verbose(VERB_ALGO, "processDSNSFind");
@@ -1906,13 +1922,20 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		if(iq->qchase.qtype == LDNS_RR_TYPE_DS && !iq->dsns_point
 			&& !(iq->chase_flags&BIT_RD)
 			&& iter_ds_toolow(iq->response, iq->dp)
-			&& iter_dp_cangodown(&iq->qchase, iq->dp))
+			&& iter_dp_cangodown(&iq->qchase, iq->dp)) {
+			/* close down outstanding requests to be discarded */
+			outbound_list_clear(&iq->outlist);
+			iq->num_current_queries = 0;
+			fptr_ok(fptr_whitelist_modenv_detach_subs(
+				qstate->env->detach_subs));
+			(*qstate->env->detach_subs)(qstate);
+			iq->num_target_queries = 0;
 			return processDSNSFind(qstate, iq, id);
-		if(!iter_dns_store(qstate->env, &iq->response->qinfo,
+		}
+		iter_dns_store(qstate->env, &iq->response->qinfo,
 			iq->response->rep, 0, qstate->prefetch_leeway,
 			iq->dp&&iq->dp->has_parent_side_NS,
-			qstate->region))
-			return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+			qstate->region);
 		/* close down outstanding requests to be discarded */
 		outbound_list_clear(&iq->outlist);
 		iq->num_current_queries = 0;
@@ -1949,10 +1972,8 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		    )) {
 			/* Store the referral under the current query */
 			/* no prefetch-leeway, since its not the answer */
-			if(!iter_dns_store(qstate->env, &iq->response->qinfo,
-				iq->response->rep, 1, 0, 0, NULL))
-				return error_response(qstate, id, 
-					LDNS_RCODE_SERVFAIL);
+			iter_dns_store(qstate->env, &iq->response->qinfo,
+				iq->response->rep, 1, 0, 0, NULL);
 			if(iq->store_parent_NS)
 				iter_store_parentside_NS(qstate->env, 
 					iq->response->rep);
@@ -2032,8 +2053,15 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		if(iq->qchase.qtype == LDNS_RR_TYPE_DS && !iq->dsns_point
 			&& !(iq->chase_flags&BIT_RD)
 			&& iter_ds_toolow(iq->response, iq->dp)
-			&& iter_dp_cangodown(&iq->qchase, iq->dp))
+			&& iter_dp_cangodown(&iq->qchase, iq->dp)) {
+			outbound_list_clear(&iq->outlist);
+			iq->num_current_queries = 0;
+			fptr_ok(fptr_whitelist_modenv_detach_subs(
+				qstate->env->detach_subs));
+			(*qstate->env->detach_subs)(qstate);
+			iq->num_target_queries = 0;
 			return processDSNSFind(qstate, iq, id);
+		}
 		/* Process the CNAME response. */
 		if(!handle_cname_response(qstate, iq, iq->response, 
 			&sname, &snamelen))
@@ -2042,10 +2070,9 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		/* NOTE : set referral=1, so that rrsets get stored but not 
 		 * the partial query answer (CNAME only). */
 		/* prefetchleeway applied because this updates answer parts */
-		if(!iter_dns_store(qstate->env, &iq->response->qinfo,
+		iter_dns_store(qstate->env, &iq->response->qinfo,
 			iq->response->rep, 1, qstate->prefetch_leeway,
-			iq->dp&&iq->dp->has_parent_side_NS, NULL))
-			return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
+			iq->dp&&iq->dp->has_parent_side_NS, NULL);
 		/* set the current request's qname to the new value. */
 		iq->qchase.qname = sname;
 		iq->qchase.qname_len = snamelen;
@@ -2555,12 +2582,10 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
 		 * but only if we did recursion. The nonrecursion referral
 		 * from cache does not need to be stored in the msg cache. */
 		if(qstate->query_flags&BIT_RD) {
-			if(!iter_dns_store(qstate->env, &qstate->qinfo, 
+			iter_dns_store(qstate->env, &qstate->qinfo, 
 				iq->response->rep, 0, qstate->prefetch_leeway,
 				iq->dp&&iq->dp->has_parent_side_NS,
-				qstate->region))
-				return error_response(qstate, id, 
-					LDNS_RCODE_SERVFAIL);
+				qstate->region);
 		}
 	}
 	qstate->return_rcode = LDNS_RCODE_NOERROR;

@@ -44,8 +44,12 @@
 #include "util/log.h"
 #include "util/net_help.h"
 #include "util/fptr_wlist.h"
+#ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
+#endif
+#ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
+#endif
 
 /* -------- Start of local definitions -------- */
 /** if CMSG_ALIGN is not defined on this platform, a workaround */
@@ -91,7 +95,13 @@
 #  endif /* USE_WINSOCK */
 #else /* USE_MINI_EVENT */
    /* we use libevent */
-#  include <event.h>
+#  ifdef HAVE_EVENT_H
+#    include <event.h>
+#  else
+#    include "event2/event.h"
+#    include "event2/event_struct.h"
+#    include "event2/event_compat.h"
+#  endif
 #endif /* USE_MINI_EVENT */
 
 /**
@@ -846,9 +856,11 @@ reclaim_tcp_handler(struct comm_point* c)
 {
 	log_assert(c->type == comm_tcp);
 	if(c->ssl) {
+#ifdef HAVE_SSL
 		SSL_shutdown(c->ssl);
 		SSL_free(c->ssl);
 		c->ssl = NULL;
+#endif
 	}
 	comm_point_close(c);
 	if(c->tcp_parent) {
@@ -893,6 +905,7 @@ tcp_callback_reader(struct comm_point* c)
 }
 
 /** continue ssl handshake */
+#ifdef HAVE_SSL
 static int
 ssl_handshake(struct comm_point* c)
 {
@@ -955,11 +968,13 @@ ssl_handshake(struct comm_point* c)
 	c->ssl_shake_state = comm_ssl_shake_none;
 	return 1;
 }
+#endif /* HAVE_SSL */
 
 /** ssl read callback on TCP */
 static int
 ssl_handle_read(struct comm_point* c)
 {
+#ifdef HAVE_SSL
 	int r;
 	if(c->ssl_shake_state != comm_ssl_shake_none) {
 		if(!ssl_handshake(c))
@@ -1036,12 +1051,17 @@ ssl_handle_read(struct comm_point* c)
 		tcp_callback_reader(c);
 	}
 	return 1;
+#else
+	(void)c;
+	return 0;
+#endif /* HAVE_SSL */
 }
 
 /** ssl write callback on TCP */
 static int
 ssl_handle_write(struct comm_point* c)
 {
+#ifdef HAVE_SSL
 	int r;
 	if(c->ssl_shake_state != comm_ssl_shake_none) {
 		if(!ssl_handshake(c))
@@ -1115,6 +1135,10 @@ ssl_handle_write(struct comm_point* c)
 		tcp_callback_writer(c);
 	}
 	return 1;
+#else
+	(void)c;
+	return 0;
+#endif /* HAVE_SSL */
 }
 
 /** handle ssl tcp connection with dns contents */
@@ -1844,8 +1868,10 @@ comm_point_delete(struct comm_point* c)
 	if(!c) 
 		return;
 	if(c->type == comm_tcp && c->ssl) {
+#ifdef HAVE_SSL
 		SSL_shutdown(c->ssl);
 		SSL_free(c->ssl);
+#endif
 	}
 	comm_point_close(c);
 	if(c->tcp_handlers) {

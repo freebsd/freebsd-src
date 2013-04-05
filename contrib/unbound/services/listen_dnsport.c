@@ -323,6 +323,11 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			log_err("setsockopt(..., IP_MTU_DISCOVER, "
 				"IP_PMTUDISC_DONT...) failed: %s",
 				strerror(errno));
+#    ifndef USE_WINSOCK
+			close(s);
+#    else
+			closesocket(s);
+#    endif
 			return -1;
 		}
 #  elif defined(IP_DONTFRAG)
@@ -331,6 +336,11 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			&off, (socklen_t)sizeof(off)) < 0) {
 			log_err("setsockopt(..., IP_DONTFRAG, ...) failed: %s",
 				strerror(errno));
+#    ifndef USE_WINSOCK
+			close(s);
+#    else
+			closesocket(s);
+#    endif
 			return -1;
 		}
 #  endif /* IPv4 MTU */
@@ -408,9 +418,11 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto)
 #ifndef USE_WINSOCK
 		log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
 			strerror(errno));
+		close(s);
 #else
 		log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
 			wsa_strerror(WSAGetLastError()));
+		closesocket(s);
 #endif
 		return -1;
 	}
@@ -422,9 +434,11 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto)
 #ifndef USE_WINSOCK
 			log_err("setsockopt(..., IPV6_V6ONLY, ...) failed: %s",
 				strerror(errno));
+			close(s);
 #else
 			log_err("setsockopt(..., IPV6_V6ONLY, ...) failed: %s",
 				wsa_strerror(WSAGetLastError()));
+			closesocket(s);
 #endif
 			return -1;
 		}
@@ -443,23 +457,32 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto)
 				(struct sockaddr_storage*)addr->ai_addr,
 				addr->ai_addrlen);
 		}
+		close(s);
 #else
 		log_err("can't bind socket: %s", 
 			wsa_strerror(WSAGetLastError()));
 		log_addr(0, "failed address",
 			(struct sockaddr_storage*)addr->ai_addr,
 			addr->ai_addrlen);
+		closesocket(s);
 #endif
 		return -1;
 	}
 	if(!fd_set_nonblock(s)) {
+#ifndef USE_WINSOCK
+		close(s);
+#else
+		closesocket(s);
+#endif
 		return -1;
 	}
 	if(listen(s, TCP_BACKLOG) == -1) {
 #ifndef USE_WINSOCK
 		log_err("can't listen: %s", strerror(errno));
+		close(s);
 #else
 		log_err("can't listen: %s", wsa_strerror(WSAGetLastError()));
+		closesocket(s);
 #endif
 		return -1;
 	}
@@ -653,8 +676,14 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 			return 0;
 		}
 		/* getting source addr packet info is highly non-portable */
-		if(!set_recvpktinfo(s, hints->ai_family))
+		if(!set_recvpktinfo(s, hints->ai_family)) {
+#ifndef USE_WINSOCK
+			close(s);
+#else
+			closesocket(s);
+#endif
 			return 0;
+		}
 		if(!port_insert(list, s, listen_type_udpancil)) {
 #ifndef USE_WINSOCK
 			close(s);

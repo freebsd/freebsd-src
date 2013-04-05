@@ -87,6 +87,11 @@
 #  include "winrc/win_svc.h"
 #endif
 
+#ifdef HAVE_NSS
+/* nss3 */
+#  include "nss.h"
+#endif
+
 /** global debug value to keep track of heap memory allocation */
 void* unbound_start_brk = 0;
 
@@ -159,7 +164,12 @@ static void usage()
 	get_event_sys(&evnm, &evsys, &evmethod);
 	printf("linked libs: %s %s (it uses %s), ldns %s, %s\n", 
 		evnm, evsys, evmethod, ldns_version(), 
-		SSLeay_version(SSLEAY_VERSION));
+#ifdef HAVE_SSL
+		SSLeay_version(SSLEAY_VERSION)
+#elif defined(HAVE_NSS)
+		NSS_GetVersion()
+#endif
+		);
 	printf("linked modules:");
 	for(m = module_list_avail(); *m; m++)
 		printf(" %s", *m);
@@ -445,6 +455,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	 * given to unbound on the commandline. */
 
 	/* read ssl keys while superuser and outside chroot */
+#ifdef HAVE_SSL
 	if(!(daemon->rc = daemon_remote_create(cfg)))
 		fatal_exit("could not set up remote-control");
 	if(cfg->ssl_service_key && cfg->ssl_service_key[0]) {
@@ -454,6 +465,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	}
 	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL, NULL)))
 		fatal_exit("could not set up connect SSL_CTX");
+#endif
 
 #ifdef HAVE_KILL
 	/* check old pid file before forking */
@@ -527,6 +539,9 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 		verbose(VERB_QUERY, "chdir to %s", cfg->chrootdir);
 		if(chroot(cfg->chrootdir))
 			fatal_exit("unable to chroot to %s: %s", 
+				cfg->chrootdir, strerror(errno));
+		if(chdir("/"))
+			fatal_exit("unable to chdir to / in chroot %s: %s",
 				cfg->chrootdir, strerror(errno));
 		verbose(VERB_QUERY, "chroot to %s", cfg->chrootdir);
 		if(strncmp(*cfgfile, cfg->chrootdir, 

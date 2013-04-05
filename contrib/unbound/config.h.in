@@ -106,6 +106,9 @@
 /* Define to 1 if you have the `fcntl' function. */
 #undef HAVE_FCNTL
 
+/* Define to 1 if you have the `FIPS_mode' function. */
+#undef HAVE_FIPS_MODE
+
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
@@ -192,6 +195,9 @@
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
+
+/* Use libnss for crypto */
+#undef HAVE_NSS
 
 /* Define to 1 if you have the `OPENSSL_config' function. */
 #undef HAVE_OPENSSL_CONFIG
@@ -542,6 +548,11 @@
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
 #undef YYTEXT_POINTER
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

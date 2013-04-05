@@ -128,7 +128,9 @@ forwards_insert_data(struct iter_forwards* fwd, uint16_t c, uint8_t* nm,
 	node->namelabs = nmlabs;
 	node->dp = dp;
 	if(!rbtree_insert(fwd->tree, &node->node)) {
-		log_err("duplicate forward zone ignored.");
+		char buf[257];
+		dname_str(nm, buf);
+		log_err("duplicate forward zone %s ignored.", buf);
 		delegpt_free_mlc(dp);
 		free(node->name);
 		free(node);
@@ -250,41 +252,24 @@ read_forwards(struct iter_forwards* fwd, struct config_file* cfg)
 	struct config_stub* s;
 	for(s = cfg->forwards; s; s = s->next) {
 		struct delegpt* dp;
-		if(!(dp=read_fwds_name(s)) ||
-			!read_fwds_host(s, dp) ||
-			!read_fwds_addr(s, dp))
+		if(!(dp=read_fwds_name(s)))
 			return 0;
+		if(!read_fwds_host(s, dp) || !read_fwds_addr(s, dp)) {
+			delegpt_free_mlc(dp);
+			return 0;
+		}
 		/* set flag that parent side NS information is included.
 		 * Asking a (higher up) server on the internet is not useful */
 		/* the flag is turned off for 'forward-first' so that the
 		 * last resort will ask for parent-side NS record and thus
 		 * fallback to the internet name servers on a failure */
 		dp->has_parent_side_NS = (uint8_t)!s->isfirst;
-		if(!forwards_insert(fwd, LDNS_RR_CLASS_IN, dp))
-			return 0;
 		verbose(VERB_QUERY, "Forward zone server list:");
 		delegpt_log(VERB_QUERY, dp);
+		if(!forwards_insert(fwd, LDNS_RR_CLASS_IN, dp))
+			return 0;
 	}
 	return 1;
-}
-
-/** see if zone needs to have a hole inserted */
-static int
-need_hole_insert(rbtree_t* tree, struct iter_forward_zone* zone)
-{
-	struct iter_forward_zone k;
-	if(rbtree_search(tree, zone))
-		return 0; /* exact match exists */
-	k = *zone;
-	k.node.key = &k;
-	/* search up the tree */
-	do {
-		dname_remove_label(&k.name, &k.namelen);
-		k.namelabs --;
-		if(rbtree_search(tree, &k))
-			return 1; /* found an upper forward zone, need hole */
-	} while(k.namelabs > 1);
-	return 0; /* no forwards above, no holes needed */
 }
 
 /** insert a stub hole (if necessary) for stub name */
@@ -296,11 +281,8 @@ fwd_add_stub_hole(struct iter_forwards* fwd, uint16_t c, uint8_t* nm)
 	key.dclass = c;
 	key.name = nm;
 	key.namelabs = dname_count_size_labels(key.name, &key.namelen);
-	if(need_hole_insert(fwd->tree, &key)) {
-		return forwards_insert_data(fwd, key.dclass, key.name,
-			key.namelen, key.namelabs, NULL);
-	}
-	return 1;
+	return forwards_insert_data(fwd, key.dclass, key.name,
+		key.namelen, key.namelabs, NULL);
 }
 
 /** make NULL entries for stubs */

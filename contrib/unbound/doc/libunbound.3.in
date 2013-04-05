@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "May 24, 2012" "NLnet Labs" "unbound 1.4.17"
+.TH "libunbound" "3" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -42,7 +42,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.4.17 functions.
+\- Unbound DNS validating resolver 1.4.20 functions.
 .SH "SYNOPSIS"
 .LP
 .B #include <unbound.h>
@@ -203,7 +203,9 @@ At this time it is only possible to set configuration before the
 first resolve is done.
 .TP
 .B ub_ctx_resolvconf
-Read list of nameservers to use from the filename given.
+By default the root servers are queried and full resolver mode is used, but
+you can use this call to read the list of nameservers to use from the
+filename given.
 Usually "/etc/resolv.conf". Uses those nameservers as caching proxies.
 If they do not support DNSSEC, validation may fail.
 Only nameservers are picked up, the searchdomain, ndots and other
@@ -357,6 +359,7 @@ The result of the DNS resolution and validation is returned as
 		int secure;  /* true if result is secure */
 		int bogus;   /* true if a security failure happened */
 		char* why_bogus; /* string with error if bogus */
+		int ttl;     /* number of seconds the result is valid */
 	};
 .fi
 .P

@@ -11,6 +11,9 @@
 #include <ctype.h>
 #include <string.h>
 #include <strings.h>
+#ifdef HAVE_GLOB_H
+# include <glob.h>
+#endif
 
 #include "util/config_file.h"
 #include "util/configparser.h"
@@ -43,6 +46,7 @@ static int config_include_stack_ptr = 0;
 static int inc_prev = 0;
 static int num_args = 0;
 
+
 static void config_start_include(const char* filename)
 {
 	FILE *input;
@@ -72,6 +76,50 @@ static void config_start_include(const char* filename)
 	cfg_parser->line = 1;
 	yy_switch_to_buffer(yy_create_buffer(input, YY_BUF_SIZE));
 	++config_include_stack_ptr;
+}
+
+static void config_start_include_glob(const char* filename)
+{
+
+	/* check for wildcards */
+#ifdef HAVE_GLOB
+	glob_t g;
+	size_t i;
+	int r, flags;
+	if(!(!strchr(filename, '*') && !strchr(filename, '?') && !strchr(filename, '[') &&
+		!strchr(filename, '{') && !strchr(filename, '~'))) {
+		flags = 0
+#ifdef GLOB_ERR
+			| GLOB_ERR
+#endif
+#ifdef GLOB_NOSORT
+			| GLOB_NOSORT
+#endif
+#ifdef GLOB_BRACE
+			| GLOB_BRACE
+#endif
+#ifdef GLOB_TILDE
+			| GLOB_TILDE
+#endif
+		;
+		memset(&g, 0, sizeof(g));
+		r = glob(filename, flags, NULL, &g);
+		if(r) {
+			/* some error */
+			globfree(&g);
+			config_start_include(filename); /* let original deal with it */
+			return;
+		}
+		/* process files found, if any */
+		for(i=0; i<(size_t)g.gl_pathc; i++) {
+			config_start_include(g.gl_pathv[i]);
+		}
+		globfree(&g);
+		return;
+	}
+#endif /* HAVE_GLOB */
+
+	config_start_include(filename);
 }
 
 static void config_end_include(void)
@@ -299,7 +347,7 @@ rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
 <include>\"		{ LEXOUT(("IQS ")); BEGIN(include_quoted); }
 <include>{UNQUOTEDLETTER}*	{
 	LEXOUT(("Iunquotedstr(%s) ", yytext));
-	config_start_include(yytext);
+	config_start_include_glob(yytext);
 	BEGIN(inc_prev);
 }
 <include_quoted><<EOF>>	{
@@ -312,7 +360,7 @@ rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
 <include_quoted>\"	{
 	LEXOUT(("IQE "));
 	yytext[yyleng - 1] = '\0';
-	config_start_include(yytext);
+	config_start_include_glob(yytext);
 	BEGIN(inc_prev);
 }
 <INITIAL,val><<EOF>>	{

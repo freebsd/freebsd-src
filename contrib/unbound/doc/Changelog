@@ -1,5 +1,273 @@
+21 March 2013: Wouter
+	- release 1.4.20
+
+14 March 2013: Wouter
+	- iana portlist update.
+	- tag 1.4.20rc1
+
+12 March 2013: Wouter
+	- Fixup makedist.sh for windows compile.
+
+11 March 2013: Wouter
+	- iana portlist update.
+	- testcode/ldns-testpkts.c check for makedist is informational.
+
+15 February 2013: Wouter
+	- fix defines in lookup3 for bigendian bsd alpha
+
+11 February 2013: Wouter
+	- Fixup openssl_thread init code to only run if compiled with SSL.
+
+7 February 2013: Wouter
+	- detect endianness in lookup3 on BSD.
+	- add libunbound.ttl at end of result structure, version bump for
+	  libunbound and binary backwards compatible, but 1.4.19 is not
+	  forward compatible with 1.4.20.
+	- update iana port list.
+
+30 January 2013: Wouter
+	- includes and have_ssl fixes for nss.
+
+29 January 2013: Wouter
+	- printout name of zone with duplicate fwd and hint errors.
+
+28 January 2013: Wouter
+	- updated fwd_zero for newer nc. Updated common.sh for newer netstat.
+
+17 January 2013: Wouter
+	- unbound-anchors checks the emailAddress of the signer of the
+	  root.xml file, default is dnssec@iana.org.  It also checks that
+	  the signer has the correct key usage for a digital signature.
+	- update iana port list.
+
+3 January 2013: Wouter
+	- Test that unbound-control checks client credentials.
+	- Test that unbound can handle a CNAME at an intermediate node in
+	  the chain of trust (where it seeks a DS record).
+	- Check the commonName of the signer of the root.xml file in
+	  unbound-anchor, default is dnssec@iana.org.
+
+2 January 2013: Wouter
+	- Fix openssl lock free on exit (reported by Robert Fleischman).
+	- iana portlist updated.
+	- Tested that unbound implements the RFC5155 Technical Errata id 3441.
+	  Unbound already implements insecure classification of an empty
+	  nonterminal in NSEC3 optout zone.
+
+20 December 2012: Wouter
+	- Fix unbound-anchor xml parse of entity declarations for safety.
+
+19 December 2012: Wouter
+	- iana portlist updated.
+
+18 December 2012: Wouter
+	- iana portlist updated.
+
+14 December 2012: Wouter
+	- Change of D.ROOT-SERVERS.NET A address in default root hints.
+
+12 December 2012: Wouter
+	- 1.4.19 release.
+	- trunk has 1.4.20 under development.
+
+5 December 2012: Wouter
+	- note support for AAAA RR type RFC.
+
+4 December 2012: Wouter
+	- 1.4.19rc1 tag.
+
+30 November 2012: Wouter
+	- bug 481: fix python example0.
+	- iana portlist updated.
+
+27 November 2012: Wouter
+	- iana portlist updated.
+
+9 November 2012: Wouter
+	- Fix unbound-control forward disables configured stubs below it.
+
+7 November 2012: Wouter
+	- Fixup ldns-testpkts, identical to ldns/examples.
+	- iana portlist updated.
+
+30 October 2012: Wouter
+	- Fix bug #477: unbound-anchor segfaults if EDNS is blocked.
+
+29 October 2012: Matthijs
+	- Fix validation for responses with both CNAME and wildcard
+	  expanded CNAME records in answer section.
+
+8 October 2012: Wouter
+	- update ldns-testpkts.c to ldns 1.6.14 version.
+	- fix build of pythonmod in objdir, for unbound.py.
+	- make clean and makerealclean remove generated python and docs.
+
+5 October 2012: Wouter
+	- fix build of pythonmod in objdir (thanks Jakob Schlyter).
+
+3 October 2012: Wouter
+	- fix text in unbound-anchor man page.
+
+1 October 2012: Wouter
+	- ignore trusted-keys globs that have no files (from Paul Wouters).
+
+27 September 2012: Wouter
+	- include: directive in config file accepts wildcards.  Patch from
+	  Paul Wouters.  Suggested use: include: "/etc/unbound.d/conf.d/*"
+	- unbound-control -q option is quiet, patch from Mariano Absatz.
+	- iana portlist updated.
+	- updated contrib/unbound.spec, patch from Valentin Bud.
+
+21 September 2012: Wouter
+	- chdir to / after chroot call (suggested by Camiel Dobbelaar).
+
+17 September 2012: Wouter
+	- patch_rsamd5_enable.diff: this patch enables RSAMD5 validation
+	  otherwise it is treated as insecure.  The RSAMD5 algorithm is
+	  deprecated (RFC6725).  The MD5 hash is considered weak for some
+	  purposes, if you want to sign your zone, then RSASHA256 is an
+	  uncontested hash.
+
+30 August 2012: Wouter
+	- RFC6725 deprecates RSAMD5: this DNSKEY algorithm is disabled.
+	- iana portlist updated.
+
+29 August 2012: Wouter
+	- Nicer comments outgoing-port-avoid, thanks Stu (bug #465).
+
+22 August 2012: Wouter
+	- Fallback to 1472 and 1232, one fragment size without headers.
+
+21 August 2012: Wouter
+	- Fix timeouts so that when a server has been offline for a while
+	  and is probed to see it works, it becomes fully available for
+	  server selection again.
+
+17 August 2012: Wouter
+	- Add documentation to libunbound for default nonuse of resolv.conf.
+
+2 August 2012: Wouter
+	- trunk has 1.4.19 under development (fixes from 1 aug and 31 july
+	are for 1.4.19).
+	- iana portlist updated.
+
+1 August 2012: Wouter
+	- Fix openssl race condition, initializes openssl locks, reported
+	  by Einar Lonn and Patrik Wallstrom.
+
+31 July 2012: Wouter
+	- Improved forward-first and stub-first documentation.
+	- Fix that enables modules to register twice for the same
+	  serviced_query, without race conditions or administration issues.
+	  This should not happen with the current codebase, but it is robust.
+	- Fix forward-first option where it sets the RD flag wrongly.
+	- added manpage links for libunbound calls (Thanks Paul Wouters).
+
+30 July 2012: Wouter
+	- tag 1.4.18rc2 (became 1.4.18 release at 2 august 2012).
+
+27 July 2012: Wouter
+	- unbound-host works with libNSS
+	- fix bogus nodata cname chain not reported as bogus by validator,
+	  (Thanks Peter van Dijk).
+
+26 July 2012: Wouter
+	- iana portlist updated.
+	- tag 1.4.18rc1.
+
+25 July 2012: Wouter
+	- review fix for libnss, check hash prefix allocation size.
+
+23 July 2012: Wouter
+	- fix missing break for GOST DS hash function.
+	- implemented forward_first for the root.
+
+20 July 2012: Wouter
+	- Fix bug#452 and another assertion failure in mesh.c, makes
+	  assertions in mesh.c resist duplicates.  Fixes DS NS search to
+	  not generate duplicate sub queries.
+
+19 July 2012: Willem
+	- Fix bug#454: Remove ACX_CHECK_COMPILER_FLAG from configure.ac,
+	  if CFLAGS is specified at configure time then '-g -O2' is not
+	  appended to CFLAGS, so that the user can override them.
+
+18 July 2012: Willem
+	- Fix libunbound report of errors when in background mode.
+
+11 July 2012: Willem
+	- updated iana ports list.
+
+9 July 2012: Willem
+	- Add flush_bogus option for unbound-control
+
+6 July 2012: Wouter
+	- Fix validation of qtype DS queries that result in no data for
+	  non-optout NSEC3 zones.
+
+4 July 2012: Wouter
+	- compile libunbound with libnss on Suse, passes regression tests.
+
+3 July 2012: Wouter
+	- FIPS_mode openssl does not use arc4random but RAND_pseudo_bytes.
+
+2 July 2012: Wouter
+	- updated iana ports list.
+
+29 June 2012: Wouter
+	- patch for unbound_munin_ script to handle arbitrary thread count by
+	  Sven Ulland.
+
+28 June 2012: Wouter
+	- detect if openssl has FIPS_mode.
+	- code review: return value of cache_store can be ignored for better
+	  performance in out of memory conditions.
+	- fix edns-buffer-size and msg-buffer-size manpage documentation.
+	- updated iana ports list.
+
+25 June 2012: Wouter
+	- disable RSAMD5 if in FIPS mode (for openssl and for libnss).
+
+22 June 2012: Wouter
+	- implement DS records, NSEC3 and ECDSA for compile with libnss.
+
+21 June 2012: Wouter
+	- fix error handling of alloc failure during rrsig verification.
+	- nss check for verification failure.
+	- nss crypto works for RSA and DSA.
+
+20 June 2012: Wouter
+	- work on --with-nss build option (for now, --with-libunbound-only).
+
+19 June 2012: Wouter
+	- --with-libunbound-only build option, only builds the library and
+	  not the daemon and other tools.
+
+18 June 2012: Wouter
+	- code review.
+
+15 June 2012: Wouter
+	- implement log-time-ascii on windows.
+	- The key-cache bad key ttl is now 60 seconds.
+	- updated iana ports list.
+	- code review.
+
+11 June 2012: Wouter
+	- bug #452: fix crash on assert in mesh_state_attachment.
+
+30 May 2012: Wouter
+	- silence warning from swig-generated code (md set but not used in
+	  swig initmodule, due to ifdefs in swig-generated code).
+
+27 May 2012: Wouter
+	- Fix debian-bugs-658021: Please enable hardened build flags.
+
+25 May 2012: Wouter
+	- updated iana ports list.
+
 24 May 2012: Wouter
 	- tag for 1.4.17 release.
+	- trunk is 1.4.18 in development.
 
 18 May 2012: Wouter
 	- Review comments, removed duplicate memset to zero in delegpt.
