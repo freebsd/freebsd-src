@@ -565,6 +565,9 @@ g_io_deliver(struct bio *bp, int error)
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
 	bp->bio_children = 0;
 	bp->bio_inbed = 0;
+	bp->bio_driver1 = NULL;
+	bp->bio_driver2 = NULL;
+	bp->bio_pflags = 0;
 	g_io_request(bp, cp);
 	pace++;
 	return;
