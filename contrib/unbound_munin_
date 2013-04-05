@@ -230,9 +230,8 @@ if test "$1" = "config" ; then
 		echo "graph_args --base 1000 -l 0"
 		echo "graph_vlabel queries / second"
 		echo "graph_category DNS"
-		for x in thread0.num.queries thread1.num.queries \
-		thread2.num.queries thread3.num.queries thread4.num.queries \
-		thread5.num.queries thread6.num.queries thread7.num.queries; do
+		for x in `grep "^thread[0-9][0-9]*\.num\.queries=" $state |
+			sed -e 's/=.*//'`; do
 			exist_config $x "queries handled by `basename $x .num.queries`"
 		done
 		p_config "total.num.queries" "total queries from clients"
@@ -423,9 +422,8 @@ print_value ( ) {
 
 case $id in
 hits)
-	for x in thread0.num.queries thread1.num.queries thread2.num.queries \
-		thread3.num.queries thread4.num.queries thread5.num.queries \
-		thread6.num.queries thread7.num.queries total.num.queries \
+	for x in `grep "^thread[0-9][0-9]*\.num\.queries=" $state |
+		sed -e 's/=.*//'` total.num.queries \
 		total.num.cachehits total.num.prefetch num.query.tcp \
 		num.query.ipv6 unwanted.queries unwanted.replies; do
 		if grep "^"$x"=" $state >/dev/null 2>&1; then

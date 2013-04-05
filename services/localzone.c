@@ -449,8 +449,8 @@ lz_enter_rr_into_zone(struct local_zone* z, ldns_buffer* buf,
 	struct local_data* node;
 	struct local_rrset* rrset;
 	struct packed_rrset_data* pd;
-	uint16_t rrtype, rrclass;
-	uint32_t ttl;
+	uint16_t rrtype = 0, rrclass = 0;
+	uint32_t ttl = 0;
 	if(!get_rr_content(rrstr, &nm, &rrtype, &rrclass, &ttl, buf)) {
 		log_err("bad local-data: %s", rrstr);
 		return 0;

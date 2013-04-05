@@ -281,7 +281,7 @@ main(int argc, char* argv[])
 			printf("selftest successful\n");
 			exit(0);
 		case '2':
-#if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
+#if (defined(HAVE_EVP_SHA256) || defined(HAVE_NSS)) && defined(USE_SHA2)
 			printf("SHA256 supported\n");
 			exit(0);
 #else

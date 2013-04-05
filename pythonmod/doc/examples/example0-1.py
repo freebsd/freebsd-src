@@ -1,7 +1,4 @@
 
-print mod_env.fname   # Print module script name
-mod_env.data = "test" # Store global module data
-
 def init(id, cfg):
    log_info("pythonmod: init called, module id is %d port: %d script: %s" % (id, cfg.port, cfg.python_script))
    return True

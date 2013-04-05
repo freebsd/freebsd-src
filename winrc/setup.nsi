@@ -82,7 +82,7 @@ section /o "DLV - dlv.isc.org" SectionDLV
 	SetOutPath $INSTDIR
 
 	# libgcc exception lib used by NSISdl plugin (in crosscompile).
-	File /nonfatal "/oname=$PLUGINSDIR\libgcc_s_sjlj-1.dll" "/usr/i686-pc-mingw32/sys-root/mingw/bin/libgcc_s_sjlj-1.dll"
+	File /nonfatal "/oname=$PLUGINSDIR\libgcc_s_sjlj-1.dll" "/usr/i686-w64-mingw32/sys-root/mingw/bin/libgcc_s_sjlj-1.dll"
 
 	NSISdl::download "http://ftp.isc.org/www/dlv/dlv.isc.org.key" "$INSTDIR\dlv.isc.org.key"
 	Pop $R0 # result from Inetc::get

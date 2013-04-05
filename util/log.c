@@ -171,6 +171,8 @@ log_vmsg(int pri, const char* type,
 #if defined(HAVE_STRFTIME) && defined(HAVE_LOCALTIME_R) 
 	char tmbuf[32];
 	struct tm tm;
+#elif defined(UB_ON_WINDOWS)
+	char tmbuf[128], dtbuf[128];
 #endif
 	(void)pri;
 	vsnprintf(message, sizeof(message), format, args);
@@ -216,6 +218,13 @@ log_vmsg(int pri, const char* type,
 		localtime_r(&now, &tm))%(sizeof(tmbuf)) != 0) {
 		/* %sizeof buf!=0 because old strftime returned max on error */
 		fprintf(logfile, "%s %s[%d:%x] %s: %s\n", tmbuf, 
+			ident, (int)getpid(), tid?*tid:0, type, message);
+	} else
+#elif defined(UB_ON_WINDOWS)
+	if(log_time_asc && GetTimeFormat(LOCALE_USER_DEFAULT, 0, NULL, NULL,
+		tmbuf, sizeof(tmbuf)) && GetDateFormat(LOCALE_USER_DEFAULT, 0,
+		NULL, NULL, dtbuf, sizeof(dtbuf))) {
+		fprintf(logfile, "%s %s %s[%d:%x] %s: %s\n", dtbuf, tmbuf, 
 			ident, (int)getpid(), tid?*tid:0, type, message);
 	} else
 #endif

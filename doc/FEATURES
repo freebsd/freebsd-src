@@ -24,6 +24,7 @@ RFC 1034-1035: as a recursive, caching server. Not authoritative.
   including CNAMEs, referrals, wildcards, classes, ...
   AAAA type, and IP6 dual stack support.
   type ANY queries are supported, class ANY queries are supported.
+RFC 1123, 6.1 Requirements for DNS of internet hosts.
 RFC 4033-4035: as a validating caching server (unbound daemon). 
   as a validating stub (libunbound).
 RFC 1918.
@@ -91,6 +92,7 @@ AAAA type
 2672: DNAME type.
 OPT type
 3123: APL
+3596: AAAA
 SSHFP type
 4025: IPSECKEY
 4033-4035: DS, RRSIG, NSEC, DNSKEY

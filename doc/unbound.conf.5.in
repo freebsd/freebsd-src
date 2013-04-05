@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "May 24, 2012" "NLnet Labs" "unbound 1.4.17"
+.TH "unbound.conf" "5" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -71,12 +71,12 @@ is followed by its containing attributes, or a value.
 .P
 Files can be included using the
 .B include:
-directive. It can appear anywhere, and takes a single filename as an argument.
+directive. It can appear anywhere, it accepts a single file name as argument.
 Processing continues as if the text from the included file was copied into
 the config file at that point.  If also using chroot, using full path names
 for the included files works, relative pathnames for the included names work
 if the directory where the daemon is started equals its chroot/working 
-directory.
+directory.  Wildcards can be used to include multiple files, see \fIglob\fR(7).
 .SS "Server Options"
 These options are part of the
 .B server:
@@ -176,7 +176,7 @@ to 0, or if do_tcp is "no", no TCP queries from clients are accepted.
 Number of bytes size to advertise as the EDNS reassembly buffer size.
 This is the value put into datagrams over UDP towards peers.  The actual
 buffer size is determined by msg\-buffer\-size (both for TCP and UDP).  Do
-not set lower than that value.  Default is 4096 which is RFC recommended.
+not set higher than that value.  Default is 4096 which is RFC recommended.
 If you have fragmentation reassembly problems, usually seen as timeouts,
 then a value of 1480 can fix it.  Setting to 512 bypasses even the most
 stringent path MTU problems, but is seen as extreme, since the amount
@@ -994,6 +994,8 @@ the resolver picks up a correct list online.
 .TP
 .B stub\-first: \fI<yes or no>
 If enabled, a query is attempted without the stub clause if it fails.
+The data could not be retrieved and would have caused SERVFAIL because
+the servers are unreachable, instead it is tried without this clause.
 The default is no.
 .SS "Forward Zone Options"
 .LP
@@ -1022,6 +1024,8 @@ To use a nondefault port for DNS communication append '@' with the port number.
 .TP
 .B forward\-first: \fI<yes or no>
 If enabled, a query is attempted without the forward clause if it fails.
+The data could not be retrieved and would have caused SERVFAIL because
+the servers are unreachable, instead it is tried without this clause.
 The default is no.
 .SS "Python Module Options"
 .LP

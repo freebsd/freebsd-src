@@ -10,7 +10,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 35
+#define YY_FLEX_SUBMINOR_VERSION 36
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -55,7 +55,6 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
-#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -85,6 +84,8 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+
+#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -154,7 +155,12 @@ typedef unsigned int flex_uint32_t;
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #endif
 
-extern int yyleng;
+#ifndef YY_TYPEDEF_YY_SIZE_T
+#define YY_TYPEDEF_YY_SIZE_T
+typedef size_t yy_size_t;
+#endif
+
+extern yy_size_t yyleng;
 
 extern FILE *yyin, *yyout;
 
@@ -180,11 +186,6 @@ extern FILE *yyin, *yyout;
 
 #define unput(c) yyunput( c, (yytext_ptr)  )
 
-#ifndef YY_TYPEDEF_YY_SIZE_T
-#define YY_TYPEDEF_YY_SIZE_T
-typedef size_t yy_size_t;
-#endif
-
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
 struct yy_buffer_state
@@ -202,7 +203,7 @@ struct yy_buffer_state
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	int yy_n_chars;
+	yy_size_t yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -272,8 +273,8 @@ static YY_BUFFER_STATE * yy_buffer_stack = 0; /**< Stack as an array. */
 
 /* yy_hold_char holds the character lost when yytext is formed. */
 static char yy_hold_char;
-static int yy_n_chars;		/* number of characters read into yy_ch_buf */
-int yyleng;
+static yy_size_t yy_n_chars;		/* number of characters read into yy_ch_buf */
+yy_size_t yyleng;
 
 /* Points to current character in buffer. */
 static char *yy_c_buf_p = (char *) 0;
@@ -301,7 +302,7 @@ static void yy_init_buffer (YY_BUFFER_STATE b,FILE *file  );
 
 YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size  );
 YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str  );
-YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,int len  );
+YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,yy_size_t len  );
 
 void *yyalloc (yy_size_t  );
 void *yyrealloc (void *,yy_size_t  );
@@ -1778,6 +1779,9 @@ char *yytext;
 #include <ctype.h>
 #include <string.h>
 #include <strings.h>
+#ifdef HAVE_GLOB_H
+# include <glob.h>
+#endif
 
 #include "util/config_file.h"
 #include "util/configparser.h"
@@ -1810,6 +1814,7 @@ static int config_include_stack_ptr = 0;
 static int inc_prev = 0;
 static int num_args = 0;
 
+
 static void config_start_include(const char* filename)
 {
 	FILE *input;
@@ -1841,6 +1846,50 @@ static void config_start_include(const char* filename)
 	++config_include_stack_ptr;
 }
 
+static void config_start_include_glob(const char* filename)
+{
+
+	/* check for wildcards */
+#ifdef HAVE_GLOB
+	glob_t g;
+	size_t i;
+	int r, flags;
+	if(!(!strchr(filename, '*') && !strchr(filename, '?') && !strchr(filename, '[') &&
+		!strchr(filename, '{') && !strchr(filename, '~'))) {
+		flags = 0
+#ifdef GLOB_ERR
+			| GLOB_ERR
+#endif
+#ifdef GLOB_NOSORT
+			| GLOB_NOSORT
+#endif
+#ifdef GLOB_BRACE
+			| GLOB_BRACE
+#endif
+#ifdef GLOB_TILDE
+			| GLOB_TILDE
+#endif
+		;
+		memset(&g, 0, sizeof(g));
+		r = glob(filename, flags, NULL, &g);
+		if(r) {
+			/* some error */
+			globfree(&g);
+			config_start_include(filename); /* let original deal with it */
+			return;
+		}
+		/* process files found, if any */
+		for(i=0; i<(size_t)g.gl_pathc; i++) {
+			config_start_include(g.gl_pathv[i]);
+		}
+		globfree(&g);
+		return;
+	}
+#endif /* HAVE_GLOB */
+
+	config_start_include(filename);
+}
+
 static void config_end_include(void)
 {
 	--config_include_stack_ptr;
@@ -1861,7 +1910,7 @@ static void config_end_include(void)
 #endif
 
 #define YY_NO_INPUT 1
-#line 100 "util/configlexer.lex"
+#line 148 "util/configlexer.lex"
 #ifndef YY_NO_UNPUT
 #define YY_NO_UNPUT 1
 #endif
@@ -1869,7 +1918,7 @@ static void config_end_include(void)
 #define YY_NO_INPUT 1
 #endif
 
-#line 1871 "<stdout>"
+#line 1920 "<stdout>"
 
 #define INITIAL 0
 #define quotedstring 1
@@ -1913,7 +1962,7 @@ FILE *yyget_out (void );
 
 void yyset_out  (FILE * out_str  );
 
-int yyget_leng (void );
+yy_size_t yyget_leng (void );
 
 char *yyget_text (void );
 
@@ -1972,7 +2021,7 @@ static int input (void );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		unsigned n; \
+		size_t n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -2054,9 +2103,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 120 "util/configlexer.lex"
+#line 168 "util/configlexer.lex"
 
-#line 2058 "<stdout>"
+#line 2107 "<stdout>"
 
 	if ( !(yy_init) )
 		{
@@ -2147,627 +2196,627 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 121 "util/configlexer.lex"
+#line 169 "util/configlexer.lex"
 { 
 	LEXOUT(("SP ")); /* ignore */ }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 123 "util/configlexer.lex"
+#line 171 "util/configlexer.lex"
 { 
 	/* note that flex makes the longest match and '.' is any but not nl */
 	LEXOUT(("comment(%s) ", yytext)); /* ignore */ }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 126 "util/configlexer.lex"
+#line 174 "util/configlexer.lex"
 { YDVAR(0, VAR_SERVER) }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 127 "util/configlexer.lex"
+#line 175 "util/configlexer.lex"
 { YDVAR(1, VAR_NUM_THREADS) }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 128 "util/configlexer.lex"
+#line 176 "util/configlexer.lex"
 { YDVAR(1, VAR_VERBOSITY) }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 129 "util/configlexer.lex"
+#line 177 "util/configlexer.lex"
 { YDVAR(1, VAR_PORT) }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 130 "util/configlexer.lex"
+#line 178 "util/configlexer.lex"
 { YDVAR(1, VAR_OUTGOING_RANGE) }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 131 "util/configlexer.lex"
+#line 179 "util/configlexer.lex"
 { YDVAR(1, VAR_OUTGOING_PORT_PERMIT) }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 132 "util/configlexer.lex"
+#line 180 "util/configlexer.lex"
 { YDVAR(1, VAR_OUTGOING_PORT_AVOID) }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 133 "util/configlexer.lex"
+#line 181 "util/configlexer.lex"
 { YDVAR(1, VAR_OUTGOING_NUM_TCP) }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 134 "util/configlexer.lex"
+#line 182 "util/configlexer.lex"
 { YDVAR(1, VAR_INCOMING_NUM_TCP) }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 135 "util/configlexer.lex"
+#line 183 "util/configlexer.lex"
 { YDVAR(1, VAR_DO_IP4) }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 136 "util/configlexer.lex"
+#line 184 "util/configlexer.lex"
 { YDVAR(1, VAR_DO_IP6) }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 137 "util/configlexer.lex"
+#line 185 "util/configlexer.lex"
 { YDVAR(1, VAR_DO_UDP) }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 138 "util/configlexer.lex"
+#line 186 "util/configlexer.lex"
 { YDVAR(1, VAR_DO_TCP) }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 139 "util/configlexer.lex"
+#line 187 "util/configlexer.lex"
 { YDVAR(1, VAR_TCP_UPSTREAM) }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 140 "util/configlexer.lex"
+#line 188 "util/configlexer.lex"
 { YDVAR(1, VAR_SSL_UPSTREAM) }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 141 "util/configlexer.lex"
+#line 189 "util/configlexer.lex"
 { YDVAR(1, VAR_SSL_SERVICE_KEY) }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 142 "util/configlexer.lex"
+#line 190 "util/configlexer.lex"
 { YDVAR(1, VAR_SSL_SERVICE_PEM) }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 143 "util/configlexer.lex"
+#line 191 "util/configlexer.lex"
 { YDVAR(1, VAR_SSL_PORT) }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 144 "util/configlexer.lex"
+#line 192 "util/configlexer.lex"
 { YDVAR(1, VAR_DO_DAEMONIZE) }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 145 "util/configlexer.lex"
+#line 193 "util/configlexer.lex"
 { YDVAR(1, VAR_INTERFACE) }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 146 "util/configlexer.lex"
+#line 194 "util/configlexer.lex"
 { YDVAR(1, VAR_OUTGOING_INTERFACE) }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 147 "util/configlexer.lex"
+#line 195 "util/configlexer.lex"
 { YDVAR(1, VAR_INTERFACE_AUTOMATIC) }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 148 "util/configlexer.lex"
+#line 196 "util/configlexer.lex"
 { YDVAR(1, VAR_SO_RCVBUF) }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 149 "util/configlexer.lex"
+#line 197 "util/configlexer.lex"
 { YDVAR(1, VAR_SO_SNDBUF) }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 150 "util/configlexer.lex"
+#line 198 "util/configlexer.lex"
 { YDVAR(1, VAR_CHROOT) }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 151 "util/configlexer.lex"
+#line 199 "util/configlexer.lex"
 { YDVAR(1, VAR_USERNAME) }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 152 "util/configlexer.lex"
+#line 200 "util/configlexer.lex"
 { YDVAR(1, VAR_DIRECTORY) }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 153 "util/configlexer.lex"
+#line 201 "util/configlexer.lex"
 { YDVAR(1, VAR_LOGFILE) }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 154 "util/configlexer.lex"
+#line 202 "util/configlexer.lex"
 { YDVAR(1, VAR_PIDFILE) }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 155 "util/configlexer.lex"
+#line 203 "util/configlexer.lex"
 { YDVAR(1, VAR_ROOT_HINTS) }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 156 "util/configlexer.lex"
+#line 204 "util/configlexer.lex"
 { YDVAR(1, VAR_EDNS_BUFFER_SIZE) }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 157 "util/configlexer.lex"
+#line 205 "util/configlexer.lex"
 { YDVAR(1, VAR_MSG_BUFFER_SIZE) }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 158 "util/configlexer.lex"
+#line 206 "util/configlexer.lex"
 { YDVAR(1, VAR_MSG_CACHE_SIZE) }
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 159 "util/configlexer.lex"
+#line 207 "util/configlexer.lex"
 { YDVAR(1, VAR_MSG_CACHE_SLABS) }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 160 "util/configlexer.lex"
+#line 208 "util/configlexer.lex"
 { YDVAR(1, VAR_RRSET_CACHE_SIZE) }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 161 "util/configlexer.lex"
+#line 209 "util/configlexer.lex"
 { YDVAR(1, VAR_RRSET_CACHE_SLABS) }
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 162 "util/configlexer.lex"
+#line 210 "util/configlexer.lex"
 { YDVAR(1, VAR_CACHE_MAX_TTL) }
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 163 "util/configlexer.lex"
+#line 211 "util/configlexer.lex"
 { YDVAR(1, VAR_CACHE_MIN_TTL) }
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 164 "util/configlexer.lex"
+#line 212 "util/configlexer.lex"
 { YDVAR(1, VAR_INFRA_HOST_TTL) }
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 165 "util/configlexer.lex"
+#line 213 "util/configlexer.lex"
 { YDVAR(1, VAR_INFRA_LAME_TTL) }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 166 "util/configlexer.lex"
+#line 214 "util/configlexer.lex"
 { YDVAR(1, VAR_INFRA_CACHE_SLABS) }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 167 "util/configlexer.lex"
+#line 215 "util/configlexer.lex"
 { YDVAR(1, VAR_INFRA_CACHE_NUMHOSTS) }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 168 "util/configlexer.lex"
+#line 216 "util/configlexer.lex"
 { YDVAR(1, VAR_INFRA_CACHE_LAME_SIZE) }
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 169 "util/configlexer.lex"
+#line 217 "util/configlexer.lex"
 { YDVAR(1, VAR_NUM_QUERIES_PER_THREAD) }
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 170 "util/configlexer.lex"
+#line 218 "util/configlexer.lex"
 { YDVAR(1, VAR_JOSTLE_TIMEOUT) }
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 171 "util/configlexer.lex"
+#line 219 "util/configlexer.lex"
 { YDVAR(1, VAR_TARGET_FETCH_POLICY) }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 172 "util/configlexer.lex"
+#line 220 "util/configlexer.lex"
 { YDVAR(1, VAR_HARDEN_SHORT_BUFSIZE) }
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 173 "util/configlexer.lex"
+#line 221 "util/configlexer.lex"
 { YDVAR(1, VAR_HARDEN_LARGE_QUERIES) }
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 174 "util/configlexer.lex"
+#line 222 "util/configlexer.lex"
 { YDVAR(1, VAR_HARDEN_GLUE) }
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 175 "util/configlexer.lex"
+#line 223 "util/configlexer.lex"
 { YDVAR(1, VAR_HARDEN_DNSSEC_STRIPPED) }
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 176 "util/configlexer.lex"
+#line 224 "util/configlexer.lex"
 { YDVAR(1, VAR_HARDEN_BELOW_NXDOMAIN) }
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 177 "util/configlexer.lex"
+#line 225 "util/configlexer.lex"
 { YDVAR(1, VAR_HARDEN_REFERRAL_PATH) }
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 178 "util/configlexer.lex"
+#line 226 "util/configlexer.lex"
 { YDVAR(1, VAR_USE_CAPS_FOR_ID) }
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 179 "util/configlexer.lex"
+#line 227 "util/configlexer.lex"
 { YDVAR(1, VAR_UNWANTED_REPLY_THRESHOLD) }
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 180 "util/configlexer.lex"
+#line 228 "util/configlexer.lex"
 { YDVAR(1, VAR_PRIVATE_ADDRESS) }
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 181 "util/configlexer.lex"
+#line 229 "util/configlexer.lex"
 { YDVAR(1, VAR_PRIVATE_DOMAIN) }
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 182 "util/configlexer.lex"
+#line 230 "util/configlexer.lex"
 { YDVAR(1, VAR_PREFETCH_KEY) }
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 183 "util/configlexer.lex"
+#line 231 "util/configlexer.lex"
 { YDVAR(1, VAR_PREFETCH) }
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 184 "util/configlexer.lex"
+#line 232 "util/configlexer.lex"
 { YDVAR(0, VAR_STUB_ZONE) }
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 185 "util/configlexer.lex"
+#line 233 "util/configlexer.lex"
 { YDVAR(1, VAR_NAME) }
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 186 "util/configlexer.lex"
+#line 234 "util/configlexer.lex"
 { YDVAR(1, VAR_STUB_ADDR) }
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 187 "util/configlexer.lex"
+#line 235 "util/configlexer.lex"
 { YDVAR(1, VAR_STUB_HOST) }
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 188 "util/configlexer.lex"
+#line 236 "util/configlexer.lex"
 { YDVAR(1, VAR_STUB_PRIME) }
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 189 "util/configlexer.lex"
+#line 237 "util/configlexer.lex"
 { YDVAR(1, VAR_STUB_FIRST) }
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 190 "util/configlexer.lex"
+#line 238 "util/configlexer.lex"
 { YDVAR(0, VAR_FORWARD_ZONE) }
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 191 "util/configlexer.lex"
+#line 239 "util/configlexer.lex"
 { YDVAR(1, VAR_FORWARD_ADDR) }
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 192 "util/configlexer.lex"
+#line 240 "util/configlexer.lex"
 { YDVAR(1, VAR_FORWARD_HOST) }
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 193 "util/configlexer.lex"
+#line 241 "util/configlexer.lex"
 { YDVAR(1, VAR_FORWARD_FIRST) }
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 194 "util/configlexer.lex"
+#line 242 "util/configlexer.lex"
 { YDVAR(1, VAR_DO_NOT_QUERY_ADDRESS) }
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 195 "util/configlexer.lex"
+#line 243 "util/configlexer.lex"
 { YDVAR(1, VAR_DO_NOT_QUERY_LOCALHOST) }
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 196 "util/configlexer.lex"
+#line 244 "util/configlexer.lex"
 { YDVAR(2, VAR_ACCESS_CONTROL) }
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 197 "util/configlexer.lex"
+#line 245 "util/configlexer.lex"
 { YDVAR(1, VAR_HIDE_IDENTITY) }
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 198 "util/configlexer.lex"
+#line 246 "util/configlexer.lex"
 { YDVAR(1, VAR_HIDE_VERSION) }
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 199 "util/configlexer.lex"
+#line 247 "util/configlexer.lex"
 { YDVAR(1, VAR_IDENTITY) }
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 200 "util/configlexer.lex"
+#line 248 "util/configlexer.lex"
 { YDVAR(1, VAR_VERSION) }
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 201 "util/configlexer.lex"
+#line 249 "util/configlexer.lex"
 { YDVAR(1, VAR_MODULE_CONF) }
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 202 "util/configlexer.lex"
+#line 250 "util/configlexer.lex"
 { YDVAR(1, VAR_DLV_ANCHOR) }
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 203 "util/configlexer.lex"
+#line 251 "util/configlexer.lex"
 { YDVAR(1, VAR_DLV_ANCHOR_FILE) }
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 204 "util/configlexer.lex"
+#line 252 "util/configlexer.lex"
 { YDVAR(1, VAR_TRUST_ANCHOR_FILE) }
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 205 "util/configlexer.lex"
+#line 253 "util/configlexer.lex"
 { YDVAR(1, VAR_AUTO_TRUST_ANCHOR_FILE) }
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 206 "util/configlexer.lex"
+#line 254 "util/configlexer.lex"
 { YDVAR(1, VAR_TRUSTED_KEYS_FILE) }
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 207 "util/configlexer.lex"
+#line 255 "util/configlexer.lex"
 { YDVAR(1, VAR_TRUST_ANCHOR) }
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 208 "util/configlexer.lex"
+#line 256 "util/configlexer.lex"
 { YDVAR(1, VAR_VAL_OVERRIDE_DATE) }
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 209 "util/configlexer.lex"
+#line 257 "util/configlexer.lex"
 { YDVAR(1, VAR_VAL_SIG_SKEW_MIN) }
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 210 "util/configlexer.lex"
+#line 258 "util/configlexer.lex"
 { YDVAR(1, VAR_VAL_SIG_SKEW_MAX) }
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 211 "util/configlexer.lex"
+#line 259 "util/configlexer.lex"
 { YDVAR(1, VAR_BOGUS_TTL) }
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 212 "util/configlexer.lex"
+#line 260 "util/configlexer.lex"
 { YDVAR(1, VAR_VAL_CLEAN_ADDITIONAL) }
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 213 "util/configlexer.lex"
+#line 261 "util/configlexer.lex"
 { YDVAR(1, VAR_VAL_PERMISSIVE_MODE) }
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 214 "util/configlexer.lex"
+#line 262 "util/configlexer.lex"
 { YDVAR(1, VAR_IGNORE_CD_FLAG) }
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 215 "util/configlexer.lex"
+#line 263 "util/configlexer.lex"
 { YDVAR(1, VAR_VAL_LOG_LEVEL) }
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 216 "util/configlexer.lex"
+#line 264 "util/configlexer.lex"
 { YDVAR(1, VAR_KEY_CACHE_SIZE) }
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 217 "util/configlexer.lex"
+#line 265 "util/configlexer.lex"
 { YDVAR(1, VAR_KEY_CACHE_SLABS) }
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 218 "util/configlexer.lex"
+#line 266 "util/configlexer.lex"
 { YDVAR(1, VAR_NEG_CACHE_SIZE) }
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 219 "util/configlexer.lex"
+#line 267 "util/configlexer.lex"
 { 
 				  YDVAR(1, VAR_VAL_NSEC3_KEYSIZE_ITERATIONS) }
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 221 "util/configlexer.lex"
+#line 269 "util/configlexer.lex"
 { YDVAR(1, VAR_ADD_HOLDDOWN) }
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 222 "util/configlexer.lex"
+#line 270 "util/configlexer.lex"
 { YDVAR(1, VAR_DEL_HOLDDOWN) }
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 223 "util/configlexer.lex"
+#line 271 "util/configlexer.lex"
 { YDVAR(1, VAR_KEEP_MISSING) }
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 224 "util/configlexer.lex"
+#line 272 "util/configlexer.lex"
 { YDVAR(1, VAR_USE_SYSLOG) }
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 225 "util/configlexer.lex"
+#line 273 "util/configlexer.lex"
 { YDVAR(1, VAR_LOG_TIME_ASCII) }
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
-#line 226 "util/configlexer.lex"
+#line 274 "util/configlexer.lex"
 { YDVAR(1, VAR_LOG_QUERIES) }
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
-#line 227 "util/configlexer.lex"
+#line 275 "util/configlexer.lex"
 { YDVAR(2, VAR_LOCAL_ZONE) }
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 228 "util/configlexer.lex"
+#line 276 "util/configlexer.lex"
 { YDVAR(1, VAR_LOCAL_DATA) }
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 229 "util/configlexer.lex"
+#line 277 "util/configlexer.lex"
 { YDVAR(1, VAR_LOCAL_DATA_PTR) }
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
-#line 230 "util/configlexer.lex"
+#line 278 "util/configlexer.lex"
 { YDVAR(1, VAR_STATISTICS_INTERVAL) }
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
-#line 231 "util/configlexer.lex"
+#line 279 "util/configlexer.lex"
 { YDVAR(1, VAR_STATISTICS_CUMULATIVE) }
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
-#line 232 "util/configlexer.lex"
+#line 280 "util/configlexer.lex"
 { YDVAR(1, VAR_EXTENDED_STATISTICS) }
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 233 "util/configlexer.lex"
+#line 281 "util/configlexer.lex"
 { YDVAR(0, VAR_REMOTE_CONTROL) }
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 234 "util/configlexer.lex"
+#line 282 "util/configlexer.lex"
 { YDVAR(1, VAR_CONTROL_ENABLE) }
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 235 "util/configlexer.lex"
+#line 283 "util/configlexer.lex"
 { YDVAR(1, VAR_CONTROL_INTERFACE) }
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
-#line 236 "util/configlexer.lex"
+#line 284 "util/configlexer.lex"
 { YDVAR(1, VAR_CONTROL_PORT) }
 	YY_BREAK
 case 113:
 YY_RULE_SETUP
-#line 237 "util/configlexer.lex"
+#line 285 "util/configlexer.lex"
 { YDVAR(1, VAR_SERVER_KEY_FILE) }
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
-#line 238 "util/configlexer.lex"
+#line 286 "util/configlexer.lex"
 { YDVAR(1, VAR_SERVER_CERT_FILE) }
 	YY_BREAK
 case 115:
 YY_RULE_SETUP
-#line 239 "util/configlexer.lex"
+#line 287 "util/configlexer.lex"
 { YDVAR(1, VAR_CONTROL_KEY_FILE) }
 	YY_BREAK
 case 116:
 YY_RULE_SETUP
-#line 240 "util/configlexer.lex"
+#line 288 "util/configlexer.lex"
 { YDVAR(1, VAR_CONTROL_CERT_FILE) }
 	YY_BREAK
 case 117:
 YY_RULE_SETUP
-#line 241 "util/configlexer.lex"
+#line 289 "util/configlexer.lex"
 { YDVAR(1, VAR_PYTHON_SCRIPT) }
 	YY_BREAK
 case 118:
 YY_RULE_SETUP
-#line 242 "util/configlexer.lex"
+#line 290 "util/configlexer.lex"
 { YDVAR(0, VAR_PYTHON) }
 	YY_BREAK
 case 119:
 YY_RULE_SETUP
-#line 243 "util/configlexer.lex"
+#line 291 "util/configlexer.lex"
 { YDVAR(1, VAR_DOMAIN_INSECURE) }
 	YY_BREAK
 case 120:
 YY_RULE_SETUP
-#line 244 "util/configlexer.lex"
+#line 292 "util/configlexer.lex"
 { YDVAR(1, VAR_MINIMAL_RESPONSES) }
 	YY_BREAK
 case 121:
 YY_RULE_SETUP
-#line 245 "util/configlexer.lex"
+#line 293 "util/configlexer.lex"
 { YDVAR(1, VAR_RRSET_ROUNDROBIN) }
 	YY_BREAK
 case 122:
 /* rule 122 can match eol */
 YY_RULE_SETUP
-#line 246 "util/configlexer.lex"
+#line 294 "util/configlexer.lex"
 { LEXOUT(("NL\n")); cfg_parser->line++; }
 	YY_BREAK
 /* Quoted strings. Strip leading and ending quotes */
 case 123:
 YY_RULE_SETUP
-#line 249 "util/configlexer.lex"
+#line 297 "util/configlexer.lex"
 { BEGIN(quotedstring); LEXOUT(("QS ")); }
 	YY_BREAK
 case YY_STATE_EOF(quotedstring):
-#line 250 "util/configlexer.lex"
+#line 298 "util/configlexer.lex"
 {
         yyerror("EOF inside quoted string");
 	if(--num_args == 0) { BEGIN(INITIAL); }
@@ -2776,19 +2825,19 @@ case YY_STATE_EOF(quotedstring):
 	YY_BREAK
 case 124:
 YY_RULE_SETUP
-#line 255 "util/configlexer.lex"
+#line 303 "util/configlexer.lex"
 { LEXOUT(("STR(%s) ", yytext)); yymore(); }
 	YY_BREAK
 case 125:
 /* rule 125 can match eol */
 YY_RULE_SETUP
-#line 256 "util/configlexer.lex"
+#line 304 "util/configlexer.lex"
 { yyerror("newline inside quoted string, no end \""); 
 			  cfg_parser->line++; BEGIN(INITIAL); }
 	YY_BREAK
 case 126:
 YY_RULE_SETUP
-#line 258 "util/configlexer.lex"
+#line 306 "util/configlexer.lex"
 {
         LEXOUT(("QE "));
 	if(--num_args == 0) { BEGIN(INITIAL); }
@@ -2803,11 +2852,11 @@ YY_RULE_SETUP
 /* Single Quoted strings. Strip leading and ending quotes */
 case 127:
 YY_RULE_SETUP
-#line 270 "util/configlexer.lex"
+#line 318 "util/configlexer.lex"
 { BEGIN(singlequotedstr); LEXOUT(("SQS ")); }
 	YY_BREAK
 case YY_STATE_EOF(singlequotedstr):
-#line 271 "util/configlexer.lex"
+#line 319 "util/configlexer.lex"
 {
         yyerror("EOF inside quoted string");
 	if(--num_args == 0) { BEGIN(INITIAL); }
@@ -2816,19 +2865,19 @@ case YY_STATE_EOF(singlequotedstr):
 	YY_BREAK
 case 128:
 YY_RULE_SETUP
-#line 276 "util/configlexer.lex"
+#line 324 "util/configlexer.lex"
 { LEXOUT(("STR(%s) ", yytext)); yymore(); }
 	YY_BREAK
 case 129:
 /* rule 129 can match eol */
 YY_RULE_SETUP
-#line 277 "util/configlexer.lex"
+#line 325 "util/configlexer.lex"
 { yyerror("newline inside quoted string, no end '"); 
 			     cfg_parser->line++; BEGIN(INITIAL); }
 	YY_BREAK
 case 130:
 YY_RULE_SETUP
-#line 279 "util/configlexer.lex"
+#line 327 "util/configlexer.lex"
 {
         LEXOUT(("SQE "));
 	if(--num_args == 0) { BEGIN(INITIAL); }
@@ -2843,12 +2892,12 @@ YY_RULE_SETUP
 /* include: directive */
 case 131:
 YY_RULE_SETUP
-#line 291 "util/configlexer.lex"
+#line 339 "util/configlexer.lex"
 { 
 	LEXOUT(("v(%s) ", yytext)); inc_prev = YYSTATE; BEGIN(include); }
 	YY_BREAK
 case YY_STATE_EOF(include):
-#line 293 "util/configlexer.lex"
+#line 341 "util/configlexer.lex"
 {
         yyerror("EOF inside include directive");
         BEGIN(inc_prev);
@@ -2856,31 +2905,31 @@ case YY_STATE_EOF(include):
 	YY_BREAK
 case 132:
 YY_RULE_SETUP
-#line 297 "util/configlexer.lex"
+#line 345 "util/configlexer.lex"
 { LEXOUT(("ISP ")); /* ignore */ }
 	YY_BREAK
 case 133:
 /* rule 133 can match eol */
 YY_RULE_SETUP
-#line 298 "util/configlexer.lex"
+#line 346 "util/configlexer.lex"
 { LEXOUT(("NL\n")); cfg_parser->line++;}
 	YY_BREAK
 case 134:
 YY_RULE_SETUP
-#line 299 "util/configlexer.lex"
+#line 347 "util/configlexer.lex"
 { LEXOUT(("IQS ")); BEGIN(include_quoted); }
 	YY_BREAK
 case 135:
 YY_RULE_SETUP
-#line 300 "util/configlexer.lex"
+#line 348 "util/configlexer.lex"
 {
 	LEXOUT(("Iunquotedstr(%s) ", yytext));
-	config_start_include(yytext);
+	config_start_include_glob(yytext);
 	BEGIN(inc_prev);
 }
 	YY_BREAK
 case YY_STATE_EOF(include_quoted):
-#line 305 "util/configlexer.lex"
+#line 353 "util/configlexer.lex"
 {
         yyerror("EOF inside quoted string");
         BEGIN(inc_prev);
@@ -2888,29 +2937,29 @@ case YY_STATE_EOF(include_quoted):
 	YY_BREAK
 case 136:
 YY_RULE_SETUP
-#line 309 "util/configlexer.lex"
+#line 357 "util/configlexer.lex"
 { LEXOUT(("ISTR(%s) ", yytext)); yymore(); }
 	YY_BREAK
 case 137:
 /* rule 137 can match eol */
 YY_RULE_SETUP
-#line 310 "util/configlexer.lex"
+#line 358 "util/configlexer.lex"
 { yyerror("newline before \" in include name"); 
 				  cfg_parser->line++; BEGIN(inc_prev); }
 	YY_BREAK
 case 138:
 YY_RULE_SETUP
-#line 312 "util/configlexer.lex"
+#line 360 "util/configlexer.lex"
 {
 	LEXOUT(("IQE "));
 	yytext[yyleng - 1] = '\0';
-	config_start_include(yytext);
+	config_start_include_glob(yytext);
 	BEGIN(inc_prev);
 }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(val):
-#line 318 "util/configlexer.lex"
+#line 366 "util/configlexer.lex"
 {
 	yy_set_bol(1); /* Set beginning of line, so "^" rules match.  */
 	if (config_include_stack_ptr == 0) {
@@ -2923,31 +2972,31 @@ case YY_STATE_EOF(val):
 	YY_BREAK
 case 139:
 YY_RULE_SETUP
-#line 328 "util/configlexer.lex"
+#line 376 "util/configlexer.lex"
 { LEXOUT(("unquotedstr(%s) ", yytext)); 
 			if(--num_args == 0) { BEGIN(INITIAL); }
 			yylval.str = strdup(yytext); return STRING_ARG; }
 	YY_BREAK
 case 140:
 YY_RULE_SETUP
-#line 332 "util/configlexer.lex"
+#line 380 "util/configlexer.lex"
 {
 	ub_c_error_msg("unknown keyword '%s'", yytext);
 	}
 	YY_BREAK
 case 141:
 YY_RULE_SETUP
-#line 336 "util/configlexer.lex"
+#line 384 "util/configlexer.lex"
 {
 	ub_c_error_msg("stray '%s'", yytext);
 	}
 	YY_BREAK
 case 142:
 YY_RULE_SETUP
-#line 340 "util/configlexer.lex"
+#line 388 "util/configlexer.lex"
 ECHO;
 	YY_BREAK
-#line 2949 "<stdout>"
+#line 2998 "<stdout>"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -3131,21 +3180,21 @@ static int yy_get_next_buffer (void)
 
 	else
 		{
-			int num_to_read =
+			yy_size_t num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
 			{ /* Not enough room in the buffer - grow it. */
 
 			/* just a shorter name for the current buffer */
-			YY_BUFFER_STATE b = YY_CURRENT_BUFFER;
+			YY_BUFFER_STATE b = YY_CURRENT_BUFFER_LVALUE;
 
 			int yy_c_buf_p_offset =
 				(int) ((yy_c_buf_p) - b->yy_ch_buf);
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = b->yy_buf_size * 2;
+				yy_size_t new_size = b->yy_buf_size * 2;
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -3176,7 +3225,7 @@ static int yy_get_next_buffer (void)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			(yy_n_chars), (size_t) num_to_read );
+			(yy_n_chars), num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars);
 		}
@@ -3271,7 +3320,7 @@ static int yy_get_next_buffer (void)
 	yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
 	yy_is_jam = (yy_current_state == 1342);
 
-	return yy_is_jam ? 0 : yy_current_state;
+		return yy_is_jam ? 0 : yy_current_state;
 }
 
 #ifndef YY_NO_INPUT
@@ -3298,7 +3347,7 @@ static int yy_get_next_buffer (void)
 
 		else
 			{ /* need more input */
-			int offset = (yy_c_buf_p) - (yytext_ptr);
+			yy_size_t offset = (yy_c_buf_p) - (yytext_ptr);
 			++(yy_c_buf_p);
 
 			switch ( yy_get_next_buffer(  ) )
@@ -3458,10 +3507,6 @@ static void yy_load_buffer_state  (void)
 	yyfree((void *) b  );
 }
 
-#ifndef __cplusplus
-extern int isatty (int );
-#endif /* __cplusplus */
-    
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
  * such as during a yyrestart() or at EOF.
@@ -3574,7 +3619,7 @@ void yypop_buffer_state (void)
  */
 static void yyensure_buffer_stack (void)
 {
-	int num_to_alloc;
+	yy_size_t num_to_alloc;
     
 	if (!(yy_buffer_stack)) {
 
@@ -3666,12 +3711,12 @@ YY_BUFFER_STATE yy_scan_string (yyconst char * yystr )
 
 /** Setup the input buffer state to scan the given bytes. The next call to yylex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * 
  * @return the newly allocated buffer state object.
  */
-YY_BUFFER_STATE yy_scan_bytes  (yyconst char * yybytes, int  _yybytes_len )
+YY_BUFFER_STATE yy_scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes_len )
 {
 	YY_BUFFER_STATE b;
 	char *buf;
@@ -3758,7 +3803,7 @@ FILE *yyget_out  (void)
 /** Get the length of the current token.
  * 
  */
-int yyget_leng  (void)
+yy_size_t yyget_leng  (void)
 {
         return yyleng;
 }
@@ -3906,7 +3951,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 340 "util/configlexer.lex"
+#line 388 "util/configlexer.lex"
 
 
 

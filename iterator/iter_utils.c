@@ -418,13 +418,14 @@ dns_copy_msg(struct dns_msg* from, struct regional* region)
 	return m;
 }
 
-int 
+void 
 iter_dns_store(struct module_env* env, struct query_info* msgqinf,
 	struct reply_info* msgrep, int is_referral, uint32_t leeway, int pside,
 	struct regional* region)
 {
-	return dns_cache_store(env, msgqinf, msgrep, is_referral, leeway,
-		pside, region);
+	if(!dns_cache_store(env, msgqinf, msgrep, is_referral, leeway,
+		pside, region))
+		log_err("out of memory: cannot store data in cache");
 }
 
 int 

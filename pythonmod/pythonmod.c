@@ -41,6 +41,7 @@
 /* ignore the varargs unused warning from SWIGs internal vararg support */
 #ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #endif
 
 #include "config.h"

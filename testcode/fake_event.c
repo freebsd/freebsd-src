@@ -1041,14 +1041,13 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
 	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
-	ldns_buffer* ATTR_UNUSED(buff), int (*arg_compare)(void*,void*))
+	ldns_buffer* ATTR_UNUSED(buff))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
 	struct fake_pending* pend = (struct fake_pending*)calloc(1,
 		sizeof(struct fake_pending));
 	char z[256];
 	ldns_status status;
-	(void)arg_compare;
 	log_assert(pend);
 	log_nametypeclass(VERB_OPS, "pending serviced query", 
 		qname, qtype, qclass);

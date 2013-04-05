@@ -43,6 +43,7 @@
 #include "config.h"
 #include <ldns/ldns.h>
 #include "validator/val_sigcrypt.h"
+#include "validator/val_secalgo.h"
 #include "validator/validator.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
@@ -52,8 +53,8 @@
 #include "util/net_help.h"
 #include "util/regional.h"
 
-#ifndef HAVE_SSL
-#error "Need SSL library to do digital signature cryptography"
+#if !defined(HAVE_SSL) && !defined(HAVE_NSS)
+#error "Need crypto library to do digital signature cryptography"
 #endif
 
 #ifdef HAVE_OPENSSL_ERR_H
@@ -265,41 +266,8 @@ ds_get_sigdata(struct ub_packed_rrset_key* k, size_t idx, uint8_t** digest,
 static size_t
 ds_digest_size_algo(struct ub_packed_rrset_key* k, size_t idx)
 {
-	switch(ds_get_digest_algo(k, idx)) {
-#ifdef HAVE_EVP_SHA1
-		case LDNS_SHA1:
-			return SHA_DIGEST_LENGTH;
-#endif
-#ifdef HAVE_EVP_SHA256
-		case LDNS_SHA256:
-			return SHA256_DIGEST_LENGTH;
-#endif
-#ifdef USE_GOST
-		case LDNS_HASH_GOST:
-			if(EVP_get_digestbyname("md_gost94"))
-				return 32;
-			else	return 0;
-#endif
-#ifdef USE_ECDSA
-		case LDNS_SHA384:
-			return SHA384_DIGEST_LENGTH;
-#endif
-		default: break;
-	}
-	return 0;
+	return ds_digest_size_supported(ds_get_digest_algo(k, idx));
 }
-
-#ifdef USE_GOST
-/** Perform GOST hash */
-static int
-do_gost94(unsigned char* data, size_t len, unsigned char* dest)
-{
-	const EVP_MD* md = EVP_get_digestbyname("md_gost94");
-	if(!md) 
-		return 0;
-	return ldns_digest_evp(data, (unsigned int)len, dest, md);
-}
-#endif
 
 /**
  * Create a DS digest for a DNSKEY entry.
@@ -333,37 +301,9 @@ ds_create_dnskey_digest(struct module_env* env,
 	ldns_buffer_write(b, dnskey_rdata+2, dnskey_len-2); /* skip rdatalen*/
 	ldns_buffer_flip(b);
 	
-	switch(ds_get_digest_algo(ds_rrset, ds_idx)) {
-#ifdef HAVE_EVP_SHA1
-		case LDNS_SHA1:
-			(void)SHA1((unsigned char*)ldns_buffer_begin(b),
-				ldns_buffer_limit(b), (unsigned char*)digest);
-			return 1;
-#endif
-#ifdef HAVE_EVP_SHA256
-		case LDNS_SHA256:
-			(void)SHA256((unsigned char*)ldns_buffer_begin(b),
-				ldns_buffer_limit(b), (unsigned char*)digest);
-			return 1;
-#endif
-#ifdef USE_GOST
-		case LDNS_HASH_GOST:
-			if(do_gost94((unsigned char*)ldns_buffer_begin(b), 
-				ldns_buffer_limit(b), (unsigned char*)digest))
-				return 1;
-#endif
-#ifdef USE_ECDSA
-		case LDNS_SHA384:
-			(void)SHA384((unsigned char*)ldns_buffer_begin(b),
-				ldns_buffer_limit(b), (unsigned char*)digest);
-			return 1;
-#endif
-		default: 
-			verbose(VERB_QUERY, "unknown DS digest algorithm %d", 
-				(int) ds_get_digest_algo(ds_rrset, ds_idx));
-			break;
-	}
-	return 0;
+	return secalgo_ds_digest(ds_get_digest_algo(ds_rrset, ds_idx),
+		(unsigned char*)ldns_buffer_begin(b), ldns_buffer_limit(b),
+		(unsigned char*)digest);
 }
 
 int ds_digest_match_dnskey(struct module_env* env,
@@ -410,37 +350,6 @@ ds_digest_algo_is_supported(struct ub_packed_rrset_key* ds_rrset,
 	size_t ds_idx)
 {
 	return (ds_digest_size_algo(ds_rrset, ds_idx) != 0);
-}
-
-/** return true if DNSKEY algorithm id is supported */
-static int
-dnskey_algo_id_is_supported(int id)
-{
-	switch(id) {
-	case LDNS_DSA:
-	case LDNS_DSA_NSEC3:
-	case LDNS_RSASHA1:
-	case LDNS_RSASHA1_NSEC3:
-	case LDNS_RSAMD5:
-#if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
-	case LDNS_RSASHA256:
-#endif
-#if defined(HAVE_EVP_SHA512) && defined(USE_SHA2)
-	case LDNS_RSASHA512:
-#endif
-#ifdef USE_ECDSA
-	case LDNS_ECDSAP256SHA256:
-	case LDNS_ECDSAP384SHA384:
-#endif
-		return 1;
-#ifdef USE_GOST
-	case LDNS_ECC_GOST:
-		/* we support GOST if it can be loaded */
-		return ldns_key_EVP_load_gost_id();
-#endif
-	default:
-		return 0;
-	}
 }
 
 int 
@@ -606,10 +515,14 @@ dnskeyset_verify_rrset(struct module_env* env, struct val_env* ve,
 				(uint8_t)rrset_get_sig_algo(rrset, i));
 		}
 	}
-	verbose(VERB_ALGO, "rrset failed to verify: no valid signatures for "
-		"%d algorithms", (int)algo_needs_num_missing(&needs));
 	if(sigalg && (alg=algo_needs_missing(&needs)) != 0) {
+		verbose(VERB_ALGO, "rrset failed to verify: "
+			"no valid signatures for %d algorithms",
+			(int)algo_needs_num_missing(&needs));
 		algo_needs_reason(env, alg, reason, "no signatures");
+	} else {
+		verbose(VERB_ALGO, "rrset failed to verify: "
+			"no valid signatures");
 	}
 	return sec_status_bogus;
 }
@@ -1312,378 +1225,6 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 			" adjusting TTL downwards");
 		d->ttl = expittl;
 	}
-}
-
-
-/**
- * Output a libcrypto openssl error to the logfile.
- * @param str: string to add to it.
- * @param e: the error to output, error number from ERR_get_error().
- */
-static void
-log_crypto_error(const char* str, unsigned long e)
-{
-	char buf[128];
-	/* or use ERR_error_string if ERR_error_string_n is not avail TODO */
-	ERR_error_string_n(e, buf, sizeof(buf));
-	/* buf now contains */
-	/* error:[error code]:[library name]:[function name]:[reason string] */
-	log_err("%s crypto %s", str, buf);
-}
-
-/**
- * Setup DSA key digest in DER encoding ... 
- * @param sig: input is signature output alloced ptr (unless failure).
- * 	caller must free alloced ptr if this routine returns true.
- * @param len: input is initial siglen, output is output len.
- * @return false on failure.
- */
-static int
-setup_dsa_sig(unsigned char** sig, unsigned int* len)
-{
-	unsigned char* orig = *sig;
-	unsigned int origlen = *len;
-	int newlen;
-	BIGNUM *R, *S;
-	DSA_SIG *dsasig;
-
-	/* extract the R and S field from the sig buffer */
-	if(origlen < 1 + 2*SHA_DIGEST_LENGTH)
-		return 0;
-	R = BN_new();
-	if(!R) return 0;
-	(void) BN_bin2bn(orig + 1, SHA_DIGEST_LENGTH, R);
-	S = BN_new();
-	if(!S) return 0;
-	(void) BN_bin2bn(orig + 21, SHA_DIGEST_LENGTH, S);
-	dsasig = DSA_SIG_new();
-	if(!dsasig) return 0;
-
-	dsasig->r = R;
-	dsasig->s = S;
-	*sig = NULL;
-	newlen = i2d_DSA_SIG(dsasig, sig);
-	if(newlen < 0) {
-		DSA_SIG_free(dsasig);
-		free(*sig);
-		return 0;
-	}
-	*len = (unsigned int)newlen;
-	DSA_SIG_free(dsasig);
-	return 1;
-}
-
-#ifdef USE_ECDSA
-/**
- * Setup the ECDSA signature in its encoding that the library wants.
- * Converts from plain numbers to ASN formatted.
- * @param sig: input is signature, output alloced ptr (unless failure).
- * 	caller must free alloced ptr if this routine returns true.
- * @param len: input is initial siglen, output is output len.
- * @return false on failure.
- */
-static int
-setup_ecdsa_sig(unsigned char** sig, unsigned int* len)
-{
-	ECDSA_SIG* ecdsa_sig;
-	int newlen;
-	int bnsize = (int)((*len)/2);
-	/* if too short or not even length, fails */
-	if(*len < 16 || bnsize*2 != (int)*len)
-		return 0;
-	/* use the raw data to parse two evenly long BIGNUMs, "r | s". */
-	ecdsa_sig = ECDSA_SIG_new();
-	if(!ecdsa_sig) return 0;
-	ecdsa_sig->r = BN_bin2bn(*sig, bnsize, ecdsa_sig->r);
-	ecdsa_sig->s = BN_bin2bn(*sig+bnsize, bnsize, ecdsa_sig->s);
-	if(!ecdsa_sig->r || !ecdsa_sig->s) {
-		ECDSA_SIG_free(ecdsa_sig);
-		return 0;
-	}
-
-	/* spool it into ASN format */
-	*sig = NULL;
-	newlen = i2d_ECDSA_SIG(ecdsa_sig, sig);
-	if(newlen <= 0) {
-		ECDSA_SIG_free(ecdsa_sig);
-		free(*sig);
-		return 0;
-	}
-	*len = (unsigned int)newlen;
-	ECDSA_SIG_free(ecdsa_sig);
-	return 1;
-}
-#endif /* USE_ECDSA */
-
-/**
- * Setup key and digest for verification. Adjust sig if necessary.
- *
- * @param algo: key algorithm
- * @param evp_key: EVP PKEY public key to create.
- * @param digest_type: digest type to use
- * @param key: key to setup for.
- * @param keylen: length of key.
- * @return false on failure.
- */
-static int
-setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type, 
-	unsigned char* key, size_t keylen)
-{
-	DSA* dsa;
-	RSA* rsa;
-
-	switch(algo) {
-		case LDNS_DSA:
-		case LDNS_DSA_NSEC3:
-			*evp_key = EVP_PKEY_new();
-			if(!*evp_key) {
-				log_err("verify: malloc failure in crypto");
-				return sec_status_unchecked;
-			}
-			dsa = ldns_key_buf2dsa_raw(key, keylen);
-			if(!dsa) {
-				verbose(VERB_QUERY, "verify: "
-					"ldns_key_buf2dsa_raw failed");
-				return 0;
-			}
-			if(EVP_PKEY_assign_DSA(*evp_key, dsa) == 0) {
-				verbose(VERB_QUERY, "verify: "
-					"EVP_PKEY_assign_DSA failed");
-				return 0;
-			}
-			*digest_type = EVP_dss1();
-
-			break;
-		case LDNS_RSASHA1:
-		case LDNS_RSASHA1_NSEC3:
-#if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
-		case LDNS_RSASHA256:
-#endif
-#if defined(HAVE_EVP_SHA512) && defined(USE_SHA2)
-		case LDNS_RSASHA512:
-#endif
-			*evp_key = EVP_PKEY_new();
-			if(!*evp_key) {
-				log_err("verify: malloc failure in crypto");
-				return sec_status_unchecked;
-			}
-			rsa = ldns_key_buf2rsa_raw(key, keylen);
-			if(!rsa) {
-				verbose(VERB_QUERY, "verify: "
-					"ldns_key_buf2rsa_raw SHA failed");
-				return 0;
-			}
-			if(EVP_PKEY_assign_RSA(*evp_key, rsa) == 0) {
-				verbose(VERB_QUERY, "verify: "
-					"EVP_PKEY_assign_RSA SHA failed");
-				return 0;
-			}
-
-			/* select SHA version */
-#if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
-			if(algo == LDNS_RSASHA256)
-				*digest_type = EVP_sha256();
-			else
-#endif
-#if defined(HAVE_EVP_SHA512) && defined(USE_SHA2)
-				if(algo == LDNS_RSASHA512)
-				*digest_type = EVP_sha512();
-			else
-#endif
-				*digest_type = EVP_sha1();
-
-			break;
-		case LDNS_RSAMD5:
-			*evp_key = EVP_PKEY_new();
-			if(!*evp_key) {
-				log_err("verify: malloc failure in crypto");
-				return sec_status_unchecked;
-			}
-			rsa = ldns_key_buf2rsa_raw(key, keylen);
-			if(!rsa) {
-				verbose(VERB_QUERY, "verify: "
-					"ldns_key_buf2rsa_raw MD5 failed");
-				return 0;
-			}
-			if(EVP_PKEY_assign_RSA(*evp_key, rsa) == 0) {
-				verbose(VERB_QUERY, "verify: "
-					"EVP_PKEY_assign_RSA MD5 failed");
-				return 0;
-			}
-			*digest_type = EVP_md5();
-
-			break;
-#ifdef USE_GOST
-		case LDNS_ECC_GOST:
-			*evp_key = ldns_gost2pkey_raw(key, keylen);
-			if(!*evp_key) {
-				verbose(VERB_QUERY, "verify: "
-					"ldns_gost2pkey_raw failed");
-				return 0;
-			}
-			*digest_type = EVP_get_digestbyname("md_gost94");
-			if(!*digest_type) {
-				verbose(VERB_QUERY, "verify: "
-					"EVP_getdigest md_gost94 failed");
-				return 0;
-			}
-			break;
-#endif
-#ifdef USE_ECDSA
-		case LDNS_ECDSAP256SHA256:
-			*evp_key = ldns_ecdsa2pkey_raw(key, keylen,
-				LDNS_ECDSAP256SHA256);
-			if(!*evp_key) {
-				verbose(VERB_QUERY, "verify: "
-					"ldns_ecdsa2pkey_raw failed");
-				return 0;
-			}
-#ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA256
-			 * hash in EVP.  We create one for ecdsa_sha256 */
-			{
-				static int md_ecdsa_256_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_256_done) {
-					EVP_MD m = *EVP_sha256();
-					md_ecdsa_256_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
-#else
-			*digest_type = EVP_sha256();
-#endif
-			break;
-		case LDNS_ECDSAP384SHA384:
-			*evp_key = ldns_ecdsa2pkey_raw(key, keylen,
-				LDNS_ECDSAP384SHA384);
-			if(!*evp_key) {
-				verbose(VERB_QUERY, "verify: "
-					"ldns_ecdsa2pkey_raw failed");
-				return 0;
-			}
-#ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA384
-			 * hash in EVP.  We create one for ecdsa_sha384 */
-			{
-				static int md_ecdsa_384_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_384_done) {
-					EVP_MD m = *EVP_sha384();
-					md_ecdsa_384_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
-#else
-			*digest_type = EVP_sha384();
-#endif
-			break;
-#endif /* USE_ECDSA */
-		default:
-			verbose(VERB_QUERY, "verify: unknown algorithm %d", 
-				algo);
-			return 0;
-	}
-	return 1;
-}
-
-/**
- * Check a canonical sig+rrset and signature against a dnskey
- * @param buf: buffer with data to verify, the first rrsig part and the
- *	canonicalized rrset.
- * @param algo: DNSKEY algorithm.
- * @param sigblock: signature rdata field from RRSIG
- * @param sigblock_len: length of sigblock data.
- * @param key: public key data from DNSKEY RR.
- * @param keylen: length of keydata.
- * @param reason: bogus reason in more detail.
- * @return secure if verification succeeded, bogus on crypto failure,
- *	unchecked on format errors and alloc failures.
- */
-static enum sec_status
-verify_canonrrset(ldns_buffer* buf, int algo, unsigned char* sigblock, 
-	unsigned int sigblock_len, unsigned char* key, unsigned int keylen,
-	char** reason)
-{
-	const EVP_MD *digest_type;
-	EVP_MD_CTX ctx;
-	int res, dofree = 0;
-	EVP_PKEY *evp_key = NULL;
-	
-	if(!setup_key_digest(algo, &evp_key, &digest_type, key, keylen)) {
-		verbose(VERB_QUERY, "verify: failed to setup key");
-		*reason = "use of key for crypto failed";
-		EVP_PKEY_free(evp_key);
-		return sec_status_bogus;
-	}
-	/* if it is a DSA signature in bind format, convert to DER format */
-	if((algo == LDNS_DSA || algo == LDNS_DSA_NSEC3) && 
-		sigblock_len == 1+2*SHA_DIGEST_LENGTH) {
-		if(!setup_dsa_sig(&sigblock, &sigblock_len)) {
-			verbose(VERB_QUERY, "verify: failed to setup DSA sig");
-			*reason = "use of key for DSA crypto failed";
-			EVP_PKEY_free(evp_key);
-			return sec_status_bogus;
-		}
-		dofree = 1;
-	}
-#ifdef USE_ECDSA
-	else if(algo == LDNS_ECDSAP256SHA256 || algo == LDNS_ECDSAP384SHA384) {
-		/* EVP uses ASN prefix on sig, which is not in the wire data */
-		if(!setup_ecdsa_sig(&sigblock, &sigblock_len)) {
-			verbose(VERB_QUERY, "verify: failed to setup ECDSA sig");
-			*reason = "use of signature for ECDSA crypto failed";
-			EVP_PKEY_free(evp_key);
-			return sec_status_bogus;
-		}
-		dofree = 1;
-	}
-#endif /* USE_ECDSA */
-
-	/* do the signature cryptography work */
-	EVP_MD_CTX_init(&ctx);
-	if(EVP_VerifyInit(&ctx, digest_type) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_VerifyInit failed");
-		EVP_PKEY_free(evp_key);
-		if(dofree) free(sigblock);
-		return sec_status_unchecked;
-	}
-	if(EVP_VerifyUpdate(&ctx, (unsigned char*)ldns_buffer_begin(buf), 
-		(unsigned int)ldns_buffer_limit(buf)) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_VerifyUpdate failed");
-		EVP_PKEY_free(evp_key);
-		if(dofree) free(sigblock);
-		return sec_status_unchecked;
-	}
-
-	res = EVP_VerifyFinal(&ctx, sigblock, sigblock_len, evp_key);
-	if(EVP_MD_CTX_cleanup(&ctx) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_MD_CTX_cleanup failed");
-		EVP_PKEY_free(evp_key);
-		if(dofree) free(sigblock);
-		return sec_status_unchecked;
-	}
-	EVP_PKEY_free(evp_key);
-
-	if(dofree)
-		free(sigblock);
-
-	if(res == 1) {
-		return sec_status_secure;
-	} else if(res == 0) {
-		verbose(VERB_QUERY, "verify: signature mismatch");
-		*reason = "signature crypto failed";
-		return sec_status_bogus;
-	}
-
-	log_crypto_error("verify:", ERR_get_error());
-	return sec_status_unchecked;
 }
 
 enum sec_status 

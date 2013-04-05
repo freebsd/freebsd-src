@@ -61,6 +61,10 @@
 #endif
 #include "libunbound/unbound.h"
 #include <ldns/ldns.h>
+#ifdef HAVE_NSS
+/* nss3 */
+#include "nss.h"
+#endif
 
 /** verbosity for unbound-host app */
 static int verb = 0;
@@ -509,6 +513,12 @@ int main(int argc, char* argv[])
 	if(argc != 1)
 		usage();
 
+#ifdef HAVE_NSS
+        if(NSS_NoDB_Init(".") != SECSuccess) {
+		fprintf(stderr, "could not init NSS\n");
+		return 1;
+	}
+#endif
 	lookup(ctx, argv[0], qtype, qclass);
 	return 0;
 }
