@@ -1691,7 +1691,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				return;
 			} else {
-				struct scsi_sense_data *sense;
 				int asc, ascq;
 				int sense_key, error_code;
 				int have_sense;
@@ -1714,20 +1713,12 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 				xpt_action((union ccb *)&cgd);
 
-				if (((csio->ccb_h.flags & CAM_SENSE_PHYS) != 0)
-				 || ((csio->ccb_h.flags & CAM_SENSE_PTR) != 0)
-				 || ((status & CAM_AUTOSNS_VALID) == 0))
-					have_sense = FALSE;
-				else
+				if (scsi_extract_sense_ccb(done_ccb,
+				    &error_code, &sense_key, &asc, &ascq))
 					have_sense = TRUE;
+				else
+					have_sense = FALSE;
 
-				if (have_sense) {
-					sense = &csio->sense_data;
-					scsi_extract_sense_len(sense,
-					    csio->sense_len - csio->sense_resid,
-					    &error_code, &sense_key, &asc,
-					    &ascq, /*show_errors*/ 1);
-				}
 				/*
 				 * Attach to anything that claims to be a
 				 * CDROM or WORM device, as long as it
@@ -3154,7 +3145,7 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
 	struct cd_softc *softc;
 	struct cam_periph *periph;
-	int error;
+	int error, error_code, sense_key, asc, ascq;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct cd_softc *)periph->softc;
@@ -3168,19 +3159,10 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 */
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INVALID) {
 		error = cd6byteworkaround(ccb);
-	} else if (((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-		     CAM_SCSI_STATUS_ERROR)
-	 && (ccb->ccb_h.status & CAM_AUTOSNS_VALID)
-	 && (ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND)
-	 && ((ccb->ccb_h.flags & CAM_SENSE_PHYS) == 0)
-	 && ((ccb->ccb_h.flags & CAM_SENSE_PTR) == 0)) {
-		int sense_key, error_code, asc, ascq;
-
- 		scsi_extract_sense_len(&ccb->csio.sense_data,
-		    ccb->csio.sense_len - ccb->csio.sense_resid, &error_code,
-		    &sense_key, &asc, &ascq, /*show_errors*/ 1);
+	} else if (scsi_extract_sense_ccb(ccb,
+	    &error_code, &sense_key, &asc, &ascq)) {
 		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
- 			error = cd6byteworkaround(ccb);
+			error = cd6byteworkaround(ccb);
 	}
 
 	if (error == ERESTART)

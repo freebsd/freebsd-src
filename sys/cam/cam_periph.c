@@ -1155,22 +1155,15 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	union ccb      *saved_ccb;
 	cam_status	status;
 	struct scsi_start_stop_unit *scsi_cmd;
+	int    error_code, sense_key, asc, ascq;
 
 	scsi_cmd = (struct scsi_start_stop_unit *)
 	    &done_ccb->csio.cdb_io.cdb_bytes;
 	status = done_ccb->ccb_h.status;
 
 	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if ((status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
-		    (status & CAM_AUTOSNS_VALID)) {
-			struct scsi_sense_data *sense;
-			int    error_code, sense_key, asc, ascq, sense_len;
-
-			sense = &done_ccb->csio.sense_data;
-			sense_len = done_ccb->csio.sense_len -
-				    done_ccb->csio.sense_resid;
-			scsi_extract_sense_len(sense, sense_len, &error_code,
-			    &sense_key, &asc, &ascq, /*show_errors*/ 1);
+		if (scsi_extract_sense_ccb(done_ccb,
+		    &error_code, &sense_key, &asc, &ascq)) {
 			/*
 			 * If the error is "invalid field in CDB",
 			 * and the load/eject flag is set, turn the
@@ -1432,12 +1425,8 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 
-		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
-			err_action = scsi_error_action(&ccb->csio,
-						       &cgd.inq_data,
-						       sense_flags);
-		else
-			err_action = SS_RETRY|SSQ_DECREMENT_COUNT|EIO;
+		err_action = scsi_error_action(&ccb->csio, &cgd.inq_data,
+		    sense_flags);
 		error = err_action & SS_ERRMASK;
 
 		/*
