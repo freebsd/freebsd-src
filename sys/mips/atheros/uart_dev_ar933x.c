@@ -53,32 +53,6 @@ __FBSDID("$FreeBSD$");
 	bus_space_write_4((bas)->bst, (bas)->bsh, reg, value)
 
 
-#if 0
-/*
- * Clear pending interrupts. THRE is cleared by reading IIR. Data
- * that may have been received gets lost here.
- */
-static void
-ar933x_clrint(struct uart_bas *bas)
-{
-	uint8_t iir, lsr;
-
-	iir = uart_getreg(bas, REG_IIR);
-	while ((iir & IIR_NOPEND) == 0) {
-		iir &= IIR_IMASK;
-		if (iir == IIR_RLS) {
-			lsr = uart_getreg(bas, REG_LSR);
-			if (lsr & (LSR_BI|LSR_FE|LSR_PE))
-				(void)uart_getreg(bas, REG_DATA);
-		} else if (iir == IIR_RXRDY || iir == IIR_RXTOUT)
-			(void)uart_getreg(bas, REG_DATA);
-		else if (iir == IIR_MLSC)
-			(void)uart_getreg(bas, REG_MSR);
-		uart_barrier(bas);
-		iir = uart_getreg(bas, REG_IIR);
-	}
-}
-#endif
 
 static int
 ar933x_drain(struct uart_bas *bas, int what)
@@ -386,11 +360,28 @@ struct uart_class uart_ar933x_class = {
 static int
 ar933x_bus_attach(struct uart_softc *sc)
 {
+	struct ar933x_softc *u = (struct ar933x_softc *)sc;
+	struct uart_bas *bas = &sc->sc_bas;
+	uint32_t reg;
+
 	/* XXX TODO: flush transmitter */
 
-	/* XXX TODO: enable RX interrupts to kick-start things */
+	/*
+	 * Setup initial interrupt notifications.
+	 *
+	 * XXX for now, just RX FIFO valid.
+	 * Later on (when they're handled), also handle
+	 * RX errors/overflow.
+	 */
+	u->u_ier = AR933X_UART_INT_RX_VALID;
 
-	/* XXX TODO: enable the host interrupt now */
+	/* Enable RX interrupts to kick-start things */
+	ar933x_setreg(bas, AR933X_UART_INT_EN_REG, u->u_ier);
+
+	/* Enable the host interrupt now */
+	reg = ar933x_getreg(bas, AR933X_UART_CS_REG);
+	reg |= AR933X_UART_CS_HOST_INT_EN;
+	ar933x_setreg(bas, AR933X_UART_CS_REG, reg);
 
 	return (0);
 }
@@ -398,21 +389,17 @@ ar933x_bus_attach(struct uart_softc *sc)
 static int
 ar933x_bus_detach(struct uart_softc *sc)
 {
-#if 0
-	struct ar933x_softc *ns8250;
-	struct uart_bas *bas;
-	u_char ier;
+	struct uart_bas *bas = &sc->sc_bas;
+	uint32_t reg;
 
-	ns8250 = (struct ar933x_softc *)sc;
-	bas = &sc->sc_bas;
-	ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
-	uart_setreg(bas, REG_IER, ier);
+	/* Disable all interrupts */
+	ar933x_setreg(bas, AR933X_UART_INT_EN_REG, 0x00000000);
+
+	/* Disable the host interrupt */
+	reg = ar933x_getreg(bas, AR933X_UART_CS_REG);
+	reg &= ~AR933X_UART_CS_HOST_INT_EN;
+	ar933x_setreg(bas, AR933X_UART_CS_REG, reg);
 	uart_barrier(bas);
-	ar933x_clrint(bas);
-#endif
-
-	/* XXX TODO: Disable all interrupts */
-	/* XXX TODO: Disable the host interrupt */
 
 	return (0);
 }
@@ -536,23 +523,63 @@ ar933x_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 static int
 ar933x_bus_ipend(struct uart_softc *sc)
 {
+	struct ar933x_softc *u = (struct ar933x_softc *)sc;
 	struct uart_bas *bas = &sc->sc_bas;
 	int ipend = 0;
+	uint32_t isr;
 
 	uart_lock(sc->sc_hwmtx);
 
 	/*
-	 * Always notify the upper layer if RX is ready.
+	 * Fetch/ACK the ISR status.
 	 */
-	if (ar933x_rxready(bas)) {
+	isr = ar933x_getreg(bas, AR933X_UART_INT_REG);
+	ar933x_setreg(bas, AR933X_UART_INT_REG, isr);
+	uart_barrier(bas);
+
+	/*
+	 * RX ready - notify upper layer.
+	 */
+	if (isr & AR933X_UART_INT_RX_VALID) {
 		ipend |= SER_INT_RXREADY;
 	}
+
+	/*
+	 * If we get this interrupt, we should disable
+	 * it from the interrupt mask and inform the uart
+	 * driver appropriately.
+	 *
+	 * We can't keep setting SER_INT_TXIDLE or SER_INT_SIGCHG
+	 * all the time or IO stops working.  So we will always
+	 * clear this interrupt if we get it, then we only signal
+	 * the upper layer if we were doing active TX in the
+	 * first place.
+	 *
+	 * Also, the name is misleading.  This actually means
+	 * "the FIFO is almost empty."  So if we just write some
+	 * more data to the FIFO without checking whether it can
+	 * take said data, we'll overflow the thing.
+	 *
+	 * Unfortunately the FreeBSD uart device has no concept of
+	 * partial UART writes - it expects that the whole buffer
+	 * is written to the hardware.  Thus for now, ar933x_bus_transmit()
+	 * will wait for the FIFO to finish draining before it pushes
+	 * more frames into it.
+	 */
+	if (isr & AR933X_UART_INT_TX_EMPTY) {
+		/*
+		 * Update u_ier to disable TX notifications; update hardware
+		 */
+		u->u_ier &= ~AR933X_UART_INT_TX_EMPTY;
+		ar933x_setreg(bas, AR933X_UART_INT_EN_REG, u->u_ier);
+		uart_barrier(bas);
+	}
+
 	/*
 	 * Only signal TX idle if we're not busy transmitting.
 	 */
 	if (sc->sc_txbusy) {
-		if ((ar933x_getreg(bas, AR933X_UART_DATA_REG)
-		    & AR933X_UART_DATA_TX_CSR)) {
+		if (isr & AR933X_UART_INT_TX_EMPTY) {
 			ipend |= SER_INT_TXIDLE;
 		} else {
 			ipend |= SER_INT_SIGCHG;
@@ -620,6 +647,7 @@ ar933x_bus_receive(struct uart_softc *sc)
 		/* Remove that entry from said RX FIFO */
 		ar933x_setreg(bas, AR933X_UART_DATA_REG,
 		    AR933X_UART_DATA_RX_CSR);
+		uart_barrier(bas);
 
 		/* XXX frame, parity error */
 		uart_rx_put(sc, xc);
@@ -669,21 +697,50 @@ ar933x_bus_setsig(struct uart_softc *sc, int sig)
 	return (0);
 }
 
+/*
+ * Write the current transmit buffer to the TX FIFO.
+ *
+ * Unfortunately the FreeBSD uart device has no concept of
+ * partial UART writes - it expects that the whole buffer
+ * is written to the hardware.  Thus for now, this will wait for
+ * the FIFO to finish draining before it pushes more frames into it.
+ *
+ * If non-blocking operation is truely needed here, either
+ * the FreeBSD uart device will need to handle partial writes
+ * in xxx_bus_transmit(), or we'll need to do TX FIFO buffering
+ * of our own here.
+ */
 static int
 ar933x_bus_transmit(struct uart_softc *sc)
 {
 	struct uart_bas *bas = &sc->sc_bas;
+	struct ar933x_softc *u = (struct ar933x_softc *)sc;
 	int i;
 
 	uart_lock(sc->sc_hwmtx);
 
-	/* XXX wait for FIFO to be ready? */
+	/* Wait for the FIFO to be clear - see above */
+	while (ar933x_getreg(bas, AR933X_UART_CS_REG) &
+	    AR933X_UART_CS_TX_BUSY)
+		;
 
+	/*
+	 * Write some data!
+	 */
 	for (i = 0; i < sc->sc_txdatasz; i++) {
 		/* Write the TX data */
 		ar933x_setreg(bas, AR933X_UART_DATA_REG,
 		    (sc->sc_txbuf[i] & 0xff) | AR933X_UART_DATA_TX_CSR);
+		uart_barrier(bas);
 	}
+
+	/*
+	 * Now that we're transmitting, get interrupt notification
+	 * when the FIFO is (almost) empty - see above.
+	 */
+	u->u_ier |= AR933X_UART_INT_TX_EMPTY;
+	ar933x_setreg(bas, AR933X_UART_INT_EN_REG, u->u_ier);
+	uart_barrier(bas);
 
 	/*
 	 * Inform the upper layer that we are presently transmitting
