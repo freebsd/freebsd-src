@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ada.h"
-#include "opt_ata.h"
 
 #include <sys/param.h>
 
