@@ -1118,14 +1118,15 @@ usually takes just a few seconds.
 Freeze the security configuration of the specified device.
 .Pp
 After command completion any other commands that update the device lock mode
-shall be command aborted. Frozen mode is disabled by power-off or hardware reset. 
+shall be command aborted.
+Frozen mode is disabled by power-off or hardware reset.
 .It Fl h Ar pwd
 .Pp
 Enhanced erase the device using the given password for the selected user.
 .Pp
 .Em WARNING! WARNING! WARNING!
 .Pp
-Issuing an enhanced secure erase will 
+Issuing an enhanced secure erase will
 .Em ERASE ALL
 user data on the device and may take several hours to complete.
 .Pp
@@ -1378,7 +1379,7 @@ camcontrol security ada0
 .Pp
 Report security support and settings for ada0
 .Bd -literal -offset indent
-camcontrol security ada0 -u user -s MyPass 
+camcontrol security ada0 -u user -s MyPass
 .Ed
 .Pp
 Enable security on device ada0 with the password MyPass
