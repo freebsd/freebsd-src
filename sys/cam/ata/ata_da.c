@@ -614,6 +614,9 @@ adaschedule(struct cam_periph *periph)
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
 	uint32_t prio;
 
+	if (softc->state != ADA_STATE_NORMAL)
+		return;
+
 	/* Check if cam_periph_getccb() was called. */
 	prio = periph->immediate_priority;
 
