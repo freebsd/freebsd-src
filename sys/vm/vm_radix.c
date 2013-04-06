@@ -406,7 +406,7 @@ void
 vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 {
 	vm_pindex_t index, newind;
-	struct vm_radix_node *rnode, *tmp, *tmp2;
+	struct vm_radix_node *parent, *rnode, *tmp;
 	vm_page_t m;
 	int slot;
 	uint16_t clev;
@@ -444,44 +444,23 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 			vm_radix_addpage(rnode, index, rnode->rn_clev, page);
 			return;
 		}
+		parent = rnode;
 		rnode = rnode->rn_child[slot];
 	} while (!vm_radix_keybarr(rnode, index));
-
-	/*
-	 * Scan the trie from the top and find the parent to insert
-	 * the new object.
-	 */
-	newind = rnode->rn_owner;
-	clev = vm_radix_keydiff(newind, index);
-	slot = VM_RADIX_COUNT;
-	for (rnode = vm_radix_getroot(rtree); ; rnode = tmp) {
-		KASSERT(rnode != NULL, ("%s: edge cannot be NULL in the scan",
-		    __func__));
-		KASSERT(clev >= rnode->rn_clev,
-		    ("%s: unexpected trie depth: clev: %d, rnode->rn_clev: %d",
-		    __func__, clev, rnode->rn_clev));
-		slot = vm_radix_slot(index, rnode->rn_clev);
-		tmp = rnode->rn_child[slot];
-		KASSERT(tmp != NULL && !vm_radix_isleaf(tmp),
-		    ("%s: unexpected lookup interruption", __func__));
-		if (tmp->rn_clev > clev)
-			break;
-	}
-	KASSERT(rnode != NULL && tmp != NULL && slot < VM_RADIX_COUNT,
-	    ("%s: invalid scan parameters rnode: %p, tmp: %p, slot: %d",
-	    __func__, (void *)rnode, (void *)tmp, slot));
 
 	/*
 	 * A new node is needed because the right insertion level is reached.
 	 * Setup the new intermediate node and add the 2 children: the
 	 * new object and the older edge.
 	 */
-	tmp2 = vm_radix_node_get(vm_radix_trimkey(index, clev - 1), 2,
+	newind = rnode->rn_owner;
+	clev = vm_radix_keydiff(newind, index);
+	tmp = vm_radix_node_get(vm_radix_trimkey(index, clev - 1), 2,
 	    clev);
-	rnode->rn_child[slot] = tmp2;
-	vm_radix_addpage(tmp2, index, clev, page);
+	parent->rn_child[slot] = tmp;
+	vm_radix_addpage(tmp, index, clev, page);
 	slot = vm_radix_slot(newind, clev);
-	tmp2->rn_child[slot] = tmp;
+	tmp->rn_child[slot] = rnode;
 }
 
 /*
