@@ -64,7 +64,7 @@ counter_64_inc_8b(uint64_t *p, int64_t inc)
 
 #define	counter_u64_add_protected(c, inc)	do {	\
 	if ((cpu_feature & CPUID_CX8) == 0) {		\
-		CRITICAL_ASSERT(td);			\
+		CRITICAL_ASSERT(curthread);		\
 		*(uint64_t *)zpcpu_get(c) += (inc);	\
 	} else						\
 		counter_64_inc_8b((c), (inc));		\

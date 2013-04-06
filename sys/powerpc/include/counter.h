@@ -61,7 +61,7 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 #define	counter_exit()	critical_exit()
 
 #define	counter_u64_add_protected(c, inc)	do {	\
-	CRITICAL_ASSERT(td);				\
+	CRITICAL_ASSERT(curthread);			\
 	*(uint64_t *)zpcpu_get(c) += (inc);		\
 } while (0)
 
