@@ -128,6 +128,8 @@ static int
 vlapic_timer_divisor(uint32_t dcr)
 {
 	switch (dcr & 0xB) {
+	case APIC_TDCR_1:
+		return (1);
 	case APIC_TDCR_2:
 		return (2);
 	case APIC_TDCR_4:

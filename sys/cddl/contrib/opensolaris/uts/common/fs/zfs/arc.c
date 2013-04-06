@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 /*
@@ -3738,14 +3738,14 @@ arc_memory_throttle(uint64_t reserve, uint64_t inflight_data, uint64_t txg)
 	 */
 	if (curproc == pageproc) {
 		if (page_load > available_memory / 4)
-			return (ERESTART);
+			return (SET_ERROR(ERESTART));
 		/* Note: reserve is inflated, so we deflate */
 		page_load += reserve / 8;
 		return (0);
 	} else if (page_load > 0 && arc_reclaim_needed()) {
 		/* memory is low, delay before restarting */
 		ARCSTAT_INCR(arcstat_memory_throttle_count, 1);
-		return (EAGAIN);
+		return (SET_ERROR(EAGAIN));
 	}
 	page_load = 0;
 
@@ -3760,7 +3760,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t inflight_data, uint64_t txg)
 
 	if (inflight_data > available_memory / 4) {
 		ARCSTAT_INCR(arcstat_memory_throttle_count, 1);
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 #endif
 	return (0);
@@ -3785,13 +3785,13 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 	 */
 	if (spa_get_random(10000) == 0) {
 		dprintf("forcing random failure\n");
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 #endif
 	if (reserve > arc_c/4 && !arc_no_grow)
 		arc_c = MIN(arc_c_max, reserve * 4);
 	if (reserve > arc_c)
-		return (ENOMEM);
+		return (SET_ERROR(ENOMEM));
 
 	/*
 	 * Don't count loaned bufs as in flight dirty data to prevent long
@@ -3824,7 +3824,7 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 		    arc_anon->arcs_lsize[ARC_BUFC_METADATA]>>10,
 		    arc_anon->arcs_lsize[ARC_BUFC_DATA]>>10,
 		    reserve>>10, arc_c>>10);
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 	atomic_add_64(&arc_tempreserve, reserve);
 	return (0);
@@ -4518,7 +4518,7 @@ l2arc_read_done(zio_t *zio)
 		if (zio->io_error != 0) {
 			ARCSTAT_BUMP(arcstat_l2_io_error);
 		} else {
-			zio->io_error = EIO;
+			zio->io_error = SET_ERROR(EIO);
 		}
 		if (!equal)
 			ARCSTAT_BUMP(arcstat_l2_cksum_bad);

@@ -43,7 +43,7 @@ OLD_FILES+=sbin/atacontrol
 OLD_FILES+=usr/share/man/man8/atacontrol.8.gz
 OLD_FILES+=usr/share/man/man4/atapicam.4.gz
 OLD_FILES+=usr/share/man/man4/ataraid.4.gz
-OLD_FILES+=usr.sbin/burncd
+OLD_FILES+=usr/sbin/burncd
 OLD_FILES+=usr/share/man/man8/burncd.8.gz
 # 20130316: vinum.4 removed
 OLD_FILES+=usr/share/man/man4/vinum.4.gz

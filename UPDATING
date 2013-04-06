@@ -26,6 +26,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130404:
+	Legacy ATA stack, disabled and replaced by new CAM-based one since
+	FreeBSD 9.0, completely removed from the sources.  Kernel modules
+	atadisk and atapi*, user-level tools atacontrol and burncd are
+	removed.  Kernel option `options ATA_CAM` is now permanently enabled
+	and removed.
+
 20130308:
 	CTL_DISABLE has also been added to the sparc64 GENERIC (for further
 	information, see the respective 20130304 entry).
