@@ -33,6 +33,8 @@
 
 #ifdef _KERNEL
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <cam/cam.h>
 
@@ -67,9 +69,10 @@ struct cam_ccbq {
 struct cam_ed;
 
 struct cam_devq {
-	struct	camq send_queue;
-	int	send_openings;
-	int	send_active;
+	struct mtx	 send_mtx;
+	struct camq	 send_queue;
+	int		 send_openings;
+	int		 send_active;
 };
 
 

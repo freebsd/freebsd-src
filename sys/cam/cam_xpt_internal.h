@@ -75,7 +75,6 @@ struct cam_ed {
 	struct	cam_et	 *target;
 	struct	cam_sim  *sim;
 	lun_id_t	 lun_id;
-	struct mtx	 mtx;
 	struct	camq drvq;		/*
 					 * Queue of type drivers wanting to do
 					 * work on this device.
@@ -180,8 +179,6 @@ struct cam_ed *		xpt_alloc_device(struct cam_eb *bus,
 					 lun_id_t lun_id);
 void			xpt_acquire_device(struct cam_ed *device);
 void			xpt_release_device(struct cam_ed *device);
-int			xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
-					 u_int32_t new_priority);
 u_int32_t		xpt_dev_ccbq_resize(struct cam_path *path, int newopenings);
 void			xpt_start_tags(struct cam_path *path);
 void			xpt_stop_tags(struct cam_path *path);

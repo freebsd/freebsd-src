@@ -205,6 +205,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	periph->immediate_priority = CAM_PRIORITY_NONE;
 	periph->refcount = 0;
 	periph->sim = sim;
+	mtx_init(&periph->periph_mtx, "CAM periph lock", NULL, MTX_DEF);
 	SLIST_INIT(&periph->ccb_list);
 	status = xpt_create_path(&path, periph, path_id, target_id, lun_id);
 	if (status != CAM_REQ_CMP)
@@ -680,6 +681,7 @@ camperiphfree(struct cam_periph *periph)
 					  periph->path, arg);
 	}
 	xpt_free_path(periph->path);
+	mtx_destroy(&periph->periph_mtx);
 	free(periph, M_CAMPERIPH);
 	xpt_lock_buses();
 }

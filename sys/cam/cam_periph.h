@@ -128,6 +128,7 @@ struct cam_periph {
 	TAILQ_ENTRY(cam_periph)  unit_links;
 	ac_callback_t		*deferred_callback; 
 	ac_code			 deferred_ac;
+	struct mtx		 periph_mtx;
 };
 
 #define CAM_PERIPH_MAXMAPS	2
