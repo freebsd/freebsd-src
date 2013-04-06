@@ -950,6 +950,7 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
+		beio->bio_cmd = BIO_FLUSH;
 		beio->ds_trans_type = DEVSTAT_NO_DATA;
 		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
 		beio->io_len = 0;
