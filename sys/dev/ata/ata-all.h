@@ -613,16 +613,12 @@ void ata_interrupt(void *data);
 int ata_getparam(struct ata_device *atadev, int init);
 void ata_default_registers(device_t dev);
 void ata_udelay(int interval);
+const char *ata_cmd2str(struct ata_request *request);
 const char *ata_mode2str(int mode);
 void ata_setmode(device_t dev);
 void ata_print_cable(device_t dev, u_int8_t *who);
-int ata_str2mode(const char *str);
 int ata_atapi(device_t dev, int target);
-void ata_cam_end_transaction(device_t dev, struct ata_request *request);
-
-/* ata-queue.c: */
 void ata_timeout(struct ata_request *);
-const char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(device_t dev);
