@@ -75,18 +75,19 @@ typedef enum {
 } ada_state;
 
 typedef enum {
-	ADA_FLAG_PACK_INVALID	= 0x001,
-	ADA_FLAG_CAN_48BIT	= 0x002,
-	ADA_FLAG_CAN_FLUSHCACHE	= 0x004,
-	ADA_FLAG_CAN_NCQ	= 0x008,
-	ADA_FLAG_CAN_DMA	= 0x010,
-	ADA_FLAG_NEED_OTAG	= 0x020,
-	ADA_FLAG_WENT_IDLE	= 0x040,
-	ADA_FLAG_CAN_TRIM	= 0x080,
-	ADA_FLAG_OPEN		= 0x100,
-	ADA_FLAG_SCTX_INIT	= 0x200,
-	ADA_FLAG_CAN_CFA        = 0x400,
-	ADA_FLAG_CAN_POWERMGT   = 0x800
+	ADA_FLAG_PACK_INVALID	= 0x0001,
+	ADA_FLAG_CAN_48BIT	= 0x0002,
+	ADA_FLAG_CAN_FLUSHCACHE	= 0x0004,
+	ADA_FLAG_CAN_NCQ	= 0x0008,
+	ADA_FLAG_CAN_DMA	= 0x0010,
+	ADA_FLAG_NEED_OTAG	= 0x0020,
+	ADA_FLAG_WENT_IDLE	= 0x0040,
+	ADA_FLAG_CAN_TRIM	= 0x0080,
+	ADA_FLAG_OPEN		= 0x0100,
+	ADA_FLAG_SCTX_INIT	= 0x0200,
+	ADA_FLAG_CAN_CFA        = 0x0400,
+	ADA_FLAG_CAN_POWERMGT   = 0x0800,
+	ADA_FLAG_CAN_DMA48	= 0x1000
 } ada_flags;
 
 typedef enum {
@@ -899,6 +900,15 @@ adaasync(void *callback_arg, u_int32_t code,
 			softc->flags |= ADA_FLAG_CAN_DMA;
 		else
 			softc->flags &= ~ADA_FLAG_CAN_DMA;
+		if (cgd.ident_data.support.command2 & ATA_SUPPORT_ADDRESS48) {
+			softc->flags |= ADA_FLAG_CAN_48BIT;
+			if (cgd.inq_flags & SID_DMA48)
+				softc->flags |= ADA_FLAG_CAN_DMA48;
+			else
+				softc->flags &= ~ADA_FLAG_CAN_DMA48;
+		} else
+			softc->flags &= ~(ADA_FLAG_CAN_48BIT |
+			    ADA_FLAG_CAN_DMA48);
 		if ((cgd.ident_data.satacapabilities & ATA_SUPPORT_NCQ) &&
 		    (cgd.inq_flags & SID_DMA) && (cgd.inq_flags & SID_CmdQue))
 			softc->flags |= ADA_FLAG_CAN_NCQ;
@@ -1067,8 +1077,11 @@ adaregister(struct cam_periph *periph, void *arg)
 	if ((cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA) &&
 	    (cgd->inq_flags & SID_DMA))
 		softc->flags |= ADA_FLAG_CAN_DMA;
-	if (cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48)
+	if (cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48) {
 		softc->flags |= ADA_FLAG_CAN_48BIT;
+		if (cgd->inq_flags & SID_DMA48)
+			softc->flags |= ADA_FLAG_CAN_DMA48;
+	}
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 		softc->flags |= ADA_FLAG_CAN_FLUSHCACHE;
 	if (cgd->ident_data.support.command1 & ATA_SUPPORT_POWERMGT)
@@ -1455,7 +1468,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			} else if ((softc->flags & ADA_FLAG_CAN_48BIT) &&
 			    (lba + count >= ATA_MAX_28BIT_LBA ||
 			    count > 256)) {
-				if (softc->flags & ADA_FLAG_CAN_DMA) {
+				if (softc->flags & ADA_FLAG_CAN_DMA48) {
 					if (bp->bio_cmd == BIO_READ) {
 						ata_48bit_cmd(ataio, ATA_READ_DMA48,
 						    0, lba, count);
