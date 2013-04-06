@@ -1312,8 +1312,7 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		xflags = 0;
 		if (nbp != NULL) {
 			lblkno = nbp->b_lblkno;
-			xflags = nbp->b_xflags &
-				(BX_BKGRDMARKER | BX_VNDIRTY | BX_VNCLEAN);
+			xflags = nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN);
 		}
 		retval = EAGAIN;
 		error = BUF_TIMELOCK(bp,
@@ -1357,8 +1356,7 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		if (nbp != NULL &&
 		    (nbp->b_bufobj != bo ||
 		     nbp->b_lblkno != lblkno ||
-		     (nbp->b_xflags &
-		      (BX_BKGRDMARKER | BX_VNDIRTY | BX_VNCLEAN)) != xflags))
+		     (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) != xflags))
 			break;			/* nbp invalid */
 	}
 	return (retval);
@@ -1501,9 +1499,7 @@ buf_splay(daddr_t lblkno, b_xflags_t xflags, struct buf *root)
 		return (NULL);
 	lefttreemax = righttreemin = &dummy;
 	for (;;) {
-		if (lblkno < root->b_lblkno ||
-		    (lblkno == root->b_lblkno &&
-		    (xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+		if (lblkno < root->b_lblkno) {
 			if ((y = root->b_left) == NULL)
 				break;
 			if (lblkno < y->b_lblkno) {
@@ -1517,9 +1513,7 @@ buf_splay(daddr_t lblkno, b_xflags_t xflags, struct buf *root)
 			/* Link into the new root's right tree. */
 			righttreemin->b_left = root;
 			righttreemin = root;
-		} else if (lblkno > root->b_lblkno ||
-		    (lblkno == root->b_lblkno &&
-		    (xflags & BX_BKGRDMARKER) > (root->b_xflags & BX_BKGRDMARKER))) {
+		} else if (lblkno > root->b_lblkno) {
 			if ((y = root->b_right) == NULL)
 				break;
 			if (lblkno > y->b_lblkno) {
@@ -1603,9 +1597,7 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 		bp->b_left = NULL;
 		bp->b_right = NULL;
 		TAILQ_INSERT_TAIL(&bv->bv_hd, bp, b_bobufs);
-	} else if (bp->b_lblkno < root->b_lblkno ||
-	    (bp->b_lblkno == root->b_lblkno &&
-	    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+	} else if (bp->b_lblkno < root->b_lblkno) {
 		bp->b_left = root->b_left;
 		bp->b_right = root;
 		root->b_left = NULL;
@@ -1638,20 +1630,18 @@ gbincore(struct bufobj *bo, daddr_t lblkno)
 	struct buf *bp;
 
 	ASSERT_BO_LOCKED(bo);
-	if ((bp = bo->bo_clean.bv_root) != NULL &&
-	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+	if ((bp = bo->bo_clean.bv_root) != NULL && bp->b_lblkno == lblkno)
 		return (bp);
-	if ((bp = bo->bo_dirty.bv_root) != NULL &&
-	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+	if ((bp = bo->bo_dirty.bv_root) != NULL && bp->b_lblkno == lblkno)
 		return (bp);
 	if ((bp = bo->bo_clean.bv_root) != NULL) {
 		bo->bo_clean.bv_root = bp = buf_splay(lblkno, 0, bp);
-		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		if (bp->b_lblkno == lblkno)
 			return (bp);
 	}
 	if ((bp = bo->bo_dirty.bv_root) != NULL) {
 		bo->bo_dirty.bv_root = bp = buf_splay(lblkno, 0, bp);
-		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		if (bp->b_lblkno == lblkno)
 			return (bp);
 	}
 	return (NULL);
