@@ -30,6 +30,9 @@
 #define __MACHINE_COUNTER_H__
 
 #include <sys/pcpu.h>
+#ifdef INVARIANTS
+#include <sys/proc.h>
+#endif
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 

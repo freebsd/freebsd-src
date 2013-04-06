@@ -30,6 +30,9 @@
 #define __MACHINE_COUNTER_H__
 
 #include <sys/pcpu.h>
+#ifdef INVARIANTS
+#include <sys/proc.h>
+#endif
 
 #define	counter_enter()	critical_enter()
 #define	counter_exit()	critical_exit()
