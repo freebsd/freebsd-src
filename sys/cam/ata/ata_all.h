@@ -35,8 +35,9 @@ struct ccb_ataio;
 struct cam_periph;
 union  ccb;
 
-#define	SID_AEN		0x04	/* Abuse inq_flags bit to track enabled AEN. */
-#define	SID_DMA		0x10	/* Abuse inq_flags bit to track enabled DMA. */
+#define	SID_DMA48	0x01 /* Abuse inq_flags bit to track enabled DMA48. */
+#define	SID_AEN		0x04 /* Abuse inq_flags bit to track enabled AEN. */
+#define	SID_DMA		0x10 /* Abuse inq_flags bit to track enabled DMA. */
 
 struct ata_cmd {
 	u_int8_t	flags;		/* ATA command flags */
