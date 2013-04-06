@@ -87,10 +87,13 @@
 /* Only valid with the _JB_MAGIC_SETJMP magic */
 
 #define _JB_SIGMASK		25
+
+#ifndef __ASSEMBLER__
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
 typedef struct _sigjmp_buf { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif
 
 typedef struct _jmp_buf { int _jb[_JBLEN + 1]; } jmp_buf[1];
+#endif
 
 #endif /* !_MACHINE_SETJMP_H_ */
