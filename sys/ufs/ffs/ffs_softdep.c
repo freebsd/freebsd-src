@@ -3285,7 +3285,6 @@ softdep_process_journal(mp, needwk, flags)
 		bp->b_lblkno = bp->b_blkno;
 		bp->b_offset = bp->b_blkno * DEV_BSIZE;
 		bp->b_bcount = size;
-		bp->b_bufobj = &ump->um_devvp->v_bufobj;
 		bp->b_flags &= ~B_INVAL;
 		bp->b_flags |= B_VALIDSUSPWRT | B_NOCOPY;
 		/*
@@ -3365,9 +3364,7 @@ softdep_process_journal(mp, needwk, flags)
 		jblocks->jb_needseg = 0;
 		WORKLIST_INSERT(&bp->b_dep, &jseg->js_list);
 		FREE_LOCK(&lk);
-		BO_LOCK(bp->b_bufobj);
-		bgetvp(ump->um_devvp, bp);
-		BO_UNLOCK(bp->b_bufobj);
+		pbgetvp(ump->um_devvp, bp);
 		/*
 		 * We only do the blocking wait once we find the journal
 		 * entry we're looking for.
@@ -3522,6 +3519,7 @@ handle_written_jseg(jseg, bp)
 	 * discarded.
 	 */
 	bp->b_flags |= B_INVAL | B_NOCACHE;
+	pbrelvp(bp);
 	complete_jsegs(jseg);
 }
 
@@ -11450,6 +11448,7 @@ handle_written_bmsafemap(bmsafemap, bp)
 	struct cg *cgp;
 	struct fs *fs;
 	ino_t ino;
+	int foreground;
 	int chgs;
 
 	if ((bmsafemap->sm_state & IOSTARTED) == 0)
@@ -11457,6 +11456,7 @@ handle_written_bmsafemap(bmsafemap, bp)
 	ump = VFSTOUFS(bmsafemap->sm_list.wk_mp);
 	chgs = 0;
 	bmsafemap->sm_state &= ~IOSTARTED;
+	foreground = (bp->b_xflags & BX_BKGRDMARKER) == 0;
 	/*
 	 * Release journal work that was waiting on the write.
 	 */
@@ -11477,7 +11477,8 @@ handle_written_bmsafemap(bmsafemap, bp)
 			if (isset(inosused, ino))
 				panic("handle_written_bmsafemap: "
 				    "re-allocated inode");
-			if ((bp->b_xflags & BX_BKGRDMARKER) == 0) {
+			/* Do the roll-forward only if it's a real copy. */
+			if (foreground) {
 				if ((jaddref->ja_mode & IFMT) == IFDIR)
 					cgp->cg_cs.cs_ndir++;
 				cgp->cg_cs.cs_nifree--;
@@ -11500,7 +11501,8 @@ handle_written_bmsafemap(bmsafemap, bp)
 		    jntmp) {
 			if ((jnewblk->jn_state & UNDONE) == 0)
 				continue;
-			if ((bp->b_xflags & BX_BKGRDMARKER) == 0 &&
+			/* Do the roll-forward only if it's a real copy. */
+			if (foreground &&
 			    jnewblk_rollforward(jnewblk, fs, cgp, blksfree))
 				chgs = 1;
 			jnewblk->jn_state &= ~(UNDONE | NEWBLOCK);
@@ -11540,7 +11542,8 @@ handle_written_bmsafemap(bmsafemap, bp)
 		return (0);
 	}
 	LIST_INSERT_HEAD(&ump->softdep_dirtycg, bmsafemap, sm_next);
-	bdirty(bp);
+	if (foreground)
+		bdirty(bp);
 	return (1);
 }
 

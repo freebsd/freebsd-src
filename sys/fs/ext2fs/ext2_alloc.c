@@ -794,8 +794,6 @@ ext2_clusteralloc(struct inode *ip, int cg, daddr_t bpref, int len)
 		goto fail_lock;
 
 	bbp = (char *)bp->b_data;
-	bp->b_xflags |= BX_BKGRDWRITE;
-
 	EXT2_LOCK(ump);
 	/*
 	 * Check to see if a cluster of the needed size (or bigger) is
