@@ -501,7 +501,8 @@ g_dev_strategy(struct bio *bp)
 
 	KASSERT(bp->bio_cmd == BIO_READ ||
 	        bp->bio_cmd == BIO_WRITE ||
-	        bp->bio_cmd == BIO_DELETE,
+	        bp->bio_cmd == BIO_DELETE ||
+		bp->bio_cmd == BIO_FLUSH,
 		("Wrong bio_cmd bio=%p cmd=%d", bp, bp->bio_cmd));
 	dev = bp->bio_dev;
 	cp = dev->si_drv2;
