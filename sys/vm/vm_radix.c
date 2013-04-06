@@ -251,9 +251,7 @@ vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
 
 	if (rnode->rn_clev > 0) {
 		idx = vm_radix_trimkey(idx, rnode->rn_clev - 1);
-		idx -= rnode->rn_owner;
-		if (idx != 0)
-			return (TRUE);
+		return (idx != rnode->rn_owner);
 	}
 	return (FALSE);
 }
