@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ata.h"
-
 #if 0
 #define	ATA_LEGACY_SUPPORT		/* Enable obsolete features that break
 					 * some modern devices */

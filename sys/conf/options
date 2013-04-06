@@ -312,7 +312,8 @@ SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
 
 # Options used only in cam/ata/ata_da.c
-ADA_TEST_FAILURE       opt_ada.h
+ADA_TEST_FAILURE	opt_ada.h
+ATA_STATIC_ID		opt_ada.h
 
 # Options used only in cam/scsi/scsi_cd.c
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
@@ -361,11 +362,6 @@ ISP_INTERNAL_TARGET	opt_isp.h
 
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
-
-# Options used in the 'ata' ATA/ATAPI driver
-ATA_STATIC_ID		opt_ata.h
-ATA_NOPCI		opt_ata.h
-ATA_REQUEST_TIMEOUT	opt_ata.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA
