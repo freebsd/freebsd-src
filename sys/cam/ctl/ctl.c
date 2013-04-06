@@ -92,9 +92,9 @@ struct ctl_softc *control_softc = NULL;
 #define CTL_DONE_THREAD
 
 /*
- *  * Use the serial number and device ID provided by the backend, rather than
- *   * making up our own.
- *    */
+ * Use the serial number and device ID provided by the backend, rather than
+ * making up our own.
+ */
 #define CTL_USE_BACKEND_SN
 
 /*
@@ -318,7 +318,7 @@ static struct scsi_control_page control_page_changeable = {
 static int rcv_sync_msg;
 static int persis_offset;
 static uint8_t ctl_pause_rtr;
-static int     ctl_is_single;
+static int     ctl_is_single = 1;
 static int     index_to_aps_page;
 #ifdef CTL_DISABLE
 int	   ctl_disable = 1;
@@ -6926,7 +6926,7 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 	struct scsi_maintenance_in *cdb;
 	int retval;
 	int alloc_len, total_len = 0;
-	int num_target_port_groups;
+	int num_target_port_groups, single;
 	struct ctl_lun *lun;
 	struct ctl_softc *softc;
 	struct scsi_target_group_data *rtg_ptr;
@@ -6941,7 +6941,6 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	retval = CTL_RETVAL_COMPLETE;
-	mtx_lock(&softc->ctl_lock);
 
 	if ((cdb->byte2 & SERVICE_ACTION_MASK) != SA_RPRT_TRGT_GRP) {
 		ctl_set_invalid_field(/*ctsio*/ ctsio,
@@ -6954,7 +6953,11 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 		return(retval);
 	}
 
-	if (ctl_is_single)
+	mtx_lock(&softc->ctl_lock);
+	single = ctl_is_single;
+	mtx_unlock(&softc->ctl_lock);
+
+	if (single)
         	num_target_port_groups = NUM_TARGET_PORT_GROUPS - 1;
 	else
         	num_target_port_groups = NUM_TARGET_PORT_GROUPS;
@@ -6990,9 +6993,7 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 	tp_desc_ptr1_2 = (struct scsi_target_port_descriptor *)
 	        &tp_desc_ptr1_1->desc_list[0];
 
-
-
-	if (ctl_is_single == 0) {
+	if (single == 0) {
 		tpg_desc_ptr2 = (struct scsi_target_port_group_descriptor *)
 	                &tp_desc_ptr1_2->desc_list[0];
 		tp_desc_ptr2_1 = &tpg_desc_ptr2->descriptors[0];
@@ -7005,7 +7006,7 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 	}
 
 	scsi_ulto4b(total_len - 4, rtg_ptr->length);
-	if (ctl_is_single == 0) {
+	if (single == 0) {
         	if (ctsio->io_hdr.nexus.targ_port < CTL_MAX_PORTS) {
 			if (lun->flags & CTL_LUN_PRIMARY_SC) {
 				tpg_desc_ptr1->pref_state = TPG_PRIMARY;
@@ -7035,7 +7036,7 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 	tpg_desc_ptr1->status = TPG_IMPLICIT;
 	tpg_desc_ptr1->target_port_count= NUM_PORTS_PER_GRP;
 
-	if (ctl_is_single == 0) {
+	if (single == 0) {
 		tpg_desc_ptr2->support = 0;
 		tpg_desc_ptr2->target_port_group[1] = 2;
 		tpg_desc_ptr2->status = TPG_IMPLICIT;
@@ -7055,8 +7056,6 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 			tp_desc_ptr1_2->relative_target_port_identifier[1] = 10;
 		}
 	}
-
-	mtx_unlock(&softc->ctl_lock);
 
 	ctsio->be_move_done = ctl_config_move_done;
 
@@ -7893,7 +7892,7 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 				return (CTL_RETVAL_COMPLETE);
 			}
 		} else if ((cdb->action & SPRO_ACTION_MASK) != SPRO_REGISTER) {
-		    /*
+			/*
 			 * We are not registered
 			 */
 			mtx_unlock(&softc->ctl_lock);

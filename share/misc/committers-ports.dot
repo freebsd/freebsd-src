@@ -51,6 +51,7 @@ alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 alexbl [label="Alexander Botero-Lowry\nalexbl@FreeBSD.org\n2006/09/11"]
 amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
+antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2013/04/03"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26"]
 arved [label="Tilman Linneweh\narved@FreeBSD.org\n2002/10/15"]
 ashish [label="Ashish SHUKLA\nashish@FreeBSD.org\n2010/06/10"]
@@ -204,6 +205,7 @@ trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
+wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
 yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
@@ -270,6 +272,7 @@ crees -> gblach
 crees -> tijl
 
 culot -> jase
+culot -> wg
 
 db -> tj
 
@@ -281,6 +284,7 @@ delphij -> rafan
 demon -> mat
 
 eadler -> ak
+eadler -> antoine
 eadler -> dbn
 eadler -> bdrewery
 eadler -> gjb
@@ -316,6 +320,8 @@ flz -> garga
 flz -> johans
 flz -> laszlof
 flz -> romain
+
+jpaetzel -> wg
 
 gabor -> lippe
 gabor -> pgj
@@ -394,6 +400,7 @@ mat -> thierry
 mezz -> tmclaugh
 
 miwi -> amdmi3
+miwi -> antoine
 miwi -> avilla
 miwi -> beat
 miwi -> bf

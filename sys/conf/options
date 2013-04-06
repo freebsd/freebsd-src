@@ -68,6 +68,8 @@ TEXTDUMP_VERBOSE	opt_ddb.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+BOOTHOWTO	opt_global.h
+BOOTVERBOSE	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
@@ -364,7 +366,6 @@ ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
 ATA_STATIC_ID		opt_ata.h
 ATA_NOPCI		opt_ata.h
 ATA_REQUEST_TIMEOUT	opt_ata.h
-ATA_CAM			opt_ata.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA

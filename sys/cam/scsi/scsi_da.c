@@ -962,10 +962,6 @@ daopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL) {
-		return (ENXIO);	
-	}
-
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		return (ENXIO);
 	}
@@ -992,7 +988,7 @@ daopen(struct disk *dp)
 	dareprobe(periph);
 
 	/* Wait for the disk size update.  */
-	error = msleep(&softc->disk->d_mediasize, periph->sim->mtx, PRIBIO,
+	error = cam_periph_sleep(periph, &softc->disk->d_mediasize, PRIBIO,
 	    "dareprobe", 0);
 	if (error != 0)
 		xpt_print(periph->path, "unable to retrieve capacity data");
@@ -1027,9 +1023,6 @@ daclose(struct disk *dp)
 	struct	da_softc *softc;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (0);	
-
 	cam_periph_lock(periph);
 	if (cam_periph_hold(periph, PRIBIO) != 0) {
 		cam_periph_unlock(periph);
@@ -1118,10 +1111,6 @@ dastrategy(struct bio *bp)
 	struct da_softc *softc;
 	
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph == NULL) {
-		biofinish(bp, NULL, ENXIO);
-		return;
-	}
 	softc = (struct da_softc *)periph->softc;
 
 	cam_periph_lock(periph);
@@ -1174,8 +1163,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 
 	dp = arg;
 	periph = dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);
 	softc = (struct da_softc *)periph->softc;
 	cam_periph_lock(periph);
 	secsize = softc->params.secsize;
@@ -1250,9 +1237,6 @@ dagetattr(struct bio *bp)
 	struct cam_periph *periph;
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
 	    periph->path);
@@ -1295,7 +1279,6 @@ dadiskgonecb(struct disk *dp)
 	struct cam_periph *periph;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-
 	cam_periph_release(periph);
 }
 
@@ -1705,7 +1688,7 @@ daregister(struct cam_periph *periph, void *arg)
 	    (da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL,
 	    dasendorderedtag, softc);
 
-	mtx_unlock(periph->sim->mtx);
+	cam_periph_unlock(periph);
 	/*
 	 * RBC devices don't have to support READ(6), only READ(10).
 	 */
@@ -1790,12 +1773,12 @@ daregister(struct cam_periph *periph, void *arg)
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
-		mtx_lock(periph->sim->mtx);
+		cam_periph_lock(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
 
 	disk_create(softc->disk, DISK_VERSION);
-	mtx_lock(periph->sim->mtx);
+	cam_periph_lock(periph);
 
 	/*
 	 * Add async callbacks for events of interest.
@@ -2897,6 +2880,7 @@ dashutdown(void * arg, int howto)
 		    softc->disk->d_devstat);
 		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
+		xpt_release_ccb(ccb);
 		cam_periph_unlock(periph);
 	}
 }
