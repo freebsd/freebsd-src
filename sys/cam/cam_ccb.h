@@ -896,9 +896,14 @@ struct ccb_trans_settings_pata {
 #define	CTS_ATA_VALID_MODE		0x01
 #define	CTS_ATA_VALID_BYTECOUNT		0x02
 #define	CTS_ATA_VALID_ATAPI		0x20
+#define	CTS_ATA_VALID_CAPS		0x40
 	int		mode;		/* Mode */
 	u_int 		bytecount;	/* Length of PIO transaction */
 	u_int 		atapi;		/* Length of ATAPI CDB */
+	u_int 		caps;		/* Device and host SATA caps. */
+#define	CTS_ATA_CAPS_H			0x0000ffff
+#define	CTS_ATA_CAPS_H_DMA48		0x00000001 /* 48-bit DMA */
+#define	CTS_ATA_CAPS_D			0xffff0000
 };
 
 struct ccb_trans_settings_sata {

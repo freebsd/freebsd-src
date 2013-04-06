@@ -136,10 +136,15 @@ ata_attach(device_t dev)
 			ch->user[i].bytecount = MAXPHYS;
 		ch->user[i].caps = 0;
 		ch->curr[i] = ch->user[i];
-		if (ch->pm_level > 0)
-			ch->user[i].caps |= CTS_SATA_CAPS_H_PMREQ;
-		if (ch->pm_level > 1)
-			ch->user[i].caps |= CTS_SATA_CAPS_D_PMREQ;
+		if (ch->flags & ATA_SATA) {
+			if (ch->pm_level > 0)
+				ch->user[i].caps |= CTS_SATA_CAPS_H_PMREQ;
+			if (ch->pm_level > 1)
+				ch->user[i].caps |= CTS_SATA_CAPS_D_PMREQ;
+		} else {
+			if (!(ch->flags & ATA_NO_48BIT_DMA))
+				ch->user[i].caps |= CTS_ATA_CAPS_H_DMA48;
+		}
 	}
 	callout_init(&ch->poll_callout, 1);
 
@@ -835,6 +840,8 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 				d->bytecount = cts->xport_specific.ata.bytecount;
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_ATAPI)
 				d->atapi = cts->xport_specific.ata.atapi;
+			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_CAPS)
+				d->caps = cts->xport_specific.ata.caps;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
@@ -875,14 +882,12 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 				}
 				cts->xport_specific.sata.caps &=
 				    ch->user[ccb->ccb_h.target_id].caps;
-				cts->xport_specific.sata.valid |=
-				    CTS_SATA_VALID_CAPS;
 			} else {
 				cts->xport_specific.sata.revision = d->revision;
 				cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 				cts->xport_specific.sata.caps = d->caps;
-				cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 			}
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 			cts->xport_specific.sata.atapi = d->atapi;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		} else {
@@ -893,6 +898,17 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_MODE;
 			cts->xport_specific.ata.bytecount = d->bytecount;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_BYTECOUNT;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+				cts->xport_specific.ata.caps =
+				    d->caps & CTS_ATA_CAPS_D;
+				if (!(ch->flags & ATA_NO_48BIT_DMA))
+					cts->xport_specific.ata.caps |=
+					    CTS_ATA_CAPS_H_DMA48;
+				cts->xport_specific.ata.caps &=
+				    ch->user[ccb->ccb_h.target_id].caps;
+			} else
+				cts->xport_specific.ata.caps = d->caps;
+			cts->xport_specific.ata.valid |= CTS_ATA_VALID_CAPS;
 			cts->xport_specific.ata.atapi = d->atapi;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_ATAPI;
 		}
