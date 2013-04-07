@@ -1538,10 +1538,10 @@ __elfN(putnote)(void *dst, size_t *off, const char *name, int type,
 	*off += sizeof note;
 	if (dst != NULL)
 		bcopy(name, (char *)dst + *off, note.n_namesz);
-	*off += roundup2(note.n_namesz, sizeof(Elf_Size));
+	*off += roundup2(note.n_namesz, sizeof(Elf32_Size));
 	if (dst != NULL)
 		bcopy(desc, (char *)dst + *off, note.n_descsz);
-	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
+	*off += roundup2(note.n_descsz, sizeof(Elf32_Size));
 }
 
 static boolean_t
