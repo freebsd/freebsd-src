@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2011-2012 Spectra Logic Corporation
+ * Copyright (c) 2011-2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * This software was developed by Cherry G. Mathew <cherry@FreeBSD.org>
