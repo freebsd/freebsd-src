@@ -81,6 +81,7 @@ static int
 isitme(const char *name)
 {
 	char buf[MAXHOSTNAMELEN];
+	unsigned long hostid;
 	char *pos;
 	size_t bufsize;
 
@@ -95,7 +96,7 @@ isitme(const char *name)
 		return (1);
 
 	/*
-	 * Now check if it matches first part of the host name.
+	 * Check if it matches first part of the host name.
 	 */
 	pos = strchr(buf, '.');
 	if (pos != NULL && (size_t)(pos - buf) == strlen(name) &&
@@ -104,7 +105,7 @@ isitme(const char *name)
 	}
 
 	/*
-	 * At the end check if name is equal to our host's UUID.
+	 * Check if it matches host UUID.
 	 */
 	bufsize = sizeof(buf);
 	if (sysctlbyname("kern.hostuuid", buf, &bufsize, NULL, 0) < 0) {
@@ -112,6 +113,18 @@ isitme(const char *name)
 		return (-1);
 	}
 	if (strcasecmp(buf, name) == 0)
+		return (1);
+
+ 	/*
+	 * Check if it matches hostid.
+	 */
+	bufsize = sizeof(hostid);
+	if (sysctlbyname("kern.hostid", &hostid, &bufsize, NULL, 0) < 0) {
+		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostid) failed");
+		return (-1);
+	}
+	(void)snprintf(buf, sizeof(buf), "hostid%lu", hostid);
+	if (strcmp(buf, name) == 0)
 		return (1);
 
 	/*
@@ -138,6 +151,7 @@ node_names(char **namesp)
 {
 	static char names[MAXHOSTNAMELEN * 3];
 	char buf[MAXHOSTNAMELEN];
+	unsigned long hostid;
 	char *pos;
 	size_t bufsize;
 
@@ -165,6 +179,16 @@ node_names(char **namesp)
 		return (-1);
 	}
 	(void)strlcat(names, buf, sizeof(names));
+	(void)strlcat(names, ", ", sizeof(names));
+
+	/* Host ID. */
+	bufsize = sizeof(hostid);
+	if (sysctlbyname("kern.hostid", &hostid, &bufsize, NULL, 0) < 0) {
+		pjdlog_errno(LOG_ERR, "sysctlbyname(kern.hostid) failed");
+		return (-1);
+	}
+	(void)snprintf(buf, sizeof(buf), "hostid%lu", hostid);
+	(void)strlcat(names, buf, sizeof(names));
 
 	*namesp = names;
 
@@ -190,7 +214,7 @@ yy_config_parse(const char *config, bool exitonerror)
 	lineno = 0;
 
 	depth0_timeout = HAST_TIMEOUT;
-	depth0_replication = HAST_REPLICATION_FULLSYNC;
+	depth0_replication = HAST_REPLICATION_MEMSYNC;
 	depth0_checksum = HAST_CHECKSUM_NONE;
 	depth0_compression = HAST_COMPRESSION_HOLE;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
@@ -300,11 +324,7 @@ yy_config_parse(const char *config, bool exitonerror)
 			 * Use global or default setting.
 			 */
 			curres->hr_replication = depth0_replication;
-		}
-		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC) {
-			pjdlog_warning("Replication mode \"%s\" is not implemented, falling back to \"%s\".",
-			    "memsync", "fullsync");
-			curres->hr_replication = HAST_REPLICATION_FULLSYNC;
+			curres->hr_original_replication = depth0_replication;
 		}
 		if (curres->hr_checksum == -1) {
 			/*
@@ -523,6 +543,7 @@ replication_statement:	REPLICATION replication_type
 		case 1:
 			PJDLOG_ASSERT(curres != NULL);
 			curres->hr_replication = $2;
+			curres->hr_original_replication = $2;
 			break;
 		default:
 			PJDLOG_ABORT("replication at wrong depth level");
@@ -820,8 +841,10 @@ resource_start:	STR
 		curres->hr_role = HAST_ROLE_INIT;
 		curres->hr_previous_role = HAST_ROLE_INIT;
 		curres->hr_replication = -1;
+		curres->hr_original_replication = -1;
 		curres->hr_checksum = -1;
 		curres->hr_compression = -1;
+		curres->hr_version = 1;
 		curres->hr_timeout = -1;
 		curres->hr_exec[0] = '\0';
 		curres->hr_provname[0] = '\0';
