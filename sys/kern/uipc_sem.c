@@ -485,7 +485,7 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 
 	fdp = td->td_proc->p_fd;
 	mode = (mode & ~fdp->fd_cmask) & ACCESSPERMS;
-	error = falloc(td, &fp, &fd, 0);
+	error = falloc(td, &fp, &fd, O_CLOEXEC);
 	if (error) {
 		if (name == NULL)
 			error = ENOSPC;
@@ -578,10 +578,6 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 
 	finit(fp, FREAD | FWRITE, DTYPE_SEM, ks, &ksem_ops);
 
-	FILEDESC_XLOCK(fdp);
-	if (fdp->fd_ofiles[fd].fde_file == fp)
-		fdp->fd_ofiles[fd].fde_flags |= UF_EXCLOSE;
-	FILEDESC_XUNLOCK(fdp);
 	fdrop(fp, td);
 
 	return (0);
