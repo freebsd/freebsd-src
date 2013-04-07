@@ -105,8 +105,29 @@
 #define RESTORE_SEGMENT_REGS \
 	call	restore_segment_regs
 
-/* stackframe management for trap() */
-/* Undo the work of the Xen template code */
+/* stackframe management for trap()
+ *
+ * Xen creates a "bounce frame" in the following format:
+ *   { RCX, R11, [DS-GS,] [ERRCODE,] RIP, CS, RFLAGS, RSP, SS }
+ *
+ * Erratum: Comments in the Xen sources talk about [CR2] saved on the
+ *   stackframe, but the code for this is not to be found.
+ *	c.f: xen/arch/x86/x86_64/entry.S
+ *
+ * [DS-GS,] is only saved for the failsafe callback.
+ *
+ * [ERRCODE], is optional, depending on the type of (hardware) exception.
+ *  See: the "AMD64 Architecture Programmer's Manuel, Volume 2:
+ *  System Programming: Section 8.2 for individual error code
+ *  reporting status
+ *
+ */
+/*
+ * Prepare the frame for a non-failsafe entry point.
+ * We frob the stack so it looks like the native entry point.
+ * See: "hardware defined" part of x86/frame.h struct trapframe;
+ */
+	
 #define TRAP_FRAME_PREPARE \
 	movq 	(%rsp), %rcx 	; \
 	movq 	8(%rsp), %r11	; \
@@ -130,11 +151,21 @@
 	TRAP_FRAME_PREPARE	; \
 	subq 	$TF_ERR, %rsp
 
+/*
+ * Setting up the exit stackframe involves resetting the stack layout
+ * identically to that of an exception without error code. The reason
+ * for this is that in order to "iret", we make a hypervisor call, and
+ * this hypervisor call is a syscall which expects an 'error code' on
+ * the stack. We accomplish this by pushing quadword '0' onto the
+ * stack in the INTR_EXIT() stub.
+ *
+ */
+
 #define TRAP_FRAME_EXIT_NOERR \
 	addq	$TF_RIP, %rsp
 
 #define TRAP_FRAME_EXIT_ERR \
-	addq 	$TF_ERR, %rsp
+	addq 	$TF_RIP, %rsp
 
 #define TRAP_PROLOGUE(a) \
 	movl	$(a), TF_TRAPNO(%rsp) 	; \
