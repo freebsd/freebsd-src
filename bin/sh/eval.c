@@ -906,6 +906,15 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			if (pipe(pip) < 0)
 				error("Pipe call failed: %s", strerror(errno));
 		}
+		if (cmdentry.cmdtype == CMDNORMAL &&
+		    cmd->ncmd.redirect == NULL &&
+		    varlist.list == NULL &&
+		    (mode == FORK_FG || mode == FORK_NOJOB) &&
+		    !disvforkset() && !iflag && !mflag) {
+			vforkexecshell(jp, argv, environment(), path,
+			    cmdentry.u.index, flags & EV_BACKCMD ? pip : NULL);
+			goto parent;
+		}
 		if (forkshell(jp, cmd, mode) != 0)
 			goto parent;	/* at end of routine */
 		if (flags & EV_BACKCMD) {

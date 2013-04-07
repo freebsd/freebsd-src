@@ -94,6 +94,7 @@ struct var vps2;
 struct var vps4;
 struct var vvers;
 static struct var voptind;
+struct var vdisvfork;
 
 int forcelocal;
 
@@ -125,6 +126,8 @@ static const struct varinit varinit[] = {
 #endif
 	{ &voptind,	0,				"OPTIND=1",
 	  getoptsreset },
+	{ &vdisvfork,	VUNSET,				"SH_DISABLE_VFORK=",
+	  NULL },
 	{ NULL,	0,				NULL,
 	  NULL }
 };
