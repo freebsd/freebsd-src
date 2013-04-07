@@ -1513,8 +1513,8 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		phdr->p_paddr = 0;
 		phdr->p_filesz = notesz;
 		phdr->p_memsz = 0;
-		phdr->p_flags = 0;
-		phdr->p_align = 0;
+		phdr->p_flags = PF_R;
+		phdr->p_align = sizeof(Elf32_Size);
 		phdr++;
 
 		/* All the writable segments from the program. */
