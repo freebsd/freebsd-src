@@ -168,6 +168,15 @@ mfi_print_dcmd(struct mfi_softc *sc, device_t dev, struct mfi_command *cm)
 	case MFI_DCMD_LD_MAP_GET_INFO:
 		opcode = "LD_MAP_GET_INFO";
 		break;
+	case MFI_DCMD_BBU_START_LEARN:
+		opcode = "BBU_START_LEARN";
+		break;
+	case MFI_DCMD_BBU_GET_PROP:
+		opcode = "BBU_GET_PROP";
+		break;
+	case MFI_DCMD_BBU_SET_PROP:
+		opcode = "BBU_SET_PROP";
+		break;
 	default:
 		opcode = "UNKNOWN";
 		break;
