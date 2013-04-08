@@ -42,13 +42,24 @@ TEST(JSONCompilationDatabase, ErrsOnInvalidFormat) {
 
 static std::vector<std::string> getAllFiles(StringRef JSONDatabase,
                                             std::string &ErrorMessage) {
-  llvm::OwningPtr<CompilationDatabase> Database(
+  OwningPtr<CompilationDatabase> Database(
       JSONCompilationDatabase::loadFromBuffer(JSONDatabase, ErrorMessage));
   if (!Database) {
     ADD_FAILURE() << ErrorMessage;
     return std::vector<std::string>();
   }
   return Database->getAllFiles();
+}
+
+static std::vector<CompileCommand> getAllCompileCommands(StringRef JSONDatabase,
+                                                    std::string &ErrorMessage) {
+  OwningPtr<CompilationDatabase> Database(
+      JSONCompilationDatabase::loadFromBuffer(JSONDatabase, ErrorMessage));
+  if (!Database) {
+    ADD_FAILURE() << ErrorMessage;
+    return std::vector<CompileCommand>();
+  }
+  return Database->getAllCompileCommands();
 }
 
 TEST(JSONCompilationDatabase, GetAllFiles) {
@@ -72,10 +83,39 @@ TEST(JSONCompilationDatabase, GetAllFiles) {
     ErrorMessage)) << ErrorMessage;
 }
 
+TEST(JSONCompilationDatabase, GetAllCompileCommands) {
+  std::string ErrorMessage;
+  EXPECT_EQ(0u,
+            getAllCompileCommands("[]", ErrorMessage).size()) << ErrorMessage;
+
+  StringRef Directory1("//net/dir1");
+  StringRef FileName1("file1");
+  StringRef Command1("command1");
+  StringRef Directory2("//net/dir2");
+  StringRef FileName2("file1");
+  StringRef Command2("command1");
+
+  std::vector<CompileCommand> Commands = getAllCompileCommands(
+      ("[{\"directory\":\"" + Directory1 + "\"," +
+             "\"command\":\"" + Command1 + "\","
+             "\"file\":\"" + FileName1 + "\"},"
+       " {\"directory\":\"" + Directory2 + "\"," +
+             "\"command\":\"" + Command2 + "\","
+             "\"file\":\"" + FileName2 + "\"}]").str(),
+      ErrorMessage);
+  EXPECT_EQ(2U, Commands.size()) << ErrorMessage;
+  EXPECT_EQ(Directory1, Commands[0].Directory) << ErrorMessage;
+  ASSERT_EQ(1u, Commands[0].CommandLine.size());
+  EXPECT_EQ(Command1, Commands[0].CommandLine[0]) << ErrorMessage;
+  EXPECT_EQ(Directory2, Commands[1].Directory) << ErrorMessage;
+  ASSERT_EQ(1u, Commands[1].CommandLine.size());
+  EXPECT_EQ(Command2, Commands[1].CommandLine[0]) << ErrorMessage;
+}
+
 static CompileCommand findCompileArgsInJsonDatabase(StringRef FileName,
                                                     StringRef JSONDatabase,
                                                     std::string &ErrorMessage) {
-  llvm::OwningPtr<CompilationDatabase> Database(
+  OwningPtr<CompilationDatabase> Database(
       JSONCompilationDatabase::loadFromBuffer(JSONDatabase, ErrorMessage));
   if (!Database)
     return CompileCommand();
@@ -351,6 +391,12 @@ TEST(unescapeJsonCommandLine, ParsesQuotedStringWithoutClosingQuote) {
   EXPECT_EQ("", Empty[0]);
 }
 
+TEST(unescapeJsonCommandLine, ParsesSingleQuotedString) {
+  std::vector<std::string> Args = unescapeJsonCommandLine("a'\\\\b \\\"c\\\"'");
+  ASSERT_EQ(1ul, Args.size());
+  EXPECT_EQ("a\\b \"c\"", Args[0]);
+}
+
 TEST(FixedCompilationDatabase, ReturnsFixedCommandLine) {
   std::vector<std::string> CommandLine;
   CommandLine.push_back("one");
@@ -376,9 +422,18 @@ TEST(FixedCompilationDatabase, GetAllFiles) {
   EXPECT_EQ(0ul, Database.getAllFiles().size());
 }
 
+TEST(FixedCompilationDatabase, GetAllCompileCommands) {
+  std::vector<std::string> CommandLine;
+  CommandLine.push_back("one");
+  CommandLine.push_back("two");
+  FixedCompilationDatabase Database(".", CommandLine);
+
+  EXPECT_EQ(0ul, Database.getAllCompileCommands().size());
+}
+
 TEST(ParseFixedCompilationDatabase, ReturnsNullOnEmptyArgumentList) {
   int Argc = 0;
-  llvm::OwningPtr<FixedCompilationDatabase> Database(
+  OwningPtr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, NULL));
   EXPECT_FALSE(Database);
   EXPECT_EQ(0, Argc);
@@ -387,7 +442,7 @@ TEST(ParseFixedCompilationDatabase, ReturnsNullOnEmptyArgumentList) {
 TEST(ParseFixedCompilationDatabase, ReturnsNullWithoutDoubleDash) {
   int Argc = 2;
   const char *Argv[] = { "1", "2" };
-  llvm::OwningPtr<FixedCompilationDatabase> Database(
+  OwningPtr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
   EXPECT_FALSE(Database);
   EXPECT_EQ(2, Argc);
@@ -396,7 +451,7 @@ TEST(ParseFixedCompilationDatabase, ReturnsNullWithoutDoubleDash) {
 TEST(ParseFixedCompilationDatabase, ReturnsArgumentsAfterDoubleDash) {
   int Argc = 5;
   const char *Argv[] = { "1", "2", "--\0no-constant-folding", "3", "4" };
-  llvm::OwningPtr<FixedCompilationDatabase> Database(
+  OwningPtr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
   ASSERT_TRUE(Database);
   std::vector<CompileCommand> Result =
@@ -415,7 +470,7 @@ TEST(ParseFixedCompilationDatabase, ReturnsArgumentsAfterDoubleDash) {
 TEST(ParseFixedCompilationDatabase, ReturnsEmptyCommandLine) {
   int Argc = 3;
   const char *Argv[] = { "1", "2", "--\0no-constant-folding" };
-  llvm::OwningPtr<FixedCompilationDatabase> Database(
+  OwningPtr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
   ASSERT_TRUE(Database);
   std::vector<CompileCommand> Result =

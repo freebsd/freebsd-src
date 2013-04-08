@@ -5,6 +5,7 @@
 // RUN:     -target i386-unknown-linux \
 // RUN:     --sysroot=%S/Inputs/basic_linux_tree \
 // RUN:   | FileCheck --check-prefix=CHECK-LD-32 %s
+// CHECK-LD-32-NOT: warning:
 // CHECK-LD-32: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
 // CHECK-LD-32: "{{.*}}/usr/lib/gcc/i386-unknown-linux/4.6.0/crtbegin.o"
 // CHECK-LD-32: "-L[[SYSROOT]]/usr/lib/gcc/i386-unknown-linux/4.6.0"
@@ -17,13 +18,66 @@
 // RUN:     -target x86_64-unknown-linux \
 // RUN:     --sysroot=%S/Inputs/basic_linux_tree \
 // RUN:   | FileCheck --check-prefix=CHECK-LD-64 %s
+// CHECK-LD-64-NOT: warning:
 // CHECK-LD-64: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-LD-64: "--eh-frame-hdr"
+// CHECK-LD-64: "-m" "elf_x86_64"
+// CHECK-LD-64: "-dynamic-linker"
 // CHECK-LD-64: "{{.*}}/usr/lib/gcc/x86_64-unknown-linux/4.6.0/crtbegin.o"
 // CHECK-LD-64: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0"
 // CHECK-LD-64: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0/../../../../x86_64-unknown-linux/lib"
 // CHECK-LD-64: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0/../../.."
 // CHECK-LD-64: "-L[[SYSROOT]]/lib"
 // CHECK-LD-64: "-L[[SYSROOT]]/usr/lib"
+// CHECK-LD-64: "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed"
+// CHECK-LD-64: "-lc"
+// CHECK-LD-64: "-lgcc" "--as-needed" "-lgcc_s" "--no-as-needed"
+//
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux \
+// RUN:     -static-libgcc \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-LD-64-STATIC-LIBGCC %s
+// CHECK-LD-64-STATIC-LIBGCC-NOT: warning:
+// CHECK-LD-64-STATIC-LIBGCC: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-LD-64-STATIC-LIBGCC: "--eh-frame-hdr"
+// CHECK-LD-64-STATIC-LIBGCC: "-m" "elf_x86_64"
+// CHECK-LD-64-STATIC-LIBGCC: "-dynamic-linker"
+// CHECK-LD-64-STATIC-LIBGCC: "{{.*}}/usr/lib/gcc/x86_64-unknown-linux/4.6.0/crtbegin.o"
+// CHECK-LD-64-STATIC-LIBGCC: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0"
+// CHECK-LD-64-STATIC-LIBGCC: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0/../../../../x86_64-unknown-linux/lib"
+// CHECK-LD-64-STATIC-LIBGCC: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0/../../.."
+// CHECK-LD-64-STATIC-LIBGCC: "-L[[SYSROOT]]/lib"
+// CHECK-LD-64-STATIC-LIBGCC: "-L[[SYSROOT]]/usr/lib"
+// CHECK-LD-64-STATIC-LIBGCC: "-lgcc" "-lgcc_eh"
+// CHECK-LD-64-STATIC-LIBGCC: "-lc"
+// CHECK-LD-64-STATIC-LIBGCC: "-lgcc" "-lgcc_eh"
+//
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux \
+// RUN:     -static \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-LD-64-STATIC %s
+// CHECK-LD-64-STATIC-NOT: warning:
+// CHECK-LD-64-STATIC: "{{.*}}ld{{(.exe)?}}" "--sysroot=[[SYSROOT:[^"]+]]"
+// CHECK-LD-64-STATIC-NOT: "--eh-frame-hdr"
+// CHECK-LD-64-STATIC: "-m" "elf_x86_64"
+// CHECK-LD-64-STATIC-NOT: "-dynamic-linker"
+// CHECK-LD-64-STATIC: "-static"
+// CHECK-LD-64-STATIC: "{{.*}}/usr/lib/gcc/x86_64-unknown-linux/4.6.0/crtbeginT.o"
+// CHECK-LD-64-STATIC: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0"
+// CHECK-LD-64-STATIC: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0/../../../../x86_64-unknown-linux/lib"
+// CHECK-LD-64-STATIC: "-L[[SYSROOT]]/usr/lib/gcc/x86_64-unknown-linux/4.6.0/../../.."
+// CHECK-LD-64-STATIC: "-L[[SYSROOT]]/lib"
+// CHECK-LD-64-STATIC: "-L[[SYSROOT]]/usr/lib"
+// CHECK-LD-64-STATIC: "--start-group" "-lgcc" "-lgcc_eh" "-lc" "--end-group"
+//
+// Check that flags can be combined. The -static dominates.
+// RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux \
+// RUN:     -static-libgcc -static \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-LD-64-STATIC %s
 //
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:     -target i386-unknown-linux -m32 \
@@ -420,6 +474,7 @@
 // CHECK-ANDROID: "-L[[SYSROOT]]/usr/lib"
 // CHECK-ANDROID-NOT: "gcc_s"
 // CHECK-ANDROID: "-lgcc"
+// CHECK-ANDROID: "-ldl"
 // CHECK-ANDROID-NOT: "gcc_s"
 // CHECK-ANDROID: "{{.*}}/crtend_android.o"
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
@@ -448,6 +503,7 @@
 // CHECK-ANDROID-SO: "-L[[SYSROOT]]/usr/lib"
 // CHECK-ANDROID-SO-NOT: "gcc_s"
 // CHECK-ANDROID-SO: "-lgcc"
+// CHECK-ANDROID-SO: "-ldl"
 // CHECK-ANDROID-SO-NOT: "gcc_s"
 // CHECK-ANDROID-SO: "{{.*}}/crtend_so.o"
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
@@ -475,6 +531,7 @@
 // CHECK-ANDROID-STATIC: "-L[[SYSROOT]]/usr/lib"
 // CHECK-ANDROID-STATIC-NOT: "gcc_s"
 // CHECK-ANDROID-STATIC: "-lgcc"
+// CHECK-ANDROID-STATIC-NOT: "-ldl"
 // CHECK-ANDROID-STATIC-NOT: "gcc_s"
 // CHECK-ANDROID-STATIC: "{{.*}}/crtend_android.o"
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \

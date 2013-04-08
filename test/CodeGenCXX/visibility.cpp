@@ -47,7 +47,7 @@ namespace test29 {
   struct RECT {
     int top;
   };
-  __attribute__ ((visibility ("default"))) extern RECT data_rect;
+  DEFAULT extern RECT data_rect;
   RECT data_rect = { -1};
 #pragma GCC visibility pop
   // CHECK: @_ZN6test299data_rectE = global
@@ -70,7 +70,7 @@ namespace test41 {
   // Unlike gcc we propagate the information that foo not only is hidden, but
   // has been explicitly marked as so. This lets us produce a hidden undefined
   // reference to bar.
-  struct __attribute__((visibility("hidden"))) foo {};
+  struct HIDDEN foo {};
   extern foo bar;
   foo *zed() {
     return &bar;
@@ -119,7 +119,7 @@ namespace test48 {
 namespace test27 {
   template<typename T>
   class C {
-    class __attribute__((visibility("default"))) D {
+    class DEFAULT D {
       void f();
     };
   };
@@ -526,7 +526,7 @@ namespace Test20 {
 namespace test21 {
   enum En { en };
   template<En> struct A {
-    __attribute__((visibility("default"))) void foo() {}
+    DEFAULT void foo() {}
   };
 
   // CHECK: define weak_odr void @_ZN6test211AILNS_2EnE0EE3fooEv(
@@ -580,9 +580,7 @@ namespace PR10113 {
   };
   template class foo::bar<zed>;
   // CHECK: define weak_odr void @_ZN7PR101133foo3barINS_3zedEE3zedEv
-
-  // FIXME: This should be hidden as zed is hidden.
-  // CHECK-HIDDEN: define weak_odr void @_ZN7PR101133foo3barINS_3zedEE3zedEv
+  // CHECK-HIDDEN: define weak_odr hidden void @_ZN7PR101133foo3barINS_3zedEE3zedEv
 }
 
 namespace PR11690 {
@@ -613,9 +611,7 @@ namespace PR11690_2 {
   };
   template class foo::zed<baz>;
   // CHECK: define weak_odr void @_ZN9PR11690_23foo3zedINS_3bazENS0_3barEE3barEv
-
-  // FIXME: This should be hidden as baz is hidden.
-  // CHECK-HIDDEN: define weak_odr void @_ZN9PR11690_23foo3zedINS_3bazENS0_3barEE3barEv
+  // CHECK-HIDDEN: define weak_odr hidden void @_ZN9PR11690_23foo3zedINS_3bazENS0_3barEE3barEv
 }
 
 namespace test23 {
@@ -670,7 +666,7 @@ namespace test24 {
 namespace test26 {
   template<typename T>
   class C {
-    __attribute__((visibility("default")))  void f();
+    DEFAULT  void f();
   };
 
   template<>
@@ -729,10 +725,10 @@ namespace test34 {
 
 namespace test35 {
   // This is a really ugly testcase. GCC propagates the DEFAULT in zed's
-  // definition. What we do instead is be conservative about merging
-  // implicit visibilities.
-  // FIXME: Maybe the best thing to do here is error? The test at least
-  // makes sure we don't produce a hidden symbol for foo<zed>::bar.
+  // definition. It's not really clear what we can do here, because we
+  // produce the symbols before even seeing the DEFAULT definition of zed.
+  // FIXME: Maybe the best thing to do here is error?  It's certainly hard
+  // to argue that this ought to be valid.
   template<typename T>
   struct DEFAULT foo {
     void bar() {}
@@ -742,7 +738,7 @@ namespace test35 {
   class DEFAULT zed {
   };
   // CHECK: define weak_odr void @_ZN6test353fooINS_3zedEE3barEv
-  // CHECK-HIDDEN: define weak_odr void @_ZN6test353fooINS_3zedEE3barEv
+  // CHECK-HIDDEN: define weak_odr hidden void @_ZN6test353fooINS_3zedEE3barEv
 }
 
 namespace test36 {
@@ -821,8 +817,8 @@ namespace test42 {
   };
   void bar<foo>::zed() {
   }
-  // CHECK: define hidden void @_ZN6test423barINS_3fooEE3zedEv
-  // CHECK-HIDDEN: define hidden void @_ZN6test423barINS_3fooEE3zedEv
+  // CHECK: define void @_ZN6test423barINS_3fooEE3zedEv
+  // CHECK-HIDDEN: define void @_ZN6test423barINS_3fooEE3zedEv
 }
 
 namespace test43 {
@@ -834,8 +830,8 @@ namespace test43 {
   template <>
   DEFAULT void bar<foo>() {
   }
-  // CHECK: define hidden void @_ZN6test433barINS_3fooEEEvv
-  // CHECK-HIDDEN: define hidden void @_ZN6test433barINS_3fooEEEvv
+  // CHECK: define void @_ZN6test433barINS_3fooEEEvv
+  // CHECK-HIDDEN: define void @_ZN6test433barINS_3fooEEEvv
 }
 
 namespace test44 {
@@ -893,7 +889,7 @@ namespace test47 {
   namespace {
     struct zed;
   }
-  template __attribute__((visibility("default"))) void foo::bar<zed>();
+  template DEFAULT void foo::bar<zed>();
   void baz() {
     foo::bar<zed>();
   }
@@ -1021,7 +1017,7 @@ namespace test54 {
 
 namespace test55 {
   template <class T>
-  struct __attribute__((visibility("hidden"))) foo {
+  struct HIDDEN foo {
     static void bar();
   };
   template <class T> struct foo;
@@ -1035,7 +1031,7 @@ namespace test55 {
 namespace test56 {
   template <class T> struct foo;
   template <class T>
-  struct __attribute__((visibility("hidden"))) foo {
+  struct HIDDEN foo {
     static void bar();
   };
   void foobar() {
@@ -1066,7 +1062,7 @@ namespace test58 {
 #pragma GCC visibility push(hidden)
   struct foo;
   template<typename T>
-  struct __attribute__((visibility("default"))) bar {
+  struct DEFAULT bar {
     static void zed() {
     }
   };
@@ -1097,9 +1093,9 @@ namespace test59 {
 
 namespace test60 {
   template<int i>
-  class __attribute__((visibility("hidden"))) a {};
+  class HIDDEN a {};
   template<int i>
-  class __attribute__((visibility("default"))) b {};
+  class DEFAULT b {};
   template<template<int> class x, template<int> class y>
   void test() {}
   void use() {
@@ -1111,4 +1107,173 @@ namespace test60 {
     // CHECK: define linkonce_odr hidden void @_ZN6test604testINS_1bENS_1aEEEvv
     // CHECK-HIDDEN: define linkonce_odr hidden void @_ZN6test604testINS_1bENS_1aEEEvv
   }
+}
+
+namespace test61 {
+  template <typename T1>
+  struct Class1
+  {
+    void f1() { f2(); }
+    inline void f2();
+  };
+  template<>
+  inline void Class1<int>::f2()
+  {
+  }
+  void g(Class1<int> *x) {
+    x->f1();
+  }
+}
+namespace test61 {
+  // Just test that we don't crash. Currently we apply this attribute. Current
+  // gcc issues a warning about it being unused since "the type is already
+  // defined". We should probably do the same.
+  template class HIDDEN Class1<int>;
+}
+
+namespace test62 {
+  template <typename T1>
+  struct Class1
+  {
+    void f1() { f2(); }
+    inline void f2() {}
+  };
+  template<>
+  inline void Class1<int>::f2()
+  {
+  }
+  void g(Class1<int> *x) {
+    x->f2();
+  }
+}
+namespace test62 {
+  template class HIDDEN Class1<int>;
+  // Just test that we don't crash. Currently we apply this attribute. Current
+  // gcc issues a warning about it being unused since "the type is already
+  // defined". We should probably do the same.
+}
+
+namespace test63 {
+  enum HIDDEN E { E0 };
+  struct A {
+    template <E> static void foo() {}
+
+    template <E> struct B {
+      static void foo() {}
+    };
+  };
+
+  void test() {
+    A::foo<E0>();
+    A::B<E0>::foo();
+  }
+  // CHECK: define linkonce_odr hidden void @_ZN6test631A3fooILNS_1EE0EEEvv()
+  // CHECK: define linkonce_odr hidden void @_ZN6test631A1BILNS_1EE0EE3fooEv()
+}
+
+// Don't ignore the visibility of template arguments just because we
+// explicitly instantiated something.
+namespace test64 {
+  struct HIDDEN A {};
+  template <class P> struct B {
+    static DEFAULT void foo() {}
+  };
+
+  template class B<A>;
+  // CHECK: define weak_odr hidden void @_ZN6test641BINS_1AEE3fooEv()
+}
+
+namespace test65 {
+  class HIDDEN A {};
+  template <class T> struct B {
+    static void func();
+    template <class U> static void funcT1();
+    template <class U> static void funcT2();
+    class Inner {};
+    template <class U> class InnerT {};
+  };
+  template <template <class T> class Temp> struct C {
+    static void foo() {}
+  };
+
+  // CHECK: define void @_ZN6test651BINS_1AEE4funcEv()
+  template <> DEFAULT void B<A>::func() {}
+
+  // CHECK: define void @_ZN6test651BINS_1AEE6funcT2IS1_EEvv()
+  template <> template <> DEFAULT void B<A>::funcT2<A>() {}
+
+  // CHECK: define linkonce_odr void @_ZN6test651BINS_1AEE6funcT1IiEEvv()
+  // CHECK: define linkonce_odr hidden void @_ZN6test651BINS_1AEE6funcT1IS1_EEvv()
+  template <> template <class T> DEFAULT void B<A>::funcT1() {}
+
+  // CHECK: define linkonce_odr void @_ZN6test651BINS_1AEE5Inner3fooEv()
+  template <> struct DEFAULT B<A>::Inner {
+    static void foo() {}
+  };
+
+  // CHECK: define linkonce_odr void @_ZN6test651BINS_1AEE6InnerTIiE3fooEv()
+  // CHECK: define linkonce_odr hidden void @_ZN6test651BINS_1AEE6InnerTIS1_E3fooEv()
+  template <> template <class U> struct DEFAULT B<A>::InnerT {
+    static void foo() {}
+  };
+
+  void test() {
+    B<A>::funcT1<int>();
+    B<A>::funcT1<A>();
+    B<A>::Inner::foo();
+    B<A>::InnerT<int>::foo();
+    B<A>::InnerT<A>::foo();
+  }
+
+  template class C<B<A>::InnerT>;
+}
+
+namespace test66 {
+  template <typename T>
+  struct DEFAULT barT {
+    static void zed() {}
+  };
+  class foo;
+  class DEFAULT foo;
+  template struct barT<foo>;
+  // CHECK: define weak_odr void @_ZN6test664barTINS_3fooEE3zedEv
+  // CHECK-HIDDEN: define weak_odr void @_ZN6test664barTINS_3fooEE3zedEv
+
+  template <int* I>
+  struct DEFAULT barI {
+    static void zed() {}
+  };
+  extern int I;
+  extern int I DEFAULT;
+  template struct barI<&I>;
+  // CHECK: define weak_odr void @_ZN6test664barIIXadL_ZNS_1IEEEE3zedEv
+  // CHECK-HIDDEN: define weak_odr void @_ZN6test664barIIXadL_ZNS_1IEEEE3zedEv
+
+  typedef void (*fType)(void);
+  template<fType F>
+  struct DEFAULT barF {
+    static void zed() {}
+  };
+  void F();
+  void F() DEFAULT;
+  template struct barF<F>;
+  // CHECK: define weak_odr void @_ZN6test664barFIXadL_ZNS_1FEvEEE3zedEv
+  // CHECK-HIDDEN: define weak_odr void @_ZN6test664barFIXadL_ZNS_1FEvEEE3zedEv
+}
+
+namespace test67 {
+  template <typename T>
+  struct DEFAULT bar {
+    static void zed() {}
+  };
+
+  class foo;
+  class compute {
+    void f(foo *rootfoo);
+  };
+  class DEFAULT foo;
+
+  template struct bar<foo>;
+  // CHECK: define weak_odr void @_ZN6test673barINS_3fooEE3zedEv
+  // CHECK-HIDDEN: define weak_odr void @_ZN6test673barINS_3fooEE3zedEv
 }

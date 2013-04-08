@@ -236,3 +236,27 @@ void test() {
    return status; // expected-error-re{{use of undeclared identifier 'status'$}}
  }
 }
+
+namespace PR13387 {
+struct A {
+  void CreateFoo(float, float); // expected-note {{'CreateFoo' declared here}}
+  void CreateBar(float, float);
+};
+struct B : A {
+  using A::CreateFoo;
+  void CreateFoo(int, int);
+};
+void f(B &x) {
+  x.Createfoo(0,0); // expected-error {{no member named 'Createfoo' in 'PR13387::B'; did you mean 'CreateFoo'?}}
+}
+}
+
+struct DataStruct {void foo();};
+struct T {
+ DataStruct data_struct;
+ void f();
+};
+// should be void T::f();
+void f() {
+ data_struct->foo(); // expected-error-re{{use of undeclared identifier 'data_struct'$}}
+}

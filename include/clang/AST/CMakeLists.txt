@@ -8,6 +8,11 @@ clang_tablegen(AttrImpl.inc -gen-clang-attr-impl
   SOURCE ../Basic/Attr.td
   TARGET ClangAttrImpl)
 
+clang_tablegen(AttrDump.inc -gen-clang-attr-dump
+  -I ${CMAKE_CURRENT_SOURCE_DIR}/../../
+  SOURCE ../Basic/Attr.td
+  TARGET ClangAttrDump)
+
 clang_tablegen(StmtNodes.inc -gen-clang-stmt-nodes
   SOURCE ../Basic/StmtNodes.td
   TARGET ClangStmtNodes)
@@ -28,7 +33,15 @@ clang_tablegen(CommentHTMLTagsProperties.inc -gen-clang-comment-html-tags-proper
   SOURCE CommentHTMLTags.td
   TARGET ClangCommentHTMLTagsProperties)
 
+clang_tablegen(CommentHTMLNamedCharacterReferences.inc -gen-clang-comment-html-named-character-references
+  SOURCE CommentHTMLNamedCharacterReferences.td
+  TARGET ClangCommentHTMLNamedCharacterReferences)
+
 clang_tablegen(CommentCommandInfo.inc -gen-clang-comment-command-info
   SOURCE CommentCommands.td
   TARGET ClangCommentCommandInfo)
+
+clang_tablegen(CommentCommandList.inc -gen-clang-comment-command-list
+  SOURCE CommentCommands.td
+  TARGET ClangCommentCommandList)
 

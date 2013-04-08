@@ -1,10 +1,9 @@
 #include "clang-c/CXCompilationDatabase.h"
-#include "clang/Tooling/CompilationDatabase.h"
 #include "CXString.h"
+#include "clang/Tooling/CompilationDatabase.h"
 
 using namespace clang;
 using namespace clang::tooling;
-using namespace clang::cxstring;
 
 extern "C" {
 
@@ -59,6 +58,17 @@ clang_CompilationDatabase_getCompileCommands(CXCompilationDatabase CDb,
   return 0;
 }
 
+CXCompileCommands
+clang_CompilationDatabase_getAllCompileCommands(CXCompilationDatabase CDb) {
+  if (CompilationDatabase *db = static_cast<CompilationDatabase *>(CDb)) {
+    const std::vector<CompileCommand> CCmd(db->getAllCompileCommands());
+    if (!CCmd.empty())
+      return new AllocatedCXCompileCommands( CCmd );
+  }
+
+  return 0;
+}
+
 void
 clang_CompileCommands_dispose(CXCompileCommands Cmds)
 {
@@ -96,10 +106,10 @@ CXString
 clang_CompileCommand_getDirectory(CXCompileCommand CCmd)
 {
   if (!CCmd)
-    return createCXString((const char*)NULL);
+    return cxstring::createNull();
 
   CompileCommand *cmd = static_cast<CompileCommand *>(CCmd);
-  return createCXString(cmd->Directory);
+  return cxstring::createRef(cmd->Directory.c_str());
 }
 
 unsigned
@@ -115,14 +125,14 @@ CXString
 clang_CompileCommand_getArg(CXCompileCommand CCmd, unsigned Arg)
 {
   if (!CCmd)
-    return createCXString((const char*)NULL);
+    return cxstring::createNull();
 
   CompileCommand *Cmd = static_cast<CompileCommand *>(CCmd);
 
   if (Arg >= Cmd->CommandLine.size())
-    return createCXString((const char*)NULL);
+    return cxstring::createNull();
 
-  return createCXString(Cmd->CommandLine[Arg]);
+  return cxstring::createRef(Cmd->CommandLine[Arg].c_str());
 }
 
 

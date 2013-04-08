@@ -1,9 +1,11 @@
 // RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,debug.ExprInspection -analyzer-store region -std=c++11 -verify %s
+#include "Inputs/system-header-simulator-cxx.h"
 
 void clang_analyzer_eval(bool);
 
 typedef __typeof__(sizeof(int)) size_t;
 extern "C" void *malloc(size_t);
+extern "C" void free(void *);
 
 int someGlobal;
 void testImplicitlyDeclaredGlobalNew() {
@@ -17,13 +19,6 @@ void testImplicitlyDeclaredGlobalNew() {
 
   // Check that the new/delete did not invalidate someGlobal;
   clang_analyzer_eval(someGlobal == 0); // expected-warning{{TRUE}}
-}
-
-
-// This is the standard placement new.
-inline void* operator new(size_t, void* __p) throw()
-{
-  return __p;
 }
 
 void *testPlacementNew() {
@@ -73,7 +68,6 @@ void testScalarInitialization() {
   clang_analyzer_eval(*n == 0); // expected-warning{{TRUE}}
 }
 
-
 struct PtrWrapper {
   int *x;
 
@@ -82,9 +76,81 @@ struct PtrWrapper {
 
 PtrWrapper *testNewInvalidation() {
   // Ensure that we don't consider this a leak.
-  return new PtrWrapper(static_cast<int *>(malloc(4)));
+  return new PtrWrapper(static_cast<int *>(malloc(4))); // no-warning
 }
 
+void testNewInvalidationPlacement(PtrWrapper *w) {
+  // Ensure that we don't consider this a leak.
+  new (w) PtrWrapper(static_cast<int *>(malloc(4))); // no-warning
+}
+
+int **testNewInvalidationScalar() {
+  // Ensure that we don't consider this a leak.
+  return new (int *)(static_cast<int *>(malloc(4))); // no-warning
+}
+
+void testNewInvalidationScalarPlacement(int **p) {
+  // Ensure that we don't consider this a leak.
+  new (p) (int *)(static_cast<int *>(malloc(4))); // no-warning
+}
+
+void testCacheOut(PtrWrapper w) {
+  extern bool coin();
+  if (coin())
+    w.x = 0;
+  new (&w.x) (int*)(0); // we cache out here; don't crash
+}
+
+
+//--------------------------------------------------------------------
+// Check for intersection with other checkers from MallocChecker.cpp 
+// bounded with unix.Malloc
+//--------------------------------------------------------------------
+
+// new/delete oparators are subjects of cplusplus.NewDelete.
+void testNewDeleteNoWarn() {
+  int i;
+  delete &i; // no-warning
+
+  int *p1 = new int;
+  delete ++p1; // no-warning
+
+  int *p2 = new int;
+  delete p2;
+  delete p2; // no-warning
+
+  int *p3 = new int; // no-warning
+}
+
+// unix.Malloc does not know about operators new/delete.
+void testDeleteMallocked() {
+  int *x = (int *)malloc(sizeof(int));
+  delete x; // FIXME: Shoud detect pointer escape and keep silent after 'delete' is modeled properly.
+} // expected-warning{{Memory is never released; potential leak}}
+
+void testDeleteOpAfterFree() {
+  int *p = (int *)malloc(sizeof(int));
+  free(p);
+  operator delete(p); // expected-warning{{Use of memory after it is freed}}
+}
+
+void testDeleteAfterFree() {
+  int *p = (int *)malloc(sizeof(int));
+  free(p);
+  delete p; // expected-warning{{Use of memory after it is freed}}
+}
+
+void testStandardPlacementNewAfterFree() {
+  int *p = (int *)malloc(sizeof(int));
+  free(p);
+  p = new(p) int; // expected-warning{{Use of memory after it is freed}}
+}
+
+void testCustomPlacementNewAfterFree() {
+  int *p = (int *)malloc(sizeof(int));
+  free(p);
+  p = new(0, p) int; // expected-warning{{Use of memory after it is freed}}
+}
 
 //--------------------------------
 // Incorrectly-modelled behavior
@@ -95,8 +161,10 @@ int testNoInitialization() {
 
   // Should warn that *n is uninitialized.
   if (*n) { // no-warning
+    delete n;
     return 0;
   }
+  delete n;
   return 1;
 }
 

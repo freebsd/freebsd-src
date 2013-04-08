@@ -13,14 +13,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/ChainedIncludesSource.h"
-#include "clang/Frontend/TextDiagnosticPrinter.h"
-#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/ASTUnit.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Parse/ParseAST.h"
 #include "clang/Serialization/ASTReader.h"
 #include "clang/Serialization/ASTWriter.h"
-#include "clang/Parse/ParseAST.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Basic/TargetInfo.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 using namespace clang;
@@ -39,7 +39,7 @@ static ASTReader *createASTReader(CompilerInstance &CI,
     Reader->addInMemoryBuffer(sr, memBufs[ti]);
   }
   Reader->setDeserializationListener(deserialListener);
-  switch (Reader->ReadAST(pchFile, serialization::MK_PCH,
+  switch (Reader->ReadAST(pchFile, serialization::MK_PCH, SourceLocation(),
                           ASTReader::ARR_None)) {
   case ASTReader::Success:
     // Set the predefines buffer as suggested by the PCH reader.
@@ -47,6 +47,7 @@ static ASTReader *createASTReader(CompilerInstance &CI,
     return Reader.take();
 
   case ASTReader::Failure:
+  case ASTReader::Missing:
   case ASTReader::OutOfDate:
   case ASTReader::VersionMismatch:
   case ASTReader::ConfigurationMismatch:
@@ -99,7 +100,7 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
     Clang->setInvocation(CInvok.take());
     Clang->setDiagnostics(Diags.getPtr());
     Clang->setTarget(TargetInfo::CreateTargetInfo(Clang->getDiagnostics(),
-                                                  Clang->getTargetOpts()));
+                                                  &Clang->getTargetOpts()));
     Clang->createFileManager();
     Clang->createSourceManager(Clang->getFileManager());
     Clang->createPreprocessor();
@@ -112,8 +113,6 @@ ChainedIncludesSource *ChainedIncludesSource::create(CompilerInstance &CI) {
     OwningPtr<ASTConsumer> consumer;
     consumer.reset(new PCHGenerator(Clang->getPreprocessor(), "-", 0,
                                     /*isysroot=*/"", &OS));
-    Clang->getPreprocessor().setPPMutationListener(
-                                            consumer->GetPPMutationListener());
     Clang->getASTContext().setASTMutationListener(
                                             consumer->GetASTMutationListener());
     Clang->setASTConsumer(consumer.take());
@@ -191,7 +190,7 @@ CXXBaseSpecifier *
 ChainedIncludesSource::GetExternalCXXBaseSpecifiers(uint64_t Offset) {
   return getFinalReader().GetExternalCXXBaseSpecifiers(Offset);
 }
-DeclContextLookupResult
+bool
 ChainedIncludesSource::FindExternalVisibleDeclsByName(const DeclContext *DC,
                                                       DeclarationName Name) {
   return getFinalReader().FindExternalVisibleDeclsByName(DC, Name);

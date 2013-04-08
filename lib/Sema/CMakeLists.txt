@@ -38,6 +38,7 @@ add_clang_library(clangSema
   SemaLambda.cpp
   SemaLookup.cpp
   SemaObjCProperty.cpp
+  SemaOpenMP.cpp
   SemaOverload.cpp
   SemaPseudoObject.cpp
   SemaStmt.cpp
@@ -58,6 +59,7 @@ add_dependencies(clangSema
   ClangAttrList
   ClangAttrParsedAttrList
   ClangAttrParsedAttrKinds
+  ClangAttrSpellingListIndex
   ClangAttrTemplateInstantiate
   ClangCommentNodes
   ClangDeclNodes

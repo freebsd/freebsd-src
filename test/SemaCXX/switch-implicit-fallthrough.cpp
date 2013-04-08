@@ -10,7 +10,7 @@ int fallthrough(int n) {
       } else if (n - 3) {
         n = 102;
       }
-    case -1: // expected-warning{{unannotated fall-through between switch labels}} expected-note{{insert '[[clang::fallthrough]];' to silence this warning}} expected-note{{insert 'break;' to avoid fall-through}}
+    case -1:  // no warning here, ignore fall-through from unreachable code
       ;
     case 0: {// expected-warning{{unannotated fall-through between switch labels}} expected-note{{insert '[[clang::fallthrough]];' to silence this warning}} expected-note{{insert 'break;' to avoid fall-through}}
     }
@@ -34,6 +34,19 @@ int fallthrough(int n) {
     case 6:  // expected-warning{{unannotated fall-through between switch labels}} expected-note{{insert '[[clang::fallthrough]];' to silence this warning}} expected-note{{insert 'break;' to avoid fall-through}}
       n += 300;
     case 66:  // expected-warning{{unannotated fall-through between switch labels}} expected-note{{insert 'break;' to avoid fall-through}}
+    case 67:
+    case 68:
+      break;
+  }
+  switch (n / 15) {
+label_default:
+    default:
+      n += 333;
+      if (n % 10)
+        goto label_default;
+      break;
+    case 70:
+      n += 335;
       break;
   }
   switch (n / 20) {
@@ -116,6 +129,22 @@ void fallthrough2(int n) {
   }
 }
 
+void fallthrough3(int n) {
+  switch (n) {
+    case 1:
+      do {
+        return;
+      } while (0);
+    case 2:
+      do {
+        ClassWithDtor temp;
+        return;
+      } while (0);
+    case 3:
+      break;
+  }
+}
+
 #define MY_SWITCH(X, Y, Z, U, V) switch (X) { case Y: Z; case U: V; }
 #define MY_SWITCH2(X, Y, Z) switch (X) { Y; Z; }
 #define MY_CASE(X, Y) case X: Y
@@ -143,37 +172,60 @@ int fallthrough_macro1(int n) {
   return n;
 }
 
+void fallthrough_cfgblock_with_null_successor(int x) {
+  (x && "") ? (void)(0) : (void)(1);
+  switch (x) {}
+}
+
 int fallthrough_position(int n) {
   switch (n) {
+      [[clang::fallthrough]];  // expected-warning{{fallthrough annotation does not directly precede switch label}}
+      n += 300;
       [[clang::fallthrough]];  // expected-warning{{fallthrough annotation in unreachable code}}
     case 221:
-      [[clang::fallthrough]]; // expected-warning{{fallthrough annotation does not directly precede switch label}}
+      [[clang::fallthrough]];  // expected-warning{{fallthrough annotation does not directly precede switch label}}
       return 1;
       [[clang::fallthrough]];  // expected-warning{{fallthrough annotation in unreachable code}}
     case 222:
-      [[clang::fallthrough]]; // expected-warning{{fallthrough annotation does not directly precede switch label}}
+      [[clang::fallthrough]];  // expected-warning{{fallthrough annotation does not directly precede switch label}}
       n += 400;
     case 223:          // expected-warning{{unannotated fall-through between switch labels}} expected-note{{insert '[[clang::fallthrough]];' to silence this warning}} expected-note{{insert 'break;' to avoid fall-through}}
       [[clang::fallthrough]]; // expected-warning{{fallthrough annotation does not directly precede switch label}}
   }
 
-  // TODO: uncomment this test after CFG gets more options to deal with
-  // unreachable code:
-  // http://lists.cs.uiuc.edu/pipermail/cfe-commits/Week-of-Mon-20120507/057370.html
-#if 0
   long p = static_cast<long>(n) * n;
   switch (sizeof(p)) {
-    case 9:                    // this test will not work on compilers with 72-bit long
+    case 9:
       n += static_cast<int>(p >> 32);
       [[clang::fallthrough]];  // no warning here
-    case 5:                    // it is not intended to work on compilers with 40-bit long as well
+    case 5:
       n += static_cast<int>(p);
-      break;
+      [[clang::fallthrough]];  // no warning here
     default:
-     break;
+      n += 1;
+      break;
   }
-#endif
 
+  return n;
+}
+
+enum Enum {
+  Value1, Value2
+};
+
+int fallthrough_covered_enums(Enum e) {
+  int n = 0;
+  switch (e) {
+    default:
+      n += 17;
+      [[clang::fallthrough]];  // no warning here, this shouldn't be treated as unreachable code
+    case Value1:
+      n += 19;
+      break;
+    case Value2:
+      n += 21;
+      break;
+  }
   return n;
 }
 
@@ -195,3 +247,21 @@ int fallthrough_targets(int n) {
   }
   return n;
 }
+
+// Fallthrough annotations in local classes used to generate "fallthrough
+// annotation does not directly precede switch label" warning.
+void fallthrough_in_local_class() {
+  class C {
+    void f(int x) {
+      switch (x) {
+        case 0:
+          x++;
+          [[clang::fallthrough]]; // no diagnostics
+        case 1:
+          x++;
+          break;
+      }
+    }
+  };
+}
+

@@ -142,7 +142,7 @@ if not Clang:
     sys.exit(-1)
 
 # Number of jobs.
-Jobs = math.ceil(detectCPUs() * 0.75)
+Jobs = int(math.ceil(detectCPUs() * 0.75))
 
 # Project map stores info about all the "registered" projects.
 ProjectMapFile = "projectMap.csv"
@@ -206,6 +206,7 @@ def runScanBuild(Dir, SBOutputDir, PBuildLogFile):
     SBOptions = "--use-analyzer " + Clang + " "
     SBOptions += "-plist-html -o " + SBOutputDir + " "
     SBOptions += "-enable-checker " + Checkers + " "  
+    SBOptions += "--keep-empty "
     try:
         SBCommandFile = open(BuildScriptPath, "r")
         SBPrefix = "scan-build " + SBOptions + " "
@@ -213,8 +214,9 @@ def runScanBuild(Dir, SBOutputDir, PBuildLogFile):
             # If using 'make', auto imply a -jX argument
             # to speed up analysis.  xcodebuild will
             # automatically use the maximum number of cores.
-            if Command.startswith("make "):
-                Command += "-j" + Jobs
+            if (Command.startswith("make ") or Command == "make") and \
+                "-j" not in Command:
+                Command += " -j%d" % Jobs
             SBCommand = SBPrefix + Command
             if Verbose == 1:        
                 print "  Executing: %s" % (SBCommand,)

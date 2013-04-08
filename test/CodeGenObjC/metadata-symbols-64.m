@@ -1,5 +1,4 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-dispatch-method=mixed -emit-llvm -o %t %s
-// RUNX: llvm-gcc -m64 -emit-llvm -S -o %t %s &&
 
 // RUN: grep '@"OBJC_CLASS_$_A" = global' %t
 // RUN: grep '@"OBJC_CLASS_$_B" = external global' %t
@@ -13,7 +12,7 @@
 // RUN: grep '@"\\01L_OBJC_METH_VAR_NAME_[0-9]*" = internal global .* section "__TEXT,__objc_methname,cstring_literals", align 1' %t
 // RUN: grep '@"\\01L_OBJC_METH_VAR_TYPE_[0-9]*" = internal global .* section "__TEXT,__objc_methtype,cstring_literals", align 1' %t
 // RUN: grep '@"\\01L_OBJC_PROP_NAME_ATTR_[0-9]*" = internal global .* section "__TEXT,__cstring,cstring_literals", align 1' %t
-// RUN: grep '@"\\01L_OBJC_SELECTOR_REFERENCES_*" = internal global .* section "__DATA, __objc_selrefs, literal_pointers, no_dead_strip"' %t
+// RUN: grep '@"\\01L_OBJC_SELECTOR_REFERENCES_*" = internal externally_initialized global .* section "__DATA, __objc_selrefs, literal_pointers, no_dead_strip"' %t
 // RUN: grep '@"\\01l_OBJC_$_CATEGORY_A_$_Cat" = internal global .* section "__DATA, __objc_const", align 8' %t
 // RUN: grep '@"\\01l_OBJC_$_CATEGORY_CLASS_METHODS_A_$_Cat" = internal global .* section "__DATA, __objc_const", align 8' %t
 // RUN: grep '@"\\01l_OBJC_$_CATEGORY_INSTANCE_METHODS_A_$_Cat" = internal global .* section "__DATA, __objc_const", align 8' %t

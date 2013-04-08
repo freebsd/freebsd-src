@@ -35,3 +35,8 @@ void __attribute__((noreturn))
 test4() {
   test2_positive();
 }
+
+// Do not warn here.
+_Noreturn void test5() {
+  test2_positive();
+}

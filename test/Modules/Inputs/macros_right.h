@@ -1,4 +1,4 @@
-@__experimental_modules_import macros_top;
+@import macros_top;
 #define RIGHT unsigned short
 
 
@@ -15,3 +15,5 @@
 
 #undef TOP_RIGHT_REDEF
 #define TOP_RIGHT_REDEF float
+
+#define FN_ADD(x, y) (x+y)

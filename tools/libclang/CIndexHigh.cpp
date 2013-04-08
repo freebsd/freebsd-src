@@ -8,19 +8,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "CursorVisitor.h"
+#include "CLog.h"
 #include "CXCursor.h"
 #include "CXSourceLocation.h"
 #include "CXTranslationUnit.h"
-
-#include "clang/Frontend/ASTUnit.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/Frontend/ASTUnit.h"
+#include "llvm/Support/Compiler.h"
 
 using namespace clang;
 using namespace cxcursor;
+using namespace cxindex;
 
 static void getTopOverriddenMethods(CXTranslationUnit TU,
-                                    Decl *D,
-                                    SmallVectorImpl<Decl *> &Methods) {
+                                    const Decl *D,
+                                    SmallVectorImpl<const Decl *> &Methods) {
   if (!D)
     return;
   if (!isa<ObjCMethodDecl>(D) && !isa<CXXMethodDecl>(D))
@@ -44,15 +46,15 @@ namespace {
 struct FindFileIdRefVisitData {
   CXTranslationUnit TU;
   FileID FID;
-  Decl *Dcl;
+  const Decl *Dcl;
   int SelectorIdIdx;
   CXCursorAndRangeVisitor visitor;
 
-  typedef SmallVector<Decl *, 8> TopMethodsTy;
+  typedef SmallVector<const Decl *, 8> TopMethodsTy;
   TopMethodsTy TopMethods;
 
   FindFileIdRefVisitData(CXTranslationUnit TU, FileID FID,
-                         Decl *D, int selectorIdIdx,
+                         const Decl *D, int selectorIdIdx,
                          CXCursorAndRangeVisitor visitor)
     : TU(TU), FID(FID), SelectorIdIdx(selectorIdIdx), visitor(visitor) {
     Dcl = getCanonical(D);
@@ -60,7 +62,7 @@ struct FindFileIdRefVisitData {
   }
 
   ASTContext &getASTContext() const {
-    return static_cast<ASTUnit *>(TU->TUData)->getASTContext();
+    return cxtu::getASTUnit(TU)->getASTContext();
   }
 
   /// \brief We are looking to find all semantically relevant identifiers,
@@ -74,24 +76,25 @@ struct FindFileIdRefVisitData {
   ///
   /// we consider the canonical decl of the constructor decl to be the class
   /// itself, so both 'C' can be highlighted.
-  Decl *getCanonical(Decl *D) const {
+  const Decl *getCanonical(const Decl *D) const {
     if (!D)
       return 0;
 
     D = D->getCanonicalDecl();
 
-    if (ObjCImplDecl *ImplD = dyn_cast<ObjCImplDecl>(D)) {
+    if (const ObjCImplDecl *ImplD = dyn_cast<ObjCImplDecl>(D)) {
       if (ImplD->getClassInterface())
         return getCanonical(ImplD->getClassInterface());
 
-    } else if (CXXConstructorDecl *CXXCtorD = dyn_cast<CXXConstructorDecl>(D)) {
+    } else if (const CXXConstructorDecl *CXXCtorD =
+                   dyn_cast<CXXConstructorDecl>(D)) {
       return getCanonical(CXXCtorD->getParent());
     }
     
     return D;
   }
 
-  bool isHit(Decl *D) const {
+  bool isHit(const Decl *D) const {
     if (!D)
       return false;
 
@@ -106,7 +109,7 @@ struct FindFileIdRefVisitData {
   }
 
 private:
-  bool isOverriddingMethod(Decl *D) const {
+  bool isOverriddingMethod(const Decl *D) const {
     if (std::find(TopMethods.begin(), TopMethods.end(), D) !=
           TopMethods.end())
       return true;
@@ -148,7 +151,7 @@ static enum CXChildVisitResult findFileIdRefVisit(CXCursor cursor,
   if (!clang_isDeclaration(declCursor.kind))
     return CXChildVisit_Recurse;
 
-  Decl *D = cxcursor::getCursorDecl(declCursor);
+  const Decl *D = cxcursor::getCursorDecl(declCursor);
   if (!D)
     return CXChildVisit_Continue;
 
@@ -202,32 +205,31 @@ static enum CXChildVisitResult findFileIdRefVisit(CXCursor cursor,
       return CXChildVisit_Recurse;
     }
 
-    data->visitor.visit(data->visitor.context, cursor,
-                        cxloc::translateSourceRange(Ctx, Loc));
+    if (data->visitor.visit(data->visitor.context, cursor,
+                        cxloc::translateSourceRange(Ctx, Loc)) == CXVisit_Break)
+      return CXChildVisit_Break;
   }
   return CXChildVisit_Recurse;
 }
 
-static void findIdRefsInFile(CXTranslationUnit TU, CXCursor declCursor,
-                           const FileEntry *File,
-                           CXCursorAndRangeVisitor Visitor) {
+static bool findIdRefsInFile(CXTranslationUnit TU, CXCursor declCursor,
+                             const FileEntry *File,
+                             CXCursorAndRangeVisitor Visitor) {
   assert(clang_isDeclaration(declCursor.kind));
-  ASTUnit *Unit = static_cast<ASTUnit*>(TU->TUData);
-  SourceManager &SM = Unit->getSourceManager();
+  SourceManager &SM = cxtu::getASTUnit(TU)->getSourceManager();
 
   FileID FID = SM.translateFile(File);
-  Decl *Dcl = cxcursor::getCursorDecl(declCursor);
+  const Decl *Dcl = cxcursor::getCursorDecl(declCursor);
   if (!Dcl)
-    return;
+    return false;
 
   FindFileIdRefVisitData data(TU, FID, Dcl,
                               cxcursor::getSelectorIdentifierIndex(declCursor),
                               Visitor);
 
-  if (DeclContext *DC = Dcl->getParentFunctionOrMethod()) {
-    clang_visitChildren(cxcursor::MakeCXCursor(cast<Decl>(DC), TU),
-                        findFileIdRefVisit, &data);
-    return;
+  if (const DeclContext *DC = Dcl->getParentFunctionOrMethod()) {
+    return clang_visitChildren(cxcursor::MakeCXCursor(cast<Decl>(DC), TU),
+                               findFileIdRefVisit, &data);
   }
 
   SourceRange Range(SM.getLocForStartOfFile(FID), SM.getLocForEndOfFile(FID));
@@ -237,7 +239,7 @@ static void findIdRefsInFile(CXTranslationUnit TU, CXCursor declCursor,
                                   /*VisitIncludedEntities=*/false,
                                   Range,
                                   /*VisitDeclsOnly=*/true);
-  FindIdRefsVisitor.visitFileRegion();
+  return FindIdRefsVisitor.visitFileRegion();
 }
 
 namespace {
@@ -267,7 +269,7 @@ static enum CXChildVisitResult findFileMacroRefVisit(CXCursor cursor,
   if (cursor.kind == CXCursor_MacroDefinition)
     Macro = getCursorMacroDefinition(cursor)->getName();
   else if (cursor.kind == CXCursor_MacroExpansion)
-    Macro = getCursorMacroExpansion(cursor)->getName();
+    Macro = getCursorMacroExpansion(cursor).getName();
   if (!Macro)
     return CXChildVisit_Continue;
 
@@ -298,19 +300,20 @@ static enum CXChildVisitResult findFileMacroRefVisit(CXCursor cursor,
     return CXChildVisit_Continue;
   }
 
-  data->visitor.visit(data->visitor.context, cursor,
-                      cxloc::translateSourceRange(Ctx, Loc));
+  if (data->visitor.visit(data->visitor.context, cursor,
+                        cxloc::translateSourceRange(Ctx, Loc)) == CXVisit_Break)
+    return CXChildVisit_Break;
   return CXChildVisit_Continue;
 }
 
-static void findMacroRefsInFile(CXTranslationUnit TU, CXCursor Cursor,
+static bool findMacroRefsInFile(CXTranslationUnit TU, CXCursor Cursor,
                                 const FileEntry *File,
                                 CXCursorAndRangeVisitor Visitor) {
   if (Cursor.kind != CXCursor_MacroDefinition &&
       Cursor.kind != CXCursor_MacroExpansion)
-    return;
+    return false;
 
-  ASTUnit *Unit = static_cast<ASTUnit*>(TU->TUData);
+  ASTUnit *Unit = cxtu::getASTUnit(TU);
   SourceManager &SM = Unit->getSourceManager();
 
   FileID FID = SM.translateFile(File);
@@ -318,9 +321,9 @@ static void findMacroRefsInFile(CXTranslationUnit TU, CXCursor Cursor,
   if (Cursor.kind == CXCursor_MacroDefinition)
     Macro = getCursorMacroDefinition(Cursor)->getName();
   else
-    Macro = getCursorMacroExpansion(Cursor)->getName();
+    Macro = getCursorMacroExpansion(Cursor).getName();
   if (!Macro)
-    return;
+    return false;
 
   FindFileMacroRefVisitData data(*Unit, File, Macro, Visitor);
 
@@ -330,7 +333,73 @@ static void findMacroRefsInFile(CXTranslationUnit TU, CXCursor Cursor,
                                   /*VisitPreprocessorLast=*/false,
                                   /*VisitIncludedEntities=*/false,
                                   Range);
-  FindMacroRefsVisitor.visitPreprocessedEntitiesInRegion();
+  return FindMacroRefsVisitor.visitPreprocessedEntitiesInRegion();
+}
+
+namespace {
+
+struct FindFileIncludesVisitor {
+  ASTUnit &Unit;
+  const FileEntry *File;
+  CXCursorAndRangeVisitor visitor;
+
+  FindFileIncludesVisitor(ASTUnit &Unit, const FileEntry *File,
+                          CXCursorAndRangeVisitor visitor)
+    : Unit(Unit), File(File), visitor(visitor) { }
+
+  ASTContext &getASTContext() const {
+    return Unit.getASTContext();
+  }
+
+  enum CXChildVisitResult visit(CXCursor cursor, CXCursor parent) {
+    if (cursor.kind != CXCursor_InclusionDirective)
+      return CXChildVisit_Continue;
+
+    SourceLocation
+      Loc = cxloc::translateSourceLocation(clang_getCursorLocation(cursor));
+
+    ASTContext &Ctx = getASTContext();
+    SourceManager &SM = Ctx.getSourceManager();
+
+    // We are looking for includes in a specific file.
+    std::pair<FileID, unsigned> LocInfo = SM.getDecomposedLoc(Loc);
+    if (SM.getFileEntryForID(LocInfo.first) != File)
+      return CXChildVisit_Continue;
+
+    if (visitor.visit(visitor.context, cursor,
+                      cxloc::translateSourceRange(Ctx, Loc)) == CXVisit_Break)
+      return CXChildVisit_Break;
+    return CXChildVisit_Continue;
+  }
+
+  static enum CXChildVisitResult visit(CXCursor cursor, CXCursor parent,
+                                       CXClientData client_data) {
+    return static_cast<FindFileIncludesVisitor*>(client_data)->
+                                                          visit(cursor, parent);
+  }
+};
+
+} // anonymous namespace
+
+static bool findIncludesInFile(CXTranslationUnit TU, const FileEntry *File,
+                               CXCursorAndRangeVisitor Visitor) {
+  assert(TU && File && Visitor.visit);
+
+  ASTUnit *Unit = cxtu::getASTUnit(TU);
+  SourceManager &SM = Unit->getSourceManager();
+
+  FileID FID = SM.translateFile(File);
+
+  FindFileIncludesVisitor IncludesVisitor(*Unit, File, Visitor);
+
+  SourceRange Range(SM.getLocForStartOfFile(FID), SM.getLocForEndOfFile(FID));
+  CursorVisitor InclusionCursorsVisitor(TU,
+                                        FindFileIncludesVisitor::visit,
+                                        &IncludesVisitor,
+                                        /*VisitPreprocessorLast=*/false,
+                                        /*VisitIncludedEntities=*/false,
+                                        Range);
+  return InclusionCursorsVisitor.visitPreprocessedEntitiesInRegion();
 }
 
 
@@ -340,44 +409,48 @@ static void findMacroRefsInFile(CXTranslationUnit TU, CXCursor Cursor,
 
 extern "C" {
 
-void clang_findReferencesInFile(CXCursor cursor, CXFile file,
-                                CXCursorAndRangeVisitor visitor) {
-  bool Logging = ::getenv("LIBCLANG_LOGGING");
+CXResult clang_findReferencesInFile(CXCursor cursor, CXFile file,
+                                    CXCursorAndRangeVisitor visitor) {
+  LogRef Log = Logger::make(LLVM_FUNCTION_NAME);
 
   if (clang_Cursor_isNull(cursor)) {
-    if (Logging)
-      llvm::errs() << "clang_findReferencesInFile: Null cursor\n";
-    return;
+    if (Log)
+      *Log << "Null cursor";
+    return CXResult_Invalid;
   }
   if (cursor.kind == CXCursor_NoDeclFound) {
-    if (Logging)
-      llvm::errs() << "clang_findReferencesInFile: Got CXCursor_NoDeclFound\n";
-    return;
+    if (Log)
+      *Log << "Got CXCursor_NoDeclFound";
+    return CXResult_Invalid;
   }
   if (!file) {
-    if (Logging)
-      llvm::errs() << "clang_findReferencesInFile: Null file\n";
-    return;
+    if (Log)
+      *Log << "Null file";
+    return CXResult_Invalid;
   }
   if (!visitor.visit) {
-    if (Logging)
-      llvm::errs() << "clang_findReferencesInFile: Null visitor\n";
-    return;
+    if (Log)
+      *Log << "Null visitor";
+    return CXResult_Invalid;
   }
+
+  if (Log)
+    *Log << cursor << " @" << static_cast<const FileEntry *>(file);
 
   ASTUnit *CXXUnit = cxcursor::getCursorASTUnit(cursor);
   if (!CXXUnit)
-    return;
+    return CXResult_Invalid;
 
   ASTUnit::ConcurrencyCheck Check(*CXXUnit);
 
   if (cursor.kind == CXCursor_MacroDefinition ||
       cursor.kind == CXCursor_MacroExpansion) {
-    findMacroRefsInFile(cxcursor::getCursorTU(cursor),
-                        cursor,
-                        static_cast<const FileEntry *>(file),
-                        visitor);
-    return;
+    if (findMacroRefsInFile(cxcursor::getCursorTU(cursor),
+                            cursor,
+                            static_cast<const FileEntry *>(file),
+                            visitor))
+      return CXResult_VisitBreak;
+    return CXResult_Success;
   }
 
   // We are interested in semantics of identifiers so for C++ constructor exprs
@@ -392,16 +465,51 @@ void clang_findReferencesInFile(CXCursor cursor, CXFile file,
   CXCursor refCursor = clang_getCursorReferenced(cursor);
 
   if (!clang_isDeclaration(refCursor.kind)) {
-    if (Logging)
-      llvm::errs() << "clang_findReferencesInFile: cursor is not referencing a "
-                      "declaration\n";
-    return;
+    if (Log)
+      *Log << "cursor is not referencing a declaration";
+    return CXResult_Invalid;
   }
 
-  findIdRefsInFile(cxcursor::getCursorTU(cursor),
-                   refCursor,
-                   static_cast<const FileEntry *>(file),
-                   visitor);
+  if (findIdRefsInFile(cxcursor::getCursorTU(cursor),
+                       refCursor,
+                       static_cast<const FileEntry *>(file),
+                       visitor))
+    return CXResult_VisitBreak;
+  return CXResult_Success;
+}
+
+CXResult clang_findIncludesInFile(CXTranslationUnit TU, CXFile file,
+                             CXCursorAndRangeVisitor visitor) {
+  LogRef Log = Logger::make(LLVM_FUNCTION_NAME);
+
+  if (!TU) {
+    if (Log)
+      *Log << "Null CXTranslationUnit";
+    return CXResult_Invalid;
+  }
+  if (!file) {
+    if (Log)
+      *Log << "Null file";
+    return CXResult_Invalid;
+  }
+  if (!visitor.visit) {
+    if (Log)
+      *Log << "Null visitor";
+    return CXResult_Invalid;
+  }
+
+  if (Log)
+    *Log << TU << " @" << static_cast<const FileEntry *>(file);
+
+  ASTUnit *CXXUnit = cxtu::getASTUnit(TU);
+  if (!CXXUnit)
+    return CXResult_Invalid;
+
+  ASTUnit::ConcurrencyCheck Check(*CXXUnit);
+
+  if (findIncludesInFile(TU, static_cast<const FileEntry *>(file), visitor))
+    return CXResult_VisitBreak;
+  return CXResult_Success;
 }
 
 static enum CXVisitorResult _visitCursorAndRange(void *context,
@@ -411,12 +519,20 @@ static enum CXVisitorResult _visitCursorAndRange(void *context,
   return INVOKE_BLOCK2(block, cursor, range);
 }
 
-void clang_findReferencesInFileWithBlock(CXCursor cursor,
-                                         CXFile file,
-                                         CXCursorAndRangeVisitorBlock block) {
+CXResult clang_findReferencesInFileWithBlock(CXCursor cursor,
+                                             CXFile file,
+                                           CXCursorAndRangeVisitorBlock block) {
   CXCursorAndRangeVisitor visitor = { block,
                                       block ? _visitCursorAndRange : 0 };
   return clang_findReferencesInFile(cursor, file, visitor);
+}
+
+CXResult clang_findIncludesInFileWithBlock(CXTranslationUnit TU,
+                                           CXFile file,
+                                           CXCursorAndRangeVisitorBlock block) {
+  CXCursorAndRangeVisitor visitor = { block,
+                                      block ? _visitCursorAndRange : 0 };
+  return clang_findIncludesInFile(TU, file, visitor);
 }
 
 } // end: extern "C"

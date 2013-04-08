@@ -3,7 +3,7 @@ template<int N> struct A; // expected-note 5{{template parameter is declared her
 
 A<0> *a0;
 
-A<int()> *a1; // expected-error{{template argument for non-type template parameter is treated as type 'int ()'}}
+A<int()> *a1; // expected-error{{template argument for non-type template parameter is treated as function type 'int ()'}}
 
 A<int> *a2; // expected-error{{template argument for non-type template parameter must be an expression}}
 
@@ -323,3 +323,17 @@ namespace PR10579 {
 
 template <int& I> struct PR10766 { static int *ip; };
 template <int& I> int* PR10766<I>::ip = &I;
+
+namespace rdar13000548 {
+  template<typename R, typename U, R F>
+  U f() { return &F; } // expected-error{{cannot take the address of an rvalue of type 'int (*)(int)'}} expected-error{{cannot take the address of an rvalue of type 'int *'}}
+
+  int g(int);
+  int y[3];
+  void test()
+  {
+    f<int(int), int (*)(int), g>(); // expected-note{{in instantiation of}}
+    f<int[3], int*, y>(); // expected-note{{in instantiation of}}
+  }
+
+}

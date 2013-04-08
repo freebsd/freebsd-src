@@ -78,7 +78,7 @@ namespace PR7985 {
   template<int N> struct integral_c { };
 
   template <typename T, int N>
-  integral_c<N> array_lengthof(T (&x)[N]) { return integral_c<N>(); } // expected-note 2{{candidate template ignored: failed template argument deduction}}
+  integral_c<N> array_lengthof(T (&x)[N]) { return integral_c<N>(); } // expected-note 2{{candidate template ignored: could not match 'T [N]' against 'const Data<}}
 
   template<typename T>
   struct Data {
@@ -94,7 +94,7 @@ namespace PR7985 {
   const Data<T> Description<T>::data[] = {{ 1 }}; // expected-error{{cannot initialize a member subobject of type 'int *' with an rvalue of type 'int'}}
 
   template<>
-  Data<float*> Description<float*>::data[];
+  const Data<float*> Description<float*>::data[];
 
   void test() {
     integral_c<1> ic1 = array_lengthof(Description<int>::data);

@@ -6,7 +6,7 @@ void testCondOp(int *p) {
   int *x = p ? p : p;
   // expected-note@-1 {{Assuming 'p' is null}}
   // expected-note@-2 {{'?' condition is false}}
-  // expected-note@-3 {{Variable 'x' initialized to a null pointer value}}
+  // expected-note@-3 {{'x' initialized to a null pointer value}}
   *x = 1; // expected-warning{{Dereference of null pointer (loaded from variable 'x')}}
   // expected-note@-1 {{Dereference of null pointer (loaded from variable 'x')}}
 }
@@ -40,7 +40,7 @@ void testRHSProblem(int *p) {
 void testBinaryCondOp(int *p) {
   int *x = p ?: p;
   // expected-note@-1 {{'?' condition is false}}
-  // expected-note@-2 {{Variable 'x' initialized to a null pointer value}}
+  // expected-note@-2 {{'x' initialized to a null pointer value}}
   *x = 1; // expected-warning{{Dereference of null pointer (loaded from variable 'x')}}
   // expected-note@-1 {{Dereference of null pointer (loaded from variable 'x')}}
 }
@@ -216,9 +216,9 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Variable &apos;x&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;x&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Variable &apos;x&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;x&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -289,7 +289,7 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testCondOp</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>5</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>5</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>10</integer>
@@ -432,7 +432,7 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testCondProblem</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>5</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>5</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>19</integer>
@@ -575,7 +575,7 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testLHSProblem</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>25</integer>
@@ -718,7 +718,7 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testRHSProblem</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>33</integer>
@@ -856,9 +856,9 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Variable &apos;x&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;x&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Variable &apos;x&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;x&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -929,7 +929,7 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testBinaryCondOp</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>4</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>4</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>44</integer>
@@ -1072,7 +1072,7 @@ void testBinaryLHSProblem(int *p) {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>testBinaryLHSProblem</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>5</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>5</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>53</integer>

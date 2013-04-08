@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
-#include "clang/Analysis/ProgramPoint.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/Analysis/ProgramPoint.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 
 using namespace clang;
 using namespace ento;
@@ -30,7 +30,7 @@ bool CheckerManager::hasPathSensitiveCheckers() const {
          !LocationCheckers.empty()          ||
          !BindCheckers.empty()              ||
          !EndAnalysisCheckers.empty()       ||
-         !EndPathCheckers.empty()           ||
+         !EndFunctionCheckers.empty()           ||
          !BranchConditionCheckers.empty()   ||
          !LiveSymbolsCheckers.empty()       ||
          !DeadSymbolsCheckers.empty()       ||
@@ -353,17 +353,17 @@ void CheckerManager::runCheckersForEndAnalysis(ExplodedGraph &G,
 /// \brief Run checkers for end of path.
 // Note, We do not chain the checker output (like in expandGraphWithCheckers)
 // for this callback since end of path nodes are expected to be final.
-void CheckerManager::runCheckersForEndPath(NodeBuilderContext &BC,
-                                           ExplodedNodeSet &Dst,
-                                           ExplodedNode *Pred,
-                                           ExprEngine &Eng) {
+void CheckerManager::runCheckersForEndFunction(NodeBuilderContext &BC,
+                                               ExplodedNodeSet &Dst,
+                                               ExplodedNode *Pred,
+                                               ExprEngine &Eng) {
   
   // We define the builder outside of the loop bacause if at least one checkers
   // creates a sucsessor for Pred, we do not need to generate an 
   // autotransition for it.
   NodeBuilder Bldr(Pred, Dst, BC);
-  for (unsigned i = 0, e = EndPathCheckers.size(); i != e; ++i) {
-    CheckEndPathFunc checkFn = EndPathCheckers[i];
+  for (unsigned i = 0, e = EndFunctionCheckers.size(); i != e; ++i) {
+    CheckEndFunctionFunc checkFn = EndFunctionCheckers[i];
 
     const ProgramPoint &L = BlockEntrance(BC.Block,
                                           Pred->getLocationContext(),
@@ -469,10 +469,10 @@ bool CheckerManager::wantsRegionChangeUpdate(ProgramStateRef state) {
 /// \brief Run checkers for region changes.
 ProgramStateRef 
 CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
-                            const StoreManager::InvalidatedSymbols *invalidated,
+                                    const InvalidatedSymbols *invalidated,
                                     ArrayRef<const MemRegion *> ExplicitRegions,
-                                          ArrayRef<const MemRegion *> Regions,
-                                          const CallEvent *Call) {
+                                    ArrayRef<const MemRegion *> Regions,
+                                    const CallEvent *Call) {
   for (unsigned i = 0, e = RegionChangesCheckers.size(); i != e; ++i) {
     // If any checker declares the state infeasible (or if it starts that way),
     // bail out.
@@ -482,6 +482,27 @@ CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
                                              ExplicitRegions, Regions, Call);
   }
   return state;
+}
+
+/// \brief Run checkers to process symbol escape event.
+ProgramStateRef
+CheckerManager::runCheckersForPointerEscape(ProgramStateRef State,
+                                           const InvalidatedSymbols &Escaped,
+                                           const CallEvent *Call,
+                                           PointerEscapeKind Kind,
+                                           bool IsConst) {
+  assert((Call != NULL ||
+          (Kind != PSK_DirectEscapeOnCall &&
+           Kind != PSK_IndirectEscapeOnCall)) &&
+         "Call must not be NULL when escaping on call");
+    for (unsigned i = 0, e = PointerEscapeCheckers.size(); i != e; ++i) {
+      // If any checker declares the state infeasible (or if it starts that
+      //  way), bail out.
+      if (!State)
+        return NULL;
+      State = PointerEscapeCheckers[i](State, Escaped, Call, Kind, IsConst);
+    }
+  return State;
 }
 
 /// \brief Run checkers for handling assumptions on symbolic values.
@@ -618,8 +639,8 @@ void CheckerManager::_registerForEndAnalysis(CheckEndAnalysisFunc checkfn) {
   EndAnalysisCheckers.push_back(checkfn);
 }
 
-void CheckerManager::_registerForEndPath(CheckEndPathFunc checkfn) {
-  EndPathCheckers.push_back(checkfn);
+void CheckerManager::_registerForEndFunction(CheckEndFunctionFunc checkfn) {
+  EndFunctionCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForBranchCondition(
@@ -639,6 +660,15 @@ void CheckerManager::_registerForRegionChanges(CheckRegionChangesFunc checkfn,
                                      WantsRegionChangeUpdateFunc wantUpdateFn) {
   RegionChangesCheckerInfo info = {checkfn, wantUpdateFn};
   RegionChangesCheckers.push_back(info);
+}
+
+void CheckerManager::_registerForPointerEscape(CheckPointerEscapeFunc checkfn){
+  PointerEscapeCheckers.push_back(checkfn);
+}
+
+void CheckerManager::_registerForConstPointerEscape(
+                                          CheckPointerEscapeFunc checkfn) {
+  PointerEscapeCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForEvalAssume(EvalAssumeFunc checkfn) {

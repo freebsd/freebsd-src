@@ -1,12 +1,17 @@
-// RUN: %clang  -g -S -fverbose-asm %s -o - | FileCheck %s
+// RUN: %clang  -g -S -emit-llvm %s -o - | FileCheck %s
 
-// CHECK: TAG_namespace
 namespace A {
-  enum numbers {
-    ZERO,
-    ONE
-  };
+#line 1 "foo.cpp"
+namespace B {
+int i;
+}
 }
 
-using namespace A;
-numbers n;
+// CHECK: [[FILE:![0-9]*]] {{.*}}debug-info-namespace.cpp"
+// CHECK: [[VAR:![0-9]*]] = {{.*}}, metadata [[NS:![0-9]*]], metadata !"i", {{.*}} ; [ DW_TAG_variable ] [i]
+// CHECK: [[NS]] = {{.*}}, metadata [[FILE2:![0-9]*]], metadata [[CTXT:![0-9]*]], {{.*}} ; [ DW_TAG_namespace ] [B] [line 1]
+// CHECK: [[CTXT]] = {{.*}}, metadata [[FILE]], null, {{.*}} ; [ DW_TAG_namespace ] [A] [line 3]
+// CHECK: [[FILE2]]} ; [ DW_TAG_file_type ] [{{.*}}foo.cpp]
+
+// FIXME: It is confused on win32 to generate file entry when dosish filename is given.
+// REQUIRES: shell

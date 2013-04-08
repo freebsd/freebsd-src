@@ -38,3 +38,61 @@ extern "C" long long f11( void );
 extern "C" A *f10( void );
 
 extern "C" struct mypodstruct f12(); // expected-warning {{'f12' has C-linkage specified, but returns incomplete type 'struct mypodstruct' which could be incompatible with C}}
+
+namespace test2 {
+  // FIXME: we should probably suppress the first warning as the second one
+  // is more precise.
+  // For now this tests that a second 'extern "C"' is not necessary to trigger
+  // the warning.
+  struct A;
+  extern "C" A f(void); // expected-warning {{'f' has C-linkage specified, but returns incomplete type 'test2::A' which could be incompatible with C}}
+  struct A {
+    A(const A&);
+  };
+  A f(void);  // no warning. warning is already issued on first declaration.
+}
+
+namespace test3 {
+  struct A {
+    A(const A&);
+  };
+  extern "C" {
+    // Don't warn for static functions.
+    static A f(void);
+  }
+}
+
+// rdar://13364028
+namespace rdar13364028 {
+class A {
+public:
+    virtual int x();
+};
+
+extern "C" {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
+A xyzzy();
+#pragma clang diagnostic pop
+A bbb(); // expected-warning {{'bbb' has C-linkage specified, but returns user-defined type 'rdar13364028::A' which is incompatible with C}}
+A ccc() { // expected-warning {{'ccc' has C-linkage specified, but returns user-defined type 'rdar13364028::A' which is incompatible with C}}
+  return A();
+};
+}
+
+A xyzzy();
+
+A xyzzy()
+{
+  return A();
+}
+
+A bbb()
+{
+  return A();
+}
+
+A bbb();
+
+A ccc();
+}

@@ -61,9 +61,26 @@ namespace PR10036 {
   }
 }
 
+namespace PR15290 {
+  template<typename T>
+  class A {
+    T v_;
+    friend int add_to_v(A &t) noexcept(noexcept(v_ + 42))
+    {
+      return t.v_ + 42;
+    }
+  };
+  void f()
+  {
+    A<int> t;
+    add_to_v(t);
+  }
+}
+
 namespace Static {
   struct X1 {
     int m;
+    // FIXME: This should be accepted.
     static auto f() -> decltype(m); // expected-error{{'this' cannot be implicitly used in a static member function declaration}}
     static auto g() -> decltype(this->m); // expected-error{{'this' cannot be used in a static member function declaration}}
 
@@ -98,4 +115,24 @@ namespace PR12564 {
     // FIXME: This should be accepted.
     void foo(Derived& d) noexcept(noexcept(d.bar(d))) {} // expected-error {{cannot bind to a value of unrelated type}}
   };
+}
+
+namespace rdar13473493 {
+  template <typename F>
+  class wrap
+  {
+  public:
+    template <typename... Args>
+    auto operator()(Args&&... args) const -> decltype(wrapped(args...)) // expected-note{{candidate template ignored: substitution failure [with Args = <int>]: use of undeclared identifier 'wrapped'}}
+    {
+      return wrapped(args...);
+    }
+  
+  private:
+    F wrapped;
+  };
+
+  void test(wrap<int (*)(int)> w) {
+    w(5); // expected-error{{no matching function for call to object of type 'wrap<int (*)(int)>'}}
+  }
 }

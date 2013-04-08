@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i386-unknown-unknown -fvisibility-inlines-hidden -emit-llvm -o - %s -O2 -disable-llvm-optzns | FileCheck %s
+// RUN: %clang_cc1 -triple i386-unknown-unknown -std=c++11 -fvisibility-inlines-hidden -emit-llvm -o - %s -O2 -disable-llvm-optzns | FileCheck %s
 
 // The trickery with optimization in the run line is to get IR
 // generation to emit available_externally function bodies, but not
@@ -134,4 +134,31 @@ namespace test4 {
     foo();
   }
   // CHECK: define available_externally void @_ZN5test43fooE
+}
+
+namespace test5 {
+  // just don't crash.
+  template <int> inline void Op();
+  class UnaryInstruction {
+    UnaryInstruction() {
+      Op<0>();
+    }
+  };
+  template <int Idx_nocapture> void Op() {
+  }
+}
+
+namespace test6 {
+  // just don't crash.
+  template <typename T>
+  void f(T x) {
+  }
+  struct C {
+    static void g() {
+      f([](){});
+    }
+  };
+  void g() {
+    C::g();
+  }
 }

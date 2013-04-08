@@ -303,6 +303,11 @@ typedef int (*test_param27)(int aaa);
 /// \param aaa Meow.
 typedef test_param27 test_param28;
 
+// rdar://13066276
+// expected-warning@+1 {{'@param' command used in a comment that is not attached to a function declaration}}
+/// @param aaa Meow.
+typedef unsigned int test_param29;
+
 
 // expected-warning@+1 {{'\tparam' command used in a comment that is not attached to a template declaration}}
 /// \tparam T Aaa
@@ -377,6 +382,35 @@ using test_tparam14 = test_tparam13<T, int>;
 template<typename T>
 using test_tparam15 = test_tparam13<T, int>;
 
+// ----
+
+/// \tparam T Aaa
+template<typename T>
+class test_tparam16 { };
+
+typedef test_tparam16<int> test_tparam17;
+typedef test_tparam16<double> test_tparam18;
+
+// ----
+
+template<typename T>
+class test_tparam19;
+
+typedef test_tparam19<int> test_tparam20;
+typedef test_tparam19<double> test_tparam21;
+
+/// \tparam T Aaa
+template<typename T>
+class test_tparam19 { };
+
+// ----
+
+// expected-warning@+1 {{'@tparam' command used in a comment that is not attached to a template declaration}}
+/// @tparam T Aaa
+int test_tparam22;
+
+// ----
+
 
 /// Aaa
 /// \deprecated Bbb
@@ -413,6 +447,14 @@ void test_deprecated_6(int a) {
 /// \deprecated
 template<typename T>
 void test_deprecated_7(T aaa);
+
+
+// rdar://12397511
+// expected-note@+2 {{previous command '\headerfile' here}}
+// expected-warning@+2 {{duplicated command '\headerfile'}}
+/// \headerfile ""
+/// \headerfile foo.h
+int test__headerfile_1(int a);
 
 
 /// \invariant aaa
@@ -501,6 +543,23 @@ enum test_returns_wrong_decl_8 {
 /// \returns Aaa
 namespace test_returns_wrong_decl_10 { };
 
+// rdar://13066276
+// expected-warning@+1 {{'@returns' command used in a comment that is not attached to a function or method declaration}}
+/// @returns Aaa
+typedef unsigned int test_returns_wrong_decl_11;
+
+// rdar://13094352
+// expected-warning@+1 {{'@function' command should be used in a comment attached to a function declaration}}
+/*!	@function test_function
+*/
+typedef unsigned int Base64Flags;
+unsigned test_function(Base64Flags inFlags);
+
+// expected-warning@+1 {{'@callback' command should be used in a comment attached to a pointer to function declaration}}
+/*! @callback test_callback
+*/
+typedef unsigned int BaseFlags;
+unsigned (*test_callback)(BaseFlags inFlags);
 
 // expected-warning@+1 {{'\endverbatim' command does not terminate a verbatim text block}}
 /// \endverbatim
@@ -836,3 +895,58 @@ typedef const struct test_nocrash7 * test_nocrash8;
 /// aaa \unknown aaa \unknown aaa
 int test_nocrash9;
 
+
+// We used to crash on this.  PR15068
+
+// expected-warning@+2 {{empty paragraph passed to '@param' command}}
+// expected-warning@+2 {{empty paragraph passed to '@param' command}}
+///@param x
+///@param y
+int test_nocrash10(int x, int y);
+
+// expected-warning@+2 {{empty paragraph passed to '@param' command}} expected-warning@+2 {{parameter 'x' not found in the function declaration}}
+// expected-warning@+2 {{empty paragraph passed to '@param' command}} expected-warning@+2 {{parameter 'y' not found in the function declaration}}
+///@param x
+///@param y
+int test_nocrash11();
+
+// expected-warning@+3 {{empty paragraph passed to '@param' command}} expected-warning@+3 {{parameter 'x' not found in the function declaration}}
+// expected-warning@+3 {{empty paragraph passed to '@param' command}} expected-warning@+3 {{parameter 'y' not found in the function declaration}}
+/**
+@param x
+@param y
+**/
+int test_nocrash12();
+
+// expected-warning@+2 {{empty paragraph passed to '@param' command}}
+// expected-warning@+1 {{empty paragraph passed to '@param' command}}
+///@param x@param y
+int test_nocrash13(int x, int y);
+
+// rdar://12379114
+// expected-warning@+2 {{'@union' command should not be used in a comment attached to a non-union declaration}}
+/*!
+   @union U This is new 
+*/
+struct U { int iS; };
+
+/*!
+  @union U1
+*/
+union U1 {int i; };
+
+// expected-warning@+2 {{'@struct' command should not be used in a comment attached to a non-struct declaration}}
+/*!
+ @struct S2
+*/
+union S2 {};
+
+/*!
+  @class C1
+*/
+class C1;
+
+/*!
+  @struct S3;
+*/
+class S3;

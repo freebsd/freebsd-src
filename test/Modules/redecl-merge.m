@@ -1,14 +1,35 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -fmodules -fmodule-cache-path %t -I %S/Inputs %s -verify -Wno-objc-root-class
+// RUN: %clang_cc1 -fmodules -Wreturn-type -fmodules-cache-path=%t -I %S/Inputs %s -verify -Wno-objc-root-class
+
 @class C2;
 @class C3;
 @class C3;
-@__experimental_modules_import redecl_merge_left;
+@import redecl_merge_left;
 typedef struct my_struct_type *my_struct_ref;
 @protocol P4;
 @class C3;
 @class C3;
-@__experimental_modules_import redecl_merge_right;
+
+int *call_eventually_noreturn(void) {
+  eventually_noreturn();
+} // expected-warning{{control reaches end of non-void function}}
+
+int *call_eventually_noreturn2(void) {
+  eventually_noreturn2();
+} // expected-warning{{control reaches end of non-void function}}
+
+@import redecl_merge_right;
+
+int *call_eventually_noreturn_again(void) {
+  eventually_noreturn();
+}
+
+int *call_eventually_noreturn2_again(void) {
+  // noreturn and non-noreturn functions have different types
+  eventually_noreturn2(); // expected-error{{call to 'eventually_noreturn2' is ambiguous}}
+  // expected-note@93{{candidate function}}
+  // expected-note@90{{candidate function}}
+}
 
 @implementation A
 - (Super*)init { return self; }
@@ -112,7 +133,7 @@ C4 *global_C4;
 
 ClassWithDef *cwd1;
 
-@__experimental_modules_import redecl_merge_left_left;
+@import redecl_merge_left_left;
 
 void test_C4a(C4 *c4) {
   global_C4 = c4 = get_a_C4();
@@ -123,7 +144,7 @@ void test_ClassWithDef(ClassWithDef *cwd) {
   [cwd method];
 }
 
-@__experimental_modules_import redecl_merge_bottom;
+@import redecl_merge_bottom;
 
 void test_C4b() {
   if (&refers_to_C4) {
@@ -148,3 +169,5 @@ id<P3> p3;
 // Make sure we don't get conflicts with 'id'.
 funcptr_with_id fid;
 id id_global;
+
+

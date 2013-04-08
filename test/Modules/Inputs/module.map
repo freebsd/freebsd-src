@@ -37,10 +37,18 @@ module category_top { header "category_top.h" }
 module category_left { 
   header "category_left.h" 
   export category_top
+
+  explicit module sub {
+    header "category_left_sub.h"
+  }
 }
 module category_right { 
   header "category_right.h" 
   export category_top
+
+  explicit module sub {
+    header "category_right_sub.h"
+  }
 }
 module category_bottom { 
   header "category_bottom.h" 
@@ -63,6 +71,7 @@ module decldef {
 module redecl_merge_top { 
   header "redecl-merge-top.h"
   explicit module Explicit { header "redecl-merge-top-explicit.h" }
+  exclude header "nonexistent.h"
 }
 module redecl_merge_left { 
   header "redecl-merge-left.h" 
@@ -77,6 +86,10 @@ module redecl_merge_right {
   export *
 }
 module redecl_merge_bottom { 
+  explicit module prefix {
+    header "redecl-merge-bottom-prefix.h"
+  }
+
   header "redecl-merge-bottom.h" 
   export *
 }
@@ -106,9 +119,21 @@ module templates_right {
 }
 module MethodPoolA {
   header "MethodPoolA.h"
+
+  explicit module Sub2 {
+    header "MethodPoolASub2.h"
+  }
+
+  explicit module Sub {
+    header "MethodPoolASub.h"
+  }
 }
 module MethodPoolB {
   header "MethodPoolB.h"
+
+  explicit module Sub {
+    header "MethodPoolBSub.h"
+  }
 }
 module import_decl {
   header "import-decl.h"
@@ -116,4 +141,71 @@ module import_decl {
 
 framework module * { 
   exclude NotAModule
+}
+
+module linkage_merge_left {
+  explicit module sub {
+    header "linkage-merge-sub.h"
+  }
+}
+
+module autolink {
+  header "autolink.h"
+  link "autolink"
+
+  explicit module sub {
+    header "autolink-sub.h"
+    link "autolink_sub"
+  }
+
+  explicit module sub2 {
+    header "autolink-sub2.h"
+    link framework "autolink_framework"
+  }
+}
+
+module weird_objc {
+  header "weird_objc.h"
+}
+
+module ignored_macros {
+  header "ignored_macros.h"
+}
+
+module cxx_many_overloads {
+  header "cxx-many-overloads.h"
+}
+
+module cxx_inline_namespace {
+  header "cxx-inline-namespace.h"
+}
+
+module cxx_linkage_cache {
+  header "cxx-linkage-cache.h"
+}
+
+module config {
+  header "config.h"
+  config_macros [exhaustive] WANT_FOO, WANT_BAR
+}
+
+module diag_pragma {
+  header "diag_pragma.h"
+}
+
+module builtin {
+  header "builtin.h"
+  explicit module sub {
+    header "builtin_sub.h"
+  }
+}
+
+module linkage_merge {
+  explicit module foo {
+    header "linkage-merge-foo.h"
+  }
+  explicit module bar {
+    header "linkage-merge-bar.h"
+  }
+
 }

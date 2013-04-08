@@ -14,16 +14,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/StaticAnalyzer/Core/CheckerManager.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerHelpers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerHelpers.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "llvm/ADT/SmallSet.h"
 
 // The number of CFGBlock pointers we want to reserve memory for. This is used
@@ -76,7 +76,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
     if (!PM)
       PM = &LC->getParentMap();
 
-    if (const BlockEntrance *BE = dyn_cast<BlockEntrance>(&P)) {
+    if (Optional<BlockEntrance> BE = P.getAs<BlockEntrance>()) {
       const CFGBlock *CB = BE->getBlock();
       reachable.insert(CB->getBlockID());
     }
@@ -131,7 +131,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
       bool foundUnreachable = false;
       for (CFGBlock::const_iterator ci = CB->begin(), ce = CB->end();
            ci != ce; ++ci) {
-        if (const CFGStmt *S = (*ci).getAs<CFGStmt>())
+        if (Optional<CFGStmt> S = (*ci).getAs<CFGStmt>())
           if (const CallExpr *CE = dyn_cast<CallExpr>(S->getStmt())) {
             if (CE->isBuiltinCall() == Builtin::BI__builtin_unreachable) {
               foundUnreachable = true;
@@ -189,7 +189,7 @@ void UnreachableCodeChecker::FindUnreachableEntryPoints(const CFGBlock *CB,
 // Find the Stmt* in a CFGBlock for reporting a warning
 const Stmt *UnreachableCodeChecker::getUnreachableStmt(const CFGBlock *CB) {
   for (CFGBlock::const_iterator I = CB->begin(), E = CB->end(); I != E; ++I) {
-    if (const CFGStmt *S = I->getAs<CFGStmt>())
+    if (Optional<CFGStmt> S = I->getAs<CFGStmt>())
       return S->getStmt();
   }
   if (const Stmt *S = CB->getTerminator())

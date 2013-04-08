@@ -5,9 +5,9 @@
 #endif
 
 @interface Root
-+ (instancetype)alloc;
++ (instancetype)alloc; // expected-note {{explicitly declared 'instancetype'}}
 - (instancetype)init; // expected-note{{overridden method is part of the 'init' method family}}
-- (instancetype)self;
+- (instancetype)self; // expected-note {{explicitly declared 'instancetype'}}
 - (Class)class;
 
 @property (assign) Root *selfProp;
@@ -143,7 +143,7 @@ void test_instancetype_narrow_method_search() {
 
 @implementation Subclass4
 + (id)alloc {
-  return self; // expected-warning{{incompatible pointer types casting 'Class' to type 'Subclass4 *'}}
+  return self; // expected-warning{{incompatible pointer types returning 'Class' from a function with result type 'Subclass4 *'}}
 }
 
 - (Subclass3 *)init { return 0; } // don't complain: we lost the related return type
@@ -164,14 +164,14 @@ void test_instancetype_inherited() {
 // Check that related return types tighten up the semantics of
 // Objective-C method implementations.
 @implementation Subclass2
-- (instancetype)initSubclass2 {
+- (instancetype)initSubclass2 { // expected-note {{explicitly declared 'instancetype'}}
   Subclass1 *sc1 = [[Subclass1 alloc] init];
-  return sc1; // expected-warning{{incompatible pointer types casting 'Subclass1 *' to type 'Subclass2 *'}}
+  return sc1; // expected-warning{{incompatible pointer types returning 'Subclass1 *' from a function with result type 'Subclass2 *'}}
 }
 - (void)methodOnSubclass2 {}
 - (id)self {
   Subclass1 *sc1 = [[Subclass1 alloc] init];
-  return sc1; // expected-warning{{incompatible pointer types casting 'Subclass1 *' to type 'Subclass2 *'}}
+  return sc1; // expected-warning{{incompatible pointer types returning 'Subclass1 *' from a function with result type 'Subclass2 *'}}
 }
 @end
 
@@ -188,3 +188,29 @@ void test_instancetype_inherited() {
 
 @end
 
+// rdar://12493140
+@protocol P4
+- (instancetype) foo; // expected-note {{current method is explicitly declared 'instancetype' and is expected to return an instance of its class type}}
+@end
+@interface A4 : Root <P4>
+- (instancetype) bar; // expected-note {{current method is explicitly declared 'instancetype' and is expected to return an instance of its class type}}
+- (instancetype) baz; // expected-note {{overridden method returns an instance of its class type}} expected-note {{previous definition is here}}
+@end
+@interface B4 : Root @end
+
+@implementation A4 {
+  B4 *_b;
+}
+- (id) foo {
+  return _b; // expected-warning {{incompatible pointer types returning 'B4 *' from a function with result type 'A4 *'}}
+}
+- (id) bar {
+  return _b; // expected-warning {{incompatible pointer types returning 'B4 *' from a function with result type 'A4 *'}}
+}
+
+// This is really just to ensure that we don't crash.
+// FIXME: only one diagnostic, please
+- (float) baz { // expected-warning {{method is expected to return an instance of its class type 'A4', but is declared to return 'float'}} expected-warning {{conflicting return type in implementation}}
+  return 0;
+}
+@end

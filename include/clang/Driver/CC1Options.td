@@ -81,15 +81,6 @@ def analyzer_inline_max_stack_depth : Separate<["-"], "analyzer-inline-max-stack
 def analyzer_inline_max_stack_depth_EQ : Joined<["-"], "analyzer-inline-max-stack-depth=">, 
   Alias<analyzer_inline_max_stack_depth>;
   
-def analyzer_inline_max_function_size : Separate<["-"], "analyzer-inline-max-function-size">,
-  HelpText<"Bound on the number of basic blocks in an inlined function (200 by default)">;
-def analyzer_inline_max_function_size_EQ : Joined<["-"], "analyzer-inline-max-function-size=">, 
-  Alias<analyzer_inline_max_function_size>;
-
-def analyzer_ipa : Separate<["-"], "analyzer-ipa">,
-  HelpText<"Specify the inter-procedural analysis mode">;
-def analyzer_ipa_EQ : Joined<["-"], "analyzer-ipa=">, Alias<analyzer_ipa>;
-  
 def analyzer_inlining_mode : Separate<["-"], "analyzer-inlining-mode">,
   HelpText<"Specify the function selection heuristic used during inlining">;
 def analyzer_inlining_mode_EQ : Joined<["-"], "analyzer-inlining-mode=">, Alias<analyzer_inlining_mode>;
@@ -97,8 +88,6 @@ def analyzer_inlining_mode_EQ : Joined<["-"], "analyzer-inlining-mode=">, Alias<
 def analyzer_disable_retry_exhausted : Flag<["-"], "analyzer-disable-retry-exhausted">,
   HelpText<"Do not re-analyze paths leading to exhausted nodes with a different strategy (may decrease code coverage)">;
   
-def analyzer_max_nodes : Separate<["-"], "analyzer-max-nodes">,
-  HelpText<"The maximum number of nodes the analyzer can generate (150000 default, 0 = no limit)">;
 def analyzer_max_loop : Separate<["-"], "analyzer-max-loop">,
   HelpText<"The maximum number of times the analyzer will go through a loop">;
 def analyzer_stats : Flag<["-"], "analyzer-stats">,
@@ -145,6 +134,8 @@ def dwarf_debug_flags : Separate<["-"], "dwarf-debug-flags">,
   HelpText<"The string to embed in the Dwarf debug flags record.">;
 def dwarf_column_info : Flag<["-"], "dwarf-column-info">,
   HelpText<"Turn on column location information.">;
+def split_dwarf : Flag<["-"], "split-dwarf">,
+  HelpText<"Split out the dwarf .dwo sections">;
 def fforbid_guard_variables : Flag<["-"], "fforbid-guard-variables">,
   HelpText<"Emit an error if a C++ static local initializer would need a guard variable">;
 def no_implicit_float : Flag<["-"], "no-implicit-float">,
@@ -158,10 +149,20 @@ def femit_coverage_data: Flag<["-"], "femit-coverage-data">,
 def coverage_file : Separate<["-"], "coverage-file">,
   HelpText<"Emit coverage data to this filename. The extension will be replaced.">;
 def coverage_file_EQ : Joined<["-"], "coverage-file=">, Alias<coverage_file>;
+def coverage_cfg_checksum : Flag<["-"], "coverage-cfg-checksum">,
+  HelpText<"Emit CFG checksum for functions in .gcno files.">;
+def coverage_no_function_names_in_data : Flag<["-"], "coverage-no-function-names-in-data">,
+  HelpText<"Emit function names in .gcda files.">;
+def coverage_version_EQ : Joined<["-"], "coverage-version=">,
+  HelpText<"Four-byte version string for gcov files.">;
+def test_coverage : Flag<["-"], "test-coverage">,
+  HelpText<"Do not generate coverage files or remove coverage changes from IR">;
 def fuse_register_sized_bitfield_access: Flag<["-"], "fuse-register-sized-bitfield-access">,
   HelpText<"Use register sized accesses to bit-fields, when possible.">;
 def relaxed_aliasing : Flag<["-"], "relaxed-aliasing">,
   HelpText<"Turn off Type Based Alias Analysis">;
+def struct_path_tbaa : Flag<["-"], "struct-path-tbaa">,
+  HelpText<"Turn on struct-path aware Type Based Alias Analysis">;
 def masm_verbose : Flag<["-"], "masm-verbose">,
   HelpText<"Generate verbose assembly output">;
 def mcode_model : Separate<["-"], "mcode-model">,
@@ -185,6 +186,8 @@ def mlimit_float_precision : Separate<["-"], "mlimit-float-precision">,
   HelpText<"Limit float precision to the given value">;
 def mno_exec_stack : Flag<["-"], "mnoexecstack">,
   HelpText<"Mark the file as not needing an executable stack">;
+def split_stacks : Flag<["-"], "split-stacks">,
+  HelpText<"Try to use a split stack if possible.">;
 def mno_zero_initialized_in_bss : Flag<["-"], "mno-zero-initialized-in-bss">,
   HelpText<"Do not put zero initialized data in the BSS">;
 def backend_option : Separate<["-"], "backend-option">,
@@ -197,8 +200,6 @@ def mrelocation_model : Separate<["-"], "mrelocation-model">,
   HelpText<"The relocation model to use">;
 def munwind_tables : Flag<["-"], "munwind-tables">,
   HelpText<"Generate unwinding tables for all functions">;
-def fuse_init_array : Flag<["-"], "fuse-init-array">,
-  HelpText<"Use .init_array instead of .ctors">;
 def mconstructor_aliases : Flag<["-"], "mconstructor-aliases">,
   HelpText<"Emit complete constructors and destructors as aliases when possible">;
 def mlink_bitcode_file : Separate<["-"], "mlink-bitcode-file">,
@@ -217,9 +218,6 @@ def header_include_file : Separate<["-"], "header-include-file">,
 // Diagnostic Options
 //===----------------------------------------------------------------------===//
 
-def dump_build_information : Separate<["-"], "dump-build-information">,
-  MetaVarName<"<filename>">,
-  HelpText<"output a dump of some build information to a file">;
 def diagnostic_log_file : Separate<["-"], "diagnostic-log-file">,
   HelpText<"Filename (or -) to log diagnostics to">;
 def diagnostic_serialized_file : Separate<["-"], "serialize-diagnostic-file">,
@@ -230,6 +228,8 @@ def fdiagnostics_format : Separate<["-"], "fdiagnostics-format">,
   HelpText<"Change diagnostic formatting to match IDE and command line tools">;
 def fdiagnostics_show_category : Separate<["-"], "fdiagnostics-show-category">,
   HelpText<"Print diagnostic category">;
+def fno_diagnostics_use_presumed_location : Flag<["-"], "fno-diagnostics-use-presumed-location">,
+  HelpText<"Ignore #line directives when displaying diagnostic locations">;
 def ftabstop : Separate<["-"], "ftabstop">, MetaVarName<"<N>">,
   HelpText<"Set the tab stop distance.">;
 def ferror_limit : Separate<["-"], "ferror-limit">, MetaVarName<"<N>">,
@@ -244,6 +244,9 @@ def fmessage_length : Separate<["-"], "fmessage-length">, MetaVarName<"<N>">,
   HelpText<"Format message diagnostics so that they fit within N columns or fewer, when possible.">;
 def Wno_rewrite_macros : Flag<["-"], "Wno-rewrite-macros">,
   HelpText<"Silence ObjC rewriting warnings">;
+
+def fwarn_on_spellcheck : Flag<["-"], "fwarn-on-spellcheck">,
+  HelpText<"Emit warning if spell-check is initiated, for testing">;
 
 //===----------------------------------------------------------------------===//
 // Frontend Options
@@ -283,8 +286,6 @@ def plugin_arg : JoinedAndSeparate<["-"], "plugin-arg-">,
     HelpText<"Pass <arg> to plugin <name>">;
 def add_plugin : Separate<["-"], "add-plugin">, MetaVarName<"<name>">,
   HelpText<"Use the named plugin action in addition to the default action">;
-def resource_dir : Separate<["-"], "resource-dir">,
-  HelpText<"The directory which holds the compiler resource files">;
 def version : Flag<["-"], "version">,
   HelpText<"Print the compiler version">;
 def ast_dump_filter : Separate<["-"], "ast-dump-filter">,
@@ -292,6 +293,8 @@ def ast_dump_filter : Separate<["-"], "ast-dump-filter">,
   HelpText<"Use with -ast-dump or -ast-print to dump/print only AST declaration"
            " nodes having a certain substring in a qualified name. Use"
            " -ast-list to list all filterable declaration node names.">;
+def fno_modules_global_index : Flag<["-"], "fno-modules-global-index">,
+  HelpText<"Do not automatically generate or update the global module index">;
 
 let Group = Action_Group in {
 
@@ -389,6 +392,8 @@ def fhidden_weak_vtables : Flag<["-"], "fhidden-weak-vtables">,
   HelpText<"Generate weak vtables and RTTI with hidden visibility">;
 def main_file_name : Separate<["-"], "main-file-name">,
   HelpText<"Main file name to use for debug info">;
+def split_dwarf_file : Separate<["-"], "split-dwarf-file">,
+  HelpText<"File name to use for split dwarf debug info output">;
 def fno_signed_char : Flag<["-"], "fno-signed-char">,
   HelpText<"Char is unsigned">;
 def fno_wchar : Flag<["-"], "fno-wchar">,
@@ -425,11 +430,15 @@ def stack_protector : Separate<["-"], "stack-protector">,
 def stack_protector_buffer_size : Separate<["-"], "stack-protector-buffer-size">,
   HelpText<"Lower bound for a buffer to be considered for stack protection">;
 def fvisibility : Separate<["-"], "fvisibility">,
-  HelpText<"Default symbol visibility">;
+  HelpText<"Default type and symbol visibility">;
+def ftype_visibility : Separate<["-"], "ftype-visibility">,
+  HelpText<"Default type visibility">;
 def ftemplate_depth : Separate<["-"], "ftemplate-depth">,
   HelpText<"Maximum depth of recursive template instantiation">;
 def fconstexpr_depth : Separate<["-"], "fconstexpr-depth">,
   HelpText<"Maximum depth of recursive constexpr function calls">;
+def fbracket_depth : Separate<["-"], "fbracket-depth">,
+  HelpText<"Maximum nesting level for parentheses, brackets, and braces">;
 def fconst_strings : Flag<["-"], "fconst-strings">,
   HelpText<"Use a const qualified type for string literals in C and ObjC">;
 def fno_const_strings : Flag<["-"], "fno-const-strings">,

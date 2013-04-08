@@ -55,7 +55,7 @@ void bar(int *p) {
 // ========================================================================== //
 
 void test_block__capture_null() {
-  int *p = 0; // expected-note{{Variable 'p' initialized to a null pointer value}}
+  int *p = 0; // expected-note{{'p' initialized to a null pointer value}}
   ^(){ // expected-note {{Calling anonymous block}}
     *p = 1; // expected-warning{{Dereference of null pointer (loaded from variable 'p')}} expected-note{{Dereference of null pointer (loaded from variable 'p')}}
   }();
@@ -63,8 +63,8 @@ void test_block__capture_null() {
 }
 
 void test_block_ret() {
-  int *p = ^(){ // expected-note {{Calling anonymous block}} expected-note{{Returning to caller}} expected-note {{Variable 'p' initialized to a null pointer value}}
-    int *q = 0; // expected-note {{Variable 'q' initialized to a null pointer value}}
+  int *p = ^int*(){ // expected-note {{Calling anonymous block}} expected-note{{Returning to caller}} expected-note {{'p' initialized to a null pointer value}}
+    int *q = 0; // expected-note {{'q' initialized to a null pointer value}}
     return q; // expected-note {{Returning null pointer (loaded from 'q')}}
   }();
   *p = 1; // expected-warning{{Dereference of null pointer (loaded from variable 'p')}} expected-note{{Dereference of null pointer (loaded from variable 'p')}}
@@ -291,7 +291,7 @@ void test_block_arg() {
 // CHECK-NEXT:    <key>type</key><string>Division by zero</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>foo</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>7</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>7</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>18</integer>
@@ -477,7 +477,7 @@ void test_block_arg() {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>has_bug</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>23</integer>
@@ -794,7 +794,7 @@ void test_block_arg() {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>triggers_bug</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>33</integer>
@@ -830,9 +830,9 @@ void test_block_arg() {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -1124,9 +1124,9 @@ void test_block_arg() {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>1</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Variable &apos;q&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;q&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Variable &apos;q&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;q&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -1313,9 +1313,9 @@ void test_block_arg() {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -1386,7 +1386,7 @@ void test_block_arg() {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_block_ret</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>5</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>5</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>70</integer>
@@ -1635,7 +1635,7 @@ void test_block_arg() {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_block_blockvar</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>5</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>5</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>78</integer>
@@ -1884,7 +1884,7 @@ void test_block_arg() {
 // CHECK-NEXT:    <key>type</key><string>Dereference of null pointer</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_block_arg</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>5</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>5</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>86</integer>

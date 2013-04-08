@@ -117,7 +117,7 @@ void test1(A *a, BOOL b, struct UnsafeS *unsafeS) {
 }
 
 struct S {
-  A* a; // expected-error {{ARC forbids Objective-C objects in structs or unions}}
+  A* a; // expected-error {{ARC forbids Objective-C objects in struct}}
 };
 
 @interface B
@@ -178,13 +178,13 @@ void test12(id collection) {
 }
 
 void test6(unsigned cond) {
-  // FIXME: Fix this automatically ?
   switch (cond) {
   case 0:
     ;
     id x; // expected-note {{jump bypasses initialization of retaining variable}}
 
   case 1: // expected-error {{switch case is in protected scope}}
+    x = 0;
     break;
   }
 }
@@ -293,10 +293,10 @@ id test9(Test9 *v) {
 void rdar9491791(int p) {
   switch (p) {
   case 3:;
-    NSObject *o = [[NSObject alloc] init]; // expected-note {{jump bypasses initialization of retaining variable}}
+    NSObject *o = [[NSObject alloc] init];
     [o release];
     break;
-  default: // expected-error {{switch case is in protected scope}}
+  default:
     break;
   }
 }

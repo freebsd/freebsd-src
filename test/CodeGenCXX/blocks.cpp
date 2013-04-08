@@ -120,9 +120,11 @@ namespace test4 {
   }
   // CHECK: define void @_ZN5test44testEv()
   // CHECK: define internal void @___ZN5test44testEv_block_invoke
-  // CHECK:      [[TMP:%.*]] = alloca [[A:%.*]], align 1
-  // CHECK-NEXT: bitcast i8*
-  // CHECK-NEXT: call void @_ZN5test41AC1Ev([[A]]* [[TMP]])
+  // CHECK: [[TMP:%.*]] = alloca [[A:%.*]], align 1
+  // CHECK-NEXT: store i8* [[BLOCKDESC:%.*]], i8** {{.*}}, align 8
+  // CHECK-NEXT: load i8*
+  // CHECK-NEXT: bitcast i8* [[BLOCKDESC]] to <{ i8*, i32, i32, i8*, %struct.__block_descriptor* }>*
+  // CHECK:      call void @_ZN5test41AC1Ev([[A]]* [[TMP]])
   // CHECK-NEXT: call void @_ZN5test43fooENS_1AE([[A]]* [[TMP]])
   // CHECK-NEXT: call void @_ZN5test41AD1Ev([[A]]* [[TMP]])
   // CHECK-NEXT: ret void
@@ -225,4 +227,29 @@ namespace test8 {
   };
 
   template int X::foo<int>();
+}
+
+// rdar://13459289
+namespace test9 {
+  struct B {
+    void *p;
+    B();
+    B(const B&);
+    ~B();
+  };
+
+  void use_block(void (^)());
+  void use_block_2(void (^)(), const B &a);
+
+  // Ensuring that creating a non-trivial capture copy expression
+  // doesn't end up stealing the block registration for the block we
+  // just parsed.  That block must have captures or else it won't
+  // force registration.  Must occur within a block for some reason.
+  void test() {
+    B x;
+    use_block(^{
+        int y;
+        use_block_2(^{ (void)y; }, x);
+    });
+  }
 }

@@ -1,28 +1,38 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -fmodules -I %S/Inputs -fmodule-cache-path %t %s -verify
+// RUN: %clang_cc1 -fmodules -fobjc-arc -I %S/Inputs -fmodules-cache-path=%t %s -verify
 
 
-// in other file: expected-note{{previous definition is here}}
+// In other file: expected-note {{previous definition is here}}
 
+@class Def;
+Def *def;
+class Def2;
+Def2 *def2;
 
+@interface Unrelated
+- defMethod;
+@end
 
-
-
-// in other file: expected-note{{previous definition is here}}
-
-@__experimental_modules_import decldef;
+@import decldef;
 A *a1; // expected-error{{unknown type name 'A'}}
 B *b1; // expected-error{{unknown type name 'B'}}
-@__experimental_modules_import decldef.Decl;
+@import decldef.Decl;
 
 A *a2;
 B *b;
 
 void testA(A *a) {
-  a->ivar = 17; // expected-error{{definition of 'A' must be imported before it is required}}
+  a->ivar = 17; // expected-error{{definition of 'A' must be imported from module 'decldef.Def' before it is required}}
 }
 
 void testB() {
-  B b; // expected-error{{definition of 'B' must be imported before it is required}}
-  B b2; // Note: the reundant error was silenced.
+  B b; // Note: redundant error silenced
+}
+
+void testDef() {
+  [def defMethod];
+}
+
+void testDef2() {
+  def2->func();
 }

@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/CheckerManager.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/Basic/PrettyStackTrace.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 
 using namespace clang;
 using namespace ento;
@@ -30,23 +30,90 @@ void ExprEngine::CreateCXXTemporaryObject(const MaterializeTemporaryExpr *ME,
   ProgramStateRef state = Pred->getState();
   const LocationContext *LCtx = Pred->getLocationContext();
 
-  // Bind the temporary object to the value of the expression. Then bind
-  // the expression to the location of the object.
   SVal V = state->getSVal(tempExpr, LCtx);
 
   // If the value is already a CXXTempObjectRegion, it is fine as it is.
   // Otherwise, create a new CXXTempObjectRegion, and copy the value into it.
+  // This is an optimization for when an rvalue is constructed and then
+  // immediately materialized.
   const MemRegion *MR = V.getAsRegion();
-  if (!MR || !isa<CXXTempObjectRegion>(MR)) {
-    const MemRegion *R =
-      svalBuilder.getRegionManager().getCXXTempObjectRegion(ME, LCtx);
-
-    SVal L = loc::MemRegionVal(R);
-    state = state->bindLoc(L, V);
-    V = L;
+  if (const CXXTempObjectRegion *TR =
+        dyn_cast_or_null<CXXTempObjectRegion>(MR)) {
+    if (getContext().hasSameUnqualifiedType(TR->getValueType(), ME->getType()))
+      state = state->BindExpr(ME, LCtx, V);
   }
 
-  Bldr.generateNode(ME, Pred, state->BindExpr(ME, LCtx, V));
+  if (state == Pred->getState())
+    state = createTemporaryRegionIfNeeded(state, LCtx, tempExpr, ME);
+  Bldr.generateNode(ME, Pred, state);
+}
+
+// FIXME: This is the sort of code that should eventually live in a Core
+// checker rather than as a special case in ExprEngine.
+void ExprEngine::performTrivialCopy(NodeBuilder &Bldr, ExplodedNode *Pred,
+                                    const CallEvent &Call) {
+  SVal ThisVal;
+  bool AlwaysReturnsLValue;
+  if (const CXXConstructorCall *Ctor = dyn_cast<CXXConstructorCall>(&Call)) {
+    assert(Ctor->getDecl()->isTrivial());
+    assert(Ctor->getDecl()->isCopyOrMoveConstructor());
+    ThisVal = Ctor->getCXXThisVal();
+    AlwaysReturnsLValue = false;
+  } else {
+    assert(cast<CXXMethodDecl>(Call.getDecl())->isTrivial());
+    assert(cast<CXXMethodDecl>(Call.getDecl())->getOverloadedOperator() ==
+           OO_Equal);
+    ThisVal = cast<CXXInstanceCall>(Call).getCXXThisVal();
+    AlwaysReturnsLValue = true;
+  }
+
+  const LocationContext *LCtx = Pred->getLocationContext();
+
+  ExplodedNodeSet Dst;
+  Bldr.takeNodes(Pred);
+
+  SVal V = Call.getArgSVal(0);
+
+  // If the value being copied is not unknown, load from its location to get
+  // an aggregate rvalue.
+  if (Optional<Loc> L = V.getAs<Loc>())
+    V = Pred->getState()->getSVal(*L);
+  else
+    assert(V.isUnknown());
+
+  const Expr *CallExpr = Call.getOriginExpr();
+  evalBind(Dst, CallExpr, Pred, ThisVal, V, true);
+
+  PostStmt PS(CallExpr, LCtx);
+  for (ExplodedNodeSet::iterator I = Dst.begin(), E = Dst.end();
+       I != E; ++I) {
+    ProgramStateRef State = (*I)->getState();
+    if (AlwaysReturnsLValue)
+      State = State->BindExpr(CallExpr, LCtx, ThisVal);
+    else
+      State = bindReturnValue(Call, LCtx, State);
+    Bldr.generateNode(PS, State, *I);
+  }
+}
+
+
+/// Returns a region representing the first element of a (possibly
+/// multi-dimensional) array.
+///
+/// On return, \p Ty will be set to the base type of the array.
+///
+/// If the type is not an array type at all, the original value is returned.
+static SVal makeZeroElementRegion(ProgramStateRef State, SVal LValue,
+                                  QualType &Ty) {
+  SValBuilder &SVB = State->getStateManager().getSValBuilder();
+  ASTContext &Ctx = SVB.getContext();
+
+  while (const ArrayType *AT = Ctx.getAsArrayType(Ty)) {
+    Ty = AT->getElementType();
+    LValue = State->getLValue(Ty, SVB.makeZeroArrayIndex(), LValue);
+  }
+
+  return LValue;
 }
 
 void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
@@ -57,6 +124,10 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
 
   const MemRegion *Target = 0;
 
+  // FIXME: Handle arrays, which run the same constructor for every element.
+  // For now, we just run the first constructor (which should still invalidate
+  // the entire array).
+
   switch (CE->getConstructionKind()) {
   case CXXConstructExpr::CK_Complete: {
     // See if we're constructing an existing region by looking at the next
@@ -66,29 +137,21 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
       CFGElement Next = (*B)[currStmtIdx+1];
 
       // Is this a constructor for a local variable?
-      if (const CFGStmt *StmtElem = dyn_cast<CFGStmt>(&Next)) {
+      if (Optional<CFGStmt> StmtElem = Next.getAs<CFGStmt>()) {
         if (const DeclStmt *DS = dyn_cast<DeclStmt>(StmtElem->getStmt())) {
           if (const VarDecl *Var = dyn_cast<VarDecl>(DS->getSingleDecl())) {
             if (Var->getInit()->IgnoreImplicit() == CE) {
+              SVal LValue = State->getLValue(Var, LCtx);
               QualType Ty = Var->getType();
-              if (const ArrayType *AT = getContext().getAsArrayType(Ty)) {
-                // FIXME: Handle arrays, which run the same constructor for
-                // every element. This workaround will just run the first
-                // constructor (which should still invalidate the entire array).
-                SVal Base = State->getLValue(Var, LCtx);
-                Target = State->getLValue(AT->getElementType(),
-                                          getSValBuilder().makeZeroArrayIndex(),
-                                          Base).getAsRegion();
-              } else {
-                Target = State->getLValue(Var, LCtx).getAsRegion();
-              }
+              LValue = makeZeroElementRegion(State, LValue, Ty);
+              Target = LValue.getAsRegion();
             }
           }
         }
       }
       
       // Is this a constructor for a member?
-      if (const CFGInitializer *InitElem = dyn_cast<CFGInitializer>(&Next)) {
+      if (Optional<CFGInitializer> InitElem = Next.getAs<CFGInitializer>()) {
         const CXXCtorInitializer *Init = InitElem->getInitializer();
         assert(Init->isAnyMemberInitializer());
 
@@ -97,13 +160,19 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
                                                   LCtx->getCurrentStackFrame());
         SVal ThisVal = State->getSVal(ThisPtr);
 
+        const ValueDecl *Field;
+        SVal FieldVal;
         if (Init->isIndirectMemberInitializer()) {
-          SVal Field = State->getLValue(Init->getIndirectMember(), ThisVal);
-          Target = Field.getAsRegion();
+          Field = Init->getIndirectMember();
+          FieldVal = State->getLValue(Init->getIndirectMember(), ThisVal);
         } else {
-          SVal Field = State->getLValue(Init->getMember(), ThisVal);
-          Target = Field.getAsRegion();
+          Field = Init->getMember();
+          FieldVal = State->getLValue(Init->getMember(), ThisVal);
         }
+
+        QualType Ty = Field->getType();
+        FieldVal = makeZeroElementRegion(State, FieldVal, Ty);
+        Target = FieldVal.getAsRegion();
       }
 
       // FIXME: This will eventually need to handle new-expressions as well.
@@ -130,8 +199,10 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
       Target = ThisVal.getAsRegion();
     } else {
       // Cast to the base type.
-      QualType BaseTy = CE->getType();
-      SVal BaseVal = getStoreManager().evalDerivedToBase(ThisVal, BaseTy);
+      bool IsVirtual =
+        (CE->getConstructionKind() == CXXConstructExpr::CK_VirtualBase);
+      SVal BaseVal = getStoreManager().evalDerivedToBase(ThisVal, CE->getType(),
+                                                         IsVirtual);
       Target = BaseVal.getAsRegion();
     }
     break;
@@ -148,14 +219,26 @@ void ExprEngine::VisitCXXConstructExpr(const CXXConstructExpr *CE,
   getCheckerManager().runCheckersForPreCall(DstPreCall, DstPreVisit,
                                             *Call, *this);
 
-  ExplodedNodeSet DstInvalidated;
-  StmtNodeBuilder Bldr(DstPreCall, DstInvalidated, *currBldrCtx);
-  for (ExplodedNodeSet::iterator I = DstPreCall.begin(), E = DstPreCall.end();
-       I != E; ++I)
-    defaultEvalCall(Bldr, *I, *Call);
+  ExplodedNodeSet DstEvaluated;
+  StmtNodeBuilder Bldr(DstPreCall, DstEvaluated, *currBldrCtx);
+
+  bool IsArray = isa<ElementRegion>(Target);
+  if (CE->getConstructor()->isTrivial() &&
+      CE->getConstructor()->isCopyOrMoveConstructor() &&
+      !IsArray) {
+    // FIXME: Handle other kinds of trivial constructors as well.
+    for (ExplodedNodeSet::iterator I = DstPreCall.begin(), E = DstPreCall.end();
+         I != E; ++I)
+      performTrivialCopy(Bldr, *I, *Call);
+
+  } else {
+    for (ExplodedNodeSet::iterator I = DstPreCall.begin(), E = DstPreCall.end();
+         I != E; ++I)
+      defaultEvalCall(Bldr, *I, *Call);
+  }
 
   ExplodedNodeSet DstPostCall;
-  getCheckerManager().runCheckersForPostCall(DstPostCall, DstInvalidated,
+  getCheckerManager().runCheckersForPostCall(DstPostCall, DstEvaluated,
                                              *Call, *this);
   getCheckerManager().runCheckersForPostStmt(destNodes, DstPostCall, CE, *this);
 }
@@ -172,11 +255,9 @@ void ExprEngine::VisitCXXDestructor(QualType ObjectType,
   // FIXME: We need to run the same destructor on every element of the array.
   // This workaround will just run the first destructor (which will still
   // invalidate the entire array).
-  if (const ArrayType *AT = getContext().getAsArrayType(ObjectType)) {
-    ObjectType = AT->getElementType();
-    Dest = State->getLValue(ObjectType, getSValBuilder().makeZeroArrayIndex(),
-                            loc::MemRegionVal(Dest)).getAsRegion();
-  }
+  SVal DestVal = loc::MemRegionVal(Dest);
+  DestVal = makeZeroElementRegion(State, DestVal, ObjectType);
+  Dest = DestVal.getAsRegion();
 
   const CXXRecordDecl *RecordDecl = ObjectType->getAsCXXRecordDecl();
   assert(RecordDecl && "Only CXXRecordDecls should have destructors");
@@ -211,15 +292,35 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   // Also, we need to decide how allocators actually work -- they're not
   // really part of the CXXNewExpr because they happen BEFORE the
   // CXXConstructExpr subexpression. See PR12014 for some discussion.
-  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   
   unsigned blockCount = currBldrCtx->blockCount();
   const LocationContext *LCtx = Pred->getLocationContext();
-  DefinedOrUnknownSVal symVal = svalBuilder.conjureSymbolVal(0, CNE, LCtx,
-                                                             CNE->getType(),
-                                                             blockCount);
-  ProgramStateRef State = Pred->getState();
+  DefinedOrUnknownSVal symVal = UnknownVal();
+  FunctionDecl *FD = CNE->getOperatorNew();
 
+  bool IsStandardGlobalOpNewFunction = false;
+  if (FD && !isa<CXXMethodDecl>(FD) && !FD->isVariadic()) {
+    if (FD->getNumParams() == 2) {
+      QualType T = FD->getParamDecl(1)->getType();
+      if (const IdentifierInfo *II = T.getBaseTypeIdentifier())
+        // NoThrow placement new behaves as a standard new.
+        IsStandardGlobalOpNewFunction = II->getName().equals("nothrow_t");
+    }
+    else
+      // Placement forms are considered non-standard.
+      IsStandardGlobalOpNewFunction = (FD->getNumParams() == 1);
+  }
+
+  // We assume all standard global 'operator new' functions allocate memory in 
+  // heap. We realize this is an approximation that might not correctly model 
+  // a custom global allocator.
+  if (IsStandardGlobalOpNewFunction)
+    symVal = svalBuilder.getConjuredHeapSymbolVal(CNE, LCtx, blockCount);
+  else
+    symVal = svalBuilder.conjureSymbolVal(0, CNE, LCtx, CNE->getType(), 
+                                          blockCount);
+
+  ProgramStateRef State = Pred->getState();
   CallEventManager &CEMgr = getStateManager().getCallEventManager();
   CallEventRef<CXXAllocatorCall> Call =
     CEMgr.getCXXAllocatorCall(CNE, State, LCtx);
@@ -228,12 +329,13 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   // FIXME: Once we figure out how we want allocators to work,
   // we should be using the usual pre-/(default-)eval-/post-call checks here.
   State = Call->invalidateRegions(blockCount);
+  if (!State)
+    return;
 
   // If we're compiling with exceptions enabled, and this allocation function
   // is not declared as non-throwing, failures /must/ be signalled by
   // exceptions, and thus the return value will never be NULL.
   // C++11 [basic.stc.dynamic.allocation]p3.
-  FunctionDecl *FD = CNE->getOperatorNew();
   if (FD && getContext().getLangOpts().CXXExceptions) {
     QualType Ty = FD->getType();
     if (const FunctionProtoType *ProtoType = Ty->getAs<FunctionProtoType>())
@@ -241,10 +343,12 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
         State = State->assume(symVal, true);
   }
 
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
+
   if (CNE->isArray()) {
     // FIXME: allocating an array requires simulating the constructors.
     // For now, just return a symbolicated region.
-    const MemRegion *NewReg = cast<loc::MemRegionVal>(symVal).getRegion();
+    const MemRegion *NewReg = symVal.castAs<loc::MemRegionVal>().getRegion();
     QualType ObjTy = CNE->getType()->getAs<PointerType>()->getPointeeType();
     const ElementRegion *EleReg =
       getStoreManager().GetElementZeroRegion(NewReg, ObjTy);
@@ -258,30 +362,32 @@ void ExprEngine::VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
   // CXXNewExpr, we need to make sure that the constructed object is not
   // immediately invalidated here. (The placement call should happen before
   // the constructor call anyway.)
+  SVal Result = symVal;
   if (FD && FD->isReservedGlobalPlacementOperator()) {
     // Non-array placement new should always return the placement location.
     SVal PlacementLoc = State->getSVal(CNE->getPlacementArg(0), LCtx);
-    SVal Result = svalBuilder.evalCast(PlacementLoc, CNE->getType(),
-                                       CNE->getPlacementArg(0)->getType());
-    State = State->BindExpr(CNE, LCtx, Result);
-  } else {
-    State = State->BindExpr(CNE, LCtx, symVal);
+    Result = svalBuilder.evalCast(PlacementLoc, CNE->getType(),
+                                  CNE->getPlacementArg(0)->getType());
   }
+
+  // Bind the address of the object, then check to see if we cached out.
+  State = State->BindExpr(CNE, LCtx, Result);
+  ExplodedNode *NewN = Bldr.generateNode(CNE, Pred, State);
+  if (!NewN)
+    return;
 
   // If the type is not a record, we won't have a CXXConstructExpr as an
   // initializer. Copy the value over.
   if (const Expr *Init = CNE->getInitializer()) {
     if (!isa<CXXConstructExpr>(Init)) {
-      QualType ObjTy = CNE->getType()->getAs<PointerType>()->getPointeeType();
-      (void)ObjTy;
-      assert(!ObjTy->isRecordType());
-      SVal Location = State->getSVal(CNE, LCtx);
-      if (isa<Loc>(Location))
-        State = State->bindLoc(cast<Loc>(Location), State->getSVal(Init, LCtx));
+      assert(Bldr.getResults().size() == 1);
+      Bldr.takeNodes(NewN);
+
+      assert(!CNE->getType()->getPointeeCXXRecordDecl());
+      evalBind(Dst, CNE, NewN, Result, State->getSVal(Init, LCtx),
+               /*FirstInit=*/IsStandardGlobalOpNewFunction);
     }
   }
-
-  Bldr.generateNode(CNE, Pred, State);
 }
 
 void ExprEngine::VisitCXXDeleteExpr(const CXXDeleteExpr *CDE, 

@@ -15,21 +15,23 @@
 #ifndef LLVM_CLANG_AST_ASTCONTEXT_H
 #define LLVM_CLANG_AST_ASTCONTEXT_H
 
+#include "clang/AST/ASTTypeTraits.h"
+#include "clang/AST/CanonicalType.h"
+#include "clang/AST/CommentCommandTraits.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/LambdaMangleContext.h"
+#include "clang/AST/NestedNameSpecifier.h"
+#include "clang/AST/PrettyPrinter.h"
+#include "clang/AST/RawCommentList.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/TemplateName.h"
+#include "clang/AST/Type.h"
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/VersionTuple.h"
-#include "clang/AST/Decl.h"
-#include "clang/AST/LambdaMangleContext.h"
-#include "clang/AST/NestedNameSpecifier.h"
-#include "clang/AST/PrettyPrinter.h"
-#include "clang/AST/TemplateName.h"
-#include "clang/AST/Type.h"
-#include "clang/AST/CanonicalType.h"
-#include "clang/AST/RawCommentList.h"
-#include "clang/AST/CommentCommandTraits.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -57,28 +59,12 @@ namespace clang {
   class TargetInfo;
   class CXXABI;
   // Decls
-  class DeclContext;
-  class CXXConversionDecl;
-  class CXXMethodDecl;
-  class CXXRecordDecl;
-  class Decl;
-  class FieldDecl;
   class MangleContext;
   class ObjCIvarDecl;
-  class ObjCIvarRefExpr;
   class ObjCPropertyDecl;
-  class ParmVarDecl;
-  class RecordDecl;
-  class StoredDeclsMap;
-  class TagDecl;
-  class TemplateTemplateParmDecl;
-  class TemplateTypeParmDecl;
-  class TranslationUnitDecl;
-  class TypeDecl;
-  class TypedefNameDecl;
+  class UnresolvedSetIterator;
   class UsingDecl;
   class UsingShadowDecl;
-  class UnresolvedSetIterator;
 
   namespace Builtin { class Context; }
 
@@ -91,7 +77,7 @@ namespace clang {
 class ASTContext : public RefCountedBase<ASTContext> {
   ASTContext &this_() { return *this; }
 
-  mutable std::vector<Type*> Types;
+  mutable SmallVector<Type *, 0> Types;
   mutable llvm::FoldingSet<ExtQuals> ExtQualNodes;
   mutable llvm::FoldingSet<ComplexType> ComplexTypes;
   mutable llvm::FoldingSet<PointerType> PointerTypes;
@@ -233,6 +219,8 @@ class ASTContext : public RefCountedBase<ASTContext> {
   QualType ObjCConstantStringType;
   mutable RecordDecl *CFConstantStringTypeDecl;
   
+  mutable QualType ObjCSuperType;
+  
   QualType ObjCNSStringType;
 
   /// \brief The typedef declaration for the Objective-C "instancetype" type.
@@ -343,7 +331,10 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// \brief Mapping from each declaration context to its corresponding lambda 
   /// mangling context.
   llvm::DenseMap<const DeclContext *, LambdaMangleContext> LambdaMangleContexts;
-  
+
+  llvm::DenseMap<const DeclContext *, unsigned> UnnamedMangleContexts;
+  llvm::DenseMap<const TagDecl *, unsigned> UnnamedMangleNumbers;
+
   /// \brief Mapping that stores parameterIndex values for ParmVarDecls when
   /// that value exceeds the bitfield size of ParmVarDeclBits.ParameterIndex.
   typedef llvm::DenseMap<const VarDecl *, unsigned> ParameterIndexTable;
@@ -392,6 +383,58 @@ public:
   mutable DeclarationNameTable DeclarationNames;
   OwningPtr<ExternalASTSource> ExternalSource;
   ASTMutationListener *Listener;
+
+  /// \brief Contains parents of a node.
+  typedef llvm::SmallVector<ast_type_traits::DynTypedNode, 1> ParentVector;
+
+  /// \brief Maps from a node to its parents.
+  typedef llvm::DenseMap<const void *, ParentVector> ParentMap;
+
+  /// \brief Returns the parents of the given node.
+  ///
+  /// Note that this will lazily compute the parents of all nodes
+  /// and store them for later retrieval. Thus, the first call is O(n)
+  /// in the number of AST nodes.
+  ///
+  /// Caveats and FIXMEs:
+  /// Calculating the parent map over all AST nodes will need to load the
+  /// full AST. This can be undesirable in the case where the full AST is
+  /// expensive to create (for example, when using precompiled header
+  /// preambles). Thus, there are good opportunities for optimization here.
+  /// One idea is to walk the given node downwards, looking for references
+  /// to declaration contexts - once a declaration context is found, compute
+  /// the parent map for the declaration context; if that can satisfy the
+  /// request, loading the whole AST can be avoided. Note that this is made
+  /// more complex by statements in templates having multiple parents - those
+  /// problems can be solved by building closure over the templated parts of
+  /// the AST, which also avoids touching large parts of the AST.
+  /// Additionally, we will want to add an interface to already give a hint
+  /// where to search for the parents, for example when looking at a statement
+  /// inside a certain function.
+  ///
+  /// 'NodeT' can be one of Decl, Stmt, Type, TypeLoc,
+  /// NestedNameSpecifier or NestedNameSpecifierLoc.
+  template <typename NodeT>
+  ParentVector getParents(const NodeT &Node) {
+    return getParents(ast_type_traits::DynTypedNode::create(Node));
+  }
+
+  ParentVector getParents(const ast_type_traits::DynTypedNode &Node) {
+    assert(Node.getMemoizationData() &&
+           "Invariant broken: only nodes that support memoization may be "
+           "used in the parent map.");
+    if (!AllParents) {
+      // We always need to run over the whole translation unit, as
+      // hasAncestor can escape any subtree.
+      AllParents.reset(
+          ParentMapASTVisitor::buildMap(*getTranslationUnitDecl()));
+    }
+    ParentMap::const_iterator I = AllParents->find(Node.getMemoizationData());
+    if (I == AllParents->end()) {
+      return ParentVector();
+    }
+    return I->second;
+  }
 
   const clang::PrintingPolicy &getPrintingPolicy() const {
     return PrintingPolicy;
@@ -713,6 +756,10 @@ public:
   CanQualType PseudoObjectTy, ARCUnbridgedCastTy;
   CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy, ObjCBuiltinSelTy;
   CanQualType ObjCBuiltinBoolTy;
+  CanQualType OCLImage1dTy, OCLImage1dArrayTy, OCLImage1dBufferTy;
+  CanQualType OCLImage2dTy, OCLImage2dArrayTy;
+  CanQualType OCLImage3dTy;
+  CanQualType OCLSamplerTy, OCLEventTy;
 
   // Types for deductions in C++0x [stmt.ranged]'s desugaring. Built on demand.
   mutable QualType AutoDeductTy;     // Deduction against 'auto'.
@@ -755,7 +802,7 @@ public:
   ASTMutationListener *getASTMutationListener() const { return Listener; }
 
   void PrintStats() const;
-  const std::vector<Type*>& getTypes() const { return Types; }
+  const SmallVectorImpl<Type *>& getTypes() const { return Types; }
 
   /// \brief Retrieve the declaration for the 128-bit signed integer type.
   TypedefDecl *getInt128Decl() const;
@@ -857,12 +904,17 @@ public:
     return cudaConfigureCallDecl;
   }
 
-  /// Builds the struct used for __block variables.
-  QualType BuildByRefType(StringRef DeclName, QualType Ty) const;
-
   /// Returns true iff we need copy/dispose helpers for the given type.
-  bool BlockRequiresCopying(QualType Ty) const;
-
+  bool BlockRequiresCopying(QualType Ty, const VarDecl *D);
+  
+  
+  /// Returns true, if given type has a known lifetime. HasByrefExtendedLayout is set
+  /// to false in this case. If HasByrefExtendedLayout returns true, byref variable
+  /// has extended lifetime. 
+  bool getByrefLifetime(QualType Ty,
+                        Qualifiers::ObjCLifetime &Lifetime,
+                        bool &HasByrefExtendedLayout) const;
+  
   /// \brief Return the uniqued reference to the type for an lvalue reference
   /// to the specified type.
   QualType getLValueReferenceType(QualType T, bool SpelledAsLValue = true)
@@ -941,8 +993,7 @@ public:
   }
 
   /// \brief Return a normal function type with a typed argument list.
-  QualType getFunctionType(QualType ResultTy,
-                           const QualType *Args, unsigned NumArgs,
+  QualType getFunctionType(QualType ResultTy, ArrayRef<QualType> Args,
                            const FunctionProtoType::ExtProtoInfo &EPI) const;
 
   /// \brief Return the unique reference to the type for the specified type
@@ -1025,7 +1076,7 @@ public:
                                             const TemplateArgument *Args) const;
 
   QualType getPackExpansionType(QualType Pattern,
-                                llvm::Optional<unsigned> NumExpansions);
+                                Optional<unsigned> NumExpansions);
 
   QualType getObjCInterfaceType(const ObjCInterfaceDecl *Decl,
                                 ObjCInterfaceDecl *PrevDecl = 0) const;
@@ -1094,6 +1145,14 @@ public:
   /// defined in <stddef.h> as defined by the target.
   QualType getWIntType() const { return WIntTy; }
 
+  /// \brief Return a type compatible with "intptr_t" (C99 7.18.1.4),
+  /// as defined by the target.
+  QualType getIntPtrType() const;
+
+  /// \brief Return a type compatible with "uintptr_t" (C99 7.18.1.4),
+  /// as defined by the target.
+  QualType getUIntPtrType() const;
+
   /// \brief Return the unique type for "ptrdiff_t" (C99 7.17) defined in
   /// <stddef.h>. Pointer - pointer requires this (C99 6.5.6p9).
   QualType getPointerDiffType() const;
@@ -1104,7 +1163,11 @@ public:
 
   /// \brief Return the C structure type used to represent constant CFStrings.
   QualType getCFConstantStringType() const;
-
+  
+  /// \brief Returns the C struct type for objc_super
+  QualType getObjCSuperType() const;
+  void setObjCSuperType(QualType ST) { ObjCSuperType = ST; }
+  
   /// Get the structure type used to representation CFStrings, or NULL
   /// if it hasn't yet been built.
   QualType getRawCFConstantStringType() const {
@@ -1545,14 +1608,27 @@ public:
   const ASTRecordLayout &
   getASTObjCImplementationLayout(const ObjCImplementationDecl *D) const;
 
-  /// \brief Get the key function for the given record decl, or NULL if there
-  /// isn't one.
+  /// \brief Get our current best idea for the key function of the
+  /// given record decl, or NULL if there isn't one.
   ///
   /// The key function is, according to the Itanium C++ ABI section 5.2.3:
+  ///   ...the first non-pure virtual function that is not inline at the
+  ///   point of class definition.
   ///
-  /// ...the first non-pure virtual function that is not inline at the point
-  /// of class definition.
-  const CXXMethodDecl *getKeyFunction(const CXXRecordDecl *RD);
+  /// Other ABIs use the same idea.  However, the ARM C++ ABI ignores
+  /// virtual functions that are defined 'inline', which means that
+  /// the result of this computation can change.
+  const CXXMethodDecl *getCurrentKeyFunction(const CXXRecordDecl *RD);
+
+  /// \brief Observe that the given method cannot be a key function.
+  /// Checks the key-function cache for the method's class and clears it
+  /// if matches the given declaration.
+  ///
+  /// This is used in ABIs where out-of-line definitions marked
+  /// inline are not considered to be key functions.
+  ///
+  /// \param method should be the declaration from the class definition
+  void setNonKeyFunction(const CXXMethodDecl *method);
 
   /// Get the offset of a FieldDecl or IndirectFieldDecl, in bits.
   uint64_t getFieldOffset(const ValueDecl *FD) const;
@@ -1885,8 +1961,8 @@ public:
   //                    Type Iterators.
   //===--------------------------------------------------------------------===//
 
-  typedef std::vector<Type*>::iterator       type_iterator;
-  typedef std::vector<Type*>::const_iterator const_type_iterator;
+  typedef SmallVectorImpl<Type *>::iterator       type_iterator;
+  typedef SmallVectorImpl<Type *>::const_iterator const_type_iterator;
 
   type_iterator types_begin() { return Types.begin(); }
   type_iterator types_end() { return Types.end(); }
@@ -1943,7 +2019,7 @@ public:
   /// \brief Returns the Objective-C interface that \p ND belongs to if it is
   /// an Objective-C method/property/ivar etc. that is part of an interface,
   /// otherwise returns null.
-  ObjCInterfaceDecl *getObjContainingInterface(NamedDecl *ND) const;
+  const ObjCInterfaceDecl *getObjContainingInterface(const NamedDecl *ND) const;
   
   /// \brief Set the copy inialization expression of a block var decl.
   void setBlockVarCopyInits(VarDecl*VD, Expr* Init);
@@ -1992,6 +2068,9 @@ public:
   /// \returns true if the function/var must be CodeGen'ed/deserialized even if
   /// it is not used.
   bool DeclMustBeEmitted(const Decl *D);
+
+  void addUnnamedTag(const TagDecl *Tag);
+  int getUnnamedTagManglingNumber(const TagDecl *Tag) const;
 
   /// \brief Retrieve the lambda mangling number for a lambda expression.
   unsigned getLambdaManglingNumber(CXXMethodDecl *CallOperator);
@@ -2077,7 +2156,8 @@ private:
                                   bool EncodingProperty = false,
                                   bool StructField = false,
                                   bool EncodeBlockParameters = false,
-                                  bool EncodeClassNames = false) const;
+                                  bool EncodeClassNames = false,
+                                  bool EncodePointerToObjCTypedef = false) const;
 
   // Adds the encoding of the structure's members.
   void getObjCEncodingForStructureImpl(RecordDecl *RD, std::string &S,
@@ -2109,8 +2189,81 @@ private:
   friend class DeclContext;
   friend class DeclarationNameTable;
   void ReleaseDeclContextMaps();
+
+  /// \brief A \c RecursiveASTVisitor that builds a map from nodes to their
+  /// parents as defined by the \c RecursiveASTVisitor.
+  ///
+  /// Note that the relationship described here is purely in terms of AST
+  /// traversal - there are other relationships (for example declaration context)
+  /// in the AST that are better modeled by special matchers.
+  ///
+  /// FIXME: Currently only builds up the map using \c Stmt and \c Decl nodes.
+  class ParentMapASTVisitor : public RecursiveASTVisitor<ParentMapASTVisitor> {
+  public:
+    /// \brief Builds and returns the translation unit's parent map.
+    ///
+    ///  The caller takes ownership of the returned \c ParentMap.
+    static ParentMap *buildMap(TranslationUnitDecl &TU) {
+      ParentMapASTVisitor Visitor(new ParentMap);
+      Visitor.TraverseDecl(&TU);
+      return Visitor.Parents;
+    }
+
+  private:
+    typedef RecursiveASTVisitor<ParentMapASTVisitor> VisitorBase;
+
+    ParentMapASTVisitor(ParentMap *Parents) : Parents(Parents) {
+    }
+
+    bool shouldVisitTemplateInstantiations() const {
+      return true;
+    }
+    bool shouldVisitImplicitCode() const {
+      return true;
+    }
+    // Disables data recursion. We intercept Traverse* methods in the RAV, which
+    // are not triggered during data recursion.
+    bool shouldUseDataRecursionFor(clang::Stmt *S) const {
+      return false;
+    }
+
+    template <typename T>
+    bool TraverseNode(T *Node, bool(VisitorBase:: *traverse) (T *)) {
+      if (Node == NULL)
+        return true;
+      if (ParentStack.size() > 0)
+        // FIXME: Currently we add the same parent multiple times, for example
+        // when we visit all subexpressions of template instantiations; this is
+        // suboptimal, bug benign: the only way to visit those is with
+        // hasAncestor / hasParent, and those do not create new matches.
+        // The plan is to enable DynTypedNode to be storable in a map or hash
+        // map. The main problem there is to implement hash functions /
+        // comparison operators for all types that DynTypedNode supports that
+        // do not have pointer identity.
+        (*Parents)[Node].push_back(ParentStack.back());
+      ParentStack.push_back(ast_type_traits::DynTypedNode::create(*Node));
+      bool Result = (this ->* traverse) (Node);
+      ParentStack.pop_back();
+      return Result;
+    }
+
+    bool TraverseDecl(Decl *DeclNode) {
+      return TraverseNode(DeclNode, &VisitorBase::TraverseDecl);
+    }
+
+    bool TraverseStmt(Stmt *StmtNode) {
+      return TraverseNode(StmtNode, &VisitorBase::TraverseStmt);
+    }
+
+    ParentMap *Parents;
+    llvm::SmallVector<ast_type_traits::DynTypedNode, 16> ParentStack;
+
+    friend class RecursiveASTVisitor<ParentMapASTVisitor>;
+  };
+
+  llvm::OwningPtr<ParentMap> AllParents;
 };
-  
+
 /// \brief Utility function for constructing a nullary selector.
 static inline Selector GetNullarySelector(StringRef name, ASTContext& Ctx) {
   IdentifierInfo* II = &Ctx.Idents.get(name);
@@ -2132,8 +2285,8 @@ static inline Selector GetUnarySelector(StringRef name, ASTContext& Ctx) {
 /// This placement form of operator new uses the ASTContext's allocator for
 /// obtaining memory.
 ///
-/// IMPORTANT: These are also declared in clang/AST/Attr.h! Any changes here
-/// need to also be made there.
+/// IMPORTANT: These are also declared in clang/AST/AttrIterator.h! Any changes
+/// here need to also be made there.
 ///
 /// We intentionally avoid using a nothrow specification here so that the calls
 /// to this operator will not perform a null check on the result -- the

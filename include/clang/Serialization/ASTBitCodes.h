@@ -18,9 +18,9 @@
 #define LLVM_CLANG_FRONTEND_PCHBITCODES_H
 
 #include "clang/AST/Type.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/Bitcode/BitCodes.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/ADT/DenseMap.h"
 
 namespace clang {
   namespace serialization {
@@ -35,7 +35,7 @@ namespace clang {
     /// Version 4 of AST files also requires that the version control branch and
     /// revision match exactly, since there is no backward compatibility of
     /// AST files at this time.
-    const unsigned VERSION_MAJOR = 4;
+    const unsigned VERSION_MAJOR = 5;
 
     /// \brief AST file minor version number supported by this version of
     /// Clang.
@@ -129,7 +129,14 @@ namespace clang {
 
     /// \brief An ID number that refers to a macro in an AST file.
     typedef uint32_t MacroID;
-    
+
+    /// \brief A global ID number that refers to a macro in an AST file.
+    typedef uint32_t GlobalMacroID;
+
+    /// \brief A local to a module ID number that refers to a macro in an
+    /// AST file.
+    typedef uint32_t LocalMacroID;
+
     /// \brief The number of predefined macro IDs.
     const unsigned int NUM_PREDEF_MACRO_IDS = 1;
 
@@ -259,21 +266,25 @@ namespace clang {
       /// \brief The directory that the PCH was originally created in.
       ORIGINAL_PCH_DIR = 6,
 
+      /// \brief Record code for file ID of the file or buffer that was used to
+      /// generate the AST file.
+      ORIGINAL_FILE_ID = 7,
+
       /// \brief Offsets into the input-files block where input files
       /// reside.
-      INPUT_FILE_OFFSETS = 7,
+      INPUT_FILE_OFFSETS = 8,
 
       /// \brief Record code for the diagnostic options table.
-      DIAGNOSTIC_OPTIONS = 8,
+      DIAGNOSTIC_OPTIONS = 9,
 
       /// \brief Record code for the filesystem options table.
-      FILE_SYSTEM_OPTIONS = 9,
+      FILE_SYSTEM_OPTIONS = 10,
 
       /// \brief Record code for the headers search options table.
-      HEADER_SEARCH_OPTIONS = 10,
+      HEADER_SEARCH_OPTIONS = 11,
 
       /// \brief Record code for the preprocessor options table.
-      PREPROCESSOR_OPTIONS = 11
+      PREPROCESSOR_OPTIONS = 12
     };
 
     /// \brief Record types that occur within the input-files block
@@ -319,6 +330,11 @@ namespace clang {
       /// NULL-terminated string that corresponds to that identifier.
       IDENTIFIER_OFFSET = 3,
 
+      /// \brief This is so that older clang versions, before the introduction
+      /// of the control block, can read and reject the newer PCH format.
+      /// *DON"T CHANGE THIS NUMBER*.
+      METADATA_OLD_FORMAT = 4,
+
       /// \brief Record code for the identifier table.
       ///
       /// The identifier table is a simple blob that contains
@@ -331,7 +347,7 @@ namespace clang {
       /// between offsets (for unresolved identifier IDs) and
       /// IdentifierInfo pointers (for already-resolved identifier
       /// IDs).
-      IDENTIFIER_TABLE = 4,
+      IDENTIFIER_TABLE = 5,
 
       /// \brief Record code for the array of external definitions.
       ///
@@ -341,7 +357,7 @@ namespace clang {
       /// reported to the AST consumer after the AST file has been
       /// read, since their presence can affect the semantics of the
       /// program (e.g., for code generation).
-      EXTERNAL_DEFINITIONS = 5,
+      EXTERNAL_DEFINITIONS = 6,
 
       /// \brief Record code for the set of non-builtin, special
       /// types.
@@ -350,33 +366,33 @@ namespace clang {
       /// that are constructed during semantic analysis (e.g.,
       /// __builtin_va_list). The SPECIAL_TYPE_* constants provide
       /// offsets into this record.
-      SPECIAL_TYPES = 6,
+      SPECIAL_TYPES = 7,
 
       /// \brief Record code for the extra statistics we gather while
       /// generating an AST file.
-      STATISTICS = 7,
+      STATISTICS = 8,
 
       /// \brief Record code for the array of tentative definitions.
-      TENTATIVE_DEFINITIONS = 8,
+      TENTATIVE_DEFINITIONS = 9,
 
-      /// \brief Record code for the array of locally-scoped external
+      /// \brief Record code for the array of locally-scoped extern "C"
       /// declarations.
-      LOCALLY_SCOPED_EXTERNAL_DECLS = 9,
+      LOCALLY_SCOPED_EXTERN_C_DECLS = 10,
 
       /// \brief Record code for the table of offsets into the
       /// Objective-C method pool.
-      SELECTOR_OFFSETS = 10,
+      SELECTOR_OFFSETS = 11,
 
       /// \brief Record code for the Objective-C method pool,
-      METHOD_POOL = 11,
+      METHOD_POOL = 12,
 
       /// \brief The value of the next __COUNTER__ to dispense.
       /// [PP_COUNTER_VALUE, Val]
-      PP_COUNTER_VALUE = 12,
+      PP_COUNTER_VALUE = 13,
 
       /// \brief Record code for the table of offsets into the block
       /// of source-location information.
-      SOURCE_LOCATION_OFFSETS = 13,
+      SOURCE_LOCATION_OFFSETS = 14,
 
       /// \brief Record code for the set of source location entries
       /// that need to be preloaded by the AST reader.
@@ -384,7 +400,7 @@ namespace clang {
       /// This set contains the source location entry for the
       /// predefines buffer and for any file entries that need to be
       /// preloaded.
-      SOURCE_LOCATION_PRELOADS = 14,
+      SOURCE_LOCATION_PRELOADS = 15,
 
       /// \brief Record code for the set of ext_vector type names.
       EXT_VECTOR_DECLS = 16,
@@ -513,9 +529,13 @@ namespace clang {
       /// macro definition.
       MACRO_OFFSET = 47,
 
-      /// \brief Record of updates for a macro that was modified after
-      /// being deserialized.
-      MACRO_UPDATES = 48
+      /// \brief Mapping table from the identifier ID to the offset of the
+      /// macro directive history for the identifier.
+      MACRO_TABLE = 48,
+
+      /// \brief Record code for undefined but used functions and variables that
+      /// need a definition in this TU.
+      UNDEFINED_BUT_USED = 49
     };
 
     /// \brief Record types used within a source manager block.
@@ -552,7 +572,10 @@ namespace clang {
 
       /// \brief Describes one token.
       /// [PP_TOKEN, SLoc, Length, IdentInfoID, Kind, Flags]
-      PP_TOKEN = 3
+      PP_TOKEN = 3,
+
+      /// \brief The macro directives history for a particular identifier.
+      PP_MACRO_DIRECTIVE_HISTORY = 4
     };
 
     /// \brief Record types used within a preprocessor detail block.
@@ -594,7 +617,13 @@ namespace clang {
       SUBMODULE_REQUIRES = 8,
       /// \brief Specifies a header that has been explicitly excluded
       /// from this submodule.
-      SUBMODULE_EXCLUDED_HEADER = 9
+      SUBMODULE_EXCLUDED_HEADER = 9,
+      /// \brief Specifies a library or framework to link against.
+      SUBMODULE_LINK_LIBRARY = 10,
+      /// \brief Specifies a configuration macro for this module.
+      SUBMODULE_CONFIG_MACRO = 11,
+      /// \brief Specifies a conflict with another module.
+      SUBMODULE_CONFLICT = 12
     };
 
     /// \brief Record types used within a comments block.
@@ -692,7 +721,23 @@ namespace clang {
       /// \brief The __va_list_tag placeholder type.
       PREDEF_TYPE_VA_LIST_TAG = 36,
       /// \brief The placeholder type for builtin functions.
-      PREDEF_TYPE_BUILTIN_FN = 37
+      PREDEF_TYPE_BUILTIN_FN = 37,
+      /// \brief OpenCL 1d image type.
+      PREDEF_TYPE_IMAGE1D_ID    = 38,
+      /// \brief OpenCL 1d image array type.
+      PREDEF_TYPE_IMAGE1D_ARR_ID = 39,
+      /// \brief OpenCL 1d image buffer type.
+      PREDEF_TYPE_IMAGE1D_BUFF_ID = 40,
+      /// \brief OpenCL 2d image type.
+      PREDEF_TYPE_IMAGE2D_ID    = 41,
+      /// \brief OpenCL 2d image array type.
+      PREDEF_TYPE_IMAGE2D_ARR_ID = 42,
+      /// \brief OpenCL 3d image type.
+      PREDEF_TYPE_IMAGE3D_ID    = 43,
+      /// \brief OpenCL event type.
+      PREDEF_TYPE_EVENT_ID      = 44,
+      /// \brief OpenCL sampler type.
+      PREDEF_TYPE_SAMPLER_ID    = 45
     };
 
     /// \brief The number of predefined type IDs that are reserved for
@@ -1000,7 +1045,11 @@ namespace clang {
       /// function specialization. (Microsoft extension).
       DECL_CLASS_SCOPE_FUNCTION_SPECIALIZATION,
       /// \brief An ImportDecl recording a module import.
-      DECL_IMPORT
+      DECL_IMPORT,
+      /// \brief A OMPThreadPrivateDecl record.
+      DECL_OMP_THREADPRIVATE,
+      /// \brief An EmptyDecl record.
+      DECL_EMPTY
     };
 
     /// \brief Record codes for each kind of statement or expression.

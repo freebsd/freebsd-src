@@ -1,10 +1,10 @@
 
 #include <DependsOnModule/DependsOnModule.h>
-@__experimental_modules_import DependsOnModule;
+@import DependsOnModule;
 int glob;
 
 // RUN: rm -rf %t.cache
-// RUN: c-index-test -test-annotate-tokens=%s:2:1:5:1 %s -fmodule-cache-path %t.cache -fmodules -F %S/../Modules/Inputs \
+// RUN: c-index-test -test-annotate-tokens=%s:2:1:5:1 %s -fmodules-cache-path=%t.cache -fmodules -F %S/../Modules/Inputs \
 // RUN:      | FileCheck %s
 
 // CHECK:      Punctuation: "#" [2:1 - 2:2] inclusion directive=[[INC_DIR:DependsOnModule[/\\]DependsOnModule\.h \(.*/Modules/Inputs/DependsOnModule\.framework[/\\]Headers[/\\]DependsOnModule.h\)]]
@@ -17,14 +17,14 @@ int glob;
 // CHECK-NEXT: Identifier: "h" [2:43 - 2:44] inclusion directive=[[INC_DIR]]
 // CHECK-NEXT: Punctuation: ">" [2:44 - 2:45] inclusion directive=[[INC_DIR]]
 // CHECK-NEXT: Punctuation: "@" [3:1 - 3:2] ModuleImport=DependsOnModule:3:1
-// CHECK-NEXT: Keyword: "__experimental_modules_import" [3:2 - 3:31] ModuleImport=DependsOnModule:3:1
-// CHECK-NEXT: Identifier: "DependsOnModule" [3:32 - 3:47] ModuleImport=DependsOnModule:3:1
-// CHECK-NEXT: Punctuation: ";" [3:47 - 3:48]
+// CHECK-NEXT: Keyword: "import" [3:2 - 3:8] ModuleImport=DependsOnModule:3:1
+// CHECK-NEXT: Identifier: "DependsOnModule" [3:9 - 3:24] ModuleImport=DependsOnModule:3:1
+// CHECK-NEXT: Punctuation: ";" [3:24 - 3:25]
 // CHECK-NEXT: Keyword: "int" [4:1 - 4:4] VarDecl=glob:4:5
 // CHECK-NEXT: Identifier: "glob" [4:5 - 4:9] VarDecl=glob:4:5
 // CHECK-NEXT: Punctuation: ";" [4:9 - 4:10]
 
-// RUN: c-index-test -test-annotate-tokens=%S/../Modules/Inputs/Module.framework/Headers/Sub.h:1:1:3:1 %s -fmodule-cache-path %t.cache -fmodules -F %S/../Modules/Inputs \
+// RUN: c-index-test -test-annotate-tokens=%S/../Modules/Inputs/Module.framework/Headers/Sub.h:1:1:3:1 %s -fmodules-cache-path=%t.cache -fmodules -F %S/../Modules/Inputs \
 // RUN:      | FileCheck %s -check-prefix=CHECK-MOD
 
 // CHECK-MOD:      Punctuation: "#" [1:1 - 1:2] inclusion directive=[[INC_DIR:Module[/\\]Sub2\.h \(.*/Modules/Inputs/Module\.framework[/\\]Headers[/\\]Sub2.h\)]]

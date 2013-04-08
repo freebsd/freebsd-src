@@ -232,13 +232,15 @@ namespace PR7402 {
 // <rdar://problem/8308215>: don't crash.
 // Lots of questionable recovery here;  errors can change.
 namespace test3 {
-  class A : public std::exception {}; // expected-error {{undeclared identifier}} expected-error {{expected class name}} expected-note 2 {{candidate}}
+  class A : public std::exception {}; // expected-error {{undeclared identifier}} expected-error {{expected class name}} expected-note 4 {{candidate}}
   class B : public A {
   public:
     B(const String& s, int e=0) // expected-error {{unknown type name}} 
       : A(e), m_String(s) , m_ErrorStr(__null) {} // expected-error {{no matching constructor}} expected-error {{does not name}}
     B(const B& e)
-      : A(e), m_String(e.m_String), m_ErrorStr(__null) { // expected-error {{does not name}} expected-error {{no member named 'm_String' in 'test3::B'}}
+      : A(e), m_String(e.m_String), m_ErrorStr(__null) { // expected-error {{does not name}} \
+      // expected-error {{no member named 'm_String' in 'test3::B'}} \
+      // expected-error {{no matching}}
     }
   };
 }
@@ -282,4 +284,10 @@ namespace PR12049 {
 
       int member; // expected-error {{expected ')'}}
   };
+}
+
+namespace PR14073 {
+  struct S1 { union { int n; }; S1() : n(n) {} };  // expected-warning {{field 'n' is uninitialized when used here}}
+  struct S2 { union { union { int n; }; char c; }; S2() : n(n) {} };  // expected-warning {{field 'n' is uninitialized when used here}}
+  struct S3 { struct { int n; }; S3() : n(n) {} };  // expected-warning {{field 'n' is uninitialized when used here}}
 }

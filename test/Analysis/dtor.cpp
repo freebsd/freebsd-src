@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,debug.ExprInspection -analyzer-ipa=inlining  -analyzer-config c++-inlining=destructors -Wno-null-dereference -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,debug.ExprInspection -analyzer-config c++-inlining=destructors -Wno-null-dereference -verify %s
 
 void clang_analyzer_eval(bool);
 void clang_analyzer_checkInlined(bool);
@@ -299,5 +299,105 @@ namespace ExplicitDestructorCall {
   
   void destroy(Subclass *obj) {
     obj->VirtualDtor::~VirtualDtor();
+  }
+}
+
+
+namespace MultidimensionalArrays {
+  void testArrayInvalidation() {
+    int i = 42;
+    int j = 42;
+
+    {
+      IntWrapper arr[2][2];
+
+      // There should be no undefined value warnings here.
+      // Eventually these should be TRUE as well, but right now
+      // we can't handle array constructors.
+      clang_analyzer_eval(arr[0][0].x == 0); // expected-warning{{UNKNOWN}}
+      clang_analyzer_eval(arr[1][1].x == 0); // expected-warning{{UNKNOWN}}
+
+      arr[0][0].x = &i;
+      arr[1][1].x = &j;
+      clang_analyzer_eval(*arr[0][0].x == 42); // expected-warning{{TRUE}}
+      clang_analyzer_eval(*arr[1][1].x == 42); // expected-warning{{TRUE}}
+    }
+
+    // The destructors should have invalidated i and j.
+    clang_analyzer_eval(i == 42); // expected-warning{{UNKNOWN}}
+    clang_analyzer_eval(j == 42); // expected-warning{{UNKNOWN}}
+  }
+}
+
+namespace LifetimeExtension {
+  struct IntWrapper {
+	int x;
+	IntWrapper(int y) : x(y) {}
+	IntWrapper() {
+      extern void use(int);
+      use(x); // no-warning
+	}
+  };
+
+  struct DerivedWrapper : public IntWrapper {
+	DerivedWrapper(int y) : IntWrapper(y) {}
+  };
+
+  DerivedWrapper get() {
+	return DerivedWrapper(1);
+  }
+
+  void test() {
+	const DerivedWrapper &d = get(); // lifetime extended here
+  }
+
+
+  class SaveOnDestruct {
+  public:
+    static int lastOutput;
+    int value;
+
+    SaveOnDestruct();
+    ~SaveOnDestruct() {
+      lastOutput = value;
+    }
+  };
+
+  void testSimple() {
+    {
+      const SaveOnDestruct &obj = SaveOnDestruct();
+      if (obj.value != 42)
+        return;
+      // destructor called here
+    }
+
+    clang_analyzer_eval(SaveOnDestruct::lastOutput == 42); // expected-warning{{TRUE}}
+  }
+
+  class VirtualDtorBase {
+  public:
+    int value;
+    virtual ~VirtualDtorBase() {}
+  };
+
+  class SaveOnVirtualDestruct : public VirtualDtorBase {
+  public:
+    static int lastOutput;
+
+    SaveOnVirtualDestruct();
+    virtual ~SaveOnVirtualDestruct() {
+      lastOutput = value;
+    }
+  };
+
+  void testVirtual() {
+    {
+      const VirtualDtorBase &obj = SaveOnVirtualDestruct();
+      if (obj.value != 42)
+        return;
+      // destructor called here
+    }
+
+    clang_analyzer_eval(SaveOnVirtualDestruct::lastOutput == 42); // expected-warning{{TRUE}}
   }
 }

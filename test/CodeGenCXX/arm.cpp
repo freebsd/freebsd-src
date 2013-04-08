@@ -56,15 +56,15 @@ namespace test1 {
   // CHECK:   [[THIS:%.*]] = alloca [[A]]*, align 4
   // CHECK:   store [[A]]* {{.*}}, [[A]]** [[THIS]]
   // CHECK:   [[THIS1:%.*]] = load [[A]]** [[THIS]]
-  // CHECK:   call [[A]]* @_ZN5test11AC2Ei(
-  // CHECK:   ret [[A]]* [[THIS1]]
+  // CHECK:   [[THIS2:%.*]] = call [[A]]* @_ZN5test11AC2Ei(
+  // CHECK:   ret [[A]]* [[THIS2]]
 
   // CHECK: define linkonce_odr [[A]]* @_ZN5test11AD1Ev([[A]]* %this) unnamed_addr
   // CHECK:   [[THIS:%.*]] = alloca [[A]]*, align 4
   // CHECK:   store [[A]]* {{.*}}, [[A]]** [[THIS]]
   // CHECK:   [[THIS1:%.*]] = load [[A]]** [[THIS]]
-  // CHECK:   call [[A]]* @_ZN5test11AD2Ev(
-  // CHECK:   ret [[A]]* [[THIS1]]
+  // CHECK:   [[THIS2:%.*]] = call [[A]]* @_ZN5test11AD2Ev(
+  // CHECK:   ret [[A]]* [[THIS2]]
 }
 
 // Awkward virtual cases.
@@ -274,11 +274,11 @@ namespace test6 {
     // CHECK-NEXT: [[V:%.*]] = load [[A]]** [[AVAR]], align 4
     // CHECK-NEXT: [[ISNULL:%.*]] = icmp eq [[A]]* [[V]], null
     // CHECK-NEXT: br i1 [[ISNULL]]
-    // CHECK:      [[T0:%.*]] = bitcast [[A]]* [[V]] to [[A]]* ([[A]]*)***
-    // CHECK-NEXT: [[T1:%.*]] = load [[A]]* ([[A]]*)*** [[T0]]
-    // CHECK-NEXT: [[T2:%.*]] = getelementptr inbounds [[A]]* ([[A]]*)** [[T1]], i64 1
-    // CHECK-NEXT: [[T3:%.*]] = load [[A]]* ([[A]]*)** [[T2]]
-    // CHECK-NEXT: call [[A]]* [[T3]]([[A]]* [[V]])
+    // CHECK:      [[T0:%.*]] = bitcast [[A]]* [[V]] to void ([[A]]*)***
+    // CHECK-NEXT: [[T1:%.*]] = load void ([[A]]*)*** [[T0]]
+    // CHECK-NEXT: [[T2:%.*]] = getelementptr inbounds void ([[A]]*)** [[T1]], i64 1
+    // CHECK-NEXT: [[T3:%.*]] = load void ([[A]]*)** [[T2]]
+    // CHECK-NEXT: call void [[T3]]([[A]]* [[V]])
     // CHECK-NEXT: br label
     // CHECK:      ret void
     delete a;
@@ -355,6 +355,58 @@ namespace test8 {
     // CHECK:      call void @__cxa_guard_abort(i32* @_ZGVZN5test84testEvE1x)
     // CHECK:      resume { i8*, i32 }
   }
+}
+
+//   rdar://12836470
+// Use a larger-than-mandated array cookie when allocating an
+// array whose type is overaligned.
+namespace test9 {
+  class __attribute__((aligned(16))) A {
+    float data[4];
+  public:
+    A();
+    ~A();
+  };
+
+  A *testNew(unsigned n) {
+    return new A[n];
+  }
+// CHECK:    define [[TEST9:%.*]]* @_ZN5test97testNewEj(i32
+// CHECK:      [[N_VAR:%.*]] = alloca i32, align 4
+// CHECK:      [[N:%.*]] = load i32* [[N_VAR]], align 4
+// CHECK-NEXT: [[T0:%.*]] = call { i32, i1 } @llvm.umul.with.overflow.i32(i32 [[N]], i32 16)
+// CHECK-NEXT: [[O0:%.*]] = extractvalue { i32, i1 } [[T0]], 1
+// CHECK-NEXT: [[T1:%.*]] = extractvalue { i32, i1 } [[T0]], 0
+// CHECK-NEXT: [[T2:%.*]] = call { i32, i1 } @llvm.uadd.with.overflow.i32(i32 [[T1]], i32 16)
+// CHECK-NEXT: [[O1:%.*]] = extractvalue { i32, i1 } [[T2]], 1
+// CHECK-NEXT: [[OVERFLOW:%.*]] = or i1 [[O0]], [[O1]]
+// CHECK-NEXT: [[T3:%.*]] = extractvalue { i32, i1 } [[T2]], 0
+// CHECK-NEXT: [[T4:%.*]] = select i1 [[OVERFLOW]], i32 -1, i32 [[T3]]
+// CHECK-NEXT: [[ALLOC:%.*]] = call noalias i8* @_Znam(i32 [[T4]])
+// CHECK-NEXT: [[T0:%.*]] = bitcast i8* [[ALLOC]] to i32*
+// CHECK-NEXT: store i32 16, i32* [[T0]]
+// CHECK-NEXT: [[T1:%.*]] = getelementptr inbounds i32* [[T0]], i32 1
+// CHECK-NEXT: store i32 [[N]], i32* [[T1]]
+// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds i8* [[ALLOC]], i64 16
+// CHECK-NEXT: bitcast i8* [[T0]] to [[TEST9]]*
+//   Array allocation follows.
+
+  void testDelete(A *array) {
+    delete[] array;
+  }
+// CHECK:    define void @_ZN5test910testDeleteEPNS_1AE(
+// CHECK:      [[BEGIN:%.*]] = load [[TEST9]]**
+// CHECK-NEXT: [[T0:%.*]] = icmp eq [[TEST9]]* [[BEGIN]], null
+// CHECK-NEXT: br i1 [[T0]],
+// CHECK:      [[T0:%.*]] = bitcast [[TEST9]]* [[BEGIN]] to i8*
+// CHECK-NEXT: [[ALLOC:%.*]] = getelementptr inbounds i8* [[T0]], i64 -16
+// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds i8* [[ALLOC]], i64 4
+// CHECK-NEXT: [[T1:%.*]] = bitcast i8* [[T0]] to i32*
+// CHECK-NEXT: [[N:%.*]] = load i32* [[T1]]
+// CHECK-NEXT: [[END:%.*]] = getelementptr inbounds [[TEST9]]* [[BEGIN]], i32 [[N]]
+// CHECK-NEXT: [[T0:%.*]] = icmp eq [[TEST9]]* [[BEGIN]], [[END]]
+// CHECK-NEXT: br i1 [[T0]],
+//   Array deallocation follows.
 }
 
   // CHECK: define linkonce_odr [[C:%.*]]* @_ZTv0_n12_N5test21CD1Ev(

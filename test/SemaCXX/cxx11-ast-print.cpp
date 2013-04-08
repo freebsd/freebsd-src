@@ -1,7 +1,6 @@
 // RUN: %clang_cc1 -std=c++11 -ast-print %s | FileCheck %s
 
-// FIXME: Print the trailing-return-type properly.
-// CHECK: decltype(nullptr) operator "" _foo(const char *p, decltype(sizeof(int)));
+// CHECK: auto operator "" _foo(const char *p, decltype(sizeof(int))) -> decltype(nullptr);
 auto operator"" _foo(const char *p, decltype(sizeof(int))) -> decltype(nullptr);
 
 // CHECK: decltype(""_foo) operator "" _bar(unsigned long long);
@@ -39,3 +38,6 @@ const char *p8 = 4.9_quux;
 const char *p9 = 0x42e3F_fritz;
 // CHECK: const char *p10 = 3.300e+15_fritz;
 const char *p10 = 3.300e+15_fritz;
+// CHECK: ;
+;
+// CHECK-NOT: ;

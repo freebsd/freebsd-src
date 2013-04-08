@@ -13,10 +13,10 @@ int (^test1(int x))(void) {
   // CHECK-NEXT: store i32 {{%.*}}, i32* [[X]]
   // CHECK:      [[T0:%.*]] = bitcast [[BLOCK_T]]* [[BLOCK]] to i32 ()*
   // CHECK-NEXT: [[T1:%.*]] = bitcast i32 ()* [[T0]] to i8*
-  // CHECK-NEXT: [[T2:%.*]] = call i8* @objc_retainBlock(i8* [[T1]]) nounwind
+  // CHECK-NEXT: [[T2:%.*]] = call i8* @objc_retainBlock(i8* [[T1]]) [[NUW:#[0-9]+]]
   // CHECK-NEXT: [[T3:%.*]] = bitcast i8* [[T2]] to i32 ()*
   // CHECK-NEXT: [[T4:%.*]] = bitcast i32 ()* [[T3]] to i8*
-  // CHECK-NEXT: [[T5:%.*]] = call i8* @objc_autoreleaseReturnValue(i8* [[T4]]) nounwind
+  // CHECK-NEXT: [[T5:%.*]] = tail call i8* @objc_autoreleaseReturnValue(i8* [[T4]]) [[NUW]]
   // CHECK-NEXT: [[T6:%.*]] = bitcast i8* [[T5]] to i32 ()*
   // CHECK-NEXT: ret i32 ()* [[T6]]
   return ^{ return x; };
@@ -36,9 +36,9 @@ void test2(id x) {
 // CHECK-NEXT: bitcast
 // CHECK-NEXT: call void @test2_helper(
 // CHECK-NEXT: [[T0:%.*]] = load i8** [[SLOTREL]]
-// CHECK-NEXT: call void @objc_release(i8* [[T0]]) nounwind, !clang.imprecise_release
+// CHECK-NEXT: call void @objc_release(i8* [[T0]]) [[NUW]], !clang.imprecise_release
 // CHECK-NEXT: [[T0:%.*]] = load i8** [[X]]
-// CHECK-NEXT: call void @objc_release(i8* [[T0]]) nounwind, !clang.imprecise_release
+// CHECK-NEXT: call void @objc_release(i8* [[T0]]) [[NUW]], !clang.imprecise_release
 // CHECK-NEXT: ret void
   extern void test2_helper(id (^)(void));
   test2_helper(^{ return x; });
@@ -50,7 +50,7 @@ void test2(id x) {
 // CHECK-NEXT: [[DST:%.*]] = bitcast i8* [[T0]] to [[BLOCK_T]]*
 // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[SRC]], i32 0, i32 5
 // CHECK-NEXT: [[T1:%.*]] = load i8** [[T0]]
-// CHECK-NEXT: [[T2:%.*]] = call i8* @objc_retain(i8* [[T1]]) nounwind
+// CHECK-NEXT: [[T2:%.*]] = call i8* @objc_retain(i8* [[T1]]) [[NUW]]
 // CHECK-NEXT: ret void
 
 // CHECK:    define internal void @__destroy_helper_block_
@@ -80,13 +80,14 @@ void test3(void (^sink)(id*)) {
   // CHECK-NEXT: bitcast
   // CHECK-NEXT: getelementptr
   // CHECK-NEXT: [[BLOCK:%.*]] = bitcast
-  // CHECK-NEXT: [[T0:%.*]] = load i8** [[STRONG]]
-  // CHECK-NEXT: store i8* [[T0]], i8** [[TEMP]]
+  // CHECK-NEXT: [[V:%.*]] = load i8** [[STRONG]]
+  // CHECK-NEXT: store i8* [[V]], i8** [[TEMP]]
   // CHECK-NEXT: [[F0:%.*]] = load i8**
   // CHECK-NEXT: [[F1:%.*]] = bitcast i8* [[F0]] to void (i8*, i8**)*
   // CHECK-NEXT: call void [[F1]](i8* [[BLOCK]], i8** [[TEMP]])
   // CHECK-NEXT: [[T0:%.*]] = load i8** [[TEMP]]
   // CHECK-NEXT: [[T1:%.*]] = call i8* @objc_retain(i8* [[T0]])
+  // CHECK-NEXT: call void (...)* @clang.arc.use(i8* [[V]]) [[NUW]]
   // CHECK-NEXT: [[T2:%.*]] = load i8** [[STRONG]]
   // CHECK-NEXT: store i8* [[T1]], i8** [[STRONG]]
   // CHECK-NEXT: call void @objc_release(i8* [[T2]])
@@ -111,8 +112,8 @@ void test4(void) {
   // CHECK:      [[VAR:%.*]] = alloca [[BYREF_T:%.*]],
   // CHECK-NEXT: [[BLOCK:%.*]] = alloca [[BLOCK_T:<{.*}>]],
   // CHECK:      [[T0:%.*]] = getelementptr inbounds [[BYREF_T]]* [[VAR]], i32 0, i32 2
-  // 0x02000000 - has copy/dispose helpers
-  // CHECK-NEXT: store i32 33554432, i32* [[T0]]
+  // 0x02000000 - has copy/dispose helpers strong
+  // CHECK-NEXT: store i32 838860800, i32* [[T0]]
   // CHECK:      [[SLOT:%.*]] = getelementptr inbounds [[BYREF_T]]* [[VAR]], i32 0, i32 6
   // CHECK-NEXT: [[T0:%.*]] = call i8* @test4_source()
   // CHECK-NEXT: [[T1:%.*]] = call i8* @objc_retainAutoreleasedReturnValue(i8* [[T0]])
@@ -127,7 +128,7 @@ void test4(void) {
   // CHECK-NEXT: call void @_Block_object_dispose(i8* [[T0]], i32 8)
   // CHECK-NEXT: [[T0:%.*]] = load i8** [[SLOT]]
   // CHECK-NEXT: call void @objc_release(i8* [[T0]])
-  // CHECK-NEXT: ret void
+  // CHECK: ret void
 
   // CHECK:    define internal void @__Block_byref_object_copy_
   // CHECK:      [[T0:%.*]] = getelementptr inbounds [[BYREF_T]]* {{%.*}}, i32 0, i32 6
@@ -190,8 +191,8 @@ void test6(void) {
   // CHECK:      [[VAR:%.*]] = alloca [[BYREF_T:%.*]],
   // CHECK-NEXT: [[BLOCK:%.*]] = alloca [[BLOCK_T:<{.*}>]],
   // CHECK:      [[T0:%.*]] = getelementptr inbounds [[BYREF_T]]* [[VAR]], i32 0, i32 2
-  // 0x02000000 - has copy/dispose helpers
-  // CHECK-NEXT: store i32 33554432, i32* [[T0]]
+  // 0x02000000 - has copy/dispose helpers weak
+  // CHECK-NEXT: store i32 1107296256, i32* [[T0]]
   // CHECK:      [[SLOT:%.*]] = getelementptr inbounds [[BYREF_T]]* [[VAR]], i32 0, i32 6
   // CHECK-NEXT: [[T0:%.*]] = call i8* @test6_source()
   // CHECK-NEXT: [[T1:%.*]] = call i8* @objc_retainAutoreleasedReturnValue(i8* [[T0]])
@@ -206,7 +207,7 @@ void test6(void) {
   // CHECK:      [[T0:%.*]] = bitcast [[BYREF_T]]* [[VAR]] to i8*
   // CHECK-NEXT: call void @_Block_object_dispose(i8* [[T0]], i32 8)
   // CHECK-NEXT: call void @objc_destroyWeak(i8** [[SLOT]])
-  // CHECK-NEXT: ret void
+  // CHECK: ret void
 
   // CHECK:    define internal void @__Block_byref_object_copy_
   // CHECK:      [[T0:%.*]] = getelementptr inbounds [[BYREF_T]]* {{%.*}}, i32 0, i32 6
@@ -250,18 +251,19 @@ void test7(void) {
   // 0x42800000 - has signature, copy/dispose helpers, as well as BLOCK_HAS_EXTENDED_LAYOUT
   // CHECK:      store i32 -1040187392,
   // CHECK:      [[SLOT:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[BLOCK]], i32 0, i32 5
-  // CHECK-NEXT: [[T0:%.*]] = call i8* @objc_loadWeak(i8** [[VAR]])
+  // CHECK-NEXT: [[T0:%.*]] = call i8* @objc_loadWeakRetained(i8** [[VAR]])
   // CHECK-NEXT: call i8* @objc_initWeak(i8** [[SLOT]], i8* [[T0]])
   // CHECK:      call void @test7_helper(
   // CHECK-NEXT: call void @objc_destroyWeak(i8** {{%.*}})
   // CHECK-NEXT: call void @objc_destroyWeak(i8** [[VAR]])
-  // CHECK-NEXT: ret void
+  // CHECK: ret void
 
   // CHECK:    define internal void @__test7_block_invoke
   // CHECK:      [[SLOT:%.*]] = getelementptr inbounds [[BLOCK_T]]* {{%.*}}, i32 0, i32 5
-  // CHECK-NEXT: [[T0:%.*]] = call i8* @objc_loadWeak(i8** [[SLOT]])
+  // CHECK-NEXT: [[T0:%.*]] = call i8* @objc_loadWeakRetained(i8** [[SLOT]])
   // CHECK-NEXT: call void @test7_consume(i8* [[T0]])
-  // CHECK-NEXT: ret void
+  // CHECK-NEXT: call void @objc_release(i8* [[T0]])
+  // CHECK: ret void
 
   // CHECK:    define internal void @__copy_helper_block_
   // CHECK:      getelementptr
@@ -294,7 +296,7 @@ void test7(void) {
 // CHECK-NEXT: [[T1:%.*]] = load [[TEST8]]** [[D0]]
 // CHECK-NEXT: [[T2:%.*]] = bitcast [[TEST8]]* [[T1]] to i8*
 // CHECK-NEXT: call void @objc_release(i8* [[T2]])
-// CHECK-NEXT: ret void
+// CHECK: ret void
 
   extern void test8_helper(void (^)(void));
   test8_helper(^{ (void) self; });
@@ -313,7 +315,7 @@ id test9(void) {
 // CHECK:      load i8** getelementptr
 // CHECK-NEXT: bitcast i8*
 // CHECK-NEXT: call i8* 
-// CHECK-NEXT: call i8* @objc_autoreleaseReturnValue
+// CHECK-NEXT: tail call i8* @objc_autoreleaseReturnValue
 // CHECK-NEXT: ret i8*
 
 // CHECK:      call i8* @test9_produce()
@@ -352,7 +354,7 @@ void test10a(void) {
   // CHECK-NEXT: [[T1:%.*]] = load void ()** [[SLOT]]
   // CHECK-NEXT: [[T2:%.*]] = bitcast void ()* [[T1]] to i8*
   // CHECK-NEXT: call void @objc_release(i8* [[T2]])
-  // CHECK-NEXT: ret void
+  // CHECK: ret void
 }
 
 // <rdar://problem/10402698>: do this copy and dispose with
@@ -372,7 +374,7 @@ void test10a(void) {
 // CHECK-NEXT: [[T2:%.*]] = call i8* @objc_retainBlock(i8* [[T1]])
 // CHECK-NEXT: [[T3:%.*]] = bitcast i8* [[T2]] to void ()*
 // CHECK-NEXT: store void ()* [[T3]], void ()** [[D2]], align 8
-// CHECK-NEXT: ret void
+// CHECK: ret void
 
 // CHECK: define internal void @__Block_byref_object_dispose
 // CHECK:      [[T0:%.*]] = load i8** {{%.*}}
@@ -416,7 +418,7 @@ void test10b(void) {
   // CHECK-NEXT: [[T1:%.*]] = load void ()** [[SLOT]]
   // CHECK-NEXT: [[T2:%.*]] = bitcast void ()* [[T1]] to i8*
   // CHECK-NEXT: call void @objc_release(i8* [[T2]])
-  // CHECK-NEXT: ret void
+  // CHECK: ret void
 }
 
 // rdar://problem/10088932
@@ -436,7 +438,7 @@ void test11a(void) {
   // CHECK-NEXT: call void @test11_helper(i8* [[T4]])
   // CHECK-NEXT: [[T5:%.*]] = bitcast void ()* [[T3]] to i8*
   // CHECK-NEXT: call void @objc_release(i8* [[T5]])
-  // CHECK-NEXT: ret void
+  // CHECK: ret void
 }
 void test11b(void) {
   int x;
@@ -454,7 +456,7 @@ void test11b(void) {
   // CHECK-NEXT: store i8* [[T4]], i8** [[B]], align 8
   // CHECK-NEXT: [[T5:%.*]] = load i8** [[B]]
   // CHECK-NEXT: call void @objc_release(i8* [[T5]])
-  // CHECK-NEXT: ret void
+  // CHECK: ret void
 }
 
 // rdar://problem/9979150
@@ -613,8 +615,8 @@ void test18(id x) {
 // CHECK-UNOPT:    define void @test18(
 // CHECK-UNOPT:      [[X:%.*]] = alloca i8*,
 // CHECK-UNOPT-NEXT: [[BLOCK:%.*]] = alloca [[BLOCK_T:<{.*}>]],
-// CHECK-UNOPT-NEXT: [[PARM:%.*]] = call i8* @objc_retain(i8* {{%.*}})
-// CHECK-UNOPT-NEXT: store i8* [[PARM]], i8** [[X]]
+// CHECK-UNOPT-NEXT: store i8* null, i8** [[X]]
+// CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[X]], 
 // CHECK-UNOPT-NEXT: [[SLOTREL:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[BLOCK]], i32 0, i32 5
 // CHECK-UNOPT:      [[SLOT:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[BLOCK]], i32 0, i32 5
 // CHECK-UNOPT-NEXT: [[T0:%.*]] = load i8** [[X]],
@@ -622,8 +624,8 @@ void test18(id x) {
 // CHECK-UNOPT-NEXT: store i8* [[T1]], i8** [[SLOT]],
 // CHECK-UNOPT-NEXT: bitcast
 // CHECK-UNOPT-NEXT: call void @test18_helper(
-// CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[SLOTREL]], i8* null) nounwind
-// CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[X]], i8* null) nounwind
+// CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[SLOTREL]], i8* null) [[NUW:#[0-9]+]]
+// CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[X]], i8* null) [[NUW]]
 // CHECK-UNOPT-NEXT: ret void
   extern void test18_helper(id (^)(void));
   test18_helper(^{ return x; });
@@ -637,7 +639,7 @@ void test18(id x) {
 // CHECK-UNOPT-NEXT: [[T1:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[DST]], i32 0, i32 5
 // CHECK-UNOPT-NEXT: [[T2:%.*]] = load i8** [[T0]]
 // CHECK-UNOPT-NEXT: store i8* null, i8** [[T1]]
-// CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[T1]], i8* [[T2]]) nounwind
+// CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[T1]], i8* [[T2]]) [[NUW]]
 // CHECK-UNOPT-NEXT: ret void
 
 // CHECK-UNOPT:    define internal void @__destroy_helper_block_
@@ -647,3 +649,6 @@ void test18(id x) {
 // CHECK-UNOPT-NEXT: call void @objc_storeStrong(i8** [[T2]], i8* null)
 // CHECK-UNOPT-NEXT: ret void
 }
+
+// CHECK: attributes [[NUW]] = { nounwind }
+// CHECK-UNOPT: attributes [[NUW]] = { nounwind }

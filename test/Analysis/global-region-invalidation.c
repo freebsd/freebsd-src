@@ -67,13 +67,27 @@ int constIntGlob() {
   return 3 / *m; // expected-warning {{Division by zero}}
 }
 
-extern const int x;
+extern const int y;
 int constIntGlobExtern() {
-  if (x == 0) {
+  if (y == 0) {
     foo();
-    return 5 / x; // expected-warning {{Division by zero}}
+    return 5 / y; // expected-warning {{Division by zero}}
   }
   return 0;
+}
+
+static void * const ptr = 0;
+void constPtrGlob() {
+  clang_analyzer_eval(ptr == 0); // expected-warning{{TRUE}}
+  foo();
+  clang_analyzer_eval(ptr == 0); // expected-warning{{TRUE}}
+}
+
+static const int x2 = x;
+void constIntGlob2() {
+  clang_analyzer_eval(x2 == 0); // expected-warning{{TRUE}}
+  foo();
+  clang_analyzer_eval(x2 == 0); // expected-warning{{TRUE}}
 }
 
 void testAnalyzerEvalIsPure() {
@@ -82,5 +96,29 @@ void testAnalyzerEvalIsPure() {
     clang_analyzer_eval(someGlobal == 0); // expected-warning{{TRUE}}
     clang_analyzer_eval(someGlobal == 0); // expected-warning{{TRUE}}
   }
+}
+
+// Test that static variables with initializers do not get reinitialized on
+// recursive calls.
+void Function2(void);
+int *getPtr();
+void Function1(void) {
+  static unsigned flag;
+  static int *p = 0;
+  if (!flag) {
+    flag = 1;
+    p = getPtr();
+  }
+  int m = *p; // no-warning: p is never null.
+  m++;
+  Function2();
+}
+void Function2(void) {
+    Function1();
+}
+
+void SetToNonZero(void) {
+  static int g = 5;
+  clang_analyzer_eval(g == 5); // expected-warning{{TRUE}}
 }
 

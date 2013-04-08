@@ -5,7 +5,7 @@
 // Test with pch.
 // RUN: %clang_cc1 -std=c++11 -fcxx-exceptions -fexceptions -x c++-header -emit-pch -o %t %S/cxx-templates.h
 // RUN: %clang_cc1 -std=c++11 -fcxx-exceptions -fexceptions -include-pch %t -verify %s -ast-dump  -o -
-// RUN: %clang_cc1 -std=c++11 -fcxx-exceptions -fexceptions -include-pch %t %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -fcxx-exceptions -fexceptions -include-pch %t %s -emit-llvm -o - -error-on-deserialized-decl doNotDeserialize | FileCheck %s
 
 // expected-no-diagnostics
 
@@ -78,4 +78,10 @@ namespace TestNestedExpansion {
   };
   Int &g(Int, int, double);
   Int &test = NestedExpansion<char, char, char>().f(0, 1, 2, Int(3), 4, 5.0);
+}
+
+namespace rdar13135282 {
+  void test() {
+    __mt_alloc<> mt = __mt_alloc<>();
+  }
 }

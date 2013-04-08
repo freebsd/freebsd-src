@@ -20,3 +20,16 @@ int PR10013(void) {
   return PR10013_x; // expected-warning{{incompatible pointer to integer conversion}}
 }
 
+static int test1_a[]; // expected-warning {{tentative array definition assumed to have one element}}
+extern int test1_a[];
+
+// rdar://13535367
+void test2declarer() { extern int test2_array[100]; }
+extern int test2_array[];
+int test2v = sizeof(test2_array); // expected-error {{invalid application of 'sizeof' to an incomplete type 'int []'}}
+
+void test3declarer() {
+  { extern int test3_array[100]; }
+  extern int test3_array[];
+  int x = sizeof(test3_array); // expected-error {{invalid application of 'sizeof' to an incomplete type 'int []'}}
+}

@@ -40,30 +40,61 @@
 
 // AddressSanitizer
 SANITIZER("address", Address)
+// More features of AddressSanitizer that should be turned on explicitly.
+SANITIZER("init-order", InitOrder)
+SANITIZER("use-after-return", UseAfterReturn)
+SANITIZER("use-after-scope", UseAfterScope)
+
+SANITIZER_GROUP("address-full", AddressFull,
+                Address | InitOrder | UseAfterReturn | UseAfterScope)
+
+// MemorySanitizer
+SANITIZER("memory", Memory)
 
 // ThreadSanitizer
 SANITIZER("thread", Thread)
 
 // UndefinedBehaviorSanitizer
-SANITIZER("signed-integer-overflow", SignedIntegerOverflow)
-SANITIZER("divide-by-zero", DivideByZero)
-SANITIZER("shift", Shift)
-SANITIZER("unreachable", Unreachable)
-SANITIZER("return", Return)
-SANITIZER("vla-bound", VLABound)
 SANITIZER("alignment", Alignment)
-SANITIZER("null", Null)
-SANITIZER("vptr", Vptr)
-SANITIZER("object-size", ObjectSize)
+SANITIZER("bool", Bool)
+SANITIZER("bounds", Bounds)
+SANITIZER("enum", Enum)
 SANITIZER("float-cast-overflow", FloatCastOverflow)
+SANITIZER("float-divide-by-zero", FloatDivideByZero)
+SANITIZER("integer-divide-by-zero", IntegerDivideByZero)
+SANITIZER("null", Null)
+SANITIZER("object-size", ObjectSize)
+SANITIZER("return", Return)
+SANITIZER("shift", Shift)
+SANITIZER("signed-integer-overflow", SignedIntegerOverflow)
+SANITIZER("unreachable", Unreachable)
+SANITIZER("vla-bound", VLABound)
+SANITIZER("vptr", Vptr)
 
-// -fsanitize=undefined (and its alias -fcatch-undefined-behavior). This should
-// include all the sanitizers which have low overhead, no ABI or address space
-// layout implications, and only catch undefined behavior.
+// IntegerSanitizer
+SANITIZER("unsigned-integer-overflow", UnsignedIntegerOverflow)
+
+// -fsanitize=undefined includes all the sanitizers which have low overhead, no
+// ABI or address space layout implications, and only catch undefined behavior.
 SANITIZER_GROUP("undefined", Undefined,
-                SignedIntegerOverflow | DivideByZero | Shift | Unreachable |
-                Return | VLABound | Alignment | Null | Vptr | ObjectSize |
-                FloatCastOverflow)
+                Alignment | Bool | Bounds | Enum | FloatCastOverflow |
+                FloatDivideByZero | IntegerDivideByZero | Null | ObjectSize |
+                Return | Shift | SignedIntegerOverflow | Unreachable |
+                VLABound | Vptr)
+
+// -fsanitize=undefined-trap (and its alias -fcatch-undefined-behavior) includes
+// all sanitizers included by -fsanitize=undefined, except those that require
+// runtime support.  This group is generally used in conjunction with the
+// -fsanitize-undefined-trap-on-error flag.
+SANITIZER_GROUP("undefined-trap", UndefinedTrap,
+                Alignment | Bool | Bounds | Enum | FloatCastOverflow |
+                FloatDivideByZero | IntegerDivideByZero | Null | ObjectSize |
+                Return | Shift | SignedIntegerOverflow | Unreachable |
+                VLABound)
+
+SANITIZER_GROUP("integer", Integer,
+                SignedIntegerOverflow | UnsignedIntegerOverflow | Shift |
+                IntegerDivideByZero)
 
 #undef SANITIZER
 #undef SANITIZER_GROUP
