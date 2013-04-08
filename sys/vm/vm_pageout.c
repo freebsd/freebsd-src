@@ -1015,9 +1015,9 @@ vm_pageout_scan(int pass)
 		} else if ((m->aflags & PGA_REFERENCED) == 0 &&
 		    (actcount = pmap_ts_referenced(m)) != 0) {
 			vm_page_activate(m);
-			vm_page_unlock(m);
-			m->act_count += actcount + ACT_ADVANCE;
 			VM_OBJECT_WUNLOCK(object);
+			m->act_count += actcount + ACT_ADVANCE;
+			vm_page_unlock(m);
 			goto relock_queues;
 		}
 
@@ -1031,9 +1031,9 @@ vm_pageout_scan(int pass)
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
-			vm_page_unlock(m);
-			m->act_count += actcount + ACT_ADVANCE + 1;
 			VM_OBJECT_WUNLOCK(object);
+			m->act_count += actcount + ACT_ADVANCE + 1;
+			vm_page_unlock(m);
 			goto relock_queues;
 		}
 
