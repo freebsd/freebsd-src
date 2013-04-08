@@ -2683,6 +2683,7 @@ kern/subr_bus.c			standard
 kern/subr_bus_dma.c		standard
 kern/subr_bufring.c		standard
 kern/subr_clock.c		standard
+kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
