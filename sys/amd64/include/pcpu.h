@@ -77,7 +77,9 @@
 	/* Pointer to the CPU TSS descriptor */				\
 	struct system_segment_descriptor *pc_tss;			\
 	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
-	PCPU_XEN_FIELDS
+	PCPU_XEN_FIELDS;						\
+	char	__pad[293]		/* be divisor of PAGE_SIZE	\
+					   after cache alignment */
 
 #ifdef _KERNEL
 
