@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -o /dev/null -march=x86 -mcpu=penryn -mattr=+sse2 -mtriple=i686-apple-darwin9 -stats -info-output-file - | grep asm-printer | grep 4
 ; PR2485
 

@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; The old instruction selector used to load all arguments to a call up in 
 ; registers, then start pushing them all onto the stack.  This is bad news as
 ; it makes a ton of annoying overlapping live ranges.  This code should not

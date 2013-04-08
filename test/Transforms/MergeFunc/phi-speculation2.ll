@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: opt < %s -mergefunc -stats -disable-output 2>&1 | grep "functions merged"
 
 define i32 @foo1(i32 %x) {

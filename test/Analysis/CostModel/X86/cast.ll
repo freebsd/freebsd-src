@@ -28,7 +28,7 @@ define i32 @add(i32 %arg) {
   ;CHECK: cost of 0 {{.*}} trunc
   %H = trunc i32 undef to i1
 
-  ;CHECK: cost of 1 {{.*}} ret
+  ;CHECK: cost of 0 {{.*}} ret
   ret i32 undef
 }
 
@@ -44,6 +44,10 @@ define i32 @zext_sext(<8 x i1> %in) {
   %B = zext <8 x i16> undef to <8 x i32>
   ;CHECK: cost of 1 {{.*}} sext
   %C = sext <4 x i32> undef to <4 x i64>
+  ;CHECK: cost of 6 {{.*}} sext
+  %C1 = sext <4 x i8> undef to <4 x i64>
+  ;CHECK: cost of 6 {{.*}} sext
+  %C2 = sext <4 x i16> undef to <4 x i64>
 
   ;CHECK: cost of 1 {{.*}} zext
   %D = zext <4 x i32> undef to <4 x i64>
@@ -59,7 +63,7 @@ define i32 @zext_sext(<8 x i1> %in) {
   ret i32 undef
 }
 
-define i32 @masks(<8 x i1> %in) {
+define i32 @masks8(<8 x i1> %in) {
   ;CHECK: cost of 6 {{.*}} zext
   %Z = zext <8 x i1> %in to <8 x i32>
   ;CHECK: cost of 9 {{.*}} sext
@@ -67,3 +71,84 @@ define i32 @masks(<8 x i1> %in) {
   ret i32 undef
 }
 
+define i32 @masks4(<4 x i1> %in) {
+  ;CHECK: cost of 8 {{.*}} sext
+  %S = sext <4 x i1> %in to <4 x i64>
+  ret i32 undef
+}
+
+define void @sitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
+  ; CHECK: cost of 3 {{.*}} sitofp
+  %A1 = sitofp <4 x i1> %a to <4 x float>
+  ; CHECK: cost of 3 {{.*}} sitofp
+  %A2 = sitofp <4 x i1> %a to <4 x double>
+
+  ; CHECK: cost of 3 {{.*}} sitofp
+  %B1 = sitofp <4 x i8> %b to <4 x float>
+  ; CHECK: cost of 3 {{.*}} sitofp
+  %B2 = sitofp <4 x i8> %b to <4 x double>
+
+  ; CHECK: cost of 3 {{.*}} sitofp
+  %C1 = sitofp <4 x i16> %c to <4 x float>
+  ; CHECK: cost of 3 {{.*}} sitofp
+  %C2 = sitofp <4 x i16> %c to <4 x double>
+
+  ; CHECK: cost of 1 {{.*}} sitofp
+  %D1 = sitofp <4 x i32> %d to <4 x float>
+  ; CHECK: cost of 1 {{.*}} sitofp
+  %D2 = sitofp <4 x i32> %d to <4 x double>
+  ret void
+}
+
+define void @sitofp8(<8 x i1> %a, <8 x i8> %b, <8 x i16> %c, <8 x i32> %d) {
+  ; CHECK: cost of 8 {{.*}} sitofp
+  %A1 = sitofp <8 x i1> %a to <8 x float>
+
+  ; CHECK: cost of 8 {{.*}} sitofp
+  %B1 = sitofp <8 x i8> %b to <8 x float>
+
+  ; CHECK: cost of 5 {{.*}} sitofp
+  %C1 = sitofp <8 x i16> %c to <8 x float>
+
+  ; CHECK: cost of 1 {{.*}} sitofp
+  %D1 = sitofp <8 x i32> %d to <8 x float>
+  ret void
+}
+
+define void @uitofp4(<4 x i1> %a, <4 x i8> %b, <4 x i16> %c, <4 x i32> %d) {
+  ; CHECK: cost of 7 {{.*}} uitofp
+  %A1 = uitofp <4 x i1> %a to <4 x float>
+  ; CHECK: cost of 7 {{.*}} uitofp
+  %A2 = uitofp <4 x i1> %a to <4 x double>
+
+  ; CHECK: cost of 2 {{.*}} uitofp
+  %B1 = uitofp <4 x i8> %b to <4 x float>
+  ; CHECK: cost of 2 {{.*}} uitofp
+  %B2 = uitofp <4 x i8> %b to <4 x double>
+
+  ; CHECK: cost of 2 {{.*}} uitofp
+  %C1 = uitofp <4 x i16> %c to <4 x float>
+  ; CHECK: cost of 2 {{.*}} uitofp
+  %C2 = uitofp <4 x i16> %c to <4 x double>
+
+  ; CHECK: cost of 6 {{.*}} uitofp
+  %D1 = uitofp <4 x i32> %d to <4 x float>
+  ; CHECK: cost of 6 {{.*}} uitofp
+  %D2 = uitofp <4 x i32> %d to <4 x double>
+  ret void
+}
+
+define void @uitofp8(<8 x i1> %a, <8 x i8> %b, <8 x i16> %c, <8 x i32> %d) {
+  ; CHECK: cost of 6 {{.*}} uitofp
+  %A1 = uitofp <8 x i1> %a to <8 x float>
+
+  ; CHECK: cost of 5 {{.*}} uitofp
+  %B1 = uitofp <8 x i8> %b to <8 x float>
+
+  ; CHECK: cost of 5 {{.*}} uitofp
+  %C1 = uitofp <8 x i16> %c to <8 x float>
+
+  ; CHECK: cost of 9 {{.*}} uitofp
+  %D1 = uitofp <8 x i32> %d to <8 x float>
+  ret void
+}

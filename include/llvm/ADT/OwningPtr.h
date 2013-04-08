@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ADT_OWNING_PTR_H
-#define LLVM_ADT_OWNING_PTR_H
+#ifndef LLVM_ADT_OWNINGPTR_H
+#define LLVM_ADT_OWNINGPTR_H
 
 #include "llvm/Support/Compiler.h"
 #include <cassert>
@@ -32,7 +32,7 @@ class OwningPtr {
 public:
   explicit OwningPtr(T *P = 0) : Ptr(P) {}
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   OwningPtr(OwningPtr &&Other) : Ptr(Other.take()) {}
 
   OwningPtr &operator=(OwningPtr &&Other) {
@@ -95,7 +95,7 @@ class OwningArrayPtr {
 public:
   explicit OwningArrayPtr(T *P = 0) : Ptr(P) {}
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   OwningArrayPtr(OwningArrayPtr &&Other) : Ptr(Other.take()) {}
 
   OwningArrayPtr &operator=(OwningArrayPtr &&Other) {

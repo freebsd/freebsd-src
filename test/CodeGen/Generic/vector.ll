@@ -1,6 +1,6 @@
 ; Test that vectors are scalarized/lowered correctly.
 ; RUN: llc < %s
-
+; XFAIL: hexagon
 
 %d8 = type <8 x double>
 %f1 = type <1 x float>
@@ -151,4 +151,9 @@ define void @splat_i4(%i4* %P, %i4* %Q, i32 %X) {
 	%R = add %i4 %q, %tmp6		; <%i4> [#uses=1]
 	store %i4 %R, %i4* %P
 	ret void
+}
+
+define <2 x i32*> @vector_gep(<2 x [3 x {i32, i32}]*> %a) {
+    %w = getelementptr <2 x [3 x {i32, i32}]*> %a, <2 x i32> <i32 1, i32 2>, <2 x i32> <i32 2, i32 3>, <2 x i32> <i32 1, i32 1>
+      ret <2 x i32*> %w
 }

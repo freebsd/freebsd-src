@@ -40,27 +40,27 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "isel"
-#include "llvm/DebugInfo.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Operator.h"
-#include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/FastISel.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/Loads.h"
+#include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Analysis/Loads.h"
-#include "llvm/DataLayout.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 STATISTIC(NumFastIselSuccessIndependent, "Number of insts selected by "
@@ -85,6 +85,27 @@ void FastISel::startNewBlock() {
     ++I;
   }
   LastLocalValue = EmitStartPt;
+}
+
+bool FastISel::LowerArguments() {
+  if (!FuncInfo.CanLowerReturn)
+    // Fallback to SDISel argument lowering code to deal with sret pointer
+    // parameter.
+    return false;
+  
+  if (!FastLowerArguments())
+    return false;
+
+  // Enter non-dead arguments into ValueMap for uses in non-entry BBs.
+  for (Function::const_arg_iterator I = FuncInfo.Fn->arg_begin(),
+         E = FuncInfo.Fn->arg_end(); I != E; ++I) {
+    if (!I->use_empty()) {
+      DenseMap<const Value *, unsigned>::iterator VI = LocalValueMap.find(I);
+      assert(VI != LocalValueMap.end() && "Missed an argument?");
+      FuncInfo.ValueMap[I] = VI->second;
+    }
+  }
+  return true;
 }
 
 void FastISel::flushLocalValueMap() {
@@ -675,6 +696,13 @@ bool FastISel::SelectCall(const User *I) {
     UpdateValueMap(Call, ResultReg);
     return true;
   }
+  case Intrinsic::expect: {
+    unsigned ResultReg = getRegForValue(Call->getArgOperand(0));
+    if (ResultReg == 0)
+      return false;
+    UpdateValueMap(Call, ResultReg);
+    return true;
+  }
   }
 
   // Usually, it does not make sense to initialize a value,
@@ -684,7 +712,7 @@ bool FastISel::SelectCall(const User *I) {
   // all the values which have already been materialized,
   // appear after the call. It also makes sense to skip intrinsics
   // since they tend to be inlined.
-  if (!isa<IntrinsicInst>(F))
+  if (!isa<IntrinsicInst>(Call))
     flushLocalValueMap();
 
   // An arbitrary call. Bail.
@@ -737,15 +765,15 @@ bool FastISel::SelectBitCast(const User *I) {
   }
 
   // Bitcasts of other values become reg-reg copies or BITCAST operators.
-  EVT SrcVT = TLI.getValueType(I->getOperand(0)->getType());
-  EVT DstVT = TLI.getValueType(I->getType());
-
-  if (SrcVT == MVT::Other || !SrcVT.isSimple() ||
-      DstVT == MVT::Other || !DstVT.isSimple() ||
-      !TLI.isTypeLegal(SrcVT) || !TLI.isTypeLegal(DstVT))
+  EVT SrcEVT = TLI.getValueType(I->getOperand(0)->getType());
+  EVT DstEVT = TLI.getValueType(I->getType());
+  if (SrcEVT == MVT::Other || DstEVT == MVT::Other ||
+      !TLI.isTypeLegal(SrcEVT) || !TLI.isTypeLegal(DstEVT))
     // Unhandled type. Halt "fast" selection and bail.
     return false;
 
+  MVT SrcVT = SrcEVT.getSimpleVT();
+  MVT DstVT = DstEVT.getSimpleVT();
   unsigned Op0 = getRegForValue(I->getOperand(0));
   if (Op0 == 0)
     // Unhandled operand. Halt "fast" selection and bail.
@@ -755,7 +783,7 @@ bool FastISel::SelectBitCast(const User *I) {
 
   // First, try to perform the bitcast by inserting a reg-reg copy.
   unsigned ResultReg = 0;
-  if (SrcVT.getSimpleVT() == DstVT.getSimpleVT()) {
+  if (SrcVT == DstVT) {
     const TargetRegisterClass* SrcClass = TLI.getRegClassFor(SrcVT);
     const TargetRegisterClass* DstClass = TLI.getRegClassFor(DstVT);
     // Don't attempt a cross-class copy. It will likely fail.
@@ -768,8 +796,7 @@ bool FastISel::SelectBitCast(const User *I) {
 
   // If the reg-reg copy failed, select a BITCAST opcode.
   if (!ResultReg)
-    ResultReg = FastEmit_r(SrcVT.getSimpleVT(), DstVT.getSimpleVT(),
-                           ISD::BITCAST, Op0, Op0IsKill);
+    ResultReg = FastEmit_r(SrcVT, DstVT, ISD::BITCAST, Op0, Op0IsKill);
 
   if (!ResultReg)
     return false;
@@ -837,7 +864,8 @@ FastISel::SelectInstruction(const Instruction *I) {
 void
 FastISel::FastEmitBranch(MachineBasicBlock *MSucc, DebugLoc DL) {
 
-  if (FuncInfo.MBB->getBasicBlock()->size() > 1 && FuncInfo.MBB->isLayoutSuccessor(MSucc)) {
+  if (FuncInfo.MBB->getBasicBlock()->size() > 1 &&
+      FuncInfo.MBB->isLayoutSuccessor(MSucc)) {
     // For more accurate line information if this is the only instruction
     // in the block then emit it, otherwise we have the unconditional
     // fall-through case, which needs no instructions.
@@ -1068,6 +1096,10 @@ FastISel::FastISel(FunctionLoweringInfo &funcInfo,
 
 FastISel::~FastISel() {}
 
+bool FastISel::FastLowerArguments() {
+  return false;
+}
+
 unsigned FastISel::FastEmit_(MVT, MVT,
                              unsigned) {
   return 0;
@@ -1151,6 +1183,8 @@ unsigned FastISel::FastEmit_ri_(MVT VT, unsigned Opcode,
     IntegerType *ITy = IntegerType::get(FuncInfo.Fn->getContext(),
                                               VT.getSizeInBits());
     MaterialReg = getRegForValue(ConstantInt::get(ITy, Imm));
+    assert (MaterialReg != 0 && "Unable to materialize imm.");
+    if (MaterialReg == 0) return 0;
   }
   return FastEmit_rr(VT, VT, Opcode,
                      Op0, Op0IsKill,

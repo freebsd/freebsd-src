@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -march=x86 -relocation-model=static -stats 2>&1 | \
 ; RUN:   grep asm-printer | grep 14
 ;

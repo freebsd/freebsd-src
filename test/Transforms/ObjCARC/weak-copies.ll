@@ -19,7 +19,7 @@ target triple = "x86_64-apple-darwin11.0.0"
 ; CHECK:      define void @foo() {
 ; CHECK-NEXT: entry:
 ; CHECK-NEXT:   %call = call i8* @bar()
-; CHECK-NEXT:   call void @use(i8* %call) nounwind
+; CHECK-NEXT:   call void @use(i8* %call) [[NUW:#[0-9]+]]
 ; CHECK-NEXT:   ret void
 ; CHECK-NEXT: }
 define void @foo() {
@@ -39,7 +39,7 @@ entry:
 
 ; Eliminate unnecessary weak pointer copies in a block initialization.
 
-; CHECK:      define void @qux(i8* %me) nounwind {
+; CHECK:      define void @qux(i8* %me) #0 {
 ; CHECK-NEXT: entry:
 ; CHECK-NEXT:   %block = alloca %1, align 8
 ; CHECK-NOT:    alloca
@@ -83,5 +83,7 @@ declare i8* @objc_initWeak(i8**, i8*)
 declare i8* @objc_loadWeak(i8**)
 declare void @use(i8*) nounwind
 declare void @objc_destroyWeak(i8**)
+
+; CHECK: attributes [[NUW]] = { nounwind }
 
 !0 = metadata !{}

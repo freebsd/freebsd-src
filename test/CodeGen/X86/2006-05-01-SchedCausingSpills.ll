@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -march=x86 -mcpu=yonah -stats 2>&1 | \
 ; RUN:   not grep "Number of register spills"
 ; END.

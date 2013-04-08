@@ -41,27 +41,27 @@
 //     Cases -1 and 7 are caught by a C++ test harness where the validity of
 //         of a C++ catch(...) clause catching a generated exception with a
 //         type info type of 7 is explained by: example in rules 1.6.4 in
-//         http://sourcery.mentor.com/public/cxx-abi/abi-eh.html (v1.22)
+//         http://mentorembedded.github.com/cxx-abi/abi-eh.html (v1.22)
 //
 // This code uses code from the llvm compiler-rt project and the llvm
 // Kaleidoscope project.
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/LLVMContext.h"
-#include "llvm/DerivedTypes.h"
+#include "llvm/Analysis/Verifier.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JIT.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Module.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/PassManager.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/Analysis/Verifier.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/Scalar.h"
 
 // FIXME: Although all systems tested with (Linux, OS X), do not need this
 //        header file included. A user on ubuntu reported, undefined symbols
@@ -82,7 +82,7 @@
 #endif
 
 // System C++ ABI unwind types from:
-//     http://sourcery.mentor.com/public/cxx-abi/abi-eh.html (v1.22)
+//     http://mentorembedded.github.com/cxx-abi/abi-eh.html (v1.22)
 
 extern "C" {
 
@@ -151,7 +151,7 @@ struct OurExceptionType_t {
 ///
 /// Note: The above unwind.h defines struct _Unwind_Exception to be aligned
 ///       on a double word boundary. This is necessary to match the standard:
-///       http://refspecs.freestandards.org/abi-eh-1.21.html
+///       http://mentorembedded.github.com/cxx-abi/abi-eh.html
 struct OurBaseException_t {
   struct OurExceptionType_t type;
 
@@ -339,7 +339,7 @@ void deleteOurException(OurUnwindException *expToDelete) {
 /// This function is the struct _Unwind_Exception API mandated delete function
 /// used by foreign exception handlers when deleting our exception
 /// (OurException), instances.
-/// @param reason @link http://refspecs.freestandards.org/abi-eh-1.21.html
+/// @param reason @link http://mentorembedded.github.com/cxx-abi/abi-eh.html
 /// @unlink
 /// @param expToDelete exception instance to delete
 void deleteFromUnwindOurException(_Unwind_Reason_Code reason,
@@ -512,7 +512,7 @@ static uintptr_t readEncodedPointer(const uint8_t **data, uint8_t encoding) {
 /// are supported. Filters are not supported.
 /// See Variable Length Data in:
 /// @link http://dwarfstd.org/Dwarf3.pdf @unlink
-/// Also see @link http://refspecs.freestandards.org/abi-eh-1.21.html @unlink
+/// Also see @link http://mentorembedded.github.com/cxx-abi/abi-eh.html @unlink
 /// @param resultAction reference variable which will be set with result
 /// @param classInfo our array of type info pointers (to globals)
 /// @param actionEntry index into above type info array or 0 (clean up).
@@ -599,7 +599,7 @@ static bool handleActionValue(int64_t *resultAction,
 
 
 /// Deals with the Language specific data portion of the emitted dwarf code.
-/// See @link http://refspecs.freestandards.org/abi-eh-1.21.html @unlink
+/// See @link http://mentorembedded.github.com/cxx-abi/abi-eh.html @unlink
 /// @param version unsupported (ignored), unwind version
 /// @param lsda language specific data area
 /// @param _Unwind_Action actions minimally supported unwind stage
@@ -667,8 +667,6 @@ static _Unwind_Reason_Code handleLsda(int version,
   const uint8_t   *actionTableStart = callSiteTableEnd;
   const uint8_t   *callSitePtr = callSiteTableStart;
 
-  bool foreignException = false;
-
   while (callSitePtr < callSiteTableEnd) {
     uintptr_t start = readEncodedPointer(&callSitePtr,
                                          callSiteEncoding);
@@ -684,7 +682,6 @@ static _Unwind_Reason_Code handleLsda(int version,
       // We have been notified of a foreign exception being thrown,
       // and we therefore need to execute cleanup landing pads
       actionEntry = 0;
-      foreignException = true;
     }
 
     if (landingPad == 0) {
@@ -786,7 +783,7 @@ static _Unwind_Reason_Code handleLsda(int version,
 
 /// This is the personality function which is embedded (dwarf emitted), in the
 /// dwarf unwind info block. Again see: JITDwarfEmitter.cpp.
-/// See @link http://refspecs.freestandards.org/abi-eh-1.21.html @unlink
+/// See @link http://mentorembedded.github.com/cxx-abi/abi-eh.html @unlink
 /// @param version unsupported (ignored), unwind version
 /// @param _Unwind_Action actions minimally supported unwind stage
 ///        (forced specifically not supported)
@@ -834,7 +831,7 @@ _Unwind_Reason_Code ourPersonality(int version,
 /// Generates our _Unwind_Exception class from a given character array.
 /// thereby handling arbitrary lengths (not in standard), and handling
 /// embedded \0s.
-/// See @link http://refspecs.freestandards.org/abi-eh-1.21.html @unlink
+/// See @link http://mentorembedded.github.com/cxx-abi/abi-eh.html @unlink
 /// @param classChars char array to encode. NULL values not checkedf
 /// @param classCharsSize number of chars in classChars. Value is not checked.
 /// @returns class value
@@ -1595,7 +1592,7 @@ void runExceptionThrow(llvm::ExecutionEngine *engine,
   catch (...) {
     // Catch all exceptions including our generated ones. This latter
     // functionality works according to the example in rules 1.6.4 of
-    // http://sourcery.mentor.com/public/cxx-abi/abi-eh.html (v1.22),
+    // http://mentorembedded.github.com/cxx-abi/abi-eh.html (v1.22),
     // given that these will be exceptions foreign to C++
     // (the _Unwind_Exception::exception_class should be different from
     // the one used by C++).
@@ -1687,7 +1684,6 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
   std::vector<llvm::Constant*> structVals;
 
   llvm::Constant *nextStruct;
-  llvm::GlobalVariable *nextGlobal = NULL;
 
   // Generate each type info
   //
@@ -1702,7 +1698,6 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
     typeInfoName = typeInfoNameBuilder.str();
 
     // Note: Does not seem to work without allocation
-    nextGlobal =
     new llvm::GlobalVariable(module,
                              ourTypeInfoType,
                              true,

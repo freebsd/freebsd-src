@@ -1,5 +1,6 @@
 ; RUN: llc -mtriple=x86_64-unknown-linux-gnu %s -o %t -filetype=obj
-; RUN: llvm-dwarfdump %t | FileCheck %s
+; RUN: llvm-dwarfdump -debug-dump=info %t | FileCheck %s
+; RUN: llvm-as < %s | llvm-dis | FileCheck --check-prefix=CHECK-DIS %s
 
 ; CHECK: 0x0000000b: DW_TAG_compile_unit
 ; CHECK: 0x00000012:   DW_AT_name [DW_FORM_strp] ( .debug_str[0x00000035] = "foo.cpp")
@@ -7,6 +8,9 @@
 ; CHECK: 0x0000003d:     DW_AT_name [DW_FORM_strp]       ( .debug_str[0x0000006d] = "D")
 ; CHECK: 0x00000044:     DW_TAG_member
 ; CHECK: 0x00000045:       DW_AT_name [DW_FORM_strp]     ( .debug_str[0x0000005d] = "c1")
+; CHECK: 0x0000008d:       DW_AT_artificial [DW_FORM_flag_present]       (true)
+
+; CHECK-DIS: [artificial]
 
 %class.D = type { i32, i32, i32, i32 }
 
@@ -54,38 +58,36 @@ declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 
 !llvm.dbg.cu = !{!0}
 
-!0 = metadata !{i32 786449, i32 0, i32 4, metadata !"foo.cpp", metadata !"/usr/local/google/home/echristo", metadata !"clang version 3.2 (trunk 167506) (llvm/trunk 167505)", i1 true, i1 true, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !1} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/echristo/foo.cpp] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !2}
-!2 = metadata !{i32 0}
-!3 = metadata !{metadata !4}
-!4 = metadata !{metadata !5, metadata !31}
-!5 = metadata !{i32 786478, i32 0, null, metadata !"D", metadata !"D", metadata !"_ZN1DC2Ev", metadata !6, i32 12, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (%class.D*)* @_ZN1DC2Ev, null, metadata !17, metadata !27, i32 12} ; [ DW_TAG_subprogram ] [line 12] [def] [D]
-!6 = metadata !{i32 786473, metadata !"foo.cpp", metadata !"/usr/local/google/home/echristo", null} ; [ DW_TAG_file_type ]
+!0 = metadata !{i32 786449, metadata !53, i32 4, metadata !"clang version 3.2 (trunk 167506) (llvm/trunk 167505)", i1 true, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !1, metadata !""} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/echristo/foo.cpp] [DW_LANG_C_plus_plus]
+!1 = metadata !{i32 0}
+!3 = metadata !{metadata !5, metadata !31}
+!5 = metadata !{i32 786478, metadata !6, null, metadata !"D", metadata !"D", metadata !"_ZN1DC2Ev", i32 12, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (%class.D*)* @_ZN1DC2Ev, null, metadata !17, metadata !27, i32 12} ; [ DW_TAG_subprogram ] [line 12] [def] [D]
+!6 = metadata !{i32 786473, metadata !53} ; [ DW_TAG_file_type ]
 !7 = metadata !{i32 786453, i32 0, metadata !"", i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, i32 0} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
 !8 = metadata !{null, metadata !9}
 !9 = metadata !{i32 786447, i32 0, metadata !"", i32 0, i32 0, i64 64, i64 64, i64 0, i32 1088, metadata !10} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from D]
-!10 = metadata !{i32 786434, null, metadata !"D", metadata !6, i32 1, i64 128, i64 32, i32 0, i32 0, null, metadata !11, i32 0, null, null} ; [ DW_TAG_class_type ] [D] [line 1, size 128, align 32, offset 0] [from ]
+!10 = metadata !{i32 786434, metadata !53, null, metadata !"D", i32 1, i64 128, i64 32, i32 0, i32 0, null, metadata !11, i32 0, null, null} ; [ DW_TAG_class_type ] [D] [line 1, size 128, align 32, offset 0] [from ]
 !11 = metadata !{metadata !12, metadata !14, metadata !15, metadata !16, metadata !17, metadata !20}
-!12 = metadata !{i32 786445, metadata !10, metadata !"c1", metadata !6, i32 6, i64 32, i64 32, i64 0, i32 1, metadata !13} ; [ DW_TAG_member ] [c1] [line 6, size 32, align 32, offset 0] [private] [from int]
-!13 = metadata !{i32 786468, null, metadata !"int", null, i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!14 = metadata !{i32 786445, metadata !10, metadata !"c2", metadata !6, i32 7, i64 32, i64 32, i64 32, i32 1, metadata !13} ; [ DW_TAG_member ] [c2] [line 7, size 32, align 32, offset 32] [private] [from int]
-!15 = metadata !{i32 786445, metadata !10, metadata !"c3", metadata !6, i32 8, i64 32, i64 32, i64 64, i32 1, metadata !13} ; [ DW_TAG_member ] [c3] [line 8, size 32, align 32, offset 64] [private] [from int]
-!16 = metadata !{i32 786445, metadata !10, metadata !"c4", metadata !6, i32 9, i64 32, i64 32, i64 96, i32 1, metadata !13} ; [ DW_TAG_member ] [c4] [line 9, size 32, align 32, offset 96] [private] [from int]
-!17 = metadata !{i32 786478, i32 0, metadata !10, metadata !"D", metadata !"D", metadata !"", metadata !6, i32 3, metadata !7, i1 false, i1 false, i32 0, i32 0, null, i32 256, i1 true, null, null, i32 0, metadata !18, i32 3} ; [ DW_TAG_subprogram ] [line 3] [D]
+!12 = metadata !{i32 786445, metadata !53, metadata !10, metadata !"c1", i32 6, i64 32, i64 32, i64 0, i32 1, metadata !13} ; [ DW_TAG_member ] [c1] [line 6, size 32, align 32, offset 0] [private] [from int]
+!13 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!14 = metadata !{i32 786445, metadata !53, metadata !10, metadata !"c2", i32 7, i64 32, i64 32, i64 32, i32 1, metadata !13} ; [ DW_TAG_member ] [c2] [line 7, size 32, align 32, offset 32] [private] [from int]
+!15 = metadata !{i32 786445, metadata !53, metadata !10, metadata !"c3", i32 8, i64 32, i64 32, i64 64, i32 1, metadata !13} ; [ DW_TAG_member ] [c3] [line 8, size 32, align 32, offset 64] [private] [from int]
+!16 = metadata !{i32 786445, metadata !53, metadata !10, metadata !"c4", i32 9, i64 32, i64 32, i64 96, i32 1, metadata !13} ; [ DW_TAG_member ] [c4] [line 9, size 32, align 32, offset 96] [private] [from int]
+!17 = metadata !{i32 786478, metadata !6, metadata !10, metadata !"D", metadata !"D", metadata !"", i32 3, metadata !7, i1 false, i1 false, i32 0, i32 0, null, i32 256, i1 true, null, null, i32 0, metadata !18, i32 3} ; [ DW_TAG_subprogram ] [line 3] [D]
 !18 = metadata !{metadata !19}
 !19 = metadata !{i32 786468}                      ; [ DW_TAG_base_type ] [line 0, size 0, align 0, offset 0]
-!20 = metadata !{i32 786478, i32 0, metadata !10, metadata !"D", metadata !"D", metadata !"", metadata !6, i32 4, metadata !21, i1 false, i1 false, i32 0, i32 0, null, i32 256, i1 true, null, null, i32 0, metadata !25, i32 4} ; [ DW_TAG_subprogram ] [line 4] [D]
+!20 = metadata !{i32 786478, metadata !6, metadata !10, metadata !"D", metadata !"D", metadata !"", i32 4, metadata !21, i1 false, i1 false, i32 0, i32 0, null, i32 256, i1 true, null, null, i32 0, metadata !25, i32 4} ; [ DW_TAG_subprogram ] [line 4] [D]
 !21 = metadata !{i32 786453, i32 0, metadata !"", i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !22, i32 0, i32 0} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
 !22 = metadata !{null, metadata !9, metadata !23}
 !23 = metadata !{i32 786448, null, null, null, i32 0, i64 0, i64 0, i64 0, i32 0, metadata !24} ; [ DW_TAG_reference_type ] [line 0, size 0, align 0, offset 0] [from ]
-!24 = metadata !{i32 786470, null, metadata !"", null, i32 0, i64 0, i64 0, i64 0, i32 0, metadata !10} ; [ DW_TAG_const_type ] [line 0, size 0, align 0, offset 0] [from D]
+!24 = metadata !{i32 786470, null, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, metadata !10} ; [ DW_TAG_const_type ] [line 0, size 0, align 0, offset 0] [from D]
 !25 = metadata !{metadata !26}
 !26 = metadata !{i32 786468}                      ; [ DW_TAG_base_type ] [line 0, size 0, align 0, offset 0]
 !27 = metadata !{metadata !28}
 !28 = metadata !{metadata !29}
 !29 = metadata !{i32 786689, metadata !5, metadata !"this", metadata !6, i32 16777228, metadata !30, i32 1088, i32 0} ; [ DW_TAG_arg_variable ] [this] [line 12]
-!30 = metadata !{i32 786447, null, metadata !"", null, i32 0, i64 64, i64 64, i64 0, i32 0, metadata !10} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from D]
-!31 = metadata !{i32 786478, i32 0, null, metadata !"D", metadata !"D", metadata !"_ZN1DC2ERKS_", metadata !6, i32 19, metadata !21, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (%class.D*, %class.D*)* @_ZN1DC2ERKS_, null, metadata !20, metadata !32, i32 19} ; [ DW_TAG_subprogram ] [line 19] [def] [D]
+!30 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 64, i64 64, i64 0, i32 0, metadata !10} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from D]
+!31 = metadata !{i32 786478, metadata !6, null, metadata !"D", metadata !"D", metadata !"_ZN1DC2ERKS_", i32 19, metadata !21, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (%class.D*, %class.D*)* @_ZN1DC2ERKS_, null, metadata !20, metadata !32, i32 19} ; [ DW_TAG_subprogram ] [line 19] [def] [D]
 !32 = metadata !{metadata !33}
 !33 = metadata !{metadata !34, metadata !35}
 !34 = metadata !{i32 786689, metadata !31, metadata !"this", metadata !6, i32 16777235, metadata !30, i32 1088, i32 0} ; [ DW_TAG_arg_variable ] [this] [line 19]
@@ -107,3 +109,4 @@ declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 !50 = metadata !{i32 22, i32 0, metadata !48, null}
 !51 = metadata !{i32 23, i32 0, metadata !48, null}
 !52 = metadata !{i32 24, i32 0, metadata !48, null}
+!53 = metadata !{metadata !"foo.cpp", metadata !"/usr/local/google/home/echristo"}

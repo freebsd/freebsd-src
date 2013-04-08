@@ -53,19 +53,24 @@ define void @storev16i16(<16 x i16> %a) nounwind {
   unreachable
 }
 
-; CHECK: vmovups  %ymm
+; CHECK: storev16i16_01
+; CHECK: vextractf128
+; CHECK: vmovups  %xmm
 define void @storev16i16_01(<16 x i16> %a) nounwind {
   store <16 x i16> %a, <16 x i16>* undef, align 4
   unreachable
 }
 
+; CHECK: storev32i8
 ; CHECK: vmovaps  %ymm
 define void @storev32i8(<32 x i8> %a) nounwind {
   store <32 x i8> %a, <32 x i8>* undef, align 32
   unreachable
 }
 
-; CHECK: vmovups  %ymm
+; CHECK: storev32i8_01
+; CHECK: vextractf128
+; CHECK: vmovups  %xmm
 define void @storev32i8_01(<32 x i8> %a) nounwind {
   store <32 x i8> %a, <32 x i8>* undef, align 4
   unreachable
@@ -109,3 +114,38 @@ cif_mixed_test_any_check:                         ; preds = %cif_mask_mixed
   unreachable
 }
 
+; CHECK: add8i32
+; CHECK: vmovups
+; CHECK: vmovups
+; CHECK-NOT: vinsertf128
+; CHECK-NOT: vextractf128
+; CHECK: vmovups
+; CHECK: vmovups
+define void @add8i32(<8 x i32>* %ret, <8 x i32>* %bp) nounwind {
+  %b = load <8 x i32>* %bp, align 1
+  %x = add <8 x i32> zeroinitializer, %b
+  store <8 x i32> %x, <8 x i32>* %ret, align 1
+  ret void
+}
+
+; CHECK: add4i64a64
+; CHECK: vmovaps ({{.*}}), %ymm{{.*}}
+; CHECK: vmovaps %ymm{{.*}}, ({{.*}})
+define void @add4i64a64(<4 x i64>* %ret, <4 x i64>* %bp) nounwind {
+  %b = load <4 x i64>* %bp, align 64
+  %x = add <4 x i64> zeroinitializer, %b
+  store <4 x i64> %x, <4 x i64>* %ret, align 64
+  ret void
+}
+
+; CHECK: add4i64a16
+; CHECK: vmovaps {{.*}}({{.*}}), %xmm{{.*}}
+; CHECK: vmovaps {{.*}}({{.*}}), %xmm{{.*}}
+; CHECK: vmovaps %xmm{{.*}}, {{.*}}({{.*}})
+; CHECK: vmovaps %xmm{{.*}}, {{.*}}({{.*}})
+define void @add4i64a16(<4 x i64>* %ret, <4 x i64>* %bp) nounwind {
+  %b = load <4 x i64>* %bp, align 16
+  %x = add <4 x i64> zeroinitializer, %b
+  store <4 x i64> %x, <4 x i64>* %ret, align 16
+  ret void
+}

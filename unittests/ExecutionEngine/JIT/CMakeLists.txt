@@ -19,7 +19,9 @@ if( LLVM_USE_INTEL_JITEVENTS )
     )
   set(LLVM_LINK_COMPONENTS
     ${LLVM_LINK_COMPONENTS}
+    DebugInfo
     IntelJITEvents
+    Object
     ) 
 endif( LLVM_USE_INTEL_JITEVENTS )
 
@@ -53,3 +55,4 @@ add_llvm_unittest(JITTests
 if(MINGW OR CYGWIN)
   set_property(TARGET JITTests PROPERTY LINK_FLAGS -Wl,--export-all-symbols)
 endif()
+set_target_properties(JITTests PROPERTIES ENABLE_EXPORTS 1)

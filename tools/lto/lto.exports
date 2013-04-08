@@ -1,5 +1,6 @@
 lto_get_error_message
 lto_get_version
+lto_initialize_disassembler
 lto_module_create
 lto_module_create_from_fd
 lto_module_create_from_fd_at_offset
@@ -28,6 +29,7 @@ lto_codegen_set_assembler_path
 lto_codegen_set_cpu
 lto_codegen_compile_to_file
 LLVMCreateDisasm
+LLVMCreateDisasmCPU
 LLVMDisasmDispose
 LLVMDisasmInstruction
 LLVMSetDisasmOptions

@@ -29,9 +29,11 @@
 #ifndef LLVM_SUPPORT_PATTERNMATCH_H
 #define LLVM_SUPPORT_PATTERNMATCH_H
 
-#include "llvm/Constants.h"
-#include "llvm/Instructions.h"
-#include "llvm/Operator.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Support/CallSite.h"
 
 namespace llvm {
 namespace PatternMatch {
@@ -41,13 +43,13 @@ bool match(Val *V, const Pattern &P) {
   return const_cast<Pattern&>(P).match(V);
 }
 
-  
+
 template<typename SubPattern_t>
 struct OneUse_match {
   SubPattern_t SubPattern;
-  
+
   OneUse_match(const SubPattern_t &SP) : SubPattern(SP) {}
-  
+
   template<typename OpTy>
   bool match(OpTy *V) {
     return V->hasOneUse() && SubPattern.match(V);
@@ -56,8 +58,8 @@ struct OneUse_match {
 
 template<typename T>
 inline OneUse_match<T> m_OneUse(const T &SubPattern) { return SubPattern; }
-  
-  
+
+
 template<typename Class>
 struct class_match {
   template<typename ITy>
@@ -74,7 +76,53 @@ inline class_match<ConstantInt> m_ConstantInt() {
 inline class_match<UndefValue> m_Undef() { return class_match<UndefValue>(); }
 
 inline class_match<Constant> m_Constant() { return class_match<Constant>(); }
-  
+
+/// Matching combinators
+template<typename LTy, typename RTy>
+struct match_combine_or {
+  LTy L;
+  RTy R;
+
+  match_combine_or(const LTy &Left, const RTy &Right) : L(Left), R(Right) { }
+
+  template<typename ITy>
+  bool match(ITy *V) {
+    if (L.match(V))
+      return true;
+    if (R.match(V))
+      return true;
+    return false;
+  }
+};
+
+template<typename LTy, typename RTy>
+struct match_combine_and {
+  LTy L;
+  RTy R;
+
+  match_combine_and(const LTy &Left, const RTy &Right) : L(Left), R(Right) { }
+
+  template<typename ITy>
+  bool match(ITy *V) {
+    if (L.match(V))
+      if (R.match(V))
+        return true;
+    return false;
+  }
+};
+
+/// Combine two pattern matchers matching L || R
+template<typename LTy, typename RTy>
+inline match_combine_or<LTy, RTy> m_CombineOr(const LTy &L, const RTy &R) {
+  return match_combine_or<LTy, RTy>(L, R);
+}
+
+/// Combine two pattern matchers matching L && R
+template<typename LTy, typename RTy>
+inline match_combine_and<LTy, RTy> m_CombineAnd(const LTy &L, const RTy &R) {
+  return match_combine_and<LTy, RTy>(L, R);
+}
+
 struct match_zero {
   template<typename ITy>
   bool match(ITy *V) {
@@ -83,12 +131,33 @@ struct match_zero {
     return false;
   }
 };
-  
+
 /// m_Zero() - Match an arbitrary zero/null constant.  This includes
 /// zero_initializer for vectors and ConstantPointerNull for pointers.
 inline match_zero m_Zero() { return match_zero(); }
-  
-  
+
+struct match_neg_zero {
+  template<typename ITy>
+  bool match(ITy *V) {
+    if (const Constant *C = dyn_cast<Constant>(V))
+      return C->isNegativeZeroValue();
+    return false;
+  }
+};
+
+/// m_NegZero() - Match an arbitrary zero/null constant.  This includes
+/// zero_initializer for vectors and ConstantPointerNull for pointers. For
+/// floating point constants, this will match negative zero but not positive
+/// zero
+inline match_neg_zero m_NegZero() { return match_neg_zero(); }
+
+/// m_AnyZero() - Match an arbitrary zero/null constant.  This includes
+/// zero_initializer for vectors and ConstantPointerNull for pointers. For
+/// floating point constants, this will match negative zero and positive zero
+inline match_combine_or<match_zero, match_neg_zero> m_AnyZero() {
+  return m_CombineOr(m_Zero(), m_NegZero());
+}
+
 struct apint_match {
   const APInt *&Res;
   apint_match(const APInt *&R) : Res(R) {}
@@ -98,28 +167,22 @@ struct apint_match {
       Res = &CI->getValue();
       return true;
     }
-    // FIXME: Remove this.
-    if (ConstantVector *CV = dyn_cast<ConstantVector>(V))
-      if (ConstantInt *CI =
-          dyn_cast_or_null<ConstantInt>(CV->getSplatValue())) {
-        Res = &CI->getValue();
-        return true;
-      }
-    if (ConstantDataVector *CV = dyn_cast<ConstantDataVector>(V))
-      if (ConstantInt *CI =
-          dyn_cast_or_null<ConstantInt>(CV->getSplatValue())) {
-        Res = &CI->getValue();
-        return true;
-      }
+    if (V->getType()->isVectorTy())
+      if (const Constant *C = dyn_cast<Constant>(V))
+        if (ConstantInt *CI =
+            dyn_cast_or_null<ConstantInt>(C->getSplatValue())) {
+          Res = &CI->getValue();
+          return true;
+        }
     return false;
   }
 };
-  
+
 /// m_APInt - Match a ConstantInt or splatted ConstantVector, binding the
 /// specified pointer to the contained APInt.
 inline apint_match m_APInt(const APInt *&Res) { return Res; }
 
-  
+
 template<int64_t Val>
 struct constantint_match {
   template<typename ITy>
@@ -151,17 +214,15 @@ struct cst_pred_ty : public Predicate {
   bool match(ITy *V) {
     if (const ConstantInt *CI = dyn_cast<ConstantInt>(V))
       return this->isValue(CI->getValue());
-    // FIXME: Remove this.
-    if (const ConstantVector *CV = dyn_cast<ConstantVector>(V))
-      if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
-        return this->isValue(CI->getValue());
-    if (const ConstantDataVector *CV = dyn_cast<ConstantDataVector>(V))
-      if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
-        return this->isValue(CI->getValue());
+    if (V->getType()->isVectorTy())
+      if (const Constant *C = dyn_cast<Constant>(V))
+        if (const ConstantInt *CI =
+            dyn_cast_or_null<ConstantInt>(C->getSplatValue()))
+          return this->isValue(CI->getValue());
     return false;
   }
 };
-  
+
 /// api_pred_ty - This helper class is used to match scalar and vector constants
 /// that satisfy a specified predicate, and bind them to an APInt.
 template<typename Predicate>
@@ -175,27 +236,19 @@ struct api_pred_ty : public Predicate {
         Res = &CI->getValue();
         return true;
       }
-    
-    // FIXME: remove.
-    if (const ConstantVector *CV = dyn_cast<ConstantVector>(V))
-      if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
-        if (this->isValue(CI->getValue())) {
-          Res = &CI->getValue();
-          return true;
-        }
-    
-    if (const ConstantDataVector *CV = dyn_cast<ConstantDataVector>(V))
-      if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(CV->getSplatValue()))
-        if (this->isValue(CI->getValue())) {
-          Res = &CI->getValue();
-          return true;
-        }
+    if (V->getType()->isVectorTy())
+      if (const Constant *C = dyn_cast<Constant>(V))
+        if (ConstantInt *CI = dyn_cast_or_null<ConstantInt>(C->getSplatValue()))
+          if (this->isValue(CI->getValue())) {
+            Res = &CI->getValue();
+            return true;
+          }
 
     return false;
   }
 };
-  
-  
+
+
 struct is_one {
   bool isValue(const APInt &C) { return C == 1; }
 };
@@ -203,11 +256,11 @@ struct is_one {
 /// m_One() - Match an integer 1 or a vector with all elements equal to 1.
 inline cst_pred_ty<is_one> m_One() { return cst_pred_ty<is_one>(); }
 inline api_pred_ty<is_one> m_One(const APInt *&V) { return V; }
-    
+
 struct is_all_ones {
   bool isValue(const APInt &C) { return C.isAllOnesValue(); }
 };
-  
+
 /// m_AllOnes() - Match an integer or vector with all bits set to true.
 inline cst_pred_ty<is_all_ones> m_AllOnes() {return cst_pred_ty<is_all_ones>();}
 inline api_pred_ty<is_all_ones> m_AllOnes(const APInt *&V) { return V; }
@@ -252,6 +305,9 @@ inline bind_ty<ConstantInt> m_ConstantInt(ConstantInt *&CI) { return CI; }
 /// m_Constant - Match a Constant, capturing the value if we match.
 inline bind_ty<Constant> m_Constant(Constant *&C) { return C; }
 
+/// m_ConstantFP - Match a ConstantFP, capturing the value if we match.
+inline bind_ty<ConstantFP> m_ConstantFP(ConstantFP *&C) { return C; }
+
 /// specificval_ty - Match a specified Value*.
 struct specificval_ty {
   const Value *Val;
@@ -266,10 +322,35 @@ struct specificval_ty {
 /// m_Specific - Match if we have a specific specified value.
 inline specificval_ty m_Specific(const Value *V) { return V; }
 
+/// Match a specified floating point value or vector of all elements of that
+/// value.
+struct specific_fpval {
+  double Val;
+  specific_fpval(double V) : Val(V) {}
+
+  template<typename ITy>
+  bool match(ITy *V) {
+    if (const ConstantFP *CFP = dyn_cast<ConstantFP>(V))
+      return CFP->isExactlyValue(Val);
+    if (V->getType()->isVectorTy())
+      if (const Constant *C = dyn_cast<Constant>(V))
+        if (ConstantFP *CFP = dyn_cast_or_null<ConstantFP>(C->getSplatValue()))
+          return CFP->isExactlyValue(Val);
+    return false;
+  }
+};
+
+/// Match a specific floating point value or vector with all elements equal to
+/// the value.
+inline specific_fpval m_SpecificFP(double V) { return specific_fpval(V); }
+
+/// Match a float 1.0 or vector with all elements equal to 1.0.
+inline specific_fpval m_FPOne() { return m_SpecificFP(1.0); }
+
 struct bind_const_intval_ty {
   uint64_t &VR;
   bind_const_intval_ty(uint64_t &V) : VR(V) {}
-  
+
   template<typename ITy>
   bool match(ITy *V) {
     if (ConstantInt *CV = dyn_cast<ConstantInt>(V))
@@ -284,7 +365,7 @@ struct bind_const_intval_ty {
 /// m_ConstantInt - Match a ConstantInt and bind to its value.  This does not
 /// match ConstantInts wider than 64-bits.
 inline bind_const_intval_ty m_ConstantInt(uint64_t &V) { return V; }
-  
+
 //===----------------------------------------------------------------------===//
 // Matchers for specific binary operators.
 //
@@ -583,7 +664,7 @@ inline CastClass_match<OpTy, Instruction::BitCast>
 m_BitCast(const OpTy &Op) {
   return CastClass_match<OpTy, Instruction::BitCast>(Op);
 }
-  
+
 /// m_PtrToInt
 template<typename OpTy>
 inline CastClass_match<OpTy, Instruction::PtrToInt>
@@ -611,7 +692,7 @@ inline CastClass_match<OpTy, Instruction::ZExt>
 m_ZExt(const OpTy &Op) {
   return CastClass_match<OpTy, Instruction::ZExt>(Op);
 }
-  
+
 
 //===----------------------------------------------------------------------===//
 // Matchers for unary operators
@@ -699,6 +780,25 @@ inline fneg_match<LHS> m_FNeg(const LHS &L) { return L; }
 //===----------------------------------------------------------------------===//
 // Matchers for control flow.
 //
+
+struct br_match {
+  BasicBlock *&Succ;
+  br_match(BasicBlock *&Succ)
+    : Succ(Succ) {
+  }
+
+  template<typename OpTy>
+  bool match(OpTy *V) {
+    if (BranchInst *BI = dyn_cast<BranchInst>(V))
+      if (BI->isUnconditional()) {
+        Succ = BI->getSuccessor(0);
+        return true;
+      }
+    return false;
+  }
+};
+
+inline br_match m_UnconditionalBr(BasicBlock *&Succ) { return br_match(Succ); }
 
 template<typename Cond_t>
 struct brc_match {
@@ -816,6 +916,102 @@ template<typename LHS, typename RHS>
 inline MaxMin_match<LHS, RHS, umin_pred_ty>
 m_UMin(const LHS &L, const RHS &R) {
   return MaxMin_match<LHS, RHS, umin_pred_ty>(L, R);
+}
+
+template<typename Opnd_t>
+struct Argument_match {
+  unsigned OpI;
+  Opnd_t Val;
+  Argument_match(unsigned OpIdx, const Opnd_t &V) : OpI(OpIdx), Val(V) { }
+
+  template<typename OpTy>
+  bool match(OpTy *V) {
+    CallSite CS(V);
+    return CS.isCall() && Val.match(CS.getArgument(OpI));
+  }
+};
+
+/// Match an argument
+template<unsigned OpI, typename Opnd_t>
+inline Argument_match<Opnd_t> m_Argument(const Opnd_t &Op) {
+  return Argument_match<Opnd_t>(OpI, Op);
+}
+
+/// Intrinsic matchers.
+struct IntrinsicID_match {
+  unsigned ID;
+  IntrinsicID_match(unsigned IntrID) : ID(IntrID) { }
+
+  template<typename OpTy>
+  bool match(OpTy *V) {
+    IntrinsicInst *II = dyn_cast<IntrinsicInst>(V);
+    return II && II->getIntrinsicID() == ID;
+  }
+};
+
+/// Intrinsic matches are combinations of ID matchers, and argument
+/// matchers. Higher arity matcher are defined recursively in terms of and-ing
+/// them with lower arity matchers. Here's some convenient typedefs for up to
+/// several arguments, and more can be added as needed
+template <typename T0 = void, typename T1 = void, typename T2 = void,
+          typename T3 = void, typename T4 = void, typename T5 = void,
+          typename T6 = void, typename T7 = void, typename T8 = void,
+          typename T9 = void, typename T10 = void> struct m_Intrinsic_Ty;
+template <typename T0>
+struct m_Intrinsic_Ty<T0> {
+  typedef match_combine_and<IntrinsicID_match, Argument_match<T0> > Ty;
+};
+template <typename T0, typename T1>
+struct m_Intrinsic_Ty<T0, T1> {
+  typedef match_combine_and<typename m_Intrinsic_Ty<T0>::Ty,
+                            Argument_match<T1> > Ty;
+};
+template <typename T0, typename T1, typename T2>
+struct m_Intrinsic_Ty<T0, T1, T2> {
+  typedef match_combine_and<typename m_Intrinsic_Ty<T0, T1>::Ty,
+                            Argument_match<T2> > Ty;
+};
+template <typename T0, typename T1, typename T2, typename T3>
+struct m_Intrinsic_Ty<T0, T1, T2, T3> {
+  typedef match_combine_and<typename m_Intrinsic_Ty<T0, T1, T2>::Ty,
+                            Argument_match<T3> > Ty;
+};
+
+/// Match intrinsic calls like this:
+///   m_Intrinsic<Intrinsic::fabs>(m_Value(X))
+template <unsigned IntrID>
+inline IntrinsicID_match
+m_Intrinsic() { return IntrinsicID_match(IntrID); }
+
+template<unsigned IntrID, typename T0>
+inline typename m_Intrinsic_Ty<T0>::Ty
+m_Intrinsic(const T0 &Op0) {
+  return m_CombineAnd(m_Intrinsic<IntrID>(), m_Argument<0>(Op0));
+}
+
+template<unsigned IntrID, typename T0, typename T1>
+inline typename m_Intrinsic_Ty<T0, T1>::Ty
+m_Intrinsic(const T0 &Op0, const T1 &Op1) {
+  return m_CombineAnd(m_Intrinsic<IntrID>(Op0), m_Argument<1>(Op1));
+}
+
+template<unsigned IntrID, typename T0, typename T1, typename T2>
+inline typename m_Intrinsic_Ty<T0, T1, T2>::Ty
+m_Intrinsic(const T0 &Op0, const T1 &Op1, const T2 &Op2) {
+  return m_CombineAnd(m_Intrinsic<IntrID>(Op0, Op1), m_Argument<2>(Op2));
+}
+
+template<unsigned IntrID, typename T0, typename T1, typename T2, typename T3>
+inline typename m_Intrinsic_Ty<T0, T1, T2, T3>::Ty
+m_Intrinsic(const T0 &Op0, const T1 &Op1, const T2 &Op2, const T3 &Op3) {
+  return m_CombineAnd(m_Intrinsic<IntrID>(Op0, Op1, Op2), m_Argument<3>(Op3));
+}
+
+// Helper intrinsic matching specializations
+template<typename Opnd0>
+inline typename m_Intrinsic_Ty<Opnd0>::Ty
+m_BSwap(const Opnd0 &Op0) {
+  return m_Intrinsic<Intrinsic::bswap>(Op0);
 }
 
 } // end namespace PatternMatch

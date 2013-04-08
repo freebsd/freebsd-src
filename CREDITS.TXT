@@ -60,9 +60,11 @@ D: Loop unrolling with run-time trip counts.
 
 N: Chandler Carruth
 E: chandlerc@gmail.com
+E: chandlerc@google.com
 D: Hashing algorithms and interfaces
 D: Inline cost analysis
 D: Machine block placement pass
+D: SROA
 
 N: Casey Carter
 E: ccarter@uiuc.edu
@@ -98,7 +100,7 @@ E: adasgupt@codeaurora.org
 D: Deterministic finite automaton based infrastructure for VLIW packetization
 
 N: Stefanus Du Toit
-E: stefanus.dutoit@rapidmind.com
+E: stefanus.du.toit@intel.com
 D: Bug fixes and minor improvements
 
 N: Rafael Avila de Espindola
@@ -141,7 +143,7 @@ E: foldr@codedgers.com
 D: Author of llvmc2
 
 N: Dan Gohman
-E: gohman@apple.com
+E: dan433584@gmail.com
 D: Miscellaneous bug fixes
 
 N: David Goodwin
@@ -361,8 +363,8 @@ D: ARM fast-isel improvements
 D: Performance monitoring
 
 N: Nadav Rotem
-E: nadav.rotem@intel.com
-D: Vector code generation improvements.
+E: nrotem@apple.com
+D: X86 code generation improvements, Loop Vectorizer.
 
 N: Roman Samoilov
 E: roman@codedgers.com
@@ -402,6 +404,10 @@ E: rspencer@reidspencer.com
 W: http://reidspencer.com/
 D: Lots of stuff, see: http://wiki.llvm.org/index.php/User:Reid
 
+N: Craig Topper
+E: craig.topper@gmail.com
+D: X86 codegen and disassembler improvements. AVX2 support.
+
 N: Edwin Torok
 E: edwintorok@gmail.com
 D: Miscellaneous bug fixes
@@ -417,7 +423,6 @@ D: Thread Local Storage implementation
 
 N: Bill Wendling
 E: wendling@apple.com
-D: Exception handling
 D: Bunches of stuff
 
 N: Bob Wilson

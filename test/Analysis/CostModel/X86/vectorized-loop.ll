@@ -28,20 +28,21 @@ vector.body:                                      ; preds = %for.body.lr.ph, %ve
   %4 = getelementptr inbounds i32* %B, i64 %3
   ;CHECK: cost of 0 {{.*}} bitcast
   %5 = bitcast i32* %4 to <8 x i32>*
-  ;CHECK: cost of 1 {{.*}} load
+  ;CHECK: cost of 2 {{.*}} load
   %6 = load <8 x i32>* %5, align 4
   ;CHECK: cost of 4 {{.*}} mul
   %7 = mul nsw <8 x i32> %6, <i32 5, i32 5, i32 5, i32 5, i32 5, i32 5, i32 5, i32 5>
   %8 = getelementptr inbounds i32* %A, i64 %index
   %9 = bitcast i32* %8 to <8 x i32>*
+  ;CHECK: cost of 2 {{.*}} load
   %10 = load <8 x i32>* %9, align 4
   ;CHECK: cost of 4 {{.*}} add
   %11 = add nsw <8 x i32> %10, %7
-  ;CHECK: cost of 1 {{.*}} store
+  ;CHECK: cost of 2 {{.*}} store
   store <8 x i32> %11, <8 x i32>* %9, align 4
   %index.next = add i64 %index, 8
   %12 = icmp eq i64 %index.next, %end.idx.rnd.down
-  ;CHECK: cost of 1 {{.*}} br
+  ;CHECK: cost of 0 {{.*}} br
   br i1 %12, label %middle.block, label %vector.body
 
 middle.block:                                     ; preds = %vector.body, %for.body.lr.ph
@@ -65,11 +66,11 @@ for.body:                                         ; preds = %middle.block, %for.
   ;CHECK: cost of 0 {{.*}} trunc
   %16 = trunc i64 %indvars.iv.next to i32
   %cmp = icmp slt i32 %16, %end
-  ;CHECK: cost of 1 {{.*}} br
+  ;CHECK: cost of 0 {{.*}} br
   br i1 %cmp, label %for.body, label %for.end
 
 for.end:                                          ; preds = %middle.block, %for.body, %entry
-  ;CHECK: cost of 1 {{.*}} ret
+  ;CHECK: cost of 0 {{.*}} ret
   ret i32 undef
 }
 

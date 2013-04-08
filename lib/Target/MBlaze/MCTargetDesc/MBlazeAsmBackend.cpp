@@ -8,9 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/MBlazeMCTargetDesc.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAsmBackend.h"
-#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCAsmLayout.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCELFSymbolFlags.h"
 #include "llvm/MC/MCExpr.h"
@@ -18,7 +19,6 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/ADT/Twine.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -54,7 +54,7 @@ public:
 
   bool fixupNeedsRelaxation(const MCFixup &Fixup,
                             uint64_t Value,
-                            const MCInstFragment *DF,
+                            const MCRelaxableFragment *DF,
                             const MCAsmLayout &Layout) const;
 
   void relaxInstruction(const MCInst &Inst, MCInst &Res) const;
@@ -88,7 +88,7 @@ bool MBlazeAsmBackend::mayNeedRelaxation(const MCInst &Inst) const {
 
 bool MBlazeAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup,
                                             uint64_t Value,
-                                            const MCInstFragment *DF,
+                                            const MCRelaxableFragment *DF,
                                             const MCAsmLayout &Layout) const {
   // FIXME: Is this right? It's what the "generic" code was doing before,
   // but is X86 specific. Is it actually true for MBlaze also, or was it

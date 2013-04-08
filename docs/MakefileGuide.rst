@@ -1,5 +1,3 @@
-.. _makefile_guide:
-
 ===================
 LLVM Makefile Guide
 ===================
@@ -60,7 +58,7 @@ To use the makefile system, you simply create a file named ``Makefile`` in your
 directory and declare values for certain variables.  The variables and values
 that you select determine what the makefile system will do. These variables
 enable rules and processing in the makefile system that automatically Do The
-Right Thing&trade;.
+Right Thing (C).
 
 Including Makefiles
 -------------------
@@ -170,9 +168,9 @@ openable with the ``dlopen`` function and searchable with the ``dlsym`` function
 (or your operating system's equivalents). While this isn't strictly necessary on
 Linux and a few other platforms, it is required on systems like HP-UX and
 Darwin. You should use ``LOADABLE_MODULE`` for any shared library that you
-intend to be loaded into an tool via the ``-load`` option. See the
-`WritingAnLLVMPass.html <WritingAnLLVMPass.html#makefile>`_ document for an
-example of why you might want to do this.
+intend to be loaded into an tool via the ``-load`` option.  `Pass documentation
+<writing-an-llvm-pass-makefile>`_ has an example of why you might want to do
+this.
 
 Bitcode Modules
 ^^^^^^^^^^^^^^^
@@ -241,7 +239,7 @@ and the names of the libraries you wish to link with the tool. For example:
 says that we are to build a tool name ``mytool`` and that it requires three
 libraries: ``mylib``, ``LLVMSupport.a`` and ``LLVMSystem.a``.
 
-Note that two different variables are use to indicate which libraries are
+Note that two different variables are used to indicate which libraries are
 linked: ``USEDLIBS`` and ``LLVMLIBS``. This distinction is necessary to support
 projects. ``LLVMLIBS`` refers to the LLVM libraries found in the LLVM object
 directory. ``USEDLIBS`` refers to the libraries built by your project. In the
@@ -339,7 +337,7 @@ the invocation of ``make check-local`` in the ``test`` directory. The intended
 usage for this is to assist in running specific suites of tests. If
 ``TESTSUITE`` is not set, the implementation of ``check-local`` should run all
 normal tests.  It is up to the project to define what different values for
-``TESTSUTE`` will do. See the `Testing Guide <TestingGuide.html>`_ for further
+``TESTSUTE`` will do. See the :doc:`Testing Guide <TestingGuide>` for further
 details.
 
 ``check-local``
@@ -348,9 +346,9 @@ details.
 This target should be implemented by the ``Makefile`` in the project's ``test``
 directory. It is invoked by the ``check`` target elsewhere.  Each project is
 free to define the actions of ``check-local`` as appropriate for that
-project. The LLVM project itself uses dejagnu to run a suite of feature and
-regresson tests. Other projects may choose to use dejagnu or any other testing
-mechanism.
+project. The LLVM project itself uses the :doc:`Lit <CommandGuide/lit>` testing
+tool to run a suite of feature and regression tests. Other projects may choose
+to use :program:`lit` or any other testing mechanism.
 
 ``clean``
 ---------
@@ -358,7 +356,7 @@ mechanism.
 This target cleans the build directory, recursively removing all things that the
 Makefile builds. The cleaning rules have been made guarded so they shouldn't go
 awry (via ``rm -f $(UNSET_VARIABLE)/*`` which will attempt to erase the entire
-directory structure.
+directory structure).
 
 ``clean-local``
 ---------------
@@ -606,8 +604,8 @@ system that tell it what to do for the current directory.
     the build process, such as code generators (e.g.  ``tblgen``).
 
 ``OPTIONAL_DIRS``
-    Specify a set of directories that may be built, if they exist, but its not
-    an error for them not to exist.
+    Specify a set of directories that may be built, if they exist, but it is
+    not an error for them not to exist.
 
 ``PARALLEL_DIRS``
     Specify a set of directories to build recursively and in parallel if the
@@ -700,6 +698,9 @@ The override variables are given below:
 
 ``CFLAGS``
     Additional flags to be passed to the 'C' compiler.
+
+``CPPFLAGS``
+    Additional flags passed to the C/C++ preprocessor.
 
 ``CXX``
     Specifies the path to the C++ compiler.

@@ -1,5 +1,3 @@
-.. _compiler_writer_info:
-
 ========================================================
 Architecture & Platform Information for Compiler Writers
 ========================================================
@@ -12,8 +10,6 @@ Architecture & Platform Information for Compiler Writers
   This document is a work-in-progress.  Additions and clarifications are
   welcome.
 
-  Compiled by `Misha Brukman <http://misha.brukman.net>`_.
-
 Hardware
 ========
 
@@ -23,6 +19,11 @@ ARM
 * `ARM documentation <http://www.arm.com/documentation/>`_ (`Processor Cores <http://www.arm.com/documentation/ARMProcessor_Cores/>`_ Cores)
 
 * `ABI <http://www.arm.com/products/DevTools/ABI.html>`_
+
+AArch64
+-------
+
+* `ARMv8 Instruction Set Overview <http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.genc010197a/index.html>`_
 
 Itanium (ia64)
 --------------
@@ -40,19 +41,15 @@ PowerPC
 IBM - Official manuals and docs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* `PowerPC Architecture Book <http://www-106.ibm.com/developerworks/eserver/articles/archguide.html>`_
+* `Power Instruction Set Architecture, Versions 2.03 through 2.06 (authentication required, free sign-up) <https://www.power.org/technology-introduction/standards-specifications>`_
 
-  * Book I: `PowerPC User Instruction Set Architecture <http://www-106.ibm.com/developerworks/eserver/pdfs/archpub1.pdf>`_
+* `PowerPC Compiler Writer's Guide <http://www.ibm.com/chips/techlib/techlib.nsf/techdocs/852569B20050FF7785256996007558C6>`_
 
-  * Book II: `PowerPC Virtual Environment Architecture <http://www-106.ibm.com/developerworks/eserver/pdfs/archpub2.pdf>`_
+* `Intro to PowerPC Architecture <http://www.ibm.com/developerworks/linux/library/l-powarch/>`_
 
-  * Book III: `PowerPC Operating Environment Architecture <http://www-106.ibm.com/developerworks/eserver/pdfs/archpub3.pdf>`_
+* `PowerPC Processor Manuals (embedded) <http://www.ibm.com/chips/techlib/techlib.nsf/products/PowerPC>`_
 
-* `PowerPC Compiler Writer's Guide <http://www-3.ibm.com/chips/techlib/techlib.nsf/techdocs/852569B20050FF7785256996007558C6>`_
-
-* `PowerPC Processor Manuals <http://www-3.ibm.com/chips/techlib/techlib.nsf/products/PowerPC>`_
-
-* `Intro to PowerPC Architecture <http://www-106.ibm.com/developerworks/linux/library/l-powarch/>`_
+* `Various IBM specifications and white papers <https://www.power.org/documentation/?document_company=105&document_category=all&publish_year=all&grid_order=DESC&grid_sort=title>`_
 
 * `IBM AIX/5L for POWER Assembly Reference <http://publibn.boulder.ibm.com/doc_link/en_US/a_doc_lib/aixassem/alangref/alangreftfrm.htm>`_
 
@@ -81,13 +78,13 @@ AMD - Official manuals and docs
 Intel - Official manuals and docs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* `IA-32 manuals <http://developer.intel.com/design/pentium4/manuals/index_new.htm>`_
+* `Intel 64 and IA-32 manuals <http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html>`_
 * `Intel Itanium documentation <http://www.intel.com/design/itanium/documentation.htm?iid=ipp_srvr_proc_itanium2+techdocs>`_
 
 Other x86-specific information
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* `Calling conventions for different C++ compilers and operating systems  <http://www.agner.org/assem/calling_conventions.pdf>`_
+* `Calling conventions for different C++ compilers and operating systems  <http://www.agner.org/optimize/calling_conventions.pdf>`_
 
 Other relevant lists
 --------------------
@@ -101,12 +98,20 @@ Linux
 -----
 
 * `PowerPC 64-bit ELF ABI Supplement <http://www.linuxbase.org/spec/ELF/ppc64/>`_
+* `Procedure Call Standard for the AArch64 Architecture <http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055a/IHI0055A_aapcs64.pdf>`_
+* `ELF for the ARM 64-bit Architecture (AArch64) <http://infocenter.arm.com/help/topic/com.arm.doc.ihi0056a/IHI0056A_aaelf64.pdf>`_
 
 OS X
 ----
 
 * `Mach-O Runtime Architecture <http://developer.apple.com/documentation/Darwin/RuntimeArchitecture-date.html>`_
 * `Notes on Mach-O ABI <http://www.unsanity.org/archives/000044.php>`_
+
+NVPTX
+=====
+
+* `CUDA Documentation <http://docs.nvidia.com/cuda/index.html>`_ includes the PTX
+  ISA and Driver API documentation
 
 Miscellaneous Resources
 =======================

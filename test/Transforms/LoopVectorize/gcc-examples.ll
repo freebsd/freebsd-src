@@ -1,4 +1,5 @@
-; RUN: opt < %s  -loop-vectorize -force-vector-width=4 -dce -instcombine -licm -S | FileCheck %s
+; RUN: opt < %s  -loop-vectorize -force-vector-width=4 -force-vector-unroll=1 -dce -instcombine -S | FileCheck %s
+; RUN: opt < %s  -loop-vectorize -force-vector-width=4 -force-vector-unroll=4 -dce -instcombine -S | FileCheck %s -check-prefix=UNROLL
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.8.0"
@@ -24,6 +25,20 @@ target triple = "x86_64-apple-macosx10.8.0"
 ;CHECK: add nsw <4 x i32>
 ;CHECK: store <4 x i32>
 ;CHECK: ret void
+;UNROLL: @example1
+;UNROLL: load <4 x i32>
+;UNROLL: load <4 x i32>
+;UNROLL: load <4 x i32>
+;UNROLL: load <4 x i32>
+;UNROLL: add nsw <4 x i32>
+;UNROLL: add nsw <4 x i32>
+;UNROLL: add nsw <4 x i32>
+;UNROLL: add nsw <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: ret void
 define void @example1() nounwind uwtable ssp {
   br label %1
 
@@ -48,6 +63,12 @@ define void @example1() nounwind uwtable ssp {
 ;CHECK: @example2
 ;CHECK: store <4 x i32>
 ;CHECK: ret void
+;UNROLL: @example2
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: ret void
 define void @example2(i32 %n, i32 %x) nounwind uwtable ssp {
   %1 = icmp sgt i32 %n, 0
   br i1 %1, label %.lr.ph5, label %.preheader
@@ -89,10 +110,15 @@ define void @example2(i32 %n, i32 %x) nounwind uwtable ssp {
   ret void
 }
 
-; We can't vectorize this loop because it has non constant loop bounds.
 ;CHECK: @example3
-;CHECK-NOT: <4 x i32>
+;CHECK: <4 x i32>
 ;CHECK: ret void
+;UNROLL: @example3
+;UNROLL: <4 x i32>
+;UNROLL: <4 x i32>
+;UNROLL: <4 x i32>
+;UNROLL: <4 x i32>
+;UNROLL: ret void
 define void @example3(i32 %n, i32* noalias nocapture %p, i32* noalias nocapture %q) nounwind uwtable ssp {
   %1 = icmp eq i32 %n, 0
   br i1 %1, label %._crit_edge, label %.lr.ph
@@ -116,6 +142,12 @@ define void @example3(i32 %n, i32* noalias nocapture %p, i32* noalias nocapture 
 ;CHECK: @example4
 ;CHECK: load <4 x i32>
 ;CHECK: ret void
+;UNROLL: @example4
+;UNROLL: load <4 x i32>
+;UNROLL: load <4 x i32>
+;UNROLL: load <4 x i32>
+;UNROLL: load <4 x i32>
+;UNROLL: ret void
 define void @example4(i32 %n, i32* noalias nocapture %p, i32* noalias nocapture %q) nounwind uwtable ssp {
   %1 = add nsw i32 %n, -1
   %2 = icmp eq i32 %n, 0
@@ -176,6 +208,12 @@ define void @example4(i32 %n, i32* noalias nocapture %p, i32* noalias nocapture 
 ;CHECK: @example8
 ;CHECK: store <4 x i32>
 ;CHECK: ret void
+;UNROLL: @example8
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: store <4 x i32>
+;UNROLL: ret void
 define void @example8(i32 %x) nounwind uwtable ssp {
   br label %.preheader
 
@@ -330,7 +368,7 @@ define void @example11() nounwind uwtable ssp {
 }
 
 ;CHECK: @example12
-;CHECK: trunc <4 x i64>
+;CHECK: trunc i64
 ;CHECK: store <4 x i32>
 ;CHECK: ret void
 define void @example12() nounwind uwtable ssp {
@@ -391,9 +429,9 @@ define void @example13(i32** nocapture %A, i32** nocapture %B, i32* nocapture %o
   ret void
 }
 
-; Can't vectorize because of reductions.
+; Can vectorize.
 ;CHECK: @example14
-;CHECK-NOT: <4 x i32>
+;CHECK: <4 x i32>
 ;CHECK: ret void
 define void @example14(i32** nocapture %in, i32** nocapture %coeff, i32* nocapture %out) nounwind uwtable ssp {
 .preheader3:
@@ -537,9 +575,9 @@ define void @example14(i32** nocapture %in, i32** nocapture %coeff, i32* nocaptu
   ret void
 }
 
-; Can't vectorize because the src and dst pointers are not disjoint.
 ;CHECK: @example21
-;CHECK-NOT: <4 x i32>
+;CHECK: load <4 x i32>
+;CHECK: shufflevector {{.*}} <i32 3, i32 2, i32 1, i32 0>
 ;CHECK: ret i32
 define i32 @example21(i32* nocapture %b, i32 %n) nounwind uwtable readonly ssp {
   %1 = icmp sgt i32 %n, 0
@@ -565,9 +603,8 @@ define i32 @example21(i32* nocapture %b, i32 %n) nounwind uwtable readonly ssp {
   ret i32 %a.0.lcssa
 }
 
-; Can't vectorize because there are multiple PHIs.
 ;CHECK: @example23
-;CHECK-NOT: <4 x i32>
+;CHECK: <4 x i32>
 ;CHECK: ret void
 define void @example23(i16* nocapture %src, i32* nocapture %dst) nounwind uwtable ssp {
   br label %1

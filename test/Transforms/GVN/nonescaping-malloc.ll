@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: opt < %s -basicaa -gvn -stats -disable-output 2>&1 | grep "Number of loads deleted"
 ; rdar://7363102
 

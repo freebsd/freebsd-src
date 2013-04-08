@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -march=x86-64 | FileCheck %s --check-prefix=CHECK-64
 ; RUN: llc < %s -march=x86-64 -o /dev/null -stats  -info-output-file - | grep asm-printer  | grep 12
 ; RUN: llc < %s -march=x86 | FileCheck %s --check-prefix=CHECK-32

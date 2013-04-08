@@ -165,6 +165,46 @@ entry:
   ret i1 %cmp
 }
 
+define i1 @gep13(i8* %ptr) {
+; CHECK: @gep13
+; We can prove this GEP is non-null because it is inbounds.
+  %x = getelementptr inbounds i8* %ptr, i32 1
+  %cmp = icmp eq i8* %x, null
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep14({ {}, i8 }* %ptr) {
+; CHECK: @gep14
+; We can't simplify this because the offset of one in the GEP actually doesn't
+; move the pointer.
+  %x = getelementptr inbounds { {}, i8 }* %ptr, i32 0, i32 1
+  %cmp = icmp eq i8* %x, null
+  ret i1 %cmp
+; CHECK-NOT: ret i1 false
+}
+
+define i1 @gep15({ {}, [4 x {i8, i8}]}* %ptr, i32 %y) {
+; CHECK: @gep15
+; We can prove this GEP is non-null even though there is a user value, as we
+; would necessarily violate inbounds on one side or the other.
+  %x = getelementptr inbounds { {}, [4 x {i8, i8}]}* %ptr, i32 0, i32 1, i32 %y, i32 1
+  %cmp = icmp eq i8* %x, null
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 false
+}
+
+define i1 @gep16(i8* %ptr, i32 %a) {
+; CHECK: @gep16
+; We can prove this GEP is non-null because it is inbounds and because we know
+; %b is non-zero even though we don't know its value.
+  %b = or i32 %a, 1
+  %x = getelementptr inbounds i8* %ptr, i32 %b
+  %cmp = icmp eq i8* %x, null
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 false
+}
+
 define i1 @zext(i32 %x) {
 ; CHECK: @zext
   %e1 = zext i32 %x to i64
@@ -606,4 +646,50 @@ unreachableblock:
   %X = getelementptr i32 *%X, i32 1
   %Y = icmp eq i32* %X, null
   ret i1 %Y
+}
+
+; It's not valid to fold a comparison of an argument with an alloca, even though
+; that's tempting. An argument can't *alias* an alloca, however the aliasing rule
+; relies on restrictions against guessing an object's address and dereferencing.
+; There are no restrictions against guessing an object's address and comparing.
+
+define i1 @alloca_argument_compare(i64* %arg) {
+  %alloc = alloca i64
+  %cmp = icmp eq i64* %arg, %alloc
+  ret i1 %cmp
+  ; CHECK: alloca_argument_compare
+  ; CHECK: ret i1 %cmp
+}
+
+; As above, but with the operands reversed.
+
+define i1 @alloca_argument_compare_swapped(i64* %arg) {
+  %alloc = alloca i64
+  %cmp = icmp eq i64* %alloc, %arg
+  ret i1 %cmp
+  ; CHECK: alloca_argument_compare_swapped
+  ; CHECK: ret i1 %cmp
+}
+
+; Don't assume that a noalias argument isn't equal to a global variable's
+; address. This is an example where AliasAnalysis' NoAlias concept is
+; different from actual pointer inequality.
+
+@y = external global i32
+define zeroext i1 @external_compare(i32* noalias %x) {
+  %cmp = icmp eq i32* %x, @y
+  ret i1 %cmp
+  ; CHECK: external_compare
+  ; CHECK: ret i1 %cmp
+}
+
+define i1 @alloca_gep(i64 %a, i64 %b) {
+; CHECK: @alloca_gep
+; We can prove this GEP is non-null because it is inbounds and the pointer
+; is non-null.
+  %strs = alloca [1000 x [1001 x i8]], align 16
+  %x = getelementptr inbounds [1000 x [1001 x i8]]* %strs, i64 0, i64 %a, i64 %b
+  %cmp = icmp eq i8* %x, null
+  ret i1 %cmp
+; CHECK-NEXT: ret i1 false
 }

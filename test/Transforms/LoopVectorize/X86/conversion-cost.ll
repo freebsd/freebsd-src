@@ -4,7 +4,7 @@ target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 target triple = "x86_64-apple-macosx10.8.0"
 
 ;CHECK: @conversion_cost1
-;CHECK: store <2 x i8>
+;CHECK: store <32 x i8>
 ;CHECK: ret
 define i32 @conversion_cost1(i32 %n, i8* nocapture %A, float* nocapture %B) nounwind uwtable ssp {
   %1 = icmp sgt i32 %n, 3
@@ -33,11 +33,10 @@ define i32 @conversion_cost2(i32 %n, i8* nocapture %A, float* nocapture %B) noun
 
 .lr.ph:                                           ; preds = %0, %.lr.ph
   %indvars.iv = phi i64 [ %indvars.iv.next, %.lr.ph ], [ 9, %0 ]
-  %2 = add nsw i64 %indvars.iv, 3
-  %3 = trunc i64 %2 to i32
-  %4 = sitofp i32 %3 to float
-  %5 = getelementptr inbounds float* %B, i64 %indvars.iv
-  store float %4, float* %5, align 4
+  %add = add nsw i64 %indvars.iv, 3
+  %tofp = sitofp i64 %add to float
+  %gep = getelementptr inbounds float* %B, i64 %indvars.iv
+  store float %tofp, float* %gep, align 4
   %indvars.iv.next = add i64 %indvars.iv, 1
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32
   %exitcond = icmp eq i32 %lftr.wideiv, %n

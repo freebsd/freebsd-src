@@ -46,3 +46,33 @@ define i64 @ptrdiff3(i8* %ptr) {
   %diff = sub i64 %last.int, %first.int
   ret i64 %diff
 }
+
+define <4 x i32> @ptrdiff4(<4 x i8*> %arg) nounwind {
+; Handle simple cases of vectors of pointers.
+; CHECK: @ptrdiff4
+; CHECK: ret <4 x i32> zeroinitializer
+  %p1 = ptrtoint <4 x i8*> %arg to <4 x i32>
+  %bc = bitcast <4 x i8*> %arg to <4 x i32*>
+  %p2 = ptrtoint <4 x i32*> %bc to <4 x i32>
+  %sub = sub <4 x i32> %p1, %p2
+  ret <4 x i32> %sub
+}
+
+%struct.ham = type { i32, [2 x [2 x i32]] }
+
+@global = internal global %struct.ham zeroinitializer, align 4
+
+define i32 @ptrdiff5() nounwind {
+bb:
+  %tmp = getelementptr inbounds %struct.ham* @global, i32 0, i32 1
+  %tmp1 = getelementptr inbounds [2 x [2 x i32]]* %tmp, i32 0, i32 0
+  %tmp2 = bitcast [2 x i32]* %tmp1 to i32*
+  %tmp3 = ptrtoint i32* %tmp2 to i32
+  %tmp4 = getelementptr inbounds %struct.ham* @global, i32 0, i32 1
+  %tmp5 = getelementptr inbounds [2 x [2 x i32]]* %tmp4, i32 0, i32 0
+  %tmp6 = ptrtoint [2 x i32]* %tmp5 to i32
+  %tmp7 = sub i32 %tmp3, %tmp6
+  ret i32 %tmp7
+; CHECK: @ptrdiff5
+; CHECK: ret i32 0
+}

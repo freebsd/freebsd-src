@@ -18,6 +18,16 @@
 // of memory references in a function, returning either NULL, for no dependence,
 // or a more-or-less detailed description of the dependence between them.
 //
+// This pass exists to support the DependenceGraph pass. There are two separate
+// passes because there's a useful separation of concerns. A dependence exists
+// if two conditions are met:
+//
+//    1) Two instructions reference the same memory location, and
+//    2) There is a flow of control leading from one instruction to the other.
+//
+// DependenceAnalysis attacks the first condition; DependenceGraph will attack
+// the second (it's not yet ready).
+//
 // Please note that this is work in progress and the interface is subject to
 // change.
 //
@@ -30,9 +40,9 @@
 #ifndef LLVM_ANALYSIS_DEPENDENCEANALYSIS_H
 #define LLVM_ANALYSIS_DEPENDENCEANALYSIS_H
 
-#include "llvm/Instructions.h"
-#include "llvm/Pass.h"
 #include "llvm/ADT/SmallBitVector.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Pass.h"
 
 namespace llvm {
   class AliasAnalysis;
@@ -53,8 +63,8 @@ namespace llvm {
   /// input dependences are unordered.
   class Dependence {
   public:
-    Dependence(const Instruction *Source,
-               const Instruction *Destination) :
+    Dependence(Instruction *Source,
+               Instruction *Destination) :
       Src(Source), Dst(Destination) {}
     virtual ~Dependence() {}
 
@@ -82,11 +92,11 @@ namespace llvm {
 
     /// getSrc - Returns the source instruction for this dependence.
     ///
-    const Instruction *getSrc() const { return Src; }
+    Instruction *getSrc() const { return Src; }
 
     /// getDst - Returns the destination instruction for this dependence.
     ///
-    const Instruction *getDst() const { return Dst; }
+    Instruction *getDst() const { return Dst; }
 
     /// isInput - Returns true if this is an input dependence.
     ///
@@ -158,14 +168,14 @@ namespace llvm {
     ///
     void dump(raw_ostream &OS) const;
   private:
-    const Instruction *Src, *Dst;
+    Instruction *Src, *Dst;
     friend class DependenceAnalysis;
   };
 
 
   /// FullDependence - This class represents a dependence between two memory
   /// references in a function. It contains detailed information about the
-  /// dependence (direction vectors, etc) and is used when the compiler is
+  /// dependence (direction vectors, etc.) and is used when the compiler is
   /// able to accurately analyze the interaction of the references; that is,
   /// it is not a confused dependence (see Dependence). In most cases
   /// (for output, flow, and anti dependences), the dependence implies an
@@ -173,12 +183,12 @@ namespace llvm {
   /// input dependences are unordered.
   class FullDependence : public Dependence {
   public:
-    FullDependence(const Instruction *Src,
-                   const Instruction *Dst,
+    FullDependence(Instruction *Src,
+                   Instruction *Dst,
                    bool LoopIndependent,
                    unsigned Levels);
     ~FullDependence() {
-      delete DV;
+      delete[] DV;
     }
 
     /// isLoopIndependent - Returns true if this is a loop-independent
@@ -234,8 +244,8 @@ namespace llvm {
   /// DependenceAnalysis - This class is the main dependence-analysis driver.
   ///
   class DependenceAnalysis : public FunctionPass {
-    void operator=(const DependenceAnalysis &);     // do not implement
-    DependenceAnalysis(const DependenceAnalysis &); // do not implement
+    void operator=(const DependenceAnalysis &) LLVM_DELETED_FUNCTION;
+    DependenceAnalysis(const DependenceAnalysis &) LLVM_DELETED_FUNCTION;
   public:
     /// depends - Tests for a dependence between the Src and Dst instructions.
     /// Returns NULL if no dependence; otherwise, returns a Dependence (or a
@@ -243,11 +253,11 @@ namespace llvm {
     /// The flag PossiblyLoopIndependent should be set by the caller
     /// if it appears that control flow can reach from Src to Dst
     /// without traversing a loop back edge.
-    Dependence *depends(const Instruction *Src,
-                        const Instruction *Dst,
+    Dependence *depends(Instruction *Src,
+                        Instruction *Dst,
                         bool PossiblyLoopIndependent);
 
-    /// getSplitIteration - Give a dependence that's splitable at some
+    /// getSplitIteration - Give a dependence that's splittable at some
     /// particular level, return the iteration that should be used to split
     /// the loop.
     ///

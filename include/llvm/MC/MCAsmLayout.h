@@ -21,10 +21,10 @@ class MCSymbolData;
 
 /// Encapsulates the layout of an assembly file at a particular point in time.
 ///
-/// Assembly may requiring compute multiple layouts for a particular assembly
+/// Assembly may require computing multiple layouts for a particular assembly
 /// file as part of the relaxation process. This class encapsulates the layout
 /// at a single point in time in such a way that it is always possible to
-/// efficiently compute the exact addresses of any symbol in the assembly file,
+/// efficiently compute the exact address of any symbol in the assembly file,
 /// even during the relaxation process.
 class MCAsmLayout {
 public:
@@ -39,14 +39,20 @@ private:
 
   /// The last fragment which was laid out, or 0 if nothing has been laid
   /// out. Fragments are always laid out in order, so all fragments with a
-  /// lower ordinal will be up to date.
-  mutable DenseMap<const MCSectionData*, MCFragment *> LastValidFragment;
+  /// lower ordinal will be valid.
+  mutable DenseMap<const MCSectionData*, MCFragment*> LastValidFragment;
 
   /// \brief Make sure that the layout for the given fragment is valid, lazily
   /// computing it if necessary.
-  void EnsureValid(const MCFragment *F) const;
+  void ensureValid(const MCFragment *F) const;
 
-  bool isFragmentUpToDate(const MCFragment *F) const;
+  /// \brief Is the layout for this fragment valid?
+  bool isFragmentValid(const MCFragment *F) const;
+
+  /// \brief Compute the amount of padding required before this fragment to
+  /// obey bundling restrictions.
+  uint64_t computeBundlePadding(const MCFragment *F,
+                                uint64_t FOffset, uint64_t FSize);
 
 public:
   MCAsmLayout(MCAssembler &_Assembler);
@@ -54,14 +60,15 @@ public:
   /// Get the assembler object this is a layout for.
   MCAssembler &getAssembler() const { return Assembler; }
 
-  /// \brief Invalidate all following fragments because a fragment has been
-  /// resized. The fragments size should have already been updated.
-  void Invalidate(MCFragment *F);
+  /// \brief Invalidate the fragments starting with F because it has been
+  /// resized. The fragment's size should have already been updated, but
+  /// its bundle padding will be recomputed.
+  void invalidateFragmentsFrom(MCFragment *F);
 
   /// \brief Perform layout for a single fragment, assuming that the previous
   /// fragment has already been laid out correctly, and the parent section has
   /// been initialized.
-  void LayoutFragment(MCFragment *Fragment);
+  void layoutFragment(MCFragment *Fragment);
 
   /// @name Section Access (in layout order)
   /// @{

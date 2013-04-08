@@ -7,10 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <ostream>
-#include "gtest/gtest.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallString.h"
+#include "gtest/gtest.h"
+#include <ostream>
 
 using namespace llvm;
 
@@ -56,6 +56,14 @@ TEST(APIntTest, i33_Count) {
 #endif
 
 TEST(APIntTest, i65_Count) {
+  APInt i65(65, 0, true);
+  EXPECT_EQ(65u, i65.countLeadingZeros());
+  EXPECT_EQ(0u, i65.countLeadingOnes());
+  EXPECT_EQ(0u, i65.getActiveBits());
+  EXPECT_EQ(1u, i65.getActiveWords());
+  EXPECT_EQ(65u, i65.countTrailingZeros());
+  EXPECT_EQ(0u, i65.countPopulation());
+
   APInt i65minus(65, 0, true);
   i65minus.setBit(64);
   EXPECT_EQ(0u, i65minus.countLeadingZeros());
@@ -512,6 +520,16 @@ TEST(APIntTest, Rotate) {
   APInt Big(256, "00004000800000000000000000003fff8000000000000000", 16);
   APInt Rot(256, "3fff80000000000000000000000000000000000040008000", 16);
   EXPECT_EQ(Rot, Big.rotr(144));
+}
+
+TEST(APIntTest, Splat) {
+  APInt ValA(8, 0x01);
+  EXPECT_EQ(ValA, APInt::getSplat(8, ValA));
+  EXPECT_EQ(APInt(64, 0x0101010101010101ULL), APInt::getSplat(64, ValA));
+
+  APInt ValB(3, 5);
+  EXPECT_EQ(APInt(4, 0xD), APInt::getSplat(4, ValB));
+  EXPECT_EQ(APInt(15, 0xDB6D), APInt::getSplat(15, ValB));
 }
 
 }

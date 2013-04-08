@@ -1,10 +1,6 @@
-.. _how-to-submit-a-bug-report:
-
 ================================
 How to submit an LLVM bug report
 ================================
-
-.. sectionauthor:: Chris Lattner <sabre@nondot.org> and Misha Brukman <http://misha.brukman.net>
 
 Introduction - Got bugs?
 ========================

@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: opt < %s -indvars -disable-output -stats -info-output-file - | FileCheck %s
 ; Check that IndVarSimplify is not creating unnecessary canonical IVs
 ; that will never be used.

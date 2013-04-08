@@ -182,7 +182,9 @@ class LLVMProjectInfo(object):
         # out easily. If we don't, we should special case the check.
 
         self.ordered_component_infos = []
-        components_to_visit = set(self.component_infos)
+        components_to_visit = sorted(
+            set(self.component_infos),
+            key = lambda c: c.name)
         while components_to_visit:
             visit_component_info(iter(components_to_visit).next(), [], set())
 
@@ -807,7 +809,7 @@ given by --build-root) at the same SUBPATH""",
     # Determine the LLVM source path, if not given.
     source_root = opts.source_root
     if source_root:
-        if not os.path.exists(os.path.join(source_root, 'lib', 'VMCore',
+        if not os.path.exists(os.path.join(source_root, 'lib', 'IR',
                                            'Function.cpp')):
             parser.error('invalid LLVM source root: %r' % source_root)
     else:
@@ -815,7 +817,7 @@ given by --build-root) at the same SUBPATH""",
         llvm_build_path = os.path.dirname(llvmbuild_path)
         utils_path = os.path.dirname(llvm_build_path)
         source_root = os.path.dirname(utils_path)
-        if not os.path.exists(os.path.join(source_root, 'lib', 'VMCore',
+        if not os.path.exists(os.path.join(source_root, 'lib', 'IR',
                                            'Function.cpp')):
             parser.error('unable to infer LLVM source root, please specify')
 

@@ -1,10 +1,6 @@
-.. _how_to_use_instruction_mappings:
-
 ===============================
 How To Use Instruction Mappings
 ===============================
-
-.. sectionauthor:: Jyotsna Verma <jverma@codeaurora.org>
 
 .. contents::
    :local:
@@ -120,7 +116,7 @@ to include relevant information in its definition. For example, consider
 following to be the current definitions of ADD, ADD_pt (true) and ADD_pf (false)
 instructions:
 
-.. code-block::llvm
+.. code-block:: llvm
 
   def ADD : ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$a, IntRegs:$b),
               "$dst = add($a, $b)",
@@ -141,7 +137,7 @@ In this step, we modify these instructions to include the information
 required by the relationship model, <tt>getPredOpcode</tt>, so that they can
 be related.
 
-.. code-block::llvm
+.. code-block:: llvm
 
   def ADD : PredRel, ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$a, IntRegs:$b),
               "$dst = add($a, $b)",

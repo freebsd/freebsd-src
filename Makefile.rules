@@ -97,7 +97,7 @@ endif
 $(LLVMBuildMakeFrag): $(PROJ_SRC_ROOT)/Makefile.rules \
 		      $(PROJ_OBJ_ROOT)/Makefile.config
 	$(Echo) Constructing LLVMBuild project information.
-	$(Verb) $(LLVMBuildTool) \
+	$(Verb)$(PYTHON) $(LLVMBuildTool) \
 	  --native-target "$(TARGET_NATIVE_ARCH)" \
 	  --enable-targets "$(TARGETS_TO_BUILD)" \
 	  --enable-optional-components "$(OPTIONAL_COMPONENTS)" \
@@ -280,12 +280,6 @@ ifeq ($(ENABLE_OPTIMIZED),1)
   endif
   endif
 
-  # Darwin requires -fstrict-aliasing to be explicitly enabled.
-  # Avoid -fstrict-aliasing on Darwin for now, there are unresolved issues
-  # with -fstrict-aliasing and ipa-type-escape radr://6756684
-  #ifeq ($(HOST_OS),Darwin)
-  #  EXTRA_OPTIONS += -fstrict-aliasing -Wstrict-aliasing
-  #endif
   CXX.Flags += $(OPTIMIZE_OPTION) $(OmitFramePointer)
   C.Flags   += $(OPTIMIZE_OPTION) $(OmitFramePointer)
   LD.Flags  += $(OPTIMIZE_OPTION)
@@ -583,16 +577,24 @@ ifeq ($(HOST_OS),Darwin)
 
   LoadableModuleOptions := -Wl,-flat_namespace -Wl,-undefined,suppress
   SharedLinkOptions := -dynamiclib
-  ifneq ($(ARCH),ARM)
-    SharedLinkOptions += -mmacosx-version-min=$(DARWIN_VERSION)
+  ifdef DEPLOYMENT_TARGET
+    SharedLinkOptions += $(DEPLOYMENT_TARGET)
+  else
+    ifneq ($(ARCH),ARM)
+      SharedLinkOptions += -mmacosx-version-min=$(DARWIN_VERSION)
+    endif
   endif
 else
   SharedLinkOptions=-shared
 endif
 
 ifeq ($(TARGET_OS),Darwin)
-  ifneq ($(ARCH),ARM)
-    TargetCommonOpts += -mmacosx-version-min=$(DARWIN_VERSION)
+  ifdef DEPLOYMENT_TARGET
+    TargetCommonOpts += $(DEPLOYMENT_TARGET)
+  else
+    ifneq ($(ARCH),ARM)
+      TargetCommonOpts += -mmacosx-version-min=$(DARWIN_VERSION)
+    endif
   endif
 endif
 
@@ -648,7 +650,7 @@ else
   ifneq ($(DARWIN_MAJVERS),4)
     LD.Flags += $(RPATH) -Wl,@executable_path/../lib
   endif
-  ifeq ($(RC_BUILDIT),YES)
+  ifeq ($(RC_XBS),YES)
     TempFile := $(shell mkdir -p ${OBJROOT}/dSYMs ; mktemp ${OBJROOT}/dSYMs/llvm-lto.XXXXXX)
     LD.Flags += -Wl,-object_path_lto -Wl,$(TempFile)
   endif
@@ -668,7 +670,9 @@ ifndef NO_PEDANTIC
 CompileCommonOpts += -pedantic -Wno-long-long
 endif
 CompileCommonOpts += -Wall -W -Wno-unused-parameter -Wwrite-strings \
-                     $(EXTRA_OPTIONS) $(COVERED_SWITCH_DEFAULT)
+                     $(EXTRA_OPTIONS) $(COVERED_SWITCH_DEFAULT) \
+                     $(NO_UNINITIALIZED) $(NO_MAYBE_UNINITIALIZED) \
+                     $(NO_MISSING_FIELD_INITIALIZERS)
 # Enable cast-qual for C++; the workaround is to use const_cast.
 CXX.Flags += -Wcast-qual
 
@@ -824,7 +828,7 @@ ObjectsBC := $(BaseNameSources:%=$(ObjDir)/%.bc)
 #----------------------------------------------------------
 
 ifeq (-mingw32,$(findstring -mingw32,$(BUILD_TRIPLE)))
-  ECHOPATH := $(Verb)python -u -c "import sys;print ' '.join(sys.argv[1:])"
+  ECHOPATH := $(Verb)$(PYTHON) -u -c "import sys;print ' '.join(sys.argv[1:])"
 else
   ECHOPATH := $(Verb)$(ECHO)
 endif
@@ -1814,7 +1818,7 @@ TDFiles := $(strip $(wildcard $(PROJ_SRC_DIR)/*.td) \
            $(LLVM_SRC_ROOT)/include/llvm/Target/TargetSchedule.td \
            $(LLVM_SRC_ROOT)/include/llvm/Target/TargetSelectionDAG.td \
            $(LLVM_SRC_ROOT)/include/llvm/CodeGen/ValueTypes.td) \
-           $(wildcard $(LLVM_SRC_ROOT)/include/llvm/Intrinsics*.td)
+           $(wildcard $(LLVM_SRC_ROOT)/include/llvm/IR/Intrinsics*.td)
 
 # All .inc.tmp files depend on the .td files.
 $(INCTMPFiles) : $(TDFiles)
@@ -1868,11 +1872,6 @@ $(TARGET:%=$(ObjDir)/%GenDisassemblerTables.inc.tmp): \
 $(ObjDir)/%GenDisassemblerTables.inc.tmp : %.td $(ObjDir)/.dir $(LLVM_TBLGEN)
 	$(Echo) "Building $(<F) disassembly tables with tblgen"
 	$(Verb) $(LLVMTableGen) -gen-disassembler -o $(call SYSPATH, $@) $<
-
-$(TARGET:%=$(ObjDir)/%GenEDInfo.inc.tmp): \
-$(ObjDir)/%GenEDInfo.inc.tmp : %.td $(ObjDir)/.dir $(LLVM_TBLGEN)
-	$(Echo) "Building $(<F) enhanced disassembly information with tblgen"
-	$(Verb) $(LLVMTableGen) -gen-enhanced-disassembly-info -o $(call SYSPATH, $@) $<
 
 $(TARGET:%=$(ObjDir)/%GenFastISel.inc.tmp): \
 $(ObjDir)/%GenFastISel.inc.tmp : %.td $(ObjDir)/.dir $(LLVM_TBLGEN)

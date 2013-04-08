@@ -16,13 +16,12 @@
 #ifndef LLVM_CODEGEN_SCHEDULEDAG_H
 #define LLVM_CODEGEN_SCHEDULEDAG_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/Target/TargetLowering.h"
 
 namespace llvm {
   class AliasAnalysis;
@@ -53,11 +52,22 @@ namespace llvm {
       Order        ///< Any other ordering dependency.
     };
 
+    // Strong dependencies must be respected by the scheduler. Artificial
+    // dependencies may be removed only if they are redundant with another
+    // strong depedence.
+    //
+    // Weak dependencies may be violated by the scheduling strategy, but only if
+    // the strategy can prove it is correct to do so.
+    //
+    // Strong OrderKinds must occur before "Weak".
+    // Weak OrderKinds must occur after "Weak".
     enum OrderKind {
       Barrier,      ///< An unknown scheduling barrier.
       MayAliasMem,  ///< Nonvolatile load/Store instructions that may alias.
       MustAliasMem, ///< Nonvolatile load/Store instructions that must alias.
-      Artificial    ///< Arbitrary weak DAG edge (no actual dependence).
+      Artificial,   ///< Arbitrary strong DAG edge (no real dependence).
+      Weak,         ///< Arbitrary weak DAG edge.
+      Cluster       ///< Weak DAG edge linking a chain of clustered instrs.
     };
 
   private:
@@ -200,10 +210,24 @@ namespace llvm {
       return getKind() == Order && Contents.OrdKind == MustAliasMem;
     }
 
+    /// isWeak - Test if this a weak dependence. Weak dependencies are
+    /// considered DAG edges for height computation and other heuristics, but do
+    /// not force ordering. Breaking a weak edge may require the scheduler to
+    /// compensate, for example by inserting a copy.
+    bool isWeak() const {
+      return getKind() == Order && Contents.OrdKind >= Weak;
+    }
+
     /// isArtificial - Test if this is an Order dependence that is marked
     /// as "artificial", meaning it isn't necessary for correctness.
     bool isArtificial() const {
       return getKind() == Order && Contents.OrdKind == Artificial;
+    }
+
+    /// isCluster - Test if this is an Order dependence that is marked
+    /// as "cluster", meaning it is artificial and wants to be adjacent.
+    bool isCluster() const {
+      return getKind() == Order && Contents.OrdKind == Cluster;
     }
 
     /// isAssignedRegDep - Test if this is a Data dependence that is
@@ -243,6 +267,8 @@ namespace llvm {
   /// SUnit - Scheduling unit. This is a node in the scheduling DAG.
   class SUnit {
   private:
+    enum { BoundaryID = ~0u };
+
     SDNode *Node;                       // Representative node.
     MachineInstr *Instr;                // Alternatively, a MachineInstr.
   public:
@@ -267,6 +293,8 @@ namespace llvm {
     unsigned NumSuccs;                  // # of SDep::Data sucss.
     unsigned NumPredsLeft;              // # of preds not scheduled.
     unsigned NumSuccsLeft;              // # of succs not scheduled.
+    unsigned WeakPredsLeft;             // # of weak preds not scheduled.
+    unsigned WeakSuccsLeft;             // # of weak succs not scheduled.
     unsigned short NumRegDefsLeft;      // # of reg defs with no scheduled use.
     unsigned short Latency;             // Node latency.
     bool isVRegCycle      : 1;          // May use and def the same vreg.
@@ -301,12 +329,12 @@ namespace llvm {
     SUnit(SDNode *node, unsigned nodenum)
       : Node(node), Instr(0), OrigNode(0), SchedClass(0), NodeNum(nodenum),
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
-        NumSuccsLeft(0), NumRegDefsLeft(0), Latency(0),
-        isVRegCycle(false), isCall(false), isCallOp(false), isTwoAddress(false),
-        isCommutable(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
-        isPending(false), isAvailable(false), isScheduled(false),
-        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
-        SchedulingPref(Sched::None),
+        NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
+        Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
+        isTwoAddress(false), isCommutable(false), hasPhysRegDefs(false),
+        hasPhysRegClobbers(false), isPending(false), isAvailable(false),
+        isScheduled(false), isScheduleHigh(false), isScheduleLow(false),
+        isCloned(false), SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
@@ -315,27 +343,36 @@ namespace llvm {
     SUnit(MachineInstr *instr, unsigned nodenum)
       : Node(0), Instr(instr), OrigNode(0), SchedClass(0), NodeNum(nodenum),
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
-        NumSuccsLeft(0), NumRegDefsLeft(0), Latency(0),
-        isVRegCycle(false), isCall(false), isCallOp(false), isTwoAddress(false),
-        isCommutable(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
-        isPending(false), isAvailable(false), isScheduled(false),
-        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
-        SchedulingPref(Sched::None),
+        NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
+        Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
+        isTwoAddress(false), isCommutable(false), hasPhysRegDefs(false),
+        hasPhysRegClobbers(false), isPending(false), isAvailable(false),
+        isScheduled(false), isScheduleHigh(false), isScheduleLow(false),
+        isCloned(false), SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
     /// SUnit - Construct a placeholder SUnit.
     SUnit()
-      : Node(0), Instr(0), OrigNode(0), SchedClass(0), NodeNum(~0u),
+      : Node(0), Instr(0), OrigNode(0), SchedClass(0), NodeNum(BoundaryID),
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
-        NumSuccsLeft(0), NumRegDefsLeft(0), Latency(0),
-        isVRegCycle(false), isCall(false), isCallOp(false), isTwoAddress(false),
-        isCommutable(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
-        isPending(false), isAvailable(false), isScheduled(false),
-        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
-        SchedulingPref(Sched::None),
+        NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
+        Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
+        isTwoAddress(false), isCommutable(false), hasPhysRegDefs(false),
+        hasPhysRegClobbers(false), isPending(false), isAvailable(false),
+        isScheduled(false), isScheduleHigh(false), isScheduleLow(false),
+        isCloned(false), SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
+
+    /// \brief Boundary nodes are placeholders for the boundary of the
+    /// scheduling region.
+    ///
+    /// BoundaryNodes can have DAG edges, including Data edges, but they do not
+    /// correspond to schedulable entities (e.g. instructions) and do not have a
+    /// valid ID. Consequently, always check for boundary nodes before accessing
+    /// an assoicative data structure keyed on node ID.
+    bool isBoundaryNode() const { return NodeNum == BoundaryID; };
 
     /// setNode - Assign the representative SDNode for this SUnit.
     /// This may be used during pre-regalloc scheduling.
@@ -372,7 +409,7 @@ namespace llvm {
     /// addPred - This adds the specified edge as a pred of the current node if
     /// not already.  It also adds the current node as a successor of the
     /// specified node.
-    bool addPred(const SDep &D);
+    bool addPred(const SDep &D, bool Required = true);
 
     /// removePred - This removes the specified edge as a pred of the current
     /// node if it exists.  It also removes the current node as a successor of
@@ -437,6 +474,10 @@ namespace llvm {
     bool isBottomReady() const {
       return NumSuccsLeft == 0;
     }
+
+    /// \brief Order this node's predecessor edges such that the critical path
+    /// edge occurs first.
+    void biasCriticalPath();
 
     void dump(const ScheduleDAG *G) const;
     void dumpAll(const ScheduleDAG *G) const;
@@ -546,8 +587,8 @@ namespace llvm {
     /// viewGraph - Pop up a GraphViz/gv window with the ScheduleDAG rendered
     /// using 'dot'.
     ///
-    void viewGraph(const Twine &Name, const Twine &Title);
-    void viewGraph();
+    virtual void viewGraph(const Twine &Name, const Twine &Title);
+    virtual void viewGraph();
 
     virtual void dumpNode(const SUnit *SU) const = 0;
 
@@ -654,6 +695,7 @@ namespace llvm {
   class ScheduleDAGTopologicalSort {
     /// SUnits - A reference to the ScheduleDAG's SUnits.
     std::vector<SUnit> &SUnits;
+    SUnit *ExitSU;
 
     /// Index2Node - Maps topological index to the node number.
     std::vector<int> Index2Node;
@@ -675,7 +717,7 @@ namespace llvm {
     void Allocate(int n, int index);
 
   public:
-    explicit ScheduleDAGTopologicalSort(std::vector<SUnit> &SUnits);
+    ScheduleDAGTopologicalSort(std::vector<SUnit> &SUnits, SUnit *ExitSU);
 
     /// InitDAGTopologicalSorting - create the initial topological
     /// ordering from the DAG to be scheduled.

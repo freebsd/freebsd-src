@@ -26,28 +26,28 @@
 
 #define DEBUG_TYPE "indvars"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/BasicBlock.h"
-#include "llvm/Constants.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Type.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Dominators.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/ScalarEvolutionExpander.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/SimplifyIndVar.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/SimplifyIndVar.h"
 using namespace llvm;
 
 STATISTIC(NumWidened     , "Number of indvars widened");
@@ -534,6 +534,45 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
         const SCEV *ExitValue = SE->getSCEVAtScope(Inst, L->getParentLoop());
         if (!SE->isLoopInvariant(ExitValue, L))
           continue;
+
+        // Computing the value outside of the loop brings no benefit if :
+        //  - it is definitely used inside the loop in a way which can not be
+        //    optimized away.
+        //  - no use outside of the loop can take advantage of hoisting the
+        //    computation out of the loop
+        if (ExitValue->getSCEVType()>=scMulExpr) {
+          unsigned NumHardInternalUses = 0;
+          unsigned NumSoftExternalUses = 0;
+          unsigned NumUses = 0;
+          for (Value::use_iterator IB=Inst->use_begin(), IE=Inst->use_end();
+               IB!=IE && NumUses<=6 ; ++IB) {
+            Instruction *UseInstr = cast<Instruction>(*IB);
+            unsigned Opc = UseInstr->getOpcode();
+            NumUses++;
+            if (L->contains(UseInstr)) {
+              if (Opc == Instruction::Call || Opc == Instruction::Ret)
+                NumHardInternalUses++;
+            } else {
+              if (Opc == Instruction::PHI) {
+                // Do not count the Phi as a use. LCSSA may have inserted
+                // plenty of trivial ones.
+                NumUses--;
+                for (Value::use_iterator PB=UseInstr->use_begin(),
+                                         PE=UseInstr->use_end();
+                     PB!=PE && NumUses<=6 ; ++PB, ++NumUses) {
+                  unsigned PhiOpc = cast<Instruction>(*PB)->getOpcode();
+                  if (PhiOpc != Instruction::Call && PhiOpc != Instruction::Ret)
+                    NumSoftExternalUses++;
+                }
+                continue;
+              }
+              if (Opc != Instruction::Call && Opc != Instruction::Ret)
+                NumSoftExternalUses++;
+            }
+          }
+          if (NumUses <= 6 && NumHardInternalUses && !NumSoftExternalUses)
+            continue;
+        }
 
         Value *ExitVal = Rewriter.expandCodeFor(ExitValue, PN->getType(), Inst);
 

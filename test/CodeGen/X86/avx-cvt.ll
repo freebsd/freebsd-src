@@ -18,6 +18,12 @@ define <4 x double> @sitofp01(<4 x i32> %a) {
   ret <4 x double> %b
 }
 
+; CHECK: vcvtdq2ps %ymm
+define <8 x float> @sitofp02(<8 x i16> %a) {
+  %b = sitofp <8 x i16> %a to <8 x float>
+  ret <8 x float> %b
+}
+
 ; CHECK: vcvttpd2dqy %ymm
 define <4 x i32> @fptosi01(<4 x double> %a) {
   %b = fptosi <4 x double> %a to <4 x i32>
@@ -46,7 +52,7 @@ entry:
   ret double %conv
 }
 
-; CHECK: vcvtsi2sd (%
+; CHECK: vcvtsi2sdl (%
 define double @funcB(i32* nocapture %e) nounwind uwtable readonly ssp {
 entry:
   %tmp1 = load i32* %e, align 4
@@ -54,7 +60,7 @@ entry:
   ret double %conv
 }
 
-; CHECK: vcvtsi2ss (%
+; CHECK: vcvtsi2ssl (%
 define float @funcC(i32* nocapture %e) nounwind uwtable readonly ssp {
 entry:
   %tmp1 = load i32* %e, align 4

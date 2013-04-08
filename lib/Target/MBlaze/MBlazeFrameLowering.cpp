@@ -14,21 +14,21 @@
 #define DEBUG_TYPE "mblaze-frame-lowering"
 
 #include "MBlazeFrameLowering.h"
+#include "InstPrinter/MBlazeInstPrinter.h"
 #include "MBlazeInstrInfo.h"
 #include "MBlazeMachineFunction.h"
-#include "InstPrinter/MBlazeInstPrinter.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
 
@@ -425,6 +425,45 @@ void MBlazeFrameLowering::emitEpilogue(MachineFunction &MF,
       .addReg(MBlaze::R1).addImm(StackSize);
   }
 }
+
+// Eliminate ADJCALLSTACKDOWN/ADJCALLSTACKUP pseudo instructions
+void MBlazeFrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  const MBlazeInstrInfo &TII =
+    *static_cast<const MBlazeInstrInfo*>(MF.getTarget().getInstrInfo());
+  if (!hasReservedCallFrame(MF)) {
+    // If we have a frame pointer, turn the adjcallstackup instruction into a
+    // 'addi r1, r1, -<amt>' and the adjcallstackdown instruction into
+    // 'addi r1, r1, <amt>'
+    MachineInstr *Old = I;
+    int Amount = Old->getOperand(0).getImm() + 4;
+    if (Amount != 0) {
+      // We need to keep the stack aligned properly.  To do this, we round the
+      // amount of space needed for the outgoing arguments up to the next
+      // alignment boundary.
+      unsigned Align = getStackAlignment();
+      Amount = (Amount+Align-1)/Align*Align;
+
+      MachineInstr *New;
+      if (Old->getOpcode() == MBlaze::ADJCALLSTACKDOWN) {
+        New = BuildMI(MF,Old->getDebugLoc(), TII.get(MBlaze::ADDIK),MBlaze::R1)
+                .addReg(MBlaze::R1).addImm(-Amount);
+      } else {
+        assert(Old->getOpcode() == MBlaze::ADJCALLSTACKUP);
+        New = BuildMI(MF,Old->getDebugLoc(), TII.get(MBlaze::ADDIK),MBlaze::R1)
+                .addReg(MBlaze::R1).addImm(Amount);
+      }
+
+      // Replace the pseudo instruction with a new instruction...
+      MBB.insert(I, New);
+    }
+  }
+
+  // Simply discard ADJCALLSTACKDOWN, ADJCALLSTACKUP instructions.
+  MBB.erase(I);
+}
+
 
 void MBlazeFrameLowering::
 processFunctionBeforeCalleeSavedScan(MachineFunction &MF,

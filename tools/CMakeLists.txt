@@ -31,6 +31,9 @@ add_subdirectory(llvm-objdump)
 add_subdirectory(llvm-readobj)
 add_subdirectory(llvm-rtdyld)
 add_subdirectory(llvm-dwarfdump)
+if( LLVM_USE_INTEL_JITEVENTS )
+  add_subdirectory(llvm-jitlistener)
+endif( LLVM_USE_INTEL_JITEVENTS )
 
 add_subdirectory(bugpoint)
 add_subdirectory(bugpoint-passes)
@@ -38,19 +41,25 @@ add_subdirectory(llvm-bcanalyzer)
 add_subdirectory(llvm-stress)
 add_subdirectory(llvm-mcmarkup)
 
+add_subdirectory(llvm-symbolizer)
+
+add_subdirectory(obj2yaml)
+
 if( NOT WIN32 )
   add_subdirectory(lto)
 endif()
 
 if( LLVM_ENABLE_PIC )
   # TODO: support other systems:
-  if( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
+  if( (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+      OR (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD") )
     add_subdirectory(gold)
   endif()
 endif()
 
 add_llvm_external_project(clang)
 add_llvm_external_project(lld)
+add_llvm_external_project(lldb)
 add_llvm_external_project(polly)
 
 set(LLVM_COMMON_DEPENDS ${LLVM_COMMON_DEPENDS} PARENT_SCOPE)
