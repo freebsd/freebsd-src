@@ -1734,7 +1734,7 @@ enum {
 	ATA_SECURITY_ACTION_ERASE,
 	ATA_SECURITY_ACTION_ERASE_ENHANCED,
 	ATA_SECURITY_ACTION_SET_PASSWORD
-} atasecurity_action;
+};
 
 static void
 atasecurity_print_time(u_int16_t tw)
