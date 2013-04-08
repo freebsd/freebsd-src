@@ -153,11 +153,6 @@ VNET_DEFINE(struct in_ifaddrhead, in_ifaddrhead);  /* first inet address */
 VNET_DEFINE(struct in_ifaddrhashhead *, in_ifaddrhashtbl); /* inet addr hash table  */
 VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
 
-VNET_DEFINE(struct ipstat, ipstat);
-SYSCTL_VNET_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(ipstat), ipstat,
-    "IP statistics (struct ipstat, netinet/ip_var.h)");
-
 static VNET_DEFINE(uma_zone_t, ipq_zone);
 static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
 static struct mtx ipqlock;
@@ -213,24 +208,89 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*
+ * IP statistics are stored in struct ipstat_p, which is
+ * an "array" of counter(9)s.  Although it isn't a real
+ * array, we treat it as array to reduce code bloat.
+ */
+VNET_DEFINE(struct ipstat_p, ipstatp);
+
+static void
+vnet_ipstatp_init(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++) {
+		*c = counter_u64_alloc(M_WAITOK);
+		counter_u64_zero(*c);
+	}
+}
+VNET_SYSINIT(vnet_ipstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+            vnet_ipstatp_init, NULL);
+
+#ifdef VIMAGE
+static void
+vnet_ipstatp_uninit(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++)
+		counter_u64_free(*c);
+}
+VNET_SYSUNINIT(vnet_ipstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+            vnet_ipstatp_uninit, NULL);
+#endif /* VIMAGE */
+
+static int
+ipstat_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct ipstat ipstat;
+	counter_u64_t *c;
+	uint64_t *v;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp, v = (uint64_t *)&ipstat;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++, v++) {
+		*v = counter_u64_fetch(*c);
+		/*
+		 * Old interface allowed to rewrite 'struct ipstat', and
+		 * netstat(1) used it to zero the structure. To keep
+		 * compatibility with old netstat(1) we will zero out
+		 * statistics on every write attempt, however we no longer
+		 * support writing arbitrary fake values to the statistics.
+		 */
+		if (req->newptr)
+			counter_u64_zero(*c);
+	}
+
+	return (SYSCTL_OUT(req, &ipstat, sizeof(ipstat)));
+}
+SYSCTL_VNET_PROC(_net_inet_ip, IPCTL_STATS, stats, CTLTYPE_OPAQUE | CTLFLAG_RW,
+    NULL, 0, ipstat_sysctl, "I",
+    "IP statistics (struct ipstat, netinet/ip_var.h)");
+
+/*
  * Kernel module interface for updating ipstat.  The argument is an index
- * into ipstat treated as an array of u_long.  While this encodes the general
- * layout of ipstat into the caller, it doesn't encode its location, so that
- * future changes to add, for example, per-CPU stats support won't cause
- * binary compatibility problems for kernel modules.
+ * into ipstat treated as an array.
  */
 void
 kmod_ipstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_ipstat + statnum))++;
+	counter_u64_add((counter_u64_t )&V_ipstatp + statnum, 1);
 }
 
 void
 kmod_ipstat_dec(int statnum)
 {
 
-	(*((u_long *)&V_ipstat + statnum))--;
+	counter_u64_add((counter_u64_t )&V_ipstatp + statnum, -1);
 }
 
 static int

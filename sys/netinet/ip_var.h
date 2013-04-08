@@ -97,59 +97,95 @@ struct ip_moptions {
 };
 
 struct	ipstat {
-	u_long	ips_total;		/* total packets received */
-	u_long	ips_badsum;		/* checksum bad */
-	u_long	ips_tooshort;		/* packet too short */
-	u_long	ips_toosmall;		/* not enough data */
-	u_long	ips_badhlen;		/* ip header length < data size */
-	u_long	ips_badlen;		/* ip length < ip header length */
-	u_long	ips_fragments;		/* fragments received */
-	u_long	ips_fragdropped;	/* frags dropped (dups, out of space) */
-	u_long	ips_fragtimeout;	/* fragments timed out */
-	u_long	ips_forward;		/* packets forwarded */
-	u_long	ips_fastforward;	/* packets fast forwarded */
-	u_long	ips_cantforward;	/* packets rcvd for unreachable dest */
-	u_long	ips_redirectsent;	/* packets forwarded on same net */
-	u_long	ips_noproto;		/* unknown or unsupported protocol */
-	u_long	ips_delivered;		/* datagrams delivered to upper level*/
-	u_long	ips_localout;		/* total ip packets generated here */
-	u_long	ips_odropped;		/* lost packets due to nobufs, etc. */
-	u_long	ips_reassembled;	/* total packets reassembled ok */
-	u_long	ips_fragmented;		/* datagrams successfully fragmented */
-	u_long	ips_ofragments;		/* output fragments created */
-	u_long	ips_cantfrag;		/* don't fragment flag was set, etc. */
-	u_long	ips_badoptions;		/* error in option processing */
-	u_long	ips_noroute;		/* packets discarded due to no route */
-	u_long	ips_badvers;		/* ip version != 4 */
-	u_long	ips_rawout;		/* total raw ip packets generated */
-	u_long	ips_toolong;		/* ip length > max ip packet size */
-	u_long	ips_notmember;		/* multicasts for unregistered grps */
-	u_long	ips_nogif;		/* no match gif found */
-	u_long	ips_badaddr;		/* invalid address on header */
+	uint64_t ips_total;		/* total packets received */
+	uint64_t ips_badsum;		/* checksum bad */
+	uint64_t ips_tooshort;		/* packet too short */
+	uint64_t ips_toosmall;		/* not enough data */
+	uint64_t ips_badhlen;		/* ip header length < data size */
+	uint64_t ips_badlen;		/* ip length < ip header length */
+	uint64_t ips_fragments;		/* fragments received */
+	uint64_t ips_fragdropped;	/* frags dropped (dups, out of space) */
+	uint64_t ips_fragtimeout;	/* fragments timed out */
+	uint64_t ips_forward;		/* packets forwarded */
+	uint64_t ips_fastforward;	/* packets fast forwarded */
+	uint64_t ips_cantforward;	/* packets rcvd for unreachable dest */
+	uint64_t ips_redirectsent;	/* packets forwarded on same net */
+	uint64_t ips_noproto;		/* unknown or unsupported protocol */
+	uint64_t ips_delivered;		/* datagrams delivered to upper level*/
+	uint64_t ips_localout;		/* total ip packets generated here */
+	uint64_t ips_odropped;		/* lost packets due to nobufs, etc. */
+	uint64_t ips_reassembled;	/* total packets reassembled ok */
+	uint64_t ips_fragmented;	/* datagrams successfully fragmented */
+	uint64_t ips_ofragments;	/* output fragments created */
+	uint64_t ips_cantfrag;		/* don't fragment flag was set, etc. */
+	uint64_t ips_badoptions;		/* error in option processing */
+	uint64_t ips_noroute;		/* packets discarded due to no route */
+	uint64_t ips_badvers;		/* ip version != 4 */
+	uint64_t ips_rawout;		/* total raw ip packets generated */
+	uint64_t ips_toolong;		/* ip length > max ip packet size */
+	uint64_t ips_notmember;		/* multicasts for unregistered grps */
+	uint64_t ips_nogif;		/* no match gif found */
+	uint64_t ips_badaddr;		/* invalid address on header */
 };
 
 #ifdef _KERNEL
 
+#include <sys/counter.h>
 #include <net/vnet.h>
+
+/* Should match 'struct ipstat' above. */
+struct ipstat_p {
+	counter_u64_t ips_total;
+	counter_u64_t ips_badsum;
+	counter_u64_t ips_tooshort;
+	counter_u64_t ips_toosmall;
+	counter_u64_t ips_badhlen;
+	counter_u64_t ips_badlen;
+	counter_u64_t ips_fragments;
+	counter_u64_t ips_fragdropped;
+	counter_u64_t ips_fragtimeout;
+	counter_u64_t ips_forward;
+	counter_u64_t ips_fastforward;
+	counter_u64_t ips_cantforward;
+	counter_u64_t ips_redirectsent;
+	counter_u64_t ips_noproto;
+	counter_u64_t ips_delivered;
+	counter_u64_t ips_localout;
+	counter_u64_t ips_odropped;
+	counter_u64_t ips_reassembled;
+	counter_u64_t ips_fragmented;
+	counter_u64_t ips_ofragments;
+	counter_u64_t ips_cantfrag;
+	counter_u64_t ips_badoptions;
+	counter_u64_t ips_noroute;
+	counter_u64_t ips_badvers;
+	counter_u64_t ips_rawout;
+	counter_u64_t ips_toolong;
+	counter_u64_t ips_notmember;
+	counter_u64_t ips_nogif;
+	counter_u64_t ips_badaddr;
+};
+VNET_DECLARE(struct ipstat_p, ipstatp);
+#define	V_ipstatp VNET(ipstatp)
 
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	IPSTAT_ADD(name, val)	V_ipstat.name += (val)
-#define	IPSTAT_SUB(name, val)	V_ipstat.name -= (val)
+#define	IPSTAT_ADD(name, val)	counter_u64_add(V_ipstatp.name, (val))
+#define	IPSTAT_SUB(name, val)	counter_u64_subtract(V_ipstatp.name, (val))
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
-#define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
+#define	IPSTAT_DEC(name)	IPSTAT_ADD(name, -1)
 
 /*
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_ipstat_inc(int statnum);
 #define	KMOD_IPSTAT_INC(name)						\
-	kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(u_long))
+	kmod_ipstat_inc(offsetof(struct ipstat_p, name) / sizeof(counter_u64_t))
 void	kmod_ipstat_dec(int statnum);
 #define	KMOD_IPSTAT_DEC(name)						\
-	kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(u_long))
+	kmod_ipstat_dec(offsetof(struct ipstat_p, name) / sizeof(counter_u64_t))
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
@@ -176,7 +212,6 @@ struct inpcb;
 struct route;
 struct sockopt;
 
-VNET_DECLARE(struct ipstat, ipstat);
 VNET_DECLARE(u_short, ip_id);			/* ip packet ctr, for ids */
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
@@ -192,7 +227,6 @@ VNET_DECLARE(int, rsvp_on);
 VNET_DECLARE(int, drop_redirect);
 extern struct	pr_usrreqs rip_usrreqs;
 
-#define	V_ipstat		VNET(ipstat)
 #define	V_ip_id			VNET(ip_id)
 #define	V_ip_defttl		VNET(ip_defttl)
 #define	V_ipforwarding		VNET(ipforwarding)
