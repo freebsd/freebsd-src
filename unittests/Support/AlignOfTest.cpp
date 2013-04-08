@@ -9,17 +9,27 @@
 
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Compiler.h"
-
 #include "gtest/gtest.h"
 
 using namespace llvm;
 
 namespace {
-
 // Disable warnings about questionable type definitions.
 // We're testing that even questionable types work with the alignment utilities.
 #ifdef _MSC_VER
 #pragma warning(disable:4584)
+#endif
+
+// Suppress direct base '{anonymous}::S1' inaccessible in '{anonymous}::D9'
+// due to ambiguity warning.
+//
+// Pragma based warning suppression was introduced in GGC 4.2.  Additionally
+// this warning is "enabled by default".  The warning still appears if -Wall is
+// suppressed.  Apparently GCC suppresses it when -w is specifed, which is odd.
+// At any rate, clang on the other hand gripes about -Wunknown-pragma, so
+// leaving it out of this.
+#if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402 && !defined(__clang__)
+#pragma GCC diagnostic warning "-w"
 #endif
 
 // Define some fixed alignment types to use in these tests.
@@ -310,6 +320,16 @@ TEST(AlignOfTest, BasicAlignedArray) {
 #ifndef _MSC_VER
   EXPECT_EQ(sizeof(V8), sizeof(AlignedCharArrayUnion<V8>));
 #endif
-}
 
+  EXPECT_EQ(1u, (alignOf<AlignedCharArray<1, 1> >()));
+  EXPECT_EQ(2u, (alignOf<AlignedCharArray<2, 1> >()));
+  EXPECT_EQ(4u, (alignOf<AlignedCharArray<4, 1> >()));
+  EXPECT_EQ(8u, (alignOf<AlignedCharArray<8, 1> >()));
+  EXPECT_EQ(16u, (alignOf<AlignedCharArray<16, 1> >()));
+
+  EXPECT_EQ(1u, sizeof(AlignedCharArray<1, 1>));
+  EXPECT_EQ(7u, sizeof(AlignedCharArray<1, 7>));
+  EXPECT_EQ(2u, sizeof(AlignedCharArray<2, 2>));
+  EXPECT_EQ(16u, sizeof(AlignedCharArray<2, 16>));
+}
 }

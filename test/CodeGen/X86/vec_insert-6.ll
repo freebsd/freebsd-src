@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -march=x86 -mattr=+sse2 -mcpu=penryn | grep pslldq
 ; RUN: llc < %s -march=x86 -mattr=+sse2 -mcpu=penryn -mtriple=i686-apple-darwin9 -o /dev/null -stats -info-output-file - | grep asm-printer | grep 6
 

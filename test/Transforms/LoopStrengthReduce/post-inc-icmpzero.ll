@@ -4,18 +4,17 @@
 ; LSR should properly handle the post-inc offset when folding the
 ; non-IV operand of an icmp into the IV.
 
-; CHECK:   %4 = sub i64 %sub.ptr.lhs.cast, %sub.ptr.rhs.cast
-; CHECK:   %5 = lshr i64 %4, 1
-; CHECK:   %6 = mul i64 %5, 2
+; CHECK:   [[r1:%[a-z0-9]+]] = sub i64 %sub.ptr.lhs.cast, %sub.ptr.rhs.cast
+; CHECK:   [[r2:%[a-z0-9]+]] = lshr i64 [[r1]], 1
+; CHECK:   [[r3:%[a-z0-9]+]] = mul i64 [[r2]], 2
 ; CHECK:   br label %for.body
 ; CHECK: for.body:
-; CHECK:   %lsr.iv2 = phi i64 [ %lsr.iv.next, %for.body ], [ %6, %for.body.lr.ph ]
+; CHECK:   %lsr.iv2 = phi i64 [ %lsr.iv.next, %for.body ], [ [[r3]], %for.body.lr.ph ]
 ; CHECK:   %lsr.iv.next = add i64 %lsr.iv2, -2
 ; CHECK:   %lsr.iv.next3 = inttoptr i64 %lsr.iv.next to i16*
 ; CHECK:   %cmp27 = icmp eq i16* %lsr.iv.next3, null
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64"
-target triple = "x86_64-unknown-linux-gnu"
 
 %struct.Vector2 = type { i16*, [64 x i16], i32 }
 

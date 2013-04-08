@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -O0 -disable-fp-elim -relocation-model=pic -stats 2>&1 | FileCheck %s
 ;
 ; This test should not cause any spilling with RAFast.

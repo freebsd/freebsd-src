@@ -16,8 +16,6 @@ endif
 LIBRARYNAME = profile_rt
 LINK_LIBS_IN_SHARED = 1
 SHARED_LIBRARY = 1
-EXTRA_DIST = libprofile.exports
-EXPORTED_SYMBOL_FILE = $(PROJ_SRC_DIR)/libprofile.exports
 
 # Build and install this archive.                                                                                                                  
 BUILD_ARCHIVE = 1
@@ -50,7 +48,7 @@ ifeq ($(HOST_OS),Darwin)
     endif
 
     # If we're doing an Apple-style build, add the LTO object path.
-    ifeq ($(RC_BUILDIT),YES)
+    ifeq ($(RC_XBS),YES)
        TempFile           := $(shell mkdir -p ${OBJROOT}/dSYMs ; mktemp ${OBJROOT}/dSYMs/profile_rt-lto.XXXXXX)
        LLVMLibsOptions    := $(LLVMLibsOptions) \
                              -Wl,-object_path_lto -Wl,$(TempFile)

@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: opt < %s -licm -stats -S 2>&1 | grep "1 licm"
 
 @"\01L_OBJC_METH_VAR_NAME_" = internal global [4 x i8] c"foo\00", section "__TEXT,__objc_methname,cstring_literals", align 1

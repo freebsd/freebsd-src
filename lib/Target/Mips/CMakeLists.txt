@@ -9,7 +9,6 @@ tablegen(LLVM MipsGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM MipsGenDAGISel.inc -gen-dag-isel)
 tablegen(LLVM MipsGenCallingConv.inc -gen-callingconv)
 tablegen(LLVM MipsGenSubtargetInfo.inc -gen-subtarget)
-tablegen(LLVM MipsGenEDInfo.inc -gen-enhanced-disassembly-info)
 tablegen(LLVM MipsGenAsmMatcher.inc -gen-asm-matcher)
 tablegen(LLVM MipsGenMCPseudoLowering.inc -gen-pseudo-lowering)
 add_public_tablegen_target(MipsCommonTableGen)
@@ -17,10 +16,13 @@ add_public_tablegen_target(MipsCommonTableGen)
 add_llvm_target(MipsCodeGen
   Mips16FrameLowering.cpp
   Mips16InstrInfo.cpp
+  Mips16ISelDAGToDAG.cpp
+  Mips16ISelLowering.cpp
   Mips16RegisterInfo.cpp
   MipsAnalyzeImmediate.cpp
   MipsAsmPrinter.cpp
   MipsCodeEmitter.cpp
+  MipsConstantIslandPass.cpp
   MipsDelaySlotFiller.cpp
   MipsJITInfo.cpp
   MipsInstrInfo.cpp
@@ -33,6 +35,8 @@ add_llvm_target(MipsCodeGen
   MipsRegisterInfo.cpp
   MipsSEFrameLowering.cpp
   MipsSEInstrInfo.cpp
+  MipsSEISelDAGToDAG.cpp
+  MipsSEISelLowering.cpp
   MipsSERegisterInfo.cpp
   MipsSubtarget.cpp
   MipsTargetMachine.cpp

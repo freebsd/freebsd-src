@@ -7,28 +7,27 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/BasicBlock.h"
-#include "llvm/Constant.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalValue.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Type.h"
-#include "llvm/TypeBuilder.h"
+#include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Assembly/Parser.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/ExecutionEngine/JITMemoryManager.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/TypeBuilder.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
-
 #include "gtest/gtest.h"
 #include <vector>
 
@@ -118,13 +117,14 @@ public:
     Base->endFunctionBody(F, FunctionStart, FunctionEnd);
   }
   virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID) {
-    return Base->allocateDataSection(Size, Alignment, SectionID);
+                                       unsigned SectionID, bool IsReadOnly) {
+    return Base->allocateDataSection(Size, Alignment, SectionID, IsReadOnly);
   }
   virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
                                        unsigned SectionID) {
     return Base->allocateCodeSection(Size, Alignment, SectionID);
   }
+  virtual bool applyPermissions(std::string *ErrMsg) { return false; }
   virtual uint8_t *allocateSpace(intptr_t Size, unsigned Alignment) {
     return Base->allocateSpace(Size, Alignment);
   }
@@ -161,7 +161,7 @@ public:
     uintptr_t ActualSizeResult;
   };
   std::vector<StartExceptionTableCall> startExceptionTableCalls;
-  virtual uint8_t* startExceptionTable(const Function* F,
+  virtual uint8_t *startExceptionTable(const Function *F,
                                        uintptr_t &ActualSize) {
     uintptr_t InitialActualSize = ActualSize;
     uint8_t *Result = Base->startExceptionTable(F, ActualSize);
@@ -203,14 +203,21 @@ bool LoadAssemblyInto(Module *M, const char *assembly) {
 
 class JITTest : public testing::Test {
  protected:
+  virtual RecordingJITMemoryManager *createMemoryManager() {
+    return new RecordingJITMemoryManager;
+  }
+
   virtual void SetUp() {
     M = new Module("<main>", Context);
-    RJMM = new RecordingJITMemoryManager;
+    RJMM = createMemoryManager();
     RJMM->setPoisonMemory(true);
     std::string Error;
+    TargetOptions Options;
+    Options.JITExceptionHandling = true;
     TheJIT.reset(EngineBuilder(M).setEngineKind(EngineKind::JIT)
                  .setJITMemoryManager(RJMM)
-                 .setErrorStr(&Error).create());
+                 .setErrorStr(&Error)
+                 .setTargetOptions(Options).create());
     ASSERT_TRUE(TheJIT.get() != NULL) << Error;
   }
 
@@ -296,6 +303,46 @@ TEST(JIT, GlobalInFunction) {
 }
 
 #endif // !defined(__arm__) && !defined(__powerpc__)
+
+// Regression test for a bug.  The JITEmitter wasn't checking to verify that
+// it hadn't run out of space while generating the DWARF exception information
+// for an emitted function.
+
+class ExceptionMemoryManagerMock : public RecordingJITMemoryManager {
+ public:
+  virtual uint8_t *startExceptionTable(const Function *F,
+                                       uintptr_t &ActualSize) {
+    // force an insufficient size the first time through.
+    bool ChangeActualSize = false;
+    if (ActualSize == 0)
+      ChangeActualSize = true;;
+    uint8_t *result =
+      RecordingJITMemoryManager::startExceptionTable(F, ActualSize);
+    if (ChangeActualSize)
+      ActualSize = 1;
+    return result;
+  }
+};
+
+class JITExceptionMemoryTest : public JITTest {
+ protected:
+  virtual RecordingJITMemoryManager *createMemoryManager() {
+    return new ExceptionMemoryManagerMock;
+  }
+};
+
+TEST_F(JITExceptionMemoryTest, ExceptionTableOverflow) {
+  Function *F = Function::Create(TypeBuilder<void(void), false>::get(Context),
+                                 Function::ExternalLinkage,
+                                 "func1", M);
+  BasicBlock *Block = BasicBlock::Create(Context, "block", F);
+  IRBuilder<> Builder(Block);
+  Builder.CreateRetVoid();
+  TheJIT->getPointerToFunction(F);
+  ASSERT_TRUE(RJMM->startExceptionTableCalls.size() == 2);
+  ASSERT_TRUE(RJMM->deallocateExceptionTableCalls.size() == 1);
+  ASSERT_TRUE(RJMM->endExceptionTableCalls.size() == 1);
+}
 
 int PlusOne(int arg) {
   return arg + 1;

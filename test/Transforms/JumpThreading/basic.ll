@@ -1,4 +1,4 @@
-; RUN: opt %s -jump-threading -S | FileCheck %s
+; RUN: opt -jump-threading -S < %s | FileCheck %s
 
 declare i32 @f1()
 declare i32 @f2()
@@ -476,3 +476,41 @@ exit1:
 ; CHECK: }
 }
 
+; In this test we check that block duplication is inhibited by the presence
+; of a function with the 'noduplicate' attribute.
+
+declare void @g()
+declare void @j()
+declare void @k()
+
+; CHECK: define void @h(i32 %p) {
+define void @h(i32 %p) {
+  %x = icmp ult i32 %p, 5
+  br i1 %x, label %l1, label %l2
+
+l1:
+  call void @j()
+  br label %l3
+
+l2:
+  call void @k()
+  br label %l3
+
+l3:
+; CHECK: call void @g() [[NOD:#[0-9]+]]
+; CHECK-NOT: call void @g() [[NOD]]
+  call void @g() noduplicate
+  %y = icmp ult i32 %p, 5
+  br i1 %y, label %l4, label %l5
+
+l4:
+  call void @j()
+  ret void
+
+l5:
+  call void @k()
+  ret void
+; CHECK: }
+}
+
+; CHECK: attributes [[NOD]] = { noduplicate }

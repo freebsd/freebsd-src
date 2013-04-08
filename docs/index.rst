@@ -1,5 +1,3 @@
-.. _contents:
-
 Overview
 ========
 
@@ -15,54 +13,396 @@ research projects.
 Similarly, documentation is broken down into several high-level groupings
 targeted at different audiences:
 
-* **Design & Overview**
+LLVM Design & Overview
+======================
 
- Several introductory papers and presentations are available at
- :ref:`design_and_overview`.
-
-* **Publications**
-
- The list of `publications <http://llvm.org/pubs>`_ based on LLVM.
-
-* **User Guides**
-
- Those new to the LLVM system should first visit the :ref:`userguides`.
-
- NOTE: If you are a user who is only interested in using LLVM-based
- compilers, you should look into `Clang <http://clang.llvm.org>`_ or
- `DragonEgg <http://dragonegg.llvm.org>`_ instead. The documentation here is
- intended for users who have a need to work with the intermediate LLVM
- representation.
-
-* **API Clients**
-
- Developers of applications which use LLVM as a library should visit the
- :ref:`programming`.
-
-* **Subsystems**
-
- API clients and LLVM developers may be interested in the
- :ref:`subsystems` documentation.
-
-* **Development Process**
-
- Additional documentation on the LLVM project can be found at
- :ref:`development_process`.
-
-* **Mailing Lists**
-
- For more information, consider consulting the LLVM :ref:`mailing_lists`.
+Several introductory papers and presentations.
 
 .. toctree::
-   :maxdepth: 2
+   :hidden:
 
-   design_and_overview
-   userguides
-   programming
-   subsystems
-   development_process
-   mailing_lists
-   
+   LangRef
+
+:doc:`LangRef`
+  Defines the LLVM intermediate representation.
+
+`Introduction to the LLVM Compiler`__
+  Presentation providing a users introduction to LLVM.
+
+  .. __: http://llvm.org/pubs/2008-10-04-ACAT-LLVM-Intro.html
+
+`Intro to LLVM`__
+  Book chapter providing a compiler hacker's introduction to LLVM.
+
+  .. __: http://www.aosabook.org/en/llvm.html
+
+
+`LLVM: A Compilation Framework for Lifelong Program Analysis & Transformation`__
+  Design overview.
+
+  .. __: http://llvm.org/pubs/2004-01-30-CGO-LLVM.html
+
+`LLVM: An Infrastructure for Multi-Stage Optimization`__
+  More details (quite old now).
+
+  .. __: http://llvm.org/pubs/2002-12-LattnerMSThesis.html
+
+`Publications mentioning LLVM <http://llvm.org/pubs>`_
+   ..
+
+User Guides
+===========
+
+For those new to the LLVM system.
+
+NOTE: If you are a user who is only interested in using LLVM-based
+compilers, you should look into `Clang <http://clang.llvm.org>`_ or
+`DragonEgg <http://dragonegg.llvm.org>`_ instead. The documentation here is
+intended for users who have a need to work with the intermediate LLVM
+representation.
+
+.. toctree::
+   :hidden:
+
+   CMake
+   HowToBuildOnARM
+   CommandGuide/index
+   GettingStarted
+   GettingStartedVS
+   FAQ
+   Lexicon
+   HowToAddABuilder
+   yaml2obj
+   HowToSubmitABug
+   SphinxQuickstartTemplate
+   Phabricator
+   TestingGuide
+   tutorial/index
+   ReleaseNotes
+   Passes
+   YamlIO
+   GetElementPtr
+
+:doc:`GettingStarted`
+   Discusses how to get up and running quickly with the LLVM infrastructure.
+   Everything from unpacking and compilation of the distribution to execution
+   of some tools.
+
+:doc:`CMake`
+   An addendum to the main Getting Started guide for those using the `CMake
+   build system <http://www.cmake.org>`_.
+
+:doc:`HowToBuildOnARM`
+   Notes on building and testing LLVM/Clang on ARM.
+
+:doc:`GettingStartedVS`
+   An addendum to the main Getting Started guide for those using Visual Studio
+   on Windows.
+
+:doc:`tutorial/index`
+   Tutorials about using LLVM. Includes a tutorial about making a custom
+   language with LLVM.
+
+:doc:`LLVM Command Guide <CommandGuide/index>`
+   A reference manual for the LLVM command line utilities ("man" pages for LLVM
+   tools).
+
+:doc:`Passes`
+   A list of optimizations and analyses implemented in LLVM.
+
+:doc:`FAQ`
+   A list of common questions and problems and their solutions.
+
+:doc:`Release notes for the current release <ReleaseNotes>`
+   This describes new features, known bugs, and other limitations.
+
+:doc:`HowToSubmitABug`
+   Instructions for properly submitting information about any bugs you run into
+   in the LLVM system.
+
+:doc:`SphinxQuickstartTemplate`
+  A template + tutorial for writing new Sphinx documentation. It is meant
+  to be read in source form.
+
+:doc:`LLVM Testing Infrastructure Guide <TestingGuide>`
+   A reference manual for using the LLVM testing infrastructure.
+
+`How to build the C, C++, ObjC, and ObjC++ front end`__
+   Instructions for building the clang front-end from source.
+
+   .. __: http://clang.llvm.org/get_started.html
+
+:doc:`Lexicon`
+   Definition of acronyms, terms and concepts used in LLVM.
+
+:doc:`HowToAddABuilder`
+   Instructions for adding new builder to LLVM buildbot master.
+
+:doc:`YamlIO`
+   A reference guide for using LLVM's YAML I/O library.
+
+:doc:`GetElementPtr`
+  Answers to some very frequent questions about LLVM's most frequently
+  misunderstood instruction.
+
+Programming Documentation
+=========================
+
+For developers of applications which use LLVM as a library.
+
+.. toctree::
+   :hidden:
+
+   Atomics
+   CodingStandards
+   CommandLine
+   CompilerWriterInfo
+   ExtendingLLVM
+   HowToSetUpLLVMStyleRTTI
+   ProgrammersManual
+
+:doc:`LLVM Language Reference Manual <LangRef>`
+  Defines the LLVM intermediate representation and the assembly form of the
+  different nodes.
+
+:doc:`Atomics`
+  Information about LLVM's concurrency model.
+
+:doc:`ProgrammersManual`
+  Introduction to the general layout of the LLVM sourcebase, important classes
+  and APIs, and some tips & tricks.
+
+:doc:`CommandLine`
+  Provides information on using the command line parsing library.
+
+:doc:`CodingStandards`
+  Details the LLVM coding standards and provides useful information on writing
+  efficient C++ code.
+
+:doc:`HowToSetUpLLVMStyleRTTI`
+  How to make ``isa<>``, ``dyn_cast<>``, etc. available for clients of your
+  class hierarchy.
+
+:doc:`ExtendingLLVM`
+  Look here to see how to add instructions and intrinsics to LLVM.
+
+`Doxygen generated documentation <http://llvm.org/doxygen/>`_
+  (`classes <http://llvm.org/doxygen/inherits.html>`_)
+  (`tarball <http://llvm.org/doxygen/doxygen.tar.gz>`_)
+
+`ViewVC Repository Browser <http://llvm.org/viewvc/>`_
+   ..
+
+:doc:`CompilerWriterInfo`
+  A list of helpful links for compiler writers.
+
+Subsystem Documentation
+=======================
+
+For API clients and LLVM developers.
+
+.. toctree::
+   :hidden:
+
+   AliasAnalysis
+   BitCodeFormat
+   BranchWeightMetadata
+   Bugpoint
+   CodeGenerator
+   ExceptionHandling
+   LinkTimeOptimization
+   SegmentedStacks
+   TableGenFundamentals
+   DebuggingJITedCode
+   GoldPlugin
+   MarkedUpDisassembly
+   SystemLibrary
+   SourceLevelDebugging
+   Vectorizers
+   WritingAnLLVMBackend
+   GarbageCollection
+   WritingAnLLVMPass
+   TableGen/LangRef
+   HowToUseAttributes
+   NVPTXUsage
+
+:doc:`WritingAnLLVMPass`
+   Information on how to write LLVM transformations and analyses.
+
+:doc:`WritingAnLLVMBackend`
+   Information on how to write LLVM backends for machine targets.
+
+:doc:`CodeGenerator`
+   The design and implementation of the LLVM code generator.  Useful if you are
+   working on retargetting LLVM to a new architecture, designing a new codegen
+   pass, or enhancing existing components.
+
+:doc:`TableGenFundamentals`
+   Describes the TableGen tool, which is used heavily by the LLVM code
+   generator.
+
+:doc:`AliasAnalysis`
+   Information on how to write a new alias analysis implementation or how to
+   use existing analyses.
+
+:doc:`GarbageCollection`
+   The interfaces source-language compilers should use for compiling GC'd
+   programs.
+
+:doc:`Source Level Debugging with LLVM <SourceLevelDebugging>`
+   This document describes the design and philosophy behind the LLVM
+   source-level debugger.
+
+:doc:`Vectorizers`
+   This document describes the current status of vectorization in LLVM.
+
+:doc:`ExceptionHandling`
+   This document describes the design and implementation of exception handling
+   in LLVM.
+
+:doc:`Bugpoint`
+   Automatic bug finder and test-case reducer description and usage
+   information.
+
+:doc:`BitCodeFormat`
+   This describes the file format and encoding used for LLVM "bc" files.
+
+:doc:`System Library <SystemLibrary>`
+   This document describes the LLVM System Library (``lib/System``) and
+   how to keep LLVM source code portable
+
+:doc:`LinkTimeOptimization`
+   This document describes the interface between LLVM intermodular optimizer
+   and the linker and its design
+
+:doc:`GoldPlugin`
+   How to build your programs with link-time optimization on Linux.
+
+:doc:`DebuggingJITedCode`
+   How to debug JITed code with GDB.
+
+:doc:`BranchWeightMetadata`
+   Provides information about Branch Prediction Information.
+
+:doc:`SegmentedStacks`
+   This document describes segmented stacks and how they are used in LLVM.
+
+:doc:`MarkedUpDisassembly`
+   This document describes the optional rich disassembly output syntax.
+
+:doc:`HowToUseAttributes`
+  Answers some questions about the new Attributes infrastructure.
+
+:doc:`NVPTXUsage`
+   This document describes using the NVPTX back-end to compile GPU kernels.
+
+
+Development Process Documentation
+=================================
+
+Information about LLVM's development process.
+
+.. toctree::
+   :hidden:
+
+   DeveloperPolicy
+   MakefileGuide
+   Projects
+   LLVMBuild
+   HowToReleaseLLVM
+   Packaging
+
+:doc:`DeveloperPolicy`
+   The LLVM project's policy towards developers and their contributions.
+
+:doc:`Projects`
+  How-to guide and templates for new projects that *use* the LLVM
+  infrastructure.  The templates (directory organization, Makefiles, and test
+  tree) allow the project code to be located outside (or inside) the ``llvm/``
+  tree, while using LLVM header files and libraries.
+
+:doc:`LLVMBuild`
+  Describes the LLVMBuild organization and files used by LLVM to specify
+  component descriptions.
+
+:doc:`MakefileGuide`
+  Describes how the LLVM makefiles work and how to use them.
+
+:doc:`HowToReleaseLLVM`
+  This is a guide to preparing LLVM releases. Most developers can ignore it.
+
+:doc:`Packaging`
+   Advice on packaging LLVM into a distribution.
+
+Community
+=========
+
+LLVM has a thriving community of friendly and helpful developers.
+The two primary communication mechanisms in the LLVM community are mailing
+lists and IRC.
+
+Mailing Lists
+-------------
+
+If you can't find what you need in these docs, try consulting the mailing
+lists.
+
+`Developer's List (llvmdev)`__
+  This list is for people who want to be included in technical discussions of
+  LLVM. People post to this list when they have questions about writing code
+  for or using the LLVM tools. It is relatively low volume.
+
+  .. __: http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev
+
+`Commits Archive (llvm-commits)`__
+  This list contains all commit messages that are made when LLVM developers
+  commit code changes to the repository. It also serves as a forum for
+  patch review (i.e. send patches here). It is useful for those who want to
+  stay on the bleeding edge of LLVM development. This list is very high
+  volume.
+
+  .. __: http://lists.cs.uiuc.edu/pipermail/llvm-commits/
+
+`Bugs & Patches Archive (llvmbugs)`__
+  This list gets emailed every time a bug is opened and closed. It is
+  higher volume than the LLVMdev list.
+
+  .. __: http://lists.cs.uiuc.edu/pipermail/llvmbugs/
+
+`Test Results Archive (llvm-testresults)`__
+  A message is automatically sent to this list by every active nightly tester
+  when it completes.  As such, this list gets email several times each day,
+  making it a high volume list.
+
+  .. __: http://lists.cs.uiuc.edu/pipermail/llvm-testresults/
+
+`LLVM Announcements List (llvm-announce)`__
+  This is a low volume list that provides important announcements regarding
+  LLVM.  It gets email about once a month.
+
+  .. __: http://lists.cs.uiuc.edu/mailman/listinfo/llvm-announce
+
+IRC
+---
+
+Users and developers of the LLVM project (including subprojects such as Clang)
+can be found in #llvm on `irc.oftc.net <irc://irc.oftc.net/llvm>`_.
+
+This channel has several bots.
+
+* Buildbot reporters
+
+  * llvmbb - Bot for the main LLVM buildbot master.
+    http://lab.llvm.org:8011/console
+  * bb-chapuni - An individually run buildbot master. http://bb.pgr.jp/console
+  * smooshlab - Apple's internal buildbot master.
+
+* robot - Bugzilla linker. %bug <number>
+
+* clang-bot - A `geordi <http://www.eelis.net/geordi/>`_ instance running
+  near-trunk clang instead of gcc.
+
+
 Indices and tables
 ==================
 

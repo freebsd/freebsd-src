@@ -1,7 +1,9 @@
 ; RUN: llc < %s -march=arm -mattr=+vfp2 | FileCheck %s -check-prefix=VFP2
 ; RUN: llc < %s -march=arm -mattr=+neon | FileCheck %s -check-prefix=NEON
-; RUN: llc < %s -march=arm -mcpu=cortex-a8 | FileCheck %s -check-prefix=A8
-; RUN: llc < %s -march=arm -mcpu=cortex-a8 -regalloc=basic | FileCheck %s -check-prefix=A8
+; RUN: llc < %s -mtriple=arm-eabi -mcpu=cortex-a8 | FileCheck %s -check-prefix=A8
+; RUN: llc < %s -mtriple=arm-eabi -mcpu=cortex-a8 -regalloc=basic | FileCheck %s -check-prefix=A8
+; RUN: llc < %s -mtriple=arm-eabi -mcpu=cortex-a8 --enable-unsafe-fp-math | FileCheck %s -check-prefix=A8U
+; RUN: llc < %s -mtriple=arm-darwin -mcpu=cortex-a8 | FileCheck %s -check-prefix=A8U
 
 define float @t1(float %acc, float %a, float %b) nounwind {
 entry:
@@ -11,9 +13,13 @@ entry:
 ; NEON: t1:
 ; NEON: vnmla.f32
 
+; A8U: t1:
+; A8U: vnmul.f32 s{{[0-9]}}, s{{[0-9]}}, s{{[0-9]}}
+; A8U: vsub.f32 d{{[0-9]}}, d{{[0-9]}}, d{{[0-9]}}
+
 ; A8: t1:
 ; A8: vnmul.f32 s{{[0-9]}}, s{{[0-9]}}, s{{[0-9]}}
-; A8: vsub.f32 d{{[0-9]}}, d{{[0-9]}}, d{{[0-9]}}
+; A8: vsub.f32 s{{[0-9]}}, s{{[0-9]}}, s{{[0-9]}}
 	%0 = fmul float %a, %b
 	%1 = fsub float -0.0, %0
         %2 = fsub float %1, %acc
@@ -28,9 +34,13 @@ entry:
 ; NEON: t2:
 ; NEON: vnmla.f32
 
+; A8U: t2:
+; A8U: vnmul.f32 s{{[01234]}}, s{{[01234]}}, s{{[01234]}}
+; A8U: vsub.f32 d{{[0-9]}}, d{{[0-9]}}, d{{[0-9]}}
+
 ; A8: t2:
 ; A8: vnmul.f32 s{{[01234]}}, s{{[01234]}}, s{{[01234]}}
-; A8: vsub.f32 d{{[0-9]}}, d{{[0-9]}}, d{{[0-9]}}
+; A8: vsub.f32 s{{[0-9]}}, s{{[0-9]}}, s{{[0-9]}}
 	%0 = fmul float %a, %b
 	%1 = fmul float -1.0, %0
         %2 = fsub float %1, %acc
@@ -45,9 +55,13 @@ entry:
 ; NEON: t3:
 ; NEON: vnmla.f64
 
+; A8U: t3:
+; A8U: vnmul.f64 d
+; A8U: vsub.f64 d
+
 ; A8: t3:
-; A8: vnmul.f64 d1{{[67]}}, d1{{[67]}}, d1{{[67]}}
-; A8: vsub.f64 d1{{[67]}}, d1{{[67]}}, d1{{[67]}}
+; A8: vnmul.f64 d
+; A8: vsub.f64 d
 	%0 = fmul double %a, %b
 	%1 = fsub double -0.0, %0
         %2 = fsub double %1, %acc
@@ -62,9 +76,13 @@ entry:
 ; NEON: t4:
 ; NEON: vnmla.f64
 
+; A8U: t4:
+; A8U: vnmul.f64 d
+; A8U: vsub.f64 d
+
 ; A8: t4:
-; A8: vnmul.f64 d1{{[67]}}, d1{{[67]}}, d1{{[67]}}
-; A8: vsub.f64 d1{{[67]}}, d1{{[67]}}, d1{{[67]}}
+; A8: vnmul.f64 d
+; A8: vsub.f64 d
 	%0 = fmul double %a, %b
 	%1 = fmul double -1.0, %0
         %2 = fsub double %1, %acc

@@ -134,6 +134,9 @@ BUILD_CXX=@BUILD_CXX@
 # Triple for configuring build tools when cross-compiling
 BUILD_TRIPLE=@build@
 
+# Target triple (cpu-vendor-os) which LLVM is compiled for
+HOST_TRIPLE=@host@
+
 # Target triple (cpu-vendor-os) for which we should generate code
 TARGET_TRIPLE=@target@
 
@@ -153,8 +156,17 @@ CXX = @CXX@
 # Path to the CC binary, which use used by testcases for native builds.
 CC := @CC@
 
+# C/C++ preprocessor flags.
+CPPFLAGS += @CPPFLAGS@
+
+# C compiler flags.
+CFLAGS += @CFLAGS@
+
+# C++ compiler flags.
+CXXFLAGS += @CXXFLAGS@
+
 # Linker flags.
-LDFLAGS+=@LDFLAGS@
+LDFLAGS += @LDFLAGS@
 
 # Path to the library archiver program.
 AR_PATH = @AR@
@@ -176,6 +188,7 @@ RANLIB     := @RANLIB@
 RM         := @RM@
 SED        := @SED@
 TAR        := @TAR@
+PYTHON     := @PYTHON@
 
 # Paths to miscellaneous programs we hope are present but might not be
 BZIP2      := @BZIP2@
@@ -221,6 +234,15 @@ ENABLE_LIBCPP = @ENABLE_LIBCPP@
 
 # When ENABLE_CXX11 is enabled, LLVM uses c++11 mode by default to build.
 ENABLE_CXX11 = @ENABLE_CXX11@
+
+# When ENABLE_CLANG_ARCMT is enabled, clang will have ARCMigrationTool.
+ENABLE_CLANG_ARCMT = @ENABLE_CLANG_ARCMT@
+
+# When ENABLE_CLANG_REWRITER is enabled, clang will have Rewriter.
+ENABLE_CLANG_REWRITER = @ENABLE_CLANG_REWRITER@
+
+# When ENABLE_CLANG_STATIC_ANALYZER is enabled, clang will have StaticAnalyzer.
+ENABLE_CLANG_STATIC_ANALYZER = @ENABLE_CLANG_STATIC_ANALYZER@
 
 # When ENABLE_WERROR is enabled, we'll pass -Werror on the command line
 ENABLE_WERROR = @ENABLE_WERROR@
@@ -278,7 +300,7 @@ ENABLE_DOCS = @ENABLE_DOCS@
 ENABLE_DOXYGEN = @ENABLE_DOXYGEN@
 
 # Do we want to enable threads?
-ENABLE_THREADS := @ENABLE_THREADS@
+ENABLE_THREADS := @LLVM_ENABLE_THREADS@
 
 # Do we want to build with position independent code?
 ENABLE_PIC := @ENABLE_PIC@
@@ -349,6 +371,10 @@ NO_MISSING_FIELD_INITIALIZERS = @NO_MISSING_FIELD_INITIALIZERS@
 NO_VARIADIC_MACROS = @NO_VARIADIC_MACROS@
 # -Wcovered-switch-default
 COVERED_SWITCH_DEFAULT = @COVERED_SWITCH_DEFAULT@
+# -Wno-uninitialized
+NO_UNINITIALIZED = @NO_UNINITIALIZED@
+# -Wno-maybe-uninitialized
+NO_MAYBE_UNINITIALIZED = @NO_MAYBE_UNINITIALIZED@
 
 # Was polly found in tools/polly?
 LLVM_HAS_POLLY = @LLVM_HAS_POLLY@

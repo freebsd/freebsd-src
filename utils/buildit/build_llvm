@@ -77,70 +77,12 @@ rm $SRC_DIR/Makefile || exit 1
 # Now create our own by editing the top-level Makefile, deleting every line marked "Apple-style":
 sed -e '/[Aa]pple-style/d' -e '/include.*GNUmakefile/d' $ORIG_SRC_DIR/Makefile > $SRC_DIR/Makefile || exit 1
 
-# Build the LLVM tree universal.
-mkdir -p $DIR/obj-llvm || exit 1
-cd $DIR/obj-llvm || exit 1
-
-if [ "$ARM_HOSTED_BUILD" = yes ]; then
-  # The cross-tools' build process expects to find an existing cross toolchain
-  # under names like 'arm-apple-darwin$DARWIN_VERS-as'; so make them.
-  rm -rf $DIR/bin || exit 1
-  mkdir $DIR/bin || exit 1
-  for prog in ar nm ranlib strip lipo ld as ; do
-    P=$DIR/bin/arm-apple-darwin$DARWIN_VERS-${prog}
-    T=`xcrun -sdk $SDKROOT -find ${prog}`
-    echo '#!/bin/sh' > $P || exit 1
-    echo 'exec '$T' "$@"' >> $P || exit 1
-    chmod a+x $P || exit 1
-  done
-  # Set up the links for clang.
-  for prog in clang clang++ ; do
-    P=$DIR/bin/arm-apple-darwin$DARWIN_VERS-${prog}
-    T=`xcrun -sdk $SDKROOT -find ${prog}`
-    echo '#!/bin/sh' > $P || exit 1
-    echo 'exec '$T' -arch armv7 -isysroot '${SDKROOT}' "$@"' >> $P || exit 1
-    chmod a+x $P || exit 1
-  done
-
-  PATH=$DIR/bin:$PATH
-fi
-
-if [ "$ARM_HOSTED_BUILD" = yes ]; then
-  configure_opts="--enable-targets=arm --host=arm-apple-darwin10 \
-                  --target=arm-apple-darwin10 --build=i686-apple-darwin10"
-elif [ "$IOS_SIM_BUILD" = yes ]; then
-  # Use a non-standard "darwin_sim" host triple to trigger a cross-build.
-  configure_opts="--enable-targets=x86 --host=i686-apple-darwin_sim \
-                  --build=i686-apple-darwin10"
-else
-  configure_opts="--enable-targets=arm,x86"
-fi
-
-if [ "$ARM_HOSTED_BUILD" != yes ]; then
-  if [ $SDKROOT ]; then
-    CPPFLAGS="$CPPFLAGS -isysroot $SDKROOT"
-  fi
-  for host in $HOSTS; do :; done
-  CPPFLAGS="$CPPFLAGS -arch $host"
-fi
-
-if [ \! -f Makefile.config ]; then
-  $SRC_DIR/configure --prefix=$DEST_DIR$DEST_ROOT $configure_opts \
-    --enable-assertions=$LLVM_ASSERTIONS \
-    --enable-optimized=$LLVM_OPTIMIZED \
-    --disable-bindings \
-    CPPFLAGS="$CPPFLAGS" \
-    || exit 1
-fi
-
 SUBVERSION=`echo $RC_ProjectSourceVersion | sed -e 's/.*\.\([0-9]*\).*/\1/'`
-
 if [ "x$SUBVERSION" != "x$RC_ProjectSourceVersion" ]; then
     LLVM_SUBMIT_SUBVERSION=`printf "%02d" $SUBVERSION`
     RC_ProjectSourceVersion=`echo $RC_ProjectSourceVersion | sed -e 's/\..*//'`
     LLVM_SUBMIT_VERSION=$RC_ProjectSourceVersion
 fi
-
 if [ "x$LLVM_SUBMIT_SUBVERSION" = "x00" -o "x$LLVM_SUBMIT_SUBVERSION" = "x0" ]; then
     LLVM_VERSION="$LLVM_SUBMIT_VERSION"
 else
@@ -157,20 +99,112 @@ if [ -z "$SYSCTL" ]; then
 fi
 JOBS_FLAG="-j $SYSCTL"
 
-make $JOBS_FLAG $OPTIMIZE_OPTS UNIVERSAL=1 UNIVERSAL_ARCH="$HOSTS" \
-    UNIVERSAL_SDK_PATH=$SDKROOT \
-    NO_RUNTIME_LIBS=1 \
-    DISABLE_EDIS=1 \
-    REQUIRES_RTTI=1 \
-    DEBUG_SYMBOLS=1 \
-    LLVM_SUBMIT_VERSION=$LLVM_SUBMIT_VERSION \
-    LLVM_SUBMIT_SUBVERSION=$LLVM_SUBMIT_SUBVERSION \
-    CXXFLAGS="-DLLVM_VERSION_INFO='\" Apple Build #$LLVM_VERSION\"'" \
-    VERBOSE=1
+COMMON_CONFIGURE_OPTS="\
+  --prefix=$DEST_DIR$DEST_ROOT \
+  --enable-assertions=$LLVM_ASSERTIONS \
+  --enable-optimized=$LLVM_OPTIMIZED \
+  --disable-bindings"
 
-if [ $? != 0 ] ; then
+COMMON_MAKEFLAGS="\
+  UNIVERSAL=1 \
+  UNIVERSAL_SDK_PATH=$SDKROOT \
+  NO_RUNTIME_LIBS=1 \
+  DISABLE_EDIS=1 \
+  REQUIRES_RTTI=1 \
+  DEBUG_SYMBOLS=1 \
+  LLVM_SUBMIT_VERSION=$LLVM_SUBMIT_VERSION \
+  LLVM_SUBMIT_SUBVERSION=$LLVM_SUBMIT_SUBVERSION \
+  VERBOSE=1"
+
+# Build the LLVM tree universal.
+mkdir -p $DIR/obj-llvm || exit 1
+cd $DIR/obj-llvm || exit 1
+
+if [ "$ARM_HOSTED_BUILD" = yes ]; then
+  # The cross-tools' build process expects to find an existing cross toolchain
+  # under names like 'arm-apple-darwin$DARWIN_VERS-as'; so make them.
+  rm -rf $DIR/bin || exit 1
+  mkdir $DIR/bin || exit 1
+  for prog in ar nm ranlib strip lipo ld as ; do
+    P=$DIR/bin/arm-apple-darwin$DARWIN_VERS-${prog}
+    T=`xcrun -sdk $SDKROOT -find ${prog}`
+    ln -s $T $DIR/bin/$prog
+    echo '#!/bin/sh' > $P || exit 1
+    echo 'exec '$T' "$@"' >> $P || exit 1
+    chmod a+x $P || exit 1
+  done
+  # Set up the links for clang.
+  for prog in clang clang++ ; do
+    P=$DIR/bin/arm-apple-darwin$DARWIN_VERS-${prog}
+    T=`xcrun -sdk $SDKROOT -find ${prog}`
+    ln -s $T $DIR/bin/$prog
+    echo '#!/bin/sh' > $P || exit 1
+    echo 'exec '$T' -arch armv7 -isysroot '${SDKROOT}' "$@"' >> $P || exit 1
+    chmod a+x $P || exit 1
+  done
+
+  PATH=$DIR/bin:$PATH
+
+  unset SDKROOT && \
+  $SRC_DIR/configure $COMMON_CONFIGURE_OPTS \
+    --enable-targets=arm \
+    --host=arm-apple-darwin10 \
+    --target=arm-apple-darwin10 \
+    --build=i686-apple-darwin10 \
+    --program-prefix="" \
+    || exit 1
+
+  if [ -n "$IPHONEOS_DEPLOYMENT_TARGET" ]; then
+    COMMON_MAKEFLAGS="$COMMON_MAKEFLAGS \
+      DEPLOYMENT_TARGET=-mios-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+  fi
+
+  make $JOBS_FLAG $COMMON_MAKEFLAGS SDKROOT= UNIVERSAL_ARCH="$HOSTS" \
+    CXXFLAGS="-DLLVM_VERSION_INFO='\" Apple Build #$LLVM_VERSION\"'"
+  if [ $? != 0 ] ; then
     echo "error: LLVM 'make' failed!"
     exit 1
+  fi 
+
+else
+# not $ARM_HOSTED_BUILD
+
+  export CC=`xcrun -find clang`
+  export CXX=`xcrun -find clang++`
+
+  if [ "$IOS_SIM_BUILD" = yes ]; then
+    # Use a non-standard "darwin_sim" host triple to trigger a cross-build.
+    configure_opts="--enable-targets=x86 --host=i686-apple-darwin_sim \
+                    --build=i686-apple-darwin10"
+    if [ -n "$IPHONEOS_DEPLOYMENT_TARGET" ]; then
+      COMMON_MAKEFLAGS="$COMMON_MAKEFLAGS \
+        DEPLOYMENT_TARGET=-mios-simulator-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+    fi
+  else
+    configure_opts="--enable-targets=arm,x86"
+    if [ -n "$MACOSX_DEPLOYMENT_TARGET" ]; then
+      COMMON_MAKEFLAGS="$COMMON_MAKEFLAGS \
+        DEPLOYMENT_TARGET=-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
+    fi
+  fi
+
+  if [ $SDKROOT ]; then
+    CPPFLAGS="$CPPFLAGS -isysroot $SDKROOT"
+  fi
+  for host in $HOSTS; do :; done
+  CPPFLAGS="$CPPFLAGS -arch $host"
+
+  $SRC_DIR/configure $COMMON_CONFIGURE_OPTS $configure_opts \
+    --program-prefix="" \
+    CPPFLAGS="$CPPFLAGS" \
+    || exit 1
+
+  make $JOBS_FLAG $COMMON_MAKEFLAGS UNIVERSAL_ARCH="$HOSTS" \
+    CXXFLAGS="-DLLVM_VERSION_INFO='\" Apple Build #$LLVM_VERSION\"'"
+  if [ $? != 0 ] ; then
+    echo "error: LLVM 'make' failed!"
+    exit 1
+  fi 
 fi 
 
 ################################################################################
@@ -185,14 +219,7 @@ rm -rf * || exit 1
 cd $DIR/obj-llvm || exit 1
 
 # Install the tree into the destination directory.
-make $LOCAL_MAKEFLAGS $OPTIMIZE_OPTS UNIVERSAL=1 UNIVERSAL_ARCH="$HOSTS" \
-    NO_RUNTIME_LIBS=1 \
-    DISABLE_EDIS=1 \
-    DEBUG_SYMBOLS=1 \
-    LLVM_SUBMIT_VERSION=$LLVM_SUBMIT_VERSION \
-    LLVM_SUBMIT_SUBVERSION=$LLVM_SUBMIT_SUBVERSION \
-    OPTIMIZE_OPTION='-O3' VERBOSE=1 install
-
+make $JOBS_FLAG $COMMON_MAKEFLAGS UNIVERSAL_ARCH="$HOSTS" install
 if ! test $? == 0 ; then
     echo "error: LLVM 'make install' failed!"
     exit 1
@@ -206,6 +233,16 @@ fi
 RC_ProjectSourceSubversion=`printf "%d" $LLVM_MINOR_VERSION`
 echo "#define LLVM_VERSION ${RC_ProjectSourceVersion}" > $DEST_DIR$DEST_ROOT/include/llvm/Version.h
 echo "#define LLVM_MINOR_VERSION ${RC_ProjectSourceSubversion}" >> $DEST_DIR$DEST_ROOT/include/llvm/Version.h
+
+# Run unifdef to preprocess the installed headers to reflect whether this
+# was a debug or release build.
+for file in `find $DEST_DIR$DEST_ROOT/include -type f -print`; do
+  if [ "$LLVM_ASSERTIONS" = yes ]; then
+    unifdef -UNDEBUG -D_DEBUG -o $file $file
+  else
+    unifdef -DNDEBUG -U_DEBUG -ULLVM_ENABLE_DUMP -o $file $file
+  fi
+done
 
 # Find the right version of strip to use.
 STRIP=strip
@@ -263,9 +300,10 @@ cd $SYM_DIR || exit 1
 rm -rf * || exit 1
 
 # Generate .dSYM files
+DSYMUTIL=`xcrun -find dsymutil`
 find $DEST_DIR -perm -0111 -type f \
     ! \( -name '*.la' -o -name gccas -o -name gccld -o -name llvm-config -o -name '*.a' \) \
-    -print | xargs -n 1 -P ${SYSCTL} dsymutil
+    -print | xargs -n 1 -P ${SYSCTL} ${DSYMUTIL}
 
 # Save .dSYM files and .a archives
 cd $DEST_DIR || exit 1

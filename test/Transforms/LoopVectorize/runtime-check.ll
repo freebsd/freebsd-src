@@ -1,4 +1,4 @@
-; RUN: opt < %s  -loop-vectorize -force-vector-width=4 -dce -instcombine -licm -S | FileCheck %s
+; RUN: opt < %s  -loop-vectorize -force-vector-unroll=1 -force-vector-width=4 -dce -instcombine -S | FileCheck %s
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.9.0"
@@ -9,6 +9,10 @@ target triple = "x86_64-apple-macosx10.9.0"
 ;     a[i] = b[i] * 3;
 ; }
 
+;CHECK: for.body.preheader:
+;CHECK: br i1 %cmp.zero, label %middle.block, label %vector.memcheck
+;CHECK: vector.memcheck:
+;CHECK: br i1 %found.conflict, label %middle.block, label %vector.ph
 ;CHECK: load <4 x float>
 define i32 @foo(float* nocapture %a, float* nocapture %b, i32 %n) nounwind uwtable ssp {
 entry:

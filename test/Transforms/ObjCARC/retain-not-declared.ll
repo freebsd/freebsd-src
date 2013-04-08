@@ -13,7 +13,7 @@ declare void @objc_release(i8*)
 
 ; CHECK:      define i8* @test0(i8* %p) {
 ; CHECK-NEXT: entry:
-; CHECK-NEXT:   %0 = tail call i8* @objc_retainAutoreleaseReturnValue(i8* %p) nounwind
+; CHECK-NEXT:   %0 = tail call i8* @objc_retainAutoreleaseReturnValue(i8* %p) [[NUW:#[0-9]+]]
 ; CHECK-NEXT:   ret i8* %0
 ; CHECK-NEXT: }
 
@@ -21,8 +21,8 @@ define i8* @test0(i8* %p) {
 entry:
   %call = tail call i8* @objc_unretainedObject(i8* %p)
   %0 = tail call i8* @objc_retainAutoreleasedReturnValue(i8* %call) nounwind
-  %1 = tail call i8* @objc_autoreleaseReturnValue(i8* %0) nounwind
-  ret i8* %1
+  %1 = tail call i8* @objc_autoreleaseReturnValue(i8* %call) nounwind
+  ret i8* %call
 }
 
 ; Properly create the @objc_retain declaration when it doesn't already exist.
@@ -65,3 +65,5 @@ lpad100:                                          ; preds = %invoke.cont93
 declare i32 @__gxx_personality_v0(...)
 
 !0 = metadata !{}
+
+; CHECK: attributes [[NUW]] = { nounwind }

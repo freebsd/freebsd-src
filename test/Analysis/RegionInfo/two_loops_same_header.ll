@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: opt -regions -analyze < %s | FileCheck %s
 ; RUN: opt -regions -stats < %s 2>&1 | FileCheck -check-prefix=STAT %s
 ; RUN: opt -regions -print-region-style=bb  -analyze < %s 2>&1 | FileCheck -check-prefix=BBIT %s

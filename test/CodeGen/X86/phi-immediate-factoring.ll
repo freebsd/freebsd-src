@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -march=x86 -stats 2>&1 | grep "Number of blocks eliminated" | grep 6
 ; PR1296
 

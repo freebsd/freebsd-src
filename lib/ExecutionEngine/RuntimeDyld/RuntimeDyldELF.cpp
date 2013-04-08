@@ -15,16 +15,16 @@
 #include "RuntimeDyldELF.h"
 #include "JITRegistrar.h"
 #include "ObjectImageCommon.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/IntervalMap.h"
-#include "llvm/Object/ObjectFile.h"
-#include "llvm/ExecutionEngine/ObjectImage.h"
-#include "llvm/ExecutionEngine/ObjectBuffer.h"
-#include "llvm/Support/ELF.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/ExecutionEngine/ObjectBuffer.h"
+#include "llvm/ExecutionEngine/ObjectImage.h"
 #include "llvm/Object/ELF.h"
+#include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/ELF.h"
 using namespace llvm;
 using namespace llvm::object;
 
@@ -38,19 +38,22 @@ error_code check(error_code Err) {
   return Err;
 }
 
-template<support::endianness target_endianness, bool is64Bits>
-class DyldELFObject : public ELFObjectFile<target_endianness, is64Bits> {
-  LLVM_ELF_IMPORT_TYPES(target_endianness, is64Bits)
+template<class ELFT>
+class DyldELFObject
+  : public ELFObjectFile<ELFT> {
+  LLVM_ELF_IMPORT_TYPES(ELFT)
 
-  typedef Elf_Shdr_Impl<target_endianness, is64Bits> Elf_Shdr;
-  typedef Elf_Sym_Impl<target_endianness, is64Bits> Elf_Sym;
-  typedef Elf_Rel_Impl<target_endianness, is64Bits, false> Elf_Rel;
-  typedef Elf_Rel_Impl<target_endianness, is64Bits, true> Elf_Rela;
+  typedef Elf_Shdr_Impl<ELFT> Elf_Shdr;
+  typedef Elf_Sym_Impl<ELFT> Elf_Sym;
+  typedef
+    Elf_Rel_Impl<ELFT, false> Elf_Rel;
+  typedef
+    Elf_Rel_Impl<ELFT, true> Elf_Rela;
 
-  typedef Elf_Ehdr_Impl<target_endianness, is64Bits> Elf_Ehdr;
+  typedef Elf_Ehdr_Impl<ELFT> Elf_Ehdr;
 
   typedef typename ELFDataTypeTypedefHelper<
-          target_endianness, is64Bits>::value_type addr_type;
+          ELFT>::value_type addr_type;
 
 public:
   DyldELFObject(MemoryBuffer *Wrapper, error_code &ec);
@@ -60,24 +63,25 @@ public:
 
   // Methods for type inquiry through isa, cast and dyn_cast
   static inline bool classof(const Binary *v) {
-    return (isa<ELFObjectFile<target_endianness, is64Bits> >(v)
-            && classof(cast<ELFObjectFile<target_endianness, is64Bits> >(v)));
+    return (isa<ELFObjectFile<ELFT> >(v)
+            && classof(cast<ELFObjectFile
+                <ELFT> >(v)));
   }
   static inline bool classof(
-      const ELFObjectFile<target_endianness, is64Bits> *v) {
+      const ELFObjectFile<ELFT> *v) {
     return v->isDyldType();
   }
 };
 
-template<support::endianness target_endianness, bool is64Bits>
+template<class ELFT>
 class ELFObjectImage : public ObjectImageCommon {
   protected:
-    DyldELFObject<target_endianness, is64Bits> *DyldObj;
+    DyldELFObject<ELFT> *DyldObj;
     bool Registered;
 
   public:
     ELFObjectImage(ObjectBuffer *Input,
-                   DyldELFObject<target_endianness, is64Bits> *Obj)
+                 DyldELFObject<ELFT> *Obj)
     : ObjectImageCommon(Input, Obj),
       DyldObj(Obj),
       Registered(false) {}
@@ -113,17 +117,15 @@ class ELFObjectImage : public ObjectImageCommon {
 // The MemoryBuffer passed into this constructor is just a wrapper around the
 // actual memory.  Ultimately, the Binary parent class will take ownership of
 // this MemoryBuffer object but not the underlying memory.
-template<support::endianness target_endianness, bool is64Bits>
-DyldELFObject<target_endianness, is64Bits>::DyldELFObject(MemoryBuffer *Wrapper,
-                                                          error_code &ec)
-  : ELFObjectFile<target_endianness, is64Bits>(Wrapper, ec) {
+template<class ELFT>
+DyldELFObject<ELFT>::DyldELFObject(MemoryBuffer *Wrapper, error_code &ec)
+  : ELFObjectFile<ELFT>(Wrapper, ec) {
   this->isDyldELFObject = true;
 }
 
-template<support::endianness target_endianness, bool is64Bits>
-void DyldELFObject<target_endianness, is64Bits>::updateSectionAddress(
-                                                       const SectionRef &Sec,
-                                                       uint64_t Addr) {
+template<class ELFT>
+void DyldELFObject<ELFT>::updateSectionAddress(const SectionRef &Sec,
+                                               uint64_t Addr) {
   DataRefImpl ShdrRef = Sec.getRawDataRefImpl();
   Elf_Shdr *shdr = const_cast<Elf_Shdr*>(
                           reinterpret_cast<const Elf_Shdr *>(ShdrRef.p));
@@ -133,14 +135,12 @@ void DyldELFObject<target_endianness, is64Bits>::updateSectionAddress(
   shdr->sh_addr = static_cast<addr_type>(Addr);
 }
 
-template<support::endianness target_endianness, bool is64Bits>
-void DyldELFObject<target_endianness, is64Bits>::updateSymbolAddress(
-                                                       const SymbolRef &SymRef,
-                                                       uint64_t Addr) {
+template<class ELFT>
+void DyldELFObject<ELFT>::updateSymbolAddress(const SymbolRef &SymRef,
+                                              uint64_t Addr) {
 
   Elf_Sym *sym = const_cast<Elf_Sym*>(
-                                 ELFObjectFile<target_endianness, is64Bits>::
-                                   getSymbol(SymRef.getRawDataRefImpl()));
+    ELFObjectFile<ELFT>::getSymbol(SymRef.getRawDataRefImpl()));
 
   // This assumes the address passed in matches the target address bitness
   // The template-based type cast handles everything else.
@@ -148,7 +148,6 @@ void DyldELFObject<target_endianness, is64Bits>::updateSymbolAddress(
 }
 
 } // namespace
-
 
 namespace llvm {
 
@@ -161,24 +160,28 @@ ObjectImage *RuntimeDyldELF::createObjectImage(ObjectBuffer *Buffer) {
   error_code ec;
 
   if (Ident.first == ELF::ELFCLASS32 && Ident.second == ELF::ELFDATA2LSB) {
-    DyldELFObject<support::little, false> *Obj =
-           new DyldELFObject<support::little, false>(Buffer->getMemBuffer(), ec);
-    return new ELFObjectImage<support::little, false>(Buffer, Obj);
+    DyldELFObject<ELFType<support::little, 4, false> > *Obj =
+      new DyldELFObject<ELFType<support::little, 4, false> >(
+        Buffer->getMemBuffer(), ec);
+    return new ELFObjectImage<ELFType<support::little, 4, false> >(Buffer, Obj);
   }
   else if (Ident.first == ELF::ELFCLASS32 && Ident.second == ELF::ELFDATA2MSB) {
-    DyldELFObject<support::big, false> *Obj =
-           new DyldELFObject<support::big, false>(Buffer->getMemBuffer(), ec);
-    return new ELFObjectImage<support::big, false>(Buffer, Obj);
+    DyldELFObject<ELFType<support::big, 4, false> > *Obj =
+      new DyldELFObject<ELFType<support::big, 4, false> >(
+        Buffer->getMemBuffer(), ec);
+    return new ELFObjectImage<ELFType<support::big, 4, false> >(Buffer, Obj);
   }
   else if (Ident.first == ELF::ELFCLASS64 && Ident.second == ELF::ELFDATA2MSB) {
-    DyldELFObject<support::big, true> *Obj =
-           new DyldELFObject<support::big, true>(Buffer->getMemBuffer(), ec);
-    return new ELFObjectImage<support::big, true>(Buffer, Obj);
+    DyldELFObject<ELFType<support::big, 8, true> > *Obj =
+      new DyldELFObject<ELFType<support::big, 8, true> >(
+        Buffer->getMemBuffer(), ec);
+    return new ELFObjectImage<ELFType<support::big, 8, true> >(Buffer, Obj);
   }
   else if (Ident.first == ELF::ELFCLASS64 && Ident.second == ELF::ELFDATA2LSB) {
-    DyldELFObject<support::little, true> *Obj =
-           new DyldELFObject<support::little, true>(Buffer->getMemBuffer(), ec);
-    return new ELFObjectImage<support::little, true>(Buffer, Obj);
+    DyldELFObject<ELFType<support::little, 8, true> > *Obj =
+      new DyldELFObject<ELFType<support::little, 8, true> >(
+        Buffer->getMemBuffer(), ec);
+    return new ELFObjectImage<ELFType<support::little, 8, true> >(Buffer, Obj);
   }
   else
     llvm_unreachable("Unexpected ELF format");
@@ -207,7 +210,7 @@ void RuntimeDyldELF::resolveX86_64Relocation(const SectionEntry &Section,
   case ELF::R_X86_64_32S: {
     Value += Addend;
     assert((Type == ELF::R_X86_64_32 && (Value <= UINT32_MAX)) ||
-           (Type == ELF::R_X86_64_32S && 
+           (Type == ELF::R_X86_64_32S &&
              ((int64_t)Value <= INT32_MAX && (int64_t)Value >= INT32_MIN)));
     uint32_t TruncatedAddr = (Value & 0xFFFFFFFF);
     uint32_t *Target = reinterpret_cast<uint32_t*>(Section.Address + Offset);
@@ -288,8 +291,9 @@ void RuntimeDyldELF::resolveARMRelocation(const SectionEntry &Section,
   default:
     llvm_unreachable("Not implemented relocation type!");
 
-  // Write a 32bit value to relocation address, taking into account the 
+  // Write a 32bit value to relocation address, taking into account the
   // implicit addend encoded in the target.
+  case ELF::R_ARM_TARGET1 :
   case ELF::R_ARM_ABS32 :
     *TargetPtr += Value;
     break;
@@ -298,7 +302,7 @@ void RuntimeDyldELF::resolveARMRelocation(const SectionEntry &Section,
   // Last 4 bit should be shifted.
   case ELF::R_ARM_MOVW_ABS_NC :
     // We are not expecting any other addend in the relocation address.
-    // Using 0x000F0FFF because MOVW has its 16 bit immediate split into 2 
+    // Using 0x000F0FFF because MOVW has its 16 bit immediate split into 2
     // non-contiguous fields.
     assert((*TargetPtr & 0x000F0FFF) == 0);
     Value = Value & 0xFFFF;
@@ -516,6 +520,12 @@ void RuntimeDyldELF::resolvePPC64Relocation(const SectionEntry &Section,
     uint8_t aalk = *(LocalAddress+3);
     writeInt16BE(LocalAddress + 2, (aalk & 3) | ((Value + Addend) & 0xfffc));
   } break;
+  case ELF::R_PPC64_ADDR32 : {
+    int32_t Result = static_cast<int32_t>(Value + Addend);
+    if (SignExtend32<32>(Result) != Result)
+      llvm_unreachable("Relocation R_PPC64_ADDR32 overflow");
+    writeInt32BE(LocalAddress, Result);
+  } break;
   case ELF::R_PPC64_REL24 : {
     uint64_t FinalAddress = (Section.LoadAddress + Offset);
     int32_t delta = static_cast<int32_t>(Value - FinalAddress + Addend);
@@ -523,6 +533,13 @@ void RuntimeDyldELF::resolvePPC64Relocation(const SectionEntry &Section,
       llvm_unreachable("Relocation R_PPC64_REL24 overflow");
     // Generates a 'bl <address>' instruction
     writeInt32BE(LocalAddress, 0x48000001 | (delta & 0x03FFFFFC));
+  } break;
+  case ELF::R_PPC64_REL32 : {
+    uint64_t FinalAddress = (Section.LoadAddress + Offset);
+    int32_t delta = static_cast<int32_t>(Value - FinalAddress + Addend);
+    if (SignExtend32<32>(delta) != delta)
+      llvm_unreachable("Relocation R_PPC64_REL32 overflow");
+    writeInt32BE(LocalAddress, delta);
   } break;
   case ELF::R_PPC64_ADDR64 :
     writeInt64BE(LocalAddress, Value + Addend);
@@ -542,7 +559,6 @@ void RuntimeDyldELF::resolvePPC64Relocation(const SectionEntry &Section,
   } break;
   }
 }
-
 
 void RuntimeDyldELF::resolveRelocation(const SectionEntry &Section,
                                        uint64_t Offset,
@@ -623,9 +639,9 @@ void RuntimeDyldELF::processRelocationRef(const ObjRelocationInfo &Rel,
           // Default to 'true' in case isText fails (though it never does).
           bool isCode = true;
           si->isText(isCode);
-          Value.SectionID = findOrEmitSection(Obj, 
-                                              (*si), 
-                                              isCode, 
+          Value.SectionID = findOrEmitSection(Obj,
+                                              (*si),
+                                              isCode,
                                               ObjSectionToID);
           Value.Addend = Addend;
           break;

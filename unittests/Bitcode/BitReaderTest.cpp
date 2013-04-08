@@ -11,10 +11,10 @@
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/Constants.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "gtest/gtest.h"
@@ -45,9 +45,9 @@ static Module *makeLLVMModule() {
 }
 
 static void writeModuleToBuffer(SmallVectorImpl<char> &Buffer) {
-  Module *Mod = makeLLVMModule();
+  OwningPtr<Module> Mod(makeLLVMModule());
   raw_svector_ostream OS(Buffer);
-  WriteBitcodeToFile(Mod, OS);
+  WriteBitcodeToFile(Mod.get(), OS);
 }
 
 TEST(BitReaderTest, MaterializeFunctionsForBlockAddr) { // PR11677
@@ -55,7 +55,7 @@ TEST(BitReaderTest, MaterializeFunctionsForBlockAddr) { // PR11677
   writeModuleToBuffer(Mem);
   MemoryBuffer *Buffer = MemoryBuffer::getMemBuffer(Mem.str(), "test", false);
   std::string errMsg;
-  Module *m = getLazyBitcodeModule(Buffer, getGlobalContext(), &errMsg);
+  OwningPtr<Module> m(getLazyBitcodeModule(Buffer, getGlobalContext(), &errMsg));
   PassManager passes;
   passes.add(createVerifierPass());
   passes.run(*m);

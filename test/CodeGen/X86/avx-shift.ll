@@ -105,11 +105,20 @@ define <32 x i8> @vshift12(<32 x i8> %a) nounwind readnone {
 ; CHECK: _vshift08
 ; CHECK: vextractf128 $1
 ; CHECK: vpslld $23
-; CHECK: vextractf128 $1
 ; CHECK: vpslld $23
 define <8 x i32> @vshift08(<8 x i32> %a) nounwind {
   %bitop = shl <8 x i32> <i32 1, i32 1, i32 1, i32 1, i32 1, i32 1, i32 1, i32 1>, %a
   ret <8 x i32> %bitop
+}
+
+; PR15141
+; CHECK: _vshift13:
+; CHECK-NOT: vpsll
+; CHECK: vcvttps2dq
+; CHECK-NEXT: vpmulld
+define <4 x i32> @vshift13(<4 x i32> %in) {
+  %T = shl <4 x i32> %in, <i32 0, i32 1, i32 2, i32 4>
+  ret <4 x i32> %T
 }
 
 ;;; Uses shifts for sign extension

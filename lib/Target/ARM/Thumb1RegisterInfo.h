@@ -43,11 +43,6 @@ public:
                         unsigned PredReg = 0,
                         unsigned MIFlags = MachineInstr::NoFlags) const;
 
-  /// Code Generation virtual methods...
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
-
   // rewrite MI to access 'Offset' bytes from the FP. Update Offset to be
   // however much remains to be handled. Return 'true' if no further
   // work is required.
@@ -62,7 +57,8 @@ public:
                              const TargetRegisterClass *RC,
                              unsigned Reg) const;
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+                           int SPAdj, unsigned FIOperandNum,
+                           RegScavenger *RS = NULL) const;
 };
 }
 

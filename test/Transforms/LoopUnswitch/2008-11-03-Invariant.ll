@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: opt < %s -loop-unswitch -stats -disable-output 2>&1 | grep "1 loop-unswitch - Number of branches unswitched" | count 1
 ; PR 3170
 define i32 @a(i32 %x, i32 %y) nounwind {

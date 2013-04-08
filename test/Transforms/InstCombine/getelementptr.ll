@@ -424,7 +424,7 @@ define i32 @test35() nounwind {
              i8* getelementptr (%t1* bitcast (%t0* @s to %t1*), i32 0, i32 1, i32 0)) nounwind
   ret i32 0
 ; CHECK: @test35
-; CHECK: call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([17 x i8]* @"\01LC8", i64 0, i64 0), i8* getelementptr inbounds (%t0* @s, i64 0, i32 1, i64 0)) nounwind
+; CHECK: call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([17 x i8]* @"\01LC8", i64 0, i64 0), i8* getelementptr inbounds (%t0* @s, i64 0, i32 1, i64 0)) [[NUW:#[0-9]+]]
 }
 
 ; Instcombine should constant-fold the GEP so that indices that have
@@ -492,3 +492,21 @@ define void @three_gep_f(%three_gep_t2* %x) {
 
 declare void @three_gep_g(i32*)
 declare void @three_gep_h(%three_gep_t2*)
+
+%struct.ham = type { i32, %struct.zot*, %struct.zot*, %struct.zot* }
+%struct.zot = type { i64, i8 }
+
+define void @test39(%struct.ham* %arg, i8 %arg1) nounwind {
+  %tmp = getelementptr inbounds %struct.ham* %arg, i64 0, i32 2
+  %tmp2 = load %struct.zot** %tmp, align 8
+  %tmp3 = bitcast %struct.zot* %tmp2 to i8*
+  %tmp4 = getelementptr inbounds i8* %tmp3, i64 -8
+  store i8 %arg1, i8* %tmp4, align 8
+  ret void
+
+; CHECK: @test39
+; CHECK: getelementptr inbounds %struct.ham* %arg, i64 0, i32 2
+; CHECK: getelementptr inbounds i8* %tmp3, i64 -8
+}
+
+; CHECK: attributes [[NUW]] = { nounwind }

@@ -7,11 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/PathV2.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
-
 #include "gtest/gtest.h"
 
 using namespace llvm;
@@ -225,6 +224,18 @@ TEST_F(FileSystemTest, TempFiles) {
   // Make sure Temp1 doesn't exist.
   ASSERT_NO_ERROR(fs::exists(Twine(TempPath), TempFileExists));
   EXPECT_FALSE(TempFileExists);
+
+#ifdef LLVM_ON_WIN32
+  // Path name > 260 chars should get an error.
+  const char *Path270 =
+    "abcdefghijklmnopqrstuvwxyz9abcdefghijklmnopqrstuvwxyz8"
+    "abcdefghijklmnopqrstuvwxyz7abcdefghijklmnopqrstuvwxyz6"
+    "abcdefghijklmnopqrstuvwxyz5abcdefghijklmnopqrstuvwxyz4"
+    "abcdefghijklmnopqrstuvwxyz3abcdefghijklmnopqrstuvwxyz2"
+    "abcdefghijklmnopqrstuvwxyz1abcdefghijklmnopqrstuvwxyz0";
+  EXPECT_EQ(fs::unique_file(Twine(Path270), FileDescriptor, TempPath),
+            windows_error::path_not_found);
+#endif
 }
 
 TEST_F(FileSystemTest, DirectoryIteration) {
@@ -351,6 +362,7 @@ TEST_F(FileSystemTest, FileMapping) {
   StringRef Val("hello there");
   {
     fs::mapped_file_region mfr(FileDescriptor,
+                               true,
                                fs::mapped_file_region::readwrite,
                                4096,
                                0,
@@ -375,7 +387,7 @@ TEST_F(FileSystemTest, FileMapping) {
   
   // Unmap temp file
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   fs::mapped_file_region m(Twine(TempPath),
                              fs::mapped_file_region::readonly,
                              0,

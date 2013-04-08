@@ -120,13 +120,13 @@
 # CHECK: vandps (%rdx), %xmm1, %xmm7
 0xc5 0xf0 0x54 0x3a
 
-# CHECK: vcvtss2sil %xmm0, %eax
+# CHECK: vcvtss2si %xmm0, %eax
 0xc5 0xfa 0x2d 0xc0
 
-# CHECK: vcvtsd2sil %xmm0, %eax
+# CHECK: vcvtsd2si %xmm0, %eax
 0xc5 0xfb 0x2d 0xc0
 
-# CHECK: vcvtsd2siq %xmm0, %rax
+# CHECK: vcvtsd2si %xmm0, %rax
 0xc4 0xe1 0xfb 0x2d 0xc0
 
 # CHECK: vmaskmovpd %xmm0, %xmm1, (%rax)
@@ -437,10 +437,10 @@
 # CHECK: vroundsd $0, %xmm0, %xmm0, %xmm0
 0xc4 0xe3 0x7d 0x0b 0xc0 0x00
 
-# CHECK: vcvtsd2sil %xmm0, %eax
+# CHECK: vcvtsd2si %xmm0, %eax
 0xc4 0xe1 0x7f 0x2d 0xc0
 
-# CHECK: vcvtsd2siq %xmm0, %rax
+# CHECK: vcvtsd2si %xmm0, %rax
 0xc4 0xe1 0xff 0x2d 0xc0
 
 # CHECK: vucomisd %xmm1, %xmm0
@@ -753,3 +753,18 @@
 # CHECK: lock
 # CHECK-NEXT: xaddq	%rcx, %rbx
 0xf0 0x48 0x0f 0xc1 0xcb
+
+# rdar://13493622 lldb doesn't print the x86 rep/repne prefix when disassembling
+# CHECK: repne
+# CHECK-NEXT: movsd
+0xf2 0xa5
+# CHECK: repne
+# CHECK-NEXT: movsq
+0xf2 0x48 0xa5
+# CHECK: repne
+# CHECK-NEXT: movb  $0, (%rax)
+0xf2 0xc6 0x0 0x0
+# CHECK: rep
+# CHECK-NEXT: lock
+# CHECK-NEXT: incl   (%rax)
+0xf3 0xf0 0xff 0x00

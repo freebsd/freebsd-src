@@ -1,5 +1,3 @@
-.. _lexicon:
-
 ================
 The LLVM Lexicon
 ================
@@ -17,11 +15,28 @@ A
 **ADCE**
     Aggressive Dead Code Elimination
 
+**AST**
+    Abstract Syntax Tree.
+
+    Due to Clang's influence (mostly the fact that parsing and semantic
+    analysis are so intertwined for C and especially C++), the typical
+    working definition of AST in the LLVM community is roughly "the
+    compiler's first complete symbolic (as opposed to textual)
+    representation of an input program".
+    As such, an "AST" might be a more general graph instead of a "tree"
+    (consider the symbolic representation for the type of a typical "linked
+    list node"). This working definition is closer to what some authors
+    call an "annotated abstract syntax tree".
+
+    Consult your favorite compiler book or search engine for more details.
+
 B
 -
 
+.. _lexicon-bb-vectorization:
+
 **BB Vectorization**
-    Basic Block Vectorization
+    Basic-Block Vectorization
 
 **BURS**
     Bottom Up Rewriting System --- A method of instruction selection for code
@@ -184,6 +199,10 @@ S
 
 **SCCP**
     Sparse Conditional Constant Propagation
+
+**SLP**
+    Superword-Level Parallelism, same as :ref:`Basic-Block Vectorization
+    <lexicon-bb-vectorization>`.
 
 **SRoA**
     Scalar Replacement of Aggregates

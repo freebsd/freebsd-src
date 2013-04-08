@@ -1,5 +1,6 @@
+; REQUIRES: asserts
 ; RUN: opt -loop-unswitch -disable-output -stats -info-output-file - < %s | FileCheck --check-prefix=STATS %s
-; RUN: opt -S -loop-unswitch -verify-loop-info -verify-dom-info %s | FileCheck %s
+; RUN: opt -S -loop-unswitch -verify-loop-info -verify-dom-info < %s | FileCheck %s
 
 ; STATS: 1 loop-simplify - Number of pre-header or exit blocks inserted
 ; STATS: 2 loop-unswitch - Number of switches unswitched
@@ -19,7 +20,7 @@
 ; CHECK-NEXT:     i32 1, label %inc.us
 
 ; CHECK:      inc.us:                                           ; preds = %loop_begin.us
-; CHECK-NEXT:   call void @incf() noreturn nounwind
+; CHECK-NEXT:   call void @incf() [[NOR_NUW:#[0-9]+]]
 ; CHECK-NEXT:   br label %loop_begin.backedge.us
 
 ; CHECK:      .split:                                           ; preds = %..split_crit_edge
@@ -40,7 +41,7 @@
 ; CHECK-NEXT:   ]
 
 ; CHECK:      dec.us3:                                          ; preds = %loop_begin.us1
-; CHECK-NEXT:   call void @decf() noreturn nounwind
+; CHECK-NEXT:   call void @decf() [[NOR_NUW]]
 ; CHECK-NEXT:   br label %loop_begin.backedge.us5
 
 ; CHECK:      .split.split:                                     ; preds = %.split..split.split_crit_edge
@@ -89,3 +90,6 @@ loop_exit:
 
 declare void @incf() noreturn
 declare void @decf() noreturn
+
+; CHECK: attributes #0 = { noreturn }
+; CHECK: attributes [[NOR_NUW]] = { noreturn nounwind }

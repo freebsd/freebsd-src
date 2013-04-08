@@ -13,17 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "HexagonISelLowering.h"
-#include "HexagonTargetMachine.h"
 #include "HexagonMachineFunctionInfo.h"
-#include "HexagonTargetObjectFile.h"
 #include "HexagonSubtarget.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/InlineAsm.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/GlobalAlias.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/CallingConv.h"
+#include "HexagonTargetMachine.h"
+#include "HexagonTargetObjectFile.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -32,6 +25,13 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -102,6 +102,16 @@ CC_Hexagon_VarArg (unsigned ValNo, MVT ValVT,
     ofst = State.AllocateStack(ArgFlags.getByValSize(), 4);
     State.addLoc(CCValAssign::getMem(ValNo, ValVT, ofst, LocVT, LocInfo));
     return false;
+  }
+  if (LocVT == MVT::i1 || LocVT == MVT::i8 || LocVT == MVT::i16) {
+    LocVT = MVT::i32;
+    ValVT = MVT::i32;
+    if (ArgFlags.isSExt())
+      LocInfo = CCValAssign::SExt;
+    else if (ArgFlags.isZExt())
+      LocInfo = CCValAssign::ZExt;
+    else
+      LocInfo = CCValAssign::AExt;
   }
   if (LocVT == MVT::i32 || LocVT == MVT::f32) {
     ofst = State.AllocateStack(4, 4);
@@ -304,15 +314,9 @@ HexagonTargetLowering::LowerReturn(SDValue Chain,
   // Analyze return values of ISD::RET
   CCInfo.AnalyzeReturn(Outs, RetCC_Hexagon);
 
-  // If this is the first return lowered for this function, add the regs to the
-  // liveout set for the function.
-  if (DAG.getMachineFunction().getRegInfo().liveout_empty()) {
-    for (unsigned i = 0; i != RVLocs.size(); ++i)
-      if (RVLocs[i].isRegLoc())
-        DAG.getMachineFunction().getRegInfo().addLiveOut(RVLocs[i].getLocReg());
-  }
-
   SDValue Flag;
+  SmallVector<SDValue, 4> RetOps(1, Chain);
+
   // Copy the result values into the output registers.
   for (unsigned i = 0; i != RVLocs.size(); ++i) {
     CCValAssign &VA = RVLocs[i];
@@ -321,12 +325,17 @@ HexagonTargetLowering::LowerReturn(SDValue Chain,
 
     // Guarantee that all emitted copies are stuck together with flags.
     Flag = Chain.getValue(1);
+    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
   }
 
-  if (Flag.getNode())
-    return DAG.getNode(HexagonISD::RET_FLAG, dl, MVT::Other, Chain, Flag);
+  RetOps[0] = Chain;  // Update chain.
 
-  return DAG.getNode(HexagonISD::RET_FLAG, dl, MVT::Other, Chain);
+  // Add the flag if we have it.
+  if (Flag.getNode())
+    RetOps.push_back(Flag);
+
+  return DAG.getNode(HexagonISD::RET_FLAG, dl, MVT::Other,
+                     &RetOps[0], RetOps.size());
 }
 
 
@@ -608,7 +617,7 @@ static bool getIndexedAddressParts(SDNode *Ptr, EVT VT,
 
 // TODO: Put this function along with the other isS* functions in
 // HexagonISelDAGToDAG.cpp into a common file. Or better still, use the
-// functions defined in HexagonImmediates.td.
+// functions defined in HexagonOperands.td.
 static bool Is_PostInc_S4_Offset(SDNode * S, int ShiftAmount) {
   ConstantSDNode *N = cast<ConstantSDNode>(S);
 
@@ -1016,13 +1025,21 @@ SDValue HexagonTargetLowering::LowerGLOBALADDRESS(SDValue Op,
   DebugLoc dl = Op.getDebugLoc();
   Result = DAG.getTargetGlobalAddress(GV, dl, getPointerTy(), Offset);
 
-  HexagonTargetObjectFile &TLOF =
-    (HexagonTargetObjectFile&)getObjFileLowering();
+  const HexagonTargetObjectFile &TLOF =
+      static_cast<const HexagonTargetObjectFile &>(getObjFileLowering());
   if (TLOF.IsGlobalInSmallSection(GV, getTargetMachine())) {
     return DAG.getNode(HexagonISD::CONST32_GP, dl, getPointerTy(), Result);
   }
 
   return DAG.getNode(HexagonISD::CONST32, dl, getPointerTy(), Result);
+}
+
+SDValue
+HexagonTargetLowering::LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const {
+  const BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
+  SDValue BA_SD =  DAG.getTargetBlockAddress(BA, MVT::i32);
+  DebugLoc dl = Op.getDebugLoc();
+  return DAG.getNode(HexagonISD::CONST32_GP, dl, getPointerTy(), BA_SD);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1053,8 +1070,8 @@ HexagonTargetLowering::HexagonTargetLowering(HexagonTargetMachine
     setPrefLoopAlignment(4);
 
     // Limits for inline expansion of memcpy/memmove
-    maxStoresPerMemcpy = 6;
-    maxStoresPerMemmove = 6;
+    MaxStoresPerMemcpy = 6;
+    MaxStoresPerMemmove = 6;
 
     //
     // Library calls for unsupported operations
@@ -1298,6 +1315,7 @@ HexagonTargetLowering::HexagonTargetLowering(HexagonTargetMachine
     // Custom legalize GlobalAddress nodes into CONST32.
     setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
     setOperationAction(ISD::GlobalAddress, MVT::i8, Custom);
+    setOperationAction(ISD::BlockAddress, MVT::i32, Custom);
     // Truncate action?
     setOperationAction(ISD::TRUNCATE, MVT::i64, Expand);
 
@@ -1343,7 +1361,6 @@ HexagonTargetLowering::HexagonTargetLowering(HexagonTargetMachine
 
     }
 
-    setOperationAction(ISD::BR_CC, MVT::Other, Expand);
     setOperationAction(ISD::BRIND, MVT::Other, Expand);
     if (EmitJumpTables) {
       setOperationAction(ISD::BR_JT, MVT::Other, Custom);
@@ -1353,7 +1370,12 @@ HexagonTargetLowering::HexagonTargetLowering(HexagonTargetMachine
     // Increase jump tables cutover to 5, was 4.
     setMinimumJumpTableEntries(5);
 
+    setOperationAction(ISD::BR_CC, MVT::Other, Expand);
+    setOperationAction(ISD::BR_CC, MVT::f32, Expand);
+    setOperationAction(ISD::BR_CC, MVT::f64, Expand);
+    setOperationAction(ISD::BR_CC, MVT::i1,  Expand);
     setOperationAction(ISD::BR_CC, MVT::i32, Expand);
+    setOperationAction(ISD::BR_CC, MVT::i64, Expand);
 
     setOperationAction(ISD::MEMBARRIER, MVT::Other, Custom);
     setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Custom);
@@ -1364,11 +1386,41 @@ HexagonTargetLowering::HexagonTargetLowering(HexagonTargetMachine
     setOperationAction(ISD::FSIN , MVT::f32, Expand);
     setOperationAction(ISD::FCOS , MVT::f32, Expand);
     setOperationAction(ISD::FREM , MVT::f32, Expand);
+    setOperationAction(ISD::FSINCOS, MVT::f64, Expand);
+    setOperationAction(ISD::FSINCOS, MVT::f32, Expand);
+
+    // In V4, we have double word add/sub with carry. The problem with
+    // modelling this instruction is that it produces 2 results - Rdd and Px.
+    // To model update of Px, we will have to use Defs[p0..p3] which will
+    // cause any predicate live range to spill. So, we pretend we dont't
+    // have these instructions.
+    setOperationAction(ISD::ADDE, MVT::i8, Expand);
+    setOperationAction(ISD::ADDE, MVT::i16, Expand);
+    setOperationAction(ISD::ADDE, MVT::i32, Expand);
+    setOperationAction(ISD::ADDE, MVT::i64, Expand);
+    setOperationAction(ISD::SUBE, MVT::i8, Expand);
+    setOperationAction(ISD::SUBE, MVT::i16, Expand);
+    setOperationAction(ISD::SUBE, MVT::i32, Expand);
+    setOperationAction(ISD::SUBE, MVT::i64, Expand);
+    setOperationAction(ISD::ADDC, MVT::i8, Expand);
+    setOperationAction(ISD::ADDC, MVT::i16, Expand);
+    setOperationAction(ISD::ADDC, MVT::i32, Expand);
+    setOperationAction(ISD::ADDC, MVT::i64, Expand);
+    setOperationAction(ISD::SUBC, MVT::i8, Expand);
+    setOperationAction(ISD::SUBC, MVT::i16, Expand);
+    setOperationAction(ISD::SUBC, MVT::i32, Expand);
+    setOperationAction(ISD::SUBC, MVT::i64, Expand);
+
     setOperationAction(ISD::CTPOP, MVT::i32, Expand);
+    setOperationAction(ISD::CTPOP, MVT::i64, Expand);
     setOperationAction(ISD::CTTZ , MVT::i32, Expand);
+    setOperationAction(ISD::CTTZ , MVT::i64, Expand);
     setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i32, Expand);
+    setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i64, Expand);
     setOperationAction(ISD::CTLZ , MVT::i32, Expand);
+    setOperationAction(ISD::CTLZ , MVT::i64, Expand);
     setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i32, Expand);
+    setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i64, Expand);
     setOperationAction(ISD::ROTL , MVT::i32, Expand);
     setOperationAction(ISD::ROTR , MVT::i32, Expand);
     setOperationAction(ISD::BSWAP, MVT::i32, Expand);
@@ -1430,6 +1482,8 @@ HexagonTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (Opcode) {
     default: return 0;
     case HexagonISD::CONST32:     return "HexagonISD::CONST32";
+    case HexagonISD::CONST32_GP: return "HexagonISD::CONST32_GP";
+    case HexagonISD::CONST32_Int_Real: return "HexagonISD::CONST32_Int_Real";
     case HexagonISD::ADJDYNALLOC: return "HexagonISD::ADJDYNALLOC";
     case HexagonISD::CMPICC:      return "HexagonISD::CMPICC";
     case HexagonISD::CMPFCC:      return "HexagonISD::CMPFCC";
@@ -1478,6 +1532,7 @@ HexagonTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     case ISD::MEMBARRIER:         return LowerMEMBARRIER(Op, DAG);
     case ISD::ATOMIC_FENCE:       return LowerATOMIC_FENCE(Op, DAG);
     case ISD::GlobalAddress:      return LowerGLOBALADDRESS(Op, DAG);
+    case ISD::BlockAddress:       return LowerBlockAddress(Op, DAG);
     case ISD::VASTART:            return LowerVASTART(Op, DAG);
     case ISD::BR_JT:              return LowerBR_JT(Op, DAG);
 

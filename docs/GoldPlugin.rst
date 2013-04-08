@@ -1,10 +1,6 @@
-.. _gold-plugin:
-
 ====================
 The LLVM gold plugin
 ====================
-
-.. sectionauthor:: Nick Lewycky
 
 Introduction
 ============

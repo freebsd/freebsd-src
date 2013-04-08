@@ -13,6 +13,7 @@
 # CHECK:  ins    $19, $9, 6, 7   # encoding: [0x84,0x61,0x33,0x7d]
 # CHECK:  nor    $9, $6, $7      # encoding: [0x27,0x48,0xc7,0x00]
 # CHECK:  or     $3, $3, $5      # encoding: [0x25,0x18,0x65,0x00]
+# CHECK:  ori    $4, $5, 17767   # encoding: [0x67,0x45,0xa4,0x34]
 # CHECK:  ori    $9, $6, 17767   # encoding: [0x67,0x45,0xc9,0x34]
 # CHECK:  rotr   $9, $6, 7       # encoding: [0xc2,0x49,0x26,0x00]
 # CHECK:  rotrv  $9, $6, $7      # encoding: [0x46,0x48,0xe6,0x00]
@@ -31,7 +32,7 @@
 # CHECK:  xori    $9, $6, 17767   # encoding: [0x67,0x45,0xc9,0x38]
 # CHECK:  xori   $9, $6, 17767   # encoding: [0x67,0x45,0xc9,0x38]
 # CHECK:  wsbh   $6, $7          # encoding: [0xa0,0x30,0x07,0x7c]
-# CHECK:  nor    $7, $8, $zero   # encoding: [0x27,0x38,0x00,0x01]
+# CHECK:  not    $7, $8          # encoding: [0x27,0x38,0x00,0x01]
      and    $9,  $6, $7
      and    $9,  $6, 17767
      andi   $9,  $6, 17767
@@ -40,6 +41,7 @@
      ins    $19, $9, 6,7
      nor    $9,  $6, $7
      or     $3,  $3, $5
+     or     $4,  $5, 17767
      ori    $9,  $6, 17767
      rotr   $9,  $6, 7
      rotrv  $9,  $6, $7
@@ -78,9 +80,13 @@
 # CHECK:  multu  $3, $5          # encoding: [0x19,0x00,0x65,0x00]
 # CHECK:  sub    $9, $6, $7      # encoding: [0x22,0x48,0xc7,0x00]
 # CHECK:  subu   $4, $3, $5      # encoding: [0x23,0x20,0x65,0x00]
-# CHECK:  sub     $6, $zero, $7  # encoding: [0x22,0x30,0x07,0x00]
-# CHECK:  subu    $6, $zero, $7  # encoding: [0x23,0x30,0x07,0x00]
-# CHECK:  add     $7, $8, $zero  # encoding: [0x20,0x38,0x00,0x01]
+# CHECK:  neg     $6, $7         # encoding: [0x22,0x30,0x07,0x00]
+# CHECK:  negu    $6, $7         # encoding: [0x23,0x30,0x07,0x00]
+# CHECK:  move    $7, $8         # encoding: [0x21,0x38,0x00,0x01]
+# CHECK:  .set    push
+# CHECK:  .set    mips32r2
+# CHECK:  rdhwr   $5, $29
+# CHECK:  .set    pop            # encoding: [0x3b,0xe8,0x05,0x7c]
     add    $9,$6,$7
     add    $9,$6,17767
     addu   $9,$6,-15001
@@ -98,3 +104,4 @@
     neg    $6,$7
     negu   $6,$7
     move   $7,$8
+    rdhwr   $5, $29

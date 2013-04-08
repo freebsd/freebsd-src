@@ -1,5 +1,5 @@
 " LLVM coding guidelines conformance for VIM
-" $Revision: 117415 $
+" $Revision: 176235 $
 "
 " Maintainer: The LLVM Team, http://llvm.org
 " WARNING:    Read before you source in all these commands and macros!  Some
@@ -83,6 +83,13 @@ augroup END
 " utils/vim/tablegen.vim to ~/.vim/syntax .
 augroup filetype
   au! BufRead,BufNewFile *.td     set filetype=tablegen
+augroup END
+
+" Enable syntax highlighting for reStructuredText files. To use, copy
+" rest.vim (http://www.vim.org/scripts/script.php?script_id=973)
+" to ~/.vim/syntax .
+augroup filetype
+ au! BufRead,BufNewFile *.rst     set filetype=rest
 augroup END
 
 " Additional vim features to optionally uncomment.

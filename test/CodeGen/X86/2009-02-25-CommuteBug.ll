@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -march=x86 -mattr=+sse2 -stats 2>&1 | not grep commuted
 ; rdar://6608609
 

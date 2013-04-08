@@ -1,10 +1,6 @@
-.. _how_to_build_on_arm:
-
 ===================================================================
 How To Build On ARM
 ===================================================================
-
-.. sectionauthor:: Wei-Ren Chen (陳韋任) <chenwj@iis.sinica.edu.tw>
 
 Introduction
 ============
@@ -40,8 +36,8 @@ on the ARMv6 and ARMv7 architectures and may be inapplicable to older chips.
 
    .. code-block:: bash
 
-     ./configure --build=armv7l-unknown-linux-gnueabihf
-     --host=armv7l-unknown-linux-gnueabihf
-     --target=armv7l-unknown-linux-gnueabihf --with-cpu=cortex-a9
-     --with-float=hard --with-abi=aapcs-vfp --with-fpu=neon
-     --enable-targets=arm --disable-optimized --enable-assertions
+     ./configure --build=armv7l-unknown-linux-gnueabihf \
+     --host=armv7l-unknown-linux-gnueabihf \
+     --target=armv7l-unknown-linux-gnueabihf --with-cpu=cortex-a9 \
+     --with-float=hard --with-abi=aapcs-vfp --with-fpu=neon \
+     --enable-targets=arm --enable-optimized --enable-assertions

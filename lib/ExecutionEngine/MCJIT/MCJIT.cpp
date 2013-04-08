@@ -8,20 +8,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCJIT.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/ObjectBuffer.h"
 #include "llvm/ExecutionEngine/ObjectImage.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
 #include "llvm/MC/MCAsmInfo.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MutexGuard.h"
-#include "llvm/DataLayout.h"
 
 using namespace llvm;
 
@@ -118,17 +118,26 @@ void MCJIT::emitObject(Module *m) {
 
 // FIXME: Add a parameter to identify which object is being finalized when
 // MCJIT supports multiple modules.
+// FIXME: Provide a way to separate code emission, relocations and page 
+// protection in the interface.
 void MCJIT::finalizeObject() {
   // If the module hasn't been compiled, just do that.
   if (!isCompiled) {
     // If the call to Dyld.resolveRelocations() is removed from emitObject()
     // we'll need to do that here.
     emitObject(M);
+
+    // Set page permissions.
+    MemMgr->applyPermissions();
+
     return;
   }
 
   // Resolve any relocations.
   Dyld.resolveRelocations();
+
+  // Set page permissions.
+  MemMgr->applyPermissions();
 }
 
 void *MCJIT::getPointerToBasicBlock(BasicBlock *BB) {

@@ -1,10 +1,6 @@
-.. _how_to_add_a_builder:
-
 ===================================================================
 How To Add Your Build Configuration To LLVM Buildbot Infrastructure
 ===================================================================
-
-.. sectionauthor:: Galina Kistanova <gkistanova@gmail.com>
 
 Introduction
 ============

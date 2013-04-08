@@ -112,10 +112,19 @@
 /* Installation prefix directory */
 #cmakedefine LLVM_PREFIX "${LLVM_PREFIX}"
 
+/* Define if we have the Intel JIT API runtime support library */
+#cmakedefine LLVM_USE_INTEL_JITEVENTS 1
+
+/* Define if we have the oprofile JIT-support library */
+#cmakedefine LLVM_USE_OPROFILE 1
+
 /* Major version of the LLVM API */
 #cmakedefine LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR}
 
 /* Minor version of the LLVM API */
 #cmakedefine LLVM_VERSION_MINOR ${LLVM_VERSION_MINOR}
+
+/* Define to 1 if you have the <sanitizer/msan_interface.h> header file. */
+#cmakedefine HAVE_SANITIZER_MSAN_INTERFACE_H ${HAVE_SANITIZER_MSAN_INTERFACE_H}
 
 #endif

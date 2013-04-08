@@ -22,6 +22,10 @@
 
 #define DEBUG_TYPE "machine-licm"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
@@ -29,17 +33,13 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/MC/MCInstrItineraries.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 static cl::opt<bool>
@@ -62,7 +62,7 @@ namespace {
   class MachineLICM : public MachineFunctionPass {
     const TargetMachine   *TM;
     const TargetInstrInfo *TII;
-    const TargetLowering *TLI;
+    const TargetLoweringBase *TLI;
     const TargetRegisterInfo *TRI;
     const MachineFrameInfo *MFI;
     MachineRegisterInfo *MRI;
@@ -780,7 +780,7 @@ MachineLICM::getRegisterClassIDAndCost(const MachineInstr *MI,
                                        unsigned Reg, unsigned OpIdx,
                                        unsigned &RCId, unsigned &RCCost) const {
   const TargetRegisterClass *RC = MRI->getRegClass(Reg);
-  EVT VT = *RC->vt_begin();
+  MVT VT = *RC->vt_begin();
   if (VT == MVT::Untyped) {
     RCId = RC->getID();
     RCCost = 1;

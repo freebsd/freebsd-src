@@ -1,3 +1,4 @@
+; REQUIRES: asserts
 ; RUN: llc < %s -march=x86 -stats 2>&1 | not grep "instructions sunk"
 ; PR3522
 

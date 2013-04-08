@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/DebugInfo/DIContext.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/RelocVisitor.h"
-#include "llvm/DebugInfo/DIContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
@@ -52,6 +52,25 @@ static cl::opt<bool>
 PrintInlining("inlining", cl::init(false),
               cl::desc("Print all inlined frames for a given address"));
 
+static cl::opt<DIDumpType>
+DumpType("debug-dump", cl::init(DIDT_All),
+  cl::desc("Dump of debug sections:"),
+  cl::values(
+        clEnumValN(DIDT_All, "all", "Dump all debug sections"),
+        clEnumValN(DIDT_Abbrev, "abbrev", ".debug_abbrev"),
+        clEnumValN(DIDT_AbbrevDwo, "abbrev.dwo", ".debug_abbrev.dwo"),
+        clEnumValN(DIDT_Aranges, "aranges", ".debug_aranges"),
+        clEnumValN(DIDT_Info, "info", ".debug_info"),
+        clEnumValN(DIDT_InfoDwo, "info.dwo", ".debug_info.dwo"),
+        clEnumValN(DIDT_Line, "line", ".debug_line"),
+        clEnumValN(DIDT_Frames, "frames", ".debug_frame"),
+        clEnumValN(DIDT_Ranges, "ranges", ".debug_ranges"),
+        clEnumValN(DIDT_Pubnames, "pubnames", ".debug_pubnames"),
+        clEnumValN(DIDT_Str, "str", ".debug_str"),
+        clEnumValN(DIDT_StrDwo, "str.dwo", ".debug_str.dwo"),
+        clEnumValN(DIDT_StrOffsetsDwo, "str_offsets.dwo", ".debug_str_offsets.dwo"),
+        clEnumValEnd));
+
 static void PrintDILineInfo(DILineInfo dli) {
   if (PrintFunctions)
     outs() << (dli.getFunctionName() ? dli.getFunctionName() : "<unknown>")
@@ -69,105 +88,18 @@ static void DumpInput(const StringRef &Filename) {
   }
 
   OwningPtr<ObjectFile> Obj(ObjectFile::createObjectFile(Buff.take()));
-
-  StringRef DebugInfoSection;
-  RelocAddrMap RelocMap;
-  StringRef DebugAbbrevSection;
-  StringRef DebugLineSection;
-  StringRef DebugArangesSection;
-  StringRef DebugStringSection;
-  StringRef DebugRangesSection;
-
-  error_code ec;
-  for (section_iterator i = Obj->begin_sections(),
-                        e = Obj->end_sections();
-                        i != e; i.increment(ec)) {
-    StringRef name;
-    i->getName(name);
-    StringRef data;
-    i->getContents(data);
-
-    if (name.startswith("__DWARF,"))
-      name = name.substr(8); // Skip "__DWARF," prefix.
-    name = name.substr(name.find_first_not_of("._")); // Skip . and _ prefixes.
-    if (name == "debug_info")
-      DebugInfoSection = data;
-    else if (name == "debug_abbrev")
-      DebugAbbrevSection = data;
-    else if (name == "debug_line")
-      DebugLineSection = data;
-    else if (name == "debug_aranges")
-      DebugArangesSection = data;
-    else if (name == "debug_str")
-      DebugStringSection = data;
-    else if (name == "debug_ranges")
-      DebugRangesSection = data;
-    // Any more debug info sections go here.
-    else
-      continue;
-
-    // TODO: For now only handle relocations for the debug_info section.
-    if (name != "debug_info")
-      continue;
-
-    if (i->begin_relocations() != i->end_relocations()) {
-      uint64_t SectionSize;
-      i->getSize(SectionSize);
-      for (relocation_iterator reloc_i = i->begin_relocations(),
-                               reloc_e = i->end_relocations();
-                               reloc_i != reloc_e; reloc_i.increment(ec)) {
-        uint64_t Address;
-        reloc_i->getAddress(Address);
-        uint64_t Type;
-        reloc_i->getType(Type);
-
-        RelocVisitor V(Obj->getFileFormatName());
-        // The section address is always 0 for debug sections.
-        RelocToApply R(V.visit(Type, *reloc_i));
-        if (V.error()) {
-          SmallString<32> Name;
-          error_code ec(reloc_i->getTypeName(Name));
-          if (ec) {
-            errs() << "Aaaaaa! Nameless relocation! Aaaaaa!\n";
-          }
-          errs() << "error: failed to compute relocation: "
-                 << Name << "\n";
-          continue;
-        }
-
-        if (Address + R.Width > SectionSize) {
-          errs() << "error: " << R.Width << "-byte relocation starting "
-                 << Address << " bytes into section " << name << " which is "
-                 << SectionSize << " bytes long.\n";
-          continue;
-        }
-        if (R.Width > 8) {
-          errs() << "error: can't handle a relocation of more than 8 bytes at "
-                    "a time.\n";
-          continue;
-        }
-        DEBUG(dbgs() << "Writing " << format("%p", R.Value)
-                     << " at " << format("%p", Address)
-                     << " with width " << format("%d", R.Width)
-                     << "\n");
-        RelocMap[Address] = std::make_pair(R.Width, R.Value);
-      }
-    }
+  if (!Obj) {
+    errs() << Filename << ": Unknown object file format\n";
+    return;
   }
 
-  OwningPtr<DIContext> dictx(DIContext::getDWARFContext(/*FIXME*/true,
-                                                        DebugInfoSection,
-                                                        DebugAbbrevSection,
-                                                        DebugArangesSection,
-                                                        DebugLineSection,
-                                                        DebugStringSection,
-                                                        DebugRangesSection,
-                                                        RelocMap));
+  OwningPtr<DIContext> DICtx(DIContext::getDWARFContext(Obj.get()));
+
   if (Address == -1ULL) {
     outs() << Filename
            << ":\tfile format " << Obj->getFileFormatName() << "\n\n";
     // Dump the complete DWARF structure.
-    dictx->dump(outs());
+    DICtx->dump(outs(), DumpType);
   } else {
     // Print line info for the specified address.
     int SpecFlags = DILineInfoSpecifier::FileLineInfo |
@@ -176,7 +108,7 @@ static void DumpInput(const StringRef &Filename) {
       SpecFlags |= DILineInfoSpecifier::FunctionName;
     if (PrintInlining) {
       DIInliningInfo InliningInfo =
-        dictx->getInliningInfoForAddress(Address, SpecFlags);
+        DICtx->getInliningInfoForAddress(Address, SpecFlags);
       uint32_t n = InliningInfo.getNumberOfFrames();
       if (n == 0) {
         // Print one empty debug line info in any case.
@@ -188,7 +120,7 @@ static void DumpInput(const StringRef &Filename) {
         }
       }
     } else {
-      DILineInfo dli = dictx->getLineInfoForAddress(Address, SpecFlags);
+      DILineInfo dli = DICtx->getLineInfoForAddress(Address, SpecFlags);
       PrintDILineInfo(dli);
     }
   }
