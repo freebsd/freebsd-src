@@ -2461,15 +2461,13 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_SMP_IO:
 	{
 		struct cam_devq *devq;
-		int run;
 
 		devq = path->bus->sim->devq;
 		mtx_lock(&devq->send_mtx);
-		cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
-		run = xpt_schedule_devq(devq, path->device);
-		mtx_unlock(&devq->send_mtx);
-		if (run)
+		if (cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb) == 0 &&
+		    xpt_schedule_devq(devq, path->device) != 0)
 			xpt_run_devq(devq);
+		mtx_unlock(&devq->send_mtx);
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
@@ -3177,7 +3175,6 @@ xpt_run_devq(struct cam_devq *devq)
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_devq\n"));
 
-	mtx_lock(&devq->send_mtx);
 	devq->send_queue.qfrozen_cnt++;
 	while ((devq->send_queue.entries > 0)
 	    && (devq->send_openings > 0)
@@ -3289,7 +3286,6 @@ xpt_run_devq(struct cam_devq *devq)
 		mtx_lock(&devq->send_mtx);
 	}
 	devq->send_queue.qfrozen_cnt--;
-	mtx_unlock(&devq->send_mtx);
 }
 
 /*
@@ -4123,15 +4119,13 @@ xpt_release_devq_timeout(void *arg)
 {
 	struct cam_ed *dev;
 	struct cam_devq *devq;
-	int run;
 
 	dev = (struct cam_ed *)arg;
 	devq = dev->sim->devq;
 	mtx_lock(&devq->send_mtx);
-	run = xpt_release_devq_device(dev, /*count*/1, /*run_queue*/TRUE);
-	mtx_unlock(&devq->send_mtx);
-	if (run)
+	if (xpt_release_devq_device(dev, /*count*/1, /*run_queue*/TRUE))
 		xpt_run_devq(dev->sim->devq);
+	mtx_unlock(&devq->send_mtx);
 }
 
 void
@@ -4143,10 +4137,9 @@ xpt_release_devq(struct cam_path *path, u_int count, int run_queue)
 	dev = path->device;
 	devq = dev->sim->devq;
 	mtx_lock(&devq->send_mtx);
-	run_queue = xpt_release_devq_device(dev, count, run_queue);
-	mtx_unlock(&devq->send_mtx);
-	if (run_queue)
+	if (xpt_release_devq_device(dev, count, run_queue))
 		xpt_run_devq(dev->sim->devq);
+	mtx_unlock(&devq->send_mtx);
 }
 
 static int
@@ -4191,7 +4184,6 @@ void
 xpt_release_simq(struct cam_sim *sim, int run_queue)
 {
 	struct cam_devq	*devq;
-	uint32_t	 freeze;
 
 	devq = sim->devq;
 	mtx_lock(&devq->send_mtx);
@@ -4202,9 +4194,7 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 #endif
 	} else
 		devq->send_queue.qfrozen_cnt--;
-	freeze = devq->send_queue.qfrozen_cnt;
-	mtx_unlock(&devq->send_mtx);
-	if (freeze == 0) {
+	if (devq->send_queue.qfrozen_cnt == 0) {
 		/*
 		 * If there is a timeout scheduled to release this
 		 * sim queue, remove it.  The queue frozen count is
@@ -4221,6 +4211,7 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 			xpt_run_devq(sim->devq);
 		}
 	}
+	mtx_unlock(&devq->send_mtx);
 }
 
 /*
@@ -5012,5 +5003,7 @@ camisr_runqueue(struct cam_sim *sim)
 	}
 	sim->sim_doneq_flags &= ~CAM_SIM_DQ_ONQ;
 	mtx_unlock(&sim->sim_doneq_mtx);
+	mtx_lock(&sim->devq->send_mtx);
 	xpt_run_devq(sim->devq);
+	mtx_unlock(&sim->devq->send_mtx);
 }
