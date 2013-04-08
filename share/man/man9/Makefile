@@ -573,7 +573,9 @@ MLINKS+=copy.9 copyin.9 \
 MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_u64_free.9 \
 	counter.9 counter_u64_add.9 \
-	counter.9 counter_u64_subtract.9 \
+	counter.9 counter_enter.9 \
+	counter.9 counter_exit.9 \
+	counter.9 counter_u64_add_protected.9 \
 	counter.9 counter_u64_fetch.9 \
 	counter.9 counter_u64_zero.9
 MLINKS+=critical_enter.9 critical.9 \
