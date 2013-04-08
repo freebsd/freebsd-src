@@ -51,13 +51,15 @@ struct pmap;
 	register_t	pc_disisave[CPUSAVE_LEN];			\
 	register_t	pc_dbsave[CPUSAVE_LEN];
 
-#define PCPU_MD_AIM32_FIELDS
+#define PCPU_MD_AIM32_FIELDS						\
+	/* char		__pad[0] */
 
 #define PCPU_MD_AIM64_FIELDS						\
 	struct slb	pc_slb[64];					\
 	struct slb	**pc_userslb;					\
 	register_t	pc_slbsave[18];					\
-	uint8_t		pc_slbstack[1024];
+	uint8_t		pc_slbstack[1024];				\
+	char		__pad[1137]
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS
@@ -76,7 +78,8 @@ struct pmap;
 	register_t	pc_booke_tlbsave[BOOKE_TLBSAVE_LEN];		\
 	register_t	pc_booke_tlb_level;				\
 	uint32_t	*pc_booke_tlb_lock;				\
-	int		pc_tid_next;
+	int		pc_tid_next;					\
+	char		__pad[173]
 
 /* Definitions for register offsets within the exception tmp save areas */
 #define	CPUSAVE_R27	0		/* where r27 gets saved */
