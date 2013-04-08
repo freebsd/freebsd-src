@@ -1277,15 +1277,15 @@ each_writable_segment(td, func, closure)
 			continue;
 
 		/* Ignore memory-mapped devices and such things. */
-		VM_OBJECT_WLOCK(object);
+		VM_OBJECT_RLOCK(object);
 		while ((backing_object = object->backing_object) != NULL) {
-			VM_OBJECT_WLOCK(backing_object);
-			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_RLOCK(backing_object);
+			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
 		ignore_entry = object->type != OBJT_DEFAULT &&
 		    object->type != OBJT_SWAP && object->type != OBJT_VNODE;
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		if (ignore_entry)
 			continue;
 
