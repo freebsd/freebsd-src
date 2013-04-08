@@ -469,17 +469,9 @@ pbrelvp(struct buf *bp)
 
 	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
 	KASSERT(bp->b_bufobj != NULL, ("pbrelvp: NULL bufobj"));
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == 0,
+	    ("pbrelvp: pager buf on vnode list."));
 
-	/* XXX REMOVE ME */
-	BO_LOCK(bp->b_bufobj);
-	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
-		panic(
-		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
-		    bp,
-		    (int)bp->b_flags
-		);
-	}
-	BO_UNLOCK(bp->b_bufobj);
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
@@ -494,17 +486,9 @@ pbrelbo(struct buf *bp)
 
 	KASSERT(bp->b_vp == NULL, ("pbrelbo: vnode"));
 	KASSERT(bp->b_bufobj != NULL, ("pbrelbo: NULL bufobj"));
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == 0,
+	    ("pbrelbo: pager buf on vnode list."));
 
-	/* XXX REMOVE ME */
-	BO_LOCK(bp->b_bufobj);
-	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
-		panic(
-		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
-		    bp,
-		    (int)bp->b_flags
-		);
-	}
-	BO_UNLOCK(bp->b_bufobj);
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
 }

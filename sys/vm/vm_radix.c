@@ -94,10 +94,10 @@ __FBSDID("$FreeBSD$");
 	((vm_pindex_t)1 << ((VM_RADIX_LIMIT - (lev)) * VM_RADIX_WIDTH))
 
 struct vm_radix_node {
-	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
 	vm_pindex_t	 rn_owner;			/* Owner of record. */
 	uint16_t	 rn_count;			/* Valid children. */
 	uint16_t	 rn_clev;			/* Current level. */
+	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
 };
 
 static uma_zone_t vm_radix_node_zone;
@@ -175,7 +175,7 @@ static __inline struct vm_radix_node *
 vm_radix_getroot(struct vm_radix *rtree)
 {
 
-	return ((struct vm_radix_node *)(rtree->rt_root & ~VM_RADIX_FLAGS));
+	return ((struct vm_radix_node *)rtree->rt_root);
 }
 
 /*
@@ -251,9 +251,7 @@ vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
 
 	if (rnode->rn_clev > 0) {
 		idx = vm_radix_trimkey(idx, rnode->rn_clev - 1);
-		idx -= rnode->rn_owner;
-		if (idx != 0)
-			return (TRUE);
+		return (idx != rnode->rn_owner);
 	}
 	return (FALSE);
 }

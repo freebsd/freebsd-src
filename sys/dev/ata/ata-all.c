@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ata.h>
@@ -60,9 +59,17 @@ __FBSDID("$FreeBSD$");
 /* prototypes */
 static void ataaction(struct cam_sim *sim, union ccb *ccb);
 static void atapoll(struct cam_sim *sim);
-static void ata_conn_event(void *, int);
+static void ata_cam_begin_transaction(device_t dev, union ccb *ccb);
+static void ata_cam_end_transaction(device_t dev, struct ata_request *request);
+static void ata_cam_request_sense(device_t dev, struct ata_request *request);
+static int ata_check_ids(device_t dev, union ccb *ccb);
+static void ata_conn_event(void *context, int dummy);
+static void ata_init(void);
 static void ata_interrupt_locked(void *data);
+static int ata_module_event_handler(module_t mod, int what, void *arg);
 static void ata_periodic_poll(void *data);
+static int ata_str2mode(const char *str);
+static void ata_uninit(void);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
@@ -136,10 +143,15 @@ ata_attach(device_t dev)
 			ch->user[i].bytecount = MAXPHYS;
 		ch->user[i].caps = 0;
 		ch->curr[i] = ch->user[i];
-		if (ch->pm_level > 0)
-			ch->user[i].caps |= CTS_SATA_CAPS_H_PMREQ;
-		if (ch->pm_level > 1)
-			ch->user[i].caps |= CTS_SATA_CAPS_D_PMREQ;
+		if (ch->flags & ATA_SATA) {
+			if (ch->pm_level > 0)
+				ch->user[i].caps |= CTS_SATA_CAPS_H_PMREQ;
+			if (ch->pm_level > 1)
+				ch->user[i].caps |= CTS_SATA_CAPS_D_PMREQ;
+		} else {
+			if (!(ch->flags & ATA_NO_48BIT_DMA))
+				ch->user[i].caps |= CTS_ATA_CAPS_H_DMA48;
+		}
 	}
 	callout_init(&ch->poll_callout, 1);
 
@@ -430,6 +442,120 @@ ata_udelay(int interval)
 }
 
 const char *
+ata_cmd2str(struct ata_request *request)
+{
+	static char buffer[20];
+
+	if (request->flags & ATA_R_ATAPI) {
+		switch (request->u.atapi.sense.key ?
+		    request->u.atapi.saved_cmd : request->u.atapi.ccb[0]) {
+		case 0x00: return ("TEST_UNIT_READY");
+		case 0x01: return ("REZERO");
+		case 0x03: return ("REQUEST_SENSE");
+		case 0x04: return ("FORMAT");
+		case 0x08: return ("READ");
+		case 0x0a: return ("WRITE");
+		case 0x10: return ("WEOF");
+		case 0x11: return ("SPACE");
+		case 0x12: return ("INQUIRY");
+		case 0x15: return ("MODE_SELECT");
+		case 0x19: return ("ERASE");
+		case 0x1a: return ("MODE_SENSE");
+		case 0x1b: return ("START_STOP");
+		case 0x1e: return ("PREVENT_ALLOW");
+		case 0x23: return ("ATAPI_READ_FORMAT_CAPACITIES");
+		case 0x25: return ("READ_CAPACITY");
+		case 0x28: return ("READ_BIG");
+		case 0x2a: return ("WRITE_BIG");
+		case 0x2b: return ("LOCATE");
+		case 0x34: return ("READ_POSITION");
+		case 0x35: return ("SYNCHRONIZE_CACHE");
+		case 0x3b: return ("WRITE_BUFFER");
+		case 0x3c: return ("READ_BUFFER");
+		case 0x42: return ("READ_SUBCHANNEL");
+		case 0x43: return ("READ_TOC");
+		case 0x45: return ("PLAY_10");
+		case 0x47: return ("PLAY_MSF");
+		case 0x48: return ("PLAY_TRACK");
+		case 0x4b: return ("PAUSE");
+		case 0x51: return ("READ_DISK_INFO");
+		case 0x52: return ("READ_TRACK_INFO");
+		case 0x53: return ("RESERVE_TRACK");
+		case 0x54: return ("SEND_OPC_INFO");
+		case 0x55: return ("MODE_SELECT_BIG");
+		case 0x58: return ("REPAIR_TRACK");
+		case 0x59: return ("READ_MASTER_CUE");
+		case 0x5a: return ("MODE_SENSE_BIG");
+		case 0x5b: return ("CLOSE_TRACK/SESSION");
+		case 0x5c: return ("READ_BUFFER_CAPACITY");
+		case 0x5d: return ("SEND_CUE_SHEET");
+		case 0x96: return ("SERVICE_ACTION_IN");
+		case 0xa1: return ("BLANK_CMD");
+		case 0xa3: return ("SEND_KEY");
+		case 0xa4: return ("REPORT_KEY");
+		case 0xa5: return ("PLAY_12");
+		case 0xa6: return ("LOAD_UNLOAD");
+		case 0xad: return ("READ_DVD_STRUCTURE");
+		case 0xb4: return ("PLAY_CD");
+		case 0xbb: return ("SET_SPEED");
+		case 0xbd: return ("MECH_STATUS");
+		case 0xbe: return ("READ_CD");
+		case 0xff: return ("POLL_DSC");
+		}
+	} else {
+		switch (request->u.ata.command) {
+		case 0x00: return ("NOP");
+		case 0x08: return ("DEVICE_RESET");
+		case 0x20: return ("READ");
+		case 0x24: return ("READ48");
+		case 0x25: return ("READ_DMA48");
+		case 0x26: return ("READ_DMA_QUEUED48");
+		case 0x27: return ("READ_NATIVE_MAX_ADDRESS48");
+		case 0x29: return ("READ_MUL48");
+		case 0x30: return ("WRITE");
+		case 0x34: return ("WRITE48");
+		case 0x35: return ("WRITE_DMA48");
+		case 0x36: return ("WRITE_DMA_QUEUED48");
+		case 0x37: return ("SET_MAX_ADDRESS48");
+		case 0x39: return ("WRITE_MUL48");
+		case 0x70: return ("SEEK");
+		case 0xa0: return ("PACKET_CMD");
+		case 0xa1: return ("ATAPI_IDENTIFY");
+		case 0xa2: return ("SERVICE");
+		case 0xb0: return ("SMART");
+		case 0xc0: return ("CFA ERASE");
+		case 0xc4: return ("READ_MUL");
+		case 0xc5: return ("WRITE_MUL");
+		case 0xc6: return ("SET_MULTI");
+		case 0xc7: return ("READ_DMA_QUEUED");
+		case 0xc8: return ("READ_DMA");
+		case 0xca: return ("WRITE_DMA");
+		case 0xcc: return ("WRITE_DMA_QUEUED");
+		case 0xe6: return ("SLEEP");
+		case 0xe7: return ("FLUSHCACHE");
+		case 0xea: return ("FLUSHCACHE48");
+		case 0xec: return ("ATA_IDENTIFY");
+		case 0xef:
+			switch (request->u.ata.feature) {
+			case 0x03: return ("SETFEATURES SET TRANSFER MODE");
+			case 0x02: return ("SETFEATURES ENABLE WCACHE");
+			case 0x82: return ("SETFEATURES DISABLE WCACHE");
+			case 0xaa: return ("SETFEATURES ENABLE RCACHE");
+			case 0x55: return ("SETFEATURES DISABLE RCACHE");
+			}
+			sprintf(buffer, "SETFEATURES 0x%02x",
+			    request->u.ata.feature);
+			return (buffer);
+		case 0xf5: return ("SECURITY_FREE_LOCK");
+		case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
+		case 0xf9: return ("SET_MAX_ADDRESS");
+		}
+	}
+	sprintf(buffer, "unknown CMD (0x%02x)", request->u.ata.command);
+	return (buffer);
+}
+
+const char *
 ata_mode2str(int mode)
 {
     switch (mode) {
@@ -459,7 +585,7 @@ ata_mode2str(int mode)
     }
 }
 
-int
+static int
 ata_str2mode(const char *str)
 {
 
@@ -494,6 +620,32 @@ ata_atapi(device_t dev, int target)
     struct ata_channel *ch = device_get_softc(dev);
 
     return (ch->devices & (ATA_ATAPI_MASTER << target));
+}
+
+void
+ata_timeout(struct ata_request *request)
+{
+	struct ata_channel *ch;
+
+	ch = device_get_softc(request->parent);
+	//request->flags |= ATA_R_DEBUG;
+	ATA_DEBUG_RQ(request, "timeout");
+
+	/*
+	 * If we have an ATA_ACTIVE request running, we flag the request
+	 * ATA_R_TIMEOUT so ata_cam_end_transaction() will handle it correctly.
+	 * Also, NULL out the running request so we wont loose the race with
+	 * an eventual interrupt arriving late.
+	 */
+	if (ch->state == ATA_ACTIVE) {
+		request->flags |= ATA_R_TIMEOUT;
+		if (ch->dma.unload)
+			ch->dma.unload(request);
+		ch->running = NULL;
+		ch->state = ATA_IDLE;
+		ata_cam_end_transaction(ch->dev, request);
+	}
+	mtx_unlock(&ch->state_mtx);
 }
 
 static void
@@ -653,7 +805,7 @@ ata_cam_process_sense(device_t dev, struct ata_request *request)
 		ata_reinit(dev);
 }
 
-void
+static void
 ata_cam_end_transaction(device_t dev, struct ata_request *request)
 {
 	struct ata_channel *ch = device_get_softc(dev);
@@ -835,6 +987,8 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 				d->bytecount = cts->xport_specific.ata.bytecount;
 			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_ATAPI)
 				d->atapi = cts->xport_specific.ata.atapi;
+			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_CAPS)
+				d->caps = cts->xport_specific.ata.caps;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
@@ -875,14 +1029,12 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 				}
 				cts->xport_specific.sata.caps &=
 				    ch->user[ccb->ccb_h.target_id].caps;
-				cts->xport_specific.sata.valid |=
-				    CTS_SATA_VALID_CAPS;
 			} else {
 				cts->xport_specific.sata.revision = d->revision;
 				cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 				cts->xport_specific.sata.caps = d->caps;
-				cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 			}
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 			cts->xport_specific.sata.atapi = d->atapi;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
 		} else {
@@ -893,6 +1045,17 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_MODE;
 			cts->xport_specific.ata.bytecount = d->bytecount;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_BYTECOUNT;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+				cts->xport_specific.ata.caps =
+				    d->caps & CTS_ATA_CAPS_D;
+				if (!(ch->flags & ATA_NO_48BIT_DMA))
+					cts->xport_specific.ata.caps |=
+					    CTS_ATA_CAPS_H_DMA48;
+				cts->xport_specific.ata.caps &=
+				    ch->user[ccb->ccb_h.target_id].caps;
+			} else
+				cts->xport_specific.ata.caps = d->caps;
+			cts->xport_specific.ata.valid |= CTS_ATA_VALID_CAPS;
 			cts->xport_specific.ata.atapi = d->atapi;
 			cts->xport_specific.ata.valid |= CTS_ATA_VALID_ATAPI;
 		}

@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -604,7 +603,7 @@ ata_generic_reset(device_t dev)
 }
 
 /* must be called with ATA channel locked and state_mtx held */
-int
+static int
 ata_generic_status(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);

@@ -1878,6 +1878,7 @@ product FTDI IRTRANS		0xfc60	FTDI compatible adapter
 product FTDI LENZ_LIUSB		0xd780	FTDI compatible adapter
 product FTDI LM3S_DEVEL_BOARD	0xbcd8	FTDI compatible adapter
 product FTDI LM3S_EVAL_BOARD	0xbcd9	FTDI compatible adapter
+product FTDI LM3S_ICDI_B_BOARD	0xbcda	FTDI compatible adapter
 product FTDI MASTERDEVEL2	0xf449	FTDI compatible adapter
 product FTDI MHAM_DB9		0xeeed	FTDI compatible adapter
 product FTDI MHAM_IC		0xeeec	FTDI compatible adapter
