@@ -143,7 +143,7 @@ struct vm_page {
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
 	uint16_t flags;			/* page PG_* flags (P) */
-	u_char	act_count;		/* page usage count (O) */
+	u_char	act_count;		/* page usage count (P) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
