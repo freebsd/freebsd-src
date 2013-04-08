@@ -455,7 +455,7 @@ struct act_tbl {
 	int at_value;
 };
 
-struct act_tbl act_tbl[] = {
+static const struct act_tbl act_tbl[] = {
 	{ "panic", WD_SOFT_PANIC },
 	{ "ddb", WD_SOFT_DDB },
 	{ "log", WD_SOFT_LOG },
