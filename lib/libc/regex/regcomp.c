@@ -1205,7 +1205,7 @@ CHaddrange(struct parse *p, cset *cs, wint_t min, wint_t max)
 	}
 	cs->ranges = newranges;
 	cs->ranges[cs->nranges].min = min;
-	cs->ranges[cs->nranges].min = max;
+	cs->ranges[cs->nranges].max = max;
 	cs->nranges++;
 }
 
