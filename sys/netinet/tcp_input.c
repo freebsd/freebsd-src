@@ -240,8 +240,9 @@ static void inline	hhook_run_tcp_est_in(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to);
 
 /*
- * tcpstat
- * XXXGL: more words here.
+ * TCP statistics are stored in struct tcpstat_p, which is
+ * an "array" of counter(9)s.  Although it isn't a real
+ * array, we treat it as array to reduce code bloat.
  */
 VNET_DEFINE(struct tcpstat_p, tcpstatp);
 
@@ -301,13 +302,8 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_STATS, stats, CTLTYPE_OPAQUE |
     "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
 /*
- * XXXGL
- *
  * Kernel module interface for updating tcpstat.  The argument is an index
- * into tcpstat treated as an array of u_long.  While this encodes the
- * general layout of tcpstat into the caller, it doesn't encode its location,
- * so that future changes to add, for example, per-CPU stats support won't
- * cause binary compatibility problems for kernel modules.
+ * into tcpstat treated as an array.
  */
 void
 kmod_tcpstat_inc(int statnum)

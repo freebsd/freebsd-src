@@ -208,8 +208,9 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*
- * ipstat
- * XXXGL: more words here.
+ * IP statistics are stored in struct ipstat_p, which is
+ * an "array" of counter(9)s.  Although it isn't a real
+ * array, we treat it as array to reduce code bloat.
  */
 VNET_DEFINE(struct ipstat_p, ipstatp);
 
@@ -275,12 +276,8 @@ SYSCTL_VNET_PROC(_net_inet_ip, IPCTL_STATS, stats, CTLTYPE_OPAQUE | CTLFLAG_RW,
     "IP statistics (struct ipstat, netinet/ip_var.h)");
 
 /*
- * XXXGL!
  * Kernel module interface for updating ipstat.  The argument is an index
- * into ipstat treated as an array of u_long.  While this encodes the general
- * layout of ipstat into the caller, it doesn't encode its location, so that
- * future changes to add, for example, per-CPU stats support won't cause
- * binary compatibility problems for kernel modules.
+ * into ipstat treated as an array.
  */
 void
 kmod_ipstat_inc(int statnum)
