@@ -1140,10 +1140,8 @@ keg_small_init(uma_keg_t keg)
 
 	if (keg->uk_flags & UMA_ZONE_PCPU) {
 		keg->uk_slabsize = sizeof(struct pcpu);
-		keg->uk_ppera = mp_ncpus/(PAGE_SIZE/sizeof(struct pcpu));
-		/* Account for remainder. */
-		if (mp_ncpus * sizeof(struct pcpu) > PAGE_SIZE * keg->uk_ppera)
-			keg->uk_ppera++;
+		keg->uk_ppera = howmany(mp_ncpus * sizeof(struct pcpu),
+		    PAGE_SIZE);
 	} else {
 		keg->uk_slabsize = UMA_SLAB_SIZE;
 		keg->uk_ppera = 1;
@@ -1226,7 +1224,6 @@ keg_small_init(uma_keg_t keg)
 static void
 keg_large_init(uma_keg_t keg)
 {
-	int pages;
 
 	KASSERT(keg != NULL, ("Keg is null in keg_large_init"));
 	KASSERT((keg->uk_flags & UMA_ZFLAG_CACHEONLY) == 0,
@@ -1234,14 +1231,8 @@ keg_large_init(uma_keg_t keg)
 	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0,
 	    ("%s: Cannot large-init a UMA_ZONE_PCPU keg", __func__));
 
-	pages = keg->uk_size / PAGE_SIZE;
-
-	/* Account for remainder */
-	if ((pages * PAGE_SIZE) < keg->uk_size)
-		pages++;
-
-	keg->uk_ppera = pages;
-	keg->uk_slabsize = pages * PAGE_SIZE;
+	keg->uk_ppera = howmany(keg->uk_size, PAGE_SIZE);
+	keg->uk_slabsize = keg->uk_ppera * PAGE_SIZE;
 	keg->uk_ipers = 1;
 	keg->uk_rsize = keg->uk_size;
 
