@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,unix.API,osx.API %s -analyzer-store=region -analyzer-output=plist -analyzer-ipa=inlining -analyzer-eagerly-assume -analyzer-config faux-bodies=true -fblocks -verify -o %t.plist
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,unix.API,osx.API %s -analyzer-store=region -analyzer-output=plist -analyzer-eagerly-assume -analyzer-config faux-bodies=true -fblocks -verify -o %t.plist
 // RUN: FileCheck --input-file=%t.plist %s
 
 struct _opaque_pthread_once_t {
@@ -408,7 +408,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Improper use of &apos;open&apos;</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_open</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>6</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>6</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>55</integer>
@@ -552,11 +552,11 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:    </array>
 // CHECK-NEXT:    <key>description</key><string>Call to &apos;dispatch_once&apos; uses the local variable &apos;pred&apos; for the predicate value.  Using such transient memory for the predicate is potentially dangerous.  Perhaps you intended to declare the variable as &apos;static&apos;?</string>
-// CHECK-NEXT:    <key>category</key><string>Mac OS X API</string>
+// CHECK-NEXT:    <key>category</key><string>API Misuse (Apple)</string>
 // CHECK-NEXT:    <key>type</key><string>Improper use of &apos;dispatch_once&apos;</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_dispatch_once</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>2</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>2</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>62</integer>
@@ -636,7 +636,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Improper use of &apos;pthread_once&apos;</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_pthread_once</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>2</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>2</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>73</integer>
@@ -716,7 +716,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>pr2899</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>82</integer>
@@ -796,7 +796,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_calloc</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>94</integer>
@@ -876,7 +876,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_calloc2</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>100</integer>
@@ -956,7 +956,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_realloc</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>112</integer>
@@ -1036,7 +1036,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_reallocf</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>118</integer>
@@ -1116,7 +1116,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_alloca</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>136</integer>
@@ -1196,7 +1196,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_builtin_alloca</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>148</integer>
@@ -1276,7 +1276,7 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:    <key>type</key><string>Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_valloc</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>1</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>160</integer>
@@ -1352,11 +1352,11 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:    </array>
 // CHECK-NEXT:    <key>description</key><string>Call to &apos;dispatch_once&apos; uses the local variable &apos;pred&apos; for the predicate value.  Using such transient memory for the predicate is potentially dangerous.  Perhaps you intended to declare the variable as &apos;static&apos;?</string>
-// CHECK-NEXT:    <key>category</key><string>Mac OS X API</string>
+// CHECK-NEXT:    <key>category</key><string>API Misuse (Apple)</string>
 // CHECK-NEXT:    <key>type</key><string>Improper use of &apos;dispatch_once&apos;</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>test_dispatch_once_in_macro</string>
-// CHECK-NEXT:   <key>issue_hash</key><integer>2</integer>
+// CHECK-NEXT:   <key>issue_hash</key><string>2</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>184</integer>
@@ -1392,9 +1392,9 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -1418,17 +1418,46 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:          <array>
 // CHECK-NEXT:           <dict>
 // CHECK-NEXT:            <key>line</key><integer>190</integer>
-// CHECK-NEXT:            <key>col</key><integer>3</integer>
+// CHECK-NEXT:            <key>col</key><integer>24</integer>
 // CHECK-NEXT:            <key>file</key><integer>0</integer>
 // CHECK-NEXT:           </dict>
 // CHECK-NEXT:           <dict>
 // CHECK-NEXT:            <key>line</key><integer>190</integer>
-// CHECK-NEXT:            <key>col</key><integer>15</integer>
+// CHECK-NEXT:            <key>col</key><integer>24</integer>
 // CHECK-NEXT:            <key>file</key><integer>0</integer>
 // CHECK-NEXT:           </dict>
 // CHECK-NEXT:          </array>
 // CHECK-NEXT:        </dict>
 // CHECK-NEXT:       </array>
+// CHECK-NEXT:     </dict>
+// CHECK-NEXT:     <dict>
+// CHECK-NEXT:      <key>kind</key><string>event</string>
+// CHECK-NEXT:      <key>location</key>
+// CHECK-NEXT:      <dict>
+// CHECK-NEXT:       <key>line</key><integer>190</integer>
+// CHECK-NEXT:       <key>col</key><integer>24</integer>
+// CHECK-NEXT:       <key>file</key><integer>0</integer>
+// CHECK-NEXT:      </dict>
+// CHECK-NEXT:      <key>ranges</key>
+// CHECK-NEXT:      <array>
+// CHECK-NEXT:        <array>
+// CHECK-NEXT:         <dict>
+// CHECK-NEXT:          <key>line</key><integer>190</integer>
+// CHECK-NEXT:          <key>col</key><integer>24</integer>
+// CHECK-NEXT:          <key>file</key><integer>0</integer>
+// CHECK-NEXT:         </dict>
+// CHECK-NEXT:         <dict>
+// CHECK-NEXT:          <key>line</key><integer>194</integer>
+// CHECK-NEXT:          <key>col</key><integer>3</integer>
+// CHECK-NEXT:          <key>file</key><integer>0</integer>
+// CHECK-NEXT:         </dict>
+// CHECK-NEXT:        </array>
+// CHECK-NEXT:      </array>
+// CHECK-NEXT:      <key>depth</key><integer>0</integer>
+// CHECK-NEXT:      <key>extended_message</key>
+// CHECK-NEXT:      <string>&apos;p&apos; captured by block as a null pointer value</string>
+// CHECK-NEXT:      <key>message</key>
+// CHECK-NEXT:      <string>&apos;p&apos; captured by block as a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>event</string>
@@ -1477,25 +1506,10 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:      <key>kind</key><string>event</string>
 // CHECK-NEXT:      <key>location</key>
 // CHECK-NEXT:      <dict>
-// CHECK-NEXT:       <key>line</key><integer>190</integer>
-// CHECK-NEXT:       <key>col</key><integer>3</integer>
+// CHECK-NEXT:       <key>line</key><integer>40</integer>
+// CHECK-NEXT:       <key>col</key><integer>1</integer>
 // CHECK-NEXT:       <key>file</key><integer>0</integer>
 // CHECK-NEXT:      </dict>
-// CHECK-NEXT:      <key>ranges</key>
-// CHECK-NEXT:      <array>
-// CHECK-NEXT:        <array>
-// CHECK-NEXT:         <dict>
-// CHECK-NEXT:          <key>line</key><integer>190</integer>
-// CHECK-NEXT:          <key>col</key><integer>3</integer>
-// CHECK-NEXT:          <key>file</key><integer>0</integer>
-// CHECK-NEXT:         </dict>
-// CHECK-NEXT:         <dict>
-// CHECK-NEXT:          <key>line</key><integer>194</integer>
-// CHECK-NEXT:          <key>col</key><integer>4</integer>
-// CHECK-NEXT:          <key>file</key><integer>0</integer>
-// CHECK-NEXT:         </dict>
-// CHECK-NEXT:        </array>
-// CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>1</integer>
 // CHECK-NEXT:      <key>extended_message</key>
 // CHECK-NEXT:      <string>Calling anonymous block</string>
@@ -1749,9 +1763,72 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Variable &apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:      <string>&apos;p&apos; initialized to a null pointer value</string>
+// CHECK-NEXT:     </dict>
+// CHECK-NEXT:     <dict>
+// CHECK-NEXT:      <key>kind</key><string>control</string>
+// CHECK-NEXT:      <key>edges</key>
+// CHECK-NEXT:       <array>
+// CHECK-NEXT:        <dict>
+// CHECK-NEXT:         <key>start</key>
+// CHECK-NEXT:          <array>
+// CHECK-NEXT:           <dict>
+// CHECK-NEXT:            <key>line</key><integer>200</integer>
+// CHECK-NEXT:            <key>col</key><integer>3</integer>
+// CHECK-NEXT:            <key>file</key><integer>0</integer>
+// CHECK-NEXT:           </dict>
+// CHECK-NEXT:           <dict>
+// CHECK-NEXT:            <key>line</key><integer>200</integer>
+// CHECK-NEXT:            <key>col</key><integer>5</integer>
+// CHECK-NEXT:            <key>file</key><integer>0</integer>
+// CHECK-NEXT:           </dict>
+// CHECK-NEXT:          </array>
+// CHECK-NEXT:         <key>end</key>
+// CHECK-NEXT:          <array>
+// CHECK-NEXT:           <dict>
+// CHECK-NEXT:            <key>line</key><integer>201</integer>
+// CHECK-NEXT:            <key>col</key><integer>24</integer>
+// CHECK-NEXT:            <key>file</key><integer>0</integer>
+// CHECK-NEXT:           </dict>
+// CHECK-NEXT:           <dict>
+// CHECK-NEXT:            <key>line</key><integer>201</integer>
+// CHECK-NEXT:            <key>col</key><integer>24</integer>
+// CHECK-NEXT:            <key>file</key><integer>0</integer>
+// CHECK-NEXT:           </dict>
+// CHECK-NEXT:          </array>
+// CHECK-NEXT:        </dict>
+// CHECK-NEXT:       </array>
+// CHECK-NEXT:     </dict>
+// CHECK-NEXT:     <dict>
+// CHECK-NEXT:      <key>kind</key><string>event</string>
+// CHECK-NEXT:      <key>location</key>
+// CHECK-NEXT:      <dict>
+// CHECK-NEXT:       <key>line</key><integer>201</integer>
+// CHECK-NEXT:       <key>col</key><integer>24</integer>
+// CHECK-NEXT:       <key>file</key><integer>0</integer>
+// CHECK-NEXT:      </dict>
+// CHECK-NEXT:      <key>ranges</key>
+// CHECK-NEXT:      <array>
+// CHECK-NEXT:        <array>
+// CHECK-NEXT:         <dict>
+// CHECK-NEXT:          <key>line</key><integer>201</integer>
+// CHECK-NEXT:          <key>col</key><integer>24</integer>
+// CHECK-NEXT:          <key>file</key><integer>0</integer>
+// CHECK-NEXT:         </dict>
+// CHECK-NEXT:         <dict>
+// CHECK-NEXT:          <key>line</key><integer>203</integer>
+// CHECK-NEXT:          <key>col</key><integer>3</integer>
+// CHECK-NEXT:          <key>file</key><integer>0</integer>
+// CHECK-NEXT:         </dict>
+// CHECK-NEXT:        </array>
+// CHECK-NEXT:      </array>
+// CHECK-NEXT:      <key>depth</key><integer>0</integer>
+// CHECK-NEXT:      <key>extended_message</key>
+// CHECK-NEXT:      <string>&apos;p&apos; captured by block as a null pointer value</string>
+// CHECK-NEXT:      <key>message</key>
+// CHECK-NEXT:      <string>&apos;p&apos; captured by block as a null pointer value</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>event</string>
@@ -1877,25 +1954,10 @@ void test_inline_dispatch_once() {
 // CHECK-NEXT:      <key>kind</key><string>event</string>
 // CHECK-NEXT:      <key>location</key>
 // CHECK-NEXT:      <dict>
-// CHECK-NEXT:       <key>line</key><integer>177</integer>
-// CHECK-NEXT:       <key>col</key><integer>3</integer>
+// CHECK-NEXT:       <key>line</key><integer>39</integer>
+// CHECK-NEXT:       <key>col</key><integer>1</integer>
 // CHECK-NEXT:       <key>file</key><integer>0</integer>
 // CHECK-NEXT:      </dict>
-// CHECK-NEXT:      <key>ranges</key>
-// CHECK-NEXT:      <array>
-// CHECK-NEXT:        <array>
-// CHECK-NEXT:         <dict>
-// CHECK-NEXT:          <key>line</key><integer>177</integer>
-// CHECK-NEXT:          <key>col</key><integer>3</integer>
-// CHECK-NEXT:          <key>file</key><integer>0</integer>
-// CHECK-NEXT:         </dict>
-// CHECK-NEXT:         <dict>
-// CHECK-NEXT:          <key>line</key><integer>177</integer>
-// CHECK-NEXT:          <key>col</key><integer>33</integer>
-// CHECK-NEXT:          <key>file</key><integer>0</integer>
-// CHECK-NEXT:         </dict>
-// CHECK-NEXT:        </array>
-// CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>2</integer>
 // CHECK-NEXT:      <key>extended_message</key>
 // CHECK-NEXT:      <string>Calling anonymous block</string>

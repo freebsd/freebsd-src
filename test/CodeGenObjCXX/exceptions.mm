@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -emit-llvm -fcxx-exceptions -fexceptions -o - %s | FileCheck %s
+// RUN: %clang_cc1 -x objective-c++ -triple x86_64-apple-darwin10 -emit-llvm -fcxx-exceptions -fexceptions -fobjc-exceptions -o - %s | FileCheck %s
 
 @interface OCType @end
 void opaque();
@@ -16,3 +16,21 @@ namespace test0 {
     }
   }
 }
+
+// rdar://12605907
+@interface NSException
+  + new;
+@end
+namespace test1 {
+
+  void bar() {
+    @try {
+      throw [NSException new];
+    } @catch (id i) {
+    }
+  }
+// CHECK: invoke void @objc_exception_throw(i8* [[CALL:%.*]]) [[NR:#[0-9]+]]
+// CHECK:          to label [[INVOKECONT1:%.*]] unwind label [[LPAD:%.*]]
+}
+
+// CHECK: attributes [[NR]] = { noreturn }

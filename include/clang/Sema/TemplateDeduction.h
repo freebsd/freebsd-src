@@ -13,8 +13,8 @@
 #ifndef LLVM_CLANG_SEMA_TEMPLATE_DEDUCTION_H
 #define LLVM_CLANG_SEMA_TEMPLATE_DEDUCTION_H
 
-#include "clang/Basic/PartialDiagnostic.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/Basic/PartialDiagnostic.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace clang {
@@ -47,7 +47,7 @@ class TemplateDeductionInfo {
 
 public:
   TemplateDeductionInfo(SourceLocation Loc)
-    : Deduced(0), Loc(Loc), HasSFINAEDiagnostic(false) { }
+    : Deduced(0), Loc(Loc), HasSFINAEDiagnostic(false), Expression(0) { }
 
   /// \brief Returns the location at which template argument is
   /// occurring.
@@ -141,15 +141,25 @@ public:
   ///   TDK_SubstitutionFailure: this argument is the template
   ///   argument we were instantiating when we encountered an error.
   ///
-  ///   TDK_NonDeducedMismatch: this is the template argument
-  ///   provided in the source code.
+  ///   TDK_NonDeducedMismatch: this is the component of the 'parameter'
+  ///   of the deduction, directly provided in the source code.
   TemplateArgument FirstArg;
 
   /// \brief The second template argument to which the template
   /// argument deduction failure refers.
   ///
+  ///   TDK_NonDeducedMismatch: this is the mismatching component of the
+  ///   'argument' of the deduction, from which we are deducing arguments.
+  ///
   /// FIXME: Finish documenting this.
   TemplateArgument SecondArg;
+
+  /// \brief The expression which caused a deduction failure.
+  ///
+  ///   TDK_FailedOverloadResolution: this argument is the reference to
+  //    an overloaded function which could not be resolved to a specific
+  //    function.
+  Expr *Expression;
 };
 
 }

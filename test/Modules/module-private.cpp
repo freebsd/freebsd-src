@@ -1,11 +1,11 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodule-cache-path %t -fmodule-name=module_private_left -emit-module %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodule-cache-path %t -fmodule-name=module_private_right -emit-module %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodule-cache-path %t %s -verify
+// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodules-cache-path=%t -fmodule-name=module_private_left -emit-module %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodules-cache-path=%t -fmodule-name=module_private_right -emit-module %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -x objective-c++ -fmodules-cache-path=%t %s -verify
 // FIXME: When we have a syntax for modules in C++, use that.
 
-@__experimental_modules_import module_private_left;
-@__experimental_modules_import module_private_right;
+@import module_private_left;
+@import module_private_right;
 
 void test() {
   int &ir = f0(1.0); // okay: f0() from 'right' is not visible

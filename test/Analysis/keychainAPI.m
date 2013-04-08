@@ -76,9 +76,9 @@ void errRetVal() {
   UInt32 length;
   void *outData;
   st = SecKeychainItemCopyContent(2, ptr, ptr, &length, &outData);
-  if (st == GenericError) // expected-warning{{Allocated data is not released: missing a call to 'SecKeychainItemFreeContent'}}
+  if (st == GenericError)
     SecKeychainItemFreeContent(ptr, outData); // expected-warning{{Only call free if a valid (non-NULL) buffer was returned}}
-}
+} // expected-warning{{Allocated data is not released: missing a call to 'SecKeychainItemFreeContent'}}
 
 // If null is passed in, the data is not allocated, so no need for the matching free.
 void fooDoNotReportNull() {
@@ -303,6 +303,25 @@ void DellocWithCFStringCreate4(CFAllocatorRef alloc) {
     CFStringRef userStr = CFStringCreateWithBytesNoCopy(alloc, bytes, length, 5, 0, 0); // expected-warning{{Deallocator doesn't match the allocator:}} 
     CFRelease(userStr);
   }
+}
+
+static CFAllocatorRef gKeychainDeallocator = 0;
+
+static CFAllocatorRef GetKeychainDeallocator() {  
+  return gKeychainDeallocator;
+}
+
+CFStringRef DellocWithCFStringCreate5(CFAllocatorRef alloc) {
+  unsigned int *ptr = 0;
+  OSStatus st = 0;
+  UInt32 length;
+  void *bytes;
+  char * x;
+  st = SecKeychainItemCopyContent(2, ptr, ptr, &length, &bytes);
+  if (st == noErr) {
+    return CFStringCreateWithBytesNoCopy(alloc, bytes, length, 5, 0, GetKeychainDeallocator()); // no-warning
+  }
+  return 0;
 }
 
 void radar10508828() {

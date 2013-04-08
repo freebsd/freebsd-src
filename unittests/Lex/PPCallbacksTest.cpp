@@ -7,6 +7,7 @@
 //
 //===--------------------------------------------------------------===//
 
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
@@ -16,12 +17,9 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/ModuleLoader.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
-
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/PathV2.h"
-
 #include "gtest/gtest.h"
 
 using namespace llvm;
@@ -32,11 +30,17 @@ namespace {
 
 // Stub out module loading.
 class VoidModuleLoader : public ModuleLoader {
-  virtual Module *loadModule(SourceLocation ImportLoc, ModuleIdPath Path,
-    Module::NameVisibilityKind Visibility,
-    bool IsInclusionDirective) {
-      return 0;
+  virtual ModuleLoadResult loadModule(SourceLocation ImportLoc, 
+                                      ModuleIdPath Path,
+                                      Module::NameVisibilityKind Visibility,
+                                      bool IsInclusionDirective) {
+    return ModuleLoadResult();
   }
+
+  virtual void makeModuleVisible(Module *Mod,
+                                 Module::NameVisibilityKind Visibility,
+                                 SourceLocation ImportLoc,
+                                 bool Complain) { }
 };
 
 // Stub to collect data from InclusionDirective callbacks.
@@ -84,7 +88,7 @@ protected:
       SourceMgr(Diags, FileMgr) {
     TargetOpts = new TargetOptions();
     TargetOpts->Triple = "x86_64-apple-darwin11.1.0";
-    Target = TargetInfo::CreateTargetInfo(Diags, *TargetOpts);
+    Target = TargetInfo::CreateTargetInfo(Diags, &*TargetOpts);
   }
 
   FileSystemOptions FileMgrOpts;
@@ -107,7 +111,7 @@ protected:
       // Add header's parent path to search path.
       StringRef SearchPath = path::parent_path(HeaderPath);
       const DirectoryEntry *DE = FileMgr.getDirectory(SearchPath);
-      DirectoryLookup DL(DE, SrcMgr::C_User, true, false);
+      DirectoryLookup DL(DE, SrcMgr::C_User, false);
       HeaderInfo.AddSearchPath(DL, IsSystemHeader);
   }
 

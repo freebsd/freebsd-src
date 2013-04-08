@@ -7,16 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/SourceManager.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/AST/CommentLexer.h"
 #include "clang/AST/CommentCommandTraits.h"
+#include "clang/Basic/CommentOptions.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/DiagnosticOptions.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/STLExtras.h"
-#include <vector>
-
 #include "gtest/gtest.h"
+#include <vector>
 
 using namespace llvm;
 using namespace clang;
@@ -32,7 +32,7 @@ protected:
       DiagID(new DiagnosticIDs()),
       Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
       SourceMgr(Diags, FileMgr),
-      Traits(Allocator) {
+      Traits(Allocator, CommentOptions()) {
   }
 
   FileSystemOptions FileMgrOpts;
@@ -301,8 +301,10 @@ TEST_F(CommentLexerTest, DoxygenCommand3) {
 
 // Doxygen escape sequences.
 TEST_F(CommentLexerTest, DoxygenCommand4) {
-  const char *Source =
-    "/// \\\\ \\@ \\& \\$ \\# \\< \\> \\% \\\" \\. \\::";
+  const char *Sources[] = {
+    "/// \\\\ \\@ \\& \\$ \\# \\< \\> \\% \\\" \\. \\::",
+    "/// @\\ @@ @& @$ @# @< @> @% @\" @. @::"
+  };
   const char *Text[] = {
     " ",
     "\\", " ", "@", " ", "&", " ", "$",  " ", "#", " ",
@@ -310,16 +312,18 @@ TEST_F(CommentLexerTest, DoxygenCommand4) {
     "::", ""
   };
 
-  std::vector<Token> Toks;
+  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+    std::vector<Token> Toks;
 
-  lexString(Source, Toks);
+    lexString(Sources[i], Toks);
 
-  ASSERT_EQ(array_lengthof(Text), Toks.size());
+    ASSERT_EQ(array_lengthof(Text), Toks.size());
 
-  for (size_t i = 0, e = Toks.size(); i != e; i++) {
-    if(Toks[i].is(tok::text))
-      ASSERT_EQ(StringRef(Text[i]), Toks[i].getText())
-        << "index " << i;
+    for (size_t j = 0, e = Toks.size(); j != e; j++) {
+      if(Toks[j].is(tok::text))
+        ASSERT_EQ(StringRef(Text[j]), Toks[j].getText())
+          << "index " << i;
+    }
   }
 }
 
@@ -362,7 +366,7 @@ TEST_F(CommentLexerTest, DoxygenCommand6) {
   ASSERT_EQ(tok::text,          Toks[0].getKind());
   ASSERT_EQ(StringRef(" "),     Toks[0].getText());
 
-  ASSERT_EQ(tok::command,       Toks[1].getKind());
+  ASSERT_EQ(tok::backslash_command, Toks[1].getKind());
   ASSERT_EQ(StringRef("brief"), getCommandName(Toks[1]));
 
   ASSERT_EQ(tok::text,          Toks[2].getKind());
@@ -382,28 +386,60 @@ TEST_F(CommentLexerTest, DoxygenCommand7) {
   ASSERT_EQ(tok::text,       Toks[0].getKind());
   ASSERT_EQ(StringRef(" "),  Toks[0].getText());
 
-  ASSERT_EQ(tok::command,    Toks[1].getKind());
+  ASSERT_EQ(tok::backslash_command, Toks[1].getKind());
   ASSERT_EQ(StringRef("em"), getCommandName(Toks[1]));
 
-  ASSERT_EQ(tok::command,    Toks[2].getKind());
+  ASSERT_EQ(tok::backslash_command, Toks[2].getKind());
   ASSERT_EQ(StringRef("em"), getCommandName(Toks[2]));
 
   ASSERT_EQ(tok::text,       Toks[3].getKind());
   ASSERT_EQ(StringRef(" "),  Toks[3].getText());
 
-  ASSERT_EQ(tok::command,    Toks[4].getKind());
+  ASSERT_EQ(tok::backslash_command, Toks[4].getKind());
   ASSERT_EQ(StringRef("em"), getCommandName(Toks[4]));
 
   ASSERT_EQ(tok::text,       Toks[5].getKind());
   ASSERT_EQ(StringRef("\t"), Toks[5].getText());
 
-  ASSERT_EQ(tok::command,    Toks[6].getKind());
+  ASSERT_EQ(tok::backslash_command, Toks[6].getKind());
   ASSERT_EQ(StringRef("em"), getCommandName(Toks[6]));
 
   ASSERT_EQ(tok::newline,    Toks[7].getKind());
 }
 
 TEST_F(CommentLexerTest, DoxygenCommand8) {
+  const char *Source = "/// @em@em @em\t@em\n";
+  std::vector<Token> Toks;
+
+  lexString(Source, Toks);
+
+  ASSERT_EQ(8U, Toks.size());
+
+  ASSERT_EQ(tok::text,       Toks[0].getKind());
+  ASSERT_EQ(StringRef(" "),  Toks[0].getText());
+
+  ASSERT_EQ(tok::at_command, Toks[1].getKind());
+  ASSERT_EQ(StringRef("em"), getCommandName(Toks[1]));
+
+  ASSERT_EQ(tok::at_command, Toks[2].getKind());
+  ASSERT_EQ(StringRef("em"), getCommandName(Toks[2]));
+
+  ASSERT_EQ(tok::text,       Toks[3].getKind());
+  ASSERT_EQ(StringRef(" "),  Toks[3].getText());
+
+  ASSERT_EQ(tok::at_command, Toks[4].getKind());
+  ASSERT_EQ(StringRef("em"), getCommandName(Toks[4]));
+
+  ASSERT_EQ(tok::text,       Toks[5].getKind());
+  ASSERT_EQ(StringRef("\t"), Toks[5].getText());
+
+  ASSERT_EQ(tok::at_command, Toks[6].getKind());
+  ASSERT_EQ(StringRef("em"), getCommandName(Toks[6]));
+
+  ASSERT_EQ(tok::newline,    Toks[7].getKind());
+}
+
+TEST_F(CommentLexerTest, DoxygenCommand9) {
   const char *Source = "/// \\aaa\\bbb \\ccc\t\\ddd\n";
   std::vector<Token> Toks;
 
@@ -435,7 +471,7 @@ TEST_F(CommentLexerTest, DoxygenCommand8) {
   ASSERT_EQ(tok::newline,     Toks[7].getKind());
 }
 
-TEST_F(CommentLexerTest, DoxygenCommand9) {
+TEST_F(CommentLexerTest, DoxygenCommand10) {
   const char *Source = "// \\c\n";
   std::vector<Token> Toks;
 
@@ -446,10 +482,93 @@ TEST_F(CommentLexerTest, DoxygenCommand9) {
   ASSERT_EQ(tok::text,      Toks[0].getKind());
   ASSERT_EQ(StringRef(" "), Toks[0].getText());
 
-  ASSERT_EQ(tok::command,   Toks[1].getKind());
+  ASSERT_EQ(tok::backslash_command, Toks[1].getKind());
   ASSERT_EQ(StringRef("c"), getCommandName(Toks[1]));
 
   ASSERT_EQ(tok::newline,   Toks[2].getKind());
+}
+
+TEST_F(CommentLexerTest, RegisterCustomBlockCommand) {
+  const char *Source =
+    "/// \\NewBlockCommand Aaa.\n"
+    "/// @NewBlockCommand Aaa.\n";
+
+  Traits.registerBlockCommand(StringRef("NewBlockCommand"));
+
+  std::vector<Token> Toks;
+
+  lexString(Source, Toks);
+
+  ASSERT_EQ(8U, Toks.size());
+
+  ASSERT_EQ(tok::text,          Toks[0].getKind());
+  ASSERT_EQ(StringRef(" "),     Toks[0].getText());
+
+  ASSERT_EQ(tok::backslash_command, Toks[1].getKind());
+  ASSERT_EQ(StringRef("NewBlockCommand"), getCommandName(Toks[1]));
+
+  ASSERT_EQ(tok::text,          Toks[2].getKind());
+  ASSERT_EQ(StringRef(" Aaa."), Toks[2].getText());
+
+  ASSERT_EQ(tok::newline,       Toks[3].getKind());
+
+  ASSERT_EQ(tok::text,          Toks[4].getKind());
+  ASSERT_EQ(StringRef(" "),     Toks[4].getText());
+
+  ASSERT_EQ(tok::at_command,    Toks[5].getKind());
+  ASSERT_EQ(StringRef("NewBlockCommand"), getCommandName(Toks[5]));
+
+  ASSERT_EQ(tok::text,          Toks[6].getKind());
+  ASSERT_EQ(StringRef(" Aaa."), Toks[6].getText());
+
+  ASSERT_EQ(tok::newline,       Toks[7].getKind());
+}
+
+TEST_F(CommentLexerTest, RegisterMultipleBlockCommands) {
+  const char *Source =
+    "/// \\Foo\n"
+    "/// \\Bar Baz\n"
+    "/// \\Blech quux=corge\n";
+
+  Traits.registerBlockCommand(StringRef("Foo"));
+  Traits.registerBlockCommand(StringRef("Bar"));
+  Traits.registerBlockCommand(StringRef("Blech"));
+
+  std::vector<Token> Toks;
+
+  lexString(Source, Toks);
+
+  ASSERT_EQ(11U, Toks.size());
+
+  ASSERT_EQ(tok::text,      Toks[0].getKind());
+  ASSERT_EQ(StringRef(" "), Toks[0].getText());
+
+  ASSERT_EQ(tok::backslash_command, Toks[1].getKind());
+  ASSERT_EQ(StringRef("Foo"), getCommandName(Toks[1]));
+
+  ASSERT_EQ(tok::newline,     Toks[2].getKind());
+
+  ASSERT_EQ(tok::text,      Toks[3].getKind());
+  ASSERT_EQ(StringRef(" "), Toks[3].getText());
+
+  ASSERT_EQ(tok::backslash_command, Toks[4].getKind());
+  ASSERT_EQ(StringRef("Bar"), getCommandName(Toks[4]));
+
+  ASSERT_EQ(tok::text,         Toks[5].getKind());
+  ASSERT_EQ(StringRef(" Baz"), Toks[5].getText());
+
+  ASSERT_EQ(tok::newline,     Toks[6].getKind());
+
+  ASSERT_EQ(tok::text,      Toks[7].getKind());
+  ASSERT_EQ(StringRef(" "), Toks[7].getText());
+
+  ASSERT_EQ(tok::backslash_command, Toks[8].getKind());
+  ASSERT_EQ(StringRef("Blech"), getCommandName(Toks[8]));
+
+  ASSERT_EQ(tok::text,                Toks[9].getKind());
+  ASSERT_EQ(StringRef(" quux=corge"), Toks[9].getText());
+
+  ASSERT_EQ(tok::newline,     Toks[10].getKind());
 }
 
 // Empty verbatim block.
@@ -1662,7 +1781,8 @@ TEST_F(CommentLexerTest, HTMLCharacterReferences16) {
   const char *Sources[] = {
     "// &#61;",
     "// &#x3d;",
-    "// &#X3d;"
+    "// &#X3d;",
+    "// &#X3D;"
   };
 
   for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {

@@ -11,19 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
-#include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 namespace {
@@ -647,6 +647,9 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
   case CC_PnaclCall:
     OS << " __attribute__((pnaclcall))";
     break;
+  case CC_IntelOclBicc:
+    OS << " __attribute__((intel_ocl_bicc))";
+    break;
   }
   if (Info.getNoReturn())
     OS << " __attribute__((noreturn))";
@@ -1168,6 +1171,7 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
    break;
   }
   case AttributedType::attr_pnaclcall: OS << "pnaclcall"; break;
+  case AttributedType::attr_inteloclbicc: OS << "inteloclbicc"; break;
   }
   OS << "))";
 }
@@ -1344,132 +1348,6 @@ PrintTemplateArgumentList(raw_ostream &OS,
   OS << '>';
 }
 
-void 
-FunctionProtoType::printExceptionSpecification(std::string &S, 
-                                               const PrintingPolicy &Policy)
-                                                                         const {
-  
-  if (hasDynamicExceptionSpec()) {
-    S += " throw(";
-    if (getExceptionSpecType() == EST_MSAny)
-      S += "...";
-    else
-      for (unsigned I = 0, N = getNumExceptions(); I != N; ++I) {
-        if (I)
-          S += ", ";
-        
-        S += getExceptionType(I).getAsString(Policy);
-      }
-    S += ")";
-  } else if (isNoexceptExceptionSpec(getExceptionSpecType())) {
-    S += " noexcept";
-    if (getExceptionSpecType() == EST_ComputedNoexcept) {
-      S += "(";
-      llvm::raw_string_ostream EOut(S);
-      getNoexceptExpr()->printPretty(EOut, 0, Policy);
-      EOut.flush();
-      S += EOut.str();
-      S += ")";
-    }
-  }
-}
-
-std::string TemplateSpecializationType::
-  PrintTemplateArgumentList(const TemplateArgumentListInfo &Args,
-                            const PrintingPolicy &Policy) {
-  return PrintTemplateArgumentList(Args.getArgumentArray(),
-                                   Args.size(),
-                                   Policy);
-}
-
-std::string
-TemplateSpecializationType::PrintTemplateArgumentList(
-                                                const TemplateArgument *Args,
-                                                unsigned NumArgs,
-                                                  const PrintingPolicy &Policy,
-                                                      bool SkipBrackets) {
-  std::string SpecString;
-  if (!SkipBrackets)
-    SpecString += '<';
-  
-  for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    if (SpecString.size() > unsigned(!SkipBrackets))
-      SpecString += ", ";
-    
-    // Print the argument into a string.
-    std::string ArgString;
-    if (Args[Arg].getKind() == TemplateArgument::Pack) {
-      ArgString = PrintTemplateArgumentList(Args[Arg].pack_begin(), 
-                                            Args[Arg].pack_size(), 
-                                            Policy, true);
-    } else {
-      llvm::raw_string_ostream ArgOut(ArgString);
-      Args[Arg].print(Policy, ArgOut);
-    }
-   
-    // If this is the first argument and its string representation
-    // begins with the global scope specifier ('::foo'), add a space
-    // to avoid printing the diagraph '<:'.
-    if (!Arg && !ArgString.empty() && ArgString[0] == ':')
-      SpecString += ' ';
-    
-    SpecString += ArgString;
-  }
-  
-  // If the last character of our string is '>', add another space to
-  // keep the two '>''s separate tokens. We don't *have* to do this in
-  // C++0x, but it's still good hygiene.
-  if (!SpecString.empty() && SpecString[SpecString.size() - 1] == '>')
-    SpecString += ' ';
-  
-  if (!SkipBrackets)
-    SpecString += '>';
-  
-  return SpecString;
-}
-
-// Sadly, repeat all that with TemplateArgLoc.
-std::string TemplateSpecializationType::
-PrintTemplateArgumentList(const TemplateArgumentLoc *Args, unsigned NumArgs,
-                          const PrintingPolicy &Policy) {
-  std::string SpecString;
-  SpecString += '<';
-  for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    if (SpecString.size() > 1)
-      SpecString += ", ";
-    
-    // Print the argument into a string.
-    std::string ArgString;
-    if (Args[Arg].getArgument().getKind() == TemplateArgument::Pack) {
-      ArgString = PrintTemplateArgumentList(
-                                           Args[Arg].getArgument().pack_begin(), 
-                                            Args[Arg].getArgument().pack_size(), 
-                                            Policy, true);
-    } else {
-      llvm::raw_string_ostream ArgOut(ArgString);
-      Args[Arg].getArgument().print(Policy, ArgOut);
-    }
-    
-    // If this is the first argument and its string representation
-    // begins with the global scope specifier ('::foo'), add a space
-    // to avoid printing the diagraph '<:'.
-    if (!Arg && !ArgString.empty() && ArgString[0] == ':')
-      SpecString += ' ';
-    
-    SpecString += ArgString;
-  }
-  
-  // If the last character of our string is '>', add another space to
-  // keep the two '>''s separate tokens. We don't *have* to do this in
-  // C++0x, but it's still good hygiene.
-  if (SpecString[SpecString.size() - 1] == '>')
-    SpecString += ' ';
-  
-  SpecString += '>';
-  
-  return SpecString;
-}
-
 void QualType::dump(const char *msg) const {
   if (msg)
     llvm::errs() << msg << ": ";
@@ -1599,11 +1477,7 @@ void QualType::print(const Type *ty, Qualifiers qs,
                      raw_ostream &OS, const PrintingPolicy &policy,
                      const Twine &PlaceHolder) {
   SmallString<128> PHBuf;
-  StringRef PH;
-  if (PlaceHolder.isSingleStringRef())
-    PH = PlaceHolder.getSingleStringRef();
-  else
-    PH = PlaceHolder.toStringRef(PHBuf);
+  StringRef PH = PlaceHolder.toStringRef(PHBuf);
 
   TypePrinter(policy).print(ty, qs, OS, PH);
 }

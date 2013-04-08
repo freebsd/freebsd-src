@@ -7,7 +7,6 @@ add_clang_library(clangStaticAnalyzerCheckers
   AnalyzerStatsChecker.cpp
   ArrayBoundChecker.cpp
   ArrayBoundCheckerV2.cpp
-  AttrNonNullChecker.cpp
   BasicObjCFoundationChecks.cpp
   BoolAssignmentChecker.cpp
   BuiltinFunctionChecker.cpp
@@ -31,7 +30,6 @@ add_clang_library(clangStaticAnalyzerCheckers
   DivZeroChecker.cpp
   DynamicTypePropagation.cpp
   ExprInspectionChecker.cpp
-  SimpleStreamChecker.cpp
   FixedAddressChecker.cpp
   GenericTaintChecker.cpp
   IdempotentOperationChecker.cpp
@@ -44,6 +42,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   MallocSizeofChecker.cpp
   NSAutoreleasePoolChecker.cpp
   NSErrorChecker.cpp
+  NonNullParamChecker.cpp
   NoReturnFunctionChecker.cpp
   ObjCAtSyncChecker.cpp
   ObjCContainersASTChecker.cpp
@@ -57,6 +56,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   RetainCountChecker.cpp
   ReturnPointerRangeChecker.cpp
   ReturnUndefChecker.cpp
+  SimpleStreamChecker.cpp
   StackAddrEscapeChecker.cpp
   StreamChecker.cpp
   TaintTesterChecker.cpp

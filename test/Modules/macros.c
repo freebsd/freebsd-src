@@ -1,22 +1,22 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodule-cache-path %t -fmodule-name=macros_top %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodule-cache-path %t -fmodule-name=macros_left %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodule-cache-path %t -fmodule-name=macros_right %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodule-cache-path %t -fmodule-name=macros %S/Inputs/module.map
-// RUN: %clang_cc1 -fmodules -x objective-c -verify -fmodule-cache-path %t %s
-// RUN: %clang_cc1 -E -fmodules -x objective-c -fmodule-cache-path %t %s | FileCheck -check-prefix CHECK-PREPROCESSED %s
+// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodules-cache-path=%t -fmodule-name=macros_top %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodules-cache-path=%t -fmodule-name=macros_left %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodules-cache-path=%t -fmodule-name=macros_right %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -x objective-c -emit-module -fmodules-cache-path=%t -fmodule-name=macros %S/Inputs/module.map
+// RUN: %clang_cc1 -fmodules -x objective-c -verify -fmodules-cache-path=%t %s
+// RUN: %clang_cc1 -E -fmodules -x objective-c -fmodules-cache-path=%t %s | FileCheck -check-prefix CHECK-PREPROCESSED %s
 // FIXME: When we have a syntax for modules in C, use that.
 // These notes come from headers in modules, and are bogus.
 
 // FIXME: expected-note{{previous definition is here}}
+// FIXME: expected-note{{previous definition is here}} expected-note{{expanding this definition of 'LEFT_RIGHT_DIFFERENT'}}
+// expected-note{{other definition of 'TOP_RIGHT_REDEF'}} expected-note{{expanding this definition of 'LEFT_RIGHT_DIFFERENT2'}}
 // expected-note{{other definition of 'LEFT_RIGHT_DIFFERENT'}}
+
+
 // expected-note{{expanding this definition of 'TOP_RIGHT_REDEF'}}
-// FIXME: expected-note{{previous definition is here}} \
-// expected-note{{expanding this definition of 'LEFT_RIGHT_DIFFERENT'}}
 
-// expected-note{{other definition of 'TOP_RIGHT_REDEF'}}
-
-@__experimental_modules_import macros;
+@import macros;
 
 #ifndef INTEGER
 #  error INTEGER macro should be visible
@@ -65,7 +65,7 @@ void f() {
 #endif
 
 // Import left module (which also imports top)
-@__experimental_modules_import macros_left;
+@import macros_left;
 
 #ifndef LEFT
 #  error LEFT should be visible
@@ -79,8 +79,8 @@ void f() {
 #  error TOP should be visible
 #endif
 
-#ifdef TOP_LEFT_UNDEF
-#  error TOP_LEFT_UNDEF should not be visible
+#ifndef TOP_LEFT_UNDEF
+#  error TOP_LEFT_UNDEF should still be defined
 #endif
 
 void test1() {
@@ -88,10 +88,11 @@ void test1() {
   TOP_RIGHT_REDEF *ip = &i;
 }
 
-#define LEFT_RIGHT_DIFFERENT2 double // FIXME: expected-warning{{'LEFT_RIGHT_DIFFERENT2' macro redefined}}
+#define LEFT_RIGHT_DIFFERENT2 double // FIXME: expected-warning{{'LEFT_RIGHT_DIFFERENT2' macro redefined}} \
+                                     // expected-note{{other definition of 'LEFT_RIGHT_DIFFERENT2'}}
 
 // Import right module (which also imports top)
-@__experimental_modules_import macros_right;
+@import macros_right;
 
 #undef LEFT_RIGHT_DIFFERENT3
 
@@ -111,11 +112,11 @@ void test2() {
   int i;
   float f;
   double d;
-  TOP_RIGHT_REDEF *ip = &i; // expected-warning{{ambiguous expansion of macro 'TOP_RIGHT_REDEF'}}
+  TOP_RIGHT_REDEF *fp = &f; // expected-warning{{ambiguous expansion of macro 'TOP_RIGHT_REDEF'}}
   
-  LEFT_RIGHT_IDENTICAL *ip2 = &i;
-  LEFT_RIGHT_DIFFERENT *fp = &f; // expected-warning{{ambiguous expansion of macro 'LEFT_RIGHT_DIFFERENT'}}
-  LEFT_RIGHT_DIFFERENT2 *dp = &d;
+  LEFT_RIGHT_IDENTICAL *ip = &i;
+  LEFT_RIGHT_DIFFERENT *ip2 = &i; // expected-warning{{ambiguous expansion of macro 'LEFT_RIGHT_DIFFERENT'}}
+  LEFT_RIGHT_DIFFERENT2 *ip3 = &i; // expected-warning{{ambiguous expansion of macro 'LEFT_RIGHT_DIFFERENT2}}
   int LEFT_RIGHT_DIFFERENT3;
 }
 
@@ -124,14 +125,15 @@ void test2() {
 void test3() {
   double d;
   LEFT_RIGHT_DIFFERENT *dp = &d; // okay
+  int x = FN_ADD(1,2);
 }
 
 #ifndef TOP_RIGHT_UNDEF
 #  error TOP_RIGHT_UNDEF should still be defined
 #endif
 
-@__experimental_modules_import macros_right.undef;
+@import macros_right.undef;
 
-#ifdef TOP_RIGHT_UNDEF
-# error TOP_RIGHT_UNDEF should not be defined
+#ifndef TOP_RIGHT_UNDEF
+# error TOP_RIGHT_UNDEF should still be defined
 #endif

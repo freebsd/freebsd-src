@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.cocoa.RetainCount,alpha.core -analyzer-store=region -analyzer-constraints=range -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.cocoa.RetainCount,alpha.core -analyzer-store=region -analyzer-constraints=range -analyzer-config mode=shallow -verify -Wno-objc-root-class %s
 // RUN: %clang_cc1 -DTEST_64 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.cocoa.NilArg,osx.cocoa.RetainCount,alpha.core -analyzer-store=region -analyzer-constraints=range -verify -Wno-objc-root-class %s
 
 
@@ -404,3 +405,27 @@ void testOSCompareAndSwapXXBarrier_parameter_no_direct_release(NSString **old) {
   else    
     return;
 }
+
+@interface AlwaysInlineBodyFarmBodies : NSObject {
+  NSString *_value;
+}
+  - (NSString *)_value;
+  - (void)callValue;
+@end
+
+@implementation AlwaysInlineBodyFarmBodies
+
+- (NSString *)_value {
+  if (!_value) {
+    NSString *s = [[NSString alloc] init];
+    if (!OSAtomicCompareAndSwapPtr(0, s, (void**)&_value)) {
+      [s release];
+    }
+  }
+  return _value;
+}
+
+- (void)callValue {
+  [self _value];
+}
+@end

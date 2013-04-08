@@ -81,3 +81,59 @@ struct test9
         E a = A;
     }
 };
+
+namespace test10 {
+  namespace M {
+    template<typename T>
+    struct X {
+      enum { value };
+    };
+  }
+}
+
+typedef int INT;
+
+// CHECK: test11
+// CHECK-NEXT: return test10::M::X<INT>::value;
+int test11() {
+  return test10::M::X<INT>::value;
+}
+
+
+struct DefaultArgClass
+{
+  DefaultArgClass(int a = 1) {}
+};
+
+struct NoArgClass
+{
+  NoArgClass() {}
+};
+
+struct VirualDestrClass
+{
+  VirualDestrClass(int arg);
+  virtual ~VirualDestrClass();
+};
+
+struct ConstrWithCleanupsClass
+{
+  ConstrWithCleanupsClass(const VirualDestrClass& cplx = VirualDestrClass(42));
+};
+
+// CHECK: test12
+// CHECK-NEXT: DefaultArgClass useDefaultArg;
+// CHECK-NEXT: DefaultArgClass overrideDefaultArg(1);
+// CHECK-NEXT: NoArgClass noArg;
+// CHECK-NEXT: ConstrWithCleanupsClass cwcNoArg;
+// CHECK-NEXT: ConstrWithCleanupsClass cwcOverrideArg(48);
+// CHECK-NEXT: ConstrWithCleanupsClass cwcExplicitArg(VirualDestrClass(56));
+void test12() {
+  DefaultArgClass useDefaultArg;
+  DefaultArgClass overrideDefaultArg(1);
+  NoArgClass noArg;
+  ConstrWithCleanupsClass cwcNoArg;
+  ConstrWithCleanupsClass cwcOverrideArg(48);
+  ConstrWithCleanupsClass cwcExplicitArg(VirualDestrClass(56));
+}
+

@@ -14,7 +14,10 @@
 
 #define c(x) x(0)
 
-p // expected-warning {{recursive macro}}
+#define y(x) y
+#define z(x) (z)(x)
+
+p // no warning
 
 a // expected-warning {{recursive macro}}
 
@@ -25,3 +28,8 @@ g(3) // expected-warning {{recursive macro}}
 h(0) // expected-warning {{recursive macro}}
 
 c(c) // expected-warning {{recursive macro}}
+
+y(5) // expected-warning {{recursive macro}}
+
+z(z) // ok
+

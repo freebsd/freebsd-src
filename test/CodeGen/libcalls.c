@@ -24,9 +24,9 @@ void test_sqrt(float a0, double a1, long double a2) {
 // CHECK-YES: declare float @sqrtf(float)
 // CHECK-YES: declare double @sqrt(double)
 // CHECK-YES: declare x86_fp80 @sqrtl(x86_fp80)
-// CHECK-NO: declare float @sqrtf(float) nounwind readnone
-// CHECK-NO: declare double @sqrt(double) nounwind readnone
-// CHECK-NO: declare x86_fp80 @sqrtl(x86_fp80) nounwind readnone
+// CHECK-NO: declare float @sqrtf(float) [[NUW_RN:#[0-9]+]]
+// CHECK-NO: declare double @sqrt(double) [[NUW_RN]]
+// CHECK-NO: declare x86_fp80 @sqrtl(x86_fp80) [[NUW_RN]]
 
 // CHECK-YES: define void @test_pow
 // CHECK-NO: define void @test_pow
@@ -47,9 +47,9 @@ void test_pow(float a0, double a1, long double a2) {
 // CHECK-YES: declare float @powf(float, float)
 // CHECK-YES: declare double @pow(double, double)
 // CHECK-YES: declare x86_fp80 @powl(x86_fp80, x86_fp80)
-// CHECK-NO: declare float @llvm.pow.f32(float, float) nounwind readonly
-// CHECK-NO: declare double @llvm.pow.f64(double, double) nounwind readonly
-// CHECK-NO: declare x86_fp80 @llvm.pow.f80(x86_fp80, x86_fp80) nounwind readonly
+// CHECK-NO: declare float @llvm.pow.f32(float, float) [[NUW_RO:#[0-9]+]]
+// CHECK-NO: declare double @llvm.pow.f64(double, double) [[NUW_RO]]
+// CHECK-NO: declare x86_fp80 @llvm.pow.f80(x86_fp80, x86_fp80) [[NUW_RO]]
 
 // CHECK-YES: define void @test_fma
 // CHECK-NO: define void @test_fma
@@ -67,12 +67,12 @@ void test_fma(float a0, double a1, long double a2) {
     long double l2 = fmal(a2, a2, a2);
 }
 
-// CHECK-YES: declare float @llvm.fma.f32(float, float, float) nounwind readnone
-// CHECK-YES: declare double @llvm.fma.f64(double, double, double) nounwind readnone
-// CHECK-YES: declare x86_fp80 @llvm.fma.f80(x86_fp80, x86_fp80, x86_fp80) nounwind readnone
-// CHECK-NO: declare float @llvm.fma.f32(float, float, float) nounwind readnone
-// CHECK-NO: declare double @llvm.fma.f64(double, double, double) nounwind readnone
-// CHECK-NO: declare x86_fp80 @llvm.fma.f80(x86_fp80, x86_fp80, x86_fp80) nounwind readnone
+// CHECK-YES: declare float @llvm.fma.f32(float, float, float) [[NUW_RN:#[0-9]+]]
+// CHECK-YES: declare double @llvm.fma.f64(double, double, double) [[NUW_RN]]
+// CHECK-YES: declare x86_fp80 @llvm.fma.f80(x86_fp80, x86_fp80, x86_fp80) [[NUW_RN]]
+// CHECK-NO: declare float @llvm.fma.f32(float, float, float) [[NUW_RN2:#[0-9]+]]
+// CHECK-NO: declare double @llvm.fma.f64(double, double, double) [[NUW_RN2]]
+// CHECK-NO: declare x86_fp80 @llvm.fma.f80(x86_fp80, x86_fp80, x86_fp80) [[NUW_RN2]]
 
 // Just checking to make sure these library functions are marked readnone
 void test_builtins(double d, float f, long double ld) {
@@ -81,40 +81,45 @@ void test_builtins(double d, float f, long double ld) {
   double atan_ = atan(d);
   long double atanl_ = atanl(ld);
   float atanf_ = atanf(f);
-// CHECK-NO: declare double @atan(double) nounwind readnone
-// CHECK-NO: declare x86_fp80 @atanl(x86_fp80) nounwind readnone
-// CHECK-NO: declare float @atanf(float) nounwind readnone
-// CHECK-YES-NOT: declare double @atan(double) nounwind readnone
-// CHECK-YES-NOT: declare x86_fp80 @atanl(x86_fp80) nounwind readnone
-// CHECK-YES-NOT: declare float @atanf(float) nounwind readnone
+// CHECK-NO: declare double @atan(double) [[NUW_RN]]
+// CHECK-NO: declare x86_fp80 @atanl(x86_fp80) [[NUW_RN]]
+// CHECK-NO: declare float @atanf(float) [[NUW_RN]]
+// CHECK-YES-NOT: declare double @atan(double) [[NUW_RN]]
+// CHECK-YES-NOT: declare x86_fp80 @atanl(x86_fp80) [[NUW_RN]]
+// CHECK-YES-NOT: declare float @atanf(float) [[NUW_RN]]
 
   double atan2_ = atan2(d, 2);
   long double atan2l_ = atan2l(ld, ld);
   float atan2f_ = atan2f(f, f);
-// CHECK-NO: declare double @atan2(double, double) nounwind readnone
-// CHECK-NO: declare x86_fp80 @atan2l(x86_fp80, x86_fp80) nounwind readnone
-// CHECK-NO: declare float @atan2f(float, float) nounwind readnone
-// CHECK-YES-NOT: declare double @atan2(double, double) nounwind readnone
-// CHECK-YES-NOT: declare x86_fp80 @atan2l(x86_fp80, x86_fp80) nounwind readnone
-// CHECK-YES-NOT: declare float @atan2f(float, float) nounwind readnone
+// CHECK-NO: declare double @atan2(double, double) [[NUW_RN]]
+// CHECK-NO: declare x86_fp80 @atan2l(x86_fp80, x86_fp80) [[NUW_RN]]
+// CHECK-NO: declare float @atan2f(float, float) [[NUW_RN]]
+// CHECK-YES-NOT: declare double @atan2(double, double) [[NUW_RN]]
+// CHECK-YES-NOT: declare x86_fp80 @atan2l(x86_fp80, x86_fp80) [[NUW_RN]]
+// CHECK-YES-NOT: declare float @atan2f(float, float) [[NUW_RN]]
 
   double exp_ = exp(d);
   long double expl_ = expl(ld);
   float expf_ = expf(f);
-// CHECK-NO: declare double @exp(double) nounwind readnone
-// CHECK-NO: declare x86_fp80 @expl(x86_fp80) nounwind readnone
-// CHECK-NO: declare float @expf(float) nounwind readnone
-// CHECK-YES-NOT: declare double @exp(double) nounwind readnone
-// CHECK-YES-NOT: declare x86_fp80 @expl(x86_fp80) nounwind readnone
-// CHECK-YES-NOT: declare float @expf(float) nounwind readnone
+// CHECK-NO: declare double @exp(double) [[NUW_RN]]
+// CHECK-NO: declare x86_fp80 @expl(x86_fp80) [[NUW_RN]]
+// CHECK-NO: declare float @expf(float) [[NUW_RN]]
+// CHECK-YES-NOT: declare double @exp(double) [[NUW_RN]]
+// CHECK-YES-NOT: declare x86_fp80 @expl(x86_fp80) [[NUW_RN]]
+// CHECK-YES-NOT: declare float @expf(float) [[NUW_RN]]
 
   double log_ = log(d);
   long double logl_ = logl(ld);
   float logf_ = logf(f);
-// CHECK-NO: declare double @log(double) nounwind readnone
-// CHECK-NO: declare x86_fp80 @logl(x86_fp80) nounwind readnone
-// CHECK-NO: declare float @logf(float) nounwind readnone
-// CHECK-YES-NOT: declare double @log(double) nounwind readnone
-// CHECK-YES-NOT: declare x86_fp80 @logl(x86_fp80) nounwind readnone
-// CHECK-YES-NOT: declare float @logf(float) nounwind readnone
+// CHECK-NO: declare double @log(double) [[NUW_RN]]
+// CHECK-NO: declare x86_fp80 @logl(x86_fp80) [[NUW_RN]]
+// CHECK-NO: declare float @logf(float) [[NUW_RN]]
+// CHECK-YES-NOT: declare double @log(double) [[NUW_RN]]
+// CHECK-YES-NOT: declare x86_fp80 @logl(x86_fp80) [[NUW_RN]]
+// CHECK-YES-NOT: declare float @logf(float) [[NUW_RN]]
 }
+
+// CHECK-YES: attributes [[NUW_RN]] = { nounwind readnone }
+
+// CHECK-NO: attributes [[NUW_RN]] = { nounwind readnone{{.*}} }
+// CHECK-NO: attributes [[NUW_RO]] = { nounwind readonly }

@@ -27,7 +27,6 @@
 
 using namespace clang;
 using namespace clang::cxloc;
-using namespace clang::cxstring;
 using namespace clang::cxdiag;
 using namespace llvm;
 
@@ -62,17 +61,17 @@ public:
   }
   
   CXString getSpelling() const {
-    return createCXString(StringRef(Message), false);
+    return cxstring::createRef(Message.c_str());
   }
   
   CXString getDiagnosticOption(CXString *Disable) const {
     if (Disable)
-      *Disable = createCXString("", false);    
-    return createCXString("", false);
+      *Disable = cxstring::createEmpty();
+    return cxstring::createEmpty();
   }
   
   unsigned getCategory() const { return 0; }
-  CXString getCategoryText() const { return createCXString(""); }
+  CXString getCategoryText() const { return cxstring::createEmpty(); }
 
   unsigned getNumRanges() const { return 0; }
   CXSourceRange getRange(unsigned Range) const { return clang_getNullRange(); }
@@ -80,7 +79,7 @@ public:
   CXString getFixIt(unsigned FixIt, CXSourceRange *ReplacementRange) const {
     if (ReplacementRange)
       *ReplacementRange = clang_getNullRange();
-    return createCXString("", false);
+    return cxstring::createEmpty();
   }
 };    
     
@@ -158,7 +157,7 @@ public:
 
 CXDiagnosticSetImpl *cxdiag::lazyCreateDiags(CXTranslationUnit TU,
                                              bool checkIfChanged) {
-  ASTUnit *AU = static_cast<ASTUnit *>(TU->TUData);
+  ASTUnit *AU = cxtu::getASTUnit(TU);
 
   if (TU->Diagnostics && checkIfChanged) {
     // In normal use, ASTUnit's diagnostics should not change unless we reparse.
@@ -191,7 +190,7 @@ CXDiagnosticSetImpl *cxdiag::lazyCreateDiags(CXTranslationUnit TU,
   if (!TU->Diagnostics) {
     CXDiagnosticSetImpl *Set = new CXDiagnosticSetImpl();
     TU->Diagnostics = Set;
-    llvm::IntrusiveRefCntPtr<DiagnosticOptions> DOpts = new DiagnosticOptions;
+    IntrusiveRefCntPtr<DiagnosticOptions> DOpts = new DiagnosticOptions;
     CXDiagnosticRenderer Renderer(AU->getASTContext().getLangOpts(),
                                   &*DOpts, Set);
     
@@ -209,7 +208,7 @@ CXDiagnosticSetImpl *cxdiag::lazyCreateDiags(CXTranslationUnit TU,
 extern "C" {
 
 unsigned clang_getNumDiagnostics(CXTranslationUnit Unit) {
-  if (!Unit->TUData)
+  if (!cxtu::getASTUnit(Unit))
     return 0;
   return lazyCreateDiags(Unit, /*checkIfChanged=*/true)->getNumDiagnostics();
 }
@@ -227,7 +226,7 @@ CXDiagnostic clang_getDiagnostic(CXTranslationUnit Unit, unsigned Index) {
 }
   
 CXDiagnosticSet clang_getDiagnosticSetFromTU(CXTranslationUnit Unit) {
-  if (!Unit->TUData)
+  if (!cxtu::getASTUnit(Unit))
     return 0;
   return static_cast<CXDiagnostic>(lazyCreateDiags(Unit));
 }
@@ -239,7 +238,7 @@ void clang_disposeDiagnostic(CXDiagnostic Diagnostic) {
 
 CXString clang_formatDiagnostic(CXDiagnostic Diagnostic, unsigned Options) {
   if (!Diagnostic)
-    return createCXString("");
+    return cxstring::createEmpty();
 
   CXDiagnosticSeverity Severity = clang_getDiagnosticSeverity(Diagnostic);
 
@@ -354,7 +353,7 @@ CXString clang_formatDiagnostic(CXDiagnostic Diagnostic, unsigned Options) {
       Out << "]";
   }
   
-  return createCXString(Out.str(), true);
+  return cxstring::createDup(Out.str());
 }
 
 unsigned clang_defaultDiagnosticDisplayOptions() {
@@ -377,17 +376,17 @@ CXSourceLocation clang_getDiagnosticLocation(CXDiagnostic Diag) {
 CXString clang_getDiagnosticSpelling(CXDiagnostic Diag) {
   if (CXDiagnosticImpl *D = static_cast<CXDiagnosticImpl *>(Diag))
     return D->getSpelling();
-  return createCXString("");
+  return cxstring::createEmpty();
 }
 
 CXString clang_getDiagnosticOption(CXDiagnostic Diag, CXString *Disable) {
   if (Disable)
-    *Disable = createCXString("");
+    *Disable = cxstring::createEmpty();
 
   if (CXDiagnosticImpl *D = static_cast<CXDiagnosticImpl *>(Diag))
     return D->getDiagnosticOption(Disable);
 
-  return createCXString("");
+  return cxstring::createEmpty();
 }
 
 unsigned clang_getDiagnosticCategory(CXDiagnostic Diag) {
@@ -398,13 +397,13 @@ unsigned clang_getDiagnosticCategory(CXDiagnostic Diag) {
   
 CXString clang_getDiagnosticCategoryName(unsigned Category) {
   // Kept for backwards compatibility.
-  return createCXString(DiagnosticIDs::getCategoryNameFromID(Category));
+  return cxstring::createRef(DiagnosticIDs::getCategoryNameFromID(Category));
 }
   
 CXString clang_getDiagnosticCategoryText(CXDiagnostic Diag) {
   if (CXDiagnosticImpl *D = static_cast<CXDiagnosticImpl *>(Diag))
     return D->getCategoryText();
-  return createCXString("");
+  return cxstring::createEmpty();
 }
   
 unsigned clang_getDiagnosticNumRanges(CXDiagnostic Diag) {
@@ -432,7 +431,7 @@ CXString clang_getDiagnosticFixIt(CXDiagnostic Diag, unsigned FixIt,
   if (!D || FixIt >= D->getNumFixIts()) {
     if (ReplacementRange)
       *ReplacementRange = clang_getNullRange();
-    return createCXString("");
+    return cxstring::createEmpty();
   }
   return D->getFixIt(FixIt, ReplacementRange);
 }

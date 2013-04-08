@@ -7,11 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Index_Internal.h"
 #include "CXCursor.h"
-
-#include "clang/AST/DeclObjC.h"
+#include "Index_Internal.h"
 #include "clang/AST/DeclGroup.h"
+#include "clang/AST/DeclObjC.h"
 #include "llvm/ADT/DenseSet.h"
 #include <deque>
 
@@ -89,6 +88,7 @@ struct DeclInfo : public CXIdxDeclInfo {
     attributes = 0;
     numAttributes = 0;
     declAsContainer = semanticContainer = lexicalContainer = 0;
+    flags = 0;
   }
   DeclInfo(DInfoKind K,
            bool isRedeclaration, bool isDefinition, bool isContainer)
@@ -99,6 +99,7 @@ struct DeclInfo : public CXIdxDeclInfo {
     attributes = 0;
     numAttributes = 0;
     declAsContainer = semanticContainer = lexicalContainer = 0;
+    flags = 0;
   }
 };
 
@@ -493,7 +494,7 @@ private:
   void getContainerInfo(const DeclContext *DC, ContainerInfo &ContInfo);
 
   CXCursor getCursor(const Decl *D) {
-    return cxcursor::MakeCXCursor(const_cast<Decl*>(D), CXTU);
+    return cxcursor::MakeCXCursor(D, CXTU);
   }
 
   CXCursor getRefCursor(const NamedDecl *D, SourceLocation Loc);

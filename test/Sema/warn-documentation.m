@@ -97,3 +97,77 @@ int b;
 /// \returns aaa.
 typedef int (^test_param1)(int aaa, int ccc);
 
+// rdar://13094352
+// expected-warning@+2 {{'@method' command should be used in a comment attached to an Objective-C method declaration}}
+@interface I
+/*!	@method Base64EncodeEx
+*/
+typedef id ID;
+- (unsigned) Base64EncodeEx : (ID)Arg;
+@end
+
+// rdar://12379114
+// expected-warning@+5 {{'@interface' command should not be used in a comment attached to a non-interface declaration}} 
+// expected-warning@+5 {{'@classdesign' command should not be used in a comment attached to a non-container declaration}}
+// expected-warning@+5 {{'@coclass' command should not be used in a comment attached to a non-container declaration}} 
+@interface NSObject @end
+/*!
+@interface IOCommandGate
+@classdesign Multiple paragraphs go here.
+@coclass myCoClass 
+*/
+
+typedef id OBJ;
+@interface IOCommandGate : NSObject {
+  OBJ iv;
+}
+@end
+
+// rdar://12379114
+// expected-warning@+4 {{'@methodgroup' command should be used in a comment attached to an Objective-C method declaration}}
+// expected-warning@+6 {{'@method' command should be used in a comment attached to an Objective-C method declaratio}}
+@interface rdar12379114
+/*!
+ @methodgroup Creating a request
+*/
+/*!
+ @method initWithTimeout is the 2nd method
+*/
+typedef unsigned int NSTimeInterval;
+- (id)initWithTimeout:(NSTimeInterval)timeout;
+@end
+
+// expected-warning@+2 {{'@protocol' command should not be used in a comment attached to a non-protocol declaration}}
+/*!
+@protocol PROTO
+*/
+struct S;
+
+/*!
+  @interface NSArray This is an array
+*/
+@class NSArray;
+@interface NSArray @end
+
+/*!
+@interface NSMutableArray 
+@super NSArray
+*/
+@interface NSMutableArray : NSArray @end
+
+/*!
+  @protocol MyProto
+*/
+@protocol MyProto @end
+
+// expected-warning@+2 {{'@protocol' command should not be used in a comment attached to a non-protocol declaration}}
+/*!
+ @protocol MyProto
+*/
+@interface INTF <MyProto> @end
+
+// expected-warning@+2 {{'@struct' command should not be used in a comment attached to a non-struct declaration}}
+/*!
+  @struct S1 THIS IS IT
+*/
+@interface S1 @end

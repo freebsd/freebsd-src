@@ -7,10 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/FileSystemStatCache.h"
-#include "clang/Basic/FileManager.h"
-
 #include "gtest/gtest.h"
 
 using namespace llvm;
@@ -52,7 +51,7 @@ public:
 
   // Implement FileSystemStatCache::getStat().
   virtual LookupResult getStat(const char *Path, struct stat &StatBuf,
-                               int *FileDescriptor) {
+                               bool isFile, int *FileDescriptor) {
     if (StatCalls.count(Path) != 0) {
       StatBuf = StatCalls[Path];
       return CacheExists;

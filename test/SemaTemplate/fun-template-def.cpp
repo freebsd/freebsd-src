@@ -46,3 +46,11 @@ T f1(T t1, U u1, int i1)
 
   return u1;
 }
+
+template<typename T>
+void f2(__restrict T x) {} // expected-note {{substitution failure [with T = int]: restrict requires a pointer or reference ('int' is invalid}}
+
+void f3() {
+  f2<int*>(0);
+  f2<int>(0); // expected-error {{no matching function for call to 'f2'}}
+}

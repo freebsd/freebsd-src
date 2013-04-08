@@ -181,3 +181,145 @@ namespace OverloadUse {
   template<void x(int)> void t(long*) { x(10); } // expected-note {{used here}}
   void g() { long a; t<f>(&a); }
 }
+
+namespace test7 {
+  typedef struct {
+    void bar();
+    void foo() {
+      bar();
+    }
+  } A;
+}
+
+namespace test8 {
+  typedef struct {
+    void bar(); // expected-warning {{function 'test8::<anonymous struct>::bar' has internal linkage but is not defined}}
+    void foo() {
+      bar(); // expected-note {{used here}}
+    }
+  } *A;
+}
+
+namespace test9 {
+  namespace {
+    struct X {
+      virtual void notused() = 0;
+      virtual void used() = 0; // expected-warning {{function 'test9::<anonymous namespace>::X::used' has internal linkage but is not defined}}
+    };
+  }
+  void test(X &x) {
+    x.notused();
+    x.X::used(); // expected-note {{used here}}
+  }
+}
+
+namespace test10 {
+  namespace {
+    struct X {
+      virtual void notused() = 0;
+      virtual void used() = 0; // expected-warning {{function 'test10::<anonymous namespace>::X::used' has internal linkage but is not defined}}
+
+      void test() {
+        notused();
+        (void)&X::notused;
+        (this->*&X::notused)();
+        X::used();  // expected-note {{used here}}
+      }
+    };
+    struct Y : X {
+      using X::notused;
+    };
+  }
+}
+
+namespace test11 {
+  namespace {
+    struct A {
+      virtual bool operator()() const = 0;
+      virtual void operator!() const = 0;
+      virtual bool operator+(const A&) const = 0;
+      virtual int operator[](int) const = 0;
+      virtual const A* operator->() const = 0;
+      int member;
+    };
+
+    struct B {
+      bool operator()() const;  // expected-warning {{function 'test11::<anonymous namespace>::B::operator()' has internal linkage but is not defined}}
+      void operator!() const;  // expected-warning {{function 'test11::<anonymous namespace>::B::operator!' has internal linkage but is not defined}}
+      bool operator+(const B&) const;  // expected-warning {{function 'test11::<anonymous namespace>::B::operator+' has internal linkage but is not defined}}
+      int operator[](int) const;  // expected-warning {{function 'test11::<anonymous namespace>::B::operator[]' has internal linkage but is not defined}}
+      const B* operator->() const;  // expected-warning {{function 'test11::<anonymous namespace>::B::operator->' has internal linkage but is not defined}}
+      int member;
+    };
+  }
+
+  void test1(A &a1, A &a2) {
+    a1();
+    !a1;
+    a1 + a2;
+    a1[0];
+    (void)a1->member;
+  }
+
+  void test2(B &b1, B &b2) {
+    b1();  // expected-note {{used here}}
+    !b1;  // expected-note {{used here}}
+    b1 + b2;  // expected-note {{used here}}
+    b1[0];  // expected-note {{used here}}
+    (void)b1->member;  // expected-note {{used here}}
+  }
+}
+
+namespace test12 {
+  class T1 {}; class T2 {}; class T3 {}; class T4 {}; class T5 {}; class T6 {};
+  class T7 {};
+
+  namespace {
+    struct Cls {
+      virtual void f(int) = 0;
+      virtual void f(int, double) = 0;
+      void g(int);  // expected-warning {{function 'test12::<anonymous namespace>::Cls::g' has internal linkage but is not defined}}
+      void g(int, double);
+      virtual operator T1() = 0;
+      virtual operator T2() = 0;
+      virtual operator T3&() = 0;
+      operator T4();  // expected-warning {{function 'test12::<anonymous namespace>::Cls::operator T4' has internal linkage but is not defined}}
+      operator T5();  // expected-warning {{function 'test12::<anonymous namespace>::Cls::operator T5' has internal linkage but is not defined}}
+      operator T6&();  // expected-warning {{function 'test12::<anonymous namespace>::Cls::operator class test12::T6 &' has internal linkage but is not defined}}
+    };
+
+    struct Cls2 {
+      Cls2(T7);  // expected-warning {{function 'test12::<anonymous namespace>::Cls2::Cls2' has internal linkage but is not defined}}
+    };
+  }
+
+  void test(Cls &c) {
+    c.f(7);
+    c.g(7);  // expected-note {{used here}}
+    (void)static_cast<T1>(c);
+    T2 t2 = c;
+    T3 &t3 = c;
+    (void)static_cast<T4>(c); // expected-note {{used here}}
+    T5 t5 = c;  // expected-note {{used here}}
+    T6 &t6 = c;  // expected-note {{used here}}
+
+    Cls2 obj1((T7()));  // expected-note {{used here}}
+  }
+}
+
+namespace test13 {
+  namespace {
+    struct X {
+      virtual void f() { }
+    };
+
+    struct Y : public X {
+      virtual void f() = 0;
+
+      virtual void g() {
+        X::f();
+      }
+    };
+  }
+}
+

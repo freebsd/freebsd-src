@@ -1,2 +1,3 @@
-#include "A.h"
+@import ModA;
+
 int getB();

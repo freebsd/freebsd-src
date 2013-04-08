@@ -339,7 +339,7 @@ namespace Test14 {
   };
   void C::f() {
   }
-  // CHECK: define void @_ZThn8_N6Test141C1fEv({{.*}}) {{.*}} uwtable
+  // CHECK: define void @_ZThn8_N6Test141C1fEv({{.*}}) unnamed_addr [[NUW:#[0-9]+]]
 }
 
 /**** The following has to go at the end of the file ****/
@@ -347,3 +347,5 @@ namespace Test14 {
 // This is from Test5:
 // CHECK: define linkonce_odr void @_ZTv0_n24_N5Test51B1fEv
 // CHECK: define internal void @_ZThn8_N6Test4B12_GLOBAL__N_11C1fEv(
+
+// CHECK: attributes [[NUW]] = { nounwind uwtable{{.*}} }

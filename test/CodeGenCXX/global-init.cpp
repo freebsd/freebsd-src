@@ -200,4 +200,6 @@ namespace test7 {
 // CHECK:   call void [[TEST1_Z_INIT]]
 
 // rdar://problem/8090834: this should be nounwind
-// CHECK-NOEXC: define internal void @_GLOBAL__I_a() nounwind section "__TEXT,__StaticInit,regular,pure_instructions" {
+// CHECK-NOEXC: define internal void @_GLOBAL__I_a() [[NUW:#[0-9]+]] section "__TEXT,__StaticInit,regular,pure_instructions" {
+
+// CHECK-NOEXC: attributes [[NUW]] = { nounwind }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,debug.ExprInspection -analyzer-ipa=inlining -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,debug.ExprInspection -analyzer-config ipa=inlining -verify %s
 
 void clang_analyzer_eval(bool);
 void clang_analyzer_checkInlined(bool);
@@ -192,7 +192,7 @@ namespace Invalidation {
     virtual void touchV2(int &x) const;
 
     int test() const {
-      // We were accidentally not invalidating under -analyzer-ipa=inlining
+      // We were accidentally not invalidating under inlining
       // at one point for virtual methods with visible definitions.
       int a, b, c, d;
       touch(a);
@@ -216,7 +216,7 @@ namespace DefaultArgs {
 
   class Secret {
   public:
-    static const int value = 42;
+    static const int value = 40 + 2;
     int get(int i = value) {
       return i;
     }
@@ -225,16 +225,49 @@ namespace DefaultArgs {
   void testMethod() {
     Secret obj;
     clang_analyzer_eval(obj.get(1) == 1); // expected-warning{{TRUE}}
-
-    // FIXME: Should be 'TRUE'. See PR13673 or <rdar://problem/11720796>.
-    clang_analyzer_eval(obj.get() == 42); // expected-warning{{UNKNOWN}}
-
-    // FIXME: Even if we constrain the variable, we still have a problem.
-    // See PR13385 or <rdar://problem/12156507>.
-    if (Secret::value != 42)
-      return;
+    clang_analyzer_eval(obj.get() == 42); // expected-warning{{TRUE}}
     clang_analyzer_eval(Secret::value == 42); // expected-warning{{TRUE}}
-    clang_analyzer_eval(obj.get() == 42); // expected-warning{{UNKNOWN}}
+  }
+
+  enum ABC {
+    A = 0,
+    B = 1,
+    C = 2
+  };
+
+  int enumUser(ABC input = B) {
+    return static_cast<int>(input);
+  }
+
+  void testEnum() {
+    clang_analyzer_eval(enumUser(C) == 2); // expected-warning{{TRUE}}
+    clang_analyzer_eval(enumUser() == 1); // expected-warning{{TRUE}}
+  }
+
+
+  int exprUser(int input = 2 * 4) {
+    return input;
+  }
+
+  int complicatedExprUser(int input = 2 * Secret::value) {
+    return input;
+  }
+
+  void testExprs() {
+    clang_analyzer_eval(exprUser(1) == 1); // expected-warning{{TRUE}}
+    clang_analyzer_eval(exprUser() == 8); // expected-warning{{TRUE}}
+
+    clang_analyzer_eval(complicatedExprUser(1) == 1); // expected-warning{{TRUE}}
+    clang_analyzer_eval(complicatedExprUser() == 84); // expected-warning{{TRUE}}
+  }
+
+  int defaultReference(const int &input = 42) {
+    return input;
+  }
+
+  void testReference() {
+    clang_analyzer_eval(defaultReference(1) == 1); // expected-warning{{TRUE}}
+    clang_analyzer_eval(defaultReference() == 42); // expected-warning{{TRUE}}
   }
 }
 
@@ -255,6 +288,7 @@ namespace OperatorNew {
     IntWrapper *obj = new IntWrapper(42);
     // should be TRUE
     clang_analyzer_eval(obj->value == 42); // expected-warning{{UNKNOWN}}
+    delete obj;
   }
 
   void testPlacement() {

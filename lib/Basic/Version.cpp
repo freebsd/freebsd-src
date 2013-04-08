@@ -13,10 +13,14 @@
 
 #include "clang/Basic/Version.h"
 #include "clang/Basic/LLVM.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Config/config.h"
-#include <cstring>
+#include "llvm/Support/raw_ostream.h"
 #include <cstdlib>
+#include <cstring>
+
+#ifdef HAVE_SVN_VERSION_INC
+#  include "SVNVersion.inc"
+#endif
 
 namespace clang {
 
@@ -32,7 +36,7 @@ std::string getClangRepositoryPath() {
 
   // If the SVN_REPOSITORY is empty, try to use the SVN keyword. This helps us
   // pick up a tag in an SVN export, for example.
-  static StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_32/final/lib/Basic/Version.cpp $");
+  static StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $");
   if (URL.empty()) {
     URL = SVNRepository.slice(SVNRepository.find(':'),
                               SVNRepository.find("/lib/Basic"));

@@ -43,7 +43,7 @@ int __attribute__((pcs(0))) pcs4(void); // expected-error {{'pcs' attribute requ
 /* These are ignored because the target is i386 and not ARM */
 int __attribute__((pcs("aapcs"))) pcs5(void); // expected-warning {{calling convention 'pcs' ignored for this target}}
 int __attribute__((pcs("aapcs-vfp"))) pcs6(void); // expected-warning {{calling convention 'pcs' ignored for this target}}
-int __attribute__((pcs("foo"))) pcs7(void); // expected-error {{Invalid PCS type}}
+int __attribute__((pcs("foo"))) pcs7(void); // expected-error {{invalid PCS type}}
 
 // PR6361
 void ctest3();
@@ -54,3 +54,5 @@ typedef __attribute__((stdcall)) void (*PROC)();
 PROC __attribute__((cdecl)) ctest4(const char *x) {}
 
 void __attribute__((pnaclcall)) pnaclfunc(float *a) {} // expected-warning {{calling convention 'pnaclcall' ignored for this target}}
+
+void __attribute__((intel_ocl_bicc)) inteloclbifunc(float *a) {}

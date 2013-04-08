@@ -146,20 +146,14 @@ TEST(StmtPrinter, TestMSIntegerLiteral) {
     "  1i8, -1i8, 1ui8, "
     "  1i16, -1i16, 1ui16, "
     "  1i32, -1i32, 1ui32, "
-    "  1i64, -1i64, 1ui64, "
-    "  1i128, -1i128, 1ui128, 1Ui128,"
-    "  0x10000000000000000i128;"
+    "  1i64, -1i64, 1ui64;"
     "}",
     "A",
     "1 , -1 , 1U , "
     "1 , -1 , 1U , "
     "1L , -1L , 1UL , "
-    "1LL , -1LL , 1ULL , "
-    "1 , -1 , 1U , 1U , "
-    "18446744073709551616i128"));
+    "1LL , -1LL , 1ULL"));
     // Should be: with semicolon
-    // WRONG; all 128-bit literals should be printed as 128-bit.
-    // (This is because currently we do semantic analysis incorrectly.)
 }
 
 TEST(StmtPrinter, TestFloatingPointLiteral) {
@@ -169,4 +163,3 @@ TEST(StmtPrinter, TestFloatingPointLiteral) {
     "1.F , -1.F , 1. , -1. , 1.L , -1.L"));
     // Should be: with semicolon
 }
-

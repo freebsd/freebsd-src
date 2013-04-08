@@ -11,43 +11,32 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Sema/SemaInternal.h"
-#include "clang/Sema/Lookup.h"
-#include "clang/Sema/Scope.h"
-#include "clang/Sema/ScopeInfo.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/Lookup.h"
+#include "clang/Sema/Scope.h"
+#include "clang/Sema/ScopeInfo.h"
 
 using namespace clang;
 using namespace sema;
 
+typedef llvm::SmallPtrSet<const CXXRecordDecl*, 4> BaseSet;
+static bool BaseIsNotInSet(const CXXRecordDecl *Base, void *BasesPtr) {
+  const BaseSet &Bases = *reinterpret_cast<const BaseSet*>(BasesPtr);
+  return !Bases.count(Base->getCanonicalDecl());
+}
+
 /// Determines if the given class is provably not derived from all of
 /// the prospective base classes.
-static bool IsProvablyNotDerivedFrom(Sema &SemaRef,
-                                     CXXRecordDecl *Record,
-                            const llvm::SmallPtrSet<CXXRecordDecl*, 4> &Bases) {
-  if (Bases.count(Record->getCanonicalDecl()))
-    return false;
-
-  RecordDecl *RD = Record->getDefinition();
-  if (!RD) return false;
-  Record = cast<CXXRecordDecl>(RD);
-
-  for (CXXRecordDecl::base_class_iterator I = Record->bases_begin(),
-         E = Record->bases_end(); I != E; ++I) {
-    CanQualType BaseT = SemaRef.Context.getCanonicalType((*I).getType());
-    CanQual<RecordType> BaseRT = BaseT->getAs<RecordType>();
-    if (!BaseRT) return false;
-
-    CXXRecordDecl *BaseRecord = cast<CXXRecordDecl>(BaseRT->getDecl());
-    if (!IsProvablyNotDerivedFrom(SemaRef, BaseRecord, Bases))
-      return false;
-  }
-
-  return true;
+static bool isProvablyNotDerivedFrom(Sema &SemaRef, CXXRecordDecl *Record,
+                                     const BaseSet &Bases) {
+  void *BasesPtr = const_cast<void*>(reinterpret_cast<const void*>(&Bases));
+  return BaseIsNotInSet(Record, BasesPtr) &&
+         Record->forallBases(BaseIsNotInSet, BasesPtr);
 }
 
 enum IMAKind {
@@ -111,7 +100,7 @@ static IMAKind ClassifyImplicitMemberAccess(Sema &SemaRef,
   // Collect all the declaring classes of instance members we find.
   bool hasNonInstance = false;
   bool isField = false;
-  llvm::SmallPtrSet<CXXRecordDecl*, 4> Classes;
+  BaseSet Classes;
   for (LookupResult::iterator I = R.begin(), E = R.end(); I != E; ++I) {
     NamedDecl *D = *I;
 
@@ -132,7 +121,7 @@ static IMAKind ClassifyImplicitMemberAccess(Sema &SemaRef,
     return IMA_Static;
 
   bool IsCXX11UnevaluatedField = false;
-  if (SemaRef.getLangOpts().CPlusPlus0x && isField) {
+  if (SemaRef.getLangOpts().CPlusPlus11 && isField) {
     // C++11 [expr.prim.general]p12:
     //   An id-expression that denotes a non-static data member or non-static
     //   member function of a class can only be used:
@@ -169,16 +158,18 @@ static IMAKind ClassifyImplicitMemberAccess(Sema &SemaRef,
   // is ill-formed.
   if (R.getNamingClass() &&
       contextClass->getCanonicalDecl() !=
-        R.getNamingClass()->getCanonicalDecl() &&
-      contextClass->isProvablyNotDerivedFrom(R.getNamingClass()))
-    return hasNonInstance ? IMA_Mixed_Unrelated :
-           IsCXX11UnevaluatedField ? IMA_Field_Uneval_Context :
-                                     IMA_Error_Unrelated;
+        R.getNamingClass()->getCanonicalDecl()) {
+    // If the naming class is not the current context, this was a qualified
+    // member name lookup, and it's sufficient to check that we have the naming
+    // class as a base class.
+    Classes.clear();
+    Classes.insert(R.getNamingClass()->getCanonicalDecl());
+  }
 
   // If we can prove that the current context is unrelated to all the
   // declaring classes, it can't be an implicit member reference (in
   // which case it's an error if any of those members are selected).
-  if (IsProvablyNotDerivedFrom(SemaRef, contextClass, Classes))
+  if (isProvablyNotDerivedFrom(SemaRef, contextClass, Classes))
     return hasNonInstance ? IMA_Mixed_Unrelated :
            IsCXX11UnevaluatedField ? IMA_Field_Uneval_Context :
                                      IMA_Error_Unrelated;
@@ -491,14 +482,14 @@ bool Sema::CheckQualifiedMemberReference(Expr *BaseExpr,
                                          QualType BaseType,
                                          const CXXScopeSpec &SS,
                                          const LookupResult &R) {
-  const RecordType *BaseRT = BaseType->getAs<RecordType>();
-  if (!BaseRT) {
+  CXXRecordDecl *BaseRecord =
+    cast_or_null<CXXRecordDecl>(computeDeclContext(BaseType));
+  if (!BaseRecord) {
     // We can't check this yet because the base type is still
     // dependent.
     assert(BaseType->isDependentType());
     return false;
   }
-  CXXRecordDecl *BaseRecord = cast<CXXRecordDecl>(BaseRT->getDecl());
 
   for (LookupResult::iterator I = R.begin(), E = R.end(); I != E; ++I) {
     // If this is an implicit member reference and we find a
@@ -513,11 +504,10 @@ bool Sema::CheckQualifiedMemberReference(Expr *BaseExpr,
 
     if (!DC->isRecord())
       continue;
-    
-    llvm::SmallPtrSet<CXXRecordDecl*,4> MemberRecord;
-    MemberRecord.insert(cast<CXXRecordDecl>(DC)->getCanonicalDecl());
 
-    if (!IsProvablyNotDerivedFrom(*this, BaseRecord, MemberRecord))
+    CXXRecordDecl *MemberRecord = cast<CXXRecordDecl>(DC)->getCanonicalDecl();
+    if (BaseRecord->getCanonicalDecl() == MemberRecord ||
+        !BaseRecord->isProvablyNotDerivedFrom(MemberRecord))
       return false;
   }
 
@@ -1140,29 +1130,14 @@ Sema::LookupMemberExpr(LookupResult &R, ExprResult &BaseExpr,
       // There's an implicit 'isa' ivar on all objects.
       // But we only actually find it this way on objects of type 'id',
       // apparently.
-      if (OTy->isObjCId() && Member->isStr("isa")) {
-        Diag(MemberLoc, diag::warn_objc_isa_use);
+      if (OTy->isObjCId() && Member->isStr("isa"))
         return Owned(new (Context) ObjCIsaExpr(BaseExpr.take(), IsArrow, MemberLoc,
+                                               OpLoc,
                                                Context.getObjCClassType()));
-      }
-
       if (ShouldTryAgainWithRedefinitionType(*this, BaseExpr))
         return LookupMemberExpr(R, BaseExpr, IsArrow, OpLoc, SS,
                                 ObjCImpDecl, HasTemplateArgs);
       goto fail;
-    }
-    else if (Member && Member->isStr("isa")) {
-      // If an ivar is (1) the first ivar in a root class and (2) named `isa`,
-      // then issue the same deprecated warning that id->isa gets.
-      ObjCInterfaceDecl *ClassDeclared = 0;
-      if (ObjCIvarDecl *IV = 
-            IDecl->lookupInstanceVariable(Member, ClassDeclared)) {
-        if (!ClassDeclared->getSuperClass()
-            && (*ClassDeclared->ivar_begin()) == IV) {
-          Diag(MemberLoc, diag::warn_objc_isa_use);
-          Diag(IV->getLocation(), diag::note_ivar_decl);
-        }
-      }
     }
     
     if (RequireCompleteType(OpLoc, BaseType, diag::err_typecheck_incomplete_tag,
@@ -1269,14 +1244,15 @@ Sema::LookupMemberExpr(LookupResult &R, ExprResult &BaseExpr,
       if (ObjCMethodDecl *MD = getCurMethodDecl()) {
         ObjCMethodFamily MF = MD->getMethodFamily();
         warn = (MF != OMF_init && MF != OMF_dealloc && 
-                MF != OMF_finalize);
+                MF != OMF_finalize &&
+                !IvarBacksCurrentMethodAccessor(IDecl, MD, IV));
       }
       if (warn)
         Diag(MemberLoc, diag::warn_direct_ivar_access) << IV->getDeclName();
     }
 
     ObjCIvarRefExpr *Result = new (Context) ObjCIvarRefExpr(IV, IV->getType(),
-                                                            MemberLoc,
+                                                            MemberLoc, OpLoc,
                                                             BaseExpr.take(),
                                                             IsArrow);
 
@@ -1607,27 +1583,27 @@ BuildFieldReferenceExpr(Sema &S, Expr *BaseExpr, bool IsArrow,
   } else {
     QualType BaseType = BaseExpr->getType();
     if (IsArrow) BaseType = BaseType->getAs<PointerType>()->getPointeeType();
-    
+
     Qualifiers BaseQuals = BaseType.getQualifiers();
-    
+
     // GC attributes are never picked up by members.
     BaseQuals.removeObjCGCAttr();
-    
+
     // CVR attributes from the base are picked up by members,
     // except that 'mutable' members don't pick up 'const'.
     if (Field->isMutable()) BaseQuals.removeConst();
-    
+
     Qualifiers MemberQuals
     = S.Context.getCanonicalType(MemberType).getQualifiers();
-    
-    // TR 18037 does not allow fields to be declared with address spaces.
+
     assert(!MemberQuals.hasAddressSpace());
-    
+
+
     Qualifiers Combined = BaseQuals + MemberQuals;
     if (Combined != MemberQuals)
       MemberType = S.Context.getQualifiedType(MemberType, Combined);
   }
-  
+
   S.UnusedPrivateFields.remove(Field);
 
   ExprResult Base =

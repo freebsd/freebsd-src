@@ -8,6 +8,8 @@ namespace std {
     initializer_list(T*, size_t);
     T *p;
     size_t n;
+    T *begin();
+    T *end();
   };
 }
 
@@ -103,6 +105,13 @@ void RangeFor() {
   int xs[] = {1, 2, 3};
   for (int &a : xs) { // expected-warning {{range-based for loop is incompatible with C++98}}
   }
+  for (auto &b : {1, 2, 3}) {
+  // expected-warning@-1 {{range-based for loop is incompatible with C++98}}
+  // expected-warning@-2 {{'auto' type specifier is incompatible with C++98}}
+  // expected-warning@-3 {{initialization of initializer_list object is incompatible with C++98}}
+  // expected-warning@-4 {{reference initialized from initializer list is incompatible with C++98}}
+  }
+  struct Agg { int a, b; } const &agg = { 1, 2 }; // expected-warning {{reference initialized from initializer list is incompatible with C++98}}
 }
 
 struct InClassInit {
@@ -254,13 +263,13 @@ namespace CopyCtorIssues {
 
 namespace UnionOrAnonStructMembers {
   struct NonTrivCtor {
-    NonTrivCtor(); // expected-note 2{{user-declared constructor}}
+    NonTrivCtor(); // expected-note 2{{user-provided default constructor}}
   };
   struct NonTrivCopy {
-    NonTrivCopy(const NonTrivCopy&); // expected-note 2{{user-declared copy constructor}}
+    NonTrivCopy(const NonTrivCopy&); // expected-note 2{{user-provided copy constructor}}
   };
   struct NonTrivDtor {
-    ~NonTrivDtor(); // expected-note 2{{user-declared destructor}}
+    ~NonTrivDtor(); // expected-note 2{{user-provided destructor}}
   };
   union BadUnion {
     NonTrivCtor ntc; // expected-warning {{union member 'ntc' with a non-trivial constructor is incompatible with C++98}}
@@ -338,8 +347,8 @@ namespace NullPointerTemplateArg {
 
 namespace PR13480 {
   struct basic_iterator {
-    basic_iterator(const basic_iterator &it) {}
-    basic_iterator(basic_iterator &it) {} // expected-note {{because type 'PR13480::basic_iterator' has a user-declared copy constructor}}
+    basic_iterator(const basic_iterator &it) {} // expected-note {{because type 'PR13480::basic_iterator' has a user-provided copy constructor}}
+    basic_iterator(basic_iterator &it) {}
   };
 
   union test {
@@ -349,12 +358,12 @@ namespace PR13480 {
 
 namespace AssignOpUnion {
   struct a {
-    void operator=(const a &it) {}
-    void operator=(a &it) {} // expected-note {{because type 'AssignOpUnion::a' has a user-declared copy assignment operator}}
+    void operator=(const a &it) {} // expected-note {{because type 'AssignOpUnion::a' has a user-provided copy assignment operator}}
+    void operator=(a &it) {}
   };
 
   struct b {
-    void operator=(const b &it) {} // expected-note {{because type 'AssignOpUnion::b' has a user-declared copy assignment operator}}
+    void operator=(const b &it) {} // expected-note {{because type 'AssignOpUnion::b' has a user-provided copy assignment operator}}
   };
 
   union test1 {
@@ -364,9 +373,9 @@ namespace AssignOpUnion {
 }
 
 namespace rdar11736429 {
-  struct X {
+  struct X { // expected-note {{because type 'rdar11736429::X' has no default constructor}}
     X(const X&) = delete; // expected-warning{{deleted function definitions are incompatible with C++98}} \
-    // expected-note{{because type 'rdar11736429::X' has a user-declared constructor}}
+    // expected-note {{implicit default constructor suppressed by user-declared constructor}}
   };
 
   union S {

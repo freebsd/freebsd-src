@@ -361,3 +361,35 @@ CFStringRef testCovariantReturnType() {
   }
   return Str;
 }
+
+// Test that we reanalyze ObjC methods which have been inlined. When reanalyzing
+// them, make sure we inline very small functions.
+id returnInputParam(id x) {
+  return x;
+}
+
+@interface MyClass : NSObject
+- (id)test_reanalyze_as_top_level;
+- (void)test_inline_tiny_when_reanalyzing;
+- (void)inline_test_reanalyze_as_top_level;
+@end
+
+@implementation MyClass
+- (void)test_inline_tiny_when_reanalyzing {
+  id x = [[NSString alloc] init]; // no-warning
+  x = returnInputParam(x);
+  [x release];
+}
+
+- (id)test_reanalyze_as_top_level {
+  // This method does not follow naming conventions, so a warning will be
+  // reported when it is reanalyzed at top level.
+  return [[NSString alloc] init]; // expected-warning {{leak}}
+}
+
+- (void)inline_test_reanalyze_as_top_level {
+  id x = [self test_reanalyze_as_top_level];
+  [x release];
+  [self test_inline_tiny_when_reanalyzing];
+}
+@end

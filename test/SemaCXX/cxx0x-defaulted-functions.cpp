@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify -fcxx-exceptions %s
 
 void fn() = default; // expected-error {{only special member}}
 struct foo {
@@ -148,4 +148,43 @@ namespace PR13527 {
   Y &Y::operator=(const Y&) = default; // expected-error {{definition of explicitly defaulted}}
   Y &Y::operator=(Y&&) = default; // expected-error {{definition of explicitly defaulted}}
   Y::~Y() = default; // expected-error {{definition of explicitly defaulted}}
+}
+
+namespace PR14577 {
+  template<typename T>
+  struct Outer {
+    template<typename U>
+    struct Inner1 {
+      ~Inner1();
+    };
+
+    template<typename U>
+    struct Inner2 {
+      ~Inner2();
+    };
+  };
+
+  template<typename T>
+  Outer<T>::Inner1<T>::~Inner1() = delete; // expected-error {{nested name specifier 'Outer<T>::Inner1<T>::' for declaration does not refer into a class, class template or class template partial specialization}}  expected-error {{only functions can have deleted definitions}}
+
+  template<typename T>
+  Outer<T>::Inner2<T>::~Inner2() = default; // expected-error {{nested name specifier 'Outer<T>::Inner2<T>::' for declaration does not refer into a class, class template or class template partial specialization}}  expected-error {{only special member functions may be defaulted}}
+}
+
+extern "C" {
+ template<typename _Tp> // expected-error {{templates must have C++ linkage}}
+ void PR13573(const _Tp&) = delete; // expected-error {{only functions can have deleted definitions}}
+}
+
+namespace PR15597 {
+  template<typename T> struct A {
+    A() noexcept(true) = default;
+    ~A() noexcept(true) = default;
+  };
+  template<typename T> struct B {
+    B() noexcept(false) = default; // expected-error {{does not match the calculated one}}
+    ~B() noexcept(false) = default; // expected-error {{does not match the calculated one}}
+  };
+  A<int> a;
+  B<int> b; // expected-note {{here}}
 }

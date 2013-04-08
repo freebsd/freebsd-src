@@ -21,3 +21,14 @@ FNM(
     int b;
 #endif
 )
+
+#define M1 c
+#define M2 int
+#define FM2(x,y) y x
+FM2(M1, M2);
+
+#define FM3(x) x
+FM3(
+#define M3 int x2
+)
+M3;

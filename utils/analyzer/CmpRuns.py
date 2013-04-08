@@ -120,9 +120,8 @@ class CmpOptions:
         self.verboseLog = verboseLog
 
 class AnalysisReport:
-    def __init__(self, run, files, clang_vers):
+    def __init__(self, run, files):
         self.run = run
-        self.clang_version = clang_vers
         self.files = files
         self.diagnostics = []
 
@@ -134,6 +133,50 @@ class AnalysisRun:
         self.reports = []
         # Cumulative list of all diagnostics from all the reports.
         self.diagnostics = []
+        self.clang_version = None
+    
+    def getClangVersion(self):
+        return self.clang_version
+
+    def readSingleFile(self, p, deleteEmpty):
+        data = plistlib.readPlist(p)
+
+        # We want to retrieve the clang version even if there are no 
+        # reports. Assume that all reports were created using the same 
+        # clang version (this is always true and is more efficient).
+        if 'clang_version' in data:
+            if self.clang_version == None:
+                self.clang_version = data.pop('clang_version')
+            else:
+                data.pop('clang_version')
+
+        # Ignore/delete empty reports.
+        if not data['files']:
+            if deleteEmpty == True:
+                os.remove(p)
+            return
+
+        # Extract the HTML reports, if they exists.
+        if 'HTMLDiagnostics_files' in data['diagnostics'][0]:
+            htmlFiles = []
+            for d in data['diagnostics']:
+                # FIXME: Why is this named files, when does it have multiple
+                # files?
+                assert len(d['HTMLDiagnostics_files']) == 1
+                htmlFiles.append(d.pop('HTMLDiagnostics_files')[0])
+        else:
+            htmlFiles = [None] * len(data['diagnostics'])
+            
+        report = AnalysisReport(self, data.pop('files'))
+        diagnostics = [AnalysisDiagnostic(d, report, h) 
+                       for d,h in zip(data.pop('diagnostics'),
+                                      htmlFiles)]
+
+        assert not data
+
+        report.diagnostics.extend(diagnostics)
+        self.reports.append(report)
+        self.diagnostics.extend(diagnostics)
 
 
 # Backward compatibility API. 
@@ -147,45 +190,16 @@ def loadResults(path, opts, root = "", deleteEmpty=True):
 def loadResultsFromSingleRun(info, deleteEmpty=True):
     path = info.path
     run = AnalysisRun(info)
-    
-    for f in os.listdir(path):
-        if (not f.endswith('plist')):
-            continue
 
-        p = os.path.join(path, f)
-        data = plistlib.readPlist(p)
-
-        # Ignore/delete empty reports.
-        if not data['files']:
-            if deleteEmpty == True:
-                os.remove(p)
-            continue
-
-        # Extract the HTML reports, if they exists.
-        if 'HTMLDiagnostics_files' in data['diagnostics'][0]:
-            htmlFiles = []
-            for d in data['diagnostics']:
-                # FIXME: Why is this named files, when does it have multiple
-                # files?
-                assert len(d['HTMLDiagnostics_files']) == 1
-                htmlFiles.append(d.pop('HTMLDiagnostics_files')[0])
-        else:
-            htmlFiles = [None] * len(data['diagnostics'])
-        
-        clang_version = ''
-        if 'clang_version' in data:
-            clang_version = data.pop('clang_version')
-        
-        report = AnalysisReport(run, data.pop('files'), clang_version)
-        diagnostics = [AnalysisDiagnostic(d, report, h) 
-                       for d,h in zip(data.pop('diagnostics'),
-                                      htmlFiles)]
-
-        assert not data
-        
-        report.diagnostics.extend(diagnostics)
-        run.reports.append(report)
-        run.diagnostics.extend(diagnostics)
+    if os.path.isfile(path):
+        run.readSingleFile(path, deleteEmpty)
+    else:
+        for (dirpath, dirnames, filenames) in os.walk(path):
+            for f in filenames:
+                if (not f.endswith('plist')):
+                    continue
+                p = os.path.join(dirpath, f)
+                run.readSingleFile(p, deleteEmpty)
 
     return run
 

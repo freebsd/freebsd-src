@@ -1271,6 +1271,17 @@ class Cursor(Structure):
         # created.
         return self._tu
 
+    @property
+    def referenced(self):
+        """
+        For a cursor that is a reference, returns a cursor 
+        representing the entity that it references.
+        """
+        if not hasattr(self, '_referenced'):
+            self._referenced = conf.lib.clang_getCursorReferenced(self)
+
+        return self._referenced
+
     def get_arguments(self):
         """Return an iterator for accessing the arguments of this cursor."""
         num_args = conf.lib.clang_Cursor_getNumArguments(self)
@@ -1634,6 +1645,33 @@ class _CXUnsavedFile(Structure):
     """Helper for passing unsaved file arguments."""
     _fields_ = [("name", c_char_p), ("contents", c_char_p), ('length', c_ulong)]
 
+# Functions calls through the python interface are rather slow. Fortunately,
+# for most symboles, we do not need to perform a function call. Their spelling
+# never changes and is consequently provided by this spelling cache.
+SpellingCache = {
+            # 0: CompletionChunk.Kind("Optional"),
+            # 1: CompletionChunk.Kind("TypedText"),
+            # 2: CompletionChunk.Kind("Text"),
+            # 3: CompletionChunk.Kind("Placeholder"),
+            # 4: CompletionChunk.Kind("Informative"),
+            # 5 : CompletionChunk.Kind("CurrentParameter"),
+            6: '(',   # CompletionChunk.Kind("LeftParen"),
+            7: ')',   # CompletionChunk.Kind("RightParen"),
+            8: ']',   # CompletionChunk.Kind("LeftBracket"),
+            9: ']',   # CompletionChunk.Kind("RightBracket"),
+            10: '{',  # CompletionChunk.Kind("LeftBrace"),
+            11: '}',  # CompletionChunk.Kind("RightBrace"),
+            12: '<',  # CompletionChunk.Kind("LeftAngle"),
+            13: '>',  # CompletionChunk.Kind("RightAngle"),
+            14: ', ', # CompletionChunk.Kind("Comma"),
+            # 15: CompletionChunk.Kind("ResultType"),
+            16: ':',  # CompletionChunk.Kind("Colon"),
+            17: ';',  # CompletionChunk.Kind("SemiColon"),
+            18: '=',  # CompletionChunk.Kind("Equal"),
+            19: ' ',  # CompletionChunk.Kind("HorizontalSpace"),
+            # 20: CompletionChunk.Kind("VerticalSpace")
+}
+
 class CompletionChunk:
     class Kind:
         def __init__(self, name):
@@ -1648,18 +1686,30 @@ class CompletionChunk:
     def __init__(self, completionString, key):
         self.cs = completionString
         self.key = key
+        self.__kindNumberCache = -1
 
     def __repr__(self):
         return "{'" + self.spelling + "', " + str(self.kind) + "}"
 
     @CachedProperty
     def spelling(self):
+        if self.__kindNumber in SpellingCache:
+                return SpellingCache[self.__kindNumber]
         return conf.lib.clang_getCompletionChunkText(self.cs, self.key).spelling
+
+    # We do not use @CachedProperty here, as the manual implementation is
+    # apparently still significantly faster. Please profile carefully if you
+    # would like to add CachedProperty back.
+    @property
+    def __kindNumber(self):
+        if self.__kindNumberCache == -1:
+            self.__kindNumberCache = \
+                conf.lib.clang_getCompletionChunkKind(self.cs, self.key)
+        return self.__kindNumberCache
 
     @CachedProperty
     def kind(self):
-        res = conf.lib.clang_getCompletionChunkKind(self.cs, self.key)
-        return completionChunkKindMap[res]
+        return completionChunkKindMap[self.__kindNumber]
 
     @CachedProperty
     def string(self):
@@ -1672,19 +1722,19 @@ class CompletionChunk:
           None
 
     def isKindOptional(self):
-      return self.kind == completionChunkKindMap[0]
+      return self.__kindNumber == 0
 
     def isKindTypedText(self):
-      return self.kind == completionChunkKindMap[1]
+      return self.__kindNumber == 1
 
     def isKindPlaceHolder(self):
-      return self.kind == completionChunkKindMap[3]
+      return self.__kindNumber == 3
 
     def isKindInformative(self):
-      return self.kind == completionChunkKindMap[4]
+      return self.__kindNumber == 4
 
     def isKindResultType(self):
-      return self.kind == completionChunkKindMap[15]
+      return self.__kindNumber == 15
 
 completionChunkKindMap = {
             0: CompletionChunk.Kind("Optional"),
@@ -1965,7 +2015,7 @@ class TranslationUnit(ClangObject):
                                     len(args), unsaved_array,
                                     len(unsaved_files), options)
 
-        if ptr is None:
+        if not ptr:
             raise TranslationUnitLoadError("Error parsing translation unit.")
 
         return cls(ptr, index=index)
@@ -1987,7 +2037,7 @@ class TranslationUnit(ClangObject):
             index = Index.create()
 
         ptr = conf.lib.clang_createTranslationUnit(index, filename)
-        if ptr is None:
+        if not ptr:
             raise TranslationUnitLoadError(filename)
 
         return cls(ptr=ptr, index=index)
@@ -3046,13 +3096,13 @@ class Config:
         Config.library_path = path
 
     @staticmethod
-    def set_library_file(file):
-        """Set the exact location of libclang from"""
+    def set_library_file(filename):
+        """Set the exact location of libclang"""
         if Config.loaded:
             raise Exception("library file must be set before before using " \
                             "any other functionalities in libclang.")
 
-        Config.library_file = path
+        Config.library_file = filename
 
     @staticmethod
     def set_compatibility_check(check_status):

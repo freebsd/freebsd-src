@@ -18,21 +18,19 @@ static void func() {
   id x;
 
   // rdar://8290002
-  [(*x).isa self]; // expected-warning {{direct access to objective-c's isa is deprecated in favor of object_setClass() and object_getClass()}}
-  [x->isa self]; // expected-warning {{direct access to objective-c's isa is deprecated in favor of object_setClass() and object_getClass()}}
+  [(*x).isa self]; // expected-warning {{direct access to Objective-C's isa is deprecated in favor of object_getClass()}}
+  [x->isa self]; // expected-warning {{direct access to Objective-C's isa is deprecated in favor of object_getClass()}}
   
   Whatever *y;
 
   // GCC allows this, with the following warning: 
   //   instance variable 'isa' is @protected; this will be a hard error in the future
   //
-  // FIXME: see if we can avoid the 2 warnings that follow the error.
+  // FIXME: see if we can avoid the warning that follows the error.
   [(*y).isa self]; // expected-error {{instance variable 'isa' is protected}} \
-                      expected-warning{{receiver type 'struct objc_class *' is not 'id' or interface pointer, consider casting it to 'id'}} \
-                      expected-warning{{method '-self' not found (return type defaults to 'id')}}
+                      expected-warning{{receiver type 'struct objc_class *' is not 'id' or interface pointer, consider casting it to 'id'}}
   [y->isa self]; // expected-error {{instance variable 'isa' is protected}} \
-                    expected-warning{{receiver type 'struct objc_class *' is not 'id' or interface pointer, consider casting it to 'id'}} \
-                    expected-warning{{method '-self' not found (return type defaults to 'id')}}
+                    expected-warning{{receiver type 'struct objc_class *' is not 'id' or interface pointer, consider casting it to 'id'}}
 }
 
 // rdar://11702488
@@ -41,7 +39,7 @@ static void func() {
 
 @interface BaseClass {
 @public
-    Class isa; // expected-note 3 {{instance variable is declared here}}
+    Class isa; // expected-note 4 {{instance variable is declared here}}
 }
 @end
 
@@ -72,12 +70,14 @@ static void func() {
     Subclass *x;
     SiblingClass *y;
     OtherClass *z;
-    (void)v->isa; // expected-warning {{direct access to objective-c's isa is deprecated}}
-    (void)w->isa; // expected-warning {{direct access to objective-c's isa is deprecated}}
-    (void)x->isa; // expected-warning {{direct access to objective-c's isa is deprecated}}
-    (void)y->isa; // expected-warning {{direct access to objective-c's isa is deprecated}}
+    (void)v->isa; // expected-warning {{direct access to Objective-C's isa is deprecated in favor of object_getClass()}}
+    (void)w->isa; // expected-warning {{direct access to Objective-C's isa is deprecated in favor of object_getClass()}}
+    (void)x->isa; // expected-warning {{direct access to Objective-C's isa is deprecated in favor of object_getClass()}}
+    (void)y->isa; // expected-warning {{direct access to Objective-C's isa is deprecated in favor of object_getClass()}}
     (void)z->isa;
     (void)u->isa;
+
+    w->isa = 0; // expected-warning {{assignment to Objective-C's isa is deprecated in favor of object_setClass()}}
 }
 @end
 

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=osx.cocoa.SelfInit -fobjc-default-synthesize-properties -analyzer-ipa=dynamic -fno-builtin %s -verify
+// RUN: %clang_cc1 -analyze -analyzer-checker=osx.cocoa.SelfInit -fobjc-default-synthesize-properties -analyzer-config ipa=dynamic -fno-builtin %s -verify
 // RUN: %clang_cc1 -analyze -analyzer-checker=osx.cocoa.SelfInit -fobjc-default-synthesize-properties -fno-builtin %s -verify
 
 @class NSZone, NSCoder;
@@ -279,5 +279,30 @@ typedef signed char BOOL;
     }
     return self;
 }
+@end
+
+// Test for radar://12838705.
+@interface ABCClass : NSObject
+@property (nonatomic, strong) NSString *foo;
+@property (nonatomic, strong) NSString *bar;
+@property (nonatomic, strong) NSString *baz;
+@end
+
+@implementation ABCClass
+@synthesize foo = foo_;
+@synthesize bar = bar_;
+@synthesize baz = baz_;
+
+- (id)initWithABC:(ABCClass *)abc {
+  self = [super init];
+  baz_ = abc->baz_;
+  return self;
+}
+
+- (ABCClass *)abcWithFoo:(NSString *)foo {
+  ABCClass *copy = [[ABCClass alloc] initWithABC:self];
+  return copy;
+}
+
 @end
 

@@ -1,5 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,alpha.core -analyzer-store=region -analyzer-constraints=range -verify %s
-// expected-no-diagnostics
+// RUN: %clang --analyze -Xclang -analyzer-checker=alpha.core -Xclang -verify %s
 
 #include <stdarg.h>
 
@@ -86,5 +85,41 @@ int testCustomException(int *x) {
   [CustomException raise:@"Blah" format:@"abc"];
 
   return *x; // no-warning
+}
+
+// Test that __attribute__((analyzer_noreturn)) has the intended
+// effect on Objective-C methods.
+
+@interface Radar11634353
++ (void) doesNotReturn __attribute__((analyzer_noreturn));
+- (void) alsoDoesNotReturn __attribute__((analyzer_noreturn));
+@end
+
+void test_rdar11634353() {
+  [Radar11634353 doesNotReturn];
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning
+}
+
+void test_rdar11634352_instance(Radar11634353 *o) {
+  [o alsoDoesNotReturn];
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning
+}
+
+void test_rdar11634353_positive() {
+  int *p = 0;
+  *p = 0xDEADBEEF; // expected-warning {{null pointer}}
+}
+
+// Test analyzer_noreturn on category methods.
+@interface NSException (OBExtensions)
++ (void)raise:(NSString *)name reason:(NSString *)reason __attribute__((analyzer_noreturn));
+@end
+
+void PR11959(int *p) {
+  if (!p)
+    [NSException raise:@"Bad Pointer" reason:@"Who knows?"];
+  *p = 0xDEADBEEF; // no-warning
 }
 

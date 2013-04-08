@@ -1,4 +1,11 @@
-@__experimental_modules_import namespaces_top;
+@import namespaces_top;
+
+float &global(float);
+float &global2(float);
+
+namespace LookupBeforeImport {
+  float &f(float);
+}
 
 namespace N1 { }
 

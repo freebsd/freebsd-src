@@ -3,6 +3,7 @@ set( LLVM_LINK_COMPONENTS
   asmparser
   bitreader
   bitwriter
+  irreader
   codegen
   instrumentation
   ipo
@@ -39,6 +40,7 @@ target_link_libraries(clang
   )
 
 set_target_properties(clang PROPERTIES VERSION ${CLANG_EXECUTABLE_VERSION})
+set_target_properties(clang PROPERTIES ENABLE_EXPORTS 1)
 
 add_dependencies(clang clang-headers)
 

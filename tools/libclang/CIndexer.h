@@ -26,6 +26,11 @@ namespace llvm {
 
 namespace clang {
   class ASTUnit;
+  class MacroInfo;
+  class MacroDefinition;
+  class SourceLocation;
+  class Token;
+  class IdentifierInfo;
 
 class CIndexer {
   bool OnlyLocalDecls;
@@ -33,7 +38,6 @@ class CIndexer {
   unsigned Options; // CXGlobalOptFlags.
 
   llvm::sys::Path ResourcesPath;
-  std::string WorkingDir;
 
 public:
  CIndexer() : OnlyLocalDecls(false), DisplayDiagnostics(false),
@@ -59,9 +63,6 @@ public:
 
   /// \brief Get the path of the clang resource files.
   std::string getClangResourcesPath();
-
-  const std::string &getWorkingDirectory() const { return WorkingDir; }
-  void setWorkingDirectory(const std::string &Dir) { WorkingDir = Dir; }
 };
 
   /**
@@ -98,6 +99,30 @@ public:
 
   namespace cxindex {
     void printDiagsToStderr(ASTUnit *Unit);
+
+    /// \brief If \c MacroDefLoc points at a macro definition with \c II as
+    /// its name, this retrieves its MacroInfo.
+    MacroInfo *getMacroInfo(const IdentifierInfo &II,
+                            SourceLocation MacroDefLoc,
+                            CXTranslationUnit TU);
+
+    /// \brief Retrieves the corresponding MacroInfo of a MacroDefinition.
+    const MacroInfo *getMacroInfo(const MacroDefinition *MacroDef,
+                                  CXTranslationUnit TU);
+
+    /// \brief If \c Loc resides inside the definition of \c MI and it points at
+    /// an identifier that has ever been a macro name, this returns the latest
+    /// MacroDefinition for that name, otherwise it returns NULL.
+    MacroDefinition *checkForMacroInMacroDefinition(const MacroInfo *MI,
+                                                    SourceLocation Loc,
+                                                    CXTranslationUnit TU);
+
+    /// \brief If \c Tok resides inside the definition of \c MI and it points at
+    /// an identifier that has ever been a macro name, this returns the latest
+    /// MacroDefinition for that name, otherwise it returns NULL.
+    MacroDefinition *checkForMacroInMacroDefinition(const MacroInfo *MI,
+                                                    const Token &Tok,
+                                                    CXTranslationUnit TU);
   }
 }
 

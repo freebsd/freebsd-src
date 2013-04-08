@@ -9,10 +9,10 @@ B b;
 C c;
 D d;
 
-// CHECK: metadata !{i32 {{.*}}, null, metadata !"A", metadata !4, i32 3, i64 32, i64 32, i32 0, i32 0, metadata !5, metadata !6, i32 0, i32 0} ; [ DW_TAG_enumeration_type ]
-// CHECK: metadata !{i32 {{.*}}, null, metadata !"B", metadata !4, i32 4, i64 64, i64 64, i32 0, i32 0, metadata !9, metadata !10, i32 0, i32 0} ; [ DW_TAG_enumeration_type ]
-// CHECK: metadata !{i32 {{.*}}, null, metadata !"C", metadata !4, i32 5, i64 32, i64 32, i32 0, i32 0, null, metadata !13, i32 0, i32 0} ; [ DW_TAG_enumeration_type ]
-// CHECK: metadata !{i32 {{.*}}, null, metadata !"D", metadata !4, i32 6, i64 16, i64 16, i32 0, i32 4, null, null, i32 0} ; [ DW_TAG_enumeration_type ]
+// CHECK: ; [ DW_TAG_enumeration_type ] [A] [line 3, size 32, align 32, offset 0] [from int]
+// CHECK: ; [ DW_TAG_enumeration_type ] [B] [line 4, size 64, align 64, offset 0] [from long unsigned int]
+// CHECK: ; [ DW_TAG_enumeration_type ] [C] [line 5, size 32, align 32, offset 0] [from ]
+// CHECK: ; [ DW_TAG_enumeration_type ] [D] [line 6, size 16, align 16, offset 0] [fwd] [from ]
 
 namespace PR14029 {
   // Make sure this doesn't crash/assert.

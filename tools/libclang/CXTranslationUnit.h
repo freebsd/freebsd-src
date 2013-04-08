@@ -14,24 +14,34 @@
 #ifndef LLVM_CLANG_CXTRANSLATIONUNIT_H
 #define LLVM_CLANG_CXTRANSLATIONUNIT_H
 
-extern "C" {
-struct CXTranslationUnitImpl {
-  void *CIdx;
-  void *TUData;
-  void *StringPool;
-  void *Diagnostics;
-  void *OverridenCursorsPool;
-};
-}
+#include "clang-c/Index.h"
+#include "CXString.h"
 
 namespace clang {
   class ASTUnit;
   class CIndexer;
+  class SimpleFormatContext;
+} // namespace clang
 
+struct CXTranslationUnitImpl {
+  clang::CIndexer *CIdx;
+  clang::ASTUnit *TheASTUnit;
+  clang::cxstring::CXStringPool *StringPool;
+  void *Diagnostics;
+  void *OverridenCursorsPool;
+  clang::SimpleFormatContext *FormatContext;
+  unsigned FormatInMemoryUniqueId;
+};
+
+namespace clang {
 namespace cxtu {
 
-CXTranslationUnitImpl *MakeCXTranslationUnit(CIndexer *CIdx, ASTUnit *TU);
-  
+CXTranslationUnitImpl *MakeCXTranslationUnit(CIndexer *CIdx, ASTUnit *AU);
+
+static inline ASTUnit *getASTUnit(CXTranslationUnit TU) {
+  return TU->TheASTUnit;
+}
+
 class CXTUOwner {
   CXTranslationUnitImpl *TU;
   

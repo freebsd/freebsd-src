@@ -7,6 +7,8 @@
 // CHECK-CODE-COMPLETE-CRASH: Unable to perform code completion!
 //
 // REQUIRES: crash-recovery
-// REQUIRES: shell
+
+// FIXME: Please investigate abnormal path in MemoryBuffer.
+// XFAIL: mingw32,win32
 
 #warning parsing original file

@@ -12,3 +12,12 @@
 @interface Foo(Top3)
 -(void)top3;
 @end
+
+@protocol P1
+@end
+
+@protocol P2
+@end
+
+@protocol P3, P4;
+

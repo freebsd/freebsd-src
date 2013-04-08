@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify -std=c++11 %s
+// RUN: %clang_cc1 -verify -std=c++11 -Wno-anonymous-pack-parens %s
 // RUN: cp %s %t
 // RUN: not %clang_cc1 -x c++ -std=c++11 -fixit %t
 // RUN: %clang_cc1 -Wall -pedantic -x c++ -std=c++11 %t
@@ -119,4 +119,16 @@ namespace MissingSemi {
   namespace N {
     struct d // expected-error {{expected ';' after struct}}
   }
+}
+
+namespace NonStaticConstexpr {
+  struct foo {
+    constexpr int i; // expected-error {{non-static data member cannot be constexpr; did you intend to make it const?}}
+    constexpr int j = 7; // expected-error {{non-static data member cannot be constexpr; did you intend to make it static?}}
+    foo() : i(3) {
+    }
+    static int get_j() {
+      return j;
+    }
+  };
 }

@@ -31,7 +31,7 @@ const std::type_info &a_ti = typeid(a);
 const char *f() {
   try {
     // CHECK: br i1
-    // CHECK: invoke void @__cxa_bad_typeid() noreturn
+    // CHECK: invoke void @__cxa_bad_typeid() [[NR:#[0-9]+]]
     return typeid(*static_cast<A *>(0)).name();
   } catch (...) {
     // CHECK:      landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
@@ -42,3 +42,5 @@ const char *f() {
 }
 
 }
+
+// CHECK: attributes [[NR]] = { noreturn }

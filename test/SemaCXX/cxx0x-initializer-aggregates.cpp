@@ -116,3 +116,17 @@ namespace sub_constructor {
   NoDefaultConstructor2 array_ok[] = { {0,0} , {0,1} };
   NoDefaultConstructor2 array_error[] = { {0,0} , {0} }; // expected-error {{no matching constructor for initialization}}
 }
+
+namespace multidimensional_array {
+  void g(const int (&)[2][2]) {}
+  void g(const int (&)[2][2][2]) = delete;
+
+  void h() {
+    g({{1,2},{3,4}});
+  }
+}
+
+namespace array_addressof {
+  using T = int[5];
+  T *p = &T{1,2,3,4,5}; // expected-error {{taking the address of a temporary object of type 'T' (aka 'int [5]')}}
+}

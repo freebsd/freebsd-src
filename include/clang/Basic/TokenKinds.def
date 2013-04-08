@@ -121,7 +121,7 @@ TOK(numeric_constant)    // 0x123
 TOK(char_constant)       // 'a'
 TOK(wide_char_constant)  // L'b'
 
-// C++0x Character Constants
+// C++11 Character Constants
 TOK(utf16_char_constant) // u'a'
 TOK(utf32_char_constant) // U'a'
 
@@ -130,7 +130,7 @@ TOK(string_literal)      // "foo"
 TOK(wide_string_literal) // L"foo"
 TOK(angle_string_literal)// <foo>
 
-// C++0x String Literals.
+// C++11 String Literals.
 TOK(utf8_string_literal) // u8"foo"
 TOK(utf16_string_literal)// u"foo"
 TOK(utf32_string_literal)// U"foo"
@@ -208,7 +208,7 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //   KEYCXX   - This is a C++ keyword, or a C++-specific keyword in the
 //              implementation namespace
 //   KEYNOCXX - This is a keyword in every non-C++ dialect.
-//   KEYCXX0X - This is a C++ keyword introduced to C++ in C++0x
+//   KEYCXX11 - This is a C++ keyword introduced to C++ in C++11
 //   KEYGNU   - This is a keyword if GNU extensions are enabled
 //   KEYMS    - This is a keyword if Microsoft extensions are enabled
 //   KEYNOMS  - This is a keyword that must never be enabled under
@@ -260,6 +260,7 @@ KEYWORD(_Bool                       , KEYNOCXX)
 KEYWORD(_Complex                    , KEYALL)
 KEYWORD(_Generic                    , KEYALL)
 KEYWORD(_Imaginary                  , KEYALL)
+KEYWORD(_Noreturn                   , KEYALL)
 KEYWORD(_Static_assert              , KEYALL)
 KEYWORD(__func__                    , KEYALL)
 KEYWORD(__objc_yes                  , KEYALL)
@@ -311,17 +312,17 @@ CXX_KEYWORD_OPERATOR(or_eq   , pipeequal)
 CXX_KEYWORD_OPERATOR(xor     , caret)
 CXX_KEYWORD_OPERATOR(xor_eq  , caretequal)
 
-// C++0x keywords
-KEYWORD(alignas                     , KEYCXX0X)
-KEYWORD(alignof                     , KEYCXX0X)
-KEYWORD(char16_t                    , KEYCXX0X|KEYNOMS)
-KEYWORD(char32_t                    , KEYCXX0X|KEYNOMS)
-KEYWORD(constexpr                   , KEYCXX0X)
-KEYWORD(decltype                    , KEYCXX0X)
-KEYWORD(noexcept                    , KEYCXX0X)
-KEYWORD(nullptr                     , KEYCXX0X)
-KEYWORD(static_assert               , KEYCXX0X)
-KEYWORD(thread_local                , KEYCXX0X)
+// C++11 keywords
+KEYWORD(alignas                     , KEYCXX11)
+KEYWORD(alignof                     , KEYCXX11)
+KEYWORD(char16_t                    , KEYCXX11|KEYNOMS)
+KEYWORD(char32_t                    , KEYCXX11|KEYNOMS)
+KEYWORD(constexpr                   , KEYCXX11)
+KEYWORD(decltype                    , KEYCXX11)
+KEYWORD(noexcept                    , KEYCXX11)
+KEYWORD(nullptr                     , KEYCXX11)
+KEYWORD(static_assert               , KEYCXX11)
+KEYWORD(thread_local                , KEYCXX11)
 
 // GNU Extensions (in impl-reserved namespace)
 KEYWORD(_Decimal32                  , KEYALL)
@@ -350,31 +351,34 @@ KEYWORD(typeof                      , KEYGNU)
 KEYWORD(L__FUNCTION__               , KEYMS)
 
 // GNU and MS Type Traits
-KEYWORD(__has_nothrow_assign        , KEYCXX)
-KEYWORD(__has_nothrow_copy          , KEYCXX)
-KEYWORD(__has_nothrow_constructor   , KEYCXX)
-KEYWORD(__has_trivial_assign        , KEYCXX)
-KEYWORD(__has_trivial_copy          , KEYCXX)
-KEYWORD(__has_trivial_constructor   , KEYCXX)
-KEYWORD(__has_trivial_destructor    , KEYCXX)
-KEYWORD(__has_virtual_destructor    , KEYCXX)
-KEYWORD(__is_abstract               , KEYCXX)
-KEYWORD(__is_base_of                , KEYCXX)
-KEYWORD(__is_class                  , KEYCXX)
-KEYWORD(__is_convertible_to         , KEYCXX)
-KEYWORD(__is_empty                  , KEYCXX)
-KEYWORD(__is_enum                   , KEYCXX)
-KEYWORD(__is_final                  , KEYCXX)
-KEYWORD(__is_interface_class        , KEYCXX)
+KEYWORD(__has_nothrow_assign          , KEYCXX)
+KEYWORD(__has_nothrow_move_assign     , KEYCXX)
+KEYWORD(__has_nothrow_copy            , KEYCXX)
+KEYWORD(__has_nothrow_constructor     , KEYCXX)
+KEYWORD(__has_trivial_assign          , KEYCXX)
+KEYWORD(__has_trivial_move_assign     , KEYCXX)
+KEYWORD(__has_trivial_copy            , KEYCXX)
+KEYWORD(__has_trivial_constructor     , KEYCXX)
+KEYWORD(__has_trivial_move_constructor, KEYCXX)
+KEYWORD(__has_trivial_destructor      , KEYCXX)
+KEYWORD(__has_virtual_destructor      , KEYCXX)
+KEYWORD(__is_abstract                 , KEYCXX)
+KEYWORD(__is_base_of                  , KEYCXX)
+KEYWORD(__is_class                    , KEYCXX)
+KEYWORD(__is_convertible_to           , KEYCXX)
+KEYWORD(__is_empty                    , KEYCXX)
+KEYWORD(__is_enum                     , KEYCXX)
+KEYWORD(__is_final                    , KEYCXX)
+KEYWORD(__is_interface_class          , KEYCXX)
 // Tentative name - there's no implementation of std::is_literal_type yet.
-KEYWORD(__is_literal                , KEYCXX)
+KEYWORD(__is_literal                  , KEYCXX)
 // Name for GCC 4.6 compatibility - people have already written libraries using
 // this name unfortunately.
-KEYWORD(__is_literal_type           , KEYCXX)
-KEYWORD(__is_pod                    , KEYCXX)
-KEYWORD(__is_polymorphic            , KEYCXX)
-KEYWORD(__is_trivial                , KEYCXX)
-KEYWORD(__is_union                  , KEYCXX)
+KEYWORD(__is_literal_type             , KEYCXX)
+KEYWORD(__is_pod                      , KEYCXX)
+KEYWORD(__is_polymorphic              , KEYCXX)
+KEYWORD(__is_trivial                  , KEYCXX)
+KEYWORD(__is_union                    , KEYCXX)
 
 // Clang-only C++ Type Traits
 KEYWORD(__is_trivially_constructible, KEYCXX)
@@ -448,6 +452,14 @@ ALIAS("read_only", __read_only      , KEYOPENCL)
 ALIAS("write_only", __write_only    , KEYOPENCL)
 ALIAS("read_write", __read_write    , KEYOPENCL)
 KEYWORD(__builtin_astype            , KEYOPENCL)
+KEYWORD(image1d_t                   , KEYOPENCL)
+KEYWORD(image1d_array_t             , KEYOPENCL)
+KEYWORD(image1d_buffer_t            , KEYOPENCL)
+KEYWORD(image2d_t                   , KEYOPENCL)
+KEYWORD(image2d_array_t             , KEYOPENCL)
+KEYWORD(image3d_t                   , KEYOPENCL)
+KEYWORD(sampler_t                   , KEYOPENCL)
+KEYWORD(event_t                     , KEYOPENCL)
 
 // Borland Extensions.
 KEYWORD(__pascal                    , KEYALL)
@@ -566,7 +578,7 @@ OBJC2_AT_KEYWORD(required)
 OBJC2_AT_KEYWORD(optional)
 OBJC2_AT_KEYWORD(synthesize)
 OBJC2_AT_KEYWORD(dynamic)
-OBJC2_AT_KEYWORD(__experimental_modules_import)
+OBJC2_AT_KEYWORD(import)
 
 // TODO: What to do about context-sensitive keywords like:
 //       bycopy/byref/in/inout/oneway/out?
@@ -636,6 +648,12 @@ ANNOTATION(pragma_fp_contract)
 // The lexer produces these so that they only take effect when the parser
 // handles them.
 ANNOTATION(pragma_opencl_extension)
+
+// Annotations for OpenMP pragma directives - #pragma omp ...
+// The lexer produces these so that they only take effect when the parser
+// handles #pragma omp ... directives.
+ANNOTATION(pragma_openmp)
+ANNOTATION(pragma_openmp_end)
 
 #undef ANNOTATION
 #undef TESTING_KEYWORD

@@ -1,10 +1,10 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -x objective-c++ -fmodules -fmodule-cache-path %t -I %S/Inputs -verify %s -Wno-objc-root-class
-// RUN: %clang_cc1 -x objective-c++ -fmodules -fmodule-cache-path %t -I %S/Inputs -emit-llvm %s -o - -Wno-objc-root-class | grep Emit | FileCheck %s
+// RUN: %clang_cc1 -x objective-c++ -fmodules -fmodules-cache-path=%t -I %S/Inputs -verify %s -Wno-objc-root-class
+// RUN: %clang_cc1 -x objective-c++ -fmodules -fmodules-cache-path=%t -I %S/Inputs -emit-llvm %s -o - -Wno-objc-root-class | grep Emit | FileCheck %s
 // expected-no-diagnostics
 
-@__experimental_modules_import templates_left;
-@__experimental_modules_import templates_right;
+@import templates_left;
+@import templates_right;
 
 
 void testTemplateClasses() {

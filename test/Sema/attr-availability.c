@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -fsyntax-only -fblocks -verify %s
 
 void f0() __attribute__((availability(macosx,introduced=10.4,deprecated=10.2))); // expected-warning{{feature cannot be deprecated in OS X version 10.2 before it was introduced in version 10.4; attribute ignored}}
 void f1() __attribute__((availability(ios,obsoleted=2.1,deprecated=3.0)));  // expected-warning{{feature cannot be obsoleted in iOS version 2.1 before it was deprecated in version 3.0; attribute ignored}}
@@ -43,3 +43,14 @@ void f7(int) __attribute__((availability(ios,deprecated=4.0))); // expected-warn
 #if !__has_feature(attribute_availability_with_message)
 # error "Missing __has_feature"
 #endif
+
+extern int x __attribute__((availability(macosx,introduced=10.5)));
+extern int x;
+
+void f8() {
+  int (^b)(int);
+  b = ^ (int i) __attribute__((availability(macosx,introduced=10.2))) { return 1; }; // expected-warning {{'availability' attribute ignored}}
+}
+
+extern int x2 __attribute__((availability(macosx,introduced=10.2))); // expected-note {{previous attribute is here}}
+extern int x2 __attribute__((availability(macosx,introduced=10.5))); // expected-warning {{availability does not match previous declaration}}

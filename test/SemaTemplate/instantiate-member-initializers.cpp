@@ -25,3 +25,19 @@ public:
   BB() : AA<T>(1) {}
 };
 BB<int> x;
+
+struct X {
+  X();
+};
+template<typename T>
+struct Y {
+  Y() : x() {}
+  X x;
+};
+Y<int> y;
+
+template<typename T> struct Array {
+  int a[3];
+  Array() : a() {}
+};
+Array<int> s;

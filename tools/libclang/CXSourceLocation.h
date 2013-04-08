@@ -15,9 +15,9 @@
 #define LLVM_CLANG_CXSOURCELOCATION_H
 
 #include "clang-c/Index.h"
-#include "clang/Basic/SourceLocation.h"
-#include "clang/Basic/LangOptions.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceLocation.h"
 
 namespace clang {
 
@@ -32,7 +32,7 @@ translateSourceLocation(const SourceManager &SM, const LangOptions &LangOpts,
   if (Loc.isInvalid())
     clang_getNullLocation();
 
-  CXSourceLocation Result = { { (void*) &SM, (void*) &LangOpts, },
+  CXSourceLocation Result = { { &SM, &LangOpts, },
                               Loc.getRawEncoding() };
   return Result;
 }

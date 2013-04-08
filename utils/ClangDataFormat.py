@@ -16,37 +16,85 @@ After that, instead of getting this:
 you'll get:
 
 (lldb) p Tok.Loc
-(clang::SourceLocation) $4 = "/usr/include/i386/_types.h:37:1" (offset: 123582, file)
+(clang::SourceLocation) $4 = "/usr/include/i386/_types.h:37:1" (offset: 123582, file, local)
 """
 
 import lldb
 
 def __lldb_init_module(debugger, internal_dict):
 	debugger.HandleCommand("type summary add -F ClangDataFormat.SourceLocation_summary clang::SourceLocation")
+	debugger.HandleCommand("type summary add -F ClangDataFormat.QualType_summary clang::QualType")
+	debugger.HandleCommand("type summary add -F ClangDataFormat.StringRef_summary llvm::StringRef")
 
 def SourceLocation_summary(srcloc, internal_dict):
 	return SourceLocation(srcloc).summary()
 
+def QualType_summary(qualty, internal_dict):
+	return QualType(qualty).summary()
+
+def StringRef_summary(strref, internal_dict):
+	return StringRef(strref).summary()
+
 class SourceLocation(object):
 	def __init__(self, srcloc):
 		self.srcloc = srcloc
+		self.ID = srcloc.GetChildAtIndex(0).GetValueAsUnsigned()
+		self.frame = srcloc.GetFrame()
 	
 	def offset(self):
 		return getValueFromExpression(self.srcloc, ".getOffset()").GetValueAsUnsigned()
 
+	def isInvalid(self):
+		return self.ID == 0
+
 	def isMacro(self):
 		return getValueFromExpression(self.srcloc, ".isMacroID()").GetValueAsUnsigned()
+
+	def isLocal(self, srcmgr_path):
+		return self.frame.EvaluateExpression("(%s).isLocalSourceLocation(%s)" % (srcmgr_path, getExpressionPath(self.srcloc))).GetValueAsUnsigned()
 
 	def getPrint(self, srcmgr_path):
 		print_str = getValueFromExpression(self.srcloc, ".printToString(%s)" % srcmgr_path)
 		return print_str.GetSummary()
 
 	def summary(self):
-		desc = "(offset: %d, %s)" % (self.offset(), "macro" if self.isMacro() else "file")
-		srcmgr_path = findObjectExpressionPath("clang::SourceManager", lldb.frame)
+		if self.isInvalid():
+			return "<invalid loc>"
+		srcmgr_path = findObjectExpressionPath("clang::SourceManager", self.frame)
 		if srcmgr_path:
-			desc = self.getPrint(srcmgr_path) + " " + desc
+			return "%s (offset: %d, %s, %s)" % (self.getPrint(srcmgr_path), self.offset(), "macro" if self.isMacro() else "file", "local" if self.isLocal(srcmgr_path) else "loaded")
+		return "(offset: %d, %s)" % (self.offset(), "macro" if self.isMacro() else "file")
+
+class QualType(object):
+	def __init__(self, qualty):
+		self.qualty = qualty
+
+	def getAsString(self):
+		std_str = getValueFromExpression(self.qualty, ".getAsString()")
+		return std_str.GetSummary()
+
+	def summary(self):
+		desc = self.getAsString()
+		if desc == '"NULL TYPE"':
+			return "<NULL TYPE>"
 		return desc
+
+class StringRef(object):
+	def __init__(self, strref):
+		self.strref = strref
+		self.Data_value = strref.GetChildAtIndex(0)
+		self.Length = strref.GetChildAtIndex(1).GetValueAsUnsigned()
+
+	def summary(self):
+		if self.Length == 0:
+			return '""'
+		data = self.Data_value.GetPointeeData(0, self.Length)
+		error = lldb.SBError()
+		string = data.ReadRawData(error, 0, data.GetByteSize())
+		if error.Fail():
+			return None
+		return '"%s"' % string
+
 
 # Key is a (function address, type name) tuple, value is the expression path for
 # an object with such a type name from inside that function.
@@ -105,7 +153,7 @@ def findObject(typename, frame):
 			return found if not found.TypeIsPointerType() else found.Dereference()
 
 def getValueFromExpression(val, expr):
-	return lldb.frame.EvaluateExpression(getExpressionPath(val) + expr)
+	return val.GetFrame().EvaluateExpression(getExpressionPath(val) + expr)
 
 def getExpressionPath(val):
 	stream = lldb.SBStream()

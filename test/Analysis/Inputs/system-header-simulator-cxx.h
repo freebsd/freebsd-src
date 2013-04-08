@@ -1,3 +1,8 @@
+// Like the compiler, the static analyzer treats some functions differently if
+// they come from a system header -- for example, it is assumed that system
+// functions do not arbitrarily free() their parameters, and that some bugs
+// found in system headers cannot be fixed by the user and should be
+// suppressed.
 #pragma clang system_header
 
 namespace std {
@@ -54,4 +59,35 @@ namespace std {
       return 0;
     }
   };
+
+  class bad_alloc : public exception {
+    public:
+    bad_alloc() throw();
+    bad_alloc(const bad_alloc&) throw();
+    bad_alloc& operator=(const bad_alloc&) throw();
+    virtual const char* what() const throw() {
+      return 0;
+    }
+  };
+
+  struct nothrow_t {};
+
+  extern const nothrow_t nothrow;
+
+  template<class InputIter, class OutputIter>
+  OutputIter copy(InputIter II, InputIter IE, OutputIter OI) {
+    while (II != IE)
+      *OI++ = *II++;
+    return OI;
+  }
 }
+
+void* operator new(std::size_t, const std::nothrow_t&) throw();
+void* operator new[](std::size_t, const std::nothrow_t&) throw();
+void operator delete(void*, const std::nothrow_t&) throw();
+void operator delete[](void*, const std::nothrow_t&) throw();
+
+void* operator new (std::size_t size, void* ptr) throw() { return ptr; };
+void* operator new[] (std::size_t size, void* ptr) throw() { return ptr; };
+void operator delete (void* ptr, void*) throw() {};
+void operator delete[] (void* ptr, void*) throw() {};

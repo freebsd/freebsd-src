@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,alpha.core -analyzer-store=region -verify -fblocks -analyzer-ipa=inlining -analyzer-opt-analyze-nested-blocks %s -fexceptions -fcxx-exceptions
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-checker=core,alpha.core -analyzer-store=region -verify -fblocks -analyzer-ipa=inlining -analyzer-opt-analyze-nested-blocks %s -fexceptions -fcxx-exceptions
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,alpha.core -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s -fexceptions -fcxx-exceptions
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-checker=core,alpha.core -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s -fexceptions -fcxx-exceptions
 
 // Test basic handling of references.
 char &test1_aux();
@@ -626,5 +626,117 @@ void test_inline() {
   A a;
   a.foo(0);
   a.bar();
+}
+
+void test_alloca_in_a_recursive_function(int p1) {
+    __builtin_alloca (p1);
+    test_alloca_in_a_recursive_function(1);
+    test_alloca_in_a_recursive_function(2);
+}
+
+//===---------------------------------------------------------------------===//
+// Random tests.
+//===---------------------------------------------------------------------===//
+
+// Tests assigning using a C-style initializer to a struct
+// variable whose sub-field is also a struct.  This currently
+// results in a CXXTempObjectRegion being created, but not
+// properly handled.  For now, we just ignore that value
+// to avoid a crash (<rdar://problem/12753384>).
+struct RDar12753384_ClassA {
+  unsigned z;
+};
+struct  RDar12753384_ClassB {
+  unsigned x;
+  RDar12753384_ClassA y[ 8 ] ;
+};
+unsigned RDar12753384() {
+  RDar12753384_ClassB w = { 0x00 };
+  RDar12753384_ClassA y[8];
+  return w.x;
+}
+
+// This testcase tests whether we treat the anonymous union and union
+// the same way.  This previously resulted in a "return of stack address"
+// warning because the anonymous union resulting in a temporary object
+// getting put into the initializer.  We still aren't handling this correctly,
+// but now if a temporary object appears in an initializer we just ignore it.
+// Fixes <rdar://problem/12755044>.
+
+struct Rdar12755044_foo
+{
+    struct Rdar12755044_bar
+    {
+        union baz
+        {
+            int   i;
+        };
+    } aBar;
+};
+
+struct Rdar12755044_foo_anon
+{
+    struct Rdar12755044_bar
+    {
+        union
+        {
+            int   i;
+        };
+    } aBar;
+};
+
+const Rdar12755044_foo_anon *radar12755044_anon() {
+  static const Rdar12755044_foo_anon Rdar12755044_foo_list[] = { { { } } };
+  return Rdar12755044_foo_list; // no-warning
+}
+
+const Rdar12755044_foo *radar12755044() {
+  static const Rdar12755044_foo Rdar12755044_foo_list[] = { { { } } };
+  return Rdar12755044_foo_list; // no-warning
+}
+
+// Test the correct handling of integer to bool conversions.  Previously
+// this resulted in a false positive because integers were being truncated
+// and not tested for non-zero.
+void rdar12759044() {
+  int flag = 512;
+  if (!(flag & 512)) {
+   int *p = 0;
+   *p = 0xDEADBEEF; // no-warning
+  }
+}
+
+// The analyzer currently does not model complex types.  Test that the load
+// from 'x' is not flagged as being uninitialized.
+typedef __complex__ float _ComplexT;
+void rdar12964481(_ComplexT *y) {
+   _ComplexT x;
+   __real__ x = 1.0;
+   __imag__ x = 1.0;
+   *y *= x; // no-warning
+}
+void rdar12964481_b(_ComplexT *y) {
+   _ComplexT x;
+   // Eventually this should be a warning.
+   *y *= x; // no-warning
+}
+
+// Test case for PR 12921.  This previously produced
+// a bogus warning.
+static const int pr12921_arr[] = { 0, 1 };
+static const int pr12921_arrcount = sizeof(pr12921_arr)/sizeof(int);
+
+int pr12921(int argc, char **argv) {
+  int i, retval;
+  for (i = 0; i < pr12921_arrcount; i++) {
+    if (argc == i) {
+      retval = i;
+      break;
+    }
+  }
+
+  // No match
+  if (i == pr12921_arrcount) return 66;
+  return pr12921_arr[retval];
 }
 
