@@ -153,6 +153,23 @@ See
 .Fn uma_find_refcnt .
 .It Dv UMA_ZONE_NODUMP
 Pages belonging to the zone will not be included into mini-dumps.
+.It Dv UMA_ZONE_PCPU
+An allocation from zone would have
+.Va mp_ncpu
+shadow copies, that are privately assigned to CPUs.
+A CPU can address its private copy using base allocation address plus
+multiple of current CPU id and
+.Fn sizeof "struct pcpu" :
+.Bd -literal -offset indent
+foo_zone = uma_zcreate(..., UMA_ZONE_PCPU);
+ ...
+foo_base = uma_zalloc(foo_zone, ...);
+ ...
+critical_enter();
+foo_pcpu = (foo_t *)zpcpu_get(foo_base);
+/* do something with foo_pcpu */
+critical_exit();
+.Ed
 .It Dv UMA_ZONE_OFFPAGE
 By default book-keeping of items within a slab is done in the slab page itself.
 This flag explicitly tells subsystem that book-keeping structure should be
