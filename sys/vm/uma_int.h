@@ -120,8 +120,8 @@
 
 #define UMA_BOOT_PAGES		64	/* Pages allocated for startup */
 
-/* Max waste before going to off page slab management */
-#define UMA_MAX_WASTE	(UMA_SLAB_SIZE / 10)
+/* Max waste percentage before going to off page slab management */
+#define UMA_MAX_WASTE	10
 
 /*
  * I doubt there will be many cases where this is exceeded. This is the initial
@@ -197,12 +197,9 @@ typedef struct uma_cache * uma_cache_t;
  *
  */
 struct uma_keg {
-	LIST_ENTRY(uma_keg)	uk_link;	/* List of all kegs */
-
 	struct mtx	uk_lock;	/* Lock for the keg */
 	struct uma_hash	uk_hash;
 
-	const char	*uk_name;		/* Name of creating zone. */
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 	LIST_HEAD(,uma_slab)	uk_part_slab;	/* partially allocated slabs */
 	LIST_HEAD(,uma_slab)	uk_free_slab;	/* empty slab list */
@@ -225,10 +222,15 @@ struct uma_keg {
 	vm_offset_t	uk_kva;		/* Zone base KVA */
 	uma_zone_t	uk_slabzone;	/* Slab zone backing us, if OFFPAGE */
 
+	u_int16_t	uk_slabsize;	/* Slab size for this keg */
 	u_int16_t	uk_pgoff;	/* Offset to uma_slab struct */
 	u_int16_t	uk_ppera;	/* pages per allocation from backend */
 	u_int16_t	uk_ipers;	/* Items per slab */
 	u_int32_t	uk_flags;	/* Internal flags */
+
+	/* Least used fields go to the last cache line. */
+	const char	*uk_name;		/* Name of creating zone. */
+	LIST_ENTRY(uma_keg)	uk_link;	/* List of all kegs */
 };
 typedef struct uma_keg	* uma_keg_t;
 

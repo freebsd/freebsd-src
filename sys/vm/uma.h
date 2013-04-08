@@ -252,6 +252,10 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
 					 * Zone's pages will not be included in
 					 * mini-dumps.
 					 */
+#define	UMA_ZONE_PCPU		0x8000	/*
+					 * Allocates mp_ncpus slabs sized to
+					 * sizeof(struct pcpu).
+					 */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add
@@ -260,7 +264,7 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
  */
 #define	UMA_ZONE_INHERIT						\
     (UMA_ZONE_OFFPAGE | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
-    UMA_ZONE_HASH | UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB)
+    UMA_ZONE_HASH | UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB | UMA_ZONE_PCPU)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
