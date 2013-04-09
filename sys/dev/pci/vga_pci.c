@@ -56,7 +56,8 @@ struct vga_resource {
 
 struct vga_pci_softc {
 	device_t	vga_msi_child;	/* Child driver using MSI. */
-	struct vga_resource vga_res[PCIR_MAX_BAR_0 + 1];
+	struct vga_resource vga_bars[PCIR_MAX_BAR_0 + 1];
+	struct vga_resource vga_bios;
 };
 
 SYSCTL_DECL(_hw_pci);
@@ -156,12 +157,24 @@ vga_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return (BUS_TEARDOWN_INTR(device_get_parent(dev), dev, irq, cookie));
 }
 
+static struct vga_resource *
+lookup_res(struct vga_pci_softc *sc, int rid)
+{
+	int bar;
+
+	if (rid == PCIR_BIOS)
+		return (&sc->vga_bios);
+	bar = PCI_RID2BAR(rid);
+	if (bar >= 0 && bar <= PCIR_MAX_BAR_0)
+		return (&sc->vga_bars[bar]);
+	return (NULL);
+}
+
 static struct resource *
 vga_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct vga_pci_softc *sc;
-	int bar;
+	struct vga_resource *vr;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -170,16 +183,15 @@ vga_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * For BARs, we cache the resource so that we only allocate it
 		 * from the PCI bus once.
 		 */
-		bar = PCI_RID2BAR(*rid);
-		if (bar < 0 || bar > PCIR_MAX_BAR_0)
+		vr = lookup_res(device_get_softc(dev), *rid);
+		if (vr == NULL)
 			return (NULL);
-		sc = device_get_softc(dev);
-		if (sc->vga_res[bar].vr_res == NULL)
-			sc->vga_res[bar].vr_res = bus_alloc_resource(dev, type,
-			    rid, start, end, count, flags);
-		if (sc->vga_res[bar].vr_res != NULL)
-			sc->vga_res[bar].vr_refs++;
-		return (sc->vga_res[bar].vr_res);
+		if (vr->vr_res == NULL)
+			vr->vr_res = bus_alloc_resource(dev, type, rid, start,
+			    end, count, flags);
+		if (vr->vr_res != NULL)
+			vr->vr_refs++;
+		return (vr->vr_res);
 	}
 	return (bus_alloc_resource(dev, type, rid, start, end, count, flags));
 }
@@ -188,8 +200,8 @@ static int
 vga_pci_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	struct vga_pci_softc *sc;
-	int bar, error;
+	struct vga_resource *vr;
+	int error;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -198,24 +210,22 @@ vga_pci_release_resource(device_t dev, device_t child, int type, int rid,
 		 * For BARs, we release the resource from the PCI bus
 		 * when the last child reference goes away.
 		 */
-		bar = PCI_RID2BAR(rid);
-		if (bar < 0 || bar > PCIR_MAX_BAR_0)
+		vr = lookup_res(device_get_softc(dev), rid);
+		if (vr == NULL)
 			return (EINVAL);
-		sc = device_get_softc(dev);
-		if (sc->vga_res[bar].vr_res == NULL)
+		if (vr->vr_res == NULL)
 			return (EINVAL);
-		KASSERT(sc->vga_res[bar].vr_res == r,
-		    ("vga_pci resource mismatch"));
-		if (sc->vga_res[bar].vr_refs > 1) {
-			sc->vga_res[bar].vr_refs--;
+		KASSERT(vr->vr_res == r, ("vga_pci resource mismatch"));
+		if (vr->vr_refs > 1) {
+			vr->vr_refs--;
 			return (0);
 		}
-		KASSERT(sc->vga_res[bar].vr_refs > 0,
+		KASSERT(vr->vr_refs > 0,
 		    ("vga_pci resource reference count underflow"));
 		error = bus_release_resource(dev, type, rid, r);
 		if (error == 0) {
-			sc->vga_res[bar].vr_res = NULL;
-			sc->vga_res[bar].vr_refs = 0;
+			vr->vr_res = NULL;
+			vr->vr_refs = 0;
 		}
 		return (error);
 	}
