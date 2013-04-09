@@ -25,46 +25,6 @@
 #include <openssl/rand.h>
 #endif
 
-#if 0
-/* put this here tmp. for debugging */
-static void
-xprintf_rdf(ldns_rdf *rd)
-{
-	/* assume printable string */
-	fprintf(stderr, "size\t:%u\n", (unsigned int)ldns_rdf_size(rd));
-	fprintf(stderr, "type\t:%u\n", (unsigned int)ldns_rdf_get_type(rd));
-	fprintf(stderr, "data\t:[%.*s]\n", (int)ldns_rdf_size(rd),
-			(char*)ldns_rdf_data(rd));
-}
-
-static void
-xprintf_rr(ldns_rr *rr)
-{
-	/* assume printable string */
-	uint16_t count, i;
-
-	count = ldns_rr_rd_count(rr);
-
-	for(i = 0; i < count; i++) {
-		fprintf(stderr, "print rd %u\n", (unsigned int) i);
-		xprintf_rdf(rr->_rdata_fields[i]);
-	}
-}
-
-static void
-xprintf_hex(uint8_t *data, size_t len)
-{
-	size_t i;
-	for (i = 0; i < len; i++) {
-		if (i > 0 && i % 20 == 0) {
-			printf("\t; %u - %u\n", (unsigned int) i - 19, (unsigned int) i);
-		}
-		printf("%02x ", (unsigned int) data[i]);
-	}
-	printf("\n");
-}
-#endif
-
 ldns_lookup_table *
 ldns_lookup_by_name(ldns_lookup_table *table, const char *name)
 {
