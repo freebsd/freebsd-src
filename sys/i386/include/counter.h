@@ -46,6 +46,8 @@
 		critical_exit();			\
 } while (0)
 
+extern struct pcpu __pcpu[MAXCPU];
+
 static inline void
 counter_64_inc_8b(uint64_t *p, int64_t inc)
 {
@@ -61,7 +63,7 @@ counter_64_inc_8b(uint64_t *p, int64_t inc)
 	"cmpxchg8b %%fs:(%%esi)\n\t"
 	"jnz	1b"
 	:
-	: "S" (p), "D" (&inc)
+	: "S" ((char *)p - (char *)&__pcpu[0]), "D" (&inc)
 	: "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
 
