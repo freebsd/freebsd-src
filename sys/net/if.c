@@ -206,7 +206,7 @@ VNET_DEFINE(struct ifindex_entry *, ifindex_table);
  * also to stablize it over long-running ioctls, without introducing priority
  * inversions and deadlocks.
  */
-struct rwlock ifnet_rwlock;
+struct rwlock_padalign ifnet_rwlock;
 struct sx ifnet_sxlock;
 
 /*

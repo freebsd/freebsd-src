@@ -191,9 +191,9 @@ struct ifnet {
 	void	*if_unused[2];
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
-	struct	rwlock if_afdata_lock;
 	struct	task if_linktask;	/* task for link change events */
-	struct	rwlock if_addr_lock;	/* lock to protect address lists */
+	struct	rwlock_padalign if_afdata_lock;
+	struct	rwlock_padalign if_addr_lock;	/* lock to protect address lists */
 
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */

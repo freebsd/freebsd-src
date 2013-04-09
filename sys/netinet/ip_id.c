@@ -97,7 +97,7 @@ static int		 array_ptr = 0;
 static int		 array_size = 8192;
 static int		 random_id_collisions = 0;
 static int		 random_id_total = 0;
-static struct mtx	 ip_id_mtx;
+static struct mtx_padalign  ip_id_mtx;
 
 static void	ip_initid(void);
 static int	sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
