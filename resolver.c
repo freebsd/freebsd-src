@@ -436,7 +436,7 @@ ldns_resolver_set_fail(ldns_resolver *r, bool f)
 	r->_fail =f;
 }
 
-void
+static void
 ldns_resolver_set_searchlist_count(ldns_resolver *r, size_t c)
 {
 	r->_searchlist_count = c;

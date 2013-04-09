@@ -100,7 +100,7 @@ typedef struct ldns_struct_dnssec_zone ldns_dnssec_zone;
  * Creates a new entry for 1 pointer to an rr and 1 pointer to the next rrs
  * \return the allocated data
  */
-ldns_dnssec_rrs *ldns_dnssec_rrs_new();
+ldns_dnssec_rrs *ldns_dnssec_rrs_new(void);
 
 /**
  * Frees the list of rrs, but *not* the individual ldns_rr records
@@ -149,7 +149,7 @@ void ldns_dnssec_rrs_print_fmt(FILE *out,
  * Creates a new list (entry) of RRsets
  * \return the newly allocated structure
  */
-ldns_dnssec_rrsets *ldns_dnssec_rrsets_new();
+ldns_dnssec_rrsets *ldns_dnssec_rrsets_new(void);
 
 /**
  * Frees the list of rrsets and their rrs, but *not* the ldns_rr
@@ -224,7 +224,7 @@ void ldns_dnssec_rrsets_print_fmt(FILE *out,
  * Create a new data structure for a dnssec name
  * \return the allocated structure
  */
-ldns_dnssec_name *ldns_dnssec_name_new();
+ldns_dnssec_name *ldns_dnssec_name_new(void);
 
 /**
  * Create a new data structure for a dnssec name for the given RR
@@ -356,7 +356,7 @@ void ldns_dnssec_name_print_fmt(FILE *out,
  * Creates a new dnssec_zone structure
  * \return the allocated structure
  */
-ldns_dnssec_zone *ldns_dnssec_zone_new();
+ldns_dnssec_zone *ldns_dnssec_zone_new(void);
 
 /**
  * Create a new dnssec zone from a file.

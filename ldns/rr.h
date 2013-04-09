@@ -589,7 +589,7 @@ ldns_rr* ldns_rr_list_rr(const ldns_rr_list *rr_list, size_t nr);
  * creates a new rr_list structure.
  * \return a new rr_list structure
  */
-ldns_rr_list* ldns_rr_list_new();
+ldns_rr_list* ldns_rr_list_new(void);
 
 /**
  * frees an rr_list structure.

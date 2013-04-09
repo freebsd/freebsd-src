@@ -739,7 +739,7 @@ void ldns_pkt_set_edns_data(ldns_pkt *packet, ldns_rdf *data);
  * allocates and initializes a ldns_pkt structure.
  * \return pointer to the new packet
  */
-ldns_pkt *ldns_pkt_new();
+ldns_pkt *ldns_pkt_new(void);
 
 /**
  * frees the packet structure and all data that it contains.

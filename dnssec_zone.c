@@ -7,7 +7,7 @@
 #include <ldns/ldns.h>
 
 ldns_dnssec_rrs *
-ldns_dnssec_rrs_new()
+ldns_dnssec_rrs_new(void)
 {
 	ldns_dnssec_rrs *new_rrs;
 	new_rrs = LDNS_MALLOC(ldns_dnssec_rrs);
@@ -102,7 +102,7 @@ ldns_dnssec_rrs_print(FILE *out, ldns_dnssec_rrs *rrs)
 
 
 ldns_dnssec_rrsets *
-ldns_dnssec_rrsets_new()
+ldns_dnssec_rrsets_new(void)
 {
 	ldns_dnssec_rrsets *new_rrsets;
 	new_rrsets = LDNS_MALLOC(ldns_dnssec_rrsets);
@@ -164,7 +164,7 @@ ldns_dnssec_rrsets_set_type(ldns_dnssec_rrsets *rrsets,
 	return LDNS_STATUS_ERR;
 }
 
-ldns_dnssec_rrsets *
+static ldns_dnssec_rrsets *
 ldns_dnssec_rrsets_new_frm_rr(ldns_rr *rr)
 {
 	ldns_dnssec_rrsets *new_rrsets;
@@ -270,7 +270,7 @@ ldns_dnssec_rrsets_add_rr(ldns_dnssec_rrsets *rrsets, ldns_rr *rr)
 	return result;
 }
 
-void
+static void
 ldns_dnssec_rrsets_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 		ldns_dnssec_rrsets *rrsets,
 		bool follow,
@@ -298,16 +298,6 @@ ldns_dnssec_rrsets_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 	}
 }
 
-void
-ldns_dnssec_rrsets_print_soa(FILE *out,
-		ldns_dnssec_rrsets *rrsets,
-		bool follow,
-		bool show_soa)
-{
-	ldns_dnssec_rrsets_print_soa_fmt(out, ldns_output_format_default,
-		       	rrsets, follow, show_soa);
-}
-
 
 void
 ldns_dnssec_rrsets_print_fmt(FILE *out, const ldns_output_format *fmt,
@@ -325,7 +315,7 @@ ldns_dnssec_rrsets_print(FILE *out, ldns_dnssec_rrsets *rrsets, bool follow)
 }
 
 ldns_dnssec_name *
-ldns_dnssec_name_new()
+ldns_dnssec_name_new(void)
 {
 	ldns_dnssec_name *new_name;
 
@@ -428,14 +418,6 @@ ldns_dnssec_name_set_name(ldns_dnssec_name *rrset,
 	}
 }
 
-ldns_rr *
-ldns_dnssec_name_nsec(ldns_dnssec_name *rrset)
-{
-	if (rrset) {
-		return rrset->nsec;
-	}
-	return NULL;
-}
 
 void
 ldns_dnssec_name_set_nsec(ldns_dnssec_name *rrset, ldns_rr *nsec)
@@ -563,7 +545,7 @@ ldns_dnssec_zone_find_rrset(ldns_dnssec_zone *zone,
 	}
 }
 
-void
+static void
 ldns_dnssec_name_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 		ldns_dnssec_name *name, 
 		bool show_soa)
@@ -589,12 +571,6 @@ ldns_dnssec_name_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 	}
 }
 
-void
-ldns_dnssec_name_print_soa(FILE *out, ldns_dnssec_name *name, bool show_soa)
-{
-	ldns_dnssec_name_print_soa_fmt(out, ldns_output_format_default,
-		       name, show_soa);
-}
 
 void
 ldns_dnssec_name_print_fmt(FILE *out, const ldns_output_format *fmt,
@@ -611,7 +587,7 @@ ldns_dnssec_name_print(FILE *out, ldns_dnssec_name *name)
 
 
 ldns_dnssec_zone *
-ldns_dnssec_zone_new()
+ldns_dnssec_zone_new(void)
 {
 	ldns_dnssec_zone *zone = LDNS_MALLOC(ldns_dnssec_zone);
         if(!zone) return NULL;
@@ -777,14 +753,14 @@ ldns_dnssec_zone_new_frm_fp(ldns_dnssec_zone** z, FILE* fp, ldns_rdf* origin,
 	return ldns_dnssec_zone_new_frm_fp_l(z, fp, origin, ttl, c, NULL);
 }
 
-void
+static void
 ldns_dnssec_name_node_free(ldns_rbnode_t *node, void *arg) {
 	(void) arg;
 	ldns_dnssec_name_free((ldns_dnssec_name *)node->data);
 	LDNS_FREE(node);
 }
 
-void
+static void
 ldns_dnssec_name_node_deep_free(ldns_rbnode_t *node, void *arg) {
 	(void) arg;
 	ldns_dnssec_name_deep_free((ldns_dnssec_name *)node->data);
@@ -827,7 +803,7 @@ ldns_dname_compare_v(const void *a, const void *b) {
 	return ldns_dname_compare((ldns_rdf *)a, (ldns_rdf *)b);
 }
 
-ldns_rbnode_t *
+static ldns_rbnode_t *
 ldns_dnssec_zone_find_nsec3_original(ldns_dnssec_zone *zone,
                                      ldns_rr *rr) {
 	ldns_rbnode_t *current_node = ldns_rbtree_first(zone->names);

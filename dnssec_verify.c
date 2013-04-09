@@ -16,7 +16,7 @@
 #include <openssl/md5.h>
 
 ldns_dnssec_data_chain *
-ldns_dnssec_data_chain_new()
+ldns_dnssec_data_chain_new(void)
 {
 	ldns_dnssec_data_chain *nc = LDNS_CALLOC(ldns_dnssec_data_chain, 1);
         if(!nc) return NULL;
@@ -216,7 +216,7 @@ ldns_dnssec_build_data_chain_other(ldns_resolver *res,
 	}
 }
 
-ldns_dnssec_data_chain *
+static ldns_dnssec_data_chain *
 ldns_dnssec_build_data_chain_nokeyname(ldns_resolver *res,
                                        uint16_t qflags,
                                        ldns_rr *orig_rr,
@@ -439,7 +439,7 @@ ldns_dnssec_build_data_chain(ldns_resolver *res,
 }
 
 ldns_dnssec_trust_tree *
-ldns_dnssec_trust_tree_new()
+ldns_dnssec_trust_tree_new(void)
 {
 	ldns_dnssec_trust_tree *new_tree = LDNS_XMALLOC(ldns_dnssec_trust_tree,
 										   1);
@@ -495,7 +495,7 @@ print_tabs(FILE *out, size_t nr, uint8_t *map, size_t treedepth)
 	}
 }
 
-void
+static void
 ldns_dnssec_trust_tree_print_sm_fmt(FILE *out, 
 		const ldns_output_format *fmt,
 		ldns_dnssec_trust_tree *tree,
@@ -626,18 +626,6 @@ ldns_dnssec_trust_tree_print_sm_fmt(FILE *out,
 	if (mapset) {
 		LDNS_FREE(sibmap);
 	}
-}
-
-void
-ldns_dnssec_trust_tree_print_sm(FILE *out, 
-		ldns_dnssec_trust_tree *tree,
-		size_t tabs,
-		bool extended,
-		uint8_t *sibmap,
-		size_t treedepth)
-{
-	ldns_dnssec_trust_tree_print_sm_fmt(out, ldns_output_format_default, 
-			tree, tabs, extended, sibmap, treedepth);
 }
 
 void
