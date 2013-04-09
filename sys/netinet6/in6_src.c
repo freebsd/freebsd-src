@@ -153,7 +153,7 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 #define REPLACE(r) do {\
 	if ((r) < sizeof(V_ip6stat.ip6s_sources_rule) / \
 		sizeof(V_ip6stat.ip6s_sources_rule[0])) /* check for safety */ \
-		V_ip6stat.ip6s_sources_rule[(r)]++; \
+		IP6STAT_INC(ip6s_sources_rule[(r)]); \
 	/* { \
 	char ip6buf[INET6_ADDRSTRLEN], ip6b[INET6_ADDRSTRLEN]; \
 	printf("in6_selectsrc: replace %s with %s by %d\n", ia_best ? ip6_sprintf(ip6buf, &ia_best->ia_addr.sin6_addr) : "none", ip6_sprintf(ip6b, &ia->ia_addr.sin6_addr), (r)); \
@@ -163,7 +163,7 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 #define NEXT(r) do {\
 	if ((r) < sizeof(V_ip6stat.ip6s_sources_rule) / \
 		sizeof(V_ip6stat.ip6s_sources_rule[0])) /* check for safety */ \
-		V_ip6stat.ip6s_sources_rule[(r)]++; \
+		IP6STAT_INC(ip6s_sources_rule[(r)]); \
 	/* { \
 	char ip6buf[INET6_ADDRSTRLEN], ip6b[INET6_ADDRSTRLEN]; \
 	printf("in6_selectsrc: keep %s against %s by %d\n", ia_best ? ip6_sprintf(ip6buf, &ia_best->ia_addr.sin6_addr) : "none", ip6_sprintf(ip6b, &ia->ia_addr.sin6_addr), (r)); \
@@ -173,7 +173,7 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 #define BREAK(r) do { \
 	if ((r) < sizeof(V_ip6stat.ip6s_sources_rule) / \
 		sizeof(V_ip6stat.ip6s_sources_rule[0])) /* check for safety */ \
-		V_ip6stat.ip6s_sources_rule[(r)]++; \
+		IP6STAT_INC(ip6s_sources_rule[(r)]); \
 	goto out;		/* XXX: we can't use 'break' here */ \
 } while(0)
 
@@ -734,7 +734,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		error = EHOSTUNREACH;
 	}
 	if (error == EHOSTUNREACH)
-		V_ip6stat.ip6s_noroute++;
+		IP6STAT_INC(ip6s_noroute);
 
 	if (retifp != NULL) {
 		*retifp = ifp;
