@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct ip) == 20);
 #endif
 
-struct	rwlock in_ifaddr_lock;
+struct rwlock_padalign	in_ifaddr_lock;
 RW_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
 
 VNET_DEFINE(int, rsvp_on);
@@ -155,7 +155,7 @@ VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
 
 static VNET_DEFINE(uma_zone_t, ipq_zone);
 static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
-static struct mtx ipqlock;
+static struct mtx_padalign	ipqlock;
 
 #define	V_ipq_zone		VNET(ipq_zone)
 #define	V_ipq			VNET(ipq)
