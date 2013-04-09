@@ -49,18 +49,26 @@ extern "C" {
 #define	ZFS_IOCVER_NONE		0
 #define	ZFS_IOCVER_DEADMAN	1
 #define	ZFS_IOCVER_LZC		2
-#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_LZC
+#define	ZFS_IOCVER_ZCMD		3
+#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_ZCMD
 
 /* compatibility conversion flag */
 #define	ZFS_CMD_COMPAT_NONE	0
 #define	ZFS_CMD_COMPAT_V15	1
 #define	ZFS_CMD_COMPAT_V28	2
 #define	ZFS_CMD_COMPAT_DEADMAN	3
+#define	ZFS_CMD_COMPAT_LZC	4
 
 #define	ZFS_IOC_COMPAT_PASS	254
 #define	ZFS_IOC_COMPAT_FAIL	255
 
 #define	ZFS_IOCREQ(ioreq)	((ioreq) & 0xff)
+
+typedef struct zfs_iocparm {
+	uint32_t	zfs_ioctl_version;
+	uint64_t	zfs_cmd;
+	uint64_t	zfs_cmd_size;
+} zfs_iocparm_t;
 
 typedef struct zinject_record_v15 {
 	uint64_t	zi_objset;
