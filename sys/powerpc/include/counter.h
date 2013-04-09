@@ -41,6 +41,8 @@
 
 #define	counter_u64_add_protected(c, i)	counter_u64_add(c, i)
 
+extern struct pcpu __pcpu[MAXCPU];
+
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
 {
