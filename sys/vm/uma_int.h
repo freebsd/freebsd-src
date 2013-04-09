@@ -184,8 +184,8 @@ typedef struct uma_bucket * uma_bucket_t;
 struct uma_cache {
 	uma_bucket_t	uc_freebucket;	/* Bucket we're freeing to */
 	uma_bucket_t	uc_allocbucket;	/* Bucket to allocate from */
-	u_int64_t	uc_allocs;	/* Count of allocations */
-	u_int64_t	uc_frees;	/* Count of frees */
+	uint64_t	uc_allocs;	/* Count of allocations */
+	uint64_t	uc_frees;	/* Count of frees */
 } UMA_ALIGN;
 
 typedef struct uma_cache * uma_cache_t;
@@ -205,13 +205,13 @@ struct uma_keg {
 	LIST_HEAD(,uma_slab)	uk_free_slab;	/* empty slab list */
 	LIST_HEAD(,uma_slab)	uk_full_slab;	/* full slabs */
 
-	u_int32_t	uk_recurse;	/* Allocation recursion count */
-	u_int32_t	uk_align;	/* Alignment mask */
-	u_int32_t	uk_pages;	/* Total page count */
-	u_int32_t	uk_free;	/* Count of items free in slabs */
-	u_int32_t	uk_size;	/* Requested size of each item */
-	u_int32_t	uk_rsize;	/* Real size of each item */
-	u_int32_t	uk_maxpages;	/* Maximum number of pages to alloc */
+	uint32_t	uk_recurse;	/* Allocation recursion count */
+	uint32_t	uk_align;	/* Alignment mask */
+	uint32_t	uk_pages;	/* Total page count */
+	uint32_t	uk_free;	/* Count of items free in slabs */
+	uint32_t	uk_size;	/* Requested size of each item */
+	uint32_t	uk_rsize;	/* Real size of each item */
+	uint32_t	uk_maxpages;	/* Maximum number of pages to alloc */
 
 	uma_init	uk_init;	/* Keg's init routine */
 	uma_fini	uk_fini;	/* Keg's fini routine */
@@ -222,11 +222,11 @@ struct uma_keg {
 	vm_offset_t	uk_kva;		/* Zone base KVA */
 	uma_zone_t	uk_slabzone;	/* Slab zone backing us, if OFFPAGE */
 
-	u_int16_t	uk_slabsize;	/* Slab size for this keg */
-	u_int16_t	uk_pgoff;	/* Offset to uma_slab struct */
-	u_int16_t	uk_ppera;	/* pages per allocation from backend */
-	u_int16_t	uk_ipers;	/* Items per slab */
-	u_int32_t	uk_flags;	/* Internal flags */
+	uint16_t	uk_slabsize;	/* Slab size for this keg */
+	uint16_t	uk_pgoff;	/* Offset to uma_slab struct */
+	uint16_t	uk_ppera;	/* pages per allocation from backend */
+	uint16_t	uk_ipers;	/* Items per slab */
+	uint32_t	uk_flags;	/* Internal flags */
 
 	/* Least used fields go to the last cache line. */
 	const char	*uk_name;		/* Name of creating zone. */
@@ -244,17 +244,17 @@ struct uma_slab_head {
 		unsigned long	_us_size;	/* Size of allocation */
 	} us_type;
 	SLIST_ENTRY(uma_slab)	us_hlink;	/* Link for hash table */
-	u_int8_t	*us_data;		/* First item */
-	u_int16_t	us_freecount;		/* How many are free? */
-	u_int8_t	us_flags;		/* Page flags see uma.h */
-	u_int8_t	us_firstfree;		/* First free item index */
+	uint8_t		*us_data;		/* First item */
+	uint16_t	us_freecount;		/* How many are free? */
+	uint8_t		us_flags;		/* Page flags see uma.h */
+	uint8_t		us_firstfree;		/* First free item index */
 };
 
 /* The standard slab structure */
 struct uma_slab {
 	struct uma_slab_head	us_head;	/* slab header data */
 	struct {
-		u_int8_t	us_item;
+		uint8_t		us_item;
 	} us_freelist[1];			/* actual number bigger */
 };
 
@@ -265,8 +265,8 @@ struct uma_slab {
 struct uma_slab_refcnt {
 	struct uma_slab_head	us_head;	/* slab header data */
 	struct {
-		u_int8_t	us_item;
-		u_int32_t	us_refcnt;
+		uint8_t		us_item;
+		uint32_t	us_refcnt;
 	} us_freelist[1];			/* actual number bigger */
 };
 
@@ -323,13 +323,13 @@ struct uma_zone {
 	uma_init	uz_init;	/* Initializer for each item */
 	uma_fini	uz_fini;	/* Discards memory */
 
-	u_int32_t	uz_flags;	/* Flags inherited from kegs */
-	u_int32_t	uz_size;	/* Size inherited from kegs */
+	uint32_t	uz_flags;	/* Flags inherited from kegs */
+	uint32_t	uz_size;	/* Size inherited from kegs */
 
-	u_int64_t	uz_allocs UMA_ALIGN; /* Total number of allocations */
-	u_int64_t	uz_frees;	/* Total number of frees */
-	u_int64_t	uz_fails;	/* Total number of alloc failures */
-	u_int64_t	uz_sleeps;	/* Total number of alloc sleeps */
+	uint64_t	uz_allocs UMA_ALIGN; /* Total number of allocations */
+	uint64_t	uz_frees;	/* Total number of frees */
+	uint64_t	uz_fails;	/* Total number of alloc failures */
+	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest amount of items in bucket */
 
@@ -362,7 +362,7 @@ struct uma_zone {
 
 #ifdef _KERNEL
 /* Internal prototypes */
-static __inline uma_slab_t hash_sfind(struct uma_hash *hash, u_int8_t *data);
+static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
 void *uma_large_malloc(int size, int wait);
 void uma_large_free(uma_slab_t slab);
 
@@ -396,7 +396,7 @@ void uma_large_free(uma_slab_t slab);
  *	A pointer to a slab if successful, else NULL.
  */
 static __inline uma_slab_t
-hash_sfind(struct uma_hash *hash, u_int8_t *data)
+hash_sfind(struct uma_hash *hash, uint8_t *data)
 {
         uma_slab_t slab;
         int hval;
@@ -404,7 +404,7 @@ hash_sfind(struct uma_hash *hash, u_int8_t *data)
         hval = UMA_HASH(hash, data);
 
         SLIST_FOREACH(slab, &hash->uh_slab_hash[hval], us_hlink) {
-                if ((u_int8_t *)slab->us_data == data)
+                if ((uint8_t *)slab->us_data == data)
                         return (slab);
         }
         return (NULL);
@@ -450,8 +450,8 @@ vsetobj(vm_offset_t va, vm_object_t obj)
  * if they can provide more effecient allocation functions.  This is useful
  * for using direct mapped addresses.
  */
-void *uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait);
-void uma_small_free(void *mem, int size, u_int8_t flags);
+void *uma_small_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait);
+void uma_small_free(void *mem, int size, uint8_t flags);
 #endif /* _KERNEL */
 
 #endif /* VM_UMA_INT_H */
