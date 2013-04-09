@@ -771,9 +771,6 @@ ldns_dnssec_zone_create_nsecs(ldns_dnssec_zone *zone,
 }
 
 #ifdef HAVE_SSL
-/* in dnssec_zone.c */
-extern int ldns_dname_compare_v(const void *a, const void *b);
-
 static ldns_status
 ldns_dnssec_zone_create_nsec3s_mkmap(ldns_dnssec_zone *zone,
 		ldns_rr_list *new_rrs,
