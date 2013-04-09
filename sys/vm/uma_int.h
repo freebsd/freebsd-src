@@ -245,9 +245,9 @@ struct uma_slab_head {
 	} us_type;
 	SLIST_ENTRY(uma_slab)	us_hlink;	/* Link for hash table */
 	u_int8_t	*us_data;		/* First item */
+	u_int16_t	us_freecount;		/* How many are free? */
 	u_int8_t	us_flags;		/* Page flags see uma.h */
-	u_int16_t	us_freecount;	/* How many are free? */
-	u_int8_t	us_firstfree;	/* First free item index */
+	u_int8_t	us_firstfree;		/* First free item index */
 };
 
 /* The standard slab structure */
