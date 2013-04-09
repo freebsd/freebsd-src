@@ -274,8 +274,8 @@ vnet_tcpstatp_uninit(const void *unused)
 	    i++, c++)
 		counter_u64_free(*c);
 }
-VNET_SYSUNINIT(vnet_tcpstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
-	    vnet_ipstatp_uninit, NULL);
+VNET_SYSUNINIT(vnet_tcpstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+	    vnet_tcpstatp_uninit, NULL);
 #endif /* VIMAGE */
 
 static int
