@@ -1100,7 +1100,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 * (although such packets must normally set 1 to the hop limit field).
 	 */
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
-		V_ip6stat.ip6s_cantforward++;
+		IP6STAT_INC(ip6s_cantforward);
 		if (V_ip6_log_time + V_ip6_log_interval < time_second) {
 			V_ip6_log_time = time_second;
 			log(LOG_DEBUG,
@@ -1535,7 +1535,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	dst0 = ip6->ip6_dst;
 	if ((error = in6_setscope(&src0, ifp, &iszone)) != 0 ||
 	    (error = in6_setscope(&dst0, ifp, &idzone)) != 0) {
-		V_ip6stat.ip6s_badscope++;
+		IP6STAT_INC(ip6s_badscope);
 		return (error);
 	}
 	for (mifp = mif6table, mifi = 0; mifi < nummifs; mifp++, mifi++) {
@@ -1555,7 +1555,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 				    &odzone) ||
 				    iszone != oszone ||
 				    idzone != odzone) {
-					V_ip6stat.ip6s_badscope++;
+					IP6STAT_INC(ip6s_badscope);
 					continue;
 				}
 			}
