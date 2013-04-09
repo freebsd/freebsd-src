@@ -1157,7 +1157,7 @@ ldns_rdf2buffer_str(ldns_buffer *buffer, const ldns_rdf *rdf)
 	return res;
 }
 
-ldns_rdf *
+static ldns_rdf *
 ldns_b32_ext2dname(const ldns_rdf *rdf)
 {
 	size_t size;

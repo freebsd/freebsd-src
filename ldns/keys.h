@@ -166,13 +166,13 @@ typedef struct ldns_struct_key_list ldns_key_list;
  * Creates a new empty key list
  * \return a new ldns_key_list structure pointer
  */
-ldns_key_list *ldns_key_list_new();
+ldns_key_list *ldns_key_list_new(void);
 
 /** 
  * Creates a new empty key structure
  * \return a new ldns_key * structure
  */
-ldns_key *ldns_key_new();
+ldns_key *ldns_key_new(void);
 
 /**
  * Creates a new key based on the algorithm

@@ -32,7 +32,7 @@ struct ldns_dnssec_data_chain_struct
  * Creates a new dnssec_chain structure
  * \return ldns_dnssec_data_chain *
  */
-ldns_dnssec_data_chain *ldns_dnssec_data_chain_new();
+ldns_dnssec_data_chain *ldns_dnssec_data_chain_new(void);
 
 /**
  * Frees a dnssec_data_chain structure
@@ -137,7 +137,7 @@ struct ldns_dnssec_trust_tree_struct
  *
  * \return ldns_dnssec_trust_tree *
  */
-ldns_dnssec_trust_tree *ldns_dnssec_trust_tree_new();
+ldns_dnssec_trust_tree *ldns_dnssec_trust_tree_new(void);
 
 /**
  * Frees the dnssec_trust_tree recursively

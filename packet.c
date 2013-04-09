@@ -379,7 +379,7 @@ ldns_pkt_rr(ldns_pkt *pkt, ldns_pkt_section sec, ldns_rr *rr)
 	return result;
 }
 
-uint16_t
+static uint16_t
 ldns_pkt_section_count(const ldns_pkt *packet, ldns_pkt_section s)
 {
 	switch(s) {
@@ -729,7 +729,7 @@ ldns_pkt_edns(const ldns_pkt *pkt) {
 /* Create/destroy/convert functions
  */
 ldns_pkt *
-ldns_pkt_new()
+ldns_pkt_new(void)
 {
 	ldns_pkt *packet;
 	packet = LDNS_MALLOC(ldns_pkt);

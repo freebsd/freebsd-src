@@ -340,18 +340,6 @@ tokenread:
 	return (ssize_t)i;
 }
 
-void
-ldns_bskipc(ldns_buffer *buffer, char c)
-{
-        while (c == (char) ldns_buffer_read_u8_at(buffer, ldns_buffer_position(buffer))) {
-                if (ldns_buffer_available_at(buffer,
-					buffer->_position + sizeof(char), sizeof(char))) {
-                        buffer->_position += sizeof(char);
-                } else {
-                        return;
-                }
-        }
-}
 
 void
 ldns_bskipcs(ldns_buffer *buffer, const char *s)
@@ -375,12 +363,6 @@ ldns_bskipcs(ldns_buffer *buffer, const char *s)
                 }
         }
 }
-
-void
-ldns_fskipc(ATTR_UNUSED(FILE *fp), ATTR_UNUSED(char c))
-{
-}
-
 
 void
 ldns_fskipcs(FILE *fp, const char *s)

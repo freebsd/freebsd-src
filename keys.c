@@ -44,7 +44,7 @@ ldns_lookup_table ldns_signing_algorithms[] = {
 };
 
 ldns_key_list *
-ldns_key_list_new()
+ldns_key_list_new(void)
 {
 	ldns_key_list *key_list = LDNS_MALLOC(ldns_key_list);
 	if (!key_list) {
@@ -57,7 +57,7 @@ ldns_key_list_new()
 }
 
 ldns_key *
-ldns_key_new()
+ldns_key_new(void)
 {
 	ldns_key *newkey;
 

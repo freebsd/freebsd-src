@@ -51,7 +51,7 @@ ldns_tsig_keydata_clone(ldns_tsig_credentials *tc)
 /*
  *  Makes an exact copy of the wire, but with the tsig rr removed
  */
-uint8_t *
+static uint8_t *
 ldns_tsig_prepare_pkt_wire(uint8_t *wire, size_t wire_len, size_t *result_len)
 {
 	uint8_t *wire2 = NULL;
