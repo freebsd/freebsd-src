@@ -132,6 +132,8 @@ userret(struct thread *td, struct trapframe *frame)
 	sched_userret(td);
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held.", td->td_locks));
+	KASSERT(td->td_vp_reserv == 0,
+	    ("userret: Returning while holding vnode reservation"));
 #ifdef VIMAGE
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,
