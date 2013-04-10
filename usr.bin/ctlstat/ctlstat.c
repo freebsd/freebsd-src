@@ -416,9 +416,10 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 	if (F_CPU(ctx) && (getcpu(&ctx->cur_cpu) != 0))
 		errx(1, "error returned from getcpu()");
 
-	cur_secs = ctx->cur_time.tv_sec + (ctx->cur_time.tv_nsec / 1000000000);
+	cur_secs = ctx->cur_time.tv_sec +
+		((long double)ctx->cur_time.tv_nsec / 1000000000);
 	prev_secs = ctx->prev_time.tv_sec +
-	     (ctx->prev_time.tv_nsec / 1000000000);
+	     ((long double)ctx->prev_time.tv_nsec / 1000000000);
 
 	etime = cur_secs - prev_secs;
 
