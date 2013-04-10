@@ -112,7 +112,6 @@ struct pmap;
 #define TLBSAVE_BOOKE_R30	14
 #define TLBSAVE_BOOKE_R31	15
 
-#ifndef COMPILING_LINT
 #ifdef AIM
 #define	PCPU_MD_FIELDS		\
 	PCPU_MD_COMMON_FIELDS	\
@@ -123,12 +122,7 @@ struct pmap;
 	PCPU_MD_COMMON_FIELDS	\
 	PCPU_MD_BOOKE_FIELDS
 #endif
-#else
-#define	PCPU_MD_FIELDS		\
-	PCPU_MD_COMMON_FIELDS	\
-	PCPU_MD_AIM_FIELDS	\
-	PCPU_MD_BOOKE_FIELDS
-#endif
+
 /*
  * Catch-all for ports (e.g. lsof, used by gtop)
  */
