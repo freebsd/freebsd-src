@@ -452,9 +452,23 @@ ahci_attach(device_t dev)
 	if ((ctlr->caps & AHCI_CAP_CCCS) == 0)
 		ctlr->ccc = 0;
 	ctlr->emloc = ATA_INL(ctlr->r_mem, AHCI_EM_LOC);
+
+	/* Create controller-wide DMA tag. */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 0, 0,
+	    (ctlr->caps & AHCI_CAP_64BIT) ? BUS_SPACE_MAXADDR :
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE,
+	    0, NULL, NULL, &ctlr->dma_tag)) {
+		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
+		    ctlr->r_mem);
+		rman_fini(&ctlr->sc_iomem);
+		return ENXIO;
+	}
+
 	ahci_ctlr_setup(dev);
 	/* Setup interrupts. */
 	if (ahci_setup_interrupt(dev)) {
+		bus_dma_tag_destroy(ctlr->dma_tag);
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
 		rman_fini(&ctlr->sc_iomem);
 		return ENXIO;
@@ -544,6 +558,7 @@ ahci_detach(device_t dev)
 		}
 	}
 	pci_release_msi(dev);
+	bus_dma_tag_destroy(ctlr->dma_tag);
 	/* Free memory. */
 	rman_fini(&ctlr->sc_iomem);
 	if (ctlr->r_mem)
@@ -876,6 +891,14 @@ ahci_child_location_str(device_t dev, device_t child, char *buf,
 	return (0);
 }
 
+static bus_dma_tag_t
+ahci_get_dma_tag(device_t dev, device_t child)
+{
+	struct ahci_controller *ctlr = device_get_softc(dev);
+
+	return (ctlr->dma_tag);
+}
+
 devclass_t ahci_devclass;
 static device_method_t ahci_methods[] = {
 	DEVMETHOD(device_probe,     ahci_probe),
@@ -889,6 +912,7 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
+	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
 	{ 0, 0 }
 };
 static driver_t ahci_driver = {
@@ -1198,13 +1222,9 @@ ahci_dmainit(device_t dev)
 	struct ahci_dc_cb_args dcba;
 	size_t rfsize;
 
-	if (ch->caps & AHCI_CAP_64BIT)
-		ch->dma.max_address = BUS_SPACE_MAXADDR;
-	else
-		ch->dma.max_address = BUS_SPACE_MAXADDR_32BIT;
 	/* Command area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1024, 0,
-	    ch->dma.max_address, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, AHCI_WORK_SIZE, 1, AHCI_WORK_SIZE,
 	    0, NULL, NULL, &ch->dma.work_tag))
 		goto error;
@@ -1223,7 +1243,7 @@ ahci_dmainit(device_t dev)
 	else
 	    rfsize = 256;
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), rfsize, 0,
-	    ch->dma.max_address, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, rfsize, 1, rfsize,
 	    0, NULL, NULL, &ch->dma.rfis_tag))
 		goto error;
@@ -1238,7 +1258,7 @@ ahci_dmainit(device_t dev)
 	ch->dma.rfis_bus = dcba.maddr;
 	/* Data area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
-	    ch->dma.max_address, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    AHCI_SG_ENTRIES * PAGE_SIZE * ch->numslots,
 	    AHCI_SG_ENTRIES, AHCI_PRD_MAX,
