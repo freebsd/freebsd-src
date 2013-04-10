@@ -534,9 +534,6 @@ NATM
 
 # DPT driver debug flags
 DPT_MEASURE_PERFORMANCE	opt_dpt.h
-DPT_HANDLE_TIMEOUTS	opt_dpt.h
-DPT_TIMEOUT_FACTOR	opt_dpt.h
-DPT_LOST_IRQ		opt_dpt.h
 DPT_RESET_HBA		opt_dpt.h
 
 # Misc debug flags.  Most of these should probably be replaced with
