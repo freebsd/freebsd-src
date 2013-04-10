@@ -801,6 +801,20 @@ adainit(void)
 	}
 }
 
+/*
+ * Callback from GEOM, called when it has finished cleaning up its
+ * resources.
+ */
+static void
+adadiskgonecb(struct disk *dp)
+{
+	struct cam_periph *periph;
+
+	periph = (struct cam_periph *)dp->d_drv1;
+
+	cam_periph_release(periph);
+}
+
 static void
 adaoninvalidate(struct cam_periph *periph)
 {
@@ -1157,6 +1171,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_strategy = adastrategy;
 	softc->disk->d_getattr = adagetattr;
 	softc->disk->d_dump = adadump;
+	softc->disk->d_gone = adadiskgonecb;
 	softc->disk->d_name = "ada";
 	softc->disk->d_drv1 = periph;
 	maxio = cpi.maxio;		/* Honor max I/O size of SIM */
@@ -1222,6 +1237,17 @@ adaregister(struct cam_periph *periph, void *arg)
 		}
 	} else
 		legacy_id = -1;
+	/*
+	 * Acquire a reference to the periph before we register with GEOM.
+	 * We'll release this reference once GEOM calls us back (via
+	 * adadiskgonecb()) telling us that our provider has been freed.
+	 */
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+		xpt_print(periph->path, "%s: lost periph during "
+			  "registration!\n", __func__);
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
 	cam_periph_unhold(periph);
