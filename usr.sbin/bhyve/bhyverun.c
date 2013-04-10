@@ -728,6 +728,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
+	init_mem();
 	init_inout();
 	init_pci(ctx);
 	if (ioapic)
