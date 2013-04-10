@@ -30,12 +30,6 @@
  * Memory ranges are represented with an RB tree. On insertion, the range
  * is checked for overlaps. On lookup, the key has the same base and limit
  * so it can be searched within the range.
- *
- * It is assumed that all setup of ranges takes place in single-threaded
- * mode before vCPUs have been started. As such, no locks are used on the
- * RB tree. If this is no longer the case, then a r/w lock could be used,
- * with readers on the lookup and a writer if the tree needs to be changed
- * (and per vCPU caches flushed)
  */
 
 #include <sys/cdefs.h>
