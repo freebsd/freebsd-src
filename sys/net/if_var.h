@@ -832,7 +832,7 @@ struct ifmultiaddr {
 
 #ifdef _KERNEL
 
-extern	struct rwlock ifnet_rwlock;
+extern	struct rwlock_padalign ifnet_rwlock;
 extern	struct sx ifnet_sxlock;
 
 #define	IFNET_LOCK_INIT() do {						\

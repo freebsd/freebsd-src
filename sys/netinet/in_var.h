@@ -116,7 +116,7 @@ VNET_DECLARE(u_long, in_ifaddrhmask);		/* mask for hash table */
 #define INADDR_HASH(x) \
 	(&V_in_ifaddrhashtbl[INADDR_HASHVAL(x) & V_in_ifaddrhmask])
 
-extern	struct rwlock in_ifaddr_lock;
+extern	struct rwlock_padalign in_ifaddr_lock;
 
 #define	IN_IFADDR_LOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_LOCKED)
 #define	IN_IFADDR_RLOCK()	rw_rlock(&in_ifaddr_lock)
