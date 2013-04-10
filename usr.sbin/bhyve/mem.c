@@ -72,7 +72,7 @@ RB_HEAD(mmio_rb_tree, mmio_rb_range) mmio_rb_root, mmio_rb_fallback;
  */
 static struct mmio_rb_range	*mmio_hint[VM_MAXCPU];
 
-static pthread_rwlock_t rwlock;
+static pthread_rwlock_t mmio_rwlock;
 
 static int
 mmio_rb_range_compare(struct mmio_rb_range *a, struct mmio_rb_range *b)
@@ -128,12 +128,12 @@ mmio_rb_dump(struct mmio_rb_tree *rbt)
 {
 	struct mmio_rb_range *np;
 
-	pthread_rwlock_rdlock(&rwlock);
+	pthread_rwlock_rdlock(&mmio_rwlock);
 	RB_FOREACH(np, mmio_rb_tree, rbt) {
 		printf(" %lx:%lx, %s\n", np->mr_base, np->mr_end,
 		       np->mr_param.name);
 	}
-	pthread_rwlock_unlock(&rwlock);
+	pthread_rwlock_unlock(&mmio_rwlock);
 }
 #endif
 
@@ -167,7 +167,7 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 	struct mmio_rb_range *entry;
 	int err;
 	
-	pthread_rwlock_rdlock(&rwlock);
+	pthread_rwlock_rdlock(&mmio_rwlock);
 	/*
 	 * First check the per-vCPU cache
 	 */
@@ -183,7 +183,7 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 			/* Update the per-vCPU cache */
 			mmio_hint[vcpu] = entry;			
 		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
-			pthread_rwlock_unlock(&rwlock);
+			pthread_rwlock_unlock(&mmio_rwlock);
 			return (ESRCH);
 		}
 	}
@@ -191,7 +191,7 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 	assert(entry != NULL);
 	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie,
 				      mem_read, mem_write, &entry->mr_param);
-	pthread_rwlock_unlock(&rwlock);
+	pthread_rwlock_unlock(&mmio_rwlock);
 	
 	return (err);
 }
@@ -210,10 +210,10 @@ register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 		mrp->mr_param = *memp;
 		mrp->mr_base = memp->base;
 		mrp->mr_end = memp->base + memp->size - 1;
-		pthread_rwlock_wrlock(&rwlock);
+		pthread_rwlock_wrlock(&mmio_rwlock);
 		if (mmio_rb_lookup(rbt, memp->base, &entry) != 0)
 			err = mmio_rb_add(rbt, mrp);
-		pthread_rwlock_unlock(&rwlock);
+		pthread_rwlock_unlock(&mmio_rwlock);
 		if (err)
 			free(mrp);
 	} else
@@ -243,7 +243,7 @@ unregister_mem(struct mem_range *memp)
 	struct mmio_rb_range *entry = NULL;
 	int err, i;
 	
-	pthread_rwlock_wrlock(&rwlock);
+	pthread_rwlock_wrlock(&mmio_rwlock);
 	err = mmio_rb_lookup(&mmio_rb_root, memp->base, &entry);
 	if (err == 0) {
 		mr = &entry->mr_param;
@@ -257,7 +257,7 @@ unregister_mem(struct mem_range *memp)
 				mmio_hint[i] = NULL;
 		}
 	}
-	pthread_rwlock_unlock(&rwlock);
+	pthread_rwlock_unlock(&mmio_rwlock);
 
 	if (entry)
 		free(entry);
@@ -271,5 +271,5 @@ init_mem(void)
 
 	RB_INIT(&mmio_rb_root);
 	RB_INIT(&mmio_rb_fallback);
-	pthread_rwlock_init(&rwlock, NULL);
+	pthread_rwlock_init(&mmio_rwlock, NULL);
 }
