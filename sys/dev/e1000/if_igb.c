@@ -2474,7 +2474,6 @@ igb_allocate_legacy(struct adapter *adapter)
 {
 	device_t		dev = adapter->dev;
 	struct igb_queue	*que = adapter->queues;
-	struct tx_ring		*txr = adapter->tx_rings;
 	int			error, rid = 0;
 
 	/* Turn off all interrupts */
@@ -2494,7 +2493,7 @@ igb_allocate_legacy(struct adapter *adapter)
 	}
 
 #ifndef IGB_LEGACY_TX
-	TASK_INIT(&txr->txq_task, 0, igb_deferred_mq_start, txr);
+	TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start, que->txr);
 #endif
 
 	/*
