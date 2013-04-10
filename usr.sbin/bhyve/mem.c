@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "mem.h"
 
@@ -70,6 +71,8 @@ RB_HEAD(mmio_rb_tree, mmio_rb_range) mmio_rb_root, mmio_rb_fallback;
  * result of a lookup.
  */
 static struct mmio_rb_range	*mmio_hint[VM_MAXCPU];
+
+static pthread_rwlock_t rwlock;
 
 static int
 mmio_rb_range_compare(struct mmio_rb_range *a, struct mmio_rb_range *b)
@@ -125,10 +128,12 @@ mmio_rb_dump(struct mmio_rb_tree *rbt)
 {
 	struct mmio_rb_range *np;
 
+	pthread_rwlock_rdlock(&rwlock);
 	RB_FOREACH(np, mmio_rb_tree, rbt) {
 		printf(" %lx:%lx, %s\n", np->mr_base, np->mr_end,
 		       np->mr_param.name);
 	}
+	pthread_rwlock_unlock(&rwlock);
 }
 #endif
 
@@ -161,7 +166,8 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 {
 	struct mmio_rb_range *entry;
 	int err;
-
+	
+	pthread_rwlock_rdlock(&rwlock);
 	/*
 	 * First check the per-vCPU cache
 	 */
@@ -173,10 +179,11 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 		entry = NULL;
 
 	if (entry == NULL) {
-		if (!mmio_rb_lookup(&mmio_rb_root, paddr, &entry)) {
+		if (mmio_rb_lookup(&mmio_rb_root, paddr, &entry) == 0) {
 			/* Update the per-vCPU cache */
 			mmio_hint[vcpu] = entry;			
 		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
+			pthread_rwlock_unlock(&rwlock);
 			return (ESRCH);
 		}
 	}
@@ -184,25 +191,29 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 	assert(entry != NULL);
 	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie,
 				      mem_read, mem_write, &entry->mr_param);
+	pthread_rwlock_unlock(&rwlock);
+	
 	return (err);
 }
 
 static int
 register_mem_int(struct mmio_rb_tree *rbt, struct mem_range *memp)
 {
-	struct mmio_rb_range *mrp;
+	struct mmio_rb_range *entry, *mrp;
 	int		err;
 
 	err = 0;
 
 	mrp = malloc(sizeof(struct mmio_rb_range));
-
+	
 	if (mrp != NULL) {
 		mrp->mr_param = *memp;
 		mrp->mr_base = memp->base;
 		mrp->mr_end = memp->base + memp->size - 1;
-
-		err = mmio_rb_add(rbt, mrp);
+		pthread_rwlock_wrlock(&rwlock);
+		if (mmio_rb_lookup(rbt, memp->base, &entry) != 0)
+			err = mmio_rb_add(rbt, mrp);
+		pthread_rwlock_unlock(&rwlock);
 		if (err)
 			free(mrp);
 	} else
@@ -225,10 +236,40 @@ register_mem_fallback(struct mem_range *memp)
 	return (register_mem_int(&mmio_rb_fallback, memp));
 }
 
+int 
+unregister_mem(struct mem_range *memp)
+{
+	struct mem_range *mr;
+	struct mmio_rb_range *entry = NULL;
+	int err, i;
+	
+	pthread_rwlock_wrlock(&rwlock);
+	err = mmio_rb_lookup(&mmio_rb_root, memp->base, &entry);
+	if (err == 0) {
+		mr = &entry->mr_param;
+		assert(mr->name == memp->name);
+		assert(mr->base == memp->base && mr->size == memp->size); 
+		RB_REMOVE(mmio_rb_tree, &mmio_rb_root, entry);
+
+		/* flush Per-vCPU cache */	
+		for (i=0; i < VM_MAXCPU; i++) {
+			if (mmio_hint[i] == entry)
+				mmio_hint[i] = NULL;
+		}
+	}
+	pthread_rwlock_unlock(&rwlock);
+
+	if (entry)
+		free(entry);
+	
+	return (err);
+}
+
 void
 init_mem(void)
 {
 
 	RB_INIT(&mmio_rb_root);
 	RB_INIT(&mmio_rb_fallback);
+	pthread_rwlock_init(&rwlock, NULL);
 }
