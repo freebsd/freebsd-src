@@ -5807,7 +5807,7 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 			error = SET_ERROR(EFAULT);
 			goto out;
 		}
-		error = ddi_copyin((void *)zc_iocparm->zfs_cmd, zc,
+		error = ddi_copyin((void *)(uintptr_t)zc_iocparm->zfs_cmd, zc,
 		    sizeof(zfs_cmd_t), flag);
 		if (error != 0) {
 			error = SET_ERROR(EFAULT);
@@ -5948,7 +5948,7 @@ out:
 		error = SET_ERROR(EFAULT);
 #else
 	if (newioc) {
-		rc = ddi_copyout(zc, (void *)zc_iocparm->zfs_cmd,
+		rc = ddi_copyout(zc, (void *)(uintptr_t)zc_iocparm->zfs_cmd,
 		    sizeof (zfs_cmd_t), flag);
 		if (error == 0 && rc != 0)
 			error = SET_ERROR(EFAULT);
