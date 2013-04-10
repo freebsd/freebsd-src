@@ -53,10 +53,13 @@ struct ata_cbus_controller {
     struct resource *bankio;
     struct resource *irq;
     void *ih;
+#ifndef ATA_CAM
     struct mtx bank_mtx;
     int locked_bank;
     int restart_bank;
     int hardware_bank;
+#endif
+    int channels;
     struct {
 	void (*function)(void *);
 	void *argument;
@@ -65,7 +68,9 @@ struct ata_cbus_controller {
 
 /* local prototypes */
 static void ata_cbus_intr(void *);
+#ifndef ATA_CAM
 static int ata_cbuschannel_banking(device_t dev, int flags);
+#endif
 
 static int
 ata_cbus_probe(device_t dev)
@@ -155,12 +160,19 @@ ata_cbus_attach(device_t dev)
 	return ENXIO;
     }
 
+#ifndef ATA_CAM
+	ctlr->channels = 2;
     mtx_init(&ctlr->bank_mtx, "ATA cbus bank lock", NULL, MTX_DEF);
     ctlr->hardware_bank = -1;
     ctlr->locked_bank = -1;
     ctlr->restart_bank = -1;
+#else
+	/* Work around the lack of channel serialization in ATA_CAM. */
+	ctlr->channels = 1;
+	device_printf(dev, "second channel ignored\n");
+#endif
 
-    for (unit = 0; unit < 2; unit++) {
+    for (unit = 0; unit < ctlr->channels; unit++) {
 	child = device_add_child(dev, "ata", unit);
 	if (child == NULL)
 	    device_printf(dev, "failed to add ata child device\n");
@@ -229,10 +241,12 @@ ata_cbus_intr(void *data)
     struct ata_channel *ch;
     int unit;
 
-    for (unit = 0; unit < 2; unit++) {
+    for (unit = 0; unit < ctlr->channels; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
+#ifndef ATA_CAM
 	if (ata_cbuschannel_banking(ch->dev, ATA_LF_WHICH) == unit)
+#endif
 	    ctlr->interrupt[unit].function(ch);
     }
 }
@@ -335,18 +349,16 @@ ata_cbuschannel_resume(device_t dev)
     return ata_resume(dev);
 }
 
+#ifndef ATA_CAM
 static int
 ata_cbuschannel_banking(device_t dev, int flags)
 {
     struct ata_cbus_controller *ctlr = device_get_softc(device_get_parent(dev));
-#ifndef ATA_CAM
     struct ata_channel *ch = device_get_softc(dev);
-#endif
     int res;
 
     mtx_lock(&ctlr->bank_mtx);
     switch (flags) {
-#ifndef ATA_CAM
     case ATA_LF_LOCK:
 	if (ctlr->locked_bank == -1)
 	    ctlr->locked_bank = ch->unit;
@@ -371,7 +383,6 @@ ata_cbuschannel_banking(device_t dev, int flags)
 	    }
 	}
 	break;
-#endif
 
     case ATA_LF_WHICH:
 	break;
@@ -380,6 +391,7 @@ ata_cbuschannel_banking(device_t dev, int flags)
     mtx_unlock(&ctlr->bank_mtx);
     return res;
 }
+#endif
 
 static device_method_t ata_cbuschannel_methods[] = {
     /* device interface */
