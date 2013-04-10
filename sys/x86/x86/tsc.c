@@ -61,7 +61,7 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
 TUNABLE_INT("kern.timecounter.invariant_tsc", &tsc_is_invariant);
 
 #ifdef SMP
-static int	smp_tsc;
+int	smp_tsc;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RDTUN, &smp_tsc, 0,
     "Indicates whether the TSC is safe to use in SMP mode");
 TUNABLE_INT("kern.timecounter.smp_tsc", &smp_tsc);
