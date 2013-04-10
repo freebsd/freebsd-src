@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_queue.h>
+#include <cam/cam_xpt.h>
 
 #define CAM_PATH_ANY (u_int32_t)-1
 
@@ -105,6 +106,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 void
 cam_sim_free(struct cam_sim *sim, int free_devq)
 {
+	union ccb *ccb;
 	int error;
 
 	sim->refcount--;
@@ -115,6 +117,10 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 
 	KASSERT(sim->refcount == 0, ("sim->refcount == 0"));
 
+	while ((ccb = (union ccb *)SLIST_FIRST(&sim->ccb_freeq)) != NULL) {
+		SLIST_REMOVE_HEAD(&sim->ccb_freeq, xpt_links.sle);
+		xpt_free_ccb(ccb);
+	}
 	if (free_devq)
 		cam_simq_free(sim->devq);
 	free(sim, M_CAMSIM);
