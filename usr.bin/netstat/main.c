@@ -147,11 +147,11 @@ static struct nlist nl[] = {
 #define	N_IPCOMPSTAT	37
 	{ .n_name = "_ipcompstat" },
 #define	N_TCPSTAT	38
-	{ .n_name = "_tcpstat" },
+	{ .n_name = "_tcpstatp" },
 #define	N_UDPSTAT	39
 	{ .n_name = "_udpstat" },
 #define	N_IPSTAT	40
-	{ .n_name = "_ipstat" },
+	{ .n_name = "_ipstatp" },
 #define	N_ICMPSTAT	41
 	{ .n_name = "_icmpstat" },
 #define	N_IGMPSTAT	42
@@ -696,43 +696,72 @@ printproto(struct protox *tp, const char *name)
 		(*pr)(off, name, af, tp->pr_protocol);
 }
 
+static int
+kvmd_init(void)
+{
+	char errbuf[_POSIX2_LINE_MAX];
+
+	if (kvmd != NULL)
+		return (0);
+
+	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
+	setgid(getgid());
+
+	if (kvmd == NULL) {
+		warnx("kvm not available: %s", errbuf);
+		return (-1);
+	}
+
+	if (kvm_nlist(kvmd, nl) < 0) {
+		if (nlistf)
+			errx(1, "%s: kvm_nlist: %s", nlistf,
+			     kvm_geterr(kvmd));
+		else
+			errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
+	}
+
+	if (nl[0].n_type == 0) {
+		if (nlistf)
+			errx(1, "%s: no namelist", nlistf);
+		else
+			errx(1, "no namelist");
+	}
+
+	return (0);
+}
+
 /*
  * Read kernel memory, return 0 on success.
  */
 int
 kread(u_long addr, void *buf, size_t size)
 {
-	char errbuf[_POSIX2_LINE_MAX];
 
-	if (kvmd == NULL) {
-		kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-		setgid(getgid());
-		if (kvmd != NULL) {
-			if (kvm_nlist(kvmd, nl) < 0) {
-				if (nlistf)
-					errx(1, "%s: kvm_nlist: %s", nlistf,
-					     kvm_geterr(kvmd));
-				else
-					errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
-			}
+	if (kvmd_init() < 0)
+		return (-1);
 
-			if (nl[0].n_type == 0) {
-				if (nlistf)
-					errx(1, "%s: no namelist", nlistf);
-				else
-					errx(1, "no namelist");
-			}
-		} else {
-			warnx("kvm not available: %s", errbuf);
-			return(-1);
-		}
-	}
 	if (!buf)
 		return (0);
 	if (kvm_read(kvmd, addr, buf, size) != (ssize_t)size) {
 		warnx("%s", kvm_geterr(kvmd));
 		return (-1);
 	}
+	return (0);
+}
+
+/*
+ * Read an array of N counters in kernel memory into array of N uint64_t's.
+ */
+int
+kread_counters(u_long *addr, uint64_t *rval, size_t count)
+{
+
+	if (kvmd_init() < 0)
+		return (-1);
+
+	for (u_int i = 0; i < count; i++, addr++, rval++)
+		*rval = kvm_counter_u64_fetch(kvmd, *addr);
+
 	return (0);
 }
 
