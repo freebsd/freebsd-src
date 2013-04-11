@@ -418,6 +418,11 @@
 #define	APICBASE_ENABLED	0x00000800
 #define	APICBASE_ADDRESS	0xfffff000
 
+/* MSR_IA32_FEATURE_CONTROL related */
+#define	IA32_FEATURE_CONTROL_LOCK	0x01	/* lock bit */
+#define	IA32_FEATURE_CONTROL_SMX_EN	0x02	/* enable VMX inside SMX */
+#define	IA32_FEATURE_CONTROL_VMX_EN	0x04	/* enable VMX outside SMX */
+
 /*
  * PAT modes.
  */
