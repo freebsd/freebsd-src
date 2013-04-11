@@ -29,6 +29,14 @@
 #ifndef _VMCB_H_
 #define	_VMCB_H_
 
+#ifndef	BIT
+#define	BIT(bitpos)		(1UL << (bitpos))
+#endif
+
+#ifndef	ERR
+#define	ERR(...)
+#endif
+
 /*
  * Secure Virtual Machine: AMD64 Programmer's Manual Vol2, Chapter 15
  * Layout of VMCB: AMD64 Programmer's Manual Vol2, Appendix B
@@ -266,5 +274,14 @@ struct vmcb {
 } __attribute__ ((__packed__));
 CTASSERT(sizeof(struct vmcb) == PAGE_SIZE);
 CTASSERT(offsetof(struct vmcb, state) == 0x400);
+
+int	svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
+		      uint64_t msrpm_base_pa, uint64_t np_pml4);
+int	svm_set_vmcb(struct vmcb *vmcb, uint8_t asid);
+int	vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval);
+int	vmcb_write(struct vmcb *vmcb, int ident, uint64_t val);
+struct vmcb_segment *vmcb_seg(struct vmcb *vmcb, int type);
+int	vmcb_eventinject(struct vmcb_ctrl *ctrl, int type, int vector,
+			 uint32_t error, boolean_t ec_valid);
 
 #endif /* _VMCB_H_ */
