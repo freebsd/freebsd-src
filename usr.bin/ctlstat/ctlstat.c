@@ -404,7 +404,7 @@ ctlstat_json(struct ctlstat_context *ctx) {
 
 static void
 ctlstat_standard(struct ctlstat_context *ctx) {
-	long double cur_secs, prev_secs, etime;
+	long double etime;
 	uint64_t delta_jiffies, delta_idle;
 	uint32_t port;
 	long double cpu_percentage;
@@ -416,12 +416,8 @@ ctlstat_standard(struct ctlstat_context *ctx) {
 	if (F_CPU(ctx) && (getcpu(&ctx->cur_cpu) != 0))
 		errx(1, "error returned from getcpu()");
 
-	cur_secs = ctx->cur_time.tv_sec +
-		((long double)ctx->cur_time.tv_nsec / 1000000000);
-	prev_secs = ctx->prev_time.tv_sec +
-	     ((long double)ctx->prev_time.tv_nsec / 1000000000);
-
-	etime = cur_secs - prev_secs;
+	etime = ctx->cur_time.tv_sec - ctx->prev_time.tv_sec +                  
+	    (ctx->prev_time.tv_nsec - ctx->cur_time.tv_nsec) * 1e-9; 
 
 	if (F_CPU(ctx)) {
 		ctx->prev_total_jiffies = ctx->cur_total_jiffies;
