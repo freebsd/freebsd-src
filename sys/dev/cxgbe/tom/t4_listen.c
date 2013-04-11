@@ -990,8 +990,11 @@ static uint32_t
 calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
     const struct tcp_options *tcpopt, struct tcphdr *th, int ulp_mode)
 {
-	uint32_t opt2 = 0;
 	struct sge_ofld_rxq *ofld_rxq = &sc->sge.ofld_rxq[rxqid];
+	uint32_t opt2;
+
+	opt2 = V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]) |
+	    F_RSS_QUEUE_VALID | V_RSS_QUEUE(ofld_rxq->iq.abs_id);
 
 	if (V_tcp_do_rfc1323) {
 		if (tcpopt->tstamp)
@@ -1005,12 +1008,12 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 	if (V_tcp_do_ecn && th->th_flags & (TH_ECE | TH_CWR))
 		opt2 |= F_CCTRL_ECN;
 
-	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
-	opt2 |= F_RSS_QUEUE_VALID | V_RSS_QUEUE(ofld_rxq->iq.abs_id);
+	/* RX_COALESCE is always a valid value (0 or M_RX_COALESCE). */
 	if (is_t4(sc))
-		opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
+		opt2 |= F_RX_COALESCE_VALID;
 	else
-		opt2 |= F_T5_OPT_2_VALID | V_RX_COALESCE(M_RX_COALESCE);
+		opt2 |= F_T5_OPT_2_VALID;
+	opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (ulp_mode == ULP_MODE_TCPDDP)
