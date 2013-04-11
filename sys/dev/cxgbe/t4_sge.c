@@ -280,12 +280,16 @@ t4_init_sge_cpl_handlers(struct adapter *sc)
 	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 }
 
+/*
+ * adap->params.vpd.cclk must be set up before this is called.
+ */
 void
 t4_tweak_chip_settings(struct adapter *sc)
 {
 	int i;
 	uint32_t v, m;
 	int intr_timer[SGE_NTIMERS] = {1, 5, 10, 50, 100, 200};
+	int timer_max = M_TIMERVALUE0 * 1000 / sc->params.vpd.cclk;
 	int intr_pktcount[SGE_NCOUNTERS] = {1, 8, 16, 32}; /* 63 max */
 	uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
 
@@ -318,7 +322,24 @@ t4_tweak_chip_settings(struct adapter *sc)
 	    V_THRESHOLD_2(intr_pktcount[2]) | V_THRESHOLD_3(intr_pktcount[3]);
 	t4_write_reg(sc, A_SGE_INGRESS_RX_THRESHOLD, v);
 
-	/* adap->params.vpd.cclk must be set up before this */
+	KASSERT(intr_timer[0] <= timer_max,
+	    ("%s: not a single usable timer (%d, %d)", __func__, intr_timer[0],
+	    timer_max));
+	for (i = 1; i < nitems(intr_timer); i++) {
+		KASSERT(intr_timer[i] >= intr_timer[i - 1],
+		    ("%s: timers not listed in increasing order (%d)",
+		    __func__, i));
+
+		while (intr_timer[i] > timer_max) {
+			if (i == nitems(intr_timer) - 1) {
+				intr_timer[i] = timer_max;
+				break;
+			}
+			intr_timer[i] += intr_timer[i - 1];
+			intr_timer[i] /= 2;
+		}
+	}
+
 	v = V_TIMERVALUE0(us_to_core_ticks(sc, intr_timer[0])) |
 	    V_TIMERVALUE1(us_to_core_ticks(sc, intr_timer[1]));
 	t4_write_reg(sc, A_SGE_TIMER_VALUE_0_AND_1, v);
