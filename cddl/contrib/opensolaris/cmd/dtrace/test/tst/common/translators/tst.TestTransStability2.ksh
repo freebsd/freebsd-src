@@ -1,4 +1,3 @@
-#!/bin/ksh -p
 #
 # CDDL HEADER START
 #
@@ -21,12 +20,16 @@
 #
 
 #
-# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
 
 #
 # Copyright (c) 2012 by Delphix. All rights reserved.
+#
+
+#
+# Test the output of unstable translations.
 #
 
 if [ $# != 1 ]; then
@@ -36,29 +39,22 @@ fi
 
 dtrace=$1
 
-$dtrace -wZq -x switchrate=100ms -s /dev/stdin <<EOF
-pid*:date::
-{
-	printf("%s:%s\n", probefunc, probename);
-}
+$dtrace -v -s /dev/stdin <<EOF
 
-tick-1s
-/i++ > 5/
+#pragma D option quiet
+
+inline lwpsinfo_t *myinfo = xlate < lwpsinfo_t *> (curthread);
+
+BEGIN
 {
+	this->a = myinfo->pr_flag;
 	exit(0);
 }
 
-tick-1s
-/(i % 2) == 0/
+BEGIN
 {
-	system("dtrace -c date -n 'pid\$target::main:entry' >/dev/null");
-}
-
-tick-1s
-/(i % 2) == 1/
-{
-	system("dtrace -c date -n 'pid\$target::main:return' >/dev/null");
+	exit(1);
 }
 EOF
 
-exit $status
+exit $?
