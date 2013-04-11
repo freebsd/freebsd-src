@@ -4203,6 +4203,17 @@ zfs_hold(zfs_handle_t *zhp, const char *snapname, const char *tag,
 	ha.tag = tag;
 	ha.recursive = recursive;
 	(void) zfs_hold_one(zfs_handle_dup(zhp), &ha);
+
+	if (nvlist_next_nvpair(ha.nvl, NULL) == NULL) {
+		fnvlist_free(ha.nvl);
+		ret = ENOENT;
+		(void) snprintf(errbuf, sizeof (errbuf),
+		    dgettext(TEXT_DOMAIN, "cannot hold snapshot '%s@%s'"),
+		    zhp->zfs_name, snapname);
+		(void) zfs_standard_error(hdl, ret, errbuf);
+		return (ret);
+	}
+
 	ret = lzc_hold(ha.nvl, cleanup_fd, &errors);
 	fnvlist_free(ha.nvl);
 
@@ -4304,12 +4315,25 @@ zfs_release(zfs_handle_t *zhp, const char *snapname, const char *tag,
 	nvlist_t *errors;
 	nvpair_t *elem;
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
+	char errbuf[1024];
 
 	ha.nvl = fnvlist_alloc();
 	ha.snapname = snapname;
 	ha.tag = tag;
 	ha.recursive = recursive;
 	(void) zfs_release_one(zfs_handle_dup(zhp), &ha);
+
+	if (nvlist_next_nvpair(ha.nvl, NULL) == NULL) {
+		fnvlist_free(ha.nvl);
+		ret = ENOENT;
+		(void) snprintf(errbuf, sizeof (errbuf),
+		    dgettext(TEXT_DOMAIN,
+		    "cannot release hold from snapshot '%s@%s'"),
+		    zhp->zfs_name, snapname);
+		(void) zfs_standard_error(hdl, ret, errbuf);
+		return (ret);
+	}
+
 	ret = lzc_release(ha.nvl, &errors);
 	fnvlist_free(ha.nvl);
 
@@ -4318,8 +4342,6 @@ zfs_release(zfs_handle_t *zhp, const char *snapname, const char *tag,
 
 	if (nvlist_next_nvpair(errors, NULL) == NULL) {
 		/* no hold-specific errors */
-		char errbuf[1024];
-
 		(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
 		    "cannot release"));
 		switch (errno) {
@@ -4336,8 +4358,6 @@ zfs_release(zfs_handle_t *zhp, const char *snapname, const char *tag,
 	for (elem = nvlist_next_nvpair(errors, NULL);
 	    elem != NULL;
 	    elem = nvlist_next_nvpair(errors, elem)) {
-		char errbuf[1024];
-
 		(void) snprintf(errbuf, sizeof (errbuf),
 		    dgettext(TEXT_DOMAIN,
 		    "cannot release hold from snapshot '%s'"),
