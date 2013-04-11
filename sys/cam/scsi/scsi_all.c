@@ -699,10 +699,7 @@ const struct sense_key_table_entry sense_key_table[] =
 {
 	{ SSD_KEY_NO_SENSE, SS_NOP, "NO SENSE" },
 	{ SSD_KEY_RECOVERED_ERROR, SS_NOP|SSQ_PRINT_SENSE, "RECOVERED ERROR" },
-	{
-	  SSD_KEY_NOT_READY, SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|EBUSY,
-	  "NOT READY"
-	},
+	{ SSD_KEY_NOT_READY, SS_RDEF, "NOT READY" },
 	{ SSD_KEY_MEDIUM_ERROR, SS_RDEF, "MEDIUM ERROR" },
 	{ SSD_KEY_HARDWARE_ERROR, SS_RDEF, "HARDWARE FAILURE" },
 	{ SSD_KEY_ILLEGAL_REQUEST, SS_FATAL|EINVAL, "ILLEGAL REQUEST" },
@@ -877,7 +874,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x03, 0x02, SS_RDEF,
 	    "Excessive write errors") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x00, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EIO,
+	{ SST(0x04, 0x00, SS_RDEF,
 	    "Logical unit not ready, cause not reportable") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x01, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
