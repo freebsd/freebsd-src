@@ -69,6 +69,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
 #define	SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
+#define	SBUF_ISSECTION(s)	((s)->s_flags & SBUF_INSECTION)
 
 /*
  * Set / clear flags
@@ -254,6 +255,8 @@ sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 		return (NULL);
 	}
 	s->s_len = s->s_size - 1;
+	if (SBUF_ISSECTION(s))
+		s->s_sect_len = s->s_size - 1;
 	*error = 0;
 	return (s);
 }
@@ -272,6 +275,7 @@ sbuf_clear(struct sbuf *s)
 	SBUF_CLEARFLAG(s, SBUF_FINISHED);
 	s->s_error = 0;
 	s->s_len = 0;
+	s->s_sect_len = 0;
 }
 
 /*
@@ -290,6 +294,8 @@ sbuf_setpos(struct sbuf *s, ssize_t pos)
 	KASSERT(pos < s->s_size,
 	    ("attempt to seek past end of sbuf (%jd >= %jd)",
 	    (intmax_t)pos, (intmax_t)s->s_size));
+	KASSERT(!SBUF_ISSECTION(s),
+	    ("attempt to seek when in a section"));
 
 	if (pos < 0 || pos > s->s_len)
 		return (-1);
@@ -372,6 +378,8 @@ sbuf_put_byte(struct sbuf *s, int c)
 			return;
 	}
 	s->s_buf[s->s_len++] = c;
+	if (SBUF_ISSECTION(s))
+		s->s_sect_len++;
 }
 
 /*
@@ -491,6 +499,8 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 		/* fall through */
 	case 0:
 		s->s_len += done - 1;
+		if (SBUF_ISSECTION(s))
+			s->s_sect_len += done - 1;
 		break;
 	default:
 		return (-1);	/* XXX */
@@ -601,6 +611,8 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	if (SBUF_FREESPACE(s) < len)
 		len = SBUF_FREESPACE(s);
 	s->s_len += len;
+	if (SBUF_ISSECTION(s))
+		s->s_sect_len += len;
 	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
 		s->s_error = ENOMEM;
 
@@ -656,8 +668,11 @@ sbuf_trim(struct sbuf *s)
 	if (s->s_error != 0)
 		return (-1);
 
-	while (s->s_len > 0 && isspace(s->s_buf[s->s_len-1]))
+	while (s->s_len > 0 && isspace(s->s_buf[s->s_len-1])) {
 		--s->s_len;
+		if (SBUF_ISSECTION(s))
+			s->s_sect_len--;
+	}
 
 	return (0);
 }
@@ -757,4 +772,59 @@ sbuf_done(const struct sbuf *s)
 {
 
 	return (SBUF_ISFINISHED(s));
+}
+
+/*
+ * Start a section.
+ */
+void
+sbuf_start_section(struct sbuf *s, ssize_t *old_lenp)
+{
+
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	if (!SBUF_ISSECTION(s)) {
+		KASSERT(s->s_sect_len == 0,
+		    ("s_sect_len != 0 when starting a section"));
+		if (old_lenp != NULL)
+			*old_lenp = -1;
+		SBUF_SETFLAG(s, SBUF_INSECTION);
+	} else {
+		KASSERT(old_lenp != NULL,
+		    ("s_sect_len should be saved when starting a subsection"));
+		*old_lenp = s->s_sect_len;
+		s->s_sect_len = 0;
+	}
+}
+
+/*
+ * End the section padding to the specified length with the specified
+ * character.
+ */
+ssize_t
+sbuf_end_section(struct sbuf *s, ssize_t old_len, size_t pad, int c)
+{
+	ssize_t len;
+
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+	KASSERT(SBUF_ISSECTION(s),
+	    ("attempt to end a section when not in a section"));
+
+	if (pad > 1) {
+		len = roundup(s->s_sect_len, pad) - s->s_sect_len;
+		for (; s->s_error == 0 && len > 0; len--)
+			sbuf_put_byte(s, c);
+	}
+	len = s->s_sect_len;
+	if (old_len == -1) {
+		s->s_sect_len = 0;
+		SBUF_CLEARFLAG(s, SBUF_INSECTION);
+	} else {
+		s->s_sect_len += old_len;
+	}
+	if (s->s_error != 0)
+		return (-1);
+	return (len);
 }
