@@ -108,7 +108,7 @@ Depending on the options
 .Nm bsnmpget
 constructs either a SMNP GetRequest, GetNextRequest
 or a GetBulkRequest packet, fills in the object identifiers (OIDs) of the
-objects whose values will be retrived, waits for a response and prints it if
+objects whose values will be retrieved, waits for a response and prints it if
 received successfully.
 .Pp
 .Nm Bsnmpwalk
@@ -259,7 +259,7 @@ for
 and getnext for
 .Nm bsnmpwalk .
 Getbulk allows executing the so called SNMP "bulkwalks" allowing the values of
-multiple columns to be retrived in a single PDU by
+multiple columns to be retrieved in a single PDU by
 .Nm bsnmpwalk .
 .It Fl r Ar retries
 Number of resends of request packets before giving up if the agent does
@@ -332,7 +332,7 @@ will use version 2.
 Note that GetBulkRequest-PDUs were introduced in SNMPv2 thus setting the
 version to 1 is incompatiable with sending a GetBulk PDU.
 .It OID
-The object identifier whose value to retrive.
+The object identifier whose value to retrieve.
 At least one OID should be provided for
 .Nm bsnmpget
 to be able to send a request.
@@ -340,7 +340,7 @@ to be able to send a request.
 For
 .Nm bsnmpwalk
 this is the root object identifier of the subtree whose values are to be
-retrived.
+retrieved.
 If no OID is provided
 .Nm bsnmpwalk
 will walk the mib2 subtree rooted
