@@ -3468,7 +3468,13 @@ ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	 * up in which case the top half of the kernel may backup
 	 * due to a lack of tx descriptors.
 	 */
-	qi.tqi_qflags = HAL_TXQ_TXEOLINT_ENABLE | HAL_TXQ_TXDESCINT_ENABLE;
+	if (sc->sc_isedma)
+		qi.tqi_qflags = HAL_TXQ_TXEOLINT_ENABLE |
+		    HAL_TXQ_TXOKINT_ENABLE;
+	else
+		qi.tqi_qflags = HAL_TXQ_TXEOLINT_ENABLE |
+		    HAL_TXQ_TXDESCINT_ENABLE;
+
 	qnum = ath_hal_setuptxqueue(ah, qtype, &qi);
 	if (qnum == -1) {
 		/*
