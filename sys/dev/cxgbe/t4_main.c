@@ -418,7 +418,7 @@ static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct port_info *, int);
 #endif
-static int t4_mod_event(module_t, int, void *);
+static int mod_event(module_t, int, void *);
 
 struct {
 	uint16_t device;
@@ -6997,12 +6997,15 @@ tweak_tunables(void)
 }
 
 static int
-t4_mod_event(module_t mod, int cmd, void *arg)
+mod_event(module_t mod, int cmd, void *arg)
 {
 	int rc = 0;
+	static int loaded = 0;
 
 	switch (cmd) {
 	case MOD_LOAD:
+		if (atomic_fetchadd_int(&loaded, 1))
+			break;
 		t4_sge_modload();
 		mtx_init(&t4_list_lock, "T4 adapters", 0, MTX_DEF);
 		SLIST_INIT(&t4_list);
@@ -7014,6 +7017,8 @@ t4_mod_event(module_t mod, int cmd, void *arg)
 		break;
 
 	case MOD_UNLOAD:
+		if (atomic_fetchadd_int(&loaded, -1) > 1)
+			break;
 #ifdef TCP_OFFLOAD
 		mtx_lock(&t4_uld_list_lock);
 		if (!SLIST_EMPTY(&t4_uld_list)) {
@@ -7041,10 +7046,10 @@ t4_mod_event(module_t mod, int cmd, void *arg)
 static devclass_t t4_devclass, t5_devclass;
 static devclass_t cxgbe_devclass, cxl_devclass;
 
-DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, t4_mod_event, 0);
+DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 
-DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, 0, 0);
+DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, mod_event, 0);
 MODULE_VERSION(t5nex, 1);
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);
