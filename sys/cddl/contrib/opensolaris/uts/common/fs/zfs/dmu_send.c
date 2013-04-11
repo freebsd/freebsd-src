@@ -1692,7 +1692,7 @@ add_ds_to_guidmap(const char *name, avl_tree_t *guid_map, uint64_t snapobj)
 	err = dsl_pool_hold(name, FTAG, &dp);
 	if (err != 0)
 		return (err);
-	gmep = kmem_alloc(sizeof (guid_map_entry_t), KM_SLEEP);
+	gmep = kmem_alloc(sizeof (*gmep), KM_SLEEP);
 	err = dsl_dataset_hold_obj(dp, snapobj, gmep, &snapds);
 	if (err == 0) {
 		gmep->guid = snapds->ds_phys->ds_guid;
@@ -1700,7 +1700,7 @@ add_ds_to_guidmap(const char *name, avl_tree_t *guid_map, uint64_t snapobj)
 		avl_add(guid_map, gmep);
 		dsl_dataset_long_hold(snapds, gmep);
 	} else
-		kmem_free(gmep, sizeof (guid_map_entry_t));
+		kmem_free(gmep, sizeof (*gmep));
 
 	dsl_pool_rele(dp, FTAG);
 	return (err);
