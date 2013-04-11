@@ -2305,7 +2305,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 
 	if (isset(&eq->doorbells, DOORBELL_UDB) ||
 	    isset(&eq->doorbells, DOORBELL_UDBWC) ||
-	    isset(&eq->doorbells, DOORBELL_WRWC)) {
+	    isset(&eq->doorbells, DOORBELL_WCWR)) {
 		uint32_t s_qpp = sc->sge.s_qpp;
 		uint32_t mask = (1 << s_qpp) - 1;
 		volatile uint8_t *udb;
@@ -2314,7 +2314,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 		udb += (eq->cntxt_id >> s_qpp) << PAGE_SHIFT;	/* pg offset */
 		eq->udb_qid = eq->cntxt_id & mask;		/* id in page */
 		if (eq->udb_qid > PAGE_SIZE / UDBS_SEG_SIZE)
-	    		clrbit(&eq->doorbells, DOORBELL_WRWC);
+	    		clrbit(&eq->doorbells, DOORBELL_WCWR);
 		else {
 			udb += eq->udb_qid << UDBS_SEG_SHIFT;	/* seg offset */
 			eq->udb_qid = 0;
@@ -3451,7 +3451,7 @@ ring_eq_db(struct adapter *sc, struct sge_eq *eq)
 	db = eq->doorbells;
 	pending = eq->pending;
 	if (pending > 1)
-		clrbit(&db, DOORBELL_WRWC);
+		clrbit(&db, DOORBELL_WCWR);
 	eq->pending = 0;
 	wmb();
 
@@ -3460,14 +3460,14 @@ ring_eq_db(struct adapter *sc, struct sge_eq *eq)
 		*eq->udb = htole32(V_QID(eq->udb_qid) | V_PIDX(pending));
 		return;
 
-	case DOORBELL_WRWC: {
+	case DOORBELL_WCWR: {
 		volatile uint64_t *dst, *src;
 		int i;
 
 		/*
 		 * Queues whose 128B doorbell segment fits in the page do not
 		 * use relative qid (udb_qid is always 0).  Only queues with
-		 * doorbell segments can do WRWC.
+		 * doorbell segments can do WCWR.
 		 */
 		KASSERT(eq->udb_qid == 0 && pending == 1,
 		    ("%s: inappropriate doorbell (0x%x, %d, %d) for eq %p",

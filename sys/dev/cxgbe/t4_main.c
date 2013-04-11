@@ -397,7 +397,7 @@ static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
-static int sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 #endif
 static inline void txq_start(struct ifnet *, struct sge_txq *);
 static uint32_t fconf_to_mode(uint32_t);
@@ -1413,7 +1413,7 @@ map_bar_2(struct adapter *sc)
 			    rman_get_size(sc->udbs_res), PAT_WRITE_COMBINING);
 			if (rc == 0) {
 				clrbit(&sc->doorbells, DOORBELL_UDB);
-				setbit(&sc->doorbells, DOORBELL_WRWC);
+				setbit(&sc->doorbells, DOORBELL_WCWR);
 				setbit(&sc->doorbells, DOORBELL_UDBWC);
 			} else {
 				device_printf(sc->dev,
@@ -4054,7 +4054,7 @@ t4_sysctls(struct adapter *sc)
 		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
 		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
 	};
-	static char *doorbells = {"\20\1UDB\2WRWC\3UDBWC\4KDB"};
+	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
 	ctx = device_get_sysctl_ctx(sc->dev);
 
@@ -4260,9 +4260,9 @@ t4_sysctls(struct adapter *sc)
 	    sysctl_tx_rate, "A", "Tx rate");
 
 	if (is_t5(sc)) {
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "wrwc_stats",
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "wcwr_stats",
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
-		    sysctl_wrwc_stats, "A", "work request (WC) statistics");
+		    sysctl_wcwr_stats, "A", "write combined work requests");
 	}
 #endif
 
@@ -5743,7 +5743,7 @@ sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS)
+sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
