@@ -215,7 +215,7 @@
 
 	  <listitem>
 	    <para><literal>lz4_compress</literal>: a new high
-	      performance compression algorithm thatfeatures better
+	      performance compression algorithm that features better
 	      performance and compression ratio than lzjb.</para>
 	  </listitem>
 	</itemizedlist>
