@@ -441,7 +441,8 @@ vmx_init(void)
 	 * are set (bits 0 and 2 respectively).
 	 */
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
-	if ((feature_control & 0x5) != 0x5) {
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
 		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
 	}
