@@ -507,7 +507,7 @@ jail_handle_ips_option()
 		esac
 		case "${_type}" in
 		inet)	;;
-		inet6)	;;
+		inet6)	ipv6_address_count=$((ipv6_address_count + 1)) ;;
 		*)	warn "Could not determine address family.  Not going" \
 			    "to ${_action} address '${_addr}' for ${_jail}."
 			continue
@@ -544,6 +544,7 @@ jail_ips()
 	esac
 
 	# Handle addresses.
+	ipv6_address_count=0
 	jail_handle_ips_option ${_action} "${_ip}"
 	# Handle jail_xxx_ip_multi<N>
 	alias=0
@@ -556,6 +557,12 @@ jail_ips()
 			;;
 		esac
 	done
+	case ${ipv6_address_count} in
+	0)	;;
+	*)	# Sleep 1 second to let DAD complete before starting services.
+		sleep 1
+		;;
+	esac
 }
 
 jail_start()
