@@ -319,7 +319,7 @@ enum {
 };
 
 /* Listed in order of preference.  Update t4_sysctls too if you change these */
-enum {DOORBELL_UDB, DOORBELL_WRWC, DOORBELL_UDBWC, DOORBELL_KDB};
+enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
 
 /*
  * Egress Queue: driver is producer, T4 is consumer.
