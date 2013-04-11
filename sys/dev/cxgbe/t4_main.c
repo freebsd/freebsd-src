@@ -255,6 +255,7 @@ TUNABLE_INT("hw.cxgbe.interrupt_types", &t4_intr_types);
 #define DEFAULT_CF	"default"
 #define FLASH_CF	"flash"
 #define UWIRE_CF	"uwire"
+#define FPGA_CF		"fpga"
 static char t4_cfg_file[32] = DEFAULT_CF;
 TUNABLE_STR("hw.cxgbe.config_file", t4_cfg_file, sizeof(t4_cfg_file));
 
@@ -1885,6 +1886,46 @@ fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
 }
 
 /*
+ * The firmware in the KLD is usable and can be installed.  But should it be?
+ * This routine explains itself in detail if it indicates the KLD firmware
+ * should be installed.
+ */
+static int
+should_install_kld_fw(struct adapter *sc, int card_fw_usable, int k, int c)
+{
+	const char *reason;
+
+	KASSERT(t4_fw_install != 0, ("%s: Can't install; shouldn't be asked "
+	    "to evaluate if install is a good idea.", __func__));
+
+	if (!card_fw_usable) {
+		reason = "incompatible or unusable";
+		goto install;
+	}
+
+	if (k > c) {
+		reason = "older than the version bundled with this driver";
+		goto install;
+	}
+
+	if (t4_fw_install == 2 && k != c) {
+		reason = "different than the version bundled with this driver";
+		goto install;
+	}
+
+	return (0);
+
+install:
+	device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
+	    "installing firmware %u.%u.%u.%u on card.\n",
+	    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
+	    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason,
+	    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
+	    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k));
+
+	return (1);
+}
+/*
  * Establish contact with the firmware and determine if we are the master driver
  * or not, and whether we are responsible for chip initialization.
  */
@@ -1972,15 +2013,8 @@ prep_firmware(struct adapter *sc)
 		 * on the card.
 		 */
 	} else if (kld_fw_usable && state == DEV_STATE_UNINIT &&
-	    (!card_fw_usable ||
-	    be32toh(kld_fw->fw_ver) > be32toh(card_fw->fw_ver) ||
-	    (t4_fw_install == 2 && kld_fw->fw_ver != card_fw->fw_ver))) {
-		uint32_t v = ntohl(kld_fw->fw_ver);
-
-		device_printf(sc->dev,
-		    "installing firmware %d.%d.%d.%d on card.\n",
-		    G_FW_HDR_FW_VER_MAJOR(v), G_FW_HDR_FW_VER_MINOR(v),
-		    G_FW_HDR_FW_VER_MICRO(v), G_FW_HDR_FW_VER_BUILD(v));
+	    should_install_kld_fw(sc, card_fw_usable, be32toh(kld_fw->fw_ver),
+	    be32toh(card_fw->fw_ver))) {
 
 		rc = -t4_load_fw(sc, fw->data, fw->datasize);
 		if (rc != 0) {
@@ -2101,6 +2135,8 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 		/* Card specific overrides go here. */
 		if (pci_get_device(sc->dev) == 0x440a)
 			snprintf(sc->cfg_file, sizeof(sc->cfg_file), UWIRE_CF);
+		if (is_fpga(sc))
+			snprintf(sc->cfg_file, sizeof(sc->cfg_file), FPGA_CF);
 	}
 
 	/*
@@ -2114,17 +2150,20 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 		snprintf(s, sizeof(s), "%s_%s", name_prefix, sc->cfg_file);
 		cfg = firmware_get(s);
 		if (cfg == NULL) {
-			device_printf(sc->dev, "unable to load module \"%s\" "
-			    "for configuration profile \"%s\", ",
-			    s, sc->cfg_file);
 			if (default_cfg != NULL) {
-				device_printf(sc->dev, "will use the default "
-				    "config file instead.\n");
+				device_printf(sc->dev,
+				    "unable to load module \"%s\" for "
+				    "configuration profile \"%s\", will use "
+				    "the default config file instead.\n",
+				    s, sc->cfg_file);
 				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
 				    "%s", DEFAULT_CF);
 			} else {
-				device_printf(sc->dev, "will use the config "
-				    "file on the card's flash instead.\n");
+				device_printf(sc->dev,
+				    "unable to load module \"%s\" for "
+				    "configuration profile \"%s\", will use "
+				    "the config file on the card's flash "
+				    "instead.\n", s, sc->cfg_file);
 				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
 				    "%s", FLASH_CF);
 			}
@@ -2217,8 +2256,8 @@ use_config_on_flash:
 	rc = -t4_wr_mbox(sc, sc->mbox, &caps, sizeof(caps), &caps);
 	if (rc != 0) {
 		device_printf(sc->dev,
-		    "failed to pre-process config file: %d (mtype %d).\n", rc,
-		    mtype);
+		    "failed to pre-process config file: %d "
+		    "(mtype %d, moff 0x%x).\n", rc, mtype, moff);
 		goto done;
 	}
 
