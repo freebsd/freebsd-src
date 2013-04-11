@@ -867,6 +867,9 @@ get_filter_mode(void)
 	if (mode & T4_FILTER_IP_DPORT)
 		printf("dport ");
 
+	if (mode & T4_FILTER_IP_FRAGMENT)
+		printf("frag ");
+
 	if (mode & T4_FILTER_MPS_HIT_TYPE)
 		printf("matchtype ");
 
@@ -886,7 +889,7 @@ get_filter_mode(void)
 		printf("vlan ");
 
 	if (mode & T4_FILTER_VNIC)
-		printf("vnic ");
+		printf("vnic/ovlan ");
 
 	if (mode & T4_FILTER_PORT)
 		printf("iport ");
@@ -905,6 +908,9 @@ set_filter_mode(int argc, const char *argv[])
 	uint32_t mode = 0;
 
 	for (; argc; argc--, argv++) {
+		if (!strcmp(argv[0], "frag"))
+			mode |= T4_FILTER_IP_FRAGMENT;
+
 		if (!strcmp(argv[0], "matchtype"))
 			mode |= T4_FILTER_MPS_HIT_TYPE;
 
