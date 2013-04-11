@@ -5760,11 +5760,11 @@ sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS)
 	v = t4_read_reg(sc, A_SGE_STAT_CFG);
 	if (G_STATSOURCE_T5(v) == 7) {
 		if (G_STATMODE(v) == 0) {
-			sbuf_printf(sb, "\ntotal %d, incomplete %d",
+			sbuf_printf(sb, "total %d, incomplete %d",
 			    t4_read_reg(sc, A_SGE_STAT_TOTAL),
 			    t4_read_reg(sc, A_SGE_STAT_MATCH));
 		} else if (G_STATMODE(v) == 1) {
-			sbuf_printf(sb, "\ntotal %d, data overflow %d",
+			sbuf_printf(sb, "total %d, data overflow %d",
 			    t4_read_reg(sc, A_SGE_STAT_TOTAL),
 			    t4_read_reg(sc, A_SGE_STAT_MATCH));
 		}
