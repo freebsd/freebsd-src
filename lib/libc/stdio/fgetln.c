@@ -115,7 +115,7 @@ fgetln(FILE *fp, size_t *lenp)
 	 * As a bonus, though, we can leave off the __SMOD.
 	 *
 	 * OPTIMISTIC is length that we (optimistically) expect will
-	 * accomodate the `rest' of the string, on each trip through the
+	 * accommodate the `rest' of the string, on each trip through the
 	 * loop below.
 	 */
 #define OPTIMISTIC 80
