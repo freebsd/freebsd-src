@@ -2480,27 +2480,13 @@ static int
 set_params__post_init(struct adapter *sc)
 {
 	uint32_t param, val;
-	int rc;
 
+	/* ask for encapsulated CPLs */
 	param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
-	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
-	if (rc == 0) {
-		/* ask for encapsulated CPLs */
-		param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
-		val = 1;
-		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to set parameter (post_init): %d.\n", rc);
-			return (rc);
-		}
-	} else if (rc != FW_EINVAL) {
-		device_printf(sc->dev,
-		    "failed to check for encapsulated CPLs: %d.\n", rc);
-	} else
-		rc = 0;	/* the firmware doesn't support the param, no worries */
+	val = 1;
+	(void)t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 
-	return (rc);
+	return (0);
 }
 
 #undef FW_PARAM_PFVF
