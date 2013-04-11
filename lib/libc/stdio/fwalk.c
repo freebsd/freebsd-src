@@ -37,7 +37,6 @@ static char sccsid[] = "@(#)fwalk.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <machine/atomic.h>
 #include <stdio.h>
 #include "local.h"
 #include "glue.h"
