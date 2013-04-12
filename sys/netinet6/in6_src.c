@@ -1100,6 +1100,7 @@ delete_addrsel_policyent(struct in6_addrpolicy *key)
 	TAILQ_REMOVE(&V_addrsel_policytab, pol, ape_entry);
 	ADDRSEL_UNLOCK();
 	ADDRSEL_XUNLOCK();
+	free(pol, M_IFADDR);
 
 	return (0);
 }
