@@ -28,10 +28,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/ioccom.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/uio.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -878,12 +882,103 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 	return (0);
 }
 
+static void
+nvme_pt_done(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_pt_command *pt = arg;
+
+	bzero(&pt->cpl, sizeof(pt->cpl));
+	pt->cpl.cdw0 = cpl->cdw0;
+	pt->cpl.status = cpl->status;
+	pt->cpl.status.p = 0;
+
+	mtx_lock(pt->driver_lock);
+	wakeup(pt);
+	mtx_unlock(pt->driver_lock);
+}
+
+int
+nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
+    struct nvme_pt_command *pt, uint32_t nsid, int is_user_buffer,
+    int is_admin_cmd)
+{
+	struct nvme_request	*req;
+	struct mtx		*mtx;
+	struct buf		*buf = NULL;
+	int			ret = 0;
+
+	if (pt->len > 0)
+		if (is_user_buffer) {
+			/*
+			 * Ensure the user buffer is wired for the duration of
+			 *  this passthrough command.
+			 */
+			PHOLD(curproc);
+			buf = getpbuf(NULL);
+			buf->b_saveaddr = buf->b_data;
+			buf->b_data = pt->buf;
+			buf->b_bufsize = pt->len;
+			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
+#ifdef NVME_UNMAPPED_BIO_SUPPORT
+			if (vmapbuf(buf, 1) < 0) {
+#else
+			if (vmapbuf(buf) < 0) {
+#endif
+				ret = EFAULT;
+				goto err;
+			}
+			req = nvme_allocate_request_vaddr(buf->b_data, pt->len, 
+			    nvme_pt_done, pt);
+		} else
+			req = nvme_allocate_request_vaddr(pt->buf, pt->len,
+			    nvme_pt_done, pt);
+	else
+		req = nvme_allocate_request_null(nvme_pt_done, pt);
+
+	req->cmd.opc	= pt->cmd.opc;
+	req->cmd.cdw10	= pt->cmd.cdw10;
+	req->cmd.cdw11	= pt->cmd.cdw11;
+	req->cmd.cdw12	= pt->cmd.cdw12;
+	req->cmd.cdw13	= pt->cmd.cdw13;
+	req->cmd.cdw14	= pt->cmd.cdw14;
+	req->cmd.cdw15	= pt->cmd.cdw15;
+
+	req->cmd.nsid = nsid;
+
+	if (is_admin_cmd)
+		mtx = &ctrlr->lock;
+	else
+		mtx = &ctrlr->ns[nsid-1].lock;
+
+	mtx_lock(mtx);
+	pt->driver_lock = mtx;
+
+	if (is_admin_cmd)
+		nvme_ctrlr_submit_admin_request(ctrlr, req);
+	else
+		nvme_ctrlr_submit_io_request(ctrlr, req);
+
+	mtx_sleep(pt, mtx, PRIBIO, "nvme_pt", 0);
+	mtx_unlock(mtx);
+
+	pt->driver_lock = NULL;
+
+err:
+	if (buf != NULL) {
+		relpbuf(buf, NULL);
+		PRELE(curproc);
+	}
+
+	return (ret);
+}
+
 static int
 nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
 	struct nvme_completion_poll_status	status;
 	struct nvme_controller			*ctrlr;
+	struct nvme_pt_command			*pt;
 
 	ctrlr = cdev->si_drv1;
 
@@ -912,6 +1007,10 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_RESET_CONTROLLER:
 		nvme_ctrlr_reset(ctrlr);
 		break;
+	case NVME_PASSTHROUGH_CMD:
+		pt = (struct nvme_pt_command *)arg;
+		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, pt->cmd.nsid,
+		    1 /* is_user_buffer */, 1 /* is_admin_cmd */));
 	default:
 		return (ENOTTY);
 	}
