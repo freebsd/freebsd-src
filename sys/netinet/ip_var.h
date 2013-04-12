@@ -173,9 +173,9 @@ VNET_DECLARE(struct ipstat_p, ipstatp);
  * stats.
  */
 #define	IPSTAT_ADD(name, val)	counter_u64_add(V_ipstatp.name, (val))
-#define	IPSTAT_SUB(name, val)	counter_u64_subtract(V_ipstatp.name, (val))
+#define	IPSTAT_SUB(name, val)	IPSTAT_ADD(name, -(val))
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
-#define	IPSTAT_DEC(name)	IPSTAT_ADD(name, -1)
+#define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
 
 /*
  * Kernel module consumers must use this accessor macro.
