@@ -11,17 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/TokenKinds.h"
+#include "clang/Lex/PTHLexer.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/OnDiskHashTable.h"
+#include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/LexDiagnostic.h"
-#include "clang/Lex/PTHLexer.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PTHManager.h"
-#include "clang/Lex/Token.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/Token.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
@@ -679,13 +678,13 @@ public:
   ~PTHStatCache() {}
 
   LookupResult getStat(const char *Path, struct stat &StatBuf,
-                       int *FileDescriptor) {
+                       bool isFile, int *FileDescriptor) {
     // Do the lookup for the file's data in the PTH file.
     CacheTy::iterator I = Cache.find(Path);
 
     // If we don't get a hit in the PTH file just forward to 'stat'.
     if (I == Cache.end())
-      return statChained(Path, StatBuf, FileDescriptor);
+      return statChained(Path, StatBuf, isFile, FileDescriptor);
 
     const PTHStatData &Data = *I;
 

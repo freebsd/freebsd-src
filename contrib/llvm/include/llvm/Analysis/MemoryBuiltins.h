@@ -15,12 +15,12 @@
 #ifndef LLVM_ANALYSIS_MEMORYBUILTINS_H
 #define LLVM_ANALYSIS_MEMORYBUILTINS_H
 
-#include "llvm/IRBuilder.h"
-#include "llvm/Operator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/InstVisitor.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/TargetFolder.h"
 #include "llvm/Support/ValueHandle.h"
 
@@ -138,11 +138,21 @@ static inline CallInst *isFreeCall(Value *I, const TargetLibraryInfo *TLI) {
 //
 
 /// \brief Compute the size of the object pointed by Ptr. Returns true and the
-/// object size in Size if successful, and false otherwise.
+/// object size in Size if successful, and false otherwise. In this context, by
+/// object we mean the region of memory starting at Ptr to the end of the
+/// underlying object pointed to by Ptr.
 /// If RoundToAlign is true, then Size is rounded up to the aligment of allocas,
 /// byval arguments, and global variables.
 bool getObjectSize(const Value *Ptr, uint64_t &Size, const DataLayout *TD,
                    const TargetLibraryInfo *TLI, bool RoundToAlign = false);
+
+/// \brief Compute the size of the underlying object pointed by Ptr. Returns
+/// true and the object size in Size if successful, and false otherwise.
+/// If RoundToAlign is true, then Size is rounded up to the aligment of allocas,
+/// byval arguments, and global variables.
+bool getUnderlyingObjectSize(const Value *Ptr, uint64_t &Size,
+                             const DataLayout *TD, const TargetLibraryInfo *TLI,
+                             bool RoundToAlign = false);
 
 
 
@@ -153,12 +163,14 @@ typedef std::pair<APInt, APInt> SizeOffsetType;
 class ObjectSizeOffsetVisitor
   : public InstVisitor<ObjectSizeOffsetVisitor, SizeOffsetType> {
 
+  typedef DenseMap<const Value*, SizeOffsetType> CacheMapTy;
+
   const DataLayout *TD;
   const TargetLibraryInfo *TLI;
   bool RoundToAlign;
   unsigned IntTyBits;
   APInt Zero;
-  SmallPtrSet<Instruction *, 8> SeenInsts;
+  CacheMapTy CacheMap;
 
   APInt align(APInt Size, uint64_t Align);
 
@@ -191,6 +203,7 @@ public:
   SizeOffsetType visitExtractElementInst(ExtractElementInst &I);
   SizeOffsetType visitExtractValueInst(ExtractValueInst &I);
   SizeOffsetType visitGEPOperator(GEPOperator &GEP);
+  SizeOffsetType visitGlobalAlias(GlobalAlias &GA);
   SizeOffsetType visitGlobalVariable(GlobalVariable &GV);
   SizeOffsetType visitIntToPtrInst(IntToPtrInst&);
   SizeOffsetType visitLoadInst(LoadInst &I);

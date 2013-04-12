@@ -8,7 +8,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "ToolChains.h"
-
+#include "SanitizerArgs.h"
+#include "clang/Basic/ObjCRuntime.h"
+#include "clang/Basic/Version.h"
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/Compilation.h"
@@ -17,25 +19,22 @@
 #include "clang/Driver/OptTable.h"
 #include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
-#include "clang/Basic/ObjCRuntime.h"
-#include "clang/Basic/Version.h"
-
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
 
-#include "SanitizerArgs.h"
+// FIXME: This needs to be listed last until we fix the broken include guards
+// in these files and the LLVM config.h files.
+#include "clang/Config/config.h" // for GCC_INSTALL_PREFIX
 
 #include <cstdlib> // ::getenv
-
-#include "clang/Config/config.h" // for GCC_INSTALL_PREFIX
 
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
@@ -43,8 +42,8 @@ using namespace clang;
 
 /// Darwin - Darwin tool chain for i386 and x86_64.
 
-Darwin::Darwin(const Driver &D, const llvm::Triple& Triple)
-  : ToolChain(D, Triple), TargetInitialized(false)
+Darwin::Darwin(const Driver &D, const llvm::Triple& Triple, const ArgList &Args)
+  : ToolChain(D, Triple, Args), TargetInitialized(false)
 {
   // Compute the initial Darwin version from the triple
   unsigned Major, Minor, Micro;
@@ -100,15 +99,17 @@ bool Darwin::hasBlocksRuntime() const {
 static const char *GetArmArchForMArch(StringRef Value) {
   return llvm::StringSwitch<const char*>(Value)
     .Case("armv6k", "armv6")
+    .Case("armv6m", "armv6m")
     .Case("armv5tej", "armv5")
     .Case("xscale", "xscale")
     .Case("armv4t", "armv4t")
     .Case("armv7", "armv7")
     .Cases("armv7a", "armv7-a", "armv7")
     .Cases("armv7r", "armv7-r", "armv7")
-    .Cases("armv7m", "armv7-m", "armv7")
+    .Cases("armv7em", "armv7e-m", "armv7em")
     .Cases("armv7f", "armv7-f", "armv7f")
     .Cases("armv7k", "armv7-k", "armv7k")
+    .Cases("armv7m", "armv7-m", "armv7m")
     .Cases("armv7s", "armv7-s", "armv7s")
     .Default(0);
 }
@@ -119,11 +120,12 @@ static const char *GetArmArchForMCpu(StringRef Value) {
     .Cases("arm10e", "arm10tdmi", "armv5")
     .Cases("arm1020t", "arm1020e", "arm1022e", "arm1026ej-s", "armv5")
     .Case("xscale", "xscale")
-    .Cases("arm1136j-s", "arm1136jf-s", "arm1176jz-s",
-           "arm1176jzf-s", "cortex-m0", "armv6")
-    .Cases("cortex-a8", "cortex-r4", "cortex-m3", "cortex-a9", "cortex-a15",
-           "armv7")
+    .Cases("arm1136j-s", "arm1136jf-s", "arm1176jz-s", "arm1176jzf-s", "armv6")
+    .Case("cortex-m0", "armv6m")
+    .Cases("cortex-a8", "cortex-r4", "cortex-a9", "cortex-a15", "armv7")
     .Case("cortex-a9-mp", "armv7f")
+    .Case("cortex-m3", "armv7m")
+    .Case("cortex-m4", "armv7em")
     .Case("swift", "armv7s")
     .Default(0);
 }
@@ -149,10 +151,6 @@ StringRef Darwin::getDarwinArchName(const ArgList &Args) const {
 }
 
 Darwin::~Darwin() {
-  // Free tool implementations.
-  for (llvm::DenseMap<unsigned, Tool*>::iterator
-         it = Tools.begin(), ie = Tools.end(); it != ie; ++it)
-    delete it->second;
 }
 
 std::string Darwin::ComputeEffectiveClangTriple(const ArgList &Args,
@@ -174,57 +172,36 @@ std::string Darwin::ComputeEffectiveClangTriple(const ArgList &Args,
 
 void Generic_ELF::anchor() {}
 
-Tool &Darwin::SelectTool(const Compilation &C, const JobAction &JA,
-                         const ActionList &Inputs) const {
-  Action::ActionClass Key = JA.getKind();
-
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple())) {
-    // FIXME: This seems like a hacky way to choose clang frontend.
-    Key = Action::AnalyzeJobClass;
+Tool *Darwin::getTool(Action::ActionClass AC) const {
+  switch (AC) {
+  case Action::LipoJobClass:
+    if (!Lipo)
+      Lipo.reset(new tools::darwin::Lipo(*this));
+    return Lipo.get();
+  case Action::DsymutilJobClass:
+    if (!Dsymutil)
+      Dsymutil.reset(new tools::darwin::Dsymutil(*this));
+    return Dsymutil.get();
+  case Action::VerifyJobClass:
+    if (!VerifyDebug)
+      VerifyDebug.reset(new tools::darwin::VerifyDebug(*this));
+    return VerifyDebug.get();
+  default:
+    return ToolChain::getTool(AC);
   }
-
-  bool UseIntegratedAs = C.getArgs().hasFlag(options::OPT_integrated_as,
-                                             options::OPT_no_integrated_as,
-                                             IsIntegratedAssemblerDefault());
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::InputClass:
-    case Action::BindArchClass:
-      llvm_unreachable("Invalid tool kind.");
-    case Action::PreprocessJobClass:
-      T = new tools::darwin::Preprocess(*this); break;
-    case Action::AnalyzeJobClass:
-    case Action::MigrateJobClass:
-      T = new tools::Clang(*this); break;
-    case Action::PrecompileJobClass:
-    case Action::CompileJobClass:
-      T = new tools::darwin::Compile(*this); break;
-    case Action::AssembleJobClass: {
-      if (UseIntegratedAs)
-        T = new tools::ClangAs(*this);
-      else
-        T = new tools::darwin::Assemble(*this);
-      break;
-    }
-    case Action::LinkJobClass:
-      T = new tools::darwin::Link(*this); break;
-    case Action::LipoJobClass:
-      T = new tools::darwin::Lipo(*this); break;
-    case Action::DsymutilJobClass:
-      T = new tools::darwin::Dsymutil(*this); break;
-    case Action::VerifyJobClass:
-      T = new tools::darwin::VerifyDebug(*this); break;
-    }
-  }
-
-  return *T;
 }
 
+Tool *Darwin::buildLinker() const {
+  return new tools::darwin::Link(*this);
+}
 
-DarwinClang::DarwinClang(const Driver &D, const llvm::Triple& Triple)
-  : Darwin(D, Triple)
+Tool *Darwin::buildAssembler() const {
+  return new tools::darwin::Assemble(*this);
+}
+
+DarwinClang::DarwinClang(const Driver &D, const llvm::Triple& Triple,
+                         const ArgList &Args)
+  : Darwin(D, Triple, Args)
 {
   getProgramPaths().push_back(getDriver().getInstalledDir());
   if (getDriver().getInstalledDir() != getDriver().Dir)
@@ -261,16 +238,18 @@ void DarwinClang::AddLinkARCArgs(const ArgList &Args,
 
 void DarwinClang::AddLinkRuntimeLib(const ArgList &Args,
                                     ArgStringList &CmdArgs,
-                                    const char *DarwinStaticLib) const {
+                                    const char *DarwinStaticLib,
+                                    bool AlwaysLink) const {
   llvm::sys::Path P(getDriver().ResourceDir);
   P.appendComponent("lib");
   P.appendComponent("darwin");
   P.appendComponent(DarwinStaticLib);
 
   // For now, allow missing resource libraries to support developers who may
-  // not have compiler-rt checked out or integrated into their build.
+  // not have compiler-rt checked out or integrated into their build (unless
+  // we explicitly force linking with this library).
   bool Exists;
-  if (!llvm::sys::fs::exists(P.str(), Exists) && Exists)
+  if (AlwaysLink || (!llvm::sys::fs::exists(P.str(), Exists) && Exists))
     CmdArgs.push_back(Args.MakeArgString(P.str()));
 }
 
@@ -317,21 +296,35 @@ void DarwinClang::AddLinkRuntimeLibArgs(const ArgList &Args,
 
   SanitizerArgs Sanitize(getDriver(), Args);
 
+  // Add Ubsan runtime library, if required.
+  if (Sanitize.needsUbsanRt()) {
+    if (isTargetIPhoneOS()) {
+      getDriver().Diag(diag::err_drv_clang_unsupported_per_platform)
+        << "-fsanitize=undefined";
+    } else {
+      AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.ubsan_osx.a", true);
+
+      // The Ubsan runtime library requires C++.
+      AddCXXStdlibLibArgs(Args, CmdArgs);
+    }
+  }
+
   // Add ASAN runtime library, if required. Dynamic libraries and bundles
   // should not be linked with the runtime library.
   if (Sanitize.needsAsanRt()) {
-    if (Args.hasArg(options::OPT_dynamiclib) ||
-        Args.hasArg(options::OPT_bundle)) return;
-    if (isTargetIPhoneOS()) {
+    if (isTargetIPhoneOS() && !isTargetIOSSimulator()) {
       getDriver().Diag(diag::err_drv_clang_unsupported_per_platform)
         << "-fsanitize=address";
     } else {
-      AddLinkRuntimeLib(Args, CmdArgs, "libclang_rt.asan_osx.a");
-
-      // The ASAN runtime library requires C++ and CoreFoundation.
-      AddCXXStdlibLibArgs(Args, CmdArgs);
-      CmdArgs.push_back("-framework");
-      CmdArgs.push_back("CoreFoundation");
+      if (Args.hasArg(options::OPT_dynamiclib) ||
+          Args.hasArg(options::OPT_bundle)) {
+        // Assume the binary will provide the ASan runtime.
+      } else {
+        AddLinkRuntimeLib(Args, CmdArgs,
+                          "libclang_rt.asan_osx_dynamic.dylib", true);
+        // The ASAN runtime library requires C++.
+        AddCXXStdlibLibArgs(Args, CmdArgs);
+      }
     }
   }
 
@@ -381,11 +374,17 @@ void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
   // Support allowing the SDKROOT environment variable used by xcrun and other
   // Xcode tools to define the default sysroot, by making it the default for
   // isysroot.
-  if (!Args.hasArg(options::OPT_isysroot)) {
+  if (const Arg *A = Args.getLastArg(options::OPT_isysroot)) {
+    // Warn if the path does not exist.
+    bool Exists;
+    if (llvm::sys::fs::exists(A->getValue(), Exists) || !Exists)
+      getDriver().Diag(clang::diag::warn_missing_sysroot) << A->getValue();
+  } else {
     if (char *env = ::getenv("SDKROOT")) {
-      // We only use this value as the default if it is an absolute path and
-      // exists.
-      if (llvm::sys::path::is_absolute(env) && llvm::sys::fs::exists(env)) {
+      // We only use this value as the default if it is an absolute path,
+      // exists, and it is not the root path.
+      if (llvm::sys::path::is_absolute(env) && llvm::sys::fs::exists(env) &&
+          StringRef(env) != "/") {
         Args.append(Args.MakeSeparateArg(
                       0, Opts.getOption(options::OPT_isysroot), env));
       }
@@ -796,12 +795,18 @@ DerivedArgList *Darwin::TranslateArgs(const DerivedArgList &Args,
       DAL->AddJoinedArg(0, MArch, "xscale");
     else if (Name == "armv6")
       DAL->AddJoinedArg(0, MArch, "armv6k");
+    else if (Name == "armv6m")
+      DAL->AddJoinedArg(0, MArch, "armv6m");
     else if (Name == "armv7")
       DAL->AddJoinedArg(0, MArch, "armv7a");
+    else if (Name == "armv7em")
+      DAL->AddJoinedArg(0, MArch, "armv7em");
     else if (Name == "armv7f")
       DAL->AddJoinedArg(0, MArch, "armv7f");
     else if (Name == "armv7k")
       DAL->AddJoinedArg(0, MArch, "armv7k");
+    else if (Name == "armv7m")
+      DAL->AddJoinedArg(0, MArch, "armv7m");
     else if (Name == "armv7s")
       DAL->AddJoinedArg(0, MArch, "armv7s");
 
@@ -931,7 +936,7 @@ Generic_GCC::GCCVersion Linux::GCCVersion::Parse(StringRef VersionText) {
   // And retains any patch number it finds.
   StringRef PatchText = GoodVersion.PatchSuffix = Second.second.str();
   if (!PatchText.empty()) {
-    if (unsigned EndNumber = PatchText.find_first_not_of("0123456789")) {
+    if (size_t EndNumber = PatchText.find_first_not_of("0123456789")) {
       // Try to parse the number and any suffix.
       if (PatchText.slice(0, EndNumber).getAsInteger(10, GoodVersion.Patch) ||
           GoodVersion.Patch < 0)
@@ -945,20 +950,33 @@ Generic_GCC::GCCVersion Linux::GCCVersion::Parse(StringRef VersionText) {
 
 /// \brief Less-than for GCCVersion, implementing a Strict Weak Ordering.
 bool Generic_GCC::GCCVersion::operator<(const GCCVersion &RHS) const {
-  if (Major < RHS.Major) return true; if (Major > RHS.Major) return false;
-  if (Minor < RHS.Minor) return true; if (Minor > RHS.Minor) return false;
+  if (Major != RHS.Major)
+    return Major < RHS.Major;
+  if (Minor != RHS.Minor)
+    return Minor < RHS.Minor;
+  if (Patch != RHS.Patch) {
+    // Note that versions without a specified patch sort higher than those with
+    // a patch.
+    if (RHS.Patch == -1)
+      return true;
+    if (Patch == -1)
+      return false;
 
-  // Note that we rank versions with *no* patch specified is better than ones
-  // hard-coding a patch version. Thus if the RHS has no patch, it always
-  // wins, and the LHS only wins if it has no patch and the RHS does have
-  // a patch.
-  if (RHS.Patch == -1) return true;   if (Patch == -1) return false;
-  if (Patch < RHS.Patch) return true; if (Patch > RHS.Patch) return false;
-  if (PatchSuffix == RHS.PatchSuffix) return false;
+    // Otherwise just sort on the patch itself.
+    return Patch < RHS.Patch;
+  }
+  if (PatchSuffix != RHS.PatchSuffix) {
+    // Sort empty suffixes higher.
+    if (RHS.PatchSuffix.empty())
+      return true;
+    if (PatchSuffix.empty())
+      return false;
 
-  // Finally, between completely tied version numbers, the version with the
-  // suffix loses as we prefer full releases.
-  if (RHS.PatchSuffix.empty()) return true;
+    // Provide a lexicographic sort to make this a total ordering.
+    return PatchSuffix < RHS.PatchSuffix;
+  }
+
+  // The versions are equal.
   return false;
 }
 
@@ -1051,6 +1069,12 @@ Generic_GCC::GCCInstallationDetector::GCCInstallationDetector(
   // Declare a bunch of static data sets that we'll select between below. These
   // are specifically designed to always refer to string literals to avoid any
   // lifetime or initialization issues.
+  static const char *const AArch64LibDirs[] = { "/lib" };
+  static const char *const AArch64Triples[] = {
+    "aarch64-none-linux-gnu",
+    "aarch64-linux-gnu"
+  };
+
   static const char *const ARMLibDirs[] = { "/lib" };
   static const char *const ARMTriples[] = {
     "arm-linux-gnueabi",
@@ -1078,6 +1102,7 @@ Generic_GCC::GCCInstallationDetector::GCCInstallationDetector(
     "i686-pc-linux-gnu",
     "i486-linux-gnu",
     "i386-linux-gnu",
+    "i386-redhat-linux6E",
     "i686-redhat-linux",
     "i586-redhat-linux",
     "i386-redhat-linux",
@@ -1103,6 +1128,7 @@ Generic_GCC::GCCInstallationDetector::GCCInstallationDetector(
   static const char *const PPCTriples[] = {
     "powerpc-linux-gnu",
     "powerpc-unknown-linux-gnu",
+    "powerpc-linux-gnuspe",
     "powerpc-suse-linux",
     "powerpc-montavista-linuxspe"
   };
@@ -1115,6 +1141,16 @@ Generic_GCC::GCCInstallationDetector::GCCInstallationDetector(
   };
 
   switch (TargetTriple.getArch()) {
+  case llvm::Triple::aarch64:
+    LibDirs.append(AArch64LibDirs, AArch64LibDirs
+                   + llvm::array_lengthof(AArch64LibDirs));
+    TripleAliases.append(
+      AArch64Triples, AArch64Triples + llvm::array_lengthof(AArch64Triples));
+    MultiarchLibDirs.append(
+      AArch64LibDirs, AArch64LibDirs + llvm::array_lengthof(AArch64LibDirs));
+    MultiarchTripleAliases.append(
+      AArch64Triples, AArch64Triples + llvm::array_lengthof(AArch64Triples));
+    break;
   case llvm::Triple::arm:
   case llvm::Triple::thumb:
     LibDirs.append(ARMLibDirs, ARMLibDirs + llvm::array_lengthof(ARMLibDirs));
@@ -1316,60 +1352,40 @@ void Generic_GCC::GCCInstallationDetector::ScanLibDirForGCCTriple(
 
 Generic_GCC::Generic_GCC(const Driver &D, const llvm::Triple& Triple,
                          const ArgList &Args)
-  : ToolChain(D, Triple), GCCInstallation(getDriver(), Triple, Args) {
+  : ToolChain(D, Triple, Args), GCCInstallation(getDriver(), Triple, Args) {
   getProgramPaths().push_back(getDriver().getInstalledDir());
   if (getDriver().getInstalledDir() != getDriver().Dir)
     getProgramPaths().push_back(getDriver().Dir);
 }
 
 Generic_GCC::~Generic_GCC() {
-  // Free tool implementations.
-  for (llvm::DenseMap<unsigned, Tool*>::iterator
-         it = Tools.begin(), ie = Tools.end(); it != ie; ++it)
-    delete it->second;
 }
 
-Tool &Generic_GCC::SelectTool(const Compilation &C,
-                              const JobAction &JA,
-                              const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::InputClass:
-    case Action::BindArchClass:
-      llvm_unreachable("Invalid tool kind.");
-    case Action::PreprocessJobClass:
-      T = new tools::gcc::Preprocess(*this); break;
-    case Action::PrecompileJobClass:
-      T = new tools::gcc::Precompile(*this); break;
-    case Action::AnalyzeJobClass:
-    case Action::MigrateJobClass:
-      T = new tools::Clang(*this); break;
-    case Action::CompileJobClass:
-      T = new tools::gcc::Compile(*this); break;
-    case Action::AssembleJobClass:
-      T = new tools::gcc::Assemble(*this); break;
-    case Action::LinkJobClass:
-      T = new tools::gcc::Link(*this); break;
-
-      // This is a bit ungeneric, but the only platform using a driver
-      // driver is Darwin.
-    case Action::LipoJobClass:
-      T = new tools::darwin::Lipo(*this); break;
-    case Action::DsymutilJobClass:
-      T = new tools::darwin::Dsymutil(*this); break;
-    case Action::VerifyJobClass:
-      T = new tools::darwin::VerifyDebug(*this); break;
-    }
+Tool *Generic_GCC::getTool(Action::ActionClass AC) const {
+  switch (AC) {
+  case Action::PreprocessJobClass:
+    if (!Preprocess)
+      Preprocess.reset(new tools::gcc::Preprocess(*this));
+    return Preprocess.get();
+  case Action::PrecompileJobClass:
+    if (!Precompile)
+      Precompile.reset(new tools::gcc::Precompile(*this));
+    return Precompile.get();
+  case Action::CompileJobClass:
+    if (!Compile)
+      Compile.reset(new tools::gcc::Compile(*this));
+    return Compile.get();
+  default:
+    return ToolChain::getTool(AC);
   }
+}
 
-  return *T;
+Tool *Generic_GCC::buildAssembler() const {
+  return new tools::gcc::Assemble(*this);
+}
+
+Tool *Generic_GCC::buildLinker() const {
+  return new tools::gcc::Link(*this);
 }
 
 bool Generic_GCC::IsUnwindTablesDefault() const {
@@ -1386,71 +1402,216 @@ bool Generic_GCC::isPICDefaultForced() const {
 
 /// Hexagon Toolchain
 
-Hexagon_TC::Hexagon_TC(const Driver &D, const llvm::Triple& Triple)
-  : ToolChain(D, Triple) {
-  getProgramPaths().push_back(getDriver().getInstalledDir());
-  if (getDriver().getInstalledDir() != getDriver().Dir.c_str())
-    getProgramPaths().push_back(getDriver().Dir);
+std::string Hexagon_TC::GetGnuDir(const std::string &InstalledDir) {
+
+  // Locate the rest of the toolchain ...
+  if (strlen(GCC_INSTALL_PREFIX))
+    return std::string(GCC_INSTALL_PREFIX);
+
+  std::string InstallRelDir = InstalledDir + "/../../gnu";
+  if (llvm::sys::fs::exists(InstallRelDir))
+    return InstallRelDir;
+
+  std::string PrefixRelDir = std::string(LLVM_PREFIX) + "/../gnu";
+  if (llvm::sys::fs::exists(PrefixRelDir))
+    return PrefixRelDir;
+
+  return InstallRelDir;
+}
+
+static void GetHexagonLibraryPaths(
+  const ArgList &Args,
+  const std::string Ver,
+  const std::string MarchString,
+  const std::string &InstalledDir,
+  ToolChain::path_list *LibPaths)
+{
+  bool buildingLib = Args.hasArg(options::OPT_shared);
+
+  //----------------------------------------------------------------------------
+  // -L Args
+  //----------------------------------------------------------------------------
+  for (arg_iterator
+         it = Args.filtered_begin(options::OPT_L),
+         ie = Args.filtered_end();
+       it != ie;
+       ++it) {
+    for (unsigned i = 0, e = (*it)->getNumValues(); i != e; ++i)
+      LibPaths->push_back((*it)->getValue(i));
+  }
+
+  //----------------------------------------------------------------------------
+  // Other standard paths
+  //----------------------------------------------------------------------------
+  const std::string MarchSuffix = "/" + MarchString;
+  const std::string G0Suffix = "/G0";
+  const std::string MarchG0Suffix = MarchSuffix + G0Suffix;
+  const std::string RootDir = Hexagon_TC::GetGnuDir(InstalledDir) + "/";
+
+  // lib/gcc/hexagon/...
+  std::string LibGCCHexagonDir = RootDir + "lib/gcc/hexagon/";
+  if (buildingLib) {
+    LibPaths->push_back(LibGCCHexagonDir + Ver + MarchG0Suffix);
+    LibPaths->push_back(LibGCCHexagonDir + Ver + G0Suffix);
+  }
+  LibPaths->push_back(LibGCCHexagonDir + Ver + MarchSuffix);
+  LibPaths->push_back(LibGCCHexagonDir + Ver);
+
+  // lib/gcc/...
+  LibPaths->push_back(RootDir + "lib/gcc");
+
+  // hexagon/lib/...
+  std::string HexagonLibDir = RootDir + "hexagon/lib";
+  if (buildingLib) {
+    LibPaths->push_back(HexagonLibDir + MarchG0Suffix);
+    LibPaths->push_back(HexagonLibDir + G0Suffix);
+  }
+  LibPaths->push_back(HexagonLibDir + MarchSuffix);
+  LibPaths->push_back(HexagonLibDir);
+}
+
+Hexagon_TC::Hexagon_TC(const Driver &D, const llvm::Triple &Triple,
+                       const ArgList &Args)
+  : Linux(D, Triple, Args) {
+  const std::string InstalledDir(getDriver().getInstalledDir());
+  const std::string GnuDir = Hexagon_TC::GetGnuDir(InstalledDir);
+
+  // Note: Generic_GCC::Generic_GCC adds InstalledDir and getDriver().Dir to
+  // program paths
+  const std::string BinDir(GnuDir + "/bin");
+  if (llvm::sys::fs::exists(BinDir))
+    getProgramPaths().push_back(BinDir);
+
+  // Determine version of GCC libraries and headers to use.
+  const std::string HexagonDir(GnuDir + "/lib/gcc/hexagon");
+  llvm::error_code ec;
+  GCCVersion MaxVersion= GCCVersion::Parse("0.0.0");
+  for (llvm::sys::fs::directory_iterator di(HexagonDir, ec), de;
+       !ec && di != de; di = di.increment(ec)) {
+    GCCVersion cv = GCCVersion::Parse(llvm::sys::path::filename(di->path()));
+    if (MaxVersion < cv)
+      MaxVersion = cv;
+  }
+  GCCLibAndIncVersion = MaxVersion;
+
+  ToolChain::path_list *LibPaths= &getFilePaths();
+
+  // Remove paths added by Linux toolchain. Currently Hexagon_TC really targets
+  // 'elf' OS type, so the Linux paths are not appropriate. When we actually
+  // support 'linux' we'll need to fix this up
+  LibPaths->clear();
+
+  GetHexagonLibraryPaths(
+    Args,
+    GetGCCLibAndIncVersion(),
+    GetTargetCPU(Args),
+    InstalledDir,
+    LibPaths);
 }
 
 Hexagon_TC::~Hexagon_TC() {
-  // Free tool implementations.
-  for (llvm::DenseMap<unsigned, Tool*>::iterator
-         it = Tools.begin(), ie = Tools.end(); it != ie; ++it)
-    delete it->second;
 }
 
-Tool &Hexagon_TC::SelectTool(const Compilation &C,
-                             const JobAction &JA,
-                             const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  //   if (JA.getKind () == Action::CompileJobClass)
-  //     Key = JA.getKind ();
-  //     else
+Tool *Hexagon_TC::buildAssembler() const {
+  return new tools::hexagon::Assemble(*this);
+}
 
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
-  //   if ((JA.getKind () == Action::CompileJobClass)
-  //     && (JA.getType () != types::TY_LTO_BC)) {
-  //     Key = JA.getKind ();
-  //   }
+Tool *Hexagon_TC::buildLinker() const {
+  return new tools::hexagon::Link(*this);
+}
 
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::InputClass:
-    case Action::BindArchClass:
-      assert(0 && "Invalid tool kind.");
-    case Action::AnalyzeJobClass:
-      T = new tools::Clang(*this); break;
-    case Action::AssembleJobClass:
-      T = new tools::hexagon::Assemble(*this); break;
-    case Action::LinkJobClass:
-      T = new tools::hexagon::Link(*this); break;
-    default:
-      assert(false && "Unsupported action for Hexagon target.");
-    }
+void Hexagon_TC::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
+                                           ArgStringList &CC1Args) const {
+  const Driver &D = getDriver();
+
+  if (DriverArgs.hasArg(options::OPT_nostdinc) ||
+      DriverArgs.hasArg(options::OPT_nostdlibinc))
+    return;
+
+  llvm::sys::Path InstallDir(D.InstalledDir);
+  std::string Ver(GetGCCLibAndIncVersion());
+  std::string GnuDir = Hexagon_TC::GetGnuDir(D.InstalledDir);
+  std::string HexagonDir(GnuDir + "/lib/gcc/hexagon/" + Ver);
+  addExternCSystemInclude(DriverArgs, CC1Args, HexagonDir + "/include");
+  addExternCSystemInclude(DriverArgs, CC1Args, HexagonDir + "/include-fixed");
+  addExternCSystemInclude(DriverArgs, CC1Args, GnuDir + "/hexagon/include");
+}
+
+void Hexagon_TC::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                              ArgStringList &CC1Args) const {
+
+  if (DriverArgs.hasArg(options::OPT_nostdlibinc) ||
+      DriverArgs.hasArg(options::OPT_nostdincxx))
+    return;
+
+  const Driver &D = getDriver();
+  std::string Ver(GetGCCLibAndIncVersion());
+  llvm::sys::Path IncludeDir(Hexagon_TC::GetGnuDir(D.InstalledDir));
+
+  IncludeDir.appendComponent("hexagon/include/c++/");
+  IncludeDir.appendComponent(Ver);
+  addSystemInclude(DriverArgs, CC1Args, IncludeDir.str());
+}
+
+ToolChain::CXXStdlibType
+Hexagon_TC::GetCXXStdlibType(const ArgList &Args) const {
+  Arg *A = Args.getLastArg(options::OPT_stdlib_EQ);
+  if (!A)
+    return ToolChain::CST_Libstdcxx;
+
+  StringRef Value = A->getValue();
+  if (Value != "libstdc++") {
+    getDriver().Diag(diag::err_drv_invalid_stdlib_name)
+      << A->getAsString(Args);
   }
 
-  return *T;
+  return ToolChain::CST_Libstdcxx;
 }
 
-bool Hexagon_TC::isPICDefault() const {
-  return false;
+static Arg *GetLastHexagonArchArg(const ArgList &Args)
+{
+  Arg *A = NULL;
+
+  for (ArgList::const_iterator it = Args.begin(), ie = Args.end();
+       it != ie; ++it) {
+    if ((*it)->getOption().matches(options::OPT_march_EQ) ||
+        (*it)->getOption().matches(options::OPT_mcpu_EQ)) {
+      A = *it;
+      A->claim();
+    } else if ((*it)->getOption().matches(options::OPT_m_Joined)) {
+      StringRef Value = (*it)->getValue(0);
+      if (Value.startswith("v")) {
+        A = *it;
+        A->claim();
+      }
+    }
+  }
+  return A;
 }
 
-bool Hexagon_TC::isPICDefaultForced() const {
-  return false;
+StringRef Hexagon_TC::GetTargetCPU(const ArgList &Args)
+{
+  // Select the default CPU (v4) if none was given or detection failed.
+  Arg *A = GetLastHexagonArchArg (Args);
+  if (A) {
+    StringRef WhichHexagon = A->getValue();
+    if (WhichHexagon.startswith("hexagon"))
+      return WhichHexagon.substr(sizeof("hexagon") - 1);
+    if (WhichHexagon != "")
+      return WhichHexagon;
+  }
+
+  return "v4";
 }
+// End Hexagon
 
 /// TCEToolChain - A tool chain using the llvm bitcode tools to perform
 /// all subcommands. See http://tce.cs.tut.fi for our peculiar target.
 /// Currently does not support anything else but compilation.
 
-TCEToolChain::TCEToolChain(const Driver &D, const llvm::Triple& Triple)
-  : ToolChain(D, Triple) {
+TCEToolChain::TCEToolChain(const Driver &D, const llvm::Triple& Triple,
+                           const ArgList &Args)
+  : ToolChain(D, Triple, Args) {
   // Path mangling to find libexec
   std::string Path(getDriver().Dir);
 
@@ -1459,9 +1620,6 @@ TCEToolChain::TCEToolChain(const Driver &D, const llvm::Triple& Triple)
 }
 
 TCEToolChain::~TCEToolChain() {
-  for (llvm::DenseMap<unsigned, Tool*>::iterator
-           it = Tools.begin(), ie = Tools.end(); it != ie; ++it)
-      delete it->second;
 }
 
 bool TCEToolChain::IsMathErrnoDefault() const {
@@ -1476,26 +1634,6 @@ bool TCEToolChain::isPICDefaultForced() const {
   return false;
 }
 
-Tool &TCEToolChain::SelectTool(const Compilation &C,
-                            const JobAction &JA,
-                               const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  Key = Action::AnalyzeJobClass;
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::PreprocessJobClass:
-      T = new tools::gcc::Preprocess(*this); break;
-    case Action::AnalyzeJobClass:
-      T = new tools::Clang(*this); break;
-    default:
-     llvm_unreachable("Unsupported action for TCE target.");
-    }
-  }
-  return *T;
-}
-
 /// OpenBSD - OpenBSD tool chain which can call as(1) and ld(1) directly.
 
 OpenBSD::OpenBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Args)
@@ -1504,36 +1642,12 @@ OpenBSD::OpenBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Arg
   getFilePaths().push_back("/usr/lib");
 }
 
-Tool &OpenBSD::SelectTool(const Compilation &C, const JobAction &JA,
-                          const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *OpenBSD::buildAssembler() const {
+  return new tools::openbsd::Assemble(*this);
+}
 
-  bool UseIntegratedAs = C.getArgs().hasFlag(options::OPT_integrated_as,
-                                             options::OPT_no_integrated_as,
-                                             IsIntegratedAssemblerDefault());
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass: {
-      if (UseIntegratedAs)
-        T = new tools::ClangAs(*this);
-      else
-        T = new tools::openbsd::Assemble(*this);
-      break;
-    }
-    case Action::LinkJobClass:
-      T = new tools::openbsd::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *OpenBSD::buildLinker() const {
+  return new tools::openbsd::Link(*this);
 }
 
 /// Bitrig - Bitrig tool chain which can call as(1) and ld(1) directly.
@@ -1544,36 +1658,12 @@ Bitrig::Bitrig(const Driver &D, const llvm::Triple& Triple, const ArgList &Args)
   getFilePaths().push_back("/usr/lib");
 }
 
-Tool &Bitrig::SelectTool(const Compilation &C, const JobAction &JA,
-                         const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *Bitrig::buildAssembler() const {
+  return new tools::bitrig::Assemble(*this);
+}
 
-  bool UseIntegratedAs = C.getArgs().hasFlag(options::OPT_integrated_as,
-                                             options::OPT_no_integrated_as,
-                                             IsIntegratedAssemblerDefault());
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass: {
-      if (UseIntegratedAs)
-        T = new tools::ClangAs(*this);
-      else
-        T = new tools::bitrig::Assemble(*this);
-      break;
-    }
-    case Action::LinkJobClass:
-      T = new tools::bitrig::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *Bitrig::buildLinker() const {
+  return new tools::bitrig::Link(*this);
 }
 
 void Bitrig::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
@@ -1636,35 +1726,12 @@ FreeBSD::FreeBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Arg
     getFilePaths().push_back(getDriver().SysRoot + "/usr/lib");
 }
 
-Tool &FreeBSD::SelectTool(const Compilation &C, const JobAction &JA,
-                          const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *FreeBSD::buildAssembler() const {
+  return new tools::freebsd::Assemble(*this);
+}
 
-  bool UseIntegratedAs = C.getArgs().hasFlag(options::OPT_integrated_as,
-                                             options::OPT_no_integrated_as,
-                                             IsIntegratedAssemblerDefault());
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass:
-      if (UseIntegratedAs)
-        T = new tools::ClangAs(*this);
-      else
-        T = new tools::freebsd::Assemble(*this);
-      break;
-    case Action::LinkJobClass:
-      T = new tools::freebsd::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *FreeBSD::buildLinker() const {
+  return new tools::freebsd::Link(*this);
 }
 
 bool FreeBSD::UseSjLjExceptions() const {
@@ -1698,36 +1765,12 @@ NetBSD::NetBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Args)
   }
 }
 
-Tool &NetBSD::SelectTool(const Compilation &C, const JobAction &JA,
-                         const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *NetBSD::buildAssembler() const {
+  return new tools::netbsd::Assemble(*this);
+}
 
-  bool UseIntegratedAs = C.getArgs().hasFlag(options::OPT_integrated_as,
-                                             options::OPT_no_integrated_as,
-                                             IsIntegratedAssemblerDefault());
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass:
-      if (UseIntegratedAs)
-        T = new tools::ClangAs(*this);
-      else
-        T = new tools::netbsd::Assemble(*this);
-      break;
-    case Action::LinkJobClass:
-      T = new tools::netbsd::Link(*this);
-      break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *NetBSD::buildLinker() const {
+  return new tools::netbsd::Link(*this);
 }
 
 /// Minix - Minix tool chain which can call as(1) and ld(1) directly.
@@ -1738,27 +1781,12 @@ Minix::Minix(const Driver &D, const llvm::Triple& Triple, const ArgList &Args)
   getFilePaths().push_back("/usr/lib");
 }
 
-Tool &Minix::SelectTool(const Compilation &C, const JobAction &JA,
-                        const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *Minix::buildAssembler() const {
+  return new tools::minix::Assemble(*this);
+}
 
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass:
-      T = new tools::minix::Assemble(*this); break;
-    case Action::LinkJobClass:
-      T = new tools::minix::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *Minix::buildLinker() const {
+  return new tools::minix::Link(*this);
 }
 
 /// AuroraUX - AuroraUX tool chain which can call as(1) and ld(1) directly.
@@ -1779,27 +1807,12 @@ AuroraUX::AuroraUX(const Driver &D, const llvm::Triple& Triple,
 
 }
 
-Tool &AuroraUX::SelectTool(const Compilation &C, const JobAction &JA,
-                           const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *AuroraUX::buildAssembler() const {
+  return new tools::auroraux::Assemble(*this);
+}
 
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass:
-      T = new tools::auroraux::Assemble(*this); break;
-    case Action::LinkJobClass:
-      T = new tools::auroraux::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *AuroraUX::buildLinker() const {
+  return new tools::auroraux::Link(*this);
 }
 
 /// Solaris - Solaris tool chain which can call as(1) and ld(1) directly.
@@ -1816,36 +1829,22 @@ Solaris::Solaris(const Driver &D, const llvm::Triple& Triple,
   getFilePaths().push_back("/usr/lib");
 }
 
-Tool &Solaris::SelectTool(const Compilation &C, const JobAction &JA,
-                           const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass:
-      T = new tools::solaris::Assemble(*this); break;
-    case Action::LinkJobClass:
-      T = new tools::solaris::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *Solaris::buildAssembler() const {
+  return new tools::solaris::Assemble(*this);
 }
 
-/// Linux toolchain (very bare-bones at the moment).
+Tool *Solaris::buildLinker() const {
+  return new tools::solaris::Link(*this);
+}
 
-enum LinuxDistro {
+/// Distribution (very bare-bones at the moment).
+
+enum Distro {
   ArchLinux,
   DebianLenny,
   DebianSqueeze,
   DebianWheezy,
+  DebianJessie,
   Exherbo,
   RHEL4,
   RHEL5,
@@ -1873,33 +1872,33 @@ enum LinuxDistro {
   UnknownDistro
 };
 
-static bool IsRedhat(enum LinuxDistro Distro) {
+static bool IsRedhat(enum Distro Distro) {
   return (Distro >= Fedora13 && Distro <= FedoraRawhide) ||
          (Distro >= RHEL4    && Distro <= RHEL6);
 }
 
-static bool IsOpenSuse(enum LinuxDistro Distro) {
+static bool IsOpenSuse(enum Distro Distro) {
   return Distro >= OpenSuse11_3 && Distro <= OpenSuse12_2;
 }
 
-static bool IsDebian(enum LinuxDistro Distro) {
-  return Distro >= DebianLenny && Distro <= DebianWheezy;
+static bool IsDebian(enum Distro Distro) {
+  return Distro >= DebianLenny && Distro <= DebianJessie;
 }
 
-static bool IsUbuntu(enum LinuxDistro Distro) {
+static bool IsUbuntu(enum Distro Distro) {
   return Distro >= UbuntuHardy && Distro <= UbuntuRaring;
 }
 
-static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
+static Distro DetectDistro(llvm::Triple::ArchType Arch) {
   OwningPtr<llvm::MemoryBuffer> File;
   if (!llvm::MemoryBuffer::getFile("/etc/lsb-release", File)) {
     StringRef Data = File.get()->getBuffer();
     SmallVector<StringRef, 8> Lines;
     Data.split(Lines, "\n");
-    LinuxDistro Version = UnknownDistro;
+    Distro Version = UnknownDistro;
     for (unsigned i = 0, s = Lines.size(); i != s; ++i)
       if (Version == UnknownDistro && Lines[i].startswith("DISTRIB_CODENAME="))
-        Version = llvm::StringSwitch<LinuxDistro>(Lines[i].substr(17))
+        Version = llvm::StringSwitch<Distro>(Lines[i].substr(17))
           .Case("hardy", UbuntuHardy)
           .Case("intrepid", UbuntuIntrepid)
           .Case("jaunty", UbuntuJaunty)
@@ -1932,11 +1931,11 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
              Data.find("release 6") != StringRef::npos)
       return RHEL6;
     else if ((Data.startswith("Red Hat Enterprise Linux") ||
-	      Data.startswith("CentOS")) &&
+              Data.startswith("CentOS")) &&
              Data.find("release 5") != StringRef::npos)
       return RHEL5;
     else if ((Data.startswith("Red Hat Enterprise Linux") ||
-	      Data.startswith("CentOS")) &&
+              Data.startswith("CentOS")) &&
              Data.find("release 4") != StringRef::npos)
       return RHEL4;
     return UnknownDistro;
@@ -1950,11 +1949,13 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
       return DebianSqueeze;
     else if (Data.startswith("wheezy/sid")  || Data[0] == '7')
       return DebianWheezy;
+    else if (Data.startswith("jessie/sid")  || Data[0] == '8')
+      return DebianJessie;
     return UnknownDistro;
   }
 
   if (!llvm::MemoryBuffer::getFile("/etc/SuSE-release", File))
-    return llvm::StringSwitch<LinuxDistro>(File.get()->getBuffer())
+    return llvm::StringSwitch<Distro>(File.get()->getBuffer())
       .StartsWith("openSUSE 11.3", OpenSuse11_3)
       .StartsWith("openSUSE 11.4", OpenSuse11_4)
       .StartsWith("openSUSE 12.1", OpenSuse12_1)
@@ -2007,6 +2008,9 @@ static std::string getMultiarchTriple(const llvm::Triple TargetTriple,
     if (llvm::sys::fs::exists(SysRoot + "/lib/x86_64-linux-gnu"))
       return "x86_64-linux-gnu";
     return TargetTriple.str();
+  case llvm::Triple::aarch64:
+    if (llvm::sys::fs::exists(SysRoot + "/lib/aarch64-linux-gnu"))
+      return "aarch64-linux-gnu";
   case llvm::Triple::mips:
     if (llvm::sys::fs::exists(SysRoot + "/lib/mips-linux-gnu"))
       return "mips-linux-gnu";
@@ -2016,6 +2020,8 @@ static std::string getMultiarchTriple(const llvm::Triple TargetTriple,
       return "mipsel-linux-gnu";
     return TargetTriple.str();
   case llvm::Triple::ppc:
+    if (llvm::sys::fs::exists(SysRoot + "/lib/powerpc-linux-gnuspe"))
+      return "powerpc-linux-gnuspe";
     if (llvm::sys::fs::exists(SysRoot + "/lib/powerpc-linux-gnu"))
       return "powerpc-linux-gnu";
     return TargetTriple.str();
@@ -2083,7 +2089,7 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
 
   Linker = GetProgramPath("ld");
 
-  LinuxDistro Distro = DetectLinuxDistro(Arch);
+  Distro Distro = DetectDistro(Arch);
 
   if (IsOpenSuse(Distro) || IsUbuntu(Distro)) {
     ExtraOpts.push_back("-z");
@@ -2114,7 +2120,7 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
     ExtraOpts.push_back("--no-add-needed");
 
   if (Distro == DebianSqueeze || Distro == DebianWheezy ||
-      IsOpenSuse(Distro) ||
+      Distro == DebianJessie || IsOpenSuse(Distro) ||
       (IsRedhat(Distro) && Distro != RHEL4 && Distro != RHEL5) ||
       (IsUbuntu(Distro) && Distro >= UbuntuKarmic))
     ExtraOpts.push_back("--build-id");
@@ -2197,40 +2203,24 @@ bool Linux::HasNativeLLVMSupport() const {
   return true;
 }
 
-Tool &Linux::SelectTool(const Compilation &C, const JobAction &JA,
-                        const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
-
-  bool UseIntegratedAs = C.getArgs().hasFlag(options::OPT_integrated_as,
-                                             options::OPT_no_integrated_as,
-                                             IsIntegratedAssemblerDefault());
-
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass:
-      if (UseIntegratedAs)
-        T = new tools::ClangAs(*this);
-      else
-        T = new tools::linuxtools::Assemble(*this);
-      break;
-    case Action::LinkJobClass:
-      T = new tools::linuxtools::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *Linux::buildLinker() const {
+  return new tools::gnutools::Link(*this);
 }
 
-void Linux::addClangTargetOptions(ArgStringList &CC1Args) const {
+Tool *Linux::buildAssembler() const {
+  return new tools::gnutools::Assemble(*this);
+}
+
+void Linux::addClangTargetOptions(const ArgList &DriverArgs,
+                                  ArgStringList &CC1Args) const {
   const Generic_GCC::GCCVersion &V = GCCInstallation.getVersion();
-  if (V >= Generic_GCC::GCCVersion::Parse("4.7.0"))
+  bool UseInitArrayDefault
+    = V >= Generic_GCC::GCCVersion::Parse("4.7.0") ||
+      getTriple().getArch() == llvm::Triple::aarch64 ||
+      getTriple().getEnvironment() == llvm::Triple::Android;
+  if (DriverArgs.hasFlag(options::OPT_fuse_init_array,
+                         options::OPT_fno_use_init_array,
+                         UseInitArrayDefault))
     CC1Args.push_back("-fuse-init-array");
 }
 
@@ -2289,6 +2279,9 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     "/usr/include/i686-linux-gnu",
     "/usr/include/i486-linux-gnu"
   };
+  const StringRef AArch64MultiarchIncludeDirs[] = {
+    "/usr/include/aarch64-linux-gnu"
+  };
   const StringRef ARMMultiarchIncludeDirs[] = {
     "/usr/include/arm-linux-gnueabi"
   };
@@ -2312,6 +2305,8 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     MultiarchIncludeDirs = X86_64MultiarchIncludeDirs;
   } else if (getTriple().getArch() == llvm::Triple::x86) {
     MultiarchIncludeDirs = X86MultiarchIncludeDirs;
+  } else if (getTriple().getArch() == llvm::Triple::aarch64) {
+    MultiarchIncludeDirs = AArch64MultiarchIncludeDirs;
   } else if (getTriple().getArch() == llvm::Triple::arm) {
     if (getTriple().getEnvironment() == llvm::Triple::GNUEABIHF)
       MultiarchIncludeDirs = ARMHFMultiarchIncludeDirs;
@@ -2346,7 +2341,7 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   addExternCSystemInclude(DriverArgs, CC1Args, D.SysRoot + "/usr/include");
 }
 
-/// \brief Helper to add the thre variant paths for a libstdc++ installation.
+/// \brief Helper to add the three variant paths for a libstdc++ installation.
 /*static*/ bool Linux::addLibStdCXXIncludePaths(Twine Base, Twine TargetArchDir,
                                                 const ArgList &DriverArgs,
                                                 ArgStringList &CC1Args) {
@@ -2355,6 +2350,22 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   addSystemInclude(DriverArgs, CC1Args, Base);
   addSystemInclude(DriverArgs, CC1Args, Base + "/" + TargetArchDir);
   addSystemInclude(DriverArgs, CC1Args, Base + "/backward");
+  return true;
+}
+
+/// \brief Helper to add an extra variant path for an (Ubuntu) multilib
+/// libstdc++ installation.
+/*static*/ bool Linux::addLibStdCXXIncludePaths(Twine Base, Twine Suffix,
+                                                Twine TargetArchDir,
+                                                Twine MultiLibSuffix,
+                                                const ArgList &DriverArgs,
+                                                ArgStringList &CC1Args) {
+  if (!addLibStdCXXIncludePaths(Base+Suffix, TargetArchDir + MultiLibSuffix,
+                                DriverArgs, CC1Args))
+    return false;
+
+  addSystemInclude(DriverArgs, CC1Args, Base + "/" + TargetArchDir + Suffix
+                   + MultiLibSuffix);
   return true;
 }
 
@@ -2385,8 +2396,14 @@ void Linux::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
   StringRef Version = GCCInstallation.getVersion().Text;
   StringRef TripleStr = GCCInstallation.getTriple().str();
 
+  if (addLibStdCXXIncludePaths(LibDir.str() + "/../include", 
+                               "/c++/" + Version.str(),
+                               TripleStr,
+                               GCCInstallation.getMultiarchSuffix(),
+                               DriverArgs, CC1Args))
+    return;
+
   const std::string IncludePathCandidates[] = {
-    LibDir.str() + "/../include/c++/" + Version.str(),
     // Gentoo is weird and places its headers inside the GCC install, so if the
     // first attempt to find the headers fails, try this pattern.
     InstallDir.str() + "/include/g++-v4",
@@ -2420,25 +2437,10 @@ DragonFly::DragonFly(const Driver &D, const llvm::Triple& Triple, const ArgList 
   getFilePaths().push_back("/usr/lib/gcc41");
 }
 
-Tool &DragonFly::SelectTool(const Compilation &C, const JobAction &JA,
-                            const ActionList &Inputs) const {
-  Action::ActionClass Key;
-  if (getDriver().ShouldUseClangCompiler(C, JA, getTriple()))
-    Key = Action::AnalyzeJobClass;
-  else
-    Key = JA.getKind();
+Tool *DragonFly::buildAssembler() const {
+  return new tools::dragonfly::Assemble(*this);
+}
 
-  Tool *&T = Tools[Key];
-  if (!T) {
-    switch (Key) {
-    case Action::AssembleJobClass:
-      T = new tools::dragonfly::Assemble(*this); break;
-    case Action::LinkJobClass:
-      T = new tools::dragonfly::Link(*this); break;
-    default:
-      T = &Generic_GCC::SelectTool(C, JA, Inputs);
-    }
-  }
-
-  return *T;
+Tool *DragonFly::buildLinker() const {
+  return new tools::dragonfly::Link(*this);
 }

@@ -23,28 +23,28 @@
 // the verifier errors.
 //===----------------------------------------------------------------------===//
 
-#include "llvm/BasicBlock.h"
-#include "llvm/InlineAsm.h"
-#include "llvm/Instructions.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
-#include "llvm/CodeGen/LiveVariables.h"
-#include "llvm/CodeGen/LiveStackAnalysis.h"
-#include "llvm/CodeGen/MachineInstrBundle.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineMemOperand.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/MC/MCAsmInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveStackAnalysis.h"
+#include "llvm/CodeGen/LiveVariables.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 namespace {
@@ -307,6 +307,9 @@ bool MachineVerifier::runOnMachineFunction(MachineFunction &MF) {
     visitMachineBasicBlockBefore(MFI);
     // Keep track of the current bundle header.
     const MachineInstr *CurBundle = 0;
+    // Do we expect the next instruction to be part of the same bundle?
+    bool InBundle = false;
+
     for (MachineBasicBlock::const_instr_iterator MBBI = MFI->instr_begin(),
            MBBE = MFI->instr_end(); MBBI != MBBE; ++MBBI) {
       if (MBBI->getParent() != MFI) {
@@ -314,6 +317,15 @@ bool MachineVerifier::runOnMachineFunction(MachineFunction &MF) {
         *OS << "Instruction: " << *MBBI;
         continue;
       }
+
+      // Check for consistent bundle flags.
+      if (InBundle && !MBBI->isBundledWithPred())
+        report("Missing BundledPred flag, "
+               "BundledSucc was set on predecessor", MBBI);
+      if (!InBundle && MBBI->isBundledWithPred())
+        report("BundledPred flag is set, "
+               "but BundledSucc not set on predecessor", MBBI);
+
       // Is this a bundle header?
       if (!MBBI->isInsideBundle()) {
         if (CurBundle)
@@ -326,9 +338,14 @@ bool MachineVerifier::runOnMachineFunction(MachineFunction &MF) {
       for (unsigned I = 0, E = MBBI->getNumOperands(); I != E; ++I)
         visitMachineOperand(&MBBI->getOperand(I), I);
       visitMachineInstrAfter(MBBI);
+
+      // Was this the last bundled instruction?
+      InBundle = MBBI->isBundledWithSucc();
     }
     if (CurBundle)
       visitMachineBundleAfter(CurBundle);
+    if (InBundle)
+      report("BundledSucc flag set on last instruction in block", &MFI->back());
     visitMachineBasicBlockAfter(MFI);
   }
   visitMachineFunctionAfter();
@@ -580,7 +597,7 @@ MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
       ++MBBI;
       if (MBBI == MF->end()) {
         report("MBB conditionally falls through out of function!", MBB);
-      } if (MBB->succ_size() == 1) {
+      } else if (MBB->succ_size() == 1) {
         // A conditional branch with only one successor is weird, but allowed.
         if (&*MBBI != TBB)
           report("MBB exits via conditional branch/fall-through but only has "

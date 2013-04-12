@@ -13,14 +13,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPC.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/ADT/SmallString.h"
 using namespace llvm;
 
 static MachineModuleInfoMachO &getMachOMMI(AsmPrinter &AP) {
@@ -114,6 +115,12 @@ static MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol,
                                break;
     case PPCII::MO_TPREL16_LO: RefKind = MCSymbolRefExpr::VK_PPC_TPREL16_LO;
                                break;
+    case PPCII::MO_DTPREL16_LO: RefKind = MCSymbolRefExpr::VK_PPC_DTPREL16_LO;
+                                break;
+    case PPCII::MO_TLSLD16_LO: RefKind = MCSymbolRefExpr::VK_PPC_GOT_TLSLD16_LO;
+                               break;
+    case PPCII::MO_TOC16_LO: RefKind = MCSymbolRefExpr::VK_PPC_TOC16_LO;
+                             break;
    }
 
   // FIXME: This isn't right, but we don't have a good way to express this in

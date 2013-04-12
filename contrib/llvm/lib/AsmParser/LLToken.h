@@ -30,6 +30,7 @@ namespace lltok {
     lparen, rparen,    // (  )
     backslash,         // \    (not /)
     exclaim,           // !
+    hash,              // #
 
     kw_x,
     kw_true,    kw_false,
@@ -44,6 +45,7 @@ namespace lltok {
     kw_dllimport, kw_dllexport, kw_common, kw_available_externally,
     kw_default, kw_hidden, kw_protected,
     kw_unnamed_addr,
+    kw_externally_initialized,
     kw_extern_weak,
     kw_external, kw_thread_local,
     kw_localdynamic, kw_initialexec, kw_localexec,
@@ -54,12 +56,17 @@ namespace lltok {
     kw_target,
     kw_triple,
     kw_unwind,
-    kw_deplibs,
+    kw_deplibs,                 // FIXME: Remove in 4.0
     kw_datalayout,
     kw_volatile,
     kw_atomic,
     kw_unordered, kw_monotonic, kw_acquire, kw_release, kw_acq_rel, kw_seq_cst,
     kw_singlethread,
+    kw_nnan,
+    kw_ninf,
+    kw_nsz,
+    kw_arcp,
+    kw_fast,
     kw_nuw,
     kw_nsw,
     kw_exact,
@@ -84,33 +91,39 @@ namespace lltok {
     kw_ptx_kernel, kw_ptx_device,
     kw_spir_kernel, kw_spir_func,
 
-    kw_signext,
-    kw_zeroext,
-    kw_inreg,
-    kw_sret,
-    kw_nounwind,
-    kw_noreturn,
-    kw_noalias,
-    kw_nocapture,
+    // Attributes:
+    kw_attributes,
+    kw_alwaysinline,
+    kw_sanitize_address,
     kw_byval,
+    kw_inlinehint,
+    kw_inreg,
+    kw_minsize,
+    kw_naked,
     kw_nest,
+    kw_noalias,
+    kw_nobuiltin,
+    kw_nocapture,
+    kw_noduplicate,
+    kw_noimplicitfloat,
+    kw_noinline,
+    kw_nonlazybind,
+    kw_noredzone,
+    kw_noreturn,
+    kw_nounwind,
+    kw_optsize,
     kw_readnone,
     kw_readonly,
-    kw_uwtable,
     kw_returns_twice,
-
-    kw_inlinehint,
-    kw_noinline,
-    kw_alwaysinline,
-    kw_optsize,
+    kw_signext,
     kw_ssp,
     kw_sspreq,
-    kw_noredzone,
-    kw_noimplicitfloat,
-    kw_naked,
-    kw_nonlazybind,
-    kw_address_safety,
-    kw_minsize,
+    kw_sspstrong,
+    kw_sret,
+    kw_sanitize_thread,
+    kw_sanitize_memory,
+    kw_uwtable,
+    kw_zeroext,
 
     kw_type,
     kw_opaque,
@@ -147,6 +160,7 @@ namespace lltok {
     // Unsigned Valued tokens (UIntVal).
     GlobalID,          // @42
     LocalVarID,        // %42
+    AttrGrpID,         // #42
 
     // String valued tokens (StrVal).
     LabelStr,          // foo:

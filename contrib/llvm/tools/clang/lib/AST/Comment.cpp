@@ -32,20 +32,6 @@ const char *Comment::getCommentKindName() const {
   llvm_unreachable("Unknown comment kind!");
 }
 
-void Comment::dump() const {
-  // It is important that Comment::dump() is defined in a different TU than
-  // Comment::dump(raw_ostream, SourceManager).  If both functions were defined
-  // in CommentDumper.cpp, that object file would be removed by linker because
-  // none of its functions are referenced by other object files, despite the
-  // LLVM_ATTRIBUTE_USED.
-  dump(llvm::errs(), NULL, NULL);
-}
-
-void Comment::dump(const ASTContext &Context) const {
-  dump(llvm::errs(), &Context.getCommentCommandTraits(),
-       &Context.getSourceManager());
-}
-
 namespace {
 struct good {};
 struct bad {};
@@ -255,32 +241,32 @@ void DeclInfo::fill() {
     while (true) {
       TL = TL.IgnoreParens();
       // Look through qualified types.
-      if (QualifiedTypeLoc *QualifiedTL = dyn_cast<QualifiedTypeLoc>(&TL)) {
-        TL = QualifiedTL->getUnqualifiedLoc();
+      if (QualifiedTypeLoc QualifiedTL = TL.getAs<QualifiedTypeLoc>()) {
+        TL = QualifiedTL.getUnqualifiedLoc();
         continue;
       }
       // Look through pointer types.
-      if (PointerTypeLoc *PointerTL = dyn_cast<PointerTypeLoc>(&TL)) {
-        TL = PointerTL->getPointeeLoc().getUnqualifiedLoc();
+      if (PointerTypeLoc PointerTL = TL.getAs<PointerTypeLoc>()) {
+        TL = PointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
-      if (BlockPointerTypeLoc *BlockPointerTL =
-              dyn_cast<BlockPointerTypeLoc>(&TL)) {
-        TL = BlockPointerTL->getPointeeLoc().getUnqualifiedLoc();
+      if (BlockPointerTypeLoc BlockPointerTL =
+              TL.getAs<BlockPointerTypeLoc>()) {
+        TL = BlockPointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
-      if (MemberPointerTypeLoc *MemberPointerTL =
-              dyn_cast<MemberPointerTypeLoc>(&TL)) {
-        TL = MemberPointerTL->getPointeeLoc().getUnqualifiedLoc();
+      if (MemberPointerTypeLoc MemberPointerTL =
+              TL.getAs<MemberPointerTypeLoc>()) {
+        TL = MemberPointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
       // Is this a typedef for a function type?
-      if (FunctionTypeLoc *FTL = dyn_cast<FunctionTypeLoc>(&TL)) {
+      if (FunctionTypeLoc FTL = TL.getAs<FunctionTypeLoc>()) {
         Kind = FunctionKind;
-        ArrayRef<ParmVarDecl *> Params = FTL->getParams();
+        ArrayRef<ParmVarDecl *> Params = FTL.getParams();
         ParamVars = ArrayRef<const ParmVarDecl *>(Params.data(),
                                                   Params.size());
-        ResultType = FTL->getResultLoc().getType();
+        ResultType = FTL.getResultLoc().getType();
         break;
       }
       break;
