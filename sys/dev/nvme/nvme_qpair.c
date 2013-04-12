@@ -699,6 +699,51 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 }
 
 static void
+nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
+{
+	struct nvme_tracker 	*tr = arg;
+	uint32_t		cur_nseg;
+
+	/*
+	 * If the mapping operation failed, return immediately.  The caller
+	 *  is responsible for detecting the error status and failing the
+	 *  tracker manually.
+	 */
+	if (error != 0)
+		return;
+
+	/*
+	 * Note that we specified PAGE_SIZE for alignment and max
+	 *  segment size when creating the bus dma tags.  So here
+	 *  we can safely just transfer each segment to its
+	 *  associated PRP entry.
+	 */
+	tr->req->cmd.prp1 = seg[0].ds_addr;
+
+	if (nseg == 2) {
+		tr->req->cmd.prp2 = seg[1].ds_addr;
+	} else if (nseg > 2) {
+		cur_nseg = 1;
+		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
+		while (cur_nseg < nseg) {
+			tr->prp[cur_nseg-1] =
+			    (uint64_t)seg[cur_nseg].ds_addr;
+			cur_nseg++;
+		}
+	}
+
+	nvme_qpair_submit_tracker(tr->qpair, tr);
+}
+
+static void
+nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
+    bus_size_t mapsize, int error)
+{
+
+	nvme_payload_map(arg, seg, nseg, error);
+}
+
+static void
 _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
