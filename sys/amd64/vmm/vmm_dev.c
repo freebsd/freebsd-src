@@ -475,9 +475,9 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	if (sc != NULL)
 		return (EEXIST);
 
-	vm = vm_create(buf);
-	if (vm == NULL)
-		return (EINVAL);
+	error = vm_create(buf, &vm);
+	if (error != 0)
+		return (error);
 
 	sc = malloc(sizeof(struct vmmdev_softc), M_VMMDEV, M_WAITOK | M_ZERO);
 	sc->vm = vm;
