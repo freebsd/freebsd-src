@@ -52,7 +52,7 @@ groudier [label="Gerard Roudier\ngroudier@FreeBSD.org\n1999/12/30\n2006/04/06"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16\n2008/11/10"]
 jayanth [label="Jayanth Vijayaraghavan\njayanth@FreeBSD.org\n2000/05/08\n2008/11/10"]
 jb [label="John Birrell\njb@FreeBSD.org\n????/??/??\n2009/12/15"]
-jdp [label="John Polstra\njdp@FreeBSD.org\n????/??/??\n2008/02/26"]
+jdp [label="John Polstra\njdp@FreeBSD.org\n1995/12/07\n2008/02/26"]
 jedgar [label="Chris D. Faulhaber\njedgar@FreeBSD.org\n1999/12/15\n2006/04/07"]
 jkh [label="Jordan K. Hubbard\njkh@FreeBSD.org\n1993/06/12\n2008/06/13"]
 jlemon [label="Jonathan Lemon\njlemon@FreeBSD.org\n1997/08/14\n2008/11/10"]
@@ -65,7 +65,7 @@ lulf [label="Ulf Lilleengen\nlulf@FreeBSD.org\n2007/10/24\n2012/01/19"]
 mb [label="Maxim Bolotin\nmb@FreeBSD.org\n2000/04/06\n2003/03/08"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18\n2008/09/29"]
 mike [label="Mike Barcroft\nmike@FreeBSD.org\n2001/07/17\n2006/04/28"]
-msmith [label="Mike Smith\nmsmith@FreeBSD.org\n????/??/??\n2003/12/15"]
+msmith [label="Mike Smith\nmsmith@FreeBSD.org\n1996/10/22\n2003/12/15"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05\n2010/07/25"]
 mux [label="Maxime Henrion\nmux@FreeBSD.org\n2002/03/03\n2011/06/22"]
 nate [label="Nate Willams\nnate@FreeBSD.org\n1993/06/12\n2003/12/15"]
@@ -153,7 +153,7 @@ fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2010/02/02"]
 gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
-gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n????/??/??"]
+gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n1999/01/15"]
 gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2009/12/07"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
 gleb [label="Gleb Kurtsou\ngleb@FreeBSD.org\n2011/09/19"]
@@ -188,7 +188,7 @@ joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
-julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
+julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/04/19"]
 jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
@@ -202,7 +202,7 @@ lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2004/04/17"]
 markj [label="Mark Johnston\nmarkj@FreeBSD.org\n2012/12/18"]
-markm [label="Mark Murray\nmarkm@FreeBSD.org\n199?/??/??"]
+markm [label="Mark Murray\nmarkm@FreeBSD.org\n1995/04/24"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mav [label="Alexander Motin\nmav@FreeBSD.org\n2007/04/12"]
@@ -223,7 +223,7 @@ nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
-peter [label="Peter Wemm\npeter@FreeBSD.org\n????/??/??"]
+peter [label="Peter Wemm\npeter@FreeBSD.org\n1995/07/04"]
 peterj [label="Peter Jeremy\npeterj@FreeBSD.org\n2012/09/14"]
 pfg [label="Pedro Giffuni\npfg@FreeBSD.org\n2011/12/01"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2004/01/21"]
@@ -367,7 +367,10 @@ des -> bapt
 
 dds -> versus
 
+dfr -> gallatin
 dfr -> zml
+
+dg -> peter
 
 dim -> theraven
 
@@ -469,6 +472,8 @@ jkh -> imp
 jkh -> jlemon
 jkh -> joerg
 jkh -> jwd
+jkh -> msmith
+jkh -> murray
 jkh -> phk
 jkh -> wes
 jkh -> yar
@@ -484,6 +489,7 @@ joerg -> brian
 joerg -> eik
 joerg -> le
 joerg -> netchild
+joerg -> schweikh
 
 julian -> glebius
 julian -> davidxu
