@@ -235,7 +235,13 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	struct nvme_tracker 	*tr = arg;
 	uint32_t		cur_nseg;
 
-	KASSERT(error == 0, ("nvme_payload_map error != 0\n"));
+	/*
+	 * If the mapping operation failed, return immediately.  The caller
+	 *  is responsible for detecting the error status and failing the
+	 *  tracker manually.
+	 */
+	if (error != 0)
+		return;
 
 	/*
 	 * Note that we specified PAGE_SIZE for alignment and max

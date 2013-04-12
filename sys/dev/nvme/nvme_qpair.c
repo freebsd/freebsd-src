@@ -702,7 +702,7 @@ static void
 _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
-	int			err;
+	int			err = 0;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
@@ -745,7 +745,8 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
 		    req->u.payload, req->payload_size, nvme_payload_map, tr, 0);
 		if (err != 0)
-			panic("bus_dmamap_load returned non-zero!\n");
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load returned 0x%x!\n", err);
 		break;
 	case NVME_REQUEST_NULL:
 		nvme_qpair_submit_tracker(tr->qpair, tr);
@@ -755,19 +756,35 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		    tr->payload_dma_map, req->u.uio, nvme_payload_map_uio,
 		    tr, 0);
 		if (err != 0)
-			panic("bus_dmamap_load_uio returned non-zero!\n");
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load_uio returned 0x%x!\n", err);
 		break;
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	case NVME_REQUEST_BIO:
 		err = bus_dmamap_load_bio(tr->qpair->dma_tag,
 		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
 		if (err != 0)
-			panic("bus_dmamap_load_bio returned non-zero!\n");
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load_bio returned 0x%x!\n", err);
 		break;
 #endif
 	default:
 		panic("unknown nvme request type 0x%x\n", req->type);
 		break;
+	}
+
+	if (err != 0) {
+		/*
+		 * The dmamap operation failed, so we manually fail the
+		 *  tracker here with DATA_TRANSFER_ERROR status.
+		 *
+		 * nvme_qpair_manual_complete_tracker must not be called
+		 *  with the qpair lock held.
+		 */
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
+		    NVME_SC_DATA_TRANSFER_ERROR, 1 /* do not retry */, TRUE);
+		mtx_lock(&qpair->lock);
 	}
 }
 
