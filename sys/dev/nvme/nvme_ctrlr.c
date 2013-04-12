@@ -307,9 +307,9 @@ nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
     struct nvme_request *req)
 {
 
-	mtx_lock(&ctrlr->fail_req_lock);
+	mtx_lock(&ctrlr->lock);
 	STAILQ_INSERT_TAIL(&ctrlr->fail_req, req, stailq);
-	mtx_unlock(&ctrlr->fail_req_lock);
+	mtx_unlock(&ctrlr->lock);
 	taskqueue_enqueue(ctrlr->taskqueue, &ctrlr->fail_req_task);
 }
 
@@ -319,14 +319,14 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 	struct nvme_controller	*ctrlr = arg;
 	struct nvme_request	*req;
 
-	mtx_lock(&ctrlr->fail_req_lock);
+	mtx_lock(&ctrlr->lock);
 	while (!STAILQ_EMPTY(&ctrlr->fail_req)) {
 		req = STAILQ_FIRST(&ctrlr->fail_req);
 		STAILQ_REMOVE_HEAD(&ctrlr->fail_req, stailq);
 		nvme_qpair_manual_complete_request(req->qpair, req,
 		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, TRUE);
 	}
-	mtx_unlock(&ctrlr->fail_req_lock);
+	mtx_unlock(&ctrlr->lock);
 }
 
 static int
@@ -935,6 +935,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	ctrlr->dev = dev;
 
+	mtx_init(&ctrlr->lock, "nvme ctrlr lock", NULL, MTX_DEF);
+
 	status = nvme_ctrlr_allocate_bar(ctrlr);
 
 	if (status != 0)
@@ -1033,8 +1035,6 @@ intx:
 	TASK_INIT(&ctrlr->reset_task, 0, nvme_ctrlr_reset_task, ctrlr);
 
 	TASK_INIT(&ctrlr->fail_req_task, 0, nvme_ctrlr_fail_req_task, ctrlr);
-	mtx_init(&ctrlr->fail_req_lock, "nvme ctrlr fail req lock", NULL,
-	    MTX_DEF);
 	STAILQ_INIT(&ctrlr->fail_req);
 	ctrlr->is_failed = FALSE;
 
