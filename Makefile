@@ -281,12 +281,16 @@ kernel: buildkernel installkernel
 #
 upgrade_checks:
 .if !defined(.PARSEDIR)
+.if defined(WITH_BMAKE)
+	(cd ${.CURDIR} && ${MAKE} bmake)
+.else
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
 	    (cd ${.CURDIR} && ${MAKE} make); \
 	fi
+.endif
 .endif
 
 #
@@ -302,12 +306,12 @@ MMAKE=		${MMAKEENV} ${MAKE} \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR
 
-make: .PHONY
+make bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/make; \
+	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
