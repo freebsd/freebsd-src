@@ -1147,14 +1147,16 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 	dmu_object_info_t doi;
 	dmu_buf_t	*db;
 	znode_t		*zp;
-	int err;
+	vnode_t		*vp;
 	sa_handle_t	*hdl;
-	int first = 1;
+	struct thread	*td;
+	int locked;
+	int err;
 
-	*zpp = NULL;
-
+	td = curthread;
 	getnewvnode_reserve(1);
 again:
+	*zpp = NULL;
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, obj_num);
 
 	err = sa_buf_hold(zfsvfs->z_os, obj_num, NULL, &db);
@@ -1193,48 +1195,38 @@ again:
 		if (zp->z_unlinked) {
 			err = ENOENT;
 		} else {
-			vnode_t *vp;
-			int dying = 0;
-
 			vp = ZTOV(zp);
-			if (vp == NULL)
-				dying = 1;
-			else {
-				VN_HOLD(vp);
-				if ((vp->v_iflag & VI_DOOMED) != 0) {
-					dying = 1;
-					/*
-					 * Don't VN_RELE() vnode here, because
-					 * it can call vn_lock() which creates
-					 * LOR between vnode lock and znode
-					 * lock. We will VN_RELE() the vnode
-					 * after droping znode lock.
-					 */
-				}
-			}
-			if (dying) {
-				if (first) {
-					ZFS_LOG(1, "dying znode detected (zp=%p)", zp);
-					first = 0;
-				}
-				/*
-				 * znode is dying so we can't reuse it, we must
-				 * wait until destruction is completed.
-				 */
-				sa_buf_rele(db, NULL);
-				mutex_exit(&zp->z_lock);
-				ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
-				if (vp != NULL)
-					VN_RELE(vp);
-				tsleep(zp, 0, "zcollide", 1);
-				goto again;
-			}
 			*zpp = zp;
 			err = 0;
 		}
 		sa_buf_rele(db, NULL);
+
+		/* Don't let the vnode disappear after ZFS_OBJ_HOLD_EXIT. */
+		if (err == 0)
+			VN_HOLD(vp);
+
 		mutex_exit(&zp->z_lock);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
+
+		if (err == 0) {
+			locked = VOP_ISLOCKED(vp);
+			VI_LOCK(vp);
+			if ((vp->v_iflag & VI_DOOMED) != 0 &&
+			    locked != LK_EXCLUSIVE) {
+				/*
+				 * The vnode is doomed and this thread doesn't
+				 * hold the exclusive lock on it, so the vnode
+				 * must be being reclaimed by another thread.
+				 * Otherwise the doomed vnode is being reclaimed
+				 * by this thread and zfs_zget is called from
+				 * ZIL internals.
+				 */
+				VI_UNLOCK(vp);
+				VN_RELE(vp);
+				goto again;
+			}
+			VI_UNLOCK(vp);
+		}
 		getnewvnode_drop_reserve();
 		return (err);
 	}
@@ -1400,10 +1392,8 @@ zfs_znode_delete(znode_t *zp, dmu_tx_t *tx)
 void
 zfs_zinactive(znode_t *zp)
 {
-	vnode_t	*vp = ZTOV(zp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	uint64_t z_id = zp->z_id;
-	int vfslocked;
 
 	ASSERT(zp->z_sa_hdl);
 
@@ -1413,19 +1403,6 @@ zfs_zinactive(znode_t *zp)
 	ZFS_OBJ_HOLD_ENTER(zfsvfs, z_id);
 
 	mutex_enter(&zp->z_lock);
-	VI_LOCK(vp);
-	if (vp->v_count > 0) {
-		/*
-		 * If the hold count is greater than zero, somebody has
-		 * obtained a new reference on this znode while we were
-		 * processing it here, so we are done.
-		 */
-		VI_UNLOCK(vp);
-		mutex_exit(&zp->z_lock);
-		ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
-		return;
-	}
-	VI_UNLOCK(vp);
 
 	/*
 	 * If this was the last reference to a file with no links,
@@ -1434,16 +1411,14 @@ zfs_zinactive(znode_t *zp)
 	if (zp->z_unlinked) {
 		mutex_exit(&zp->z_lock);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
-		ASSERT(vp->v_count == 0);
-		vrecycle(vp, curthread);
-		vfslocked = VFS_LOCK_GIANT(zfsvfs->z_vfs);
 		zfs_rmnode(zp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return;
 	}
 
 	mutex_exit(&zp->z_lock);
+	zfs_znode_dmu_fini(zp);
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, z_id);
+	zfs_znode_free(zp);
 }
 
 void
@@ -1451,8 +1426,8 @@ zfs_znode_free(znode_t *zp)
 {
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 
-	ASSERT(ZTOV(zp) == NULL);
 	ASSERT(zp->z_sa_hdl == NULL);
+	zp->z_vnode = NULL;
 	mutex_enter(&zfsvfs->z_znodes_lock);
 	POINTER_INVALIDATE(&zp->z_zfsvfs);
 	list_remove(&zfsvfs->z_all_znodes, zp);
