@@ -33,12 +33,11 @@
 #include <sys/types.h>
 #endif
 
-#define	NVME_IDENTIFY_CONTROLLER	_IOR('n', 0, struct nvme_controller_data)
-#define	NVME_IDENTIFY_NAMESPACE		_IOR('n', 1, struct nvme_namespace_data)
-#define	NVME_IO_TEST			_IOWR('n', 2, struct nvme_io_test)
-#define	NVME_BIO_TEST			_IOWR('n', 4, struct nvme_io_test)
-#define	NVME_RESET_CONTROLLER		_IO('n', 5)
-#define	NVME_PASSTHROUGH_CMD		_IOWR('n', 6, struct nvme_pt_command)
+#define	NVME_PASSTHROUGH_CMD		_IOWR('n', 0, struct nvme_pt_command)
+#define	NVME_RESET_CONTROLLER		_IO('n', 1)
+
+#define	NVME_IO_TEST			_IOWR('n', 100, struct nvme_io_test)
+#define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)
 
 /*
  * Use to mark a command to apply to all namespaces, or to retrieve global
