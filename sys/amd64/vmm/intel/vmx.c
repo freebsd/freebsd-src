@@ -153,10 +153,7 @@ static int cap_unrestricted_guest;
 static int cap_monitor_trap;
  
 /* statistics */
-static VMM_STAT_DEFINE(VCPU_MIGRATIONS, "vcpu migration across host cpus");
-static VMM_STAT_DEFINE(VMEXIT_EXTINT, "vm exits due to external interrupt");
-static VMM_STAT_DEFINE(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
-static VMM_STAT_DEFINE(VMEXIT_HLT, "number of times hlt was intercepted");
+static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
 
 #ifdef KTR
 static const char *
@@ -444,7 +441,8 @@ vmx_init(void)
 	 * are set (bits 0 and 2 respectively).
 	 */
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
-	if ((feature_control & 0x5) != 0x5) {
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
 		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
 	}
@@ -1216,11 +1214,15 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	qual = vmexit->u.vmx.exit_qualification;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
 
+	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
+
 	switch (vmexit->u.vmx.exit_reason) {
 	case EXIT_REASON_CR_ACCESS:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
 		handled = vmx_emulate_cr_access(vmx, vcpu, qual);
 		break;
 	case EXIT_REASON_RDMSR:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
 		ecx = vmxctx->guest_rcx;
 		error = emulate_rdmsr(vmx->vm, vcpu, ecx);
 		if (error) {
@@ -1230,6 +1232,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			handled = 1;
 		break;
 	case EXIT_REASON_WRMSR:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_WRMSR, 1);
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
@@ -1259,15 +1262,18 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_HLT;
 		break;
 	case EXIT_REASON_MTF:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
 		vmexit->exitcode = VM_EXITCODE_MTRAP;
 		break;
 	case EXIT_REASON_PAUSE:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_PAUSE, 1);
 		vmexit->exitcode = VM_EXITCODE_PAUSE;
 		break;
 	case EXIT_REASON_INTR_WINDOW:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INTR_WINDOW, 1);
 		vmx_clear_int_window_exiting(vmx, vcpu);
 		VMM_CTR0(vmx->vm, vcpu, "Disabling interrupt window exiting");
-		/* FALLTHRU */
+		return (1);
 	case EXIT_REASON_EXT_INTR:
 		/*
 		 * External interrupts serve only to cause VM exits and allow
@@ -1287,10 +1293,12 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		return (1);
 	case EXIT_REASON_NMI_WINDOW:
 		/* Exit to allow the pending virtual NMI to be injected */
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NMI_WINDOW, 1);
 		vmx_clear_nmi_window_exiting(vmx, vcpu);
 		VMM_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
 		return (1);
 	case EXIT_REASON_INOUT:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INOUT, 1);
 		vmexit->exitcode = VM_EXITCODE_INOUT;
 		vmexit->u.inout.bytes = (qual & 0x7) + 1;
 		vmexit->u.inout.in = (qual & 0x8) ? 1 : 0;
@@ -1300,9 +1308,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
 		break;
 	case EXIT_REASON_CPUID:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);
 		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
 		break;
 	case EXIT_REASON_EPT_FAULT:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
 		gla = vmcs_gla();
 		gpa = vmcs_gpa();
 		cr3 = vmcs_guest_cr3();
@@ -1315,6 +1325,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		}
 		break;
 	default:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_UNKNOWN, 1);
 		break;
 	}
 
@@ -1456,6 +1467,7 @@ vmx_run(void *arg, int vcpu, register_t rip)
 			vmexit->inst_length = 0;
 			vmexit->exitcode = VM_EXITCODE_BOGUS;
 			vmx_astpending_trace(vmx, vcpu, rip);
+			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_ASTPENDING, 1);
 			break;
 		}
 
@@ -1473,6 +1485,9 @@ vmx_run(void *arg, int vcpu, register_t rip)
 		panic("Mismatch between handled (%d) and exitcode (%d)",
 		      handled, vmexit->exitcode);
 	}
+
+	if (!handled)
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_USERSPACE, 1);
 
 	VMM_CTR1(vmx->vm, vcpu, "goto userland: exitcode %d",vmexit->exitcode);
 

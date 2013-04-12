@@ -261,7 +261,6 @@ mfi_disk_strategy(struct bio *bio)
 	struct mfi_softc *controller;
 
 	sc = bio->bio_disk->d_drv1;
-	controller = sc->ld_controller;
 
 	if (sc == NULL) {
 		bio->bio_error = EINVAL;
@@ -271,6 +270,7 @@ mfi_disk_strategy(struct bio *bio)
 		return;
 	}
 
+	controller = sc->ld_controller;
 	if (controller->adpreset) {
 		bio->bio_error = EBUSY;
 		return;

@@ -849,20 +849,20 @@ usb_hw_ep_resolve(struct usb_device *udev,
 	struct usb_device_descriptor *dd;
 	uint16_t mps;
 
-	if (desc == NULL) {
+	if (desc == NULL)
 		return (USB_ERR_INVAL);
-	}
+
 	/* get bus methods */
 	methods = udev->bus->methods;
 
-	if (methods->get_hw_ep_profile == NULL) {
+	if (methods->get_hw_ep_profile == NULL)
 		return (USB_ERR_INVAL);
-	}
+
 	if (desc->bDescriptorType == UDESC_DEVICE) {
 
-		if (desc->bLength < sizeof(*dd)) {
+		if (desc->bLength < sizeof(*dd))
 			return (USB_ERR_INVAL);
-		}
+
 		dd = (void *)desc;
 
 		/* get HW control endpoint 0 profile */
@@ -909,13 +909,12 @@ usb_hw_ep_resolve(struct usb_device *udev,
 		}
 		return (0);		/* success */
 	}
-	if (desc->bDescriptorType != UDESC_CONFIG) {
+	if (desc->bDescriptorType != UDESC_CONFIG)
 		return (USB_ERR_INVAL);
-	}
-	if (desc->bLength < sizeof(*(ues->cd))) {
+	if (desc->bLength < sizeof(*(ues->cd)))
 		return (USB_ERR_INVAL);
-	}
-	ues = udev->bus->scratch[0].hw_ep_scratch;
+
+	ues = udev->scratch.hw_ep_scratch;
 
 	memset(ues, 0, sizeof(*ues));
 
@@ -1236,13 +1235,18 @@ usb_temp_setup(struct usb_device *udev,
 {
 	struct usb_temp_setup *uts;
 	void *buf;
+	usb_error_t error;
 	uint8_t n;
+	uint8_t do_unlock;
 
-	if (tdd == NULL) {
-		/* be NULL safe */
+	/* be NULL safe */
+	if (tdd == NULL)
 		return (0);
-	}
-	uts = udev->bus->scratch[0].temp_setup;
+
+	/* Protect scratch area */
+	do_unlock = usbd_enum_lock(udev);
+
+	uts = udev->scratch.temp_setup;
 
 	memset(uts, 0, sizeof(*uts));
 
@@ -1255,17 +1259,24 @@ usb_temp_setup(struct usb_device *udev,
 
 	if (uts->err) {
 		/* some error happened */
-		return (uts->err);
+		goto done;
 	}
 	/* sanity check */
 	if (uts->size == 0) {
-		return (USB_ERR_INVAL);
+		uts->err = USB_ERR_INVAL;
+		goto done;
 	}
 	/* allocate zeroed memory */
 	uts->buf = malloc(uts->size, M_USB, M_WAITOK | M_ZERO);
+	/*
+	 * Allow malloc() to return NULL regardless of M_WAITOK flag.
+	 * This helps when porting the software to non-FreeBSD
+	 * systems.
+	 */
 	if (uts->buf == NULL) {
 		/* could not allocate memory */
-		return (USB_ERR_NOMEM);
+		uts->err = USB_ERR_NOMEM;
+		goto done;
 	}
 	/* second pass */
 
@@ -1280,7 +1291,7 @@ usb_temp_setup(struct usb_device *udev,
 
 	if (uts->err) {
 		/* some error happened during second pass */
-		goto error;
+		goto done;
 	}
 	/*
 	 * Resolve all endpoint addresses !
@@ -1291,7 +1302,7 @@ usb_temp_setup(struct usb_device *udev,
 		DPRINTFN(0, "Could not resolve endpoints for "
 		    "Device Descriptor, error = %s\n",
 		    usbd_errstr(uts->err));
-		goto error;
+		goto done;
 	}
 	for (n = 0;; n++) {
 
@@ -1304,14 +1315,16 @@ usb_temp_setup(struct usb_device *udev,
 			DPRINTFN(0, "Could not resolve endpoints for "
 			    "Config Descriptor %u, error = %s\n", n,
 			    usbd_errstr(uts->err));
-			goto error;
+			goto done;
 		}
 	}
-	return (uts->err);
-
-error:
-	usb_temp_unsetup(udev);
-	return (uts->err);
+done:
+	error = uts->err;
+	if (error)
+		usb_temp_unsetup(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
+	return (error);
 }
 
 /*------------------------------------------------------------------------*

@@ -195,7 +195,7 @@ struct mbuf {
 #define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
 #define	M_LASTFRAG	0x00002000 /* packet is last fragment */
 #define	M_SKIP_FIREWALL	0x00004000 /* skip firewall processing */
-#define	M_FREELIST	0x00008000 /* mbuf is on the free list */
+		     /*	0x00008000    free */
 #define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
 #define	M_PROMISC	0x00020000 /* packet was not for us */
 #define	M_NOFREE	0x00040000 /* do not free mbuf, embedded in cluster */
@@ -655,7 +655,8 @@ m_last(struct mbuf *m)
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
-    m_extadd((m), (caddr_t)(buf), (size), (free),(arg1),(arg2),(flags), (type))
+    (void )m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),\
+    (flags), (type), M_NOWAIT)
 #define	m_getm(m, len, how, type)					\
     m_getm2((m), (len), (how), (type), M_PKTHDR)
 
@@ -704,6 +705,18 @@ m_last(struct mbuf *m)
 	KASSERT((m)->m_data == (m)->m_pktdat,				\
 		("%s: MH_ALIGN not a virgin mbuf", __func__));		\
 	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
+} while (0)
+
+/*
+ * As above, for mbuf with external storage.
+ */
+#define	MEXT_ALIGN(m, len) do {						\
+	KASSERT((m)->m_flags & M_EXT,					\
+		("%s: MEXT_ALIGN not an M_EXT mbuf", __func__));	\
+	KASSERT((m)->m_data == (m)->m_ext.ext_buf,			\
+		("%s: MEXT_ALIGN not a virgin mbuf", __func__));	\
+	(m)->m_data += ((m)->m_ext.ext_size - (len)) &			\
+	    ~(sizeof(long) - 1); 					\
 } while (0)
 
 /*
@@ -780,8 +793,8 @@ int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
-void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(void *, void *), void *, void *, int, int);
+int		 m_extadd(struct mbuf *, caddr_t, u_int,
+		    void (*)(void *, void *), void *, void *, int, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
@@ -800,7 +813,7 @@ int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
-struct mbuf	*m_get2(int, short, int, int);
+struct mbuf	*m_get2(int, int, short, int);
 struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);

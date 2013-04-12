@@ -92,7 +92,7 @@ static device_method_t	aac_pass_methods[] = {
 	DEVMETHOD(device_probe,		aac_cam_probe),
 	DEVMETHOD(device_attach,	aac_cam_attach),
 	DEVMETHOD(device_detach,	aac_cam_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t	aac_pass_driver = {
@@ -101,7 +101,7 @@ static driver_t	aac_pass_driver = {
 	sizeof(struct aac_cam)
 };
 
-DRIVER_MODULE(aacp, aac, aac_pass_driver, aac_pass_devclass, 0, 0);
+DRIVER_MODULE(aacp, aac, aac_pass_driver, aac_pass_devclass, NULL, NULL);
 MODULE_DEPEND(aacp, cam, 1, 1, 1);
 
 static MALLOC_DEFINE(M_AACCAM, "aaccam", "AAC CAM info");
@@ -448,26 +448,28 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 		/* Map the s/g list. XXX 32bit addresses only! */
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
+			switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
+			case CAM_DATA_VADDR:
 				srb->data_len = csio->dxfer_len;
-				if (ccb->ccb_h.flags & CAM_DATA_PHYS) {
-					/* Send a 32bit command */
-					fib->Header.Command = ScsiPortCommand;
-					srb->sg_map.SgCount = 1;
-					srb->sg_map.SgEntry[0].SgAddress =
-					    (uint32_t)(uintptr_t)csio->data_ptr;
-					srb->sg_map.SgEntry[0].SgByteCount =
-					    csio->dxfer_len;
-				} else {
-					/*
-					 * Arrange things so that the S/G
-					 * map will get set up automagically
-					 */
-					cm->cm_data = (void *)csio->data_ptr;
-					cm->cm_datalen = csio->dxfer_len;
-					cm->cm_sgtable = &srb->sg_map;
-				}
-			} else {
+				/*
+				 * Arrange things so that the S/G
+				 * map will get set up automagically
+				 */
+				cm->cm_data = (void *)csio->data_ptr;
+				cm->cm_datalen = csio->dxfer_len;
+				cm->cm_sgtable = &srb->sg_map;
+				break;
+			case CAM_DATA_PADDR:
+				/* Send a 32bit command */
+				fib->Header.Command = ScsiPortCommand;
+				srb->sg_map.SgCount = 1;
+				srb->sg_map.SgEntry[0].SgAddress =
+				    (uint32_t)(uintptr_t)csio->data_ptr;
+				srb->sg_map.SgEntry[0].SgByteCount =
+				    csio->dxfer_len;
+				srb->data_len = csio->dxfer_len;
+				break;
+			default:
 				/* XXX Need to handle multiple s/g elements */
 				panic("aac_cam: multiple s/g elements");
 			}
@@ -683,4 +685,3 @@ aac_cam_term_io(struct cam_sim *sim, union ccb *ccb)
 {
 	return (CAM_UA_TERMIO);
 }
-

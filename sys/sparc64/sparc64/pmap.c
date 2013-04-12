@@ -1229,7 +1229,7 @@ pmap_pinit(pmap_t pm)
 		pm->pm_context[i] = -1;
 	CPU_ZERO(&pm->pm_active);
 
-	VM_OBJECT_LOCK(pm->pm_tsb_obj);
+	VM_OBJECT_WLOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
 		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
 		    VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
@@ -1237,7 +1237,7 @@ pmap_pinit(pmap_t pm)
 		m->md.pmap = pm;
 		ma[i] = m;
 	}
-	VM_OBJECT_UNLOCK(pm->pm_tsb_obj);
+	VM_OBJECT_WUNLOCK(pm->pm_tsb_obj);
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
@@ -1291,7 +1291,7 @@ pmap_release(pmap_t pm)
 
 	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 	obj = pm->pm_tsb_obj;
-	VM_OBJECT_LOCK(obj);
+	VM_OBJECT_WLOCK(obj);
 	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
 	while (!TAILQ_EMPTY(&obj->memq)) {
 		m = TAILQ_FIRST(&obj->memq);
@@ -1300,7 +1300,7 @@ pmap_release(pmap_t pm)
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free_zero(m);
 	}
-	VM_OBJECT_UNLOCK(obj);
+	VM_OBJECT_WUNLOCK(obj);
 	PMAP_LOCK_DESTROY(pm);
 }
 
@@ -1494,9 +1494,8 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	rw_assert(&tte_list_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
-	    VM_OBJECT_LOCKED(m->object),
-	    ("pmap_enter_locked: page %p is not busy", m));
+	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+		VM_OBJECT_ASSERT_WLOCKED(m->object);
 	PMAP_STATS_INC(pmap_nenter);
 	pa = VM_PAGE_TO_PHYS(m);
 
@@ -1663,7 +1662,7 @@ pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
@@ -1919,6 +1918,16 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	}
 }
 
+int unmapped_buf_allowed;
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+
+	panic("pmap_copy_pages: not implemented");
+}
+
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may
@@ -2061,7 +2070,7 @@ pmap_is_modified(vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no TTEs can have TD_W set.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
@@ -2129,7 +2138,7 @@ pmap_clear_modify(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("pmap_clear_modify: page %p is busy", m));
 
@@ -2184,7 +2193,7 @@ pmap_remove_write(vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;

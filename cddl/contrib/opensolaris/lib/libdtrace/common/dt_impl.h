@@ -26,6 +26,7 @@
 
 /*
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef	_DT_IMPL_H
@@ -63,6 +64,7 @@ extern "C" {
 #include <dt_proc.h>
 #include <dt_dof.h>
 #include <dt_pcb.h>
+#include <dt_pq.h>
 
 struct dt_module;		/* see below */
 struct dt_pfdict;		/* see <dt_printf.h> */
@@ -238,6 +240,7 @@ struct dtrace_hdl {
 	uint_t dt_provbuckets;	/* number of provider hash buckets */
 	uint_t dt_nprovs;	/* number of providers in hash and list */
 	dt_proc_hash_t *dt_procs; /* hash table of grabbed process handles */
+	char **dt_proc_env;	/* additional environment variables */
 	dt_intdesc_t dt_ints[6]; /* cached integer type descriptions */
 	ctf_id_t dt_type_func;	/* cached CTF identifier for function type */
 	ctf_id_t dt_type_fptr;	/* cached CTF identifier for function pointer */
@@ -253,8 +256,10 @@ struct dtrace_hdl {
 	dtrace_aggdesc_t **dt_aggdesc; /* aggregation descriptions */
 	int dt_maxformat;	/* max format ID */
 	void **dt_formats;	/* pointer to format array */
+	int dt_maxstrdata;	/* max strdata ID */
+	char **dt_strdata;	/* pointer to strdata array */
 	dt_aggregate_t dt_aggregate; /* aggregate */
-	dtrace_bufdesc_t dt_buf; /* staging buffer */
+	dt_pq_t *dt_bufq;	/* CPU-specific data queue */
 	struct dt_pfdict *dt_pfdict; /* dictionary of printf conversions */
 	dt_version_t dt_vmax;	/* optional ceiling on program API binding */
 	dtrace_attribute_t dt_amin; /* optional floor on program attributes */
@@ -323,6 +328,11 @@ struct dtrace_hdl {
 	struct utsname dt_uts;	/* uname(2) information for system */
 	dt_list_t dt_lib_dep;	/* scratch linked-list of lib dependencies */
 	dt_list_t dt_lib_dep_sorted;	/* dependency sorted library list */
+	dtrace_flowkind_t dt_flow;	/* flow kind */
+	const char *dt_prefix;	/* recommended flow prefix */
+	int dt_indent;		/* recommended flow indent */
+	dtrace_epid_t dt_last_epid;	/* most recently consumed EPID */
+	uint64_t dt_last_timestamp;	/* most recently consumed timestamp */
 };
 
 /*
@@ -438,8 +448,9 @@ struct dtrace_hdl {
 #define	DT_ACT_UMOD		DT_ACT(26)	/* umod() action */
 #define	DT_ACT_UADDR		DT_ACT(27)	/* uaddr() action */
 #define	DT_ACT_SETOPT		DT_ACT(28)	/* setopt() action */
-#define	DT_ACT_PRINTM		DT_ACT(29)	/* printm() action */
-#define	DT_ACT_PRINTT		DT_ACT(30)	/* printt() action */
+#define	DT_ACT_PRINT		DT_ACT(29)	/* print() action */
+#define	DT_ACT_PRINTM		DT_ACT(30)	/* printm() action */
+#define	DT_ACT_PRINTT		DT_ACT(31)	/* printt() action */
 
 /*
  * Sentinel to tell freopen() to restore the saved stdout.  This must not
@@ -457,7 +468,6 @@ enum {
 	EDT_VERSREDUCED,	/* requested API version has been reduced */
 	EDT_CTF,		/* libctf called failed (dt_ctferr has more) */
 	EDT_COMPILER,		/* error in D program compilation */
-	EDT_NOREG,		/* register allocation failure */
 	EDT_NOTUPREG,		/* tuple register allocation failure */
 	EDT_NOMEM,		/* memory allocation failure */
 	EDT_INT2BIG,		/* integer limit exceeded */
@@ -640,6 +650,9 @@ extern void dt_aggid_destroy(dtrace_hdl_t *);
 
 extern void *dt_format_lookup(dtrace_hdl_t *, int);
 extern void dt_format_destroy(dtrace_hdl_t *);
+
+extern const char *dt_strdata_lookup(dtrace_hdl_t *, int);
+extern void dt_strdata_destroy(dtrace_hdl_t *);
 
 extern int dt_print_quantize(dtrace_hdl_t *, FILE *,
     const void *, size_t, uint64_t);

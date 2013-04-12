@@ -513,6 +513,13 @@ FlOpenMiscOutputFiles (
     char                    *Filename;
 
 
+    /* All done for disassembler */
+
+    if (Gbl_FileType == ASL_INPUT_TYPE_ACPI_TABLE)
+    {
+        return (AE_OK);
+    }
+
     /* Create/Open a hex output file if asked */
 
     if (Gbl_HexOutputFlag)
@@ -666,6 +673,27 @@ FlOpenMiscOutputFiles (
         FlPrintFile (ASL_FILE_C_SOURCE_OUTPUT, "/*\n");
         AslCompilerSignon (ASL_FILE_C_SOURCE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_C_SOURCE_OUTPUT);
+    }
+
+    /* Create/Open a C code source output file for the offset table if asked */
+
+    if (Gbl_C_OffsetTableFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_C_OFFSET);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the C code source file, text mode */
+
+        FlOpenFile (ASL_FILE_C_OFFSET_OUTPUT, Filename, "w+t");
+
+        FlPrintFile (ASL_FILE_C_OFFSET_OUTPUT, "/*\n");
+        AslCompilerSignon (ASL_FILE_C_OFFSET_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_C_OFFSET_OUTPUT);
     }
 
     /* Create/Open a assembly include output file if asked */

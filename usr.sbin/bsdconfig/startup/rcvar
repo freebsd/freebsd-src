@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ dialog_menu_main()
 	" # END-QUOTE
 
 	if [ ! "$_RCVAR_MAP" ]; then
-		# Genreate RCVAR_MAP of `rcvar dflt script desc ...' per-line
+		# Generate RCVAR_MAP of `rcvar dflt script desc ...' per-line
 		f_dialog_info "$msg_creating_rcvar_map"
 		RCVAR_MAP=$( f_startup_rcvar_map )
 		export RCVAR_MAP

@@ -297,7 +297,7 @@ exit1(struct thread *td, int rv)
 	 * Close open files and release open-file table.
 	 * This may block!
 	 */
-	fdfree(td);
+	fdescfree(td);
 
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to

@@ -4140,8 +4140,6 @@ isp_target_thread(ispsoftc_t *isp, int chan)
 		return;
 	}
 
-	ccb = xpt_alloc_ccb();
-
 	ISP_LOCK(isp);
 	status = cam_periph_alloc(isptargctor, NULL, isptargdtor, isptargstart, "isptarg", CAM_PERIPH_BIO, wpath, NULL, 0, softc);
 	if (status != CAM_REQ_CMP) {

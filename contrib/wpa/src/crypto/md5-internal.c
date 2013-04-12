@@ -188,7 +188,7 @@ void MD5Final(unsigned char digest[16], struct MD5Context *ctx)
     MD5Transform(ctx->buf, (u32 *) ctx->in);
     byteReverse((unsigned char *) ctx->buf, 4);
     os_memcpy(digest, ctx->buf, 16);
-    os_memset(ctx, 0, sizeof(ctx));	/* In case it's sensitive */
+    os_memset(ctx, 0, sizeof(*ctx));	/* In case it's sensitive */
 }
 
 /* The four core functions - F1 is optimized somewhat */

@@ -1,6 +1,175 @@
 ----------------------------------------
-17 January 2013. Summary of changes for version 20130117:
+28 March 2013. Summary of changes for version 20130328:
 
+1) ACPICA kernel-resident subsystem:
+
+Fixed several possible race conditions with the internal object reference 
+counting mechanism. Some of the external ACPICA interfaces update object 
+reference counts without holding the interpreter or namespace lock. This 
+change adds a spinlock to protect reference count updates on the internal 
+ACPICA objects. Reported by and with assistance from Andriy Gapon 
+(avg@FreeBSD.org).
+
+FADT support: Removed an extraneous warning for very large GPE register 
+sets. This change removes a size mismatch warning if the legacy length 
+field for a GPE register set is larger than the 64-bit GAS structure can 
+accommodate. GPE register sets can be larger than the 255-bit width 
+limitation of the GAS structure. Linn Crosetto (linn@hp.com).
+
+_OSI Support: handle any errors from AcpiOsAcquireMutex. Check for error 
+return from this interface. Handles a possible timeout case if 
+ACPI_WAIT_FOREVER is modified by the host to be a value less than 
+"forever". Jung-uk Kim.
+
+Predefined name support: Add allowed/required argument type information to 
+the master predefined info table. This change adds the infrastructure to 
+enable typechecking on incoming arguments for all predefined 
+methods/objects. It does not actually contain the code that will fully 
+utilize this information, this is still under development. Also condenses 
+some duplicate code for the predefined names into a new module, 
+utilities/utpredef.c
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  95.0K Code, 25.9K Data, 120.9K Total
+    Debug Version:     182.9K Code, 75.6K Data, 258.5K Total
+  Current Release:
+    Non-Debug Version:  95.2K Code, 26.4K Data, 121.6K Total
+    Debug Version:     183.0K Code, 76.0K Data, 259.0K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented a new option to simplify the development of ACPI-related 
+BIOS code. Adds support for a new "offset table" output file. The -so 
+option will create a C table containing the AML table offsets of various 
+named objects in the namespace so that BIOS code can modify them easily at 
+boot time. This can simplify BIOS runtime code by eliminating expensive 
+searches for "magic values", enhancing boot times and adding greater 
+reliability. With assistance from Lee Hamel.
+
+iASL: Allow additional predefined names to return zero-length packages. 
+Now, all predefined names that are defined by the ACPI specification to 
+return a "variable-length package of packages" are allowed to return a 
+zero length top-level package. This allows the BIOS to tell the host that 
+the requested feature is not supported, and supports existing BIOS/ASL 
+code and practices.
+
+iASL: Changed the "result not used" warning to an error. This is the case 
+where an ASL operator is effectively a NOOP because the result of the 
+operation is not stored anywhere. For example:
+    Add (4, Local0)
+There is no target (missing 3rd argument), nor is the function return 
+value used. This is potentially a very serious problem -- since the code 
+was probably intended to do something, but for whatever reason, the value 
+was not stored. Therefore, this issue has been upgraded from a warning to 
+an error.
+
+AcpiHelp: Added allowable/required argument types to the predefined names 
+info display. This feature utilizes the recent update to the predefined 
+names table (above).
+
+----------------------------------------
+14 February 2013. Summary of changes for version 20130214:
+
+1) ACPICA Kernel-resident Subsystem:
+
+Fixed a possible regression on some hosts: Reinstated the safe return 
+macros (return_ACPI_STATUS, etc.) that ensure that the argument is 
+evaluated only once. Although these macros are not needed for the ACPICA 
+code itself, they are often used by ACPI-related host device drivers where 
+the safe feature may be necessary.
+
+Fixed several issues related to the ACPI 5.0 reduced hardware support 
+(SOC): Now ensure that if the platform declares itself as hardware-reduced 
+via the FADT, the following functions become NOOPs (and always return 
+AE_OK) because ACPI is always enabled by definition on these machines:
+  AcpiEnable
+  AcpiDisable
+  AcpiHwGetMode
+  AcpiHwSetMode
+
+Dynamic Object Repair: Implemented additional runtime repairs for 
+predefined name return values. Both of these repairs can simplify code in 
+the related device drivers that invoke these methods:
+1) For the _STR and _MLS names, automatically repair/convert an ASCII 
+string to a Unicode buffer. 
+2) For the _CRS, _PRS, and _DMA names, return a resource descriptor with a 
+lone end tag descriptor in the following cases: A Return(0) was executed, 
+a null buffer was returned, or no object at all was returned (non-slack 
+mode only). Adds a new file, nsconvert.c
+ACPICA BZ 998. Bob Moore, Lv Zheng.
+
+Resource Manager: Added additional code to prevent possible infinite loops 
+while traversing corrupted or ill-formed resource template buffers. Check 
+for zero-length resource descriptors in all code that loops through 
+resource templates (the length field is used to index through the 
+template). This change also hardens the external AcpiWalkResources and 
+AcpiWalkResourceBuffer interfaces.
+
+Local Cache Manager: Enhanced the main data structure to eliminate an 
+unnecessary mechanism to access the next object in the list. Actually 
+provides a small performance enhancement for hosts that use the local 
+ACPICA cache manager. Jung-uk Kim.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  94.5K Code, 25.4K Data, 119.9K Total
+    Debug Version:     182.3K Code, 75.0K Data, 257.3K Total
+  Current Release:
+    Non-Debug Version:  95.0K Code, 25.9K Data, 120.9K Total
+    Debug Version:     182.9K Code, 75.6K Data, 258.5K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: Fixed several issues with the definition of the ACPI 
+5.0 RASF table (RAS Feature Table). This change incorporates late changes 
+that were made to the ACPI 5.0 specification.
+
+iASL/Disassembler: Added full support for the following new ACPI tables:
+  1) The MTMR table (MID Timer Table)
+  2) The VRTC table (Virtual Real Time Clock Table).
+Includes header file, disassembler, table compiler, and template support 
+for both tables.
+
+iASL: Implemented compile-time validation of package objects returned by 
+predefined names. This new feature validates static package objects 
+returned by the various predefined names defined to return packages. Both 
+object types and package lengths are validated, for both parent packages 
+and sub-packages, if any. The code is similar in structure and behavior to 
+the runtime repair mechanism within the AML interpreter and uses the 
+existing predefined name information table. Adds a new file, aslprepkg.c. 
+ACPICA BZ 938.
+
+iASL: Implemented auto-detection of binary ACPI tables for disassembly. 
+This feature detects a binary file with a valid ACPI table header and 
+invokes the disassembler automatically. Eliminates the need to 
+specifically invoke the disassembler with the -d option. ACPICA BZ 862.
+
+iASL/Disassembler: Added several warnings for the case where there are 
+unresolved control methods during the disassembly. This can potentially 
+cause errors when the output file is compiled, because the disassembler 
+assumes zero method arguments in these cases (it cannot determine the 
+actual number of arguments without resolution/definition of the method).
+
+Debugger: Added support to display all resources with a single command. 
+Invocation of the resources command with no arguments will now display all 
+resources within the current namespace.
+
+AcpiHelp: Added descriptive text for each ACPICA exception code displayed 
+via the -e option.
+
+----------------------------------------
+17 January 2013. Summary of changes for version 20130117:
 
 1) ACPICA Kernel-resident Subsystem:
 

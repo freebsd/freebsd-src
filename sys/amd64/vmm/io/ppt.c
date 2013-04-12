@@ -402,31 +402,6 @@ pptintr(void *arg)
 		return (FILTER_HANDLED);
 }
 
-/*
- * XXX
- * When we try to free the MSI resource the kernel will bind the thread to
- * the host cpu was originally handling the MSI. The function freeing the
- * MSI vector (apic_free_vector()) will panic the kernel if the thread
- * is already bound to a cpu.
- * 
- * So, we temporarily unbind the vcpu thread before freeing the MSI resource.
- */
-static void
-PPT_TEARDOWN_MSI(struct vm *vm, int vcpu, struct pptdev *ppt)
-{
-	int pincpu = -1;
-
-	vm_get_pinning(vm, vcpu, &pincpu);
-
-	if (pincpu >= 0)
-		vm_set_pinning(vm, vcpu, -1);
-
-	ppt_teardown_msi(ppt);
-
-	if (pincpu >= 0)
-		vm_set_pinning(vm, vcpu, pincpu);
-}
-
 int
 ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 	      int destcpu, int vector, int numvec)
@@ -447,7 +422,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 		return (EBUSY);
 
 	/* Free any allocated resources */
-	PPT_TEARDOWN_MSI(vm, vcpu, ppt);
+	ppt_teardown_msi(ppt);
 
 	if (numvec == 0)		/* nothing more to do */
 		return (0);
@@ -513,7 +488,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 	}
 	
 	if (i < numvec) {
-		PPT_TEARDOWN_MSI(vm, vcpu, ppt);
+		ppt_teardown_msi(ppt);
 		return (ENXIO);
 	}
 

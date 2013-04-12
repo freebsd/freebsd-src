@@ -201,7 +201,7 @@ AcpiDsIsResultUsed (
     if (!Op)
     {
         ACPI_ERROR ((AE_INFO, "Null Op"));
-        return_VALUE (TRUE);
+        return_UINT8 (TRUE);
     }
 
     /*
@@ -231,7 +231,7 @@ AcpiDsIsResultUsed (
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
             "At Method level, result of [%s] not used\n",
             AcpiPsGetOpcodeName (Op->Common.AmlOpcode)));
-        return_VALUE (FALSE);
+        return_UINT8 (FALSE);
     }
 
     /* Get info on the parent. The RootOp is AML_SCOPE */
@@ -241,7 +241,7 @@ AcpiDsIsResultUsed (
     {
         ACPI_ERROR ((AE_INFO,
             "Unknown parent opcode Op=%p", Op));
-        return_VALUE (FALSE);
+        return_UINT8 (FALSE);
     }
 
     /*
@@ -331,7 +331,7 @@ ResultUsed:
         AcpiPsGetOpcodeName (Op->Common.AmlOpcode),
         AcpiPsGetOpcodeName (Op->Common.Parent->Common.AmlOpcode), Op));
 
-    return_VALUE (TRUE);
+    return_UINT8 (TRUE);
 
 
 ResultNotUsed:
@@ -340,7 +340,7 @@ ResultNotUsed:
         AcpiPsGetOpcodeName (Op->Common.AmlOpcode),
         AcpiPsGetOpcodeName (Op->Common.Parent->Common.AmlOpcode), Op));
 
-    return_VALUE (FALSE);
+    return_UINT8 (FALSE);
 }
 
 

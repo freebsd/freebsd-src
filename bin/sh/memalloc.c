@@ -233,7 +233,8 @@ growstackblock(int min)
 
 	if (min < stacknleft)
 		min = stacknleft;
-	if (min >= INT_MAX / 2 - ALIGN(sizeof(struct stack_block)))
+	if ((unsigned int)min >=
+	    INT_MAX / 2 - ALIGN(sizeof(struct stack_block)))
 		error("Out of space");
 	min += stacknleft;
 	min += ALIGN(sizeof(struct stack_block));
@@ -327,7 +328,7 @@ makestrspace(int min, char *p)
 
 
 char *
-stputbin(const char *data, int len, char *p)
+stputbin(const char *data, size_t len, char *p)
 {
 	CHECKSTRSPACE(len, p);
 	memcpy(p, data, len);

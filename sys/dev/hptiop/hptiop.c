@@ -2358,6 +2358,7 @@ static void hptiop_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct hpt_iop_hba * hba = (struct hpt_iop_hba *)cam_sim_softc(sim);
 	struct hpt_iop_srb * srb;
+	int error;
 
 	switch (ccb->ccb_h.func_code) {
 
@@ -2380,52 +2381,22 @@ static void hptiop_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		srb->ccb = ccb;
+		error = bus_dmamap_load_ccb(hba->io_dmat,
+					    srb->dma_map,
+					    ccb,
+					    hptiop_post_scsi_command,
+					    srb,
+					    0);
 
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
-			hptiop_post_scsi_command(srb, NULL, 0, 0);
-		else if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
-			if ((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0) {
-				int error;
-
-				error = bus_dmamap_load(hba->io_dmat,
-						srb->dma_map,
-						ccb->csio.data_ptr,
-						ccb->csio.dxfer_len,
-						hptiop_post_scsi_command,
-						srb, 0);
-
-				if (error && error != EINPROGRESS) {
-					device_printf(hba->pcidev,
-						"%d bus_dmamap_load error %d",
-						hba->pciunit, error);
-					xpt_freeze_simq(hba->sim, 1);
-					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-invalid:
-					hptiop_free_srb(hba, srb);
-					xpt_done(ccb);
-					goto scsi_done;
-				}
-			}
-			else {
-				device_printf(hba->pcidev,
-					"CAM_DATA_PHYS not supported");
-				ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-				goto invalid;
-			}
-		}
-		else {
-			struct bus_dma_segment *segs;
-
-			if ((ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0 ||
-				(ccb->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-				device_printf(hba->pcidev, "SCSI cmd failed");
-				ccb->ccb_h.status=CAM_PROVIDE_FAIL;
-				goto invalid;
-			}
-
-			segs = (struct bus_dma_segment *)ccb->csio.data_ptr;
-			hptiop_post_scsi_command(srb, segs,
-						ccb->csio.sglist_cnt, 0);
+		if (error && error != EINPROGRESS) {
+			device_printf(hba->pcidev,
+				"%d bus_dmamap_load error %d",
+				hba->pciunit, error);
+			xpt_freeze_simq(hba->sim, 1);
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			hptiop_free_srb(hba, srb);
+			xpt_done(ccb);
+			goto scsi_done;
 		}
 
 scsi_done:

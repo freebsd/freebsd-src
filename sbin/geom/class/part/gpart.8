@@ -31,33 +31,6 @@
 .Nm gpart
 .Nd "control utility for the disk partitioning GEOM class"
 .Sh SYNOPSIS
-To add support for the disk partitioning GEOM class,
-place one or more of the following
-lines in the kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "options GEOM_PART_APM"
-.Cd "options GEOM_PART_BSD"
-.Cd "options GEOM_PART_GPT"
-.Cd "options GEOM_PART_LDM"
-.Cd "options GEOM_PART_MBR"
-.Cd "options GEOM_PART_EBR"
-.Cd "options GEOM_PART_EBR_COMPAT"
-.Cd "options GEOM_PART_PC98"
-.Cd "options GEOM_PART_VTOC8"
-.Ed
-.Pp
-These options provide support for the various types of partitioning
-schemes supported by the
-.Ns Nm
-utility.
-See
-.Sx "PARTITIONING SCHEMES"
-below for more details.
-.Pp
-Usage of the
-.Ns Nm
-utility:
-.Pp
 .\" ==== ADD ====
 .Nm
 .Cm add
@@ -583,7 +556,7 @@ The system partition for computers that use the Extensible Firmware
 Interface (EFI).
 In such cases, the GPT partitioning scheme is used and the
 actual partition type for the system partition can also be specified as
-.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93ab" .
+.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b" .
 .It Cm freebsd
 A
 .Fx

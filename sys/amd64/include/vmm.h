@@ -87,7 +87,7 @@ struct vmm_ops {
 extern struct vmm_ops vmm_ops_intel;
 extern struct vmm_ops vmm_ops_amd;
 
-struct vm *vm_create(const char *name);
+int vm_create(const char *name, struct vm **retvm);
 void vm_destroy(struct vm *vm);
 const char *vm_name(struct vm *vm);
 int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
@@ -102,8 +102,6 @@ int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
 		    struct seg_desc *ret_desc);
 int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 		    struct seg_desc *desc);
-int vm_get_pinning(struct vm *vm, int vcpu, int *cpuid);
-int vm_set_pinning(struct vm *vm, int vcpu, int cpuid);
 int vm_run(struct vm *vm, struct vm_run *vmrun);
 int vm_inject_event(struct vm *vm, int vcpu, int type,
 		    int vector, uint32_t error_code, int error_code_valid);

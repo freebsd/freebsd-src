@@ -39,6 +39,7 @@
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_dynamic.h>
+#include <dev/usb/usb_transfer.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_hub.h>
 #include <dev/usb/usb_controller.h>
@@ -52,7 +53,6 @@
 #include <dev/usb/usb_pf.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
-#include <dev/usb/usb_transfer.h>
 #include <dev/usb/usb_compat_linux.h>
 #include <dev/usb/usbhid.h>
 #include <dev/usb/usb_ioctl.h>

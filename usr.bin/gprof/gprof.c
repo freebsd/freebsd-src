@@ -51,15 +51,12 @@ __FBSDID("$FreeBSD$");
 
 static int valcmp(const void *, const void *);
 
-
 static struct gmonhdr	gmonhdr;
 static int lflag;
 static int Lflag;
 
 int
-main(argc, argv)
-    int argc;
-    char **argv;
+main(int argc, char **argv)
 {
     char	**sp;
     nltype	**timesortnlp;
@@ -233,11 +230,9 @@ main(argc, argv)
      *	and the arcs.
      */
 void
-getpfile(filename)
-    char *filename;
+getpfile(char *filename)
 {
     FILE		*pfile;
-    FILE		*openpfile();
     struct rawarc	arc;
 
     pfile = openpfile(filename);
@@ -262,8 +257,7 @@ getpfile(filename)
 }
 
 FILE *
-openpfile(filename)
-    char *filename;
+openpfile(char *filename)
 {
     struct gmonhdr	tmp;
     FILE		*pfile;
@@ -322,8 +316,7 @@ openpfile(filename)
 }
 
 void
-tally( rawp )
-    struct rawarc	*rawp;
+tally(struct rawarc *rawp)
 {
     nltype		*parentp;
     nltype		*childp;
@@ -351,8 +344,7 @@ tally( rawp )
  * dump out the gmon.sum file
  */
 void
-dumpsum( sumfile )
-    char *sumfile;
+dumpsum(const char *sumfile)
 {
     register nltype *nlp;
     register arctype *arcp;
@@ -393,9 +385,7 @@ dumpsum( sumfile )
 }
 
 static int
-valcmp(v1, v2)
-    const void *v1;
-    const void *v2;
+valcmp(const void *v1, const void *v2)
 {
     const nltype *p1 = (const nltype *)v1;
     const nltype *p2 = (const nltype *)v2;
@@ -410,8 +400,7 @@ valcmp(v1, v2)
 }
 
 void
-readsamples(pfile)
-    FILE	*pfile;
+readsamples(FILE *pfile)
 {
     int		i;
     intmax_t	sample;
@@ -491,11 +480,11 @@ readsamples(pfile)
  *	have any overlap (the two end cases, above).
  */
 void
-asgnsamples()
+asgnsamples(void)
 {
     register int	j;
     double		ccnt;
-    double		time;
+    double		thetime;
     unsigned long	pcl, pch;
     register int	i;
     unsigned long	overlap;
@@ -511,14 +500,14 @@ asgnsamples()
 		continue;
 	pcl = lowpc + (unsigned long)(scale * i);
 	pch = lowpc + (unsigned long)(scale * (i + 1));
-	time = ccnt;
+	thetime = ccnt;
 #	ifdef DEBUG
 	    if ( debug & SAMPLEDEBUG ) {
 		printf( "[asgnsamples] pcl 0x%lx pch 0x%lx ccnt %.0f\n" ,
 			pcl , pch , ccnt );
 	    }
 #	endif /* DEBUG */
-	totime += time;
+	totime += thetime;
 	for (j = j - 1; j < nname; j++) {
 	    svalue0 = nl[j].svalue;
 	    svalue1 = nl[j+1].svalue;
@@ -541,10 +530,10 @@ asgnsamples()
 			printf("[asgnsamples] (0x%lx->0x%lx-0x%lx) %s gets %f ticks %lu overlap\n",
 				nl[j].value / HISTORICAL_SCALE_2,
 				svalue0, svalue1, nl[j].name,
-				overlap * time / scale, overlap);
+				overlap * thetime / scale, overlap);
 		    }
 #		endif /* DEBUG */
-		nl[j].time += overlap * time / scale;
+		nl[j].time += overlap * thetime / scale;
 	    }
 	}
     }
@@ -557,8 +546,7 @@ asgnsamples()
 
 
 unsigned long
-min(a, b)
-    unsigned long a,b;
+min(unsigned long a, unsigned long b)
 {
     if (a<b)
 	return(a);
@@ -566,8 +554,7 @@ min(a, b)
 }
 
 unsigned long
-max(a, b)
-    unsigned long a,b;
+max(unsigned long a, unsigned long b)
 {
     if (a>b)
 	return(a);
@@ -581,7 +568,7 @@ max(a, b)
      *	for a routine is in the next bucket.
      */
 void
-alignentries()
+alignentries(void)
 {
     register struct nl	*nlp;
     unsigned long	bucket_of_entry;

@@ -84,6 +84,7 @@ struct usb_cdev_refdata {
 	uint8_t			is_write;	/* location has write access */
 	uint8_t			is_uref;	/* USB refcount decr. needed */
 	uint8_t			is_usbfs;	/* USB-FS is active */
+	uint8_t			do_unlock;	/* USB enum unlock needed */
 };
 
 struct usb_fs_privdata {

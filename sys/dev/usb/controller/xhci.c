@@ -36,7 +36,8 @@
 /*
  * A few words about the design implementation: This driver emulates
  * the concept about TDs which is found in EHCI specification. This
- * way we avoid too much diveration among USB drivers.
+ * way we achieve that the USB controller drivers look similar to
+ * eachother which makes it easier to understand the code.
  */
 
 #ifdef USB_GLOBAL_INCLUDE_FILE

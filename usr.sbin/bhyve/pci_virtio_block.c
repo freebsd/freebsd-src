@@ -110,8 +110,9 @@ CTASSERT(sizeof(struct vtblk_config) == VTBLK_CFGSZ);
  * Fixed-size block header
  */
 struct virtio_blk_hdr {
-#define VBH_OP_READ	0
-#define VBH_OP_WRITE	1
+#define	VBH_OP_READ		0
+#define	VBH_OP_WRITE		1
+#define	VBH_FLAG_BARRIER	0x80000000	/* OR'ed into vbh_type */
 	uint32_t       	vbh_type;
 	uint32_t	vbh_ioprio;
 	uint64_t	vbh_sector;
@@ -140,6 +141,7 @@ struct pci_vtblk_softc {
 	uint16_t	msix_table_idx_req;
 	uint16_t	msix_table_idx_cfg;
 };
+#define	vtblk_ctx(sc)	((sc)->vbsc_pi->pi_vmctx)
 
 /* 
  * Return the size of IO BAR that maps virtio header and device specific
@@ -163,14 +165,19 @@ pci_vtblk_iosize(struct pci_devinst *pi)
 static int
 hq_num_avail(struct vring_hqueue *hq)
 {
-	int ndesc;
+	uint16_t ndesc;
 
-	if (*hq->hq_avail_idx >= hq->hq_cur_aidx)
-		ndesc = *hq->hq_avail_idx - hq->hq_cur_aidx;
-	else
-		ndesc = UINT16_MAX - hq->hq_cur_aidx + *hq->hq_avail_idx + 1;
+	/*
+	 * We're just computing (a-b) in GF(216).
+	 *
+	 * The only glitch here is that in standard C,
+	 * uint16_t promotes to (signed) int when int has
+	 * more than 16 bits (pretty much always now), so
+	 * we have to force it back to unsigned.
+	 */
+	ndesc = (unsigned)*hq->hq_avail_idx - (unsigned)hq->hq_cur_aidx;
 
-	assert(ndesc >= 0 && ndesc <= hq->hq_size);
+	assert(ndesc <= hq->hq_size);
 
 	return (ndesc);
 }
@@ -198,7 +205,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	int iolen;
 	int nsegs;
 	int uidx, aidx, didx;
-	int writeop;
+	int writeop, type;
 	off_t offset;
 
 	uidx = *hq->hq_used_idx;
@@ -221,18 +228,25 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	assert(nsegs >= 3);
 	assert(nsegs < VTBLK_MAXSEGS + 2);
 
-	vid = paddr_guest2host(vd->vd_addr);
+	vid = paddr_guest2host(vtblk_ctx(sc), vd->vd_addr, vd->vd_len);
 	assert((vid->vd_flags & VRING_DESC_F_INDIRECT) == 0);
 
 	/*
 	 * The first descriptor will be the read-only fixed header
 	 */
-	vbh = paddr_guest2host(vid[0].vd_addr);
+	vbh = paddr_guest2host(vtblk_ctx(sc), vid[0].vd_addr,
+			    sizeof(struct virtio_blk_hdr));
 	assert(vid[0].vd_len == sizeof(struct virtio_blk_hdr));
 	assert(vid[0].vd_flags & VRING_DESC_F_NEXT);
 	assert((vid[0].vd_flags & VRING_DESC_F_WRITE) == 0);
 
-	writeop = (vbh->vbh_type == VBH_OP_WRITE);
+	/*
+	 * XXX
+	 * The guest should not be setting the BARRIER flag because
+	 * we don't advertise the capability.
+	 */
+	type = vbh->vbh_type & ~VBH_FLAG_BARRIER;
+	writeop = (type == VBH_OP_WRITE);
 
 	offset = vbh->vbh_sector * DEV_BSIZE;
 
@@ -240,7 +254,8 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	 * Build up the iovec based on the guest's data descriptors
 	 */
 	for (i = 1, iolen = 0; i < nsegs - 1; i++) {
-		iov[i-1].iov_base = paddr_guest2host(vid[i].vd_addr);
+		iov[i-1].iov_base = paddr_guest2host(vtblk_ctx(sc),
+						vid[i].vd_addr, vid[i].vd_len);
 		iov[i-1].iov_len = vid[i].vd_len;
 		iolen += vid[i].vd_len;
 
@@ -258,7 +273,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	}
 
 	/* Lastly, get the address of the status byte */
-	status = paddr_guest2host(vid[nsegs - 1].vd_addr);
+	status = paddr_guest2host(vtblk_ctx(sc), vid[nsegs - 1].vd_addr, 1);
 	assert(vid[nsegs - 1].vd_len == 1);
 	assert((vid[nsegs - 1].vd_flags & VRING_DESC_F_NEXT) == 0);
 	assert(vid[nsegs - 1].vd_flags & VRING_DESC_F_WRITE);
@@ -334,7 +349,8 @@ pci_vtblk_ring_init(struct pci_vtblk_softc *sc, uint64_t pfn)
 	hq = &sc->vbsc_q;
 	hq->hq_size = VTBLK_RINGSZ;
 
-	hq->hq_dtable = paddr_guest2host(pfn << VRING_PFN);
+	hq->hq_dtable = paddr_guest2host(vtblk_ctx(sc), pfn << VRING_PFN,
+					 vring_size(VTBLK_RINGSZ));
 	hq->hq_avail_flags =  (uint16_t *)(hq->hq_dtable + hq->hq_size);
 	hq->hq_avail_idx = hq->hq_avail_flags + 1;
 	hq->hq_avail_ring = hq->hq_avail_flags + 2;
@@ -363,13 +379,6 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		printf("virtio-block: backing device required\n");
 		return (1);
 	}
-
-	/*
-	 * Access to guest memory is required. Fail if
-	 * memory not mapped
-	 */
-	if (paddr_guest2host(0) == NULL)
-		return (1);
 
 	/*
 	 * The supplied backing file has to exist

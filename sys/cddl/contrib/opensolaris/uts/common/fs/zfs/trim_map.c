@@ -27,6 +27,7 @@
 #include <sys/spa_impl.h>
 #include <sys/vdev_impl.h>
 #include <sys/trim_map.h>
+#include <sys/time.h>
 
 /*
  * Calculate the zio end, upgrading based on ashift which would be
@@ -36,8 +37,20 @@
  * than it would otherwise be as well as ensuring that entire
  * blocks are invalidated by writes.
  */
-#define	TRIM_ZIO_END(zio)	((zio)->io_offset +		\
- 	P2ROUNDUP((zio)->io_size, 1ULL << (zio)->io_vd->vdev_top->vdev_ashift))
+#define	TRIM_ZIO_END(vd, offset, size)	(offset +		\
+ 	P2ROUNDUP(size, 1ULL << vd->vdev_top->vdev_ashift))
+
+#define TRIM_MAP_SINC(tm, size)					\
+	atomic_add_64(&(tm)->tm_bytes, (size))
+
+#define TRIM_MAP_SDEC(tm, size)					\
+	atomic_add_64(&(tm)->tm_bytes, -(size))
+
+#define TRIM_MAP_QINC(tm)					\
+	atomic_inc_64(&(tm)->tm_pending);			\
+
+#define TRIM_MAP_QDEC(tm)					\
+	atomic_dec_64(&(tm)->tm_pending);
 
 typedef struct trim_map {
 	list_t		tm_head;		/* List of segments sorted by txg. */
@@ -46,6 +59,8 @@ typedef struct trim_map {
 	avl_tree_t	tm_inflight_writes;	/* AVL tree of in-flight writes. */
 	list_t		tm_pending_writes;	/* Writes blocked on in-flight frees. */
 	kmutex_t	tm_lock;
+	uint64_t	tm_pending;		/* Count of pending TRIMs. */
+	uint64_t	tm_bytes;		/* Total size in bytes of queued TRIMs. */
 } trim_map_t;
 
 typedef struct trim_seg {
@@ -54,16 +69,46 @@ typedef struct trim_seg {
 	uint64_t	ts_start;	/* Starting offset of this segment. */
 	uint64_t	ts_end;		/* Ending offset (non-inclusive). */
 	uint64_t	ts_txg;		/* Segment creation txg. */
+	hrtime_t	ts_time;	/* Segment creation time. */
 } trim_seg_t;
 
 extern boolean_t zfs_notrim;
 
+static u_int trim_txg_delay = 32;
+static u_int trim_timeout = 30;
+static u_int trim_max_interval = 1;
+/* Limit outstanding TRIMs to 2G (max size for a single TRIM request) */
+static uint64_t trim_vdev_max_bytes = 2147483648;
+/* Limit outstanding TRIMs to 64 (max ranges for a single TRIM request) */	
+static u_int trim_vdev_max_pending = 64;
+
 SYSCTL_DECL(_vfs_zfs);
-/* Delay TRIMs by that many TXGs. */
-static int trim_txg_limit = 64;
-TUNABLE_INT("vfs.zfs.trim_txg_limit", &trim_txg_limit);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, trim_txg_limit, CTLFLAG_RW, &trim_txg_limit, 0,
-    "Delay TRIMs by that many TXGs.");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, trim, CTLFLAG_RD, 0, "ZFS TRIM");
+
+TUNABLE_INT("vfs.zfs.trim.txg_delay", &trim_txg_delay);
+SYSCTL_UINT(_vfs_zfs_trim, OID_AUTO, txg_delay, CTLFLAG_RWTUN, &trim_txg_delay,
+    0, "Delay TRIMs by up to this many TXGs");
+
+TUNABLE_INT("vfs.zfs.trim.timeout", &trim_timeout);
+SYSCTL_UINT(_vfs_zfs_trim, OID_AUTO, timeout, CTLFLAG_RWTUN, &trim_timeout, 0,
+    "Delay TRIMs by up to this many seconds");
+
+TUNABLE_INT("vfs.zfs.trim.max_interval", &trim_max_interval);
+SYSCTL_UINT(_vfs_zfs_trim, OID_AUTO, max_interval, CTLFLAG_RWTUN,
+    &trim_max_interval, 0,
+    "Maximum interval between TRIM queue processing (seconds)");
+
+SYSCTL_DECL(_vfs_zfs_vdev);
+TUNABLE_QUAD("vfs.zfs.vdev.trim_max_bytes", &trim_vdev_max_bytes);
+SYSCTL_QUAD(_vfs_zfs_vdev, OID_AUTO, trim_max_bytes, CTLFLAG_RWTUN,
+    &trim_vdev_max_bytes, 0,
+    "Maximum pending TRIM bytes for a vdev");
+
+TUNABLE_INT("vfs.zfs.vdev.trim_max_pending", &trim_vdev_max_pending);
+SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, trim_max_pending, CTLFLAG_RWTUN,
+    &trim_vdev_max_pending, 0,
+    "Maximum pending TRIM segments for a vdev");
+
 
 static void trim_map_vdev_commit_done(spa_t *spa, vdev_t *vd);
 
@@ -157,6 +202,8 @@ trim_map_destroy(vdev_t *vd)
 		avl_remove(&tm->tm_queued_frees, ts);
 		list_remove(&tm->tm_head, ts);
 		kmem_free(ts, sizeof (*ts));
+		TRIM_MAP_SDEC(tm, ts->ts_end - ts->ts_start);
+		TRIM_MAP_QDEC(tm);
 	}
 	mutex_exit(&tm->tm_lock);
 
@@ -176,10 +223,12 @@ trim_map_segment_add(trim_map_t *tm, uint64_t start, uint64_t end, uint64_t txg)
 	avl_index_t where;
 	trim_seg_t tsearch, *ts_before, *ts_after, *ts;
 	boolean_t merge_before, merge_after;
+	hrtime_t time;
 
 	ASSERT(MUTEX_HELD(&tm->tm_lock));
 	VERIFY(start < end);
 
+	time = gethrtime();
 	tsearch.ts_start = start;
 	tsearch.ts_end = end;
 
@@ -195,25 +244,36 @@ trim_map_segment_add(trim_map_t *tm, uint64_t start, uint64_t end, uint64_t txg)
 	ts_before = avl_nearest(&tm->tm_queued_frees, where, AVL_BEFORE);
 	ts_after = avl_nearest(&tm->tm_queued_frees, where, AVL_AFTER);
 
-	merge_before = (ts_before != NULL && ts_before->ts_end == start &&
-	    ts_before->ts_txg == txg);
-	merge_after = (ts_after != NULL && ts_after->ts_start == end &&
-	    ts_after->ts_txg == txg);
+	merge_before = (ts_before != NULL && ts_before->ts_end == start);
+	merge_after = (ts_after != NULL && ts_after->ts_start == end);
 
 	if (merge_before && merge_after) {
+		TRIM_MAP_SINC(tm, ts_after->ts_start - ts_before->ts_end);
+		TRIM_MAP_QDEC(tm);
 		avl_remove(&tm->tm_queued_frees, ts_before);
 		list_remove(&tm->tm_head, ts_before);
 		ts_after->ts_start = ts_before->ts_start;
+		ts_after->ts_txg = txg;
+		ts_after->ts_time = time;
 		kmem_free(ts_before, sizeof (*ts_before));
 	} else if (merge_before) {
+		TRIM_MAP_SINC(tm, end - ts_before->ts_end);
 		ts_before->ts_end = end;
+		ts_before->ts_txg = txg;
+		ts_before->ts_time = time;
 	} else if (merge_after) {
+		TRIM_MAP_SINC(tm, ts_after->ts_start - start);
 		ts_after->ts_start = start;
+		ts_after->ts_txg = txg;
+		ts_after->ts_time = time;
 	} else {
+		TRIM_MAP_SINC(tm, end - start);
+		TRIM_MAP_QINC(tm);
 		ts = kmem_alloc(sizeof (*ts), KM_SLEEP);
 		ts->ts_start = start;
 		ts->ts_end = end;
 		ts->ts_txg = txg;
+		ts->ts_time = time;
 		avl_insert(&tm->tm_queued_frees, ts, where);
 		list_insert_tail(&tm->tm_head, ts);
 	}
@@ -231,14 +291,17 @@ trim_map_segment_remove(trim_map_t *tm, trim_seg_t *ts, uint64_t start,
 	left_over = (ts->ts_start < start);
 	right_over = (ts->ts_end > end);
 
+	TRIM_MAP_SDEC(tm, end - start);
 	if (left_over && right_over) {
 		nts = kmem_alloc(sizeof (*nts), KM_SLEEP);
 		nts->ts_start = end;
 		nts->ts_end = ts->ts_end;
 		nts->ts_txg = ts->ts_txg;
+		nts->ts_time = ts->ts_time;
 		ts->ts_end = start;
 		avl_insert_here(&tm->tm_queued_frees, nts, ts, AVL_AFTER);
 		list_insert_after(&tm->tm_head, ts, nts);
+		TRIM_MAP_QINC(tm);
 	} else if (left_over) {
 		ts->ts_end = start;
 	} else if (right_over) {
@@ -246,6 +309,7 @@ trim_map_segment_remove(trim_map_t *tm, trim_seg_t *ts, uint64_t start,
 	} else {
 		avl_remove(&tm->tm_queued_frees, ts);
 		list_remove(&tm->tm_head, ts);
+		TRIM_MAP_QDEC(tm);
 		kmem_free(ts, sizeof (*ts));
 	}
 }
@@ -272,17 +336,15 @@ trim_map_free_locked(trim_map_t *tm, uint64_t start, uint64_t end, uint64_t txg)
 }
 
 void
-trim_map_free(zio_t *zio)
+trim_map_free(vdev_t *vd, uint64_t offset, uint64_t size, uint64_t txg)
 {
-	vdev_t *vd = zio->io_vd;
 	trim_map_t *tm = vd->vdev_trimmap;
 
 	if (zfs_notrim || vd->vdev_notrim || tm == NULL)
 		return;
 
 	mutex_enter(&tm->tm_lock);
-	trim_map_free_locked(tm, zio->io_offset, TRIM_ZIO_END(zio),
-	    vd->vdev_spa->spa_syncing_txg);
+	trim_map_free_locked(tm, offset, TRIM_ZIO_END(vd, offset, size), txg);
 	mutex_exit(&tm->tm_lock);
 }
 
@@ -299,7 +361,7 @@ trim_map_write_start(zio_t *zio)
 		return (B_TRUE);
 
 	start = zio->io_offset;
-	end = TRIM_ZIO_END(zio);
+	end = TRIM_ZIO_END(zio->io_vd, start, zio->io_size);
 	tsearch.ts_start = start;
 	tsearch.ts_end = end;
 
@@ -359,19 +421,25 @@ trim_map_write_done(zio_t *zio)
 }
 
 /*
- * Return the oldest segment (the one with the lowest txg) or false if
- * the list is empty or the first element's txg is greater than txg given
- * as function argument.
+ * Return the oldest segment (the one with the lowest txg / time) or NULL if:
+ * 1. The list is empty
+ * 2. The first element's txg is greater than txgsafe
+ * 3. The first element's txg is not greater than the txg argument and the
+ *    the first element's time is not greater than time argument
  */
 static trim_seg_t *
-trim_map_first(trim_map_t *tm, uint64_t txg)
+trim_map_first(trim_map_t *tm, uint64_t txg, uint64_t txgsafe, hrtime_t time)
 {
 	trim_seg_t *ts;
 
 	ASSERT(MUTEX_HELD(&tm->tm_lock));
+	VERIFY(txgsafe >= txg);
 
 	ts = list_head(&tm->tm_head);
-	if (ts != NULL && ts->ts_txg <= txg)
+	if (ts != NULL && ts->ts_txg <= txgsafe &&
+	    (ts->ts_txg <= txg || ts->ts_time <= time ||
+	    tm->tm_bytes > trim_vdev_max_bytes ||
+	    tm->tm_pending > trim_vdev_max_pending))
 		return (ts);
 	return (NULL);
 }
@@ -381,26 +449,37 @@ trim_map_vdev_commit(spa_t *spa, zio_t *zio, vdev_t *vd)
 {
 	trim_map_t *tm = vd->vdev_trimmap;
 	trim_seg_t *ts;
-	uint64_t start, size, txglimit;
+	uint64_t size, txgtarget, txgsafe;
+	hrtime_t timelimit;
 
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 
 	if (tm == NULL)
 		return;
 
-	txglimit = MIN(spa->spa_syncing_txg, spa_freeze_txg(spa)) -
-	    trim_txg_limit;
+	timelimit = gethrtime() - trim_timeout * NANOSEC;
+	if (vd->vdev_isl2cache) {
+		txgsafe = UINT64_MAX;
+		txgtarget = UINT64_MAX;
+	} else {
+		txgsafe = MIN(spa_last_synced_txg(spa), spa_freeze_txg(spa));
+		if (txgsafe > trim_txg_delay)
+			txgtarget = txgsafe - trim_txg_delay;
+		else
+			txgtarget = 0;
+	}
 
 	mutex_enter(&tm->tm_lock);
-	/*
-	 * Loop until we send all frees up to the txglimit.
-	 */
-	while ((ts = trim_map_first(tm, txglimit)) != NULL) {
+	/* Loop until we have sent all outstanding free's */
+	while ((ts = trim_map_first(tm, txgtarget, txgsafe, timelimit))
+	    != NULL) {
 		list_remove(&tm->tm_head, ts);
 		avl_remove(&tm->tm_queued_frees, ts);
 		avl_add(&tm->tm_inflight_frees, ts);
-		zio_nowait(zio_trim(zio, spa, vd, ts->ts_start,
-		    ts->ts_end - ts->ts_start));
+		size = ts->ts_end - ts->ts_start;
+		zio_nowait(zio_trim(zio, spa, vd, ts->ts_start, size));
+		TRIM_MAP_SDEC(tm, size);
+		TRIM_MAP_QDEC(tm);
 	}
 	mutex_exit(&tm->tm_lock);
 }
@@ -445,7 +524,7 @@ trim_map_commit(spa_t *spa, zio_t *zio, vdev_t *vd)
 {
 	int c;
 
-	if (vd == NULL || spa->spa_syncing_txg <= trim_txg_limit)
+	if (vd == NULL)
 		return;
 
 	if (vd->vdev_ops->vdev_op_leaf) {
@@ -478,6 +557,11 @@ trim_thread(void *arg)
 	spa_t *spa = arg;
 	zio_t *zio;
 
+#ifdef _KERNEL
+	(void) snprintf(curthread->td_name, sizeof(curthread->td_name),
+	    "trim %s", spa_name(spa));
+#endif
+
 	for (;;) {
 		mutex_enter(&spa->spa_trim_lock);
 		if (spa->spa_trim_thread == NULL) {
@@ -486,7 +570,9 @@ trim_thread(void *arg)
 			mutex_exit(&spa->spa_trim_lock);
 			thread_exit();
 		}
-		cv_wait(&spa->spa_trim_cv, &spa->spa_trim_lock);
+
+		(void) cv_timedwait(&spa->spa_trim_cv, &spa->spa_trim_lock,
+		    hz * trim_max_interval);
 		mutex_exit(&spa->spa_trim_lock);
 
 		zio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);

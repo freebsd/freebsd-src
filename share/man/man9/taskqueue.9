@@ -53,12 +53,23 @@ struct task {
 	void			*ta_context;	/* argument for handler */
 };
 
+enum taskqueue_callback_type {
+	TASKQUEUE_CALLBACK_TYPE_INIT,
+	TASKQUEUE_CALLBACK_TYPE_SHUTDOWN,
+};
+
+typedef void (*taskqueue_callback_fn)(void *context);
+
 struct timeout_task;
 .Ed
 .Ft struct taskqueue *
 .Fn taskqueue_create "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
 .Ft struct taskqueue *
 .Fn taskqueue_create_fast "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
+.Ft int
+.Fn taskqueue_start_threads "struct taskqueue **tqp" "int count" "int pri" "const char *name" "..."
+.Ft void
+.Fn taskqueue_set_callback "struct taskqueue *queue" "enum taskqueue_callback_type cb_type" "taskqueue_callback_fn callback" "void *context"
 .Ft void
 .Fn taskqueue_free "struct taskqueue *queue"
 .Ft int
@@ -126,6 +137,23 @@ The function
 should be used to free the memory used by the queue.
 Any tasks that are on the queue will be executed at this time after
 which the thread servicing the queue will be signaled that it should exit.
+.Pp
+Once a taskqueue has been created, its threads should be started using
+.Fn taskqueue_start_threads .
+Callbacks may optionally be registered using
+.Fn taskqueue_set_callback .
+Currently, callbacks may be registered for the following purposes:
+.Bl -tag -width TASKQUEUE_CALLBACK_TYPE_SHUTDOWN
+.It Dv TASKQUEUE_CALLBACK_TYPE_INIT
+This callback is called by every thread in the taskqueue, before it executes
+any tasks.
+This callback must be set before the taskqueue's threads are started.
+.It Dv TASKQUEUE_CALLBACK_TYPE_SHUTDOWN
+This callback is called by every thread in the taskqueue, after it executes
+its last task.
+This callback will always be called before the taskqueue structure is
+reclaimed.
+.El
 .Pp
 To add a task to the list of tasks queued on a taskqueue, call
 .Fn taskqueue_enqueue

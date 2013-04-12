@@ -438,6 +438,15 @@ AcpiRsDumpResourceList (
             return;
         }
 
+        /* Sanity check the length. It must not be zero, or we loop forever */
+
+        if (!ResourceList->Length)
+        {
+            AcpiOsPrintf (
+                "Invalid zero length descriptor in resource list\n");
+            return;
+        }
+
         /* Dump the resource descriptor */
 
         if (Type == ACPI_RESOURCE_TYPE_SERIAL_BUS)

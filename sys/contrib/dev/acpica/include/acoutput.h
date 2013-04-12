@@ -409,6 +409,11 @@
 #define return_VALUE(Value) \
     ACPI_TRACE_EXIT (AcpiUtValueExit, UINT64, Value)
 
+#define return_UINT32(Value) \
+    ACPI_TRACE_EXIT (AcpiUtValueExit, UINT32, Value)
+
+#define return_UINT8(Value) \
+    ACPI_TRACE_EXIT (AcpiUtValueExit, UINT8, Value)
 
 /* Conditional execution */
 
@@ -457,8 +462,10 @@
 
 #define return_VOID                     return
 #define return_ACPI_STATUS(s)           return(s)
-#define return_VALUE(s)                 return(s)
 #define return_PTR(s)                   return(s)
+#define return_VALUE(s)                 return(s)
+#define return_UINT8(s)                 return(s)
+#define return_UINT32(s)                return(s)
 
 #endif /* ACPI_DEBUG_OUTPUT */
 

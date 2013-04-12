@@ -42,7 +42,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/ata/ata_all.h>
 
-
 /* General allocation length definitions for CCB structures */
 #define	IOCDBLEN	CAM_MAX_CDBLEN	/* Space for CDB bytes/pointer */
 #define	VUHBALEN	14		/* Vendor Unique HBA length */
@@ -64,13 +63,19 @@ typedef enum {
 					      * Perform transport negotiation
 					      * with this command.
 					      */
-	CAM_SCATTER_VALID	= 0x00000010,/* Scatter/gather list is valid  */
+	CAM_DATA_ISPHYS		= 0x00000010,/* Data type with physical addrs */
 	CAM_DIS_AUTOSENSE	= 0x00000020,/* Disable autosense feature     */
 	CAM_DIR_BOTH		= 0x00000000,/* Data direction (00:IN/OUT)    */
 	CAM_DIR_IN		= 0x00000040,/* Data direction (01:DATA IN)   */
 	CAM_DIR_OUT		= 0x00000080,/* Data direction (10:DATA OUT)  */
 	CAM_DIR_NONE		= 0x000000C0,/* Data direction (11:no data)   */
 	CAM_DIR_MASK		= 0x000000C0,/* Data direction Mask	      */
+	CAM_DATA_VADDR		= 0x00000000,/* Data type (000:Virtual)       */
+	CAM_DATA_PADDR		= 0x00000010,/* Data type (001:Physical)      */
+	CAM_DATA_SG		= 0x00040000,/* Data type (010:sglist)        */
+	CAM_DATA_SG_PADDR	= 0x00040010,/* Data type (011:sglist phys)   */
+	CAM_DATA_BIO		= 0x00200000,/* Data type (100:bio)           */
+	CAM_DATA_MASK		= 0x00240010,/* Data type mask                */
 	CAM_SOFT_RST_OP		= 0x00000100,/* Use Soft reset alternative    */
 	CAM_ENG_SYNC		= 0x00000200,/* Flush resid bytes on complete */
 	CAM_DEV_QFRZDIS		= 0x00000400,/* Disable DEV Q freezing	      */
@@ -81,10 +86,8 @@ typedef enum {
 	CAM_TAG_ACTION_VALID	= 0x00008000,/* Use the tag action in this ccb*/
 	CAM_PASS_ERR_RECOVER	= 0x00010000,/* Pass driver does err. recovery*/
 	CAM_DIS_DISCONNECT	= 0x00020000,/* Disable disconnect	      */
-	CAM_SG_LIST_PHYS	= 0x00040000,/* SG list has physical addrs.   */
 	CAM_MSG_BUF_PHYS	= 0x00080000,/* Message buffer ptr is physical*/
 	CAM_SNS_BUF_PHYS	= 0x00100000,/* Autosense data ptr is physical*/
-	CAM_DATA_PHYS		= 0x00200000,/* SG/Buffer data ptrs are phys. */
 	CAM_CDB_PHYS		= 0x00400000,/* CDB poiner is physical	      */
 	CAM_ENG_SGLIST		= 0x00800000,/* SG list is for the HBA engine */
 
@@ -96,7 +99,7 @@ typedef enum {
 	CAM_MSGB_VALID		= 0x10000000,/* Message buffer valid	      */
 	CAM_STATUS_VALID	= 0x20000000,/* Status buffer valid	      */
 	CAM_DATAB_VALID		= 0x40000000,/* Data buffer valid	      */
-	
+
 /* Host target Mode flags */
 	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
 	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
@@ -568,7 +571,8 @@ typedef enum {
 	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
 	PIM_NOBUSRESET	= 0x10,	/* User has disabled initial BUS RESET */
 	PIM_NO_6_BYTE	= 0x08,	/* Do not send 6-byte commands */
-	PIM_SEQSCAN	= 0x04	/* Do bus scans sequentially, not in parallel */
+	PIM_SEQSCAN	= 0x04,	/* Do bus scans sequentially, not in parallel */
+	PIM_UNMAPPED	= 0x02,
 } pi_miscflag;
 
 /* Path Inquiry CCB */
@@ -892,9 +896,14 @@ struct ccb_trans_settings_pata {
 #define	CTS_ATA_VALID_MODE		0x01
 #define	CTS_ATA_VALID_BYTECOUNT		0x02
 #define	CTS_ATA_VALID_ATAPI		0x20
+#define	CTS_ATA_VALID_CAPS		0x40
 	int		mode;		/* Mode */
 	u_int 		bytecount;	/* Length of PIO transaction */
 	u_int 		atapi;		/* Length of ATAPI CDB */
+	u_int 		caps;		/* Device and host SATA caps. */
+#define	CTS_ATA_CAPS_H			0x0000ffff
+#define	CTS_ATA_CAPS_H_DMA48		0x00000001 /* 48-bit DMA */
+#define	CTS_ATA_CAPS_D			0xffff0000
 };
 
 struct ccb_trans_settings_sata {

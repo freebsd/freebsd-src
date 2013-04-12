@@ -68,6 +68,9 @@ TEXTDUMP_VERBOSE	opt_ddb.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+BOOTHOWTO	opt_global.h
+BOOTVERBOSE	opt_global.h
+CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
 COMPAT_43	opt_compat.h
@@ -309,7 +312,8 @@ SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
 
 # Options used only in cam/ata/ata_da.c
-ADA_TEST_FAILURE       opt_ada.h
+ADA_TEST_FAILURE	opt_ada.h
+ATA_STATIC_ID		opt_ada.h
 
 # Options used only in cam/scsi/scsi_cd.c
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
@@ -355,12 +359,6 @@ ISP_INTERNAL_TARGET	opt_isp.h
 
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
-
-# Options used in the 'ata' ATA/ATAPI driver
-ATA_STATIC_ID		opt_ata.h
-ATA_NOPCI		opt_ata.h
-ATA_REQUEST_TIMEOUT	opt_ata.h
-ATA_CAM			opt_ata.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA
@@ -533,9 +531,6 @@ NATM
 
 # DPT driver debug flags
 DPT_MEASURE_PERFORMANCE	opt_dpt.h
-DPT_HANDLE_TIMEOUTS	opt_dpt.h
-DPT_TIMEOUT_FACTOR	opt_dpt.h
-DPT_LOST_IRQ		opt_dpt.h
 DPT_RESET_HBA		opt_dpt.h
 
 # Misc debug flags.  Most of these should probably be replaced with
@@ -588,6 +583,7 @@ VFS_BIO_DEBUG		opt_global.h
 VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
+VM_NDOMAIN		opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h

@@ -191,9 +191,9 @@ struct ifnet {
 	void	*if_unused[2];
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
-	struct	rwlock if_afdata_lock;
 	struct	task if_linktask;	/* task for link change events */
-	struct	rwlock if_addr_lock;	/* lock to protect address lists */
+	struct	rwlock_padalign if_afdata_lock;
+	struct	rwlock_padalign if_addr_lock;	/* lock to protect address lists */
 
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
@@ -832,7 +832,7 @@ struct ifmultiaddr {
 
 #ifdef _KERNEL
 
-extern	struct rwlock ifnet_rwlock;
+extern	struct rwlock_padalign ifnet_rwlock;
 extern	struct sx ifnet_sxlock;
 
 #define	IFNET_LOCK_INIT() do {						\
@@ -939,8 +939,8 @@ struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
 struct	ifaddr *ifa_ifwithroute_fib(int, struct sockaddr *, struct sockaddr *, u_int);
-
 struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
+int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
 

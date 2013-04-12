@@ -222,7 +222,7 @@ extern vm_paddr_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
+void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
@@ -533,6 +533,8 @@ extern pt_entry_t		pte_l1_c_proto;
 extern pt_entry_t		pte_l2_s_proto;
 
 extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
+extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
+    vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
 #if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)

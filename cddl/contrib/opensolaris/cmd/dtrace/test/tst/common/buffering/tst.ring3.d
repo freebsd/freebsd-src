@@ -23,8 +23,9 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 /*
  * ASSERTION:
@@ -37,19 +38,20 @@
  */
 
 /*
- * We make some regrettable assumptions about the implementation in this test.
- * First, we assume that each entry for the printf() of an int takes _exactly_
- * eight bytes (four bytes for the EPID, four bytes for the payload).  Second,
- * we assume that by allocating storage for n + 1 records, we will get exactly
- * n.  Here is why:  the final predicate that evaluates to false will reserve
- * space that it won't use.  This act of reservation will advance the wrapped
- * offset.  That record won't be subsequently used, but the wrapped offset has
- * advanced.  (And in this case, that old record is clobbered by the exit()
- * anyway.)  Thirdly:  we rely on t_cpu/cpu_id.  Finally:  we rely on being
- * able to run on the CPU that we first ran on.
+ * We make some regrettable assumptions about the implementation in this
+ * test.  First, we assume that each entry for the printf() of an int
+ * takes _exactly_ 16 bytes (4 bytes for the EPID, 8 bytes for the
+ * timestamp, 4 bytes for the payload).  Second, we assume that by
+ * allocating storage for n + 1 records, we will get exactly n.  Here is
+ * why:  the final predicate that evaluates to false will reserve space
+ * that it won't use.  This act of reservation will advance the wrapped
+ * offset.  That record won't be subsequently used, but the wrapped
+ * offset has advanced.  (And in this case, that old record is clobbered
+ * by the exit() anyway.)  Thirdly:  we rely on t_cpu/cpu_id.  Finally:
+ * we rely on being able to run on the CPU that we first ran on.
  */
 #pragma D option bufpolicy=ring
-#pragma D option bufsize=40
+#pragma D option bufsize=80
 #pragma D option quiet
 
 int n;

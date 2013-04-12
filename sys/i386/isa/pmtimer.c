@@ -82,26 +82,21 @@ static struct timeval diff_time;
 static int
 pmtimer_suspend(device_t dev)
 {
-	int	pl;
 
-	pl = splsoftclock();
 	microtime(&diff_time);
 	inittodr(0);
 	microtime(&suspend_time);
 	timevalsub(&diff_time, &suspend_time);
-	splx(pl);
 	return (0);
 }
 
 static int
 pmtimer_resume(device_t dev)
 {
-	int pl;
 	u_int second, minute, hour;
 	struct timeval resume_time, tmp_time;
 
 	/* modified for adjkerntz */
-	pl = splsoftclock();
 	timer_restore();		/* restore the all timers */
 	inittodr(0);			/* adjust time to RTC */
 	microtime(&resume_time);
@@ -118,16 +113,13 @@ pmtimer_resume(device_t dev)
 	timevalsub(&resume_time, &suspend_time);
 	/* Fixup the calltodo list with the delta time. */
 	adjust_timeout_calltodo(&resume_time);
-#endif /* PMTIMER_FIXUP_CALLTODOK */
-	splx(pl);
-#ifndef PMTIMER_FIXUP_CALLTODO
-	second = resume_time.tv_sec - suspend_time.tv_sec; 
-#else /* PMTIMER_FIXUP_CALLTODO */
 	/* 
 	 * We've already calculated resume_time to be the delta between 
 	 * the suspend and the resume. 
 	 */
 	second = resume_time.tv_sec; 
+#else /* !PMTIMER_FIXUP_CALLTODO */
+	second = resume_time.tv_sec - suspend_time.tv_sec; 
 #endif /* PMTIMER_FIXUP_CALLTODO */
 	hour = second / 3600;
 	second %= 3600;

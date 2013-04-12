@@ -223,9 +223,7 @@ kau_free(struct au_record *rec)
 } while (0)
 
 #define	UPATH1_VNODE1_TOKENS do {					\
-	if (ARG_IS_VALID(kar, ARG_UPATH1)) {				\
-		UPATH1_TOKENS;						\
-	}								\
+	UPATH1_TOKENS;							\
 	if (ARG_IS_VALID(kar, ARG_VNODE1)) {				\
 		tok = au_to_attr32(&ar->ar_arg_vnode1);			\
 		kau_write(rec, tok);					\
@@ -554,6 +552,21 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			UPATH1_TOKENS;
 		}
 		/* XXX Need to handle ARG_SADDRINET6 */
+		break;
+
+	case AUE_BINDAT:
+	case AUE_CONNECTAT:
+		ATFD1_TOKENS(1);
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(2, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_SADDRUNIX)) {
+			tok = au_to_sock_unix((struct sockaddr_un *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+			UPATH1_TOKENS;
+		}
 		break;
 
 	case AUE_SOCKET:
@@ -1599,6 +1612,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_CAP_NEW:
+	case AUE_CAP_RIGHTS_LIMIT:
 		/*
 		 * XXXRW/XXXJA: Would be nice to audit socket/etc information.
 		 */
@@ -1609,9 +1623,21 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
-	case AUE_CAP_GETRIGHTS:
+	case AUE_CAP_FCNTLS_GET:
+	case AUE_CAP_IOCTLS_GET:
+	case AUE_CAP_IOCTLS_LIMIT:
+	case AUE_CAP_RIGHTS_GET:
 		if (ARG_IS_VALID(kar, ARG_FD)) {
 			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_CAP_FCNTLS_LIMIT:
+		FD_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_FCNTL_RIGHTS)) {
+			tok = au_to_arg32(2, "fcntlrights",
+			    ar->ar_arg_fcntl_rights);
 			kau_write(rec, tok);
 		}
 		break;

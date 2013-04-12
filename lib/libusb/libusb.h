@@ -27,8 +27,11 @@
 #ifndef __LIBUSB_H__
 #define	__LIBUSB_H__
 
+#ifndef LIBUSB_GLOBAL_INCLUDE_FILE
+#include <stdint.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#endif
 
 #ifdef __cplusplus
 extern	"C" {

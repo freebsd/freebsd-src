@@ -112,6 +112,12 @@ void	kassert_panic(const char *fmt, ...);
 	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
 
 /*
+ * Assert that a thread is in critical(9) section.
+ */
+#define	CRITICAL_ASSERT(td)						\
+	KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
+ 
+/*
  * If we have already panic'd and this is the thread that called
  * panic(), then don't block on any mutexes but silently succeed.
  * Otherwise, the kernel will deadlock since the scheduler isn't
@@ -138,6 +144,7 @@ extern char **kenvp;
 
 extern const void *zero_region;	/* address space maps to a zeroed page	*/
 
+extern int unmapped_buf_allowed;
 extern int iosize_max_clamp;
 #define	IOSIZE_MAX	(iosize_max_clamp ? INT_MAX : SSIZE_MAX)
 
@@ -267,8 +274,9 @@ void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);
 void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
-void	cpu_idleclock(void);
+sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
+void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
 extern int	cpu_can_deep_sleep;
 extern int	cpu_disable_deep_sleep;
 
@@ -320,23 +328,14 @@ typedef void timeout_t(void *);	/* timeout function type */
 void	callout_handle_init(struct callout_handle *);
 struct	callout_handle timeout(timeout_t *, void *, int);
 void	untimeout(timeout_t *, void *, struct callout_handle);
-caddr_t	kern_timeout_callwheel_alloc(caddr_t v);
-void	kern_timeout_callwheel_init(void);
 
 /* Stubs for obsolete functions that used to be for interrupt management */
-static __inline void		spl0(void)		{ return; }
 static __inline intrmask_t	splbio(void)		{ return 0; }
 static __inline intrmask_t	splcam(void)		{ return 0; }
 static __inline intrmask_t	splclock(void)		{ return 0; }
 static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
-static __inline intrmask_t	splsoftcam(void)	{ return 0; }
-static __inline intrmask_t	splsoftclock(void)	{ return 0; }
-static __inline intrmask_t	splsofttty(void)	{ return 0; }
-static __inline intrmask_t	splsoftvm(void)		{ return 0; }
-static __inline intrmask_t	splsofttq(void)		{ return 0; }
-static __inline intrmask_t	splstatclock(void)	{ return 0; }
 static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl __unused)	{ return; }
@@ -346,14 +345,27 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * less often.
  */
 int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
-	    int timo) __nonnull(1);
+	   sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
-	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo))
-int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo)
-	    __nonnull(1);
-int	pause(const char *wmesg, int timo);
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
+	    tick_sbt * (timo), 0, C_HARDCLOCK)
+#define	msleep_sbt(chan, mtx, pri, wmesg, bt, pr, flags)		\
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (bt), (pr),	\
+	    (flags))
+int	msleep_spin_sbt(void *chan, struct mtx *mtx, const char *wmesg,
+	    sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
+#define	msleep_spin(chan, mtx, wmesg, timo)				\
+	msleep_spin_sbt((chan), (mtx), (wmesg), tick_sbt * (timo),	\
+	    0, C_HARDCLOCK)
+int	pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr,
+	    int flags);
+#define	pause(wmesg, timo)						\
+	pause_sbt((wmesg), tick_sbt * (timo), 0, C_HARDCLOCK)
 #define	tsleep(chan, pri, wmesg, timo)					\
-	_sleep((chan), NULL, (pri), (wmesg), (timo))
+	_sleep((chan), NULL, (pri), (wmesg), tick_sbt * (timo),		\
+	    0, C_HARDCLOCK)
+#define	tsleep_sbt(chan, pri, wmesg, bt, pr, flags)			\
+	_sleep((chan), NULL, (pri), (wmesg), (bt), (pr), (flags))
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
 

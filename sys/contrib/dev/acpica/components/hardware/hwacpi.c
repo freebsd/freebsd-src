@@ -75,6 +75,14 @@ AcpiHwSetMode (
 
     ACPI_FUNCTION_TRACE (HwSetMode);
 
+
+    /* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     /*
      * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
      * system does not support mode transition.
@@ -180,28 +188,35 @@ AcpiHwGetMode (
     ACPI_FUNCTION_TRACE (HwGetMode);
 
 
+    /* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return_UINT32 (ACPI_SYS_MODE_ACPI);
+    }
+
     /*
      * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
      * system does not support mode transition.
      */
     if (!AcpiGbl_FADT.SmiCommand)
     {
-        return_VALUE (ACPI_SYS_MODE_ACPI);
+        return_UINT32 (ACPI_SYS_MODE_ACPI);
     }
 
     Status = AcpiReadBitRegister (ACPI_BITREG_SCI_ENABLE, &Value);
     if (ACPI_FAILURE (Status))
     {
-        return_VALUE (ACPI_SYS_MODE_LEGACY);
+        return_UINT32 (ACPI_SYS_MODE_LEGACY);
     }
 
     if (Value)
     {
-        return_VALUE (ACPI_SYS_MODE_ACPI);
+        return_UINT32 (ACPI_SYS_MODE_ACPI);
     }
     else
     {
-        return_VALUE (ACPI_SYS_MODE_LEGACY);
+        return_UINT32 (ACPI_SYS_MODE_LEGACY);
     }
 }
 

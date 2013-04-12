@@ -48,6 +48,7 @@
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acpredef.h>
+#include <contrib/dev/acpica/include/amlresrc.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsrepair")
@@ -74,6 +75,11 @@
  * Buffer  -> String
  * Buffer  -> Package of Integers
  * Package -> Package of one Package
+ *
+ * Additional conversions that are available:
+ *  Convert a null return or zero return value to an EndTag descriptor
+ *  Convert an ASCII string to a Unicode buffer
+ *
  * An incorrect standalone object is wrapped with required outer package
  *
  * Additional possible repairs:
@@ -84,25 +90,46 @@
 
 /* Local prototypes */
 
-static ACPI_STATUS
-AcpiNsConvertToInteger (
-    ACPI_OPERAND_OBJECT     *OriginalObject,
-    ACPI_OPERAND_OBJECT     **ReturnObject);
+static const ACPI_SIMPLE_REPAIR_INFO *
+AcpiNsMatchSimpleRepair (
+    ACPI_NAMESPACE_NODE     *Node,
+    UINT32                  ReturnBtype,
+    UINT32                  PackageIndex);
 
-static ACPI_STATUS
-AcpiNsConvertToString (
-    ACPI_OPERAND_OBJECT     *OriginalObject,
-    ACPI_OPERAND_OBJECT     **ReturnObject);
 
-static ACPI_STATUS
-AcpiNsConvertToBuffer (
-    ACPI_OPERAND_OBJECT     *OriginalObject,
-    ACPI_OPERAND_OBJECT     **ReturnObject);
+/*
+ * Special but simple repairs for some names.
+ *
+ * 2nd argument: Unexpected types that can be repaired
+ */
+static const ACPI_SIMPLE_REPAIR_INFO    AcpiObjectRepairInfo[] =
+{
+    /* Resource descriptor conversions */
+
+    { "_CRS", ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER | ACPI_RTYPE_NONE,
+                ACPI_NOT_PACKAGE_ELEMENT,
+                AcpiNsConvertToResource },
+    { "_DMA", ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER | ACPI_RTYPE_NONE,
+                ACPI_NOT_PACKAGE_ELEMENT,
+                AcpiNsConvertToResource },
+    { "_PRS", ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER | ACPI_RTYPE_NONE,
+                ACPI_NOT_PACKAGE_ELEMENT,
+                AcpiNsConvertToResource },
+
+    /* Unicode conversions */
+
+    { "_MLS", ACPI_RTYPE_STRING, 1,
+                AcpiNsConvertToUnicode },
+    { "_STR", ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER,
+                ACPI_NOT_PACKAGE_ELEMENT,
+                AcpiNsConvertToUnicode },
+    { {0,0,0,0}, 0, 0, NULL } /* Table terminator */
+};
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsRepairObject
+ * FUNCTION:    AcpiNsSimpleRepair
  *
  * PARAMETERS:  Data                - Pointer to validation data structure
  *              ExpectedBtypes      - Object types expected
@@ -120,19 +147,58 @@ AcpiNsConvertToBuffer (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiNsRepairObject (
+AcpiNsSimpleRepair (
     ACPI_PREDEFINED_DATA    *Data,
     UINT32                  ExpectedBtypes,
     UINT32                  PackageIndex,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
 {
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
-    ACPI_OPERAND_OBJECT     *NewObject;
+    ACPI_OPERAND_OBJECT     *NewObject = NULL;
     ACPI_STATUS             Status;
+    const ACPI_SIMPLE_REPAIR_INFO   *Predefined;
 
 
-    ACPI_FUNCTION_NAME (NsRepairObject);
+    ACPI_FUNCTION_NAME (NsSimpleRepair);
 
+
+    /*
+     * Special repairs for certain names that are in the repair table.
+     * Check if this name is in the list of repairable names.
+     */
+    Predefined = AcpiNsMatchSimpleRepair (Data->Node,
+        Data->ReturnBtype, PackageIndex);
+    if (Predefined)
+    {
+        if (!ReturnObject)
+        {
+            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname,
+                ACPI_WARN_ALWAYS, "Missing expected return value"));
+        }
+
+        Status = Predefined->ObjectConverter (ReturnObject, &NewObject);
+        if (ACPI_FAILURE (Status))
+        {
+            /* A fatal error occurred during a conversion */
+
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "During return object analysis"));
+            return (Status);
+        }
+        if (NewObject)
+        {
+            goto ObjectRepaired;
+        }
+    }
+
+    /*
+     * Do not perform simple object repair unless the return type is not
+     * expected.
+     */
+    if (Data->ReturnBtype & ExpectedBtypes)
+    {
+        return (AE_OK);
+    }
 
     /*
      * At this point, we know that the type of the returned object was not
@@ -140,6 +206,25 @@ AcpiNsRepairObject (
      * repair the object by converting it to one of the expected object
      * types for this predefined name.
      */
+
+    /*
+     * If there is no return value, check if we require a return value for
+     * this predefined name. Either one return value is expected, or none,
+     * for both methods and other objects.
+     *
+     * Exit now if there is no return object. Warning if one was expected.
+     */
+    if (!ReturnObject)
+    {
+        if (ExpectedBtypes && (!(ExpectedBtypes & ACPI_RTYPE_NONE)))
+        {
+            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname,
+                ACPI_WARN_ALWAYS, "Missing expected return value"));
+
+            return (AE_AML_NO_RETURN_VALUE);
+        }
+    }
+
     if (ExpectedBtypes & ACPI_RTYPE_INTEGER)
     {
         Status = AcpiNsConvertToInteger (ReturnObject, &NewObject);
@@ -240,273 +325,52 @@ ObjectRepaired:
 }
 
 
-/*******************************************************************************
+/******************************************************************************
  *
- * FUNCTION:    AcpiNsConvertToInteger
+ * FUNCTION:    AcpiNsMatchSimpleRepair
  *
- * PARAMETERS:  OriginalObject      - Object to be converted
- *              ReturnObject        - Where the new converted object is returned
+ * PARAMETERS:  Node                - Namespace node for the method/object
+ *              ReturnBtype         - Object type that was returned
+ *              PackageIndex        - Index of object within parent package (if
+ *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                    otherwise)
  *
- * RETURN:      Status. AE_OK if conversion was successful.
+ * RETURN:      Pointer to entry in repair table. NULL indicates not found.
  *
- * DESCRIPTION: Attempt to convert a String/Buffer object to an Integer.
+ * DESCRIPTION: Check an object name against the repairable object list.
  *
- ******************************************************************************/
+ *****************************************************************************/
 
-static ACPI_STATUS
-AcpiNsConvertToInteger (
-    ACPI_OPERAND_OBJECT     *OriginalObject,
-    ACPI_OPERAND_OBJECT     **ReturnObject)
+static const ACPI_SIMPLE_REPAIR_INFO *
+AcpiNsMatchSimpleRepair (
+    ACPI_NAMESPACE_NODE     *Node,
+    UINT32                  ReturnBtype,
+    UINT32                  PackageIndex)
 {
-    ACPI_OPERAND_OBJECT     *NewObject;
-    ACPI_STATUS             Status;
-    UINT64                  Value = 0;
-    UINT32                  i;
+    const ACPI_SIMPLE_REPAIR_INFO   *ThisName;
 
 
-    switch (OriginalObject->Common.Type)
+    /* Search info table for a repairable predefined method/object name */
+
+    ThisName = AcpiObjectRepairInfo;
+    while (ThisName->ObjectConverter)
     {
-    case ACPI_TYPE_STRING:
-
-        /* String-to-Integer conversion */
-
-        Status = AcpiUtStrtoul64 (OriginalObject->String.Pointer,
-                    ACPI_ANY_BASE, &Value);
-        if (ACPI_FAILURE (Status))
+        if (ACPI_COMPARE_NAME (Node->Name.Ascii, ThisName->Name))
         {
-            return (Status);
-        }
-        break;
+            /* Check if we can actually repair this name/type combination */
 
-    case ACPI_TYPE_BUFFER:
-
-        /* Buffer-to-Integer conversion. Max buffer size is 64 bits. */
-
-        if (OriginalObject->Buffer.Length > 8)
-        {
-            return (AE_AML_OPERAND_TYPE);
-        }
-
-        /* Extract each buffer byte to create the integer */
-
-        for (i = 0; i < OriginalObject->Buffer.Length; i++)
-        {
-            Value |= ((UINT64) OriginalObject->Buffer.Pointer[i] << (i * 8));
-        }
-        break;
-
-    default:
-        return (AE_AML_OPERAND_TYPE);
-    }
-
-    NewObject = AcpiUtCreateIntegerObject (Value);
-    if (!NewObject)
-    {
-        return (AE_NO_MEMORY);
-    }
-
-    *ReturnObject = NewObject;
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsConvertToString
- *
- * PARAMETERS:  OriginalObject      - Object to be converted
- *              ReturnObject        - Where the new converted object is returned
- *
- * RETURN:      Status. AE_OK if conversion was successful.
- *
- * DESCRIPTION: Attempt to convert a Integer/Buffer object to a String.
- *
- ******************************************************************************/
-
-static ACPI_STATUS
-AcpiNsConvertToString (
-    ACPI_OPERAND_OBJECT     *OriginalObject,
-    ACPI_OPERAND_OBJECT     **ReturnObject)
-{
-    ACPI_OPERAND_OBJECT     *NewObject;
-    ACPI_SIZE               Length;
-    ACPI_STATUS             Status;
-
-
-    switch (OriginalObject->Common.Type)
-    {
-    case ACPI_TYPE_INTEGER:
-        /*
-         * Integer-to-String conversion. Commonly, convert
-         * an integer of value 0 to a NULL string. The last element of
-         * _BIF and _BIX packages occasionally need this fix.
-         */
-        if (OriginalObject->Integer.Value == 0)
-        {
-            /* Allocate a new NULL string object */
-
-            NewObject = AcpiUtCreateStringObject (0);
-            if (!NewObject)
+            if ((ReturnBtype & ThisName->UnexpectedBtypes) &&
+                (PackageIndex == ThisName->PackageIndex))
             {
-                return (AE_NO_MEMORY);
+                return (ThisName);
             }
+
+            return (NULL);
         }
-        else
-        {
-            Status = AcpiExConvertToString (OriginalObject, &NewObject,
-                        ACPI_IMPLICIT_CONVERT_HEX);
-            if (ACPI_FAILURE (Status))
-            {
-                return (Status);
-            }
-        }
-        break;
-
-    case ACPI_TYPE_BUFFER:
-        /*
-         * Buffer-to-String conversion. Use a ToString
-         * conversion, no transform performed on the buffer data. The best
-         * example of this is the _BIF method, where the string data from
-         * the battery is often (incorrectly) returned as buffer object(s).
-         */
-        Length = 0;
-        while ((Length < OriginalObject->Buffer.Length) &&
-                (OriginalObject->Buffer.Pointer[Length]))
-        {
-            Length++;
-        }
-
-        /* Allocate a new string object */
-
-        NewObject = AcpiUtCreateStringObject (Length);
-        if (!NewObject)
-        {
-            return (AE_NO_MEMORY);
-        }
-
-        /*
-         * Copy the raw buffer data with no transform. String is already NULL
-         * terminated at Length+1.
-         */
-        ACPI_MEMCPY (NewObject->String.Pointer,
-            OriginalObject->Buffer.Pointer, Length);
-        break;
-
-    default:
-        return (AE_AML_OPERAND_TYPE);
+        ThisName++;
     }
 
-    *ReturnObject = NewObject;
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsConvertToBuffer
- *
- * PARAMETERS:  OriginalObject      - Object to be converted
- *              ReturnObject        - Where the new converted object is returned
- *
- * RETURN:      Status. AE_OK if conversion was successful.
- *
- * DESCRIPTION: Attempt to convert a Integer/String/Package object to a Buffer.
- *
- ******************************************************************************/
-
-static ACPI_STATUS
-AcpiNsConvertToBuffer (
-    ACPI_OPERAND_OBJECT     *OriginalObject,
-    ACPI_OPERAND_OBJECT     **ReturnObject)
-{
-    ACPI_OPERAND_OBJECT     *NewObject;
-    ACPI_STATUS             Status;
-    ACPI_OPERAND_OBJECT     **Elements;
-    UINT32                  *DwordBuffer;
-    UINT32                  Count;
-    UINT32                  i;
-
-
-    switch (OriginalObject->Common.Type)
-    {
-    case ACPI_TYPE_INTEGER:
-        /*
-         * Integer-to-Buffer conversion.
-         * Convert the Integer to a packed-byte buffer. _MAT and other
-         * objects need this sometimes, if a read has been performed on a
-         * Field object that is less than or equal to the global integer
-         * size (32 or 64 bits).
-         */
-        Status = AcpiExConvertToBuffer (OriginalObject, &NewObject);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-        break;
-
-    case ACPI_TYPE_STRING:
-
-        /* String-to-Buffer conversion. Simple data copy */
-
-        NewObject = AcpiUtCreateBufferObject (OriginalObject->String.Length);
-        if (!NewObject)
-        {
-            return (AE_NO_MEMORY);
-        }
-
-        ACPI_MEMCPY (NewObject->Buffer.Pointer,
-            OriginalObject->String.Pointer, OriginalObject->String.Length);
-        break;
-
-    case ACPI_TYPE_PACKAGE:
-        /*
-         * This case is often seen for predefined names that must return a
-         * Buffer object with multiple DWORD integers within. For example,
-         * _FDE and _GTM. The Package can be converted to a Buffer.
-         */
-
-        /* All elements of the Package must be integers */
-
-        Elements = OriginalObject->Package.Elements;
-        Count = OriginalObject->Package.Count;
-
-        for (i = 0; i < Count; i++)
-        {
-            if ((!*Elements) ||
-                ((*Elements)->Common.Type != ACPI_TYPE_INTEGER))
-            {
-                return (AE_AML_OPERAND_TYPE);
-            }
-            Elements++;
-        }
-
-        /* Create the new buffer object to replace the Package */
-
-        NewObject = AcpiUtCreateBufferObject (ACPI_MUL_4 (Count));
-        if (!NewObject)
-        {
-            return (AE_NO_MEMORY);
-        }
-
-        /* Copy the package elements (integers) to the buffer as DWORDs */
-
-        Elements = OriginalObject->Package.Elements;
-        DwordBuffer = ACPI_CAST_PTR (UINT32, NewObject->Buffer.Pointer);
-
-        for (i = 0; i < Count; i++)
-        {
-            *DwordBuffer = (UINT32) (*Elements)->Integer.Value;
-            DwordBuffer++;
-            Elements++;
-        }
-        break;
-
-    default:
-        return (AE_AML_OPERAND_TYPE);
-    }
-
-    *ReturnObject = NewObject;
-    return (AE_OK);
+    return (NULL); /* Name was not found in the repair table */
 }
 
 

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/rwlock.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -73,7 +74,7 @@ int ncl_pbuf_freecnt = -1;	/* start out unlimited */
 
 static struct buf *nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size,
     struct thread *td);
-static int nfs_directio_write(struct vnode *vp, struct uio *uiop, 
+static int nfs_directio_write(struct vnode *vp, struct uio *uiop,
     struct ucred *cred, int ioflag);
 
 /*
@@ -120,7 +121,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	mtx_lock(&nmp->nm_mtx);
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
-	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {	
+	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
 		mtx_unlock(&nmp->nm_mtx);
 		/* We'll never get here for v4, because we always have fsinfo */
 		(void)ncl_fsinfo(nmp, vp, cred, td);
@@ -134,7 +135,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	 * allow the pager to zero-out the blanks.  Partially valid pages
 	 * can only occur at the file EOF.
 	 */
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	if (pages[ap->a_reqpage]->valid != 0) {
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage) {
@@ -143,10 +144,10 @@ ncl_getpages(struct vop_getpages_args *ap)
 				vm_page_unlock(pages[i]);
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		return (0);
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
@@ -176,7 +177,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		ncl_printf("nfs_getpages: error %d\n", error);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage) {
 				vm_page_lock(pages[i]);
@@ -184,7 +185,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 				vm_page_unlock(pages[i]);
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		return (VM_PAGER_ERROR);
 	}
 
@@ -195,7 +196,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	 */
 
 	size = count - uio.uio_resid;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -231,7 +232,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 		if (i != ap->a_reqpage)
 			vm_page_readahead_finish(m);
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return (0);
 }
 
@@ -269,7 +270,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 	rtvals = ap->a_rtvals;
 	npages = btoc(count);
 	offset = IDX_TO_OFF(pages[0]->pindex);
-	
+
 	mtx_lock(&nmp->nm_mtx);
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
@@ -279,9 +280,9 @@ ncl_putpages(struct vop_putpages_args *ap)
 		mtx_unlock(&nmp->nm_mtx);
 
 	mtx_lock(&np->n_mtx);
-	if (newnfs_directio_enable && !newnfs_directio_allow_mmap && 
+	if (newnfs_directio_enable && !newnfs_directio_allow_mmap &&
 	    (np->n_flag & NNONCACHE) && (vp->v_type == VREG)) {
-		mtx_unlock(&np->n_mtx);		
+		mtx_unlock(&np->n_mtx);
 		ncl_printf("ncl_putpages: called on noncache-able vnode??\n");
 		mtx_lock(&np->n_mtx);
 	}
@@ -362,7 +363,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	struct vattr vattr;
 	struct nfsnode *np = VTONFS(vp);
 	int old_lock;
-	
+
 	/*
 	 * Grab the exclusive lock before checking whether the cache is
 	 * consistent.
@@ -414,7 +415,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 		}
 		mtx_unlock(&np->n_mtx);
 	}
-out:	
+out:
 	ncl_downgrade_vnlock(vp, old_lock);
 	return error;
 }
@@ -456,10 +457,10 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	tmp_off = uio->uio_offset + uio->uio_resid;
 	if (vp->v_type != VDIR &&
 	    (tmp_off > nmp->nm_maxfilesize || tmp_off < uio->uio_offset)) {
-		mtx_unlock(&nmp->nm_mtx);		
+		mtx_unlock(&nmp->nm_mtx);
 		return (EFBIG);
 	}
-	mtx_unlock(&nmp->nm_mtx);		
+	mtx_unlock(&nmp->nm_mtx);
 
 	if (newnfs_directio_enable && (ioflag & IO_DIRECT) && (vp->v_type == VREG))
 		/* No caching/ no readaheads. Just read data into the user buffer */
@@ -467,23 +468,23 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
 	biosize = vp->v_bufobj.bo_bsize;
 	seqcount = (int)((off_t)(ioflag >> IO_SEQSHIFT) * biosize / BKVASIZE);
-	
+
 	error = nfs_bioread_check_cons(vp, td, cred);
 	if (error)
 		return error;
 
 	do {
 	    u_quad_t nsize;
-			
+
 	    mtx_lock(&np->n_mtx);
 	    nsize = np->n_size;
-	    mtx_unlock(&np->n_mtx);		    
+	    mtx_unlock(&np->n_mtx);
 
 	    switch (vp->v_type) {
 	    case VREG:
 		NFSINCRGLOBAL(newnfsstats.biocache_reads);
 		lbn = uio->uio_offset / biosize;
-		on = uio->uio_offset & (biosize - 1);
+		on = uio->uio_offset - (lbn * biosize);
 
 		/*
 		 * Start the read ahead(s), as required.
@@ -710,13 +711,13 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 }
 
 /*
- * The NFS write path cannot handle iovecs with len > 1. So we need to 
+ * The NFS write path cannot handle iovecs with len > 1. So we need to
  * break up iovecs accordingly (restricting them to wsize).
- * For the SYNC case, we can do this with 1 copy (user buffer -> mbuf). 
- * For the ASYNC case, 2 copies are needed. The first a copy from the 
+ * For the SYNC case, we can do this with 1 copy (user buffer -> mbuf).
+ * For the ASYNC case, 2 copies are needed. The first a copy from the
  * user buffer to a staging buffer and then a second copy from the staging
  * buffer to mbufs. This can be optimized by copying from the user buffer
- * directly into mbufs and passing the chain down, but that requires a 
+ * directly into mbufs and passing the chain down, but that requires a
  * fair amount of re-working of the relevant codepaths (and can be done
  * later).
  */
@@ -732,7 +733,7 @@ nfs_directio_write(vp, uiop, cred, ioflag)
 	struct thread *td = uiop->uio_td;
 	int size;
 	int wsize;
-	
+
 	mtx_lock(&nmp->nm_mtx);
 	wsize = nmp->nm_wsize;
 	mtx_unlock(&nmp->nm_mtx);
@@ -756,7 +757,7 @@ do_sync:
 			iomode = NFSWRITE_FILESYNC;
 			error = ncl_writerpc(vp, &uio, cred, &iomode,
 			    &must_commit, 0);
-			KASSERT((must_commit == 0), 
+			KASSERT((must_commit == 0),
 				("ncl_directio_write: Did not commit write"));
 			if (error)
 				return (error);
@@ -766,7 +767,7 @@ do_sync:
 				uiop->uio_iovcnt--;
 				uiop->uio_iov++;
 			} else {
-				uiop->uio_iov->iov_base = 
+				uiop->uio_iov->iov_base =
 					(char *)uiop->uio_iov->iov_base + size;
 				uiop->uio_iov->iov_len -= size;
 			}
@@ -775,14 +776,14 @@ do_sync:
 		struct uio *t_uio;
 		struct iovec *t_iov;
 		struct buf *bp;
-		
+
 		/*
 		 * Break up the write into blocksize chunks and hand these
 		 * over to nfsiod's for write back.
-		 * Unfortunately, this incurs a copy of the data. Since 
-		 * the user could modify the buffer before the write is 
+		 * Unfortunately, this incurs a copy of the data. Since
+		 * the user could modify the buffer before the write is
 		 * initiated.
-		 * 
+		 *
 		 * The obvious optimization here is that one of the 2 copies
 		 * in the async write path can be eliminated by copying the
 		 * data here directly into mbufs and passing the mbuf chain
@@ -825,8 +826,8 @@ do_sync:
 			if (cred != NOCRED) {
 				crhold(cred);
 				bp->b_wcred = cred;
-			} else 
-				bp->b_wcred = NOCRED;			
+			} else
+				bp->b_wcred = NOCRED;
 			bp->b_caller1 = (void *)t_uio;
 			bp->b_vp = vp;
 			error = ncl_asyncio(nmp, bp, NOCRED, td);
@@ -847,7 +848,7 @@ err_free:
 				uiop->uio_iovcnt--;
 				uiop->uio_iov++;
 			} else {
-				uiop->uio_iov->iov_base = 
+				uiop->uio_iov->iov_base =
 					(char *)uiop->uio_iov->iov_base + size;
 				uiop->uio_iov->iov_len -= size;
 			}
@@ -980,7 +981,7 @@ flush_and_restart:
 
 		mtx_lock(&np->n_mtx);
 		nflag = np->n_flag;
-		mtx_unlock(&np->n_mtx);		
+		mtx_unlock(&np->n_mtx);
 		int needrestart = 0;
 		if (nmp->nm_wcommitsize < uio->uio_resid) {
 			/*
@@ -1028,7 +1029,7 @@ flush_and_restart:
 	do {
 		NFSINCRGLOBAL(newnfsstats.biocache_writes);
 		lbn = uio->uio_offset / biosize;
-		on = uio->uio_offset & (biosize-1);
+		on = uio->uio_offset - (lbn * biosize);
 		n = MIN((unsigned)(biosize - on), uio->uio_resid);
 again:
 		/*
@@ -1293,11 +1294,11 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 	nmp = VFSTONFS(mp);
 
 	if (nmp->nm_flag & NFSMNT_INT) {
- 		sigset_t oldset;
+		sigset_t oldset;
 
- 		newnfs_set_sigmask(td, &oldset);
-		bp = getblk(vp, bn, size, NFS_PCATCH, 0, 0);
- 		newnfs_restore_sigmask(td, &oldset);
+		newnfs_set_sigmask(td, &oldset);
+		bp = getblk(vp, bn, size, PCATCH, 0, 0);
+		newnfs_restore_sigmask(td, &oldset);
 		while (bp == NULL) {
 			if (newnfs_sigintr(nmp, td))
 				return (NULL);
@@ -1322,7 +1323,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
- 	int old_lock = 0;
+	int old_lock = 0;
 
 	ASSERT_VOP_LOCKED(vp, "ncl_vinvalbuf");
 
@@ -1331,7 +1332,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF))
 		intrflg = 1;
 	if (intrflg) {
-		slpflag = NFS_PCATCH;
+		slpflag = PCATCH;
 		slptimeo = 2 * hz;
 	} else {
 		slpflag = 0;
@@ -1353,12 +1354,12 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	 * Now, flush as required.
 	 */
 	if ((flags & V_SAVE) && (vp->v_bufobj.bo_object != NULL)) {
-		VM_OBJECT_LOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
 		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_UNLOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
 		/*
 		 * If the page clean was interrupted, fail the invalidation.
-		 * Not doing so, we run the risk of losing dirty pages in the 
+		 * Not doing so, we run the risk of losing dirty pages in the
 		 * vinvalbuf() call below.
 		 */
 		if (intrflg && (error = newnfs_sigintr(nmp, td)))
@@ -1412,7 +1413,7 @@ ncl_asyncio(struct nfsmount *nmp, struct buf *bp, struct ucred *cred, struct thr
 	}
 again:
 	if (nmp->nm_flag & NFSMNT_INT)
-		slpflag = NFS_PCATCH;
+		slpflag = PCATCH;
 	gotiod = FALSE;
 
 	/*
@@ -1468,16 +1469,16 @@ again:
 			NFS_DPF(ASYNCIO,
 				("ncl_asyncio: waiting for mount %p queue to drain\n", nmp));
 			nmp->nm_bufqwant = TRUE;
- 			error = newnfs_msleep(td, &nmp->nm_bufq, 
+			error = newnfs_msleep(td, &nmp->nm_bufq,
 			    &ncl_iod_mutex, slpflag | PRIBIO, "nfsaio",
-  			   slptimeo);
+			   slptimeo);
 			if (error) {
 				error2 = newnfs_sigintr(nmp, td);
 				if (error2) {
-					mtx_unlock(&ncl_iod_mutex);					
+					mtx_unlock(&ncl_iod_mutex);
 					return (error2);
 				}
-				if (slpflag == NFS_PCATCH) {
+				if (slpflag == PCATCH) {
 					slpflag = 0;
 					slptimeo = 2 * hz;
 				}
@@ -1510,7 +1511,7 @@ again:
 		TAILQ_INSERT_TAIL(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen++;
 		if ((bp->b_flags & B_DIRECT) && bp->b_iocmd == BIO_WRITE) {
-			mtx_lock(&(VTONFS(bp->b_vp))->n_mtx);			
+			mtx_lock(&(VTONFS(bp->b_vp))->n_mtx);
 			VTONFS(bp->b_vp)->n_flag |= NMODIFIED;
 			VTONFS(bp->b_vp)->n_directio_asyncwr++;
 			mtx_unlock(&(VTONFS(bp->b_vp))->n_mtx);
@@ -1535,7 +1536,7 @@ ncl_doio_directwrite(struct buf *bp)
 	int iomode, must_commit;
 	struct uio *uiop = (struct uio *)bp->b_caller1;
 	char *iov_base = uiop->uio_iov->iov_base;
-	
+
 	iomode = NFSWRITE_FILESYNC;
 	uiop->uio_td = NULL; /* NULL since we're in nfsiod */
 	ncl_writerpc(bp->b_vp, uiop, bp->b_wcred, &iomode, &must_commit, 0);
@@ -1576,7 +1577,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 	struct iovec io;
 	struct proc *p = td ? td->td_proc : NULL;
 	uint8_t	iocmd;
-	
+
 	np = VTONFS(vp);
 	nmp = VFSTONFS(vp->v_mount);
 	uiop = &uio;
@@ -1760,20 +1761,20 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		 * bp in this case is not an NFS cache block so we should
 		 * be safe. XXX
 		 *
-		 * The logic below breaks up errors into recoverable and 
+		 * The logic below breaks up errors into recoverable and
 		 * unrecoverable. For the former, we clear B_INVAL|B_NOCACHE
 		 * and keep the buffer around for potential write retries.
 		 * For the latter (eg ESTALE), we toss the buffer away (B_INVAL)
-		 * and save the error in the nfsnode. This is less than ideal 
+		 * and save the error in the nfsnode. This is less than ideal
 		 * but necessary. Keeping such buffers around could potentially
 		 * cause buffer exhaustion eventually (they can never be written
 		 * out, so will get constantly be re-dirtied). It also causes
-		 * all sorts of vfs panics. For non-recoverable write errors, 
+		 * all sorts of vfs panics. For non-recoverable write errors,
 		 * also invalidate the attrcache, so we'll be forced to go over
 		 * the wire for this object, returning an error to user on next
 		 * call (most of the time).
 		 */
-    		if (error == EINTR || error == EIO || error == ETIMEDOUT
+		if (error == EINTR || error == EIO || error == ETIMEDOUT
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			int s;
 
@@ -1787,7 +1788,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 			    (bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
 			splx(s);
-	    	} else {
+		} else {
 		    if (error) {
 			bp->b_ioflags |= BIO_ERROR;
 			bp->b_flags |= B_INVAL;
@@ -1840,16 +1841,16 @@ ncl_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 		int bufsize;
 
 		/*
-		 * vtruncbuf() doesn't get the buffer overlapping the 
+		 * vtruncbuf() doesn't get the buffer overlapping the
 		 * truncation point.  We may have a B_DELWRI and/or B_CACHE
 		 * buffer that now needs to be truncated.
 		 */
 		error = vtruncbuf(vp, cred, nsize, biosize);
 		lbn = nsize / biosize;
-		bufsize = nsize & (biosize - 1);
+		bufsize = nsize - (lbn * biosize);
 		bp = nfs_getcacheblk(vp, lbn, bufsize, td);
- 		if (!bp)
- 			return EINTR;
+		if (!bp)
+			return EINTR;
 		if (bp->b_dirtyoff > bp->b_bcount)
 			bp->b_dirtyoff = bp->b_bcount;
 		if (bp->b_dirtyend > bp->b_bcount)

@@ -38,9 +38,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/fnv_hash.h>
+#include <sys/lock.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -1270,7 +1272,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
 
-	VM_OBJECT_LOCK(uobj);
+	VM_OBJECT_WLOCK(uobj);
 	if (newsize < oldsize) {
 		/*
 		 * Zero the truncated part of the last page.
@@ -1290,9 +1292,9 @@ retry:
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
-					VM_OBJECT_UNLOCK(uobj);
+					VM_OBJECT_WUNLOCK(uobj);
 					VM_WAIT;
-					VM_OBJECT_LOCK(uobj);
+					VM_OBJECT_WLOCK(uobj);
 					goto retry;
 				} else if (m->valid != VM_PAGE_BITS_ALL) {
 					ma[0] = m;
@@ -1312,7 +1314,7 @@ retry:
 					if (ignerr)
 						m = NULL;
 					else {
-						VM_OBJECT_UNLOCK(uobj);
+						VM_OBJECT_WUNLOCK(uobj);
 						return (EIO);
 					}
 				}
@@ -1334,7 +1336,7 @@ retry:
 		}
 	}
 	uobj->size = newpages;
-	VM_OBJECT_UNLOCK(uobj);
+	VM_OBJECT_WUNLOCK(uobj);
 
 	TMPFS_LOCK(tmp);
 	tmp->tm_pages_used += (newpages - oldpages);
@@ -1353,7 +1355,8 @@ retry:
  * The vnode must be locked on entry and remain locked on exit.
  */
 int
-tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
+tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
+    struct thread *p)
 {
 	int error;
 	struct tmpfs_node *node;

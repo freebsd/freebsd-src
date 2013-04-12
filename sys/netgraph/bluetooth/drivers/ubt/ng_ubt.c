@@ -386,6 +386,39 @@ static const STRUCT_USB_HOST_ID ubt_ignore_devs[] =
 {
 	/* AVM USB Bluetooth-Adapter BlueFritz! v1.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x2200, 0) },
+
+	/* Atheros 3011 with sflash firmware */
+	{ USB_VPI(0x0cf3, 0x3002, 0) },
+	{ USB_VPI(0x0cf3, 0xe019, 0) },
+	{ USB_VPI(0x13d3, 0x3304, 0) },
+	{ USB_VPI(0x0930, 0x0215, 0) },
+	{ USB_VPI(0x0489, 0xe03d, 0) },
+	{ USB_VPI(0x0489, 0xe027, 0) },
+
+	/* Atheros AR9285 Malbec with sflash firmware */
+	{ USB_VPI(0x03f0, 0x311d, 0) },
+
+	/* Atheros 3012 with sflash firmware */
+	{ USB_VPI(0x0cf3, 0x3004, 0) },
+	{ USB_VPI(0x0cf3, 0x311d, 0) },
+	{ USB_VPI(0x13d3, 0x3375, 0) },
+	{ USB_VPI(0x04ca, 0x3005, 0) },
+	{ USB_VPI(0x04ca, 0x3006, 0) },
+	{ USB_VPI(0x04ca, 0x3008, 0) },
+	{ USB_VPI(0x13d3, 0x3362, 0) },
+	{ USB_VPI(0x0cf3, 0xe004, 0) },
+	{ USB_VPI(0x0930, 0x0219, 0) },
+	{ USB_VPI(0x0489, 0xe057, 0) },
+	{ USB_VPI(0x13d3, 0x3393, 0) },
+	{ USB_VPI(0x0489, 0xe04e, 0) },
+	{ USB_VPI(0x0489, 0xe056, 0) },
+
+	/* Atheros AR5BBU12 with sflash firmware */
+	{ USB_VPI(0x0489, 0xe02c, 0) },
+
+	/* Atheros AR5BBU12 with sflash firmware */
+	{ USB_VPI(0x0489, 0xe03c, 0) },
+	{ USB_VPI(0x0489, 0xe036, 0) },
 };
 
 /* List of supported bluetooth devices */

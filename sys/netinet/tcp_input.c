@@ -120,11 +120,6 @@ __FBSDID("$FreeBSD$");
 
 const int tcprexmtthresh = 3;
 
-VNET_DEFINE(struct tcpstat, tcpstat);
-SYSCTL_VNET_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(tcpstat), tcpstat,
-    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
-
 int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0,
@@ -245,17 +240,76 @@ static void inline	hhook_run_tcp_est_in(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to);
 
 /*
+ * TCP statistics are stored in struct tcpstat_p, which is
+ * an "array" of counter(9)s.  Although it isn't a real
+ * array, we treat it as array to reduce code bloat.
+ */
+VNET_DEFINE(struct tcpstat_p, tcpstatp);
+
+static void
+vnet_tcpstatp_init(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
+	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
+	    i++, c++) {
+		*c = counter_u64_alloc(M_WAITOK);
+		counter_u64_zero(*c);
+	}
+}
+VNET_SYSINIT(vnet_tcpstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+	    vnet_tcpstatp_init, NULL);
+
+#ifdef VIMAGE
+static void
+vnet_tcpstatp_uninit(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
+	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
+	    i++, c++)
+		counter_u64_free(*c);
+}
+VNET_SYSUNINIT(vnet_tcpstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+	    vnet_tcpstatp_uninit, NULL);
+#endif /* VIMAGE */
+
+static int
+tcpstat_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct tcpstat tcpstat;
+	counter_u64_t *c;
+	uint64_t *v;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_tcpstatp, v = (uint64_t *)&tcpstat;
+	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
+	    i++, c++, v++) {
+		*v = counter_u64_fetch(*c);
+		if (req->newptr)
+			counter_u64_zero(*c);
+	}
+
+	return (SYSCTL_OUT(req, &tcpstat, sizeof(tcpstat)));
+}
+
+SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_STATS, stats, CTLTYPE_OPAQUE |
+    CTLFLAG_RW, NULL, 0, tcpstat_sysctl, "I", 
+    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
+
+/*
  * Kernel module interface for updating tcpstat.  The argument is an index
- * into tcpstat treated as an array of u_long.  While this encodes the
- * general layout of tcpstat into the caller, it doesn't encode its location,
- * so that future changes to add, for example, per-CPU stats support won't
- * cause binary compatibility problems for kernel modules.
+ * into tcpstat treated as an array.
  */
 void
 kmod_tcpstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_tcpstat + statnum))++;
+	counter_u64_add((counter_u64_t )&V_tcpstatp + statnum, 1);
 }
 
 /*
@@ -768,15 +822,6 @@ tcp_input(struct mbuf *m, int off0)
 	} else
 		ti_locked = TI_UNLOCKED;
 
-findpcb:
-#ifdef INVARIANTS
-	if (ti_locked == TI_WLOCKED) {
-		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-	} else {
-		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-	}
-#endif
-
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
@@ -793,6 +838,14 @@ findpcb:
 	    )
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
+findpcb:
+#ifdef INVARIANTS
+	if (ti_locked == TI_WLOCKED) {
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	} else {
+		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+	}
+#endif
 #ifdef INET6
 	if (isipv6 && fwd_tag != NULL) {
 		struct sockaddr_in6 *next_hop6;
@@ -817,10 +870,6 @@ findpcb:
 			    th->th_dport, INPLOOKUP_WILDCARD |
 			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
 		}
-		/* Remove the tag from the packet.  We don't need it anymore. */
-		m_tag_delete(m, fwd_tag);
-		m->m_flags &= ~M_IP6_NEXTHOP;
-		fwd_tag = NULL;
 	} else if (isipv6) {
 		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
 		    th->th_sport, &ip6->ip6_dst, th->th_dport,
@@ -855,10 +904,6 @@ findpcb:
 			    th->th_dport, INPLOOKUP_WILDCARD |
 			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
 		}
-		/* Remove the tag from the packet.  We don't need it anymore. */
-		m_tag_delete(m, fwd_tag);
-		m->m_flags &= ~M_IP_NEXTHOP;
-		fwd_tag = NULL;
 	} else
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
 		    th->th_sport, ip->ip_dst, th->th_dport,
@@ -1360,6 +1405,15 @@ relocked:
 		 */
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		return;
+	} else if (tp->t_state == TCPS_LISTEN) {
+		/*
+		 * When a listen socket is torn down the SO_ACCEPTCONN
+		 * flag is removed first while connections are drained
+		 * from the accept queue in a unlock/lock cycle of the
+		 * ACCEPT_LOCK, opening a race condition allowing a SYN
+		 * attempt go through unhandled.
+		 */
+		goto dropunlock;
 	}
 
 #ifdef TCP_SIGNATURE

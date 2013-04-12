@@ -306,10 +306,14 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		    & AR_TxIntrReq;
 		ads->ds_ctl2 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl2);
 		ads->ds_ctl3 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl3);
+		/* ctl6 - we only need encrtype; the rest are blank */
+		ads->ds_ctl6 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType);
 #else
 		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
 		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
 		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
+		/* ctl6 - we only need encrtype; the rest are blank */
+		ads->ds_ctl6 = AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType;
 #endif
 	} else {			/* !firstSeg && !lastSeg */
 		/*
@@ -318,8 +322,10 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 #ifdef AH_NEED_DESC_SWAP
 		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
 		    & AR_TxIntrReq;
+		ads->ds_ctl6 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType);
 #else
 		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
+		ads->ds_ctl6 = AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType;
 #endif
 		ads->ds_ctl1 = segLen | AR_TxMore;
 		ads->ds_ctl2 = 0;
@@ -663,6 +669,26 @@ ar5416GetGlobalTxTimeout(struct ath_hal *ah)
 	return MS(OS_REG_READ(ah, AR_GTXTO), AR_GTXTO_TIMEOUT_LIMIT);
 }
 
+#define	HT_RC_2_MCS(_rc)	((_rc) & 0x0f)
+static const u_int8_t baDurationDelta[] = {
+	24,	//  0: BPSK
+	12,	//  1: QPSK 1/2
+	12,	//  2: QPSK 3/4
+	4,	//  3: 16-QAM 1/2
+	4,	//  4: 16-QAM 3/4
+	4,	//  5: 64-QAM 2/3
+	4,	//  6: 64-QAM 3/4
+	4,	//  7: 64-QAM 5/6
+	24,	//  8: BPSK
+	12,	//  9: QPSK 1/2
+	12,	// 10: QPSK 3/4
+	4,	// 11: 16-QAM 1/2
+	4,	// 12: 16-QAM 3/4
+	4,	// 13: 64-QAM 2/3
+	4,	// 14: 64-QAM 3/4
+	4,	// 15: 64-QAM 5/6
+};
+
 void
 ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
         u_int durUpdateEn, u_int rtsctsRate,
@@ -673,20 +699,6 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 
 	HALASSERT(nseries == 4);
 	(void)nseries;
-
-	/*
-	 * XXX since the upper layers doesn't know the current chainmask
-	 * XXX setup, just override its decisions here.
-	 * XXX The upper layers need to be taught this!
-	 */
-	if (series[0].Tries != 0)
-		series[0].ChSel = AH5416(ah)->ah_tx_chainmask;
-	if (series[1].Tries != 0)
-		series[1].ChSel = AH5416(ah)->ah_tx_chainmask;
-	if (series[2].Tries != 0)
-		series[2].ChSel = AH5416(ah)->ah_tx_chainmask;
-	if (series[3].Tries != 0)
-		series[3].ChSel = AH5416(ah)->ah_tx_chainmask;
 
 	/*
 	 * Only one of RTS and CTS enable must be set.
@@ -734,17 +746,44 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		     | SM(rtsctsRate, AR_RTSCTSRate);
 }
 
+/*
+ * Note: this should be called before calling ar5416SetBurstDuration()
+ * (if it is indeed called) in order to ensure that the burst duration
+ * is correctly updated with the BA delta workaround.
+ */
 void
 ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds, u_int aggrLen,
     u_int numDelims)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t flags;
+	uint32_t burstDur;
+	uint8_t rate;
 
 	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
 
 	ads->ds_ctl6 &= ~(AR_AggrLen | AR_PadDelim);
 	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
 	ads->ds_ctl6 |= SM(numDelims, AR_PadDelim);
+
+	if (! AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		/*
+		 * XXX It'd be nice if I were passed in the rate scenario
+		 * at this point..
+		 */
+		rate = MS(ads->ds_ctl3, AR_XmitRate0);
+		flags = ads->ds_ctl0 & (AR_CTSEnable | AR_RTSEnable);
+		/*
+		 * WAR - MAC assumes normal ACK time instead of
+		 * block ACK while computing packet duration.
+		 * Add this delta to the burst duration in the descriptor.
+		 */
+		if (flags && (ads->ds_ctl1 & AR_IsAggr)) {
+			burstDur = baDurationDelta[HT_RC_2_MCS(rate)];
+			ads->ds_ctl2 &= ~(AR_BurstDur);
+			ads->ds_ctl2 |= SM(burstDur, AR_BurstDur);
+		}
+	}
 }
 
 void
@@ -787,13 +826,46 @@ ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds)
 }
 
 void
+ar5416Set11nVirtualMoreFrag(struct ath_hal *ah, struct ath_desc *ds,
+    u_int vmf)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+	if (vmf)
+		ads->ds_ctl0 |= AR_VirtMoreFrag;
+	else
+		ads->ds_ctl0 &= ~AR_VirtMoreFrag;
+}
+
+/*
+ * Program the burst duration, with the included BA delta if it's
+ * applicable.
+ */
+void
 ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds,
                                                   u_int burstDuration)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t burstDur = 0;
+	uint8_t rate;
+
+	if (! AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		/*
+		 * XXX It'd be nice if I were passed in the rate scenario
+		 * at this point..
+		 */
+		rate = MS(ads->ds_ctl3, AR_XmitDataTries0);
+		/*
+		 * WAR - MAC assumes normal ACK time instead of
+		 * block ACK while computing packet duration.
+		 * Add this delta to the burst duration in the descriptor.
+		 */
+		if (ads->ds_ctl1 & AR_IsAggr) {
+			burstDur = baDurationDelta[HT_RC_2_MCS(rate)];
+		}
+	}
 
 	ads->ds_ctl2 &= ~AR_BurstDur;
-	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
+	ads->ds_ctl2 |= SM(burstDur + burstDuration, AR_BurstDur);
 }
 
 /*
@@ -1119,10 +1191,10 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			 * XXX which I gather is because of such a long
 			 * XXX cabq time.)
 			 */
-			value = (ahp->ah_beaconInterval * 70 / 100)
-				- (ah->ah_config.ah_sw_beacon_response_time
-				+ ah->ah_config.ah_dma_beacon_response_time)
-				- ah->ah_config.ah_additional_swba_backoff;
+			value = (ahp->ah_beaconInterval * 50 / 100)
+				- ah->ah_config.ah_additional_swba_backoff
+				- ah->ah_config.ah_sw_beacon_response_time
+				+ ah->ah_config.ah_dma_beacon_response_time;
 			/*
 			 * XXX Ensure it isn't too low - nothing lower
 			 * XXX than 10 TU

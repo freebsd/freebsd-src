@@ -80,9 +80,6 @@ int guest_tslice = DEFAULT_GUEST_TSLICE;
 int guest_hz = DEFAULT_GUEST_HZ;
 char *vmname;
 
-u_long lomem_sz;
-u_long himem_sz;
-
 int guest_ncpus;
 
 static int pincpu = -1;
@@ -94,9 +91,6 @@ static int foundcpus;
 static int strictio;
 
 static int acpi;
-
-static char *lomem_addr;
-static char *himem_addr;
 
 static char *progname;
 static const int BSP = 0;
@@ -147,8 +141,7 @@ usage(int code)
 		"       -z: guest hz (default is %d)\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
-		"       -m: lowmem in MB\n"
-		"       -M: highmem in MB\n"
+		"       -m: memory size in MB\n"
 		"       -x: mux vcpus to 1 hcpu\n"
 		"       -t: mux vcpu timeslice hz (default %d)\n",
 		progname, DEFAULT_GDB_PORT, DEFAULT_GUEST_HZ,
@@ -157,17 +150,10 @@ usage(int code)
 }
 
 void *
-paddr_guest2host(uintptr_t gaddr)
+paddr_guest2host(struct vmctx *ctx, uintptr_t gaddr, size_t len)
 {
-	if (lomem_sz == 0)
-		return (NULL);
 
-	if (gaddr < lomem_sz) {
-		return ((void *)(lomem_addr + gaddr));
-	} else if (gaddr >= 4*GB && gaddr < (4*GB + himem_sz)) {
-		return ((void *)(himem_addr + gaddr - 4*GB));
-	} else
-		return (NULL);
+	return (vm_map_gpa(ctx, gaddr, len));
 }
 
 int
@@ -520,13 +506,17 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 static void
 vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
+	cpuset_t mask;
 	int error, rc, prevcpu;
 
 	if (guest_vcpu_mux)
 		setup_timeslice();
 
 	if (pincpu >= 0) {
-		error = vm_set_pinning(ctx, vcpu, pincpu + vcpu);
+		CPU_ZERO(&mask);
+		CPU_SET(pincpu + vcpu, &mask);
+		error = pthread_setaffinity_np(pthread_self(),
+					       sizeof(mask), &mask);
 		assert(error == 0);
 	}
 
@@ -598,6 +588,7 @@ main(int argc, char *argv[])
 	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
+	size_t memsize;
 
 	bvmcons = 0;
 	inject_bkpt = 0;
@@ -605,8 +596,9 @@ main(int argc, char *argv[])
 	gdb_port = DEFAULT_GDB_PORT;
 	guest_ncpus = 1;
 	ioapic = 0;
+	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehABHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
+	while ((c = getopt(argc, argv, "abehABHIPxp:g:c:z:s:S:n:m:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -645,10 +637,7 @@ main(int argc, char *argv[])
 			pci_parse_slot(optarg, 1);
 			break;
                 case 'm':
-			lomem_sz = strtoul(optarg, NULL, 0) * MB;
-			break;
-                case 'M':
-			himem_sz = strtoul(optarg, NULL, 0) * MB;
+			memsize = strtoul(optarg, NULL, 0) * MB;
 			break;
 		case 'H':
 			guest_vmexit_on_hlt = 1;
@@ -733,19 +722,13 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (lomem_sz != 0) {
-		lomem_addr = vm_map_memory(ctx, 0, lomem_sz);
-		if (lomem_addr == (char *) MAP_FAILED) {
-			lomem_sz = 0;
-		} else if (himem_sz != 0) {
-			himem_addr = vm_map_memory(ctx, 4*GB, himem_sz);
-			if (himem_addr == (char *) MAP_FAILED) {
-				lomem_sz = 0;
-				himem_sz = 0;
-			}
-		}
+	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
+	if (err) {
+		fprintf(stderr, "Unable to setup memory (%d)\n", err);
+		exit(1);
 	}
 
+	init_mem();
 	init_inout();
 	init_pci(ctx);
 	if (ioapic)

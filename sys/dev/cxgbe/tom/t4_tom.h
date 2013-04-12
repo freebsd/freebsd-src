@@ -234,7 +234,7 @@ u_long select_rcv_wnd(struct socket *);
 int select_rcv_wscale(void);
 uint64_t calc_opt0(struct socket *, struct port_info *, struct l2t_entry *,
     int, int, int, int);
-uint32_t select_ntuple(struct port_info *, struct l2t_entry *, uint32_t);
+uint64_t select_ntuple(struct port_info *, struct l2t_entry *, uint32_t);
 void set_tcpddp_ulp_mode(struct toepcb *);
 int negative_advice(int);
 struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *);

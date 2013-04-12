@@ -5,8 +5,8 @@
 PROG=	ar
 SRCS=	ar.c acplex.l acpyacc.y read.c util.c write.c y.tab.h
 
-DPADD=	${LIBARCHIVE} ${LIBELF}
-LDADD=	-larchive -lelf
+DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBZ}
+LDADD=	-larchive -lelf -lz
 
 CFLAGS+=-I. -I${.CURDIR}
 

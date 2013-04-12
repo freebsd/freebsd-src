@@ -239,6 +239,7 @@ struct run_softc {
 	uint8_t				sta_running;
 	uint8_t				rvp_cnt;
 	uint8_t				rvp_bmap;
+	uint8_t				sc_detached;
 
 	union {
 		struct run_rx_radiotap_header th;

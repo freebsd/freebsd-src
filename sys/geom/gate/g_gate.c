@@ -245,8 +245,6 @@ g_gate_start(struct bio *pbp)
 			}
 			cbp->bio_done = g_gate_done;
 			cbp->bio_offset = pbp->bio_offset + sc->sc_readoffset;
-			cbp->bio_data = pbp->bio_data;
-			cbp->bio_length = pbp->bio_length;
 			cbp->bio_to = sc->sc_readcons->provider;
 			g_io_request(cbp, sc->sc_readcons);
 			return;
@@ -813,7 +811,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			}
 		}
 		ggio->gctl_cmd = bp->bio_cmd;
-		if ((bp->bio_cmd == BIO_DELETE || bp->bio_cmd == BIO_WRITE) &&
+		if (bp->bio_cmd == BIO_WRITE &&
 		    bp->bio_length > ggio->gctl_length) {
 			mtx_unlock(&sc->sc_queue_mtx);
 			ggio->gctl_length = bp->bio_length;

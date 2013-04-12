@@ -1203,9 +1203,9 @@ do {								\
 		args->f_id.dst_port = dst_port = ntohs(dst_port);
 	}
 
-	IPFW_RLOCK(chain);
+	IPFW_PF_RLOCK(chain);
 	if (! V_ipfw_vnet_ready) { /* shutting down, leave NOW. */
-		IPFW_RUNLOCK(chain);
+		IPFW_PF_RUNLOCK(chain);
 		return (IP_FW_PASS);	/* accept */
 	}
 	if (args->rule.slot) {
@@ -1622,6 +1622,32 @@ do {								\
 			case O_IPTOS:
 				match = (is_ipv4 &&
 				    flags_match(cmd, ip->ip_tos));
+				break;
+
+			case O_DSCP:
+			    {
+				uint32_t *p;
+				uint16_t x;
+
+				p = ((ipfw_insn_u32 *)cmd)->d;
+
+				if (is_ipv4)
+					x = ip->ip_tos >> 2;
+				else if (is_ipv6) {
+					uint8_t *v;
+					v = &((struct ip6_hdr *)ip)->ip6_vfc;
+					x = (*v & 0x0F) << 2;
+					v++;
+					x |= *v >> 6;
+				} else
+					break;
+
+				/* DSCP bitmask is stored as low_u32 high_u32 */
+				if (x > 32)
+					match = *(p + 1) & (1 << (x - 32));
+				else
+					match = *p & (1 << x);
+			    }
 				break;
 
 			case O_TCPDATALEN:
@@ -2353,6 +2379,32 @@ do {								\
 				break;
 		        }
 
+			case O_SETDSCP: {
+				uint16_t code;
+
+				code = IP_FW_ARG_TABLEARG(cmd->arg1) & 0x3F;
+				l = 0;		/* exit inner loop */
+				if (is_ipv4) {
+					uint16_t a;
+
+					a = ip->ip_tos;
+					ip->ip_tos = (code << 2) | (ip->ip_tos & 0x03);
+					a += ntohs(ip->ip_sum) - ip->ip_tos;
+					ip->ip_sum = htons(a);
+				} else if (is_ipv6) {
+					uint8_t *v;
+
+					v = &((struct ip6_hdr *)ip)->ip6_vfc;
+					*v = (*v & 0xF0) | (code >> 2);
+					v++;
+					*v = (*v & 0x3F) | ((code & 0x03) << 6);
+				} else
+					break;
+
+				IPFW_INC_RULE_COUNTER(f, pktlen);
+				break;
+			}
+
 			case O_NAT:
  				if (!IPFW_NAT_LOADED) {
 				    retval = IP_FW_DENY;
@@ -2459,7 +2511,7 @@ do {								\
 		retval = IP_FW_DENY;
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	}
-	IPFW_RUNLOCK(chain);
+	IPFW_PF_RUNLOCK(chain);
 #ifdef __FreeBSD__
 	if (ucred_cache != NULL)
 		crfree(ucred_cache);

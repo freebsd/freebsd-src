@@ -281,12 +281,16 @@ kernel: buildkernel installkernel
 #
 upgrade_checks:
 .if !defined(.PARSEDIR)
+.if defined(WITH_BMAKE)
+	(cd ${.CURDIR} && ${MAKE} bmake)
+.else
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
 	    (cd ${.CURDIR} && ${MAKE} make); \
 	fi
+.endif
 .endif
 
 #
@@ -302,12 +306,12 @@ MMAKE=		${MMAKEENV} ${MAKE} \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR
 
-make: .PHONY
+make bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/make; \
+	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
@@ -361,7 +365,7 @@ MAKEFAIL=tee -a ${FAILFILE}
 MAKEFAIL=cat
 .endif
 
-universe: universe_prologue
+universe: universe_prologue upgrade_checks
 universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
@@ -371,7 +375,7 @@ universe_prologue:
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}
-.ORDER: universe_prologue universe_${target} universe_epilogue
+.ORDER: universe_prologue upgrade_checks universe_${target}_prologue universe_${target} universe_epilogue
 universe_${target}: universe_${target}_prologue
 universe_${target}_prologue:
 	@echo ">> ${target} started on `LC_ALL=C date`"
@@ -392,6 +396,14 @@ universe_${target}_${target_arch}: universe_${target}_prologue
 .endfor
 .endif
 .if !defined(MAKE_JUST_WORLDS)
+# If we are building world and kernels wait for the required worlds to finish
+.if !defined(MAKE_JUST_KERNELS)
+.for target_arch in ${TARGET_ARCHES_${target}}
+universe_${target}_kernels: universe_${target}_${target_arch}
+.endfor
+.endif
+universe_${target}: universe_${target}_kernels
+universe_${target}_kernels: universe_${target}_prologue
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \

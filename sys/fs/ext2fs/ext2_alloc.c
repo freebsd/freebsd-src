@@ -80,12 +80,8 @@ static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
  *        available block is located.
  */
 int
-ext2_alloc(ip, lbn, bpref, size, cred, bnp)
-	struct inode *ip;
-	int32_t lbn, bpref;
-	int size;
-	struct ucred *cred;
-	int32_t *bnp;
+ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
+    struct ucred *cred, int32_t *bnp)
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
@@ -159,11 +155,7 @@ static int doreallocblks = 0;
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
 int
-ext2_reallocblks(ap)
-	struct vop_reallocblks_args /* {
-		struct vnode *a_vp;
-		struct cluster_save *a_buflist;
-	} */ *ap;
+ext2_reallocblks(struct vop_reallocblks_args *ap)
 {
 	struct m_ext2fs *fs;
 	struct inode *ip;
@@ -350,11 +342,7 @@ fail:
  * 
  */
 int
-ext2_valloc(pvp, mode, cred, vpp)
-	struct vnode *pvp;
-	int mode;
-	struct ucred *cred;
-	struct vnode **vpp;
+ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 {
 	struct timespec ts;
 	struct inode *pip;
@@ -562,12 +550,8 @@ ext2_dirpref(struct inode *pip)
  * that will hold the pointer
  */
 int32_t
-ext2_blkpref(ip, lbn, indx, bap, blocknr)
-	struct inode *ip;
-	int32_t lbn;
-	int indx;
-	int32_t *bap;
-	int32_t blocknr;
+ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
+    int32_t blocknr)
 {
 	int	tmp;
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
@@ -810,8 +794,6 @@ ext2_clusteralloc(struct inode *ip, int cg, daddr_t bpref, int len)
 		goto fail_lock;
 
 	bbp = (char *)bp->b_data;
-	bp->b_xflags |= BX_BKGRDWRITE;
-
 	EXT2_LOCK(ump);
 	/*
 	 * Check to see if a cluster of the needed size (or bigger) is
@@ -972,10 +954,7 @@ gotit:
  *
  */
 void
-ext2_blkfree(ip, bno, size)
-	struct inode *ip;
-	int32_t bno;
-	long size;
+ext2_blkfree(struct inode *ip, int32_t bno, long size)
 {
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -1021,10 +1000,7 @@ ext2_blkfree(ip, bno, size)
  *
  */
 int
-ext2_vfree(pvp, ino, mode)
-	struct vnode *pvp;
-	ino_t ino;
-	int mode;
+ext2_vfree(struct vnode *pvp, ino_t ino, int mode)
 {
 	struct m_ext2fs *fs;
 	struct inode *pip;
@@ -1113,10 +1089,7 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
  *	fs: error message
  */
 static void
-ext2_fserr(fs, uid, cp)
-	struct m_ext2fs *fs;
-	uid_t uid;
-	char *cp;
+ext2_fserr(struct m_ext2fs *fs, uid_t uid, char *cp)
 {
 
 	log(LOG_ERR, "uid %u on %s: %s\n", uid, fs->e2fs_fsmnt, cp);

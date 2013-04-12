@@ -107,7 +107,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	int saved_inbdflush;
 	static struct timeval lastfail;
 	static int curfail;
-	int reclaimed;
+	int gbflags, reclaimed;
 
 	ip = VTOI(vp);
 	dp = ip->i_din1;
@@ -123,6 +123,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		return (EOPNOTSUPP);
 	if (lbn < 0)
 		return (EFBIG);
+	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
 
 	if (DOINGSOFTDEP(vp))
 		softdep_prealloc(vp, MNT_WAIT);
@@ -211,7 +212,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			    nsize, flags, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, lbn, nsize, 0, 0, 0);
+			bp = getblk(vp, lbn, nsize, 0, 0, gbflags);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
@@ -245,7 +246,8 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	lbns_remfree = lbns;
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
+		pref = ffs_blkpref_ufs1(ip, lbn, -indirs[0].in_off - 1,
+		    (ufs1_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
 			curthread_pflags_restore(saved_inbdflush);
@@ -255,7 +257,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[1].in_lbn;
-		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
+		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, gbflags);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
@@ -298,7 +300,8 @@ retry:
 		}
 		UFS_LOCK(ump);
 		if (pref == 0)
-			pref = ffs_blkpref_ufs1(ip, lbn, 0, (ufs1_daddr_t *)0);
+			pref = ffs_blkpref_ufs1(ip, lbn, i - num - 1,
+			    (ufs1_daddr_t *)0);
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
@@ -389,7 +392,7 @@ retry:
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = lbn;
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
@@ -418,16 +421,17 @@ retry:
 		if (seqcount && (vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			error = cluster_read(vp, ip->i_size, lbn,
 			    (int)fs->fs_bsize, NOCRED,
-			    MAXBSIZE, seqcount, &nbp);
+			    MAXBSIZE, seqcount, gbflags, &nbp);
 		} else {
-			error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
+			error = bread_gb(vp, lbn, (int)fs->fs_bsize, NOCRED,
+			    gbflags, &nbp);
 		}
 		if (error) {
 			brelse(nbp);
 			goto fail;
 		}
 	} else {
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
 	curthread_pflags_restore(saved_inbdflush);
@@ -539,7 +543,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	int saved_inbdflush;
 	static struct timeval lastfail;
 	static int curfail;
-	int reclaimed;
+	int gbflags, reclaimed;
 
 	ip = VTOI(vp);
 	dp = ip->i_din2;
@@ -553,6 +557,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	*bpp = NULL;
 	if (lbn < 0)
 		return (EFBIG);
+	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
 
 	if (DOINGSOFTDEP(vp))
 		softdep_prealloc(vp, MNT_WAIT);
@@ -603,7 +608,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			panic("ffs_balloc_ufs2: BA_METAONLY for ext block");
 		nb = dp->di_extb[lbn];
 		if (nb != 0 && dp->di_extsize >= smalllblktosize(fs, lbn + 1)) {
-			error = bread(vp, -1 - lbn, fs->fs_bsize, NOCRED, &bp);
+			error = bread_gb(vp, -1 - lbn, fs->fs_bsize, NOCRED,
+			    gbflags, &bp);
 			if (error) {
 				brelse(bp);
 				return (error);
@@ -620,7 +626,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			osize = fragroundup(fs, blkoff(fs, dp->di_extsize));
 			nsize = fragroundup(fs, size);
 			if (nsize <= osize) {
-				error = bread(vp, -1 - lbn, osize, NOCRED, &bp);
+				error = bread_gb(vp, -1 - lbn, osize, NOCRED,
+				    gbflags, &bp);
 				if (error) {
 					brelse(bp);
 					return (error);
@@ -653,7 +660,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			   nsize, flags, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, -1 - lbn, nsize, 0, 0, 0);
+			bp = getblk(vp, -1 - lbn, nsize, 0, 0, gbflags);
 			bp->b_blkno = fsbtodb(fs, newb);
 			bp->b_xflags |= BX_ALTDATA;
 			if (flags & BA_CLRBUF)
@@ -679,9 +686,9 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		if (osize < fs->fs_bsize && osize > 0) {
 			UFS_LOCK(ump);
 			error = ffs_realloccg(ip, nb, dp->di_db[nb],
-				ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
-				    &dp->di_db[0]), osize, (int)fs->fs_bsize,
-				    flags, cred, &bp);
+			    ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
+			    &dp->di_db[0]), osize, (int)fs->fs_bsize,
+			    flags, cred, &bp);
 			if (error)
 				return (error);
 			if (DOINGSOFTDEP(vp))
@@ -707,7 +714,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			panic("ffs_balloc_ufs2: BA_METAONLY for direct block");
 		nb = dp->di_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
-			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
+			error = bread_gb(vp, lbn, fs->fs_bsize, NOCRED,
+			    gbflags, &bp);
 			if (error) {
 				brelse(bp);
 				return (error);
@@ -723,7 +731,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			osize = fragroundup(fs, blkoff(fs, ip->i_size));
 			nsize = fragroundup(fs, size);
 			if (nsize <= osize) {
-				error = bread(vp, lbn, osize, NOCRED, &bp);
+				error = bread_gb(vp, lbn, osize, NOCRED,
+				    gbflags, &bp);
 				if (error) {
 					brelse(bp);
 					return (error);
@@ -733,7 +742,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				UFS_LOCK(ump);
 				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
 				    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
-				       &dp->di_db[0]), osize, nsize, flags,
+				    &dp->di_db[0]), osize, nsize, flags,
 				    cred, &bp);
 				if (error)
 					return (error);
@@ -753,7 +762,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				&dp->di_db[0]), nsize, flags, cred, &newb);
 			if (error)
 				return (error);
-			bp = getblk(vp, lbn, nsize, 0, 0, 0);
+			bp = getblk(vp, lbn, nsize, 0, 0, gbflags);
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
@@ -787,7 +796,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	lbns_remfree = lbns;
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
+		pref = ffs_blkpref_ufs2(ip, lbn, -indirs[0].in_off - 1,
+		    (ufs2_daddr_t *)0);
 	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags, cred, &newb)) != 0) {
 			curthread_pflags_restore(saved_inbdflush);
@@ -797,7 +807,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[1].in_lbn;
-		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0, 0);
+		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0,
+		    GB_UNMAPPED);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
@@ -840,7 +851,8 @@ retry:
 		}
 		UFS_LOCK(ump);
 		if (pref == 0)
-			pref = ffs_blkpref_ufs2(ip, lbn, 0, (ufs2_daddr_t *)0);
+			pref = ffs_blkpref_ufs2(ip, lbn, i - num - 1,
+			    (ufs2_daddr_t *)0);
 		if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb)) != 0) {
 			brelse(bp);
@@ -862,7 +874,8 @@ retry:
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[i].in_lbn;
-		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0, 0);
+		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0,
+		    GB_UNMAPPED);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(nbp);
 		if (DOINGSOFTDEP(vp)) {
@@ -931,7 +944,7 @@ retry:
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = lbn;
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
@@ -966,16 +979,17 @@ retry:
 		if (seqcount && (vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			error = cluster_read(vp, ip->i_size, lbn,
 			    (int)fs->fs_bsize, NOCRED,
-			    MAXBSIZE, seqcount, &nbp);
+			    MAXBSIZE, seqcount, gbflags, &nbp);
 		} else {
-			error = bread(vp, lbn, (int)fs->fs_bsize, NOCRED, &nbp);
+			error = bread_gb(vp, lbn, (int)fs->fs_bsize,
+			    NOCRED, gbflags, &nbp);
 		}
 		if (error) {
 			brelse(nbp);
 			goto fail;
 		}
 	} else {
-		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, 0);
+		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0, gbflags);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
 	curthread_pflags_restore(saved_inbdflush);

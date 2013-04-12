@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pioctl.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/sf_buf.h>
@@ -438,9 +439,6 @@ interpret:
 	} else {
 		AUDIT_ARG_FD(args->fd);
 		/*
-		 * Some might argue that CAP_READ and/or CAP_MMAP should also
-		 * be required here; such arguments will be entertained.
-		 *
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
 		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
@@ -932,7 +930,7 @@ exec_map_first_page(imgp)
 	object = imgp->vp->v_object;
 	if (object == NULL)
 		return (EACCES);
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 #if VM_NRESERVLEVEL > 0
 	if ((object->flags & OBJ_COLORED) == 0) {
 		object->flags |= OBJ_COLORED;
@@ -967,7 +965,7 @@ exec_map_first_page(imgp)
 				vm_page_free(ma[0]);
 				vm_page_unlock(ma[0]);
 			}
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			return (EIO);
 		}
 	}
@@ -975,7 +973,7 @@ exec_map_first_page(imgp)
 	vm_page_hold(ma[0]);
 	vm_page_unlock(ma[0]);
 	vm_page_wakeup(ma[0]);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	imgp->firstpage = sf_buf_alloc(ma[0], 0);
 	imgp->image_header = (char *)sf_buf_kva(imgp->firstpage);

@@ -227,17 +227,18 @@ namei(struct nameidata *ndp)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			error = fgetvp_rights(td, ndp->ni_dirfd,
 			    ndp->ni_rightsneeded | CAP_LOOKUP,
-			    &(ndp->ni_baserights), &dp);
+			    &ndp->ni_filecaps, &dp);
 #ifdef CAPABILITIES
 			/*
-			 * Lookups relative to a capability must also be
+			 * If file descriptor doesn't have all rights,
+			 * all lookups relative to it must also be
 			 * strictly relative.
-			 *
-			 * Note that a capability with rights CAP_MASK_VALID
-			 * is treated exactly like a regular file descriptor.
 			 */
-			if (ndp->ni_baserights != CAP_MASK_VALID)
+			if (ndp->ni_filecaps.fc_rights != CAP_ALL ||
+			    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
+			    ndp->ni_filecaps.fc_nioctls != -1) {
 				ndp->ni_strictrelative = 1;
+			}
 #endif
 		}
 		if (error != 0 || dp != NULL) {
@@ -339,7 +340,7 @@ namei(struct nameidata *ndp)
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_td = (struct thread *)0;
+		auio.uio_td = td;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {
@@ -697,6 +698,10 @@ unionlookup:
 	    VOP_ISLOCKED(dp) == LK_SHARED &&
 	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
 		vn_lock(dp, LK_UPGRADE|LK_RETRY);
+	if ((dp->v_iflag & VI_DOOMED) != 0) {
+		error = ENOENT;
+		goto bad;
+	}
 	/*
 	 * If we're looking up the last component and we need an exclusive
 	 * lock, adjust our lkflags.

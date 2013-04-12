@@ -70,7 +70,6 @@ struct vcpu {
 	int		flags;
 	enum vcpu_state	state;
 	struct mtx	mtx;
-	int		pincpu;		/* host cpuid this vcpu is bound to */
 	int		hostcpu;	/* host cpuid this vcpu last ran on */
 	uint64_t	guest_msrs[VMM_MSR_NUM];
 	struct vlapic	*vlapic;
@@ -81,18 +80,6 @@ struct vcpu {
 	enum x2apic_state x2apic_state;
 	int		nmi_pending;
 };
-#define	VCPU_F_PINNED	0x0001
-
-#define	VCPU_PINCPU(vm, vcpuid)	\
-    ((vm->vcpu[vcpuid].flags & VCPU_F_PINNED) ? vm->vcpu[vcpuid].pincpu : -1)
-
-#define	VCPU_UNPIN(vm, vcpuid)	(vm->vcpu[vcpuid].flags &= ~VCPU_F_PINNED)
-
-#define	VCPU_PIN(vm, vcpuid, host_cpuid)				\
-do {									\
-	vm->vcpu[vcpuid].flags |= VCPU_F_PINNED;			\
-	vm->vcpu[vcpuid].pincpu = host_cpuid;				\
-} while(0)
 
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
@@ -115,6 +102,8 @@ struct vm {
 	 */
 	cpuset_t	active_cpus;
 };
+
+static int vmm_initialized;
 
 static struct vmm_ops *ops;
 #define	VMM_INIT()	(ops != NULL ? (*ops->init)() : 0)
@@ -152,7 +141,7 @@ static MALLOC_DEFINE(M_VM, "vm", "vm");
 CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 
 /* statistics */
-static VMM_STAT_DEFINE(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
+static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
 
 static void
 vcpu_cleanup(struct vcpu *vcpu)
@@ -226,6 +215,8 @@ vmm_handler(module_t mod, int what, void *arg)
 		vmmdev_init();
 		iommu_init();
 		error = vmm_init();
+		if (error == 0)
+			vmm_initialized = 1;
 		break;
 	case MOD_UNLOAD:
 		error = vmmdev_cleanup();
@@ -234,6 +225,7 @@ vmm_handler(module_t mod, int what, void *arg)
 			vmm_ipi_cleanup();
 			error = VMM_CLEANUP();
 		}
+		vmm_initialized = 0;
 		break;
 	default:
 		error = 0;
@@ -262,8 +254,8 @@ MODULE_VERSION(vmm, 1);
 
 SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
 
-struct vm *
-vm_create(const char *name)
+int
+vm_create(const char *name, struct vm **retvm)
 {
 	int i;
 	struct vm *vm;
@@ -271,8 +263,15 @@ vm_create(const char *name)
 
 	const int BSP = 0;
 
+	/*
+	 * If vmm.ko could not be successfully initialized then don't attempt
+	 * to create the virtual machine.
+	 */
+	if (!vmm_initialized)
+		return (ENXIO);
+
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
-		return (NULL);
+		return (EINVAL);
 
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
@@ -287,7 +286,8 @@ vm_create(const char *name)
 	vm->iommu = iommu_create_domain(maxaddr);
 	vm_activate_cpu(vm, BSP);
 
-	return (vm);
+	*retvm = vm;
+	return (0);
 }
 
 static void
@@ -594,52 +594,6 @@ vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 	return (VMSETDESC(vm->cookie, vcpu, reg, desc));
 }
 
-int
-vm_get_pinning(struct vm *vm, int vcpuid, int *cpuid)
-{
-
-	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
-		return (EINVAL);
-
-	*cpuid = VCPU_PINCPU(vm, vcpuid);
-
-	return (0);
-}
-
-int
-vm_set_pinning(struct vm *vm, int vcpuid, int host_cpuid)
-{
-	struct thread *td;
-
-	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
-		return (EINVAL);
-
-	td = curthread;		/* XXXSMP only safe when muxing vcpus */
-
-	/* unpin */
-	if (host_cpuid < 0) {
-		VCPU_UNPIN(vm, vcpuid);
-		thread_lock(td);
-		sched_unbind(td);
-		thread_unlock(td);
-		return (0);
-	}
-
-	if (CPU_ABSENT(host_cpuid))
-		return (EINVAL);
-
-	/*
-	 * XXX we should check that 'host_cpuid' has not already been pinned
-	 * by another vm.
-	 */
-	thread_lock(td);
-	sched_bind(td, host_cpuid);
-	thread_unlock(td);
-	VCPU_PIN(vm, vcpuid, host_cpuid);
-
-	return (0);
-}
-
 static void
 restore_guest_fpustate(struct vcpu *vcpu)
 {
@@ -671,7 +625,7 @@ save_guest_fpustate(struct vcpu *vcpu)
 	fpu_start_emulating();
 }
 
-static VMM_STAT_DEFINE(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
+static VMM_STAT(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
 
 int
 vm_run(struct vm *vm, struct vm_run *vmrun)
@@ -776,7 +730,7 @@ vm_inject_event(struct vm *vm, int vcpuid, int type,
 	return (VMINJECT(vm->cookie, vcpuid, type, vector, code, code_valid));
 }
 
-static VMM_STAT_DEFINE(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
+static VMM_STAT(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
 
 int
 vm_inject_nmi(struct vm *vm, int vcpuid)
@@ -996,7 +950,7 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
 
-	if (state < 0 || state >= X2APIC_STATE_LAST)
+	if (state >= X2APIC_STATE_LAST)
 		return (EINVAL);
 
 	vm->vcpu[vcpuid].x2apic_state = state;

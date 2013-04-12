@@ -55,13 +55,8 @@
  * the inode and the logical block number in a file.
  */
 int
-ext2_balloc(ip, lbn, size, cred, bpp, flags)
-	struct inode *ip;
-	int32_t lbn;
-	int size;
-	struct ucred *cred;
-	struct buf **bpp;
-	int flags;
+ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
+    struct buf **bpp, int flags)
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
@@ -281,7 +276,7 @@ ext2_balloc(ip, lbn, size, cred, bpp, flags)
 		if (seqcount && (vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			error = cluster_read(vp, ip->i_size, lbn,
 			    (int)fs->e2fs_bsize, NOCRED,
-			    MAXBSIZE, seqcount, &nbp);
+			    MAXBSIZE, seqcount, 0, &nbp);
 		} else {
 			error = bread(vp, lbn, (int)fs->e2fs_bsize, NOCRED, &nbp);
 		}

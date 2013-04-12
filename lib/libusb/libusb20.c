@@ -24,13 +24,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
-
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
 #include <ctype.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/queue.h>
+#endif
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -71,6 +75,7 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_check_connected (void *)dummy_int
 #define	dummy_set_power_mode (void *)dummy_int
 #define	dummy_get_power_mode (void *)dummy_int
+#define	dummy_get_power_usage (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
 #define	dummy_do_request_sync (void *)dummy_int
@@ -715,6 +720,18 @@ libusb20_dev_get_power_mode(struct libusb20_device *pdev)
 	if (error)
 		power_mode = LIBUSB20_POWER_ON;	/* fake power mode */
 	return (power_mode);
+}
+
+uint16_t
+libusb20_dev_get_power_usage(struct libusb20_device *pdev)
+{
+	int error;
+	uint16_t power_usage;
+
+	error = pdev->methods->get_power_usage(pdev, &power_usage);
+	if (error)
+		power_usage = 0;
+	return (power_usage);
 }
 
 int

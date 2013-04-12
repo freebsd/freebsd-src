@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.20 2012/01/17 03:03:39 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.24 2013/02/12 00:00:40 djm Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -40,7 +40,7 @@
 # define EVP_CIPHER_CTX_get_app_data(e)		((e)->app_data)
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x1000000fL
+#if OPENSSL_VERSION_NUMBER < 0x10000001L
 # define LIBCRYPTO_EVP_INL_TYPE unsigned int
 #else
 # define LIBCRYPTO_EVP_INL_TYPE size_t
@@ -59,18 +59,41 @@
 # define EVP_aes_128_cbc evp_rijndael
 # define EVP_aes_192_cbc evp_rijndael
 # define EVP_aes_256_cbc evp_rijndael
-extern const EVP_CIPHER *evp_rijndael(void);
-extern void ssh_rijndael_iv(EVP_CIPHER_CTX *, int, u_char *, u_int);
+const EVP_CIPHER *evp_rijndael(void);
+void ssh_rijndael_iv(EVP_CIPHER_CTX *, int, u_char *, u_int);
 #endif
 
-#if !defined(EVP_CTRL_SET_ACSS_MODE)
-# if (OPENSSL_VERSION_NUMBER >= 0x00907000L)
-#  define USE_CIPHER_ACSS 1
-extern const EVP_CIPHER *evp_acss(void);
-#  define EVP_acss evp_acss
+#ifndef OPENSSL_HAVE_EVPCTR
+#define EVP_aes_128_ctr evp_aes_128_ctr
+#define EVP_aes_192_ctr evp_aes_128_ctr
+#define EVP_aes_256_ctr evp_aes_128_ctr
+const EVP_CIPHER *evp_aes_128_ctr(void);
+void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
+#endif
+
+/* Avoid some #ifdef. Code that uses these is unreachable without GCM */
+#if !defined(OPENSSL_HAVE_EVPGCM) && !defined(EVP_CTRL_GCM_SET_IV_FIXED)
+# define EVP_CTRL_GCM_SET_IV_FIXED -1
+# define EVP_CTRL_GCM_IV_GEN -1
+# define EVP_CTRL_GCM_SET_TAG -1
+# define EVP_CTRL_GCM_GET_TAG -1
+#endif
+
+/* Replace missing EVP_CIPHER_CTX_ctrl() with something that returns failure */
+#ifndef HAVE_EVP_CIPHER_CTX_CTRL
+# ifdef OPENSSL_HAVE_EVPGCM
+#  error AES-GCM enabled without EVP_CIPHER_CTX_ctrl /* shouldn't happen */
 # else
-#  define EVP_acss NULL
+# define EVP_CIPHER_CTX_ctrl(a,b,c,d) (0)
 # endif
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#define EVP_X_STATE(evp)	&(evp).c
+#define EVP_X_STATE_LEN(evp)	sizeof((evp).c)
+#else
+#define EVP_X_STATE(evp)	(evp).cipher_data
+#define EVP_X_STATE_LEN(evp)	(evp).cipher->ctx_size
 #endif
 
 /* OpenSSL 0.9.8e returns cipher key len not context key len */

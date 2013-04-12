@@ -381,7 +381,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * know what the blocksize of this device is, if 
 	 * it even has a blocksize.
 	 */
-	mtx_unlock(periph->sim->mtx);
+	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
 	softc->device_stats = devstat_new_entry("pass",
 			  periph->unit_number, 0,
@@ -417,7 +417,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 */
 	dev_ref(softc->dev);
 
-	mtx_lock(periph->sim->mtx);
+	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
 	TASK_INIT(&softc->add_physpath_task, /*priority*/0,
@@ -696,8 +696,11 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * do the right thing, even if there isn't data to map, but since CCBs
 	 * without data are a reasonably common occurance (e.g. test unit
 	 * ready), it will save a few cycles if we check for it here.
+	 *
+	 * XXX What happens if a sg list is supplied?  We don't filter that
+	 * out.
 	 */
-	if (((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0)
+	if (((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR)
 	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO ||
 	       ccb->ccb_h.func_code == XPT_ATA_IO)
 	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))
