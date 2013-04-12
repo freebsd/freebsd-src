@@ -66,7 +66,17 @@ opendir(const char *name)
 DIR *
 fdopendir(int fd)
 {
+	struct stat statb;
 
+	/* Check that fd is associated with a directory. */
+	if (_fstat(fd, &statb) != 0)
+		return (NULL);
+	if (!S_ISDIR(statb.st_mode)) {
+		errno = ENOTDIR;
+		return (NULL);
+	}
+	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+		return (NULL);
 	return (__opendir_common(fd, NULL, DTF_HIDEW|DTF_NODUP));
 }
 
@@ -74,19 +84,9 @@ DIR *
 __opendir2(const char *name, int flags)
 {
 	int fd;
-	struct stat statb;
 
-	/*
-	 * stat() before _open() because opening of special files may be
-	 * harmful.
-	 */
-	if (stat(name, &statb) != 0)
-		return (NULL);
-	if (!S_ISDIR(statb.st_mode)) {
-		errno = ENOTDIR;
-		return (NULL);
-	}
-	if ((fd = _open(name, O_RDONLY | O_NONBLOCK | O_DIRECTORY)) == -1)
+	if ((fd = _open(name,
+	    O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC)) == -1)
 		return (NULL);
 
 	return __opendir_common(fd, name, flags);
@@ -110,19 +110,9 @@ __opendir_common(int fd, const char *name, int flags)
 	int incr;
 	int saved_errno;
 	int unionstack;
-	struct stat statb;
 
-	dirp = NULL;
-	/* _fstat() the open handler because the file may have changed.  */
-	if (_fstat(fd, &statb) != 0)
-		goto fail;
-	if (!S_ISDIR(statb.st_mode)) {
-		errno = ENOTDIR;
-		goto fail;
-	}
-	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
-	    (dirp = malloc(sizeof(DIR) + sizeof(struct _telldir))) == NULL)
-		goto fail;
+	if ((dirp = malloc(sizeof(DIR) + sizeof(struct _telldir))) == NULL)
+		return (NULL);
 
 	dirp->dd_td = (struct _telldir *)((char *)dirp + sizeof(DIR));
 	LIST_INIT(&dirp->dd_td->td_locq);
