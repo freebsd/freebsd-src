@@ -837,7 +837,7 @@ AcpiDmXrefDescendingOp (
             }
         }
 
-        AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, ParamCount);
+        AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, ParamCount | 0x80);
         Op->Common.Node = Node;
     }
     else

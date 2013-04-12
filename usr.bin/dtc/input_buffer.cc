@@ -43,6 +43,10 @@
 #include <sys/mman.h>
 #include <assert.h>
 
+#ifndef MAP_PREFAULT_READ
+#define MAP_PREFAULT_READ 0
+#endif
+
 namespace dtc
 {
 

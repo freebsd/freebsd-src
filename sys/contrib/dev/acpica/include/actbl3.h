@@ -195,7 +195,7 @@ typedef struct acpi_fpdt_header
 enum AcpiFpdtType
 {
     ACPI_FPDT_TYPE_BOOT                 = 0,
-    ACPI_FPDT_TYPE_S3PERF               = 1,
+    ACPI_FPDT_TYPE_S3PERF               = 1
 };
 
 
@@ -257,7 +257,7 @@ typedef struct acpi_s3pt_header
 enum AcpiS3ptType
 {
     ACPI_S3PT_TYPE_RESUME               = 0,
-    ACPI_S3PT_TYPE_SUSPEND              = 1,
+    ACPI_S3PT_TYPE_SUSPEND              = 1
 };
 
 typedef struct acpi_s3pt_resume
@@ -599,28 +599,67 @@ typedef struct acpi_rasf_shared_memory
     UINT32                  Signature;
     UINT16                  Command;
     UINT16                  Status;
-    UINT64                  RequestedAddress;
-    UINT64                  RequestedLength;
-    UINT64                  ActualAddress;
-    UINT64                  ActualLength;
-    UINT16                  Flags;
-    UINT8                   Speed;
+    UINT16                  Version;
+    UINT8                   Capabilities[16];
+    UINT8                   SetCapabilities[16];
+    UINT16                  NumParameterBlocks;
+    UINT32                  SetCapabilitiesStatus;
 
 } ACPI_RASF_SHARED_MEMORY;
+
+/* RASF Parameter Block Structure Header */
+
+typedef struct acpi_rasf_parameter_block
+{
+    UINT16                  Type;
+    UINT16                  Version;
+    UINT16                  Length;
+
+} ACPI_RASF_PARAMETER_BLOCK;
+
+/* RASF Parameter Block Structure for PATROL_SCRUB */
+
+typedef struct acpi_rasf_patrol_scrub_parameter
+{
+    ACPI_RASF_PARAMETER_BLOCK   Header;
+    UINT16                      PatrolScrubCommand;
+    UINT64                      RequestedAddressRange[2];
+    UINT64                      ActualAddressRange[2];
+    UINT16                      Flags;
+    UINT8                       RequestedSpeed;
+
+} ACPI_RASF_PATROL_SCRUB_PARAMETER;
 
 /* Masks for Flags and Speed fields above */
 
 #define ACPI_RASF_SCRUBBER_RUNNING      1
 #define ACPI_RASF_SPEED                 (7<<1)
+#define ACPI_RASF_SPEED_SLOW            (0<<1)
+#define ACPI_RASF_SPEED_MEDIUM          (4<<1)
+#define ACPI_RASF_SPEED_FAST            (7<<1)
 
 /* Channel Commands */
 
 enum AcpiRasfCommands
 {
-    ACPI_RASF_GET_RAS_CAPABILITIES      = 1,
-    ACPI_RASF_GET_PATROL_PARAMETERS     = 2,
-    ACPI_RASF_START_PATROL_SCRUBBER     = 3,
-    ACPI_RASF_STOP_PATROL_SCRUBBER      = 4
+    ACPI_RASF_EXECUTE_RASF_COMMAND      = 1
+};
+
+/* Platform RAS Capabilities */
+
+enum AcpiRasfCapabiliities
+{
+    ACPI_HW_PATROL_SCRUB_SUPPORTED      = 0,
+    ACPI_SW_PATROL_SCRUB_EXPOSED        = 1
+};
+
+/* Patrol Scrub Commands */
+
+enum AcpiRasfPatrolScrubCommands
+{
+    ACPI_RASF_GET_PATROL_PARAMETERS     = 1,
+    ACPI_RASF_START_PATROL_SCRUBBER     = 2,
+    ACPI_RASF_STOP_PATROL_SCRUBBER      = 3
 };
 
 /* Channel Command flags */

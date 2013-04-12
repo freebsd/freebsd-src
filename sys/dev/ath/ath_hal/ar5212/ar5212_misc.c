@@ -1413,3 +1413,9 @@ ar5212GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 
 	return (AH_FALSE);
 }
+
+void
+ar5212SetChainMasks(struct ath_hal *ah, uint32_t tx_chainmask,
+    uint32_t rx_chainmask)
+{
+}

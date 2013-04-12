@@ -323,6 +323,7 @@ vendor GUNZE		0x0637	Gunze Electronics USA
 vendor AVISION		0x0638	Avision
 vendor TEAC		0x0644	TEAC
 vendor ACTON		0x0647	Acton Research Corp.
+vendor OPTO		0x065a	Optoelectronics Co., Ltd
 vendor SGI		0x065e	Silicon Graphics
 vendor SANWASUPPLY	0x0663	Sanwa Supply
 vendor MEGATEC		0x0665	Megatec
@@ -650,6 +651,7 @@ vendor OWEN		0x1555	Owen
 vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
+vendor AFATECH		0x15a4	Afatech Technologies, Inc.
 vendor SPARKLAN		0x15a9	SparkLAN
 vendor OLIMEX		0x15ba	Olimex
 vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
@@ -915,6 +917,9 @@ product ADS UBS10BTX		0x0009	UBS-10BT Ethernet
 
 /* AEI products */
 product AEI FASTETHERNET	0x1701	Fast Ethernet
+
+/* Afatech Technologies, Inc. */
+product AFATECH AFATECH1336	0x1336	Flash Card Reader
 
 /* Agate Technologies products */
 product AGATE QDRIVE		0x0378	Q-Drive
@@ -1511,6 +1516,8 @@ product DLINK DSB650TX3		0x400b	10/100 Ethernet
 product DLINK DSB650TX2		0x4102	10/100 Ethernet
 product DLINK DSB650		0xabc1	10/100 Ethernet
 product DLINK DUBH7		0xf103	DUB-H7 USB 2.0 7-Port Hub
+product DLINK DWR510_CD		0xa805	DWR-510 CD-ROM Mode
+product DLINK DWR510		0x7e12	DWR-510
 product DLINK2 DWA120		0x3a0c	DWA-120
 product DLINK2 DWA120_NF	0x3a0d	DWA-120 (no firmware)
 product DLINK2 DWLG122C1	0x3c03	DWL-G122 c1
@@ -1717,6 +1724,7 @@ product FTDI 232H		0x6014	FTDI compatible adapter
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
 product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
 product FTDI BEAGLEBONE		0xa6d0	BeagleBone
+product FTDI KTLINK		0xbbe2	KT-LINK Embedded Hackers Multitool
 product FTDI TURTELIZER2	0xbdc8	egnite Turtelizer 2 JTAG/RS232 Adapter
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
@@ -1870,6 +1878,7 @@ product FTDI IRTRANS		0xfc60	FTDI compatible adapter
 product FTDI LENZ_LIUSB		0xd780	FTDI compatible adapter
 product FTDI LM3S_DEVEL_BOARD	0xbcd8	FTDI compatible adapter
 product FTDI LM3S_EVAL_BOARD	0xbcd9	FTDI compatible adapter
+product FTDI LM3S_ICDI_B_BOARD	0xbcda	FTDI compatible adapter
 product FTDI MASTERDEVEL2	0xf449	FTDI compatible adapter
 product FTDI MHAM_DB9		0xeeed	FTDI compatible adapter
 product FTDI MHAM_IC		0xeeec	FTDI compatible adapter
@@ -2493,6 +2502,7 @@ product LOGITEC RT2870_2	0x0163	RT2870
 product LOGITEC RT2870_3	0x0164	RT2870
 product LOGITEC LANW300NU2	0x0166  LAN-W300N/U2
 product LOGITEC LANW150NU2	0x0168  LAN-W150N/U2
+product LOGITEC LANW300NU2S	0x0169	LAN-W300N/U2S
 
 /* Longcheer Holdings, Ltd. products */
 product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA
@@ -3000,6 +3010,7 @@ product NETAC ONLYDISK		0x0003	OnlyDisk
 /* NetChip Technology Products */
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
 product NETCHIP CLIK_40		0xa140	USB Clik! 40
+product NETCHIP GADGETZERO	0xa4a0	Linux Gadget Zero
 product NETCHIP ETHERNETGADGET	0xa4a2	Linux Ethernet/RNDIS gadget on pxa210/25x/26x
 
 /* Netgear products */
@@ -3144,6 +3155,13 @@ product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
 product OPTION ICON505		0xd055	Globetrotter iCON 505
 product OPTION ICON452		0x7901	Globetrotter iCON 452
+
+/* Optoelectronics Co., Ltd */
+product OPTO BARCODE		0x0001	Barcode Reader
+product OPTO OPTICONCODE	0x0009	Opticon Code Reader
+product OPTO BARCODE_1		0xa002	Barcode Reader
+product OPTO CRD7734		0xc000	USB Cradle CRD-7734-RU
+product OPTO CRD7734_1		0xc001	USB Cradle CRD-7734-RU
 
 /* OvisLink product */
 product OVISLINK RT3072		0x3072	RT3072

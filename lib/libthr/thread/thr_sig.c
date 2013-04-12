@@ -737,13 +737,4 @@ _setcontext(const ucontext_t *ucp)
 	return __sys_setcontext(&uc);
 }
 
-__weak_reference(_swapcontext, swapcontext);
-int
-_swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
-{
-	ucontext_t uc;
-
-	(void) memcpy(&uc, ucp, sizeof(uc));
-	remove_thr_signals(&uc.uc_sigmask);
-	return __sys_swapcontext(oucp, &uc);
-}
+__weak_reference(__sys_swapcontext, swapcontext);

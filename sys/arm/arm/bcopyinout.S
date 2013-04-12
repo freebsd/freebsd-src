@@ -312,6 +312,7 @@ ENTRY(copyin)
 	RESTORE_REGS
 
 	RET
+END(copyin)
 
 /*
  * r0 = kernel space address
@@ -538,6 +539,7 @@ ENTRY(copyout)
 	RESTORE_REGS
 
 	RET
+END(copyout)
 #endif
 
 /*
@@ -564,6 +566,7 @@ ENTRY(badaddr_read_1)
 	mov	r0, #0		/* No fault */
 1:	str	ip, [r2, #PCB_ONFAULT]
 	RET
+END(badaddr_read_1)
 
 /*
  * int badaddr_read_2(const uint16_t *src, uint16_t *dest)
@@ -589,6 +592,7 @@ ENTRY(badaddr_read_2)
 	mov	r0, #0		/* No fault */
 1:	str	ip, [r2, #PCB_ONFAULT]
 	RET
+END(badaddr_read_2)
 
 /*
  * int badaddr_read_4(const uint32_t *src, uint32_t *dest)
@@ -614,4 +618,5 @@ ENTRY(badaddr_read_4)
 	mov	r0, #0		/* No fault */
 1:	str	ip, [r2, #PCB_ONFAULT]
 	RET
+END(badaddr_read_4)
 

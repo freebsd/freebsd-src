@@ -145,6 +145,7 @@ mfip_attach(device_t dev)
 				MFI_SCSI_MAX_CMDS, sc->devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
 		device_printf(dev, "CAM SIM attach failed\n");
 		return (EINVAL);
 	}
@@ -155,7 +156,9 @@ mfip_attach(device_t dev)
 	if (xpt_bus_register(sc->sim, dev, 0) != 0) {
 		device_printf(dev, "XPT bus registration failed\n");
 		cam_sim_free(sc->sim, FALSE);
+		sc->sim = NULL;
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
 		mtx_unlock(&mfisc->mfi_io_lock);
 		return (EINVAL);
 	}
@@ -187,11 +190,14 @@ mfip_detach(device_t dev)
 		mtx_lock(&sc->mfi_sc->mfi_io_lock);
 		xpt_bus_deregister(cam_sim_path(sc->sim));
 		cam_sim_free(sc->sim, FALSE);
+		sc->sim = NULL;
 		mtx_unlock(&sc->mfi_sc->mfi_io_lock);
 	}
 
-	if (sc->devq != NULL)
+	if (sc->devq != NULL) {
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
+	}
 
 	return (0);
 }
@@ -265,17 +271,6 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 			ccbh->status = CAM_REQ_INVALID;
 			break;
 		}
-		if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if (ccbh->flags & CAM_DATA_PHYS) {
-				ccbh->status = CAM_REQ_INVALID;
-				break;
-			}
-			if (ccbh->flags & CAM_SCATTER_VALID) {
-				ccbh->status = CAM_REQ_INVALID;
-				break;
-			}
-		}
-
 		ccbh->ccb_mfip_ptr = sc;
 		TAILQ_INSERT_TAIL(&mfisc->mfi_cam_ccbq, ccbh, sim_links.tqe);
 		mfi_startio(mfisc);
@@ -380,14 +375,14 @@ mfip_start(void *data)
 	cm->cm_private = ccb;
 	cm->cm_sg = &pt->sgl;
 	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
-	cm->cm_data = csio->data_ptr;
+	cm->cm_data = ccb;
 	cm->cm_len = csio->dxfer_len;
 	switch (ccbh->flags & CAM_DIR_MASK) {
 	case CAM_DIR_IN:
-		cm->cm_flags = MFI_CMD_DATAIN;
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_CCB;
 		break;
 	case CAM_DIR_OUT:
-		cm->cm_flags = MFI_CMD_DATAOUT;
+		cm->cm_flags = MFI_CMD_DATAOUT | MFI_CMD_CCB;
 		break;
 	case CAM_DIR_NONE:
 	default:

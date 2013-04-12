@@ -42,7 +42,7 @@
  */
 extern int plinno;
 extern int parsenleft;		/* number of characters left in input buffer */
-extern char *parsenextc;	/* next character in input buffer */
+extern const char *parsenextc;	/* next character in input buffer */
 
 struct alias;
 struct parsefile;
@@ -55,7 +55,7 @@ void pungetc(void);
 void pushstring(char *, int, struct alias *);
 void setinputfile(const char *, int);
 void setinputfd(int, int);
-void setinputstring(char *, int);
+void setinputstring(const char *, int);
 void popfile(void);
 struct parsefile *getcurrentfile(void);
 void popfilesupto(struct parsefile *);

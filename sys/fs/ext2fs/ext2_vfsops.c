@@ -320,8 +320,8 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	struct buf *bp;
 	uint32_t e2fs_descpb;
 
-	fs->e2fs_bsize = EXT2_MIN_BLOCK_SIZE << es->e2fs_log_bsize;
 	fs->e2fs_bshift = EXT2_MIN_BLOCK_LOG_SIZE + es->e2fs_log_bsize;
+	fs->e2fs_bsize = 1U << fs->e2fs_bshift;
 	fs->e2fs_fsbtodb = es->e2fs_log_bsize + 1;
 	fs->e2fs_qbmask = fs->e2fs_bsize - 1;
 	fs->e2fs_fsize = EXT2_MIN_FRAG_SIZE << es->e2fs_log_fsize;
@@ -527,6 +527,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	int ronly;
 	int i, size;
 	int32_t *lp;
+	int32_t e2fs_maxcontig;
 
 	ronly = vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0);
 	/* XXX: use VOP_ACESS to check FS perms */
@@ -601,12 +602,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * in ext2fs doesn't have these variables, so we can calculate 
 	 * them here.
 	 */
-	ump->um_e2fs->e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
-	if (ump->um_e2fs->e2fs_maxcontig > 0)
-		ump->um_e2fs->e2fs_contigsumsize =
-		    MIN(ump->um_e2fs->e2fs_maxcontig, EXT2_MAXCONTIG);
-	else
-		ump->um_e2fs->e2fs_contigsumsize = 0;
+	e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
+	ump->um_e2fs->e2fs_contigsumsize = MIN(e2fs_maxcontig, EXT2_MAXCONTIG);
 	if (ump->um_e2fs->e2fs_contigsumsize > 0) {
 		size = ump->um_e2fs->e2fs_gcount * sizeof(int32_t);
 		ump->um_e2fs->e2fs_maxcluster = malloc(size, M_EXT2MNT, M_WAITOK);

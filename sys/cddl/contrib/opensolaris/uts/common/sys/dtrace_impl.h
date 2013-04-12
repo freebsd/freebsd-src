@@ -23,13 +23,16 @@
 
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Use is subject to license terms.
+ */
+
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
  */
 
 #ifndef _SYS_DTRACE_IMPL_H
 #define	_SYS_DTRACE_IMPL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -207,15 +210,18 @@ typedef struct dtrace_hash {
  * predicate is non-NULL, the DIF object is executed.  If the result is
  * non-zero, the action list is processed, with each action being executed
  * accordingly.  When the action list has been completely executed, processing
- * advances to the next ECB.  processing advances to the next ECB.  If the
- * result is non-zero; For each ECB, it first determines the The ECB
- * abstraction allows disjoint consumers to multiplex on single probes.
+ * advances to the next ECB. The ECB abstraction allows disjoint consumers
+ * to multiplex on single probes.
+ *
+ * Execution of the ECB results in consuming dte_size bytes in the buffer
+ * to record data.  During execution, dte_needed bytes must be available in
+ * the buffer.  This space is used for both recorded data and tuple data.
  */
 struct dtrace_ecb {
 	dtrace_epid_t dte_epid;			/* enabled probe ID */
 	uint32_t dte_alignment;			/* required alignment */
-	size_t dte_needed;			/* bytes needed */
-	size_t dte_size;			/* total size of payload */
+	size_t dte_needed;			/* space needed for execution */
+	size_t dte_size;			/* size of recorded payload */
 	dtrace_predicate_t *dte_predicate;	/* predicate, if any */
 	dtrace_action_t *dte_action;		/* actions, if any */
 	dtrace_ecb_t *dte_next;			/* next ECB on probe */
@@ -273,27 +279,30 @@ typedef struct dtrace_aggregation {
  * the EPID, the consumer can determine the data layout.  (The data buffer
  * layout is shown schematically below.)  By assuring that one can determine
  * data layout from the EPID, the metadata stream can be separated from the
- * data stream -- simplifying the data stream enormously.
+ * data stream -- simplifying the data stream enormously.  The ECB always
+ * proceeds the recorded data as part of the dtrace_rechdr_t structure that
+ * includes the EPID and a high-resolution timestamp used for output ordering
+ * consistency.
  *
- *      base of data buffer --->  +------+--------------------+------+
- *                                | EPID | data               | EPID |
- *                                +------+--------+------+----+------+
- *                                | data          | EPID | data      |
- *                                +---------------+------+-----------+
- *                                | data, cont.                      |
- *                                +------+--------------------+------+
- *                                | EPID | data               |      |
- *                                +------+--------------------+      |
- *                                |                ||                |
- *                                |                ||                |
- *                                |                \/                |
- *                                :                                  :
- *                                .                                  .
- *                                .                                  .
- *                                .                                  .
- *                                :                                  :
- *                                |                                  |
- *     limit of data buffer --->  +----------------------------------+
+ *      base of data buffer --->  +--------+--------------------+--------+
+ *                                | rechdr | data               | rechdr |
+ *                                +--------+------+--------+----+--------+
+ *                                | data          | rechdr | data        |
+ *                                +---------------+--------+-------------+
+ *                                | data, cont.                          |
+ *                                +--------+--------------------+--------+
+ *                                | rechdr | data               |        |
+ *                                +--------+--------------------+        |
+ *                                |                ||                    |
+ *                                |                ||                    |
+ *                                |                \/                    |
+ *                                :                                      :
+ *                                .                                      .
+ *                                .                                      .
+ *                                .                                      .
+ *                                :                                      :
+ *                                |                                      |
+ *     limit of data buffer --->  +--------------------------------------+
  *
  * When evaluating an ECB, dtrace_probe() determines if the ECB's needs of the
  * principal buffer (both scratch and payload) exceed the available space.  If
@@ -429,8 +438,11 @@ typedef struct dtrace_buffer {
 	uint32_t dtb_errors;			/* number of errors */
 	uint32_t dtb_xamot_errors;		/* errors in inactive buffer */
 #ifndef _LP64
-	uint64_t dtb_pad1;
+	uint64_t dtb_pad1;			/* pad out to 64 bytes */
 #endif
+	uint64_t dtb_switched;			/* time of last switch */
+	uint64_t dtb_interval;			/* observed switch interval */
+	uint64_t dtb_pad2[6];			/* pad to avoid false sharing */
 } dtrace_buffer_t;
 
 /*
@@ -1162,7 +1174,7 @@ struct dtrace_provider {
 	dtrace_pops_t dtpv_pops;		/* provider operations */
 	char *dtpv_name;			/* provider name */
 	void *dtpv_arg;				/* provider argument */
-	uint_t dtpv_defunct;			/* boolean: defunct provider */
+	hrtime_t dtpv_defunct;			/* when made defunct */
 	struct dtrace_provider *dtpv_next;	/* next provider */
 };
 

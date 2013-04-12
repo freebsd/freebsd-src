@@ -82,7 +82,13 @@ enum action {
 	ACTION_MKNOD,
 	ACTION_MKNODAT,
 	ACTION_BIND,
+#ifdef HAS_BINDAT
+	ACTION_BINDAT,
+#endif
 	ACTION_CONNECT,
+#ifdef HAS_CONNECTAT
+	ACTION_CONNECTAT,
+#endif
 	ACTION_CHMOD,
 	ACTION_FCHMOD,
 #ifdef HAS_LCHMOD
@@ -98,6 +104,9 @@ enum action {
 #endif
 #ifdef HAS_FCHFLAGS
 	ACTION_FCHFLAGS,
+#endif
+#ifdef HAS_CHFLAGSAT
+	ACTION_CHFLAGSAT,
 #endif
 #ifdef HAS_LCHFLAGS
 	ACTION_LCHFLAGS,
@@ -154,7 +163,13 @@ static struct syscall_desc syscalls[] = {
 	{ "mknod", ACTION_MKNOD, { TYPE_STRING, TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE} },
 	{ "mknodat", ACTION_MKNODAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_NUMBER, TYPE_NUMBER, TYPE_NUMBER, TYPE_NONE} },
 	{ "bind", ACTION_BIND, { TYPE_STRING, TYPE_NONE } },
+#ifdef HAS_BINDAT
+	{ "bindat", ACTION_BINDAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "connect", ACTION_CONNECT, { TYPE_STRING, TYPE_NONE } },
+#ifdef HAS_CONNECTAT
+	{ "connectat", ACTION_CONNECTAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
 	{ "chmod", ACTION_CHMOD, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 	{ "fchmod", ACTION_FCHMOD, { TYPE_DESCRIPTOR, TYPE_NUMBER, TYPE_NONE } },
 #ifdef HAS_LCHMOD
@@ -170,6 +185,9 @@ static struct syscall_desc syscalls[] = {
 #endif
 #ifdef HAS_FCHFLAGS
 	{ "fchflags", ACTION_FCHFLAGS, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#endif
+#ifdef HAS_CHFLAGSAT
+	{ "chflagsat", ACTION_CHFLAGSAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 #endif
 #ifdef HAS_LCHFLAGS
 	{ "lchflags", ACTION_LCHFLAGS, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
@@ -291,6 +309,11 @@ static struct flag unlinkat_flags[] = {
 
 static struct flag linkat_flags[] = {
 	{ AT_SYMLINK_FOLLOW, "AT_SYMLINK_FOLLOW" },
+	{ 0, NULL }
+};
+
+static struct flag chflagsat_flags[] = {
+	{ AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW" },
 	{ 0, NULL }
 };
 
@@ -732,6 +755,22 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = bind(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
+#ifdef HAS_BINDAT
+	case ACTION_BINDAT:
+	    {
+		struct sockaddr_un sunx;
+
+		sunx.sun_family = AF_UNIX;
+		strncpy(sunx.sun_path, STR(1), sizeof(sunx.sun_path) - 1);
+		sunx.sun_path[sizeof(sunx.sun_path) - 1] = '\0';
+		rval = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (rval < 0)
+			break;
+		rval = bindat(NUM(0), rval, (struct sockaddr *)&sunx,
+		    sizeof(sunx));
+		break;
+	    }
+#endif
 	case ACTION_CONNECT:
 	    {
 		struct sockaddr_un sunx;
@@ -745,6 +784,22 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = connect(rval, (struct sockaddr *)&sunx, sizeof(sunx));
 		break;
 	    }
+#ifdef HAS_CONNECTAT
+	case ACTION_CONNECTAT:
+	    {
+		struct sockaddr_un sunx;
+
+		sunx.sun_family = AF_UNIX;
+		strncpy(sunx.sun_path, STR(1), sizeof(sunx.sun_path) - 1);
+		sunx.sun_path[sizeof(sunx.sun_path) - 1] = '\0';
+		rval = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (rval < 0)
+			break;
+		rval = connectat(NUM(0), rval, (struct sockaddr *)&sunx,
+		    sizeof(sunx));
+		break;
+	    }
+#endif
 	case ACTION_CHMOD:
 		rval = chmod(STR(0), (mode_t)NUM(1));
 		break;
@@ -785,9 +840,17 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
+#ifdef HAS_CHFLAGSAT
+	case ACTION_CHFLAGSAT:
+		rval = chflagsat(NUM(0), STR(1),
+		    (unsigned long)str2flags(chflags_flags, STR(2)),
+		    (int)str2flags(chflagsat_flags, STR(3)));
+		break;
+#endif
 #ifdef HAS_LCHFLAGS
 	case ACTION_LCHFLAGS:
-		rval = lchflags(STR(0), (int)str2flags(chflags_flags, STR(1)));
+		rval = lchflags(STR(0),
+		    (unsigned long)str2flags(chflags_flags, STR(1)));
 		break;
 #endif
 	case ACTION_TRUNCATE:

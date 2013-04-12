@@ -449,7 +449,7 @@ AcpiDbWalkForExecute (
     const ACPI_PREDEFINED_INFO *Predefined;
 
 
-    Predefined = AcpiNsCheckForPredefinedName (Node);
+    Predefined = AcpiUtMatchPredefinedMethod (Node->Name.Ascii);
     if (!Predefined)
     {
         return (AE_OK);

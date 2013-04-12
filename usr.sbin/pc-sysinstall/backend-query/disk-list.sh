@@ -82,15 +82,10 @@ do
     esac
   fi
 
-  # Try and find some identification information with camcontrol or atacontrol
+  # Try and find some identification information with camcontrol
   NEWLINE=$(camcontrol identify $DEV 2>/dev/null | sed -ne 's/^device model *//p')
   if [ -z "$NEWLINE" ]; then
-	# Now try atacontrol
-  	NEWLINE=$(atacontrol list 2>/dev/null | sed -n "s|^.*$DEV <\(.*\)>.*|\1|p")
-	
-  	if [ -z "$NEWLINE" ]; then
-    		NEWLINE=" <Unknown Device>"
-	fi
+    	NEWLINE=" <Unknown Device>"
   fi
 
   if [ -n "${FLAGS_MD}" ] && echo "${DEV}" | grep -E '^md[0-9]+' >/dev/null 2>/dev/null

@@ -51,7 +51,7 @@ Only one machine (cluster node) can actively use storage provided by
 This machine is called primary.
 The
 .Nm
-daemon operates on block level, which makes it transparent for file
+daemon operates on block level, which makes it transparent to file
 systems and applications.
 .Pp
 There is one main
@@ -68,7 +68,7 @@ The exact format is:
 hastd: <resource name> (<role>)
 .Ed
 .Pp
-When (and only when)
+If (and only if)
 .Nm
 operates in primary role for the given resource, corresponding
 .Pa /dev/hast/<name>
@@ -77,8 +77,8 @@ File systems and applications can use this provider to send I/O
 requests to.
 Every write, delete and flush operation
 .Dv ( BIO_WRITE , BIO_DELETE , BIO_FLUSH )
-is send to local component and synchronously replicated
-to the remote (secondary) node if it is available.
+is send to local component and replicated to the remote (secondary) node if it
+is available.
 Read operations
 .Dv ( BIO_READ )
 are handled locally unless I/O error occurs or local version of the data

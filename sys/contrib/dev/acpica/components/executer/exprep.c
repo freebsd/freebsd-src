@@ -292,7 +292,7 @@ AcpiExDecodeFieldAccess (
         ACPI_ERROR ((AE_INFO,
             "Unknown field access type 0x%X",
             Access));
-        return_VALUE (0);
+        return_UINT32 (0);
     }
 
     if (ObjDesc->Common.Type == ACPI_TYPE_BUFFER_FIELD)
@@ -306,7 +306,7 @@ AcpiExDecodeFieldAccess (
     }
 
     *ReturnByteAlignment = ByteAlignment;
-    return_VALUE (BitLength);
+    return_UINT32 (BitLength);
 }
 
 

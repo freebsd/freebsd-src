@@ -45,6 +45,7 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_platform.h"
+#include "opt_sched.h"
 #include "opt_timer.h"
 
 #include <sys/cdefs.h>
@@ -70,6 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
+#include <sys/rwlock.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -179,6 +182,10 @@ SYSCTL_UINT(_hw_board, OID_AUTO, revision, CTLFLAG_RD,
     &board_revision, 0, "Board revision");
 SYSCTL_STRING(_hw_board, OID_AUTO, serial, CTLFLAG_RD,
     board_serial, 0, "Board serial");
+
+int vfp_exists;
+SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
+    &vfp_exists, 0, "Floating point support enabled");
 
 void
 board_set_serial(uint64_t serial)
@@ -433,19 +440,24 @@ void
 cpu_idle(int busy)
 {
 	
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
 	}
 #endif
-	cpu_sleep(0);
+	if (!sched_runnable())
+		cpu_sleep(0);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
 	}
 #endif
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int
@@ -1178,7 +1190,6 @@ initarm(struct arm_boot_params *abp)
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	vm_offset_t pmap_bootstrap_lastaddr;
 	uint32_t memsize, l2size;
 	char *env;
 	void *kmdp;
@@ -1288,7 +1299,7 @@ initarm(struct arm_boot_params *abp)
 	availmem_regions_sz = curr;
 
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = initarm_lastaddr();
+	vm_max_kernel_address = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -1477,7 +1488,7 @@ initarm(struct arm_boot_params *abp)
 	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
-	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
+	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();

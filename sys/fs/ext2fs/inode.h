@@ -108,7 +108,6 @@ struct inode {
  */
 #define	i_shortlink	i_db
 #define	i_rdev		i_db[0]
-#define	MAXSYMLINKLEN	((NDADDR + NIADDR) * sizeof(int32_t))
 
 /* File permissions. */
 #define	IEXEC		0000100		/* Executable. */

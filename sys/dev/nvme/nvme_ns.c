@@ -41,32 +41,13 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
-static void
-nvme_ns_cb(void *arg, const struct nvme_completion *status)
-{
-	struct nvme_completion	*cpl = arg;
-	struct mtx		*mtx;
-
-	/*
-	 * Copy status into the argument passed by the caller, so that
-	 *  the caller can check the status to determine if the
-	 *  the request passed or failed.
-	 */
-	memcpy(cpl, status, sizeof(*cpl));
-	mtx = mtx_pool_find(mtxpool_sleep, cpl);
-	mtx_lock(mtx);
-	wakeup(cpl);
-	mtx_unlock(mtx);
-}
-
 static int
 nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
-	struct nvme_namespace	*ns;
-	struct nvme_controller	*ctrlr;
-	struct nvme_completion	cpl;
-	struct mtx		*mtx;
+	struct nvme_completion_poll_status	status;
+	struct nvme_namespace			*ns;
+	struct nvme_controller			*ctrlr;
 
 	ns = cdev->si_drv1;
 	ctrlr = ns->ctrlr;
@@ -84,13 +65,12 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		}
 #endif
 		/* Refresh data before returning to user. */
-		mtx = mtx_pool_find(mtxpool_sleep, &cpl);
-		mtx_lock(mtx);
+		status.done = FALSE;
 		nvme_ctrlr_cmd_identify_namespace(ctrlr, ns->id, &ns->data,
-		    nvme_ns_cb, &cpl);
-		msleep(&cpl, mtx, PRIBIO, "nvme_ioctl", 0);
-		mtx_unlock(mtx);
-		if (cpl.sf_sc || cpl.sf_sct)
+		    nvme_completion_poll_cb, &status);
+		while (status.done == FALSE)
+			DELAY(5);
+		if (nvme_completion_is_error(&status.cpl))
 			return (ENXIO);
 		memcpy(arg, &ns->data, sizeof(ns->data));
 		break;
@@ -132,7 +112,7 @@ nvme_ns_close(struct cdev *dev __unused, int flags, int fmt __unused,
 }
 
 static void
-nvme_ns_strategy_done(void *arg, const struct nvme_completion *status)
+nvme_ns_strategy_done(void *arg, const struct nvme_completion *cpl)
 {
 	struct bio *bp = arg;
 
@@ -140,7 +120,7 @@ nvme_ns_strategy_done(void *arg, const struct nvme_completion *status)
 	 * TODO: add more extensive translation of NVMe status codes
 	 *  to different bio error codes (i.e. EIO, EINVAL, etc.)
 	 */
-	if (status->sf_sc || status->sf_sct) {
+	if (nvme_completion_is_error(cpl)) {
 		bp->bio_error = EIO;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
@@ -170,11 +150,17 @@ nvme_ns_strategy(struct bio *bp)
 
 static struct cdevsw nvme_ns_cdevsw = {
 	.d_version =	D_VERSION,
+#ifdef NVME_UNMAPPED_BIO_SUPPORT
+	.d_flags =	D_DISK | D_UNMAPPED_IO,
+	.d_read =	physread,
+	.d_write =	physwrite,
+#else
 	.d_flags =	D_DISK,
-	.d_open =	nvme_ns_open,
-	.d_close =	nvme_ns_close,
 	.d_read =	nvme_ns_physio,
 	.d_write =	nvme_ns_physio,
+#endif
+	.d_open =	nvme_ns_open,
+	.d_close =	nvme_ns_close,
 	.d_strategy =	nvme_ns_strategy,
 	.d_ioctl =	nvme_ns_ioctl
 };
@@ -221,6 +207,13 @@ nvme_ns_get_model_number(struct nvme_namespace *ns)
 	return ((const char *)ns->ctrlr->cdata.mn);
 }
 
+const struct nvme_namespace_data *
+nvme_ns_get_data(struct nvme_namespace *ns)
+{
+
+	return (&ns->data);
+}
+
 static void
 nvme_ns_bio_done(void *arg, const struct nvme_completion *status)
 {
@@ -246,28 +239,18 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		err = nvme_ns_cmd_read(ns, bp->bio_data,
-			bp->bio_offset/nvme_ns_get_sector_size(ns),
-			bp->bio_bcount/nvme_ns_get_sector_size(ns),
-			nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_read_bio(ns, bp, nvme_ns_bio_done, bp);
 		break;
 	case BIO_WRITE:
-		err = nvme_ns_cmd_write(ns, bp->bio_data,
-			bp->bio_offset/nvme_ns_get_sector_size(ns),
-			bp->bio_bcount/nvme_ns_get_sector_size(ns),
-			nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_write_bio(ns, bp, nvme_ns_bio_done, bp);
 		break;
 	case BIO_FLUSH:
 		err = nvme_ns_cmd_flush(ns, nvme_ns_bio_done, bp);
 		break;
 	case BIO_DELETE:
-		/*
-		 * Note: Chatham2 doesn't support DSM, so this code
-		 *  can't be fully tested yet.
-		 */
 		dsm_range =
 		    malloc(sizeof(struct nvme_dsm_range), M_NVME,
-		    M_ZERO | M_NOWAIT);
+		    M_ZERO | M_WAITOK);
 		dsm_range->length =
 		    bp->bio_bcount/nvme_ns_get_sector_size(ns);
 		dsm_range->starting_lba =
@@ -312,9 +295,7 @@ int
 nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
     struct nvme_controller *ctrlr)
 {
-	struct nvme_completion	cpl;
-	struct mtx		*mtx;
-	int			status;
+	struct nvme_completion_poll_status	status;
 
 	ns->ctrlr = ctrlr;
 	ns->id = id;
@@ -324,26 +305,31 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 		nvme_ns_populate_chatham_data(ns);
 	else {
 #endif
-		mtx = mtx_pool_find(mtxpool_sleep, &cpl);
-
-		mtx_lock(mtx);
+		status.done = FALSE;
 		nvme_ctrlr_cmd_identify_namespace(ctrlr, id, &ns->data,
-		    nvme_ns_cb, &cpl);
-		status = msleep(&cpl, mtx, PRIBIO, "nvme_start", hz*5);
-		mtx_unlock(mtx);
-		if ((status != 0) || cpl.sf_sc || cpl.sf_sct) {
-			printf("nvme_identify_namespace failed!\n");
+		    nvme_completion_poll_cb, &status);
+		while (status.done == FALSE)
+			DELAY(5);
+		if (nvme_completion_is_error(&status.cpl)) {
+			nvme_printf(ctrlr, "nvme_identify_namespace failed\n");
 			return (ENXIO);
 		}
 #ifdef CHATHAM2
 	}
 #endif
 
-	if (ctrlr->cdata.oncs.dsm && ns->data.nsfeat.thin_prov)
+	if (ctrlr->cdata.oncs.dsm)
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
 
 	if (ctrlr->cdata.vwc.present)
 		ns->flags |= NVME_NS_FLUSH_SUPPORTED;
+
+	/*
+	 * cdev may have already been created, if we are reconstructing the
+	 *  namespace after a controller-level reset.
+	 */
+	if (ns->cdev != NULL)
+		return (0);
 
 /*
  * MAKEDEV_ETERNAL was added in r210923, for cdevs that will never
@@ -361,9 +347,15 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	    device_get_unit(ctrlr->dev), ns->id);
 #endif
 
-	if (ns->cdev) {
+	if (ns->cdev != NULL)
 		ns->cdev->si_drv1 = ns;
-	}
 
 	return (0);
+}
+
+void nvme_ns_destruct(struct nvme_namespace *ns)
+{
+
+	if (ns->cdev != NULL)
+		destroy_dev(ns->cdev);
 }

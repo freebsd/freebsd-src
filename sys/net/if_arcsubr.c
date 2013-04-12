@@ -638,11 +638,7 @@ arc_ifattach(struct ifnet *ifp, u_int8_t lla)
 	ifp->if_resolvemulti = arc_resolvemulti;
 	if (ifp->if_baudrate == 0)
 		ifp->if_baudrate = 2500000;
-#if __FreeBSD_version < 500000
-	ifa = ifnet_addrs[ifp->if_index - 1];
-#else
 	ifa = ifp->if_addr;
-#endif
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ARCNET;

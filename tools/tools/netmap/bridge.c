@@ -9,192 +9,21 @@
  * $FreeBSD$
  */
 
-#include <errno.h>
-#include <signal.h> /* signal */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h> /* strcmp */
-#include <fcntl.h> /* open */
-#include <unistd.h> /* close */
+#include "nm_util.h"
 
-#include <sys/endian.h> /* le64toh */
-#include <sys/mman.h> /* PROT_* */
-#include <sys/ioctl.h> /* ioctl */
-#include <machine/param.h>
-#include <sys/poll.h>
-#include <sys/socket.h> /* sockaddr.. */
-#include <arpa/inet.h> /* ntohs */
-
-#include <net/if.h>	/* ifreq */
-#include <net/ethernet.h>
-#include <net/netmap.h>
-#include <net/netmap_user.h>
-
-#include <netinet/in.h> /* sockaddr_in */
-
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 int verbose = 0;
 
-/* debug support */
-#define ND(format, ...) {}
-#define D(format, ...) do {					\
-	if (!verbose) break;					\
-	struct timeval _xxts;					\
-	gettimeofday(&_xxts, NULL);				\
-        fprintf(stderr, "%03d.%06d %s [%d] " format "\n",	\
-	(int)_xxts.tv_sec %1000, (int)_xxts.tv_usec,		\
-        __FUNCTION__, __LINE__, ##__VA_ARGS__);			\
-	} while (0)
-
-
-char *version = "$Id: bridge.c 10857 2012-04-06 12:18:22Z luigi $";
+char *version = "$Id: bridge.c 12016 2013-01-23 17:24:22Z luigi $";
 
 static int do_abort = 0;
 
-/*
- * info on a ring we handle
- */
-struct my_ring {
-	const char *ifname;
-	int fd;
-	char *mem;			/* userspace mmap address */
-	u_int memsize;
-	u_int queueid;
-	u_int begin, end;		/* first..last+1 rings to check */
-	struct netmap_if *nifp;
-	struct netmap_ring *tx, *rx;	/* shortcuts */
-
-	uint32_t if_flags;
-	uint32_t if_reqcap;
-	uint32_t if_curcap;
-};
-
 static void
-sigint_h(__unused int sig)
+sigint_h(int sig)
 {
+	(void)sig;	/* UNUSED */
 	do_abort = 1;
 	signal(SIGINT, SIG_DFL);
-}
-
-
-static int
-do_ioctl(struct my_ring *me, unsigned long what)
-{
-	struct ifreq ifr;
-	int error;
-
-	bzero(&ifr, sizeof(ifr));
-	strncpy(ifr.ifr_name, me->ifname, sizeof(ifr.ifr_name));
-	switch (what) {
-	case SIOCSIFFLAGS:
-		ifr.ifr_flagshigh = me->if_flags >> 16;
-		ifr.ifr_flags = me->if_flags & 0xffff;
-		break;
-	case SIOCSIFCAP:
-		ifr.ifr_reqcap = me->if_reqcap;
-		ifr.ifr_curcap = me->if_curcap;
-		break;
-	}
-	error = ioctl(me->fd, what, &ifr);
-	if (error) {
-		D("ioctl error 0x%lx", what);
-		return error;
-	}
-	switch (what) {
-	case SIOCGIFFLAGS:
-		me->if_flags = (ifr.ifr_flagshigh << 16) |
-			(0xffff & ifr.ifr_flags);
-		if (verbose)
-			D("flags are 0x%x", me->if_flags);
-		break;
-
-	case SIOCGIFCAP:
-		me->if_reqcap = ifr.ifr_reqcap;
-		me->if_curcap = ifr.ifr_curcap;
-		if (verbose)
-			D("curcap are 0x%x", me->if_curcap);
-		break;
-	}
-	return 0;
-}
-
-/*
- * open a device. if me->mem is null then do an mmap.
- */
-static int
-netmap_open(struct my_ring *me, int ringid)
-{
-	int fd, err, l;
-	struct nmreq req;
-
-	me->fd = fd = open("/dev/netmap", O_RDWR);
-	if (fd < 0) {
-		D("Unable to open /dev/netmap");
-		return (-1);
-	}
-	bzero(&req, sizeof(req));
-	strncpy(req.nr_name, me->ifname, sizeof(req.nr_name));
-	req.nr_ringid = ringid;
-	req.nr_version = NETMAP_API;
-	err = ioctl(fd, NIOCGINFO, &req);
-	if (err) {
-		D("cannot get info on %s", me->ifname);
-		goto error;
-	}
-	me->memsize = l = req.nr_memsize;
-	if (verbose)
-		D("memsize is %d MB", l>>20);
-	err = ioctl(fd, NIOCREGIF, &req);
-	if (err) {
-		D("Unable to register %s", me->ifname);
-		goto error;
-	}
-
-	if (me->mem == NULL) {
-		me->mem = mmap(0, l, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
-		if (me->mem == MAP_FAILED) {
-			D("Unable to mmap");
-			me->mem = NULL;
-			goto error;
-		}
-	}
-
-	me->nifp = NETMAP_IF(me->mem, req.nr_offset);
-	me->queueid = ringid;
-	if (ringid & NETMAP_SW_RING) {
-		me->begin = req.nr_rx_rings;
-		me->end = me->begin + 1;
-		me->tx = NETMAP_TXRING(me->nifp, req.nr_tx_rings);
-		me->rx = NETMAP_RXRING(me->nifp, req.nr_rx_rings);
-	} else if (ringid & NETMAP_HW_RING) {
-		D("XXX check multiple threads");
-		me->begin = ringid & NETMAP_RING_MASK;
-		me->end = me->begin + 1;
-		me->tx = NETMAP_TXRING(me->nifp, me->begin);
-		me->rx = NETMAP_RXRING(me->nifp, me->begin);
-	} else {
-		me->begin = 0;
-		me->end = req.nr_rx_rings; // XXX max of the two
-		me->tx = NETMAP_TXRING(me->nifp, 0);
-		me->rx = NETMAP_RXRING(me->nifp, 0);
-	}
-	return (0);
-error:
-	close(me->fd);
-	return -1;
-}
-
-
-static int
-netmap_close(struct my_ring *me)
-{
-	D("");
-	if (me->mem)
-		munmap(me->mem, me->memsize);
-	ioctl(me->fd, NIOCUNREGIF, NULL);
-	close(me->fd);
-	return (0);
 }
 
 
@@ -237,7 +66,7 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 		if (rs->len < 14 || rs->len > 2048)
 			D("wrong len %d rx[%d] -> tx[%d]", rs->len, j, k);
 		else if (verbose > 1)
-			D("send len %d rx[%d] -> tx[%d]", rs->len, j, k);
+			D("%s send len %d rx[%d] -> tx[%d]", msg, rs->len, j, k);
 		ts->len = rs->len;
 
 		/* report the buffer change. */
@@ -251,7 +80,7 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 	rxring->cur = j;
 	txring->cur = k;
 	if (verbose && m > 0)
-		D("sent %d packets to %p", m, txring);
+		D("%s sent %d packets to %p", msg, m, txring);
 
 	return (m);
 }
@@ -287,7 +116,7 @@ move(struct my_ring *src, struct my_ring *dst, u_int limit)
  * how many packets on this set of queues ?
  */
 static int
-howmany(struct my_ring *me, int tx)
+pkt_queued(struct my_ring *me, int tx)
 {
 	u_int i, tot = 0;
 
@@ -337,6 +166,7 @@ main(int argc, char **argv)
 
 	while ( (ch = getopt(argc, argv, "b:i:vw:")) != -1) {
 		switch (ch) {
+		default:
 			D("bad option %c %s", ch, optarg);
 			usage();
 			break;
@@ -361,6 +191,7 @@ main(int argc, char **argv)
 		}
 
 	}
+
 	argc -= optind;
 	argv += optind;
 
@@ -394,43 +225,11 @@ main(int argc, char **argv)
 		/* two different interfaces. Take all rings on if1 */
 		i = 0;	// all hw rings
 	}
-	if (netmap_open(me, i))
+	if (netmap_open(me, i, 1))
 		return (1);
 	me[1].mem = me[0].mem; /* copy the pointer, so only one mmap */
-	if (netmap_open(me+1, 0))
+	if (netmap_open(me+1, 0, 1))
 		return (1);
-
-	/* if bridging two interfaces, set promisc mode */
-	if (i != NETMAP_SW_RING) {
-		do_ioctl(me, SIOCGIFFLAGS);
-		if ((me[0].if_flags & IFF_UP) == 0) {
-			D("%s is down, bringing up...", me[0].ifname);
-			me[0].if_flags |= IFF_UP;
-		}
-		me[0].if_flags |= IFF_PPROMISC;
-		do_ioctl(me, SIOCSIFFLAGS);
-
-		do_ioctl(me+1, SIOCGIFFLAGS);
-		me[1].if_flags |= IFF_PPROMISC;
-		do_ioctl(me+1, SIOCSIFFLAGS);
-
-		/* also disable checksums etc. */
-		do_ioctl(me, SIOCGIFCAP);
-		me[0].if_reqcap = me[0].if_curcap;
-		me[0].if_reqcap &= ~(IFCAP_HWCSUM | IFCAP_TSO | IFCAP_TOE);
-		do_ioctl(me+0, SIOCSIFCAP);
-	}
-	do_ioctl(me+1, SIOCGIFFLAGS);
-	if ((me[1].if_flags & IFF_UP) == 0) {
-		D("%s is down, bringing up...", me[1].ifname);
-		me[1].if_flags |= IFF_UP;
-	}
-	do_ioctl(me+1, SIOCSIFFLAGS);
-
-	do_ioctl(me+1, SIOCGIFCAP);
-	me[1].if_reqcap = me[1].if_curcap;
-	me[1].if_reqcap &= ~(IFCAP_HWCSUM | IFCAP_TSO | IFCAP_TOE);
-	do_ioctl(me+1, SIOCSIFCAP);
 
 	/* setup poll(2) variables. */
 	memset(pollfd, 0, sizeof(pollfd));
@@ -451,8 +250,8 @@ main(int argc, char **argv)
 		int n0, n1, ret;
 		pollfd[0].events = pollfd[1].events = 0;
 		pollfd[0].revents = pollfd[1].revents = 0;
-		n0 = howmany(me, 0);
-		n1 = howmany(me + 1, 0);
+		n0 = pkt_queued(me, 0);
+		n1 = pkt_queued(me + 1, 0);
 		if (n0)
 			pollfd[1].events |= POLLOUT;
 		else
@@ -468,14 +267,14 @@ main(int argc, char **argv)
 				ret <= 0 ? "timeout" : "ok",
 				pollfd[0].events,
 				pollfd[0].revents,
-				howmany(me, 0),
+				pkt_queued(me, 0),
 				me[0].rx->cur,
-				howmany(me, 1),
+				pkt_queued(me, 1),
 				pollfd[1].events,
 				pollfd[1].revents,
-				howmany(me+1, 0),
+				pkt_queued(me+1, 0),
 				me[1].rx->cur,
-				howmany(me+1, 1)
+				pkt_queued(me+1, 1)
 			);
 		if (ret < 0)
 			continue;

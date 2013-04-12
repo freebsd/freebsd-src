@@ -26,6 +26,7 @@
 
 /*
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_DTRACE_H
@@ -303,13 +304,15 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_INET_NTOP		41
 #define	DIF_SUBR_INET_NTOA		42
 #define	DIF_SUBR_INET_NTOA6		43
-#define	DIF_SUBR_MEMREF			44
-#define	DIF_SUBR_TYPEREF		45
-#define	DIF_SUBR_SX_SHARED_HELD		46
-#define	DIF_SUBR_SX_EXCLUSIVE_HELD	47
-#define	DIF_SUBR_SX_ISEXCLUSIVE		48
+#define	DIF_SUBR_TOUPPER		44
+#define	DIF_SUBR_TOLOWER		45
+#define	DIF_SUBR_MEMREF			46
+#define	DIF_SUBR_TYPEREF		47
+#define	DIF_SUBR_SX_SHARED_HELD		48
+#define	DIF_SUBR_SX_EXCLUSIVE_HELD	49
+#define	DIF_SUBR_SX_ISEXCLUSIVE		50
 
-#define	DIF_SUBR_MAX			48	/* max subroutine value */
+#define	DIF_SUBR_MAX			50	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -418,8 +421,10 @@ typedef struct dtrace_difv {
 #define	DTRACEACT_PRINTF		3	/* printf() action */
 #define	DTRACEACT_PRINTA		4	/* printa() action */
 #define	DTRACEACT_LIBACT		5	/* library-controlled action */
-#define	DTRACEACT_PRINTM		6	/* printm() action */
-#define	DTRACEACT_PRINTT		7	/* printt() action */
+#define	DTRACEACT_TRACEMEM		6	/* tracemem() action */
+#define	DTRACEACT_TRACEMEM_DYNSIZE	7	/* dynamic tracemem() size */
+#define	DTRACEACT_PRINTM		8	/* printm() action (BSD) */
+#define	DTRACEACT_PRINTT		9	/* printt() action (BSD) */
 
 #define	DTRACEACT_PROC			0x0100
 #define	DTRACEACT_USTACK		(DTRACEACT_PROC + 1)
@@ -926,10 +931,10 @@ typedef struct dtrace_ecbdesc {
  * DTrace Metadata Description Structures
  *
  * DTrace separates the trace data stream from the metadata stream.  The only
- * metadata tokens placed in the data stream are enabled probe identifiers
- * (EPIDs) or (in the case of aggregations) aggregation identifiers.  In order
- * to determine the structure of the data, DTrace consumers pass the token to
- * the kernel, and receive in return a corresponding description of the enabled
+ * metadata tokens placed in the data stream are the dtrace_rechdr_t (EPID +
+ * timestamp) or (in the case of aggregations) aggregation identifiers.  To
+ * determine the structure of the data, DTrace consumers pass the token to the
+ * kernel, and receive in return a corresponding description of the enabled
  * probe (via the dtrace_eprobedesc structure) or the aggregation (via the
  * dtrace_aggdesc structure).  Both of these structures are expressed in terms
  * of record descriptions (via the dtrace_recdesc structure) that describe the
@@ -1024,7 +1029,8 @@ typedef struct dtrace_fmtdesc {
 #define	DTRACEOPT_AGGSORTREV	24	/* reverse-sort aggregations */
 #define	DTRACEOPT_AGGSORTPOS	25	/* agg. position to sort on */
 #define	DTRACEOPT_AGGSORTKEYPOS	26	/* agg. key position to sort on */
-#define	DTRACEOPT_MAX		27	/* number of options */
+#define	DTRACEOPT_TEMPORAL	27	/* temporally ordered output */
+#define	DTRACEOPT_MAX		28	/* number of options */
 
 #define	DTRACEOPT_UNSET		(dtrace_optval_t)-2	/* unset option */
 
@@ -1044,7 +1050,9 @@ typedef struct dtrace_fmtdesc {
  * where user-level wishes the kernel to snapshot the buffer to (the
  * dtbd_data field).  The kernel uses the same structure to pass back some
  * information regarding the buffer:  the size of data actually copied out, the
- * number of drops, the number of errors, and the offset of the oldest record.
+ * number of drops, the number of errors, the offset of the oldest record,
+ * and the time of the snapshot.
+ *
  * If the buffer policy is a "switch" policy, taking a snapshot of the
  * principal buffer has the additional effect of switching the active and
  * inactive buffers.  Taking a snapshot of the aggregation buffer _always_ has
@@ -1057,7 +1065,28 @@ typedef struct dtrace_bufdesc {
 	uint64_t dtbd_drops;			/* number of drops */
 	DTRACE_PTR(char, dtbd_data);		/* data */
 	uint64_t dtbd_oldest;			/* offset of oldest record */
+	uint64_t dtbd_timestamp;		/* hrtime of snapshot */
 } dtrace_bufdesc_t;
+
+/*
+ * Each record in the buffer (dtbd_data) begins with a header that includes
+ * the epid and a timestamp.  The timestamp is split into two 4-byte parts
+ * so that we do not require 8-byte alignment.
+ */
+typedef struct dtrace_rechdr {
+	dtrace_epid_t dtrh_epid;		/* enabled probe id */
+	uint32_t dtrh_timestamp_hi;		/* high bits of hrtime_t */
+	uint32_t dtrh_timestamp_lo;		/* low bits of hrtime_t */
+} dtrace_rechdr_t;
+
+#define	DTRACE_RECORD_LOAD_TIMESTAMP(dtrh)			\
+	((dtrh)->dtrh_timestamp_lo +				\
+	((uint64_t)(dtrh)->dtrh_timestamp_hi << 32))
+
+#define	DTRACE_RECORD_STORE_TIMESTAMP(dtrh, hrtime) {		\
+	(dtrh)->dtrh_timestamp_lo = (uint32_t)hrtime;		\
+	(dtrh)->dtrh_timestamp_hi = hrtime >> 32;		\
+}
 
 /*
  * DTrace Status
@@ -2313,10 +2342,10 @@ extern int dtrace_mach_aframes(void);
 #if defined(__i386) || defined(__amd64)
 extern int dtrace_instr_size(uchar_t *instr);
 extern int dtrace_instr_size_isa(uchar_t *, model_t, int *);
-extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
-extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
 extern void dtrace_invop_callsite(void);
 #endif
+extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
+extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
 
 #ifdef __sparc
 extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
@@ -2348,6 +2377,15 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	DTRACE_INVOP_LEAVE		3
 #define	DTRACE_INVOP_NOP		4
 #define	DTRACE_INVOP_RET		5
+
+#elif defined(__powerpc__)
+
+#define DTRACE_INVOP_RET	1
+#define DTRACE_INVOP_BCTR	2
+#define DTRACE_INVOP_BLR	3
+#define DTRACE_INVOP_JUMP	4
+#define DTRACE_INVOP_MFLR_R0	5
+#define DTRACE_INVOP_NOP	6
 
 #endif
 

@@ -914,7 +914,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET;
+		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
 		cpi->max_lun = 255;
@@ -1755,8 +1755,13 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		}
 	}
 
-	cm->cm_data = csio->data_ptr;
 	cm->cm_length = csio->dxfer_len;
+	if (cm->cm_length != 0) {
+		cm->cm_data = ccb;
+		cm->cm_flags |= MPS_CM_FLAGS_USE_CCB;
+	} else {
+		cm->cm_data = NULL;
+	}
 	cm->cm_sge = &req->SGL;
 	cm->cm_sglsize = (32 - 24) * 4;
 	cm->cm_desc.SCSIIO.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO;
@@ -2233,6 +2238,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		if ((csio->cdb_io.cdb_bytes[0] == INQUIRY) &&
 		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
 		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
+		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
 		    (csio->data_ptr != NULL) && (((uint8_t *)cm->cm_data)[0] ==
 		    T_SEQUENTIAL) && (sc->control_TLR) &&
 		    (sc->mapping_table[csio->ccb_h.target_id].device_info &
@@ -2691,19 +2697,15 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	/*
 	 * XXX We don't yet support physical addresses here.
 	 */
-	if (ccb->ccb_h.flags & (CAM_DATA_PHYS|CAM_SG_LIST_PHYS)) {
+	switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
+	case CAM_DATA_PADDR:
+	case CAM_DATA_SG_PADDR:
 		mps_printf(sc, "%s: physical addresses not supported\n",
 			   __func__);
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		return;
-	}
-
-	/*
-	 * If the user wants to send an S/G list, check to make sure they
-	 * have single buffers.
-	 */
-	if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
+	case CAM_DATA_SG:
 		/*
 		 * The chip does not support more than one buffer for the
 		 * request or response.
@@ -2741,9 +2743,15 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 			response = (uint8_t *)(uintptr_t)rsp_sg[0].ds_addr;
 		} else
 			response = ccb->smpio.smp_response;
-	} else {
+		break;
+	case CAM_DATA_VADDR:
 		request = ccb->smpio.smp_request;
 		response = ccb->smpio.smp_response;
+		break;
+	default:
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		return;
 	}
 
 	cm = mps_alloc_command(sc);

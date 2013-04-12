@@ -38,8 +38,7 @@ details for any potential network interfaces and which services should be
 started up at system initial boot time.
 In new installations, the
 .Nm
-file is generally initialized by the system installation utility,
-.Xr sysinstall 8 .
+file is generally initialized by the system installation utility.
 .Pp
 The purpose of
 .Nm
@@ -2452,10 +2451,6 @@ This command is intended to
 synchronize the system clock only
 .Em once
 from some standard reference.
-An option to set this up initially
-(from a list of known servers) is also provided by the
-.Xr sysinstall 8
-program when the system is first installed.
 .It Va ntpdate_config
 .Pq Vt str
 Configuration file for

@@ -44,6 +44,7 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/actables.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          ACPI_COMPILER
@@ -65,6 +66,10 @@ AsDoWildcard (
 static UINT8
 AslDetectSourceFileType (
     ASL_FILE_INFO           *Info);
+
+static ACPI_STATUS
+AslDoDisassembly (
+    void);
 
 
 /*******************************************************************************
@@ -224,6 +229,15 @@ AslDetectSourceFileType (
     ACPI_STATUS             Status;
 
 
+    /* Check for a valid binary ACPI table */
+
+    Status = FlCheckForAcpiTable (Info->Handle);
+    if (ACPI_SUCCESS (Status))
+    {
+        Type = ASL_INPUT_TYPE_ACPI_TABLE;
+        goto Cleanup;
+    }
+
     /* Check for 100% ASCII source file (comments are ignored) */
 
     Status = FlCheckForAscii (Info->Handle, Info->Filename, TRUE);
@@ -279,6 +293,86 @@ Cleanup:
 
 /*******************************************************************************
  *
+ * FUNCTION:    AslDoDisassembly
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Initiate AML file disassembly. Uses ACPICA subsystem to build
+ *              namespace.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AslDoDisassembly (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    /* ACPICA subsystem initialization */
+
+    Status = AdInitialize ();
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    Status = AcpiAllocateRootTable (4);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("Could not initialize ACPI Table Manager, %s\n",
+            AcpiFormatException (Status));
+        return (Status);
+    }
+
+    /* This is where the disassembly happens */
+
+    AcpiGbl_DbOpt_disasm = TRUE;
+    Status = AdAmlDisassemble (AslToFile,
+        Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_OutputFilenamePrefix,
+        &Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_GetAllTables);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Check if any control methods were unresolved */
+
+    AcpiDmUnresolvedWarning (0);
+
+#if 0
+    /* TBD: Handle additional output files for disassembler */
+
+    Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
+    NsDisplayNamespace ();
+#endif
+
+    /* Shutdown compiler and ACPICA subsystem */
+
+    AeClearErrorLog ();
+    (void) AcpiTerminate ();
+
+    /*
+     * Gbl_Files[ASL_FILE_INPUT].Filename was replaced with the
+     * .DSL disassembly file, which can now be compiled if requested
+     */
+    if (Gbl_DoCompile)
+    {
+        AcpiOsPrintf ("\nCompiling \"%s\"\n",
+            Gbl_Files[ASL_FILE_INPUT].Filename);
+        return (AE_CTRL_CONTINUE);
+    }
+
+    ACPI_FREE (Gbl_Files[ASL_FILE_INPUT].Filename);
+    Gbl_Files[ASL_FILE_INPUT].Filename = NULL;
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AslDoOneFile
  *
  * PARAMETERS:  Filename        - Name of the file
@@ -308,60 +402,10 @@ AslDoOneFile (
      */
     if (Gbl_DisasmFlag || Gbl_GetAllTables)
     {
-        /* ACPICA subsystem initialization */
-
-        Status = AdInitialize ();
-        if (ACPI_FAILURE (Status))
+        Status = AslDoDisassembly ();
+        if (Status != AE_CTRL_CONTINUE)
         {
             return (Status);
-        }
-
-        Status = AcpiAllocateRootTable (4);
-        if (ACPI_FAILURE (Status))
-        {
-            AcpiOsPrintf ("Could not initialize ACPI Table Manager, %s\n",
-                AcpiFormatException (Status));
-            return (Status);
-        }
-
-        /* This is where the disassembly happens */
-
-        AcpiGbl_DbOpt_disasm = TRUE;
-        Status = AdAmlDisassemble (AslToFile,
-                    Gbl_Files[ASL_FILE_INPUT].Filename,
-                    Gbl_OutputFilenamePrefix,
-                    &Gbl_Files[ASL_FILE_INPUT].Filename,
-                    Gbl_GetAllTables);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-
-#if 0
-        /* TBD: Handle additional output files for disassembler */
-
-        Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
-        NsDisplayNamespace ();
-#endif
-
-        /* Shutdown compiler and ACPICA subsystem */
-
-        AeClearErrorLog ();
-        (void) AcpiTerminate ();
-
-        /*
-         * Gbl_Files[ASL_FILE_INPUT].Filename was replaced with the
-         * .DSL disassembly file, which can now be compiled if requested
-         */
-        if (Gbl_DoCompile)
-        {
-            AcpiOsPrintf ("\nCompiling \"%s\"\n",
-                Gbl_Files[ASL_FILE_INPUT].Filename);
-        }
-        else
-        {
-            Gbl_Files[ASL_FILE_INPUT].Filename = NULL;
-            return (AE_OK);
         }
     }
 
@@ -468,6 +512,21 @@ AslDoOneFile (
         AeClearErrorLog ();
         PrTerminatePreprocessor ();
         return (AE_OK);
+
+    /*
+     * Binary ACPI table was auto-detected, disassemble it
+     */
+    case ASL_INPUT_TYPE_ACPI_TABLE:
+
+        /* We have what appears to be an ACPI table, disassemble it */
+
+        FlCloseFile (ASL_FILE_INPUT);
+        Gbl_DoCompile = FALSE;
+        Gbl_DisasmFlag = TRUE;
+        Status = AslDoDisassembly ();
+        return (Status);
+
+    /* Unknown binary table */
 
     case ASL_INPUT_TYPE_BINARY:
 

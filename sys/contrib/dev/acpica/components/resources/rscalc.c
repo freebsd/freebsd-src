@@ -230,6 +230,13 @@ AcpiRsGetAmlLength (
             return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
         }
 
+        /* Sanity check the length. It must not be zero, or we loop forever */
+
+        if (!Resource->Length)
+        {
+            return_ACPI_STATUS (AE_AML_BAD_RESOURCE_LENGTH);
+        }
+
         /* Get the base size of the (external stream) resource descriptor */
 
         TotalSize = AcpiGbl_AmlResourceSizes [Resource->Type];

@@ -51,6 +51,7 @@ MAN=	accept_filter.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
 	copy.9 \
+	counter.9 \
 	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -569,6 +570,14 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyout.9 \
 	copy.9 copyout_nofault.9 \
 	copy.9 copystr.9
+MLINKS+=counter.9 counter_u64_alloc.9 \
+	counter.9 counter_u64_free.9 \
+	counter.9 counter_u64_add.9 \
+	counter.9 counter_enter.9 \
+	counter.9 counter_exit.9 \
+	counter.9 counter_u64_add_protected.9 \
+	counter.9 counter_u64_fetch.9 \
+	counter.9 counter_u64_zero.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \
@@ -1196,9 +1205,13 @@ MLINKS+=signal.9 cursig.9 \
 	signal.9 SIG_STOPSIGMASK.9 \
 	signal.9 trapsignal.9
 MLINKS+=sleep.9 msleep.9 \
+	sleep.9 msleep_sbt.9 \
 	sleep.9 msleep_spin.9 \
+	sleep.9 msleep_spin_sbt.9 \
 	sleep.9 pause.9 \
+	sleep.9 pause_sbt.9 \
 	sleep.9 tsleep.9 \
+	sleep.9 tsleep_sbt.9 \
 	sleep.9 wakeup.9 \
 	sleep.9 wakeup_one.9
 MLINKS+=sleepqueue.9 init_sleepqueues.9 \
@@ -1213,6 +1226,7 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_release.9 \
 	sleepqueue.9 sleepq_remove.9 \
 	sleepqueue.9 sleepq_set_timeout.9 \
+	sleepqueue.9 sleepq_set_timeout_sbt.9 \
 	sleepqueue.9 sleepq_signal.9 \
 	sleepqueue.9 sleepq_timedwait.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
@@ -1335,6 +1349,9 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_init_rw.9 \
 	timeout.9 callout_pending.9 \
 	timeout.9 callout_reset.9 \
+	timeout.9 callout_reset_sbt.9 \
+	timeout.9 callout_reset_on.9 \
+	timeout.9 callout_reset_sbt_on.9 \
 	timeout.9 callout_schedule.9 \
 	timeout.9 callout_stop.9 \
 	timeout.9 untimeout.9

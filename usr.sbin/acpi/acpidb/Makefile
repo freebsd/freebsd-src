@@ -35,10 +35,10 @@ SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c	\
 	hwvalid.c hwxface.c hwxfsleep.c
 
 # components/namespace
-SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c		\
-	nsload.c nsnames.c nsobject.c nsparse.c nspredef.c	\
-	nsprepkg.c nsrepair.c nsrepair2.c nssearch.c nsutils.c	\
-	nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
+SRCS+=	nsaccess.c nsalloc.c nsconvert.c nsdump.c nseval.c	\
+	nsinit.c nsload.c nsnames.c nsobject.c nsparse.c	\
+	nspredef.c nsprepkg.c nsrepair.c nsrepair2.c nssearch.c	\
+	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
 
 # components/parser
 SRCS+=	psargs.c psloop.c psobject.c psopcode.c psopinfo.c	\
@@ -61,8 +61,9 @@ SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
 	utdecode.c utdelete.c uteval.c utexcep.c utglobal.c	\
 	utids.c	utinit.c utlock.c utmath.c utmisc.c utmutex.c	\
-	utobject.c utosi.c utownerid.c utresrc.c utstate.c	\
-	utstring.c uttrack.c utxface.c utxferror.c utxfinit.c
+	utobject.c utosi.c utownerid.c utpredef.c utresrc.c	\
+	utstate.c utstring.c uttrack.c utxface.c utxferror.c	\
+	utxfinit.c
 
 MAN=	acpidb.8
 WARNS?=	2

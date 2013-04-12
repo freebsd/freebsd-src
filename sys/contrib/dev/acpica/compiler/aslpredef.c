@@ -42,10 +42,12 @@
  */
 
 #define ACPI_CREATE_PREDEFINED_TABLE
+#define ACPI_CREATE_RESOURCE_TABLE
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 #include <contrib/dev/acpica/include/acpredef.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 
 #define _COMPONENT          ACPI_COMPILER
@@ -63,96 +65,6 @@ static UINT32
 ApCheckForSpecialName (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name);
-
-static void
-ApCheckObjectType (
-    const char              *PredefinedName,
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  ExpectedBtypes);
-
-static void
-ApGetExpectedTypes (
-    char                    *Buffer,
-    UINT32                  ExpectedBtypes);
-
-
-/*
- * Names for the types that can be returned by the predefined objects.
- * Used for warning messages. Must be in the same order as the ACPI_RTYPEs
- */
-static const char   *AcpiRtypeNames[] =
-{
-    "/Integer",
-    "/String",
-    "/Buffer",
-    "/Package",
-    "/Reference",
-};
-
-/*
- * Predefined names for use in Resource Descriptors. These names do not
- * appear in the global Predefined Name table (since these names never
- * appear in actual AML byte code, only in the original ASL)
- */
-static const ACPI_PREDEFINED_INFO      ResourceNames[] = {
-    {{"_ALN",     0,      0}},
-    {{"_ASI",     0,      0}},
-    {{"_ASZ",     0,      0}},
-    {{"_ATT",     0,      0}},
-    {{"_BAS",     0,      0}},
-    {{"_BM_",     0,      0}},
-    {{"_DBT",     0,      0}},  /* Acpi 5.0 */
-    {{"_DEC",     0,      0}},
-    {{"_DPL",     0,      0}},  /* Acpi 5.0 */
-    {{"_DRS",     0,      0}},  /* Acpi 5.0 */
-    {{"_END",     0,      0}},  /* Acpi 5.0 */
-    {{"_FLC",     0,      0}},  /* Acpi 5.0 */
-    {{"_GRA",     0,      0}},
-    {{"_HE_",     0,      0}},
-    {{"_INT",     0,      0}},
-    {{"_IOR",     0,      0}},  /* Acpi 5.0 */
-    {{"_LEN",     0,      0}},
-    {{"_LIN",     0,      0}},  /* Acpi 5.0 */
-    {{"_LL_",     0,      0}},
-    {{"_MAF",     0,      0}},
-    {{"_MAX",     0,      0}},
-    {{"_MEM",     0,      0}},
-    {{"_MIF",     0,      0}},
-    {{"_MIN",     0,      0}},
-    {{"_MOD",     0,      0}},  /* Acpi 5.0 */
-    {{"_MTP",     0,      0}},
-    {{"_PAR",     0,      0}},  /* Acpi 5.0 */
-    {{"_PHA",     0,      0}},  /* Acpi 5.0 */
-    {{"_PIN",     0,      0}},  /* Acpi 5.0 */
-    {{"_PPI",     0,      0}},  /* Acpi 5.0 */
-    {{"_POL",     0,      0}},  /* Acpi 5.0 */
-    {{"_RBO",     0,      0}},
-    {{"_RBW",     0,      0}},
-    {{"_RNG",     0,      0}},
-    {{"_RT_",     0,      0}},  /* Acpi 3.0 */
-    {{"_RW_",     0,      0}},
-    {{"_RXL",     0,      0}},  /* Acpi 5.0 */
-    {{"_SHR",     0,      0}},
-    {{"_SIZ",     0,      0}},
-    {{"_SLV",     0,      0}},  /* Acpi 5.0 */
-    {{"_SPE",     0,      0}},  /* Acpi 5.0 */
-    {{"_STB",     0,      0}},  /* Acpi 5.0 */
-    {{"_TRA",     0,      0}},
-    {{"_TRS",     0,      0}},
-    {{"_TSF",     0,      0}},  /* Acpi 3.0 */
-    {{"_TTP",     0,      0}},
-    {{"_TXL",     0,      0}},  /* Acpi 5.0 */
-    {{"_TYP",     0,      0}},
-    {{"_VEN",     0,      0}},  /* Acpi 5.0 */
-    {{{0,0,0,0},  0,      0}}   /* Table terminator */
-};
-
-static const ACPI_PREDEFINED_INFO      ScopeNames[] = {
-    {{"_SB_",     0,      0}},
-    {{"_SI_",     0,      0}},
-    {{"_TZ_",     0,      0}},
-    {{{0,0,0,0},  0,      0}}   /* Table terminator */
-};
 
 
 /*******************************************************************************
@@ -175,9 +87,9 @@ ApCheckForPredefinedMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo)
 {
-    UINT32                  Index;
-    UINT32                  RequiredArgsCurrent;
-    UINT32                  RequiredArgsOld;
+    UINT32                      Index;
+    UINT32                      RequiredArgCount;
+    const ACPI_PREDEFINED_INFO  *ThisName;
 
 
     /* Check for a match against the predefined name list */
@@ -218,17 +130,16 @@ ApCheckForPredefinedMethod (
          * arg counts.
          */
         Gbl_ReservedMethods++;
+        ThisName = &AcpiGbl_PredefinedMethods[Index];
+        RequiredArgCount = ThisName->Info.ArgumentList & METHOD_ARG_MASK;
 
-        RequiredArgsCurrent = PredefinedNames[Index].Info.ParamCount & 0x0F;
-        RequiredArgsOld = PredefinedNames[Index].Info.ParamCount >> 4;
-
-        if ((MethodInfo->NumArguments != RequiredArgsCurrent) &&
-            (MethodInfo->NumArguments != RequiredArgsOld))
+        if (MethodInfo->NumArguments != RequiredArgCount)
         {
             sprintf (MsgBuffer, "%4.4s requires %u",
-                PredefinedNames[Index].Info.Name, RequiredArgsCurrent);
+                ThisName->Info.Name, RequiredArgCount);
 
-            if (MethodInfo->NumArguments > RequiredArgsCurrent)
+            if ((MethodInfo->NumArguments > RequiredArgCount) &&
+                !(ThisName->Info.ArgumentList & ARG_COUNT_IS_MINIMUM))
             {
                 AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_HI, Op,
                     MsgBuffer);
@@ -245,13 +156,13 @@ ApCheckForPredefinedMethod (
          * required to return a value
          */
         if (MethodInfo->NumReturnNoValue &&
-            PredefinedNames[Index].Info.ExpectedBtypes)
+            ThisName->Info.ExpectedBtypes)
         {
-            ApGetExpectedTypes (StringBuffer,
-                PredefinedNames[Index].Info.ExpectedBtypes);
+            AcpiUtGetExpectedReturnTypes (StringBuffer,
+                ThisName->Info.ExpectedBtypes);
 
             sprintf (MsgBuffer, "%s required for %4.4s",
-                StringBuffer, PredefinedNames[Index].Info.Name);
+                StringBuffer, ThisName->Info.Name);
 
             AslError (ASL_WARNING, ASL_MSG_RESERVED_RETURN_VALUE, Op,
                 MsgBuffer);
@@ -334,8 +245,9 @@ ApCheckPredefinedReturnValue (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo)
 {
-    UINT32                  Index;
-    ACPI_PARSE_OBJECT       *ReturnValueOp;
+    UINT32                      Index;
+    ACPI_PARSE_OBJECT           *ReturnValueOp;
+    const ACPI_PREDEFINED_INFO  *ThisName;
 
 
     /* Check parent method for a match against the predefined name list */
@@ -361,7 +273,8 @@ ApCheckPredefinedReturnValue (
 
     default: /* A standard predefined ACPI name */
 
-        if (!PredefinedNames[Index].Info.ExpectedBtypes)
+        ThisName = &AcpiGbl_PredefinedMethods[Index];
+        if (!ThisName->Info.ExpectedBtypes)
         {
             /* No return value expected, warn if there is one */
 
@@ -384,9 +297,15 @@ ApCheckPredefinedReturnValue (
 
             /* Static data return object - check against expected type */
 
-            ApCheckObjectType (PredefinedNames[Index].Info.Name,
-                ReturnValueOp,
-                PredefinedNames[Index].Info.ExpectedBtypes);
+            ApCheckObjectType (ThisName->Info.Name, ReturnValueOp,
+                ThisName->Info.ExpectedBtypes, ACPI_NOT_PACKAGE_ELEMENT);
+
+            /* For packages, check the individual package elements */
+
+            if (ReturnValueOp->Asl.ParseOpcode == PARSEOP_PACKAGE)
+            {
+                ApCheckPackage (ReturnValueOp, ThisName);
+            }
             break;
 
         default:
@@ -427,7 +346,9 @@ ApCheckForPredefinedObject (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name)
 {
-    UINT32                  Index;
+    UINT32                      Index;
+    ACPI_PARSE_OBJECT           *ObjectOp;
+    const ACPI_PREDEFINED_INFO  *ThisName;
 
 
     /*
@@ -456,38 +377,48 @@ ApCheckForPredefinedObject (
             "with zero arguments");
         return;
 
-    default: /* A standard predefined ACPI name */
+    default:
+        break;
+    }
 
-        /*
-         * If this predefined name requires input arguments, then
-         * it must be implemented as a control method
-         */
-        if (PredefinedNames[Index].Info.ParamCount > 0)
-        {
-            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
-                "with arguments");
-            return;
-        }
+    /* A standard predefined ACPI name */
 
-        /*
-         * If no return value is expected from this predefined name, then
-         * it follows that it must be implemented as a control method
-         * (with zero args, because the args > 0 case was handled above)
-         * Examples are: _DIS, _INI, _IRC, _OFF, _ON, _PSx
-         */
-        if (!PredefinedNames[Index].Info.ExpectedBtypes)
-        {
-            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
-                "with zero arguments");
-            return;
-        }
-
-        /* Typecheck the actual object, it is the next argument */
-
-        ApCheckObjectType (PredefinedNames[Index].Info.Name,
-            Op->Asl.Child->Asl.Next,
-            PredefinedNames[Index].Info.ExpectedBtypes);
+    /*
+     * If this predefined name requires input arguments, then
+     * it must be implemented as a control method
+     */
+    ThisName = &AcpiGbl_PredefinedMethods[Index];
+    if ((ThisName->Info.ArgumentList & METHOD_ARG_MASK) > 0)
+    {
+        AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+            "with arguments");
         return;
+    }
+
+    /*
+     * If no return value is expected from this predefined name, then
+     * it follows that it must be implemented as a control method
+     * (with zero args, because the args > 0 case was handled above)
+     * Examples are: _DIS, _INI, _IRC, _OFF, _ON, _PSx
+     */
+    if (!ThisName->Info.ExpectedBtypes)
+    {
+        AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+            "with zero arguments");
+        return;
+    }
+
+    /* Typecheck the actual object, it is the next argument */
+
+    ObjectOp = Op->Asl.Child->Asl.Next;
+    ApCheckObjectType (ThisName->Info.Name, Op->Asl.Child->Asl.Next,
+        ThisName->Info.ExpectedBtypes, ACPI_NOT_PACKAGE_ELEMENT);
+
+    /* For packages, check the individual package elements */
+
+    if (ObjectOp->Asl.ParseOpcode == PARSEOP_PACKAGE)
+    {
+        ApCheckPackage (ObjectOp, ThisName);
     }
 }
 
@@ -510,7 +441,8 @@ ApCheckForPredefinedName (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name)
 {
-    UINT32                  i;
+    UINT32                      i;
+    const ACPI_PREDEFINED_INFO  *ThisName;
 
 
     if (Name[0] == 0)
@@ -528,31 +460,40 @@ ApCheckForPredefinedName (
 
     /* Check for a standard predefined method name */
 
-    for (i = 0; PredefinedNames[i].Info.Name[0]; i++)
+    ThisName = AcpiGbl_PredefinedMethods;
+    for (i = 0; ThisName->Info.Name[0]; i++)
     {
-        if (ACPI_COMPARE_NAME (Name, PredefinedNames[i].Info.Name))
+        if (ACPI_COMPARE_NAME (Name, ThisName->Info.Name))
         {
             /* Return index into predefined array */
             return (i);
         }
+
+        ThisName++; /* Does not account for extra package data, but is OK */
     }
 
     /* Check for resource names and predefined scope names */
 
-    for (i = 0; ResourceNames[i].Info.Name[0]; i++)
+    ThisName = AcpiGbl_ResourceNames;
+    while (ThisName->Info.Name[0])
     {
-        if (ACPI_COMPARE_NAME (Name, ResourceNames[i].Info.Name))
+        if (ACPI_COMPARE_NAME (Name, ThisName->Info.Name))
         {
             return (ACPI_PREDEFINED_NAME);
         }
+
+        ThisName++;
     }
 
-    for (i = 0; ScopeNames[i].Info.Name[0]; i++)
+    ThisName = AcpiGbl_ScopeNames;
+    while (ThisName->Info.Name[0])
     {
-        if (ACPI_COMPARE_NAME (Name, ScopeNames[i].Info.Name))
+        if (ACPI_COMPARE_NAME (Name, ThisName->Info.Name))
         {
             return (ACPI_PREDEFINED_NAME);
         }
+
+        ThisName++;
     }
 
     /* Check for _Lxx/_Exx/_Wxx/_Qxx/_T_x. Warning if unknown predefined name */
@@ -646,6 +587,9 @@ ApCheckForSpecialName (
  * PARAMETERS:  PredefinedName  - Name of the predefined object we are checking
  *              Op              - Current parse node
  *              ExpectedBtypes  - Bitmap of expected return type(s)
+ *              PackageIndex    - Index of object within parent package (if
+ *                                applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                otherwise)
  *
  * RETURN:      None
  *
@@ -655,14 +599,23 @@ ApCheckForSpecialName (
  *
  ******************************************************************************/
 
-static void
+ACPI_STATUS
 ApCheckObjectType (
     const char              *PredefinedName,
     ACPI_PARSE_OBJECT       *Op,
-    UINT32                  ExpectedBtypes)
+    UINT32                  ExpectedBtypes,
+    UINT32                  PackageIndex)
 {
     UINT32                  ReturnBtype;
+    char                    *TypeName;
 
+
+    if (!Op)
+    {
+        return (AE_TYPE);
+    }
+
+    /* Map the parse opcode to a bitmapped return type (RTYPE) */
 
     switch (Op->Asl.ParseOpcode)
     {
@@ -671,24 +624,35 @@ ApCheckObjectType (
     case PARSEOP_ONES:
     case PARSEOP_INTEGER:
         ReturnBtype = ACPI_RTYPE_INTEGER;
-        break;
-
-    case PARSEOP_BUFFER:
-        ReturnBtype = ACPI_RTYPE_BUFFER;
+        TypeName = "Integer";
         break;
 
     case PARSEOP_STRING_LITERAL:
         ReturnBtype = ACPI_RTYPE_STRING;
+        TypeName = "String";
+        break;
+
+    case PARSEOP_BUFFER:
+        ReturnBtype = ACPI_RTYPE_BUFFER;
+        TypeName = "Buffer";
         break;
 
     case PARSEOP_PACKAGE:
     case PARSEOP_VAR_PACKAGE:
         ReturnBtype = ACPI_RTYPE_PACKAGE;
+        TypeName = "Package";
+        break;
+
+    case PARSEOP_NAMESEG:
+    case PARSEOP_NAMESTRING:
+        ReturnBtype = ACPI_RTYPE_REFERENCE;
+        TypeName = "Reference";
         break;
 
     default:
         /* Not one of the supported object types */
 
+        TypeName = UtGetOpName (Op->Asl.ParseOpcode);
         goto TypeErrorExit;
     }
 
@@ -696,7 +660,7 @@ ApCheckObjectType (
 
     if (ReturnBtype & ExpectedBtypes)
     {
-        return;
+        return (AE_OK);
     }
 
 
@@ -704,13 +668,21 @@ TypeErrorExit:
 
     /* Format the expected types and emit an error message */
 
-    ApGetExpectedTypes (StringBuffer, ExpectedBtypes);
+    AcpiUtGetExpectedReturnTypes (StringBuffer, ExpectedBtypes);
 
-    sprintf (MsgBuffer, "%s: found %s, requires %s",
-        PredefinedName, UtGetOpName (Op->Asl.ParseOpcode), StringBuffer);
+    if (PackageIndex == ACPI_NOT_PACKAGE_ELEMENT)
+    {
+        sprintf (MsgBuffer, "%4.4s: found %s, %s required",
+            PredefinedName, TypeName, StringBuffer);
+    }
+    else
+    {
+        sprintf (MsgBuffer, "%4.4s: found %s at index %u, %s required",
+            PredefinedName, TypeName, PackageIndex, StringBuffer);
+    }
 
-    AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op,
-        MsgBuffer);
+    AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op, MsgBuffer);
+    return (AE_TYPE);
 }
 
 
@@ -732,8 +704,8 @@ ApDisplayReservedNames (
     void)
 {
     const ACPI_PREDEFINED_INFO  *ThisName;
-    char                        TypeBuffer[48]; /* Room for 5 types */
     UINT32                      Count;
+    UINT32                      NumTypes;
 
 
     /*
@@ -742,33 +714,12 @@ ApDisplayReservedNames (
     printf ("\nPredefined Name Information\n\n");
 
     Count = 0;
-    ThisName = PredefinedNames;
+    ThisName = AcpiGbl_PredefinedMethods;
     while (ThisName->Info.Name[0])
     {
-        printf ("%4.4s    Requires %u arguments, ",
-            ThisName->Info.Name, ThisName->Info.ParamCount & 0x0F);
-
-        if (ThisName->Info.ExpectedBtypes)
-        {
-            ApGetExpectedTypes (TypeBuffer, ThisName->Info.ExpectedBtypes);
-            printf ("Must return: %s\n", TypeBuffer);
-        }
-        else
-        {
-            printf ("No return value\n");
-        }
-
-        /*
-         * Skip next entry in the table if this name returns a Package
-         * (next entry contains the package info)
-         */
-        if (ThisName->Info.ExpectedBtypes & ACPI_RTYPE_PACKAGE)
-        {
-            ThisName++;
-        }
-
+        AcpiUtDisplayPredefinedMethod (MsgBuffer, ThisName, FALSE);
         Count++;
-        ThisName++;
+        ThisName = AcpiUtGetNextPredefinedMethod (ThisName);
     }
 
     printf ("%u Predefined Names are recognized\n", Count);
@@ -776,69 +727,34 @@ ApDisplayReservedNames (
     /*
      * Resource Descriptor names
      */
-    printf ("\nResource Descriptor Predefined Names\n\n");
+    printf ("\nPredefined Names for Resource Descriptor Fields\n\n");
 
     Count = 0;
-    ThisName = ResourceNames;
+    ThisName = AcpiGbl_ResourceNames;
     while (ThisName->Info.Name[0])
     {
-        printf ("%4.4s    Resource Descriptor\n", ThisName->Info.Name);
+        NumTypes = AcpiUtGetResourceBitWidth (MsgBuffer,
+            ThisName->Info.ArgumentList);
+
+        printf ("%4.4s    Field is %s bits wide%s\n",
+            ThisName->Info.Name, MsgBuffer,
+            (NumTypes > 1) ? " (depending on descriptor type)" : "");
+
         Count++;
         ThisName++;
     }
 
-    printf ("%u Resource Descriptor Names are recognized\n", Count);
+    printf ("%u Resource Descriptor Field Names are recognized\n", Count);
 
     /*
      * Predefined scope names
      */
-    printf ("\nPredefined Scope Names\n\n");
+    printf ("\nPredefined Scope/Device Names (automatically created at root)\n\n");
 
-    ThisName = ScopeNames;
+    ThisName = AcpiGbl_ScopeNames;
     while (ThisName->Info.Name[0])
     {
-        printf ("%4.4s    Scope\n", ThisName->Info.Name);
+        printf ("%4.4s    Scope/Device\n", ThisName->Info.Name);
         ThisName++;
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    ApGetExpectedTypes
- *
- * PARAMETERS:  Buffer              - Where the formatted string is returned
- *              ExpectedBTypes      - Bitfield of expected data types
- *
- * RETURN:      None, formatted string
- *
- * DESCRIPTION: Format the expected object types into a printable string.
- *
- ******************************************************************************/
-
-static void
-ApGetExpectedTypes (
-    char                        *Buffer,
-    UINT32                      ExpectedBtypes)
-{
-    UINT32                      ThisRtype;
-    UINT32                      i;
-    UINT32                      j;
-
-
-    j = 1;
-    Buffer[0] = 0;
-    ThisRtype = ACPI_RTYPE_INTEGER;
-
-    for (i = 0; i < ACPI_NUM_RTYPES; i++)
-    {
-        /* If one of the expected types, concatenate the name of this type */
-
-        if (ExpectedBtypes & ThisRtype)
-        {
-            ACPI_STRCAT (Buffer, &AcpiRtypeNames[i][j]);
-            j = 0;              /* Use name separator from now on */
-        }
-        ThisRtype <<= 1;    /* Next Rtype */
     }
 }

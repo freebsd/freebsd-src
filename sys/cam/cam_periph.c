@@ -218,9 +218,9 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	}
 	if (*p_drv == NULL) {
 		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
+		xpt_unlock_buses();
 		xpt_free_path(periph->path);
 		free(periph, M_CAMPERIPH);
-		xpt_unlock_buses();
 		return (CAM_REQ_INVALID);
 	}
 	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
@@ -378,13 +378,10 @@ cam_periph_acquire(struct cam_periph *periph)
 void
 cam_periph_release_locked_buses(struct cam_periph *periph)
 {
-	if (periph->refcount != 0) {
-		periph->refcount--;
-	} else {
-		panic("%s: release of %p when refcount is zero\n ", __func__,
-		      periph);
-	}
-	if (periph->refcount == 0
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+	KASSERT(periph->refcount >= 1, ("periph->refcount >= 1"));
+	if (--periph->refcount == 0
 	    && (periph->flags & CAM_PERIPH_INVALID)) {
 		camperiphfree(periph);
 	}
@@ -583,6 +580,7 @@ cam_periph_invalidate(struct cam_periph *periph)
 {
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
+	mtx_assert(periph->sim->mtx, MA_OWNED);
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.
@@ -605,6 +603,7 @@ camperiphfree(struct cam_periph *periph)
 {
 	struct periph_driver **p_drv;
 
+	mtx_assert(periph->sim->mtx, MA_OWNED);
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, periph->periph_name) == 0)
 			break;
@@ -734,6 +733,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_CONT_TARGET_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
+		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
+		    ("not VADDR for SCSI_IO %p %x\n", ccb, ccb->ccb_h.flags));
 
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		lengths[0] = ccb->csio.dxfer_len;
@@ -743,6 +744,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_ATA_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
+		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
+		    ("not VADDR for ATA_IO %p %x\n", ccb, ccb->ccb_h.flags));
 
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		lengths[0] = ccb->ataio.dxfer_len;
@@ -846,7 +849,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * into a larger area of VM, or if userland races against
 		 * vmapbuf() after the useracc() check.
 		 */
-		if (vmapbuf(mapinfo->bp[i]) < 0) {
+		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
 			for (j = 0; j < i; ++j) {
 				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
 				vunmapbuf(mapinfo->bp[j]);

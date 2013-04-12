@@ -93,8 +93,8 @@ struct cfcs_softc {
  * handle physical addresses yet.  That would require mapping things in
  * order to do the copy.
  */
-#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_PHYS | CAM_SG_LIST_PHYS | \
-	CAM_MSG_BUF_PHYS | CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |\
+#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_ISPHYS | CAM_MSG_BUF_PHYS |	\
+	CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
 	CAM_SENSE_PHYS)
 
 int cfcs_init(void);
@@ -119,14 +119,24 @@ struct cfcs_softc cfcs_softc;
  * amount of SCSI sense data that we will report to CAM.
  */
 static int cfcs_max_sense = sizeof(struct scsi_sense_data);
-extern int ctl_disable;
 
-SYSINIT(cfcs_init, SI_SUB_CONFIGURE, SI_ORDER_FOURTH, cfcs_init, NULL);
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl2cam, CTLFLAG_RD, 0,
 	    "CAM Target Layer SIM frontend");
 SYSCTL_INT(_kern_cam_ctl2cam, OID_AUTO, max_sense, CTLFLAG_RW,
            &cfcs_max_sense, 0, "Maximum sense data size");
 
+static int cfcs_module_event_handler(module_t, int /*modeventtype_t*/, void *);
+
+static moduledata_t cfcs_moduledata = {
+	"ctlcfcs",
+	cfcs_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctlcfcs, cfcs_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
+MODULE_VERSION(ctlcfcs, 1);
+MODULE_DEPEND(ctlcfi, ctl, 1, 1, 1);
+MODULE_DEPEND(ctlcfi, cam, 1, 1, 1);
 
 int
 cfcs_init(void)
@@ -138,10 +148,6 @@ cfcs_init(void)
 	char wwnn[8];
 #endif
 	int retval;
-
-	/* Don't continue if CTL is disabled */
-	if (ctl_disable != 0)
-		return (0);
 
 	softc = &cfcs_softc;
 	retval = 0;
@@ -176,7 +182,7 @@ cfcs_init(void)
 		printf("%s: ctl_frontend_register() failed with error %d!\n",
 		       __func__, retval);
 		mtx_destroy(&softc->lock);
-		return (1);
+		return (retval);
 	}
 
 	/*
@@ -236,7 +242,7 @@ cfcs_init(void)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: error creating path\n", __func__);
 		xpt_bus_deregister(cam_sim_path(softc->sim));
-		retval = 1;
+		retval = EINVAL;
 		goto bailout;
 	}
 
@@ -272,6 +278,20 @@ void
 cfcs_shutdown(void)
 {
 
+}
+
+static int
+cfcs_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		return (cfcs_init());
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
 static void
@@ -379,36 +399,35 @@ cfcs_datamove(union ctl_io *io)
 	 * Simplify things on both sides by putting single buffers into a
 	 * single entry S/G list.
 	 */
-	if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-		if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) {
-			/* We should filter this out on entry */
-			panic("%s: physical S/G list, should not get here",
-			      __func__);
-		} else {
-			int len_seen;
+	switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
+	case CAM_DATA_SG: {
+		int len_seen;
 
-			cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
-			cam_sg_count = ccb->csio.sglist_cnt;
+		cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
+		cam_sg_count = ccb->csio.sglist_cnt;
 
-			for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
-				if ((len_seen + cam_sglist[i].ds_len) >=
-				     io->scsiio.kern_rel_offset) {
-					cam_sg_start = i;
-					cam_sg_offset =
-						io->scsiio.kern_rel_offset -
-						len_seen;
-					break;
-				}
-				len_seen += cam_sglist[i].ds_len;
+		for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
+			if ((len_seen + cam_sglist[i].ds_len) >=
+			     io->scsiio.kern_rel_offset) {
+				cam_sg_start = i;
+				cam_sg_offset = io->scsiio.kern_rel_offset -
+					len_seen;
+				break;
 			}
+			len_seen += cam_sglist[i].ds_len;
 		}
-	} else {
+		break;
+	}
+	case CAM_DATA_VADDR:
 		cam_sglist = &cam_sg_entry;
 		cam_sglist[0].ds_len = ccb->csio.dxfer_len;
 		cam_sglist[0].ds_addr = (bus_addr_t)ccb->csio.data_ptr;
 		cam_sg_count = 1;
 		cam_sg_start = 0;
 		cam_sg_offset = io->scsiio.kern_rel_offset;
+		break;
+	default:
+		panic("Invalid CAM flags %#x", ccb->ccb_h.flags);
 	}
 
 	if (io->scsiio.kern_sg_entries > 0) {

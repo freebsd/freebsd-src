@@ -101,7 +101,7 @@ AcpiEvSciXruptHandler (
     InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
 
     AcpiSciCount++;
-    return_VALUE (InterruptHandled);
+    return_UINT32 (InterruptHandled);
 }
 
 
@@ -137,7 +137,7 @@ AcpiEvGpeXruptHandler (
 
     InterruptHandled |= AcpiEvGpeDetect (GpeXruptList);
 
-    return_VALUE (InterruptHandled);
+    return_UINT32 (InterruptHandled);
 }
 
 

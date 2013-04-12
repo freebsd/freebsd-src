@@ -139,6 +139,12 @@ options 	MAXPHYS=(128*1024)
 #
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
+#
+# Compile-time defaults for various boot parameters
+#
+options 	BOOTVERBOSE=1
+options 	BOOTHOWTO=RB_MULTIPLE
+
 options 	GEOM_AES		# Don't use, use GEOM_BDE
 options 	GEOM_BDE		# Disk encryption.
 options 	GEOM_BSD		# BSD disklabels
@@ -259,6 +265,8 @@ options 	SX_NOINLINE
 
 # SMP Debugging Options:
 #
+# CALLOUT_PROFILING enables rudimentary profiling of the callwheel data
+#	  structure used as backend in callout(9).
 # PREEMPTION allows the threads that are in the kernel to be preempted by
 #	  higher priority [interrupt] threads.  It helps with interactivity
 #	  and allows interrupt threads to run sooner rather than waiting.
@@ -296,6 +304,9 @@ options 	LOCK_PROFILING
 # than the number of buffers.  Hash size should be prime.
 options 	MPROF_BUFFERS="1536"
 options 	MPROF_HASH_SIZE="1543"
+
+# Profiling for the callout(9) backend.
+options 	CALLOUT_PROFILING
 
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING
@@ -462,7 +473,7 @@ options 	KTRACE_REQUEST_POOL=101
 #
 options 	KTR
 options 	KTR_BOOT_ENTRIES=1024
-options 	KTR_ENTRIES=(128 * 1024)
+options 	KTR_ENTRIES=(128*1024)
 options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
 options 	KTR_MASK=KTR_INTR
 options 	KTR_CPUMASK=0x3
@@ -750,6 +761,10 @@ options 	NGATM_CCATM
 
 device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 
+# Network stack virtualization.
+#options	VIMAGE
+#options	VNET_DEBUG	# debug for VIMAGE
+
 #
 # Network interfaces:
 #  The `loop' device is MANDATORY when networking is enabled.
@@ -981,7 +996,7 @@ options 	DUMMYNET
 # See zero_copy(9) for more details.
 # XXX: The COW based send mechanism is not safe and may result in
 # kernel crashes.
-# XXX: None of the current NIC drivers support disposeable pages.
+# XXX: None of the current NIC drivers support disposable pages.
 options		SOCKET_SEND_COW
 options		SOCKET_RECV_PFLIP
 
@@ -1608,20 +1623,10 @@ options 	ISP_DEFAULT_ROLES=0
 # Compaq are actually DPT controllers.
 #
 # See src/sys/dev/dpt for debugging and other subtle options.
-#   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
+#  DPT_MEASURE_PERFORMANCE  Enables a set of (semi)invasive metrics. Various
 #                           instruments are enabled.  The tools in
 #                           /usr/sbin/dpt_* assume these to be enabled.
-#   DPT_HANDLE_TIMEOUTS     Normally device timeouts are handled by the DPT.
-#                           If you want the driver to handle timeouts, enable
-#                           this option.  If your system is very busy, this
-#                           option will create more trouble than solve.
-#   DPT_TIMEOUT_FACTOR      Used to compute the excessive amount of time to
-#                           wait when timing out with the above option.
 #  DPT_DEBUG_xxxx           These are controllable from sys/dev/dpt/dpt.h
-#  DPT_LOST_IRQ             When enabled, will try, once per second, to catch
-#                           any interrupt that got lost.  Seems to help in some
-#                           DPT-firmware/Motherboard combinations.  Minimal
-#                           cost, great benefit.
 #  DPT_RESET_HBA            Make "reset" actually reset the controller
 #                           instead of fudging it.  Only enable this if you
 #			    are 100% certain you need it.
@@ -1630,9 +1635,6 @@ device		dpt
 
 # DPT options
 #!CAM# options 	DPT_MEASURE_PERFORMANCE
-#!CAM# options 	DPT_HANDLE_TIMEOUTS
-options 	DPT_TIMEOUT_FACTOR=4
-options 	DPT_LOST_IRQ
 options 	DPT_RESET_HBA
 
 #
@@ -1691,21 +1693,14 @@ device		mvs
 device		siis
 
 #
-# The 'ATA' driver supports all ATA and ATAPI devices, including PC Card
-# devices. You only need one "device ata" for it to find all
+# The 'ATA' driver supports all legacy ATA/ATAPI controllers, including
+# PC Card devices. You only need one "device ata" for it to find all
 # PCI and PC Card ATA/ATAPI devices on modern machines.
 # Alternatively, individual bus and chipset drivers may be chosen by using
 # the 'atacore' driver then selecting the drivers on a per vendor basis.
 # For example to build a system which only supports a VIA chipset,
 # omit 'ata' and include the 'atacore', 'atapci' and 'atavia' drivers.
 device		ata
-#device		atadisk		# ATA disk drives
-#device		ataraid		# ATA RAID drives
-#device		atapicd		# ATAPI CDROM drives
-#device		atapifd		# ATAPI floppy drives
-#device		atapist		# ATAPI tape drives
-#device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
-				# needs CAM to be present (scbus & pass)
 
 # Modular ATA
 #device		atacore		# Core ATA functionality
@@ -1755,15 +1750,9 @@ hint.ata.1.irq="15"
 #			else the device numbers are dynamically allocated.
 # ATA_REQUEST_TIMEOUT:	the number of seconds to wait for an ATA request
 #			before timing out.
-# ATA_CAM:		Turn ata(4) subsystem controller drivers into cam(4)
-#			interface modules. This deprecates all ata(4)
-#			peripheral device drivers (atadisk, ataraid, atapicd,
-#			atapifd, atapist, atapicam) and all user-level APIs.
-#			cam(4) drivers and APIs will be connected instead.
 
 options 	ATA_STATIC_ID
 #options 	ATA_REQUEST_TIMEOUT=10
-options 	ATA_CAM
 
 #
 # Standard floppy disk controllers and floppy tapes, supports

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_METASLAB_H
@@ -56,6 +56,7 @@ extern int metaslab_alloc(spa_t *spa, metaslab_class_t *mc, uint64_t psize,
 extern void metaslab_free(spa_t *spa, const blkptr_t *bp, uint64_t txg,
     boolean_t now);
 extern int metaslab_claim(spa_t *spa, const blkptr_t *bp, uint64_t txg);
+extern void metaslab_check_free(spa_t *spa, const blkptr_t *bp);
 
 extern metaslab_class_t *metaslab_class_create(spa_t *spa,
     space_map_ops_t *ops);

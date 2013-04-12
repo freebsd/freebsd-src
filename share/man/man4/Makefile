@@ -51,8 +51,6 @@ MAN=	aac.4 \
 	${_asmc.4} \
 	asr.4 \
 	ata.4 \
-	atapicam.4 \
-	ataraid.4 \
 	ath.4 \
 	ath_ahb.4 \
 	ath_hal.4 \
@@ -99,6 +97,7 @@ MAN=	aac.4 \
 	${_cpuctl.4} \
 	cpufreq.4 \
 	crypto.4 \
+	ctl.4 \
 	cue.4 \
 	cxgb.4 \
 	cxgbe.4 \
@@ -525,7 +524,6 @@ MAN=	aac.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
-	vinum.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \

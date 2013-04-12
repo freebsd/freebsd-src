@@ -688,7 +688,9 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm, *sfrm;
 	uint8_t *ssid, *rates, *xrates;
+#if 0
 	int ht_state_change = 0;
+#endif
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	frm = (uint8_t *)&wh[1];
@@ -768,8 +770,23 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 				ni->ni_noise = nf;
 			}
+			/*
+			 * Same here - the channel width change should
+			 * be applied to the specific peer node, not
+			 * to the ic.  Ie, the interface configuration
+			 * should stay in its current channel width;
+			 * but it should change the rate control and
+			 * any queued frames for the given node only.
+			 *
+			 * Since there's no (current) way to inform
+			 * the driver that a channel width change has
+			 * occured for a single node, just stub this
+			 * out.
+			 */
+#if 0
 			if (ht_state_change)
 				ieee80211_update_chw(ic);
+#endif
 		}
 		break;
 	}

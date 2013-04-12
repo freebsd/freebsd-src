@@ -237,7 +237,7 @@ AcpiUtCheckAddressRange (
     if ((SpaceId != ACPI_ADR_SPACE_SYSTEM_MEMORY) &&
         (SpaceId != ACPI_ADR_SPACE_SYSTEM_IO))
     {
-        return_VALUE (0);
+        return_UINT32 (0);
     }
 
     RangeInfo = AcpiGbl_AddressRangeList[SpaceId];
@@ -278,7 +278,7 @@ AcpiUtCheckAddressRange (
         RangeInfo = RangeInfo->Next;
     }
 
-    return_VALUE (OverlapCount);
+    return_UINT32 (OverlapCount);
 }
 
 

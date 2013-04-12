@@ -45,22 +45,34 @@ ar5416_decode_txstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes txs is smaller than PAYLOAD_LEN! */
 	memcpy(&txs, &a->payload, sizeof(struct ar5416_desc));
 
-	printf("[%u] [%llu] TXSTATUS: TxDone=%d, TS=0x%08x\n",
-	    (unsigned int) be32toh(a->hdr.tstamp),
+	printf("[%u.%06u] [%llu] TXSTATUS: TxDone=%d, FrmOk=%d, filt=%d, TS=0x%08x\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid),
 	    MF(txs.u.tx.status[9], AR_TxDone),
+	    MF(txs.u.tx.status[1], AR_FrmXmitOK),
+	    MF(txs.u.tx.status[1], AR_Filtered),
 	    txs.u.tx.status[2]);
 
 	/* ds_txstatus0 */
-	printf("    RX RSSI 0 [%d %d %d]\n",
+	printf("    RX RSSI 0 [%d %d %d]",
 	    MS(txs.u.tx.status[0], AR_TxRSSIAnt00),
 	    MS(txs.u.tx.status[0], AR_TxRSSIAnt01),
 	    MS(txs.u.tx.status[0], AR_TxRSSIAnt02));
-	printf("    BA Valid=%d\n",
+
+	/* ds_txstatus5 */
+	printf(" RX RSSI 1 [%d %d %d] Comb=%d\n",
+	    MS(txs.u.tx.status[5], AR_TxRSSIAnt10),
+	    MS(txs.u.tx.status[5], AR_TxRSSIAnt11),
+	    MS(txs.u.tx.status[5], AR_TxRSSIAnt12),
+	    MS(txs.u.tx.status[5], AR_TxRSSICombined));
+
+	/* ds_txstatus0 */
+	printf("    BA Valid=%d",
 	    MF(txs.u.tx.status[0], AR_TxBaStatus));
 
 	/* ds_txstatus1 */
-	printf("    Frmok=%d, xretries=%d, fifounderrun=%d, filt=%d\n",
+	printf(", Frmok=%d, xretries=%d, fifounderrun=%d, filt=%d\n",
 	    MF(txs.u.tx.status[1], AR_FrmXmitOK),
 	    MF(txs.u.tx.status[1], AR_ExcessiveRetries),
 	    MF(txs.u.tx.status[1], AR_FIFOUnderrun),
@@ -78,19 +90,13 @@ ar5416_decode_txstatus(struct if_ath_alq_payload *a)
 	    MS(txs.u.tx.status[1], AR_VirtRetryCnt));
 
 	/* ds_txstatus2 */
-	printf("    TxTimestamp=0x%08x\n", txs.u.tx.status[2]);
+	printf("    TxTimestamp=0x%08x", txs.u.tx.status[2]);
 
 	/* ds_txstatus3 */
 	/* ds_txstatus4 */
-	printf("    BALow=0x%08x\n", txs.u.tx.status[3]);
-	printf("    BAHigh=0x%08x\n", txs.u.tx.status[4]);
+	printf(", BALow=0x%08x", txs.u.tx.status[3]);
+	printf(", BAHigh=0x%08x\n", txs.u.tx.status[4]);
 
-	/* ds_txstatus5 */
-	printf("    RX RSSI 1 [%d %d %d] Comb=%d\n",
-	    MS(txs.u.tx.status[5], AR_TxRSSIAnt10),
-	    MS(txs.u.tx.status[5], AR_TxRSSIAnt11),
-	    MS(txs.u.tx.status[5], AR_TxRSSIAnt12),
-	    MS(txs.u.tx.status[5], AR_TxRSSICombined));
 
 	/* ds_txstatus6 */
 	/* ds_txstatus7 */
@@ -121,8 +127,9 @@ ar5416_decode_txdesc(struct if_ath_alq_payload *a)
 	/* XXX assumes txs is smaller than PAYLOAD_LEN! */
 	memcpy(&txc, &a->payload, sizeof(struct ar5416_desc));
 
-	printf("[%u] [%llu] TXD\n",
-	    (unsigned int) be32toh(a->hdr.tstamp),
+	printf("[%u.%06u] [%llu] TXD\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid));
 
 	printf("  link=0x%08x, data=0x%08x\n",
@@ -172,26 +179,23 @@ ar5416_decode_txdesc(struct if_ath_alq_payload *a)
 	    MS(txc.ds_ctl2, AR_XmitDataTries2),
 	    MS(txc.ds_ctl2, AR_XmitDataTries3));
 
-	/* ds_ctl3 */
-	printf("    rate0=0x%02x, rate1=0x%02x, rate2=0x%02x, rate3=0x%02x\n",
+	/* ds_ctl3, 4 */
+	printf("    try 0: Rate=0x%02x, PktDur=%d, RTS/CTS ena=%d\n",
 	    MS(txc.ds_ctl3, AR_XmitRate0),
-	    MS(txc.ds_ctl3, AR_XmitRate1),
-	    MS(txc.ds_ctl3, AR_XmitRate2),
-	    MS(txc.ds_ctl3, AR_XmitRate3));
-
-	/* ds_ctl4 */
-	printf("    try 0: PktDur=%d, RTS/CTS ena=%d\n",
 	    MS(txc.ds_ctl4, AR_PacketDur0),
 	    MF(txc.ds_ctl4, AR_RTSCTSQual0));
-	printf("    try 1: PktDur=%d, RTS/CTS ena=%d\n",
+	printf("    try 1: Rate=0x%02x, PktDur=%d, RTS/CTS ena=%d\n",
+	    MS(txc.ds_ctl3, AR_XmitRate1),
 	    MS(txc.ds_ctl4, AR_PacketDur1),
 	    MF(txc.ds_ctl4, AR_RTSCTSQual1));
 
-	/* ds_ctl5 */
-	printf("    try 2: PktDur=%d, RTS/CTS ena=%d\n",
+	/* ds_ctl3, 5 */
+	printf("    try 2: Rate=0x%02x, PktDur=%d, RTS/CTS ena=%d\n",
+	    MS(txc.ds_ctl3, AR_XmitRate2),
 	    MS(txc.ds_ctl5, AR_PacketDur2),
 	    MF(txc.ds_ctl5, AR_RTSCTSQual2));
-	printf("    try 3: PktDur=%d, RTS/CTS ena=%d\n",
+	printf("    try 3: Rate=0x%02x, PktDur=%d, RTS/CTS ena=%d\n",
+	    MS(txc.ds_ctl3, AR_XmitRate3),
 	    MS(txc.ds_ctl5, AR_PacketDur3),
 	    MF(txc.ds_ctl5, AR_RTSCTSQual3));
 
@@ -223,6 +227,8 @@ ar5416_decode_txdesc(struct if_ath_alq_payload *a)
 	    MF(txc.ds_ctl7, AR_2040_3),
 	    MF(txc.ds_ctl7, AR_STBC3));
 
+	printf("    RTSCtsRate=0x%02x\n", MS(txc.ds_ctl7, AR_RTSCTSRate));
+
 	/* ds_ctl8 */
 	printf("    try 0: ant=0x%08x\n", txc.ds_ctl8 &  AR_AntCtl0);
 
@@ -252,10 +258,12 @@ ar5416_decode_rxstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes rxs is smaller than PAYLOAD_LEN! */
 	memcpy(&rxs, &a->payload, sizeof(struct ar5416_desc));
 
-	printf("[%u] [%llu] RXSTATUS: RxDone=%d, TS=0x%08x\n",
-	    (unsigned int) be32toh(a->hdr.tstamp),
+	printf("[%u.%06u] [%llu] RXSTATUS: RxDone=%d, RxRate=0x%02x, TS=0x%08x\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid),
 	    MF(rxs.ds_rxstatus8, AR_RxDone),
+	    MS(rxs.ds_rxstatus0, AR_RxRate),
 	    rxs.ds_rxstatus2);
 
 	printf("  link=0x%08x, data=0x%08x, ctl0=0x%08x, ctl2=0x%08x\n",
@@ -274,14 +282,21 @@ ar5416_decode_rxstatus(struct if_ath_alq_payload *a)
 	    MS(rxs.ds_rxstatus0, AR_RxRSSIAnt01),
 	    MS(rxs.ds_rxstatus0, AR_RxRSSIAnt02));
 
+	/* status4 */
+	printf("  RSSIExt[0]=%d, RSSIExt[1]=%d, RSSIExt[2]=%d, RSSIComb=%d\n",
+	    MS(rxs.ds_rxstatus4, AR_RxRSSIAnt10),
+	    MS(rxs.ds_rxstatus4, AR_RxRSSIAnt11),
+	    MS(rxs.ds_rxstatus4, AR_RxRSSIAnt12),
+	    MS(rxs.ds_rxstatus4, AR_RxRSSICombined));
+
+	/* status2 */
+	printf("  RxTimestamp=0x%08x,", rxs.ds_rxstatus2);
+
 	/* status1 */
-	printf("  DataLen=%d, RxMore=%d, NumDelim=%d\n",
+	printf(" DataLen=%d, RxMore=%d, NumDelim=%d\n",
 	    rxs.ds_rxstatus1 & AR_DataLen,
 	    MF(rxs.ds_rxstatus1, AR_RxMore),
 	    MS(rxs.ds_rxstatus1, AR_NumDelim));
-
-	/* status2 */
-	printf("  RxTimestamp=0x%08x\n", rxs.ds_rxstatus2);
 
 	/* status3 - RxRate however is for Owl 2.0 */
 	printf("  GI=%d, 2040=%d, RxRate=0x%02x, DupFrame=%d, RxAnt=0x%08x\n",
@@ -290,13 +305,6 @@ ar5416_decode_rxstatus(struct if_ath_alq_payload *a)
 	    MS(rxs.ds_rxstatus0, AR_RxRate),
 	    MF(rxs.ds_rxstatus3, AR_DupFrame),
 	    MS(rxs.ds_rxstatus3, AR_RxAntenna));
-
-	/* status4 */
-	printf("  RSSIExt[0]=%d, RSSIExt[1]=%d, RSSIExt[2]=%d, RSSIComb=%d\n",
-	    MS(rxs.ds_rxstatus4, AR_RxRSSIAnt10),
-	    MS(rxs.ds_rxstatus4, AR_RxRSSIAnt11),
-	    MS(rxs.ds_rxstatus4, AR_RxRSSIAnt12),
-	    MS(rxs.ds_rxstatus4, AR_RxRSSICombined));
 
 	/* status5 */
 	/* status6 */
@@ -318,20 +326,20 @@ ar5416_decode_rxstatus(struct if_ath_alq_payload *a)
 	    MF(rxs.ds_rxstatus8, AR_PreDelimCRCErr),
 	    MF(rxs.ds_rxstatus8, AR_RxKeyIdxValid));
 
-	/* If PHY error, print that out. Otherwise, the key index */
-	if (MF(rxs.ds_rxstatus8, AR_PHYErr))
-		printf("  PhyErrCode=0x%02x\n",
-		    MS(rxs.ds_rxstatus8, AR_PHYErrCode));
-	else
-		printf("  KeyIdx=0x%02x\n",
-		    MS(rxs.ds_rxstatus8, AR_KeyIdx));
-
 	printf("  RxMoreAggr=%d, RxAggr=%d, PostDelimCRCErr=%d, HiRxChain=%d\n",
 	    MF(rxs.ds_rxstatus8, AR_RxMoreAggr),
 	    MF(rxs.ds_rxstatus8, AR_RxAggr),
 	    MF(rxs.ds_rxstatus8, AR_PostDelimCRCErr),
 	    MF(rxs.ds_rxstatus8, AR_HiRxChain));
-	printf("  KeyMiss=%d\n",
+
+	/* If PHY error, print that out. Otherwise, the key index */
+	if (MF(rxs.ds_rxstatus8, AR_PHYErr))
+		printf("  PhyErrCode=0x%02x",
+		    MS(rxs.ds_rxstatus8, AR_PHYErrCode));
+	else
+		printf("  KeyIdx=0x%02x",
+		    MS(rxs.ds_rxstatus8, AR_KeyIdx));
+	printf(", KeyMiss=%d\n",
 	    MF(rxs.ds_rxstatus8, AR_KeyMiss));
 
 	printf("\n ------\n");
@@ -352,8 +360,9 @@ ar5416_alq_payload(struct if_ath_alq_payload *a)
 				ar5416_decode_txdesc(a);
 				break;
 			default:
-				printf("[%d] [%lld] op: %d; len %d\n",
-				    be32toh(a->hdr.tstamp),
+				printf("[%d.%06d] [%lld] op: %d; len %d\n",
+				    be32toh(a->hdr.tstamp_sec),
+				    be32toh(a->hdr.tstamp_usec),
 				    be64toh(a->hdr.threadid),
 				    be16toh(a->hdr.op), be16toh(a->hdr.len));
 		}

@@ -386,7 +386,6 @@ cddiskgonecb(struct disk *dp)
 	struct cam_periph *periph;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-
 	cam_periph_release(periph);
 }
 
@@ -1073,9 +1072,6 @@ cdopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	softc = (struct cd_softc *)periph->softc;
 
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
@@ -1120,9 +1116,6 @@ cdclose(struct disk *dp)
 	struct	cd_softc *softc;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	softc = (struct cd_softc *)periph->softc;
 
 	cam_periph_lock(periph);
@@ -1453,7 +1446,7 @@ cdgetccb(struct cam_periph *periph, u_int32_t priority)
 				softc->changer->flags |= CHANGER_MANUAL_CALL;
 				cdrunchangerqueue(softc->changer);
 			} else
-				msleep(&softc->changer, periph->sim->mtx,
+				cam_periph_sleep(periph, &softc->changer,
 				    PRIBIO, "cgticb", 0);
 		}
 	}
@@ -1473,11 +1466,6 @@ cdstrategy(struct bio *bp)
 	struct cd_softc *softc;
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph == NULL) {
-		biofinish(bp, NULL, ENXIO);
-		return;
-	}
-
 	cam_periph_lock(periph);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 	    ("cdstrategy(%p)\n", bp));
@@ -1575,7 +1563,8 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					/*retries*/ cd_retry_count,
 					/* cbfcnp */ cddone,
 					MSG_SIMPLE_Q_TAG,
-					/* read */bp->bio_cmd == BIO_READ,
+					/* read */bp->bio_cmd == BIO_READ ?
+					SCSI_RW_READ : SCSI_RW_WRITE,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,
 					/* lba */ bp->bio_offset /
@@ -1971,9 +1960,6 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	int	nocopyout, error = 0;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return(ENXIO);	
-
 	cam_periph_lock(periph);
 
 	softc = (struct cd_softc *)periph->softc;

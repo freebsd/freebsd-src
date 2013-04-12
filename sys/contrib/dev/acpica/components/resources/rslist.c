@@ -199,6 +199,15 @@ AcpiRsConvertResourcesToAml (
             return_ACPI_STATUS (AE_BAD_DATA);
         }
 
+        /* Sanity check the length. It must not be zero, or we loop forever */
+
+        if (!Resource->Length)
+        {
+            ACPI_ERROR ((AE_INFO,
+                "Invalid zero length descriptor in resource list\n"));
+            return_ACPI_STATUS (AE_AML_BAD_RESOURCE_LENGTH);
+        }
+
         /* Perform the conversion */
 
         if (Resource->Type == ACPI_RESOURCE_TYPE_SERIAL_BUS)

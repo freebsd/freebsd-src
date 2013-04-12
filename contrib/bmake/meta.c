@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.26 2013/01/19 04:23:37 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.29 2013/03/31 05:49:51 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -539,8 +539,24 @@ boolValue(char *s)
     return TRUE;
 }
 
+/*
+ * Initialization we need before reading makefiles.
+ */
 void
-meta_init(const char *make_mode)
+meta_init()
+{
+#ifdef USE_FILEMON
+	/* this allows makefiles to test if we have filemon support */
+	Var_Set(".MAKE.PATH_FILEMON", _PATH_FILEMON, VAR_GLOBAL, 0);
+#endif
+}
+
+
+/*
+ * Initialization we need after reading makefiles.
+ */
+void
+meta_mode_init(const char *make_mode)
 {
     static int once = 0;
     char *cp;
@@ -1037,6 +1053,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 			    char *tp = Lst_Datum(ln);
 			    Lst_Remove(missingFiles, ln);
 			    free(tp);
+			    ln = NULL;	/* we're done with it */
 			}
 		    }
 		    break;
@@ -1196,17 +1213,19 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    oodate = TRUE;
 		} else {
 		    char *cmd = (char *)Lst_Datum(ln);
+		    Boolean hasOODATE = FALSE;
 
-		    if (!needOODATE) {
-			if (strstr(cmd, "$?"))
-			    needOODATE = TRUE;
-			else if ((cp = strstr(cmd, ".OODATE"))) {
-			    /* check for $[{(].OODATE[)}] */
-			    if (cp > cmd + 2 && cp[-2] == '$')
-				needOODATE = TRUE;
-			}
-			if (needOODATE && DEBUG(META))
-			    fprintf(debug_file, "%s: %d: cannot compare commands using .OODATE\n", fname, lineno);
+		    if (strstr(cmd, "$?"))
+			hasOODATE = TRUE;
+		    else if ((cp = strstr(cmd, ".OODATE"))) {
+			/* check for $[{(].OODATE[:)}] */
+			if (cp > cmd + 2 && cp[-2] == '$')
+			    hasOODATE = TRUE;
+		    }
+		    if (hasOODATE) {
+			needOODATE = TRUE;
+			if (DEBUG(META))
+			    fprintf(debug_file, "%s: %d: cannot compare command using .OODATE\n", fname, lineno);
 		    }
 		    cmd = Var_Subst(NULL, cmd, gn, TRUE);
 
@@ -1235,7 +1254,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 			if (buf[x - 1] == '\n')
 			    buf[x - 1] = '\0';
 		    }
-		    if (!needOODATE &&
+		    if (!hasOODATE &&
 			!(gn->type & OP_NOMETA_CMP) &&
 			strcmp(p, cmd) != 0) {
 			if (DEBUG(META))

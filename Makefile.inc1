@@ -678,6 +678,10 @@ _install-info=	install-info
 _zoneinfo=	zic tzsetup
 .endif
 
+.if exists(/usr/sbin/nmtree)
+_nmtree_itools=	nmtree
+.endif
+
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
@@ -1133,14 +1137,13 @@ _lex=		usr.bin/lex
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
-_yacc=		usr.bin/yacc
+_yacc=		lib/liby \
+		usr.bin/yacc
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
-.else
-_nmtree_itools=	nmtree
 .endif
 
 .if ${BOOTSTRAPPING} < 1000027
@@ -1210,6 +1213,7 @@ bootstrap-tools:
     ${_sed} \
     ${_yacc} \
     ${_lex} \
+    lib/libmd \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
@@ -1390,6 +1394,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
+		${_cddl_lib_libzfs_core} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl}
@@ -1418,7 +1423,9 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
+_cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib= cddl/lib
+cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 .endif
 
 .if ${MK_CRYPT} != "no"
@@ -1741,13 +1748,15 @@ XDTP=/usr/${XDDIR}
 CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
 	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
-	_SHLIBDIRPREFIX=${XDTP} \
-	TOOLS_PREFIX=${XDTP}
-CD2ENV=${CDENV} \
+	_SHLIBDIRPREFIX=${XDDESTDIR} \
+	TOOLS_PREFIX=${XDDESTDIR}
+CD2CFLAGS=-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib \
+	-B${XDDESTDIR}/usr/lib
+CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" \
 	MACHINE=${XDEV} MACHINE_ARCH=${XDEV_ARCH}
 
-CDTMP=	${MAKEOBJDIRPREFIX}/${XDEV}/${.CURDIR}/tmp
-CDMAKE=${CDENV} ${MAKE} ${NOFUN}
+CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
+CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDTP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 XDDESTDIR=${DESTDIR}${XDTP}
 .if !defined(OSREL)
@@ -1757,8 +1766,24 @@ OSREL!= uname -r | sed -e 's/[-(].*//'
 .ORDER: xdev-build xdev-install
 xdev: xdev-build xdev-install
 
-.ORDER: _xb-build-tools _xb-cross-tools
-xdev-build: _xb-build-tools _xb-cross-tools
+.ORDER: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
+xdev-build: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
+
+_xb-worldtmp:
+	mkdir -p ${CDTMP}/usr
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${CDTMP}/usr >/dev/null
+
+_xb-bootstrap-tools:
+.for _tool in \
+    ${_clang_tblgen}
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
+	cd ${.CURDIR}/${_tool}; \
+	${CDMAKE} DIRPRFX=${_tool}/ obj; \
+	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	${CDMAKE} DIRPRFX=${_tool}/ all; \
+	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
+.endfor
 
 _xb-build-tools:
 	${_+_}@cd ${.CURDIR}; \
@@ -1768,7 +1793,9 @@ _xb-cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
-    usr.bin/ar
+    usr.bin/ar \
+    ${_clang_libs} \
+    ${_clang}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
@@ -1794,7 +1821,8 @@ _xi-cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
-    usr.bin/ar
+    usr.bin/ar \
+    ${_clang}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
@@ -1817,7 +1845,7 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .else
-xdev xdev-buil xdev-install:
+xdev xdev-build xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
 

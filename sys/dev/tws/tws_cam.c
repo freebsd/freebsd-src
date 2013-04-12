@@ -217,17 +217,16 @@ tws_bus_scan(struct tws_softc *sc)
     TWS_TRACE_DEBUG(sc, "entry", sc, 0);
     if (!(sc->sim))
         return(ENXIO);
-    mtx_assert(&sc->sim_lock, MA_OWNED);
-    if ((ccb = xpt_alloc_ccb()) == NULL)
-		    return(ENOMEM);
-
+    ccb = xpt_alloc_ccb();
+    mtx_lock(&sc->sim_lock);
     if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sc->sim),
                   CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	mtx_unlock(&sc->sim_lock);
         xpt_free_ccb(ccb);
         return(EIO);
     }
     xpt_rescan(ccb);
-    
+    mtx_unlock(&sc->sim_lock);
     return(0);
 }
 
@@ -739,39 +738,8 @@ tws_execute_scsi(struct tws_softc *sc, union ccb *ccb)
     else
         bcopy(csio->cdb_io.cdb_bytes, cmd_pkt->cmd.pkt_a.cdb, csio->cdb_len);
 
-    if (!(ccb_h->flags & CAM_DATA_PHYS)) {
-         /* Virtual data addresses.  Need to convert them... */
-         if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
-             if (csio->dxfer_len > TWS_MAX_IO_SIZE) {
-                 TWS_TRACE(sc, "I/O is big", csio->dxfer_len, 0);
-                 tws_release_request(req);
-                 ccb_h->status = CAM_REQ_TOO_BIG;
-                 xpt_done(ccb);
-                 return(0);
-             }
-
-             req->length = csio->dxfer_len;
-             if (req->length) {
-                 req->data = csio->data_ptr;
-                 /* there is 1 sgl_entrie */
-                 /* cmd_pkt->cmd.pkt_a.lun_h4__sgl_entries |= 1; */
-             }
-         } else {
-             TWS_TRACE_DEBUG(sc, "got sglist", ccb_h->target_id, ccb_h->target_lun);
-             tws_release_request(req);
-             ccb_h->status = CAM_REQ_INVALID;
-             xpt_done(ccb);
-             return(0);
-         }
-    } else {
-         /* Data addresses are physical. */
-         TWS_TRACE_DEBUG(sc, "Phy data addr", ccb_h->target_id, ccb_h->target_lun);
-         tws_release_request(req);
-         ccb_h->status = CAM_REQ_INVALID;
-         ccb_h->status &= ~CAM_SIM_QUEUED;
-         xpt_done(ccb);
-         return(0);
-    }
+    req->data = ccb;
+    req->flags |= TWS_DATA_CCB;
     /* save ccb ptr */
     req->ccb_ptr = ccb;
     /* 
@@ -961,10 +929,16 @@ tws_map_request(struct tws_softc *sc, struct tws_request *req)
          * Map the data buffer into bus space and build the SG list.
          */
         mtx_lock(&sc->io_lock);
-        error = bus_dmamap_load(sc->data_tag, req->dma_map,
-                                req->data, req->length,
-                                tws_dmamap_data_load_cbfn, req,
-                                my_flags);
+	if (req->flags & TWS_DATA_CCB)
+		error = bus_dmamap_load_ccb(sc->data_tag, req->dma_map,
+					    req->data,
+					    tws_dmamap_data_load_cbfn, req,
+					    my_flags);
+	else
+		error = bus_dmamap_load(sc->data_tag, req->dma_map,
+					req->data, req->length,
+					tws_dmamap_data_load_cbfn, req,
+					my_flags);
         mtx_unlock(&sc->io_lock);
 
         if (error == EINPROGRESS) {

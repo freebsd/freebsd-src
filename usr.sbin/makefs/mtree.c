@@ -508,8 +508,8 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 {
 	char keyword[PATH_MAX];
 	char *name, *p, *value;
-	struct group *grent;
-	struct passwd *pwent;
+	gid_t gid;
+	uid_t uid;
 	struct stat *st, sb;
 	intmax_t num;
 	u_long flset, flclr;
@@ -585,11 +585,10 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				grent = getgrnam(value);
-				if (grent != NULL)
-					st->st_gid = grent->gr_gid;
+				if (gid_from_group(value, &gid) == 0)
+					st->st_gid = gid;
 				else
-					error = errno;
+					error = EINVAL;
 			} else
 				error = ENOSYS;
 			break;
@@ -698,11 +697,10 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				pwent = getpwnam(value);
-				if (pwent != NULL)
-					st->st_uid = pwent->pw_uid;
+				if (uid_from_user(value, &uid) == 0)
+					st->st_uid = uid;
 				else
-					error = errno;
+					error = EINVAL;
 			} else
 				error = ENOSYS;
 			break;
@@ -779,6 +777,24 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 		    name);
 		free(name);
 		return (0);
+	}
+
+	/*
+         * Check for hardlinks. If the contents key is used, then the check
+         * will only trigger if the contents file is a link even if it is used
+         * by more than one file
+	 */
+	if (sb.st_nlink > 1) {
+		fsinode *curino;
+
+		st->st_ino = sb.st_ino;
+		st->st_dev = sb.st_dev;
+		curino = link_check(node->inode);
+		if (curino != NULL) {
+			free(node->inode);
+			node->inode = curino;
+			node->inode->nlink++;
+		}
 	}
 
 	free(node->contents);
@@ -881,8 +897,14 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 
 		if (strcmp(name, node->name) == 0) {
 			if (def == true) {
-				mtree_error("duplicate definition of %s",
-				    name);
+				if (!dupsok)
+					mtree_error(
+					    "duplicate definition of %s",
+					    name);
+				else
+					mtree_warning(
+					    "duplicate definition of %s",
+					    name);
 				return (0);
 			}
 
@@ -970,15 +992,15 @@ read_mtree_spec(FILE *fp)
 		do {
 			*cp++ = '\0';
 
-			/* Disallow '.' and '..' as components. */
-			if (IS_DOT(pathspec) || IS_DOTDOT(pathspec)) {
-				mtree_error("absolute path cannot contain . "
-				    "or .. components");
+			/* Disallow '..' as a component. */
+			if (IS_DOTDOT(pathspec)) {
+				mtree_error("absolute path cannot contain "
+				    ".. component");
 				goto out;
 			}
 
-			/* Ignore multiple adjacent slashes. */
-			if (pathspec[0] != '\0')
+			/* Ignore multiple adjacent slashes and '.'. */
+			if (pathspec[0] != '\0' && !IS_DOT(pathspec))
 				error = read_mtree_spec1(fp, false, pathspec);
 			memmove(pathspec, cp, strlen(cp) + 1);
 			cp = strchr(pathspec, '/');

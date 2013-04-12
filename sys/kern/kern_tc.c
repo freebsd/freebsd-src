@@ -22,6 +22,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #ifdef FFCLOCK
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -118,6 +119,21 @@ static SYSCTL_NODE(_kern_timecounter, OID_AUTO, tc, CTLFLAG_RW, 0, "");
 static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
+
+struct bintime bt_timethreshold;
+struct bintime bt_tickthreshold;
+sbintime_t sbt_timethreshold;
+sbintime_t sbt_tickthreshold;
+struct bintime tc_tick_bt;
+sbintime_t tc_tick_sbt;
+int tc_precexp;
+int tc_timepercentage = TC_DEFAULTPERC;
+TUNABLE_INT("kern.timecounter.alloweddeviation", &tc_timepercentage);
+static int sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_timecounter_adjprecision, "I",
+    "Allowed time interval deviation in percents");
 
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
@@ -1446,6 +1462,50 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
  * RFC 2783 PPS-API implementation.
  */
 
+static int
+pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
+{
+	int err, timo;
+	pps_seq_t aseq, cseq;
+	struct timeval tv;
+
+	if (fapi->tsformat && fapi->tsformat != PPS_TSFMT_TSPEC)
+		return (EINVAL);
+
+	/*
+	 * If no timeout is requested, immediately return whatever values were
+	 * most recently captured.  If timeout seconds is -1, that's a request
+	 * to block without a timeout.  WITNESS won't let us sleep forever
+	 * without a lock (we really don't need a lock), so just repeatedly
+	 * sleep a long time.
+	 */
+	if (fapi->timeout.tv_sec || fapi->timeout.tv_nsec) {
+		if (fapi->timeout.tv_sec == -1)
+			timo = 0x7fffffff;
+		else {
+			tv.tv_sec = fapi->timeout.tv_sec;
+			tv.tv_usec = fapi->timeout.tv_nsec / 1000;
+			timo = tvtohz(&tv);
+		}
+		aseq = pps->ppsinfo.assert_sequence;
+		cseq = pps->ppsinfo.clear_sequence;
+		while (aseq == pps->ppsinfo.assert_sequence &&
+		    cseq == pps->ppsinfo.clear_sequence) {
+			err = tsleep(pps, PCATCH, "ppsfch", timo);
+			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
+				continue;
+			} else if (err != 0) {
+				return (err);
+			}
+		}
+	}
+
+	pps->ppsinfo.current_mode = pps->ppsparam.mode;
+	fapi->pps_info_buf = pps->ppsinfo;
+
+	return (0);
+}
+
 int
 pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 {
@@ -1485,13 +1545,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 		return (0);
 	case PPS_IOC_FETCH:
 		fapi = (struct pps_fetch_args *)data;
-		if (fapi->tsformat && fapi->tsformat != PPS_TSFMT_TSPEC)
-			return (EINVAL);
-		if (fapi->timeout.tv_sec || fapi->timeout.tv_nsec)
-			return (EOPNOTSUPP);
-		pps->ppsinfo.current_mode = pps->ppsparam.mode;
-		fapi->pps_info_buf = pps->ppsinfo;
-		return (0);
+		return (pps_fetch(fapi, pps));
 #ifdef FFCLOCK
 	case PPS_IOC_FETCH_FFCOUNTER:
 		fapi_ffc = (struct pps_fetch_ffc_args *)data;
@@ -1540,7 +1594,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 void
 pps_init(struct pps_state *pps)
 {
-	pps->ppscap |= PPS_TSFMT_TSPEC;
+	pps->ppscap |= PPS_TSFMT_TSPEC | PPS_CANWAIT;
 	if (pps->ppscap & PPS_CAPTUREASSERT)
 		pps->ppscap |= PPS_OFFSETASSERT;
 	if (pps->ppscap & PPS_CAPTURECLEAR)
@@ -1680,6 +1734,9 @@ pps_event(struct pps_state *pps, int event)
 		hardpps(tsp, ts.tv_nsec + 1000000000 * ts.tv_sec);
 	}
 #endif
+
+	/* Wakeup anyone sleeping in pps_fetch().  */
+	wakeup(pps);
 }
 
 /*
@@ -1705,10 +1762,47 @@ tc_ticktock(int cnt)
 	tc_windup();
 }
 
+static void __inline
+tc_adjprecision(void)
+{
+	int t;
+
+	if (tc_timepercentage > 0) {
+		t = (99 + tc_timepercentage) / tc_timepercentage;
+		tc_precexp = fls(t + (t >> 1)) - 1;
+		FREQ2BT(hz / tc_tick, &bt_timethreshold);
+		FREQ2BT(hz, &bt_tickthreshold);
+		bintime_shift(&bt_timethreshold, tc_precexp);
+		bintime_shift(&bt_tickthreshold, tc_precexp);
+	} else {
+		tc_precexp = 31;
+		bt_timethreshold.sec = INT_MAX;
+		bt_timethreshold.frac = ~(uint64_t)0;
+		bt_tickthreshold = bt_timethreshold;
+	}
+	sbt_timethreshold = bttosbt(bt_timethreshold);
+	sbt_tickthreshold = bttosbt(bt_tickthreshold);
+}
+
+static int
+sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = tc_timepercentage;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	tc_timepercentage = val;
+	tc_adjprecision();
+	return (0);
+}
+
 static void
 inittimecounter(void *dummy)
 {
 	u_int p;
+	int tick_rate;
 
 	/*
 	 * Set the initial timeout to
@@ -1722,6 +1816,12 @@ inittimecounter(void *dummy)
 		tc_tick = (hz + 500) / 1000;
 	else
 		tc_tick = 1;
+	tc_adjprecision();
+	FREQ2BT(hz, &tick_bt);
+	tick_sbt = bttosbt(tick_bt);
+	tick_rate = hz / tc_tick;
+	FREQ2BT(tick_rate, &tc_tick_bt);
+	tc_tick_sbt = bttosbt(tc_tick_bt);
 	p = (tc_tick * 1000000) / hz;
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
 

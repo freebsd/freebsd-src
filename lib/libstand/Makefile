@@ -39,7 +39,7 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
-	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
+	globals.c pager.c printf.c strdup.c strerror.c strtol.c strtoul.c random.c \
 	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
@@ -67,6 +67,9 @@ SRCS+= divsi3.S
 .else
 # Compiler support functions
 .PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/
+# __clzsi2 and ctzsi2 for various builtin functions
+SRCS+=	clzsi2.c ctzsi2.c
+# Divide and modulus functions called by the compiler
 SRCS+=	 divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
 SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 

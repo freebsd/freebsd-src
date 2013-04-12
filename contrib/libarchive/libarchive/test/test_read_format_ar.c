@@ -40,7 +40,7 @@ DEFINE_TEST(test_read_format_ar)
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_file(a, reffile, 7));
+	assertA(0 == archive_read_open_filename(a, reffile, 7));
 
 	/* Filename table.  */
 	assertA(0 == archive_read_next_header(a, &ae));

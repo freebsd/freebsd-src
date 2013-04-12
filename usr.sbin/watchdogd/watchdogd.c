@@ -1,5 +1,8 @@
 /*-
  * Copyright (c) 2003-2004  Sean M. Kelly <smkelly@FreeBSD.org>
+ * Copyright (c) 2013 iXsystems.com,
+ *                    author: Alfred Perlstein <alfred@freebsd.org>
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 #include <sysexits.h>
+#include <syslog.h>
 #include <unistd.h>
+
+#include <getopt.h>
 
 static void	parseargs(int, char *[]);
 static void	sighandler(int);
@@ -63,12 +69,38 @@ static void	usage(void);
 static int debugging = 0;
 static int end_program = 0;
 static const char *pidfile = _PATH_VARRUN "watchdogd.pid";
-static u_int timeout = WD_TO_16SEC;
+static u_int timeout = WD_TO_128SEC;
+static u_int pretimeout = 0;
 static u_int passive = 0;
 static int is_daemon = 0;
+static int is_dry_run = 0;  /* do not arm the watchdog, only
+			       report on timing of the watch
+			       program */
+static int do_timedog = 0;
+static int do_syslog = 1;
 static int fd = -1;
 static int nap = 1;
+static int carp_thresh_seconds = -1;
 static char *test_cmd = NULL;
+
+static const char *getopt_shortopts;
+
+static int pretimeout_set;
+static int pretimeout_act;
+static int pretimeout_act_set;
+
+static int softtimeout_set;
+static int softtimeout_act;
+static int softtimeout_act_set;
+
+static struct option longopts[] = {
+	{ "debug", no_argument, &debugging, 1 },
+	{ "pretimeout", required_argument, &pretimeout_set, 1 },
+	{ "pretimeout-action", required_argument, &pretimeout_act_set, 1 },
+	{ "softtimeout", no_argument, &softtimeout_set, 1 },
+	{ "softtimeout-action", required_argument, &softtimeout_act_set, 1 },
+	{ NULL, 0, NULL, 0}
+};
 
 /*
  * Ask malloc() to map minimum-sized chunks of virtual address space at a time,
@@ -93,12 +125,16 @@ main(int argc, char *argv[])
 		
 	parseargs(argc, argv);
 
+	if (do_syslog)
+		openlog("watchdogd", LOG_CONS|LOG_NDELAY|LOG_PERROR,
+		    LOG_DAEMON);
+
 	rtp.type = RTP_PRIO_REALTIME;
 	rtp.prio = 0;
 	if (rtprio(RTP_SET, 0, &rtp) == -1)
 		err(EX_OSERR, "rtprio");
 
-	if (watchdog_init() == -1)
+	if (!is_dry_run && watchdog_init() == -1)
 		errx(EX_SOFTWARE, "unable to initialize watchdog");
 
 	if (is_daemon) {
@@ -108,6 +144,7 @@ main(int argc, char *argv[])
 		pfh = pidfile_open(pidfile, 0600, &otherpid);
 		if (pfh == NULL) {
 			if (errno == EEXIST) {
+				watchdog_onoff(0);
 				errx(EX_SOFTWARE, "%s already running, pid: %d",
 				    getprogname(), otherpid);
 			}
@@ -164,6 +201,9 @@ static int
 watchdog_init(void)
 {
 
+	if (is_dry_run)
+		return 0;
+
 	fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
 	if (fd >= 0)
 		return (0);
@@ -172,26 +212,111 @@ watchdog_init(void)
 }
 
 /*
+ * If we are doing timing, then get the time.
+ */
+static int
+watchdog_getuptime(struct timespec *tp)
+{
+	int error;
+
+	if (!do_timedog)
+		return 0;
+
+	error = clock_gettime(CLOCK_UPTIME_FAST, tp);
+	if (error)
+		warn("clock_gettime");
+	return (error);
+}
+
+static long
+watchdog_check_dogfunction_time(struct timespec *tp_start,
+    struct timespec *tp_end)
+{
+	struct timeval tv_start, tv_end, tv_now, tv;
+	const char *cmd_prefix, *cmd;
+	struct timespec tp_now;
+	int sec;
+
+	if (!do_timedog)
+		return (0);
+
+	TIMESPEC_TO_TIMEVAL(&tv_start, tp_start);
+	TIMESPEC_TO_TIMEVAL(&tv_end, tp_end);
+	timersub(&tv_end, &tv_start, &tv);
+	sec = tv.tv_sec;
+	if (sec < carp_thresh_seconds)
+		return (sec);
+
+	if (test_cmd) {
+		cmd_prefix = "Watchdog program";
+		cmd = test_cmd;
+	} else {
+		cmd_prefix = "Watchdog operation";
+		cmd = "stat(\"/etc\", &sb)";
+	}
+	if (do_syslog)
+		syslog(LOG_CRIT, "%s: '%s' took too long: "
+		    "%d.%06ld seconds >= %d seconds threshold",
+		    cmd_prefix, cmd, sec, (long)tv.tv_usec,
+		    carp_thresh_seconds);
+	else
+		warnx("%s: '%s' took too long: "
+		    "%d.%06ld seconds >= %d seconds threshold",
+		    cmd_prefix, cmd, sec, (long)tv.tv_usec,
+		    carp_thresh_seconds);
+
+	/*
+	 * Adjust the sleep interval again in case syslog(3) took a non-trivial
+	 * amount of time to run.
+	 */
+	if (watchdog_getuptime(&tp_now))
+		return (sec);
+	TIMESPEC_TO_TIMEVAL(&tv_now, &tp_now);
+	timersub(&tv_now, &tv_start, &tv);
+	sec = tv.tv_sec;
+
+	return (sec);
+}
+
+/*
  * Main program loop which is iterated every second.
  */
 static void
 watchdog_loop(void)
 {
+	struct timespec ts_start, ts_end;
 	struct stat sb;
-	int failed;
+	long waited;
+	int error, failed;
 
 	while (end_program != 2) {
 		failed = 0;
+
+		error = watchdog_getuptime(&ts_start);
+		if (error) {
+			end_program = 1;
+			goto try_end;
+		}
 
 		if (test_cmd != NULL)
 			failed = system(test_cmd);
 		else
 			failed = stat("/etc", &sb);
 
+		error = watchdog_getuptime(&ts_end);
+		if (error) {
+			end_program = 1;
+			goto try_end;
+		}
+
 		if (failed == 0)
 			watchdog_patpat(timeout|WD_ACTIVE);
-		sleep(nap);
 
+		waited = watchdog_check_dogfunction_time(&ts_start, &ts_end);
+		if (nap - waited > 0)
+			sleep(nap - waited);
+
+try_end:
 		if (end_program != 0) {
 			if (watchdog_onoff(0) == 0) {
 				end_program = 2;
@@ -211,6 +336,9 @@ static int
 watchdog_patpat(u_int t)
 {
 
+	if (is_dry_run)
+		return 0;
+
 	return ioctl(fd, WDIOCPATPAT, &t);
 }
 
@@ -221,11 +349,62 @@ watchdog_patpat(u_int t)
 static int
 watchdog_onoff(int onoff)
 {
+	int error;
 
-	if (onoff)
+	/* fake successful watchdog op if a dry run */
+	if (is_dry_run)
+		return 0;
+
+	if (onoff) {
+		/*
+		 * Call the WDIOC_SETSOFT regardless of softtimeout_set
+		 * because we'll need to turn it off if someone had turned
+		 * it on.
+		 */
+		error = ioctl(fd, WDIOC_SETSOFT, &softtimeout_set);
+		if (error) {
+			warn("setting WDIOC_SETSOFT %d", softtimeout_set);
+			return (error);
+		}
+		error = watchdog_patpat((timeout|WD_ACTIVE));
+		if (error) {
+			warn("watchdog_patpat failed");
+			goto failsafe;
+		}
+		if (softtimeout_act_set) {
+			error = ioctl(fd, WDIOC_SETSOFTTIMEOUTACT,
+			    &softtimeout_act);
+			if (error) {
+				warn("setting WDIOC_SETSOFTTIMEOUTACT %d",
+				    softtimeout_act);
+				goto failsafe;
+			}
+		}
+		if (pretimeout_set) {
+			error = ioctl(fd, WDIOC_SETPRETIMEOUT, &pretimeout);
+			if (error) {
+				warn("setting WDIOC_SETPRETIMEOUT %d",
+				    pretimeout);
+				goto failsafe;
+			}
+		}
+		if (pretimeout_act_set) {
+			error = ioctl(fd, WDIOC_SETPRETIMEOUTACT,
+			    &pretimeout_act);
+			if (error) {
+				warn("setting WDIOC_SETPRETIMEOUTACT %d",
+				    pretimeout_act);
+				goto failsafe;
+			}
+		}
+		/* pat one more time for good measure */
 		return watchdog_patpat((timeout|WD_ACTIVE));
-	else
+	 } else {
 		return watchdog_patpat(0);
+	 }
+failsafe:
+	watchdog_patpat(0);
+	return (error);
 }
 
 /*
@@ -235,10 +414,103 @@ static void
 usage(void)
 {
 	if (is_daemon)
-		fprintf(stderr, "usage: watchdogd [-d] [-e cmd] [-I file] [-s sleep] [-t timeout]\n");
+		fprintf(stderr, "usage:\n"
+"  watchdogd [-dnSw] [-e cmd] [-I file] [-s sleep] [-t timeout]\n"
+"            [-T script_timeout]\n"
+"            [--debug]\n"
+"            [--pretimeout seconds] [-pretimeout-action action]\n"
+"            [--softtimeout] [-softtimeout-action action]\n"
+);
 	else
 		fprintf(stderr, "usage: watchdog [-d] [-t timeout]\n");
 	exit(EX_USAGE);
+}
+
+static long
+fetchtimeout(int opt, const char *longopt, const char *myoptarg)
+{
+	const char *errstr;
+	char *p;
+	long rv;
+
+	errstr = NULL;
+	p = NULL;
+	errno = 0;
+	rv = strtol(myoptarg, &p, 0);
+	if ((p != NULL && *p != '\0') || errno != 0)
+		errstr = "is not a number";
+	if (rv <= 0)
+		errstr = "must be greater than zero";
+	if (errstr) {
+		if (longopt) 
+			errx(EX_USAGE, "--%s argument %s", longopt, errstr);
+		else 
+			errx(EX_USAGE, "-%c argument %s", opt, errstr);
+	}
+	return (rv);
+}
+
+struct act_tbl {
+	const char *at_act;
+	int at_value;
+};
+
+static const struct act_tbl act_tbl[] = {
+	{ "panic", WD_SOFT_PANIC },
+	{ "ddb", WD_SOFT_DDB },
+	{ "log", WD_SOFT_LOG },
+	{ "printf", WD_SOFT_PRINTF },
+	{ NULL, 0 }
+};
+
+static void
+timeout_act_error(const char *lopt, const char *badact)
+{
+	char *opts, *oldopts;
+	int i;
+
+	opts = NULL;
+	for (i = 0; act_tbl[i].at_act != NULL; i++) {
+		oldopts = opts;
+		if (asprintf(&opts, "%s%s%s",
+		    oldopts == NULL ? "" : oldopts,
+		    oldopts == NULL ? "" : ", ",
+		    act_tbl[i].at_act) == -1)
+			err(EX_OSERR, "malloc");
+		free(oldopts);
+	}
+	warnx("bad --%s argument '%s' must be one of (%s).",
+	    lopt, badact, opts);
+	usage();
+}
+
+/*
+ * Take a comma separated list of actions and or the flags
+ * together for the ioctl.
+ */
+static int
+timeout_act_str2int(const char *lopt, const char *acts)
+{
+	int i;
+	char *dupacts, *tofree;
+	char *o;
+	int rv = 0;
+
+	tofree = dupacts = strdup(acts);
+	if (!tofree)
+		err(EX_OSERR, "malloc");
+	while ((o = strsep(&dupacts, ",")) != NULL) {
+		for (i = 0; act_tbl[i].at_act != NULL; i++) {
+			if (!strcmp(o, act_tbl[i].at_act)) {
+				rv |= act_tbl[i].at_value;
+				break;
+			}
+		}
+		if (act_tbl[i].at_act == NULL)
+			timeout_act_error(lopt, o);
+	}
+	free(tofree);
+	return rv;
 }
 
 /*
@@ -247,15 +519,27 @@ usage(void)
 static void
 parseargs(int argc, char *argv[])
 {
+	int longindex;
 	int c;
 	char *p;
+	const char *lopt;
 	double a;
 
+	/*
+	 * if we end with a 'd' aka 'watchdogd' then we are the daemon program,
+	 * otherwise run as a command line utility.
+	 */
 	c = strlen(argv[0]);
 	if (argv[0][c - 1] == 'd')
 		is_daemon = 1;
-	while ((c = getopt(argc, argv,
-	    is_daemon ? "I:de:s:t:?" : "dt:?")) != -1) {
+
+	if (is_daemon)
+		getopt_shortopts = "I:de:ns:t:ST:w?";
+	else
+		getopt_shortopts = "dt:?";
+
+	while ((c = getopt_long(argc, argv, getopt_shortopts, longopts,
+		    &longindex)) != -1) {
 		switch (c) {
 		case 'I':
 			pidfile = optarg;
@@ -266,17 +550,19 @@ parseargs(int argc, char *argv[])
 		case 'e':
 			test_cmd = strdup(optarg);
 			break;
+		case 'n':
+			is_dry_run = 1;
+			break;
 #ifdef notyet
 		case 'p':
 			passive = 1;
 			break;
 #endif
 		case 's':
-			p = NULL;
-			errno = 0;
-			nap = strtol(optarg, &p, 0);
-			if ((p != NULL && *p != '\0') || errno != 0)
-				errx(EX_USAGE, "-s argument is not a number");
+			nap = fetchtimeout(c, NULL, optarg);
+			break;
+		case 'S':
+			do_syslog = 0;
 			break;
 		case 't':
 			p = NULL;
@@ -286,6 +572,7 @@ parseargs(int argc, char *argv[])
 				errx(EX_USAGE, "-t argument is not a number");
 			if (a < 0)
 				errx(EX_USAGE, "-t argument must be positive");
+
 			if (a == 0)
 				timeout = WD_TO_NEVER;
 			else
@@ -294,12 +581,39 @@ parseargs(int argc, char *argv[])
 				printf("Timeout is 2^%d nanoseconds\n",
 				    timeout);
 			break;
+		case 'T':
+			carp_thresh_seconds = fetchtimeout(c, "NULL", optarg);
+			break;
+		case 'w':
+			do_timedog = 1;
+			break;
+		case 0:
+			lopt = longopts[longindex].name;
+			if (!strcmp(lopt, "pretimeout")) {
+				pretimeout = fetchtimeout(0, lopt, optarg);
+			} else if (!strcmp(lopt, "pretimeout-action")) {
+				pretimeout_act = timeout_act_str2int(lopt,
+				    optarg);
+			} else if (!strcmp(lopt, "softtimeout-action")) {
+				softtimeout_act = timeout_act_str2int(lopt,
+				    optarg);
+			} else {
+		/*		warnx("bad option at index %d: %s", optind,
+				    argv[optind]);
+				usage();
+				*/
+			}
+			break;
 		case '?':
 		default:
 			usage();
 			/* NOTREACHED */
 		}
 	}
+
+	if (carp_thresh_seconds == -1)
+		carp_thresh_seconds = nap;
+
 	if (argc != optind)
 		errx(EX_USAGE, "extra arguments.");
 	if (is_daemon && timeout < WD_TO_1SEC)

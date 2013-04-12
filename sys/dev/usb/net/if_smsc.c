@@ -99,9 +99,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
 
-#include <dev/usb/usb_device.h>
 #include <dev/usb/net/usb_ethernet.h>
-#include "if_smscreg.h"
+
+#include <dev/usb/net/if_smscreg.h>
 
 #ifdef USB_DEBUG
 static int smsc_debug = 0;

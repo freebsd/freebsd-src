@@ -34,9 +34,32 @@
 #ifndef	_MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_
 
+/*
+ * Machine dependent constants for ARM.
+ */
 
-/*#include <arm/arm32/vmparam.h>
-*/
+/*
+ * Virtual memory related constants, all in bytes
+ */
+#ifndef	MAXTSIZ
+#define	MAXTSIZ		(64UL*1024*1024)	/* max text size */
+#endif
+#ifndef	DFLDSIZ
+#define	DFLDSIZ		(128UL*1024*1024)	/* initial data size limit */
+#endif
+#ifndef	MAXDSIZ
+#define	MAXDSIZ		(512UL*1024*1024)	/* max data size */
+#endif
+#ifndef	DFLSSIZ
+#define	DFLSSIZ		(2UL*1024*1024)		/* initial stack size limit */
+#endif
+#ifndef	MAXSSIZ
+#define	MAXSSIZ		(8UL*1024*1024)		/* max stack size */
+#endif
+#ifndef	SGROWSIZ
+#define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
+#endif
+
 /*
  * Address space constants
  */
@@ -133,7 +156,7 @@
 #define VM_MIN_KERNEL_ADDRESS KERNBASE
 #endif
 
-#define VM_MAX_KERNEL_ADDRESS	0xffffffff
+#define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
 
 /*
  * Virtual size (bytes) for various kernel submaps.
@@ -142,30 +165,27 @@
 #define VM_KMEM_SIZE		(12*1024*1024)
 #endif
 #ifndef VM_KMEM_SIZE_SCALE
-#define VM_KMEM_SIZE_SCALE	(2)
+#define VM_KMEM_SIZE_SCALE	(3)
 #endif
 
-#define MAXTSIZ 	(16*1024*1024)
-#ifndef DFLDSIZ
-#define DFLDSIZ         (128*1024*1024)
-#endif
-#ifndef MAXDSIZ
-#define MAXDSIZ         (512*1024*1024)
-#endif
-#ifndef DFLSSIZ
-#define DFLSSIZ         (2*1024*1024)
-#endif
-#ifndef MAXSSIZ
-#define MAXSSIZ         (8*1024*1024)
-#endif
-#ifndef SGROWSIZ
-#define SGROWSIZ        (128*1024)
+/*
+ * Ceiling on the size of the kmem submap: 40% of the kernel map.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define	VM_KMEM_SIZE_MAX	((vm_max_kernel_address - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
 #endif
 
 #ifdef ARM_USE_SMALL_ALLOC
 #define UMA_MD_SMALL_ALLOC
 #endif /* ARM_USE_SMALL_ALLOC */
 
+extern vm_offset_t vm_max_kernel_address;
+
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
+#ifndef VM_MAX_AUTOTUNE_MAXUSERS
+#define	VM_MAX_AUTOTUNE_MAXUSERS	384
+#endif
 
 #endif	/* _MACHINE_VMPARAM_H_ */

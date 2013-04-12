@@ -45,8 +45,9 @@ ar5212_decode_txstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes txs is smaller than PAYLOAD_LEN! */
 	memcpy(&txs, &a->payload, sizeof(struct ar5212_desc));
 
-	printf("[%u] [%llu] TXSTATUS: TxDone=%d, TS=0x%08x\n\n",
-	    (unsigned int) be32toh(a->hdr.tstamp),
+	printf("[%u.%06u] [%llu] TXSTATUS: TxDone=%d, TS=0x%08x\n\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid),
 	    MF(txs.u.tx.status1, AR_Done),
 	    MS(txs.u.tx.status0, AR_SendTimestamp));
@@ -85,8 +86,9 @@ ar5212_decode_txdesc(struct if_ath_alq_payload *a)
 	/* XXX assumes txs is smaller than PAYLOAD_LEN! */
 	memcpy(&txc, &a->payload, sizeof(struct ar5212_desc));
 
-	printf("[%u] [%llu] TXD\n",
-	    (unsigned int) be32toh(a->hdr.tstamp),
+	printf("[%u.%06u] [%llu] TXD\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid));
 
 	printf("  link=0x%08x, data=0x%08x\n",
@@ -149,8 +151,9 @@ ar5212_decode_rxstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes rxs is smaller than PAYLOAD_LEN! */
 	memcpy(&rxs, &a->payload, sizeof(struct ar5212_desc));
 
-	printf("[%u] [%llu] RXSTATUS: RxOK=%d TS=0x%08x\n",
-	    (unsigned int) be32toh(a->hdr.tstamp),
+	printf("[%u.%06u] [%llu] RXSTATUS: RxOK=%d TS=0x%08x\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid),
 	    MF(rxs.ds_rxstatus1, AR_Done),
 	    MS(rxs.ds_rxstatus1, AR_RcvTimestamp));
@@ -214,8 +217,9 @@ ar5212_alq_payload(struct if_ath_alq_payload *a)
 				ar5212_decode_txdesc(a);
 				break;
 			default:
-				printf("[%d] [%lld] op: %d; len %d\n",
-				    be32toh(a->hdr.tstamp),
+				printf("[%d.%06d] [%lld] op: %d; len %d\n",
+				    be32toh(a->hdr.tstamp_sec),
+				    be32toh(a->hdr.tstamp_usec),
 				    be64toh(a->hdr.threadid),
 				    be16toh(a->hdr.op), be16toh(a->hdr.len));
 		}

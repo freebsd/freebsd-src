@@ -183,13 +183,11 @@ usage(void)
 	"       [--get-vmcs-exit-interruption-info]\n"
 	"       [--get-vmcs-exit-interruption-error]\n"
 	"       [--get-vmcs-interruptibility]\n"
-	"       [--set-pinning=<host_cpuid>]\n"
-	"       [--get-pinning]\n"
 	"       [--set-x2apic-state=<state>]\n"
 	"       [--get-x2apic-state]\n"
-	"       [--set-lowmem=<memory below 4GB in units of MB>]\n"
+	"       [--unassign-pptdev=<bus/slot/func>]\n"
+	"       [--set-mem=<memory in units of MB>]\n"
 	"       [--get-lowmem]\n"
-	"       [--set-highmem=<memory above 4GB in units of MB>]\n"
 	"       [--get-highmem]\n",
 	progname);
 	exit(1);
@@ -198,7 +196,7 @@ usage(void)
 static int get_stats, getcap, setcap, capval;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
-static uint64_t lowmem, highmem;
+static uint64_t memsize;
 static int set_cr0, get_cr0, set_cr3, get_cr3, set_cr4, get_cr4;
 static int set_efer, get_efer;
 static int set_dr7, get_dr7;
@@ -218,9 +216,9 @@ static int set_desc_tr, get_desc_tr;
 static int set_desc_ldtr, get_desc_ldtr;
 static int set_cs, set_ds, set_es, set_fs, set_gs, set_ss, set_tr, set_ldtr;
 static int get_cs, get_ds, get_es, get_fs, get_gs, get_ss, get_tr, get_ldtr;
-static int set_pinning, get_pinning, pincpu;
 static int set_x2apic_state, get_x2apic_state;
 enum x2apic_state x2apic_state;
+static int unassign_pptdev, bus, slot, func;
 static int run;
 
 /*
@@ -352,8 +350,7 @@ vm_set_vmcs_field(struct vmctx *ctx, int vcpu, int field, uint64_t val)
 enum {
 	VMNAME = 1000,	/* avoid collision with return values from getopt */
 	VCPU,
-	SET_LOWMEM,
-	SET_HIGHMEM,
+	SET_MEM,
 	SET_EFER,
 	SET_CR0,
 	SET_CR3,
@@ -374,12 +371,12 @@ enum {
 	SET_SS,
 	SET_TR,
 	SET_LDTR,
-	SET_PINNING,
 	SET_X2APIC_STATE,
 	SET_VMCS_EXCEPTION_BITMAP,
 	SET_VMCS_ENTRY_INTERRUPTION_INFO,
 	SET_CAP,
 	CAPNAME,
+	UNASSIGN_PPTDEV,
 };
 
 int
@@ -401,8 +398,7 @@ main(int argc, char *argv[])
 	struct option opts[] = {
 		{ "vm",		REQ_ARG,	0,	VMNAME },
 		{ "cpu",	REQ_ARG,	0,	VCPU },
-		{ "set-lowmem",	REQ_ARG,	0,	SET_LOWMEM },
-		{ "set-highmem",REQ_ARG,	0,	SET_HIGHMEM },
+		{ "set-mem",	REQ_ARG,	0,	SET_MEM },
 		{ "set-efer",	REQ_ARG,	0,	SET_EFER },
 		{ "set-cr0",	REQ_ARG,	0,	SET_CR0 },
 		{ "set-cr3",	REQ_ARG,	0,	SET_CR3 },
@@ -423,13 +419,13 @@ main(int argc, char *argv[])
 		{ "set-ss",	REQ_ARG,	0,	SET_SS },
 		{ "set-tr",	REQ_ARG,	0,	SET_TR },
 		{ "set-ldtr",	REQ_ARG,	0,	SET_LDTR },
-		{ "set-pinning",REQ_ARG,	0,	SET_PINNING },
 		{ "set-x2apic-state",REQ_ARG,	0,	SET_X2APIC_STATE },
 		{ "set-vmcs-exception-bitmap",
 				REQ_ARG,	0, SET_VMCS_EXCEPTION_BITMAP },
 		{ "set-vmcs-entry-interruption-info",
 				REQ_ARG, 0, SET_VMCS_ENTRY_INTERRUPTION_INFO },
 		{ "capname",	REQ_ARG,	0,	CAPNAME },
+		{ "unassign-pptdev", REQ_ARG,	0,	UNASSIGN_PPTDEV },
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
 		{ "getcap",	NO_ARG,		&getcap,	1 },
 		{ "get-stats",	NO_ARG,		&get_stats,	1 },
@@ -552,7 +548,6 @@ main(int argc, char *argv[])
 				NO_ARG,	&get_vmcs_exit_interruption_error, 1},
 		{ "get-vmcs-interruptibility",
 				NO_ARG, &get_vmcs_interruptibility, 1 },
-		{ "get-pinning",NO_ARG,		&get_pinning,	1 },
 		{ "get-x2apic-state",NO_ARG,	&get_x2apic_state, 1 },
 		{ "get-all",	NO_ARG,		&get_all,	1 },
 		{ "run",	NO_ARG,		&run,		1 },
@@ -574,13 +569,9 @@ main(int argc, char *argv[])
 		case VCPU:
 			vcpu = atoi(optarg);
 			break;
-		case SET_LOWMEM:
-			lowmem = atoi(optarg) * MB;
-			lowmem = roundup(lowmem, 2 * MB);
-			break;
-		case SET_HIGHMEM:
-			highmem = atoi(optarg) * MB;
-			highmem = roundup(highmem, 2 * MB);
+		case SET_MEM:
+			memsize = atoi(optarg) * MB;
+			memsize = roundup(memsize, 2 * MB);
 			break;
 		case SET_EFER:
 			efer = strtoul(optarg, NULL, 0);
@@ -659,10 +650,6 @@ main(int argc, char *argv[])
 			ldtr = strtoul(optarg, NULL, 0);
 			set_ldtr = 1;
 			break;
-		case SET_PINNING:
-			pincpu = strtol(optarg, NULL, 0);
-			set_pinning = 1;
-			break;
 		case SET_X2APIC_STATE:
 			x2apic_state = strtol(optarg, NULL, 0);
 			set_x2apic_state = 1;
@@ -681,6 +668,11 @@ main(int argc, char *argv[])
 			break;
 		case CAPNAME:
 			capname = optarg;
+			break;
+		case UNASSIGN_PPTDEV:
+			unassign_pptdev = 1;
+			if (sscanf(optarg, "%d/%d/%d", &bus, &slot, &func) != 3)
+				usage();
 			break;
 		default:
 			usage();
@@ -703,11 +695,8 @@ main(int argc, char *argv[])
 			error = -1;
 	}
 
-	if (!error && lowmem)
-		error = vm_setup_memory(ctx, 0, lowmem, NULL);
-
-	if (!error && highmem)
-		error = vm_setup_memory(ctx, 4 * GB, highmem, NULL);
+	if (!error && memsize)
+		error = vm_setup_memory(ctx, memsize, VM_MMAP_NONE);
 
 	if (!error && set_efer)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_EFER, efer);
@@ -812,11 +801,11 @@ main(int argc, char *argv[])
 	if (!error && set_ldtr)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_LDTR, ldtr);
 
-	if (!error && set_pinning)
-		error = vm_set_pinning(ctx, vcpu, pincpu);
-
 	if (!error && set_x2apic_state)
 		error = vm_set_x2apic_state(ctx, vcpu, x2apic_state);
+
+	if (!error && unassign_pptdev)
+		error = vm_unassign_pptdev(ctx, bus, slot, func);
 
 	if (!error && set_exception_bitmap) {
 		error = vm_set_vmcs_field(ctx, vcpu, VMCS_EXCEPTION_BITMAP,
@@ -992,7 +981,7 @@ main(int argc, char *argv[])
 			printf("vcpu%d\n", vcpu);
 			for (i = 0; i < num_stats; i++) {
 				desc = vm_get_stat_desc(ctx, i);
-				printf("%-32s\t%ld\n", desc, stats[i]);
+				printf("%-40s\t%ld\n", desc, stats[i]);
 			}
 		}
 	}
@@ -1133,16 +1122,6 @@ main(int argc, char *argv[])
 		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_LDTR, &ldtr);
 		if (error == 0)
 			printf("ldtr[%d]\t\t0x%04lx\n", vcpu, ldtr);
-	}
-
-	if (!error && (get_pinning || get_all)) {
-		error = vm_get_pinning(ctx, vcpu, &pincpu);
-		if (error == 0) {
-			if (pincpu < 0)
-				printf("pincpu[%d]\tunpinned\n", vcpu);
-			else
-				printf("pincpu[%d]\t%d\n", vcpu, pincpu);
-		}
 	}
 
 	if (!error && (get_x2apic_state || get_all)) {

@@ -335,6 +335,7 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF  /* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
 
+#pragma pack(1)
 
 /*
  * Information structure for ACPI predefined names.
@@ -347,7 +348,7 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 typedef struct acpi_name_info
 {
     char                        Name[ACPI_NAME_SIZE];
-    UINT8                       ParamCount;
+    UINT16                      ArgumentList;
     UINT8                       ExpectedBtypes;
 
 } ACPI_NAME_INFO;
@@ -372,7 +373,7 @@ typedef struct acpi_package_info
     UINT8                       Count1;
     UINT8                       ObjectType2;
     UINT8                       Count2;
-    UINT8                       Reserved;
+    UINT16                      Reserved;
 
 } ACPI_PACKAGE_INFO;
 
@@ -383,6 +384,7 @@ typedef struct acpi_package_info2
     UINT8                       Type;
     UINT8                       Count;
     UINT8                       ObjectType[4];
+    UINT8                       Reserved;
 
 } ACPI_PACKAGE_INFO2;
 
@@ -394,7 +396,7 @@ typedef struct acpi_package_info3
     UINT8                       Count;
     UINT8                       ObjectType[2];
     UINT8                       TailObjectType;
-    UINT8                       Reserved;
+    UINT16                      Reserved;
 
 } ACPI_PACKAGE_INFO3;
 
@@ -407,6 +409,10 @@ typedef union acpi_predefined_info
 
 } ACPI_PREDEFINED_INFO;
 
+/* Reset to default packing */
+
+#pragma pack()
+
 
 /* Data block used during object validation */
 
@@ -417,6 +423,7 @@ typedef struct acpi_predefined_data
     union acpi_operand_object   *ParentPackage;
     ACPI_NAMESPACE_NODE         *Node;
     UINT32                      Flags;
+    UINT32                      ReturnBtype;
     UINT8                       NodeFlags;
 
 } ACPI_PREDEFINED_DATA;
@@ -425,6 +432,22 @@ typedef struct acpi_predefined_data
 
 #define ACPI_OBJECT_REPAIRED    1
 #define ACPI_OBJECT_WRAPPED     2
+
+
+/* Return object auto-repair info */
+
+typedef ACPI_STATUS (*ACPI_OBJECT_CONVERTER) (
+    union acpi_operand_object   *OriginalObject,
+    union acpi_operand_object   **ConvertedObject);
+
+typedef struct acpi_simple_repair_info
+{
+    char                        Name[ACPI_NAME_SIZE];
+    UINT32                      UnexpectedBtypes;
+    UINT32                      PackageIndex;
+    ACPI_OBJECT_CONVERTER       ObjectConverter;
+
+} ACPI_SIMPLE_REPAIR_INFO;
 
 
 /*
@@ -1217,6 +1240,7 @@ typedef struct acpi_external_list
     UINT16                      Length;
     UINT8                       Type;
     UINT8                       Flags;
+    BOOLEAN                     Resolved;
 
 } ACPI_EXTERNAL_LIST;
 

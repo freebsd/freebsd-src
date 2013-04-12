@@ -39,9 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
+#include <sys/lock.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/stat.h>
@@ -445,7 +447,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	vm_page_t	m;
 	int		error, rv;
 
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
@@ -455,20 +457,20 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 				vm_page_lock(m);
 				vm_page_free(m);
 				vm_page_unlock(m);
-				VM_OBJECT_UNLOCK(tobj);
+				VM_OBJECT_WUNLOCK(tobj);
 				return (EIO);
 			}
 		} else
 			vm_page_zero_invalid(m, TRUE);
 	}
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	vm_page_lock(m);
 	vm_page_unwire(m, TRUE);
 	vm_page_unlock(m);
 	vm_page_wakeup(m);
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 
 	return (error);
 }
@@ -511,11 +513,7 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) ||
-	    (vobj->resident_page_count == 0 && vobj->cache == NULL))
-		goto nocache;
-
-	VM_OBJECT_LOCK(vobj);
+	VM_OBJECT_WLOCK(vobj);
 lookupvpg:
 	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(m, offset, tlen)) {
@@ -529,11 +527,11 @@ lookupvpg:
 			goto lookupvpg;
 		}
 		vm_page_busy(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		error = uiomove_fromphys(&m, offset, tlen, uio);
-		VM_OBJECT_LOCK(vobj);
+		VM_OBJECT_WLOCK(vobj);
 		vm_page_wakeup(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		return	(error);
 	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
 		KASSERT(offset == 0,
@@ -548,7 +546,7 @@ lookupvpg:
 			goto lookupvpg;
 		}
 		vm_page_busy(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
 		ma = (char *)sf_buf_kva(sf);
@@ -561,15 +559,14 @@ lookupvpg:
 		}
 		sf_buf_free(sf);
 		sched_unpin();
-		VM_OBJECT_LOCK(vobj);
+		VM_OBJECT_WLOCK(vobj);
 		if (error == 0)
 			m->valid = VM_PAGE_BITS_ALL;
 		vm_page_wakeup(m);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		return	(error);
 	}
-	VM_OBJECT_UNLOCK(vobj);
-nocache:
+	VM_OBJECT_WUNLOCK(vobj);
 	error = tmpfs_nocacheread(tobj, idx, offset, tlen, uio);
 
 	return	(error);
@@ -639,13 +636,7 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) ||
-	    (vobj->resident_page_count == 0 && vobj->cache == NULL)) {
-		vpg = NULL;
-		goto nocache;
-	}
-
-	VM_OBJECT_LOCK(vobj);
+	VM_OBJECT_WLOCK(vobj);
 lookupvpg:
 	if (((vpg = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(vpg, offset, tlen)) {
@@ -660,16 +651,15 @@ lookupvpg:
 		}
 		vm_page_busy(vpg);
 		vm_page_undirty(vpg);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
 		if (vm_page_is_cached(vobj, idx))
 			vm_page_cache_free(vobj, idx, idx + 1);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 		vpg = NULL;
 	}
-nocache:
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (tpg->valid != VM_PAGE_BITS_ALL) {
@@ -685,14 +675,14 @@ nocache:
 		} else
 			vm_page_zero_invalid(tpg, TRUE);
 	}
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 	if (vpg == NULL)
 		error = uiomove_fromphys(&tpg, offset, tlen, uio);
 	else {
 		KASSERT(vpg->valid == VM_PAGE_BITS_ALL, ("parts of vpg invalid"));
 		pmap_copy_page(vpg, tpg);
 	}
-	VM_OBJECT_LOCK(tobj);
+	VM_OBJECT_WLOCK(tobj);
 	if (error == 0) {
 		KASSERT(tpg->valid == VM_PAGE_BITS_ALL,
 		    ("parts of tpg invalid"));
@@ -703,11 +693,11 @@ nocache:
 	vm_page_unlock(tpg);
 	vm_page_wakeup(tpg);
 out:
-	VM_OBJECT_UNLOCK(tobj);
+	VM_OBJECT_WUNLOCK(tobj);
 	if (vpg != NULL) {
-		VM_OBJECT_LOCK(vobj);
+		VM_OBJECT_WLOCK(vobj);
 		vm_page_wakeup(vpg);
-		VM_OBJECT_UNLOCK(vobj);
+		VM_OBJECT_WUNLOCK(vobj);
 	}
 
 	return	(error);
@@ -1307,6 +1297,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	cache_purge(fvp);
 	if (tvp != NULL)
 		cache_purge(tvp);
+	cache_purge_negative(tdvp);
 
 	error = 0;
 
@@ -1601,7 +1592,7 @@ tmpfs_print(struct vop_print_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%x, links %d\n",
+	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%lx, links %d\n",
 	    node, node->tn_flags, node->tn_links);
 	printf("\tmode 0%o, owner %d, group %d, size %jd, status 0x%x\n",
 	    node->tn_mode, node->tn_uid, node->tn_gid,

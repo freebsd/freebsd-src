@@ -427,6 +427,7 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 	struct usb_bus *bus;
 	struct usb_device *udev;
 	usb_error_t err;
+	uint8_t do_unlock;
 
 	bus = ((struct usb_bus_msg *)pm)->bus;
 	udev = bus->devices[USB_ROOT_HUB_ADDR];
@@ -447,7 +448,7 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 
 	bus_generic_shutdown(bus->bdev);
 
-	usbd_enum_lock(udev);
+	do_unlock = usbd_enum_lock(udev);
 
 	err = usbd_set_config_index(udev, USB_UNCONFIG_INDEX);
 	if (err)
@@ -464,7 +465,8 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 	if (bus->methods->set_hw_power_sleep != NULL)
 		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SUSPEND);
 
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	USB_BUS_LOCK(bus);
 }
@@ -480,6 +482,7 @@ usb_bus_resume(struct usb_proc_msg *pm)
 	struct usb_bus *bus;
 	struct usb_device *udev;
 	usb_error_t err;
+	uint8_t do_unlock;
 
 	bus = ((struct usb_bus_msg *)pm)->bus;
 	udev = bus->devices[USB_ROOT_HUB_ADDR];
@@ -489,7 +492,7 @@ usb_bus_resume(struct usb_proc_msg *pm)
 
 	USB_BUS_UNLOCK(bus);
 
-	usbd_enum_lock(udev);
+	do_unlock = usbd_enum_lock(udev);
 #if 0
 	DEVMETHOD(usb_take_controller, NULL);	/* dummy */
 #endif
@@ -523,7 +526,8 @@ usb_bus_resume(struct usb_proc_msg *pm)
 		    "attach root HUB\n");
 	}
 
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	USB_BUS_LOCK(bus);
 }
@@ -539,6 +543,7 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 	struct usb_bus *bus;
 	struct usb_device *udev;
 	usb_error_t err;
+	uint8_t do_unlock;
 
 	bus = ((struct usb_bus_msg *)pm)->bus;
 	udev = bus->devices[USB_ROOT_HUB_ADDR];
@@ -550,7 +555,7 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 
 	bus_generic_shutdown(bus->bdev);
 
-	usbd_enum_lock(udev);
+	do_unlock = usbd_enum_lock(udev);
 
 	err = usbd_set_config_index(udev, USB_UNCONFIG_INDEX);
 	if (err)
@@ -567,7 +572,8 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 	if (bus->methods->set_hw_power_sleep != NULL)
 		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SHUTDOWN);
 
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	USB_BUS_LOCK(bus);
 }

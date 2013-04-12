@@ -1443,10 +1443,8 @@ out:
 
 bad:
 	free(iov, M_IOV);
-	if (control != NULL)
-		m_freem(control);
-	if (linux_cmsg != NULL)
-		free(linux_cmsg, M_TEMP);
+	m_freem(control);
+	free(linux_cmsg, M_TEMP);
 
 	return (error);
 }

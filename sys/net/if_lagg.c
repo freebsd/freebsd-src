@@ -219,7 +219,6 @@ static moduledata_t lagg_mod = {
 DECLARE_MODULE(if_lagg, lagg_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_lagg, 1);
 
-#if __FreeBSD_version >= 800000
 /*
  * This routine is run via an vlan
  * config EVENT
@@ -261,7 +260,6 @@ lagg_unregister_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
         }
         LAGG_RUNLOCK(sc);
 }
-#endif
 
 static int
 lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
@@ -330,12 +328,10 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	 */
 	ether_ifattach(ifp, eaddr);
 
-#if __FreeBSD_version >= 800000
 	sc->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 		lagg_register_vlan, sc, EVENTHANDLER_PRI_FIRST);
 	sc->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 		lagg_unregister_vlan, sc, EVENTHANDLER_PRI_FIRST);
-#endif
 
 	/* Insert into the global list of laggs */
 	mtx_lock(&lagg_list_mtx);
@@ -356,10 +352,8 @@ lagg_clone_destroy(struct ifnet *ifp)
 	lagg_stop(sc);
 	ifp->if_flags &= ~IFF_UP;
 
-#if __FreeBSD_version >= 800000
 	EVENTHANDLER_DEREGISTER(vlan_config, sc->vlan_attach);
 	EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->vlan_detach);
-#endif
 
 	/* Shutdown and remove lagg ports */
 	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)

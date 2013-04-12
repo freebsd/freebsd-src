@@ -32,32 +32,32 @@
 struct vmctx;
 enum x2apic_state;
 
+/*
+ * Different styles of mapping the memory assigned to a VM into the address
+ * space of the controlling process.
+ */
+enum vm_mmap_style {
+	VM_MMAP_NONE,		/* no mapping */
+	VM_MMAP_ALL,		/* fully and statically mapped */
+	VM_MMAP_SPARSE,		/* mappings created on-demand */
+};
+
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
 void	vm_destroy(struct vmctx *ctx);
 size_t	vmm_get_mem_total(void);
 size_t	vmm_get_mem_free(void);
 int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len);
-/*
- * Create a memory segment of 'len' bytes in the guest physical address space
- * at offset 'gpa'.
- *
- * If 'mapaddr' is not NULL then this region is mmap'ed into the address
- * space of the calling process. If there is an mmap error then *mapaddr
- * will be set to MAP_FAILED.
- */
-
-int	vm_setup_memory(struct vmctx *ctx, vm_paddr_t gpa, size_t len,
-		      char **mapaddr);
-char *  vm_map_memory(struct vmctx *ctx, vm_paddr_t gpa, size_t len);
+int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
+void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
+uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
+void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t base, uint32_t limit, uint32_t access);
 int	vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t *base, uint32_t *limit, uint32_t *access);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
-int	vm_get_pinning(struct vmctx *ctx, int vcpu, int *host_cpuid);
-int	vm_set_pinning(struct vmctx *ctx, int vcpu, int host_cpuid);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);

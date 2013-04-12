@@ -20,12 +20,14 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/spa_impl.h>
+#include <sys/spa_boot.h>
 #include <sys/zio.h>
 #include <sys/zio_checksum.h>
 #include <sys/zio_compress.h>
@@ -236,8 +238,8 @@ kmem_cache_t *spa_buffer_pool;
 int spa_mode_global;
 
 #ifdef ZFS_DEBUG
-/* Everything except dprintf is on by default in debug builds */
-int zfs_flags = ~ZFS_DEBUG_DPRINTF;
+/* Everything except dprintf and spa is on by default in debug builds */
+int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA);
 #else
 int zfs_flags = 0;
 #endif
@@ -253,6 +255,52 @@ TUNABLE_INT("vfs.zfs.recover", &zfs_recover);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
     "Try to recover from otherwise-fatal errors.");
 
+extern int zfs_txg_synctime_ms;
+
+/*
+ * Expiration time in units of zfs_txg_synctime_ms. This value has two
+ * meanings. First it is used to determine when the spa_deadman logic
+ * should fire. By default the spa_deadman will fire if spa_sync has
+ * not completed in 1000 * zfs_txg_synctime_ms (i.e. 1000 seconds).
+ * Secondly, the value determines if an I/O is considered "hung".
+ * Any I/O that has not completed in zfs_deadman_synctime is considered
+ * "hung" resulting in a system panic.
+ * 1000 zfs_txg_synctime_ms (i.e. 1000 seconds).
+ */
+uint64_t zfs_deadman_synctime = 1000ULL;
+TUNABLE_QUAD("vfs.zfs.deadman_synctime", &zfs_deadman_synctime);
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime, CTLFLAG_RDTUN,
+    &zfs_deadman_synctime, 0,
+    "Stalled ZFS I/O expiration time in units of vfs.zfs.txg.synctime_ms");
+
+/*
+ * Default value of -1 for zfs_deadman_enabled is resolved in
+ * zfs_deadman_init()
+ */
+int zfs_deadman_enabled = -1;
+TUNABLE_INT("vfs.zfs.deadman_enabled", &zfs_deadman_enabled);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
+    &zfs_deadman_enabled, 0, "Kernel panic on stalled ZFS I/O");
+
+#ifndef illumos
+#ifdef _KERNEL
+static void
+zfs_deadman_init()
+{
+	/*
+	 * If we are not i386 or amd64 or in a virtual machine,
+	 * disable ZFS deadman thread by default
+	 */
+	if (zfs_deadman_enabled == -1) {
+#if defined(__amd64__) || defined(__i386__)
+		zfs_deadman_enabled = (vm_guest == VM_GUEST_NO) ? 1 : 0;
+#else
+		zfs_deadman_enabled = 0;
+#endif
+	}
+}
+#endif	/* _KERNEL */
+#endif	/* !illumos */
 
 /*
  * ==========================================================================
@@ -266,7 +314,7 @@ spa_config_lock_init(spa_t *spa)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		mutex_init(&scl->scl_lock, NULL, MUTEX_DEFAULT, NULL);
 		cv_init(&scl->scl_cv, NULL, CV_DEFAULT, NULL);
-		refcount_create(&scl->scl_count);
+		refcount_create_untracked(&scl->scl_count);
 		scl->scl_writer = NULL;
 		scl->scl_write_wanted = 0;
 	}
@@ -318,6 +366,8 @@ void
 spa_config_enter(spa_t *spa, int locks, void *tag, krw_t rw)
 {
 	int wlocks_held = 0;
+
+	ASSERT3U(SCL_LOCKS, <, sizeof (wlocks_held) * NBBY);
 
 	for (int i = 0; i < SCL_LOCKS; i++) {
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
@@ -397,28 +447,40 @@ spa_lookup(const char *name)
 	static spa_t search;	/* spa_t is large; don't allocate on stack */
 	spa_t *spa;
 	avl_index_t where;
-	char c;
 	char *cp;
 
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+
+	(void) strlcpy(search.spa_name, name, sizeof (search.spa_name));
 
 	/*
 	 * If it's a full dataset name, figure out the pool name and
 	 * just use that.
 	 */
-	cp = strpbrk(name, "/@");
-	if (cp) {
-		c = *cp;
+	cp = strpbrk(search.spa_name, "/@");
+	if (cp != NULL)
 		*cp = '\0';
-	}
 
-	(void) strlcpy(search.spa_name, name, sizeof (search.spa_name));
 	spa = avl_find(&spa_namespace_avl, &search, &where);
 
-	if (cp)
-		*cp = c;
-
 	return (spa);
+}
+
+/*
+ * Fires when spa_sync has not completed within zfs_deadman_synctime_ms.
+ * If the zfs_deadman_enabled flag is set then it inspects all vdev queues
+ * looking for potentially hung I/Os.
+ */
+void
+spa_deadman(void *arg)
+{
+	spa_t *spa = arg;
+
+	zfs_dbgmsg("slow spa_sync: started %llu seconds ago, calls %llu",
+	    (gethrtime() - spa->spa_sync_starttime) / NANOSEC,
+	    ++spa->spa_deadman_calls);
+	if (zfs_deadman_enabled)
+		vdev_deadman(spa->spa_root_vdev);
 }
 
 /*
@@ -431,6 +493,10 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 {
 	spa_t *spa;
 	spa_config_dirent_t *dp;
+#ifdef illumos
+	cyc_handler_t hdlr;
+	cyc_time_t when;
+#endif
 
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
@@ -462,6 +528,32 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	spa->spa_proc = &p0;
 	spa->spa_proc_state = SPA_PROC_NONE;
 
+#ifdef illumos
+	hdlr.cyh_func = spa_deadman;
+	hdlr.cyh_arg = spa;
+	hdlr.cyh_level = CY_LOW_LEVEL;
+#endif
+
+	spa->spa_deadman_synctime = zfs_deadman_synctime *
+	    zfs_txg_synctime_ms * MICROSEC;
+
+#ifdef illumos
+	/*
+	 * This determines how often we need to check for hung I/Os after
+	 * the cyclic has already fired. Since checking for hung I/Os is
+	 * an expensive operation we don't want to check too frequently.
+	 * Instead wait for 5 synctimes before checking again.
+	 */
+	when.cyt_interval = 5ULL * zfs_txg_synctime_ms * MICROSEC;
+	when.cyt_when = CY_INFINITY;
+	mutex_enter(&cpu_lock);
+	spa->spa_deadman_cycid = cyclic_add(&hdlr, &when);
+	mutex_exit(&cpu_lock);
+#else	/* !illumos */
+#ifdef _KERNEL
+	callout_init(&spa->spa_deadman_cycid, CALLOUT_MPSAFE);
+#endif
+#endif
 	refcount_create(&spa->spa_refcount);
 	spa_config_lock_init(spa);
 
@@ -505,6 +597,8 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 		    KM_SLEEP) == 0);
 	}
 
+	spa->spa_debug = ((zfs_flags & ZFS_DEBUG_SPA) != 0);
+
 	return (spa);
 }
 
@@ -543,6 +637,18 @@ spa_remove(spa_t *spa)
 	nvlist_free(spa->spa_label_features);
 	nvlist_free(spa->spa_load_info);
 	spa_config_set(spa, NULL);
+
+#ifdef illumos
+	mutex_enter(&cpu_lock);
+	if (spa->spa_deadman_cycid != CYCLIC_NONE)
+		cyclic_remove(spa->spa_deadman_cycid);
+	mutex_exit(&cpu_lock);
+	spa->spa_deadman_cycid = CYCLIC_NONE;
+#else	/* !illumos */
+#ifdef _KERNEL
+	callout_drain(&spa->spa_deadman_cycid);
+#endif
+#endif
 
 	refcount_destroy(&spa->spa_refcount);
 
@@ -1511,6 +1617,12 @@ spa_prev_software_version(spa_t *spa)
 }
 
 uint64_t
+spa_deadman_synctime(spa_t *spa)
+{
+	return (spa->spa_deadman_synctime);
+}
+
+uint64_t
 dva_get_dsize_sync(spa_t *spa, const dva_t *dva)
 {
 	uint64_t asize = DVA_GET_ASIZE(dva);
@@ -1605,7 +1717,9 @@ spa_init(int mode)
 	spa_mode_global = mode;
 
 #ifdef illumos
-#ifndef _KERNEL
+#ifdef _KERNEL
+	spa_arch_init();
+#else
 	if (spa_mode_global != FREAD && dprintf_find_string("watch")) {
 		arc_procfd = open("/proc/self/ctl", O_WRONLY);
 		if (arc_procfd == -1) {
@@ -1629,6 +1743,11 @@ spa_init(int mode)
 	zpool_feature_init();
 	spa_config_load();
 	l2arc_start();
+#ifndef illumos
+#ifdef _KERNEL
+	zfs_deadman_init();
+#endif
+#endif	/* !illumos */
 }
 
 void
@@ -1742,7 +1861,7 @@ spa_scan_get_stats(spa_t *spa, pool_scan_stat_t *ps)
 	dsl_scan_t *scn = spa->spa_dsl_pool ? spa->spa_dsl_pool->dp_scan : NULL;
 
 	if (scn == NULL || scn->scn_phys.scn_func == POOL_SCAN_NONE)
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	bzero(ps, sizeof (pool_scan_stat_t));
 
 	/* data stored on disk */

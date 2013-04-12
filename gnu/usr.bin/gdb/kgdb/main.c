@@ -83,7 +83,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-afqvw] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
+	    "usage: %s [-afqvw] [-b rate] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
 	    "\t[kernel [core]]\n", getprogname());
 	exit(1);
 }
@@ -338,19 +338,18 @@ main(int argc, char *argv[])
 		case 'a':
 			annotation_level++;
 			break;
-		case 'b':
-			{
-				int i;
-				char *p;
+		case 'b': {
+			int i;
+			char *p;
 
-				i = strtol (optarg, &p, 0);
-				if (i == 0 && p == optarg)
+			i = strtol(optarg, &p, 0);
+			if (*p != '\0' || p == optarg)
 				warnx("warning: could not set baud rate to `%s'.\n",
 				    optarg);
-				else
-					baud_rate = i;
-			}
+			else
+				baud_rate = i;
 			break;
+		}
 		case 'c':	/* use given core file. */
 			if (vmcore != NULL) {
 				warnx("option %c: can only be specified once",

@@ -1,6 +1,6 @@
 if [ ! "$_NETWORKING_NETMASK_SUBR" ]; then _NETWORKING_NETMASK_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -39,87 +39,6 @@ BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ############################################################ FUNCTIONS
-
-# f_ifconfig_netmask $interface
-#
-# Returns the IPv4 subnet mask associated with $interface.
-#
-f_ifconfig_netmask()
-{
-	local interface="$1" octets
-	octets=$( ifconfig "$interface" 2> /dev/null | awk \
-	'
-		BEGIN { found = 0 }
-		( $1 == "inet" ) \
-		{
-			printf "%s %s %s %s\n",
-				substr($4,3,2),
-				substr($4,5,2),
-				substr($4,7,2),
-				substr($4,9,2)
-			found = 1
-			exit
-		}
-		END { exit ! found }
-	' ) || return $FAILURE
-
-	local octet netmask=
-	for octet in $octets; do
-		netmask="$netmask${netmask:+.}$( printf "%u" "0x$octet" )"
-	done
-	echo $netmask
-}
-
-# f_validate_netmask $netmask
-#
-# Returns zero if the given argument (a subnet mask) is of the proper format.
-#
-# The return status for invalid IP address is one of:
-# 	1	One or more individual fields within the subnet mask (separated
-# 	 	by dots) contains one or more invalid characters.
-# 	2	One or more individual fields within the subnet mask are null
-# 	 	and/or missing.
-# 	3	One or more individual fields within the subnet mask exceeds
-# 	 	the maximum of 255 (a full 8-bit register).
-# 	4	The subnet mask has either too few or too many fields.
-# 	5	One or more individual fields within the subnet mask is an
-# 	 	invalid integer (only 0,128,192,224,240,248,252,254,255 are
-# 	 	valid integers).
-#
-f_validate_netmask()
-{
-	local mask="$1"
-
-	( # Operate within a sub-shell to protect the parent environment
-
-		# Track number of fields for error checking
-		nfields=0
-
-		IFS="." # Split on `dot'
-		for field in $mask; do
-
-			# Return error if the field is null
-			[ "$field" ] || exit 2
-
-			# Return error if not a whole positive integer
-			f_isinteger "$field" || exit 1
-
-			# Return error if the field exceeds 255
-			[ $field -gt 255 ] && exit 3
-
-			# Return error if the field is an invalid integer
-			case "$field" in
-			0|128|192|224|240|248|252|254|255) :;;
-			*) exit 5;;
-			esac
-
-			nfields=$(( $nfields + 1 ))
-
-		done
-
-		[ $nfields -eq 4 ] || exit 4
-	)
-}
 
 # f_dialog_maskerror $error $netmask
 #

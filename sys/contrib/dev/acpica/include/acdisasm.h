@@ -314,6 +314,8 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpst1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMpst2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMsct[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMsct0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMtmr[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMtmr0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt1[];
@@ -343,6 +345,8 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpa[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUefi[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoVrtc[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoVrtc0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWaet[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdat[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdat0[];
@@ -457,6 +461,10 @@ AcpiDmDumpMsct (
     ACPI_TABLE_HEADER       *Table);
 
 void
+AcpiDmDumpMtmr (
+    ACPI_TABLE_HEADER       *Table);
+
+void
 AcpiDmDumpPcct (
     ACPI_TABLE_HEADER       *Table);
 
@@ -486,6 +494,10 @@ AcpiDmDumpSlit (
 
 void
 AcpiDmDumpSrat (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpVrtc (
     ACPI_TABLE_HEADER       *Table);
 
 void
@@ -676,6 +688,10 @@ AcpiDmClearExternalList (
 void
 AcpiDmEmitExternals (
     void);
+
+void
+AcpiDmUnresolvedWarning (
+    UINT8                   Type);
 
 
 /*

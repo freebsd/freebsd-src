@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/namei.h>
 #include <sys/pioctl.h>
@@ -53,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
@@ -661,9 +661,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	}
 
 	/* Only support headers that fit within first page for now      */
-	/*    (multiplication of two Elf_Half fields will not overflow) */
 	if ((hdr->e_phoff > PAGE_SIZE) ||
-	    (hdr->e_phentsize * hdr->e_phnum) > PAGE_SIZE - hdr->e_phoff) {
+	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
 		error = ENOEXEC;
 		goto fail;
 	}
@@ -743,7 +742,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 
 	if ((hdr->e_phoff > PAGE_SIZE) ||
-	    (hdr->e_phoff + hdr->e_phentsize * hdr->e_phnum) > PAGE_SIZE) {
+	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
 		/* Only support headers in first page for now */
 		return (ENOEXEC);
 	}
@@ -762,8 +761,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_INTERP:
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
-			    phdr[i].p_offset >= PAGE_SIZE ||
-			    phdr[i].p_offset + phdr[i].p_filesz >= PAGE_SIZE)
+			    phdr[i].p_offset > PAGE_SIZE ||
+			    phdr[i].p_filesz > PAGE_SIZE - phdr[i].p_offset)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
 			interp_name_len = phdr[i].p_filesz;
@@ -826,16 +825,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (phdr[i].p_memsz == 0)
 				break;
 			prot = __elfN(trans_prot)(phdr[i].p_flags);
-
-#if defined(__ia64__) && __ELF_WORD_SIZE == 32 && defined(IA32_ME_HARDER)
-			/*
-			 * Some x86 binaries assume read == executable,
-			 * notably the M3 runtime and therefore cvsup
-			 */
-			if (prot & VM_PROT_READ)
-				prot |= VM_PROT_EXECUTE;
-#endif
-
 			error = __elfN(load_section)(imgp, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + et_dyn_addr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
@@ -1288,15 +1277,15 @@ each_writable_segment(td, func, closure)
 			continue;
 
 		/* Ignore memory-mapped devices and such things. */
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_RLOCK(object);
 		while ((backing_object = object->backing_object) != NULL) {
-			VM_OBJECT_LOCK(backing_object);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_RLOCK(backing_object);
+			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
 		ignore_entry = object->type != OBJT_DEFAULT &&
 		    object->type != OBJT_SWAP && object->type != OBJT_VNODE;
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		if (ignore_entry)
 			continue;
 
@@ -1524,8 +1513,8 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		phdr->p_paddr = 0;
 		phdr->p_filesz = notesz;
 		phdr->p_memsz = 0;
-		phdr->p_flags = 0;
-		phdr->p_align = 0;
+		phdr->p_flags = PF_R;
+		phdr->p_align = sizeof(Elf32_Size);
 		phdr++;
 
 		/* All the writable segments from the program. */
@@ -1549,10 +1538,10 @@ __elfN(putnote)(void *dst, size_t *off, const char *name, int type,
 	*off += sizeof note;
 	if (dst != NULL)
 		bcopy(name, (char *)dst + *off, note.n_namesz);
-	*off += roundup2(note.n_namesz, sizeof(Elf_Size));
+	*off += roundup2(note.n_namesz, sizeof(Elf32_Size));
 	if (dst != NULL)
 		bcopy(desc, (char *)dst + *off, note.n_descsz);
-	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
+	*off += roundup2(note.n_descsz, sizeof(Elf32_Size));
 }
 
 static boolean_t
@@ -1563,9 +1552,8 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
 	const char *note_name;
 	int i;
 
-	if (pnote == NULL || pnote->p_offset >= PAGE_SIZE ||
-	    pnote->p_filesz > PAGE_SIZE ||
-	    pnote->p_offset + pnote->p_filesz >= PAGE_SIZE)
+	if (pnote == NULL || pnote->p_offset > PAGE_SIZE ||
+	    pnote->p_filesz > PAGE_SIZE - pnote->p_offset)
 		return (FALSE);
 
 	note = note0 = (const Elf_Note *)(imgp->image_header + pnote->p_offset);
