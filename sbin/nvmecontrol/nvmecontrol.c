@@ -210,6 +210,53 @@ ns_get_sector_size(struct nvme_namespace_data *nsdata)
 	return (1 << nsdata->lbaf[0].lbads);
 }
 
+static void
+read_controller_data(int fd, struct nvme_controller_data *cdata)
+{
+	struct nvme_pt_command	pt;
+
+	memset(&pt, 0, sizeof(pt));
+	pt.cmd.opc = NVME_OPC_IDENTIFY;
+	pt.cmd.cdw10 = 1;
+	pt.buf = cdata;
+	pt.len = sizeof(*cdata);
+	pt.is_read = 1;
+
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0) {
+		printf("Identify request failed. errno=%d (%s)\n",
+		    errno, strerror(errno));
+		exit(EX_IOERR);
+	}
+
+	if (nvme_completion_is_error(&pt.cpl)) {
+		printf("Passthrough command returned error.\n");
+		exit(EX_IOERR);
+	}
+}
+
+static void
+read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
+{
+	struct nvme_pt_command	pt;
+
+	memset(&pt, 0, sizeof(pt));
+	pt.cmd.opc = NVME_OPC_IDENTIFY;
+	pt.cmd.nsid = nsid;
+	pt.buf = nsdata;
+	pt.len = sizeof(*nsdata);
+	pt.is_read = 1;
+
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0) {
+		printf("Identify request failed. errno=%d (%s)\n",
+		    errno, strerror(errno));
+		exit(EX_IOERR);
+	}
+
+	if (nvme_completion_is_error(&pt.cpl)) {
+		printf("Passthrough command returned error.\n");
+		exit(EX_IOERR);
+	}
+}
 
 static void
 devlist(int argc, char *argv[])
@@ -251,33 +298,12 @@ devlist(int argc, char *argv[])
 			continue;
 		}
 
-		if (ioctl(fd, NVME_IDENTIFY_CONTROLLER, &cdata) < 0) {
-			printf("Identify request to %s failed. errno=%d (%s)\n",
-			    path, errno, strerror(errno));
-			exit_code = EX_IOERR;
-			continue;
-		}
-
+		read_controller_data(fd, &cdata);
 		printf("%6s: %s\n", name, cdata.mn);
 
 		for (i = 0; i < cdata.nn; i++) {
 			sprintf(name, "nvme%dns%d", ctrlr, i+1);
-			sprintf(path, "/dev/%s", name);
-
-			fd = open(path, O_RDWR);
-			if (fd < 0) {
-				printf("Could not open %s. errno=%d (%s)\n",
-				    path, errno, strerror(errno));
-				exit_code = EX_NOPERM;
-				continue;
-			}
-			if (ioctl(fd, NVME_IDENTIFY_NAMESPACE, &nsdata) < 0) {
-				printf("Identify request to %s failed. "
-				    "errno=%d (%s)\n", path, errno,
-				    strerror(errno));
-				exit_code = EX_IOERR;
-				continue;
-			}
+			read_namespace_data(fd, i+1, &nsdata);
 			printf("  %10s (%lldGB)\n",
 				name,
 				nsdata.nsze *
@@ -329,11 +355,7 @@ identify_ctrlr(int argc, char *argv[])
 		exit(EX_NOPERM);
 	}
 
-	if (ioctl(fd, NVME_IDENTIFY_CONTROLLER, &cdata) < 0) {
-		printf("Identify request to %s failed. errno=%d (%s)\n", path,
-		    errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	read_controller_data(fd, &cdata);
 
 	if (hexflag == 1) {
 		if (verboseflag == 1)
@@ -360,7 +382,8 @@ identify_ns(int argc, char *argv[])
 	struct nvme_namespace_data	nsdata;
 	struct stat			devstat;
 	char				path[64];
-	int				ch, fd, hexflag = 0, hexlength;
+	char				*nsloc;
+	int				ch, fd, hexflag = 0, hexlength, nsid;
 	int				verboseflag = 0;
 
 	while ((ch = getopt(argc, argv, "vx")) != -1) {
@@ -376,8 +399,41 @@ identify_ns(int argc, char *argv[])
 		}
 	}
 
+	/*
+	 * Check if the specified device node exists before continuing.
+	 *  This is a cleaner check for cases where the correct controller
+	 *  is specified, but an invalid namespace on that controller.
+	 */
 	sprintf(path, "/dev/%s", argv[optind]);
+	if (stat(path, &devstat) < 0) {
+		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
+		    strerror(errno));
+		exit(EX_IOERR);
+	}
 
+	nsloc = strstr(argv[optind], "ns");
+	if (nsloc == NULL) {
+		printf("Invalid namepsace %s.\n", argv[optind]);
+		exit(EX_IOERR);
+	}
+
+	/*
+	 * Pull the namespace id from the string. +2 skips past the "ns" part
+	 *  of the string.
+	 */
+	nsid = strtol(nsloc + 2, NULL, 10);
+	if (nsid == 0 && errno != 0) {
+		printf("Invalid namespace ID %s.\n", argv[optind]);
+		exit(EX_IOERR);
+	}
+
+	/*
+	 * We send IDENTIFY commands to the controller, not the namespace,
+	 *  since it is an admin cmd.  So the path should only include the
+	 *  nvmeX part of the nvmeXnsY string.
+	 */
+	sprintf(path, "/dev/");
+	strncat(path, argv[optind], nsloc - argv[optind]);
 	if (stat(path, &devstat) < 0) {
 		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
 		    strerror(errno));
@@ -391,11 +447,7 @@ identify_ns(int argc, char *argv[])
 		exit(EX_NOPERM);
 	}
 
-	if (ioctl(fd, NVME_IDENTIFY_NAMESPACE, &nsdata) < 0) {
-		printf("Identify request to %s failed. errno=%d (%s)\n", path,
-		    errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	read_namespace_data(fd, nsid, &nsdata);
 
 	if (hexflag == 1) {
 		if (verboseflag == 1)

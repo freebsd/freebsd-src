@@ -45,7 +45,6 @@ static int
 nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
-	struct nvme_completion_poll_status	status;
 	struct nvme_namespace			*ns;
 	struct nvme_controller			*ctrlr;
 	struct nvme_pt_command			*pt;
@@ -54,27 +53,6 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	ctrlr = ns->ctrlr;
 
 	switch (cmd) {
-	case NVME_IDENTIFY_NAMESPACE:
-#ifdef CHATHAM2
-		/*
-		 * Don't refresh data on Chatham, since Chatham returns
-		 *  garbage on IDENTIFY anyways.
-		 */
-		if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID) {
-			memcpy(arg, &ns->data, sizeof(ns->data));
-			break;
-		}
-#endif
-		/* Refresh data before returning to user. */
-		status.done = FALSE;
-		nvme_ctrlr_cmd_identify_namespace(ctrlr, ns->id, &ns->data,
-		    nvme_completion_poll_cb, &status);
-		while (status.done == FALSE)
-			DELAY(5);
-		if (nvme_completion_is_error(&status.cpl))
-			return (ENXIO);
-		memcpy(arg, &ns->data, sizeof(ns->data));
-		break;
 	case NVME_IO_TEST:
 	case NVME_BIO_TEST:
 		nvme_ns_test(ns, cmd, arg);

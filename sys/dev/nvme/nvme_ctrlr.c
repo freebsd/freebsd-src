@@ -976,34 +976,12 @@ static int
 nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
-	struct nvme_completion_poll_status	status;
 	struct nvme_controller			*ctrlr;
 	struct nvme_pt_command			*pt;
 
 	ctrlr = cdev->si_drv1;
 
 	switch (cmd) {
-	case NVME_IDENTIFY_CONTROLLER:
-#ifdef CHATHAM2
-		/*
-		 * Don't refresh data on Chatham, since Chatham returns
-		 *  garbage on IDENTIFY anyways.
-		 */
-		if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID) {
-			memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
-			break;
-		}
-#endif
-		/* Refresh data before returning to user. */
-		status.done = FALSE;
-		nvme_ctrlr_cmd_identify_controller(ctrlr, &ctrlr->cdata,
-		    nvme_completion_poll_cb, &status);
-		while (status.done == FALSE)
-			DELAY(5);
-		if (nvme_completion_is_error(&status.cpl))
-			return (ENXIO);
-		memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
-		break;
 	case NVME_RESET_CONTROLLER:
 		nvme_ctrlr_reset(ctrlr);
 		break;
