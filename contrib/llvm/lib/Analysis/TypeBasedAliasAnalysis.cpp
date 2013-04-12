@@ -57,12 +57,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Constants.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Metadata.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;

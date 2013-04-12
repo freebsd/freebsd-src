@@ -19,20 +19,20 @@
 #ifndef LLVM_CODEGEN_SELECTIONDAGNODES_H
 #define LLVM_CODEGEN_SELECTIONDAGNODES_H
 
-#include "llvm/Constants.h"
-#include "llvm/Instructions.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/ilist_node.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/ilist_node.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
-#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
-#include "llvm/Support/MathExtras.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/DebugLoc.h"
+#include "llvm/Support/MathExtras.h"
 #include <cassert>
 
 namespace llvm {
@@ -49,7 +49,7 @@ template <typename T> struct simplify_type;
 template <typename T> struct ilist_traits;
 
 void checkForCycles(const SDNode *N);
-  
+
 /// SDVTList - This represents a list of ValueType's that has been intern'd by
 /// a SelectionDAG.  Instances of this simple value class are returned by
 /// SelectionDAG::getVTList(...).
@@ -108,7 +108,7 @@ public:
   void setNode(SDNode *N) { Node = N; }
 
   inline SDNode *operator->() const { return Node; }
-  
+
   bool operator==(const SDValue &O) const {
     return Node == O.Node && ResNo == O.ResNo;
   }
@@ -129,6 +129,11 @@ public:
   /// getValueType - Return the ValueType of the referenced return value.
   ///
   inline EVT getValueType() const;
+
+  /// Return the simple ValueType of the referenced return value.
+  MVT getSimpleValueType() const {
+    return getValueType().getSimpleVT();
+  }
 
   /// getValueSizeInBits - Returns the size of the value in bits.
   ///
@@ -191,14 +196,14 @@ template <> struct isPodLike<SDValue> { static const bool value = true; };
 /// SDValues as if they were SDNode*'s.
 template<> struct simplify_type<SDValue> {
   typedef SDNode* SimpleType;
-  static SimpleType getSimplifiedValue(const SDValue &Val) {
-    return static_cast<SimpleType>(Val.getNode());
+  static SimpleType getSimplifiedValue(SDValue &Val) {
+    return Val.getNode();
   }
 };
 template<> struct simplify_type<const SDValue> {
-  typedef SDNode* SimpleType;
+  typedef /*const*/ SDNode* SimpleType;
   static SimpleType getSimplifiedValue(const SDValue &Val) {
-    return static_cast<SimpleType>(Val.getNode());
+    return Val.getNode();
   }
 };
 
@@ -290,14 +295,8 @@ private:
 /// SDValues as if they were SDNode*'s.
 template<> struct simplify_type<SDUse> {
   typedef SDNode* SimpleType;
-  static SimpleType getSimplifiedValue(const SDUse &Val) {
-    return static_cast<SimpleType>(Val.getNode());
-  }
-};
-template<> struct simplify_type<const SDUse> {
-  typedef SDNode* SimpleType;
-  static SimpleType getSimplifiedValue(const SDUse &Val) {
-    return static_cast<SimpleType>(Val.getNode());
+  static SimpleType getSimplifiedValue(SDUse &Val) {
+    return Val.getNode();
   }
 };
 
@@ -525,7 +524,7 @@ public:
   /// NOTE: This is still very expensive. Use carefully.
   bool hasPredecessorHelper(const SDNode *N,
                             SmallPtrSet<const SDNode *, 32> &Visited,
-                            SmallVector<const SDNode *, 16> &Worklist) const; 
+                            SmallVector<const SDNode *, 16> &Worklist) const;
 
   /// getNumOperands - Return the number of values used by this operation.
   ///
@@ -593,6 +592,12 @@ public:
   EVT getValueType(unsigned ResNo) const {
     assert(ResNo < NumValues && "Illegal result number!");
     return ValueList[ResNo];
+  }
+
+  /// Return the type of a specified result as a simple type.
+  ///
+  MVT getSimpleValueType(unsigned ResNo) const {
+    return getValueType(ResNo).getSimpleVT();
   }
 
   /// getValueSizeInBits - Returns MVT::getSizeInBits(getValueType(ResNo)).
@@ -1287,7 +1292,7 @@ class ConstantPoolSDNode : public SDNode {
     : SDNode(isTarget ? ISD::TargetConstantPool : ISD::ConstantPool,
              DebugLoc(),
              getSDVTList(VT)), Offset(o), Alignment(Align), TargetFlags(TF) {
-    assert((int)Offset >= 0 && "Offset is too large");
+    assert(Offset >= 0 && "Offset is too large");
     Val.ConstVal = c;
   }
   ConstantPoolSDNode(bool isTarget, MachineConstantPoolValue *v,
@@ -1295,7 +1300,7 @@ class ConstantPoolSDNode : public SDNode {
     : SDNode(isTarget ? ISD::TargetConstantPool : ISD::ConstantPool,
              DebugLoc(),
              getSDVTList(VT)), Offset(o), Alignment(Align), TargetFlags(TF) {
-    assert((int)Offset >= 0 && "Offset is too large");
+    assert(Offset >= 0 && "Offset is too large");
     Val.MachineCPVal = v;
     Offset |= 1 << (sizeof(unsigned)*CHAR_BIT-1);
   }
@@ -1303,7 +1308,7 @@ public:
   
 
   bool isMachineConstantPoolEntry() const {
-    return (int)Offset < 0;
+    return Offset < 0;
   }
 
   const Constant *getConstVal() const {

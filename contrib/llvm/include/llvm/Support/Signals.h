@@ -12,10 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEM_SIGNALS_H
-#define LLVM_SYSTEM_SIGNALS_H
+#ifndef LLVM_SUPPORT_SIGNALS_H
+#define LLVM_SUPPORT_SIGNALS_H
 
 #include "llvm/Support/Path.h"
+#include <cstdio>
 
 namespace llvm {
 namespace sys {
@@ -37,6 +38,9 @@ namespace sys {
   /// process, print a stack trace and then exit.
   /// @brief Print a stack trace if a fatal signal occurs.
   void PrintStackTraceOnErrorSignal();
+
+  /// \brief Print the stack trace using the given \c FILE object.
+  void PrintStackTrace(FILE *);
 
   /// AddSignalHandler - Add a function to be called when an abort/kill signal
   /// is delivered to the process.  The handler can have a cookie passed to it

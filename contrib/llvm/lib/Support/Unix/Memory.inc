@@ -51,7 +51,18 @@ int getPosixProtectionFlags(unsigned Flags) {
 	 llvm::sys::Memory::MF_EXEC:
     return PROT_READ | PROT_WRITE | PROT_EXEC;
   case llvm::sys::Memory::MF_EXEC:
+#if defined(__FreeBSD__)
+    // On PowerPC, having an executable page that has no read permission
+    // can have unintended consequences.  The function InvalidateInstruction-
+    // Cache uses instructions dcbf and icbi, both of which are treated by
+    // the processor as loads.  If the page has no read permissions,
+    // executing these instructions will result in a segmentation fault.
+    // Somehow, this problem is not present on Linux, but it does happen
+    // on FreeBSD.
+    return PROT_READ | PROT_EXEC;
+#else
     return PROT_EXEC;
+#endif
   default:
     llvm_unreachable("Illegal memory protection flag specified!");
   }
@@ -73,7 +84,7 @@ Memory::allocateMappedMemory(size_t NumBytes,
   if (NumBytes == 0)
     return MemoryBlock();
 
-  static const size_t PageSize = Process::GetPageSize();
+  static const size_t PageSize = process::get_self()->page_size();
   const size_t NumPages = (NumBytes+PageSize-1)/PageSize;
 
   int fd = -1;
@@ -166,8 +177,8 @@ Memory::AllocateRWX(size_t NumBytes, const MemoryBlock* NearBlock,
                     std::string *ErrMsg) {
   if (NumBytes == 0) return MemoryBlock();
 
-  size_t pageSize = Process::GetPageSize();
-  size_t NumPages = (NumBytes+pageSize-1)/pageSize;
+  size_t PageSize = process::get_self()->page_size();
+  size_t NumPages = (NumBytes+PageSize-1)/PageSize;
 
   int fd = -1;
 #ifdef NEED_DEV_ZERO_FOR_MMAP
@@ -191,10 +202,10 @@ Memory::AllocateRWX(size_t NumBytes, const MemoryBlock* NearBlock,
                             NearBlock->size() : 0;
 
 #if defined(__APPLE__) && defined(__arm__)
-  void *pa = ::mmap(start, pageSize*NumPages, PROT_READ|PROT_EXEC,
+  void *pa = ::mmap(start, PageSize*NumPages, PROT_READ|PROT_EXEC,
                     flags, fd, 0);
 #else
-  void *pa = ::mmap(start, pageSize*NumPages, PROT_READ|PROT_WRITE|PROT_EXEC,
+  void *pa = ::mmap(start, PageSize*NumPages, PROT_READ|PROT_WRITE|PROT_EXEC,
                     flags, fd, 0);
 #endif
   if (pa == MAP_FAILED) {
@@ -207,7 +218,7 @@ Memory::AllocateRWX(size_t NumBytes, const MemoryBlock* NearBlock,
 
 #if defined(__APPLE__) && defined(__arm__)
   kern_return_t kr = vm_protect(mach_task_self(), (vm_address_t)pa,
-                                (vm_size_t)(pageSize*NumPages), 0,
+                                (vm_size_t)(PageSize*NumPages), 0,
                                 VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_COPY);
   if (KERN_SUCCESS != kr) {
     MakeErrMsg(ErrMsg, "vm_protect max RX failed");
@@ -215,7 +226,7 @@ Memory::AllocateRWX(size_t NumBytes, const MemoryBlock* NearBlock,
   }
 
   kr = vm_protect(mach_task_self(), (vm_address_t)pa,
-                  (vm_size_t)(pageSize*NumPages), 0,
+                  (vm_size_t)(PageSize*NumPages), 0,
                   VM_PROT_READ | VM_PROT_WRITE);
   if (KERN_SUCCESS != kr) {
     MakeErrMsg(ErrMsg, "vm_protect RW failed");
@@ -225,7 +236,7 @@ Memory::AllocateRWX(size_t NumBytes, const MemoryBlock* NearBlock,
 
   MemoryBlock result;
   result.Address = pa;
-  result.Size = NumPages*pageSize;
+  result.Size = NumPages*PageSize;
 
   return result;
 }
@@ -321,7 +332,16 @@ void Memory::InvalidateInstructionCache(const void *Addr,
   __clear_cache(const_cast<char *>(Start), const_cast<char *>(End));
 #  elif defined(__mips__)
   const char *Start = static_cast<const char *>(Addr);
+#    if defined(ANDROID)
+  // The declaration of "cacheflush" in Android bionic:
+  // extern int cacheflush(long start, long end, long flags);
+  const char *End = Start + Len;
+  long LStart = reinterpret_cast<long>(const_cast<char *>(Start));
+  long LEnd = reinterpret_cast<long>(const_cast<char *>(End));
+  cacheflush(LStart, LEnd, BCACHE);
+#    else
   cacheflush(const_cast<char *>(Start), Len, BCACHE);
+#    endif
 #  endif
 
 #endif  // end apple

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/Attr.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
@@ -47,7 +48,7 @@ void NoReturnFunctionChecker::checkPostStmt(const CallExpr *CE,
     if (!FD)
       return;
 
-    if (FD->getAttr<AnalyzerNoReturnAttr>())
+    if (FD->getAttr<AnalyzerNoReturnAttr>() || FD->isNoReturn())
       BuildSinks = true;
     else if (const IdentifierInfo *II = FD->getIdentifier()) {
       // HACK: Some functions are not marked noreturn, and don't return.
@@ -100,6 +101,15 @@ static bool END_WITH_NULL isMultiArgSelector(const Selector *Sel, ...) {
 
 void NoReturnFunctionChecker::checkPostObjCMessage(const ObjCMethodCall &Msg,
                                                    CheckerContext &C) const {
+  // Check if the method is annotated with analyzer_noreturn.
+  if (const ObjCMethodDecl *MD = Msg.getDecl()) {
+    MD = MD->getCanonicalDecl();
+    if (MD->hasAttr<AnalyzerNoReturnAttr>()) {
+      C.generateSink();
+      return;
+    }
+  }
+
   // HACK: This entire check is to handle two messages in the Cocoa frameworks:
   // -[NSAssertionHandler
   //    handleFailureInMethod:object:file:lineNumber:description:]

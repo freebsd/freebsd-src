@@ -12,18 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenTypes.h"
-#include "CGCall.h"
 #include "CGCXXABI.h"
+#include "CGCall.h"
+#include "CGOpenCLRuntime.h"
 #include "CGRecordLayout.h"
 #include "TargetInfo.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/RecordLayout.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
-#include "llvm/DataLayout.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Module.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -60,14 +61,14 @@ void CodeGenTypes::addRecordTypeName(const RecordDecl *RD,
     // FIXME: We should not have to check for a null decl context here.
     // Right now we do it because the implicit Obj-C decls don't have one.
     if (RD->getDeclContext())
-      OS << RD->getQualifiedNameAsString();
+      RD->printQualifiedName(OS);
     else
       RD->printName(OS);
   } else if (const TypedefNameDecl *TDD = RD->getTypedefNameForAnonDecl()) {
     // FIXME: We should not have to check for a null decl context here.
     // Right now we do it because the implicit Obj-C decls don't have one.
     if (TDD->getDeclContext())
-      OS << TDD->getQualifiedNameAsString();
+      TDD->printQualifiedName(OS);
     else
       TDD->printName(OS);
   } else
@@ -262,9 +263,14 @@ void CodeGenTypes::UpdateCompletedType(const TagDecl *TD) {
 }
 
 static llvm::Type *getTypeForFormat(llvm::LLVMContext &VMContext,
-                                    const llvm::fltSemantics &format) {
-  if (&format == &llvm::APFloat::IEEEhalf)
-    return llvm::Type::getInt16Ty(VMContext);
+                                    const llvm::fltSemantics &format,
+                                    bool UseNativeHalf = false) {
+  if (&format == &llvm::APFloat::IEEEhalf) {
+    if (UseNativeHalf)
+      return llvm::Type::getHalfTy(VMContext);
+    else
+      return llvm::Type::getInt16Ty(VMContext);
+  }
   if (&format == &llvm::APFloat::IEEEsingle)
     return llvm::Type::getFloatTy(VMContext);
   if (&format == &llvm::APFloat::IEEEdouble)
@@ -343,18 +349,17 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       break;
 
     case BuiltinType::Half:
-      // Half is special: it might be lowered to i16 (and will be storage-only
-      // type),. or can be represented as a set of native operations.
-
-      // FIXME: Ask target which kind of half FP it prefers (storage only vs
-      // native).
-      ResultType = llvm::Type::getInt16Ty(getLLVMContext());
+      // Half FP can either be storage-only (lowered to i16) or native.
+      ResultType = getTypeForFormat(getLLVMContext(),
+          Context.getFloatTypeSemantics(T),
+          Context.getLangOpts().NativeHalfType);
       break;
     case BuiltinType::Float:
     case BuiltinType::Double:
     case BuiltinType::LongDouble:
       ResultType = getTypeForFormat(getLLVMContext(),
-                                    Context.getFloatTypeSemantics(T));
+                                    Context.getFloatTypeSemantics(T),
+                                    /* UseNativeHalf = */ false);
       break;
 
     case BuiltinType::NullPtr:
@@ -365,6 +370,17 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     case BuiltinType::UInt128:
     case BuiltinType::Int128:
       ResultType = llvm::IntegerType::get(getLLVMContext(), 128);
+      break;
+
+    case BuiltinType::OCLImage1d:
+    case BuiltinType::OCLImage1dArray:
+    case BuiltinType::OCLImage1dBuffer:
+    case BuiltinType::OCLImage2d:
+    case BuiltinType::OCLImage2dArray:
+    case BuiltinType::OCLImage3d:
+    case BuiltinType::OCLSampler:
+    case BuiltinType::OCLEvent:
+      ResultType = CGM.getOpenCLRuntime().convertOpenCLSpecificType(Ty);
       break;
     
     case BuiltinType::Dependent:
@@ -453,9 +469,19 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     // cannot lower the function type.
     if (!isFuncTypeConvertible(FT)) {
       // This function's type depends on an incomplete tag type.
+
+      // Force conversion of all the relevant record types, to make sure
+      // we re-convert the FunctionType when appropriate.
+      if (const RecordType *RT = FT->getResultType()->getAs<RecordType>())
+        ConvertRecordDeclType(RT->getDecl());
+      if (const FunctionProtoType *FPT = dyn_cast<FunctionProtoType>(FT))
+        for (unsigned i = 0, e = FPT->getNumArgs(); i != e; i++)
+          if (const RecordType *RT = FPT->getArgType(i)->getAs<RecordType>())
+            ConvertRecordDeclType(RT->getDecl());
+
       // Return a placeholder type.
       ResultType = llvm::StructType::get(getLLVMContext());
-      
+
       SkippedLayout = true;
       break;
     }
@@ -556,7 +582,21 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   }
 
   case Type::Atomic: {
-    ResultType = ConvertType(cast<AtomicType>(Ty)->getValueType());
+    QualType valueType = cast<AtomicType>(Ty)->getValueType();
+    ResultType = ConvertTypeForMem(valueType);
+
+    // Pad out to the inflated size if necessary.
+    uint64_t valueSize = Context.getTypeSize(valueType);
+    uint64_t atomicSize = Context.getTypeSize(Ty);
+    if (valueSize != atomicSize) {
+      assert(valueSize < atomicSize);
+      llvm::Type *elts[] = {
+        ResultType,
+        llvm::ArrayType::get(CGM.Int8Ty, (atomicSize - valueSize) / 8)
+      };
+      ResultType = llvm::StructType::get(getLLVMContext(),
+                                         llvm::makeArrayRef(elts));
+    }
     break;
   }
   }
@@ -565,6 +605,14 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   
   TypeCache[Ty] = ResultType;
   return ResultType;
+}
+
+bool CodeGenModule::isPaddedAtomicType(QualType type) {
+  return isPaddedAtomicType(type->castAs<AtomicType>());
+}
+
+bool CodeGenModule::isPaddedAtomicType(const AtomicType *type) {
+  return Context.getTypeSize(type) != Context.getTypeSize(type->getValueType());
 }
 
 /// ConvertRecordDeclType - Lay out a tagged decl type like struct or union.

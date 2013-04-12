@@ -44,18 +44,18 @@ def note_doc_html_end_tag : Note<
 // Commands
 
 def warn_doc_block_command_empty_paragraph : Warning<
-  "empty paragraph passed to '\\%0' command">,
+  "empty paragraph passed to '%select{\\|@}0%1' command">,
   InGroup<Documentation>, DefaultIgnore;
 
 def warn_doc_block_command_duplicate : Warning<
-  "duplicated command '\\%0'">,
+  "duplicated command '%select{\\|@}0%1'">,
   InGroup<Documentation>, DefaultIgnore;
 
 def note_doc_block_command_previous : Note<
-  "previous command '\\%0' here">;
+  "previous command '%select{\\|@}0%1' here">;
 
 def note_doc_block_command_previous_alias : Note<
-  "previous command '\\%0' (an alias of '\\%1') here">;
+  "previous command '%select{\\|@}0%1' (an alias of '\\%2') here">;
 
 // \param command
 
@@ -69,10 +69,29 @@ def warn_doc_param_spaces_in_direction : Warning<
   InGroup<DocumentationPedantic>, DefaultIgnore;
 
 def warn_doc_param_not_attached_to_a_function_decl : Warning<
-  "'\\param' command used in a comment that is not attached to "
+  "'%select{\\|@}0param' command used in a comment that is not attached to "
   "a function declaration">,
   InGroup<Documentation>, DefaultIgnore;
 
+def warn_doc_function_method_decl_mismatch : Warning<
+  "'%select{\\|@}0%select{function|functiongroup|method|methodgroup|callback}1' "
+  "command should be used in a comment attached to "
+  "%select{a function|a function|an Objective-C method|an Objective-C method|"
+  "a pointer to function}2 declaration">,
+  InGroup<Documentation>, DefaultIgnore;
+  
+def warn_doc_api_container_decl_mismatch : Warning<
+  "'%select{\\|@}0%select{class|interface|protocol|struct|union}1' "
+  "command should not be used in a comment attached to a "
+  "non-%select{class|interface|protocol|struct|union}2 declaration">,
+  InGroup<Documentation>, DefaultIgnore;
+  
+def warn_doc_container_decl_mismatch : Warning<
+  "'%select{\\|@}0%select{classdesign|coclass|dependency|helper"
+  "|helperclass|helps|instancesize|ownership|performance|security|superclass}1' "
+  "command should not be used in a comment attached to a non-container declaration">,
+  InGroup<Documentation>, DefaultIgnore;
+  
 def warn_doc_param_duplicate : Warning<
   "parameter '%0' is already documented">,
   InGroup<Documentation>, DefaultIgnore;
@@ -87,10 +106,10 @@ def warn_doc_param_not_found : Warning<
 def note_doc_param_name_suggestion : Note<
   "did you mean '%0'?">;
 
-// \tparam command
+// tparam command
 
 def warn_doc_tparam_not_attached_to_a_template_decl : Warning<
-  "'\\tparam' command used in a comment that is not attached to "
+  "'%select{\\|@}0tparam' command used in a comment that is not attached to "
   "a template declaration">,
   InGroup<Documentation>, DefaultIgnore;
 
@@ -111,14 +130,14 @@ def note_doc_tparam_name_suggestion : Note<
 // \returns command
 
 def warn_doc_returns_not_attached_to_a_function_decl : Warning<
-  "'\\%0' command used in a comment that is not attached to "
+  "'%select{\\|@}0%1' command used in a comment that is not attached to "
   "a function or method declaration">,
   InGroup<Documentation>, DefaultIgnore;
 
 def warn_doc_returns_attached_to_a_void_function : Warning<
-  "'\\%0' command used in a comment that is attached to a "
+  "'%select{\\|@}0%1' command used in a comment that is attached to a "
   "%select{function returning void|constructor|destructor|"
-  "method returning void}1">,
+  "method returning void}2">,
   InGroup<Documentation>, DefaultIgnore;
 
 // \deprecated command
@@ -134,7 +153,7 @@ def note_add_deprecation_attr : Note<
 // verbatim block commands
 
 def warn_verbatim_block_end_without_start : Warning<
-  "'\\%0' command does not terminate a verbatim text block">,
+  "'%select{\\|@}0%1' command does not terminate a verbatim text block">,
   InGroup<Documentation>, DefaultIgnore;
 
 } // end of documentation issue category

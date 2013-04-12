@@ -33,7 +33,6 @@ def AtomItineraries : ProcessorItineraries<
   // InstrItinData<class, [InstrStage<N, [P0], 0>,  InstrStage<N, [P1]>] >,
   //
   // Default is 1 cycle, port0 or port1
-  InstrItinData<IIC_DEFAULT, [InstrStage<1, [Port0, Port1]>] >,
   InstrItinData<IIC_ALU_MEM, [InstrStage<1, [Port0]>] >,
   InstrItinData<IIC_ALU_NONMEM, [InstrStage<1, [Port0, Port1]>] >,
   InstrItinData<IIC_LEA, [InstrStage<1, [Port1]>] >,
@@ -525,6 +524,7 @@ def AtomModel : SchedMachineModel {
                        // OperandCycles may be used for expected latency.
   let LoadLatency = 3; // Expected cycles, may be overriden by OperandCycles.
   let HighLatency = 30;// Expected, may be overriden by OperandCycles.
+  let ILPWindow = 0; // Always try to hide expected latency.
 
   let Itineraries = AtomItineraries;
 }

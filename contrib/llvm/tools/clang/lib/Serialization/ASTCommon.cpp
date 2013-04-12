@@ -12,8 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "ASTCommon.h"
-#include "clang/Serialization/ASTDeserializationListener.h"
+#include "clang/AST/DeclObjC.h"
 #include "clang/Basic/IdentifierTable.h"
+#include "clang/Serialization/ASTDeserializationListener.h"
 #include "llvm/ADT/StringExtras.h"
 
 using namespace clang;
@@ -60,6 +61,14 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::ObjCId:     ID = PREDEF_TYPE_OBJC_ID;       break;
   case BuiltinType::ObjCClass:  ID = PREDEF_TYPE_OBJC_CLASS;    break;
   case BuiltinType::ObjCSel:    ID = PREDEF_TYPE_OBJC_SEL;      break;
+  case BuiltinType::OCLImage1d:       ID = PREDEF_TYPE_IMAGE1D_ID;      break;
+  case BuiltinType::OCLImage1dArray:  ID = PREDEF_TYPE_IMAGE1D_ARR_ID;  break;
+  case BuiltinType::OCLImage1dBuffer: ID = PREDEF_TYPE_IMAGE1D_BUFF_ID; break;
+  case BuiltinType::OCLImage2d:       ID = PREDEF_TYPE_IMAGE2D_ID;      break;
+  case BuiltinType::OCLImage2dArray:  ID = PREDEF_TYPE_IMAGE2D_ARR_ID;  break;
+  case BuiltinType::OCLImage3d:       ID = PREDEF_TYPE_IMAGE3D_ID;      break;
+  case BuiltinType::OCLSampler:       ID = PREDEF_TYPE_SAMPLER_ID;      break;
+  case BuiltinType::OCLEvent:         ID = PREDEF_TYPE_EVENT_ID;        break;
   case BuiltinType::BuiltinFn:
                                 ID = PREDEF_TYPE_BUILTIN_FN; break;
 
@@ -77,4 +86,127 @@ unsigned serialization::ComputeHash(Selector Sel) {
     if (IdentifierInfo *II = Sel.getIdentifierInfoForSlot(I))
       R = llvm::HashString(II->getName(), R);
   return R;
+}
+
+const DeclContext *
+serialization::getDefinitiveDeclContext(const DeclContext *DC) {
+  switch (DC->getDeclKind()) {
+  // These entities may have multiple definitions.
+  case Decl::TranslationUnit:
+  case Decl::Namespace:
+  case Decl::LinkageSpec:
+    return 0;
+
+  // C/C++ tag types can only be defined in one place.
+  case Decl::Enum:
+  case Decl::Record:
+    if (const TagDecl *Def = cast<TagDecl>(DC)->getDefinition())
+      return Def;
+    return 0;
+
+  // FIXME: These can be defined in one place... except special member
+  // functions and out-of-line definitions.
+  case Decl::CXXRecord:
+  case Decl::ClassTemplateSpecialization:
+  case Decl::ClassTemplatePartialSpecialization:
+    return 0;
+
+  // Each function, method, and block declaration is its own DeclContext.
+  case Decl::Function:
+  case Decl::CXXMethod:
+  case Decl::CXXConstructor:
+  case Decl::CXXDestructor:
+  case Decl::CXXConversion:
+  case Decl::ObjCMethod:
+  case Decl::Block:
+    // Objective C categories, category implementations, and class
+    // implementations can only be defined in one place.
+  case Decl::ObjCCategory:
+  case Decl::ObjCCategoryImpl:
+  case Decl::ObjCImplementation:
+    return DC;
+
+  case Decl::ObjCProtocol:
+    if (const ObjCProtocolDecl *Def
+          = cast<ObjCProtocolDecl>(DC)->getDefinition())
+      return Def;
+    return 0;
+
+  // FIXME: These are defined in one place, but properties in class extensions
+  // end up being back-patched into the main interface. See
+  // Sema::HandlePropertyInClassExtension for the offending code.
+  case Decl::ObjCInterface:
+    return 0;
+    
+  default:
+    llvm_unreachable("Unhandled DeclContext in AST reader");
+  }
+  
+  llvm_unreachable("Unhandled decl kind");
+}
+
+bool serialization::isRedeclarableDeclKind(unsigned Kind) {
+  switch (static_cast<Decl::Kind>(Kind)) {
+  case Decl::TranslationUnit: // Special case of a "merged" declaration.
+  case Decl::Namespace:
+  case Decl::NamespaceAlias: // FIXME: Not yet redeclarable, but will be.
+  case Decl::Typedef:
+  case Decl::TypeAlias:
+  case Decl::Enum:
+  case Decl::Record:
+  case Decl::CXXRecord:
+  case Decl::ClassTemplateSpecialization:
+  case Decl::ClassTemplatePartialSpecialization:
+  case Decl::Function:
+  case Decl::CXXMethod:
+  case Decl::CXXConstructor:
+  case Decl::CXXDestructor:
+  case Decl::CXXConversion:
+  case Decl::Var:
+  case Decl::FunctionTemplate:
+  case Decl::ClassTemplate:
+  case Decl::TypeAliasTemplate:
+  case Decl::ObjCProtocol:
+  case Decl::ObjCInterface:
+  case Decl::Empty:
+    return true;
+
+  // Never redeclarable.
+  case Decl::UsingDirective:
+  case Decl::Label:
+  case Decl::UnresolvedUsingTypename:
+  case Decl::TemplateTypeParm:
+  case Decl::EnumConstant:
+  case Decl::UnresolvedUsingValue:
+  case Decl::IndirectField:
+  case Decl::Field:
+  case Decl::ObjCIvar:
+  case Decl::ObjCAtDefsField:
+  case Decl::ImplicitParam:
+  case Decl::ParmVar:
+  case Decl::NonTypeTemplateParm:
+  case Decl::TemplateTemplateParm:
+  case Decl::Using:
+  case Decl::UsingShadow:
+  case Decl::ObjCMethod:
+  case Decl::ObjCCategory:
+  case Decl::ObjCCategoryImpl:
+  case Decl::ObjCImplementation:
+  case Decl::ObjCProperty:
+  case Decl::ObjCCompatibleAlias:
+  case Decl::LinkageSpec:
+  case Decl::ObjCPropertyImpl:
+  case Decl::FileScopeAsm:
+  case Decl::AccessSpec:
+  case Decl::Friend:
+  case Decl::FriendTemplate:
+  case Decl::StaticAssert:
+  case Decl::Block:
+  case Decl::ClassScopeFunctionSpecialization:
+  case Decl::Import:
+  case Decl::OMPThreadPrivate:
+    return false;
+  }
+
+  llvm_unreachable("Unhandled declaration kind");
 }
