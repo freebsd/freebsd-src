@@ -113,7 +113,7 @@ device		da		# Direct Access (ie disk)
 device		pass		# Passthrough (direct ATA/SCSI access)
 device		sa		# Sequential Access (ie tape)
 device		ses		# Enclosure Services (SES and SAF-TE)
-device		ctl		# CAM Target Layer
+#device		ctl		# CAM Target Layer
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
