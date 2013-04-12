@@ -300,6 +300,17 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	ns->ctrlr = ctrlr;
 	ns->id = id;
 
+	/*
+	 * Namespaces are reconstructed after a controller reset, so check
+	 *  to make sure we only call mtx_init once on each mtx.
+	 *
+	 * TODO: Move this somewhere where it gets called at controller
+	 *  construction time, which is not invoked as part of each
+	 *  controller reset.
+	 */
+	if (!mtx_initialized(&ns->lock))
+		mtx_init(&ns->lock, "nvme ns lock", NULL, MTX_DEF);
+
 #ifdef CHATHAM2
 	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
 		nvme_ns_populate_chatham_data(ns);
