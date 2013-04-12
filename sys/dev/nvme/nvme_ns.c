@@ -152,13 +152,11 @@ static struct cdevsw nvme_ns_cdevsw = {
 	.d_version =	D_VERSION,
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	.d_flags =	D_DISK | D_UNMAPPED_IO,
-	.d_read =	physread,
-	.d_write =	physwrite,
 #else
 	.d_flags =	D_DISK,
-	.d_read =	nvme_ns_physio,
-	.d_write =	nvme_ns_physio,
 #endif
+	.d_read =	physread,
+	.d_write =	physwrite,
 	.d_open =	nvme_ns_open,
 	.d_close =	nvme_ns_close,
 	.d_strategy =	nvme_ns_strategy,
