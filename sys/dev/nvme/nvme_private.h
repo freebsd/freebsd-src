@@ -247,6 +247,8 @@ struct nvme_controller {
 
 	device_t		dev;
 
+	struct mtx		lock;
+
 	uint32_t		ready_timeout_in_ms;
 
 	bus_space_tag_t		bus_tag;
@@ -325,7 +327,6 @@ struct nvme_controller {
 
 	uint32_t		is_resetting;
 
-	struct mtx			fail_req_lock;
 	boolean_t			is_failed;
 	STAILQ_HEAD(, nvme_request)	fail_req;
 
