@@ -48,10 +48,11 @@ dmlb [label="Duncan Barclay\ndmlb@FreeBSD.org\n2001/12/14\n2008/11/10"]
 dougb [label="Doug Barton\ndougb@FreeBSD.org\n2000/10/26\n2012/10/08"]
 eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2004/05/20\n2008/11/10"]
 furuta [label="Atsushi Furuta\nfuruta@FreeBSD.org\n2000/06/21\n2003/03/08"]
+gj [label="Gary L. Jennejohn\ngj@FreeBSD.org\n1994/??/??\n2006/04/28"]
 groudier [label="Gerard Roudier\ngroudier@FreeBSD.org\n1999/12/30\n2006/04/06"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16\n2008/11/10"]
 jayanth [label="Jayanth Vijayaraghavan\njayanth@FreeBSD.org\n2000/05/08\n2008/11/10"]
-jb [label="John Birrell\njb@FreeBSD.org\n????/??/??\n2009/12/15"]
+jb [label="John Birrell\njb@FreeBSD.org\n1997/03/27\n2009/12/15"]
 jdp [label="John Polstra\njdp@FreeBSD.org\n1995/12/07\n2008/02/26"]
 jedgar [label="Chris D. Faulhaber\njedgar@FreeBSD.org\n1999/12/15\n2006/04/07"]
 jkh [label="Jordan K. Hubbard\njkh@FreeBSD.org\n1993/06/12\n2008/06/13"]
@@ -143,7 +144,7 @@ dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/01/18"]
 ed [label="Ed Schouten\ned@FreeBSD.org\n2008/05/22"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2007/06/25"]
-eivind [label="Eivind Eklund\neivind@FreeBSD.org\n????/??/??"]
+eivind [label="Eivind Eklund\neivind@FreeBSD.org\n1997/02/02"]
 emaste [label="Ed Maste\nemaste@FreeBSD.org\n2005/10/04"]
 emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 eri [label="Ermal Luci\neri@FreeBSD.org\n2008/06/11"]
@@ -467,6 +468,8 @@ jhb -> rnoland
 
 jimharris -> carl
 
+jkh -> dfr
+jkh -> gj
 jkh -> grog
 jkh -> imp
 jkh -> jlemon
@@ -574,6 +577,7 @@ philip -> jls
 philip -> matteo
 philip -> uqs
 
+phk -> jkoshy
 phk -> mux
 
 pjd -> kib
