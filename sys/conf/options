@@ -332,9 +332,6 @@ SCSI_PT_DEFAULT_TIMEOUT	opt_pt.h
 # Options used only in cam/scsi/scsi_ses.c
 SES_ENABLE_PASSTHROUGH	opt_ses.h
 
-# Options used only in cam/ctl
-CTL_DISABLE		opt_ctl.h
-
 # Options used in dev/sym/ (Symbios SCSI driver).
 SYM_SETUP_LP_PROBE_MAP	opt_sym.h	#-Low Priority Probe Map (bits)
 					# Allows the ncr to take precedence

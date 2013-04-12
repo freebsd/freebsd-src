@@ -145,10 +145,7 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# Enclosure Services (SES and SAF-TE)
-device		ctl		# CAM Target Layer
-options		CTL_DISABLE	# Disable CTL by default to save memory.
-				# Re-enable with kern.cam.ctl.disable=0 in
-				# /boot/loader.conf
+#device		ctl		# CAM Target Layer
 
 # RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID
