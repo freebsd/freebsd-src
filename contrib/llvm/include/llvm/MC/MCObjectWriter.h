@@ -10,9 +10,10 @@
 #ifndef LLVM_MC_MCOBJECTWRITER_H
 #define LLVM_MC_MCOBJECTWRITER_H
 
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 
 namespace llvm {
@@ -51,6 +52,9 @@ protected: // Can only create subclasses.
 public:
   virtual ~MCObjectWriter();
 
+  /// lifetime management
+  virtual void reset() { }
+
   bool isLittleEndian() const { return IsLittleEndian; }
 
   raw_ostream &getStream() { return OS; }
@@ -58,15 +62,15 @@ public:
   /// @name High-Level API
   /// @{
 
-  /// Perform any late binding of symbols (for example, to assign symbol indices
-  /// for use when generating relocations).
+  /// \brief Perform any late binding of symbols (for example, to assign symbol
+  /// indices for use when generating relocations).
   ///
   /// This routine is called by the assembler after layout and relaxation is
   /// complete.
   virtual void ExecutePostLayoutBinding(MCAssembler &Asm,
                                         const MCAsmLayout &Layout) = 0;
 
-  /// Record a relocation entry.
+  /// \brief Record a relocation entry.
   ///
   /// This routine is called by the assembler after layout and relaxation, and
   /// post layout binding. The implementation is responsible for storing
@@ -96,8 +100,7 @@ public:
                                          bool InSet,
                                          bool IsPCRel) const;
 
-
-  /// Write the object file.
+  /// \brief Write the object file.
   ///
   /// This routine is called by the assembler after layout and relaxation is
   /// complete, fixups have been evaluated and applied, and relocations
@@ -173,7 +176,13 @@ public:
     OS << StringRef(Zeros, N % 16);
   }
 
+  void WriteBytes(const SmallVectorImpl<char> &ByteVec, unsigned ZeroFillSize = 0) {
+    WriteBytes(StringRef(ByteVec.data(), ByteVec.size()), ZeroFillSize);
+  }
+
   void WriteBytes(StringRef Str, unsigned ZeroFillSize = 0) {
+    // TODO: this version may need to go away once all fragment contents are
+    // converted to SmallVector<char, N>
     assert((ZeroFillSize == 0 || Str.size () <= ZeroFillSize) &&
       "data size greater than fill size, unexpected large write will occur");
     OS << Str;

@@ -12,10 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TRANSFORMS_UTILS_BUILDLIBCALLS_H
-#define TRANSFORMS_UTILS_BUILDLIBCALLS_H
+#ifndef LLVM_TRANSFORMS_UTILS_BUILDLIBCALLS_H
+#define LLVM_TRANSFORMS_UTILS_BUILDLIBCALLS_H
 
-#include "llvm/IRBuilder.h"
+#include "llvm/IR/IRBuilder.h"
 
 namespace llvm {
   class Value;
@@ -81,7 +81,7 @@ namespace llvm {
   /// 'l' is added as the suffix of name, if 'Op' is a float, we add a 'f'
   /// suffix.
   Value *EmitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
-                              const AttrListPtr &Attrs);
+                              const AttributeSet &Attrs);
 
   /// EmitPutChar - Emit a call to the putchar function.  This assumes that Char
   /// is an integer.

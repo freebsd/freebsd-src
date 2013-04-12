@@ -446,6 +446,7 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
                                            raw_ostream &OS) const {
   bool HasVEX_4V = (TSFlags >> X86II::VEXShift) & X86II::VEX_4V;
   bool HasVEX_4VOp3 = (TSFlags >> X86II::VEXShift) & X86II::VEX_4VOp3;
+  bool HasMemOp4 = (TSFlags >> X86II::VEXShift) & X86II::MemOp4;
 
   // VEX_R: opcode externsion equivalent to REX.R in
   // 1's complement (inverted) form
@@ -650,12 +651,19 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
     //  dst(ModR/M), src1(ModR/M)
     //  dst(ModR/M), src1(ModR/M), imm8
     //
+    //  FMA4:
+    //  dst(ModR/M.reg), src1(VEX_4V), src2(ModR/M), src3(VEX_I8IMM)
+    //  dst(ModR/M.reg), src1(VEX_4V), src2(VEX_I8IMM), src3(ModR/M),
     if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
       VEX_R = 0x0;
     CurOp++;
 
     if (HasVEX_4V)
       VEX_4V = getVEXRegisterEncoding(MI, CurOp++);
+
+    if (HasMemOp4) // Skip second register source (encoded in I8IMM)
+      CurOp++;
+
     if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
       VEX_B = 0x0;
     CurOp++;
@@ -666,9 +674,15 @@ void X86MCCodeEmitter::EmitVEXOpcodePrefix(uint64_t TSFlags, unsigned &CurByte,
     // MRMDestReg instructions forms:
     //  dst(ModR/M), src(ModR/M)
     //  dst(ModR/M), src(ModR/M), imm8
-    if (X86II::isX86_64ExtendedReg(MI.getOperand(0).getReg()))
+    //  dst(ModR/M), src1(VEX_4V), src2(ModR/M)
+    if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
       VEX_B = 0x0;
-    if (X86II::isX86_64ExtendedReg(MI.getOperand(1).getReg()))
+    CurOp++;
+
+    if (HasVEX_4V)
+      VEX_4V = getVEXRegisterEncoding(MI, CurOp++);
+
+    if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
       VEX_R = 0x0;
     break;
   case X86II::MRM0r: case X86II::MRM1r:
@@ -1038,9 +1052,14 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
 
   case X86II::MRMDestReg:
     EmitByte(BaseOpcode, CurByte, OS);
+    SrcRegNum = CurOp + 1;
+
+    if (HasVEX_4V) // Skip 1st src (which is encoded in VEX_VVVV)
+      ++SrcRegNum;
+
     EmitRegModRMByte(MI.getOperand(CurOp),
-                     GetX86RegNum(MI.getOperand(CurOp+1)), CurByte, OS);
-    CurOp += 2;
+                     GetX86RegNum(MI.getOperand(SrcRegNum)), CurByte, OS);
+    CurOp = SrcRegNum + 1;
     break;
 
   case X86II::MRMDestMem:
@@ -1117,16 +1136,13 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
                      TSFlags, CurByte, OS, Fixups);
     CurOp += X86::AddrNumOperands;
     break;
-  case X86II::MRM_C1: case X86II::MRM_C2:
-  case X86II::MRM_C3: case X86II::MRM_C4:
-  case X86II::MRM_C8: case X86II::MRM_C9:
-  case X86II::MRM_D0: case X86II::MRM_D1:
-  case X86II::MRM_D4: case X86II::MRM_D5:
-  case X86II::MRM_D8: case X86II::MRM_D9:
-  case X86II::MRM_DA: case X86II::MRM_DB:
-  case X86II::MRM_DC: case X86II::MRM_DD:
-  case X86II::MRM_DE: case X86II::MRM_DF:
-  case X86II::MRM_E8: case X86II::MRM_F0:
+  case X86II::MRM_C1: case X86II::MRM_C2: case X86II::MRM_C3:
+  case X86II::MRM_C4: case X86II::MRM_C8: case X86II::MRM_C9:
+  case X86II::MRM_D0: case X86II::MRM_D1: case X86II::MRM_D4:
+  case X86II::MRM_D5: case X86II::MRM_D6: case X86II::MRM_D8:
+  case X86II::MRM_D9: case X86II::MRM_DA: case X86II::MRM_DB:
+  case X86II::MRM_DC: case X86II::MRM_DD: case X86II::MRM_DE:
+  case X86II::MRM_DF: case X86II::MRM_E8: case X86II::MRM_F0:
   case X86II::MRM_F8: case X86II::MRM_F9:
     EmitByte(BaseOpcode, CurByte, OS);
 
@@ -1143,6 +1159,7 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
     case X86II::MRM_D1: MRM = 0xD1; break;
     case X86II::MRM_D4: MRM = 0xD4; break;
     case X86II::MRM_D5: MRM = 0xD5; break;
+    case X86II::MRM_D6: MRM = 0xD6; break;
     case X86II::MRM_D8: MRM = 0xD8; break;
     case X86II::MRM_D9: MRM = 0xD9; break;
     case X86II::MRM_DA: MRM = 0xDA; break;

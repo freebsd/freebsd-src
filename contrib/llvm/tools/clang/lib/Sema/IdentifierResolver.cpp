@@ -13,12 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/IdentifierResolver.h"
-#include "clang/Sema/Scope.h"
 #include "clang/AST/Decl.h"
-#include "clang/AST/DeclObjC.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/Scope.h"
 
 using namespace clang;
 
@@ -108,8 +107,7 @@ IdentifierResolver::~IdentifierResolver() {
 /// isDeclInScope - If 'Ctx' is a function/method, isDeclInScope returns true
 /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns
 /// true if 'D' belongs to the given declaration context.
-bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx,
-                                       ASTContext &Context, Scope *S,
+bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S,
                              bool ExplicitInstantiationOrSpecialization) const {
   Ctx = Ctx->getRedeclContext();
 
@@ -304,6 +302,14 @@ static DeclMatchKind compareDeclarations(NamedDecl *Existing, NamedDecl *New) {
 
   // If the declarations are redeclarations of each other, keep the newest one.
   if (Existing->getCanonicalDecl() == New->getCanonicalDecl()) {
+    // If either of these is the most recent declaration, use it.
+    Decl *MostRecent = Existing->getMostRecentDecl();
+    if (Existing == MostRecent)
+      return DMK_Ignore;
+
+    if (New == MostRecent)
+      return DMK_Replace;
+
     // If the existing declaration is somewhere in the previous declaration
     // chain of the new declaration, then prefer the new declaration.
     for (Decl::redecl_iterator RD = New->redecls_begin(), 

@@ -100,9 +100,9 @@
 #include "StringToOffsetTable.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -958,8 +958,12 @@ static std::string getEnumNameForToken(StringRef Str) {
     case ':': Res += "_COLON_"; break;
     case '!': Res += "_EXCLAIM_"; break;
     case '.': Res += "_DOT_"; break;
+    case '<': Res += "_LT_"; break;
+    case '>': Res += "_GT_"; break;
     default:
-      if (isalnum(*it))
+      if ((*it >= 'A' && *it <= 'Z') ||
+          (*it >= 'a' && *it <= 'z') ||
+          (*it >= '0' && *it <= '9'))
         Res += *it;
       else
         Res += "_" + utostr((unsigned) *it) + "_";
@@ -1723,7 +1727,7 @@ static void emitConvertFuncs(CodeGenTarget &Target, StringRef ClassName,
        << "    default: llvm_unreachable(\"invalid conversion entry!\");\n"
        << "    case CVT_Reg:\n"
        << "      Operands[*(p + 1)]->setMCOperandNum(NumMCOperands);\n"
-       << "      Operands[*(p + 1)]->setConstraint(\"m\");\n"
+       << "      Operands[*(p + 1)]->setConstraint(\"r\");\n"
        << "      ++NumMCOperands;\n"
        << "      break;\n"
        << "    case CVT_Tied:\n"
@@ -1754,7 +1758,8 @@ static void emitConvertFuncs(CodeGenTarget &Target, StringRef ClassName,
 
       // Remember this converter for the kind enum.
       unsigned KindID = OperandConversionKinds.size();
-      OperandConversionKinds.insert("CVT_" + AsmMatchConverter);
+      OperandConversionKinds.insert("CVT_" +
+                                    getEnumNameForToken(AsmMatchConverter));
 
       // Add the converter row for this instruction.
       ConversionTable.push_back(std::vector<uint8_t>());
@@ -1762,7 +1767,8 @@ static void emitConvertFuncs(CodeGenTarget &Target, StringRef ClassName,
       ConversionTable.back().push_back(CVT_Done);
 
       // Add the handler to the conversion driver function.
-      CvtOS << "    case CVT_" << AsmMatchConverter << ":\n"
+      CvtOS << "    case CVT_"
+            << getEnumNameForToken(AsmMatchConverter) << ":\n"
             << "      " << AsmMatchConverter << "(Inst, Operands);\n"
             << "      break;\n";
 
@@ -1800,6 +1806,7 @@ static void emitConvertFuncs(CodeGenTarget &Target, StringRef ClassName,
         // the index of its entry in the vector).
         std::string Name = "CVT_" + (Op.Class->isRegisterClass() ? "Reg" :
                                      Op.Class->RenderMethod);
+        Name = getEnumNameForToken(Name);
 
         bool IsNewConverter = false;
         unsigned ID = getConverterOperandID(Name, OperandConversionKinds,
@@ -1823,9 +1830,13 @@ static void emitConvertFuncs(CodeGenTarget &Target, StringRef ClassName,
 
         // Add a handler for the operand number lookup.
         OpOS << "    case " << Name << ":\n"
-             << "      Operands[*(p + 1)]->setMCOperandNum(NumMCOperands);\n"
-             << "      Operands[*(p + 1)]->setConstraint(\"m\");\n"
-             << "      NumMCOperands += " << OpInfo.MINumOperands << ";\n"
+             << "      Operands[*(p + 1)]->setMCOperandNum(NumMCOperands);\n";
+
+        if (Op.Class->isRegisterClass())
+          OpOS << "      Operands[*(p + 1)]->setConstraint(\"r\");\n";
+        else
+          OpOS << "      Operands[*(p + 1)]->setConstraint(\"m\");\n";
+        OpOS << "      NumMCOperands += " << OpInfo.MINumOperands << ";\n"
              << "      break;\n";
         break;
       }
@@ -2867,6 +2878,15 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   OS << "(MatchClassKind)it->Classes[i]);\n";
   OS << "      if (Diag == Match_Success)\n";
   OS << "        continue;\n";
+  OS << "      // If the generic handler indicates an invalid operand\n";
+  OS << "      // failure, check for a special case.\n";
+  OS << "      if (Diag == Match_InvalidOperand) {\n";
+  OS << "        Diag = validateTargetOperandClass(Operands[i+1],\n";
+  OS.indent(43);
+  OS << "(MatchClassKind)it->Classes[i]);\n";
+  OS << "        if (Diag == Match_Success)\n";
+  OS << "          continue;\n";
+  OS << "      }\n";
   OS << "      // If this operand is broken for all of the instances of this\n";
   OS << "      // mnemonic, keep track of it so we can report loc info.\n";
   OS << "      // If we already had a match that only failed due to a\n";

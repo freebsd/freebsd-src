@@ -23,9 +23,8 @@
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/type_traits.h"
-
-#include <vector>
 #include <list>
+#include <vector>
 
 namespace clang {
   class DiagnosticConsumer;
@@ -78,7 +77,7 @@ public:
                                    bool BeforePreviousInsertions = false) {
     FixItHint Hint;
     Hint.RemoveRange =
-      CharSourceRange(SourceRange(InsertionLoc, InsertionLoc), false);
+      CharSourceRange::getCharRange(InsertionLoc, InsertionLoc);
     Hint.CodeToInsert = Code;
     Hint.BeforePreviousInsertions = BeforePreviousInsertions;
     return Hint;
@@ -91,7 +90,7 @@ public:
                                         bool BeforePreviousInsertions = false) {
     FixItHint Hint;
     Hint.RemoveRange =
-      CharSourceRange(SourceRange(InsertionLoc, InsertionLoc), false);
+      CharSourceRange::getCharRange(InsertionLoc, InsertionLoc);
     Hint.InsertFromRange = FromRange;
     Hint.BeforePreviousInsertions = BeforePreviousInsertions;
     return Hint;
@@ -176,6 +175,7 @@ private:
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
   bool ElideType;                // Elide common types of templates.
   bool PrintTemplateTree;        // Print a tree when comparing templates.
+  bool WarnOnSpellCheck;         // Emit warning when spellcheck is initiated.
   bool ShowColors;               // Color printing is enabled.
   OverloadsShown ShowOverloads;  // Which overload candidates to show.
   unsigned ErrorLimit;           // Cap of # errors emitted, 0 -> no limit.
@@ -279,6 +279,10 @@ private:
 
   /// \brief Sticky flag set to \c true when an error is emitted.
   bool ErrorOccurred;
+
+  /// \brief Sticky flag set to \c true when an "uncompilable error" occurs.
+  /// I.e. an error that was not upgraded from a warning by -Werror.
+  bool UncompilableErrorOccurred;
 
   /// \brief Sticky flag set to \c true when a fatal error is emitted.
   bool FatalErrorOccurred;
@@ -432,8 +436,8 @@ public:
   ///
   /// If this and IgnoreAllWarnings are both set, then that one wins.
   void setEnableAllWarnings(bool Val) { EnableAllWarnings = Val; }
-  bool getEnableAllWarnngs() const { return EnableAllWarnings; }
-  
+  bool getEnableAllWarnings() const { return EnableAllWarnings; }
+
   /// \brief When set to true, any warnings reported are issued as errors.
   void setWarningsAsErrors(bool Val) { WarningsAsErrors = Val; }
   bool getWarningsAsErrors() const { return WarningsAsErrors; }
@@ -463,6 +467,10 @@ public:
   /// tree format.
   void setPrintTemplateTree(bool Val = false) { PrintTemplateTree = Val; }
   bool getPrintTemplateTree() { return PrintTemplateTree; }
+
+  /// \brief Warn when spellchecking is initated, for testing.
+  void setWarnOnSpellCheck(bool Val = false) { WarnOnSpellCheck = Val; }
+  bool getWarnOnSpellCheck() { return WarnOnSpellCheck; }
  
   /// \brief Set color printing, so the type diffing will inject color markers
   /// into the output.
@@ -559,6 +567,12 @@ public:
                                   SourceLocation Loc = SourceLocation());
 
   bool hasErrorOccurred() const { return ErrorOccurred; }
+
+  /// \brief Errors that actually prevent compilation, not those that are
+  /// upgraded from a warning by -Werror.
+  bool hasUncompilableErrorOccurred() const {
+    return UncompilableErrorOccurred;
+  }
   bool hasFatalErrorOccurred() const { return FatalErrorOccurred; }
   
   /// \brief Determine whether any kind of unrecoverable error has occurred.
@@ -574,7 +588,7 @@ public:
 
   /// \brief Return an ID for a diagnostic with the specified message and level.
   ///
-  /// If this is the first request for this diagnosic, it is registered and
+  /// If this is the first request for this diagnostic, it is registered and
   /// created, otherwise the existing ID is returned.
   unsigned getCustomDiagID(Level L, StringRef Message) {
     return Diags->getCustomDiagID((DiagnosticIDs::Level)L, Message);
@@ -596,6 +610,12 @@ public:
   void SetArgToStringFn(ArgToStringFnTy Fn, void *Cookie) {
     ArgToStringFn = Fn;
     ArgToStringCookie = Cookie;
+  }
+
+  /// \brief Note that the prior diagnostic was emitted by some other
+  /// \c DiagnosticsEngine, and we may be attaching a note to that diagnostic.
+  void notePriorDiagnosticFrom(const DiagnosticsEngine &Other) {
+    LastDiagLevel = Other.LastDiagLevel;
   }
 
   /// \brief Reset the state of the diagnostic object to its initial 

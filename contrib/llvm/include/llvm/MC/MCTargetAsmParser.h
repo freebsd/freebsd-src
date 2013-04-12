@@ -22,6 +22,7 @@ class MCInst;
 template <typename T> class SmallVectorImpl;
 
 enum AsmRewriteKind {
+  AOK_Align,          // Rewrite align as .align.
   AOK_DotOperator,    // Rewrite a dot operator expression as an immediate.
                       // E.g., [eax].foo.bar -> [eax].8
   AOK_Emit,           // Rewrite _emit as .byte.
@@ -141,6 +142,15 @@ public:
                           SmallVectorImpl<MCParsedAsmOperand*> &Operands,
                           MCStreamer &Out, unsigned &ErrorInfo,
                           bool MatchingInlineAsm) = 0;
+
+  /// Allow a target to add special case operand matching for things that
+  /// tblgen doesn't/can't handle effectively. For example, literal
+  /// immediates on ARM. TableGen expects a token operand, but the parser
+  /// will recognize them as immediates.
+  virtual unsigned validateTargetOperandClass(MCParsedAsmOperand *Op,
+                                              unsigned Kind) {
+    return Match_InvalidOperand;
+  }
 
   /// checkTargetMatchPredicate - Validate the instruction match against
   /// any complex target predicates not expressible via match classes.

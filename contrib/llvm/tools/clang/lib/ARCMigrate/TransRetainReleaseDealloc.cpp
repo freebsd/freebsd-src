@@ -1,4 +1,4 @@
-//===--- TransRetainReleaseDealloc.cpp - Tranformations to ARC mode -------===//
+//===--- TransRetainReleaseDealloc.cpp - Transformations to ARC mode ------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -24,6 +24,7 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Sema/SemaDiagnostic.h"
+#include "llvm/ADT/StringSwitch.h"
 
 using namespace clang;
 using namespace arcmt;
@@ -161,13 +162,26 @@ public:
 private:
   /// \brief Checks for idioms where an unused -autorelease is common.
   ///
-  /// Currently only returns true for this idiom which is common in property
+  /// Returns true for this idiom which is common in property
   /// setters:
   ///
   ///   [backingValue autorelease];
   ///   backingValue = [newValue retain]; // in general a +1 assign
   ///
+  /// For these as well:
+  ///
+  ///   [[var retain] autorelease];
+  ///   return var;
+  ///
   bool isCommonUnusedAutorelease(ObjCMessageExpr *E) {
+    if (isPlusOneAssignBeforeOrAfterAutorelease(E))
+      return true;
+    if (isReturnedAfterAutorelease(E))
+      return true;
+    return false;
+  }
+
+  bool isReturnedAfterAutorelease(ObjCMessageExpr *E) {
     Expr *Rec = E->getInstanceReceiver();
     if (!Rec)
       return false;
@@ -175,6 +189,68 @@ private:
     Decl *RefD = getReferencedDecl(Rec);
     if (!RefD)
       return false;
+
+    Stmt *nextStmt = getNextStmt(E);
+    if (!nextStmt)
+      return false;
+
+    // Check for "return <variable>;".
+
+    if (ReturnStmt *RetS = dyn_cast<ReturnStmt>(nextStmt))
+      return RefD == getReferencedDecl(RetS->getRetValue());
+
+    return false;
+  }
+
+  bool isPlusOneAssignBeforeOrAfterAutorelease(ObjCMessageExpr *E) {
+    Expr *Rec = E->getInstanceReceiver();
+    if (!Rec)
+      return false;
+
+    Decl *RefD = getReferencedDecl(Rec);
+    if (!RefD)
+      return false;
+
+    Stmt *prevStmt, *nextStmt;
+    llvm::tie(prevStmt, nextStmt) = getPreviousAndNextStmt(E);
+
+    return isPlusOneAssignToVar(prevStmt, RefD) ||
+           isPlusOneAssignToVar(nextStmt, RefD);
+  }
+
+  bool isPlusOneAssignToVar(Stmt *S, Decl *RefD) {
+    if (!S)
+      return false;
+
+    // Check for "RefD = [+1 retained object];".
+
+    if (BinaryOperator *Bop = dyn_cast<BinaryOperator>(S)) {
+      if (RefD != getReferencedDecl(Bop->getLHS()))
+        return false;
+      if (isPlusOneAssign(Bop))
+        return true;
+      return false;
+    }
+
+    if (DeclStmt *DS = dyn_cast<DeclStmt>(S)) {
+      if (DS->isSingleDecl() && DS->getSingleDecl() == RefD) {
+        if (VarDecl *VD = dyn_cast<VarDecl>(RefD))
+          return isPlusOne(VD->getInit());
+      }
+      return false;
+    }
+
+    return false;
+  }
+
+  Stmt *getNextStmt(Expr *E) {
+    return getPreviousAndNextStmt(E).second;
+  }
+
+  std::pair<Stmt *, Stmt *> getPreviousAndNextStmt(Expr *E) {
+    Stmt *prevStmt = 0, *nextStmt = 0;
+    if (!E)
+      return std::make_pair(prevStmt, nextStmt);
 
     Stmt *OuterS = E, *InnerS;
     do {
@@ -186,36 +262,34 @@ private:
                       isa<ExprWithCleanups>(OuterS)));
     
     if (!OuterS)
-      return false;
-
-    // Find next statement after the -autorelease.
+      return std::make_pair(prevStmt, nextStmt);
 
     Stmt::child_iterator currChildS = OuterS->child_begin();
     Stmt::child_iterator childE = OuterS->child_end();
+    Stmt::child_iterator prevChildS = childE;
     for (; currChildS != childE; ++currChildS) {
       if (*currChildS == InnerS)
         break;
+      prevChildS = currChildS;
     }
+
+    if (prevChildS != childE) {
+      prevStmt = *prevChildS;
+      if (prevStmt)
+        prevStmt = prevStmt->IgnoreImplicit();
+    }
+
     if (currChildS == childE)
-      return false;
+      return std::make_pair(prevStmt, nextStmt);
     ++currChildS;
     if (currChildS == childE)
-      return false;
+      return std::make_pair(prevStmt, nextStmt);
 
-    Stmt *nextStmt = *currChildS;
-    if (!nextStmt)
-      return false;
-    nextStmt = nextStmt->IgnoreImplicit();
+    nextStmt = *currChildS;
+    if (nextStmt)
+      nextStmt = nextStmt->IgnoreImplicit();
 
-    // Check for "RefD = [+1 retained object];".
-    
-    if (BinaryOperator *Bop = dyn_cast<BinaryOperator>(nextStmt)) {
-      if (RefD != getReferencedDecl(Bop->getLHS()))
-        return false;
-      if (isPlusOneAssign(Bop))
-        return true;
-    }
-    return false;
+    return std::make_pair(prevStmt, nextStmt);
   }
 
   Decl *getReferencedDecl(Expr *E) {
@@ -223,6 +297,17 @@ private:
       return 0;
 
     E = E->IgnoreParenCasts();
+    if (ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(E)) {
+      switch (ME->getMethodFamily()) {
+      case OMF_copy:
+      case OMF_autorelease:
+      case OMF_release:
+      case OMF_retain:
+        return getReferencedDecl(ME->getInstanceReceiver());
+      default:
+        return 0;
+      }
+    }
     if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
       return DRE->getDecl();
     if (MemberExpr *ME = dyn_cast<MemberExpr>(E))

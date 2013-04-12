@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 // Data structures for DWARF info entries.
-// 
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef CODEGEN_ASMPRINTER_DIE_H__
@@ -66,7 +66,7 @@ namespace llvm {
 
     /// Data - Raw data bytes for abbreviation.
     ///
-    SmallVector<DIEAbbrevData, 8> Data;
+    SmallVector<DIEAbbrevData, 12> Data;
 
   public:
     DIEAbbrev(uint16_t T, uint16_t C) : Tag(T), ChildrenFlag(C), Data() {}
@@ -75,7 +75,7 @@ namespace llvm {
     uint16_t getTag() const { return Tag; }
     unsigned getNumber() const { return Number; }
     uint16_t getChildrenFlag() const { return ChildrenFlag; }
-    const SmallVector<DIEAbbrevData, 8> &getData() const { return Data; }
+    const SmallVectorImpl<DIEAbbrevData> &getData() const { return Data; }
     void setTag(uint16_t T) { Tag = T; }
     void setChildrenFlag(uint16_t CF) { ChildrenFlag = CF; }
     void setNumber(unsigned N) { Number = N; }
@@ -108,7 +108,7 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   /// DIE - A structured debug information entry.  Has an abbreviation which
-  /// describes it's organization.
+  /// describes its organization.
   class DIEValue;
 
   class DIE {
@@ -131,9 +131,9 @@ namespace llvm {
 
     DIE *Parent;
 
-    /// Attributes values.
+    /// Attribute values.
     ///
-    SmallVector<DIEValue*, 32> Values;
+    SmallVector<DIEValue*, 12> Values;
 
     // Private data for print()
     mutable unsigned IndentCount;
@@ -150,12 +150,15 @@ namespace llvm {
     unsigned getOffset() const { return Offset; }
     unsigned getSize() const { return Size; }
     const std::vector<DIE *> &getChildren() const { return Children; }
-    const SmallVector<DIEValue*, 32> &getValues() const { return Values; }
+    const SmallVectorImpl<DIEValue*> &getValues() const { return Values; }
     DIE *getParent() const { return Parent; }
+    /// Climb up the parent chain to get the compile unit DIE this DIE belongs
+    /// to.
+    DIE *getCompileUnit() const;
     void setTag(unsigned Tag) { Abbrev.setTag(Tag); }
     void setOffset(unsigned O) { Offset = O; }
     void setSize(unsigned S) { Size = S; }
-    
+
     /// addValue - Add a value and attributes to a DIE.
     ///
     void addValue(unsigned Attribute, unsigned Form, DIEValue *Value) {
@@ -232,9 +235,10 @@ namespace llvm {
     ///
     static unsigned BestForm(bool IsSigned, uint64_t Int) {
       if (IsSigned) {
-        if ((char)Int == (signed)Int)   return dwarf::DW_FORM_data1;
-        if ((short)Int == (signed)Int)  return dwarf::DW_FORM_data2;
-        if ((int)Int == (signed)Int)    return dwarf::DW_FORM_data4;
+        const int64_t SignedInt = Int;
+        if ((char)Int == SignedInt)     return dwarf::DW_FORM_data1;
+        if ((short)Int == SignedInt)    return dwarf::DW_FORM_data2;
+        if ((int)Int == SignedInt)      return dwarf::DW_FORM_data4;
       } else {
         if ((unsigned char)Int == Int)  return dwarf::DW_FORM_data1;
         if ((unsigned short)Int == Int) return dwarf::DW_FORM_data2;

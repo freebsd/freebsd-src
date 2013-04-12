@@ -11,19 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Support/InstIterator.h"
-#include "NVPTXUtilities.h"
 #include "NVPTXSplitBBatBar.h"
+#include "NVPTXUtilities.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/Support/InstIterator.h"
 
 using namespace llvm;
 
-namespace llvm {
-FunctionPass *createSplitBBatBarPass();
-}
+namespace llvm { FunctionPass *createSplitBBatBarPass(); }
 
 char NVPTXSplitBBatBar::ID = 0;
 
@@ -72,6 +70,4 @@ bool NVPTXSplitBBatBar::runOnFunction(Function &F) {
 // This interface will most likely not be necessary, because this pass will
 // not be invoked by the driver, but will be used as a prerequisite to
 // another pass.
-FunctionPass *llvm::createSplitBBatBarPass() {
-  return new NVPTXSplitBBatBar();
-}
+FunctionPass *llvm::createSplitBBatBarPass() { return new NVPTXSplitBBatBar(); }

@@ -11,17 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/Version.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/MacroBuilder.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
 #include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/Support/FileSystem.h"
@@ -307,7 +307,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     // C++11 [cpp.predefined]p1:
     //   The name __cplusplus is defined to the value 201103L when compiling a
     //   C++ translation unit.
-    if (LangOpts.CPlusPlus0x)
+    if (LangOpts.CPlusPlus11)
       Builder.defineMacro("__cplusplus", "201103L");
     // C++03 [cpp.predefined]p1:
     //   The name __cplusplus is defined to the value 199711L when compiling a
@@ -377,7 +377,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (!LangOpts.GNUMode)
     Builder.defineMacro("__STRICT_ANSI__");
 
-  if (LangOpts.CPlusPlus0x)
+  if (LangOpts.CPlusPlus11)
     Builder.defineMacro("__GXX_EXPERIMENTAL_CXX0X__");
 
   if (LangOpts.ObjC1) {
@@ -490,6 +490,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   DefineTypeSize("__LONG_LONG_MAX__", TargetInfo::SignedLongLong, TI, Builder);
   DefineTypeSize("__WCHAR_MAX__", TI.getWCharType(), TI, Builder);
   DefineTypeSize("__INTMAX_MAX__", TI.getIntMaxType(), TI, Builder);
+  DefineTypeSize("__SIZE_MAX__", TI.getSizeType(), TI, Builder);
 
   DefineTypeSizeof("__SIZEOF_DOUBLE__", TI.getDoubleWidth(), TI, Builder);
   DefineTypeSizeof("__SIZEOF_FLOAT__", TI.getFloatWidth(), TI, Builder);
@@ -507,6 +508,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                    TI.getTypeWidth(TI.getWCharType()), TI, Builder);
   DefineTypeSizeof("__SIZEOF_WINT_T__",
                    TI.getTypeWidth(TI.getWIntType()), TI, Builder);
+  if (TI.hasInt128Type())
+    DefineTypeSizeof("__SIZEOF_INT128__", 128, TI, Builder);
 
   DefineType("__INTMAX_TYPE__", TI.getIntMaxType(), Builder);
   DefineType("__UINTMAX_TYPE__", TI.getUIntMaxType(), Builder);
@@ -637,6 +640,16 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                         "__attribute__((objc_ownership(autoreleasing)))");
     Builder.defineMacro("__unsafe_unretained",
                         "__attribute__((objc_ownership(none)))");
+  }
+
+  // OpenMP definition
+  if (LangOpts.OpenMP) {
+    // OpenMP 2.2: 
+    //   In implementations that support a preprocessor, the _OPENMP
+    //   macro name is defined to have the decimal value yyyymm where
+    //   yyyy and mm are the year and the month designations of the
+    //   version of the OpenMP API that the implementation support.
+    Builder.defineMacro("_OPENMP", "201107");
   }
 
   // Get other target #defines.
@@ -772,15 +785,16 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     AddImplicitIncludeMacros(Builder, InitOpts.MacroIncludes[i],
                              PP.getFileManager());
 
+  // Process -include-pch/-include-pth directives.
+  if (!InitOpts.ImplicitPCHInclude.empty())
+    AddImplicitIncludePCH(Builder, PP, InitOpts.ImplicitPCHInclude);
+  if (!InitOpts.ImplicitPTHInclude.empty())
+    AddImplicitIncludePTH(Builder, PP, InitOpts.ImplicitPTHInclude);
+
   // Process -include directives.
   for (unsigned i = 0, e = InitOpts.Includes.size(); i != e; ++i) {
     const std::string &Path = InitOpts.Includes[i];
-    if (Path == InitOpts.ImplicitPTHInclude)
-      AddImplicitIncludePTH(Builder, PP, Path);
-    else if (Path == InitOpts.ImplicitPCHInclude)
-      AddImplicitIncludePCH(Builder, PP, Path);
-    else
-      AddImplicitInclude(Builder, Path, PP.getFileManager());
+    AddImplicitInclude(Builder, Path, PP.getFileManager());
   }
 
   // Exit the command line and go back to <built-in> (2 is LC_LEAVE).

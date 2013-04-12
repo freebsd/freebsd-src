@@ -24,6 +24,11 @@ MipsMCAsmInfo::MipsMCAsmInfo(const Target &T, StringRef TT) {
       (TheTriple.getArch() == Triple::mips64))
     IsLittleEndian = false;
 
+  if ((TheTriple.getArch() == Triple::mips64el) ||
+      (TheTriple.getArch() == Triple::mips64)) {
+    PointerSize = CalleeSaveStackSlotSize = 8;
+  }
+
   AlignmentIsInBytes          = false;
   Data16bitsDirective         = "\t.2byte\t";
   Data32bitsDirective         = "\t.4byte\t";
@@ -34,7 +39,7 @@ MipsMCAsmInfo::MipsMCAsmInfo(const Target &T, StringRef TT) {
   GPRel32Directive            = "\t.gpword\t";
   GPRel64Directive            = "\t.gpdword\t";
   WeakRefDirective            = "\t.weak\t";
-
+  DebugLabelSuffix            = "=.";
   SupportsDebugInformation = true;
   ExceptionsType = ExceptionHandling::DwarfCFI;
   HasLEB128 = true;

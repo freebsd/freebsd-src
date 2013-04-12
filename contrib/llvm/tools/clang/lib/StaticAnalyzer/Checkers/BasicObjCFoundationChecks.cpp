@@ -14,23 +14,24 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclObjC.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprObjC.h"
+#include "clang/AST/StmtObjC.h"
 #include "clang/Analysis/DomainSpecific/CocoaConventions.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
-#include "clang/AST/DeclObjC.h"
-#include "clang/AST/Expr.h"
-#include "clang/AST/ExprObjC.h"
-#include "clang/AST/StmtObjC.h"
-#include "clang/AST/ASTContext.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -82,10 +83,6 @@ static FoundationClass findKnownClass(const ObjCInterfaceDecl *ID) {
   return result;
 }
 
-static inline bool isNil(SVal X) {
-  return isa<loc::ConcreteInt>(X);
-}
-
 //===----------------------------------------------------------------------===//
 // NilArgChecker - Check for prohibited nil arguments to ObjC method calls.
 //===----------------------------------------------------------------------===//
@@ -94,29 +91,55 @@ namespace {
   class NilArgChecker : public Checker<check::PreObjCMessage> {
     mutable OwningPtr<APIMisuse> BT;
 
-    void WarnNilArg(CheckerContext &C,
-                    const ObjCMethodCall &msg, unsigned Arg) const;
+    void WarnIfNilArg(CheckerContext &C,
+                    const ObjCMethodCall &msg, unsigned Arg,
+                    FoundationClass Class,
+                    bool CanBeSubscript = false) const;
 
   public:
     void checkPreObjCMessage(const ObjCMethodCall &M, CheckerContext &C) const;
   };
 }
 
-void NilArgChecker::WarnNilArg(CheckerContext &C,
-                               const ObjCMethodCall &msg,
-                               unsigned int Arg) const
-{
+void NilArgChecker::WarnIfNilArg(CheckerContext &C,
+                                 const ObjCMethodCall &msg,
+                                 unsigned int Arg,
+                                 FoundationClass Class,
+                                 bool CanBeSubscript) const {
+  // Check if the argument is nil.
+  ProgramStateRef State = C.getState();
+  if (!State->isNull(msg.getArgSVal(Arg)).isConstrainedTrue())
+      return;
+      
   if (!BT)
     BT.reset(new APIMisuse("nil argument"));
-  
+
   if (ExplodedNode *N = C.generateSink()) {
     SmallString<128> sbuf;
     llvm::raw_svector_ostream os(sbuf);
-    os << "Argument to '" << GetReceiverInterfaceName(msg) << "' method '"
-       << msg.getSelector().getAsString() << "' cannot be nil";
+
+    if (CanBeSubscript && msg.getMessageKind() == OCM_Subscript) {
+
+      if (Class == FC_NSArray) {
+        os << "Array element cannot be nil";
+      } else if (Class == FC_NSDictionary) {
+        if (Arg == 0)
+          os << "Dictionary object cannot be nil";
+        else {
+          assert(Arg == 1);
+          os << "Dictionary key cannot be nil";
+        }
+      } else
+        llvm_unreachable("Missing foundation class for the subscript expr");
+
+    } else {
+      os << "Argument to '" << GetReceiverInterfaceName(msg) << "' method '"
+      << msg.getSelector().getAsString() << "' cannot be nil";
+    }
 
     BugReport *R = new BugReport(*BT, os.str(), N);
     R->addRange(msg.getArgSourceRange(Arg));
+    bugreporter::trackNullOrUndefValue(N, msg.getArgExpr(Arg), *R);
     C.emitReport(R);
   }
 }
@@ -126,8 +149,14 @@ void NilArgChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
   const ObjCInterfaceDecl *ID = msg.getReceiverInterface();
   if (!ID)
     return;
+
+  FoundationClass Class = findKnownClass(ID);
+
+  static const unsigned InvalidArgIndex = UINT_MAX;
+  unsigned Arg = InvalidArgIndex;
+  bool CanBeSubscript = false;
   
-  if (findKnownClass(ID) == FC_NSString) {
+  if (Class == FC_NSString) {
     Selector S = msg.getSelector();
     
     if (S.isUnarySelector())
@@ -151,10 +180,58 @@ void NilArgChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
         Name == "compare:options:range:locale:" ||
         Name == "componentsSeparatedByCharactersInSet:" ||
         Name == "initWithFormat:") {
-      if (isNil(msg.getArgSVal(0)))
-        WarnNilArg(C, msg, 0);
+      Arg = 0;
+    }
+  } else if (Class == FC_NSArray) {
+    Selector S = msg.getSelector();
+
+    if (S.isUnarySelector())
+      return;
+
+    if (S.getNameForSlot(0).equals("addObject")) {
+      Arg = 0;
+    } else if (S.getNameForSlot(0).equals("insertObject") &&
+               S.getNameForSlot(1).equals("atIndex")) {
+      Arg = 0;
+    } else if (S.getNameForSlot(0).equals("replaceObjectAtIndex") &&
+               S.getNameForSlot(1).equals("withObject")) {
+      Arg = 1;
+    } else if (S.getNameForSlot(0).equals("setObject") &&
+               S.getNameForSlot(1).equals("atIndexedSubscript")) {
+      Arg = 0;
+      CanBeSubscript = true;
+    } else if (S.getNameForSlot(0).equals("arrayByAddingObject")) {
+      Arg = 0;
+    }
+  } else if (Class == FC_NSDictionary) {
+    Selector S = msg.getSelector();
+
+    if (S.isUnarySelector())
+      return;
+
+    if (S.getNameForSlot(0).equals("dictionaryWithObject") &&
+        S.getNameForSlot(1).equals("forKey")) {
+      Arg = 0;
+      WarnIfNilArg(C, msg, /* Arg */1, Class);
+    } else if (S.getNameForSlot(0).equals("setObject") &&
+               S.getNameForSlot(1).equals("forKey")) {
+      Arg = 0;
+      WarnIfNilArg(C, msg, /* Arg */1, Class);
+    } else if (S.getNameForSlot(0).equals("setObject") &&
+               S.getNameForSlot(1).equals("forKeyedSubscript")) {
+      CanBeSubscript = true;
+      Arg = 0;
+      WarnIfNilArg(C, msg, /* Arg */1, Class, CanBeSubscript);
+    } else if (S.getNameForSlot(0).equals("removeObjectForKey")) {
+      Arg = 0;
     }
   }
+
+
+  // If argument is '0', report a warning.
+  if ((Arg != InvalidArgIndex))
+    WarnIfNilArg(C, msg, Arg, Class, CanBeSubscript);
+
 }
 
 //===----------------------------------------------------------------------===//
@@ -195,28 +272,6 @@ enum CFNumberType {
   kCFNumberCGFloatType = 16
 };
 
-namespace {
-  template<typename T>
-  class Optional {
-    bool IsKnown;
-    T Val;
-  public:
-    Optional() : IsKnown(false), Val(0) {}
-    Optional(const T& val) : IsKnown(true), Val(val) {}
-
-    bool isKnown() const { return IsKnown; }
-
-    const T& getValue() const {
-      assert (isKnown());
-      return Val;
-    }
-
-    operator const T&() const {
-      return getValue();
-    }
-  };
-}
-
 static Optional<uint64_t> GetCFNumberSize(ASTContext &Ctx, uint64_t i) {
   static const unsigned char FixedSize[] = { 8, 16, 32, 64, 32, 64 };
 
@@ -238,7 +293,7 @@ static Optional<uint64_t> GetCFNumberSize(ASTContext &Ctx, uint64_t i) {
     case kCFNumberCGFloatType:
       // FIXME: We need a way to map from names to Type*.
     default:
-      return Optional<uint64_t>();
+      return None;
   }
 
   return Ctx.getTypeSize(T);
@@ -289,16 +344,18 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
 
   // FIXME: We really should allow ranges of valid theType values, and
   //   bifurcate the state appropriately.
-  nonloc::ConcreteInt* V = dyn_cast<nonloc::ConcreteInt>(&TheTypeVal);
+  Optional<nonloc::ConcreteInt> V = TheTypeVal.getAs<nonloc::ConcreteInt>();
   if (!V)
     return;
 
   uint64_t NumberKind = V->getValue().getLimitedValue();
-  Optional<uint64_t> TargetSize = GetCFNumberSize(Ctx, NumberKind);
+  Optional<uint64_t> OptTargetSize = GetCFNumberSize(Ctx, NumberKind);
 
   // FIXME: In some cases we can emit an error.
-  if (!TargetSize.isKnown())
+  if (!OptTargetSize)
     return;
+
+  uint64_t TargetSize = *OptTargetSize;
 
   // Look at the value of the integer being passed by reference.  Essentially
   // we want to catch cases where the value passed in is not equal to the
@@ -307,7 +364,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
 
   // FIXME: Eventually we should handle arbitrary locations.  We can do this
   //  by having an enhanced memory model that does low-level typing.
-  loc::MemRegionVal* LV = dyn_cast<loc::MemRegionVal>(&TheValueExpr);
+  Optional<loc::MemRegionVal> LV = TheValueExpr.getAs<loc::MemRegionVal>();
   if (!LV)
     return;
 
@@ -403,18 +460,19 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
     return;
 
   // FIXME: The rest of this just checks that the argument is non-null.
-  // It should probably be refactored and combined with AttrNonNullChecker.
+  // It should probably be refactored and combined with NonNullParamChecker.
 
   // Get the argument's value.
   const Expr *Arg = CE->getArg(0);
   SVal ArgVal = state->getSVal(Arg, C.getLocationContext());
-  DefinedSVal *DefArgVal = dyn_cast<DefinedSVal>(&ArgVal);
+  Optional<DefinedSVal> DefArgVal = ArgVal.getAs<DefinedSVal>();
   if (!DefArgVal)
     return;
 
   // Get a NULL value.
   SValBuilder &svalBuilder = C.getSValBuilder();
-  DefinedSVal zero = cast<DefinedSVal>(svalBuilder.makeZeroVal(Arg->getType()));
+  DefinedSVal zero =
+      svalBuilder.makeZeroVal(Arg->getType()).castAs<DefinedSVal>();
 
   // Make an expression asserting that they're equal.
   DefinedOrUnknownSVal ArgIsNull = svalBuilder.evalEQ(state, zero, *DefArgVal);
@@ -605,7 +663,7 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
     return;
 
   // Verify that all arguments have Objective-C types.
-  llvm::Optional<ExplodedNode*> errorNode;
+  Optional<ExplodedNode*> errorNode;
   ProgramStateRef state = C.getState();
   
   for (unsigned I = variadicArgsBegin; I != variadicArgsEnd; ++I) {
@@ -618,7 +676,7 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
       continue;
 
     // Ignore pointer constants.
-    if (isa<loc::ConcreteInt>(msg.getArgSVal(I)))
+    if (msg.getArgSVal(I).getAs<loc::ConcreteInt>())
       continue;
     
     // Ignore pointer types annotated with 'NSObject' attribute.
@@ -715,12 +773,12 @@ void ObjCLoopChecker::checkPostStmt(const ObjCForCollectionStmt *FCS,
     ElementVar = State->getSVal(Element, C.getLocationContext());
   }
 
-  if (!isa<Loc>(ElementVar))
+  if (!ElementVar.getAs<Loc>())
     return;
 
   // Go ahead and assume the value is non-nil.
-  SVal Val = State->getSVal(cast<Loc>(ElementVar));
-  State = State->assume(cast<DefinedOrUnknownSVal>(Val), true);
+  SVal Val = State->getSVal(ElementVar.castAs<Loc>());
+  State = State->assume(Val.castAs<DefinedOrUnknownSVal>(), true);
   C.addTransition(State);
 }
 
@@ -744,7 +802,7 @@ static ProgramStateRef assumeExprIsNonNull(const Expr *NonNullExpr,
                                            ProgramStateRef State,
                                            CheckerContext &C) {
   SVal Val = State->getSVal(NonNullExpr, C.getLocationContext());
-  if (DefinedOrUnknownSVal *DV = dyn_cast<DefinedOrUnknownSVal>(&Val))
+  if (Optional<DefinedOrUnknownSVal> DV = Val.getAs<DefinedOrUnknownSVal>())
     return State->assume(*DV, true);
   return State;
 }
