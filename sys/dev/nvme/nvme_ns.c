@@ -48,6 +48,7 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	struct nvme_completion_poll_status	status;
 	struct nvme_namespace			*ns;
 	struct nvme_controller			*ctrlr;
+	struct nvme_pt_command			*pt;
 
 	ns = cdev->si_drv1;
 	ctrlr = ns->ctrlr;
@@ -78,6 +79,10 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_BIO_TEST:
 		nvme_ns_test(ns, cmd, arg);
 		break;
+	case NVME_PASSTHROUGH_CMD:
+		pt = (struct nvme_pt_command *)arg;
+		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, ns->id, 
+		    1 /* is_user_buffer */, 0 /* is_admin_cmd */));
 	case DIOCGMEDIASIZE:
 		*(off_t *)arg = (off_t)nvme_ns_get_size(ns);
 		break;
