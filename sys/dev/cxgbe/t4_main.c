@@ -255,6 +255,7 @@ TUNABLE_INT("hw.cxgbe.interrupt_types", &t4_intr_types);
 #define DEFAULT_CF	"default"
 #define FLASH_CF	"flash"
 #define UWIRE_CF	"uwire"
+#define FPGA_CF		"fpga"
 static char t4_cfg_file[32] = DEFAULT_CF;
 TUNABLE_STR("hw.cxgbe.config_file", t4_cfg_file, sizeof(t4_cfg_file));
 
@@ -396,7 +397,7 @@ static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
-static int sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 #endif
 static inline void txq_start(struct ifnet *, struct sge_txq *);
 static uint32_t fconf_to_mode(uint32_t);
@@ -418,7 +419,7 @@ static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct port_info *, int);
 #endif
-static int t4_mod_event(module_t, int, void *);
+static int mod_event(module_t, int, void *);
 
 struct {
 	uint16_t device;
@@ -440,6 +441,27 @@ struct {
 }, t5_pciids[] = {
 	{0xb000, "Chelsio Terminator 5 FPGA"},
 	{0x5400, "Chelsio T580-dbg"},
+	{0x5401,  "Chelsio T520-CR"},
+	{0x5407,  "Chelsio T520-SO"},
+	{0x5408,  "Chelsio T520-CX"},
+	{0x5411,  "Chelsio T520-LL-CR"},
+#ifdef notyet
+	{0x5402,  "Chelsio T522-CR"},
+	{0x5403,  "Chelsio T540-CR"},
+	{0x5404,  "Chelsio T520-BCH"},
+	{0x5405,  "Chelsio T540-BCH"},
+	{0x5406,  "Chelsio T540-CH"},
+	{0x5409,  "Chelsio T520-BT"},
+	{0x540a,  "Chelsio T504-BT"},
+	{0x540b,  "Chelsio B520-SR"},
+	{0x540c,  "Chelsio B504-BT"},
+	{0x540d,  "Chelsio T580-CR"},
+	{0x540e,  "Chelsio T540-LP-CR"},
+	{0x540f,  "Chelsio Amsterdam"},
+	{0x5410,  "Chelsio T580-LP-CR"},
+	{0x5412,  "Chelsio T560-CR"},
+	{0x5413,  "Chelsio T580-CR"},
+#endif
 };
 
 #ifdef TCP_OFFLOAD
@@ -1412,7 +1434,7 @@ map_bar_2(struct adapter *sc)
 			    rman_get_size(sc->udbs_res), PAT_WRITE_COMBINING);
 			if (rc == 0) {
 				clrbit(&sc->doorbells, DOORBELL_UDB);
-				setbit(&sc->doorbells, DOORBELL_WRWC);
+				setbit(&sc->doorbells, DOORBELL_WCWR);
 				setbit(&sc->doorbells, DOORBELL_UDBWC);
 			} else {
 				device_printf(sc->dev,
@@ -1885,6 +1907,46 @@ fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
 }
 
 /*
+ * The firmware in the KLD is usable and can be installed.  But should it be?
+ * This routine explains itself in detail if it indicates the KLD firmware
+ * should be installed.
+ */
+static int
+should_install_kld_fw(struct adapter *sc, int card_fw_usable, int k, int c)
+{
+	const char *reason;
+
+	KASSERT(t4_fw_install != 0, ("%s: Can't install; shouldn't be asked "
+	    "to evaluate if install is a good idea.", __func__));
+
+	if (!card_fw_usable) {
+		reason = "incompatible or unusable";
+		goto install;
+	}
+
+	if (k > c) {
+		reason = "older than the version bundled with this driver";
+		goto install;
+	}
+
+	if (t4_fw_install == 2 && k != c) {
+		reason = "different than the version bundled with this driver";
+		goto install;
+	}
+
+	return (0);
+
+install:
+	device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
+	    "installing firmware %u.%u.%u.%u on card.\n",
+	    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
+	    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason,
+	    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
+	    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k));
+
+	return (1);
+}
+/*
  * Establish contact with the firmware and determine if we are the master driver
  * or not, and whether we are responsible for chip initialization.
  */
@@ -1972,15 +2034,8 @@ prep_firmware(struct adapter *sc)
 		 * on the card.
 		 */
 	} else if (kld_fw_usable && state == DEV_STATE_UNINIT &&
-	    (!card_fw_usable ||
-	    be32toh(kld_fw->fw_ver) > be32toh(card_fw->fw_ver) ||
-	    (t4_fw_install == 2 && kld_fw->fw_ver != card_fw->fw_ver))) {
-		uint32_t v = ntohl(kld_fw->fw_ver);
-
-		device_printf(sc->dev,
-		    "installing firmware %d.%d.%d.%d on card.\n",
-		    G_FW_HDR_FW_VER_MAJOR(v), G_FW_HDR_FW_VER_MINOR(v),
-		    G_FW_HDR_FW_VER_MICRO(v), G_FW_HDR_FW_VER_BUILD(v));
+	    should_install_kld_fw(sc, card_fw_usable, be32toh(kld_fw->fw_ver),
+	    be32toh(card_fw->fw_ver))) {
 
 		rc = -t4_load_fw(sc, fw->data, fw->datasize);
 		if (rc != 0) {
@@ -2101,6 +2156,8 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 		/* Card specific overrides go here. */
 		if (pci_get_device(sc->dev) == 0x440a)
 			snprintf(sc->cfg_file, sizeof(sc->cfg_file), UWIRE_CF);
+		if (is_fpga(sc))
+			snprintf(sc->cfg_file, sizeof(sc->cfg_file), FPGA_CF);
 	}
 
 	/*
@@ -2114,17 +2171,20 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 		snprintf(s, sizeof(s), "%s_%s", name_prefix, sc->cfg_file);
 		cfg = firmware_get(s);
 		if (cfg == NULL) {
-			device_printf(sc->dev, "unable to load module \"%s\" "
-			    "for configuration profile \"%s\", ",
-			    s, sc->cfg_file);
 			if (default_cfg != NULL) {
-				device_printf(sc->dev, "will use the default "
-				    "config file instead.\n");
+				device_printf(sc->dev,
+				    "unable to load module \"%s\" for "
+				    "configuration profile \"%s\", will use "
+				    "the default config file instead.\n",
+				    s, sc->cfg_file);
 				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
 				    "%s", DEFAULT_CF);
 			} else {
-				device_printf(sc->dev, "will use the config "
-				    "file on the card's flash instead.\n");
+				device_printf(sc->dev,
+				    "unable to load module \"%s\" for "
+				    "configuration profile \"%s\", will use "
+				    "the config file on the card's flash "
+				    "instead.\n", s, sc->cfg_file);
 				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
 				    "%s", FLASH_CF);
 			}
@@ -2217,8 +2277,8 @@ use_config_on_flash:
 	rc = -t4_wr_mbox(sc, sc->mbox, &caps, sizeof(caps), &caps);
 	if (rc != 0) {
 		device_printf(sc->dev,
-		    "failed to pre-process config file: %d (mtype %d).\n", rc,
-		    mtype);
+		    "failed to pre-process config file: %d "
+		    "(mtype %d, moff 0x%x).\n", rc, mtype, moff);
 		goto done;
 	}
 
@@ -2441,27 +2501,13 @@ static int
 set_params__post_init(struct adapter *sc)
 {
 	uint32_t param, val;
-	int rc;
 
+	/* ask for encapsulated CPLs */
 	param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
-	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
-	if (rc == 0) {
-		/* ask for encapsulated CPLs */
-		param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
-		val = 1;
-		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to set parameter (post_init): %d.\n", rc);
-			return (rc);
-		}
-	} else if (rc != FW_EINVAL) {
-		device_printf(sc->dev,
-		    "failed to check for encapsulated CPLs: %d.\n", rc);
-	} else
-		rc = 0;	/* the firmware doesn't support the param, no worries */
+	val = 1;
+	(void)t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 
-	return (rc);
+	return (0);
 }
 
 #undef FW_PARAM_PFVF
@@ -4029,7 +4075,7 @@ t4_sysctls(struct adapter *sc)
 		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
 		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
 	};
-	static char *doorbells = {"\20\1UDB\2WRWC\3UDBWC\4KDB"};
+	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
 	ctx = device_get_sysctl_ctx(sc->dev);
 
@@ -4235,9 +4281,9 @@ t4_sysctls(struct adapter *sc)
 	    sysctl_tx_rate, "A", "Tx rate");
 
 	if (is_t5(sc)) {
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "wrwc_stats",
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "wcwr_stats",
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
-		    sysctl_wrwc_stats, "A", "work request (WC) statistics");
+		    sysctl_wcwr_stats, "A", "write combined work requests");
 	}
 #endif
 
@@ -5718,7 +5764,7 @@ sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS)
+sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
@@ -5735,11 +5781,11 @@ sysctl_wrwc_stats(SYSCTL_HANDLER_ARGS)
 	v = t4_read_reg(sc, A_SGE_STAT_CFG);
 	if (G_STATSOURCE_T5(v) == 7) {
 		if (G_STATMODE(v) == 0) {
-			sbuf_printf(sb, "\ntotal %d, incomplete %d",
+			sbuf_printf(sb, "total %d, incomplete %d",
 			    t4_read_reg(sc, A_SGE_STAT_TOTAL),
 			    t4_read_reg(sc, A_SGE_STAT_MATCH));
 		} else if (G_STATMODE(v) == 1) {
-			sbuf_printf(sb, "\ntotal %d, data overflow %d",
+			sbuf_printf(sb, "total %d, data overflow %d",
 			    t4_read_reg(sc, A_SGE_STAT_TOTAL),
 			    t4_read_reg(sc, A_SGE_STAT_MATCH));
 		}
@@ -6997,12 +7043,15 @@ tweak_tunables(void)
 }
 
 static int
-t4_mod_event(module_t mod, int cmd, void *arg)
+mod_event(module_t mod, int cmd, void *arg)
 {
 	int rc = 0;
+	static int loaded = 0;
 
 	switch (cmd) {
 	case MOD_LOAD:
+		if (atomic_fetchadd_int(&loaded, 1))
+			break;
 		t4_sge_modload();
 		mtx_init(&t4_list_lock, "T4 adapters", 0, MTX_DEF);
 		SLIST_INIT(&t4_list);
@@ -7014,6 +7063,8 @@ t4_mod_event(module_t mod, int cmd, void *arg)
 		break;
 
 	case MOD_UNLOAD:
+		if (atomic_fetchadd_int(&loaded, -1) > 1)
+			break;
 #ifdef TCP_OFFLOAD
 		mtx_lock(&t4_uld_list_lock);
 		if (!SLIST_EMPTY(&t4_uld_list)) {
@@ -7041,10 +7092,10 @@ t4_mod_event(module_t mod, int cmd, void *arg)
 static devclass_t t4_devclass, t5_devclass;
 static devclass_t cxgbe_devclass, cxl_devclass;
 
-DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, t4_mod_event, 0);
+DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 
-DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, 0, 0);
+DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, mod_event, 0);
 MODULE_VERSION(t5nex, 1);
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);

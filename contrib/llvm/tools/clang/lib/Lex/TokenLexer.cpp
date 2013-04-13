@@ -13,10 +13,10 @@
 
 #include "clang/Lex/TokenLexer.h"
 #include "MacroArgs.h"
-#include "clang/Lex/MacroInfo.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/MacroInfo.h"
+#include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/SmallString.h"
 using namespace clang;
 
@@ -647,6 +647,12 @@ bool TokenLexer::PasteTokens(Token &Tok) {
     StartLoc = getExpansionLocForMacroDefLoc(StartLoc);
   if (EndLoc.isFileID())
     EndLoc = getExpansionLocForMacroDefLoc(EndLoc);
+  FileID MacroFID = SM.getFileID(MacroExpansionStart);
+  while (SM.getFileID(StartLoc) != MacroFID)
+    StartLoc = SM.getImmediateExpansionRange(StartLoc).first;
+  while (SM.getFileID(EndLoc) != MacroFID)
+    EndLoc = SM.getImmediateExpansionRange(EndLoc).second;
+    
   Tok.setLocation(SM.createExpansionLoc(Tok.getLocation(), StartLoc, EndLoc,
                                         Tok.getLength()));
 
@@ -743,14 +749,18 @@ static void updateConsecutiveMacroArgTokens(SourceManager &SM,
 
   Token *NextTok = begin_tokens + 1;
   for (; NextTok < end_tokens; ++NextTok) {
+    SourceLocation NextLoc = NextTok->getLocation();
+    if (CurLoc.isFileID() != NextLoc.isFileID())
+      break; // Token from different kind of FileID.
+
     int RelOffs;
-    if (!SM.isInSameSLocAddrSpace(CurLoc, NextTok->getLocation(), &RelOffs))
+    if (!SM.isInSameSLocAddrSpace(CurLoc, NextLoc, &RelOffs))
       break; // Token from different local/loaded location.
     // Check that token is not before the previous token or more than 50
     // "characters" away.
     if (RelOffs < 0 || RelOffs > 50)
       break;
-    CurLoc = NextTok->getLocation();
+    CurLoc = NextLoc;
   }
 
   // For the consecutive tokens, find the length of the SLocEntry to contain

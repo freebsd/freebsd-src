@@ -229,37 +229,6 @@ nvme_dump_completion(struct nvme_completion *cpl)
 	    cpl->status.m, cpl->status.dnr);
 }
 
-void
-nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
-{
-	struct nvme_tracker 	*tr = arg;
-	uint32_t		cur_nseg;
-
-	KASSERT(error == 0, ("nvme_payload_map error != 0\n"));
-
-	/*
-	 * Note that we specified PAGE_SIZE for alignment and max
-	 *  segment size when creating the bus dma tags.  So here
-	 *  we can safely just transfer each segment to its
-	 *  associated PRP entry.
-	 */
-	tr->req->cmd.prp1 = seg[0].ds_addr;
-
-	if (nseg == 2) {
-		tr->req->cmd.prp2 = seg[1].ds_addr;
-	} else if (nseg > 2) {
-		cur_nseg = 1;
-		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
-		while (cur_nseg < nseg) {
-			tr->prp[cur_nseg-1] =
-			    (uint64_t)seg[cur_nseg].ds_addr;
-			cur_nseg++;
-		}
-	}
-
-	nvme_qpair_submit_tracker(tr->qpair, tr);
-}
-
 static int
 nvme_attach(device_t dev)
 {

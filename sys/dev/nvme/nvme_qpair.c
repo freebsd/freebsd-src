@@ -699,10 +699,55 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 }
 
 static void
+nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
+{
+	struct nvme_tracker 	*tr = arg;
+	uint32_t		cur_nseg;
+
+	/*
+	 * If the mapping operation failed, return immediately.  The caller
+	 *  is responsible for detecting the error status and failing the
+	 *  tracker manually.
+	 */
+	if (error != 0)
+		return;
+
+	/*
+	 * Note that we specified PAGE_SIZE for alignment and max
+	 *  segment size when creating the bus dma tags.  So here
+	 *  we can safely just transfer each segment to its
+	 *  associated PRP entry.
+	 */
+	tr->req->cmd.prp1 = seg[0].ds_addr;
+
+	if (nseg == 2) {
+		tr->req->cmd.prp2 = seg[1].ds_addr;
+	} else if (nseg > 2) {
+		cur_nseg = 1;
+		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
+		while (cur_nseg < nseg) {
+			tr->prp[cur_nseg-1] =
+			    (uint64_t)seg[cur_nseg].ds_addr;
+			cur_nseg++;
+		}
+	}
+
+	nvme_qpair_submit_tracker(tr->qpair, tr);
+}
+
+static void
+nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
+    bus_size_t mapsize, int error)
+{
+
+	nvme_payload_map(arg, seg, nseg, error);
+}
+
+static void
 _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
-	int			err;
+	int			err = 0;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
@@ -745,7 +790,8 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
 		    req->u.payload, req->payload_size, nvme_payload_map, tr, 0);
 		if (err != 0)
-			panic("bus_dmamap_load returned non-zero!\n");
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load returned 0x%x!\n", err);
 		break;
 	case NVME_REQUEST_NULL:
 		nvme_qpair_submit_tracker(tr->qpair, tr);
@@ -755,19 +801,35 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		    tr->payload_dma_map, req->u.uio, nvme_payload_map_uio,
 		    tr, 0);
 		if (err != 0)
-			panic("bus_dmamap_load_uio returned non-zero!\n");
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load_uio returned 0x%x!\n", err);
 		break;
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	case NVME_REQUEST_BIO:
 		err = bus_dmamap_load_bio(tr->qpair->dma_tag,
 		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
 		if (err != 0)
-			panic("bus_dmamap_load_bio returned non-zero!\n");
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load_bio returned 0x%x!\n", err);
 		break;
 #endif
 	default:
 		panic("unknown nvme request type 0x%x\n", req->type);
 		break;
+	}
+
+	if (err != 0) {
+		/*
+		 * The dmamap operation failed, so we manually fail the
+		 *  tracker here with DATA_TRANSFER_ERROR status.
+		 *
+		 * nvme_qpair_manual_complete_tracker must not be called
+		 *  with the qpair lock held.
+		 */
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
+		    NVME_SC_DATA_TRANSFER_ERROR, 1 /* do not retry */, TRUE);
+		mtx_lock(&qpair->lock);
 	}
 }
 

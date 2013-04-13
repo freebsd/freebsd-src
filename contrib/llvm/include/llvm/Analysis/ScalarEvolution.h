@@ -21,16 +21,16 @@
 #ifndef LLVM_ANALYSIS_SCALAREVOLUTION_H
 #define LLVM_ANALYSIS_SCALAREVOLUTION_H
 
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Pass.h"
-#include "llvm/Instructions.h"
-#include "llvm/Function.h"
-#include "llvm/Operator.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ConstantRange.h"
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/DataTypes.h"
+#include "llvm/Support/ValueHandle.h"
 #include <map>
 
 namespace llvm {
@@ -337,6 +337,10 @@ namespace llvm {
 
       /// getMax - Get the max backedge taken count for the loop.
       const SCEV *getMax(ScalarEvolution *SE) const;
+
+      /// Return true if any backedge taken count expressions refer to the given
+      /// subexpression.
+      bool hasOperand(const SCEV *S, ScalarEvolution *SE) const;
 
       /// clear - Invalidate this result and free associated memory.
       void clear();
@@ -831,7 +835,7 @@ namespace llvm {
 
     /// SimplifyICmpOperands - Simplify LHS and RHS in a comparison with
     /// predicate Pred. Return true iff any changes were made. If the
-    /// operands are provably equal or inequal, LHS and RHS are set to
+    /// operands are provably equal or unequal, LHS and RHS are set to
     /// the same value and Pred is set to either ICMP_EQ or ICMP_NE.
     ///
     bool SimplifyICmpOperands(ICmpInst::Predicate &Pred,

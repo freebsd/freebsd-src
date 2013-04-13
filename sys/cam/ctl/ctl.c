@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_error.h>
 
-#include "opt_ctl.h"
-
 struct ctl_softc *control_softc = NULL;
 
 /*
@@ -320,16 +318,8 @@ static int persis_offset;
 static uint8_t ctl_pause_rtr;
 static int     ctl_is_single = 1;
 static int     index_to_aps_page;
-#ifdef CTL_DISABLE
-int	   ctl_disable = 1;
-#else
-int	   ctl_disable = 0;
-#endif
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
-SYSCTL_INT(_kern_cam_ctl, OID_AUTO, disable, CTLFLAG_RDTUN, &ctl_disable, 0,
-	   "Disable CTL");
-TUNABLE_INT("kern.cam.ctl.disable", &ctl_disable);
 
 /*
  * Serial number (0x80), device id (0x83), and supported pages (0x00)
@@ -965,10 +955,6 @@ ctl_init(void)
 	retval = 0;
 	ctl_pause_rtr = 0;
         rcv_sync_msg = 0;
-
-	/* If we're disabled, don't initialize. */
-	if (ctl_disable != 0)
-		return (0);
 
 	control_softc = malloc(sizeof(*control_softc), M_DEVBUF,
 			       M_WAITOK | M_ZERO);
@@ -4223,7 +4209,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 {
 	struct ctl_lun *nlun, *lun;
 	struct ctl_frontend *fe;
-	int lun_number, i;
+	int lun_number, i, lun_malloced;
 
 	if (be_lun == NULL)
 		return (EINVAL);
@@ -4245,11 +4231,15 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	}
 	if (ctl_lun == NULL) {
 		lun = malloc(sizeof(*lun), M_CTL, M_WAITOK);
-		lun->flags = CTL_LUN_MALLOCED;
-	} else
+		lun_malloced = 1;
+	} else {
+		lun_malloced = 0;
 		lun = ctl_lun;
+	}
 
 	memset(lun, 0, sizeof(*lun));
+	if (lun_malloced)
+		lun->flags = CTL_LUN_MALLOCED;
 
 	mtx_lock(&ctl_softc->ctl_lock);
 	/*
@@ -4301,7 +4291,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	 * The processor LUN is always enabled.  Disk LUNs come on line
 	 * disabled, and must be enabled by the backend.
 	 */
-	lun->flags = CTL_LUN_DISABLED;
+	lun->flags |= CTL_LUN_DISABLED;
 	lun->backend = be_lun->be;
 	be_lun->ctl_lun = lun;
 	be_lun->lun_id = lun_number;

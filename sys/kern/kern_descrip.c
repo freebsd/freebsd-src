@@ -2944,12 +2944,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct tty *tp;
 
 	name = (int *)arg1;
-	if ((p = pfind((pid_t)name[0])) == NULL)
-		return (ESRCH);
-	if ((error = p_candebug(curthread, p))) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	if (error != 0)
 		return (error);
-	}
 	fdp = fdhold(p);
 	PROC_UNLOCK(p);
 	if (fdp == NULL)
@@ -3239,12 +3236,9 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	cap_rights_t fd_cap_rights;
 
 	name = (int *)arg1;
-	if ((p = pfind((pid_t)name[0])) == NULL)
-		return (ESRCH);
-	if ((error = p_candebug(curthread, p))) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	if (error != 0)
 		return (error);
-	}
 	/* ktrace vnode */
 	tracevp = p->p_tracevp;
 	if (tracevp != NULL)

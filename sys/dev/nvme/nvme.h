@@ -33,11 +33,11 @@
 #include <sys/types.h>
 #endif
 
-#define	NVME_IDENTIFY_CONTROLLER	_IOR('n', 0, struct nvme_controller_data)
-#define	NVME_IDENTIFY_NAMESPACE		_IOR('n', 1, struct nvme_namespace_data)
-#define	NVME_IO_TEST			_IOWR('n', 2, struct nvme_io_test)
-#define	NVME_BIO_TEST			_IOWR('n', 4, struct nvme_io_test)
-#define	NVME_RESET_CONTROLLER		_IO('n', 5)
+#define	NVME_PASSTHROUGH_CMD		_IOWR('n', 0, struct nvme_pt_command)
+#define	NVME_RESET_CONTROLLER		_IO('n', 1)
+
+#define	NVME_IO_TEST			_IOWR('n', 100, struct nvme_io_test)
+#define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)
 
 /*
  * Use to mark a command to apply to all namespaces, or to retrieve global
@@ -716,6 +716,59 @@ enum nvme_io_test_flags {
 	NVME_TEST_FLAG_REFTHREAD =	0x1,
 };
 
+struct nvme_pt_command {
+
+	/*
+	 * cmd is used to specify a passthrough command to a controller or
+	 *  namespace.
+	 *
+	 * The following fields from cmd may be specified by the caller:
+	 *	* opc  (opcode)
+	 *	* nsid (namespace id) - for admin commands only
+	 *	* cdw10-cdw15
+	 *
+	 * Remaining fields must be set to 0 by the caller.
+	 */
+	struct nvme_command	cmd;
+
+	/*
+	 * cpl returns completion status for the passthrough command
+	 *  specified by cmd.
+	 *
+	 * The following fields will be filled out by the driver, for
+	 *  consumption by the caller:
+	 *	* cdw0
+	 *	* status (except for phase)
+	 *
+	 * Remaining fields will be set to 0 by the driver.
+	 */
+	struct nvme_completion	cpl;
+
+	/* buf is the data buffer associated with this passthrough command. */
+	void *			buf;
+
+	/*
+	 * len is the length of the data buffer associated with this
+	 *  passthrough command.
+	 */
+	uint32_t		len;
+
+	/*
+	 * is_read = 1 if the passthrough command will read data into the
+	 *  supplied buffer.
+	 *
+	 * is_read = 0 if the passthrough command will write data into the
+	 *  supplied buffer.
+	 */
+	uint32_t		is_read;
+
+	/*
+	 * driver_lock is used by the driver only.  It must be set to 0
+	 *  by the caller.
+	 */
+	struct mtx *		driver_lock;
+};
+
 #define nvme_completion_is_error(cpl)					\
 	((cpl)->status.sc != 0 || (cpl)->status.sct != 0)
 
@@ -739,6 +792,11 @@ enum nvme_namespace_flags {
 	NVME_NS_DEALLOCATE_SUPPORTED	= 0x1,
 	NVME_NS_FLUSH_SUPPORTED		= 0x2,
 };
+
+int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
+				   struct nvme_pt_command *pt,
+				   uint32_t nsid, int is_user_buffer,
+				   int is_admin_cmd);
 
 /* Admin functions */
 void	nvme_ctrlr_cmd_set_feature(struct nvme_controller *ctrlr,

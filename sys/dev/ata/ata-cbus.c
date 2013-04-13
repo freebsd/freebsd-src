@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -253,7 +252,7 @@ static driver_t ata_cbus_driver = {
 
 static devclass_t ata_cbus_devclass;
 
-DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, 0, 0);
+DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, NULL, NULL);
 
 static int
 ata_cbuschannel_probe(device_t dev)

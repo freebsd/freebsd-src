@@ -25,7 +25,7 @@
 
 /*
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <stdlib.h>
@@ -39,6 +39,7 @@
 #include <alloca.h>
 #endif
 #include <dt_impl.h>
+#include <dt_pq.h>
 #if !defined(sun)
 #include <libproc_compat.h>
 #endif
@@ -443,17 +444,8 @@ dt_flowindent(dtrace_hdl_t *dtp, dtrace_probedata_t *data, dtrace_epid_t last,
 		offs += epd->dtepd_size;
 
 		do {
-			if (offs >= buf->dtbd_size) {
-				/*
-				 * We're at the end -- maybe.  If the oldest
-				 * record is non-zero, we need to wrap.
-				 */
-				if (buf->dtbd_oldest != 0) {
-					offs = 0;
-				} else {
-					goto out;
-				}
-			}
+			if (offs >= buf->dtbd_size)
+				goto out;
 
 			next = *(uint32_t *)((uintptr_t)buf->dtbd_data + offs);
 
@@ -2014,26 +2006,27 @@ dt_setopt(dtrace_hdl_t *dtp, const dtrace_probedata_t *data,
 }
 
 static int
-dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu, dtrace_bufdesc_t *buf,
+dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
+    dtrace_bufdesc_t *buf, boolean_t just_one,
     dtrace_consume_probe_f *efunc, dtrace_consume_rec_f *rfunc, void *arg)
 {
 	dtrace_epid_t id;
-	size_t offs, start = buf->dtbd_oldest, end = buf->dtbd_size;
+	size_t offs;
 	int flow = (dtp->dt_options[DTRACEOPT_FLOWINDENT] != DTRACEOPT_UNSET);
 	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
 	int rval, i, n;
-	dtrace_epid_t last = DTRACE_EPIDNONE;
 	uint64_t tracememsize = 0;
 	dtrace_probedata_t data;
 	uint64_t drops;
-	caddr_t addr;
 
 	bzero(&data, sizeof (data));
 	data.dtpda_handle = dtp;
 	data.dtpda_cpu = cpu;
+	data.dtpda_flow = dtp->dt_flow;
+	data.dtpda_indent = dtp->dt_indent;
+	data.dtpda_prefix = dtp->dt_prefix;
 
-again:
-	for (offs = start; offs < end; ) {
+	for (offs = buf->dtbd_oldest; offs < buf->dtbd_size; ) {
 		dtrace_eprobedesc_t *epd;
 
 		/*
@@ -2068,7 +2061,8 @@ again:
 		}
 
 		if (flow)
-			(void) dt_flowindent(dtp, &data, last, buf, offs);
+			(void) dt_flowindent(dtp, &data, dtp->dt_last_epid,
+			    buf, offs);
 
 		rval = (*efunc)(&data, arg);
 
@@ -2087,6 +2081,7 @@ again:
 			return (dt_set_errno(dtp, EDT_BADRVAL));
 
 		for (i = 0; i < epd->dtepd_nrecs; i++) {
+			caddr_t addr;
 			dtrace_recdesc_t *rec = &epd->dtepd_rec[i];
 			dtrace_actkind_t act = rec->dtrd_action;
 
@@ -2458,14 +2453,16 @@ nextrec:
 		rval = (*rfunc)(&data, NULL, arg);
 nextepid:
 		offs += epd->dtepd_size;
-		last = id;
+		dtp->dt_last_epid = id;
+		if (just_one) {
+			buf->dtbd_oldest = offs;
+			break;
+		}
 	}
 
-	if (buf->dtbd_oldest != 0 && start == buf->dtbd_oldest) {
-		end = buf->dtbd_oldest;
-		start = 0;
-		goto again;
-	}
+	dtp->dt_flow = data.dtpda_flow;
+	dtp->dt_indent = data.dtpda_indent;
+	dtp->dt_prefix = data.dtpda_prefix;
 
 	if ((drops = buf->dtbd_drops) == 0)
 		return (0);
@@ -2476,6 +2473,130 @@ nextepid:
 	buf->dtbd_drops = 0;
 
 	return (dt_handle_cpudrop(dtp, cpu, DTRACEDROP_PRINCIPAL, drops));
+}
+
+/*
+ * Reduce memory usage by shrinking the buffer if it's no more than half full.
+ * Note, we need to preserve the alignment of the data at dtbd_oldest, which is
+ * only 4-byte aligned.
+ */
+static void
+dt_realloc_buf(dtrace_hdl_t *dtp, dtrace_bufdesc_t *buf, int cursize)
+{
+	uint64_t used = buf->dtbd_size - buf->dtbd_oldest;
+	if (used < cursize / 2) {
+		int misalign = buf->dtbd_oldest & (sizeof (uint64_t) - 1);
+		char *newdata = dt_alloc(dtp, used + misalign);
+		if (newdata == NULL)
+			return;
+		bzero(newdata, misalign);
+		bcopy(buf->dtbd_data + buf->dtbd_oldest,
+		    newdata + misalign, used);
+		dt_free(dtp, buf->dtbd_data);
+		buf->dtbd_oldest = misalign;
+		buf->dtbd_size = used + misalign;
+		buf->dtbd_data = newdata;
+	}
+}
+
+/*
+ * If the ring buffer has wrapped, the data is not in order.  Rearrange it
+ * so that it is.  Note, we need to preserve the alignment of the data at
+ * dtbd_oldest, which is only 4-byte aligned.
+ */
+static int
+dt_unring_buf(dtrace_hdl_t *dtp, dtrace_bufdesc_t *buf)
+{
+	int misalign;
+	char *newdata, *ndp;
+
+	if (buf->dtbd_oldest == 0)
+		return (0);
+
+	misalign = buf->dtbd_oldest & (sizeof (uint64_t) - 1);
+	newdata = ndp = dt_alloc(dtp, buf->dtbd_size + misalign);
+
+	if (newdata == NULL)
+		return (-1);
+
+	assert(0 == (buf->dtbd_size & (sizeof (uint64_t) - 1)));
+
+	bzero(ndp, misalign);
+	ndp += misalign;
+
+	bcopy(buf->dtbd_data + buf->dtbd_oldest, ndp,
+	    buf->dtbd_size - buf->dtbd_oldest);
+	ndp += buf->dtbd_size - buf->dtbd_oldest;
+
+	bcopy(buf->dtbd_data, ndp, buf->dtbd_oldest);
+
+	dt_free(dtp, buf->dtbd_data);
+	buf->dtbd_oldest = 0;
+	buf->dtbd_data = newdata;
+	buf->dtbd_size += misalign;
+
+	return (0);
+}
+
+static void
+dt_put_buf(dtrace_hdl_t *dtp, dtrace_bufdesc_t *buf)
+{
+	dt_free(dtp, buf->dtbd_data);
+	dt_free(dtp, buf);
+}
+
+/*
+ * Returns 0 on success, in which case *cbp will be filled in if we retrieved
+ * data, or NULL if there is no data for this CPU.
+ * Returns -1 on failure and sets dt_errno.
+ */
+static int
+dt_get_buf(dtrace_hdl_t *dtp, int cpu, dtrace_bufdesc_t **bufp)
+{
+	dtrace_optval_t size;
+	dtrace_bufdesc_t *buf = dt_zalloc(dtp, sizeof (*buf));
+	int error;
+
+	if (buf == NULL)
+		return (-1);
+
+	(void) dtrace_getopt(dtp, "bufsize", &size);
+	buf->dtbd_data = dt_alloc(dtp, size);
+	if (buf->dtbd_data == NULL) {
+		dt_free(dtp, buf);
+		return (-1);
+	}
+	buf->dtbd_size = size;
+	buf->dtbd_cpu = cpu;
+
+#if defined(sun)
+	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
+#else
+	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
+#endif
+		dt_put_buf(dtp, buf);
+		/*
+		 * If we failed with ENOENT, it may be because the
+		 * CPU was unconfigured -- this is okay.  Any other
+		 * error, however, is unexpected.
+		 */
+		if (errno == ENOENT) {
+			*bufp = NULL;
+			return (0);
+		}
+
+		return (dt_set_errno(dtp, errno));
+	}
+
+	error = dt_unring_buf(dtp, buf);
+	if (error != 0) {
+		dt_put_buf(dtp, buf);
+		return (error);
+	}
+	dt_realloc_buf(dtp, buf, size);
+
+	*bufp = buf;
+	return (0);
 }
 
 typedef struct dt_begin {
@@ -2490,7 +2611,7 @@ typedef struct dt_begin {
 static int
 dt_consume_begin_probe(const dtrace_probedata_t *data, void *arg)
 {
-	dt_begin_t *begin = (dt_begin_t *)arg;
+	dt_begin_t *begin = arg;
 	dtrace_probedesc_t *pd = data->dtpda_pdesc;
 
 	int r1 = (strcmp(pd->dtpd_provider, "dtrace") == 0);
@@ -2515,7 +2636,7 @@ static int
 dt_consume_begin_record(const dtrace_probedata_t *data,
     const dtrace_recdesc_t *rec, void *arg)
 {
-	dt_begin_t *begin = (dt_begin_t *)arg;
+	dt_begin_t *begin = arg;
 
 	return (begin->dtbgn_recfunc(data, rec, begin->dtbgn_arg));
 }
@@ -2541,7 +2662,7 @@ dt_consume_begin_error(const dtrace_errdata_t *data, void *arg)
 }
 
 static int
-dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
+dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp,
     dtrace_consume_probe_f *pf, dtrace_consume_rec_f *rf, void *arg)
 {
 	/*
@@ -2565,33 +2686,19 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	 * first pass, and that we only process ERROR enablings _not_ induced
 	 * by BEGIN enablings in the second pass.
 	 */
+
 	dt_begin_t begin;
 	processorid_t cpu = dtp->dt_beganon;
-	dtrace_bufdesc_t nbuf;
-#if !defined(sun)
-	dtrace_bufdesc_t *pbuf;
-#endif
 	int rval, i;
 	static int max_ncpus;
-	dtrace_optval_t size;
+	dtrace_bufdesc_t *buf;
 
 	dtp->dt_beganon = -1;
 
-#if defined(sun)
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
-		/*
-		 * We really don't expect this to fail, but it is at least
-		 * technically possible for this to fail with ENOENT.  In this
-		 * case, we just drive on...
-		 */
-		if (errno == ENOENT)
-			return (0);
-
-		return (dt_set_errno(dtp, errno));
-	}
+	if (dt_get_buf(dtp, cpu, &buf) != 0)
+		return (-1);
+	if (buf == NULL)
+		return (0);
 
 	if (!dtp->dt_stopped || buf->dtbd_cpu != dtp->dt_endedon) {
 		/*
@@ -2599,7 +2706,10 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 		 * we are, we actually processed any END probes on another
 		 * CPU.  We can simply consume this buffer and return.
 		 */
-		return (dt_consume_cpu(dtp, fp, cpu, buf, pf, rf, arg));
+		rval = dt_consume_cpu(dtp, fp, cpu, buf, B_FALSE,
+		    pf, rf, arg);
+		dt_put_buf(dtp, buf);
+		return (rval);
 	}
 
 	begin.dtbgn_probefunc = pf;
@@ -2616,60 +2726,40 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	dtp->dt_errhdlr = dt_consume_begin_error;
 	dtp->dt_errarg = &begin;
 
-	rval = dt_consume_cpu(dtp, fp, cpu, buf, dt_consume_begin_probe,
-	    dt_consume_begin_record, &begin);
+	rval = dt_consume_cpu(dtp, fp, cpu, buf, B_FALSE,
+	    dt_consume_begin_probe, dt_consume_begin_record, &begin);
 
 	dtp->dt_errhdlr = begin.dtbgn_errhdlr;
 	dtp->dt_errarg = begin.dtbgn_errarg;
 
-	if (rval != 0)
+	if (rval != 0) {
+		dt_put_buf(dtp, buf);
 		return (rval);
-
-	/*
-	 * Now allocate a new buffer.  We'll use this to deal with every other
-	 * CPU.
-	 */
-	bzero(&nbuf, sizeof (dtrace_bufdesc_t));
-	(void) dtrace_getopt(dtp, "bufsize", &size);
-	if ((nbuf.dtbd_data = malloc(size)) == NULL)
-		return (dt_set_errno(dtp, EDT_NOMEM));
+	}
 
 	if (max_ncpus == 0)
 		max_ncpus = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
 
 	for (i = 0; i < max_ncpus; i++) {
-		nbuf.dtbd_cpu = i;
-
+		dtrace_bufdesc_t *nbuf;
 		if (i == cpu)
 			continue;
 
-#if defined(sun)
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &nbuf) == -1) {
-#else
-		pbuf = &nbuf;
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &pbuf) == -1) {
-#endif
-			/*
-			 * If we failed with ENOENT, it may be because the
-			 * CPU was unconfigured -- this is okay.  Any other
-			 * error, however, is unexpected.
-			 */
-			if (errno == ENOENT)
-				continue;
-
-			free(nbuf.dtbd_data);
-
-			return (dt_set_errno(dtp, errno));
+		if (dt_get_buf(dtp, i, &nbuf) != 0) {
+			dt_put_buf(dtp, buf);
+			return (-1);
 		}
+		if (nbuf == NULL)
+			continue;
 
-		if ((rval = dt_consume_cpu(dtp, fp,
-		    i, &nbuf, pf, rf, arg)) != 0) {
-			free(nbuf.dtbd_data);
+		rval = dt_consume_cpu(dtp, fp, i, nbuf, B_FALSE,
+		    pf, rf, arg);
+		dt_put_buf(dtp, nbuf);
+		if (rval != 0) {
+			dt_put_buf(dtp, buf);
 			return (rval);
 		}
 	}
-
-	free(nbuf.dtbd_data);
 
 	/*
 	 * Okay -- we're done with the other buffers.  Now we want to
@@ -2685,8 +2775,8 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	dtp->dt_errhdlr = dt_consume_begin_error;
 	dtp->dt_errarg = &begin;
 
-	rval = dt_consume_cpu(dtp, fp, cpu, buf, dt_consume_begin_probe,
-	    dt_consume_begin_record, &begin);
+	rval = dt_consume_cpu(dtp, fp, cpu, buf, B_FALSE,
+	    dt_consume_begin_probe, dt_consume_begin_record, &begin);
 
 	dtp->dt_errhdlr = begin.dtbgn_errhdlr;
 	dtp->dt_errarg = begin.dtbgn_errarg;
@@ -2694,11 +2784,32 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	return (rval);
 }
 
+/* ARGSUSED */
+static uint64_t
+dt_buf_oldest(void *elem, void *arg)
+{
+	dtrace_bufdesc_t *buf = elem;
+	size_t offs = buf->dtbd_oldest;
+
+	while (offs < buf->dtbd_size) {
+		dtrace_rechdr_t *dtrh =
+		    /* LINTED - alignment */
+		    (dtrace_rechdr_t *)(buf->dtbd_data + offs);
+		if (dtrh->dtrh_epid == DTRACE_EPIDNONE) {
+			offs += sizeof (dtrace_epid_t);
+		} else {
+			return (DTRACE_RECORD_LOAD_TIMESTAMP(dtrh));
+		}
+	}
+
+	/* There are no records left; use the time the buffer was retrieved. */
+	return (buf->dtbd_timestamp);
+}
+
 int
 dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
     dtrace_consume_probe_f *pf, dtrace_consume_rec_f *rf, void *arg)
 {
-	dtrace_bufdesc_t *buf = &dtp->dt_buf;
 	dtrace_optval_t size;
 	static int max_ncpus;
 	int i, rval;
@@ -2726,79 +2837,158 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 	if (rf == NULL)
 		rf = (dtrace_consume_rec_f *)dt_nullrec;
 
-	if (buf->dtbd_data == NULL) {
-		(void) dtrace_getopt(dtp, "bufsize", &size);
-		if ((buf->dtbd_data = malloc(size)) == NULL)
-			return (dt_set_errno(dtp, EDT_NOMEM));
-
-		buf->dtbd_size = size;
-	}
-
-	/*
-	 * If we have just begun, we want to first process the CPU that
-	 * executed the BEGIN probe (if any).
-	 */
-	if (dtp->dt_active && dtp->dt_beganon != -1) {
-		buf->dtbd_cpu = dtp->dt_beganon;
-		if ((rval = dt_consume_begin(dtp, fp, buf, pf, rf, arg)) != 0)
-			return (rval);
-	}
-
-	for (i = 0; i < max_ncpus; i++) {
-		buf->dtbd_cpu = i;
-
+	if (dtp->dt_options[DTRACEOPT_TEMPORAL] == DTRACEOPT_UNSET) {
 		/*
-		 * If we have stopped, we want to process the CPU on which the
-		 * END probe was processed only _after_ we have processed
-		 * everything else.
+		 * The output will not be in the order it was traced.  Rather,
+		 * we will consume all of the data from each CPU's buffer in
+		 * turn.  We apply special handling for the records from BEGIN
+		 * and END probes so that they are consumed first and last,
+		 * respectively.
+		 *
+		 * If we have just begun, we want to first process the CPU that
+		 * executed the BEGIN probe (if any).
 		 */
-		if (dtp->dt_stopped && (i == dtp->dt_endedon))
-			continue;
+		if (dtp->dt_active && dtp->dt_beganon != -1 &&
+		    (rval = dt_consume_begin(dtp, fp, pf, rf, arg)) != 0)
+			return (rval);
 
-#if defined(sun)
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
+		for (i = 0; i < max_ncpus; i++) {
+			dtrace_bufdesc_t *buf;
+
 			/*
-			 * If we failed with ENOENT, it may be because the
-			 * CPU was unconfigured -- this is okay.  Any other
-			 * error, however, is unexpected.
+			 * If we have stopped, we want to process the CPU on
+			 * which the END probe was processed only _after_ we
+			 * have processed everything else.
 			 */
-			if (errno == ENOENT)
+			if (dtp->dt_stopped && (i == dtp->dt_endedon))
 				continue;
 
-			return (dt_set_errno(dtp, errno));
+			if (dt_get_buf(dtp, i, &buf) != 0)
+				return (-1);
+			if (buf == NULL)
+				continue;
+
+			dtp->dt_flow = 0;
+			dtp->dt_indent = 0;
+			dtp->dt_prefix = NULL;
+			rval = dt_consume_cpu(dtp, fp, i,
+			    buf, B_FALSE, pf, rf, arg);
+			dt_put_buf(dtp, buf);
+			if (rval != 0)
+				return (rval);
+		}
+		if (dtp->dt_stopped) {
+			dtrace_bufdesc_t *buf;
+
+			if (dt_get_buf(dtp, dtp->dt_endedon, &buf) != 0)
+				return (-1);
+			if (buf == NULL)
+				return (0);
+
+			rval = dt_consume_cpu(dtp, fp, dtp->dt_endedon,
+			    buf, B_FALSE, pf, rf, arg);
+			dt_put_buf(dtp, buf);
+			return (rval);
+		}
+	} else {
+		/*
+		 * The output will be in the order it was traced (or for
+		 * speculations, when it was committed).  We retrieve a buffer
+		 * from each CPU and put it into a priority queue, which sorts
+		 * based on the first entry in the buffer.  This is sufficient
+		 * because entries within a buffer are already sorted.
+		 *
+		 * We then consume records one at a time, always consuming the
+		 * oldest record, as determined by the priority queue.  When
+		 * we reach the end of the time covered by these buffers,
+		 * we need to stop and retrieve more records on the next pass.
+		 * The kernel tells us the time covered by each buffer, in
+		 * dtbd_timestamp.  The first buffer's timestamp tells us the
+		 * time covered by all buffers, as subsequently retrieved
+		 * buffers will cover to a more recent time.
+		 */
+
+		uint64_t *drops = alloca(max_ncpus * sizeof (uint64_t));
+		uint64_t first_timestamp = 0;
+		uint_t cookie = 0;
+		dtrace_bufdesc_t *buf;
+
+		bzero(drops, max_ncpus * sizeof (uint64_t));
+
+		if (dtp->dt_bufq == NULL) {
+			dtp->dt_bufq = dt_pq_init(dtp, max_ncpus * 2,
+			    dt_buf_oldest, NULL);
+			if (dtp->dt_bufq == NULL) /* ENOMEM */
+				return (-1);
 		}
 
-		if ((rval = dt_consume_cpu(dtp, fp, i, buf, pf, rf, arg)) != 0)
-			return (rval);
-	}
+		/* Retrieve data from each CPU. */
+		(void) dtrace_getopt(dtp, "bufsize", &size);
+		for (i = 0; i < max_ncpus; i++) {
+			dtrace_bufdesc_t *buf;
 
-	if (!dtp->dt_stopped)
-		return (0);
+			if (dt_get_buf(dtp, i, &buf) != 0)
+				return (-1);
+			if (buf != NULL) {
+				if (first_timestamp == 0)
+					first_timestamp = buf->dtbd_timestamp;
+				assert(buf->dtbd_timestamp >= first_timestamp);
 
-	buf->dtbd_cpu = dtp->dt_endedon;
+				dt_pq_insert(dtp->dt_bufq, buf);
+				drops[i] = buf->dtbd_drops;
+				buf->dtbd_drops = 0;
+			}
+		}
 
-#if defined(sun)
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
+		/* Consume records. */
+		for (;;) {
+			dtrace_bufdesc_t *buf = dt_pq_pop(dtp->dt_bufq);
+			uint64_t timestamp;
+
+			if (buf == NULL)
+				break;
+
+			timestamp = dt_buf_oldest(buf, dtp);
+			/* XXX: assert(timestamp >= dtp->dt_last_timestamp); */
+			dtp->dt_last_timestamp = timestamp;
+
+			if (timestamp == buf->dtbd_timestamp) {
+				/*
+				 * We've reached the end of the time covered
+				 * by this buffer.  If this is the oldest
+				 * buffer, we must do another pass
+				 * to retrieve more data.
+				 */
+				dt_put_buf(dtp, buf);
+				if (timestamp == first_timestamp &&
+				    !dtp->dt_stopped)
+					break;
+				continue;
+			}
+
+			if ((rval = dt_consume_cpu(dtp, fp,
+			    buf->dtbd_cpu, buf, B_TRUE, pf, rf, arg)) != 0)
+				return (rval);
+			dt_pq_insert(dtp->dt_bufq, buf);
+		}
+
+		/* Consume drops. */
+		for (i = 0; i < max_ncpus; i++) {
+			if (drops[i] != 0) {
+				int error = dt_handle_cpudrop(dtp, i,
+				    DTRACEDROP_PRINCIPAL, drops[i]);
+				if (error != 0)
+					return (error);
+			}
+		}
+
 		/*
-		 * This _really_ shouldn't fail, but it is strictly speaking
-		 * possible for this to return ENOENT if the CPU that called
-		 * the END enabling somehow managed to become unconfigured.
-		 * It's unclear how the user can possibly expect anything
-		 * rational to happen in this case -- the state has been thrown
-		 * out along with the unconfigured CPU -- so we'll just drive
-		 * on...
+		 * Reduce memory usage by re-allocating smaller buffers
+		 * for the "remnants".
 		 */
-		if (errno == ENOENT)
-			return (0);
-
-		return (dt_set_errno(dtp, errno));
+		while (buf = dt_pq_walk(dtp->dt_bufq, &cookie))
+			dt_realloc_buf(dtp, buf, buf->dtbd_size);
 	}
 
-	return (dt_consume_cpu(dtp, fp, dtp->dt_endedon, buf, pf, rf, arg));
+	return (0);
 }

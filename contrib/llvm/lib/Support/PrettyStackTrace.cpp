@@ -12,12 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Config/config.h"     // Get autoconf configuration settings
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Config/config.h"     // Get autoconf configuration settings
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/ThreadLocal.h"
-#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Watchdog.h"
+#include "llvm/Support/raw_ostream.h"
 
 #ifdef HAVE_CRASHREPORTERCLIENT_H
 #include <CrashReporterClient.h>
@@ -37,7 +38,10 @@ static unsigned PrintStack(const PrettyStackTraceEntry *Entry, raw_ostream &OS){
   if (Entry->getNextEntry())
     NextID = PrintStack(Entry->getNextEntry(), OS);
   OS << NextID << ".\t";
-  Entry->print(OS);
+  {
+    sys::Watchdog W(5);
+    Entry->print(OS);
+  }
   
   return NextID+1;
 }

@@ -244,7 +244,6 @@ MODULE_DEPEND(ctlfe, ctl, 1, 1, 1);
 MODULE_DEPEND(ctlfe, cam, 1, 1, 1);
 
 extern struct ctl_softc *control_softc;
-extern int ctl_disable;
 
 void
 ctlfeshutdown(void)
@@ -256,10 +255,6 @@ void
 ctlfeinit(void)
 {
 	cam_status status;
-
-	/* Don't initialize if we're disabled */
-	if (ctl_disable != 0)
-		return;
 
 	STAILQ_INIT(&ctlfe_softc_list);
 

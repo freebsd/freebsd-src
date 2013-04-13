@@ -15,9 +15,9 @@
 #define LLVM_CLANG_AST_COMMENT_LEXER_H
 
 #include "clang/Basic/SourceManager.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -34,8 +34,9 @@ enum TokenKind {
   eof,
   newline,
   text,
-  unknown_command, // Command that does not have an ID.
-  command,         // Command with an ID.
+  unknown_command,   // Command that does not have an ID.
+  backslash_command, // Command with an ID, that used backslash marker.
+  at_command,        // Command with an ID, that used 'at' marker.
   verbatim_block_begin,
   verbatim_block_line,
   verbatim_block_end,
@@ -75,7 +76,7 @@ class Token {
   /// unused (command spelling can be found with CommandTraits).  Otherwise,
   /// contains the length of the string that starts at TextPtr.
   unsigned IntVal;
-
+  
 public:
   SourceLocation getLocation() const LLVM_READONLY { return Loc; }
   void setLocation(SourceLocation SL) { Loc = SL; }
@@ -118,12 +119,12 @@ public:
   }
 
   unsigned getCommandID() const LLVM_READONLY {
-    assert(is(tok::command));
+    assert(is(tok::backslash_command) || is(tok::at_command));
     return IntVal;
   }
 
   void setCommandID(unsigned ID) {
-    assert(is(tok::command));
+    assert(is(tok::backslash_command) || is(tok::at_command));
     IntVal = ID;
   }
 

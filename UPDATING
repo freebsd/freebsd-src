@@ -33,6 +33,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	removed.  Kernel option `options ATA_CAM` is now permanently enabled
 	and removed.
 
+20130319:
+	SOCK_CLOEXEC and SOCK_NONBLOCK flags have been added to socket(2)
+	and socketpair(2). Software, in particular Kerberos, may
+	automatically detect and use these during building. The resulting
+	binaries will not work on older kernels.
+
 20130308:
 	CTL_DISABLE has also been added to the sparc64 GENERIC (for further
 	information, see the respective 20130304 entry).

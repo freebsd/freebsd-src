@@ -13,9 +13,9 @@
 
 #include "Windows.h"
 #include <cstdio>
-#include <malloc.h>
-#include <io.h>
 #include <fcntl.h>
+#include <io.h>
+#include <malloc.h>
 
 //===----------------------------------------------------------------------===//
 //=== WARNING: Implementation here must contain only Win32 specific code
@@ -41,11 +41,6 @@ Program::~Program() {
     delete wpi;
     Data_ = 0;
   }
-}
-
-unsigned Program::GetPid() const {
-  Win32ProcessInfo* wpi = reinterpret_cast<Win32ProcessInfo*>(Data_);
-  return wpi->dwProcessId;
 }
 
 // This function just uses the PATH environment variable to find the program.
@@ -378,23 +373,6 @@ Program::Wait(const Path &path,
     return status & 0x7FFFFFFF;
 
   return 1;
-}
-
-bool
-Program::Kill(std::string* ErrMsg) {
-  if (Data_ == 0) {
-    MakeErrMsg(ErrMsg, "Process not started!");
-    return true;
-  }
-
-  Win32ProcessInfo* wpi = reinterpret_cast<Win32ProcessInfo*>(Data_);
-  HANDLE hProcess = wpi->hProcess;
-  if (TerminateProcess(hProcess, 1) == 0) {
-    MakeErrMsg(ErrMsg, "The process couldn't be killed!");
-    return true;
-  }
-
-  return false;
 }
 
 error_code Program::ChangeStdinToBinary(){

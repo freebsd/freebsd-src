@@ -103,6 +103,8 @@ struct vm {
 	cpuset_t	active_cpus;
 };
 
+static int vmm_initialized;
+
 static struct vmm_ops *ops;
 #define	VMM_INIT()	(ops != NULL ? (*ops->init)() : 0)
 #define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
@@ -213,6 +215,8 @@ vmm_handler(module_t mod, int what, void *arg)
 		vmmdev_init();
 		iommu_init();
 		error = vmm_init();
+		if (error == 0)
+			vmm_initialized = 1;
 		break;
 	case MOD_UNLOAD:
 		error = vmmdev_cleanup();
@@ -221,6 +225,7 @@ vmm_handler(module_t mod, int what, void *arg)
 			vmm_ipi_cleanup();
 			error = VMM_CLEANUP();
 		}
+		vmm_initialized = 0;
 		break;
 	default:
 		error = 0;
@@ -249,8 +254,8 @@ MODULE_VERSION(vmm, 1);
 
 SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
 
-struct vm *
-vm_create(const char *name)
+int
+vm_create(const char *name, struct vm **retvm)
 {
 	int i;
 	struct vm *vm;
@@ -258,8 +263,15 @@ vm_create(const char *name)
 
 	const int BSP = 0;
 
+	/*
+	 * If vmm.ko could not be successfully initialized then don't attempt
+	 * to create the virtual machine.
+	 */
+	if (!vmm_initialized)
+		return (ENXIO);
+
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
-		return (NULL);
+		return (EINVAL);
 
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
@@ -274,7 +286,8 @@ vm_create(const char *name)
 	vm->iommu = iommu_create_domain(maxaddr);
 	vm_activate_cpu(vm, BSP);
 
-	return (vm);
+	*retvm = vm;
+	return (0);
 }
 
 static void

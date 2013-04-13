@@ -560,7 +560,7 @@ struct iap_event_descr {
 #define	IAP_F_SB	(1 << 6)	/* CPU: Sandy Bridge */
 #define	IAP_F_IB	(1 << 7)	/* CPU: Ivy Bridge */
 #define	IAP_F_SBX	(1 << 8)	/* CPU: Sandy Bridge Xeon */
-#define	IAP_F_IBX	(1 << 9)	/* CPU: Ivy Bridge */
+#define	IAP_F_IBX	(1 << 9)	/* CPU: Ivy Bridge Xeon */
 #define	IAP_F_HW	(1 << 10)	/* CPU: Haswell */
 #define	IAP_F_FM	(1 << 11)	/* Fixed mask */
 

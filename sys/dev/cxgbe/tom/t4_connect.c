@@ -226,7 +226,10 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	struct tcpcb *tp = so_sototcpcb(so);
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
-	uint32_t opt2 = 0;
+	uint32_t opt2;
+
+	opt2 = V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]) |
+	    F_RSS_QUEUE_VALID | V_RSS_QUEUE(toep->ofld_rxq->iq.abs_id);
 
 	if (tp->t_flags & TF_SACK_PERMIT)
 		opt2 |= F_SACK_EN;
@@ -240,12 +243,12 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	if (V_tcp_do_ecn)
 		opt2 |= F_CCTRL_ECN;
 
-	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
-	opt2 |= F_RSS_QUEUE_VALID | V_RSS_QUEUE(toep->ofld_rxq->iq.abs_id);
+	/* RX_COALESCE is always a valid value (M_RX_COALESCE). */
 	if (is_t4(sc))
-		opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
+		opt2 |= F_RX_COALESCE_VALID;
 	else
-		opt2 |= F_T5_OPT_2_VALID | V_RX_COALESCE(M_RX_COALESCE);
+		opt2 |= F_T5_OPT_2_VALID;
+	opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)

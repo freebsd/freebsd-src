@@ -94,10 +94,10 @@ __FBSDID("$FreeBSD$");
 	((vm_pindex_t)1 << ((VM_RADIX_LIMIT - (lev)) * VM_RADIX_WIDTH))
 
 struct vm_radix_node {
-	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
 	vm_pindex_t	 rn_owner;			/* Owner of record. */
 	uint16_t	 rn_count;			/* Valid children. */
 	uint16_t	 rn_clev;			/* Current level. */
+	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
 };
 
 static uma_zone_t vm_radix_node_zone;
@@ -175,7 +175,7 @@ static __inline struct vm_radix_node *
 vm_radix_getroot(struct vm_radix *rtree)
 {
 
-	return ((struct vm_radix_node *)(rtree->rt_root & ~VM_RADIX_FLAGS));
+	return ((struct vm_radix_node *)rtree->rt_root);
 }
 
 /*
@@ -251,9 +251,7 @@ vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
 
 	if (rnode->rn_clev > 0) {
 		idx = vm_radix_trimkey(idx, rnode->rn_clev - 1);
-		idx -= rnode->rn_owner;
-		if (idx != 0)
-			return (TRUE);
+		return (idx != rnode->rn_owner);
 	}
 	return (FALSE);
 }
@@ -272,11 +270,7 @@ vm_radix_addlev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 	for (; levels[ilev] == FALSE ||
 	    vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1); ilev--)
 		if (ilev == 0)
-			break;
-	KASSERT(ilev > 0 || levels[0],
-	    ("%s: levels back-scanning problem", __func__));
-	if (ilev == 0 && vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1))
-		return (1);
+			return (1);
 	wrapidx = *idx;
 	*idx = vm_radix_trimkey(*idx, ilev);
 	*idx += VM_RADIX_UNITLEVEL(ilev);
@@ -297,11 +291,7 @@ vm_radix_declev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 	for (; levels[ilev] == FALSE ||
 	    vm_radix_slot(*idx, ilev) == 0; ilev--)
 		if (ilev == 0)
-			break;
-	KASSERT(ilev > 0 || levels[0],
-	    ("%s: levels back-scanning problem", __func__));
-	if (ilev == 0 && vm_radix_slot(*idx, ilev) == 0)
-		return (1);
+			return (1);
 	wrapidx = *idx;
 	*idx = vm_radix_trimkey(*idx, ilev);
 	*idx |= VM_RADIX_UNITLEVEL(ilev) - 1;
@@ -476,17 +466,16 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 
 	rnode = vm_radix_getroot(rtree);
 	while (rnode != NULL) {
-		if (vm_radix_keybarr(rnode, index))
-			return (NULL);
-		slot = vm_radix_slot(index, rnode->rn_clev);
-		rnode = rnode->rn_child[slot];
 		if (vm_radix_isleaf(rnode)) {
 			m = vm_radix_topage(rnode);
 			if (m->pindex == index)
 				return (m);
 			else
-				return (NULL);
-		}
+				break;
+		} else if (vm_radix_keybarr(rnode, index))
+			break;
+		slot = vm_radix_slot(index, rnode->rn_clev);
+		rnode = rnode->rn_child[slot];
 	}
 	return (NULL);
 }
@@ -507,12 +496,21 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 	int loops = 0;
 #endif
 
+	rnode = vm_radix_getroot(rtree);
+	if (rnode == NULL)
+		return (NULL);
+	else if (vm_radix_isleaf(rnode)) {
+		m = vm_radix_topage(rnode);
+		if (m->pindex >= index)
+			return (m);
+		else
+			return (NULL);
+	}
 restart:
 	KASSERT(++loops < 1000, ("%s: too many loops", __func__));
 	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
 		maplevels[difflev] = FALSE;
-	rnode = vm_radix_getroot(rtree);
-	while (rnode != NULL) {
+	for (;;) {
 		maplevels[rnode->rn_clev] = TRUE;
 
 		/*
@@ -534,6 +532,7 @@ restart:
 			} else
 				index = vm_radix_trimkey(rnode->rn_owner,
 				    difflev);
+			rnode = vm_radix_getroot(rtree);
 			goto restart;
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
@@ -574,6 +573,7 @@ restart:
 		if (rnode->rn_clev == 0 || vm_radix_addlev(&index, maplevels,
 		    rnode->rn_clev - 1) > 0)
 			break;
+		rnode = vm_radix_getroot(rtree);
 		goto restart;
 descend:
 		rnode = child;
@@ -597,12 +597,21 @@ vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 	int loops = 0;
 #endif
 
+	rnode = vm_radix_getroot(rtree);
+	if (rnode == NULL)
+		return (NULL);
+	else if (vm_radix_isleaf(rnode)) {
+		m = vm_radix_topage(rnode);
+		if (m->pindex <= index)
+			return (m);
+		else
+			return (NULL);
+	}
 restart:
 	KASSERT(++loops < 1000, ("%s: too many loops", __func__));
 	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
 		maplevels[difflev] = FALSE;
-	rnode = vm_radix_getroot(rtree);
-	while (rnode != NULL) {
+	for (;;) {
 		maplevels[rnode->rn_clev] = TRUE;
 
 		/*
@@ -624,6 +633,7 @@ restart:
 			} else if (vm_radix_declev(&index, maplevels,
 			    difflev) > 0)
 				break;
+			rnode = vm_radix_getroot(rtree);
 			goto restart;
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
@@ -665,6 +675,7 @@ restart:
 		if (rnode->rn_clev == 0 || vm_radix_declev(&index, maplevels,
 		    rnode->rn_clev - 1) > 0)
 			break;
+		rnode = vm_radix_getroot(rtree);
 		goto restart;
 descend:
 		rnode = child;

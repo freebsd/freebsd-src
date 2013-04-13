@@ -1277,15 +1277,15 @@ each_writable_segment(td, func, closure)
 			continue;
 
 		/* Ignore memory-mapped devices and such things. */
-		VM_OBJECT_WLOCK(object);
+		VM_OBJECT_RLOCK(object);
 		while ((backing_object = object->backing_object) != NULL) {
-			VM_OBJECT_WLOCK(backing_object);
-			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_RLOCK(backing_object);
+			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
 		ignore_entry = object->type != OBJT_DEFAULT &&
 		    object->type != OBJT_SWAP && object->type != OBJT_VNODE;
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		if (ignore_entry)
 			continue;
 
@@ -1513,8 +1513,8 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		phdr->p_paddr = 0;
 		phdr->p_filesz = notesz;
 		phdr->p_memsz = 0;
-		phdr->p_flags = 0;
-		phdr->p_align = 0;
+		phdr->p_flags = PF_R;
+		phdr->p_align = sizeof(Elf32_Size);
 		phdr++;
 
 		/* All the writable segments from the program. */
@@ -1538,10 +1538,10 @@ __elfN(putnote)(void *dst, size_t *off, const char *name, int type,
 	*off += sizeof note;
 	if (dst != NULL)
 		bcopy(name, (char *)dst + *off, note.n_namesz);
-	*off += roundup2(note.n_namesz, sizeof(Elf_Size));
+	*off += roundup2(note.n_namesz, sizeof(Elf32_Size));
 	if (dst != NULL)
 		bcopy(desc, (char *)dst + *off, note.n_descsz);
-	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
+	*off += roundup2(note.n_descsz, sizeof(Elf32_Size));
 }
 
 static boolean_t

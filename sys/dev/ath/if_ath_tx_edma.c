@@ -636,7 +636,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 			break;
 		}
 
-#ifdef	ATH_DEBUG_ALQ
+#if defined(ATH_DEBUG_ALQ) && defined(ATH_DEBUG)
 		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS))
 			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS,
 			    sc->sc_tx_statuslen,

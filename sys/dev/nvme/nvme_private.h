@@ -238,6 +238,7 @@ struct nvme_namespace {
 	uint16_t			flags;
 	struct cdev			*cdev;
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
+	struct mtx			lock;
 };
 
 /*
@@ -246,6 +247,8 @@ struct nvme_namespace {
 struct nvme_controller {
 
 	device_t		dev;
+
+	struct mtx		lock;
 
 	uint32_t		ready_timeout_in_ms;
 
@@ -325,7 +328,6 @@ struct nvme_controller {
 
 	uint32_t		is_resetting;
 
-	struct mtx			fail_req_lock;
 	boolean_t			is_failed;
 	STAILQ_HEAD(, nvme_request)	fail_req;
 
@@ -427,10 +429,6 @@ void	nvme_ctrlr_cmd_set_async_event_config(struct nvme_controller *ctrlr,
 void	nvme_ctrlr_cmd_abort(struct nvme_controller *ctrlr, uint16_t cid,
 			     uint16_t sqid, nvme_cb_fn_t cb_fn, void *cb_arg);
 
-void	nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg,
-			 int error);
-void	nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
-			     bus_size_t mapsize, int error);
 void	nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl);
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
