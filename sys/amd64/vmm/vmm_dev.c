@@ -497,8 +497,12 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 		return (EEXIST);
 	}
 
-	sc->cdev = make_dev(&vmmdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-			    "vmm/%s", buf);
+	error = make_dev_p(MAKEDEV_CHECKNAME, &sc->cdev, &vmmdevsw, NULL,
+			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
+	if (error != 0) {
+		vmmdev_destroy(sc, TRUE);
+		return (error);
+	}
 	sc->cdev->si_drv1 = sc;
 
 	return (0);
