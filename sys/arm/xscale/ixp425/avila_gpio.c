@@ -220,8 +220,8 @@ avila_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & mask))
 		return (EINVAL);
 
-	/* Filter out unwanted flags */
-	if ((flags &= sc->sc_pins[pin].gp_caps) != flags)
+	/* Check for unwanted flags. */
+	if ((flags & sc->sc_pins[pin].gp_caps) != flags)
 		return (EINVAL);
 
 	/* Can't mix input/output together */
