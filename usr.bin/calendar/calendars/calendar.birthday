@@ -6,6 +6,7 @@
  
 #ifndef _calendar_birthday_
 #define _calendar_birthday_
+#undef	unix
 
 01/01	J.D. Salinger born, 1919
 01/01	Paul Revere born in Boston, 1735
@@ -214,7 +215,7 @@
 09/08	Richard ``the Lionheart'', king of England born in Oxford, 1157
 09/08	Peter Sellers born in Southsea, England, 1925
 09/09	Chinese Communist Party Chairman Mao Tse-Tung dies at age 82, 1976
-09/09	Dennis MacAlistair Ritchie, creater of C, born, 1941
+09/09	Dennis MacAlistair Ritchie, creator of C, born, 1941
 09/12	Jesse Owens born, 1913
 09/13	Walter Reed born, 1851
 09/15	Agatha Christie born in Torquay, England, 1890
@@ -291,7 +292,7 @@
 12/12	E.G. Robinson born, 1893
 12/14	George Washington dies, 1799
 12/17	William Safire (Safir) born, 1929
-12/18	Konrad Zuse died in Hünfeld, 1995
+12/18	Konrad Zuse died in HÃ¼nfeld, 1995
 12/20	Carl Sagan died, 1996
 12/21	Benjamin Disraeli born, 1804
 12/22	Giacomo Puccini born, 1858
