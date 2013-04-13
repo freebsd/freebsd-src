@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -116,6 +117,9 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_VMX, "vmx", "vmx");
 
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW, NULL, NULL);
+
 int vmxon_enabled[MAXCPU];
 static char vmxon_region[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
 
@@ -123,11 +127,24 @@ static uint32_t pinbased_ctls, procbased_ctls, procbased_ctls2;
 static uint32_t exit_ctls, entry_ctls;
 
 static uint64_t cr0_ones_mask, cr0_zeros_mask;
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr0_ones_mask, CTLFLAG_RD,
+	     &cr0_ones_mask, 0, NULL);
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr0_zeros_mask, CTLFLAG_RD,
+	     &cr0_zeros_mask, 0, NULL);
+
 static uint64_t cr4_ones_mask, cr4_zeros_mask;
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_ones_mask, CTLFLAG_RD,
+	     &cr4_ones_mask, 0, NULL);
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_zeros_mask, CTLFLAG_RD,
+	     &cr4_zeros_mask, 0, NULL);
 
 static volatile u_int nextvpid;
 
 static int vmx_no_patmsr;
+
+static int vmx_initialized;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, initialized, CTLFLAG_RD,
+	   &vmx_initialized, 0, "Intel VMX initialized");
 
 /*
  * Virtual NMI blocking conditions.
@@ -592,6 +609,8 @@ vmx_init(void)
 
 	/* enable VMX operation */
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
+
+	vmx_initialized = 1;
 
 	return (0);
 }
