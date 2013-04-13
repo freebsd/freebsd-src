@@ -593,6 +593,7 @@ struct proc {
 	 */
 	LIST_ENTRY(proc) p_orphan;	/* (e) List of orphan processes. */
 	LIST_HEAD(, proc) p_orphans;	/* (e) Pointer to list of orphans. */
+	u_char		p_throttled;	/* (c) Flag for racct pcpu throttling */
 };
 
 #define	p_session	p_pgrp->pg_session

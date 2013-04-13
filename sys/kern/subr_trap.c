@@ -151,6 +151,12 @@ userret(struct thread *td, struct trapframe *frame)
 #ifdef XEN
 	PT_UPDATES_FLUSH();
 #endif
+#ifdef	RACCT
+	PROC_LOCK(p);
+	while (p->p_throttled == 1)
+		msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
+	PROC_UNLOCK(p);
+#endif
 }
 
 /*
