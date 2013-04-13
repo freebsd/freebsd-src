@@ -3,7 +3,7 @@
 # Vendor sources and generated files
 LDNSDIR = ${.CURDIR}/../../contrib/ldns
 
-.PATH: ${LDNSDIR}
+.PATH: ${LDNSDIR} ${LDNSDIR}/compat
 
 LIB = ldns
 INTERNALLIB = true
@@ -39,6 +39,11 @@ SRCS +=	update.c
 SRCS +=	util.c
 SRCS +=	wire2host.c
 SRCS +=	zone.c
+
+SRCS += b32_ntop.c
+SRCS += b32_pton.c
+SRCS += b64_ntop.c
+SRCS += b64_pton.c
 
 WARNS ?= 3
 
