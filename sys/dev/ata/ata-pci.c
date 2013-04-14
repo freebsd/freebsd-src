@@ -571,6 +571,13 @@ ata_pci_child_location_str(device_t dev, device_t child, char *buf,
 	return (0);
 }
 
+static bus_dma_tag_t
+ata_pci_get_dma_tag(device_t bus, device_t child)
+{
+
+	return (bus_get_dma_tag(bus));
+}
+
 static device_method_t ata_pci_methods[] = {
     /* device interface */
     DEVMETHOD(device_probe,             ata_pci_probe),
@@ -593,6 +600,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(pci_write_config,		ata_pci_write_config),
     DEVMETHOD(bus_print_child,		ata_pci_print_child),
     DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
+    DEVMETHOD(bus_get_dma_tag,		ata_pci_get_dma_tag),
 
     DEVMETHOD_END
 };
