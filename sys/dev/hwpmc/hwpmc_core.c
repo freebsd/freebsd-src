@@ -25,7 +25,7 @@
  */
 
 /*
- * Intel Core, Core 2 and Atom PMCs.
+ * Intel Core PMCs.
  */
 
 #include <sys/cdefs.h>
