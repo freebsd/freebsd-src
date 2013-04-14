@@ -1089,9 +1089,6 @@ zpfind(pid_t pid)
 	return (p);
 }
 
-#define KERN_PROC_ZOMBMASK	0x3
-#define KERN_PROC_NOTHREADS	0x4
-
 #ifdef COMPAT_FREEBSD32
 
 /*
@@ -1191,59 +1188,69 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_sflag);
 	CP(*ki, *ki32, ki_tdflags);
 }
-
-static int
-sysctl_out_proc_copyout(struct kinfo_proc *ki, struct sysctl_req *req)
-{
-	struct kinfo_proc32 ki32;
-	int error;
-
-	if (req->flags & SCTL_MASK32) {
-		freebsd32_kinfo_proc_out(ki, &ki32);
-		error = SYSCTL_OUT(req, &ki32, sizeof(struct kinfo_proc32));
-	} else
-		error = SYSCTL_OUT(req, ki, sizeof(struct kinfo_proc));
-	return (error);
-}
-#else
-static int
-sysctl_out_proc_copyout(struct kinfo_proc *ki, struct sysctl_req *req)
-{
-
-	return (SYSCTL_OUT(req, ki, sizeof(struct kinfo_proc)));
-}
 #endif
 
-/*
- * Must be called with the process locked and will return with it unlocked.
- */
-static int
-sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
+int
+kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 {
 	struct thread *td;
-	struct kinfo_proc kinfo_proc;
-	int error = 0;
-	struct proc *np;
-	pid_t pid = p->p_pid;
+	struct kinfo_proc ki;
+#ifdef COMPAT_FREEBSD32
+	struct kinfo_proc32 ki32;
+#endif
+	int error;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
 
-	fill_kinfo_proc(p, &kinfo_proc);
-	if (flags & KERN_PROC_NOTHREADS)
-		error = sysctl_out_proc_copyout(&kinfo_proc, req);
-	else {
+	error = 0;
+	fill_kinfo_proc(p, &ki);
+	if ((flags & KERN_PROC_NOTHREADS) != 0) {
+#ifdef COMPAT_FREEBSD32
+		if ((flags & KERN_PROC_MASK32) != 0) {
+			freebsd32_kinfo_proc_out(&ki, &ki32);
+			error = sbuf_bcat(sb, &ki32, sizeof(ki32));
+		} else
+#endif
+			error = sbuf_bcat(sb, &ki, sizeof(ki));
+	} else {
 		FOREACH_THREAD_IN_PROC(p, td) {
-			fill_kinfo_thread(td, &kinfo_proc, 1);
-			error = sysctl_out_proc_copyout(&kinfo_proc, req);
+			fill_kinfo_thread(td, &ki, 1);
+#ifdef COMPAT_FREEBSD32
+			if ((flags & KERN_PROC_MASK32) != 0) {
+				freebsd32_kinfo_proc_out(&ki, &ki32);
+				error = sbuf_bcat(sb, &ki32, sizeof(ki32));
+			} else
+#endif
+				error = sbuf_bcat(sb, &ki, sizeof(ki));
 			if (error)
 				break;
 		}
 	}
 	PROC_UNLOCK(p);
-	if (error)
+	return (error);
+}
+
+static int
+sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags,
+    int doingzomb)
+{
+	struct sbuf sb;
+	struct kinfo_proc ki;
+	struct proc *np;
+	int error, error2;
+	pid_t pid;
+
+	pid = p->p_pid;
+	sbuf_new_for_sysctl(&sb, (char *)&ki, sizeof(ki), req);
+	error = kern_proc_out(p, &sb, flags);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	if (error != 0)
 		return (error);
-	if (flags & KERN_PROC_ZOMBMASK)
+	else if (error2 != 0)
+		return (error2);
+	if (doingzomb)
 		np = zpfind(pid);
 	else {
 		if (pid == 0)
@@ -1277,6 +1284,10 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		flags = 0;
 		oid_number &= ~KERN_PROC_INC_THREAD;
 	}
+#ifdef COMPAT_FREEBSD32
+	if (req->flags & SCTL_MASK32)
+		flags |= KERN_PROC_MASK32;
+#endif
 	if (oid_number == KERN_PROC_PID) {
 		if (namelen != 1)
 			return (EINVAL);
@@ -1286,7 +1297,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		error = pget((pid_t)name[0], PGET_CANSEE, &p);
 		if (error != 0)
 			return (error);
-		error = sysctl_out_proc(p, req, flags);
+		error = sysctl_out_proc(p, req, flags, 0);
 		return (error);
 	}
 
@@ -1415,7 +1426,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			}
 
-			error = sysctl_out_proc(p, req, flags | doingzomb);
+			error = sysctl_out_proc(p, req, flags, doingzomb);
 			if (error) {
 				sx_sunlock(&allproc_lock);
 				return (error);
@@ -2119,8 +2130,11 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 CTASSERT(sizeof(struct kinfo_vmentry) == KINFO_VMENTRY_SIZE);
 #endif
 
-static int
-sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
+/*
+ * Must be called with the process locked and will return unlocked.
+ */
+int
+kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 {
 	vm_map_entry_t entry, tmp_entry;
 	unsigned int last_timestamp;
@@ -2128,16 +2142,15 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	struct kinfo_vmentry *kve;
 	struct vattr va;
 	struct ucred *cred;
-	int error, *name;
+	int error;
 	struct vnode *vp;
-	struct proc *p;
 	struct vmspace *vm;
 	vm_map_t map;
 
-	name = (int *)arg1;
-	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
-	if (error != 0)
-		return (error);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	_PHOLD(p);
+	PROC_UNLOCK(p);
 	vm = vmspace_acquire_ref(p);
 	if (vm == NULL) {
 		PRELE(p);
@@ -2145,6 +2158,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
+	error = 0;
 	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
@@ -2284,7 +2298,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		    strlen(kve->kve_path) + 1;
 		kve->kve_structsize = roundup(kve->kve_structsize,
 		    sizeof(uint64_t));
-		error = SYSCTL_OUT(req, kve, kve->kve_structsize);
+		error = sbuf_bcat(sb, kve, kve->kve_structsize);
 		vm_map_lock_read(map);
 		if (error)
 			break;
@@ -2298,6 +2312,26 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
+}
+
+static int
+sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
+{
+	struct proc *p;
+	struct sbuf sb;
+	int error, error2, *name;
+
+	name = (int *)arg1;
+	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_vmentry), req);
+	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
+	if (error != 0) {
+		sbuf_delete(&sb);
+		return (error);
+	}
+	error = kern_proc_vmmap_out(p, &sb);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
 }
 
 #if defined(STACK) || defined(DDB)
