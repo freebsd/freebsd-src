@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*-
- * Copyright (c) 2012 Spectra Logic Corporation
+ * Copyright (c) 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Portions of this software were developed by
@@ -175,12 +175,21 @@ setup_gdt(struct user_segment_descriptor *thisgdt)
 #endif /* 0 */
 		case GUFS32_SEL:
 		case GUGS32_SEL:
-		case GUDATA_SEL:
+		case GUDATA_SEL: /* XXX: why def32 ? */
 			limit = 0xfffff;
 			type = SDT_MEMRWA;
 			dpl = SEL_UPL;
 			p = 1;
 			def32 = 1;
+			gran = 1;
+			break;
+
+		case GUCODE_SEL:
+			limit = 0xfffff;
+			type = SDT_MEMERA;
+			dpl = SEL_UPL;
+			p = 1;
+			l = 1;
 			gran = 1;
 			break;
 

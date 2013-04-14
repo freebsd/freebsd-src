@@ -517,6 +517,7 @@ ENTRY(fork_trampoline)
 	DO_AST_MAYBE		;
 	RESTORE_GENERAL_REGS	;
 	RESTORE_SEGMENT_REGS	;
+	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(hypervisor_callback)	/* Xen only */
