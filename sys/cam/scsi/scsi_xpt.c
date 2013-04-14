@@ -1953,7 +1953,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (i == initiator_id)
 				continue;
 
-			status = xpt_create_path(&path, xpt_periph,
+			status = xpt_create_path(&path, NULL,
 						 request_ccb->ccb_h.path_id,
 						 i, 0);
 			if (status != CAM_REQ_CMP) {
@@ -2154,7 +2154,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_free_ccb(request_ccb);
 				break;
 			}
-			status = xpt_create_path(&path, xpt_periph,
+			status = xpt_create_path(&path, NULL,
 			    scan_info->request_ccb->ccb_h.path_id,
 			    scan_info->counter, 0);
 			if (status != CAM_REQ_CMP) {
@@ -2177,7 +2177,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			request_ccb->crcn.flags =
 			    scan_info->request_ccb->crcn.flags;
 		} else {
-			status = xpt_create_path(&path, xpt_periph,
+			status = xpt_create_path(&path, NULL,
 						 path_id, target_id, lun_id);
 			/*
 			 * Free the old request path- we're done with it. We
@@ -2250,7 +2250,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			    "can't continue\n");
 			return;
 		}
-		status = xpt_create_path(&new_path, xpt_periph,
+		status = xpt_create_path(&new_path, NULL,
 					  path->bus->path_id,
 					  path->target->target_id,
 					  path->device->lun_id);
