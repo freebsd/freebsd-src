@@ -2464,8 +2464,8 @@ xpt_action_default(union ccb *start_ccb)
 
 		devq = path->bus->sim->devq;
 		mtx_lock(&devq->send_mtx);
-		if (cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb) == 0 &&
-		    xpt_schedule_devq(devq, path->device) != 0)
+		cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
+		if (xpt_schedule_devq(devq, path->device) != 0)
 			xpt_run_devq(devq);
 		mtx_unlock(&devq->send_mtx);
 		break;
