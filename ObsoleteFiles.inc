@@ -70,6 +70,7 @@ OLD_FILES+=usr/include/clang/3.2/xmmintrin.h
 OLD_FILES+=usr/include/clang/3.2/xopintrin.h
 OLD_DIRS+=usr/include/clang/3.2
 # 20130404: legacy ATA stack removed
+OLD_FILES+=rescue/atacontrol
 OLD_FILES+=sbin/atacontrol
 OLD_FILES+=usr/share/man/man8/atacontrol.8.gz
 OLD_FILES+=usr/share/man/man4/atapicam.4.gz
