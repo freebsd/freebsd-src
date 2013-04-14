@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.28 2012/07/13 15:38:16 sjg Exp $
+# $Id: meta.autodep.mk,v 1.32 2012/11/13 00:44:26 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -235,6 +235,7 @@ META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
 .export GENDIRDEPS_FILTER
 .endif
 
+# we might have .../ in MAKESYSPATH
 _makesyspath:= ${_PARSEDIR}
 ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.META.CREATED}
 	@echo Checking $@: ${.OODATE:T:[1..8]}

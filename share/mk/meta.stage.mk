@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.22 2013/03/08 17:52:11 sjg Exp $
+# $Id: meta.stage.mk,v 1.24 2013/03/23 02:25:19 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -48,17 +48,21 @@ GENDIRDEPS_FILTER += Nnot-empty-is-important \
 	${_STAGED_DIRS:O:u:M${OBJTOP}*:S,${OBJTOP}/,N,} \
 	${_STAGED_DIRS:O:u:N${OBJTOP}*:S,${_objroot},,:C,^([^/]+)/(.*),N\2.\1,:S,${HOST_TARGET},.host,}
 
+LN_CP_SCRIPT = LnCp() { \
+  rm -f $$2 2> /dev/null; \
+  ln $$1 $$2 2> /dev/null || \
+  cp -p $$1 $$2; }
+
 # it is an error for more than one src dir to try and stage
 # the same file
-STAGE_DIRDEP_SCRIPT = StageDirdep() { \
+STAGE_DIRDEP_SCRIPT = ${LN_CP_SCRIPT}; StageDirdep() { \
   t=$$1; \
   if [ -s $$t.dirdep ]; then \
 	cmp -s .dirdep $$t.dirdep && return; \
 	echo "ERROR: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
 	exit 1; \
   fi; \
-  ln .dirdep $$t.dirdep 2> /dev/null || \
-  cp .dirdep $$t.dirdep || exit 1; }
+  LnCp .dirdep $$t.dirdep || exit 1; }
 
 # common logic for staging files
 # this all relies on RELDIR being set to a subdir of SRCTOP
@@ -71,9 +75,7 @@ STAGE_FILE_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageFiles() { \
   for f in "$$@"; do \
 	case "$$f" in */*) t=$$dest/${_stage_file_basename};; *) t=$$dest/$$f;; esac; \
 	StageDirdep $$t; \
-	rm -f $$t; \
-	{ ln $$f $$t 2> /dev/null || \
-	cp -p $$f $$t; } || exit 1; \
+	LnCp $$f $$t || exit 1; \
 	[ -z "$$mode" ] || chmod $$mode $$t; \
   done; :; }
 
@@ -103,9 +105,7 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
 	case "$$1" in */*) mkdir -p ${_stage_target_dirname};; esac; \
 	shift; \
 	StageDirdep $$t; \
-	rm -f $$t; \
-	{ ln $$s $$t 2> /dev/null || \
-	cp -p $$s $$t; } || exit 1; \
+	LnCp $$s $$t || exit 1; \
 	[ -z "$$mode" ] || chmod $$mode $$t; \
   done; :; }
 
