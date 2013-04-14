@@ -155,10 +155,10 @@ cam_ccbq_pending_ccb_count(struct cam_ccbq *ccbq);
 static __inline void
 cam_ccbq_take_opening(struct cam_ccbq *ccbq);
 
-static __inline int
+static __inline void
 cam_ccbq_insert_ccb(struct cam_ccbq *ccbq, union ccb *new_ccb);
 
-static __inline int
+static __inline void
 cam_ccbq_remove_ccb(struct cam_ccbq *ccbq, union ccb *ccb);
 
 static __inline union ccb *
@@ -187,29 +187,17 @@ cam_ccbq_take_opening(struct cam_ccbq *ccbq)
 	ccbq->held++;
 }
 
-static __inline int
+static __inline void
 cam_ccbq_insert_ccb(struct cam_ccbq *ccbq, union ccb *new_ccb)
 {
 	ccbq->held--;
 	camq_insert(&ccbq->queue, &new_ccb->ccb_h.pinfo);
-	if (ccbq->queue.qfrozen_cnt > 0) {
-		ccbq->devq_openings++;
-		ccbq->held++;
-		return (1);
-	} else
-		return (0);
 }
 
-static __inline int
+static __inline void
 cam_ccbq_remove_ccb(struct cam_ccbq *ccbq, union ccb *ccb)
 {
 	camq_remove(&ccbq->queue, ccb->ccb_h.pinfo.index);
-	if (ccbq->queue.qfrozen_cnt > 0) {
-		ccbq->devq_openings--;
-		ccbq->held--;
-		return (1);
-	} else
-		return (0);
 }
 
 static __inline union ccb *
