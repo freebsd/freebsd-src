@@ -48,7 +48,7 @@ struct camq {
 	int	   array_size;
 	int	   entries;
 	u_int32_t  generation;
-	u_int32_t  qfrozen_cnt[CAM_RL_VALUES];
+	u_int32_t  qfrozen_cnt;
 };
 
 TAILQ_HEAD(ccb_hdr_tailq, ccb_hdr);
@@ -58,7 +58,8 @@ SLIST_HEAD(ccb_hdr_slist, ccb_hdr);
 struct cam_ccbq {
 	struct	camq queue;
 	int	devq_openings;
-	int	dev_openings;	
+	int	devq_allocating;
+	int	dev_openings;
 	int	dev_active;
 	int	held;
 };
@@ -66,11 +67,7 @@ struct cam_ccbq {
 struct cam_ed;
 
 struct cam_devq {
-	struct	camq alloc_queue;
 	struct	camq send_queue;
-	struct	cam_ed *active_dev;
-	int	alloc_openings;
-	int	alloc_active;
 	int	send_openings;
 	int	send_active;
 };
@@ -195,8 +192,7 @@ cam_ccbq_insert_ccb(struct cam_ccbq *ccbq, union ccb *new_ccb)
 {
 	ccbq->held--;
 	camq_insert(&ccbq->queue, &new_ccb->ccb_h.pinfo);
-	if (ccbq->queue.qfrozen_cnt[CAM_PRIORITY_TO_RL(
-	    new_ccb->ccb_h.pinfo.priority)] > 0) {
+	if (ccbq->queue.qfrozen_cnt > 0) {
 		ccbq->devq_openings++;
 		ccbq->held++;
 		return (1);
@@ -208,8 +204,7 @@ static __inline int
 cam_ccbq_remove_ccb(struct cam_ccbq *ccbq, union ccb *ccb)
 {
 	camq_remove(&ccbq->queue, ccb->ccb_h.pinfo.index);
-	if (ccbq->queue.qfrozen_cnt[CAM_PRIORITY_TO_RL(
-	    ccb->ccb_h.pinfo.priority)] > 0) {
+	if (ccbq->queue.qfrozen_cnt > 0) {
 		ccbq->devq_openings--;
 		ccbq->held--;
 		return (1);
@@ -246,82 +241,6 @@ cam_ccbq_release_opening(struct cam_ccbq *ccbq)
 {
 	ccbq->held--;
 	ccbq->devq_openings++;
-}
-
-static __inline int
-cam_ccbq_freeze(struct cam_ccbq *ccbq, cam_rl rl, u_int32_t cnt)
-{
-	int i, frozen = 0;
-	cam_rl p, n;
-
-	/* Find pevious run level. */
-	for (p = 0; p < CAM_RL_VALUES && ccbq->queue.qfrozen_cnt[p] == 0; p++);
-	/* Find new run level. */
-	n = min(rl, p);
-	/* Apply new run level. */
-	for (i = rl; i < CAM_RL_VALUES; i++)
-		ccbq->queue.qfrozen_cnt[i] += cnt;
-	/* Update ccbq statistics. */
-	if (n == p)
-		return (0);
-	for (i = CAMQ_HEAD; i <= ccbq->queue.entries; i++) {
-		cam_rl rrl =
-		    CAM_PRIORITY_TO_RL(ccbq->queue.queue_array[i]->priority);
-		if (rrl < n)
-			continue;
-		if (rrl >= p)
-			break;
-		ccbq->devq_openings++;
-		ccbq->held++;
-		frozen++;
-	}
-	return (frozen);
-}
-
-static __inline int
-cam_ccbq_release(struct cam_ccbq *ccbq, cam_rl rl, u_int32_t cnt)
-{
-	int i, released = 0;
-	cam_rl p, n;
-
-	/* Apply new run level. */
-	for (i = rl; i < CAM_RL_VALUES; i++)
-		ccbq->queue.qfrozen_cnt[i] -= cnt;
-	/* Find new run level. */
-	for (n = 0; n < CAM_RL_VALUES && ccbq->queue.qfrozen_cnt[n] == 0; n++);
-	/* Find previous run level. */
-	p = min(rl, n);
-	/* Update ccbq statistics. */
-	if (n == p)
-		return (0);
-	for (i = CAMQ_HEAD; i <= ccbq->queue.entries; i++) {
-		cam_rl rrl =
-		    CAM_PRIORITY_TO_RL(ccbq->queue.queue_array[i]->priority);
-		if (rrl < p)
-			continue;
-		if (rrl >= n)
-			break;
-		ccbq->devq_openings--;
-		ccbq->held--;
-		released++;
-	}
-	return (released);
-}
-
-static __inline u_int32_t
-cam_ccbq_frozen(struct cam_ccbq *ccbq, cam_rl rl)
-{
-	
-	return (ccbq->queue.qfrozen_cnt[rl]);
-}
-
-static __inline u_int32_t
-cam_ccbq_frozen_top(struct cam_ccbq *ccbq)
-{
-	cam_rl rl;
-	
-	rl = CAM_PRIORITY_TO_RL(CAMQ_GET_PRIO(&ccbq->queue));
-	return (ccbq->queue.qfrozen_cnt[rl]);
 }
 
 #endif /* _KERNEL */

@@ -249,12 +249,6 @@ proberegister(struct cam_periph *periph, void *arg)
 		return (status);
 	}
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
-
-	/*
-	 * Ensure nobody slip in until probe finish.
-	 */
-	cam_freeze_devq_arg(periph->path,
-	    RELSIM_RELEASE_RUNLEVEL, CAM_RL_XPT + 1);
 	probeschedule(periph);
 	return(CAM_REQ_CMP);
 }
@@ -661,6 +655,7 @@ negotiate:
 	default:
 		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
+	start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 	xpt_action(start_ccb);
 }
 
@@ -708,12 +703,15 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if (cam_periph_error(done_ccb,
 		    0, softc->restart ? (SF_NO_RECOVERY | SF_NO_RETRY) : 0,
-		    NULL) == ERESTART)
+		    NULL) == ERESTART) {
+out:
+			/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+			cam_release_devq(path, 0, 0, 0, FALSE);
 			return;
+		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
+			xpt_release_devq(path, /*count*/1, /*run_queue*/TRUE);
 		}
 		status = done_ccb->ccb_h.status & CAM_STATUS_MASK;
 		if (softc->restart) {
@@ -768,7 +766,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			PROBE_SET_ACTION(softc, PROBE_IDENTIFY_SAFTE);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 
 		/*
@@ -830,7 +828,7 @@ noerror:
 		}
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	}
 	case PROBE_IDENTIFY:
 	{
@@ -864,7 +862,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SPINUP);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		ident_buf = &path->device->ident_data;
 		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
@@ -954,7 +952,7 @@ noerror:
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	}
 	case PROBE_SPINUP:
 		if (bootverbose)
@@ -963,7 +961,7 @@ noerror:
 		PROBE_SET_ACTION(softc, PROBE_IDENTIFY);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	case PROBE_SETMODE:
 		/* Set supported bits. */
 		bzero(&cts, sizeof(cts));
@@ -1034,7 +1032,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SETPM);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETPM:
@@ -1045,7 +1043,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SETAPST);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETAPST:
@@ -1055,7 +1053,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SETDMAAA);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETDMAAA:
@@ -1065,7 +1063,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SETAN);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETAN:
@@ -1077,15 +1075,14 @@ notsata:
 		}
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	case PROBE_SET_MULTI:
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
-			    done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1118,7 +1115,7 @@ notsata:
 			PROBE_SET_ACTION(softc, PROBE_FULL_INQUIRY);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 
 		ata_device_transport(path);
@@ -1127,7 +1124,7 @@ notsata:
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path, done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1145,7 +1142,7 @@ notsata:
 		PROBE_SET_ACTION(softc, PROBE_PM_PRV);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	case PROBE_PM_PRV:
 		softc->pm_prv = (done_ccb->ataio.res.lba_high << 24) +
 		    (done_ccb->ataio.res.lba_mid << 16) +
@@ -1200,12 +1197,11 @@ notsata:
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
-			    done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		} else {
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_SCSI_AEN, done_ccb->ccb_h.path, done_ccb);
+			xpt_async(AC_SCSI_AEN, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1250,8 +1246,7 @@ notsata:
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
-			    done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1263,7 +1258,7 @@ done:
 		softc->restart = 0;
 		xpt_release_ccb(done_ccb);
 		probeschedule(periph);
-		return;
+		goto out;
 	}
 	xpt_release_ccb(done_ccb);
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
@@ -1273,9 +1268,9 @@ done:
 		done_ccb->ccb_h.status = found ? CAM_REQ_CMP : CAM_REQ_CMP_ERR;
 		xpt_done(done_ccb);
 	}
+	/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+	cam_release_devq(path, 0, 0, 0, FALSE);
 	cam_periph_invalidate(periph);
-	cam_release_devq(periph->path,
-	    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
 	cam_periph_release_locked(periph);
 }
 

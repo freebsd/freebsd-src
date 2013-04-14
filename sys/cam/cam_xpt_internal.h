@@ -71,8 +71,7 @@ struct cam_ed_qinfo {
  */
 struct cam_ed {
 	TAILQ_ENTRY(cam_ed) links;
-	struct	cam_ed_qinfo alloc_ccb_entry;
-	struct	cam_ed_qinfo send_ccb_entry;
+	struct	cam_ed_qinfo devq_entry;
 	struct	cam_et	 *target;
 	struct	cam_sim  *sim;
 	lun_id_t	 lun_id;
