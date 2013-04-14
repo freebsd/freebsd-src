@@ -8,6 +8,7 @@ DIRDEPS = \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
 	cddl/lib/libzfs \
+	cddl/lib/libzfs_core \
 	gnu/lib/libgcc \
 	include \
 	include/xlocale \

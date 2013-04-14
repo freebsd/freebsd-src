@@ -5,6 +5,7 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DIRDEPS = \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
+	cddl/lib/libzfs_core \
 	gnu/lib/libgcc \
 	include \
 	include/xlocale \

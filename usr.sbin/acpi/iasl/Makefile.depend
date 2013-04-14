@@ -33,6 +33,8 @@ asllength.o: aslcompiler.y.h
 asllength.po: aslcompiler.y.h
 asllisting.o: aslcompiler.y.h
 asllisting.po: aslcompiler.y.h
+asllistsup.o: aslcompiler.y.h
+asllistsup.po: aslcompiler.y.h
 aslload.o: aslcompiler.y.h
 aslload.po: aslcompiler.y.h
 asllookup.o: aslcompiler.y.h
@@ -41,6 +43,8 @@ aslmethod.o: aslcompiler.y.h
 aslmethod.po: aslcompiler.y.h
 aslnamesp.o: aslcompiler.y.h
 aslnamesp.po: aslcompiler.y.h
+asloffset.o: aslcompiler.y.h
+asloffset.po: aslcompiler.y.h
 aslopcodes.o: aslcompiler.y.h
 aslopcodes.po: aslcompiler.y.h
 asloperands.o: aslcompiler.y.h
@@ -49,6 +53,8 @@ aslopt.o: aslcompiler.y.h
 aslopt.po: aslcompiler.y.h
 aslpredef.o: aslcompiler.y.h
 aslpredef.po: aslcompiler.y.h
+aslprepkg.o: aslcompiler.y.h
+aslprepkg.po: aslcompiler.y.h
 aslresource.o: aslcompiler.y.h
 aslresource.po: aslcompiler.y.h
 aslrestype1.o: aslcompiler.y.h
