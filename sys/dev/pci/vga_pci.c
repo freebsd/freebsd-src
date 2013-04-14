@@ -419,6 +419,13 @@ vga_pci_msix_count(device_t dev, device_t child)
 	return (pci_msix_count(dev));
 }
 
+static bus_dma_tag_t
+vga_pci_get_dma_tag(device_t bus, device_t child)
+{
+
+	return (bus_get_dma_tag(bus));
+}
+
 static device_method_t vga_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		vga_pci_probe),
@@ -436,6 +443,7 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	vga_pci_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_get_dma_tag,	vga_pci_get_dma_tag),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	vga_pci_read_config),
