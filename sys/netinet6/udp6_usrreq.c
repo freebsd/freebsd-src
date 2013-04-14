@@ -273,6 +273,13 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			}
 
 			/*
+			 * Detached PCBs can linger in the list if someone
+			 * holds a reference. (e.g. udp_pcblist)
+			 */
+			if (inp->inp_socket == NULL)
+				continue;
+
+			/*
 			 * Handle socket delivery policy for any-source
 			 * and source-specific multicast. [RFC3678]
 			 */
@@ -396,6 +403,15 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	}
 	INP_RLOCK(inp);
 	INP_INFO_RUNLOCK(&V_udbinfo);
+
+	/*
+	 * Detached PCBs can linger in the hash table if someone holds a
+	 * reference. (e.g. udp_pcblist)
+	 */
+	if (inp->inp_socket == NULL) {
+		INP_RUNLOCK(inp);
+		goto badunlocked;
+	}
 	up = intoudpcb(inp);
 	if (up->u_tun_func == NULL) {
 		udp6_append(inp, m, off, &fromsa);
