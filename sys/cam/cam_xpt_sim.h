@@ -43,11 +43,7 @@ int32_t		xpt_bus_deregister(path_id_t path_id);
 u_int32_t	xpt_freeze_simq(struct cam_sim *sim, u_int count);
 void		xpt_release_simq(struct cam_sim *sim, int run_queue);
 u_int32_t	xpt_freeze_devq(struct cam_path *path, u_int count);
-u_int32_t	xpt_freeze_devq_rl(struct cam_path *path, cam_rl rl,
-		    u_int count);
 void		xpt_release_devq(struct cam_path *path,
-		    u_int count, int run_queue);
-void		xpt_release_devq_rl(struct cam_path *path, cam_rl rl,
 		    u_int count, int run_queue);
 void		xpt_done(union ccb *done_ccb);
 void		xpt_batch_start(struct cam_sim *sim);

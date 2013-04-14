@@ -1117,21 +1117,12 @@ cam_periph_runccb(union ccb *ccb,
 void
 cam_freeze_devq(struct cam_path *path)
 {
+	struct ccb_hdr ccb_h;
 
-	cam_freeze_devq_arg(path, 0, 0);
-}
-
-void
-cam_freeze_devq_arg(struct cam_path *path, uint32_t flags, uint32_t arg)
-{
-	struct ccb_relsim crs;
-
-	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NONE);
-	crs.ccb_h.func_code = XPT_FREEZE_QUEUE;
-	crs.release_flags = flags;
-	crs.openings = arg;
-	crs.release_timeout = arg;
-	xpt_action((union ccb *)&crs);
+	xpt_setup_ccb(&ccb_h, path, /*priority*/1);
+	ccb_h.func_code = XPT_NOOP;
+	ccb_h.flags = CAM_DEV_QFREEZE;
+	xpt_action((union ccb *)&ccb_h);
 }
 
 u_int32_t
