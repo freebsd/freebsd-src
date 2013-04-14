@@ -953,7 +953,8 @@ _lex=		usr.bin/lex
 .endif
 
 .if ${BOOTSTRAPPING} >= 1000013
-_yacc=		usr.bin/yacc
+_yacc=		lib/liby \
+		usr.bin/yacc
 .endif
 
 .if ${BOOTSTRAPPING} < 800013
