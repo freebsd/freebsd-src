@@ -1460,7 +1460,11 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 			case SSH2_MSG_DISCONNECT:
 				reason = packet_get_int();
 				msg = packet_get_string(NULL);
-				error("Received disconnect from %s: %u: %.400s",
+				/* Ignore normal client exit notifications */
+				do_log2(active_state->server_side &&
+				    reason == SSH2_DISCONNECT_BY_APPLICATION ?
+				    SYSLOG_LEVEL_DEBUG1 : SYSLOG_LEVEL_ERROR,
+				    "Received disconnect from %s: %u: %.400s",
 				    get_remote_ipaddr(), reason, msg);
 				xfree(msg);
 				cleanup_exit(255);
