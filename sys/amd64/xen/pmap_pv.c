@@ -136,6 +136,7 @@ static struct mtx pv_chunks_mutex;
 static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 
 vm_map_t	pv_map; /* Kernel submap for pc chunk alloc */
+extern vm_offset_t pv_minva, pv_maxva; /* VA range for submap */
 
 /***************************************************
  * page management routines.
@@ -169,21 +170,31 @@ pv_to_chunk(pv_entry_t pv)
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
-
 static void
 free_pv_chunk(struct pv_chunk *pc)
 {
 	vm_page_t m;
-
 	mtx_lock(&pv_chunks_mutex);
  	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 	mtx_unlock(&pv_chunks_mutex);
 	PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
+
 	/* entire chunk is free, return it */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	bzero(pc, PAGE_SIZE);
+	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_kremove((vm_offset_t)pc);
+
+	/* Free va range */
+	if (__predict_true(((vm_offset_t)pc <= pv_maxva &&
+			    (vm_offset_t)pc >= pv_minva))) {
+		kmem_free(pv_map, (vm_offset_t) pc, PAGE_SIZE);
+	}
+	else {
+		kmem_free(kernel_map, (vm_offset_t) pc, PAGE_SIZE);
+	}
+
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire(m, 0);
 	vm_page_free(m);
@@ -266,6 +277,11 @@ pmap_get_pv_entry(pmap_t pmap)
 	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
 	dump_add_page(VM_PAGE_TO_PHYS(m));
 
+	/* 
+	 * On xen, we can't just use the DMAP, because it's RO.
+	 * We thus explicitly allocate the space + mapping.
+	 */
+
 	if (!gdtset) {
 		/* pmap_init() has not been run yet - use the kernel_map */
 		pc = (void *) kmem_alloc_nofault(kernel_map, PAGE_SIZE);
@@ -276,10 +292,6 @@ pmap_get_pv_entry(pmap_t pmap)
 
 	KASSERT(pc != NULL, ("Failed to allocate VA for pv chunk\n"));
 
-	/* 
-	 * DMAP entries are kernel only, and don't need tracking, so
-	 * we just wire in the va.
-	 */
 	pmap_kenter_ma((vm_offset_t)pc, xpmap_ptom(VM_PAGE_TO_PHYS(m)));
 
 
@@ -301,23 +313,18 @@ pmap_get_pv_entry(pmap_t pmap)
 void
 pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
-	vm_paddr_t pa;
 	pv_entry_t pv;
 
 	KASSERT(m != NULL, ("Invalid page"));
-	pa = VM_PAGE_TO_PHYS(m); /* XXX: What's this for ? */
+	KASSERT(!(m->oflags & VPO_UNMANAGED),
+		("Tried to manage an unmanaged page!"));
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-//	if ((m->oflags & VPO_UNMANAGED) == 0) { /* XXX: exclude
-//	unmanaged */
-
-		PMAP_LOCK(pmap);
-		rw_rlock(&pvh_global_lock);
-		pv = pmap_get_pv_entry(pmap);
-		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
-		rw_runlock(&pvh_global_lock);
-		PMAP_UNLOCK(pmap);
-//	}
+	rw_rlock(&pvh_global_lock);
+	pv = pmap_get_pv_entry(pmap);
+	pv->pv_va = va;
+	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+	rw_runlock(&pvh_global_lock);
 }
 
 
@@ -327,7 +334,7 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	bool found = false;
 	pv_entry_t pv;
 
-	PMAP_LOCK(pmap);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	rw_rlock(&pvh_global_lock);
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
@@ -340,7 +347,6 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	}
 
 	rw_runlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
 	return found;
 }
 
@@ -350,7 +356,7 @@ pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pv_entry_t pv = NULL;
 
-	PMAP_LOCK(pmap);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	rw_rlock(&pvh_global_lock);
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
@@ -360,7 +366,7 @@ pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	}
 
 	rw_runlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
+
 	return pv;
 
 }

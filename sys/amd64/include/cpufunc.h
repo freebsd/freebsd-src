@@ -493,8 +493,11 @@ load_xcr(u_int reg, u_long val)
 static __inline void
 invltlb(void)
 {
-
+#ifdef XEN
+	xen_tlb_flush();
+#else
 	load_cr3(rcr3());
+#endif
 }
 
 /*

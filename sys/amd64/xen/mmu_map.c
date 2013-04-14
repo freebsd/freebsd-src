@@ -337,7 +337,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 		pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep));
 		pml4te = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pti->pdpt)) | PG_RW | PG_V | PG_U; /* XXX: revisit flags */
 		xen_queue_pt_update(pml4tep_ma, pml4te);
-
+		xen_flush_queue();
 	} else {
 		pti->pdpt = (pdp_entry_t *) pti->ptmb.ptov(pt);
 	}

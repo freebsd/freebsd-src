@@ -746,7 +746,43 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
-	KASSERT(0, ("TODO"));	
+	struct trapframe *regs = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
+
+	mtx_lock(&dt_lock);
+	if (td->td_proc->p_md.md_ldt != NULL)
+		user_ldt_free(td);
+	else
+		mtx_unlock(&dt_lock);
+	
+	pcb->pcb_fsbase = 0;
+	pcb->pcb_gsbase = 0;
+	clear_pcb_flags(pcb, PCB_32BIT | PCB_GS32BIT);
+	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
+
+	bzero((char *)regs, sizeof(struct trapframe));
+	regs->tf_rip = imgp->entry_addr;
+	regs->tf_rsp = ((stack - 8) & ~0xFul) + 8;
+	regs->tf_rdi = stack;		/* argv */
+	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_ss = _udatasel;
+	regs->tf_cs = _ucodesel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
+	td->td_retval[1] = 0;
+
+	/* XXX: we don't do PCB_DBREGS */
+
+	/*
+	 * Drop the FP state if we hold it, so that the process gets a
+	 * clean FP state if it uses the FPU again.
+	 */
+	fpstate_drop(td);
+
 }
 
 void

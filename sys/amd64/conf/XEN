@@ -55,7 +55,7 @@ options 	INVARIANTS		# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 nooptions 	WITNESS			# Enable checks to detect deadlocks and cycles
 nooptions 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-options 	VERBOSE_SYSINIT
+nooptions 	VERBOSE_SYSINIT
 
 nooptions	NATIVE
 option		XEN
