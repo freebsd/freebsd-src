@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
@@ -3168,9 +3169,9 @@ CTASSERT(sizeof(struct kinfo_file) == KINFO_FILE_SIZE);
 #endif
 
 static int
-export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
+export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
     int64_t offset, cap_rights_t fd_cap_rights, struct kinfo_file *kif,
-    struct sysctl_req *req)
+    struct sbuf *sb, ssize_t *remainder)
 {
 	struct {
 		int	fflag;
@@ -3197,6 +3198,8 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 	int error;
 	unsigned int i;
 
+	if (*remainder == 0)
+		return (0);
 	bzero(kif, sizeof(*kif));
 	switch (type) {
 	case KF_TYPE_FIFO:
@@ -3241,32 +3244,40 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 	kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 	    strlen(kif->kf_path) + 1;
 	kif->kf_structsize = roundup(kif->kf_structsize, sizeof(uint64_t));
-	error = SYSCTL_OUT(req, kif, kif->kf_structsize);
+	if (*remainder != -1) {
+		if (*remainder < kif->kf_structsize) {
+			/* Terminate export. */
+			*remainder = 0;
+			return (0);
+		}
+		*remainder -= kif->kf_structsize;
+	}
+	error = sbuf_bcat(sb, kif, kif->kf_structsize);
 	return (error);
 }
 
 /*
- * Get per-process file descriptors for use by procstat(1), et al.
+ * Store a process file descriptor information to sbuf.
+ *
+ * Takes a locked proc as argument, and returns with the proc unlocked.
  */
-static int
-sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
+int
+kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 {
 	struct file *fp;
 	struct filedesc *fdp;
 	struct kinfo_file *kif;
-	struct proc *p;
 	struct vnode *cttyvp, *textvp, *tracevp;
-	size_t oldidx;
 	int64_t offset;
 	void *data;
-	int error, i, *name;
+	ssize_t remainder;
+	int error, i;
 	int type, refcnt, fflags;
 	cap_rights_t fd_cap_rights;
 
-	name = (int *)arg1;
-	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
-	if (error != 0)
-		return (error);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	remainder = maxlen;
 	/* ktrace vnode */
 	tracevp = p->p_tracevp;
 	if (tracevp != NULL)
@@ -3286,14 +3297,15 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	PROC_UNLOCK(p);
 	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
 	if (tracevp != NULL)
-		export_fd_for_sysctl(tracevp, KF_TYPE_VNODE, KF_FD_TYPE_TRACE,
-		    FREAD | FWRITE, -1, -1, 0, kif, req);
+		export_fd_to_sb(tracevp, KF_TYPE_VNODE, KF_FD_TYPE_TRACE,
+		    FREAD | FWRITE, -1, -1, 0, kif, sb, &remainder);
 	if (textvp != NULL)
-		export_fd_for_sysctl(textvp, KF_TYPE_VNODE, KF_FD_TYPE_TEXT,
-		    FREAD, -1, -1, 0, kif, req);
+		export_fd_to_sb(textvp, KF_TYPE_VNODE, KF_FD_TYPE_TEXT,
+		    FREAD, -1, -1, 0, kif, sb, &remainder);
 	if (cttyvp != NULL)
-		export_fd_for_sysctl(cttyvp, KF_TYPE_VNODE, KF_FD_TYPE_CTTY,
-		    FREAD | FWRITE, -1, -1, 0, kif, req);
+		export_fd_to_sb(cttyvp, KF_TYPE_VNODE, KF_FD_TYPE_CTTY,
+		    FREAD | FWRITE, -1, -1, 0, kif, sb, &remainder);
+	error = 0;
 	if (fdp == NULL)
 		goto fail;
 	FILEDESC_SLOCK(fdp);
@@ -3302,8 +3314,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		vref(fdp->fd_cdir);
 		data = fdp->fd_cdir;
 		FILEDESC_SUNLOCK(fdp);
-		export_fd_for_sysctl(data, KF_TYPE_VNODE, KF_FD_TYPE_CWD,
-		    FREAD, -1, -1, 0, kif, req);
+		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_CWD,
+		    FREAD, -1, -1, 0, kif, sb, &remainder);
 		FILEDESC_SLOCK(fdp);
 	}
 	/* root directory */
@@ -3311,8 +3323,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		vref(fdp->fd_rdir);
 		data = fdp->fd_rdir;
 		FILEDESC_SUNLOCK(fdp);
-		export_fd_for_sysctl(data, KF_TYPE_VNODE, KF_FD_TYPE_ROOT,
-		    FREAD, -1, -1, 0, kif, req);
+		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_ROOT,
+		    FREAD, -1, -1, 0, kif, sb, &remainder);
 		FILEDESC_SLOCK(fdp);
 	}
 	/* jail directory */
@@ -3320,8 +3332,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		vref(fdp->fd_jdir);
 		data = fdp->fd_jdir;
 		FILEDESC_SUNLOCK(fdp);
-		export_fd_for_sysctl(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
-		    FREAD, -1, -1, 0, kif, req);
+		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
+		    FREAD, -1, -1, 0, kif, sb, &remainder);
 		FILEDESC_SLOCK(fdp);
 	}
 	for (i = 0; i < fdp->fd_nfiles; i++) {
@@ -3403,26 +3415,14 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		 * re-validate and re-evaluate its properties when
 		 * the loop continues.
 		 */
-		oldidx = req->oldidx;
 		if (type == KF_TYPE_VNODE || type == KF_TYPE_FIFO)
 			FILEDESC_SUNLOCK(fdp);
-		error = export_fd_for_sysctl(data, type, i, fflags, refcnt,
-		    offset, fd_cap_rights, kif, req);
+		error = export_fd_to_sb(data, type, i, fflags, refcnt,
+		    offset, fd_cap_rights, kif, sb, &remainder);
 		if (type == KF_TYPE_VNODE || type == KF_TYPE_FIFO)
 			FILEDESC_SLOCK(fdp);
-		if (error) {
-			if (error == ENOMEM) {
-				/*
-				 * The hack to keep the ABI of sysctl
-				 * kern.proc.filedesc intact, but not
-				 * to account a partially copied
-				 * kinfo_file into the oldidx.
-				 */
-				req->oldidx = oldidx;
-				error = 0;
-			}
+		if (error)
 			break;
-		}
 	}
 	FILEDESC_SUNLOCK(fdp);
 fail:
@@ -3430,6 +3430,34 @@ fail:
 		fddrop(fdp);
 	free(kif, M_TEMP);
 	return (error);
+}
+
+#define FILEDESC_SBUF_SIZE	(sizeof(struct kinfo_file) * 5)
+
+/*
+ * Get per-process file descriptors for use by procstat(1), et al.
+ */
+static int
+sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sb;
+	struct proc *p;
+	ssize_t maxlen;
+	int error, error2, *name;
+
+	name = (int *)arg1;
+
+	sbuf_new_for_sysctl(&sb, NULL, FILEDESC_SBUF_SIZE, req);
+	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	if (error != 0) {
+		sbuf_delete(&sb);
+		return (error);
+	}
+	maxlen = req->oldptr != NULL ? req->oldlen : -1;
+	error = kern_proc_filedesc_out(p, &sb, maxlen);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
 }
 
 int
