@@ -1582,6 +1582,34 @@ fdalloc(struct thread *td, int minfd, int *result)
 }
 
 /*
+ * Allocate n file descriptors for the process.
+ */
+int
+fdallocn(struct thread *td, int minfd, int *fds, int n)
+{
+	struct proc *p = td->td_proc;
+	struct filedesc *fdp = p->p_fd;
+	int i;
+
+	FILEDESC_XLOCK_ASSERT(fdp);
+
+	if (!fdavail(td, n))
+		return (EMFILE);
+
+	for (i = 0; i < n; i++)
+		if (fdalloc(td, 0, &fds[i]) != 0)
+			break;
+
+	if (i < n) {
+		for (i--; i >= 0; i--)
+			fdunused(fdp, fds[i]);
+		return (EMFILE);
+	}
+
+	return (0);
+}
+
+/*
  * Check to see whether n user file descriptors are available to the process
  * p.
  */
