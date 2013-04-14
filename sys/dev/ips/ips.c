@@ -578,7 +578,7 @@ static int ips_copperhead_queue_init(ips_softc_t *sc)
 {
 	int error;
 	bus_dma_tag_t dmatag;
-	bus_dmamap_t dmamap;
+	bus_dmamap_t dmamap = NULL;
        	if (bus_dma_tag_create(	/* parent    */	sc->adapter_dmatag,
 				/* alignemnt */	1,
 				/* boundary  */	0,
