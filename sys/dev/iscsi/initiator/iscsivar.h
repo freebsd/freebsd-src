@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2011 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -204,6 +204,8 @@ struct isc_softc {
      struct sx 		unit_sx;
 
      uma_zone_t		pdu_zone;	// pool of free pdu's
+     TAILQ_HEAD(,pduq)	freepdu;
+
 #ifdef  ISCSI_INITIATOR_DEBUG
      int		 npdu_alloc, npdu_max; // for instrumentation
 #endif
@@ -306,9 +308,11 @@ pdu_alloc(struct isc_softc *isc, int wait)
 	  return NULL;
      }
 #ifdef ISCSI_INITIATOR_DEBUG
+     mtx_lock(&iscsi_dbg_mtx);
      isc->npdu_alloc++;
      if(isc->npdu_alloc > isc->npdu_max)
 	  isc->npdu_max = isc->npdu_alloc;
+     mtx_unlock(&iscsi_dbg_mtx);
 #endif
      memset(pq, 0, sizeof(pduq_t));
 
@@ -324,10 +328,12 @@ pdu_free(struct isc_softc *isc, pduq_t *pq)
      if(pq->buf != NULL)
 	  free(pq->buf, M_ISCSIBUF);
 #endif
-#ifdef ISCSI_INITIATOR_DEBUG
-     isc->npdu_alloc--;
-#endif
      uma_zfree(isc->pdu_zone, pq);
+#ifdef ISCSI_INITIATOR_DEBUG
+     mtx_lock(&iscsi_dbg_mtx);
+     isc->npdu_alloc--;
+     mtx_unlock(&iscsi_dbg_mtx);
+#endif
 }
 
 static __inline void
