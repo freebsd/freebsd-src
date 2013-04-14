@@ -1759,6 +1759,27 @@ proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb)
 	return (get_ps_strings(curthread, p, sb, PROC_ENV));
 }
 
+int
+proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
+{
+	size_t vsize, size;
+	char **auxv;
+	int error;
+
+	error = get_proc_vector(td, p, &auxv, &vsize, PROC_AUX);
+	if (error == 0) {
+#ifdef COMPAT_FREEBSD32
+		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
+			size = vsize * sizeof(Elf32_Auxinfo);
+		else
+#endif
+			size = vsize * sizeof(Elf_Auxinfo);
+		error = sbuf_bcat(sb, auxv, size);
+		free(auxv, M_TEMP);
+	}
+	return (error);
+}
+
 /*
  * This sysctl allows a process to retrieve the argument list or process
  * title for another process without groping around in the address space
@@ -1864,9 +1885,8 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	size_t vsize, size;
-	char **auxv;
-	int error;
+	struct sbuf sb;
+	int error, error2;
 
 	if (namelen != 1)
 		return (EINVAL);
@@ -1878,21 +1898,12 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 		PRELE(p);
 		return (0);
 	}
-	error = get_proc_vector(curthread, p, &auxv, &vsize, PROC_AUX);
-	if (error == 0) {
-#ifdef COMPAT_FREEBSD32
-		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
-			size = vsize * sizeof(Elf32_Auxinfo);
-		else
-#endif
-		size = vsize * sizeof(Elf_Auxinfo);
-		PRELE(p);
-		error = SYSCTL_OUT(req, auxv, size);
-		free(auxv, M_TEMP);
-	} else {
-		PRELE(p);
-	}
-	return (error);
+	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	error = proc_getauxv(curthread, p, &sb);
+	error2 = sbuf_finish(&sb);
+	PRELE(p);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
 }
 
 /*
