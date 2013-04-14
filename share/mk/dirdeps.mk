@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.24 2013/02/10 19:21:46 sjg Exp $
+# $Id: dirdeps.mk,v 1.28 2013/03/25 21:11:43 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -86,19 +86,29 @@
 #
 #	For example:
 #
-#		# variables other than MACHINE might be optional
+#		# Always list MACHINE first, 
+#		# other variables might be optional.
 #		TARGET_SPEC_VARS = MACHINE TARGET_OS
 #		.if ${TARGET_SPEC:Uno:M*,*} != ""
 #		_tspec := ${TARGET_SPEC:S/,/ /g}
 #		MACHINE := ${_tspec:[1]}
 #		TARGET_OS := ${_tspec:[2]}
 #		# etc.
+#		# We need to stop that TARGET_SPEC affecting any submakes
+#		# and deal with MACHINE=${TARGET_SPEC} in the environment.
+#		TARGET_SPEC =
+#		# export but do not track
+#		.export-env TARGET_SPEC 
+#		.export ${TARGET_SPEC_VARS}
 #		.for v in ${TARGET_SPEC_VARS:O:u}
 #		.if empty($v)
 #		.undef $v
 #		.endif
 #		.endfor
 #		.endif
+#		# make sure we know what TARGET_SPEC is
+#		# as we may need it to find Makefile.depend*
+#		TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
 #	
 
 .if ${.MAKE.LEVEL} == 0

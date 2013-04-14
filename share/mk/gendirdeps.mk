@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.12 2013/02/10 19:59:10 sjg Exp $
+# $Id: gendirdeps.mk,v 1.21 2013/03/28 20:01:05 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -119,7 +119,7 @@ META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} \
 META2DEPS_CMD += -D ${DPDEPS}
 .endif
 
-M2D_OBJROOTS += ${OBJTOP}/ ${_OBJROOT} ${_objroot}
+M2D_OBJROOTS += ${OBJTOP} ${_OBJROOT} ${_objroot}
 .if defined(SB_OBJROOT)
 M2D_OBJROOTS += ${SB_OBJROOT}
 .endif
@@ -174,7 +174,12 @@ dir_list += ${f:H:tA}
 .endfor
 .if !empty(ddep_list)
 ddeps != cat ${ddep_list:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
-        sed 's,//*$$,,;s,\.${HOST_TARGET}$$,.host,'
+        sed 's,//*$$,,;s,\.${HOST_TARGET}$$,.host,;s,\.${MACHINE}$$,,'
+
+.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.info ${RELDIR}: raw_dir_list='${dir_list}'
+.info ${RELDIR}: ddeps='${ddeps}'
+.endif
 dir_list += ${ddeps}
 .endif
 .endif
@@ -188,8 +193,10 @@ dir_list += ${ddeps}
 # so we add 
 # ${"${dir_list:M*bsd/sys/${MACHINE_ARCH}/include}":?bsd/include:}
 # to GENDIRDEPS_DIR_LIST_XTRAS
+_objtops = ${OBJTOP} ${_OBJTOP} ${_obtop}
+_objtops := ${_objtops:O:u}
 dirdep_list = \
-	${dir_list:M${_objtop}*/*:C,${_objtop}[^/]*/,,} \
+	${_objtops:@o@${dir_list:M$o*/*:C,$o[^/]*/,,}@} \
 	${GENDIRDEPS_DIR_LIST_XTRAS}
 
 # sort longest first
@@ -198,10 +205,11 @@ M2D_OBJROOTS := ${M2D_OBJROOTS:O:u:[-1..1]}
 # anything we use from an object dir other than ours
 # needs to be qualified with its .<machine> suffix
 # (we used the pseudo machine "host" for the HOST_TARGET).
-skip_ql= ${SRCTOP}* ${_objtop}*
+skip_ql= ${SRCTOP}* ${_objtops:@o@$o*@}
 .for o in ${M2D_OBJROOTS:${skip_ql:${M_ListToSkip}}}
-qualdir_list += \
-	${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
+# we need := so only skip_ql to this point applies
+ql :=	${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
+qualdir_list += ${ql}
 skip_ql+= $o*
 .endfor
 

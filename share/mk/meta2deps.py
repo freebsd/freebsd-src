@@ -35,7 +35,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.10 2013/03/17 03:10:09 sjg Exp $
+	$Id: meta2deps.py,v 1.12 2013/03/31 22:31:59 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -196,9 +196,17 @@ class MetaFile:
                 if not _srctop in self.srctops:
                     self.srctops.append(_srctop)
 
-            trim_list = ['/' + self.machine, '/' + self.machine + '/']
+            trim_list = ['/' + self.machine + '/',
+                         '/' + self.machine, 
+                         self.machine + '/',
+                         self.machine]
+
             if self.machine == 'host':
-                trim_list += ['/' + self.host_target, '/' + self.host_target + '/']
+                trim_list += ['/' + self.host_target + '/',
+                              '/' + self.host_target,
+                              self.host_target + '/',
+                              self.host_target]
+
             for objroot in getv(conf, 'OBJROOTS', []):
                 for e in trim_list:
                     if objroot.endswith(e):
@@ -236,6 +244,8 @@ class MetaFile:
                         print >> self.debug_out, self.reldir
             if not self.reldir:
                 self.dpdeps = None      # we cannot do it?
+
+        self.cwd = os.getcwd()          # make sure this is initialized
 
         if name:
             self.parse()
