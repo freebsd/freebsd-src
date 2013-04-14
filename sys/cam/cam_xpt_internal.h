@@ -83,7 +83,6 @@ struct cam_ed {
 	struct	async_list asyncs;	/* Async callback info for this B/T/L */
 	struct	periph_list periphs;	/* All attached devices */
 	u_int	generation;		/* Generation number */
-	struct	cam_periph *owner;	/* Peripheral driver's ownership tag */
 	void		 *quirk;	/* Oddities about this device */
 	u_int		 maxtags;
 	u_int		 mintags;
