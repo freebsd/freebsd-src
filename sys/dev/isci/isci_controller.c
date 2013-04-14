@@ -580,7 +580,7 @@ void isci_controller_domain_discovery_complete(
 			 */
 			union ccb *ccb = xpt_alloc_ccb_nowait();
 
-			xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			xpt_create_path(&ccb->ccb_h.path, NULL,
 			    cam_sim_path(isci_controller->sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 
