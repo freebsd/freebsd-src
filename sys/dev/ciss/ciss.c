@@ -1868,7 +1868,7 @@ ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld)
 
     ldrive = CISS_LUN_TO_TARGET(ld->cl_address.logical.lun);
 
-    debug(0, "bringing logical drive %d back online");
+    debug(0, "bringing logical drive %d back online", ldrive);
 
     /*
      * Build a CISS BMIC command to bring the drive back online.
@@ -4307,6 +4307,9 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
 }
 
 #ifdef CISS_DEBUG
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
 /************************************************************************
  * Print information about the controller/driver.
  */
@@ -4341,8 +4344,7 @@ ciss_print_adapter(struct ciss_softc *sc)
 }
 
 /* DDB hook */
-static void
-ciss_print0(void)
+DB_COMMAND(ciss_prt, db_ciss_prt)
 {
     struct ciss_softc	*sc;
 
@@ -4353,6 +4355,7 @@ ciss_print0(void)
 	ciss_print_adapter(sc);
     }
 }
+#endif
 #endif
 
 /************************************************************************
