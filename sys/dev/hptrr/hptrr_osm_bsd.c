@@ -1355,7 +1355,7 @@ static int	hpt_rescan_bus(void)
 	ldm_for_each_vbus(vbus, vbus_ext) {
 		if ((ccb = xpt_alloc_ccb()) == NULL)
 			return(ENOMEM);
-		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+		if (xpt_create_path(&ccb->ccb_h.path, NULL,
 		    cam_sim_path(vbus_ext->sim),
 		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 			xpt_free_ccb(ccb);

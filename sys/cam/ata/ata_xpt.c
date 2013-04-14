@@ -1439,7 +1439,7 @@ done:
 		scan_info->counter = (scan_info->counter + 1 ) %
 		    (scan_info->cpi->max_target + 1);
 scan_next:
-		status = xpt_create_path(&path, xpt_periph,
+		status = xpt_create_path(&path, NULL,
 		    scan_info->request_ccb->ccb_h.path_id,
 		    scan_info->counter, 0);
 		if (status != CAM_REQ_CMP) {
@@ -1497,7 +1497,7 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			    "can't continue\n");
 			return;
 		}
-		status = xpt_create_path(&new_path, xpt_periph,
+		status = xpt_create_path(&new_path, NULL,
 					  path->bus->path_id,
 					  path->target->target_id,
 					  path->device->lun_id);
