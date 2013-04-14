@@ -4428,7 +4428,6 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	SLIST_INIT(&device->asyncs);
 	SLIST_INIT(&device->periphs);
 	device->generation = 0;
-	device->owner = NULL;
 	device->flags = CAM_DEV_UNCONFIGURED;
 	device->tag_delay_count = 0;
 	device->tag_saved_openings = 0;
