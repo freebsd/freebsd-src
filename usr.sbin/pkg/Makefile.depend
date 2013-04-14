@@ -13,6 +13,8 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libelf \
 	lib/libfetch \
+	lib/libsbuf \
+	lib/libyaml \
 
 
 .include <dirdeps.mk>

@@ -7,6 +7,7 @@ DIRDEPS = \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
 	cddl/lib/libzfs \
+	cddl/lib/libzfs_core \
 	cddl/lib/libzpool \
 	gnu/lib/libgcc \
 	include \
