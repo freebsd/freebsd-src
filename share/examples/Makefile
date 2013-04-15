@@ -54,9 +54,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	cvsup/README \
 	cvsup/cvs-supfile \
 	cvsup/gnats-supfile \
-	cvsup/ports-supfile \
-	cvsup/refuse \
-	cvsup/refuse.README \
 	cvsup/stable-supfile \
 	cvsup/standard-supfile \
 	diskless/ME \
