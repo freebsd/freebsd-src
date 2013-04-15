@@ -977,34 +977,22 @@ vtryrecycle(struct vnode *vp)
 }
 
 /*
- * Return the next vnode from the free list.
+ * Wait for available vnodes.
  */
-int
-getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
-    struct vnode **vpp)
+static int
+getnewvnode_wait(int suspended)
 {
-	struct vnode *vp = NULL;
-	struct bufobj *bo;
 
-	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
-	mtx_lock(&vnode_free_list_mtx);
-	/*
-	 * Lend our context to reclaim vnodes if they've exceeded the max.
-	 */
-	if (freevnodes > wantfreevnodes)
-		vnlru_free(1);
-	/*
-	 * Wait for available vnodes.
-	 */
+	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
 	if (numvnodes > desiredvnodes) {
-		if (mp != NULL && (mp->mnt_kern_flag & MNTK_SUSPEND)) {
+		if (suspended) {
 			/*
 			 * File system is beeing suspended, we cannot risk a
 			 * deadlock here, so allocate new vnode anyway.
 			 */
 			if (freevnodes > wantfreevnodes)
 				vnlru_free(freevnodes - wantfreevnodes);
-			goto alloc;
+			return (0);
 		}
 		if (vnlruproc_sig == 0) {
 			vnlruproc_sig = 1;	/* avoid unnecessary wakeups */
@@ -1012,16 +1000,76 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 		}
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
 		    "vlruwk", hz);
-#if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
-		if (numvnodes > desiredvnodes) {
-			mtx_unlock(&vnode_free_list_mtx);
-			return (ENFILE);
-		}
-#endif
 	}
-alloc:
+	return (numvnodes > desiredvnodes ? ENFILE : 0);
+}
+
+void
+getnewvnode_reserve(u_int count)
+{
+	struct thread *td;
+
+	td = curthread;
+	mtx_lock(&vnode_free_list_mtx);
+	while (count > 0) {
+		if (getnewvnode_wait(0) == 0) {
+			count--;
+			td->td_vp_reserv++;
+			numvnodes++;
+		}
+	}
+	mtx_unlock(&vnode_free_list_mtx);
+}
+
+void
+getnewvnode_drop_reserve(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	mtx_lock(&vnode_free_list_mtx);
+	KASSERT(numvnodes >= td->td_vp_reserv, ("reserve too large"));
+	numvnodes -= td->td_vp_reserv;
+	mtx_unlock(&vnode_free_list_mtx);
+	td->td_vp_reserv = 0;
+}
+
+/*
+ * Return the next vnode from the free list.
+ */
+int
+getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
+    struct vnode **vpp)
+{
+	struct vnode *vp;
+	struct bufobj *bo;
+	struct thread *td;
+	int error;
+
+	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
+	vp = NULL;
+	td = curthread;
+	if (td->td_vp_reserv > 0) {
+		td->td_vp_reserv -= 1;
+		goto alloc;
+	}
+	mtx_lock(&vnode_free_list_mtx);
+	/*
+	 * Lend our context to reclaim vnodes if they've exceeded the max.
+	 */
+	if (freevnodes > wantfreevnodes)
+		vnlru_free(1);
+	error = getnewvnode_wait(mp != NULL && (mp->mnt_kern_flag &
+	    MNTK_SUSPEND));
+#if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
+	if (error != 0) {
+		mtx_unlock(&vnode_free_list_mtx);
+		return (error);
+	}
+#endif
 	numvnodes++;
 	mtx_unlock(&vnode_free_list_mtx);
+alloc:
 	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
 	/*
 	 * Setup locks.
