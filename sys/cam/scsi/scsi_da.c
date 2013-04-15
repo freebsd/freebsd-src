@@ -99,7 +99,6 @@ typedef enum {
 	DA_CCB_PROBE		= 0x01,
 	DA_CCB_PROBE2		= 0x02,
 	DA_CCB_BUFFER_IO	= 0x03,
-	DA_CCB_WAITING		= 0x04,
 	DA_CCB_DUMP		= 0x05,
 	DA_CCB_DELETE		= 0x06,
 	DA_CCB_TUR		= 0x07,
@@ -1079,24 +1078,16 @@ static void
 daschedule(struct cam_periph *periph)
 {
 	struct da_softc *softc = (struct da_softc *)periph->softc;
-	uint32_t prio;
 
 	if (softc->state != DA_STATE_NORMAL)
 		return;
-
-	/* Check if cam_periph_getccb() was called. */
-	prio = periph->immediate_priority;
 
 	/* Check if we have more work to do. */
 	if (bioq_first(&softc->bio_queue) ||
 	    (!softc->delete_running && bioq_first(&softc->delete_queue)) ||
 	    softc->tur) {
-		prio = CAM_PRIORITY_NORMAL;
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
-
-	/* Schedule CCB if any of above is true. */
-	if (prio != CAM_PRIORITY_NONE)
-		xpt_schedule(periph, prio);
 }
 
 /*
@@ -1829,20 +1820,6 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct bio *bp, *bp1;
 		uint8_t tag_code;
 
-		/* Execute immediate CCB if waiting. */
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-					("queuing for immediate ccb\n"));
-			start_ccb->ccb_h.ccb_state = DA_CCB_WAITING;
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-			/* May have more work to do, so ensure we stay scheduled */
-			daschedule(periph);
-			break;
-		}
-
 		/* Run BIO_DELETE if not running yet. */
 		if (!softc->delete_running &&
 		    (bp = bioq_first(&softc->delete_queue)) != NULL) {
@@ -2530,12 +2507,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			cam_periph_unhold(periph);
 		} else
 			cam_periph_release_locked(periph);
-		return;
-	}
-	case DA_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
 	case DA_CCB_DUMP:

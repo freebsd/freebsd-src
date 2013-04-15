@@ -202,7 +202,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	periph->periph_oninval = periph_oninvalidate;
 	periph->type = type;
 	periph->periph_name = name;
-	periph->immediate_priority = CAM_PRIORITY_NONE;
 	periph->refcount = 0;
 	periph->sim = sim;
 	mtx_init(&periph->periph_mtx, "CAM periph lock", NULL, MTX_DEF);
@@ -948,31 +947,6 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	PRELE(curproc);
 }
 
-union ccb *
-cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
-{
-	struct ccb_hdr *ccb_h;
-
-	mtx_assert(periph->sim->mtx, MA_OWNED);
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdgetccb\n"));
-
-	while (SLIST_FIRST(&periph->ccb_list) == NULL) {
-		if (periph->immediate_priority > priority)
-			periph->immediate_priority = priority;
-		xpt_schedule(periph, priority);
-		if ((SLIST_FIRST(&periph->ccb_list) != NULL)
-		 && (SLIST_FIRST(&periph->ccb_list)->pinfo.priority == priority))
-			break;
-		mtx_assert(periph->sim->mtx, MA_OWNED);
-		mtx_sleep(&periph->ccb_list, periph->sim->mtx, PRIBIO, "cgticb",
-		    0);
-	}
-
-	ccb_h = SLIST_FIRST(&periph->ccb_list);
-	SLIST_REMOVE_HEAD(&periph->ccb_list, periph_links.sle);
-	return ((union ccb *)ccb_h);
-}
-
 void
 cam_periph_ccbwait(union ccb *ccb)
 {
@@ -1046,6 +1020,14 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 	return(error);
 }
 
+static void
+cam_periph_done(struct cam_periph *periph, union ccb *done_ccb)
+{
+
+	/* Caller will release the CCB */
+	wakeup(&done_ccb->ccb_h.cbfcnp);
+}
+
 int
 cam_periph_runccb(union ccb *ccb,
 		  int (*error_routine)(union ccb *ccb,
@@ -1069,6 +1051,7 @@ cam_periph_runccb(union ccb *ccb,
 	    ccb->ccb_h.func_code == XPT_ATA_IO))
 		devstat_start_transaction(ds, NULL);
 
+	ccb->ccb_h.cbfcnp = cam_periph_done;
 	xpt_action(ccb);
  
 	do {

@@ -342,13 +342,6 @@ xpt_periph_init()
 	make_dev(&xpt_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0600, "xpt0");
 }
 
-static void
-xptdone(struct cam_periph *periph, union ccb *done_ccb)
-{
-	/* Caller will release the CCB */
-	wakeup(&done_ccb->ccb_h.cbfcnp);
-}
-
 static int
 xptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
@@ -468,7 +461,6 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path,
 				      inccb->ccb_h.pinfo.priority);
 			xpt_merge_ccb(ccb, inccb);
-			ccb->ccb_h.cbfcnp = xptdone;
 			cam_periph_runccb(ccb, NULL, 0, 0, NULL);
 			bcopy(ccb, inccb, sizeof(union ccb));
 			xpt_free_path(ccb->ccb_h.path);
@@ -503,7 +495,6 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			xpt_setup_ccb(&ccb.ccb_h, ccb.ccb_h.path,
 				      inccb->ccb_h.pinfo.priority);
 			xpt_merge_ccb(&ccb, inccb);
-			ccb.ccb_h.cbfcnp = xptdone;
 			xpt_action(&ccb);
 			bcopy(&ccb, inccb, sizeof(union ccb));
 			xpt_free_path(ccb.ccb_h.path);
@@ -4330,6 +4321,23 @@ xpt_get_ccb(struct cam_ed *device)
 		return (NULL);
 	cam_ccbq_take_opening(&device->ccbq);
 	return (new_ccb);
+}
+
+union ccb *
+cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
+{
+	union ccb	*ccb;
+	struct cam_devq	*devq;
+
+	cam_periph_unlock(periph);
+	ccb = malloc(sizeof(*ccb), M_CAMCCB, M_WAITOK);
+	cam_periph_lock(periph);
+	devq = periph->sim->devq;
+	mtx_lock(&devq->send_mtx);
+	cam_ccbq_take_opening(&periph->path->device->ccbq);
+	xpt_setup_ccb(&ccb->ccb_h, periph->path, priority);
+	mtx_unlock(&devq->send_mtx);
+	return (ccb);
 }
 
 static void

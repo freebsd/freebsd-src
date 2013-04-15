@@ -73,8 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_error.h>
 
 typedef enum {
-	CTLFE_CCB_DEFAULT	= 0x00,
-	CTLFE_CCB_WAITING 	= 0x01
+	CTLFE_CCB_DEFAULT	= 0x00
 } ctlfe_ccb_types;
 
 struct ctlfe_softc {
@@ -705,14 +704,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	start_ccb->ccb_h.ccb_type = CTLFE_CCB_DEFAULT;
 
 	ccb_h = TAILQ_FIRST(&softc->work_queue);
-	if (periph->immediate_priority <= periph->pinfo.priority) {
-		panic("shouldn't get to the CCB waiting case!");
-		start_ccb->ccb_h.ccb_type = CTLFE_CCB_WAITING;
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-	} else if (ccb_h == NULL) {
+	if (ccb_h == NULL) {
 		softc->ccbs_freed++;
 		xpt_release_ccb(start_ccb);
 	} else {
@@ -1156,12 +1148,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 	bus_softc = softc->parent_softc;
-
-	if (done_ccb->ccb_h.ccb_type == CTLFE_CCB_WAITING) {
-		panic("shouldn't get to the CCB waiting case!");
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
 
 	/*
 	 * If the peripheral is invalid, ATIOs and immediate notify CCBs

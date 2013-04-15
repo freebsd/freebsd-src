@@ -1185,7 +1185,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	if (mode_buf == NULL)
 		goto out;
 
-	scsi_mode_sense(&ccb->csio, /*retries*/4, enc_done, MSG_SIMPLE_Q_TAG,
+	scsi_mode_sense(&ccb->csio, /*retries*/4, NULL, MSG_SIMPLE_Q_TAG,
 	    /*dbd*/FALSE, SMS_PAGE_CTRL_CURRENT, SES_MGMT_MODE_PAGE_CODE,
 	    mode_buf, mode_buf_len, SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
@@ -1213,7 +1213,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	/* SES2r20: a completion time of zero means as long as possible */
 	bzero(&mgmt->max_comp_time, sizeof(mgmt->max_comp_time));
 
-	scsi_mode_select(&ccb->csio, 5, enc_done, MSG_SIMPLE_Q_TAG,
+	scsi_mode_select(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG,
 	    /*page_fmt*/FALSE, /*save_pages*/TRUE, mode_buf, mode_buf_len,
 	    SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
@@ -2017,12 +2017,12 @@ ses_fill_rcv_diag_io(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	if (enc->enc_type == ENC_SEMB_SES) {
 		semb_receive_diagnostic_results(&ccb->ataio, /*retries*/5,
-					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
+					NULL, MSG_SIMPLE_Q_TAG, /*pcv*/1,
 					state->page_code, buf, state->buf_size,
 					state->timeout);
 	} else {
 		scsi_receive_diagnostic_results(&ccb->csio, /*retries*/5,
-					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
+					NULL, MSG_SIMPLE_Q_TAG, /*pcv*/1,
 					state->page_code, buf, state->buf_size,
 					SSD_FULL_SIZE, state->timeout);
 	}
@@ -2140,12 +2140,12 @@ ses_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	/* Fill out the ccb */
 	if (enc->enc_type == ENC_SEMB_SES) {
-		semb_send_diagnostic(&ccb->ataio, /*retries*/5, enc_done,
+		semb_send_diagnostic(&ccb->ataio, /*retries*/5, NULL,
 			     MSG_SIMPLE_Q_TAG,
 			     buf, ses_page_length(&ses_cache->status_page->hdr),
 			     state->timeout);
 	} else {
-		scsi_send_diagnostic(&ccb->csio, /*retries*/5, enc_done,
+		scsi_send_diagnostic(&ccb->csio, /*retries*/5, NULL,
 			     MSG_SIMPLE_Q_TAG, /*unit_offline*/0,
 			     /*device_offline*/0, /*self_test*/0,
 			     /*page_format*/1, /*self_test_code*/0,

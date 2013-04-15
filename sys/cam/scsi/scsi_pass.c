@@ -64,8 +64,7 @@ typedef enum {
 } pass_state;
 
 typedef enum {
-	PASS_CCB_BUFFER_IO,
-	PASS_CCB_WAITING
+	PASS_CCB_BUFFER_IO
 } pass_ccb_types;
 
 #define ccb_type	ppriv_field0
@@ -92,12 +91,9 @@ static	periph_init_t	passinit;
 static	periph_ctor_t	passregister;
 static	periph_oninv_t	passoninvalidate;
 static	periph_dtor_t	passcleanup;
-static	periph_start_t	passstart;
 static void		pass_add_physpath(void *context, int pending);
 static	void		passasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
-static	void		passdone(struct cam_periph *periph, 
-				 union ccb *done_ccb);
 static	int		passerror(union ccb *ccb, u_int32_t cam_flags, 
 				  u_int32_t sense_flags);
 static 	int		passsendccb(struct cam_periph *periph, union ccb *ccb,
@@ -300,7 +296,7 @@ passasync(void *callback_arg, u_int32_t code,
 		 * process.
 		 */
 		status = cam_periph_alloc(passregister, passoninvalidate,
-					  passcleanup, passstart, "pass",
+					  passcleanup, NULL, "pass",
 					  CAM_PERIPH_BIO, cgd->ccb_h.path,
 					  passasync, AC_FOUND_DEVICE, cgd);
 
@@ -537,41 +533,6 @@ passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	return (0);
 }
 
-static void
-passstart(struct cam_periph *periph, union ccb *start_ccb)
-{
-	struct pass_softc *softc;
-
-	softc = (struct pass_softc *)periph->softc;
-
-	switch (softc->state) {
-	case PASS_STATE_NORMAL:
-		start_ccb->ccb_h.ccb_type = PASS_CCB_WAITING;			
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-		break;
-	}
-}
-
-static void
-passdone(struct cam_periph *periph, union ccb *done_ccb)
-{ 
-	struct pass_softc *softc;
-	struct ccb_scsiio *csio;
-
-	softc = (struct pass_softc *)periph->softc;
-	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_type) {
-	case PASS_CCB_WAITING:
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
-	xpt_release_ccb(done_ccb);
-}
-
 static int
 passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
@@ -679,12 +640,6 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * preserved, the rest we get from the user.
 	 */
 	xpt_merge_ccb(ccb, inccb);
-
-	/*
-	 * There's no way for the user to have a completion
-	 * function, so we put our own completion function in here.
-	 */
-	ccb->ccb_h.cbfcnp = passdone;
 
 	/*
 	 * We only attempt to map the user memory into kernel space

@@ -98,7 +98,6 @@ typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
 	ADA_CCB_WCACHE		= 0x02,
 	ADA_CCB_BUFFER_IO	= 0x03,
-	ADA_CCB_WAITING		= 0x04,
 	ADA_CCB_DUMP		= 0x05,
 	ADA_CCB_TRIM		= 0x06,
 	ADA_CCB_TYPE_MASK	= 0x0F,
@@ -611,23 +610,15 @@ static void
 adaschedule(struct cam_periph *periph)
 {
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
-	uint32_t prio;
 
 	if (softc->state != ADA_STATE_NORMAL)
 		return;
 
-	/* Check if cam_periph_getccb() was called. */
-	prio = periph->immediate_priority;
-
 	/* Check if we have more work to do. */
 	if (bioq_first(&softc->bio_queue) ||
 	    (!softc->trim_running && bioq_first(&softc->trim_queue))) {
-		prio = CAM_PRIORITY_NORMAL;
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
-
-	/* Schedule CCB if any of above is true. */
-	if (prio != CAM_PRIORITY_NONE)
-		xpt_schedule(periph, prio);
 }
 
 /*
@@ -1321,19 +1312,6 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct bio *bp;
 		u_int8_t tag_code;
 
-		/* Execute immediate CCB if waiting. */
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-					("queuing for immediate ccb\n"));
-			start_ccb->ccb_h.ccb_state = ADA_CCB_WAITING;
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-			/* Have more work to do, so ensure we stay scheduled */
-			adaschedule(periph);
-			break;
-		}
 		/* Run TRIM if not running yet. */
 		if (!softc->trim_running &&
 		    (bp = bioq_first(&softc->trim_queue)) != 0) {
@@ -1773,12 +1751,6 @@ out:
 		cam_release_devq(path, 0, 0, 0, FALSE);
 		adaschedule(periph);
 		cam_periph_release_locked(periph);
-		return;
-	}
-	case ADA_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
 	case ADA_CCB_DUMP:

@@ -67,7 +67,6 @@ static	periph_init_t	enc_init;
 static  periph_ctor_t	enc_ctor;
 static	periph_oninv_t	enc_oninvalidate;
 static  periph_dtor_t   enc_dtor;
-static  periph_start_t  enc_start;
 
 static void enc_async(void *, uint32_t, struct cam_path *, void *);
 static enctyp enc_type(struct ccb_getdev *);
@@ -246,7 +245,7 @@ enc_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		}
 
 		status = cam_periph_alloc(enc_ctor, enc_oninvalidate,
-		    enc_dtor, enc_start, "ses", CAM_PERIPH_BIO,
+		    enc_dtor, NULL, "ses", CAM_PERIPH_BIO,
 		    cgd->ccb_h.path, enc_async, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP && status != CAM_REQ_INPROG) {
@@ -334,29 +333,6 @@ enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 	mtx_unlock(sim->mtx);
 
 	return (0);
-}
-
-static void
-enc_start(struct cam_periph *p, union ccb *sccb)
-{
-	struct enc_softc *enc;
-
-	enc = p->softc;
-	ENC_DLOG(enc, "%s enter imm=%d prio=%d\n",
-	    __func__, p->immediate_priority, p->pinfo.priority);
-	if (p->immediate_priority <= p->pinfo.priority) {
-		SLIST_INSERT_HEAD(&p->ccb_list, &sccb->ccb_h, periph_links.sle);
-		p->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&p->ccb_list);
-	} else
-		xpt_release_ccb(sccb);
-	ENC_DLOG(enc, "%s exit\n", __func__);
-}
-
-void
-enc_done(struct cam_periph *periph, union ccb *dccb)
-{
-	wakeup(&dccb->ccb_h.cbfcnp);
 }
 
 int
@@ -617,7 +593,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 	if (enc->enc_type == ENC_SEMB_SES || enc->enc_type == ENC_SEMB_SAFT) {
 		tdlen = min(dlen, 1020);
 		tdlen = (tdlen + 3) & ~3;
-		cam_fill_ataio(&ccb->ataio, 0, enc_done, ddf, 0, dptr, tdlen,
+		cam_fill_ataio(&ccb->ataio, 0, NULL, ddf, 0, dptr, tdlen,
 		    30 * 1000);
 		if (cdb[0] == RECEIVE_DIAGNOSTIC)
 			ata_28bit_cmd(&ccb->ataio,
@@ -635,7 +611,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 			    0x80, tdlen / 4);
 	} else {
 		tdlen = dlen;
-		cam_fill_csio(&ccb->csio, 0, enc_done, ddf, MSG_SIMPLE_Q_TAG,
+		cam_fill_csio(&ccb->csio, 0, NULL, ddf, MSG_SIMPLE_Q_TAG,
 		    dptr, dlen, sizeof (struct scsi_sense_data), cdbl,
 		    60 * 1000);
 		bcopy(cdb, ccb->csio.cdb_io.cdb_bytes, cdbl);

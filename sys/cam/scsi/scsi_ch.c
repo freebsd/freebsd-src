@@ -116,8 +116,7 @@ typedef enum {
 } ch_state;
 
 typedef enum {
-	CH_CCB_PROBE,
-	CH_CCB_WAITING
+	CH_CCB_PROBE
 } ch_ccb_types;
 
 typedef enum {
@@ -535,14 +534,7 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 	switch (softc->state) {
 	case CH_STATE_NORMAL:
 	{
-		if (periph->immediate_priority <= periph->pinfo.priority){
-			start_ccb->ccb_h.ccb_state = CH_CCB_WAITING;
-
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-		}
+		xpt_release_ccb(start_ccb);
 		break;
 	}
 	case CH_STATE_PROBE:
@@ -717,12 +709,6 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		xpt_release_ccb(done_ccb);
 		cam_periph_unhold(periph);
-		return;
-	}
-	case CH_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
 	default:

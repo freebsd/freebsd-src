@@ -76,8 +76,7 @@ typedef enum {
 } sg_rdwr_state;
 
 typedef enum {
-	SG_CCB_RDWR_IO,
-	SG_CCB_WAITING
+	SG_CCB_RDWR_IO
 } sg_ccb_types;
 
 #define ccb_type	ppriv_field0
@@ -119,7 +118,6 @@ static periph_init_t	sginit;
 static periph_ctor_t	sgregister;
 static periph_oninv_t	sgoninvalidate;
 static periph_dtor_t	sgcleanup;
-static periph_start_t	sgstart;
 static void		sgasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static void		sgdone(struct cam_periph *periph, union ccb *done_ccb);
@@ -282,7 +280,7 @@ sgasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * start the probe process.
 		 */
 		status = cam_periph_alloc(sgregister, sgoninvalidate,
-					  sgcleanup, sgstart, "sg",
+					  sgcleanup, NULL, "sg",
 					  CAM_PERIPH_BIO, cgd->ccb_h.path,
 					  sgasync, AC_FOUND_DEVICE, cgd);
 		if ((status != CAM_REQ_CMP) && (status != CAM_REQ_INPROG)) {
@@ -388,24 +386,6 @@ sgregister(struct cam_periph *periph, void *arg)
 }
 
 static void
-sgstart(struct cam_periph *periph, union ccb *start_ccb)
-{
-	struct sg_softc *softc;
-
-	softc = (struct sg_softc *)periph->softc;
-
-	switch (softc->state) {
-	case SG_STATE_NORMAL:
-		start_ccb->ccb_h.ccb_type = SG_CCB_WAITING;
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-		break;
-	}
-}
-
-static void
 sgdone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct sg_softc *softc;
@@ -414,10 +394,6 @@ sgdone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct sg_softc *)periph->softc;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_type) {
-	case SG_CCB_WAITING:
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
 	case SG_CCB_RDWR_IO:
 	{
 		struct sg_rdwr *rdwr;

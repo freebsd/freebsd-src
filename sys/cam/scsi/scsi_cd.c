@@ -110,7 +110,6 @@ typedef enum {
 typedef enum {
 	CD_CCB_PROBE		= 0x01,
 	CD_CCB_BUFFER_IO	= 0x02,
-	CD_CCB_WAITING		= 0x03,
 	CD_CCB_TUR		= 0x04,
 	CD_CCB_TYPE_MASK	= 0x0F,
 	CD_CCB_RETRY_UA		= 0x10
@@ -1530,14 +1529,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 	case CD_STATE_NORMAL:
 	{
 		bp = bioq_first(&softc->bio_queue);
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			start_ccb->ccb_h.ccb_state = CD_CCB_WAITING;
-
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-		} else if (bp == NULL) {
+		if (bp == NULL) {
 			if (softc->tur) {
 				softc->tur = 0;
 				csio = &start_ccb->csio;
@@ -1601,11 +1593,9 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 
 			xpt_action(start_ccb);
 		}
-		if (bp != NULL || softc->tur ||
-		    periph->immediate_priority != CAM_PRIORITY_NONE) {
+		if (bp != NULL || softc->tur) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, min(CAM_PRIORITY_NORMAL,
-			    periph->immediate_priority));
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 		break;
 	}
@@ -1886,15 +1876,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		xpt_release_ccb(done_ccb);
 		cam_periph_unhold(periph);
-		return;
-	}
-	case CD_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, 
-			  ("trying to wakeup ccbwait\n"));
-
-		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
 	case CD_CCB_TUR:
