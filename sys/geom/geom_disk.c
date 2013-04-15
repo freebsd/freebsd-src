@@ -75,7 +75,7 @@ static g_dumpconf_t g_disk_dumpconf;
 static g_provgone_t g_disk_providergone;
 
 static struct g_class g_disk_class = {
-	.name = "DISK",
+	.name = G_DISK_CLASS_NAME,
 	.version = G_VERSION,
 	.start = g_disk_start,
 	.access = g_disk_access,
