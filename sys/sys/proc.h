@@ -308,6 +308,7 @@ struct thread {
 	struct rusage_ext td_rux;	/* (t) Internal rusage information. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
+	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 };
 
 struct mtx *thread_lock_block(struct thread *);

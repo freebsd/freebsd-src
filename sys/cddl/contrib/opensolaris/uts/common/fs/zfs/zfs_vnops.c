@@ -4579,14 +4579,22 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		 * The fs has been unmounted, or we did a
 		 * suspend/resume and this file no longer exists.
 		 */
-		VI_LOCK(vp);
-		ASSERT(vp->v_count <= 1);
-		vp->v_count = 0;
-		VI_UNLOCK(vp);
-		vrecycle(vp, curthread);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		vrecycle(vp, curthread);
 		return;
 	}
+
+	mutex_enter(&zp->z_lock);
+	if (zp->z_unlinked) {
+		/*
+		 * Fast path to recycle a vnode of a removed file.
+		 */
+		mutex_exit(&zp->z_lock);
+		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		vrecycle(vp, curthread);
+		return;
+	}
+	mutex_exit(&zp->z_lock);
 
 	if (zp->z_atime_dirty && zp->z_unlinked == 0) {
 		dmu_tx_t *tx = dmu_tx_create(zfsvfs->z_os);
@@ -4605,8 +4613,6 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 			dmu_tx_commit(tx);
 		}
 	}
-
-	zfs_zinactive(zp);
 	rw_exit(&zfsvfs->z_teardown_inactive_lock);
 }
 
@@ -6116,28 +6122,6 @@ zfs_freebsd_inactive(ap)
 	return (0);
 }
 
-static void
-zfs_reclaim_complete(void *arg, int pending)
-{
-	znode_t	*zp = arg;
-	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
-
-	rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
-	if (zp->z_sa_hdl != NULL) {
-		ZFS_OBJ_HOLD_ENTER(zfsvfs, zp->z_id);
-		zfs_znode_dmu_fini(zp);
-		ZFS_OBJ_HOLD_EXIT(zfsvfs, zp->z_id);
-	}
-	zfs_znode_free(zp);
-	rw_exit(&zfsvfs->z_teardown_inactive_lock);
-	/*
-	 * If the file system is being unmounted, there is a process waiting
-	 * for us, wake it up.
-	 */
-	if (zfsvfs->z_unmounted)
-		wakeup_one(zfsvfs);
-}
-
 static int
 zfs_freebsd_reclaim(ap)
 	struct vop_reclaim_args /* {
@@ -6148,53 +6132,25 @@ zfs_freebsd_reclaim(ap)
 	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
-	boolean_t rlocked;
-
-	rlocked = rw_tryenter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
 
 	ASSERT(zp != NULL);
 
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
+	/* Destroy the vm object and flush associated pages. */
 	vnode_destroy_vobject(vp);
 
-	mutex_enter(&zp->z_lock);
-	zp->z_vnode = NULL;
-	mutex_exit(&zp->z_lock);
-
-	if (zp->z_unlinked) {
-		;	/* Do nothing. */
-	} else if (!rlocked) {
-		TASK_INIT(&zp->z_task, 0, zfs_reclaim_complete, zp);
-		taskqueue_enqueue(taskqueue_thread, &zp->z_task);
-	} else if (zp->z_sa_hdl == NULL) {
+	/*
+	 * z_teardown_inactive_lock protects from a race with
+	 * zfs_znode_dmu_fini in zfsvfs_teardown during
+	 * force unmount.
+	 */
+	rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
+	if (zp->z_sa_hdl == NULL)
 		zfs_znode_free(zp);
-	} else /* if (!zp->z_unlinked && zp->z_dbuf != NULL) */ {
-		int locked;
+	else
+		zfs_zinactive(zp);
+	rw_exit(&zfsvfs->z_teardown_inactive_lock);
 
-		locked = MUTEX_HELD(ZFS_OBJ_MUTEX(zfsvfs, zp->z_id)) ? 2 :
-		    ZFS_OBJ_HOLD_TRYENTER(zfsvfs, zp->z_id);
-		if (locked == 0) {
-			/*
-			 * Lock can't be obtained due to deadlock possibility,
-			 * so defer znode destruction.
-			 */
-			TASK_INIT(&zp->z_task, 0, zfs_reclaim_complete, zp);
-			taskqueue_enqueue(taskqueue_thread, &zp->z_task);
-		} else {
-			zfs_znode_dmu_fini(zp);
-			if (locked == 1)
-				ZFS_OBJ_HOLD_EXIT(zfsvfs, zp->z_id);
-			zfs_znode_free(zp);
-		}
-	}
-	VI_LOCK(vp);
 	vp->v_data = NULL;
-	ASSERT(vp->v_holdcnt >= 1);
-	VI_UNLOCK(vp);
-	if (rlocked)
-		rw_exit(&zfsvfs->z_teardown_inactive_lock);
 	return (0);
 }
 

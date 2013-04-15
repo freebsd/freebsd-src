@@ -159,6 +159,7 @@ thread_init(void *mem, int size, int flags)
 
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
+	td->td_vp_reserv = 0;
 	EVENTHANDLER_INVOKE(thread_init, td);
 	td->td_sched = (struct td_sched *)&td[1];
 	umtx_thread_init(td);
