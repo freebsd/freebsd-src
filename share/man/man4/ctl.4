@@ -1,0 +1,90 @@
+.\" Copyright (c) 2013 Edward Tomasz Napierala
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd March 8, 2013
+.Dt CTL 4
+.Os
+.Sh NAME
+.Nm ctl
+.Nd CAM Target Layer
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device ctl"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ctl_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+subsystem provides SCSI disk and processor emulation.
+It supports features such as:
+.Pp
+.Bl -bullet -compact
+.It
+Disk and processor device emulation
+.It
+Tagged queueing
+.It
+SCSI task attribute support (ordered, head of queue, simple tags)
+.It
+SCSI implicit command ordering support.
+.It
+Full task management support (abort, LUN reset, target reset, etc.)
+.It
+Support for multiple ports
+.It
+Support for multiple simultaneous initiators
+.It
+Support for multiple simultaneous backing stores
+.It
+Persistent reservation support
+.It
+Mode sense/select support
+.It
+Error injection support
+.It
+All I/O handled in-kernel, no userland context switch overhead
+.El
+.Sh SEE ALSO
+.Xr ctladm 8 ,
+.Xr ctlstat 8
+.Sh HISTORY
+The
+.Nm
+subsystem first appeared in
+.Fx 9.1 .
+.Sh AUTHORS
+The
+.Nm
+subsystem was written by
+.An Kenneth Merry Aq ken@FreeBSD.org .
