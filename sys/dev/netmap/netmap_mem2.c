@@ -278,7 +278,7 @@ netmap_obj_offset(struct netmap_obj_pool *p, const void *vaddr)
 		const char *base = p->lut[i].vaddr;
 		ssize_t relofs = (const char *) vaddr - base;
 
-		if (relofs < 0 || relofs > p->_clustsize)
+		if (relofs < 0 || relofs >= p->_clustsize)
 			continue;
 
 		ofs = ofs + relofs;
