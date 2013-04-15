@@ -153,6 +153,8 @@ static struct mbuf *lagg_lacp_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 static void	lagg_lacp_lladdr(struct lagg_softc *);
 
+static void	lagg_callout(void *);
+
 /* lagg protocol table */
 static const struct {
 	int			ti_proto;
@@ -278,6 +280,11 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		return (ENOSPC);
 	}
 
+	sc->sc_ipackets = counter_u64_alloc(M_WAITOK);
+	sc->sc_opackets = counter_u64_alloc(M_WAITOK);
+	sc->sc_ibytes = counter_u64_alloc(M_WAITOK);
+	sc->sc_obytes = counter_u64_alloc(M_WAITOK);
+
 	sysctl_ctx_init(&sc->ctx);
 	snprintf(num, sizeof(num), "%u", unit);
 	sc->use_flowid = def_use_flowid;
@@ -307,6 +314,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	LAGG_LOCK_INIT(sc);
 	SLIST_INIT(&sc->sc_ports);
 	TASK_INIT(&sc->sc_lladdr_task, 0, lagg_port_setlladdr, sc);
+	callout_init_rw(&sc->sc_callout, &sc->sc_mtx, CALLOUT_SHAREDLOCK);
 
 	/* Initialise pseudo media types */
 	ifmedia_init(&sc->sc_media, 0, lagg_media_change,
@@ -338,6 +346,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	SLIST_INSERT_HEAD(&lagg_list, sc, sc_entries);
 	mtx_unlock(&lagg_list_mtx);
 
+	callout_reset(&sc->sc_callout, hz, lagg_callout, sc);
+
 	return (0);
 }
 
@@ -368,6 +378,12 @@ lagg_clone_destroy(struct ifnet *ifp)
 	ifmedia_removeall(&sc->sc_media);
 	ether_ifdetach(ifp);
 	if_free(ifp);
+
+	callout_drain(&sc->sc_callout);
+	counter_u64_free(sc->sc_ipackets);
+	counter_u64_free(sc->sc_opackets);
+	counter_u64_free(sc->sc_ibytes);
+	counter_u64_free(sc->sc_obytes);
 
 	mtx_lock(&lagg_list_mtx);
 	SLIST_REMOVE(&lagg_list, sc, lagg_softc, sc_entries);
@@ -1243,9 +1259,9 @@ lagg_transmit(struct ifnet *ifp, struct mbuf *m)
 	LAGG_RUNLOCK(sc);
 
 	if (error == 0) {
-		ifp->if_opackets++;
+		counter_u64_add(sc->sc_opackets, 1);
+		counter_u64_add(sc->sc_obytes, len);
 		ifp->if_omcasts += mcast;
-		ifp->if_obytes += len;
 	} else
 		ifp->if_oerrors++;
 
@@ -1281,8 +1297,8 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	m = (*sc->sc_input)(sc, lp, m);
 
 	if (m != NULL) {
-		scifp->if_ipackets++;
-		scifp->if_ibytes += m->m_pkthdr.len;
+		counter_u64_add(sc->sc_ipackets, 1);
+		counter_u64_add(sc->sc_ibytes, m->m_pkthdr.len);
 
 		if (scifp->if_flags & IFF_MONITOR) {
 			m_freem(m);
@@ -1891,4 +1907,18 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 
 	m->m_pkthdr.rcvif = ifp;
 	return (m);
+}
+
+static void
+lagg_callout(void *arg)
+{
+	struct lagg_softc *sc = (struct lagg_softc *)arg;
+	struct ifnet *ifp = sc->sc_ifp;
+
+	ifp->if_ipackets = counter_u64_fetch(sc->sc_ipackets);
+	ifp->if_opackets = counter_u64_fetch(sc->sc_opackets);
+	ifp->if_ibytes = counter_u64_fetch(sc->sc_ibytes);
+	ifp->if_obytes = counter_u64_fetch(sc->sc_obytes);
+
+	callout_reset(&sc->sc_callout, hz, lagg_callout, sc);
 }
