@@ -32,7 +32,7 @@
 
 #pragma	D depends_on library ip.d
 #pragma	D depends_on library net.d
-#pragma	D depends_on module genunix
+#pragma	D depends_on module nfs
 
 typedef struct nfsv4opinfo {
 	uint64_t noi_xid;	/* unique transation ID */
@@ -75,22 +75,4 @@ translator nfsv4opinfo_t < struct compound_state *P > {
 	noi_xid = P->req->rq_xprt->xp_xid;
 	noi_cred = P->basecr;
 	noi_curpath = (P->vp == NULL) ? "<unknown>" : P->vp->v_path;
-};
-
-#pragma D binding "1.5" translator
-translator conninfo_t < rfs4_client_t *P > {
-	ci_protocol = (P->cl_addr.ss_family == AF_INET) ? "ipv4" : "ipv6";
-
-	ci_local = "<unknown>";
-
-	ci_remote = (P->cl_addr.ss_family == AF_INET) ?
-	    inet_ntoa((ipaddr_t *)
-	    &((struct sockaddr_in *)&P->cl_addr)->sin_addr) :
-	    inet_ntoa6(&((struct sockaddr_in6 *)&P->cl_addr)->sin6_addr);
-};
-
-#pragma D binding "1.5" translator
-translator nfsv4cbinfo_t < rfs4_deleg_state_t *P > {
-	nci_curpath = (P->finfo->vp == NULL) ? "<unknown>" :
-	    P->finfo->vp->v_path;
 };
