@@ -171,7 +171,7 @@
 
       <para>There is a wide variety of motherboards available for this
 	architecture.  Motherboards using the ISA, VLB, EISA, AGP, and
-	PCI expansion busses are well-supported.  There is some
+	PCI expansion buses are well-supported.  There is some
 	limited support for the MCA (<quote>MicroChannel</quote>)
 	expansion bus used in the IBM PS/2 line of PCs.</para>
 
@@ -200,7 +200,7 @@
 	memory above 4 gigabytes and allow it to be used by the
 	system.  This feature places constraints on the device drivers
 	and other features of &os; which may be used; consult the
-	&man.pae.4; manpage for more details.</para>
+	&man.pae.4; manual page for more details.</para>
 
       <para>&os; will generally run on i386-based laptops, albeit with
 	varying levels of support for certain hardware features such
@@ -533,7 +533,7 @@
       </itemizedlist>
 
       <para>The following systems are partially supported by &os;.  In
-	particular the fibre channel controllers in SBus-based systems are not
+	particular the fiber channel controllers in SBus-based systems are not
 	supported.  However, it is possible to use these with a SCSI controller
 	supported by the &man.esp.4 driver (Sun ESP SCSI, Sun FAS Fast-SCSI
 	and Sun FAS366 Fast-Wide SCSI controllers).</para>
