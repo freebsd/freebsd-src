@@ -9,8 +9,6 @@ To maintain the sources for the FreeBSD-current release, use:
 
     standard-supfile		Main source tree
 
-    ports-supfile		Ports collection
-
 To maintain the sources for the FreeBSD-stable release, use:
 
     stable-supfile		Main source tree
@@ -18,7 +16,7 @@ To maintain the sources for the FreeBSD-stable release, use:
 To maintain a copy of the CVS repository containing all versions of
 FreeBSD, use:
 
-    cvs-supfile			Main source tree and ports collection
+    cvs-supfile			Main source tree collection
 
 To maintain a copy of the FreeBSD bug database, use the file:
 

@@ -36,9 +36,8 @@
 # prefix=/home/ncvs
 #		This specifies where to place the requested files.  A
 #		setting of "/home/ncvs" will place all of the files
-#		requested in /home/ncvs (e.g., "/home/ncvs/src/bin",
-#		"/home/ncvs/ports/archivers").  The prefix directory
-#		must exist in order to run CVSup.
+#		requested in /home/ncvs (e.g., "/home/ncvs/src/bin").
+#		The prefix directory must exist in order to run CVSup.
 
 # Defaults that apply to all the collections
 #
@@ -91,84 +90,6 @@ src-all
 #src-secure
 #src-sys-crypto
 
-## Ports Collection.
-#
-# The easiest way to get the ports tree is to use the "ports-all"
-# mega-collection.  It includes all of the individual "ports-*"
-# collections,
-ports-all
-
-# These are the individual collections that make up "ports-all".  If you
-# use these, be sure to comment out "ports-all" above and always include
-# "ports-base" if you use any of the other individual collections below.
-# Your ports may not build correctly without an up-to-date "ports-base".
-#
-#ports-base
-#
-#ports-accessibility
-#ports-arabic
-#ports-archivers
-#ports-astro
-#ports-audio
-#ports-benchmarks
-#ports-biology
-#ports-cad
-#ports-chinese
-#ports-comms
-#ports-converters
-#ports-databases
-#ports-deskutils
-#ports-devel
-#ports-dns
-#ports-editors
-#ports-emulators
-#ports-finance
-#ports-french
-#ports-ftp
-#ports-games
-#ports-german
-#ports-graphics
-#ports-hebrew
-#ports-hungarian
-#ports-irc
-#ports-japanese
-#ports-java
-#ports-korean
-#ports-lang
-#ports-mail
-#ports-math
-#ports-misc
-#ports-multimedia
-#ports-net
-#ports-net-im
-#ports-net-mgmt
-#ports-net-p2p
-#ports-news
-#ports-palm
-#ports-picobsd
-#ports-polish
-#ports-ports-mgmt
-#ports-portuguese
-#ports-print
-#ports-russian
-#ports-science
-#ports-security
-#ports-shells
-#ports-sysutils
-#ports-textproc
-#ports-ukrainian
-#ports-vietnamese
-#ports-www
-#ports-x11
-#ports-x11-clocks
-#ports-x11-drivers
-#ports-x11-fm
-#ports-x11-fonts
-#ports-x11-servers
-#ports-x11-themes
-#ports-x11-toolkits
-#ports-x11-wm
-
 ## Projects
 #
 # This collection retrieves the projects tree of the FreeBSD
@@ -186,4 +107,3 @@ cvsroot-all
 # directories merged into one, and merged commitlogs via symlinks.
 #cvsroot-common
 #cvsroot-src
-#cvsroot-ports

@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130415: Ports are no more available via cvsup
+OLD_FILES+=usr/share/examples/cvsup/ports-supfile
+OLD_FILES+=usr/share/examples/cvsup/refuse
+OLD_FILES+=usr/share/examples/cvsup/refuse.README
 # 20130315: removed long unused directories for .1aout section manpages
 OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
 OLD_FILES+=usr/share/man/en.UTF-8/man1aout
