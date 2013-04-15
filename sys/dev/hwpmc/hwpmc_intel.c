@@ -154,6 +154,10 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_IVYBRIDGE;
 			nclasses = 3;
 			break;
+		case 0x3E:	/* Per Intel document 325462-045US 01/2013. */
+			cputype = PMC_CPU_INTEL_IVYBRIDGE_XEON;
+			nclasses = 3;
+			break;
 		}
 		break;
 #if	defined(__i386__) || defined(__amd64__)
@@ -196,6 +200,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
+	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 		error = pmc_core_initialize(pmc_mdep, ncpus);
 		break;
 
@@ -277,6 +282,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
+	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 		pmc_core_finalize(md);
 		break;
 
