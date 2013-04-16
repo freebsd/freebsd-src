@@ -204,9 +204,11 @@ struct	ip6stat {
 	u_quad_t ip6s_rawout;		/* total raw ip packets generated */
 	u_quad_t ip6s_badscope;		/* scope error */
 	u_quad_t ip6s_notmember;	/* don't join this multicast group */
-	u_quad_t ip6s_nxthist[256];	/* next header history */
+#define	IP6S_HDRCNT		256	/* headers count */
+	u_quad_t ip6s_nxthist[IP6S_HDRCNT]; /* next header history */
 	u_quad_t ip6s_m1;		/* one mbuf */
-	u_quad_t ip6s_m2m[32];		/* two or more mbuf */
+#define	IP6S_M2MMAX		32
+	u_quad_t ip6s_m2m[IP6S_M2MMAX];	/* two or more mbuf */
 	u_quad_t ip6s_mext1;		/* one ext mbuf */
 	u_quad_t ip6s_mext2m;		/* two or more ext mbuf */
 	u_quad_t ip6s_exthdrtoolong;	/* ext hdr are not contiguous */
@@ -218,27 +220,29 @@ struct	ip6stat {
 	 * algorithm:
 	 * XXX: hardcoded 16 = # of ip6 multicast scope types + 1
 	 */
+#define	IP6S_RULESMAX		16
+#define	IP6S_SCOPECNT		16
 	/* number of times that address selection fails */
 	u_quad_t ip6s_sources_none;
 	/* number of times that an address on the outgoing I/F is chosen */
-	u_quad_t ip6s_sources_sameif[16];
+	u_quad_t ip6s_sources_sameif[IP6S_SCOPECNT];
 	/* number of times that an address on a non-outgoing I/F is chosen */
-	u_quad_t ip6s_sources_otherif[16];
+	u_quad_t ip6s_sources_otherif[IP6S_SCOPECNT];
 	/*
 	 * number of times that an address that has the same scope
 	 * from the destination is chosen.
 	 */
-	u_quad_t ip6s_sources_samescope[16];
+	u_quad_t ip6s_sources_samescope[IP6S_SCOPECNT];
 	/*
 	 * number of times that an address that has a different scope
 	 * from the destination is chosen.
 	 */
-	u_quad_t ip6s_sources_otherscope[16];
+	u_quad_t ip6s_sources_otherscope[IP6S_SCOPECNT];
 	/* number of times that a deprecated address is chosen */
-	u_quad_t ip6s_sources_deprecated[16];
+	u_quad_t ip6s_sources_deprecated[IP6S_SCOPECNT];
 
 	/* number of times that each rule of source selection is applied. */
-	u_quad_t ip6s_sources_rule[16];
+	u_quad_t ip6s_sources_rule[IP6S_MAXRULES];
 };
 
 #ifdef _KERNEL
