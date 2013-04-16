@@ -71,8 +71,8 @@ g_label_disk_ident_taste(struct g_consumer *cp, char *label, size_t size)
 		if (!found)
 			return;
 		/*
-		 * We can safely ignore the result of strncpy; the label will
-		 * simply be truncated, which at most is only annoying.
+		 * We can safely ignore the result of snprintf(): the label
+		 * will simply be truncated, which at most is only annoying.
 		 */
 		(void)snprintf(label, size, "%s-%s", cls->name, ident);
 	}
