@@ -408,7 +408,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(ip6s_cantfrag, "\t%ju datagram%s that can't be fragmented\n");
 	p(ip6s_badscope, "\t%ju packet%s that violated scope rules\n");
 	p(ip6s_notmember, "\t%ju multicast packet%s which we don't join\n");
-	for (first = 1, i = 0; i < 256; i++)
+	for (first = 1, i = 0; i < IP6S_HDRCNT; i++)
 		if (ip6stat.ip6s_nxthist[i] != 0) {
 			if (first) {
 				printf("\tInput histogram:\n");
@@ -419,7 +419,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		}
 	printf("\tMbuf statistics:\n");
 	printf("\t\t%ju one mbuf\n", (uintmax_t)ip6stat.ip6s_m1);
-	for (first = 1, i = 0; i < 32; i++) {
+	for (first = 1, i = 0; i < IP6S_M2MMAX; i++) {
 		char ifbuf[IFNAMSIZ];
 		if (ip6stat.ip6s_m2m[i] != 0) {
 			if (first) {
@@ -445,7 +445,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #define	PRINT_SCOPESTAT(s,i) do {\
 		switch(i) { /* XXX hardcoding in each case */\
 		case 1:\
-			p(s, "\t\t%ju node-local%s\n");\
+			p(s, "\t\t%ju interface-local%s\n");\
 			break;\
 		case 2:\
 			p(s,"\t\t%ju link-local%s\n");\
@@ -464,7 +464,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	p(ip6s_sources_none,
 	  "\t%ju failure%s of source address selection\n");
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_sameif[i]) {
 			if (first) {
 				printf("\tsource addresses on an outgoing I/F\n");
@@ -473,7 +473,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_sameif[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_otherif[i]) {
 			if (first) {
 				printf("\tsource addresses on a non-outgoing I/F\n");
@@ -482,7 +482,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_otherif[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_samescope[i]) {
 			if (first) {
 				printf("\tsource addresses of same scope\n");
@@ -491,7 +491,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_samescope[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_otherscope[i]) {
 			if (first) {
 				printf("\tsource addresses of a different scope\n");
@@ -500,7 +500,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			PRINT_SCOPESTAT(ip6s_sources_otherscope[i], i);
 		}
 	}
-	for (first = 1, i = 0; i < 16; i++) {
+	for (first = 1, i = 0; i < IP6S_SCOPECNT; i++) {
 		if (ip6stat.ip6s_sources_deprecated[i]) {
 			if (first) {
 				printf("\tdeprecated source addresses\n");
@@ -511,7 +511,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	}
 
 	printf("\tSource addresses selection rule applied:\n");
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < IP6S_RULESMAX; i++) {
 		if (ip6stat.ip6s_sources_rule[i])
 			printf("\t\t%ju %s\n",
 			       (uintmax_t)ip6stat.ip6s_sources_rule[i],
