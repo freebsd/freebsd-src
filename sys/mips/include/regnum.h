@@ -125,7 +125,7 @@
 
 /*
  * Pseudo registers so we save a complete set of registers regardless of
- * the ABI
+ * the ABI. See regdef.h for a more complete explanation.
  */
 #if defined(__mips_n32) || defined(__mips_n64)
 #define	TA0	8
