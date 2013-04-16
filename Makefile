@@ -274,7 +274,7 @@ make: .PHONY
 .if make(universe)
 TARGETS?=amd64 arm i386 ia64 pc98 powerpc sparc64
 
-universe: universe_prologue
+universe: universe_prologue upgrade_checks
 universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
@@ -285,7 +285,7 @@ KERNCONFS!=	cd ${.CURDIR}/sys/${target}/conf && \
 		! -name DEFAULTS ! -name LINT
 KERNCONFS:=	${KERNCONFS:S/^NOTES$/LINT/}
 universe: universe_${target}
-.ORDER: universe_prologue universe_${target} universe_epilogue
+.ORDER: universe_prologue upgrade_checks universe_${target}_prologue universe_${target} universe_epilogue
 universe_${target}:
 .if !defined(MAKE_JUST_KERNELS)
 	@echo ">> ${target} started on `LC_ALL=C date`"
