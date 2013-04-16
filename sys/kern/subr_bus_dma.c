@@ -66,8 +66,8 @@ _bus_dmamap_load_vlist(bus_dma_tag_t dmat, bus_dmamap_t map,
 	error = 0;
 	for (; sglist_cnt > 0; sglist_cnt--, list++) {
 		error = _bus_dmamap_load_buffer(dmat, map,
-		    (void *)list->ds_addr, list->ds_len, pmap, flags, NULL,
-		    nsegs);
+		    (void *)(uintptr_t)list->ds_addr, list->ds_len, pmap,
+		    flags, NULL, nsegs);
 		if (error)
 			break;
 	}
