@@ -242,7 +242,7 @@ struct	ip6stat {
 	u_quad_t ip6s_sources_deprecated[IP6S_SCOPECNT];
 
 	/* number of times that each rule of source selection is applied. */
-	u_quad_t ip6s_sources_rule[IP6S_MAXRULES];
+	u_quad_t ip6s_sources_rule[IP6S_RULESMAX];
 };
 
 #ifdef _KERNEL
