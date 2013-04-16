@@ -4123,7 +4123,7 @@ vop_lock_post(void *ap, int rc)
 	struct vop_lock1_args *a = ap;
 
 	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
-	if (rc == 0)
+	if (rc == 0 && (a->a_flags & LK_EXCLOTHER) == 0)
 		ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
 #endif
 }
