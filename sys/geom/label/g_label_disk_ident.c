@@ -40,38 +40,41 @@ __FBSDID("$FreeBSD$");
 
 #define G_LABEL_DISK_IDENT_DIR	"diskid"
 
-static char* classes_pass[] = { G_DISK_CLASS_NAME, G_MULTIPATH_CLASS_NAME, NULL };
+static char* classes_pass[] = { G_DISK_CLASS_NAME, G_MULTIPATH_CLASS_NAME,
+    NULL };
 
 static void
 g_label_disk_ident_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_class *cls;
 	char ident[100];
-	int ident_len = sizeof(ident);
+	int ident_len, found, i;
 
 	g_topology_assert_not();
 	label[0] = '\0';
 
 	cls = cp->provider->geom->class;
 
-	/* Get the GEOM::ident string and construct a label in the format CLASS_NAME-ident */
+	/* 
+	 * Get the GEOM::ident string, and construct a label in the format
+	 * "CLASS_NAME-ident"
+	 */
+	ident_len = sizeof(ident);
 	if (g_io_getattr("GEOM::ident", cp, &ident_len, ident) == 0) {
-		int i, found = 0;
-
 		if (ident_len == 0 || ident[0] == '\0')
 			return;
-		for (i = 0; classes_pass[i] != NULL; i++)
-			if (strcmp(classes_pass[i], cls->name) == 0)
+		for (i = 0, found = 0; classes_pass[i] != NULL; i++)
+			if (strcmp(classes_pass[i], cls->name) == 0) {
 				found = 1;
+				break;
+			}
 		if (!found)
 			return;
-		if (strlen(cls->name) + ident_len + 2 > size)
-			ident[ident_len - strlen(cls->name) - 2] = '\0';
-		else
-			ident[ident_len] = '\0';
-		strcpy(label, cls->name);
-		strcat(label, "-");
-		strcat(label, ident);
+		/*
+		 * We can safely ignore the result of strncpy; the label will
+		 * simply be truncated, which at most is only annoying.
+		 */
+		(void)snprintf(label, size, "%s-%s", cls->name, ident);
 	}
 }
 
@@ -81,4 +84,5 @@ struct g_label_desc g_label_disk_ident = {
 	.ld_enabled = 1
 };
 
-G_LABEL_INIT(disk_ident, g_label_disk_ident, "Create device nodes for drives which export a disk identification string");
+G_LABEL_INIT(disk_ident, g_label_disk_ident, "Create device nodes for drives "
+    "which export a disk identification string");
