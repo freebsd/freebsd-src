@@ -466,18 +466,16 @@ ip6_input(struct mbuf *m)
 		else
 			IP6STAT_INC(ip6s_mext1);
 	} else {
-#define M2MMAX	(sizeof(V_ip6stat.ip6s_m2m)/sizeof(V_ip6stat.ip6s_m2m[0]))
 		if (m->m_next) {
 			if (m->m_flags & M_LOOP) {
 				IP6STAT_INC(ip6s_m2m[V_loif->if_index]);
-			} else if (m->m_pkthdr.rcvif->if_index < M2MMAX)
+			} else if (m->m_pkthdr.rcvif->if_index < IP6S_M2MMAX)
 				IP6STAT_INC(
 				    ip6s_m2m[m->m_pkthdr.rcvif->if_index]);
 			else
 				IP6STAT_INC(ip6s_m2m[0]);
 		} else
 			IP6STAT_INC(ip6s_m1);
-#undef M2MMAX
 	}
 
 	/* drop the packet if IPv6 operation is disabled on the IF */
