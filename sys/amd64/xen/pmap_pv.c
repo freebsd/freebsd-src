@@ -239,6 +239,8 @@ pmap_get_pv_entry(pmap_t pmap)
 	struct pv_chunk *pc;
 	vm_page_t m;
 
+	KASSERT(pmap != kernel_pmap,
+		("Trying to track kernel va"));
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(atomic_add_long(&pv_entry_allocs, 1));
@@ -310,7 +312,7 @@ pmap_get_pv_entry(pmap_t pmap)
 	return (pv);
 }
 
-void
+bool
 pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	pv_entry_t pv;
@@ -320,11 +322,18 @@ pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		("Tried to manage an unmanaged page!"));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
+	if (pmap_find_pv_entry(pmap, va, m)) {
+		return false; /* Duplicate */
+	}
+
 	rw_rlock(&pvh_global_lock);
-	pv = pmap_get_pv_entry(pmap);
-	pv->pv_va = va;
-	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+	if (pmap != kernel_pmap) {
+		pv = pmap_get_pv_entry(pmap);
+		pv->pv_va = va;
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+	}
 	rw_runlock(&pvh_global_lock);
+	return true;
 }
 
 
@@ -335,6 +344,8 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv_entry_t pv;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap == kernel_pmap) return true;
+
 	rw_rlock(&pvh_global_lock);
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
@@ -357,6 +368,7 @@ pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv_entry_t pv = NULL;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap == kernel_pmap) return NULL;
 	rw_rlock(&pvh_global_lock);
 
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
@@ -439,6 +451,7 @@ pmap_pv_vm_page_to_v(pmap_t pmap, vm_page_t m)
 bool
 pmap_pv_vm_page_mapped(pmap_t pmap, vm_page_t m)
 {
+	if (pmap == kernel_pmap) return true;
 	return (pmap_pv_vm_page_to_v(pmap, m) == 
 		(VM_MAX_KERNEL_ADDRESS + 1)) ? false : true;
 

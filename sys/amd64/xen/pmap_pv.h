@@ -48,7 +48,7 @@ void pmap_pv_vm_page_init(vm_page_t m);
 vm_offset_t pmap_pv_vm_page_to_v(pmap_t pmap, vm_page_t m);
 bool pmap_pv_vm_page_mapped(pmap_t pmap, vm_page_t m);
 pv_entry_t pmap_get_pv_entry(pmap_t pmap);
-void pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
+bool pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 bool pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 pv_entry_t pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 int pmap_pv_iterate(vm_page_t m, pv_cb_t cb);
