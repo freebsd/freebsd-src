@@ -398,7 +398,7 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 		 * queue.
 		 */
 		re->m_fifo[re->m_fifo_head] = NULL;
-		TAILQ_INSERT_TAIL(&sc->sc_rx_rxlist, bf, bf_list);
+		TAILQ_INSERT_TAIL(&sc->sc_rx_rxlist[qtype], bf, bf_list);
 
 		/* Bump the descriptor FIFO stats */
 		INCR(re->m_fifo_head, re->m_fifolen);
@@ -451,8 +451,15 @@ ath_edma_flush_deferred_queue(struct ath_softc *sc)
 	struct ath_buf *bf, *next;
 
 	ATH_RX_LOCK_ASSERT(sc);
+
 	/* Free in one set, inside the lock */
-	TAILQ_FOREACH_SAFE(bf, &sc->sc_rx_rxlist, bf_list, next) {
+	TAILQ_FOREACH_SAFE(bf,
+	    &sc->sc_rx_rxlist[HAL_RX_QUEUE_LP], bf_list, next) {
+		/* Free the buffer/mbuf */
+		ath_edma_rxbuf_free(sc, bf);
+	}
+	TAILQ_FOREACH_SAFE(bf,
+	    &sc->sc_rx_rxlist[HAL_RX_QUEUE_HP], bf_list, next) {
 		/* Free the buffer/mbuf */
 		ath_edma_rxbuf_free(sc, bf);
 	}
@@ -482,7 +489,7 @@ ath_edma_recv_proc_deferred_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 
 	/* Copy the list over */
 	ATH_RX_LOCK(sc);
-	TAILQ_CONCAT(&rxlist, &sc->sc_rx_rxlist, bf_list);
+	TAILQ_CONCAT(&rxlist, &sc->sc_rx_rxlist[qtype], bf_list);
 	ATH_RX_UNLOCK(sc);
 
 	/* Handle the completed descriptors */
