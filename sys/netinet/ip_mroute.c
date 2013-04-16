@@ -824,6 +824,7 @@ set_api_config(uint32_t *apival)
 
     for (i = 0; i < mfchashsize; i++) {
 	if (LIST_FIRST(&V_mfchashtbl[i]) != NULL) {
+	    MFC_UNLOCK();
 	    *apival = 0;
 	    return EPERM;
 	}
