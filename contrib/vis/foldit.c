@@ -1,5 +1,7 @@
+/*	$NetBSD: foldit.c,v 1.7 2009/02/10 23:06:31 christos Exp $	*/
+
 /*-
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,92 +29,50 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1989, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
+#include <sys/cdefs.h>
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)foldit.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
+__RCSID("$NetBSD: foldit.c,v 1.7 2009/02/10 23:06:31 christos Exp $");
 #endif /* not lint */
 
-#include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <vis.h>
-
-void process(FILE *, const char *);
-static void usage(void);
+#include "extern.h"
 
 int
-main(int argc, char *argv[])
+foldit(const char *chunk, int col, int max, int flags)
 {
-	FILE *fp;
-	int ch;
+	const char *cp;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
-		switch((char)ch) {
-		case '?':
-		default:
-			usage();
-		}
-	argc -= optind;
-	argv += optind;
-
-	if (*argv)
-		while (*argv) {
-			if ((fp=fopen(*argv, "r")) != NULL)
-				process(fp, *argv);
-			else
-				warn("%s", *argv);
-			argv++;
-		}
-	else
-		process(stdin, "<stdin>");
-	exit(0);
-}
-
-static void
-usage(void)
-{
-	fprintf(stderr, "usage: unvis [file ...]\n");
-	exit(1);
-}
-
-void
-process(FILE *fp, const char *filename)
-{
-	int offset = 0, c, ret;
-	int state = 0;
-	char outc;
-
-	while ((c = getc(fp)) != EOF) {
-		offset++;
-	again:
-		switch(ret = unvis(&outc, (char)c, &state, 0)) {
-		case UNVIS_VALID:
-			putchar(outc);
+	/*
+	 * Keep track of column position. Insert hidden newline
+	 * if this chunk puts us over the limit.
+	 */
+again:
+	cp = chunk;
+	while (*cp) {
+		switch(*cp) {
+		case '\n':
+		case '\r':
+			col = 0;
 			break;
-		case UNVIS_VALIDPUSH:
-			putchar(outc);
+		case '\t':
+			col = (col + 8) &~ 07;
+			break;
+		case '\b':
+			col = col ? col - 1 : 0;
+			break;
+		default:
+			col++;
+		}
+		if (col > (max - 2)) {
+			printf(flags & VIS_MIMESTYLE ? "=\n" : "\\\n");
+			col = 0;
 			goto again;
-		case UNVIS_SYNBAD:
-			warnx("%s: offset: %d: can't decode", filename, offset);
-			state = 0;
-			break;
-		case 0:
-		case UNVIS_NOCHAR:
-			break;
-		default:
-			errx(1, "bad return value (%d), can't happen", ret);
-		}
+		} 
+		cp++;
 	}
-	if (unvis(&outc, (char)0, &state, UNVIS_END) == UNVIS_VALID)
-		putchar(outc);
+	return (col);
 }
