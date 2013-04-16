@@ -388,10 +388,12 @@ FBSD_1.3 {
 	pwcache_userdb;
 	pwcache_groupdb;
 	snvis;
+	strenvisx;
 	strnunvis;
 	strnunvisx;
 	strnvis;
 	strnvisx;
+	strsenvisx;
 	strsnvis;
 	strsnvisx;
 	strsvis;
