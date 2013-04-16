@@ -231,7 +231,7 @@ init_dynamic_kenv(void *data __unused)
 	kenvp = malloc((KENV_SIZE + 1) * sizeof(char *), M_KENV,
 		M_WAITOK | M_ZERO);
 	i = 0;
-	if (*kern_envp != '\0') {
+	if (kern_envp && *kern_envp != '\0') {
 		for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
 			len = strlen(cp) + 1;
 			if (len > KENV_MNAMELEN + 1 + KENV_MVALLEN + 1) {
