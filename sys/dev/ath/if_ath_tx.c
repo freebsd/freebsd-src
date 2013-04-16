@@ -1722,7 +1722,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (isfrag)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
+		sc->sc_tx_th.wt_txpower = ieee80211_get_node_txpower(ni);
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
 		ieee80211_radiotap_tx(vap, m0);
@@ -1743,7 +1743,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_pktlen = pktlen;
 	bf->bf_state.bfs_hdrlen = hdrlen;
 	bf->bf_state.bfs_atype = atype;
-	bf->bf_state.bfs_txpower = ni->ni_txpower;
+	bf->bf_state.bfs_txpower = ieee80211_get_node_txpower(ni);
 	bf->bf_state.bfs_txrate0 = txrate;
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
@@ -2088,7 +2088,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (m0->m_flags & M_FRAG)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
+		sc->sc_tx_th.wt_txpower = MIN(params->ibp_power,
+		    ieee80211_get_node_txpower(ni));
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
 		ieee80211_radiotap_tx(vap, m0);
@@ -2104,7 +2105,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_pktlen = pktlen;
 	bf->bf_state.bfs_hdrlen = hdrlen;
 	bf->bf_state.bfs_atype = atype;
-	bf->bf_state.bfs_txpower = params->ibp_power;
+	bf->bf_state.bfs_txpower = MIN(params->ibp_power,
+	    ieee80211_get_node_txpower(ni));
 	bf->bf_state.bfs_txrate0 = txrate;
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
