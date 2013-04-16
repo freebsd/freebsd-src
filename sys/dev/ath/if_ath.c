@@ -842,7 +842,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/*
 	 * Initialise the deferred completed RX buffer list.
 	 */
-	TAILQ_INIT(&sc->sc_rx_rxlist);
+	TAILQ_INIT(&sc->sc_rx_rxlist[HAL_RX_QUEUE_HP]);
+	TAILQ_INIT(&sc->sc_rx_rxlist[HAL_RX_QUEUE_LP]);
 
 	/*
 	 * Indicate we need the 802.11 header padded to a
