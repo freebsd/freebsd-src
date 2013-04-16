@@ -122,7 +122,6 @@ struct cam_periph {
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
 #define CAM_PERIPH_FREE			0x80
 	u_int32_t		 refcount;
-	SLIST_HEAD(, ccb_hdr)	 ccb_list;	/* For "immediate" requests */
 	SLIST_ENTRY(cam_periph)  periph_links;
 	TAILQ_ENTRY(cam_periph)  unit_links;
 	ac_callback_t		*deferred_callback; 
