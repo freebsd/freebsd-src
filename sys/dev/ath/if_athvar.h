@@ -542,6 +542,7 @@ struct ath_softc {
 
 	struct ath_rx_methods	sc_rx;
 	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
+	ath_bufhead		sc_rx_rxlist[HAL_NUM_RX_QUEUES];	/* deferred RX completion */
 	struct ath_tx_methods	sc_tx;
 	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
 
@@ -700,7 +701,6 @@ struct ath_softc {
 
 	struct ath_descdma	sc_rxdma;	/* RX descriptors */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
-	ath_bufhead		sc_rx_rxlist;	/* deferred RX completion */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	u_int8_t		sc_defant;	/* current default antenna */
