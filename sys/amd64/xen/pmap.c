@@ -1232,7 +1232,11 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	/* RO and unwired */
+	prot = (prot & ~VM_PROT_WRITE) | VM_PROT_READ;
+
+	/* XXX: do we care about "speed" ? */
+	pmap_enter(pmap, va, prot, m, prot, false);
 }
 
 void *
@@ -1717,17 +1721,163 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 	 */
 }
 
+/*
+ *	Copy the range specified by src_addr/len
+ *	from the source map to the range dst_addr/len
+ *	in the destination map.
+ *
+ *	This routine is only advisory and need not do anything.
+ */
+
 void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, 
 	  vm_size_t len, vm_offset_t src_addr)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	vm_offset_t addr;
+	vm_offset_t end_addr = src_addr + len;
+	vm_offset_t va_next;
+
+	if (dst_addr != src_addr)
+		return;
+
+	if (dst_pmap < src_pmap) {
+		PMAP_LOCK(dst_pmap);
+		PMAP_LOCK(src_pmap);
+	} else {
+		PMAP_LOCK(src_pmap);
+		PMAP_LOCK(dst_pmap);
+	}
+
+
+	KASSERT(tsz != 0, ("tsz != 0"));
+
+	char stbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	char dtbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t stptr = stbuf;
+	mmu_map_t dtptr = dtbuf;
+
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+	mmu_map_t_init(stptr, &mb);
+	mmu_map_t_init(dtptr, &mb);
+
+	for (addr = src_addr; addr < end_addr; addr = va_next) {
+		pt_entry_t *src_pte, *dst_pte;
+
+		KASSERT(addr < UPT_MIN_ADDRESS,
+		    ("pmap_copy: invalid to pmap_copy page tables"));
+
+		if (!mmu_map_inspect_va(src_pmap, stptr, addr)) {
+			if (mmu_map_pdpt(stptr) == NULL) {
+				va_next = (addr + NBPML4) & ~PML4MASK;
+				if (va_next < addr) /* Overflow */
+					va_next = end_addr;
+				continue;
+			}
+
+			if (mmu_map_pdt(stptr) == NULL) {
+				va_next = (addr + NBPDP) & ~PDPMASK;
+				if (va_next < addr) /* Overflow */
+					va_next = end_addr;
+				continue;
+			}
+
+
+			if (mmu_map_pt(stptr) == NULL) {
+				va_next = (addr + NBPDR) & ~PDRMASK;
+				if (va_next < addr)
+					va_next = end_addr;
+				continue;
+			}
+
+			panic("%s: All backing tables non-NULL,"
+			      "yet hierarchy can't be inspected at va = 0x%lx\n", 
+			      __func__, addr);
+		}
+
+		va_next = (addr + NBPDR) & ~PDRMASK;
+		if (va_next < addr)
+			va_next = end_addr;
+	
+		src_pte = mmu_map_pt(stptr) + pt_index(addr);
+
+		while (addr < va_next) {
+			pt_entry_t ptetemp;
+			ptetemp = *src_pte;
+			/*
+			 * we only virtual copy managed pages
+			 */
+			if ((ptetemp & PG_MANAGED) != 0) {
+				if (!mmu_map_hold_va(dst_pmap, dtptr, addr)) {
+					goto out;
+				}
+
+				dst_pte = mmu_map_pt(dtptr) + pt_index(addr);
+				if (pte_load(dst_pte) == 0 &&
+ 				    pmap_put_pv_entry(dst_pmap, addr,
+					MACH_TO_VM_PAGE(ptetemp & PG_FRAME))) {
+					/*
+					 * Clear the wired, modified, and
+					 * accessed (referenced) bits
+					 * during the copy.
+					 */
+					PT_SET_VA_MA(dst_pte, ptetemp & 
+						     ~(PG_W | PG_M | PG_A), true);
+					pmap_resident_count_inc(dst_pmap, 1);
+	 			} else {
+					goto out;
+				}
+			}
+			addr += PAGE_SIZE;
+			src_pte++;
+		}
+	}
+out:
+	mmu_map_t_fini(dtptr);
+	mmu_map_t_fini(stptr);
+
+	
+	PMAP_UNLOCK(src_pmap);
+	PMAP_UNLOCK(dst_pmap);
 }
 
 void
-pmap_copy_page(vm_page_t src, vm_page_t dst)
+pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	vm_offset_t ma_src, ma_dst;
+	vm_offset_t va_src, va_dst;
+
+	KASSERT(msrc != NULL && mdst != NULL,
+		("Invalid source or destination page!"));
+
+	va_src = kmem_alloc_nofault(kernel_map, PAGE_SIZE * 2);
+	va_dst = va_src + PAGE_SIZE;
+
+	KASSERT(va_src != 0,
+		("Out of kernel virtual space!"));
+
+	ma_src = VM_PAGE_TO_MACH(msrc);
+	ma_dst = VM_PAGE_TO_MACH(mdst);
+
+	pmap_kenter_ma(va_src, ma_src);
+	pmap_kenter_ma(va_dst, ma_dst);
+
+	pagecopy((void *)va_src, (void *)va_dst);
+
+	pmap_kremove(va_src);
+	pmap_kremove(va_dst);
+
+	kmem_free(kernel_map, va_src, PAGE_SIZE * 2);
 }
 
 int unmapped_buf_allowed = 1;
@@ -1736,7 +1886,39 @@ void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
     vm_offset_t b_offset, int xfersize)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg, b_pg;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+	panic(__func__);
+	a_pg = kmem_alloc_nofault(kernel_map, PAGE_SIZE * 2);
+	b_pg = a_pg + PAGE_SIZE;
+
+	KASSERT(a_pg != 0,
+		("Out of kernel virtual space!"));
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		pmap_kenter_ma(a_pg, 
+			VM_PAGE_TO_MACH(ma[a_offset >> PAGE_SHIFT]));
+		a_cp = (char *)a_pg + a_pg_offset;
+
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		pmap_kenter_ma(b_pg,
+			VM_PAGE_TO_MACH(mb[b_offset >> PAGE_SHIFT]));
+		b_cp = (char *)b_pg + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+
+	pmap_kremove(a_pg);
+	pmap_kremove(b_pg);
+
+	kmem_free(kernel_map, a_pg, PAGE_SIZE * 2);
 }
 
 void
