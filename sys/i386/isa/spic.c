@@ -34,7 +34,7 @@
  * and mouse button out of the jog dial. I suspect that this device will
  * end up having to support at least 2 different minor devices: One to be
  * the jog wheel device for moused to camp out on and the other to perform
- * all of the other miscelaneous functions of this device. But for now,
+ * all of the other miscellaneous functions of this device. But for now,
  * the jog wheel is all you get.
  *
  * At the moment, the data sent back by the device is rather primitive.
