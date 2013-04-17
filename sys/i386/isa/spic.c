@@ -41,7 +41,7 @@
  * It sends a single character per event:
  * u = up, d = down -- that's the jog button
  * l = left, r = right -- that's the dial.
- * "left" and "right" are rather caprecious. They actually represent
+ * "left" and "right" are rather capricious. They actually represent
  * ccw and cw, respectively
  *
  * What documentation exists is thanks to Andrew Tridge, and his page at

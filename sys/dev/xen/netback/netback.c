@@ -1811,7 +1811,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 	if (num_consumed == 0)
 		return 0;	/* Nothing to receive */
 
-	/* update statistics indepdent of errors */
+	/* update statistics independent of errors */
 	ifnet->if_ipackets++;
 
 	/*
