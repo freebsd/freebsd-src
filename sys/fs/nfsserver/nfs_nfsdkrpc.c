@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
-#include <nfsserver/nfs_fha.h>
+#include <nfs/nfs_fha.h>
 #include <fs/nfsserver/nfs_fha_new.h>
 
 #include <security/mac/mac_framework.h>

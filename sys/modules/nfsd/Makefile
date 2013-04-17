@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/nfsserver ${.CURDIR}/../../nfsserver
+.PATH: ${.CURDIR}/../../fs/nfsserver ${.CURDIR}/../../nfs
 KMOD=	nfsd
 SRCS=	vnode_if.h \
 	nfs_fha.c \

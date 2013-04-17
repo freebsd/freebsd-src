@@ -30,11 +30,11 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 
 #include <rpc/rpc.h>
+#include <nfs/nfs_fha.h>
 #include <fs/nfs/xdr_subs.h>
 #include <fs/nfs/nfs.h>
 #include <fs/nfs/nfsproto.h>
 #include <fs/nfs/nfsm_subs.h>
-#include <nfsserver/nfs_fha.h>
 #include <fs/nfsserver/nfs_fha_new.h>
 
 static void fhanew_init(void *foo);

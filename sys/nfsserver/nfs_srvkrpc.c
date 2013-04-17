@@ -77,10 +77,10 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs/xdr_subs.h>
 #include <nfs/nfsproto.h>
+#include <nfs/nfs_fha.h>
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
-#include <nfsserver/nfs_fha.h>
 #include <nfsserver/nfs_fha_old.h>
 
 #include <security/mac/mac_framework.h>
