@@ -88,8 +88,6 @@ static struct lirqinfo {
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
 
-static uint32_t	pci_hole_startaddr;
-
 static uint64_t pci_emul_iobase;
 static uint64_t pci_emul_membase32;
 static uint64_t pci_emul_membase64;
@@ -977,13 +975,12 @@ init_pci(struct vmctx *ctx)
 	struct mem_range memp;
 	struct pci_devemu *pde;
 	struct slotinfo *si;
+	size_t lowmem;
 	int slot, func;
 	int error;
 
-	pci_hole_startaddr = vm_get_lowmem_limit(ctx);
-
 	pci_emul_iobase = PCI_EMUL_IOBASE;
-	pci_emul_membase32 = pci_hole_startaddr;
+	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
 	for (slot = 0; slot < MAXSLOTS; slot++) {
@@ -1010,14 +1007,23 @@ init_pci(struct vmctx *ctx)
 	lirq[15].li_generic = 1;
 
 	/*
-	 * Setup the PCI hole to return 0xff's when accessed in a region
-	 * with no devices
+	 * The guest physical memory map looks like the following:
+	 * [0,		    lowmem)		guest system memory
+	 * [lowmem,	    lowmem_limit)	memory hole (may be absent)
+	 * [lowmem_limit,   4GB)		PCI hole (32-bit BAR allocation)
+	 * [4GB,	    4GB + highmem)
+	 *
+	 * Accesses to memory addresses that are not allocated to system
+	 * memory or PCI devices return 0xff's.
 	 */
+	error = vm_get_memory_seg(ctx, 0, &lowmem);
+	assert(error == 0);
+
 	memset(&memp, 0, sizeof(struct mem_range));
 	memp.name = "PCI hole";
 	memp.flags = MEM_F_RW;
-	memp.base = pci_hole_startaddr;
-	memp.size = (4ULL * 1024 * 1024 * 1024) - pci_hole_startaddr;
+	memp.base = lowmem;
+	memp.size = (4ULL * 1024 * 1024 * 1024) - lowmem;
 	memp.handler = pci_emul_fallback_handler;
 
 	error = register_mem_fallback(&memp);
