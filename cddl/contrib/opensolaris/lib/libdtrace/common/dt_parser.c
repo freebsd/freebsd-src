@@ -23,7 +23,6 @@
 /*
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Copyright (c) 2011, Joyent Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
@@ -97,7 +96,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/sysmacros.h>
 #include <limits.h>
 #include <setjmp.h>
 #include <strings.h>
@@ -1864,38 +1862,6 @@ dt_node_op1(int op, dt_node_t *cp)
 	return (dnp);
 }
 
-/*
- * If an integer constant is being cast to another integer type, we can
- * perform the cast as part of integer constant folding in this pass. We must
- * take action when the integer is being cast to a smaller type or if it is
- * changing signed-ness. If so, we first shift rp's bits bits high (losing
- * excess bits if narrowing) and then shift them down with either a logical
- * shift (unsigned) or arithmetic shift (signed).
- */
-static void
-dt_cast(dt_node_t *lp, dt_node_t *rp)
-{
-	size_t srcsize = dt_node_type_size(rp);
-	size_t dstsize = dt_node_type_size(lp);
-
-	if (dstsize < srcsize) {
-		int n = (sizeof (uint64_t) - dstsize) * NBBY;
-		rp->dn_value <<= n;
-		rp->dn_value >>= n;
-	} else if (dstsize > srcsize) {
-		int n = (sizeof (uint64_t) - srcsize) * NBBY;
-		int s = (dstsize - srcsize) * NBBY;
-
-		rp->dn_value <<= n;
-		if (rp->dn_flags & DT_NF_SIGNED) {
-			rp->dn_value = (intmax_t)rp->dn_value >> s;
-			rp->dn_value >>= n - s;
-		} else {
-			rp->dn_value >>= n;
-		}
-	}
-}
-
 dt_node_t *
 dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 {
@@ -2045,9 +2011,32 @@ dt_node_op2(int op, dt_node_t *lp, dt_node_t *rp)
 		}
 	}
 
+	/*
+	 * If an integer constant is being cast to another integer type, we can
+	 * perform the cast as part of integer constant folding in this pass.
+	 * We must take action when the integer is being cast to a smaller type
+	 * or if it is changing signed-ness.  If so, we first shift rp's bits
+	 * bits high (losing excess bits if narrowing) and then shift them down
+	 * with either a logical shift (unsigned) or arithmetic shift (signed).
+	 */
 	if (op == DT_TOK_LPAR && rp->dn_kind == DT_NODE_INT &&
 	    dt_node_is_integer(lp)) {
-		dt_cast(lp, rp);
+		size_t srcsize = dt_node_type_size(rp);
+		size_t dstsize = dt_node_type_size(lp);
+
+		if ((dstsize < srcsize) || ((lp->dn_flags & DT_NF_SIGNED) ^
+		    (rp->dn_flags & DT_NF_SIGNED))) {
+			int n = dstsize < srcsize ?
+			    (sizeof (uint64_t) * NBBY - dstsize * NBBY) :
+			    (sizeof (uint64_t) * NBBY - srcsize * NBBY);
+
+			rp->dn_value <<= n;
+			if (lp->dn_flags & DT_NF_SIGNED)
+				rp->dn_value = (intmax_t)rp->dn_value >> n;
+			else
+				rp->dn_value = rp->dn_value >> n;
+		}
+
 		dt_node_type_propagate(lp, rp);
 		dt_node_attr_assign(rp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 		dt_node_free(lp);
@@ -2906,14 +2895,14 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 	case DT_TOK_DEREF:
 		/*
 		 * If the deref operator is applied to a translated pointer,
-		 * we set our output type to the output of the translation.
+		 * we can just set our output type to the base translation.
 		 */
 		if ((idp = dt_node_resolve(cp, DT_IDENT_XLPTR)) != NULL) {
 			dt_xlator_t *dxp = idp->di_data;
 
 			dnp->dn_ident = &dxp->dx_souid;
 			dt_node_type_assign(dnp,
-			    dnp->dn_ident->di_ctfp, dnp->dn_ident->di_type);
+			    DT_DYN_CTFP(dtp), DT_DYN_TYPE(dtp));
 			break;
 		}
 
@@ -3087,31 +3076,6 @@ dt_cook_op1(dt_node_t *dnp, uint_t idflags)
 
 	dt_node_attr_assign(dnp, cp->dn_attr);
 	return (dnp);
-}
-
-static void
-dt_assign_common(dt_node_t *dnp)
-{
-	dt_node_t *lp = dnp->dn_left;
-	dt_node_t *rp = dnp->dn_right;
-	int op = dnp->dn_op;
-
-	if (rp->dn_kind == DT_NODE_INT)
-		dt_cast(lp, rp);
-
-	if (!(lp->dn_flags & DT_NF_LVALUE)) {
-		xyerror(D_OP_LVAL, "operator %s requires modifiable "
-		    "lvalue as an operand\n", opstr(op));
-		/* see K&R[A7.17] */
-	}
-
-	if (!(lp->dn_flags & DT_NF_WRITABLE)) {
-		xyerror(D_OP_WRITE, "operator %s can only be applied "
-		    "to a writable variable\n", opstr(op));
-	}
-
-	dt_node_type_propagate(lp, dnp); /* see K&R[A7.17] */
-	dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 }
 
 static dt_node_t *
@@ -3592,7 +3556,19 @@ dt_cook_op2(dt_node_t *dnp, uint_t idflags)
 			}
 		}
 asgn_common:
-		dt_assign_common(dnp);
+		if (!(lp->dn_flags & DT_NF_LVALUE)) {
+			xyerror(D_OP_LVAL, "operator %s requires modifiable "
+			    "lvalue as an operand\n", opstr(op));
+			/* see K&R[A7.17] */
+		}
+
+		if (!(lp->dn_flags & DT_NF_WRITABLE)) {
+			xyerror(D_OP_WRITE, "operator %s can only be applied "
+			    "to a writable variable\n", opstr(op));
+		}
+
+		dt_node_type_propagate(lp, dnp); /* see K&R[A7.17] */
+		dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
 		break;
 
 	case DT_TOK_PTR:
@@ -3897,14 +3873,6 @@ asgn_common:
 
 		dt_node_type_propagate(lp, dnp); /* see K&R[A7.5] */
 		dt_node_attr_assign(dnp, dt_attr_min(lp->dn_attr, rp->dn_attr));
-
-		/*
-		 * If it's a pointer then should be able to (attempt to)
-		 * assign to it.
-		 */
-		if (lkind == CTF_K_POINTER)
-			dnp->dn_flags |= DT_NF_WRITABLE;
-
 		break;
 	}
 

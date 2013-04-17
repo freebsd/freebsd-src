@@ -19,18 +19,15 @@
  *
  * CDDL HEADER END
  */
-
 /*
  * Copyright 2003 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-/*
- * Copyright (c) 2012 by Delphix. All rights reserved.
- */
-
 #ifndef	_DT_REGSET_H
 #define	_DT_REGSET_H
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 
@@ -48,7 +45,6 @@ extern void dt_regset_destroy(dt_regset_t *);
 extern void dt_regset_reset(dt_regset_t *);
 extern int dt_regset_alloc(dt_regset_t *);
 extern void dt_regset_free(dt_regset_t *, int);
-extern void dt_regset_assert_free(dt_regset_t *);
 
 #ifdef	__cplusplus
 }
