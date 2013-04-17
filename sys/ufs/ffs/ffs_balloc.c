@@ -453,7 +453,7 @@ fail:
 	 * We have to sync it at the end so that the soft updates code
 	 * does not find any untracked changes. Although this is really
 	 * slow, running out of disk space is not expected to be a common
-	 * occurence. The error return from fsync is ignored as we already
+	 * occurrence. The error return from fsync is ignored as we already
 	 * have an error to return to the user.
 	 *
 	 * XXX Still have to journal the free below
