@@ -106,4 +106,4 @@ counter_startup(void)
 	uint64_pcpu_zone = uma_zcreate("uint64 pcpu", sizeof(uint64_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }
-SYSINIT(counter, SI_SUB_KMEM, SI_ORDER_ANY, counter_startup, NULL);
+SYSINIT(counter, SI_SUB_CPU, SI_ORDER_FOURTH, counter_startup, NULL);
