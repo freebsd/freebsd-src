@@ -388,11 +388,24 @@ printcpuinfo(void)
 				printf("\n  Standard Extended Features=0x%b",
 				    cpu_stdext_feature,
 				       "\020"
+				       /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
 				       "\001GSFSBASE"
 				       "\002TSCADJ"
+				       /* Bit Manipulation Instructions */
+				       "\004BMI1"
+				       /* Hardware Lock Elision */
+				       "\005HLE"
+				       /* Advanced Vector Instructions 2 */
+				       "\006AVX2"
+				       /* Supervisor Mode Execution Prot. */
 				       "\010SMEP"
+				       /* Bit Manipulation Instructions */
+				       "\011BMI2"
 				       "\012ENHMOVSB"
+				       /* Invalidate Processor Context ID */
 				       "\013INVPCID"
+				       /* Restricted Transactional Memory */
+				       "\014RTM"
 				       );
 			}
 
