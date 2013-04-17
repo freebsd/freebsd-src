@@ -797,7 +797,7 @@ tryagain:
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	newnfs_realign(&nd->nd_mrep);
+	newnfs_realign(&nd->nd_mrep, M_WAITOK);
 	nd->nd_md = nd->nd_mrep;
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;

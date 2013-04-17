@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
+#include <nfsserver/nfs_fha.h>
+#include <fs/nfsserver/nfs_fha_new.h>
+
 #include <security/mac/mac_framework.h>
 
 NFSDLOCKMUTEX;
@@ -51,7 +54,7 @@ struct nfsv4lock nfsd_suspend_lock;
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
  */
-static int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
+int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 	NFSPROC_NULL,
 	NFSPROC_GETATTR,
 	NFSPROC_SETATTR,
@@ -147,7 +150,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	 */
 	nd.nd_mrep = rqst->rq_args;
 	rqst->rq_args = NULL;
-	newnfs_realign(&nd.nd_mrep);
+	newnfs_realign(&nd.nd_mrep, M_WAITOK);
 	nd.nd_md = nd.nd_mrep;
 	nd.nd_dpos = mtod(nd.nd_md, caddr_t);
 	nd.nd_nam = svc_getrpccaller(rqst);
@@ -491,8 +494,8 @@ nfsrvd_init(int terminating)
 
 	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
 	nfsrvd_pool->sp_rcache = NULL;
-	nfsrvd_pool->sp_assign = NULL;
-	nfsrvd_pool->sp_done = NULL;
+	nfsrvd_pool->sp_assign = fhanew_assign;
+	nfsrvd_pool->sp_done = fha_nd_complete;
 
 	NFSD_LOCK();
 }
