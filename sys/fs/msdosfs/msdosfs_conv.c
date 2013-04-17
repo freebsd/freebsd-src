@@ -788,7 +788,7 @@ winLenFixup(un, unlen)
 }
 
 /*
- * Store an area with multi byte string instr, and reterns left
+ * Store an area with multi byte string instr, and returns left
  * byte of instr and moves pointer forward. The area's size is
  * inlen or outlen.
  */
