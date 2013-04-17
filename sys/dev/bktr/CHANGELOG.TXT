@@ -285,7 +285,7 @@
                     Fix row=0/columns=0 bug. From Randal Hopper<aa8vb@ipass.net>
                     Add option to block the reset of the MSP34xx audio chip by
                     adding options BKTR_NO_MSP_RESET to the kernel config file.
-                    This is usefull if you run another operating system
+                    This is useful if you run another operating system
                     first to initialise the audio chip, then do a soft reboot.
                     Added for Yuri Gindin <yuri@xpert.com>
 
