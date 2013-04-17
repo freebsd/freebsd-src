@@ -3982,6 +3982,42 @@ Set to the root directory used by jail
 Unset by default.
 Set to the fully qualified domain name (FQDN) assigned to jail
 .Va jname .
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _parameters
+.Pq Vt str
+Unset by default.
+Set extra parameters for jail
+.Va jname ,
+such as 
+.Dq Li allow.chflags
+or
+.Dq Li children.max .
+See
+.Xr jail 8
+for a list of available parameters.
+Note that the following parameters are already defined by
+.Pa rc.d/jail
+script out of their corresponding
+.Nm
+variables:
+.Bl  -tag -width "host.hostname" -offset indent
+.It Li path
+set from 
+.Va jail_ Ns Ao Ar jname Ac Ns Va _rootdir
+.It Li host.hostname
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _hostname
+.It Li command
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
+.It Li ip4.addr
+set if
+.Va jail_ Ns Ao Ar jname Ac Ns Va _ip
+contains IPv4 addresses
+.It Li ip6.addr
+set if
+.Va jail_ Ns Ao Ar jname Ac Ns Va _ip6
+contains IPv6 addresses
+.El
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _ip
 .Pq Vt str
 Unset by default.
