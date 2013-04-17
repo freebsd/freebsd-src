@@ -24,5 +24,89 @@
  */
 /* $FreeBSD$ */
 
+#ifndef	_NFS_FHA_H
+#define	_NFS_FHA_H 1
+
+#ifdef	_KERNEL
+
+/* Sysctl defaults. */
+#define FHA_DEF_ENABLE			1
+#define FHA_DEF_BIN_SHIFT		22 /* 4MB */
+#define FHA_DEF_MAX_NFSDS_PER_FH	8
+#define FHA_DEF_MAX_REQS_PER_NFSD	0  /* Unlimited */
+
+/* This is the global structure that represents the state of the fha system. */
+struct fha_global {
+	struct fha_hash_entry_list *hashtable;
+	u_long hashmask;
+};
+
+struct fha_ctls {
+	int	 enable;
+	uint32_t bin_shift;
+	uint32_t max_nfsds_per_fh;
+	uint32_t max_reqs_per_nfsd;
+};
+
+/*
+ * These are the entries in the filehandle hash.  They talk about a specific
+ * file, requests against which are being handled by one or more nfsds.  We
+ * keep a chain of nfsds against the file. We only have more than one if reads
+ * are ongoing, and then only if the reads affect disparate regions of the
+ * file.
+ *
+ * In general, we want to assign a new request to an existing nfsd if it is
+ * going to contend with work happening already on that nfsd, or if the
+ * operation is a read and the nfsd is already handling a proximate read.  We
+ * do this to avoid jumping around in the read stream unnecessarily, and to
+ * avoid contention between threads over single files.
+ */
+struct fha_hash_entry {
+	LIST_ENTRY(fha_hash_entry) link;
+	u_int64_t fh;
+	u_int32_t num_rw;
+	u_int32_t num_exclusive;
+	u_int8_t num_threads;
+	struct svcthread_list threads;
+};
+
+LIST_HEAD(fha_hash_entry_list, fha_hash_entry);
+
+/* A structure used for passing around data internally. */
+struct fha_info {
+	u_int64_t fh;
+	off_t offset;
+	int locktype;
+};
+
+struct fha_callbacks {
+	rpcproc_t (*get_procnum)(rpcproc_t procnum);
+	int (*realign)(struct mbuf **mb, int malloc_flags);
+	int (*get_fh)(fhandle_t *fh, int v3, struct mbuf **md, caddr_t *dpos);
+	int (*is_read)(rpcproc_t procnum);
+	int (*is_write)(rpcproc_t procnum);
+	int (*get_offset)(struct mbuf **md, caddr_t *dpos, int v3, struct
+			  fha_info *info);
+	int (*no_offset)(rpcproc_t procnum);
+	void (*set_locktype)(rpcproc_t procnum, struct fha_info *info);
+	int (*fhe_stats_sysctl)(SYSCTL_HANDLER_ARGS);
+};
+
+struct fha_params {
+	struct fha_global g_fha; 
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+	struct fha_ctls ctls;
+	struct fha_callbacks callbacks;
+	char server_name[32];
+	SVCPOOL **pool;
+};
+
 void fha_nd_complete(SVCTHREAD *, struct svc_req *);
-SVCTHREAD *fha_assign(SVCTHREAD *, struct svc_req *);
+SVCTHREAD *fha_assign(SVCTHREAD *, struct svc_req *, struct fha_params *);
+void fha_init(struct fha_params *softc);
+void fha_uninit(struct fha_params *softc);
+int fhe_stats_sysctl(SYSCTL_HANDLER_ARGS, struct fha_params *softc);
+
+#endif /* _KERNEL */
+#endif /* _NFS_FHA_H_ */
