@@ -774,7 +774,7 @@ winSlotCnt(un, unlen, pmp)
 }
 
 /*
- * Determine the number of bytes neccesary for Win95 names
+ * Determine the number of bytes neccessary for Win95 names
  */
 size_t
 winLenFixup(un, unlen)
