@@ -190,10 +190,8 @@ typedef enum {
 	D_PRINTA_AGGPROTO,		/* printa() aggregation mismatch */
 	D_TRACE_VOID,			/* trace() argument has void type */
 	D_TRACE_DYN,			/* trace() argument has dynamic type */
-	D_TRACE_AGG,			/* trace() argument is an aggregation */
 	D_PRINT_VOID,			/* print() argument has void type */
 	D_PRINT_DYN,			/* print() argument has dynamic type */
-	D_PRINT_AGG,			/* print() argument is an aggregation */
 	D_TRACEMEM_ADDR,		/* tracemem() address bad type */
 	D_TRACEMEM_SIZE,		/* tracemem() size bad type */
 	D_TRACEMEM_ARGS,		/* tracemem() illegal number of args */
