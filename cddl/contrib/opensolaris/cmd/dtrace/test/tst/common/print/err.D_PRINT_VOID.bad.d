@@ -20,15 +20,10 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 BEGIN
 {
 	print((void)`p0);
-}
-
-BEGIN
-{
-	exit(0);
 }
