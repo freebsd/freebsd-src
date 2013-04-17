@@ -1060,7 +1060,7 @@ tcp_drain(void)
 	 * XXX: The "Net/3" implementation doesn't imply that the TCP
 	 *      reassembly queue should be flushed, but in a situation
 	 *	where we're really low on mbufs, this is potentially
-	 *	usefull.
+	 *	useful.
 	 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
