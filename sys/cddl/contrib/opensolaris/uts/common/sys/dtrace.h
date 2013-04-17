@@ -26,7 +26,6 @@
 
 /*
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_DTRACE_H
@@ -931,10 +930,10 @@ typedef struct dtrace_ecbdesc {
  * DTrace Metadata Description Structures
  *
  * DTrace separates the trace data stream from the metadata stream.  The only
- * metadata tokens placed in the data stream are the dtrace_rechdr_t (EPID +
- * timestamp) or (in the case of aggregations) aggregation identifiers.  To
- * determine the structure of the data, DTrace consumers pass the token to the
- * kernel, and receive in return a corresponding description of the enabled
+ * metadata tokens placed in the data stream are enabled probe identifiers
+ * (EPIDs) or (in the case of aggregations) aggregation identifiers.  In order
+ * to determine the structure of the data, DTrace consumers pass the token to
+ * the kernel, and receive in return a corresponding description of the enabled
  * probe (via the dtrace_eprobedesc structure) or the aggregation (via the
  * dtrace_aggdesc structure).  Both of these structures are expressed in terms
  * of record descriptions (via the dtrace_recdesc structure) that describe the
@@ -1029,8 +1028,7 @@ typedef struct dtrace_fmtdesc {
 #define	DTRACEOPT_AGGSORTREV	24	/* reverse-sort aggregations */
 #define	DTRACEOPT_AGGSORTPOS	25	/* agg. position to sort on */
 #define	DTRACEOPT_AGGSORTKEYPOS	26	/* agg. key position to sort on */
-#define	DTRACEOPT_TEMPORAL	27	/* temporally ordered output */
-#define	DTRACEOPT_MAX		28	/* number of options */
+#define	DTRACEOPT_MAX		27	/* number of options */
 
 #define	DTRACEOPT_UNSET		(dtrace_optval_t)-2	/* unset option */
 
@@ -1050,9 +1048,7 @@ typedef struct dtrace_fmtdesc {
  * where user-level wishes the kernel to snapshot the buffer to (the
  * dtbd_data field).  The kernel uses the same structure to pass back some
  * information regarding the buffer:  the size of data actually copied out, the
- * number of drops, the number of errors, the offset of the oldest record,
- * and the time of the snapshot.
- *
+ * number of drops, the number of errors, and the offset of the oldest record.
  * If the buffer policy is a "switch" policy, taking a snapshot of the
  * principal buffer has the additional effect of switching the active and
  * inactive buffers.  Taking a snapshot of the aggregation buffer _always_ has
@@ -1065,28 +1061,7 @@ typedef struct dtrace_bufdesc {
 	uint64_t dtbd_drops;			/* number of drops */
 	DTRACE_PTR(char, dtbd_data);		/* data */
 	uint64_t dtbd_oldest;			/* offset of oldest record */
-	uint64_t dtbd_timestamp;		/* hrtime of snapshot */
 } dtrace_bufdesc_t;
-
-/*
- * Each record in the buffer (dtbd_data) begins with a header that includes
- * the epid and a timestamp.  The timestamp is split into two 4-byte parts
- * so that we do not require 8-byte alignment.
- */
-typedef struct dtrace_rechdr {
-	dtrace_epid_t dtrh_epid;		/* enabled probe id */
-	uint32_t dtrh_timestamp_hi;		/* high bits of hrtime_t */
-	uint32_t dtrh_timestamp_lo;		/* low bits of hrtime_t */
-} dtrace_rechdr_t;
-
-#define	DTRACE_RECORD_LOAD_TIMESTAMP(dtrh)			\
-	((dtrh)->dtrh_timestamp_lo +				\
-	((uint64_t)(dtrh)->dtrh_timestamp_hi << 32))
-
-#define	DTRACE_RECORD_STORE_TIMESTAMP(dtrh, hrtime) {		\
-	(dtrh)->dtrh_timestamp_lo = (uint32_t)hrtime;		\
-	(dtrh)->dtrh_timestamp_hi = hrtime >> 32;		\
-}
 
 /*
  * DTrace Status
