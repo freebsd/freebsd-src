@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 
 #include <rpc/rpc.h>
-#include <nfsserver/nfs_fha.h>
+#include <nfs/nfs_fha.h>
 
 static MALLOC_DEFINE(M_NFS_FHA, "NFS FHA", "NFS FHA");
 
