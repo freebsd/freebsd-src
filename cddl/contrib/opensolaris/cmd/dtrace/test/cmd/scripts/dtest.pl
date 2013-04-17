@@ -583,8 +583,6 @@ if ($opt_x) {
 die "$PNAME: failed to open $PNAME.$$.log: $!\n"
     unless (!$opt_l || open(LOG, ">$PNAME.$$.log"));
 
-$ENV{'DTRACE_DEBUG_REGSET'} = 'true';
-
 if ($opt_g) {
 	$ENV{'UMEM_DEBUG'} = 'default,verbose';
 	$ENV{'UMEM_LOGGING'} = 'fail,contents';

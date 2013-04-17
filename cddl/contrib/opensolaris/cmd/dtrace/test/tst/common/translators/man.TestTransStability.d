@@ -25,54 +25,37 @@
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
+
 /*
  * ASSERTION:
- * Verify the behavior of speculations with changes in specsize.
+ * The D inline translation mechanism can be used to facilitate stable
+ * translations.
  *
- * SECTION: Speculative Tracing/Options and Tuning;
- *	Options and Tunables/specsize
+ * SECTION: Translators/ Translator Declarations
+ * SECTION: Translators/ Translate Operator
+ * SECTION: Translators/Stable Translations
  *
+ * NOTES: Uncomment the pragma that explicitly resets the attributes of
+ * myinfo identifier to Stable/Stable/Common from Private/Private/Unknown.
+ * Run the program with and without the comments as:
+ * /usr/sbin/dtrace -vs man.TestTransStability.d
  */
 
 #pragma D option quiet
-#pragma D option specsize=40
+
+inline lwpsinfo_t *myinfo = xlate < lwpsinfo_t *> (curthread);
+
+/*
+#pragma D attributes Stable/Stable/Common myinfo
+*/
 
 BEGIN
 {
-	self->speculateFlag = 0;
-	self->commitFlag = 0;
-	self->spec = speculation();
-	printf("Speculative buffer ID: %d\n", self->spec);
-}
-
-BEGIN
-{
-	speculate(self->spec);
-	printf("Lots of data\n");
-	printf("Has to be crammed into this buffer\n");
-	printf("Until it overflows\n");
-	printf("And causes flops\n");
-	self->speculateFlag++;
-
-}
-
-BEGIN
-/1 <= self->speculateFlag/
-{
-	commit(self->spec);
-	self->commitFlag++;
-}
-
-BEGIN
-/1 <= self->commitFlag/
-{
-	printf("Statement was executed\n");
+	trace(myinfo->pr_flag);
 	exit(0);
 }
 
-BEGIN
-/1 > self->commitFlag/
+ERROR
 {
-	printf("Statement wasn't executed\n");
 	exit(1);
 }

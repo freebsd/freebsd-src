@@ -23,29 +23,26 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-/*
- * Copyright (c) 2012 by Delphix. All rights reserved.
- */
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * ASSERTION:
  *   Positive test for fill buffer policy.
  *
  * SECTION: Buffers and Buffering/fill Policy;
- *	Buffers and Buffering/Buffer Sizes;
+ * 	Buffers and Buffering/Buffer Sizes;
  *	Options and Tunables/bufsize;
  *	Options and Tunables/bufpolicy;
  *	Options and Tunables/statusrate
  */
 /*
- * This is a brute-force way of testing fill buffers.  We assume that
- * each printf() stores 16 bytes (4x 32-bit words for EPID, timestamp
- * lo, timestamp hi, and the variable i).  Because each fill buffer is
- * per-CPU, we must fill up our buffer in one series of enablings on a
- * single CPU.
+ * This is a brute-force way of testing fill buffers.  We assume that each
+ * printf() stores 8 bytes.  Because each fill buffer is per-CPU, we must
+ * fill up our buffer in one series of enablings on a single CPU.
  */
 #pragma D option bufpolicy=fill
-#pragma D option bufsize=128
+#pragma D option bufsize=64
 #pragma D option statusrate=10ms
 #pragma D option quiet
 

@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -92,7 +92,7 @@
 
 /*
  * The version number should be increased for every customer visible release
- * of DTrace. The major number should be incremented when a fundamental
+ * of Solaris. The major number should be incremented when a fundamental
  * change has been made that would affect all consumers, and would reflect
  * sweeping changes to DTrace or the D language. The minor number should be
  * incremented when a change is introduced that could break scripts that had
@@ -121,9 +121,8 @@
 #define	DT_VERS_1_8	DT_VERSION_NUMBER(1, 8, 0)
 #define	DT_VERS_1_8_1	DT_VERSION_NUMBER(1, 8, 1)
 #define	DT_VERS_1_9	DT_VERSION_NUMBER(1, 9, 0)
-#define	DT_VERS_1_9_1	DT_VERSION_NUMBER(1, 9, 1)
-#define	DT_VERS_LATEST	DT_VERS_1_9_1
-#define	DT_VERS_STRING	"Sun D 1.9.1"
+#define	DT_VERS_LATEST	DT_VERS_1_9
+#define	DT_VERS_STRING	"Sun D 1.9"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -144,7 +143,6 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_8,	/* D API 1.8 */
 	DT_VERS_1_8_1,	/* D API 1.8.1 */
 	DT_VERS_1_9,	/* D API 1.9 */
-	DT_VERS_1_9_1,	/* D API 1.9.1 */
 	0
 };
 
@@ -1153,7 +1151,7 @@ alloc:
 	dtp->dt_mods = calloc(dtp->dt_modbuckets, sizeof (dt_module_t *));
 	dtp->dt_provbuckets = _dtrace_strbuckets;
 	dtp->dt_provs = calloc(dtp->dt_provbuckets, sizeof (dt_provider_t *));
-	dt_proc_init(dtp);
+	dt_proc_hash_create(dtp);
 	dtp->dt_vmax = DT_VERS_LATEST;
 	dtp->dt_cpp_path = strdup(_dtrace_defcpp);
 	dtp->dt_cpp_argv = malloc(sizeof (char *));
@@ -1167,9 +1165,8 @@ alloc:
 	(void) uname(&dtp->dt_uts);
 
 	if (dtp->dt_mods == NULL || dtp->dt_provs == NULL ||
-	    dtp->dt_procs == NULL || dtp->dt_proc_env == NULL ||
-	    dtp->dt_ld_path == NULL || dtp->dt_cpp_path == NULL ||
-	    dtp->dt_cpp_argv == NULL)
+	    dtp->dt_procs == NULL || dtp->dt_ld_path == NULL ||
+	    dtp->dt_cpp_path == NULL || dtp->dt_cpp_argv == NULL)
 		return (set_open_errno(dtp, errp, EDT_NOMEM));
 
 	for (i = 0; i < DTRACEOPT_MAX; i++)
@@ -1581,7 +1578,7 @@ dtrace_close(dtrace_hdl_t *dtp)
 	int i;
 
 	if (dtp->dt_procs != NULL)
-		dt_proc_fini(dtp);
+		dt_proc_hash_destroy(dtp);
 
 	while ((pgp = dt_list_next(&dtp->dt_programs)) != NULL)
 		dt_program_destroy(dtp, pgp);
@@ -1633,6 +1630,7 @@ dtrace_close(dtrace_hdl_t *dtp)
 	dt_strdata_destroy(dtp);
 	dt_buffered_destroy(dtp);
 	dt_aggregate_destroy(dtp);
+	free(dtp->dt_buf.dtbd_data);
 	dt_pfdict_destroy(dtp);
 	dt_provmod_destroy(&dtp->dt_provmod);
 	dt_dof_fini(dtp);
