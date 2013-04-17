@@ -172,7 +172,7 @@ static char *pnp_classes[] = {
 /*
  * search_token()
  *
- * Search the first occurence of a token within a string
+ * Search the first occurrence of a token within a string
  */
 static char *
 search_token(char *str, int slen, char *token)

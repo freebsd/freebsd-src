@@ -694,7 +694,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * match CCBs.  For the SCSI, ATA and ADVINFO CCBs, we only pass the
 	 * CCB in if there's actually data to map.  cam_periph_mapmem() will
 	 * do the right thing, even if there isn't data to map, but since CCBs
-	 * without data are a reasonably common occurance (e.g. test unit
+	 * without data are a reasonably common occurrence (e.g. test unit
 	 * ready), it will save a few cycles if we check for it here.
 	 *
 	 * XXX What happens if a sg list is supplied?  We don't filter that
