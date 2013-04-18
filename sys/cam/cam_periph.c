@@ -378,13 +378,10 @@ cam_periph_acquire(struct cam_periph *periph)
 void
 cam_periph_release_locked_buses(struct cam_periph *periph)
 {
-	if (periph->refcount != 0) {
-		periph->refcount--;
-	} else {
-		panic("%s: release of %p when refcount is zero\n ", __func__,
-		      periph);
-	}
-	if (periph->refcount == 0
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+	KASSERT(periph->refcount >= 1, ("periph->refcount >= 1"));
+	if (--periph->refcount == 0
 	    && (periph->flags & CAM_PERIPH_INVALID)) {
 		camperiphfree(periph);
 	}
@@ -583,6 +580,7 @@ cam_periph_invalidate(struct cam_periph *periph)
 {
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
+	mtx_assert(periph->sim->mtx, MA_OWNED);
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.
@@ -605,6 +603,7 @@ camperiphfree(struct cam_periph *periph)
 {
 	struct periph_driver **p_drv;
 
+	mtx_assert(periph->sim->mtx, MA_OWNED);
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, periph->periph_name) == 0)
 			break;
