@@ -406,6 +406,12 @@ printcpuinfo(void)
 				       "\013INVPCID"
 				       /* Restricted Transactional Memory */
 				       "\014RTM"
+				       /* Enhanced NRBG */
+				       "\022RDSEED"
+				       /* ADCX + ADOX */
+				       "\023ADX"
+				       /* Supervisor Mode Access Prevention */
+				       "\024SMAP"
 				       );
 			}
 
