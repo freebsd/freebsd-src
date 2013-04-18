@@ -24,11 +24,9 @@
  */
 
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #pragma	D depends_on library ip.d
 #pragma	D depends_on library net.d
@@ -36,19 +34,21 @@
 #pragma D depends_on module nfssrv
 
 #pragma D binding "1.5" translator
-translator conninfo_t < rfs4_client_t *P > {
-	ci_protocol = (P->cl_addr.ss_family == AF_INET) ? "ipv4" : "ipv6";
+translator conninfo_t < struct compound_state *P > {
+	ci_protocol = P->req->rq_xprt->xp_master->xp_netid == "tcp" ? "ipv4" :
+	    P->req->rq_xprt->xp_master->xp_netid == "tcp6" ? "ipv6" :
+	    "<unknown>";
 
-	ci_local = "<unknown>";
+	ci_local = inet_ntoa6(&((conn_t *)P->req->rq_xprt->xp_xpc.
+	    xpc_wq->q_next->q_ptr)->connua_v6addr.connua_laddr);
 
-	ci_remote = (P->cl_addr.ss_family == AF_INET) ?
-	    inet_ntoa((ipaddr_t *)
-	    &((struct sockaddr_in *)&P->cl_addr)->sin_addr) :
-	    inet_ntoa6(&((struct sockaddr_in6 *)&P->cl_addr)->sin6_addr);
+	ci_remote = inet_ntoa6(&((conn_t *)P->req->rq_xprt->xp_xpc.
+	    xpc_wq->q_next->q_ptr)->connua_v6addr.connua_faddr);
 };
 
 #pragma D binding "1.5" translator
-translator nfsv4cbinfo_t < rfs4_deleg_state_t *P > {
-	nci_curpath = (P->finfo->vp == NULL) ? "<unknown>" :
-	    P->finfo->vp->v_path;
+translator nfsv4opinfo_t < struct compound_state *P > {
+	noi_xid = P->req->rq_xprt->xp_xid;
+	noi_cred = P->basecr;
+	noi_curpath = (P->vp == NULL) ? "<unknown>" : P->vp->v_path;
 };
