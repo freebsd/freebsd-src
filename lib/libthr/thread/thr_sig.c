@@ -750,7 +750,6 @@ _swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 	if (oucp == NULL || ucp == NULL)
 		return (EINVAL);
 	if (SIGISMEMBER(ucp->uc_sigmask, SIGCANCEL)) {
-	 	stdout_debug("remove SIGCANCEL\n");	
 		(void) memcpy(&uc, ucp, sizeof(uc));
 		SIGDELSET(uc.uc_sigmask, SIGCANCEL);
 		ucp = &uc;
