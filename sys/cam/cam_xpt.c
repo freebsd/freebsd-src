@@ -653,7 +653,7 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 		}
 
 		/* Keep the list from changing while we traverse it */
-		mtx_lock(&xsoftc.xpt_topo_lock);
+		xpt_lock_buses();
 ptstartover:
 		cur_generation = xsoftc.xpt_generation;
 
@@ -663,7 +663,7 @@ ptstartover:
 				break;
 
 		if (*p_drv == NULL) {
-			mtx_unlock(&xsoftc.xpt_topo_lock);
+			xpt_unlock_buses();
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			ccb->cgdl.status = CAM_GDEVLIST_ERROR;
 			*ccb->cgdl.periph_name = '\0';
@@ -685,8 +685,8 @@ ptstartover:
 			if (periph->unit_number == unit) {
 				break;
 			} else if (--splbreaknum == 0) {
-				mtx_unlock(&xsoftc.xpt_topo_lock);
-				mtx_lock(&xsoftc.xpt_topo_lock);
+				xpt_unlock_buses();
+				xpt_lock_buses();
 				splbreaknum = 100;
 				if (cur_generation != xsoftc.xpt_generation)
 				       goto ptstartover;
@@ -775,7 +775,7 @@ ptstartover:
 				       "your kernel config file\n");
 			}
 		}
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+		xpt_unlock_buses();
 		break;
 		}
 	default:
@@ -1023,9 +1023,9 @@ xpt_add_periph(struct cam_periph *periph)
 		SLIST_INSERT_HEAD(periph_head, periph, periph_links);
 	}
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	xsoftc.xpt_generation++;
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+	xpt_unlock_buses();
 
 	return (status);
 }
@@ -1053,12 +1053,12 @@ xpt_remove_periph(struct cam_periph *periph, int topology_lock_held)
 	}
 
 	if (topology_lock_held == 0)
-		mtx_lock(&xsoftc.xpt_topo_lock);
+		xpt_lock_buses();
 
 	xsoftc.xpt_generation++;
 
 	if (topology_lock_held == 0)
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+		xpt_unlock_buses();
 }
 
 
@@ -2030,7 +2030,7 @@ xptbustraverse(struct cam_eb *start_bus, xpt_busfunc_t *tr_func, void *arg)
 
 	retval = 1;
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	for (bus = (start_bus ? start_bus : TAILQ_FIRST(&xsoftc.xpt_busses));
 	     bus != NULL;
 	     bus = next_bus) {
@@ -2041,22 +2041,22 @@ xptbustraverse(struct cam_eb *start_bus, xpt_busfunc_t *tr_func, void *arg)
 		 * XXX The locking here is obviously very complex.  We
 		 * should work to simplify it.
 		 */
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+		xpt_unlock_buses();
 		CAM_SIM_LOCK(bus->sim);
 		retval = tr_func(bus, arg);
 		CAM_SIM_UNLOCK(bus->sim);
 
-		mtx_lock(&xsoftc.xpt_topo_lock);
+		xpt_lock_buses();
 		next_bus = TAILQ_NEXT(bus, links);
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+		xpt_unlock_buses();
 
 		xpt_release_bus(bus);
 
 		if (retval == 0)
 			return(retval);
-		mtx_lock(&xsoftc.xpt_topo_lock);
+		xpt_lock_buses();
 	}
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+	xpt_unlock_buses();
 
 	return(retval);
 }
@@ -2072,7 +2072,7 @@ xpt_sim_opened(struct cam_sim *sim)
 	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
 	mtx_assert(sim->mtx, MA_OWNED);
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	TAILQ_FOREACH(bus, &xsoftc.xpt_busses, links) {
 		if (bus->sim != sim)
 			continue;
@@ -2082,7 +2082,7 @@ xpt_sim_opened(struct cam_sim *sim)
 				SLIST_FOREACH(periph, &device->periphs,
 				    periph_links) {
 					if (periph->refcount > 0) {
-						mtx_unlock(&xsoftc.xpt_topo_lock);
+						xpt_unlock_buses();
 						return (1);
 					}
 				}
@@ -2090,7 +2090,7 @@ xpt_sim_opened(struct cam_sim *sim)
 		}
 	}
 
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+	xpt_unlock_buses();
 	return (0);
 }
 
@@ -3549,14 +3549,14 @@ xpt_path_counts(struct cam_path *path, uint32_t *bus_ref,
     uint32_t *periph_ref, uint32_t *target_ref, uint32_t *device_ref)
 {
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	if (bus_ref) {
 		if (path->bus)
 			*bus_ref = path->bus->refcount;
 		else
 			*bus_ref = 0;
 	}
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+	xpt_unlock_buses();
 	if (periph_ref) {
 		if (path->periph)
 			*periph_ref = path->periph->refcount;
@@ -3872,7 +3872,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	new_bus->refcount = 1;	/* Held until a bus_deregister event */
 	new_bus->generation = 0;
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	old_bus = TAILQ_FIRST(&xsoftc.xpt_busses);
 	while (old_bus != NULL
 	    && old_bus->path_id < new_bus->path_id)
@@ -3882,7 +3882,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	else
 		TAILQ_INSERT_TAIL(&xsoftc.xpt_busses, new_bus, links);
 	xsoftc.bus_generation++;
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+	xpt_unlock_buses();
 
 	/*
 	 * Set a default transport so that a PATH_INQ can be issued to
@@ -3968,7 +3968,7 @@ xptnextfreepathid(void)
 	const char *strval;
 
 	pathid = 0;
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	bus = TAILQ_FIRST(&xsoftc.xpt_busses);
 retry:
 	/* Find an unoccupied pathid */
@@ -3977,7 +3977,7 @@ retry:
 			pathid++;
 		bus = TAILQ_NEXT(bus, links);
 	}
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+	xpt_unlock_buses();
 
 	/*
 	 * Ensure that this pathid is not reserved for
@@ -3986,7 +3986,7 @@ retry:
 	if (resource_string_value("scbus", pathid, "at", &strval) == 0) {
 		++pathid;
 		/* Start the search over */
-		mtx_lock(&xsoftc.xpt_topo_lock);
+		xpt_lock_buses();
 		goto retry;
 	}
 	return (pathid);
@@ -4435,17 +4435,17 @@ static void
 xpt_release_bus(struct cam_eb *bus)
 {
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	KASSERT(bus->refcount >= 1, ("bus->refcount >= 1"));
 	if ((--bus->refcount == 0)
 	 && (TAILQ_FIRST(&bus->et_entries) == NULL)) {
 		TAILQ_REMOVE(&xsoftc.xpt_busses, bus, links);
 		xsoftc.bus_generation++;
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+		xpt_unlock_buses();
 		cam_sim_release(bus->sim);
 		free(bus, M_CAMXPT);
 	} else
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+		xpt_unlock_buses();
 }
 
 static struct cam_et *
@@ -4469,9 +4469,9 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 		 * Hold a reference to our parent bus so it
 		 * will not go away before we do.
 		 */
-		mtx_lock(&xsoftc.xpt_topo_lock);
+		xpt_lock_buses();
 		bus->refcount++;
-		mtx_unlock(&xsoftc.xpt_topo_lock);
+		xpt_unlock_buses();
 
 		/* Insertion sort into our bus's target list */
 		cur_target = TAILQ_FIRST(&bus->et_entries);
@@ -4661,7 +4661,7 @@ xpt_find_bus(path_id_t path_id)
 {
 	struct cam_eb *bus;
 
-	mtx_lock(&xsoftc.xpt_topo_lock);
+	xpt_lock_buses();
 	for (bus = TAILQ_FIRST(&xsoftc.xpt_busses);
 	     bus != NULL;
 	     bus = TAILQ_NEXT(bus, links)) {
@@ -4670,7 +4670,7 @@ xpt_find_bus(path_id_t path_id)
 			break;
 		}
 	}
-	mtx_unlock(&xsoftc.xpt_topo_lock);
+	xpt_unlock_buses();
 	return (bus);
 }
 
