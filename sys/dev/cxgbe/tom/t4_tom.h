@@ -182,6 +182,7 @@ struct clip_entry {
 	u_int refcount;
 };
 
+TAILQ_HEAD(clip_head, clip_entry);
 struct tom_data {
 	struct toedev tod;
 
@@ -201,7 +202,8 @@ struct tom_data {
 	struct ppod_head ppods;
 
 	struct mtx clip_table_lock;
-	TAILQ_HEAD(, clip_entry) clip_table;
+	struct clip_head clip_table;
+	int clip_gen;
 };
 
 static inline struct tom_data *
