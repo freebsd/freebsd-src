@@ -13026,9 +13026,9 @@ clear_remove(td)
 
 	mtx_assert(&lk, MA_OWNED);
 
-	for (cnt = 0; cnt < pagedep_hash; cnt++) {
+	for (cnt = 0; cnt <= pagedep_hash; cnt++) {
 		pagedephd = &pagedep_hashtbl[next++];
-		if (next >= pagedep_hash)
+		if (next > pagedep_hash)
 			next = 0;
 		LIST_FOREACH(pagedep, pagedephd, pd_hash) {
 			if (LIST_EMPTY(&pagedep->pd_dirremhd))
@@ -13090,9 +13090,9 @@ clear_inodedeps(td)
 	 * We will then gather up all the inodes in its block 
 	 * that have dependencies and flush them out.
 	 */
-	for (cnt = 0; cnt < inodedep_hash; cnt++) {
+	for (cnt = 0; cnt <= inodedep_hash; cnt++) {
 		inodedephd = &inodedep_hashtbl[next++];
-		if (next >= inodedep_hash)
+		if (next > inodedep_hash)
 			next = 0;
 		if ((inodedep = LIST_FIRST(inodedephd)) != NULL)
 			break;
