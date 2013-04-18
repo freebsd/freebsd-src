@@ -1387,6 +1387,28 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	return (0);
 }
 
+struct vnode *
+vn_dir_dd_ino(struct vnode *vp)
+{
+	struct namecache *ncp;
+	struct vnode *ddvp;
+
+	ASSERT_VOP_LOCKED(vp, "vn_dir_dd_ino");
+	CACHE_RLOCK();
+	TAILQ_FOREACH(ncp, &(vp->v_cache_dst), nc_dst) {
+		if ((ncp->nc_flag & NCF_ISDOTDOT) != 0)
+			continue;
+		ddvp = ncp->nc_dvp;
+		VI_LOCK(ddvp);
+		CACHE_RUNLOCK();
+		if (vget(ddvp, LK_INTERLOCK | LK_SHARED | LK_NOWAIT, curthread))
+			return (NULL);
+		return (ddvp);
+	}
+	CACHE_RUNLOCK();
+	return (NULL);
+}
+
 int
 vn_commname(struct vnode *vp, char *buf, u_int buflen)
 {
