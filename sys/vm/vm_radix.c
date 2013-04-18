@@ -360,10 +360,17 @@ vm_radix_node_zone_init(void *mem, int size __unused, int flags __unused)
 static void
 vm_radix_prealloc(void *arg __unused)
 {
+	int nodes;
 
-	if (!uma_zone_reserve_kva(vm_radix_node_zone, cnt.v_page_count))
+	/*
+	 * Calculate the number of reserved nodes, discounting the pages that
+	 * are needed to store them.
+	 */
+	nodes = ((vm_paddr_t)cnt.v_page_count * PAGE_SIZE) / (PAGE_SIZE +
+	    sizeof(struct vm_radix_node));
+	if (!uma_zone_reserve_kva(vm_radix_node_zone, nodes))
 		panic("%s: unable to create new zone", __func__);
-	uma_prealloc(vm_radix_node_zone, cnt.v_page_count);
+	uma_prealloc(vm_radix_node_zone, nodes);
 }
 SYSINIT(vm_radix_prealloc, SI_SUB_KMEM, SI_ORDER_SECOND, vm_radix_prealloc,
     NULL);
