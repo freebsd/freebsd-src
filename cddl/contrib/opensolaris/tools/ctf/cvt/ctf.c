@@ -47,7 +47,7 @@
  *
  * The value is only valid during a call to ctf_load.
  */
-char *curfile;
+static char *curfile;
 
 #define	CTF_BUF_CHUNK_SIZE	(64 * 1024)
 #define	RES_BUF_CHUNK_SIZE	(64 * 1024)
