@@ -721,6 +721,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 
 	/*
+	 * Query the TX/RX chainmask configuration.
+	 *
+	 * This is only relevant for 11n devices.
+	 */
+	ath_hal_getrxchainmask(ah, &sc->sc_rxchainmask);
+	ath_hal_gettxchainmask(ah, &sc->sc_txchainmask);
+
+	/*
 	 * Disable MRR with protected frames by default.
 	 * Only 802.11n series NICs can handle this.
 	 */
@@ -777,14 +785,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		 */
 		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &txs);
 		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 1, &rxs);
-
-		ath_hal_getrxchainmask(ah, &sc->sc_rxchainmask);
-		ath_hal_gettxchainmask(ah, &sc->sc_txchainmask);
-
-		device_printf(sc->sc_dev, "Chainmasks: TX=0x%x; RX=0x%x\n",
-		    sc->sc_txchainmask,
-		    sc->sc_rxchainmask);
-
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
