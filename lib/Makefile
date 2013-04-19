@@ -253,6 +253,6 @@ _libusb=	libusb
 .endif
 
 afterinstall:
-	ln -fs ../include ${DESTDIR}/usr/lib/include
+	ln -fs ../include ${DESTDIR}/usr/lib/
 
 .include <bsd.subdir.mk>
