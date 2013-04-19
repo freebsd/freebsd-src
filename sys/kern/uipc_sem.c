@@ -846,8 +846,6 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 err:
 	mtx_unlock(&sem_lock);
 	fdrop(fp, td);
-	if (error == ERESTART)
-		error = EINTR;
 	DP(("<<< kern_sem_wait leaving, pid=%d, error = %d\n",
 	    (int)td->td_proc->p_pid, error));
 	return (error);
