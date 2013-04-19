@@ -103,6 +103,17 @@ AeInterfaceHandler (
     ACPI_STRING             InterfaceName,
     UINT32                  Supported);
 
+static ACPI_STATUS
+AeInstallOneEcHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue);
+
+static ACPI_STATUS
+AeInstallEcHandlers (
+    void);
+
 #if (!ACPI_REDUCED_HARDWARE)
 static UINT32
 AeEventHandler (
@@ -116,17 +127,17 @@ static char                *TableEvents[] =
 };
 #endif /* !ACPI_REDUCED_HARDWARE */
 
+
 static UINT32               SigintCount = 0;
 static AE_DEBUG_REGIONS     AeRegions;
 BOOLEAN                     AcpiGbl_DisplayRegionAccess = FALSE;
-
 
 /*
  * We will override some of the default region handlers, especially the
  * SystemMemory handler, which must be implemented locally. Do not override
  * the PCI_Config handler since we would like to exercise the default handler
  * code. These handlers are installed "early" - before any _REG methods
- * are executed - since they are special in the sense that tha ACPI spec
+ * are executed - since they are special in the sense that the ACPI spec
  * declares that they must "always be available". Cannot override the
  * DataTable region handler either -- needed for test execution.
  */
@@ -138,26 +149,26 @@ static ACPI_ADR_SPACE_TYPE  DefaultSpaceIdList[] =
 
 /*
  * We will install handlers for some of the various address space IDs.
- * Test one user-defined address space (used by aslts.)
+ * Test one user-defined address space (used by aslts).
  */
 #define ACPI_ADR_SPACE_USER_DEFINED1        0x80
 #define ACPI_ADR_SPACE_USER_DEFINED2        0xE4
 
 static ACPI_ADR_SPACE_TYPE  SpaceIdList[] =
 {
-    ACPI_ADR_SPACE_EC,
     ACPI_ADR_SPACE_SMBUS,
-    ACPI_ADR_SPACE_GSBUS,
-    ACPI_ADR_SPACE_GPIO,
+    ACPI_ADR_SPACE_CMOS,
     ACPI_ADR_SPACE_PCI_BAR_TARGET,
     ACPI_ADR_SPACE_IPMI,
+    ACPI_ADR_SPACE_GPIO,
+    ACPI_ADR_SPACE_GSBUS,
     ACPI_ADR_SPACE_FIXED_HARDWARE,
     ACPI_ADR_SPACE_USER_DEFINED1,
     ACPI_ADR_SPACE_USER_DEFINED2
 };
 
-
 static ACPI_CONNECTION_INFO   AeMyContext;
+
 
 /******************************************************************************
  *
@@ -652,6 +663,55 @@ AeRegionInit (
 }
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AeInstallEcHandlers, AeInstallOneEcHandler
+ *
+ * PARAMETERS:  ACPI_WALK_NAMESPACE callback
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Walk entire namespace, install a handler for every EC
+ *              device found.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AeInstallOneEcHandler (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  Level,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_STATUS             Status;
+
+
+    /* Install the handler for this EC device */
+
+    Status = AcpiInstallAddressSpaceHandler (ObjHandle, ACPI_ADR_SPACE_EC,
+        AeRegionHandler, AeRegionInit, &AeMyContext);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status,
+            "Could not install an OpRegion handler for EC device (%p)",
+            ObjHandle));
+    }
+
+    return (Status);
+}
+
+static ACPI_STATUS
+AeInstallEcHandlers (
+    void)
+{
+
+    /* Find all Embedded Controller devices */
+
+    AcpiGetDevices ("PNP0C09", AeInstallOneEcHandler, NULL, NULL);
+    return (AE_OK);
+}
+
+
 /******************************************************************************
  *
  * FUNCTION:    AeInstallLateHandlers
@@ -689,8 +749,15 @@ AeInstallLateHandlers (
     AeMyContext.AccessLength = 0xA5;
 
     /*
+     * We will install a handler for each EC device, directly under the EC
+     * device definition. This is unlike the other handlers which we install
+     * at the root node.
+     */
+    AeInstallEcHandlers ();
+
+    /*
      * Install handlers for some of the "device driver" address spaces
-     * such as EC, SMBus, etc.
+     * such as SMBus, etc.
      */
     for (i = 0; i < ACPI_ARRAY_LENGTH (SpaceIdList); i++)
     {

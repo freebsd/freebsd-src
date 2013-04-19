@@ -1,4 +1,91 @@
 ----------------------------------------
+18 April 2013. Summary of changes for version 20130418:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a possible buffer overrun during some rare but specific field unit 
+read operations. This overrun can only happen if the DSDT version is 1 -- 
+meaning that all AML integers are 32 bits -- and the field length is 
+between 33 and 55 bits long. During the read, an internal buffer object is 
+created for the field unit because the field is larger than an integer (32 
+bits). However, in this case, the buffer will be incorrectly written 
+beyond the end because the buffer length is less than the internal minimum 
+of 64 bits (8 bytes) long. The buffer will be either 5, 6, or 7 bytes 
+long, but a full 8 bytes will be written.
+
+Updated the Embedded Controller "orphan" _REG method support. This refers 
+to _REG methods under the EC device that have no corresponding operation 
+region. This is allowed by the ACPI specification. This update removes a 
+dependency on the existence an ECDT table. It will execute an orphan _REG 
+method as long as the operation region handler for the EC is installed at 
+the EC device node and not the namespace root. Rui Zhang (original 
+update), Bob Moore (update/integrate).
+
+Implemented run-time argument typechecking for all predefined ACPI names 
+(_STA, _BIF, etc.) This change performs object typechecking on all 
+incoming arguments for all predefined names executed via 
+AcpiEvaluateObject. This ensures that ACPI-related device drivers are 
+passing correct object types as well as the correct number of arguments 
+(therefore identifying any issues immediately). Also, the ASL/namespace 
+definition of the predefined name is checked against the ACPI 
+specification for the proper argument count. Adds one new file, 
+nsarguments.c
+
+Changed an exception code for the ASL UnLoad() operator. Changed the 
+exception code for the case where the input DdbHandle is invalid, from 
+AE_BAD_PARAMETER to the more appropriate AE_AML_OPERAND_TYPE.
+
+Unix/Linux makefiles: Removed the use of the -O2 optimization flag in the 
+global makefile. The use of this flag causes compiler errors on earlier 
+versions of GCC, so it has been removed for compatibility.
+
+Miscellaneous cleanup:
+1) Removed some unused/obsolete macros
+2) Fixed a possible memory leak in the _OSI support
+3) Removed an unused variable in the predefined name support
+4) Windows OSL: remove obsolete reference to a memory list field
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  95.2K Code, 26.4K Data, 121.6K Total
+    Debug Version:     183.0K Code, 76.0K Data, 259.0K Total
+  Previous Release:
+    Non-Debug Version:  95.6K Code, 26.8K Data, 122.4K Total
+    Debug Version:     183.5K Code, 76.6K Data, 260.1K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiExec: Added installation of a handler for the SystemCMOS address 
+space. This prevents control method abort if a method accesses this space.
+
+AcpiExec: Added support for multiple EC devices, and now install EC 
+operation region handler(s) at the actual EC device instead of the 
+namespace root. This reflects the typical behavior of host operating 
+systems.
+
+AcpiExec: Updated to ensure that all operation region handlers are 
+installed before the _REG methods are executed. This prevents a _REG 
+method from aborting if it accesses an address space has no handler. 
+AcpiExec installs a handler for every possible address space.
+
+Debugger: Enhanced the "handlers" command to display non-root handlers. 
+This change enhances the handlers command to display handlers associated 
+with individual devices throughout the namespace, in addition to the 
+currently supported display of handlers associated with the root namespace 
+node.
+
+ASL Test Suite: Several test suite errors have been identified and 
+resolved, reducing the total error count during execution. Chao Guan.
+
+----------------------------------------
 28 March 2013. Summary of changes for version 20130328:
 
 1) ACPICA kernel-resident subsystem:

@@ -435,6 +435,7 @@ AcpiDbWalkForPredefinedNames (
     const ACPI_PREDEFINED_INFO  *Predefined;
     const ACPI_PREDEFINED_INFO  *Package = NULL;
     char                        *Pathname;
+    char                        StringBuffer[48];
 
 
     Predefined = AcpiUtMatchPredefinedMethod (Node->Name.Ascii);
@@ -456,23 +457,28 @@ AcpiDbWalkForPredefinedNames (
         Package = Predefined + 1;
     }
 
-    AcpiOsPrintf ("%-32s arg %X ret %2.2X", Pathname,
-        (Predefined->Info.ArgumentList & METHOD_ARG_MASK),
+    AcpiUtGetExpectedReturnTypes (StringBuffer,
         Predefined->Info.ExpectedBtypes);
+
+    AcpiOsPrintf ("%-32s Arguments %X, Return Types: %s", Pathname,
+        METHOD_GET_ARG_COUNT (Predefined->Info.ArgumentList),
+        StringBuffer);
 
     if (Package)
     {
-        AcpiOsPrintf (" PkgType %2.2X ObjType %2.2X Count %2.2X",
+        AcpiOsPrintf (" (PkgType %2.2X, ObjType %2.2X, Count %2.2X)",
             Package->RetInfo.Type, Package->RetInfo.ObjectType1,
             Package->RetInfo.Count1);
     }
 
     AcpiOsPrintf("\n");
 
-    AcpiNsCheckParameterCount (Pathname, Node, ACPI_UINT32_MAX, Predefined);
+    /* Check that the declared argument count matches the ACPI spec */
+
+    AcpiNsCheckAcpiCompliance (Pathname, Node, Predefined);
+
     ACPI_FREE (Pathname);
     (*Count)++;
-
     return (AE_OK);
 }
 
