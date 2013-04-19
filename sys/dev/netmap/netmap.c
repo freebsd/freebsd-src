@@ -324,11 +324,7 @@ netmap_update_config(struct netmap_adapter *na)
 }
 
 /*------------- memory allocator -----------------*/
-#ifdef NETMAP_MEM2
 #include "netmap_mem2.c"
-#else /* !NETMAP_MEM2 */
-#include "netmap_mem1.c"
-#endif /* !NETMAP_MEM2 */
 /*------------ end of memory allocator ----------*/
 
 
@@ -498,16 +494,16 @@ netmap_dtor(void *data)
 {
 	struct netmap_priv_d *priv = data;
 	struct ifnet *ifp = priv->np_ifp;
-	struct netmap_adapter *na;
 
 	NMA_LOCK();
 	if (ifp) {
-		na = NA(ifp);
+		struct netmap_adapter *na = NA(ifp);
+
 		na->nm_lock(ifp, NETMAP_REG_LOCK, 0);
 		netmap_dtor_locked(data);
 		na->nm_lock(ifp, NETMAP_REG_UNLOCK, 0);
 
-		nm_if_rele(ifp);
+		nm_if_rele(ifp); /* might also destroy *na */
 	}
 	if (priv->ref_done) {
 		netmap_memory_deref();
