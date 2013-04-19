@@ -156,7 +156,7 @@ STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 .if ${MACHINE} != "host"
 CFLAGS_LAST+= -nostdinc
 .endif
-CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include -isystem ${STAGE_OBJTOP}/include
+CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include 
 CFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR}
 CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}
@@ -166,10 +166,10 @@ CFLAGS_LAST.clang += -isystem ${STAGE_OBJTOP}/usr/include/clang/3.2
 CXXFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 .else
 # if ld suppored sysroot, this would suffice
-CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP} -isystem ${STAGE_OBJTOP}/include
+CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP}
 .endif
 .endif
-STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/include
+STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
 .if ${USE_META:Uyes} == "yes"
 .include "meta.sys.mk"
 .endif

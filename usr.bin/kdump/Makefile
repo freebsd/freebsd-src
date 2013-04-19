@@ -38,8 +38,3 @@ linux_syscalls.c:
 	    >> linux_syscalls.c
 
 .include <bsd.prog.mk>
-
-.if ${MK_STAGING} != ""
-# we are interested in the files put in ${STAGE_OBJTOP}/include
-INCLUDEDIR= /include
-.endif

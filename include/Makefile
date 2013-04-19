@@ -135,9 +135,6 @@ stage_includes:
 .if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
 .if make(all)
 DESTDIR= ${STAGE_OBJTOP}
-# we want to keep this separate from the folk who
-# do staging "normally"
-INCLUDEDIR=	/include
 
 all:	stage_includes
 installincludes: buildincludes
@@ -148,11 +145,6 @@ stage_prep:
 	@touch $@
 
 stage_includes: .dirdep installincludes
-	@find ${DESTDIR}${INCLUDEDIR} -type d | while read d; do \
-		rm -f $$d/.dirdep; \
-		{ ln .dirdep $$d/.dirdep 2> /dev/null || \
-		cp -p .dirdep $$d/.dirdep; }; \
-	done
 	@touch $@
 .endif
 .endif
