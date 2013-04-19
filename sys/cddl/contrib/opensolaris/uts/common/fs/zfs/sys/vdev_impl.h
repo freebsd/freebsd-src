@@ -104,8 +104,7 @@ struct vdev_queue {
 	avl_tree_t	vq_read_tree;
 	avl_tree_t	vq_write_tree;
 	avl_tree_t	vq_pending_tree;
-	uint64_t	vq_io_complete_ts;
-	uint64_t	vq_io_delta_ts;
+	hrtime_t	vq_io_complete_ts;
 	kmutex_t	vq_lock;
 };
 
