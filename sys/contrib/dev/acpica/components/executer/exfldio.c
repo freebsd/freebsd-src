@@ -766,7 +766,18 @@ AcpiExExtractFromField (
     if ((ObjDesc->CommonField.StartFieldBitOffset == 0) &&
         (ObjDesc->CommonField.BitLength == AccessBitWidth))
     {
-        Status = AcpiExFieldDatumIo (ObjDesc, 0, Buffer, ACPI_READ);
+        if (BufferLength >= sizeof (UINT64))
+        {
+            Status = AcpiExFieldDatumIo (ObjDesc, 0, Buffer, ACPI_READ);
+        }
+        else
+        {
+            /* Use RawDatum (UINT64) to handle buffers < 64 bits */
+
+            Status = AcpiExFieldDatumIo (ObjDesc, 0, &RawDatum, ACPI_READ);
+            ACPI_MEMCPY (Buffer, &RawDatum, BufferLength);
+        }
+
         return_ACPI_STATUS (Status);
     }
 

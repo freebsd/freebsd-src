@@ -392,7 +392,7 @@ AcpiUtOsiImplementation (
     Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
     if (ACPI_FAILURE (Status))
     {
-        AcpiUtDeleteObjectDesc (ReturnDesc);
+        AcpiUtRemoveReference (ReturnDesc);
         return_ACPI_STATUS (Status);
     }
 

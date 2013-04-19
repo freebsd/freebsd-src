@@ -1020,6 +1020,15 @@ AcpiUtPredefinedInfo (
     const char              *Format,
     ...);
 
+void ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedBiosError (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...);
+
 void
 AcpiUtNamespaceError (
     const char              *ModuleName,

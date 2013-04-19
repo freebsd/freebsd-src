@@ -67,7 +67,7 @@ AcpiNsExecModuleCode (
  *
  * PARAMETERS:  Info            - Evaluation info block, contains:
  *                  PrefixNode      - Prefix or Method/Object Node to execute
- *                  Pathname        - Name of method to execute, If NULL, the
+ *                  RelativePath    - Name of method to execute, If NULL, the
  *                                    Node is the object to execute
  *                  Parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
@@ -93,7 +93,6 @@ AcpiNsEvaluate (
     ACPI_EVALUATE_INFO      *Info)
 {
     ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE     *Node;
 
 
     ACPI_FUNCTION_TRACE (NsEvaluate);
@@ -104,23 +103,18 @@ AcpiNsEvaluate (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Initialize the return value to an invalid object */
-
-    Info->ReturnObject = NULL;
-    Info->ParamCount = 0;
-
-    if (!Info->ResolvedNode)
+    if (!Info->Node)
     {
         /*
-         * Get the actual namespace node for the target object if we need to.
-         * Handles these cases:
+         * Get the actual namespace node for the target object if we
+         * need to. Handles these cases:
          *
-         * 1) Null node, Pathname (absolute path)
-         * 2) Node, Pathname (path relative to Node)
-         * 3) Node, Null Pathname
+         * 1) Null node, valid pathname from root (absolute path)
+         * 2) Node and valid pathname (path relative to Node)
+         * 3) Node, Null pathname
          */
-        Status = AcpiNsGetNode (Info->PrefixNode, Info->Pathname,
-                    ACPI_NS_NO_UPSEARCH, &Info->ResolvedNode);
+        Status = AcpiNsGetNode (Info->PrefixNode, Info->RelativePathname,
+            ACPI_NS_NO_UPSEARCH, &Info->Node);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -128,60 +122,122 @@ AcpiNsEvaluate (
     }
 
     /*
-     * For a method alias, we must grab the actual method node so that proper
-     * scoping context will be established before execution.
+     * For a method alias, we must grab the actual method node so that
+     * proper scoping context will be established before execution.
      */
-    if (AcpiNsGetType (Info->ResolvedNode) == ACPI_TYPE_LOCAL_METHOD_ALIAS)
+    if (AcpiNsGetType (Info->Node) == ACPI_TYPE_LOCAL_METHOD_ALIAS)
     {
-        Info->ResolvedNode =
-            ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Info->ResolvedNode->Object);
+        Info->Node = ACPI_CAST_PTR (
+            ACPI_NAMESPACE_NODE, Info->Node->Object);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%s [%p] Value %p\n", Info->Pathname,
-        Info->ResolvedNode, AcpiNsGetAttachedObject (Info->ResolvedNode)));
+    /* Complete the info block initialization */
 
-    Node = Info->ResolvedNode;
+    Info->ReturnObject = NULL;
+    Info->NodeFlags = Info->Node->Flags;
+    Info->ObjDesc = AcpiNsGetAttachedObject (Info->Node);
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%s [%p] Value %p\n",
+        Info->RelativePathname, Info->Node,
+        AcpiNsGetAttachedObject (Info->Node)));
+
+    /* Get info if we have a predefined name (_HID, etc.) */
+
+    Info->Predefined = AcpiUtMatchPredefinedMethod (Info->Node->Name.Ascii);
+
+    /* Get the full pathname to the object, for use in warning messages */
+
+    Info->FullPathname = AcpiNsGetExternalPathname (Info->Node);
+    if (!Info->FullPathname)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    /* Count the number of arguments being passed in */
+
+    Info->ParamCount = 0;
+    if (Info->Parameters)
+    {
+        while (Info->Parameters[Info->ParamCount])
+        {
+            Info->ParamCount++;
+        }
+
+        /* Warn on impossible argument count */
+
+        if (Info->ParamCount > ACPI_METHOD_NUM_ARGS)
+        {
+            ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, ACPI_WARN_ALWAYS,
+                "Excess arguments (%u) - using only %u",
+                Info->ParamCount, ACPI_METHOD_NUM_ARGS));
+
+            Info->ParamCount = ACPI_METHOD_NUM_ARGS;
+        }
+    }
 
     /*
-     * Two major cases here:
-     *
-     * 1) The object is a control method -- execute it
-     * 2) The object is not a method -- just return it's current value
+     * For predefined names: Check that the declared argument count
+     * matches the ACPI spec -- otherwise this is a BIOS error.
      */
-    if (AcpiNsGetType (Info->ResolvedNode) == ACPI_TYPE_METHOD)
+    AcpiNsCheckAcpiCompliance (Info->FullPathname, Info->Node,
+        Info->Predefined);
+
+    /*
+     * For all names: Check that the incoming argument count for
+     * this method/object matches the actual ASL/AML definition.
+     */
+    AcpiNsCheckArgumentCount (Info->FullPathname, Info->Node,
+        Info->ParamCount, Info->Predefined);
+
+    /* For predefined names: Typecheck all incoming arguments */
+
+    AcpiNsCheckArgumentTypes (Info);
+
+    /*
+     * Three major evaluation cases:
+     *
+     * 1) Object types that cannot be evaluated by definition
+     * 2) The object is a control method -- execute it
+     * 3) The object is not a method -- just return it's current value
+     */
+    switch (AcpiNsGetType (Info->Node))
     {
+    case ACPI_TYPE_DEVICE:
+    case ACPI_TYPE_EVENT:
+    case ACPI_TYPE_MUTEX:
+    case ACPI_TYPE_REGION:
+    case ACPI_TYPE_THERMAL:
+    case ACPI_TYPE_LOCAL_SCOPE:
         /*
-         * 1) Object is a control method - execute it
+         * 1) Disallow evaluation of certain object types. For these,
+         *    object evaluation is undefined and not supported.
+         */
+        ACPI_ERROR ((AE_INFO,
+            "%s: Evaluation of object type [%s] is not supported",
+            Info->FullPathname,
+            AcpiUtGetTypeName (Info->Node->Type)));
+
+        Status = AE_TYPE;
+        goto Cleanup;
+
+    case ACPI_TYPE_METHOD:
+        /*
+         * 2) Object is a control method - execute it
          */
 
         /* Verify that there is a method object associated with this node */
 
-        Info->ObjDesc = AcpiNsGetAttachedObject (Info->ResolvedNode);
         if (!Info->ObjDesc)
         {
-            ACPI_ERROR ((AE_INFO, "Control method has no attached sub-object"));
-            return_ACPI_STATUS (AE_NULL_OBJECT);
+            ACPI_ERROR ((AE_INFO, "%s: Method has no attached sub-object",
+                Info->FullPathname));
+            Status = AE_NULL_OBJECT;
+            goto Cleanup;
         }
-
-        /* Count the number of arguments being passed to the method */
-
-        if (Info->Parameters)
-        {
-            while (Info->Parameters[Info->ParamCount])
-            {
-                if (Info->ParamCount > ACPI_METHOD_MAX_ARG)
-                {
-                    return_ACPI_STATUS (AE_LIMIT);
-                }
-                Info->ParamCount++;
-            }
-        }
-
-        ACPI_DUMP_PATHNAME (Info->ResolvedNode, "ACPI: Execute Method",
-            ACPI_LV_INFO, _COMPONENT);
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "Method at AML address %p Length %X\n",
+            "**** Execute method [%s] at AML address %p length %X\n",
+            Info->FullPathname,
             Info->ObjDesc->Method.AmlStart + 1,
             Info->ObjDesc->Method.AmlLength - 1));
 
@@ -196,80 +252,58 @@ AcpiNsEvaluate (
         AcpiExEnterInterpreter ();
         Status = AcpiPsExecuteMethod (Info);
         AcpiExExitInterpreter ();
-    }
-    else
-    {
+        break;
+
+    default:
         /*
-         * 2) Object is not a method, return its current value
-         *
-         * Disallow certain object types. For these, "evaluation" is undefined.
+         * 3) All other non-method objects -- get the current object value
          */
-        switch (Info->ResolvedNode->Type)
-        {
-        case ACPI_TYPE_DEVICE:
-        case ACPI_TYPE_EVENT:
-        case ACPI_TYPE_MUTEX:
-        case ACPI_TYPE_REGION:
-        case ACPI_TYPE_THERMAL:
-        case ACPI_TYPE_LOCAL_SCOPE:
-
-            ACPI_ERROR ((AE_INFO,
-                "[%4.4s] Evaluation of object type [%s] is not supported",
-                Info->ResolvedNode->Name.Ascii,
-                AcpiUtGetTypeName (Info->ResolvedNode->Type)));
-
-            return_ACPI_STATUS (AE_TYPE);
-
-        default:
-            break;
-        }
 
         /*
-         * Objects require additional resolution steps (e.g., the Node may be
-         * a field that must be read, etc.) -- we can't just grab the object
-         * out of the node.
+         * Some objects require additional resolution steps (e.g., the Node
+         * may be a field that must be read, etc.) -- we can't just grab
+         * the object out of the node.
          *
          * Use ResolveNodeToValue() to get the associated value.
          *
          * NOTE: we can get away with passing in NULL for a walk state because
-         * ResolvedNode is guaranteed to not be a reference to either a method
+         * the Node is guaranteed to not be a reference to either a method
          * local or a method argument (because this interface is never called
          * from a running method.)
          *
          * Even though we do not directly invoke the interpreter for object
-         * resolution, we must lock it because we could access an opregion.
-         * The opregion access code assumes that the interpreter is locked.
+         * resolution, we must lock it because we could access an OpRegion.
+         * The OpRegion access code assumes that the interpreter is locked.
          */
         AcpiExEnterInterpreter ();
 
-        /* Function has a strange interface */
+        /* TBD: ResolveNodeToValue has a strange interface, fix */
 
-        Status = AcpiExResolveNodeToValue (&Info->ResolvedNode, NULL);
+        Info->ReturnObject = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Info->Node);
+
+        Status = AcpiExResolveNodeToValue (ACPI_CAST_INDIRECT_PTR (
+            ACPI_NAMESPACE_NODE, &Info->ReturnObject), NULL);
         AcpiExExitInterpreter ();
 
-        /*
-         * If AcpiExResolveNodeToValue() succeeded, the return value was placed
-         * in ResolvedNode.
-         */
-        if (ACPI_SUCCESS (Status))
+        if (ACPI_FAILURE (Status))
         {
-            Status = AE_CTRL_RETURN_VALUE;
-            Info->ReturnObject =
-                ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Info->ResolvedNode);
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Returning object %p [%s]\n",
-                Info->ReturnObject,
-                AcpiUtGetObjectTypeName (Info->ReturnObject)));
+            goto Cleanup;
         }
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Returned object %p [%s]\n",
+            Info->ReturnObject,
+            AcpiUtGetObjectTypeName (Info->ReturnObject)));
+
+        Status = AE_CTRL_RETURN_VALUE; /* Always has a "return value" */
+        break;
     }
 
     /*
-     * Check input argument count against the ASL-defined count for a method.
-     * Also check predefined names: argument count and return value against
-     * the ACPI specification. Some incorrect return value types are repaired.
+     * For predefined names, check the return value against the ACPI
+     * specification. Some incorrect return value types are repaired.
      */
-    (void) AcpiNsCheckPredefinedNames (Node, Info->ParamCount,
-                Status, &Info->ReturnObject);
+    (void) AcpiNsCheckReturnValue (Info->Node, Info, Info->ParamCount,
+        Status, &Info->ReturnObject);
 
     /* Check if there is a return value that must be dealt with */
 
@@ -289,12 +323,16 @@ AcpiNsEvaluate (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-        "*** Completed evaluation of object %s ***\n", Info->Pathname));
+        "*** Completed evaluation of object %s ***\n",
+        Info->RelativePathname));
 
+Cleanup:
     /*
      * Namespace was unlocked by the handling AcpiNs* function, so we
-     * just return
+     * just free the pathname and return
      */
+    ACPI_FREE (Info->FullPathname);
+    Info->FullPathname = NULL;
     return_ACPI_STATUS (Status);
 }
 
