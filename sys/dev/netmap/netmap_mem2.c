@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
+ * Copyright (C) 2012-2013 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,16 +31,18 @@
  */
 
 /*
- * This allocator creates three memory regions:
+ * This allocator creates three memory pools:
  *	nm_if_pool	for the struct netmap_if
  *	nm_ring_pool	for the struct netmap_ring
  *	nm_buf_pool	for the packet buffers.
  *
- * All regions need to be multiple of a page size as we export them to
- * userspace through mmap. Only the latter needs to be dma-able,
+ * that contain netmap objects. Each pool is made of a number of clusters,
+ * multiple of a page size, each containing an integer number of objects.
+ * The clusters are contiguous in user space but not in the kernel.
+ * Only nm_buf_pool needs to be dma-able,
  * but for convenience use the same type of allocator for all.
  *
- * Once mapped, the three regions are exported to userspace
+ * Once mapped, the three pools are exported to userspace
  * as a contiguous block, starting from nm_if_pool. Each
  * cluster (and pool) is an integral number of pages.
  *   [ . . . ][ . . . . . .][ . . . . . . . . . .]
@@ -56,7 +58,7 @@
  * The pool is split into smaller clusters, whose size is a
  * multiple of the page size. The cluster size is chosen
  * to minimize the waste for a given max cluster size
- * (we do it by brute force, as we have relatively few object
+ * (we do it by brute force, as we have relatively few objects
  * per cluster).
  *
  * Objects are aligned to the cache line (64 bytes) rounding up object
@@ -80,7 +82,7 @@
  *	In the worst case we have one netmap_if per ring in the system.
  *
  * struct netmap_ring
- *	variable too, 8 byte per slot plus some fixed amount.
+ *	variable size, 8 byte per slot plus some fixed amount.
  *	Rings can be large (e.g. 4k slots, or >32Kbytes).
  *	We default to 36 KB (9 pages), and a few hundred rings.
  *
@@ -93,11 +95,7 @@
  *	the size to multiple of 1K or so. Default to 2K
  */
 
-#ifndef CONSERVATIVE
 #define NETMAP_BUF_MAX_NUM	20*4096*2	/* large machine */
-#else /* CONSERVATIVE */
-#define NETMAP_BUF_MAX_NUM      20000   /* 40MB */
-#endif
 
 #ifdef linux
 #define NMA_LOCK_T		struct semaphore
@@ -178,7 +176,11 @@ struct netmap_mem_d {
 	struct netmap_obj_pool pools[NETMAP_POOLS_NR];
 };
 
-
+/*
+ * nm_mem is the memory allocator used for all physical interfaces
+ * running in netmap mode.
+ * Virtual (VALE) ports will have each its own allocator.
+ */
 static struct netmap_mem_d nm_mem = {	/* Our memory allocator. */
 	.pools = {
 		[NETMAP_IF_POOL] = {
@@ -205,6 +207,7 @@ static struct netmap_mem_d nm_mem = {	/* Our memory allocator. */
 	},
 };
 
+// XXX logically belongs to nm_mem
 struct lut_entry *netmap_buffer_lut;	/* exported */
 
 /* memory allocator related sysctls */
@@ -212,12 +215,10 @@ struct lut_entry *netmap_buffer_lut;	/* exported */
 #define STRINGIFY(x) #x
 
 #define DECLARE_SYSCTLS(id, name) \
-	/* TUNABLE_INT("hw.netmap." STRINGIFY(name) "_size", &netmap_params[id].size); */ \
 	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_size, \
 	    CTLFLAG_RW, &netmap_params[id].size, 0, "Requested size of netmap " STRINGIFY(name) "s"); \
         SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_size, \
             CTLFLAG_RD, &nm_mem.pools[id]._objsize, 0, "Current size of netmap " STRINGIFY(name) "s"); \
-	/* TUNABLE_INT("hw.netmap." STRINGIFY(name) "_num", &netmap_params[id].num); */ \
         SYSCTL_INT(_dev_netmap, OID_AUTO, name##_num, \
             CTLFLAG_RW, &netmap_params[id].num, 0, "Requested number of netmap " STRINGIFY(name) "s"); \
         SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_num, \
@@ -228,14 +229,12 @@ DECLARE_SYSCTLS(NETMAP_RING_POOL, ring);
 DECLARE_SYSCTLS(NETMAP_BUF_POOL, buf);
 
 /*
- * Convert a userspace offset to a phisical address.
- * XXX re-do in a simpler way.
+ * Convert a userspace offset to a physical address.
+ * XXX only called in the FreeBSD's netmap_mmap()
+ * because in linux we map everything at once.
  *
- * The idea here is to hide userspace applications the fact that pre-allocated
- * memory is not contiguous, but fragmented across different clusters and
- * smaller memory allocators. Consequently, first of all we need to find which
- * allocator is owning provided offset, then we need to find out the physical
- * address associated to target page (this is done using the look-up table.
+ * First, find the allocator that contains the requested offset,
+ * then locate the cluster through a lookup table.
  */
 static inline vm_paddr_t
 netmap_ofstophys(vm_offset_t offset)
@@ -247,7 +246,7 @@ netmap_ofstophys(vm_offset_t offset)
 	for (i = 0; i < NETMAP_POOLS_NR; offset -= p[i]._memtotal, i++) {
 		if (offset >= p[i]._memtotal)
 			continue;
-		// XXX now scan the clusters
+		// now lookup the cluster's address
 		return p[i].lut[offset / p[i]._objsize].paddr +
 			offset % p[i]._objsize;
 	}
@@ -296,12 +295,12 @@ netmap_obj_offset(struct netmap_obj_pool *p, const void *vaddr)
 	netmap_obj_offset(&nm_mem.pools[NETMAP_IF_POOL], (v))
 
 #define netmap_ring_offset(v)					\
-    (nm_mem.pools[NETMAP_IF_POOL]._memtotal + 				\
+    (nm_mem.pools[NETMAP_IF_POOL]._memtotal + 			\
 	netmap_obj_offset(&nm_mem.pools[NETMAP_RING_POOL], (v)))
 
 #define netmap_buf_offset(v)					\
-    (nm_mem.pools[NETMAP_IF_POOL]._memtotal +				\
-	nm_mem.pools[NETMAP_RING_POOL]._memtotal +			\
+    (nm_mem.pools[NETMAP_IF_POOL]._memtotal +			\
+	nm_mem.pools[NETMAP_RING_POOL]._memtotal +		\
 	netmap_obj_offset(&nm_mem.pools[NETMAP_BUF_POOL], (v)))
 
 
@@ -356,7 +355,8 @@ netmap_obj_malloc(struct netmap_obj_pool *p, int len, uint32_t *start, uint32_t 
 
 
 /*
- * free by index, not by address
+ * free by index, not by address. This is slow, but is only used
+ * for a small number of objects (rings, nifp)
  */
 static void
 netmap_obj_free(struct netmap_obj_pool *p, uint32_t j)
@@ -428,7 +428,7 @@ netmap_new_bufs(struct netmap_if *nifp,
 		 * in the NIC ring. This is a hack that hides missing
 		 * initializations in the drivers, and should go away.
 		 */
-		slot[i].flags = NS_BUF_CHANGED;
+		// slot[i].flags = NS_BUF_CHANGED;
 	}
 
 	ND("allocated %d buffers, %d available, first at %d", n, p->objfree, pos);
@@ -682,7 +682,6 @@ static int
 netmap_memory_config(void)
 {
 	int i;
-
 
 	if (!netmap_memory_config_changed())
 		goto out;
