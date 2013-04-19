@@ -205,8 +205,6 @@ AcpiEvaluateObject (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Info->Pathname = Pathname;
-
     /* Convert and validate the device handle */
 
     Info->PrefixNode = AcpiNsValidateHandle (Handle);
@@ -217,42 +215,12 @@ AcpiEvaluateObject (
     }
 
     /*
-     * If there are parameters to be passed to a control method, the external
-     * objects must all be converted to internal objects
-     */
-    if (ExternalParams && ExternalParams->Count)
-    {
-        /*
-         * Allocate a new parameter block for the internal objects
-         * Add 1 to count to allow for null terminated internal list
-         */
-        Info->Parameters = ACPI_ALLOCATE_ZEROED (
-            ((ACPI_SIZE) ExternalParams->Count + 1) * sizeof (void *));
-        if (!Info->Parameters)
-        {
-            Status = AE_NO_MEMORY;
-            goto Cleanup;
-        }
-
-        /* Convert each external object in the list to an internal object */
-
-        for (i = 0; i < ExternalParams->Count; i++)
-        {
-            Status = AcpiUtCopyEobjectToIobject (
-                        &ExternalParams->Pointer[i], &Info->Parameters[i]);
-            if (ACPI_FAILURE (Status))
-            {
-                goto Cleanup;
-            }
-        }
-        Info->Parameters[ExternalParams->Count] = NULL;
-    }
-
-    /*
-     * Three major cases:
-     * 1) Fully qualified pathname
-     * 2) No handle, not fully qualified pathname (error)
-     * 3) Valid handle
+     * Get the actual namespace node for the target object.
+     * Handles these cases:
+     *
+     * 1) Null node, valid pathname from root (absolute path)
+     * 2) Node and valid pathname (path relative to Node)
+     * 3) Node, Null pathname
      */
     if ((Pathname) &&
         (ACPI_IS_ROOT_PREFIX (Pathname[0])))
@@ -260,14 +228,13 @@ AcpiEvaluateObject (
         /* The path is fully qualified, just evaluate by name */
 
         Info->PrefixNode = NULL;
-        Status = AcpiNsEvaluate (Info);
     }
     else if (!Handle)
     {
         /*
          * A handle is optional iff a fully qualified pathname is specified.
          * Since we've already handled fully qualified names above, this is
-         * an error
+         * an error.
          */
         if (!Pathname)
         {
@@ -281,13 +248,147 @@ AcpiEvaluateObject (
         }
 
         Status = AE_BAD_PARAMETER;
+        goto Cleanup;
     }
-    else
-    {
-        /* We have a namespace a node and a possible relative path */
 
-        Status = AcpiNsEvaluate (Info);
+    Info->RelativePathname = Pathname;
+
+    /*
+     * Convert all external objects passed as arguments to the
+     * internal version(s).
+     */
+    if (ExternalParams && ExternalParams->Count)
+    {
+        Info->ParamCount = (UINT16) ExternalParams->Count;
+
+        /* Warn on impossible argument count */
+
+        if (Info->ParamCount > ACPI_METHOD_NUM_ARGS)
+        {
+            ACPI_WARN_PREDEFINED ((AE_INFO, Pathname, ACPI_WARN_ALWAYS,
+                "Excess arguments (%u) - using only %u",
+                Info->ParamCount, ACPI_METHOD_NUM_ARGS));
+
+            Info->ParamCount = ACPI_METHOD_NUM_ARGS;
+        }
+
+        /*
+         * Allocate a new parameter block for the internal objects
+         * Add 1 to count to allow for null terminated internal list
+         */
+        Info->Parameters = ACPI_ALLOCATE_ZEROED (
+            ((ACPI_SIZE) Info->ParamCount + 1) * sizeof (void *));
+        if (!Info->Parameters)
+        {
+            Status = AE_NO_MEMORY;
+            goto Cleanup;
+        }
+
+        /* Convert each external object in the list to an internal object */
+
+        for (i = 0; i < Info->ParamCount; i++)
+        {
+            Status = AcpiUtCopyEobjectToIobject (
+                &ExternalParams->Pointer[i], &Info->Parameters[i]);
+            if (ACPI_FAILURE (Status))
+            {
+                goto Cleanup;
+            }
+        }
+
+        Info->Parameters[Info->ParamCount] = NULL;
     }
+
+
+#if 0
+
+    /*
+     * Begin incoming argument count analysis. Check for too few args
+     * and too many args.
+     */
+
+    switch (AcpiNsGetType (Info->Node))
+    {
+    case ACPI_TYPE_METHOD:
+
+        /* Check incoming argument count against the method definition */
+
+        if (Info->ObjDesc->Method.ParamCount > Info->ParamCount)
+        {
+            ACPI_ERROR ((AE_INFO,
+                "Insufficient arguments (%u) - %u are required",
+                Info->ParamCount,
+                Info->ObjDesc->Method.ParamCount));
+
+            Status = AE_MISSING_ARGUMENTS;
+            goto Cleanup;
+        }
+
+        else if (Info->ObjDesc->Method.ParamCount < Info->ParamCount)
+        {
+            ACPI_WARNING ((AE_INFO,
+                "Excess arguments (%u) - only %u are required",
+                Info->ParamCount,
+                Info->ObjDesc->Method.ParamCount));
+
+            /* Just pass the required number of arguments */
+
+            Info->ParamCount = Info->ObjDesc->Method.ParamCount;
+        }
+
+        /*
+         * Any incoming external objects to be passed as arguments to the
+         * method must be converted to internal objects
+         */
+        if (Info->ParamCount)
+        {
+            /*
+             * Allocate a new parameter block for the internal objects
+             * Add 1 to count to allow for null terminated internal list
+             */
+            Info->Parameters = ACPI_ALLOCATE_ZEROED (
+                ((ACPI_SIZE) Info->ParamCount + 1) * sizeof (void *));
+            if (!Info->Parameters)
+            {
+                Status = AE_NO_MEMORY;
+                goto Cleanup;
+            }
+
+            /* Convert each external object in the list to an internal object */
+
+            for (i = 0; i < Info->ParamCount; i++)
+            {
+                Status = AcpiUtCopyEobjectToIobject (
+                    &ExternalParams->Pointer[i], &Info->Parameters[i]);
+                if (ACPI_FAILURE (Status))
+                {
+                    goto Cleanup;
+                }
+            }
+
+            Info->Parameters[Info->ParamCount] = NULL;
+        }
+        break;
+
+    default:
+
+        /* Warn if arguments passed to an object that is not a method */
+
+        if (Info->ParamCount)
+        {
+            ACPI_WARNING ((AE_INFO,
+                "%u arguments were passed to a non-method ACPI object",
+                Info->ParamCount));
+        }
+        break;
+    }
+
+#endif
+
+
+    /* Now we can evaluate the object */
+
+    Status = AcpiNsEvaluate (Info);
 
     /*
      * If we are expecting a return value, and all went well above,

@@ -643,7 +643,7 @@ AcpiExUnloadTable (
         (DdbHandle->Common.Type != ACPI_TYPE_LOCAL_REFERENCE) ||
         (!(DdbHandle->Common.Flags & AOPOBJ_DATA_VALID)))
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
+        return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
 
     /* Get the table index from the DdbHandle */
