@@ -124,29 +124,30 @@ ApCheckForPredefinedMethod (
 
     default:
         /*
-         * Matched a predefined method name
+         * Matched a predefined method name - validate the ASL-defined
+         * argument count against the ACPI specification.
          *
-         * Validate the ASL-defined argument count. Allow two different legal
-         * arg counts.
+         * Some methods are allowed to have a "minimum" number of args
+         * (_SCP) because their definition in ACPI has changed over time.
          */
         Gbl_ReservedMethods++;
         ThisName = &AcpiGbl_PredefinedMethods[Index];
-        RequiredArgCount = ThisName->Info.ArgumentList & METHOD_ARG_MASK;
+        RequiredArgCount = METHOD_GET_ARG_COUNT (ThisName->Info.ArgumentList);
 
         if (MethodInfo->NumArguments != RequiredArgCount)
         {
             sprintf (MsgBuffer, "%4.4s requires %u",
                 ThisName->Info.Name, RequiredArgCount);
 
-            if ((MethodInfo->NumArguments > RequiredArgCount) &&
+            if (MethodInfo->NumArguments < RequiredArgCount)
+            {
+                AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_LO, Op,
+                    MsgBuffer);
+            }
+            else if ((MethodInfo->NumArguments > RequiredArgCount) &&
                 !(ThisName->Info.ArgumentList & ARG_COUNT_IS_MINIMUM))
             {
                 AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_HI, Op,
-                    MsgBuffer);
-            }
-            else
-            {
-                AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_LO, Op,
                     MsgBuffer);
             }
         }
@@ -388,7 +389,7 @@ ApCheckForPredefinedObject (
      * it must be implemented as a control method
      */
     ThisName = &AcpiGbl_PredefinedMethods[Index];
-    if ((ThisName->Info.ArgumentList & METHOD_ARG_MASK) > 0)
+    if (METHOD_GET_ARG_COUNT (ThisName->Info.ArgumentList) > 0)
     {
         AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
             "with arguments");

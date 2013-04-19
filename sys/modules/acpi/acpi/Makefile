@@ -48,10 +48,10 @@ SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
 SRCS+=	exresop.c exstore.c exstoren.c exstorob.c exsystem.c exutils.c
 SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c
 SRCS+=	hwvalid.c hwxface.c hwxfsleep.c
-SRCS+=	nsaccess.c nsalloc.c nsconvert.c nsdump.c nseval.c nsinit.c nsload.c
-SRCS+=	nsnames.c nsobject.c nsparse.c nspredef.c nsprepkg.c nsrepair.c
-SRCS+=	nsrepair2.c nssearch.c nsutils.c nswalk.c nsxfeval.c nsxfname.c
-SRCS+=	nsxfobj.c
+SRCS+=	nsaccess.c nsalloc.c nsarguments.c nsconvert.c nsdump.c nseval.c
+SRCS+=	nsinit.c nsload.c nsnames.c nsobject.c nsparse.c nspredef.c nsprepkg.c
+SRCS+=	nsrepair.c nsrepair2.c nssearch.c nsutils.c nswalk.c nsxfeval.c
+SRCS+=	nsxfname.c nsxfobj.c
 SRCS+=	psargs.c psloop.c psobject.c psopcode.c psopinfo.c psparse.c
 SRCS+=	psscope.c pstree.c psutils.c pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsdumpinfo.c rsinfo.c rsio.c
@@ -59,8 +59,8 @@ SRCS+=	rsirq.c rslist.c rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfload.c tbxfroot.c
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
 SRCS+=	utdelete.c uteval.c utexcep.c utglobal.c utids.c utinit.c utlock.c
-SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utownerid.c utresrc.c
-SRCS+=	utstate.c utstring.c utxface.c utxferror.c utxfinit.c
+SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utownerid.c utpredef.c
+SRCS+=	utresrc.c utstate.c utstring.c utxface.c utxferror.c utxfinit.c
 #SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers

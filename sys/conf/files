@@ -374,6 +374,7 @@ contrib/dev/acpica/components/hardware/hwxface.c	optional acpi
 contrib/dev/acpica/components/hardware/hwxfsleep.c	optional acpi
 contrib/dev/acpica/components/namespace/nsaccess.c	optional acpi
 contrib/dev/acpica/components/namespace/nsalloc.c	optional acpi
+contrib/dev/acpica/components/namespace/nsarguments.c	optional acpi
 contrib/dev/acpica/components/namespace/nsconvert.c	optional acpi
 contrib/dev/acpica/components/namespace/nsdump.c	optional acpi
 contrib/dev/acpica/components/namespace/nseval.c	optional acpi

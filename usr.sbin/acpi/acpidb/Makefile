@@ -35,10 +35,11 @@ SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c	\
 	hwvalid.c hwxface.c hwxfsleep.c
 
 # components/namespace
-SRCS+=	nsaccess.c nsalloc.c nsconvert.c nsdump.c nseval.c	\
-	nsinit.c nsload.c nsnames.c nsobject.c nsparse.c	\
-	nspredef.c nsprepkg.c nsrepair.c nsrepair2.c nssearch.c	\
-	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
+SRCS+=	nsaccess.c nsalloc.c nsarguments.c nsconvert.c nsdump.c	\
+	nseval.c nsinit.c nsload.c nsnames.c nsobject.c		\
+	nsparse.c nspredef.c nsprepkg.c nsrepair.c nsrepair2.c	\
+	nssearch.c nsutils.c nswalk.c nsxfeval.c nsxfname.c	\
+	nsxfobj.c
 
 # components/parser
 SRCS+=	psargs.c psloop.c psobject.c psopcode.c psopinfo.c	\
