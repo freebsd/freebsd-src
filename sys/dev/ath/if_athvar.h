@@ -772,11 +772,11 @@ struct ath_softc {
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
-	int			sc_txchainmask;	/* hardware TX chainmask */
-	int			sc_rxchainmask;	/* hardware RX chainmask */
-	int			sc_cur_txchainmask;	/* currently configured TX chainmask */
-	int			sc_cur_rxchainmask;	/* currently configured RX chainmask */
-	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
+	uint32_t		sc_txchainmask;	/* hardware TX chainmask */
+	uint32_t		sc_rxchainmask;	/* hardware RX chainmask */
+	uint32_t		sc_cur_txchainmask;	/* currently configured TX chainmask */
+	uint32_t		sc_cur_rxchainmask;	/* currently configured RX chainmask */
+	uint32_t		sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
 	int			sc_aggr_limit;	/* TX limit on all aggregates */
 	int			sc_delim_min_pad;	/* Minimum delimiter count */
 
