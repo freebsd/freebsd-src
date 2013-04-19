@@ -922,7 +922,8 @@ dsl_check_snap_cb(const char *name, void *arg)
 	char *dsname;
 
 	dsname = kmem_asprintf("%s@%s", name, da->snapname);
-	VERIFY(nvlist_add_boolean(da->nvl, dsname) == 0);
+	fnvlist_add_boolean(da->nvl, dsname);
+	kmem_free(dsname, strlen(dsname) + 1);
 
 	return (0);
 }
