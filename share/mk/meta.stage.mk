@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.24 2013/03/23 02:25:19 sjg Exp $
+# $Id: meta.stage.mk,v 1.30 2013/04/19 16:32:57 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -227,5 +227,18 @@ staging:
 STAGING_WAIT ?= .WAIT
 
 all: ${STAGING_WAIT} staging
+
+.if exists(${.PARSEDIR}/stage-install.sh) && !defined(STAGE_INSTALL)
+# this will run install(1) and then followup with .dirdep files.
+STAGE_INSTALL := sh ${.PARSEDIR:tA}/stage-install.sh INSTALL="${INSTALL}" OBJDIR=${.OBJDIR:tA}
+.endif
+
+# if ${INSTALL} gets run during 'all' assume it is for staging?
+.if ${.TARGETS:Nall} == "" && defined(STAGE_INSTALL)
+INSTALL := ${STAGE_INSTALL}
+.if target(beforeinstall)
+beforeinstall: .dirdep
+.endif
+.endif
 
 .endif
