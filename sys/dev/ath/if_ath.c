@@ -1529,6 +1529,12 @@ ath_update_chainmasks(struct ath_softc *sc, struct ieee80211_channel *chan)
 	} else {
 		sc->sc_cur_txchainmask = 1;
 	}
+
+	DPRINTF(sc, ATH_DEBUG_RESET,
+	    "%s: TX chainmask is now 0x%x, RX is now 0x%x\n",
+	    __func__,
+	    sc->sc_cur_txchainmask,
+	    sc->sc_cur_rxchainmask);
 }
 
 void
