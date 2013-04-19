@@ -68,6 +68,12 @@ static void *
 AcpiDbGetPointer (
     void                    *Target);
 
+static ACPI_STATUS
+AcpiDbDisplayNonRootHandlers (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue);
 
 /*
  * System handler information.
@@ -76,6 +82,7 @@ AcpiDbGetPointer (
 #define ACPI_PREDEFINED_PREFIX          "%25s (%.2X) : "
 #define ACPI_HANDLER_NAME_STRING               "%30s : "
 #define ACPI_HANDLER_PRESENT_STRING                    "%-9s (%p)\n"
+#define ACPI_HANDLER_PRESENT_STRING2                   "%-9s (%p)"
 #define ACPI_HANDLER_NOT_PRESENT_STRING                "%-9s\n"
 
 /* All predefined Address Space IDs */
@@ -984,7 +991,7 @@ AcpiDbDisplayHandlers (
 
     /* Operation region handlers */
 
-    AcpiOsPrintf ("\nOperation Region Handlers:\n");
+    AcpiOsPrintf ("\nOperation Region Handlers at the namespace root:\n");
 
     ObjDesc = AcpiNsGetAttachedObject (AcpiGbl_RootNode);
     if (ObjDesc)
@@ -1076,6 +1083,77 @@ AcpiDbDisplayHandlers (
             AcpiOsPrintf (ACPI_HANDLER_NOT_PRESENT_STRING, "None");
         }
     }
+
+
+    /* Other handlers that are installed throughout the namespace */
+
+    AcpiOsPrintf ("\nOperation Region Handlers for specific devices:\n");
+
+    (void) AcpiWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+                ACPI_UINT32_MAX, AcpiDbDisplayNonRootHandlers,
+                NULL, NULL, NULL);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbDisplayNonRootHandlers
+ *
+ * PARAMETERS:  ACPI_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Display information about all handlers installed for a
+ *              device object.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDbDisplayNonRootHandlers (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, ObjHandle);
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *HandlerObj;
+    char                    *Pathname;
+
+
+    ObjDesc = AcpiNsGetAttachedObject (Node);
+    if (!ObjDesc)
+    {
+        return (AE_OK);
+    }
+
+    Pathname = AcpiNsGetExternalPathname (Node);
+    if (!Pathname)
+    {
+        return (AE_OK);
+    }
+
+    /* Display all handlers associated with this device */
+
+    HandlerObj = ObjDesc->Device.Handler;
+    while (HandlerObj)
+    {
+        AcpiOsPrintf (ACPI_PREDEFINED_PREFIX,
+            AcpiUtGetRegionName ((UINT8) HandlerObj->AddressSpace.SpaceId),
+            HandlerObj->AddressSpace.SpaceId);
+
+        AcpiOsPrintf (ACPI_HANDLER_PRESENT_STRING2,
+            (HandlerObj->AddressSpace.HandlerFlags &
+                ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) ? "Default" : "User",
+            HandlerObj->AddressSpace.Handler);
+
+        AcpiOsPrintf (" Device Name: %s (%p)\n", Pathname, Node);
+
+        HandlerObj = HandlerObj->AddressSpace.Next;
+    }
+
+    ACPI_FREE (Pathname);
+    return (AE_OK);
 }
 
 #endif /* ACPI_DEBUGGER */

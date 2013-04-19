@@ -1405,7 +1405,6 @@ AcpiOsCreateCache (
     }
 
     memset (NewCache, 0, sizeof (ACPI_MEMORY_LIST));
-    NewCache->LinkOffset = 8;
     NewCache->ListName = CacheName;
     NewCache->ObjectSize = ObjectSize;
     NewCache->MaxDepth = MaxDepth;

@@ -198,7 +198,7 @@ AcpiNsInitializeDevices (
      * part of the ACPI specification.
      */
     Info.EvaluateInfo->PrefixNode = AcpiGbl_RootNode;
-    Info.EvaluateInfo->Pathname = METHOD_NAME__INI;
+    Info.EvaluateInfo->RelativePathname = METHOD_NAME__INI;
     Info.EvaluateInfo->Parameters = NULL;
     Info.EvaluateInfo->Flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -610,7 +610,7 @@ AcpiNsInitOneDevice (
         ACPI_TYPE_METHOD, DeviceNode, METHOD_NAME__INI));
 
     Info->PrefixNode = DeviceNode;
-    Info->Pathname = METHOD_NAME__INI;
+    Info->RelativePathname = METHOD_NAME__INI;
     Info->Parameters = NULL;
     Info->Flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -625,7 +625,7 @@ AcpiNsInitOneDevice (
     {
         /* Ignore error and move on to next device */
 
-        char *ScopeName = AcpiNsGetExternalPathname (Info->ResolvedNode);
+        char *ScopeName = AcpiNsGetExternalPathname (Info->Node);
 
         ACPI_EXCEPTION ((AE_INFO, Status, "during %s._INI execution",
             ScopeName));
