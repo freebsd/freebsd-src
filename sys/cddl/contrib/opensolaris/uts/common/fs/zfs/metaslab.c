@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
@@ -1518,7 +1518,7 @@ metaslab_alloc_dva(spa_t *spa, metaslab_class_t *mc, uint64_t psize,
 	 * For testing, make some blocks above a certain size be gang blocks.
 	 */
 	if (psize >= metaslab_gang_bang && (ddi_get_lbolt() & 3) == 0)
-		return (ENOSPC);
+		return (SET_ERROR(ENOSPC));
 
 	/*
 	 * Start at the rotor and loop through all mgs until we find something.
@@ -1683,7 +1683,7 @@ next:
 
 	bzero(&dva[d], sizeof (dva_t));
 
-	return (ENOSPC);
+	return (SET_ERROR(ENOSPC));
 }
 
 /*
@@ -1752,7 +1752,7 @@ metaslab_claim_dva(spa_t *spa, const dva_t *dva, uint64_t txg)
 
 	if ((vd = vdev_lookup_top(spa, vdev)) == NULL ||
 	    (offset >> vd->vdev_ms_shift) >= vd->vdev_ms_count)
-		return (ENXIO);
+		return (SET_ERROR(ENXIO));
 
 	msp = vd->vdev_ms[offset >> vd->vdev_ms_shift];
 
@@ -1765,7 +1765,7 @@ metaslab_claim_dva(spa_t *spa, const dva_t *dva, uint64_t txg)
 		error = metaslab_activate(msp, METASLAB_WEIGHT_SECONDARY);
 
 	if (error == 0 && !space_map_contains(msp->ms_map, offset, size))
-		error = ENOENT;
+		error = SET_ERROR(ENOENT);
 
 	if (error || txg == 0) {	/* txg == 0 indicates dry run */
 		mutex_exit(&msp->ms_lock);
@@ -1800,7 +1800,7 @@ metaslab_alloc(spa_t *spa, metaslab_class_t *mc, uint64_t psize, blkptr_t *bp,
 
 	if (mc->mc_rotor == NULL) {	/* no vdevs in this class */
 		spa_config_exit(spa, SCL_ALLOC, FTAG);
-		return (ENOSPC);
+		return (SET_ERROR(ENOSPC));
 	}
 
 	ASSERT(ndvas > 0 && ndvas <= spa_max_replication(spa));
@@ -1875,4 +1875,42 @@ metaslab_claim(spa_t *spa, const blkptr_t *bp, uint64_t txg)
 	ASSERT(error == 0 || txg == 0);
 
 	return (error);
+}
+
+static void
+checkmap(space_map_t *sm, uint64_t off, uint64_t size)
+{
+	space_seg_t *ss;
+	avl_index_t where;
+
+	mutex_enter(sm->sm_lock);
+	ss = space_map_find(sm, off, size, &where);
+	if (ss != NULL)
+		panic("freeing free block; ss=%p", (void *)ss);
+	mutex_exit(sm->sm_lock);
+}
+
+void
+metaslab_check_free(spa_t *spa, const blkptr_t *bp)
+{
+	if ((zfs_flags & ZFS_DEBUG_ZIO_FREE) == 0)
+		return;
+
+	spa_config_enter(spa, SCL_VDEV, FTAG, RW_READER);
+	for (int i = 0; i < BP_GET_NDVAS(bp); i++) {
+		uint64_t vdid = DVA_GET_VDEV(&bp->blk_dva[i]);
+		vdev_t *vd = vdev_lookup_top(spa, vdid);
+		uint64_t off = DVA_GET_OFFSET(&bp->blk_dva[i]);
+		uint64_t size = DVA_GET_ASIZE(&bp->blk_dva[i]);
+		metaslab_t *ms = vd->vdev_ms[off >> vd->vdev_ms_shift];
+
+		if (ms->ms_map->sm_loaded)
+			checkmap(ms->ms_map, off, size);
+
+		for (int j = 0; j < TXG_SIZE; j++)
+			checkmap(ms->ms_freemap[j], off, size);
+		for (int j = 0; j < TXG_DEFER_SIZE; j++)
+			checkmap(ms->ms_defermap[j], off, size);
+	}
+	spa_config_exit(spa, SCL_VDEV, FTAG);
 }

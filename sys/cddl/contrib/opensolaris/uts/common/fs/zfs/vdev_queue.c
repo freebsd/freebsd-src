@@ -44,8 +44,11 @@
 int zfs_vdev_max_pending = 10;
 int zfs_vdev_min_pending = 4;
 
-/* deadline = pri + ddi_get_lbolt64() >> time_shift) */
-int zfs_vdev_time_shift = 6;
+/*
+ * The deadlines are grouped into buckets based on zfs_vdev_time_shift:
+ * deadline = pri + gethrtime() >> time_shift)
+ */
+int zfs_vdev_time_shift = 29; /* each bucket is 0.537 seconds */
 
 /* exponential I/O issue ramp-up rate */
 int zfs_vdev_ramp_rate = 2;
@@ -391,7 +394,7 @@ vdev_queue_io(zio_t *zio)
 
 	mutex_enter(&vq->vq_lock);
 
-	zio->io_timestamp = ddi_get_lbolt64();
+	zio->io_timestamp = gethrtime();
 	zio->io_deadline = (zio->io_timestamp >> zfs_vdev_time_shift) +
 	    zio->io_priority;
 
@@ -424,8 +427,7 @@ vdev_queue_io_done(zio_t *zio)
 
 	avl_remove(&vq->vq_pending_tree, zio);
 
-	vq->vq_io_complete_ts = ddi_get_lbolt64();
-	vq->vq_io_delta_ts = vq->vq_io_complete_ts - zio->io_timestamp;
+	vq->vq_io_complete_ts = gethrtime();
 
 	for (int i = 0; i < zfs_vdev_ramp_rate; i++) {
 		zio_t *nio = vdev_queue_io_to_issue(vq, zfs_vdev_max_pending);
