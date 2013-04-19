@@ -782,7 +782,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ath_hal_gettxchainmask(ah, &sc->sc_txchainmask);
 
 		device_printf(sc->sc_dev, "Chainmasks: TX=0x%x; RX=0x%x\n",
-		    __func__,
 		    sc->sc_txchainmask,
 		    sc->sc_rxchainmask);
 
