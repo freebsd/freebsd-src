@@ -6,4 +6,6 @@ SRCS=	find.c function.c ls.c main.c misc.c operator.c option.c \
 	getdate.y
 YFLAGS=
 
+NO_WMISSING_VARIABLE_DECLARATIONS=
+
 .include <bsd.prog.mk>
