@@ -37,6 +37,7 @@
 .Nm procstat_getenvv ,
 .Nm procstat_getfiles ,
 .Nm procstat_getgroups ,
+.Nm procstat_getkstack ,
 .Nm procstat_getosrel ,
 .Nm procstat_getpathname ,
 .Nm procstat_getprocs ,
@@ -47,6 +48,7 @@
 .Nm procstat_freeenvv ,
 .Nm procstat_freefiles ,
 .Nm procstat_freegroups ,
+.Nm procstat_freekstack ,
 .Nm procstat_freeprocs ,
 .Nm procstat_freevmmap ,
 .Nm procstat_get_pipe_info ,
@@ -86,6 +88,11 @@
 .Fo procstat_freegroups
 .Fa "struct procstat *procstat"
 .Fa "gid_t *groups"
+.Fc
+.Ft void
+.Fo procstat_freekstack
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_kstack *kkstp"
 .Fc
 .Ft void
 .Fn procstat_freeprocs "struct procstat *procstat" "struct kinfo_proc *p"
@@ -165,6 +172,12 @@
 .Fa "struct procstat *procstat"
 .Fa "struct kinfo_proc *kp"
 .Fa "int *osrelp"
+.Fc
+.Ft "struct kinfo_kstack *"
+.Fo procstat_getkstack
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned int *count"
 .Fc
 .Ft "struct kinfo_proc *"
 .Fo procstat_getprocs
@@ -375,6 +388,22 @@ structure, and returns the process groups as a dynamically allocated array of
 elements.
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freegroups
+function call.
+.Pp
+The
+.Fn procstat_getkstack
+function gets a pointer to the
+.Vt procstat
+structure initialized with one of the
+.Fn procstat_open_*
+functions, a pointer to
+.Vt kinfo_proc
+structure, and returns kernel stacks of the process as a dynamically allocated
+array of
+.Vt kinfo_kstack
+structures.
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freekstack
 function call.
 .Pp
 The

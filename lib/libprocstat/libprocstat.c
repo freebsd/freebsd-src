@@ -142,6 +142,8 @@ static int	procstat_get_vnode_info_sysctl(struct filestat *fst,
 static gid_t	*procstat_getgroups_core(struct procstat_core *core,
     unsigned int *count);
 static gid_t	*procstat_getgroups_sysctl(pid_t pid, unsigned int *count);
+static struct kinfo_kstack	*procstat_getkstack_sysctl(pid_t pid,
+    int *cntp);
 static int	procstat_getpathname_core(struct procstat_core *core,
     char *pathname, size_t maxlen);
 static int	procstat_getpathname_sysctl(pid_t pid, char *pathname,
@@ -1764,6 +1766,7 @@ struct kinfo_vmentry *
 procstat_getvmmap(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *cntp)
 {
+
 	switch(procstat->type) {
 	case PROCSTAT_KVM:
 		warnx("kvm method is not supported");
@@ -2226,4 +2229,71 @@ procstat_freeauxv(struct procstat *procstat __unused, Elf_Auxinfo *auxv)
 {
 
 	free(auxv);
+}
+
+static struct kinfo_kstack *
+procstat_getkstack_sysctl(pid_t pid, int *cntp)
+{
+	struct kinfo_kstack *kkstp;
+	int error, name[4];
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_KSTACK;
+	name[3] = pid;
+
+	len = 0;
+	error = sysctl(name, 4, NULL, &len, NULL, 0);
+	if (error < 0 && errno != ESRCH && errno != EPERM && errno != ENOENT) {
+		warn("sysctl: kern.proc.kstack: %d", pid);
+		return (NULL);
+	}
+	if (error == -1 && errno == ENOENT) {
+		warnx("sysctl: kern.proc.kstack unavailable"
+		    " (options DDB or options STACK required in kernel)");
+		return (NULL);
+	}
+	if (error == -1)
+		return (NULL);
+	kkstp = malloc(len);
+	if (kkstp == NULL) {
+		warn("malloc(%zu)", len);
+		return (NULL);
+	}
+	if (sysctl(name, 4, kkstp, &len, NULL, 0) == -1) {
+		warn("sysctl: kern.proc.pid: %d", pid);
+		free(kkstp);
+		return (NULL);
+	}
+	*cntp = len / sizeof(*kkstp);
+
+	return (kkstp);
+}
+
+struct kinfo_kstack *
+procstat_getkstack(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned int *cntp)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getkstack_sysctl(kp->ki_pid, cntp));
+	case PROCSTAT_CORE:
+		warnx("core method is not supported");
+		return (NULL);
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freekstack(struct procstat *procstat __unused,
+    struct kinfo_kstack *kkstp)
+{
+
+	free(kkstp);
 }

@@ -97,6 +97,7 @@
 #define	PS_FST_FFLAG_EXEC	0x2000
 #define	PS_FST_FFLAG_HASLOCK	0x4000
 
+struct kinfo_kstack;
 struct kinfo_vmentry;
 struct procstat;
 struct rlimit;
@@ -161,6 +162,8 @@ void	procstat_freeauxv(struct procstat *procstat, Elf_Auxinfo *auxv);
 #endif
 void	procstat_freeenvv(struct procstat *procstat);
 void	procstat_freegroups(struct procstat *procstat, gid_t *groups);
+void	procstat_freekstack(struct procstat *procstat,
+    struct kinfo_kstack *kkstp);
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
     struct filestat_list *head);
@@ -190,6 +193,8 @@ char	**procstat_getenvv(struct procstat *procstat, struct kinfo_proc *p,
     size_t nchr);
 gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *count);
+struct kinfo_kstack	*procstat_getkstack(struct procstat *procstat,
+    struct kinfo_proc *kp, unsigned int *count);
 int	procstat_getosrel(struct procstat *procstat, struct kinfo_proc *kp,
     int *osrelp);
 int	procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
