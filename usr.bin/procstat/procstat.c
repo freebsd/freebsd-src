@@ -61,9 +61,9 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 	if (bflag)
 		procstat_bin(prstat, kipp);
 	else if (cflag)
-		procstat_args(kipp);
+		procstat_args(prstat, kipp);
 	else if (eflag)
-		procstat_env(kipp);
+		procstat_env(prstat, kipp);
 	else if (fflag)
 		procstat_files(prstat, kipp);
 	else if (iflag)

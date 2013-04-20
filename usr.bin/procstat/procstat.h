@@ -34,12 +34,12 @@ extern int	hflag, nflag, Cflag;
 struct kinfo_proc;
 void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
 
-void	procstat_args(struct kinfo_proc *kipp);
+void	procstat_args(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_auxv(struct kinfo_proc *kipp);
 void	procstat_basic(struct kinfo_proc *kipp);
 void	procstat_bin(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_cred(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_env(struct kinfo_proc *kipp);
+void	procstat_env(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
 void	procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp);
