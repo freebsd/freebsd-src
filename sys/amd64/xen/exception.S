@@ -41,6 +41,7 @@
 #include "assym.s"
 
 #define T_EVENT T_RESERVED /* XXX: */
+#define VGCF_IN_SYSCALL 256 /* See: xen/interface/arch-x86/xen-x86_64.h */
 
 /*
  * We're guaranteed that sizeof(struct vcpu_info) == 64 bytes.
@@ -213,6 +214,24 @@
 	pushq	$0		; \
 	jmp hypercall_page + (__HYPERVISOR_iret * 32)
 
+#define CALLSYSCALL \
+	cld			     ;\
+	movq	PCPU(CURTHREAD),%rdi ;\
+	movq	%rsp, TD_FRAME(%rdi) ;\
+	movl	TF_RFLAGS(%rsp),%esi ;\
+	andl	$PSL_T,%esi	     ;\
+	call	amd64_syscall
+
+#define SYSRET \
+	/* XXX: watchout for:
+	 * http:	//cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2006-0744
+	 * Explained here:
+	 * http://blog.xen.org/index.php/2012/06/13/the-intel-sysret-privilege-escalation/
+	 * Also see comments in trap.c
+	 */
+	pushq	$VGCF_IN_SYSCALL ;\
+	jmp hypercall_page + (__HYPERVISOR_iret * 32)
+	
 NON_GPROF_ENTRY(restore_segment_regs)
 	.globl  ld_es
 	.globl	ld_ds
@@ -537,3 +556,16 @@ ENTRY(failsafe_callback)
 	movq	msgfailsafe, %rdi ;
 	call	panic		; /* panic("..."); */
 msgfailsafe:	.asciz	"Failsafe upcall triggered\n"
+
+IDTVEC(syscall_callback)
+	TRAP_FRAME_ENTER_NOERR	;
+	TRAP_PROLOGUE(T_USER)	;
+	SAVE_SEGMENT_REGS	;
+	SAVE_GENERAL_REGS	;
+	DO_STI_MAYBE		;
+	CALLSYSCALL		;
+	DO_AST_MAYBE		;
+	RESTORE_GENERAL_REGS	; /* XXX: optimise for SYSRET */
+	RESTORE_SEGMENT_REGS	;
+	TRAP_FRAME_EXIT_NOERR   ;
+	INTR_EXIT		; /* XXX: SYSRET is more optimal */

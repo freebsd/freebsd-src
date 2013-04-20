@@ -131,9 +131,10 @@ __aligned(PAGE_SIZE); /* vcpu0 global descriptor tables */
 struct mtx icu_lock;
 struct mtx dt_lock;	/* lock for GDT and LDT */ /* XXX : please review its use */
 
-/* Event callback prototypes */
+/* callback prototypes */
 void Xhypervisor_callback(void);
 void failsafe_callback(void);
+void Xsyscall_callback(void);
 
 vm_paddr_t initxen(struct start_info *);
 
@@ -290,21 +291,24 @@ init_exception_table(void)
 
 static void init_event_callbacks(void)
 {
-	struct callback_register event = {
-		.type = CALLBACKTYPE_event,
-		.address = (unsigned long)Xhypervisor_callback
-	};
+	struct callback_register cbr;
 
-	struct callback_register failsafe = {
-		.type = CALLBACKTYPE_failsafe,
-		.address = (unsigned long)failsafe_callback
-	};
+	cbr.type = CALLBACKTYPE_event;
+	cbr.address = (unsigned long)Xhypervisor_callback;
+	PANIC_IF(HYPERVISOR_callback_op(CALLBACKOP_register, &cbr));
 
-	PANIC_IF(HYPERVISOR_callback_op(CALLBACKOP_register, &event));
 
-	PANIC_IF(HYPERVISOR_callback_op(CALLBACKOP_register, &failsafe));
+	cbr.type = CALLBACKTYPE_failsafe;
+	cbr.address = (unsigned long)failsafe_callback;
 
-	/* XXX: syscall */
+	PANIC_IF(HYPERVISOR_callback_op(CALLBACKOP_register, &cbr));
+
+	cbr.type = CALLBACKTYPE_syscall;
+	cbr.address = (unsigned long)Xsyscall_callback;
+
+	PANIC_IF(HYPERVISOR_callback_op(CALLBACKOP_register, &cbr));
+
+	/* XXX: syscall32, sysenter */
 }
 
 #define XEN_CPUID_LEAF_HYPERCALL XEN_CPUID_LEAF(3 - 1)
@@ -540,7 +544,14 @@ initxen(struct start_info *si)
 
 	bzero(msgbufp, msgbufsize);
 	msgbufinit(msgbufp, msgbufsize);
-	//fpuinit(); XXX: TODO
+
+	/* Enable write permissions for code patching */
+	static vm_offset_t xsave_cpage;
+	xsave_cpage = (vm_offset_t) ctx_switch_xsave & ~PAGE_MASK;
+	PT_SET_MA(xsave_cpage, phystomach(VTOP(xsave_cpage)) | PG_V | PG_U | PG_RW);
+	fpuinit();
+	PT_SET_MA(xsave_cpage, phystomach(VTOP(xsave_cpage)) | PG_V | PG_U);
+
 
 	/*
 	 * Set up thread0 pcb after fpuinit calculated pcb + fpu save
