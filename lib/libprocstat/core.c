@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/elf.h>
+#include <sys/exec.h>
 #include <sys/user.h>
 
 #include <assert.h>
@@ -56,6 +57,10 @@ struct procstat_core
 
 static bool	core_offset(struct procstat_core *core, off_t offset);
 static bool	core_read(struct procstat_core *core, void *buf, size_t len);
+static ssize_t	core_read_mem(struct procstat_core *core, void *buf,
+    size_t len, vm_offset_t addr, bool readall);
+static void	*get_args(struct procstat_core *core, vm_offset_t psstrings,
+    enum psc_type type, void *buf, size_t *lenp);
 
 struct procstat_core *
 procstat_core_open(const char *filename)
@@ -146,6 +151,7 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 {
 	Elf_Note nhdr;
 	off_t offset, eoffset;
+	vm_offset_t psstrings;
 	void *freebuf;
 	size_t len;
 	u_int32_t n_type;
@@ -182,6 +188,12 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 	case PSC_TYPE_OSREL:
 		n_type = NT_PROCSTAT_OSREL;
 		structsize = sizeof(int);
+		break;
+	case PSC_TYPE_PSSTRINGS:
+	case PSC_TYPE_ARGV:
+	case PSC_TYPE_ENVV:
+		n_type = NT_PROCSTAT_PSSTRINGS;
+		structsize = sizeof(vm_offset_t);
 		break;
 	default:
 		warnx("unknown core stat type: %d", type);
@@ -238,6 +250,19 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 			free(freebuf);
 			return (NULL);
 		}
+		if (type == PSC_TYPE_ARGV || type == PSC_TYPE_ENVV) {
+			if (len < sizeof(psstrings)) {
+				free(freebuf);
+				return (NULL);
+			}
+			psstrings = *(vm_offset_t *)buf;
+			if (freebuf == NULL)
+				len = *lenp;
+			else
+				buf = NULL;
+			free(freebuf);
+			buf = get_args(core, psstrings, type, buf, &len);
+		}
 		*lenp = len;
 		return (buf);
         }
@@ -275,4 +300,129 @@ core_read(struct procstat_core *core, void *buf, size_t len)
 		return (false);
 	}
 	return (true);
+}
+
+static ssize_t
+core_read_mem(struct procstat_core *core, void *buf, size_t len,
+    vm_offset_t addr, bool readall)
+{
+	GElf_Phdr phdr;
+	off_t offset;
+	int i;
+
+	assert(core->pc_magic == PROCSTAT_CORE_MAGIC);
+
+	for (i = 0; i < core->pc_ehdr.e_phnum; i++) {
+		if (gelf_getphdr(core->pc_elf, i, &phdr) != &phdr) {
+			warnx("gelf_getphdr: %s", elf_errmsg(-1));
+			return (-1);
+		}
+		if (phdr.p_type != PT_LOAD)
+			continue;
+		if (addr < phdr.p_vaddr || addr > phdr.p_vaddr + phdr.p_memsz)
+			continue;
+		offset = phdr.p_offset + (addr - phdr.p_vaddr);
+		if ((phdr.p_vaddr + phdr.p_memsz) - addr < len) {
+			if (readall) {
+				warnx("format error: "
+				    "attempt to read out of segment");
+				return (-1);
+			}
+			len = (phdr.p_vaddr + phdr.p_memsz) - addr;
+		}
+		if (!core_offset(core, offset))
+			return (-1);
+		if (!core_read(core, buf, len))
+			return (-1);
+		return (len);
+	}
+	warnx("format error: address %ju not found", (uintmax_t)addr);
+	return (-1);
+}
+
+#define ARGS_CHUNK_SZ	256	/* Chunk size (bytes) for get_args operations. */
+
+static void *
+get_args(struct procstat_core *core, vm_offset_t psstrings, enum psc_type type,
+     void *args, size_t *lenp)
+{
+	struct ps_strings pss;
+	void *freeargs;
+	vm_offset_t addr;
+	char **argv, *p;
+	size_t chunksz, done, len, nchr, size;
+	ssize_t n;
+	u_int i, nstr;
+
+	assert(type == PSC_TYPE_ARGV || type == PSC_TYPE_ENVV);
+
+	if (core_read_mem(core, &pss, sizeof(pss), psstrings, true) == -1)
+		return (NULL);
+	if (type == PSC_TYPE_ARGV) {
+		addr = (vm_offset_t)pss.ps_argvstr;
+		nstr = pss.ps_nargvstr;
+	} else /* type == PSC_TYPE_ENVV */ {
+		addr = (vm_offset_t)pss.ps_envstr;
+		nstr = pss.ps_nenvstr;
+	}
+	if (addr == 0 || nstr == 0)
+		return (NULL);
+	if (nstr > ARG_MAX) {
+		warnx("format error");
+		return (NULL);
+	}
+	size = nstr * sizeof(char *);
+	argv = malloc(size);
+	if (argv == NULL) {
+		warn("malloc(%zu)", size);
+		return (NULL);
+	}
+	done = 0;
+	freeargs = NULL;
+	if (core_read_mem(core, argv, size, addr, true) == -1)
+		goto fail;
+	if (args != NULL) {
+		nchr = MIN(ARG_MAX, *lenp);
+	} else {
+		nchr = ARG_MAX;
+		freeargs = args = malloc(nchr);
+		if (args == NULL) {
+			warn("malloc(%zu)", nchr);
+			goto fail;
+		}
+	}
+	p = args;
+	for (i = 0; ; i++) {
+		if (i == nstr)
+			goto done;
+		/*
+		 * The program may have scribbled into its argv array, e.g. to
+		 * remove some arguments.  If that has happened, break out
+		 * before trying to read from NULL.
+		 */
+		if (argv[i] == NULL)
+			goto done;
+		for (addr = (vm_offset_t)argv[i]; ; addr += chunksz) {
+			chunksz = MIN(ARGS_CHUNK_SZ, nchr - 1 - done);
+			if (chunksz <= 0)
+				goto done;
+			n = core_read_mem(core, p, chunksz, addr, false);
+			if (n == -1)
+				goto fail;
+			len = strnlen(p, chunksz);
+			p += len;
+			done += len;
+			if (len != chunksz)
+				break;
+		}
+		*p++ = '\0';
+		done++;
+	}
+fail:
+	free(freeargs);
+	args = NULL;
+done:
+	*lenp = done;
+	free(argv);
+	return (args);
 }

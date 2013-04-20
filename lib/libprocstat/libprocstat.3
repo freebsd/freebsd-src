@@ -32,6 +32,8 @@
 .Nm procstat_open_kvm ,
 .Nm procstat_open_sysctl ,
 .Nm procstat_close ,
+.Nm procstat_getargv ,
+.Nm procstat_getenvv ,
 .Nm procstat_getfiles ,
 .Nm procstat_getgroups ,
 .Nm procstat_getosrel ,
@@ -39,6 +41,8 @@
 .Nm procstat_getprocs ,
 .Nm procstat_getumask ,
 .Nm procstat_getvmmap ,
+.Nm procstat_freeargv ,
+.Nm procstat_freeenvv ,
 .Nm procstat_freefiles ,
 .Nm procstat_freegroups ,
 .Nm procstat_freeprocs ,
@@ -57,6 +61,14 @@
 .In libprocstat.h
 .Ft void
 .Fn procstat_close "struct procstat *procstat"
+.Fc
+.Ft void
+.Fo procstat_freeargv
+.Fa "struct procstat *procstat"
+.Fc
+.Ft void
+.Fo procstat_freeenvv
+.Fa "struct procstat *procstat"
 .Fc
 .Ft void
 .Fo procstat_freefiles
@@ -108,6 +120,20 @@
 .Fa "struct procstat *procstat"
 .Fa "struct filestat *fst"
 .Fa "struct vnstat *vn"
+.Fa "char *errbuf"
+.Fc
+.Ft "char **"
+.Fo procstat_getargv
+.Fa "struct procstat *procstat"
+.Fa "const struct kinfo_proc *kp"
+.Fa "size_t nchr"
+.Fa "char *errbuf"
+.Fc
+.Ft "char **"
+.Fo procstat_getenvv
+.Fa "struct procstat *procstat"
+.Fa "const struct kinfo_proc *kp"
+.Fa "size_t nchr"
 .Fa "char *errbuf"
 .Fc
 .Ft "struct filestat_list *"
@@ -248,6 +274,50 @@ The number of processes found is returned in the reference parameter
 .Fa cnt .
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freeprocs
+function call.
+.Pp
+The
+.Fn procstat_getargv
+function gets a pointer to the
+.Vt procstat
+structure from one of the
+.Fn procstat_open_*
+functions, a pointer to
+.Vt kinfo_proc
+structure from the array obtained from the
+.Fn kvm_getprocs
+function, and returns a null-terminated argument vector that corresponds to
+the command line arguments passed to the process.
+The
+.Fa nchr
+argument indicates the maximum number of characters, including null bytes,
+to use in building the strings.
+If this amount is exceeded, the string causing the overflow is truncated and
+the partial result is returned.
+This is handy for programs that print only a one line summary of a
+command and should not copy out large amounts of text only to ignore it.
+If
+.Fa nchr
+is zero, no limit is imposed and all argument strings are returned.
+The values of the returned argument vector refer the strings stored
+in the
+.Vt procstat
+internal buffer.
+A subsequent call of the function with the same
+.Vt procstat
+argument will reuse the buffer.
+To free the allocated memory
+.Fn procstat_freeargv
+function call can be used, or it will be released on
+.Fn procstat_close .
+.Pp
+The
+.Fn procstat_getenvv
+function is similar to
+.Fn procstat_getargv
+but returns the vector of environment strings.
+The caller may free the allocated memory with a subsequent
+.Fn procstat_freeenv
 function call.
 .Pp
 The
