@@ -28,6 +28,7 @@
 .Dt LIBPROCSTAT 3
 .Os
 .Sh NAME
+.Nm procstat_open_core ,
 .Nm procstat_open_kvm ,
 .Nm procstat_open_sysctl ,
 .Nm procstat_close ,
@@ -105,6 +106,8 @@
 .Fa "unsigned int *count"
 .Fc
 .Ft "struct procstat *"
+.Fn procstat_open_core "const char *filename"
+.Ft "struct procstat *"
 .Fn procstat_open_kvm "const char *nlistf" "const char *memf"
 .Ft "struct procstat *"
 .Fn procstat_open_sysctl void
@@ -116,7 +119,11 @@ retrieval from the running kernel via the
 .Xr sysctl 3
 library backend, and for post-mortem analysis via the
 .Xr kvm 3
-library backend.
+library backend, or from the process
+.Xr core 5
+file, searching for statistics in special
+.Xr elf 3
+note sections.
 .Pp
 The
 .Fn procstat_open_kvm
@@ -128,6 +135,16 @@ or
 .Xr sysctl 3
 library routines, respectively, to access kernel state information
 used to retrieve processes and files states.
+The
+.Fn procstat_open_core
+uses
+.Xr elf 3
+routines to access statistics stored as a set of notes in a process
+.Xr core 5
+file, written by the kernel at the moment of the process abnormal termination.
+The
+.Fa filename
+argument is the process core file name.
 The
 .Fa nlistf
 argument is the executable image of the kernel being examined.
@@ -145,7 +162,7 @@ is assumed.
 See
 .Xr kvm_open 3
 for more details.
-Both functions dynamically allocate and return a
+The functions dynamically allocate and return a
 .Vt procstat
 structure pointer used in the rest of the
 .Nm libprocstat
@@ -250,10 +267,12 @@ argument indicates an actual error message in case of failure.
 .Xr pipe 2 ,
 .Xr shm_open 2 ,
 .Xr socket 2 ,
+.Xr elf 3 ,
 .Xr kvm 3 ,
 .Xr queue 3 ,
 .Xr sysctl 3 ,
 .Xr pts 4 ,
+.Xr core 5 ,
 .Xr vnode 9
 .Sh HISTORY
 The
