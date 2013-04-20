@@ -59,7 +59,7 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 {
 
 	if (bflag)
-		procstat_bin(kipp);
+		procstat_bin(prstat, kipp);
 	else if (cflag)
 		procstat_args(kipp);
 	else if (eflag)
