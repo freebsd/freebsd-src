@@ -196,13 +196,11 @@ SRCS+=	aeabi_idivmod.S \
 	aeabi_uldivmod.S
 .endif
 
-.if ${MACHINE_CPUARCH} != "mips"
-. if ${MK_INSTALLLIB} != "no"
+.if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=libcompiler_rt.a ${LIBDIR}/libgcc.a
-. endif
-. if ${MK_PROFILE} != "no"
+.endif
+.if ${MK_PROFILE} != "no"
 SYMLINKS+=libcompiler_rt_p.a ${LIBDIR}/libgcc_p.a
-. endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
