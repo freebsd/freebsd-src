@@ -16,8 +16,10 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	procstat_freegroups;
 	procstat_freevmmap;
 	procstat_get_shm_info;
+	procstat_getgroups;
 	procstat_getvmmap;
 	procstat_open_core;
 };

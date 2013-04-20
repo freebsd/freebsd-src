@@ -132,6 +132,9 @@ static int	procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
 static int	procstat_get_vnode_info_sysctl(struct filestat *fst,
     struct vnstat *vn, char *errbuf);
+static gid_t	*procstat_getgroups_core(struct procstat_core *core,
+    unsigned int *count);
+static gid_t	*procstat_getgroups_sysctl(pid_t pid, unsigned int *count);
 static int	vntype2psfsttype(int type);
 
 void
@@ -1587,4 +1590,68 @@ procstat_freevmmap(struct procstat *procstat __unused,
 {
 
 	free(vmmap);
+}
+
+static gid_t *
+procstat_getgroups_sysctl(pid_t pid, unsigned int *cntp)
+{
+	int mib[4];
+	size_t len;
+	gid_t *groups;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_GROUPS;
+	mib[3] = pid;
+	len = (sysconf(_SC_NGROUPS_MAX) + 1) * sizeof(gid_t);
+	groups = malloc(len);
+	if (groups == NULL) {
+		warn("malloc(%zu)", len);
+		return (NULL);
+	}
+	if (sysctl(mib, 4, groups, &len, NULL, 0) == -1) {
+		warn("sysctl: kern.proc.groups: %d", pid);
+		free(groups);
+		return (NULL);
+	}
+	*cntp = len / sizeof(gid_t);
+	return (groups);
+}
+
+static gid_t *
+procstat_getgroups_core(struct procstat_core *core, unsigned int *cntp)
+{
+	size_t len;
+	gid_t *groups;
+
+	groups = procstat_core_get(core, PSC_TYPE_GROUPS, NULL, &len);
+	if (groups == NULL)
+		return (NULL);
+	*cntp = len / sizeof(gid_t);
+	return (groups);
+}
+
+gid_t *
+procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned int *cntp)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getgroups_sysctl(kp->ki_pid, cntp));
+	case PROCSTAT_CORE:
+		return (procstat_getgroups_core(procstat->core, cntp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freegroups(struct procstat *procstat __unused, gid_t *groups)
+{
+
+	free(groups);
 }
