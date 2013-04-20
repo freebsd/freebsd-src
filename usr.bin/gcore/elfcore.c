@@ -634,8 +634,7 @@ static void *
 elf_note_procstat_groups(void *arg, size_t *sizep)
 {
 
-	return (procstat_sysctl(arg, KERN_PROC_GROUPS,
-	    (int)sizeof(gid_t), sizep));
+	return (procstat_sysctl(arg, KERN_PROC_GROUPS, sizeof(gid_t), sizep));
 }
 
 static void *
