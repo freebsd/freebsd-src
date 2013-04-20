@@ -50,7 +50,7 @@ usage(void)
 	fprintf(stderr, "usage: procstat [-h] [-C] [-M core] [-N system] "
 	    "[-w interval] \n");
 	fprintf(stderr, "                [-b | -c | -e | -f | -i | -j | -k | "
-	    "-l | -s | -t | -v | -x] [-a | pid ...]\n");
+	    "-l | -s | -t | -v | -x] [-a | pid | core ...]\n");
 	exit(EX_USAGE);
 }
 
@@ -116,7 +116,7 @@ main(int argc, char *argv[])
 	int ch, interval, tmp;
 	int i;
 	struct kinfo_proc *p;
-	struct procstat *prstat;
+	struct procstat *prstat, *cprstat;
 	long l;
 	pid_t pid;
 	char *dummy;
@@ -255,19 +255,32 @@ main(int argc, char *argv[])
 		}
 		for (i = 0; i < argc; i++) {
 			l = strtol(argv[i], &dummy, 10);
-			if (*dummy != '\0')
-				usage();
-			if (l < 0)
-				usage();
-			pid = l;
+			if (*dummy == '\0') {
+				if (l < 0)
+					usage();
+				pid = l;
 
-			p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cnt);
-			if (p == NULL)
-				errx(1, "procstat_getprocs()");
-			if (cnt != 0)
-				procstat(prstat, p);
-			procstat_freeprocs(prstat, p);
-
+				p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cnt);
+				if (p == NULL)
+					errx(1, "procstat_getprocs()");
+				if (cnt != 0)
+					procstat(prstat, p);
+				procstat_freeprocs(prstat, p);
+			} else {
+				cprstat = procstat_open_core(argv[i]);
+				if (cprstat == NULL) {
+					warnx("procstat_open()");
+					continue;
+				}
+				p = procstat_getprocs(cprstat, KERN_PROC_PID,
+				    -1, &cnt);
+				if (p == NULL)
+					errx(1, "procstat_getprocs()");
+				if (cnt != 0)
+					procstat(cprstat, p);
+				procstat_freeprocs(cprstat, p);
+				procstat_close(cprstat);
+			}
 			/* Suppress header after first process. */
 			hflag = 1;
 		}
