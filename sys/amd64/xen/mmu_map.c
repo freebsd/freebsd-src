@@ -279,6 +279,9 @@ mmu_map_inspect_va(struct pmap *pm, void *addr, uintptr_t va)
 	struct mmu_map_index *pti = addr;
 	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
 
+	/* Reset pti */
+	pti->pml4t = pti->pdpt = pti->pdt = pti->pt = 0;
+
 	vm_paddr_t pt;
 
 	pti->pml4t = pmap_get_pml4t(pm);
@@ -317,6 +320,9 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 
 	struct mmu_map_index *pti = addr;
 	KASSERT(pti->sanity == SANE, ("%s: Uninitialised index cookie used", __func__));
+
+	/* Reset pti */
+	pti->pml4t = pti->pdpt = pti->pdt = pti->pt = 0;
 
 	bool alloced = false; /* Did we have to alloc backing pages ? */
 	vm_paddr_t pt;
