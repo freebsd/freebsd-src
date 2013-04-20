@@ -162,6 +162,7 @@ int	procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
     struct sockstat *sock, char *errbuf);
 int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
+struct procstat	*procstat_open_core(const char *filename);
 struct procstat	*procstat_open_sysctl(void);
 struct procstat	*procstat_open_kvm(const char *nlistf, const char *memf);
 __END_DECLS

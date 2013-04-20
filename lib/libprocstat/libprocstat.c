@@ -96,11 +96,13 @@ __FBSDID("$FreeBSD$");
 #include <libprocstat.h>
 #include "libprocstat_internal.h"
 #include "common_kvm.h"
+#include "core.h"
 
 int     statfs(const char *, struct statfs *);	/* XXX */
 
 #define	PROCSTAT_KVM	1
 #define	PROCSTAT_SYSCTL	2
+#define	PROCSTAT_CORE	3
 
 static char	*getmnton(kvm_t *kd, struct mount *m);
 static struct filestat_list	*procstat_getfiles_kvm(
@@ -137,6 +139,8 @@ procstat_close(struct procstat *procstat)
 	assert(procstat);
 	if (procstat->type == PROCSTAT_KVM)
 		kvm_close(procstat->kd);
+	else if (procstat->type == PROCSTAT_CORE)
+		procstat_core_close(procstat->core);
 	free(procstat);
 }
 
@@ -174,6 +178,27 @@ procstat_open_kvm(const char *nlistf, const char *memf)
 	}
 	procstat->type = PROCSTAT_KVM;
 	procstat->kd = kd;
+	return (procstat);
+}
+
+struct procstat *
+procstat_open_core(const char *filename)
+{
+	struct procstat *procstat;
+	struct procstat_core *core;
+
+	procstat = calloc(1, sizeof(*procstat));
+	if (procstat == NULL) {
+		warn("malloc()");
+		return (NULL);
+	}
+	core = procstat_core_open(filename);
+	if (core == NULL) {
+		free(procstat);
+		return (NULL);
+	}
+	procstat->type = PROCSTAT_CORE;
+	procstat->core = core;
 	return (procstat);
 }
 
@@ -231,6 +256,15 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		}
 		/* Perform simple consistency checks. */
 		if ((len % sizeof(*p)) != 0 || p->ki_structsize != sizeof(*p)) {
+			warnx("kinfo_proc structure size mismatch (len = %zu)", len);
+			goto fail;
+		}
+		*count = len / sizeof(*p);
+		return (p);
+	} else if (procstat->type == PROCSTAT_CORE) {
+		p = procstat_core_get(procstat->core, PSC_TYPE_PROC, NULL,
+		    &len);
+		if ((len % sizeof(*p)) != 0 || p->ki_structsize != sizeof(*p)) {
 			warnx("kinfo_proc structure size mismatch");
 			goto fail;
 		}
@@ -258,13 +292,17 @@ procstat_freeprocs(struct procstat *procstat __unused, struct kinfo_proc *p)
 struct filestat_list *
 procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 {
-	
-	if (procstat->type == PROCSTAT_SYSCTL)
-		return (procstat_getfiles_sysctl(procstat, kp, mmapped));
-	else if (procstat->type == PROCSTAT_KVM)
+
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
 		return (procstat_getfiles_kvm(procstat, kp, mmapped));
-	else
+	case PROCSTAT_SYSCTL:
+	case PROCSTAT_CORE:
+		return (procstat_getfiles_sysctl(procstat, kp, mmapped));
+	default:
+		warnx("unknown access method: %d", procstat->type);
 		return (NULL);
+	}
 }
 
 void
@@ -646,8 +684,62 @@ kinfo_uflags2fst(int fd)
 	return (0);
 }
 
+static struct kinfo_file *
+kinfo_getfile_core(struct procstat_core *core, int *cntp)
+{
+	int cnt;
+	size_t len;
+	char *buf, *bp, *eb;
+	struct kinfo_file *kif, *kp, *kf;
+
+	buf = procstat_core_get(core, PSC_TYPE_FILES, NULL, &len);
+	if (buf == NULL)
+		return (NULL);
+	/*
+	 * XXXMG: The code below is just copy&past from libutil.
+	 * The code duplication can be avoided if libutil
+	 * is extended to provide something like:
+	 *   struct kinfo_file *kinfo_getfile_from_buf(const char *buf,
+	 *       size_t len, int *cntp);
+	 */
+
+	/* Pass 1: count items */
+	cnt = 0;
+	bp = buf;
+	eb = buf + len;
+	while (bp < eb) {
+		kf = (struct kinfo_file *)(uintptr_t)bp;
+		bp += kf->kf_structsize;
+		cnt++;
+	}
+
+	kif = calloc(cnt, sizeof(*kif));
+	if (kif == NULL) {
+		free(buf);
+		return (NULL);
+	}
+	bp = buf;
+	eb = buf + len;
+	kp = kif;
+	/* Pass 2: unpack */
+	while (bp < eb) {
+		kf = (struct kinfo_file *)(uintptr_t)bp;
+		/* Copy/expand into pre-zeroed buffer */
+		memcpy(kp, kf, kf->kf_structsize);
+		/* Advance to next packed record */
+		bp += kf->kf_structsize;
+		/* Set field size to fixed length, advance */
+		kp->kf_structsize = sizeof(*kp);
+		kp++;
+	}
+	free(buf);
+	*cntp = cnt;
+	return (kif);	/* Caller must free() return value */
+}
+
 static struct filestat_list *
-procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
+procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp,
+    int mmapped)
 {
 	struct kinfo_file *kif, *files;
 	struct kinfo_vmentry *kve, *vmentries;
@@ -663,8 +755,16 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int m
 	assert(kp);
 	if (kp->ki_fd == NULL)
 		return (NULL);
-
-	files = kinfo_getfile(kp->ki_pid, &cnt);
+	switch(procstat->type) {
+	case PROCSTAT_SYSCTL:
+		files = kinfo_getfile(kp->ki_pid, &cnt);
+		break;
+	case PROCSTAT_CORE:
+		files = kinfo_getfile_core(procstat->core, &cnt);
+		break;
+	default:
+		assert(!"invalid type");
+	}
 	if (files == NULL && errno != EPERM) {
 		warn("kinfo_getfile()");
 		return (NULL);
@@ -742,7 +842,8 @@ procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
 	if (procstat->type == PROCSTAT_KVM) {
 		return (procstat_get_pipe_info_kvm(procstat->kd, fst, ps,
 		    errbuf));
-	} else if (procstat->type == PROCSTAT_SYSCTL) {
+	} else if (procstat->type == PROCSTAT_SYSCTL ||
+		procstat->type == PROCSTAT_CORE) {
 		return (procstat_get_pipe_info_sysctl(fst, ps, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
@@ -806,7 +907,8 @@ procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
 	if (procstat->type == PROCSTAT_KVM) {
 		return (procstat_get_pts_info_kvm(procstat->kd, fst, pts,
 		    errbuf));
-	} else if (procstat->type == PROCSTAT_SYSCTL) {
+	} else if (procstat->type == PROCSTAT_SYSCTL ||
+		procstat->type == PROCSTAT_CORE) {
 		return (procstat_get_pts_info_sysctl(fst, pts, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
@@ -868,7 +970,8 @@ procstat_get_shm_info(struct procstat *procstat, struct filestat *fst,
 	if (procstat->type == PROCSTAT_KVM) {
 		return (procstat_get_shm_info_kvm(procstat->kd, fst, shm,
 		    errbuf));
-	} else if (procstat->type == PROCSTAT_SYSCTL) {
+	} else if (procstat->type == PROCSTAT_SYSCTL ||
+	    procstat->type == PROCSTAT_CORE) {
 		return (procstat_get_shm_info_sysctl(fst, shm, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
@@ -948,7 +1051,8 @@ procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
 	if (procstat->type == PROCSTAT_KVM) {
 		return (procstat_get_vnode_info_kvm(procstat->kd, fst, vn,
 		    errbuf));
-	} else if (procstat->type == PROCSTAT_SYSCTL) {
+	} else if (procstat->type == PROCSTAT_SYSCTL ||
+		procstat->type == PROCSTAT_CORE) {
 		return (procstat_get_vnode_info_sysctl(fst, vn, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
@@ -1150,7 +1254,8 @@ procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
 	if (procstat->type == PROCSTAT_KVM) {
 		return (procstat_get_socket_info_kvm(procstat->kd, fst, sock,
 		    errbuf));
-	} else if (procstat->type == PROCSTAT_SYSCTL) {
+	} else if (procstat->type == PROCSTAT_SYSCTL ||
+		procstat->type == PROCSTAT_CORE) {
 		return (procstat_get_socket_info_sysctl(fst, sock, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
@@ -1401,3 +1506,4 @@ getmnton(kvm_t *kd, struct mount *m)
 	mhead = mt;
 	return (mt->mntonname);
 }
+
