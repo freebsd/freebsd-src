@@ -30,6 +30,14 @@
 #define	_LIBPROCSTAT_H_
 
 /*
+ * XXX: sys/elf.h conflicts with zfs_context.h. Workaround this by not
+ * including conflicting parts when building zfs code.
+ */
+#ifndef ZFS
+#include <sys/elf.h>
+#endif
+
+/*
  * Vnode types.
  */
 #define	PS_FST_VTYPE_VNON	1
@@ -148,6 +156,9 @@ STAILQ_HEAD(filestat_list, filestat);
 __BEGIN_DECLS
 void	procstat_close(struct procstat *procstat);
 void	procstat_freeargv(struct procstat *procstat);
+#ifndef ZFS
+void	procstat_freeauxv(struct procstat *procstat, Elf_Auxinfo *auxv);
+#endif
 void	procstat_freeenvv(struct procstat *procstat);
 void	procstat_freegroups(struct procstat *procstat, gid_t *groups);
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
@@ -171,6 +182,10 @@ int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
 char	**procstat_getargv(struct procstat *procstat, struct kinfo_proc *p,
     size_t nchr);
+#ifndef ZFS
+Elf_Auxinfo	*procstat_getauxv(struct procstat *procstat,
+    struct kinfo_proc *kp, unsigned int *cntp);
+#endif
 char	**procstat_getenvv(struct procstat *procstat, struct kinfo_proc *p,
     size_t nchr);
 gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
