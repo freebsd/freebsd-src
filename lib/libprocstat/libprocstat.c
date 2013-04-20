@@ -105,6 +105,8 @@ int     statfs(const char *, struct statfs *);	/* XXX */
 #define	PROCSTAT_SYSCTL	2
 #define	PROCSTAT_CORE	3
 
+static char	**getargv(struct procstat *procstat, struct kinfo_proc *kp,
+    size_t nchr, int env);
 static char	*getmnton(kvm_t *kd, struct mount *m);
 static struct kinfo_vmentry *	kinfo_getvmmap_core(struct procstat_core *core,
     int *cntp);
@@ -158,6 +160,8 @@ procstat_close(struct procstat *procstat)
 		kvm_close(procstat->kd);
 	else if (procstat->type == PROCSTAT_CORE)
 		procstat_core_close(procstat->core);
+	procstat_freeargv(procstat);
+	procstat_freeenvv(procstat);
 	free(procstat);
 }
 
@@ -1522,6 +1526,180 @@ getmnton(kvm_t *kd, struct mount *m)
 	mt->next = mhead;
 	mhead = mt;
 	return (mt->mntonname);
+}
+
+/*
+ * Auxiliary structures and functions to get process environment or
+ * command line arguments.
+ */
+struct argvec {
+	char	*buf;
+	size_t	bufsize;
+	char	**argv;
+	size_t	argc;
+};
+
+static struct argvec *
+argvec_alloc(size_t bufsize)
+{
+	struct argvec *av;
+
+	av = malloc(sizeof(*av));
+	if (av == NULL)
+		return (NULL);
+	av->bufsize = bufsize;
+	av->buf = malloc(av->bufsize);
+	if (av->buf == NULL) {
+		free(av);
+		return (NULL);
+	}
+	av->argc = 32;
+	av->argv = malloc(sizeof(char *) * av->argc);
+	if (av->argv == NULL) {
+		free(av->buf);
+		free(av);
+		return (NULL);
+	}
+	return av;
+}
+
+static void
+argvec_free(struct argvec * av)
+{
+
+	free(av->argv);
+	free(av->buf);
+	free(av);
+}
+
+static char **
+getargv(struct procstat *procstat, struct kinfo_proc *kp, size_t nchr, int env)
+{
+	int error, name[4], argc, i;
+	struct argvec *av, **avp;
+	enum psc_type type;
+	size_t len;
+	char *p, **argv;
+
+	assert(procstat);
+	assert(kp);
+	if (procstat->type == PROCSTAT_KVM) {
+		warnx("can't use kvm access method");
+		return (NULL);
+	}
+	if (procstat->type != PROCSTAT_SYSCTL &&
+	    procstat->type != PROCSTAT_CORE) {
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+
+	if (nchr == 0 || nchr > ARG_MAX)
+		nchr = ARG_MAX;
+
+	avp = (struct argvec **)(env ? &procstat->argv : &procstat->envv);
+	av = *avp;
+
+	if (av == NULL)
+	{
+		av = argvec_alloc(nchr);
+		if (av == NULL)
+		{
+			warn("malloc(%zu)", nchr);
+			return (NULL);
+		}
+		*avp = av;
+	} else if (av->bufsize < nchr) {
+		av->buf = reallocf(av->buf, nchr);
+		if (av->buf == NULL) {
+			warn("malloc(%zu)", nchr);
+			return (NULL);
+		}
+	}
+	if (procstat->type == PROCSTAT_SYSCTL) {
+		name[0] = CTL_KERN;
+		name[1] = KERN_PROC;
+		name[2] = env ? KERN_PROC_ENV : KERN_PROC_ARGS;
+		name[3] = kp->ki_pid;
+		len = nchr;
+		error = sysctl(name, 4, av->buf, &len, NULL, 0);
+		if (error != 0 && errno != ESRCH && errno != EPERM)
+			warn("sysctl(kern.proc.%s)", env ? "env" : "args");
+		if (error != 0 || len == 0)
+			return (NULL);
+	} else /* procstat->type == PROCSTAT_CORE */ {
+		type = env ? PSC_TYPE_ENVV : PSC_TYPE_ARGV;
+		len = nchr;
+		if (procstat_core_get(procstat->core, type, av->buf, &len)
+		    == NULL) {
+			return (NULL);
+		}
+	}
+
+	argv = av->argv;
+	argc = av->argc;
+	i = 0;
+	for (p = av->buf; p < av->buf + len; p += strlen(p) + 1) {
+		argv[i++] = p;
+		if (i < argc)
+			continue;
+		/* Grow argv. */
+		argc += argc;
+		argv = realloc(argv, sizeof(char *) * argc);
+		if (argv == NULL) {
+			warn("malloc(%zu)", sizeof(char *) * argc);
+			return (NULL);
+		}
+		av->argv = argv;
+		av->argc = argc;
+	}
+	argv[i] = NULL;
+
+	return (argv);
+}
+
+/*
+ * Return process command line arguments.
+ */
+char **
+procstat_getargv(struct procstat *procstat, struct kinfo_proc *p, size_t nchr)
+{
+
+	return (getargv(procstat, p, nchr, 0));
+}
+
+/*
+ * Free the buffer allocated by procstat_getargv().
+ */
+void
+procstat_freeargv(struct procstat *procstat)
+{
+
+	if (procstat->argv != NULL) {
+		argvec_free(procstat->argv);
+		procstat->argv = NULL;
+	}
+}
+
+/*
+ * Return process environment.
+ */
+char **
+procstat_getenvv(struct procstat *procstat, struct kinfo_proc *p, size_t nchr)
+{
+
+	return (getargv(procstat, p, nchr, 1));
+}
+
+/*
+ * Free the buffer allocated by procstat_getenvv().
+ */
+void
+procstat_freeenvv(struct procstat *procstat)
+{
+	if (procstat->envv != NULL) {
+		argvec_free(procstat->envv);
+		procstat->envv = NULL;
+	}
 }
 
 static struct kinfo_vmentry *
