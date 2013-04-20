@@ -38,7 +38,8 @@
 
 #include "procstat.h"
 
-static const char *get_umask(struct kinfo_proc *kipp);
+static const char *get_umask(struct procstat *procstat,
+    struct kinfo_proc *kipp);
 
 void
 procstat_cred(struct procstat *procstat, struct kinfo_proc *kipp)
@@ -59,7 +60,7 @@ procstat_cred(struct procstat *procstat, struct kinfo_proc *kipp)
 	printf("%5d ", kipp->ki_groups[0]);
 	printf("%5d ", kipp->ki_rgid);
 	printf("%5d ", kipp->ki_svgid);
-	printf("%5s ", get_umask(kipp));
+	printf("%5s ", get_umask(procstat, kipp));
 	printf("%s", kipp->ki_cr_flags & CRED_FLAG_CAPMODE ? "C" : "-");
 	printf("     ");
 
@@ -84,21 +85,12 @@ procstat_cred(struct procstat *procstat, struct kinfo_proc *kipp)
 }
 
 static const char *
-get_umask(struct kinfo_proc *kipp)
+get_umask(struct procstat *procstat, struct kinfo_proc *kipp)
 {
-	int error;
-	int mib[4];
-	size_t len;
 	u_short fd_cmask;
 	static char umask[4];
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PROC;
-	mib[2] = KERN_PROC_UMASK;
-	mib[3] = kipp->ki_pid;
-	len = sizeof(fd_cmask);
-	error = sysctl(mib, 4, &fd_cmask, &len, NULL, 0);
-	if (error == 0) {
+	if (procstat_getumask(procstat, kipp, &fd_cmask) == 0) {
 		snprintf(umask, 4, "%03o", fd_cmask);
 		return (umask);
 	} else {
