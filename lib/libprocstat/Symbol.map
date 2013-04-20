@@ -17,11 +17,13 @@ FBSD_1.2 {
 
 FBSD_1.3 {
 	procstat_freeargv;
+	procstat_freeauxv;
 	procstat_freeenvv;
 	procstat_freegroups;
 	procstat_freevmmap;
 	procstat_get_shm_info;
 	procstat_getargv;
+	procstat_getauxv;
 	procstat_getenvv;
 	procstat_getgroups;
 	procstat_getosrel;

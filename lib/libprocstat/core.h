@@ -40,6 +40,7 @@ enum psc_type {
 	PSC_TYPE_PSSTRINGS,
 	PSC_TYPE_ARGV,
 	PSC_TYPE_ENVV,
+	PSC_TYPE_AUXV,
 };
 
 struct procstat_core;

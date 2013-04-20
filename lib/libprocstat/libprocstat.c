@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/elf.h>
 #include <sys/time.h>
 #include <sys/resourcevar.h>
 #include <sys/proc.h>
@@ -110,6 +111,9 @@ static char	**getargv(struct procstat *procstat, struct kinfo_proc *kp,
 static char	*getmnton(kvm_t *kd, struct mount *m);
 static struct kinfo_vmentry *	kinfo_getvmmap_core(struct procstat_core *core,
     int *cntp);
+static Elf_Auxinfo	*procstat_getauxv_core(struct procstat_core *core,
+    unsigned int *cntp);
+static Elf_Auxinfo	*procstat_getauxv_sysctl(pid_t pid, unsigned int *cntp);
 static struct filestat_list	*procstat_getfiles_kvm(
     struct procstat *procstat, struct kinfo_proc *kp, int mmapped);
 static struct filestat_list	*procstat_getfiles_sysctl(
@@ -2074,4 +2078,152 @@ procstat_getosrel(struct procstat *procstat, struct kinfo_proc *kp, int *osrelp)
 		warnx("unknown access method: %d", procstat->type);
 		return (-1);
 	}
+}
+
+#define PROC_AUXV_MAX	256
+
+#if __ELF_WORD_SIZE == 64
+static const char *elf32_sv_names[] = {
+	"Linux ELF32",
+	"FreeBSD ELF32",
+};
+
+static int
+is_elf32_sysctl(pid_t pid)
+{
+	int error, name[4];
+	size_t len, i;
+	static char sv_name[256];
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_SV_NAME;
+	name[3] = pid;
+	len = sizeof(sv_name);
+	error = sysctl(name, 4, sv_name, &len, NULL, 0);
+	if (error != 0 || len == 0)
+		return (0);
+	for (i = 0; i < sizeof(elf32_sv_names) / sizeof(*elf32_sv_names); i++) {
+		if (strncmp(sv_name, elf32_sv_names[i], sizeof(sv_name)) == 0)
+			return (1);
+	}
+	return (0);
+}
+
+static Elf_Auxinfo *
+procstat_getauxv32_sysctl(pid_t pid, unsigned int *cntp)
+{
+	Elf_Auxinfo *auxv;
+	Elf32_Auxinfo *auxv32;
+	void *ptr;
+	size_t len;
+	unsigned int i, count;
+	int name[4];
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_AUXV;
+	name[3] = pid;
+	len = PROC_AUXV_MAX * sizeof(Elf32_Auxinfo);
+	auxv = NULL;
+	auxv32 = malloc(len);
+	if (auxv32 == NULL) {
+		warn("malloc(%zu)", len);
+		goto out;
+	}
+	if (sysctl(name, 4, auxv32, &len, NULL, 0) == -1) {
+		if (errno != ESRCH && errno != EPERM)
+			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
+		goto out;
+	}
+	count = len / sizeof(Elf_Auxinfo);
+	auxv = malloc(count  * sizeof(Elf_Auxinfo));
+	if (auxv == NULL) {
+		warn("malloc(%zu)", count * sizeof(Elf_Auxinfo));
+		goto out;
+	}
+	for (i = 0; i < count; i++) {
+		/*
+		 * XXX: We expect that values for a_type on a 32-bit platform
+		 * are directly mapped to values on 64-bit one, which is not
+		 * necessarily true.
+		 */
+		auxv[i].a_type = auxv32[i].a_type;
+		ptr = &auxv32[i].a_un;
+		auxv[i].a_un.a_val = *((uint32_t *)ptr);
+	}
+	*cntp = count;
+out:
+	free(auxv32);
+	return (auxv);
+}
+#endif /* __ELF_WORD_SIZE == 64 */
+
+static Elf_Auxinfo *
+procstat_getauxv_sysctl(pid_t pid, unsigned int *cntp)
+{
+	Elf_Auxinfo *auxv;
+	int name[4];
+	size_t len;
+
+#if __ELF_WORD_SIZE == 64
+	if (is_elf32_sysctl(pid))
+		return (procstat_getauxv32_sysctl(pid, cntp));
+#endif
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_AUXV;
+	name[3] = pid;
+	len = PROC_AUXV_MAX * sizeof(Elf_Auxinfo);
+	auxv = malloc(len);
+	if (auxv == NULL) {
+		warn("malloc(%zu)", len);
+		return (NULL);
+	}
+	if (sysctl(name, 4, auxv, &len, NULL, 0) == -1) {
+		if (errno != ESRCH && errno != EPERM)
+			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
+		free(auxv);
+		return (NULL);
+	}
+	*cntp = len / sizeof(Elf_Auxinfo);
+	return (auxv);
+}
+
+static Elf_Auxinfo *
+procstat_getauxv_core(struct procstat_core *core, unsigned int *cntp)
+{
+	Elf_Auxinfo *auxv;
+	size_t len;
+
+	auxv = procstat_core_get(core, PSC_TYPE_AUXV, NULL, &len);
+	if (auxv == NULL)
+		return (NULL);
+	*cntp = len / sizeof(Elf_Auxinfo);
+	return (auxv);
+}
+
+Elf_Auxinfo *
+procstat_getauxv(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned int *cntp)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getauxv_sysctl(kp->ki_pid, cntp));
+	case PROCSTAT_CORE:
+		return (procstat_getauxv_core(procstat->core, cntp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freeauxv(struct procstat *procstat __unused, Elf_Auxinfo *auxv)
+{
+
+	free(auxv);
 }

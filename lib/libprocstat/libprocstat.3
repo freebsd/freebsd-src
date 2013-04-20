@@ -33,6 +33,7 @@
 .Nm procstat_open_sysctl ,
 .Nm procstat_close ,
 .Nm procstat_getargv ,
+.Nm procstat_getauxv ,
 .Nm procstat_getenvv ,
 .Nm procstat_getfiles ,
 .Nm procstat_getgroups ,
@@ -42,6 +43,7 @@
 .Nm procstat_getumask ,
 .Nm procstat_getvmmap ,
 .Nm procstat_freeargv ,
+.Nm procstat_freeauxv ,
 .Nm procstat_freeenvv ,
 .Nm procstat_freefiles ,
 .Nm procstat_freegroups ,
@@ -65,6 +67,11 @@
 .Ft void
 .Fo procstat_freeargv
 .Fa "struct procstat *procstat"
+.Fc
+.Ft void
+.Fo procstat_freeauxv
+.Fa "struct procstat *procstat"
+.Fa "Elf_Auxinfo *auxv"
 .Fc
 .Ft void
 .Fo procstat_freeenvv
@@ -128,6 +135,12 @@
 .Fa "const struct kinfo_proc *kp"
 .Fa "size_t nchr"
 .Fa "char *errbuf"
+.Fc
+.Ft "Elf_Auxinfo *"
+.Fo procstat_getauxv
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned int *count"
 .Fc
 .Ft "char **"
 .Fo procstat_getenvv
@@ -318,6 +331,19 @@ function is similar to
 but returns the vector of environment strings.
 The caller may free the allocated memory with a subsequent
 .Fn procstat_freeenv
+function call.
+.Pp
+The
+.Fn procstat_getauxv
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns the auxiliary vector as a dynamically allocated array of
+.Vt Elf_Auxinfo
+elements.
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freeauxv
 function call.
 .Pp
 The
