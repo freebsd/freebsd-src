@@ -1147,15 +1147,11 @@ copy_element_status(struct ch_softc *softc,
 			ces->ces_designator_length = devid->designator_length;
 			/*
 			 * Make sure we are always NUL terminated.  The
-			 * buffer should be sized for the maximum
-			 * designator length plus 1, but this will make sure
-			 * there is always a NUL at the end.  This won't
-			 * matter for the binary code set, since the user
-			 * will only pay attention to the length field.
+			 * This won't matter for the binary code set,
+			 * since the user will only pay attention to the
+			 * length field.
 			 */
-			ces->ces_designator[
-			    MIN(sizeof(ces->ces_designator) - 1,
-			    devid->designator_length)]= '\0';
+			ces->ces_designator[devid->designator_length]= '\0';
 		}
 		if (devid->piv_assoc_designator_type &
 		    READ_ELEMENT_STATUS_PIV_SET) {
