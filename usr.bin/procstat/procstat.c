@@ -81,7 +81,7 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 	else if (vflag)
 		procstat_vm(prstat, kipp);
 	else if (xflag)
-		procstat_auxv(kipp);
+		procstat_auxv(prstat, kipp);
 	else
 		procstat_basic(kipp);
 }
