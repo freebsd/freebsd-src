@@ -37,7 +37,7 @@ void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
 void	procstat_args(struct kinfo_proc *kipp);
 void	procstat_auxv(struct kinfo_proc *kipp);
 void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
+void	procstat_bin(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_cred(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_env(struct kinfo_proc *kipp);
 void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
