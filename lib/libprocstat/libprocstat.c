@@ -1845,3 +1845,55 @@ procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
 		return (-1);
 	}
 }
+
+static int
+procstat_getosrel_sysctl(pid_t pid, int *osrelp)
+{
+	int error, name[4];
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_OSREL;
+	name[3] = pid;
+	len = sizeof(*osrelp);
+	error = sysctl(name, 4, osrelp, &len, NULL, 0);
+	if (error != 0 && errno != ESRCH)
+		warn("sysctl: kern.proc.osrel: %d", pid);
+	return (error);
+}
+
+static int
+procstat_getosrel_core(struct procstat_core *core, int *osrelp)
+{
+	size_t len;
+	int *buf;
+
+	buf = procstat_core_get(core, PSC_TYPE_OSREL, NULL, &len);
+	if (buf == NULL)
+		return (-1);
+	if (len < sizeof(*osrelp)) {
+		free(buf);
+		return (-1);
+	}
+	*osrelp = *buf;
+	free(buf);
+	return (0);
+}
+
+int
+procstat_getosrel(struct procstat *procstat, struct kinfo_proc *kp, int *osrelp)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (-1);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getosrel_sysctl(kp->ki_pid, osrelp));
+	case PROCSTAT_CORE:
+		return (procstat_getosrel_core(procstat->core, osrelp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (-1);
+	}
+}
