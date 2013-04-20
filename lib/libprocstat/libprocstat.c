@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/resourcevar.h>
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/stat.h>
@@ -135,6 +136,10 @@ static int	procstat_get_vnode_info_sysctl(struct filestat *fst,
 static gid_t	*procstat_getgroups_core(struct procstat_core *core,
     unsigned int *count);
 static gid_t	*procstat_getgroups_sysctl(pid_t pid, unsigned int *count);
+static int	procstat_getrlimit_core(struct procstat_core *core, int which,
+    struct rlimit* rlimit);
+static int	procstat_getrlimit_sysctl(pid_t pid, int which,
+    struct rlimit* rlimit);
 static int	procstat_getumask_core(struct procstat_core *core,
     unsigned short *maskp);
 static int	procstat_getumask_sysctl(pid_t pid, unsigned short *maskp);
@@ -1707,6 +1712,69 @@ procstat_getumask(struct procstat *procstat, struct kinfo_proc *kp,
 		return (procstat_getumask_sysctl(kp->ki_pid, maskp));
 	case PROCSTAT_CORE:
 		return (procstat_getumask_core(procstat->core, maskp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (-1);
+	}
+}
+
+static int
+procstat_getrlimit_sysctl(pid_t pid, int which, struct rlimit* rlimit)
+{
+	int error, name[5];
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_RLIMIT;
+	name[3] = pid;
+	name[4] = which;
+	len = sizeof(struct rlimit);
+	error = sysctl(name, 5, rlimit, &len, NULL, 0);
+	if (error < 0 && errno != ESRCH) {
+		warn("sysctl: kern.proc.rlimit: %d", pid);
+		return (-1);
+	}
+	if (error < 0 || len != sizeof(struct rlimit))
+		return (-1);
+	return (0);
+}
+
+static int
+procstat_getrlimit_core(struct procstat_core *core, int which,
+    struct rlimit* rlimit)
+{
+	size_t len;
+	struct rlimit* rlimits;
+
+	if (which < 0 || which >= RLIM_NLIMITS) {
+		errno = EINVAL;
+		warn("getrlimit: which");
+		return (-1);
+	}
+	rlimits = procstat_core_get(core, PSC_TYPE_RLIMIT, NULL, &len);
+	if (rlimits == NULL)
+		return (-1);
+	if (len < sizeof(struct rlimit) * RLIM_NLIMITS) {
+		free(rlimits);
+		return (-1);
+	}
+	*rlimit = rlimits[which];
+	return (0);
+}
+
+int
+procstat_getrlimit(struct procstat *procstat, struct kinfo_proc *kp, int which,
+    struct rlimit* rlimit)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (-1);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getrlimit_sysctl(kp->ki_pid, which, rlimit));
+	case PROCSTAT_CORE:
+		return (procstat_getrlimit_core(procstat->core, which, rlimit));
 	default:
 		warnx("unknown access method: %d", procstat->type);
 		return (-1);
