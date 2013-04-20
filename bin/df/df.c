@@ -114,6 +114,7 @@ main(int argc, char *argv[])
 
 	fstype = "ufs";
 	(void)setlocale(LC_ALL, "");
+	memset(&maxwidths, 0, sizeof(maxwidths));
 	memset(&totalbuf, 0, sizeof(totalbuf));
 	totalbuf.f_bsize = DEV_BSIZE;
 	strlcpy(totalbuf.f_mntfromname, "total", MNAMELEN);
@@ -200,7 +201,7 @@ main(int argc, char *argv[])
 	} else {
 		/* just the filesystems specified on the command line */
 		mntbuf = malloc(argc * sizeof(*mntbuf));
-		if (mntbuf == 0)
+		if (mntbuf == NULL)
 			err(1, "malloc()");
 		mntsize = 0;
 		/* continued in for loop below */
@@ -209,13 +210,13 @@ main(int argc, char *argv[])
 	/* iterate through specified filesystems */
 	for (; *argv; argv++) {
 		if (stat(*argv, &stbuf) < 0) {
-			if ((mntpt = getmntpt(*argv)) == 0) {
+			if ((mntpt = getmntpt(*argv)) == NULL) {
 				warn("%s", *argv);
 				rv = 1;
 				continue;
 			}
 		} else if (S_ISCHR(stbuf.st_mode)) {
-			if ((mntpt = getmntpt(*argv)) == 0) {
+			if ((mntpt = getmntpt(*argv)) == NULL) {
 				mdev.fspec = *argv;
 				mntpath = strdup("/tmp/df.XXXXXX");
 				if (mntpath == NULL) {
@@ -282,7 +283,7 @@ main(int argc, char *argv[])
 		mntbuf[mntsize++] = statfsbuf;
 	}
 
-	bzero(&maxwidths, sizeof(maxwidths));
+	memset(&maxwidths, 0, sizeof(maxwidths));
 	for (i = 0; i < mntsize; i++) {
 		if (aflag || (mntbuf[i].f_flags & MNT_IGNORE) == 0) {
 			update_maxwidths(&maxwidths, &mntbuf[i]);
@@ -295,6 +296,7 @@ main(int argc, char *argv[])
 			prtstat(&mntbuf[i], &maxwidths);
 	if (cflag)
 		prtstat(&totalbuf, &maxwidths);
+	free(mntbuf);
 	return (rv);
 }
 
@@ -309,7 +311,7 @@ getmntpt(const char *name)
 		if (!strcmp(mntbuf[i].f_mntfromname, name))
 			return (mntbuf[i].f_mntonname);
 	}
-	return (0);
+	return (NULL);
 }
 
 /*
