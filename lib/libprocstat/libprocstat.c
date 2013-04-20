@@ -105,6 +105,8 @@ int     statfs(const char *, struct statfs *);	/* XXX */
 #define	PROCSTAT_CORE	3
 
 static char	*getmnton(kvm_t *kd, struct mount *m);
+static struct kinfo_vmentry *	kinfo_getvmmap_core(struct procstat_core *core,
+    int *cntp);
 static struct filestat_list	*procstat_getfiles_kvm(
     struct procstat *procstat, struct kinfo_proc *kp, int mmapped);
 static struct filestat_list	*procstat_getfiles_sysctl(
@@ -802,7 +804,7 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp,
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	if (mmapped != 0) {
-		vmentries = kinfo_getvmmap(kp->ki_pid, &cnt);
+		vmentries = procstat_getvmmap(procstat, kp, &cnt);
 		procstat->vmentries = vmentries;
 		if (vmentries == NULL || cnt == 0)
 			goto fail;
@@ -1507,3 +1509,82 @@ getmnton(kvm_t *kd, struct mount *m)
 	return (mt->mntonname);
 }
 
+static struct kinfo_vmentry *
+kinfo_getvmmap_core(struct procstat_core *core, int *cntp)
+{
+	int cnt;
+	size_t len;
+	char *buf, *bp, *eb;
+	struct kinfo_vmentry *kiv, *kp, *kv;
+
+	buf = procstat_core_get(core, PSC_TYPE_VMMAP, NULL, &len);
+	if (buf == NULL)
+		return (NULL);
+
+	/*
+	 * XXXMG: The code below is just copy&past from libutil.
+	 * The code duplication can be avoided if libutil
+	 * is extended to provide something like:
+	 *   struct kinfo_vmentry *kinfo_getvmmap_from_buf(const char *buf,
+	 *       size_t len, int *cntp);
+	 */
+
+	/* Pass 1: count items */
+	cnt = 0;
+	bp = buf;
+	eb = buf + len;
+	while (bp < eb) {
+		kv = (struct kinfo_vmentry *)(uintptr_t)bp;
+		bp += kv->kve_structsize;
+		cnt++;
+	}
+
+	kiv = calloc(cnt, sizeof(*kiv));
+	if (kiv == NULL) {
+		free(buf);
+		return (NULL);
+	}
+	bp = buf;
+	eb = buf + len;
+	kp = kiv;
+	/* Pass 2: unpack */
+	while (bp < eb) {
+		kv = (struct kinfo_vmentry *)(uintptr_t)bp;
+		/* Copy/expand into pre-zeroed buffer */
+		memcpy(kp, kv, kv->kve_structsize);
+		/* Advance to next packed record */
+		bp += kv->kve_structsize;
+		/* Set field size to fixed length, advance */
+		kp->kve_structsize = sizeof(*kp);
+		kp++;
+	}
+	free(buf);
+	*cntp = cnt;
+	return (kiv);	/* Caller must free() return value */
+}
+
+struct kinfo_vmentry *
+procstat_getvmmap(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned int *cntp)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (NULL);
+	case PROCSTAT_SYSCTL:
+		return (kinfo_getvmmap(kp->ki_pid, cntp));
+	case PROCSTAT_CORE:
+		return (kinfo_getvmmap_core(procstat->core, cntp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (NULL);
+	}
+}
+
+void
+procstat_freevmmap(struct procstat *procstat __unused,
+    struct kinfo_vmentry *vmmap)
+{
+
+	free(vmmap);
+}

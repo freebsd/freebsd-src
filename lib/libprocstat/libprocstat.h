@@ -89,6 +89,7 @@
 #define	PS_FST_FFLAG_EXEC	0x2000
 #define	PS_FST_FFLAG_HASLOCK	0x4000
 
+struct kinfo_vmentry;
 struct procstat;
 struct filestat {
 	int	fs_type;	/* Descriptor type. */
@@ -148,6 +149,8 @@ void	procstat_close(struct procstat *procstat);
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
     struct filestat_list *head);
+void	procstat_freevmmap(struct procstat *procstat,
+    struct kinfo_vmentry *vmmap);
 struct filestat_list	*procstat_getfiles(struct procstat *procstat,
     struct kinfo_proc *kp, int mmapped);
 struct kinfo_proc	*procstat_getprocs(struct procstat *procstat,
@@ -162,6 +165,8 @@ int	procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
     struct sockstat *sock, char *errbuf);
 int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
+struct kinfo_vmentry	*procstat_getvmmap(struct procstat *procstat,
+    struct kinfo_proc *kp, unsigned int *count);
 struct procstat	*procstat_open_core(const char *filename);
 struct procstat	*procstat_open_sysctl(void);
 struct procstat	*procstat_open_kvm(const char *nlistf, const char *memf);
