@@ -195,6 +195,10 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 		n_type = NT_PROCSTAT_PSSTRINGS;
 		structsize = sizeof(vm_offset_t);
 		break;
+	case PSC_TYPE_AUXV:
+		n_type = NT_PROCSTAT_AUXV;
+		structsize = sizeof(Elf_Auxinfo);
+		break;
 	default:
 		warnx("unknown core stat type: %d", type);
 		return (NULL);
