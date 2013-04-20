@@ -168,6 +168,8 @@ int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
 gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *count);
+int	procstat_getumask(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned short* umask);
 struct kinfo_vmentry	*procstat_getvmmap(struct procstat *procstat,
     struct kinfo_proc *kp, unsigned int *count);
 struct procstat	*procstat_open_core(const char *filename);
