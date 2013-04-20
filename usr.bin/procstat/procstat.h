@@ -46,6 +46,6 @@ void	procstat_rlimit(struct kinfo_proc *kipp);
 void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
+void	procstat_vm(struct procstat *prstat, struct kinfo_proc *kipp);
 
 #endif /* !PROCSTAT_H */
