@@ -1382,7 +1382,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libwind} \
 		${_lib_atf_libatf_c} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
-		lib/libexpat \
+		lib/libelf lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
