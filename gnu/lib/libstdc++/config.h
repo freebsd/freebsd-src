@@ -67,7 +67,7 @@
 #define HAVE_EXPF 1
 
 /* Define to 1 if you have the `expl' function. */
-#define HAVE_EXPL 1
+/* #undef HAVE_EXPL 1 */
 
 /* Define to 1 if you have the `fabsf' function. */
 #define HAVE_FABSF 1
