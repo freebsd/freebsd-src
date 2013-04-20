@@ -128,6 +128,13 @@
 .Fa "unsigned int *count"
 .Fc
 .Ft "int"
+.Fo procstat_getrlimit
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "int which"
+.Fa "struct rlimit* rlimit"
+.Fc
+.Ft "int"
 .Fo procstat_getumask
 .Fa "struct procstat *procstat"
 .Fa "struct kinfo_proc *kp"
@@ -259,6 +266,16 @@ elements.
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freegroups
 function call.
+.Pp
+The
+.Fn procstat_getrlimit
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, resource index
+.Fa which ,
+and returns the actual resource limit in the 4th reference parameter.
 .Pp
 The
 .Fn procstat_getumask
