@@ -34,6 +34,7 @@
 .Nm procstat_close ,
 .Nm procstat_getfiles ,
 .Nm procstat_getgroups ,
+.Nm procstat_getosrel ,
 .Nm procstat_getpathname ,
 .Nm procstat_getprocs ,
 .Nm procstat_getumask ,
@@ -120,6 +121,11 @@
 .Fa "struct procstat *procstat"
 .Fa "struct kinfo_proc *kp"
 .Fa "unsigned int *count"
+.Ft int
+.Fo procstat_getosrel
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "int *osrelp"
 .Fc
 .Ft "struct kinfo_proc *"
 .Fo procstat_getprocs
@@ -274,6 +280,14 @@ elements.
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freegroups
 function call.
+.Pp
+The
+.Fn procstat_getosrel
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns osrel date in the 3rd reference parameter.
 .Pp
 The
 .Fn procstat_getpathname

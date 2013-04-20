@@ -169,6 +169,8 @@ int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
 gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *count);
+int	procstat_getosrel(struct procstat *procstat, struct kinfo_proc *kp,
+    int *osrelp);
 int	procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
     char *pathname, size_t maxlen);
 int	procstat_getrlimit(struct procstat *procstat, struct kinfo_proc *kp,

@@ -36,6 +36,7 @@ enum psc_type {
 	PSC_TYPE_GROUPS,
 	PSC_TYPE_UMASK,
 	PSC_TYPE_RLIMIT,
+	PSC_TYPE_OSREL,
 };
 
 struct procstat_core;
