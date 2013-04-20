@@ -91,6 +91,7 @@
 
 struct kinfo_vmentry;
 struct procstat;
+struct rlimit;
 struct filestat {
 	int	fs_type;	/* Descriptor type. */
 	int	fs_flags;	/* filestat specific flags. */
@@ -170,6 +171,8 @@ gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned int *count);
 int	procstat_getumask(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned short* umask);
+int	procstat_getrlimit(struct procstat *procstat, struct kinfo_proc *kp,
+    int which, struct rlimit* rlimit);
 struct kinfo_vmentry	*procstat_getvmmap(struct procstat *procstat,
     struct kinfo_proc *kp, unsigned int *count);
 struct procstat	*procstat_open_core(const char *filename);

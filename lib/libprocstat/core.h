@@ -35,6 +35,7 @@ enum psc_type {
 	PSC_TYPE_VMMAP,
 	PSC_TYPE_GROUPS,
 	PSC_TYPE_UMASK,
+	PSC_TYPE_RLIMIT,
 };
 
 struct procstat_core;
