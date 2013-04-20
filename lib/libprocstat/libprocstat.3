@@ -34,6 +34,7 @@
 .Nm procstat_close ,
 .Nm procstat_getfiles ,
 .Nm procstat_getgroups ,
+.Nm procstat_getpathname ,
 .Nm procstat_getprocs ,
 .Nm procstat_getumask ,
 .Nm procstat_getvmmap ,
@@ -126,6 +127,13 @@
 .Fa "int what"
 .Fa "int arg"
 .Fa "unsigned int *count"
+.Fc
+.Ft "int"
+.Fo procstat_getpathname
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "char *pathname"
+.Fa "size_t maxlen"
 .Fc
 .Ft "int"
 .Fo procstat_getrlimit
@@ -266,6 +274,18 @@ elements.
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freegroups
 function call.
+.Pp
+The
+.Fn procstat_getpathname
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and copies the path of the process executable to
+.Fa pathname
+buffer, limiting to
+.Fa maxlen
+characters.
 .Pp
 The
 .Fn procstat_getrlimit
