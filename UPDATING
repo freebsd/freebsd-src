@@ -12,9 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
 NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
-from older versions of FreeBSD, try WITHOUT_CLANG and WITHOUT_CLANG_IS_CC to
-bootstrap to tip of head, and then rebuild without those options. The bootstrap
-process from older version of current is a bit fragile.
+from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to tip of
+head, and then rebuild without this option. The bootstrap process from
+older version of current is a bit fragile.
 
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	FreeBSD 10.x has many debugging features turned on, in both the kernel
@@ -127,7 +127,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	This means that the world and kernel will be compiled with clang
 	and that clang will be installed as /usr/bin/cc, /usr/bin/c++,
 	and /usr/bin/cpp.  To disable this behavior and revert to building
-	with gcc, compile with WITHOUT_CLANG_IS_CC.
+	with gcc, compile with WITHOUT_CLANG_IS_CC. Really old versions
+	of current may need to bootstrap WITHOUT_CLANG first if the clang
+	build fails (its compatibility window doesn't extend to the 9 stable
+	branch point).
 
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
@@ -1609,6 +1612,11 @@ COMMON ITEMS:
 	path, and has the highest probability of being successful.  Please try
 	this approach before reporting problems with a major version upgrade.
 
+	When upgrading a life system, having a root shell around before
+	installing anything can help undo problems. Not having a root shell
+	around can lead to problems if pam has changed too much from your
+	starting point to allow continued authentication after the upgrade.
+
 	ZFS notes
 	---------
 	When upgrading the boot ZFS pool to a new version, always follow
@@ -1673,7 +1681,6 @@ COMMON ITEMS:
 	mergemaster -i					[4]
 	make delete-old					[6]
 	<reboot>
-
 
 	To cross-install current onto a separate partition
 	--------------------------------------------------
