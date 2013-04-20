@@ -65,7 +65,6 @@
 .In libprocstat.h
 .Ft void
 .Fn procstat_close "struct procstat *procstat"
-.Fc
 .Ft void
 .Fo procstat_freeargv
 .Fa "struct procstat *procstat"
@@ -167,6 +166,7 @@
 .Fa "struct procstat *procstat"
 .Fa "struct kinfo_proc *kp"
 .Fa "unsigned int *count"
+.Fc
 .Ft int
 .Fo procstat_getosrel
 .Fa "struct procstat *procstat"
