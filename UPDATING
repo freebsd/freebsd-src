@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
+from older versions of FreeBSD, try WITHOUT_CLANG and WITHOUT_CLANG_IS_CC to
+bootstrap to tip of head, and then rebuild without those options. The bootstrap
+process from older version of current is a bit fragile.
+
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	FreeBSD 10.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
