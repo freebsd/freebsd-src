@@ -33,9 +33,11 @@
 .Nm procstat_open_sysctl ,
 .Nm procstat_close ,
 .Nm procstat_getfiles ,
+.Nm procstat_getgroups ,
 .Nm procstat_getprocs ,
 .Nm procstat_getvmmap ,
 .Nm procstat_freefiles ,
+.Nm procstat_freegroups ,
 .Nm procstat_freeprocs ,
 .Nm procstat_freevmmap ,
 .Nm procstat_get_pipe_info ,
@@ -52,10 +54,16 @@
 .In libprocstat.h
 .Ft void
 .Fn procstat_close "struct procstat *procstat"
+.Fc
 .Ft void
 .Fo procstat_freefiles
 .Fa "struct procstat *procstat"
 .Fa "struct filestat_list *head"
+.Fc
+.Ft void
+.Fo procstat_freegroups
+.Fa "struct procstat *procstat"
+.Fa "gid_t *groups"
 .Fc
 .Ft void
 .Fn procstat_freeprocs "struct procstat *procstat" "struct kinfo_proc *p"
@@ -104,6 +112,12 @@
 .Fa "struct procstat *procstat"
 .Fa "struct kinfo_proc *kp"
 .Fa "int mmapped"
+.Fc
+.Ft "gid_t *"
+.Fo procstat_getgroups
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned int *count"
 .Fc
 .Ft "struct kinfo_proc *"
 .Fo procstat_getprocs
@@ -224,6 +238,19 @@ structures using the STAILQ macros defined in
 .Xr queue 3 .
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freefiles
+function call.
+.Pp
+The
+.Fn procstat_getgroups
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns the process groups as a dynamically allocated array of
+.Vt gid_t
+elements.
+The caller is responsible to free the allocated memory with a subsequent
+.Fn procstat_freegroups
 function call.
 .Pp
 The

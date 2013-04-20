@@ -167,6 +167,10 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 		n_type = NT_PROCSTAT_VMMAP;
 		structsize = sizeof(struct kinfo_vmentry);
 		break;
+	case PSC_TYPE_GROUPS:
+		n_type = NT_PROCSTAT_GROUPS;
+		structsize = sizeof(gid_t);
+		break;
 	default:
 		warnx("unknown core stat type: %d", type);
 		return (NULL);
