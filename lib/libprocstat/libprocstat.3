@@ -35,6 +35,7 @@
 .Nm procstat_getfiles ,
 .Nm procstat_getgroups ,
 .Nm procstat_getprocs ,
+.Nm procstat_getumask ,
 .Nm procstat_getvmmap ,
 .Nm procstat_freefiles ,
 .Nm procstat_freegroups ,
@@ -125,6 +126,12 @@
 .Fa "int what"
 .Fa "int arg"
 .Fa "unsigned int *count"
+.Fc
+.Ft "int"
+.Fo procstat_getumask
+.Fa "struct procstat *procstat"
+.Fa "struct kinfo_proc *kp"
+.Fa "unsigned short *maskp"
 .Fc
 .Ft "struct kinfo_vmentry *"
 .Fo procstat_getvmmap
@@ -252,6 +259,14 @@ elements.
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freegroups
 function call.
+.Pp
+The
+.Fn procstat_getumask
+function gets a pointer to the
+.Vt procstat
+structure, a pointer to
+.Vt kinfo_proc
+structure, and returns the process umask in the 3rd reference parameter.
 .Pp
 The
 .Fn procstat_getvmmap

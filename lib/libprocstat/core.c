@@ -171,6 +171,10 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 		n_type = NT_PROCSTAT_GROUPS;
 		structsize = sizeof(gid_t);
 		break;
+	case PSC_TYPE_UMASK:
+		n_type = NT_PROCSTAT_UMASK;
+		structsize = sizeof(u_short);
+		break;
 	default:
 		warnx("unknown core stat type: %d", type);
 		return (NULL);

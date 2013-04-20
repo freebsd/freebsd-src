@@ -135,6 +135,9 @@ static int	procstat_get_vnode_info_sysctl(struct filestat *fst,
 static gid_t	*procstat_getgroups_core(struct procstat_core *core,
     unsigned int *count);
 static gid_t	*procstat_getgroups_sysctl(pid_t pid, unsigned int *count);
+static int	procstat_getumask_core(struct procstat_core *core,
+    unsigned short *maskp);
+static int	procstat_getumask_sysctl(pid_t pid, unsigned short *maskp);
 static int	vntype2psfsttype(int type);
 
 void
@@ -1654,4 +1657,58 @@ procstat_freegroups(struct procstat *procstat __unused, gid_t *groups)
 {
 
 	free(groups);
+}
+
+static int
+procstat_getumask_sysctl(pid_t pid, unsigned short *maskp)
+{
+	int error;
+	int mib[4];
+	size_t len;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_UMASK;
+	mib[3] = pid;
+	len = sizeof(*maskp);
+	error = sysctl(mib, 4, maskp, &len, NULL, 0);
+	if (error != 0 && errno != ESRCH)
+		warn("sysctl: kern.proc.umask: %d", pid);
+	return (error);
+}
+
+static int
+procstat_getumask_core(struct procstat_core *core, unsigned short *maskp)
+{
+	size_t len;
+	unsigned short *buf;
+
+	buf = procstat_core_get(core, PSC_TYPE_UMASK, NULL, &len);
+	if (buf == NULL)
+		return (-1);
+	if (len < sizeof(*maskp)) {
+		free(buf);
+		return (-1);
+	}
+	*maskp = *buf;
+	free(buf);
+	return (0);
+}
+
+int
+procstat_getumask(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned short *maskp)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (-1);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getumask_sysctl(kp->ki_pid, maskp));
+	case PROCSTAT_CORE:
+		return (procstat_getumask_core(procstat->core, maskp));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (-1);
+	}
 }
