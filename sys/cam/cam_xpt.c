@@ -878,6 +878,13 @@ xpt_init(void *dummy)
 	mtx_init(&xsoftc.xpt_lock, "XPT lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_topo_lock, "XPT topology lock", NULL, MTX_DEF);
 
+#ifdef CAM_BOOT_DELAY
+	/*
+	 * Override this value at compile time to assist our users
+	 * who don't use loader to boot a kernel.
+	 */
+	xsoftc.boot_delay = CAM_BOOT_DELAY;
+#endif
 	/*
 	 * The xpt layer is, itself, the equivelent of a SIM.
 	 * Allow 16 ccbs in the ccb pool for it.  This should
