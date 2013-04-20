@@ -136,6 +136,10 @@ static int	procstat_get_vnode_info_sysctl(struct filestat *fst,
 static gid_t	*procstat_getgroups_core(struct procstat_core *core,
     unsigned int *count);
 static gid_t	*procstat_getgroups_sysctl(pid_t pid, unsigned int *count);
+static int	procstat_getpathname_core(struct procstat_core *core,
+    char *pathname, size_t maxlen);
+static int	procstat_getpathname_sysctl(pid_t pid, char *pathname,
+    size_t maxlen);
 static int	procstat_getrlimit_core(struct procstat_core *core, int which,
     struct rlimit* rlimit);
 static int	procstat_getrlimit_sysctl(pid_t pid, int which,
@@ -1775,6 +1779,67 @@ procstat_getrlimit(struct procstat *procstat, struct kinfo_proc *kp, int which,
 		return (procstat_getrlimit_sysctl(kp->ki_pid, which, rlimit));
 	case PROCSTAT_CORE:
 		return (procstat_getrlimit_core(procstat->core, which, rlimit));
+	default:
+		warnx("unknown access method: %d", procstat->type);
+		return (-1);
+	}
+}
+
+static int
+procstat_getpathname_sysctl(pid_t pid, char *pathname, size_t maxlen)
+{
+	int error, name[4];
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_PATHNAME;
+	name[3] = pid;
+	len = maxlen;
+	error = sysctl(name, 4, pathname, &len, NULL, 0);
+	if (error != 0 && errno != ESRCH)
+		warn("sysctl: kern.proc.pathname: %d", pid);
+	if (len == 0)
+		pathname[0] = '\0';
+	return (error);
+}
+
+static int
+procstat_getpathname_core(struct procstat_core *core, char *pathname,
+    size_t maxlen)
+{
+	struct kinfo_file *files;
+	int cnt, i, result;
+
+	files = kinfo_getfile_core(core, &cnt);
+	if (files == NULL)
+		return (-1);
+	result = -1;
+	for (i = 0; i < cnt; i++) {
+		if (files[i].kf_fd != KF_FD_TYPE_TEXT)
+			continue;
+		strncpy(pathname, files[i].kf_path, maxlen);
+		result = 0;
+		break;
+	}
+	free(files);
+	return (result);
+}
+
+int
+procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
+    char *pathname, size_t maxlen)
+{
+	switch(procstat->type) {
+	case PROCSTAT_KVM:
+		warnx("kvm method is not supported");
+		return (-1);
+	case PROCSTAT_SYSCTL:
+		return (procstat_getpathname_sysctl(kp->ki_pid, pathname,
+		    maxlen));
+	case PROCSTAT_CORE:
+		return (procstat_getpathname_core(procstat->core, pathname,
+		    maxlen));
 	default:
 		warnx("unknown access method: %d", procstat->type);
 		return (-1);
