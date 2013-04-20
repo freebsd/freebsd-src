@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/queue.h>
 #include <sys/linker_set.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
 #include <sys/wait.h>
@@ -41,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -71,16 +73,33 @@ struct sseg_closure {
 	size_t size;		/* Total size of all writable segments. */
 };
 
+typedef void* (*notefunc_t)(void *, size_t *);
+
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
 static void each_writable_segment(vm_map_entry_t, segment_callback,
     void *closure);
 static void elf_detach(void);	/* atexit() handler. */
-static void elf_puthdr(pid_t, vm_map_entry_t, void *, size_t *, int numsegs);
-static void elf_putnote(void *dst, size_t *off, const char *name, int type,
-    const void *desc, size_t descsz);
+static void *elf_note_fpregset(void *, size_t *);
+static void *elf_note_prpsinfo(void *, size_t *);
+static void *elf_note_prstatus(void *, size_t *);
+static void *elf_note_thrmisc(void *, size_t *);
+static void *elf_note_procstat_auxv(void *, size_t *);
+static void *elf_note_procstat_files(void *, size_t *);
+static void *elf_note_procstat_groups(void *, size_t *);
+static void *elf_note_procstat_osrel(void *, size_t *);
+static void *elf_note_procstat_proc(void *, size_t *);
+static void *elf_note_procstat_psstrings(void *, size_t *);
+static void *elf_note_procstat_rlimit(void *, size_t *);
+static void *elf_note_procstat_umask(void *, size_t *);
+static void *elf_note_procstat_vmmap(void *, size_t *);
+static void elf_puthdr(pid_t, vm_map_entry_t, void *, size_t, size_t, size_t,
+    int);
+static void elf_putnote(int, notefunc_t, void *, struct sbuf *);
+static void elf_putnotes(pid_t, struct sbuf *, size_t *);
 static void freemap(vm_map_entry_t);
 static vm_map_entry_t readmap(pid_t);
+static void *procstat_sysctl(void *, int, size_t, size_t *sizep);
 
 static pid_t g_pid;		/* Pid being dumped, global for elf_detach */
 
@@ -114,8 +133,10 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 {
 	vm_map_entry_t map;
 	struct sseg_closure seginfo;
+	struct sbuf *sb;
 	void *hdr;
-	size_t hdrsize;
+	size_t hdrsize, notesz, segoff;
+	ssize_t n, old_len;
 	Elf_Phdr *php;
 	int i;
 
@@ -139,27 +160,32 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 	each_writable_segment(map, cb_size_segment, &seginfo);
 
 	/*
-	 * Calculate the size of the core file header area by making
-	 * a dry run of generating it.  Nothing is written, but the
-	 * size is calculated.
+	 * Build the header and the notes using sbuf and write to the file.
 	 */
-	hdrsize = 0;
-	elf_puthdr(pid, map, NULL, &hdrsize, seginfo.count);
-
-	/*
-	 * Allocate memory for building the header, fill it up,
-	 * and write it out.
-	 */
-	if ((hdr = calloc(1, hdrsize)) == NULL)
-		errx(1, "out of memory");
-
+	sb = sbuf_new_auto();
+	hdrsize = sizeof(Elf_Ehdr) + sizeof(Elf_Phdr) * (1 + seginfo.count);
+	/* Start header + notes section. */
+	sbuf_start_section(sb, NULL);
+	/* Make empty header subsection. */
+	sbuf_start_section(sb, &old_len);
+	sbuf_putc(sb, 0);
+	sbuf_end_section(sb, old_len, hdrsize, 0);
+	/* Put notes. */
+	elf_putnotes(pid, sb, &notesz);
+	/* Align up to a page boundary for the program segments. */
+	sbuf_end_section(sb, -1, PAGE_SIZE, 0);
+	if (sbuf_finish(sb) != 0)
+		err(1, "sbuf_finish");
+	hdr = sbuf_data(sb);
+	segoff = sbuf_len(sb);
 	/* Fill in the header. */
-	hdrsize = 0;
-	elf_puthdr(pid, map, hdr, &hdrsize, seginfo.count);
+	elf_puthdr(pid, map, hdr, hdrsize, notesz, segoff, seginfo.count);
 
-	/* Write it to the core file. */
-	if (write(fd, hdr, hdrsize) == -1)
+	n = write(fd, hdr, segoff);
+	if (n == -1)
 		err(1, "write");
+	if (n < segoff)
+              errx(1, "short write");
 
 	/* Write the contents of all of the writable segments. */
 	php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
@@ -195,7 +221,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 		}
 		php++;
 	}
-	free(hdr);
+	sbuf_delete(sb);
 	freemap(map);
 }
 
@@ -257,209 +283,136 @@ each_writable_segment(vm_map_entry_t map, segment_callback func, void *closure)
 }
 
 static void
-elf_getstatus(pid_t pid, prpsinfo_t *psinfo)
+elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 {
-	struct kinfo_proc kobj;
-	int name[4];
-	size_t len;
-
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PID;
-	name[3] = pid;
-
-	len = sizeof(kobj);
-	if (sysctl(name, 4, &kobj, &len, NULL, 0) == -1)
-		err(1, "error accessing kern.proc.pid.%u sysctl", pid);
-	if (kobj.ki_pid != pid)
-		err(1, "error accessing kern.proc.pid.%u sysctl datas", pid);
-	strncpy(psinfo->pr_fname, kobj.ki_comm, MAXCOMLEN);
-	strncpy(psinfo->pr_psargs, psinfo->pr_fname, PRARGSZ);
-}
-
-/*
- * Generate the ELF coredump header into the buffer at "dst".  "dst" may
- * be NULL, in which case the header is sized but not actually generated.
- */
-static void
-elf_puthdr(pid_t pid, vm_map_entry_t map, void *dst, size_t *off, int numsegs)
-{
-	struct ptrace_lwpinfo lwpinfo;
-	struct {
-		prstatus_t status;
-		prfpregset_t fpregset;
-		prpsinfo_t psinfo;
-		thrmisc_t thrmisc;
-	} *tempdata;
-	size_t ehoff;
-	size_t phoff;
-	size_t noteoff;
-	size_t notesz;
-	size_t threads;
 	lwpid_t *tids;
+	size_t threads, old_len;
+	ssize_t size;
 	int i;
-
-	prstatus_t *status;
-	prfpregset_t *fpregset;
-	prpsinfo_t *psinfo;
-	thrmisc_t *thrmisc;
-
-	ehoff = *off;
-	*off += sizeof(Elf_Ehdr);
-
-	phoff = *off;
-	*off += (numsegs + 1) * sizeof(Elf_Phdr);
-
-	noteoff = *off;
-
-	if (dst != NULL) {
-		if ((tempdata = calloc(1, sizeof(*tempdata))) == NULL)
-			errx(1, "out of memory");
-		status = &tempdata->status;
-		fpregset = &tempdata->fpregset;
-		psinfo = &tempdata->psinfo;
-		thrmisc = &tempdata->thrmisc;
-	} else {
-		tempdata = NULL;
-		status = NULL;
-		fpregset = NULL;
-		psinfo = NULL;
-		thrmisc = NULL;
-	}
 
 	errno = 0;
 	threads = ptrace(PT_GETNUMLWPS, pid, NULL, 0);
 	if (errno)
 		err(1, "PT_GETNUMLWPS");
+	tids = malloc(threads * sizeof(*tids));
+	if (tids == NULL)
+		errx(1, "out of memory");
+	errno = 0;
+	ptrace(PT_GETLWPLIST, pid, (void *)tids, threads);
+	if (errno)
+		err(1, "PT_GETLWPLIST");
 
-	if (dst != NULL) {
-		psinfo->pr_version = PRPSINFO_VERSION;
-		psinfo->pr_psinfosz = sizeof(prpsinfo_t);
-		elf_getstatus(pid, psinfo);
+	sbuf_start_section(sb, &old_len);
+	elf_putnote(NT_PRPSINFO, elf_note_prpsinfo, &pid, sb);
 
-	}
-	elf_putnote(dst, off, "FreeBSD", NT_PRPSINFO, psinfo,
-	    sizeof *psinfo);
-
-	if (dst != NULL) {
-		tids = malloc(threads * sizeof(*tids));
-		if (tids == NULL)
-			errx(1, "out of memory");
-		errno = 0;
-		ptrace(PT_GETLWPLIST, pid, (void *)tids, threads);
-		if (errno)
-			err(1, "PT_GETLWPLIST");
-	}
 	for (i = 0; i < threads; ++i) {
-		if (dst != NULL) {
-			status->pr_version = PRSTATUS_VERSION;
-			status->pr_statussz = sizeof(prstatus_t);
-			status->pr_gregsetsz = sizeof(gregset_t);
-			status->pr_fpregsetsz = sizeof(fpregset_t);
-			status->pr_osreldate = __FreeBSD_version;
-			status->pr_pid = tids[i];
-
-			ptrace(PT_GETREGS, tids[i], (void *)&status->pr_reg, 0);
-			ptrace(PT_GETFPREGS, tids[i], (void *)fpregset, 0);
-			ptrace(PT_LWPINFO, tids[i], (void *)&lwpinfo,
-			    sizeof(lwpinfo));
-			memset(&thrmisc->_pad, 0, sizeof(thrmisc->_pad));
-			strcpy(thrmisc->pr_tname, lwpinfo.pl_tdname);
-		}
-		elf_putnote(dst, off, "FreeBSD", NT_PRSTATUS, status,
-		    sizeof *status);
-		elf_putnote(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
-		    sizeof *fpregset);
-		elf_putnote(dst, off, "FreeBSD", NT_THRMISC, thrmisc,
-		    sizeof *thrmisc);
+		elf_putnote(NT_PRSTATUS, elf_note_prstatus, tids + i, sb);
+		elf_putnote(NT_FPREGSET, elf_note_fpregset, tids + i, sb);
+		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
 	}
 
-	notesz = *off - noteoff;
+	elf_putnote(NT_PROCSTAT_PROC, elf_note_procstat_proc, &pid, sb);
+	elf_putnote(NT_PROCSTAT_FILES, elf_note_procstat_files, &pid, sb);
+	elf_putnote(NT_PROCSTAT_VMMAP, elf_note_procstat_vmmap, &pid, sb);
+	elf_putnote(NT_PROCSTAT_GROUPS, elf_note_procstat_groups, &pid, sb);
+	elf_putnote(NT_PROCSTAT_UMASK, elf_note_procstat_umask, &pid, sb);
+	elf_putnote(NT_PROCSTAT_RLIMIT, elf_note_procstat_rlimit, &pid, sb);
+	elf_putnote(NT_PROCSTAT_OSREL, elf_note_procstat_osrel, &pid, sb);
+	elf_putnote(NT_PROCSTAT_PSSTRINGS, elf_note_procstat_psstrings, &pid,
+	    sb);
+	elf_putnote(NT_PROCSTAT_AUXV, elf_note_procstat_auxv, &pid, sb);
 
-	if (dst != NULL) {
-		free(tids);
-		free(tempdata);
-	}
-
-	/* Align up to a page boundary for the program segments. */
-	*off = round_page(*off);
-
-	if (dst != NULL) {
-		Elf_Ehdr *ehdr;
-		Elf_Phdr *phdr;
-		struct phdr_closure phc;
-
-		/*
-		 * Fill in the ELF header.
-		 */
-		ehdr = (Elf_Ehdr *)((char *)dst + ehoff);
-		ehdr->e_ident[EI_MAG0] = ELFMAG0;
-		ehdr->e_ident[EI_MAG1] = ELFMAG1;
-		ehdr->e_ident[EI_MAG2] = ELFMAG2;
-		ehdr->e_ident[EI_MAG3] = ELFMAG3;
-		ehdr->e_ident[EI_CLASS] = ELF_CLASS;
-		ehdr->e_ident[EI_DATA] = ELF_DATA;
-		ehdr->e_ident[EI_VERSION] = EV_CURRENT;
-		ehdr->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
-		ehdr->e_ident[EI_ABIVERSION] = 0;
-		ehdr->e_ident[EI_PAD] = 0;
-		ehdr->e_type = ET_CORE;
-		ehdr->e_machine = ELF_ARCH;
-		ehdr->e_version = EV_CURRENT;
-		ehdr->e_entry = 0;
-		ehdr->e_phoff = phoff;
-		ehdr->e_flags = 0;
-		ehdr->e_ehsize = sizeof(Elf_Ehdr);
-		ehdr->e_phentsize = sizeof(Elf_Phdr);
-		ehdr->e_phnum = numsegs + 1;
-		ehdr->e_shentsize = sizeof(Elf_Shdr);
-		ehdr->e_shnum = 0;
-		ehdr->e_shstrndx = SHN_UNDEF;
-
-		/*
-		 * Fill in the program header entries.
-		 */
-		phdr = (Elf_Phdr *)((char *)dst + phoff);
-
-		/* The note segment. */
-		phdr->p_type = PT_NOTE;
-		phdr->p_offset = noteoff;
-		phdr->p_vaddr = 0;
-		phdr->p_paddr = 0;
-		phdr->p_filesz = notesz;
-		phdr->p_memsz = 0;
-		phdr->p_flags = 0;
-		phdr->p_align = 0;
-		phdr++;
-
-		/* All the writable segments from the program. */
-		phc.phdr = phdr;
-		phc.offset = *off;
-		each_writable_segment(map, cb_put_phdr, &phc);
-	}
+	size = sbuf_end_section(sb, old_len, 1, 0);
+	if (size == -1)
+		err(1, "sbuf_end_section");
+	free(tids);
+	*sizep = size;
 }
 
 /*
- * Emit one note section to "dst", or just size it if "dst" is NULL.
+ * Emit one note section to sbuf.
  */
 static void
-elf_putnote(void *dst, size_t *off, const char *name, int type,
-    const void *desc, size_t descsz)
+elf_putnote(int type, notefunc_t notefunc, void *arg, struct sbuf *sb)
 {
 	Elf_Note note;
+	size_t descsz;
+	ssize_t old_len;
+	void *desc;
 
-	note.n_namesz = strlen(name) + 1;
+	desc = notefunc(arg, &descsz);
+	note.n_namesz = 8; /* strlen("FreeBSD") + 1 */
 	note.n_descsz = descsz;
 	note.n_type = type;
-	if (dst != NULL)
-		bcopy(&note, (char *)dst + *off, sizeof note);
-	*off += sizeof note;
-	if (dst != NULL)
-		bcopy(name, (char *)dst + *off, note.n_namesz);
-	*off += roundup2(note.n_namesz, sizeof(Elf_Size));
-	if (dst != NULL)
-		bcopy(desc, (char *)dst + *off, note.n_descsz);
-	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
+
+	sbuf_bcat(sb, &note, sizeof(note));
+	sbuf_start_section(sb, &old_len);
+	sbuf_bcat(sb, "FreeBSD", note.n_namesz);
+	sbuf_end_section(sb, old_len, sizeof(Elf32_Size), 0);
+	if (descsz == 0)
+		return;
+	sbuf_start_section(sb, &old_len);
+	sbuf_bcat(sb, desc, descsz);
+	sbuf_end_section(sb, old_len, sizeof(Elf32_Size), 0);
+	free(desc);
+}
+
+/*
+ * Generate the ELF coredump header.
+ */
+static void
+elf_puthdr(pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
+    size_t notesz, size_t segoff, int numsegs)
+{
+	Elf_Ehdr *ehdr;
+	Elf_Phdr *phdr;
+	struct phdr_closure phc;
+
+	ehdr = (Elf_Ehdr *)hdr;
+	phdr = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr));
+
+	ehdr->e_ident[EI_MAG0] = ELFMAG0;
+	ehdr->e_ident[EI_MAG1] = ELFMAG1;
+	ehdr->e_ident[EI_MAG2] = ELFMAG2;
+	ehdr->e_ident[EI_MAG3] = ELFMAG3;
+	ehdr->e_ident[EI_CLASS] = ELF_CLASS;
+	ehdr->e_ident[EI_DATA] = ELF_DATA;
+	ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+	ehdr->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
+	ehdr->e_ident[EI_ABIVERSION] = 0;
+	ehdr->e_ident[EI_PAD] = 0;
+	ehdr->e_type = ET_CORE;
+	ehdr->e_machine = ELF_ARCH;
+	ehdr->e_version = EV_CURRENT;
+	ehdr->e_entry = 0;
+	ehdr->e_phoff = sizeof(Elf_Ehdr);
+	ehdr->e_flags = 0;
+	ehdr->e_ehsize = sizeof(Elf_Ehdr);
+	ehdr->e_phentsize = sizeof(Elf_Phdr);
+	ehdr->e_phnum = numsegs + 1;
+	ehdr->e_shentsize = sizeof(Elf_Shdr);
+	ehdr->e_shnum = 0;
+	ehdr->e_shstrndx = SHN_UNDEF;
+
+	/*
+	 * Fill in the program header entries.
+	 */
+
+	/* The note segement. */
+	phdr->p_type = PT_NOTE;
+	phdr->p_offset = hdrsize;
+	phdr->p_vaddr = 0;
+	phdr->p_paddr = 0;
+	phdr->p_filesz = notesz;
+	phdr->p_memsz = 0;
+	phdr->p_flags = PF_R;
+	phdr->p_align = sizeof(Elf32_Size);
+	phdr++;
+
+	/* All the writable segments from the program. */
+	phc.phdr = phdr;
+	phc.offset = segoff;
+	each_writable_segment(map, cb_put_phdr, &phc);
 }
 
 /*
@@ -528,6 +481,224 @@ readmap(pid_t pid)
 	}
 	free(vmentl);
 	return (map);
+}
+
+/*
+ * Miscellaneous note out functions.
+ */
+
+static void *
+elf_note_prpsinfo(void *arg, size_t *sizep)
+{
+	pid_t pid;
+	prpsinfo_t *psinfo;
+	struct kinfo_proc kip;
+	size_t len;
+	int name[4];
+
+	pid = *(pid_t *)arg;
+	psinfo = calloc(1, sizeof(*psinfo));
+	if (psinfo == NULL)
+		errx(1, "out of memory");
+	psinfo->pr_version = PRPSINFO_VERSION;
+	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_PID;
+	name[3] = pid;
+	len = sizeof(kip);
+	if (sysctl(name, 4, &kip, &len, NULL, 0) == -1)
+		err(1, "kern.proc.pid.%u", pid);
+	if (kip.ki_pid != pid)
+		err(1, "kern.proc.pid.%u", pid);
+	strncpy(psinfo->pr_fname, kip.ki_comm, MAXCOMLEN);
+	strncpy(psinfo->pr_psargs, psinfo->pr_fname, PRARGSZ);
+
+	*sizep = sizeof(*psinfo);
+	return (psinfo);
+}
+
+static void *
+elf_note_prstatus(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	prstatus_t *status;
+
+	tid = *(lwpid_t *)arg;
+	status = calloc(1, sizeof(*status));
+	if (status == NULL)
+		errx(1, "out of memory");
+	status->pr_version = PRSTATUS_VERSION;
+	status->pr_statussz = sizeof(prstatus_t);
+	status->pr_gregsetsz = sizeof(gregset_t);
+	status->pr_fpregsetsz = sizeof(fpregset_t);
+	status->pr_osreldate = __FreeBSD_version;
+	status->pr_pid = tid;
+	ptrace(PT_GETREGS, tid, (void *)&status->pr_reg, 0);
+
+	*sizep = sizeof(*status);
+	return (status);
+}
+
+static void *
+elf_note_fpregset(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	prfpregset_t *fpregset;
+
+	tid = *(lwpid_t *)arg;
+	fpregset = calloc(1, sizeof(*fpregset));
+	if (fpregset == NULL)
+		errx(1, "out of memory");
+	ptrace(PT_GETFPREGS, tid, (void *)fpregset, 0);
+
+	*sizep = sizeof(*fpregset);
+	return (fpregset);
+}
+
+static void *
+elf_note_thrmisc(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	struct ptrace_lwpinfo lwpinfo;
+	thrmisc_t *thrmisc;
+
+	tid = *(lwpid_t *)arg;
+	thrmisc = calloc(1, sizeof(*thrmisc));
+	if (thrmisc == NULL)
+		errx(1, "out of memory");
+	ptrace(PT_LWPINFO, tid, (void *)&lwpinfo,
+	    sizeof(lwpinfo));
+	memset(&thrmisc->_pad, 0, sizeof(thrmisc->_pad));
+	strcpy(thrmisc->pr_tname, lwpinfo.pl_tdname);
+
+	*sizep = sizeof(*thrmisc);
+	return (thrmisc);
+}
+
+static void *
+procstat_sysctl(void *arg, int what, size_t structsz, size_t *sizep)
+{
+	size_t len, oldlen;
+	pid_t pid;
+	int name[4], structsize;
+	void *buf, *p;
+
+	pid = *(pid_t *)arg;
+	structsize = structsz;
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = what;
+	name[3] = pid;
+	len = 0;
+	if (sysctl(name, 4, NULL, &len, NULL, 0) == -1)
+		err(1, "kern.proc.%d.%u", what, pid);
+	buf = calloc(1, sizeof(structsize) + len * 4 / 3);
+	if (buf == NULL)
+		errx(1, "out of memory");
+	bcopy(&structsize, buf, sizeof(structsize));
+	p = (char *)buf + sizeof(structsize);
+	if (sysctl(name, 4, p, &len, NULL, 0) == -1)
+		err(1, "kern.proc.%d.%u", what, pid);
+
+	*sizep = sizeof(structsize) + len;
+	return (buf);
+}
+
+static void *
+elf_note_procstat_proc(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_PID | KERN_PROC_INC_THREAD,
+	    sizeof(struct kinfo_proc), sizep));
+}
+
+static void *
+elf_note_procstat_files(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_FILEDESC,
+	    sizeof(struct kinfo_file), sizep));
+}
+
+static void *
+elf_note_procstat_vmmap(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_VMMAP,
+	    sizeof(struct kinfo_vmentry), sizep));
+}
+
+static void *
+elf_note_procstat_groups(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_GROUPS,
+	    (int)sizeof(gid_t), sizep));
+}
+
+static void *
+elf_note_procstat_umask(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_UMASK, sizeof(u_short), sizep));
+}
+
+static void *
+elf_note_procstat_osrel(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_OSREL, sizeof(int), sizep));
+}
+
+static void *
+elf_note_procstat_psstrings(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_PS_STRINGS,
+	    sizeof(vm_offset_t), sizep));
+}
+
+static void *
+elf_note_procstat_auxv(void *arg, size_t *sizep)
+{
+
+	return (procstat_sysctl(arg, KERN_PROC_AUXV,
+	    sizeof(Elf_Auxinfo), sizep));
+}
+
+static void *
+elf_note_procstat_rlimit(void *arg, size_t *sizep)
+{
+	pid_t pid;
+	size_t len;
+	int i, name[5], structsize;
+	void *buf, *p;
+
+	pid = *(pid_t *)arg;
+	structsize = sizeof(struct rlimit) * RLIM_NLIMITS;
+	buf = calloc(1, sizeof(structsize) + structsize);
+	if (buf == NULL)
+		errx(1, "out of memory");
+	bcopy(&structsize, buf, sizeof(structsize));
+	p = (char *)buf + sizeof(structsize);
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_RLIMIT;
+	name[3] = pid;
+	len = sizeof(struct rlimit);
+	for (i = 0; i < RLIM_NLIMITS; i++) {
+		name[4] = i;
+		if (sysctl(name, 5, p, &len, NULL, 0) == -1)
+			err(1, "kern.proc.rlimit.%u", pid);
+		if (len != sizeof(struct rlimit))
+			errx(1, "kern.proc.rlimit.%u: short read", pid);
+		p += len;
+	}
+
+	*sizep = sizeof(structsize) + structsize;
+	return (buf);
 }
 
 struct dumpers elfdump = { elf_ident, elf_coredump };
