@@ -77,7 +77,7 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 	else if (sflag)
 		procstat_cred(kipp);
 	else if (tflag)
-		procstat_threads(kipp);
+		procstat_threads(prstat, kipp);
 	else if (vflag)
 		procstat_vm(kipp);
 	else if (xflag)
