@@ -146,6 +146,7 @@ STAILQ_HEAD(filestat_list, filestat);
 
 __BEGIN_DECLS
 void	procstat_close(struct procstat *procstat);
+void	procstat_freegroups(struct procstat *procstat, gid_t *groups);
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
     struct filestat_list *head);
@@ -165,6 +166,8 @@ int	procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
     struct sockstat *sock, char *errbuf);
 int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
+gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned int *count);
 struct kinfo_vmentry	*procstat_getvmmap(struct procstat *procstat,
     struct kinfo_proc *kp, unsigned int *count);
 struct procstat	*procstat_open_core(const char *filename);
