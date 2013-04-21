@@ -341,9 +341,6 @@ do {									\
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
 #endif
 
-#define	CRITICAL_ASSERT(td)						\
-    KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
-
 /*
  * Flags kept in td_flags:
  * To change these you MUST have the scheduler lock.
@@ -876,6 +873,7 @@ struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
 int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb);
+int	proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);

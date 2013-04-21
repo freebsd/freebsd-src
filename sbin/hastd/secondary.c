@@ -582,7 +582,7 @@ requnpack(struct hast_resource *res, struct hio *hio, struct nv *nv)
 			hio->hio_error = EINVAL;
 			goto end;
 		}
-		if (hio->hio_length > MAXPHYS) {
+		if (hio->hio_cmd != HIO_DELETE && hio->hio_length > MAXPHYS) {
 			pjdlog_error("Data length is too large (%ju > %ju).",
 			    (uintmax_t)hio->hio_length, (uintmax_t)MAXPHYS);
 			hio->hio_error = EINVAL;

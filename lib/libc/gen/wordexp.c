@@ -114,15 +114,12 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	int status;			/* Child exit status */
 	int error;			/* Our return value */
 	int serrno;			/* errno to return */
-	char *ifs;			/* IFS env. var. */
 	char *np, *p;			/* Handy pointers */
 	char *nstrings;			/* Temporary for realloc() */
 	char **nwv;			/* Temporary for realloc() */
 	sigset_t newsigblock, oldsigblock;
 
 	serrno = errno;
-	if ((ifs = getenv("IFS")) == NULL)
-		ifs = " \t\n";
 
 	if (pipe(pdes) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
@@ -150,7 +147,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		if (_dup2(pdes[1], STDOUT_FILENO) < 0)
 			_exit(1);
 		_close(pdes[1]);
-		if (asprintf(&cmd, "wordexp%c%s\n", *ifs, words) < 0)
+		if (asprintf(&cmd, "wordexp %s\n", words) < 0)
 			_exit(1);
 		if ((flags & WRDE_SHOWERR) == 0) {
 			if ((devnull = _open(_PATH_DEVNULL, O_RDWR, 0666)) < 0)

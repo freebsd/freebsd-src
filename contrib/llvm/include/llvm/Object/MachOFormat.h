@@ -64,7 +64,10 @@ namespace mach {
     CSARM_V7     = 9,
     CSARM_V7F    = 10,
     CSARM_V7S    = 11,
-    CSARM_V7K    = 12
+    CSARM_V7K    = 12,
+    CSARM_V6M    = 14,
+    CSARM_V7M    = 15,
+    CSARM_V7EM   = 16
   };
 
   /// \brief PowerPC Machine Subtypes.
@@ -145,7 +148,8 @@ namespace macho {
     LCT_CodeSignature = 0x1d,
     LCT_SegmentSplitInfo = 0x1e,
     LCT_FunctionStarts = 0x26,
-    LCT_DataInCode = 0x29
+    LCT_DataInCode = 0x29,
+    LCT_LinkerOptions = 0x2D
   };
 
   /// \brief Load command structure.
@@ -233,9 +237,21 @@ namespace macho {
     uint32_t DataSize;
   };
 
+  struct LinkerOptionsLoadCommand {
+    uint32_t Type;
+    uint32_t Size;
+    uint32_t Count;
+    // Load command is followed by Count number of zero-terminated UTF8 strings,
+    // and then zero-filled to be 4-byte aligned.
+  };
+
   /// @}
   /// @name Section Data
   /// @{
+
+  enum SectionFlags {
+    SF_PureInstructions = 0x80000000
+  };
 
   struct Section {
     char Name[16];

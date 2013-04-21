@@ -199,6 +199,7 @@ bcm_dma_reset(device_t dev, int ch)
 	/* Reset control block */
 	cb = sc->sc_dma_ch[ch].cb;
 	bzero(cb, sizeof(cb));
+	cb->info = INFO_WAIT_RESP;
 }
 
 static int
@@ -615,6 +616,7 @@ bcm_dma_intr(void *arg)
 			debug & DEBUG_ERROR_MASK, ch->ch);
 		bus_write_4(sc->sc_mem, BCM_DMA_DEBUG(ch->ch), 
 		    debug & DEBUG_ERROR_MASK);
+		bcm_dma_reset(sc->sc_dev, ch->ch);
 	}
 
 	if (cs & CS_INT) {

@@ -8,13 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCTargetAsmParser.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/ADT/Twine.h"
 using namespace llvm;
 
 MCAsmParser::MCAsmParser() : TargetParser(0), ShowParsedOperands(0) {
@@ -38,9 +38,9 @@ bool MCAsmParser::TokError(const Twine &Msg, ArrayRef<SMRange> Ranges) {
   return true;
 }
 
-bool MCAsmParser::ParseExpression(const MCExpr *&Res) {
+bool MCAsmParser::parseExpression(const MCExpr *&Res) {
   SMLoc L;
-  return ParseExpression(Res, L);
+  return parseExpression(Res, L);
 }
 
 void MCParsedAsmOperand::dump() const {

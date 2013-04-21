@@ -74,6 +74,7 @@ ENTRY(fiq_getregs)
 
 	BACK_TO_SVC_MODE
 	RET
+END(fiq_getregs)
 
 /*
  * fiq_setregs:
@@ -88,6 +89,7 @@ ENTRY(fiq_setregs)
 
 	BACK_TO_SVC_MODE
 	RET
+END(fiq_setregs)
 
 /*
  * fiq_nullhandler:

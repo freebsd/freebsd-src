@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -74,7 +74,11 @@ dnode_cons(void *arg, void *unused, int kmflag)
 	mutex_init(&dn->dn_dbufs_mtx, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&dn->dn_notxholds, NULL, CV_DEFAULT, NULL);
 
-	refcount_create(&dn->dn_holds);
+	/*
+	 * Every dbuf has a reference, and dropping a tracked reference is
+	 * O(number of references), so don't track dn_holds.
+	 */
+	refcount_create_untracked(&dn->dn_holds);
 	refcount_create(&dn->dn_tx_holds);
 	list_link_init(&dn->dn_link);
 
@@ -1032,12 +1036,12 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 		dn = (object == DMU_USERUSED_OBJECT) ?
 		    DMU_USERUSED_DNODE(os) : DMU_GROUPUSED_DNODE(os);
 		if (dn == NULL)
-			return (ENOENT);
+			return (SET_ERROR(ENOENT));
 		type = dn->dn_type;
 		if ((flag & DNODE_MUST_BE_ALLOCATED) && type == DMU_OT_NONE)
-			return (ENOENT);
+			return (SET_ERROR(ENOENT));
 		if ((flag & DNODE_MUST_BE_FREE) && type != DMU_OT_NONE)
-			return (EEXIST);
+			return (SET_ERROR(EEXIST));
 		DNODE_VERIFY(dn);
 		(void) refcount_add(&dn->dn_holds, tag);
 		*dnp = dn;
@@ -1045,7 +1049,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 	}
 
 	if (object == 0 || object >= DN_MAX_OBJECT)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	mdn = DMU_META_DNODE(os);
 	ASSERT(mdn->dn_object == DMU_META_DNODE_OBJECT);
@@ -1063,7 +1067,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 	if (drop_struct_lock)
 		rw_exit(&mdn->dn_struct_rwlock);
 	if (db == NULL)
-		return (EIO);
+		return (SET_ERROR(EIO));
 	err = dbuf_read(db, NULL, DB_RF_CANFAIL);
 	if (err) {
 		dbuf_rele(db, FTAG);
@@ -1371,7 +1375,7 @@ dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx)
 
 fail:
 	rw_exit(&dn->dn_struct_rwlock);
-	return (ENOTSUP);
+	return (SET_ERROR(ENOTSUP));
 }
 
 /* read-holding callers must not rely on the lock being continuously held */
@@ -1857,7 +1861,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 			 * at the pointer to this block in its parent, and its
 			 * going to be unallocated, so we will skip over it.
 			 */
-			return (ESRCH);
+			return (SET_ERROR(ESRCH));
 		}
 		error = dbuf_read(db, NULL, DB_RF_CANFAIL | DB_RF_HAVESTRUCT);
 		if (error) {
@@ -1873,7 +1877,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		 * This can only happen when we are searching up the tree
 		 * and these conditions mean that we need to keep climbing.
 		 */
-		error = ESRCH;
+		error = SET_ERROR(ESRCH);
 	} else if (lvl == 0) {
 		dnode_phys_t *dnp = data;
 		span = DNODE_SHIFT;
@@ -1886,7 +1890,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 			*offset += (1ULL << span) * inc;
 		}
 		if (i < 0 || i == blkfill)
-			error = ESRCH;
+			error = SET_ERROR(ESRCH);
 	} else {
 		blkptr_t *bp = data;
 		uint64_t start = *offset;
@@ -1918,7 +1922,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 			*offset = start;
 		}
 		if (i < 0 || i >= epb)
-			error = ESRCH;
+			error = SET_ERROR(ESRCH);
 	}
 
 	if (db)
@@ -1962,7 +1966,7 @@ dnode_next_offset(dnode_t *dn, int flags, uint64_t *offset,
 		rw_enter(&dn->dn_struct_rwlock, RW_READER);
 
 	if (dn->dn_phys->dn_nlevels == 0) {
-		error = ESRCH;
+		error = SET_ERROR(ESRCH);
 		goto out;
 	}
 
@@ -1971,7 +1975,7 @@ dnode_next_offset(dnode_t *dn, int flags, uint64_t *offset,
 			if (flags & DNODE_FIND_HOLE)
 				*offset = dn->dn_datablksz;
 		} else {
-			error = ESRCH;
+			error = SET_ERROR(ESRCH);
 		}
 		goto out;
 	}
@@ -1992,7 +1996,7 @@ dnode_next_offset(dnode_t *dn, int flags, uint64_t *offset,
 
 	if (error == 0 && (flags & DNODE_FIND_BACKWARDS ?
 	    initial_offset < *offset : initial_offset > *offset))
-		error = ESRCH;
+		error = SET_ERROR(ESRCH);
 out:
 	if (!(flags & DNODE_FIND_HAVELOCK))
 		rw_exit(&dn->dn_struct_rwlock);

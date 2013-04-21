@@ -59,22 +59,25 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "scalar-evolution"
-#include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/GlobalAlias.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Operator.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/Debug.h"
@@ -83,9 +86,7 @@
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -4229,6 +4230,25 @@ ScalarEvolution::BackedgeTakenInfo::getMax(ScalarEvolution *SE) const {
   return Max ? Max : SE->getCouldNotCompute();
 }
 
+bool ScalarEvolution::BackedgeTakenInfo::hasOperand(const SCEV *S,
+                                                    ScalarEvolution *SE) const {
+  if (Max && Max != SE->getCouldNotCompute() && SE->hasOperand(Max, S))
+    return true;
+
+  if (!ExitNotTaken.ExitingBlock)
+    return false;
+
+  for (const ExitNotTakenInfo *ENT = &ExitNotTaken;
+       ENT != 0; ENT = ENT->getNextExit()) {
+
+    if (ENT->ExactNotTaken != SE->getCouldNotCompute()
+        && SE->hasOperand(ENT->ExactNotTaken, S)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /// Allocate memory for BackedgeTakenInfo and copy the not-taken count of each
 /// computable exit into a persistent ExitNotTakenInfo array.
 ScalarEvolution::BackedgeTakenInfo::BackedgeTakenInfo(
@@ -6120,8 +6140,8 @@ bool ScalarEvolution::isImpliedCond(ICmpInst::Predicate Pred,
       getTypeSizeInBits(ICI->getOperand(0)->getType()))
     return false;
 
-  // Now that we found a conditional branch that dominates the loop, check to
-  // see if it is the comparison we are looking for.
+  // Now that we found a conditional branch that dominates the loop or controls
+  // the loop latch. Check to see if it is the comparison we are looking for.
   ICmpInst::Predicate FoundPred;
   if (Inverse)
     FoundPred = ICI->getInversePredicate();
@@ -6939,6 +6959,17 @@ void ScalarEvolution::forgetMemoizedResults(const SCEV *S) {
   BlockDispositions.erase(S);
   UnsignedRanges.erase(S);
   SignedRanges.erase(S);
+
+  for (DenseMap<const Loop*, BackedgeTakenInfo>::iterator I =
+         BackedgeTakenCounts.begin(), E = BackedgeTakenCounts.end(); I != E; ) {
+    BackedgeTakenInfo &BEInfo = I->second;
+    if (BEInfo.hasOperand(S, this)) {
+      BEInfo.clear();
+      BackedgeTakenCounts.erase(I++);
+    }
+    else
+      ++I;
+  }
 }
 
 typedef DenseMap<const Loop *, std::string> VerifyMap;

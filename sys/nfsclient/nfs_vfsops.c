@@ -298,7 +298,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 	nfsstats.rpccnt[NFSPROC_FSSTAT]++;
-	mreq = nfsm_reqhead(vp, NFSPROC_FSSTAT, NFSX_FH(v3));
+	mreq = m_get2(NFSX_FH(v3), M_WAITOK, MT_DATA, 0);
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, v3);
@@ -356,7 +356,7 @@ nfs_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	u_int64_t maxfsize;
 	
 	nfsstats.rpccnt[NFSPROC_FSINFO]++;
-	mreq = nfsm_reqhead(vp, NFSPROC_FSINFO, NFSX_FH(1));
+	mreq = m_get2(NFSX_FH(1), M_WAITOK, MT_DATA, 0);
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, 1);
@@ -1362,7 +1362,7 @@ static int
 nfs_unmount(struct mount *mp, int mntflags)
 {
 	struct nfsmount *nmp;
-	int error, flags = 0;
+	int error, flags = 0, i;
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
@@ -1387,6 +1387,14 @@ nfs_unmount(struct mount *mp, int mntflags)
 	/*
 	 * We are now committed to the unmount.
 	 */
+	/* Make sure no nfsiods are assigned to this mount. */
+	mtx_lock(&nfs_iod_mtx);
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
+		if (nfs_iodmount[i] == nmp) {
+			nfs_iodwant[i] = NFSIOD_AVAILABLE;
+			nfs_iodmount[i] = NULL;
+		}
+	mtx_unlock(&nfs_iod_mtx);
 	nfs_disconnect(nmp);
 	free(nmp->nm_nam, M_SONAME);
 

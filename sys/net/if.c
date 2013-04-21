@@ -206,7 +206,7 @@ VNET_DEFINE(struct ifindex_entry *, ifindex_table);
  * also to stablize it over long-running ioctls, without introducing priority
  * inversions and deadlocks.
  */
-struct rwlock ifnet_rwlock;
+struct rwlock_padalign ifnet_rwlock;
 struct sx ifnet_sxlock;
 
 /*
@@ -1357,7 +1357,8 @@ if_rtdel(struct radix_node *rn, void *arg)
 			return (0);
 
 		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt), rt->rt_flags|RTF_RNH_LOCKED,
+				rt_mask(rt),
+				rt->rt_flags|RTF_RNH_LOCKED|RTF_PINNED,
 				(struct rtentry **) NULL, rt->rt_fibnum);
 		if (err) {
 			log(LOG_WARNING, "if_rtdel: error %d\n", err);

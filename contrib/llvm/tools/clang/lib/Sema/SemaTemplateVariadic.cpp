@@ -10,14 +10,14 @@
 //===----------------------------------------------------------------------===/
 
 #include "clang/Sema/Sema.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/Template.h"
-#include "clang/AST/Expr.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/TypeLoc.h"
 
 using namespace clang;
 
@@ -443,17 +443,16 @@ TypeResult Sema::ActOnPackExpansion(ParsedType Type,
   if (!TSInfo)
     return true;
 
-  TypeSourceInfo *TSResult = CheckPackExpansion(TSInfo, EllipsisLoc,
-                                                llvm::Optional<unsigned>());
+  TypeSourceInfo *TSResult = CheckPackExpansion(TSInfo, EllipsisLoc, None);
   if (!TSResult)
     return true;
   
   return CreateParsedType(TSResult->getType(), TSResult);
 }
 
-TypeSourceInfo *Sema::CheckPackExpansion(TypeSourceInfo *Pattern,
-                                         SourceLocation EllipsisLoc,
-                                       llvm::Optional<unsigned> NumExpansions) {
+TypeSourceInfo *
+Sema::CheckPackExpansion(TypeSourceInfo *Pattern, SourceLocation EllipsisLoc,
+                         Optional<unsigned> NumExpansions) {
   // Create the pack expansion type and source-location information.
   QualType Result = CheckPackExpansion(Pattern->getType(), 
                                        Pattern->getTypeLoc().getSourceRange(),
@@ -462,7 +461,8 @@ TypeSourceInfo *Sema::CheckPackExpansion(TypeSourceInfo *Pattern,
     return 0;
   
   TypeSourceInfo *TSResult = Context.CreateTypeSourceInfo(Result);
-  PackExpansionTypeLoc TL = cast<PackExpansionTypeLoc>(TSResult->getTypeLoc());
+  PackExpansionTypeLoc TL =
+      TSResult->getTypeLoc().castAs<PackExpansionTypeLoc>();
   TL.setEllipsisLoc(EllipsisLoc);
   
   // Copy over the source-location information from the type.
@@ -472,10 +472,9 @@ TypeSourceInfo *Sema::CheckPackExpansion(TypeSourceInfo *Pattern,
   return TSResult;
 }
 
-QualType Sema::CheckPackExpansion(QualType Pattern,
-                                  SourceRange PatternRange,
+QualType Sema::CheckPackExpansion(QualType Pattern, SourceRange PatternRange,
                                   SourceLocation EllipsisLoc,
-                                  llvm::Optional<unsigned> NumExpansions) {
+                                  Optional<unsigned> NumExpansions) {
   // C++0x [temp.variadic]p5:
   //   The pattern of a pack expansion shall name one or more
   //   parameter packs that are not expanded by a nested pack
@@ -490,11 +489,11 @@ QualType Sema::CheckPackExpansion(QualType Pattern,
 }
 
 ExprResult Sema::ActOnPackExpansion(Expr *Pattern, SourceLocation EllipsisLoc) {
-  return CheckPackExpansion(Pattern, EllipsisLoc, llvm::Optional<unsigned>());
+  return CheckPackExpansion(Pattern, EllipsisLoc, None);
 }
 
 ExprResult Sema::CheckPackExpansion(Expr *Pattern, SourceLocation EllipsisLoc,
-                                    llvm::Optional<unsigned> NumExpansions) {
+                                    Optional<unsigned> NumExpansions) {
   if (!Pattern)
     return ExprError();
   
@@ -526,13 +525,11 @@ getDepthAndIndex(NamedDecl *ND) {
   return std::make_pair(TTP->getDepth(), TTP->getIndex());
 }
 
-bool Sema::CheckParameterPacksForExpansion(SourceLocation EllipsisLoc,
-                                           SourceRange PatternRange,
-                                   ArrayRef<UnexpandedParameterPack> Unexpanded,
-                             const MultiLevelTemplateArgumentList &TemplateArgs,
-                                           bool &ShouldExpand,
-                                           bool &RetainExpansion,
-                                     llvm::Optional<unsigned> &NumExpansions) {                                        
+bool Sema::CheckParameterPacksForExpansion(
+    SourceLocation EllipsisLoc, SourceRange PatternRange,
+    ArrayRef<UnexpandedParameterPack> Unexpanded,
+    const MultiLevelTemplateArgumentList &TemplateArgs, bool &ShouldExpand,
+    bool &RetainExpansion, Optional<unsigned> &NumExpansions) {
   ShouldExpand = true;
   RetainExpansion = false;
   std::pair<IdentifierInfo *, SourceLocation> FirstPack;
@@ -636,13 +633,13 @@ bool Sema::CheckParameterPacksForExpansion(SourceLocation EllipsisLoc,
   return false;
 }
 
-llvm::Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
+Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
                           const MultiLevelTemplateArgumentList &TemplateArgs) {
   QualType Pattern = cast<PackExpansionType>(T)->getPattern();
   SmallVector<UnexpandedParameterPack, 2> Unexpanded;
   CollectUnexpandedParameterPacksVisitor(Unexpanded).TraverseType(Pattern);
 
-  llvm::Optional<unsigned> Result;
+  Optional<unsigned> Result;
   for (unsigned I = 0, N = Unexpanded.size(); I != N; ++I) {
     // Compute the depth and index for this parameter pack.
     unsigned Depth;
@@ -664,7 +661,7 @@ llvm::Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
         if (Instantiation->is<Decl*>())
           // The pattern refers to an unexpanded pack. We're not ready to expand
           // this pack yet.
-          return llvm::Optional<unsigned>();
+          return None;
 
         unsigned Size = Instantiation->get<DeclArgumentPack *>()->size();
         assert((!Result || *Result == Size) && "inconsistent pack sizes");
@@ -678,7 +675,7 @@ llvm::Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
         !TemplateArgs.hasTemplateArgument(Depth, Index))
       // The pattern refers to an unknown template argument. We're not ready to
       // expand this pack yet.
-      return llvm::Optional<unsigned>();
+      return None;
     
     // Determine the size of the argument pack.
     unsigned Size = TemplateArgs(Depth, Index).pack_size();
@@ -731,6 +728,14 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
   case TST_class:
   case TST_auto:
   case TST_unknown_anytype:
+  case TST_image1d_t:
+  case TST_image1d_array_t:
+  case TST_image1d_buffer_t:
+  case TST_image2d_t:
+  case TST_image2d_array_t:
+  case TST_image3d_t:
+  case TST_sampler_t:
+  case TST_event_t:
   case TST_error:
     break;
   }
@@ -837,7 +842,7 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
     return ExprError();
   }
 
-  MarkAnyDeclReferenced(OpLoc, ParameterPack);
+  MarkAnyDeclReferenced(OpLoc, ParameterPack, true);
 
   return new (Context) SizeOfPackExpr(Context.getSizeType(), OpLoc, 
                                       ParameterPack, NameLoc, RParenLoc);

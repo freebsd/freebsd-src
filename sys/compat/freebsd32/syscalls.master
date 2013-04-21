@@ -114,8 +114,8 @@
 32	AUE_GETSOCKNAME	NOPROTO	{ int getsockname(int fdes, caddr_t asa, \
 				    int *alen); }
 33	AUE_ACCESS	NOPROTO	{ int access(char *path, int amode); }
-34	AUE_CHFLAGS	NOPROTO	{ int chflags(char *path, int flags); }
-35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, int flags); }
+34	AUE_CHFLAGS	NOPROTO	{ int chflags(const char *path, u_long flags); }
+35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, u_long flags); }
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
 37	AUE_KILL	NOPROTO	{ int kill(int pid, int signum); }
 38	AUE_STAT	COMPAT	{ int freebsd32_stat(char *path, \
@@ -634,7 +634,7 @@
 355	AUE_EXTATTRCTL	NOPROTO	{ int extattrctl(const char *path, int cmd, \
 				    const char *filename, int attrnamespace, \
 				    const char *attrname); }
-356	AUE_EXTATTR_SET_FILE	NOPROTO	{ int extattr_set_file( \
+356	AUE_EXTATTR_SET_FILE	NOPROTO	{ ssize_t extattr_set_file( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname, void *data, \
 				    size_t nbytes); }
@@ -665,7 +665,7 @@
 368	AUE_NULL	UNIMPL	__cap_set_fd
 369	AUE_NULL	UNIMPL	__cap_set_file
 370	AUE_NULL	UNIMPL	nosys
-371	AUE_EXTATTR_SET_FD	NOPROTO	{ int extattr_set_fd(int fd, \
+371	AUE_EXTATTR_SET_FD	NOPROTO	{ ssize_t extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
 372	AUE_EXTATTR_GET_FD	NOPROTO	{ ssize_t extattr_get_fd(int fd, \
@@ -693,7 +693,8 @@
 389	AUE_NULL	UNIMPL	__mac_set_file
 390	AUE_NULL	NOPROTO	{ int kenv(int what, const char *name, \
 				    char *value, int len); }
-391	AUE_LCHFLAGS	NOPROTO	{ int lchflags(const char *path, int flags); }
+391	AUE_LCHFLAGS	NOPROTO	{ int lchflags(const char *path, \
+				    u_long flags); }
 392	AUE_NULL	NOPROTO	{ int uuidgen(struct uuid *store, \
 				    int count); }
 393	AUE_SENDFILE	STD	{ int freebsd32_sendfile(int fd, int s, \
@@ -725,7 +726,7 @@
 409	AUE_NULL	UNIMPL	__mac_get_pid
 410	AUE_NULL	UNIMPL	__mac_get_link
 411	AUE_NULL	UNIMPL	__mac_set_link
-412	AUE_EXTATTR_SET_LINK	NOPROTO	{ int extattr_set_link( \
+412	AUE_EXTATTR_SET_LINK	NOPROTO	{ ssize_t extattr_set_link( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname, void *data, \
 				    size_t nbytes); }
@@ -1019,3 +1020,5 @@
 				    int namelen); }
 539	AUE_CONNECTAT	NOPROTO	{ int connectat(int fd, int s, caddr_t name, \
 				    int namelen); }
+540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, const char *path, \
+				    u_long flags, int atflag); }

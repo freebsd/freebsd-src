@@ -81,18 +81,18 @@ static const struct ipspec intparams[] = {
     [IP_INTERFACE] =		{"interface",		PF_INTERNAL},
     [IP_IP_HOSTNAME] =		{"ip_hostname",		PF_INTERNAL | PF_BOOL},
 #endif
-    [IP_MOUNT] =		{"mount",		PF_INTERNAL},
+    [IP_MOUNT] =		{"mount",		PF_INTERNAL | PF_REV},
     [IP_MOUNT_DEVFS] =		{"mount.devfs",		PF_INTERNAL | PF_BOOL},
     [IP_MOUNT_FSTAB] =		{"mount.fstab",		PF_INTERNAL},
     [IP_STOP_TIMEOUT] =		{"stop.timeout",	PF_INTERNAL | PF_INT},
     [IP_VNET_INTERFACE] =	{"vnet.interface",	PF_INTERNAL},
 #ifdef INET
-    [IP__IP4_IFADDR] =		{"ip4.addr",		PF_INTERNAL | PF_CONV},
+    [IP__IP4_IFADDR] =		{"ip4.addr",	PF_INTERNAL | PF_CONV | PF_REV},
 #endif
 #ifdef INET6
-    [IP__IP6_IFADDR] =		{"ip6.addr",		PF_INTERNAL | PF_CONV},
+    [IP__IP6_IFADDR] =		{"ip6.addr",	PF_INTERNAL | PF_CONV | PF_REV},
 #endif
-    [IP__MOUNT_FROM_FSTAB] =	{"mount.fstab",		PF_INTERNAL | PF_CONV},
+    [IP__MOUNT_FROM_FSTAB] =	{"mount.fstab",	PF_INTERNAL | PF_CONV | PF_REV},
     [IP__OP] =			{NULL,			PF_CONV},
     [KP_ALLOW_CHFLAGS] =	{"allow.chflags",	0},
     [KP_ALLOW_MOUNT] =		{"allow.mount",		0},

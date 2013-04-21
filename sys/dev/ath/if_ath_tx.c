@@ -312,7 +312,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 				     BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		/* XXX packet requires too many descriptors */
-		bf->bf_nseg = ATH_TXDESC+1;
+		bf->bf_nseg = ATH_MAX_SCATTER + 1;
 	} else if (error != 0) {
 		sc->sc_stats.ast_tx_busdma++;
 		ath_freetx(m0);
@@ -323,9 +323,9 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 	 * require too many TX descriptors.  We try to convert
 	 * the latter to a cluster.
 	 */
-	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
+	if (bf->bf_nseg > ATH_MAX_SCATTER) {		/* too many desc's, linearize */
 		sc->sc_stats.ast_tx_linear++;
-		m = m_collapse(m0, M_NOWAIT, ATH_TXDESC);
+		m = m_collapse(m0, M_NOWAIT, ATH_MAX_SCATTER);
 		if (m == NULL) {
 			ath_freetx(m0);
 			sc->sc_stats.ast_tx_nombuf++;
@@ -340,7 +340,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 			ath_freetx(m0);
 			return error;
 		}
-		KASSERT(bf->bf_nseg <= ATH_TXDESC,
+		KASSERT(bf->bf_nseg <= ATH_MAX_SCATTER,
 		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
 	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
 		sc->sc_stats.ast_tx_nodata++;
@@ -384,14 +384,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 	 */
 
 	/*
-	 * For now the HAL doesn't implement halNumTxMaps for non-EDMA
-	 * (ie it's 0.)  So just work around it.
-	 *
-	 * XXX TODO: populate halNumTxMaps for each HAL chip and
-	 * then undo this hack.
+	 * We need the number of TX data pointers in each descriptor.
+	 * EDMA and later chips support 4 TX buffers per descriptor;
+	 * previous chips just support one.
 	 */
-	if (sc->sc_ah->ah_magic == 0x19741014)
-		numTxMaps = 4;
+	numTxMaps = sc->sc_tx_nmaps;
 
 	/*
 	 * For EDMA and later chips ensure the TX map is fully populated
@@ -705,21 +702,25 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
-	if (txq->axq_link != NULL) {
-		struct ath_buf *last = ATH_TXQ_LAST(txq, axq_q_s);
+
+	ATH_TXQ_LOCK(txq);
+	if (ATH_TXQ_LAST(txq, axq_q_s) != NULL) {
+		struct ath_buf *bf_last = ATH_TXQ_LAST(txq, axq_q_s);
 		struct ieee80211_frame *wh;
 
 		/* mark previous frame */
-		wh = mtod(last->bf_m, struct ieee80211_frame *);
+		wh = mtod(bf_last->bf_m, struct ieee80211_frame *);
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
-		bus_dmamap_sync(sc->sc_dmat, last->bf_dmamap,
+		bus_dmamap_sync(sc->sc_dmat, bf_last->bf_dmamap,
 		    BUS_DMASYNC_PREWRITE);
 
 		/* link descriptor */
-		*txq->axq_link = bf->bf_daddr;
+		ath_hal_settxdesclink(sc->sc_ah,
+		    bf_last->bf_lastds,
+		    bf->bf_daddr);
 	}
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -777,6 +778,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 
 	/* For now, so not to generate whitespace diffs */
 	if (1) {
+		ATH_TXQ_LOCK(txq);
 #ifdef IEEE80211_SUPPORT_TDMA
 		int qbusy;
 
@@ -902,6 +904,7 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			txq->axq_aggr_depth++;
 		ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
 		ath_hal_txstart(ah, txq->axq_qnum);
+		ATH_TXQ_UNLOCK(txq);
 		ATH_KTR(sc, ATH_KTR_TX, 1,
 		    "ath_tx_handoff: txq=%u, txstart", txq->axq_qnum);
 	}
@@ -918,8 +921,7 @@ ath_legacy_tx_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf, *bf_last;
 
-	ATH_TX_LOCK_ASSERT(sc);
-
+	ATH_TXQ_LOCK_ASSERT(txq);
 	/* This is always going to be cleared, empty or not */
 	txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
 
@@ -1613,6 +1615,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
 			wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
 		/* XXX statistic */
+		/* XXX free tx dmamap */
 		ath_freetx(m0);
 		return EIO;
 	}
@@ -1668,6 +1671,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		DPRINTF(sc, ATH_DEBUG_TDMA,
 		    "%s: discard frame, ACK required w/ TDMA\n", __func__);
 		sc->sc_stats.ast_tdma_ack++;
+		/* XXX free tx dmamap */
 		ath_freetx(m0);
 		return EIO;
 	}
@@ -1718,7 +1722,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (isfrag)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
+		sc->sc_tx_th.wt_txpower = ieee80211_get_node_txpower(ni);
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
 		ieee80211_radiotap_tx(vap, m0);
@@ -1739,7 +1743,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_pktlen = pktlen;
 	bf->bf_state.bfs_hdrlen = hdrlen;
 	bf->bf_state.bfs_atype = atype;
-	bf->bf_state.bfs_txpower = ni->ni_txpower;
+	bf->bf_state.bfs_txpower = ieee80211_get_node_txpower(ni);
 	bf->bf_state.bfs_txrate0 = txrate;
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
@@ -1816,7 +1820,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * XXX duplicated in ath_raw_xmit().
 	 */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
+		if (sc->sc_cabq->axq_depth + sc->sc_cabq->fifo.axq_depth
+		    > sc->sc_txq_mcastq_maxdepth) {
 			sc->sc_stats.ast_tx_mcastq_overflow++;
 			r = ENOBUFS;
 		}
@@ -1839,6 +1844,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_tx_queue = txq->axq_qnum;
 	bf->bf_state.bfs_pri = pri;
 
+#if 1
 	/*
 	 * When servicing one or more stations in power-save mode
 	 * (or) if there is some mcast data waiting on the mcast
@@ -1847,7 +1853,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 *
 	 * TODO: we should lock the mcastq before we check the length.
 	 */
-	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth)) {
+	if (sc->sc_cabq_enable && ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth)) {
 		txq = &avp->av_mcastq;
 		/*
 		 * Mark the frame as eventually belonging on the CAB
@@ -1856,6 +1862,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		bf->bf_state.bfs_tx_queue = sc->sc_cabq->axq_qnum;
 	}
+#endif
 
 	/* Do the generic frame setup */
 	/* XXX should just bzero the bf_state? */
@@ -2084,7 +2091,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (m0->m_flags & M_FRAG)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
+		sc->sc_tx_th.wt_txpower = MIN(params->ibp_power,
+		    ieee80211_get_node_txpower(ni));
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
 		ieee80211_radiotap_tx(vap, m0);
@@ -2100,7 +2108,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_pktlen = pktlen;
 	bf->bf_state.bfs_hdrlen = hdrlen;
 	bf->bf_state.bfs_atype = atype;
-	bf->bf_state.bfs_txpower = params->ibp_power;
+	bf->bf_state.bfs_txpower = MIN(params->ibp_power,
+	    ieee80211_get_node_txpower(ni));
 	bf->bf_state.bfs_txrate0 = txrate;
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
@@ -2218,7 +2227,8 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * XXX duplicated in ath_tx_start().
 	 */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
+		if (sc->sc_cabq->axq_depth + sc->sc_cabq->fifo.axq_depth
+		    > sc->sc_txq_mcastq_maxdepth) {
 			sc->sc_stats.ast_tx_mcastq_overflow++;
 			error = ENOBUFS;
 		}
@@ -2583,7 +2593,8 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 		    __func__,
 		    bf, SEQNO(bf->bf_state.bfs_seqno),
 		    tid->tx_buf[cindex],
-		    SEQNO(tid->tx_buf[cindex]->bf_state.bfs_seqno));
+		    (tid->tx_buf[cindex] != NULL) ?
+		      SEQNO(tid->tx_buf[cindex]->bf_state.bfs_seqno) : -1);
 	}
 
 	tid->tx_buf[cindex] = NULL;
@@ -2844,7 +2855,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		 *
 		 * Otherwise, schedule the TID.
 		 */
-		if (txq->axq_depth < sc->sc_hwq_limit) {
+		if (txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit) {
 			bf = ATH_TID_FIRST(atid);
 			ATH_TID_REMOVE(atid, bf, bf_list);
 
@@ -2868,7 +2879,7 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 
 			ath_tx_tid_sched(sc, atid);
 		}
-	} else if (txq->axq_depth < sc->sc_hwq_limit) {
+	} else if (txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit) {
 		/* AMPDU not running, attempt direct dispatch */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
 		/* See if clrdmask needs to be set */
@@ -2969,7 +2980,19 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
 	ATH_TX_LOCK_ASSERT(sc);
 
-	tid->paused--;
+	/*
+	 * There's some odd places where ath_tx_tid_resume() is called
+	 * when it shouldn't be; this works around that particular issue
+	 * until it's actually resolved.
+	 */
+	if (tid->paused == 0) {
+		device_printf(sc->sc_dev, "%s: %6D: paused=0?\n",
+		    __func__,
+		    tid->an->an_node.ni_macaddr,
+		    ":");
+	} else {
+		tid->paused--;
+	}
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: unpaused = %d\n",
 	    __func__, tid->paused);
@@ -3386,6 +3409,11 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			    __func__, SEQNO(bf->bf_state.bfs_seqno));
 #endif
 	}
+
+	/* Strip it out of an aggregate list if it was in one */
+	bf->bf_next = NULL;
+
+	/* Insert on the free queue to be freed by the caller */
 	TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
 }
 
@@ -3760,7 +3788,6 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (bf->bf_state.bfs_isretried) {
 			bf_next = TAILQ_NEXT(bf, bf_list);
 			ATH_TID_REMOVE(atid, bf, bf_list);
-			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw) {
 				ath_tx_update_baw(sc, an, atid, bf);
 				if (! bf->bf_state.bfs_addedbaw)
@@ -3835,6 +3862,12 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 	struct ath_buf *nbf;
 	int error;
 
+	/*
+	 * Clone the buffer.  This will handle the dma unmap and
+	 * copy the node reference to the new buffer.  If this
+	 * works out, 'bf' will have no DMA mapping, no mbuf
+	 * pointer and no node reference.
+	 */
 	nbf = ath_buf_clone(sc, bf);
 
 #if 0
@@ -3872,9 +3905,7 @@ ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
 	if (bf->bf_state.bfs_dobaw)
 		ath_tx_switch_baw_buf(sc, an, tid, bf, nbf);
 
-	/* Free current buffer; return the older buffer */
-	bf->bf_m = NULL;
-	bf->bf_node = NULL;
+	/* Free original buffer; return new buffer */
 	ath_freebuf(sc, bf);
 
 	return nbf;
@@ -4143,11 +4174,10 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 	int tid = bf_first->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 
-	bf = bf_first;
-
 	ATH_TX_LOCK(sc);
 
 	/* update incomp */
+	bf = bf_first;
 	while (bf) {
 		atid->incomp--;
 		bf = bf->bf_next;
@@ -4163,12 +4193,17 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 	/* Send BAR if required */
 	/* XXX why would we send a BAR when transitioning to non-aggregation? */
+	/*
+	 * XXX TODO: we should likely just tear down the BAR state here,
+	 * rather than sending a BAR.
+	 */
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
 		ath_tx_tid_bar_tx(sc, atid);
 
 	ATH_TX_UNLOCK(sc);
 
 	/* Handle frame completion */
+	bf = bf_first;
 	while (bf) {
 		bf_next = bf->bf_next;
 		ath_tx_default_comp(sc, bf, 1);
@@ -4178,8 +4213,6 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 /*
  * Handle completion of an set of aggregate frames.
- *
- * XXX for now, simply complete each sub-frame.
  *
  * Note: the completion handler is the last descriptor in the aggregate,
  * not the last descriptor in the first frame.
@@ -4343,12 +4376,23 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	    __func__, tap->txa_start, tx_ok, ts.ts_status, ts.ts_flags,
 	    isaggr, seq_st, hasba, ba[0], ba[1]);
 
+	/*
+	 * The reference driver doesn't do this; it simply ignores
+	 * this check in its entirety.
+	 *
+	 * I've seen this occur when using iperf to send traffic
+	 * out tid 1 - the aggregate frames are all marked as TID 1,
+	 * but the TXSTATUS has TID=0.  So, let's just ignore this
+	 * check.
+	 */
+#if 0
 	/* Occasionally, the MAC sends a tx status for the wrong TID. */
 	if (tid != ts.ts_tid) {
 		device_printf(sc->sc_dev, "%s: tid %d != hw tid %d\n",
 		    __func__, tid, ts.ts_tid);
 		tx_ok = 0;
 	}
+#endif
 
 	/* AR5416 BA bug; this requires an interface reset */
 	if (isaggr && tx_ok && (! hasba)) {

@@ -56,6 +56,7 @@ SECTIONS
   .init          : { *(.init)	} =0x9090
   .plt      : { *(.plt)	}
 
+  . = ALIGN(4);
   _extab_start = .;
   PROVIDE(extab_start = .);
   .ARM.extab : { *(.ARM.extab) }

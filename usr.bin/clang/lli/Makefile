@@ -9,8 +9,9 @@ SRCS=	lli.cpp \
 	RecordingMemoryManager.cpp \
 	RemoteTarget.cpp
 
-LIBDEPS=llvmx86asmparser \
-	llvmx86disassembler \
+LIBDEPS=llvmx86disassembler \
+	llvmx86asmparser \
+	llvmirreader \
 	llvmasmparser \
 	llvmbitreader \
 	llvmx86codegen \
@@ -22,14 +23,15 @@ LIBDEPS=llvmx86asmparser \
 	llvmasmprinter \
 	llvmmcparser \
 	llvminterpreter \
+	llvmmcjit \
 	llvmjit \
 	llvmcodegen \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmmcjit \
 	llvmruntimedyld \
 	llvmexecutionengine \
 	llvmtarget \

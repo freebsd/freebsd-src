@@ -1008,6 +1008,8 @@ set_short_delay(struct ifinfo *ifi)
 	long delay;	/* must not be greater than 1000000 */
 	struct timeval interval, now, min_delay, tm_tmp, *rest;
 
+	if (ifi->ifi_ra_timer == NULL)
+		return;
 	/*
 	 * Compute a random delay. If the computed value
 	 * corresponds to a time later than the time the next

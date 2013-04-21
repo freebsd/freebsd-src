@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/Utils.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/PreprocessorOutputOptions.h"
@@ -21,12 +22,11 @@
 #include "clang/Lex/Pragma.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/TokenConcatenation.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <cctype>
+#include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 using namespace clang;
 
@@ -95,6 +95,7 @@ private:
   bool DisableLineMarkers;
   bool DumpDefines;
   bool UseLineDirective;
+  bool IsFirstFileEntered;
 public:
   PrintPPOutputPPCallbacks(Preprocessor &pp, raw_ostream &os,
                            bool lineMarkers, bool defines)
@@ -107,6 +108,7 @@ public:
     EmittedDirectiveOnThisLine = false;
     FileType = SrcMgr::C_User;
     Initialized = false;
+    IsFirstFileEntered = false;
 
     // If we're in microsoft mode, use normal #line instead of line markers.
     UseLineDirective = PP.getLangOpts().MicrosoftExt;
@@ -137,11 +139,15 @@ public:
                                 diag::Mapping Map, StringRef Str);
 
   bool HandleFirstTokOnLine(Token &Tok);
+
+  /// Move to the line of the provided source location. This will
+  /// return true if the output stream required adjustment or if
+  /// the requested location is on the first line.
   bool MoveToLine(SourceLocation Loc) {
     PresumedLoc PLoc = SM.getPresumedLoc(Loc);
     if (PLoc.isInvalid())
       return false;
-    return MoveToLine(PLoc.getLine());
+    return MoveToLine(PLoc.getLine()) || (PLoc.getLine() == 1);
   }
   bool MoveToLine(unsigned LineNo);
 
@@ -154,10 +160,10 @@ public:
   void HandleNewlinesInToken(const char *TokStr, unsigned Len);
 
   /// MacroDefined - This hook is called whenever a macro definition is seen.
-  void MacroDefined(const Token &MacroNameTok, const MacroInfo *MI);
+  void MacroDefined(const Token &MacroNameTok, const MacroDirective *MD);
 
   /// MacroUndefined - This hook is called whenever a macro #undef is seen.
-  void MacroUndefined(const Token &MacroNameTok, const MacroInfo *MI);
+  void MacroUndefined(const Token &MacroNameTok, const MacroDirective *MD);
 };
 }  // end anonymous namespace
 
@@ -266,11 +272,23 @@ void PrintPPOutputPPCallbacks::FileChanged(SourceLocation Loc,
   Lexer::Stringify(CurFilename);
   FileType = NewFileType;
 
-  if (DisableLineMarkers) return;
+  if (DisableLineMarkers) {
+    startNewLineIfNeeded(/*ShouldUpdateCurrentLine=*/false);
+    return;
+  }
   
   if (!Initialized) {
     WriteLineInfo(CurLine);
     Initialized = true;
+  }
+
+  // Do not emit an enter marker for the main file (which we expect is the first
+  // entered file). This matches gcc, and improves compatibility with some tools
+  // which track the # line markers as a way to determine when the preprocessed
+  // output is in the context of the main file.
+  if (Reason == PPCallbacks::EnterFile && !IsFirstFileEntered) {
+    IsFirstFileEntered = true;
+    return;
   }
 
   switch (Reason) {
@@ -299,7 +317,8 @@ void PrintPPOutputPPCallbacks::Ident(SourceLocation Loc, const std::string &S) {
 
 /// MacroDefined - This hook is called whenever a macro definition is seen.
 void PrintPPOutputPPCallbacks::MacroDefined(const Token &MacroNameTok,
-                                            const MacroInfo *MI) {
+                                            const MacroDirective *MD) {
+  const MacroInfo *MI = MD->getMacroInfo();
   // Only print out macro definitions in -dD mode.
   if (!DumpDefines ||
       // Ignore __FILE__ etc.
@@ -311,7 +330,7 @@ void PrintPPOutputPPCallbacks::MacroDefined(const Token &MacroNameTok,
 }
 
 void PrintPPOutputPPCallbacks::MacroUndefined(const Token &MacroNameTok,
-                                              const MacroInfo *MI) {
+                                              const MacroDirective *MD) {
   // Only print out macro definitions in -dD mode.
   if (!DumpDefines) return;
 
@@ -332,7 +351,7 @@ void PrintPPOutputPPCallbacks::PragmaComment(SourceLocation Loc,
 
     for (unsigned i = 0, e = Str.size(); i != e; ++i) {
       unsigned char Char = Str[i];
-      if (isprint(Char) && Char != '\\' && Char != '"')
+      if (isPrintable(Char) && Char != '\\' && Char != '"')
         OS << (char)Char;
       else  // Output anything hard as an octal escape.
         OS << '\\'
@@ -357,7 +376,7 @@ void PrintPPOutputPPCallbacks::PragmaMessage(SourceLocation Loc,
 
   for (unsigned i = 0, e = Str.size(); i != e; ++i) {
     unsigned char Char = Str[i];
-    if (isprint(Char) && Char != '\\' && Char != '"')
+    if (isPrintable(Char) && Char != '\\' && Char != '"')
       OS << (char)Char;
     else  // Output anything hard as an octal escape.
       OS << '\\'
@@ -496,6 +515,9 @@ struct UnknownPragmaHandler : public PragmaHandler {
 static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
                                     PrintPPOutputPPCallbacks *Callbacks,
                                     raw_ostream &OS) {
+  bool DropComments = PP.getLangOpts().TraditionalCPP &&
+                      !PP.getCommentRetentionState();
+
   char Buffer[256];
   Token PrevPrevTok, PrevTok;
   PrevPrevTok.startToken();
@@ -518,7 +540,13 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
       OS << ' ';
     }
 
-    if (IdentifierInfo *II = Tok.getIdentifierInfo()) {
+    if (DropComments && Tok.is(tok::comment)) {
+      // Skip comments. Normally the preprocessor does not generate
+      // tok::comment nodes at all when not keeping comments, but under
+      // -traditional-cpp the lexer keeps /all/ whitespace, including comments.
+      SourceLocation StartLoc = Tok.getLocation();
+      Callbacks->MoveToLine(StartLoc.getLocWithOffset(Tok.getLength()));
+    } else if (IdentifierInfo *II = Tok.getIdentifierInfo()) {
       OS << II->getName();
     } else if (Tok.isLiteral() && !Tok.needsCleaning() &&
                Tok.getLiteralData()) {
@@ -530,7 +558,7 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
 
       // Tokens that can contain embedded newlines need to adjust our current
       // line number.
-      if (Tok.getKind() == tok::comment)
+      if (Tok.getKind() == tok::comment || Tok.getKind() == tok::unknown)
         Callbacks->HandleNewlinesInToken(TokPtr, Len);
     } else {
       std::string S = PP.getSpelling(Tok);
@@ -538,7 +566,7 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
 
       // Tokens that can contain embedded newlines need to adjust our current
       // line number.
-      if (Tok.getKind() == tok::comment)
+      if (Tok.getKind() == tok::comment || Tok.getKind() == tok::unknown)
         Callbacks->HandleNewlinesInToken(&S[0], S.size());
     }
     Callbacks->setEmittedTokensOnThisLine();
@@ -551,7 +579,7 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
   }
 }
 
-typedef std::pair<IdentifierInfo*, MacroInfo*> id_macro_pair;
+typedef std::pair<const IdentifierInfo *, MacroInfo *> id_macro_pair;
 static int MacroIDCompare(const void* a, const void* b) {
   const id_macro_pair *LHS = static_cast<const id_macro_pair*>(a);
   const id_macro_pair *RHS = static_cast<const id_macro_pair*>(b);
@@ -574,7 +602,7 @@ static void DoPrintMacros(Preprocessor &PP, raw_ostream *OS) {
   for (Preprocessor::macro_iterator I = PP.macro_begin(), E = PP.macro_end();
        I != E; ++I) {
     if (I->first->hasMacroDefinition())
-      MacrosByID.push_back(id_macro_pair(I->first, I->second));
+      MacrosByID.push_back(id_macro_pair(I->first, I->second->getMacroInfo()));
   }
   llvm::array_pod_sort(MacrosByID.begin(), MacrosByID.end(), MacroIDCompare);
 

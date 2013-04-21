@@ -40,13 +40,18 @@ __FBSDID("$FreeBSD$");
 #include "nvme_private.h"
 
 struct nvme_consumer {
-	nvme_consumer_cb_fn_t		cb_fn;
-	void				*cb_arg;
+	uint32_t		id;
+	nvme_cons_ns_fn_t	ns_fn;
+	nvme_cons_ctrlr_fn_t	ctrlr_fn;
+	nvme_cons_async_fn_t	async_fn;
+	nvme_cons_fail_fn_t	fail_fn;
 };
 
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
+#define	INVALID_CONSUMER_ID	0xFFFF
 
-uma_zone_t nvme_request_zone;
+uma_zone_t	nvme_request_zone;
+int32_t		nvme_retry_count;
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 
@@ -118,8 +123,13 @@ nvme_probe (device_t device)
 static void
 nvme_init(void)
 {
+	uint32_t	i;
+
 	nvme_request_zone = uma_zcreate("nvme_request",
 	    sizeof(struct nvme_request), NULL, NULL, NULL, NULL, 0, 0);
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
+		nvme_consumer[i].id = INVALID_CONSUMER_ID;
 }
 
 SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
@@ -200,13 +210,11 @@ nvme_modevent(module_t mod, int type, void *arg)
 void
 nvme_dump_command(struct nvme_command *cmd)
 {
-	printf("opc:%x f:%x r1:%x cid:%x nsid:%x r2:%x r3:%x "
-	    "mptr:%qx prp1:%qx prp2:%qx cdw:%x %x %x %x %x %x\n",
+	printf(
+"opc:%x f:%x r1:%x cid:%x nsid:%x r2:%x r3:%x mptr:%jx prp1:%jx prp2:%jx cdw:%x %x %x %x %x %x\n",
 	    cmd->opc, cmd->fuse, cmd->rsvd1, cmd->cid, cmd->nsid,
 	    cmd->rsvd2, cmd->rsvd3,
-	    (long long unsigned int)cmd->mptr,
-	    (long long unsigned int)cmd->prp1,
-	    (long long unsigned int)cmd->prp2,
+	    (uintmax_t)cmd->mptr, (uintmax_t)cmd->prp1, (uintmax_t)cmd->prp2,
 	    cmd->cdw10, cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14,
 	    cmd->cdw15);
 }
@@ -217,39 +225,8 @@ nvme_dump_completion(struct nvme_completion *cpl)
 	printf("cdw0:%08x sqhd:%04x sqid:%04x "
 	    "cid:%04x p:%x sc:%02x sct:%x m:%x dnr:%x\n",
 	    cpl->cdw0, cpl->sqhd, cpl->sqid,
-	    cpl->cid, cpl->p, cpl->sf_sc, cpl->sf_sct, cpl->sf_m,
-	    cpl->sf_dnr);
-}
-
-void
-nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
-{
-	struct nvme_tracker 	*tr = arg;
-	uint32_t		cur_nseg;
-
-	KASSERT(error == 0, ("nvme_payload_map error != 0\n"));
-
-	/*
-	 * Note that we specified PAGE_SIZE for alignment and max
-	 *  segment size when creating the bus dma tags.  So here
-	 *  we can safely just transfer each segment to its
-	 *  associated PRP entry.
-	 */
-	tr->req->cmd.prp1 = seg[0].ds_addr;
-
-	if (nseg == 2) {
-		tr->req->cmd.prp2 = seg[1].ds_addr;
-	} else if (nseg > 2) {
-		cur_nseg = 1;
-		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
-		while (cur_nseg < nseg) {
-			tr->prp[cur_nseg-1] =
-			    (uint64_t)seg[cur_nseg].ds_addr;
-			cur_nseg++;
-		}
-	}
-
-	nvme_qpair_submit_cmd(tr->qpair, tr);
+	    cpl->cid, cpl->status.p, cpl->status.sc, cpl->status.sct,
+	    cpl->status.m, cpl->status.dnr);
 }
 
 static int
@@ -268,15 +245,17 @@ nvme_attach(device_t dev)
 	 *  to cc.en==0.  This is because we don't really know what status
 	 *  the controller was left in when boot handed off to OS.
 	 */
-	status = nvme_ctrlr_reset(ctrlr);
+	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status != 0)
 		return (status);
 
-	status = nvme_ctrlr_reset(ctrlr);
+	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status != 0)
 		return (status);
 
-	ctrlr->config_hook.ich_func = nvme_ctrlr_start;
+	nvme_sysctl_initialize_ctrlr(ctrlr);
+
+	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;
 
 	config_intrhook_establish(&ctrlr->config_hook);
@@ -288,77 +267,75 @@ static int
 nvme_detach (device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
-	struct nvme_namespace	*ns;
-	int			i;
 
-	for (i = 0; i < NVME_MAX_NAMESPACES; i++) {
-		ns = &ctrlr->ns[i];
-		if (ns->cdev)
-			destroy_dev(ns->cdev);
-	}
-
-	if (ctrlr->cdev)
-		destroy_dev(ctrlr->cdev);
-
-	for (i = 0; i < ctrlr->num_io_queues; i++) {
-		nvme_io_qpair_destroy(&ctrlr->ioq[i]);
-	}
-
-	free(ctrlr->ioq, M_NVME);
-
-	nvme_admin_qpair_destroy(&ctrlr->adminq);
-
-	if (ctrlr->resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->resource_id, ctrlr->resource);
-	}
-
-	if (ctrlr->bar4_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
-	}
-
-#ifdef CHATHAM2
-	if (ctrlr->chatham_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->chatham_resource_id, ctrlr->chatham_resource);
-	}
-#endif
-
-	if (ctrlr->tag)
-		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);
-
-	if (ctrlr->res)
-		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
-		    rman_get_rid(ctrlr->res), ctrlr->res);
-
-	if (ctrlr->msix_enabled)
-		pci_release_msi(dev);
-
+	nvme_ctrlr_destruct(ctrlr, dev);
 	return (0);
 }
 
 static void
-nvme_notify_consumer(struct nvme_consumer *consumer)
+nvme_notify_consumer(struct nvme_consumer *cons)
 {
 	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	int			dev, ns, devcount;
+	struct nvme_namespace	*ns;
+	void			*ctrlr_cookie;
+	int			dev_idx, ns_idx, devcount;
 
 	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
 		return;
 
-	for (dev = 0; dev < devcount; dev++) {
-		ctrlr = DEVICE2SOFTC(devlist[dev]);
-		for (ns = 0; ns < ctrlr->cdata.nn; ns++)
-			(*consumer->cb_fn)(consumer->cb_arg, &ctrlr->ns[ns]);
+	for (dev_idx = 0; dev_idx < devcount; dev_idx++) {
+		ctrlr = DEVICE2SOFTC(devlist[dev_idx]);
+		if (cons->ctrlr_fn != NULL)
+			ctrlr_cookie = (*cons->ctrlr_fn)(ctrlr);
+		else
+			ctrlr_cookie = NULL;
+		ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
+		for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
+			ns = &ctrlr->ns[ns_idx];
+			if (cons->ns_fn != NULL)
+				ns->cons_cookie[cons->id] =
+				    (*cons->ns_fn)(ns, ctrlr_cookie);
+		}
 	}
 
 	free(devlist, M_TEMP);
 }
 
+void
+nvme_notify_async_consumers(struct nvme_controller *ctrlr,
+			    const struct nvme_completion *async_cpl,
+			    uint32_t log_page_id, void *log_page_buffer,
+			    uint32_t log_page_size)
+{
+	struct nvme_consumer	*cons;
+	uint32_t		i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		cons = &nvme_consumer[i];
+		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL)
+			(*cons->async_fn)(ctrlr->cons_cookie[i], async_cpl,
+			    log_page_id, log_page_buffer, log_page_size);
+	}
+}
+
+void
+nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
+{
+	struct nvme_consumer	*cons;
+	uint32_t		i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		cons = &nvme_consumer[i];
+		if (cons->id != INVALID_CONSUMER_ID && cons->fail_fn != NULL)
+			cons->fail_fn(ctrlr->cons_cookie[i]);
+	}
+}
+
 struct nvme_consumer *
-nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn, void *cb_arg)
+nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
+		       nvme_cons_async_fn_t async_fn,
+		       nvme_cons_fail_fn_t fail_fn)
 {
 	int i;
 
@@ -367,9 +344,12 @@ nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn, void *cb_arg)
 	 *  right now since we only have one nvme consumer - nvd(4).
 	 */
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
-		if (nvme_consumer[i].cb_fn == NULL) {
-			nvme_consumer[i].cb_fn = cb_fn;
-			nvme_consumer[i].cb_arg = cb_arg;
+		if (nvme_consumer[i].id == INVALID_CONSUMER_ID) {
+			nvme_consumer[i].id = i;
+			nvme_consumer[i].ns_fn = ns_fn;
+			nvme_consumer[i].ctrlr_fn = ctrlr_fn;
+			nvme_consumer[i].async_fn = async_fn;
+			nvme_consumer[i].fail_fn = fail_fn;
 
 			nvme_notify_consumer(&nvme_consumer[i]);
 			return (&nvme_consumer[i]);
@@ -383,7 +363,21 @@ void
 nvme_unregister_consumer(struct nvme_consumer *consumer)
 {
 
-	consumer->cb_fn = NULL;
-	consumer->cb_arg = NULL;
+	consumer->id = INVALID_CONSUMER_ID;
+}
+
+void
+nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_completion_poll_status	*status = arg;
+
+	/*
+	 * Copy status into the argument passed by the caller, so that
+	 *  the caller can check the status to determine if the
+	 *  the request passed or failed.
+	 */
+	memcpy(&status->cpl, cpl, sizeof(*cpl));
+	wmb();
+	status->done = TRUE;
 }
 

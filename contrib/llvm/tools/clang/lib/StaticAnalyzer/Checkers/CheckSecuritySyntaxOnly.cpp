@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -36,13 +36,6 @@ static bool isArc4RandomAvailable(const ASTContext &Ctx) {
 }
 
 namespace {
-struct DefaultBool {
-  bool val;
-  DefaultBool() : val(false) {}
-  operator bool() const { return val; }
-  DefaultBool &operator=(bool b) { val = b; return *this; }
-};
-  
 struct ChecksFilter {
   DefaultBool check_gets;
   DefaultBool check_getpw;

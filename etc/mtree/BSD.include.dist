@@ -92,7 +92,7 @@
         ..
     ..
     clang
-        3.2
+        3.3
         ..
     ..
     crypto
@@ -173,8 +173,6 @@
         nfs
         ..
         nullfs
-        ..
-        portalfs
         ..
         procfs
         ..

@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "XCoreMCTargetDesc.h"
+#include "InstPrinter/XCoreInstPrinter.h"
 #include "XCoreMCAsmInfo.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
@@ -69,6 +70,15 @@ static MCCodeGenInfo *createXCoreMCCodeGenInfo(StringRef TT, Reloc::Model RM,
   return X;
 }
 
+static MCInstPrinter *createXCoreMCInstPrinter(const Target &T,
+                                               unsigned SyntaxVariant,
+                                               const MCAsmInfo &MAI,
+                                               const MCInstrInfo &MII,
+                                               const MCRegisterInfo &MRI,
+                                               const MCSubtargetInfo &STI) {
+  return new XCoreInstPrinter(MAI, MII, MRI);
+}
+
 // Force static initialization.
 extern "C" void LLVMInitializeXCoreTargetMC() {
   // Register the MC asm info.
@@ -87,4 +97,8 @@ extern "C" void LLVMInitializeXCoreTargetMC() {
   // Register the MC subtarget info.
   TargetRegistry::RegisterMCSubtargetInfo(TheXCoreTarget,
                                           createXCoreMCSubtargetInfo);
+
+  // Register the MCInstPrinter
+  TargetRegistry::RegisterMCInstPrinter(TheXCoreTarget,
+                                        createXCoreMCInstPrinter);
 }

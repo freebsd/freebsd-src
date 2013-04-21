@@ -50,7 +50,7 @@ usage(void)
 	fprintf(stderr, "usage: procstat [-h] [-C] [-M core] [-N system] "
 	    "[-w interval] \n");
 	fprintf(stderr, "                [-b | -c | -e | -f | -i | -j | -k | "
-	    "-l | -s | -t | -v | -x] [-a | pid ...]\n");
+	    "-l | -s | -t | -v | -x] [-a | pid | core ...]\n");
 	exit(EX_USAGE);
 }
 
@@ -59,11 +59,11 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 {
 
 	if (bflag)
-		procstat_bin(kipp);
+		procstat_bin(prstat, kipp);
 	else if (cflag)
-		procstat_args(kipp);
+		procstat_args(prstat, kipp);
 	else if (eflag)
-		procstat_env(kipp);
+		procstat_env(prstat, kipp);
 	else if (fflag)
 		procstat_files(prstat, kipp);
 	else if (iflag)
@@ -71,17 +71,17 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 	else if (jflag)
 		procstat_threads_sigs(prstat, kipp);
 	else if (kflag)
-		procstat_kstack(kipp, kflag);
+		procstat_kstack(prstat, kipp, kflag);
 	else if (lflag)
-		procstat_rlimit(kipp);
+		procstat_rlimit(prstat, kipp);
 	else if (sflag)
-		procstat_cred(kipp);
+		procstat_cred(prstat, kipp);
 	else if (tflag)
-		procstat_threads(kipp);
+		procstat_threads(prstat, kipp);
 	else if (vflag)
-		procstat_vm(kipp);
+		procstat_vm(prstat, kipp);
 	else if (xflag)
-		procstat_auxv(kipp);
+		procstat_auxv(prstat, kipp);
 	else
 		procstat_basic(kipp);
 }
@@ -116,7 +116,7 @@ main(int argc, char *argv[])
 	int ch, interval, tmp;
 	int i;
 	struct kinfo_proc *p;
-	struct procstat *prstat;
+	struct procstat *prstat, *cprstat;
 	long l;
 	pid_t pid;
 	char *dummy;
@@ -255,19 +255,32 @@ main(int argc, char *argv[])
 		}
 		for (i = 0; i < argc; i++) {
 			l = strtol(argv[i], &dummy, 10);
-			if (*dummy != '\0')
-				usage();
-			if (l < 0)
-				usage();
-			pid = l;
+			if (*dummy == '\0') {
+				if (l < 0)
+					usage();
+				pid = l;
 
-			p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cnt);
-			if (p == NULL)
-				errx(1, "procstat_getprocs()");
-			if (cnt != 0)
-				procstat(prstat, p);
-			procstat_freeprocs(prstat, p);
-
+				p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cnt);
+				if (p == NULL)
+					errx(1, "procstat_getprocs()");
+				if (cnt != 0)
+					procstat(prstat, p);
+				procstat_freeprocs(prstat, p);
+			} else {
+				cprstat = procstat_open_core(argv[i]);
+				if (cprstat == NULL) {
+					warnx("procstat_open()");
+					continue;
+				}
+				p = procstat_getprocs(cprstat, KERN_PROC_PID,
+				    -1, &cnt);
+				if (p == NULL)
+					errx(1, "procstat_getprocs()");
+				if (cnt != 0)
+					procstat(cprstat, p);
+				procstat_freeprocs(cprstat, p);
+				procstat_close(cprstat);
+			}
 			/* Suppress header after first process. */
 			hflag = 1;
 		}

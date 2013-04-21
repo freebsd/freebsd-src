@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "TableGenBackends.h" // Declares all backends.
-
 #include "SetTheory.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -39,9 +38,10 @@ enum ActionType {
   GenSubtarget,
   GenIntrinsic,
   GenTgtIntrinsic,
-  GenEDInfo,
   PrintEnums,
-  PrintSets
+  PrintSets,
+  GenOptParserDefs,
+  GenCTags
 };
 
 namespace {
@@ -77,12 +77,14 @@ namespace {
                                "Generate intrinsic information"),
                     clEnumValN(GenTgtIntrinsic, "gen-tgt-intrinsic",
                                "Generate target intrinsic information"),
-                    clEnumValN(GenEDInfo, "gen-enhanced-disassembly-info",
-                               "Generate enhanced disassembly info"),
                     clEnumValN(PrintEnums, "print-enums",
                                "Print enum values for a class"),
                     clEnumValN(PrintSets, "print-sets",
                                "Print expanded sets for testing DAG exprs"),
+                    clEnumValN(GenOptParserDefs, "gen-opt-parser-defs",
+                               "Generate option definitions"),
+                    clEnumValN(GenCTags, "gen-ctags",
+                               "Generate ctags-compatible index"),
                     clEnumValEnd));
 
   cl::opt<std::string>
@@ -136,8 +138,8 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenTgtIntrinsic:
     EmitIntrinsics(Records, OS, true);
     break;
-  case GenEDInfo:
-    EmitEnhancedDisassemblerInfo(Records, OS);
+  case GenOptParserDefs:
+    EmitOptParser(Records, OS);
     break;
   case PrintEnums:
   {
@@ -162,6 +164,9 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
     }
     break;
   }
+  case GenCTags:
+    EmitCTags(Records, OS);
+    break;
   }
 
   return false;

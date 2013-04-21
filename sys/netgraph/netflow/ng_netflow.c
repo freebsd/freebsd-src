@@ -379,7 +379,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 	case NGM_NETFLOW_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_NETFLOW_INFO:
-		{
+		    {
 			struct ng_netflow_info *i;
 
 			NG_MKRESPONSE(resp, msg, sizeof(struct ng_netflow_info),
@@ -388,9 +388,9 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			ng_netflow_copyinfo(priv, i);
 
 			break;
-		}
+		    }
 		case NGM_NETFLOW_IFINFO:
-		{
+		    {
 			struct ng_netflow_ifinfo *i;
 			const uint16_t *index;
 
@@ -412,13 +412,14 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			    sizeof(priv->ifaces[*index].info));
 
 			break;
-		}
+		    }
 		case NGM_NETFLOW_SETDLT:
-		{
+		    {
 			struct ng_netflow_setdlt *set;
 			struct ng_netflow_iface *iface;
 
-			if (msg->header.arglen != sizeof(struct ng_netflow_setdlt))
+			if (msg->header.arglen !=
+			    sizeof(struct ng_netflow_setdlt))
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setdlt *)msg->data;
@@ -441,13 +442,14 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 			}
 			break;
-		}
+		    }
 		case NGM_NETFLOW_SETIFINDEX:
-		{
+		    {
 			struct ng_netflow_setifindex *set;
 			struct ng_netflow_iface *iface;
 
-			if (msg->header.arglen != sizeof(struct ng_netflow_setifindex))
+			if (msg->header.arglen !=
+			    sizeof(struct ng_netflow_setifindex))
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setifindex *)msg->data;
@@ -462,12 +464,13 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			iface->info.ifinfo_index = set->index;
 
 			break;
-		}
+		    }
 		case NGM_NETFLOW_SETTIMEOUTS:
-		{
+		    {
 			struct ng_netflow_settimeouts *set;
 
-			if (msg->header.arglen != sizeof(struct ng_netflow_settimeouts))
+			if (msg->header.arglen !=
+			    sizeof(struct ng_netflow_settimeouts))
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_settimeouts *)msg->data;
@@ -476,12 +479,13 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			priv->info.nfinfo_act_t = set->active_timeout;
 
 			break;
-		}
+		    }
 		case NGM_NETFLOW_SETCONFIG:
-		{
+		    {
 			struct ng_netflow_setconfig *set;
 
-			if (msg->header.arglen != sizeof(struct ng_netflow_setconfig))
+			if (msg->header.arglen !=
+			    sizeof(struct ng_netflow_setconfig))
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setconfig *)msg->data;
@@ -492,12 +496,13 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			priv->ifaces[set->iface].info.conf = set->conf;
 	
 			break;
-		}
+		    }
 		case NGM_NETFLOW_SETTEMPLATE:
-		{
+		    {
 			struct ng_netflow_settemplate *set;
 
-			if (msg->header.arglen != sizeof(struct ng_netflow_settemplate))
+			if (msg->header.arglen !=
+			    sizeof(struct ng_netflow_settemplate))
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_settemplate *)msg->data;
@@ -506,12 +511,13 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			priv->templ_time = set->time;
 
 			break;
-		}
+		    }
 		case NGM_NETFLOW_SETMTU:
-		{
+		    {
 			struct ng_netflow_setmtu *set;
 
-			if (msg->header.arglen != sizeof(struct ng_netflow_setmtu))
+			if (msg->header.arglen !=
+			    sizeof(struct ng_netflow_setmtu))
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setmtu *)msg->data;
@@ -521,10 +527,10 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			priv->mtu = set->mtu;
 
 			break;
-		}
+		    }
 		case NGM_NETFLOW_SHOW:
-		{
-			if (msg->header.arglen != sizeof(struct ngnf_show_header))
+			if (msg->header.arglen !=
+			    sizeof(struct ngnf_show_header))
 				ERROUT(EINVAL);
 
 			NG_MKRESPONSE(resp, msg, NGRESP_SIZE, M_NOWAIT);
@@ -540,18 +546,17 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				NG_FREE_MSG(resp);
 
 			break;
-		}
 		case NGM_NETFLOW_V9INFO:
-		{
+		    {
 			struct ng_netflow_v9info *i;
 
-			NG_MKRESPONSE(resp, msg, sizeof(struct ng_netflow_v9info),
-			    M_NOWAIT);
+			NG_MKRESPONSE(resp, msg,
+			    sizeof(struct ng_netflow_v9info), M_NOWAIT);
 			i = (struct ng_netflow_v9info *)resp->data;
 			ng_netflow_copyv9info(priv, i);
 
 			break;
-		}
+		    }
 		default:
 			ERROUT(EINVAL);		/* unknown command */
 			break;
@@ -613,8 +618,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	} else
 		ERROUT(EINVAL);
 
-	if ((!bypass) &&
-	    (iface->info.conf & (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE))) {
+	if ((!bypass) && (iface->info.conf &
+	    (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE))) {
 		mtag = m_tag_locate(NGI_M(item), MTAG_NETFLOW,
 		    MTAG_NETFLOW_CALLED, NULL);
 		while (mtag != NULL) {
@@ -636,7 +641,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		return (error);
 	}
 	
-	if (iface->info.conf & (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE)) {
+	if (iface->info.conf &
+	    (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE)) {
 		mtag = m_tag_alloc(MTAG_NETFLOW, MTAG_NETFLOW_CALLED,
 		    sizeof(ng_ID_t), M_NOWAIT);
 		if (mtag) {
@@ -701,7 +707,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		case ETHERTYPE_IPV6:
 			/*
 			 * m_pullup() called by M_CHECK() pullups
-			 * kern.ipc.max_protohdr (default 60 bytes) which is enough
+			 * kern.ipc.max_protohdr (default 60 bytes)
+			 * which is enough.
 			 */
 			M_CHECK(sizeof(struct ip6_hdr));
 			eh = mtod(m, struct ether_header *);
@@ -741,9 +748,11 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		ip = mtod(m, struct ip *);
 		/* l3_off is already zero */
 #ifdef INET6
-		/* If INET6 is not defined IPv6 packets will be discarded in ng_netflow_flow_add() */
+		/*
+		 * If INET6 is not defined IPv6 packets
+		 * will be discarded in ng_netflow_flow_add().
+		 */
 		if (ip->ip_v == IP6VERSION) {
-			/* IPv6 packet */
 			ip = NULL;
 			M_CHECK(sizeof(struct ip6_hdr) - sizeof(struct ip));
 			ip6 = mtod(m, struct ip6_hdr *);
@@ -772,8 +781,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		upper_proto = ip->ip_p;
 
 		/*
-		 * XXX: in case of wrong upper layer header we will forward this packet
-		 * but skip this record in netflow
+		 * XXX: in case of wrong upper layer header we will
+		 * forward this packet but skip this record in netflow.
 		 */
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -787,7 +796,10 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			break;
 		}
 	} else if (ip != NULL) {
-		/* Nothing to save except upper layer proto, since this is packet fragment */
+		/*
+		 * Nothing to save except upper layer proto,
+		 * since this is a packet fragment.
+		 */
 		flags |= NG_NETFLOW_IS_FRAG;
 		upper_proto = ip->ip_p;
 		if ((ip->ip_v != IPVERSION) ||
@@ -795,26 +807,29 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			goto bypass;
 #ifdef INET6
 	} else if (ip6 != NULL) {
-		/* Check if we can export */
-		if (priv->export9 == NULL)
-			goto bypass;
-
-		/* Loop thru IPv6 extended headers to get upper layer header / frag */
 		int cur = ip6->ip6_nxt, hdr_off = 0;
 		struct ip6_ext *ip6e;
 		struct ip6_frag *ip6f;
 
-		/* Save upper layer info */
+		if (priv->export9 == NULL)
+			goto bypass;
+
+		/* Save upper layer info. */
 		off = pullup_len;
 		upper_proto = cur;
 
 		if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
 			goto bypass;
 
-		while (42) {
+		/*
+		 * Loop thru IPv6 extended headers to get upper
+		 * layer header / frag.
+		 */
+		for (;;) {
 			switch (cur) {
 			/*
-			 * Same as in IPv4, we can forward 'bad' packet without accounting
+			 * Same as in IPv4, we can forward a 'bad'
+			 * packet without accounting.
 			 */
 			case IPPROTO_TCP:
 				M_CHECK(sizeof(struct tcphdr));
@@ -831,7 +846,8 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			case IPPROTO_ROUTING:
 			case IPPROTO_DSTOPTS:
 				M_CHECK(sizeof(struct ip6_ext));
-				ip6e = (struct ip6_ext *)(mtod(m, caddr_t) + off);
+				ip6e = (struct ip6_ext *)(mtod(m, caddr_t) +
+				    off);
 				upper_proto = ip6e->ip6e_nxt;
 				hdr_off = (ip6e->ip6e_len + 1) << 3;
 				break;
@@ -839,14 +855,16 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			/* RFC4302, can be before DSTOPTS */
 			case IPPROTO_AH:
 				M_CHECK(sizeof(struct ip6_ext));
-				ip6e = (struct ip6_ext *)(mtod(m, caddr_t) + off);
+				ip6e = (struct ip6_ext *)(mtod(m, caddr_t) +
+				    off);
 				upper_proto = ip6e->ip6e_nxt;
 				hdr_off = (ip6e->ip6e_len + 2) << 2;
 				break;
 
 			case IPPROTO_FRAGMENT:
 				M_CHECK(sizeof(struct ip6_frag));
-				ip6f = (struct ip6_frag *)(mtod(m, caddr_t) + off);
+				ip6f = (struct ip6_frag *)(mtod(m, caddr_t) +
+				    off);
 				upper_proto = ip6f->ip6f_nxt;
 				hdr_off = sizeof(struct ip6_frag);
 				off += hdr_off;
@@ -915,10 +933,12 @@ loopend:
 	}
 
 	if (ip != NULL)
-		error = ng_netflow_flow_add(priv, fe, ip, upper_ptr, upper_proto, flags, src_if_index);
+		error = ng_netflow_flow_add(priv, fe, ip, upper_ptr,
+		    upper_proto, flags, src_if_index);
 #ifdef INET6		
 	else if (ip6 != NULL)
-		error = ng_netflow_flow6_add(priv, fe, ip6, upper_ptr, upper_proto, flags, src_if_index);
+		error = ng_netflow_flow6_add(priv, fe, ip6, upper_ptr,
+		    upper_proto, flags, src_if_index);
 #endif
 	else
 		goto bypass;
@@ -929,10 +949,12 @@ bypass:
 		if (acct == 0) {
 			/* Accounting failure */
 			if (ip != NULL) {
-				atomic_fetchadd_32(&priv->info.nfinfo_spackets, 1);
+				atomic_fetchadd_32(&priv->info.nfinfo_spackets,
+				    1);
 				priv->info.nfinfo_sbytes += m_length(m, NULL);
 			} else if (ip6 != NULL) {
-				atomic_fetchadd_32(&priv->info.nfinfo_spackets6, 1);
+				atomic_fetchadd_32(&priv->info.nfinfo_spackets6,
+				    1);
 				priv->info.nfinfo_sbytes6 += m_length(m, NULL);
 			}
 		}

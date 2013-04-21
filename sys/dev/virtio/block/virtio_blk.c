@@ -72,6 +72,7 @@ struct vtblk_softc {
 #define VTBLK_FLAG_DETACH	0x0004
 #define VTBLK_FLAG_SUSPEND	0x0008
 #define VTBLK_FLAG_DUMPING	0x0010
+#define VTBLK_FLAG_BARRIER	0x0020
 
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
@@ -81,7 +82,8 @@ struct vtblk_softc {
 	TAILQ_HEAD(, vtblk_request)
 				 vtblk_req_free;
 	TAILQ_HEAD(, vtblk_request)
-				vtblk_req_ready;
+				 vtblk_req_ready;
+	struct vtblk_request	*vtblk_req_ordered;
 
 	struct taskqueue	*vtblk_tq;
 	struct task		 vtblk_intr_task;
@@ -278,9 +280,10 @@ vtblk_attach(device_t dev)
 
 	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
 		sc->vtblk_flags |= VTBLK_FLAG_INDIRECT;
-
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_RO))
 		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_BARRIER))
+		sc->vtblk_flags |= VTBLK_FLAG_BARRIER;
 
 	/* Get local copy of config. */
 	virtio_read_device_config(dev, 0, &blkcfg,
@@ -766,24 +769,44 @@ vtblk_bio_request(struct vtblk_softc *sc)
 		    bp->bio_cmd);
 	}
 
-	if (bp->bio_flags & BIO_ORDERED)
-		req->vbr_hdr.type |= VIRTIO_BLK_T_BARRIER;
-
 	return (req);
 }
 
 static int
 vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request *req)
 {
+	struct virtqueue *vq;
 	struct sglist *sg;
 	struct bio *bp;
-	int readable, writable, error;
+	int ordered, readable, writable, error;
 
+	vq = sc->vtblk_vq;
 	sg = sc->vtblk_sglist;
 	bp = req->vbr_bp;
+	ordered = 0;
 	writable = 0;
 
 	VTBLK_LOCK_ASSERT(sc);
+
+	/*
+	 * Wait until the ordered request completes before
+	 * executing subsequent requests.
+	 */
+	if (sc->vtblk_req_ordered != NULL)
+		return (EBUSY);
+
+	if (bp->bio_flags & BIO_ORDERED) {
+		if ((sc->vtblk_flags & VTBLK_FLAG_BARRIER) == 0) {
+			/*
+			 * This request will be executed once all
+			 * the in-flight requests are completed.
+			 */
+			if (!virtqueue_empty(vq))
+				return (EBUSY);
+			ordered = 1;
+		} else
+			req->vbr_hdr.type |= VIRTIO_BLK_T_BARRIER;
+	}
 
 	sglist_reset(sg);
 
@@ -802,10 +825,13 @@ vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request *req)
 
 	writable++;
 	sglist_append(sg, &req->vbr_ack, sizeof(uint8_t));
-
 	readable = sg->sg_nseg - writable;
 
-	return (virtqueue_enqueue(sc->vtblk_vq, req, sg, readable, writable));
+	error = virtqueue_enqueue(vq, req, sg, readable, writable);
+	if (error == 0 && ordered)
+		sc->vtblk_req_ordered = req;
+
+	return (error);
 }
 
 static int
@@ -1013,6 +1039,12 @@ vtblk_finish_completed(struct vtblk_softc *sc)
 	while ((req = virtqueue_dequeue(sc->vtblk_vq, NULL)) != NULL) {
 		bp = req->vbr_bp;
 
+		if (sc->vtblk_req_ordered != NULL) {
+			/* This should be the only outstanding request. */
+			MPASS(sc->vtblk_req_ordered == req);
+			sc->vtblk_req_ordered = NULL;
+		}
+
 		error = vtblk_request_error(req);
 		if (error)
 			disk_err(bp, "hard error", -1, 1);
@@ -1039,6 +1071,7 @@ vtblk_drain_vq(struct vtblk_softc *sc, int skip_done)
 		vtblk_enqueue_request(sc, req);
 	}
 
+	sc->vtblk_req_ordered = NULL;
 	KASSERT(virtqueue_empty(vq), ("virtqueue not empty"));
 }
 

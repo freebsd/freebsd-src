@@ -311,8 +311,10 @@ namespace ISD {
     /// the shift amount can be any type, but care must be taken to ensure it is
     /// large enough.  TLI.getShiftAmountTy() is i8 on some targets, but before
     /// legalization, types like i1024 can occur and i8 doesn't have enough bits
-    /// to represent the shift amount.  By convention, DAGCombine and
-    /// SelectionDAGBuilder forces these shift amounts to i32 for simplicity.
+    /// to represent the shift amount.
+    /// When the 1st operand is a vector, the shift amount must be in the same
+    /// type. (TLI.getShiftAmountTy() will return the same type when the input
+    /// type is a vector.)
     SHL, SRA, SRL, ROTL, ROTR,
 
     /// Byte Swap and Counting operators.
@@ -455,6 +457,9 @@ namespace ISD {
     FNEG, FABS, FSQRT, FSIN, FCOS, FPOWI, FPOW,
     FLOG, FLOG2, FLOG10, FEXP, FEXP2,
     FCEIL, FTRUNC, FRINT, FNEARBYINT, FFLOOR,
+    
+    /// FSINCOS - Compute both fsin and fcos as a single operation.
+    FSINCOS,
 
     /// LOAD and STORE have token chains as their first operand, then the same
     /// operands as an LLVM load/store instruction, then an offset node that

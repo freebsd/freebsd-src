@@ -358,8 +358,8 @@ mk_update_tcb_for_ddp(struct adapter *sc, struct toepcb *toep, int db_idx,
 	 * The ULPTX master commands that follow must all end at 16B boundaries
 	 * too so we round up the size to 16.
 	 */
-	len = sizeof(*wrh) + 3 * roundup(LEN__SET_TCB_FIELD_ULP, 16) +
-	    roundup(LEN__RX_DATA_ACK_ULP, 16);
+	len = sizeof(*wrh) + 3 * roundup2(LEN__SET_TCB_FIELD_ULP, 16) +
+	    roundup2(LEN__RX_DATA_ACK_ULP, 16);
 
 	wr = alloc_wrqe(len, toep->ctrlq);
 	if (wr == NULL)
@@ -755,7 +755,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 		/* How many page pods are we writing in this cycle */
 		n = min(db->nppods - i, NUM_ULP_TX_SC_IMM_PPODS);
 		chunk = PPOD_SZ(n);
-		len = roundup(sizeof(*ulpmc) + sizeof(*ulpsc) + chunk, 16);
+		len = roundup2(sizeof(*ulpmc) + sizeof(*ulpsc) + chunk, 16);
 
 		wr = alloc_wrqe(len, toep->ctrlq);
 		if (wr == NULL)
@@ -764,7 +764,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 
 		INIT_ULPTX_WR(ulpmc, len, 0, 0);
 		ulpmc->cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
-		    F_ULP_MEMIO_ORDER);
+		    is_t4(sc) ? F_ULP_MEMIO_ORDER : F_T5_ULP_MEMIO_IMM);
 		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
 		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
 		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));

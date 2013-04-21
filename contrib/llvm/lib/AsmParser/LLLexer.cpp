@@ -12,14 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "LLLexer.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instruction.h"
-#include "llvm/LLVMContext.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Assembly/Parser.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cctype>
@@ -55,22 +56,12 @@ uint64_t LLLexer::atoull(const char *Buffer, const char *End) {
   return Result;
 }
 
-static char parseHexChar(char C) {
-  if (C >= '0' && C <= '9')
-    return C-'0';
-  if (C >= 'A' && C <= 'F')
-    return C-'A'+10;
-  if (C >= 'a' && C <= 'f')
-    return C-'a'+10;
-  return 0;
-}
-
 uint64_t LLLexer::HexIntToVal(const char *Buffer, const char *End) {
   uint64_t Result = 0;
   for (; Buffer != End; ++Buffer) {
     uint64_t OldRes = Result;
     Result *= 16;
-    Result += parseHexChar(*Buffer);
+    Result += hexDigitValue(*Buffer);
 
     if (Result < OldRes) {   // Uh, oh, overflow detected!!!
       Error("constant bigger than 64 bits detected!");
@@ -86,12 +77,12 @@ void LLLexer::HexToIntPair(const char *Buffer, const char *End,
   for (int i=0; i<16; i++, Buffer++) {
     assert(Buffer != End);
     Pair[0] *= 16;
-    Pair[0] += parseHexChar(*Buffer);
+    Pair[0] += hexDigitValue(*Buffer);
   }
   Pair[1] = 0;
   for (int i=0; i<16 && Buffer != End; i++, Buffer++) {
     Pair[1] *= 16;
-    Pair[1] += parseHexChar(*Buffer);
+    Pair[1] += hexDigitValue(*Buffer);
   }
   if (Buffer != End)
     Error("constant bigger than 128 bits detected!");
@@ -105,12 +96,12 @@ void LLLexer::FP80HexToIntPair(const char *Buffer, const char *End,
   for (int i=0; i<4 && Buffer != End; i++, Buffer++) {
     assert(Buffer != End);
     Pair[1] *= 16;
-    Pair[1] += parseHexChar(*Buffer);
+    Pair[1] += hexDigitValue(*Buffer);
   }
   Pair[0] = 0;
   for (int i=0; i<16; i++, Buffer++) {
     Pair[0] *= 16;
-    Pair[0] += parseHexChar(*Buffer);
+    Pair[0] += hexDigitValue(*Buffer);
   }
   if (Buffer != End)
     Error("constant bigger than 128 bits detected!");
@@ -128,8 +119,10 @@ static void UnEscapeLexed(std::string &Str) {
       if (BIn < EndBuffer-1 && BIn[1] == '\\') {
         *BOut++ = '\\'; // Two \ becomes one
         BIn += 2;
-      } else if (BIn < EndBuffer-2 && isxdigit(BIn[1]) && isxdigit(BIn[2])) {
-        *BOut = parseHexChar(BIn[1]) * 16 + parseHexChar(BIn[2]);
+      } else if (BIn < EndBuffer-2 &&
+                 isxdigit(static_cast<unsigned char>(BIn[1])) &&
+                 isxdigit(static_cast<unsigned char>(BIn[2]))) {
+        *BOut = hexDigitValue(BIn[1]) * 16 + hexDigitValue(BIn[2]);
         BIn += 3;                           // Skip over handled chars
         ++BOut;
       } else {
@@ -144,7 +137,8 @@ static void UnEscapeLexed(std::string &Str) {
 
 /// isLabelChar - Return true for [-a-zA-Z$._0-9].
 static bool isLabelChar(char C) {
-  return isalnum(C) || C == '-' || C == '$' || C == '.' || C == '_';
+  return isalnum(static_cast<unsigned char>(C)) || C == '-' || C == '$' ||
+         C == '.' || C == '_';
 }
 
 
@@ -197,7 +191,7 @@ lltok::Kind LLLexer::LexToken() {
   switch (CurChar) {
   default:
     // Handle letters: [a-zA-Z_]
-    if (isalpha(CurChar) || CurChar == '_')
+    if (isalpha(static_cast<unsigned char>(CurChar)) || CurChar == '_')
       return LexIdentifier();
 
     return lltok::Error;
@@ -235,6 +229,7 @@ lltok::Kind LLLexer::LexToken() {
     SkipLineComment();
     return LexToken();
   case '!': return LexExclaim();
+  case '#': return LexHash();
   case '0': case '1': case '2': case '3': case '4':
   case '5': case '6': case '7': case '8': case '9':
   case '-':
@@ -290,8 +285,8 @@ lltok::Kind LLLexer::LexAt() {
     return lltok::GlobalVar;
 
   // Handle GlobalVarID: @[0-9]+
-  if (isdigit(CurPtr[0])) {
-    for (++CurPtr; isdigit(CurPtr[0]); ++CurPtr)
+  if (isdigit(static_cast<unsigned char>(CurPtr[0]))) {
+    for (++CurPtr; isdigit(static_cast<unsigned char>(CurPtr[0])); ++CurPtr)
       /*empty*/;
 
     uint64_t Val = atoull(TokStart+1, CurPtr);
@@ -325,10 +320,12 @@ lltok::Kind LLLexer::ReadString(lltok::Kind kind) {
 /// ReadVarName - Read the rest of a token containing a variable name.
 bool LLLexer::ReadVarName() {
   const char *NameStart = CurPtr;
-  if (isalpha(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
+  if (isalpha(static_cast<unsigned char>(CurPtr[0])) ||
+      CurPtr[0] == '-' || CurPtr[0] == '$' ||
       CurPtr[0] == '.' || CurPtr[0] == '_') {
     ++CurPtr;
-    while (isalnum(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
+    while (isalnum(static_cast<unsigned char>(CurPtr[0])) ||
+           CurPtr[0] == '-' || CurPtr[0] == '$' ||
            CurPtr[0] == '.' || CurPtr[0] == '_')
       ++CurPtr;
 
@@ -354,8 +351,8 @@ lltok::Kind LLLexer::LexPercent() {
     return lltok::LocalVar;
 
   // Handle LocalVarID: %[0-9]+
-  if (isdigit(CurPtr[0])) {
-    for (++CurPtr; isdigit(CurPtr[0]); ++CurPtr)
+  if (isdigit(static_cast<unsigned char>(CurPtr[0]))) {
+    for (++CurPtr; isdigit(static_cast<unsigned char>(CurPtr[0])); ++CurPtr)
       /*empty*/;
 
     uint64_t Val = atoull(TokStart+1, CurPtr);
@@ -389,10 +386,12 @@ lltok::Kind LLLexer::LexQuote() {
 ///    !
 lltok::Kind LLLexer::LexExclaim() {
   // Lex a metadata name as a MetadataVar.
-  if (isalpha(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
+  if (isalpha(static_cast<unsigned char>(CurPtr[0])) ||
+      CurPtr[0] == '-' || CurPtr[0] == '$' ||
       CurPtr[0] == '.' || CurPtr[0] == '_' || CurPtr[0] == '\\') {
     ++CurPtr;
-    while (isalnum(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
+    while (isalnum(static_cast<unsigned char>(CurPtr[0])) ||
+           CurPtr[0] == '-' || CurPtr[0] == '$' ||
            CurPtr[0] == '.' || CurPtr[0] == '_' || CurPtr[0] == '\\')
       ++CurPtr;
 
@@ -402,7 +401,25 @@ lltok::Kind LLLexer::LexExclaim() {
   }
   return lltok::exclaim;
 }
-  
+
+/// LexHash - Lex all tokens that start with a # character:
+///    AttrGrpID ::= #[0-9]+
+lltok::Kind LLLexer::LexHash() {
+  // Handle AttrGrpID: #[0-9]+
+  if (isdigit(static_cast<unsigned char>(CurPtr[0]))) {
+    for (++CurPtr; isdigit(static_cast<unsigned char>(CurPtr[0])); ++CurPtr)
+      /*empty*/;
+
+    uint64_t Val = atoull(TokStart+1, CurPtr);
+    if ((unsigned)Val != Val)
+      Error("invalid value number (too large)!");
+    UIntVal = unsigned(Val);
+    return lltok::AttrGrpID;
+  }
+
+  return lltok::Error;
+}
+
 /// LexIdentifier: Handle several related productions:
 ///    Label           [-a-zA-Z$._0-9]+:
 ///    IntegerType     i[0-9]+
@@ -415,8 +432,11 @@ lltok::Kind LLLexer::LexIdentifier() {
 
   for (; isLabelChar(*CurPtr); ++CurPtr) {
     // If we decide this is an integer, remember the end of the sequence.
-    if (!IntEnd && !isdigit(*CurPtr)) IntEnd = CurPtr;
-    if (!KeywordEnd && !isalnum(*CurPtr) && *CurPtr != '_') KeywordEnd = CurPtr;
+    if (!IntEnd && !isdigit(static_cast<unsigned char>(*CurPtr)))
+      IntEnd = CurPtr;
+    if (!KeywordEnd && !isalnum(static_cast<unsigned char>(*CurPtr)) &&
+        *CurPtr != '_')
+      KeywordEnd = CurPtr;
   }
 
   // If we stopped due to a colon, this really is a label.
@@ -445,9 +465,11 @@ lltok::Kind LLLexer::LexIdentifier() {
   CurPtr = KeywordEnd;
   --StartChar;
   unsigned Len = CurPtr-StartChar;
-#define KEYWORD(STR) \
-  if (Len == strlen(#STR) && !memcmp(StartChar, #STR, strlen(#STR))) \
-    return lltok::kw_##STR;
+#define KEYWORD(STR)                                                    \
+  do {                                                                  \
+    if (Len == strlen(#STR) && !memcmp(StartChar, #STR, strlen(#STR)))  \
+      return lltok::kw_##STR;                                           \
+  } while (0)
 
   KEYWORD(true);    KEYWORD(false);
   KEYWORD(declare); KEYWORD(define);
@@ -472,6 +494,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(hidden);
   KEYWORD(protected);
   KEYWORD(unnamed_addr);
+  KEYWORD(externally_initialized);
   KEYWORD(extern_weak);
   KEYWORD(external);
   KEYWORD(thread_local);
@@ -486,7 +509,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(target);
   KEYWORD(triple);
   KEYWORD(unwind);
-  KEYWORD(deplibs);
+  KEYWORD(deplibs);             // FIXME: Remove in 4.0.
   KEYWORD(datalayout);
   KEYWORD(volatile);
   KEYWORD(atomic);
@@ -498,6 +521,11 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(seq_cst);
   KEYWORD(singlethread);
 
+  KEYWORD(nnan);
+  KEYWORD(ninf);
+  KEYWORD(nsz);
+  KEYWORD(arcp);
+  KEYWORD(fast);
   KEYWORD(nuw);
   KEYWORD(nsw);
   KEYWORD(exact);
@@ -532,33 +560,39 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(cc);
   KEYWORD(c);
 
-  KEYWORD(signext);
-  KEYWORD(zeroext);
-  KEYWORD(inreg);
-  KEYWORD(sret);
-  KEYWORD(nounwind);
-  KEYWORD(noreturn);
-  KEYWORD(noalias);
-  KEYWORD(nocapture);
+  KEYWORD(attributes);
+
+  KEYWORD(alwaysinline);
   KEYWORD(byval);
+  KEYWORD(inlinehint);
+  KEYWORD(inreg);
+  KEYWORD(minsize);
+  KEYWORD(naked);
   KEYWORD(nest);
+  KEYWORD(noalias);
+  KEYWORD(nobuiltin);
+  KEYWORD(nocapture);
+  KEYWORD(noduplicate);
+  KEYWORD(noimplicitfloat);
+  KEYWORD(noinline);
+  KEYWORD(nonlazybind);
+  KEYWORD(noredzone);
+  KEYWORD(noreturn);
+  KEYWORD(nounwind);
+  KEYWORD(optsize);
   KEYWORD(readnone);
   KEYWORD(readonly);
-  KEYWORD(uwtable);
   KEYWORD(returns_twice);
-
-  KEYWORD(inlinehint);
-  KEYWORD(noinline);
-  KEYWORD(alwaysinline);
-  KEYWORD(optsize);
+  KEYWORD(signext);
+  KEYWORD(sret);
   KEYWORD(ssp);
   KEYWORD(sspreq);
-  KEYWORD(noredzone);
-  KEYWORD(noimplicitfloat);
-  KEYWORD(naked);
-  KEYWORD(nonlazybind);
-  KEYWORD(address_safety);
-  KEYWORD(minsize);
+  KEYWORD(sspstrong);
+  KEYWORD(sanitize_address);
+  KEYWORD(sanitize_thread);
+  KEYWORD(sanitize_memory);
+  KEYWORD(uwtable);
+  KEYWORD(zeroext);
 
   KEYWORD(type);
   KEYWORD(opaque);
@@ -653,7 +687,8 @@ lltok::Kind LLLexer::LexIdentifier() {
   // Check for [us]0x[0-9A-Fa-f]+ which are Hexadecimal constant generated by
   // the CFE to avoid forcing it to deal with 64-bit numbers.
   if ((TokStart[0] == 'u' || TokStart[0] == 's') &&
-      TokStart[1] == '0' && TokStart[2] == 'x' && isxdigit(TokStart[3])) {
+      TokStart[1] == '0' && TokStart[2] == 'x' &&
+      isxdigit(static_cast<unsigned char>(TokStart[3]))) {
     int len = CurPtr-TokStart-3;
     uint32_t bits = len * 4;
     APInt Tmp(bits, StringRef(TokStart+3, len), 16);
@@ -693,13 +728,13 @@ lltok::Kind LLLexer::Lex0x() {
     Kind = 'J';
   }
 
-  if (!isxdigit(CurPtr[0])) {
+  if (!isxdigit(static_cast<unsigned char>(CurPtr[0]))) {
     // Bad token, return it as an error.
     CurPtr = TokStart+1;
     return lltok::Error;
   }
 
-  while (isxdigit(CurPtr[0]))
+  while (isxdigit(static_cast<unsigned char>(CurPtr[0])))
     ++CurPtr;
 
   if (Kind == 'J') {
@@ -716,20 +751,21 @@ lltok::Kind LLLexer::Lex0x() {
   case 'K':
     // F80HexFPConstant - x87 long double in hexadecimal format (10 bytes)
     FP80HexToIntPair(TokStart+3, CurPtr, Pair);
-    APFloatVal = APFloat(APInt(80, Pair));
+    APFloatVal = APFloat(APFloat::x87DoubleExtended, APInt(80, Pair));
     return lltok::APFloat;
   case 'L':
     // F128HexFPConstant - IEEE 128-bit in hexadecimal format (16 bytes)
     HexToIntPair(TokStart+3, CurPtr, Pair);
-    APFloatVal = APFloat(APInt(128, Pair), true);
+    APFloatVal = APFloat(APFloat::IEEEquad, APInt(128, Pair));
     return lltok::APFloat;
   case 'M':
     // PPC128HexFPConstant - PowerPC 128-bit in hexadecimal format (16 bytes)
     HexToIntPair(TokStart+3, CurPtr, Pair);
-    APFloatVal = APFloat(APInt(128, Pair));
+    APFloatVal = APFloat(APFloat::PPCDoubleDouble, APInt(128, Pair));
     return lltok::APFloat;
   case 'H':
-    APFloatVal = APFloat(APInt(16,HexIntToVal(TokStart+3, CurPtr)));
+    APFloatVal = APFloat(APFloat::IEEEhalf,
+                         APInt(16,HexIntToVal(TokStart+3, CurPtr)));
     return lltok::APFloat;
   }
 }
@@ -744,8 +780,9 @@ lltok::Kind LLLexer::Lex0x() {
 ///    HexFP128Constant  0xL[0-9A-Fa-f]+
 ///    HexPPC128Constant 0xM[0-9A-Fa-f]+
 lltok::Kind LLLexer::LexDigitOrNegative() {
-  // If the letter after the negative is a number, this is probably a label.
-  if (!isdigit(TokStart[0]) && !isdigit(CurPtr[0])) {
+  // If the letter after the negative is not a number, this is probably a label.
+  if (!isdigit(static_cast<unsigned char>(TokStart[0])) &&
+      !isdigit(static_cast<unsigned char>(CurPtr[0]))) {
     // Okay, this is not a number after the -, it's probably a label.
     if (const char *End = isLabelTail(CurPtr)) {
       StrVal.assign(TokStart, End-1);
@@ -759,7 +796,7 @@ lltok::Kind LLLexer::LexDigitOrNegative() {
   // At this point, it is either a label, int or fp constant.
 
   // Skip digits, we have at least one.
-  for (; isdigit(CurPtr[0]); ++CurPtr)
+  for (; isdigit(static_cast<unsigned char>(CurPtr[0])); ++CurPtr)
     /*empty*/;
 
   // Check to see if this really is a label afterall, e.g. "-1:".
@@ -796,13 +833,14 @@ lltok::Kind LLLexer::LexDigitOrNegative() {
   ++CurPtr;
 
   // Skip over [0-9]*([eE][-+]?[0-9]+)?
-  while (isdigit(CurPtr[0])) ++CurPtr;
+  while (isdigit(static_cast<unsigned char>(CurPtr[0]))) ++CurPtr;
 
   if (CurPtr[0] == 'e' || CurPtr[0] == 'E') {
-    if (isdigit(CurPtr[1]) ||
-        ((CurPtr[1] == '-' || CurPtr[1] == '+') && isdigit(CurPtr[2]))) {
+    if (isdigit(static_cast<unsigned char>(CurPtr[1])) ||
+        ((CurPtr[1] == '-' || CurPtr[1] == '+') &&
+          isdigit(static_cast<unsigned char>(CurPtr[2])))) {
       CurPtr += 2;
-      while (isdigit(CurPtr[0])) ++CurPtr;
+      while (isdigit(static_cast<unsigned char>(CurPtr[0]))) ++CurPtr;
     }
   }
 
@@ -814,11 +852,11 @@ lltok::Kind LLLexer::LexDigitOrNegative() {
 lltok::Kind LLLexer::LexPositive() {
   // If the letter after the negative is a number, this is probably not a
   // label.
-  if (!isdigit(CurPtr[0]))
+  if (!isdigit(static_cast<unsigned char>(CurPtr[0])))
     return lltok::Error;
 
   // Skip digits.
-  for (++CurPtr; isdigit(CurPtr[0]); ++CurPtr)
+  for (++CurPtr; isdigit(static_cast<unsigned char>(CurPtr[0])); ++CurPtr)
     /*empty*/;
 
   // At this point, we need a '.'.
@@ -830,13 +868,14 @@ lltok::Kind LLLexer::LexPositive() {
   ++CurPtr;
 
   // Skip over [0-9]*([eE][-+]?[0-9]+)?
-  while (isdigit(CurPtr[0])) ++CurPtr;
+  while (isdigit(static_cast<unsigned char>(CurPtr[0]))) ++CurPtr;
 
   if (CurPtr[0] == 'e' || CurPtr[0] == 'E') {
-    if (isdigit(CurPtr[1]) ||
-        ((CurPtr[1] == '-' || CurPtr[1] == '+') && isdigit(CurPtr[2]))) {
+    if (isdigit(static_cast<unsigned char>(CurPtr[1])) ||
+        ((CurPtr[1] == '-' || CurPtr[1] == '+') &&
+        isdigit(static_cast<unsigned char>(CurPtr[2])))) {
       CurPtr += 2;
-      while (isdigit(CurPtr[0])) ++CurPtr;
+      while (isdigit(static_cast<unsigned char>(CurPtr[0]))) ++CurPtr;
     }
   }
 

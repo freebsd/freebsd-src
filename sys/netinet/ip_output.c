@@ -784,7 +784,7 @@ smart_frag_failure:
 		struct mbuf *m;
 		int mhlen = sizeof (struct ip);
 
-		MGETHDR(m, M_NOWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			IPSTAT_INC(ips_odropped);
@@ -951,7 +951,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = EMSGSIZE;
 				break;
 			}
-			MGET(m, sopt->sopt_td ? M_WAITOK : M_NOWAIT, MT_DATA);
+			m = m_get(sopt->sopt_td ? M_WAITOK : M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				error = ENOBUFS;
 				break;

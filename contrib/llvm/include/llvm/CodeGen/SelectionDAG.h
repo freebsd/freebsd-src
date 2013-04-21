@@ -15,16 +15,17 @@
 #ifndef LLVM_CODEGEN_SELECTIONDAG_H
 #define LLVM_CODEGEN_SELECTIONDAG_H
 
-#include "llvm/ADT/ilist.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/ilist.h"
+#include "llvm/CodeGen/DAGCombine.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Support/RecyclingAllocator.h"
 #include "llvm/Target/TargetMachine.h"
 #include <cassert>
-#include <vector>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace llvm {
 
@@ -36,6 +37,7 @@ class SDNodeOrdering;
 class SDDbgValue;
 class TargetLowering;
 class TargetSelectionDAGInfo;
+class TargetTransformInfo;
 
 template<> struct ilist_traits<SDNode> : public ilist_default_traits<SDNode> {
 private:
@@ -111,13 +113,6 @@ public:
   DbgIterator ByvalParmDbgEnd()   { return ByvalParmDbgValues.end(); }
 };
 
-enum CombineLevel {
-  BeforeLegalizeTypes,
-  AfterLegalizeTypes,
-  AfterLegalizeVectorOps,
-  AfterLegalizeDAG
-};
-
 class SelectionDAG;
 void checkForCycles(const SDNode *N);
 void checkForCycles(const SelectionDAG *DAG);
@@ -137,6 +132,7 @@ class SelectionDAG {
   const TargetMachine &TM;
   const TargetLowering &TLI;
   const TargetSelectionDAGInfo &TSI;
+  const TargetTransformInfo *TTI;
   MachineFunction *MF;
   LLVMContext *Context;
   CodeGenOpt::Level OptLevel;
@@ -232,7 +228,7 @@ public:
   /// init - Prepare this SelectionDAG to process code in the given
   /// MachineFunction.
   ///
-  void init(MachineFunction &mf);
+  void init(MachineFunction &mf, const TargetTransformInfo *TTI);
 
   /// clear - Clear state and free memory necessary to make this
   /// SelectionDAG ready to process a new block.
@@ -243,6 +239,7 @@ public:
   const TargetMachine &getTarget() const { return TM; }
   const TargetLowering &getTargetLoweringInfo() const { return TLI; }
   const TargetSelectionDAGInfo &getSelectionDAGInfo() const { return TSI; }
+  const TargetTransformInfo *getTargetTransformInfo() const { return TTI; }
   LLVMContext *getContext() const {return Context; }
 
   /// viewGraph - Pop up a GraphViz/gv window with the DAG rendered using 'dot'.
@@ -570,7 +567,7 @@ public:
   SDValue getNode(unsigned Opcode, DebugLoc DL, EVT VT,
                   const SDValue *Ops, unsigned NumOps);
   SDValue getNode(unsigned Opcode, DebugLoc DL,
-                  const std::vector<EVT> &ResultTys,
+                  ArrayRef<EVT> ResultTys,
                   const SDValue *Ops, unsigned NumOps);
   SDValue getNode(unsigned Opcode, DebugLoc DL, const EVT *VTs, unsigned NumVTs,
                   const SDValue *Ops, unsigned NumOps);
@@ -834,7 +831,7 @@ public:
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
                          EVT VT3, EVT VT4, const SDValue *Ops, unsigned NumOps);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl,
-                         const std::vector<EVT> &ResultTys, const SDValue *Ops,
+                         ArrayRef<EVT> ResultTys, const SDValue *Ops,
                          unsigned NumOps);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, SDVTList VTs,
                          const SDValue *Ops, unsigned NumOps);
@@ -938,6 +935,20 @@ public:
     }
   }
 
+  /// Returns an APFloat semantics tag appropriate for the given type. If VT is
+  /// a vector type, the element semantics are returned.
+  static const fltSemantics &EVTToAPFloatSemantics(EVT VT) {
+    switch (VT.getScalarType().getSimpleVT().SimpleTy) {
+    default: llvm_unreachable("Unknown FP format");
+    case MVT::f16:     return APFloat::IEEEhalf;
+    case MVT::f32:     return APFloat::IEEEsingle;
+    case MVT::f64:     return APFloat::IEEEdouble;
+    case MVT::f80:     return APFloat::x87DoubleExtended;
+    case MVT::f128:    return APFloat::IEEEquad;
+    case MVT::ppcf128: return APFloat::PPCDoubleDouble;
+    }
+  }
+
   /// AssignOrdering - Assign an order to the SDNode.
   void AssignOrdering(const SDNode *SD, unsigned Order);
 
@@ -981,10 +992,8 @@ public:
   SDValue CreateStackTemporary(EVT VT1, EVT VT2);
 
   /// FoldConstantArithmetic -
-  SDValue FoldConstantArithmetic(unsigned Opcode,
-                                 EVT VT,
-                                 ConstantSDNode *Cst1,
-                                 ConstantSDNode *Cst2);
+  SDValue FoldConstantArithmetic(unsigned Opcode, EVT VT,
+                                 SDNode *Cst1, SDNode *Cst2);
 
   /// FoldSetCC - Constant fold a setcc to true or false.
   SDValue FoldSetCC(EVT VT, SDValue N1,

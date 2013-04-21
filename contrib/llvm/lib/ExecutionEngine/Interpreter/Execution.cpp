@@ -13,16 +13,16 @@
 
 #define DEBUG_TYPE "interpreter"
 #include "Interpreter.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/CodeGen/IntrinsicLowering.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/IntrinsicLowering.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include <algorithm>
 #include <cmath>
@@ -1169,10 +1169,12 @@ void Interpreter::visitVAArgInst(VAArgInst &I) {
                       .VarArgs[VAList.UIntPairVal.second];
   Type *Ty = I.getType();
   switch (Ty->getTypeID()) {
-    case Type::IntegerTyID: Dest.IntVal = Src.IntVal;
-    IMPLEMENT_VAARG(Pointer);
-    IMPLEMENT_VAARG(Float);
-    IMPLEMENT_VAARG(Double);
+  case Type::IntegerTyID:
+    Dest.IntVal = Src.IntVal;
+    break;
+  IMPLEMENT_VAARG(Pointer);
+  IMPLEMENT_VAARG(Float);
+  IMPLEMENT_VAARG(Double);
   default:
     dbgs() << "Unhandled dest type for vaarg instruction: " << *Ty << "\n";
     llvm_unreachable(0);
@@ -1183,6 +1185,39 @@ void Interpreter::visitVAArgInst(VAArgInst &I) {
 
   // Move the pointer to the next vararg.
   ++VAList.UIntPairVal.second;
+}
+
+void Interpreter::visitExtractElementInst(ExtractElementInst &I) {
+  ExecutionContext &SF = ECStack.back();
+  GenericValue Src1 = getOperandValue(I.getOperand(0), SF);
+  GenericValue Src2 = getOperandValue(I.getOperand(1), SF);
+  GenericValue Dest;
+
+  Type *Ty = I.getType();
+  const unsigned indx = unsigned(Src2.IntVal.getZExtValue());
+
+  if(Src1.AggregateVal.size() > indx) {
+    switch (Ty->getTypeID()) {
+    default:
+      dbgs() << "Unhandled destination type for extractelement instruction: "
+      << *Ty << "\n";
+      llvm_unreachable(0);
+      break;
+    case Type::IntegerTyID:
+      Dest.IntVal = Src1.AggregateVal[indx].IntVal;
+      break;
+    case Type::FloatTyID:
+      Dest.FloatVal = Src1.AggregateVal[indx].FloatVal;
+      break;
+    case Type::DoubleTyID:
+      Dest.DoubleVal = Src1.AggregateVal[indx].DoubleVal;
+      break;
+    }
+  } else {
+    dbgs() << "Invalid index in extractelement instruction\n";
+  }
+
+  SetValue(&I, Dest, SF);
 }
 
 GenericValue Interpreter::getConstantExprValue (ConstantExpr *CE,

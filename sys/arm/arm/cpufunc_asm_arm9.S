@@ -49,6 +49,7 @@ ENTRY(arm9_setttb)
 
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	mov	pc, lr
+END(arm9_setttb)
 
 /*
  * TLB functions
@@ -57,6 +58,7 @@ ENTRY(arm9_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
 	mov	pc, lr
+END(arm9_tlb_flushID_SE)
 
 /*
  * Cache operations.  For the entire cache we use the set/index
@@ -83,6 +85,7 @@ ENTRY_NP(arm9_icache_sync_range)
 	subs	r1, r1, ip
 	bhi	.Larm9_sync_next
 	mov	pc, lr
+END(arm9_icache_sync_range)
 
 ENTRY_NP(arm9_icache_sync_all)
 .Larm9_icache_sync_all:
@@ -106,6 +109,7 @@ ENTRY_NP(arm9_icache_sync_all)
 	subs	s_max, s_max, s_inc
 	bhs	.Lnext_set		/* Next set */
 	mov	pc, lr
+END(arm9_icache_sync_all)
 
 .Larm9_line_size:
 	.word	_C_LABEL(arm_pdcache_line_size)
@@ -125,6 +129,7 @@ ENTRY(arm9_dcache_wb_range)
 	subs	r1, r1, ip
 	bhi	.Larm9_wb_next
 	mov	pc, lr
+END(arm9_dcache_wb_range)
 	
 ENTRY(arm9_dcache_wbinv_range)
 	ldr	ip, .Larm9_line_size
@@ -141,6 +146,7 @@ ENTRY(arm9_dcache_wbinv_range)
 	subs	r1, r1, ip
 	bhi	.Larm9_wbinv_next
 	mov	pc, lr
+END(arm9_dcache_wbinv_range)
 	
 /*
  * Note, we must not invalidate everything.  If the range is too big we
@@ -161,6 +167,7 @@ ENTRY(arm9_dcache_inv_range)
 	subs	r1, r1, ip
 	bhi	.Larm9_inv_next
 	mov	pc, lr
+END(arm9_dcache_inv_range)
 
 ENTRY(arm9_idcache_wbinv_range)
 	ldr	ip, .Larm9_line_size
@@ -178,6 +185,7 @@ ENTRY(arm9_idcache_wbinv_range)
 	subs	r1, r1, ip
 	bhi	.Larm9_id_wbinv_next
 	mov	pc, lr
+END(arm9_idcache_wbinv_range)
 
 ENTRY_NP(arm9_idcache_wbinv_all)
 .Larm9_idcache_wbinv_all:
@@ -202,6 +210,8 @@ ENTRY(arm9_dcache_wbinv_all)
 	subs	s_max, s_max, s_inc
 	bhs	.Lnext_set_inv		/* Next set */
 	mov	pc, lr
+END(arm9_idcache_wbinv_all)
+END(arm9_dcache_wbinv_all)
 
 .Larm9_cache_data:
 	.word	_C_LABEL(arm9_dcache_sets_max)
@@ -229,6 +239,7 @@ ENTRY(arm9_context_switch)
 	nop
 	nop
 	mov	pc, lr
+END(arm9_context_switch)
 
 	.bss
 

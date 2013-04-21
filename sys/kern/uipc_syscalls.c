@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/sysent.h>
 #include <sys/socket.h>
@@ -163,25 +164,40 @@ sys_socket(td, uap)
 {
 	struct socket *so;
 	struct file *fp;
-	int fd, error;
+	int fd, error, type, oflag, fflag;
 
 	AUDIT_ARG_SOCKET(uap->domain, uap->type, uap->protocol);
+
+	type = uap->type;
+	oflag = 0;
+	fflag = 0;
+	if ((type & SOCK_CLOEXEC) != 0) {
+		type &= ~SOCK_CLOEXEC;
+		oflag |= O_CLOEXEC;
+	}
+	if ((type & SOCK_NONBLOCK) != 0) {
+		type &= ~SOCK_NONBLOCK;
+		fflag |= FNONBLOCK;
+	}
+
 #ifdef MAC
-	error = mac_socket_check_create(td->td_ucred, uap->domain, uap->type,
+	error = mac_socket_check_create(td->td_ucred, uap->domain, type,
 	    uap->protocol);
 	if (error)
 		return (error);
 #endif
-	error = falloc(td, &fp, &fd, 0);
+	error = falloc(td, &fp, &fd, oflag);
 	if (error)
 		return (error);
 	/* An extra reference on `fp' has been held for us by falloc(). */
-	error = socreate(uap->domain, &so, uap->type, uap->protocol,
+	error = socreate(uap->domain, &so, type, uap->protocol,
 	    td->td_ucred, td);
 	if (error) {
 		fdclose(td->td_proc->p_fd, fp, fd, td);
 	} else {
-		finit(fp, FREAD | FWRITE, DTYPE_SOCKET, so, &socketops);
+		finit(fp, FREAD | FWRITE | fflag, DTYPE_SOCKET, so, &socketops);
+		if ((fflag & FNONBLOCK) != 0)
+			(void) fo_ioctl(fp, FIONBIO, &fflag, td->td_ucred, td);
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);
@@ -366,11 +382,8 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	pid_t pgid;
 	int tmp;
 
-	if (name) {
+	if (name)
 		*name = NULL;
-		if (*namelen < 0)
-			return (EINVAL);
-	}
 
 	AUDIT_ARG_FD(s);
 	fdp = td->td_proc->p_fd;
@@ -647,9 +660,20 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
-	int fd, error;
+	int fd, error, oflag, fflag;
 
 	AUDIT_ARG_SOCKET(domain, type, protocol);
+
+	oflag = 0;
+	fflag = 0;
+	if ((type & SOCK_CLOEXEC) != 0) {
+		type &= ~SOCK_CLOEXEC;
+		oflag |= O_CLOEXEC;
+	}
+	if ((type & SOCK_NONBLOCK) != 0) {
+		type &= ~SOCK_NONBLOCK;
+		fflag |= FNONBLOCK;
+	}
 #ifdef MAC
 	/* We might want to have a separate check for socket pairs. */
 	error = mac_socket_check_create(td->td_ucred, domain, type,
@@ -664,12 +688,12 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	if (error)
 		goto free1;
 	/* On success extra reference to `fp1' and 'fp2' is set by falloc. */
-	error = falloc(td, &fp1, &fd, 0);
+	error = falloc(td, &fp1, &fd, oflag);
 	if (error)
 		goto free2;
 	rsv[0] = fd;
 	fp1->f_data = so1;	/* so1 already has ref count */
-	error = falloc(td, &fp2, &fd, 0);
+	error = falloc(td, &fp2, &fd, oflag);
 	if (error)
 		goto free3;
 	fp2->f_data = so2;	/* so2 already has ref count */
@@ -685,8 +709,14 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 		 if (error)
 			goto free4;
 	}
-	finit(fp1, FREAD | FWRITE, DTYPE_SOCKET, fp1->f_data, &socketops);
-	finit(fp2, FREAD | FWRITE, DTYPE_SOCKET, fp2->f_data, &socketops);
+	finit(fp1, FREAD | FWRITE | fflag, DTYPE_SOCKET, fp1->f_data,
+	    &socketops);
+	finit(fp2, FREAD | FWRITE | fflag, DTYPE_SOCKET, fp2->f_data,
+	    &socketops);
+	if ((fflag & FNONBLOCK) != 0) {
+		(void) fo_ioctl(fp1, FIONBIO, &fflag, td->td_ucred, td);
+		(void) fo_ioctl(fp2, FIONBIO, &fflag, td->td_ucred, td);
+	}
 	fdrop(fp1, td);
 	fdrop(fp2, td);
 	return (0);
@@ -1532,9 +1562,6 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	socklen_t len;
 	int error;
 
-	if (*alen < 0)
-		return (EINVAL);
-
 	AUDIT_ARG_FD(fd);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_GETSOCKNAME, &fp, NULL);
 	if (error)
@@ -1632,9 +1659,6 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	socklen_t len;
 	int error;
 
-	if (*alen < 0)
-		return (EINVAL);
-
 	AUDIT_ARG_FD(fd);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_GETPEERNAME, &fp, NULL);
 	if (error)
@@ -1700,18 +1724,16 @@ sockargs(mp, buf, buflen, type)
 	struct mbuf *m;
 	int error;
 
-	if ((u_int)buflen > MLEN) {
+	if (buflen > MLEN) {
 #ifdef COMPAT_OLDSOCK
-		if (type == MT_SONAME && (u_int)buflen <= 112)
+		if (type == MT_SONAME && buflen <= 112)
 			buflen = MLEN;		/* unix domain compat. hack */
 		else
 #endif
-			if ((u_int)buflen > MCLBYTES)
+			if (buflen > MCLBYTES)
 				return (EINVAL);
 	}
-	m = m_get(M_WAITOK, type);
-	if ((u_int)buflen > MLEN)
-		MCLGET(m, M_WAITOK);
+	m = m_get2(buflen, M_WAITOK, type, 0);
 	m->m_len = buflen;
 	error = copyin(buf, mtod(m, caddr_t), (u_int)buflen);
 	if (error)
@@ -1907,12 +1929,12 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 			 * reclamation of its vnode does not
 			 * immediately destroy it.
 			 */
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			if ((obj->flags & OBJ_DEAD) == 0) {
 				vm_object_reference_locked(obj);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 			} else {
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				obj = NULL;
 			}
 		}
@@ -2084,31 +2106,38 @@ retry_space:
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
-		while (space > loopbytes) {
+		while (1) {
 			vm_pindex_t pindex;
 			vm_offset_t pgoff;
 			struct mbuf *m0;
 
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			/*
 			 * Calculate the amount to transfer.
 			 * Not to exceed a page, the EOF,
 			 * or the passed in nbytes.
 			 */
 			pgoff = (vm_offset_t)(off & PAGE_MASK);
-			xfsize = omin(PAGE_SIZE - pgoff,
-			    obj->un_pager.vnp.vnp_size - uap->offset -
-			    fsbytes - loopbytes);
 			if (uap->nbytes)
 				rem = (uap->nbytes - fsbytes - loopbytes);
 			else
 				rem = obj->un_pager.vnp.vnp_size -
 				    uap->offset - fsbytes - loopbytes;
-			xfsize = omin(rem, xfsize);
+			xfsize = omin(PAGE_SIZE - pgoff, rem);
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				done = 1;		/* all data sent */
+				break;
+			}
+
+			/*
+			 * We've already overfilled the socket.
+			 * Let the outer loop figure out how to handle it.
+			 */
+			if (space <= loopbytes) {
+				VM_OBJECT_WUNLOCK(obj);
+				done = 0;
 				break;
 			}
 
@@ -2128,7 +2157,7 @@ retry_space:
 			 * block.
 			 */
 			if (pg->valid && vm_page_is_valid(pg, pgoff, xfsize))
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 			else if (m != NULL)
 				error = EAGAIN;	/* send what we already got */
 			else if (uap->flags & SF_NODISKIO)
@@ -2142,7 +2171,7 @@ retry_space:
 				 * when the I/O completes.
 				 */
 				vm_page_io_start(pg);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 
 				/*
 				 * Get the page from backing store.
@@ -2164,10 +2193,10 @@ retry_space:
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
 			after_read:
-				VM_OBJECT_LOCK(obj);
+				VM_OBJECT_WLOCK(obj);
 				vm_page_io_finish(pg);
 				if (!error)
-					VM_OBJECT_UNLOCK(obj);
+					VM_OBJECT_WUNLOCK(obj);
 				mbstat.sf_iocnt++;
 			}
 			if (error) {
@@ -2182,7 +2211,7 @@ retry_space:
 				    pg->busy == 0 && !(pg->oflags & VPO_BUSY))
 					vm_page_free(pg);
 				vm_page_unlock(pg);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				if (error == EAGAIN)
 					error = 0;	/* not a real error */
 				break;
@@ -2218,11 +2247,17 @@ retry_space:
 			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
 			if (m0 == NULL) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				sf_buf_mext((void *)sf_buf_kva(sf), sf);
+				sf_buf_mext(NULL, sf);
 				break;
 			}
-			MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext,
-			    sfs, sf, M_RDONLY, EXT_SFBUF);
+			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
+			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
+			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
+				error = (mnw ? EAGAIN : ENOBUFS);
+				sf_buf_mext(NULL, sf);
+				m_freem(m0);
+				break;
+			}
 			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
 			m0->m_len = xfsize;
 
@@ -2385,8 +2420,10 @@ sys_sctp_peeloff(td, uap)
 
 	CURVNET_SET(head->so_vnet);
 	so = sonewconn(head, SS_ISCONNECTED);
-	if (so == NULL)
+	if (so == NULL) {
+		error = ENOMEM;
 		goto noconnection;
+	}
 	/*
 	 * Before changing the flags on the socket, we have to bump the
 	 * reference count.  Otherwise, if the protocol calls sofree(),

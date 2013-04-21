@@ -822,6 +822,28 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 }
 
 /*
+ * Fetch the current TX power (cap) for the given node.
+ *
+ * This includes the node and ic/vap TX power limit as needed,
+ * but it doesn't take into account any per-rate limit.
+ */
+static __inline uint16_t
+ieee80211_get_node_txpower(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	uint16_t txpower;
+
+	txpower = ni->ni_txpower;
+	txpower = MIN(txpower, ic->ic_txpowlimit);
+	if (ic->ic_curchan != NULL) {
+		txpower = MIN(txpower, 2 * ic->ic_curchan->ic_maxregpower);
+		txpower = MIN(txpower, ic->ic_curchan->ic_maxpower);
+	}
+
+	return (txpower);
+}
+
+/*
  * Debugging facilities compiled in when IEEE80211_DEBUG is defined.
  *
  * The intent is that any problem in the net80211 layer can be

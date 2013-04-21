@@ -198,7 +198,6 @@ struct timespec totalreadtime[BT_NUMBUFTYPES];
 struct timespec startprog;
 
 struct bufarea sblk;		/* file system superblock */
-struct bufarea cgblk;		/* cylinder group blocks */
 struct bufarea *pdirbp;		/* current directory contents */
 struct bufarea *pbp;		/* current inode block */
 
@@ -216,9 +215,7 @@ struct bufarea *pbp;		/* current inode block */
 } while (0)
 
 #define	sbdirty()	dirty(&sblk)
-#define	cgdirty()	dirty(&cgblk)
 #define	sblock		(*sblk.b_un.b_fs)
-#define	cgrp		(*cgblk.b_un.b_cg)
 
 enum fixstate {DONTKNOW, NOFIX, FIX, IGNORE};
 ino_t cursnapshot;
@@ -361,6 +358,37 @@ struct	ufs2_dinode ufs2_zino;
 
 #define	EEXIT	8		/* Standard error exit. */
 
+int flushentry(void);
+/*
+ * Wrapper for malloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Malloc(int size)
+{
+	void *retval;
+
+	while ((retval = malloc(size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+
+/*
+ * Wrapper for calloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Calloc(int cnt, int size)
+{
+	void *retval;
+
+	while ((retval = calloc(cnt, size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+
 struct fstab;
 
 
@@ -378,7 +406,7 @@ void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
 int		changeino(ino_t dir, const char *name, ino_t newnum);
-int		check_cgmagic(int cg, struct cg *cgp);
+int		check_cgmagic(int cg, struct bufarea *cgbp);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);
@@ -398,6 +426,7 @@ void		freeino(ino_t ino);
 void		freeinodebuf(void);
 int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
+struct bufarea *cgget(int cg);
 struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
 union dinode   *getnextinode(ino_t inumber, int rebuildcg);

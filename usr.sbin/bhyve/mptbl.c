@@ -349,7 +349,7 @@ mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
 	char 			*curraddr;
 	char 			*startaddr;
 
-	startaddr = paddr_guest2host(MPTABLE_BASE, MPTABLE_MAX_LENGTH);
+	startaddr = paddr_guest2host(ctx, MPTABLE_BASE, MPTABLE_MAX_LENGTH);
 	if (startaddr == NULL) {
 		printf("mptable requires mapped mem\n");
 		return (ENOMEM);
@@ -395,7 +395,7 @@ mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
 	}
 
 	mpch->base_table_length = curraddr - (char *)mpch;
-	mpch->checksum = mpt_compute_checksum(mpch, sizeof(*mpch));
+	mpch->checksum = mpt_compute_checksum(mpch, mpch->base_table_length);
 
 	return (0);
 }

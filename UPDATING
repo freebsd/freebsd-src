@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
+from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
+head, and then rebuild without this option. The bootstrap process from
+older version of current is a bit fragile.
+
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	FreeBSD 10.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
@@ -25,6 +30,36 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20130404:
+	Legacy ATA stack, disabled and replaced by new CAM-based one since
+	FreeBSD 9.0, completely removed from the sources.  Kernel modules
+	atadisk and atapi*, user-level tools atacontrol and burncd are
+	removed.  Kernel option `options ATA_CAM` is now permanently enabled
+	and removed.
+
+20130319:
+	SOCK_CLOEXEC and SOCK_NONBLOCK flags have been added to socket(2)
+	and socketpair(2). Software, in particular Kerberos, may
+	automatically detect and use these during building. The resulting
+	binaries will not work on older kernels.
+
+20130308:
+	CTL_DISABLE has also been added to the sparc64 GENERIC (for further
+	information, see the respective 20130304 entry).
+
+20130304:
+	Recent commits to callout(9) changed the size of struct callout,
+	so the KBI is probably heavily disturbed. Also, some functions
+	in callout(9)/sleep(9)/sleepqueue(9)/condvar(9) KPIs were replaced
+	by macros. Every kernel module using it won't load, so rebuild
+	is requested.
+
+	The ctl device has been re-enabled in GENERIC for i386 and amd64,
+	but does not initialize by default (because of the new CTL_DISABLE
+	option) to save memory.  To re-enable it, remove the CTL_DISABLE
+	option from the kernel config file or set kern.cam.ctl.disable=0
+	in /boot/loader.conf.
 
 20130301:
 	The ctl device has been disabled in GENERIC for i386 and amd64.
@@ -92,7 +127,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	This means that the world and kernel will be compiled with clang
 	and that clang will be installed as /usr/bin/cc, /usr/bin/c++,
 	and /usr/bin/cpp.  To disable this behavior and revert to building
-	with gcc, compile with WITHOUT_CLANG_IS_CC.
+	with gcc, compile with WITHOUT_CLANG_IS_CC. Really old versions
+	of current may need to bootstrap WITHOUT_CLANG first if the clang
+	build fails (its compatibility window doesn't extend to the 9 stable
+	branch point).
 
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
@@ -1574,6 +1612,11 @@ COMMON ITEMS:
 	path, and has the highest probability of being successful.  Please try
 	this approach before reporting problems with a major version upgrade.
 
+	When upgrading a live system, having a root shell around before
+	installing anything can help undo problems. Not having a root shell
+	around can lead to problems if pam has changed too much from your
+	starting point to allow continued authentication after the upgrade.
+
 	ZFS notes
 	---------
 	When upgrading the boot ZFS pool to a new version, always follow
@@ -1638,7 +1681,6 @@ COMMON ITEMS:
 	mergemaster -i					[4]
 	make delete-old					[6]
 	<reboot>
-
 
 	To cross-install current onto a separate partition
 	--------------------------------------------------

@@ -555,8 +555,11 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	for (i = 0; i < helper->connector_count; i++)
 		free(helper->connector_info[i], DRM_MEM_KMS);
 	free(helper->connector_info, DRM_MEM_KMS);
-	for (i = 0; i < helper->crtc_count; i++)
+	for (i = 0; i < helper->crtc_count; i++) {
 		free(helper->crtc_info[i].mode_set.connectors, DRM_MEM_KMS);
+		if (helper->crtc_info[i].mode_set.mode)
+			drm_mode_destroy(helper->dev, helper->crtc_info[i].mode_set.mode);
+	}
 	free(helper->crtc_info, DRM_MEM_KMS);
 }
 

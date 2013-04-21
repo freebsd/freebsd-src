@@ -16,13 +16,13 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "cgscc-passmgr"
-#include "llvm/CallGraphSCCPass.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Function.h"
-#include "llvm/PassManagers.h"
-#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/PassManagers.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
@@ -50,6 +50,9 @@ public:
   /// run - Execute all of the passes scheduled for execution.  Keep track of
   /// whether any of the passes modifies the module, and if so, return true.
   bool runOnModule(Module &M);
+
+  using ModulePass::doInitialization;
+  using ModulePass::doFinalization;
 
   bool doInitialization(CallGraph &CG);
   bool doFinalization(CallGraph &CG);

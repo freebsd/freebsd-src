@@ -210,10 +210,10 @@ static int	read_body_to_string(struct archive_read *, struct tar *,
 		    struct archive_string *, const void *h, size_t *);
 static int	solaris_sparse_parse(struct archive_read *, struct tar *,
 		    struct archive_entry *, const char *);
-static int64_t	tar_atol(const char *, unsigned);
-static int64_t	tar_atol10(const char *, unsigned);
-static int64_t	tar_atol256(const char *, unsigned);
-static int64_t	tar_atol8(const char *, unsigned);
+static int64_t	tar_atol(const char *, size_t);
+static int64_t	tar_atol10(const char *, size_t);
+static int64_t	tar_atol256(const char *, size_t);
+static int64_t	tar_atol8(const char *, size_t);
 static int	tar_read_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, size_t *);
 static int	tohex(int c);
@@ -253,6 +253,7 @@ archive_read_support_format_tar(struct archive *_a)
 	    archive_read_format_tar_read_header,
 	    archive_read_format_tar_read_data,
 	    archive_read_format_tar_skip,
+	    NULL,
 	    archive_read_format_tar_cleanup);
 
 	if (r != ARCHIVE_OK)
@@ -616,13 +617,14 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	int err;
 	const char *h;
 	const struct archive_entry_header_ustar *header;
+	const struct archive_entry_header_gnutar *gnuheader;
 
 	tar_flush_unconsumed(a, unconsumed);
 
 	/* Read 512-byte header record */
 	h = __archive_read_ahead(a, 512, &bytes);
 	if (bytes < 0)
-		return (bytes);
+		return ((int)bytes);
 	if (bytes == 0) { /* EOF at a block boundary. */
 		/* Some writers do omit the block of nulls. <sigh> */
 		return (ARCHIVE_EOF);
@@ -703,7 +705,8 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		err = header_pax_extensions(a, tar, entry, h, unconsumed);
 		break;
 	default:
-		if (memcmp(header->magic, "ustar  \0", 8) == 0) {
+		gnuheader = (const struct archive_entry_header_gnutar *)h;
+		if (memcmp(gnuheader->magic, "ustar  \0", 8) == 0) {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
 			a->archive.archive_format_name = "GNU tar format";
 			err = header_gnutar(a, tar, entry, h, unconsumed);
@@ -752,7 +755,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				bytes_read = gnu_sparse_10_read(a, tar, unconsumed);
 				tar->entry_bytes_remaining -= bytes_read;
 				if (bytes_read < 0)
-					return (bytes_read);
+					return ((int)bytes_read);
 			} else {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
@@ -2392,7 +2395,7 @@ solaris_sparse_parse(struct archive_read *a, struct tar *tar,
  * On read, this implementation supports both extensions.
  */
 static int64_t
-tar_atol(const char *p, unsigned char_cnt)
+tar_atol(const char *p, size_t char_cnt)
 {
 	/*
 	 * Technically, GNU tar considers a field to be in base-256
@@ -2409,70 +2412,55 @@ tar_atol(const char *p, unsigned char_cnt)
  * it does obey locale.
  */
 static int64_t
-tar_atol8(const char *p, unsigned char_cnt)
+tar_atol_base_n(const char *p, size_t char_cnt, int base)
 {
 	int64_t	l, limit, last_digit_limit;
-	int digit, sign, base;
+	int digit, sign;
 
-	base = 8;
 	limit = INT64_MAX / base;
 	last_digit_limit = INT64_MAX % base;
 
-	while (*p == ' ' || *p == '\t')
+	/* the pointer will not be dereferenced if char_cnt is zero
+	 * due to the way the && operator is evaulated.
+	 */
+	while (char_cnt != 0 && (*p == ' ' || *p == '\t')) {
 		p++;
-	if (*p == '-') {
+		char_cnt--;
+	}
+
+	sign = 1;
+	if (char_cnt != 0 && *p == '-') {
 		sign = -1;
 		p++;
-	} else
-		sign = 1;
+		char_cnt--;
+	}
 
 	l = 0;
-	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
-		if (l>limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
+	if (char_cnt != 0) {
+		digit = *p - '0';
+		while (digit >= 0 && digit < base  && char_cnt != 0) {
+			if (l>limit || (l == limit && digit > last_digit_limit)) {
+				l = INT64_MAX; /* Truncate on overflow. */
+				break;
+			}
+			l = (l * base) + digit;
+			digit = *++p - '0';
+			char_cnt--;
 		}
-		l = (l * base) + digit;
-		digit = *++p - '0';
 	}
 	return (sign < 0) ? -l : l;
 }
 
-/*
- * Note that this implementation does not (and should not!) obey
- * locale settings; you cannot simply substitute strtol here, since
- * it does obey locale.
- */
 static int64_t
-tar_atol10(const char *p, unsigned char_cnt)
+tar_atol8(const char *p, size_t char_cnt)
 {
-	int64_t l, limit, last_digit_limit;
-	int base, digit, sign;
+	return tar_atol_base_n(p, char_cnt, 8);
+}
 
-	base = 10;
-	limit = INT64_MAX / base;
-	last_digit_limit = INT64_MAX % base;
-
-	while (*p == ' ' || *p == '\t')
-		p++;
-	if (*p == '-') {
-		sign = -1;
-		p++;
-	} else
-		sign = 1;
-
-	l = 0;
-	digit = *p - '0';
-	while (digit >= 0 && digit < base  && char_cnt-- > 0) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
-		}
-		l = (l * base) + digit;
-		digit = *++p - '0';
-	}
-	return (sign < 0) ? -l : l;
+static int64_t
+tar_atol10(const char *p, size_t char_cnt)
+{
+	return tar_atol_base_n(p, char_cnt, 10);
 }
 
 /*
@@ -2481,7 +2469,7 @@ tar_atol10(const char *p, unsigned char_cnt)
  * ignored.
  */
 static int64_t
-tar_atol256(const char *_p, unsigned char_cnt)
+tar_atol256(const char *_p, size_t char_cnt)
 {
 	int64_t	l, upper_limit, lower_limit;
 	const unsigned char *p = (const unsigned char *)_p;

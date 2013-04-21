@@ -30,7 +30,8 @@ contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
-NEWCARD		imp	Pre-commit review requested.
+PC Card		imp	Pre-commit review requested.
+CardBus		imp	Pre-commit review requested.
 pci bus		imp,jhb	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
@@ -124,3 +125,6 @@ isci(4)		jimharris	Pre-commit review requested.
 cmx		daniel@roe.ch	Pre-commit review preferred.
 filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.
+sh(1)		jilles		Pre-commit review requested. This also applies
+				to kill(1), printf(1) and test(1) which are
+				compiled in as builtins.

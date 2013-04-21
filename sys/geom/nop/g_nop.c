@@ -124,7 +124,7 @@ g_nop_start(struct bio *bp)
 
 		rval = arc4random() % 100;
 		if (rval < failprob) {
-			G_NOP_LOGREQ(bp, "Returning error=%d.", sc->sc_error);
+			G_NOP_LOGREQLVL(1, bp, "Returning error=%d.", sc->sc_error);
 			g_io_deliver(bp, sc->sc_error);
 			return;
 		}
@@ -136,8 +136,6 @@ g_nop_start(struct bio *bp)
 	}
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
-	cbp->bio_data = bp->bio_data;
-	cbp->bio_length = bp->bio_length;
 	pp = LIST_FIRST(&gp->provider);
 	KASSERT(pp != NULL, ("NULL pp"));
 	cbp->bio_to = pp;
@@ -244,6 +242,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		goto fail;
 	}
 
+	newpp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	g_error_provider(newpp, 0);
 	G_NOP_DEBUG(0, "Device %s created.", gp->name);
 	return (0);

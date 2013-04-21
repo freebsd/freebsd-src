@@ -600,7 +600,7 @@ ieee80211_send_setup(
 	struct ieee80211com *ic = ni->ni_ic;
 	ieee80211_seq seqno;
 
-	IEEE80211_TX_LOCK_ASSERT(ic);
+	IEEE80211_TX_LOCK_ASSERT(ni->ni_ic);
 
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | type;
 	if ((type & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_DATA) {

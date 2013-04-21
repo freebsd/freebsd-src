@@ -15,8 +15,8 @@
 #ifndef HexagonREGISTERINFO_H
 #define HexagonREGISTERINFO_H
 
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/MC/MachineLocation.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 #define GET_REGINFO_HEADER
 #include "HexagonGenRegisterInfo.inc"
@@ -56,12 +56,9 @@ struct HexagonRegisterInfo : public HexagonGenRegisterInfo {
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
-
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+                           int SPAdj, unsigned FIOperandNum,
+                           RegScavenger *RS = NULL) const;
 
   /// determineFrameLayout - Determine the size of the frame and maximum call
   /// frame size.
@@ -87,11 +84,6 @@ struct HexagonRegisterInfo : public HexagonGenRegisterInfo {
   // Exception handling queries.
   unsigned getEHExceptionRegister() const;
   unsigned getEHHandlerRegister() const;
-  const RegClassWeight &getRegClassWeight(const TargetRegisterClass *RC) const;
-  unsigned getNumRegPressureSets() const;
-  const char *getRegPressureSetName(unsigned Idx) const;
-  unsigned getRegPressureSetLimit(unsigned Idx) const;
-  const int* getRegClassPressureSets(const TargetRegisterClass *RC) const;
 };
 
 } // end namespace llvm

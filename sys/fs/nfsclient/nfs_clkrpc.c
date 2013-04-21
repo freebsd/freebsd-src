@@ -83,7 +83,7 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 	 */
 	nd.nd_mrep = rqst->rq_args;
 	rqst->rq_args = NULL;
-	newnfs_realign(&nd.nd_mrep);
+	newnfs_realign(&nd.nd_mrep, M_WAITOK);
 	nd.nd_md = nd.nd_mrep;
 	nd.nd_dpos = mtod(nd.nd_md, caddr_t);
 	nd.nd_nam = svc_getrpccaller(rqst);

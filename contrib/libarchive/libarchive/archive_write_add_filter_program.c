@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2007 Joerg Sonnenberger
+ * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +45,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_program.c 
 
 #include "archive.h"
 #include "archive_private.h"
+#include "archive_string.h"
 #include "archive_write_private.h"
+#include "filter_fork.h"
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 int
@@ -55,34 +58,22 @@ archive_write_set_compression_program(struct archive *a, const char *cmd)
 }
 #endif
 
-/* This capability is only available on POSIX systems. */
-#if (!defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
-    !(defined(HAVE_FORK) || defined(HAVE_VFORK))) && (!defined(_WIN32) || defined(__CYGWIN__))
-
-/*
- * On non-Posix systems, allow the program to build, but choke if
- * this function is actually invoked.
- */
-int
-archive_write_add_filter_program(struct archive *_a, const char *cmd)
-{
-	archive_set_error(_a, -1,
-	    "External compression programs not supported on this platform");
-	return (ARCHIVE_FATAL);
-}
-
+struct archive_write_program_data {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	HANDLE		 child;
 #else
-
-#include "filter_fork.h"
-
-struct private_data {
-	char		*cmd;
-	char		*description;
 	pid_t		 child;
+#endif
 	int		 child_stdin, child_stdout;
 
 	char		*child_buf;
 	size_t		 child_buf_len, child_buf_avail;
+};
+
+struct private_data {
+	struct archive_write_program_data *pdata;
+	struct archive_string description;
+	char		*cmd;
 };
 
 static int archive_compressor_program_open(struct archive_write_filter *);
@@ -99,35 +90,125 @@ int
 archive_write_add_filter_program(struct archive *_a, const char *cmd)
 {
 	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
-	struct archive_write *a = (struct archive_write *)_a;
 	struct private_data *data;
 	static const char *prefix = "Program: ";
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_write_add_filter_program");
-	data = calloc(1, sizeof(*data));
-	if (data == NULL) {
-		archive_set_error(&a->archive, ENOMEM, "Out of memory");
-		return (ARCHIVE_FATAL);
-	}
-	data->cmd = strdup(cmd);
-	data->description = (char *)malloc(strlen(prefix) + strlen(cmd) + 1);
-	strcpy(data->description, prefix);
-	strcat(data->description, cmd);
 
-	f->name = data->description;
-	f->data = data;
-	f->open = &archive_compressor_program_open;
-	f->code = ARCHIVE_COMPRESSION_PROGRAM;
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_add_filter_program");
+
+	f->data = calloc(1, sizeof(*data));
+	if (f->data == NULL)
+		goto memerr;
+	data = (struct private_data *)f->data;
+
+	data->cmd = strdup(cmd);
+	if (data->cmd == NULL)
+		goto memerr;
+
+	data->pdata = __archive_write_program_allocate();
+	if (data->pdata == NULL)
+		goto memerr;
+
+	/* Make up a description string. */
+	if (archive_string_ensure(&data->description,
+	    strlen(prefix) + strlen(cmd) + 1) == NULL)
+		goto memerr;
+	archive_strcpy(&data->description, prefix);
+	archive_strcat(&data->description, cmd);
+
+	f->name = data->description.s;
+	f->code = ARCHIVE_FILTER_PROGRAM;
+	f->open = archive_compressor_program_open;
+	f->write = archive_compressor_program_write;
+	f->close = archive_compressor_program_close;
+	f->free = archive_compressor_program_free;
 	return (ARCHIVE_OK);
+memerr:
+	archive_compressor_program_free(f);
+	archive_set_error(_a, ENOMEM,
+	    "Can't allocate memory for filter program");
+	return (ARCHIVE_FATAL);
 }
 
-/*
- * Setup callback.
- */
 static int
 archive_compressor_program_open(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
+
+	return __archive_write_program_open(f, data->pdata, data->cmd);
+}
+
+static int
+archive_compressor_program_write(struct archive_write_filter *f,
+    const void *buff, size_t length)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	return __archive_write_program_write(f, data->pdata, buff, length);
+}
+
+static int
+archive_compressor_program_close(struct archive_write_filter *f)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	return __archive_write_program_close(f, data->pdata);
+}
+
+static int
+archive_compressor_program_free(struct archive_write_filter *f)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	if (data) {
+		free(data->cmd);
+		archive_string_free(&data->description);
+		__archive_write_program_free(data->pdata);
+		free(data);
+		f->data = NULL;
+	}
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Allocate resources for executing an external program.
+ */
+struct archive_write_program_data *
+__archive_write_program_allocate(void)
+{
+	struct archive_write_program_data *data;
+
+	data = calloc(1, sizeof(struct archive_write_program_data));
+	if (data == NULL)
+		return (data);
+	data->child_stdin = -1;
+	data->child_stdout = -1;
+	return (data);
+}
+
+/*
+ * Release the resources.
+ */
+int
+__archive_write_program_free(struct archive_write_program_data *data)
+{
+
+	if (data) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		if (data->child)
+			CloseHandle(data->child);
+#endif
+		free(data->child_buf);
+		free(data);
+	}
+	return (ARCHIVE_OK);
+}
+
+int
+__archive_write_program_open(struct archive_write_filter *f,
+    struct archive_write_program_data *data, const char *cmd)
+{
+	pid_t child;
 	int ret;
 
 	ret = __archive_write_open_filter(f->next_filter);
@@ -146,23 +227,34 @@ archive_compressor_program_open(struct archive_write_filter *f)
 		}
 	}
 
-	if ((data->child = __archive_create_child(data->cmd,
-		 &data->child_stdin, &data->child_stdout)) == -1) {
+	child = __archive_create_child(cmd, &data->child_stdin,
+		    &data->child_stdout);
+	if (child == -1) {
 		archive_set_error(f->archive, EINVAL,
 		    "Can't initialise filter");
 		return (ARCHIVE_FATAL);
 	}
-
-	f->write = archive_compressor_program_write;
-	f->close = archive_compressor_program_close;
-	f->free = archive_compressor_program_free;
-	return (0);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	data->child = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, child);
+	if (data->child == NULL) {
+		close(data->child_stdin);
+		data->child_stdin = -1;
+		close(data->child_stdout);
+		data->child_stdout = -1;
+		archive_set_error(f->archive, EINVAL,
+		    "Can't initialise filter");
+		return (ARCHIVE_FATAL);
+	}
+#else
+	data->child = child;
+#endif
+	return (ARCHIVE_OK);
 }
 
 static ssize_t
-child_write(struct archive_write_filter *f, const char *buf, size_t buf_len)
+child_write(struct archive_write_filter *f,
+    struct archive_write_program_data *data, const char *buf, size_t buf_len)
 {
-	struct private_data *data = f->data;
 	ssize_t ret;
 
 	if (data->child_stdin == -1)
@@ -218,30 +310,28 @@ child_write(struct archive_write_filter *f, const char *buf, size_t buf_len)
 
 		ret = __archive_write_filter(f->next_filter,
 		    data->child_buf, data->child_buf_avail);
-		if (ret <= 0)
+		if (ret != ARCHIVE_OK)
 			return (-1);
-
-		if ((size_t)ret < data->child_buf_avail) {
-			memmove(data->child_buf, data->child_buf + ret,
-			    data->child_buf_avail - ret);
-		}
-		data->child_buf_avail -= ret;
+		data->child_buf_avail = 0;
 	}
 }
 
 /*
- * Write data to the compressed stream.
+ * Write data to the filter stream.
  */
-static int
-archive_compressor_program_write(struct archive_write_filter *f,
-    const void *buff, size_t length)
+int
+__archive_write_program_write(struct archive_write_filter *f,
+    struct archive_write_program_data *data, const void *buff, size_t length)
 {
 	ssize_t ret;
 	const char *buf;
 
+	if (data->child == 0)
+		return (ARCHIVE_OK);
+
 	buf = buff;
 	while (length > 0) {
-		ret = child_write(f, buf, length);
+		ret = child_write(f, data, buf, length);
 		if (ret == -1 || ret == 0) {
 			archive_set_error(f->archive, EIO,
 			    "Can't write to filter");
@@ -253,16 +343,18 @@ archive_compressor_program_write(struct archive_write_filter *f,
 	return (ARCHIVE_OK);
 }
 
-
 /*
- * Finish the compression...
+ * Finish the filtering...
  */
-static int
-archive_compressor_program_close(struct archive_write_filter *f)
+int
+__archive_write_program_close(struct archive_write_filter *f,
+    struct archive_write_program_data *data)
 {
-	struct private_data *data = (struct private_data *)f->data;
 	int ret, r1, status;
 	ssize_t bytes_read;
+
+	if (data->child == 0)
+		return __archive_write_close_filter(f->next_filter);
 
 	ret = 0;
 	close(data->child_stdin);
@@ -304,6 +396,10 @@ cleanup:
 		close(data->child_stdout);
 	while (waitpid(data->child, &status, 0) == -1 && errno == EINTR)
 		continue;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	CloseHandle(data->child);
+#endif
+	data->child = 0;
 
 	if (status != 0) {
 		archive_set_error(f->archive, EIO,
@@ -314,16 +410,3 @@ cleanup:
 	return (r1 < ret ? r1 : ret);
 }
 
-static int
-archive_compressor_program_free(struct archive_write_filter *f)
-{
-	struct private_data *data = (struct private_data *)f->data;
-	free(data->cmd);
-	free(data->description);
-	free(data->child_buf);
-	free(data);
-	f->data = NULL;
-	return (ARCHIVE_OK);
-}
-
-#endif /* !defined(HAVE_PIPE) || !defined(HAVE_VFORK) || !defined(HAVE_FCNTL) */

@@ -146,7 +146,9 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	struct sockaddr* sa;
 	int error;
 
-	if (so->so_state & SS_ISCONNECTED) {
+	SOCK_LOCK(so);
+	if (so->so_state & (SS_ISCONNECTED|SS_ISDISCONNECTED)) {
+		SOCK_UNLOCK(so);
 		error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
 		if (error)
 			return (NULL);
@@ -154,6 +156,7 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 		free(sa, M_SONAME);
 		return (xprt);
 	}
+	SOCK_UNLOCK(so);
 
 	xprt = svc_xprt_alloc();
 	sx_init(&xprt->xp_lock, "xprt->xp_lock");
@@ -796,8 +799,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	/*
 	 * Leave space for record mark.
 	 */
-	MGETHDR(mrep, M_WAITOK, MT_DATA);
-	mrep->m_len = 0;
+	mrep = m_gethdr(M_WAITOK, MT_DATA);
 	mrep->m_data += sizeof(uint32_t);
 
 	xdrmbuf_create(&xdrs, mrep, XDR_ENCODE);
@@ -850,8 +852,7 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	/*
 	 * Leave space for record mark.
 	 */
-	MGETHDR(mrep, M_WAITOK, MT_DATA);
-	mrep->m_len = 0;
+	mrep = m_gethdr(M_WAITOK, MT_DATA);
 	mrep->m_data += sizeof(uint32_t);
 
 	xdrmbuf_create(&xdrs, mrep, XDR_ENCODE);

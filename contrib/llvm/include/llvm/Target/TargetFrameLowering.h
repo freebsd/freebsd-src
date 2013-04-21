@@ -15,7 +15,6 @@
 #define LLVM_TARGET_TARGETFRAMELOWERING_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
-
 #include <utility>
 #include <vector>
 
@@ -48,11 +47,12 @@ private:
   unsigned StackAlignment;
   unsigned TransientStackAlignment;
   int LocalAreaOffset;
+  bool StackRealignable;
 public:
   TargetFrameLowering(StackDirection D, unsigned StackAl, int LAO,
-                      unsigned TransAl = 1)
+                      unsigned TransAl = 1, bool StackReal = true)
     : StackDir(D), StackAlignment(StackAl), TransientStackAlignment(TransAl),
-      LocalAreaOffset(LAO) {}
+      LocalAreaOffset(LAO), StackRealignable(StackReal) {}
 
   virtual ~TargetFrameLowering();
 
@@ -75,6 +75,12 @@ public:
   ///
   unsigned getTransientStackAlignment() const {
     return TransientStackAlignment;
+  }
+
+  /// isStackRealignable - This method returns whether the stack can be
+  /// realigned.
+  bool isStackRealignable() const {
+    return StackRealignable;
   }
 
   /// getOffsetOfLocalArea - This method returns the offset of the local area
@@ -113,6 +119,10 @@ public:
   /// Adjust the prologue to have the function use segmented stacks. This works
   /// by adding a check even before the "normal" function prologue.
   virtual void adjustForSegmentedStacks(MachineFunction &MF) const { }
+
+  /// Adjust the prologue to add Erlang Run-Time System (ERTS) specific code in
+  /// the assembly prologue to explicitly handle the stack.
+  virtual void adjustForHiPEPrologue(MachineFunction &MF) const { }
 
   /// spillCalleeSavedRegisters - Issues instruction(s) to spill all callee
   /// saved registers and returns true if it isn't possible / profitable to do
@@ -184,7 +194,23 @@ public:
   /// finalized.  Once the frame is finalized, MO_FrameIndex operands are
   /// replaced with direct constants.  This method is optional.
   ///
-  virtual void processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
+  virtual void processFunctionBeforeFrameFinalized(MachineFunction &MF,
+                                               RegScavenger *RS = NULL) const {
+  }
+
+  /// eliminateCallFramePseudoInstr - This method is called during prolog/epilog
+  /// code insertion to eliminate call frame setup and destroy pseudo
+  /// instructions (but only if the Target is using them).  It is responsible
+  /// for eliminating these instructions, replacing them with concrete
+  /// instructions.  This method need only be implemented if using call frame
+  /// setup/destroy pseudo instructions.
+  ///
+  virtual void
+  eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator MI) const {
+    llvm_unreachable("Call Frame Pseudo Instructions do not exist on this "
+                     "target!");
   }
 };
 

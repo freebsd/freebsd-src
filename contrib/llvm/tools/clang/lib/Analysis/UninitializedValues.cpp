@@ -11,20 +11,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <utility>
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
+#include "clang/AST/Decl.h"
+#include "clang/Analysis/Analyses/PostOrderCFGView.h"
+#include "clang/Analysis/Analyses/UninitializedValues.h"
+#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/CFG.h"
+#include "clang/Analysis/DomainSpecific/ObjCNoReturn.h"
+#include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/PackedVector.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/PackedVector.h"
-#include "llvm/ADT/DenseMap.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/Decl.h"
-#include "clang/Analysis/CFG.h"
-#include "clang/Analysis/AnalysisContext.h"
-#include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
-#include "clang/Analysis/Analyses/UninitializedValues.h"
-#include "clang/Analysis/DomainSpecific/ObjCNoReturn.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include <utility>
 
 using namespace clang;
 
@@ -57,7 +59,7 @@ public:
   unsigned size() const { return map.size(); }
   
   /// Returns the bit vector index for a given declaration.
-  llvm::Optional<unsigned> getValueIndex(const VarDecl *d) const;
+  Optional<unsigned> getValueIndex(const VarDecl *d) const;
 };
 }
 
@@ -72,10 +74,10 @@ void DeclToIndex::computeMap(const DeclContext &dc) {
   }
 }
 
-llvm::Optional<unsigned> DeclToIndex::getValueIndex(const VarDecl *d) const {
+Optional<unsigned> DeclToIndex::getValueIndex(const VarDecl *d) const {
   llvm::DenseMap<const VarDecl *, unsigned>::const_iterator I = map.find(d);
   if (I == map.end())
-    return llvm::Optional<unsigned>();
+    return None;
   return I->second;
 }
 
@@ -130,7 +132,7 @@ public:
 
   Value getValue(const CFGBlock *block, const CFGBlock *dstBlock,
                  const VarDecl *vd) {
-    const llvm::Optional<unsigned> &idx = declToIndex.getValueIndex(vd);
+    const Optional<unsigned> &idx = declToIndex.getValueIndex(vd);
     assert(idx.hasValue());
     return getValueVector(block)[idx.getValue()];
   }
@@ -191,7 +193,7 @@ void CFGBlockValues::resetScratch() {
 }
 
 ValueVector::reference CFGBlockValues::operator[](const VarDecl *vd) {
-  const llvm::Optional<unsigned> &idx = declToIndex.getValueIndex(vd);
+  const Optional<unsigned> &idx = declToIndex.getValueIndex(vd);
   assert(idx.hasValue());
   return scratch[idx.getValue()];
 }
@@ -202,10 +204,20 @@ ValueVector::reference CFGBlockValues::operator[](const VarDecl *vd) {
 
 namespace {
 class DataflowWorklist {
+  PostOrderCFGView::iterator PO_I, PO_E;
   SmallVector<const CFGBlock *, 20> worklist;
   llvm::BitVector enqueuedBlocks;
 public:
-  DataflowWorklist(const CFG &cfg) : enqueuedBlocks(cfg.getNumBlockIDs()) {}
+  DataflowWorklist(const CFG &cfg, PostOrderCFGView &view)
+    : PO_I(view.begin()), PO_E(view.end()),
+      enqueuedBlocks(cfg.getNumBlockIDs(), true) {
+        // Treat the first block as already analyzed.
+        if (PO_I != PO_E) {
+          assert(*PO_I == &cfg.getEntry());
+          enqueuedBlocks[(*PO_I)->getBlockID()] = false;
+          ++PO_I;
+        }
+      }
   
   void enqueueSuccessors(const CFGBlock *block);
   const CFGBlock *dequeue();
@@ -213,7 +225,6 @@ public:
 }
 
 void DataflowWorklist::enqueueSuccessors(const clang::CFGBlock *block) {
-  unsigned OldWorklistSize = worklist.size();
   for (CFGBlock::const_succ_iterator I = block->succ_begin(),
        E = block->succ_end(); I != E; ++I) {
     const CFGBlock *Successor = *I;
@@ -222,22 +233,30 @@ void DataflowWorklist::enqueueSuccessors(const clang::CFGBlock *block) {
     worklist.push_back(Successor);
     enqueuedBlocks[Successor->getBlockID()] = true;
   }
-  if (OldWorklistSize == 0 || OldWorklistSize == worklist.size())
-    return;
-
-  // Rotate the newly added blocks to the start of the worklist so that it forms
-  // a proper queue when we pop off the end of the worklist.
-  std::rotate(worklist.begin(), worklist.begin() + OldWorklistSize,
-              worklist.end());
 }
 
 const CFGBlock *DataflowWorklist::dequeue() {
-  if (worklist.empty())
+  const CFGBlock *B = 0;
+
+  // First dequeue from the worklist.  This can represent
+  // updates along backedges that we want propagated as quickly as possible.
+  if (!worklist.empty()) {
+    B = worklist.back();
+    worklist.pop_back();
+  }
+  // Next dequeue from the initial reverse post order.  This is the
+  // theoretical ideal in the presence of no back edges.
+  else if (PO_I != PO_E) {
+    B = *PO_I;
+    ++PO_I;
+  }
+  else {
     return 0;
-  const CFGBlock *b = worklist.back();
-  worklist.pop_back();
-  enqueuedBlocks[b->getBlockID()] = false;
-  return b;
+  }
+
+  assert(enqueuedBlocks[B->getBlockID()] == true);
+  enqueuedBlocks[B->getBlockID()] = false;
+  return B;
 }
 
 //------------------------------------------------------------------------====//
@@ -339,6 +358,16 @@ static const DeclRefExpr *getSelfInitExpr(VarDecl *VD) {
 }
 
 void ClassifyRefs::classify(const Expr *E, Class C) {
+  // The result of a ?: could also be an lvalue.
+  E = E->IgnoreParens();
+  if (const ConditionalOperator *CO = dyn_cast<ConditionalOperator>(E)) {
+    const Expr *TrueExpr = CO->getTrueExpr();
+    if (!isa<OpaqueValueExpr>(TrueExpr))
+      classify(TrueExpr, C);
+    classify(CO->getFalseExpr(), C);
+    return;
+  }
+
   FindVarResult Var = findVar(E, DC);
   if (const DeclRefExpr *DRE = Var.getDeclRefExpr())
     Classification[DRE] = std::max(Classification[DRE], C);
@@ -408,13 +437,13 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
   AnalysisDeclContext &ac;
   const ClassifyRefs &classification;
   ObjCNoReturn objCNoRet;
-  UninitVariablesHandler *handler;
+  UninitVariablesHandler &handler;
 
 public:
   TransferFunctions(CFGBlockValues &vals, const CFG &cfg,
                     const CFGBlock *block, AnalysisDeclContext &ac,
                     const ClassifyRefs &classification,
-                    UninitVariablesHandler *handler)
+                    UninitVariablesHandler &handler)
     : vals(vals), cfg(cfg), block(block), ac(ac),
       classification(classification), objCNoRet(ac.getASTContext()),
       handler(handler) {}
@@ -490,8 +519,8 @@ public:
     // 'n' is definitely uninitialized for two edges into block 7 (from blocks 2
     // and 4), so we report that any time either of those edges is taken (in
     // each case when 'b == false'), 'n' is used uninitialized.
-    llvm::SmallVector<const CFGBlock*, 32> Queue;
-    llvm::SmallVector<unsigned, 32> SuccsVisited(cfg.getNumBlockIDs(), 0);
+    SmallVector<const CFGBlock*, 32> Queue;
+    SmallVector<unsigned, 32> SuccsVisited(cfg.getNumBlockIDs(), 0);
     Queue.push_back(block);
     // Specify that we've already visited all successors of the starting block.
     // This has the dual purpose of ensuring we never add it to the queue, and
@@ -571,11 +600,9 @@ public:
 }
 
 void TransferFunctions::reportUse(const Expr *ex, const VarDecl *vd) {
-  if (!handler)
-    return;
   Value v = vals[vd];
   if (isUninitialized(v))
-    handler->handleUseOfUninitVariable(vd, getUninitUse(ex, vd, v));
+    handler.handleUseOfUninitVariable(vd, getUninitUse(ex, vd, v));
 }
 
 void TransferFunctions::VisitObjCForCollectionStmt(ObjCForCollectionStmt *FS) {
@@ -636,8 +663,7 @@ void TransferFunctions::VisitDeclRefExpr(DeclRefExpr *dr) {
     vals[cast<VarDecl>(dr->getDecl())] = Initialized;
     break;
   case ClassifyRefs::SelfInit:
-    if (handler)
-      handler->handleSelfInit(cast<VarDecl>(dr->getDecl()));
+      handler.handleSelfInit(cast<VarDecl>(dr->getDecl()));
     break;
   }
 }
@@ -703,7 +729,7 @@ static bool runOnBlock(const CFGBlock *block, const CFG &cfg,
                        AnalysisDeclContext &ac, CFGBlockValues &vals,
                        const ClassifyRefs &classification,
                        llvm::BitVector &wasAnalyzed,
-                       UninitVariablesHandler *handler = 0) {
+                       UninitVariablesHandler &handler) {
   wasAnalyzed[block->getBlockID()] = true;
   vals.resetScratch();
   // Merge in values of predecessor blocks.
@@ -720,11 +746,47 @@ static bool runOnBlock(const CFGBlock *block, const CFG &cfg,
   TransferFunctions tf(vals, cfg, block, ac, classification, handler);
   for (CFGBlock::const_iterator I = block->begin(), E = block->end(); 
        I != E; ++I) {
-    if (const CFGStmt *cs = dyn_cast<CFGStmt>(&*I)) {
+    if (Optional<CFGStmt> cs = I->getAs<CFGStmt>())
       tf.Visit(const_cast<Stmt*>(cs->getStmt()));
-    }
   }
   return vals.updateValueVectorWithScratch(block);
+}
+
+/// PruneBlocksHandler is a special UninitVariablesHandler that is used
+/// to detect when a CFGBlock has any *potential* use of an uninitialized
+/// variable.  It is mainly used to prune out work during the final
+/// reporting pass.
+namespace {
+struct PruneBlocksHandler : public UninitVariablesHandler {
+  PruneBlocksHandler(unsigned numBlocks)
+    : hadUse(numBlocks, false), hadAnyUse(false),
+      currentBlock(0) {}
+
+  virtual ~PruneBlocksHandler() {}
+
+  /// Records if a CFGBlock had a potential use of an uninitialized variable.
+  llvm::BitVector hadUse;
+
+  /// Records if any CFGBlock had a potential use of an uninitialized variable.
+  bool hadAnyUse;
+
+  /// The current block to scribble use information.
+  unsigned currentBlock;
+
+  virtual void handleUseOfUninitVariable(const VarDecl *vd,
+                                         const UninitUse &use) {
+    hadUse[currentBlock] = true;
+    hadAnyUse = true;
+  }
+
+  /// Called when the uninitialized variable analysis detects the
+  /// idiom 'int x = x'.  All other uses of 'x' within the initializer
+  /// are handled by handleUseOfUninitVariable.
+  virtual void handleSelfInit(const VarDecl *vd) {
+    hadUse[currentBlock] = true;
+    hadAnyUse = true;
+  }
+};
 }
 
 void clang::runUninitializedVariablesAnalysis(
@@ -753,27 +815,33 @@ void clang::runUninitializedVariablesAnalysis(
   }
 
   // Proceed with the workist.
-  DataflowWorklist worklist(cfg);
+  DataflowWorklist worklist(cfg, *ac.getAnalysis<PostOrderCFGView>());
   llvm::BitVector previouslyVisited(cfg.getNumBlockIDs());
   worklist.enqueueSuccessors(&cfg.getEntry());
   llvm::BitVector wasAnalyzed(cfg.getNumBlockIDs(), false);
   wasAnalyzed[cfg.getEntry().getBlockID()] = true;
+  PruneBlocksHandler PBH(cfg.getNumBlockIDs());
 
   while (const CFGBlock *block = worklist.dequeue()) {
+    PBH.currentBlock = block->getBlockID();
+
     // Did the block change?
     bool changed = runOnBlock(block, cfg, ac, vals,
-                              classification, wasAnalyzed);
+                              classification, wasAnalyzed, PBH);
     ++stats.NumBlockVisits;
     if (changed || !previouslyVisited[block->getBlockID()])
       worklist.enqueueSuccessors(block);    
     previouslyVisited[block->getBlockID()] = true;
   }
-  
-  // Run through the blocks one more time, and report uninitialized variabes.
+
+  if (!PBH.hadAnyUse)
+    return;
+
+  // Run through the blocks one more time, and report uninitialized variables.
   for (CFG::const_iterator BI = cfg.begin(), BE = cfg.end(); BI != BE; ++BI) {
     const CFGBlock *block = *BI;
-    if (wasAnalyzed[block->getBlockID()]) {
-      runOnBlock(block, cfg, ac, vals, classification, wasAnalyzed, &handler);
+    if (PBH.hadUse[block->getBlockID()]) {
+      runOnBlock(block, cfg, ac, vals, classification, wasAnalyzed, handler);
       ++stats.NumBlockVisits;
     }
   }

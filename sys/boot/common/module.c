@@ -289,7 +289,8 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 	    break;
 	} else if (last_file_format == i && i != 0) {
 	    /* Restart from the beginning */
-	    last_file_format = i = 0;
+	    i = -1;
+	    last_file_format = 0;
 	    fp = NULL;
 	    continue;
 	}

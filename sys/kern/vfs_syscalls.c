@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/limits.h>
 #include <sys/linker.h>
+#include <sys/rwlock.h>
 #include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -100,7 +101,11 @@ SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
-static int setfflags(struct thread *td, struct vnode *, int);
+static int kern_chflags(struct thread *td, const char *path,
+    enum uio_seg pathseg, u_long flags);
+static int kern_chflagsat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, u_long flags, int atflag);
+static int setfflags(struct thread *td, struct vnode *, u_long);
 static int setutimes(struct thread *td, struct vnode *,
     const struct timespec *, int, int);
 static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
@@ -444,7 +449,7 @@ sys_getfsstat(td, uap)
 
 /*
  * If (bufsize > 0 && bufseg == UIO_SYSSPACE)
- * 	The caller is responsible for freeing memory which will be allocated
+ *	The caller is responsible for freeing memory which will be allocated
  *	in '*buf'.
  */
 int
@@ -970,7 +975,7 @@ flags_to_rights(int flags)
 			/* FALLTHROUGH */
 		case O_WRONLY:
 			rights |= CAP_WRITE;
-			if (!(flags & O_APPEND))
+			if (!(flags & (O_APPEND | O_TRUNC)))
 				rights |= CAP_SEEK;
 			break;
 		}
@@ -2614,7 +2619,7 @@ static int
 setfflags(td, vp, flags)
 	struct thread *td;
 	struct vnode *vp;
-	int flags;
+	u_long flags;
 {
 	int error;
 	struct mount *mp;
@@ -2656,29 +2661,50 @@ setfflags(td, vp, flags)
  */
 #ifndef _SYS_SYSPROTO_H_
 struct chflags_args {
-	char	*path;
-	int	flags;
+	const char *path;
+	u_long	flags;
 };
 #endif
 int
 sys_chflags(td, uap)
 	struct thread *td;
 	register struct chflags_args /* {
-		char *path;
-		int flags;
+		const char *path;
+		u_long flags;
 	} */ *uap;
 {
-	int error;
-	struct nameidata nd;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
-	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, uap->flags);
-	vrele(nd.ni_vp);
-	return (error);
+	return (kern_chflags(td, uap->path, UIO_USERSPACE, uap->flags));
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct chflagsat_args {
+	int	fd;
+	const char *path;
+	u_long	flags;
+	int	atflag;
+}
+#endif
+int
+sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
+{
+	int fd = uap->fd;
+	const char *path = uap->path;
+	u_long flags = uap->flags;
+	int atflag = uap->atflag;
+
+	if (atflag & ~AT_SYMLINK_NOFOLLOW)
+		return (EINVAL);
+
+	return (kern_chflagsat(td, fd, path, UIO_USERSPACE, flags, atflag));
+}
+
+static int
+kern_chflags(struct thread *td, const char *path, enum uio_seg pathseg,
+    u_long flags)
+{
+
+	return (kern_chflagsat(td, AT_FDCWD, path, pathseg, flags, 0));
 }
 
 /*
@@ -2688,20 +2714,30 @@ int
 sys_lchflags(td, uap)
 	struct thread *td;
 	register struct lchflags_args /* {
-		char *path;
-		int flags;
+		const char *path;
+		u_long flags;
 	} */ *uap;
 {
-	int error;
-	struct nameidata nd;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
-	NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE, uap->path,
-	    td);
+	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
+	    uap->flags, AT_SYMLINK_NOFOLLOW));
+}
+
+static int
+kern_chflagsat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, u_long flags, int atflag)
+{
+	struct nameidata nd;
+	int error, follow;
+
+	AUDIT_ARG_FFLAGS(flags);
+	follow = (atflag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
+	NDINIT_ATRIGHTS(&nd, LOOKUP, follow | AUDITVNODE1, pathseg, path, fd,
+	    CAP_FCHFLAGS, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = setfflags(td, nd.ni_vp, uap->flags);
+	error = setfflags(td, nd.ni_vp, flags);
 	vrele(nd.ni_vp);
 	return (error);
 }
@@ -2712,7 +2748,7 @@ sys_lchflags(td, uap)
 #ifndef _SYS_SYSPROTO_H_
 struct fchflags_args {
 	int	fd;
-	int	flags;
+	u_long	flags;
 };
 #endif
 int
@@ -2720,7 +2756,7 @@ sys_fchflags(td, uap)
 	struct thread *td;
 	register struct fchflags_args /* {
 		int fd;
-		int flags;
+		u_long flags;
 	} */ *uap;
 {
 	struct file *fp;
@@ -2842,7 +2878,6 @@ sys_lchmod(td, uap)
 	    uap->mode, AT_SYMLINK_NOFOLLOW));
 }
 
-
 int
 kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     mode_t mode, int flag)
@@ -2853,7 +2888,7 @@ kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 	AUDIT_ARG_MODE(mode);
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
-	NDINIT_ATRIGHTS(&nd, LOOKUP,  follow | AUDITVNODE1, pathseg, path, fd,
+	NDINIT_ATRIGHTS(&nd, LOOKUP, follow | AUDITVNODE1, pathseg, path, fd,
 	    CAP_FCHMOD, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -3437,9 +3472,9 @@ sys_fsync(td, uap)
 	vn_lock(vp, lock_flags | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
 	if (vp->v_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_object);
+		VM_OBJECT_WLOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 
@@ -4678,7 +4713,7 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 				new = fa;
 				fp->f_advice = NULL;
 			} else if (offset <= fa->fa_start &&
- 			    end >= fa->fa_start)
+			    end >= fa->fa_start)
 				fa->fa_start = end + 1;
 			else if (offset <= fa->fa_end && end >= fa->fa_end)
 				fa->fa_end = offset - 1;

@@ -1,12 +1,16 @@
 /*-
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Poul-Henning Kamp
  * and NAI Labs, the Security Research Division of Network Associates, Inc.
  * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
  * DARPA CHATS research program.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
+#include <sys/sysctl.h>
 
 #include <sys/errno.h>
 #include <geom/geom.h>
@@ -51,6 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/devicestat.h>
 
 #include <vm/uma.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
@@ -180,12 +192,17 @@ g_clone_bio(struct bio *bp)
 		/*
 		 *  BIO_ORDERED flag may be used by disk drivers to enforce
 		 *  ordering restrictions, so this flag needs to be cloned.
+		 *  BIO_UNMAPPED should be inherited, to properly indicate
+		 *  which way the buffer is passed.
 		 *  Other bio flags are not suitable for cloning.
 		 */
-		bp2->bio_flags = bp->bio_flags & BIO_ORDERED;
+		bp2->bio_flags = bp->bio_flags & (BIO_ORDERED | BIO_UNMAPPED);
 		bp2->bio_length = bp->bio_length;
 		bp2->bio_offset = bp->bio_offset;
 		bp2->bio_data = bp->bio_data;
+		bp2->bio_ma = bp->bio_ma;
+		bp2->bio_ma_n = bp->bio_ma_n;
+		bp2->bio_ma_offset = bp->bio_ma_offset;
 		bp2->bio_attribute = bp->bio_attribute;
 		/* Inherit classification info from the parent */
 		bp2->bio_classifier1 = bp->bio_classifier1;
@@ -210,11 +227,15 @@ g_duplicate_bio(struct bio *bp)
 	struct bio *bp2;
 
 	bp2 = uma_zalloc(biozone, M_WAITOK | M_ZERO);
+	bp2->bio_flags = bp->bio_flags & BIO_UNMAPPED;
 	bp2->bio_parent = bp;
 	bp2->bio_cmd = bp->bio_cmd;
 	bp2->bio_length = bp->bio_length;
 	bp2->bio_offset = bp->bio_offset;
 	bp2->bio_data = bp->bio_data;
+	bp2->bio_ma = bp->bio_ma;
+	bp2->bio_ma_n = bp->bio_ma_n;
+	bp2->bio_ma_offset = bp->bio_ma_offset;
 	bp2->bio_attribute = bp->bio_attribute;
 	bp->bio_children++;
 #ifdef KTR
@@ -575,6 +596,85 @@ g_io_deliver(struct bio *bp, int error)
 	return;
 }
 
+SYSCTL_DECL(_kern_geom);
+
+static long transient_maps;
+SYSCTL_LONG(_kern_geom, OID_AUTO, transient_maps, CTLFLAG_RD,
+    &transient_maps, 0,
+    "Total count of the transient mapping requests");
+u_int transient_map_retries = 10;
+SYSCTL_UINT(_kern_geom, OID_AUTO, transient_map_retries, CTLFLAG_RW,
+    &transient_map_retries, 0,
+    "Max count of retries used before giving up on creating transient map");
+int transient_map_hard_failures;
+SYSCTL_INT(_kern_geom, OID_AUTO, transient_map_hard_failures, CTLFLAG_RD,
+    &transient_map_hard_failures, 0,
+    "Failures to establish the transient mapping due to retry attempts "
+    "exhausted");
+int transient_map_soft_failures;
+SYSCTL_INT(_kern_geom, OID_AUTO, transient_map_soft_failures, CTLFLAG_RD,
+    &transient_map_soft_failures, 0,
+    "Count of retried failures to establish the transient mapping");
+int inflight_transient_maps;
+SYSCTL_INT(_kern_geom, OID_AUTO, inflight_transient_maps, CTLFLAG_RD,
+    &inflight_transient_maps, 0,
+    "Current count of the active transient maps");
+
+static int
+g_io_transient_map_bio(struct bio *bp)
+{
+	vm_offset_t addr;
+	long size;
+	u_int retried;
+	int rv;
+
+	KASSERT(unmapped_buf_allowed, ("unmapped disabled"));
+
+	size = round_page(bp->bio_ma_offset + bp->bio_length);
+	KASSERT(size / PAGE_SIZE == bp->bio_ma_n, ("Bio too short %p", bp));
+	addr = 0;
+	retried = 0;
+	atomic_add_long(&transient_maps, 1);
+retry:
+	vm_map_lock(bio_transient_map);
+	if (vm_map_findspace(bio_transient_map, vm_map_min(bio_transient_map),
+	    size, &addr)) {
+		vm_map_unlock(bio_transient_map);
+		if (transient_map_retries != 0 &&
+		    retried >= transient_map_retries) {
+			g_io_deliver(bp, EDEADLK/* XXXKIB */);
+			CTR2(KTR_GEOM, "g_down cannot map bp %p provider %s",
+			    bp, bp->bio_to->name);
+			atomic_add_int(&transient_map_hard_failures, 1);
+			return (1);
+		} else {
+			/*
+			 * Naive attempt to quisce the I/O to get more
+			 * in-flight requests completed and defragment
+			 * the bio_transient_map.
+			 */
+			CTR3(KTR_GEOM, "g_down retrymap bp %p provider %s r %d",
+			    bp, bp->bio_to->name, retried);
+			pause("g_d_tra", hz / 10);
+			retried++;
+			atomic_add_int(&transient_map_soft_failures, 1);
+			goto retry;
+		}
+	}
+	rv = vm_map_insert(bio_transient_map, NULL, 0, addr, addr + size,
+	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
+	KASSERT(rv == KERN_SUCCESS,
+	    ("vm_map_insert(bio_transient_map) rv %d %jx %lx",
+	    rv, (uintmax_t)addr, size));
+	vm_map_unlock(bio_transient_map);
+	atomic_add_int(&inflight_transient_maps, 1);
+	pmap_qenter((vm_offset_t)addr, bp->bio_ma, OFF_TO_IDX(size));
+	bp->bio_data = (caddr_t)addr + bp->bio_ma_offset;
+	bp->bio_flags |= BIO_TRANSIENT_MAPPING;
+	bp->bio_flags &= ~BIO_UNMAPPED;
+	return (0);
+}
+
 void
 g_io_schedule_down(struct thread *tp __unused)
 {
@@ -618,8 +718,17 @@ g_io_schedule_down(struct thread *tp __unused)
 			 */
 			excess = bp->bio_offset + bp->bio_length;
 			if (excess > bp->bio_to->mediasize) {
+				KASSERT((bp->bio_flags & BIO_UNMAPPED) == 0 ||
+				    round_page(bp->bio_ma_offset +
+				    bp->bio_length) / PAGE_SIZE == bp->bio_ma_n,
+				    ("excess bio %p too short", bp));
 				excess -= bp->bio_to->mediasize;
 				bp->bio_length -= excess;
+				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+					bp->bio_ma_n = round_page(
+					    bp->bio_ma_offset +
+					    bp->bio_length) / PAGE_SIZE;
+				}
 				if (excess > 0)
 					CTR3(KTR_GEOM, "g_down truncated bio "
 					    "%p provider %s by %d", bp,
@@ -635,6 +744,12 @@ g_io_schedule_down(struct thread *tp __unused)
 			break;
 		default:
 			break;
+		}
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
+		    (bp->bio_to->flags & G_PF_ACCEPT_UNMAPPED) == 0 &&
+		    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
+			if (g_io_transient_map_bio(bp))
+				continue;
 		}
 		THREAD_NO_SLEEPING();
 		CTR4(KTR_GEOM, "g_down starting bp %p provider %s off %ld "

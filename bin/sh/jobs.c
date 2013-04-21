@@ -458,14 +458,15 @@ freejob(struct job *jp)
 
 
 int
-waitcmd(int argc, char **argv)
+waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
 	int status, retval;
 	struct job *jp;
 
-	if (argc > 1) {
-		job = getjob(argv[1]);
+	nextopt("");
+	if (*argptr != NULL) {
+		job = getjob(*argptr);
 	} else {
 		job = NULL;
 	}
@@ -667,7 +668,8 @@ makejob(union node *node __unused, int nprocs)
 				jobtab = jp;
 			}
 			jp = jobtab + njobs;
-			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = 0);
+			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = 0)
+				;
 			INTON;
 			break;
 		}
@@ -1004,7 +1006,7 @@ waitforjob(struct job *jp, int *origstatus)
 
 
 static void
-dummy_handler(int sig)
+dummy_handler(int sig __unused)
 {
 }
 

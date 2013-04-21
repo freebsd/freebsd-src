@@ -197,6 +197,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			    &ip6->ip6_dst) != 0)
 				continue;
 		}
+		INP_RLOCK(in6p);
 		if (in6p->in6p_cksum != -1) {
 			V_rip6stat.rip6s_isum++;
 			if (in6_cksum(m, proto, *offp,
@@ -206,7 +207,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 				continue;
 			}
 		}
-		INP_RLOCK(in6p);
 		/*
 		 * If this raw socket has multicast state, and we
 		 * have received a multicast, check if this socket
@@ -296,7 +296,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	if ((last != NULL) && ipsec6_in_reject(m, last)) {
 		m_freem(m);
 		V_ipsec6stat.in_polvio++;
-		V_ip6stat.ip6s_delivered--;
+		IP6STAT_DEC(ip6s_delivered);
 		/* Do not inject data into pcb. */
 		INP_RUNLOCK(last);
 	} else
@@ -328,7 +328,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			    ICMP6_PARAMPROB_NEXTHEADER,
 			    prvnxtp - mtod(m, char *));
 		}
-		V_ip6stat.ip6s_delivered--;
+		IP6STAT_DEC(ip6s_delivered);
 	}
 	return (IPPROTO_DONE);
 }

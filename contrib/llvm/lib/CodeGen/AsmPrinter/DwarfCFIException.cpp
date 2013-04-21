@@ -12,31 +12,31 @@
 //===----------------------------------------------------------------------===//
 
 #include "DwarfException.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/MC/MachineLocation.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MachineLocation.h"
+#include "llvm/Support/Dwarf.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Support/Dwarf.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/FormattedStream.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/Twine.h"
 using namespace llvm;
 
 DwarfCFIException::DwarfCFIException(AsmPrinter *A)
@@ -122,8 +122,9 @@ void DwarfCFIException::BeginFunction(const MachineFunction *MF) {
   const MCSymbol *Sym = TLOF.getCFIPersonalitySymbol(Per, Asm->Mang, MMI);
   Asm->OutStreamer.EmitCFIPersonality(Sym, PerEncoding);
 
-  Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_func_begin",
-                                                Asm->getFunctionNumber()));
+  Asm->OutStreamer.EmitDebugLabel
+    (Asm->GetTempSymbol("eh_func_begin",
+                        Asm->getFunctionNumber()));
 
   // Provide LSDA information.
   if (!shouldEmitLSDA)

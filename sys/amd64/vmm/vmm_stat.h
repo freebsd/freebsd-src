@@ -36,18 +36,35 @@ struct vm;
 
 #define	MAX_VMM_STAT_TYPES	64		/* arbitrary */
 
+enum vmm_stat_scope {
+	VMM_STAT_SCOPE_ANY,
+	VMM_STAT_SCOPE_INTEL,		/* Intel VMX specific statistic */
+	VMM_STAT_SCOPE_AMD,		/* AMD SVM specific statistic */
+};
+
 struct vmm_stat_type {
-	const char	*desc;		/* description of statistic */
 	int	index;			/* position in the stats buffer */
+	const char *desc;		/* description of statistic */
+	enum vmm_stat_scope scope;
 };
 
 void	vmm_stat_init(void *arg);
 
-#define	VMM_STAT_DEFINE(type, desc)					\
+#define	VMM_STAT_DEFINE(type, desc, scope)				\
 	struct vmm_stat_type type[1] = {				\
-		{ desc, -1 }						\
+		{ -1, desc, scope }					\
 	};								\
 	SYSINIT(type##_stat, SI_SUB_KLD, SI_ORDER_ANY, vmm_stat_init, type)
+
+#define	VMM_STAT_DECLARE(type)						\
+	extern struct vmm_stat_type type[1]
+
+#define	VMM_STAT(type, desc)		\
+	VMM_STAT_DEFINE(type, desc, VMM_STAT_SCOPE_ANY)
+#define	VMM_STAT_INTEL(type, desc)	\
+	VMM_STAT_DEFINE(type, desc, VMM_STAT_SCOPE_INTEL)
+#define	VMM_STAT_AMD(type, desc)	\
+	VMM_STAT_DEFINE(type, desc, VMM_STAT_SCOPE_AMD)
 
 void	*vmm_stat_alloc(void);
 void 	vmm_stat_free(void *vp);
@@ -68,4 +85,21 @@ vmm_stat_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst, uint64_t x)
 #endif
 }
 
+VMM_STAT_DECLARE(VCPU_MIGRATIONS);
+VMM_STAT_DECLARE(VMEXIT_COUNT);
+VMM_STAT_DECLARE(VMEXIT_EXTINT);
+VMM_STAT_DECLARE(VMEXIT_HLT);
+VMM_STAT_DECLARE(VMEXIT_CR_ACCESS);
+VMM_STAT_DECLARE(VMEXIT_RDMSR);
+VMM_STAT_DECLARE(VMEXIT_WRMSR);
+VMM_STAT_DECLARE(VMEXIT_MTRAP);
+VMM_STAT_DECLARE(VMEXIT_PAUSE);
+VMM_STAT_DECLARE(VMEXIT_INTR_WINDOW);
+VMM_STAT_DECLARE(VMEXIT_NMI_WINDOW);
+VMM_STAT_DECLARE(VMEXIT_INOUT);
+VMM_STAT_DECLARE(VMEXIT_CPUID);
+VMM_STAT_DECLARE(VMEXIT_EPT_FAULT);
+VMM_STAT_DECLARE(VMEXIT_UNKNOWN);
+VMM_STAT_DECLARE(VMEXIT_ASTPENDING);
+VMM_STAT_DECLARE(VMEXIT_USERSPACE);
 #endif

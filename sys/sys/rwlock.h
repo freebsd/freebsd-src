@@ -211,7 +211,8 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 		rw_runlock(rw);						\
 } while (0)
 #define	rw_sleep(chan, rw, pri, wmesg, timo)				\
-	_sleep((chan), &(rw)->lock_object, (pri), (wmesg), (timo))
+	_sleep((chan), &(rw)->lock_object, (pri), (wmesg),		\
+	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
 #define	rw_initialized(rw)	lock_initalized(&(rw)->lock_object)
 

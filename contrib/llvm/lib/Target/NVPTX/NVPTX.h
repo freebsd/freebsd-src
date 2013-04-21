@@ -15,11 +15,11 @@
 #ifndef LLVM_TARGET_NVPTX_H
 #define LLVM_TARGET_NVPTX_H
 
-#include "llvm/Value.h"
-#include "llvm/Module.h"
+#include "MCTargetDesc/NVPTXBaseInfo.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetMachine.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
 #include <cassert>
 #include <iosfwd>
 
@@ -41,19 +41,24 @@ enum CondCodes {
 
 inline static const char *NVPTXCondCodeToString(NVPTXCC::CondCodes CC) {
   switch (CC) {
-  case NVPTXCC::NE:  return "ne";
-  case NVPTXCC::EQ:   return "eq";
-  case NVPTXCC::LT:   return "lt";
-  case NVPTXCC::LE:  return "le";
-  case NVPTXCC::GT:  return "gt";
-  case NVPTXCC::GE:   return "ge";
+  case NVPTXCC::NE:
+    return "ne";
+  case NVPTXCC::EQ:
+    return "eq";
+  case NVPTXCC::LT:
+    return "lt";
+  case NVPTXCC::LE:
+    return "le";
+  case NVPTXCC::GT:
+    return "gt";
+  case NVPTXCC::GE:
+    return "ge";
   }
   llvm_unreachable("Unknown condition code");
 }
 
-FunctionPass *createNVPTXISelDag(NVPTXTargetMachine &TM,
-                                 llvm::CodeGenOpt::Level OptLevel);
-FunctionPass *createVectorElementizePass(NVPTXTargetMachine &);
+FunctionPass *
+createNVPTXISelDag(NVPTXTargetMachine &TM, llvm::CodeGenOpt::Level OptLevel);
 FunctionPass *createLowerStructArgsPass(NVPTXTargetMachine &);
 FunctionPass *createNVPTXReMatPass(NVPTXTargetMachine &);
 FunctionPass *createNVPTXReMatBlockPass(NVPTXTargetMachine &);
@@ -63,8 +68,7 @@ bool isImageOrSamplerVal(const Value *, const Module *);
 extern Target TheNVPTXTarget32;
 extern Target TheNVPTXTarget64;
 
-namespace NVPTX
-{
+namespace NVPTX {
 enum DrvInterface {
   NVCL,
   CUDA,
@@ -103,7 +107,7 @@ enum LoadStore {
 };
 
 namespace PTXLdStInstCode {
-enum AddressSpace{
+enum AddressSpace {
   GENERIC = 0,
   GLOBAL = 1,
   CONSTANT = 2,

@@ -824,6 +824,7 @@ set_api_config(uint32_t *apival)
 
     for (i = 0; i < mfchashsize; i++) {
 	if (LIST_FIRST(&V_mfchashtbl[i]) != NULL) {
+	    MFC_UNLOCK();
 	    *apival = 0;
 	    return EPERM;
 	}
@@ -2083,13 +2084,12 @@ bw_upcalls_send(void)
      * Allocate a new mbuf, initialize it with the header and
      * the payload for the pending calls.
      */
-    MGETHDR(m, M_NOWAIT, MT_DATA);
+    m = m_gethdr(M_NOWAIT, MT_DATA);
     if (m == NULL) {
 	log(LOG_WARNING, "bw_upcalls_send: cannot allocate mbuf\n");
 	return;
     }
 
-    m->m_len = m->m_pkthdr.len = 0;
     m_copyback(m, 0, sizeof(struct igmpmsg), (caddr_t)&igmpmsg);
     m_copyback(m, sizeof(struct igmpmsg), len, (caddr_t)&V_bw_upcalls[0]);
 
@@ -2430,7 +2430,7 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
     /*
      * Add a new mbuf with an upcall header
      */
-    MGETHDR(mb_first, M_NOWAIT, MT_DATA);
+    mb_first = m_gethdr(M_NOWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;
@@ -2488,7 +2488,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     /*
      * Add a new mbuf with the encapsulating header
      */
-    MGETHDR(mb_first, M_NOWAIT, MT_DATA);
+    mb_first = m_gethdr(M_NOWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;
@@ -2846,7 +2846,8 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event, 
 	    if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
 	if (if_detach_event_tag == NULL) {
-		printf("ip_mroute: unable to ifnet_deperture_even handler\n");
+		printf("ip_mroute: unable to register "
+		    "ifnet_departure_event handler\n");
 		MROUTER_LOCK_DESTROY();
 		return (EINVAL);
 	}
