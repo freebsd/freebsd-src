@@ -12,7 +12,7 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
 NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
-from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to tip of
+from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 head, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
@@ -1612,7 +1612,7 @@ COMMON ITEMS:
 	path, and has the highest probability of being successful.  Please try
 	this approach before reporting problems with a major version upgrade.
 
-	When upgrading a life system, having a root shell around before
+	When upgrading a live system, having a root shell around before
 	installing anything can help undo problems. Not having a root shell
 	around can lead to problems if pam has changed too much from your
 	starting point to allow continued authentication after the upgrade.
