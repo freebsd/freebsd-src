@@ -1343,7 +1343,7 @@ void
 xen_set_proc(struct pcb *newpcb)
 {
 	HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL), 
-		(unsigned long) PCPU_GET(rsp0));
+		(unsigned long) newpcb & ~0xFul);
 }
 
 char *console_page;

@@ -323,6 +323,12 @@ done_tss:
 	/* Update the TSS_RSP0 pointer for the next interrupt */
 	movq	%r8,COMMON_TSS_RSP0(%rdx)
 	movq	%rsi,PCPU(CURTHREAD)		/* into next thread */
+#ifdef XEN
+	pushq	%r8
+	movq	%r8, %rdi
+	callq	xen_set_proc
+	popq	%r8
+#endif
 #ifndef	XEN
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -388,9 +394,10 @@ load_dr:
 	movq	%r11,%dr6
 	movq	%rax,%dr7
 	jmp	done_load_dr
-
+#endif 	/* !XEN */
 do_tss:	movq	%rdx,PCPU(TSSP)
 	movq	%rdx,%rcx
+#ifndef XEN	
 	movq	PCPU(TSS),%rax
 	movw	%cx,2(%rax)
 	shrq	$16,%rcx
@@ -402,18 +409,6 @@ do_tss:	movq	%rdx,PCPU(TSSP)
 	movb	$0x89,5(%rax)	/* unset busy */
 	movl	$TSSSEL,%eax
 	ltr	%ax
-#else
-do_tss:
-	pushq	%rsi
-	pushq	%rdx
-	pushq	%r8
-
-	movq	%r8, %rdi
-	callq	xen_set_proc
-
-	popq	%r8
-	popq	%rdx
-	popq	%rsi
 #endif 	/* !XEN */
 	jmp	done_tss
 	
