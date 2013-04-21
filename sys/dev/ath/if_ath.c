@@ -125,7 +125,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Only enable this if you're working on PS-POLL support.
  */
-#undef	ATH_SW_PSQ
+#define	ATH_SW_PSQ
 
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
@@ -212,6 +212,7 @@ static void	ath_announce(struct ath_softc *);
 static void	ath_dfs_tasklet(void *, int);
 static void	ath_node_powersave(struct ieee80211_node *, int);
 static int	ath_node_set_tim(struct ieee80211_node *, int);
+static void	ath_node_recv_pspoll(struct ieee80211_node *, struct mbuf *);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <dev/ath/if_ath_tdma.h>
@@ -1240,6 +1241,9 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	avp->av_set_tim = vap->iv_set_tim;
 	vap->iv_set_tim = ath_node_set_tim;
+
+	avp->av_recv_pspoll = vap->iv_recv_pspoll;
+	vap->iv_recv_pspoll = ath_node_recv_pspoll;
 
 	/* Set default parameters */
 
@@ -3378,7 +3382,7 @@ ath_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	/* XXX setup ath_tid */
 	ath_tx_tid_init(sc, an);
 
-	DPRINTF(sc, ATH_DEBUG_NODE, "%s: an %p\n", __func__, an);
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %6D: an %p\n", __func__, mac, ":", an);
 	return &an->an_node;
 }
 
@@ -3387,6 +3391,9 @@ ath_node_cleanup(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
+
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %6D: an %p\n", __func__,
+	    ni->ni_macaddr, ":", ATH_NODE(ni));
 
 	/* Cleanup ath_tid, free unused bufs, unlink bufs in TXQ */
 	ath_tx_node_flush(sc, ATH_NODE(ni));
@@ -3400,7 +3407,8 @@ ath_node_free(struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 
-	DPRINTF(sc, ATH_DEBUG_NODE, "%s: ni %p\n", __func__, ni);
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %6D: an %p\n", __func__,
+	    ni->ni_macaddr, ":", ATH_NODE(ni));
 	mtx_destroy(&ATH_NODE(ni)->an_mtx);
 	sc->sc_node_free(ni);
 }
@@ -3773,8 +3781,11 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 * XXX TODO: during drain, ensure that the callback is
 	 * being called so we get a chance to update the TIM.
 	 */
-	if (bf->bf_node)
+	if (bf->bf_node) {
+		ATH_TX_LOCK(sc);
 		ath_tx_update_tim(sc, bf->bf_node, 0);
+		ATH_TX_UNLOCK(sc);
+	}
 
 	/*
 	 * Do any tx complete callback.  Note this must
@@ -5220,6 +5231,31 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	    (vap->iv_flags & IEEE80211_F_PRIVACY) == 0 && sc->sc_hasclrkey &&
 	    ni->ni_ucastkey.wk_keyix == IEEE80211_KEYIX_NONE)
 		ath_setup_stationkey(ni);
+
+	/*
+	 * If we're reassociating, make sure that any paused queues
+	 * get unpaused.
+	 *
+	 * Now, we may hvae frames in the hardware queue for this node.
+	 * So if we are reassociating and there are frames in the queue,
+	 * we need to go through the cleanup path to ensure that they're
+	 * marked as non-aggregate.
+	 */
+	if (! isnew) {
+		device_printf(sc->sc_dev,
+		    "%s: %6D: reassoc; is_powersave=%d\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    an->an_is_powersave);
+
+		/* XXX for now, we can't hold the lock across assoc */
+		ath_tx_node_reassoc(sc, an);
+
+		/* XXX for now, we can't hold the lock across wakeup */
+		if (an->an_is_powersave)
+			ath_tx_node_wakeup(sc, an);
+	}
 }
 
 static int
@@ -5732,11 +5768,13 @@ ath_node_powersave(struct ieee80211_node *ni, int enable)
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
 
-	ATH_NODE_UNLOCK_ASSERT(an);
 	/* XXX and no TXQ locks should be held here */
 
-	DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE, "%s: ni=%p, enable=%d\n",
-	    __func__, ni, enable);
+	DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE, "%s: %6D: enable=%d\n",
+	    __func__,
+	    ni->ni_macaddr,
+	    ":",
+	    !! enable);
 
 	/* Suspend or resume software queue handling */
 	if (enable)
@@ -5799,12 +5837,7 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
 	int changed = 0;
 
-	ATH_NODE_UNLOCK_ASSERT(an);
-
-	/*
-	 * For now, just track and then update the TIM.
-	 */
-	ATH_NODE_LOCK(an);
+	ATH_TX_LOCK(sc);
 	an->an_stack_psq = enable;
 
 	/*
@@ -5815,7 +5848,7 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 	 * and AP/IBSS node power save.
 	 */
 	if (avp->av_set_tim == NULL) {
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		return (0);
 	}
 
@@ -5835,33 +5868,45 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 	 */
 	if (enable && an->an_tim_set == 1) {
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
-		    "%s: an=%p, enable=%d, tim_set=1, ignoring\n",
-		    __func__, an, enable);
-		ATH_NODE_UNLOCK(an);
+		    "%s: %6D: enable=%d, tim_set=1, ignoring\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    enable);
+		ATH_TX_UNLOCK(sc);
 	} else if (enable) {
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
-		    "%s: an=%p, enable=%d, enabling TIM\n",
-		    __func__, an, enable);
+		    "%s: %6D: enable=%d, enabling TIM\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    enable);
 		an->an_tim_set = 1;
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		changed = avp->av_set_tim(ni, enable);
 	} else if (atomic_load_acq_int(&an->an_swq_depth) == 0) {
 		/* disable */
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
-		    "%s: an=%p, enable=%d, an_swq_depth == 0, disabling\n",
-		    __func__, an, enable);
+		    "%s: %6D: enable=%d, an_swq_depth == 0, disabling\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    enable);
 		an->an_tim_set = 0;
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		changed = avp->av_set_tim(ni, enable);
 	} else if (! an->an_is_powersave) {
 		/*
 		 * disable regardless; the node isn't in powersave now
 		 */
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
-		    "%s: an=%p, enable=%d, an_pwrsave=0, disabling\n",
-		    __func__, an, enable);
+		    "%s: %6D: enable=%d, an_pwrsave=0, disabling\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    enable);
 		an->an_tim_set = 0;
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		changed = avp->av_set_tim(ni, enable);
 	} else {
 		/*
@@ -5869,10 +5914,13 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 		 * software queue isn't empty, so don't clear the TIM bit
 		 * for now.
 		 */
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
-		    "%s: enable=%d, an_swq_depth > 0, ignoring\n",
-		    __func__, enable);
+		    "%s: %6D: enable=%d, an_swq_depth > 0, ignoring\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    enable);
 		changed = 0;
 	}
 
@@ -5934,7 +5982,7 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (avp->av_set_tim == NULL)
 		return;
 
-	ATH_NODE_UNLOCK_ASSERT(an);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	if (enable) {
 		/*
@@ -5944,18 +5992,16 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (atomic_load_acq_int(&an->an_swq_depth) == 0)
 			return;
 
-		ATH_NODE_LOCK(an);
 		if (an->an_is_powersave &&
 		    an->an_tim_set == 0 &&
 		    atomic_load_acq_int(&an->an_swq_depth) != 0) {
 			DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
-			    "%s: an=%p, swq_depth>0, tim_set=0, set!\n",
-			    __func__, an);
+			    "%s: %6D: swq_depth>0, tim_set=0, set!\n",
+			    __func__,
+			    ni->ni_macaddr,
+			    ":");
 			an->an_tim_set = 1;
-			ATH_NODE_UNLOCK(an);
 			(void) avp->av_set_tim(ni, 1);
-		} else {
-			ATH_NODE_UNLOCK(an);
 		}
 	} else {
 		/*
@@ -5964,25 +6010,167 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (atomic_load_acq_int(&an->an_swq_depth) != 0)
 			return;
 
-		ATH_NODE_LOCK(an);
 		if (an->an_is_powersave &&
 		    an->an_stack_psq == 0 &&
 		    an->an_tim_set == 1 &&
 		    atomic_load_acq_int(&an->an_swq_depth) == 0) {
 			DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
-			    "%s: an=%p, swq_depth=0, tim_set=1, psq_set=0,"
+			    "%s: %6D: swq_depth=0, tim_set=1, psq_set=0,"
 			    " clear!\n",
-			    __func__, an);
+			    __func__,
+			    ni->ni_macaddr,
+			    ":");
 			an->an_tim_set = 0;
-			ATH_NODE_UNLOCK(an);
 			(void) avp->av_set_tim(ni, 0);
-		} else {
-			ATH_NODE_UNLOCK(an);
 		}
 	}
 #else
 	return;
 #endif	/* ATH_SW_PSQ */
+}
+
+/*
+ * Received a ps-poll frame from net80211.
+ *
+ * Here we get a chance to serve out a software-queued frame ourselves
+ * before we punt it to net80211 to transmit us one itself - either
+ * because there's traffic in the net80211 psq, or a NULL frame to
+ * indicate there's nothing else.
+ */
+static void
+ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
+{
+	struct ath_node *an;
+	struct ath_vap *avp;
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	int tid;
+
+	/* Just paranoia */
+	if (ni == NULL)
+		return;
+
+	/*
+	 * Unassociated (temporary node) station.
+	 */
+	if (ni->ni_associd == 0)
+		return;
+
+	/*
+	 * We do have an active node, so let's begin looking into it.
+	 */
+	an = ATH_NODE(ni);
+	avp = ATH_VAP(ni->ni_vap);
+
+	/*
+	 * For now, we just call the original ps-poll method.
+	 * Once we're ready to flip this on:
+	 *
+	 * + Set leak to 1, as no matter what we're going to have
+	 *   to send a frame;
+	 * + Check the software queue and if there's something in it,
+	 *   schedule the highest TID thas has traffic from this node.
+	 *   Then make sure we schedule the software scheduler to
+	 *   run so it picks up said frame.
+	 *
+	 * That way whatever happens, we'll at least send _a_ frame
+	 * to the given node.
+	 *
+	 * Again, yes, it's crappy QoS if the node has multiple
+	 * TIDs worth of traffic - but let's get it working first
+	 * before we optimise it.
+	 *
+	 * Also yes, there's definitely latency here - we're not
+	 * direct dispatching to the hardware in this path (and
+	 * we're likely being called from the packet receive path,
+	 * so going back into TX may be a little hairy!) but again
+	 * I'd like to get this working first before optimising
+	 * turn-around time.
+	 */
+
+	ATH_NODE_LOCK(an);
+
+	/*
+	 * Legacy - we're called and the node isn't asleep.
+	 * Immediately punt.
+	 */
+	if (! an->an_is_powersave) {
+		device_printf(sc->sc_dev,
+		    "%s: %6D: not in powersave?\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":");
+		ATH_NODE_UNLOCK(an);
+		avp->av_recv_pspoll(ni, m);
+		return;
+	}
+
+	/*
+	 * We're in powersave.
+	 *
+	 * Leak a frame.
+	 */
+	an->an_leak_count = 1;
+
+	/*
+	 * Now, if there's no frames in the node, just punt to
+	 * recv_pspoll.
+	 *
+	 * Don't bother checking if the TIM bit is set, we really
+	 * only care if there are any frames here!
+	 */
+	if (atomic_load_acq_int(&an->an_swq_depth) == 0) {
+		ATH_NODE_UNLOCK(an);
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: %6D: SWQ empty; punting to net80211\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":");
+		avp->av_recv_pspoll(ni, m);
+		return;
+	}
+
+	ATH_NODE_UNLOCK(an);
+
+	/*
+	 * Ok, let's schedule the highest TID that has traffic
+	 * and then schedule something.
+	 */
+	ATH_TX_LOCK(sc);
+	for (tid = IEEE80211_TID_SIZE - 1; tid >= 0; tid--) {
+		struct ath_tid *atid = &an->an_tid[tid];
+		/*
+		 * No frames? Skip.
+		 */
+		if (atid->axq_depth == 0)
+			continue;
+		ath_tx_tid_sched(sc, atid);
+		/*
+		 * XXX we could do a direct call to the TXQ
+		 * scheduler code here to optimise latency
+		 * at the expense of a REALLY deep callstack.
+		 */
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: %6D: leaking frame to TID %d\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    tid);
+		ATH_TX_UNLOCK(sc);
+		return;
+	}
+
+	ATH_TX_UNLOCK(sc);
+
+	/*
+	 * XXX nothing in the TIDs at this point? Eek.
+	 */
+	device_printf(sc->sc_dev, "%s: %6D: TIDs empty, but ath_node showed traffic?!\n",
+	    __func__,
+	    ni->ni_macaddr,
+	    ":");
+	avp->av_recv_pspoll(ni, m);
 }
 
 MODULE_VERSION(if_ath, 1);

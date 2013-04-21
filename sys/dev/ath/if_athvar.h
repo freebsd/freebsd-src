@@ -178,10 +178,11 @@ struct ath_node {
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
 	char		an_name[32];	/* eg "wlan0_a1" */
-	struct mtx	an_mtx;		/* protecting the ath_node state */
+	struct mtx	an_mtx;		/* protecting the rate control state */
 	uint32_t	an_swq_depth;	/* how many SWQ packets for this
 					   node */
 	int			clrdmask;	/* has clrdmask been set */
+	uint32_t	an_leak_count;	/* How many frames to leak during pause */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -382,7 +383,6 @@ struct ath_txq {
 #define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
 
-
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
 #define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
 #define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)
@@ -463,6 +463,8 @@ struct ath_vap {
 	void		(*av_bmiss)(struct ieee80211vap *);
 	void		(*av_node_ps)(struct ieee80211_node *, int);
 	int		(*av_set_tim)(struct ieee80211_node *, int);
+	void		(*av_recv_pspoll)(struct ieee80211_node *,
+				struct mbuf *);
 };
 #define	ATH_VAP(vap)	((struct ath_vap *)(vap))
 

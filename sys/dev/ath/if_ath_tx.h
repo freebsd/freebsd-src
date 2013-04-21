@@ -98,7 +98,7 @@ extern int ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 /* software queue stuff */
 extern void ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
-    struct ath_txq *txq, struct ath_buf *bf);
+    struct ath_txq *txq, int queue_to_head, struct ath_buf *bf);
 extern void ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an);
 extern void ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid);
@@ -113,6 +113,7 @@ extern void ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid, struct ath_buf *bf);
 extern struct ieee80211_tx_ampdu * ath_tx_get_tx_tid(struct ath_node *an,
     int tid);
+extern void ath_tx_tid_sched(struct ath_softc *sc, struct ath_tid *tid);
 
 /* TX addba handling */
 extern	int ath_addba_request(struct ieee80211_node *ni,
@@ -134,6 +135,7 @@ extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
 extern	void ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an);
 extern	void ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an);
 extern	int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
+extern	void ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an);
 
 /*
  * Misc debugging stuff
