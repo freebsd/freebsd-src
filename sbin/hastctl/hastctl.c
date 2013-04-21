@@ -504,18 +504,8 @@ main(int argc, char *argv[])
 			nv_add_string(nv, argv[ii + 1], "resource%d", ii);
 		break;
 	case CMD_LIST:
-		/* Obtain verbose status of the given resources. */
-		nv = nv_alloc();
-		nv_add_uint8(nv, HASTCTL_CMD_STATUS, "cmd");
-		if (argc == 0)
-			nv_add_string(nv, "all", "resource%d", 0);
-		else {
-			for (ii = 0; ii < argc; ii++)
-				nv_add_string(nv, argv[ii], "resource%d", ii);
-		}
-		break;
 	case CMD_STATUS:
-		/* Obtain brief status of the given resources. */
+		/* Obtain status of the given resources. */
 		nv = nv_alloc();
 		nv_add_uint8(nv, HASTCTL_CMD_STATUS, "cmd");
 		if (argc == 0)
