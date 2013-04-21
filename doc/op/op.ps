@@ -1,6 +1,6 @@
 %!PS-Adobe-3.0
 %%Creator: groff version 1.19
-%%CreationDate: Fri Dec 21 10:44:56 2012
+%%CreationDate: Fri Apr 19 08:04:25 2013
 %%DocumentNeededResources: font Times-Bold
 %%+ font Times-Roman
 %%+ font Times-Italic
@@ -234,7 +234,7 @@ BP
 (TION AND OPERA)-1.14 E(TION GUIDE)-1.14 E/F3 10/Times-Roman@0 SF
 (Eric Allman)263.42 196.2 Q(Claus Assmann)256.75 208.2 Q(Gre)244.75
 220.2 Q(gory Neil Shapiro)-.15 E(Sendmail, Inc.)258.975 232.2 Q -1.11
-(Ve)260.225 256.2 S(rsion 8.749)1.11 E -.15(Fo)234.465 280.2 S 2.5(rS)
+(Ve)260.225 256.2 S(rsion 8.751)1.11 E -.15(Fo)234.465 280.2 S 2.5(rS)
 .15 G(endmail V)-2.5 E(ersion 8.14)-1.11 E/F4 10/Times-Italic@0 SF
 (Sendmail)97 324.6 Q/F5 8/Times-Roman@0 SF(TM)-5 I F3 .1
 (implements a general purpose internetw)2.6 5 N .1(ork mail routing f)
@@ -4713,9 +4713,8 @@ G 1.853(ultipart messages are al)-6.853 F -.1(wa)-.1 G 1.853
 138 345.6 Q 3.357(yw)-.15 G .858(ill be encoded as quoted-printable\).)
 -3.357 F .858(It can ha)5.858 F 1.158 -.15(ve p)-.2 H .858
 (rimary types \(e.g., \231te).15 F .858(xt\232\) or full)-.15 F
-(types \(such as \231te)138 357.6 Q 2.5(xt/plain\232\). The)-.15 F
-(class is initialized to ha)2.5 E .3 -.15(ve \231)-.2 H(te).15 E
-(xt/plain\232 only)-.15 E(.)-.65 E 18.97($=s contains)102 373.8 R .648
+(types \(such as \231te)138 357.6 Q(xt/plain\232\).)-.15 E 18.97
+($=s contains)102 373.8 R .648
 (the set of subtypes of message that can be treated recursi)3.148 F -.15
 (ve)-.25 G(ly).15 E 5.648(.B)-.65 G 3.148(yd)-5.648 G(ef)-3.148 E .648
 (ault it con-)-.1 F .969(tains only \231rfc822\232.)138 385.8 R .969
@@ -5502,143 +5501,152 @@ G(ree port\))-2.5 E 48.95(Addr Address)214 204.6 R(mask \(def)2.5 E
 21.72(SndBufSize Size)214 228.6 R(of TCP send b)2.5 E(uf)-.2 E(fer)-.25
 E 21.17(RcvBufSize Size)214 240.6 R(of TCP recei)2.5 E .3 -.15(ve b)-.25
 H(uf)-.05 E(fer)-.25 E 34.5(Modi\214er Options)214 252.6 R
-(\(\215ags\) for the client)2.5 E(The)174 268.8 Q F2(Addr)3.166 E F1
-.666(ess mask may be a numeric address in dot notation or a netw)B .665
-(ork name.)-.1 F F2(Modi\214er)174 280.8 Q F1(can be the follo)2.5 E
-(wing character:)-.25 E 67(hu)214 297 S(se name of interf)-67 E
-(ace for HELO command)-.1 E 64.78(Ad)214 309 S(on')-64.78 E 2.5(tu)-.18
-G(se A)-2.5 E(UTH when sending e-mail)-.55 E 66.44(Sd)214 321 S(on')
--66.44 E 2.5(tu)-.18 G(se ST)-2.5 E(AR)-.93 E(TTLS when sending e-mail)
--.6 E .763(If `)174 337.2 R(`h')-.74 E 3.263('i)-.74 G 3.263(ss)-3.263 G
-.763(et, the name corresponding to the outgoing interf)-3.263 F .764
+(\(\215ags\) for the client)2.5 E(The)174 268.8 Q F2(Addr)3.257 E F1
+.756
+(ess mask may be a numeric address in IPv4 dot notation or IPv6 colon)B
+1.148(notation or a netw)174 280.8 R 1.148(ork name.)-.1 F 1.149
+(Note that if a netw)6.148 F 1.149(ork name is speci\214ed, only the)-.1
+F .383(\214rst IP address returned for it will be used.)174 292.8 R .383
+(This may cause indeterminate beha)5.383 F(v-)-.2 E 1.485(ior for netw)
+174 304.8 R 1.485(ork names that resolv)-.1 F 3.985(et)-.15 G 3.985(om)
+-3.985 G 1.485(ultiple addresses.)-3.985 F 1.485(Therefore, use of an)
+6.485 F(address is recommended.)174 316.8 Q F2(Modi\214er)5 E F1
+(can be the follo)2.5 E(wing character:)-.25 E 67(hu)214 333 S
+(se name of interf)-67 E(ace for HELO command)-.1 E 64.78(Ad)214 345 S
+(on')-64.78 E 2.5(tu)-.18 G(se A)-2.5 E(UTH when sending e-mail)-.55 E
+66.44(Sd)214 357 S(on')-66.44 E 2.5(tu)-.18 G(se ST)-2.5 E(AR)-.93 E
+(TTLS when sending e-mail)-.6 E .764(If `)174 373.2 R(`h')-.74 E 3.264
+('i)-.74 G 3.264(ss)-3.264 G .763
+(et, the name corresponding to the outgoing interf)-3.264 F .763
 (ace address \(whether)-.1 F .431
-(chosen via the Connection parameter or the def)174 349.2 R .431
-(ault\) is used for the HELO/EHLO)-.1 F 3.617(command. Ho)174 361.2 R
-(we)-.25 E -.15(ve)-.25 G 1.917 -.4(r, t).15 H 1.118
-(he name must not start with a square brack).4 F 1.118(et and it must)
--.1 F 1.842(contain at least one dot.)174 373.2 R 1.842
-(This is a simple test whether the name is not an IP)6.842 F .712
-(address \(in square brack)174 385.2 R .713(ets\) b)-.1 F .713
-(ut a quali\214ed hostname.)-.2 F .713(Note that multiple Client-)5.713
-F .344(PortOptions settings are allo)174 397.2 R .343
-(wed in order to gi)-.25 F .643 -.15(ve s)-.25 H .343
-(ettings for each protocol f).15 F(amily)-.1 E .315(\(e.g., one for F)
-174 409.2 R .316(amily=inet and one for F)-.15 F 2.816(amily=inet6\). A)
--.15 F .316(restriction placed on one)2.816 F -.1(fa)174 421.2 S
+(chosen via the Connection parameter or the def)174 385.2 R .431
+(ault\) is used for the HELO/EHLO)-.1 F 3.618(command. Ho)174 397.2 R
+(we)-.25 E -.15(ve)-.25 G 1.918 -.4(r, t).15 H 1.118
+(he name must not start with a square brack).4 F 1.117(et and it must)
+-.1 F 1.841(contain at least one dot.)174 409.2 R 1.842
+(This is a simple test whether the name is not an IP)6.842 F .713
+(address \(in square brack)174 421.2 R .713(ets\) b)-.1 F .713
+(ut a quali\214ed hostname.)-.2 F .712(Note that multiple Client-)5.713
+F .343(PortOptions settings are allo)174 433.2 R .343
+(wed in order to gi)-.25 F .643 -.15(ve s)-.25 H .344
+(ettings for each protocol f).15 F(amily)-.1 E .316(\(e.g., one for F)
+174 445.2 R .316(amily=inet and one for F)-.15 F 2.816(amily=inet6\). A)
+-.15 F .315(restriction placed on one)2.816 F -.1(fa)174 457.2 S
 (mily only af).1 E(fects outgoing connections on that particular f)-.25
-E(amily)-.1 E(.)-.65 E 3.95(ColonOkInAddr [no)102 437.4 R 4.679
+E(amily)-.1 E(.)-.65 E 3.95(ColonOkInAddr [no)102 473.4 R 4.679
 (short name] If set, colons are acceptable in e-mail addresses \(e.g.,)
-7.18 F 3.54(\231host:user\232\). If)174 449.4 R 1.04
+7.179 F 3.54(\231host:user\232\). If)174 485.4 R 1.04
 (not set, colons indicate the be)3.54 F 1.04
-(ginning of a RFC 822 group con-)-.15 F 1.988
-(struct \(\231groupname: member1, member2, ... memberN;\232\).)174 461.4
-R 1.987(Doubled colons are)6.987 F(al)174 473.4 Q -.1(wa)-.1 G 2.215(ys\
+(ginning of a RFC 822 group con-)-.15 F 1.987
+(struct \(\231groupname: member1, member2, ... memberN;\232\).)174 497.4
+R 1.988(Doubled colons are)6.988 F(al)174 509.4 Q -.1(wa)-.1 G 2.215(ys\
  acceptable \(\231nodename::user\232\) and proper route-addr nesting is\
- under).1 F(-)-.2 E 1.037(stood \(\231<@relay:user@host>\232\).)174
-485.4 R 1.037(Furthermore, this option def)6.037 F 1.036
-(aults on if the con-)-.1 F .853(\214guration v)174 497.4 R .853
-(ersion le)-.15 F -.15(ve)-.25 G 3.353(li).15 G 3.353(sl)-3.353 G .853
-(ess than 6 \(for back compatibility\).)-3.353 F(Ho)5.854 E(we)-.25 E
--.15(ve)-.25 G 1.654 -.4(r, i).15 H 3.354(tm).4 G(ust)-3.354 E(be of)174
-509.4 Q 2.5(ff)-.25 G(or full compatibility with RFC 822.)-2.5 E
-(ConnectionCacheSize=)102 525.6 Q F2(N)A F1 .242([k] The maximum number\
- of open connections that will be cached at a time.)174 537.6 R(The)
-5.242 E(def)174 549.6 Q .385(ault is one.)-.1 F .386
+ under).1 F(-)-.2 E 1.036(stood \(\231<@relay:user@host>\232\).)174
+521.4 R 1.037(Furthermore, this option def)6.036 F 1.037
+(aults on if the con-)-.1 F .854(\214guration v)174 533.4 R .854
+(ersion le)-.15 F -.15(ve)-.25 G 3.354(li).15 G 3.354(sl)-3.354 G .853
+(ess than 6 \(for back compatibility\).)-3.354 F(Ho)5.853 E(we)-.25 E
+-.15(ve)-.25 G 1.653 -.4(r, i).15 H 3.353(tm).4 G(ust)-3.353 E(be of)174
+545.4 Q 2.5(ff)-.25 G(or full compatibility with RFC 822.)-2.5 E
+(ConnectionCacheSize=)102 561.6 Q F2(N)A F1 .242([k] The maximum number\
+ of open connections that will be cached at a time.)174 573.6 R(The)
+5.243 E(def)174 585.6 Q .386(ault is one.)-.1 F .386
 (This delays closing the current connection until either this in)5.386 F
--.2(vo)-.4 G(ca-).2 E 1.192(tion of)174 561.6 R F2(sendmail)3.692 E F1
-1.191(needs to connect to another host or it terminates.)3.692 F 1.191
-(Setting it to)6.191 F 2.046(zero def)174 573.6 R 2.046
-(aults to the old beha)-.1 F(vior)-.2 E 4.546(,t)-.4 G 2.047
+-.2(vo)-.4 G(ca-).2 E 1.191(tion of)174 597.6 R F2(sendmail)3.691 E F1
+1.191(needs to connect to another host or it terminates.)3.691 F 1.192
+(Setting it to)6.192 F 2.047(zero def)174 609.6 R 2.047
+(aults to the old beha)-.1 F(vior)-.2 E 4.546(,t)-.4 G 2.046
 (hat is, connections are closed immediately)-4.546 F(.)-.65 E .266(Sinc\
 e this consumes \214le descriptors, the connection cache should be k)174
-585.6 R .265(ept small: 4)-.1 F(is probably a practical maximum.)174
-597.6 Q(ConnectionCacheT)102 613.8 Q(imeout=)-.35 E F2(timeout)A F1 .708
+621.6 R .266(ept small: 4)-.1 F(is probably a practical maximum.)174
+633.6 Q(ConnectionCacheT)102 649.8 Q(imeout=)-.35 E F2(timeout)A F1 .708
 ([K] The maximum amount of time a cached connection will be permitted t\
-o idle)174 625.8 R 1.083(without acti)174 637.8 R(vity)-.25 E 6.083(.I)
--.65 G 3.583(ft)-6.083 G 1.083(his time is e)-3.583 F 1.082
-(xceeded, the connection is immediately closed.)-.15 F .417(This v)174
-649.8 R .418(alue should be small \(on the order of ten minutes\).)-.25
-F(Before)5.418 E F2(sendmail)2.918 E F1 .418(uses a)2.918 F .508
-(cached connection, it al)174 661.8 R -.1(wa)-.1 G .507
-(ys sends a RSET command to check the connection; if).1 F .401(this f)
-174 673.8 R .401(ails, it reopens the connection.)-.1 F .401(This k)
-5.401 F .402(eeps your end from f)-.1 F .402(ailing if the other)-.1 F
-1.545(end times out.)174 685.8 R 1.545
-(The point of this option is to be a good netw)6.545 F 1.544
-(ork neighbor and)-.1 F -.2(avo)174 697.8 S(id using up e).2 E(xcessi)
--.15 E .3 -.15(ve r)-.25 H(esources on the other end.).15 E(The def)5 E
-(ault is \214v)-.1 E 2.5(em)-.15 G(inutes.)-2.5 E 0 Cg EP
+o idle)174 661.8 R 1.082(without acti)174 673.8 R(vity)-.25 E 6.082(.I)
+-.65 G 3.582(ft)-6.082 G 1.083(his time is e)-3.582 F 1.083
+(xceeded, the connection is immediately closed.)-.15 F .418(This v)174
+685.8 R .418(alue should be small \(on the order of ten minutes\).)-.25
+F(Before)5.418 E F2(sendmail)2.918 E F1 .417(uses a)2.917 F .507
+(cached connection, it al)174 697.8 R -.1(wa)-.1 G .508
+(ys sends a RSET command to check the connection; if).1 F .402(this f)
+174 709.8 R .402(ails, it reopens the connection.)-.1 F .401(This k)
+5.402 F .401(eeps your end from f)-.1 F .401(ailing if the other)-.1 F
+1.544(end times out.)174 721.8 R 1.545
+(The point of this option is to be a good netw)6.544 F 1.545
+(ork neighbor and)-.1 F 0 Cg EP
 %%Page: 64 60
 %%BeginPageSetup
 BP
 %%EndPageSetup
 /F0 10/Times-Bold@0 SF 193.36(SMM:08-64 Sendmail)72 60 R
-(Installation and Operation Guide)2.5 E/F1 10/Times-Roman@0 SF
-(ConnectOnlyT)102 96 Q(o=)-.8 E/F2 10/Times-Italic@0 SF(addr)A(ess)-.37
-E F1 .861([no short name] This can be used to o)174 108 R -.15(ve)-.15 G
-.862(rride the connection address \(for testing).15 F(purposes\).)174
-120 Q(ConnectionRateThrottle=)102 136.2 Q F2(N)A F1 .212
-([no short name] If set to a positi)174 148.2 R .511 -.15(ve v)-.25 H
-.211(alue, allo)-.1 F 2.711(wn)-.25 G 2.711(om)-2.711 G .211(ore than)
--2.711 F F2(N)2.711 E F1 .211(incoming connec-)2.711 F .132
-(tions in a one second period per daemon.)174 160.2 R .132
-(This is intended to \215atten out peaks and)5.132 F(allo)174 172.2 Q
+(Installation and Operation Guide)2.5 E/F1 10/Times-Roman@0 SF -.2(avo)
+174 96 S(id using up e).2 E(xcessi)-.15 E .3 -.15(ve r)-.25 H
+(esources on the other end.).15 E(The def)5 E(ault is \214v)-.1 E 2.5
+(em)-.15 G(inutes.)-2.5 E(ConnectOnlyT)102 112.2 Q(o=)-.8 E/F2 10
+/Times-Italic@0 SF(addr)A(ess)-.37 E F1 .862
+([no short name] This can be used to o)174 124.2 R -.15(ve)-.15 G .861
+(rride the connection address \(for testing).15 F(purposes\).)174 136.2
+Q(ConnectionRateThrottle=)102 152.4 Q F2(N)A F1 .211
+([no short name] If set to a positi)174 164.4 R .511 -.15(ve v)-.25 H
+.211(alue, allo)-.1 F 2.711(wn)-.25 G 2.712(om)-2.711 G .212(ore than)
+-2.712 F F2(N)2.712 E F1 .212(incoming connec-)2.712 F .132
+(tions in a one second period per daemon.)174 176.4 R .132
+(This is intended to \215atten out peaks and)5.132 F(allo)174 188.4 Q
 2.5(wt)-.25 G(he load a)-2.5 E -.15(ve)-.2 G(rage checking to cut in.)
 .15 E(Def)5 E(aults to zero \(no limits\).)-.1 E(ConnectionRateW)102
-188.4 Q(indo)-.4 E(wSize=)-.25 E F2(N)A F1 .459
-([no short name] De\214ne the length of the interv)174 200.4 R .458
+204.6 Q(indo)-.4 E(wSize=)-.25 E F2(N)A F1 .458
+([no short name] De\214ne the length of the interv)174 216.6 R .459
 (al for which the number of incom-)-.25 F
-(ing connections is maintained.)174 212.4 Q(The def)5 E
-(ault is 60 seconds.)-.1 E(ControlSock)102 228.6 Q(etName=)-.1 E F2
-(name)A F1 .476([no short name] Name of the control sock)174 240.6 R
-.477(et for daemon management.)-.1 F 2.977(Ar)5.477 G(unning)-2.977 E F2
-(sendmail)174 252.6 Q F1 1.225
+(ing connections is maintained.)174 228.6 Q(The def)5 E
+(ault is 60 seconds.)-.1 E(ControlSock)102 244.8 Q(etName=)-.1 E F2
+(name)A F1 .477([no short name] Name of the control sock)174 256.8 R
+.476(et for daemon management.)-.1 F 2.976(Ar)5.476 G(unning)-2.976 E F2
+(sendmail)174 268.8 Q F1 1.225
 (daemon can be controlled through this named sock)3.725 F 3.725(et. A)
--.1 F -.25(va)-.74 G 1.225(ilable com-).25 F 2.926(mands are:)174 264.6
+-.1 F -.25(va)-.74 G 1.225(ilable com-).25 F 2.926(mands are:)174 280.8
 R F2 2.926(help, mstat, r)5.426 F 2.926(estart, shutdown,)-.37 F F1(and)
 5.426 E F2(status.)5.426 E F1(The)7.926 E F2(status)5.426 E F1(command)
 5.426 E .46(returns the current number of daemon children, the maximum \
-number of daemon)174 276.6 R .449
+number of daemon)174 292.8 R .449
 (children, the free disk space \(in blocks\) of the queue directory)174
-288.6 R 2.95(,a)-.65 G .45(nd the load a)-2.95 F -.15(ve)-.2 G -.2(r-)
-.15 G .883(age of the machine e)174 300.6 R .883(xpressed as an inte)
--.15 F(ger)-.15 E 5.883(.I)-.55 G 3.383(fn)-5.883 G .882
-(ot set, no control sock)-3.383 F .882(et will be)-.1 F -.2(av)174 312.6
-S 5.029(ailable. Solaris)-.05 F 2.529(and pre-4.4BSD k)5.029 F 2.529
-(ernel users should see the note in send-)-.1 F(mail/README .)174 324.6
-Q(CRLFile=)102 340.8 Q F2(name)A F1 .483
+304.8 R 2.949(,a)-.65 G .449(nd the load a)-2.949 F -.15(ve)-.2 G -.2
+(r-).15 G .882(age of the machine e)174 316.8 R .883
+(xpressed as an inte)-.15 F(ger)-.15 E 5.883(.I)-.55 G 3.383(fn)-5.883 G
+.883(ot set, no control sock)-3.383 F .883(et will be)-.1 F -.2(av)174
+328.8 S 5.03(ailable. Solaris)-.05 F 2.529(and pre-4.4BSD k)5.029 F
+2.529(ernel users should see the note in send-)-.1 F(mail/README .)174
+340.8 Q(CRLFile=)102 357 Q F2(name)A F1 .482
 ([no short name] Name of \214le that contains certi\214cate re)9.69 F
--.2(vo)-.25 G .482(cation status, useful for).2 F .792
-(X.509v3 authentication.)174 352.8 R .792
-(CRL checking requires at least OpenSSL v)5.792 F .793(ersion 0.9.7.)
--.15 F(Note: if a CRLFile is speci\214ed b)174 364.8 Q
+-.2(vo)-.25 G .483(cation status, useful for).2 F .793
+(X.509v3 authentication.)174 369 R .792
+(CRL checking requires at least OpenSSL v)5.793 F .792(ersion 0.9.7.)
+-.15 F(Note: if a CRLFile is speci\214ed b)174 381 Q
 (ut the \214le is unusable, ST)-.2 E(AR)-.93 E(TTLS is disabled.)-.6 E
-(DHP)102 381 Q 10.78(arameters Possible)-.15 F -.25(va)2.5 G(lues are:)
-.25 E 67(5u)214 397.2 S(se 512 bit prime)-67 E 67(1u)214 409.2 S
-(se 1024 bit prime)-67 E 50.06(none do)214 421.2 R(not use Dif)2.5 E
-(\214e-Hellman)-.25 E -.35(NA)214 433.2 S 40.41(ME load).35 F
+(DHP)102 397.2 Q 10.78(arameters Possible)-.15 F -.25(va)2.5 G
+(lues are:).25 E 67(5u)214 413.4 S(se 512 bit prime)-67 E 67(1u)214
+425.4 S(se 1024 bit prime)-67 E 50.06(none do)214 437.4 R(not use Dif)
+2.5 E(\214e-Hellman)-.25 E -.35(NA)214 449.4 S 40.41(ME load).35 F
 (prime from \214le)2.5 E 2.147
 (This is only required if a ciphersuite containing DSA/DH is used.)174
-449.4 R 2.147(If `)7.147 F(`5')-.74 E 4.646('i)-.74 G(s)-4.646 E 1.877
-(selected, then precomputed, \214x)174 461.4 R 1.877
-(ed primes are used.)-.15 F 1.878(This is the def)6.878 F 1.878
-(ault for the)-.1 F 1.539(client side.)174 473.4 R 1.539(If `)6.539 F
-(`1')-.74 E 4.039('i)-.74 G 4.038(ss)-4.039 G 1.538
-(elected, then prime v)-4.038 F 1.538
-(alues are computed during startup.)-.25 F .742(This is the def)174
-485.4 R .743(ault for the serv)-.1 F .743(er side.)-.15 F .743
-(Note: this operation can tak)5.743 F 3.243(eas)-.1 G(igni\214cant)
--3.243 E .838(amount of time on a slo)174 497.4 R 3.337(wm)-.25 G .837
-(achine \(se)-3.337 F -.15(ve)-.25 G .837(ral seconds\), b).15 F .837
-(ut it is only done once at)-.2 F 2.959(startup. If)174 509.4 R -.74(``)
+465.6 R 2.147(If `)7.147 F(`5')-.74 E 4.647('i)-.74 G(s)-4.647 E 1.878
+(selected, then precomputed, \214x)174 477.6 R 1.878
+(ed primes are used.)-.15 F 1.877(This is the def)6.877 F 1.877
+(ault for the)-.1 F 1.538(client side.)174 489.6 R 1.538(If `)6.538 F
+(`1')-.74 E 4.038('i)-.74 G 4.038(ss)-4.038 G 1.538
+(elected, then prime v)-4.038 F 1.539
+(alues are computed during startup.)-.25 F .743(This is the def)174
+501.6 R .743(ault for the serv)-.1 F .743(er side.)-.15 F .743
+(Note: this operation can tak)5.743 F 3.242(eas)-.1 G(igni\214cant)
+-3.242 E .837(amount of time on a slo)174 513.6 R 3.337(wm)-.25 G .837
+(achine \(se)-3.337 F -.15(ve)-.25 G .837(ral seconds\), b).15 F .838
+(ut it is only done once at)-.2 F 2.959(startup. If)174 525.6 R -.74(``)
 2.959 G(none').74 E 2.959('i)-.74 G 2.959(ss)-2.959 G .459
-(elected, then TLS ciphersuites containing DSA/DH cannot)-2.959 F 1.337
-(be used.)174 521.4 R 1.337(If a \214le name is speci\214ed \(which mus\
-t be an absolute path\), then the)6.337 F(primes are read from it.)174
-533.4 Q(DaemonPortOptions=)102 549.6 Q F2(options)A F1 .363
-([O] Set serv)174 561.6 R .363(er SMTP options.)-.15 F .364
-(Each instance of)5.364 F F0(DaemonP)2.864 E(ortOptions)-.2 E F1 .364
-(leads to an)2.864 F(additional incoming sock)174 573.6 Q 2.5(et. The)
+(elected, then TLS ciphersuites containing DSA/DH cannot)-2.959 F 1.336
+(be used.)174 537.6 R 1.337(If a \214le name is speci\214ed \(which mus\
+t be an absolute path\), then the)6.336 F(primes are read from it.)174
+549.6 Q(DaemonPortOptions=)102 565.8 Q F2(options)A F1 .364
+([O] Set serv)174 577.8 R .364(er SMTP options.)-.15 F .364
+(Each instance of)5.364 F F0(DaemonP)2.863 E(ortOptions)-.2 E F1 .363
+(leads to an)2.863 F(additional incoming sock)174 589.8 Q 2.5(et. The)
 -.1 F(options are)2.5 E F2 -.1(ke)2.5 G(y=value)-.2 E F1 2.5(pairs. Kno)
 2.5 F(wn k)-.25 E -.15(ey)-.1 G 2.5(sa).15 G(re:)-2.5 E 0 Cg EP
 %%Page: 65 61
@@ -5664,170 +5672,177 @@ BP
 (Deli)2.5 E -.1(ve)-.1 G(ryMode).1 E F1(.)A 31.74(refuseLA RefuseLA)214
 228 R(per daemon)2.5 E 34.51(delayLA DelayLA)214 240 R(per daemon)2.5 E
 32.29(queueLA QueueLA)214 252 R(per daemon)2.5 E(The)174 268.2 Q/F2 10
-/Times-Italic@0 SF(Name)2.681 E F1 -.1(ke)2.681 G 2.681(yi)-.05 G 2.681
-(su)-2.681 G .181(sed for error messages and logging.)-2.681 F(The)5.181
-E F2(Addr)2.68 E F1 .18(ess mask may be)B 2.907(an)174 280.2 S .407
-(umeric address in dot notation or a netw)-2.907 F .407(ork name.)-.1 F
-(The)5.407 E F2 -.75(Fa)2.907 G(mily).75 E F1 -.1(ke)2.907 G 2.908(yd)
--.05 G(ef)-2.908 E .408(aults to)-.1 F 1.161(INET \(IPv4\).)174 292.2 R
-1.161(IPv6 users who wish to also accept IPv6 connections should add)
-6.161 F 2.215(additional F)174 304.2 R(amily=inet6)-.15 E F0(DaemonP)
-4.715 E(ortOptions)-.2 E F1 4.715(lines. The)4.715 F F2(InputMailF)4.715
-E(ilter)-.45 E(s)-.1 E F1 -.1(ke)4.715 G(y)-.05 E -.15(ove)174 316.2 S
-.01(rrides the def).15 F .01
+/Times-Italic@0 SF(Name)2.68 E F1 -.1(ke)2.68 G 2.68(yi)-.05 G 2.68(su)
+-2.68 G .181(sed for error messages and logging.)-2.68 F(The)5.181 E F2
+(Addr)2.681 E F1 .181(ess mask may be)B 2.768(an)174 280.2 S .268
+(umeric address in IPv4 dot notation or IPv6 colon notation or a netw)
+-2.768 F .267(ork name.)-.1 F .898(Note that if a netw)174 292.2 R .899
+(ork name is speci\214ed, only the \214rst IP address returned for it)
+-.1 F 2.028(will be used.)174 304.2 R 2.027
+(This may cause indeterminate beha)7.028 F 2.027(vior for netw)-.2 F
+2.027(ork names that)-.1 F(resolv)174 316.2 Q 2.722(et)-.15 G 2.722(om)
+-2.722 G .222(ultiple addresses.)-2.722 F .223
+(Therefore, use of an address is recommended.)5.223 F(The)5.223 E F2
+-.75(Fa)174 328.2 S(mily).75 E F1 -.1(ke)3.977 G 3.977(yd)-.05 G(ef)
+-3.977 E 1.477(aults to INET \(IPv4\).)-.1 F 1.477
+(IPv6 users who wish to also accept IPv6)6.477 F .317
+(connections should add additional F)174 340.2 R(amily=inet6)-.15 E F0
+(DaemonP)2.817 E(ortOptions)-.2 E F1 2.818(lines. The)2.817 F F2
+(InputMailF)174 352.2 Q(ilter)-.45 E(s)-.1 E F1 -.1(ke)4.129 G 4.129(yo)
+-.05 G -.15(ve)-4.279 G 1.629(rrides the def).15 F 1.628
 (ault list of input mail \214lters listed in the)-.1 F F0
-(InputMailFilters)2.51 E F1(option.)2.51 E 1.011
-(If multiple input mail \214lters are required, the)174 328.2 R 3.511
-(ym)-.15 G 1.011(ust be separated by semicolons)-3.511 F .178
-(\(not commas\).)174 340.2 R F2(Modi\214er)5.178 E F1 .178
-(can be a sequence \(without an)2.678 F 2.677(yd)-.15 G .177
-(elimiters\) of the follo)-2.677 F(w-)-.25 E(ing characters:)174 352.2 Q
-67.56(aa)214 368.4 S -.1(lwa)-67.56 G(ys require authentication).1 E 67
-(bb)214 380.4 S(ind to interf)-67 E
+(InputMailFilters)174 364.2 Q F1 2.969(option. If)2.969 F .469
+(multiple input mail \214lters are required, the)2.969 F 2.969(ym)-.15 G
+.47(ust be)-2.969 F .449(separated by semicolons \(not commas\).)174
+376.2 R F2(Modi\214er)5.449 E F1 .449(can be a sequence \(without an)
+2.949 F(y)-.15 E(delimiters\) of the follo)174 388.2 Q(wing characters:)
+-.25 E 67.56(aa)214 404.4 S -.1(lwa)-67.56 G(ys require authentication)
+.1 E 67(bb)214 416.4 S(ind to interf)-67 E
 (ace through which mail has been recei)-.1 E -.15(ve)-.25 G(d).15 E
-67.56(cp)214 392.4 S(erform hostname canoni\214cation \(.cf\))-67.56 E
-68.67(fr)214 404.4 S(equire fully quali\214ed hostname \(.cf\))-68.67 E
-68.11(sR)214 416.4 S(un smtps \(SMTP o)-68.11 E -.15(ve)-.15 G 2.5(rS)
-.15 G(SL\) instead of smtp)-2.5 E 67(ua)214 428.4 S(llo)-67 E 2.5(wu)
--.25 G(nquali\214ed addresses \(.cf\))-2.5 E 64.78(Ad)214 440.4 S
+67.56(cp)214 428.4 S(erform hostname canoni\214cation \(.cf\))-67.56 E
+68.67(fr)214 440.4 S(equire fully quali\214ed hostname \(.cf\))-68.67 E
+68.11(sR)214 452.4 S(un smtps \(SMTP o)-68.11 E -.15(ve)-.15 G 2.5(rS)
+.15 G(SL\) instead of smtp)-2.5 E 67(ua)214 464.4 S(llo)-67 E 2.5(wu)
+-.25 G(nquali\214ed addresses \(.cf\))-2.5 E 64.78(Ad)214 476.4 S
 (isable A)-64.78 E(UTH \(o)-.55 E -.15(ve)-.15 G
-(rrides 'a' modi\214er\)).15 E 65.33(Cd)214 452.4 S(on')-65.33 E 2.5(tp)
--.18 G(erform hostname canoni\214cation)-2.5 E 65.89(Ed)214 464.4 S
+(rrides 'a' modi\214er\)).15 E 65.33(Cd)214 488.4 S(on')-65.33 E 2.5(tp)
+-.18 G(erform hostname canoni\214cation)-2.5 E 65.89(Ed)214 500.4 S
 (isallo)-65.89 E 2.5(wE)-.25 G(TRN \(see RFC 2476\))-2.5 E 64.78(Oo)214
-476.4 S(ptional; if opening the sock)-64.78 E(et f)-.1 E(ails ignore it)
--.1 E 66.44(Sd)214 488.4 S(on')-66.44 E 2.5(to)-.18 G -.25(ff)-2.5 G
-(er ST).25 E(AR)-.93 E(TTLS)-.6 E 2.412(That is, one w)174 504.6 R 2.413
+512.4 S(ptional; if opening the sock)-64.78 E(et f)-.1 E(ails ignore it)
+-.1 E 66.44(Sd)214 524.4 S(on')-66.44 E 2.5(to)-.18 G -.25(ff)-2.5 G
+(er ST).25 E(AR)-.93 E(TTLS)-.6 E 2.412(That is, one w)174 540.6 R 2.413
 (ay to specify a message submission agent \(MSA\) that al)-.1 F -.1(wa)
--.1 G(ys).1 E(requires authentication is:)174 516.6 Q 2.5(OD)214 532.8 S
+-.1 G(ys).1 E(requires authentication is:)174 552.6 Q 2.5(OD)214 568.8 S
 (aemonPortOptions=Name=MSA, Port=587, M=Ea)-2.5 E .244
-(The modi\214ers that are mark)174 549 R .244(ed with "\(.cf\)" ha)-.1 F
+(The modi\214ers that are mark)174 585 R .244(ed with "\(.cf\)" ha)-.1 F
 .544 -.15(ve o)-.2 H .244(nly ef).15 F .244
 (fect in the standard con\214g-)-.25 F .16(uration \214le, in which the)
-174 561 R 2.66(ya)-.15 G .16(re a)-2.66 F -.25(va)-.2 G .16(ilable via)
+174 597 R 2.66(ya)-.15 G .16(re a)-2.66 F -.25(va)-.2 G .16(ilable via)
 .25 F F0(${daemon_\215ags})2.66 E F1 5.16(.N)C .16(otice: Do)-5.16 F F0
-(not)2.66 E F1(use)2.66 E .461(the `)174 573 R(`a')-.74 E 2.961('m)-.74
+(not)2.66 E F1(use)2.66 E .461(the `)174 609 R(`a')-.74 E 2.961('m)-.74
 G .461(odi\214er on a public accessible MT)-2.961 F 2.961(A! It)-.93 F
 .46(should only be used for a MSA)2.961 F 2.553
 (that is accessed by authorized users for initial mail submission.)174
-585 R 2.553(Users must)7.553 F 1.141
-(authenticate to use a MSA which has this option turned on.)174 597 R
+621 R 2.553(Users must)7.553 F 1.141
+(authenticate to use a MSA which has this option turned on.)174 633 R
 1.14(The \215ags `)6.14 F(`c')-.74 E 3.64('a)-.74 G(nd)-3.64 E -.74(``)
-174 609 S(C').74 E 3.785('c)-.74 G 1.285(an change the def)-3.785 F
+174 645 S(C').74 E 3.785('c)-.74 G 1.285(an change the def)-3.785 F
 1.286(ault for hostname canoni\214cation in the)-.1 F F2(sendmail.cf)
-3.786 E F1(\214le.)3.786 E .765(See the rele)174 621 R -.25(va)-.25 G
+3.786 E F1(\214le.)3.786 E .765(See the rele)174 657 R -.25(va)-.25 G
 .765(nt documentation for).25 F/F3 9/Times-Roman@0 SF(FEA)3.265 E
 (TURE\(nocanonify\))-.999 E F1 5.765(.T)C .765(he modi\214er `)-5.765 F
--1.95(`f ')-.74 F 3.264('d)-.74 G(is-)-3.264 E(allo)174 633 Q .794
+-1.95(`f ')-.74 F 3.264('d)-.74 G(is-)-3.264 E(allo)174 669 Q .794
 (ws addresses of the form)-.25 F F0(user@host)3.294 E F1 .795
 (unless the)3.295 F 3.295(ya)-.15 G .795(re submitted directly)-3.295 F
-5.795(.T)-.65 G(he)-5.795 E 2.127(\215ag `)174 645 R(`u')-.74 E 4.627
+5.795(.T)-.65 G(he)-5.795 E 2.127(\215ag `)174 681 R(`u')-.74 E 4.627
 ('a)-.74 G(llo)-4.627 E 2.127
 (ws unquali\214ed sender addresses, i.e., those without @host.)-.25 F
 -.74(``)7.127 G(b').74 E(')-.74 E 2.791
-(forces sendmail to bind to the interf)174 657 R 2.791
-(ace through which the e-mail has been)-.1 F(recei)174 669 Q -.15(ve)
+(forces sendmail to bind to the interf)174 693 R 2.791
+(ace through which the e-mail has been)-.1 F(recei)174 705 Q -.15(ve)
 -.25 G 4.369(df).15 G 1.869(or the outgoing connection.)-4.369 F F0 -1.2
 (WA)6.869 G(RNING:)1.2 E F1 1.869(Use `)4.369 F(`b')-.74 E 4.369('o)-.74
 G 1.869(nly if outgoing)-4.369 F .517
-(mail can be routed through the incoming connection')174 681 R 3.017(si)
--.55 G(nterf)-3.017 E .518(ace to its destination.)-.1 F .119(No attemp\
-t is made to catch problems due to a miscon\214guration of this paramet\
-er)174 693 R(,)-.4 E 1.177
-(use it only for virtual hosting where each virtual interf)174 705 R
-1.177(ace can connect to e)-.1 F -.15(ve)-.25 G(ry).15 E 10.247
-(possible location.)174 717 R 10.246(This will also o)15.247 F -.15(ve)
--.15 G 10.246(rride possible settings via).15 F 0 Cg EP
+(mail can be routed through the incoming connection')174 717 R 3.017(si)
+-.55 G(nterf)-3.017 E .518(ace to its destination.)-.1 F 0 Cg EP
 %%Page: 66 62
 %%BeginPageSetup
 BP
 %%EndPageSetup
 /F0 10/Times-Bold@0 SF 193.36(SMM:08-66 Sendmail)72 60 R
-(Installation and Operation Guide)2.5 E(ClientP)174 96 Q(ortOptions.)-.2
-E/F1 10/Times-Roman@0 SF(Note,)8.975 E/F2 10/Times-Italic@0 SF(sendmail)
-6.475 E F1 3.975(will listen on a ne)6.475 F 6.475(ws)-.25 G(ock)-6.475
-E 3.975(et for each)-.1 F .746(occurence of the)174 108 R F0(DaemonP)
-3.246 E(ortOptions)-.2 E F1 .746(option in a con\214guration \214le.)
-3.246 F .746(The modi-)5.746 F .399(\214er `)174 120 R(`O')-.74 E 2.899
-('c)-.74 G .399(auses sendmail to ignore a sock)-2.899 F .399
-(et if it can')-.1 F 2.9(tb)-.18 G 2.9(eo)-2.9 G 2.9(pened. This)-2.9 F
-.4(applies to)2.9 F -.1(fa)174 132 S(ilures from the sock).1 E
-(et\(2\) and bind\(2\) calls.)-.1 E(Def)102 148.2 Q 2.95
+(Installation and Operation Guide)2.5 E/F1 10/Times-Roman@0 SF .119(No \
+attempt is made to catch problems due to a miscon\214guration of this p\
+arameter)174 96 R(,)-.4 E 1.177
+(use it only for virtual hosting where each virtual interf)174 108 R
+1.177(ace can connect to e)-.1 F -.15(ve)-.25 G(ry).15 E 2.002
+(possible location.)174 120 R 2.001(This will also o)7.001 F -.15(ve)
+-.15 G 2.001(rride possible settings via).15 F F0(ClientP)4.501 E
+(ortOp-)-.2 E(tions.)174 132 Q F1(Note,)5.486 E/F2 10/Times-Italic@0 SF
+(sendmail)2.986 E F1 .486(will listen on a ne)2.986 F 2.986(ws)-.25 G
+(ock)-2.986 E .487(et for each occurence of the)-.1 F F0(Dae-)2.987 E
+(monP)174 144 Q(ortOptions)-.2 E F1 .838
+(option in a con\214guration \214le.)3.338 F .838(The modi\214er `)5.838
+F(`O')-.74 E 3.338('c)-.74 G .838(auses send-)-3.338 F 1.417
+(mail to ignore a sock)174 156 R 1.417(et if it can')-.1 F 3.917(tb)-.18
+G 3.917(eo)-3.917 G 3.917(pened. This)-3.917 F 1.418(applies to f)3.918
+F 1.418(ailures from the)-.1 F(sock)174 168 Q
+(et\(2\) and bind\(2\) calls.)-.1 E(Def)102 184.2 Q 2.95
 (aultAuthInfo [no)-.1 F .181(short name] Filename that contains def)
 2.681 F .181(ault authentication information for out-)-.1 F 1.737(going\
  connections. This \214le must contain the user id, the authorization i\
-d, the)174 160.2 R(passw)174 172.2 Q 1.562(ord \(plain te)-.1 F 1.561
+d, the)174 196.2 R(passw)174 208.2 Q 1.562(ord \(plain te)-.1 F 1.561
 (xt\), the realm and the list of mechanisms to use on separate)-.15 F
 .287(lines and must be readable by root \(or the trusted user\) only)174
-184.2 R 5.288(.I)-.65 G 2.788(fn)-5.288 G 2.788(or)-2.788 G .288
-(ealm is speci-)-2.788 F(\214ed,)174 196.2 Q F0($j)3.705 E F1 1.205
+220.2 R 5.288(.I)-.65 G 2.788(fn)-5.288 G 2.788(or)-2.788 G .288
+(ealm is speci-)-2.788 F(\214ed,)174 232.2 Q F0($j)3.705 E F1 1.205
 (is used.)3.705 F 1.205(If no mechanisms are speci\214ed, the list gi)
 6.205 F -.15(ve)-.25 G 3.704(nb).15 G(y)-3.704 E F0 -.5(Au)3.704 G
-(thMecha-).5 E(nisms)174 208.2 Q F1 1.371(is used.)3.871 F 1.372
+(thMecha-).5 E(nisms)174 244.2 Q F1 1.371(is used.)3.871 F 1.372
 (Notice: this option is deprecated and will be remo)6.371 F -.15(ve)-.15
-G 3.872(di).15 G 3.872(nf)-3.872 G(uture)-3.872 E -.15(ve)174 220.2 S
+G 3.872(di).15 G 3.872(nf)-3.872 G(uture)-3.872 E -.15(ve)174 256.2 S
 3.411(rsions. Moreo).15 F -.15(ve)-.15 G 1.711 -.4(r, i).15 H 3.411(td)
 .4 G(oesn')-3.411 E 3.411(tw)-.18 G .911(ork for the MSP since it can')
 -3.511 F 3.41(tr)-.18 G .91(ead the \214le \(the)-3.41 F .014
-(\214le must not be group/w)174 232.2 R .014(orld-readable otherwise)-.1
+(\214le must not be group/w)174 268.2 R .014(orld-readable otherwise)-.1
 F F2(sendmail)2.514 E F1 .014(will complain\).)2.514 F .014(Use the)
-5.014 F 1.2(authinfo ruleset instead which pro)174 244.2 R 1.2
+5.014 F 1.2(authinfo ruleset instead which pro)174 280.2 R 1.2
 (vides more control o)-.15 F -.15(ve)-.15 G 3.7(rt).15 G 1.2
-(he usage of the data)-3.7 F(an)174 256.2 Q(yw)-.15 E(ay)-.1 E(.)-.65 E
-(Def)102 272.4 Q(aultCharSet=)-.1 E F2 -.15(ch)C(ar).15 E(set)-.1 E F1
-.16([no short name] When a message that has 8-bit characters b)174 284.4
-R .161(ut is not in MIME for)-.2 F(-)-.2 E .495(mat is con)174 296.4 R
+(he usage of the data)-3.7 F(an)174 292.2 Q(yw)-.15 E(ay)-.1 E(.)-.65 E
+(Def)102 308.4 Q(aultCharSet=)-.1 E F2 -.15(ch)C(ar).15 E(set)-.1 E F1
+.16([no short name] When a message that has 8-bit characters b)174 320.4
+R .161(ut is not in MIME for)-.2 F(-)-.2 E .495(mat is con)174 332.4 R
 -.15(ve)-.4 G .495
 (rted to MIME \(see the EightBitMode option\) a character set must be)
-.15 F .487(included in the Content-T)174 308.4 R .487(ype: header)-.8 F
+.15 F .487(included in the Content-T)174 344.4 R .487(ype: header)-.8 F
 5.487(.T)-.55 G .488(his character set is normally set from the)-5.487 F
-.133(Charset= \214eld of the mailer descriptor)174 320.4 R 5.133(.I)-.55
+.133(Charset= \214eld of the mailer descriptor)174 356.4 R 5.133(.I)-.55
 G 2.633(ft)-5.133 G .133(hat is not set, the v)-2.633 F .133
-(alue of this option is)-.25 F 2.5(used. If)174 332.4 R
+(alue of this option is)-.25 F 2.5(used. If)174 368.4 R
 (this option is not set, the v)2.5 E(alue \231unkno)-.25 E
-(wn-8bit\232 is used.)-.25 E(DataFileBuf)102 348.6 Q(ferSize=)-.25 E F2
-(thr)A(eshold)-.37 E F1 .011([no short name] Set the)174 360.6 R F2(thr)
+(wn-8bit\232 is used.)-.25 E(DataFileBuf)102 384.6 Q(ferSize=)-.25 E F2
+(thr)A(eshold)-.37 E F1 .011([no short name] Set the)174 396.6 R F2(thr)
 2.511 E(eshold)-.37 E F1 2.511(,i)C 2.512(nb)-2.511 G .012
 (ytes, before a memory-based queue data \214le)-2.512 F
-(becomes disk-based.)174 372.6 Q(The def)5 E(ault is 4096 bytes.)-.1 E
-(DeadLetterDrop=)102 388.8 Q F2(\214le)A F1 .535([no short name] De\214\
+(becomes disk-based.)174 408.6 Q(The def)5 E(ault is 4096 bytes.)-.1 E
+(DeadLetterDrop=)102 424.8 Q F2(\214le)A F1 .535([no short name] De\214\
 nes the location of the system-wide dead.letter \214le, formerly)174
-400.8 R .743(hardcoded to /usr/tmp/dead.letter)174 412.8 R 5.743(.I)-.55
+436.8 R .743(hardcoded to /usr/tmp/dead.letter)174 448.8 R 5.743(.I)-.55
 G 3.243(ft)-5.743 G .744(his option is not set \(the def)-3.243 F .744
-(ault\), sendmail)-.1 F 1.465(will not attempt to sa)174 424.8 R 1.764
+(ault\), sendmail)-.1 F 1.465(will not attempt to sa)174 460.8 R 1.764
 -.15(ve t)-.2 H 3.964(oas).15 G 1.464
 (ystem-wide dead.letter \214le in the e)-3.964 F -.15(ve)-.25 G 1.464
 (nt it cannot).15 F .575(bounce the mail to the user or postmaster)174
-436.8 R 5.575(.I)-.55 G .575(nstead, it will rename the qf \214le as it)
+472.8 R 5.575(.I)-.55 G .575(nstead, it will rename the qf \214le as it)
 -5.575 F
 (has in the past when the dead.letter \214le could not be opened.)174
-448.8 Q(Def)102 465 Q(aultUser=)-.1 E F2(user:gr)A(oup)-.45 E F1 .014
-([u] Set the def)174 477 R .014(ault userid for mailers to)-.1 F F2
+484.8 Q(Def)102 501 Q(aultUser=)-.1 E F2(user:gr)A(oup)-.45 E F1 .014
+([u] Set the def)174 513 R .014(ault userid for mailers to)-.1 F F2
 (user:gr)2.513 E(oup)-.45 E F1 5.013(.I)C(f)-5.013 E F2(gr)2.513 E(oup)
 -.45 E F1 .013(is omitted and)2.513 F F2(user)2.513 E F1(is)2.513 E
-4.306(au)174 489 S 1.807
+4.306(au)174 525 S 1.807
 (ser name \(as opposed to a numeric user id\) the def)-4.306 F 1.807
 (ault group listed in the)-.1 F 1.153
-(/etc/passwd \214le for that user is used as the def)174 501 R 1.153
+(/etc/passwd \214le for that user is used as the def)174 537 R 1.153
 (ault group.)-.1 F(Both)6.153 E F2(user)3.653 E F1(and)3.652 E F2(gr)
-3.652 E(oup)-.45 E F1 1.152(may be numeric.)174 513 R 1.152
+3.652 E(oup)-.45 E F1 1.152(may be numeric.)174 549 R 1.152
 (Mailers without the)6.152 F F2(S)3.652 E F1 1.152
 (\215ag in the mailer de\214nition will run as)3.652 F .142(this user)
-174 527 R 5.142(.D)-.55 G(ef)-5.142 E .142(aults to 1:1.)-.1 F .142
+174 563 R 5.142(.D)-.55 G(ef)-5.142 E .142(aults to 1:1.)-.1 F .142
 (The v)5.142 F .142(alue can also be gi)-.25 F -.15(ve)-.25 G 2.642(na)
 .15 G 2.642(sas)-2.642 G .142(ymbolic user name.)-2.642 F/F3 7
-/Times-Roman@0 SF(19)-4 I F1(DelayLA=)102 543.2 Q F2(LA)A F1 .996
+/Times-Roman@0 SF(19)-4 I F1(DelayLA=)102 579.2 Q F2(LA)A F1 .996
 ([no short name] When the system load a)17.48 F -.15(ve)-.2 G .996
 (rage e).15 F(xceeds)-.15 E F2(LA)3.496 E F1(,)A F2(sendmail)3.496 E F1
 .996(will sleep)3.496 F
 (for one second on most SMTP commands and before accepting connections.)
-174 555.2 Q(Deli)102 571.4 Q -.15(ve)-.25 G(rByMin=).15 E F2(time)A F1
-.203([0] Set minimum time for Deli)174 583.4 R -.15(ve)-.25 G 2.702(rB)
+174 591.2 Q(Deli)102 607.4 Q -.15(ve)-.25 G(rByMin=).15 E F2(time)A F1
+.203([0] Set minimum time for Deli)174 619.4 R -.15(ve)-.25 G 2.702(rB)
 .15 G 2.702(yS)-2.702 G .202(MTP Service Extension \(RFC 2852\).)-2.702
 F .202(If 0,)5.202 F .486(no time is listed, if less than 0, the e)174
-595.4 R .487(xtension is not of)-.15 F .487
+631.4 R .487(xtension is not of)-.15 F .487
 (fered, if greater than 0, it is)-.25 F
-(listed as minimum time for the EHLO k)174 607.4 Q -.15(ey)-.1 G -.1(wo)
-.15 G(rd DELIVERBY).1 E(.)-1.29 E(Deli)102 623.6 Q -.15(ve)-.25 G
+(listed as minimum time for the EHLO k)174 643.4 Q -.15(ey)-.1 G -.1(wo)
+.15 G(rd DELIVERBY).1 E(.)-1.29 E(Deli)102 659.6 Q -.15(ve)-.25 G
 (ryMode=).15 E F2(x)A F1([d] Deli)4 E -.15(ve)-.25 G 2.5(ri).15 G 2.5
 (nm)-2.5 G(ode)-2.5 E F2(x)2.5 E F1 5(.L)C -2.25 -.15(eg a)-5 H 2.5(lm)
 .15 G(odes are:)-2.5 E .32 LW 76 678.8 72 678.8 DL 80 678.8 76 678.8 DL
