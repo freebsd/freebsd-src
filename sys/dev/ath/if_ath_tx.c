@@ -1776,7 +1776,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ath_vap *avp = ATH_VAP(vap);
 	int r = 0;
 	u_int pri;
@@ -1789,7 +1788,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	uint8_t type, subtype;
 
 	ATH_TX_LOCK_ASSERT(sc);
-	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	/*
 	 * Determine the target hardware queue.
@@ -1980,7 +1978,6 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	int do_override;
 
 	ATH_TX_LOCK_ASSERT(sc);
-	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
@@ -5043,15 +5040,8 @@ void
 ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_tid *tid, *next, *last;
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
 	ATH_TX_LOCK_ASSERT(sc);
-	/*
-	 * This shouldn't be directly called from the TX queue
-	 * code path; it should be called from the TX completion
-	 * or TX kick task.
-	 */
-	IEEE80211_TX_UNLOCK_ASSERT(ic);
 
 	/*
 	 * Don't schedule if the hardware queue is busy.

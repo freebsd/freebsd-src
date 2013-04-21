@@ -2716,7 +2716,6 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
-	struct ieee80211com *ic = ifp->if_l2com;
 
 	KASSERT(data->ni != NULL, ("no node"));
 
@@ -2771,16 +2770,7 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 		if (sc->qfullmsk == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-			/*
-			 * XXX turn this into a deferred taskqueue at some point.
-			 */
-			IWN_UNLOCK(sc);
-
-			IEEE80211_TX_LOCK(ic);
-			IWN_LOCK(sc);
 			iwn_start_locked(ifp);
-			IWN_UNLOCK(sc);
-			IEEE80211_TX_UNLOCK(ic);
 		}
 	}
 }
@@ -2817,7 +2807,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 {
 	struct iwn_ops *ops = &sc->ops;
 	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct iwn_tx_ring *ring = &sc->txq[qid];
 	struct iwn_tx_data *data;
 	struct mbuf *m;
@@ -2914,18 +2903,6 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		if (sc->qfullmsk == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-			/*
-			 * XXX turn this into a deferred taskqueue at some point.
-			 */
-			IWN_UNLOCK(sc);
-
-			IEEE80211_TX_LOCK(ic);
-			IWN_LOCK(sc);
-			iwn_start_locked(ifp);
-			IWN_UNLOCK(sc);
-			IEEE80211_TX_UNLOCK(ic);
-
 			iwn_start_locked(ifp);
 		}
 	}
@@ -3873,9 +3850,6 @@ static void
 iwn_start(struct ifnet *ifp)
 {
 	struct iwn_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
-
-	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	IWN_LOCK(sc);
 	iwn_start_locked(ifp);
@@ -3886,12 +3860,10 @@ static void
 iwn_start_locked(struct ifnet *ifp)
 {
 	struct iwn_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 
 	IWN_LOCK_ASSERT(sc);
-	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    (ifp->if_drv_flags & IFF_DRV_OACTIVE))

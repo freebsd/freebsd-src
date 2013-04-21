@@ -534,8 +534,6 @@ ff_flush(struct mbuf *head, struct mbuf *last)
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
 
-	IEEE80211_TX_LOCK_ASSERT(vap->iv_ic);
-
 	for (m = head; m != last; m = next) {
 		next = m->m_nextpkt;
 		m->m_nextpkt = NULL;
