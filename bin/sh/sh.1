@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2013
+.Dd April 21, 2013
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1340,9 +1340,33 @@ The primary prompt string, which defaults to
 .Dq Li "$ " ,
 unless you are the superuser, in which case it defaults to
 .Dq Li "# " .
+.Va PS1
+may include any of the following formatting sequences,
+which are replaced by the given information:
+.Bl -tag -width indent
+.It Li \eH
+The local hostname.
+.It Li \eh
+The fully-qualified hostname.
+.It Li \eW
+The final component of the current working directory.
+.It Li \ew
+The entire path of the current working directory.
+.It Li \e$
+Superuser status.
+.Dq Li "$ "
+for normal users and
+.Dq Li "# "
+for superusers.
+.It Li \e\e
+A literal backslash.
+.El
 .It Va PS2
 The secondary prompt string, which defaults to
 .Dq Li "> " .
+.Va PS2
+may include any of the formatting sequences from
+.Va PS1 .
 .It Va PS4
 The prefix for the trace output (if
 .Fl x
