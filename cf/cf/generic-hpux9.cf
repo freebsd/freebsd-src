@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Fri Dec 21 10:45:14 PST 2012
-##### in /extra/home/ca/sm-8.14.6/OpenSource/sendmail-8.14.6/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Fri Apr 19 08:04:43 PDT 2013
+##### in /extra/home/ca/sm-8.14.7/OpenSource/sendmail-8.14.7/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -123,7 +123,7 @@ DnMAILER-DAEMON
 CPREDIRECT
 
 # Configuration version number
-DZ8.14.6
+DZ8.14.7
 
 
 ###############

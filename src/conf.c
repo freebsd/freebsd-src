@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2013 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1176 2012/12/07 03:59:54 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1182 2013/04/05 17:39:09 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -967,7 +967,7 @@ switch_map_find(service, maptype, mapreturn)
 			char buf[MAXLINE];
 
 			while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf,
-					   sizeof(buf)) != NULL)
+					   sizeof(buf)) >= 0)
 			{
 				register char *p;
 
@@ -2848,7 +2848,7 @@ uname(name)
 		char buf[MAXLINE];
 
 		while (sm_io_fgets(file, SM_TIME_DEFAULT,
-				   buf, sizeof(buf)) != NULL)
+				   buf, sizeof(buf)) >= 0)
 		{
 			if (sm_io_sscanf(buf, "#define sysname \"%*[^\"]\"",
 					NODE_LENGTH, name->nodename) > 0)
@@ -3222,7 +3222,7 @@ usershellok(user, shell)
 		return false;
 	}
 
-	while (sm_io_fgets(shellf, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(shellf, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		register char *p, *q;
 
@@ -4294,7 +4294,12 @@ sm_gethostbyname(name, family)
 #else /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
 	int nmaps;
 # if NETINET6
-	int flags = AI_DEFAULT|AI_ALL;
+#  ifndef SM_IPNODEBYNAME_FLAGS
+    /* For IPv4-mapped addresses, use: AI_DEFAULT|AI_ALL */
+#   define SM_IPNODEBYNAME_FLAGS	AI_ADDRCONFIG
+#  endif /* SM_IPNODEBYNAME_FLAGS */
+
+	int flags = SM_IPNODEBYNAME_FLAGS;
 	int err;
 # endif /* NETINET6 */
 	char *maptype[MAXMAPSTACK];
@@ -6004,6 +6009,23 @@ char	*OsCompileOptions[] =
 #if SECUREWARE
 	"SECUREWARE",
 #endif /* SECUREWARE */
+#if SFS_TYPE == SFS_4ARGS
+	"SFS_4ARGS",
+#elif SFS_TYPE == SFS_MOUNT
+	"SFS_MOUNT",
+#elif SFS_TYPE == SFS_NONE
+	"SFS_NONE",
+#elif SFS_TYPE == SFS_NT
+	"SFS_NT",
+#elif SFS_TYPE == SFS_STATFS
+	"SFS_STATFS",
+#elif SFS_TYPE == SFS_STATVFS
+	"SFS_STATVFS",
+#elif SFS_TYPE == SFS_USTAT
+	"SFS_USTAT",
+#elif SFS_TYPE == SFS_VFS
+	"SFS_VFS",
+#endif
 #if SHARE_V1
 	"SHARE_V1",
 #endif /* SHARE_V1 */
@@ -6184,6 +6206,10 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_GETHBN_ExFILE",
 #endif /* _FFR_GETHBN_ExFILE */
+#if _FFR_FIPSMODE
+	/* FIPSMode (if supported by OpenSSL library) */
+	"_FFR_FIPSMODE",
+#endif /* _FFR_FIPSMODE */
 #if _FFR_FIX_DASHT
 	/*
 	**  If using -t, force not sending to argv recipients, even
@@ -6363,6 +6389,10 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_REDIRECTEMPTY",
 #endif /* _FFR_REDIRECTEMPTY */
+#if _FFR_REJECT_NUL_BYTE
+	/* reject NUL bytes in body */
+	"_FFR_REJECT_NUL_BYTE",
+#endif /* _FFR_REJECT_NUL_BYTE */
 #if _FFR_RESET_MACRO_GLOBALS
 	/* Allow macro 'j' to be set dynamically via rulesets. */
 	"_FFR_RESET_MACRO_GLOBALS",
