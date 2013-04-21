@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.223 2010/03/10 04:35:28 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.224 2013/03/12 15:24:53 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -972,7 +972,7 @@ mci_read_persistent(fp, mci)
 	sm_io_rewind(fp, SM_TIME_DEFAULT);
 	ver = -1;
 	LineNumber = 0;
-	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		LineNumber++;
 		p = strchr(buf, '\n');
