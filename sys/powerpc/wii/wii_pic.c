@@ -156,7 +156,10 @@ wiipic_dispatch(device_t dev, struct trapframe *tf)
 	uint32_t irq;
 
 	sc = device_get_softc(dev);
-	irq = ffs(wiipic_icr_read(sc) & wiipic_imr_read(sc));
+	irq = wiipic_icr_read(sc) & wiipic_imr_read(sc);
+	if (irq == 0)
+		return;
+	irq = ffs(irq) - 1;
 	KASSERT(irq < WIIPIC_NIRQ, ("bogus irq %d", irq));
 	powerpc_dispatch_intr(sc->sc_vector[irq], tf);
 }
