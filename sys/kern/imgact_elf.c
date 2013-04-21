@@ -1515,8 +1515,8 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 		phdr->p_paddr = 0;
 		phdr->p_filesz = notesz;
 		phdr->p_memsz = 0;
-		phdr->p_flags = 0;
-		phdr->p_align = 0;
+		phdr->p_flags = PF_R;
+		phdr->p_align = sizeof(Elf32_Size);
 		phdr++;
 
 		/* All the writable segments from the program. */
@@ -1540,10 +1540,10 @@ __elfN(putnote)(void *dst, size_t *off, const char *name, int type,
 	*off += sizeof note;
 	if (dst != NULL)
 		bcopy(name, (char *)dst + *off, note.n_namesz);
-	*off += roundup2(note.n_namesz, sizeof(Elf_Size));
+	*off += roundup2(note.n_namesz, sizeof(Elf32_Size));
 	if (dst != NULL)
 		bcopy(desc, (char *)dst + *off, note.n_descsz);
-	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
+	*off += roundup2(note.n_descsz, sizeof(Elf32_Size));
 }
 
 static boolean_t
