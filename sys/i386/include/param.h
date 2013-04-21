@@ -33,26 +33,15 @@
  * $FreeBSD$
  */
 
-#include <machine/_align.h>
 
 #ifndef _I386_INCLUDE_PARAM_H_
 #define	_I386_INCLUDE_PARAM_H_
 
+#include <machine/_align.h>
+
 /*
  * Machine dependent constants for Intel 386.
  */
-
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define _ALIGNBYTES	(sizeof(int) - 1)
-#endif
-#ifndef _ALIGN
-#define _ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
-#endif
 
 
 #define __HAVE_ACPI
