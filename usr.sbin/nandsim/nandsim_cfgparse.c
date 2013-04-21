@@ -130,7 +130,7 @@ static struct nandsim_key nandsim_chip_keys[] = {
 	{NULL, 0, 0, NULL, 0},
 };
 
-struct nandsim_section sections[] = {
+static struct nandsim_section sections[] = {
 	{"ctrl", (struct nandsim_key *)&nandsim_ctrl_keys},
 	{"chip", (struct nandsim_key *)&nandsim_chip_keys},
 	{NULL, NULL},
