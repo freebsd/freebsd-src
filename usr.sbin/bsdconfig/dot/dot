@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,11 @@
 # $FreeBSD$
 #
 ############################################################ INCLUDES
+
+# Prevent common.subr from auto initializing debugging (this is not an inter-
+# active utility that requires debugging; also `-d' has been repurposed).
+#
+DEBUG_SELF_INITIALIZE=NO
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
