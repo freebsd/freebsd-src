@@ -619,7 +619,7 @@ f_media_init_ftp()
 		local host="$ftp_host" port="${ftp_port:+:$ftp_port}"
 		case "$host" in *:*) host="[$host]"; esac
 
-		local user pass use_anon=""
+		local user pass use_anon=
 		f_getvar $VAR_FTP_USER user
 		if [ ! "$user" ]; then
 			user="anonymous"
@@ -833,7 +833,7 @@ f_media_get_ftp()
 		return $FAILURE
 	fi
 
-	local user pass use_anon=""
+	local user pass use_anon=
 	f_getvar $VAR_FTP_USER user
 	if [ ! "$user" ]; then
 		user="anonymous"
