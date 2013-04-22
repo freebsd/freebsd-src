@@ -393,9 +393,9 @@ f_device_name_get()
 # f_device_name_set $type $name $desc [$max]
 #
 # Store a description (desc) and [optionally] maximum number of devices to scan
-# for (max) in-association with device $type and $name. Returns success. Use
-# the f_device_name_get() routine with the same $name and [optionally] $type to
-# retrieve one of type, desc, or max properties.
+# for (max) in-association with device $type and $name. Returns success unless
+# $name is NULL or missing. Use the f_device_name_get() routine with the same
+# $name and optionally $type to retrieve one of type, desc, or max properties.
 #
 f_device_name_set()
 {
