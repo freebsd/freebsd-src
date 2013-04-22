@@ -99,6 +99,7 @@ struct link {
 	uint8_t	l_bios_irq;
 	uint8_t	l_irq;
 	uint8_t	l_initial_irq;
+	UINT32	l_crs_type;
 	int	l_res_index;
 	int	l_num_irqs;
 	int	*l_irqs;
@@ -236,6 +237,7 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 		    ("%s: array boundary violation", __func__));
 		link = &req->sc->pl_links[req->link_index];
 		link->l_res_index = req->res_index;
+		link->l_crs_type = res->Type;
 		req->link_index++;
 		req->res_index++;
 
@@ -364,6 +366,14 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 					link->l_isa_irq = FALSE;
 			}
 		}
+
+		/*
+		 * If this is not an ISA IRQ but _CRS used a non-extended
+		 * IRQ descriptor, don't use _CRS as a template for _SRS.
+		 */
+		if (!req->sc->pl_crs_bad && !link->l_isa_irq &&
+		    link->l_crs_type == ACPI_RESOURCE_TYPE_IRQ)
+			req->sc->pl_crs_bad = TRUE;
 		break;
 	default:
 		if (req->in_dpf == DPF_IGNORE)
