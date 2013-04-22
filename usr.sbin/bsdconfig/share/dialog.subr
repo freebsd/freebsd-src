@@ -738,8 +738,8 @@ f_dialog_radiolist_size()
 	#
 	local longest_tag=0 longest_item=0
 	while [ $# -ge 2 ]; do
-		local tag="$1" item="$2" help="$3"
-		shift 3 # tag/item/status
+		local tag="$1" item="$2"
+		shift 2 # tag/item
 
 		[ ${#tag} -gt $longest_tag ] && longest_tag=${#tag}
 		[ ${#item} -gt $longest_item ] && longest_item=${#item}
