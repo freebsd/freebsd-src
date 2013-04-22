@@ -265,16 +265,19 @@ vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
 static __inline int
 vm_radix_addlev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 {
-	vm_pindex_t wrapidx;
 
 	for (; levels[ilev] == FALSE ||
 	    vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1); ilev--)
 		if (ilev == 0)
 			return (1);
-	wrapidx = *idx;
+
+	/*
+	 * The following computation cannot overflow because *idx's slot at
+	 * ilev is less than VM_RADIX_COUNT - 1.
+	 */
 	*idx = vm_radix_trimkey(*idx, ilev);
 	*idx += VM_RADIX_UNITLEVEL(ilev);
-	return (*idx < wrapidx);
+	return (0);
 }
 
 /*
@@ -286,17 +289,19 @@ vm_radix_addlev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 static __inline int
 vm_radix_declev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 {
-	vm_pindex_t wrapidx;
 
 	for (; levels[ilev] == FALSE ||
 	    vm_radix_slot(*idx, ilev) == 0; ilev--)
 		if (ilev == 0)
 			return (1);
-	wrapidx = *idx;
+
+	/*
+	 * The following computation cannot overflow because *idx's slot at
+	 * ilev is greater than 0.
+	 */
 	*idx = vm_radix_trimkey(*idx, ilev);
-	*idx |= VM_RADIX_UNITLEVEL(ilev) - 1;
-	*idx -= VM_RADIX_UNITLEVEL(ilev);
-	return (*idx > wrapidx);
+	*idx -= 1;
+	return (0);
 }
 
 /*
