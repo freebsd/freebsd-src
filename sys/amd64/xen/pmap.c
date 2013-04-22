@@ -1450,6 +1450,8 @@ pv_remove(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	mmu_map_t tptr = tbuf;
 
+	KASSERT(m != NULL, ("%s: passed NULL page!", __func__));
+
 	PMAP_LOCK(pmap);
 	pte = pmap_vtopte_inspect(pmap, va, &tptr);
 
@@ -1929,10 +1931,23 @@ pmap_zero_page(vm_page_t m)
 	pmap_kremove(zerova);
 }
 
+/*
+ *	pmap_zero_page_area zeros the specified hardware page by mapping 
+ *	the page into KVM and using bzero to clear its contents.
+ *
+ *	off and size may not cover an area beyond a single hardware page.
+ */
+
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	if (off == 0 && size == PAGE_SIZE)
+		pmap_zero_page(m);
+	else {
+		pmap_kenter(zerova, VM_PAGE_TO_PHYS(m));
+		bzero((char *)zerova + off, size);
+		pmap_kremove(zerova);
+	}
 }
 
 void
@@ -1972,10 +1987,88 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
+/* This is subtly different from pv_remove(). We don't defer removal
+ * of pv entries until the end.
+ * XXX: the pmap_pv.[ch] needs review for performance and use cases.
+ */
+static bool
+pv_map_remove(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	pt_entry_t *pte, tpte;
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	pte = pmap_vtopte_inspect(pmap, va, &tptr);
+
+	KASSERT(pte != NULL, ("pte has no backing page tables!"));
+
+	tpte = pte_load(pte);
+
+	if ((tpte & PG_V) == 0) {
+		panic("bad pte va %lx pte %lx", va, tpte);
+	}
+
+	/*
+	 * We cannot remove wired pages from a process' mapping at this time
+	 */
+	if (tpte & PG_W) {
+		return false; /* Continue iteration */
+	}
+
+	if (m == NULL) {
+		m = MACH_TO_VM_PAGE(tpte & PG_FRAME);
+	}
+
+	PT_CLEAR_VA(pte, TRUE);
+
+	/*
+	 * Update the vm_page_t clean/reference bits.
+	 */
+	if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+		vm_page_dirty(m);
+	}
+
+	/* XXX: Tell mmu_xxx about backing page */
+	pmap_vtopte_release(pmap, va, &tptr);
+
+	pmap_resident_count_dec(pmap, 1);
+
+	if (!pmap_free_pv_entry(pmap, va, m)) { /* XXX: This is very slow */
+		panic("%s: pv 0x%lx: 0x%lx, unknown on managed page!", 
+		      __func__, VM_PAGE_TO_PHYS(m), va);
+	}
+
+	return false;
+}
+
+/*
+ * Remove all pages from specified address space
+ * this aids process exit speeds.  Also, this code
+ * is special cased for current process only, but
+ * can have the more generic (and slightly slower)
+ * mode enabled.  This is much faster than pmap_remove
+ * in the case of running down an entire address space.
+ */
+
 void
 pmap_remove_pages(pmap_t pmap)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	if (pmap != PCPU_GET(curpmap)) {
+		printf("warning: pmap_remove_pages called with non-current pmap\n");
+		return;
+	}
+	PMAP_LOCK(pmap);
+
+	pmap_pv_iterate_map(pmap, pv_map_remove);
+
+	pmap_invalidate_all(pmap);
+	PMAP_UNLOCK(pmap);
 }
 
 void
@@ -2093,6 +2186,7 @@ pv_remove_write(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	mmu_map_t tptr = tbuf;
 
+	KASSERT(m != NULL, ("%s: passed NULL page!", __func__));
 	PMAP_LOCK(pmap);
 	pte = pmap_vtopte_inspect(pmap, va, &tptr);
 
