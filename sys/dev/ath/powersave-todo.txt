@@ -1,0 +1,104 @@
+
+Things that need doing with this power save stuff:
+
+Stuff to clean up before the node pause/resume stuff goes into the
+tree:
+
+* There's an unfortunate "race" at the moment, even before the node pause/unpause -
+  if the node gets flushed whilst there's stuff in the hardware queue,
+  then I don't think the aggregation session gets torn down via
+  the normal path.  Check this!
+
+* .. because if it doesn't, then there's no chance to run cleanup
+  on the TIDs with hardware-queued frames!
+
+* When a node cleanup or node reassociation occurs, any flush should
+  also either trigger a pass through the aggregate down method,
+  or just a call to TID cleanup.
+
+* Maybe instead, when a node reassociates, we shouldn't just blindly
+  cleanup and overwrite the existing state.  Instead, maybe we want
+  to tear down the aggregation sessions ourselves and transition the
+  node through the "cleanup" before we continue transmitting?
+
+  Ie:
+
+  * Do a cleanup call for each TID - which flushes the swq and
+    figures out if anything in the BAW is pending in the hardware queue;
+  * If we're pending completion for any TID - just wait until the
+    pending count finishes;
+  * Clear the BAR flags so we don't attempt to TX any BAR frames or wait
+    for BAR to come back;
+  * But leave the queue paused, waiting until the transmission on said
+    VAP has completed!
+
+--
+
+* Modify node cleanup to require the tx lock to be held, but have it
+  take an athbuf list - make the caller free the cleaned up
+  frames.  That way it can be done outside of the lock.
+  This makes it easier to call cleanup on all TIDs for a node
+  during a flush or reassociation.
+
+stuff to validate once the above is in the tree:
+
+* What mgmt / control frames are being transmitted whilst a node is asleep?
+  eg reassociation?
+
+  -- it was something calling ic_raw_xmit() !
+  -- .. which was just software queueing, and not checking whether anything
+     needed to bypass powersave. Sigh.
+
+* We need to ensure that the node state - bar state, sched state, etc are
+  reset during a reassociation - but not the paused / incomp bits.
+  The node may actually be in the process of being recycled.
+
+* .. so we still have some BAR races that cause unbalanced pause/resume
+  calls.  Track those down!
+
+* .. and it's going to be interesting to see how a reassoc/assoc
+  node that already has state (eg the whole pause/resume/cleanup)
+  stuff is handled.  Maybe what I should do during node flush
+  is to simply mark all frames in the hardware queue as not
+  being in the BAW any longer (like cleanup) but not pause
+  the queue until they're done.  Just let them transmit.
+
+* What else could cause an existng node to assoc/reassoc, but leave it
+  in a stuck state? Hm!
+
+* Also, why do I keep getting stuck beacon frames?
+
+Apr 18 01:13:37 lucy kernel: [100822] ath0: ath_tx_raw_start: 8c:7b:9d:d6:65:ba: Node is asleep; sending mgmt (type=0, subtype=176)
+Apr 18 01:13:37 lucy kernel: [100822] ath0: ath_newassoc: 8c:7b:9d:d6:65:ba: reassoc; is_powersave=1
+Apr 18 01:13:37 lucy kernel: [100822] ath0: ath_tx_node_wakeup: an=0xd24a1000: node was already awake
+Apr 18 01:13:38 lucy kernel: ath0: stuck beacon; resetting (bmiss count 4)
+Apr 18 01:14:01 lucy last message repeated 4 times
+
+.. check to see if I'm doing something daft, like pulling frames off
+of the hardware queue without actually stopping DMA?
+
+* I likely should hack the BAR TX code to not retransmit a BAR frame
+  due to a timeout if the node is asleep.  Retransmit it if it fails,
+  sure, but not if it times out.  Otherwise we may end up queuing multiple
+  BAR frames to the remote end.
+
+* It's possible that a sleeping node will slowly consume all available
+  ath_buf entries until they're all gone.  Eg, if my macbook sends a powermgt
+  frame to go to sleep, then selects another AP.
+
+  So we should limit how deep the per-node queue can get when the device
+  is asleep.
+
+  .. except management frames, those need to go out.
+
+  .. although again, we may end up typing up all the management frames (eg
+     BAR frames, or other action frames) so we should also likely limit how
+     many pending management frames can go into the software queue.
+     Direct-queuing management/control frames to the hardware is fine
+     though!
+
+--
+
+done stuff
+----------
+
