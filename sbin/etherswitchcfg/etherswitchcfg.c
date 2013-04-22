@@ -139,6 +139,7 @@ set_port_vlangroup(struct cfg *cfg, char *argv[])
 	v = strtol(argv[1], NULL, 0);
 	if (v < 0 || v >= cfg->info.es_nvlangroups)
 		errx(EX_USAGE, "vlangroup must be between 0 and %d", cfg->info.es_nvlangroups-1);
+	bzero(&p, sizeof(p));
 	p.es_port = cfg->unit;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
