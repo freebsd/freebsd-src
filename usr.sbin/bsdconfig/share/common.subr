@@ -120,6 +120,7 @@ f_debug_init()
 	# Make debugging persistant if set
 	#
 	[ "$debug" ] && export debug
+	[ "$debugFile" ] && export debugFile
 
 	#
 	# Truncate the debug file upon. Note that we will trim a leading plus
