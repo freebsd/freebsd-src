@@ -51,12 +51,11 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
+	local menu_list size defaultitem=
 	local hline="$hline_select_securelevel_to_operate_at"
 	local prompt="$msg_securelevels_menu_text"
 
 	menu_list="
-		'X $msg_exit'         '$msg_exit_this_menu'
 		'$msg_disabled'       '$msg_disable_securelevels'
 		'$msg_secure'         '$msg_secure_mode'
 		'$msg_highly_secure'  '$msg_highly_secure_mode'
@@ -70,9 +69,20 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
+	case "$( f_sysrc_get kern_securelevel_enable )" in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		case "$( f_sysrc_get kern_securelevel )" in
+		1) defaultitem="$msg_secure"         ;;
+		2) defaultitem="$msg_highly_secure"  ;;
+		3) defaultitem="$msg_network_secure" ;;
+		esac ;;
+	*)
+		defaultitem="$msg_disabled"
+	esac
+
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
@@ -80,6 +90,7 @@ dialog_menu_main()
 		--help-button                      \
 		--help-label \"\$msg_help\"        \
 		${USE_XDIALOG:+--help \"\"}        \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD

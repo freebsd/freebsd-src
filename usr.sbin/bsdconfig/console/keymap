@@ -77,7 +77,7 @@ KEYMAP_NAMES="
 #
 dialog_menu_main()
 {
-	local menu_list size
+	local menu_list size defaultitem=
 	local hline="$hline_choose_a_keyboard_map"
 	local prompt="$msg_keymap_menu_text"
 
@@ -117,13 +117,89 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
+	case "$( f_sysrc_get keymap )" in
+	be.iso) defaultitem="$msg_belgian";;
+	br275.cp850) defaultitem="$msg_brazil_cp850";;
+	br275.iso) defaultitem="$msg_brazil_iso";;
+	br275.iso.acc) defaultitem="$msg_brazil_iso_accent";;
+	bg.bds.ctrlcaps) defaultitem="$msg_bulgarian_bds";;
+	bg.phonetic.ctrlcaps) defaultitem="$msg_bulgarian_phonetic";;
+	ce.iso2) defaultitem="$msg_central_european_iso";;
+	hr.iso) defaultitem="$msg_croatian_iso";;
+	cs.latin2.qwertz) defaultitem="$msg_czech_iso_accent";;
+	danish.cp865) defaultitem="$msg_danish_cp865";;
+	danish.iso) defaultitem="$msg_danish_iso";;
+	estonian.cp850) defaultitem="$msg_estonian_cp850";;
+	estonian.iso) defaultitem="$msg_estonian_iso";;
+	estonian.iso15) defaultitem="$msg_estonian_iso_15";;
+	finnish.cp850) defaultitem="$msg_finnish_cp850";;
+	finnish.iso) defaultitem="$msg_finnish_iso";;
+	fr.iso) defaultitem="$msg_french_iso";;
+	fr.iso.acc) defaultitem="$msg_french_iso_accent";;
+	fr.macbook.acc) defaultitem="$msg_french_iso_macbook";;
+	german.cp850) defaultitem="$msg_german_cp850";;
+	german.iso) defaultitem="$msg_german_iso";;
+	gr.us101.acc) defaultitem="$msg_greek_101";;
+	el.iso07) defaultitem="$msg_greek_104";;
+	gr.elot.acc) defaultitem="$msg_greek_elot";;
+	hu.iso2.101keys) defaultitem="$msg_hungarian_101";;
+	hu.iso2.102keys) defaultitem="$msg_hungarian_102";;
+	icelandic.iso) defaultitem="$msg_icelandic";;
+	icelandic.iso.acc) defaultitem="$msg_icelandic_accent";;
+	it.iso) defaultitem="$msg_italian";;
+	jp.106) defaultitem="$msg_japanese_106";;
+	latinamerican) defaultitem="$msg_latin_american";;
+	latinamerican.iso.acc) defaultitem="$msg_latin_american_accent";;
+	norwegian.iso) defaultitem="$msg_norway_iso";;
+	pl_PL.ISO8859-2) defaultitem="$msg_polish_iso";;
+	pt.iso) defaultitem="$msg_portuguese";;
+	pt.iso.acc) defaultitem="$msg_portuguese_accent";;
+	ru.koi8-r) defaultitem="$msg_russia_koi8_r";;
+	sk.iso2) defaultitem="$msg_slovak";;
+	si.iso) defaultitem="$msg_slovenian";;
+	spanish.iso) defaultitem="$msg_spanish";;
+	spanish.iso.acc) defaultitem="$msg_spanish_accent";;
+	swedish.cp850) defaultitem="$msg_swedish_cp850";;
+	swedish.iso) defaultitem="$msg_swedish_iso";;
+	swissfrench.cp850) defaultitem="$msg_swiss_french_cp850";;
+	swissfrench.iso) defaultitem="$msg_swiss_french_iso";;
+	swissfrench.iso.acc) defaultitem="$msg_swiss_french_iso_accent";;
+	swissgerman.cp850) defaultitem="$msg_swiss_german_cp850";;
+	swissgerman.iso) defaultitem="$msg_swiss_german_iso";;
+	swissgerman.iso.acc) defaultitem="$msg_swiss_german_iso_accent";;
+	uk.cp850) defaultitem="$msg_uk_cp850";;
+	uk.iso) defaultitem="$msg_uk_iso";;
+	ua.koi8-u) defaultitem="$msg_ukrainian_koi8_u";;
+	ua.koi8-u.shift.alt) defaultitem="$msg_ukrainian_koi8_u_koi8_r";;
+	us.pc-ctrl) defaultitem="$msg_usa_capslock_ctrl";;
+	us.dvorak) defaultitem="$msg_usa_dvorak";;
+	us.dvorakl) defaultitem="$msg_usa_dvorak_left";;
+	us.dvorakr) defaultitem="$msg_usa_dvorak_right";;
+	us.emacs) defaultitem="$msg_usa_emacs";;
+	us.iso) defaultitem="$msg_usa_iso";;
+	us.unix) defaultitem="$msg_usa_unix";;
+	esac
+
+	# The defaultitem may have to be indented to match the menu_list
+	if [ "$defaultitem" ]; then
+		( eval set -- $menu_list
+		  while [ $# -gt 0 ]; do
+		  	[ "$defaultitem" = "$1" ] && break
+		  	[ " $defaultitem" = "$1" ] && exit 0
+		  	shift 2 # tag/item
+		  done
+		  exit 1 # No modification needed
+		) && defaultitem=" $defaultitem"
+	fi
+
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD

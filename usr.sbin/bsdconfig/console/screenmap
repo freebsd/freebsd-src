@@ -49,7 +49,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
+	local menu_list size defaultitem=
 	local hline="$hline_choose_a_screen_map"
 	local prompt="$msg_screenmap_menu_text"
 
@@ -69,13 +69,23 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
+	case "$( f_sysrc_get scrnmap )" in
+	[Nn][Oo]|'')         defaultitem="1 $msg_none"                 ;;
+	iso-8859-1_to_cp437) defaultitem="2 $msg_iso_8859_1_to_ibm437" ;;
+	iso-8859-7_to_cp437) defaultitem="3 $msg_iso_8859_7_to_ibm437" ;;
+	us-ascii_to_cp437)   defaultitem="4 $msg_us_ascii_to_ibm327"   ;;
+	koi8-r2cp866)        defaultitem="5 $msg_koi8_r_to_ibm866"     ;;
+	koi8-u2cp866u)       defaultitem="6 $msg_koi8_u_to_ibm866u"    ;;
+	esac
+
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD

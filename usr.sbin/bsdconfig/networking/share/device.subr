@@ -55,12 +55,15 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ############################################################ FUNCTIONS
 
-# f_dialog_menu_netdev
+# f_dialog_menu_netdev [$default]
 #
-# Display a list of network devices with descriptions.
+# Display a list of network devices with descriptions. Optionally, if present
+# and non-NULL, initially highlight $default interface.
 #
 f_dialog_menu_netdev()
 {
+	local defaultitem="${1%\*}" # Tim trailing asterisk if present
+
 	#
 	# Display a message to let the user know we're working...
 	# (message will remain until we throw up the next dialog)
@@ -125,6 +128,15 @@ f_dialog_menu_netdev()
 		return $FAILURE
 	fi
 
+	#
+	# Maybe the default item was marked as active
+	#
+	if [ "$defaultitem" ]; then
+		ifconfig "$defaultitem" 2> /dev/null | awk \
+			'( $1 == "status:" && $2 != "active" ) { exit 0 }' ||
+			defaultitem="$defaultitem*"
+	fi
+
 	local hline="$hline_arrows_tab_enter"
 
 	#
@@ -140,11 +152,12 @@ f_dialog_menu_netdev()
 	        	$interfaces            )
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$interfaces                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -188,6 +201,7 @@ f_dialog_menu_netdev_edit()
 	# changes effective because all three options must be specified at-once
 	# to ifconfig(8).
 	#
+	local defaultitem=
 	while :; do
 		local dhcp_status="$msg_disabled"
 		[ "$dhcp" ] && dhcp_status="$msg_enabled"
@@ -210,7 +224,7 @@ f_dialog_menu_netdev_edit()
 		        	$menu_list             )
 		local dialog_menu
 		dialog_menu=$( eval $DIALOG \
-			--clear --title \"\$DIALOG_TITLE\" \
+			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
@@ -218,6 +232,7 @@ f_dialog_menu_netdev_edit()
 			--help-button                      \
 			--help-label \"\$msg_help\"        \
 			${USE_XDIALOG:+--help \"\"}        \
+			--default-item \"\$defaultitem\"   \
 			--menu \"\$prompt\" $size          \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -234,6 +249,9 @@ f_dialog_menu_netdev_edit()
 		elif [ $retval -ne $SUCCESS ]; then
 			# "Cancel" was chosen (-1) or ESC was pressed (255)
 			return $retval
+		else
+			# Only update default-item on success
+			defaultitem="$tag"
 		fi
 
 		#

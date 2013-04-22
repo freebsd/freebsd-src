@@ -49,36 +49,53 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
+	local menu_list size mark=" " defaultitem=
 	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_menu_text"
+
+	# Obtain default-item (adjusted below for dynamic tags)
+	f_getvar DEFAULTITEM_$$ defaultitem
+	local ditem="${defaultitem%%[$IFS]*}"
 
 	menu_list="
 		'X <<< $msg_exit' '$msg_exit_this_menu'
 	" # END-QUOTE
 
+	#
+	# Add dynamically tagged entry for kern_securelevels
+	#
 	case "$( f_sysrc_get kern_securelevel_enable )" in
 	[Yy][Ee][Ss])
 		local kern_securelevel="$( f_sysrc_get kern_securelevel )"
 		if [ ${#kern_securelevel} -eq 1 ] &&
-		   f_isinteger "$kern_securelevel"
-		then menu_list="$menu_list
-			'2 [$kern_securelevel] $msg_securelevel'"
-		else menu_list="$menu_list
-			'2 [X] $msg_securelevel'"
-		fi
-		menu_list="$menu_list '$msg_securelevel_desc'"
-		;;
-	*) menu_list="$menu_list
-		'2 [ ] $msg_securelevel' '$msg_securelevel_desc'"
+		   f_isinteger "$kern_securelevel" &&
+		   [ $kern_securelevel -lt 9 ]
+		then
+			mark="$kern_securelevel"
+		else
+			mark="X"
+		fi ;;
+	*)
+		mark=" "
 	esac
+	menu_list="$menu_list
+		'2 [$mark] $msg_securelevel' '$msg_securelevel_desc'"
 
+	# Update default-item if appropriate
+	[ "$ditem" = 2 ] && defaultitem="2 [$mark] $msg_securelevel"
+
+	#
+	# Add dynamically tagged entry for nfs_reserved_port_only
+	#
 	case "$( f_sysrc_get nfs_reserved_port_only )" in
-	[Yy][Ee][Ss]) menu_list="$menu_list
-		'3 [X] $msg_nfs_port' '$msg_nfs_port_desc'";;
-	*) menu_list="$menu_list
-		'3 [ ] $msg_nfs_port' '$msg_nfs_port_desc'";;
+	[Yy][Ee][Ss]) mark="X" ;;
+	           *) mark=" " ;;
 	esac
+	menu_list="$menu_list
+		'3 [$mark] $msg_nfs_port' '$msg_nfs_port_desc'"
+
+	# Update default-item if appropriate
+	[ "$ditem" = 3 ] && defaultitem="3 [$mark] $msg_nfs_port"
 
 	size=$( eval f_dialog_menu_size \
 	        	\"\$DIALOG_TITLE\"     \
@@ -89,17 +106,22 @@ dialog_menu_main()
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
 	setvar DIALOG_MENU_$$ "$dialog_menu"
+
+	# Only update default-item on success
+	[ $retval -eq 0 ] && setvar DEFAULTITEM_$$ "$dialog_menu"
+
 	return $retval
 }
 

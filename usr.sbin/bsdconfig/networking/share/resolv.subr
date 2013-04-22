@@ -396,7 +396,7 @@ f_dialog_menu_nameservers()
 	local opt_exit="$msg_return_to_previous_menu"
 	local opt_add="$msg_add_nameserver"
 	local hline="$hline_arrows_tab_enter"
-	local prompt size
+	local prompt size defaultitem=
 
 	#
 	# Loop forever until the user has finished configuring nameservers
@@ -435,11 +435,12 @@ f_dialog_menu_nameservers()
 		        	$menu_list             )
 		local dialog_menu
 		dialog_menu=$( eval $DIALOG \
-			--clear --title \"\$DIALOG_TITLE\" \
+			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
+			--default-item \"\$defaultitem\"   \
 			--menu \"\$prompt\" $size          \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -450,7 +451,12 @@ f_dialog_menu_nameservers()
 		local tag="$( f_dialog_menutag )" ns=""
 
 		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
-		[ $retval -eq $SUCCESS ] || return $retval
+		if [ $retval -ne $SUCCESS ]; then
+			return $retval
+		else
+			# Only update default-item on success
+			defaultitem="$tag"
+		fi
 
 		case "$tag" in
 		"X $msg_exit") break;;
