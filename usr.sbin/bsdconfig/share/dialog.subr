@@ -737,9 +737,9 @@ f_dialog_radiolist_size()
 	# Also, calculate the number of rows (not to exceed terminal height).
 	#
 	local longest_tag=0 longest_item=0
-	while [ $# -ge 2 ]; do
+	while [ $# -ge 3 ]; do
 		local tag="$1" item="$2"
-		shift 2 # tag/item
+		shift 3 # tag/item/status
 
 		[ ${#tag} -gt $longest_tag ] && longest_tag=${#tag}
 		[ ${#item} -gt $longest_item ] && longest_item=${#item}
