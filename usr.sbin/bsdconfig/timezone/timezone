@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2011-2012 Devin Teske
+# Copyright (c) 2011-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -115,7 +115,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts C:ehnrsSvX flag; do
+while getopts C:dD:ehnrsSvX flag; do
 	case "$flag" in
 	C) CHROOTENV="$OPTARG";;
 	e) TZ_OR_FAIL=1;;

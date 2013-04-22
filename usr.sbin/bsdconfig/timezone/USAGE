@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2012 Devin Teske
+# Copyright (c) 2011-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,11 +26,15 @@
 
 Usage: bsdconfig @PROGRAM_NAME@ [-ehnrSsvX] [-C chroot_dir] [zinfo_file | zinfo_name]
 OPTIONS:
-	-h         Print usage statement and exit.
+	-d         Provide lots of debugging info on standard-out when running.
+	-D file    Send debugging info to file. If file begins with a plus-sign
+	           debug info is sent to both standard-out and file (minus the
+	           leading plus).
 	-e         Only return success on exit if user selects a timezone AND
 	           the selected timezone was successfully installed. By default
 	           (without this flag), success is always returned unless an
 	           error has occurred.
+	-h         Print this usage statement and exit.
 	-n         Do not create or copy files.
 	-r         Reinstall the zoneinfo file installed last time. The name is
 	           obtained from /var/db/zoneinfo.
