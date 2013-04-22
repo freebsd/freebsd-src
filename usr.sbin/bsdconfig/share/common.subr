@@ -100,23 +100,21 @@ f_debug_init()
 	#
 	# Process stored command-line arguments
 	#
-	( set -- "$ARGV"
-		while getopts d flag > /dev/null; do
-			case "$flag" in
-			d) true; exit;;
-			\?) continue;;
-			esac
-		done
-		false
-	) && debug=1
-	debugFile=$( set -- "$ARGV"
-		while getopts D flag > /dev/null; do
-			case "$flag" in
-			D) echo "$OPTARG";;
-			\?) continue;;
-			esac
-		done
-	)
+	set -- $ARGV
+	local OPTIND
+	while getopts dD: flag > /dev/null; do
+		case "$flag" in
+		d) debug=1;;
+		D) debugFile="$OPTARG";;
+		\?) continue;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	#
+	# Automagically enable debugging if debugFile is set (and non-NULL)
+	#
+	[ "$debugFile" ] && { [ "${debug+set}" ] || debug=1; }
 
 	#
 	# Make debugging persistant if set

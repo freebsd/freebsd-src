@@ -117,6 +117,7 @@ f_variable_set_defaults()
 	setvar $VAR_NFS_SECURE		"NO"
 	setvar $VAR_NFS_TCP		"NO"
 	setvar $VAR_NFS_V3		"YES"
+	setvar $VAR_PKG_TMPDIR		"/var/tmp"
 	setvar $VAR_RELNAME		"$UNAME_R"
 
 	f_dprintf "f_variable_set_defaults: Defaults initialized."
@@ -224,8 +225,12 @@ f_variable_new VAR_NFS_SECURE		nfs_reserved_port_only
 f_variable_new VAR_NFS_TCP		nfs_use_tcp
 f_variable_new VAR_NFS_V3		nfs_use_v3
 f_variable_new VAR_NONINTERACTIVE	nonInteractive
+f_variable_new VAR_NO_CONFIRM		noConfirm
 f_variable_new VAR_NO_ERROR		noError
 f_variable_new VAR_NO_INET6		noInet6
+f_variable_new VAR_PACKAGE		package
+f_variable_new VAR_PKG_TMPDIR		PKG_TMPDIR
+f_variable_new VAR_PORTS_PATH		ports
 f_variable_new VAR_RELNAME		releaseName
 f_variable_new VAR_SLOW_ETHER		slowEthernetCard
 f_variable_new VAR_TRY_DHCP		tryDHCP

@@ -111,6 +111,15 @@ f_media_options_menu()
 			    '$msg_emit_extra_debugging_output'"
 		fi
 
+		f_getvar $VAR_NO_CONFIRM cp
+		if [ "$cp" ]; then menu_list="$menu_list
+			' $msg_yes_to_all' 'YES'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
+		else menu_list="$menu_list
+			' $msg_yes_to_all' 'NO'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
+		fi
+
 		f_getvar $VAR_TRY_DHCP cp
 		if [ "$cp" = "YES" ]; then menu_list="$menu_list
 			' $msg_dhcp' 'YES'
@@ -178,6 +187,11 @@ f_media_options_menu()
 		menu_list="$menu_list
 			' $msg_media_timeout' '$cp'
 			    '$msg_timeout_value_in_seconds_for_slow_media'"
+
+		f_getvar $VAR_PKG_TMPDIR cp
+		menu_list="$menu_list
+			' $msg_package_temp' '$cp'
+			    '$msg_directory_where_package_temporary_files_go'"
 
 		menu_list="$menu_list
 			' $msg_rescan_devices' '<*>'
@@ -260,6 +274,12 @@ f_media_options_menu()
 			else
 				export $VAR_DEBUG=1
 			fi ;;
+		" $msg_yes_to_all")
+			if f_getvar $VAR_NO_CONFIRM cp && [ "$cp" ]; then
+				unset $VAR_NO_CONFIRM
+			else
+				export $VAR_NO_CONFIRM=1
+			fi ;;
 		" $msg_dhcp")
 			f_getvar $VAR_TRY_DHCP cp
 			if [ "$cp" = "YES" ]; then
@@ -289,6 +309,10 @@ f_media_options_menu()
 		" $msg_media_timeout")
 			f_variable_get_value $VAR_MEDIA_TIMEOUT \
 			    "$msg_please_specify_the_number_of_seconds_to_wait"
+			;;
+		" $msg_package_temp")
+			f_variable_get_value $VAR_PKG_TMPDIR \
+			    "$msg_please_specify_a_temporary_directory"
 			;;
 		" $msg_rescan_devices")
 			f_device_rescan ;;
