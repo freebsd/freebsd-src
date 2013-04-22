@@ -28,7 +28,7 @@
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2013
+.Dd April 22, 2013
 .Dt ACCEPT 2
 .Os
 .Sh NAME
@@ -164,10 +164,6 @@ The descriptor references a file, not a socket.
 .It Bq Er EINVAL
 .Xr listen 2
 has not been called on the socket descriptor.
-.It Bq Er EINVAL
-The
-.Fa addrlen
-argument is negative.
 .It Bq Er EFAULT
 The
 .Fa addr
