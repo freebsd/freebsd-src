@@ -159,6 +159,8 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE1	0xfffffffffffffffful
 #define	PC_FREE2	0x000000fffffffffful
 
+static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
+
 /*
  * Returns a new PV entry, allocating a new PV chunk from the system when
  * needed.  If this PV chunk allocation fails and a PV list lock pointer was
@@ -458,7 +460,8 @@ pmap_pv_vm_page_mapped(pmap_t pmap, vm_page_t m)
 }
 
 /*
- * Iterate through all mappings, until callback returns 'true'
+ * Iterate through all va mappings a physical page is part of, until
+ * callback returns 'true'. 
  * Returns the number of iterations.
  */
 
@@ -475,6 +478,47 @@ pmap_pv_iterate(vm_page_t m, pv_cb_t cb)
 		if (cb(PV_PMAP(pv), pv->pv_va, m)) break;
 	}
 	rw_wunlock(&pvh_global_lock);
+	return iter;
+}
+
+/*
+ * Iterate through all pv mappings in a pmap, until callback returns
+ * 'true'.
+ * Returns the number of iterations.
+ */
+
+int
+pmap_pv_iterate_map(pmap_t pmap, pv_cb_t cb)
+{
+	int iter = 0;
+
+	int field, idx;
+	int64_t bit;
+	uint64_t inuse, bitmask;
+	pv_entry_t pv;
+	struct pv_chunk *pc, *npc;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
+		iter++;
+		for (field = 0; field < _NPCM; field++) {
+			inuse = ~pc->pc_map[field] & pc_freemask[field];
+			while (inuse != 0) {
+				bit = bsfq(inuse);
+				bitmask = 1UL << bit;
+				idx = field * 64 + bit;
+				pv = &pc->pc_pventry[idx];
+				inuse &= ~bitmask;
+
+				if (cb(PV_PMAP(pv), pv->pv_va, NULL)) break;
+			}
+			if (TAILQ_EMPTY(&pmap->pm_pvchunk)) {
+				/* Chunks were all freed! Bail. */
+				break;
+			}
+		}
+	}
 	return iter;
 }
 
