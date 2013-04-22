@@ -99,6 +99,7 @@ while :; do
 	# fallback to reading the active configuration if not configured in
 	# the rc.conf(5) file(s).
 	#
+	dhcp=
 	_ipaddr=
 	_netmask=
 	_ifconfig=$( f_sysrc_get ifconfig_$interface )
@@ -147,7 +148,7 @@ while :; do
 
 	# Block on user-configuration of the probed settings
 	f_dialog_menu_netdev_edit \
-		$interface $_ipaddr $_netmask "$_options" $dhcp
+		"$interface" "$_ipaddr" "$_netmask" "$_options" $dhcp
 
 	# Return to root menu if above returns success
 	[ $? -eq $SUCCESS ] && break
