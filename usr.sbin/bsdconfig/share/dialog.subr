@@ -770,6 +770,142 @@ f_dialog_radiolist_size()
 	echo "$height $width $rows"
 }
 
+# f_dialog_checklist_size $title $backtitle $prompt $hline \
+#                         $tag1 $item1 $status1 $tag2 $item2 $status2 ...
+#
+# Not all versions of dialog(1) perform auto-sizing of the width and height of
+# `--checklist' boxes sensibly.
+#
+# This function helps solve this issue by taking as arguments (in order of
+# appearance) the title, backtitle, prompt, hline and list of tag/item/status
+# triplets, returning the optimal width and height for the checklist (not
+# exceeding the actual terminal width or height).
+#
+# Output is in the format of "height width rows".
+#
+f_dialog_checklist_size()
+{
+	f_dialog_radiolist_size "$@"
+}
+
+# f_dialog_radiolist_with_help_size $title $backtitle $prompt $hline \
+#                                   $tag1 $item1 $status1 $help1 \
+#                                   $tag2 $item2 $status2 $help2 ...
+#
+# Not all versions of dialog(1) perform auto-sizing of the width and height of
+# `--radiolist' boxes sensibly.
+#
+# This function helps solve this issue by taking as arguments (in order of
+# appearance) the title, backtitle, prompt, hline and list of
+# tag/item/status/help quads, returning the optimal width and height for the
+# radiolist (not exceeding the actual terminal width or height).
+#
+# Output is in the format of "height width rows".
+#
+f_dialog_radiolist_with_help_size()
+{
+	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
+	local min_width min_rows max_size
+
+	if [ "$USE_XDIALOG" ]; then
+		min_width=35
+		min_rows=1
+		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
+	else
+		min_width=24
+		min_rows=0
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
+	fi
+
+	local max_width="${max_size##*[$IFS]}"
+	local max_height="${max_size%%[$IFS]*}"
+	local box_size="$( f_dialog_infobox_size \
+	                   	"$title" "$btitle" "$prompt" "$hline" )"
+	local box_height="${box_size%%[$IFS]*}"
+	local box_width="${box_size##*[$IFS]}"
+	local max_rows=$(( $max_height - 8 ))
+	local height width=$box_width rows=$min_rows
+
+	shift 4 # title/btitle/prompt/hline
+
+	#
+	# The sum total between the longest tag-length, longest item-length,
+	# and radio-button width should be used for the menu width (not to
+	# exceed terminal width).
+	#
+	# Also, calculate the number of rows (not to exceed terminal height).
+	#
+	# Also, calculate the longest help while we're here. This will be used
+	# to influence the width of the menu if (and only-if) using Xdialog(1).
+	#
+	local longest_tag=0 longest_item=0 longest_help=0
+	while [ $# -ge 4 ]; do
+		local tag="$1" item="$2" status="$3" help="$4"
+		shift 4 # tag/item/status/help
+
+		[ ${#tag} -gt $longest_tag ] && longest_tag=${#tag}
+		[ ${#item} -gt $longest_item ] && longest_item=${#item}
+		[ ${#help} -gt $longest_help ] && longest_help=${#help}
+		[ $rows -lt $max_rows ] && rows=$(( $rows + 1 ))
+	done
+
+	# Update width
+	n=$(( $longest_tag + $longest_item + 13 ))
+	[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 )) # Add 16.6% for Xdialog(1)
+	if [ $n -gt $width -a $n -gt $min_width ]; then
+		if [ $n -lt $max_width ]; then
+			width=$n
+		else
+			width=$max_width
+		fi
+	fi
+
+	# Update width for help text if using Xdialog(1)
+	if [ "$USE_XDIALOG" ]; then
+		n=$(( $longest_help + 10 ))
+		n=$(( $n + $n / 6 )) # +16.6%
+		if [ $n -gt $width -a $n -gt $min_width ]; then
+			if [ $n -lt $max_width ]; then
+				width=$n
+			else
+				width=$max_width
+			fi
+		fi
+	fi
+
+	# Fix rows and set height
+	[ $rows -gt 0 ] || rows=1
+	if [ "$USE_XDIALOG" ]; then
+		height=$(( $rows + $box_height + 7 ))
+	else
+		height=$(( $rows + $box_height + 4 ))
+	fi
+	[ $height -le $max_height ] || height=$max_height
+
+	# Return all three
+	echo "$height $width $rows"
+}
+
+# f_dialog_checklist_with_help_size $title $backtitle $prompt $hline \
+#                                   $tag1 $item1 $status1 $help1 \
+#                                   $tag2 $item2 $status2 $help2 ...
+#
+# Not all versions of dialog(1) perform auto-sizing of the width and height of
+# `--checklist' boxes sensibly.
+#
+# This function helps solve this issue by taking as arguments (in order of
+# appearance) the title, backtitle, prompt, hline and list of
+# tag/item/status/help quads, returning the optimal width and height for the
+# checklist (not exceeding the actual terminal width or height).
+#
+# Output is in the format of "height width rows".
+#
+f_dialog_checklist_with_help_size()
+{
+	f_dialog_radiolist_with_help_size "$@"
+}
+
 # f_dialog_calendar_size $title $backtitle $prompt [$hline]
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
