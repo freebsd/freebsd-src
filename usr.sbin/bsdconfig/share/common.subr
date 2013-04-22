@@ -62,6 +62,11 @@ export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
 export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
 export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 
+#
+# Default behavior is to call f_debug_init() automatically when loaded.
+#
+: ${DEBUG_SELF_INITIALIZE=1}
+
 ############################################################ FUNCTIONS
 
 # f_dprintf $fmt [ $opts ... ]
@@ -84,6 +89,59 @@ f_dprintf()
 	[ "${debugFile#+}" ] &&
 		printf "DEBUG: $fmt${fmt:+\n}" "$@" >> "${debugFile#+}"
 	return $SUCCESS
+}
+
+# f_debug_init
+#
+# Initialize debugging. Truncates $debugFile to zero bytes if set.
+#
+f_debug_init()
+{
+	#
+	# Process stored command-line arguments
+	#
+	( set -- "$ARGV"
+		while getopts d flag > /dev/null; do
+			case "$flag" in
+			d) true; exit;;
+			\?) continue;;
+			esac
+		done
+		false
+	) && debug=1
+	debugFile=$( set -- "$ARGV"
+		while getopts D flag > /dev/null; do
+			case "$flag" in
+			D) echo "$OPTARG";;
+			\?) continue;;
+			esac
+		done
+	)
+
+	#
+	# Make debugging persistant if set
+	#
+	[ "$debug" ] && export debug
+
+	#
+	# Truncate the debug file upon. Note that we will trim a leading plus
+	# (`+') from the value of debugFile to support persistant meaning that
+	# f_dprintf() should print both to standard output and $debugFile
+	# (minus the leading plus, of course).
+	#
+	local _debug_file="${debugFile#+}"
+	if [ "$_debug_file" ]; then
+		if ( umask 022 && :> "$_debug_file" ); then
+			f_dprintf "Successfully initialized debugFile \`%s'" \
+			          "$_debug_file"
+			[ "${debug+set}" ] ||
+				debug=1 # turn debugging on if not set
+		else
+			unset debugFile
+			f_dprintf "Unable to initialize debugFile \`%s'" \
+			          "$_debug_file"
+		fi
+	fi
 }
 
 # f_err $fmt [ $opts ... ]
@@ -615,28 +673,14 @@ eval exec $TERMINAL_STDOUT_PASSTHRU\>\&1
 eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
 
 #
-# Make debugging persistant if set
+# Self-initialize unless requested otherwise
 #
-[ "$debug" ] && export debug
-
-#
-# Truncate the debug file upon initialization (now). Note that we will trim a
-# leading plus (`+') from the value of debugFile to support persistant meaning
-# that f_dprintf() should print both to standard output and $debugFile (minus
-# the leading plus, of course).
-#
-_debug_file="${debugFile#+}"
-if [ "$_debug_file" ]; then
-	if ( umask 022 && :> "$_debug_file" ); then
-		f_dprintf "Successfully initialized debugFile \`%s'" \
-		          "$_debug_file"
-	else
-		unset debugFile
-		f_dprintf "Unable to initialize debugFile \`%s'" \
-		          "$_debug_file"
-	fi
-fi
-unset _debug_file
+f_dprintf "%s: DEBUG_SELF_INITIALIZE=[%s]" \
+          dialog.subr "$DEBUG_SELF_INITIALIZE"
+case "$DEBUG_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_debug_init
+esac
 
 #
 # Log our operating environment for debugging purposes

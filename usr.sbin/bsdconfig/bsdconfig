@@ -53,6 +53,7 @@ usage()
 	local index="INDEX" cmd_list=""
 
 	cd $BSDCFG_LIBE
+		# No need to preserve CWD (headed toward exit)
 
 	# Test for language-specific indices
 	f_quietly ls */"$index.${LANG:-$LC_ALL}" &&
@@ -131,6 +132,8 @@ usage()
 	f_usage $BSDCFG_LIBE/USAGE \
 	        "PROGRAM_NAME" "$pgm" \
 	        "COMMAND_LIST" "$cmd_list"
+
+	# Never reached
 }
 
 # dialog_menu_main
@@ -152,14 +155,14 @@ dialog_menu_main()
 	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
 
 	local menuitem menu_title menu_help menu_selection index=2
-	for menuitem in $( ls -d [0-9][0-9][0-9].* ); do
+	for menuitem in $( cd $BSDCFG_LIBE && ls -d [0-9][0-9][0-9].* ); do
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
 		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
 
 		menu_program=
 		menu_title=
 		menu_help=
-		f_include_lang $menuitem/INDEX
+		f_include_lang $BSDCFG_LIBE/$menuitem/INDEX
 		[ "$menu_program" ] || continue
 
 		case "$menu_program" in
@@ -231,7 +234,7 @@ fi
 # Process command-line arguments
 #
 scripts_loaded=0
-while getopts f:hSX flag; do
+while getopts dD:f:hSX flag; do
 	case "$flag" in
 	f) [ $scripts_loaded -eq 0 ] && f_include $BSDCFG_SHARE/script.subr
 	   f_script_load "$OPTARG"
@@ -253,8 +256,6 @@ f_dialog_title "$msg_main_menu"
 
 # Incorporate rc-file if it exists
 [ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
-
-cd $BSDCFG_LIBE || f_die 1 "$msg_directory_not_found" "$BSDCFG_LIBE"
 
 #
 # If a non-option argument was passed, process it as a menuitem selection...

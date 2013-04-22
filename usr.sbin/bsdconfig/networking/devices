@@ -54,7 +54,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 # Process command-line options
 #
-while getopts hSX flag; do
+while getopts dD:hSX flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
