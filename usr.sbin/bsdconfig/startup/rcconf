@@ -99,10 +99,10 @@ dialog_menu_main()
 	if [ ! "$_RCCONF_MAP" ]; then
 		# Genreate RCCONF_MAP of `var desc ...' per-line
 		f_dialog_info "$msg_creating_rcconf_map"
-		RCCONF_MAP=$( f_startup_rcconf_map )
+		f_startup_rcconf_map RCCONF_MAP
 		export RCCONF_MAP
 		# Generate _${var}_desc variables from $RCCONF_MAP
-		f_startup_rcconf_map_expand
+		f_startup_rcconf_map_expand RCCONF_MAP
 		export _RCCONF_MAP=1
 	fi
 
@@ -171,20 +171,25 @@ dialog_menu_main()
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--help-button                      \
-		--help-label \"\$msg_details\"     \
-		${SHOW_DESC:+--item-help}          \
-		--menu \"\$prompt\" $size          \
-		$RCCONF_MENU_LIST                  \
+		--title \"\$DIALOG_TITLE\"          \
+		--backtitle \"\$DIALOG_BACKTITLE\"  \
+		--hline \"\$hline\"                 \
+		--ok-label \"\$msg_ok\"             \
+		--cancel-label \"\$msg_cancel\"     \
+		--help-button                       \
+		--help-label \"\$msg_details\"      \
+		${SHOW_DESC:+--item-help}           \
+		--default-item \"\$DEFAULTITEM_$$\" \
+		--menu \"\$prompt\" $size           \
+		$RCCONF_MENU_LIST                   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
 	setvar DIALOG_MENU_$$ "$dialog_menu"
+
+	# Only update default-item on success
+	[ $retval -eq 0 ] && setvar DEFAULTITEM_$$ "$dialog_menu"
+
 	return $retval
 }
 

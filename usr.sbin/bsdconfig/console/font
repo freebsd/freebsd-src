@@ -49,7 +49,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
+	local menu_list size defaultitem=
 	local hline="$hline_choose_a_font"
 	local prompt="$msg_font_menu_text"
 
@@ -77,13 +77,31 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
+	case "$( f_sysrc_get font8x8 )" in
+	[Nn][Oo]|'') defaultitem="1 $msg_none";;
+	cp437-8x8) defaultitem="2 $msg_ibm_437";;
+	cp850-8x8) defaultitem="3 $msg_ibm_850";;
+	cp865-8x8) defaultitem="4 $msg_ibm_865";;
+	cp866-8x8) defaultitem="5 $msg_ibm_866";;
+	cp866u-8x8) defaultitem="6 $msg_ibm_866u";;
+	cp1251-8x8) defaultitem="7 $msg_ibm_1251";;
+	iso-8x8) defaultitem="8 $msg_iso_8859_1";;
+	iso02-8x8) defaultitem="9 $msg_iso_8859_2";;
+	iso04-8x8) defaultitem="a $msg_iso_8859_4";;
+	iso07-8x8) defaultitem="b $msg_iso_8859_7";;
+	iso08-8x8) defaultitem="c $msg_iso_8859_8";;
+	iso15-8x8) defaultitem="d $msg_iso_8859_15";;
+	swiss-8x8) defaultitem="e $msg_swiss";;
+	esac
+
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD

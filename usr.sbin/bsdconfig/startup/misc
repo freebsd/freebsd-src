@@ -56,9 +56,13 @@ UNAME_P=$( uname -p ) # Processor Architecture (i.e. i386)
 #
 dialog_menu_main()
 {
-	local menu_list var_list size
+	local menu_list var_list size defaultitem=
 	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_miscellaneous_menu_text"
+
+	# Obtain default-item (adjusted below for dynamic tags)
+	f_getvar DEFAULTITEM_$$ defaultitem
+	local ditem="${defaultitem%%[$IFS]*}"
 
 	menu_list="
 		'X <<< $msg_exit' '$msg_exit_this_menu'
@@ -84,7 +88,7 @@ dialog_menu_main()
 		" # END-QUOTE
 	fi
 
-	menu_list="$menu_list $(
+	eval "$(
 		. "$RC_DEFAULTS"
 		source_rc_confs
 		export $var_list
@@ -100,104 +104,132 @@ dialog_menu_main()
 		export msg_sco            msg_sco_desc
 		export msg_svr4           msg_svr4_desc
 		:| awk \
-			-v uname_p="$UNAME_P"             \
-			-v menu_tags="$DIALOG_MENU_TAGS"  \
-			-v menu_fmt="'%c [%c] %s' '%s'\n" \
-			-v sep_fmt="' ' ' -- '\n"         \
-		'END {
+			-v uname_p="$UNAME_P"            \
+			-v menu_tags="$DIALOG_MENU_TAGS" \
+			-v menu_fmt="'%s' '%s'\n"        \
+			-v mtag_fmt="%c [%c] %s"         \
+			-v separator="' ' ' -- '\n"      \
+			-v ditem="$ditem"                \
+		'
+		function mprint(tag,item)
+		{
+			printf menu_fmt, tag, item
+		}
+		END {
 			i = 1
+			defaultitem = ""
+
+			printf "menu_list=\"$menu_list\n"
+
 			if ( uname_p == "i386" )
 			{
 				#
 				# APM: Auto-power management services
 				#      (typically laptops)
 				#
-				printf menu_fmt, substr(menu_tags, i++, 1),
-					( ENVIRON["apm_enable"] ~ \
-					  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-					ENVIRON["msg_apm"],
-					ENVIRON["msg_apm_desc"]
+				char = substr(menu_tags, i++, 1)
+				mark = ( ENVIRON["apm_enable"] ~ \
+						/^[Yy][Ee][Ss]$/ ? "X" : " " )
+				subtag = ENVIRON["msg_apm"]
+				tag = sprintf(mtag_fmt, char, mark, subtag)
+				mprint(tag, ENVIRON["msg_apm_desc"])
+				if (ditem == char) defaultitem = tag
 			}
 
-			# Separator
-			printf sep_fmt
+			printf separator
 
 			#
 			# Startup dirs: Set the list of dirs to look for
 			#               startup scripts
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( length(ENVIRON["local_startup"]) > 0 \
-				  ? "X" : " " ),
-				ENVIRON["msg_startup_dirs"],
-				ENVIRON["msg_startup_dirs_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( length(ENVIRON["local_startup"]) > 0 \
+					? "X" : " " )
+			subtag = ENVIRON["msg_startup_dirs"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_startup_dirs_desc"])
+			if (ditem == char) defaultitem = tag
 
 			#
 			# named: Run a local name server on this host
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( ENVIRON["named_enable"] ~ \
-				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-				ENVIRON["msg_named"],
-				ENVIRON["msg_named_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["named_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_named"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_named_desc"])
+			if (ditem == char) defaultitem = tag
 
 			#
 			# named flags: Set default flags to named (if enabled)
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( length(ENVIRON["named_flags"]) > 0 \
-				  ? "X" : " " ),
-				ENVIRON["msg_named_flags"],
-				ENVIRON["msg_named_flags_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( length(ENVIRON["named_flags"]) > 0 \
+					? "X" : " " )
+			subtag = ENVIRON["msg_named_flags"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_named_flags_desc"])
+			if (ditem == char) defaultitem = tag
 
 			#
 			# NIS client: This host wishes to be an NIS client.
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( ENVIRON["nis_client_enable"] ~ \
-				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-				ENVIRON["msg_nis_client"],
-				ENVIRON["msg_nis_client_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["nis_client_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_nis_client"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_nis_client_desc"])
+			if (ditem == char) defaultitem = tag
 
 			#
 			# NIS domainname: Set NIS domainname (if enabled)
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( length(ENVIRON["nisdomainname"]) > 0 \
-				  ? "X" : " " ),
-				ENVIRON["msg_nis_domainname"],
-				ENVIRON["msg_nis_domainname_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( length(ENVIRON["nisdomainname"]) > 0 && \
+					ENVIRON["nisdomainname"] != "NO" \
+					? "X" : " " )
+			subtag = ENVIRON["msg_nis_domainname"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_nis_domainname_desc"])
+			if (ditem == char) defaultitem = tag
 
 			#
 			# NIS server: This host wishes to be an NIS server.
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( ENVIRON["nis_server_enable"] ~ \
-				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-				ENVIRON["msg_nis_server"],
-				ENVIRON["msg_nis_server_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["nis_server_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_nis_server"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_nis_server_desc"])
+			if (ditem == char) defaultitem = tag
 
-			# Separator
-			printf sep_fmt
+			printf separator
 
 			#
 			# Accounting: This host wishes to run process
 			#             accounting.
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( ENVIRON["accounting_enable"] ~ \
-				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-				ENVIRON["msg_accounting"],
-				ENVIRON["msg_accounting_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["accounting_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_accounting"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_accounting_desc"])
+			if (ditem == char) defaultitem = tag
 
 			#
 			# lpd: This host has a printer and wants to run lpd.
 			#
-			printf menu_fmt, substr(menu_tags, i++, 1),
-				( ENVIRON["lpd_enable"] ~ \
-				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-				ENVIRON["msg_lpd"],
-				ENVIRON["msg_lpd_desc"]
+			char = substr(menu_tags, i++, 1)
+			mark = ( ENVIRON["lpd_enable"] ~ \
+					/^[Yy][Ee][Ss]$/ ? "X" : " " )
+			subtag = ENVIRON["msg_lpd"]
+			tag = sprintf(mtag_fmt, char, mark, subtag)
+			mprint(tag, ENVIRON["msg_lpd_desc"])
+			if (ditem == char) defaultitem = tag
 
 			if ( uname_p == "i386" )
 			{
@@ -205,22 +237,31 @@ dialog_menu_main()
 				# SCO: This host wants to be able to run IBCS2
 				#      binaries.
 				#
-				printf menu_fmt, substr(menu_tags, i++, 1),
-					( ENVIRON["ibcs2_enable"] ~ \
-					  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-					ENVIRON["msg_sco"],
-					ENVIRON["msg_sco_desc"]
+				char = substr(menu_tags, i++, 1)
+				mark = ( ENVIRON["ibcs2_enable"] ~ \
+						/^[Yy][Ee][Ss]$/ ? "X" : " " )
+				subtag = ENVIRON["msg_sco"]
+				tag = sprintf(mtag_fmt, char, mark, subtag)
+				mprint(tag, ENVIRON["msg_sco_desc"])
+				if (ditem == char) defaultitem = tag
 
 				#
 				# SVR4: This host wants to be able to run SVR4
 				#       binaries.
 				#
-				printf menu_fmt, substr(menu_tags, i++, 1),
-					( ENVIRON["svr4_enable"] ~ \
-					  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
-					ENVIRON["msg_svr4"],
-					ENVIRON["msg_svr4_desc"]
+				char = substr(menu_tags, i++, 1)
+				mark = ( ENVIRON["svr4_enable"] ~ \
+						/^[Yy][Ee][Ss]$/ ? "X" : " " )
+				subtag = ENVIRON["msg_svr4"]
+				tag = sprintf(mtag_fmt, char, mark, subtag)
+				mprint(tag, ENVIRON["msg_svr4_desc"])
+				if (ditem == char) defaultitem = tag
 			}
+
+			printf "\"\n"
+
+			if ( defaultitem )
+				printf "defaultitem=\"%s\"\n", defaultitem
 		}'
 	)"
 
@@ -233,16 +274,18 @@ dialog_menu_main()
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
+	setvar DEFAULTITEM_$$ "$dialog_menu"
 	setvar DIALOG_MENU_$$ "$dialog_menu"
 	return $retval
 }

@@ -67,11 +67,13 @@ f_mustberoot_init
 #
 # Loop until the user Exits, Cancels or presses ESC
 #
+defaultitem=""
 while :; do
-	f_dialog_menu_group_list
+	f_dialog_menu_group_list "$defaultitem"
 	retval=$?
 	mtag=$( f_dialog_menutag )
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+	defaultitem="$mtag"
 
 	[ $retval -eq 0 ] || f_die
 

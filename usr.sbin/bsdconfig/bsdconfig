@@ -197,11 +197,16 @@ dialog_menu_main()
 		--help-button                           \
 		--help-label \"\$msg_help\"             \
 		${USE_XDIALOG:+--help \"\"}             \
+		--default-item \"\$DEFAULTITEM_$$\"     \
 		--menu \"\$prompt\" $size $menu_list    \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
 	setvar DIALOG_MENU_$$ "$dialog_menu"
+
+	# Only update default-item on success
+	[ $retval -eq 0 ] && setvar DEFAULTITEM_$$ "$dialog_menu"
+
 	return $retval
 }
 
