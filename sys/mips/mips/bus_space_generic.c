@@ -202,9 +202,11 @@ static struct bus_space generic_space = {
 #define rd8(a) cvmx_read64_uint8(a)
 #define rd16(a) cvmx_read64_uint16(a)
 #define rd32(a) cvmx_read64_uint32(a)
+#define rd64(a) cvmx_read64_uint64(a)
 #define wr8(a, v) cvmx_write64_uint8(a, v)
 #define wr16(a, v) cvmx_write64_uint16(a, v)
 #define wr32(a, v) cvmx_write64_uint32(a, v)
+#define wr64(a, v) cvmx_write64_uint64(a, v)
 #elif defined(CPU_SB1) && _BYTE_ORDER == _BIG_ENDIAN
 #include <mips/sibyte/sb_bus_space.h>
 #define rd8(a) sb_big_endian_read8(a)
@@ -217,9 +219,15 @@ static struct bus_space generic_space = {
 #define rd8(a) readb(a)
 #define rd16(a) readw(a)
 #define rd32(a) readl(a)
+#ifdef readq
+#define rd64(a)	readq((a))
+#endif
 #define wr8(a, v) writeb(a, v)
 #define wr16(a, v) writew(a, v)
 #define wr32(a, v) writel(a, v)
+#ifdef writeq
+#define wr64(a, v) writeq(a, v)
+#endif
 #endif
 
 /* generic bus_space tag */
@@ -297,7 +305,11 @@ uint64_t
 generic_bs_r_8(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
+#ifdef rd64
+	return(rd64(handle + offset));
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 void
@@ -333,8 +345,14 @@ void
 generic_bs_rm_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     uint64_t *addr, size_t count)
 {
+#ifdef rd64
+	bus_addr_t baddr = bsh + offset;
 
+	while (count--)
+		*addr++ = rd64(baddr);
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 /*
@@ -382,8 +400,16 @@ void
 generic_bs_rr_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     uint64_t *addr, size_t count)
 {
+#ifdef rd64
+	bus_addr_t baddr = bsh + offset;
 
+	while (count--) {
+		*addr++ = rd64(baddr);
+		baddr += 8;
+	}
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 /*
@@ -419,7 +445,11 @@ generic_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     uint64_t value)
 {
 
+#ifdef wr64
+	wr64(bsh + offset, value);
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 /*
@@ -460,8 +490,14 @@ void
 generic_bs_wm_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     const uint64_t *addr, size_t count)
 {
+#ifdef wr64
+	bus_addr_t baddr = bsh + offset;
 
+	while (count--)
+		wr64(baddr, *addr++);
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 /*
@@ -508,8 +544,16 @@ void
 generic_bs_wr_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     const uint64_t *addr, size_t count)
 {
+#ifdef wr64
+	bus_addr_t baddr = bsh + offset;
 
+	while (count--) {
+		wr64(baddr, *addr++);
+		baddr += 8;
+	}
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 /*
@@ -550,8 +594,14 @@ void
 generic_bs_sm_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     uint64_t value, size_t count)
 {
+#ifdef wr64
+	bus_addr_t addr = bsh + offset;
 
+	while (count--)
+		wr64(addr, value);
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 /*
@@ -592,8 +642,14 @@ void
 generic_bs_sr_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     uint64_t value, size_t count)
 {
+#ifdef wr64
+	bus_addr_t addr = bsh + offset;
 
+	for (; count != 0; count--, addr += 8)
+		wr64(addr, value);
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 /*
@@ -664,8 +720,23 @@ void
 generic_bs_c_8(void *t, bus_space_handle_t bsh1, bus_size_t off1,
     bus_space_handle_t bsh2, bus_size_t off2, size_t count)
 {
+#if defined(rd64) && defined(wr64)
+	bus_addr_t addr1 = bsh1 + off1;
+	bus_addr_t addr2 = bsh2 + off2;
 
+	if (addr1 >= addr2) {
+		/* src after dest: copy forward */
+		for (; count != 0; count--, addr1 += 8, addr2 += 8)
+			wr64(addr2, rd64(addr1));
+	} else {
+		/* dest after src: copy backwards */
+		for (addr1 += 8 * (count - 1), addr2 += 8 * (count - 1);
+		    count != 0; count--, addr1 -= 8, addr2 -= 8)
+			wr64(addr2, rd64(addr1));
+	}
+#else
 	panic("%s: not implemented", __func__);
+#endif
 }
 
 void
