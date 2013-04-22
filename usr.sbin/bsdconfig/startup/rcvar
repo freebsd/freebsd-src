@@ -135,17 +135,20 @@ dialog_menu_main()
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		${SHOW_DESC:+--item-help}          \
-		--menu \"\$prompt\" $size          \
-		$RCVAR_MENU_LIST                   \
+		--title \"\$DIALOG_TITLE\"          \
+		--backtitle \"\$DIALOG_BACKTITLE\"  \
+		--hline \"\$hline\"                 \
+		--keep-tite                         \
+		--ok-label \"\$msg_ok\"             \
+		--cancel-label \"\$msg_cancel\"     \
+		${SHOW_DESC:+--item-help}           \
+		--default-item \"\$DEFAULTITEM_$$\" \
+		--menu \"\$prompt\" $size           \
+		$RCVAR_MENU_LIST                    \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
+	setvar DEFAULTITEM_$$ "$dialog_menu"
 	setvar DIALOG_MENU_$$ "$dialog_menu"
 	return $retval
 }

@@ -94,15 +94,17 @@ dialog_menu_main()
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--title \"\$title\"             \
-		--backtitle \"\$btitle\"        \
-		--ok-label \"\$msg_ok\"         \
-		--cancel-label \"\$msg_cancel\" \
-		--menu \"\$prompt\" $size       \
-		$continent_menu_list            \
+		--title \"\$title\"                 \
+		--backtitle \"\$btitle\"            \
+		--ok-label \"\$msg_ok\"             \
+		--cancel-label \"\$msg_cancel\"     \
+		--default-item \"\$DEFAULTITEM_$$\" \
+		--menu \"\$prompt\" $size           \
+		$continent_menu_list                \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
+	setvar DEFAULTITEM_$$ "$dialog_menu"
 	setvar DIALOG_MENU_$$ "$dialog_menu"
 	return $retval
 }
@@ -285,6 +287,8 @@ f_make_menus         # creates $continent_menu_list and $continent_*_menu_list
 #
 # Launch application main menu
 #
+defaultctry=""
+defaultzone=""
 NEED_CONTINENT=1
 NEED_COUNTRY=1
 while :; do
@@ -360,17 +364,19 @@ while :; do
 			# Launch the country selection menu
 			#
 			dialog_menu=$( eval $DIALOG \
-				--title \"\$title\"             \
-				--backtitle \"\$btitle\"        \
-				--ok-label \"\$msg_ok\"         \
-				--cancel-label \"\$msg_cancel\" \
-				--menu \"\$prompt\" $size       \
-				$menu_list                      \
+				--title \"\$title\"              \
+				--backtitle \"\$btitle\"         \
+				--ok-label \"\$msg_ok\"          \
+				--cancel-label \"\$msg_cancel\"  \
+				--default-item \"\$defaultctry\" \
+				--menu \"\$prompt\" $size        \
+				$menu_list                       \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
 			retval=$?
 			setvar DIALOG_MENU_$$ "$dialog_menu"
 			tag=$( f_dialog_menutag )
+			defaultctry="$tag"
 
 			if [ $retval -ne 0 ]; then
 				NEED_CONTINENT=1
@@ -417,17 +423,19 @@ while :; do
 		# NOTE: This is as deep as we go
 		#
 		dialog_menu=$( eval $DIALOG \
-			--title \"\$title\"             \
-			--backtitle \"\$btitle\"        \
-			--ok-label \"\$msg_ok\"         \
-			--cancel-label \"\$msg_cancel\" \
-			--menu \"\$prompt\" $size       \
-			$menu_list                      \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--ok-label \"\$msg_ok\"          \
+			--cancel-label \"\$msg_cancel\"  \
+			--default-item \"\$defaultzone\" \
+			--menu \"\$prompt\" $size        \
+			$menu_list                       \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		retval=$?
 		setvar DIALOG_MENU_$$ "$dialog_menu"
 		n=$( f_dialog_menutag )
+		defaultzone="$n"
 
 		if [ $retval -ne 0 ]; then
 			[ $nitems -eq 1 ] && NEED_CONTINENT=1

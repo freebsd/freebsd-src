@@ -71,10 +71,12 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
+defaultitem=""
 while :; do
-	f_dialog_menu_netdev
+	f_dialog_menu_netdev "$defaultitem"
 	retval=$?
 	interface=$( f_dialog_menutag )
+	defaultitem="$interface"
 
 	[ $retval -eq 0 ] || break
 
