@@ -36,7 +36,7 @@ typedef struct etherswitch_info etherswitch_info_t;
 
 struct etherswitch_port {
 	int		es_port;
-	int		es_vlangroup;
+	int		es_pvid;
 	union {
 		struct ifreq		es_uifr;
 		struct ifmediareq	es_uifmr;
