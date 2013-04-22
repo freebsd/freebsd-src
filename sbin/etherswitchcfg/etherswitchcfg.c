@@ -467,8 +467,11 @@ main(int argc, char *argv[])
 		case MODE_PORT:
 		case MODE_VLANGROUP:
 			for(i=0; cmds[i].name != NULL; i++) {
-				if (cfg.mode == cmds[i].mode && strcmp(argv[0], cmds[i].name) == 0
-					&& argc >= cmds[i].args) {
+				if (cfg.mode == cmds[i].mode && strcmp(argv[0], cmds[i].name) == 0) {
+					if (argc < (cmds[i].args + 1)) {
+						printf("%s needs an argument\n", cmds[i].name);
+						break;
+					}
 					(cmds[i].f)(&cfg, argv);
 					argc -= cmds[i].args;
 					argv += cmds[i].args;
