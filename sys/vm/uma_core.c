@@ -1139,6 +1139,7 @@ keg_small_init(uma_keg_t keg)
 	u_int shsize;
 
 	if (keg->uk_flags & UMA_ZONE_PCPU) {
+		KASSERT(mp_ncpus > 0, ("%s: ncpus %d\n", __func__, mp_ncpus));
 		keg->uk_slabsize = sizeof(struct pcpu);
 		keg->uk_ppera = howmany(mp_ncpus * sizeof(struct pcpu),
 		    PAGE_SIZE);
