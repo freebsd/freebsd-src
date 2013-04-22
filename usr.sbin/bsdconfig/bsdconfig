@@ -312,10 +312,13 @@ while :; do
 	   ;;
 
 	*) # Dynamically loaded menuitem
-	   cmd=$( eval echo \"\$menu_program$mtag\" )
+	   f_getvar menu_program$mtag menu_program
+	   case "$menu_program" in
+	   /*) cmd="$menu_program";;
+	    *) cmd="$BSDCFG_LIBE/$menu_program"
+	   esac
 	   f_dprintf "cmd=[%s]" "$cmd"
 	   $cmd ${USE_XDIALOG:+-X}
-	   ;;
 
 	esac
 done
