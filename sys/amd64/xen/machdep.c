@@ -366,6 +366,26 @@ xen_boothowto(char *envp)
 	return howto;
 }
 
+static void
+xen_rootconf(void)
+{
+	
+	char *rdevpath;
+
+	rdevpath = getenv("root");
+
+	if (rdevpath == NULL) {
+		return;
+	}
+
+	/* Do not overwrite existing variable */
+	if (getenv("vfs.root.mountfrom") == NULL) {
+		setenv("vfs.root.mountfrom", rdevpath);
+	}
+}
+
+SYSINIT(xen_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_ANY, xen_rootconf, NULL);
+
 /* 
  * Setup early kernel environment, based on start_info passed to us by
  * xen
