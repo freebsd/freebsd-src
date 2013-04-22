@@ -63,6 +63,7 @@ struct rtl8366rb_softc {
 	int		smi_acquired;	/* serialize access to SMI/I2C bus */
 	struct mtx	callout_mtx;	/* serialize callout */
 	device_t	dev;
+	int		vid[RTL8366RB_NUM_VLANS];
 	char		*ifname[RTL8366RB_NUM_PHYS];
 	device_t	miibus[RTL8366RB_NUM_PHYS];
 	struct ifnet	*ifp[RTL8366RB_NUM_PHYS];
@@ -70,8 +71,8 @@ struct rtl8366rb_softc {
 };
 
 static etherswitch_info_t etherswitch_info = {
-	.es_nports =		6,
-	.es_nvlangroups =	16,
+	.es_nports =		RTL8366RB_NUM_PORTS,
+	.es_nvlangroups =	RTL8366RB_NUM_VLANS,
 	.es_name =			"Realtek RTL8366RB"
 };
 
@@ -550,15 +551,16 @@ rtl_getport(device_t dev, etherswitch_port_t *p)
 	struct mii_data *mii;
 	struct ifmediareq *ifmr = &p->es_ifmr;
 	uint16_t v;
-	int err;
+	int err, vlangroup;
 	
 	if (p->es_port < 0 || p->es_port >= RTL8366RB_NUM_PORTS)
 		return (ENXIO);
-	p->es_vlangroup = RTL8366RB_PVCR_GET(p->es_port,
+	sc = device_get_softc(dev);
+	vlangroup = RTL8366RB_PVCR_GET(p->es_port,
 		rtl_readreg(dev, RTL8366RB_PVCR_REG(p->es_port)));
+	p->es_pvid = sc->vid[vlangroup];
 	
 	if (p->es_port < RTL8366RB_NUM_PHYS) {
-		sc = device_get_softc(dev);
 		mii = device_get_softc(sc->miibus[p->es_port]);
 		ifm = &mii->mii_media;
 		err = ifmedia_ioctl(sc->ifp[p->es_port], &p->es_ifr, ifm, SIOCGIFMEDIA);
@@ -580,19 +582,28 @@ rtl_getport(device_t dev, etherswitch_port_t *p)
 static int
 rtl_setport(device_t dev, etherswitch_port_t *p)
 {
-	int err;
+	int i, err, vlangroup;
 	struct rtl8366rb_softc *sc;
 	struct ifmedia *ifm;
 	struct mii_data *mii;
 
 	if (p->es_port < 0 || p->es_port >= RTL8366RB_NUM_PHYS)
 		return (ENXIO);
+	sc = device_get_softc(dev);
+	vlangroup = -1;
+	for (i = 0; i < RTL8366RB_NUM_VLANS; i++) {
+		if (sc->vid[i] == p->es_pvid) {
+			vlangroup = i;
+			break;
+		}
+	}
+	if (vlangroup == -1)
+		return (ENXIO);
 	err = smi_rmw(dev, RTL8366RB_PVCR_REG(p->es_port),
 		RTL8366RB_PVCR_VAL(p->es_port, RTL8366RB_PVCR_PORT_MASK),
-		RTL8366RB_PVCR_VAL(p->es_port, p->es_vlangroup), RTL_WAITOK);
+		RTL8366RB_PVCR_VAL(p->es_port, vlangroup), RTL_WAITOK);
 	if (err)
 		return (err);
-	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->miibus[p->es_port]);
 	ifm = &mii->mii_media;
 	err = ifmedia_ioctl(sc->ifp[p->es_port], &p->es_ifr, ifm, SIOCSIFMEDIA);
@@ -618,8 +629,11 @@ rtl_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 static int
 rtl_setvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 {
+	struct rtl8366rb_softc *sc;
 	int g = vg->es_vlangroup;
 
+	sc = device_get_softc(dev);
+	sc->vid[g] = vg->es_vid;
 	rtl_writereg(dev, RTL8366RB_VMCR(RTL8366RB_VMCR_DOT1Q_REG, g),
 		(vg->es_vid << RTL8366RB_VMCR_DOT1Q_VID_SHIFT) & RTL8366RB_VMCR_DOT1Q_VID_MASK);
 	rtl_writereg(dev, RTL8366RB_VMCR(RTL8366RB_VMCR_MU_REG, g),
