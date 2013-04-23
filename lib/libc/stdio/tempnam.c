@@ -47,8 +47,7 @@ __warn_references(tempnam,
 extern char *_mktemp(char *);
 
 char *
-tempnam(dir, pfx)
-	const char *dir, *pfx;
+tempnam(const char *dir, const char *pfx)
 {
 	int sverrno;
 	char *f, *name;

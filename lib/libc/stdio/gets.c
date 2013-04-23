@@ -47,8 +47,7 @@ __FBSDID("$FreeBSD$");
 __warn_references(gets, "warning: this program uses gets(), which is unsafe.");
 
 char *
-gets(buf)
-	char *buf;
+gets(char *buf)
 {
 	int c;
 	char *s;

@@ -39,8 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 int
-getw(fp)
-	FILE *fp;
+getw(FILE *fp)
 {
 	int x;
 

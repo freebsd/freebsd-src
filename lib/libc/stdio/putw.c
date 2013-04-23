@@ -43,9 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 int
-putw(w, fp)
-	int w;
-	FILE *fp;
+putw(int w, FILE *fp)
 {
 	int retval;
 	struct __suio uio;

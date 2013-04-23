@@ -47,9 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 FILE *
-fdopen(fd, mode)
-	int fd;
-	const char *mode;
+fdopen(int fd, const char *mode)
 {
 	FILE *fp;
 	int flags, oflags, fdflags, tmp;

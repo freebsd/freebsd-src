@@ -45,8 +45,7 @@ __FBSDID("$FreeBSD$");
 #undef clearerr_unlocked
 
 void
-clearerr(fp)
-	FILE *fp;
+clearerr(FILE *fp)
 {
 	FLOCKFILE(fp);
 	__sclearerr(fp);

@@ -55,10 +55,8 @@ __FBSDID("$FreeBSD$");
  * all possible, no matter what.
  */
 FILE *
-freopen(file, mode, fp)
-	const char * __restrict file;
-	const char * __restrict mode;
-	FILE *fp;
+freopen(const char * __restrict file, const char * __restrict mode,
+    FILE * __restrict fp)
 {
 	int f;
 	int dflags, flags, isopen, oflags, sverrno, wantfd;

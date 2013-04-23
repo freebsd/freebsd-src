@@ -47,8 +47,7 @@ __FBSDID("$FreeBSD$");
  * _wsetup returns 0 if OK to write; otherwise, it returns EOF and sets errno.
  */
 int
-__swsetup(fp)
-	FILE *fp;
+__swsetup(FILE *fp)
 {
 	/* make sure stdio is set up */
 	if (!__sdidinit)

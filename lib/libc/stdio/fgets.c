@@ -49,10 +49,7 @@ __FBSDID("$FreeBSD$");
  * Return first argument, or NULL if no characters were read.
  */
 char *
-fgets(buf, n, fp)
-	char *buf;
-	int n;
-	FILE *fp;
+fgets(char * __restrict buf, int n, FILE * __restrict fp)
 {
 	size_t len;
 	char *s;
