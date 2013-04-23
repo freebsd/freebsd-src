@@ -386,6 +386,19 @@ ieee80211_pwrsave(struct ieee80211_node *ni, struct mbuf *m)
 		qhead->tail->m_nextpkt = m;
 		age -= M_AGE_GET(qhead->head);
 	}
+
+	/*
+	 * There's an odd bug where age ends up being -ve;
+	 * the age calculation above returns '0' but the frame
+	 * on the queue head has an age of 1. So, clamp a negative
+	 * age to 0 here and figure this bug out later.
+	 *
+	 * The calc above returns 0 because the ni->ni_intval is 1,
+	 * so the calculation always returns 0.
+	 */
+	if (age < 0) {
+		age = 0;
+	}
 	KASSERT(age >= 0, ("age %d", age));
 	M_AGE_SET(m, age);
 	m->m_nextpkt = NULL;
