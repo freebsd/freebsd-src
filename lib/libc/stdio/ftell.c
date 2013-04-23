@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  * standard ftell function.
  */
 long
-ftell(fp)
-	FILE *fp;
+ftell(FILE *fp)
 {
 	off_t rv;
 
@@ -66,8 +65,7 @@ ftell(fp)
  * ftello: return current offset.
  */
 off_t
-ftello(fp)
-	FILE *fp;
+ftello(FILE *fp)
 {
 	fpos_t rv;
 	int ret;
@@ -85,9 +83,7 @@ ftello(fp)
 }
 
 int
-_ftello(fp, offset)
-	FILE *fp;
-	fpos_t *offset;
+_ftello(FILE *fp, fpos_t *offset)
 {
 	fpos_t pos;
 	size_t n;

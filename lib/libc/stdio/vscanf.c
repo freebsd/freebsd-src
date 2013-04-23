@@ -49,10 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "xlocale_private.h"
 
 int
-vscanf_l(locale, fmt, ap)
-	locale_t locale;
-	const char * __restrict fmt;
-	__va_list ap;
+vscanf_l(locale_t locale, const char * __restrict fmt, __va_list ap)
 {
 	int retval;
 	FIX_LOCALE(locale);
@@ -63,9 +60,7 @@ vscanf_l(locale, fmt, ap)
 	return (retval);
 }
 int
-vscanf(fmt, ap)
-	const char * __restrict fmt;
-	__va_list ap;
+vscanf(const char * __restrict fmt, __va_list ap)
 {
 	return vscanf_l(__get_locale(), fmt, ap);
 }

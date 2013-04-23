@@ -43,9 +43,7 @@ __FBSDID("$FreeBSD$");
  * fsetpos: like fseek.
  */
 int
-fsetpos(iop, pos)
-	FILE *iop;
-	const fpos_t *pos;
+fsetpos(FILE *iop, const fpos_t *pos)
 {
 	return (fseeko(iop, (off_t)*pos, SEEK_SET));
 }

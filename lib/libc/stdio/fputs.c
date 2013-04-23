@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
  * Write the given string to the given file.
  */
 int
-fputs(s, fp)
-	const char * __restrict s;
-	FILE * __restrict fp;
+fputs(const char * __restrict s, FILE * __restrict fp)
 {
 	int retval;
 	struct __suio uio;

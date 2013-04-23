@@ -42,8 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 int
-remove(file)
-	const char *file;
+remove(const char *file)
 {
 	struct stat sb;
 

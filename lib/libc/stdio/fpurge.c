@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  * given FILE's buffer empty.
  */
 int
-fpurge(fp)
-	FILE *fp;
+fpurge(FILE *fp)
 {
 	int retval;
 	FLOCKFILE(fp);

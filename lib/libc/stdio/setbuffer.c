@@ -39,10 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 void
-setbuffer(fp, buf, size)
-	FILE *fp;
-	char *buf;
-	int size;
+setbuffer(FILE *fp, char *buf, int size)
 {
 
 	(void)setvbuf(fp, buf, buf ? _IOFBF : _IONBF, (size_t)size);
@@ -52,8 +49,7 @@ setbuffer(fp, buf, size)
  * set line buffering
  */
 int
-setlinebuf(fp)
-	FILE *fp;
+setlinebuf(FILE *fp)
 {
 
 	return (setvbuf(fp, (char *)NULL, _IOLBF, (size_t)0));

@@ -53,9 +53,7 @@ static const unsigned char padchar[] =
 "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 int
-mkstemps(path, slen)
-	char *path;
-	int slen;
+mkstemps(char *path, int slen)
 {
 	int fd;
 
@@ -63,8 +61,7 @@ mkstemps(path, slen)
 }
 
 int
-mkstemp(path)
-	char *path;
+mkstemp(char *path)
 {
 	int fd;
 
@@ -72,15 +69,13 @@ mkstemp(path)
 }
 
 char *
-mkdtemp(path)
-	char *path;
+mkdtemp(char *path)
 {
 	return (_gettemp(path, (int *)NULL, 1, 0) ? path : (char *)NULL);
 }
 
 char *
-_mktemp(path)
-	char *path;
+_mktemp(char *path)
 {
 	return (_gettemp(path, (int *)NULL, 0, 0) ? path : (char *)NULL);
 }
@@ -89,18 +84,13 @@ __warn_references(mktemp,
     "warning: mktemp() possibly used unsafely; consider using mkstemp()");
 
 char *
-mktemp(path)
-	char *path;
+mktemp(char *path)
 {
 	return (_mktemp(path));
 }
 
 static int
-_gettemp(path, doopen, domkdir, slen)
-	char *path;
-	int *doopen;
-	int domkdir;
-	int slen;
+_gettemp(char *path, int *doopen, int domkdir, int slen)
 {
 	char *start, *trv, *suffp, *carryp;
 	char *pad;

@@ -42,8 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 
 int
-_fwalk(function)
-	int (*function)(FILE *);
+_fwalk(int (*function)(FILE *))
 {
 	FILE *fp;
 	int n, ret;

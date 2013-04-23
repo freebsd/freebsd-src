@@ -50,10 +50,7 @@ __FBSDID("$FreeBSD$");
  * Small standard I/O/seek/close functions.
  */
 int
-__sread(cookie, buf, n)
-	void *cookie;
-	char *buf;
-	int n;
+__sread(void *cookie, char *buf, int n)
 {
 	FILE *fp = cookie;
 
@@ -61,10 +58,7 @@ __sread(cookie, buf, n)
 }
 
 int
-__swrite(cookie, buf, n)
-	void *cookie;
-	char const *buf;
-	int n;
+__swrite(void *cookie, char const *buf, int n)
 {
 	FILE *fp = cookie;
 
@@ -72,10 +66,7 @@ __swrite(cookie, buf, n)
 }
 
 fpos_t
-__sseek(cookie, offset, whence)
-	void *cookie;
-	fpos_t offset;
-	int whence;
+__sseek(void *cookie, fpos_t offset, int whence)
 {
 	FILE *fp = cookie;
 
@@ -83,8 +74,7 @@ __sseek(cookie, offset, whence)
 }
 
 int
-__sclose(cookie)
-	void *cookie;
+__sclose(void *cookie)
 {
 
 	return (_close(((FILE *)cookie)->_file));
@@ -94,10 +84,7 @@ __sclose(cookie)
  * Higher level wrappers.
  */
 int
-_sread(fp, buf, n)
-	FILE *fp;
-	char *buf;
-	int n;
+_sread(FILE *fp, char *buf, int n)
 {
 	int ret;
 
@@ -115,10 +102,7 @@ _sread(fp, buf, n)
 }
 
 int
-_swrite(fp, buf, n)
-	FILE *fp;
-	char const *buf;
-	int n;
+_swrite(FILE *fp, char const *buf, int n)
 {
 	int ret;
 	int serrno;
@@ -145,10 +129,7 @@ _swrite(fp, buf, n)
 }
 
 fpos_t
-_sseek(fp, offset, whence)
-	FILE *fp;
-	fpos_t offset;
-	int whence;
+_sseek(FILE *fp, fpos_t offset, int whence)
 {
 	fpos_t ret;
 	int serrno, errret;

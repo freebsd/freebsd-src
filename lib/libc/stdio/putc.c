@@ -46,9 +46,7 @@ __FBSDID("$FreeBSD$");
 #undef putc_unlocked
 
 int
-putc(c, fp)
-	int c;
-	FILE *fp;
+putc(int c, FILE *fp)
 {
 	int retval;
 	FLOCKFILE(fp);

@@ -46,8 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 void
-perror(s)
-	const char *s;
+perror(const char *s)
 {
 	char msgbuf[NL_TEXTMAX];
 	struct iovec *v;

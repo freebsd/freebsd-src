@@ -47,8 +47,7 @@ __warn_references(tmpnam,
 extern char *_mktemp(char *);
 
 char *
-tmpnam(s)
-	char *s;
+tmpnam(char *s)
 {
 	static u_long tmpcount;
 	static char buf[L_tmpnam];
