@@ -647,7 +647,6 @@ CHECK_GIDS+=	smmsp
 CHECK_UIDS+=	proxy
 CHECK_GIDS+=	proxy authpf
 .endif
-installcheck: installcheck_UGID
 installcheck_UGID:
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
@@ -703,7 +702,7 @@ EXTRA_DISTRIBUTIONS+=	lib32
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld: installcheck
+distributeworld installworld: installcheck installcheck_UGID
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
