@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 static ino_t startinum;
 
-static int iblock(struct inodesc *, long ilevel, off_t isize);
+static int iblock(struct inodesc *, long ilevel, off_t isize, int type);
 
 int
 ckinode(union dinode *dp, struct inodesc *idesc)
@@ -121,7 +121,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 		sizepb *= NINDIR(&sblock);
 		if (DIP(&dino, di_ib[i])) {
 			idesc->id_blkno = DIP(&dino, di_ib[i]);
-			ret = iblock(idesc, i + 1, remsize);
+			ret = iblock(idesc, i + 1, remsize, BT_LEVEL1 + i);
 			if (ret & STOP)
 				return (ret);
 		} else {
@@ -151,7 +151,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 }
 
 static int
-iblock(struct inodesc *idesc, long ilevel, off_t isize)
+iblock(struct inodesc *idesc, long ilevel, off_t isize, int type)
 {
 	struct bufarea *bp;
 	int i, n, (*func)(struct inodesc *), nif;
@@ -168,7 +168,7 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize)
 		func = dirscan;
 	if (chkrange(idesc->id_blkno, idesc->id_numfrags))
 		return (SKIP);
-	bp = getdatablk(idesc->id_blkno, sblock.fs_bsize);
+	bp = getdatablk(idesc->id_blkno, sblock.fs_bsize, type);
 	ilevel--;
 	for (sizepb = sblock.fs_bsize, i = 0; i < ilevel; i++)
 		sizepb *= NINDIR(&sblock);
@@ -199,7 +199,7 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize)
 			if (ilevel == 0)
 				n = (*func)(idesc);
 			else
-				n = iblock(idesc, ilevel, isize);
+				n = iblock(idesc, ilevel, isize, type);
 			if (n & STOP) {
 				bp->b_flags &= ~B_INUSE;
 				return (n);
@@ -291,7 +291,7 @@ ginode(ino_t inumber)
 		iblk = ino_to_fsba(&sblock, inumber);
 		if (pbp != 0)
 			pbp->b_flags &= ~B_INUSE;
-		pbp = getdatablk(iblk, sblock.fs_bsize);
+		pbp = getdatablk(iblk, sblock.fs_bsize, BT_INODES);
 		startinum = (inumber / INOPB(&sblock)) * INOPB(&sblock);
 	}
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
@@ -305,8 +305,8 @@ ginode(ino_t inumber)
  * over all the inodes in numerical order.
  */
 static ino_t nextino, lastinum, lastvalidinum;
-static long readcnt, readpercg, fullcnt, inobufsize, partialcnt, partialsize;
-static caddr_t inodebuf;
+static long readcount, readpercg, fullcnt, inobufsize, partialcnt, partialsize;
+static struct bufarea inobuf;
 
 union dinode *
 getnextinode(ino_t inumber, int rebuildcg)
@@ -314,16 +314,16 @@ getnextinode(ino_t inumber, int rebuildcg)
 	int j;
 	long size;
 	mode_t mode;
-	ufs2_daddr_t ndb, dblk;
+	ufs2_daddr_t ndb, blk;
 	union dinode *dp;
 	static caddr_t nextinop;
 
 	if (inumber != nextino++ || inumber > lastvalidinum)
 		errx(EEXIT, "bad inode number %d to nextinode", inumber);
 	if (inumber >= lastinum) {
-		readcnt++;
-		dblk = fsbtodb(&sblock, ino_to_fsba(&sblock, lastinum));
-		if (readcnt % readpercg == 0) {
+		readcount++;
+		blk = ino_to_fsba(&sblock, lastinum);
+		if (readcount % readpercg == 0) {
 			size = partialsize;
 			lastinum += partialcnt;
 		} else {
@@ -331,14 +331,14 @@ getnextinode(ino_t inumber, int rebuildcg)
 			lastinum += fullcnt;
 		}
 		/*
-		 * If blread returns an error, it will already have zeroed
+		 * If getblk encounters an error, it will already have zeroed
 		 * out the buffer, so we do not need to do so here.
 		 */
-		(void)blread(fsreadfd, inodebuf, dblk, size);
-		nextinop = inodebuf;
+		getblk(&inobuf, blk, size);
+		nextinop = inobuf.b_un.b_buf;
 	}
 	dp = (union dinode *)nextinop;
-	if (rebuildcg && nextinop == inodebuf) {
+	if (rebuildcg && nextinop == inobuf.b_un.b_buf) {
 		/*
 		 * Try to determine if we have reached the end of the
 		 * allocated inodes.
@@ -403,8 +403,8 @@ setinodebuf(ino_t inum)
 	startinum = 0;
 	nextino = inum;
 	lastinum = inum;
-	readcnt = 0;
-	if (inodebuf != NULL)
+	readcount = 0;
+	if (inobuf.b_un.b_buf != NULL)
 		return;
 	inobufsize = blkroundup(&sblock, INOBUFSIZE);
 	fullcnt = inobufsize / ((sblock.fs_magic == FS_UFS1_MAGIC) ?
@@ -419,7 +419,8 @@ setinodebuf(ino_t inum)
 		partialcnt = fullcnt;
 		partialsize = inobufsize;
 	}
-	if ((inodebuf = malloc((unsigned)inobufsize)) == NULL)
+	initbarea(&inobuf, BT_INODES);
+	if ((inobuf.b_un.b_buf = Malloc((unsigned)inobufsize)) == NULL)
 		errx(EEXIT, "cannot allocate space for inode buffer");
 }
 
@@ -427,9 +428,9 @@ void
 freeinodebuf(void)
 {
 
-	if (inodebuf != NULL)
-		free((char *)inodebuf);
-	inodebuf = NULL;
+	if (inobuf.b_un.b_buf != NULL)
+		free((char *)inobuf.b_un.b_buf);
+	inobuf.b_un.b_buf = NULL;
 }
 
 /*
@@ -450,7 +451,7 @@ cacheino(union dinode *dp, ino_t inumber)
 	else
 		blks = howmany(DIP(dp, di_size), sblock.fs_bsize);
 	inp = (struct inoinfo *)
-		malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs2_daddr_t));
+		Malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs2_daddr_t));
 	if (inp == NULL)
 		errx(EEXIT, "cannot increase directory list");
 	inpp = &inphead[inumber % dirhash];
@@ -653,7 +654,8 @@ allocino(ino_t request, int type)
 {
 	ino_t ino;
 	union dinode *dp;
-	struct cg *cgp = &cgrp;
+	struct bufarea *cgbp;
+	struct cg *cgp;
 	int cg;
 
 	if (request == 0)
@@ -666,8 +668,9 @@ allocino(ino_t request, int type)
 	if (ino == maxino)
 		return (0);
 	cg = ino_to_cg(&sblock, ino);
-	getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
-	if (!check_cgmagic(cg, cgp))
+	cgbp = cgget(cg);
+	cgp = cgbp->b_un.b_cg;
+	if (!check_cgmagic(cg, cgbp))
 		return (0);
 	setbit(cg_inosused(cgp), ino % sblock.fs_ipg);
 	cgp->cg_cs.cs_nifree--;
@@ -683,7 +686,7 @@ allocino(ino_t request, int type)
 	default:
 		return (0);
 	}
-	cgdirty();
+	dirty(cgbp);
 	dp = ginode(ino);
 	DIP_SET(dp, di_db[0], allocblk((long)1));
 	if (DIP(dp, di_db[0]) == 0) {
