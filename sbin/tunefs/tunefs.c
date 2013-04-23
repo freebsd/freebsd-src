@@ -174,7 +174,7 @@ main(int argc, char *argv[])
 			found_arg = 1;
 			name = "space to hold for metadata blocks";
 			kvalue = atoi(optarg);
-			if (mvalue < 0)
+			if (kvalue < 0)
 				errx(10, "bad %s (%s)", name, optarg);
 			kflag = 1;
 			break;
