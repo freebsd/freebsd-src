@@ -554,6 +554,12 @@ xhci_init(struct xhci_softc *sc, device_t self)
 void
 xhci_uninit(struct xhci_softc *sc)
 {
+	/*
+	 * NOTE: At this point the control transfer process is gone
+	 * and "xhci_configure_msg" is no longer called. Consequently
+	 * waiting for the configuration messages to complete is not
+	 * needed.
+	 */
 	usb_bus_mem_free_all(&sc->sc_bus, &xhci_iterate_hw_softc);
 
 	cv_destroy(&sc->sc_cmd_cv);
