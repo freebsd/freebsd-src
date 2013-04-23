@@ -1936,7 +1936,7 @@ int
 tuner_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thread* td )
 {
 	int		tmp_int;
-	unsigned int	temp, temp1;
+       int             temp, temp1;
 	int		offset;
 	int		count;
 	u_char		*buf;
