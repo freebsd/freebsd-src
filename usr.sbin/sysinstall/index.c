@@ -865,11 +865,11 @@ index_initialize(char *path)
 	msgNotify("Attempting to fetch %s file from selected media.", path);
 	fp = DEVICE_GET(mediaDevice, path, TRUE);
 	if (!fp) {
-	    msgConfirm("Unable to get packages/INDEX file from selected media.\n\n"
+	    msgConfirm("Unable to get %s file from selected media.\n\n"
 		       "This may be because the packages collection is not available\n"
 		       "on the distribution media you've chosen, most likely an FTP site\n"
 		       "without the packages collection mirrored.  Please verify that\n"
-		       "your media, or your path to the media, is correct and try again.");
+		       "your media, or your path to the media, is correct and try again.", path);
 	    DEVICE_SHUTDOWN(mediaDevice);
 	    restorescr(w);
 	    return DITEM_FAILURE;
@@ -878,8 +878,9 @@ index_initialize(char *path)
 	msgNotify("Located INDEX, now reading package data from it...");
 	index_init(&Top, &Plist);
 	if (index_read(fp, &Top)) {
-	    msgConfirm("I/O or format error on packages/INDEX file.\n"
-		       "Please verify media (or path to media) and try again.");
+	    msgConfirm("I/O or format error on %s file.\n"
+		       "Please verify media (or path to media) and try again.",
+		       path);
 	    fclose(fp);
 	    restorescr(w);
 	    return DITEM_FAILURE;
