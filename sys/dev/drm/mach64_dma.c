@@ -512,7 +512,7 @@ void mach64_dump_ring_info(drm_mach64_private_t *dev_priv)
 
 	DRM_INFO("\n");
 
-       if (ring->head < ring->size / sizeof(u32)) {
+	if (ring->head < ring->size / sizeof(u32)) {
 		struct list_head *ptr;
 		u32 addr = le32_to_cpu(((u32 *) ring->start)[ring->head + 1]);
 
@@ -1276,7 +1276,7 @@ int mach64_do_dispatch_pseudo_dma(drm_mach64_private_t *dev_priv)
 			entry = list_entry(ptr, drm_mach64_freelist_t, list);
 			buf = entry->buf;
 			offset = buf_addr - GETBUFADDR(buf);
-                       if (offset < MACH64_BUFFER_SIZE) {
+			if (offset < MACH64_BUFFER_SIZE) {
 				found = 1;
 				break;
 			}
