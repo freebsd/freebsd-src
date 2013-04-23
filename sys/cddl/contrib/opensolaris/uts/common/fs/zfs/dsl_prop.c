@@ -557,10 +557,6 @@ dsl_prop_set_sync_impl(dsl_dataset_t *ds, const char *propname,
 	}
 
 	if (version < SPA_VERSION_RECVD_PROPS) {
-		zfs_prop_t prop = zfs_name_to_prop(propname);
-		if (prop == ZFS_PROP_QUOTA || prop == ZFS_PROP_RESERVATION)
-			return;
-
 		if (source & ZPROP_SRC_NONE)
 			source = ZPROP_SRC_NONE;
 		else if (source & ZPROP_SRC_RECEIVED)
