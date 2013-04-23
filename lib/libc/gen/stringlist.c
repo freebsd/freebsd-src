@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  * sl_init(): Initialize a string list
  */
 StringList *
-sl_init()
+sl_init(void)
 {
 	StringList *sl;
 
@@ -67,9 +67,7 @@ sl_init()
  * sl_add(): Add an item to the string list
  */
 int
-sl_add(sl, name)
-	StringList *sl;
-	char *name;
+sl_add(StringList *sl, char *name)
 {
 	if (sl->sl_cur == sl->sl_max - 1) {
 		sl->sl_max += _SL_CHUNKSIZE;
@@ -86,9 +84,7 @@ sl_add(sl, name)
  * sl_free(): Free a stringlist
  */
 void
-sl_free(sl, all)
-	StringList *sl;
-	int all;
+sl_free(StringList *sl, int all)
 {
 	size_t i;
 
@@ -108,9 +104,7 @@ sl_free(sl, all)
  * sl_find(): Find a name in the string list
  */
 char *
-sl_find(sl, name)
-	StringList *sl;
-	char *name;
+sl_find(StringList *sl, char *name)
 {
 	size_t i;
 
