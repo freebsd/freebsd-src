@@ -3202,6 +3202,19 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	}
     }
 
+    /* 
+     * A CISS target can only ever have one lun per target. REPORT_LUNS requires
+     * at least one LUN field to be pre created for us, so snag it and fill in
+     * the least significant byte indicating 1 LUN here.  Emulate the command
+     * return to shut up warning on console of a CDB error.  swb 
+     */
+    if (opcode == REPORT_LUNS && csio->dxfer_len > 0) {
+       csio->data_ptr[3] = 8;
+       csio->ccb_h.status |= CAM_REQ_CMP;
+       xpt_done((union ccb *)csio);
+       return(1);
+    }
+
     return(0);
 }
 
