@@ -901,3 +901,28 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 
 	mtx_destroy(&bus->bus_mtx);
 }
+
+/* convenience wrappers */
+void
+usb_proc_explore_mwait(struct usb_device *udev, void *pm1, void *pm2)
+{
+	usb_proc_mwait(USB_BUS_EXPLORE_PROC(udev->bus), pm1, pm2);
+}
+
+void	*
+usb_proc_explore_msignal(struct usb_device *udev, void *pm1, void *pm2)
+{
+	return (usb_proc_msignal(USB_BUS_EXPLORE_PROC(udev->bus), pm1, pm2));
+}
+
+void
+usb_proc_explore_lock(struct usb_device *udev)
+{
+	USB_BUS_LOCK(udev->bus);
+}
+
+void
+usb_proc_explore_unlock(struct usb_device *udev)
+{
+	USB_BUS_UNLOCK(udev->bus);
+}
