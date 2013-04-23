@@ -358,7 +358,7 @@ dd_in(void)
 		 * than noerror, notrunc or sync are specified, the block
 		 * is output without buffering as it is read.
 		 */
-		if (ddflags & C_BS) {
+		if ((ddflags & ~(C_NOERROR | C_NOTRUNC | C_SYNC)) == C_BS) {
 			out.dbcnt = in.dbcnt;
 			dd_out(1);
 			in.dbcnt = 0;
