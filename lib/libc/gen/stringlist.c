@@ -104,7 +104,7 @@ sl_free(StringList *sl, int all)
  * sl_find(): Find a name in the string list
  */
 char *
-sl_find(StringList *sl, char *name)
+sl_find(StringList *sl, const char *name)
 {
 	size_t i;
 
