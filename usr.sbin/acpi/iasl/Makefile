@@ -74,7 +74,8 @@ YFLAGS= -d
 
 CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
-	dtparserparse.c dtparserparse.h
+	dtparserparse.c dtparserparse.h prparser.y.h		\
+	prparserlex.c prparserparse.c prparserparse.h
 
 aslcompilerlex.c: aslcompiler.l aslsupport.l
 	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} \
