@@ -9183,7 +9183,6 @@ bwn_dma_newbuf(struct bwn_dma_ring *dr, struct bwn_dmadesc_generic *desc,
 	struct mbuf *m;
 	int error;
 
-	paddr = 0;
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		error = ENOBUFS;
