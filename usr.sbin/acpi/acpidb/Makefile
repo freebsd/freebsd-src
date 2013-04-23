@@ -67,7 +67,7 @@ SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
 	utxfinit.c
 
 MAN=	acpidb.8
-WARNS?=	2
+WARNS?=	3
 
 CFLAGS+= -DACPI_EXEC_APP -fno-strict-aliasing
 DPADD=	${LIBPTHREAD}
