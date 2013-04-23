@@ -51,10 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	POS_ERR	(-(fpos_t)1)
 
 int
-fseek(fp, offset, whence)
-	FILE *fp;
-	long offset;
-	int whence;
+fseek(FILE *fp, long offset, int whence)
 {
 	int ret;
 	int serrno = errno;
@@ -72,10 +69,7 @@ fseek(fp, offset, whence)
 }
 
 int
-fseeko(fp, offset, whence)
-	FILE *fp;
-	off_t offset;
-	int whence;
+fseeko(FILE *fp, off_t offset, int whence)
 {
 	int ret;
 	int serrno = errno;
@@ -97,11 +91,7 @@ fseeko(fp, offset, whence)
  * `Whence' must be one of the three SEEK_* macros.
  */
 int
-_fseeko(fp, offset, whence, ltest)
-	FILE *fp;
-	off_t offset;
-	int whence;
-	int ltest;
+_fseeko(FILE *fp, off_t offset, int whence, int ltest)
 {
 	fpos_t (*seekfn)(void *, fpos_t, int);
 	fpos_t target, curoff, ret;

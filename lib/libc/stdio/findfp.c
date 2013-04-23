@@ -91,8 +91,7 @@ spinlock_t __stdio_thread_lock = _SPINLOCK_INITIALIZER;
 #endif
 
 static struct glue *
-moreglue(n)
-	int n;
+moreglue(int n)
 {
 	struct glue *g;
 	static FILE empty = { ._fl_mutex = PTHREAD_MUTEX_INITIALIZER };

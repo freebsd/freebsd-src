@@ -43,8 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 int
-fgetc(fp)
-	FILE *fp;
+fgetc(FILE *fp)
 {
 	int retval;
 	FLOCKFILE(fp);

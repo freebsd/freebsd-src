@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
  * optimisation) right after the _fstat() that finds the buffer size.
  */
 void
-__smakebuf(fp)
-	FILE *fp;
+__smakebuf(FILE *fp)
 {
 	void *p;
 	int flags;
@@ -88,10 +87,7 @@ __smakebuf(fp)
  * Internal routine to determine `proper' buffering for a file.
  */
 int
-__swhatbuf(fp, bufsize, couldbetty)
-	FILE *fp;
-	size_t *bufsize;
-	int *couldbetty;
+__swhatbuf(FILE *fp, size_t *bufsize, int *couldbetty)
 {
 	struct stat st;
 

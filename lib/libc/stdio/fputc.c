@@ -43,9 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 int
-fputc(c, fp)
-	int c;
-	FILE *fp;
+fputc(int c, FILE *fp)
 {
 	int retval;
 	FLOCKFILE(fp);

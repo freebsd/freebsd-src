@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  * A subroutine version of the macro putchar
  */
 int
-putchar(c)
-	int c;
+putchar(int c)
 {
 	int retval;
 	FILE *so = stdout;

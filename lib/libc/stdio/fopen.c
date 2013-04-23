@@ -49,9 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 
 FILE *
-fopen(file, mode)
-	const char * __restrict file;
-	const char * __restrict mode;
+fopen(const char * __restrict file, const char * __restrict mode)
 {
 	FILE *fp;
 	int f;

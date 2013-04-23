@@ -50,10 +50,7 @@ __FBSDID("$FreeBSD$");
  * Return the number of whole objects written.
  */
 size_t
-fwrite(buf, size, count, fp)
-	const void * __restrict buf;
-	size_t size, count;
-	FILE * __restrict fp;
+fwrite(const void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 {
 	size_t n;
 	struct __suio uio;

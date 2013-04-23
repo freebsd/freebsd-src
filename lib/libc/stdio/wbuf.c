@@ -47,9 +47,7 @@ __FBSDID("$FreeBSD$");
  * Non-MT-safe
  */
 int
-__swbuf(c, fp)
-	int c;
-	FILE *fp;
+__swbuf(int c, FILE *fp)
 {
 	int n;
 

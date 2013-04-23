@@ -48,8 +48,7 @@ __FBSDID("$FreeBSD$");
  * Write the given string to stdout, appending a newline.
  */
 int
-puts(s)
-	char const *s;
+puts(char const *s)
 {
 	int retval;
 	size_t c = strlen(s);

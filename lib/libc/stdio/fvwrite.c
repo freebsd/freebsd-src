@@ -49,9 +49,7 @@ __FBSDID("$FreeBSD$");
  * to the three different kinds of output buffering is handled here.
  */
 int
-__sfvwrite(fp, uio)
-	FILE *fp;
-	struct __suio *uio;
+__sfvwrite(FILE *fp, struct __suio *uio)
 {
 	size_t len;
 	char *p;
