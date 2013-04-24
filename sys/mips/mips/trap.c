@@ -363,10 +363,10 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 			/*
 			 * Non-o32 ABIs support more arguments in registers.
 			 */
-			sa->args[3] = locr0->t0;
-			sa->args[4] = locr0->t1;
-			sa->args[5] = locr0->t2;
-			sa->args[6] = locr0->t3;
+			sa->args[3] = locr0->a4;
+			sa->args[4] = locr0->a5;
+			sa->args[5] = locr0->a6;
+			sa->args[6] = locr0->a7;
 			nsaved += 4;
 #ifdef COMPAT_FREEBSD32
 		}
@@ -389,10 +389,10 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 			/*
 			 * Non-o32 ABIs support more arguments in registers.
 			 */
-			sa->args[4] = locr0->t0;
-			sa->args[5] = locr0->t1;
-			sa->args[6] = locr0->t2;
-			sa->args[7] = locr0->t3;
+			sa->args[4] = locr0->a4;
+			sa->args[5] = locr0->a5;
+			sa->args[6] = locr0->a6;
+			sa->args[7] = locr0->a7;
 			nsaved += 4;
 #ifdef COMPAT_FREEBSD32
 		}
