@@ -682,7 +682,7 @@ all_forts(FILEDESC *fp, char *offensive)
 	obscene->fd = fd;
 	obscene->inf = NULL;
 	obscene->path = offensive;
-	if ((sp = rindex(offensive, '/')) == NULL)
+	if ((sp = strrchr(offensive, '/')) == NULL)
 		obscene->name = offensive;
 	else
 		obscene->name = ++sp;
@@ -783,7 +783,7 @@ is_fortfile(const char *file, char **datp, char **posp, int check_for_offend)
 		}
 	}
 
-	if ((sp = rindex(file, '/')) == NULL)
+	if ((sp = strrchr(file, '/')) == NULL)
 		sp = file;
 	else
 		sp++;
@@ -795,7 +795,7 @@ is_fortfile(const char *file, char **datp, char **posp, int check_for_offend)
 		DPRINTF(2, (stderr, "FALSE (check fortunes only)\n"));
 		return (FALSE);
 	}
-	if ((sp = rindex(sp, '.')) != NULL) {
+	if ((sp = strrchr(sp, '.')) != NULL) {
 		sp++;
 		for (i = 0; suflist[i] != NULL; i++)
 			if (strcmp(sp, suflist[i]) == 0) {
