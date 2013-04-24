@@ -262,33 +262,33 @@ static const struct morsetab koi8rtab[] = {
 	{'\0', ""}
 };
 
-void            show(const char *), play(const char *), morse(char);
-void		ttyout(const char *);
-void		sighandler(int);
+static void	show(const char *), play(const char *), morse(char);
+static void	ttyout(const char *);
+static void	sighandler(int);
 
 #define GETOPTOPTS "c:d:ef:lsw:"
 #define USAGE \
 "usage: morse [-els] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
 
-static int      pflag, lflag, sflag, eflag;
-static int      wpm = 20;	/* effective words per minute */
-static int      cpm;		/* effective words per minute between
+static int	pflag, lflag, sflag, eflag;
+static int	wpm = 20;	/* effective words per minute */
+static int	cpm;		/* effective words per minute between
 				 * characters */
 #define FREQUENCY 600
-static int      freq = FREQUENCY;
+static int	freq = FREQUENCY;
 static char	*device;	/* for tty-controlled generator */
 
 #define DASH_LEN 3
 #define CHAR_SPACE 3
 #define WORD_SPACE (7 - CHAR_SPACE - 1)
-static float    dot_clock;
-static float    cdot_clock;
-int             spkr, line;
-struct termios	otty, ntty;
-int		olflags;
+static float	dot_clock;
+static float	cdot_clock;
+static int	spkr, line;
+static struct termios otty, ntty;
+static int	olflags;
 
 #ifdef SPEAKER
-tone_t          sound;
+static tone_t	sound;
 #undef GETOPTOPTS
 #define GETOPTOPTS "c:d:ef:lpsw:"
 #undef USAGE
@@ -440,7 +440,7 @@ main(int argc, char **argv)
 	exit(0);
 }
 
-void
+static void
 morse(char c)
 {
 	const struct morsetab *m;
@@ -474,7 +474,7 @@ morse(char c)
 	}
 }
 
-void
+static void
 show(const char *s)
 {
 	if (lflag) {
@@ -489,7 +489,7 @@ show(const char *s)
 	}
 }
 
-void
+static void
 play(const char *s)
 {
 #ifdef SPEAKER
@@ -531,7 +531,7 @@ play(const char *s)
 #endif
 }
 
-void
+static void
 ttyout(const char *s)
 {
 	const char *c;
@@ -573,7 +573,7 @@ ttyout(const char *s)
 	usleep(duration);
 }
 
-void
+static void
 sighandler(int signo)
 {
 

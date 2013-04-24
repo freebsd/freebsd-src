@@ -78,14 +78,13 @@ static const char	*name1[] = {
 	"novemdecillion",		"vigintillion",
 };
 
-void	convert(char *);
-int	number(char *, int);
-void	pfract(int);
-void	toobig(void);
-int	unit(int, char *);
-void	usage(void);
+static void	convert(char *);
+static int	number(char *, int);
+static void	pfract(int);
+static int	unit(int, char *);
+static void	usage(void);
 
-int lflag;
+static int lflag;
 
 int
 main(argc, argv)
@@ -126,7 +125,7 @@ main(argc, argv)
 	exit(0);
 }
 
-void
+static void
 convert(line)
 	char *line;
 {
@@ -195,7 +194,7 @@ badnum:			errx(1, "illegal number: %s", line);
 		(void)printf("\n");
 }
 
-int
+static int
 unit(len, p)
 	int len;
 	char *p;
@@ -231,7 +230,7 @@ unit(len, p)
 	return (rval);
 }
 
-int
+static int
 number(p, len)
 	char *p;
 	int len;
@@ -271,7 +270,7 @@ number(p, len)
 	return (rval);
 }
 
-void
+static void
 pfract(len)
 	int len;
 {
@@ -290,7 +289,7 @@ pfract(len)
 	}
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: number [-l] [# ...]\n");
