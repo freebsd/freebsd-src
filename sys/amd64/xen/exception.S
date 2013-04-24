@@ -562,7 +562,11 @@ IDTVEC(syscall_callback)
 	TRAP_PROLOGUE(T_USER)	;
 	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
-	DO_STI_MAYBE		;
+	movq	%r11, TF_RFLAGS(%rsp) ; /* Tweak for INTR_EXIT */
+	movq	%r10, %rcx	; /* Translate to C abi */
+	movq	%rcx, TF_RCX(%rsp) ; /* Cosmetic. XXX: discard */
+	DO_STI_MAYBE		; /* Clobbers %rdi */
+	movq	TF_RDI(%rsp), %rdi ;
 	CALLSYSCALL		;
 	DO_AST_MAYBE		;
 	RESTORE_GENERAL_REGS	; /* XXX: optimise for SYSRET */
