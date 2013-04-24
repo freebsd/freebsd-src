@@ -1508,8 +1508,55 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
-	return 0;
+	PMAP_LOCK(pmap);
+
+	pt_entry_t *pte;
+	vm_page_t m;
+	vm_paddr_t ma, pa;
+
+	m = NULL;
+	pa = ma = 0;
+
+	/* Walk the PT hierarchy to get the ma */
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+retry:
+	pte = pmap_vtopte_inspect(pmap, va, &tptr);
+
+	if (pte == NULL) {
+		goto nomapping;
+	}
+
+	if ((pte_load(pte) & PG_V) == 0) {
+		goto nomapping;
+	}
+
+	ma = pte_load(pte) & PG_FRAME;
+
+	if (ma == 0) {
+		goto nomapping;
+	}
+
+	if (((pte_load(pte) & PG_RW) ||
+	     prot & VM_PROT_WRITE) == 0) {
+		if (vm_page_pa_tryrelock(pmap, ma, &pa)) goto retry;
+
+		m = MACH_TO_VM_PAGE(ma);
+		KASSERT(m != NULL, ("Invalid ma from pte"));
+
+		vm_page_hold(m);
+	}
+
+nomapping:	
+	pmap_vtopte_release(pmap, va, &tptr);
+
+	PA_UNLOCK_COND(pa);
+	PMAP_UNLOCK(pmap);
+
+	return m;
 }
 
 vm_paddr_t
@@ -1892,7 +1939,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	vm_offset_t a_pg, b_pg;
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
-	panic(__func__);
+
 	a_pg = kmem_alloc_nofault(kernel_map, PAGE_SIZE * 2);
 	b_pg = a_pg + PAGE_SIZE;
 
@@ -2343,15 +2390,33 @@ xen_pagezone_alloc(void)
 }
 
 static void
-xen_pagezone_free(vm_offset_t page)
+xen_pagezone_free(vm_offset_t va)
 {
 
-	if (ISBOOTVA(page)) {
+	vm_paddr_t pa;
+	vm_page_t m;
+
+	/* We only free va obtained from xen_pagezone_alloc() */
+	KASSERT(!ISKERNELVA(va), ("Trying to free unknown va: 0x%lx ", va));
+
+	if (ISBOOTVA(va)) {
 		/* We don't manage this range */
 		return;
 	}
 
-	vm_page_free(PHYS_TO_VM_PAGE(page));
+	if (ISDMAPVA(va)) {
+		pa = DMAP_TO_PHYS(va);
+	}
+	else {
+		panic("Unknown va: 0x%lx\n", va);
+	}
+
+	m = PHYS_TO_VM_PAGE(pa);
+
+	KASSERT(m != NULL, ("Trying to free unknown page"));
+
+	vm_page_unwire(m, 0);
+	vm_page_free(m);
 	return;
 }
 
