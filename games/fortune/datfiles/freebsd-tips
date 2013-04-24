@@ -373,16 +373,6 @@ modes.
 %
 You can disable tcsh's terminal beep if you `set nobeep'.
 %
-You can get a good generic server install by using the
-instant-server port/package.  If you have ports installed, you can
-install it by doing
-
-	# cd /usr/ports/misc/instant-server
-	# make install && make clean
-
-as root.  This will install a collection of packages that is appropriate for
-running a "generic" server.
-%
 You can install extra packages for FreeBSD by using the ports system.
 If you have installed it, you can download, compile, and install software by
 just typing
