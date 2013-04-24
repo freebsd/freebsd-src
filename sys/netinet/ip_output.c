@@ -196,8 +196,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		hlen = ip->ip_hl << 2;
 	}
 
-	dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
+	dst = (struct sockaddr_in *)&ro->ro_dst;
 	ia = NULL;
 	/*
 	 * If there is a cached route,
