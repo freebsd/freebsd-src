@@ -20,20 +20,61 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+#pragma D option quiet
 
-/*
- * ASSERTION:
- *  Test tracemem() with too many arguments.
- *
- * SECTION: Actions and Subroutines/tracemem()
- */
+int64_t val[int];
 
 BEGIN
 {
-	tracemem(123, 456, 789);
+	base = -2;
+	i = 0;
+	val[i++] = -10;
+	val[i++] = -1;
+	val[i++] = 0;
+	val[i++] = 10;
+	val[i++] = 100;
+	val[i++] = 1000;
+	val[i++] = (1LL << 62);
+	maxval = i;
+	i = 0;
 }
+
+tick-1ms
+/i < maxval/
+{
+	printf("base %2d of %20d:  ", base, val[i]);
+}
+
+tick-1ms
+/i < maxval/
+{
+	printf("  %s\n", lltostr(val[i], base));
+}
+
+ERROR
+{
+	printf("  <error>\n");
+}
+
+tick-1ms
+/i < maxval/
+{
+	i++;
+}
+
+tick-1ms
+/i == maxval/
+{
+	i = 0;
+	base++;
+}
+
+tick-1ms
+/base > 40/
+{
+	exit(0);
+}
+
