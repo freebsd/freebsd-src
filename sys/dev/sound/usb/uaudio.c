@@ -1816,13 +1816,20 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			chan->num_alt--;
 			goto next_ep;
 		}
-		/* we only accumulate one format at different sample rates */
-		if (chan->num_alt > 1 && chan->pcm_format[0] != format) {
-			DPRINTF("Multiple formats is not supported\n");
-			chan->num_alt--;
-			goto next_ep;
+		if (chan->num_alt > 1) {
+			/* we only accumulate one format at different sample rates */
+			if (chan->pcm_format[0] != format) {
+				DPRINTF("Multiple formats is not supported\n");
+				chan->num_alt--;
+				goto next_ep;
+			}
+			/* ignore if duplicate sample rate entry */
+			if (rate == chan->usb_alt[chan->num_alt - 2].sample_rate) {
+				DPRINTF("Duplicate sample rate detected\n");
+				chan->num_alt--;
+				goto next_ep;
+			}
 		}
-
 		chan->pcm_cap.fmtlist = chan->pcm_format;
 		chan->pcm_cap.fmtlist[0] = format;
 
