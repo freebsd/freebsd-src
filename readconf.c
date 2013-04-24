@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.195 2013/02/17 23:16:57 dtucker Exp $ */
+/* $OpenBSD: readconf.c,v 1.196 2013/02/22 04:45:08 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -373,7 +373,7 @@ parse_token(const char *cp, const char *filename, int linenum)
 int
 process_config_line(Options *options, const char *host,
 		    char *line, const char *filename, int linenum,
-		    int *activep)
+		    int *activep, int userconfig)
 {
 	char *s, **charptr, *endofnumber, *keyword, *arg, *arg2;
 	char **cpptr, fwdarg[256];
@@ -606,7 +606,7 @@ parse_yesnoask:
 			if (*intptr >= SSH_MAX_IDENTITY_FILES)
 				fatal("%.200s line %d: Too many identity files specified (max %d).",
 				    filename, linenum, SSH_MAX_IDENTITY_FILES);
-			add_identity_file(options, NULL, arg, 1);
+			add_identity_file(options, NULL, arg, userconfig);
 		}
 		break;
 
@@ -1093,7 +1093,7 @@ parse_int:
 
 int
 read_config_file(const char *filename, const char *host, Options *options,
-    int checkperm)
+    int flags)
 {
 	FILE *f;
 	char line[1024];
@@ -1103,7 +1103,7 @@ read_config_file(const char *filename, const char *host, Options *options,
 	if ((f = fopen(filename, "r")) == NULL)
 		return 0;
 
-	if (checkperm) {
+	if (flags & SSHCONF_CHECKPERM) {
 		struct stat sb;
 
 		if (fstat(fileno(f), &sb) == -1)
@@ -1124,7 +1124,8 @@ read_config_file(const char *filename, const char *host, Options *options,
 	while (fgets(line, sizeof(line), f)) {
 		/* Update line number counter. */
 		linenum++;
-		if (process_config_line(options, host, line, filename, linenum, &active) != 0)
+		if (process_config_line(options, host, line, filename, linenum,
+		    &active, flags & SSHCONF_USERCONF) != 0)
 			bad_options++;
 	}
 	fclose(f);
@@ -1298,30 +1299,17 @@ fill_default_options(Options * options)
 		options->protocol = SSH_PROTO_2;
 	if (options->num_identity_files == 0) {
 		if (options->protocol & SSH_PROTO_1) {
-			len = 2 + strlen(_PATH_SSH_CLIENT_IDENTITY) + 1;
-			options->identity_files[options->num_identity_files] =
-			    xmalloc(len);
-			snprintf(options->identity_files[options->num_identity_files++],
-			    len, "~/%.100s", _PATH_SSH_CLIENT_IDENTITY);
+			add_identity_file(options, "~/",
+			    _PATH_SSH_CLIENT_IDENTITY, 0);
 		}
 		if (options->protocol & SSH_PROTO_2) {
-			len = 2 + strlen(_PATH_SSH_CLIENT_ID_RSA) + 1;
-			options->identity_files[options->num_identity_files] =
-			    xmalloc(len);
-			snprintf(options->identity_files[options->num_identity_files++],
-			    len, "~/%.100s", _PATH_SSH_CLIENT_ID_RSA);
-
-			len = 2 + strlen(_PATH_SSH_CLIENT_ID_DSA) + 1;
-			options->identity_files[options->num_identity_files] =
-			    xmalloc(len);
-			snprintf(options->identity_files[options->num_identity_files++],
-			    len, "~/%.100s", _PATH_SSH_CLIENT_ID_DSA);
+			add_identity_file(options, "~/",
+			    _PATH_SSH_CLIENT_ID_RSA, 0);
+			add_identity_file(options, "~/",
+			    _PATH_SSH_CLIENT_ID_DSA, 0);
 #ifdef OPENSSL_HAS_ECC
-			len = 2 + strlen(_PATH_SSH_CLIENT_ID_ECDSA) + 1;
-			options->identity_files[options->num_identity_files] =
-			    xmalloc(len);
-			snprintf(options->identity_files[options->num_identity_files++],
-			    len, "~/%.100s", _PATH_SSH_CLIENT_ID_ECDSA);
+			add_identity_file(options, "~/",
+			    _PATH_SSH_CLIENT_ID_ECDSA, 0);
 #endif
 		}
 	}
