@@ -492,7 +492,7 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 		}
 
 		/* We can free the PDT only after the PDPT entry is zapped */
-		if (memcchr(pti->pt, 0, PAGE_SIZE) == NULL) {
+		if (memcchr(pti->pdt, 0, PAGE_SIZE) == NULL) {
 			pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
 			xen_queue_pt_update(pdptep_ma, 0);
 			xen_flush_queue();
@@ -534,7 +534,7 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 			return;
 		}
 
-		if (memcchr(pti->pt, 0, PAGE_SIZE) == NULL) {
+		if (memcchr(pti->pdpt, 0, PAGE_SIZE) == NULL) {
 			pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep)
 );
 			xen_queue_pt_update(pml4tep_ma, 0);
