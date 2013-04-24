@@ -3,7 +3,6 @@
 
 PROG=	fortune
 MAN=	fortune.6
-WARNS?=	2
 CFLAGS+=-DDEBUG -I${.CURDIR}/../strfile
 
 .include <bsd.prog.mk>

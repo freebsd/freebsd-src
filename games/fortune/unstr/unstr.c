@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -61,40 +57,42 @@ __FBSDID("$FreeBSD$");
  *	Ken Arnold		Aug 13, 1978
  */
 
-# include	<sys/param.h>
-# include	<sys/endian.h>
-# include	<stdio.h>
-# include	<ctype.h>
-# include	<err.h>
-# include	<stdlib.h>
-# include       <string.h>
-# include	"strfile.h"
+#include <sys/param.h>
+#include <sys/endian.h>
+#include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-char	*Infile,			/* name of input file */
-	Datafile[MAXPATHLEN],		/* name of data file */
-	Delimch;			/* delimiter character */
+#include "strfile.h"
 
-FILE	*Inf, *Dataf;
+static char	*Infile,		/* name of input file */
+		Datafile[MAXPATHLEN],	/* name of data file */
+		Delimch;		/* delimiter character */
 
-void order_unstr(STRFILE *);
+static FILE	*Inf, *Dataf;
+
+static void order_unstr(STRFILE *);
 
 /* ARGSUSED */
-int main(int ac, char **av)
+int
+main(int argc, char *argv[])
 {
-	static STRFILE	tbl;		/* description table */
+	static STRFILE tbl;		/* description table */
 
-	if (ac != 2) {
-		(void)fprintf(stderr, "usage: unstr datafile\n");
+	if (argc != 2) {
+		fprintf(stderr, "usage: unstr datafile\n");
 		exit(1);
 	}
-	Infile = av[1];
-	(void) strcpy(Datafile, Infile);
-	(void) strcat(Datafile, ".dat");
+	Infile = argv[1];
+	strcpy(Datafile, Infile);
+	strcat(Datafile, ".dat");
 	if ((Inf = fopen(Infile, "r")) == NULL)
 		err(1, "%s", Infile);
 	if ((Dataf = fopen(Datafile, "r")) == NULL)
 		err(1, "%s", Datafile);
-	(void) fread((char *) &tbl, sizeof tbl, 1, Dataf);
+	fread((char *)&tbl, sizeof(tbl), 1, Dataf);
 	tbl.str_version = be32toh(tbl.str_version);
 	tbl.str_numstr = be32toh(tbl.str_numstr);
 	tbl.str_longlen = be32toh(tbl.str_longlen);
@@ -104,26 +102,26 @@ int main(int ac, char **av)
 		errx(1, "nothing to do -- table in file order");
 	Delimch = tbl.str_delim;
 	order_unstr(&tbl);
-	(void) fclose(Inf);
-	(void) fclose(Dataf);
+	fclose(Inf);
+	fclose(Dataf);
 	exit(0);
 }
 
-void order_unstr(tbl)
-STRFILE	*tbl;
+static void
+order_unstr(STRFILE *tbl)
 {
 	uint32_t i;
-	char	*sp;
-	off_t	pos;
-	char	buf[BUFSIZ];
+	char *sp;
+	off_t pos;
+	char buf[BUFSIZ];
 
 	for (i = 0; i < tbl->str_numstr; i++) {
-		(void) fread(&pos, 1, sizeof pos, Dataf);
-		(void) fseeko(Inf, be64toh(pos), 0);
+		fread(&pos, 1, sizeof(pos), Dataf);
+		fseeko(Inf, be64toh(pos), SEEK_SET);
 		if (i != 0)
-			(void) printf("%c\n", Delimch);
+			printf("%c\n", Delimch);
 		for (;;) {
-			sp = fgets(buf, sizeof buf, Inf);
+			sp = fgets(buf, sizeof(buf), Inf);
 			if (sp == NULL || STR_ENDSTRING(sp, *tbl))
 				break;
 			else

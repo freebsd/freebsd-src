@@ -901,7 +901,7 @@ to add.  This will take at least two weeks," he finally said.
 	"Even that is too much to expect," insisted the manager, "I will be
 satisfied if you simply tell me when the program is complete."
 	The programmer agreed to this.
-	Several years slated, the manager retired.  On the way to his
+	Several years later, the manager retired.  On the way to his
 retirement lunch, he discovered the programmer asleep at his terminal.
 He had been programming all night.
 		-- Geoffrey James, "The Tao of Programming"
@@ -1527,6 +1527,13 @@ friends and family, and then justify this abhorrent behavior by saying:
 	"Sure, I put your dog in the microwave.  But I feel *better*
 for doing it."
 		-- Bruce Feirstein, "Nice Guys Sleep Alone"
+%
+	As we know, there are known knowns.  There are things we know we
+know.  We also know there are known unknowns.  That is to say, we know
+there're some things we do not know.  But there're also unknown unknowns;
+the ones we don't know we don't know."
+		-- Defense Secretary Donald Rumsfeld,
+		   about the invasion to Iraq.
 %
 	At a recent meeting in Snowmass, Colorado, a participant from
 Los Angeles fainted from hyperoxygenation, and we had to hold his head
@@ -7947,7 +7954,7 @@ the same mistake twice without getting nervous.
 A well-known friend is a treasure.
 %
 A well-used door needs no oil on its hinges.
-A swift-flowing steam does no grow stagnant.
+A swift-flowing stream does not grow stagnant.
 Neither sound nor thoughts can travel through a vacuum.
 Software rots if not used.
 
@@ -32844,6 +32851,12 @@ Mistakeholder, n.:
 %
 Mistakes are often the stepping stones to utter failure.
 %
+Mistakeholder, n.:
+	A person who depends on accidental features or 
+	implementation errors and so now has a vested 
+	interest in keeping things from being fixed.
+		-- Chip Morningstar
+%
 Mistrust first impulses; they are always right.
 %
 MIT:
@@ -45635,6 +45648,13 @@ manners and customs, and from it ... goes on to attack laws and
 constitutions, displaying the utmost impudence, until it ends by
 overturning everything.
 		-- Plato, "Republic", 370 B.C.
+%
+The investment community feels very putupon.  They feel there is no
+reason why they shouldn't earn $1 million to $200 million a year,
+and they don't want to be held responsible for the global financial
+meltdown.
+		-- Daniel Fass, chairman of Obama's
+		financial-industry fundraising party
 %
 The IQ of the group is the lowest IQ of a member of
 the group divided by the number of people in the group.
@@ -59050,4 +59070,20 @@ since I first call'd my brother's father dad.
 %
 Zymurgy's Law of Volunteer Labor:
 	People are always available for work in the past tense.
+%
+This email and any files transmitted with it are confidential and
+intended solely for the use of the individual or entity to which they
+are addressed. If you are not the intended recipient of this
+transmission, please delete it immediately.
+
+Obviously, I am the idiot who sent it to you by mistake. Furthermore,
+there is no way I can force you to delete it. Worse, by the time you
+have reached this disclaimer you have already read the document.
+Telling you to forget it would seem absurd. In any event, I have no
+legal right to force you to take any action upon this email anyway.
+
+This entire disclaimer is just a waste of everyone's time and
+bandwidth. Therefore, let us just forget the whole thing and enjoy a
+cold beer instead.
+ 		-- found on the dovecot mailinglist
 %
