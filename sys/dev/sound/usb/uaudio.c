@@ -1645,6 +1645,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			bBitResolution = asf1d.v2->bBitResolution;
 			bSubslotSize = asf1d.v2->bSubslotSize;
 
+			/* Map 4-byte aligned 24-bit samples into 32-bit */
+			if (bBitResolution == 24 && bSubslotSize == 4)
+				bBitResolution = 32;
+
 			if (bBitResolution != (bSubslotSize * 8)) {
 				DPRINTF("Invalid bSubslotSize\n");
 				goto next_ep;
