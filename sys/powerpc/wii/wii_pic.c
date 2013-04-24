@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <sys/reboot.h>
 
 #include <machine/bus.h>
 #include <machine/platform.h>
@@ -51,6 +52,7 @@ static void	wiipic_enable(device_t, unsigned int, unsigned int);
 static void	wiipic_eoi(device_t, unsigned int);
 static void	wiipic_mask(device_t, unsigned int);
 static void	wiipic_unmask(device_t, unsigned int);
+static void	wiipic_intr(void *);
 
 struct wiipic_softc {
 	device_t		 sc_dev;
@@ -58,6 +60,9 @@ struct wiipic_softc {
 	bus_space_tag_t		 sc_bt;
 	bus_space_handle_t	 sc_bh;
 	int			 sc_rrid;
+	int			 sc_irqid;
+	struct resource		*sc_irq;
+	void			*sc_irqctx;
 	int			 sc_vector[WIIPIC_NIRQ];
 };
 
@@ -146,6 +151,19 @@ wiipic_attach(device_t dev)
 
 	powerpc_register_pic(dev, 0, WIIPIC_NIRQ, 0, FALSE);
 
+	/*
+	 * Setup the interrupt handler.
+	 */
+	sc->sc_irqid = 0;
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irqid,
+	    RF_ACTIVE);
+	if (sc->sc_irq == NULL) {
+		device_printf(dev, "could not alloc IRQ resource\n");
+		return (ENXIO);
+	}
+	bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC | INTR_MPSAFE,
+	    NULL, wiipic_intr, sc, &sc->sc_irqctx);
+
 	return (0);
 }
 
@@ -210,3 +228,17 @@ wiipic_unmask(device_t dev, unsigned int irq)
 	imr |= (1 << irq);
 	wiipic_imr_write(sc, imr);
 }
+
+/*
+ * Reset button interrupt.
+ */
+static void
+wiipic_intr(void *xsc)
+{
+	struct wiipic_softc *sc;
+
+	sc = (struct wiipic_softc *)xsc;
+	if (wiipic_icr_read(sc) & WIIPIC_RBS)
+		shutdown_nice(RB_AUTOBOOT);
+}
+
