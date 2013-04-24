@@ -1981,10 +1981,6 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		while (temp > (sample_rate + (sample_rate / 2)))
 			temp /= 2;
 
-		/* bias */
-
-		temp += (sample_rate + 1999) / 2000;
-
 		/* compare */
 
 		DPRINTF("Comparing %d < %d\n",
