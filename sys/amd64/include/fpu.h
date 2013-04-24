@@ -77,6 +77,9 @@ int	is_fpu_kern_thread(u_int flags);
 struct savefpu	*fpu_save_area_alloc(void);
 void	fpu_save_area_free(struct savefpu *fsa);
 void	fpu_save_area_reset(struct savefpu *fsa);
+#ifdef XEN
+void	fpu_taskswitch(int set);
+#endif
 
 /*
  * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().

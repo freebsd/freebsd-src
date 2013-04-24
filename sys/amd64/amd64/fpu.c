@@ -1010,3 +1010,16 @@ fpu_save_area_reset(struct savefpu *fsa)
 
 	bcopy(fpu_initialstate, fsa, cpu_max_ext_state_size);
 }
+
+#ifdef XEN
+#include <machine/xen/xen-os.h>
+#include <xen/hypervisor.h>
+
+/* Wrapper for the hypervisor version which is inline */
+/* XXX: This is all pretty sub-optimal at the moment */
+void
+fpu_taskswitch(int set)
+{
+	HYPERVISOR_fpu_taskswitch(set);
+}
+#endif
