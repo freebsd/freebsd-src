@@ -176,7 +176,7 @@ setup_gdt(struct user_segment_descriptor *thisgdt)
 #endif /* 0 */
 		case GUFS32_SEL:
 		case GUGS32_SEL:
-		case GUDATA_SEL: /* XXX: why def32 ? */
+		case GUDATA_SEL:
 			limit = 0xfffff;
 			type = SDT_MEMRWA;
 			dpl = SEL_UPL;
@@ -1364,6 +1364,31 @@ xen_set_proc(struct pcb *newpcb)
 {
 	HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL), 
 		(unsigned long) newpcb & ~0xFul);
+
+	if (!(curthread->td_pflags & TDP_KTHREAD)) { /* Only for user proc */
+		/* XXX: compat32 */
+		if (newpcb->pcb_flags & (PCB_32BIT | PCB_GS32BIT)) {
+			struct user_segment_descriptor gsd;
+			gsd = gdt[GUGS32_SEL];
+			USD_SETBASE(&gsd, newpcb->pcb_gsbase);
+			xen_set_descriptor((vm_paddr_t)PCPU_GET(gs32p), (void *)&gsd);
+
+			if (newpcb->pcb_flags & PCB_32BIT) {
+				gsd = gdt[GUFS32_SEL];
+				USD_SETBASE(&gsd, newpcb->pcb_fsbase);
+				xen_set_descriptor((vm_paddr_t)PCPU_GET(fs32p), (void *)&gsd);
+			}
+
+		} else {
+
+			HYPERVISOR_set_segment_base(SEGBASE_GS_USER_SEL, 
+						    _ugssel);
+			HYPERVISOR_set_segment_base(SEGBASE_FS,
+						    newpcb->pcb_fsbase);
+			HYPERVISOR_set_segment_base(SEGBASE_GS_USER, 
+						    newpcb->pcb_gsbase);
+		}
+	}
 }
 
 char *console_page;

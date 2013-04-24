@@ -77,8 +77,33 @@ ENTRY(cpu_throw)
 	LK btrl	%eax,PM_ACTIVE(%rdx)		/* clear old */
 1:
 	movq	TD_PCB(%rsi),%r8		/* newtd->td_pcb */
+#ifndef XEN
 	movq	PCB_CR3(%r8),%rdx
 	movq	%rdx,%cr3			/* new address space */
+#else
+	pushq	%rsi
+	pushq	%r8
+
+	/*
+	 * On xen, the hypervisor loads %cr3 for us on return to
+	 * userland. We use a separate "kernel space" for kernel mode,
+	 * which is setup at boot time (see: pmap.c:pmap_bootstrap)
+	 *
+	 * We need to tell the hypervisor via xen_pt_user_switch()
+	 * about the new user pmap. Additionally, we modify the kernel VA
+	 * space by copying in the userland bits of the new pmap, in
+	 * case the kernel needs to access them.
+	 */
+
+	movq	TD_PROC(%rsi), %rdx		/* newproc */
+	movq	P_VMSPACE(%rdx), %rdx
+	addq	$VM_PMAP, %rdx
+	movq	%rdx, %rdi
+	callq	pmap_xen_userload
+	
+	popq	%r8
+	popq	%rsi
+#endif
 	jmp	swact
 END(cpu_throw)
 
@@ -129,9 +154,25 @@ ctx_switch_xsave:
 	/* This is patched to xsaveopt if supported, see fpuinit_bsp1() */
 	xsave	(%r8)
 	movq	%rcx,%rdx
-2:	smsw	%ax
+2:	
+#ifndef XEN	
+	smsw	%ax
 	orb	$CR0_TS,%al
 	lmsw	%ax
+#else
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%rax
+	pushq	%r8
+	movq	$1, %rdi
+	callq	fpu_taskswitch
+	popq	%r8
+	popq	%rax
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+#endif	
 	xorl	%eax,%eax
 	movq	%rax,PCPU(FPCURTHREAD)
 3:
@@ -237,77 +278,12 @@ ld_ldt:
 	shrl	$8,%eax
 	movb	%al,7(%rdx)
 #else
-#ifdef notyet_xenldt
-	pushq	%rdi
-	pushq	%rsi
-	pushq	%rdx
-	pushq	%r8
-	
-	/* Restore fs base in GDT */
-	movl	PCB_FSBASE(%r8), %eax
-	movq	%rsp, %rdx /* register_t tmp, %rdx == &tmp */
-	subq	$8, %rsp   /* allocate tmp */
-	
-	/* Reconstruct the_segment_descriptor */
-	movq	$0, (%rdx)	/* Zero it first */
-	movw	%ax, 2(%rdx)	/* .base = %eax */
-	shrl	$16,%eax
-	movb	%al, 4(%rdx)
-	shrl	$8,%eax
-	movb	%al, 7(%rdx)
-	movw	$0xffff, (%rdx)	/* limit = 0xfffff */
-	movb	$1, 6(%rdx)
-	movb	$1, %al		/* p = 1 */
-	shlb	$2, %al
-	orb	$SEL_UPL, %al	/* dpl = SEL_UPL */
-	shlb	$5, %al
-	orb	$SDT_MEMRWA, %al/* type = SDT_MEMRWA */
-	movb	%al, 5(%rdx)
-	movb	$0xc, %al
-	orb	%al, 6(%rdx)	/* def32 = 1, gran = 1 */
-	
-	movq	PCPU(FS32P), %rdi /* dte_ma */
-	movq	%rdx, %rsi	 /* dte_ptr */
-	callq	xen_set_descriptor
+	/* ldt is already loaded - see do_ldt: below */
 
-	movq	16(%rsp), %r8	/* Restore caller saved %r8 */
-	
-	/* Restore gs base in GDT */
-	movl	PCB_GSBASE(%r8),%eax
-	movq	%rsp, %rdx /* register_t tmp, %rdx == &tmp */
-	addq	$8, %rdx	/* allocate tmp */
-
-	/* Reconstruct the_segment_descriptor */
-	movq	$0, (%rdx)	/* Zero it first */
-	movw	%ax, 2(%rdx)	/* .base = %eax */
-	shrl	$16,%eax
-	movb	%al, 4(%rdx)
-	shrl	$8,%eax
-	movb	%al, 7(%rdx)
-	movw	$0xffff, (%rdx)	/* limit = 0xfffff */
-	movb	$1, 6(%rdx)
-	movb	$1, %al		/* p = 1 */
-	shlb	$2, %al
-	orb	$SEL_UPL, %al	/* dpl = SEL_UPL */
-	shlb	$5, %al
-	orb	$SDT_MEMRWA, %al/* type = SDT_MEMRWA */
-	movb	%al, 5(%rdx)
-	movb	$0xc, %al
-	orb	%al, 6(%rdx)	/* def32 = 1, gran = 1 */
-
-	movq	PCPU(GS32P), %rdi /* dte_ma */
-	movq	%rdx, %rsi	 /* dte_ptr */
-	callq	xen_set_descriptor
-
-	addq	$8, %rsp   /* De-allocate temp "variable" stackspace */
-	/* XXX: Do hypervisor GS/FS update ? */
-	
-	popq	%r8
-	popq	%rdx
-	popq	%rsi
-	popq	%rdi
-
-#endif	
+	/*
+	 * We setup user tls in xen_set_proc()
+	 * as part of the context switch
+	 */
 #endif	/* !XEN */
 do_kthread:
 	/* Do we need to reload tss ? */
