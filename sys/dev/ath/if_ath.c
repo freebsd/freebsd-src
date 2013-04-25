@@ -2990,6 +2990,11 @@ ath_bstuck_proc(void *arg, int pending)
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0)
 		if_printf(ifp, "bb hang detected (0x%x)\n", hangs);
 
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_STUCK_BEACON))
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_STUCK_BEACON, 0, NULL);
+#endif
+
 	if_printf(ifp, "stuck beacon; resetting (bmiss count %u)\n",
 		sc->sc_bmisscount);
 	sc->sc_stats.ast_bstuck++;
@@ -3888,6 +3893,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 #endif	/* IEEE80211_SUPPORT_SUPERG */
 	int nacked;
 	HAL_STATUS status;
+#ifdef	IEEE80211_SUPPORT_TDMA
+	int qbusy;
+#endif	/* IEEE80211_SUPPORT_TDMA */
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: tx queue %u head %p link %p\n",
 		__func__, txq->axq_qnum,
@@ -3989,12 +3997,40 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		ieee80211_ff_flush(ic, txq->axq_ac);
 #endif
 
+	ATH_TX_LOCK(sc);
+
+	/*
+	 * Check whether the queue is currently waiting for
+	 * a buffer push and if so, push it.
+	 *
+	 * Since we now limit how deep the TXQ can get,
+	 * we may reach a point where we can't make further
+	 * progress even though there's frames in the
+	 * queue to be scheduled.  If we hit this highly
+	 * unlikely case, let's print out a warning and
+	 * restart transmit.
+	 */
+#ifdef IEEE80211_SUPPORT_TDMA
+	qbusy = ath_hal_txqenabled(ah, txq->axq_qnum);
+	/*
+	 * If the queue is no longer busy yet there's a
+	 * pending push, make sure it's done.
+	 */
+	if ((txq->axq_flags & ATH_TXQ_PUTPENDING) && !qbusy) {
+		device_printf(sc->sc_dev,
+		    "%s: TXQ %d: PUTPENDING!\n",
+		    __func__,
+		    txq->axq_qnum);
+		ath_tx_push_pending(sc, txq);
+	}
+#endif
+
 	/* Kick the software TXQ scheduler */
 	if (dosched) {
-		ATH_TX_LOCK(sc);
 		ath_txq_sched(sc, txq);
-		ATH_TX_UNLOCK(sc);
 	}
+
+	ATH_TX_UNLOCK(sc);
 
 	ATH_KTR(sc, ATH_KTR_TXCOMP, 1,
 	    "ath_tx_processq: txq=%u: done",
