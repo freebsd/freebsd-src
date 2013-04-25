@@ -167,6 +167,11 @@ struct ofw_map {
 	u_int		om_mode;
 };
 
+extern unsigned char _etext[];
+extern unsigned char _end[];
+
+extern int dumpsys_minidump;
+
 /*
  * Map of physical memory regions.
  */
@@ -316,6 +321,9 @@ void moea_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 void moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma);
 boolean_t moea_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
+vm_offset_t moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
+    vm_size_t *sz);
+struct pmap_md * moea_scan_md(mmu_t mmu, struct pmap_md *prev);
 
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
@@ -363,6 +371,8 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_kenter,		moea_kenter),
 	MMUMETHOD(mmu_kenter_attr,	moea_kenter_attr),
 	MMUMETHOD(mmu_dev_direct_mapped,moea_dev_direct_mapped),
+	MMUMETHOD(mmu_scan_md,		moea_scan_md),
+	MMUMETHOD(mmu_dumpsys_map,	moea_dumpsys_map),
 
 	{ 0, 0 }
 };
@@ -2566,4 +2576,105 @@ moea_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		sz -= len;
 	}
 	PMAP_UNLOCK(pm);
+}
+
+vm_offset_t
+moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
+    vm_size_t *sz)
+{
+	if (md->md_vaddr == ~0UL)
+	    return (md->md_paddr + ofs);
+	else
+	    return (md->md_vaddr + ofs);
+}
+
+/* TODO: Run this on minbar, single calls, to check addresses, offsets, and
+ * sizes.  It should be doing more than just single pages.
+ */
+struct pmap_md *
+moea_scan_md(mmu_t mmu, struct pmap_md *prev)
+{
+	static struct pmap_md md;
+	struct pvo_entry *pvo;
+	vm_offset_t va;
+ 
+	if (dumpsys_minidump) {
+		md.md_paddr = ~0UL;	/* Minidumps use virtual addresses. */
+		if (prev == NULL) {
+			/* 1st: kernel .data and .bss. */
+			md.md_index = 1;
+			md.md_vaddr = trunc_page((uintptr_t)_etext);
+			md.md_size = round_page((uintptr_t)_end) - md.md_vaddr;
+			return (&md);
+		}
+		switch (prev->md_index) {
+		case 1:
+			/* 2nd: msgbuf and tables (see pmap_bootstrap()). */
+			md.md_index = 2;
+			md.md_vaddr = (vm_offset_t)msgbufp->msg_ptr;
+			md.md_size = round_page(msgbufp->msg_size);
+			break;
+		case 2:
+			/* 3rd: kernel VM. */
+			va = prev->md_vaddr + prev->md_size;
+			/* Find start of next chunk (from va). */
+			while (va < virtual_end) {
+				/* Don't dump the buffer cache. */
+				if (va >= kmi.buffer_sva &&
+				    va < kmi.buffer_eva) {
+					va = kmi.buffer_eva;
+					continue;
+				}
+				pvo = moea_pvo_find_va(kernel_pmap,
+				    va & ~ADDR_POFF, NULL);
+				if (pvo != NULL &&
+				    (pvo->pvo_pte.pte.pte_hi & PTE_VALID))
+					break;
+				va += PAGE_SIZE;
+			}
+			if (va < virtual_end) {
+				md.md_vaddr = va;
+				va += PAGE_SIZE;
+				/* Find last page in chunk. */
+				while (va < virtual_end) {
+					/* Don't run into the buffer cache. */
+					if (va == kmi.buffer_sva)
+						break;
+					pvo = moea_pvo_find_va(kernel_pmap,
+					    va & ~ADDR_POFF, NULL);
+					if (pvo == NULL ||
+					    !(pvo->pvo_pte.pte.pte_hi & PTE_VALID))
+						break;
+					va += PAGE_SIZE;
+				}
+				md.md_size = va - md.md_vaddr;
+				break;
+			}
+			md.md_index = 3;
+			/* FALLTHROUGH */
+		default:
+			return (NULL);
+		}
+	} else { /* minidumps */
+		mem_regions(&pregions, &pregions_sz,
+		    &regions, &regions_sz);
+
+		if (prev == NULL) {
+			/* first physical chunk. */
+			md.md_paddr = pregions[0].mr_start;
+			md.md_size = pregions[0].mr_size;
+			md.md_vaddr = ~0UL;
+			md.md_index = 1;
+		} else if (md.md_index < pregions_sz) {
+			md.md_paddr = pregions[md.md_index].mr_start;
+			md.md_size = pregions[md.md_index].mr_size;
+			md.md_vaddr = ~0UL;
+			md.md_index++;
+		} else {
+			/* There's no next physical chunk. */
+			return (NULL);
+		}
+	}
+
+	return (&md);
 }
