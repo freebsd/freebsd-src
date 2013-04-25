@@ -616,6 +616,7 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 # Checks to be sure system is ready for installworld/installkernel.
 #
 installcheck:
+installcheck_UGID:
 
 #
 # Require DESTDIR to be set if installing for a different architecture or
