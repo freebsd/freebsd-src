@@ -135,12 +135,12 @@ enum vcpu_state {
 };
 
 int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);
-enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu);
+enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu, int *hostcpu);
 
 static int __inline
-vcpu_is_running(struct vm *vm, int vcpu)
+vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 {
-	return (vcpu_get_state(vm, vcpu) == VCPU_RUNNING);
+	return (vcpu_get_state(vm, vcpu, hostcpu) == VCPU_RUNNING);
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
