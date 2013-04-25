@@ -138,6 +138,11 @@ extern	int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
 extern	void ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an);
 
 /*
+ * Hardware queue stuff
+ */
+extern	void ath_tx_push_pending(struct ath_softc *sc, struct ath_txq *txq);
+
+/*
  * Misc debugging stuff
  */
 #ifdef	ATH_DEBUG_ALQ

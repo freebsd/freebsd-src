@@ -723,6 +723,43 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	ATH_TXQ_UNLOCK(txq);
 }
 
+void
+ath_tx_push_pending(struct ath_softc *sc, struct ath_txq *txq)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	struct ath_buf *bf;
+
+	/*
+	 * The q was busy when we previously tried
+	 * to write the address of the first buffer
+	 * in the chain.  Since it's not busy now
+	 * handle this chore.  We are certain the
+	 * buffer at the front is the right one since
+	 * axq_link is NULL only when the buffer list
+	 * is/was empty.
+	 */
+	bf = TAILQ_FIRST(&txq->axq_q);
+	if (bf == NULL) {
+		device_printf(sc->sc_dev,
+		    "%s: TXQ %d: called, but no buf?\n",
+		    __func__,
+		    txq->axq_qnum);
+		return;
+	}
+	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
+	txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
+	DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
+	    "%s: Q%u restarted\n", __func__,
+	    txq->axq_qnum);
+	ATH_KTR(sc, ATH_KTR_TX, 4,
+	  "ath_tx_handoff: txq[%d] restarted, bf=%p "
+	  "daddr=%p ds=%p",
+	    txq->axq_qnum,
+	    bf,
+	    (caddr_t)bf->bf_daddr,
+	    bf->bf_desc);
+}
+
 /*
  * Hand-off packet to a hardware queue.
  */
@@ -836,29 +873,12 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 			    (caddr_t)bf->bf_daddr, bf->bf_desc,
 			    bf->bf_lastds);
 
+			/*
+			 * If the queue is no longer busy yet there's a
+			 * pending push, make sure it's done.
+			 */
 			if ((txq->axq_flags & ATH_TXQ_PUTPENDING) && !qbusy) {
-				/*
-				 * The q was busy when we previously tried
-				 * to write the address of the first buffer
-				 * in the chain.  Since it's not busy now
-				 * handle this chore.  We are certain the
-				 * buffer at the front is the right one since
-				 * axq_link is NULL only when the buffer list
-				 * is/was empty.
-				 */
-				ath_hal_puttxbuf(ah, txq->axq_qnum,
-					TAILQ_FIRST(&txq->axq_q)->bf_daddr);
-				txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
-				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
-				    "%s: Q%u restarted\n", __func__,
-				    txq->axq_qnum);
-				ATH_KTR(sc, ATH_KTR_TX, 4,
-				  "ath_tx_handoff: txq[%d] restarted, bf=%p "
-				  "daddr=%p ds=%p",
-				    txq->axq_qnum,
-				    bf,
-				    (caddr_t)bf->bf_daddr,
-				    bf->bf_desc);
+				ath_tx_push_pending(sc, txq);
 			}
 		}
 #else
