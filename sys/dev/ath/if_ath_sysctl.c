@@ -754,6 +754,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		&sc->sc_txq_mcastq_maxdepth, 0,
 		"Maximum buffer depth for multicast/broadcast frames");
 
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"sc_txq_node_psq_maxdepth", CTLFLAG_RW,
+		&sc->sc_txq_node_psq_maxdepth, 0,
+		"Maximum queue depth for a node in powersave");
+
 #if 0
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"cabq_enable", CTLFLAG_RW,
@@ -1073,6 +1078,9 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_keymiss, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swfiltered", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_swfiltered, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_node_psq_overflow",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tx_node_psq_overflow, 0,
+	    "Number of frames dropped because the node was in powersave");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

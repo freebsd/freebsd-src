@@ -1917,6 +1917,32 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		}
 	}
 
+	/*
+	 * Enforce how deep the unicast queue can grow.
+	 *
+	 * If the node is in power save then we don't want
+	 * the software queue to grow too deep, or a node may
+	 * end up consuming all of the ath_buf entries.
+	 *
+	 * For now, only do this for DATA frames.
+	 *
+	 * We will want to cap how many management/control
+	 * frames get punted to the software queue so it doesn't
+	 * fill up.  But the correct solution isn't yet obvious.
+	 * In any case, this check should at least let frames pass
+	 * that we are direct-dispatching.
+	 *
+	 * XXX TODO: duplicate this to the raw xmit path!
+	 */
+	if (type == IEEE80211_FC0_TYPE_DATA &&
+	    ATH_NODE(ni)->an_is_powersave &&
+	    atomic_load_acq_int(&ATH_NODE(ni)->an_swq_depth) >
+	     sc->sc_txq_node_psq_maxdepth) {
+		sc->sc_stats.ast_tx_node_psq_overflow++;
+		m_freem(m0);
+		return (ENOBUFS);
+	}
+
 	/* A-MPDU TX */
 	is_ampdu_tx = ath_tx_ampdu_running(sc, ATH_NODE(ni), tid);
 	is_ampdu_pending = ath_tx_ampdu_pending(sc, ATH_NODE(ni), tid);

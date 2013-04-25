@@ -794,6 +794,8 @@ struct ath_softc {
 	 *   management/multicast frames;
 	 * + multicast frames overwhelming everything (when the
 	 *   air is sufficiently busy that cabq can't drain.)
+	 * + A node in powersave shouldn't be allowed to exhaust
+	 *   all available mbufs;
 	 *
 	 * These implement:
 	 * + data_minfree is the maximum number of free buffers
@@ -803,6 +805,7 @@ struct ath_softc {
 	 */
 	int			sc_txq_data_minfree;
 	int			sc_txq_mcastq_maxdepth;
+	int			sc_txq_node_psq_maxdepth;
 
 	/*
 	 * Aggregation twiddles

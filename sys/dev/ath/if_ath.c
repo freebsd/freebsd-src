@@ -688,12 +688,18 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * otherwise) to be transmitted.
 	 */
 	sc->sc_txq_data_minfree = 10;
+
 	/*
 	 * Leave this as default to maintain legacy behaviour.
 	 * Shortening the cabq/mcastq may end up causing some
 	 * undesirable behaviour.
 	 */
 	sc->sc_txq_mcastq_maxdepth = ath_txbuf;
+
+	/*
+	 * How deep can the node software TX queue get whilst it's asleep.
+	 */
+	sc->sc_txq_node_psq_maxdepth = 16;
 
 	/* Enable CABQ by default */
 	sc->sc_cabq_enable = 1;
