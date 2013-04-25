@@ -63,7 +63,7 @@ def disc1_packages():
     if doing_dvd:
 	pkgs.extend(['archivers/unzip',
 	    'emulators/linux_base-f10',
-	    'lang/perl5.12',
+	    'lang/perl5.14',
 	    'misc/freebsd-doc-all',
 	    'net/mpd5',
 	    'net/rsync',
