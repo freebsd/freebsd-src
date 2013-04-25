@@ -1476,14 +1476,12 @@ data from the device, so backup your data before using!
 .Pp
 This command can be used used against an SSD drive to restoring it to
 factory default write performance.
-.Pp
 .Bd -literal -offset indent
 camcontrol hpa ada0
 .Ed
 .Pp
 Report HPA support and settings for ada0 (also reported via
 identify).
-.Pp
 .Bd -literal -offset indent
 camcontrol hpa ada0 -s 10240
 .Ed
