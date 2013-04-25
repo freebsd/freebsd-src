@@ -4207,10 +4207,13 @@ zfs_hold(zfs_handle_t *zhp, const char *snapname, const char *tag,
 	if (nvlist_next_nvpair(ha.nvl, NULL) == NULL) {
 		fnvlist_free(ha.nvl);
 		ret = ENOENT;
-		(void) snprintf(errbuf, sizeof (errbuf),
-		    dgettext(TEXT_DOMAIN, "cannot hold snapshot '%s@%s'"),
-		    zhp->zfs_name, snapname);
-		(void) zfs_standard_error(hdl, ret, errbuf);
+		if (!enoent_ok) {
+			(void) snprintf(errbuf, sizeof (errbuf),
+			    dgettext(TEXT_DOMAIN,
+			    "cannot hold snapshot '%s@%s'"),
+			    zhp->zfs_name, snapname);
+			(void) zfs_standard_error(hdl, ret, errbuf);
+		}
 		return (ret);
 	}
 
