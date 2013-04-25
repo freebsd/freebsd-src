@@ -283,6 +283,23 @@ struct ata_params {
 #define ATA_DEV_SLAVE		0x10
 #define ATA_DEV_LBA		0x40
 
+/* ATA limits */
+#define ATA_MAX_28BIT_LBA	268435455UL
+
+/* ATA Status Register */
+#define ATA_STATUS_ERROR	0x01
+#define ATA_STATUS_DEVICE_FAULT	0x20
+
+/* ATA Error Register */
+#define ATA_ERROR_ABORT		0x04
+#define ATA_ERROR_ID_NOT_FOUND	0x10
+
+/* ATA HPA Features */
+#define ATA_HPA_FEAT_MAX_ADDR	0x00
+#define ATA_HPA_FEAT_SET_PWD	0x01
+#define ATA_HPA_FEAT_LOCK	0x02
+#define ATA_HPA_FEAT_UNLOCK	0x03
+#define ATA_HPA_FEAT_FREEZE	0x04
 
 /* ATA transfer modes */
 #define ATA_MODE_MASK           0x0f
