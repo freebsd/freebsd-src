@@ -43,24 +43,6 @@
 #define	_MACHINE_REGNUM_H_
 
 /*
- * This must match the numbers in pcb.h and is used by swtch.S
- */
-#define PREG_S0	0
-#define PREG_S1	1
-#define PREG_S2	2
-#define PREG_S3	3
-#define PREG_S4	4
-#define PREG_S5	5
-#define PREG_S6	6
-#define PREG_S7	7
-#define PREG_SP	8
-#define PREG_S8	9
-#define PREG_RA	10
-#define PREG_SR	11
-#define PREG_GP	12
-#define PREG_PC	13
-
-/*
  * Location of the saved registers relative to ZERO.
  * This must match struct trapframe defined in frame.h exactly.
  * This must also match regdef.h.
