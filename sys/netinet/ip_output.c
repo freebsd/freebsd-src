@@ -123,6 +123,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int n;	/* scratchpad */
 	int error = 0;
 	struct sockaddr_in *dst;
+	const struct sockaddr_in *gw;
 	struct in_ifaddr *ia;
 	int isbroadcast;
 	uint16_t ip_len, ip_off;
@@ -196,8 +197,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		hlen = ip->ip_hl << 2;
 	}
 
+	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
-	dst = (struct sockaddr_in *)&ro->ro_dst;
 	ia = NULL;
 	/*
 	 * If there is a cached route,
@@ -297,11 +298,11 @@ again:
 		ifp = rte->rt_ifp;
 		rte->rt_rmx.rmx_pksent++;
 		if (rte->rt_flags & RTF_GATEWAY)
-			dst = (struct sockaddr_in *)rte->rt_gateway;
+			gw = (struct sockaddr_in *)rte->rt_gateway;
 		if (rte->rt_flags & RTF_HOST)
 			isbroadcast = (rte->rt_flags & RTF_BROADCAST);
 		else
-			isbroadcast = in_broadcast(dst->sin_addr, ifp);
+			isbroadcast = in_broadcast(gw->sin_addr, ifp);
 	}
 	/*
 	 * Calculate MTU.  If we have a route that is up, use that,
@@ -326,12 +327,6 @@ again:
 	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
-		/*
-		 * IP destination address is multicast.  Make sure "dst"
-		 * still points to the address in "ro".  (It may have been
-		 * changed to point to a gateway address, above.)
-		 */
-		dst = (struct sockaddr_in *)&ro->ro_dst;
 		/*
 		 * See if the caller provided any multicast options
 		 */
@@ -559,7 +554,6 @@ sendit:
 	/* Or forward to some other address? */
 	if ((m->m_flags & M_IP_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
-		dst = (struct sockaddr_in *)&ro->ro_dst;
 		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP_NEXTHOP;
@@ -628,8 +622,7 @@ passout:
 		 * to avoid confusing lower layers.
 		 */
 		m->m_flags &= ~(M_PROTOFLAGS);
-		error = (*ifp->if_output)(ifp, m,
-		    		(struct sockaddr *)dst, ro);
+		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)gw, ro);
 		goto done;
 	}
 
@@ -663,7 +656,7 @@ passout:
 			m->m_flags &= ~(M_PROTOFLAGS);
 
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst, ro);
+			    (struct sockaddr *)gw, ro);
 		} else
 			m_freem(m);
 	}
