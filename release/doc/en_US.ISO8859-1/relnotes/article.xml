@@ -1185,6 +1185,9 @@
       <para revision="237998"><application>OpenSSL</application> has
 	been updated to version 0.9.8x.</para>
 
+      <para revision="249865">The <application>sendmail</application>
+	(&man.sendmail.8;) utility has been updated to version 8.14.7.</para>
+
       <para revision="236192">The <application>tcpdump</application>
 	(&man.tcpdump.1;) utility has been updated to version 4.2.1.</para>
 
