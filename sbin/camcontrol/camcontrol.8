@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2012
+.Dd April 24, 2013
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -241,6 +241,18 @@
 .Op Fl s Ar pwd
 .Op Fl T Ar timeout
 .Op Fl U Ar user|master
+.Op Fl y
+.Nm
+.Ic hpa
+.Op device id
+.Op generic args
+.Op Fl f
+.Op Fl l
+.Op Fl P
+.Op Fl p Ar pwd
+.Op Fl q
+.Op Fl s Ar max_sectors
+.Op Fl U Ar pwd
 .Op Fl y
 .Nm
 .Ic help
@@ -1205,6 +1217,73 @@ password for the specified user the command will fail.
 .Pp
 The password in all cases is limited to 32 characters, longer passwords will
 fail.
+.It Ic hpa
+Update or report Host Protected Area details.
+By default
+.Nm
+will print out the HPA support and associated settings of the device.
+The
+.Ic hpa
+command takes several optional arguments:
+.Bl -tag -width 0n
+.It Fl f
+.Pp
+Freeze the HPA configuration of the specified device.
+.Pp
+After command completion any other commands that update the HPA configuration
+shall be command aborted.
+Frozen mode is disabled by power-off or hardware reset.
+.It Fl l
+.Pp
+Lock the HPA configuration of the device until a successful call to unlock or
+the next power-on reset occurs.
+.It Fl P
+.Pp
+Make the HPA max sectors persist across power-on reset or a hardware reset.
+This must be used in combination with
+.Fl s Ar max_sectors
+.
+.It Fl p Ar pwd
+.Pp
+Set the HPA configuration password required for unlock calls.
+.It Fl q
+.Pp
+Be quiet, do not print any status messages.
+This option will not disable the questions.
+To disable questions, use the
+.Fl y
+argument, below.
+.It Fl s Ar max_sectors
+.Pp
+Configures the maximum user accessible sectors of the device.
+This will change the number of sectors the device reports.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Changing the max sectors of a device using this option will make the data on
+the device beyond the specified value inaccessible.
+.Pp
+Only one successful
+.Fl s Ar max_sectors
+call can be made without a power-on reset or a hardware reset of the device.
+.It Fl U Ar pwd
+.Pp
+Unlock the HPA configuration of the specified device using the given password.
+If the password specified doesn't match the password configured via
+.Fl p Ar pwd
+the command will fail.
+.Pp
+After 5 failed unlock calls, due to password miss-match, the device will refuse
+additional unlock calls until after a power-on reset.
+.It Fl y
+.Pp
+Confirm yes to dangerous options such as
+.Fl e
+without prompting for confirmation
+.Pp
+.El
+The password for all HPA commands is limited to 32 characters, longer passwords
+will fail.
 .It Ic fwdownload
 Program firmware of the named SCSI device using the image file provided.
 .Pp
@@ -1397,6 +1476,30 @@ data from the device, so backup your data before using!
 .Pp
 This command can be used used against an SSD drive to restoring it to
 factory default write performance.
+.Pp
+.Bd -literal -offset indent
+camcontrol hpa ada0
+.Ed
+.Pp
+Report HPA support and settings for ada0 (also reported via
+identify).
+.Pp
+.Bd -literal -offset indent
+camcontrol hpa ada0 -s 10240
+.Ed
+.Pp
+Enables HPA on ada0 setting the maximum reported sectors to 10240.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+This will
+.Em PREVENT ACCESS
+to all data on the device beyond this limit until HPA is disabled by setting
+HPA to native max sectors of the device, which can only be done after a
+power-on or hardware reset!
+.Pp
+.Em DO NOT
+use this on a device which has an active filesystem!
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,
