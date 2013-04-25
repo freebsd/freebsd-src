@@ -447,7 +447,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 				    (caddr_t)&arg, sizeof arg);
 				if (error != 0)
 					break;
-			       sa->args[i] = arg;
+				sa->args[i] = arg;
 			}
 		} else
 #endif
