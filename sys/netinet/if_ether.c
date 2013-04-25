@@ -558,13 +558,13 @@ in_arpinput(struct mbuf *m)
 	if (ah->ar_pln != sizeof(struct in_addr)) {
 		log(LOG_NOTICE, "in_arp: requested protocol length != %zu\n",
 		    sizeof(struct in_addr));
-		return;
+		goto drop;
 	}
 
 	if (allow_multicast == 0 && ETHER_IS_MULTICAST(ar_sha(ah))) {
 		log(LOG_NOTICE, "arp: %*D is multicast\n",
 		    ifp->if_addrlen, (u_char *)ar_sha(ah), ":");
-		return;
+		goto drop;
 	}
 
 	op = ntohs(ah->ar_op);
