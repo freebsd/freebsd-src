@@ -46,13 +46,14 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <md5.h>
 #include <pthread.h>
+#include <pthread_np.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
 #include "mevent.h"
 #include "virtio.h"
 
-#define VTNET_RINGSZ	256
+#define VTNET_RINGSZ	1024
 
 #define VTNET_MAXSEGS	32
 
@@ -140,6 +141,8 @@ struct pci_vtnet_softc {
 	int		vsc_tapfd;
 	int		vsc_rx_ready;
 	int		vsc_rxpend;
+	int		tx_in_progress;
+	int		resetting;
 
 	uint32_t	vsc_features;
 	uint8_t		vsc_macaddr[6];
@@ -147,6 +150,9 @@ struct pci_vtnet_softc {
 	uint64_t	vsc_pfn[VTNET_MAXQ];
 	struct	vring_hqueue vsc_hq[VTNET_MAXQ];
 	uint16_t	vsc_msix_table_idx[VTNET_MAXQ];
+	pthread_t 	tx_tid;
+	pthread_mutex_t	tx_mtx;
+	pthread_cond_t	tx_cond;
 };
 #define	vtnet_ctx(sc)	((sc)->vsc_pi->pi_vmctx)
 
@@ -174,7 +180,7 @@ hq_num_avail(struct vring_hqueue *hq)
 	uint16_t ndesc;
 
 	/*
-	 * We're just computing (a-b) in GF(216).
+	 * We're just computing (a-b) mod 2^16
 	 *
 	 * The only glitch here is that in standard C,
 	 * uint16_t promotes to (signed) int when int has
@@ -221,9 +227,23 @@ pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 
 	if (value == 0) {
 		DPRINTF(("vtnet: device reset requested !\n"));
+		
+		/* Wait for TX thread to complete pending desc processing */
+		sc->resetting = 1;
+		pthread_mutex_lock(&sc->tx_mtx);
+
+		while (sc->tx_in_progress) {
+			pthread_mutex_unlock(&sc->tx_mtx);
+			usleep(10000);
+			pthread_mutex_lock(&sc->tx_mtx);
+		}
+		
+		pthread_mutex_unlock(&sc->tx_mtx);
+				
 		pci_vtnet_ring_reset(sc, VTNET_RXQ);
 		pci_vtnet_ring_reset(sc, VTNET_TXQ);
 		sc->vsc_rx_ready = 0;
+		sc->resetting = 0;
 	}
 
 	sc->vsc_status = value;
@@ -463,25 +483,12 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vring_hqueue *hq)
 	hq->hq_cur_aidx = aidx + 1;
 	*hq->hq_used_idx = uidx + 1;
 
-	/*
-	 * Generate an interrupt if able
-	 */
-	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-		if (use_msix) {
-			pci_generate_msix(sc->vsc_pi,
-					  sc->vsc_msix_table_idx[VTNET_TXQ]);
-		} else {
-			sc->vsc_isr |= 1;
-			pci_generate_msi(sc->vsc_pi, 0);
-		}
-	}	
 }
 
 static void
 pci_vtnet_ping_txq(struct pci_vtnet_softc *sc)
 {
 	struct vring_hqueue *hq = &sc->vsc_hq[VTNET_TXQ];
-	int i;
 	int ndescs;
 
 	/*
@@ -492,13 +499,81 @@ pci_vtnet_ping_txq(struct pci_vtnet_softc *sc)
 	if (ndescs == 0)
 		return;
 
-	/*
-	 * Run through all the entries, placing them into iovecs and
-	 * sending when an end-of-packet is found
-	 */
-	for (i = 0; i < ndescs; i++)
-		pci_vtnet_proctx(sc, hq);
+	/* Signal the tx thread for processing */
+	pthread_mutex_lock(&sc->tx_mtx);
+	if (sc->tx_in_progress == 0)
+		pthread_cond_signal(&sc->tx_cond);
+	pthread_mutex_unlock(&sc->tx_mtx);
 }
+
+/*
+ * Thread which will handle processing of TX desc
+ */
+static void *
+pci_vtnet_tx_thread(void *param)
+{
+	struct pci_vtnet_softc *sc = (struct pci_vtnet_softc *) param;
+	struct vring_hqueue *hq; 
+	int i, ndescs, needintr,error;
+	
+	needintr = 0;
+	hq = &sc->vsc_hq[VTNET_TXQ];
+	
+	/* 
+	 * Let us wait till the tx queue pointers get initialised & 
+	 * first tx signaled 
+	 */
+	pthread_mutex_lock(&sc->tx_mtx);
+	error = pthread_cond_wait(&sc->tx_cond, &sc->tx_mtx);
+	assert(error == 0);
+	
+	for (;;) {
+		pthread_mutex_lock(&sc->tx_mtx);
+		for (;;) {
+			if (sc->resetting) {
+				ndescs = 0;
+				needintr = 0;
+			} else
+				ndescs = hq_num_avail(hq);
+			
+			if (ndescs != 0) 
+				break;
+			
+			if (needintr) {
+				/*
+				 * Generate an interrupt if able
+				 */
+				if ((*hq->hq_avail_flags &
+				     VRING_AVAIL_F_NO_INTERRUPT) == 0) {
+					if (use_msix) {
+						pci_generate_msix(sc->vsc_pi,
+						     sc->vsc_msix_table_idx[VTNET_TXQ]);
+					} else {
+						sc->vsc_isr |= 1;
+						pci_generate_msi(sc->vsc_pi, 0);
+					}
+				}
+			}
+			needintr = 0;
+			sc->tx_in_progress = 0;
+			error = pthread_cond_wait(&sc->tx_cond, &sc->tx_mtx);
+			assert(error == 0);
+		}
+		sc->tx_in_progress = 1;
+		pthread_mutex_unlock(&sc->tx_mtx);
+
+		while (ndescs > 0) {
+			/*
+			 * Run through all the entries, placing them into
+			 * iovecs and sending when an end-of-packet is found
+			 */
+			for (i = 0; i < ndescs; i++)
+				pci_vtnet_proctx(sc, hq);
+			needintr = 1;
+			ndescs = hq_num_avail(hq);
+		}
+	}
+}	
 
 static void
 pci_vtnet_ping_ctlq(struct pci_vtnet_softc *sc)
@@ -546,6 +621,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	MD5_CTX mdctx;
 	unsigned char digest[16];
 	char nstr[80];
+	char tname[MAXCOMLEN + 1];
 	struct pci_vtnet_softc *sc;
 	const char *env_msi;
 
@@ -650,7 +726,21 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 	
 	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTNET_REGSZ);
+	
+	/* 
+	 * Initialize tx semaphore & spawn TX processing thread
+	 * As of now, only one thread for TX desc processing is
+	 * spawned. 
+	 */
+	sc->tx_in_progress = 0;
+	sc->resetting = 0;
+	pthread_mutex_init(&sc->tx_mtx, NULL);
+	pthread_cond_init(&sc->tx_cond, NULL);
+	pthread_create(&sc->tx_tid, NULL, pci_vtnet_tx_thread, (void *)sc);
+        snprintf(tname, sizeof(tname), "%s vtnet%d tx", vmname, pi->pi_slot);
+        pthread_set_name_np(sc->tx_tid, tname);
 
+	
 	return (0);
 }
 
