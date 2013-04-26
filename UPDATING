@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130426:
+	The sysctl which controls TRIM support under ZFS has been renamed
+	from vfs.zfs.trim_disable -> vfs.zfs.trim.enabled and has been
+	enabled by default.
+
 20130425:
 	The mergemaster command now uses the default MAKEOBJDIRPREFIX
 	rather than creating it's own in the temporary directory in
