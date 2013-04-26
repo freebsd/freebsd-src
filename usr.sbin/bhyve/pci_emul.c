@@ -100,6 +100,8 @@ static uint64_t pci_emul_membase64;
 #define	PCI_EMUL_MEMBASE64	0xD000000000UL
 #define	PCI_EMUL_MEMLIMIT64	0xFD00000000UL
 
+static struct pci_devemu *pci_emul_finddev(char *name);
+
 static int pci_emul_devices;
 
 /*
@@ -123,17 +125,18 @@ static int pci_emul_devices;
 static void
 pci_parse_slot_usage(char *aopt)
 {
-	printf("Invalid PCI slot info field \"%s\"\n", aopt);
-	free(aopt);
+
+	fprintf(stderr, "Invalid PCI slot info field \"%s\"\n", aopt);
 }
 
-void
+int
 pci_parse_slot(char *opt, int legacy)
 {
 	char *slot, *func, *emul, *config;
 	char *str, *cpy;
-	int snum, fnum;
+	int error, snum, fnum;
 
+	error = -1;
 	str = cpy = strdup(opt);
 
 	config = NULL;
@@ -152,19 +155,40 @@ pci_parse_slot(char *opt, int legacy)
 	}
 
 	if (emul == NULL) {
-		pci_parse_slot_usage(cpy);
-		return;
+		pci_parse_slot_usage(opt);
+		goto done;
 	}
 
 	snum = atoi(slot);
 	fnum = func ? atoi(func) : 0;
+
 	if (snum < 0 || snum >= MAXSLOTS || fnum < 0 || fnum >= MAXFUNCS) {
-		pci_parse_slot_usage(cpy);
-	} else {
-		pci_slotinfo[snum][fnum].si_name = emul;
-		pci_slotinfo[snum][fnum].si_param = config;
-		pci_slotinfo[snum][fnum].si_legacy = legacy;
+		pci_parse_slot_usage(opt);
+		goto done;
 	}
+
+	if (pci_slotinfo[snum][fnum].si_name != NULL) {
+		fprintf(stderr, "pci slot %d:%d already occupied!\n",
+			snum, fnum);
+		goto done;
+	}
+
+	if (pci_emul_finddev(emul) == NULL) {
+		fprintf(stderr, "pci slot %d:%d: unknown device \"%s\"\n",
+			snum, fnum, emul);
+		goto done;
+	}
+
+	error = 0;
+	pci_slotinfo[snum][fnum].si_name = emul;
+	pci_slotinfo[snum][fnum].si_param = config;
+	pci_slotinfo[snum][fnum].si_legacy = legacy;
+
+done:
+	if (error)
+		free(cpy);
+
+	return (error);
 }
 
 static int
@@ -988,10 +1012,9 @@ init_pci(struct vmctx *ctx)
 			si = &pci_slotinfo[slot][func];
 			if (si->si_name != NULL) {
 				pde = pci_emul_finddev(si->si_name);
-				if (pde != NULL) {
-					pci_emul_init(ctx, pde, slot, func,
-						      si->si_param);
-				}
+				assert(pde != NULL);
+				pci_emul_init(ctx, pde, slot, func,
+					      si->si_param);
 			}
 		}
 	}
