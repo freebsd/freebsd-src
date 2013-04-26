@@ -645,7 +645,12 @@ f_device_menu()
 
 	[ "$errexit" ] && set -e
 
-	[ $retval -eq 0 ] && echo "$mtag" >&2
+	if [ $retval -eq 0 ]; then
+		# Clean up the output of [X]dialog(1) and return it
+		setvar DIALOG_MENU_$$ "$mtag"
+		mtag=$( f_dialog_menutag )
+		echo "$mtag" >&2
+	fi
 
 	return $retval
 }
