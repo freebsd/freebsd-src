@@ -5853,6 +5853,57 @@ scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
+scsi_ata_identify(struct ccb_scsiio *csio, u_int32_t retries,
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  u_int8_t tag_action, u_int8_t *data_ptr,
+		  u_int16_t dxfer_len, u_int8_t sense_len,
+		  u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_IN,
+			 tag_action,
+			 /*protocol*/AP_PROTO_PIO_IN,
+			 /*ata_flags*/AP_FLAG_TDIR_FROM_DEV|
+				AP_FLAG_BYT_BLOK_BYTES|AP_FLAG_TLEN_SECT_CNT,
+			 /*features*/0,
+			 /*sector_count*/dxfer_len,
+			 /*lba*/0,
+			 /*command*/ATA_ATA_IDENTIFY,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
+scsi_ata_trim(struct ccb_scsiio *csio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int8_t tag_action, u_int16_t block_count,
+	      u_int8_t *data_ptr, u_int16_t dxfer_len, u_int8_t sense_len,
+	      u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_OUT,
+			 tag_action,
+			 /*protocol*/AP_EXTEND|AP_PROTO_DMA,
+			 /*ata_flags*/AP_FLAG_TLEN_SECT_CNT|AP_FLAG_BYT_BLOK_BLOCKS,
+			 /*features*/ATA_DSM_TRIM,
+			 /*sector_count*/block_count,
+			 /*lba*/0,
+			 /*command*/ATA_DATA_SET_MANAGEMENT,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
 scsi_ata_pass_16(struct ccb_scsiio *csio, u_int32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
 		 u_int32_t flags, u_int8_t tag_action,
