@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #else
 #include <errno.h>
@@ -55,7 +58,13 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <sys/ata.h>
 #include <sys/sbuf.h>
-#ifndef _KERNEL
+
+#ifdef _KERNEL
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
+#else
 #include <camlib.h>
 #include <stddef.h>
 
@@ -6257,6 +6266,28 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 }
 
 #ifdef _KERNEL
+int
+scsi_vpd_supported_page(struct cam_periph *periph, uint8_t page_id)
+{
+	struct cam_ed *device;
+	struct scsi_vpd_supported_pages *vpds;
+	int i, num_pages;
+
+	device = periph->path->device;
+	vpds = (struct scsi_vpd_supported_pages *)device->supported_vpds;
+
+	if (vpds != NULL) {
+		num_pages = device->supported_vpds_len -
+		    SVPD_SUPPORTED_PAGES_HDR_LEN;
+		for (i = 0; i < num_pages; i++) {
+			if (vpds->page_list[i] == page_id)
+				return (1);
+		}
+	}
+
+	return (0);
+}
+
 static void
 init_scsi_delay(void)
 {
