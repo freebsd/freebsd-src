@@ -117,10 +117,10 @@ struct disk_params {
 };
 
 #define TRIM_MAX_BLOCKS	8
-#define TRIM_MAX_RANGES	(TRIM_MAX_BLOCKS * 64)
+#define TRIM_MAX_RANGES	(TRIM_MAX_BLOCKS * ATA_DSM_BLK_RANGES)
 #define TRIM_MAX_BIOS	(TRIM_MAX_RANGES * 4)
 struct trim_request {
-	uint8_t		data[TRIM_MAX_RANGES * 8];
+	uint8_t		data[TRIM_MAX_RANGES * ATA_DSM_RANGE_SIZE];
 	struct bio	*bps[TRIM_MAX_BIOS];
 };
 
@@ -1109,8 +1109,8 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->trim_max_ranges = TRIM_MAX_RANGES;
 		if (cgd->ident_data.max_dsm_blocks != 0) {
 			softc->trim_max_ranges =
-			    min(cgd->ident_data.max_dsm_blocks * 64,
-				softc->trim_max_ranges);
+			    min(cgd->ident_data.max_dsm_blocks *
+				ATA_DSM_BLK_RANGES, softc->trim_max_ranges);
 		}
 	}
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_CFA)
@@ -1186,10 +1186,12 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
-	if ((softc->flags & ADA_FLAG_CAN_TRIM) ||
-	    ((softc->flags & ADA_FLAG_CAN_CFA) &&
-	    !(softc->flags & ADA_FLAG_CAN_48BIT)))
+	if (softc->flags & ADA_FLAG_CAN_TRIM) {
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
+	} else if ((softc->flags & ADA_FLAG_CAN_CFA) &&
+	    !(softc->flags & ADA_FLAG_CAN_48BIT)) {
+		softc->disk->d_flags |= DISKFLAG_CANDELETE;
+	}
 	if ((cpi.hba_misc & PIM_UNMAPPED) != 0)
 		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
@@ -1354,9 +1356,9 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 
 				/* Try to extend the previous range. */
 				if (lba == lastlba) {
-					c = min(count, 0xffff - lastcount);
+					c = min(count, ATA_DSM_RANGE_MAX - lastcount);
 					lastcount += c;
-					off = (ranges - 1) * 8;
+					off = (ranges - 1) * ATA_DSM_RANGE_SIZE;
 					req->data[off + 6] = lastcount & 0xff;
 					req->data[off + 7] =
 					    (lastcount >> 8) & 0xff;
@@ -1365,8 +1367,8 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 				}
 
 				while (count > 0) {
-					c = min(count, 0xffff);
-					off = ranges * 8;
+					c = min(count, ATA_DSM_RANGE_MAX);
+					off = ranges * ATA_DSM_RANGE_SIZE;
 					req->data[off + 0] = lba & 0xff;
 					req->data[off + 1] = (lba >> 8) & 0xff;
 					req->data[off + 2] = (lba >> 16) & 0xff;
@@ -1379,6 +1381,11 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 					count -= c;
 					lastcount = c;
 					ranges++;
+					/*
+					 * Its the caller's responsibility to ensure the
+					 * request will fit so we don't need to check for
+					 * overrun here
+					 */
 				}
 				lastlba = lba;
 				req->bps[bps++] = bp1;
@@ -1386,7 +1393,8 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 				if (bps >= TRIM_MAX_BIOS ||
 				    bp1 == NULL ||
 				    bp1->bio_bcount / softc->params.secsize >
-				    (softc->trim_max_ranges - ranges) * 0xffff)
+				    (softc->trim_max_ranges - ranges) *
+				    ATA_DSM_RANGE_MAX)
 					break;
 			} while (1);
 			cam_fill_ataio(ataio,
@@ -1395,10 +1403,12 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			    CAM_DIR_OUT,
 			    0,
 			    req->data,
-			    ((ranges + 63) / 64) * 512,
+			    ((ranges + ATA_DSM_BLK_RANGES - 1) /
+			        ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
 			    ada_default_timeout * 1000);
 			ata_48bit_cmd(ataio, ATA_DATA_SET_MANAGEMENT,
-			    ATA_DSM_TRIM, 0, (ranges + 63) / 64);
+			    ATA_DSM_TRIM, 0, (ranges + ATA_DSM_BLK_RANGES -
+			    1) / ATA_DSM_BLK_RANGES);
 			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
 			goto out;
 		}
