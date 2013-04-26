@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#define SIN(s) ((struct sockaddr_in *)s)
+#define SIN(s) ((const struct sockaddr_in *)(s))
 #define SDL(s) ((struct sockaddr_dl *)s)
 
 SYSCTL_DECL(_net_link_ether);
@@ -215,8 +215,8 @@ arptimer(void *arg)
  *	- arp header source ethernet address
  */
 void
-arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
-    u_char *enaddr)
+arprequest(struct ifnet *ifp, const struct in_addr *sip,
+    const struct in_addr *tip, u_char *enaddr)
 {
 	struct mbuf *m;
 	struct arphdr *ah;
@@ -272,9 +272,9 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	ah->ar_hln = ifp->if_addrlen;		/* hardware address length */
 	ah->ar_pln = sizeof(struct in_addr);	/* protocol address length */
 	ah->ar_op = htons(ARPOP_REQUEST);
-	bcopy((caddr_t)enaddr, (caddr_t)ar_sha(ah), ah->ar_hln);
-	bcopy((caddr_t)sip, (caddr_t)ar_spa(ah), ah->ar_pln);
-	bcopy((caddr_t)tip, (caddr_t)ar_tpa(ah), ah->ar_pln);
+	bcopy(enaddr, ar_sha(ah), ah->ar_hln);
+	bcopy(sip, ar_spa(ah), ah->ar_pln);
+	bcopy(tip, ar_tpa(ah), ah->ar_pln);
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	m->m_flags |= M_BCAST;
@@ -298,7 +298,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
  */
 int
 arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
-	struct sockaddr *dst, u_char *desten, struct llentry **lle)
+	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *la = 0;
 	u_int flags = 0;

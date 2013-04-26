@@ -99,7 +99,7 @@ static void	lagg_linkstate(struct lagg_softc *);
 static void	lagg_port_state(struct ifnet *, int);
 static int	lagg_port_ioctl(struct ifnet *, u_long, caddr_t);
 static int	lagg_port_output(struct ifnet *, struct mbuf *,
-		    struct sockaddr *, struct route *);
+		    const struct sockaddr *, struct route *);
 static void	lagg_port_ifdetach(void *arg __unused, struct ifnet *);
 #ifdef LAGG_PORT_STACKING
 static int	lagg_port_checkstacking(struct lagg_softc *);
@@ -787,7 +787,7 @@ fallback:
  */
 static int
 lagg_port_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	struct lagg_port *lp = ifp->if_lagg;
 
