@@ -141,14 +141,23 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
-		pp->stripeoffset = dp->d_stripeoffset;
-		pp->stripesize = dp->d_stripesize;
-		dp->d_flags |= DISKFLAG_OPEN;
 		if (dp->d_maxsize == 0) {
 			printf("WARNING: Disk drive %s%d has no d_maxsize\n",
 			    dp->d_name, dp->d_unit);
 			dp->d_maxsize = DFLTPHYS;
 		}
+		if (dp->d_flags & DISKFLAG_CANDELETE) {
+			if (bootverbose && dp->d_delmaxsize == 0) {
+				printf("WARNING: Disk drive %s%d has no d_delmaxsize\n",
+				    dp->d_name, dp->d_unit);
+				dp->d_delmaxsize = dp->d_maxsize;
+			}
+		} else {
+			dp->d_delmaxsize = 0;
+		}
+		pp->stripeoffset = dp->d_stripeoffset;
+		pp->stripesize = dp->d_stripesize;
+		dp->d_flags |= DISKFLAG_OPEN;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		if (dp->d_close != NULL) {
 			g_disk_lock_giant(dp);
@@ -293,6 +302,10 @@ g_disk_start(struct bio *bp)
 			break;
 		}
 		do {
+			off_t d_maxsize;
+
+			d_maxsize = (bp->bio_cmd == BIO_DELETE) ?
+			    dp->d_delmaxsize : dp->d_maxsize;
 			bp2->bio_offset += off;
 			bp2->bio_length -= off;
 			if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
@@ -307,18 +320,20 @@ g_disk_start(struct bio *bp)
 				bp2->bio_ma_offset %= PAGE_SIZE;
 				bp2->bio_ma_n -= off / PAGE_SIZE;
 			}
-			if (bp2->bio_length > dp->d_maxsize) {
+			if (bp2->bio_length > d_maxsize) {
 				/*
 				 * XXX: If we have a stripesize we should really
-				 * use it here.
+				 * use it here. Care should be taken in the delete
+				 * case if this is done as deletes can be very 
+				 * sensitive to size given how they are processed.
 				 */
-				bp2->bio_length = dp->d_maxsize;
+				bp2->bio_length = d_maxsize;
 				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 					bp2->bio_ma_n = howmany(
 					    bp2->bio_ma_offset +
 					    bp2->bio_length, PAGE_SIZE);
 				}
-				off += dp->d_maxsize;
+				off += d_maxsize;
 				/*
 				 * To avoid a race, we need to grab the next bio
 				 * before we schedule this one.  See "notes".

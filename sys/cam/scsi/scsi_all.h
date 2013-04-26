@@ -1429,6 +1429,85 @@ struct scsi_diag_page {
 	uint8_t params[0];
 };
 
+/*
+ * Block Device Characteristics VPD Page based on
+ * T10/1799-D Revision 31
+ */
+struct scsi_vpd_block_characteristics
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define SVPD_BDC			0xB1
+	u_int8_t page_length[2];
+	u_int8_t medium_rotation_rate[2];
+#define SVPD_BDC_RATE_NOT_REPORTED	0x00
+#define SVPD_BDC_RATE_NONE_ROTATING	0x01
+	u_int8_t reserved1;
+	u_int8_t nominal_form_factor;
+#define SVPD_BDC_FORM_NOT_REPORTED	0x00
+#define SVPD_BDC_FORM_5_25INCH		0x01
+#define SVPD_BDC_FORM_3_5INCH		0x02
+#define SVPD_BDC_FORM_2_5INCH		0x03
+#define SVPD_BDC_FORM_1_5INCH		0x04
+#define SVPD_BDC_FORM_LESSTHAN_1_5INCH	0x05
+	u_int8_t reserved2[56];
+};
+
+/*
+ * Logical Block Provisioning VPD Page based on
+ * T10/1799-D Revision 31
+ */
+struct scsi_vpd_logical_block_prov
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define	SVPD_LBP		0xB2
+	u_int8_t page_length[2];
+#define SVPD_LBP_PL_BASIC	0x04
+	u_int8_t threshold_exponent;
+	u_int8_t flags;
+#define SVPD_LBP_UNMAP		0x80
+#define SVPD_LBP_WS16		0x40
+#define SVPD_LBP_WS10		0x20
+#define SVPD_LBP_RZ		0x04
+#define SVPD_LBP_ANC_SUP	0x02
+#define SVPD_LBP_DP		0x01
+	u_int8_t prov_type;
+#define SVPD_LBP_RESOURCE	0x01
+#define SVPD_LBP_THIN		0x02
+	u_int8_t reserved;
+	/*
+	 * Provisioning Group Descriptor can be here if SVPD_LBP_DP is set
+	 * Its size can be determined from page_length - 4
+	 */
+};
+
+/*
+ * Block Limits VDP Page based on
+ * T10/1799-D Revision 31
+ */
+struct scsi_vpd_block_limits
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define	SVPD_BLOCK_LIMITS	0xB0
+	u_int8_t page_length[2];
+#define SVPD_BL_PL_BASIC	0x10
+#define SVPD_BL_PL_TP		0x3C
+	u_int8_t reserved1;
+	u_int8_t max_cmp_write_len;
+	u_int8_t opt_txfer_len_grain[2];
+	u_int8_t max_txfer_len[4];
+	u_int8_t opt_txfer_len[4];
+	u_int8_t max_prefetch[4];
+	u_int8_t max_unmap_lba_cnt[4];
+	u_int8_t max_unmap_blk_cnt[4];
+	u_int8_t opt_unmap_grain[4];
+	u_int8_t unmap_grain_align[4];
+	u_int8_t max_write_same_length[8];
+	u_int8_t reserved2[20];
+};
+
 struct scsi_read_capacity
 {
 	u_int8_t opcode;
@@ -2203,6 +2282,8 @@ int		scsi_sense_sbuf(struct ccb_scsiio *csio, struct sbuf *sb,
 char *		scsi_sense_string(struct ccb_scsiio *csio,
 				  char *str, int str_len);
 void		scsi_sense_print(struct ccb_scsiio *csio);
+int 		scsi_vpd_supported_page(struct cam_periph *periph,
+					uint8_t page_id);
 #else /* _KERNEL */
 int		scsi_command_string(struct cam_device *device,
 				    struct ccb_scsiio *csio, struct sbuf *sb);
@@ -2395,6 +2476,18 @@ void scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
 		     u_int32_t block_count, u_int8_t *data_ptr,
 		     u_int32_t dxfer_len, u_int8_t sense_len,
 		     u_int32_t timeout);
+
+void scsi_ata_identify(struct ccb_scsiio *csio, u_int32_t retries,
+		       void (*cbfcnp)(struct cam_periph *, union ccb *),
+		       u_int8_t tag_action, u_int8_t *data_ptr,
+		       u_int16_t dxfer_len, u_int8_t sense_len,
+		       u_int32_t timeout);
+
+void scsi_ata_trim(struct ccb_scsiio *csio, u_int32_t retries,
+	           void (*cbfcnp)(struct cam_periph *, union ccb *),
+	           u_int8_t tag_action, u_int16_t block_count,
+	           u_int8_t *data_ptr, u_int16_t dxfer_len,
+	           u_int8_t sense_len, u_int32_t timeout);
 
 void scsi_ata_pass_16(struct ccb_scsiio *csio, u_int32_t retries,
 		      void (*cbfcnp)(struct cam_periph *, union ccb *),
