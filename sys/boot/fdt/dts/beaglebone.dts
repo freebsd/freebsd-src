@@ -44,6 +44,88 @@
 	};
 
 	am335x {
+ 		scm@44e10000 {
+			/* Set of triplets < padname, muxname, padstate> */
+			scm-pad-config =
+				/* I2C0 */
+				"I2C0_SDA", "I2C0_SDA","i2c",
+				"I2C0_SCL", "I2C0_SCL","i2c",
+				/* Ethernet */
+				"MII1_RX_ER", "gmii1_rxerr", "input_pulldown",
+				"MII1_TX_EN", "gmii1_txen", "output",
+				"MII1_RX_DV", "gmii1_rxdv", "input_pulldown",
+				"MII1_TXD3", "gmii1_txd3", "output",
+				"MII1_TXD2", "gmii1_txd2", "output",
+				"MII1_TXD1", "gmii1_txd1", "output",
+				"MII1_TXD0", "gmii1_txd0", "output",
+				"MII1_TX_CLK", "gmii1_txclk", "input_pulldown",
+				"MII1_RX_CLK", "gmii1_rxclk", "input_pulldown",
+				"MII1_RXD3", "gmii1_rxd3", "input_pulldown",
+				"MII1_RXD2", "gmii1_rxd2", "input_pulldown",
+				"MII1_RXD1", "gmii1_rxd1",  "input_pulldown",
+				"MII1_RXD0", "gmii1_rxd0",  "input_pulldown",
+				"MDIO", "mdio_data", "input_pullup",
+				"MDC", "mdio_clk", "output_pullup",
+				/* MMCSD0 */
+				"MMC0_CMD", "mmc0_cmd", "input_pullup",
+				"MMC0_CLK", "mmc0_clk", "input_pullup",
+				"MMC0_DAT0", "mmc0_dat0", "input_pullup",
+				"MMC0_DAT1", "mmc0_dat1", "input_pullup",
+				"MMC0_DAT2", "mmc0_dat2", "input_pullup",
+				"MMC0_DAT3", "mmc0_dat3", "input_pullup",
+				/* GPIO */
+				"ECAP0_IN_PWM0_OUT", "gpio0_7", "input_pulldown",
+				"GPMC_AD10", "gpio0_26", "input_pulldown",
+				"GPMC_AD11", "gpio0_27", "input_pulldown",
+				"GPMC_AD0", "gpio1_0", "input_pulldown",
+				"GPMC_AD1", "gpio1_1", "input_pulldown",
+				"GPMC_AD2", "gpio1_2", "input_pulldown",
+				"GPMC_AD3", "gpio1_3", "input_pulldown",
+				"GPMC_AD4", "gpio1_4", "input_pulldown",
+				"GPMC_AD5", "gpio1_5", "input_pulldown",
+				"GPMC_AD6", "gpio1_6", "input_pulldown",
+				"GPMC_AD7", "gpio1_7", "input_pulldown",
+				"GPMC_AD12", "gpio1_12", "input_pulldown",
+				"GPMC_AD13", "gpio1_13", "input_pulldown",
+				"GPMC_AD14", "gpio1_14", "input_pulldown",
+				"GPMC_AD15", "gpio1_15", "input_pulldown",
+				"GPMC_A0", "gpio1_16", "input_pulldown",
+				"GPMC_A1", "gpio1_17", "input_pulldown",
+				"GPMC_A5", "gpio1_21", "output", /* User LED 1 */
+				"GPMC_A6", "gpio1_22", "output", /* User LED 2 */
+				"GPMC_A7", "gpio1_23", "output", /* User LED 3 */
+				"GPMC_A8", "gpio1_24", "output", /* User LED 4 */
+				"GPMC_BEn1", "gpio1_28", "input_pulldown",
+				"GPMC_CSn0", "gpio1_29", "input_pulldown",
+				"GPMC_CSn1", "gpio1_30", "input_pulldown",
+				"GPMC_CSn2", "gpio1_31", "input_pulldown",
+				"GPMC_CLK", "gpio2_1", "input_pulldown",
+				"LCD_DATA0", "gpio2_6", "input_pulldown", 
+				"LCD_DATA1", "gpio2_7", "input_pulldown", 
+				"LCD_DATA2", "gpio2_8", "input_pulldown", 
+				"LCD_DATA3", "gpio2_9", "input_pulldown", 
+				"LCD_DATA4", "gpio2_10", "input_pulldown", 
+				"LCD_DATA5", "gpio2_11", "input_pulldown", 
+				"LCD_DATA6", "gpio2_12", "input_pulldown", 
+				"LCD_DATA7", "gpio2_13", "input_pulldown", 
+				"LCD_VSYNC", "gpio2_22", "input_pulldown",
+				"LCD_HSYNC", "gpio2_23", "input_pulldown",
+				"LCD_PCLK", "gpio2_24", "input_pulldown",
+				"LCD_AC_BIAS_EN", "gpio2_25", "input_pulldown",
+				"MCASP0_FSR", "gpio3_19", "input_pulldown",
+				"MCASP0_AHCLKX", "gpio3_21", "input_pulldown",
+				/* TIMERs */
+				"GPMC_ADVn_ALE", "timer4", "output",
+				"GPMC_BEn0_CLE", "timer5", "output",
+				"GPMC_WEn", "timer6", "output",
+				"GPMC_OEn_REn", "timer7", "output",
+				/* PWM */
+				"GPMC_A2", "ehrpwm1A", "output",
+				"GPMC_A3", "ehrpwm1B", "output",
+				"GPMC_AD8", "ehrpwm2A", "output",
+				"GPMC_AD9", "ehrpwm2B", "output";
+ 		};
+ 
 		i2c@44e0b000 {
 			pmic@24 {
 				compatible = "ti,am335x-pmic";
