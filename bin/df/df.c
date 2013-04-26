@@ -296,7 +296,6 @@ main(int argc, char *argv[])
 			prtstat(&mntbuf[i], &maxwidths);
 	if (cflag)
 		prtstat(&totalbuf, &maxwidths);
-	free(mntbuf);
 	return (rv);
 }
 
