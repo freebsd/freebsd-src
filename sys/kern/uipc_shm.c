@@ -533,7 +533,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	fdp = td->td_proc->p_fd;
 	cmode = (uap->mode & ~fdp->fd_cmask) & ACCESSPERMS;
 
-	error = falloc(td, &fp, &fd, 0);
+	error = falloc(td, &fp, &fd, O_CLOEXEC);
 	if (error)
 		return (error);
 
@@ -628,10 +628,6 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 
 	finit(fp, FFLAGS(uap->flags & O_ACCMODE), DTYPE_SHM, shmfd, &shm_ops);
 
-	FILEDESC_XLOCK(fdp);
-	if (fdp->fd_ofiles[fd] == fp)
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-	FILEDESC_XUNLOCK(fdp);
 	td->td_retval[0] = fd;
 	fdrop(fp, td);
 
