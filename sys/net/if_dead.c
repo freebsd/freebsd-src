@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 
 static int
-ifdead_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
+ifdead_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa,
     struct route *ro)
 {
 

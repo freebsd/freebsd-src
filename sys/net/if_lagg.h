@@ -245,8 +245,8 @@ struct lagg_port {
 
 	/* Redirected callbacks */
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
-	int	(*lp_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
-		     struct route *);
+	int	(*lp_output)(struct ifnet *, struct mbuf *,
+		     const struct sockaddr *, struct route *);
 
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };

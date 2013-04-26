@@ -187,6 +187,13 @@ pci_vtblk_update_status(struct pci_vtblk_softc *sc, uint32_t value)
 {
 	if (value == 0) {
 		DPRINTF(("vtblk: device reset requested !\n"));
+		sc->vbsc_isr = 0;
+		sc->msix_table_idx_req = VIRTIO_MSI_NO_VECTOR;
+		sc->msix_table_idx_cfg = VIRTIO_MSI_NO_VECTOR;
+		sc->vbsc_features = 0;
+		sc->vbsc_pfn = 0;
+		sc->vbsc_lastq = 0;
+		memset(&sc->vbsc_q, 0, sizeof(struct vring_hqueue));
 	}
 
 	sc->vbsc_status = value;
@@ -203,9 +210,8 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	int i;
 	int err;
 	int iolen;
-	int nsegs;
 	int uidx, aidx, didx;
-	int writeop, type;
+	int indirect, writeop, type;
 	off_t offset;
 
 	uidx = *hq->hq_used_idx;
@@ -215,30 +221,21 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 
 	vd = &hq->hq_dtable[didx];
 
-	/*
-	 * Verify that the descriptor is indirect, and obtain
-	 * the pointer to the indirect descriptor.
-	 * There has to be space for at least 3 descriptors
-	 * in the indirect descriptor array: the block header,
-	 * 1 or more data descriptors, and a status byte.
-	 */
-	assert(vd->vd_flags & VRING_DESC_F_INDIRECT);
+	indirect = ((vd->vd_flags & VRING_DESC_F_INDIRECT) != 0);
 
-	nsegs = vd->vd_len / sizeof(struct virtio_desc);
-	assert(nsegs >= 3);
-	assert(nsegs < VTBLK_MAXSEGS + 2);
-
-	vid = paddr_guest2host(vtblk_ctx(sc), vd->vd_addr, vd->vd_len);
-	assert((vid->vd_flags & VRING_DESC_F_INDIRECT) == 0);
+	if (indirect) {
+		vid = paddr_guest2host(vtblk_ctx(sc), vd->vd_addr, vd->vd_len);
+		vd = &vid[0];
+	}
 
 	/*
 	 * The first descriptor will be the read-only fixed header
 	 */
-	vbh = paddr_guest2host(vtblk_ctx(sc), vid[0].vd_addr,
+	vbh = paddr_guest2host(vtblk_ctx(sc), vd->vd_addr,
 			    sizeof(struct virtio_blk_hdr));
-	assert(vid[0].vd_len == sizeof(struct virtio_blk_hdr));
-	assert(vid[0].vd_flags & VRING_DESC_F_NEXT);
-	assert((vid[0].vd_flags & VRING_DESC_F_WRITE) == 0);
+	assert(vd->vd_len == sizeof(struct virtio_blk_hdr));
+	assert(vd->vd_flags & VRING_DESC_F_NEXT);
+	assert((vd->vd_flags & VRING_DESC_F_WRITE) == 0);
 
 	/*
 	 * XXX
@@ -253,14 +250,18 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	/*
 	 * Build up the iovec based on the guest's data descriptors
 	 */
-	for (i = 1, iolen = 0; i < nsegs - 1; i++) {
-		iov[i-1].iov_base = paddr_guest2host(vtblk_ctx(sc),
-						vid[i].vd_addr, vid[i].vd_len);
-		iov[i-1].iov_len = vid[i].vd_len;
-		iolen += vid[i].vd_len;
+	i = iolen = 0;
+	while (1) {
+		if (indirect)
+			vd = &vid[i + 1];	/* skip first indirect desc */
+		else
+			vd = &hq->hq_dtable[vd->vd_next];
 
-		assert(vid[i].vd_flags & VRING_DESC_F_NEXT);
-		assert((vid[i].vd_flags & VRING_DESC_F_INDIRECT) == 0);
+		if ((vd->vd_flags & VRING_DESC_F_NEXT) == 0)
+			break;
+
+		if (i == VTBLK_MAXSEGS)
+			break;
 
 		/*
 		 * - write op implies read-only descriptor,
@@ -268,58 +269,41 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 		 * therefore test the inverse of the descriptor bit
 		 * to the op.
 		 */
-		assert(((vid[i].vd_flags & VRING_DESC_F_WRITE) == 0) ==
+		assert(((vd->vd_flags & VRING_DESC_F_WRITE) == 0) ==
 		       writeop);
+
+		iov[i].iov_base = paddr_guest2host(vtblk_ctx(sc),
+						   vd->vd_addr,
+						   vd->vd_len);
+		iov[i].iov_len = vd->vd_len;
+		iolen += vd->vd_len;
+		i++;
 	}
 
 	/* Lastly, get the address of the status byte */
-	status = paddr_guest2host(vtblk_ctx(sc), vid[nsegs - 1].vd_addr, 1);
-	assert(vid[nsegs - 1].vd_len == 1);
-	assert((vid[nsegs - 1].vd_flags & VRING_DESC_F_NEXT) == 0);
-	assert(vid[nsegs - 1].vd_flags & VRING_DESC_F_WRITE);
+	status = paddr_guest2host(vtblk_ctx(sc), vd->vd_addr, 1);
+	assert(vd->vd_len == 1);
+	assert((vd->vd_flags & VRING_DESC_F_NEXT) == 0);
+	assert(vd->vd_flags & VRING_DESC_F_WRITE);
 
 	DPRINTF(("virtio-block: %s op, %d bytes, %d segs, offset %ld\n\r", 
-		 writeop ? "write" : "read", iolen, nsegs - 2, offset));
+		 writeop ? "write" : "read", iolen, i, offset));
 
-	if (writeop){
-		err = pwritev(sc->vbsc_fd, iov, nsegs - 2, offset);
-	} else {
-		err = preadv(sc->vbsc_fd, iov, nsegs - 2, offset);
-	}
+	if (writeop)
+		err = pwritev(sc->vbsc_fd, iov, i, offset);
+	else
+		err = preadv(sc->vbsc_fd, iov, i, offset);
 
 	*status = err < 0 ? VTBLK_S_IOERR : VTBLK_S_OK;
 
 	/*
-	 * Return the single indirect descriptor back to the host
+	 * Return the single descriptor back to the host
 	 */
 	vu = &hq->hq_used_ring[uidx % hq->hq_size];
 	vu->vu_idx = didx;
 	vu->vu_tlen = 1;
 	hq->hq_cur_aidx++;
 	*hq->hq_used_idx += 1;
-}
-
-static void
-pci_vtblk_qnotify(struct pci_vtblk_softc *sc)
-{
-	struct vring_hqueue *hq = &sc->vbsc_q;
-	int i;
-	int ndescs;
-
-	/*
-	 * Calculate number of ring entries to process
-	 */
-	ndescs = hq_num_avail(hq);
-
-	if (ndescs == 0)
-		return;
-
-	/*
-	 * Run through all the entries, placing them into iovecs and
-	 * sending when an end-of-packet is found
-	 */
-	for (i = 0; i < ndescs; i++)
-		pci_vtblk_proc(sc, hq);
 
 	/*
 	 * Generate an interrupt if able
@@ -332,7 +316,21 @@ pci_vtblk_qnotify(struct pci_vtblk_softc *sc)
 			pci_generate_msi(sc->vbsc_pi, 0);
 		}
 	}
-	
+}
+
+static void
+pci_vtblk_qnotify(struct pci_vtblk_softc *sc)
+{
+	struct vring_hqueue *hq = &sc->vbsc_q;
+	int ndescs;
+
+	while ((ndescs = hq_num_avail(hq)) != 0) {
+		/*
+		 * Run through all the entries, placing them into iovecs and
+		 * sending when an end-of-packet is found
+		 */
+ 		pci_vtblk_proc(sc, hq);
+ 	}
 }
 
 static void

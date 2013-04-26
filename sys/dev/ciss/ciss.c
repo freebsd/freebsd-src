@@ -3005,7 +3005,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
-	cpi->maxio = (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE;
+	cpi->maxio = (min(CISS_MAX_SG_ELEMENTS, sc->ciss_cfg->max_sg_length) - 1) * PAGE_SIZE;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	break;
     }
@@ -3200,6 +3200,19 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	    xpt_done((union ccb *)csio);
 	    return(1);
 	}
+    }
+
+    /* 
+     * A CISS target can only ever have one lun per target. REPORT_LUNS requires
+     * at least one LUN field to be pre created for us, so snag it and fill in
+     * the least significant byte indicating 1 LUN here.  Emulate the command
+     * return to shut up warning on console of a CDB error.  swb 
+     */
+    if (opcode == REPORT_LUNS && csio->dxfer_len > 0) {
+       csio->data_ptr[3] = 8;
+       csio->ccb_h.status |= CAM_REQ_CMP;
+       xpt_done((union ccb *)csio);
+       return(1);
     }
 
     return(0);

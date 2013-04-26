@@ -631,11 +631,15 @@ main(int argc, char *argv[])
 			guest_tslice = atoi(optarg);
 			break;
 		case 's':
-			pci_parse_slot(optarg, 0);
-			break;
+			if (pci_parse_slot(optarg, 0) != 0)
+				exit(1);
+			else
+				break;
 		case 'S':
-			pci_parse_slot(optarg, 1);
-			break;
+			if (pci_parse_slot(optarg, 1) != 0)
+				exit(1);
+			else
+				break;
                 case 'm':
 			memsize = strtoul(optarg, NULL, 0) * MB;
 			break;

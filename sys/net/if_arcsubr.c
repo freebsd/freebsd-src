@@ -92,8 +92,8 @@ u_int8_t  arcbroadcastaddr = 0;
 #define ARC_LLADDR(ifp)	(*(u_int8_t *)IF_LLADDR(ifp))
 
 #define senderr(e) { error = (e); goto bad;}
-#define SIN(s)	((struct sockaddr_in *)s)
-#define SIPX(s)	((struct sockaddr_ipx *)s)
+#define SIN(s)	((const struct sockaddr_in *)(s))
+#define SIPX(s)	((const struct sockaddr_ipx *)(s))
 
 /*
  * ARCnet output routine.
@@ -101,7 +101,7 @@ u_int8_t  arcbroadcastaddr = 0;
  * Assumes that ifp is actually pointer to arccom structure.
  */
 int
-arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct arc_header	*ah;
@@ -186,8 +186,11 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #endif
 
 	case AF_UNSPEC:
+	    {
+		const struct arc_header *ah;
+
 		loop_copy = -1;
-		ah = (struct arc_header *)dst->sa_data;
+		ah = (const struct arc_header *)dst->sa_data;
 		adst = ah->arc_dhost;
 		atype = ah->arc_type;
 
@@ -207,7 +210,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #endif
 		}
 		break;
-
+	    }
 	default:
 		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
 		senderr(EAFNOSUPPORT);

@@ -894,7 +894,7 @@ vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state state)
 }
 
 enum vcpu_state
-vcpu_get_state(struct vm *vm, int vcpuid)
+vcpu_get_state(struct vm *vm, int vcpuid, int *hostcpu)
 {
 	struct vcpu *vcpu;
 	enum vcpu_state state;
@@ -906,6 +906,8 @@ vcpu_get_state(struct vm *vm, int vcpuid)
 
 	vcpu_lock(vcpu);
 	state = vcpu->state;
+	if (hostcpu != NULL)
+		*hostcpu = vcpu->hostcpu;
 	vcpu_unlock(vcpu);
 
 	return (state);

@@ -1,0 +1,225 @@
+/*-
+ * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
+ */
+
+/ {
+	compatible = "ti,am335x";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&AINTC>;
+
+	SOC: am335x {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		AINTC: interrupt-controller@48200000 {
+			compatible = "ti,aintc";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg =	< 0x48200000 0x1000 >;
+		};
+
+		scm@44e10000 {
+			compatible = "ti,scm";
+			reg =	< 0x44e10000 0x2000 >;
+			/* Set of triplets < padname, muxname, padstate> */
+			scm-pad-config =
+				/* I2C0 */
+				"I2C0_SDA", "I2C0_SDA","i2c",
+				"I2C0_SCL", "I2C0_SCL","i2c",
+				/* Ethernet */
+				"MII1_RX_ER", "gmii1_rxerr", "input_pulldown",
+				"MII1_TX_EN", "gmii1_txen", "output",
+				"MII1_RX_DV", "gmii1_rxdv", "input_pulldown",
+				"MII1_TXD3", "gmii1_txd3", "output",
+				"MII1_TXD2", "gmii1_txd2", "output",
+				"MII1_TXD1", "gmii1_txd1", "output",
+				"MII1_TXD0", "gmii1_txd0", "output",
+				"MII1_TX_CLK", "gmii1_txclk", "input_pulldown",
+				"MII1_RX_CLK", "gmii1_rxclk", "input_pulldown",
+				"MII1_RXD3", "gmii1_rxd3", "input_pulldown",
+				"MII1_RXD2", "gmii1_rxd2", "input_pulldown",
+				"MII1_RXD1", "gmii1_rxd1",  "input_pulldown",
+				"MII1_RXD0", "gmii1_rxd0",  "input_pulldown",
+				"MDIO", "mdio_data", "input_pullup",
+				"MDC", "mdio_clk", "output_pullup",
+				/* MMCSD0 */
+				"MMC0_CMD", "mmc0_cmd", "input_pullup",
+				"MMC0_CLK", "mmc0_clk", "input_pullup",
+				"MMC0_DAT0", "mmc0_dat0", "input_pullup",
+				"MMC0_DAT1", "mmc0_dat1", "input_pullup",
+				"MMC0_DAT2", "mmc0_dat2", "input_pullup",
+				"MMC0_DAT3", "mmc0_dat3", "input_pullup",
+				/* GPIO */
+				"ECAP0_IN_PWM0_OUT", "gpio0_7", "input_pulldown",
+				"GPMC_AD10", "gpio0_26", "input_pulldown",
+				"GPMC_AD11", "gpio0_27", "input_pulldown",
+				"GPMC_AD0", "gpio1_0", "input_pulldown",
+				"GPMC_AD1", "gpio1_1", "input_pulldown",
+				"GPMC_AD2", "gpio1_2", "input_pulldown",
+				"GPMC_AD3", "gpio1_3", "input_pulldown",
+				"GPMC_AD4", "gpio1_4", "input_pulldown",
+				"GPMC_AD5", "gpio1_5", "input_pulldown",
+				"GPMC_AD6", "gpio1_6", "input_pulldown",
+				"GPMC_AD7", "gpio1_7", "input_pulldown",
+				"GPMC_AD12", "gpio1_12", "input_pulldown",
+				"GPMC_AD13", "gpio1_13", "input_pulldown",
+				"GPMC_AD14", "gpio1_14", "input_pulldown",
+				"GPMC_AD15", "gpio1_15", "input_pulldown",
+				"GPMC_A0", "gpio1_16", "input_pulldown",
+				"GPMC_A1", "gpio1_17", "input_pulldown",
+				"GPMC_A5", "gpio1_21", "output", /* User LED 1 */
+				"GPMC_A6", "gpio1_22", "output", /* User LED 2 */
+				"GPMC_A7", "gpio1_23", "output", /* User LED 3 */
+				"GPMC_A8", "gpio1_24", "output", /* User LED 4 */
+				"GPMC_BEn1", "gpio1_28", "input_pulldown",
+				"GPMC_CSn0", "gpio1_29", "input_pulldown",
+				"GPMC_CSn1", "gpio1_30", "input_pulldown",
+				"GPMC_CSn2", "gpio1_31", "input_pulldown",
+				"GPMC_CLK", "gpio2_1", "input_pulldown",
+				"LCD_DATA0", "gpio2_6", "input_pulldown", 
+				"LCD_DATA1", "gpio2_7", "input_pulldown", 
+				"LCD_DATA2", "gpio2_8", "input_pulldown", 
+				"LCD_DATA3", "gpio2_9", "input_pulldown", 
+				"LCD_DATA4", "gpio2_10", "input_pulldown", 
+				"LCD_DATA5", "gpio2_11", "input_pulldown", 
+				"LCD_DATA6", "gpio2_12", "input_pulldown", 
+				"LCD_DATA7", "gpio2_13", "input_pulldown", 
+				"LCD_VSYNC", "gpio2_22", "input_pulldown",
+				"LCD_HSYNC", "gpio2_23", "input_pulldown",
+				"LCD_PCLK", "gpio2_24", "input_pulldown",
+				"LCD_AC_BIAS_EN", "gpio2_25", "input_pulldown",
+				"MCASP0_FSR", "gpio3_19", "input_pulldown",
+				"MCASP0_AHCLKX", "gpio3_21", "input_pulldown",
+				/* TIMERs */
+				"GPMC_ADVn_ALE", "timer4", "output",
+				"GPMC_BEn0_CLE", "timer5", "output",
+				"GPMC_WEn", "timer6", "output",
+				"GPMC_OEn_REn", "timer7", "output",
+				/* PWM */
+				"GPMC_A2", "ehrpwm1A", "output",
+				"GPMC_A3", "ehrpwm1B", "output",
+				"GPMC_AD8", "ehrpwm2A", "output",
+				"GPMC_AD9", "ehrpwm2B", "output";
+		};
+
+		prcm@44E00000 {
+			compatible = "am335x,prcm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x44E00000 0x1300 >;
+		};
+
+		dmtimers@44E05000 {
+			compatible = "ti,am335x-dmtimer";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg =	< 0x44E05000 0x1000
+				  0x44E31000 0x1000
+				  0x48040000 0x1000
+				  0x48042000 0x1000
+				  0x48044000 0x1000
+				  0x48046000 0x1000
+				  0x48048000 0x1000
+				  0x4804A000 0x1000 >;
+			interrupts = < 66 67 68 69 92 93 94 95 >;
+			interrupt-parent = <&AINTC>;
+		};
+
+		GPIO: gpio {
+			#gpio-cells = <3>;
+			compatible = "ti,gpio";
+			gpio-controller;
+			reg =<	0x44E07000 0x1000
+				0x4804C000 0x1000
+				0x481AC000 0x1000
+				0x481AE000 0x1000 >;
+			interrupts = < 96 97 98 99 32 33 62 63 >;
+			interrupt-parent = <&AINTC>;
+		};
+
+		uart0: serial@44E09000 {
+			compatible = "ns16550";
+			reg = <0x44E09000 0x1000>;
+			reg-shift = <2>;
+			interrupts = < 72 >;
+			interrupt-parent = <&AINTC>;
+			clock-frequency = < 48000000 >; /* FIXME */
+		};
+
+		edma3@49000000 {
+			compatible = "ti,edma3";
+			reg =<	0x49000000 0x100000	/* Channel Controller Regs */
+				0x49800000 0x100000	/* Transfer Controller 0 Regs */
+				0x49900000 0x100000	/* Transfer Controller 1 Regs */
+				0x49a00000 0x100000 >;	/* Transfer Controller 2 Regs */
+			interrupts = <12 13 14>;
+			interrupt-parent = <&AINTC>;
+		};
+
+		mmchs0@4809C000 {
+			compatible = "ti,mmchs";
+			reg =<0x48060000 0x1000 >;
+			interrupts = <64>;
+			interrupt-parent = <&AINTC>;
+			mmchs-device-id = <0>;
+		};
+
+		enet0: ethernet@4A100000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "ti,cpsw";
+			reg = <0x4A100000 0x4000>;
+			interrupts = <40 41 42 43>;
+			interrupt-parent = <&AINTC>;
+			phy-handle = <&phy0>;
+			mdio@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "ti,cpsw-mdio";
+				phy0: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+			};
+		};
+
+		i2c0: i2c@44e0b000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,i2c";
+			reg =<	0x44e0b000 0x1000 >;
+			interrupts = <70>;
+			interrupt-parent = <&AINTC>;
+			i2c-device-id = <0>;
+		};
+	};
+};

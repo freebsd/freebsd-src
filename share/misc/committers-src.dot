@@ -111,6 +111,7 @@ andrew [label="Andrew Turner\nandrew@FreeBSD.org\n2010/07/19"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
+asomers [label="Alan Somers\nasomers@FreeBSD.org\n2013/04/24"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
@@ -194,6 +195,7 @@ jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
 kargl [label="Steven G. Kargl\nkargl@FreeBSD.org\n2011/01/17"]
+ken [label="Ken Merry\nken@FreeBSD.org\n1998/09/08"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
@@ -501,6 +503,8 @@ julian -> adrian
 julian -> zec
 
 kan -> kib
+
+ken -> asomers
 
 kib -> ae
 kib -> dchagin
