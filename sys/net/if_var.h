@@ -158,7 +158,7 @@ struct ifnet {
 	int	if_amcount;		/* number of all-multicast requests */
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
-		(struct ifnet *, struct mbuf *, struct sockaddr *,
+		(struct ifnet *, struct mbuf *, const struct sockaddr *,
 		     struct route *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);

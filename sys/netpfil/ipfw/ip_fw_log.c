@@ -113,7 +113,7 @@ log_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
 
 static int
 ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	if (m != NULL)
 		FREE_PKT(m);

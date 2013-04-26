@@ -622,7 +622,8 @@ passout:
 		 * to avoid confusing lower layers.
 		 */
 		m->m_flags &= ~(M_PROTOFLAGS);
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)gw, ro);
+		error = (*ifp->if_output)(ifp, m,
+		    (const struct sockaddr *)gw, ro);
 		goto done;
 	}
 
@@ -656,7 +657,7 @@ passout:
 			m->m_flags &= ~(M_PROTOFLAGS);
 
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)gw, ro);
+			    (const struct sockaddr *)gw, ro);
 		} else
 			m_freem(m);
 	}

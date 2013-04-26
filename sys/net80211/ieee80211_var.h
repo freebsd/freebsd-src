@@ -497,7 +497,7 @@ struct ieee80211vap {
 				    enum ieee80211_state, int);
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
-				    struct sockaddr *, struct route *);
+				    const struct sockaddr *, struct route *);
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
