@@ -1936,7 +1936,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	if (type == IEEE80211_FC0_TYPE_DATA &&
 	    ATH_NODE(ni)->an_is_powersave &&
-	    atomic_load_acq_int(&ATH_NODE(ni)->an_swq_depth) >
+	    ATH_NODE(ni)->an_swq_depth >
 	     sc->sc_txq_node_psq_maxdepth) {
 		sc->sc_stats.ast_tx_node_psq_overflow++;
 		m_freem(m0);
@@ -2769,7 +2769,7 @@ ath_tx_leak_count_update(struct ath_softc *sc, struct ath_tid *tid,
 		 * Update MORE based on the software/net80211 queue states.
 		 */
 		if ((tid->an->an_stack_psq > 0)
-		    || (atomic_load_acq_int(&tid->an->an_swq_depth) > 0))
+		    || (tid->an->an_swq_depth > 0))
 			wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
 		else
 			wh->i_fc[1] &= ~IEEE80211_FC1_MORE_DATA;
@@ -2781,7 +2781,7 @@ ath_tx_leak_count_update(struct ath_softc *sc, struct ath_tid *tid,
 		    ":",
 		    tid->an->an_leak_count,
 		    tid->an->an_stack_psq,
-		    atomic_load_acq_int(&tid->an->an_swq_depth),
+		    tid->an->an_swq_depth,
 		    !! (wh->i_fc[1] & IEEE80211_FC1_MORE_DATA));
 
 		/*

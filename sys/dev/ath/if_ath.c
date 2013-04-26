@@ -5926,7 +5926,7 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 		an->an_tim_set = 1;
 		ATH_TX_UNLOCK(sc);
 		changed = avp->av_set_tim(ni, enable);
-	} else if (atomic_load_acq_int(&an->an_swq_depth) == 0) {
+	} else if (an->an_swq_depth == 0) {
 		/* disable */
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 		    "%s: %6D: enable=%d, an_swq_depth == 0, disabling\n",
@@ -6031,12 +6031,12 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * Don't bother grabbing the lock unless the queue is not
 		 * empty.
 		 */
-		if (atomic_load_acq_int(&an->an_swq_depth) == 0)
+		if (an->an_swq_depth == 0)
 			return;
 
 		if (an->an_is_powersave &&
 		    an->an_tim_set == 0 &&
-		    atomic_load_acq_int(&an->an_swq_depth) != 0) {
+		    an->an_swq_depth != 0) {
 			DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 			    "%s: %6D: swq_depth>0, tim_set=0, set!\n",
 			    __func__,
@@ -6046,16 +6046,10 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 			(void) avp->av_set_tim(ni, 1);
 		}
 	} else {
-		/*
-		 * Don't bother grabbing the lock unless the queue is empty.
-		 */
-		if (atomic_load_acq_int(&an->an_swq_depth) != 0)
-			return;
-
 		if (an->an_is_powersave &&
 		    an->an_stack_psq == 0 &&
 		    an->an_tim_set == 1 &&
-		    atomic_load_acq_int(&an->an_swq_depth) == 0) {
+		    an->an_swq_depth == 0) {
 			DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 			    "%s: %6D: swq_depth=0, tim_set=1, psq_set=0,"
 			    " clear!\n",
@@ -6161,7 +6155,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	 * Don't bother checking if the TIM bit is set, we really
 	 * only care if there are any frames here!
 	 */
-	if (atomic_load_acq_int(&an->an_swq_depth) == 0) {
+	if (an->an_swq_depth == 0) {
 		ATH_NODE_UNLOCK(an);
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 		    "%s: %6D: SWQ empty; punting to net80211\n",
