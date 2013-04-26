@@ -72,7 +72,7 @@ typedef struct trim_seg {
 	hrtime_t	ts_time;	/* Segment creation time. */
 } trim_seg_t;
 
-extern boolean_t zfs_notrim;
+extern boolean_t zfs_trim_enabled;
 
 static u_int trim_txg_delay = 32;
 static u_int trim_timeout = 30;
@@ -157,7 +157,7 @@ trim_map_create(vdev_t *vd)
 
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 
-	if (zfs_notrim)
+	if (!zfs_trim_enabled)
 		return;
 
 	tm = kmem_zalloc(sizeof (*tm), KM_SLEEP);
@@ -183,7 +183,7 @@ trim_map_destroy(vdev_t *vd)
 
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 
-	if (zfs_notrim)
+	if (!zfs_trim_enabled)
 		return;
 
 	tm = vd->vdev_trimmap;
@@ -340,7 +340,7 @@ trim_map_free(vdev_t *vd, uint64_t offset, uint64_t size, uint64_t txg)
 {
 	trim_map_t *tm = vd->vdev_trimmap;
 
-	if (zfs_notrim || vd->vdev_notrim || tm == NULL)
+	if (!zfs_trim_enabled || vd->vdev_notrim || tm == NULL)
 		return;
 
 	mutex_enter(&tm->tm_lock);
@@ -357,7 +357,7 @@ trim_map_write_start(zio_t *zio)
 	boolean_t left_over, right_over;
 	uint64_t start, end;
 
-	if (zfs_notrim || vd->vdev_notrim || tm == NULL)
+	if (!zfs_trim_enabled || vd->vdev_notrim || tm == NULL)
 		return (B_TRUE);
 
 	start = zio->io_offset;
@@ -404,7 +404,7 @@ trim_map_write_done(zio_t *zio)
 	 * Don't check for vdev_notrim, since the write could have
 	 * started before vdev_notrim was set.
 	 */
-	if (zfs_notrim || tm == NULL)
+	if (!zfs_trim_enabled || tm == NULL)
 		return;
 
 	mutex_enter(&tm->tm_lock);
@@ -589,7 +589,7 @@ void
 trim_thread_create(spa_t *spa)
 {
 
-	if (zfs_notrim)
+	if (!zfs_trim_enabled)
 		return;
 
 	mutex_init(&spa->spa_trim_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -604,7 +604,7 @@ void
 trim_thread_destroy(spa_t *spa)
 {
 
-	if (zfs_notrim)
+	if (!zfs_trim_enabled)
 		return;
 	if (spa->spa_trim_thread == NULL)
 		return;
@@ -627,7 +627,7 @@ void
 trim_thread_wakeup(spa_t *spa)
 {
 
-	if (zfs_notrim)
+	if (!zfs_trim_enabled)
 		return;
 	if (spa->spa_trim_thread == NULL)
 		return;
