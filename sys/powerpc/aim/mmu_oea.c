@@ -2588,9 +2588,6 @@ moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
 	    return (md->md_vaddr + ofs);
 }
 
-/* TODO: Run this on minbar, single calls, to check addresses, offsets, and
- * sizes.  It should be doing more than just single pages.
- */
 struct pmap_md *
 moea_scan_md(mmu_t mmu, struct pmap_md *prev)
 {
