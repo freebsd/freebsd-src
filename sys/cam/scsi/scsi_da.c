@@ -72,6 +72,7 @@ typedef enum {
 	DA_STATE_PROBE_RC16,
 	DA_STATE_PROBE_LBP,
 	DA_STATE_PROBE_BLK_LIMITS,
+	DA_STATE_PROBE_BDC,
 	DA_STATE_PROBE_ATA,
 	DA_STATE_NORMAL
 } da_state;
@@ -104,12 +105,13 @@ typedef enum {
 	DA_CCB_PROBE_RC16	= 0x02,
 	DA_CCB_PROBE_LBP	= 0x03,
 	DA_CCB_PROBE_BLK_LIMITS	= 0x04,
-	DA_CCB_PROBE_ATA	= 0x05,
-	DA_CCB_BUFFER_IO	= 0x06,
-	DA_CCB_WAITING		= 0x07,
-	DA_CCB_DUMP		= 0x08,
-	DA_CCB_DELETE		= 0x0A,
-	DA_CCB_TUR		= 0x0B,
+	DA_CCB_PROBE_BDC	= 0x05,
+	DA_CCB_PROBE_ATA	= 0x06,
+	DA_CCB_BUFFER_IO	= 0x07,
+	DA_CCB_WAITING		= 0x08,
+	DA_CCB_DUMP		= 0x0A,
+	DA_CCB_DELETE		= 0x0B,
+ 	DA_CCB_TUR		= 0x0C,
 	DA_CCB_TYPE_MASK	= 0x0F,
 	DA_CCB_RETRY_UA		= 0x10
 } da_ccb_state;
@@ -2424,6 +2426,39 @@ out:
 		xpt_action(start_ccb);
 		break;
 	}
+	case DA_STATE_PROBE_BDC:
+	{
+		struct scsi_vpd_block_characteristics *bdc;
+
+		if (!scsi_vpd_supported_page(periph, SVPD_BDC)) {
+			softc->state = DA_STATE_PROBE_ATA;
+			goto skipstate;
+		}
+
+		bdc = (struct scsi_vpd_block_characteristics *)
+			malloc(sizeof(*bdc), M_SCSIDA, M_NOWAIT|M_ZERO);
+
+		if (bdc == NULL) {
+			printf("dastart: Couldn't malloc bdc data\n");
+			/* da_free_periph??? */
+			break;
+		}
+
+		scsi_inquiry(&start_ccb->csio,
+			     /*retries*/da_retry_count,
+			     /*cbfcnp*/dadone,
+			     /*tag_action*/MSG_SIMPLE_Q_TAG,
+			     /*inq_buf*/(u_int8_t *)bdc,
+			     /*inq_len*/sizeof(*bdc),
+			     /*evpd*/TRUE,
+			     /*page_code*/SVPD_BDC,
+			     /*sense_len*/SSD_MIN_SIZE,
+			     /*timeout*/da_default_timeout * 1000);
+		start_ccb->ccb_h.ccb_bp = NULL;
+		start_ccb->ccb_h.ccb_state = DA_CCB_PROBE_BDC;
+		xpt_action(start_ccb);
+		break;
+	}
 	case DA_STATE_PROBE_ATA:
 	{
 		struct ata_params *ata_params;
@@ -2904,7 +2939,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_PROBE_ATA;
+		softc->state = DA_STATE_PROBE_BDC;
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -3027,6 +3062,40 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_schedule(periph, priority);
 		return;
 	}
+	case DA_CCB_PROBE_BDC:
+	{
+		struct scsi_vpd_block_characteristics *bdc;
+
+		bdc = (struct scsi_vpd_block_characteristics *)csio->data_ptr;
+
+		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			if (scsi_2btoul(bdc->medium_rotation_rate) ==
+			    SVPD_BDC_RATE_NONE_ROTATING)
+				softc->sort_io_queue = 0;
+		} else {
+			int error;
+			error = daerror(done_ccb, CAM_RETRY_SELTO,
+					SF_RETRY_UA|SF_NO_PRINT);
+			if (error == ERESTART)
+				return;
+			else if (error != 0) {
+				if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+					/* Don't wedge this device's queue */
+					cam_release_devq(done_ccb->ccb_h.path,
+							 /*relsim_flags*/0,
+							 /*reduction*/0,
+							 /*timeout*/0,
+							 /*getcount_only*/0);
+				}
+			}
+		}
+
+		free(bdc, M_SCSIDA);
+		softc->state = DA_STATE_PROBE_ATA;
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+	}
 	case DA_CCB_PROBE_ATA:
 	{
 		int i;
@@ -3047,6 +3116,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					  ata_params->max_dsm_blocks *
 					  ATA_DSM_BLK_RANGES);
 			}
+			/*
+			 * Disable queue sorting for non-rotatational media
+			 * by default
+			 */
+			if (ata_params->media_rotation_rate == 1)
+				softc->sort_io_queue = 0;
 		} else {
 			int error;
 			error = daerror(done_ccb, CAM_RETRY_SELTO,
