@@ -32,6 +32,11 @@ tree:
   * But leave the queue paused, waiting until the transmission on said
     VAP has completed!
 
+* It turns out that there may be some sync issues with various stations
+  and power save support.  So let's add in a hack that forcibly times
+  a station _out_ of being in power save support for now, just in case
+  it does something kooky.
+
 --
 
 * Modify node cleanup to require the tx lock to be held, but have it
