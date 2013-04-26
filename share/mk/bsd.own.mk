@@ -230,9 +230,6 @@ WITHOUT_${var}=
 .if defined(YES_HESIOD)
 WITH_HESIOD=
 .endif
-.if defined(MAKE_IDEA)
-WITH_IDEA=
-.endif
 
 __DEFAULT_YES_OPTIONS = \
     ACCT \
@@ -369,7 +366,6 @@ __DEFAULT_NO_OPTIONS = \
     GPL_DTC \
     HESIOD \
     ICONV \
-    IDEA \
     INSTALL_AS_USER \
     LDNS_UTILS \
     NMTREE \
