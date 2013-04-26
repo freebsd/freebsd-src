@@ -909,8 +909,11 @@ static	void		daasync(void *callback_arg, u_int32_t code,
 static	void		dasysctlinit(void *context, int pending);
 static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
+static	int		dadeletemaxsysctl(SYSCTL_HANDLER_ARGS);
 static	void		dadeletemethodset(struct da_softc *softc,
 					  da_delete_methods delete_method);
+static	off_t		dadeletemaxsize(struct da_softc *softc,
+					da_delete_methods delete_method);
 static	void		dadeletemethodchoose(struct da_softc *softc,
 					     da_delete_methods default_method);
 
@@ -1536,6 +1539,10 @@ dasysctlinit(void *context, int pending)
 		softc, 0, dadeletemethodsysctl, "A",
 		"BIO_DELETE execution method");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "delete_max", CTLTYPE_U64 | CTLFLAG_RW,
+		softc, 0, dadeletemaxsysctl, "Q",
+		"Maximum BIO_DELETE size");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
@@ -1581,6 +1588,29 @@ dasysctlinit(void *context, int pending)
 }
 
 static int
+dadeletemaxsysctl(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint64_t value;
+	struct da_softc *softc;
+
+	softc = (struct da_softc *)arg1;
+
+	value = softc->disk->d_delmaxsize;
+	error = sysctl_handle_64(oidp, &value, 0, req);
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	/* only accept values smaller than the calculated value */
+	if (value > softc->disk->d_delmaxsize) {
+		return (EINVAL);
+	}
+	softc->disk->d_delmaxsize = value;
+
+	return (0);
+}
+
+static int
 dacmdsizesysctl(SYSCTL_HANDLER_ARGS)
 {
 	int error, value;
@@ -1618,11 +1648,39 @@ dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
 
 
 	softc->delete_method = delete_method;
+	softc->disk->d_delmaxsize = dadeletemaxsize(softc, delete_method);
 
 	if (softc->delete_method > DA_DELETE_DISABLE)
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 	else
 		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
+}
+
+static off_t
+dadeletemaxsize(struct da_softc *softc, da_delete_methods delete_method)
+{
+	off_t sectors;
+
+	switch(delete_method) {
+	case DA_DELETE_UNMAP:
+		sectors = (off_t)softc->unmap_max_lba * softc->unmap_max_ranges;
+		break;
+	case DA_DELETE_ATA_TRIM:
+		sectors = (off_t)ATA_DSM_RANGE_MAX * softc->trim_max_ranges;
+		break;
+	case DA_DELETE_WS16:
+		sectors = (off_t)min(softc->ws_max_blks, WS16_MAX_BLKS);
+		break;
+	case DA_DELETE_ZERO:
+	case DA_DELETE_WS10:
+		sectors = (off_t)min(softc->ws_max_blks, WS10_MAX_BLKS);
+		break;
+	default:
+		return 0;
+	}
+
+	return (off_t)softc->params.secsize *
+	    min(sectors, (off_t)softc->params.sectors);
 }
 
 static void
@@ -2088,8 +2146,13 @@ skipstate:
 		    } else if (softc->delete_method == DA_DELETE_ZERO ||
 			       softc->delete_method == DA_DELETE_WS10 ||
 			       softc->delete_method == DA_DELETE_WS16) {
+			/*
+			 * We calculate ws_max_blks here based off d_delmaxsize instead
+			 * of using softc->ws_max_blks as it is absolute max for the
+			 * device not the protocol max which may well be lower
+			 */
 			uint64_t ws_max_blks;
-			ws_max_blks = softc->ws_max_blks / softc->params.secsize;
+			ws_max_blks = softc->disk->d_delmaxsize / softc->params.secsize;
 			softc->delete_running = 1;
 			lba = bp->bio_pblkno;
 			count = 0;
