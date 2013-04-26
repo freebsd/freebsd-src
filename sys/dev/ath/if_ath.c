@@ -4500,6 +4500,7 @@ ath_stoptxdma(struct ath_softc *sc)
 	return 1;
 }
 
+#ifdef	ATH_DEBUG
 static void
 ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq)
 {
@@ -4523,6 +4524,7 @@ ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq)
 	device_printf(sc->sc_dev, "%s: Q%d: end\n",
 	    __func__, txq->axq_qnum);
 }
+#endif /* ATH_DEBUG */
 
 /*
  * Drain the transmit queues and reclaim resources.
@@ -4547,8 +4549,10 @@ ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 		 * here, whether or not the reset is a full one or not?
 		 */
 		if (ATH_TXQ_SETUP(sc, i)) {
+#ifdef	ATH_DEBUG
 			if (sc->sc_debug & ATH_DEBUG_RESET)
 				ath_tx_dump(sc, &sc->sc_txq[i]);
+#endif	/* ATH_DEBUG */
 			if (reset_type == ATH_RESET_NOLOSS)
 				ath_tx_processq(sc, &sc->sc_txq[i], 0);
 			else
