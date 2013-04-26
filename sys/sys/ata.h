@@ -269,6 +269,12 @@ struct ata_params {
 /*255*/ u_int16_t       integrity;
 } __packed;
 
+/* ATA Dataset Management */
+#define ATA_DSM_BLK_SIZE	512
+#define ATA_DSM_BLK_RANGES	64
+#define ATA_DSM_RANGE_SIZE	8
+#define ATA_DSM_RANGE_MAX	65535
+
 /*
  * ATA Device Register
  *
