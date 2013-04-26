@@ -639,7 +639,7 @@ f_device_menu()
 		[ $retval -ne 2 ] && break
 			# Otherwise, the Help button was pressed
 		f_show_help "$helpfile"
-			# Loop back to menu
+			# ...then loop back to menu
 	done
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
