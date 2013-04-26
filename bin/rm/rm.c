@@ -340,7 +340,7 @@ err:
 	fts_close(fts);
 }
 
-void
+static void
 rm_file(char **argv)
 {
 	struct stat sb;
@@ -417,7 +417,7 @@ rm_file(char **argv)
  * System V file system).  In a logging or COW file system, you'll have to
  * have kernel support.
  */
-int
+static int
 rm_overwrite(const char *file, struct stat *sbp)
 {
 	struct stat sb, sb2;
