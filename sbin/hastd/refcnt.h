@@ -32,24 +32,24 @@
 #ifndef __REFCNT_H__
 #define __REFCNT_H__
 
-#include <stdatomic.h>
+#include <machine/atomic.h>
 
 #include "pjdlog.h"
 
-typedef atomic_uint refcnt_t;
+typedef unsigned int refcnt_t;
 
 static __inline void
 refcnt_init(refcnt_t *count, unsigned int v)
 {
 
-	atomic_init(count, v);
+	*count = v;
 }
 
 static __inline void
 refcnt_acquire(refcnt_t *count)
 {
 
-	atomic_fetch_add_explicit(count, 1, memory_order_acquire);
+	atomic_add_acq_int(count, 1);
 }
 
 static __inline unsigned int
@@ -58,7 +58,7 @@ refcnt_release(refcnt_t *count)
 	unsigned int old;
 
 	/* XXX: Should this have a rel membar? */
-	old = atomic_fetch_sub(count, 1);
+	old = atomic_fetchadd_int(count, -1);
 	PJDLOG_ASSERT(old > 0);
 	return (old - 1);
 }
