@@ -545,6 +545,8 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 		sc->sc_stats.ast_rx_decrypt_busy_err++;
 	if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
 		sc->sc_stats.ast_rx_hi_rx_chain++;
+	if (rs->rs_flags & HAL_RX_STBC)
+		sc->sc_stats.ast_rx_stbc++;
 #endif /* AH_SUPPORT_AR5416 */
 
 	if (rs->rs_status != 0) {

@@ -164,7 +164,8 @@ struct ath_stats {
 	u_int32_t	ast_rx_keymiss;
 	u_int32_t	ast_tx_swfiltered;
 	u_int32_t	ast_tx_node_psq_overflow;
-	u_int32_t	ast_pad[14];
+	u_int32_t	ast_rx_stbc;		/* RX STBC frame */
+	u_int32_t	ast_pad[13];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
