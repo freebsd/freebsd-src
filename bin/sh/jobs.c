@@ -417,13 +417,15 @@ showjobs(int change, int mode)
 		if (change && ! jp->changed)
 			continue;
 		showjob(jp, mode);
-		jp->changed = 0;
-		/* Hack: discard jobs for which $! has not been referenced
-		 * in interactive mode when they terminate.
-		 */
-		if (jp->state == JOBDONE && !jp->remembered &&
-				(iflag || jp != bgjob)) {
-			freejob(jp);
+		if (mode == SHOWJOBS_DEFAULT || mode == SHOWJOBS_VERBOSE) {
+			jp->changed = 0;
+			/* Hack: discard jobs for which $! has not been
+			 * referenced in interactive mode when they terminate.
+			 */
+			if (jp->state == JOBDONE && !jp->remembered &&
+					(iflag || jp != bgjob)) {
+				freejob(jp);
+			}
 		}
 	}
 }
