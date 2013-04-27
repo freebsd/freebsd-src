@@ -156,9 +156,8 @@ SRCF+=	divsi3 \
 	umodsi3
 .endif
 
-# FreeBSD-specific atomic intrinsics. Clang provides them as a builtin.
-.if (${MACHINE_CPUARCH} == "arm" && ${COMPILER_TYPE} != "clang") || \
-    ${MACHINE_CPUARCH} == "mips"
+# FreeBSD-specific atomic intrinsics.
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
 SRCF+=	__sync_fetch_and_add_4 \
 	__sync_fetch_and_and_4 \
 	__sync_fetch_and_or_4 \
