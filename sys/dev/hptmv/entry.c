@@ -2605,9 +2605,11 @@ launch_worker_thread(void)
 	 * hpt_worker_thread needs to be suspended after shutdown sync, when fs sync finished.
 	 */
 #if (__FreeBSD_version < 500043)
-	EVENTHANDLER_REGISTER(shutdown_post_sync, shutdown_kproc, hptdaemonproc, SHUTDOWN_PRI_FIRST);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, shutdown_kproc, hptdaemonproc,
+	    SHUTDOWN_PRI_LAST);
 #else 
-	EVENTHANDLER_REGISTER(shutdown_post_sync, kproc_shutdown, hptdaemonproc, SHUTDOWN_PRI_FIRST);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, kproc_shutdown, hptdaemonproc,
+	    SHUTDOWN_PRI_LAST);
 #endif
 }
 /*
