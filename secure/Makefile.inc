@@ -8,10 +8,6 @@ CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt/obj
 CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt
 .endif
 
-.if ${MK_IDEA} == "no"
-CFLAGS+= -DNO_IDEA
-.endif
-
 .if ${MK_OPENSSH} != "no"
 SSHDIR=		${.CURDIR}/../../../crypto/openssh
 .endif
