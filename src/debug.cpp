@@ -17,7 +17,7 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-_LIBCPP_VISIBLE
+_LIBCPP_FUNC_VIS
 __libcpp_db*
 __get_db()
 {
@@ -25,7 +25,7 @@ __get_db()
     return &db;
 }
 
-_LIBCPP_VISIBLE
+_LIBCPP_FUNC_VIS
 const __libcpp_db*
 __get_const_db()
 {
@@ -110,8 +110,7 @@ __libcpp_db::__find_c_from_i(void* __i) const
 {
     RLock _(mut());
     __i_node* i = __find_iterator(__i);
-    _LIBCPP_ASSERT(i != nullptr, "iterator constructed in translation unit with debug mode not enabled."
-                   "  #define _LIBCPP_DEBUG2 1 for that translation unit.");
+    _LIBCPP_ASSERT(i != nullptr, "iterator not found in debug database.");
     return i->__c_ != nullptr ? i->__c_->__c_ : nullptr;
 }
 
@@ -302,7 +301,7 @@ __libcpp_db::__iterator_copy(void* __i, const void* __i0)
     __i_node* i = __find_iterator(__i);
     __i_node* i0 = __find_iterator(__i0);
     __c_node* c0 = i0 != nullptr ? i0->__c_ : nullptr;
-    if (i == nullptr && c0 != nullptr)
+    if (i == nullptr && i0 != nullptr)
         i = __insert_iterator(__i);
     __c_node* c = i != nullptr ? i->__c_ : nullptr;
     if (c != c0)
