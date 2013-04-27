@@ -527,26 +527,26 @@ restart:
 		maplevels[rnode->rn_clev] = TRUE;
 
 		/*
-		 * If the keys differ before the current bisection node
-		 * the search key might rollback to the earliest
-		 * available bisection node, or to the smaller value
-		 * in the current domain (if the owner is bigger than the
+		 * If the keys differ before the current bisection node,
+		 * then the search key might rollback to the earliest
+		 * available bisection node or to the smallest key
+		 * in the current node (if the owner is bigger than the
 		 * search key).
 		 * The maplevels array records any node has been seen
 		 * at a given level.  This aids the search for a valid
 		 * bisection node.
 		 */
 		if (vm_radix_keybarr(rnode, index)) {
-			difflev = vm_radix_keydiff(index, rnode->rn_owner);
 			if (index > rnode->rn_owner) {
+				difflev = vm_radix_keydiff(index,
+				    rnode->rn_owner);
 				if (vm_radix_addlev(&index, maplevels,
 				    difflev) > 0)
 					break;
+				rnode = vm_radix_getroot(rtree);
+				goto restart;
 			} else
-				index = vm_radix_trimkey(rnode->rn_owner,
-				    difflev);
-			rnode = vm_radix_getroot(rtree);
-			goto restart;
+				index = rnode->rn_owner;
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		child = rnode->rn_child[slot];
@@ -628,26 +628,28 @@ restart:
 		maplevels[rnode->rn_clev] = TRUE;
 
 		/*
-		 * If the keys differ before the current bisection node
-		 * the search key might rollback to the earliest
-		 * available bisection node, or to the higher value
-		 * in the current domain (if the owner is smaller than the
+		 * If the keys differ before the current bisection node,
+		 * then the search key might rollback to the earliest
+		 * available bisection node or to the largest key
+		 * in the current node (if the owner is smaller than the
 		 * search key).
 		 * The maplevels array records any node has been seen
 		 * at a given level.  This aids the search for a valid
 		 * bisection node.
 		 */
 		if (vm_radix_keybarr(rnode, index)) {
-			difflev = vm_radix_keydiff(index, rnode->rn_owner);
 			if (index > rnode->rn_owner) {
-				index = vm_radix_trimkey(rnode->rn_owner,
-				    difflev);
-				index |= VM_RADIX_UNITLEVEL(difflev) - 1;
-			} else if (vm_radix_declev(&index, maplevels,
-			    difflev) > 0)
-				break;
-			rnode = vm_radix_getroot(rtree);
-			goto restart;
+				index = rnode->rn_owner + VM_RADIX_COUNT *
+				    VM_RADIX_UNITLEVEL(rnode->rn_clev) - 1;
+			} else {
+				difflev = vm_radix_keydiff(index,
+				    rnode->rn_owner);
+				if (vm_radix_declev(&index, maplevels,
+				    difflev) > 0)
+					break;
+				rnode = vm_radix_getroot(rtree);
+				goto restart;
+			}
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		child = rnode->rn_child[slot];
