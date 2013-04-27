@@ -2744,6 +2744,9 @@ device		urtw
 #
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd
+#
+# Sierra USB wireless driver
+device		usie
 
 # 
 # debugging options for the USB subsystem

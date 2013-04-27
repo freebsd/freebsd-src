@@ -24,9 +24,7 @@
  * Use is subject to license terms.
  */
 
-/*
- * Copyright (c) 2012 by Delphix. All rights reserved.
- */
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * ASSERTION: This test reproduces the alignment error.
@@ -41,10 +39,9 @@
 
 BEGIN
 {
-	x = (int *)64;
+	x = (int *) 64;
 	y = *x;
 	trace(y);
-	exit(0);
 }
 
 ERROR

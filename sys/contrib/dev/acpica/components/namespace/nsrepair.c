@@ -131,7 +131,7 @@ static const ACPI_SIMPLE_REPAIR_INFO    AcpiObjectRepairInfo[] =
  *
  * FUNCTION:    AcpiNsSimpleRepair
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ExpectedBtypes      - Object types expected
  *              PackageIndex        - Index of object within parent package (if
  *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
@@ -148,7 +148,7 @@ static const ACPI_SIMPLE_REPAIR_INFO    AcpiObjectRepairInfo[] =
 
 ACPI_STATUS
 AcpiNsSimpleRepair (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     UINT32                  ExpectedBtypes,
     UINT32                  PackageIndex,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
@@ -166,13 +166,13 @@ AcpiNsSimpleRepair (
      * Special repairs for certain names that are in the repair table.
      * Check if this name is in the list of repairable names.
      */
-    Predefined = AcpiNsMatchSimpleRepair (Data->Node,
-        Data->ReturnBtype, PackageIndex);
+    Predefined = AcpiNsMatchSimpleRepair (Info->Node,
+        Info->ReturnBtype, PackageIndex);
     if (Predefined)
     {
         if (!ReturnObject)
         {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname,
+            ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname,
                 ACPI_WARN_ALWAYS, "Missing expected return value"));
         }
 
@@ -195,7 +195,7 @@ AcpiNsSimpleRepair (
      * Do not perform simple object repair unless the return type is not
      * expected.
      */
-    if (Data->ReturnBtype & ExpectedBtypes)
+    if (Info->ReturnBtype & ExpectedBtypes)
     {
         return (AE_OK);
     }
@@ -218,7 +218,7 @@ AcpiNsSimpleRepair (
     {
         if (ExpectedBtypes && (!(ExpectedBtypes & ACPI_RTYPE_NONE)))
         {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname,
+            ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname,
                 ACPI_WARN_ALWAYS, "Missing expected return value"));
 
             return (AE_AML_NO_RETURN_VALUE);
@@ -259,7 +259,7 @@ AcpiNsSimpleRepair (
          * object. Note: after the wrapping, the package will be validated
          * for correct contents (expected object type or types).
          */
-        Status = AcpiNsWrapWithPackage (Data, ReturnObject, &NewObject);
+        Status = AcpiNsWrapWithPackage (Info, ReturnObject, &NewObject);
         if (ACPI_SUCCESS (Status))
         {
             /*
@@ -267,7 +267,7 @@ AcpiNsSimpleRepair (
              * incremented for being inserted into the new package.
              */
             *ReturnObjectPtr = NewObject;       /* New Package object */
-            Data->Flags |= ACPI_OBJECT_REPAIRED;
+            Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
             return (AE_OK);
         }
     }
@@ -292,7 +292,7 @@ ObjectRepaired:
          * package object as part of the repair, we don't need to
          * change the reference count.
          */
-        if (!(Data->Flags & ACPI_OBJECT_WRAPPED))
+        if (!(Info->ReturnFlags & ACPI_OBJECT_WRAPPED))
         {
             NewObject->Common.ReferenceCount =
                 ReturnObject->Common.ReferenceCount;
@@ -305,14 +305,14 @@ ObjectRepaired:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
             "%s: Converted %s to expected %s at Package index %u\n",
-            Data->Pathname, AcpiUtGetObjectTypeName (ReturnObject),
+            Info->FullPathname, AcpiUtGetObjectTypeName (ReturnObject),
             AcpiUtGetObjectTypeName (NewObject), PackageIndex));
     }
     else
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
             "%s: Converted %s to expected %s\n",
-            Data->Pathname, AcpiUtGetObjectTypeName (ReturnObject),
+            Info->FullPathname, AcpiUtGetObjectTypeName (ReturnObject),
             AcpiUtGetObjectTypeName (NewObject)));
     }
 
@@ -320,7 +320,7 @@ ObjectRepaired:
 
     AcpiUtRemoveReference (ReturnObject);
     *ReturnObjectPtr = NewObject;
-    Data->Flags |= ACPI_OBJECT_REPAIRED;
+    Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
     return (AE_OK);
 }
 
@@ -378,7 +378,7 @@ AcpiNsMatchSimpleRepair (
  *
  * FUNCTION:    AcpiNsRepairNullElement
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ExpectedBtypes      - Object types expected
  *              PackageIndex        - Index of object within parent package (if
  *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
@@ -394,7 +394,7 @@ AcpiNsMatchSimpleRepair (
 
 ACPI_STATUS
 AcpiNsRepairNullElement (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     UINT32                  ExpectedBtypes,
     UINT32                  PackageIndex,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
@@ -451,14 +451,14 @@ AcpiNsRepairNullElement (
 
     /* Set the reference count according to the parent Package object */
 
-    NewObject->Common.ReferenceCount = Data->ParentPackage->Common.ReferenceCount;
+    NewObject->Common.ReferenceCount = Info->ParentPackage->Common.ReferenceCount;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
         "%s: Converted NULL package element to expected %s at index %u\n",
-         Data->Pathname, AcpiUtGetObjectTypeName (NewObject), PackageIndex));
+         Info->FullPathname, AcpiUtGetObjectTypeName (NewObject), PackageIndex));
 
     *ReturnObjectPtr = NewObject;
-    Data->Flags |= ACPI_OBJECT_REPAIRED;
+    Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
     return (AE_OK);
 }
 
@@ -467,7 +467,7 @@ AcpiNsRepairNullElement (
  *
  * FUNCTION:    AcpiNsRemoveNullElements
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              PackageType         - An AcpiReturnPackageTypes value
  *              ObjDesc             - A Package object
  *
@@ -481,7 +481,7 @@ AcpiNsRepairNullElement (
 
 void
 AcpiNsRemoveNullElements (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     UINT8                   PackageType,
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
@@ -546,7 +546,7 @@ AcpiNsRemoveNullElements (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
             "%s: Found and removed %u NULL elements\n",
-            Data->Pathname, (Count - NewCount)));
+            Info->FullPathname, (Count - NewCount)));
 
         /* NULL terminate list and update the package count */
 
@@ -560,7 +560,7 @@ AcpiNsRemoveNullElements (
  *
  * FUNCTION:    AcpiNsWrapWithPackage
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              OriginalObject      - Pointer to the object to repair.
  *              ObjDescPtr          - The new package object is returned here
  *
@@ -582,7 +582,7 @@ AcpiNsRemoveNullElements (
 
 ACPI_STATUS
 AcpiNsWrapWithPackage (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     *OriginalObject,
     ACPI_OPERAND_OBJECT     **ObjDescPtr)
 {
@@ -606,11 +606,11 @@ AcpiNsWrapWithPackage (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
         "%s: Wrapped %s with expected Package object\n",
-        Data->Pathname, AcpiUtGetObjectTypeName (OriginalObject)));
+        Info->FullPathname, AcpiUtGetObjectTypeName (OriginalObject)));
 
     /* Return the new object in the object pointer */
 
     *ObjDescPtr = PkgObjDesc;
-    Data->Flags |= ACPI_OBJECT_REPAIRED | ACPI_OBJECT_WRAPPED;
+    Info->ReturnFlags |= ACPI_OBJECT_REPAIRED | ACPI_OBJECT_WRAPPED;
     return (AE_OK);
 }

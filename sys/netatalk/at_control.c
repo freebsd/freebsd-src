@@ -721,7 +721,7 @@ at_ifinit(struct ifnet *ifp, struct at_ifaddr *aa, struct sockaddr_at *sat)
  * check whether a given address is a broadcast address for us..
  */
 int
-at_broadcast(struct sockaddr_at *sat)
+at_broadcast(const struct sockaddr_at *sat)
 {
 	struct at_ifaddr *aa;
 

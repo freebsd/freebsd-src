@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.109 2012/07/07 15:33:02 haesbaert Exp $ */
+/* $OpenBSD: netcat.c,v 1.111 2013/03/20 09:27:56 sthen Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -77,6 +77,7 @@ int	dflag;					/* detached, no stdin */
 unsigned int iflag;				/* Interval Flag */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
+int	Nflag;					/* shutdown() network socket */
 int	nflag;					/* Don't do name look up */
 int	FreeBSD_Oflag;				/* Do not use TCP options */
 char   *Pflag;					/* Proxy username */
@@ -153,7 +154,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt_long(argc, argv,
-	    "46DdEe:hI:i:klnoO:P:p:rSs:tT:UuV:vw:X:x:z",
+	    "46DdEe:hI:i:klNnoO:P:p:rSs:tT:UuV:vw:X:x:z",
 	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
@@ -206,6 +207,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			lflag = 1;
+			break;
+		case 'N':
+			Nflag = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -424,9 +428,10 @@ main(int argc, char *argv[])
 				len = sizeof(cliaddr);
 				connfd = accept(s, (struct sockaddr *)&cliaddr,
 				    &len);
-				if (connfd == -1)
-					err(1, "accept");
-
+				if (connfd == -1) {
+					/* For now, all errnos are fatal */
+   					err(1, "accept");
+				}
 				if (vflag)
 					report_connect((struct sockaddr *)&cliaddr, len);
 
@@ -833,7 +838,8 @@ readwrite(int nfd)
 			if ((n = read(wfd, buf, plen)) < 0)
 				return;
 			else if (n == 0) {
-				shutdown(nfd, SHUT_WR);
+				if (Nflag)
+					shutdown(nfd, SHUT_WR);
 				pfd[1].fd = -1;
 				pfd[1].events = 0;
 			} else {
@@ -1087,6 +1093,7 @@ help(void)
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
+	\t-N		Shutdown the network socket after EOF on stdin\n\
 	\t-n		Suppress name/port resolutions\n\
 	\t--no-tcpopt	Disable TCP options\n\
 	\t-O length	TCP send buffer length\n\
@@ -1139,9 +1146,9 @@ usage(int ret)
 {
 	fprintf(stderr,
 #ifdef IPSEC
-	    "usage: nc [-46DdEhklnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdEhklNnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
 #else
-	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdhklNnrStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
 	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
 	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"

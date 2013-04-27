@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.371 2013/02/17 23:16:57 dtucker Exp $ */
+/* $OpenBSD: ssh.c,v 1.373 2013/02/22 22:09:01 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -598,7 +598,8 @@ main(int ac, char **av)
 			dummy = 1;
 			line = xstrdup(optarg);
 			if (process_config_line(&options, host ? host : "",
-			    line, "command-line", 0, &dummy) != 0)
+			    line, "command-line", 0, &dummy, SSHCONF_USERCONF)
+			    != 0)
 				exit(255);
 			xfree(line);
 			break;
@@ -692,14 +693,15 @@ main(int ac, char **av)
 	 * file if the user specifies a config file on the command line.
 	 */
 	if (config != NULL) {
-		if (!read_config_file(config, host, &options, 0))
+		if (!read_config_file(config, host, &options, SSHCONF_USERCONF))
 			fatal("Can't open user config file %.100s: "
 			    "%.100s", config, strerror(errno));
 	} else {
 		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
 		    _PATH_SSH_USER_CONFFILE);
 		if (r > 0 && (size_t)r < sizeof(buf))
-			(void)read_config_file(buf, host, &options, 1);
+			(void)read_config_file(buf, host, &options,
+			     SSHCONF_CHECKPERM|SSHCONF_USERCONF);
 
 		/* Read systemwide configuration file after user config. */
 		(void)read_config_file(_PATH_HOST_CONFIG_FILE, host,
@@ -1611,7 +1613,8 @@ load_public_identity_files(void)
 		fatal("load_public_identity_files: gethostname: %s",
 		    strerror(errno));
 	for (i = 0; i < options.num_identity_files; i++) {
-		if (n_ids >= SSH_MAX_IDENTITY_FILES) {
+		if (n_ids >= SSH_MAX_IDENTITY_FILES ||
+		    strcasecmp(options.identity_files[i], "none") == 0) {
 			xfree(options.identity_files[i]);
 			continue;
 		}

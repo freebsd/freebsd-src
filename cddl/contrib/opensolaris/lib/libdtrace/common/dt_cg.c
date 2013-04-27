@@ -19,15 +19,12 @@
  *
  * CDDL HEADER END
  */
-
 /*
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-/*
- * Copyright (c) 2012 by Delphix. All rights reserved.
- */
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/sysmacros.h>
@@ -196,6 +193,9 @@ dt_cg_ptrsize(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp,
 	ssize_t size;
 	int sreg;
 
+	if ((sreg = dt_regset_alloc(drp)) == -1)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 	type = ctf_type_resolve(ctfp, dnp->dn_type);
 	kind = ctf_type_kind(ctfp, type);
 	assert(kind == CTF_K_POINTER || kind == CTF_K_ARRAY);
@@ -212,7 +212,6 @@ dt_cg_ptrsize(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp,
 	if ((size = ctf_type_size(ctfp, type)) == 1)
 		return; /* multiply or divide by one can be omitted */
 
-	sreg = dt_regset_alloc(drp);
 	dt_cg_setx(dlp, sreg, size);
 	instr = DIF_INSTR_FMT(op, dreg, sreg, dreg);
 	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
@@ -252,7 +251,9 @@ dt_cg_field_get(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp,
 
 	assert(dnp->dn_op == DT_TOK_PTR || dnp->dn_op == DT_TOK_DOT);
 	r1 = dnp->dn_left->dn_reg;
-	r2 = dt_regset_alloc(drp);
+
+	if ((r2 = dt_regset_alloc(drp)) == -1)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 	/*
 	 * On little-endian architectures, ctm_offset counts from the right so
@@ -355,9 +356,10 @@ dt_cg_field_set(dt_node_t *src, dt_irlist_t *dlp,
 		    "bits %u\n", m.ctm_offset, m.ctm_type, e.cte_bits);
 	}
 
-	r1 = dt_regset_alloc(drp);
-	r2 = dt_regset_alloc(drp);
-	r3 = dt_regset_alloc(drp);
+	if ((r1 = dt_regset_alloc(drp)) == -1 ||
+	    (r2 = dt_regset_alloc(drp)) == -1 ||
+	    (r3 = dt_regset_alloc(drp)) == -1)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 	/*
 	 * Compute shifts and masks.  We need to compute "shift" as the amount
@@ -421,7 +423,8 @@ dt_cg_store(dt_node_t *src, dt_irlist_t *dlp, dt_regset_t *drp, dt_node_t *dst)
 		size = dt_node_type_size(src);
 
 	if (src->dn_flags & DT_NF_REF) {
-		reg = dt_regset_alloc(drp);
+		if ((reg = dt_regset_alloc(drp)) == -1)
+			longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 		dt_cg_setx(dlp, reg, size);
 		instr = DIF_INSTR_COPYS(src->dn_reg, reg, dst->dn_reg);
 		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
@@ -471,58 +474,30 @@ dt_cg_typecast(const dt_node_t *src, const dt_node_t *dst,
 	size_t dstsize = dt_node_type_size(dst);
 
 	dif_instr_t instr;
-	int rg;
+	int reg, n;
 
-	if (!dt_node_is_scalar(dst))
-		return; /* not a scalar */
-	if (dstsize == srcsize &&
-	    ((src->dn_flags ^ dst->dn_flags) & DT_NF_SIGNED) != 0)
-		return; /* not narrowing or changing signed-ness */
-	if (dstsize > srcsize && (src->dn_flags & DT_NF_SIGNED) == 0)
-		return; /* nothing to do in this case */
+	if (dt_node_is_scalar(dst) && (dstsize < srcsize ||
+	    (src->dn_flags & DT_NF_SIGNED) ^ (dst->dn_flags & DT_NF_SIGNED))) {
+		if ((reg = dt_regset_alloc(drp)) == -1)
+			longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
-	rg = dt_regset_alloc(drp);
+		if (dstsize < srcsize)
+			n = sizeof (uint64_t) * NBBY - dstsize * NBBY;
+		else
+			n = sizeof (uint64_t) * NBBY - srcsize * NBBY;
 
-	if (dstsize > srcsize) {
-		int n = sizeof (uint64_t) * NBBY - srcsize * NBBY;
-		int s = (dstsize - srcsize) * NBBY;
+		dt_cg_setx(dlp, reg, n);
 
-		dt_cg_setx(dlp, rg, n);
-
-		instr = DIF_INSTR_FMT(DIF_OP_SLL, src->dn_reg, rg, dst->dn_reg);
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-
-		if ((dst->dn_flags & DT_NF_SIGNED) || n == s) {
-			instr = DIF_INSTR_FMT(DIF_OP_SRA,
-			    dst->dn_reg, rg, dst->dn_reg);
-			dt_irlist_append(dlp,
-			    dt_cg_node_alloc(DT_LBL_NONE, instr));
-		} else {
-			dt_cg_setx(dlp, rg, s);
-			instr = DIF_INSTR_FMT(DIF_OP_SRA,
-			    dst->dn_reg, rg, dst->dn_reg);
-			dt_irlist_append(dlp,
-			    dt_cg_node_alloc(DT_LBL_NONE, instr));
-			dt_cg_setx(dlp, rg, n - s);
-			instr = DIF_INSTR_FMT(DIF_OP_SRL,
-			    dst->dn_reg, rg, dst->dn_reg);
-			dt_irlist_append(dlp,
-			    dt_cg_node_alloc(DT_LBL_NONE, instr));
-		}
-	} else if (dstsize != sizeof (uint64_t)) {
-		int n = sizeof (uint64_t) * NBBY - dstsize * NBBY;
-
-		dt_cg_setx(dlp, rg, n);
-
-		instr = DIF_INSTR_FMT(DIF_OP_SLL, src->dn_reg, rg, dst->dn_reg);
+		instr = DIF_INSTR_FMT(DIF_OP_SLL,
+		    src->dn_reg, reg, dst->dn_reg);
 		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
 
 		instr = DIF_INSTR_FMT((dst->dn_flags & DT_NF_SIGNED) ?
-		    DIF_OP_SRA : DIF_OP_SRL, dst->dn_reg, rg, dst->dn_reg);
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-	}
+		    DIF_OP_SRA : DIF_OP_SRL, dst->dn_reg, reg, dst->dn_reg);
 
-	dt_regset_free(drp, rg);
+		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+		dt_regset_free(drp, reg);
+	}
 }
 
 /*
@@ -548,7 +523,8 @@ dt_cg_arglist(dt_ident_t *idp, dt_node_t *args,
 	for (dnp = args; dnp != NULL; dnp = dnp->dn_list)
 		dt_cg_node(dnp, dlp, drp);
 
-	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, DIF_INSTR_FLUSHTS));
+	dt_irlist_append(dlp,
+	    dt_cg_node_alloc(DT_LBL_NONE, DIF_INSTR_FLUSHTS));
 
 	for (dnp = args; dnp != NULL; dnp = dnp->dn_list, i++) {
 		dtrace_diftype_t t;
@@ -562,18 +538,17 @@ dt_cg_arglist(dt_ident_t *idp, dt_node_t *args,
 		dt_cg_typecast(dnp, &isp->dis_args[i], dlp, drp);
 		isp->dis_args[i].dn_reg = -1;
 
-		if (t.dtdt_flags & DIF_TF_BYREF) {
+		if (t.dtdt_flags & DIF_TF_BYREF)
 			op = DIF_OP_PUSHTR;
-			if (t.dtdt_size != 0) {
-				reg = dt_regset_alloc(drp);
-				dt_cg_setx(dlp, reg, t.dtdt_size);
-			} else {
-				reg = DIF_REG_R0;
-			}
-		} else {
+		else
 			op = DIF_OP_PUSHTV;
+
+		if (t.dtdt_size != 0) {
+			if ((reg = dt_regset_alloc(drp)) == -1)
+				longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+			dt_cg_setx(dlp, reg, t.dtdt_size);
+		} else
 			reg = DIF_REG_R0;
-		}
 
 		instr = DIF_INSTR_PUSHTS(op, t.dtdt_kind, reg, dnp->dn_reg);
 		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
@@ -654,7 +629,9 @@ dt_cg_prearith_op(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp, uint_t op)
 	dt_cg_node(dnp->dn_child, dlp, drp);
 	dnp->dn_reg = dnp->dn_child->dn_reg;
 
-	reg = dt_regset_alloc(drp);
+	if ((reg = dt_regset_alloc(drp)) == -1)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 	dt_cg_setx(dlp, reg, size);
 
 	instr = DIF_INSTR_FMT(op, dnp->dn_reg, reg, dnp->dn_reg);
@@ -711,7 +688,9 @@ dt_cg_postarith_op(dt_node_t *dnp, dt_irlist_t *dlp,
 	dt_cg_node(dnp->dn_child, dlp, drp);
 	dnp->dn_reg = dnp->dn_child->dn_reg;
 
-	nreg = dt_regset_alloc(drp);
+	if ((nreg = dt_regset_alloc(drp)) == -1)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 	dt_cg_setx(dlp, nreg, size);
 	instr = DIF_INSTR_FMT(op, dnp->dn_reg, nreg, nreg);
 	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
@@ -1029,7 +1008,9 @@ dt_cg_asgn_op(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 		 * set it to the size of our data structure, and then replace
 		 * it with the result of an allocs of the specified size.
 		 */
-		r1 = dt_regset_alloc(drp);
+		if ((r1 = dt_regset_alloc(drp)) == -1)
+			longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 		dt_cg_setx(dlp, r1,
 		    ctf_type_size(dxp->dx_dst_ctfp, dxp->dx_dst_base));
 
@@ -1073,7 +1054,8 @@ dt_cg_asgn_op(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 			 * and add r1 to it before storing the result.
 			 */
 			if (ctm.ctm_offset != 0) {
-				r2 = dt_regset_alloc(drp);
+				if ((r2 = dt_regset_alloc(drp)) == -1)
+					longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 				/*
 				 * Add the member offset rounded down to the
@@ -1160,7 +1142,8 @@ dt_cg_assoc_op(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 
 	dt_cg_arglist(dnp->dn_ident, dnp->dn_args, dlp, drp);
 
-	dnp->dn_reg = dt_regset_alloc(drp);
+	if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 	if (dnp->dn_ident->di_flags & DT_IDFLG_TLS)
 		op = DIF_OP_LDTAA;
@@ -1290,7 +1273,9 @@ dt_cg_array_op(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 	if ((size = dt_node_type_size(dnp)) == sizeof (uint64_t))
 		return;
 
-	reg = dt_regset_alloc(drp);
+	if ((reg = dt_regset_alloc(drp)) == -1)
+		longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 	assert(size < sizeof (uint64_t));
 	n = sizeof (uint64_t) * NBBY - size * NBBY;
 
@@ -1387,162 +1372,6 @@ dt_cg_func_typeref(dtrace_hdl_t *dtp, dt_node_t *dnp)
 	typs->dn_value = ctf_type_size(dtt.dtt_ctfp, dtt.dtt_type);
 }
 
-typedef struct dt_xlmemb {
-	dt_ident_t *dtxl_idp;		/* translated ident */
-	dt_irlist_t *dtxl_dlp;		/* instruction list */
-	dt_regset_t *dtxl_drp;		/* register set */
-	int dtxl_sreg;			/* location of the translation input */
-	int dtxl_dreg;			/* location of our allocated buffer */
-} dt_xlmemb_t;
-
-/*ARGSUSED*/
-static int
-dt_cg_xlate_member(const char *name, ctf_id_t type, ulong_t off, void *arg)
-{
-	dt_xlmemb_t *dx = arg;
-	dt_ident_t *idp = dx->dtxl_idp;
-	dt_irlist_t *dlp = dx->dtxl_dlp;
-	dt_regset_t *drp = dx->dtxl_drp;
-
-	dt_node_t *mnp;
-	dt_xlator_t *dxp;
-
-	int reg, treg;
-	uint32_t instr;
-	size_t size;
-
-	/* Generate code for the translation. */
-	dxp = idp->di_data;
-	mnp = dt_xlator_member(dxp, name);
-
-	/* If there's no translator for the given member, skip it. */
-	if (mnp == NULL)
-		return (0);
-
-	dxp->dx_ident->di_flags |= DT_IDFLG_CGREG;
-	dxp->dx_ident->di_id = dx->dtxl_sreg;
-
-	dt_cg_node(mnp->dn_membexpr, dlp, drp);
-
-	dxp->dx_ident->di_flags &= ~DT_IDFLG_CGREG;
-	dxp->dx_ident->di_id = 0;
-
-	treg = mnp->dn_membexpr->dn_reg;
-
-	/* Compute the offset into our buffer and store the result there. */
-	reg = dt_regset_alloc(drp);
-
-	dt_cg_setx(dlp, reg, off / NBBY);
-	instr = DIF_INSTR_FMT(DIF_OP_ADD, dx->dtxl_dreg, reg, reg);
-	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-
-	size = ctf_type_size(mnp->dn_membexpr->dn_ctfp,
-	    mnp->dn_membexpr->dn_type);
-	if (dt_node_is_scalar(mnp->dn_membexpr)) {
-		/*
-		 * Copying scalars is simple.
-		 */
-		switch (size) {
-		case 1:
-			instr = DIF_INSTR_STORE(DIF_OP_STB, treg, reg);
-			break;
-		case 2:
-			instr = DIF_INSTR_STORE(DIF_OP_STH, treg, reg);
-			break;
-		case 4:
-			instr = DIF_INSTR_STORE(DIF_OP_STW, treg, reg);
-			break;
-		case 8:
-			instr = DIF_INSTR_STORE(DIF_OP_STX, treg, reg);
-			break;
-		default:
-			xyerror(D_UNKNOWN, "internal error -- unexpected "
-			    "size: %lu\n", (ulong_t)size);
-		}
-
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-
-	} else if (dt_node_is_string(mnp->dn_membexpr)) {
-		int szreg;
-
-		/*
-		 * Use the copys instruction for strings.
-		 */
-		szreg = dt_regset_alloc(drp);
-		dt_cg_setx(dlp, szreg, size);
-		instr = DIF_INSTR_COPYS(treg, szreg, reg);
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-		dt_regset_free(drp, szreg);
-	} else {
-		int szreg;
-
-		/*
-		 * If it's anything else then we'll just bcopy it.
-		 */
-		szreg = dt_regset_alloc(drp);
-		dt_cg_setx(dlp, szreg, size);
-		dt_irlist_append(dlp,
-		    dt_cg_node_alloc(DT_LBL_NONE, DIF_INSTR_FLUSHTS));
-		instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF,
-		    DIF_REG_R0, treg);
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-		instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF,
-		    DIF_REG_R0, reg);
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-		instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF,
-		    DIF_REG_R0, szreg);
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-		instr = DIF_INSTR_CALL(DIF_SUBR_BCOPY, szreg);
-		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-		dt_regset_free(drp, szreg);
-	}
-
-	dt_regset_free(drp, reg);
-	dt_regset_free(drp, treg);
-
-	return (0);
-}
-
-/*
- * If we're expanding a translated type, we create an appropriately sized
- * buffer with alloca() and then translate each member into it.
- */
-static int
-dt_cg_xlate_expand(dt_node_t *dnp, dt_ident_t *idp, dt_irlist_t *dlp,
-    dt_regset_t *drp)
-{
-	dt_xlmemb_t dlm;
-	uint32_t instr;
-	int dreg;
-	size_t size;
-
-	dreg = dt_regset_alloc(drp);
-	size = ctf_type_size(dnp->dn_ident->di_ctfp, dnp->dn_ident->di_type);
-
-	/* Call alloca() to create the buffer. */
-	dt_cg_setx(dlp, dreg, size);
-
-	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, DIF_INSTR_FLUSHTS));
-
-	instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF, DIF_REG_R0, dreg);
-	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-
-	instr = DIF_INSTR_CALL(DIF_SUBR_ALLOCA, dreg);
-	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
-
-	/* Generate the translation for each member. */
-	dlm.dtxl_idp = idp;
-	dlm.dtxl_dlp = dlp;
-	dlm.dtxl_drp = drp;
-	dlm.dtxl_sreg = dnp->dn_reg;
-	dlm.dtxl_dreg = dreg;
-	(void) ctf_member_iter(dnp->dn_ident->di_ctfp,
-	    dnp->dn_ident->di_type, dt_cg_xlate_member,
-	    &dlm);
-
-	return (dreg);
-}
-
 static void
 dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 {
@@ -1555,6 +1384,7 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 	dt_ident_t *idp;
 	ssize_t stroff;
 	uint_t op;
+	int reg;
 
 	switch (dnp->dn_op) {
 	case DT_TOK_COMMA:
@@ -1756,16 +1586,7 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 		dt_cg_node(dnp->dn_child, dlp, drp);
 		dnp->dn_reg = dnp->dn_child->dn_reg;
 
-		if (dt_node_is_dynamic(dnp->dn_child)) {
-			int reg;
-			idp = dt_node_resolve(dnp->dn_child, DT_IDENT_XLPTR);
-			assert(idp != NULL);
-			reg = dt_cg_xlate_expand(dnp, idp, dlp, drp);
-
-			dt_regset_free(drp, dnp->dn_child->dn_reg);
-			dnp->dn_reg = reg;
-
-		} else if (!(dnp->dn_flags & DT_NF_REF)) {
+		if (!(dnp->dn_flags & DT_NF_REF)) {
 			uint_t ubit = dnp->dn_flags & DT_NF_USERLAND;
 
 			/*
@@ -1801,7 +1622,10 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 
 	case DT_TOK_SIZEOF: {
 		size_t size = dt_node_sizeof(dnp->dn_child);
-		dnp->dn_reg = dt_regset_alloc(drp);
+
+		if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+			longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 		assert(size != 0);
 		dt_cg_setx(dlp, dnp->dn_reg, size);
 		break;
@@ -1826,7 +1650,8 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 			assert(dxp->dx_ident->di_flags & DT_IDFLG_CGREG);
 			assert(dxp->dx_ident->di_id != 0);
 
-			dnp->dn_reg = dt_regset_alloc(drp);
+			if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+				longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 			if (dxp->dx_arg == -1) {
 				instr = DIF_INSTR_MOV(
@@ -1910,9 +1735,8 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 		}
 
 		if (m.ctm_offset != 0) {
-			int reg;
-
-			reg = dt_regset_alloc(drp);
+			if ((reg = dt_regset_alloc(drp)) == -1)
+				longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 			/*
 			 * If the offset is not aligned on a byte boundary, it
@@ -1958,7 +1782,8 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 		break;
 
 	case DT_TOK_STRING:
-		dnp->dn_reg = dt_regset_alloc(drp);
+		if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+			longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 		assert(dnp->dn_kind == DT_NODE_STRING);
 		stroff = dt_strtab_insert(yypcb->pcb_strtab, dnp->dn_string);
@@ -1981,7 +1806,8 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 		 */
 		if (dnp->dn_kind == DT_NODE_VAR &&
 		    (dnp->dn_ident->di_flags & DT_IDFLG_CGREG)) {
-			dnp->dn_reg = dt_regset_alloc(drp);
+			if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+				longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 			instr = DIF_INSTR_MOV(dnp->dn_ident->di_id,
 			    dnp->dn_reg);
 			dt_irlist_append(dlp,
@@ -2022,9 +1848,11 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 
 			dt_cg_arglist(dnp->dn_ident, dnp->dn_args, dlp, drp);
 
-			dnp->dn_reg = dt_regset_alloc(drp);
-			instr = DIF_INSTR_CALL(dnp->dn_ident->di_id,
-			    dnp->dn_reg);
+			if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+				longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
+			instr = DIF_INSTR_CALL(
+			    dnp->dn_ident->di_id, dnp->dn_reg);
 
 			dt_irlist_append(dlp,
 			    dt_cg_node_alloc(DT_LBL_NONE, instr));
@@ -2052,7 +1880,8 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 				break;
 			}
 
-			dnp->dn_reg = dt_regset_alloc(drp);
+			if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+				longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
 
 			if (dnp->dn_ident->di_flags & DT_IDFLG_LOCAL)
 				op = DIF_OP_LDLS;
@@ -2082,7 +1911,9 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 				    dtrace_errmsg(dtp, dtrace_errno(dtp)));
 			}
 
-			dnp->dn_reg = dt_regset_alloc(drp);
+			if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+				longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 			dt_cg_xsetx(dlp, dnp->dn_ident,
 			    DT_LBL_NONE, dnp->dn_reg, sym.st_value);
 
@@ -2102,7 +1933,9 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 		break;
 
 	case DT_TOK_INT:
-		dnp->dn_reg = dt_regset_alloc(drp);
+		if ((dnp->dn_reg = dt_regset_alloc(drp)) == -1)
+			longjmp(yypcb->pcb_jmpbuf, EDT_NOREG);
+
 		dt_cg_setx(dlp, dnp->dn_reg, dnp->dn_value);
 		break;
 
@@ -2117,7 +1950,6 @@ dt_cg(dt_pcb_t *pcb, dt_node_t *dnp)
 {
 	dif_instr_t instr;
 	dt_xlator_t *dxp;
-	dt_ident_t *idp;
 
 	if (pcb->pcb_regs == NULL && (pcb->pcb_regs =
 	    dt_regset_create(pcb->pcb_hdl->dt_conf.dtc_difintregs)) == NULL)
@@ -2144,9 +1976,9 @@ dt_cg(dt_pcb_t *pcb, dt_node_t *dnp)
 	assert(pcb->pcb_dret == NULL);
 	pcb->pcb_dret = dnp;
 
-	if (dt_node_resolve(dnp, DT_IDENT_XLPTR) != NULL) {
+	if (dt_node_is_dynamic(dnp)) {
 		dnerror(dnp, D_CG_DYN, "expression cannot evaluate to result "
-		    "of a translated pointer\n");
+		    "of dynamic type\n");
 	}
 
 	/*
@@ -2162,14 +1994,6 @@ dt_cg(dt_pcb_t *pcb, dt_node_t *dnp)
 	}
 
 	dt_cg_node(dnp, &pcb->pcb_ir, pcb->pcb_regs);
-
-	if ((idp = dt_node_resolve(dnp, DT_IDENT_XLSOU)) != NULL) {
-		int reg = dt_cg_xlate_expand(dnp, idp,
-		    &pcb->pcb_ir, pcb->pcb_regs);
-		dt_regset_free(pcb->pcb_regs, dnp->dn_reg);
-		dnp->dn_reg = reg;
-	}
-
 	instr = DIF_INSTR_RET(dnp->dn_reg);
 	dt_regset_free(pcb->pcb_regs, dnp->dn_reg);
 	dt_irlist_append(&pcb->pcb_ir, dt_cg_node_alloc(DT_LBL_NONE, instr));
@@ -2179,7 +2003,4 @@ dt_cg(dt_pcb_t *pcb, dt_node_t *dnp)
 		dxp->dx_ident->di_id = 0;
 		dxp->dx_ident->di_flags &= ~DT_IDFLG_CGREG;
 	}
-
-	dt_regset_free(pcb->pcb_regs, 0);
-	dt_regset_assert_free(pcb->pcb_regs);
 }

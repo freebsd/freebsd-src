@@ -374,6 +374,7 @@ contrib/dev/acpica/components/hardware/hwxface.c	optional acpi
 contrib/dev/acpica/components/hardware/hwxfsleep.c	optional acpi
 contrib/dev/acpica/components/namespace/nsaccess.c	optional acpi
 contrib/dev/acpica/components/namespace/nsalloc.c	optional acpi
+contrib/dev/acpica/components/namespace/nsarguments.c	optional acpi
 contrib/dev/acpica/components/namespace/nsconvert.c	optional acpi
 contrib/dev/acpica/components/namespace/nsdump.c	optional acpi
 contrib/dev/acpica/components/namespace/nseval.c	optional acpi
@@ -1284,6 +1285,7 @@ dev/etherswitch/mdio_if.m		optional miiproxy
 dev/etherswitch/mdio.c			optional miiproxy
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
+dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
@@ -2404,6 +2406,7 @@ fs/nfsclient/nfs_clvfsops.c	optional nfscl
 fs/nfsclient/nfs_clport.c	optional nfscl
 fs/nfsclient/nfs_clbio.c	optional nfscl
 fs/nfsclient/nfs_clnfsiod.c	optional nfscl
+fs/nfsserver/nfs_fha_new.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdsocket.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdsubs.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdstate.c	optional nfsd inet
@@ -2495,6 +2498,7 @@ geom/label/g_label_ntfs.c	optional geom_label
 geom/label/g_label_reiserfs.c	optional geom_label
 geom/label/g_label_ufs.c	optional geom_label
 geom/label/g_label_gpt.c	optional geom_label
+geom/label/g_label_disk_ident.c	optional geom_label
 geom/linux_lvm/g_linux_lvm.c	optional geom_linux_lvm
 geom/mirror/g_mirror.c		optional geom_mirror
 geom/mirror/g_mirror_ctl.c	optional geom_mirror
@@ -3201,6 +3205,7 @@ nfs/bootp_subr.c		optional bootp nfsclient | bootp nfscl
 nfs/krpc_subr.c			optional bootp nfsclient | bootp nfscl
 nfs/nfs_common.c		optional nfsclient | nfsserver
 nfs/nfs_diskless.c		optional nfsclient nfs_root | nfscl nfs_root
+nfs/nfs_fha.c			optional nfsserver | nfsd
 nfs/nfs_lock.c			optional nfsclient | nfscl | nfslockd | nfsd
 nfsclient/nfs_bio.c		optional nfsclient
 nfsclient/nfs_node.c		optional nfsclient
@@ -3209,7 +3214,7 @@ nfsclient/nfs_subs.c		optional nfsclient
 nfsclient/nfs_nfsiod.c		optional nfsclient
 nfsclient/nfs_vfsops.c		optional nfsclient
 nfsclient/nfs_vnops.c		optional nfsclient
-nfsserver/nfs_fha.c		optional nfsserver
+nfsserver/nfs_fha_old.c		optional nfsserver
 nfsserver/nfs_serv.c		optional nfsserver
 nfsserver/nfs_srvkrpc.c		optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver

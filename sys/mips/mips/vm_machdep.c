@@ -613,6 +613,16 @@ dump_trapframe(struct trapframe *trapframe)
 	DB_PRINT_REG(trapframe, a1);
 	DB_PRINT_REG(trapframe, a2);
 	DB_PRINT_REG(trapframe, a3);
+#if defined(__mips_n32) || defined(__mips_n64)
+	DB_PRINT_REG(trapframe, a4);
+	DB_PRINT_REG(trapframe, a5);
+	DB_PRINT_REG(trapframe, a6);
+	DB_PRINT_REG(trapframe, a7);
+	DB_PRINT_REG(trapframe, t0);
+	DB_PRINT_REG(trapframe, t1);
+	DB_PRINT_REG(trapframe, t2);
+	DB_PRINT_REG(trapframe, t3);
+#else
 	DB_PRINT_REG(trapframe, t0);
 	DB_PRINT_REG(trapframe, t1);
 	DB_PRINT_REG(trapframe, t2);
@@ -621,6 +631,7 @@ dump_trapframe(struct trapframe *trapframe)
 	DB_PRINT_REG(trapframe, t5);
 	DB_PRINT_REG(trapframe, t6);
 	DB_PRINT_REG(trapframe, t7);
+#endif
 	DB_PRINT_REG(trapframe, s0);
 	DB_PRINT_REG(trapframe, s1);
 	DB_PRINT_REG(trapframe, s2);

@@ -88,8 +88,6 @@ static struct lirqinfo {
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
 
-static uint32_t	pci_hole_startaddr;
-
 static uint64_t pci_emul_iobase;
 static uint64_t pci_emul_membase32;
 static uint64_t pci_emul_membase64;
@@ -101,6 +99,8 @@ static uint64_t pci_emul_membase64;
 
 #define	PCI_EMUL_MEMBASE64	0xD000000000UL
 #define	PCI_EMUL_MEMLIMIT64	0xFD00000000UL
+
+static struct pci_devemu *pci_emul_finddev(char *name);
 
 static int pci_emul_devices;
 
@@ -125,17 +125,18 @@ static int pci_emul_devices;
 static void
 pci_parse_slot_usage(char *aopt)
 {
-	printf("Invalid PCI slot info field \"%s\"\n", aopt);
-	free(aopt);
+
+	fprintf(stderr, "Invalid PCI slot info field \"%s\"\n", aopt);
 }
 
-void
+int
 pci_parse_slot(char *opt, int legacy)
 {
 	char *slot, *func, *emul, *config;
 	char *str, *cpy;
-	int snum, fnum;
+	int error, snum, fnum;
 
+	error = -1;
 	str = cpy = strdup(opt);
 
 	config = NULL;
@@ -154,19 +155,40 @@ pci_parse_slot(char *opt, int legacy)
 	}
 
 	if (emul == NULL) {
-		pci_parse_slot_usage(cpy);
-		return;
+		pci_parse_slot_usage(opt);
+		goto done;
 	}
 
 	snum = atoi(slot);
 	fnum = func ? atoi(func) : 0;
+
 	if (snum < 0 || snum >= MAXSLOTS || fnum < 0 || fnum >= MAXFUNCS) {
-		pci_parse_slot_usage(cpy);
-	} else {
-		pci_slotinfo[snum][fnum].si_name = emul;
-		pci_slotinfo[snum][fnum].si_param = config;
-		pci_slotinfo[snum][fnum].si_legacy = legacy;
+		pci_parse_slot_usage(opt);
+		goto done;
 	}
+
+	if (pci_slotinfo[snum][fnum].si_name != NULL) {
+		fprintf(stderr, "pci slot %d:%d already occupied!\n",
+			snum, fnum);
+		goto done;
+	}
+
+	if (pci_emul_finddev(emul) == NULL) {
+		fprintf(stderr, "pci slot %d:%d: unknown device \"%s\"\n",
+			snum, fnum, emul);
+		goto done;
+	}
+
+	error = 0;
+	pci_slotinfo[snum][fnum].si_name = emul;
+	pci_slotinfo[snum][fnum].si_param = config;
+	pci_slotinfo[snum][fnum].si_legacy = legacy;
+
+done:
+	if (error)
+		free(cpy);
+
+	return (error);
 }
 
 static int
@@ -977,13 +999,12 @@ init_pci(struct vmctx *ctx)
 	struct mem_range memp;
 	struct pci_devemu *pde;
 	struct slotinfo *si;
+	size_t lowmem;
 	int slot, func;
 	int error;
 
-	pci_hole_startaddr = vm_get_lowmem_limit(ctx);
-
 	pci_emul_iobase = PCI_EMUL_IOBASE;
-	pci_emul_membase32 = pci_hole_startaddr;
+	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
 	for (slot = 0; slot < MAXSLOTS; slot++) {
@@ -991,10 +1012,9 @@ init_pci(struct vmctx *ctx)
 			si = &pci_slotinfo[slot][func];
 			if (si->si_name != NULL) {
 				pde = pci_emul_finddev(si->si_name);
-				if (pde != NULL) {
-					pci_emul_init(ctx, pde, slot, func,
-						      si->si_param);
-				}
+				assert(pde != NULL);
+				pci_emul_init(ctx, pde, slot, func,
+					      si->si_param);
 			}
 		}
 	}
@@ -1010,14 +1030,23 @@ init_pci(struct vmctx *ctx)
 	lirq[15].li_generic = 1;
 
 	/*
-	 * Setup the PCI hole to return 0xff's when accessed in a region
-	 * with no devices
+	 * The guest physical memory map looks like the following:
+	 * [0,		    lowmem)		guest system memory
+	 * [lowmem,	    lowmem_limit)	memory hole (may be absent)
+	 * [lowmem_limit,   4GB)		PCI hole (32-bit BAR allocation)
+	 * [4GB,	    4GB + highmem)
+	 *
+	 * Accesses to memory addresses that are not allocated to system
+	 * memory or PCI devices return 0xff's.
 	 */
+	error = vm_get_memory_seg(ctx, 0, &lowmem);
+	assert(error == 0);
+
 	memset(&memp, 0, sizeof(struct mem_range));
 	memp.name = "PCI hole";
 	memp.flags = MEM_F_RW;
-	memp.base = pci_hole_startaddr;
-	memp.size = (4ULL * 1024 * 1024 * 1024) - pci_hole_startaddr;
+	memp.base = lowmem;
+	memp.size = (4ULL * 1024 * 1024 * 1024) - lowmem;
 	memp.handler = pci_emul_fallback_handler;
 
 	error = register_mem_fallback(&memp);

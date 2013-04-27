@@ -54,12 +54,12 @@
 
 static void
 ApCheckPackageElements (
-    const char              *PredefinedName,
-    ACPI_PARSE_OBJECT       *Op,
-    UINT8                   Type1,
-    UINT32                  Count1,
-    UINT8                   Type2,
-    UINT32                  Count2);
+    const char                  *PredefinedName,
+    ACPI_PARSE_OBJECT           *Op,
+    UINT8                       Type1,
+    UINT32                      Count1,
+    UINT8                       Type2,
+    UINT32                      Count2);
 
 static void
 ApCheckPackageList (
@@ -93,8 +93,9 @@ ApPackageTooLarge (
  *
  * FUNCTION:    ApCheckPackage
  *
- * PARAMETERS:  ParentOp        - Parser op for the package
- *              Predefined      - Pointer to package-specific info for method
+ * PARAMETERS:  ParentOp            - Parser op for the package
+ *              Predefined          - Pointer to package-specific info for
+ *                                    the method
  *
  * RETURN:      None
  *
@@ -193,8 +194,8 @@ ApCheckPackage (
 
     case ACPI_PTYPE1_VAR:
         /*
-         * The package count is variable, there are no sub-packages, and all
-         * elements must be of the same type
+         * The package count is variable, there are no sub-packages,
+         * and all elements must be of the same type
          */
         for (i = 0; i < Count; i++)
         {
@@ -206,9 +207,9 @@ ApCheckPackage (
 
     case ACPI_PTYPE1_OPTION:
         /*
-         * The package count is variable, there are no sub-packages. There are
-         * a fixed number of required elements, and a variable number of
-         * optional elements.
+         * The package count is variable, there are no sub-packages.
+         * There are a fixed number of required elements, and a variable
+         * number of optional elements.
          *
          * Check if package is at least as large as the minimum required
          */
@@ -268,8 +269,8 @@ ApCheckPackage (
         if (ACPI_SUCCESS (Status))
         {
             /*
-             * Count cannot be larger than the parent package length, but allow it
-             * to be smaller. The >= accounts for the Integer above.
+             * Count cannot be larger than the parent package length, but
+             * allow it to be smaller. The >= accounts for the Integer above.
              */
             ExpectedCount = (UINT32) Op->Asl.Value.Integer;
             if (ExpectedCount >= Count)
@@ -320,12 +321,12 @@ PackageTooSmall:
  *
  * FUNCTION:    ApCheckPackageElements
  *
- * PARAMETERS:  PredefinedName  - Pointer to validation data structure
- *              Op              - Parser op for the package
- *              Type1           - Object type for first group
- *              Count1          - Count for first group
- *              Type2           - Object type for second group
- *              Count2          - Count for second group
+ * PARAMETERS:  PredefinedName      - Name of the predefined object
+ *              Op                  - Parser op for the package
+ *              Type1               - Object type for first group
+ *              Count1              - Count for first group
+ *              Type2               - Object type for second group
+ *              Count2              - Count for second group
  *
  * RETURN:      None
  *

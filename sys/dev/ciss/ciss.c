@@ -2985,6 +2985,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     case XPT_PATH_INQ:
     {
 	struct ccb_pathinq	*cpi = &ccb->cpi;
+	int			sg_length;
 
 	debug(1, "XPT_PATH_INQ %d:%d:%d", cam_sim_bus(sim), ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 
@@ -3005,7 +3006,22 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
-	cpi->maxio = (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE;
+	if (sc->ciss_cfg->max_sg_length == 0) {
+		sg_length = 16;
+	} else {
+	/* XXX Fix for ZMR cards that advertise max_sg_length == 32
+	 * Confusing bit here. max_sg_length is usually a power of 2. We always
+	 * need to subtract 1 to account for partial pages. Then we need to 
+	 * align on a valid PAGE_SIZE so we round down to the nearest power of 2. 
+	 * Add 1 so we can then subtract it out in the assignment to maxio.
+	 * The reason for all these shenanigans is to create a maxio value that
+	 * creates IO operations to volumes that yield consistent operations
+	 * with good performance.
+	 */
+		sg_length = sc->ciss_cfg->max_sg_length - 1;
+		sg_length = (1 << (fls(sg_length) - 1)) + 1;
+	}
+	cpi->maxio = (min(CISS_MAX_SG_ELEMENTS, sg_length) - 1) * PAGE_SIZE;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	break;
     }
@@ -3200,6 +3216,19 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	    xpt_done((union ccb *)csio);
 	    return(1);
 	}
+    }
+
+    /* 
+     * A CISS target can only ever have one lun per target. REPORT_LUNS requires
+     * at least one LUN field to be pre created for us, so snag it and fill in
+     * the least significant byte indicating 1 LUN here.  Emulate the command
+     * return to shut up warning on console of a CDB error.  swb 
+     */
+    if (opcode == REPORT_LUNS && csio->dxfer_len > 0) {
+       csio->data_ptr[3] = 8;
+       csio->ccb_h.status |= CAM_REQ_CMP;
+       xpt_done((union ccb *)csio);
+       return(1);
     }
 
     return(0);

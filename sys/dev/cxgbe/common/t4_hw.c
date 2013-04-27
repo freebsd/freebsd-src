@@ -1136,6 +1136,13 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 		       FLASH_FW_MAX_SIZE);
 		return -EFBIG;
 	}
+	if ((is_t4(adap) && hdr->chip != FW_HDR_CHIP_T4) ||
+	    (is_t5(adap) && hdr->chip != FW_HDR_CHIP_T5)) {
+		CH_ERR(adap,
+		    "FW image (%d) is not suitable for this adapter (%d)\n",
+		    hdr->chip, chip_id(adap));
+		return -EINVAL;
+	}
 
 	for (csum = 0, i = 0; i < size / sizeof(csum); i++)
 		csum += ntohl(p[i]);

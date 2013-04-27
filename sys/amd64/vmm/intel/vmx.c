@@ -667,11 +667,11 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 		shadow_value = cr4_ones_mask;
 	}
 
-	error = vmcs_setreg(vmcs, VMCS_IDENT(mask_ident), mask_value);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(mask_ident), mask_value);
 	if (error)
 		return (error);
 
-	error = vmcs_setreg(vmcs, VMCS_IDENT(shadow_ident), shadow_value);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(shadow_ident), shadow_value);
 	if (error)
 		return (error);
 
@@ -1617,49 +1617,34 @@ vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val)
 static int
 vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 {
+	int running, hostcpu;
 	struct vmx *vmx = arg;
+
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
 
 	if (vmxctx_getreg(&vmx->ctx[vcpu], reg, retval) == 0)
 		return (0);
 
-	/*
-	 * If the vcpu is running then don't mess with the VMCS.
-	 *
-	 * vmcs_getreg will VMCLEAR the vmcs when it is done which will cause
-	 * the subsequent vmlaunch/vmresume to fail.
-	 */
-	if (vcpu_is_running(vmx->vm, vcpu))
-		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
-
-	return (vmcs_getreg(&vmx->vmcs[vcpu], reg, retval));
+	return (vmcs_getreg(&vmx->vmcs[vcpu], running, reg, retval));
 }
 
 static int
 vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 {
-	int error;
+	int error, hostcpu, running;
 	uint64_t ctls;
 	struct vmx *vmx = arg;
 
-	/*
-	 * XXX Allow caller to set contents of the guest registers saved in
-	 * the 'vmxctx' even though the vcpu might be running. We need this
-	 * specifically to support the rdmsr emulation that will set the
-	 * %eax and %edx registers during vm exit processing.
-	 */
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
+
 	if (vmxctx_setreg(&vmx->ctx[vcpu], reg, val) == 0)
 		return (0);
 
-	/*
-	 * If the vcpu is running then don't mess with the VMCS.
-	 *
-	 * vmcs_setreg will VMCLEAR the vmcs when it is done which will cause
-	 * the subsequent vmlaunch/vmresume to fail.
-	 */
-	if (vcpu_is_running(vmx->vm, vcpu))
-		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
-
-	error = vmcs_setreg(&vmx->vmcs[vcpu], reg, val);
+	error = vmcs_setreg(&vmx->vmcs[vcpu], running, reg, val);
 
 	if (error == 0) {
 		/*
@@ -1669,13 +1654,13 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 		 */
 		if ((entry_ctls & VM_ENTRY_LOAD_EFER) != 0 &&
 		    (reg == VM_REG_GUEST_EFER)) {
-			vmcs_getreg(&vmx->vmcs[vcpu],
+			vmcs_getreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(VMCS_ENTRY_CTLS), &ctls);
 			if (val & EFER_LMA)
 				ctls |= VM_ENTRY_GUEST_LMA;
 			else
 				ctls &= ~VM_ENTRY_GUEST_LMA;
-			vmcs_setreg(&vmx->vmcs[vcpu],
+			vmcs_setreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(VMCS_ENTRY_CTLS), ctls);
 		}
 	}
@@ -1722,7 +1707,7 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	 * If there is already an exception pending to be delivered to the
 	 * vcpu then just return.
 	 */
-	error = vmcs_getreg(vmcs, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
+	error = vmcs_getreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
 	if (error)
 		return (error);
 
@@ -1731,12 +1716,12 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 
 	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
 	info |= VMCS_INTERRUPTION_INFO_VALID;
-	error = vmcs_setreg(vmcs, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
 	if (error != 0)
 		return (error);
 
 	if (code_valid) {
-		error = vmcs_setreg(vmcs,
+		error = vmcs_setreg(vmcs, 0,
 				    VMCS_IDENT(VMCS_ENTRY_EXCEPTION_ERROR),
 				    code);
 	}

@@ -2011,7 +2011,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 * OSSv4 docs:  "All errors and counters will automatically be
 	 * cleared to zeroes after the call so each call will return only
 	 * the errors that occurred after the previous invocation. ... The
-	 * play_underruns and rec_overrun fields are the only usefull fields
+	 * play_underruns and rec_overrun fields are the only useful fields
 	 * returned by OSS 4.0."
 	 */
 		{

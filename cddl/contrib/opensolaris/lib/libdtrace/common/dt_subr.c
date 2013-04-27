@@ -21,7 +21,6 @@
 
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -618,8 +617,8 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 		size_t avail;
 
 		/*
-		 * Using buffered output is not allowed if a handler has
-		 * not been installed.
+		 * It's not legal to use buffered ouput if there is not a
+		 * handler for buffered output.
 		 */
 		if (dtp->dt_bufhdlr == NULL) {
 			va_end(ap);

@@ -4322,11 +4322,12 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RFCTL, E1000_RFCTL_ACK_DIS);
 	}
 
-	if (ifp->if_capenable & IFCAP_RXCSUM) {
-		rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
-		rxcsum |= (E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
-		E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
-	}
+	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
+	if (ifp->if_capenable & IFCAP_RXCSUM)
+		rxcsum |= E1000_RXCSUM_TUOFL;
+	else
+		rxcsum &= ~E1000_RXCSUM_TUOFL;
+	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 
 	/*
 	** XXX TEMPORARY WORKAROUND: on some systems with 82573
@@ -4644,31 +4645,23 @@ em_fixup_rx(struct rx_ring *rxr)
 static void
 em_receive_checksum(struct e1000_rx_desc *rx_desc, struct mbuf *mp)
 {
+	mp->m_pkthdr.csum_flags = 0;
+
 	/* Ignore Checksum bit is set */
-	if (rx_desc->status & E1000_RXD_STAT_IXSM) {
-		mp->m_pkthdr.csum_flags = 0;
+	if (rx_desc->status & E1000_RXD_STAT_IXSM)
 		return;
-	}
 
-	if (rx_desc->status & E1000_RXD_STAT_IPCS) {
-		/* Did it pass? */
-		if (!(rx_desc->errors & E1000_RXD_ERR_IPE)) {
-			/* IP Checksum Good */
-			mp->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
-			mp->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+	if (rx_desc->errors & (E1000_RXD_ERR_TCPE | E1000_RXD_ERR_IPE))
+		return;
 
-		} else {
-			mp->m_pkthdr.csum_flags = 0;
-		}
-	}
+	/* IP Checksum Good? */
+	if (rx_desc->status & E1000_RXD_STAT_IPCS)
+		mp->m_pkthdr.csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
 
-	if (rx_desc->status & E1000_RXD_STAT_TCPCS) {
-		/* Did it pass? */
-		if (!(rx_desc->errors & E1000_RXD_ERR_TCPE)) {
-			mp->m_pkthdr.csum_flags |=
-			(CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-			mp->m_pkthdr.csum_data = htons(0xffff);
-		}
+	/* TCP or UDP checksum */
+	if (rx_desc->status & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS)) {
+		mp->m_pkthdr.csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		mp->m_pkthdr.csum_data = htons(0xffff);
 	}
 }
 

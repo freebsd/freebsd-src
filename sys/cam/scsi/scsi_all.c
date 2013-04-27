@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #else
 #include <errno.h>
@@ -55,7 +58,13 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <sys/ata.h>
 #include <sys/sbuf.h>
-#ifndef _KERNEL
+
+#ifdef _KERNEL
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
+#else
 #include <camlib.h>
 #include <stddef.h>
 
@@ -5853,6 +5862,57 @@ scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
+scsi_ata_identify(struct ccb_scsiio *csio, u_int32_t retries,
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  u_int8_t tag_action, u_int8_t *data_ptr,
+		  u_int16_t dxfer_len, u_int8_t sense_len,
+		  u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_IN,
+			 tag_action,
+			 /*protocol*/AP_PROTO_PIO_IN,
+			 /*ata_flags*/AP_FLAG_TDIR_FROM_DEV|
+				AP_FLAG_BYT_BLOK_BYTES|AP_FLAG_TLEN_SECT_CNT,
+			 /*features*/0,
+			 /*sector_count*/dxfer_len,
+			 /*lba*/0,
+			 /*command*/ATA_ATA_IDENTIFY,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
+scsi_ata_trim(struct ccb_scsiio *csio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int8_t tag_action, u_int16_t block_count,
+	      u_int8_t *data_ptr, u_int16_t dxfer_len, u_int8_t sense_len,
+	      u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_OUT,
+			 tag_action,
+			 /*protocol*/AP_EXTEND|AP_PROTO_DMA,
+			 /*ata_flags*/AP_FLAG_TLEN_SECT_CNT|AP_FLAG_BYT_BLOK_BLOCKS,
+			 /*features*/ATA_DSM_TRIM,
+			 /*sector_count*/block_count,
+			 /*lba*/0,
+			 /*command*/ATA_DATA_SET_MANAGEMENT,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
 scsi_ata_pass_16(struct ccb_scsiio *csio, u_int32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
 		 u_int32_t flags, u_int8_t tag_action,
@@ -6206,6 +6266,28 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 }
 
 #ifdef _KERNEL
+int
+scsi_vpd_supported_page(struct cam_periph *periph, uint8_t page_id)
+{
+	struct cam_ed *device;
+	struct scsi_vpd_supported_pages *vpds;
+	int i, num_pages;
+
+	device = periph->path->device;
+	vpds = (struct scsi_vpd_supported_pages *)device->supported_vpds;
+
+	if (vpds != NULL) {
+		num_pages = device->supported_vpds_len -
+		    SVPD_SUPPORTED_PAGES_HDR_LEN;
+		for (i = 0; i < num_pages; i++) {
+			if (vpds->page_list[i] == page_id)
+				return (1);
+		}
+	}
+
+	return (0);
+}
+
 static void
 init_scsi_delay(void)
 {

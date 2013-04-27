@@ -382,11 +382,8 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	pid_t pgid;
 	int tmp;
 
-	if (name) {
+	if (name)
 		*name = NULL;
-		if (*namelen < 0)
-			return (EINVAL);
-	}
 
 	AUDIT_ARG_FD(s);
 	fdp = td->td_proc->p_fd;
@@ -1565,9 +1562,6 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	socklen_t len;
 	int error;
 
-	if (*alen < 0)
-		return (EINVAL);
-
 	AUDIT_ARG_FD(fd);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_GETSOCKNAME, &fp, NULL);
 	if (error)
@@ -1664,9 +1658,6 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	struct file *fp;
 	socklen_t len;
 	int error;
-
-	if (*alen < 0)
-		return (EINVAL);
 
 	AUDIT_ARG_FD(fd);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_GETPEERNAME, &fp, NULL);

@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.92 2013/02/17 23:16:57 dtucker Exp $ */
+/* $OpenBSD: readconf.h,v 1.93 2013/02/22 04:45:09 dtucker Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -163,13 +163,17 @@ typedef struct {
 #define REQUEST_TTY_YES		2
 #define REQUEST_TTY_FORCE	3
 
+#define SSHCONF_CHECKPERM	1  /* check permissions on config file */
+#define SSHCONF_USERCONF	2  /* user provided config file not system */
+
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
 int	 read_config_file(const char *, const char *, Options *, int);
 int	 parse_forward(Forward *, const char *, int, int);
 
 int
-process_config_line(Options *, const char *, char *, const char *, int, int *);
+process_config_line(Options *, const char *, char *, const char *, int, int *,
+    int);
 
 void	 add_local_forward(Options *, const Forward *);
 void	 add_remote_forward(Options *, const Forward *);

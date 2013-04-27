@@ -2564,6 +2564,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					u_long oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
 					u_int sent;
+					int avail;
 
 					KASSERT(tp->t_dupacks == 1 ||
 					    tp->t_dupacks == 2,
@@ -2585,7 +2586,17 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						 */
 						break;
 					}
-					(void) tcp_output(tp);
+					/*
+					 * Only call tcp_output when there
+					 * is new data available to be sent.
+					 * Otherwise we would send pure ACKs.
+					 */
+					SOCKBUF_LOCK(&so->so_snd);
+					avail = so->so_snd.sb_cc -
+					    (tp->snd_nxt - tp->snd_una);
+					SOCKBUF_UNLOCK(&so->so_snd);
+					if (avail > 0)
+						(void) tcp_output(tp);
 					sent = tp->snd_max - oldsndmax;
 					if (sent > tp->t_maxseg) {
 						KASSERT((tp->t_dupacks == 2 &&

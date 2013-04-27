@@ -59,19 +59,19 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
-static int rflag, Iflag;
+static int rflag, Iflag, xflag;
 static uid_t uid;
 static volatile sig_atomic_t info;
 
-int	check(char *, char *, struct stat *);
-int	check2(char **);
-void	checkdot(char **);
-void	checkslash(char **);
-void	rm_file(char **);
-int	rm_overwrite(char *, struct stat *);
-void	rm_tree(char **);
+static int	check(const char *, const char *, struct stat *);
+static int	check2(char **);
+static void	checkdot(char **);
+static void	checkslash(char **);
+static void	rm_file(char **);
+static int	rm_overwrite(const char *, struct stat *);
+static void	rm_tree(char **);
 static void siginfo(int __unused);
-void	usage(void);
+static void	usage(void);
 
 /*
  * rm --
@@ -106,8 +106,8 @@ main(int argc, char *argv[])
 		exit(eval);
 	}
 
-	Pflag = rflag = 0;
-	while ((ch = getopt(argc, argv, "dfiIPRrvW")) != -1)
+	Pflag = rflag = xflag = 0;
+	while ((ch = getopt(argc, argv, "dfiIPRrvWx")) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -135,6 +135,9 @@ main(int argc, char *argv[])
 			break;
 		case 'W':
 			Wflag = 1;
+			break;
+		case 'x':
+			xflag = 1;
 			break;
 		default:
 			usage();
@@ -170,7 +173,7 @@ main(int argc, char *argv[])
 	exit (eval);
 }
 
-void
+static void
 rm_tree(char **argv)
 {
 	FTS *fts;
@@ -196,6 +199,8 @@ rm_tree(char **argv)
 		flags |= FTS_NOSTAT;
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
+	if (xflag)
+		flags |= FTS_XDEV;
 	if (!(fts = fts_open(argv, flags, NULL))) {
 		if (fflag && errno == ENOENT)
 			return;
@@ -335,7 +340,7 @@ err:
 	fts_close(fts);
 }
 
-void
+static void
 rm_file(char **argv)
 {
 	struct stat sb;
@@ -412,8 +417,8 @@ rm_file(char **argv)
  * System V file system).  In a logging or COW file system, you'll have to
  * have kernel support.
  */
-int
-rm_overwrite(char *file, struct stat *sbp)
+static int
+rm_overwrite(const char *file, struct stat *sbp)
 {
 	struct stat sb, sb2;
 	struct statfs fsb;
@@ -479,8 +484,8 @@ err:	eval = 1;
 }
 
 
-int
-check(char *path, char *name, struct stat *sp)
+static int
+check(const char *path, const char *name, struct stat *sp)
 {
 	int ch, first;
 	char modep[15], *flagsp;
@@ -491,7 +496,7 @@ check(char *path, char *name, struct stat *sp)
 	else {
 		/*
 		 * If it's not a symbolic link and it's unwritable and we're
-		 * talking to a terminal, ask.	Symbolic links are excluded
+		 * talking to a terminal, ask.  Symbolic links are excluded
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
 		 */
@@ -524,7 +529,7 @@ check(char *path, char *name, struct stat *sp)
 }
 
 #define ISSLASH(a)	((a)[0] == '/' && (a)[1] == '\0')
-void
+static void
 checkslash(char **argv)
 {
 	char **t, **u;
@@ -544,7 +549,7 @@ checkslash(char **argv)
 	}
 }
 
-int
+static int
 check2(char **argv)
 {
 	struct stat st;
@@ -595,7 +600,7 @@ check2(char **argv)
 }
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
-void
+static void
 checkdot(char **argv)
 {
 	char *p, **save, **t;
@@ -619,12 +624,12 @@ checkdot(char **argv)
 	}
 }
 
-void
+static void
 usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rm [-f | -i] [-dIPRrvW] file ...",
+	    "usage: rm [-f | -i] [-dIPRrvWx] file ...",
 	    "       unlink file");
 	exit(EX_USAGE);
 }

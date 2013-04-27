@@ -732,9 +732,27 @@ _setcontext(const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
+	if (ucp == NULL)
+		return (EINVAL);
+	if (!SIGISMEMBER(uc.uc_sigmask, SIGCANCEL))
+		return __sys_setcontext(ucp);
 	(void) memcpy(&uc, ucp, sizeof(uc));
-	remove_thr_signals(&uc.uc_sigmask);
+	SIGDELSET(uc.uc_sigmask, SIGCANCEL);
 	return __sys_setcontext(&uc);
 }
 
-__weak_reference(__sys_swapcontext, swapcontext);
+__weak_reference(_swapcontext, swapcontext);
+int
+_swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
+{
+	ucontext_t uc;
+
+	if (oucp == NULL || ucp == NULL)
+		return (EINVAL);
+	if (SIGISMEMBER(ucp->uc_sigmask, SIGCANCEL)) {
+		(void) memcpy(&uc, ucp, sizeof(uc));
+		SIGDELSET(uc.uc_sigmask, SIGCANCEL);
+		ucp = &uc;
+	}
+	return __sys_swapcontext(oucp, ucp);
+}

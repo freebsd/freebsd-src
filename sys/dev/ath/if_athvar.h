@@ -542,6 +542,7 @@ struct ath_softc {
 
 	struct ath_rx_methods	sc_rx;
 	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
+	ath_bufhead		sc_rx_rxlist[HAL_NUM_RX_QUEUES];	/* deferred RX completion */
 	struct ath_tx_methods	sc_tx;
 	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
 
@@ -700,7 +701,6 @@ struct ath_softc {
 
 	struct ath_descdma	sc_rxdma;	/* RX descriptors */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
-	ath_bufhead		sc_rx_rxlist;	/* deferred RX completion */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	u_int8_t		sc_defant;	/* current default antenna */
@@ -772,11 +772,11 @@ struct ath_softc {
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
-	int			sc_txchainmask;	/* hardware TX chainmask */
-	int			sc_rxchainmask;	/* hardware RX chainmask */
-	int			sc_cur_txchainmask;	/* currently configured TX chainmask */
-	int			sc_cur_rxchainmask;	/* currently configured RX chainmask */
-	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
+	uint32_t		sc_txchainmask;	/* hardware TX chainmask */
+	uint32_t		sc_rxchainmask;	/* hardware RX chainmask */
+	uint32_t		sc_cur_txchainmask;	/* currently configured TX chainmask */
+	uint32_t		sc_cur_rxchainmask;	/* currently configured RX chainmask */
+	uint32_t		sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
 	int			sc_aggr_limit;	/* TX limit on all aggregates */
 	int			sc_delim_min_pad;	/* Minimum delimiter count */
 

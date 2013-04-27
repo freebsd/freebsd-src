@@ -1722,7 +1722,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (isfrag)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
+		sc->sc_tx_th.wt_txpower = ieee80211_get_node_txpower(ni);
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
 		ieee80211_radiotap_tx(vap, m0);
@@ -1743,7 +1743,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_pktlen = pktlen;
 	bf->bf_state.bfs_hdrlen = hdrlen;
 	bf->bf_state.bfs_atype = atype;
-	bf->bf_state.bfs_txpower = ni->ni_txpower;
+	bf->bf_state.bfs_txpower = ieee80211_get_node_txpower(ni);
 	bf->bf_state.bfs_txrate0 = txrate;
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
@@ -2088,7 +2088,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (m0->m_flags & M_FRAG)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
 		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
+		sc->sc_tx_th.wt_txpower = MIN(params->ibp_power,
+		    ieee80211_get_node_txpower(ni));
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
 		ieee80211_radiotap_tx(vap, m0);
@@ -2104,7 +2105,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	bf->bf_state.bfs_pktlen = pktlen;
 	bf->bf_state.bfs_hdrlen = hdrlen;
 	bf->bf_state.bfs_atype = atype;
-	bf->bf_state.bfs_txpower = params->ibp_power;
+	bf->bf_state.bfs_txpower = MIN(params->ibp_power,
+	    ieee80211_get_node_txpower(ni));
 	bf->bf_state.bfs_txrate0 = txrate;
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_keyix = keyix;
@@ -2588,7 +2590,8 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 		    __func__,
 		    bf, SEQNO(bf->bf_state.bfs_seqno),
 		    tid->tx_buf[cindex],
-		    SEQNO(tid->tx_buf[cindex]->bf_state.bfs_seqno));
+		    (tid->tx_buf[cindex] != NULL) ?
+		      SEQNO(tid->tx_buf[cindex]->bf_state.bfs_seqno) : -1);
 	}
 
 	tid->tx_buf[cindex] = NULL;
@@ -2974,7 +2977,19 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
 	ATH_TX_LOCK_ASSERT(sc);
 
-	tid->paused--;
+	/*
+	 * There's some odd places where ath_tx_tid_resume() is called
+	 * when it shouldn't be; this works around that particular issue
+	 * until it's actually resolved.
+	 */
+	if (tid->paused == 0) {
+		device_printf(sc->sc_dev, "%s: %6D: paused=0?\n",
+		    __func__,
+		    tid->an->an_node.ni_macaddr,
+		    ":");
+	} else {
+		tid->paused--;
+	}
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: unpaused = %d\n",
 	    __func__, tid->paused);

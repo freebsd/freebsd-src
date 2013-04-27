@@ -19,15 +19,12 @@
  *
  * CDDL HEADER END
  */
-
 /*
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-/*
- * Copyright (c) 2012 by Delphix. All rights reserved.
- */
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <strings.h>
 #include <stdio.h>
@@ -215,22 +212,12 @@ dt_dis_pushts(const dtrace_difo_t *dp,
 {
 	static const char *const tnames[] = { "D type", "string" };
 	uint_t type = DIF_INSTR_TYPE(in);
-	const char *pad;
 
-	if (DIF_INSTR_OP(in) == DIF_OP_PUSHTV) {
-		(void) fprintf(fp, "%-4s DT_TYPE(%u), %%r%u",
-		    name, type, DIF_INSTR_RS(in));
-		pad = "\t\t";
-	} else {
-		(void) fprintf(fp, "%-4s DT_TYPE(%u), %%r%u, %%r%u",
-		    name, type, DIF_INSTR_R2(in), DIF_INSTR_RS(in));
-		pad = "\t";
-	}
+	(void) fprintf(fp, "%-4s DT_TYPE(%u), %%r%u, %%r%u",
+	    name, type, DIF_INSTR_R2(in), DIF_INSTR_RS(in));
 
-	if (type < sizeof (tnames) / sizeof (tnames[0])) {
-		(void) fprintf(fp, "%s! DT_TYPE(%u) = %s", pad,
-		    type, tnames[type]);
-	}
+	if (type < sizeof (tnames) / sizeof (tnames[0]))
+		(void) fprintf(fp, "\t! DT_TYPE(%u) = %s", type, tnames[type]);
 }
 
 static void

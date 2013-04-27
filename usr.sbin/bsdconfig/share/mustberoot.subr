@@ -1,6 +1,6 @@
 if [ ! "$_MUSTBEROOT_SUBR" ]; then _MUSTBEROOT_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -250,6 +250,7 @@ f_become_root_via_sudo()
 	fi
 
 	# Re-execute ourselves with sudo(8)
+	f_dprintf "%s: Becoming root via sudo(8)..." mustberoot.subr
 	if [ $ARGC -gt 0 ]; then
 		exec sudo "$0" $ARGV
 	else

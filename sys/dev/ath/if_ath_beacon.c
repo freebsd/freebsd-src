@@ -322,7 +322,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		, m->m_len + IEEE80211_CRC_LEN	/* frame length */
 		, sizeof(struct ieee80211_frame)/* header length */
 		, HAL_PKT_TYPE_BEACON		/* Atheros packet type */
-		, ni->ni_txpower		/* txpower XXX */
+		, ieee80211_get_node_txpower(ni)	/* txpower XXX */
 		, rate, 1			/* series 0 rate/tries */
 		, HAL_TXKEYIX_INVALID		/* no encryption */
 		, antenna			/* antenna mode */
