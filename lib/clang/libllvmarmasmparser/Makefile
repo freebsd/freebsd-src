@@ -6,8 +6,7 @@ LIB=	llvmarmasmparser
 
 SRCDIR=	lib/Target/ARM/AsmParser
 INCDIR=	lib/Target/ARM
-SRCS=	ARMAsmLexer.cpp \
-	ARMAsmParser.cpp
+SRCS=	ARMAsmParser.cpp
 
 TGHDRS=	ARMGenAsmMatcher \
 	ARMGenInstrInfo \

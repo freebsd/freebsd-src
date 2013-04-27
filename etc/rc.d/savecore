@@ -23,6 +23,9 @@ savecore_prestart()
 		return 1
 		;;
 	[Aa][Uu][Tt][Oo])
+		if [ ! -L /dev/dumpdev ]; then
+			return 1
+		fi
 		dumpdev=`/bin/realpath /dev/dumpdev`
 		;;
 	esac

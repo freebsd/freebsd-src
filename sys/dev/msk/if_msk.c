@@ -1695,6 +1695,12 @@ msk_attach(device_t dev)
 			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
 	}
 	ifp->if_capenable = ifp->if_capabilities;
+	/*
+	 * Disable RX checksum offloading on controllers that don't use
+	 * new descriptor format but give chance to enable it.
+	 */
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0)
+		ifp->if_capenable &= ~IFCAP_RXCSUM;
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -3520,7 +3526,7 @@ msk_intr_hwerr(struct msk_softc *sc)
 		 * On PCI Express bus bridges are called root complexes (RC).
 		 * PCI Express errors are recognized by the root complex too,
 		 * which requests the system to handle the problem. After
-		 * error occurence it may be that no access to the adapter
+		 * error occurrence it may be that no access to the adapter
 		 * may be performed any longer.
 		 */
 

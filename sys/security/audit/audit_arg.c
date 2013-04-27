@@ -441,7 +441,7 @@ audit_arg_socket(int sodomain, int sotype, int soprotocol)
 }
 
 void
-audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
+audit_arg_sockaddr(struct thread *td, int dirfd, struct sockaddr *sa)
 {
 	struct kaudit_record *ar;
 
@@ -463,7 +463,9 @@ audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
 		break;
 
 	case AF_UNIX:
-		audit_arg_upath1(td, AT_FDCWD,
+		if (dirfd != AT_FDCWD)
+			audit_arg_atfd1(dirfd);
+		audit_arg_upath1(td, dirfd,
 		    ((struct sockaddr_un *)sa)->sun_path);
 		ARG_SET_VALID(ar, ARG_SADDRUNIX);
 		break;
@@ -869,6 +871,19 @@ audit_arg_rights(cap_rights_t rights)
 
 	ar->k_ar.ar_arg_rights = rights;
 	ARG_SET_VALID(ar, ARG_RIGHTS);
+}
+
+void
+audit_arg_fcntl_rights(uint32_t fcntlrights)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_fcntl_rights = fcntlrights;
+	ARG_SET_VALID(ar, ARG_FCNTL_RIGHTS);
 }
 
 /*

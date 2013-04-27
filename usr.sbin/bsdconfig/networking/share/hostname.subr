@@ -1,6 +1,6 @@
 if [ ! "$_NETWORKING_HOSTNAME_SUBR" ]; then _NETWORKING_HOSTNAME_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,63 +40,6 @@ BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ############################################################ FUNCTIONS
-
-# f_validate_hostname $hostname
-#
-# Returns zero if the given argument (a fully-qualified hostname) is compliant
-# with standards set-forth in RFC's 952 and 1123 of the Network Working Group:
-#
-# RFC 952 - DoD Internet host table specification
-# http://tools.ietf.org/html/rfc952
-#
-# RFC 1123 - Requirements for Internet Hosts - Application and Support
-# http://tools.ietf.org/html/rfc1123
-#
-# See http://en.wikipedia.org/wiki/Hostname for a brief overview.
-#
-# The return status for invalid hostnames is one of:
-# 	255	Entire hostname exceeds the maximum length of 255 characters.
-# 	 63	One or more individual labels within the hostname (separated by
-# 	   	dots) exceeds the maximum of 63 characters.
-# 	  1	One or more individual labels within the hostname contains one
-# 	   	or more invalid characters.
-# 	  2	One or more individual labels within the hostname starts or
-# 	   	ends with a hyphen (hyphens are allowed, but a label cannot
-# 	   	begin or end with a hyphen).
-# 	  3	One or more individual labels within the hostname are null.
-#
-# If the hostname is determined to be invalid, the appropriate error will be
-# displayed using the f_show_msg function.
-#
-f_validate_hostname()
-{
-	local fqhn="$1"
-
-	( # Operate within a sub-shell to protect the parent environment
-
-		# Return error if the hostname exceeds 255 characters
-		[ ${#fqhn} -gt 255 ] && exit 255
-
-		IFS="." # Split on `dot'
-		for label in $fqhn; do
-
-			# Return error if the label exceeds 63 characters
-			[ ${#label} -gt 63 ] && exit 63
-
-			# Return error if the label is null
-			[ "$label" ] || exit 3
-
-			# Return error if label begins/ends with dash
-			case "$label" in
-			-*|*-) exit 2
-			esac
-
-			# Return error if the label contains any invalid chars
-			echo "$label" | grep -q '^[[:alnum:]-]*$' || exit 1
-
-		done
-	)
-}
 
 # f_dialog_hnerror $error $hostname
 #

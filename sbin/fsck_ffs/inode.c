@@ -423,7 +423,7 @@ setinodebuf(ino_t inum)
 		partialsize = inobufsize;
 	}
 	initbarea(&inobuf, BT_INODES);
-	if ((inobuf.b_un.b_buf = malloc((unsigned)inobufsize)) == NULL)
+	if ((inobuf.b_un.b_buf = Malloc((unsigned)inobufsize)) == NULL)
 		errx(EEXIT, "cannot allocate space for inode buffer");
 }
 
@@ -454,7 +454,7 @@ cacheino(union dinode *dp, ino_t inumber)
 	else
 		blks = howmany(DIP(dp, di_size), sblock.fs_bsize);
 	inp = (struct inoinfo *)
-		malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs2_daddr_t));
+		Malloc(sizeof(*inp) + (blks - 1) * sizeof(ufs2_daddr_t));
 	if (inp == NULL)
 		errx(EEXIT, "cannot increase directory list");
 	inpp = &inphead[inumber % dirhash];
@@ -657,7 +657,8 @@ allocino(ino_t request, int type)
 {
 	ino_t ino;
 	union dinode *dp;
-	struct cg *cgp = &cgrp;
+	struct bufarea *cgbp;
+	struct cg *cgp;
 	int cg;
 
 	if (request == 0)
@@ -670,8 +671,9 @@ allocino(ino_t request, int type)
 	if (ino == maxino)
 		return (0);
 	cg = ino_to_cg(&sblock, ino);
-	getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
-	if (!check_cgmagic(cg, cgp))
+	cgbp = cgget(cg);
+	cgp = cgbp->b_un.b_cg;
+	if (!check_cgmagic(cg, cgbp))
 		return (0);
 	setbit(cg_inosused(cgp), ino % sblock.fs_ipg);
 	cgp->cg_cs.cs_nifree--;
@@ -687,7 +689,7 @@ allocino(ino_t request, int type)
 	default:
 		return (0);
 	}
-	cgdirty();
+	dirty(cgbp);
 	dp = ginode(ino);
 	DIP_SET(dp, di_db[0], allocblk((long)1));
 	if (DIP(dp, di_db[0]) == 0) {

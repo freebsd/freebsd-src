@@ -48,8 +48,16 @@ __FBSDID("$FreeBSD$");
 
 #include "vmmapi.h"
 
+#define	GB	(1024 * 1024 * 1024UL)
+
 struct vmctx {
 	int	fd;
+	uint32_t lowmem_limit;
+	enum vm_mmap_style vms;
+	size_t	lowmem;
+	char	*lowmem_addr;
+	size_t	highmem;
+	char	*highmem_addr;
 	char	*name;
 };
 
@@ -90,6 +98,7 @@ vm_open(const char *name)
 	assert(vm != NULL);
 
 	vm->fd = -1;
+	vm->lowmem_limit = 3 * GB;
 	vm->name = (char *)(vm + 1);
 	strcpy(vm->name, name);
 
@@ -114,30 +123,6 @@ vm_destroy(struct vmctx *vm)
 	free(vm);
 }
 
-size_t
-vmm_get_mem_total(void)
-{
-	size_t mem_total = 0;
-	size_t oldlen = sizeof(mem_total);
-	int error;
-	error = sysctlbyname("hw.vmm.mem_total", &mem_total, &oldlen, NULL, 0);
-	if (error)
-		return -1;
-	return mem_total;
-}
-
-size_t
-vmm_get_mem_free(void)
-{
-	size_t mem_free = 0;
-	size_t oldlen = sizeof(mem_free);
-	int error;
-	error = sysctlbyname("hw.vmm.mem_free", &mem_free, &oldlen, NULL, 0);
-	if (error)
-		return -1;
-	return mem_free;
-}
-
 int
 vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
 {
@@ -151,8 +136,22 @@ vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
 	return (error);
 }
 
-int
-vm_setup_memory(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char **mapaddr)
+uint32_t
+vm_get_lowmem_limit(struct vmctx *ctx)
+{
+
+	return (ctx->lowmem_limit);
+}
+
+void
+vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit)
+{
+
+	ctx->lowmem_limit = limit;
+}
+
+static int
+setup_memory_segment(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char **addr)
 {
 	int error;
 	struct vm_memory_segment seg;
@@ -165,20 +164,69 @@ vm_setup_memory(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char **mapaddr)
 	seg.gpa = gpa;
 	seg.len = len;
 	error = ioctl(ctx->fd, VM_MAP_MEMORY, &seg);
-	if (error == 0 && mapaddr != NULL) {
-		*mapaddr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
+	if (error == 0 && addr != NULL) {
+		*addr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
 				ctx->fd, gpa);
 	}
 	return (error);
 }
 
-char *
-vm_map_memory(struct vmctx *ctx, vm_paddr_t gpa, size_t len)
+int
+vm_setup_memory(struct vmctx *ctx, size_t memsize, enum vm_mmap_style vms)
+{
+	char **addr;
+	int error;
+
+	/* XXX VM_MMAP_SPARSE not implemented yet */
+	assert(vms == VM_MMAP_NONE || vms == VM_MMAP_ALL);
+	ctx->vms = vms;
+
+	/*
+	 * If 'memsize' cannot fit entirely in the 'lowmem' segment then
+	 * create another 'highmem' segment above 4GB for the remainder.
+	 */
+	if (memsize > ctx->lowmem_limit) {
+		ctx->lowmem = ctx->lowmem_limit;
+		ctx->highmem = memsize - ctx->lowmem;
+	} else {
+		ctx->lowmem = memsize;
+		ctx->highmem = 0;
+	}
+
+	if (ctx->lowmem > 0) {
+		addr = (vms == VM_MMAP_ALL) ? &ctx->lowmem_addr : NULL;
+		error = setup_memory_segment(ctx, 0, ctx->lowmem, addr);
+		if (error)
+			return (error);
+	}
+
+	if (ctx->highmem > 0) {
+		addr = (vms == VM_MMAP_ALL) ? &ctx->highmem_addr : NULL;
+		error = setup_memory_segment(ctx, 4*GB, ctx->highmem, addr);
+		if (error)
+			return (error);
+	}
+
+	return (0);
+}
+
+void *
+vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 {
 
-	/* Map 'len' bytes of memory at guest physical address 'gpa' */
-	return ((char *)mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
-		     ctx->fd, gpa));
+	/* XXX VM_MMAP_SPARSE not implemented yet */
+	assert(ctx->vms == VM_MMAP_ALL);
+
+	if (gaddr < ctx->lowmem && gaddr + len <= ctx->lowmem)
+		return ((void *)(ctx->lowmem_addr + gaddr));
+
+	if (gaddr >= 4*GB) {
+		gaddr -= 4*GB;
+		if (gaddr < ctx->highmem && gaddr + len <= ctx->highmem)
+			return ((void *)(ctx->highmem_addr + gaddr));
+	}
+
+	return (NULL);
 }
 
 int

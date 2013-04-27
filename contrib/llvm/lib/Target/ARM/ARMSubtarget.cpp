@@ -12,11 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMSubtarget.h"
-#include "ARMBaseRegisterInfo.h"
 #include "ARMBaseInstrInfo.h"
-#include "llvm/GlobalValue.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "ARMBaseRegisterInfo.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetOptions.h"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
@@ -40,60 +43,88 @@ StrictAlign("arm-strict-align", cl::Hidden,
             cl::desc("Disallow all unaligned memory accesses"));
 
 ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
-                           const std::string &FS)
+                           const std::string &FS, const TargetOptions &Options)
   : ARMGenSubtargetInfo(TT, CPU, FS)
   , ARMProcFamily(Others)
-  , HasV4TOps(false)
-  , HasV5TOps(false)
-  , HasV5TEOps(false)
-  , HasV6Ops(false)
-  , HasV6T2Ops(false)
-  , HasV7Ops(false)
-  , HasVFPv2(false)
-  , HasVFPv3(false)
-  , HasVFPv4(false)
-  , HasNEON(false)
-  , UseNEONForSinglePrecisionFP(false)
-  , UseMulOps(UseFusedMulOps)
-  , SlowFPVMLx(false)
-  , HasVMLxForwarding(false)
-  , SlowFPBrcc(false)
-  , InThumbMode(false)
-  , HasThumb2(false)
-  , IsMClass(false)
-  , NoARM(false)
-  , PostRAScheduler(false)
-  , IsR9Reserved(ReserveR9)
-  , UseMovt(false)
-  , SupportsTailCall(false)
-  , HasFP16(false)
-  , HasD16(false)
-  , HasHardwareDivide(false)
-  , HasHardwareDivideInARM(false)
-  , HasT2ExtractPack(false)
-  , HasDataBarrier(false)
-  , Pref32BitThumb(false)
-  , AvoidCPSRPartialUpdate(false)
-  , HasRAS(false)
-  , HasMPExtension(false)
-  , FPOnlySP(false)
-  , AllowsUnalignedMem(false)
-  , Thumb2DSP(false)
   , stackAlignment(4)
   , CPUString(CPU)
   , TargetTriple(TT)
+  , Options(Options)
   , TargetABI(ARM_ABI_APCS) {
-  // Determine default and user specified characteristics
+  initializeEnvironment();
+  resetSubtargetFeatures(CPU, FS);
+}
+
+void ARMSubtarget::initializeEnvironment() {
+  HasV4TOps = false;
+  HasV5TOps = false;
+  HasV5TEOps = false;
+  HasV6Ops = false;
+  HasV6T2Ops = false;
+  HasV7Ops = false;
+  HasVFPv2 = false;
+  HasVFPv3 = false;
+  HasVFPv4 = false;
+  HasNEON = false;
+  UseNEONForSinglePrecisionFP = false;
+  UseMulOps = UseFusedMulOps;
+  SlowFPVMLx = false;
+  HasVMLxForwarding = false;
+  SlowFPBrcc = false;
+  InThumbMode = false;
+  HasThumb2 = false;
+  IsMClass = false;
+  NoARM = false;
+  PostRAScheduler = false;
+  IsR9Reserved = ReserveR9;
+  UseMovt = false;
+  SupportsTailCall = false;
+  HasFP16 = false;
+  HasD16 = false;
+  HasHardwareDivide = false;
+  HasHardwareDivideInARM = false;
+  HasT2ExtractPack = false;
+  HasDataBarrier = false;
+  Pref32BitThumb = false;
+  AvoidCPSRPartialUpdate = false;
+  AvoidMOVsShifterOperand = false;
+  HasRAS = false;
+  HasMPExtension = false;
+  FPOnlySP = false;
+  AllowsUnalignedMem = false;
+  Thumb2DSP = false;
+  UseNaClTrap = false;
+  UnsafeFPMath = false;
+}
+
+void ARMSubtarget::resetSubtargetFeatures(const MachineFunction *MF) {
+  AttributeSet FnAttrs = MF->getFunction()->getAttributes();
+  Attribute CPUAttr = FnAttrs.getAttribute(AttributeSet::FunctionIndex,
+                                           "target-cpu");
+  Attribute FSAttr = FnAttrs.getAttribute(AttributeSet::FunctionIndex,
+                                          "target-features");
+  std::string CPU =
+    !CPUAttr.hasAttribute(Attribute::None) ?CPUAttr.getValueAsString() : "";
+  std::string FS =
+    !FSAttr.hasAttribute(Attribute::None) ? FSAttr.getValueAsString() : "";
+  if (!FS.empty()) {
+    initializeEnvironment();
+    resetSubtargetFeatures(CPU, FS);
+  }
+}
+
+void ARMSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
   if (CPUString.empty())
     CPUString = "generic";
 
   // Insert the architecture feature derived from the target triple into the
   // feature string. This is important for setting features that are implied
   // based on the architecture version.
-  std::string ArchFS = ARM_MC::ParseARMTriple(TT, CPUString);
+  std::string ArchFS = ARM_MC::ParseARMTriple(TargetTriple.getTriple(),
+                                              CPUString);
   if (!FS.empty()) {
     if (!ArchFS.empty())
-      ArchFS = ArchFS + "," + FS;
+      ArchFS = ArchFS + "," + FS.str();
     else
       ArchFS = FS;
   }
@@ -110,7 +141,8 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);
 
-  if ((TT.find("eabi") != std::string::npos) || (isTargetIOS() && isMClass()))
+  if ((TargetTriple.getTriple().find("eabi") != std::string::npos) ||
+      (isTargetIOS() && isMClass()))
     // FIXME: We might want to separate AAPCS and EABI. Some systems, e.g.
     // Darwin-EABI conforms to AACPS but not the rest of EABI.
     TargetABI = ARM_ABI_AAPCS;
@@ -133,6 +165,12 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   // configuration.
   if (!StrictAlign && hasV6Ops() && isTargetDarwin())
     AllowsUnalignedMem = true;
+
+  // NEON f32 ops are non-IEEE 754 compliant. Darwin is ok with it by default.
+  uint64_t Bits = getFeatureBits();
+  if ((Bits & ARM::ProcA5 || Bits & ARM::ProcA8) && // Where this matters
+      (Options.UnsafeFPMath || isTargetDarwin()))
+    UseNEONForSinglePrecisionFP = true;
 }
 
 /// GVIsIndirectSymbol - true if the GV will be accessed via an indirect symbol.

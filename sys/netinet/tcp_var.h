@@ -389,125 +389,233 @@ struct tcptw {
  * but that's inconvenient at the moment.
  */
 struct	tcpstat {
-	u_long	tcps_connattempt;	/* connections initiated */
-	u_long	tcps_accepts;		/* connections accepted */
-	u_long	tcps_connects;		/* connections established */
-	u_long	tcps_drops;		/* connections dropped */
-	u_long	tcps_conndrops;		/* embryonic connections dropped */
-	u_long	tcps_minmssdrops;	/* average minmss too low drops */
-	u_long	tcps_closed;		/* conn. closed (includes drops) */
-	u_long	tcps_segstimed;		/* segs where we tried to get rtt */
-	u_long	tcps_rttupdated;	/* times we succeeded */
-	u_long	tcps_delack;		/* delayed acks sent */
-	u_long	tcps_timeoutdrop;	/* conn. dropped in rxmt timeout */
-	u_long	tcps_rexmttimeo;	/* retransmit timeouts */
-	u_long	tcps_persisttimeo;	/* persist timeouts */
-	u_long	tcps_keeptimeo;		/* keepalive timeouts */
-	u_long	tcps_keepprobe;		/* keepalive probes sent */
-	u_long	tcps_keepdrops;		/* connections dropped in keepalive */
+	uint64_t tcps_connattempt;	/* connections initiated */
+	uint64_t tcps_accepts;		/* connections accepted */
+	uint64_t tcps_connects;		/* connections established */
+	uint64_t tcps_drops;		/* connections dropped */
+	uint64_t tcps_conndrops;	/* embryonic connections dropped */
+	uint64_t tcps_minmssdrops;	/* average minmss too low drops */
+	uint64_t tcps_closed;		/* conn. closed (includes drops) */
+	uint64_t tcps_segstimed;	/* segs where we tried to get rtt */
+	uint64_t tcps_rttupdated;	/* times we succeeded */
+	uint64_t tcps_delack;		/* delayed acks sent */
+	uint64_t tcps_timeoutdrop;	/* conn. dropped in rxmt timeout */
+	uint64_t tcps_rexmttimeo;	/* retransmit timeouts */
+	uint64_t tcps_persisttimeo;	/* persist timeouts */
+	uint64_t tcps_keeptimeo;	/* keepalive timeouts */
+	uint64_t tcps_keepprobe;	/* keepalive probes sent */
+	uint64_t tcps_keepdrops;	/* connections dropped in keepalive */
 
-	u_long	tcps_sndtotal;		/* total packets sent */
-	u_long	tcps_sndpack;		/* data packets sent */
-	u_long	tcps_sndbyte;		/* data bytes sent */
-	u_long	tcps_sndrexmitpack;	/* data packets retransmitted */
-	u_long	tcps_sndrexmitbyte;	/* data bytes retransmitted */
-	u_long	tcps_sndrexmitbad;	/* unnecessary packet retransmissions */
-	u_long	tcps_sndacks;		/* ack-only packets sent */
-	u_long	tcps_sndprobe;		/* window probes sent */
-	u_long	tcps_sndurg;		/* packets sent with URG only */
-	u_long	tcps_sndwinup;		/* window update-only packets sent */
-	u_long	tcps_sndctrl;		/* control (SYN|FIN|RST) packets sent */
+	uint64_t tcps_sndtotal;		/* total packets sent */
+	uint64_t tcps_sndpack;		/* data packets sent */
+	uint64_t tcps_sndbyte;		/* data bytes sent */
+	uint64_t tcps_sndrexmitpack;	/* data packets retransmitted */
+	uint64_t tcps_sndrexmitbyte;	/* data bytes retransmitted */
+	uint64_t tcps_sndrexmitbad;	/* unnecessary packet retransmissions */
+	uint64_t tcps_sndacks;		/* ack-only packets sent */
+	uint64_t tcps_sndprobe;		/* window probes sent */
+	uint64_t tcps_sndurg;		/* packets sent with URG only */
+	uint64_t tcps_sndwinup;		/* window update-only packets sent */
+	uint64_t tcps_sndctrl;		/* control (SYN|FIN|RST) packets sent */
 
-	u_long	tcps_rcvtotal;		/* total packets received */
-	u_long	tcps_rcvpack;		/* packets received in sequence */
-	u_long	tcps_rcvbyte;		/* bytes received in sequence */
-	u_long	tcps_rcvbadsum;		/* packets received with ccksum errs */
-	u_long	tcps_rcvbadoff;		/* packets received with bad offset */
-	u_long	tcps_rcvmemdrop;	/* packets dropped for lack of memory */
-	u_long	tcps_rcvshort;		/* packets received too short */
-	u_long	tcps_rcvduppack;	/* duplicate-only packets received */
-	u_long	tcps_rcvdupbyte;	/* duplicate-only bytes received */
-	u_long	tcps_rcvpartduppack;	/* packets with some duplicate data */
-	u_long	tcps_rcvpartdupbyte;	/* dup. bytes in part-dup. packets */
-	u_long	tcps_rcvoopack;		/* out-of-order packets received */
-	u_long	tcps_rcvoobyte;		/* out-of-order bytes received */
-	u_long	tcps_rcvpackafterwin;	/* packets with data after window */
-	u_long	tcps_rcvbyteafterwin;	/* bytes rcvd after window */
-	u_long	tcps_rcvafterclose;	/* packets rcvd after "close" */
-	u_long	tcps_rcvwinprobe;	/* rcvd window probe packets */
-	u_long	tcps_rcvdupack;		/* rcvd duplicate acks */
-	u_long	tcps_rcvacktoomuch;	/* rcvd acks for unsent data */
-	u_long	tcps_rcvackpack;	/* rcvd ack packets */
-	u_long	tcps_rcvackbyte;	/* bytes acked by rcvd acks */
-	u_long	tcps_rcvwinupd;		/* rcvd window update packets */
-	u_long	tcps_pawsdrop;		/* segments dropped due to PAWS */
-	u_long	tcps_predack;		/* times hdr predict ok for acks */
-	u_long	tcps_preddat;		/* times hdr predict ok for data pkts */
-	u_long	tcps_pcbcachemiss;
-	u_long	tcps_cachedrtt;		/* times cached RTT in route updated */
-	u_long	tcps_cachedrttvar;	/* times cached rttvar updated */
-	u_long	tcps_cachedssthresh;	/* times cached ssthresh updated */
-	u_long	tcps_usedrtt;		/* times RTT initialized from route */
-	u_long	tcps_usedrttvar;	/* times RTTVAR initialized from rt */
-	u_long	tcps_usedssthresh;	/* times ssthresh initialized from rt*/
-	u_long	tcps_persistdrop;	/* timeout in persist state */
-	u_long	tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
-	u_long	tcps_mturesent;		/* resends due to MTU discovery */
-	u_long	tcps_listendrop;	/* listen queue overflows */
-	u_long	tcps_badrst;		/* ignored RSTs in the window */
+	uint64_t tcps_rcvtotal;		/* total packets received */
+	uint64_t tcps_rcvpack;		/* packets received in sequence */
+	uint64_t tcps_rcvbyte;		/* bytes received in sequence */
+	uint64_t tcps_rcvbadsum;	/* packets received with ccksum errs */
+	uint64_t tcps_rcvbadoff;	/* packets received with bad offset */
+	uint64_t tcps_rcvmemdrop;	/* packets dropped for lack of memory */
+	uint64_t tcps_rcvshort;		/* packets received too short */
+	uint64_t tcps_rcvduppack;	/* duplicate-only packets received */
+	uint64_t tcps_rcvdupbyte;	/* duplicate-only bytes received */
+	uint64_t tcps_rcvpartduppack;	/* packets with some duplicate data */
+	uint64_t tcps_rcvpartdupbyte;	/* dup. bytes in part-dup. packets */
+	uint64_t tcps_rcvoopack;	/* out-of-order packets received */
+	uint64_t tcps_rcvoobyte;	/* out-of-order bytes received */
+	uint64_t tcps_rcvpackafterwin;	/* packets with data after window */
+	uint64_t tcps_rcvbyteafterwin;	/* bytes rcvd after window */
+	uint64_t tcps_rcvafterclose;	/* packets rcvd after "close" */
+	uint64_t tcps_rcvwinprobe;	/* rcvd window probe packets */
+	uint64_t tcps_rcvdupack;	/* rcvd duplicate acks */
+	uint64_t tcps_rcvacktoomuch;	/* rcvd acks for unsent data */
+	uint64_t tcps_rcvackpack;	/* rcvd ack packets */
+	uint64_t tcps_rcvackbyte;	/* bytes acked by rcvd acks */
+	uint64_t tcps_rcvwinupd;	/* rcvd window update packets */
+	uint64_t tcps_pawsdrop;		/* segments dropped due to PAWS */
+	uint64_t tcps_predack;		/* times hdr predict ok for acks */
+	uint64_t tcps_preddat;		/* times hdr predict ok for data pkts */
+	uint64_t tcps_pcbcachemiss;
+	uint64_t tcps_cachedrtt;	/* times cached RTT in route updated */
+	uint64_t tcps_cachedrttvar;	/* times cached rttvar updated */
+	uint64_t tcps_cachedssthresh;	/* times cached ssthresh updated */
+	uint64_t tcps_usedrtt;		/* times RTT initialized from route */
+	uint64_t tcps_usedrttvar;	/* times RTTVAR initialized from rt */
+	uint64_t tcps_usedssthresh;	/* times ssthresh initialized from rt*/
+	uint64_t tcps_persistdrop;	/* timeout in persist state */
+	uint64_t tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
+	uint64_t tcps_mturesent;	/* resends due to MTU discovery */
+	uint64_t tcps_listendrop;	/* listen queue overflows */
+	uint64_t tcps_badrst;		/* ignored RSTs in the window */
 
-	u_long	tcps_sc_added;		/* entry added to syncache */
-	u_long	tcps_sc_retransmitted;	/* syncache entry was retransmitted */
-	u_long	tcps_sc_dupsyn;		/* duplicate SYN packet */
-	u_long	tcps_sc_dropped;	/* could not reply to packet */
-	u_long	tcps_sc_completed;	/* successful extraction of entry */
-	u_long	tcps_sc_bucketoverflow;	/* syncache per-bucket limit hit */
-	u_long	tcps_sc_cacheoverflow;	/* syncache cache limit hit */
-	u_long	tcps_sc_reset;		/* RST removed entry from syncache */
-	u_long	tcps_sc_stale;		/* timed out or listen socket gone */
-	u_long	tcps_sc_aborted;	/* syncache entry aborted */
-	u_long	tcps_sc_badack;		/* removed due to bad ACK */
-	u_long	tcps_sc_unreach;	/* ICMP unreachable received */
-	u_long	tcps_sc_zonefail;	/* zalloc() failed */
-	u_long	tcps_sc_sendcookie;	/* SYN cookie sent */
-	u_long	tcps_sc_recvcookie;	/* SYN cookie received */
+	uint64_t tcps_sc_added;		/* entry added to syncache */
+	uint64_t tcps_sc_retransmitted;	/* syncache entry was retransmitted */
+	uint64_t tcps_sc_dupsyn;	/* duplicate SYN packet */
+	uint64_t tcps_sc_dropped;	/* could not reply to packet */
+	uint64_t tcps_sc_completed;	/* successful extraction of entry */
+	uint64_t tcps_sc_bucketoverflow;/* syncache per-bucket limit hit */
+	uint64_t tcps_sc_cacheoverflow;	/* syncache cache limit hit */
+	uint64_t tcps_sc_reset;		/* RST removed entry from syncache */
+	uint64_t tcps_sc_stale;		/* timed out or listen socket gone */
+	uint64_t tcps_sc_aborted;	/* syncache entry aborted */
+	uint64_t tcps_sc_badack;	/* removed due to bad ACK */
+	uint64_t tcps_sc_unreach;	/* ICMP unreachable received */
+	uint64_t tcps_sc_zonefail;	/* zalloc() failed */
+	uint64_t tcps_sc_sendcookie;	/* SYN cookie sent */
+	uint64_t tcps_sc_recvcookie;	/* SYN cookie received */
 
-	u_long	tcps_hc_added;		/* entry added to hostcache */
-	u_long	tcps_hc_bucketoverflow;	/* hostcache per bucket limit hit */
+	uint64_t tcps_hc_added;		/* entry added to hostcache */
+	uint64_t tcps_hc_bucketoverflow;/* hostcache per bucket limit hit */
 
-	u_long  tcps_finwait2_drops;    /* Drop FIN_WAIT_2 connection after time limit */
+	uint64_t tcps_finwait2_drops;    /* Drop FIN_WAIT_2 connection after time limit */
 
 	/* SACK related stats */
-	u_long	tcps_sack_recovery_episode; /* SACK recovery episodes */
-	u_long  tcps_sack_rexmits;	    /* SACK rexmit segments   */
-	u_long  tcps_sack_rexmit_bytes;	    /* SACK rexmit bytes      */
-	u_long  tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
-	u_long  tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
-	u_long  tcps_sack_sboverflow;	    /* times scoreboard overflowed */
+	uint64_t tcps_sack_recovery_episode; /* SACK recovery episodes */
+	uint64_t tcps_sack_rexmits;	    /* SACK rexmit segments   */
+	uint64_t tcps_sack_rexmit_bytes;    /* SACK rexmit bytes      */
+	uint64_t tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
+	uint64_t tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
+	uint64_t tcps_sack_sboverflow;	    /* times scoreboard overflowed */
 	
 	/* ECN related stats */
-	u_long	tcps_ecn_ce;		/* ECN Congestion Experienced */
-	u_long	tcps_ecn_ect0;		/* ECN Capable Transport */
-	u_long	tcps_ecn_ect1;		/* ECN Capable Transport */
-	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
-	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
+	uint64_t tcps_ecn_ce;		/* ECN Congestion Experienced */
+	uint64_t tcps_ecn_ect0;		/* ECN Capable Transport */
+	uint64_t tcps_ecn_ect1;		/* ECN Capable Transport */
+	uint64_t tcps_ecn_shs;		/* ECN successful handshakes */
+	uint64_t tcps_ecn_rcwnd;	/* # times ECN reduced the cwnd */
 
 	/* TCP_SIGNATURE related stats */
-	u_long	tcps_sig_rcvgoodsig;	/* Total matching signature received */
-	u_long	tcps_sig_rcvbadsig;	/* Total bad signature received */
-	u_long	tcps_sig_err_buildsig;	/* Mismatching signature received */
-	u_long	tcps_sig_err_sigopt;	/* No signature expected by socket */
-	u_long	tcps_sig_err_nosigopt;	/* No signature provided by segment */
+	uint64_t tcps_sig_rcvgoodsig;	/* Total matching signature received */
+	uint64_t tcps_sig_rcvbadsig;	/* Total bad signature received */
+	uint64_t tcps_sig_err_buildsig;	/* Mismatching signature received */
+	uint64_t tcps_sig_err_sigopt;	/* No signature expected by socket */
+	uint64_t tcps_sig_err_nosigopt;	/* No signature provided by segment */
 
-	u_long	_pad[12];		/* 6 UTO, 6 TBD */
+	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
 #ifdef _KERNEL
+
+#include <sys/counter.h>
+
+/* Should match 'struct tcpstat' above. */
+struct tcpstat_p {
+	counter_u64_t tcps_connattempt;
+	counter_u64_t tcps_accepts;
+	counter_u64_t tcps_connects;
+	counter_u64_t tcps_drops;
+	counter_u64_t tcps_conndrops;
+	counter_u64_t tcps_minmssdrops;
+	counter_u64_t tcps_closed;
+	counter_u64_t tcps_segstimed;
+	counter_u64_t tcps_rttupdated;
+	counter_u64_t tcps_delack;
+	counter_u64_t tcps_timeoutdrop;
+	counter_u64_t tcps_rexmttimeo;
+	counter_u64_t tcps_persisttimeo;
+	counter_u64_t tcps_keeptimeo;
+	counter_u64_t tcps_keepprobe;
+	counter_u64_t tcps_keepdrops;
+	counter_u64_t tcps_sndtotal;
+	counter_u64_t tcps_sndpack;
+	counter_u64_t tcps_sndbyte;
+	counter_u64_t tcps_sndrexmitpack;
+	counter_u64_t tcps_sndrexmitbyte;
+	counter_u64_t tcps_sndrexmitbad;
+	counter_u64_t tcps_sndacks;
+	counter_u64_t tcps_sndprobe;
+	counter_u64_t tcps_sndurg;
+	counter_u64_t tcps_sndwinup;
+	counter_u64_t tcps_sndctrl;
+	counter_u64_t tcps_rcvtotal;
+	counter_u64_t tcps_rcvpack;
+	counter_u64_t tcps_rcvbyte;
+	counter_u64_t tcps_rcvbadsum;
+	counter_u64_t tcps_rcvbadoff;
+	counter_u64_t tcps_rcvmemdrop;
+	counter_u64_t tcps_rcvshort;
+	counter_u64_t tcps_rcvduppack;
+	counter_u64_t tcps_rcvdupbyte;
+	counter_u64_t tcps_rcvpartduppack;
+	counter_u64_t tcps_rcvpartdupbyte;
+	counter_u64_t tcps_rcvoopack;
+	counter_u64_t tcps_rcvoobyte;
+	counter_u64_t tcps_rcvpackafterwin;
+	counter_u64_t tcps_rcvbyteafterwin;
+	counter_u64_t tcps_rcvafterclose;
+	counter_u64_t tcps_rcvwinprobe;
+	counter_u64_t tcps_rcvdupack;
+	counter_u64_t tcps_rcvacktoomuch;
+	counter_u64_t tcps_rcvackpack;
+	counter_u64_t tcps_rcvackbyte;
+	counter_u64_t tcps_rcvwinupd;
+	counter_u64_t tcps_pawsdrop;
+	counter_u64_t tcps_predack;
+	counter_u64_t tcps_preddat;
+	counter_u64_t tcps_pcbcachemiss;
+	counter_u64_t tcps_cachedrtt;
+	counter_u64_t tcps_cachedrttvar;
+	counter_u64_t tcps_cachedssthresh;
+	counter_u64_t tcps_usedrtt;
+	counter_u64_t tcps_usedrttvar;
+	counter_u64_t tcps_usedssthresh;
+	counter_u64_t tcps_persistdrop;
+	counter_u64_t tcps_badsyn;
+	counter_u64_t tcps_mturesent;
+	counter_u64_t tcps_listendrop;
+	counter_u64_t tcps_badrst;
+	counter_u64_t tcps_sc_added;
+	counter_u64_t tcps_sc_retransmitted;
+	counter_u64_t tcps_sc_dupsyn;
+	counter_u64_t tcps_sc_dropped;
+	counter_u64_t tcps_sc_completed;
+	counter_u64_t tcps_sc_bucketoverflow;
+	counter_u64_t tcps_sc_cacheoverflow;
+	counter_u64_t tcps_sc_reset;
+	counter_u64_t tcps_sc_stale;
+	counter_u64_t tcps_sc_aborted;
+	counter_u64_t tcps_sc_badack;
+	counter_u64_t tcps_sc_unreach;
+	counter_u64_t tcps_sc_zonefail;
+	counter_u64_t tcps_sc_sendcookie;
+	counter_u64_t tcps_sc_recvcookie;
+	counter_u64_t tcps_hc_added;
+	counter_u64_t tcps_hc_bucketoverflow;
+	counter_u64_t tcps_finwait2_drops;
+	counter_u64_t tcps_sack_recovery_episode;
+	counter_u64_t tcps_sack_rexmits;
+	counter_u64_t tcps_sack_rexmit_bytes;
+	counter_u64_t tcps_sack_rcv_blocks;
+	counter_u64_t tcps_sack_send_blocks;
+	counter_u64_t tcps_sack_sboverflow;
+	counter_u64_t tcps_ecn_ce;
+	counter_u64_t tcps_ecn_ect0;
+	counter_u64_t tcps_ecn_ect1;
+	counter_u64_t tcps_ecn_shs;
+	counter_u64_t tcps_ecn_rcwnd;
+	counter_u64_t tcps_sig_rcvgoodsig;
+	counter_u64_t tcps_sig_rcvbadsig;
+	counter_u64_t tcps_sig_err_buildsig;
+	counter_u64_t tcps_sig_err_sigopt;
+	counter_u64_t tcps_sig_err_nosigopt;
+};
+
+VNET_DECLARE(struct tcpstat_p, tcpstatp);	/* tcp statistics */
+#define	V_tcpstatp VNET(tcpstatp)
+
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	TCPSTAT_ADD(name, val)	V_tcpstat.name += (val)
+#define	TCPSTAT_ADD(name, val)	counter_u64_add(V_tcpstatp.name, (val))
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
 
 /*
@@ -515,7 +623,8 @@ struct	tcpstat {
  */
 void	kmod_tcpstat_inc(int statnum);
 #define	KMOD_TCPSTAT_INC(name)						\
-	kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(u_long))
+	kmod_tcpstat_inc(offsetof(struct tcpstat_p, name) /		\
+	sizeof(counter_u64_t))
 
 /*
  * TCP specific helper hook point identifiers.
@@ -605,7 +714,6 @@ MALLOC_DECLARE(M_TCPLOG);
 
 VNET_DECLARE(struct inpcbhead, tcb);		/* queue of active tcpcb's */
 VNET_DECLARE(struct inpcbinfo, tcbinfo);
-VNET_DECLARE(struct tcpstat, tcpstat);		/* tcp statistics */
 extern	int tcp_log_in_vain;
 VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
@@ -619,7 +727,6 @@ VNET_DECLARE(int, tcp_do_rfc3465);
 VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcb			VNET(tcb)
 #define	V_tcbinfo		VNET(tcbinfo)
-#define	V_tcpstat		VNET(tcpstat)
 #define	V_tcp_mssdflt		VNET(tcp_mssdflt)
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)

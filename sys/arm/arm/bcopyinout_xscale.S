@@ -492,7 +492,7 @@ ENTRY(copyin)
 	ldrbt	ip, [r0]
 	strb	ip, [r1]
 	RET
-
+END(copyin)
 
 /*
  * r0 = kernel space address
@@ -935,3 +935,5 @@ ENTRY(copyout)
 	ldrb	ip, [r0]
 	strbt	ip, [r1]
 	RET
+END(copyout)
+

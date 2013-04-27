@@ -14,22 +14,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Constants.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/DebugInfo.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Function.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/ADT/SmallVector.h"
 #include <map>
 using namespace llvm;
 
@@ -94,19 +94,20 @@ void llvm::CloneFunctionInto(Function *NewFunc, const Function *OldFunc,
     //Some arguments were deleted with the VMap. Copy arguments one by one
     for (Function::const_arg_iterator I = OldFunc->arg_begin(), 
            E = OldFunc->arg_end(); I != E; ++I)
-      if (Argument* Anew = dyn_cast<Argument>(VMap[I]))
-        Anew->addAttr( OldFunc->getAttributes()
-                       .getParamAttributes(I->getArgNo() + 1));
+      if (Argument* Anew = dyn_cast<Argument>(VMap[I])) {
+        AttributeSet attrs = OldFunc->getAttributes()
+          .getParamAttributes(I->getArgNo() + 1);
+        if (attrs.getNumSlots() > 0)
+          Anew->addAttr(attrs);
+      }
     NewFunc->setAttributes(NewFunc->getAttributes()
-                           .addAttr(NewFunc->getContext(),
-                                    AttrListPtr::ReturnIndex,
-                                    OldFunc->getAttributes()
-                                     .getRetAttributes()));
+                           .addAttributes(NewFunc->getContext(),
+                                          AttributeSet::ReturnIndex,
+                                          OldFunc->getAttributes()));
     NewFunc->setAttributes(NewFunc->getAttributes()
-                           .addAttr(NewFunc->getContext(),
-                                    AttrListPtr::FunctionIndex,
-                                    OldFunc->getAttributes()
-                                     .getFnAttributes()));
+                           .addAttributes(NewFunc->getContext(),
+                                          AttributeSet::FunctionIndex,
+                                          OldFunc->getAttributes()));
 
   }
 

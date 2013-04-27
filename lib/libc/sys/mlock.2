@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2012
+.Dd March 18, 2013
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -138,7 +138,12 @@ is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
 The address given is not page aligned or the length is negative.
 .It Bq Er ENOMEM
-Some portion of the indicated address range is not allocated.
+Some or all of the address range specified by the addr and len
+arguments does not correspond to valid mapped pages in the address space
+of the process.
+.It Bq Er ENOMEM
+Locking the pages mapped by the specified range would exceed a limit on
+the amount of memory that the process may lock.
 .El
 .Sh "SEE ALSO"
 .Xr fork 2 ,

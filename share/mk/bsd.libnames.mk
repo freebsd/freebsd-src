@@ -25,6 +25,7 @@ LIBBIND9?=	${DESTDIR}${LIBDIR}/libbind9.a
 .endif
 LIBBLUETOOTH?=	${DESTDIR}${LIBDIR}/libbluetooth.a
 LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
+LIBBSDYML?=	${DESTDIR}${LIBDIR}/libbsdyml.a
 LIBBSM?=	${DESTDIR}${LIBDIR}/libbsm.a
 LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
@@ -173,4 +174,5 @@ LIBY?=		${DESTDIR}${LIBDIR}/liby.a
 LIBYPCLNT?=	${DESTDIR}${LIBDIR}/libypclnt.a
 LIBZ?=		${DESTDIR}${LIBDIR}/libz.a
 LIBZFS?=	${DESTDIR}${LIBDIR}/libzfs.a
+LIBZFS_CORE?=	${DESTDIR}${LIBDIR}/libzfs_core.a
 LIBZPOOL?=	${DESTDIR}${LIBDIR}/libzpool.a

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -63,6 +64,11 @@ __FBSDID("$FreeBSD$");
 
 #define _UMUTEX_TRY		1
 #define _UMUTEX_WAIT		2
+
+#ifdef UMTX_PROFILING
+#define	UPROF_PERC_BIGGER(w, f, sw, sf)					\
+	(((w) > (sw)) || ((w) == (sw) && (f) > (sf)))
+#endif
 
 /* Priority inheritance mutex info. */
 struct umtx_pi {
@@ -157,8 +163,8 @@ struct umtxq_chain {
 	TAILQ_HEAD(,umtx_pi)	uc_pi_list;
 
 #ifdef UMTX_PROFILING
-	int 			length;
-	int			max_length;
+	u_int 			length;
+	u_int			max_length;
 #endif
 };
 
@@ -252,6 +258,117 @@ umtx_init_profiling(void)
 		    "max_length1", CTLFLAG_RD, &umtxq_chains[1][i].max_length, 0, NULL);
 	}
 }
+
+static int
+sysctl_debug_umtx_chains_peaks(SYSCTL_HANDLER_ARGS)
+{
+	char buf[512];
+	struct sbuf sb;
+	struct umtxq_chain *uc;
+	u_int fract, i, j, tot, whole;
+	u_int sf0, sf1, sf2, sf3, sf4;
+	u_int si0, si1, si2, si3, si4;
+	u_int sw0, sw1, sw2, sw3, sw4;
+
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	for (i = 0; i < 2; i++) {
+		tot = 0;
+		for (j = 0; j < UMTX_CHAINS; ++j) {
+			uc = &umtxq_chains[i][j];
+			mtx_lock(&uc->uc_lock);
+			tot += uc->max_length;
+			mtx_unlock(&uc->uc_lock);
+		}
+		if (tot == 0)
+			sbuf_printf(&sb, "%u) Empty ", i);
+		else {
+			sf0 = sf1 = sf2 = sf3 = sf4 = 0;
+			si0 = si1 = si2 = si3 = si4 = 0;
+			sw0 = sw1 = sw2 = sw3 = sw4 = 0;
+			for (j = 0; j < UMTX_CHAINS; j++) {
+				uc = &umtxq_chains[i][j];
+				mtx_lock(&uc->uc_lock);
+				whole = uc->max_length * 100;
+				mtx_unlock(&uc->uc_lock);
+				fract = (whole % tot) * 100;
+				if (UPROF_PERC_BIGGER(whole, fract, sw0, sf0)) {
+					sf0 = fract;
+					si0 = j;
+					sw0 = whole;
+				} else if (UPROF_PERC_BIGGER(whole, fract, sw1,
+				    sf1)) {
+					sf1 = fract;
+					si1 = j;
+					sw1 = whole;
+				} else if (UPROF_PERC_BIGGER(whole, fract, sw2,
+				    sf2)) {
+					sf2 = fract;
+					si2 = j;
+					sw2 = whole;
+				} else if (UPROF_PERC_BIGGER(whole, fract, sw3,
+				    sf3)) {
+					sf3 = fract;
+					si3 = j;
+					sw3 = whole;
+				} else if (UPROF_PERC_BIGGER(whole, fract, sw4,
+				    sf4)) {
+					sf4 = fract;
+					si4 = j;
+					sw4 = whole;
+				}
+			}
+			sbuf_printf(&sb, "queue %u:\n", i);
+			sbuf_printf(&sb, "1st: %u.%u%% idx: %u\n", sw0 / tot,
+			    sf0 / tot, si0);
+			sbuf_printf(&sb, "2nd: %u.%u%% idx: %u\n", sw1 / tot,
+			    sf1 / tot, si1);
+			sbuf_printf(&sb, "3rd: %u.%u%% idx: %u\n", sw2 / tot,
+			    sf2 / tot, si2);
+			sbuf_printf(&sb, "4th: %u.%u%% idx: %u\n", sw3 / tot,
+			    sf3 / tot, si3);
+			sbuf_printf(&sb, "5th: %u.%u%% idx: %u\n", sw4 / tot,
+			    sf4 / tot, si4);
+		}
+	}
+	sbuf_trim(&sb);
+	sbuf_finish(&sb);
+	sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	sbuf_delete(&sb);
+	return (0);
+}
+
+static int
+sysctl_debug_umtx_chains_clear(SYSCTL_HANDLER_ARGS)
+{
+	struct umtxq_chain *uc;
+	u_int i, j;
+	int clear, error;
+
+	clear = 0;
+	error = sysctl_handle_int(oidp, &clear, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (clear != 0) {
+		for (i = 0; i < 2; ++i) {
+			for (j = 0; j < UMTX_CHAINS; ++j) {
+				uc = &umtxq_chains[i][j];
+				mtx_lock(&uc->uc_lock);
+				uc->length = 0;
+				uc->max_length = 0;	
+				mtx_unlock(&uc->uc_lock);
+			}
+		}
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_debug_umtx_chains, OID_AUTO, clear,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_debug_umtx_chains_clear, "I", "Clear umtx chains statistics");
+SYSCTL_PROC(_debug_umtx_chains, OID_AUTO, peaks,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_debug_umtx_chains_peaks, "A", "Highest peaks in chains max length");
 #endif
 
 static void
@@ -425,19 +542,19 @@ umtxq_insert_queue(struct umtx_q *uq, int q)
 		uh = uq->uq_spare_queue;
 		uh->key = uq->uq_key;
 		LIST_INSERT_HEAD(&uc->uc_queue[q], uh, link);
+#ifdef UMTX_PROFILING
+		uc->length++;
+		if (uc->length > uc->max_length) {
+			uc->max_length = uc->length;
+			if (uc->max_length > max_length)
+				max_length = uc->max_length;	
+		}
+#endif
 	}
 	uq->uq_spare_queue = NULL;
 
 	TAILQ_INSERT_TAIL(&uh->head, uq, uq_link);
 	uh->length++;
-#ifdef UMTX_PROFILING
-	uc->length++;
-	if (uc->length > uc->max_length) {
-		uc->max_length = uc->length;
-		if (uc->max_length > max_length)
-			max_length = uc->max_length;	
-	}
-#endif
 	uq->uq_flags |= UQF_UMTXQ;
 	uq->uq_cur_queue = uh;
 	return;
@@ -455,13 +572,13 @@ umtxq_remove_queue(struct umtx_q *uq, int q)
 		uh = uq->uq_cur_queue;
 		TAILQ_REMOVE(&uh->head, uq, uq_link);
 		uh->length--;
-#ifdef UMTX_PROFILING
-		uc->length--;
-#endif
 		uq->uq_flags &= ~UQF_UMTXQ;
 		if (TAILQ_EMPTY(&uh->head)) {
 			KASSERT(uh->length == 0,
 			    ("inconsistent umtxq_queue length"));
+#ifdef UMTX_PROFILING
+			uc->length--;
+#endif
 			LIST_REMOVE(uh, link);
 		} else {
 			uh = LIST_FIRST(&uc->uc_spare_queue);
@@ -2863,7 +2980,9 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 		error = 0;
 	else {
 		umtxq_remove(uq);
-		if (error == ERESTART)
+		/* A relative timeout cannot be restarted. */
+		if (error == ERESTART && timeout != NULL &&
+		    (timeout->_flags & UMTX_ABSTIME) == 0)
 			error = EINTR;
 	}
 	umtxq_unlock(&uq->uq_key);

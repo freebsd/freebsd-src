@@ -155,7 +155,10 @@
 #define	ASYNC_EVENT_LINK_UP		0x1
 #define	ASYNC_EVENT_LINK_DOWN		0x0
 #define ASYNC_EVENT_GRP5		0x5
+#define ASYNC_EVENT_CODE_DEBUG		0x6
 #define ASYNC_EVENT_PVID_STATE		0x3
+#define ASYNC_EVENT_DEBUG_QNQ		0x1
+#define ASYNC_EVENT_CODE_SLIPORT	0x11
 #define VLAN_VID_MASK			0x0FFF
 
 /* port link_status */
@@ -707,6 +710,17 @@ struct oce_async_event_grp5_pvid_state {
 	uint32_t code;
 };
 
+/* async event indicating outer VLAN tag in QnQ */
+struct oce_async_event_qnq {
+        uint8_t valid;       /* Indicates if outer VLAN is valid */
+        uint8_t rsvd0;
+        uint16_t vlan_tag;
+        uint32_t event_tag;
+        uint8_t rsvd1[4];
+	uint32_t code;
+} ;
+
+
 typedef union oce_mq_ext_ctx_u {
 	uint32_t dw[6];
 	struct {
@@ -750,6 +764,44 @@ typedef union oce_mq_ext_ctx_u {
 		/* dw5 */
 		uint32_t dw8rsvd1;
 	} v0;
+	        struct {
+	#ifdef _BIG_ENDIAN
+                /* dw0 */
+                uint32_t cq_id:16;
+                uint32_t num_pages:16;
+                /* dw1 */
+                uint32_t async_evt_bitmap;
+                /* dw2 */
+                uint32_t dw5rsvd2:12;
+                uint32_t ring_size:4;
+                uint32_t async_cq_id:16;
+                /* dw3 */
+                uint32_t valid:1;
+                uint32_t dw6rsvd1:31;
+                /* dw4 */
+		uint32_t dw7rsvd1:31;
+                uint32_t async_cq_valid:1;
+        #else
+                /* dw0 */
+                uint32_t num_pages:16;
+                uint32_t cq_id:16;
+                /* dw1 */
+                uint32_t async_evt_bitmap;
+                /* dw2 */
+                uint32_t async_cq_id:16;
+                uint32_t ring_size:4;
+                uint32_t dw5rsvd2:12;
+                /* dw3 */
+                uint32_t dw6rsvd1:31;
+                uint32_t valid:1;
+                /* dw4 */
+                uint32_t async_cq_valid:1;
+                uint32_t dw7rsvd1:31;
+        #endif
+                /* dw5 */
+                uint32_t dw8rsvd1;
+        } v1;
+
 } oce_mq_ext_ctx_t;
 
 
@@ -826,6 +878,7 @@ enum COMMON_SUBSYSTEM_OPCODES {
 	OPCODE_COMMON_SET_BEACON_CONFIG = 69,
 	OPCODE_COMMON_GET_BEACON_CONFIG = 70,
 	OPCODE_COMMON_GET_PHYSICAL_LINK_CONFIG = 71,
+	OPCODE_COMMON_READ_TRANSRECEIVER_DATA = 73,
 	OPCODE_COMMON_GET_OEM_ATTRIBUTES = 76,
 	OPCODE_COMMON_GET_PORT_NAME = 77,
 	OPCODE_COMMON_GET_CONFIG_SIGNATURE = 78,
@@ -1724,6 +1777,12 @@ struct mbx_set_common_iface_rx_filter {
 	} params;
 };
 
+struct be_set_eqd {
+	uint32_t eq_id;
+	uint32_t phase;
+	uint32_t dm;
+};
+
 /* [41] OPCODE_COMMON_MODIFY_EQ_DELAY */
 struct mbx_modify_common_eq_delay {
 	struct mbx_hdr hdr;
@@ -1739,6 +1798,76 @@ struct mbx_modify_common_eq_delay {
 
 		struct {
 			uint32_t rsvd0;
+		} rsp;
+	} params;
+};
+
+/* [32] OPCODE_COMMON_GET_CNTL_ATTRIBUTES */
+
+struct mgmt_hba_attr {
+	int8_t   flashrom_ver_str[32];
+	int8_t   manufac_name[32];
+	uint32_t supp_modes;
+	int8_t   seeprom_ver_lo;
+	int8_t   seeprom_ver_hi;
+	int8_t   rsvd0[2];
+	uint32_t ioctl_data_struct_ver;
+	uint32_t ep_fw_data_struct_ver;
+	uint8_t  ncsi_ver_str[12];
+	uint32_t def_ext_to;
+	int8_t   cntl_mod_num[32];
+	int8_t   cntl_desc[64];
+	int8_t   cntl_ser_num[32];
+	int8_t   ip_ver_str[32];
+	int8_t   fw_ver_str[32];
+	int8_t   bios_ver_str[32];
+	int8_t   redboot_ver_str[32];
+	int8_t   drv_ver_str[32];
+	int8_t   fw_on_flash_ver_str[32];
+	uint32_t funcs_supp;
+	uint16_t max_cdblen;
+	uint8_t  asic_rev;
+	uint8_t  gen_guid[16];
+	uint8_t  hba_port_count;
+	uint16_t default_link_down_timeout;
+	uint8_t  iscsi_ver_min_max;
+	uint8_t  multifunc_dev;
+	uint8_t  cache_valid;
+	uint8_t  hba_status;
+	uint8_t  max_domains_supp;
+	uint8_t  phy_port;
+	uint32_t fw_post_status;
+	uint32_t hba_mtu[8];
+	uint8_t  iSCSI_feat;
+	uint8_t  asic_gen;
+	uint8_t  future_u8[2];
+	uint32_t future_u32[3];
+};
+
+struct mgmt_cntl_attr {
+	struct    mgmt_hba_attr hba_attr;
+	uint16_t  pci_vendor_id;
+	uint16_t  pci_device_id;
+	uint16_t  pci_sub_vendor_id;
+	uint16_t  pci_sub_system_id;
+	uint8_t   pci_bus_num;
+	uint8_t   pci_dev_num;
+	uint8_t   pci_func_num;
+	uint8_t   interface_type;
+	uint64_t  unique_id;
+	uint8_t   netfilters;
+	uint8_t   rsvd0[3];
+	uint32_t  future_u32[4];
+};
+
+struct mbx_common_get_cntl_attr {
+	struct mbx_hdr hdr;
+	union {
+		struct {
+			uint32_t rsvd0;
+		} req;
+		struct {
+			struct mgmt_cntl_attr cntl_attr_info;
 		} rsp;
 	} params;
 };
@@ -1783,6 +1912,23 @@ struct mbx_query_common_max_mbx_buffer_size {
 /* [61] OPCODE_COMMON_FUNCTION_RESET */
 struct ioctl_common_function_reset {
 	struct mbx_hdr hdr;
+};
+
+/* [73] OPCODE_COMMON_READ_TRANSRECEIVER_DATA */
+struct mbx_read_common_transrecv_data {
+	struct mbx_hdr hdr;
+	union {
+		struct {
+			uint32_t    page_num;
+			uint32_t    port;
+		} req;
+		struct {
+			uint32_t    page_num;
+			uint32_t    port;
+			uint32_t    page_data[32];
+		} rsp;
+	} params;
+
 };
 
 /* [80] OPCODE_COMMON_FUNCTION_LINK_CONFIG */
@@ -2110,7 +2256,9 @@ enum RSS_ENABLE_FLAGS {
 	RSS_ENABLE_IPV4 	= 0x1,	/* (IPV4 HASH enabled ) */
 	RSS_ENABLE_TCP_IPV4 	= 0x2,	/* (TCP IPV4 Hash enabled) */
 	RSS_ENABLE_IPV6 	= 0x4,	/* (IPV6 HASH enabled) */
-	RSS_ENABLE_TCP_IPV6 	= 0x8	/* (TCP IPV6 HASH */
+	RSS_ENABLE_TCP_IPV6 	= 0x8,	/* (TCP IPV6 HASH */
+	RSS_ENABLE_UDP_IPV4	= 0x10, /* UDP IPV4 HASH */
+	RSS_ENABLE_UDP_IPV6	= 0x20  /* UDP IPV6 HASH */
 };
 #define RSS_ENABLE (RSS_ENABLE_IPV4 | RSS_ENABLE_TCP_IPV4)
 #define RSS_DISABLE RSS_ENABLE_NONE

@@ -108,6 +108,7 @@ static void	mfi_bio_complete(struct mfi_command *);
 static struct mfi_command *mfi_build_ldio(struct mfi_softc *,struct bio*);
 static struct mfi_command *mfi_build_syspdio(struct mfi_softc *,struct bio*);
 static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
+static int	mfi_std_send_frame(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command **);
 static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, struct thread *);
 static void	mfi_timeout(void *);
@@ -132,23 +133,34 @@ static int mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm);
 SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
 static int	mfi_event_locale = MFI_EVT_LOCALE_ALL;
 TUNABLE_INT("hw.mfi.event_locale", &mfi_event_locale);
-SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RW, &mfi_event_locale,
-            0, "event message locale");
+SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RWTUN, &mfi_event_locale,
+           0, "event message locale");
 
 static int	mfi_event_class = MFI_EVT_CLASS_INFO;
 TUNABLE_INT("hw.mfi.event_class", &mfi_event_class);
-SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RW, &mfi_event_class,
-          0, "event message class");
+SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RWTUN, &mfi_event_class,
+           0, "event message class");
 
 static int	mfi_max_cmds = 128;
 TUNABLE_INT("hw.mfi.max_cmds", &mfi_max_cmds);
-SYSCTL_INT(_hw_mfi, OID_AUTO, max_cmds, CTLFLAG_RD, &mfi_max_cmds,
-	   0, "Max commands");
+SYSCTL_INT(_hw_mfi, OID_AUTO, max_cmds, CTLFLAG_RDTUN, &mfi_max_cmds,
+	   0, "Max commands limit (-1 = controller limit)");
 
 static int	mfi_detect_jbod_change = 1;
 TUNABLE_INT("hw.mfi.detect_jbod_change", &mfi_detect_jbod_change);
-SYSCTL_INT(_hw_mfi, OID_AUTO, detect_jbod_change, CTLFLAG_RW,
+SYSCTL_INT(_hw_mfi, OID_AUTO, detect_jbod_change, CTLFLAG_RWTUN,
 	   &mfi_detect_jbod_change, 0, "Detect a change to a JBOD");
+
+int		mfi_polled_cmd_timeout = MFI_POLL_TIMEOUT_SECS;
+TUNABLE_INT("hw.mfi.polled_cmd_timeout", &mfi_polled_cmd_timeout);
+SYSCTL_INT(_hw_mfi, OID_AUTO, polled_cmd_timeout, CTLFLAG_RWTUN,
+	   &mfi_polled_cmd_timeout, 0,
+	   "Polled command timeout - used for firmware flash etc (in seconds)");
+
+static int	mfi_cmd_timeout = MFI_CMD_TIMEOUT;
+TUNABLE_INT("hw.mfi.cmd_timeout", &mfi_cmd_timeout);
+SYSCTL_INT(_hw_mfi, OID_AUTO, cmd_timeout, CTLFLAG_RWTUN, &mfi_cmd_timeout,
+	   0, "Command timeout (in seconds)");
 
 /* Management interface */
 static d_open_t		mfi_open;
@@ -361,7 +373,7 @@ mfi_attach(struct mfi_softc *sc)
 {
 	uint32_t status;
 	int error, commsz, framessz, sensesz;
-	int frames, unit, max_fw_sge;
+	int frames, unit, max_fw_sge, max_fw_cmds;
 	uint32_t tb_mem_size = 0;
 
 	if (sc == NULL)
@@ -456,7 +468,14 @@ mfi_attach(struct mfi_softc *sc)
 	 * instead of compile time.
 	 */
 	status = sc->mfi_read_fw_status(sc);
-	sc->mfi_max_fw_cmds = status & MFI_FWSTATE_MAXCMD_MASK;
+	max_fw_cmds = status & MFI_FWSTATE_MAXCMD_MASK;
+	if (mfi_max_cmds > 0 && mfi_max_cmds < max_fw_cmds) {
+		device_printf(sc->mfi_dev, "FW MaxCmds = %d, limiting to %d\n",
+		    max_fw_cmds, mfi_max_cmds);
+		sc->mfi_max_fw_cmds = mfi_max_cmds;
+	} else {
+		sc->mfi_max_fw_cmds = max_fw_cmds;
+	}
 	max_fw_sge = (status & MFI_FWSTATE_MAXSGL_MASK) >> 16;
 	sc->mfi_max_sge = min(max_fw_sge, ((MFI_MAXPHYS / PAGE_SIZE) + 1));
 
@@ -464,7 +483,8 @@ mfi_attach(struct mfi_softc *sc)
 
 	if (sc->mfi_flags & MFI_FLAGS_TBOLT) {
 		mfi_tbolt_init_globals(sc);
-		device_printf(sc->mfi_dev, "MaxCmd = %x MaxSgl = %x state = %x \n",
+		device_printf(sc->mfi_dev, "MaxCmd = %d, Drv MaxCmd = %d, "
+		    "MaxSgl = %d, state = %#x\n", max_fw_cmds,
 		    sc->mfi_max_fw_cmds, sc->mfi_max_sge, status);
 		tb_mem_size = mfi_tbolt_get_memory_requirement(sc);
 
@@ -503,8 +523,8 @@ mfi_attach(struct mfi_softc *sc)
 				0,			/* flags */
 				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mfi_tb_init_dmat)) {
-		device_printf(sc->mfi_dev, "Cannot allocate init DMA tag\n");
-		return (ENOMEM);
+			device_printf(sc->mfi_dev, "Cannot allocate init DMA tag\n");
+			return (ENOMEM);
 		}
 		if (bus_dmamem_alloc(sc->mfi_tb_init_dmat, (void **)&sc->mfi_tb_init,
 		    BUS_DMA_NOWAIT, &sc->mfi_tb_init_dmamap)) {
@@ -683,11 +703,14 @@ mfi_attach(struct mfi_softc *sc)
 	/* ThunderBolt MFI_IOC2 INIT */
 	if (sc->mfi_flags & MFI_FLAGS_TBOLT) {
 		sc->mfi_disable_intr(sc);
+		mtx_lock(&sc->mfi_io_lock);
 		if ((error = mfi_tbolt_init_MFI_queue(sc)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "TB Init has failed with error %d\n",error);
+			mtx_unlock(&sc->mfi_io_lock);
 			return error;
 		}
+		mtx_unlock(&sc->mfi_io_lock);
 
 		if ((error = mfi_tbolt_alloc_cmd(sc)) != 0)
 			return error;
@@ -723,10 +746,12 @@ mfi_attach(struct mfi_softc *sc)
 		    "hook\n");
 		return (EINVAL);
 	}
+	mtx_lock(&sc->mfi_io_lock);
 	if ((error = mfi_aen_setup(sc, 0), 0) != 0) {
 		mtx_unlock(&sc->mfi_io_lock);
 		return (error);
 	}
+	mtx_unlock(&sc->mfi_io_lock);
 
 	/*
 	 * Register a shutdown handler.
@@ -762,11 +787,13 @@ mfi_attach(struct mfi_softc *sc)
 
 	/* Start the timeout watchdog */
 	callout_init(&sc->mfi_watchdog_callout, CALLOUT_MPSAFE);
-	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
+	callout_reset(&sc->mfi_watchdog_callout, mfi_cmd_timeout * hz,
 	    mfi_timeout, sc);
 
 	if (sc->mfi_flags & MFI_FLAGS_TBOLT) {
+		mtx_lock(&sc->mfi_io_lock);
 		mfi_tbolt_sync_map_info(sc);
+		mtx_unlock(&sc->mfi_io_lock);
 	}
 
 	return (0);
@@ -776,21 +803,16 @@ static int
 mfi_alloc_commands(struct mfi_softc *sc)
 {
 	struct mfi_command *cm;
-	int i, ncmds;
+	int i, j;
 
 	/*
 	 * XXX Should we allocate all the commands up front, or allocate on
 	 * demand later like 'aac' does?
 	 */
-	ncmds = MIN(mfi_max_cmds, sc->mfi_max_fw_cmds);
-	if (bootverbose)
-		device_printf(sc->mfi_dev, "Max fw cmds= %d, sizing driver "
-		   "pool to %d\n", sc->mfi_max_fw_cmds, ncmds);
+	sc->mfi_commands = malloc(sizeof(sc->mfi_commands[0]) *
+	    sc->mfi_max_fw_cmds, M_MFIBUF, M_WAITOK | M_ZERO);
 
-	sc->mfi_commands = malloc(sizeof(struct mfi_command) * ncmds, M_MFIBUF,
-	    M_WAITOK | M_ZERO);
-
-	for (i = 0; i < ncmds; i++) {
+	for (i = 0; i < sc->mfi_max_fw_cmds; i++) {
 		cm = &sc->mfi_commands[i];
 		cm->cm_frame = (union mfi_frame *)((uintptr_t)sc->mfi_frames +
 		    sc->mfi_cmd_size * i);
@@ -806,10 +828,20 @@ mfi_alloc_commands(struct mfi_softc *sc)
 			mtx_lock(&sc->mfi_io_lock);
 			mfi_release_command(cm);
 			mtx_unlock(&sc->mfi_io_lock);
+		} else {
+			device_printf(sc->mfi_dev, "Failed to allocate %d "
+			   "command blocks, only allocated %d\n",
+			    sc->mfi_max_fw_cmds, i - 1);
+			for (j = 0; j < i; j++) {
+				cm = &sc->mfi_commands[i];
+				bus_dmamap_destroy(sc->mfi_buffer_dmat,
+				    cm->cm_dmamap);
+			}
+			free(sc->mfi_commands, M_MFIBUF);
+			sc->mfi_commands = NULL;
+
+			return (ENOMEM);
 		}
-		else
-			break;
-		sc->mfi_total_cmds++;
 	}
 
 	return (0);
@@ -832,6 +864,29 @@ mfi_release_command(struct mfi_command *cm)
 	if (cm->cm_data != NULL && hdr->sg_count) {
 		cm->cm_sg->sg32[0].len = 0;
 		cm->cm_sg->sg32[0].addr = 0;
+	}
+
+	/*
+	 * Command may be on other queues e.g. busy queue depending on the
+	 * flow of a previous call to mfi_mapcmd, so ensure its dequeued
+	 * properly
+	 */
+	if ((cm->cm_flags & MFI_ON_MFIQ_BUSY) != 0)
+		mfi_remove_busy(cm);
+	if ((cm->cm_flags & MFI_ON_MFIQ_READY) != 0)
+		mfi_remove_ready(cm);
+
+	/* We're not expecting it to be on any other queue but check */
+	if ((cm->cm_flags & MFI_ON_MFIQ_MASK) != 0) {
+		panic("Command %p is still on another queue, flags = %#x",
+		    cm, cm->cm_flags);
+	}
+
+	/* tbolt cleanup */
+	if ((cm->cm_flags & MFI_CMD_TBOLT) != 0) {
+		mfi_tbolt_return_cmd(cm->cm_sc,
+		    cm->cm_sc->mfi_cmd_pool_tbolt[cm->cm_extra_frames - 1],
+		    cm);
 	}
 
 	hdr_data = (uint32_t *)cm->cm_frame;
@@ -916,8 +971,10 @@ mfi_comms_init(struct mfi_softc *sc)
 	uint32_t context = 0;
 
 	mtx_lock(&sc->mfi_io_lock);
-	if ((cm = mfi_dequeue_free(sc)) == NULL)
+	if ((cm = mfi_dequeue_free(sc)) == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
 		return (EBUSY);
+	}
 
 	/* Zero out the MFI frame */
 	context = cm->cm_frame->header.context;
@@ -946,15 +1003,12 @@ mfi_comms_init(struct mfi_softc *sc)
 	cm->cm_data = NULL;
 	cm->cm_flags = MFI_CMD_POLLED;
 
-	if ((error = mfi_mapcmd(sc, cm)) != 0) {
+	if ((error = mfi_mapcmd(sc, cm)) != 0)
 		device_printf(sc->mfi_dev, "failed to send init command\n");
-		mtx_unlock(&sc->mfi_io_lock);
-		return (error);
-	}
 	mfi_release_command(cm);
 	mtx_unlock(&sc->mfi_io_lock);
 
-	return (0);
+	return (error);
 }
 
 static int
@@ -1005,7 +1059,7 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 	struct mfi_command *cm = NULL;
 	int error;
 
-	mtx_lock(&sc->mfi_io_lock);
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_EVENT_GETINFO,
 	    (void **)log_state, sizeof(**log_state));
 	if (error)
@@ -1024,7 +1078,6 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 out:
 	if (cm)
 		mfi_release_command(cm);
-	mtx_unlock(&sc->mfi_io_lock);
 
 	return (error);
 }
@@ -1037,32 +1090,32 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 	int error = 0;
 	uint32_t seq;
 
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
 	class_locale.members.reserved = 0;
 	class_locale.members.locale = mfi_event_locale;
 	class_locale.members.evt_class  = mfi_event_class;
 
 	if (seq_start == 0) {
-		error = mfi_get_log_state(sc, &log_state);
+		if ((error = mfi_get_log_state(sc, &log_state)) != 0)
+			goto out;
 		sc->mfi_boot_seq_num = log_state->boot_seq_num;
-		if (error) {
-			if (log_state)
-				free(log_state, M_MFIBUF);
-			return (error);
-		}
 
 		/*
 		 * Walk through any events that fired since the last
 		 * shutdown.
 		 */
-		mfi_parse_entries(sc, log_state->shutdown_seq_num,
-		    log_state->newest_seq_num);
+		if ((error = mfi_parse_entries(sc, log_state->shutdown_seq_num,
+		    log_state->newest_seq_num)) != 0)
+			goto out;
 		seq = log_state->newest_seq_num;
 	} else
 		seq = seq_start;
-	mfi_aen_register(sc, seq, class_locale.word);
+	error = mfi_aen_register(sc, seq, class_locale.word);
+out:
 	free(log_state, M_MFIBUF);
 
-	return 0;
+	return (error);
 }
 
 int
@@ -1071,7 +1124,6 @@ mfi_wait_command(struct mfi_softc *sc, struct mfi_command *cm)
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 	cm->cm_complete = NULL;
-
 
 	/*
 	 * MegaCli can issue a DCMD of 0.  In this case do nothing
@@ -1100,12 +1152,13 @@ mfi_free(struct mfi_softc *sc)
 	if (sc->mfi_cdev != NULL)
 		destroy_dev(sc->mfi_cdev);
 
-	if (sc->mfi_total_cmds != 0) {
-		for (i = 0; i < sc->mfi_total_cmds; i++) {
+	if (sc->mfi_commands != NULL) {
+		for (i = 0; i < sc->mfi_max_fw_cmds; i++) {
 			cm = &sc->mfi_commands[i];
 			bus_dmamap_destroy(sc->mfi_buffer_dmat, cm->cm_dmamap);
 		}
 		free(sc->mfi_commands, M_MFIBUF);
+		sc->mfi_commands = NULL;
 	}
 
 	if (sc->mfi_intr)
@@ -1161,7 +1214,8 @@ mfi_free(struct mfi_softc *sc)
 		/* End LSIP200113393 */
 		/* ThunderBolt INIT packet memory Free */
 		if (sc->mfi_tb_init_busaddr != 0)
-			bus_dmamap_unload(sc->mfi_tb_init_dmat, sc->mfi_tb_init_dmamap);
+			bus_dmamap_unload(sc->mfi_tb_init_dmat,
+			    sc->mfi_tb_init_dmamap);
 		if (sc->mfi_tb_init != NULL)
 			bus_dmamem_free(sc->mfi_tb_init_dmat, sc->mfi_tb_init,
 			    sc->mfi_tb_init_dmamap);
@@ -1178,16 +1232,14 @@ mfi_free(struct mfi_softc *sc)
 			    sc->mfi_tb_ioc_init_dmamap);
 		if (sc->mfi_tb_ioc_init_dmat != NULL)
 			bus_dma_tag_destroy(sc->mfi_tb_ioc_init_dmat);
-		for (int i = 0; i < sc->mfi_max_fw_cmds; i++) {
-			if (sc->mfi_cmd_pool_tbolt != NULL) {
+		if (sc->mfi_cmd_pool_tbolt != NULL) {
+			for (int i = 0; i < sc->mfi_max_fw_cmds; i++) {
 				if (sc->mfi_cmd_pool_tbolt[i] != NULL) {
 					free(sc->mfi_cmd_pool_tbolt[i],
 					    M_MFIBUF);
 					sc->mfi_cmd_pool_tbolt[i] = NULL;
 				}
 			}
-		}
-		if (sc->mfi_cmd_pool_tbolt != NULL) {
 			free(sc->mfi_cmd_pool_tbolt, M_MFIBUF);
 			sc->mfi_cmd_pool_tbolt = NULL;
 		}
@@ -1252,16 +1304,14 @@ restart:
 			cm->cm_error = 0;
 			mfi_complete(sc, cm);
 		}
-		if (++ci == (sc->mfi_max_fw_cmds + 1)) {
+		if (++ci == (sc->mfi_max_fw_cmds + 1))
 			ci = 0;
-		}
 	}
 
 	sc->mfi_comms->hw_ci = ci;
 
 	/* Give defered I/O a chance to run */
-	if (sc->mfi_flags & MFI_FLAGS_QFRZN)
-		sc->mfi_flags &= ~MFI_FLAGS_QFRZN;
+	sc->mfi_flags &= ~MFI_FLAGS_QFRZN;
 	mfi_startio(sc);
 	mtx_unlock(&sc->mfi_io_lock);
 
@@ -1284,15 +1334,15 @@ mfi_shutdown(struct mfi_softc *sc)
 	int error;
 
 
-	if (sc->mfi_aen_cm)
+	if (sc->mfi_aen_cm != NULL) {
 		sc->cm_aen_abort = 1;
-	if (sc->mfi_aen_cm != NULL)
 		mfi_abort(sc, &sc->mfi_aen_cm);
+	}
 
-	if (sc->mfi_map_sync_cm)
+	if (sc->mfi_map_sync_cm != NULL) {
 		sc->cm_map_abort = 1;
-	if (sc->mfi_map_sync_cm != NULL)
 		mfi_abort(sc, &sc->mfi_map_sync_cm);
+	}
 
 	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_SHUTDOWN, NULL, 0);
@@ -1306,9 +1356,8 @@ mfi_shutdown(struct mfi_softc *sc)
 	cm->cm_flags = MFI_CMD_POLLED;
 	cm->cm_data = NULL;
 
-	if ((error = mfi_mapcmd(sc, cm)) != 0) {
+	if ((error = mfi_mapcmd(sc, cm)) != 0)
 		device_printf(sc->mfi_dev, "Failed to shutdown controller\n");
-	}
 
 	mfi_release_command(cm);
 	mtx_unlock(&sc->mfi_io_lock);
@@ -1374,8 +1423,10 @@ mfi_syspdprobe(struct mfi_softc *sc)
 	TAILQ_FOREACH_SAFE(syspd, &sc->mfi_syspd_tqh, pd_link, tmp) {
 		found = 0;
 		for (i = 0; i < pdlist->count; i++) {
-			if (syspd->pd_id == pdlist->addr[i].device_id)
+			if (syspd->pd_id == pdlist->addr[i].device_id) {
 				found = 1;
+				break;
+			}
 		}
 		if (found == 0) {
 			printf("DELETE\n");
@@ -1628,6 +1679,8 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 	struct mfi_evt_detail *ed = NULL;
 	int error = 0;
 
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
 	current_aen.word = locale;
 	if (sc->mfi_aen_cm != NULL) {
 		prior_aen.word =
@@ -1646,13 +1699,10 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 		}
 	}
 
-	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_EVENT_WAIT,
 	    (void **)&ed, sizeof(*ed));
-	mtx_unlock(&sc->mfi_io_lock);
-	if (error) {
+	if (error)
 		goto out;
-	}
 
 	dcmd = &cm->cm_frame->dcmd;
 	((uint32_t *)&dcmd->mbox)[0] = seq;
@@ -1663,10 +1713,8 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 	sc->last_seq_num = seq;
 	sc->mfi_aen_cm = cm;
 
-	mtx_lock(&sc->mfi_io_lock);
 	mfi_enqueue_ready(cm);
 	mfi_startio(sc);
-	mtx_unlock(&sc->mfi_io_lock);
 
 out:
 	return (error);
@@ -1684,10 +1732,10 @@ mfi_aen_complete(struct mfi_command *cm)
 	sc = cm->cm_sc;
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
-	hdr = &cm->cm_frame->header;
-
 	if (sc->mfi_aen_cm == NULL)
 		return;
+
+	hdr = &cm->cm_frame->header;
 
 	if (sc->cm_aen_abort ||
 	    hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
@@ -1714,16 +1762,13 @@ mfi_aen_complete(struct mfi_command *cm)
 	}
 
 	free(cm->cm_data, M_MFIBUF);
-	sc->mfi_aen_cm = NULL;
 	wakeup(&sc->mfi_aen_cm);
+	sc->mfi_aen_cm = NULL;
 	mfi_release_command(cm);
 
 	/* set it up again so the driver can catch more events */
-	if (!aborted) {
-		mtx_unlock(&sc->mfi_io_lock);
+	if (!aborted)
 		mfi_aen_setup(sc, seq);
-		mtx_lock(&sc->mfi_io_lock);
-	}
 }
 
 #define MAX_EVENTS 15
@@ -1737,6 +1782,8 @@ mfi_parse_entries(struct mfi_softc *sc, int start_seq, int stop_seq)
 	union mfi_evt class_locale;
 	int error, i, seq, size;
 
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
 	class_locale.members.reserved = 0;
 	class_locale.members.locale = mfi_event_locale;
 	class_locale.members.evt_class  = mfi_event_class;
@@ -1748,13 +1795,10 @@ mfi_parse_entries(struct mfi_softc *sc, int start_seq, int stop_seq)
 		return (ENOMEM);
 
 	for (seq = start_seq;;) {
-		mtx_lock(&sc->mfi_io_lock);
 		if ((cm = mfi_dequeue_free(sc)) == NULL) {
 			free(el, M_MFIBUF);
-			mtx_unlock(&sc->mfi_io_lock);
 			return (EBUSY);
 		}
-		mtx_unlock(&sc->mfi_io_lock);
 
 		dcmd = &cm->cm_frame->dcmd;
 		bzero(dcmd->mbox, MFI_MBOX_SIZE);
@@ -1770,38 +1814,30 @@ mfi_parse_entries(struct mfi_softc *sc, int start_seq, int stop_seq)
 		cm->cm_data = el;
 		cm->cm_len = size;
 
-		mtx_lock(&sc->mfi_io_lock);
 		if ((error = mfi_mapcmd(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "Failed to get controller entries\n");
 			mfi_release_command(cm);
-			mtx_unlock(&sc->mfi_io_lock);
 			break;
 		}
 
-		mtx_unlock(&sc->mfi_io_lock);
 		bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
 		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
 
 		if (dcmd->header.cmd_status == MFI_STAT_NOT_FOUND) {
-			mtx_lock(&sc->mfi_io_lock);
 			mfi_release_command(cm);
-			mtx_unlock(&sc->mfi_io_lock);
 			break;
 		}
 		if (dcmd->header.cmd_status != MFI_STAT_OK) {
 			device_printf(sc->mfi_dev,
 			    "Error %d fetching controller entries\n",
 			    dcmd->header.cmd_status);
-			mtx_lock(&sc->mfi_io_lock);
 			mfi_release_command(cm);
-			mtx_unlock(&sc->mfi_io_lock);
+			error = EIO;
 			break;
 		}
-		mtx_lock(&sc->mfi_io_lock);
 		mfi_release_command(cm);
-		mtx_unlock(&sc->mfi_io_lock);
 
 		for (i = 0; i < el->count; i++) {
 			/*
@@ -1817,15 +1853,13 @@ mfi_parse_entries(struct mfi_softc *sc, int start_seq, int stop_seq)
 				else if (el->event[i].seq < start_seq)
 					break;
 			}
-			mtx_lock(&sc->mfi_io_lock);
 			mfi_queue_evt(sc, &el->event[i]);
-			mtx_unlock(&sc->mfi_io_lock);
 		}
 		seq = el->event[el->count - 1].seq + 1;
 	}
 
 	free(el, M_MFIBUF);
-	return (0);
+	return (error);
 }
 
 static int
@@ -1942,11 +1976,12 @@ static int mfi_add_sys_pd(struct mfi_softc *sc, int id)
 	dcmd->mbox[0]=id;
 	dcmd->header.scsi_status = 0;
 	dcmd->header.pad0 = 0;
-	if (mfi_mapcmd(sc, cm) != 0) {
+	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev,
 		    "Failed to get physical drive info %d\n", id);
 		free(pd_info, M_MFIBUF);
-		return (0);
+		mfi_release_command(cm);
+		return (error);
 	}
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
 	    BUS_DMASYNC_POSTREAD);
@@ -2096,6 +2131,8 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 	int flags = 0, blkcount = 0, readop;
 	uint8_t cdb_len;
 
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
 	    return (NULL);
 
@@ -2142,6 +2179,7 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 	cm->cm_sg = &pass->sgl;
 	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
 	cm->cm_flags = flags;
+
 	return (cm);
 }
 
@@ -2153,6 +2191,8 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 	int flags;
 	uint32_t blkcount;
 	uint32_t context = 0;
+
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
 	    return (NULL);
@@ -2195,6 +2235,7 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 	cm->cm_sg = &io->sgl;
 	cm->cm_total_frame_size = MFI_IO_FRAME_SIZE;
 	cm->cm_flags = flags;
+
 	return (cm);
 }
 
@@ -2212,11 +2253,14 @@ mfi_bio_complete(struct mfi_command *cm)
 	if ((hdr->cmd_status != MFI_STAT_OK) || (hdr->scsi_status != 0)) {
 		bio->bio_flags |= BIO_ERROR;
 		bio->bio_error = EIO;
-		device_printf(sc->mfi_dev, "I/O error, status= %d "
-		    "scsi_status= %d\n", hdr->cmd_status, hdr->scsi_status);
+		device_printf(sc->mfi_dev, "I/O error, cmd=%p, status=%#x, "
+		    "scsi_status=%#x\n", cm, hdr->cmd_status, hdr->scsi_status);
 		mfi_print_sense(cm->cm_sc, cm->cm_sense);
 	} else if (cm->cm_error != 0) {
 		bio->bio_flags |= BIO_ERROR;
+		bio->bio_error = cm->cm_error;
+		device_printf(sc->mfi_dev, "I/O error, cmd=%p, error=%#x\n",
+		    cm, cm->cm_error);
 	}
 
 	mfi_release_command(cm);
@@ -2252,6 +2296,7 @@ mfi_startio(struct mfi_softc *sc)
 
 		/* Send the command to the controller */
 		if (mfi_mapcmd(sc, cm) != 0) {
+			device_printf(sc->mfi_dev, "Failed to startio\n");
 			mfi_requeue_ready(cm);
 			break;
 		}
@@ -2280,10 +2325,7 @@ mfi_mapcmd(struct mfi_softc *sc, struct mfi_command *cm)
 			return (0);
 		}
 	} else {
-		if (sc->MFA_enabled)
-			error = mfi_tbolt_send_frame(sc, cm);
-		else
-			error = mfi_send_frame(sc, cm);
+		error = mfi_send_frame(sc, cm);
 	}
 
 	return (error);
@@ -2297,18 +2339,28 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	union mfi_sgl *sgl;
 	struct mfi_softc *sc;
 	int i, j, first, dir;
-	int sge_size;
+	int sge_size, locked;
 
 	cm = (struct mfi_command *)arg;
 	sc = cm->cm_sc;
 	hdr = &cm->cm_frame->header;
 	sgl = cm->cm_sg;
 
+	/*
+	 * We need to check if we have the lock as this is async
+	 * callback so even though our caller mfi_mapcmd asserts
+	 * it has the lock, there is no garantee that hasn't been
+	 * dropped if bus_dmamap_load returned prior to our
+	 * completion.
+	 */
+	if ((locked = mtx_owned(&sc->mfi_io_lock)) == 0)
+		mtx_lock(&sc->mfi_io_lock);
+
 	if (error) {
 		printf("error %d in callback\n", error);
 		cm->cm_error = error;
 		mfi_complete(sc, cm);
-		return;
+		goto out;
 	}
 	/* Use IEEE sgl only for IO's on a SKINNY controller
 	 * For other commands on a SKINNY controller use either
@@ -2380,10 +2432,17 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	cm->cm_total_frame_size += (sc->mfi_sge_size * nsegs);
 	cm->cm_extra_frames = (cm->cm_total_frame_size - 1) / MFI_FRAME_SIZE;
 
-	if (sc->MFA_enabled)
-			mfi_tbolt_send_frame(sc, cm);
-	else
-		mfi_send_frame(sc, cm);
+	if ((error = mfi_send_frame(sc, cm)) != 0) {
+		printf("error %d in callback from mfi_send_frame\n", error);
+		cm->cm_error = error;
+		mfi_complete(sc, cm);
+		goto out;
+	}
+
+out:
+	/* leave the lock in the state we found it */
+	if (locked == 0)
+		mtx_unlock(&sc->mfi_io_lock);
 
 	return;
 }
@@ -2391,8 +2450,26 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 {
+	int error;
+
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
+	if (sc->MFA_enabled)
+		error = mfi_tbolt_send_frame(sc, cm);
+	else
+		error = mfi_std_send_frame(sc, cm);
+
+	if (error != 0 && (cm->cm_flags & MFI_ON_MFIQ_BUSY) != 0)
+		mfi_remove_busy(cm);
+
+	return (error);
+}
+
+static int
+mfi_std_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
+{
 	struct mfi_frame_header *hdr;
-	int tm = MFI_POLL_TIMEOUT_SECS * 1000;
+	int tm = mfi_polled_cmd_timeout * 1000;
 
 	hdr = &cm->cm_frame->header;
 
@@ -2446,6 +2523,7 @@ void
 mfi_complete(struct mfi_softc *sc, struct mfi_command *cm)
 {
 	int dir;
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
 	if ((cm->cm_flags & MFI_CMD_MAPPED) != 0) {
 		dir = 0;
@@ -2473,11 +2551,12 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command **cm_abort)
 {
 	struct mfi_command *cm;
 	struct mfi_abort_frame *abort;
-	int i = 0;
+	int i = 0, error;
 	uint32_t context = 0;
 
 	mtx_lock(&sc->mfi_io_lock);
 	if ((cm = mfi_dequeue_free(sc)) == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
 		return (EBUSY);
 	}
 
@@ -2497,7 +2576,8 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command **cm_abort)
 	cm->cm_data = NULL;
 	cm->cm_flags = MFI_CMD_POLLED;
 
-	mfi_mapcmd(sc, cm);
+	if ((error = mfi_mapcmd(sc, cm)) != 0)
+		device_printf(sc->mfi_dev, "failed to abort command\n");
 	mfi_release_command(cm);
 
 	mtx_unlock(&sc->mfi_io_lock);
@@ -2513,7 +2593,7 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command **cm_abort)
 		mtx_unlock(&sc->mfi_io_lock);
 	}
 
-	return (0);
+	return (error);
 }
 
 int
@@ -2551,7 +2631,8 @@ mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt,
 	cm->cm_total_frame_size = MFI_IO_FRAME_SIZE;
 	cm->cm_flags = MFI_CMD_POLLED | MFI_CMD_DATAOUT;
 
-	error = mfi_mapcmd(sc, cm);
+	if ((error = mfi_mapcmd(sc, cm)) != 0)
+		device_printf(sc->mfi_dev, "failed dump blocks\n");
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
 	    BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
@@ -2594,7 +2675,8 @@ mfi_dump_syspd_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt,
 	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
 	cm->cm_flags = MFI_CMD_POLLED | MFI_CMD_DATAOUT | MFI_CMD_SCSI;
 
-	error = mfi_mapcmd(sc, cm);
+	if ((error = mfi_mapcmd(sc, cm)) != 0)
+		device_printf(sc->mfi_dev, "failed dump blocks\n");
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
 	    BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
@@ -2915,7 +2997,7 @@ mfi_stp_cmd(struct mfi_softc *sc, struct mfi_command *cm,caddr_t arg)
 			cm->cm_frame->stp.sgl.sg64[i].len =
 			    ioc->mfi_sgl[i].iov_len;
 		} else {
-			cm->cm_frame->stp.sgl.sg32[i].len =
+			cm->cm_frame->stp.sgl.sg32[i].addr =
 			    kern_sge[i].phys_addr;
 			cm->cm_frame->stp.sgl.sg32[i].len =
 			    ioc->mfi_sgl[i].iov_len;
@@ -3308,8 +3390,10 @@ out:
 		}
 	case MFI_SET_AEN:
 		aen = (struct mfi_ioc_aen *)arg;
+		mtx_lock(&sc->mfi_io_lock);
 		error = mfi_aen_register(sc, aen->aen_seq_num,
 		    aen->aen_class_locale);
+		mtx_unlock(&sc->mfi_io_lock);
 
 		break;
 	case MFI_LINUX_CMD_2: /* Firmware Linux ioctl shim */
@@ -3635,10 +3719,10 @@ mfi_dump_all(void)
 			break;
 		device_printf(sc->mfi_dev, "Dumping\n\n");
 		timedout = 0;
-		deadline = time_uptime - MFI_CMD_TIMEOUT;
+		deadline = time_uptime - mfi_cmd_timeout;
 		mtx_lock(&sc->mfi_io_lock);
 		TAILQ_FOREACH(cm, &sc->mfi_busy, cm_link) {
-			if (cm->cm_timestamp < deadline) {
+			if (cm->cm_timestamp <= deadline) {
 				device_printf(sc->mfi_dev,
 				    "COMMAND %p TIMEOUT AFTER %d SECONDS\n",
 				    cm, (int)(time_uptime - cm->cm_timestamp));
@@ -3649,7 +3733,7 @@ mfi_dump_all(void)
 
 #if 0
 		if (timedout)
-			MFI_DUMP_CMDS(SC);
+			MFI_DUMP_CMDS(sc);
 #endif
 
 		mtx_unlock(&sc->mfi_io_lock);
@@ -3662,22 +3746,23 @@ static void
 mfi_timeout(void *data)
 {
 	struct mfi_softc *sc = (struct mfi_softc *)data;
-	struct mfi_command *cm;
+	struct mfi_command *cm, *tmp;
 	time_t deadline;
 	int timedout = 0;
 
-	deadline = time_uptime - MFI_CMD_TIMEOUT;
+	deadline = time_uptime - mfi_cmd_timeout;
 	if (sc->adpreset == 0) {
 		if (!mfi_tbolt_reset(sc)) {
-			callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz, mfi_timeout, sc);
+			callout_reset(&sc->mfi_watchdog_callout,
+			    mfi_cmd_timeout * hz, mfi_timeout, sc);
 			return;
 		}
 	}
 	mtx_lock(&sc->mfi_io_lock);
-	TAILQ_FOREACH(cm, &sc->mfi_busy, cm_link) {
+	TAILQ_FOREACH_SAFE(cm, &sc->mfi_busy, cm_link, tmp) {
 		if (sc->mfi_aen_cm == cm || sc->mfi_map_sync_cm == cm)
 			continue;
-		if (cm->cm_timestamp < deadline) {
+		if (cm->cm_timestamp <= deadline) {
 			if (sc->adpreset != 0 && sc->issuepend_done == 0) {
 				cm->cm_timestamp = time_uptime;
 			} else {
@@ -3687,6 +3772,13 @@ mfi_timeout(void *data)
 				     );
 				MFI_PRINT_CMD(cm);
 				MFI_VALIDATE_CMD(sc, cm);
+				/*
+				 * Fail the command instead of leaving it on
+				 * the queue where it could remain stuck forever
+				 */
+				mfi_remove_busy(cm);
+				cm->cm_error = ETIMEDOUT;
+				mfi_complete(sc, cm);
 				timedout++;
 			}
 		}
@@ -3694,12 +3786,12 @@ mfi_timeout(void *data)
 
 #if 0
 	if (timedout)
-		MFI_DUMP_CMDS(SC);
+		MFI_DUMP_CMDS(sc);
 #endif
 
 	mtx_unlock(&sc->mfi_io_lock);
 
-	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
+	callout_reset(&sc->mfi_watchdog_callout, mfi_cmd_timeout * hz,
 	    mfi_timeout, sc);
 
 	if (0)

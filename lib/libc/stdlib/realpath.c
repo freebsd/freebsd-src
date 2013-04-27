@@ -139,7 +139,7 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			 * Only the trailing slashes are not covered
 			 * by other checks in the loop, but we verify
 			 * the prefix for any (rare) "//" or "/\0"
-			 * occurence to not implement lookahead.
+			 * occurrence to not implement lookahead.
 			 */
 			if (lstat(resolved, &sb) != 0) {
 				if (m)

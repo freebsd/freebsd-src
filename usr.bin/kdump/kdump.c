@@ -1008,6 +1008,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				narg--;
 				break;
 			case SYS_cap_new:
+			case SYS_cap_rights_limit:
 				print_number(ip, narg, c);
 				putchar(',');
 				arg = *ip;
@@ -1034,6 +1035,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 					narg--;
 				}
 				capname(arg);
+				break;
+			case SYS_cap_fcntls_limit:
+				print_number(ip, narg, c);
+				putchar(',');
+				arg = *ip;
+				ip++;
+				narg--;
+				capfcntlname(arg);
 				break;
 			case SYS_posix_fadvise:
 				print_number(ip, narg, c);

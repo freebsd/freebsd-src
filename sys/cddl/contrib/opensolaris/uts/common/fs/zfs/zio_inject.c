@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 /*
@@ -147,14 +148,8 @@ zio_handle_fault_injection(zio_t *zio, int error)
 	for (handler = list_head(&inject_handlers); handler != NULL;
 	    handler = list_next(&inject_handlers, handler)) {
 
-		/* Ignore errors not destined for this pool */
-		if (zio->io_spa != handler->zi_spa)
-			continue;
-
-		/* Ignore device errors and panic injection */
-		if (handler->zi_record.zi_guid != 0 ||
-		    handler->zi_record.zi_func[0] != '\0' ||
-		    handler->zi_record.zi_duration != 0)
+		if (zio->io_spa != handler->zi_spa ||
+		    handler->zi_record.zi_cmd != ZINJECT_DATA_FAULT)
 			continue;
 
 		/* If this handler matches, return EIO */
@@ -197,10 +192,7 @@ zio_handle_label_injection(zio_t *zio, int error)
 		uint64_t start = handler->zi_record.zi_start;
 		uint64_t end = handler->zi_record.zi_end;
 
-		/* Ignore device only faults or panic injection */
-		if (handler->zi_record.zi_start == 0 ||
-		    handler->zi_record.zi_func[0] != '\0' ||
-		    handler->zi_record.zi_duration != 0)
+		if (handler->zi_record.zi_cmd != ZINJECT_LABEL_FAULT)
 			continue;
 
 		/*
@@ -246,13 +238,7 @@ zio_handle_device_injection(vdev_t *vd, zio_t *zio, int error)
 	for (handler = list_head(&inject_handlers); handler != NULL;
 	    handler = list_next(&inject_handlers, handler)) {
 
-		/*
-		 * Ignore label specific faults, panic injection
-		 * or fake writes
-		 */
-		if (handler->zi_record.zi_start != 0 ||
-		    handler->zi_record.zi_func[0] != '\0' ||
-		    handler->zi_record.zi_duration != 0)
+		if (handler->zi_record.zi_cmd != ZINJECT_DEVICE_FAULT)
 			continue;
 
 		if (vd->vdev_guid == handler->zi_record.zi_guid) {
@@ -290,7 +276,7 @@ zio_handle_device_injection(vdev_t *vd, zio_t *zio, int error)
 				break;
 			}
 			if (handler->zi_record.zi_error == ENXIO) {
-				ret = EIO;
+				ret = SET_ERROR(EIO);
 				break;
 			}
 		}
@@ -316,10 +302,8 @@ zio_handle_ignored_writes(zio_t *zio)
 	    handler = list_next(&inject_handlers, handler)) {
 
 		/* Ignore errors not destined for this pool */
-		if (zio->io_spa != handler->zi_spa)
-			continue;
-
-		if (handler->zi_record.zi_duration == 0)
+		if (zio->io_spa != handler->zi_spa ||
+		    handler->zi_record.zi_cmd != ZINJECT_IGNORED_WRITES)
 			continue;
 
 		/*
@@ -355,11 +339,8 @@ spa_handle_ignored_writes(spa_t *spa)
 	for (handler = list_head(&inject_handlers); handler != NULL;
 	    handler = list_next(&inject_handlers, handler)) {
 
-		/* Ignore errors not destined for this pool */
-		if (spa != handler->zi_spa)
-			continue;
-
-		if (handler->zi_record.zi_duration == 0)
+		if (spa != handler->zi_spa ||
+		    handler->zi_record.zi_cmd != ZINJECT_IGNORED_WRITES)
 			continue;
 
 		if (handler->zi_record.zi_duration > 0) {
@@ -377,6 +358,34 @@ spa_handle_ignored_writes(spa_t *spa)
 	}
 
 	rw_exit(&inject_lock);
+}
+
+uint64_t
+zio_handle_io_delay(zio_t *zio)
+{
+	vdev_t *vd = zio->io_vd;
+	inject_handler_t *handler;
+	uint64_t seconds = 0;
+
+	if (zio_injection_enabled == 0)
+		return (0);
+
+	rw_enter(&inject_lock, RW_READER);
+
+	for (handler = list_head(&inject_handlers); handler != NULL;
+	    handler = list_next(&inject_handlers, handler)) {
+
+		if (handler->zi_record.zi_cmd != ZINJECT_DELAY_IO)
+			continue;
+
+		if (vd->vdev_guid == handler->zi_record.zi_guid) {
+			seconds = handler->zi_record.zi_timer;
+			break;
+		}
+
+	}
+	rw_exit(&inject_lock);
+	return (seconds);
 }
 
 /*
@@ -407,7 +416,7 @@ zio_inject_fault(char *name, int flags, int *id, zinject_record_t *record)
 		 * still allowing it to be unloaded.
 		 */
 		if ((spa = spa_inject_addref(name)) == NULL)
-			return (ENOENT);
+			return (SET_ERROR(ENOENT));
 
 		handler = kmem_alloc(sizeof (inject_handler_t), KM_SLEEP);
 
@@ -459,7 +468,7 @@ zio_inject_list_next(int *id, char *name, size_t buflen,
 		(void) strncpy(name, spa_name(handler->zi_spa), buflen);
 		ret = 0;
 	} else {
-		ret = ENOENT;
+		ret = SET_ERROR(ENOENT);
 	}
 
 	rw_exit(&inject_lock);
@@ -486,7 +495,7 @@ zio_clear_fault(int id)
 
 	if (handler == NULL) {
 		rw_exit(&inject_lock);
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	}
 
 	list_remove(&inject_handlers, handler);

@@ -573,6 +573,13 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	if (slot->quirks & SDHCI_QUIRK_FORCE_DMA)
 		slot->opt |= SDHCI_HAVE_DMA;
 
+	/* 
+	 * Use platform-provided transfer backend
+	 * with PIO as a fallback mechanism
+	 */
+	if (slot->opt & SDHCI_PLATFORM_TRANSFER)
+		slot->opt &= ~SDHCI_HAVE_DMA;
+
 	if (bootverbose || sdhci_debug) {
 		slot_printf(slot, "%uMHz%s 4bits%s%s%s %s\n",
 		    slot->max_clk / 1000000,
@@ -909,7 +916,7 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	WR2(slot, SDHCI_BLOCK_COUNT, (data->len + 511) / 512);
 }
 
-static void
+void
 sdhci_finish_data(struct sdhci_slot *slot)
 {
 	struct mmc_data *data = slot->curcmd->data;
@@ -1102,13 +1109,23 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	}
 	if (slot->curcmd->error) {
 		/* No need to continue after any error. */
-		sdhci_finish_data(slot);
+		if (slot->flags & PLATFORM_DATA_STARTED) {
+			slot->flags &= ~PLATFORM_DATA_STARTED;
+			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
+		} else
+			sdhci_finish_data(slot);
 		return;
 	}
 
 	/* Handle PIO interrupt. */
-	if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL))
-		sdhci_transfer_pio(slot);
+	if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)) {
+		if ((slot->opt & SDHCI_PLATFORM_TRANSFER) && 
+		    SDHCI_PLATFORM_WILL_HANDLE(slot->bus, slot)) {
+			SDHCI_PLATFORM_START_TRANSFER(slot->bus, slot, &intmask);
+			slot->flags |= PLATFORM_DATA_STARTED;
+		} else
+			sdhci_transfer_pio(slot);
+	}
 	/* Handle DMA border. */
 	if (intmask & SDHCI_INT_DMA_END) {
 		struct mmc_data *data = slot->curcmd->data;
@@ -1147,8 +1164,13 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 		WR4(slot, SDHCI_DMA_ADDRESS, slot->paddr);
 	}
 	/* We have got all data. */
-	if (intmask & SDHCI_INT_DATA_END)
-		sdhci_finish_data(slot);
+	if (intmask & SDHCI_INT_DATA_END) {
+		if (slot->flags & PLATFORM_DATA_STARTED) {
+			slot->flags &= ~PLATFORM_DATA_STARTED;
+			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
+		} else
+			sdhci_finish_data(slot);
+	}
 }
 
 static void

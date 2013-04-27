@@ -412,6 +412,7 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 	memset(&mreq, 0, sizeof(mreq));
 	memset(cmd->resp, 0, sizeof(cmd->resp));
 	cmd->retries = retries;
+	cmd->mrq = &mreq;
 	mreq.cmd = cmd;
 	mmc_wait_for_req(sc, &mreq);
 	return (cmd->error);

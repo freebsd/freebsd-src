@@ -28,18 +28,18 @@ static const char * const InvalidLocation = "";
 Replacement::Replacement()
   : FilePath(InvalidLocation), Offset(0), Length(0) {}
 
-Replacement::Replacement(llvm::StringRef FilePath, unsigned Offset,
-                         unsigned Length, llvm::StringRef ReplacementText)
+Replacement::Replacement(StringRef FilePath, unsigned Offset,
+                         unsigned Length, StringRef ReplacementText)
   : FilePath(FilePath), Offset(Offset),
     Length(Length), ReplacementText(ReplacementText) {}
 
 Replacement::Replacement(SourceManager &Sources, SourceLocation Start,
-                         unsigned Length, llvm::StringRef ReplacementText) {
+                         unsigned Length, StringRef ReplacementText) {
   setFromSourceLocation(Sources, Start, Length, ReplacementText);
 }
 
 Replacement::Replacement(SourceManager &Sources, const CharSourceRange &Range,
-                         llvm::StringRef ReplacementText) {
+                         StringRef ReplacementText) {
   setFromSourceRange(Sources, Range, ReplacementText);
 }
 
@@ -89,7 +89,7 @@ bool Replacement::Less::operator()(const Replacement &R1,
 
 void Replacement::setFromSourceLocation(SourceManager &Sources,
                                         SourceLocation Start, unsigned Length,
-                                        llvm::StringRef ReplacementText) {
+                                        StringRef ReplacementText) {
   const std::pair<FileID, unsigned> DecomposedLocation =
       Sources.getDecomposedLoc(Start);
   const FileEntry *Entry = Sources.getFileEntryForID(DecomposedLocation.first);
@@ -116,7 +116,7 @@ static int getRangeSize(SourceManager &Sources, const CharSourceRange &Range) {
 
 void Replacement::setFromSourceRange(SourceManager &Sources,
                                      const CharSourceRange &Range,
-                                     llvm::StringRef ReplacementText) {
+                                     StringRef ReplacementText) {
   setFromSourceLocation(Sources, Sources.getSpellingLoc(Range.getBegin()),
                         getRangeSize(Sources, Range), ReplacementText);
 }
@@ -135,7 +135,38 @@ bool applyAllReplacements(Replacements &Replaces, Rewriter &Rewrite) {
   return Result;
 }
 
-bool saveRewrittenFiles(Rewriter &Rewrite) {
+RefactoringTool::RefactoringTool(const CompilationDatabase &Compilations,
+                                 ArrayRef<std::string> SourcePaths)
+  : ClangTool(Compilations, SourcePaths) {}
+
+Replacements &RefactoringTool::getReplacements() { return Replace; }
+
+int RefactoringTool::runAndSave(FrontendActionFactory *ActionFactory) {
+  if (int Result = run(ActionFactory)) {
+    return Result;
+  }
+
+  LangOptions DefaultLangOptions;
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
+  TextDiagnosticPrinter DiagnosticPrinter(llvm::errs(), &*DiagOpts);
+  DiagnosticsEngine Diagnostics(
+      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs()),
+      &*DiagOpts, &DiagnosticPrinter, false);
+  SourceManager Sources(Diagnostics, getFiles());
+  Rewriter Rewrite(Sources, DefaultLangOptions);
+
+  if (!applyAllReplacements(Rewrite)) {
+    llvm::errs() << "Skipped some replacements.\n";
+  }
+
+  return saveRewrittenFiles(Rewrite);
+}
+
+bool RefactoringTool::applyAllReplacements(Rewriter &Rewrite) {
+  return tooling::applyAllReplacements(Replace, Rewrite);
+}
+
+int RefactoringTool::saveRewrittenFiles(Rewriter &Rewrite) {
   for (Rewriter::buffer_iterator I = Rewrite.buffer_begin(),
                                  E = Rewrite.buffer_end();
        I != E; ++I) {
@@ -148,37 +179,11 @@ bool saveRewrittenFiles(Rewriter &Rewrite) {
     llvm::raw_fd_ostream FileStream(
         Entry->getName(), ErrorInfo, llvm::raw_fd_ostream::F_Binary);
     if (!ErrorInfo.empty())
-      return false;
+      return 1;
     I->second.write(FileStream);
     FileStream.flush();
   }
-  return true;
-}
-
-RefactoringTool::RefactoringTool(const CompilationDatabase &Compilations,
-                                 ArrayRef<std::string> SourcePaths)
-  : Tool(Compilations, SourcePaths) {}
-
-Replacements &RefactoringTool::getReplacements() { return Replace; }
-
-int RefactoringTool::run(FrontendActionFactory *ActionFactory) {
-  int Result = Tool.run(ActionFactory);
-  LangOptions DefaultLangOptions;
-  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
-  TextDiagnosticPrinter DiagnosticPrinter(llvm::errs(), &*DiagOpts);
-  DiagnosticsEngine Diagnostics(
-      llvm::IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs()),
-      &*DiagOpts, &DiagnosticPrinter, false);
-  SourceManager Sources(Diagnostics, Tool.getFiles());
-  Rewriter Rewrite(Sources, DefaultLangOptions);
-  if (!applyAllReplacements(Replace, Rewrite)) {
-    llvm::errs() << "Skipped some replacements.\n";
-  }
-  if (!saveRewrittenFiles(Rewrite)) {
-    llvm::errs() << "Could not save rewritten files.\n";
-    return 1;
-  }
-  return Result;
+  return 0;
 }
 
 } // end namespace tooling

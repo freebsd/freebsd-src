@@ -15,8 +15,8 @@
 #ifndef POWERPC32_REGISTERINFO_H
 #define POWERPC32_REGISTERINFO_H
 
+#include "llvm/ADT/DenseMap.h"
 #include "PPC.h"
-#include <map>
 
 #define GET_REGINFO_HEADER
 #include "PPCGenRegisterInfo.inc"
@@ -27,10 +27,9 @@ class TargetInstrInfo;
 class Type;
 
 class PPCRegisterInfo : public PPCGenRegisterInfo {
-  std::map<unsigned, unsigned> ImmToIdxMap;
+  DenseMap<unsigned, unsigned> ImmToIdxMap;
   const PPCSubtarget &Subtarget;
   const TargetInstrInfo &TII;
-  mutable int CRSpillFrameIdx;
 public:
   PPCRegisterInfo(const PPCSubtarget &SubTarget, const TargetInstrInfo &tii);
   
@@ -45,31 +44,38 @@ public:
   /// Code Generation virtual methods...
   const uint16_t *getCalleeSavedRegs(const MachineFunction* MF = 0) const;
   const uint32_t *getCallPreservedMask(CallingConv::ID CC) const;
+  const uint32_t *getNoPreservedMask() const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
-  virtual bool avoidWriteAfterWrite(const TargetRegisterClass *RC) const;
+  /// We require the register scavenger.
+  bool requiresRegisterScavenging(const MachineFunction &MF) const {
+    return true;
+  }
 
-  /// requiresRegisterScavenging - We require a register scavenger.
-  /// FIXME (64-bit): Should be inlined.
-  bool requiresRegisterScavenging(const MachineFunction &MF) const;
+  bool requiresFrameIndexScavenging(const MachineFunction &MF) const {
+    return true;
+  }
 
-  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
+  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
+    return true;
+  }
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
+  void lowerDynamicAlloc(MachineBasicBlock::iterator II) const;
+  void lowerCRSpilling(MachineBasicBlock::iterator II,
+                       unsigned FrameIndex) const;
+  void lowerCRRestore(MachineBasicBlock::iterator II,
+                      unsigned FrameIndex) const;
+  void lowerVRSAVESpilling(MachineBasicBlock::iterator II,
+                           unsigned FrameIndex) const;
+  void lowerVRSAVERestore(MachineBasicBlock::iterator II,
+                          unsigned FrameIndex) const;
 
-  void lowerDynamicAlloc(MachineBasicBlock::iterator II,
-                         int SPAdj, RegScavenger *RS) const;
-  void lowerCRSpilling(MachineBasicBlock::iterator II, unsigned FrameIndex,
-                       int SPAdj, RegScavenger *RS) const;
-  void lowerCRRestore(MachineBasicBlock::iterator II, unsigned FrameIndex,
-                       int SPAdj, RegScavenger *RS) const;
   bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
 			    int &FrameIdx) const;
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+                           int SPAdj, unsigned FIOperandNum,
+                           RegScavenger *RS = NULL) const;
 
   // Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const;

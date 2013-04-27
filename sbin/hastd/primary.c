@@ -303,6 +303,7 @@ hast_activemap_flush(struct hast_resource *res)
 	if (pwrite(res->hr_localfd, buf, size, METADATA_SIZE) !=
 	    (ssize_t)size) {
 		pjdlog_errno(LOG_ERR, "Unable to flush activemap to disk");
+		res->hr_stat_activemap_write_error++;
 		return (-1);
 	}
 	if (res->hr_metaflush == 1 && g_flush(res->hr_localfd) == -1) {
@@ -313,6 +314,7 @@ hast_activemap_flush(struct hast_resource *res)
 		} else {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to flush disk cache on activemap update");
+			res->hr_stat_activemap_flush_error++;
 			return (-1);
 		}
 	}
@@ -1934,6 +1936,22 @@ ggate_send_thread(void *arg)
 			if (ioctl(res->hr_ggatefd, G_GATE_CMD_DONE, ggio) == -1) {
 				primary_exit(EX_OSERR,
 				    "G_GATE_CMD_DONE failed");
+			}
+		}
+		if (hio->hio_errors[0]) {
+			switch (ggio->gctl_cmd) {
+			case BIO_READ:
+				res->hr_stat_read_error++;
+				break;
+			case BIO_WRITE:
+				res->hr_stat_write_error++;
+				break;
+			case BIO_DELETE:
+				res->hr_stat_delete_error++;
+				break;
+			case BIO_FLUSH:
+				res->hr_stat_flush_error++;
+				break;
 			}
 		}
 		pjdlog_debug(2,

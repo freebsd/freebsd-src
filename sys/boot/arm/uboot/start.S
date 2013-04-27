@@ -27,6 +27,7 @@
  */
 
 #include <machine/asm.h>
+#include <machine/armreg.h>
 
 /*
  * Entry point to the loader that U-Boot passes control to.
@@ -41,6 +42,13 @@ _start:
 	/* Save U-Boot's r8 */
 	ldr	ip, =saved_regs
 	str	r8, [ip, #0]
+
+#ifdef _ARM_ARCH_6
+	mrc     p15, 0, r2, c1, c0, 0
+	orr	r2, r2, #(CPU_CONTROL_UNAL_ENABLE)
+	orr	r2, r2, #(CPU_CONTROL_AFLT_ENABLE)
+	mcr     p15, 0, r2, c1, c0, 0
+#endif
 
 	/* Start loader */
 	b	main

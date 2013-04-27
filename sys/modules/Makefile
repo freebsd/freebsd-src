@@ -78,6 +78,7 @@ SUBDIR=	\
 	${_cs} \
 	${_ct} \
 	${_ctau} \
+	ctl \
 	${_cxgb} \
 	cxgbe \
 	${_cyclic} \

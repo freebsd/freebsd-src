@@ -35,8 +35,7 @@
 guest inside a bhyve virtual machine
 .Sh SYNOPSIS
 .Nm
-.Op Fl m Ar lowmem
-.Op Fl M Ar highmem
+.Op Fl m Ar mem-size
 .Op Fl d Ar disk-path
 .Op Fl h Ar host-path
 .Ar vmname
@@ -61,22 +60,13 @@ and will be created if it does not already exist.
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
-.It Fl m Ar lowmem
-.Ar lowmem
-is the amount of memory allocated below 4GB in the guest's physical address
-space.
+.It Fl m Ar mem-size
+.Ar mem-size
+is the amount of memory allocated to the guest in units of megabytes.
 .Pp
 The default value of
-.Ar lowmem
-is 256MB.
-.It Fl M Ar highmem
-.Ar highmem
-is the amount of memory allocated above 4GB in the guest's physical address
-space.
-.Pp
-The default value of
-.Ar highmem
-is 0MB.
+.Ar mem-size
+is 256.
 .It Fl d Ar disk-path
 The
 .Ar disk-path
@@ -93,16 +83,7 @@ that boots off the ISO image
 .Pa /freebsd/release.iso
 and has 1GB memory allocated to it:
 .Pp
-.Dl "bhyveload -m 256 -M 768 -d /freebsd/release.iso freebsd-vm"
-.Pp
-In the example above the 1GB allocation is split in two segments:
-.Pp
-.Bl -dash -compact
-.It
-256MB below the 4GB boundary (0MB - 256MB)
-.It
-768MB above the 4GB boundary (4096MB - 4864MB)
-.El
+.Dl "bhyveload -m 1024 -d /freebsd/release.iso freebsd-vm"
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr bhyve 8 ,

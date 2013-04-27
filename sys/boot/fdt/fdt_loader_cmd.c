@@ -63,12 +63,16 @@ __FBSDID("$FreeBSD$");
 #define	CMD_REQUIRES_BLOB	0x01
 
 /* Location of FDT yet to be loaded. */
+/* This may be in read-only memory, so can't be manipulated directly. */
 static struct fdt_header *fdt_to_load = NULL;
-/* Local copy of FDT on heap. */
+/* Location of FDT on heap. */
+/* This is the copy we actually manipulate. */
 static struct fdt_header *fdtp = NULL;
 /* Size of FDT blob */
 static size_t fdtp_size = 0;
-/* Location of FDT in kernel or module */
+/* Location of FDT in kernel or module. */
+/* This won't be set if FDT is loaded from disk or memory. */
+/* If it is set, we'll update it when fdt_copy() gets called. */
 static vm_offset_t fdtp_va = 0;
 
 static int fdt_load_dtb(vm_offset_t va);
@@ -114,16 +118,17 @@ static char cwd[FDT_CWD_LEN] = "/";
 static vm_offset_t
 fdt_find_static_dtb()
 {
-	Elf_Dyn dyn;
+	Elf_Ehdr *ehdr;
+	Elf_Shdr *shdr;
 	Elf_Sym sym;
-	vm_offset_t dyntab, esym, strtab, symtab, fdt_start;
+	vm_offset_t strtab, symtab, fdt_start;
 	uint64_t offs;
 	struct preloaded_file *kfp;
 	struct file_metadata *md;
 	char *strp;
-	int sym_count;
+	int i, sym_count;
 
-	symtab = strtab = dyntab = esym = 0;
+	sym_count = symtab = strtab = 0;
 	strp = NULL;
 
 	offs = __elfN(relocation_offset);
@@ -132,41 +137,25 @@ fdt_find_static_dtb()
 	if (kfp == NULL)
 		return (0);
 
-	md = file_findmetadata(kfp, MODINFOMD_ESYM);
+	/* Locate the dynamic symbols and strtab. */
+	md = file_findmetadata(kfp, MODINFOMD_ELFHDR);
 	if (md == NULL)
 		return (0);
-	bcopy(md->md_data, &esym, sizeof(esym));
-	/* esym is already offset */
+	ehdr = (Elf_Ehdr *)md->md_data;
 
-	md = file_findmetadata(kfp, MODINFOMD_DYNAMIC);
+	md = file_findmetadata(kfp, MODINFOMD_SHDR);
 	if (md == NULL)
 		return (0);
-	bcopy(md->md_data, &dyntab, sizeof(dyntab));
-	dyntab += offs;
+	shdr = (Elf_Shdr *)md->md_data;
 
-	/* Locate STRTAB and DYNTAB */
-	for (;;) {
-		COPYOUT(dyntab, &dyn, sizeof(dyn));
-		if (dyn.d_tag == DT_STRTAB) {
-			strtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
-		} else if (dyn.d_tag == DT_SYMTAB) {
-			symtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
-		} else if (dyn.d_tag == DT_NULL) {
-			break;
+	for (i = 0; i < ehdr->e_shnum; ++i) {
+		if (shdr[i].sh_type == SHT_DYNSYM && symtab == 0) {
+			symtab = shdr[i].sh_addr + offs;
+			sym_count = shdr[i].sh_size / sizeof(Elf_Sym);
+		} else if (shdr[i].sh_type == SHT_STRTAB && strtab == 0) {
+			strtab = shdr[i].sh_addr + offs;
 		}
-		dyntab += sizeof(dyn);
 	}
-
-	if (symtab == 0 || strtab == 0) {
-		/*
-		 * No symtab? No strtab? That should not happen here,
-		 * and should have been verified during __elfN(loadimage).
-		 * This must be some kind of a bug.
-		 */
-		return (0);
-	}
-
-	sym_count = (int)(esym - symtab) / sizeof(Elf_Sym);
 
 	/*
 	 * The most efficent way to find a symbol would be to calculate a
@@ -191,7 +180,6 @@ fdt_find_static_dtb()
 			fdt_start = (vm_offset_t)sym.st_value + offs;
 		free(strp);
 	}
-	printf("fdt_start: 0x%08jX\n", (intmax_t)fdt_start);
 	return (fdt_start);
 }
 
@@ -239,14 +227,19 @@ fdt_load_dtb(vm_offset_t va)
 static int
 fdt_load_dtb_addr(struct fdt_header *header)
 {
-	struct preloaded_file *bfp;
 
-	bfp = mem_load_raw("dtb", "memory.dtb", header, fdt_totalsize(header));
-	if (bfp == NULL) {
-		command_errmsg = "unable to copy DTB into module directory";
+	// TODO: Verify that there really is an FDT at
+	// the specified location.
+	fdtp_size = fdt_totalsize(header);
+	free(fdtp);
+	if ((fdtp = malloc(fdtp_size)) == NULL) {
+		command_errmsg = "can't allocate memory for device tree copy";
 		return (1);
 	}
-	return fdt_load_dtb(bfp->f_addr);
+
+	fdtp_va = 0; // Don't write this back into module or kernel.
+	bcopy(header, fdtp, fdtp_size);
+	return (0);
 }
 
 static int
@@ -339,7 +332,7 @@ _fdt_strtovect(char *str, void *cellbuf, int lim, unsigned char cellsize,
 
 #define	TMP_MAX_ETH	8
 
-void
+static void
 fixup_ethernet(const char *env, char *ethstr, int *eth_no, int len)
 {
 	char *end, *str;
@@ -376,7 +369,7 @@ fixup_ethernet(const char *env, char *ethstr, int *eth_no, int len)
 		*eth_no = n + 1;
 }
 
-void
+static void
 fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 {
 	int lo, o = 0, o2, maxo = 0, depth;
@@ -424,7 +417,7 @@ fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 	}
 }
 
-int
+static int
 fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 {
 	int cells_in_tuple, i, tuples, tuple_size;
@@ -456,7 +449,7 @@ fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 	return (0);
 }
 
-void
+static void
 fixup_memory(struct sys_info *si)
 {
 	struct mem_region *curmr;
@@ -611,7 +604,7 @@ fixup_memory(struct sys_info *si)
 	free(sb);
 }
 
-void
+static void
 fixup_stdout(const char *env)
 {
 	const char *str;
@@ -664,7 +657,7 @@ fixup_stdout(const char *env)
 /*
  * Locate the blob, fix it up and return its location.
  */
-static vm_offset_t
+static int
 fdt_fixup(void)
 {
 	const char *env;
@@ -692,7 +685,7 @@ fdt_fixup(void)
 
 	/* Value assigned to fixup-applied does not matter. */
 	if (fdt_getprop(fdtp, chosen, "fixup-applied", NULL))
-		goto success;
+		return (1);
 
 	/* Acquire sys_info */
 	si = ub_get_sys_info();
@@ -735,15 +728,11 @@ fdt_fixup(void)
 	fixup_memory(si);
 
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
-
-success:
-	/* Overwrite the FDT with the fixed version. */
-	COPYIN(fdtp, fdtp_va, fdtp_size);
-	return (fdtp_va);
+	return (1);
 }
 
 /*
- * Copy DTB blob to specified location and its return size
+ * Copy DTB blob to specified location and return size
  */
 int
 fdt_copy(vm_offset_t va)
@@ -761,6 +750,11 @@ fdt_copy(vm_offset_t va)
 	if (fdt_fixup() == 0)
 		return (0);
 
+	if (fdtp_va != 0) {
+		/* Overwrite the FDT with the fixed version. */
+		/* XXX Is this really appropriate? */
+		COPYIN(fdtp, fdtp_va, fdtp_size);
+	}
 	COPYIN(fdtp, va, fdtp_size);
 	return (fdtp_size);
 }
@@ -1334,8 +1328,6 @@ fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 		else
 			sprintf(command_errbuf,
 			    "Could not add/modify property!\n");
-	} else {
-		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (rv);
 }
@@ -1520,7 +1512,6 @@ fdt_cmd_mkprop(int argc, char *argv[])
 	if (fdt_modprop(o, propname, value, 1))
 		return (CMD_ERROR);
 
-	COPYIN(fdtp, fdtp_va, fdtp_size);
 	return (CMD_OK);
 }
 
@@ -1557,8 +1548,6 @@ fdt_cmd_rm(int argc, char *argv[])
 	if (rv) {
 		sprintf(command_errbuf, "could not delete node");
 		return (CMD_ERROR);
-	} else {
-		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }
@@ -1589,8 +1578,6 @@ fdt_cmd_mknode(int argc, char *argv[])
 			sprintf(command_errbuf,
 			    "Could not add node!\n");
 		return (CMD_ERROR);
-	} else {
-		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }

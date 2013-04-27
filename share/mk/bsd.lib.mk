@@ -202,6 +202,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .endif
 
 .if defined(DEBUG_FLAGS)
+CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
 ${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
@@ -209,7 +210,7 @@ ${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
 ${SHLIB_NAME}.symbols: ${SHLIB_NAME_FULL}
 	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
-.endif
+.endif #defined(SHLIB_NAME)
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 _LIBS+=		lib${LIB}_pic.a
@@ -398,10 +399,7 @@ clean:
 .endif
 	rm -f ${SHLIB_LINK}
 .endif
-.if defined(LIB) && !empty(LIB)
-	rm -f lib${LIB}.so.* lib${LIB}.so
-.endif
-.endif
+.endif # defined(SHLIB_NAME)
 .if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
 	rm -f ${LINTOBJS}
 .endif

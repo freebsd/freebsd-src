@@ -119,6 +119,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvmmapi} \
 	libwrap \
 	liby \
+	libyaml \
 	libz \
 	${_atf} \
 	${_bind} \
@@ -250,5 +251,8 @@ _libtelnet=	libtelnet
 _libusbhid=	libusbhid
 _libusb=	libusb
 .endif
+
+afterinstall:
+	ln -hfs ../include ${DESTDIR}/usr/lib/include
 
 .include <bsd.subdir.mk>

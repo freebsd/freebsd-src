@@ -134,7 +134,7 @@ int	(*carp_master_p)(struct ifaddr *);
 #if defined(INET) || defined(INET6)
 int	(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
 int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
-    struct sockaddr *sa);
+    const struct sockaddr *sa);
 int	(*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);   
 int	(*carp_attach_p)(struct ifaddr *, int);
 void	(*carp_detach_p)(struct ifaddr *);
@@ -206,7 +206,7 @@ VNET_DEFINE(struct ifindex_entry *, ifindex_table);
  * also to stablize it over long-running ioctls, without introducing priority
  * inversions and deadlocks.
  */
-struct rwlock ifnet_rwlock;
+struct rwlock_padalign ifnet_rwlock;
 struct sx ifnet_sxlock;
 
 /*
@@ -1357,7 +1357,8 @@ if_rtdel(struct radix_node *rn, void *arg)
 			return (0);
 
 		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt), rt->rt_flags|RTF_RNH_LOCKED,
+				rt_mask(rt),
+				rt->rt_flags|RTF_RNH_LOCKED|RTF_PINNED,
 				(struct rtentry **) NULL, rt->rt_fibnum);
 		if (err) {
 			log(LOG_WARNING, "if_rtdel: error %d\n", err);

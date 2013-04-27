@@ -149,7 +149,7 @@ ip6_ipsec_fwd(struct mbuf *m)
 	error = ipsec_in_reject(sp, m);
 	KEY_FREESP(&sp);
 	if (error) {
-		V_ip6stat.ip6s_cantforward++;
+		IP6STAT_INC(ip6s_cantforward);
 		return 1;
 	}
 #endif /* IPSEC */

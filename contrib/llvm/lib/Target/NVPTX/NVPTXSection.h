@@ -14,8 +14,8 @@
 #ifndef LLVM_NVPTXSECTION_H
 #define LLVM_NVPTXSECTION_H
 
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCSection.h"
-#include "llvm/GlobalVariable.h"
 #include <vector>
 
 namespace llvm {
@@ -38,6 +38,8 @@ public:
   virtual bool isBaseAddressKnownZero() const { return true; }
   virtual bool UseCodeAlign() const { return false; }
   virtual bool isVirtualSection() const { return false; }
+  virtual std::string getLabelBeginName() const { return ""; }
+  virtual std::string getLabelEndName() const { return ""; }
 };
 
 } // end namespace llvm

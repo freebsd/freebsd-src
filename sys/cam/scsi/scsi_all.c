@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #else
 #include <errno.h>
@@ -53,8 +56,15 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt.h>
 #include <cam/scsi/scsi_all.h>
+#include <sys/ata.h>
 #include <sys/sbuf.h>
-#ifndef _KERNEL
+
+#ifdef _KERNEL
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
+#else
 #include <camlib.h>
 #include <stddef.h>
 
@@ -698,10 +708,7 @@ const struct sense_key_table_entry sense_key_table[] =
 {
 	{ SSD_KEY_NO_SENSE, SS_NOP, "NO SENSE" },
 	{ SSD_KEY_RECOVERED_ERROR, SS_NOP|SSQ_PRINT_SENSE, "RECOVERED ERROR" },
-	{
-	  SSD_KEY_NOT_READY, SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|EBUSY,
-	  "NOT READY"
-	},
+	{ SSD_KEY_NOT_READY, SS_RDEF, "NOT READY" },
 	{ SSD_KEY_MEDIUM_ERROR, SS_RDEF, "MEDIUM ERROR" },
 	{ SSD_KEY_HARDWARE_ERROR, SS_RDEF, "HARDWARE FAILURE" },
 	{ SSD_KEY_ILLEGAL_REQUEST, SS_FATAL|EINVAL, "ILLEGAL REQUEST" },
@@ -876,7 +883,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x03, 0x02, SS_RDEF,
 	    "Excessive write errors") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x00, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EIO,
+	{ SST(0x04, 0x00, SS_RDEF,
 	    "Logical unit not ready, cause not reportable") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x01, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
@@ -5679,7 +5686,11 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
 		u_int32_t timeout)
 {
+	int read;
 	u_int8_t cdb_len;
+
+	read = (readop & SCSI_RW_DIRMASK) == SCSI_RW_READ;
+
 	/*
 	 * Use the smallest possible command to perform the operation
 	 * as some legacy hardware does not support the 10 byte commands.
@@ -5696,7 +5707,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_6 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_6 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_6 : WRITE_6;
+		scsi_cmd->opcode = read ? READ_6 : WRITE_6;
 		scsi_ulto3b(lba, scsi_cmd->addr);
 		scsi_cmd->length = block_count & 0xff;
 		scsi_cmd->control = 0;
@@ -5715,7 +5726,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_10 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_10 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_10 : WRITE_10;
+		scsi_cmd->opcode = read ? READ_10 : WRITE_10;
 		scsi_cmd->byte2 = byte2;
 		scsi_ulto4b(lba, scsi_cmd->addr);
 		scsi_cmd->reserved = 0;
@@ -5738,7 +5749,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_12 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_12 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_12 : WRITE_12;
+		scsi_cmd->opcode = read ? READ_12 : WRITE_12;
 		scsi_cmd->byte2 = byte2;
 		scsi_ulto4b(lba, scsi_cmd->addr);
 		scsi_cmd->reserved = 0;
@@ -5760,7 +5771,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_16 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_16 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_16 : WRITE_16;
+		scsi_cmd->opcode = read ? READ_16 : WRITE_16;
 		scsi_cmd->byte2 = byte2;
 		scsi_u64to8b(lba, scsi_cmd->addr);
 		scsi_cmd->reserved = 0;
@@ -5771,7 +5782,8 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 	cam_fill_csio(csio,
 		      retries,
 		      cbfcnp,
-		      /*flags*/readop ? CAM_DIR_IN : CAM_DIR_OUT,
+		      (read ? CAM_DIR_IN : CAM_DIR_OUT) |
+		      ((readop & SCSI_RW_BIO) != 0 ? CAM_DATA_BIO : 0),
 		      tag_action,
 		      data_ptr,
 		      dxfer_len,
@@ -5846,6 +5858,101 @@ scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
 		      dxfer_len,
 		      sense_len,
 		      cdb_len,
+		      timeout);
+}
+
+void
+scsi_ata_identify(struct ccb_scsiio *csio, u_int32_t retries,
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  u_int8_t tag_action, u_int8_t *data_ptr,
+		  u_int16_t dxfer_len, u_int8_t sense_len,
+		  u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_IN,
+			 tag_action,
+			 /*protocol*/AP_PROTO_PIO_IN,
+			 /*ata_flags*/AP_FLAG_TDIR_FROM_DEV|
+				AP_FLAG_BYT_BLOK_BYTES|AP_FLAG_TLEN_SECT_CNT,
+			 /*features*/0,
+			 /*sector_count*/dxfer_len,
+			 /*lba*/0,
+			 /*command*/ATA_ATA_IDENTIFY,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
+scsi_ata_trim(struct ccb_scsiio *csio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int8_t tag_action, u_int16_t block_count,
+	      u_int8_t *data_ptr, u_int16_t dxfer_len, u_int8_t sense_len,
+	      u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_OUT,
+			 tag_action,
+			 /*protocol*/AP_EXTEND|AP_PROTO_DMA,
+			 /*ata_flags*/AP_FLAG_TLEN_SECT_CNT|AP_FLAG_BYT_BLOK_BLOCKS,
+			 /*features*/ATA_DSM_TRIM,
+			 /*sector_count*/block_count,
+			 /*lba*/0,
+			 /*command*/ATA_DATA_SET_MANAGEMENT,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
+scsi_ata_pass_16(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int32_t flags, u_int8_t tag_action,
+		 u_int8_t protocol, u_int8_t ata_flags, u_int16_t features,
+		 u_int16_t sector_count, uint64_t lba, u_int8_t command,
+		 u_int8_t control, u_int8_t *data_ptr, u_int16_t dxfer_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct ata_pass_16 *ata_cmd;
+
+	ata_cmd = (struct ata_pass_16 *)&csio->cdb_io.cdb_bytes;
+	ata_cmd->opcode = ATA_PASS_16;
+	ata_cmd->protocol = protocol;
+	ata_cmd->flags = ata_flags;
+	ata_cmd->features_ext = features >> 8;
+	ata_cmd->features = features;
+	ata_cmd->sector_count_ext = sector_count >> 8;
+	ata_cmd->sector_count = sector_count;
+	ata_cmd->lba_low = lba;
+	ata_cmd->lba_mid = lba >> 8;
+	ata_cmd->lba_high = lba >> 16;
+	ata_cmd->device = ATA_DEV_LBA;
+	if (protocol & AP_EXTEND) {
+		ata_cmd->lba_low_ext = lba >> 24;
+		ata_cmd->lba_mid_ext = lba >> 32;
+		ata_cmd->lba_high_ext = lba >> 40;
+	} else
+		ata_cmd->device |= (lba >> 24) & 0x0f;
+	ata_cmd->command = command;
+	ata_cmd->control = control;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      flags,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*ata_cmd),
 		      timeout);
 }
 
@@ -6159,6 +6266,28 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 }
 
 #ifdef _KERNEL
+int
+scsi_vpd_supported_page(struct cam_periph *periph, uint8_t page_id)
+{
+	struct cam_ed *device;
+	struct scsi_vpd_supported_pages *vpds;
+	int i, num_pages;
+
+	device = periph->path->device;
+	vpds = (struct scsi_vpd_supported_pages *)device->supported_vpds;
+
+	if (vpds != NULL) {
+		num_pages = device->supported_vpds_len -
+		    SVPD_SUPPORTED_PAGES_HDR_LEN;
+		for (i = 0; i < num_pages; i++) {
+			if (vpds->page_list[i] == page_id)
+				return (1);
+		}
+	}
+
+	return (0);
+}
+
 static void
 init_scsi_delay(void)
 {

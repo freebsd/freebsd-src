@@ -43,5 +43,5 @@ struct rtentry;
 struct sockaddr;
 
 void atm_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
-int atmresolve(struct rtentry *, struct mbuf *, struct sockaddr *,
+int atmresolve(struct rtentry *, struct mbuf *, const struct sockaddr *,
 		struct atm_pseudohdr *);

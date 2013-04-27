@@ -83,7 +83,7 @@
 
 int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
 int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
-		struct sockaddr *dst, short *tp, int *hlen);
+		const struct sockaddr *dst, short *tp, int *hlen);
 
 #ifdef NETATALK
 #include <netatalk/at.h>
@@ -149,7 +149,7 @@ static MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
  */
 int
 ether_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	short type;
 	int error = 0, hdrcmplt = 0;
@@ -238,8 +238,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			goto bad;
 		} else
 		    type = htons(ETHERTYPE_IPX);
-		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
-		    (caddr_t)edst, sizeof (edst));
+		bcopy(&((const struct sockaddr_ipx *)dst)->sipx_addr.x_host,
+		    edst, sizeof (edst));
 		break;
 #endif
 #ifdef NETATALK
@@ -247,9 +247,9 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	  {
 	    struct at_ifaddr *aa;
 
-	    if ((aa = at_ifawithnet((struct sockaddr_at *)dst)) == NULL)
+	    if ((aa = at_ifawithnet((const struct sockaddr_at *)dst)) == NULL)
 		    senderr(EHOSTUNREACH); /* XXX */
-	    if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst)) {
+	    if (!aarpresolve(ifp, m, (const struct sockaddr_at *)dst, edst)) {
 		    ifa_free(&aa->aa_ifa);
 		    return (0);
 	    }
@@ -279,18 +279,21 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif /* NETATALK */
 
 	case pseudo_AF_HDRCMPLT:
+	    {
+		const struct ether_header *eh;
+		
 		hdrcmplt = 1;
-		eh = (struct ether_header *)dst->sa_data;
+		eh = (const struct ether_header *)dst->sa_data;
 		(void)memcpy(esrc, eh->ether_shost, sizeof (esrc));
 		/* FALLTHROUGH */
 
 	case AF_UNSPEC:
 		loop_copy = 0; /* if this is for us, don't do it */
-		eh = (struct ether_header *)dst->sa_data;
+		eh = (const struct ether_header *)dst->sa_data;
 		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
 		type = eh->ether_type;
 		break;
-
+            }
 	default:
 		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
 		senderr(EAFNOSUPPORT);

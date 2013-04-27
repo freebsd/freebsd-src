@@ -64,6 +64,22 @@ int ipfw_socket = -1;
 #define s6_addr32 __u6_addr.__u6_addr32
 #endif
 
+#define	CHECK_LENGTH(v, len) do {				\
+	if ((v) < (len))					\
+		errx(EX_DATAERR, "Rule too long");		\
+	} while (0)
+/*
+ * Check if we have enough space in cmd buffer. Note that since
+ * first 8? u32 words are reserved by reserved header, full cmd
+ * buffer can't be used, so we need to protect from buffer overrun
+ * only. At the beginnig, cblen is less than actual buffer size by
+ * size of ipfw_insn_u32 instruction + 1 u32 work. This eliminates need
+ * for checking small instructions fitting in given range.
+ * We also (ab)use the fact that ipfw_insn is always the first field
+ * for any custom instruction.
+ */
+#define	CHECK_CMDLEN	CHECK_LENGTH(cblen, F_LEN((ipfw_insn *)cmd))
+
 #define GET_UINT_ARG(arg, min, max, tok, s_x) do {			\
 	if (!av[0])							\
 		errx(EX_USAGE, "%s: missing argument", match_value(s_x, tok)); \
@@ -151,6 +167,32 @@ static struct _s_x f_iptos[] = {
 	{ NULL,	0 }
 };
 
+static struct _s_x f_ipdscp[] = {
+	{ "af11", IPTOS_DSCP_AF11 >> 2 },	/* 001010 */
+	{ "af12", IPTOS_DSCP_AF12 >> 2 },	/* 001100 */
+	{ "af13", IPTOS_DSCP_AF13 >> 2 },	/* 001110 */
+	{ "af21", IPTOS_DSCP_AF21 >> 2 },	/* 010010 */
+	{ "af22", IPTOS_DSCP_AF22 >> 2 },	/* 010100 */
+	{ "af23", IPTOS_DSCP_AF23 >> 2 },	/* 010110 */
+	{ "af31", IPTOS_DSCP_AF31 >> 2 },	/* 011010 */
+	{ "af32", IPTOS_DSCP_AF32 >> 2 },	/* 011100 */
+	{ "af33", IPTOS_DSCP_AF33 >> 2 },	/* 011110 */
+	{ "af41", IPTOS_DSCP_AF41 >> 2 },	/* 100010 */
+	{ "af42", IPTOS_DSCP_AF42 >> 2 },	/* 100100 */
+	{ "af43", IPTOS_DSCP_AF43 >> 2 },	/* 100110 */
+	{ "be", IPTOS_DSCP_CS0 >> 2 }, 	/* 000000 */
+	{ "ef", IPTOS_DSCP_EF >> 2 },	/* 101110 */
+	{ "cs0", IPTOS_DSCP_CS0 >> 2 },	/* 000000 */
+	{ "cs1", IPTOS_DSCP_CS1 >> 2 },	/* 001000 */
+	{ "cs2", IPTOS_DSCP_CS2 >> 2 },	/* 010000 */
+	{ "cs3", IPTOS_DSCP_CS3 >> 2 },	/* 011000 */
+	{ "cs4", IPTOS_DSCP_CS4 >> 2 },	/* 100000 */
+	{ "cs5", IPTOS_DSCP_CS5 >> 2 },	/* 101000 */
+	{ "cs6", IPTOS_DSCP_CS6 >> 2 },	/* 110000 */
+	{ "cs7", IPTOS_DSCP_CS7 >> 2 },	/* 100000 */
+	{ NULL, 0 }
+};
+
 static struct _s_x limit_masks[] = {
 	{"all",		DYN_SRC_ADDR|DYN_SRC_PORT|DYN_DST_ADDR|DYN_DST_PORT},
 	{"src-addr",	DYN_SRC_ADDR},
@@ -221,6 +263,7 @@ static struct _s_x rule_actions[] = {
 	{ "nat",		TOK_NAT },
 	{ "reass",		TOK_REASS },
 	{ "setfib",		TOK_SETFIB },
+	{ "setdscp",		TOK_SETDSCP },
 	{ "call",		TOK_CALL },
 	{ "return",		TOK_RETURN },
 	{ NULL, 0 }	/* terminator */
@@ -653,7 +696,7 @@ strtoport(char *s, char **end, int base, int proto)
  * Fill the body of the command with the list of port ranges.
  */
 static int
-fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
+fill_newports(ipfw_insn_u16 *cmd, char *av, int proto, int cblen)
 {
 	uint16_t a, b, *p = cmd->ports;
 	int i = 0;
@@ -663,6 +706,8 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 		a = strtoport(av, &s, 0, proto);
 		if (s == av) 			/* empty or invalid argument */
 			return (0);
+
+		CHECK_LENGTH(cblen, i + 2);
 
 		switch (*s) {
 		case '-':			/* a range */
@@ -694,6 +739,51 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto)
 		cmd->o.len |= i + 1;	/* leave F_NOT and F_OR untouched */
 	}
 	return (i);
+}
+
+/*
+ * Fill the body of the command with the list of DiffServ codepoints.
+ */
+static void
+fill_dscp(ipfw_insn *cmd, char *av, int cblen)
+{
+	uint32_t *low, *high;
+	char *s = av, *a;
+	int code;
+
+	cmd->opcode = O_DSCP;
+	cmd->len |= F_INSN_SIZE(ipfw_insn_u32) + 1;
+
+	CHECK_CMDLEN;
+
+	low = (uint32_t *)(cmd + 1);
+	high = low + 1;
+
+	*low = 0;
+	*high = 0;
+
+	while (s != NULL) {
+		a = strchr(s, ',');
+
+		if (a != NULL)
+			*a++ = '\0';
+
+		if (isalpha(*s)) {
+			if ((code = match_token(f_ipdscp, s)) == -1)
+				errx(EX_DATAERR, "Unknown DSCP code");
+		} else {
+			code = strtoul(s, NULL, 10);
+			if (code < 0 || code > 63)
+				errx(EX_DATAERR, "Invalid DSCP value");
+		}
+
+		if (code > 32)
+			*high |= 1 << (code - 32);
+		else
+			*low |= 1 << code;
+
+		s = a;
+	}
 }
 
 static struct _s_x icmpcodes[] = {
@@ -954,6 +1044,32 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 	}
 }
 
+static void
+print_dscp(ipfw_insn_u32 *cmd)
+{
+	int i, c;
+	uint32_t *v;
+	char sep= ' ';
+	const char *code;
+
+	printf(" dscp");
+	i = 0;
+	c = 0;
+	v = cmd->d;
+	while (i < 64) {
+		if (*v & (1 << i)) {
+			if ((code = match_value(f_ipdscp, i)) != NULL)
+				printf("%c%s", sep, code);
+			else
+				printf("%c%d", sep, i);
+			sep = ',';
+		}
+
+		if ((++i % 32) == 0)
+			v++;
+	}
+}
+
 /*
  * show_ipfw() prints the body of an ipfw rule.
  * Because the standard rule has at least proto src_ip dst_ip, we use
@@ -1185,6 +1301,17 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
+ 			break;
+
+		case O_SETDSCP:
+		    {
+			const char *code;
+
+			if ((code = match_value(f_ipdscp, cmd->arg1)) != NULL)
+				printf("setdscp %s", code);
+			else
+				PRINT_UINT_ARG("setdscp ", cmd->arg1);
+		    }
  			break;
 
 		case O_REASS:
@@ -1481,6 +1608,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			case O_IPPRECEDENCE:
 				printf(" ipprecedence %u", (cmd->arg1) >> 5 );
 				break;
+
+			case O_DSCP:
+				print_dscp((ipfw_insn_u32 *)cmd);
+	 			break;
 
 			case O_IPLEN:
 				if (F_LEN(cmd) == 1)
@@ -2068,7 +2199,7 @@ lookup_host (char *host, struct in_addr *ipaddr)
  * We can have multiple comma-separated address/mask entries.
  */
 static void
-fill_ip(ipfw_insn_ip *cmd, char *av)
+fill_ip(ipfw_insn_ip *cmd, char *av, int cblen)
 {
 	int len = 0;
 	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
@@ -2107,6 +2238,8 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 	char *t = NULL, *p = strpbrk(av, "/:,{");
 	int masklen;
 	char md, nd = '\0';
+
+	CHECK_LENGTH(cblen, F_INSN_SIZE(ipfw_insn) + 2 + len);
 
 	if (p) {
 		md = *p;
@@ -2366,10 +2499,12 @@ ipfw_delete(char *av[])
  * patterns which match interfaces.
  */
 static void
-fill_iface(ipfw_insn_if *cmd, char *arg)
+fill_iface(ipfw_insn_if *cmd, char *arg, int cblen)
 {
 	cmd->name[0] = '\0';
 	cmd->o.len |= F_INSN_SIZE(ipfw_insn_if);
+
+	CHECK_CMDLEN;
 
 	/* Parse the interface or address */
 	if (strcmp(arg, "any") == 0)
@@ -2441,8 +2576,10 @@ get_mac_addr_mask(const char *p, uint8_t *addr, uint8_t *mask)
  * the new command in case it has been clobbered before.
  */
 static ipfw_insn *
-next_cmd(ipfw_insn *cmd)
+next_cmd(ipfw_insn *cmd, int *len)
 {
+	*len -= F_LEN(cmd);
+	CHECK_LENGTH(*len, 0);
 	cmd += F_LEN(cmd);
 	bzero(cmd, sizeof(*cmd));
 	return cmd;
@@ -2452,7 +2589,7 @@ next_cmd(ipfw_insn *cmd)
  * Takes arguments and copies them into a comment
  */
 static void
-fill_comment(ipfw_insn *cmd, char **av)
+fill_comment(ipfw_insn *cmd, char **av, int cblen)
 {
 	int i, l;
 	char *p = (char *)(cmd + 1);
@@ -2470,6 +2607,8 @@ fill_comment(ipfw_insn *cmd, char **av)
 		    "comment too long (max 80 chars)");
 	l = 1 + (l+3)/4;
 	cmd->len =  (cmd->len & (F_NOT | F_OR)) | l;
+	CHECK_CMDLEN;
+
 	for (i = 0; av[i] != NULL; i++) {
 		strcpy(p, av[i]);
 		p += strlen(av[i]);
@@ -2495,7 +2634,7 @@ fill_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode, int flags, uint16_t arg)
  * two microinstructions, and returns the pointer to the last one.
  */
 static ipfw_insn *
-add_mac(ipfw_insn *cmd, char *av[])
+add_mac(ipfw_insn *cmd, char *av[], int cblen)
 {
 	ipfw_insn_mac *mac;
 
@@ -2504,6 +2643,7 @@ add_mac(ipfw_insn *cmd, char *av[])
 
 	cmd->opcode = O_MACADDR2;
 	cmd->len = (cmd->len & (F_NOT | F_OR)) | F_INSN_SIZE(ipfw_insn_mac);
+	CHECK_CMDLEN;
 
 	mac = (ipfw_insn_mac *)cmd;
 	get_mac_addr_mask(av[0], mac->addr, mac->mask);	/* dst */
@@ -2513,12 +2653,13 @@ add_mac(ipfw_insn *cmd, char *av[])
 }
 
 static ipfw_insn *
-add_mactype(ipfw_insn *cmd, char *av)
+add_mactype(ipfw_insn *cmd, char *av, int cblen)
 {
 	if (!av)
 		errx(EX_DATAERR, "missing MAC type");
 	if (strcmp(av, "any") != 0) { /* we have a non-null type */
-		fill_newports((ipfw_insn_u16 *)cmd, av, IPPROTO_ETHERTYPE);
+		fill_newports((ipfw_insn_u16 *)cmd, av, IPPROTO_ETHERTYPE,
+		    cblen);
 		cmd->opcode = O_MAC_TYPE;
 		return cmd;
 	} else
@@ -2587,9 +2728,9 @@ add_proto_compat(ipfw_insn *cmd, char *av, u_char *protop)
 }
 
 static ipfw_insn *
-add_srcip(ipfw_insn *cmd, char *av)
+add_srcip(ipfw_insn *cmd, char *av, int cblen)
 {
-	fill_ip((ipfw_insn_ip *)cmd, av);
+	fill_ip((ipfw_insn_ip *)cmd, av, cblen);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		cmd->opcode = O_IP_SRC_SET;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
@@ -2604,9 +2745,9 @@ add_srcip(ipfw_insn *cmd, char *av)
 }
 
 static ipfw_insn *
-add_dstip(ipfw_insn *cmd, char *av)
+add_dstip(ipfw_insn *cmd, char *av, int cblen)
 {
-	fill_ip((ipfw_insn_ip *)cmd, av);
+	fill_ip((ipfw_insn_ip *)cmd, av, cblen);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
@@ -2621,12 +2762,12 @@ add_dstip(ipfw_insn *cmd, char *av)
 }
 
 static ipfw_insn *
-add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
+add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode, int cblen)
 {
 	/* XXX "any" is trapped before. Perhaps "to" */
 	if (_substrcmp(av, "any") == 0) {
 		return NULL;
-	} else if (fill_newports((ipfw_insn_u16 *)cmd, av, proto)) {
+	} else if (fill_newports((ipfw_insn_u16 *)cmd, av, proto, cblen)) {
 		/* XXX todo: check that we have a protocol with ports */
 		cmd->opcode = opcode;
 		return cmd;
@@ -2635,7 +2776,7 @@ add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode)
 }
 
 static ipfw_insn *
-add_src(ipfw_insn *cmd, char *av, u_char proto)
+add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 {
 	struct in6_addr a;
 	char *host, *ch;
@@ -2648,11 +2789,11 @@ add_src(ipfw_insn *cmd, char *av, u_char proto)
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
-		ret = add_srcip6(cmd, av);
+		ret = add_srcip6(cmd, av, cblen);
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
-		ret = add_srcip(cmd, av);
+		ret = add_srcip(cmd, av, cblen);
 	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
@@ -2661,7 +2802,7 @@ add_src(ipfw_insn *cmd, char *av, u_char proto)
 }
 
 static ipfw_insn *
-add_dst(ipfw_insn *cmd, char *av, u_char proto)
+add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 {
 	struct in6_addr a;
 	char *host, *ch;
@@ -2674,11 +2815,11 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto)
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
-		ret = add_dstip6(cmd, av);
+		ret = add_dstip6(cmd, av, cblen);
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
-		ret = add_dstip(cmd, av);
+		ret = add_dstip(cmd, av, cblen);
 	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
@@ -2708,6 +2849,7 @@ ipfw_add(char *av[])
 	 * go into actbuf[].
 	 */
 	static uint32_t rulebuf[255], actbuf[255], cmdbuf[255];
+	int rblen, ablen, cblen;
 
 	ipfw_insn *src, *dst, *cmd, *action, *prev=NULL;
 	ipfw_insn *first_cmd;	/* first match pattern */
@@ -2737,6 +2879,15 @@ ipfw_add(char *av[])
 	rule = (struct ip_fw *)rulebuf;
 	cmd = (ipfw_insn *)cmdbuf;
 	action = (ipfw_insn *)actbuf;
+
+	rblen = sizeof(rulebuf) / sizeof(rulebuf[0]);
+	rblen -= offsetof(struct ip_fw, cmd) / sizeof(rulebuf[0]);
+	ablen = sizeof(actbuf) / sizeof(actbuf[0]);
+	cblen = sizeof(cmdbuf) / sizeof(cmdbuf[0]);
+	cblen -= F_INSN_SIZE(ipfw_insn_u32) + 1;
+
+#define	CHECK_RBUFLEN(len)	{ CHECK_LENGTH(rblen, len); rblen -= len; }
+#define	CHECK_ACTLEN		CHECK_LENGTH(ablen, action->len)
 
 	av++;
 
@@ -2769,6 +2920,7 @@ ipfw_add(char *av[])
 	i = match_token(rule_actions, *av);
 	av++;
 	action->len = 1;	/* default */
+	CHECK_ACTLEN;
 	switch(i) {
 	case TOK_CHECKSTATE:
 		have_state = action;
@@ -2820,6 +2972,7 @@ ipfw_add(char *av[])
 	case TOK_NAT:
 		action->opcode = O_NAT;
 		action->len = F_INSN_SIZE(ipfw_insn_nat);
+		CHECK_ACTLEN;
 		if (_substrcmp(*av, "global") == 0) {
 			action->arg1 = 0;
 			av++;
@@ -2936,6 +3089,7 @@ chkarg:
 
 			action->opcode = O_FORWARD_IP;
 			action->len = F_INSN_SIZE(ipfw_insn_sa);
+			CHECK_ACTLEN;
 
 			/*
 			 * In the kernel we assume AF_INET and use only
@@ -2952,6 +3106,7 @@ chkarg:
 
 			action->opcode = O_FORWARD_IP6;
 			action->len = F_INSN_SIZE(ipfw_insn_sa6);
+			CHECK_ACTLEN;
 
 			p->sa.sin6_len = sizeof(struct sockaddr_in6);
 			p->sa.sin6_family = AF_INET6;
@@ -2994,6 +3149,24 @@ chkarg:
 		break;
 	    }
 
+	case TOK_SETDSCP:
+	    {
+		int code;
+
+		action->opcode = O_SETDSCP;
+		NEED1("missing DSCP code");
+		if (_substrcmp(*av, "tablearg") == 0) {
+			action->arg1 = IP_FW_TABLEARG;
+		} else if (isalpha(*av[0])) {
+			if ((code = match_token(f_ipdscp, *av)) == -1)
+				errx(EX_DATAERR, "Unknown DSCP code");
+			action->arg1 = code;
+		} else
+		        action->arg1 = strtoul(*av, NULL, 10);
+		av++;
+		break;
+	    }
+
 	case TOK_REASS:
 		action->opcode = O_REASS;
 		break;
@@ -3005,7 +3178,7 @@ chkarg:
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
-	action = next_cmd(action);
+	action = next_cmd(action, &ablen);
 
 	/*
 	 * [altq queuename] -- altq tag, optional
@@ -3027,6 +3200,7 @@ chkarg:
 				    "log cannot be specified more than once");
 			have_log = (ipfw_insn *)c;
 			cmd->len = F_INSN_SIZE(ipfw_insn_log);
+			CHECK_CMDLEN;
 			cmd->opcode = O_LOG;
 			if (av[0] && _substrcmp(*av, "logamount") == 0) {
 				av++;
@@ -3040,9 +3214,14 @@ chkarg:
 			} else {
 				len = sizeof(c->max_log);
 				if (sysctlbyname("net.inet.ip.fw.verbose_limit",
-				    &c->max_log, &len, NULL, 0) == -1)
+				    &c->max_log, &len, NULL, 0) == -1) {
+					if (co.test_only) {
+						c->max_log = 0;
+						break;
+					}
 					errx(1, "sysctlbyname(\"%s\")",
 					    "net.inet.ip.fw.verbose_limit");
+				}
 			}
 		    }
 			break;
@@ -3058,6 +3237,7 @@ chkarg:
 				    "altq cannot be specified more than once");
 			have_altq = (ipfw_insn *)a;
 			cmd->len = F_INSN_SIZE(ipfw_insn_altq);
+			CHECK_CMDLEN;
 			cmd->opcode = O_ALTQ;
 			a->qid = altq_name_to_qid(*av);
 			av++;
@@ -3083,7 +3263,7 @@ chkarg:
 		default:
 			abort();
 		}
-		cmd = next_cmd(cmd);
+		cmd = next_cmd(cmd, &cblen);
 	}
 
 	if (have_state)	/* must be a check-state, we are done */
@@ -3168,7 +3348,7 @@ chkarg:
 		av++;
 		if (F_LEN(cmd) != 0) {
 			prev = cmd;
-			cmd = next_cmd(cmd);
+			cmd = next_cmd(cmd, &cblen);
 		}
 	} else if (first_cmd != cmd) {
 		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
@@ -3189,11 +3369,11 @@ chkarg:
     OR_START(source_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing source address");
-	if (add_src(cmd, *av, proto)) {
+	if (add_src(cmd, *av, proto, cblen)) {
 		av++;
 		if (F_LEN(cmd) != 0) {	/* ! any */
 			prev = cmd;
-			cmd = next_cmd(cmd);
+			cmd = next_cmd(cmd, &cblen);
 		}
 	} else
 		errx(EX_USAGE, "bad source address %s", *av);
@@ -3205,10 +3385,10 @@ chkarg:
 	NOT_BLOCK;	/* optional "not" */
 	if ( av[0] != NULL ) {
 		if (_substrcmp(*av, "any") == 0 ||
-		    add_ports(cmd, *av, proto, O_IP_SRCPORT)) {
+		    add_ports(cmd, *av, proto, O_IP_SRCPORT, cblen)) {
 			av++;
 			if (F_LEN(cmd) != 0)
-				cmd = next_cmd(cmd);
+				cmd = next_cmd(cmd, &cblen);
 		}
 	}
 
@@ -3225,11 +3405,11 @@ chkarg:
     OR_START(dest_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing dst address");
-	if (add_dst(cmd, *av, proto)) {
+	if (add_dst(cmd, *av, proto, cblen)) {
 		av++;
 		if (F_LEN(cmd) != 0) {	/* ! any */
 			prev = cmd;
-			cmd = next_cmd(cmd);
+			cmd = next_cmd(cmd, &cblen);
 		}
 	} else
 		errx( EX_USAGE, "bad destination address %s", *av);
@@ -3241,10 +3421,10 @@ chkarg:
 	NOT_BLOCK;	/* optional "not" */
 	if (av[0]) {
 		if (_substrcmp(*av, "any") == 0 ||
-		    add_ports(cmd, *av, proto, O_IP_DSTPORT)) {
+		    add_ports(cmd, *av, proto, O_IP_DSTPORT, cblen)) {
 			av++;
 			if (F_LEN(cmd) != 0)
-				cmd = next_cmd(cmd);
+				cmd = next_cmd(cmd, &cblen);
 		}
 	}
 
@@ -3332,7 +3512,7 @@ read_options:
 		case TOK_VIA:
 			NEED1("recv, xmit, via require interface name"
 				" or address");
-			fill_iface((ipfw_insn_if *)cmd, av[0]);
+			fill_iface((ipfw_insn_if *)cmd, av[0], cblen);
 			av++;
 			if (F_LEN(cmd) == 0)	/* not a valid address */
 				break;
@@ -3352,14 +3532,14 @@ read_options:
 
 		case TOK_ICMP6TYPES:
 			NEED1("icmptypes requires list of types");
-			fill_icmp6types((ipfw_insn_icmp6 *)cmd, *av);
+			fill_icmp6types((ipfw_insn_icmp6 *)cmd, *av, cblen);
 			av++;
 			break;
 
 		case TOK_IPTTL:
 			NEED1("ipttl requires TTL");
 			if (strpbrk(*av, "-,")) {
-			    if (!add_ports(cmd, *av, 0, O_IPTTL))
+			    if (!add_ports(cmd, *av, 0, O_IPTTL, cblen))
 				errx(EX_DATAERR, "invalid ipttl %s", *av);
 			} else
 			    fill_cmd(cmd, O_IPTTL, 0, strtoul(*av, NULL, 0));
@@ -3369,7 +3549,7 @@ read_options:
 		case TOK_IPID:
 			NEED1("ipid requires id");
 			if (strpbrk(*av, "-,")) {
-			    if (!add_ports(cmd, *av, 0, O_IPID))
+			    if (!add_ports(cmd, *av, 0, O_IPID, cblen))
 				errx(EX_DATAERR, "invalid ipid %s", *av);
 			} else
 			    fill_cmd(cmd, O_IPID, 0, strtoul(*av, NULL, 0));
@@ -3379,7 +3559,7 @@ read_options:
 		case TOK_IPLEN:
 			NEED1("iplen requires length");
 			if (strpbrk(*av, "-,")) {
-			    if (!add_ports(cmd, *av, 0, O_IPLEN))
+			    if (!add_ports(cmd, *av, 0, O_IPLEN, cblen))
 				errx(EX_DATAERR, "invalid ip len %s", *av);
 			} else
 			    fill_cmd(cmd, O_IPLEN, 0, strtoul(*av, NULL, 0));
@@ -3396,6 +3576,12 @@ read_options:
 			NEED1("ipprecedence requires value");
 			fill_cmd(cmd, O_IPPRECEDENCE, 0,
 			    (strtoul(*av, NULL, 0) & 7) << 5);
+			av++;
+			break;
+
+		case TOK_DSCP:
+			NEED1("missing DSCP code");
+			fill_dscp(cmd, *av, cblen);
 			av++;
 			break;
 
@@ -3475,7 +3661,7 @@ read_options:
 		case TOK_TCPDATALEN:
 			NEED1("tcpdatalen requires length");
 			if (strpbrk(*av, "-,")) {
-			    if (!add_ports(cmd, *av, 0, O_TCPDATALEN))
+			    if (!add_ports(cmd, *av, 0, O_TCPDATALEN, cblen))
 				errx(EX_DATAERR, "invalid tcpdata len %s", *av);
 			} else
 			    fill_cmd(cmd, O_TCPDATALEN, 0,
@@ -3501,7 +3687,7 @@ read_options:
 		case TOK_TCPWIN:
 			NEED1("tcpwin requires length");
 			if (strpbrk(*av, "-,")) {
-			    if (!add_ports(cmd, *av, 0, O_TCPWIN))
+			    if (!add_ports(cmd, *av, 0, O_TCPWIN, cblen))
 				errx(EX_DATAERR, "invalid tcpwin len %s", *av);
 			} else
 			    fill_cmd(cmd, O_TCPWIN, 0,
@@ -3540,6 +3726,7 @@ read_options:
 			have_state = cmd;
 
 			cmd->len = F_INSN_SIZE(ipfw_insn_limit);
+			CHECK_CMDLEN;
 			cmd->opcode = O_LIMIT;
 			c->limit_mask = c->conn_limit = 0;
 
@@ -3571,28 +3758,28 @@ read_options:
 
 		case TOK_SRCIP:
 			NEED1("missing source IP");
-			if (add_srcip(cmd, *av)) {
+			if (add_srcip(cmd, *av, cblen)) {
 				av++;
 			}
 			break;
 
 		case TOK_DSTIP:
 			NEED1("missing destination IP");
-			if (add_dstip(cmd, *av)) {
+			if (add_dstip(cmd, *av, cblen)) {
 				av++;
 			}
 			break;
 
 		case TOK_SRCIP6:
 			NEED1("missing source IP6");
-			if (add_srcip6(cmd, *av)) {
+			if (add_srcip6(cmd, *av, cblen)) {
 				av++;
 			}
 			break;
 
 		case TOK_DSTIP6:
 			NEED1("missing destination IP6");
-			if (add_dstip6(cmd, *av)) {
+			if (add_dstip6(cmd, *av, cblen)) {
 				av++;
 			}
 			break;
@@ -3600,7 +3787,7 @@ read_options:
 		case TOK_SRCPORT:
 			NEED1("missing source port");
 			if (_substrcmp(*av, "any") == 0 ||
-			    add_ports(cmd, *av, proto, O_IP_SRCPORT)) {
+			    add_ports(cmd, *av, proto, O_IP_SRCPORT, cblen)) {
 				av++;
 			} else
 				errx(EX_DATAERR, "invalid source port %s", *av);
@@ -3609,7 +3796,7 @@ read_options:
 		case TOK_DSTPORT:
 			NEED1("missing destination port");
 			if (_substrcmp(*av, "any") == 0 ||
-			    add_ports(cmd, *av, proto, O_IP_DSTPORT)) {
+			    add_ports(cmd, *av, proto, O_IP_DSTPORT, cblen)) {
 				av++;
 			} else
 				errx(EX_DATAERR, "invalid destination port %s",
@@ -3617,13 +3804,13 @@ read_options:
 			break;
 
 		case TOK_MAC:
-			if (add_mac(cmd, av))
+			if (add_mac(cmd, av, cblen))
 				av += 2;
 			break;
 
 		case TOK_MACTYPE:
 			NEED1("missing mac type");
-			if (!add_mactype(cmd, *av))
+			if (!add_mactype(cmd, *av, cblen))
 				errx(EX_DATAERR, "invalid mac type %s", *av);
 			av++;
 			break;
@@ -3661,18 +3848,18 @@ read_options:
 			if (proto != IPPROTO_IPV6 )
 				errx( EX_USAGE, "flow-id filter is active "
 				    "only for ipv6 protocol\n");
-			fill_flow6( (ipfw_insn_u32 *) cmd, *av );
+			fill_flow6( (ipfw_insn_u32 *) cmd, *av, cblen);
 			av++;
 			break;
 
 		case TOK_COMMENT:
-			fill_comment(cmd, av);
+			fill_comment(cmd, av, cblen);
 			av[0]=NULL;
 			break;
 
 		case TOK_TAGGED:
 			if (av[0] && strpbrk(*av, "-,")) {
-				if (!add_ports(cmd, *av, 0, O_TAGGED))
+				if (!add_ports(cmd, *av, 0, O_TAGGED, cblen))
 					errx(EX_DATAERR, "tagged: invalid tag"
 					    " list: %s", *av);
 			}
@@ -3725,7 +3912,7 @@ read_options:
 		}
 		if (F_LEN(cmd) > 0) {	/* prepare to advance */
 			prev = cmd;
-			cmd = next_cmd(cmd);
+			cmd = next_cmd(cmd, &cblen);
 		}
 	}
 
@@ -3754,12 +3941,13 @@ done:
 	 */
 	if (have_state && have_state->opcode != O_CHECK_STATE) {
 		fill_cmd(dst, O_PROBE_STATE, 0, 0);
-		dst = next_cmd(dst);
+		dst = next_cmd(dst, &rblen);
 	}
 
 	/* copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ, O_TAG */
 	for (src = (ipfw_insn *)cmdbuf; src != cmd; src += i) {
 		i = F_LEN(src);
+		CHECK_RBUFLEN(i);
 
 		switch (src->opcode) {
 		case O_LOG:
@@ -3779,6 +3967,7 @@ done:
 	 */
 	if (have_state && have_state->opcode != O_CHECK_STATE) {
 		i = F_LEN(have_state);
+		CHECK_RBUFLEN(i);
 		bcopy(have_state, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
@@ -3790,24 +3979,29 @@ done:
 	/* put back O_LOG, O_ALTQ, O_TAG if necessary */
 	if (have_log) {
 		i = F_LEN(have_log);
+		CHECK_RBUFLEN(i);
 		bcopy(have_log, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 	if (have_altq) {
 		i = F_LEN(have_altq);
+		CHECK_RBUFLEN(i);
 		bcopy(have_altq, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
 	if (have_tag) {
 		i = F_LEN(have_tag);
+		CHECK_RBUFLEN(i);
 		bcopy(have_tag, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
+
 	/*
 	 * copy all other actions
 	 */
 	for (src = (ipfw_insn *)actbuf; src != action; src += i) {
 		i = F_LEN(src);
+		CHECK_RBUFLEN(i);
 		bcopy(src, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
@@ -3912,6 +4106,7 @@ ipfw_flush(int force)
 
 
 static void table_list(uint16_t num, int need_header);
+static void table_fill_xentry(char *arg, ipfw_table_xentry *xent);
 
 /*
  * This one handles all table-related commands
@@ -3927,16 +4122,18 @@ ipfw_table_handler(int ac, char *av[])
 	int do_add;
 	int is_all;
 	size_t len;
-	char *p;
-	uint32_t a, type, mask, addrlen;
+	uint32_t a;
 	uint32_t tables_max;
 
-	mask = 0;	// XXX uninitialized ?
 	len = sizeof(tables_max);
 	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
-		NULL, 0) == -1)
-		errx(1, "Can't determine maximum number of ipfw tables. "
-		    "Perhaps you forgot to load ipfw module?");
+	    NULL, 0) == -1) {
+		if (co.test_only)
+			tables_max = 128; /* Old conservative default */
+		else
+			errx(1, "Can't determine maximum number of ipfw tables."
+			    " Perhaps you forgot to load ipfw module?");
+	}
 
 	memset(&xent, 0, sizeof(xent));
 
@@ -3965,57 +4162,8 @@ ipfw_table_handler(int ac, char *av[])
 		ac--; av++;
 		if (!ac)
 			errx(EX_USAGE, "address required");
-		/* 
-		 * Let's try to guess type by agrument.
-		 * Possible types: 
-		 * 1) IPv4[/mask]
-		 * 2) IPv6[/mask]
-		 * 3) interface name
-		 * 4) port ?
-		 */
-		type = 0;
-		if (ishexnumber(*av[0])) {
-			/* Remove / if exists */
-			if ((p = strchr(*av, '/')) != NULL) {
-				*p = '\0';
-				mask = atoi(p + 1);
-			}
 
-			if (inet_pton(AF_INET, *av, &xent.k.addr6) == 1) {
-				type = IPFW_TABLE_CIDR;
-				if ((p != NULL) && (mask > 32))
-					errx(EX_DATAERR, "bad IPv4 mask width: %s", p + 1);
-				xent.masklen = p ? mask : 32;
-				addrlen = sizeof(struct in_addr);
-			} else if (inet_pton(AF_INET6, *av, &xent.k.addr6) == 1) {
-				type = IPFW_TABLE_CIDR;
-				if ((p != NULL) && (mask > 128))
-					errx(EX_DATAERR, "bad IPv6 mask width: %s", p + 1);
-				xent.masklen = p ? mask : 128;
-				addrlen = sizeof(struct in6_addr);
-			}
-		}
-
-		if ((type == 0) && (strchr(*av, '.') == NULL)) {
-			/* Assume interface name. Copy significant data only */
-			mask = MIN(strlen(*av), IF_NAMESIZE - 1);
-			memcpy(xent.k.iface, *av, mask);
-			/* Set mask to exact match */
-			xent.masklen = 8 * IF_NAMESIZE;
-			type = IPFW_TABLE_INTERFACE;
-			addrlen = IF_NAMESIZE;
-		}
-
-		if (type == 0) {
-			if (lookup_host(*av, (struct in_addr *)&xent.k.addr6) != 0)
-				errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
-			xent.masklen = 32;
-			type = IPFW_TABLE_CIDR;
-			addrlen = sizeof(struct in_addr);
-		}
-
-		xent.type = type;
-		xent.len = offsetof(ipfw_table_xentry, k) + addrlen;
+		table_fill_xentry(*av, &xent);
 
 		ac--; av++;
 		if (do_add && ac) {
@@ -4065,6 +4213,93 @@ ipfw_table_handler(int ac, char *av[])
 }
 
 static void
+table_fill_xentry(char *arg, ipfw_table_xentry *xent)
+{
+	int addrlen, mask, masklen, type;
+	struct in6_addr *paddr;
+	uint32_t *pkey;
+	char *p;
+	uint32_t key;
+
+	mask = 0;
+	type = 0;
+	addrlen = 0;
+	masklen = 0;
+
+	/* 
+	 * Let's try to guess type by agrument.
+	 * Possible types: 
+	 * 1) IPv4[/mask]
+	 * 2) IPv6[/mask]
+	 * 3) interface name
+	 * 4) port, uid/gid or other u32 key (base 10 format)
+	 * 5) hostname
+	 */
+	paddr = &xent->k.addr6;
+	if (ishexnumber(*arg) != 0 || *arg == ':') {
+		/* Remove / if exists */
+		if ((p = strchr(arg, '/')) != NULL) {
+			*p = '\0';
+			mask = atoi(p + 1);
+		}
+
+		if (inet_pton(AF_INET, arg, paddr) == 1) {
+			if (p != NULL && mask > 32)
+				errx(EX_DATAERR, "bad IPv4 mask width: %s",
+				    p + 1);
+
+			type = IPFW_TABLE_CIDR;
+			masklen = p ? mask : 32;
+			addrlen = sizeof(struct in_addr);
+		} else if (inet_pton(AF_INET6, arg, paddr) == 1) {
+			if (IN6_IS_ADDR_V4COMPAT(paddr))
+				errx(EX_DATAERR,
+				    "Use IPv4 instead of v4-compatible");
+			if (p != NULL && mask > 128)
+				errx(EX_DATAERR, "bad IPv6 mask width: %s",
+				    p + 1);
+
+			type = IPFW_TABLE_CIDR;
+			masklen = p ? mask : 128;
+			addrlen = sizeof(struct in6_addr);
+		} else {
+			/* Port or any other key */
+			key = strtol(arg, &p, 10);
+			/* Skip non-base 10 entries like 'fa1' */
+			if (p != arg) {
+				pkey = (uint32_t *)paddr;
+				*pkey = htonl(key);
+				type = IPFW_TABLE_CIDR;
+				addrlen = sizeof(uint32_t);
+			}
+		}
+	}
+
+	if (type == 0 && strchr(arg, '.') == NULL) {
+		/* Assume interface name. Copy significant data only */
+		mask = MIN(strlen(arg), IF_NAMESIZE - 1);
+		memcpy(xent->k.iface, arg, mask);
+		/* Set mask to exact match */
+		masklen = 8 * IF_NAMESIZE;
+		type = IPFW_TABLE_INTERFACE;
+		addrlen = IF_NAMESIZE;
+	}
+
+	if (type == 0) {
+		if (lookup_host(arg, (struct in_addr *)paddr) != 0)
+			errx(EX_NOHOST, "hostname ``%s'' unknown", arg);
+
+		masklen = 32;
+		type = IPFW_TABLE_CIDR;
+		addrlen = sizeof(struct in_addr);
+	}
+
+	xent->type = type;
+	xent->masklen = masklen;
+	xent->len = offsetof(ipfw_table_xentry, k) + addrlen;
+}
+
+static void
 table_list(uint16_t num, int need_header)
 {
 	ipfw_xtable *tbl;
@@ -4107,8 +4342,8 @@ table_list(uint16_t num, int need_header)
 			tval = xent->value;
 			addr6 = &xent->k.addr6;
 
-			if ((addr6->s6_addr32[0] == 0) && (addr6->s6_addr32[1] == 0) && 
-			    (addr6->s6_addr32[2] == 0)) {
+
+			if (IN6_IS_ADDR_V4COMPAT(addr6)) {
 				/* IPv4 address */
 				inet_ntop(AF_INET, &addr6->s6_addr32[3], tbuf, sizeof(tbuf));
 			} else {

@@ -67,7 +67,7 @@ static VNET_DEFINE(SLIST_HEAD(, lltable), lltables);
 
 static void vnet_lltable_init(void);
 
-struct rwlock lltable_rwlock;
+struct rwlock_padalign lltable_rwlock;
 RW_SYSINIT(lltable_rwlock, &lltable_rwlock, "lltable_rwlock");
 
 /*

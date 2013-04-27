@@ -414,6 +414,13 @@ siis_child_location_str(device_t dev, device_t child, char *buf,
 	return (0);
 }
 
+static bus_dma_tag_t
+siis_get_dma_tag(device_t bus, device_t child)
+{
+
+	return (bus_get_dma_tag(bus));
+}
+
 devclass_t siis_devclass;
 static device_method_t siis_methods[] = {
 	DEVMETHOD(device_probe,     siis_probe),
@@ -427,6 +434,7 @@ static device_method_t siis_methods[] = {
 	DEVMETHOD(bus_setup_intr,   siis_setup_intr),
 	DEVMETHOD(bus_teardown_intr,siis_teardown_intr),
 	DEVMETHOD(bus_child_location_str, siis_child_location_str),
+	DEVMETHOD(bus_get_dma_tag,  siis_get_dma_tag),
 	{ 0, 0 }
 };
 static driver_t siis_driver = {
@@ -1939,7 +1947,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
 		cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 15;
 		cpi->max_lun = 0;

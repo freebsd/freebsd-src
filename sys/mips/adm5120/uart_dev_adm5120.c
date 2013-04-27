@@ -221,9 +221,6 @@ adm5120_uart_bus_attach(struct uart_softc *sc)
 		/* TODO: set parameters 115200, 8N1 */
 	}
 
-	sc->sc_rxfifosz = 16;
-	sc->sc_txfifosz = 16;
-
 	(void)adm5120_uart_bus_getsig(sc);
 
 #if 1
@@ -366,6 +363,9 @@ adm5120_uart_bus_probe(struct uart_softc *sc)
 	error = adm5120_uart_probe(&sc->sc_bas);
 	if (error)
 		return (error);
+
+	sc->sc_rxfifosz = 16;
+	sc->sc_txfifosz = 16;
 
 	ch = sc->sc_bas.chan + 'A';
 

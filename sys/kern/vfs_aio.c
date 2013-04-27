@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/sema.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -841,9 +842,9 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_object);
+		VM_OBJECT_WLOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 
@@ -1251,9 +1252,11 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	struct file *fp;
 	struct buf *bp;
 	struct vnode *vp;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	struct kaioinfo *ki;
 	struct aioliojob *lj;
-	int error;
+	int error, ref;
 
 	cb = &aiocbe->uaiocb;
 	fp = aiocbe->fd_file;
@@ -1281,9 +1284,6 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
  	if (cb->aio_nbytes % vp->v_bufobj.bo_bsize)
 		return (-1);
 
-	if (cb->aio_nbytes > vp->v_rdev->si_iosize_max)
-		return (-1);
-
 	if (cb->aio_nbytes >
 	    MAXPHYS - (((vm_offset_t) cb->aio_buf) & PAGE_MASK))
 		return (-1);
@@ -1291,6 +1291,15 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	ki = p->p_aioinfo;
 	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count)
 		return (-1);
+
+	ref = 0;
+	csw = devvn_refthread(vp, &dev, &ref);
+	if (csw == NULL)
+		return (ENXIO);
+	if (cb->aio_nbytes > dev->si_iosize_max) {
+		error = -1;
+		goto unref;
+	}
 
 	/* Create and build a buffer header for a transfer. */
 	bp = (struct buf *)getpbuf(NULL);
@@ -1322,7 +1331,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Bring buffer into kernel space.
 	 */
-	if (vmapbuf(bp) < 0) {
+	if (vmapbuf(bp, (csw->d_flags & D_UNMAPPED_IO) == 0) < 0) {
 		error = EFAULT;
 		goto doerror;
 	}
@@ -1344,7 +1353,8 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	TASK_INIT(&aiocbe->biotask, 0, biohelper, aiocbe);
 
 	/* Perform transfer. */
-	dev_strategy(vp->v_rdev, bp);
+	dev_strategy_csw(dev, csw, bp);
+	dev_relthread(dev, ref);
 	return (0);
 
 doerror:
@@ -1356,6 +1366,8 @@ doerror:
 	aiocbe->bp = NULL;
 	AIO_UNLOCK(ki);
 	relpbuf(bp, NULL);
+unref:
+	dev_relthread(dev, ref);
 	return (error);
 }
 
@@ -1593,16 +1605,16 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	fd = aiocbe->uaiocb.aio_fildes;
 	switch (opcode) {
 	case LIO_WRITE:
-		error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
+		error = fget_write(td, fd, CAP_PWRITE, &fp);
 		break;
 	case LIO_READ:
-		error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
+		error = fget_read(td, fd, CAP_PREAD, &fp);
 		break;
 	case LIO_SYNC:
 		error = fget(td, fd, CAP_FSYNC, &fp);
 		break;
 	case LIO_NOP:
-		error = fget(td, fd, 0, &fp);
+		error = fget(td, fd, CAP_NONE, &fp);
 		break;
 	default:
 		error = EINVAL;

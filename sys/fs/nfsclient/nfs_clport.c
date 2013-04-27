@@ -361,6 +361,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	struct timespec mtime_save;
+	u_quad_t nsize;
+	int setnsize;
 
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
@@ -418,6 +420,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
+	setnsize = 0;
+	nsize = 0;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -444,9 +448,12 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
 			}
-			vnode_pager_setsize(vp, np->n_size);
 		} else {
 			np->n_size = vap->va_size;
+		}
+		if (vap->va_type == VREG || vap->va_type == VDIR) {
+			setnsize = 1;
+			nsize = vap->va_size;
 		}
 	}
 	/*
@@ -480,6 +487,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, 0);
 #endif
 	NFSUNLOCKNODE(np);
+	if (setnsize)
+		vnode_pager_setsize(vp, nsize);
 	return (0);
 }
 
@@ -1215,7 +1224,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_ALL, &fp))
+		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_CLIENT, &fp))
 		    != 0) {
 			return (error);
 		}

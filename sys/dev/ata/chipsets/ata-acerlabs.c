@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -213,10 +212,8 @@ ata_ali_ch_attach(device_t dev)
 	if (ch->dma.max_iosize > 256 * 512)
 		ch->dma.max_iosize = 256 * 512;
     }
-#ifdef ATA_CAM
 	if (ctlr->chip->cfg2 & ALI_NEW)
 		ch->flags |= ATA_NO_ATAPI_DMA;
-#endif
 
     return 0;
 }

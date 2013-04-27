@@ -385,6 +385,7 @@ extern int		vttoif_tab[];
 #define	SKIPSYSTEM	0x0001	/* vflush: skip vnodes marked VSYSTEM */
 #define	FORCECLOSE	0x0002	/* vflush: force file closure */
 #define	WRITECLOSE	0x0004	/* vflush: only close writable files */
+#define	EARLYFLUSH	0x0008	/* vflush: early call for ffs_flushfiles */
 #define	V_SAVE		0x0001	/* vinvalbuf: sync file first */
 #define	V_ALT		0x0002	/* vinvalbuf: invalidate only alternate bufs */
 #define	V_NORMAL	0x0004	/* vinvalbuf: invalidate only regular bufs */
@@ -621,6 +622,8 @@ int	vn_fullpath(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
+struct vnode *
+	vn_dir_dd_ino(struct vnode *vp);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
 int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
 	    char *path, u_int pathlen);
@@ -692,6 +695,8 @@ int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
 
 int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
+int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
+	    struct uio *uio);
 
 #define	vn_rangelock_unlock(vp, cookie)					\
 	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))

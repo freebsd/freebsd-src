@@ -125,7 +125,7 @@ static const struct cpu_devs at91_devs[] =
 	DEVICE("at91_tc",    TC0,    0),
 	DEVICE("at91_tc",    TC1,    1),
 	DEVICE("ohci",       OHCI,   0),
-	DEVICE("af91_cfata", CF,     0),
+	DEVICE("at91_cfata", CF,     0),
 	{	0, 0, 0, 0, 0 }
 };
 

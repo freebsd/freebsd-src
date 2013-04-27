@@ -303,13 +303,15 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_INET_NTOP		41
 #define	DIF_SUBR_INET_NTOA		42
 #define	DIF_SUBR_INET_NTOA6		43
-#define	DIF_SUBR_MEMREF			44
-#define	DIF_SUBR_TYPEREF		45
-#define	DIF_SUBR_SX_SHARED_HELD		46
-#define	DIF_SUBR_SX_EXCLUSIVE_HELD	47
-#define	DIF_SUBR_SX_ISEXCLUSIVE		48
+#define	DIF_SUBR_TOUPPER		44
+#define	DIF_SUBR_TOLOWER		45
+#define	DIF_SUBR_MEMREF			46
+#define	DIF_SUBR_TYPEREF		47
+#define	DIF_SUBR_SX_SHARED_HELD		48
+#define	DIF_SUBR_SX_EXCLUSIVE_HELD	49
+#define	DIF_SUBR_SX_ISEXCLUSIVE		50
 
-#define	DIF_SUBR_MAX			48	/* max subroutine value */
+#define	DIF_SUBR_MAX			50	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -418,8 +420,10 @@ typedef struct dtrace_difv {
 #define	DTRACEACT_PRINTF		3	/* printf() action */
 #define	DTRACEACT_PRINTA		4	/* printa() action */
 #define	DTRACEACT_LIBACT		5	/* library-controlled action */
-#define	DTRACEACT_PRINTM		6	/* printm() action */
-#define	DTRACEACT_PRINTT		7	/* printt() action */
+#define	DTRACEACT_TRACEMEM		6	/* tracemem() action */
+#define	DTRACEACT_TRACEMEM_DYNSIZE	7	/* dynamic tracemem() size */
+#define	DTRACEACT_PRINTM		8	/* printm() action (BSD) */
+#define	DTRACEACT_PRINTT		9	/* printt() action (BSD) */
 
 #define	DTRACEACT_PROC			0x0100
 #define	DTRACEACT_USTACK		(DTRACEACT_PROC + 1)
@@ -2313,10 +2317,10 @@ extern int dtrace_mach_aframes(void);
 #if defined(__i386) || defined(__amd64)
 extern int dtrace_instr_size(uchar_t *instr);
 extern int dtrace_instr_size_isa(uchar_t *, model_t, int *);
-extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
-extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
 extern void dtrace_invop_callsite(void);
 #endif
+extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
+extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
 
 #ifdef __sparc
 extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
@@ -2348,6 +2352,15 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	DTRACE_INVOP_LEAVE		3
 #define	DTRACE_INVOP_NOP		4
 #define	DTRACE_INVOP_RET		5
+
+#elif defined(__powerpc__)
+
+#define DTRACE_INVOP_RET	1
+#define DTRACE_INVOP_BCTR	2
+#define DTRACE_INVOP_BLR	3
+#define DTRACE_INVOP_JUMP	4
+#define DTRACE_INVOP_MFLR_R0	5
+#define DTRACE_INVOP_NOP	6
 
 #endif
 

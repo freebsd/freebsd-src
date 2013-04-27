@@ -289,7 +289,8 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 	    break;
 	} else if (last_file_format == i && i != 0) {
 	    /* Restart from the beginning */
-	    last_file_format = i = 0;
+	    i = -1;
+	    last_file_format = 0;
 	    fp = NULL;
 	    continue;
 	}
@@ -419,42 +420,6 @@ file_loadraw(char *type, char *name)
     file_insert_tail(fp);
     close(fd);
     return(CMD_OK);
-}
-
-/*
- * Load a chunk of data as if it had been read from a file.
- */
-struct preloaded_file *
-mem_load_raw(char *type, char *name, const void *p, size_t len)
-{
-    struct preloaded_file	*fp;
-
-    /* We can't load first */
-    if ((file_findfile(NULL, NULL)) == NULL) {
-	command_errmsg = "can't load file before kernel";
-	return(NULL);
-    }
-
-    if (archsw.arch_loadaddr != NULL)
-	loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
-    archsw.arch_copyin(p, loadaddr, len);
-    
-    /* Looks OK so far; create & populate control structure */
-    fp = file_alloc();
-    fp->f_name = strdup(name);
-    fp->f_type = strdup(type);
-    fp->f_args = NULL;
-    fp->f_metadata = NULL;
-    fp->f_loader = -1;
-    fp->f_addr = loadaddr;
-    fp->f_size = len;
-
-    /* recognise space consumption */
-    loadaddr += len;
-
-    /* Add to the list of loaded files */
-    file_insert_tail(fp);
-    return fp;
 }
 
 /*

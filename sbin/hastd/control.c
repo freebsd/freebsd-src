@@ -207,6 +207,14 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	    "stat_flush%u", no);
 	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_activemap_update"),
 	    "stat_activemap_update%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_read_error"),
+	    "stat_read_error%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_write_error"),
+	    "stat_write_error%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_delete_error"),
+	    "stat_delete_error%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_flush_error"),
+	    "stat_flush_error%u", no);
 end:
 	if (cnvin != NULL)
 		nv_free(cnvin);
@@ -459,6 +467,16 @@ ctrl_thread(void *arg)
 			nv_add_uint64(nvout, res->hr_stat_flush, "stat_flush");
 			nv_add_uint64(nvout, res->hr_stat_activemap_update,
 			    "stat_activemap_update");
+			nv_add_uint64(nvout, res->hr_stat_read_error,
+			    "stat_read_error");
+			nv_add_uint64(nvout, res->hr_stat_write_error +
+			    res->hr_stat_activemap_write_error,
+			    "stat_write_error");
+			nv_add_uint64(nvout, res->hr_stat_delete_error,
+			    "stat_delete_error");
+			nv_add_uint64(nvout, res->hr_stat_flush_error +
+			    res->hr_stat_activemap_flush_error,
+			    "stat_flush_error");
 			nv_add_int16(nvout, 0, "error");
 			break;
 		case CONTROL_RELOAD:

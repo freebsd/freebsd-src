@@ -137,6 +137,9 @@ typedef enum {
 	HAL_CAP_RIFS_RX_ENABLED	= 53,
 	HAL_CAP_BB_DFS_HANG	= 54,
 
+	HAL_CAP_RX_STBC		= 58,
+	HAL_CAP_TX_STBC		= 59,
+
 	HAL_CAP_BT_COEX		= 60,	/* hardware is capable of bluetooth coexistence */
 	HAL_CAP_DYNAMIC_SMPS	= 61,	/* Dynamic MIMO Power Save hardware support */
 
@@ -563,7 +566,22 @@ typedef enum {
 	HAL_GPIO_OUTPUT_MUX_MAC_NETWORK_LED	= 3,
 	HAL_GPIO_OUTPUT_MUX_MAC_POWER_LED	= 4,
 	HAL_GPIO_OUTPUT_MUX_AS_WLAN_ACTIVE	= 5,
-	HAL_GPIO_OUTPUT_MUX_AS_TX_FRAME		= 6
+	HAL_GPIO_OUTPUT_MUX_AS_TX_FRAME		= 6,
+
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_WLAN_DATA,
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_WLAN_CLK,
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_BT_DATA,
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_BT_CLK,
+	HAL_GPIO_OUTPUT_MUX_AS_WL_IN_TX,
+	HAL_GPIO_OUTPUT_MUX_AS_WL_IN_RX,
+	HAL_GPIO_OUTPUT_MUX_AS_BT_IN_TX,
+	HAL_GPIO_OUTPUT_MUX_AS_BT_IN_RX,
+	HAL_GPIO_OUTPUT_MUX_AS_RUCKUS_STROBE,
+	HAL_GPIO_OUTPUT_MUX_AS_RUCKUS_DATA,
+	HAL_GPIO_OUTPUT_MUX_AS_SMARTANT_CTRL0,
+	HAL_GPIO_OUTPUT_MUX_AS_SMARTANT_CTRL1,
+	HAL_GPIO_OUTPUT_MUX_AS_SMARTANT_CTRL2,
+	HAL_GPIO_OUTPUT_MUX_NUM_ENTRIES
 } HAL_GPIO_MUX_TYPE;
 
 typedef enum {
@@ -1071,6 +1089,8 @@ typedef enum {
 	HAL_BT_COEX_SET_ACK_PWR		= 0,	/* Change ACK power setting */
 	HAL_BT_COEX_LOWER_TX_PWR,		/* Change transmit power */
 	HAL_BT_COEX_ANTENNA_DIVERSITY,	/* Enable RX diversity for Kite */
+	HAL_BT_COEX_MCI_MAX_TX_PWR,	/* Set max tx power for concurrent tx */
+	HAL_BT_COEX_MCI_FTP_STOMP_RX,	/* Use a different weight for stomp low */
 } HAL_BT_COEX_SET_PARAMETER;
 
 #define	HAL_BT_COEX_FLAG_LOW_ACK_PWR	0x00000001
@@ -1241,6 +1261,7 @@ typedef struct
 	int ath_hal_ant_ctrl_comm2g_switch_enable;
 	int ath_hal_ext_atten_margin_cfg;
 	int ath_hal_war70c;
+	uint32_t ath_hal_mci_config;
 } HAL_OPS_CONFIG;
 
 /*
@@ -1437,6 +1458,8 @@ struct ath_hal {
 	HAL_STATUS	__ahdecl(*ah_setQuiet)(struct ath_hal *ah, uint32_t period,
 				uint32_t duration, uint32_t nextStart,
 				HAL_QUIET_FLAG flag);
+	void	  __ahdecl(*ah_setChainMasks)(struct ath_hal *,
+				uint32_t, uint32_t);
 
 	/* DFS functions */
 	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,
@@ -1522,11 +1545,13 @@ struct ath_hal {
 	    			struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
 				struct ath_desc *);
-
 	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_set11nVirtMoreFrag)(struct ath_hal *,
+				struct ath_desc *, u_int);
+
 	HAL_BOOL  __ahdecl(*ah_getMibCycleCounts) (struct ath_hal *,
 				HAL_SURVEY_SAMPLE *);
 

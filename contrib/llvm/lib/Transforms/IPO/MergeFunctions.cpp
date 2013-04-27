@@ -45,25 +45,25 @@
 
 #define DEBUG_TYPE "mergefunc"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/Constants.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/InlineAsm.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Operator.h"
-#include "llvm/Pass.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 #include <vector>
 using namespace llvm;
 
@@ -346,13 +346,11 @@ bool FunctionComparator::isEquivalentGEP(const GEPOperator *GEP1,
                                          const GEPOperator *GEP2) {
   // When we have target data, we can reduce the GEP down to the value in bytes
   // added to the address.
-  if (TD && GEP1->hasAllConstantIndices() && GEP2->hasAllConstantIndices()) {
-    SmallVector<Value *, 8> Indices1(GEP1->idx_begin(), GEP1->idx_end());
-    SmallVector<Value *, 8> Indices2(GEP2->idx_begin(), GEP2->idx_end());
-    uint64_t Offset1 = TD->getIndexedOffset(GEP1->getPointerOperandType(),
-                                            Indices1);
-    uint64_t Offset2 = TD->getIndexedOffset(GEP2->getPointerOperandType(),
-                                            Indices2);
+  unsigned BitWidth = TD ? TD->getPointerSizeInBits() : 1;
+  APInt Offset1(BitWidth, 0), Offset2(BitWidth, 0);
+  if (TD &&
+      GEP1->accumulateConstantOffset(*TD, Offset1) &&
+      GEP2->accumulateConstantOffset(*TD, Offset2)) {
     return Offset1 == Offset2;
   }
 

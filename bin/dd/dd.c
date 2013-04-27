@@ -98,6 +98,13 @@ main(int argc __unused, char *argv[])
 		dd_in();
 
 	dd_close();
+	/*
+	 * Some devices such as cfi(4) may perform significant amounts
+	 * of work when a write descriptor is closed.  Close the out
+	 * descriptor explicitly so that the summary handler (called
+	 * from an atexit() hook) includes this work.
+	 */
+	close(out.fd);
 	exit(0);
 }
 
@@ -351,7 +358,7 @@ dd_in(void)
 		 * than noerror, notrunc or sync are specified, the block
 		 * is output without buffering as it is read.
 		 */
-		if (ddflags & C_BS) {
+		if ((ddflags & ~(C_NOERROR | C_NOTRUNC | C_SYNC)) == C_BS) {
 			out.dbcnt = in.dbcnt;
 			dd_out(1);
 			in.dbcnt = 0;

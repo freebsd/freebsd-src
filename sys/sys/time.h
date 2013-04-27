@@ -102,12 +102,57 @@ bintime_mul(struct bintime *bt, u_int x)
 	bt->frac = (p2 << 32) | (p1 & 0xffffffffull);
 }
 
+static __inline void
+bintime_shift(struct bintime *bt, int exp)
+{
+
+	if (exp > 0) {
+		bt->sec <<= exp;
+		bt->sec |= bt->frac >> (64 - exp);
+		bt->frac <<= exp;
+	} else if (exp < 0) {
+		bt->frac >>= -exp;
+		bt->frac |= (uint64_t)bt->sec << (64 + exp);
+		bt->sec >>= -exp;
+	}
+}
+
 #define	bintime_clear(a)	((a)->sec = (a)->frac = 0)
 #define	bintime_isset(a)	((a)->sec || (a)->frac)
 #define	bintime_cmp(a, b, cmp)						\
 	(((a)->sec == (b)->sec) ?					\
 	    ((a)->frac cmp (b)->frac) :					\
 	    ((a)->sec cmp (b)->sec))
+
+#define	SBT_1S	((sbintime_t)1 << 32)
+#define	SBT_1M	(SBT_1S * 60)
+#define	SBT_1MS	(SBT_1S / 1000)
+#define	SBT_1US	(SBT_1S / 1000000)
+#define	SBT_1NS	(SBT_1S / 1000000000)
+
+static __inline int
+sbintime_getsec(sbintime_t sbt)
+{
+
+	return (sbt >> 32);
+}
+
+static __inline sbintime_t
+bttosbt(const struct bintime bt)
+{
+
+	return (((sbintime_t)bt.sec << 32) + (bt.frac >> 32));
+}
+
+static __inline struct bintime
+sbttobt(sbintime_t sbt)
+{
+	struct bintime bt;
+
+	bt.sec = sbt >> 32;
+	bt.frac = sbt << 32;
+	return (bt);
+}
 
 /*-
  * Background information:
@@ -155,6 +200,42 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	bt->sec = tv->tv_sec;
 	/* 18446744073709 = int(2^64 / 1000000) */
 	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
+}
+
+static __inline struct timespec
+sbttots(sbintime_t sbt)
+{
+	struct timespec ts;
+
+	ts.tv_sec = sbt >> 32;
+	ts.tv_nsec = ((uint64_t)1000000000 * (uint32_t)sbt) >> 32;
+	return (ts);
+}
+
+static __inline sbintime_t
+tstosbt(struct timespec ts)
+{
+
+	return (((sbintime_t)ts.tv_sec << 32) +
+	    (ts.tv_nsec * (((uint64_t)1 << 63) / 500000000) >> 32));
+}
+
+static __inline struct timeval
+sbttotv(sbintime_t sbt)
+{
+	struct timeval tv;
+
+	tv.tv_sec = sbt >> 32;
+	tv.tv_usec = ((uint64_t)1000000 * (uint32_t)sbt) >> 32;
+	return (tv);
+}
+
+static __inline sbintime_t
+tvtosbt(struct timeval tv)
+{
+
+	return (((sbintime_t)tv.tv_sec << 32) +
+	    (tv.tv_usec * (((uint64_t)1 << 63) / 500000) >> 32));
 }
 #endif /* __BSD_VISIBLE */
 
@@ -291,6 +372,16 @@ extern volatile time_t	time_second;
 extern volatile time_t	time_uptime;
 extern struct bintime boottimebin;
 extern struct timeval boottime;
+extern struct bintime tc_tick_bt;
+extern sbintime_t tc_tick_sbt;
+extern struct bintime tick_bt;
+extern sbintime_t tick_sbt;
+extern int tc_precexp;
+extern int tc_timepercentage;
+extern struct bintime bt_timethreshold;
+extern struct bintime bt_tickthreshold;
+extern sbintime_t sbt_timethreshold;
+extern sbintime_t sbt_tickthreshold;
 
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()
@@ -317,6 +408,15 @@ void	binuptime(struct bintime *bt);
 void	nanouptime(struct timespec *tsp);
 void	microuptime(struct timeval *tvp);
 
+static __inline sbintime_t
+sbinuptime(void)
+{
+	struct bintime bt;
+
+	binuptime(&bt);
+	return (bttosbt(bt));
+}
+
 void	bintime(struct bintime *bt);
 void	nanotime(struct timespec *tsp);
 void	microtime(struct timeval *tvp);
@@ -324,6 +424,15 @@ void	microtime(struct timeval *tvp);
 void	getbinuptime(struct bintime *bt);
 void	getnanouptime(struct timespec *tsp);
 void	getmicrouptime(struct timeval *tvp);
+
+static __inline sbintime_t
+getsbinuptime(void)
+{
+	struct bintime bt;
+
+	getbinuptime(&bt);
+	return (bttosbt(bt));
+}
 
 void	getbintime(struct bintime *bt);
 void	getnanotime(struct timespec *tsp);
@@ -337,6 +446,25 @@ int	ratecheck(struct timeval *, const struct timeval *);
 void	timevaladd(struct timeval *t1, const struct timeval *t2);
 void	timevalsub(struct timeval *t1, const struct timeval *t2);
 int	tvtohz(struct timeval *tv);
+
+#define	TC_DEFAULTPERC		5
+
+#define	BT2FREQ(bt)                                                     \
+	(((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /           \
+	    ((bt)->frac >> 1))
+
+#define	SBT2FREQ(sbt)	((SBT_1S + ((sbt) >> 1)) / (sbt))
+
+#define	FREQ2BT(freq, bt)                                               \
+{									\
+	(bt)->sec = 0;                                                  \
+	(bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
+}
+
+#define	TIMESEL(sbt, sbt2)						\
+	(((sbt2) >= sbt_timethreshold) ?				\
+	    ((*(sbt) = getsbinuptime()), 1) : ((*(sbt) = sbinuptime()), 0))
+
 #else /* !_KERNEL */
 #include <time.h>
 

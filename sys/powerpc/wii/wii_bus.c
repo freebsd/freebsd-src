@@ -157,7 +157,7 @@ wiibus_attach(device_t self)
 	/* Nintendo PIC */
 	dinfo = malloc(sizeof(*dinfo), M_WIIBUS, M_WAITOK | M_ZERO);
 	wiibus_init_device_resources(&sc->sc_rman, dinfo, 0, WIIPIC_REG_ADDR,
-	    WIIPIC_REG_LEN, 0);
+	    WIIPIC_REG_LEN, 1);
 	cdev = BUS_ADD_CHILD(self, 0, "wiipic", 0);
 	device_set_ivars(cdev, dinfo);
 

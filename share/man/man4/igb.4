@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2012
+.Dd March 25, 2013
 .Dt IGB 4
 .Os
 .Sh NAME
@@ -160,6 +160,11 @@ The minimum is 80, and the maximum is 4096.
 .It Va hw.igb.enable_aim
 If set to 1, enable Adaptive Interrupt Moderation.
 The default is to enable Adaptive Interrupt Moderation.
+.It Va hw.igb.num_queues
+Numer of queues used for data transfer.
+If set to 0, number of queues will be configured
+automatically based on number of CPUs and max
+supported MSI-X messages on the device.
 .It Va kern.ipc.nmbclusters
 The maximum number of mbuf clusters allowed.
 If the system has more than one igb card or jumbo frames are

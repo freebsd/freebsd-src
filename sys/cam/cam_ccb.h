@@ -42,7 +42,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/ata/ata_all.h>
 
-
 /* General allocation length definitions for CCB structures */
 #define	IOCDBLEN	CAM_MAX_CDBLEN	/* Space for CDB bytes/pointer */
 #define	VUHBALEN	14		/* Vendor Unique HBA length */
@@ -100,7 +99,7 @@ typedef enum {
 	CAM_MSGB_VALID		= 0x10000000,/* Message buffer valid	      */
 	CAM_STATUS_VALID	= 0x20000000,/* Status buffer valid	      */
 	CAM_DATAB_VALID		= 0x40000000,/* Data buffer valid	      */
-	
+
 /* Host target Mode flags */
 	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
 	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
@@ -146,8 +145,6 @@ typedef enum {
 				/* Path statistics (error counts, etc.) */
 	XPT_GDEV_STATS		= 0x0c,
 				/* Device statistics (error counts, etc.) */
-	XPT_FREEZE_QUEUE	= 0x0d,
-				/* Freeze device queue */
 	XPT_DEV_ADVINFO		= 0x0e,
 				/* Get/Set Device advanced information */
 /* SCSI Control Functions: 0x10->0x1F */
@@ -572,7 +569,8 @@ typedef enum {
 	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
 	PIM_NOBUSRESET	= 0x10,	/* User has disabled initial BUS RESET */
 	PIM_NO_6_BYTE	= 0x08,	/* Do not send 6-byte commands */
-	PIM_SEQSCAN	= 0x04	/* Do bus scans sequentially, not in parallel */
+	PIM_SEQSCAN	= 0x04,	/* Do bus scans sequentially, not in parallel */
+	PIM_UNMAPPED	= 0x02,
 } pi_miscflag;
 
 /* Path Inquiry CCB */
@@ -749,7 +747,6 @@ struct ccb_relsim {
 #define RELSIM_RELEASE_AFTER_TIMEOUT	0x02
 #define RELSIM_RELEASE_AFTER_CMDCMPLT	0x04
 #define RELSIM_RELEASE_AFTER_QEMPTY	0x08
-#define RELSIM_RELEASE_RUNLEVEL		0x10
 	u_int32_t      openings;
 	u_int32_t      release_timeout;	/* Abstract argument. */
 	u_int32_t      qfrozen_cnt;
@@ -896,9 +893,14 @@ struct ccb_trans_settings_pata {
 #define	CTS_ATA_VALID_MODE		0x01
 #define	CTS_ATA_VALID_BYTECOUNT		0x02
 #define	CTS_ATA_VALID_ATAPI		0x20
+#define	CTS_ATA_VALID_CAPS		0x40
 	int		mode;		/* Mode */
 	u_int 		bytecount;	/* Length of PIO transaction */
 	u_int 		atapi;		/* Length of ATAPI CDB */
+	u_int 		caps;		/* Device and host SATA caps. */
+#define	CTS_ATA_CAPS_H			0x0000ffff
+#define	CTS_ATA_CAPS_H_DMA48		0x00000001 /* 48-bit DMA */
+#define	CTS_ATA_CAPS_D			0xffff0000
 };
 
 struct ccb_trans_settings_sata {

@@ -251,8 +251,7 @@ struct user {
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9
 #define	KF_TYPE_PTS	10
-/* no KF_TYPE_CAPABILITY (11), since capabilities wrap other file objects */
-#define	KF_TYPE_PROCDESC	12
+#define	KF_TYPE_PROCDESC	11
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -288,7 +287,6 @@ struct user {
 #define	KF_FLAG_TRUNC		0x00001000
 #define	KF_FLAG_EXCL		0x00002000
 #define	KF_FLAG_EXEC		0x00004000
-#define	KF_FLAG_CAPABILITY	0x00008000
 
 /*
  * Old format.  Has variable hidden padding due to alignment.
@@ -493,6 +491,25 @@ struct kinfo_kstack {
 };
 
 #ifdef _KERNEL
+/* Flags for kern_proc_out function. */
+#define KERN_PROC_NOTHREADS	0x1
+#define KERN_PROC_MASK32	0x2
+
+struct sbuf;
+
+/*
+ * The kern_proc out functions are helper functions to dump process
+ * miscellaneous kinfo structures to sbuf.  The main consumers are KERN_PROC
+ * sysctls but they may also be used by other kernel subsystems.
+ *
+ * The functions manipulate the process locking state and expect the process
+ * to be locked on enter.  On return the process is unlocked.
+ */
+
+int	kern_proc_filedesc_out(struct proc *p, struct sbuf *sb, ssize_t maxlen);
+int	kern_proc_out(struct proc *p, struct sbuf *sb, int flags);
+int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb);
+
 int	vntype_to_kinfo(int vtype);
 #endif /* !_KERNEL */
 

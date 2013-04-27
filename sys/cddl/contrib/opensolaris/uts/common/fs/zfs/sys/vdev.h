@@ -46,7 +46,7 @@ typedef enum vdev_dtl_type {
 } vdev_dtl_type_t;
 
 extern boolean_t zfs_nocacheflush;
-extern boolean_t zfs_notrim;
+extern boolean_t zfs_trim_enabled;
 
 extern int vdev_open(vdev_t *);
 extern void vdev_open_children(vdev_t *);
@@ -80,6 +80,7 @@ extern void vdev_metaslab_fini(vdev_t *vd);
 extern void vdev_metaslab_set_size(vdev_t *);
 extern void vdev_expand(vdev_t *vd, uint64_t txg);
 extern void vdev_split(vdev_t *vd);
+extern void vdev_deadman(vdev_t *vd);
 
 
 extern void vdev_get_stats(vdev_t *vd, vdev_stat_t *vs);

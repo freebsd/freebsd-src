@@ -387,7 +387,7 @@ pmap_bootstrap()
 	 */
 	ia64_kptdir = ia64_physmem_alloc(PAGE_SIZE, PAGE_SIZE);
 	nkpt = 0;
-	kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
+	kernel_vm_end = VM_INIT_KERNEL_ADDRESS;
 
 	/*
 	 * Determine a valid (mappable) VHPT size.
@@ -425,7 +425,7 @@ pmap_bootstrap()
 	ia64_set_pta(base + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
 
-	virtual_avail = VM_MIN_KERNEL_ADDRESS;
+	virtual_avail = VM_INIT_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
@@ -1383,7 +1383,7 @@ pmap_kextract(vm_offset_t va)
 	/* Region 5 is our KVA. Bail out if the VA is beyond our limits. */
 	if (va >= kernel_vm_end)
 		goto err_out;
-	if (va >= VM_MIN_KERNEL_ADDRESS) {
+	if (va >= VM_INIT_KERNEL_ADDRESS) {
 		pte = pmap_find_kpte(va);
 		pa = pmap_present(pte) ? pmap_ppn(pte) | (va & PAGE_MASK) : 0;
 		goto out;
@@ -1802,7 +1802,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m;
 	vm_pindex_t diff, psize;
 
-	VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m_start->object);
 	psize = atop(end - start);
 	m = m_start;
 	rw_wlock(&pvh_global_lock);
@@ -1893,7 +1893,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_size_t size)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
@@ -2012,6 +2012,32 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	src = (void *)pmap_page_to_va(msrc);
 	dst = (void *)pmap_page_to_va(mdst);
 	bcopy(src, dst, PAGE_SIZE);
+}
+
+int unmapped_buf_allowed;
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		a_cp = (char *)pmap_page_to_va(ma[a_offset >> PAGE_SHIFT]) +
+		    a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		b_cp = (char *)pmap_page_to_va(mb[b_offset >> PAGE_SHIFT]) +
+		    b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
 }
 
 /*
@@ -2211,7 +2237,7 @@ pmap_is_modified(vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can be dirty.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
@@ -2295,7 +2321,7 @@ pmap_clear_modify(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("pmap_clear_modify: page %p is busy", m));
 
@@ -2373,7 +2399,7 @@ pmap_remove_write(vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
@@ -2746,7 +2772,7 @@ DB_COMMAND(kpte, db_kpte)
 		db_printf("usage: kpte <kva>\n");
 		return;
 	}
-	if (addr < VM_MIN_KERNEL_ADDRESS) {
+	if (addr < VM_INIT_KERNEL_ADDRESS) {
 		db_printf("kpte: error: invalid <kva>\n");
 		return;
 	}

@@ -255,8 +255,8 @@ static int	pfsync_clone_create(struct if_clone *, int, caddr_t);
 static void	pfsync_clone_destroy(struct ifnet *);
 static int	pfsync_alloc_scrub_memory(struct pfsync_state_peer *,
 		    struct pf_state_peer *);
-static int	pfsyncoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct route *);
+static int	pfsyncoutput(struct ifnet *, struct mbuf *,
+		    const struct sockaddr *, struct route *);
 static int	pfsyncioctl(struct ifnet *, u_long, caddr_t);
 
 static int	pfsync_defer(struct pf_state *, struct mbuf *);
@@ -1247,7 +1247,7 @@ pfsync_in_error(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 }
 
 static int
-pfsyncoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+pfsyncoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct route *rt)
 {
 	m_freem(m);
@@ -1505,7 +1505,7 @@ pfsync_sendout(int schedswi)
 		return;
 	}
 
-	m = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR, max_linkhdr + sc->sc_len);
+	m = m_get2(max_linkhdr + sc->sc_len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		sc->sc_ifp->if_oerrors++;
 		V_pfsyncstats.pfsyncs_onomem++;

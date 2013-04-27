@@ -105,7 +105,6 @@ struct pci_devinst {
 	uint8_t	  pi_bus, pi_slot, pi_func;
 	uint8_t   pi_lintr_pin;
 	char	  pi_name[PI_NAMESZ];
-	uint16_t  pi_iobase;
 	int	  pi_bar_getsize;
 
 	struct {
@@ -207,7 +206,7 @@ int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
 int	pci_msix_pba_bar(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
-void	pci_parse_slot(char *opt, int legacy);
+int	pci_parse_slot(char *opt, int legacy);
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
 int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,

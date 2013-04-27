@@ -13,12 +13,13 @@
 #ifndef LLVM_CLANG_SEMA_INITIALIZATION_H
 #define LLVM_CLANG_SEMA_INITIALIZATION_H
 
-#include "clang/Sema/Ownership.h"
-#include "clang/Sema/Overload.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Sema/Overload.h"
+#include "clang/Sema/Ownership.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
@@ -87,7 +88,27 @@ private:
 
   /// \brief The type of the object or reference being initialized.
   QualType Type;
-  
+
+  struct LN {
+    /// \brief When Kind == EK_Result, EK_Exception, EK_New, the
+    /// location of the 'return', 'throw', or 'new' keyword,
+    /// respectively. When Kind == EK_Temporary, the location where
+    /// the temporary is being created.
+    unsigned Location;
+
+    /// \brief Whether the entity being initialized may end up using the
+    /// named return value optimization (NRVO).
+    bool NRVO;
+  };
+
+  struct C {
+    /// \brief The variable being captured by an EK_LambdaCapture.
+    VarDecl *Var;
+
+    /// \brief The source location at which the capture occurs.
+    unsigned Location;
+  };
+
   union {
     /// \brief When Kind == EK_Variable, or EK_Member, the VarDecl or
     /// FieldDecl, respectively.
@@ -100,18 +121,8 @@ private:
     /// \brief When Kind == EK_Temporary, the type source information for
     /// the temporary.
     TypeSourceInfo *TypeInfo;
-    
-    struct {
-      /// \brief When Kind == EK_Result, EK_Exception, EK_New, the
-      /// location of the 'return', 'throw', or 'new' keyword,
-      /// respectively. When Kind == EK_Temporary, the location where
-      /// the temporary is being created.
-      unsigned Location;
-      
-      /// \brief Whether the entity being initialized may end up using the
-      /// named return value optimization (NRVO).
-      bool NRVO;
-    } LocAndNRVO;
+
+    struct LN LocAndNRVO;
     
     /// \brief When Kind == EK_Base, the base specifier that provides the 
     /// base class. The lower bit specifies whether the base is an inherited
@@ -122,14 +133,8 @@ private:
     /// EK_ComplexElement, the index of the array or vector element being
     /// initialized. 
     unsigned Index;
-    
-    struct {
-      /// \brief The variable being captured by an EK_LambdaCapture.
-      VarDecl *Var;
-      
-      /// \brief The source location at which the capture occurs.
-      unsigned Location;
-    } Capture;
+
+    struct C Capture;
   };
 
   InitializedEntity() { }
@@ -172,17 +177,25 @@ public:
   static InitializedEntity InitializeVariable(VarDecl *Var) {
     return InitializedEntity(Var);
   }
-  
+
   /// \brief Create the initialization entity for a parameter.
   static InitializedEntity InitializeParameter(ASTContext &Context,
                                                ParmVarDecl *Parm) {
+    return InitializeParameter(Context, Parm, Parm->getType());
+  }
+
+  /// \brief Create the initialization entity for a parameter, but use
+  /// another type.
+  static InitializedEntity InitializeParameter(ASTContext &Context,
+                                               ParmVarDecl *Parm,
+                                               QualType Type) {
     bool Consumed = (Context.getLangOpts().ObjCAutoRefCount &&
                      Parm->hasAttr<NSConsumedAttr>());
 
     InitializedEntity Entity;
     Entity.Kind = EK_Parameter;
-    Entity.Type = Context.getVariableArrayDecayedType(
-                                       Parm->getType().getUnqualifiedType());
+    Entity.Type =
+      Context.getVariableArrayDecayedType(Type.getUnqualifiedType());
     Entity.Parent = 0;
     Entity.Parameter
       = (static_cast<uintptr_t>(Consumed) | reinterpret_cast<uintptr_t>(Parm));
@@ -615,7 +628,11 @@ public:
     /// \brief Produce an Objective-C object pointer.
     SK_ProduceObjCObject,
     /// \brief Construct a std::initializer_list from an initializer list.
-    SK_StdInitializerList
+    SK_StdInitializerList,
+    /// \brief Initialize an OpenCL sampler from an integer.
+    SK_OCLSamplerInit,
+    /// \brief Passing zero to a function where OpenCL event_t is expected.
+    SK_OCLZeroEvent
   };
   
   /// \brief A single step in the initialization sequence.
@@ -626,7 +643,13 @@ public:
     
     // \brief The type that results from this initialization.
     QualType Type;
-    
+
+    struct F {
+      bool HadMultipleCandidates;
+      FunctionDecl *Function;
+      DeclAccessPair FoundDecl;
+    };
+
     union {
       /// \brief When Kind == SK_ResolvedOverloadedFunction or Kind ==
       /// SK_UserConversion, the function that the expression should be 
@@ -638,11 +661,7 @@ public:
       /// selected from an overloaded set having size greater than 1.
       /// For conversion decls, the naming class is the source type.
       /// For construct decls, the naming class is the target type.
-      struct {
-        bool HadMultipleCandidates;
-        FunctionDecl *Function;
-        DeclAccessPair FoundDecl;
-      } Function;
+      struct F Function;
 
       /// \brief When Kind = SK_ConversionSequence, the implicit conversion
       /// sequence.
@@ -943,6 +962,14 @@ public:
   /// \brief Add a step to construct a std::initializer_list object from an
   /// initializer list.
   void AddStdInitializerListConstructionStep(QualType T);
+
+  /// \brief Add a step to initialize an OpenCL sampler from an integer
+  /// constant.
+  void AddOCLSamplerInitStep(QualType T);
+
+  /// \brief Add a step to initialize an OpenCL event_t from a NULL
+  /// constant.
+  void AddOCLZeroEventStep(QualType T);
 
   /// \brief Add steps to unwrap a initializer list for a reference around a
   /// single element and rewrap it at the end.

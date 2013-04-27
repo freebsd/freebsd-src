@@ -10,8 +10,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <fstream>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #if LLVM_ON_WIN32
 #include <windows.h>
 #endif
@@ -31,7 +31,7 @@ LockFileManager::readLockFile(StringRef LockFileName) {
   // to read, so we just return.
   bool Exists = false;
   if (sys::fs::exists(LockFileName, Exists) || !Exists)
-    return Optional<std::pair<std::string, int> >();
+    return None;
 
   // Read the owning host and PID out of the lock file. If it appears that the
   // owning process is dead, the lock file is invalid.
@@ -45,7 +45,7 @@ LockFileManager::readLockFile(StringRef LockFileName) {
   // Delete the lock file. It's invalid anyway.
   bool Existed;
   sys::fs::remove(LockFileName, Existed);
-  return Optional<std::pair<std::string, int> >();
+  return None;
 }
 
 bool LockFileManager::processStillExecuting(StringRef Hostname, int PID) {
@@ -64,6 +64,7 @@ bool LockFileManager::processStillExecuting(StringRef Hostname, int PID) {
 
 LockFileManager::LockFileManager(StringRef FileName)
 {
+  this->FileName = FileName;
   LockFileName = FileName;
   LockFileName += ".lock";
 
@@ -175,6 +176,7 @@ void LockFileManager::waitForUnlock() {
 #endif
   // Don't wait more than an hour for the file to appear.
   const unsigned MaxSeconds = 3600;
+  bool LockFileGone = false;
   do {
     // Sleep for the designated interval, to allow the owning process time to
     // finish up and remove the lock file.
@@ -185,10 +187,18 @@ void LockFileManager::waitForUnlock() {
 #else
     nanosleep(&Interval, NULL);
 #endif
-    // If the file no longer exists, we're done.
+    // If the lock file no longer exists, wait for the actual file.
     bool Exists = false;
-    if (!sys::fs::exists(LockFileName.str(), Exists) && !Exists)
-      return;
+    if (!LockFileGone) {
+      if (!sys::fs::exists(LockFileName.str(), Exists) && !Exists) {
+        LockFileGone = true;
+        Exists = false;
+      }
+    }
+    if (LockFileGone) {
+      if (!sys::fs::exists(FileName.str(), Exists) && Exists)
+        return;
+    }
 
     if (!processStillExecuting((*Owner).first, (*Owner).second))
       return;

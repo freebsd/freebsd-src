@@ -304,6 +304,14 @@ nfssvc_iod(void *instance)
 		}
 		mtx_lock(&ncl_iod_mutex);
 		/*
+		 * Make sure the nmp hasn't been dismounted as soon as
+		 * ncl_doio() completes for the last buffer.
+		 */
+		nmp = ncl_iodmount[myiod];
+		if (nmp == NULL)
+			break;
+
+		/*
 		 * If there are more than one iod on this mount, then defect
 		 * so that the iods can be shared out fairly between the mounts
 		 */

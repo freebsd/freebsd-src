@@ -44,7 +44,6 @@ static void ar5416InitBB(struct ath_hal *ah, const struct ieee80211_channel *);
 static void ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode);
 static void ar5416InitQoS(struct ath_hal *ah);
 static void ar5416InitUserSettings(struct ath_hal *ah);
-static void ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht);
 static void ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *);
 
 #if 0
@@ -209,11 +208,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	HALDEBUG(ah, HAL_DEBUG_RESET, ">>>2 %s: AR_PHY_ADC_CTL=0x%x\n",
 		__func__, OS_REG_READ(ah,AR_PHY_ADC_CTL));	
 
-	/*
-	 * Setup ah_tx_chainmask / ah_rx_chainmask before we fiddle
-	 * with enabling the TX/RX radio chains.
-	 */
-	ar5416UpdateChainMasks(ah, IEEE80211_IS_CHAN_HT(chan));
 	/*
 	 * This routine swaps the analog chains - it should be done
 	 * before any radio register twiddling is done.
@@ -1011,6 +1005,14 @@ ar5416WriteTxPowerRateRegisters(struct ath_hal *ah,
               | POW_SM(ratesArray[rateDupCck], 0)
         );
     }
+
+    /*
+     * Set max power to 30 dBm and, optionally,
+     * enable TPC in tx descriptors.
+     */
+    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE_MAX, MAX_RATE_POWER |
+      (AH5212(ah)->ah_tpcEnabled ? AR_PHY_POWER_TX_RATE_MAX_TPC_ENABLE : 0));
+#undef POW_SM
 }
 
 
@@ -1025,12 +1027,11 @@ ar5416SetTransmitPower(struct ath_hal *ah,
 	const struct ieee80211_channel *chan, uint16_t *rfXpdGain)
 {
 #define N(a)            (sizeof (a) / sizeof (a[0]))
+#define POW_SM(_r, _s)     (((_r) & 0x3f) << (_s))
 
     MODAL_EEP_HEADER	*pModal;
     struct ath_hal_5212 *ahp = AH5212(ah);
-    int16_t		ratesArray[Ar5416RateSize];
     int16_t		txPowerIndexOffset = 0;
-    uint8_t		ht40PowerIncForPdadc = 2;	
     int			i;
     
     uint16_t		cfgCtl;
@@ -1043,8 +1044,13 @@ ar5416SetTransmitPower(struct ath_hal *ah,
 
     HALASSERT(AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER14_1);
 
+    /*
+     * Default to 2, is overridden based on the EEPROM version / value.
+     */
+    AH5416(ah)->ah_ht40PowerIncForPdadc = 2;
+
     /* Setup info for the actual eeprom */
-    OS_MEMZERO(ratesArray, sizeof(ratesArray));
+    OS_MEMZERO(AH5416(ah)->ah_ratesArray, sizeof(AH5416(ah)->ah_ratesArray));
     cfgCtl = ath_hal_getctl(ah, chan);
     powerLimit = chan->ic_maxregpower * 2;
     twiceAntennaReduction = chan->ic_maxantgain;
@@ -1054,11 +1060,12 @@ ar5416SetTransmitPower(struct ath_hal *ah,
 	__func__,chan->ic_freq, cfgCtl );      
   
     if (IS_EEP_MINOR_V2(ah)) {
-        ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
+        AH5416(ah)->ah_ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
     }
  
     if (!ar5416SetPowerPerRateTable(ah, pEepData,  chan,
-                                    &ratesArray[0],cfgCtl,
+                                    &AH5416(ah)->ah_ratesArray[0],
+				    cfgCtl,
                                     twiceAntennaReduction,
 				    twiceMaxRegulatoryPower, powerLimit)) {
         HALDEBUG(ah, HAL_DEBUG_ANY,
@@ -1072,14 +1079,15 @@ ar5416SetTransmitPower(struct ath_hal *ah,
         return AH_FALSE;
     }
   
-    maxPower = AH_MAX(ratesArray[rate6mb], ratesArray[rateHt20_0]);
+    maxPower = AH_MAX(AH5416(ah)->ah_ratesArray[rate6mb],
+      AH5416(ah)->ah_ratesArray[rateHt20_0]);
 
     if (IEEE80211_IS_CHAN_2GHZ(chan)) {
-        maxPower = AH_MAX(maxPower, ratesArray[rate1l]);
+        maxPower = AH_MAX(maxPower, AH5416(ah)->ah_ratesArray[rate1l]);
     }
 
     if (IEEE80211_IS_CHAN_HT40(chan)) {
-        maxPower = AH_MAX(maxPower, ratesArray[rateHt40_0]);
+        maxPower = AH_MAX(maxPower, AH5416(ah)->ah_ratesArray[rateHt40_0]);
     }
 
     ahp->ah_tx6PowerInHalfDbm = maxPower;   
@@ -1090,10 +1098,11 @@ ar5416SetTransmitPower(struct ath_hal *ah,
      * txPowerIndexOffset is set by the SetPowerTable() call -
      *  adjust the rate table (0 offset if rates EEPROM not loaded)
      */
-    for (i = 0; i < N(ratesArray); i++) {
-        ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
-        if (ratesArray[i] > AR5416_MAX_RATE_POWER)
-            ratesArray[i] = AR5416_MAX_RATE_POWER;
+    for (i = 0; i < N(AH5416(ah)->ah_ratesArray); i++) {
+        AH5416(ah)->ah_ratesArray[i] =
+          (int16_t)(txPowerIndexOffset + AH5416(ah)->ah_ratesArray[i]);
+        if (AH5416(ah)->ah_ratesArray[i] > AR5416_MAX_RATE_POWER)
+            AH5416(ah)->ah_ratesArray[i] = AR5416_MAX_RATE_POWER;
     }
 
 #ifdef AH_EEPROM_DUMP
@@ -1104,7 +1113,7 @@ ar5416SetTransmitPower(struct ath_hal *ah,
      * this debugging; the values won't necessarily be what's being
      * programmed into the hardware.
      */
-    ar5416PrintPowerPerRate(ah, ratesArray);
+    ar5416PrintPowerPerRate(ah, AH5416(ah)->ah_ratesArray);
 #endif
 
     /*
@@ -1120,16 +1129,16 @@ ar5416SetTransmitPower(struct ath_hal *ah,
 	    &pwr_table_offset);
 	/* Underflow power gets clamped at raw value 0 */
 	/* Overflow power gets camped at AR5416_MAX_RATE_POWER */
-	for (i = 0; i < N(ratesArray); i++) {
+	for (i = 0; i < N(AH5416(ah)->ah_ratesArray); i++) {
 		/*
 		 * + pwr_table_offset is in dBm
 		 * + ratesArray is in 1/2 dBm
 		 */
-		ratesArray[i] -= (pwr_table_offset * 2);
-		if (ratesArray[i] < 0)
-			ratesArray[i] = 0;
-		else if (ratesArray[i] > AR5416_MAX_RATE_POWER)
-		    ratesArray[i] = AR5416_MAX_RATE_POWER;
+		AH5416(ah)->ah_ratesArray[i] -= (pwr_table_offset * 2);
+		if (AH5416(ah)->ah_ratesArray[i] < 0)
+			AH5416(ah)->ah_ratesArray[i] = 0;
+		else if (AH5416(ah)->ah_ratesArray[i] > AR5416_MAX_RATE_POWER)
+		    AH5416(ah)->ah_ratesArray[i] = AR5416_MAX_RATE_POWER;
 	}
     }
 
@@ -1156,9 +1165,9 @@ ar5416SetTransmitPower(struct ath_hal *ah,
         int cck_ofdm_delta = 2;
 	int i;
 	for (i = 0; i < N(adj); i++) {
-            ratesArray[adj[i]] -= cck_ofdm_delta;
-	    if (ratesArray[adj[i]] < 0)
-	        ratesArray[adj[i]] = 0;
+            AH5416(ah)->ah_ratesArray[adj[i]] -= cck_ofdm_delta;
+	    if (AH5416(ah)->ah_ratesArray[adj[i]] < 0)
+	        AH5416(ah)->ah_ratesArray[adj[i]] = 0;
         }
     }
 
@@ -1170,18 +1179,20 @@ ar5416SetTransmitPower(struct ath_hal *ah,
      * XXX handle overflow/too high power level?
      */
     if (IEEE80211_IS_CHAN_HT40(chan)) {
-	ratesArray[rateHt40_0] += ht40PowerIncForPdadc;
-	ratesArray[rateHt40_1] += ht40PowerIncForPdadc;
-	ratesArray[rateHt40_2] += ht40PowerIncForPdadc;
-	ratesArray[rateHt40_3] += ht40PowerIncForPdadc;
-	ratesArray[rateHt40_4] += ht40PowerIncForPdadc;
-	ratesArray[rateHt40_5] += ht40PowerIncForPdadc;
-	ratesArray[rateHt40_6] += ht40PowerIncForPdadc;
-	ratesArray[rateHt40_7] += ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_0] +=
+	  AH5416(ah)->ah_ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_1] +=
+	  AH5416(ah)->ah_ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_2] += AH5416(ah)->ah_ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_3] += AH5416(ah)->ah_ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_4] += AH5416(ah)->ah_ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_5] += AH5416(ah)->ah_ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_6] += AH5416(ah)->ah_ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ratesArray[rateHt40_7] += AH5416(ah)->ah_ht40PowerIncForPdadc;
     }
 
     /* Write the TX power rate registers */
-    ar5416WriteTxPowerRateRegisters(ah, chan, ratesArray);
+    ar5416WriteTxPowerRateRegisters(ah, chan, AH5416(ah)->ah_ratesArray);
 
     /* Write the Power subtraction for dynamic chain changing, for per-packet powertx */
     OS_REG_WRITE(ah, AR_PHY_POWER_TX_SUB,
@@ -1462,31 +1473,6 @@ ar5416RestoreChainMask(struct ath_hal *ah)
 		OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
 		OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
 	}
-}
-
-/*
- * Update the chainmask based on the current channel configuration.
- *
- * XXX ath9k checks bluetooth co-existence here
- * XXX ath9k checks whether the current state is "off-channel".
- * XXX ath9k sticks the hardware into 1x1 mode for legacy;
- *     we're going to leave multi-RX on for multi-path cancellation.
- */
-static void
-ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht)
-{
-	struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
-	HAL_CAPABILITIES *pCap = &ahpriv->ah_caps;
-
-	if (is_ht) {
-		AH5416(ah)->ah_tx_chainmask = pCap->halTxChainMask;
-	} else {
-		AH5416(ah)->ah_tx_chainmask = 1;
-	}
-	AH5416(ah)->ah_rx_chainmask = pCap->halRxChainMask;
-	HALDEBUG(ah, HAL_DEBUG_RESET, "TX chainmask: 0x%x; RX chainmask: 0x%x\n",
-	    AH5416(ah)->ah_tx_chainmask,
-	    AH5416(ah)->ah_rx_chainmask);
 }
 
 void
