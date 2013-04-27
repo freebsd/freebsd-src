@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20130426:
+	The WITHOUT_IDEA option has been removed because
+	the IDEA patent expired.
+
+20130426:
 	The sysctl which controls TRIM support under ZFS has been renamed
 	from vfs.zfs.trim_disable -> vfs.zfs.trim.enabled and has been
 	enabled by default.
