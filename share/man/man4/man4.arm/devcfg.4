@@ -37,7 +37,9 @@ The special file
 .Pa /dev/devcfg
 can be used to configure the PL (FPGA) section of the Xilinx Zynq-7000.
 .Pp
-On the first write to the character device at file offset 0, the devcfg driver
+On the first write to the character device at file offset 0, the
+.Nm
+driver
 asserts the top-level PL reset signals, disables the PS-PL level shifters,
 and clears the PL configuration.
 Write data is sent to the PCAP (processor configuration access port).
@@ -54,16 +56,18 @@ The file should not be confused with the .bit file output by the FPGA
 design tools.
 It is the binary form of the configuration bitstream.
 The Xilinx
-.Pa promgen
+.Ic promgen
 tool can do the conversion:
 .Bd -literal -offset indent
 promgen -b -w -p bin -data_width 32 -u 0 design.bit -o design.bit.bin
 .Ed
 .Sh SYSCTL VARIABLES
-The devcfg driver provides the following
+The
+.Nm
+driver provides the following
 .Xr sysctl 8
 variables:
-.Bl -tag -width 12
+.Bl -tag -width 4n
 .It Va hw.fpga.pl_done
 .Pp
 This variable always reflects the status of the PL's DONE signal.
@@ -73,15 +77,19 @@ A 1 means the PL section has been properly programmed.
 This variable controls if the PS-PL level shifters are enabled after the
 PL section has been reconfigured.
 This variable is 1 by default but setting it to 0 allows the PL section to be
-programmed with configurations that don't interface to the PS section of the
+programmed with configurations that do not interface to the PS section of the
 part.
 Changing this value has no effect on the level shifters until the next device
 reconfiguration.
+.El
 .Sh FILES
-/dev/devcfg Character device for
+.Bl -tag -width 12n
+.It Pa /dev/devcfg
+Character device for the
 .Nm
 driver.
-.Sh AUTHORS
-Thomas Skibo
+.El
 .Sh SEE ALSO
 Zynq-7000 SoC Technical Reference Manual (Xilinx doc UG585)
+.Sh AUTHORS
+Thomas Skibo
