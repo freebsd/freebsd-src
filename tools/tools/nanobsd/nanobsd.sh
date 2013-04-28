@@ -359,8 +359,7 @@ setup_nanobsd ( ) (
 	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	rmdir tmp || true
-	rm tmp || true
+	test -d tmp && rmdir tmp || rm -f tmp
 	ln -s var/tmp tmp
 
 	) > ${NANO_OBJ}/_.dl 2>&1
@@ -541,7 +540,7 @@ create_i386_diskimage ( ) (
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
-		dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
+		dd conv=sparse if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 		mount /dev/${MD}s2a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
@@ -565,12 +564,12 @@ create_i386_diskimage ( ) (
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
 		echo "Writing out ${NANO_IMGNAME}..."
-		dd if=/dev/${MD} of=${IMG} bs=64k
+		dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
 	fi
 
 	if ${do_copyout_partition} ; then
 		echo "Writing out _.disk.image..."
-		dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+		dd conv=sparse if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	fi
 	mdconfig -d -u $MD
 
@@ -589,6 +588,7 @@ last_orders () (
 	# after the build completed, for instance to copy the finished
 	# image to a more convenient place:
 	# cp ${NANO_DISKIMGDIR}/_.disk.image /home/ftp/pub/nanobsd.disk
+	true
 )
 
 #######################################################################
