@@ -1,0 +1,23 @@
+This is a public version of the AR9300 HAL, suitable for open source
+development.
+
+
+What is this?
+-------------
+
+This is a public version of the QCA mainline (10.x) development HAL.
+It has a few notable changes:
+
+* The boolean types have been converted back to the HAL types
+  (HAL_BOOL, AH_TRUE / AH_FALSE) to aid integration into the existing
+  open source Atheros HAL drivers;
+
+* Some features have been removed from this HAL.
+
+However, this is essentially the same HAL which is used in QCA development
+and forms the basis for public releases from the 10.x mainline.
+
+Subsequent HAL releases will be committed on top of this release in order
+to provide developers with a simple change history they can use when
+doing branch merging.
+
