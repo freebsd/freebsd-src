@@ -3058,6 +3058,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		bdc = (struct scsi_vpd_block_characteristics *)csio->data_ptr;
 
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			/*
+			 * Disable queue sorting for non-rotational media
+			 * by default.
+			 */
 			if (scsi_2btoul(bdc->medium_rotation_rate) ==
 			    SVPD_BDC_RATE_NONE_ROTATING)
 				softc->sort_io_queue = 0;
@@ -3106,8 +3110,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					  ATA_DSM_BLK_RANGES);
 			}
 			/*
-			 * Disable queue sorting for non-rotatational media
-			 * by default
+			 * Disable queue sorting for non-rotational media
+			 * by default.
 			 */
 			if (ata_params->media_rotation_rate == 1)
 				softc->sort_io_queue = 0;
