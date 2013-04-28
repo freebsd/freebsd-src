@@ -1284,7 +1284,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			error = EINVAL;
 			goto done;
 		}
-		if (obj->handle != vp) {
+		if (obj->type == OBJT_VNODE && obj->handle != vp) {
 			vput(vp);
 			vp = (struct vnode *)obj->handle;
 			/*
@@ -1333,7 +1333,14 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	objsize = round_page(va.va_size);
 	if (va.va_nlink == 0)
 		flags |= MAP_NOSYNC;
-	obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff, cred);
+	if (obj->type == OBJT_VNODE)
+		obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff,
+		    cred);
+	else {
+		KASSERT(obj->type == OBJT_DEFAULT || obj->type == OBJT_SWAP,
+		    ("wrong object type"));
+		vm_object_reference(obj);
+	}
 	if (obj == NULL) {
 		error = ENOMEM;
 		goto done;
