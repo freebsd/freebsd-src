@@ -214,8 +214,7 @@ retry:
 		VM_OBJECT_SLEEP(object, object, PDROP | PVM, "vadead", 0);
 	}
 
-	if (vp->v_usecount == 0)
-		panic("vnode_pager_alloc: no vnode reference");
+	KASSERT(vp->v_usecount != 0, ("vnode_pager_alloc: no vnode reference"));
 
 	if (object == NULL) {
 		/*
