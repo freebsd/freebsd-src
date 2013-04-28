@@ -336,13 +336,6 @@ check_deferred_signal(struct pthread *curthread)
 		memcpy(&info, &curthread->deferred_siginfo, sizeof(siginfo_t));
 		/* remove signal */
 		curthread->deferred_siginfo.si_signo = 0;
-		if (act.sa_flags & SA_RESETHAND) {
-			struct sigaction tact;
-
-			tact = act;
-			tact.sa_handler = SIG_DFL;
-			_sigaction(info.si_signo, &tact, NULL);
-		}
 		handle_signal(&act, info.si_signo, &info, uc);
 	}
 }
