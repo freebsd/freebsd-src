@@ -820,7 +820,12 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 	boolean_t clearobjflags, eio, res;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
+
+	/*
+	 * The OBJ_MIGHTBEDIRTY flag is only set for OBJT_VNODE
+	 * objects.  The check below prevents the function from
+	 * operating on non-vnode objects.
+	 */
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0 ||
 	    object->resident_page_count == 0)
 		return (TRUE);
