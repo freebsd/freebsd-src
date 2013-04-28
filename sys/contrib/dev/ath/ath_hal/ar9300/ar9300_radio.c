@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -81,15 +79,20 @@ static const u_int32_t ar9300_chansel_xtal_40M[] = {
  * (freq_ref = 40MHz)
  */
 static HAL_BOOL
-ar9300_set_channel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
+ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int16_t b_mode, frac_mode = 0, a_mode_ref_sel = 0;
     u_int32_t freq, channel_sel, reg32;
     u_int8_t clk_25mhz = AH9300(ah)->clk_25mhz;
     CHAN_CENTERS centers;
     int load_synth_channel;
+#ifdef	AH_DEBUG
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+#endif
 
-    OS_MARK(ah, AH_MARK_SETCHANNEL, chan->channel);
+#ifdef	AH_DEBUG
+    OS_MARK(ah, AH_MARK_SETCHANNEL, ichan->channel);
+#endif
 
     ar9300_get_channel_centers(ah, chan, &centers);
     freq = centers.synth_center;
@@ -99,13 +102,25 @@ ar9300_set_channel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
         b_mode = 1; /* 2 GHz */
 
         if (AR_SREV_HORNET(ah)) {
-            u_int32_t ichan = ath_hal_mhz2ieee(ah, freq, chan->channel_flags);
+            /*
+             * XXX TODO: this should call ieee80211_mhz2ieee which will
+             * take care of the up/down conversion and GSM mapping.
+             * However, the HAL _can't_ call that, so we'll need to
+             * introduce it in ah_osdep or something.
+             */
+#if 0
+            u_int32_t ichan =
+              ieee80211_mhz2ieee(ah, chan->ic_freq, chan->ic_flags);
             HALASSERT(ichan > 0 && ichan <= 14);
             if (clk_25mhz) {
                 channel_sel = ar9300_chansel_xtal_25M[ichan - 1];
             } else {
                 channel_sel = ar9300_chansel_xtal_40M[ichan - 1];
             }
+#else
+            ath_hal_printf(ah, "%s: unimplemented, implement!\n", __func__);
+            return AH_FALSE;
+#endif
         } else if (AR_SREV_POSEIDON(ah) || AR_SREV_APHRODITE(ah)) {
             u_int32_t channel_frac;
             /* 
@@ -193,7 +208,7 @@ ar9300_set_channel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
         (a_mode_ref_sel      << 28) |
         (frac_mode         << 30) |
         (load_synth_channel << 31);
-    if (IS_CHAN_QUARTER_RATE(chan)) {
+    if (IEEE80211_IS_CHAN_QUARTER(chan)) {
         reg32 += CHANSEL_5G_DOT5MHZ;
     }
     OS_REG_WRITE(ah, AR_PHY_65NM_CH0_SYNTH7, reg32);
@@ -209,6 +224,7 @@ ar9300_set_channel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
 }
 
 
+#if 0
 static HAL_BOOL
 ar9300_get_chip_power_limits(struct ath_hal *ah, HAL_CHANNEL *chans,
                          u_int32_t nchans)
@@ -220,6 +236,19 @@ ar9300_get_chip_power_limits(struct ath_hal *ah, HAL_CHANNEL *chans,
         chans[i].min_tx_power = AR9300_MAX_RATE_POWER;
     }
     return AH_TRUE;
+}
+#endif
+
+/* XXX FreeBSD */
+static HAL_BOOL
+ar9300_get_chip_power_limits(struct ath_hal *ah,
+    struct ieee80211_channel *chan)
+{
+        /* XXX ? */
+        chan->ic_minpower = 0;
+        chan->ic_maxpower = AR9300_MAX_RATE_POWER;
+
+        return AH_TRUE;
 }
 
 HAL_BOOL
@@ -234,5 +263,3 @@ ar9300_rf_attach(struct ath_hal *ah, HAL_STATUS *status)
 
     return AH_TRUE;
 }
-
-#endif /* AH_SUPPORT_AR9300 */

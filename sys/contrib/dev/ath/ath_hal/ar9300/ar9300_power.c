@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -603,7 +601,7 @@ ar9300_set_power_mode_network_sleep(struct ath_hal *ah, int set_chip)
     if (set_chip) {
         HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
 
-        if (! p_cap->hal_auto_sleep_support) {
+        if (! p_cap->halAutoSleepSupport) {
             /* Set wake_on_interrupt bit; clear force_wake bit */
             OS_REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_ON_INT);
         }
@@ -655,7 +653,7 @@ HAL_BOOL
 ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
-#if AH_DEBUG || AH_PRINT_FILTER
+#if defined(AH_DEBUG) || defined(AH_PRINT_FILTER)
     static const char* modes[] = {
         "AWAKE",
         "FULL-SLEEP",
@@ -673,14 +671,14 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
     case HAL_PM_AWAKE:
         status = ar9300_set_power_mode_awake(ah, set_chip);
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
             OS_REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
         }
 #endif
         break;
     case HAL_PM_FULL_SLEEP:
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
             if (ar9300_get_power_mode(ah) == HAL_PM_AWAKE) {
                 if ((ar9300_mci_state(ah, HAL_MCI_STATE_ENABLE, NULL) != 0) &&
                     (ahp->ah_mci_bt_state != MCI_BT_SLEEP) &&
@@ -695,7 +693,7 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
         }
 #endif
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
             OS_REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
         }
 #endif
@@ -704,7 +702,7 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
         break;
     case HAL_PM_NETWORK_SLEEP:
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
             OS_REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
         }
 #endif
@@ -992,7 +990,7 @@ ar9300_set_power_mode_wow_sleep(struct ath_hal *ah)
             "%s: TODO How to disable RXDP!!\n", __func__);
 
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
             OS_REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
         }
 #endif
@@ -1051,7 +1049,7 @@ ar9300_wow_enable(
          * PCI-E reset. We also need to tie the PCI-E Phy reset to the PCI-E
          * reset.
          */
-        HALDEBUG(AH_NULL, HAL_DEBUG_UNMASKABLE,
+        HAL_DEBUG(AH_NULL, HAL_DEBUG_UNMASKABLE,
             "%s: Untie POR and PCIE reset\n", __func__);
         wa_reg_val = OS_REG_READ(ah, AR_HOSTIF_REG(ah, AR_WA));
         wa_reg_val = wa_reg_val & ~(AR_WA_UNTIE_RESET_EN);
@@ -1361,7 +1359,6 @@ ar9300_wow_enable(
     OS_REG_WRITE(ah, AR_STA_ID1, 
                      OS_REG_READ(ah, AR_STA_ID1) & ~AR_STA_ID1_PRESERVE_SEQNUM);
 
-
     AH_PRIVATE(ah)->ah_wow_event_mask = wow_event_mask;
 
 #if ATH_WOW_OFFLOAD
@@ -1369,7 +1366,7 @@ ar9300_wow_enable(
         /* Force MAC awake before entering SW WoW mode */
         OS_REG_SET_BIT(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
             OS_REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
         }
 #endif
@@ -1396,7 +1393,7 @@ ar9300_wow_enable(
 #endif /* ATH_WOW_OFFLOAD */
     {
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
             OS_REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
         }
 #endif
@@ -1555,5 +1552,3 @@ ar9300_wow_set_gpio_reset_low(struct ath_hal *ah)
     /* val = OS_REG_READ(ah,AR_GPIO_IN_OUT ); */
 }
 #endif /* ATH_WOW */
-
-#endif /* AH_SUPPORT_AR9300 */

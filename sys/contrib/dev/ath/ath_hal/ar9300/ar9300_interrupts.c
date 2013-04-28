@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -153,6 +151,13 @@ ar9300_get_pending_interrupts(
         goto end;
     }
 
+    HALDEBUG(ah, HAL_DEBUG_INTERRUPT,
+        "%s: isr=0x%x, sync_cause=0x%x, async_cause=0x%x\n",
+	__func__,
+	isr,
+	sync_cause,
+	async_cause);
+
     if (isr) {
         if (isr & AR_ISR_BCNMISC) {
             u_int32_t isr2;
@@ -168,7 +173,7 @@ ar9300_get_pending_interrupts(
             mask2 |= ((isr2 & AR_ISR_S2_TSFOOR) >> MAP_ISR_S2_HAL_TSFOOR);
             mask2 |= ((isr2 & AR_ISR_S2_BBPANIC) >> MAP_ISR_S2_HAL_BBPANIC);
 
-            if (!p_cap->hal_isr_rac_support) {
+            if (!p_cap->halIsrRacSupport) {
                 /*
                  * EV61133 (missing interrupts due to ISR_RAC):
                  * If not using ISR_RAC, clear interrupts by writing to ISR_S2.
@@ -185,7 +190,7 @@ ar9300_get_pending_interrupts(
         /* Use AR_ISR_RAC only if chip supports it. 
          * See EV61133 (missing interrupts due to ISR_RAC) 
          */
-        if (p_cap->hal_isr_rac_support) {
+        if (p_cap->halIsrRacSupport) {
             isr = OS_REG_READ(ah, AR_ISR_RAC);
         }
         if (isr == 0xffffffff) {
@@ -222,7 +227,7 @@ ar9300_get_pending_interrupts(
         if (isr & (AR_ISR_TXOK | AR_ISR_TXERR | AR_ISR_TXEOL)) {
             *masked |= HAL_INT_TX;
 
-            if (!p_cap->hal_isr_rac_support) {
+            if (!p_cap->halIsrRacSupport) {
                 u_int32_t s0, s1;
                 /*
                  * EV61133 (missing interrupts due to ISR_RAC):
@@ -254,7 +259,7 @@ ar9300_get_pending_interrupts(
 
 #if 0
         /* XXX Verify if this is fixed for Osprey */
-        if (!p_cap->hal_auto_sleep_support) {
+        if (!p_cap->halAutoSleepSupport) {
             u_int32_t isr5 = OS_REG_READ(ah, AR_ISR_S5_S);
             if (isr5 & AR_ISR_S5_TIM_TIMER) {
                 *masked |= HAL_INT_TIM_TIMER;
@@ -264,7 +269,7 @@ ar9300_get_pending_interrupts(
         if (isr & AR_ISR_GENTMR) {
             u_int32_t s5;
 
-            if (p_cap->hal_isr_rac_support) {
+            if (p_cap->halIsrRacSupport) {
                 /* Use secondary shadow registers if using ISR_RAC */
                 s5 = OS_REG_READ(ah, AR_ISR_S5_S);
             } else {
@@ -283,7 +288,7 @@ ar9300_get_pending_interrupts(
                     *masked |= HAL_INT_GENTIMER;
                 }
             }
-            if (!p_cap->hal_isr_rac_support) {
+            if (!p_cap->halIsrRacSupport) {
                 /*
                  * EV61133 (missing interrupts due to ISR_RAC):
                  * If not using ISR_RAC, clear interrupts by writing to ISR_S5.
@@ -299,7 +304,7 @@ ar9300_get_pending_interrupts(
 
         *masked |= mask2;
 
-        if (!p_cap->hal_isr_rac_support) {
+        if (!p_cap->halIsrRacSupport) {
             /*
              * EV61133 (missing interrupts due to ISR_RAC):
              * If not using ISR_RAC, clear the interrupts we've read by
@@ -338,7 +343,7 @@ ar9300_get_pending_interrupts(
 
 #if ATH_SUPPORT_MCI
         if ((async_cause & AR_INTR_ASYNC_CAUSE_MCI) &&
-            p_cap->hal_mci_support)
+            p_cap->halMciSupport)
         {
             u_int32_t int_raw, int_rx_msg;
 
@@ -489,7 +494,7 @@ ar9300_set_interrupts(struct ath_hal *ah, HAL_INT ints, HAL_BOOL nortc)
     if (omask & HAL_INT_GLOBAL) {
         HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: disable IER\n", __func__);
 
-        if (AH_PRIVATE(ah)->ah_config.ath_hal_enable_msi) {
+        if (ah->ah_config.ath_hal_enable_msi) {
             OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_INTR_PRIO_ASYNC_ENABLE), 0);
             /* flush write to HW */
             (void)OS_REG_READ(ah, AR_HOSTIF_REG(ah, AR_INTR_PRIO_ASYNC_ENABLE));
@@ -514,6 +519,7 @@ ar9300_set_interrupts(struct ath_hal *ah, HAL_INT ints, HAL_BOOL nortc)
 #ifdef AH_DEBUG
             HALDEBUG(ah, HAL_DEBUG_INTERRUPT,
                 "%s: Request HAL_INT_GLOBAL ENABLED\n", __func__);
+#if 0
             if (OS_ATOMIC_READ(&ahp->ah_ier_ref_count) == 0) {
                 HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
                     "%s: WARNING: ah_ier_ref_count is 0 "
@@ -521,9 +527,12 @@ ar9300_set_interrupts(struct ath_hal *ah, HAL_INT ints, HAL_BOOL nortc)
                     __func__);
             }
 #endif
+#endif
+#if 0
             if (OS_ATOMIC_READ(&ahp->ah_ier_ref_count) > 0) {
                 OS_ATOMIC_DEC(&ahp->ah_ier_ref_count);
             } 
+#endif
         } else {
             HALDEBUG(ah, HAL_DEBUG_INTERRUPT,
                 "%s: Request HAL_INT_GLOBAL DISABLED\n", __func__);
@@ -559,7 +568,7 @@ ar9300_set_interrupts(struct ath_hal *ah, HAL_INT ints, HAL_BOOL nortc)
                 mask |= AR_IMR_RXOK_LP;
             }
             msi_mask |= AR_INTR_PRIO_RXLP | AR_INTR_PRIO_RXHP;
-            if (! p_cap->hal_auto_sleep_support) {
+            if (! p_cap->halAutoSleepSupport) {
                 mask |= AR_IMR_GENTMR;
             }
         }
@@ -621,7 +630,7 @@ ar9300_set_interrupts(struct ath_hal *ah, HAL_INT ints, HAL_BOOL nortc)
         OS_REG_WRITE(ah, AR_IMR_S2, ahp->ah_mask2Reg );
         ahp->ah_mask_reg = ints;
 
-        if (! p_cap->hal_auto_sleep_support) {
+        if (! p_cap->halAutoSleepSupport) {
             if (ints & HAL_INT_TIM_TIMER) {
                 OS_REG_SET_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
             }
@@ -661,7 +670,7 @@ ar9300_set_interrupts(struct ath_hal *ah, HAL_INT ints, HAL_BOOL nortc)
         OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_INTR_ASYNC_ENABLE), mask);
         OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_INTR_ASYNC_MASK), mask);
 
-        if (AH_PRIVATE(ah)->ah_config.ath_hal_enable_msi) {
+        if (ah->ah_config.ath_hal_enable_msi) {
             OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_INTR_PRIO_ASYNC_ENABLE),
                 msi_mask);
             OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_INTR_PRIO_ASYNC_MASK),
@@ -762,6 +771,3 @@ ar9300_get_intr_mitigation_timer(struct ath_hal* ah, HAL_INT_MITIGATION reg)
 #endif
     return val;
 }
-
-#endif /* AH_SUPPORT_AR9300 */
-

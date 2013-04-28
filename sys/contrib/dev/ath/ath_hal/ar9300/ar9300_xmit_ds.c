@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_desc.h"
 #include "ah_internal.h"
@@ -56,12 +54,11 @@ ar9300_calc_ptr_chk_sum(struct ar9300_txc *ads)
     return ptrchecksum;
 }
 
-
 HAL_BOOL
 ar9300_fill_tx_desc(
     struct ath_hal *ah,
     void *ds,
-    dma_addr_t *buf_addr,
+    HAL_DMA_ADDR *buf_addr,
     u_int32_t *seg_len,
     u_int desc_id,
     u_int qcu,
@@ -201,22 +198,22 @@ ar9300_get_tx_rate_code(struct ath_hal *ah, void *ds, struct ath_tx_status *ts)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
 
-    switch (ts->ts_rateindex) {
+    switch (ts->ts_finaltsi) {
     case 0:
-        ts->ts_ratecode = MS(ads->ds_ctl14, AR_xmit_rate0);
+        ts->ts_rate = MS(ads->ds_ctl14, AR_xmit_rate0);
         break;
     case 1:
-        ts->ts_ratecode = MS(ads->ds_ctl14, AR_xmit_rate1);
+        ts->ts_rate = MS(ads->ds_ctl14, AR_xmit_rate1);
         break;
     case 2:
-        ts->ts_ratecode = MS(ads->ds_ctl14, AR_xmit_rate2);
+        ts->ts_rate = MS(ads->ds_ctl14, AR_xmit_rate2);
         break;
     case 3:
-        ts->ts_ratecode = MS(ads->ds_ctl14, AR_xmit_rate3);
+        ts->ts_rate = MS(ads->ds_ctl14, AR_xmit_rate3);
         break;
     }
 
-    ar9300_set_selfgenrate_limit(ah, ts->ts_ratecode);
+    ar9300_set_selfgenrate_limit(ah, ts->ts_rate);
 }
 
 /*
@@ -249,6 +246,28 @@ ar9300_proc_tx_desc(struct ath_hal *ah, void *txstatus)
     if ((ads->status8 & AR_tx_done) == 0) {
         return HAL_EINPROGRESS;
     }
+
+    /*
+     * Sanity check
+     */
+
+#if 0
+    ath_hal_printf(ah,
+        "CHH: tail=%d\n", ahp->ts_tail);
+    ath_hal_printf(ah,
+        "CHH: ds_info 0x%x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+        ads->ds_info,
+        ads->status1,
+        ads->status2,
+        ads->status3,
+        ads->status4,
+        ads->status5,
+        ads->status6,
+        ads->status7,
+        ads->status8);
+#endif
+
+
     /* Increment the tail to point to the next status element. */
     ahp->ts_tail = (ahp->ts_tail + 1) & (ahp->ts_size-1);
 
@@ -257,16 +276,6 @@ ar9300_proc_tx_desc(struct ath_hal *ah, void *txstatus)
     ** registers are.  Ensure we use the bswap32 version (which is
     ** defined to "nothing" in little endian systems
     */
-
-    /*
-     * Sanity check
-     */
-
-#if 0
-    ath_hal_printf(ah,
-        "CHH: ds_info 0x%x  status1: 0x%x  status8: 0x%x\n",
-        ads->ds_info, ads->status1, ads->status8);
-#endif
 
     dsinfo = ads->ds_info;
 
@@ -282,8 +291,8 @@ ar9300_proc_tx_desc(struct ath_hal *ah, void *txstatus)
     }
 
     /* Update software copies of the HW status */
-    ts->queue_id = MS(dsinfo, AR_tx_qcu_num);
-    ts->desc_id = MS(ads->status1, AR_tx_desc_id);
+    ts->ts_queue_id = MS(dsinfo, AR_tx_qcu_num);
+    ts->ts_desc_id = MS(ads->status1, AR_tx_desc_id);
     ts->ts_seqnum = MS(ads->status8, AR_seq_num);
     ts->ts_tstamp = ads->status4;
     ts->ts_status = 0;
@@ -318,29 +327,29 @@ ar9300_proc_tx_desc(struct ath_hal *ah, void *txstatus)
     }
     if (ads->status2 & AR_tx_ba_status) {
         ts->ts_flags |= HAL_TX_BA;
-        ts->ba_low = ads->status5;
-        ts->ba_high = ads->status6;
+        ts->ts_ba_low = ads->status5;
+        ts->ts_ba_high = ads->status6;
     }
 
     /*
      * Extract the transmit rate.
      */
-    ts->ts_rateindex = MS(ads->status8, AR_final_tx_idx);
+    ts->ts_finaltsi = MS(ads->status8, AR_final_tx_idx);
 
     ts->ts_rssi = MS(ads->status7, AR_tx_rssi_combined);
-    ts->ts_rssi_ctl0 = MS(ads->status2, AR_tx_rssi_ant00);
-    ts->ts_rssi_ctl1 = MS(ads->status2, AR_tx_rssi_ant01);
-    ts->ts_rssi_ctl2 = MS(ads->status2, AR_tx_rssi_ant02);
-    ts->ts_rssi_ext0 = MS(ads->status7, AR_tx_rssi_ant10);
-    ts->ts_rssi_ext1 = MS(ads->status7, AR_tx_rssi_ant11);
-    ts->ts_rssi_ext2 = MS(ads->status7, AR_tx_rssi_ant12);
+    ts->ts_rssi_ctl[0] = MS(ads->status2, AR_tx_rssi_ant00);
+    ts->ts_rssi_ctl[1] = MS(ads->status2, AR_tx_rssi_ant01);
+    ts->ts_rssi_ctl[2] = MS(ads->status2, AR_tx_rssi_ant02);
+    ts->ts_rssi_ext[0] = MS(ads->status7, AR_tx_rssi_ant10);
+    ts->ts_rssi_ext[1] = MS(ads->status7, AR_tx_rssi_ant11);
+    ts->ts_rssi_ext[2] = MS(ads->status7, AR_tx_rssi_ant12);
     ts->ts_shortretry = MS(ads->status3, AR_rts_fail_cnt);
     ts->ts_longretry = MS(ads->status3, AR_data_fail_cnt);
     ts->ts_virtcol = MS(ads->status3, AR_virt_retry_cnt);
     ts->ts_antenna = 0;
 
     /* extract TID from block ack */
-    ts->tid = MS(ads->status8, AR_tx_tid);
+    ts->ts_tid = MS(ads->status8, AR_tx_tid);
 
     /* Zero out the status for reuse */
     OS_MEMZERO(ads, sizeof(struct ar9300_txs));
@@ -378,7 +387,7 @@ ar9300_calc_tx_airtime(struct ath_hal *ah, void *ds, struct ath_tx_status *ts,
      * Calculate time of transmit on air for packet including retries
      * at different rates.
      */
-    switch (ts->ts_rateindex) {
+    switch (ts->ts_finaltsi) {
     case 0:
         lastrate_dur = MS(ads->ds_ctl15, AR_packet_dur0);
         airtime = (lastrate_dur * finalindex_tries);
@@ -716,14 +725,14 @@ ar9300_set_11n_rate_scenario(
     mode = ath_hal_get_curmode(ah, ap->ah_curchan);
     cal_pkt = (ads->ds_ctl12 & AR_paprd_chain_mask)?1:0;
 
-    if (ap->ah_config.ath_hal_desc_tpc ) {
+    if (ah->ah_config.ath_hal_desc_tpc) {
         int16_t txpower;
 
         if (!cal_pkt) {
             /* Series 0 TxPower */
             tx_mode = ar9300_get_tx_mode(series[0].RateFlags);
-            txpower = ar9300_get_rate_txpower(ah, mode, series[0].rate_index,
-                                       series[0].ch_sel, tx_mode);
+            txpower = ar9300_get_rate_txpower(ah, mode, series[0].RateIndex,
+                                       series[0].ChSel, tx_mode);
         } else {
             txpower = AH9300(ah)->paprd_training_power;
         }
@@ -761,14 +770,14 @@ ar9300_set_11n_rate_scenario(
     /* set not sounding for normal frame */
     ads->ds_ctl19 = AR_not_sounding;
 
-    if (ap->ah_config.ath_hal_desc_tpc) {
+    if (ah->ah_config.ath_hal_desc_tpc) {
         int16_t txpower;
 
         if (!cal_pkt) {
             /* Series 1 TxPower */
             tx_mode = ar9300_get_tx_mode(series[1].RateFlags);
             txpower = ar9300_get_rate_txpower(
-                ah, mode, series[1].rate_index, series[1].ch_sel, tx_mode);
+                ah, mode, series[1].RateIndex, series[1].ChSel, tx_mode);
         } else {
             txpower = AH9300(ah)->paprd_training_power;
         }
@@ -780,7 +789,7 @@ ar9300_set_11n_rate_scenario(
         if (!cal_pkt) {
             tx_mode = ar9300_get_tx_mode(series[2].RateFlags);
             txpower = ar9300_get_rate_txpower(
-                ah, mode, series[2].rate_index, series[2].ch_sel, tx_mode);
+                ah, mode, series[2].RateIndex, series[2].ChSel, tx_mode);
         } else {
             txpower = AH9300(ah)->paprd_training_power;
         }
@@ -791,7 +800,7 @@ ar9300_set_11n_rate_scenario(
         if (!cal_pkt) {
             tx_mode = ar9300_get_tx_mode(series[3].RateFlags);
             txpower = ar9300_get_rate_txpower(
-                ah, mode, series[3].rate_index, series[3].ch_sel, tx_mode);
+                ah, mode, series[3].RateIndex, series[3].ChSel, tx_mode);
         } else {
             txpower = AH9300(ah)->paprd_training_power;
         }
@@ -828,18 +837,23 @@ ar9300_set_11n_rate_scenario(
 }
 
 void
-ar9300_set_11n_aggr_first(struct ath_hal *ah, void *ds, u_int aggr_len)
+ar9300_set_11n_aggr_first(struct ath_hal *ah, struct ath_desc *ds,
+  u_int aggr_len, u_int num_delims)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
 
     ads->ds_ctl12 |= (AR_is_aggr | AR_more_aggr);
 
     ads->ds_ctl17 &= ~AR_aggr_len;
+    ads->ds_ctl17 &= ~AR_pad_delim;
+    /* XXX should use a stack variable! */
     ads->ds_ctl17 |= SM(aggr_len, AR_aggr_len);
+    ads->ds_ctl17 |= SM(num_delims, AR_pad_delim);
 }
 
 void
-ar9300_set_11n_aggr_middle(struct ath_hal *ah, void *ds, u_int num_delims)
+ar9300_set_11n_aggr_middle(struct ath_hal *ah, struct ath_desc *ds,
+  u_int num_delims)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
     unsigned int ctl17;
@@ -857,7 +871,7 @@ ar9300_set_11n_aggr_middle(struct ath_hal *ah, void *ds, u_int num_delims)
 }
 
 void
-ar9300_set_11n_aggr_last(struct ath_hal *ah, void *ds)
+ar9300_set_11n_aggr_last(struct ath_hal *ah, struct ath_desc *ds)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
 
@@ -867,7 +881,7 @@ ar9300_set_11n_aggr_last(struct ath_hal *ah, void *ds)
 }
 
 void
-ar9300_clr_11n_aggr(struct ath_hal *ah, void *ds)
+ar9300_clr_11n_aggr(struct ath_hal *ah, struct ath_desc *ds)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
 
@@ -875,7 +889,7 @@ ar9300_clr_11n_aggr(struct ath_hal *ah, void *ds)
 }
 
 void
-ar9300_set_11n_burst_duration(struct ath_hal *ah, void *ds,
+ar9300_set_11n_burst_duration(struct ath_hal *ah, struct ath_desc *ds,
     u_int burst_duration)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
@@ -918,7 +932,7 @@ ar9300_set_11n_aggr_rifs_burst(struct ath_hal *ah, void *ds)
 }
 
 void
-ar9300_set_11n_virtual_more_frag(struct ath_hal *ah, void *ds,
+ar9300_set_11n_virtual_more_frag(struct ath_hal *ah, struct ath_desc *ds,
                                                   u_int vmf)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
@@ -943,5 +957,3 @@ ar9300_get_desc_info(struct ath_hal *ah, HAL_DESC_INFO *desc_info)
     desc_info->rxstatus_numwords = RXSTATUS_NUMWORDS(ah);
     desc_info->rxstatus_offset = RXSTATUS_OFFSET(ah);
 }
-
-#endif /* AH_SUPPORT_AR9300 */

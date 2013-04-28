@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -181,5 +179,3 @@ ar9300_get_gen_timer_interrupts(
     *trigger = ahp->ah_intr_gen_timer_trigger;
     *thresh = ahp->ah_intr_gen_timer_thresh;
 }
-
-#endif /* AH_SUPPORT_AR9300 */

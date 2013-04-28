@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -47,7 +45,7 @@ void ar9300_eeprom_template_swap(void);
 #endif
 
 static u_int16_t ar9300_eeprom_get_spur_chan(struct ath_hal *ah,
-    u_int16_t spur_chan, HAL_BOOL is_2ghz);
+    int spur_chan, HAL_BOOL is_2ghz);
 #ifdef UNUSED
 static inline HAL_BOOL ar9300_fill_eeprom(struct ath_hal *ah);
 static inline HAL_STATUS ar9300_check_eeprom(struct ath_hal *ah);
@@ -233,7 +231,7 @@ ar9300_eeprom_read_word(struct ath_hal *ah, u_int off, u_int16_t *data)
         if (!ath_hal_wait(ah,
 			  AR_HOSTIF_REG(ah, AR_EEPROM_STATUS_DATA),
 			  AR_EEPROM_STATUS_DATA_BUSY | AR_EEPROM_STATUS_DATA_PROT_ACCESS,
-			  0, AH_WAIT_TIMEOUT))
+			  0))
 	{
             return AH_FALSE;
 	}
@@ -295,6 +293,9 @@ ar9300_otp_read(struct ath_hal *ah, u_int off, u_int32_t *data, HAL_BOOL is_wifi
 static HAL_STATUS
 ar9300_flash_map(struct ath_hal *ah)
 {
+    /* XXX disable flash remapping for now (ie, SoC support) */
+    ath_hal_printf(ah, "%s: unimplemented for now\n", __func__);
+#if 0
     struct ath_hal_9300 *ahp = AH9300(ah);
 #if defined(AR9100) || defined(__NetBSD__)
     ahp->ah_cal_mem = OS_REMAP(ah, AR9300_EEPROM_START_ADDR, AR9300_EEPROM_MAX);
@@ -307,6 +308,7 @@ ar9300_flash_map(struct ath_hal *ah)
             "%s: cannot remap eeprom region \n", __func__);
         return HAL_EIO;
     }
+#endif
     return HAL_OK;
 }
 
@@ -327,9 +329,6 @@ ar9300_flash_write(struct ath_hal *ah, u_int off, u_int16_t data)
     ((u_int16_t *)ahp->ah_cal_mem)[off] = data;
     return AH_TRUE;
 }
-
-#ifdef UNUSED
-#endif
 
 HAL_STATUS
 ar9300_eeprom_attach(struct ath_hal *ah)
@@ -358,7 +357,7 @@ ar9300_eeprom_attach(struct ath_hal *ah)
      * This is not AH_TRUE for many board designs.
      * Does anyone use this?
      */
-    AH_PRIVATE(ah)->ah_eeprom_get_spur_chan = ar9300_eeprom_get_spur_chan;
+    AH_PRIVATE(ah)->ah_getSpurChan = ar9300_eeprom_get_spur_chan;
 
 #ifdef OLDCODE
     /* XXX Needs to be moved for dynamic selection */
@@ -458,7 +457,7 @@ ar9300_eeprom_get(struct ath_hal_9300 *ahp, EEPROM_PARAM param)
     OSPREY_BASE_EXTENSION_1 *base_ext1 = &eep->base_ext1;
 
     switch (param) {
-#if NOTYET
+#ifdef NOTYET
     case EEP_NFTHRESH_5:
         return p_modal[0].noise_floor_thresh_ch[0];
     case EEP_NFTHRESH_2:
@@ -480,7 +479,7 @@ ar9300_eeprom_get(struct ath_hal_9300 *ahp, EEPROM_PARAM param)
         return p_base->op_cap_flags.op_flags;
     case EEP_RF_SILENT:
         return p_base->rf_silent;
-#if NOTYET
+#ifdef NOTYET
     case EEP_OB_5:
         return p_modal[0].ob;
     case EEP_DB_5:
@@ -496,7 +495,7 @@ ar9300_eeprom_get(struct ath_hal_9300 *ahp, EEPROM_PARAM param)
         return (p_base->txrx_mask >> 4) & 0xf;
     case EEP_RX_MASK:
         return p_base->txrx_mask & 0xf;
-#if NOTYET
+#ifdef NOTYET
     case EEP_FSTCLK_5G:
         return p_base->fast_clk5g;
     case EEP_RXGAIN_TYPE:
@@ -929,7 +928,7 @@ ar9300_transmit_power_reg_write(struct ath_hal *ah, u_int8_t *p_pwr_array)
 }
 
 static void
-ar9300_selfgen_tpc_reg_write(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan,
+ar9300_selfgen_tpc_reg_write(struct ath_hal *ah, const struct ieee80211_channel *chan,
                              u_int8_t *p_pwr_array) 
 {
     u_int32_t tpc_reg_val;
@@ -940,7 +939,7 @@ ar9300_selfgen_tpc_reg_write(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan,
      * MIN( TPC reg, BB_powertx_rate register)
      */
     
-    if (IS_CHAN_2GHZ(chan)) {
+    if (IEEE80211_IS_CHAN_2GHZ(chan)) {
         tpc_reg_val = (SM(p_pwr_array[ALL_TARGET_LEGACY_1L_5L], AR_TPC_ACK) |
                        SM(p_pwr_array[ALL_TARGET_LEGACY_1L_5L], AR_TPC_CTS) |
                        SM(0x3f, AR_TPC_CHIRP) |
@@ -1544,12 +1543,12 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
     u_int8_t  i;
 
     if (AR_SREV_POSEIDON(ah)) {
-        xlan_gpio_cfg = ahpriv->ah_config.ath_hal_ext_lna_ctl_gpio;
+        xlan_gpio_cfg = ah->ah_config.ath_hal_ext_lna_ctl_gpio;
         if (xlan_gpio_cfg) {
             for (i = 0; i < 32; i++) {
                 if (xlan_gpio_cfg & (1 << i)) {
-                    ath_hal_gpio_cfg_output(ah, i, 
-                        HAL_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED);
+                    ath_hal_gpioCfgOutput(ah, i, 
+                        HAL_GPIO_OUTPUT_MUX_PCIE_ATTENTION_LED);
                 }
             }
         }    
@@ -1606,7 +1605,7 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
 #if ATH_ANT_DIV_COMB
     if ( AR_SREV_POSEIDON(ah) && (ahp->ah_lna_div_use_bt_ant_enable == TRUE) ) {
         value &= ~AR_SWITCH_TABLE_COM2_ALL;
-        value |= ahpriv->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable;
+        value |= ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable;
     }
 #endif  /* ATH_ANT_DIV_COMB */
     OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
@@ -1658,7 +1657,7 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
 
 #if ATH_ANT_DIV_COMB    
     if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON_11_OR_LATER(ah)) {
-        if (pcap->hal_ant_div_comb_support) {
+        if (pcap->halAntDivCombSupport) {
             /* If support DivComb, set MAIN to LNA1, ALT to LNA2 at beginning */
             regval = OS_REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
             /* clear bit 25~30 main_lnaconf, alt_lnaconf, main_tb, alt_tb */
@@ -1713,7 +1712,7 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
              * This will not affect HB125 LNA diversity feature.
              */
             OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, 
-                ahpriv->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable);
+                ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable);
             break;
         default:
             break;
@@ -1780,7 +1779,7 @@ ar9300_attenuation_margin_chain_get(struct ath_hal *ah, int chain,
 HAL_BOOL ar9300_attenuation_apply(struct ath_hal *ah, u_int16_t channel)
 {
     u_int32_t value;
-    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
+//    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
 
     /* Test value. if 0 then attenuation is unused. Don't load anything. */
     value = ar9300_attenuation_chain_get(ah, 0, channel);
@@ -1788,7 +1787,7 @@ HAL_BOOL ar9300_attenuation_apply(struct ath_hal *ah, u_int16_t channel)
         AR_PHY_EXT_ATTEN_CTL_0, AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
     value = ar9300_attenuation_margin_chain_get(ah, 0, channel);
     if (ar9300_rx_gain_index_get(ah) == 0
-        && ahpriv->ah_config.ath_hal_ext_atten_margin_cfg)
+        && ah->ah_config.ath_hal_ext_atten_margin_cfg)
     {
         value = 5;
     }
@@ -1934,6 +1933,8 @@ ar9300_eeprom_cal_pier_get(struct ath_hal *ah, int mode, int ipier, int ichain,
 static int
 ar9300_calibration_apply(struct ath_hal *ah, int frequency)
 {
+    struct ath_hal_9300 *ahp = AH9300(ah);
+
     int ichain, ipier, npier;
     int mode;
     int fdiff;
@@ -2066,11 +2067,12 @@ ar9300_calibration_apply(struct ath_hal *ah, int frequency)
         }
     }
 
+    /* GreenTx isn't currently supported */
     /* GreenTx */
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_sta_update_tx_pwr_enable) {
+    if (ah->ah_config.ath_hal_sta_update_tx_pwr_enable) {
         if (AR_SREV_POSEIDON(ah)) {
             /* Get calibrated OLPC gain delta value for GreenTx */
-            AH_PRIVATE(ah)->ah_db2[POSEIDON_STORED_REG_G2_OLPC_OFFSET] = 
+            ahp->ah_db2[POSEIDON_STORED_REG_G2_OLPC_OFFSET] = 
                 (u_int32_t) correction[0];
         }
     }
@@ -2294,7 +2296,7 @@ HAL_BOOL
 ar9300_eeprom_set_power_per_rate_table(
     struct ath_hal *ah,
     ar9300_eeprom_t *p_eep_data,
-    HAL_CHANNEL_INTERNAL *chan,
+    const struct ieee80211_channel *chan,
     u_int8_t *p_pwr_array,
     u_int16_t cfg_ctl,
     u_int16_t antenna_reduction,
@@ -2333,12 +2335,15 @@ ar9300_eeprom_set_power_per_rate_table(
     u_int8_t ctl_num;
     u_int16_t twice_min_edge_power;
     u_int16_t twice_max_edge_power = AR9300_MAX_RATE_POWER;
+#ifdef	AH_DEBUG
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+#endif
 
     tx_chainmask = chainmask ? chainmask : ahp->ah_tx_chainmask;
 
     ar9300_get_channel_centers(ah, chan, &centers);
 
-    if (IS_CHAN_2GHZ(chan)) {
+    if (IEEE80211_IS_CHAN_2GHZ(chan)) {
         ahp->twice_antenna_gain = p_eep_data->modal_header_2g.antenna_gain;
     } else {
         ahp->twice_antenna_gain = p_eep_data->modal_header_5g.antenna_gain;
@@ -2353,9 +2358,9 @@ ar9300_eeprom_set_power_per_rate_table(
     max_reg_allowed_power = twice_max_regulatory_power + twice_largest_antenna;
 
     /* Use ah_tp_scale - see bug 30070. */
-    if (AH_PRIVATE(ah)->ah_tp_scale != HAL_TP_SCALE_MAX) { 
+    if (AH_PRIVATE(ah)->ah_tpScale != HAL_TP_SCALE_MAX) { 
         max_reg_allowed_power -=
-            (tp_scale_reduction_table[(AH_PRIVATE(ah)->ah_tp_scale)] * 2);
+            (tp_scale_reduction_table[(AH_PRIVATE(ah)->ah_tpScale)] * 2);
     }
 
     scaled_power = AH_MIN(power_limit, max_reg_allowed_power);
@@ -2384,14 +2389,14 @@ ar9300_eeprom_set_power_per_rate_table(
     scaled_power = AH_MAX(0, scaled_power);
 
     /* Get target powers from EEPROM - our baseline for TX Power */
-    if (IS_CHAN_2GHZ(chan)) {
+    if (IEEE80211_IS_CHAN_2GHZ(chan)) {
         /* Setup for CTL modes */
         /* CTL_11B, CTL_11G, CTL_2GHT20 */
         num_ctl_modes =
             ARRAY_LENGTH(ctl_modes_for11g) - SUB_NUM_CTL_MODES_AT_2G_40;
         p_ctl_mode = ctl_modes_for11g;
 
-        if (IS_CHAN_HT40(chan)) {
+        if (IEEE80211_IS_CHAN_HT40(chan)) {
             num_ctl_modes = ARRAY_LENGTH(ctl_modes_for11g); /* All 2G CTL's */
         }
     } else {
@@ -2401,7 +2406,7 @@ ar9300_eeprom_set_power_per_rate_table(
             ARRAY_LENGTH(ctl_modes_for11a) - SUB_NUM_CTL_MODES_AT_5G_40;
         p_ctl_mode = ctl_modes_for11a;
 
-        if (IS_CHAN_HT40(chan)) {
+        if (IEEE80211_IS_CHAN_HT40(chan)) {
             num_ctl_modes = ARRAY_LENGTH(ctl_modes_for11a); /* All 5G CTL's */
         }
     }
@@ -2433,7 +2438,7 @@ ar9300_eeprom_set_power_per_rate_table(
             ctl_mode, num_ctl_modes, is_ht40_ctl_mode,
             (p_ctl_mode[ctl_mode] & EXT_ADDITIVE));
         /* walk through each CTL index stored in EEPROM */
-        if (IS_CHAN_2GHZ(chan)) {
+        if (IEEE80211_IS_CHAN_2GHZ(chan)) {
             ctl_index = p_eep_data->ctl_index_2g;
             ctl_num = OSPREY_NUM_CTLS_2G;
         } else {
@@ -2446,7 +2451,8 @@ ar9300_eeprom_set_power_per_rate_table(
                 "  LOOP-Ctlidx %d: cfg_ctl 0x%2.2x p_ctl_mode 0x%2.2x "
                 "ctl_index 0x%2.2x chan %d chanctl 0x%x\n",
                 i, cfg_ctl, p_ctl_mode[ctl_mode], ctl_index[i], 
-                chan->channel, chan->conformance_test_limit);
+                ichan->channel, ath_hal_getctl(ah, chan));
+
 
             /* 
              * compare test group from regulatory channel list
@@ -2460,12 +2466,12 @@ ar9300_eeprom_set_power_per_rate_table(
             {
                 twice_min_edge_power =
                     ar9300_eep_def_get_max_edge_power(
-                        p_eep_data, freq, i, IS_CHAN_2GHZ(chan));
+                        p_eep_data, freq, i, IEEE80211_IS_CHAN_2GHZ(chan));
 
                 HALDEBUG(ah, HAL_DEBUG_POWER_MGMT,
                     "    MATCH-EE_IDX %d: ch %d is2 %d "
                     "2xMinEdge %d chainmask %d chains %d\n",
-                    i, freq, IS_CHAN_2GHZ(chan),
+                    i, freq, IEEE80211_IS_CHAN_2GHZ(chan),
                     twice_min_edge_power, tx_chainmask,
                     ar9300_get_ntxchains(tx_chainmask));
 
@@ -2646,7 +2652,7 @@ ar9300_eeprom_set_power_per_rate_table(
  */
 HAL_STATUS
 ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
-    ar9300_eeprom_t *p_eep_data, HAL_CHANNEL_INTERNAL *chan, u_int16_t cfg_ctl,
+    ar9300_eeprom_t *p_eep_data, const struct ieee80211_channel *chan, u_int16_t cfg_ctl,
     u_int16_t antenna_reduction, u_int16_t twice_max_regulatory_power,
     u_int16_t power_limit)
 {
@@ -2660,6 +2666,7 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
     int  i = 0;
     u_int32_t tmp_paprd_rate_mask = 0, *tmp_ptr = NULL;
     int      paprd_scale_factor = 5;
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 
     u_int8_t *ptr_mcs_rate2power_table_index;
     u_int8_t mcs_rate2power_table_index_ht20[24] =
@@ -2722,13 +2729,13 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
         "%s[%d] +++chan %d,cfgctl 0x%04x  "
         "antenna_reduction 0x%04x, twice_max_regulatory_power 0x%04x "
         "power_limit 0x%04x\n",
-        __func__, __LINE__, chan->channel, cfg_ctl,
+        __func__, __LINE__, ichan->channel, cfg_ctl,
         antenna_reduction, twice_max_regulatory_power, power_limit);
-    ar9300_set_target_power_from_eeprom(ah, chan->channel, target_power_val_t2);
+    ar9300_set_target_power_from_eeprom(ah, ichan->channel, target_power_val_t2);
 
     if (ar9300_eeprom_get(ahp, EEP_PAPRD_ENABLED)) {
-        if (IS_CHAN_2GHZ(chan)) {
-            if (IS_CHAN_HT40(chan)) {
+        if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+            if (IEEE80211_IS_CHAN_HT40(chan)) {
                 tmp_paprd_rate_mask =
                     p_eep_data->modal_header_2g.paprd_rate_mask_ht40;
                 tmp_ptr = &AH9300(ah)->ah_2g_paprd_rate_mask_ht40;
@@ -2738,7 +2745,7 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
                 tmp_ptr = &AH9300(ah)->ah_2g_paprd_rate_mask_ht20;
             }
         } else {
-            if (IS_CHAN_HT40(chan)) {
+            if (IEEE80211_IS_CHAN_HT40(chan)) {
                 tmp_paprd_rate_mask =
                     p_eep_data->modal_header_5g.paprd_rate_mask_ht40;
                 tmp_ptr = &AH9300(ah)->ah_5g_paprd_rate_mask_ht40;
@@ -2749,18 +2756,18 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
             }
         }
         AH_PAPRD_GET_SCALE_FACTOR(
-            paprd_scale_factor, p_eep_data, IS_CHAN_2GHZ(chan), chan->channel);
+            paprd_scale_factor, p_eep_data, IEEE80211_IS_CHAN_2GHZ(chan), ichan->channel);
         HALDEBUG(ah, HAL_DEBUG_CALIBRATE, "%s[%d] paprd_scale_factor %d\n",
             __func__, __LINE__, paprd_scale_factor);
         /* PAPRD is not done yet, Scale down the EEP power */
-        if (IS_CHAN_HT40(chan)) {
+        if (IEEE80211_IS_CHAN_HT40(chan)) {
             ptr_mcs_rate2power_table_index =
                 &mcs_rate2power_table_index_ht40[0];
         } else {
             ptr_mcs_rate2power_table_index =
                 &mcs_rate2power_table_index_ht20[0];
         }
-        if (!chan->paprd_table_write_done) {
+        if (! ichan->paprd_table_write_done) {
             for (i = 0;  i < 24; i++) {
                 /* PAPRD is done yet, so Scale down Power for PAPRD Rates*/
                 if (tmp_paprd_rate_mask & (1 << i)) {
@@ -2770,7 +2777,7 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
                         "%s[%d]: Chan %d "
                         "Scale down target_power_val_t2[%d] = 0x%04x\n",
                         __func__, __LINE__,
-                        chan->channel, i, target_power_val_t2[i]);
+                        ichan->channel, i, target_power_val_t2[i]);
                 }
             }
         } else {
@@ -2789,7 +2796,7 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
                                      power_limit, 0);
     
     /* Save this for quick lookup */
-    ahp->reg_dmn = chan->conformance_test_limit;
+    ahp->reg_dmn = ath_hal_getctl(ah, chan);
 
     /*
      * Always use CDD/direct per rate power table for register based approach.
@@ -2797,6 +2804,9 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
      * this adjust call. ETSI and MKK does not have this requirement.
      */
     if (is_reg_dmn_fcc(ahp->reg_dmn)) {
+        HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
+            "%s: FCC regdomain, calling reg_txpower_cdd\n",
+            __func__);
         ar9300_adjust_reg_txpower_cdd(ah, target_power_val_t2);
     }
 
@@ -2825,7 +2835,7 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
         }
         HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
             "%s: Chan %d After tmp_paprd_rate_mask = 0x%08x\n",
-            __func__, chan->channel, tmp_paprd_rate_mask);
+            __func__, ichan->channel, tmp_paprd_rate_mask);
         if (tmp_ptr) {
             *tmp_ptr = tmp_paprd_rate_mask;
         }
@@ -2838,8 +2848,8 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
     ar9300_selfgen_tpc_reg_write(ah, chan, target_power_val_t2);
 
     /* GreenTx or Paprd */
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_sta_update_tx_pwr_enable || 
-        AH_PRIVATE(ah)->ah_caps.hal_paprd_enabled) 
+    if (ah->ah_config.ath_hal_sta_update_tx_pwr_enable || 
+        AH_PRIVATE(ah)->ah_caps.halPaprdEnabled) 
     {
         if (AR_SREV_POSEIDON(ah)) {
             /*For HAL_RSSI_TX_POWER_NONE array*/
@@ -2848,13 +2858,13 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
                 sizeof(target_power_val_t2));
             /* Get defautl tx related register setting for GreenTx */
             /* Record OB/DB */
-            AH_PRIVATE(ah)->ah_ob_db1[POSEIDON_STORED_REG_OBDB] = 
+            ahp->ah_ob_db1[POSEIDON_STORED_REG_OBDB] = 
                 OS_REG_READ(ah, AR_PHY_65NM_CH0_TXRF2);
             /* Record TPC settting */
-            AH_PRIVATE(ah)->ah_ob_db1[POSEIDON_STORED_REG_TPC] =
+            ahp->ah_ob_db1[POSEIDON_STORED_REG_TPC] =
                 OS_REG_READ(ah, AR_TPC);
             /* Record BB_powertx_rate9 setting */ 
-            AH_PRIVATE(ah)->ah_ob_db1[POSEIDON_STORED_REG_BB_PWRTX_RATE9] = 
+            ahp->ah_ob_db1[POSEIDON_STORED_REG_BB_PWRTX_RATE9] = 
                 OS_REG_READ(ah, AR_PHY_BB_POWERTX_RATE9);
         }
     }
@@ -2868,9 +2878,9 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
      * as CCK power is less interesting (?).
      */
     i = ALL_TARGET_LEGACY_6_24;         /* legacy */
-    if (IS_CHAN_HT40(chan)) {
+    if (IEEE80211_IS_CHAN_HT40(chan)) {
         i = ALL_TARGET_HT40_0_8_16;     /* ht40 */
-    } else if (IS_CHAN_HT20(chan)) {
+    } else if (IEEE80211_IS_CHAN_HT20(chan)) {
         i = ALL_TARGET_HT20_0_8_16;     /* ht20 */
     }
     max_power_level = target_power_val_t2[i];
@@ -2901,13 +2911,13 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
         default:
             HALASSERT(0); /* Unsupported number of chains */
     }
-    AH_PRIVATE(ah)->ah_max_power_level = (int8_t)max_power_level;
+    AH_PRIVATE(ah)->ah_maxPowerLevel = (int8_t)max_power_level;
 
-    ar9300_calibration_apply(ah, chan->channel);
+    ar9300_calibration_apply(ah, ichan->channel);
 #undef ABS
 
     /* Handle per packet TPC initializations */
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_desc_tpc) {
+    if (ah->ah_config.ath_hal_desc_tpc) {
         /* Transmit Power per-rate per-chain  are  computed here. A separate
          * power table is maintained for different MIMO modes (i.e. TXBF ON,
          * STBC) to enable easy lookup during packet transmit. 
@@ -2930,7 +2940,7 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
                                      power_limit, chainmasks[i]);
             HALDEBUG(ah, HAL_DEBUG_POWER_MGMT,
                  " Channel = %d Chainmask = %d, Upper Limit = [%2d.%1d dBm]\n",
-                                       chan->channel, i, ahp->upper_limit[i]/2,
+                                       ichan->channel, i, ahp->upper_limit[i]/2,
                                        ahp->upper_limit[i]%2 * 5);
             ar9300_init_rate_txpower(ah, mode, chan, target_power_val_t2,
                                                            chainmasks[i]);
@@ -2962,7 +2972,7 @@ ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
  * Set the ADDAC from eeprom.
  */
 void
-ar9300_eeprom_set_addac(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar9300_eeprom_set_addac(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 
     HALDEBUG(AH_NULL, HAL_DEBUG_UNMASKABLE,
@@ -2988,7 +2998,7 @@ ar9300_eeprom_set_addac(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
         return;
     }
 
-    p_modal = &(eep->modal_header[IS_CHAN_2GHZ(chan)]);
+    p_modal = &(eep->modal_header[IEEE80211_IS_CHAN_2GHZ(chan)]);
 
     if (p_modal->xpa_bias_lvl != 0xff) {
         biaslevel = p_modal->xpa_bias_lvl;
@@ -2999,7 +3009,7 @@ ar9300_eeprom_set_addac(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 
         ar9300_get_channel_centers(ah, chan, &centers);
 
-        reset_freq_bin = FREQ2FBIN(centers.synth_center, IS_CHAN_2GHZ(chan));
+        reset_freq_bin = FREQ2FBIN(centers.synth_center, IEEE80211_IS_CHAN_2GHZ(chan));
         freq_bin = p_modal->xpa_bias_lvl_freq[0] & 0xff;
         biaslevel = (u_int8_t)(p_modal->xpa_bias_lvl_freq[0] >> 14);
 
@@ -3022,7 +3032,7 @@ ar9300_eeprom_set_addac(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
     }
 
     /* Apply bias level to the ADDAC values in the INI array */
-    if (IS_CHAN_2GHZ(chan)) {
+    if (IEEE80211_IS_CHAN_2GHZ(chan)) {
         INI_RA(&ahp->ah_ini_addac, 7, 1) =
             (INI_RA(&ahp->ah_ini_addac, 7, 1) & (~0x18)) | biaslevel << 3;
     } else {
@@ -3065,12 +3075,13 @@ ar9300_eeprom_get_num_ant_config(struct ath_hal_9300 *ahp,
 }
 
 HAL_STATUS
-ar9300_eeprom_get_ant_cfg(struct ath_hal_9300 *ahp, HAL_CHANNEL_INTERNAL *chan,
-                   u_int8_t index, u_int16_t *config)
+ar9300_eeprom_get_ant_cfg(struct ath_hal_9300 *ahp,
+  const struct ieee80211_channel *chan,
+  u_int8_t index, u_int16_t *config)
 {
 #if 0
     ar9300_eeprom_t  *eep = &ahp->ah_eeprom.def;
-    MODAL_EEPDEF_HEADER *p_modal = &(eep->modal_header[IS_CHAN_2GHZ(chan)]);
+    MODAL_EEPDEF_HEADER *p_modal = &(eep->modal_header[IEEE80211_IS_CHAN_2GHZ(chan)]);
     BASE_EEPDEF_HEADER  *p_base  = &eep->base_eep_header;
 
     switch (index) {
@@ -3289,7 +3300,7 @@ ar9300_check_eeprom(struct ath_hal *ah)
 #endif
 
 static u_int16_t
-ar9300_eeprom_get_spur_chan(struct ath_hal *ah, u_int16_t i, HAL_BOOL is_2ghz)
+ar9300_eeprom_get_spur_chan(struct ath_hal *ah, int i, HAL_BOOL is_2ghz)
 {
     u_int16_t   spur_val = AR_NO_SPUR;
 #if 0
@@ -3387,7 +3398,6 @@ ar9300_calibration_data_read_eeprom(struct ath_hal *ah, long address,
     unsigned long eep_addr;
     unsigned long byte_addr;
     u_int16_t *svalue;
-    struct ath_hal_9300 *ahp = AH9300(ah);
 
     if (((address) < 0) || ((address + many) > AR9300_EEPROM_SIZE)) {
         return AH_FALSE;
@@ -3397,7 +3407,7 @@ ar9300_calibration_data_read_eeprom(struct ath_hal *ah, long address,
         eep_addr = (u_int16_t) (address + i) / 2;
         byte_addr = (u_int16_t) (address + i) % 2;
         svalue = (u_int16_t *) value;
-        if (!ahp->ah_priv.priv.ah_eeprom_read(ah, eep_addr, svalue)) {
+        if (! ath_hal_eepromRead(ah, eep_addr, svalue)) {
             HALDEBUG(ah, HAL_DEBUG_EEPROM,
                 "%s: Unable to read eeprom region \n", __func__);
             return AH_FALSE;
@@ -3542,7 +3552,6 @@ ar9300_eeprom_size(struct ath_hal *ah)
  * 1024 and 2048 are normal sizes. 
  * 0 means there is no eeprom. 
  */ 
-int32_t ar9300_otp_size(struct ath_hal *ah);
 int32_t 
 ar9300_otp_size(struct ath_hal *ah)
 {
@@ -3822,7 +3831,6 @@ ar9300_eeprom_restore_from_dram(struct ath_hal *ah, ar9300_eeprom_t *mptr,
     char *cal_ptr;
 #endif
 
-
     HALASSERT(mdata_size > 0);
 
     /* if cal_in_flash is AH_TRUE, the address sent by LMAC to HAL
@@ -3831,16 +3839,20 @@ ar9300_eeprom_restore_from_dram(struct ath_hal *ah, ar9300_eeprom_t *mptr,
     if(ar9300_eep_data_in_flash(ah))
         return -1;
 
+#if 0
     /* check if LMAC sent DRAM address is valid */
     if (!(uintptr_t)(AH_PRIVATE(ah)->ah_st)) {
         return -1;
     }
+#endif
 
     /* When calibration data is from host, Host will copy the 
        compressed data to the predefined DRAM location saved at ah->ah_st */
+#if 0
     ath_hal_printf(ah, "Restoring Cal data from DRAM\n");
     ahp->ah_cal_mem = OS_REMAP((uintptr_t)(AH_PRIVATE(ah)->ah_st), 
 							HOST_CALDATA_SIZE);
+#endif
     if (!ahp->ah_cal_mem)
     {
        HALDEBUG(ah, HAL_DEBUG_EEPROM,"%s: can't remap dram region\n", __func__);
@@ -3928,6 +3940,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
          AH9300(ah)->calibration_data_try == calibration_data_dram) &&
          AH9300(ah)->try_dram && nptr < 0)
     {   
+        ath_hal_printf(ah, "Restoring Cal data from DRAM\n");
         AH9300(ah)->calibration_data_source = calibration_data_dram;
         AH9300(ah)->calibration_data_source_address = 0;
         nptr = ar9300_eeprom_restore_from_dram(ah, mptr, mdata_size);
@@ -3945,6 +3958,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
          * need to look at highest eeprom address as well as at
          * base_address=0x3ff where we used to write the data
          */
+        ath_hal_printf(ah, "Restoring Cal data from EEPROM\n");
         AH9300(ah)->calibration_data_source = calibration_data_eeprom;
         if (AH9300(ah)->calibration_data_try_address != 0) {
             AH9300(ah)->calibration_data_source_address =
@@ -3981,6 +3995,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
          AH9300(ah)->calibration_data_try == calibration_data_flash) &&
         AH9300(ah)->try_flash && nptr < 0)
     {
+        ath_hal_printf(ah, "Restoring Cal data from Flash\n");
         AH9300(ah)->calibration_data_source = calibration_data_flash;
         /* how are we supposed to set this for flash? */
         AH9300(ah)->calibration_data_source_address = 0;
@@ -3995,6 +4010,7 @@ ar9300_eeprom_restore_internal(struct ath_hal *ah, ar9300_eeprom_t *mptr,
          AH9300(ah)->calibration_data_try == calibration_data_otp) &&
         AH9300(ah)->try_otp && nptr < 0)
     {
+        ath_hal_printf(ah, "Restoring Cal data from OTP\n");
         AH9300(ah)->calibration_data_source = calibration_data_otp;
         if (AH9300(ah)->calibration_data_try_address != 0) {
             AH9300(ah)->calibration_data_source_address =
@@ -4364,16 +4380,18 @@ HAL_BOOL ar9300_x_lNA_bias_strength_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
  * given the channel value.
  */
 HAL_BOOL
-ar9300_eeprom_set_board_values(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar9300_eeprom_set_board_values(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-    ar9300_xpa_bias_level_apply(ah, IS_CHAN_2GHZ(chan));
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 
-    ar9300_xpa_timing_control_apply(ah, IS_CHAN_2GHZ(chan));
+    ar9300_xpa_bias_level_apply(ah, IEEE80211_IS_CHAN_2GHZ(chan));
 
-    ar9300_ant_ctrl_apply(ah, IS_CHAN_2GHZ(chan));
+    ar9300_xpa_timing_control_apply(ah, IEEE80211_IS_CHAN_2GHZ(chan));
+
+    ar9300_ant_ctrl_apply(ah, IEEE80211_IS_CHAN_2GHZ(chan));
     ar9300_drive_strength_apply(ah);
 
-    ar9300_x_lNA_bias_strength_apply(ah, IS_CHAN_2GHZ(chan));
+    ar9300_x_lNA_bias_strength_apply(ah, IEEE80211_IS_CHAN_2GHZ(chan));
 
 	/* wait for Poseidon internal regular turnning */
     /* for Hornet we move it before initPLL to avoid an access issue */
@@ -4382,15 +4400,15 @@ ar9300_eeprom_set_board_values(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
         ar9300_internal_regulator_apply(ah);
     }
 
-    ar9300_attenuation_apply(ah, chan->channel);
-    ar9300_quick_drop_apply(ah, chan->channel);
+    ar9300_attenuation_apply(ah, ichan->channel);
+    ar9300_quick_drop_apply(ah, ichan->channel);
     ar9300_thermometer_apply(ah);
     if(!AR_SREV_WASP(ah))
     {
         ar9300_tuning_caps_apply(ah);
     }
 
-    ar9300_tx_end_to_xpab_off_apply(ah, chan->channel);
+    ar9300_tx_end_to_xpab_off_apply(ah, ichan->channel);
 
     return AH_TRUE;
 }
@@ -4518,5 +4536,3 @@ u_int8_t ar9300_eeprom_set_tx_gain_cap(struct ath_hal *ah,
     }
     return AH_TRUE;
 }
-   
-#endif /* AH_SUPPORT_AR9300 */

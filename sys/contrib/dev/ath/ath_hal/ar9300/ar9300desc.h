@@ -21,6 +21,9 @@
 #ifndef _ATH_AR9300_DESC_H_
 #define _ATH_AR9300_DESC_H_
 
+#ifdef	_KERNEL
+#include "ar9300_freebsd_inc.h"
+#endif
 
 /* Osprey Status Descriptor. */
 struct ar9300_txs {
@@ -459,11 +462,10 @@ struct ar9300_txc {
         ((_series)[_index].RateFlags & HAL_RATESERIES_2040 ? AR_2040_##_index : 0) \
         |((_series)[_index].RateFlags & HAL_RATESERIES_HALFGI ? AR_gi##_index : 0) \
         |((_series)[_index].RateFlags & HAL_RATESERIES_STBC ? AR_stbc##_index : 0) \
-        |SM((_series)[_index].ch_sel, AR_chain_sel##_index)
+        |SM((_series)[_index].ChSel, AR_chain_sel##_index)
 
 #define set_11n_tx_power(_index, _txpower) \
         SM(_txpower, AR_xmit_power##_index)
-
 
 #define IS_3CHAIN_TX(_ah) (AH9300(_ah)->ah_tx_chainmask == 7)
 /*
@@ -481,6 +483,8 @@ struct ar9300_txc {
          (1<<0x1d)|(1<<0x18)|(1<<0x1c))
 #define is_valid_tx_rate(_r)       ((1<<(_r)) & VALID_TX_RATES)
 
+
+#ifdef	_KERNEL
         /* TX common functions */
 
 extern  HAL_BOOL ar9300_update_tx_trig_level(struct ath_hal *,
@@ -504,7 +508,7 @@ extern  HAL_BOOL ar9300_abort_tx_dma(struct ath_hal *ah);
 extern  void ar9300_get_tx_intr_queue(struct ath_hal *ah, u_int32_t *);
 
 extern  void ar9300_tx_req_intr_desc(struct ath_hal *ah, void *ds);
-extern  HAL_BOOL ar9300_fill_tx_desc(struct ath_hal *ah, void *ds, dma_addr_t *buf_addr,
+extern  HAL_BOOL ar9300_fill_tx_desc(struct ath_hal *ah, void *ds, HAL_DMA_ADDR *buf_addr,
         u_int32_t *seg_len, u_int desc_id, u_int qcu, HAL_KEY_TYPE key_type, HAL_BOOL first_seg,
         HAL_BOOL last_seg, const void *ds0);
 extern  void ar9300_set_desc_link(struct ath_hal *, void *ds, u_int32_t link);
@@ -534,20 +538,20 @@ extern void ar9300_update_loc_ctl_reg(struct ath_hal *ah, int pos_bit);
 extern void ar9300_set_11n_rate_scenario(struct ath_hal *ah, void *ds,
         void *lastds, u_int dur_update_en, u_int rts_cts_rate, u_int rts_cts_duration, HAL_11N_RATE_SERIES series[],
        u_int nseries, u_int flags, u_int32_t smartAntenna);
-extern void ar9300_set_11n_aggr_first(struct ath_hal *ah, void *ds,
-       u_int aggr_len);
-extern void ar9300_set_11n_aggr_middle(struct ath_hal *ah, void *ds,
+extern void ar9300_set_11n_aggr_first(struct ath_hal *ah, struct ath_desc *ds,
+       u_int aggr_len, u_int num_delims);
+extern void ar9300_set_11n_aggr_middle(struct ath_hal *ah, struct ath_desc *ds,
        u_int num_delims);
-extern void ar9300_set_11n_aggr_last(struct ath_hal *ah, void *ds);
-extern void ar9300_clr_11n_aggr(struct ath_hal *ah, void *ds);
-extern void ar9300_set_11n_burst_duration(struct ath_hal *ah, void *ds,
-       u_int burst_duration);
+extern void ar9300_set_11n_aggr_last(struct ath_hal *ah, struct ath_desc *ds);
+extern void ar9300_clr_11n_aggr(struct ath_hal *ah, struct ath_desc *ds);
+extern void ar9300_set_11n_burst_duration(struct ath_hal *ah,
+       struct ath_desc *ds, u_int burst_duration);
 extern void ar9300_set_11n_rifs_burst_middle(struct ath_hal *ah, void *ds);
 extern void ar9300_set_11n_rifs_burst_last(struct ath_hal *ah, void *ds);
 extern void ar9300_clr_11n_rifs_burst(struct ath_hal *ah, void *ds);
 extern void ar9300_set_11n_aggr_rifs_burst(struct ath_hal *ah, void *ds);
-extern void ar9300_set_11n_virtual_more_frag(struct ath_hal *ah, void *ds,
-       u_int vmf);
+extern void ar9300_set_11n_virtual_more_frag(struct ath_hal *ah,
+       struct ath_desc *ds, u_int vmf);
 #ifdef AH_PRIVATE_DIAG
 extern void ar9300__cont_tx_mode(struct ath_hal *ah, void *ds, int mode);
 #endif
@@ -565,7 +569,7 @@ extern  void ar9300_set_multicast_filter(struct ath_hal *ah,
 extern  u_int32_t ar9300_get_rx_filter(struct ath_hal *ah);
 extern  void ar9300_set_rx_filter(struct ath_hal *ah, u_int32_t bits);
 extern  HAL_BOOL ar9300_set_rx_sel_evm(struct ath_hal *ah, HAL_BOOL, HAL_BOOL);
-extern	bool ar9300_set_rx_abort(struct ath_hal *ah, HAL_BOOL);
+extern	HAL_BOOL ar9300_set_rx_abort(struct ath_hal *ah, HAL_BOOL);
 
 extern  HAL_STATUS ar9300_proc_rx_desc(struct ath_hal *ah,
         struct ath_desc *, u_int32_t, struct ath_desc *, u_int64_t, struct ath_rx_status *);
@@ -578,14 +582,6 @@ extern  void ar9300_promisc_mode(struct ath_hal *ah, HAL_BOOL enable);
 extern  void ar9300_read_pktlog_reg(struct ath_hal *ah, u_int32_t *, u_int32_t *, u_int32_t *, u_int32_t *);
 extern  void ar9300_write_pktlog_reg(struct ath_hal *ah, HAL_BOOL , u_int32_t , u_int32_t , u_int32_t , u_int32_t );
 
-
 #endif
 
-
-
-
-
-
-
-
-
+#endif /* _ATH_AR9300_DESC_H_ */

@@ -25,6 +25,17 @@
 #pragma pack (push, ar9300, 1)
 #endif
 
+/* FreeBSD extras - should be in ah_eeprom.h ? */
+#define AR_EEPROM_EEPCAP_COMPRESS_DIS   0x0001
+#define AR_EEPROM_EEPCAP_AES_DIS        0x0002
+#define AR_EEPROM_EEPCAP_FASTFRAME_DIS  0x0004
+#define AR_EEPROM_EEPCAP_BURST_DIS      0x0008
+#define AR_EEPROM_EEPCAP_MAXQCU         0x01F0
+#define AR_EEPROM_EEPCAP_MAXQCU_S       4
+#define AR_EEPROM_EEPCAP_HEAVY_CLIP_EN  0x0200
+#define AR_EEPROM_EEPCAP_KC_ENTRIES     0xF000
+#define AR_EEPROM_EEPCAP_KC_ENTRIES_S   12
+
 
 #define MSTATE 100
 #define MOUTPUT 2048
@@ -626,7 +637,7 @@ extern void ar9300_set_target_power_from_eeprom(struct ath_hal *ah, u_int16_t fr
                                            u_int8_t *target_power_val_t2);
 extern HAL_BOOL ar9300_eeprom_set_power_per_rate_table(struct ath_hal *ah,
                                              ar9300_eeprom_t *p_eep_data,
-                                             HAL_CHANNEL_INTERNAL *chan,
+                                             const struct ieee80211_channel *chan,
                                              u_int8_t *p_pwr_array,
                                              u_int16_t cfg_ctl,
                                              u_int16_t antenna_reduction,
@@ -634,7 +645,6 @@ extern HAL_BOOL ar9300_eeprom_set_power_per_rate_table(struct ath_hal *ah,
                                              u_int16_t power_limit,
                                              u_int8_t chainmask);
 extern int ar9300_transmit_power_reg_write(struct ath_hal *ah, u_int8_t *p_pwr_array); 
-extern int ar9300_compression_header_unpack(u_int8_t *best, int *code, int *reference, int *length, int *major, int *minor);
 
 extern u_int8_t ar9300_eeprom_get_legacy_trgt_pwr(struct ath_hal *ah, u_int16_t rate_index, u_int16_t freq, HAL_BOOL is_2ghz);
 extern u_int8_t ar9300_eeprom_get_ht20_trgt_pwr(struct ath_hal *ah, u_int16_t rate_index, u_int16_t freq, HAL_BOOL is_2ghz);

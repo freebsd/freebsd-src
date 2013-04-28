@@ -47,12 +47,11 @@ HAL_BOOL create_pa_curve(u_int32_t * paprd_train_data_l,
     u_int32_t *paprd_train_data_u, u_int32_t *pa_table, u_int32_t *g_fxp_ext,
     int * pa_in);
 
-#define AR9300_IS_CHAN(_c, _f)       (((_c)->channel_flags & _f) || 0)
-
 static int
-ar9300_paprd_setup_single_table(struct ath_hal *ah, HAL_CHANNEL * chan)
+ar9300_paprd_setup_single_table(struct ath_hal *ah, struct ieee80211_channel * chan)
 {
-    int is_2g = AR9300_IS_CHAN(chan, CHANNEL_2GHZ);
+    int is_2g = IEEE80211_IS_CHAN_2GHZ(chan);
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
     struct ath_hal_9300 *ahp = AH9300(ah);
     int is_ht40 = 0;
     u_int32_t am_mask = 0;
@@ -76,7 +75,7 @@ ar9300_paprd_setup_single_table(struct ath_hal *ah, HAL_CHANNEL * chan)
 
 #define ABS(_x, _y) ((int)_x > (int)_y ? (int)_x - (int)_y : (int)_y - (int)_x)
 
-    ar9300_set_target_power_from_eeprom(ah, chan->channel, target_power_val_t2);
+    ar9300_set_target_power_from_eeprom(ah, ichan->channel, target_power_val_t2);
     if (val & HAL_HT_MACMODE_2040) {
         is_ht40 = 1;
     }
@@ -94,7 +93,7 @@ ar9300_paprd_setup_single_table(struct ath_hal *ah, HAL_CHANNEL * chan)
      * For 2G there is only one scale factor. It is saved in bits 25-27 of
      * modal_header_2g.paprd_rate_mask_ht20.
      */
-    AH_PAPRD_GET_SCALE_FACTOR(paprd_scale_factor, eep, is_2g, chan->channel);
+    AH_PAPRD_GET_SCALE_FACTOR(paprd_scale_factor, eep, is_2g, ichan->channel);
     if (is_2g) {
         if (is_ht40) {
             am_mask = ahp->ah_2g_paprd_rate_mask_ht40 & AH_PAPRD_AM_PM_MASK;
@@ -122,7 +121,7 @@ ar9300_paprd_setup_single_table(struct ath_hal *ah, HAL_CHANNEL * chan)
             {
                 HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
                     "%s[%d]: Chan %d paprd failing EEP PWR 0x%08x" 
-                    "TGT PWR 0x%08x\n", __func__, __LINE__, chan->channel,
+                    "TGT PWR 0x%08x\n", __func__, __LINE__, ichan->channel,
                     target_power_val_t2[power_tblindex], 
                     ahp->paprd_training_power);
                 goto FAILED;
@@ -193,7 +192,7 @@ ar9300_paprd_setup_single_table(struct ath_hal *ah, HAL_CHANNEL * chan)
         {
             HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
                 "%s[%d]: Chan %d paprd failing EEP PWR 0x%08x TGT PWR 0x%08x\n",
-                __func__, __LINE__, chan->channel,
+                __func__, __LINE__, ichan->channel,
                 target_power_val_t2[power_tblindex], ahp->paprd_training_power);
             goto FAILED;
         }
@@ -405,6 +404,10 @@ FAILED:
 #undef ABS    
 }
 
+/*
+ * XXX There's another copy of this in ar9300_reset.c, use that!
+ */
+#if 0
 static inline HAL_CHANNEL_INTERNAL*
 ar9300_check_chan(struct ath_hal *ah, HAL_CHANNEL *chan)
 {
@@ -432,14 +435,16 @@ ar9300_check_chan(struct ath_hal *ah, HAL_CHANNEL *chan)
 
     return (ath_hal_checkchannel(ah, chan));
 }
+#endif
 
 void ar9300_enable_paprd(struct ath_hal *ah, HAL_BOOL enable_flag,
-    HAL_CHANNEL * chan)
+    struct ieee80211_channel * chan)
 {
     HAL_BOOL enable = enable_flag;
     u_int32_t am_mask = 0;
     u_int32_t val = OS_REG_READ(ah, AR_2040_MODE);
-    int is_2g = AR9300_IS_CHAN(chan, CHANNEL_2GHZ);
+    int is_2g = IEEE80211_IS_CHAN_2GHZ(chan);
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
     int is_ht40 = 0;
     struct ath_hal_9300 *ahp = AH9300(ah);
 
@@ -462,11 +467,11 @@ void ar9300_enable_paprd(struct ath_hal *ah, HAL_BOOL enable_flag,
              * to one -- disable paprd for lower 5G
              * u_int32_t am_mask = eep->modal_header_5g.paprd_rate_mask_ht20;
              */
-            if (chan->channel >= UPPER_5G_SUB_BANDSTART) {
+            if (ichan->channel >= UPPER_5G_SUB_BANDSTART) {
                 if (eep->modal_header_5g.paprd_rate_mask_ht20 & (1 << 30)) {
                     enable = AH_FALSE;
                 }
-            } else if (chan->channel >= MID_5G_SUB_BANDSTART) {
+            } else if (ichan->channel >= MID_5G_SUB_BANDSTART) {
                 if (eep->modal_header_5g.paprd_rate_mask_ht20 & (1 << 29)) {
                     enable = AH_FALSE;
                 }
@@ -509,17 +514,17 @@ void ar9300_enable_paprd(struct ath_hal *ah, HAL_BOOL enable_flag,
          */
         ichan = ar9300_check_chan(ah, chan);
         ichan->paprd_table_write_done = 1;
-        chan->paprd_table_write_done = 1;
+//        chan->paprd_table_write_done = 1;
         /*
         ath_hal_printf(ah, "%s[%d] eeprom_set_transmit_power PAPRD\n",
             __func__, __LINE__);
          */
-        if (ar9300_eeprom_set_transmit_power(ah, &ahp->ah_eeprom, ichan,
+        if (ar9300_eeprom_set_transmit_power(ah, &ahp->ah_eeprom, chan,
             ath_hal_getctl(ah, chan), ath_hal_getantennaallowed(ah, chan),
             ath_hal_get_twice_max_regpower(AH_PRIVATE(ah), ichan, chan),
-            AH_MIN(MAX_RATE_POWER, AH_PRIVATE(ah)->ah_power_limit)) != HAL_OK) {
+            AH_MIN(MAX_RATE_POWER, AH_PRIVATE(ah)->ah_powerLimit)) != HAL_OK) {
             ichan->paprd_table_write_done = 0;
-            chan->paprd_table_write_done = 0;
+//            chan->paprd_table_write_done = 0;
             /* Intentional print */
             ath_hal_printf(ah,
                 "%s[%d] eeprom_set_transmit_power failed ABORT PAPRD\n",
@@ -1848,17 +1853,20 @@ void ar9300_swizzle_paprd_entries(struct ath_hal *ah, unsigned int txchain)
 
 }
 
-void ar9300_populate_paprd_single_table(struct ath_hal *ah, HAL_CHANNEL * chan,
-    int chain_num)
+void ar9300_populate_paprd_single_table(struct ath_hal *ah,
+    struct ieee80211_channel *chan, int chain_num)
 {
     int i, j, bad_read = 0;
+#ifdef	AH_DEBUG
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+#endif
     u_int32_t *paprd_table_val = &AH9300(ah)->pa_table[chain_num][0];
     u_int32_t small_signal_gain = AH9300(ah)->small_signal_gain[chain_num];
     u_int32_t reg = 0;
 
     HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
         "%s[%d]: channel %d paprd_done %d write %d\n", __func__, __LINE__,
-        chan->channel, chan->paprd_done, chan->paprd_table_write_done);
+        ichan->channel, ichan->paprd_done, ichan->paprd_table_write_done);
 
     if (chain_num == 0) {
         reg = AR_PHY_PAPRD_MEM_TAB_B0;
@@ -2180,8 +2188,8 @@ static HAL_BOOL ar9300_paprd_retrain_pain(struct ath_hal * ah, int * pa_in)
     return AH_FALSE;
 }
 
-HAL_STATUS ar9300_paprd_create_curve(struct ath_hal * ah, HAL_CHANNEL * chan,
-    int chain_num)
+HAL_STATUS ar9300_paprd_create_curve(struct ath_hal * ah,
+  struct ieee80211_channel * chan, int chain_num)
 {
     int status = 0;
     u_int32_t *pa_table, small_signal_gain;
@@ -2214,9 +2222,11 @@ HAL_STATUS ar9300_paprd_create_curve(struct ath_hal * ah, HAL_CHANNEL * chan,
     return HAL_OK;
 }
 
-int ar9300_paprd_init_table(struct ath_hal *ah, HAL_CHANNEL * chan)
+int ar9300_paprd_init_table(struct ath_hal *ah, struct ieee80211_channel * chan)
 {
-    if ((AR_SREV_WASP(ah) && IS_CHAN_5GHZ(chan)) ||
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+
+    if ((AR_SREV_WASP(ah) && IS_CHAN_5GHZ(ichan)) ||
          ar9300_paprd_setup_single_table(ah, chan)) {
         goto FAIL;
     }
