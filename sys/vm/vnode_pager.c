@@ -380,6 +380,12 @@ vnode_pager_setsize(vp, nsize)
 		return;
 /* 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_setsize and not locked vnode"); */
 	VM_OBJECT_WLOCK(object);
+	if (object->type == OBJT_DEAD) {
+		VM_OBJECT_WUNLOCK(object);
+		return;
+	}
+	KASSERT(object->type == OBJT_VNODE,
+	    ("not vnode-backed object %p", object));
 	if (nsize == object->un_pager.vnp.vnp_size) {
 		/*
 		 * Hasn't changed size
