@@ -166,6 +166,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
     char *target, dev_t rdev, struct tmpfs_node **node)
 {
 	struct tmpfs_node *nnode;
+	vm_object_t obj;
 
 	/* If the root directory of the 'tmp' file system is not yet
 	 * allocated, this must be the request to do it. */
@@ -227,9 +228,14 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		break;
 
 	case VREG:
-		nnode->tn_reg.tn_aobj =
+		obj = nnode->tn_reg.tn_aobj =
 		    vm_pager_allocate(OBJT_SWAP, NULL, 0, VM_PROT_DEFAULT, 0,
 			NULL /* XXXKIB - tmpfs needs swap reservation */);
+		VM_OBJECT_WLOCK(obj);
+		/* OBJ_TMPFS is set together with the setting of vp->v_object */
+		vm_object_set_flag(obj, OBJ_NOSPLIT);
+		vm_object_clear_flag(obj, OBJ_ONEMAPPING);
+		VM_OBJECT_WUNLOCK(obj);
 		break;
 
 	default:
@@ -434,9 +440,11 @@ int
 tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
     struct vnode **vpp)
 {
-	int error = 0;
 	struct vnode *vp;
+	vm_object_t object;
+	int error;
 
+	error = 0;
 loop:
 	TMPFS_NODE_LOCK(node);
 	if ((vp = node->tn_vnode) != NULL) {
@@ -506,12 +514,21 @@ loop:
 		/* FALLTHROUGH */
 	case VLNK:
 		/* FALLTHROUGH */
-	case VREG:
-		/* FALLTHROUGH */
 	case VSOCK:
 		break;
 	case VFIFO:
 		vp->v_op = &tmpfs_fifoop_entries;
+		break;
+	case VREG:
+		object = node->tn_reg.tn_aobj;
+		VM_OBJECT_WLOCK(object);
+		VI_LOCK(vp);
+		KASSERT(vp->v_object == NULL, ("Not NULL v_object in tmpfs"));
+		vp->v_object = object;
+		object->un_pager.swp.swp_tmpfs = vp;
+		vm_object_set_flag(object, OBJ_TMPFS);
+		VI_UNLOCK(vp);
+		VM_OBJECT_WUNLOCK(object);
 		break;
 	case VDIR:
 		MPASS(node->tn_dir.tn_parent != NULL);
@@ -523,7 +540,6 @@ loop:
 		panic("tmpfs_alloc_vp: type %p %d", node, (int)node->tn_type);
 	}
 
-	vnode_pager_setsize(vp, node->tn_size);
 	error = insmntque(vp, mp);
 	if (error)
 		vp = NULL;
@@ -1343,7 +1359,6 @@ retry:
 	TMPFS_UNLOCK(tmp);
 
 	node->tn_size = newsize;
-	vnode_pager_setsize(vp, newsize);
 	return (0);
 }
 
