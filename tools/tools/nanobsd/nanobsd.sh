@@ -413,12 +413,13 @@ populate_slice ( ) (
 	dir=$2
 	mnt=$3
 	lbl=$4
-	test -z $2 && dir=${NANO_WORLDDIR}/var/empty
-	test -d $dir || dir=${NANO_WORLDDIR}/var/empty
-	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
-	newfs_part $dev $mnt $lbl
-	cd ${dir}
-	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	echo "Creating ${dev} (mounting on ${mnt})"
+	newfs_part ${dev} ${mnt} ${lbl}
+	if [ -n "${dir}" -a -d "${dir}" ]; then
+		echo "Populating ${lbl} from ${dir}"
+		cd ${dir}
+		find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
+	fi
 	df -i ${mnt}
 	umount ${mnt}
 )
