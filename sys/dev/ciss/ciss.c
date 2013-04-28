@@ -3375,7 +3375,7 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
 	cl = &sc->ciss_logical[bus][target];
 
-	padstr(inq->vendor, "COMPAQ",
+	padstr(inq->vendor, "HP",
 	       SID_VENDOR_SIZE);
 	padstr(inq->product,
 	       ciss_name_ldrive_org(cl->cl_ldrive->fault_tolerance),
