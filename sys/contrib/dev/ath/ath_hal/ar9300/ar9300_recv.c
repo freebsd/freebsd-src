@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_desc.h"
 #include "ah_internal.h"
@@ -73,15 +71,15 @@ ar9300_set_rx_abort(struct ath_hal *ah, HAL_BOOL set)
         /* Set the force_rx_abort bit */
         OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
-        if ( AH_PRIVATE(ah)->ah_reset_reason == HAL_RESET_BBPANIC ){
+        if ( AH9300(ah)->ah_reset_reason == HAL_RESET_BBPANIC ){
             /* depending upon the BB panic status, rx state may not return to 0,
              * so skipping the wait for BB panic reset */
             OS_REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
-            return AH_FALSE;    
+            return AH_FALSE;
         } else {
             HAL_BOOL okay;
             okay = ath_hal_wait(
-                ah, AR_OBS_BUS_1, AR_OBS_BUS_1_RX_STATE, 0, AH_WAIT_TIMEOUT);
+                ah, AR_OBS_BUS_1, AR_OBS_BUS_1_RX_STATE, 0);
             /* Wait for Rx state to return to 0 */
             if (!okay) {
                 /* abort: chip rx failed to go idle in 10 ms */
@@ -126,7 +124,7 @@ ar9300_stop_dma_receive(struct ath_hal *ah, u_int timeout)
          (AR_MACMISC_MISC_OBS_BUS_1 << AR_MACMISC_MISC_OBS_BUS_MSB_S)));
 
         okay = ath_hal_wait(
-            ah, AR_DMADBG_7, AR_DMADBG_RX_STATE, 0, AH_WAIT_TIMEOUT);
+            ah, AR_DMADBG_7, AR_DMADBG_RX_STATE, 0);
     /* wait for Rx DMA state machine to become idle */
         if (!okay) {
             HALDEBUG(ah, HAL_DEBUG_RX,
@@ -337,5 +335,3 @@ ar9300_write_pktlog_reg(
         enable, rxfilter_val, rxcfg_val,
         phy_err_mask_val, mac_pcu_phy_err_reg_val);
 }
-
-#endif /* AH_SUPPORT_AR9300 */

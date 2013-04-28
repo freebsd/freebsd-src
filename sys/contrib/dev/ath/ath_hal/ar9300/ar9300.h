@@ -17,11 +17,31 @@
 #ifndef _ATH_AR9300_H_
 #define _ATH_AR9300_H_
 
+#include "ar9300_freebsd_inc.h"
+
+#define	AH_BIG_ENDIAN		4321
+#define	AH_LITTLE_ENDIAN	1234
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define	AH_BYTE_ORDER	AH_BIG_ENDIAN
+#else
+#define	AH_BYTE_ORDER	AH_LITTLE_ENDIAN
+#endif
+
+/* XXX doesn't belong here */
+#define	AR_EEPROM_MODAL_SPURS	5
+
+/*
+ * (a) this should be N(a),
+ * (b) FreeBSD does define nitems,
+ * (c) it doesn't have an AH_ prefix, sigh.
+ */
+#define ARRAY_LENGTH(a)         (sizeof(a) / sizeof((a)[0]))
+
 #include "ah_internal.h"
 #include "ah_eeprom.h"
 #include "ah_devid.h"
 #include "ar9300eep.h"  /* For Eeprom definitions */
-#include "asf_amem.h"
 
 
 #define AR9300_MAGIC    0x19741014
@@ -117,9 +137,9 @@ typedef struct {
 
 /* RF HAL structures */
 typedef struct rf_hal_funcs {
-    HAL_BOOL  (*set_channel)(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
-    HAL_BOOL  (*get_chip_power_lim)(struct ath_hal *ah, HAL_CHANNEL *chans,
-                       u_int32_t nchancs);
+    HAL_BOOL  (*set_channel)(struct ath_hal *, struct ieee80211_channel *);
+    HAL_BOOL  (*get_chip_power_lim)(struct ath_hal *ah,
+        struct ieee80211_channel *chan);
 } RF_HAL_FUNCS;
 
 struct ar9300_ani_default {
@@ -143,7 +163,7 @@ struct ar9300_ani_default {
  * Per-channel ANI state private to the driver.
  */
 struct ar9300_ani_state {
-    HAL_CHANNEL c;
+    struct ieee80211_channel c;	/* XXX ew? */
     HAL_BOOL    must_restore;
     HAL_BOOL    ofdms_turn;
     u_int8_t    ofdm_noise_immunity_level;
@@ -256,7 +276,7 @@ struct ar9300_ar_state {
 };
 
 struct ar9300_radar_state {
-    HAL_CHANNEL_INTERNAL *rs_chan;      /* Channel info */
+    struct ieee80211_channel *rs_chan;      /* Channel info */
     u_int8_t    rs_chan_index;       /* Channel index in radar structure */
     u_int32_t   rs_num_radar_events;  /* Number of radar events */
     int32_t     rs_firpwr;      /* Thresh to check radar sig is gone */
@@ -380,9 +400,15 @@ struct ar9300_paprd_pwr_adjust {
     u_int32_t     sub_db;          // offset value unit of dB
 };
 
+struct ar9300NfLimits {
+        int16_t max;
+        int16_t min;
+        int16_t nominal;
+};
+
 #define AR9300_MAX_RATES 36  /* legacy(4) + ofdm(8) + HTSS(8) + HTDS(8) + HTTS(8)*/
 struct ath_hal_9300 {
-    struct ath_hal_private_tables  ah_priv;    /* base class */
+    struct ath_hal_private  ah_priv;    /* base class */
 
     /*
      * Information retrieved from EEPROM.
@@ -582,6 +608,13 @@ struct ath_hal_9300 {
     /* bb hang detection */
     int     ah_hang[6];
     hal_hw_hangs_t  ah_hang_wars;
+
+    /*
+     * Keytable type table
+     */
+#define	AR_KEYTABLE_SIZE 128		/* XXX! */
+    uint8_t ah_keytype[AR_KEYTABLE_SIZE];
+#undef	AR_KEYTABLE_SIZE
     /*
      * Support for ar9300 multiple INIs
      */
@@ -646,7 +679,6 @@ struct ath_hal_9300 {
 
     /* adjusted power for descriptor-based TPC for 1, 2, or 3 chains */
     int16_t txpower[AR9300_MAX_RATES][AR9300_MAX_CHAINS];
-
 
     /* adjusted power for descriptor-based TPC for 1, 2, or 3 chains with STBC*/
     int16_t txpower_stbc[AR9300_MAX_RATES][AR9300_MAX_CHAINS];
@@ -819,7 +851,33 @@ struct ath_hal_9300 {
     u_int32_t           ah_mcast_filter_l32_set;
     u_int32_t           ah_mcast_filter_u32_set;
 #endif
-    HAL_BOOL                ah_reduced_self_gen_mask;
+    HAL_BOOL            ah_reduced_self_gen_mask;
+
+    /* Local additions for FreeBSD */
+    /*
+     * These fields are in the top level HAL in the atheros
+     * codebase; here we place them in the AR9300 HAL and
+     * access them via accessor methods if the driver requires them.
+     */
+    u_int32_t            ah_ob_db1[3];
+    u_int32_t            ah_db2[3];
+    u_int32_t            ah_bb_panic_timeout_ms;
+    u_int32_t            ah_bb_panic_last_status;
+    u_int32_t            ah_tx_trig_level;
+    u_int16_t            ath_hal_spur_chans[AR_EEPROM_MODAL_SPURS][2];
+    int16_t              nf_cw_int_delta; /* diff btwn nominal NF and CW interf threshold */
+    int                  ah_phyrestart_disabled;
+    HAL_RSSI_TX_POWER    green_tx_status;
+    int                  green_ap_ps_on;
+    int                  ah_enable_keysearch_always;
+    int                  ah_fccaifs;
+    int ah_reset_reason;
+    int ah_dcs_enable;
+
+    struct ar9300NfLimits nf_2GHz;
+    struct ar9300NfLimits nf_5GHz;
+    struct ar9300NfLimits *nfp;
+
 };
 
 #define AH9300(_ah) ((struct ath_hal_9300 *)(_ah))
@@ -830,11 +888,7 @@ struct ath_hal_9300 {
 #define ar9300_eep_data_in_flash(_ah) \
     (!(AH_PRIVATE(_ah)->ah_flags & AH_USE_EEPROM))
 
-#define IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
-        (IS_CHAN_5GHZ(_c) && \
-        ((AH_PRIVATE(_ah))->ah_config.ath_hal_fastClockEnable))
-
-#if notyet
+#ifdef notyet
 // Need these additional conditions for IS_5GHZ_FAST_CLOCK_EN when we have valid eeprom contents.
 && \
         ((ar9300_eeprom_get(AH9300(_ah), EEP_MINOR_REV) <= AR9300_EEP_MINOR_VER_16) || \
@@ -879,9 +933,6 @@ struct ath_hal_9300 {
         ath_hal_printf(ah, # feature                        \
             " not supported but called from %s\n", (func))
 #endif /* AH_ASSERT */
-
-extern void ar9300_detach(struct ath_hal *ah);
-extern void ar9300_get_desc_info(struct ath_hal *ah, HAL_DESC_INFO *desc_info);
 
 /*
  * Green Tx, Based on different RSSI of Received Beacon thresholds, 
@@ -1129,15 +1180,10 @@ extern  HAL_BOOL ar9300_rf_attach(struct ath_hal *, HAL_STATUS *);
 struct ath_hal;
 
 extern  struct ath_hal_9300 * ar9300_new_state(u_int16_t devid,
-        HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
-        HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_BUS_TYPE bustype,
-        asf_amem_instance_handle amem_handle,
-        struct hal_reg_parm *hal_conf_parm, HAL_STATUS *status);
+        HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+        HAL_STATUS *status);
 extern  struct ath_hal * ar9300_attach(u_int16_t devid,
-        HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
-        HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_BUS_TYPE bustype,
-        asf_amem_instance_handle amem_handle,
-        struct hal_reg_parm *hal_conf_parm,
+        HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
         HAL_STATUS *status);
 extern  void ar9300_detach(struct ath_hal *ah);
 extern void ar9300_read_revisions(struct ath_hal *ah);
@@ -1162,6 +1208,9 @@ extern  u_int32_t ar9300_get_intr_mitigation_timer(struct ath_hal* ah,
 extern  u_int32_t ar9300_get_key_cache_size(struct ath_hal *);
 extern  HAL_BOOL ar9300_is_key_cache_entry_valid(struct ath_hal *, u_int16_t entry);
 extern  HAL_BOOL ar9300_reset_key_cache_entry(struct ath_hal *ah, u_int16_t entry);
+extern  HAL_CHANNEL_INTERNAL * ar9300_check_chan(struct ath_hal *ah,
+         const struct ieee80211_channel *chan);
+
 extern  HAL_BOOL ar9300_set_key_cache_entry_mac(struct ath_hal *,
             u_int16_t entry, const u_int8_t *mac);
 extern  HAL_BOOL ar9300_set_key_cache_entry(struct ath_hal *ah, u_int16_t entry,
@@ -1173,13 +1222,12 @@ extern  HAL_BOOL ar9300_set_mac_address(struct ath_hal *ah, const u_int8_t *);
 extern  void ar9300_get_bss_id_mask(struct ath_hal *ah, u_int8_t *mac);
 extern  HAL_BOOL ar9300_set_bss_id_mask(struct ath_hal *, const u_int8_t *);
 extern  HAL_STATUS ar9300_select_ant_config(struct ath_hal *ah, u_int32_t cfg);
-extern  u_int32_t ar9300_ant_ctrl_common_get(struct ath_hal *ah, HAL_BOOL is_2ghz);
 extern  HAL_BOOL ar9300_set_regulatory_domain(struct ath_hal *ah,
                                     u_int16_t reg_domain, HAL_STATUS *stats);
 extern  u_int ar9300_get_wireless_modes(struct ath_hal *ah);
 extern  void ar9300_enable_rf_kill(struct ath_hal *);
-extern  HAL_BOOL ar9300_gpio_cfg_output(struct ath_hal *, u_int32_t gpio, HAL_GPIO_OUTPUT_MUX_TYPE signalType);
-extern  HAL_BOOL ar9300_gpio_cfg_output_led_off(struct ath_hal *, u_int32_t gpio, HAL_GPIO_OUTPUT_MUX_TYPE signalType);
+extern  HAL_BOOL ar9300_gpio_cfg_output(struct ath_hal *, u_int32_t gpio, HAL_GPIO_MUX_TYPE signalType);
+extern  HAL_BOOL ar9300_gpio_cfg_output_led_off(struct ath_hal *, u_int32_t gpio, HAL_GPIO_MUX_TYPE signalType);
 extern  HAL_BOOL ar9300_gpio_cfg_input(struct ath_hal *, u_int32_t gpio);
 extern  HAL_BOOL ar9300_gpio_set(struct ath_hal *, u_int32_t gpio, u_int32_t val);
 extern  u_int32_t ar9300_gpio_get(struct ath_hal *ah, u_int32_t gpio);
@@ -1200,7 +1248,6 @@ extern  int ar9300_ppm_get_trigger(struct ath_hal *);
 extern  u_int32_t ar9300_ppm_force(struct ath_hal *);
 extern  void ar9300_ppm_un_force(struct ath_hal *);
 extern  u_int32_t ar9300_ppm_get_force_state(struct ath_hal *);
-extern  u_int32_t ar9300_ppm_get_force_state(struct ath_hal *);
 extern  void ar9300_set_dcs_mode(struct ath_hal *ah, u_int32_t);
 extern  u_int32_t ar9300_get_dcs_mode(struct ath_hal *ah);
 extern  u_int32_t ar9300_get_tsf32(struct ath_hal *ah);
@@ -1219,7 +1266,8 @@ extern  u_int32_t ar9300_get_rssi_chain0(struct ath_hal *ah);
 extern  u_int ar9300_get_def_antenna(struct ath_hal *ah);
 extern  void ar9300_set_def_antenna(struct ath_hal *ah, u_int antenna);
 extern  HAL_BOOL ar9300_set_antenna_switch(struct ath_hal *ah,
-        HAL_ANT_SETTING settings, HAL_CHANNEL *chan, u_int8_t *, u_int8_t *, u_int8_t *);
+        HAL_ANT_SETTING settings, const struct ieee80211_channel *chan,
+        u_int8_t *, u_int8_t *, u_int8_t *);
 extern  HAL_BOOL ar9300_is_sleep_after_beacon_broken(struct ath_hal *ah);
 extern  HAL_BOOL ar9300_set_slot_time(struct ath_hal *, u_int);
 extern  HAL_BOOL ar9300_set_ack_timeout(struct ath_hal *, u_int);
@@ -1235,7 +1283,7 @@ extern  HAL_BOOL ar9300_get_diag_state(struct ath_hal *ah, int request,
         const void *args, u_int32_t argsize,
         void **result, u_int32_t *resultsize);
 extern void ar9300_get_desc_info(struct ath_hal *ah, HAL_DESC_INFO *desc_info);
-extern  int8_t ar9300_get_11n_ext_busy(struct ath_hal *ah);
+extern  uint32_t ar9300_get_11n_ext_busy(struct ath_hal *ah);
 extern  void ar9300_set_11n_mac2040(struct ath_hal *ah, HAL_HT_MACMODE mode);
 extern  HAL_HT_RXCLEAR ar9300_get_11n_rx_clear(struct ath_hal *ah);
 extern  void ar9300_set_11n_rx_clear(struct ath_hal *ah, HAL_HT_RXCLEAR rxclear);
@@ -1256,7 +1304,7 @@ extern  void ar9300_wow_apply_pattern(struct ath_hal *ah, u_int8_t *p_ath_patter
         u_int8_t *p_ath_mask, int32_t pattern_count, u_int32_t ath_pattern_len);
 //extern  u_int32_t ar9300_wow_wake_up(struct ath_hal *ah,u_int8_t  *chipPatternBytes);
 extern  u_int32_t ar9300_wow_wake_up(struct ath_hal *ah, HAL_BOOL offloadEnable);
-extern  HAL_BOOL ar9300_wow_enable(struct ath_hal *ah, u_int32_t pattern_enable, u_int32_t timeout_in_seconds, int clearbssid,
+extern  bool ar9300_wow_enable(struct ath_hal *ah, u_int32_t pattern_enable, u_int32_t timeout_in_seconds, int clearbssid,
                                                                                         HAL_BOOL offloadEnable);
 #if ATH_WOW_OFFLOAD
 /* ARP offload */
@@ -1318,24 +1366,25 @@ extern  void ar9300_wowoffload_download_ns_info(struct ath_hal *ah, u_int32_t id
 #endif /* ATH_WOW_OFFLOAD */
 #endif
 
-extern HAL_BOOL ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode,
-        HAL_CHANNEL *chan, HAL_HT_MACMODE macmode, u_int8_t txchainmask,
+extern  HAL_BOOL ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode,
+        struct ieee80211_channel *chan, HAL_HT_MACMODE macmode, u_int8_t txchainmask,
         u_int8_t rxchainmask, HAL_HT_EXTPROTSPACING extprotspacing,
         HAL_BOOL b_channel_change, HAL_STATUS *status, int is_scan);
-extern HAL_BOOL ar9300_lean_channel_change(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
+extern HAL_BOOL ar9300_lean_channel_change(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *chan,
         HAL_HT_MACMODE macmode, u_int8_t txchainmask, u_int8_t rxchainmask);
 extern  HAL_BOOL ar9300_set_reset_reg(struct ath_hal *ah, u_int32_t type);
-extern  void ar9300_init_pll(struct ath_hal *ah, HAL_CHANNEL *chan);
+extern  void ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan);
 extern  void ar9300_green_ap_ps_on_off( struct ath_hal *ah, u_int16_t rxMask);
 extern  u_int16_t ar9300_is_single_ant_power_save_possible(struct ath_hal *ah);
 extern  void ar9300_set_operating_mode(struct ath_hal *ah, int opmode);
 extern  HAL_BOOL ar9300_phy_disable(struct ath_hal *ah);
 extern  HAL_BOOL ar9300_disable(struct ath_hal *ah);
-extern  HAL_BOOL ar9300_chip_reset(struct ath_hal *ah, HAL_CHANNEL *);
-extern  HAL_BOOL ar9300_calibration(struct ath_hal *ah,  HAL_CHANNEL *chan,
+extern  HAL_BOOL ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *);
+extern  HAL_BOOL ar9300_calibration(struct ath_hal *ah,  struct ieee80211_channel *chan,
         u_int8_t rxchainmask, HAL_BOOL longcal, HAL_BOOL *isIQdone, int is_scan, u_int32_t *sched_cals);
-extern  void ar9300_reset_cal_valid(struct ath_hal *ah,  HAL_CHANNEL *chan,
-                                 HAL_BOOL *isIQdone, u_int32_t cal_type);
+extern  void ar9300_reset_cal_valid(struct ath_hal *ah,
+          const struct ieee80211_channel *chan,
+          HAL_BOOL *isIQdone, u_int32_t cal_type);
 extern void ar9300_iq_cal_collect(struct ath_hal *ah, u_int8_t num_chains);
 extern void ar9300_iq_calibration(struct ath_hal *ah, u_int8_t num_chains);
 extern void ar9300_temp_comp_cal_collect(struct ath_hal *ah);
@@ -1346,7 +1395,7 @@ extern void ar9300_upload_noise_floor(struct ath_hal *ah, int is2G, int16_t nfar
 extern HAL_BOOL ar9300_set_tx_power_limit(struct ath_hal *ah, u_int32_t limit,
                                        u_int16_t extra_txpow, u_int16_t tpc_in_db);
 extern void ar9300_chain_noise_floor(struct ath_hal *ah, int16_t *nf_buf,
-                                    HAL_CHANNEL *chan, int is_scan);
+                                    struct ieee80211_channel *chan, int is_scan);
 extern HAL_BOOL ar9300_load_nf(struct ath_hal *ah, int16_t nf[]);
 
 extern HAL_RFGAIN ar9300_get_rfgain(struct ath_hal *ah);
@@ -1354,11 +1403,14 @@ extern const HAL_RATE_TABLE *ar9300_get_rate_table(struct ath_hal *, u_int mode)
 extern int16_t ar9300_get_rate_txpower(struct ath_hal *ah, u_int mode,
                                      u_int8_t rate_index, u_int8_t chainmask, u_int8_t mimo_mode);
 extern void ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
-                                   HAL_CHANNEL_INTERNAL *chan,
+                                   const struct ieee80211_channel *chan,
                                    u_int8_t powerPerRate[],
                                    u_int8_t chainmask);
 extern void ar9300_adjust_reg_txpower_cdd(struct ath_hal *ah, 
                                    u_int8_t powerPerRate[]);
+extern HAL_STATUS ath_hal_get_rate_power_limit_from_eeprom(struct ath_hal *ah,
+       u_int16_t freq, int8_t *max_rate_power, int8_t *min_rate_power);
+
 extern void ar9300_reset_tx_status_ring(struct ath_hal *ah);
 extern  void ar9300_enable_mib_counters(struct ath_hal *);
 extern  void ar9300_disable_mib_counters(struct ath_hal *);
@@ -1371,7 +1423,7 @@ struct ath_rx_status;
 
 extern  void ar9300_process_mib_intr(struct ath_hal *, const HAL_NODE_STATS *);
 extern  void ar9300_ani_ar_poll(struct ath_hal *, const HAL_NODE_STATS *,
-                 HAL_CHANNEL *, HAL_ANISTATS *);
+                 const struct ieee80211_channel *, HAL_ANISTATS *);
 extern  void ar9300_ani_reset(struct ath_hal *, HAL_BOOL is_scanning);
 extern  void ar9300_ani_init_defaults(struct ath_hal *ah, HAL_HT_MACMODE macmode);
 extern  void ar9300_enable_tpc(struct ath_hal *);
@@ -1381,9 +1433,8 @@ extern void ar9300_rx_gain_table_apply(struct ath_hal *ah);
 extern void ar9300_tx_gain_table_apply(struct ath_hal *ah);
 extern void ar9300_mat_enable(struct ath_hal *ah, int enable);
 extern void ar9300_dump_keycache(struct ath_hal *ah, int n, u_int32_t *entry);
-extern HAL_BOOL ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal * ah, HAL_BOOL enable, HAL_CHANNEL * chan);
+extern HAL_BOOL ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal * ah, HAL_BOOL enable, const struct ieee80211_channel * chan);
 
-#ifdef AH_SUPPORT_AR9300
 /* BB Panic Watchdog declarations */
 #define HAL_BB_PANIC_WD_TMO                 25 /* in ms, 0 to disable */
 #define HAL_BB_PANIC_WD_TMO_HORNET          85
@@ -1391,17 +1442,15 @@ extern void ar9300_config_bb_panic_watchdog(struct ath_hal *);
 extern void ar9300_handle_bb_panic(struct ath_hal *);
 extern int ar9300_get_bb_panic_info(struct ath_hal *ah, struct hal_bb_panic_info *bb_panic);
 extern HAL_BOOL ar9300_handle_radar_bb_panic(struct ath_hal *ah);
-#endif
 extern void ar9300_set_hal_reset_reason(struct ath_hal *ah, u_int8_t resetreason);
 
 /* DFS declarations */
-#ifdef ATH_SUPPORT_DFS
-extern  void ar9300_check_dfs(struct ath_hal *ah, HAL_CHANNEL *chan);
-extern  void ar9300_dfs_found(struct ath_hal *ah, HAL_CHANNEL *chan,
+extern  void ar9300_check_dfs(struct ath_hal *ah, struct ieee80211_channel *chan);
+extern  void ar9300_dfs_found(struct ath_hal *ah, struct ieee80211_channel *chan,
         u_int64_t nolTime);
 extern  void ar9300_enable_dfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern  void ar9300_get_dfs_thresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
-extern  HAL_BOOL ar9300_radar_wait(struct ath_hal *ah, HAL_CHANNEL *chan);
+extern  HAL_BOOL ar9300_radar_wait(struct ath_hal *ah, struct ieee80211_channel *chan);
 extern  struct dfs_pulse * ar9300_get_dfs_radars(struct ath_hal *ah,
         u_int32_t dfsdomain, int *numradars, struct dfs_bin5pulse **bin5pulses,
         int *numb5radars, HAL_PHYERR_PARAM *pe);
@@ -1409,9 +1458,8 @@ extern  void ar9300_adjust_difs(struct ath_hal *ah, u_int32_t val);
 extern  u_int32_t ar9300_dfs_config_fft(struct ath_hal *ah, HAL_BOOL is_enable);
 extern  void ar9300_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL enable);
 extern void ar9300_dfs_cac_war(struct ath_hal *ah, u_int32_t start);
-#endif
 
-extern  HAL_CHANNEL * ar9300_get_extension_channel(struct ath_hal *ah);
+extern  struct ieee80211_channel * ar9300_get_extension_channel(struct ath_hal *ah);
 extern  HAL_BOOL ar9300_is_fast_clock_enabled(struct ath_hal *ah);
 
 
@@ -1440,16 +1488,16 @@ extern HAL_STATUS ar9300_calc_adc_ref_powers(struct ath_hal *ah, int freq_mhz, i
 extern HAL_STATUS ar9300_get_min_agc_gain(struct ath_hal *ah, int freq_mhz, int32_t *chain_gain, int num_chain_gain);
 
 extern  HAL_BOOL ar9300_reset_11n(struct ath_hal *ah, HAL_OPMODE opmode,
-        HAL_CHANNEL *chan, HAL_BOOL b_channel_change, HAL_STATUS *status);
+        struct ieee80211_channel *chan, HAL_BOOL b_channel_change, HAL_STATUS *status);
 extern void ar9300_set_coverage_class(struct ath_hal *ah, u_int8_t coverageclass, int now);
 
 extern void ar9300_get_channel_centers(struct ath_hal *ah,
-                                    HAL_CHANNEL_INTERNAL *chan,
+                                    const struct ieee80211_channel *chan,
                                     CHAN_CENTERS *centers);
 extern u_int16_t ar9300_get_ctl_center(struct ath_hal *ah,
-                                        HAL_CHANNEL_INTERNAL *chan);
+                                        const struct ieee80211_channel *chan);
 extern u_int16_t ar9300_get_ext_center(struct ath_hal *ah,
-                                        HAL_CHANNEL_INTERNAL *chan);
+                                        const struct ieee80211_channel *chan);
 extern u_int32_t ar9300_get_mib_cycle_counts_pct(struct ath_hal *, u_int32_t*, u_int32_t*, u_int32_t*);
 
 extern void ar9300_dma_reg_dump(struct ath_hal *);
@@ -1485,20 +1533,20 @@ extern void ar9300_chk_rssi_update_tx_pwr(struct ath_hal *ah, int rssi);
 extern HAL_BOOL ar9300_is_skip_paprd_by_greentx(struct ath_hal *ah);
 extern void ar9300_control_signals_for_green_tx_mode(struct ath_hal *ah);
 extern void ar9300_hwgreentx_set_pal_spare(struct ath_hal *ah, int value);
+extern HAL_BOOL ar9300_is_ani_noise_spur(struct ath_hal *ah);
 extern void ar9300_reset_hw_beacon_proc_crc(struct ath_hal *ah);
 extern int32_t ar9300_get_hw_beacon_rssi(struct ath_hal *ah);
 extern void ar9300_set_hw_beacon_rssi_threshold(struct ath_hal *ah,
                                             u_int32_t rssi_threshold);
 extern void ar9300_reset_hw_beacon_rssi(struct ath_hal *ah);
 extern void ar9300_set_hw_beacon_proc(struct ath_hal *ah, HAL_BOOL on);
-extern HAL_BOOL ar9300_is_ani_noise_spur(struct ath_hal *ah);
 extern void ar9300_get_vow_stats(struct ath_hal *ah, HAL_VOWSTATS *p_stats,
                                  u_int8_t);
 
 extern int ar9300_get_spur_info(struct ath_hal * ah, int *enable, int len, u_int16_t *freq);
 extern int ar9300_set_spur_info(struct ath_hal * ah, int enable, int len, u_int16_t *freq);
 extern void ar9300_wow_set_gpio_reset_low(struct ath_hal * ah);
-extern void ar9300_get_mib_cycle_counts(struct ath_hal *, HAL_COUNTERS*);
+extern HAL_BOOL ar9300_get_mib_cycle_counts(struct ath_hal *, HAL_SURVEY_SAMPLE *);
 extern void ar9300_clear_mib_counters(struct ath_hal *ah);
 
 /* EEPROM interface functions */
@@ -1512,12 +1560,12 @@ extern  u_int32_t ar9300_ini_fixup(struct ath_hal *ah,
                                     u_int32_t val);
 
 extern  HAL_STATUS ar9300_eeprom_set_transmit_power(struct ath_hal *ah,
-                     ar9300_eeprom_t *p_eep_data, HAL_CHANNEL_INTERNAL *chan,
+                     ar9300_eeprom_t *p_eep_data, const struct ieee80211_channel *chan,
                      u_int16_t cfg_ctl, u_int16_t twice_antenna_reduction,
                      u_int16_t twice_max_regulatory_power, u_int16_t power_limit);
-extern  void ar9300_eeprom_set_addac(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
+extern  void ar9300_eeprom_set_addac(struct ath_hal *, struct ieee80211_channel *);
 extern  HAL_BOOL ar9300_eeprom_set_param(struct ath_hal *ah, EEPROM_PARAM param, u_int32_t value);
-extern  HAL_BOOL ar9300_eeprom_set_board_values(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
+extern  HAL_BOOL ar9300_eeprom_set_board_values(struct ath_hal *, const struct ieee80211_channel *);
 extern  HAL_BOOL ar9300_eeprom_read_word(struct ath_hal *, u_int off, u_int16_t *data);
 extern  HAL_BOOL ar9300_eeprom_read(struct ath_hal *ah, long address, u_int8_t *buffer, int many);
 extern  HAL_BOOL ar9300_otp_read(struct ath_hal *ah, u_int off, u_int32_t *data, HAL_BOOL is_wifi);
@@ -1526,7 +1574,7 @@ extern  HAL_BOOL ar9300_flash_read(struct ath_hal *, u_int off, u_int16_t *data)
 extern  HAL_BOOL ar9300_flash_write(struct ath_hal *, u_int off, u_int16_t data);
 extern  u_int ar9300_eeprom_dump_support(struct ath_hal *ah, void **pp_e);
 extern  u_int8_t ar9300_eeprom_get_num_ant_config(struct ath_hal_9300 *ahp, HAL_FREQ_BAND freq_band);
-extern  HAL_STATUS ar9300_eeprom_get_ant_cfg(struct ath_hal_9300 *ahp, HAL_CHANNEL_INTERNAL *chan,
+extern  HAL_STATUS ar9300_eeprom_get_ant_cfg(struct ath_hal_9300 *ahp, const struct ieee80211_channel *chan,
                                      u_int8_t index, u_int16_t *config);
 extern u_int8_t* ar9300_eeprom_get_cust_data(struct ath_hal_9300 *ahp);
 extern u_int8_t *ar9300_eeprom_get_spur_chans_ptr(struct ath_hal *ah, HAL_BOOL is_2ghz);
@@ -1625,7 +1673,7 @@ extern HAL_BOOL ar9300Get3StreamSignature( struct ath_hal *ah);
 
 #ifdef ATH_TX99_DIAG
 #ifndef ATH_SUPPORT_HTC
-extern void ar9300_tx99_channel_pwr_update(struct ath_hal *ah, HAL_CHANNEL *c, u_int32_t txpower);
+extern void ar9300_tx99_channel_pwr_update(struct ath_hal *ah, struct ieee80211_channel *c, u_int32_t txpower);
 extern void ar9300_tx99_chainmsk_setup(struct ath_hal *ah, int tx_chainmask); 
 extern void ar9300_tx99_set_single_carrier(struct ath_hal *ah, int tx_chain_mask, int chtype);
 extern void ar9300_tx99_start(struct ath_hal *ah, u_int8_t *data);

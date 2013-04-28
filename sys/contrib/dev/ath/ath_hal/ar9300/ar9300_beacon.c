@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -25,6 +23,7 @@
 #include "ar9300/ar9300reg.h"
 
 #define TU_TO_USEC(_tu) ((_tu) << 10)
+#define	ONE_EIGHTH_TU_TO_USEC(_tu8) ((_tu8) << 7)
 
 extern u_int32_t ar9300_num_tx_pending(struct ath_hal *ah, u_int q);
 
@@ -37,7 +36,6 @@ void
 ar9300_beacon_init(struct ath_hal *ah,
     u_int32_t next_beacon, u_int32_t beacon_period, HAL_OPMODE opmode)
 {
-    struct ath_hal_private  *ap  = AH_PRIVATE(ah);
     u_int32_t               beacon_period_usec;
 
     HALASSERT(opmode == HAL_M_IBSS || opmode == HAL_M_HOSTAP);
@@ -47,10 +45,10 @@ ar9300_beacon_init(struct ath_hal *ah,
     OS_REG_WRITE(ah, AR_NEXT_TBTT_TIMER, ONE_EIGHTH_TU_TO_USEC(next_beacon));
     OS_REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT,
         (ONE_EIGHTH_TU_TO_USEC(next_beacon) -
-        ap->ah_config.ath_hal_dma_beacon_response_time));
+        ah->ah_config.ah_dma_beacon_response_time));
     OS_REG_WRITE(ah, AR_NEXT_SWBA,
         (ONE_EIGHTH_TU_TO_USEC(next_beacon) -
-        ap->ah_config.ath_hal_sw_beacon_response_time));
+        ah->ah_config.ah_sw_beacon_response_time));
 
     beacon_period_usec =
         ONE_EIGHTH_TU_TO_USEC(beacon_period & HAL_BEACON_PERIOD_TU8);
@@ -164,7 +162,7 @@ ar9300_set_sta_beacon_timers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
         | AR_SLEEP1_ASSUME_DTIM);
 
     /* beacon timeout is now in 1/8 TU */
-    if (p_cap->hal_auto_sleep_support) {
+    if (p_cap->halAutoSleepSupport) {
         beacontimeout = (BEACON_TIMEOUT_VAL << 3);
     } else {
         /*
@@ -195,4 +193,3 @@ ar9300_set_sta_beacon_timers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 #undef BEACON_TIMEOUT_VAL
 #undef SLEEP_SLOP
 }
-#endif /* AH_SUPPORT_AR9300 */

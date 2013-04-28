@@ -18,8 +18,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -42,8 +40,11 @@
 
 #define DELPT 32
 
+/* XXX Duplicates! (in ar9300desc.h) */
+#if 0
 extern  HAL_BOOL ar9300_reset_tx_queue(struct ath_hal *ah, u_int q);
 extern  u_int32_t ar9300_num_tx_pending(struct ath_hal *ah, u_int q);
+#endif
 
 
 #define MAX_MEASUREMENT 8
@@ -67,8 +68,8 @@ static void ar9300_tx_iq_cal_apply(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ich
 
 
 static inline void ar9300_prog_ini(struct ath_hal *ah, struct ar9300_ini_array *ini_arr, int column);
-static inline void ar9300_set_rf_mode(struct ath_hal *ah, HAL_CHANNEL *chan);
-static inline HAL_BOOL ar9300_init_cal(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_BOOL skip_if_none, HAL_BOOL apply_last_corr);
+static inline void ar9300_set_rf_mode(struct ath_hal *ah, struct ieee80211_channel *chan);
+static inline HAL_BOOL ar9300_init_cal(struct ath_hal *ah, struct ieee80211_channel *chan, HAL_BOOL skip_if_none, HAL_BOOL apply_last_corr);
 static inline void ar9300_init_user_settings(struct ath_hal *ah);
 
 #ifdef HOST_OFFLOAD
@@ -105,13 +106,13 @@ ar9300_attach_hw_platform(struct ath_hal *ah)
  * SIFS stays the same.
  */
 static void 
-ar9300_set_ifs_timing(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_set_ifs_timing(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int32_t tx_lat, rx_lat, usec, slot, regval, eifs;
 
     regval = OS_REG_READ(ah, AR_USEC);
     regval &= ~(AR_USEC_RX_LATENCY | AR_USEC_TX_LATENCY | AR_USEC_USEC);
-    if (IS_CHAN_HALF_RATE(chan)) { /* half rates */
+    if (IEEE80211_IS_CHAN_HALF(chan)) { /* half rates */
         slot = ar9300_mac_to_clks(ah, AR_SLOT_HALF);
         eifs = ar9300_mac_to_clks(ah, AR_EIFS_HALF);
         if (IS_5GHZ_FAST_CLOCK_EN(ah, chan)) { /* fast clock */
@@ -192,29 +193,30 @@ ar9300_init_mfp(struct ath_hal * ah)
 }
 
 void
-ar9300_get_channel_centers(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan,
+ar9300_get_channel_centers(struct ath_hal *ah, const struct ieee80211_channel *chan,
     CHAN_CENTERS *centers)
 {
     int8_t      extoff;
     struct ath_hal_9300 *ahp = AH9300(ah);
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 
-    if (!IS_CHAN_HT40(chan)) {
+    if (!IEEE80211_IS_CHAN_HT40(chan)) {
         centers->ctl_center = centers->ext_center =
-        centers->synth_center = chan->channel;
+        centers->synth_center = ichan->channel;
         return;
     }
 
-    HALASSERT(IS_CHAN_HT40(chan));
+    HALASSERT(IEEE80211_IS_CHAN_HT40(chan));
 
     /*
      * In 20/40 phy mode, the center frequency is
      * "between" the primary and extension channels.
      */
-    if (chan->channel_flags & CHANNEL_HT40PLUS) {
-        centers->synth_center = chan->channel + HT40_CHANNEL_CENTER_SHIFT;
+    if (IEEE80211_IS_CHAN_HT40U(chan)) {
+        centers->synth_center = ichan->channel + HT40_CHANNEL_CENTER_SHIFT;
         extoff = 1;
     } else {
-        centers->synth_center = chan->channel - HT40_CHANNEL_CENTER_SHIFT;
+        centers->synth_center = ichan->channel - HT40_CHANNEL_CENTER_SHIFT;
         extoff = -1;
     }
 
@@ -252,11 +254,11 @@ ar9300_get_channel_centers(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan,
         (nf)
 void
 ar9300_upload_noise_floor(struct ath_hal *ah, int is_2g,
-    int16_t nfarray[NUM_NF_READINGS])
+    int16_t nfarray[HAL_NUM_NF_READINGS])
 {
     int16_t nf;
     int chan, chain;
-    u_int32_t regs[NUM_NF_READINGS] = {
+    u_int32_t regs[HAL_NUM_NF_READINGS] = {
         /* control channel */
         AR_PHY_CCA_0,     /* chain 0 */
         AR_PHY_CCA_1,     /* chain 1 */
@@ -321,7 +323,7 @@ ar9300_upload_noise_floor(struct ath_hal *ah, int is_2g,
 int16_t ar9300_get_min_cca_pwr(struct ath_hal *ah)
 {
     int16_t nf;
-    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
+//    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
 
     if ((OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) == 0) {
         nf = MS(OS_REG_READ(ah, AR_PHY_CCA_0), AR9280_PHY_MINCCA_PWR);
@@ -330,8 +332,8 @@ int16_t ar9300_get_min_cca_pwr(struct ath_hal *ah)
         }
     } else {
         /* NF calibration is not done, assume CW interference */
-        nf = ahpriv->nfp->nominal + ahpriv->nf_cw_int_delta +
-            BAD_SCAN_NF_MARGIN;    
+        nf = AH9300(ah)->nfp->nominal + AH9300(ah)->nf_cw_int_delta +
+            BAD_SCAN_NF_MARGIN;
     }
     return nf;
 }
@@ -342,7 +344,7 @@ int16_t ar9300_get_min_cca_pwr(struct ath_hal *ah)
  * Most recently updated values from the NF history buffer are used.
  */
 void ar9300_chain_noise_floor(struct ath_hal *ah, int16_t *nf_buf,
-    HAL_CHANNEL *chan, int is_scan)
+    struct ieee80211_channel *chan, int is_scan)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     int i, nf_hist_len, recent_nf_index = 0;
@@ -354,7 +356,7 @@ void ar9300_chain_noise_floor(struct ath_hal *ah, int16_t *nf_buf,
 #ifdef ATH_NF_PER_CHAN
     /* Fill 0 if valid internal channel is not found */
     if (ichan == AH_NULL) {
-        OS_MEMZERO(nf_buf, sizeof(nf_buf[0])*NUM_NF_READINGS);
+        OS_MEMZERO(nf_buf, sizeof(nf_buf[0])*HAL_NUM_NF_READINGS);
         return;
     }
     h = &ichan->nf_cal_hist;
@@ -368,19 +370,19 @@ void ar9300_chain_noise_floor(struct ath_hal *ah, int16_t *nf_buf,
      * no scan, and if the specified channel is the current channel.
      * Otherwise, return the noise floor from ichan->nf_cal_hist.
      */
-    if ((!is_scan) && chan->channel == AH_PRIVATE(ah)->ah_curchan->channel) {
+    if ((!is_scan) && chan == AH_PRIVATE(ah)->ah_curchan) {
         h = &AH_PRIVATE(ah)->nf_cal_hist;
         nf_hist_len = HAL_NF_CAL_HIST_LEN_FULL;
     } else {
         /* Fill 0 if valid internal channel is not found */
         if (ichan == AH_NULL) {
-            OS_MEMZERO(nf_buf, sizeof(nf_buf[0])*NUM_NF_READINGS);
+            OS_MEMZERO(nf_buf, sizeof(nf_buf[0])*HAL_NUM_NF_READINGS);
             return;
         }
        /*
         * It is okay to treat a HAL_NFCAL_HIST_SMALL struct as if it were a
         * HAL_NFCAL_HIST_FULL struct, as long as only the index 0 of the
-        * nf_cal_buffer is used (nf_cal_buffer[0][0:NUM_NF_READINGS-1])
+        * nf_cal_buffer is used (nf_cal_buffer[0][0:HAL_NUM_NF_READINGS-1])
         */
         h = (HAL_NFCAL_HIST_FULL *) &ichan->nf_cal_hist;
         nf_hist_len = HAL_NF_CAL_HIST_LEN_SMALL;
@@ -390,7 +392,7 @@ void ar9300_chain_noise_floor(struct ath_hal *ah, int16_t *nf_buf,
     recent_nf_index =
         (h->base.curr_index) ? h->base.curr_index - 1 : nf_hist_len - 1;
 
-    for (i = 0; i < NUM_NF_READINGS; i++) {
+    for (i = 0; i < HAL_NUM_NF_READINGS; i++) {
         /* Fill 0 for unsupported chains */
         if (!(rx_chainmask & (1 << i))) {
             nf_buf[i] = 0;
@@ -415,7 +417,7 @@ ar9300_get_nf_hist_mid(struct ath_hal *ah, HAL_NFCAL_HIST_FULL *h, int reading,
 
     for (i = 0; i < hist_len; i++) {
         sort[i] = h->nf_cal_buffer[i][reading];
-        HALDEBUG(ah, HAL_DEBUG_NF_CAL,
+        HALDEBUG(ah, HAL_DEBUG_NFCAL,
             "nf_cal_buffer[%d][%d] = %d\n", i, reading, (int)sort[i]);
     }
     for (i = 0; i < hist_len - 1; i++) {
@@ -434,10 +436,10 @@ ar9300_get_nf_hist_mid(struct ath_hal *ah, HAL_NFCAL_HIST_FULL *h, int reading,
 
 static int16_t ar9300_limit_nf_range(struct ath_hal *ah, int16_t nf)
 {
-    if (nf < AH_PRIVATE(ah)->nfp->min) {
-        return AH_PRIVATE(ah)->nfp->nominal;
-    } else if (nf > AH_PRIVATE(ah)->nfp->max) {
-        return AH_PRIVATE(ah)->nfp->max;
+    if (nf < AH9300(ah)->nfp->min) {
+        return AH9300(ah)->nfp->nominal;
+    } else if (nf > AH9300(ah)->nfp->max) {
+        return AH9300(ah)->nfp->max;
     }
     return nf;
 }
@@ -471,7 +473,7 @@ ar9300_reset_nf_hist_buff(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan)
      * Applying the bounds limits to the nf_cal_buffer contents fixes this
      * problem.
      */
-    for (i = 0; i < NUM_NF_READINGS; i ++) {
+    for (i = 0; i < HAL_NUM_NF_READINGS; i ++) {
         int j;
         int16_t nf;
         /*
@@ -500,23 +502,23 @@ ar9300_update_nf_hist_buff(struct ath_hal *ah, HAL_NFCAL_HIST_FULL *h,
 
     nf_no_lim_chain0 = ar9300_get_nf_hist_mid(ah, h, 0, hist_len);
 
-    HALDEBUG(ah, HAL_DEBUG_NF_CAL, "%s[%d] BEFORE\n", __func__, __LINE__);
+    HALDEBUG(ah, HAL_DEBUG_NFCAL, "%s[%d] BEFORE\n", __func__, __LINE__);
     for (nr = 0; nr < HAL_NF_CAL_HIST_LEN_FULL; nr++) {
-        for (i = 0; i < NUM_NF_READINGS; i++) {
-            HALDEBUG(ah, HAL_DEBUG_NF_CAL,
+        for (i = 0; i < HAL_NUM_NF_READINGS; i++) {
+            HALDEBUG(ah, HAL_DEBUG_NFCAL,
                 "nf_cal_buffer[%d][%d] = %d\n",
                 nr, i, (int)h->nf_cal_buffer[nr][i]);
         }
     }
-    for (i = 0; i < NUM_NF_READINGS; i++) {
+    for (i = 0; i < HAL_NUM_NF_READINGS; i++) {
         h->nf_cal_buffer[h->base.curr_index][i] = nfarray[i];
         h->base.priv_nf[i] = ar9300_limit_nf_range(
             ah, ar9300_get_nf_hist_mid(ah, h, i, hist_len));
     }
-    HALDEBUG(ah, HAL_DEBUG_NF_CAL, "%s[%d] AFTER\n", __func__, __LINE__);
+    HALDEBUG(ah, HAL_DEBUG_NFCAL, "%s[%d] AFTER\n", __func__, __LINE__);
     for (nr = 0; nr < HAL_NF_CAL_HIST_LEN_FULL; nr++) {
-        for (i = 0; i < NUM_NF_READINGS; i++) {
-            HALDEBUG(ah, HAL_DEBUG_NF_CAL,
+        for (i = 0; i < HAL_NUM_NF_READINGS; i++) {
+            HALDEBUG(ah, HAL_DEBUG_NFCAL,
                 "nf_cal_buffer[%d][%d] = %d\n",
                 nr, i, (int)h->nf_cal_buffer[nr][i]);
         }
@@ -529,7 +531,7 @@ ar9300_update_nf_hist_buff(struct ath_hal *ah, HAL_NFCAL_HIST_FULL *h,
     return nf_no_lim_chain0;
 }
 
-#if UNUSED
+#ifdef UNUSED
 static HAL_BOOL
 get_noise_floor_thresh(struct ath_hal *ah, const HAL_CHANNEL_INTERNAL *chan,
     int16_t *nft)
@@ -564,14 +566,17 @@ get_noise_floor_thresh(struct ath_hal *ah, const HAL_CHANNEL_INTERNAL *chan,
  */
 #define IS(_c, _f)       (((_c)->channel_flags & _f) || 0)
 static int
-ar9300_store_new_nf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, int is_scan)
+ar9300_store_new_nf(struct ath_hal *ah, struct ieee80211_channel *chan,
+  int is_scan)
 {
-    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
+//    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
     int nf_hist_len;
     int16_t nf_no_lim;
-    int16_t nfarray[NUM_NF_READINGS] = {0};
+    int16_t nfarray[HAL_NUM_NF_READINGS] = {0};
     HAL_NFCAL_HIST_FULL *h;
     int is_2g = 0;
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+    struct ath_hal_9300 *ahp = AH9300(ah);
 
     if (OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {
         u_int32_t tsf32, nf_cal_dur_tsf;
@@ -625,18 +630,18 @@ ar9300_store_new_nf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, int is_scan)
             HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
                 "%s: NF did not complete in calibration window\n", __func__);
             /* the NF incompletion is probably due to CW interference */
-            chan->channel_flags |= CHANNEL_CW_INT;
+            chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
         }
         return 0; /* HW's NF measurement not finished */
     }
-    HALDEBUG(ah, HAL_DEBUG_NF_CAL,
-        "%s[%d] chan %d\n", __func__, __LINE__, chan->channel);
-    is_2g = IS(chan, CHANNEL_2GHZ);
+    HALDEBUG(ah, HAL_DEBUG_NFCAL,
+        "%s[%d] chan %d\n", __func__, __LINE__, ichan->channel);
+    is_2g = !! IS_CHAN_2GHZ(ichan);
     ar9300_upload_noise_floor(ah, is_2g, nfarray);
 
     /* Update the NF buffer for each chain masked by chainmask */
 #ifdef ATH_NF_PER_CHAN
-    h = &chan->nf_cal_hist;
+    h = &ichan->nf_cal_hist;
     nf_hist_len = HAL_NF_CAL_HIST_LEN_FULL;
 #else
     if (is_scan) {
@@ -644,10 +649,10 @@ ar9300_store_new_nf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, int is_scan)
          * This channel's NF cal info is just a HAL_NFCAL_HIST_SMALL struct
          * rather than a HAL_NFCAL_HIST_FULL struct.
          * As long as we only use the first history element of nf_cal_buffer
-         * (nf_cal_buffer[0][0:NUM_NF_READINGS-1]), we can use
+         * (nf_cal_buffer[0][0:HAL_NUM_NF_READINGS-1]), we can use
          * HAL_NFCAL_HIST_SMALL and HAL_NFCAL_HIST_FULL interchangeably.
          */
-        h = (HAL_NFCAL_HIST_FULL *) &chan->nf_cal_hist;
+        h = (HAL_NFCAL_HIST_FULL *) &ichan->nf_cal_hist;
         nf_hist_len = HAL_NF_CAL_HIST_LEN_SMALL;
     } else {
         h = &AH_PRIVATE(ah)->nf_cal_hist;
@@ -660,15 +665,15 @@ ar9300_store_new_nf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, int is_scan)
      * priv_nf = median value from NF history buffer with bounds limits.
      */
     nf_no_lim = ar9300_update_nf_hist_buff(ah, h, nfarray, nf_hist_len);
-    chan->raw_noise_floor = h->base.priv_nf[0];
+    ichan->rawNoiseFloor = h->base.priv_nf[0];
 
     /* check if there is interference */
-    chan->channel_flags &= (~CHANNEL_CW_INT);
+//    ichan->channel_flags &= (~CHANNEL_CW_INT);
     /*
      * Use AR9300_EMULATION to check for emulation purpose as PCIE Device ID
      * 0xABCD is recognized as valid Osprey as WAR in some EVs.
      */
-    if (nf_no_lim > ahpriv->nfp->nominal + ahpriv->nf_cw_int_delta) {
+    if (nf_no_lim > ahp->nfp->nominal + ahp->nf_cw_int_delta) {
         /*
          * Since this CW interference check is being applied to the
          * median element of the NF history buffer, this indicates that
@@ -676,10 +681,10 @@ ar9300_store_new_nf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, int is_scan)
          * will not show up in the median, and thus will not cause the
          * CW_INT flag to be set.
          */
-        HALDEBUG(ah, HAL_DEBUG_NF_CAL,
+        HALDEBUG(ah, HAL_DEBUG_NFCAL,
             "%s: NF Cal: CW interferer detected through NF: %d\n",
             __func__, nf_no_lim); 
-        chan->channel_flags |= CHANNEL_CW_INT;
+        chan->ic_state |= IEEE80211_CHANSTATE_CWINT;
     }
     return 1; /* HW's NF measurement finished */
 }
@@ -722,7 +727,7 @@ ar9300_get_delta_slope_values(struct ath_hal *ah, u_int32_t coef_scaled,
  * Required for OFDM operation.
  */
 static void
-ar9300_set_delta_slope(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar9300_set_delta_slope(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int32_t coef_scaled, ds_coef_exp, ds_coef_man;
     u_int32_t fclk = COEFF; /* clock * 2.5 */
@@ -734,9 +739,9 @@ ar9300_set_delta_slope(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
      * half and quarter rate can divide the scaled clock by 2 or 4
      * scale for selected channel bandwidth
      */
-    if (IS_CHAN_HALF_RATE(chan)) {
+    if (IEEE80211_IS_CHAN_HALF(chan)) {
         clock_mhz_scaled = clock_mhz_scaled >> 1;
-    } else if (IS_CHAN_QUARTER_RATE(chan)) {
+    } else if (IEEE80211_IS_CHAN_QUARTER(chan)) {
         clock_mhz_scaled = clock_mhz_scaled >> 2;
     }
 
@@ -765,39 +770,47 @@ ar9300_set_delta_slope(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
     OS_REG_RMW_FIELD(ah, AR_PHY_SGI_DELTA, AR_PHY_SGI_DSC_EXP, ds_coef_exp);
 }
 
-#define IS(_c, _f)       (((_c)->channel_flags & _f) || 0)
+#define IS(_c, _f)       (IEEE80211_IS_ ## _f(_c))
 
-static inline HAL_CHANNEL_INTERNAL*
-ar9300_check_chan(struct ath_hal *ah, HAL_CHANNEL *chan)
+/*
+ * XXX FreeBSD: This should be turned into something generic in ath_hal!
+ */
+HAL_CHANNEL_INTERNAL *
+ar9300_check_chan(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-    if ((IS(chan, CHANNEL_2GHZ) ^ IS(chan, CHANNEL_5GHZ)) == 0) {
+    if ((IS(chan, CHAN_2GHZ) ^ IS(chan, CHAN_5GHZ)) == 0) {
         HALDEBUG(ah, HAL_DEBUG_CHANNEL,
             "%s: invalid channel %u/0x%x; not marked as 2GHz or 5GHz\n",
-            __func__, chan->channel, chan->channel_flags);
+            __func__, chan->ic_freq , chan->ic_flags);
         return AH_NULL;
     }
 
-    if ((IS(chan, CHANNEL_OFDM) ^ IS(chan, CHANNEL_CCK) ^
-         IS(chan, CHANNEL_HT20) ^ IS(chan, CHANNEL_HT40PLUS) ^
-         IS(chan, CHANNEL_HT40MINUS)) == 0)
+    /*
+     * FreeBSD sets multiple flags, so this will fail.
+     */
+#if 0
+    if ((IS(chan, CHAN_OFDM) ^ IS(chan, CHAN_CCK) ^ IS(chan, CHAN_DYN) ^
+         IS(chan, CHAN_HT20) ^ IS(chan, CHAN_HT40U) ^
+         IS(chan, CHAN_HT40D)) == 0)
     {
         HALDEBUG(ah, HAL_DEBUG_CHANNEL,
             "%s: invalid channel %u/0x%x; not marked as "
-            "OFDM or CCK or HT20 or HT40PLUS or HT40MINUS\n",
-            __func__, chan->channel, chan->channel_flags);
+            "OFDM or CCK or DYN or HT20 or HT40PLUS or HT40MINUS\n",
+            __func__, chan->ic_freq , chan->ic_flags);
         return AH_NULL;
     }
+#endif
 
     return (ath_hal_checkchannel(ah, chan));
 }
 #undef IS
 
 static void
-ar9300_set_11n_regs(struct ath_hal *ah, HAL_CHANNEL *chan,
+ar9300_set_11n_regs(struct ath_hal *ah, struct ieee80211_channel *chan,
     HAL_HT_MACMODE macmode)
 {
     u_int32_t phymode;
-    struct ath_hal_9300 *ahp = AH9300(ah);
+//    struct ath_hal_9300 *ahp = AH9300(ah);
     u_int32_t enable_dac_fifo;
 
     /* XXX */
@@ -809,17 +822,19 @@ ar9300_set_11n_regs(struct ath_hal *ah, HAL_CHANNEL *chan,
         AR_PHY_GC_HT_EN | AR_PHY_GC_SINGLE_HT_LTF1 | AR_PHY_GC_SHORT_GI_40
         | enable_dac_fifo;
     /* Configure baseband for dynamic 20/40 operation */
-    if (IS_CHAN_HT40(chan)) {
+    if (IEEE80211_IS_CHAN_HT40(chan)) {
         phymode |= AR_PHY_GC_DYN2040_EN;
         /* Configure control (primary) channel at +-10MHz */
-        if (chan->channel_flags & CHANNEL_HT40PLUS) {
+        if (IEEE80211_IS_CHAN_HT40U(chan)) {
             phymode |= AR_PHY_GC_DYN2040_PRI_CH;
         }
 
+#if 0
         /* Configure 20/25 spacing */
         if (ahp->ah_ext_prot_spacing == HAL_HT_EXTPROTSPACING_25) {
             phymode |= AR_PHY_GC_DYN2040_EXT_CH;
         }
+#endif
     }
 
     /* make sure we preserve INI settings */
@@ -831,12 +846,12 @@ ar9300_set_11n_regs(struct ath_hal *ah, HAL_CHANNEL *chan,
     OS_REG_WRITE(ah, AR_PHY_GEN_CTRL, phymode);
 
     /* Set IFS timing for half/quarter rates */
-    if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan)) {
+    if (IEEE80211_IS_CHAN_HALF(chan) || IEEE80211_IS_CHAN_QUARTER(chan)) {
         u_int32_t modeselect = OS_REG_READ(ah, AR_PHY_MODE);
 
-        if (IS_CHAN_HALF_RATE(chan)) {
+        if (IEEE80211_IS_CHAN_HALF(chan)) {
             modeselect |= AR_PHY_MS_HALF_RATE;
-        } else if (IS_CHAN_QUARTER_RATE(chan)) {
+        } else if (IEEE80211_IS_CHAN_QUARTER(chan)) {
             modeselect |= AR_PHY_MS_QUARTER_RATE;
         }
         OS_REG_WRITE(ah, AR_PHY_MODE, modeselect);
@@ -861,7 +876,7 @@ ar9300_set_11n_regs(struct ath_hal *ah, HAL_CHANNEL *chan,
  * Spur mitigation for MRC CCK
  */
 static void
-ar9300_spur_mitigate_mrc_cck(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_spur_mitigate_mrc_cck(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     int i;
     /* spur_freq_for_osprey - hardcoded by Systems team for now. */
@@ -872,6 +887,7 @@ ar9300_spur_mitigate_mrc_cck(struct ath_hal *ah, HAL_CHANNEL *chan)
     int synth_freq;
     int range = 10;
     int max_spurcounts = OSPREY_EEPROM_MODAL_SPURS; 
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 
     /*
      * Need to verify range +/- 10 MHz in control channel, otherwise spur
@@ -883,27 +899,27 @@ ar9300_spur_mitigate_mrc_cck(struct ath_hal *ah, HAL_CHANNEL *chan)
         if (spur_fbin_ptr[0] == 0) {
             return;      /* No spur in the mode */
         }
-        if (IS_CHAN_HT40(chan)) {
+        if (IEEE80211_IS_CHAN_HT40(chan)) {
             range = 19;
             if (OS_REG_READ_FIELD(ah, AR_PHY_GEN_CTRL, AR_PHY_GC_DYN2040_PRI_CH)
                 == 0x0)
             {
-                synth_freq = chan->channel + 10;
+                synth_freq = ichan->channel + 10;
             } else {
-                synth_freq = chan->channel - 10;
+                synth_freq = ichan->channel - 10;
             }
         } else {
             range = 10;
-            synth_freq = chan->channel;
+            synth_freq = ichan->channel;
         }
     } else if(AR_SREV_JUPITER(ah)) {
         range = 5;
         max_spurcounts = 2; /* Hardcoded by Jupiter Systems team for now. */
-        synth_freq = chan->channel;
+        synth_freq = ichan->channel;
     } else {
         range = 10;
         max_spurcounts = 4; /* Hardcoded by Osprey Systems team for now. */
-        synth_freq = chan->channel;
+        synth_freq = ichan->channel;
     }
 
     for (i = 0; i < max_spurcounts; i++) {
@@ -961,7 +977,7 @@ ar9300_spur_mitigate_mrc_cck(struct ath_hal *ah, HAL_CHANNEL *chan)
 
 /* Spur mitigation for OFDM */
 static void
-ar9300_spur_mitigate_ofdm(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_spur_mitigate_ofdm(struct ath_hal *ah, struct ieee80211_channel *chan)
 { 
     int synth_freq;
     int range = 10;
@@ -973,8 +989,11 @@ ar9300_spur_mitigate_ofdm(struct ath_hal *ah, HAL_CHANNEL *chan)
     int i;
     int mode;
     u_int8_t* spur_chans_ptr;
+    struct ath_hal_9300 *ahp;
+    ahp = AH9300(ah);
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 
-    if (IS_CHAN_5GHZ(chan)) {
+    if (IS_CHAN_5GHZ(ichan)) {
         spur_chans_ptr = ar9300_eeprom_get_spur_chans_ptr(ah, 0);
         mode = 0;
     } else {
@@ -982,18 +1001,18 @@ ar9300_spur_mitigate_ofdm(struct ath_hal *ah, HAL_CHANNEL *chan)
         mode = 1;
     }
 
-    if (IS_CHAN_HT40(chan)) {
+    if (IEEE80211_IS_CHAN_HT40(chan)) {
         range = 19;
         if (OS_REG_READ_FIELD(ah, AR_PHY_GEN_CTRL, AR_PHY_GC_DYN2040_PRI_CH)
             == 0x0)
         {
-            synth_freq = chan->channel - 10;
+            synth_freq = ichan->channel - 10;
         } else {
-            synth_freq = chan->channel + 10;
+            synth_freq = ichan->channel + 10;
         }
     } else {
         range = 10;
-        synth_freq = chan->channel;
+        synth_freq = ichan->channel;
     }
 
     /* Clean all spur register fields */
@@ -1037,7 +1056,7 @@ ar9300_spur_mitigate_ofdm(struct ath_hal *ah, HAL_CHANNEL *chan)
                 "Spur Frequency = %d\n",
                 synth_freq, FBIN2FREQ(spur_chans_ptr[i], mode));
              */
-            if (IS_CHAN_HT40(chan)) {
+            if (IEEE80211_IS_CHAN_HT40(chan)) {
                 if (freq_offset < 0) {
                     if (OS_REG_READ_FIELD(
                         ah, AR_PHY_GEN_CTRL, AR_PHY_GC_DYN2040_PRI_CH) == 0x0)
@@ -1167,19 +1186,18 @@ ar9300_spur_mitigate_ofdm(struct ath_hal *ah, HAL_CHANNEL *chan)
  * and compute register settings below.
  */
 static void
-ar9300_spur_mitigate(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_spur_mitigate(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     ar9300_spur_mitigate_ofdm(ah, chan);
     ar9300_spur_mitigate_mrc_cck(ah, chan);
 }
-
 
 /**************************************************************
  * ar9300_channel_change
  * Assumes caller wants to change channel, and not reset.
  */
 static inline HAL_BOOL
-ar9300_channel_change(struct ath_hal *ah, HAL_CHANNEL *chan,
+ar9300_channel_change(struct ath_hal *ah, struct ieee80211_channel *chan,
     HAL_CHANNEL_INTERNAL *ichan, HAL_HT_MACMODE macmode)
 {
 
@@ -1202,9 +1220,9 @@ ar9300_channel_change(struct ath_hal *ah, HAL_CHANNEL *chan,
      */
     OS_REG_WRITE(ah, AR_PHY_RFBUS_REQ, AR_PHY_RFBUS_REQ_EN);
     if (!ath_hal_wait(ah, AR_PHY_RFBUS_GRANT, AR_PHY_RFBUS_GRANT_EN,
-            AR_PHY_RFBUS_GRANT_EN, AH_WAIT_TIMEOUT))
+            AR_PHY_RFBUS_GRANT_EN))
     {
-        HALDEBUG(ah, HAL_DEBUG_PHY_IO,
+        HALDEBUG(ah, HAL_DEBUG_PHYIO,
             "%s: Could not kill baseband RX\n", __func__);
         return AH_FALSE;
     }
@@ -1216,7 +1234,7 @@ ar9300_channel_change(struct ath_hal *ah, HAL_CHANNEL *chan,
     /*
      * Change the synth
      */
-    if (!ahp->ah_rf_hal.set_channel(ah, ichan)) {
+    if (!ahp->ah_rf_hal.set_channel(ah, chan)) {
         HALDEBUG(ah, HAL_DEBUG_CHANNEL, "%s: failed to set channel\n", __func__);
         return AH_FALSE;
     }
@@ -1234,10 +1252,10 @@ ar9300_channel_change(struct ath_hal *ah, HAL_CHANNEL *chan,
      * ath_hal_getctl and ath_hal_getantennaallowed look up ichan from chan.
      */
     if (ar9300_eeprom_set_transmit_power(
-         ah, &ahp->ah_eeprom, ichan, ath_hal_getctl(ah, chan),
+         ah, &ahp->ah_eeprom, chan, ath_hal_getctl(ah, chan),
          ath_hal_getantennaallowed(ah, chan),
          ath_hal_get_twice_max_regpower(AH_PRIVATE(ah), ichan, chan),
-         AH_MIN(MAX_RATE_POWER, AH_PRIVATE(ah)->ah_power_limit)) != HAL_OK)
+         AH_MIN(MAX_RATE_POWER, AH_PRIVATE(ah)->ah_powerLimit)) != HAL_OK)
     {
         HALDEBUG(ah, HAL_DEBUG_EEPROM,
             "%s: error init'ing transmit power\n", __func__);
@@ -1252,8 +1270,8 @@ ar9300_channel_change(struct ath_hal *ah, HAL_CHANNEL *chan,
     /*
      * Write spur immunity and delta slope for OFDM enabled modes (A, G, Turbo)
      */
-    if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan)) {
-        ar9300_set_delta_slope(ah, ichan);
+    if (IEEE80211_IS_CHAN_OFDM(chan) || IEEE80211_IS_CHAN_HT(chan)) {
+        ar9300_set_delta_slope(ah, chan);
     } else {
         /* Set to Ini default */
         OS_REG_WRITE(ah, AR_PHY_TIMING3, 0x9c0a9f6b);
@@ -1268,7 +1286,7 @@ ar9300_channel_change(struct ath_hal *ah, HAL_CHANNEL *chan,
      * Read the phy active delay register. Value is in 100ns increments.
      */
     synth_delay = OS_REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-    if (IS_CHAN_CCK(chan)) {
+    if (IEEE80211_IS_CHAN_CCK(chan)) {
         synth_delay = (4 * synth_delay) / 22;
     } else {
         synth_delay /= 10;
@@ -1310,10 +1328,14 @@ ar9300_set_operating_mode(struct ath_hal *ah, int opmode)
 
 /* XXX need the logic for Osprey */
 inline void
-ar9300_init_pll(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int32_t pll;
     u_int8_t clk_25mhz = AH9300(ah)->clk_25mhz;
+    HAL_CHANNEL_INTERNAL *ichan = NULL;
+
+    if (chan)
+        ichan = ath_hal_checkchannel(ah, chan);
 
     if (AR_SREV_HORNET(ah)) {
         if (clk_25mhz) {
@@ -1538,7 +1560,7 @@ ar9300_init_pll(struct ath_hal *ah, HAL_CHANNEL *chan)
             pll |= SM(0x2, AR_RTC_PLL_CLKSEL);
         }
 #endif
-        if (chan && IS_CHAN_5GHZ(chan)) {
+        if (ichan && IS_CHAN_5GHZ(ichan)) {
             pll |= SM(0x28, AR_RTC_PLL_DIV);
             /* 
              * When doing fast clock, set PLL to 0x142c
@@ -1625,7 +1647,7 @@ ar9300_set_reset(struct ath_hal *ah, int type)
      */
     if (AR_SREV_HORNET(ah) &&
         (ar9300_num_tx_pending(
-            ah, AH_PRIVATE(ah)->ah_caps.hal_total_queues - 1) != 0 ||
+            ah, AH_PRIVATE(ah)->ah_caps.halTotalQueues - 1) != 0 ||
          type == HAL_RESET_COLD))
     {
         u_int32_t time_out;
@@ -1762,7 +1784,7 @@ ar9300_set_reset(struct ath_hal *ah, int type)
      * Clear resets and force wakeup
      */
     OS_REG_WRITE(ah, AR_RTC_RC, 0);
-    if (!ath_hal_wait(ah, AR_RTC_RC, AR_RTC_RC_M, 0, AH_WAIT_TIMEOUT)) {
+    if (!ath_hal_wait(ah, AR_RTC_RC, AR_RTC_RC_M, 0)) {
         HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
             "%s: RTC stuck in MAC reset\n", __FUNCTION__);
         HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
@@ -1797,13 +1819,12 @@ ar9300_set_reset_power_on(struct ath_hal *ah)
     /*
      * Poll till RTC is ON
      */
-#define AH_RTC_POLL_TIMEOUT AH_WAIT_TIMEOUT
     if (!ath_hal_wait(ah,
              AR_RTC_STATUS, AR_RTC_STATUS_M,
-             AR_RTC_STATUS_ON, AH_RTC_POLL_TIMEOUT))
+             AR_RTC_STATUS_ON))
     {
         HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
-            "%s: RTC not waking up for %d\n", __FUNCTION__, AH_WAIT_TIMEOUT);
+            "%s: RTC not waking up for %d\n", __FUNCTION__, 1000);
         return AH_FALSE;
     }
 
@@ -1849,7 +1870,7 @@ ar9300_set_reset_reg(struct ath_hal *ah, u_int32_t type)
     }
     
 #if ATH_SUPPORT_MCI
-    if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+    if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
         OS_REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
     }
 #endif
@@ -1931,7 +1952,7 @@ ar9300_disable(struct ath_hal *ah)
  * WARNING: The order of the PLL and mode registers must be correct.
  */
 static inline void
-ar9300_set_rf_mode(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_set_rf_mode(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int32_t rf_mode = 0;
 
@@ -1940,7 +1961,7 @@ ar9300_set_rf_mode(struct ath_hal *ah, HAL_CHANNEL *chan)
     }
     switch (AH9300(ah)->ah_hwp) {
     case HAL_TRUE_CHIP:
-        rf_mode |= (IS_CHAN_B(chan) || IS_CHAN_G(chan)) ?
+        rf_mode |= (IEEE80211_IS_CHAN_B(chan) || IEEE80211_IS_CHAN_G(chan)) ?
             AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
         break;
     default:
@@ -1958,10 +1979,11 @@ ar9300_set_rf_mode(struct ath_hal *ah, HAL_CHANNEL *chan)
  * Places the hardware into reset and then pulls it out of reset
  */
 HAL_BOOL
-ar9300_chip_reset(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     struct ath_hal_9300     *ahp = AH9300(ah);
-    OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->channel : 0);
+
+    OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 
     /*
      * Warm reset is optimistic.
@@ -2147,7 +2169,7 @@ ar9300_load_nf(struct ath_hal *ah, int16_t nf[])
      * Write filtered NF values into max_cca_pwr register parameter
      * so we can load below.
      */
-    for (i = 0; i < NUM_NF_READINGS; i++) {
+    for (i = 0; i < HAL_NUM_NF_READINGS; i++) {
         if (chainmask & (1 << i)) {
             val = OS_REG_READ(ah, ar9300_cca_regs[i]);
             val &= 0xFFFFFE00;
@@ -2155,6 +2177,11 @@ ar9300_load_nf(struct ath_hal *ah, int16_t nf[])
             OS_REG_WRITE(ah, ar9300_cca_regs[i], val);
         }
     }
+
+    HALDEBUG(ah, HAL_DEBUG_NFCAL, "%s: load %d %d %d %d %d %d\n",
+      __func__,
+      nf[0], nf[1], nf[2],
+      nf[3], nf[4], nf[5]);
 
     /*
      * Load software filtered NF value into baseband internal min_cca_pwr
@@ -2199,7 +2226,7 @@ ar9300_load_nf(struct ath_hal *ah, int16_t nf[])
      * by the median we just loaded.  This will be initial (and max) value
      * of next noise floor calibration the baseband does.
      */
-    for (i = 0; i < NUM_NF_READINGS; i++) {
+    for (i = 0; i < HAL_NUM_NF_READINGS; i++) {
         if (chainmask & (1 << i)) {
             val = OS_REG_READ(ah, ar9300_cca_regs[i]);
             val &= 0xFFFFFE00;
@@ -2249,7 +2276,7 @@ ar9300_per_calibration(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *ichan,
                 curr_cal->cal_data->cal_post_proc(ah, num_chains);
 
                 /* Calibration has finished. */
-                ichan->cal_valid |= curr_cal->cal_data->cal_type;
+                ichan->calValid |= curr_cal->cal_data->cal_type;
                 curr_cal->cal_state = CAL_DONE;
                 *is_cal_done = AH_TRUE;
             } else {
@@ -2259,7 +2286,7 @@ ar9300_per_calibration(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *ichan,
                 ar9300_setup_calibration(ah, curr_cal);
             }
         }
-    } else if (!(ichan->cal_valid & curr_cal->cal_data->cal_type)) {
+    } else if (!(ichan->calValid & curr_cal->cal_data->cal_type)) {
         /* If current cal is marked invalid in channel, kick it off */
         ar9300_reset_calibration(ah, curr_cal);
     }
@@ -2279,14 +2306,14 @@ ar9300_start_nf_cal(struct ath_hal *ah)
  * upper layers whether there is 1 or more calibrations to be run.
  */
 HAL_BOOL
-ar9300_calibration(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int8_t rxchainmask,
+ar9300_calibration(struct ath_hal *ah, struct ieee80211_channel *chan, u_int8_t rxchainmask,
     HAL_BOOL do_nf_cal, HAL_BOOL *is_cal_done, int is_scan,
     u_int32_t *sched_cals)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     HAL_CAL_LIST *curr_cal = ahp->ah_cal_list_curr;
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
-    int16_t nf_buf[NUM_NF_READINGS];
+    int16_t nf_buf[HAL_NUM_NF_READINGS];
 
     *is_cal_done = AH_TRUE;
 
@@ -2296,7 +2323,7 @@ ar9300_calibration(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int8_t rxchainmask,
     if (ichan == AH_NULL) {
         HALDEBUG(ah, HAL_DEBUG_CHANNEL,
             "%s: invalid channel %u/0x%x; no mapping\n",
-            __func__, chan->channel, chan->channel_flags);
+            __func__, chan->ic_freq, chan->ic_flags);
         return AH_FALSE;
     }
 
@@ -2315,7 +2342,7 @@ ar9300_calibration(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int8_t rxchainmask,
         }
     }
 
-    OS_MARK(ah, AH_MARK_PERCAL, chan->channel);
+    OS_MARK(ah, AH_MARK_PERCAL, chan->ic_freq);
 
     /* For given calibration:
      * 1. Call generic cal routine
@@ -2348,19 +2375,20 @@ ar9300_calibration(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int8_t rxchainmask,
         int nf_done;
 
         /* Get the value from the previous NF cal and update history buffer */
-        nf_done = ar9300_store_new_nf(ah, ichan, is_scan);
+        nf_done = ar9300_store_new_nf(ah, chan, is_scan);
+#if 0
         if (ichan->channel_flags & CHANNEL_CW_INT) {
             chan->channel_flags |= CHANNEL_CW_INT;
         }
-        ichan->channel_flags &= (~CHANNEL_CW_INT);
+#endif
+        chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 
         if (nf_done) {
             /*
              * Load the NF from history buffer of the current channel.
              * NF is slow time-variant, so it is OK to use a historical value.
              */
-            ar9300_get_nf_hist_base(ah,
-                AH_PRIVATE(ah)->ah_curchan, is_scan, nf_buf);
+            ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
             ar9300_load_nf(ah, nf_buf);
     
             /* start NF calibration, without updating BB NF register*/
@@ -2529,22 +2557,23 @@ ar9300_set_tx_power_limit(struct ath_hal *ah, u_int32_t limit,
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
-    HAL_CHANNEL_INTERNAL *ichan = ahpriv->ah_curchan;
-    HAL_CHANNEL *chan = (HAL_CHANNEL *)ichan;
+    const struct ieee80211_channel *chan = ahpriv->ah_curchan;
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 
     if (NULL == chan) {
-        return AH_FALSE; 
-      }
-    ahpriv->ah_power_limit = AH_MIN(limit, MAX_RATE_POWER);
-    ahpriv->ah_extra_txpow = extra_txpow;
+        return AH_FALSE;
+    }
+
+    ahpriv->ah_powerLimit = AH_MIN(limit, MAX_RATE_POWER);
+    ahpriv->ah_extraTxPow = extra_txpow;
 
     if(chan == NULL) {
         return AH_FALSE;
     }
-    if (ar9300_eeprom_set_transmit_power(ah, &ahp->ah_eeprom, ichan,
+    if (ar9300_eeprom_set_transmit_power(ah, &ahp->ah_eeprom, chan,
         ath_hal_getctl(ah, chan), ath_hal_getantennaallowed(ah, chan),
         ath_hal_get_twice_max_regpower(ahpriv, ichan, chan),
-        AH_MIN(MAX_RATE_POWER, ahpriv->ah_power_limit)) != HAL_OK)
+        AH_MIN(MAX_RATE_POWER, ahpriv->ah_powerLimit)) != HAL_OK)
     {
         return AH_FALSE;
     }
@@ -2566,7 +2595,7 @@ ar9300_get_rfgain(struct ath_hal *ah)
 static inline void
 ar9300_init_chain_masks(struct ath_hal *ah, int rx_chainmask, int tx_chainmask)
 {
-    if (AH_PRIVATE(ah)->green_ap_ps_on ) {
+    if (AH9300(ah)->green_ap_ps_on) {
         rx_chainmask = HAL_GREEN_AP_RX_MASK;
     }
     if (rx_chainmask == 0x5) {
@@ -2584,7 +2613,7 @@ ar9300_init_chain_masks(struct ath_hal *ah, int rx_chainmask, int tx_chainmask)
      * Set the self gen mask to 2 tx chains when APM is enabled.
      *
      */
-    if (AH_PRIVATE(ah)->ah_caps.hal_enable_apm && (tx_chainmask == 0x7)) {
+    if (AH_PRIVATE(ah)->ah_caps.halApmEnable && (tx_chainmask == 0x7)) {
         OS_REG_WRITE(ah, AR_SELFGEN_MASK, 0x3);
     }
     else {
@@ -2600,7 +2629,7 @@ ar9300_init_chain_masks(struct ath_hal *ah, int rx_chainmask, int tx_chainmask)
  * Override INI values with chip specific configuration.
  */
 static inline void
-ar9300_override_ini(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_override_ini(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int32_t val;
     HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
@@ -2628,7 +2657,7 @@ ar9300_override_ini(struct ath_hal *ah, HAL_CHANNEL *chan)
     /* Osprey 2.0+ - if SW RAC support is disabled, must also disable
      * the Osprey 2.0 hardware RAC fix.
      */
-    if (p_cap->hal_isr_rac_support == AH_FALSE) {
+    if (p_cap->halIsrRacSupport == AH_FALSE) {
         OS_REG_CLR_BIT(ah, AR_CFG, AR_CFG_MISSING_TX_INTR_FIX_ENABLE);
     }
 
@@ -2673,7 +2702,7 @@ ar9300_prog_ini(struct ath_hal *ah, struct ar9300_ini_array *ini_arr,
 }
 
 static inline HAL_STATUS
-ar9300_process_ini(struct ath_hal *ah, HAL_CHANNEL *chan,
+ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
     HAL_CHANNEL_INTERNAL *ichan, HAL_HT_MACMODE macmode)
 {
     int reg_writes = 0;
@@ -2687,6 +2716,7 @@ ar9300_process_ini(struct ath_hal *ah, HAL_CHANNEL *chan,
      * If the channel marker is indicative of the current mode rather
      * than capability, we do not need to check the phy mode below.
      */
+#if 0
     switch (chan->channel_flags & CHANNEL_ALL) {
     case CHANNEL_A:
     case CHANNEL_A_HT20:
@@ -2741,6 +2771,51 @@ ar9300_process_ini(struct ath_hal *ah, HAL_CHANNEL *chan,
         HALASSERT(0);
         return HAL_EINVAL;
     }
+#endif
+
+    /* FreeBSD */
+    if (IS_CHAN_5GHZ(ichan)) {
+        if (IEEE80211_IS_CHAN_HT40U(chan) || IEEE80211_IS_CHAN_HT40D(chan)) {
+            if (AR_SREV_SCORPION(ah)){
+                if (ichan->channel <= 5350){
+                    modes_txgaintable_index = 2;
+                }else if ((ichan->channel > 5350) && (ichan->channel <= 5600)){
+                    modes_txgaintable_index = 4;
+                }else if (ichan->channel > 5600){
+                    modes_txgaintable_index = 6;
+                }
+            }
+            modes_index = 2;
+        } else if (IEEE80211_IS_CHAN_A(chan) || IEEE80211_IS_CHAN_HT20(chan)) {
+            if (AR_SREV_SCORPION(ah)){
+                if (ichan->channel <= 5350){
+                    modes_txgaintable_index = 1;
+                }else if ((ichan->channel > 5350) && (ichan->channel <= 5600)){
+                    modes_txgaintable_index = 3;
+                }else if (ichan->channel > 5600){
+                    modes_txgaintable_index = 5;
+                }
+            }
+            modes_index = 1;
+        } else
+            return HAL_EINVAL;
+    } else if (IS_CHAN_2GHZ(ichan)) {
+        if (IEEE80211_IS_CHAN_108G(chan)) {
+            modes_index = 5;
+        } else if (IEEE80211_IS_CHAN_HT40U(chan) || IEEE80211_IS_CHAN_HT40D(chan)) {
+            if (AR_SREV_SCORPION(ah)){
+                modes_txgaintable_index = 7;
+            }
+            modes_index = 3;
+        } else if (IEEE80211_IS_CHAN_HT20(chan) || IEEE80211_IS_CHAN_G(chan) || IEEE80211_IS_CHAN_B(chan) || IEEE80211_IS_CHAN_PUREG(chan)) {
+            if (AR_SREV_SCORPION(ah)){
+                modes_txgaintable_index = 8;
+            }
+            modes_index = 4;
+        } else
+            return HAL_EINVAL;
+    } else
+            return HAL_EINVAL;
 
 #if 0
     /* Set correct Baseband to analog shift setting to access analog chips. */
@@ -2875,7 +2950,8 @@ ar9300_process_ini(struct ath_hal *ah, HAL_CHANNEL *chan,
             &ahp->ah_ini_modes_additional_40mhz, 1/*modesIndex*/, reg_writes);
     }
 
-    if (2484 == chan->channel) {
+    /* Handle Japan Channel 14 channel spreading */
+    if (2484 == ichan->channel) {
         ar9300_prog_ini(ah, &ahp->ah_ini_japan2484, 1);
     }
 
@@ -2906,10 +2982,10 @@ ar9300_process_ini(struct ath_hal *ah, HAL_CHANNEL *chan,
      * valid regulatory power value.
      * ath_hal_getctl and ath_hal_getantennaallowed look up ichan from chan.
      */
-    status = ar9300_eeprom_set_transmit_power(ah, &ahp->ah_eeprom, ichan,
+    status = ar9300_eeprom_set_transmit_power(ah, &ahp->ah_eeprom, chan,
              ath_hal_getctl(ah, chan), ath_hal_getantennaallowed(ah, chan),
              ath_hal_get_twice_max_regpower(ahpriv, ichan, chan),
-             AH_MIN(MAX_RATE_POWER, ahpriv->ah_power_limit));
+             AH_MIN(MAX_RATE_POWER, ahpriv->ah_powerLimit));
     if (status != HAL_OK) {
         HALDEBUG(ah, HAL_DEBUG_POWER_MGMT,
             "%s: error init'ing transmit power\n", __func__);
@@ -2925,7 +3001,7 @@ ar9300_process_ini(struct ath_hal *ah, HAL_CHANNEL *chan,
  * Determine if calibration is supported by device and channel flags
  */
 inline static HAL_BOOL
-ar9300_is_cal_supp(struct ath_hal *ah, HAL_CHANNEL *chan,
+ar9300_is_cal_supp(struct ath_hal *ah, const struct ieee80211_channel *chan,
     HAL_CAL_TYPES cal_type) 
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
@@ -2934,7 +3010,7 @@ ar9300_is_cal_supp(struct ath_hal *ah, HAL_CHANNEL *chan,
     switch (cal_type & ahp->ah_supp_cals) {
     case IQ_MISMATCH_CAL:
         /* Run IQ Mismatch for non-CCK only */
-        if (!IS_CHAN_B(chan)) {
+        if (!IEEE80211_IS_CHAN_B(chan)) {
             retval = AH_TRUE;
         }
         break;
@@ -3128,20 +3204,22 @@ ar9300_run_init_cals(struct ath_hal *ah, int init_cal_count)
     HAL_CHANNEL_INTERNAL ichan; /* bogus */
     HAL_BOOL is_cal_done;
     HAL_CAL_LIST *curr_cal;
+    const HAL_PERCAL_DATA *cal_data;
     int i;
 
     curr_cal = ahp->ah_cal_list_curr;
     if (curr_cal == AH_NULL) {
         return AH_FALSE;
     }
-    ichan.cal_valid = 0;
+    cal_data = curr_cal->cal_data;
+    ichan.calValid = 0;
 
     for (i = 0; i < init_cal_count; i++) {
         /* Reset this Cal */
         ar9300_reset_calibration(ah, curr_cal);
         /* Poll for offset calibration complete */
         if (!ath_hal_wait(
-                ah, AR_PHY_TIMING4, AR_PHY_TIMING4_DO_CAL, 0, AH_WAIT_TIMEOUT))
+                ah, AR_PHY_TIMING4, AR_PHY_TIMING4_DO_CAL, 0))
         {
             HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
                 "%s: Cal %d failed to complete in 100ms.\n",
@@ -3279,9 +3357,9 @@ ar9300_restore_rtt_cals(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan)
  * Initialize Calibration infrastructure
  */
 static inline HAL_BOOL
-ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
-                         HAL_CHANNEL_INTERNAL *ichan, HAL_BOOL enable_rtt, 
-                         HAL_BOOL do_rtt_cal, HAL_BOOL skip_if_none, HAL_BOOL apply_last_iqcorr)
+ar9300_init_cal_internal(struct ath_hal *ah, struct ieee80211_channel *chan,
+                         HAL_CHANNEL_INTERNAL *ichan,
+                         HAL_BOOL enable_rtt, HAL_BOOL do_rtt_cal, HAL_BOOL skip_if_none, HAL_BOOL apply_last_iqcorr)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     HAL_BOOL txiqcal_success_flag = AH_FALSE;
@@ -3345,7 +3423,7 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
     /* Do Tx IQ Calibration here for osprey hornet and wasp */
     /* XXX: For initial wasp bringup - check and enable this */
     /* EV 74233: Tx IQ fails to complete for half/quarter rates */
-    if (!(IS_CHAN_HALF_RATE(ichan) || IS_CHAN_QUARTER_RATE(ichan))) {
+    if (!(IEEE80211_IS_CHAN_HALF(chan) || IEEE80211_IS_CHAN_QUARTER(chan))) {
         if (ahp->tx_iq_cal_enable) {
             /* this should be eventually moved to INI file */
             OS_REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_1(ah),
@@ -3403,11 +3481,11 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
     }
 
 #if ATH_SUPPORT_MCI
-    if (AH_PRIVATE(ah)->ah_caps.hal_mci_support &&
+    if (AH_PRIVATE(ah)->ah_caps.halMciSupport &&
         IS_CHAN_2GHZ(ichan) &&
         (ahp->ah_mci_bt_state == MCI_BT_AWAKE) &&
         do_agc_cal &&
-        !(AH_PRIVATE(ah)->ah_config.ath_hal_mci_config & 
+        !(ah->ah_config.ath_hal_mci_config & 
         ATH_MCI_CONFIG_DISABLE_MCI_CAL))
     {
         u_int32_t payload[4] = {0, 0, 0, 0};
@@ -3462,7 +3540,7 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
 
             /* Poll for offset calibration complete */
             cal_done = ath_hal_wait(ah,
-                    AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 0, AH_WAIT_TIMEOUT);
+                    AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 0);
             if (!cal_done) {
                 HALDEBUG(ah, HAL_DEBUG_FCS_RTT,
                     "(FCS) CAL NOT DONE!!! - %d\n", ichan->channel);
@@ -3482,8 +3560,8 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
         if (!txiqcal_success_flag) {
             OS_REG_WRITE(ah, AR_PHY_AGC_CONTROL,
                 OS_REG_READ(ah, AR_PHY_AGC_CONTROL) | AR_PHY_AGC_CONTROL_CAL);
-            if (!ath_hal_wait( ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 
-                    0, AH_WAIT_TIMEOUT)) {
+            if (!ath_hal_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL, 
+                    0)) {
                 HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
                     "%s: offset calibration failed to complete in 1ms; "
                     "noisy environment?\n", __func__);
@@ -3499,7 +3577,7 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
 
                 /* Poll for offset calibration complete */
                 if (!ath_hal_wait(ah, AR_PHY_AGC_CONTROL, 
-                        AR_PHY_AGC_CONTROL_CAL, 0, AH_WAIT_TIMEOUT)) {
+                        AR_PHY_AGC_CONTROL_CAL, 0)) {
                     HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
                         "%s: offset calibration failed to complete in 1ms; "
                         "noisy environment?\n", __func__);
@@ -3517,11 +3595,11 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
 
 
 #if ATH_SUPPORT_MCI
-    if (AH_PRIVATE(ah)->ah_caps.hal_mci_support &&
+    if (AH_PRIVATE(ah)->ah_caps.halMciSupport &&
         IS_CHAN_2GHZ(ichan) &&
         (ahp->ah_mci_bt_state == MCI_BT_AWAKE) &&
         do_agc_cal &&
-        !(AH_PRIVATE(ah)->ah_config.ath_hal_mci_config & 
+        !(ah->ah_config.ath_hal_mci_config & 
         ATH_MCI_CONFIG_DISABLE_MCI_CAL))
     {
         u_int32_t payload[4] = {0, 0, 0, 0};
@@ -3605,7 +3683,6 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
     }
 #endif /* ATH_SUPPORT_CAL_REUSE */
 
-
     /* Revert chainmasks to their original values before NF cal */
     ar9300_init_chain_masks(ah, ahp->ah_rx_chainmask, ahp->ah_tx_chainmask);
 
@@ -3668,21 +3745,19 @@ ar9300_init_cal_internal(struct ath_hal *ah, HAL_CHANNEL *chan,
     }
 
     /* Mark all calibrations on this channel as being invalid */
-    ichan->cal_valid = 0;
+    ichan->calValid = 0;
 
     return AH_TRUE;
 }
 
 static inline HAL_BOOL
-ar9300_init_cal(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_BOOL skip_if_none, HAL_BOOL apply_last_iqcorr)
+ar9300_init_cal(struct ath_hal *ah, struct ieee80211_channel *chan, HAL_BOOL skip_if_none, HAL_BOOL apply_last_iqcorr)
 {
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
     HAL_BOOL do_rtt_cal = AH_TRUE;
     HAL_BOOL enable_rtt = AH_FALSE;
 
     HALASSERT(ichan);
-
-
 
     return ar9300_init_cal_internal(ah, chan, ichan, enable_rtt, do_rtt_cal, skip_if_none, apply_last_iqcorr);
 }
@@ -3692,7 +3767,7 @@ ar9300_init_cal(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_BOOL skip_if_none, HA
  * Reset the calibration valid bit in channel.
  */
 void
-ar9300_reset_cal_valid(struct ath_hal *ah, HAL_CHANNEL *chan,
+ar9300_reset_cal_valid(struct ath_hal *ah, const struct ieee80211_channel *chan,
     HAL_BOOL *is_cal_done, u_int32_t cal_type)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
@@ -3707,7 +3782,7 @@ ar9300_reset_cal_valid(struct ath_hal *ah, HAL_CHANNEL *chan,
     if (ichan == AH_NULL) {
         HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
             "%s: invalid channel %u/0x%x; no mapping\n",
-            __func__, chan->channel, chan->channel_flags);
+            __func__, chan->ic_freq, chan->ic_flags);
         return;
     }
 
@@ -3733,10 +3808,10 @@ ar9300_reset_cal_valid(struct ath_hal *ah, HAL_CHANNEL *chan,
 
     HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
         "%s: Resetting Cal %d state for channel %u/0x%x\n", __func__,
-        curr_cal->cal_data->cal_type, chan->channel, chan->channel_flags);
+        curr_cal->cal_data->cal_type, chan->ic_freq, chan->ic_flags);
 
     /* Disable cal validity in channel */
-    ichan->cal_valid &= ~curr_cal->cal_data->cal_type;
+    ichan->calValid &= ~curr_cal->cal_data->cal_type;
     curr_cal->cal_state = CAL_WAITING;
     /* Indicate to upper layers that we need polling */
     *is_cal_done = AH_FALSE;
@@ -3833,7 +3908,7 @@ ar9300_set_dma(struct ath_hal *ah)
 }
 
 static inline void
-ar9300_init_bb(struct ath_hal *ah, HAL_CHANNEL *chan)
+ar9300_init_bb(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int32_t synth_delay;
 
@@ -3843,7 +3918,7 @@ ar9300_init_bb(struct ath_hal *ah, HAL_CHANNEL *chan)
      * Value is in 100ns increments.
      */
     synth_delay = OS_REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-    if (IS_CHAN_CCK(chan)) {
+    if (IEEE80211_IS_CHAN_CCK(chan)) {
         synth_delay = (4 * synth_delay) / 22;
     } else {
         synth_delay /= 10;
@@ -3904,7 +3979,7 @@ ar9300_init_interrupt_masks(struct ath_hal *ah, HAL_OPMODE opmode)
     OS_REG_WRITE(ah, AR_IMR_S2, OS_REG_READ(ah, AR_IMR_S2) | AR_IMR_S2_GTT);
     ahp->ah_mask2Reg = OS_REG_READ(ah, AR_IMR_S2);
 
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_enable_msi) {
+    if (ah->ah_config.ath_hal_enable_msi) {
         /* Cache MSI register value */
         ahp->ah_msi_reg = OS_REG_READ(ah, AR_HOSTIF_REG(ah, AR_PCIE_MSI));
         ahp->ah_msi_reg |= AR_PCIE_MSI_HW_DBI_WR_EN;
@@ -4001,24 +4076,24 @@ ar9300_init_user_settings(struct ath_hal *ah)
 int
 ar9300_get_spur_info(struct ath_hal * ah, int *enable, int len, u_int16_t *freq)
 {
-    struct ath_hal_private *ap = AH_PRIVATE(ah);
+//    struct ath_hal_private *ap = AH_PRIVATE(ah);
     int i, j;
 
     for (i = 0; i < len; i++) {
         freq[i] =  0;
     }
 
-    *enable = ap->ah_config.ath_hal_spur_mode;
+    *enable = ah->ah_config.ath_hal_spur_mode;
     for (i = 0, j = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-        if (ap->ah_config.ath_hal_spur_chans[i][0] != AR_NO_SPUR) {
-            freq[j++] = ap->ah_config.ath_hal_spur_chans[i][0];
+        if (AH9300(ah)->ath_hal_spur_chans[i][0] != AR_NO_SPUR) {
+            freq[j++] = AH9300(ah)->ath_hal_spur_chans[i][0];
             HALDEBUG(ah, HAL_DEBUG_ANI,
-                "1. get spur %d\n", ap->ah_config.ath_hal_spur_chans[i][0]);
+                "1. get spur %d\n", AH9300(ah)->ath_hal_spur_chans[i][0]);
         }
-        if (ap->ah_config.ath_hal_spur_chans[i][1] != AR_NO_SPUR) {
-            freq[j++] = ap->ah_config.ath_hal_spur_chans[i][1];
+        if (AH9300(ah)->ath_hal_spur_chans[i][1] != AR_NO_SPUR) {
+            freq[j++] = AH9300(ah)->ath_hal_spur_chans[i][1];
             HALDEBUG(ah, HAL_DEBUG_ANI,
-                "2. get spur %d\n", ap->ah_config.ath_hal_spur_chans[i][1]);
+                "2. get spur %d\n", AH9300(ah)->ath_hal_spur_chans[i][1]);
         }
     }
 
@@ -4030,6 +4105,7 @@ ar9300_get_spur_info(struct ath_hal * ah, int *enable, int len, u_int16_t *freq)
 #define ATH_HAL_5GHZ_FREQ_MIN   50000
 #define ATH_HAL_5GHZ_FREQ_MAX   59999
 
+#if 0
 int
 ar9300_set_spur_info(struct ath_hal * ah, int enable, int len, u_int16_t *freq)
 {
@@ -4040,8 +4116,8 @@ ar9300_set_spur_info(struct ath_hal * ah, int enable, int len, u_int16_t *freq)
 
     if (ap->ah_config.ath_hal_spur_mode == SPUR_ENABLE_IOCTL) {
         for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-            ap->ah_config.ath_hal_spur_chans[i][0] = AR_NO_SPUR;
-            ap->ah_config.ath_hal_spur_chans[i][1] = AR_NO_SPUR;
+            AH9300(ah)->ath_hal_spur_chans[i][0] = AR_NO_SPUR;
+            AH9300(ah)->ath_hal_spur_chans[i][1] = AR_NO_SPUR;
         }
         for (i = 0, j = 0, k = 0; i < len; i++) {
             if (freq[i] > ATH_HAL_2GHZ_FREQ_MIN &&
@@ -4049,7 +4125,7 @@ ar9300_set_spur_info(struct ath_hal * ah, int enable, int len, u_int16_t *freq)
             {
                 /* 2GHz Spur */
                 if (j < AR_EEPROM_MODAL_SPURS) {
-                    ap->ah_config.ath_hal_spur_chans[j++][1] =  freq[i];
+                    AH9300(ah)->ath_hal_spur_chans[j++][1] =  freq[i];
                     HALDEBUG(ah, HAL_DEBUG_ANI, "1 set spur %d\n", freq[i]);
                 }
             } else if (freq[i] > ATH_HAL_5GHZ_FREQ_MIN &&
@@ -4057,7 +4133,7 @@ ar9300_set_spur_info(struct ath_hal * ah, int enable, int len, u_int16_t *freq)
             {
                 /* 5Ghz Spur */
                 if (k < AR_EEPROM_MODAL_SPURS) {
-                    ap->ah_config.ath_hal_spur_chans[k++][0] =  freq[i];
+                    AH9300(ah)->ath_hal_spur_chans[k++][0] =  freq[i];
                     HALDEBUG(ah, HAL_DEBUG_ANI, "2 set spur %d\n", freq[i]);
                 }
             }
@@ -4066,6 +4142,7 @@ ar9300_set_spur_info(struct ath_hal * ah, int enable, int len, u_int16_t *freq)
 
     return 0;
 }
+#endif
 
 #define ar9300_check_op_mode(_opmode) \
     ((_opmode == HAL_M_STA) || (_opmode == HAL_M_IBSS) ||\
@@ -4081,27 +4158,27 @@ ar9300_set_spur_info(struct ath_hal * ah, int enable, int len, u_int16_t *freq)
 */
 static int
 First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan, 
-	int is_scan, HAL_CHANNEL *chan)
+    int is_scan, struct ieee80211_channel *chan)
 {
     HAL_NFCAL_HIST_FULL *nfh;
     int i, j, k;
-    int16_t nfarray[NUM_NF_READINGS] = {0};
+    int16_t nfarray[HAL_NUM_NF_READINGS] = {0};
     int is_2g = 0;
     int nf_hist_len;
     int stats = 0;
 	
-    int16_t nf_buf[NUM_NF_READINGS];
+    int16_t nf_buf[HAL_NUM_NF_READINGS];
 #define IS(_c, _f)       (((_c)->channel_flags & _f) || 0)
 
 
     if ((!is_scan) &&
-        chan->channel == AH_PRIVATE(ah)->ah_curchan->channel)
+        chan->ic_freq == AH_PRIVATE(ah)->ah_curchan->ic_freq)
     {
         nfh = &AH_PRIVATE(ah)->nf_cal_hist;
     } else {
         nfh = (HAL_NFCAL_HIST_FULL *) &ichan->nf_cal_hist;
     }
-    
+
     ar9300_start_nf_cal(ah);
     for (j = 0; j < 10000; j++) {
         if ((OS_REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) == 0){
@@ -4110,7 +4187,7 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
         OS_DELAY(10);
     }
 	if (j < 10000) {
-        is_2g = IS(ichan, CHANNEL_2GHZ);
+        is_2g = IEEE80211_IS_CHAN_2GHZ(chan);
         ar9300_upload_noise_floor(ah, is_2g, nfarray);
 
 	    if (is_scan) {
@@ -4118,7 +4195,7 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
 			 * This channel's NF cal info is just a HAL_NFCAL_HIST_SMALL struct
 			 * rather than a HAL_NFCAL_HIST_FULL struct.
 			 * As long as we only use the first history element of nf_cal_buffer
-			 * (nf_cal_buffer[0][0:NUM_NF_READINGS-1]), we can use
+			 * (nf_cal_buffer[0][0:HAL_NUM_NF_READINGS-1]), we can use
 			 * HAL_NFCAL_HIST_SMALL and HAL_NFCAL_HIST_FULL interchangeably.
 			 */
             nfh = (HAL_NFCAL_HIST_FULL *) &ichan->nf_cal_hist;
@@ -4128,7 +4205,7 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
             nf_hist_len = HAL_NF_CAL_HIST_LEN_FULL;
 		}
 
-  	    for (i = 0; i < NUM_NF_READINGS; i ++) {
+  	    for (i = 0; i < HAL_NUM_NF_READINGS; i ++) {
     		for (k = 0; k < HAL_NF_CAL_HIST_LEN_FULL; k++) {
                 nfh->nf_cal_buffer[k][i] = nfarray[i];
             }
@@ -4145,9 +4222,9 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
 		 * TBD: this may need to be changed, as it wipes out the
 		 * purpose of saving NF values for each channel.
 		 */
-		for (i = 0; i < NUM_NF_READINGS; i++)
+		for (i = 0; i < HAL_NUM_NF_READINGS; i++)
 		{
-    		if (IS_CHAN_2GHZ(chan))
+    		if (IEEE80211_IS_CHAN_2GHZ(chan))
     		{     
     			if (nfh->nf_cal_buffer[0][i] <
 					AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_2GHZ)
@@ -4178,8 +4255,7 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
 		 * just above here, to the full NF history buffer.
 		 */
         ar9300_reset_nf_hist_buff(ah, ichan);
-        ar9300_get_nf_hist_base(ah,
-                    AH_PRIVATE(ah)->ah_curchan, is_scan, nf_buf);
+        ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
         ar9300_load_nf(ah, nf_buf);
         stats = 0;
 	} else {
@@ -4200,7 +4276,7 @@ First_NFCal(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan,
  * a HW Reset during channel change.
  */
 HAL_BOOL
-ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
+ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *chan,
     HAL_HT_MACMODE macmode, u_int8_t txchainmask, u_int8_t rxchainmask,
     HAL_HT_EXTPROTSPACING extprotspacing, HAL_BOOL b_channel_change,
     HAL_STATUS *status, int is_scan)
@@ -4210,7 +4286,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     struct ath_hal_9300     *ahp = AH9300(ah);
     struct ath_hal_private  *ap  = AH_PRIVATE(ah);
     HAL_CHANNEL_INTERNAL    *ichan;
-    HAL_CHANNEL_INTERNAL    *curchan = ap->ah_curchan;
+    //const struct ieee80211_channel *curchan = ap->ah_curchan;
 #if ATH_SUPPORT_MCI    
     HAL_BOOL                    save_full_sleep = ahp->ah_chip_full_sleep;
 #endif    
@@ -4219,7 +4295,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     HAL_STATUS              ecode;
     int                     i, rx_chainmask;
     int                     nf_hist_buff_reset = 0;
-    int16_t                 nf_buf[NUM_NF_READINGS];
+    int16_t                 nf_buf[HAL_NUM_NF_READINGS];
 #ifdef ATH_FORCE_PPM
     u_int32_t               save_force_val, tmp_reg;
 #endif
@@ -4237,23 +4313,23 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
      */
     HALASSERT(status);
     *status = HAL_OK;
-    if ((AH_PRIVATE(ah)->ah_config.ath_hal_sta_update_tx_pwr_enable)) {
-        AH_PRIVATE(ah)->green_tx_status = HAL_RSSI_TX_POWER_NONE;
+    if ((ah->ah_config.ath_hal_sta_update_tx_pwr_enable)) {
+        AH9300(ah)->green_tx_status = HAL_RSSI_TX_POWER_NONE;
     }
 
 #if ATH_SUPPORT_MCI
-    if (AH_PRIVATE(ah)->ah_caps.hal_mci_support &&
+    if (AH_PRIVATE(ah)->ah_caps.halMciSupport &&
         (AR_SREV_JUPITER_20(ah) || AR_SREV_APHRODITE(ah)))
     {
-        ar9300_mci_2g5g_changed(ah, IS_CHAN_2GHZ(chan));
+        ar9300_mci_2g5g_changed(ah, IEEE80211_IS_CHAN_2GHZ(chan));
     }
 #endif
 
     ahp->ah_ext_prot_spacing = extprotspacing;
-    ahp->ah_tx_chainmask = txchainmask & ap->ah_caps.hal_tx_chain_mask;
-    ahp->ah_rx_chainmask = rxchainmask & ap->ah_caps.hal_rx_chain_mask;
-    ahp->ah_tx_cal_chainmask = ap->ah_caps.hal_tx_chain_mask;
-    ahp->ah_rx_cal_chainmask = ap->ah_caps.hal_rx_chain_mask;
+    ahp->ah_tx_chainmask = txchainmask & ap->ah_caps.halTxChainMask;
+    ahp->ah_rx_chainmask = rxchainmask & ap->ah_caps.halRxChainMask;
+    ahp->ah_tx_cal_chainmask = ap->ah_caps.halTxChainMask;
+    ahp->ah_rx_cal_chainmask = ap->ah_caps.halRxChainMask;
     HALASSERT(ar9300_check_op_mode(opmode));
 
     OS_MARK(ah, AH_MARK_RESET, b_channel_change);
@@ -4265,12 +4341,14 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     if (ichan == AH_NULL) {
         HALDEBUG(ah, HAL_DEBUG_CHANNEL,
             "%s: invalid channel %u/0x%x; no mapping\n",
-            __func__, chan->channel, chan->channel_flags);
+            __func__, chan->ic_freq, chan->ic_flags);
         FAIL(HAL_EINVAL);
     }
     
     ichan->paprd_table_write_done = 0;  /* Clear PAPRD table write flag */
+#if 0
     chan->paprd_table_write_done = 0;  /* Clear PAPRD table write flag */
+#endif
 
     if (ar9300_get_power_mode(ah) != HAL_PM_FULL_SLEEP) {
         /* Need to stop RX DMA before reset otherwise chip might hang */
@@ -4292,7 +4370,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     }
 
 #if ATH_SUPPORT_MCI
-    if ((AH_PRIVATE(ah)->ah_caps.hal_mci_support) &&
+    if ((AH_PRIVATE(ah)->ah_caps.halMciSupport) &&
         (ahp->ah_mci_bt_state == MCI_BT_CAL_START))
     {
         u_int32_t payload[4] = {0, 0, 0, 0};
@@ -4341,29 +4419,50 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     /* Check the Rx mitigation config again, it might have changed
      * during attach in ath_vap_attach.
      */
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_intr_mitigation_rx != 0) {
+    if (ah->ah_config.ath_hal_intr_mitigation_rx != 0) {
         ahp->ah_intr_mitigation_rx = AH_TRUE;
     } else {
         ahp->ah_intr_mitigation_rx = AH_FALSE;
     }
 
+    /*
+     * XXX TODO FreeBSD:
+     *
+     * This is painful because we don't have a non-const channel pointer
+     * at this stage.
+     *
+     * Make sure this gets fixed!
+     */
+#if 0
     /* Get the value from the previous NF cal and update history buffer */
     if (curchan && (ahp->ah_chip_full_sleep != AH_TRUE)) {
         ar9300_store_new_nf(ah, curchan, is_scan);
     }
+#endif
 
     /*
      * Account for the effect of being in either the 2 GHz or 5 GHz band
      * on the nominal, max allowable, and min allowable noise floor values.
      */
-    ap->nfp = IS_CHAN_2GHZ(chan) ? &ap->nf_2GHz : &ap->nf_5GHz;
+    AH9300(ah)->nfp = IS_CHAN_2GHZ(ichan) ? &ahp->nf_2GHz : &ahp->nf_5GHz;
 
+    /*
+     * XXX For now, don't apply the last IQ correction.
+     *
+     * This should be done when scorpion is enabled on FreeBSD; just be
+     * sure to fix this channel match code so it uses net80211 flags
+     * instead.
+     */
+#if 0
     if (AR_SREV_SCORPION(ah) && curchan && (chan->channel == curchan->channel) &&
         ((chan->channel_flags & (CHANNEL_ALL|CHANNEL_HALF|CHANNEL_QUARTER)) ==
          (curchan->channel_flags &
           (CHANNEL_ALL | CHANNEL_HALF | CHANNEL_QUARTER)))) {
             apply_last_iqcorr = AH_TRUE;
     }
+#endif
+    apply_last_iqcorr = AH_FALSE;
+
  
 #ifndef ATH_NF_PER_CHAN
     /*
@@ -4377,8 +4476,8 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
      * NF history buffer with the most accurate NF known for the new channel.
      */
     if (!is_scan && (!ap->ah_curchan ||
-        ap->ah_curchan->channel != chan->channel ||
-        ap->ah_curchan->channel_flags != chan->channel_flags))
+        ap->ah_curchan->ic_freq != chan->ic_freq)) // ||
+//        ap->ah_curchan->channel_flags != chan->channel_flags))
     {
         nf_hist_buff_reset = 1;
         ar9300_reset_nf_hist_buff(ah, ichan);
@@ -4399,6 +4498,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
      *             and we already do a full reset when switching in/out
      *             of 5GHz channels)
      */
+#if 0
     if (b_channel_change &&
         (ahp->ah_chip_full_sleep != AH_TRUE) &&
         (AH_PRIVATE(ah)->ah_curchan != AH_NULL) &&
@@ -4430,18 +4530,19 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
             if (AH9300(ah)->ah_dma_stuck != AH_TRUE) {
                 WAR_USB_DISABLE_PLL_LOCK_DETECT(ah);
 #if ATH_SUPPORT_MCI
-                if (AH_PRIVATE(ah)->ah_caps.hal_mci_support && ahp->ah_mci_ready)
+                if (AH_PRIVATE(ah)->ah_caps.halMciSupport && ahp->ah_mci_ready)
                 {
                     ar9300_mci_2g5g_switch(ah, AH_TRUE);
                 }
 #endif
-                return AH_TRUE;
+                return HAL_OK;
             }
          }
     }
+#endif /* #if 0 */
 
 #if ATH_SUPPORT_MCI
-    if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+    if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
         ar9300_mci_disable_interrupt(ah);
         if (ahp->ah_mci_ready && !save_full_sleep) {
             ar9300_mci_mute_bt(ah);
@@ -4527,8 +4628,8 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     }
 
 #if ATH_SUPPORT_MCI
-    if (AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
-        ar9300_mci_reset(ah, AH_FALSE, IS_CHAN_2GHZ(chan), save_full_sleep);
+    if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
+        ar9300_mci_reset(ah, AH_FALSE, IS_CHAN_2GHZ(ichan), save_full_sleep);
     }
 #endif
 
@@ -4549,12 +4650,12 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
         AR_PHY_SFCORR_LOW_M2COUNT_THR_LOW);
 
     /* Write delta slope for OFDM enabled modes (A, G, Turbo) */
-    if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan)) {
-        ar9300_set_delta_slope(ah, ichan);
+    if (IEEE80211_IS_CHAN_OFDM(chan) || IEEE80211_IS_CHAN_HT(chan)) {
+        ar9300_set_delta_slope(ah, chan);
     }
 
     ar9300_spur_mitigate(ah, chan);
-    if (!ar9300_eeprom_set_board_values(ah, ichan)) {
+    if (!ar9300_eeprom_set_board_values(ah, chan)) {
         HALDEBUG(ah, HAL_DEBUG_EEPROM,
             "%s: error setting board options\n", __func__);
         FAIL(HAL_EIO);
@@ -4573,7 +4674,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     OS_REG_WRITE(ah, AR_STA_ID1, LE_READ_2(ahp->ah_macaddr + 4)
             | mac_sta_id1
             | AR_STA_ID1_RTS_USE_DEF
-            | (ap->ah_config.ath_hal_6mb_ack ? AR_STA_ID1_ACKCTS_6MB : 0)
+            | (ah->ah_config.ath_hal_6mb_ack ? AR_STA_ID1_ACKCTS_6MB : 0)
             | ahp->ah_sta_id1_defaults
     );
     ar9300_set_operating_mode(ah, opmode);
@@ -4602,13 +4703,17 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     OS_REG_RMW_FIELD(ah, AR_RSSI_THR, AR_RSSI_THR_BM_THR, INIT_RSSI_THR);
 
     /* HW beacon processing */
+    /*
+     * XXX what happens if I just leave filter_interval=0?
+     * it stays disabled?
+     */
     OS_REG_RMW_FIELD(ah, AR_RSSI_THR, AR_RSSI_BCN_WEIGHT,
             INIT_RSSI_BEACON_WEIGHT);
     OS_REG_SET_BIT(ah, AR_HWBCNPROC1, AR_HWBCNPROC1_CRC_ENABLE |
             AR_HWBCNPROC1_EXCLUDE_TIM_ELM);
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_beacon_filter_interval) {
+    if (ah->ah_config.ath_hal_beacon_filter_interval) {
         OS_REG_RMW_FIELD(ah, AR_HWBCNPROC2, AR_HWBCNPROC2_FILTER_INTERVAL,
-                AH_PRIVATE(ah)->ah_config.ath_hal_beacon_filter_interval);
+                ah->ah_config.ath_hal_beacon_filter_interval);
         OS_REG_SET_BIT(ah, AR_HWBCNPROC2,
                 AR_HWBCNPROC2_FILTER_INTERVAL_ENABLE);
     }
@@ -4620,7 +4725,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
      * frequency.Thus must be called after ar9300_process_ini() to ensure
      * analog register cache is valid.
      */
-    if (!ahp->ah_rf_hal.set_channel(ah, ichan)) {
+    if (!ahp->ah_rf_hal.set_channel(ah, chan)) {
         FAIL(HAL_EIO);
     }
 
@@ -4633,14 +4738,14 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     }
 
     ahp->ah_intr_txqs = 0;
-    for (i = 0; i < AH_PRIVATE(ah)->ah_caps.hal_total_queues; i++) {
+    for (i = 0; i < AH_PRIVATE(ah)->ah_caps.halTotalQueues; i++) {
         ar9300_reset_tx_queue(ah, i);
     }
 
     ar9300_init_interrupt_masks(ah, opmode);
 
     /* Reset ier reference count to disabled */
-    OS_ATOMIC_SET(&ahp->ah_ier_ref_count, 1); 
+//    OS_ATOMIC_SET(&ahp->ah_ier_ref_count, 1); 
     if (ath_hal_isrfkillenabled(ah)) {
         ar9300_enable_rf_kill(ah);
     }
@@ -4669,7 +4774,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
      * program OBS bus to see MAC interrupts
      */
 #if ATH_SUPPORT_MCI
-    if (!AH_PRIVATE(ah)->ah_caps.hal_mci_support) {
+    if (!AH_PRIVATE(ah)->ah_caps.halMciSupport) {
         OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_OBS), 8);
     }
 #else
@@ -4748,8 +4853,8 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     cal_ret = ar9300_init_cal(ah, chan, AH_FALSE, apply_last_iqcorr);
 
 #if ATH_SUPPORT_MCI
-    if (AH_PRIVATE(ah)->ah_caps.hal_mci_support && ahp->ah_mci_ready) {
-        if (IS_CHAN_2GHZ(chan) &&
+    if (AH_PRIVATE(ah)->ah_caps.halMciSupport && ahp->ah_mci_ready) {
+        if (IS_CHAN_2GHZ(ichan) &&
             (ahp->ah_mci_bt_state == MCI_BT_SLEEP))
         {
             if (ar9300_mci_check_int(ah, AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET) ||
@@ -4770,7 +4875,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
                 ar9300_mci_remote_reset(ah, AH_TRUE);
                 ar9300_mci_send_sys_waking(ah, AH_TRUE);
                 OS_DELAY(1);
-                if (IS_CHAN_2GHZ(chan)) {
+                if (IS_CHAN_2GHZ(ichan)) {
                     ar9300_mci_send_lna_transfer(ah, AH_TRUE);
                 }
                 ahp->ah_mci_bt_state = MCI_BT_AWAKE;
@@ -4779,7 +4884,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
                 HALDEBUG(ah, HAL_DEBUG_BT_COEX, "(MCI) %s: Re-calibrate.\n",
                     __func__);
                 ar9300_invalidate_saved_cals(ah, ichan);
-                cal_ret = ar9300_init_cal(ah, chan, AH_FALSE, ar9300_init_cal);
+                cal_ret = ar9300_init_cal(ah, chan, AH_FALSE, apply_last_iqcorr);
             }
         }
         ar9300_mci_enable_interrupt(ah);
@@ -4806,12 +4911,12 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     /* Restore previous led state */
     OS_REG_WRITE(ah, AR_CFG_LED, save_led_state | AR_CFG_SCLK_32KHZ);
 
-#ifdef ATH_BT_COEX
+#if ATH_BT_COEX
     if (ahp->ah_bt_coex_config_type != HAL_BT_COEX_CFG_NONE) {
         ar9300_init_bt_coex(ah);
 
 #if ATH_SUPPORT_MCI
-        if (AH_PRIVATE(ah)->ah_caps.hal_mci_support && ahp->ah_mci_ready) {
+        if (AH_PRIVATE(ah)->ah_caps.halMciSupport && ahp->ah_mci_ready) {
             /* Check BT state again to make sure it's not changed. */
             ar9300_mci_sync_bt_state(ah);
             ar9300_mci_2g5g_switch(ah, AH_TRUE);
@@ -4884,11 +4989,15 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
 #undef REG_WRITE
 #endif
 
+    /* XXX FreeBSD What's this? -adrian */
+#if 0
     chan->channel_flags = ichan->channel_flags;
     chan->priv_flags = ichan->priv_flags;
+#endif
 
 #if FIX_NOISE_FLOOR
-    ar9300_get_nf_hist_base(ah, AH_PRIVATE(ah)->ah_curchan, is_scan, nf_buf);
+    /* XXX FreeBSD is ichan appropariate? It was curchan.. */
+    ar9300_get_nf_hist_base(ah, ichan, is_scan, nf_buf);
     ar9300_load_nf(ah, nf_buf);
     if (nf_hist_buff_reset == 1)    
     {
@@ -4923,9 +5032,9 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
      * because reset seems to be writing from INI file.
      */
     if ((ar9300_get_capability(ah, HAL_CAP_PHYRESTART_CLR_WAR, 0, AH_NULL)
-         == HAL_OK) && (((MS((AH_PRIVATE(ah)->ah_bb_panic_last_status),
+         == HAL_OK) && (((MS((AH9300(ah)->ah_bb_panic_last_status),
                 AR_PHY_BB_WD_RX_OFDM_SM)) == 0xb) ||
-            AH_PRIVATE(ah)->ah_phyrestart_disabled) )
+            AH9300(ah)->ah_phyrestart_disabled) )
     {
         ar9300_disable_phy_restart(ah, 1);
     }
@@ -4939,7 +5048,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     ahp->ah_disable_cck = MS(OS_REG_READ(ah, AR_PHY_MODE),
                         AR_PHY_MODE_DISABLE_CCK);
 
-    if (ap->ah_enable_keysearch_always) {
+    if (AH9300(ah)->ah_enable_keysearch_always) {
         ar9300_enable_keysearch_always(ah, 1);
     }
 
@@ -4962,7 +5071,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, HAL_CHANNEL *chan,
     /* H/W Green TX */
     ar9300_control_signals_for_green_tx_mode(ah);
     /* Smart Antenna, only for 5GHz on Scropion */
-    if (IS_CHAN_2GHZ((AH_PRIVATE(ah)->ah_curchan)) && AR_SREV_SCORPION(ah)) {
+    if (IEEE80211_IS_CHAN_2GHZ((AH_PRIVATE(ah)->ah_curchan)) && AR_SREV_SCORPION(ah)) {
         ahp->ah_smartantenna_enable = 0;
     }
 
@@ -4982,7 +5091,7 @@ void
 ar9300_green_ap_ps_on_off( struct ath_hal *ah, u_int16_t on_off)
 {
     /* Set/reset the ps flag */
-    AH_PRIVATE(ah)->green_ap_ps_on = !!on_off;
+    AH9300(ah)->green_ap_ps_on = !!on_off;
 }
 
 /*
@@ -5200,7 +5309,7 @@ ar9300_calc_iq_corr(struct ath_hal *ah, int32_t chain_idx,
     cos_2phi_2 = (cos_2phi_2 * res_scale / mag2);
 
     /* calculate IQ mismatch */
-    if (AH_FALSE== ar9300_solve_iq_cal(ah,
+    if (AH_FALSE == ar9300_solve_iq_cal(ah,
             sin_2phi_1, cos_2phi_1, sin_2phi_2, cos_2phi_2, mag_a0_d0,
             phs_a0_d0, mag_a1_d0, phs_a1_d0, solved_eq))
     {
@@ -5326,7 +5435,7 @@ ar9300_calc_iq_corr(struct ath_hal *ah, int32_t chain_idx,
 
 static void
 ar9300_tx_iq_cal_outlier_detection(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan, u_int32_t num_chains,
-    struct coeff_t *coeff,HAL_BOOL is_cal_reusable)
+    struct coeff_t *coeff, HAL_BOOL is_cal_reusable)
 {
     int nmeasurement, ch_idx, im;
     int32_t magnitude, phase;
@@ -5603,8 +5712,7 @@ ar9300_tx_iq_cal_hw_run(struct ath_hal *ah)
         AR_PHY_TX_IQCAL_START_DO_CAL, AR_PHY_TX_IQCAL_START_DO_CAL);
 
     if (!ath_hal_wait(ah,
-            AR_PHY_TX_IQCAL_START(ah), AR_PHY_TX_IQCAL_START_DO_CAL, 0,
-            AH_WAIT_TIMEOUT))
+            AR_PHY_TX_IQCAL_START(ah), AR_PHY_TX_IQCAL_START_DO_CAL, 0))
     {
         HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
             "%s: Tx IQ Cal is never completed.\n", __func__);
@@ -5740,7 +5848,7 @@ ar9300_tx_iq_cal_post_proc(struct ath_hal *ah,HAL_CHANNEL_INTERNAL *ichan,
                     __func__, idx, iq_res[idx], idx + 1, iq_res[idx + 1]);
             }
 
-            if (AH_FALSE== ar9300_calc_iq_corr(
+            if (AH_FALSE == ar9300_calc_iq_corr(
                              ah, ch_idx, iq_res, coeff.iqc_coeff))
             {
                 HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
@@ -5832,10 +5940,10 @@ void ar9300_disable_phy_restart(struct ath_hal *ah, int disable_phy_restart)
     val = OS_REG_READ(ah, AR_PHY_RESTART);
     if (disable_phy_restart) {
         val &= ~AR_PHY_RESTART_ENA;
-        AH_PRIVATE(ah)->ah_phyrestart_disabled = 1;
+        AH9300(ah)->ah_phyrestart_disabled = 1;
     } else {
         val |= AR_PHY_RESTART_ENA;
-        AH_PRIVATE(ah)->ah_phyrestart_disabled = 0;
+        AH9300(ah)->ah_phyrestart_disabled = 0;
     }
     OS_REG_WRITE(ah, AR_PHY_RESTART, val);
 
@@ -5847,6 +5955,13 @@ ar9300_interference_is_present(struct ath_hal *ah)
 {
     int i;
     struct ath_hal_private  *ahpriv = AH_PRIVATE(ah);
+    const struct ieee80211_channel *chan = ahpriv->ah_curchan;
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+
+    if (ichan == NULL) {
+        ath_hal_printf(ah, "%s: called with ichan=NULL\n", __func__);
+        return AH_FALSE;
+    }
 
     /* This function is called after a stuck beacon, if EACS is enabled.
      * If CW interference is severe, then HW goes into a loop of continuous
@@ -5855,10 +5970,10 @@ ar9300_interference_is_present(struct ath_hal *ah)
      * hence check if any value (Chain 0/Primary Channel)
      * is outside the bounds.
      */
-    HAL_NFCAL_HIST_FULL *h = AH_HOME_CHAN_NFCAL_HIST(ah);
+    HAL_NFCAL_HIST_FULL *h = AH_HOME_CHAN_NFCAL_HIST(ah, ichan);
     for (i = 0; i < HAL_NF_CAL_HIST_LEN_FULL; i++) {
         if (h->nf_cal_buffer[i][0] >
-            ahpriv->nfp->nominal + ahpriv->nf_cw_int_delta)
+            AH9300(ah)->nfp->nominal + AH9300(ah)->nf_cw_int_delta)
         {
             return AH_TRUE;
         }
@@ -5986,7 +6101,7 @@ void ar9300_chain_rssi_diff_compensation(struct ath_hal *ah)
 
 #if ATH_ANT_DIV_COMB
 HAL_BOOL
-ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, HAL_CHANNEL *chan)
+ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, const struct ieee80211_channel *chan)
 {
     u_int32_t value;
     u_int32_t regval;
@@ -6002,14 +6117,14 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, HAL_
         ichan = ar9300_check_chan(ah, chan);
         if ( ichan == AH_NULL ) {
             HALDEBUG(ah, HAL_DEBUG_CHANNEL, "%s: invalid channel %u/0x%x; no mapping\n",
-                     __func__, chan->channel, chan->channel_flags);
+                     __func__, chan->ic_freq, chan->ic_flags);
             return AH_FALSE;
         }
 
         if ( enable == TRUE ) {
-            pcap->hal_ant_div_comb_support = TRUE;
+            pcap->halAntDivCombSupport = TRUE;
         } else {
-            pcap->hal_ant_div_comb_support = pcap->hal_ant_div_comb_support_org;
+            pcap->halAntDivCombSupport = pcap->halAntDivCombSupportOrg;
         }
 
 #define AR_SWITCH_TABLE_COM2_ALL (0xffffff)
@@ -6017,7 +6132,7 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, HAL_
         value = ar9300_ant_ctrl_common2_get(ah, IS_CHAN_2GHZ(ichan));
         if ( enable == TRUE ) {
             value &= ~AR_SWITCH_TABLE_COM2_ALL;
-            value |= ahpriv->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable;
+            value |= ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable;
         }
         OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
 
@@ -6046,7 +6161,7 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, HAL_
         OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
   
         if ( AR_SREV_POSEIDON_11_OR_LATER(ah) ) {
-            if (pcap->hal_ant_div_comb_support) {
+            if (pcap->halAntDivCombSupport) {
                 /* If support DivComb, set MAIN to LNA1 and ALT to LNA2 at the first beginning */
                 regval = OS_REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
                 /* clear bit 25~30 main_lnaconf, alt_lnaconf, main_tb, alt_tb */
@@ -6068,5 +6183,3 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, HAL_
     }
 }
 #endif /* ATH_ANT_DIV_COMB */
-
-#endif /* AH_SUPPORT_AR9300 */

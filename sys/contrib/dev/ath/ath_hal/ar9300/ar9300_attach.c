@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -27,6 +25,9 @@
 #include "ar9300/ar9300reg.h"
 #include "ar9300/ar9300phy.h"
 #include "ar9300/ar9300paprd.h"
+
+#include "ar9300/ar9300_stub.h"
+#include "ar9300/ar9300_stub_funcs.h"
 
 
 /* Add static register initialization vectors */
@@ -43,16 +44,23 @@
 #include "ar9300/ar9300_aphrodite10.ini"
 
 
+/* Include various freebsd specific HAL methods */
+#include "ar9300/ar9300_freebsd.h"
+
+/* XXX duplicate in ar9300_radio.c ? */
 static HAL_BOOL ar9300_get_chip_power_limits(struct ath_hal *ah,
-    HAL_CHANNEL *chans, u_int32_t nchans);
+    struct ieee80211_channel *chan);
 
 static inline HAL_STATUS ar9300_init_mac_addr(struct ath_hal *ah);
 static inline HAL_STATUS ar9300_hw_attach(struct ath_hal *ah);
 static inline void ar9300_hw_detach(struct ath_hal *ah);
 static int16_t ar9300_get_nf_adjust(struct ath_hal *ah,
     const HAL_CHANNEL_INTERNAL *c);
+#if 0
 int ar9300_get_cal_intervals(struct ath_hal *ah, HAL_CALIBRATION_TIMER **timerp,
     HAL_CAL_QUERY query);
+#endif
+
 #if ATH_TRAFFIC_FAST_RECOVER
 unsigned long ar9300_get_pll3_sqsum_dvc(struct ath_hal *ah);
 #endif
@@ -69,6 +77,7 @@ static const HAL_PERCAL_DATA iq_cal_single_sample =
                           ar9300_iq_cal_collect,
                           ar9300_iq_calibration};
 
+#if 0
 static HAL_CALIBRATION_TIMER ar9300_cals[] =
                           { {IQ_MISMATCH_CAL,               /* Cal type */
                              1200000,                       /* Cal interval */
@@ -79,7 +88,8 @@ static HAL_CALIBRATION_TIMER ar9300_cals[] =
                              0
                             },
                           };
-                          
+#endif
+
 #if ATH_PCIE_ERROR_MONITOR
 
 int ar9300_start_pcie_error_monitor(struct ath_hal *ah, int b_auto_stop)
@@ -162,6 +172,7 @@ int ar9300_stop_pcie_error_monitor(struct ath_hal *ah)
 
 #endif /* ATH_PCIE_ERROR_MONITOR */
 
+#if 0
 /* WIN32 does not support C99 */
 static const struct ath_hal_private ar9300hal = {
     {
@@ -526,6 +537,7 @@ static const struct ath_hal_private ar9300hal = {
     ar9300_get_nf_adjust,                  /* ah_get_nf_adjust */
     /* rest is zero'd by compiler */
 };
+#endif
 
 /*
  * Read MAC version/revision information from Chip registers and initialize
@@ -543,7 +555,7 @@ ar9300_read_revisions(struct ath_hal *ah)
     if (AH_PRIVATE(ah)->ah_devid == AR9300_DEVID_AR9340) {
         /* XXX: AR_SREV register in Wasp reads 0 */
         AH_PRIVATE(ah)->ah_macVersion = AR_SREV_VERSION_WASP;
-    } else if(AH_PRIVATE(ah)->ah_devid == AR9300_DEVID_AR955X) {
+    } else if(AH_PRIVATE(ah)->ah_devid == AR9300_DEVID_QCA955X) {
         /* XXX: AR_SREV register in Scorpion reads 0 */
        AH_PRIVATE(ah)->ah_macVersion = AR_SREV_VERSION_SCORPION;
     } else {
@@ -592,10 +604,10 @@ ar9300_read_revisions(struct ath_hal *ah)
         AH_PRIVATE(ah)->ah_macRev = MS(val, AR_SREV_REVISION2);
 
     if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
-        AH_PRIVATE(ah)->ah_is_pci_express = AH_TRUE;
+        AH_PRIVATE(ah)->ah_ispcie = AH_TRUE;
     }
     else {
-        AH_PRIVATE(ah)->ah_is_pci_express = 
+        AH_PRIVATE(ah)->ah_ispcie = 
             (val & AR_SREV_TYPE2_HOST_MODE) ? 0 : 1;
     }
     
@@ -605,39 +617,47 @@ ar9300_read_revisions(struct ath_hal *ah)
  * Attach for an AR9300 part.
  */
 struct ath_hal *
-ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
-    HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_BUS_TYPE bustype,
-    asf_amem_instance_handle amem_handle,
-    struct hal_reg_parm *hal_conf_parm, HAL_STATUS *status)
+ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
+  HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_STATUS *status)
 {
     struct ath_hal_9300     *ahp;
     struct ath_hal          *ah;
     struct ath_hal_private  *ahpriv;
     HAL_STATUS              ecode;
 
-     HAL_NO_INTERSPERSED_READS;
+    HAL_NO_INTERSPERSED_READS;
 
     /* NB: memory is returned zero'd */
-    ahp = ar9300_new_state(
-        devid, osdev, sc, st, sh, bustype, amem_handle, hal_conf_parm, status);
+    ahp = ar9300_new_state(devid, sc, st, sh, eepromdata, status);
     if (ahp == AH_NULL) {
         return AH_NULL;
     }
-    ah = &ahp->ah_priv.priv.h;
+    ah = &ahp->ah_priv.h;
     ar9300_init_offsets(ah, devid);
     ahpriv = AH_PRIVATE(ah);
-    AH_PRIVATE(ah)->ah_bustype = bustype;
+//    AH_PRIVATE(ah)->ah_bustype = bustype;
 
+    /* FreeBSD: to make OTP work for now, provide this.. */
+    AH9300(ah)->ah_cal_mem = ath_hal_malloc(HOST_CALDATA_SIZE);
+
+    /* XXX FreeBSD: enable RX mitigation */
+    ah->ah_config.ath_hal_intr_mitigation_rx = 1;
+
+    /*
+     * XXX what's this do? Check in the qcamain driver code
+     * as to what it does.
+     */
+    ah->ah_config.ath_hal_ext_atten_margin_cfg = 0;
 
     /* interrupt mitigation */
 #ifdef AR5416_INT_MITIGATION
-    if (ahpriv->ah_config.ath_hal_intr_mitigation_rx != 0) {
+    if (ah->ah_config.ath_hal_intr_mitigation_rx != 0) {
         ahp->ah_intr_mitigation_rx = AH_TRUE;
     }
 #else
     /* Enable Rx mitigation (default) */
     ahp->ah_intr_mitigation_rx = AH_TRUE;
-    ahpriv->ah_config.ath_hal_intr_mitigation_rx = 1;
+    ah->ah_config.ath_hal_intr_mitigation_rx = 1;
 
 #endif
 #ifdef HOST_OFFLOAD
@@ -645,12 +665,12 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
     if (AR_SREV_HORNET(ah)) {
         ahp->ah_intr_mitigation_rx = AH_FALSE;
 #ifdef AR5416_INT_MITIGATION
-        ahpriv->ah_config.ath_hal_intr_mitigation_rx = 0;
+        ah->ah_config.ath_hal_intr_mitigation_rx = 0;
 #endif
     }
 #endif
 
-    if (ahpriv->ah_config.ath_hal_intr_mitigation_tx != 0) {
+    if (ah->ah_config.ath_hal_intr_mitigation_tx != 0) {
         ahp->ah_intr_mitigation_tx = AH_TRUE;
     }
 
@@ -685,9 +705,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
 
 #if ATH_SUPPORT_MCI
     if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
+#if 0
         ah->ah_bt_coex_set_weights = ar9300_mci_bt_coex_set_weights;
         ah->ah_bt_coex_disable = ar9300_mci_bt_coex_disable;
         ah->ah_bt_coex_enable = ar9300_mci_bt_coex_enable;
+#endif
         ahp->ah_mci_ready = AH_FALSE;
         ahp->ah_mci_bt_state = MCI_BT_SLEEP;
         ahp->ah_mci_coex_major_version_wlan = MCI_GPM_COEX_MAJOR_VERSION_WLAN;
@@ -772,9 +794,9 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
     }
 
     /* No serialization of Register Accesses needed. */
-    ahpriv->ah_config.ath_hal_serialize_reg_mode = SER_REG_MODE_OFF;
-    HALDEBUG(ah, HAL_DEBUG_RESET, "%s: ath_hal_serialize_reg_mode is %d\n",
-             __func__, ahpriv->ah_config.ath_hal_serialize_reg_mode);
+    ah->ah_config.ah_serialise_reg_war = SER_REG_MODE_OFF;
+    HALDEBUG(ah, HAL_DEBUG_RESET, "%s: ah_serialise_reg_war is %d\n",
+             __func__, ah->ah_config.ah_serialise_reg_war);
 
     /*
      * Add mac revision check when needed.
@@ -798,7 +820,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
         goto bad;
     }
 
-    ahpriv->ah_phy_rev = OS_REG_READ(ah, AR_PHY_CHIP_ID);
+    AH_PRIVATE(ah)->ah_phyRev = OS_REG_READ(ah, AR_PHY_CHIP_ID);
 
     /* Setup supported calibrations */
     ahp->ah_iq_cal_data.cal_data = &iq_cal_single_sample;
@@ -858,7 +880,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             ar9331_modes_lowest_ob_db_tx_gain_hornet1_2, 
             ARRAY_LENGTH(ar9331_modes_lowest_ob_db_tx_gain_hornet1_2), 5);
 
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
         /* Japan 2484Mhz CCK settings */
         INIT_INI_ARRAY(&ahp->ah_ini_japan2484,
@@ -926,7 +948,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             ar9331_modes_lowest_ob_db_tx_gain_hornet1_1, 
             ARRAY_LENGTH(ar9331_modes_lowest_ob_db_tx_gain_hornet1_1), 5);
 
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
         /* Japan 2484Mhz CCK settings */
         INIT_INI_ARRAY(&ahp->ah_ini_japan2484,
@@ -1003,13 +1025,13 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                 ar9485_poseidon1_1_baseband_core_txfir_coeff_japan_2484), 2);
 
         /* Load PCIE SERDES settings from INI */
-        if (ahpriv->ah_config.ath_hal_pcie_clock_req) {
+        if (ah->ah_config.ath_hal_pcie_clock_req) {
             /* Pci-e Clock Request = 1 */
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save 
+            if (ah->ah_config.ath_hal_pll_pwr_save 
                 & AR_PCIE_PLL_PWRSAVE_CONTROL)
             {
                 /* Sleep Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes, 
@@ -1025,7 +1047,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                         2);
                 }    
                 /* Awake Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power, 
@@ -1056,11 +1078,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             }
         } else {
             /* Pci-e Clock Request = 0 */
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save 
+            if (ah->ah_config.ath_hal_pll_pwr_save 
                 & AR_PCIE_PLL_PWRSAVE_CONTROL)
             {
                 /* Sleep Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes, 
@@ -1076,7 +1098,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                         2);
                 }    
                 /* Awake Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power, 
@@ -1107,7 +1129,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             }
         }
         /* pcie ps setting will honor registry setting, default is 0 */
-        //ahpriv->ah_config.ath_hal_pciePowerSaveEnable = 0;    
+        //ah->ah_config.ath_hal_pciePowerSaveEnable = 0;    
    } else if (AR_SREV_POSEIDON(ah)) {
         /* mac */
         INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_PRE], NULL, 0, 0);
@@ -1160,13 +1182,13 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                 ar9485_poseidon1_0_baseband_core_txfir_coeff_japan_2484), 2);
 
         /* Load PCIE SERDES settings from INI */
-        if (ahpriv->ah_config.ath_hal_pcie_clock_req) {
+        if (ah->ah_config.ath_hal_pcie_clock_req) {
             /* Pci-e Clock Request = 1 */
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save 
+            if (ah->ah_config.ath_hal_pll_pwr_save 
                 & AR_PCIE_PLL_PWRSAVE_CONTROL)
             {
                 /* Sleep Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes, 
@@ -1182,7 +1204,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                         2);
                 }    
                 /* Awake Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power, 
@@ -1215,11 +1237,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             }
         } else {
             /* Pci-e Clock Request = 0 */
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save 
+            if (ah->ah_config.ath_hal_pll_pwr_save 
                 & AR_PCIE_PLL_PWRSAVE_CONTROL)
             {
                 /* Sleep Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes, 
@@ -1235,7 +1257,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                         2);
                 }    
                 /* Awake Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power, 
@@ -1268,7 +1290,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             }
         }
         /* pcie ps setting will honor registry setting, default is 0 */
-        /*ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;*/
+        /*ah->ah_config.ath_hal_pcie_power_save_enable = 0;*/
     
 #if 0 /* ATH_WOW */
         /* SerDes values during WOW sleep */
@@ -1321,7 +1343,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             ar9340Modes_high_ob_db_tx_gain_table_wasp_1p0,
             ARRAY_LENGTH(ar9340Modes_high_ob_db_tx_gain_table_wasp_1p0), 5);
 
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
         /* Fast clock modal settings */
         INIT_INI_ARRAY(&ahp->ah_ini_modes_additional,
@@ -1386,7 +1408,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                         ARRAY_LENGTH(ar955xModes_no_xpa_tx_gain_table_scorpion_1p0), 5);
 
         /*ath_hal_pciePowerSaveEnable should be 2 for OWL/Condor and 0 for merlin */
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
         /* Fast clock modal settings */
         INIT_INI_ARRAY(&ahp->ah_ini_modes_additional,
@@ -1442,7 +1464,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             ARRAY_LENGTH(ar9300_common_rx_gain_table_jupiter_1p0), 2);
 
         /* Load PCIE SERDES settings from INI */
-        if (ahpriv->ah_config.ath_hal_pcie_clock_req) {
+        if (ah->ah_config.ath_hal_pcie_clock_req) {
             /* Pci-e Clock Request = 1 */
             /*
              * PLL ON + clkreq enable is not a valid combination,
@@ -1469,13 +1491,13 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
              *
              * Force Jupiter 1.0 to use ON/ON setting.
              */
-            ahpriv->ah_config.ath_hal_pll_pwr_save = 0;
+            ah->ah_config.ath_hal_pll_pwr_save = 0;
             /* Pci-e Clock Request = 0 */
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+            if (ah->ah_config.ath_hal_pll_pwr_save &
                 AR_PCIE_PLL_PWRSAVE_CONTROL)
             {
                 /* Awake -> Sleep Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                      AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes,
@@ -1492,7 +1514,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                         2);
                 }    
                 /* Sleep -> Awake Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power,
@@ -1530,7 +1552,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
          * ath_hal_pcie_power_save_enable should be 2 for OWL/Condor and 
          * 0 for merlin 
          */
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
 #if 0 // ATH_WOW
         /* SerDes values during WOW sleep */
@@ -1601,7 +1623,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             ARRAY_LENGTH(ar9300_jupiter_2p0_BTCOEX_MAX_TXPWR_table), 2);
 
         /* Load PCIE SERDES settings from INI */
-        if (ahpriv->ah_config.ath_hal_pcie_clock_req) {
+        if (ah->ah_config.ath_hal_pcie_clock_req) {
             /* Pci-e Clock Request = 1 */
             /*
              * PLL ON + clkreq enable is not a valid combination,
@@ -1623,11 +1645,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
         }
         else {
             /* Pci-e Clock Request = 0 */
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+            if (ah->ah_config.ath_hal_pll_pwr_save &
                 AR_PCIE_PLL_PWRSAVE_CONTROL)
             {
                 /* Awake -> Sleep Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                      AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes,
@@ -1644,7 +1666,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                         2);
                 }    
                 /* Sleep -> Awake Setting */
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power,
@@ -1683,7 +1705,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
          * ath_hal_pcie_power_save_enable should be 2 for OWL/Condor and 
          * 0 for merlin 
          */
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
 #if 0 // ATH_WOW
         /* SerDes values during WOW sleep */
@@ -1754,7 +1776,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
          * ath_hal_pcie_power_save_enable should be 2 for OWL/Condor and 
          * 0 for merlin 
          */
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
 #if 0 // ATH_WOW
         /* SerDes values during WOW sleep */
@@ -1825,11 +1847,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
         /* Load PCIE SERDES settings from INI */
 
         /*D3 Setting */
-        if  (ahpriv->ah_config.ath_hal_pcie_clock_req) {
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+        if  (ah->ah_config.ath_hal_pcie_clock_req) {
+            if (ah->ah_config.ath_hal_pll_pwr_save &
                 AR_PCIE_PLL_PWRSAVE_CONTROL)
             { //registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                     AR_PCIE_PLL_PWRSAVE_ON_D3)
                 { //bit1, in to D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes,
@@ -1852,10 +1874,10 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                     2);
             }
         } else {
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+            if (ah->ah_config.ath_hal_pll_pwr_save &
                 AR_PCIE_PLL_PWRSAVE_CONTROL)
             { //registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                     AR_PCIE_PLL_PWRSAVE_ON_D3)
                 { //bit1, in to D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes,
@@ -1881,11 +1903,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
         }
 
         /*D0 Setting */
-        if  (ahpriv->ah_config.ath_hal_pcie_clock_req) {
-             if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+        if  (ah->ah_config.ath_hal_pcie_clock_req) {
+             if (ah->ah_config.ath_hal_pll_pwr_save &
                 AR_PCIE_PLL_PWRSAVE_CONTROL)
              { //registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 { //bit2, out of D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power,
@@ -1909,10 +1931,10 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                     2);
             }
         } else {
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+            if (ah->ah_config.ath_hal_pll_pwr_save &
                 AR_PCIE_PLL_PWRSAVE_CONTROL)
             {//registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save &
+                if (ah->ah_config.ath_hal_pll_pwr_save &
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {//bit2, out of D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power,
@@ -1936,7 +1958,7 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             }
         }
 
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
 #if 0 /* ATH_WOW */
         /* SerDes values during WOW sleep */
@@ -2010,11 +2032,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
         /* Load PCIE SERDES settings from INI */
 
         /*D3 Setting */
-        if  (ahpriv->ah_config.ath_hal_pcie_clock_req) {
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+        if  (ah->ah_config.ath_hal_pcie_clock_req) {
+            if (ah->ah_config.ath_hal_pll_pwr_save & 
                 AR_PCIE_PLL_PWRSAVE_CONTROL) 
             { //registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 { //bit1, in to D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes, 
@@ -2048,10 +2070,10 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
 
             }
         } else {
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+            if (ah->ah_config.ath_hal_pll_pwr_save & 
                 AR_PCIE_PLL_PWRSAVE_CONTROL) 
             { //registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D3) 
                 { //bit1, in to D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes, 
@@ -2084,11 +2106,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
         }
 
         /*D0 Setting */
-        if  (ahpriv->ah_config.ath_hal_pcie_clock_req) {
-             if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+        if  (ah->ah_config.ath_hal_pcie_clock_req) {
+             if (ah->ah_config.ath_hal_pll_pwr_save & 
                 AR_PCIE_PLL_PWRSAVE_CONTROL) 
              { //registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 { //bit2, out of D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power, 
@@ -2112,10 +2134,10 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
                     2);
             }
         } else {
-            if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+            if (ah->ah_config.ath_hal_pll_pwr_save & 
                 AR_PCIE_PLL_PWRSAVE_CONTROL) 
             {//registry control
-                if (ahpriv->ah_config.ath_hal_pll_pwr_save & 
+                if (ah->ah_config.ath_hal_pll_pwr_save & 
                     AR_PCIE_PLL_PWRSAVE_ON_D0)
                 {//bit2, out of D3
                     INIT_INI_ARRAY(&ahp->ah_ini_pcie_serdes_low_power, 
@@ -2139,11 +2161,11 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
             }
         }
 
-        ahpriv->ah_config.ath_hal_pcie_power_save_enable = 0;
+        ah->ah_config.ath_hal_pcie_power_save_enable = 0;
 
 #ifdef ATH_BUS_PM
         /*Use HAL to config PCI powersave by writing into the SerDes Registers */
-        ahpriv->ah_config.ath_hal_pcie_ser_des_write = 1;
+        ah->ah_config.ath_hal_pcie_ser_des_write = 1;
 #endif
 
 #if 0 /* ATH_WOW */
@@ -2180,11 +2202,12 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
     }
 
 
-    if (ahpriv->ah_is_pci_express) {
+    if (ahpriv->ah_ispcie) {
         ar9300_config_pci_power_save(ah, 0, 0);
     } else {
         ar9300_disable_pcie_phy(ah);
     }
+    ath_hal_printf(ah, "%s: calling ar9300_hw_attach\n", __func__);
     ecode = ar9300_hw_attach(ah);
     if (ecode != HAL_OK) {
         goto bad;
@@ -2240,36 +2263,36 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
      * Set the cur_trig_level to a value that works all modes - 11a/b/g or 11n
      * with aggregation enabled or disabled.
      */
-    ahpriv->ah_tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
+    ahp->ah_tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 
     if (AR_SREV_HORNET(ah)) {
-        ahpriv->nf_2GHz.nominal = AR_PHY_CCA_NOM_VAL_HORNET_2GHZ;
-        ahpriv->nf_2GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_2GHZ;
-        ahpriv->nf_2GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_2GHZ;
-        ahpriv->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_OSPREY_5GHZ;
-        ahpriv->nf_5GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_5GHZ;
-        ahpriv->nf_5GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_5GHZ;
-        ahpriv->nf_cw_int_delta = AR_PHY_CCA_CW_INT_DELTA;
+        ahp->nf_2GHz.nominal = AR_PHY_CCA_NOM_VAL_HORNET_2GHZ;
+        ahp->nf_2GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_2GHZ;
+        ahp->nf_2GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_2GHZ;
+        ahp->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_OSPREY_5GHZ;
+        ahp->nf_5GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_5GHZ;
+        ahp->nf_5GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_5GHZ;
+        ahp->nf_cw_int_delta = AR_PHY_CCA_CW_INT_DELTA;
     } else if(AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)){
-        ahpriv->nf_2GHz.nominal = AR_PHY_CCA_NOM_VAL_JUPITER_2GHZ;
-        ahpriv->nf_2GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_2GHZ;
-        ahpriv->nf_2GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_JUPITER_2GHZ;
-        ahpriv->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_JUPITER_5GHZ;
-        ahpriv->nf_5GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_5GHZ;
-        ahpriv->nf_5GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_JUPITER_5GHZ;
-        ahpriv->nf_cw_int_delta = AR_PHY_CCA_CW_INT_DELTA;
+        ahp->nf_2GHz.nominal = AR_PHY_CCA_NOM_VAL_JUPITER_2GHZ;
+        ahp->nf_2GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_2GHZ;
+        ahp->nf_2GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_JUPITER_2GHZ;
+        ahp->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_JUPITER_5GHZ;
+        ahp->nf_5GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_5GHZ;
+        ahp->nf_5GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_JUPITER_5GHZ;
+        ahp->nf_cw_int_delta = AR_PHY_CCA_CW_INT_DELTA;
     }	else {
-        ahpriv->nf_2GHz.nominal = AR_PHY_CCA_NOM_VAL_OSPREY_2GHZ;
-        ahpriv->nf_2GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_2GHZ;
-        ahpriv->nf_2GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_2GHZ;
+        ahp->nf_2GHz.nominal = AR_PHY_CCA_NOM_VAL_OSPREY_2GHZ;
+        ahp->nf_2GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_2GHZ;
+        ahp->nf_2GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_2GHZ;
         if (AR_SREV_AR9580(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
-            ahpriv->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_PEACOCK_5GHZ;
+            ahp->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_PEACOCK_5GHZ;
         } else {
-            ahpriv->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_OSPREY_5GHZ;
+            ahp->nf_5GHz.nominal = AR_PHY_CCA_NOM_VAL_OSPREY_5GHZ;
         }
-        ahpriv->nf_5GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_5GHZ;
-        ahpriv->nf_5GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_5GHZ;
-        ahpriv->nf_cw_int_delta = AR_PHY_CCA_CW_INT_DELTA;
+        ahp->nf_5GHz.max     = AR_PHY_CCA_MAX_GOOD_VAL_OSPREY_5GHZ;
+        ahp->nf_5GHz.min     = AR_PHY_CCA_MIN_GOOD_VAL_OSPREY_5GHZ;
+        ahp->nf_cw_int_delta = AR_PHY_CCA_CW_INT_DELTA;
      }
 
 
@@ -2277,9 +2300,9 @@ ar9300_attach(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
 
     /* init BB Panic Watchdog timeout */
     if (AR_SREV_HORNET(ah)) {
-        ahpriv->ah_bb_panic_timeout_ms = HAL_BB_PANIC_WD_TMO_HORNET;
+        ahp->ah_bb_panic_timeout_ms = HAL_BB_PANIC_WD_TMO_HORNET;
     } else {
-        ahpriv->ah_bb_panic_timeout_ms = HAL_BB_PANIC_WD_TMO;
+        ahp->ah_bb_panic_timeout_ms = HAL_BB_PANIC_WD_TMO;
     }
 
 
@@ -2320,7 +2343,7 @@ void
 ar9300_detach(struct ath_hal *ah)
 {
     HALASSERT(ah != AH_NULL);
-    HALASSERT(AH_PRIVATE(ah)->ah_magic == AR9300_MAGIC);
+    HALASSERT(ah->ah_magic == AR9300_MAGIC);
 
     /* Make sure that chip is awake before writing to it */
     if (!ar9300_set_power_mode(ah, HAL_PM_AWAKE, AH_TRUE)) {
@@ -2332,15 +2355,19 @@ ar9300_detach(struct ath_hal *ah)
     ar9300_hw_detach(ah);
     ar9300_set_power_mode(ah, HAL_PM_FULL_SLEEP, AH_TRUE);
 
-    ath_hal_hdprintf_deregister(ah);
-    ath_hal_free(ah, ah);
+//    ath_hal_hdprintf_deregister(ah);
+
+    if (AH9300(ah)->ah_cal_mem)
+        ath_hal_free(AH9300(ah)->ah_cal_mem);
+    AH9300(ah)->ah_cal_mem = AH_NULL;
+
+    ath_hal_free(ah);
 }
 
 struct ath_hal_9300 *
-ar9300_new_state(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
-    HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_BUS_TYPE bustype,
-    asf_amem_instance_handle amem_handle,
-    struct hal_reg_parm *hal_conf_parm, HAL_STATUS *status)
+ar9300_new_state(u_int16_t devid, HAL_SOFTC sc,
+    HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
+    uint16_t *eepromdata, HAL_STATUS *status)
 {
     static const u_int8_t defbssidmask[IEEE80211_ADDR_LEN] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -2348,8 +2375,7 @@ ar9300_new_state(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
     struct ath_hal *ah;
 
     /* NB: memory is returned zero'd */
-    ahp = amalloc_adv(
-        amem_handle, sizeof(struct ath_hal_9300), adf_os_mem_zero_outline);
+    ahp = ath_hal_malloc(sizeof(struct ath_hal_9300));
     if (ahp == AH_NULL) {
         HALDEBUG(AH_NULL, HAL_DEBUG_UNMASKABLE,
                  "%s: cannot allocate memory for state block\n",
@@ -2358,19 +2384,33 @@ ar9300_new_state(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
         return AH_NULL;
     }
 
-    ah = &ahp->ah_priv.priv.h;
+    ah = &ahp->ah_priv.h;
     /* set initial values */
 
+    /* stub everything first */
+    ar9300_set_stub_functions(ah);
+
+    /* setup the FreeBSD HAL methods */
+    ar9300_attach_freebsd_ops(ah);
+
+    /* These are private to this particular file, so .. */
+    ah->ah_disablePCIE = ar9300_disable_pcie_phy;
+    AH_PRIVATE(ah)->ah_getNfAdjust = ar9300_get_nf_adjust;
+    AH_PRIVATE(ah)->ah_getChipPowerLimits = ar9300_get_chip_power_limits;
+
+#if 0
     /* Attach Osprey structure as default hal structure */
     OS_MEMCPY(&ahp->ah_priv.priv, &ar9300hal, sizeof(ahp->ah_priv.priv));
+#endif
 
+#if 0
     AH_PRIVATE(ah)->amem_handle = amem_handle;
     AH_PRIVATE(ah)->ah_osdev = osdev;
-    AH_PRIVATE(ah)->ah_sc = sc;
-    AH_PRIVATE(ah)->ah_st = st;
-    AH_PRIVATE(ah)->ah_sh = sh;
-
-    AH_PRIVATE(ah)->ah_magic = AR9300_MAGIC;
+#endif
+    ah->ah_sc = sc;
+    ah->ah_st = st;
+    ah->ah_sh = sh;
+    ah->ah_magic = AR9300_MAGIC;
     AH_PRIVATE(ah)->ah_devid = devid;
 
     AH_PRIVATE(ah)->ah_flags = 0;
@@ -2378,11 +2418,16 @@ ar9300_new_state(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
     /*
     ** Initialize factory defaults in the private space
     */
-    ath_hal_factory_defaults(AH_PRIVATE(ah), hal_conf_parm);
+//    ath_hal_factory_defaults(AH_PRIVATE(ah), hal_conf_parm);
+    ar9300_config_defaults_freebsd(ah);
 
+    /* XXX FreeBSD: cal is always in EEPROM */
+#if 0
     if (!hal_conf_parm->calInFlash) {
         AH_PRIVATE(ah)->ah_flags |= AH_USE_EEPROM;
     }
+#endif
+    AH_PRIVATE(ah)->ah_flags |= AH_USE_EEPROM;
    
 #if 0
     if (ar9300_eep_data_in_flash(ah)) {
@@ -2393,14 +2438,17 @@ ar9300_new_state(u_int16_t devid, HAL_ADAPTER_HANDLE osdev, HAL_SOFTC sc,
     }
 #endif
 
-    AH_PRIVATE(ah)->ah_power_limit = MAX_RATE_POWER;
-    AH_PRIVATE(ah)->ah_tp_scale = HAL_TP_SCALE_MAX;  /* no scaling */
+    /* XXX FreeBSD - for now, just supports EEPROM reading */
+    ahp->ah_priv.ah_eepromRead = ar9300_eeprom_read_word;
+
+    AH_PRIVATE(ah)->ah_powerLimit = MAX_RATE_POWER;
+    AH_PRIVATE(ah)->ah_tpScale = HAL_TP_SCALE_MAX;  /* no scaling */
 
     ahp->ah_atim_window = 0;         /* [0..1000] */
     ahp->ah_diversity_control =
-        AH_PRIVATE(ah)->ah_config.ath_hal_diversity_control;
+        ah->ah_config.ath_hal_diversity_control;
     ahp->ah_antenna_switch_swap =
-        AH_PRIVATE(ah)->ah_config.ath_hal_antenna_switch_swap;
+        ah->ah_config.ath_hal_antenna_switch_swap;
 
     /*
      * Enable MIC handling.
@@ -2432,7 +2480,6 @@ ar9300_chip_test(struct ath_hal *ah)
         { 0x55555555, 0xaaaaaaaa, 0x66666666, 0x99999999 };
     int i, j;
 
-
     /* Test PHY & MAC registers */
     for (i = 0; i < 1; i++) {
         u_int32_t addr = reg_addr[i];
@@ -2444,7 +2491,7 @@ ar9300_chip_test(struct ath_hal *ah)
             OS_REG_WRITE(ah, addr, wr_data);
             rd_data = OS_REG_READ(ah, addr);
             if (rd_data != wr_data) {
-                HALDEBUG(ah, HAL_DEBUG_REG_IO,
+                HALDEBUG(ah, HAL_DEBUG_REGIO,
                     "%s: address test failed addr: "
                     "0x%08x - wr:0x%08x != rd:0x%08x\n",
                     __func__, addr, wr_data, rd_data);
@@ -2456,7 +2503,7 @@ ar9300_chip_test(struct ath_hal *ah)
             OS_REG_WRITE(ah, addr, wr_data);
             rd_data = OS_REG_READ(ah, addr);
             if (wr_data != rd_data) {
-                HALDEBUG(ah, HAL_DEBUG_REG_IO,
+                HALDEBUG(ah, HAL_DEBUG_REGIO,
                     "%s: address test failed addr: "
                     "0x%08x - wr:0x%08x != rd:0x%08x\n",
                     __func__, addr, wr_data, rd_data);
@@ -2479,14 +2526,14 @@ ar9300_get_channel_edges(struct ath_hal *ah,
     struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
     HAL_CAPABILITIES *p_cap = &ahpriv->ah_caps;
 
-    if (flags & CHANNEL_5GHZ) {
-        *low = p_cap->hal_low_5ghz_chan;
-        *high = p_cap->hal_high_5ghz_chan;
+    if (flags & IEEE80211_CHAN_5GHZ) {
+        *low = p_cap->halLow5GhzChan;
+        *high = p_cap->halHigh5GhzChan;
         return AH_TRUE;
     }
-    if ((flags & CHANNEL_2GHZ)) {
-        *low = p_cap->hal_low_2ghz_chan;
-        *high = p_cap->hal_high_2ghz_chan;
+    if ((flags & IEEE80211_CHAN_2GHZ)) {
+        *low = p_cap->halLow2GhzChan;
+        *high = p_cap->halHigh2GhzChan;
 
         return AH_TRUE;
     }
@@ -2496,7 +2543,7 @@ ar9300_get_channel_edges(struct ath_hal *ah,
 HAL_BOOL
 ar9300_regulatory_domain_override(struct ath_hal *ah, u_int16_t regdmn)
 {
-    AH_PRIVATE(ah)->ah_current_rd = regdmn;
+    AH_PRIVATE(ah)->ah_currentRD = regdmn;
     return AH_TRUE;
 }
 
@@ -2518,37 +2565,55 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     eeval = ar9300_eeprom_get(ahp, EEP_REG_0);
 
     /* XXX record serial number */
-    AH_PRIVATE(ah)->ah_current_rd = eeval;
+    AH_PRIVATE(ah)->ah_currentRD = eeval;
 
-    p_cap->halintr_mitigation = AH_TRUE;
+    /* Always enable fast clock; leave it up to EEPROM and channel */
+    p_cap->halSupportsFastClock5GHz = AH_TRUE;
+
+    p_cap->halIntrMitigation = AH_TRUE;
     eeval = ar9300_eeprom_get(ahp, EEP_REG_1);
-    AH_PRIVATE(ah)->ah_current_rd_ext = eeval | AR9300_RDEXT_DEFAULT;
+    AH_PRIVATE(ah)->ah_currentRDext = eeval | AR9300_RDEXT_DEFAULT;
 
     /* Read the capability EEPROM location */
     cap_field = ar9300_eeprom_get(ahp, EEP_OP_CAP);
 
     /* Construct wireless mode from EEPROM */
-    p_cap->hal_wireless_modes = 0;
+    p_cap->halWirelessModes = 0;
     eeval = ar9300_eeprom_get(ahp, EEP_OP_MODE);
 
+    /*
+     * XXX FreeBSD specific: for now, set ath_hal_ht_enable to 1,
+     * or we won't have 11n support.
+     */
+    ah->ah_config.ath_hal_ht_enable = 1;
+
     if (eeval & AR9300_OPFLAGS_11A) {
-        p_cap->hal_wireless_modes |= HAL_MODE_11A |
-            ((!ahpriv->ah_config.ath_hal_ht_enable ||
+        p_cap->halWirelessModes |= HAL_MODE_11A |
+            ((!ah->ah_config.ath_hal_ht_enable ||
               (eeval & AR9300_OPFLAGS_N_5G_HT20)) ?  0 :
              (HAL_MODE_11NA_HT20 | ((eeval & AR9300_OPFLAGS_N_5G_HT40) ? 0 :
                                     (HAL_MODE_11NA_HT40PLUS | HAL_MODE_11NA_HT40MINUS))));
     }
     if (eeval & AR9300_OPFLAGS_11G) {
-        p_cap->hal_wireless_modes |= HAL_MODE_11B | HAL_MODE_11G |
-            ((!ahpriv->ah_config.ath_hal_ht_enable ||
+        p_cap->halWirelessModes |= HAL_MODE_11B | HAL_MODE_11G |
+            ((!ah->ah_config.ath_hal_ht_enable ||
               (eeval & AR9300_OPFLAGS_N_2G_HT20)) ?  0 :
              (HAL_MODE_11NG_HT20 | ((eeval & AR9300_OPFLAGS_N_2G_HT40) ? 0 :
                                     (HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS))));
     }
 
     /* Get chainamsks from eeprom */
-    p_cap->hal_tx_chain_mask = ar9300_eeprom_get(ahp, EEP_TX_MASK);
-    p_cap->hal_rx_chain_mask = ar9300_eeprom_get(ahp, EEP_RX_MASK);
+    p_cap->halTxChainMask = ar9300_eeprom_get(ahp, EEP_TX_MASK);
+    p_cap->halRxChainMask = ar9300_eeprom_get(ahp, EEP_RX_MASK);
+
+
+
+#define owl_get_ntxchains(_txchainmask) \
+    (((_txchainmask >> 2) & 1) + ((_txchainmask >> 1) & 1) + (_txchainmask & 1))
+
+    /* FreeBSD: Update number of TX/RX streams */
+    p_cap->halTxStreams = owl_get_ntxchains(p_cap->halTxChainMask);
+    p_cap->halRxStreams = owl_get_ntxchains(p_cap->halRxChainMask);
 
 
     /*
@@ -2556,93 +2621,97 @@ ar9300_fill_capability_info(struct ath_hal *ah)
      *
      */
     ahp->ah_misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
+    p_cap->halTkipMicTxRxKeySupport = AH_TRUE;
 
+    p_cap->halLow2GhzChan = 2312;
+    p_cap->halHigh2GhzChan = 2732;
 
-    p_cap->hal_low_2ghz_chan = 2312;
-    p_cap->hal_high_2ghz_chan = 2732;
+    p_cap->halLow5GhzChan = 4920;
+    p_cap->halHigh5GhzChan = 6100;
 
-    p_cap->hal_low_5ghz_chan = 4920;
-    p_cap->hal_high_5ghz_chan = 6100;
+    p_cap->halCipherCkipSupport = AH_FALSE;
+    p_cap->halCipherTkipSupport = AH_TRUE;
+    p_cap->halCipherAesCcmSupport = AH_TRUE;
 
-    p_cap->hal_cipher_ckip_support = AH_FALSE;
-    p_cap->hal_cipher_tkip_support = AH_TRUE;
-    p_cap->hal_cipher_aes_ccm_support = AH_TRUE;
+    p_cap->halMicCkipSupport = AH_FALSE;
+    p_cap->halMicTkipSupport = AH_TRUE;
+    p_cap->halMicAesCcmSupport = AH_TRUE;
 
-    p_cap->hal_mic_ckip_support    = AH_FALSE;
-    p_cap->hal_mic_tkip_support    = AH_TRUE;
-    p_cap->hal_mic_aes_ccm_support  = AH_TRUE;
+    p_cap->halChanSpreadSupport = AH_TRUE;
+    p_cap->halSleepAfterBeaconBroken = AH_TRUE;
 
-    p_cap->hal_chan_spread_support = AH_TRUE;
-    p_cap->hal_sleep_after_beacon_broken = AH_TRUE;
+    p_cap->halBurstSupport = AH_TRUE;
+    p_cap->halChapTuningSupport = AH_TRUE;
+    p_cap->halTurboPrimeSupport = AH_TRUE;
+    p_cap->halFastFramesSupport = AH_FALSE;
 
-    p_cap->hal_burst_support = AH_TRUE;
-    p_cap->hal_chap_tuning_support = AH_TRUE;
-    p_cap->hal_turbo_prime_support = AH_TRUE;
-    p_cap->hal_fast_frames_support = AH_FALSE;
+    p_cap->halTurboGSupport = p_cap->halWirelessModes & HAL_MODE_108G;
 
-    p_cap->hal_turbo_g_support = p_cap->hal_wireless_modes & HAL_MODE_108G;
+//    p_cap->hal_xr_support = AH_FALSE;
 
-    p_cap->hal_xr_support = AH_FALSE;
+    p_cap->halHTSupport =
+        ah->ah_config.ath_hal_ht_enable ?  AH_TRUE : AH_FALSE;
 
-    p_cap->hal_ht_support =
-        ahpriv->ah_config.ath_hal_ht_enable ?  AH_TRUE : AH_FALSE;
-    p_cap->hal_gtt_support = AH_TRUE;
-    p_cap->hal_ps_poll_broken = AH_TRUE;    /* XXX fixed in later revs? */
-    p_cap->hal_ht20_sgi_support = AH_TRUE;
-    p_cap->hal_veol_support = AH_TRUE;
-    p_cap->hal_bss_id_mask_support = AH_TRUE;
+    p_cap->halGTTSupport = AH_TRUE;
+    p_cap->halPSPollBroken = AH_TRUE;    /* XXX fixed in later revs? */
+    p_cap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
+    p_cap->halHTSGI20Support = AH_TRUE;
+    p_cap->halVEOLSupport = AH_TRUE;
+    p_cap->halBssIdMaskSupport = AH_TRUE;
     /* Bug 26802, fixed in later revs? */
-    p_cap->hal_mcast_key_srch_support = AH_TRUE;
-    p_cap->hal_tsf_add_support = AH_TRUE;
+    p_cap->halMcastKeySrchSupport = AH_TRUE;
+    p_cap->halTsfAddSupport = AH_TRUE;
 
     if (cap_field & AR_EEPROM_EEPCAP_MAXQCU) {
-        p_cap->hal_total_queues = MS(cap_field, AR_EEPROM_EEPCAP_MAXQCU);
+        p_cap->halTotalQueues = MS(cap_field, AR_EEPROM_EEPCAP_MAXQCU);
     } else {
-        p_cap->hal_total_queues = HAL_NUM_TX_QUEUES;
+        p_cap->halTotalQueues = HAL_NUM_TX_QUEUES;
     }
 
     if (cap_field & AR_EEPROM_EEPCAP_KC_ENTRIES) {
-        p_cap->hal_key_cache_size =
+        p_cap->halKeyCacheSize =
             1 << MS(cap_field, AR_EEPROM_EEPCAP_KC_ENTRIES);
     } else {
-        p_cap->hal_key_cache_size = AR_KEYTABLE_SIZE;
+        p_cap->halKeyCacheSize = AR_KEYTABLE_SIZE;
     }
-    p_cap->hal_fast_cc_support = AH_TRUE;
-    p_cap->hal_num_mr_retries = 4;
-    p_cap->hal_tx_trig_level_max = MAX_TX_FIFO_THRESHOLD;
+    p_cap->halFastCCSupport = AH_TRUE;
+//    p_cap->hal_num_mr_retries = 4;
+//    ahp->hal_tx_trig_level_max = MAX_TX_FIFO_THRESHOLD;
 
-    p_cap->hal_num_gpio_pins = AR9382_MAX_GPIO_PIN_NUM;
+    p_cap->halNumGpioPins = AR9382_MAX_GPIO_PIN_NUM;
 
 #if 0
     /* XXX Verify support in Osprey */
     if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
-        p_cap->hal_wow_support = AH_TRUE;
+        p_cap->halWowSupport = AH_TRUE;
         p_cap->hal_wow_match_pattern_exact = AH_TRUE;
         if (AR_SREV_MERLIN(ah)) {
             p_cap->hal_wow_pattern_match_dword = AH_TRUE;
         }
     } else {
-        p_cap->hal_wow_support = AH_FALSE;
+        p_cap->halWowSupport = AH_FALSE;
         p_cap->hal_wow_match_pattern_exact = AH_FALSE;
     }
 #endif
-    p_cap->hal_wow_support = AH_TRUE;
-    p_cap->hal_wow_match_pattern_exact = AH_TRUE;
+    p_cap->halWowSupport = AH_TRUE;
+    p_cap->halWowMatchPatternExact = AH_TRUE;
     if (AR_SREV_POSEIDON(ah)) {
-        p_cap->hal_wow_match_pattern_exact = AH_TRUE;
+        p_cap->halWowMatchPatternExact = AH_TRUE;
     }
 
-    p_cap->hal_cst_support = AH_TRUE;
+    p_cap->halCSTSupport = AH_TRUE;
 
-    p_cap->hal_rifs_rx_support = AH_TRUE;
-    p_cap->hal_rifs_tx_support = AH_TRUE;
+    p_cap->halRifsRxSupport = AH_TRUE;
+    p_cap->halRifsTxSupport = AH_TRUE;
 
-    p_cap->hal_rts_aggr_limit = IEEE80211_AMPDU_LIMIT_MAX;
+#define	IEEE80211_AMPDU_LIMIT_MAX (65536)
+    p_cap->halRtsAggrLimit = IEEE80211_AMPDU_LIMIT_MAX;
+#undef IEEE80211_AMPDU_LIMIT_MAX
 
-    p_cap->hal_mfp_support = ahpriv->ah_config.ath_hal_mfp_support;
+    p_cap->halMfpSupport = ah->ah_config.ath_hal_mfp_support;
 
-    p_cap->halforce_ppm_support = AH_TRUE;
-    p_cap->hal_hw_beacon_proc_support = AH_TRUE;
+    p_cap->halForcePpmSupport = AH_TRUE;
+    p_cap->halHwBeaconProcSupport = AH_TRUE;
     
     /* ar9300 - has the HW UAPSD trigger support,
      * but it has the following limitations
@@ -2656,23 +2725,23 @@ ar9300_fill_capability_info(struct ath_hal *ah)
      * could be enabled, if these limitations are fixed
      * in later versions of ar9300 chips
      */
-    p_cap->hal_hw_uapsd_trig = AH_FALSE;
+    p_cap->halHasUapsdSupport = AH_FALSE;
 
     /* Number of buffers that can be help in a single TxD */
-    p_cap->hal_num_tx_maps = 4;
+    p_cap->halNumTxMaps = 4;
 
-    p_cap->hal_tx_desc_len = sizeof(struct ar9300_txc);
-    p_cap->hal_tx_status_len = sizeof(struct ar9300_txs);
-    p_cap->hal_rx_status_len = sizeof(struct ar9300_rxs);
+    p_cap->halTxDescLen = sizeof(struct ar9300_txc);
+    p_cap->halTxStatusLen = sizeof(struct ar9300_txs);
+    p_cap->halRxStatusLen = sizeof(struct ar9300_rxs);
 
-    p_cap->hal_rx_hp_depth = HAL_HP_RXFIFO_DEPTH;
-    p_cap->hal_rx_lp_depth = HAL_LP_RXFIFO_DEPTH;
+    p_cap->halRxHpFifoDepth = HAL_HP_RXFIFO_DEPTH;
+    p_cap->halRxLpFifoDepth = HAL_LP_RXFIFO_DEPTH;
 
     /* Enable extension channel DFS support */
-    p_cap->hal_use_combined_radar_rssi = AH_TRUE;
-    p_cap->hal_ext_chan_dfs_support = AH_TRUE;
+    p_cap->halUseCombinedRadarRssi = AH_TRUE;
+    p_cap->halExtChanDfsSupport = AH_TRUE;
 #if ATH_SUPPORT_SPECTRAL
-    p_cap->hal_spectral_scan = AH_TRUE;
+    p_cap->halSpectralScanSupport = AH_TRUE;
 #endif
 
     ahpriv->ah_rfsilent = ar9300_eeprom_get(ahp, EEP_RF_SILENT);
@@ -2681,18 +2750,18 @@ ar9300_fill_capability_info(struct ath_hal *ah)
         ahp->ah_polarity   = MS(ahpriv->ah_rfsilent, EEP_RFSILENT_POLARITY);
 
         ath_hal_enable_rfkill(ah, AH_TRUE);
-        p_cap->hal_rf_silent_support = AH_TRUE;
+        p_cap->halRfSilentSupport = AH_TRUE;
     }
 
     /* XXX */
-    p_cap->hal_wps_push_button = AH_FALSE;
+    p_cap->halWpsPushButtonSupport = AH_FALSE;
 
 #ifdef ATH_BT_COEX
-    p_cap->hal_bt_coex_support = AH_TRUE;
-    p_cap->hal_bt_coex_aspm_war = AH_FALSE;
+    p_cap->halBtCoexSupport = AH_TRUE;
+    p_cap->halBtCoexApsmWar = AH_FALSE;
 #endif
 
-    p_cap->hal_gen_timer_support = AH_TRUE;
+    p_cap->halGenTimerSupport = AH_TRUE;
     ahp->ah_avail_gen_timers = ~((1 << AR_FIRST_NDP_TIMER) - 1);
     ahp->ah_avail_gen_timers &= (1 << AR_NUM_GEN_TIMERS) - 1;
     /*
@@ -2704,109 +2773,119 @@ ar9300_fill_capability_info(struct ath_hal *ah)
 
     if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
 #if ATH_SUPPORT_MCI
-        if (ahpriv->ah_config.ath_hal_mci_config & ATH_MCI_CONFIG_DISABLE_MCI) 
+        if (ah->ah_config.ath_hal_mci_config & ATH_MCI_CONFIG_DISABLE_MCI) 
         {
-            p_cap->hal_mci_support = AH_FALSE;
+            p_cap->halMciSupport = AH_FALSE;
         }
         else
 #endif
         {
-            p_cap->hal_mci_support = (ahp->ah_enterprise_mode & 
-                            AR_ENT_OTP_49GHZ_DISABLE) ? AH_FALSE : AH_TRUE;
+            p_cap->halMciSupport = (ahp->ah_enterprise_mode & 
+                            AR_ENT_OTP_49GHZ_DISABLE) ? AH_FALSE: AH_TRUE;
         }
         HALDEBUG(AH_NULL, HAL_DEBUG_UNMASKABLE,
                  "%s: (MCI) MCI support = %d\n",
-                 __func__, p_cap->hal_mci_support);
+                 __func__, p_cap->halMciSupport);
     }
     else {
-        p_cap->hal_mci_support = AH_FALSE;
+        p_cap->halMciSupport = AH_FALSE;
     }
 
     if (AR_SREV_JUPITER_20(ah)) {
-        p_cap->hal_radio_retention_support = AH_TRUE;
+        p_cap->halRadioRetentionSupport = AH_TRUE;
     } else {
-        p_cap->hal_radio_retention_support = AH_FALSE;
+        p_cap->halRadioRetentionSupport = AH_FALSE;
     }
 
-    p_cap->hal_auto_sleep_support = AH_TRUE;
+    p_cap->halAutoSleepSupport = AH_TRUE;
 
-    p_cap->hal_mbssid_aggr_support = AH_TRUE;
-    p_cap->hal_proxy_sta_support = AH_TRUE;
+    p_cap->halMbssidAggrSupport = AH_TRUE;
+//    p_cap->hal_proxy_sta_support = AH_TRUE;
 
-    /* XXX Mark it AH_TRUE after it is verfied as fixed */
-    p_cap->hal4kb_split_trans_support = AH_FALSE;
+    /* XXX Mark it true after it is verfied as fixed */
+    p_cap->hal4kbSplitTransSupport = AH_FALSE;
 
     /* Read regulatory domain flag */
-    if (AH_PRIVATE(ah)->ah_current_rd_ext & (1 << REG_EXT_JAPAN_MIDBAND)) {
+    if (AH_PRIVATE(ah)->ah_currentRDext & (1 << REG_EXT_JAPAN_MIDBAND)) {
         /*
          * If REG_EXT_JAPAN_MIDBAND is set, turn on U1 EVEN, U2, and MIDBAND.
          */
-        p_cap->hal_reg_cap =
+        p_cap->halRegCap =
             AR_EEPROM_EEREGCAP_EN_KK_NEW_11A |
             AR_EEPROM_EEREGCAP_EN_KK_U1_EVEN |
             AR_EEPROM_EEREGCAP_EN_KK_U2      |
             AR_EEPROM_EEREGCAP_EN_KK_MIDBAND;
     } else {
-        p_cap->hal_reg_cap =
+        p_cap->halRegCap =
             AR_EEPROM_EEREGCAP_EN_KK_NEW_11A | AR_EEPROM_EEREGCAP_EN_KK_U1_EVEN;
     }
 
     /* For AR9300 and above, midband channels are always supported */
-    p_cap->hal_reg_cap |= AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND;
+    p_cap->halRegCap |= AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND;
 
-    p_cap->hal_num_ant_cfg_5ghz =
+    p_cap->halNumAntCfg5GHz =
         ar9300_eeprom_get_num_ant_config(ahp, HAL_FREQ_BAND_5GHZ);
-    p_cap->hal_num_ant_cfg_2ghz =
+    p_cap->halNumAntCfg2GHz =
         ar9300_eeprom_get_num_ant_config(ahp, HAL_FREQ_BAND_2GHZ);
 
     /* STBC supported */
-    p_cap->hal_rx_stbc_support = 1; /* number of streams for STBC recieve. */
+    p_cap->halRxStbcSupport = 1; /* number of streams for STBC recieve. */
     if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON(ah) || AR_SREV_APHRODITE(ah)) {
-        p_cap->hal_tx_stbc_support = 0;
+        p_cap->halTxStbcSupport = 0;
     } else {
-        p_cap->hal_tx_stbc_support = 1;        
+        p_cap->halTxStbcSupport = 1;
     }
 
-    p_cap->hal_enhanced_dma_support = AH_TRUE;
-#ifdef ATH_SUPPORT_DFS
-    p_cap->hal_enhanced_dfs_support = AH_TRUE;
-#endif
+    p_cap->halEnhancedDmaSupport = AH_TRUE;
+    p_cap->halEnhancedDfsSupport = AH_TRUE;
 
     /*
      *  EV61133 (missing interrupts due to AR_ISR_RAC).
      *  Fixed in Osprey 2.0.
      */
-    p_cap->hal_isr_rac_support = AH_TRUE;
+    p_cap->halIsrRacSupport = AH_TRUE;
 
+    /* XXX FreeBSD won't support TKIP and WEP aggregation */
+#if 0
     p_cap->hal_wep_tkip_aggr_support = AH_TRUE;
     p_cap->hal_wep_tkip_aggr_num_tx_delim = 10;    /* TBD */
     p_cap->hal_wep_tkip_aggr_num_rx_delim = 10;    /* TBD */
     p_cap->hal_wep_tkip_max_ht_rate = 15;         /* TBD */
+#endif
+
+    /*
+     * XXX FreeBSD won't need these; but eventually add them
+     * and add the WARs - AGGR extra delim WAR is useful to know
+     * about.
+     */
+#if 0
     p_cap->hal_cfend_fix_support = AH_FALSE;
     p_cap->hal_aggr_extra_delim_war = AH_FALSE;
-    p_cap->hal_rx_desc_timestamp_bits = 32;
-    p_cap->hal_rx_tx_abort_support = AH_TRUE;
+#endif
+    p_cap->halHasLongRxDescTsf = AH_TRUE;
+//    p_cap->hal_rx_desc_timestamp_bits = 32;
+    p_cap->halRxTxAbortSupport = AH_TRUE;
     p_cap->hal_ani_poll_interval = AR9300_ANI_POLLINTERVAL;
     p_cap->hal_channel_switch_time_usec = AR9300_CHANNEL_SWITCH_TIME_USEC;
   
     /* Transmit Beamforming supported, fill capabilities */
-    p_cap->hal_paprd_enabled = ar9300_eeprom_get(ahp, EEP_PAPRD_ENABLED);
-    p_cap->hal_chan_half_rate =
+    p_cap->halPaprdEnabled = ar9300_eeprom_get(ahp, EEP_PAPRD_ENABLED);
+    p_cap->halChanHalfRate =
         !(ahp->ah_enterprise_mode & AR_ENT_OTP_10MHZ_DISABLE);
-    p_cap->hal_chan_quarter_rate =
+    p_cap->halChanQuarterRate =
         !(ahp->ah_enterprise_mode & AR_ENT_OTP_5MHZ_DISABLE);
 	
     if(AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)){
         /* There is no AR_ENT_OTP_49GHZ_DISABLE feature in Jupiter, now the bit is used to disable BT. */		
-        p_cap->hal49Ghz = 1;
+        p_cap->hal49GhzSupport = 1;
     } else {
-        p_cap->hal49Ghz = !(ahp->ah_enterprise_mode & AR_ENT_OTP_49GHZ_DISABLE);
+        p_cap->hal49GhzSupport = !(ahp->ah_enterprise_mode & AR_ENT_OTP_49GHZ_DISABLE);
     }
 
     if (AR_SREV_POSEIDON(ah) || AR_SREV_HORNET(ah) || AR_SREV_APHRODITE(ah)) {
         /* LDPC supported */
         /* Poseidon doesn't support LDPC, or it will cause receiver CRC Error */
-        p_cap->hal_ldpc_support = AH_FALSE;
+        p_cap->halLDPCSupport = AH_FALSE;
         /* PCI_E LCR offset */
         if (AR_SREV_POSEIDON(ah)) {
             p_cap->hal_pcie_lcr_offset = 0x80; /*for Poseidon*/
@@ -2816,10 +2895,11 @@ ar9300_fill_capability_info(struct ath_hal *ah)
             p_cap->hal_pcie_lcr_extsync_en = AH_TRUE;
         }
     } else {
-        p_cap->hal_ldpc_support = AH_TRUE;
+        p_cap->halLDPCSupport = AH_TRUE;
     }
     
-    p_cap->hal_enable_apm = ar9300_eeprom_get(ahp, EEP_CHAIN_MASK_REDUCE);
+    /* XXX is this a flag, or a chainmask number? */
+    p_cap->halApmEnable = !! ar9300_eeprom_get(ahp, EEP_CHAIN_MASK_REDUCE);
 #if ATH_ANT_DIV_COMB        
     if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON_11_OR_LATER(ah)) {
         if (ahp->ah_diversity_control == HAL_ANT_VARIABLE) {
@@ -2829,9 +2909,9 @@ ar9300_fill_capability_info(struct ath_hal *ah)
              * we enable the diversity-combining algorithm. 
              */
             if ((ant_div_control1 >> 0x6) == 0x3) {
-                p_cap->hal_ant_div_comb_support = AH_TRUE;
+                p_cap->halAntDivCombSupport = AH_TRUE;
             }            
-            p_cap->hal_ant_div_comb_support_org = p_cap->hal_ant_div_comb_support;
+            p_cap->halAntDivCombSupportOrg = p_cap->halAntDivCombSupport;
         }
     }
 #endif /* ATH_ANT_DIV_COMB */
@@ -2860,6 +2940,7 @@ ar9300_fill_capability_info(struct ath_hal *ah)
 #undef AR_KEYTABLE_SIZE
 }
 
+#if 0
 static HAL_BOOL
 ar9300_get_chip_power_limits(struct ath_hal *ah, HAL_CHANNEL *chans,
     u_int32_t nchans)
@@ -2867,6 +2948,19 @@ ar9300_get_chip_power_limits(struct ath_hal *ah, HAL_CHANNEL *chans,
     struct ath_hal_9300 *ahp = AH9300(ah);
 
     return ahp->ah_rf_hal.get_chip_power_lim(ah, chans, nchans);
+}
+#endif
+/* XXX FreeBSD */
+
+static HAL_BOOL
+ar9300_get_chip_power_limits(struct ath_hal *ah,
+    struct ieee80211_channel *chan)
+{
+
+	chan->ic_maxpower = AR9300_MAX_RATE_POWER;
+	chan->ic_minpower = 0;
+
+	return AH_TRUE;
 }
 
 /*
@@ -2884,7 +2978,7 @@ ar9300_config_pci_power_save(struct ath_hal *ah, int restore, int power_off)
     struct ath_hal_9300 *ahp = AH9300(ah);
     int i;
 
-    if (AH_PRIVATE(ah)->ah_is_pci_express != AH_TRUE) {
+    if (AH_PRIVATE(ah)->ah_ispcie != AH_TRUE) {
         return;
     }
 
@@ -2893,7 +2987,7 @@ ar9300_config_pci_power_save(struct ath_hal *ah, int restore, int power_off)
      * this change in eeprom/OTP.
      */
     if (AR_SREV_JUPITER(ah)) {
-        u_int32_t val = AH_PRIVATE(ah)->ah_config.ath_hal_war70c;
+        u_int32_t val = ah->ah_config.ath_hal_war70c;
         if ((val & 0xff000000) == 0x17000000) {
             val &= 0x00ffffff;
             val |= 0x27000000;
@@ -2902,7 +2996,7 @@ ar9300_config_pci_power_save(struct ath_hal *ah, int restore, int power_off)
     }
 
     /* Do not touch SERDES registers */
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_pcie_power_save_enable == 2) {
+    if (ah->ah_config.ath_hal_pcie_power_save_enable == 2) {
         return;
     }
 
@@ -2916,10 +3010,10 @@ ar9300_config_pci_power_save(struct ath_hal *ah, int restore, int power_off)
          * Set PCIE workaround config only if requested, else use the reset
          * value of this register.
          */
-        if (AH_PRIVATE(ah)->ah_config.ath_hal_pcie_waen) {
+        if (ah->ah_config.ath_hal_pcie_waen) {
             OS_REG_WRITE(ah,
                 AR_HOSTIF_REG(ah, AR_WA),
-                AH_PRIVATE(ah)->ah_config.ath_hal_pcie_waen);
+                ah->ah_config.ath_hal_pcie_waen);
         } else {
             /* Set Bits 17 and 14 in the AR_WA register. */
             OS_REG_WRITE(ah, AR_HOSTIF_REG(ah, AR_WA), ahp->ah_wa_reg_val);
@@ -2927,7 +3021,7 @@ ar9300_config_pci_power_save(struct ath_hal *ah, int restore, int power_off)
     }
 
     /* Configure PCIE after Ini init. SERDES values now come from ini file */
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_pcie_ser_des_write) {
+    if (ah->ah_config.ath_hal_pcie_ser_des_write) {
         if (power_off) {
             for (i = 0; i < ahp->ah_ini_pcie_serdes.ia_rows; i++) {
                 OS_REG_WRITE(ah,
@@ -2989,12 +3083,14 @@ ar9300_hw_attach(struct ath_hal *ah)
     HAL_STATUS ecode;
 
     if (!ar9300_chip_test(ah)) {
-        HALDEBUG(ah, HAL_DEBUG_REG_IO,
+        HALDEBUG(ah, HAL_DEBUG_REGIO,
             "%s: hardware self-test failed\n", __func__);
         return HAL_ESELFTEST;
     }
 
+    ath_hal_printf(ah, "%s: calling ar9300_eeprom_attach\n", __func__);
     ecode = ar9300_eeprom_attach(ah);
+    ath_hal_printf(ah, "%s: ar9300_eeprom_attach returned %d\n", __func__, ecode);
     if (ecode != HAL_OK) {
         return ecode;
     }
@@ -3023,7 +3119,6 @@ ar9300_get_nf_adjust(struct ath_hal *ah, const HAL_CHANNEL_INTERNAL *c)
 {
     return 0;
 }
-
 
 void
 ar9300_set_immunity(struct ath_hal *ah, HAL_BOOL enable)
@@ -3073,6 +3168,8 @@ ar9300_set_immunity(struct ath_hal *ah, HAL_BOOL enable)
     }
 }
 
+/* XXX FreeBSD: I'm not sure how to implement this.. */
+#if 0
 int
 ar9300_get_cal_intervals(struct ath_hal *ah, HAL_CALIBRATION_TIMER **timerp,
     HAL_CAL_QUERY query)
@@ -3120,6 +3217,7 @@ ar9300_get_cal_intervals(struct ath_hal *ah, HAL_CALIBRATION_TIMER **timerp,
     }
     return 0;
 }
+#endif
 
 #if ATH_TRAFFIC_FAST_RECOVER
 #define PLL3              0x16188
@@ -3273,7 +3371,7 @@ HAL_BOOL ar9300_rf_gain_cap_apply(struct ath_hal *ah, int is_2GHz)
 void ar9300_rx_gain_table_apply(struct ath_hal *ah)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
-    struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
+//struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
     u_int32_t xlan_gpio_cfg;
     u_int8_t  i;
 
@@ -3313,15 +3411,22 @@ void ar9300_rx_gain_table_apply(struct ath_hal *ah)
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
                 ar9485_common_wo_xlna_rx_gain_poseidon1_1,
                 ARRAY_LENGTH(ar9485_common_wo_xlna_rx_gain_poseidon1_1), 2);
-            xlan_gpio_cfg = ahpriv->ah_config.ath_hal_ext_lna_ctl_gpio;
+            /* XXX FreeBSD: this needs to be revisited!! */
+            xlan_gpio_cfg = ah->ah_config.ath_hal_ext_lna_ctl_gpio;
             if (xlan_gpio_cfg) {
                 for (i = 0; i < 32; i++) {
                     if (xlan_gpio_cfg & (1 << i)) {
-                        ath_hal_gpio_cfg_output(ah, i, 
-                            HAL_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED);
+                        /*
+                         * XXX FreeBSD: definitely make sure this
+                         * results in the correct value being written
+                         * to the hardware, or weird crap is very likely
+                         * to occur!
+                         */
+                        ath_hal_gpioCfgOutput(ah, i,
+                            HAL_GPIO_OUTPUT_MUX_PCIE_ATTENTION_LED);
                     }
                 }
-            }    
+            }
 
         } else if (AR_SREV_POSEIDON(ah)) {
             INIT_INI_ARRAY(&ahp->ah_ini_modes_rxgain,
@@ -3962,4 +4067,34 @@ static int ar9300_init_offsets(struct ath_hal *ah, u_int16_t devid)
     return 0;
 }
 
-#endif /* AH_SUPPORT_AR9300 */
+
+static const char*
+ar9300_probe(uint16_t vendorid, uint16_t devid)
+{
+    if (vendorid != ATHEROS_VENDOR_ID)
+        return AH_NULL;
+
+    switch (devid) {
+    case AR9300_DEVID_AR9380_PCIE: /* PCIE (Osprey) */
+        return "Atheros AR938x";
+    case AR9300_DEVID_AR9340: /* Wasp */
+        return "Atheros AR934x";
+    case AR9300_DEVID_AR9485_PCIE: /* Poseidon */
+        return "Atheros AR9485";
+    case AR9300_DEVID_AR9580_PCIE: /* Peacock */
+        return "Atheros AR9580";
+    case AR9300_DEVID_AR946X_PCIE: /* AR9462, AR9463, AR9482 */
+        return "Atheros AR946x/AR948x";
+    case AR9300_DEVID_AR9330: /* Hornet */
+        return "Atheros AR933x";
+    case AR9300_DEVID_QCA955X: /* Scorpion */
+        return "Qualcomm Atheros QCA955x";
+    default:
+        return AH_NULL;
+    }
+
+    return AH_NULL;
+}
+
+AH_CHIP(AR9300, ar9300_probe, ar9300_attach);
+

@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_desc.h"
 #include "ah_internal.h"
@@ -25,7 +23,6 @@
 #include "ar9300/ar9300.h"
 #include "ar9300/ar9300reg.h"
 #include "ar9300/ar9300desc.h"
-
 
 
 /*
@@ -77,12 +74,12 @@ ar9300_proc_rx_desc_fast(struct ath_hal *ah, struct ath_desc *ds,
 
     /* XXX what about key_cache_miss? */
     rxs->rs_rssi = MS(rxsp->status5, AR_rx_rssi_combined);
-    rxs->rs_rssi_ctl0 = MS(rxsp->status1, AR_rx_rssi_ant00);
-    rxs->rs_rssi_ctl1 = MS(rxsp->status1, AR_rx_rssi_ant01);
-    rxs->rs_rssi_ctl2 = MS(rxsp->status1, AR_rx_rssi_ant02);
-    rxs->rs_rssi_ext0 = MS(rxsp->status5, AR_rx_rssi_ant10);
-    rxs->rs_rssi_ext1 = MS(rxsp->status5, AR_rx_rssi_ant11);
-    rxs->rs_rssi_ext2 = MS(rxsp->status5, AR_rx_rssi_ant12);
+    rxs->rs_rssi_ctl[0] = MS(rxsp->status1, AR_rx_rssi_ant00);
+    rxs->rs_rssi_ctl[1] = MS(rxsp->status1, AR_rx_rssi_ant01);
+    rxs->rs_rssi_ctl[2] = MS(rxsp->status1, AR_rx_rssi_ant02);
+    rxs->rs_rssi_ext[0] = MS(rxsp->status5, AR_rx_rssi_ant10);
+    rxs->rs_rssi_ext[1] = MS(rxsp->status5, AR_rx_rssi_ant11);
+    rxs->rs_rssi_ext[2] = MS(rxsp->status5, AR_rx_rssi_ant12);
     if (rxsp->status11 & AR_rx_key_idx_valid) {
         rxs->rs_keyix = MS(rxsp->status11, AR_key_idx);
     } else {
@@ -95,16 +92,16 @@ ar9300_proc_rx_desc_fast(struct ath_hal *ah, struct ath_desc *ds,
     rxs->rs_isaggr = (rxsp->status11 & AR_rx_aggr) ? 1 : 0;
     rxs->rs_moreaggr = (rxsp->status11 & AR_rx_more_aggr) ? 1 : 0;
     rxs->rs_antenna = (MS(rxsp->status4, AR_rx_antenna) & 0x7);
-    rxs->rs_isapsd = (rxsp->status11 & AR_apsd_trig) ? 1 : 0;
-    rxs->rs_flags  = (rxsp->status4 & AR_gi) ? HAL_RX_GI : 0;
+    rxs->rs_flags = (rxsp->status11 & AR_apsd_trig) ? HAL_RX_IS_APSD : 0;
+    rxs->rs_flags  |= (rxsp->status4 & AR_gi) ? HAL_RX_GI : 0;
     rxs->rs_flags  |= (rxsp->status4 & AR_2040) ? HAL_RX_2040 : 0;
 
     /* Copy EVM information */
-    rxs->evm0 = rxsp->status6;
-    rxs->evm1 = rxsp->status7;
-    rxs->evm2 = rxsp->status8;
-    rxs->evm3 = rxsp->status9;
-    rxs->evm4 = (rxsp->status10 & 0xffff);
+    rxs->rs_evm0 = rxsp->status6;
+    rxs->rs_evm1 = rxsp->status7;
+    rxs->rs_evm2 = rxsp->status8;
+    rxs->rs_evm3 = rxsp->status9;
+    rxs->rs_evm4 = (rxsp->status10 & 0xffff);
 
     if (rxsp->status11 & AR_pre_delim_crc_err) {
         rxs->rs_flags |= HAL_RX_DELIM_CRC_PRE;
@@ -196,6 +193,3 @@ ar9300_get_rx_key_idx(struct ath_hal *ah, struct ath_desc *ds, u_int8_t *keyix,
     *keyix = HAL_RXKEYIX_INVALID;    
     return HAL_ENOTSUPP;
 }
-
-
-#endif

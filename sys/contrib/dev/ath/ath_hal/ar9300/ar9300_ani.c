@@ -16,12 +16,10 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_desc.h"
-#include "ah_pktlog.h"
+//#include "ah_pktlog.h"
 
 #include "ar9300/ar9300.h"
 #include "ar9300/ar9300reg.h"
@@ -30,7 +28,7 @@
 extern  void ar9300_set_rx_filter(struct ath_hal *ah, u_int32_t bits);
 extern  u_int32_t ar9300_get_rx_filter(struct ath_hal *ah);
 
-#define HAL_ANI_DEBUG 0
+#define HAL_ANI_DEBUG 1
 
 /*
  * Anti noise immunity support.  We track phy errors and react
@@ -47,7 +45,7 @@ extern  u_int32_t ar9300_get_rx_filter(struct ath_hal *ah);
 #define HAL_ANI_OFDM_TRIG_LOW       400 /* units are errors per second */
 #define HAL_ANI_CCK_TRIG_HIGH       600 /* units are errors per second */
 #define HAL_ANI_CCK_TRIG_LOW        300 /* units are errors per second */
-#define HAL_ANI_USE_OFDM_WEAK_SIG  true
+#define HAL_ANI_USE_OFDM_WEAK_SIG  AH_TRUE
 #define HAL_ANI_ENABLE_MRC_CCK     AH_TRUE /* default is enabled */
 #define HAL_ANI_DEF_SPUR_IMMUNE_LVL   3
 #define HAL_ANI_DEF_FIRSTEP_LVL       2
@@ -177,18 +175,20 @@ ar9300_disable_mib_counters(struct ath_hal *ah)
  * ah_ani values and only the channel field needs to be set.
  */
 static int
-ar9300_get_ani_channel_index(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
+ar9300_get_ani_channel_index(struct ath_hal *ah,
+  const struct ieee80211_channel *chan)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     int i;
 
     for (i = 0; i < ARRAY_LENGTH(ahp->ah_ani); i++) {
-        if (ahp->ah_ani[i].c.channel == chan->channel) {
+        /* XXX this doesn't distinguish between 20/40 channels */
+        if (ahp->ah_ani[i].c.ic_freq == chan->ic_freq) {
             return i;
         }
-        if (ahp->ah_ani[i].c.channel == 0) {
-            ahp->ah_ani[i].c.channel = chan->channel;
-            ahp->ah_ani[i].c.channel_flags = chan->channel_flags;
+        if (ahp->ah_ani[i].c.ic_freq == 0) {
+            ahp->ah_ani[i].c.ic_freq = chan->ic_freq;
+            ahp->ah_ani[i].c.ic_flags = chan->ic_flags;
             return i;
         }
     }
@@ -268,7 +268,7 @@ ar9300_ani_attach(struct ath_hal *ah)
     ar9300_enable_mib_counters(ah);
 
     ahp->ah_ani_period = HAL_ANI_PERIOD;
-    if (AH_PRIVATE(ah)->ah_config.ath_hal_enable_ani) {
+    if (ah->ah_config.ath_hal_enable_ani) {
         ahp->ah_proc_phy_err |= HAL_PROCESS_ANI;
     }
 }
@@ -295,7 +295,7 @@ ar9300_ani_init_defaults(struct ath_hal *ah, HAL_HT_MACMODE macmode)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     struct ar9300_ani_state *ani_state;
-    HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+    const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
     int index;
     u_int32_t val;
 
@@ -307,7 +307,7 @@ ar9300_ani_init_defaults(struct ath_hal *ah, HAL_HT_MACMODE macmode)
     HALDEBUG(ah, HAL_DEBUG_ANI,
         "%s: ver %d.%d opmode %u chan %d Mhz/0x%x macmode %d\n",
         __func__, AH_PRIVATE(ah)->ah_macVersion, AH_PRIVATE(ah)->ah_macRev,
-        AH_PRIVATE(ah)->ah_opmode, chan->channel, chan->channel_flags, macmode);
+        AH_PRIVATE(ah)->ah_opmode, chan->ic_freq, chan->ic_flags, macmode);
 
     val = OS_REG_READ(ah, AR_PHY_SFCORR);
     ani_state->ini_def.m1_thresh = MS(val, AR_PHY_SFCORR_M1_THRESH);
@@ -457,16 +457,16 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     struct ar9300_ani_state *ani_state = ahp->ah_curani;
-    HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+    const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
     int32_t value, value2;
     u_int level = param;
     u_int is_on;
 
-	if (chan == NULL && cmd != HAL_ANI_MODE) {
-		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+    if (chan == NULL && cmd != HAL_ANI_MODE) {
+        HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
             "%s: ignoring cmd 0x%02x - no channel\n", __func__, cmd);
-		return AH_FALSE;
-	}
+        return AH_FALSE;
+    }
 
     switch (cmd & ahp->ah_ani_function) {
     case HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION: 
@@ -538,7 +538,7 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
             if (!is_on != ani_state->ofdm_weak_sig_detect_off) {
                 HALDEBUG(ah, HAL_DEBUG_ANI,
                     "%s: ** ch %d: ofdm weak signal: %s=>%s\n",
-                    __func__, chan->channel,
+                    __func__, chan->ic_freq,
                     !ani_state->ofdm_weak_sig_detect_off ? "on" : "off",
                     is_on ? "on" : "off");
                 if (is_on) {
@@ -592,12 +592,12 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
         if (level != ani_state->firstep_level) {
             HALDEBUG(ah, HAL_DEBUG_ANI,
                 "%s: ** ch %d: level %d=>%d[def:%d] firstep[level]=%d ini=%d\n",
-                __func__, chan->channel, ani_state->firstep_level, level,
+                __func__, chan->ic_freq, ani_state->firstep_level, level,
                 HAL_ANI_DEF_FIRSTEP_LVL, value, ani_state->ini_def.firstep);
             HALDEBUG(ah, HAL_DEBUG_ANI,
                 "%s: ** ch %d: level %d=>%d[def:%d] "
                 "firstep_low[level]=%d ini=%d\n",
-                __func__, chan->channel, ani_state->firstep_level, level,
+                __func__, chan->ic_freq, ani_state->firstep_level, level,
                 HAL_ANI_DEF_FIRSTEP_LVL, value2,
                 ani_state->ini_def.firstep_low);
             if (level > ani_state->firstep_level) {
@@ -651,13 +651,13 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
             HALDEBUG(ah, HAL_DEBUG_ANI,
                 "%s: ** ch %d: level %d=>%d[def:%d] "
                 "cycpwr_thr1[level]=%d ini=%d\n",
-                __func__, chan->channel, ani_state->spur_immunity_level, level,
+                __func__, chan->ic_freq, ani_state->spur_immunity_level, level,
                 HAL_ANI_DEF_SPUR_IMMUNE_LVL, value,
                 ani_state->ini_def.cycpwr_thr1);
             HALDEBUG(ah, HAL_DEBUG_ANI,
                 "%s: ** ch %d: level %d=>%d[def:%d] "
                 "cycpwr_thr1_ext[level]=%d ini=%d\n",
-                __func__, chan->channel, ani_state->spur_immunity_level, level,
+                __func__, chan->ic_freq, ani_state->spur_immunity_level, level,
                 HAL_ANI_DEF_SPUR_IMMUNE_LVL, value2,
                 ani_state->ini_def.cycpwr_thr1_ext);
             if (level > ani_state->spur_immunity_level) {
@@ -682,7 +682,7 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
         }
         if (!is_on != ani_state->mrc_cck_off) {
             HALDEBUG(ah, HAL_DEBUG_ANI,
-                "%s: ** ch %d: MRC CCK: %s=>%s\n", __func__, chan->channel,
+                "%s: ** ch %d: MRC CCK: %s=>%s\n", __func__, chan->ic_freq,
                 !ani_state->mrc_cck_off ? "on" : "off", is_on ? "on" : "off");
             if (is_on) {
                 ahp->ah_stats.ast_ani_ccklow++;
@@ -857,7 +857,8 @@ ar9300_ani_reset(struct ath_hal *ah, HAL_BOOL is_scanning)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     struct ar9300_ani_state *ani_state;
-    HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+    const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
+    HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
     int index;
 
     HALASSERT(chan != AH_NULL);
@@ -881,7 +882,7 @@ ar9300_ani_reset(struct ath_hal *ah, HAL_BOOL is_scanning)
 
     /* only allow a subset of functions in AP mode */
     if (AH_PRIVATE(ah)->ah_opmode == HAL_M_HOSTAP) {
-        if (IS_CHAN_2GHZ(chan)) {
+        if (IS_CHAN_2GHZ(ichan)) {
             ahp->ah_ani_function = (HAL_ANI_SPUR_IMMUNITY_LEVEL |
                                     HAL_ANI_FIRSTEP_LEVEL |
                                     HAL_ANI_MRC_CCK);
@@ -908,8 +909,8 @@ ar9300_ani_reset(struct ath_hal *ah, HAL_BOOL is_scanning)
             HALDEBUG(ah, HAL_DEBUG_ANI,
                 "%s: Restore defaults: opmode %u chan %d Mhz/0x%x "
                 "is_scanning=%d restore=%d ofdm:%d cck:%d\n",
-                __func__, AH_PRIVATE(ah)->ah_opmode, chan->channel,
-                chan->channel_flags, is_scanning, ani_state->must_restore,
+                __func__, AH_PRIVATE(ah)->ah_opmode, chan->ic_freq,
+                chan->ic_flags, is_scanning, ani_state->must_restore,
                 ani_state->ofdm_noise_immunity_level,
                 ani_state->cck_noise_immunity_level);
             /*
@@ -941,8 +942,8 @@ ar9300_ani_reset(struct ath_hal *ah, HAL_BOOL is_scanning)
         HALDEBUG(ah, HAL_DEBUG_ANI,
             "%s: Restore history: opmode %u chan %d Mhz/0x%x is_scanning=%d "
             "restore=%d ofdm:%d cck:%d\n",
-            __func__, AH_PRIVATE(ah)->ah_opmode, chan->channel,
-            chan->channel_flags, is_scanning, ani_state->must_restore,
+            __func__, AH_PRIVATE(ah)->ah_opmode, chan->ic_freq,
+            chan->ic_flags, is_scanning, ani_state->must_restore,
             ani_state->ofdm_noise_immunity_level,
             ani_state->cck_noise_immunity_level);
         ar9300_ani_set_odfm_noise_immunity_level(
@@ -1041,7 +1042,8 @@ ar9300_ani_lower_immunity(struct ath_hal *ah)
 }
 
 /* convert HW counter values to ms using mode specifix clock rate */
-#define CLOCK_RATE(_ah)  (ath_hal_chan_2_clock_rate_mhz(_ah) * 1000)
+//#define CLOCK_RATE(_ah)  (ath_hal_chan_2_clock_rate_mhz(_ah) * 1000)
+#define CLOCK_RATE(_ah)  (ath_hal_mac_clks(ah, 1000))
 
 /*
  * Return an approximation of the time spent ``listening'' by
@@ -1098,7 +1100,7 @@ ar9300_ani_get_listen_time(struct ath_hal *ah, HAL_ANISTATS *ani_stats)
  */
 void
 ar9300_ani_ar_poll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
-                HAL_CHANNEL *chan, HAL_ANISTATS *ani_stats)
+                const struct ieee80211_channel *chan, HAL_ANISTATS *ani_stats)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
     struct ar9300_ani_state *ani_state;
@@ -1274,4 +1276,3 @@ ar9300_is_ani_noise_spur(struct ath_hal *ah)
     return ani_state->phy_noise_spur;
 }
 
-#endif /* AH_SUPPORT_AR9300 */
