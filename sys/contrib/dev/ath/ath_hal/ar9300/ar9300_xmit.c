@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_desc.h"
 #include "ah_internal.h"
@@ -26,6 +24,9 @@
 #include "ar9300/ar9300reg.h"
 #include "ar9300/ar9300phy.h"
 #include "ar9300/ar9300desc.h"
+
+#define TU_TO_USEC(_tu)         ((_tu) << 10)
+#define ONE_EIGHTH_TU_TO_USEC(_tu8)     ((_tu8) << 7)
 
 /*
  * Update Tx FIFO trigger level.
@@ -42,7 +43,7 @@ ar9300_update_tx_trig_level(struct ath_hal *ah, HAL_BOOL b_inc_trig_level)
     u_int32_t txcfg, cur_level, new_level;
     HAL_INT omask;
 
-    if (AH_PRIVATE(ah)->ah_tx_trig_level >= MAX_TX_FIFO_THRESHOLD &&
+    if (AH9300(ah)->ah_tx_trig_level >= MAX_TX_FIFO_THRESHOLD &&
         b_inc_trig_level)
     {
         return AH_FALSE;
@@ -74,7 +75,7 @@ ar9300_update_tx_trig_level(struct ath_hal *ah, HAL_BOOL b_inc_trig_level)
     /* re-enable chip interrupts */
     ar9300_set_interrupts(ah, omask, 0);
 
-    AH_PRIVATE(ah)->ah_tx_trig_level = new_level;
+    AH9300(ah)->ah_tx_trig_level = new_level;
 
     return (new_level != cur_level);
 }
@@ -85,7 +86,7 @@ ar9300_update_tx_trig_level(struct ath_hal *ah, HAL_BOOL b_inc_trig_level)
 u_int16_t
 ar9300_get_tx_trig_level(struct ath_hal *ah)
 {
-    return (AH_PRIVATE(ah)->ah_tx_trig_level);
+    return (AH9300(ah)->ah_tx_trig_level);
 }
 
 /*
@@ -98,11 +99,11 @@ ar9300_set_tx_queue_props(struct ath_hal *ah, int q, const HAL_TXQ_INFO *q_info)
     struct ath_hal_9300 *ahp = AH9300(ah);
     HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
 
-    if (q >= p_cap->hal_total_queues) {
+    if (q >= p_cap->halTotalQueues) {
         HALDEBUG(ah, HAL_DEBUG_QUEUE, "%s: invalid queue num %u\n", __func__, q);
         return AH_FALSE;
     }
-    return ath_hal_set_tx_q_props(ah, &ahp->ah_txq[q], q_info);
+    return ath_hal_setTxQProps(ah, &ahp->ah_txq[q], q_info);
 }
 
 /*
@@ -115,11 +116,11 @@ ar9300_get_tx_queue_props(struct ath_hal *ah, int q, HAL_TXQ_INFO *q_info)
     HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
 
 
-    if (q >= p_cap->hal_total_queues) {
+    if (q >= p_cap->halTotalQueues) {
         HALDEBUG(ah, HAL_DEBUG_QUEUE, "%s: invalid queue num %u\n", __func__, q);
         return AH_FALSE;
     }
-    return ath_hal_get_tx_q_props(ah, q_info, &ahp->ah_txq[q]);
+    return ath_hal_getTxQProps(ah, q_info, &ahp->ah_txq[q]);
 }
 
 enum {
@@ -145,17 +146,17 @@ ar9300_setup_tx_queue(struct ath_hal *ah, HAL_TX_QUEUE type,
     switch (type) {
     case HAL_TX_QUEUE_BEACON:
         /* highest priority */
-        q = p_cap->hal_total_queues - AH_TX_QUEUE_MINUS_OFFSET_BEACON;
+        q = p_cap->halTotalQueues - AH_TX_QUEUE_MINUS_OFFSET_BEACON;
         break;
     case HAL_TX_QUEUE_CAB:
         /* next highest priority */
-        q = p_cap->hal_total_queues - AH_TX_QUEUE_MINUS_OFFSET_CAB;
+        q = p_cap->halTotalQueues - AH_TX_QUEUE_MINUS_OFFSET_CAB;
         break;
     case HAL_TX_QUEUE_UAPSD:
-        q = p_cap->hal_total_queues - AH_TX_QUEUE_MINUS_OFFSET_UAPSD;
+        q = p_cap->halTotalQueues - AH_TX_QUEUE_MINUS_OFFSET_UAPSD;
         break;
     case HAL_TX_QUEUE_PAPRD:
-        q = p_cap->hal_total_queues - AH_TX_QUEUE_MINUS_OFFSET_PAPRD;
+        q = p_cap->halTotalQueues - AH_TX_QUEUE_MINUS_OFFSET_PAPRD;
         break;
     case HAL_TX_QUEUE_DATA:
         /*
@@ -163,14 +164,14 @@ ar9300_setup_tx_queue(struct ath_hal *ah, HAL_TX_QUEUE type,
          * beacon, CAB, UAPSD, PAPRD
          */
         for (q = 0;
-             q < p_cap->hal_total_queues - AH_TX_QUEUE_MINUS_OFFSET_PAPRD;
+             q < p_cap->halTotalQueues - AH_TX_QUEUE_MINUS_OFFSET_PAPRD;
              q++)
         {
             if (ahp->ah_txq[q].tqi_type == HAL_TX_QUEUE_INACTIVE) {
                 break;
             }
         }
-        if (q == p_cap->hal_total_queues - 3) {
+        if (q == p_cap->halTotalQueues - 3) {
             HALDEBUG(ah, HAL_DEBUG_QUEUE,
                 "%s: no available tx queue\n", __func__);
             return -1;
@@ -196,18 +197,18 @@ ar9300_setup_tx_queue(struct ath_hal *ah, HAL_TX_QUEUE type,
 
     if (q_info == AH_NULL) {
         /* by default enable OK+ERR+DESC+URN interrupts */
-        qi->tqi_qflags = TXQ_FLAG_TXOKINT_ENABLE
-                        | TXQ_FLAG_TXERRINT_ENABLE
-                        | TXQ_FLAG_TXDESCINT_ENABLE
-                        | TXQ_FLAG_TXURNINT_ENABLE;
+        qi->tqi_qflags = HAL_TXQ_TXOKINT_ENABLE
+                        | HAL_TXQ_TXERRINT_ENABLE
+                        | HAL_TXQ_TXDESCINT_ENABLE
+                        | HAL_TXQ_TXURNINT_ENABLE;
         qi->tqi_aifs = INIT_AIFS;
         qi->tqi_cwmin = HAL_TXQ_USEDEFAULT;     /* NB: do at reset */
         qi->tqi_cwmax = INIT_CWMAX;
         qi->tqi_shretry = INIT_SH_RETRY;
         qi->tqi_lgretry = INIT_LG_RETRY;
-        qi->tqi_phys_comp_buf = 0;
+        qi->tqi_physCompBuf = 0;
     } else {
-        qi->tqi_phys_comp_buf = q_info->tqi_comp_buf;
+        qi->tqi_physCompBuf = q_info->tqi_compBuf;
         (void) ar9300_set_tx_queue_props(ah, q, q_info);
     }
     /* NB: must be followed by ar9300_reset_tx_queue */
@@ -250,7 +251,7 @@ ar9300_release_tx_queue(struct ath_hal *ah, u_int q)
     HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
     HAL_TX_QUEUE_INFO *qi;
 
-    if (q >= p_cap->hal_total_queues) {
+    if (q >= p_cap->halTotalQueues) {
         HALDEBUG(ah, HAL_DEBUG_QUEUE, "%s: invalid queue num %u\n", __func__, q);
         return AH_FALSE;
     }
@@ -282,13 +283,13 @@ HAL_BOOL
 ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
 {
     struct ath_hal_9300     *ahp  = AH9300(ah);
-    struct ath_hal_private  *ap   = AH_PRIVATE(ah);
+//    struct ath_hal_private  *ap   = AH_PRIVATE(ah);
     HAL_CAPABILITIES        *p_cap = &AH_PRIVATE(ah)->ah_caps;
-    HAL_CHANNEL_INTERNAL    *chan = AH_PRIVATE(ah)->ah_curchan;
+    const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
     HAL_TX_QUEUE_INFO       *qi;
     u_int32_t               cw_min, chan_cw_min, value;
 
-    if (q >= p_cap->hal_total_queues) {
+    if (q >= p_cap->halTotalQueues) {
         HALDEBUG(ah, HAL_DEBUG_QUEUE, "%s: invalid queue num %u\n", __func__, q);
         return AH_FALSE;
     }
@@ -306,7 +307,7 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
          * Select cwmin according to channel type.
          * NB: chan can be NULL during attach
          */
-        if (chan && IS_CHAN_B(chan)) {
+        if (chan && IEEE80211_IS_CHAN_B(chan)) {
             chan_cw_min = INIT_CWMIN_11B;
         } else {
             chan_cw_min = INIT_CWMIN;
@@ -318,7 +319,7 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
     }
 
     /* set cw_min/Max and AIFS values */
-    if (q > 3 || (!ah->ah_fccaifs))
+    if (q > 3 || (!AH9300(ah)->ah_fccaifs))
        /* values should not be overwritten if domain is FCC and manual rate 
          less than 24Mb is set, this check  is making sure this */
     {
@@ -348,41 +349,41 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
     }
 
     /* multiqueue support */
-    if (qi->tqi_cbr_period) {
+    if (qi->tqi_cbrPeriod) {
         OS_REG_WRITE(ah,
             AR_QCBRCFG(q),
-            SM(qi->tqi_cbr_period, AR_Q_CBRCFG_INTERVAL) |
-                SM(qi->tqi_cbr_overflow_limit,
+            SM(qi->tqi_cbrPeriod, AR_Q_CBRCFG_INTERVAL) |
+                SM(qi->tqi_cbrOverflowLimit,
             AR_Q_CBRCFG_OVF_THRESH));
         OS_REG_WRITE(ah, AR_QMISC(q),
             OS_REG_READ(ah, AR_QMISC(q)) |
             AR_Q_MISC_FSP_CBR |
-            (qi->tqi_cbr_overflow_limit ?
+            (qi->tqi_cbrOverflowLimit ?
                 AR_Q_MISC_CBR_EXP_CNTR_LIMIT_EN : 0));
     }
 
-    if (qi->tqi_ready_time && (qi->tqi_type != HAL_TX_QUEUE_CAB)) {
+    if (qi->tqi_readyTime && (qi->tqi_type != HAL_TX_QUEUE_CAB)) {
         OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
-            SM(qi->tqi_ready_time, AR_Q_RDYTIMECFG_DURATION) |
+            SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_DURATION) |
             AR_Q_RDYTIMECFG_EN);
     }
 
-    OS_REG_WRITE(ah, AR_DCHNTIME(q), SM(qi->tqi_burst_time, AR_D_CHNTIME_DUR) |
-                (qi->tqi_burst_time ? AR_D_CHNTIME_EN : 0));
+    OS_REG_WRITE(ah, AR_DCHNTIME(q), SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR) |
+                (qi->tqi_burstTime ? AR_D_CHNTIME_EN : 0));
 
-    if (qi->tqi_burst_time &&
-        (qi->tqi_qflags & TXQ_FLAG_RDYTIME_EXP_POLICY_ENABLE))
+    if (qi->tqi_burstTime &&
+        (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
     {
         OS_REG_WRITE(ah, AR_QMISC(q), OS_REG_READ(ah, AR_QMISC(q)) |
                      AR_Q_MISC_RDYTIME_EXP_POLICY);
     }
 
-    if (qi->tqi_qflags & TXQ_FLAG_BACKOFF_DISABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE) {
         OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q)) |
                     AR_D_MISC_POST_FR_BKOFF_DIS);
     }
 
-    if (qi->tqi_qflags & TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE) {
         OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q)) |
                     AR_D_MISC_FRAG_BKOFF_EN);
     }
@@ -421,10 +422,10 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
                         | AR_Q_MISC_CBR_INCR_DIS1
                         | AR_Q_MISC_CBR_INCR_DIS0);
 
-        value = TU_TO_USEC(qi->tqi_ready_time)
-                - (ap->ah_config.ath_hal_sw_beacon_response_time
-                -  ap->ah_config.ath_hal_dma_beacon_response_time)
-                - ap->ah_config.ath_hal_additional_swba_backoff;
+        value = TU_TO_USEC(qi->tqi_readyTime)
+                - (ah->ah_config.ah_sw_beacon_response_time
+                -  ah->ah_config.ah_dma_beacon_response_time)
+                - ah->ah_config.ah_additional_swba_backoff;
         OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_EN);
 
         OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q))
@@ -459,7 +460,7 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
      * the meaning of queue_info->mode, or create something like
      * queue_info->dcumode.
      */
-    if (qi->tqi_int_flags & HAL_TXQ_USE_LOCKOUT_BKOFF_DIS) {
+    if (qi->tqi_intFlags & HAL_TXQ_USE_LOCKOUT_BKOFF_DIS) {
         OS_REG_WRITE(ah, AR_DMISC(q),
             OS_REG_READ(ah, AR_DMISC(q)) |
                 SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
@@ -480,22 +481,22 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
      * tx interrupts are enabled/disabled for all queues collectively
      * using the primary mask reg
      */
-    if (qi->tqi_qflags & TXQ_FLAG_TXOKINT_ENABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_TXOKINT_ENABLE) {
         ahp->ah_tx_ok_interrupt_mask |=  (1 << q);
     } else {
         ahp->ah_tx_ok_interrupt_mask &= ~(1 << q);
     }
-    if (qi->tqi_qflags & TXQ_FLAG_TXERRINT_ENABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_TXERRINT_ENABLE) {
         ahp->ah_tx_err_interrupt_mask |=  (1 << q);
     } else {
         ahp->ah_tx_err_interrupt_mask &= ~(1 << q);
     }
-    if (qi->tqi_qflags & TXQ_FLAG_TXEOLINT_ENABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_TXEOLINT_ENABLE) {
         ahp->ah_tx_eol_interrupt_mask |=  (1 << q);
     } else {
         ahp->ah_tx_eol_interrupt_mask &= ~(1 << q);
     }
-    if (qi->tqi_qflags & TXQ_FLAG_TXURNINT_ENABLE) {
+    if (qi->tqi_qflags & HAL_TXQ_TXURNINT_ENABLE) {
         ahp->ah_tx_urn_interrupt_mask |=  (1 << q);
     } else {
         ahp->ah_tx_urn_interrupt_mask &= ~(1 << q);
@@ -511,7 +512,7 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
 u_int32_t
 ar9300_get_tx_dp(struct ath_hal *ah, u_int q)
 {
-    HALASSERT(q < AH_PRIVATE(ah)->ah_caps.hal_total_queues);
+    HALASSERT(q < AH_PRIVATE(ah)->ah_caps.halTotalQueues);
     return OS_REG_READ(ah, AR_QTXDP(q));
 }
 
@@ -521,7 +522,7 @@ ar9300_get_tx_dp(struct ath_hal *ah, u_int q)
 HAL_BOOL
 ar9300_set_tx_dp(struct ath_hal *ah, u_int q, u_int32_t txdp)
 {
-    HALASSERT(q < AH_PRIVATE(ah)->ah_caps.hal_total_queues);
+    HALASSERT(q < AH_PRIVATE(ah)->ah_caps.halTotalQueues);
     HALASSERT(AH9300(ah)->ah_txq[q].tqi_type != HAL_TX_QUEUE_INACTIVE);
     HALASSERT(txdp != 0);
 
@@ -548,7 +549,7 @@ ar9300_num_tx_pending(struct ath_hal *ah, u_int q)
 {
     u_int32_t npend;
 
-    HALASSERT(q < AH_PRIVATE(ah)->ah_caps.hal_total_queues);
+    HALASSERT(q < AH_PRIVATE(ah)->ah_caps.halTotalQueues);
 
     npend = OS_REG_READ(ah, AR_QSTS(q)) & AR_Q_STS_PEND_FR_CNT;
     if (npend == 0) {
@@ -906,5 +907,3 @@ ar9300_setup_tx_status_ring(struct ath_hal *ah, void *ts_start,
 
     ar9300_reset_tx_status_ring(ah);
 }
-
-#endif /* AH_SUPPORT_AR9300 */

@@ -16,8 +16,6 @@
 
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9300
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -161,8 +159,8 @@ HAL_RATE_TABLE ar9300_11g_table = {
 /* 5.5 Mb */ {  AH_TRUE, CCK,     5500,    0x19,    0x04, (0x80 | 11),   2 },
 /*  11 Mb */ {  AH_TRUE, CCK,    11000,    0x18,    0x04, (0x80 | 22),   3 },
 /* Hardware workaround - remove rates 6, 9 from rate ctrl */
-/*   6 Mb */ { AH_FALSE, OFDM,    6000,    0x0b,    0x00,          12,   4 },
-/*   9 Mb */ { AH_FALSE, OFDM,    9000,    0x0f,    0x00,          18,   4 },
+/*   6 Mb */ {  AH_TRUE, OFDM,    6000,    0x0b,    0x00,          12,   4 },
+/*   9 Mb */ {  AH_TRUE, OFDM,    9000,    0x0f,    0x00,          18,   4 },
 /*  12 Mb */ {  AH_TRUE, OFDM,   12000,    0x0a,    0x00,          24,   6 },
 /*  18 Mb */ {  AH_TRUE, OFDM,   18000,    0x0e,    0x00,          36,   6 },
 /*  24 Mb */ {  AH_TRUE, OFDM,   24000,    0x09,    0x00,          48,   8 },
@@ -172,6 +170,7 @@ HAL_RATE_TABLE ar9300_11g_table = {
     },
 };
 
+#if 0
 HAL_RATE_TABLE ar9300_xr_table = {
     13,        /* number of rates */
     { 0 },
@@ -193,6 +192,7 @@ HAL_RATE_TABLE ar9300_xr_table = {
 /*   54 Mb */ {AH_TRUE, OFDM, 54000, 0x0c,   0x00,         108,   8, 44,  44  },
     },
 };
+#endif
 
 #define AR9300_11NG_RT_OFDM_OFFSET       4
 #define AR9300_11NG_RT_HT_SS_OFFSET      12
@@ -210,8 +210,8 @@ HAL_RATE_TABLE ar9300_11ng_table = {
 /* 5.5 Mb */ {  AH_TRUE, CCK,     5500,    0x19,    0x04, (0x80 | 11),   2 },
 /*  11 Mb */ {  AH_TRUE, CCK,    11000,    0x18,    0x04, (0x80 | 22),   3 },
 /* Hardware workaround - remove rates 6, 9 from rate ctrl */
-/*   6 Mb */ { AH_FALSE, OFDM,    6000,    0x0b,    0x00,          12,   4 },
-/*   9 Mb */ { AH_FALSE, OFDM,    9000,    0x0f,    0x00,          18,   4 },
+/*   6 Mb */ {  AH_FALSE, OFDM,    6000,    0x0b,    0x00,          12,   4 },
+/*   9 Mb */ {  AH_FALSE, OFDM,    9000,    0x0f,    0x00,          18,   4 },
 /*  12 Mb */ {  AH_TRUE, OFDM,   12000,    0x0a,    0x00,          24,   6 },
 /*  18 Mb */ {  AH_TRUE, OFDM,   18000,    0x0e,    0x00,          36,   6 },
 /*  24 Mb */ {  AH_TRUE, OFDM,   24000,    0x09,    0x00,          48,   8 },
@@ -316,13 +316,13 @@ ar9300_get_rate_table(struct ath_hal *ah, u_int mode)
         rt = &ar9300_11a_table;
         break;
     case HAL_MODE_11A_HALF_RATE:
-        if (p_cap->hal_chan_half_rate) {
+        if (p_cap->halChanHalfRate) {
             rt = &ar9300_11a_half_table;
             break;
         }
         return AH_NULL;
     case HAL_MODE_11A_QUARTER_RATE:
-        if (p_cap->hal_chan_quarter_rate) {
+        if (p_cap->halChanQuarterRate) {
             rt = &ar9300_11a_quarter_table;
             break;
         }
@@ -337,9 +337,11 @@ ar9300_get_rate_table(struct ath_hal *ah, u_int mode)
     case HAL_MODE_108G:
         rt =  &ar9300_turbo_table;
         break;
+#if 0
     case HAL_MODE_XR:
         rt = &ar9300_xr_table;
         break;
+#endif
     case HAL_MODE_11NG_HT20:
     case HAL_MODE_11NG_HT40PLUS:
     case HAL_MODE_11NG_HT40MINUS:
@@ -387,7 +389,6 @@ ar9300_invalid_stbc_cfg(int tx_chains, u_int8_t rate_code)
 
     return AH_TRUE;
 }
-
 
 int16_t
 ar9300_get_rate_txpower(struct ath_hal *ah, u_int mode, u_int8_t rate_index,
@@ -503,11 +504,11 @@ ar9300_adjust_reg_txpower_cdd(struct ath_hal *ah,
 
 extern void
 ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
-                      HAL_CHANNEL_INTERNAL *chan,
+                      const struct ieee80211_channel *chan,
                       u_int8_t power_per_rate[], u_int8_t chainmask)
 {
     const HAL_RATE_TABLE *rt;
-    HAL_BOOL is40 = IS_CHAN_HT40(chan);
+    HAL_BOOL is40 = IEEE80211_IS_CHAN_HT40(chan);
 
     rt = ar9300_get_rate_table(ah, mode);
     HALASSERT(rt != NULL);
@@ -531,7 +532,7 @@ ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
                             AR9300_11NA_RT_HT_DS_OFFSET,
                             AR9300_11NA_RT_HT_TS_OFFSET, chainmask);
         /* For FCC the array gain has to be factored for CDD mode */
-        if (is_reg_dmn_fcc(chan->conformance_test_limit)) {
+        if (is_reg_dmn_fcc(ath_hal_getctl(ah, chan))) {
             ar9300_adjust_rate_txpower_cdd(ah, rt, is40, 
                             AR9300_11NA_RT_HT_SS_OFFSET,
                             AR9300_11NA_RT_HT_DS_OFFSET,
@@ -561,7 +562,7 @@ ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
                             AR9300_11NG_RT_HT_DS_OFFSET,
                             AR9300_11NG_RT_HT_TS_OFFSET, chainmask);
         /* For FCC the array gain needs to be factored for CDD mode */
-        if (is_reg_dmn_fcc(chan->conformance_test_limit)) {
+        if (is_reg_dmn_fcc(ath_hal_getctl(ah, chan))) {
             ar9300_adjust_rate_txpower_cdd(ah, rt, is40, 
                             AR9300_11NG_RT_HT_SS_OFFSET,
                             AR9300_11NG_RT_HT_DS_OFFSET,
@@ -828,7 +829,6 @@ ar9300_init_rate_txpower_ht(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
     }
 }
 
-
 static inline void
 ar9300_init_rate_txpower_stbc(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
                         HAL_BOOL is40,
@@ -1041,13 +1041,13 @@ ar9300_adjust_rate_txpower_cdd(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
 void ar9300_disp_tpc_tables(struct ath_hal *ah)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
-    HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+    const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
     u_int mode = ath_hal_get_curmode(ah, chan);
     const HAL_RATE_TABLE *rt;
     int i, j;
 
     /* Check whether TPC is enabled */
-    if (!AH_PRIVATE(ah)->ah_config.ath_hal_desc_tpc) {
+    if (!ah->ah_config.ath_hal_desc_tpc) {
         ath_hal_printf(ah, "\n TPC Register method in use\n");
         return;
     }
@@ -1062,12 +1062,11 @@ void ar9300_disp_tpc_tables(struct ath_hal *ah)
             txpower[j] = ahp->txpower[i][j];
             ath_hal_printf(ah, " Index[%2d] Rate[0x%02x] %6d kbps "
                        "Power (%d Chain) [%2d.%1d dBm]\n",
-                       i, rt->info[i].rate_code, rt->info[i].rateKbps,
+                       i, rt->info[i].rateCode, rt->info[i].rateKbps,
                        j + 1, txpower[j] / 2, txpower[j]%2 * 5);
         }
     }
     ath_hal_printf(ah, "\n");
-
 
     ath_hal_printf(ah, "\n\n===TARGET POWER TABLE with STBC===\n");
     for ( j = 0 ; j < ar9300_get_ntxchains(ahp->ah_tx_chainmask) ; j++ ) {
@@ -1076,15 +1075,15 @@ void ar9300_disp_tpc_tables(struct ath_hal *ah)
             txpower[j] = ahp->txpower_stbc[i][j];
 
             /* Do not display invalid configurations */
-            if ((rt->info[i].rate_code < AR9300_MCS0_RATE_CODE) ||
-                (rt->info[i].rate_code > AR9300_MCS23_RATE_CODE) ||
-                ar9300_invalid_stbc_cfg(j, rt->info[i].rate_code) == AH_TRUE) {
+            if ((rt->info[i].rateCode < AR9300_MCS0_RATE_CODE) ||
+                (rt->info[i].rateCode > AR9300_MCS23_RATE_CODE) ||
+                ar9300_invalid_stbc_cfg(j, rt->info[i].rateCode) == AH_TRUE) {
                 continue;
             }
 
             ath_hal_printf(ah, " Index[%2d] Rate[0x%02x] %6d kbps "
                        "Power (%d Chain) [%2d.%1d dBm]\n",
-                       i, rt->info[i].rate_code, rt->info[i].rateKbps,
+                       i, rt->info[i].rateCode , rt->info[i].rateKbps,
                        j + 1, txpower[j] / 2, txpower[j]%2 * 5);
         }
     }
@@ -1113,7 +1112,7 @@ struct rate_power_tbl {
 u_int8_t *ar9300_get_tpc_tables(struct ath_hal *ah)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
-    HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+    const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
     u_int mode = ath_hal_get_curmode(ah, chan);
     const HAL_RATE_TABLE *rt;
     u_int8_t *data;
@@ -1121,15 +1120,15 @@ u_int8_t *ar9300_get_tpc_tables(struct ath_hal *ah)
     int i, j;
 
     /* Check whether TPC is enabled */
-    if (!AH_PRIVATE(ah)->ah_config.ath_hal_desc_tpc) {
+    if (! ah->ah_config.ath_hal_desc_tpc) {
         ath_hal_printf(ah, "\n TPC Register method in use\n");
         return NULL;
     }
     
-    rt = ar9300_get_rate_table(ah, mode);
+    rt = (const HAL_RATE_TABLE *)ar9300_get_rate_table(ah, mode);
     HALASSERT(rt != NULL);
 
-    data = (u_int8_t *)ath_hal_malloc(ah,
+    data = (u_int8_t *)ath_hal_malloc(
                        1 + rt->rateCount * sizeof(struct rate_power_tbl));
     if (data == NULL)
         return NULL;
@@ -1142,14 +1141,14 @@ u_int8_t *ar9300_get_tpc_tables(struct ath_hal *ah)
     for (j = 0 ; j < ar9300_get_ntxchains(ahp->ah_tx_chainmask) ; j++ ) {
         for (i = 0; i < rt->rateCount; i++) {
             table[i].rateIdx = i;
-            table[i].rateCode = rt->info[i].rate_code;
+            table[i].rateCode = rt->info[i].rateCode;
             table[i].rateKbps = rt->info[i].rateKbps;
             switch (j) {
             case 0:
-                table[i].chain1 = rt->info[i].rate_code <= 0x87 ? 1 : 0;
+                table[i].chain1 = rt->info[i].rateCode <= 0x87 ? 1 : 0;
                 break;
             case 1:
-                table[i].chain2 = rt->info[i].rate_code <= 0x8f ? 1 : 0;
+                table[i].chain2 = rt->info[i].rateCode <= 0x8f ? 1 : 0;
                 break;
             case 2:
                 table[i].chain3 = 1;
@@ -1164,13 +1163,12 @@ u_int8_t *ar9300_get_tpc_tables(struct ath_hal *ah)
         }
     }
 
-
     for ( j = 0 ; j < ar9300_get_ntxchains(ahp->ah_tx_chainmask) ; j++ ) {
         for (i = 0; i < rt->rateCount; i++) {
             /* Do not display invalid configurations */
-            if ((rt->info[i].rate_code < AR9300_MCS0_RATE_CODE) ||
-                (rt->info[i].rate_code > AR9300_MCS23_RATE_CODE) ||
-                ar9300_invalid_stbc_cfg(j, rt->info[i].rate_code) == AH_TRUE) {
+            if ((rt->info[i].rateCode < AR9300_MCS0_RATE_CODE) ||
+                (rt->info[i].rateCode > AR9300_MCS23_RATE_CODE) ||
+                ar9300_invalid_stbc_cfg(j, rt->info[i].rateCode) == AH_TRUE) {
                 continue;
             }
 
@@ -1190,7 +1188,7 @@ ath_hal_get_rate_power_limit_from_eeprom(struct ath_hal *ah, u_int16_t freq,
     /*
      * Used for AR9300 series chip only
      */
-    if (AH_PRIVATE(ah)->ah_magic == AR9300_MAGIC) {
+    if (ah->ah_magic == AR9300_MAGIC) {
         u_int8_t target_rate_power_limit_val_t2[ar9300_rate_size];
         int i;
 
@@ -1212,4 +1210,3 @@ ath_hal_get_rate_power_limit_from_eeprom(struct ath_hal *ah, u_int16_t freq,
 
     return HAL_OK;
 }
-#endif /* AH_SUPPORT_AR9300 */
