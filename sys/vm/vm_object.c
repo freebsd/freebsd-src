@@ -505,6 +505,7 @@ void
 vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
+	struct vnode *vp;
 
 	while (object != NULL) {
 		VM_OBJECT_WLOCK(object);
@@ -527,15 +528,36 @@ vm_object_deallocate(vm_object_t object)
 			VM_OBJECT_WUNLOCK(object);
 			return;
 		} else if (object->ref_count == 1) {
+			if (object->type == OBJT_SWAP &&
+			    (object->flags & OBJ_TMPFS) != 0) {
+				vp = object->un_pager.swp.swp_tmpfs;
+				vhold(vp);
+				VM_OBJECT_WUNLOCK(object);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				vdrop(vp);
+				VM_OBJECT_WLOCK(object);
+				if (object->type == OBJT_DEAD) {
+					VM_OBJECT_WUNLOCK(object);
+					VOP_UNLOCK(vp, 0);
+					return;
+				} else if ((object->flags & OBJ_TMPFS) != 0) {
+					if (object->ref_count == 1)
+						VOP_UNSET_TEXT(vp);
+					VOP_UNLOCK(vp, 0);
+				}
+			}
 			if (object->shadow_count == 0 &&
 			    object->handle == NULL &&
 			    (object->type == OBJT_DEFAULT ||
-			     object->type == OBJT_SWAP)) {
+			    (object->type == OBJT_SWAP &&
+			    (object->flags & OBJ_TMPFS) == 0))) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
 			} else if ((object->shadow_count == 1) &&
 			    (object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
+				KASSERT((object->flags & OBJ_TMPFS) == 0,
+				    ("Shadowed tmpfs v_object"));
 				vm_object_t robject;
 
 				robject = LIST_FIRST(&object->shadow_head);
