@@ -3007,7 +3007,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
 	if (sc->ciss_cfg->max_sg_length == 0) {
-		sg_length = 16;
+		sg_length = 17;
 	} else {
 	/* XXX Fix for ZMR cards that advertise max_sg_length == 32
 	 * Confusing bit here. max_sg_length is usually a power of 2. We always
