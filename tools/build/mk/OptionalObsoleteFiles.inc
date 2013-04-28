@@ -3674,9 +3674,9 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_OPENSSH} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSH} == no
+OLD_FILES+=usr.bin/ssh-copy-id
+.endif
 
 #.if ${MK_OPENSSL} == no
 # to be filled in
