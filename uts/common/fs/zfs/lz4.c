@@ -197,20 +197,17 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
     defined(__amd64) || defined(__ppc64__) || defined(_WIN64) || \
     defined(__LP64__) || defined(_LP64))
 #define	LZ4_ARCH64 1
-/*
- * Illumos: On amd64 we have 20k of stack and 24k on sun4u and sun4v, so we
- * can spend 16k on the algorithm
- */
-#define	STACKLIMIT 12
 #else
 #define	LZ4_ARCH64 0
-/*
- * Illumos: On i386 we only have 12k of stack, so in order to maintain the
- * same COMPRESSIONLEVEL we have to use heap allocation. Performance will
- * suck, but alas, it's ZFS on 32-bit we're talking about, so...
- */
-#define	STACKLIMIT 11
 #endif
+
+/*
+ * Limits the amount of stack space that the algorithm may consume to hold
+ * the compression lookup table. The value `9' here means we'll never use
+ * more than 2k of stack (see above for a description of COMPRESSIONLEVEL).
+ * If more memory is needed, it is allocated from the heap.
+ */
+#define	STACKLIMIT 9
 
 /*
  * Little Endian or Big Endian?
@@ -240,11 +237,7 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 #define	LZ4_FORCE_UNALIGNED_ACCESS 1
 #endif
 
-/*
- * Illumos: we can't use GCC's __builtin_ctz family of builtins in the
- * kernel
- */
-#define	LZ4_FORCE_SW_BITCOUNT
+/* #define	LZ4_FORCE_SW_BITCOUNT */
 
 /*
  * Compiler Options
