@@ -1902,8 +1902,10 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	struct mbuf *m = NULL;
 	struct sf_buf *sf;
 	struct vm_page *pg;
+	struct vattr va;
 	off_t off, xfsize, fsbytes = 0, sbytes = 0, rem = 0;
 	int error, hdrlen = 0, mnw = 0;
+	int bsize;
 	struct sendfile_sync *sfs = NULL;
 
 	/*
@@ -2102,6 +2104,16 @@ retry_space:
 		 */
 		space -= hdrlen;
 
+		error = vn_lock(vp, LK_SHARED);
+		if (error != 0)
+			goto done;
+		error = VOP_GETATTR(vp, &va, td->td_ucred);
+		if (error != 0) {
+			VOP_UNLOCK(vp, 0);
+			goto done;
+		}
+		bsize = vp->v_mount->mnt_stat.f_iosize;
+
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
@@ -2111,7 +2123,6 @@ retry_space:
 			vm_offset_t pgoff;
 			struct mbuf *m0;
 
-			VM_OBJECT_WLOCK(obj);
 			/*
 			 * Calculate the amount to transfer.
 			 * Not to exceed a page, the EOF,
@@ -2121,12 +2132,11 @@ retry_space:
 			if (uap->nbytes)
 				rem = (uap->nbytes - fsbytes - loopbytes);
 			else
-				rem = obj->un_pager.vnp.vnp_size -
+				rem = va.va_size -
 				    uap->offset - fsbytes - loopbytes;
 			xfsize = omin(PAGE_SIZE - pgoff, rem);
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
-				VM_OBJECT_WUNLOCK(obj);
 				done = 1;		/* all data sent */
 				break;
 			}
@@ -2136,7 +2146,6 @@ retry_space:
 			 * Let the outer loop figure out how to handle it.
 			 */
 			if (space <= loopbytes) {
-				VM_OBJECT_WUNLOCK(obj);
 				done = 0;
 				break;
 			}
@@ -2146,6 +2155,7 @@ retry_space:
 			 * if not found or wait and loop if busy.
 			 */
 			pindex = OFF_TO_IDX(off);
+			VM_OBJECT_WLOCK(obj);
 			pg = vm_page_grab(obj, pindex, VM_ALLOC_NOBUSY |
 			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_RETRY);
 
@@ -2163,7 +2173,6 @@ retry_space:
 			else if (uap->flags & SF_NODISKIO)
 				error = EBUSY;
 			else {
-				int bsize;
 				ssize_t resid;
 
 				/*
@@ -2175,13 +2184,6 @@ retry_space:
 
 				/*
 				 * Get the page from backing store.
-				 */
-				error = vn_lock(vp, LK_SHARED);
-				if (error != 0)
-					goto after_read;
-				bsize = vp->v_mount->mnt_stat.f_iosize;
-
-				/*
 				 * XXXMAC: Because we don't have fp->f_cred
 				 * here, we pass in NOCRED.  This is probably
 				 * wrong, but is consistent with our original
@@ -2191,8 +2193,6 @@ retry_space:
 				    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
 				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
-				VOP_UNLOCK(vp, 0);
-			after_read:
 				VM_OBJECT_WLOCK(obj);
 				vm_page_io_finish(pg);
 				if (!error)
@@ -2280,6 +2280,8 @@ retry_space:
 				mtx_unlock(&sfs->mtx);
 			}
 		}
+
+		VOP_UNLOCK(vp, 0);
 
 		/* Add the buffer chain to the socket buffer. */
 		if (m != NULL) {
