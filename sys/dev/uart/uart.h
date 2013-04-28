@@ -72,6 +72,7 @@ extern struct uart_class uart_sbbc_class __attribute__((weak));
 extern struct uart_class uart_z8530_class __attribute__((weak));
 extern struct uart_class uart_lpc_class __attribute__((weak));
 extern struct uart_class uart_pl011_class __attribute__((weak));
+extern struct uart_class uart_cdnc_class __attribute__((weak));
 
 #ifdef PC98
 struct uart_class *uart_pc98_getdev(u_long port);

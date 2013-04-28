@@ -60,7 +60,8 @@
  * compilers use an inefficient yet reliable version.
  */
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
+    __has_extension(c_generic_selections)
 #define	__tg_generic(x, cfnl, cfn, cfnf, fnl, fn, fnf)			\
 	_Generic(x,							\
 		long double _Complex: cfnl,				\

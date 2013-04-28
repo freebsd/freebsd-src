@@ -289,6 +289,8 @@ dialog_menu_confirm_delete()
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2> /dev/null
+
+	# Menu choice ignored; status of above command returned
 }
 
 ############################################################ MAIN

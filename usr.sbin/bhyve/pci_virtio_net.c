@@ -140,7 +140,6 @@ struct pci_vtnet_softc {
 	int		vsc_isr;
 	int		vsc_tapfd;
 	int		vsc_rx_ready;
-	int		vsc_rxpend;
 	int		tx_in_progress;
 	int		resetting;
 
@@ -323,14 +322,6 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 
 	if (ndescs == 0) {
 		/*
-		 * Need to wait for host notification to read
-		 */
-		if (sc->vsc_rxpend == 0) {
-			WPRINTF(("vtnet: no rx descriptors !\n"));
-			sc->vsc_rxpend = 1;
-		}
-
-		/*
 		 * Drop the packet and try later
 		 */
 		(void) read(sc->vsc_tapfd, dummybuf, sizeof(dummybuf));
@@ -416,17 +407,6 @@ pci_vtnet_ping_rxq(struct pci_vtnet_softc *sc)
 	 */
 	if (sc->vsc_rx_ready == 0) {
 		sc->vsc_rx_ready = 1;
-	}
-
-	/*
-	 * If the rx queue was empty, attempt to receive a
-	 * packet that was previously blocked due to no rx bufs
-	 * available
-	 */
-	if (sc->vsc_rxpend) {
-		WPRINTF(("vtnet: rx resumed\n\r"));
-		sc->vsc_rxpend = 0;
-		pci_vtnet_tap_rx(sc);
 	}
 }
 
