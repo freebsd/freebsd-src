@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_mem2.c 11881 2012-10-18 23:24:15Z luigi $
  *
  * (New) memory allocator for netmap
  */

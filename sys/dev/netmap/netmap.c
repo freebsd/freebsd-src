@@ -99,6 +99,7 @@ MALLOC_DEFINE(M_NETMAP, "netmap", "Network memory map");
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
 
+/* XXX the following variables must be deprecated and included in nm_mem */
 u_int netmap_total_buffers;
 u_int netmap_buf_size;
 char *netmap_buffer_base;	/* address of an invalid buffer */
@@ -148,6 +149,8 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, copy, CTLFLAG_RW, &netmap_copy, 0 , "");
 #define NM_BDG_HASH		1024	/* forwarding table entries */
 #define NM_BDG_BATCH		1024	/* entries in the forwarding buffer */
 #define	NM_BRIDGES		4	/* number of bridges */
+
+
 int netmap_bridge = NM_BDG_BATCH; /* bridge batch size */
 SYSCTL_INT(_dev_netmap, OID_AUTO, bridge, CTLFLAG_RW, &netmap_bridge, 0 , "");
 
