@@ -1704,10 +1704,11 @@ static int hptiop_internal_memalloc_mvfrey(struct hpt_iop_hba *hba)
 			hba->u.mvfrey.internal_mem_size,
 			hptiop_mvfrey_map_ctlcfg, hba, 0)) {
 		device_printf(hba->pcidev, "bus_dmamap_load failed!\n");
-		if (hba->ctlcfg_dmat)
+		if (hba->ctlcfg_dmat) {
 			bus_dmamem_free(hba->ctlcfg_dmat,
 				hba->ctlcfg_ptr, hba->ctlcfg_dmamap);
 			bus_dma_tag_destroy(hba->ctlcfg_dmat);
+		}
 		return -1;
 	}
 
