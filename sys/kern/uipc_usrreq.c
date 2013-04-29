@@ -1706,6 +1706,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	struct mbuf *control = *controlp;
 	struct proc *p = td->td_proc;
 	struct filedesc *fdescp = p->p_fd;
+	struct bintime *bt;
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	struct cmsgcred *cmcred;
 	struct file **rp;
@@ -1812,6 +1813,18 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			tv = (struct timeval *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			microtime(tv);
+			break;
+
+		case SCM_BINTIME:
+			*controlp = sbcreatecontrol(NULL, sizeof(*bt),
+			    SCM_BINTIME, SOL_SOCKET);
+			if (*controlp == NULL) {
+				error = ENOBUFS;
+				goto out;
+			}
+			bt = (struct bintime *)
+			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			bintime(bt);
 			break;
 
 		default:
