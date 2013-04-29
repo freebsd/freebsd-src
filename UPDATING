@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130429:
+	Fix a bug that allows NFS clients to issue READDIR on files.
+
 20130315:
 	The install(1) option -M has changed meaning and now takes an
 	argument that is a file or path to append logs to.  In the
