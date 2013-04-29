@@ -9,6 +9,9 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130429:	p3	FreeBSD-SA-13:05.nfsserver
+	Fix a bug that allows NFS clients to issue READDIR on files.
+
 20130402:	p2	FreeBSD-SA-13:03.openssl FreeBSD-SA-13:04.bind
 	Fix multiple vulnerabilities in OpenSSL.
 
