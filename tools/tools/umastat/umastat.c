@@ -79,7 +79,7 @@ kread(kvm_t *kvm, void *kvm_pointer, void *address, size_t size,
 }
 
 static int
-kread_string(kvm_t *kvm, void *kvm_pointer, char *buffer, int buflen)
+kread_string(kvm_t *kvm, const void *kvm_pointer, char *buffer, int buflen)
 {
 	ssize_t ret;
 	int i;
@@ -151,7 +151,7 @@ uma_print_keg_flags(struct uma_keg *ukp, const char *spaces)
 		if (ukp->uk_flags & flaginfo[i].fi_flag) {
 			if (count++ > 0)
 				printf(" | ");
-			printf(flaginfo[i].fi_name);
+			printf("%s", flaginfo[i].fi_name);
 		}
 
 	}
