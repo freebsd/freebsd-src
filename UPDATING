@@ -15,6 +15,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130429:	p8	FreeBSD-SA-13:05.nfsserver
+	Fix a bug that allows NFS clients to issue READDIR on files.
+
 20130402:	p7	FreeBSD-SA-13:03.openssl
 	Fix multiple vulnerabilities in OpenSSL.
 
