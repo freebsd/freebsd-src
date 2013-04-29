@@ -366,6 +366,10 @@ device		iwn6000fw
 device		iwn6050fw
 device		wpifw
 
+# Intel Non-Transparent Bridge (NTB) hardware
+device		ntb_hw	# Hardware Abstraction Layer for the NTB
+device		if_ntb	# Simulated ethernet device using the NTB
+
 #
 #XXX this stores pointers in a 32bit field that is defined by the hardware
 #device	pst

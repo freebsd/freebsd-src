@@ -333,6 +333,7 @@ MAN=	aac.4 \
 	ng_vlan.4 \
 	nmdm.4 \
 	nsp.4 \
+	${_ntb.4} \
 	null.4 \
 	${_nvd.4} \
 	${_nve.4} \
@@ -647,6 +648,7 @@ MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
 MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
+MLINKS+=${_ntb.4} ${_if_ntb.4} ${_ntb_hw.4}
 MLINKS+=${_nve.4} ${_if_nve.4}
 MLINKS+=${_nxge.4} ${_if_nxge.4}
 MLINKS+=patm.4 if_patm.4
@@ -784,6 +786,9 @@ MLINKS+=lindev.4 full.4
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _bhyve.4=	bhyve.4
+_if_ntb.4=	if_ntb.4
+_ntb.4=		ntb.4
+_ntb_hw.4=	ntb_hw.4
 _qlxgb.4=	qlxgb.4
 _sfxge.4=	sfxge.4
 
