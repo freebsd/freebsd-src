@@ -243,6 +243,7 @@ SUBDIR=	\
 	nmdm \
 	${_nsp} \
 	nullfs \
+	${_ntb} \
 	${_nvd} \
 	${_nve} \
 	${_nvme} \
@@ -693,6 +694,7 @@ _mthca=		mthca
 .endif
 _ndis=		ndis
 _nfe=		nfe
+_ntb=		ntb
 _nvd=		nvd
 .if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
