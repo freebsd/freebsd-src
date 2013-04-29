@@ -1574,6 +1574,8 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 			nd->nd_repstat = NFSERR_BAD_COOKIE;
 #endif
 	}
+	if (!nd->nd_repstat && vp->v_type != VDIR)
+		nd->nd_repstat = NFSERR_NOTDIR;
 	if (nd->nd_repstat == 0 && cnt == 0) {
 		if (nd->nd_flag & ND_NFSV2)
 			/* NFSv2 does not have NFSERR_TOOSMALL */
