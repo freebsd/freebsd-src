@@ -2170,7 +2170,6 @@ ip_dn_init(void)
 	getmicrouptime(&dn_cfg.prev_t);
 }
 
-#ifdef KLD_MODULE
 static void
 ip_dn_destroy(int last)
 {
@@ -2194,7 +2193,6 @@ ip_dn_destroy(int last)
 
 	DN_LOCK_DESTROY();
 }
-#endif /* KLD_MODULE */
 
 static int
 dummynet_modevent(module_t mod, int type, void *data)
@@ -2210,13 +2208,8 @@ dummynet_modevent(module_t mod, int type, void *data)
 		ip_dn_io_ptr = dummynet_io;
 		return 0;
 	} else if (type == MOD_UNLOAD) {
-#if !defined(KLD_MODULE)
-		printf("dummynet statically compiled, cannot unload\n");
-		return EINVAL ;
-#else
 		ip_dn_destroy(1 /* last */);
 		return 0;
-#endif
 	} else
 		return EOPNOTSUPP;
 }
