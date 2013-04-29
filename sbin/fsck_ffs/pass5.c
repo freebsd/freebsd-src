@@ -581,7 +581,8 @@ check_maps(
 	}
 }
 
-static void clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
+static void
+clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
 {
 
 	if (debug)
