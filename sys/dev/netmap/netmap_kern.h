@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_kern.h 11829 2012-09-26 04:06:34Z luigi $
  *
  * The header contains the definitions of constants and function
  * prototypes used only in kernelspace.
@@ -35,6 +34,7 @@
 #define _NET_NETMAP_KERN_H_
 
 #if defined(__FreeBSD__)
+
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 
@@ -42,8 +42,10 @@
 #define	NM_SELINFO_T	struct selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
 #define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
+
 #elif defined (linux)
-#define	NM_LOCK_T	safe_spinlock_t // see bsd_glue.h
+
+#define	NM_LOCK_T	safe_spinlock_t	// see bsd_glue.h
 #define	NM_SELINFO_T	wait_queue_head_t
 #define	MBUF_LEN(m)	((m)->len)
 #define	NM_SEND_UP(ifp, m)	netif_rx(m)
@@ -65,6 +67,7 @@
 #endif
 
 #elif defined (__APPLE__)
+
 #warning apple support is incomplete.
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
@@ -74,8 +77,10 @@
 #define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
 
 #else
+
 #error unsupported platform
-#endif
+
+#endif /* end - platform-specific code */
 
 #define ND(format, ...)
 #define D(format, ...)						\
