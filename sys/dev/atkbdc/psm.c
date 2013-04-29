@@ -260,6 +260,38 @@ typedef struct synapticsaction {
 	int			in_vscroll;
 } synapticsaction_t;
 
+enum {
+	TRACKPOINT_SYSCTL_SENSITIVITY,
+	TRACKPOINT_SYSCTL_NEGATIVE_INERTIA,
+	TRACKPOINT_SYSCTL_UPPER_PLATEAU,
+	TRACKPOINT_SYSCTL_BACKUP_RANGE,
+	TRACKPOINT_SYSCTL_DRAG_HYSTERESIS,
+	TRACKPOINT_SYSCTL_MINIMUM_DRAG,
+	TRACKPOINT_SYSCTL_UP_THRESHOLD,
+	TRACKPOINT_SYSCTL_THRESHOLD,
+	TRACKPOINT_SYSCTL_JENKS_CURVATURE,
+	TRACKPOINT_SYSCTL_Z_TIME,
+	TRACKPOINT_SYSCTL_PRESS_TO_SELECT,
+	TRACKPOINT_SYSCTL_SKIP_BACKUPS
+};
+
+typedef struct trackpointinfo {
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+	int	sensitivity;
+	int	inertia;
+	int	uplateau;
+	int	reach;
+	int	draghys;
+	int	mindrag;
+	int	upthresh;
+	int	threshold;
+	int	jenks;
+	int	ztime;
+	int	pts;
+	int	skipback;
+} trackpointinfo_t;
+
 /* driver control block */
 struct psm_softc {		/* Driver status information */
 	int		unit;
@@ -274,6 +306,8 @@ struct psm_softc {		/* Driver status information */
 	synapticshw_t	synhw;		/* Synaptics hardware information */
 	synapticsinfo_t	syninfo;	/* Synaptics configuration */
 	synapticsaction_t synaction;	/* Synaptics action context */
+	int		tphw;		/* TrackPoint hardware information */
+	trackpointinfo_t tpinfo;	/* TrackPoint configuration */
 	mousemode_t	mode;		/* operation mode */
 	mousemode_t	dflt_mode;	/* default operation mode */
 	mousestatus_t	status;		/* accumulated mouse movement */
@@ -343,6 +377,9 @@ TUNABLE_INT("hw.psm.tap_enabled", &tap_enabled);
 
 static int synaptics_support = 0;
 TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
+
+static int trackpoint_support = 0;
+TUNABLE_INT("hw.psm.trackpoint_support", &trackpoint_support);
 
 static int verbose = PSM_DEBUG;
 TUNABLE_INT("debug.psm.loglevel", &verbose);
@@ -432,6 +469,7 @@ static probefunc_t	enable_4dmouse;
 static probefunc_t	enable_4dplus;
 static probefunc_t	enable_mmanplus;
 static probefunc_t	enable_synaptics;
+static probefunc_t	enable_trackpoint;
 static probefunc_t	enable_versapad;
 
 static struct {
@@ -466,6 +504,8 @@ static struct {
 	  0x80, MOUSE_PS2_PACKETSIZE, enable_kmouse },
 	{ MOUSE_MODEL_VERSAPAD,		/* Interlink electronics VersaPad */
 	  0xe8, MOUSE_PS2VERSA_PACKETSIZE, enable_versapad },
+	{ MOUSE_MODEL_TRACKPOINT,	/* IBM/Lenovo TrackPoint */
+	  0xc0, MOUSE_PS2_PACKETSIZE, enable_trackpoint },
 	{ MOUSE_MODEL_GENERIC,
 	  0xc0, MOUSE_PS2_PACKETSIZE, NULL },
 };
@@ -708,6 +748,7 @@ model_name(int model)
 		{ MOUSE_MODEL_4DPLUS,		"4D+ Mouse" },
 		{ MOUSE_MODEL_SYNAPTICS,	"Synaptics Touchpad" },
 		{ MOUSE_MODEL_GENERIC,		"Generic PS/2 mouse" },
+		{ MOUSE_MODEL_TRACKPOINT,	"IBM/Lenovo TrackPoint" },
 		{ MOUSE_MODEL_UNKNOWN,		"Unknown" },
 	};
 	int i;
@@ -1452,7 +1493,7 @@ psmattach(device_t dev)
 		sc->config |= PSM_CONFIG_INITAFTERSUSPEND;
 		break;
 	default:
-		if (sc->synhw.infoMajor >= 4)
+		if (sc->synhw.infoMajor >= 4 || sc->tphw > 0)
 			sc->config |= PSM_CONFIG_INITAFTERSUSPEND;
 		break;
 	}
@@ -3440,6 +3481,7 @@ psmsoftintr(void *arg)
 				goto next;
 			break;
 
+		case MOUSE_MODEL_TRACKPOINT:
 		case MOUSE_MODEL_GENERIC:
 		default:
 			break;
@@ -4467,6 +4509,233 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 		synaptics_sysctl_create_tree(sc);
 
 		sc->hw.buttons = buttons;
+	}
+
+	return (TRUE);
+}
+
+/* IBM/Lenovo TrackPoint */
+static int
+trackpoint_command(KBDC kbdc, int cmd, int loc, int val)
+{
+	const int seq[] = { 0xe2, cmd, loc, val };
+	int i;
+
+	for (i = 0; i < nitems(seq); i++)
+		if (send_aux_command(kbdc, seq[i]) != PSM_ACK)
+			return (EIO);
+	return (0);
+}
+
+#define	PSM_TPINFO(x)	offsetof(struct psm_softc, tpinfo.x)
+#define	TPMASK		0
+#define	TPLOC		1
+#define	TPINFO		2
+
+static int
+trackpoint_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	static const int data[][3] = {
+		{ 0x00, 0x4a, PSM_TPINFO(sensitivity) },
+		{ 0x00, 0x4d, PSM_TPINFO(inertia) },
+		{ 0x00, 0x60, PSM_TPINFO(uplateau) },
+		{ 0x00, 0x57, PSM_TPINFO(reach) },
+		{ 0x00, 0x58, PSM_TPINFO(draghys) },
+		{ 0x00, 0x59, PSM_TPINFO(mindrag) },
+		{ 0x00, 0x5a, PSM_TPINFO(upthresh) },
+		{ 0x00, 0x5c, PSM_TPINFO(threshold) },
+		{ 0x00, 0x5d, PSM_TPINFO(jenks) },
+		{ 0x00, 0x5e, PSM_TPINFO(ztime) },
+		{ 0x01, 0x2c, PSM_TPINFO(pts) },
+		{ 0x08, 0x2d, PSM_TPINFO(skipback) }
+	};
+	struct psm_softc *sc;
+	int error, newval, *oldvalp;
+	const int *tp;
+
+	if (arg1 == NULL || arg2 < 0 || arg2 >= nitems(data))
+		return (EINVAL);
+	sc = arg1;
+	tp = data[arg2];
+	oldvalp = (int *)((intptr_t)sc + tp[TPINFO]);
+	newval = *oldvalp;
+	error = sysctl_handle_int(oidp, &newval, 0, req);
+	if (error != 0)
+		return (error);
+	if (newval == *oldvalp)
+		return (0);
+	if (newval < 0 || newval > (tp[TPMASK] == 0 ? 255 : 1))
+		return (EINVAL);
+	error = trackpoint_command(sc->kbdc, tp[TPMASK] == 0 ? 0x81 : 0x47,
+	    tp[TPLOC], tp[TPMASK] == 0 ? newval : tp[TPMASK]);
+	if (error != 0)
+		return (error);
+	*oldvalp = newval;
+
+	return (0);
+}
+
+static void
+trackpoint_sysctl_create_tree(struct psm_softc *sc)
+{
+
+	if (sc->tpinfo.sysctl_tree != NULL)
+		return;
+
+	/* Attach extra trackpoint sysctl nodes under hw.psm.trackpoint */
+	sysctl_ctx_init(&sc->tpinfo.sysctl_ctx);
+	sc->tpinfo.sysctl_tree = SYSCTL_ADD_NODE(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_hw_psm), OID_AUTO, "trackpoint", CTLFLAG_RD,
+	    0, "IBM/Lenovo TrackPoint");
+
+	/* hw.psm.trackpoint.sensitivity */
+	sc->tpinfo.sensitivity = 0x64;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "sensitivity", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_SENSITIVITY,
+	    trackpoint_sysctl, "I",
+	    "Sensitivity");
+
+	/* hw.psm.trackpoint.negative_inertia */
+	sc->tpinfo.inertia = 0x06;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "negative_inertia", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_NEGATIVE_INERTIA,
+	    trackpoint_sysctl, "I",
+	    "Negative inertia factor");
+
+	/* hw.psm.trackpoint.upper_plateau */
+	sc->tpinfo.uplateau = 0x61;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "upper_plateau", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_UPPER_PLATEAU,
+	    trackpoint_sysctl, "I",
+	    "Transfer function upper plateau speed");
+
+	/* hw.psm.trackpoint.backup_range */
+	sc->tpinfo.reach = 0x0a;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "backup_range", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_BACKUP_RANGE,
+	    trackpoint_sysctl, "I",
+	    "Backup range");
+
+	/* hw.psm.trackpoint.drag_hysteresis */
+	sc->tpinfo.draghys = 0xff;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "drag_hysteresis", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_DRAG_HYSTERESIS,
+	    trackpoint_sysctl, "I",
+	    "Drag hysteresis");
+
+	/* hw.psm.trackpoint.minimum_drag */
+	sc->tpinfo.mindrag = 0x14;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "minimum_drag", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_MINIMUM_DRAG,
+	    trackpoint_sysctl, "I",
+	    "Minimum drag");
+
+	/* hw.psm.trackpoint.up_threshold */
+	sc->tpinfo.upthresh = 0xff;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "up_threshold", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_UP_THRESHOLD,
+	    trackpoint_sysctl, "I",
+	    "Up threshold for release");
+
+	/* hw.psm.trackpoint.threshold */
+	sc->tpinfo.threshold = 0x08;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "threshold", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_THRESHOLD,
+	    trackpoint_sysctl, "I",
+	    "Threshold");
+
+	/* hw.psm.trackpoint.jenks_curvature */
+	sc->tpinfo.jenks = 0x87;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "jenks_curvature", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_JENKS_CURVATURE,
+	    trackpoint_sysctl, "I",
+	    "Jenks curvature");
+
+	/* hw.psm.trackpoint.z_time */
+	sc->tpinfo.ztime = 0x26;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "z_time", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_Z_TIME,
+	    trackpoint_sysctl, "I",
+	    "Z time constant");
+
+	/* hw.psm.trackpoint.press_to_select */
+	sc->tpinfo.pts = 0x00;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "press_to_select", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_PRESS_TO_SELECT,
+	    trackpoint_sysctl, "I",
+	    "Press to Select");
+
+	/* hw.psm.trackpoint.skip_backups */
+	sc->tpinfo.skipback = 0x00;
+	SYSCTL_ADD_PROC(&sc->tpinfo.sysctl_ctx,
+	    SYSCTL_CHILDREN(sc->tpinfo.sysctl_tree), OID_AUTO,
+	    "skip_backups", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
+	    sc, TRACKPOINT_SYSCTL_SKIP_BACKUPS,
+	    trackpoint_sysctl, "I",
+	    "Skip backups from drags");
+}
+
+static int
+enable_trackpoint(KBDC kbdc, struct psm_softc *sc)
+{
+	int id;
+
+	kbdc = sc->kbdc;
+
+	if (send_aux_command(kbdc, 0xe1) != PSM_ACK ||
+	    read_aux_data(kbdc) != 0x01)
+		return (FALSE);
+	id = read_aux_data(kbdc);
+	if (id < 0x01)
+		return (FALSE);
+	if (sc != NULL)
+		sc->tphw = id;
+	if (!trackpoint_support)
+		return (FALSE);
+
+	if (sc != NULL) {
+		/* Create sysctl tree. */
+		trackpoint_sysctl_create_tree(sc);
+
+		trackpoint_command(kbdc, 0x81, 0x4a, sc->tpinfo.sensitivity);
+		trackpoint_command(kbdc, 0x81, 0x4d, sc->tpinfo.inertia);
+		trackpoint_command(kbdc, 0x81, 0x60, sc->tpinfo.uplateau);
+		trackpoint_command(kbdc, 0x81, 0x57, sc->tpinfo.reach);
+		trackpoint_command(kbdc, 0x81, 0x58, sc->tpinfo.draghys);
+		trackpoint_command(kbdc, 0x81, 0x59, sc->tpinfo.mindrag);
+		trackpoint_command(kbdc, 0x81, 0x5a, sc->tpinfo.upthresh);
+		trackpoint_command(kbdc, 0x81, 0x5c, sc->tpinfo.threshold);
+		trackpoint_command(kbdc, 0x81, 0x5d, sc->tpinfo.jenks);
+		trackpoint_command(kbdc, 0x81, 0x5e, sc->tpinfo.ztime);
+		if (sc->tpinfo.pts == 0x01)
+			trackpoint_command(kbdc, 0x47, 0x2c, 0x01);
+		if (sc->tpinfo.skipback == 0x01)
+			trackpoint_command(kbdc, 0x47, 0x2d, 0x08);
+
+		sc->hw.hwid = id;
+		sc->hw.buttons = 3;
 	}
 
 	return (TRUE);
