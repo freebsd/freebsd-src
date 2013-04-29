@@ -68,7 +68,7 @@ intel_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 	    (uintmax_t) rcr4());
 
 	/* always turn off the RDPMC instruction */
- 	load_cr4(rcr4() & ~CR4_PCE);
+	load_cr4(rcr4() & ~CR4_PCE);
 
 	return 0;
 }
@@ -131,8 +131,14 @@ pmc_intel_initialize(void)
 			nclasses = 3;
 			break;
 		case 0x1A:
-		case 0x1E:	/* Per Intel document 253669-032 9/2009, pages A-2 and A-57 */
-		case 0x1F:	/* Per Intel document 253669-032 9/2009, pages A-2 and A-57 */
+		case 0x1E:	/*
+				 * Per Intel document 253669-032 9/2009,
+				 * pages A-2 and A-57
+				 */
+		case 0x1F:	/*
+				 * Per Intel document 253669-032 9/2009,
+				 * pages A-2 and A-57
+				 */
 		case 0x2E:
 			cputype = PMC_CPU_INTEL_COREI7;
 			nclasses = 5;
@@ -180,7 +186,7 @@ pmc_intel_initialize(void)
 	/* Allocate base class and initialize machine dependent struct */
 	pmc_mdep = pmc_mdep_alloc(nclasses);
 
-	pmc_mdep->pmd_cputype 	 = cputype;
+	pmc_mdep->pmd_cputype	 = cputype;
 	pmc_mdep->pmd_switch_in	 = intel_switch_in;
 	pmc_mdep->pmd_switch_out = intel_switch_out;
 
