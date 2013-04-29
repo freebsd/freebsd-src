@@ -252,7 +252,7 @@ pass5(void)
 			frags = 0;
 			for (j = 0; j < fs->fs_frag; j++) {
 				if (testbmap(d + j)) {
-					if (Eflag && start != -1) {
+					if ((Eflag || Zflag) && start != -1) {
 						clear_blocks(start, d + j - 1);
 						start = -1;
 					}
@@ -274,7 +274,7 @@ pass5(void)
 				ffs_fragacct(fs, blk, newcg->cg_frsum, 1);
 			}
 		}
-		if (Eflag && start != -1)
+		if ((Eflag || Zflag) && start != -1)
 			clear_blocks(start, d - 1);
 		if (fs->fs_contigsumsize > 0) {
 			int32_t *sump = cg_clustersum(newcg);
@@ -586,6 +586,10 @@ static void clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
 
 	if (debug)
 		printf("Zero frags %jd to %jd\n", start, end);
-	blerase(fswritefd, fsbtodb(&sblock, start),
-	    lfragtosize(&sblock, end - start + 1));
+	if (Zflag)
+		blzero(fswritefd, fsbtodb(&sblock, start),
+		    lfragtosize(&sblock, end - start + 1));
+	if (Eflag)
+		blerase(fswritefd, fsbtodb(&sblock, start),
+		    lfragtosize(&sblock, end - start + 1));
 }
