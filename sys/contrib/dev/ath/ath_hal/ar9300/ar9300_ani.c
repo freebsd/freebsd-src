@@ -704,7 +704,7 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
                 return AH_TRUE;
             }
             /* if we're turning off ANI, reset regs back to INI settings */
-            if (AH_PRIVATE(ah)->ah_config.ath_hal_enable_ani) {
+            if (ah->ah_config.ath_hal_enable_ani) {
                 HAL_ANI_CMD savefunc = ahp->ah_ani_function;
                 /* temporarly allow all functions so we can reset */
                 ahp->ah_ani_function = HAL_ANI_ALL;
