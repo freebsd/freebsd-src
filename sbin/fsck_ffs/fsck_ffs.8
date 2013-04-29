@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BEFfnpry
+.Op Fl BEFfnpryZ
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -280,6 +280,15 @@ Assume a yes response to all questions asked by
 .Nm ;
 this should be used with great caution as this is a free license
 to continue after essentially unlimited trouble has been encountered.
+.It Fl Z
+Similar to
+.Fl E ,
+but overwrites unused blocks with zeroes.
+If both
+.Fl E
+and
+.Fl Z
+are specified, blocks are first zeroed and then erased.
 .El
 .Pp
 Inconsistencies checked are as follows:
