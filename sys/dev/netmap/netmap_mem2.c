@@ -97,6 +97,8 @@
 #define NETMAP_BUF_MAX_NUM	20*4096*2	/* large machine */
 
 #ifdef linux
+// XXX a mtx would suffice here 20130415 lr
+// #define NMA_LOCK_T		safe_spinlock_t
 #define NMA_LOCK_T		struct semaphore
 #define NMA_LOCK_INIT()		sema_init(&nm_mem.nm_mtx, 1)
 #define NMA_LOCK_DESTROY()	
