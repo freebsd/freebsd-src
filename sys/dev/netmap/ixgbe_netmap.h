@@ -226,7 +226,8 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->tx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
-	u_int j, k = ring->cur, l, n = 0, lim = kring->nkr_num_slots - 1;
+	u_int j, l, n = 0;
+	u_int const k = ring->cur, lim = kring->nkr_num_slots - 1;
 
 	/*
 	 * ixgbe can generate an interrupt on every tx packet, but it
@@ -393,11 +394,10 @@ ring_reset:
 	    if (ix_use_dd) {
 		struct ixgbe_legacy_tx_desc *txd =
 		    (struct ixgbe_legacy_tx_desc *)txr->tx_base;
-
+		u_int k1 = netmap_idx_k2n(kring, kring->nr_hwcur);
 		l = txr->next_to_clean;
-		k = netmap_idx_k2n(kring, kring->nr_hwcur);
 		delta = 0;
-		while (l != k &&
+		while (l != k1 &&
 		    txd[l].upper.fields.status & IXGBE_TXD_STAT_DD) {
 		    delta++;
 		    l = (l == lim) ? 0 : l + 1;
