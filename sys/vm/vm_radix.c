@@ -666,7 +666,6 @@ restart:
 		 */
 		if (slot > 0) {
 			inc = VM_RADIX_UNITLEVEL(rnode->rn_clev);
-			index = vm_radix_trimkey(index, rnode->rn_clev);
 			index |= inc - 1;
 			do {
 				index -= inc;
