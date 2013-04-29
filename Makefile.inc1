@@ -41,13 +41,6 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
-# You are supposed to define both of these when calling Makefile.inc1
-# directly.  However, some old scripts don't.  Cope for the moment, but
-# issue a new warning for a transition period.
-.if defined(TARGET) && !defined(TARGET_ARCH)
-.warning "You must pass both TARGET and TARGET_ARCH to Makefile.inc1.  Setting TARGET_ARCH=${TARGET}."
-TARGET_ARCH=${TARGET}
-.endif
 .if !defined(TARGET) || !defined(TARGET_ARCH)
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
