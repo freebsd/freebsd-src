@@ -140,7 +140,6 @@ struct pci_vtnet_softc {
 	int		vsc_isr;
 	int		vsc_tapfd;
 	int		vsc_rx_ready;
-	int		tx_in_progress;
 	int		resetting;
 
 	uint32_t	vsc_features;
@@ -149,9 +148,14 @@ struct pci_vtnet_softc {
 	uint64_t	vsc_pfn[VTNET_MAXQ];
 	struct	vring_hqueue vsc_hq[VTNET_MAXQ];
 	uint16_t	vsc_msix_table_idx[VTNET_MAXQ];
+
+	pthread_mutex_t	rx_mtx;
+	int		rx_in_progress;
+
 	pthread_t 	tx_tid;
 	pthread_mutex_t	tx_mtx;
 	pthread_cond_t	tx_cond;
+	int		tx_in_progress;
 };
 #define	vtnet_ctx(sc)	((sc)->vsc_pi->pi_vmctx)
 
@@ -220,6 +224,38 @@ pci_vtnet_ring_reset(struct pci_vtnet_softc *sc, int ring)
 	hq->hq_cur_aidx = 0;
 }
 
+/*
+ * If the transmit thread is active then stall until it is done.
+ */
+static void
+pci_vtnet_txwait(struct pci_vtnet_softc *sc)
+{
+
+	pthread_mutex_lock(&sc->tx_mtx);
+	while (sc->tx_in_progress) {
+		pthread_mutex_unlock(&sc->tx_mtx);
+		usleep(10000);
+		pthread_mutex_lock(&sc->tx_mtx);
+	}
+	pthread_mutex_unlock(&sc->tx_mtx);
+}
+
+/*
+ * If the receive thread is active then stall until it is done.
+ */
+static void
+pci_vtnet_rxwait(struct pci_vtnet_softc *sc)
+{
+
+	pthread_mutex_lock(&sc->rx_mtx);
+	while (sc->rx_in_progress) {
+		pthread_mutex_unlock(&sc->rx_mtx);
+		usleep(10000);
+		pthread_mutex_lock(&sc->rx_mtx);
+	}
+	pthread_mutex_unlock(&sc->rx_mtx);
+}
+
 static void
 pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 {
@@ -227,21 +263,19 @@ pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 	if (value == 0) {
 		DPRINTF(("vtnet: device reset requested !\n"));
 		
-		/* Wait for TX thread to complete pending desc processing */
 		sc->resetting = 1;
-		pthread_mutex_lock(&sc->tx_mtx);
 
-		while (sc->tx_in_progress) {
-			pthread_mutex_unlock(&sc->tx_mtx);
-			usleep(10000);
-			pthread_mutex_lock(&sc->tx_mtx);
-		}
-		
-		pthread_mutex_unlock(&sc->tx_mtx);
-				
+		/*
+		 * Wait for the transmit and receive threads to finish their
+		 * processing.
+		 */
+		pci_vtnet_txwait(sc);
+		pci_vtnet_rxwait(sc);
+
+		sc->vsc_rx_ready = 0;
 		pci_vtnet_ring_reset(sc, VTNET_RXQ);
 		pci_vtnet_ring_reset(sc, VTNET_TXQ);
-		sc->vsc_rx_ready = 0;
+
 		sc->resetting = 0;
 	}
 
@@ -303,9 +337,9 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 
 	/*
 	 * But, will be called when the rx ring hasn't yet
-	 * been set up. 
+	 * been set up or the guest is resetting the device.
 	 */
-	if (sc->vsc_rx_ready == 0) {
+	if (!sc->vsc_rx_ready || sc->resetting) {
 		/*
 		 * Drop the packet and try later.
 		 */
@@ -393,9 +427,11 @@ pci_vtnet_tap_callback(int fd, enum ev_type type, void *param)
 {
 	struct pci_vtnet_softc *sc = param;
 
-	pthread_mutex_lock(&sc->vsc_mtx);
+	pthread_mutex_lock(&sc->rx_mtx);
+	sc->rx_in_progress = 1;
 	pci_vtnet_tap_rx(sc);
-	pthread_mutex_unlock(&sc->vsc_mtx);
+	sc->rx_in_progress = 0;
+	pthread_mutex_unlock(&sc->rx_mtx);
 
 }
 
@@ -462,7 +498,6 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vring_hqueue *hq)
 	vu->vu_tlen = tlen;
 	hq->hq_cur_aidx = aidx + 1;
 	*hq->hq_used_idx = uidx + 1;
-
 }
 
 static void
@@ -706,21 +741,24 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 	
 	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTNET_REGSZ);
-	
+
+	sc->resetting = 0;
+
+	sc->rx_in_progress = 0;
+	pthread_mutex_init(&sc->rx_mtx, NULL); 
+
 	/* 
 	 * Initialize tx semaphore & spawn TX processing thread
 	 * As of now, only one thread for TX desc processing is
 	 * spawned. 
 	 */
 	sc->tx_in_progress = 0;
-	sc->resetting = 0;
 	pthread_mutex_init(&sc->tx_mtx, NULL);
 	pthread_cond_init(&sc->tx_cond, NULL);
 	pthread_create(&sc->tx_tid, NULL, pci_vtnet_tx_thread, (void *)sc);
         snprintf(tname, sizeof(tname), "%s vtnet%d tx", vmname, pi->pi_slot);
         pthread_set_name_np(sc->tx_tid, tname);
 
-	
 	return (0);
 }
 
