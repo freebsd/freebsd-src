@@ -413,7 +413,7 @@ initxen(struct start_info *si)
 	memset(dump_avail, 0 , sizeof dump_avail);
 
 	/* 
-	 * Setup kernel tls registers. pcpu needs them, and other
+	 * Setup kernel PCPU base. pcpu needs them, and other
 	 * parts of the early startup path use pcpu variables before
 	 * we have loaded the new Global Descriptor Table.
 	 */
@@ -514,9 +514,7 @@ initxen(struct start_info *si)
 	 * Refresh kernel tls registers since we've blown them away
 	 * via new GDT load. pcpu needs them.
 	 */
-	HYPERVISOR_set_segment_base (SEGBASE_FS, 0);
 	HYPERVISOR_set_segment_base (SEGBASE_GS_KERNEL, (uint64_t) pc);
-	HYPERVISOR_set_segment_base (SEGBASE_GS_USER, (uint64_t) 0);
 
 	/* per cpu structures for cpu0 */
 	pcpu_init(pc, 0, sizeof(struct pcpu));
@@ -596,7 +594,10 @@ initxen(struct start_info *si)
 	/* Load thread0 context */
 	load_ds(_udatasel);
 	load_es(_udatasel);
-	load_fs(_ufssel);
+	load_fs(0); /* reset %fs to 0 before 64bit base load */
+	HYPERVISOR_set_segment_base (SEGBASE_FS, 0);
+	HYPERVISOR_set_segment_base (SEGBASE_GS_USER_SEL, (uint64_t) 0);
+	HYPERVISOR_set_segment_base (SEGBASE_GS_USER, (uint64_t) 0);
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
@@ -1378,15 +1379,13 @@ xen_set_proc(struct pcb *newpcb)
 				USD_SETBASE(&gsd, newpcb->pcb_fsbase);
 				xen_set_descriptor((vm_paddr_t)PCPU_GET(fs32p), (void *)&gsd);
 			}
-
 		} else {
-
 			HYPERVISOR_set_segment_base(SEGBASE_GS_USER_SEL, 
-						    _ugssel);
-			HYPERVISOR_set_segment_base(SEGBASE_FS,
-						    newpcb->pcb_fsbase);
+						    0);
 			HYPERVISOR_set_segment_base(SEGBASE_GS_USER, 
 						    newpcb->pcb_gsbase);
+			HYPERVISOR_set_segment_base(SEGBASE_FS,
+						    newpcb->pcb_fsbase);
 		}
 	}
 }

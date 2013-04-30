@@ -100,7 +100,8 @@
 /* Save generic data segment registers to the stack */	
 #define SAVE_SEGMENT_REGS \
 	movw	%es, TF_ES(%rsp) ; \
-	movw	%ds, TF_DS(%rsp)
+	movw	%ds, TF_DS(%rsp) ; \
+	movw	%fs, TF_FS(%rsp)
 
 /* Restore generic data segment registers from the stack */
 #define RESTORE_SEGMENT_REGS \
@@ -118,7 +119,7 @@
  * [DS-GS,] is only saved for the failsafe callback.
  *
  * [ERRCODE], is optional, depending on the type of (hardware) exception.
- *  See: the "AMD64 Architecture Programmer's Manuel, Volume 2:
+ *  See: the "AMD64 Architecture Programmer's Manual, Volume 2:
  *  System Programming: Section 8.2 for individual error code
  *  reporting status
  *
@@ -241,8 +242,8 @@ ld_es:
 	movw	(TF_ES + 8)(%rsp,1), %es ; /* Save on previous frame */
 ld_ds:
 	movw	(TF_DS + 8)(%rsp,1), %ds ; /* Save on previous frame */
-ld_fs:
-ld_gs:
+ld_fs:  /* %fs == 0 and the per-proc base is updated via xen_set_proc() */
+ld_gs: 	/* XEN manages %gs (swapgs) */
 	ret
 	
 	/* The path below should not have been reached. */
