@@ -747,7 +747,13 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 	struct ulptx_idata *ulpsc;
 	struct pagepod *ppod;
 	int i, j, k, n, chunk, len, ddp_pgsz, idx, ppod_addr;
+	uint32_t cmd;
 
+	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
+	if (is_t4(sc))
+		cmd |= htobe32(F_ULP_MEMIO_ORDER);
+	else
+		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
 	ddp_pgsz = t4_ddp_pgsz[G_PPOD_PGSZ(db->tag)];
 	ppod_addr = sc->vres.ddp.start + G_PPOD_TAG(db->tag) * PPOD_SIZE;
 	for (i = 0; i < db->nppods; ppod_addr += chunk) {
@@ -763,8 +769,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 		ulpmc = wrtod(wr);
 
 		INIT_ULPTX_WR(ulpmc, len, 0, 0);
-		ulpmc->cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
-		    is_t4(sc) ? F_ULP_MEMIO_ORDER : F_T5_ULP_MEMIO_IMM);
+		ulpmc->cmd = cmd;
 		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
 		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
 		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
