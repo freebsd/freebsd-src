@@ -723,11 +723,9 @@ singleton	:  singleton '*'
 
 		|  fullccl
 			{
-				/* Sort characters for fast searching.  We
-				 * use a shell sort since this list could
-				 * be large.
+				/* Sort characters for fast searching.
 				 */
-				cshell( ccltbl + cclmap[$1], ccllen[$1], true );
+				qsort( ccltbl + cclmap[$1], ccllen[$1], sizeof (*ccltbl), cclcmp );
 
 			if ( useecs )
 				mkeccl( ccltbl + cclmap[$1], ccllen[$1],
@@ -968,6 +966,10 @@ void build_eof_action()
 		else
 			{
 			sceof[scon_stk[i]] = true;
+
+			if (previous_continued_action /* && previous action was regular */)
+				add_action("YY_RULE_SETUP\n");
+
 			snprintf( action_text, sizeof(action_text), "case YY_STATE_EOF(%s):\n",
 				scname[scon_stk[i]] );
 			add_action( action_text );

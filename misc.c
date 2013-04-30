@@ -61,6 +61,8 @@ static void sko_push(bool dc)
     if(!sko_stack){
         sko_sz = 1;
         sko_stack = (struct sko_state*)flex_alloc(sizeof(struct sko_state)*sko_sz);
+        if (!sko_stack)
+            flexfatal(_("allocation of sko_stack failed"));
         sko_len = 0;
     }
     if(sko_len >= sko_sz){
@@ -184,7 +186,7 @@ int all_lower (str)
      register char *str;
 {
 	while (*str) {
-		if (!isascii ((Char) * str) || !islower (*str))
+		if (!isascii ((Char) * str) || !islower ((Char) * str))
 			return 0;
 		++str;
 	}
@@ -199,7 +201,7 @@ int all_upper (str)
      register char *str;
 {
 	while (*str) {
-		if (!isascii ((Char) * str) || !isupper (*str))
+		if (!isascii ((Char) * str) || !isupper ((Char) * str))
 			return 0;
 		++str;
 	}
@@ -208,33 +210,11 @@ int all_upper (str)
 }
 
 
-/* bubble - bubble sort an integer array in increasing order
- *
- * synopsis
- *   int v[n], n;
- *   void bubble( v, n );
- *
- * description
- *   sorts the first n elements of array v and replaces them in
- *   increasing order.
- *
- * passed
- *   v - the array to be sorted
- *   n - the number of elements of 'v' to be sorted
- */
+/* intcmp - compares two integers for use by qsort. */
 
-void bubble (v, n)
-     int v[], n;
+int intcmp (const void *a, const void *b)
 {
-	register int i, j, k;
-
-	for (i = n; i > 1; --i)
-		for (j = 1; j < i; ++j)
-			if (v[j] > v[j + 1]) {	/* compare */
-				k = v[j];	/* exchange */
-				v[j] = v[j + 1];
-				v[j + 1] = k;
-			}
+  return *(const int *) a - *(const int *) b;
 }
 
 
@@ -314,52 +294,17 @@ Char   *copy_unsigned_string (str)
 }
 
 
-/* cshell - shell sort a character array in increasing order
- *
- * synopsis
- *
- *   Char v[n];
- *   int n, special_case_0;
- *   cshell( v, n, special_case_0 );
- *
- * description
- *   Does a shell sort of the first n elements of array v.
- *   If special_case_0 is true, then any element equal to 0
- *   is instead assumed to have infinite weight.
- *
- * passed
- *   v - array to be sorted
- *   n - number of elements of v to be sorted
- */
+/* cclcmp - compares two characters for use by qsort with '\0' sorting last. */
 
-void cshell (v, n, special_case_0)
-     Char v[];
-     int n, special_case_0;
+int cclcmp (const void *a, const void *b)
 {
-	int     gap, i, j, jg;
-	Char    k;
-
-	for (gap = n / 2; gap > 0; gap = gap / 2)
-		for (i = gap; i < n; ++i)
-			for (j = i - gap; j >= 0; j = j - gap) {
-				jg = j + gap;
-
-				if (special_case_0) {
-					if (v[jg] == 0)
-						break;
-
-					else if (v[j] != 0
-						 && v[j] <= v[jg])
-						break;
-				}
-
-				else if (v[j] <= v[jg])
-					break;
-
-				k = v[j];
-				v[j] = v[jg];
-				v[jg] = k;
-			}
+  if (!*(const Char *) a)
+	return 1;
+  else
+	if (!*(const Char *) b)
+	  return - 1;
+	else
+	  return *(const Char *) a - *(const Char *) b;
 }
 
 
@@ -454,12 +399,26 @@ void lerrif (msg, arg)
 /* lerrsf - report an error message formatted with one string argument */
 
 void lerrsf (msg, arg)
-     const char *msg, arg[];
+	const char *msg, arg[];
 {
 	char    errmsg[MAXLINE];
 
-	snprintf (errmsg, sizeof(errmsg), msg, arg);
+	snprintf (errmsg, sizeof(errmsg)-1, msg, arg);
+	errmsg[sizeof(errmsg)-1] = 0; /* ensure NULL termination */
 	flexerror (errmsg);
+}
+
+
+/* lerrsf_fatal - as lerrsf, but call flexfatal */
+
+void lerrsf_fatal (msg, arg)
+	const char *msg, arg[];
+{
+	char    errmsg[MAXLINE];
+
+	snprintf (errmsg, sizeof(errmsg)-1, msg, arg);
+	errmsg[sizeof(errmsg)-1] = 0; /* ensure NULL termination */
+	flexfatal (errmsg);
 }
 
 
@@ -497,11 +456,7 @@ void line_directive_out (output_file, do_infile)
 	if (do_infile)
 		snprintf (directive, sizeof(directive), line_fmt, linenum, filename);
 	else {
-		if (output_file == stdout)
-			/* Account for the line directive itself. */
-			++out_linenum;
-
-		snprintf (directive, sizeof(directive), line_fmt, out_linenum, filename);
+		snprintf (directive, sizeof(directive), line_fmt, 0, filename);
 	}
 
 	/* If output_file is nil then we should put the directive in
@@ -675,7 +630,7 @@ Char myesc (array)
 			int     sptr = 2;
 
 			while (isascii (array[sptr]) &&
-			       isxdigit ((char) array[sptr]))
+			       isxdigit (array[sptr]))
 				/* Don't increment inside loop control
 				 * because if isdigit() is a macro it might
 				 * expand into multiple increments ...
@@ -718,7 +673,6 @@ void out (str)
      const char *str;
 {
 	fputs (str, stdout);
-	out_line_count (str);
 }
 
 void out_dec (fmt, n)
@@ -726,7 +680,6 @@ void out_dec (fmt, n)
      int n;
 {
 	fprintf (stdout, fmt, n);
-	out_line_count (fmt);
 }
 
 void out_dec2 (fmt, n1, n2)
@@ -734,7 +687,6 @@ void out_dec2 (fmt, n1, n2)
      int n1, n2;
 {
 	fprintf (stdout, fmt, n1, n2);
-	out_line_count (fmt);
 }
 
 void out_hex (fmt, x)
@@ -742,35 +694,18 @@ void out_hex (fmt, x)
      unsigned int x;
 {
 	fprintf (stdout, fmt, x);
-	out_line_count (fmt);
-}
-
-void out_line_count (str)
-     const char *str;
-{
-	register int i;
-
-	for (i = 0; str[i]; ++i)
-		if (str[i] == '\n')
-			++out_linenum;
 }
 
 void out_str (fmt, str)
      const char *fmt, str[];
 {
 	fprintf (stdout,fmt, str);
-	out_line_count (fmt);
-	out_line_count (str);
 }
 
 void out_str3 (fmt, s1, s2, s3)
      const char *fmt, s1[], s2[], s3[];
 {
 	fprintf (stdout,fmt, s1, s2, s3);
-	out_line_count (fmt);
-	out_line_count (s1);
-	out_line_count (s2);
-	out_line_count (s3);
 }
 
 void out_str_dec (fmt, str, n)
@@ -778,17 +713,12 @@ void out_str_dec (fmt, str, n)
      int n;
 {
 	fprintf (stdout,fmt, str, n);
-	out_line_count (fmt);
-	out_line_count (str);
 }
 
 void outc (c)
      int c;
 {
 	fputc (c, stdout);
-
-	if (c == '\n')
-		++out_linenum;
 }
 
 void outn (str)
@@ -796,8 +726,6 @@ void outn (str)
 {
 	fputs (str,stdout);
     fputc('\n',stdout);
-	out_line_count (str);
-	++out_linenum;
 }
 
 /** Print "m4_define( [[def]], [[val]])m4_dnl\n".

@@ -66,6 +66,9 @@ flex_SOURCES = \
 	filter.c \
 	regex.c
 
+
+LDADD = lib/libcompat.a
+
 libfl_a_SOURCES = \
 	libmain.c \
 	libyywrap.c
@@ -90,21 +93,22 @@ noinst_HEADERS = \
 include_HEADERS = \
 	FlexLexer.h
 
-EXTRA_DIST = \
-	.indent.pro \
+dist_doc_DATA = \
 	AUTHORS \
 	COPYING \
-	INSTALL \
 	NEWS \
 	ONEWS \
 	README \
 	README.cvs \
-	THANKS \
-	TODO \
+	TODO
+
+EXTRA_DIST = \
+	.indent.pro \
+	ABOUT-NLS \
+	INSTALL \
 	autogen.sh \
 	flex.skl \
 	mkskel.sh \
-	ABOUT-NLS \
 	config.rpath \
 	gettext.h
 
@@ -112,9 +116,9 @@ BUILT_SOURCES = \
 	skel.c
 
 SUBDIRS = \
+	lib \
 	. \
 	doc \
-	m4  \
 	examples \
 	po \
 	tools \
@@ -154,11 +158,11 @@ tblcmp.o: tblcmp.c flexdef.h flexint.h
 yylex.o: yylex.c flexdef.h flexint.h parse.h
 filter.o: filter.c flexdef.h flexint.h
 
-# Create the ChangeLog, but only if we're inside a cvs working directory
+# Create the ChangeLog, but only if we're inside a git working directory
 
-ChangeLog: $(srcdir)/tools/cvsauthors $(srcdir)/tools/cvs2cl.pl
-	if [ -d CVS ] ; then \
-		sh $(srcdir)/tools/cvs2cl.pl -F trunk -U $(srcdir)/tools/cvsauthors \
+ChangeLog: $(srcdir)/tools/git2cl
+	if [ -d $(srcdir)/.git ] ; then \
+		$(srcdir)/tools/git2cl > $@ \
 	; fi
 
 # Run GNU indent on sources. Don't run this unless all the sources compile cleanly.
@@ -204,5 +208,9 @@ indent:
 		$(indent) < $$f >/dev/null && indent $$f || echo $$f FAILED to indent ;\
 	done \
 	fi
+
+install-exec-hook:
+	cd $(DESTDIR)/$(bindir) && \
+		$(LN_S) -f flex$(EXEEXT) flex++$(EXEEXT)
 
 .PHONY: ChangeLog tags indent

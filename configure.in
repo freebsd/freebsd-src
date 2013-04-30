@@ -24,22 +24,22 @@
 
 # autoconf requirements and initialization
 
-AC_PREREQ(2.59)
-AC_INIT([the fast lexical analyser generator], [2.5.35],
+AC_INIT([the fast lexical analyser generator], [2.5.37],
 [flex-help@lists.sourceforge.net], [flex])
 AC_CONFIG_SRCDIR([scan.l])
-AM_INIT_AUTOMAKE([gnits dist-bzip2])
+AM_INIT_AUTOMAKE([gnits dist-bzip2 1.10])
 AC_CONFIG_HEADER([config.h:conf.in])
+AC_CONFIG_LIBOBJ_DIR([lib])
 
 # checks for programs
 
 AM_GNU_GETTEXT([external])
 AM_GNU_GETTEXT_VERSION(0.12)
-
 AC_PROG_YACC
 AM_PROG_LEX
 AC_PROG_CC
 AC_PROG_CXX
+AM_PROG_CC_C_O
 AC_PROG_LN_S
 AC_PROG_RANLIB
 AC_PROG_AWK
@@ -48,22 +48,16 @@ AC_PROG_INSTALL
 AC_PATH_PROG(BISON, bison,bison)
 AC_PATH_PROG(HELP2MAN, help2man, help2man)
 
-# Check for a GNU m4 that supports --prefix-builtins
+# Check for a m4 that supports -P
 
-AC_PATH_PROGS(M4, gm4 gnum4 m4, m4)
-
-if test x"$M4" != x; then
-  AC_MSG_CHECKING([for GNU m4])
-  case `$M4 --help < /dev/null 2>&1` in
-    *prefix-builtins*) AC_MSG_RESULT(yes) ;;
-    *) AC_MSG_RESULT(no) ;
-       AC_MSG_ERROR([GNU M4 1.4 is required]) ;;
-  esac
-else
-   AC_MSG_ERROR([GNU M4 1.4 is required]) ;
-fi
-
-AC_DEFINE_UNQUOTED([M4], ["$M4"], [Define to the GNU M4 executable name.])
+AC_CACHE_CHECK([for m4 that supports -P], [ac_cv_path_M4],
+[AC_PATH_PROGS_FEATURE_CHECK([M4], [gm4 gnum4 m4],
+              [[m4out=`echo 'm''4_divnum' | $ac_path_M4 -P`]
+                [test "x$m4out" = x0 \
+                && ac_cv_path_M4=$ac_path_M4 ac_path_M4_found=:]],
+              [AC_MSG_ERROR([could not find m4 that supports -P])])])
+AC_SUBST([M4], [$ac_cv_path_M4])
+AC_DEFINE_UNQUOTED([M4], ["$M4"], [Define to the m4 executable name.])
 
 AC_PATH_PROG(INDENT, indent, indent)
 # if INDENT is set to 'indent' then we didn't find indent
@@ -79,13 +73,13 @@ else
    AC_MSG_WARN(no indent program found: make indent target will not function)
 fi
 
-# checks for libraries
+# checks for headers
 
-AC_FUNC_ALLOCA
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([inttypes.h libintl.h limits.h locale.h malloc.h netinet/in.h stddef.h stdlib.h string.h strings.h unistd.h])
-AC_CHECK_LIB(m, log10)
+AC_CHECK_HEADERS([inttypes.h libintl.h limits.h locale.h malloc.h netinet/in.h regex.h stddef.h stdlib.h string.h strings.h unistd.h])
+
+# checks for libraries
 
 # The test test-pthread uses libpthread, so we check for it here, but
 # all we need is the preprocessor symbol defined since we don't need
@@ -97,6 +91,8 @@ AC_DEFINE([HAVE_LIBPTHREAD], 0, [pthread library] )
 )
 AC_CHECK_HEADERS([pthread.h])
 
+AC_CHECK_LIB(m, log10)
+
 # Checks for typedefs, structures, and compiler characteristics.
 
 AC_HEADER_STDBOOL
@@ -105,6 +101,7 @@ AC_TYPE_SIZE_T
 
 # Checks for library functions.
 
+AC_FUNC_ALLOCA
 AC_FUNC_FORK
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
@@ -116,7 +113,7 @@ doc/Makefile
 examples/Makefile
 examples/fastwc/Makefile
 examples/manual/Makefile
-m4/Makefile
+lib/Makefile
 po/Makefile.in
 tools/Makefile
 tests/Makefile

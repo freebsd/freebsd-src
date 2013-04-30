@@ -16,15 +16,15 @@ files needed to make building flex easy are included. You don't have
 that in the cvs tree.
 
 You will need various external tools in order to build the distribution. Here is
-a (hopefully complete and correct) list of the required tools. Always get the latest
-version of each tool; we list the versions used in development of
+a (hopefully complete and correct) list of the required tools. Always get the
+latest version of each tool; we list the versions used in development of
 flex, but the listed versions may not work for you.
 
 compiler suite;  e.g., gcc
 bash or some other fairly robust sh-style shell
 GNU bison;  to generate parse.c from parse.y
 GNU m4 1.4; required by GNU autoconf (yes, it *must* be GNU m4)
-GNU autoconf 2.59 and GNU automake 1.9.6; for generating Makefiles etc.
+GNU autoconf 2.60 and GNU automake 1.10; for generating Makefiles etc.
 GNU gettext 0.14.5; for i18n
 flex (latest beta release);  for bootstrap of scan.l
 help2man 1.36; to generate the flex man page

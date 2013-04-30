@@ -189,7 +189,7 @@ M4QEND      "]]"
 			 }
 			else
 			 {
-			   synerr( _("Input line too long\n"));
+			   synerr( _("Definition name too long\n"));
 			   FLEX_EXIT(EXIT_FAILURE);
 			 }
 
@@ -297,7 +297,7 @@ M4QEND      "]]"
  		         }
  		        else
  		         {
- 		           synerr( _("Input line too long\n"));
+ 		           format_synerr( _("Definition value for {%s} too long\n"), nmstr);
  		           FLEX_EXIT(EXIT_FAILURE);
 			 }
 			/* Skip trailing whitespace. */
@@ -440,7 +440,7 @@ M4QEND      "]]"
 			 }
 			else
 			 {
-			   synerr( _("Input line too long\n"));
+			   synerr( _("Option line too long\n"));
 			   FLEX_EXIT(EXIT_FAILURE);
 			 }
 			nmstr[strlen( nmstr ) - 1] = '\0';
@@ -883,7 +883,7 @@ nmstr[yyleng - 2 - end_is_ws] = '\0';  /* chop trailing brace */
 			}
 	}
 
-    {M4QSTART}  ACTION_ECHO_QEND;
+    {M4QSTART}  ACTION_ECHO_QSTART;
     {M4QEND}    ACTION_ECHO_QEND;
     .           ACTION_ECHO;
 	{NL}		{
@@ -906,7 +906,7 @@ nmstr[yyleng - 2 - end_is_ws] = '\0';  /* chop trailing brace */
 <ACTION>{
 	"{"		ACTION_ECHO; ++bracelevel;
 	"}"		ACTION_ECHO; --bracelevel;
-    {M4QSTART}  ACTION_ECHO_QEND;
+    {M4QSTART}  ACTION_ECHO_QSTART;
     {M4QEND}    ACTION_ECHO_QEND;
 	[^[:alpha:]_{}"'/\n\[\]]+	ACTION_ECHO;
     [\[\]]      ACTION_ECHO;

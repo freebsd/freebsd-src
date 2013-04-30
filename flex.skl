@@ -218,6 +218,7 @@ m4preproc_include(`flexint.h')
 #include <iostream> 
 #include <errno.h>
 #include <cstdlib>
+#include <cstdio>
 #include <cstring>
 /* end standard C++ headers. */
 %endif
@@ -288,6 +289,8 @@ typedef void* yyscan_t;
 
 %# Declare yyguts variable
 m4_define( [[M4_YY_DECL_GUTS_VAR]], [[struct yyguts_t * yyg = (struct yyguts_t*)yyscanner]])
+%# Perform a noop access on yyguts to prevent unused variable complains
+m4_define( [[M4_YY_NOOP_GUTS_VAR]], [[(void)yyg]])
 %# For use wherever a Global is accessed or assigned.
 m4_define( [[YY_G]], [[yyg->$1]])
 
@@ -345,6 +348,7 @@ m4_define( [[M4_YY_INCR_LINENO]],
 
 %# Define these macros to be no-ops.
 m4_define( [[M4_YY_DECL_GUTS_VAR]], [[m4_dnl]])
+m4_define( [[M4_YY_NOOP_GUTS_VAR]], [[m4_dnl]])
 m4_define( [[YY_G]], [[($1)]])
 m4_define( [[M4_YY_PROTO_LAST_ARG]])
 m4_define( [[M4_YY_PROTO_ONLY_ARG]],  [[void]])
@@ -459,8 +463,13 @@ m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #endif
 
+#ifndef YY_TYPEDEF_YY_SIZE_T
+#define YY_TYPEDEF_YY_SIZE_T
+typedef size_t yy_size_t;
+#endif
+
 %if-not-reentrant
-extern int yyleng;
+extern yy_size_t yyleng;
 %endif
 
 %if-c-only
@@ -522,11 +531,6 @@ m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
 #define unput(c) yyunput( c, YY_G(yytext_ptr) M4_YY_CALL_LAST_ARG )
 ]])
 
-#ifndef YY_TYPEDEF_YY_SIZE_T
-#define YY_TYPEDEF_YY_SIZE_T
-typedef size_t yy_size_t;
-#endif
-
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
 struct yy_buffer_state
@@ -551,7 +555,7 @@ struct yy_buffer_state
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	int yy_n_chars;
+	yy_size_t yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -640,8 +644,8 @@ m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
 %not-for-header
 /* yy_hold_char holds the character lost when yytext is formed. */
 static char yy_hold_char;
-static int yy_n_chars;		/* number of characters read into yy_ch_buf */
-int yyleng;
+static yy_size_t yy_n_chars;		/* number of characters read into yy_ch_buf */
+yy_size_t yyleng;
 
 /* Points to current character in buffer. */
 static char *yy_c_buf_p = (char *) 0;
@@ -677,7 +681,7 @@ m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
 
 YY_BUFFER_STATE yy_scan_buffer M4_YY_PARAMS( char *base, yy_size_t size M4_YY_PROTO_LAST_ARG );
 YY_BUFFER_STATE yy_scan_string M4_YY_PARAMS( yyconst char *yy_str M4_YY_PROTO_LAST_ARG );
-YY_BUFFER_STATE yy_scan_bytes M4_YY_PARAMS( yyconst char *bytes, int len M4_YY_PROTO_LAST_ARG );
+YY_BUFFER_STATE yy_scan_bytes M4_YY_PARAMS( yyconst char *bytes, yy_size_t len M4_YY_PROTO_LAST_ARG );
 
 %endif
 
@@ -803,8 +807,8 @@ struct yyguts_t
     size_t yy_buffer_stack_max; /**< capacity of stack. */
     YY_BUFFER_STATE * yy_buffer_stack; /**< Stack as an array. */
     char yy_hold_char;
-    int yy_n_chars;
-    int yyleng_r;
+    yy_size_t yy_n_chars;
+    yy_size_t yyleng_r;
     char *yy_c_buf_p;
     int yy_init;
     int yy_start;
@@ -941,7 +945,7 @@ void yyset_out  M4_YY_PARAMS( FILE * out_str M4_YY_PROTO_LAST_ARG );
 
 m4_ifdef( [[M4_YY_NO_GET_LENG]],,
 [[
-int yyget_leng M4_YY_PARAMS( M4_YY_PROTO_ONLY_ARG );
+yy_size_t yyget_leng M4_YY_PARAMS( M4_YY_PROTO_ONLY_ARG );
 ]])
 
 m4_ifdef( [[M4_YY_NO_GET_TEXT]],,
@@ -957,6 +961,22 @@ int yyget_lineno M4_YY_PARAMS( M4_YY_PROTO_ONLY_ARG );
 m4_ifdef( [[M4_YY_NO_SET_LINENO]],,
 [[
 void yyset_lineno M4_YY_PARAMS( int line_number M4_YY_PROTO_LAST_ARG );
+]])
+
+m4_ifdef( [[M4_YY_REENTRANT]],
+[[
+m4_ifdef( [[M4_YY_NO_GET_COLUMN]],,
+[[
+int yyget_column  M4_YY_PARAMS( M4_YY_PROTO_ONLY_ARG );
+]])
+]])
+
+m4_ifdef( [[M4_YY_REENTRANT]],
+[[
+m4_ifdef( [[M4_YY_NO_SET_COLUMN]],,
+[[
+void yyset_column M4_YY_PARAMS( int column_no M4_YY_PROTO_LAST_ARG );
+]])
 ]])
 
 %if-bison-bridge
@@ -1074,7 +1094,7 @@ m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO fwrite( yytext, yyleng, 1, yyout )
+#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
 %endif
 %if-c++-only C++ definition
 #define ECHO LexerOutput( yytext, yyleng )
@@ -1629,7 +1649,7 @@ int yyFlexLexer::yy_get_next_buffer()
 
 	else
 		{
-			int num_to_read =
+			yy_size_t num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
@@ -1641,14 +1661,14 @@ m4_ifdef( [[M4_YY_USES_REJECT]],
 ]],
 [[
 			/* just a shorter name for the current buffer */
-			YY_BUFFER_STATE b = YY_CURRENT_BUFFER;
+			YY_BUFFER_STATE b = YY_CURRENT_BUFFER_LVALUE;
 
 			int yy_c_buf_p_offset =
 				(int) (YY_G(yy_c_buf_p) - b->yy_ch_buf);
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = b->yy_buf_size * 2;
+				yy_size_t new_size = b->yy_buf_size * 2;
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -1680,7 +1700,7 @@ m4_ifdef( [[M4_YY_USES_REJECT]],
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			YY_G(yy_n_chars), (size_t) num_to_read );
+			YY_G(yy_n_chars), num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = YY_G(yy_n_chars);
 		}
@@ -1764,6 +1784,7 @@ m4_ifdef( [[M4_YY_USES_REJECT]],
     M4_YY_DECL_GUTS_VAR(); /* This var may be unused depending upon options. */
 %% [17.0] code to find the next state, and perhaps do backing up, goes here
 
+	M4_YY_NOOP_GUTS_VAR();
 	return yy_is_jam ? 0 : yy_current_state;
 }
 
@@ -1788,7 +1809,7 @@ m4_ifdef( [[M4_YY_NO_UNPUT]],,
 	if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
 		{ /* need to shift things up to make room */
 		/* +2 for EOB chars. */
-		register int number_to_move = YY_G(yy_n_chars) + 2;
+		register yy_size_t number_to_move = YY_G(yy_n_chars) + 2;
 		register char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
 					YY_CURRENT_BUFFER_LVALUE->yy_buf_size + 2];
 		register char *source =
@@ -1854,7 +1875,7 @@ m4_ifdef( [[M4_YY_USE_LINENO]],
 
 		else
 			{ /* need more input */
-			int offset = YY_G(yy_c_buf_p) - YY_G(yytext_ptr);
+			yy_size_t offset = YY_G(yy_c_buf_p) - YY_G(yytext_ptr);
 			++YY_G(yy_c_buf_p);
 
 			switch ( yy_get_next_buffer( M4_YY_CALL_ONLY_ARG ) )
@@ -2050,25 +2071,6 @@ static void yy_load_buffer_state  YYFARGS0(void)
 }
 
 
-%if-c-only
-m4_ifdef( [[M4_YY_ALWAYS_INTERACTIVE]],,
-[[
-    m4_ifdef( [[M4_YY_NEVER_INTERACTIVE]],,
-    [[
-#ifndef __cplusplus
-extern int isatty M4_YY_PARAMS( int );
-#endif /* __cplusplus */
-    ]])
-]])
-%endif
-
-%if-c++-only
-m4_ifdef( [[M4_YY_NEVER_INTERACTIVE]],,
-[[
-extern "C" int isatty M4_YY_PARAMS( int );
-]])
-%endif
-
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
  * such as during a yyrestart() or at EOF.
@@ -2233,7 +2235,7 @@ static void yyensure_buffer_stack YYFARGS0(void)
 void yyFlexLexer::yyensure_buffer_stack(void)
 %endif
 {
-	int num_to_alloc;
+	yy_size_t num_to_alloc;
     M4_YY_DECL_GUTS_VAR();
 
 	if (!YY_G(yy_buffer_stack)) {
@@ -2348,12 +2350,12 @@ m4_ifdef( [[M4_YY_NO_SCAN_BYTES]],,
 %if-c-only
 /** Setup the input buffer state to scan the given bytes. The next call to yylex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * M4_YY_DOC_PARAM
  * @return the newly allocated buffer state object.
  */
-YY_BUFFER_STATE yy_scan_bytes  YYFARGS2( yyconst char *,yybytes, int ,_yybytes_len)
+YY_BUFFER_STATE yy_scan_bytes  YYFARGS2( yyconst char *,yybytes, yy_size_t ,_yybytes_len)
 {
 	YY_BUFFER_STATE b;
 	char *buf;
@@ -2579,7 +2581,7 @@ m4_ifdef( [[M4_YY_NO_GET_LENG]],,
 /** Get the length of the current token.
  * M4_YY_DOC_PARAM
  */
-int yyget_leng  YYFARGS0(void)
+yy_size_t yyget_leng  YYFARGS0(void)
 {
     M4_YY_DECL_GUTS_VAR();
     return yyleng;
@@ -2627,7 +2629,7 @@ void yyset_lineno YYFARGS1( int ,line_number)
     [[
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "yyset_lineno called with no buffer" M4_YY_CALL_LAST_ARG); 
+           YY_FATAL_ERROR( "yyset_lineno called with no buffer" );
     ]])
     yylineno = line_number;
 }
@@ -2649,7 +2651,7 @@ void yyset_column YYFARGS1( int , column_no)
     [[
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "yyset_column called with no buffer" M4_YY_CALL_LAST_ARG); 
+           YY_FATAL_ERROR( "yyset_column called with no buffer" );
     ]])
     yycolumn = column_no;
 }
@@ -3044,7 +3046,7 @@ static int yytbl_hdr_read YYFARGS2(struct yytbl_hdr *, th, struct yytbl_reader *
         return -1;
 
     if (th->th_magic != YYTBL_MAGIC){
-        yy_fatal_error("bad magic number" /*TODO: not fatal.*/ M4_YY_CALL_LAST_ARG);
+        YY_FATAL_ERROR( "bad magic number" );   /* TODO: not fatal. */
         return -1;
     }
 
@@ -3055,7 +3057,7 @@ static int yytbl_hdr_read YYFARGS2(struct yytbl_hdr *, th, struct yytbl_reader *
 
     /* Sanity check on header size. Greater than 1k suggests some funny business. */
     if (th->th_hsize < 16 || th->th_hsize > 1024){
-        yy_fatal_error("insane header size detected" /*TODO: not fatal.*/ M4_YY_CALL_LAST_ARG);
+        YY_FATAL_ERROR( "insane header size detected" );   /* TODO: not fatal. */
         return -1;
     }
 
@@ -3120,7 +3122,7 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
     transdmap = yytbl_dmap_lookup (dmap, YYTD_ID_TRANSITION M4_YY_CALL_LAST_ARG);
 
     if ((dmap = yytbl_dmap_lookup (dmap, td.td_id M4_YY_CALL_LAST_ARG)) == NULL){
-        yy_fatal_error("table id not found in map." /*TODO: not fatal.*/ M4_YY_CALL_LAST_ARG);
+        YY_FATAL_ERROR( "table id not found in map." );   /* TODO: not fatal. */
         return -1;
     }
 
@@ -3187,7 +3189,7 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
                 t32 = t8;
                 break;
             default: 
-                yy_fatal_error("invalid td_flags" /*TODO: not fatal.*/ M4_YY_CALL_LAST_ARG);
+                YY_FATAL_ERROR( "invalid td_flags" );   /* TODO: not fatal. */
                 return -1;
             }
             }
@@ -3207,26 +3209,26 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
                 case sizeof (flex_int32_t):
                     if (M4_YY_TABLES_VERIFY){
                         if( ((flex_int32_t *) v)[0] != (flex_int32_t) t32)
-                           yy_fatal_error("tables verification failed at YYTD_STRUCT flex_int32_t" M4_YY_CALL_LAST_ARG);
+                           YY_FATAL_ERROR( "tables verification failed at YYTD_STRUCT flex_int32_t" );
                     }else
                         ((flex_int32_t *) v)[0] = (flex_int32_t) t32;
                     break;
                 case sizeof (flex_int16_t):
                     if (M4_YY_TABLES_VERIFY ){
                         if(((flex_int16_t *) v)[0] != (flex_int16_t) t32)
-                        yy_fatal_error("tables verification failed at YYTD_STRUCT flex_int16_t" M4_YY_CALL_LAST_ARG);
+                        YY_FATAL_ERROR( "tables verification failed at YYTD_STRUCT flex_int16_t" );
                     }else
                         ((flex_int16_t *) v)[0] = (flex_int16_t) t32;
                     break;
                 case sizeof(flex_int8_t):
                     if (M4_YY_TABLES_VERIFY ){
                          if( ((flex_int8_t *) v)[0] != (flex_int8_t) t32)
-                        yy_fatal_error("tables verification failed at YYTD_STRUCT flex_int8_t" M4_YY_CALL_LAST_ARG);
+                        YY_FATAL_ERROR( "tables verification failed at YYTD_STRUCT flex_int8_t" );
                     }else
                         ((flex_int8_t *) v)[0] = (flex_int8_t) t32;
                     break;
                 default:
-                    yy_fatal_error("invalid dmap->dm_sz for struct" /*TODO: not fatal.*/ M4_YY_CALL_LAST_ARG);
+                    YY_FATAL_ERROR( "invalid dmap->dm_sz for struct" );   /* TODO: not fatal. */
                     return -1;
                 }
 
@@ -3240,7 +3242,7 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
 
 
                 if (!transdmap){
-                    yy_fatal_error("transition table not found" /*TODO: not fatal.*/ M4_YY_CALL_LAST_ARG);
+                    YY_FATAL_ERROR( "transition table not found" );   /* TODO: not fatal. */
                     return -1;
                 }
                 
@@ -3251,7 +3253,7 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
 
                 if(M4_YY_TABLES_VERIFY ){
                     if( ((struct yy_trans_info **) p)[0] != v)
-                        yy_fatal_error("tables verification failed at YYTD_PTRANS" M4_YY_CALL_LAST_ARG);
+                        YY_FATAL_ERROR( "tables verification failed at YYTD_PTRANS" );
                 }else
                     ((struct yy_trans_info **) p)[0] = v;
                 
@@ -3264,7 +3266,7 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
                 case sizeof (flex_int32_t):
                     if(M4_YY_TABLES_VERIFY ){
                         if( ((flex_int32_t *) p)[0] != (flex_int32_t) t32)
-                        yy_fatal_error("tables verification failed at flex_int32_t" M4_YY_CALL_LAST_ARG);
+                        YY_FATAL_ERROR( "tables verification failed at flex_int32_t" );
                     }else
                         ((flex_int32_t *) p)[0] = (flex_int32_t) t32;
                     p = ((flex_int32_t *) p) + 1;
@@ -3272,7 +3274,7 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
                 case sizeof (flex_int16_t):
                     if(M4_YY_TABLES_VERIFY ){
                         if( ((flex_int16_t *) p)[0] != (flex_int16_t) t32)
-                        yy_fatal_error("tables verification failed at flex_int16_t" M4_YY_CALL_LAST_ARG);
+                        YY_FATAL_ERROR( "tables verification failed at flex_int16_t" );
                     }else
                         ((flex_int16_t *) p)[0] = (flex_int16_t) t32;
                     p = ((flex_int16_t *) p) + 1;
@@ -3280,13 +3282,13 @@ static int yytbl_data_load YYFARGS2(struct yytbl_dmap *, dmap, struct yytbl_read
                 case sizeof (flex_int8_t):
                     if(M4_YY_TABLES_VERIFY ){
                         if( ((flex_int8_t *) p)[0] != (flex_int8_t) t32)
-                        yy_fatal_error("tables verification failed at flex_int8_t" M4_YY_CALL_LAST_ARG);
+                        YY_FATAL_ERROR( "tables verification failed at flex_int8_t" );
                     }else
                         ((flex_int8_t *) p)[0] = (flex_int8_t) t32;
                     p = ((flex_int8_t *) p) + 1;
                     break;
                 default:
-                    yy_fatal_error("invalid dmap->dm_sz for plain int" /*TODO: not fatal.*/ M4_YY_CALL_LAST_ARG);
+                    YY_FATAL_ERROR( "invalid dmap->dm_sz for plain int" );   /* TODO: not fatal. */
                     return -1;
                 }
             }
