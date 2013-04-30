@@ -424,7 +424,7 @@ int t4_read_flash(struct adapter *adapter, unsigned int addr, unsigned int nword
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
 int t4_load_boot(struct adapter *adap, u8 *boot_data,
                  unsigned int boot_addr, unsigned int size);
-unsigned int t4_flash_cfg_addr(struct adapter *adapter);
+int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
