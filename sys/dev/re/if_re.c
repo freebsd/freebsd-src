@@ -2112,11 +2112,9 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 
 	ifp = sc->rl_ifp;
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		NA(ifp)->rx_rings[0].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&NA(ifp)->rx_rings[0].si, PI_NET);
+	if (netmap_rx_irq(ifp, 0 | (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT),
+	    &rx_npkts))
 		return 0;
-	}
 #endif /* DEV_NETMAP */
 	if (ifp->if_mtu > RL_MTU && (sc->rl_flags & RL_FLAG_JUMBOV2) != 0)
 		jumbo = 1;
@@ -2360,10 +2358,8 @@ re_txeof(struct rl_softc *sc)
 
 	ifp = sc->rl_ifp;
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		selwakeuppri(&NA(ifp)->tx_rings[0].si, PI_NET);
+	if (netmap_tx_irq(ifp, 0 | (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
 		return;
-	}
 #endif /* DEV_NETMAP */
 	/* Invalidate the TX descriptor list */
 	bus_dmamap_sync(sc->rl_ldata.rl_tx_list_tag,

@@ -3828,17 +3828,9 @@ em_txeof(struct tx_ring *txr)
 
 	EM_TX_LOCK_ASSERT(txr);
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
-		EM_TX_UNLOCK(txr);
-		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_si, PI_NET);
-		EM_CORE_UNLOCK(adapter);
-		EM_TX_LOCK(txr);
+	if (netmap_tx_irq(ifp, txr->me |
+	    (NETMAP_LOCKED_ENTER | NETMAP_LOCKED_EXIT)))
 		return;
-	}
 #endif /* DEV_NETMAP */
 
 	/* No work, make sure watchdog is off */
@@ -4440,17 +4432,8 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	EM_RX_LOCK(rxr);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
-		EM_RX_UNLOCK(rxr);
-		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_si, PI_NET);
-		EM_CORE_UNLOCK(adapter);
-		return (0);
-	}
+	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+		return (FALSE);
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
