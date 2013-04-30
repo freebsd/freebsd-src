@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 12, 1995
+.Dd April 29, 2013
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -59,14 +59,21 @@ controlled by the
 variable in the boot time configuration file
 .Pa /etc/rc.conf .
 .Pp
-For most systems the size of the specified dump device must be at
+The default type of kernel crash dump is the mini crash dump.
+Mini crash dumps hold only memory pages in use by the kernel.
+Alternatively, full memory dumps can be enabled by setting the
+.Va debug.minidump
+.Xr sysctl 8
+variable to 0.
+.Pp
+For systems using full memory dumps, the size of the specified dump
+device must be at
 least the size of physical memory.
 Even though an additional 64 kB header is added to the dump, the BIOS for a
 platform typically holds back some memory, so it is not usually
 necessary to size the dump device larger than the actual amount of RAM
 available in the machine.
-.Pp
-The
+Also, when using full memory dumps, the
 .Nm
 utility will refuse to enable a dump device which is smaller than the
 total amount of physical memory as reported by the
