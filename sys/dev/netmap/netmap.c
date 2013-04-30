@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2012 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -123,12 +123,10 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, no_pendintr,
 int netmap_drop = 0;	/* debugging */
 int netmap_flags = 0;	/* debug flags */
 int netmap_fwd = 0;	/* force transparent mode */
-int netmap_copy = 0;	/* debugging, copy content */
 
 SYSCTL_INT(_dev_netmap, OID_AUTO, drop, CTLFLAG_RW, &netmap_drop, 0 , "");
 SYSCTL_INT(_dev_netmap, OID_AUTO, flags, CTLFLAG_RW, &netmap_flags, 0 , "");
 SYSCTL_INT(_dev_netmap, OID_AUTO, fwd, CTLFLAG_RW, &netmap_fwd, 0 , "");
-SYSCTL_INT(_dev_netmap, OID_AUTO, copy, CTLFLAG_RW, &netmap_copy, 0 , "");
 
 #ifdef NM_BRIDGE /* support for netmap bridge */
 
@@ -155,17 +153,26 @@ int netmap_bridge = NM_BDG_BATCH; /* bridge batch size */
 SYSCTL_INT(_dev_netmap, OID_AUTO, bridge, CTLFLAG_RW, &netmap_bridge, 0 , "");
 
 #ifdef linux
-#define	ADD_BDG_REF(ifp)	(NA(ifp)->if_refcount++)
-#define	DROP_BDG_REF(ifp)	(NA(ifp)->if_refcount-- <= 1)
+
+#define	refcount_acquire(_a)	atomic_add(1, (atomic_t *)_a)
+#define	refcount_release(_a)	atomic_dec_and_test((atomic_t *)_a)
+
 #else /* !linux */
-#define	ADD_BDG_REF(ifp)	(ifp)->if_refcount++
-#define	DROP_BDG_REF(ifp)	refcount_release(&(ifp)->if_refcount)
+
 #ifdef __FreeBSD__
 #include <sys/endian.h>
 #include <sys/refcount.h>
 #endif /* __FreeBSD__ */
+
 #define prefetch(x)	__builtin_prefetch(x)
+
 #endif /* !linux */
+
+/*  
+ * These are used to handle reference counters for bridge ports.
+ */
+#define	ADD_BDG_REF(ifp)	refcount_acquire(&NA(ifp)->na_bdg_refcount)  
+#define	DROP_BDG_REF(ifp)	refcount_release(&NA(ifp)->na_bdg_refcount)
 
 static void bdg_netmap_attach(struct ifnet *ifp);
 static int bdg_netmap_reg(struct ifnet *ifp, int onoff);
@@ -183,9 +190,14 @@ struct nm_hash_ent {
 };
 
 /*
- * Interfaces for a bridge are all in ports[].
+ * Interfaces for a bridge are all in bdg_ports[].
  * The array has fixed size, an empty entry does not terminate
- * the search.
+ * the search. But lookups only occur on attach/detach so we
+ * don't mind if they are slow.
+ *
+ * The bridge is non blocking on the transmit ports.
+ *
+ * bdg_lock protects accesses to the bdg_ports array.
  */
 struct nm_bridge {
 	struct ifnet *bdg_ports[NM_BDG_MAXPORTS];
@@ -1668,19 +1680,25 @@ netmap_attach(struct netmap_adapter *arg, int num_queues)
 		ND("using default locks for %s", ifp->if_xname);
 		na->nm_lock = netmap_lock_wrapper;
 	}
+
 #ifdef linux
-	if (ifp->netdev_ops) {
-		ND("netdev_ops %p", ifp->netdev_ops);
-		/* prepare a clone of the netdev ops */
-		na->nm_ndo = *ifp->netdev_ops;
+	if (!ifp->netdev_ops) {
+		D("ouch, we cannot override netdev_ops");
+		goto fail;
 	}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+	/* if needed, prepare a clone of the entire netdev ops */
+	na->nm_ndo = *ifp->netdev_ops;
+#endif /* 2.6.28 and above */
 	na->nm_ndo.ndo_start_xmit = linux_netmap_start;
-#endif
+#endif /* linux */
+
 	D("success for %s", ifp->if_xname);
 	return 0;
 
 fail:
 	D("fail, arg %p ifp %p na %p", arg, ifp, na);
+	netmap_detach(ifp);
 	return (na ? EINVAL : ENOMEM);
 }
 
@@ -1726,16 +1744,17 @@ netmap_start(struct ifnet *ifp, struct mbuf *m)
 	if (netmap_verbose & NM_VERB_HOST)
 		D("%s packet %d len %d from the stack", ifp->if_xname,
 			kring->nr_hwcur + kring->nr_hwavail, len);
+	if (len > NETMAP_BUF_SIZE) { /* too long for us */
+		D("%s from_host, drop packet size %d > %d", ifp->if_xname,
+			len, NETMAP_BUF_SIZE);
+		m_freem(m);
+		return EINVAL;
+	}
 	na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
 	if (kring->nr_hwavail >= lim) {
 		if (netmap_verbose)
 			D("stack ring %s full\n", ifp->if_xname);
 		goto done;	/* no space */
-	}
-	if (len > NETMAP_BUF_SIZE) {
-		D("%s from_host, drop packet size %d > %d", ifp->if_xname,
-			len, NETMAP_BUF_SIZE);
-		goto done;	/* too long for us */
 	}
 
 	/* compute the insert position */
@@ -1837,6 +1856,10 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
  * N rings, separate locks:
  *	lock(i); wake(i); unlock(i); lock(core) wake(N+1) unlock(core)
  * work_done is non-null on the RX path.
+ *
+ * The 'q' argument also includes flag to tell whether the queue is
+ * already locked on enter, and whether it should remain locked on exit.
+ * This helps adapting to different defaults in drivers and OSes.
  */
 int
 netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
@@ -1844,9 +1867,14 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 	struct netmap_adapter *na;
 	struct netmap_kring *r;
 	NM_SELINFO_T *main_wq;
+	int locktype, unlocktype, lock;
 
 	if (!(ifp->if_capenable & IFCAP_NETMAP))
 		return 0;
+
+	lock = q & (NETMAP_LOCKED_ENTER | NETMAP_LOCKED_EXIT);
+	q = q & NETMAP_RING_MASK;
+
 	ND(5, "received %s queue %d", work_done ? "RX" : "TX" , q);
 	na = NA(ifp);
 	if (na->na_flags & NAF_SKIP_INTR) {
@@ -1856,32 +1884,42 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 
 	if (work_done) { /* RX path */
 		if (q >= na->num_rx_rings)
-			return 0;	// regular queue
+			return 0;	// not a physical queue
 		r = na->rx_rings + q;
 		r->nr_kflags |= NKR_PENDINTR;
 		main_wq = (na->num_rx_rings > 1) ? &na->rx_si : NULL;
-	} else { /* tx path */
+		locktype = NETMAP_RX_LOCK;
+		unlocktype = NETMAP_RX_UNLOCK;
+	} else { /* TX path */
 		if (q >= na->num_tx_rings)
-			return 0;	// regular queue
+			return 0;	// not a physical queue
 		r = na->tx_rings + q;
 		main_wq = (na->num_tx_rings > 1) ? &na->tx_si : NULL;
 		work_done = &q; /* dummy */
+		locktype = NETMAP_TX_LOCK;
+		unlocktype = NETMAP_TX_UNLOCK;
 	}
 	if (na->separate_locks) {
-		mtx_lock(&r->q_lock);
+		if (!(lock & NETMAP_LOCKED_ENTER))
+			na->nm_lock(ifp, locktype, q);
 		selwakeuppri(&r->si, PI_NET);
-		mtx_unlock(&r->q_lock);
+		na->nm_lock(ifp, unlocktype, q);
 		if (main_wq) {
-			mtx_lock(&na->core_lock);
+			na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
 			selwakeuppri(main_wq, PI_NET);
-			mtx_unlock(&na->core_lock);
+			na->nm_lock(ifp, NETMAP_CORE_UNLOCK, 0);
 		}
+		/* lock the queue again if requested */
+		if (lock & NETMAP_LOCKED_EXIT)
+			na->nm_lock(ifp, locktype, q);
 	} else {
-		mtx_lock(&na->core_lock);
+		if (!(lock & NETMAP_LOCKED_ENTER))
+			na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
 		selwakeuppri(&r->si, PI_NET);
 		if (main_wq)
 			selwakeuppri(main_wq, PI_NET);
-		mtx_unlock(&na->core_lock);
+		if (!(lock & NETMAP_LOCKED_EXIT))
+			na->nm_lock(ifp, NETMAP_CORE_UNLOCK, 0);
 	}
 	*work_done = 1; /* do not fire napi again */
 	return 1;
@@ -1902,7 +1940,9 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 static u_int
 linux_netmap_poll(struct file * file, struct poll_table_struct *pwait)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+	int events = POLLIN | POLLOUT; /* XXX maybe... */
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
 	int events = pwait ? pwait->key : POLLIN | POLLOUT;
 #else /* in 3.4.0 field 'key' was renamed to '_key' */
 	int events = pwait ? pwait->_key : POLLIN | POLLOUT;
@@ -1942,7 +1982,7 @@ linux_netmap_mmap(struct file *f, struct vm_area_struct *vma)
 		 * vtophys mapping in lut[k] so we use that, scanning
 		 * the lut[] array in steps of clustentries,
 		 * and we map each cluster (not individual pages,
-		 * it would be overkill).
+		 * it would be overkill -- XXX slow ? 20130415).
 		 */
 
 		/*

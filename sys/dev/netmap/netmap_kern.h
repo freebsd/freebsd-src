@@ -210,10 +210,20 @@ struct netmap_adapter {
 	int (*nm_config)(struct ifnet *, u_int *txr, u_int *txd,
 					u_int *rxr, u_int *rxd);
 
+	/*
+	 * Bridge support:
+	 *
+	 * bdg_port is the port number used in the bridge;
+	 * na_bdg_refcount is a refcount used for bridge ports,
+	 *	when it goes to 0 we can detach+free this port
+	 *	(a bridge port is always attached if it exists;
+	 *	it is not always registered)
+	 */
 	int bdg_port;
+	int na_bdg_refcount;
+
 #ifdef linux
 	struct net_device_ops nm_ndo;
-	int if_refcount;	// XXX additions for bridge
 #endif /* linux */
 };
 
@@ -248,6 +258,10 @@ enum {
 #endif
 };
 
+/* How to handle locking support in netmap_rx_irq/netmap_tx_irq */
+#define	NETMAP_LOCKED_ENTER	0x10000000	/* already locked on enter */
+#define	NETMAP_LOCKED_EXIT	0x20000000	/* keep locked on exit */
+
 /*
  * The following are support routines used by individual drivers to
  * support netmap operation.
@@ -275,7 +289,7 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 int netmap_ring_reinit(struct netmap_kring *);
 
 extern u_int netmap_buf_size;
-#define NETMAP_BUF_SIZE	netmap_buf_size
+#define NETMAP_BUF_SIZE	netmap_buf_size	// XXX remove
 extern int netmap_mitigate;
 extern int netmap_no_pendintr;
 extern u_int netmap_total_buffers;
@@ -437,7 +451,7 @@ netmap_idx_k2n(struct netmap_kring *kr, int idx)
 /* Entries of the look-up table. */
 struct lut_entry {
 	void *vaddr;		/* virtual address. */
-	vm_paddr_t paddr;	/* phisical address. */
+	vm_paddr_t paddr;	/* physical address. */
 };
 
 struct netmap_obj_pool;
@@ -470,6 +484,4 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 int netmap_rx_irq(struct ifnet *, int, int *);
 #define netmap_tx_irq(_n, _q) netmap_rx_irq(_n, _q, NULL)
 
-
-extern int netmap_copy;
 #endif /* _NET_NETMAP_KERN_H_ */
