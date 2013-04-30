@@ -104,6 +104,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	while having the GNU version installed as gnupatch, rebuild
 	and install world with the WITH_BSD_PATCH knob set.
 
+20130121:
+	Due to the use of the new -l option to install(1) during build
+	and install, you must take care not to directly set the INSTALL
+	make variable in your /etc/make.conf, /etc/src.conf, or on the
+	command line.  If you with to use the -C flag for all installs
+	you may be able to add INSTALL+=-C to /etc/make.conf or
+	/etc/src.conf.
+
 20130118:
 	The install(1) option -M has changed meaning and now takes an
 	argument that is a file or path to append logs to.  In the
