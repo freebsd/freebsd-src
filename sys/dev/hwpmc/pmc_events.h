@@ -468,6 +468,13 @@ __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
  * the CPU model happens inside hwpmc(4).
  */
 #define	__PMC_EV_IAP()				\
+__PMC_EV(IAP, ARCH_BR_INS_RET)			\
+__PMC_EV(IAP, ARCH_BR_MIS_RET)			\
+__PMC_EV(IAP, ARCH_INS_RET)			\
+__PMC_EV(IAP, ARCH_LLC_MIS)			\
+__PMC_EV(IAP, ARCH_LLC_REF)			\
+__PMC_EV(IAP, ARCH_UNH_REF_CYC)			\
+__PMC_EV(IAP, ARCH_UNH_COR_CYC)			\
 __PMC_EV(IAP, EVENT_02H_01H)			\
 __PMC_EV(IAP, EVENT_02H_81H)			\
 __PMC_EV(IAP, EVENT_03H_00H)			\
@@ -1157,20 +1164,20 @@ __PMC_EV(IAP, EVENT_FDH_10H)			\
 __PMC_EV(IAP, EVENT_FDH_20H)			\
 __PMC_EV(IAP, EVENT_FDH_40H)
 
-#define	PMC_EV_IAP_FIRST	PMC_EV_IAP_EVENT_02H_01H
+#define	PMC_EV_IAP_FIRST	PMC_EV_IAP_ARCH_BR_INS_RET
 #define	PMC_EV_IAP_LAST		PMC_EV_IAP_EVENT_FDH_40H
 
 /*
  * Map "architectural" event names to event ids.
  */
 #define	__PMC_EV_ALIAS_INTEL_ARCHITECTURAL()				\
-__PMC_EV_ALIAS("branch-instruction-retired",	IAP_EVENT_C4H_00H)	\
-__PMC_EV_ALIAS("branch-misses-retired",		IAP_EVENT_C5H_00H)	\
-__PMC_EV_ALIAS("instruction-retired",		IAP_EVENT_C0H_00H)	\
-__PMC_EV_ALIAS("llc-misses",			IAP_EVENT_2EH_41H)	\
-__PMC_EV_ALIAS("llc-reference",			IAP_EVENT_2EH_4FH)	\
-__PMC_EV_ALIAS("unhalted-reference-cycles",	IAP_EVENT_3CH_01H)	\
-__PMC_EV_ALIAS("unhalted-core-cycles",		IAP_EVENT_3CH_00H)
+__PMC_EV_ALIAS("branch-instruction-retired",	IAP_ARCH_BR_INS_RET)	\
+__PMC_EV_ALIAS("branch-misses-retired",		IAP_ARCH_BR_MIS_RET)	\
+__PMC_EV_ALIAS("instruction-retired",		IAP_ARCH_INS_RET)	\
+__PMC_EV_ALIAS("llc-misses",			IAP_ARCH_LLC_MIS)	\
+__PMC_EV_ALIAS("llc-reference",			IAP_ARCH_LLC_REF)	\
+__PMC_EV_ALIAS("unhalted-reference-cycles",	IAP_ARCH_UNH_REF_CYC)	\
+__PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
 
 /*
  * Aliases for Atom PMCs.
