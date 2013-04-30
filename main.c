@@ -57,7 +57,7 @@ int     C_plus_plus, long_align, use_read, yytext_is_array, do_yywrap,
 int     reentrant, bison_bridge_lval, bison_bridge_lloc;
 int     yymore_used, reject, real_reject, continued_action, in_rule;
 int     yymore_really_used, reject_really_used;
-int     datapos, dataline, linenum, out_linenum;
+int     datapos, dataline, linenum;
 FILE   *skelfile = NULL;
 int     skel_ind = 0;
 char   *action_array;
@@ -455,6 +455,8 @@ void check_options ()
              size_t strsz;
 
              str = (char*)flex_alloc(strsz = strlen(fmt) + strlen(scname[i]) + (int)(1 + log10(i)) + 2);
+             if (!str)
+               flexfatal(_("allocation of macro definition failed"));
              snprintf(str, strsz, fmt,      scname[i], i - 1);
              buf_strappend(&tmpbuf, str);
              free(str);
@@ -1441,7 +1443,7 @@ void flexinit (argc, argv)
 	num_backing_up = onesp = numprots = 0;
 	variable_trailing_context_rules = bol_needed = false;
 
-	out_linenum = linenum = sectnum = 1;
+	linenum = sectnum = 1;
 	firstprot = NIL;
 
 	/* Used in mkprot() so that the first proto goes in slot 1
@@ -1576,9 +1578,11 @@ void readin ()
     }
 
 	if (!do_yywrap) {
-		if (!C_plus_plus) {
-			outn ("\n#define yywrap(n) 1");
-		}
+		if (!C_plus_plus)
+			 if (reentrant)
+				outn ("\n#define yywrap(yyscanner) 1");
+			 else
+				outn ("\n#define yywrap() 1");
 		outn ("#define YY_SKIP_YYWRAP");
 	}
 

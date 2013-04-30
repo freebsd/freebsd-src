@@ -60,6 +60,9 @@ sf_init (void)
 {
     assert(_sf_stk == NULL);
     _sf_stk = (scanflags_t*) flex_alloc ( sizeof(scanflags_t) * (_sf_max = 32));
+    if (!_sf_stk)
+        lerrsf_fatal(_("Unable to allocate %ld of stack"),
+            (long)sizeof(scanflags_t));
     _sf_stk[_sf_top_ix] = 0;
 }
 
