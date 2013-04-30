@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
     PMC_CAP_EDGE | PMC_CAP_THRESHOLD | PMC_CAP_READ | PMC_CAP_WRITE |	 \
     PMC_CAP_INVERT | PMC_CAP_QUALIFIER | PMC_CAP_PRECISE)
 
+#define	EV_IS_NOTARCH		0
+#define	EV_IS_ARCH_SUPP		1
+#define	EV_IS_ARCH_NOTSUPP	-1
+
 /*
  * "Architectural" events defined by Intel.  The values of these
  * symbols correspond to positions in the bitmask returned by
@@ -1723,43 +1727,53 @@ iap_pmc_has_overflowed(int ri)
 /*
  * Check an event against the set of supported architectural events.
  *
- * Returns 1 if the event is architectural and unsupported on this
- * CPU.  Returns 0 otherwise.
+ * If the event is not architectural EV_IS_NOTARCH is returned.
+ * If the event is architectural and supported on this CPU, the correct
+ * event+umask mapping is returned in map, and EV_IS_ARCH_SUPP is returned.
+ * Otherwise, the function returns EV_IS_ARCH_NOTSUPP.
  */
 
 static int
-iap_architectural_event_is_unsupported(enum pmc_event pe)
+iap_is_event_architectural(enum pmc_event pe, enum pmc_event *map)
 {
 	enum core_arch_events ae;
 
 	switch (pe) {
-	case PMC_EV_IAP_EVENT_3CH_00H:
+	case PMC_EV_IAP_ARCH_UNH_COR_CYC:
 		ae = CORE_AE_UNHALTED_CORE_CYCLES;
+		*map = PMC_EV_IAP_EVENT_C4H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_C0H_00H:
+	case PMC_EV_IAP_ARCH_INS_RET:
 		ae = CORE_AE_INSTRUCTION_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C0H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_3CH_01H:
+	case PMC_EV_IAP_ARCH_UNH_REF_CYC:
 		ae = CORE_AE_UNHALTED_REFERENCE_CYCLES;
+		*map = PMC_EV_IAP_EVENT_3CH_01H;
 		break;
-	case PMC_EV_IAP_EVENT_2EH_4FH:
+	case PMC_EV_IAP_ARCH_LLC_REF:
 		ae = CORE_AE_LLC_REFERENCE;
+		*map = PMC_EV_IAP_EVENT_2EH_4FH;
 		break;
-	case PMC_EV_IAP_EVENT_2EH_41H:
+	case PMC_EV_IAP_ARCH_LLC_MIS:
 		ae = CORE_AE_LLC_MISSES;
+		*map = PMC_EV_IAP_EVENT_2EH_41H;
 		break;
-	case PMC_EV_IAP_EVENT_C4H_00H:
+	case PMC_EV_IAP_ARCH_BR_INS_RET:
 		ae = CORE_AE_BRANCH_INSTRUCTION_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C4H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_C5H_00H:
+	case PMC_EV_IAP_ARCH_BR_MIS_RET:
 		ae = CORE_AE_BRANCH_MISSES_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C5H_00H;
 		break;
 
 	default:	/* Non architectural event. */
-		return (0);
+		return (EV_IS_NOTARCH);
 	}
 
-	return ((core_architectural_events & (1 << ae)) == 0);
+	return (((core_architectural_events & (1 << ae)) == 0) ? 
+	    EV_IS_ARCH_NOTSUPP : EV_IS_ARCH_SUPP);
 }
 
 static int
@@ -1917,8 +1931,8 @@ static int
 iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
-	int n, model;
-	enum pmc_event ev;
+	int arch, n, model;
+	enum pmc_event ev, map;
 	struct iap_event_descr *ie;
 	uint32_t c, caps, config, cpuflag, evsel, mask;
 
@@ -1932,10 +1946,13 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if ((IAP_PMC_CAPS & caps) != caps)
 		return (EPERM);
 
-	ev = pm->pm_event;
-
-	if (iap_architectural_event_is_unsupported(ev))
+	arch = iap_is_event_architectural(pm->pm_event, &map);
+	if (arch == EV_IS_ARCH_NOTSUPP)
 		return (EOPNOTSUPP);
+	else if (arch == EV_IS_ARCH_SUPP)
+		ev = map;
+	else
+		ev = pm->pm_event;
 
 	/*
 	 * A small number of events are not supported in all the
