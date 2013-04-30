@@ -2429,9 +2429,11 @@ soshutdown(struct socket *so, int how)
 		sorflush(so);
 	if (how != SHUT_RD) {
 		error = (*pr->pr_usrreqs->pru_shutdown)(so);
+		wakeup(&so->so_timeo);
 		CURVNET_RESTORE();
 		return (error);
 	}
+	wakeup(&so->so_timeo);
 	CURVNET_RESTORE();
 	return (0);
 }
