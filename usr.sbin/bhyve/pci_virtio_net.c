@@ -259,6 +259,7 @@ pci_vtnet_rxwait(struct pci_vtnet_softc *sc)
 static void
 pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 {
+	int i;
 
 	if (value == 0) {
 		DPRINTF(("vtnet: device reset requested !\n"));
@@ -275,6 +276,12 @@ pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 		sc->vsc_rx_ready = 0;
 		pci_vtnet_ring_reset(sc, VTNET_RXQ);
 		pci_vtnet_ring_reset(sc, VTNET_TXQ);
+
+		for (i = 0; i < VTNET_MAXQ; i++)
+			sc->vsc_msix_table_idx[i] = VIRTIO_MSI_NO_VECTOR;
+
+		sc->vsc_isr = 0;
+		sc->vsc_features = 0;
 
 		sc->resetting = 0;
 	}
