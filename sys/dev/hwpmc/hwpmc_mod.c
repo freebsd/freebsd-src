@@ -2210,11 +2210,8 @@ pmc_allocate_pmc_descriptor(void)
 	struct pmc *pmc;
 
 	pmc = malloc(sizeof(struct pmc), M_PMC, M_WAITOK|M_ZERO);
-
-	if (pmc != NULL) {
-		pmc->pm_owner = NULL;
-		LIST_INIT(&pmc->pm_targets);
-	}
+	pmc->pm_owner = NULL;
+	LIST_INIT(&pmc->pm_targets);
 
 	PMCDBG(PMC,ALL,1, "allocate-pmc -> pmc=%p", pmc);
 
@@ -4671,13 +4668,10 @@ pmc_mdep_alloc(int nclasses)
 	n = 1 + nclasses;
 	md = malloc(sizeof(struct pmc_mdep) + n *
 	    sizeof(struct pmc_classdep), M_PMC, M_WAITOK|M_ZERO);
-	if (md != NULL) {
-		md->pmd_nclass = n;
+	md->pmd_nclass = n;
 
-		/* Add base class. */
-		pmc_soft_initialize(md);
-	}
-
+	/* Add base class. */
+	pmc_soft_initialize(md);
 	return md;
 }
 
@@ -4888,9 +4882,6 @@ pmc_initialize(void)
 	/* allocate space for the row disposition array */
 	pmc_pmcdisp = malloc(sizeof(enum pmc_mode) * md->pmd_npmc,
 	    M_PMC, M_WAITOK|M_ZERO);
-
-	KASSERT(pmc_pmcdisp != NULL,
-	    ("[pmc,%d] pmcdisp allocation returned NULL", __LINE__));
 
 	/* mark all PMCs as available */
 	for (n = 0; n < (int) md->pmd_npmc; n++)
