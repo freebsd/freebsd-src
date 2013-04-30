@@ -11,6 +11,16 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130430:
+	The mergemaster command now uses the default MAKEOBJDIRPREFIX
+	rather than creating it's own in the temporary directory in
+	order allow access to bootstrapped versions of tools such as
+	install and mtree.  When upgrading from version of FreeBSD where
+	the install command does not support -l, you will need to
+	install a new mergemaster command if mergemaster -p is required.
+	This can be accomplished with the command (cd src/usr.sbin/mergemaster
+	&& make install).
+
 20130429:
 	Fix a bug that allows NFS clients to issue READDIR on files.
 
@@ -1535,7 +1545,7 @@ COMMON ITEMS:
 	step.  It never hurts to do it all the time.  You may need to
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
-	from current before 20020224 or from -stable before 20020408.
+	from [78]-stable or 9-stable before 20130430.
 
 	[6] This only deletes old files and directories. Old libraries
 	can be deleted by "make delete-old-libs", but you have to make
