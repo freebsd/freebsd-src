@@ -629,16 +629,10 @@ case "${RERUN}" in
         ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs >/dev/null
         ;;
       esac
-      if [ -d `${MM_MAKE} -V .OBJDIR` ]; then
-	od=`${MM_MAKE} -V MAKEOBJDIRPREFIX`
-      else
-        od=${TEMPROOT}/usr/obj
-      fi
-      echo $od 1>&2
       ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
+      ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
+      ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
+      ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
