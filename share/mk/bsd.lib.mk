@@ -180,7 +180,7 @@ ${SHLIB_NAME}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${.TARGET} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
-	@ln -fs ${.TARGET} ${SHLIB_LINK}
+	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
 	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
@@ -291,9 +291,9 @@ _libinstall:
 	    ${_INSTALLFLAGS} lib${LIB}.ld ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .else
 .if ${SHLIBDIR} == ${LIBDIR}
-	ln -fs ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .else
-	ln -fs ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
+	${INSTALL_SYMLINK} ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .if exists(${DESTDIR}${LIBDIR}/${SHLIB_NAME})
 	-chflags noschg ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
