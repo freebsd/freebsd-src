@@ -87,7 +87,7 @@ pmc_intel_initialize(void)
 
 	cputype = -1;
 	nclasses = 2;
-
+	error = 0;
 	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
 	switch (cpu_id & 0xF00) {
@@ -192,10 +192,6 @@ pmc_intel_initialize(void)
 
 	ncpus = pmc_cpu_max();
 
-	error = pmc_tsc_initialize(pmc_mdep, ncpus);
-	if (error)
-		goto error;
-
 	switch (cputype) {
 #if	defined(__i386__) || defined(__amd64__)
 		/*
@@ -271,10 +267,10 @@ pmc_intel_initialize(void)
 		break;
 	}
 #endif
-
+	error = pmc_tsc_initialize(pmc_mdep, ncpus);
   error:
 	if (error) {
-		free(pmc_mdep, M_PMC);
+		pmc_mdep_free(pmc_mdep);
 		pmc_mdep = NULL;
 	}
 
