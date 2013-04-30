@@ -30,12 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/cons.h>
-#if (__FreeBSD_version >= 500000)
 #include <sys/time.h>
 #include <sys/systm.h>
-#else
-#include <machine/clock.h>
-#endif
 
 #include <sys/stat.h>
 #include <sys/malloc.h>
@@ -43,11 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/kernel.h>
 
-#if (__FreeBSD_version >= 500000)
 #include <sys/kthread.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
-#endif
 
 #include <sys/eventhandler.h>
 #include <sys/bus.h>
@@ -62,17 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#if (__FreeBSD_version >= 500000)
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#else
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
-#endif
 
-#if (__FreeBSD_version <= 500043)
-#include <sys/devicestat.h>
-#endif
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -83,9 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#if (__FreeBSD_version < 500043)
-#include <sys/bus_private.h>
-#endif
 
 #include <dev/hptiop/hptiop.h>
 
@@ -177,27 +160,11 @@ static struct cdevsw hptiop_cdevsw = {
 	.d_close = hptiop_close,
 	.d_ioctl = hptiop_ioctl,
 	.d_name = driver_name,
-#if __FreeBSD_version>=503000
 	.d_version = D_VERSION,
-#endif
-#if (__FreeBSD_version>=503000 && __FreeBSD_version<600034)
-	.d_flags = D_NEEDGIANT,
-#endif
-#if __FreeBSD_version<600034
-#if __FreeBSD_version>=501000
-	.d_maj = MAJOR_AUTO,
-#else
-	.d_maj = HPT_DEV_MAJOR,
-#endif
-#endif
 };
 
-#if __FreeBSD_version < 503000
-#define hba_from_dev(dev) ((struct hpt_iop_hba *)(dev)->si_drv1)
-#else
 #define hba_from_dev(dev) \
 	((struct hpt_iop_hba *)devclass_get_softc(hptiop_devclass, dev2unit(dev)))
-#endif
 
 #define BUS_SPACE_WRT4_ITL(offset, value) bus_space_write_4(hba->bar0t,\
 		hba->bar0h, offsetof(struct hpt_iopmu_itl, offset), (value))
@@ -245,9 +212,7 @@ static int hptiop_ioctl(ioctl_dev_t dev, u_long cmd, caddr_t data,
 	int ret = EFAULT;
 	struct hpt_iop_hba *hba = hba_from_dev(dev);
 
-#if (__FreeBSD_version >= 500000)
 	mtx_lock(&Giant);
-#endif
 
 	switch (cmd) {
 	case HPT_DO_IOCONTROL:
@@ -259,9 +224,7 @@ static int hptiop_ioctl(ioctl_dev_t dev, u_long cmd, caddr_t data,
 		break;
 	}
 
-#if (__FreeBSD_version >= 500000)
 	mtx_unlock(&Giant);
-#endif
 
 	return ret;
 }
@@ -1615,21 +1578,15 @@ static int hptiop_internal_memalloc_mv(struct hpt_iop_hba *hba)
 				1,
 				BUS_SPACE_MAXSIZE_32BIT,
 				BUS_DMA_ALLOCNOW,
-#if __FreeBSD_version > 502000
 				NULL,
 				NULL,
-#endif
 				&hba->ctlcfg_dmat)) {
 		device_printf(hba->pcidev, "alloc ctlcfg_dmat failed\n");
 		return -1;
 	}
 
 	if (bus_dmamem_alloc(hba->ctlcfg_dmat, (void **)&hba->ctlcfg_ptr,
-#if __FreeBSD_version>501000
 		BUS_DMA_WAITOK | BUS_DMA_COHERENT,
-#else
-		BUS_DMA_WAITOK,
-#endif
 		&hba->ctlcfg_dmamap) != 0) {
 			device_printf(hba->pcidev,
 					"bus_dmamem_alloc failed!\n");
@@ -1678,21 +1635,15 @@ static int hptiop_internal_memalloc_mvfrey(struct hpt_iop_hba *hba)
 				1,
 				BUS_SPACE_MAXSIZE_32BIT,
 				BUS_DMA_ALLOCNOW,
-#if __FreeBSD_version > 502000
 				NULL,
 				NULL,
-#endif
 				&hba->ctlcfg_dmat)) {
 		device_printf(hba->pcidev, "alloc ctlcfg_dmat failed\n");
 		return -1;
 	}
 
 	if (bus_dmamem_alloc(hba->ctlcfg_dmat, (void **)&hba->ctlcfg_ptr,
-#if __FreeBSD_version>501000
 		BUS_DMA_WAITOK | BUS_DMA_COHERENT,
-#else
-		BUS_DMA_WAITOK,
-#endif
 		&hba->ctlcfg_dmamap) != 0) {
 			device_printf(hba->pcidev,
 					"bus_dmamem_alloc failed!\n");
@@ -1937,9 +1888,7 @@ static int hptiop_attach(device_t dev)
 		pci_get_bus(dev), pci_get_slot(dev),
 		pci_get_function(dev), hba->ops));
 
-#if __FreeBSD_version >=440000
 	pci_enable_busmaster(dev);
-#endif
 	hba->pcidev = dev;
 	hba->pciunit = unit;
 
@@ -1951,9 +1900,7 @@ static int hptiop_attach(device_t dev)
 		goto release_pci_res;
 	}
 
-#if (__FreeBSD_version >= 500000)
 	mtx_init(&hba->lock, "hptioplock", NULL, MTX_DEF);
-#endif
 
 	if (bus_dma_tag_create(bus_get_dma_tag(dev),/* PCI parent */
 			1,  /* alignment */
@@ -1965,10 +1912,8 @@ static int hptiop_attach(device_t dev)
 			BUS_SPACE_UNRESTRICTED, /* nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,    /* maxsegsize */
 			0,      /* flags */
-#if __FreeBSD_version>502000
 			NULL,   /* lockfunc */
 			NULL,       /* lockfuncarg */
-#endif
 			&hba->parent_dmat   /* tag */))
 	{
 		device_printf(dev, "alloc parent_dmat failed\n");
@@ -2015,10 +1960,8 @@ static int hptiop_attach(device_t dev)
 			hba->max_sg_count,  /* nsegments */
 			0x20000,    /* maxsegsize */
 			BUS_DMA_ALLOCNOW,       /* flags */
-#if __FreeBSD_version>502000
 			busdma_lock_mutex,  /* lockfunc */
 			&hba->lock,     /* lockfuncarg */
-#endif
 			&hba->io_dmat   /* tag */))
 	{
 		device_printf(dev, "alloc io_dmat failed\n");
@@ -2035,10 +1978,8 @@ static int hptiop_attach(device_t dev)
 			1,  /* nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,    /* maxsegsize */
 			0,      /* flags */
-#if __FreeBSD_version>502000
 			NULL,   /* lockfunc */
 			NULL,       /* lockfuncarg */
-#endif
 			&hba->srb_dmat  /* tag */))
 	{
 		device_printf(dev, "alloc srb_dmat failed\n");
@@ -2046,11 +1987,7 @@ static int hptiop_attach(device_t dev)
 	}
 
 	if (bus_dmamem_alloc(hba->srb_dmat, (void **)&hba->uncached_ptr,
-#if __FreeBSD_version>501000
 			BUS_DMA_WAITOK | BUS_DMA_COHERENT,
-#else
-			BUS_DMA_WAITOK,
-#endif
 			&hba->srb_dmamap) != 0)
 	{
 		device_printf(dev, "srb bus_dmamem_alloc failed!\n");
@@ -2071,23 +2008,14 @@ static int hptiop_attach(device_t dev)
 		goto srb_dmamap_unload;
 	}
 
-#if __FreeBSD_version <700000
-	hba->sim = cam_sim_alloc(hptiop_action, hptiop_poll, driver_name,
-			hba, unit, hba->max_requests - 1, 1, devq);
-#else
 	hba->sim = cam_sim_alloc(hptiop_action, hptiop_poll, driver_name,
 			hba, unit, &Giant, hba->max_requests - 1, 1, devq);
-#endif
 	if (!hba->sim) {
 		device_printf(dev, "cam_sim_alloc failed\n");
 		cam_simq_free(devq);
 		goto srb_dmamap_unload;
 	}
-#if __FreeBSD_version <700000
-	if (xpt_bus_register(hba->sim, 0) != CAM_SUCCESS)
-#else
 	if (xpt_bus_register(hba->sim, dev, 0) != CAM_SUCCESS)
-#endif
 	{
 		device_printf(dev, "xpt_bus_register failed\n");
 		goto free_cam_sim;
@@ -2124,13 +2052,8 @@ static int hptiop_attach(device_t dev)
 		goto free_hba_path;
 	}
 
-#if __FreeBSD_version <700000
-	if (bus_setup_intr(hba->pcidev, hba->irq_res, INTR_TYPE_CAM,
-				hptiop_pci_intr, hba, &hba->irq_handle))
-#else
 	if (bus_setup_intr(hba->pcidev, hba->irq_res, INTR_TYPE_CAM,
 				NULL, hptiop_pci_intr, hba, &hba->irq_handle))
-#endif
 	{
 		device_printf(dev, "allocate intr function failed!\n");
 		goto free_irq_resource;
@@ -2149,9 +2072,6 @@ static int hptiop_attach(device_t dev)
 				UID_ROOT, GID_WHEEL /*GID_OPERATOR*/,
 				S_IRUSR | S_IWUSR, "%s%d", driver_name, unit);
 
-#if __FreeBSD_version < 503000
-	hba->ioctl_dev->si_drv1 = hba;
-#endif
 
 	return 0;
 
@@ -2419,15 +2339,7 @@ scsi_done:
 		break;
 
 	case XPT_CALC_GEOMETRY:
-#if __FreeBSD_version >= 500000
 		cam_calc_geometry(&ccb->ccg, 1);
-#else
-		ccb->ccg.heads = 255;
-		ccb->ccg.secs_per_track = 63;
-		ccb->ccg.cylinders = ccb->ccg.volume_size /
-				(ccb->ccg.heads * ccb->ccg.secs_per_track);
-		ccb->ccb_h.status = CAM_REQ_CMP;
-#endif
 		break;
 
 	case XPT_PATH_INQ:
