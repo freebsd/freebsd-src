@@ -666,7 +666,7 @@ t4_attach(device_t dev)
 		    device_get_nameunit(dev), i);
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 
-		if (is_10G_port(pi)) {
+		if (is_10G_port(pi) || is_40G_port(pi)) {
 			n10g++;
 			pi->tmr_idx = t4_tmr_idx_10g;
 			pi->pktc_idx = t4_pktc_idx_10g;
@@ -756,7 +756,7 @@ t4_attach(device_t dev)
 
 		pi->first_rxq = rqidx;
 		pi->first_txq = tqidx;
-		if (is_10G_port(pi)) {
+		if (is_10G_port(pi) || is_40G_port(pi)) {
 			pi->nrxq = iaq.nrxq10g;
 			pi->ntxq = iaq.ntxq10g;
 		} else {
@@ -771,7 +771,7 @@ t4_attach(device_t dev)
 		if (is_offload(sc)) {
 			pi->first_ofld_rxq = ofld_rqidx;
 			pi->first_ofld_txq = ofld_tqidx;
-			if (is_10G_port(pi)) {
+			if (is_10G_port(pi) || is_40G_port(pi)) {
 				pi->nofldrxq = iaq.nofldrxq10g;
 				pi->nofldtxq = iaq.nofldtxq10g;
 			} else {
@@ -2595,16 +2595,47 @@ build_medialist(struct port_info *pi)
 		case FW_PORT_MOD_TYPE_NA:
 		case FW_PORT_MOD_TYPE_ER:
 		default:
+			device_printf(pi->dev,
+			    "unknown port_type (%d), mod_type (%d)\n",
+			    pi->port_type, pi->mod_type);
 			ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
 			ifmedia_set(media, m | IFM_UNKNOWN);
 			break;
 		}
 		break;
 
-	case FW_PORT_TYPE_KX4:
-	case FW_PORT_TYPE_KX:
-	case FW_PORT_TYPE_KR:
+	case FW_PORT_TYPE_QSFP:
+		switch (pi->mod_type) {
+
+		case FW_PORT_MOD_TYPE_LR:
+			ifmedia_add(media, m | IFM_40G_LR4, data, NULL);
+			ifmedia_set(media, m | IFM_40G_LR4);
+			break;
+
+		case FW_PORT_MOD_TYPE_SR:
+			ifmedia_add(media, m | IFM_40G_SR4, data, NULL);
+			ifmedia_set(media, m | IFM_40G_SR4);
+			break;
+		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
+		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
+			ifmedia_add(media, m | IFM_40G_CR4, data, NULL);
+			ifmedia_set(media, m | IFM_40G_CR4);
+			break;
+
+		default:
+			device_printf(pi->dev,
+			    "unknown port_type (%d), mod_type (%d)\n",
+			    pi->port_type, pi->mod_type);
+			ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
+			ifmedia_set(media, m | IFM_UNKNOWN);
+			break;
+		}
+		break;
+
 	default:
+		device_printf(pi->dev,
+		    "unknown port_type (%d), mod_type (%d)\n", pi->port_type,
+		    pi->mod_type);
 		ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
 		ifmedia_set(media, m | IFM_UNKNOWN);
 		break;
