@@ -31,6 +31,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130429:
+        Fix a bug that allows NFS clients to issue READDIR on files.
+
 20130426:
 	The WITHOUT_IDEA option has been removed because
 	the IDEA patent expired.
