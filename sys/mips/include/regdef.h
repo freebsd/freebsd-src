@@ -33,6 +33,9 @@
  * $FreeBSD$
  */
 
+#ifndef _MIPS_INCLUDE_REGDEF_H_
+#define _MIPS_INCLUDE_REGDEF_H_
+
 #define zero    $0      /* always zero */
 #define AT      $at     /* assembler temp */
 #define v0      $2      /* return value */
@@ -65,3 +68,5 @@
 #define sp      $29     /* stack pointer */
 #define s8      $30     /* one more callee saved */
 #define ra      $31     /* return address */
+
+#endif /* _MIPS_INCLUDE_REGDEF_H_ */
