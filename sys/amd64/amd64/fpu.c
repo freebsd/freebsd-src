@@ -132,7 +132,6 @@ static	void	fpu_clean_state(void);
 SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
     NULL, 1, "Floating point instructions executed in hardware");
 
-static int use_xsaveopt;
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
 static	uma_zone_t fpu_save_area_zone;
@@ -198,7 +197,6 @@ fpuinit_bsp1(void)
 		 * REX byte, and set the bit 4 of the r/m byte.
 		 */
 		ctx_switch_xsave[3] |= 0x10;
-		use_xsaveopt = 1;
 	}
 }
 
@@ -296,7 +294,7 @@ fpuinitstate(void *arg __unused)
 	 * Create a table describing the layout of the CPU Extended
 	 * Save Area.
 	 */
-	if (use_xsaveopt) {
+	if (use_xsave) {
 		max_ext_n = flsl(xsave_mask);
 		xsave_area_desc = malloc(max_ext_n * sizeof(struct
 		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -661,7 +659,7 @@ fpugetregs(struct thread *td)
 	struct pcb *pcb;
 	uint64_t *xstate_bv, bit;
 	char *sa;
-	int max_ext_n, i;
+	int max_ext_n, i, owned;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_USERFPUINITDONE) == 0) {
@@ -675,31 +673,31 @@ fpugetregs(struct thread *td)
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 		fpusave(get_pcb_user_save_pcb(pcb));
-		critical_exit();
-		return (_MC_FPOWNED_FPU);
+		owned = _MC_FPOWNED_FPU;
 	} else {
-		critical_exit();
-		if (use_xsaveopt) {
-			/*
-			 * Handle partially saved state.
-			 */
-			sa = (char *)get_pcb_user_save_pcb(pcb);
-			xstate_bv = (uint64_t *)(sa + sizeof(struct savefpu) +
-			    offsetof(struct xstate_hdr, xstate_bv));
-			max_ext_n = flsl(xsave_mask);
-			for (i = 0; i < max_ext_n; i++) {
-				bit = 1 << i;
-				if ((*xstate_bv & bit) != 0)
-					continue;
-				bcopy((char *)fpu_initialstate +
-				    xsave_area_desc[i].offset,
-				    sa + xsave_area_desc[i].offset,
-				    xsave_area_desc[i].size);
-				*xstate_bv |= bit;
-			}
-		}
-		return (_MC_FPOWNED_PCB);
+		owned = _MC_FPOWNED_PCB;
 	}
+	critical_exit();
+	if (use_xsave) {
+		/*
+		 * Handle partially saved state.
+		 */
+		sa = (char *)get_pcb_user_save_pcb(pcb);
+		xstate_bv = (uint64_t *)(sa + sizeof(struct savefpu) +
+		    offsetof(struct xstate_hdr, xstate_bv));
+		max_ext_n = flsl(xsave_mask);
+		for (i = 0; i < max_ext_n; i++) {
+			bit = 1 << i;
+			if ((*xstate_bv & bit) != 0)
+				continue;
+			bcopy((char *)fpu_initialstate +
+			    xsave_area_desc[i].offset,
+			    sa + xsave_area_desc[i].offset,
+			    xsave_area_desc[i].size);
+			*xstate_bv |= bit;
+		}
+	}
+	return (owned);
 }
 
 void
