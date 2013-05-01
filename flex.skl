@@ -727,6 +727,11 @@ m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
 
 %% [1.0] yytext/yyin/yyout/yy_state_type/yylineno etc. def's & init go here
 
+m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
+[[
+%% [1.5] DFA
+]])
+
 %if-c-only Standard (non-C++) definition
 
 m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
@@ -1272,8 +1277,6 @@ m4_ifdef( [[M4_YY_NOT_REENTRANT]],
     ]])
 ]])
 
-%% [7.0] user's declarations go here
-
 m4_ifdef( [[M4_YY_BISON_LVAL]],
 [[
     yylval = yylval_param;
@@ -1328,6 +1331,9 @@ m4_ifdef( [[M4_YY_USES_REJECT]],
 
 		yy_load_buffer_state( M4_YY_CALL_ONLY_ARG );
 		}
+
+	{
+%% [7.0] user's declarations go here
 
 	while ( 1 )		/* loops until end-of-file is reached */
 		{
@@ -1486,6 +1492,7 @@ do_action:	/* This label is used only to access EOF actions. */
 			"fatal flex scanner internal error--no action found" );
 	} /* end of action switch */
 		} /* end of scanning one token */
+	} /* end of user's declarations */
 } /* end of yylex */
 %ok-for-header
 
@@ -2360,7 +2367,7 @@ YY_BUFFER_STATE yy_scan_bytes  YYFARGS2( yyconst char *,yybytes, yy_size_t ,_yyb
 	YY_BUFFER_STATE b;
 	char *buf;
 	yy_size_t n;
-	int i;
+	yy_size_t i;
     m4_dnl M4_YY_DECL_GUTS_VAR();
 
 	/* Get memory for full buffer, including space for trailing EOB's. */
