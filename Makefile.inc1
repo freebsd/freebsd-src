@@ -58,6 +58,9 @@
 # use that new version.  And the new (dynamically-linked) /bin/sh
 # will expect to find appropriate libraries in /lib and /libexec.
 #
+.if defined(SUBDIR_OVERRIDE)
+SUBDIR=	${SUBDIR_OVERRIDE}
+.else
 SUBDIR=	share/info lib libexec
 SUBDIR+=bin
 .if ${MK_GAMES} != "no"
@@ -96,9 +99,6 @@ SUBDIR+=etc
 SUBDIR+= ${_DIR}
 .endif
 .endfor
-
-.if defined(SUBDIR_OVERRIDE)
-SUBDIR=		${SUBDIR_OVERRIDE}
 .endif
 
 .if defined(NOCLEAN)
