@@ -291,7 +291,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	is now spelled mips64.  mipsn32eb is now spelled mipsn32.  mipseb is
 	now spelled mips.  This is to aid compatibility with third-party
 	software that expects this naming scheme in uname(3).  Little-endian
-	settings are unchanged.
+	settings are unchanged. If you are updating a big-endian mips64 machine
+	from before this change, you may need to set MACHINE_ARCH=mips64 in
+	your environment before the new build system will recognize your machine.
 
 20120306:
 	Disable by default the option VFS_ALLOW_NONMPSAFE for all supported
