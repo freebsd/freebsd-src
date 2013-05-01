@@ -2114,8 +2114,10 @@ procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
 {
 	switch(procstat->type) {
 	case PROCSTAT_KVM:
-		warnx("kvm method is not supported");
-		return (-1);
+		/* XXX: Return empty string. */
+		if (maxlen > 0)
+			pathname[0] = '\0';
+		return (0);
 	case PROCSTAT_SYSCTL:
 		return (procstat_getpathname_sysctl(kp->ki_pid, pathname,
 		    maxlen));
