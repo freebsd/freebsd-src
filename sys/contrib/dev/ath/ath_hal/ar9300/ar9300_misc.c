@@ -1138,7 +1138,7 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
 #ifdef AH_PRIVATE_DIAG
     case HAL_DIAG_EEPROM:
         *result = &ahp->ah_eeprom;
-        *resultsize = sizeof(HAL_EEPROM);
+        *resultsize = sizeof(ar9300_eeprom_t);
         return AH_TRUE;
 
 #if 0   /* XXX - TODO */
