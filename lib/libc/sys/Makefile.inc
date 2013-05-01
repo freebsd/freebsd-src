@@ -352,6 +352,7 @@ MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=pdfork.2 pdgetpid.2\
 	pdfork.2 pdkill.2 \
 	pdfork.2 pdwait4.2
+MLINKS+=pipe.2 pipe2.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2

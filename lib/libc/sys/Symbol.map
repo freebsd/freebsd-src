@@ -393,6 +393,7 @@ FBSD_1.3 {
 	ffclock_getcounter;
 	ffclock_getestimate;
 	ffclock_setestimate;
+	pipe2;
 	posix_fadvise;
 	wait6;
 };
