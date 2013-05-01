@@ -2251,8 +2251,11 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 							/*ascq*/ 0x00,
 							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
-						ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
-						    CAM_AUTOSNS_VALID;
+						ccb->ccb_h.status =
+						    CAM_SCSI_STATUS_ERROR |
+						    CAM_AUTOSNS_VALID |
+						    CAM_DEV_QFRZN;
+						xpt_freeze_devq(ccb->ccb_h.path, 1);
 						xpt_done(ccb);
 						goto done;
 					}
@@ -2512,7 +2515,8 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		 * recovered. We return an error to CAM and let CAM
 		 * retry the command if necessary.
 		 */
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 		break;
 	}
@@ -2575,8 +2579,9 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 			 * usual.
 			 */
 
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-			    | CAM_AUTOSNS_VALID;
+			    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 
 #if 0
@@ -2587,17 +2592,18 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 
 			/* the rest of the command was filled in at attach */
 
-			if (umass_std_transform(sc, ccb,
+			if ((sc->sc_transform)(sc,
 			    &sc->cam_scsi_test_unit_ready.opcode,
-			    sizeof(sc->cam_scsi_test_unit_ready))) {
+			    sizeof(sc->cam_scsi_test_unit_ready)) == 1) {
 				umass_command_start(sc, DIR_NONE, NULL, 0,
 				    ccb->ccb_h.timeout,
 				    &umass_cam_quirk_cb, ccb);
+				break;
 			}
-			break;
 		} else {
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-			    | CAM_AUTOSNS_VALID;
+			    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 		}
 		xpt_done(ccb);
@@ -2606,15 +2612,16 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Autosense failed, "
 		    "status %d\n", status);
-		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_AUTOSENSE_FAIL | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 	}
 }
 
 /*
  * This completion code just handles the fact that we sent a test-unit-ready
- * after having previously failed a READ CAPACITY with CHECK_COND.  Even
- * though this command succeeded, we have to tell CAM to retry.
+ * after having previously failed a READ CAPACITY with CHECK_COND.  The CCB
+ * status for CAM is already set earlier.
  */
 static void
 umass_cam_quirk_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
@@ -2623,9 +2630,6 @@ umass_cam_quirk_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 	DPRINTF(sc, UDMASS_SCSI, "Test unit ready "
 	    "returned status %d\n", status);
 
-	ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-	    | CAM_AUTOSNS_VALID;
-	ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 	xpt_done(ccb);
 }
 
@@ -2914,7 +2918,8 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 		xpt_done(ccb);
 		return (0);
 	} else if (retval == 0) {
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status = CAM_REQ_INVALID | CAM_DEV_QFRZN;
 		xpt_done(ccb);
 		return (0);
 	}
