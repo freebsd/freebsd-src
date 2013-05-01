@@ -743,9 +743,6 @@ fpusetxstate(struct thread *td, char *xfpustate, size_t xfpustate_size)
 	 */
 	if (bv & ~xsave_mask)
 		return (EINVAL);
-	if ((bv & (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE)) !=
-	    (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE))
-		return (EINVAL);
 
 	hdr = (struct xstate_hdr *)(get_pcb_user_save_td(td) + 1);
 
