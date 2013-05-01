@@ -618,7 +618,7 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		fs->sched->fp->free_fsk(fs);
 	fs->sched = NULL;
 	if (flags & DN_DELETE_FS) {
-		bzero(fs, sizeof(fs));	/* safety */
+		bzero(fs, sizeof(*fs));	/* safety */
 		free(fs, M_DUMMYNET);
 		dn_cfg.fsk_count--;
 	} else {
