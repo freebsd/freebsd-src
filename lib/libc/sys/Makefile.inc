@@ -270,6 +270,7 @@ MAN+=	sctp_generic_recvmsg.2 \
 	wait.2 \
 	write.2
 
+MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
 	access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2

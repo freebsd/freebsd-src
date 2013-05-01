@@ -97,10 +97,18 @@ __FBSDID("$FreeBSD$");
 #endif /* SCTP */
 #endif /* INET || INET6 */
 
+/*
+ * Flags for accept1() and kern_accept4(), in addition to SOCK_CLOEXEC
+ * and SOCK_NONBLOCK.
+ */
+#define	ACCEPT4_INHERIT	0x1
+#define	ACCEPT4_COMPAT	0x2
+
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
 
-static int accept1(struct thread *td, struct accept_args *uap, int compat);
+static int accept1(struct thread *td, int s, struct sockaddr *uname,
+		   socklen_t *anamelen, int flags);
 static int do_sendfile(struct thread *td, struct sendfile_args *uap, int compat);
 static int getsockname1(struct thread *td, struct getsockname_args *uap,
 			int compat);
@@ -317,49 +325,46 @@ sys_listen(td, uap)
  * accept1()
  */
 static int
-accept1(td, uap, compat)
+accept1(td, s, uname, anamelen, flags)
 	struct thread *td;
-	struct accept_args /* {
-		int	s;
-		struct sockaddr	* __restrict name;
-		socklen_t	* __restrict anamelen;
-	} */ *uap;
-	int compat;
+	int s;
+	struct sockaddr *uname;
+	socklen_t *anamelen;
+	int flags;
 {
 	struct sockaddr *name;
 	socklen_t namelen;
 	struct file *fp;
 	int error;
 
-	if (uap->name == NULL)
-		return (kern_accept(td, uap->s, NULL, NULL, NULL));
+	if (uname == NULL)
+		return (kern_accept4(td, s, NULL, NULL, flags, NULL));
 
-	error = copyin(uap->anamelen, &namelen, sizeof (namelen));
+	error = copyin(anamelen, &namelen, sizeof (namelen));
 	if (error)
 		return (error);
 
-	error = kern_accept(td, uap->s, &name, &namelen, &fp);
+	error = kern_accept4(td, s, &name, &namelen, flags, &fp);
 
 	/*
 	 * return a namelen of zero for older code which might
 	 * ignore the return value from accept.
 	 */
 	if (error) {
-		(void) copyout(&namelen,
-		    uap->anamelen, sizeof(*uap->anamelen));
+		(void) copyout(&namelen, anamelen, sizeof(*anamelen));
 		return (error);
 	}
 
-	if (error == 0 && name != NULL) {
+	if (error == 0 && uname != NULL) {
 #ifdef COMPAT_OLDSOCK
-		if (compat)
+		if (flags & ACCEPT4_COMPAT)
 			((struct osockaddr *)name)->sa_family =
 			    name->sa_family;
 #endif
-		error = copyout(name, uap->name, namelen);
+		error = copyout(name, uname, namelen);
 	}
 	if (error == 0)
-		error = copyout(&namelen, uap->anamelen,
+		error = copyout(&namelen, anamelen,
 		    sizeof(namelen));
 	if (error)
 		fdclose(td->td_proc->p_fd, fp, td->td_retval[0], td);
@@ -371,6 +376,13 @@ accept1(td, uap, compat)
 int
 kern_accept(struct thread *td, int s, struct sockaddr **name,
     socklen_t *namelen, struct file **fp)
+{
+	return (kern_accept4(td, s, name, namelen, ACCEPT4_INHERIT, fp));
+}
+
+int
+kern_accept4(struct thread *td, int s, struct sockaddr **name,
+    socklen_t *namelen, int flags, struct file **fp)
 {
 	struct filedesc *fdp;
 	struct file *headfp, *nfp = NULL;
@@ -400,7 +412,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	if (error != 0)
 		goto done;
 #endif
-	error = falloc(td, &nfp, &fd, 0);
+	error = falloc(td, &nfp, &fd, (flags & SOCK_CLOEXEC) ? O_CLOEXEC : 0);
 	if (error)
 		goto done;
 	ACCEPT_LOCK();
@@ -441,7 +453,10 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
-	so->so_state |= (head->so_state & SS_NBIO);
+	if (flags & ACCEPT4_INHERIT)
+		so->so_state |= (head->so_state & SS_NBIO);
+	else
+		so->so_state |= (flags & SOCK_NONBLOCK) ? SS_NBIO : 0;
 	so->so_qstate &= ~SQ_COMP;
 	so->so_head = NULL;
 
@@ -454,9 +469,15 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	/* connection has been removed from the listen queue */
 	KNOTE_UNLOCKED(&head->so_rcv.sb_sel.si_note, 0);
 
-	pgid = fgetown(&head->so_sigio);
-	if (pgid != 0)
-		fsetown(pgid, &so->so_sigio);
+	if (flags & ACCEPT4_INHERIT) {
+		pgid = fgetown(&head->so_sigio);
+		if (pgid != 0)
+			fsetown(pgid, &so->so_sigio);
+	} else {
+		fflag &= ~(FNONBLOCK | FASYNC);
+		if (flags & SOCK_NONBLOCK)
+			fflag |= FNONBLOCK;
+	}
 
 	finit(nfp, fflag, DTYPE_SOCKET, so, &socketops);
 	/* Sync socket nonblocking/async state with file flags */
@@ -527,7 +548,18 @@ sys_accept(td, uap)
 	struct accept_args *uap;
 {
 
-	return (accept1(td, uap, 0));
+	return (accept1(td, uap->s, uap->name, uap->anamelen, ACCEPT4_INHERIT));
+}
+
+int
+sys_accept4(td, uap)
+	struct thread *td;
+	struct accept4_args *uap;
+{
+	if (uap->flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
+		return (EINVAL);
+
+	return (accept1(td, uap->s, uap->name, uap->anamelen, uap->flags));
 }
 
 #ifdef COMPAT_OLDSOCK
@@ -537,7 +569,8 @@ oaccept(td, uap)
 	struct accept_args *uap;
 {
 
-	return (accept1(td, uap, 1));
+	return (accept1(td, uap->s, uap->name, uap->anamelen,
+	    ACCEPT4_INHERIT | ACCEPT4_COMPAT));
 }
 #endif /* COMPAT_OLDSOCK */
 

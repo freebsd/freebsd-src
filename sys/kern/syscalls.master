@@ -972,5 +972,9 @@
 				    int namelen); }
 540	AUE_CHFLAGSAT	STD	{ int chflagsat(int fd, const char *path, \
 				    u_long flags, int atflag); }
+541	AUE_ACCEPT	STD	{ int accept4(int s, \
+				    struct sockaddr * __restrict name, \
+				    __socklen_t * __restrict anamelen, \
+				    int flags); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
