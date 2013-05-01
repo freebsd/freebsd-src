@@ -1026,3 +1026,4 @@
 				    struct sockaddr * __restrict name, \
 				    __socklen_t * __restrict anamelen, \
 				    int flags); }
+542	AUE_PIPE	NOPROTO	{ int pipe2(int *fildes, int flags); }

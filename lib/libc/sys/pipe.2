@@ -28,7 +28,7 @@
 .\"     @(#)pipe.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2006
+.Dd March 31, 2013
 .Dt PIPE 2
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@
 .In unistd.h
 .Ft int
 .Fn pipe "int fildes[2]"
+.Ft int
+.Fn pipe2 "int fildes[2]" "int flags"
 .Sh DESCRIPTION
 The
 .Fn pipe
@@ -49,6 +51,29 @@ creates a
 which is an object allowing
 bidirectional data flow,
 and allocates a pair of file descriptors.
+.Pp
+The
+.Fn pipe2
+system call allows control over the attributes of the file descriptors
+via the
+.Fa flags
+argument.
+Values for
+.Fa flags
+are constructed by a bitwise-inclusive OR of flags from the following
+list, defined in
+.In fcntl.h :
+.Bl -tag -width ".Dv O_NONBLOCK"
+.It Dv O_CLOEXEC
+Set the close-on-exec flag for the new file descriptors.
+.It Dv O_NONBLOCK
+Set the non-blocking flag for the ends of the pipe.
+.El
+.Pp
+If the
+.Fa flags
+argument is 0, the behavior is identical to a call to
+.Fn pipe .
 .Pp
 By convention, the first descriptor is normally used as the
 .Em read end
@@ -88,7 +113,9 @@ pipe in one direction.
 .Sh ERRORS
 The
 .Fn pipe
-system call will fail if:
+and
+.Fn pipe2
+system calls will fail if:
 .Bl -tag -width Er
 .It Bq Er EMFILE
 Too many descriptors are active.
@@ -96,6 +123,16 @@ Too many descriptors are active.
 The system file table is full.
 .It Bq Er ENOMEM
 Not enough kernel memory to establish a pipe.
+.El
+.Pp
+The
+.Fn pipe2
+system call will also fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument is invalid.
 .El
 .Sh SEE ALSO
 .Xr sh 1 ,
@@ -111,3 +148,8 @@ function appeared in
 .Pp
 Bidirectional pipes were first used on
 .At V.4 .
+.Pp
+The
+.Fn pipe2
+function appeared in
+.Fx 10.0 .
