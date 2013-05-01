@@ -3071,16 +3071,15 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 					  SSQ_PRINT_SENSE;
 			}
 		}
-		if ((action & SS_MASK) >= SS_START &&
-		    (sense_flags & SF_NO_RECOVERY)) {
-			action &= ~SS_MASK;
-			action |= SS_FAIL;
-		} else if ((action & SS_MASK) == SS_RETRY &&
-		    (sense_flags & SF_NO_RETRY)) {
-			action &= ~SS_MASK;
-			action |= SS_FAIL;
-		}
-
+	}
+	if ((action & SS_MASK) >= SS_START &&
+	    (sense_flags & SF_NO_RECOVERY)) {
+		action &= ~SS_MASK;
+		action |= SS_FAIL;
+	} else if ((action & SS_MASK) == SS_RETRY &&
+	    (sense_flags & SF_NO_RETRY)) {
+		action &= ~SS_MASK;
+		action |= SS_FAIL;
 	}
 	if ((sense_flags & SF_PRINT_ALWAYS) != 0)
 		action |= SSQ_PRINT_SENSE;
