@@ -41,7 +41,6 @@
 
 #include <machine/cdefs.h>	/* for API selection */
 
-#if defined(__ASSEMBLER__)
 #define zero	$0	/* always zero */
 #define AT	$at	/* assembler temporary */
 #define v0	$2	/* return value */
@@ -106,5 +105,4 @@
 #define	ta3	$15
 #endif /* __mips_n32 || __mips_n64 */
 
-#endif /* __ASSEMBLER__ */
 #endif /* _MIPS_REGDEF_H */
