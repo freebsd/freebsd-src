@@ -918,6 +918,7 @@ static	off_t		dadeletemaxsize(struct da_softc *softc,
 					da_delete_methods delete_method);
 static	void		dadeletemethodchoose(struct da_softc *softc,
 					     da_delete_methods default_method);
+static	void		daprobedone(struct cam_periph *periph, union ccb *ccb);
 
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
@@ -1677,6 +1678,65 @@ dadeletemaxsize(struct da_softc *softc, da_delete_methods delete_method)
 
 	return (off_t)softc->params.secsize *
 	    min(sectors, (off_t)softc->params.sectors);
+}
+
+static void
+daprobedone(struct cam_periph *periph, union ccb *ccb)
+{
+	struct da_softc *softc;
+
+	softc = (struct da_softc *)periph->softc;
+
+	dadeletemethodchoose(softc, DA_DELETE_NONE);
+
+	if (bootverbose && (softc->flags & DA_FLAG_PROBED) == 0) {
+		char buf[80];
+		int i, sep;
+
+		snprintf(buf, sizeof(buf), "Delete methods: <");
+		sep = 0;
+		for (i = DA_DELETE_MIN; i <= DA_DELETE_MAX; i++) {
+			if (softc->delete_available & (1 << i)) {
+				if (sep) {
+					strlcat(buf, ",", sizeof(buf));
+				} else {
+				    sep = 1;
+				}
+				strlcat(buf, da_delete_method_names[i],
+				    sizeof(buf));
+				if (i == softc->delete_method) {
+					strlcat(buf, "(*)", sizeof(buf));
+				}
+			}
+		}
+		if (sep == 0) {
+			if (softc->delete_method == DA_DELETE_NONE) 
+				strlcat(buf, "NONE(*)", sizeof(buf));
+			else
+				strlcat(buf, "DISABLED(*)", sizeof(buf));
+		}
+		strlcat(buf, ">", sizeof(buf));
+		printf("%s%d: %s\n", periph->periph_name,
+		    periph->unit_number, buf);
+	}
+
+	/*
+	 * Since our peripheral may be invalidated by an error
+	 * above or an external event, we must release our CCB
+	 * before releasing the probe lock on the peripheral.
+	 * The peripheral will only go away once the last lock
+	 * is removed, and we need it around for the CCB release
+	 * operation.
+	 */
+	xpt_release_ccb(ccb);
+	softc->state = DA_STATE_NORMAL;
+	daschedule(periph);
+	wakeup(&softc->disk->d_mediasize);
+	if ((softc->flags & DA_FLAG_PROBED) == 0) {
+		softc->flags |= DA_FLAG_PROBED;
+		cam_periph_unhold(periph);
+	} else
+		cam_periph_release_locked(periph);
 }
 
 static void
@@ -2457,6 +2517,11 @@ out:
 	{
 		struct ata_params *ata_params;
 
+		if (!scsi_vpd_supported_page(periph, SVPD_ATA_INFORMATION)) {
+			daprobedone(periph, start_ccb);
+			break;
+		}
+
 		ata_params = (struct ata_params*)
 			malloc(sizeof(*ata_params), M_SCSIDA, M_NOWAIT|M_ZERO);
 
@@ -3121,7 +3186,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			int error;
 			error = daerror(done_ccb, CAM_RETRY_SELTO,
-					SF_RETRY_UA|SF_QUIET_IR);
+					SF_RETRY_UA|SF_NO_PRINT);
 			if (error == ERESTART)
 				return;
 			else if (error != 0) {
@@ -3137,24 +3202,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		free(ata_params, M_SCSIDA);
-		dadeletemethodchoose(softc, DA_DELETE_NONE);
-		/*
-		 * Since our peripheral may be invalidated by an error
-		 * above or an external event, we must release our CCB
-		 * before releasing the probe lock on the peripheral.
-		 * The peripheral will only go away once the last lock
-		 * is removed, and we need it around for the CCB release
-		 * operation.
-		 */
-		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_NORMAL;
-		daschedule(periph);
-		wakeup(&softc->disk->d_mediasize);
-		if ((softc->flags & DA_FLAG_PROBED) == 0) {
-			softc->flags |= DA_FLAG_PROBED;
-			cam_periph_unhold(periph);
-		} else
-			cam_periph_release_locked(periph);
+		daprobedone(periph, done_ccb);
 		return;
 	}
 	case DA_CCB_WAITING:
