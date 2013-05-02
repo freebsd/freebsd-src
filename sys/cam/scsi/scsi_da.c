@@ -133,14 +133,14 @@ typedef enum {
 	DA_DELETE_WS16,
 	DA_DELETE_WS10,
 	DA_DELETE_ZERO,
-	DA_DELETE_MIN = DA_DELETE_UNMAP,
+	DA_DELETE_MIN = DA_DELETE_ATA_TRIM,
 	DA_DELETE_MAX = DA_DELETE_ZERO
 } da_delete_methods;
 
 static const char *da_delete_method_names[] =
-    { "NONE", "DISABLE", "UNMAP", "ATA_TRIM", "WS16", "WS10", "ZERO" };
+    { "NONE", "DISABLE", "ATA_TRIM", "UNMAP", "WS16", "WS10", "ZERO" };
 static const char *da_delete_method_desc[] =
-    { "NONE", "DISABLED", "UNMAP", "ATA TRIM", "WRITE SAME(16) with UNMAP",
+    { "NONE", "DISABLED", "ATA TRIM", "UNMAP", "WRITE SAME(16) with UNMAP",
       "WRITE SAME(10) with UNMAP", "ZERO" };
 
 /* Offsets into our private area for storing information */
