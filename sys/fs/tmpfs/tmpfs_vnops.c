@@ -1468,23 +1468,12 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
-	vm_object_t obj;
 
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
 
-	if (node->tn_type == VREG) {
-		obj = node->tn_reg.tn_aobj;
-		if (obj != NULL) {
-			/* Instead of vnode_destroy_vobject() */
-			VM_OBJECT_WLOCK(obj);
-			VI_LOCK(vp);
-			vm_object_clear_flag(obj, OBJ_TMPFS);
-			obj->un_pager.swp.swp_tmpfs = NULL;
-			VI_UNLOCK(vp);
-			VM_OBJECT_WUNLOCK(obj);
-		}
-	}
+	if (vp->v_type == VREG)
+		tmpfs_destroy_vobject(vp, node->tn_reg.tn_aobj);
 	vp->v_object = NULL;
 	cache_purge(vp);
 

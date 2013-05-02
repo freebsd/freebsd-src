@@ -429,6 +429,36 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de)
 
 /* --------------------------------------------------------------------- */
 
+void
+tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
+{
+
+	if (vp->v_type != VREG || obj == NULL)
+		return;
+
+	VM_OBJECT_WLOCK(obj);
+	VI_LOCK(vp);
+	vm_object_clear_flag(obj, OBJ_TMPFS);
+	obj->un_pager.swp.swp_tmpfs = NULL;
+	VI_UNLOCK(vp);
+	VM_OBJECT_WUNLOCK(obj);
+}
+
+/*
+ * Need to clear v_object for insmntque failure.
+ */
+static void
+tmpfs_insmntque_dtr(struct vnode *vp, void *dtr_arg)
+{
+
+	tmpfs_destroy_vobject(vp, vp->v_object);
+	vp->v_object = NULL;
+	vp->v_data = NULL;
+	vp->v_op = &dead_vnodeops;
+	vgone(vp);
+	vput(vp);
+}
+
 /*
  * Allocates a new vnode for the node node or returns a new reference to
  * an existing one if the node had already a vnode referencing it.  The
@@ -540,7 +570,7 @@ loop:
 		panic("tmpfs_alloc_vp: type %p %d", node, (int)node->tn_type);
 	}
 
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp, tmpfs_insmntque_dtr, NULL);
 	if (error)
 		vp = NULL;
 
