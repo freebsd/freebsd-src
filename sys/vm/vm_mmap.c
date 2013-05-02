@@ -1289,7 +1289,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			vp = (struct vnode *)obj->handle;
 			/*
 			 * Bypass filesystems obey the mpsafety of the
-			 * underlying fs.
+			 * underlying fs.  Tmpfs never bypasses.
 			 */
 			error = vget(vp, locktype, td);
 			if (error != 0)
