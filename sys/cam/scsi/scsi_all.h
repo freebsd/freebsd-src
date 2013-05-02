@@ -1430,6 +1430,12 @@ struct scsi_diag_page {
 };
 
 /*
+ * ATA Information VPD Page based on
+ * T10/2126-D Revision 04
+ */
+#define SVPD_ATA_INFORMATION		0x89
+
+/*
  * Block Device Characteristics VPD Page based on
  * T10/1799-D Revision 31
  */
