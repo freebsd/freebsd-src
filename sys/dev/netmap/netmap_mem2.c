@@ -101,7 +101,7 @@
 // #define NMA_LOCK_T		safe_spinlock_t
 #define NMA_LOCK_T		struct semaphore
 #define NMA_LOCK_INIT()		sema_init(&nm_mem.nm_mtx, 1)
-#define NMA_LOCK_DESTROY()	
+#define NMA_LOCK_DESTROY()
 #define NMA_LOCK()		down(&nm_mem.nm_mtx)
 #define NMA_UNLOCK()		up(&nm_mem.nm_mtx)
 #else /* !linux */
@@ -527,12 +527,12 @@ netmap_config_obj_allocator(struct netmap_obj_pool *p, u_int objtotal, u_int obj
 		objsize += LINE_ROUND - i;
 	}
 	if (objsize < p->objminsize || objsize > p->objmaxsize) {
-		D("requested objsize %d out of range [%d, %d]", 
+		D("requested objsize %d out of range [%d, %d]",
 			objsize, p->objminsize, p->objmaxsize);
 		goto error;
 	}
 	if (objtotal < p->nummin || objtotal > p->nummax) {
-		D("requested objtotal %d out of range [%d, %d]", 
+		D("requested objtotal %d out of range [%d, %d]",
 			objtotal, p->nummin, p->nummax);
 		goto error;
 	}
@@ -693,7 +693,7 @@ netmap_memory_config(void)
 		/* reset previous allocation */
 		for (i = 0; i < NETMAP_POOLS_NR; i++) {
 			netmap_reset_obj_allocator(&nm_mem.pools[i]);
-		}    
+		}
 		nm_mem.finalized = 0;
         }
 

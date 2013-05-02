@@ -168,10 +168,10 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, bridge, CTLFLAG_RW, &netmap_bridge, 0 , "");
 
 #endif /* !linux */
 
-/*  
+/*
  * These are used to handle reference counters for bridge ports.
  */
-#define	ADD_BDG_REF(ifp)	refcount_acquire(&NA(ifp)->na_bdg_refcount)  
+#define	ADD_BDG_REF(ifp)	refcount_acquire(&NA(ifp)->na_bdg_refcount)
 #define	DROP_BDG_REF(ifp)	refcount_release(&NA(ifp)->na_bdg_refcount)
 
 static void bdg_netmap_attach(struct ifnet *ifp);
@@ -313,7 +313,7 @@ netmap_update_config(struct netmap_adapter *na)
 		txd = na->num_tx_desc;
 		rxr = na->num_rx_rings;
 		rxd = na->num_rx_desc;
-	}	
+	}
 
 	if (na->num_tx_rings == txr && na->num_tx_desc == txd &&
 	    na->num_rx_rings == rxr && na->num_rx_desc == rxd)
