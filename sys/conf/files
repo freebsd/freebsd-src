@@ -982,6 +982,54 @@ dev/ath/ath_hal/ar9002/ar9287_cal.c optional ath_hal | ath_ar9287 \
 dev/ath/ath_hal/ar9002/ar9287_olc.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 
+# ar9300
+contrib/dev/ath/ath_hal/ar9300/ar9300_ani.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_attach.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_beacon.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_eeprom.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal ${NO_WCONSTANT_CONVERSION}"
+contrib/dev/ath/ath_hal/ar9300/ar9300_freebsd.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_gpio.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_interrupts.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_keycache.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_mci.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_misc.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_paprd.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_phy.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_power.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_radar.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_radio.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_recv.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_recv_ds.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_reset.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal ${NO_WSOMETIMES_UNINITIALIZED}"
+contrib/dev/ath/ath_hal/ar9300/ar9300_stub.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_stub_funcs.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_timer.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_xmit.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_xmit_ds.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+
 # rf backends
 dev/ath/ath_hal/ar5212/ar2316.c	optional ath_rf2316 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -1006,6 +1054,7 @@ dev/ath/ath_hal/ar9002/ar9285.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar9002/ar9287.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+
 # ath rate control algorithms
 dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
