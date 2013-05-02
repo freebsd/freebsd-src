@@ -4089,6 +4089,8 @@ ar9300_probe(uint16_t vendorid, uint16_t devid)
         return "Atheros AR933x";
     case AR9300_DEVID_QCA955X: /* Scorpion */
         return "Qualcomm Atheros QCA955x";
+    case AR9300_DEVID_QCA9565: /* Aphrodite */
+         return "Qualcomm Atheros AR9565";
     default:
         return AH_NULL;
     }
