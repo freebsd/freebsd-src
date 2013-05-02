@@ -139,6 +139,9 @@ ath_hal_mac_name(struct ath_hal *ah)
 		return "9550";
 	case AR_SREV_VERSION_AR9485:
 		return "9485";
+	case AR_SREV_VERSION_QCA9565:
+		/* XXX should say QCA, not AR */
+		return "9565";
 	}
 	return "????";
 }
