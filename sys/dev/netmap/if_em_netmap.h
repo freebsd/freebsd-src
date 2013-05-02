@@ -276,7 +276,7 @@ em_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	k = ring->cur;
 	if (k > lim)
 		return netmap_ring_reinit(kring);
- 
+
 	if (do_lock)
 		EM_RX_LOCK(rxr);
 

@@ -150,7 +150,7 @@ re_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 
 	/* update avail to what the kernel knows */
 	ring->avail = kring->nr_hwavail;
-	
+
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have new packets to send */
 		l = sc->rl_ldata.rl_tx_prodidx;
@@ -169,7 +169,7 @@ re_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 				// XXX what about prodidx ?
 				return netmap_ring_reinit(kring);
 			}
-			
+
 			if (l == lim)	/* mark end of ring */
 				cmd |= RL_TDESC_CMD_EOR;
 
@@ -334,7 +334,7 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
  */
 static void
 re_netmap_tx_init(struct rl_softc *sc)
-{   
+{
 	struct rl_txdesc *txd;
 	struct rl_desc *desc;
 	int i, n;
