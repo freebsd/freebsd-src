@@ -264,6 +264,7 @@ tmpfs_open(struct vop_open_args *v)
 		error = EPERM;
 	else {
 		error = 0;
+		/* For regular files, the call below is nop. */
 		vnode_create_vobject(vp, node->tn_size, v->a_td);
 	}
 
@@ -1474,6 +1475,8 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 
 	if (vp->v_type == VREG)
 		tmpfs_destroy_vobject(vp, node->tn_reg.tn_aobj);
+	else
+		vnode_destroy_vobject(vp);
 	vp->v_object = NULL;
 	cache_purge(vp);
 
