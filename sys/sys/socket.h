@@ -634,6 +634,7 @@ int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
 #if __BSD_VISIBLE
+int	accept4(int, struct sockaddr * __restrict, socklen_t * __restrict, int);
 int	bindat(int, int, const struct sockaddr *, socklen_t);
 int	connectat(int, int, const struct sockaddr *, socklen_t);
 #endif

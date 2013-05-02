@@ -1138,7 +1138,7 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
 #ifdef AH_PRIVATE_DIAG
     case HAL_DIAG_EEPROM:
         *result = &ahp->ah_eeprom;
-        *resultsize = sizeof(HAL_EEPROM);
+        *resultsize = sizeof(ar9300_eeprom_t);
         return AH_TRUE;
 
 #if 0   /* XXX - TODO */
@@ -1185,9 +1185,11 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
         ar9300_ani_control(
             ah, ((const u_int32_t *)args)[0], ((const u_int32_t *)args)[1]);
         return AH_TRUE;
+#if 0
     case HAL_DIAG_TXCONT:
         /*AR9300_CONTTXMODE(ah, (struct ath_desc *)args, argsize );*/
         return AH_TRUE;
+#endif /* 0 */
 #endif /* AH_PRIVATE_DIAG */
     case HAL_DIAG_CHANNELS:
 #if 0

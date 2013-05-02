@@ -307,7 +307,8 @@ split(char *strings, u_int len, u_int *num)
 	const char **ret;
 
 	/* Protect against unterminated buffers. */
-	strings[len - 1] = '\0';
+	if (len > 0)
+		strings[len - 1] = '\0';
 
 	/* Count the strings. */
 	*num = extract_strings(strings, /*dest*/NULL, len);
