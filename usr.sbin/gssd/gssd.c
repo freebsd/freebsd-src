@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
+#include <errno.h>
 #ifndef WITHOUT_KERBEROS
 #include <krb5.h>
 #endif
@@ -557,8 +558,11 @@ gssd_pname_to_uid_1_svc(pname_to_uid_args *argp, pname_to_uid_res *result, struc
 {
 	gss_name_t name = gssd_find_resource(argp->pname);
 	uid_t uid;
-	char buf[128];
+	char buf[1024], *bufp;
 	struct passwd pwd, *pw;
+	size_t buflen;
+	int error;
+	static size_t buflen_hint = 1024;
 
 	memset(result, 0, sizeof(*result));
 	if (name) {
@@ -567,7 +571,24 @@ gssd_pname_to_uid_1_svc(pname_to_uid_args *argp, pname_to_uid_res *result, struc
 			    name, argp->mech, &uid);
 		if (result->major_status == GSS_S_COMPLETE) {
 			result->uid = uid;
-			getpwuid_r(uid, &pwd, buf, sizeof(buf), &pw);
+			buflen = buflen_hint;
+			for (;;) {
+				pw = NULL;
+				bufp = buf;
+				if (buflen > sizeof(buf))
+					bufp = malloc(buflen);
+				if (bufp == NULL)
+					break;
+				error = getpwuid_r(uid, &pwd, bufp, buflen,
+				    &pw);
+				if (error != ERANGE)
+					break;
+				if (buflen > sizeof(buf))
+					free(bufp);
+				buflen += 1024;
+				if (buflen > buflen_hint)
+					buflen_hint = buflen;
+			}
 			if (pw) {
 				int len = NGRPS;
 				int groups[NGRPS];
@@ -584,6 +605,8 @@ gssd_pname_to_uid_1_svc(pname_to_uid_args *argp, pname_to_uid_res *result, struc
 				result->gidlist.gidlist_len = 0;
 				result->gidlist.gidlist_val = NULL;
 			}
+			if (bufp != NULL && buflen > sizeof(buf))
+				free(bufp);
 		}
 	} else {
 		result->major_status = GSS_S_BAD_NAME;
