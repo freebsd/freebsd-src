@@ -288,16 +288,20 @@ deupdat(dep, waitfor)
 	struct denode *dep;
 	int waitfor;
 {
-	int error;
+	struct direntry dir;
+	struct timespec ts;
 	struct buf *bp;
 	struct direntry *dirp;
-	struct timespec ts;
+	int error;
 
-	if (DETOV(dep)->v_mount->mnt_flag & MNT_RDONLY)
+	if (DETOV(dep)->v_mount->mnt_flag & MNT_RDONLY) {
+		dep->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS |
+		    DE_MODIFIED);
 		return (0);
+	}
 	getnanotime(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
-	if ((dep->de_flag & DE_MODIFIED) == 0)
+	if ((dep->de_flag & DE_MODIFIED) == 0 && waitfor == 0)
 		return (0);
 	dep->de_flag &= ~DE_MODIFIED;
 	if (dep->de_Attributes & ATTR_DIRECTORY)
@@ -307,13 +311,23 @@ deupdat(dep, waitfor)
 	error = readde(dep, &bp, &dirp);
 	if (error)
 		return (error);
-	DE_EXTERNALIZE(dirp, dep);
+	DE_EXTERNALIZE(&dir, dep);
+	if (bcmp(dirp, &dir, sizeof(dir)) == 0) {
+		if (waitfor == 0 || (bp->b_flags & B_DELWRI) == 0) {
+			brelse(bp);
+			return (0);
+		}
+	} else
+		*dirp = dir;
+	if ((DETOV(dep)->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
+		bp->b_flags |= B_CLUSTEROK;
 	if (waitfor)
-		return (bwrite(bp));
-	else {
+		error = bwrite(bp);
+	else if (vm_page_count_severe() || buf_dirty_count_severe())
+		bawrite(bp);
+	else
 		bdwrite(bp);
-		return (0);
-	}
+	return (error);
 }
 
 /*
