@@ -402,6 +402,7 @@ int	tmpfs_alloc_dirent(struct tmpfs_mount *, struct tmpfs_node *,
 	    const char *, u_int, struct tmpfs_dirent **);
 void	tmpfs_free_dirent(struct tmpfs_mount *, struct tmpfs_dirent *);
 void	tmpfs_dirent_init(struct tmpfs_dirent *, const char *, u_int);
+void	tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj);
 int	tmpfs_alloc_vp(struct mount *, struct tmpfs_node *, int,
 	    struct vnode **);
 void	tmpfs_free_vp(struct vnode *);
