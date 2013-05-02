@@ -2392,7 +2392,7 @@ out:
 
 		if (!scsi_vpd_supported_page(periph, SVPD_BLOCK_LIMITS)) {
 			/* Not supported skip to next probe */
-			softc->state = DA_STATE_PROBE_ATA;
+			softc->state = DA_STATE_PROBE_BDC;
 			goto skipstate;
 		}
 
@@ -2734,9 +2734,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * with the short version of the command.
 				 */
 				if (maxsector == 0xffffffff) {
-					softc->state = DA_STATE_PROBE_RC16;
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
+					softc->state = DA_STATE_PROBE_RC16;
 					xpt_schedule(periph, priority);
 					return;
 				}
@@ -2838,9 +2838,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				      (error_code == SSD_CURRENT_ERROR) &&
 				      (sense_key == SSD_KEY_ILLEGAL_REQUEST)))) {
 					softc->flags &= ~DA_FLAG_CAN_RC16;
-					softc->state = DA_STATE_PROBE_RC;
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
+					softc->state = DA_STATE_PROBE_RC;
 					xpt_schedule(periph, priority);
 					return;
 				} else
@@ -2897,34 +2897,37 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 						  &softc->sysctl_task);
 				xpt_announce_periph(periph, announce_buf);
 
-				if (lbp) {
-					/*
-					 * Based on older SBC-3 spec revisions
-					 * any of the UNMAP methods "may" be
-					 * available via LBP given this flag so
-					 * we flag all of them as availble and
-					 * then remove those which further
-					 * probes confirm aren't available
-					 * later.
-					 *
-					 * We could also check readcap(16) p_type
-					 * flag to exclude one or more invalid
-					 * write same (X) types here
-					 */
-					dadeleteflag(softc, DA_DELETE_WS16, 1);
-					dadeleteflag(softc, DA_DELETE_WS10, 1);
-					dadeleteflag(softc, DA_DELETE_ZERO, 1);
-					dadeleteflag(softc, DA_DELETE_UNMAP, 1);
-
-					softc->state = DA_STATE_PROBE_LBP;
-					xpt_release_ccb(done_ccb);
-					xpt_schedule(periph, priority);
-					return;
-				}
 			} else {
 				xpt_print(periph->path, "fatal error, "
 				    "could not acquire reference count\n");
 			}
+		}
+
+		/* Ensure re-probe doesn't see old delete. */
+		softc->delete_available = 0;
+		if (lbp) {
+			/*
+			 * Based on older SBC-3 spec revisions
+			 * any of the UNMAP methods "may" be
+			 * available via LBP given this flag so
+			 * we flag all of them as availble and
+			 * then remove those which further
+			 * probes confirm aren't available
+			 * later.
+			 *
+			 * We could also check readcap(16) p_type
+			 * flag to exclude one or more invalid
+			 * write same (X) types here
+			 */
+			dadeleteflag(softc, DA_DELETE_WS16, 1);
+			dadeleteflag(softc, DA_DELETE_WS10, 1);
+			dadeleteflag(softc, DA_DELETE_ZERO, 1);
+			dadeleteflag(softc, DA_DELETE_UNMAP, 1);
+
+			xpt_release_ccb(done_ccb);
+			softc->state = DA_STATE_PROBE_LBP;
+			xpt_schedule(periph, priority);
+			return;
 		}
 
 		xpt_release_ccb(done_ccb);
@@ -2954,8 +2957,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 			if (lbp->flags & SVPD_LBP_UNMAP) {
 				free(lbp, M_SCSIDA);
-				softc->state = DA_STATE_PROBE_BLK_LIMITS;
 				xpt_release_ccb(done_ccb);
+				softc->state = DA_STATE_PROBE_BLK_LIMITS;
 				xpt_schedule(periph, priority);
 				return;
 			}
@@ -2984,7 +2987,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		free(lbp, M_SCSIDA);
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_PROBE_ATA;
+		softc->state = DA_STATE_PROBE_BDC;
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -3047,7 +3050,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		free(block_limits, M_SCSIDA);
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_PROBE_ATA;
+		softc->state = DA_STATE_PROBE_BDC;
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -3084,8 +3087,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		free(bdc, M_SCSIDA);
-		softc->state = DA_STATE_PROBE_ATA;
 		xpt_release_ccb(done_ccb);
+		softc->state = DA_STATE_PROBE_ATA;
 		xpt_schedule(periph, priority);
 		return;
 	}
