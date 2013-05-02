@@ -3200,7 +3200,7 @@ dareprobe(struct cam_periph *periph)
 	softc = (struct da_softc *)periph->softc;
 
 	/* Probe in progress; don't interfere. */
-	if ((softc->flags & DA_FLAG_PROBED) == 0)
+	if (softc->state != DA_STATE_NORMAL)
 		return;
 
 	status = cam_periph_acquire(periph);
