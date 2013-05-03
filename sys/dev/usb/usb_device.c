@@ -729,10 +729,6 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 
 	while ((id = usb_idesc_foreach(udev->cdesc, &ips))) {
 
-		/* check for interface overflow */
-		if (ips.iface_index == USB_IFACE_MAX)
-			break;			/* crazy */
-
 		iface = udev->ifaces + ips.iface_index;
 
 		/* check for specific interface match */
@@ -779,8 +775,11 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		/* iterate all the endpoint descriptors */
 		while ((ed = usb_edesc_foreach(udev->cdesc, ed))) {
 
-			if (temp == USB_EP_MAX)
-				break;			/* crazy */
+			/* check if endpoint limit has been reached */
+			if (temp >= USB_MAX_EP_UNITS) {
+				DPRINTF("Endpoint limit reached\n");
+				break;
+			}
 
 			ep = udev->endpoints + temp;
 
@@ -810,6 +809,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 
 	if (cmd == USB_CFG_ALLOC) {
 		udev->ifaces_max = ips.iface_index;
+#if (USB_HAVE_FIXED_IFACE == 0)
 		udev->ifaces = NULL;
 		if (udev->ifaces_max != 0) {
 			udev->ifaces = malloc(sizeof(*iface) * udev->ifaces_max,
@@ -819,6 +819,8 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 				goto done;
 			}
 		}
+#endif
+#if (USB_HAVE_FIXED_ENDPOINT == 0)
 		if (ep_max != 0) {
 			udev->endpoints = malloc(sizeof(*ep) * ep_max,
 			        M_USB, M_WAITOK | M_ZERO);
@@ -829,6 +831,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		} else {
 			udev->endpoints = NULL;
 		}
+#endif
 		USB_BUS_LOCK(udev->bus);
 		udev->endpoints_max = ep_max;
 		/* reset any ongoing clear-stall */
@@ -846,14 +849,14 @@ cleanup:
 			udev->ep_curr = NULL;
 			USB_BUS_UNLOCK(udev->bus);
 
-			/* cleanup */
-			if (udev->ifaces != NULL)
-				free(udev->ifaces, M_USB);
-			if (udev->endpoints != NULL)
-				free(udev->endpoints, M_USB);
-
+#if (USB_HAVE_FIXED_IFACE == 0)
+			free(udev->ifaces, M_USB);
 			udev->ifaces = NULL;
+#endif
+#if (USB_HAVE_FIXED_ENDPOINT == 0)
+			free(udev->endpoints, M_USB);
 			udev->endpoints = NULL;
+#endif
 			udev->ifaces_max = 0;
 		}
 	}

@@ -186,9 +186,17 @@ struct usb_device {
 	struct mtx device_mtx;
 	struct cv ctrlreq_cv;
 	struct cv ref_cv;
+#if (USB_HAVE_FIXED_IFACE == 0)
 	struct usb_interface *ifaces;
+#else
+	struct usb_interface ifaces[USB_IFACE_MAX];
+#endif
 	struct usb_endpoint ctrl_ep;	/* Control Endpoint 0 */
+#if (USB_HAVE_FIXED_ENDPOINT == 0)
 	struct usb_endpoint *endpoints;
+#else
+	struct usb_endpoint endpoints[USB_MAX_EP_UNITS];
+#endif
 	struct usb_power_save pwr_save;/* power save data */
 	struct usb_bus *bus;		/* our USB BUS */
 	device_t parent_dev;		/* parent device */
