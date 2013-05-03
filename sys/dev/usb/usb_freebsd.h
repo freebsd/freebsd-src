@@ -47,6 +47,8 @@
 #define	USB_HAVE_PER_BUS_PROCESS 1
 #define	USB_HAVE_FIXED_ENDPOINT 0
 #define	USB_HAVE_FIXED_IFACE 0
+#define	USB_HAVE_FIXED_CONFIG 0
+#define	USB_HAVE_FIXED_PORT 0
 
 #define	USB_TD_GET_PROC(td) (td)->td_proc
 #define	USB_PROC_GET_GID(td) (td)->p_pgid
@@ -68,6 +70,7 @@
 #define	USB_FIFO_MAX 128		/* units */
 #define	USB_MAX_EP_STREAMS 8		/* units */
 #define	USB_MAX_EP_UNITS 32		/* units */
+#define	USB_MAX_PORTS 255		/* units */
 
 #define	USB_MAX_FS_ISOC_FRAMES_PER_XFER (120)	/* units */
 #define	USB_MAX_HS_ISOC_FRAMES_PER_XFER (8*120)	/* units */

@@ -267,6 +267,10 @@ struct usb_device {
 	uint32_t clear_stall_errors;	/* number of clear-stall failures */
 
 	union usb_device_scratch scratch;
+
+#if (USB_HAVE_FIXED_CONFIG != 0)
+	uint32_t config_data[(USB_CONFIG_MAX + 3) / 4];
+#endif
 };
 
 /* globals */
