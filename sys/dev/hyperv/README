@@ -1,0 +1,34 @@
+***** Release rc2.3.0 4/27/2012 **************************************************
+
+New features/limitations-
+
+-Added Fast IDE
+-Massive code restructuring to meeting FreeBSD sytle guidelines
+
+***** Release rc2.2.0 1/4/2012 ***************************************************
+
+New features/limitations-
+
+-Port of LIS 2.1 with FreeBSD support code from Citrix, drivers are linked with
+ Kernel (future drivers will be loadable), port has not been refactored to meet
+ BSD coding standards
+ 
+-SCSI device driver functional, but support for scatter-gather lists is not
+ implemented-Fast IDE support has not been added-still using emulated IDE
+ support
+ 
+-Network storage device support has been added
+
+-While the storage and networking devices support multiple controllers, we're
+ waiting on a resolution from Microsoft to enable persistent and consistent
+ numbering between boots
+  
+-Hyper-V bus has been ported with support code from Citrix to handle clock
+ synchronization between guest and host. Clock synchronization and heartbeat
+ logic have been moved to two, separate drivers-this separation is part
+ of the initial steps for refactoring and restructuring the Hyper-V bus driver from the
+ LIS 2.1 codebase
+ 
+Bug fixes-
+ 
+*******************************************************************************
