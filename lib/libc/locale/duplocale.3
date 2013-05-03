@@ -56,7 +56,6 @@ associated with the current thread by
 .Xr uselocale 3 .
 These calls are therefore only thread safe on threads with a unique per-thread
 locale.
-.Pt
 The locale returned by this call must be freed with
 .Xr freelocale 3 .
 .Sh BUGS
@@ -76,5 +75,5 @@ for compatibility with Darwin.
 .Xr uselocale 3 ,
 .Xr xlocale 3
 .Sh STANDARDS
-This function, conforms to
-.St -p1003.1-2008
+This function conforms to
+.St -p1003.1-2008 .
