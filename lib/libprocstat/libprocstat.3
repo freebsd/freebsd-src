@@ -53,6 +53,7 @@
 .Nm procstat_freevmmap ,
 .Nm procstat_get_pipe_info ,
 .Nm procstat_get_pts_info ,
+.Nm procstat_get_sem_info ,
 .Nm procstat_get_shm_info ,
 .Nm procstat_get_socket_info ,
 .Nm procstat_get_vnode_info
@@ -112,6 +113,13 @@
 .Fa "struct procstat *procstat"
 .Fa "struct filestat *fst"
 .Fa "struct ptsstat *pts"
+.Fa "char *errbuf"
+.Fc
+.Ft int
+.Fo procstat_get_sem_info
+.Fa "struct procstat *procstat"
+.Fa "struct filestat *fst"
+.Fa "struct semstat *sem"
 .Fa "char *errbuf"
 .Fc
 .Ft int
@@ -463,12 +471,13 @@ function call.
 The
 .Fn procstat_get_pipe_info ,
 .Fn procstat_get_pts_info ,
+.Fn procstat_get_sem_info ,
 .Fn procstat_get_shm_info ,
 .Fn procstat_get_socket_info
 and
 .Fn procstat_get_vnode_info
 functions are used to retrieve information about pipes, pseudo-terminals,
-shared memory objects,
+semaphores, shared memory objects,
 sockets, and vnodes, respectively.
 Each of them have a similar interface API.
 The
@@ -505,6 +514,8 @@ argument indicates an actual error message in case of failure.
 .Nm procstat_get_pipe_info
 .It Li PS_FST_TYPE_PTS
 .Nm procstat_get_pts_info
+.It Li PS_FST_TYPE_SEM
+.Nm procstat_get_sem_info
 .It Li PS_FST_TYPE_SHM
 .Nm procstat_get_shm_info
 .El
@@ -517,6 +528,7 @@ argument indicates an actual error message in case of failure.
 .Xr elf 3 ,
 .Xr kvm 3 ,
 .Xr queue 3 ,
+.Xr sem_open 3 ,
 .Xr sysctl 3 ,
 .Xr pts 4 ,
 .Xr core 5 ,

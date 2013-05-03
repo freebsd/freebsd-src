@@ -133,6 +133,10 @@ struct pipestat {
 	uint64_t	addr;
 	uint64_t	peer;
 };
+struct semstat {
+	uint32_t	value;
+	uint16_t	mode;
+};
 struct shmstat {
 	uint64_t	size;
 	uint16_t	mode;
@@ -177,6 +181,8 @@ int	procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
     struct pipestat *pipe, char *errbuf);
 int	procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
     struct ptsstat *pts, char *errbuf);
+int	procstat_get_sem_info(struct procstat *procstat, struct filestat *fst,
+    struct semstat *sem, char *errbuf);
 int	procstat_get_shm_info(struct procstat *procstat, struct filestat *fst,
     struct shmstat *shm, char *errbuf);
 int	procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
