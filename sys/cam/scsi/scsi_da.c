@@ -82,7 +82,6 @@ typedef enum {
 	DA_FLAG_NEW_PACK	= 0x002,
 	DA_FLAG_PACK_LOCKED	= 0x004,
 	DA_FLAG_PACK_REMOVABLE	= 0x008,
-	DA_FLAG_SAW_MEDIA	= 0x010,
 	DA_FLAG_NEED_OTAG	= 0x020,
 	DA_FLAG_WENT_IDLE	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
@@ -1026,9 +1025,6 @@ daopen(struct disk *dp)
 	    ("daopen\n"));
 
 	softc = (struct da_softc *)periph->softc;
-	softc->flags |= DA_FLAG_OPEN;
-	softc->flags &= ~DA_FLAG_PACK_INVALID;
-
 	dareprobe(periph);
 
 	/* Wait for the disk size update.  */
@@ -1037,25 +1033,23 @@ daopen(struct disk *dp)
 	if (error != 0)
 		xpt_print(periph->path, "unable to retrieve capacity data");
 
-	if (periph->flags & CAM_PERIPH_INVALID ||
-	    softc->disk->d_sectorsize == 0 ||
-	    softc->disk->d_mediasize == 0)
+	if (periph->flags & CAM_PERIPH_INVALID)
 		error = ENXIO;
 
 	if (error == 0 && (softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
 	    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 		daprevent(periph, PR_PREVENT);
 
-	if (error == 0)
-		softc->flags |= DA_FLAG_SAW_MEDIA;
+	if (error == 0) {
+		softc->flags &= ~DA_FLAG_PACK_INVALID;
+		softc->flags |= DA_FLAG_OPEN;
+	}
 
 	cam_periph_unhold(periph);
 	cam_periph_unlock(periph);
 
-	if (error != 0) {
-		softc->flags &= ~DA_FLAG_OPEN;
+	if (error != 0)
 		cam_periph_release(periph);
-	}
 
 	return (error);
 }
@@ -2818,9 +2812,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * here.
 			 */
 			if (block_size == 0 && maxsector == 0) {
-				snprintf(announce_buf, sizeof(announce_buf),
-				        "0MB (no media?)");
-			} else if (block_size >= MAXPHYS || block_size == 0) {
+				block_size = 512;
+				maxsector = -1;
+			}
+			if (block_size >= MAXPHYS || block_size == 0) {
 				xpt_print(periph->path,
 				    "unsupportable block size %ju\n",
 				    (uintmax_t) block_size);
@@ -2920,6 +2915,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					const char *sense_key_desc;
 					const char *asc_desc;
 
+					dasetgeom(periph, 512, -1, NULL, 0);
 					scsi_sense_desc(sense_key, asc, ascq,
 							&cgd.inq_data,
 							&sense_key_desc,
@@ -3297,8 +3293,8 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		    asc == 0x28 && ascq == 0x00)
 			disk_media_changed(softc->disk, M_NOWAIT);
 		else if (sense_key == SSD_KEY_NOT_READY &&
-		    asc == 0x3a && (softc->flags & DA_FLAG_SAW_MEDIA)) {
-			softc->flags &= ~DA_FLAG_SAW_MEDIA;
+		    asc == 0x3a && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
+			softc->flags |= DA_FLAG_PACK_INVALID;
 			disk_media_gone(softc->disk, M_NOWAIT);
 		}
 	}
