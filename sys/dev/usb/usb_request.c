@@ -1276,7 +1276,7 @@ usbd_req_get_config_desc_full(struct usb_device *udev, struct mtx *mtx,
 {
 	struct usb_config_descriptor cd;
 	struct usb_config_descriptor *cdesc;
-	uint16_t len;
+	uint32_t len;
 	usb_error_t err;
 
 	DPRINTFN(4, "index=%d\n", index);
@@ -1284,19 +1284,21 @@ usbd_req_get_config_desc_full(struct usb_device *udev, struct mtx *mtx,
 	*ppcd = NULL;
 
 	err = usbd_req_get_config_desc(udev, mtx, &cd, index);
-	if (err) {
+	if (err)
 		return (err);
-	}
+
 	/* get full descriptor */
 	len = UGETW(cd.wTotalLength);
-	if (len < sizeof(*cdesc)) {
+	if (len < (uint32_t)sizeof(*cdesc)) {
 		/* corrupt descriptor */
 		return (USB_ERR_INVAL);
+	} else if (len > USB_CONFIG_MAX) {
+		DPRINTF("Configuration descriptor was truncated\n");
+		len = USB_CONFIG_MAX;
 	}
 	cdesc = malloc(len, mtype, M_WAITOK);
-	if (cdesc == NULL) {
+	if (cdesc == NULL)
 		return (USB_ERR_NOMEM);
-	}
 	err = usbd_req_get_desc(udev, mtx, NULL, cdesc, len, len, 0,
 	    UDESC_CONFIG, index, 3);
 	if (err) {
