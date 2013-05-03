@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2013
+.Dd May 3, 2013
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2372,7 +2372,9 @@ option is specified and the
 elapses before a complete line of input is supplied,
 the
 .Ic read
-command will return an exit status of 1 without assigning any values.
+command will return an exit status as if terminated by
+.Dv SIGALRM
+without assigning any values.
 The
 .Ar timeout
 value may optionally be followed by one of
@@ -2388,6 +2390,11 @@ is assumed.
 The
 .Fl e
 option exists only for backward compatibility with older scripts.
+.Pp
+The exit status is 0 on success, 1 on end of file,
+between 2 and 128 if an error occurs
+and greater than 128 if a trapped signal interrupts
+.Ic read .
 .It Ic readonly Oo Fl p Oc Op Ar name ...
 Each specified
 .Ar name
