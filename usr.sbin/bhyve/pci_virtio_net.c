@@ -78,7 +78,8 @@ __FBSDID("$FreeBSD$");
 #define VTNET_S_HOSTCAPS      \
   ( 0x00000020 |	/* host supplies MAC */ \
     0x00008000 |	/* host can merge Rx buffers */ \
-    0x00010000 )	/* config status available */
+    0x00010000 |	/* config status available */ \
+    VIRTIO_F_NOTIFY_ON_EMPTY)
 
 /*
  * Queue definitions.
@@ -157,7 +158,8 @@ struct pci_vtnet_softc {
 	pthread_cond_t	tx_cond;
 	int		tx_in_progress;
 };
-#define	vtnet_ctx(sc)	((sc)->vsc_pi->pi_vmctx)
+#define	vtnet_ctx(sc)		((sc)->vsc_pi->pi_vmctx)
+#define	notify_on_empty(sc)	((sc)->vsc_features & VIRTIO_F_NOTIFY_ON_EMPTY)
 
 /*
  * Return the size of IO BAR that maps virtio header and device specific
@@ -289,6 +291,18 @@ pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 	sc->vsc_status = value;
 }
 
+static void
+vtnet_generate_interrupt(struct pci_vtnet_softc *sc, int qidx)
+{
+
+	if (use_msix) {
+		pci_generate_msix(sc->vsc_pi, sc->vsc_msix_table_idx[qidx]);
+	} else {
+		sc->vsc_isr |= 1;
+		pci_generate_msi(sc->vsc_pi, 0);
+	}
+}
+
 /*
  * Called to send a buffer chain out to the tap device
  */
@@ -366,6 +380,10 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 		 * Drop the packet and try later
 		 */
 		(void) read(sc->vsc_tapfd, dummybuf, sizeof(dummybuf));
+
+		if (notify_on_empty(sc))
+			vtnet_generate_interrupt(sc, VTNET_RXQ);
+
 		return;
 	}
 
@@ -418,15 +436,8 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 	*hq->hq_used_idx = uidx;
 	hq->hq_cur_aidx = aidx;
 
-	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-		if (use_msix) {
-			pci_generate_msix(sc->vsc_pi,
-					  sc->vsc_msix_table_idx[VTNET_RXQ]);
-		} else {
-			sc->vsc_isr |= 1;
-			pci_generate_msi(sc->vsc_pi, 0);
-		}
-	}
+	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0)
+		vtnet_generate_interrupt(sc, VTNET_RXQ);
 }
 
 static void
@@ -536,9 +547,8 @@ pci_vtnet_tx_thread(void *param)
 {
 	struct pci_vtnet_softc *sc = (struct pci_vtnet_softc *) param;
 	struct vring_hqueue *hq; 
-	int i, ndescs, needintr,error;
+	int i, ndescs, error;
 	
-	needintr = 0;
 	hq = &sc->vsc_hq[VTNET_TXQ];
 	
 	/* 
@@ -552,31 +562,14 @@ pci_vtnet_tx_thread(void *param)
 	for (;;) {
 		pthread_mutex_lock(&sc->tx_mtx);
 		for (;;) {
-			if (sc->resetting) {
+			if (sc->resetting)
 				ndescs = 0;
-				needintr = 0;
-			} else
+			else
 				ndescs = hq_num_avail(hq);
 			
 			if (ndescs != 0) 
 				break;
-			
-			if (needintr) {
-				/*
-				 * Generate an interrupt if able
-				 */
-				if ((*hq->hq_avail_flags &
-				     VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-					if (use_msix) {
-						pci_generate_msix(sc->vsc_pi,
-						     sc->vsc_msix_table_idx[VTNET_TXQ]);
-					} else {
-						sc->vsc_isr |= 1;
-						pci_generate_msi(sc->vsc_pi, 0);
-					}
-				}
-			}
-			needintr = 0;
+
 			sc->tx_in_progress = 0;
 			error = pthread_cond_wait(&sc->tx_cond, &sc->tx_mtx);
 			assert(error == 0);
@@ -591,9 +584,16 @@ pci_vtnet_tx_thread(void *param)
 			 */
 			for (i = 0; i < ndescs; i++)
 				pci_vtnet_proctx(sc, hq);
-			needintr = 1;
+
 			ndescs = hq_num_avail(hq);
 		}
+
+		/*
+		 * Generate an interrupt if needed.
+		 */
+		if (notify_on_empty(sc) ||
+		    (*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0)
+			vtnet_generate_interrupt(sc, VTNET_TXQ);
 	}
 }	
 
