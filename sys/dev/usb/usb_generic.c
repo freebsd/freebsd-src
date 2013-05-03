@@ -688,18 +688,21 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	if ((ugd->ugd_config_index == USB_UNCONFIG_INDEX) ||
 	    (ugd->ugd_config_index == udev->curr_config_index)) {
 		cdesc = usbd_get_config_descriptor(udev);
-		if (cdesc == NULL) {
+		if (cdesc == NULL)
 			return (ENXIO);
-		}
 		free_data = 0;
 
 	} else {
+#if (USB_HAVE_FIXED_CONFIG == 0)
 		if (usbd_req_get_config_desc_full(udev,
-		    NULL, &cdesc, M_USBDEV,
-		    ugd->ugd_config_index)) {
+		    NULL, &cdesc, ugd->ugd_config_index)) {
 			return (ENXIO);
 		}
 		free_data = 1;
+#else
+		/* configuration descriptor data is shared */
+		return (EINVAL);
+#endif
 	}
 
 	len = UGETW(cdesc->wTotalLength);
@@ -713,9 +716,9 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 
 	error = copyout(cdesc, ugd->ugd_data, len);
 
-	if (free_data) {
-		free(cdesc, M_USBDEV);
-	}
+	if (free_data)
+		usbd_free_config_desc(udev, cdesc);
+
 	return (error);
 }
 
