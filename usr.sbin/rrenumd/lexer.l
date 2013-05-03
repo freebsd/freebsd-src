@@ -32,8 +32,6 @@
  */
 
 %{
-#define YY_NO_UNPUT
-
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -63,6 +61,8 @@ int parse(FILE **);
 void yyerror(const char *);
 int yylex(void);
 %}
+
+%option nounput
 
 /* common section */
 nl		\n
