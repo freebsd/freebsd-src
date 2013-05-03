@@ -838,8 +838,9 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		udev->ep_curr = NULL;
 		USB_BUS_UNLOCK(udev->bus);
 	}
-
+#if (USB_HAVE_FIXED_IFACE == 0) || (USB_HAVE_FIXED_ENDPOINT == 0) 
 done:
+#endif
 	if (err) {
 		if (cmd == USB_CFG_ALLOC) {
 cleanup:
