@@ -2037,7 +2037,7 @@ prep_firmware(struct adapter *sc)
 	    should_install_kld_fw(sc, card_fw_usable, be32toh(kld_fw->fw_ver),
 	    be32toh(card_fw->fw_ver))) {
 
-		rc = -t4_load_fw(sc, fw->data, fw->datasize);
+		rc = -t4_fw_upgrade(sc, sc->mbox, fw->data, fw->datasize, 0);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to install firmware: %d\n", rc);
