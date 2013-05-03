@@ -1260,10 +1260,49 @@ done:
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_alloc_config_desc
+ *
+ * This function is used to allocate a zeroed configuration
+ * descriptor.
+ *
+ * Returns:
+ * NULL: Failure
+ * Else: Success
+ *------------------------------------------------------------------------*/
+void *
+usbd_alloc_config_desc(struct usb_device *udev, uint32_t size)
+{
+	if (size > USB_CONFIG_MAX) {
+		DPRINTF("Configuration descriptor too big\n");
+		return (NULL);
+	}
+#if (USB_HAVE_FIXED_CONFIG == 0)
+	return (malloc(size, M_USBDEV, M_ZERO | M_WAITOK));
+#else
+	memset(udev->config_data, 0, sizeof(udev->config_data));
+	return (udev->config_data);
+#endif
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_alloc_config_desc
+ *
+ * This function is used to free a configuration descriptor.
+ *------------------------------------------------------------------------*/
+void
+usbd_free_config_desc(struct usb_device *udev, void *ptr)
+{
+#if (USB_HAVE_FIXED_CONFIG == 0)
+	free(ptr, M_USBDEV);
+#endif
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_req_get_config_desc_full
  *
  * This function gets the complete USB configuration descriptor and
- * ensures that "wTotalLength" is correct.
+ * ensures that "wTotalLength" is correct. The returned configuration
+ * descriptor is freed by calling "usbd_free_config_desc()".
  *
  * Returns:
  *    0: Success
@@ -1271,8 +1310,7 @@ done:
  *------------------------------------------------------------------------*/
 usb_error_t
 usbd_req_get_config_desc_full(struct usb_device *udev, struct mtx *mtx,
-    struct usb_config_descriptor **ppcd, struct malloc_type *mtype,
-    uint8_t index)
+    struct usb_config_descriptor **ppcd, uint8_t index)
 {
 	struct usb_config_descriptor cd;
 	struct usb_config_descriptor *cdesc;
@@ -1296,13 +1334,13 @@ usbd_req_get_config_desc_full(struct usb_device *udev, struct mtx *mtx,
 		DPRINTF("Configuration descriptor was truncated\n");
 		len = USB_CONFIG_MAX;
 	}
-	cdesc = malloc(len, mtype, M_WAITOK);
+	cdesc = usbd_alloc_config_desc(udev, len);
 	if (cdesc == NULL)
 		return (USB_ERR_NOMEM);
 	err = usbd_req_get_desc(udev, mtx, NULL, cdesc, len, len, 0,
 	    UDESC_CONFIG, index, 3);
 	if (err) {
-		free(cdesc, mtype);
+		usbd_free_config_desc(udev, cdesc);
 		return (err);
 	}
 	/* make sure that the device is not fooling us: */
