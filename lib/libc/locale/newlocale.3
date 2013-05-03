@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .Dd September 17 2011
-.Dt newlocale 3
+.Dt NEWLOCALE 3
 .Os
 .Sh NAME
 .Nm newlocale
@@ -36,7 +36,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .In xlocale
-.Ft
+.Ft locale_t
 .Fn newlocale "int mask" "const char * locale" "locale_t base"
 .Sh DESCRIPTION
 Creates a new locale, inheriting some properties from an existing locale.
@@ -48,7 +48,6 @@ name specified in the
 parameter.
 Any other components will be inherited from
 .Fa base .
-.Pt
 The
 .Fa mask
 is either
@@ -93,7 +92,6 @@ Set a locale for formatting dates and times using the
 .Xr strftime 3
 function.
 .El
-
 This function uses the same rules for loading locale components as
 .Xr setlocale 3 .
 .Sh RETURN VALUES
@@ -110,5 +108,5 @@ You must free the returned locale with
 .Xr uselocale 3 ,
 .Xr xlocale 3
 .Sh STANDARDS
-This function, conforms to
-.St -p1003.1-2008
+This function conforms to
+.St -p1003.1-2008 .
