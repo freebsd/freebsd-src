@@ -75,6 +75,7 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_check_connected (void *)dummy_int
 #define	dummy_set_power_mode (void *)dummy_int
 #define	dummy_get_power_mode (void *)dummy_int
+#define	dummy_get_port_path (void *)dummy_int
 #define	dummy_get_power_usage (void *)dummy_int
 #define	dummy_kernel_driver_active (void *)dummy_int
 #define	dummy_detach_kernel_driver (void *)dummy_int
@@ -720,6 +721,12 @@ libusb20_dev_get_power_mode(struct libusb20_device *pdev)
 	if (error)
 		power_mode = LIBUSB20_POWER_ON;	/* fake power mode */
 	return (power_mode);
+}
+
+int
+libusb20_dev_get_port_path(struct libusb20_device *pdev, uint8_t *buf, uint8_t bufsize)
+{
+	return (pdev->methods->get_port_path(pdev, buf, bufsize));
 }
 
 uint16_t

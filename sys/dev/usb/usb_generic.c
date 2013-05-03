@@ -1841,6 +1841,46 @@ ugen_get_power_mode(struct usb_fifo *f)
 }
 
 static int
+ugen_get_port_path(struct usb_fifo *f, struct usb_device_port_path *dpp)
+{
+	struct usb_device *udev = f->udev;
+	struct usb_device *next;
+	unsigned int nlevel = 0;
+
+	if (udev == NULL)
+		goto error;
+
+	dpp->udp_bus = device_get_unit(udev->bus->bdev);
+	dpp->udp_index = udev->device_index;
+
+	/* count port levels */
+	next = udev;
+	while (next->parent_hub != NULL) {
+		nlevel++;
+		next = next->parent_hub;
+	}
+
+	/* check if too many levels */
+	if (nlevel > USB_DEVICE_PORT_PATH_MAX)
+		goto error;
+
+	/* store port index array */
+	next = udev;
+	while (next->parent_hub != NULL) {
+		nlevel--;
+
+		dpp->udp_port_no[nlevel] = next->port_no;
+		dpp->udp_port_level = nlevel;
+
+		next = next->parent_hub;
+	}
+	return (0);	/* success */
+
+error:
+	return (EINVAL);	/* failure */
+}
+
+static int
 ugen_get_power_usage(struct usb_fifo *f)
 {
 	struct usb_device *udev = f->udev;
@@ -2041,6 +2081,7 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_device_stats *stat;
 		struct usb_fs_init *pinit;
 		struct usb_fs_uninit *puninit;
+		struct usb_device_port_path *dpp;
 		uint32_t *ptime;
 		void   *addr;
 		int    *pint;
@@ -2211,6 +2252,10 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_GET_POWER_MODE:
 		*u.pint = ugen_get_power_mode(f);
+		break;
+
+	case USB_GET_DEV_PORT_PATH:
+		error = ugen_get_port_path(f, u.dpp);
 		break;
 
 	case USB_GET_POWER_USAGE:
