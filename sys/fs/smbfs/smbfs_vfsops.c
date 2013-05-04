@@ -169,7 +169,7 @@ smbfs_mount(struct mount *mp)
 		return error;
 	}
 	vcp = SSTOVC(ssp);
-	smb_share_unlock(ssp, 0);
+	smb_share_unlock(ssp);
 	mp->mnt_stat.f_iosize = SSTOVC(ssp)->vc_txmax;
 	mp->mnt_data = smp;
 	smp->sm_share = ssp;
@@ -286,7 +286,7 @@ smbfs_unmount(struct mount *mp, int mntflags)
 		return error;
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, td->td_ucred);
-	error = smb_share_lock(smp->sm_share, LK_EXCLUSIVE);
+	error = smb_share_lock(smp->sm_share);
 	if (error)
 		goto out;
 	smb_share_put(smp->sm_share, scred);
