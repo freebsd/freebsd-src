@@ -70,6 +70,14 @@ namespace std
 		 */
 		public:
 		/**
+		 * Returns true if this is some pointer type, false otherwise.
+		 */
+		virtual bool __is_pointer_p() const { return false; }
+		/**
+		 * Returns true if this is some function type, false otherwise.
+		 */
+		virtual bool __is_function_p() const { return false; }
+		/**
 		 * Catch function.  Allows external libraries to implement
 		 * their own basic types.  This is used, for example, in the
 		 * GNUstep Objective-C runtime to allow Objective-C types to be
@@ -95,14 +103,6 @@ namespace std
 		{
 			return false;
 		}
-		/**
-		 * Returns true if this is some pointer type, false otherwise.
-		 */
-		virtual bool __is_pointer_p() const { return false; }
-		/**
-		 * Returns true if this is some function type, false otherwise.
-		 */
-		virtual bool __is_function_p() const { return false; }
 	};
 }
 
@@ -284,7 +284,6 @@ namespace ABI_NAMESPACE
 			/** Pointer is a pointer to a member of an incomplete class. */
 			__incomplete_class_mask = 0x10
 		};
-		virtual bool __is_pointer_p() const { return true; }
 		virtual bool __do_catch(const type_info *thrown_type,
 		                        void **thrown_object,
 		                        unsigned outer) const;
@@ -296,6 +295,7 @@ namespace ABI_NAMESPACE
 	struct __pointer_type_info : public __pbase_type_info
 	{
 		virtual ~__pointer_type_info();
+		virtual bool __is_pointer_p() const { return true; }
 	};
 
 	/**
