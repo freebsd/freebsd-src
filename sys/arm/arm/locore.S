@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY_NP(btext)
 ASENTRY_NP(_start)
+	STOP_UNWINDING		/* Can't unwind into the bootloader! */
+
 	mov	r9, r0		/* 0 or boot mode from boot2 */
 	mov	r8, r1		/* Save Machine type */
 	mov	ip, r2		/* Save meta data */
