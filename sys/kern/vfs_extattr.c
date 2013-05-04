@@ -339,7 +339,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	/*
 	 * Slightly unusual semantics: if the user provides a NULL data
