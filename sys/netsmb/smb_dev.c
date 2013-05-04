@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/capability.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -55,20 +56,16 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_subr.h>
 #include <netsmb/smb_dev.h>
 
-#define SMB_GETDEV(dev)		((struct smb_dev*)(dev)->si_drv1)
-#define	SMB_CHECKMINOR(dev)	do { \
-				    sdp = SMB_GETDEV(dev); \
-				    if (sdp == NULL) return ENXIO; \
-				} while(0)
+static struct cdev *nsmb_dev;
 
 static d_open_t	 nsmb_dev_open;
-static d_close_t nsmb_dev_close;
 static d_ioctl_t nsmb_dev_ioctl;
 
 MODULE_DEPEND(netsmb, libiconv, 1, 1, 2);
 MODULE_VERSION(netsmb, NSMB_VERSION);
 
 static int smb_version = NSMB_VERSION;
+struct sx smb_lock;
 
 
 SYSCTL_DECL(_net_smb);
@@ -76,110 +73,97 @@ SYSCTL_INT(_net_smb, OID_AUTO, version, CTLFLAG_RD, &smb_version, 0, "");
 
 static MALLOC_DEFINE(M_NSMBDEV, "NETSMBDEV", "NET/SMB device");
 
-
-/*
-int smb_dev_queue(struct smb_dev *ndp, struct smb_rq *rqp, int prio);
-*/
-
 static struct cdevsw nsmb_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT | D_NEEDMINOR,
 	.d_open =	nsmb_dev_open,
-	.d_close =	nsmb_dev_close,
 	.d_ioctl =	nsmb_dev_ioctl,
 	.d_name =	NSMB_NAME
 };
 
-static eventhandler_tag	 nsmb_dev_tag;
-static struct clonedevs	*nsmb_clones;
-
-static void
-nsmb_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
+static int
+nsmb_dev_init(void)
 {
-	int i, u;
 
-	if (*dev != NULL)
-		return;
+	nsmb_dev = make_dev(&nsmb_cdevsw, 0, UID_ROOT, GID_OPERATOR,
+	    0600, "nsmb");
+	if (nsmb_dev == NULL)
+		return (ENOMEM);  
+	return (0);
+}
 
-	if (strcmp(name, NSMB_NAME) == 0)
-		u = -1;
-	else if (dev_stdclone(name, NULL, NSMB_NAME, &u) != 1)
-		return;
-	i = clone_create(&nsmb_clones, &nsmb_cdevsw, &u, dev, 0);
-	if (i)
-		*dev = make_dev_credf(MAKEDEV_REF, &nsmb_cdevsw, u, cred,
-		    UID_ROOT, GID_WHEEL, 0600, "%s%d", NSMB_NAME, u);
+static void 
+nsmb_dev_destroy(void)
+{
+
+	MPASS(nsmb_dev != NULL);
+	destroy_dev(nsmb_dev);
+	nsmb_dev = NULL;
+}
+
+static struct smb_dev *
+smbdev_alloc(struct cdev *dev)
+{
+	struct smb_dev *sdp;
+
+	sdp = malloc(sizeof(struct smb_dev), M_NSMBDEV, M_WAITOK | M_ZERO);
+	sdp->dev = dev;	
+	sdp->sd_level = -1;
+	sdp->sd_flags |= NSMBFL_OPEN;
+	sdp->refcount = 1;
+	return (sdp);	
+} 
+
+void
+sdp_dtor(void *arg)
+{
+	struct smb_dev *dev;
+
+	dev = (struct smb_dev *)arg;	
+	SMB_LOCK();
+	sdp_trydestroy(dev);
+	SMB_UNLOCK();
 }
 
 static int
 nsmb_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct smb_dev *sdp;
-	struct ucred *cred = td->td_ucred;
-	int s;
+	int error;
 
-	sdp = SMB_GETDEV(dev);
-	if (sdp && (sdp->sd_flags & NSMBFL_OPEN))
-		return EBUSY;
-	if (sdp == NULL) {
-		sdp = malloc(sizeof(*sdp), M_NSMBDEV, M_WAITOK);
-		dev->si_drv1 = (void*)sdp;
+	sdp = smbdev_alloc(dev);
+	error = devfs_set_cdevpriv(sdp, sdp_dtor);
+	if (error) {
+		free(sdp, M_NSMBDEV);	
+		return (error);
 	}
-	/*
-	 * XXX: this is just crazy - make a device for an already passed device...
-	 * someone should take care of it.
-	 */
-	if ((dev->si_flags & SI_NAMED) == 0)
-		make_dev(&nsmb_cdevsw, dev2unit(dev), cred->cr_uid,
-		    cred->cr_gid, 0700, NSMB_NAME"%d", dev2unit(dev));
-	bzero(sdp, sizeof(*sdp));
-/*
-	STAILQ_INIT(&sdp->sd_rqlist);
-	STAILQ_INIT(&sdp->sd_rplist);
-	bzero(&sdp->sd_pollinfo, sizeof(struct selinfo));
-*/
-	s = splimp();
-	sdp->sd_level = -1;
-	sdp->sd_flags |= NSMBFL_OPEN;
-	splx(s);
-	return 0;
+	return (0);
 }
 
-static int
-nsmb_dev_close(struct cdev *dev, int flag, int fmt, struct thread *td)
+void
+sdp_trydestroy(struct smb_dev *sdp)
 {
-	struct smb_dev *sdp;
 	struct smb_vc *vcp;
 	struct smb_share *ssp;
 	struct smb_cred *scred;
-	int s;
 
+	SMB_LOCKASSERT();
+	if (!sdp)
+		panic("No smb_dev upon device close");
+	MPASS(sdp->refcount > 0);
+	sdp->refcount--;
+	if (sdp->refcount) 
+		return;
 	scred = malloc(sizeof(struct smb_cred), M_NSMBDEV, M_WAITOK);
-	SMB_CHECKMINOR(dev);
-	s = splimp();
-	if ((sdp->sd_flags & NSMBFL_OPEN) == 0) {
-		splx(s);
-		free(scred, M_NSMBDEV);
-		return EBADF;
-	}
-	smb_makescred(scred, td, NULL);
+	smb_makescred(scred, curthread, NULL);
 	ssp = sdp->sd_share;
 	if (ssp != NULL)
 		smb_share_rele(ssp, scred);
 	vcp = sdp->sd_vc;
 	if (vcp != NULL)
 		smb_vc_rele(vcp, scred);
-/*
-	smb_flushq(&sdp->sd_rqlist);
-	smb_flushq(&sdp->sd_rplist);
-*/
-	dev->si_drv1 = NULL;
-	free(sdp, M_NSMBDEV);
-	destroy_dev_sched(dev);
-	splx(s);
 	free(scred, M_NSMBDEV);
-	return 0;
+	free(sdp, M_NSMBDEV);
+	return;
 }
 
 
@@ -192,11 +176,11 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 	struct smb_cred *scred;
 	int error = 0;
 
-	SMB_CHECKMINOR(dev);
-	if ((sdp->sd_flags & NSMBFL_OPEN) == 0)
-		return EBADF;
-
+	error = devfs_get_cdevpriv((void **)&sdp);
+	if (error)
+		return (error);
 	scred = malloc(sizeof(struct smb_cred), M_NSMBDEV, M_WAITOK);
+	SMB_LOCK();
 	smb_makescred(scred, td, NULL);
 	switch (cmd) {
 	    case SMBIOC_OPENSESSION:
@@ -345,6 +329,7 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 	}
 out:
 	free(scred, M_NSMBDEV);
+	SMB_UNLOCK();
 	return error;
 }
 
@@ -363,18 +348,18 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 			smb_sm_done();
 			break;
 		}
-		clone_setup(&nsmb_clones);
-		nsmb_dev_tag = EVENTHANDLER_REGISTER(dev_clone, nsmb_dev_clone, 0, 1000);
+		error = nsmb_dev_init();
+		if (error)
+			break;
+		sx_init(&smb_lock, "samba device lock");
 		break;
 	    case MOD_UNLOAD:
 		smb_iod_done();
 		error = smb_sm_done();
 		if (error)
 			break;
-		EVENTHANDLER_DEREGISTER(dev_clone, nsmb_dev_tag);
-		drain_dev_clone_events();
-		clone_cleanup(&nsmb_clones);
-		destroy_dev_drain(&nsmb_cdevsw);
+		nsmb_dev_destroy();
+		sx_destroy(&smb_lock);
 		break;
 	    default:
 		error = EINVAL;
@@ -385,58 +370,40 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 
 DEV_MODULE (dev_netsmb, nsmb_dev_load, 0);
 
-/*
- * Convert a file descriptor to appropriate smb_share pointer
- */
-static struct file*
-nsmb_getfp(struct filedesc* fdp, int fd, int flag)
-{
-	struct file* fp;
-
-	FILEDESC_SLOCK(fdp);
-	if ((fp = fget_locked(fdp, fd)) == NULL || (fp->f_flag & flag) == 0) {
-		FILEDESC_SUNLOCK(fdp);
-		return (NULL);
-	}
-	fhold(fp);
-	FILEDESC_SUNLOCK(fdp);
-	return (fp);
-}
-
 int
 smb_dev2share(int fd, int mode, struct smb_cred *scred,
-	struct smb_share **sspp)
+	struct smb_share **sspp, struct smb_dev **ssdp)
 {
-	struct file *fp;
-	struct vnode *vp;
+	struct file *fp, *fptmp;
 	struct smb_dev *sdp;
 	struct smb_share *ssp;
-	struct cdev *dev;
+	struct thread *td;
 	int error;
 
-	fp = nsmb_getfp(scred->scr_td->td_proc->p_fd, fd, FREAD | FWRITE);
-	if (fp == NULL)
-		return EBADF;
-	vp = fp->f_vnode;
-	if (vp == NULL) {
-		fdrop(fp, curthread);
-		return EBADF;
-	}
-	if (vp->v_type != VCHR) {
-		fdrop(fp, curthread);
-		return EBADF;
-	}
-	dev = vp->v_rdev;
-	SMB_CHECKMINOR(dev);
+	td = curthread;
+	error = fget(td, fd, CAP_READ, &fp);
+	if (error)
+		return (error);
+	fptmp = td->td_fpop;
+	td->td_fpop = fp;
+	error = devfs_get_cdevpriv((void **)&sdp);
+	td->td_fpop = fptmp;
+	fdrop(fp, td);
+	if (error || sdp == NULL)
+		return (error);
+	SMB_LOCK();
+	*ssdp = sdp;
 	ssp = sdp->sd_share;
 	if (ssp == NULL) {
-		fdrop(fp, curthread);
-		return ENOTCONN;
+		SMB_UNLOCK();
+		return (ENOTCONN);
 	}
 	error = smb_share_get(ssp, LK_EXCLUSIVE, scred);
-	if (error == 0) 
+	if (error == 0) {
+		sdp->refcount++;
 		*sspp = ssp;
-	fdrop(fp, curthread);
+	}
+	SMB_UNLOCK();
 	return error;
 }
 

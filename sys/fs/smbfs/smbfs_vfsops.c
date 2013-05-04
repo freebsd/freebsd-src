@@ -122,7 +122,7 @@ smbfs_cmount(struct mntarg *ma, void * data, uint64_t flags)
 }
 
 static const char *smbfs_opts[] = {
-	"dev", "soft", "intr", "strong", "have_nls", "long",
+	"fd", "soft", "intr", "strong", "have_nls", "long",
 	"mountpoint", "rootpath", "uid", "gid", "file_mode", "dir_mode",
 	"caseopt", "errmsg", NULL
 };
@@ -135,10 +135,12 @@ smbfs_mount(struct mount *mp)
 	struct smb_share *ssp = NULL;
 	struct vnode *vp;
 	struct thread *td;
+	struct smb_dev *dev;
 	struct smb_cred *scred;
 	int error, v;
 	char *pc, *pe;
 
+	dev = NULL;
 	td = curthread;
 	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return EOPNOTSUPP;
@@ -150,26 +152,29 @@ smbfs_mount(struct mount *mp)
 
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, td->td_ucred);
-	if (1 != vfs_scanopt(mp->mnt_optnew, "dev", "%d", &v)) {
-		vfs_mount_error(mp, "No dev option");
+	
+	/* Ask userspace of `fd`, the file descriptor of this session */
+	if (1 != vfs_scanopt(mp->mnt_optnew, "fd", "%d", &v)) {
+		vfs_mount_error(mp, "No fd option");
 		smbfs_free_scred(scred);
 		return (EINVAL);
 	}
-	error = smb_dev2share(v, SMBM_EXEC, scred, &ssp);
+	error = smb_dev2share(v, SMBM_EXEC, scred, &ssp, &dev);
+	smp = malloc(sizeof(*smp), M_SMBFSDATA, M_WAITOK | M_ZERO);
 	if (error) {
 		printf("invalid device handle %d (%d)\n", v, error);
-		vfs_mount_error(mp, "invalid device handle %d (%d)\n", v, error);
+		vfs_mount_error(mp, "invalid device handle %d %d\n", v, error);
 		smbfs_free_scred(scred);
+		free(smp, M_SMBFSDATA);
 		return error;
 	}
 	vcp = SSTOVC(ssp);
 	smb_share_unlock(ssp, 0);
 	mp->mnt_stat.f_iosize = SSTOVC(ssp)->vc_txmax;
-
-	smp = malloc(sizeof(*smp), M_SMBFSDATA, M_WAITOK | M_ZERO);
-        mp->mnt_data = smp;
+	mp->mnt_data = smp;
 	smp->sm_share = ssp;
 	smp->sm_root = NULL;
+	smp->sm_dev = dev;
 	if (1 != vfs_scanopt(mp->mnt_optnew,
 	    "caseopt", "%d", &smp->sm_caseopt)) {
 		vfs_mount_error(mp, "Invalid caseopt");
@@ -238,8 +243,15 @@ smbfs_mount(struct mount *mp)
 bad:
 	if (ssp)
 		smb_share_put(ssp, scred);
-	smbfs_free_scred(scred);
-        return error;
+	smbfs_free_scred(scred);	
+	SMB_LOCK();
+	if (error && smp->sm_dev == dev) {
+		smp->sm_dev = NULL;
+		sdp_trydestroy(dev);
+	}
+	SMB_UNLOCK();
+	free(smp, M_SMBFSDATA);
+	return error;
 }
 
 /* Unmount the filesystem described by mp. */
@@ -249,6 +261,7 @@ smbfs_unmount(struct mount *mp, int mntflags)
 	struct thread *td;
 	struct smbmount *smp = VFSTOSMBFS(mp);
 	struct smb_cred *scred;
+	struct smb_dev *dev;
 	int error, flags;
 
 	SMBVDEBUG("smbfs_unmount: flags=%04x\n", mntflags);
@@ -277,7 +290,13 @@ smbfs_unmount(struct mount *mp, int mntflags)
 	if (error)
 		goto out;
 	smb_share_put(smp->sm_share, scred);
+	SMB_LOCK();
+	dev = smp->sm_dev;
+	if (!dev)
+		panic("No private data for mount point");
+	sdp_trydestroy(dev);
 	mp->mnt_data = NULL;
+	SMB_UNLOCK();
 	free(smp, M_SMBFSDATA);
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
