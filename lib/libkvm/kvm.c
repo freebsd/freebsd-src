@@ -187,7 +187,7 @@ _kvm_open(kvm_t *kd, const char *uf, const char *mf, int flag, char *errout)
 		 * case you're working with a live kernel.)
 		 */
 		if (strcmp(mf, _PATH_DEVNULL) == 0) {
-			kd->vmfd = open(_PATH_DEVNULL, O_RDONLY);
+			kd->vmfd = open(_PATH_DEVNULL, O_RDONLY | O_CLOEXEC);
 			return (kd);
 		} else if (strcmp(mf, _PATH_MEM) == 0) {
 			if ((kd->vmfd = open(_PATH_KMEM, flag | O_CLOEXEC)) <
