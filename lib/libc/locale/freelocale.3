@@ -57,5 +57,12 @@ Returns 0 on success or -1 on error.
 .Xr uselocale 3 ,
 .Xr xlocale 3
 .Sh STANDARDS
-This function conforms to
-.St -p1003.1-2008 .
+The
+.Fn freelocale
+function
+differs from
+.St -p1003.1-2008
+in that its return type is
+.Vt int
+rather than
+.Vt void .
