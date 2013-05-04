@@ -28,7 +28,7 @@
 .\"     @(#)intro.2	8.5 (Berkeley) 2/27/95
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2013
+.Dd May 4, 2013
 .Dt INTRO 2
 .Os
 .Sh NAME
@@ -470,6 +470,10 @@ An operation on a capability file descriptor requires greater privilege than
 the capability allows.
 .It Er 94 ECAPMODE Em "Not permitted in capability mode" .
 The system call or operation is not permitted for capability mode processes.
+.It Er 95 ENOTRECOVERABLE Em "State not recoverable" .
+The state protected by a robust mutex is not recoverable.
+.It Er 96 EOWNERDEAD Em "Previous owner died" .
+The owner of a robust mutex terminated while holding the mutex lock.
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds
