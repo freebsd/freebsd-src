@@ -407,7 +407,8 @@ db_stack_trace_cmd(struct unwind_state *state)
 		}
 		db_printf("\n");
 
-		/* Stop if directed to do so, or if we've unwound back to the
+		/*
+		 * Stop if directed to do so, or if we've unwound back to the
 		 * kernel entry point, or if the unwind function didn't change
 		 * anything (to avoid getting stuck in this loop forever).
 		 * If the latter happens, it's an indication that the unwind
