@@ -257,54 +257,6 @@ vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
 }
 
 /*
- * Adjusts the idx key to the first upper level available, based on a valid
- * initial level and map of available levels.
- * Returns a value bigger than 0 to signal that there are not valid levels
- * available.
- */
-static __inline int
-vm_radix_addlev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
-{
-
-	for (; levels[ilev] == FALSE ||
-	    vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1); ilev--)
-		if (ilev == 0)
-			return (1);
-
-	/*
-	 * The following computation cannot overflow because *idx's slot at
-	 * ilev is less than VM_RADIX_COUNT - 1.
-	 */
-	*idx = vm_radix_trimkey(*idx, ilev);
-	*idx += VM_RADIX_UNITLEVEL(ilev);
-	return (0);
-}
-
-/*
- * Adjusts the idx key to the first lower level available, based on a valid
- * initial level and map of available levels.
- * Returns a value bigger than 0 to signal that there are not valid levels
- * available.
- */
-static __inline int
-vm_radix_declev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
-{
-
-	for (; levels[ilev] == FALSE ||
-	    vm_radix_slot(*idx, ilev) == 0; ilev--)
-		if (ilev == 0)
-			return (1);
-
-	/*
-	 * The following computation cannot overflow because *idx's slot at
-	 * ilev is greater than 0.
-	 */
-	*idx = vm_radix_trimkey(*idx, ilev);
-	*idx -= 1;
-	return (0);
-}
-
-/*
  * Internal helper for vm_radix_reclaim_allnodes().
  * This function is recursive.
  */
@@ -499,15 +451,14 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 vm_page_t
 vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 {
+	struct vm_radix_node *stack[VM_RADIX_LIMIT];
 	vm_pindex_t inc;
 	vm_page_t m;
 	struct vm_radix_node *child, *rnode;
-	int slot;
-	uint16_t difflev;
-	boolean_t maplevels[VM_RADIX_LIMIT + 1];
 #ifdef INVARIANTS
 	int loops = 0;
 #endif
+	int slot, tos;
 
 	rnode = vm_radix_getroot(rtree);
 	if (rnode == NULL)
@@ -519,34 +470,45 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 		else
 			return (NULL);
 	}
-restart:
-	KASSERT(++loops < 1000, ("%s: too many loops", __func__));
-	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
-		maplevels[difflev] = FALSE;
+	tos = 0;
 	for (;;) {
-		maplevels[rnode->rn_clev] = TRUE;
-
 		/*
 		 * If the keys differ before the current bisection node,
 		 * then the search key might rollback to the earliest
 		 * available bisection node or to the smallest key
 		 * in the current node (if the owner is bigger than the
 		 * search key).
-		 * The maplevels array records any node has been seen
-		 * at a given level.  This aids the search for a valid
-		 * bisection node.
 		 */
 		if (vm_radix_keybarr(rnode, index)) {
 			if (index > rnode->rn_owner) {
-				difflev = vm_radix_keydiff(index,
-				    rnode->rn_owner);
-				if (vm_radix_addlev(&index, maplevels,
-				    difflev) > 0)
-					break;
-				rnode = vm_radix_getroot(rtree);
-				goto restart;
+ascend:
+				KASSERT(++loops < 1000,
+				    ("vm_radix_lookup_ge: too many loops"));
+
+				/*
+				 * Pop nodes from the stack until either the
+				 * stack is empty or a node that could have a
+				 * matching descendant is found.
+				 */
+				do {
+					if (tos == 0)
+						return (NULL);
+					rnode = stack[--tos];
+				} while (vm_radix_slot(index,
+				    rnode->rn_clev) == (VM_RADIX_COUNT - 1));
+
+				/*
+				 * The following computation cannot overflow
+				 * because index's slot at the current level
+				 * is less than VM_RADIX_COUNT - 1.
+				 */
+				index = vm_radix_trimkey(index,
+				    rnode->rn_clev);
+				index += VM_RADIX_UNITLEVEL(rnode->rn_clev);
 			} else
 				index = rnode->rn_owner;
+			KASSERT(!vm_radix_keybarr(rnode, index),
+			    ("vm_radix_lookup_ge: keybarr failed"));
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		child = rnode->rn_child[slot];
@@ -580,18 +542,18 @@ restart:
 		    ("vm_radix_lookup_ge: child is radix node"));
 
 		/*
-		 * If a valid page or edge bigger than the search slot is
-		 * found in the traversal, skip to the next higher-level key.
+		 * If a page or edge bigger than the search slot is not found
+		 * in the current node, ascend to the next higher-level node.
 		 */
-		if (rnode->rn_clev == 0 || vm_radix_addlev(&index, maplevels,
-		    rnode->rn_clev - 1) > 0)
-			break;
-		rnode = vm_radix_getroot(rtree);
-		goto restart;
+		goto ascend;
 descend:
+		KASSERT(rnode->rn_clev < VM_RADIX_LIMIT,
+		    ("vm_radix_lookup_ge: pushing leaf's parent"));
+		KASSERT(tos < VM_RADIX_LIMIT,
+		    ("vm_radix_lookup_ge: stack overflow"));
+		stack[tos++] = rnode;
 		rnode = child;
 	}
-	return (NULL);
 }
 
 /*
@@ -600,15 +562,14 @@ descend:
 vm_page_t
 vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 {
+	struct vm_radix_node *stack[VM_RADIX_LIMIT];
 	vm_pindex_t inc;
 	vm_page_t m;
 	struct vm_radix_node *child, *rnode;
-	int slot;
-	uint16_t difflev;
-	boolean_t maplevels[VM_RADIX_LIMIT + 1];
 #ifdef INVARIANTS
 	int loops = 0;
 #endif
+	int slot, tos;
 
 	rnode = vm_radix_getroot(rtree);
 	if (rnode == NULL)
@@ -620,36 +581,47 @@ vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 		else
 			return (NULL);
 	}
-restart:
-	KASSERT(++loops < 1000, ("%s: too many loops", __func__));
-	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
-		maplevels[difflev] = FALSE;
+	tos = 0;
 	for (;;) {
-		maplevels[rnode->rn_clev] = TRUE;
-
 		/*
 		 * If the keys differ before the current bisection node,
 		 * then the search key might rollback to the earliest
 		 * available bisection node or to the largest key
 		 * in the current node (if the owner is smaller than the
 		 * search key).
-		 * The maplevels array records any node has been seen
-		 * at a given level.  This aids the search for a valid
-		 * bisection node.
 		 */
 		if (vm_radix_keybarr(rnode, index)) {
 			if (index > rnode->rn_owner) {
 				index = rnode->rn_owner + VM_RADIX_COUNT *
-				    VM_RADIX_UNITLEVEL(rnode->rn_clev) - 1;
+				    VM_RADIX_UNITLEVEL(rnode->rn_clev);
 			} else {
-				difflev = vm_radix_keydiff(index,
-				    rnode->rn_owner);
-				if (vm_radix_declev(&index, maplevels,
-				    difflev) > 0)
-					break;
-				rnode = vm_radix_getroot(rtree);
-				goto restart;
+ascend:
+				KASSERT(++loops < 1000,
+				    ("vm_radix_lookup_le: too many loops"));
+
+				/*
+				 * Pop nodes from the stack until either the
+				 * stack is empty or a node that could have a
+				 * matching descendant is found.
+				 */
+				do {
+					if (tos == 0)
+						return (NULL);
+					rnode = stack[--tos];
+				} while (vm_radix_slot(index,
+				    rnode->rn_clev) == 0);
+
+				/*
+				 * The following computation cannot overflow
+				 * because index's slot at the current level
+				 * is greater than 0.
+				 */
+				index = vm_radix_trimkey(index,
+				    rnode->rn_clev);
 			}
+			index--;
+			KASSERT(!vm_radix_keybarr(rnode, index),
+			    ("vm_radix_lookup_le: keybarr failed"));
 		}
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		child = rnode->rn_child[slot];
@@ -683,18 +655,18 @@ restart:
 		    ("vm_radix_lookup_le: child is radix node"));
 
 		/*
-		 * If a valid page or edge smaller than the search slot is
-		 * found in the traversal, skip to the next higher-level key.
+		 * If a page or edge smaller than the search slot is not found
+		 * in the current node, ascend to the next higher-level node.
 		 */
-		if (rnode->rn_clev == 0 || vm_radix_declev(&index, maplevels,
-		    rnode->rn_clev - 1) > 0)
-			break;
-		rnode = vm_radix_getroot(rtree);
-		goto restart;
+		goto ascend;
 descend:
+		KASSERT(rnode->rn_clev < VM_RADIX_LIMIT,
+		    ("vm_radix_lookup_le: pushing leaf's parent"));
+		KASSERT(tos < VM_RADIX_LIMIT,
+		    ("vm_radix_lookup_le: stack overflow"));
+		stack[tos++] = rnode;
 		rnode = child;
 	}
-	return (NULL);
 }
 
 /*
