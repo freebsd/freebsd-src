@@ -196,15 +196,20 @@ END(address_exception_entry)
  * Interrupts are disabled at suitable points to avoid ASTs
  * being posted between testing and exit to user mode.
  *
- * This function uses PULLFRAMEFROMSVCANDEXIT and
- * DO_AST
- * only be called if the exception handler used PUSHFRAMEINSVC
+ * This function uses PULLFRAMEFROMSVCANDEXIT and DO_AST and can
+ * only be called if the exception handler used PUSHFRAMEINSVC.
  *
+ * For EABI, don't try to unwind any further than this.  This is a
+ * stopgap measure to avoid getting stuck in a loop in the unwinder,
+ * which happens because we don't yet provide the proper unwind info
+ * here that describes which registers are being restored.
  */
 
-exception_exit:
+ASENTRY_NP(exception_exit)
+	STOP_UNWINDING
 	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
+END(exception_exit)
 
 /*
  * undefined_entry:
