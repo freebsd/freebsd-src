@@ -156,11 +156,15 @@ sdp_trydestroy(struct smb_dev *sdp)
 	scred = malloc(sizeof(struct smb_cred), M_NSMBDEV, M_WAITOK);
 	smb_makescred(scred, curthread, NULL);
 	ssp = sdp->sd_share;
-	if (ssp != NULL)
+	if (ssp != NULL) {
+		smb_share_lock(ssp);
 		smb_share_rele(ssp, scred);
+	}
 	vcp = sdp->sd_vc;
-	if (vcp != NULL)
+	if (vcp != NULL) {
+		smb_vc_lock(vcp);
 		smb_vc_rele(vcp, scred);
+	}
 	free(scred, M_NSMBDEV);
 	free(sdp, M_NSMBDEV);
 	return;
@@ -193,7 +197,7 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		if (error)
 			break;
 		sdp->sd_vc = vcp;
-		smb_vc_unlock(vcp, 0);
+		smb_vc_unlock(vcp);
 		sdp->sd_level = SMBL_VC;
 		break;
 	    case SMBIOC_OPENSHARE:
@@ -210,7 +214,7 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		if (error)
 			break;
 		sdp->sd_share = ssp;
-		smb_share_unlock(ssp, 0);
+		smb_share_unlock(ssp);
 		sdp->sd_level = SMBL_SHARE;
 		break;
 	    case SMBIOC_REQUEST:
@@ -240,7 +244,7 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 					error = ENOTCONN;
 					goto out;
 				}
-				error = smb_vc_get(vcp, LK_EXCLUSIVE, scred);
+				error = smb_vc_get(vcp, scred);
 				if (error)
 					break;
 				if (on && (vcp->obj.co_flags & SMBV_PERMANENT) == 0) {
@@ -260,7 +264,7 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 					error = ENOTCONN;
 					goto out;
 				}
-				error = smb_share_get(ssp, LK_EXCLUSIVE, scred);
+				error = smb_share_get(ssp, scred);
 				if (error)
 					break;
 				if (on && (ssp->obj.co_flags & SMBS_PERMANENT) == 0) {
@@ -290,12 +294,12 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 			break;
 		if (vcp) {
 			sdp->sd_vc = vcp;
-			smb_vc_unlock(vcp, 0);
+			smb_vc_unlock(vcp);
 			sdp->sd_level = SMBL_VC;
 		}
 		if (ssp) {
 			sdp->sd_share = ssp;
-			smb_share_unlock(ssp, 0);
+			smb_share_unlock(ssp);
 			sdp->sd_level = SMBL_SHARE;
 		}
 		break;
@@ -398,7 +402,7 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 		SMB_UNLOCK();
 		return (ENOTCONN);
 	}
-	error = smb_share_get(ssp, LK_EXCLUSIVE, scred);
+	error = smb_share_get(ssp, scred);
 	if (error == 0) {
 		sdp->refcount++;
 		*sspp = ssp;
