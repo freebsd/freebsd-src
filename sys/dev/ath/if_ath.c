@@ -3928,19 +3928,20 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
-		if (txq->axq_depth > 0) {
-			/*
-			 * More frames follow.  Mark the buffer busy
-			 * so it's not re-used while the hardware may
-			 * still re-read the link field in the descriptor.
-			 *
-			 * Use the last buffer in an aggregate as that
-			 * is where the hardware may be - intermediate
-			 * descriptors won't be "busy".
-			 */
-			bf->bf_last->bf_flags |= ATH_BUF_BUSY;
-		} else
-			txq->axq_link = NULL;
+
+		/*
+		 * Always mark the last buffer in this list as busy.
+		 *
+		 * The hardware may re-read the holding descriptor
+		 * even if we hit the end of the list and try writing
+		 * a new TxDP.
+		 *
+		 * If there's no holding descriptor then this is the
+		 * last buffer in the list of buffers after a fresh
+		 * reset; it'll soon become the holding buffer.
+		 */
+		bf->bf_last->bf_flags |= ATH_BUF_BUSY;
+
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth--;
 
