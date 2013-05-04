@@ -342,8 +342,11 @@ db_stack_trace_cmd(struct unwind_state *state)
 	c_db_sym_t sym;
 	u_int reg, i;
 	char *sep;
+	uint16_t upd_mask;
+	bool finished;
 
-	while (1) {
+	finished = false;
+	while (!finished) {
 		/* Reset the mask of updated registers */
 		state->update_mask = 0;
 
@@ -353,27 +356,19 @@ db_stack_trace_cmd(struct unwind_state *state)
 		/* Find the item to run */
 		index = db_find_index(state->start_pc);
 
-		if (index->insn == EXIDX_CANTUNWIND) {
-			db_printf("Unable to unwind\n");
-			break;
-		} else if (index->insn & (1 << 31)) {
-			/* The data is within the instruction */
-			state->insn = &index->insn;
-		} else {
-			/* We have a prel31 offset to the unwind table */
-			uint32_t prel31_tbl = db_expand_prel31(index->insn);
-
-			state->insn = (uint32_t *)((uintptr_t)&index->insn +
-			    prel31_tbl);
+		if (index->insn != EXIDX_CANTUNWIND) {
+			if (index->insn & (1 << 31)) {
+				/* The data is within the instruction */
+				state->insn = &index->insn;
+			} else {
+				/* A prel31 offset to the unwind table */
+				state->insn = (uint32_t *)
+				    ((uintptr_t)&index->insn + 
+				     db_expand_prel31(index->insn));
+			}
+			/* Run the unwind function */
+			finished = db_unwind_tab(state);
 		}
-
-		/* Run the unwind function */
-		if (db_unwind_tab(state) != 0)
-			break;
-
-		/* This is not a kernel address, stop processing */
-		if (state->registers[PC] < VM_MIN_KERNEL_ADDRESS)
-			break;
 
 		/* Print the frame details */
 		sym = db_search_symbol(state->start_pc, DB_STGY_ANY, &offset);
@@ -393,12 +388,11 @@ db_stack_trace_cmd(struct unwind_state *state)
 		    state->registers[SP], state->registers[FP]);
 
 		/* Don't print the registers we have already printed */
-		state->update_mask &= ~((1 << SP) | (1 << FP) | (1 << LR) |
-		    (1 << PC));
+		upd_mask = state->update_mask & 
+		    ~((1 << SP) | (1 << FP) | (1 << LR) | (1 << PC));
 		sep = "\n\t";
-		for (i = 0, reg = 0; state->update_mask != 0;
-		    state->update_mask >>= 1, reg++) {
-			if ((state->update_mask & 1) != 0) {
+		for (i = 0, reg = 0; upd_mask != 0; upd_mask >>= 1, reg++) {
+			if ((upd_mask & 1) != 0) {
 				db_printf("%s%sr%d = 0x%08x", sep,
 				    (reg < 10) ? " " : "", reg,
 				    state->registers[reg]);
@@ -412,6 +406,25 @@ db_stack_trace_cmd(struct unwind_state *state)
 			}
 		}
 		db_printf("\n");
+
+		/* Stop if directed to do so, or if we've unwound back to the
+		 * kernel entry point, or if the unwind function didn't change
+		 * anything (to avoid getting stuck in this loop forever).
+		 * If the latter happens, it's an indication that the unwind
+		 * information is incorrect somehow for the function named in
+		 * the last frame printed before you see the unwind failure
+		 * message (maybe it needs a STOP_UNWINDING).
+		 */
+		if (index->insn == EXIDX_CANTUNWIND) {
+			db_printf("Unable to unwind further\n");
+			finished = true;
+		} else if (state->registers[PC] < VM_MIN_KERNEL_ADDRESS) {
+			db_printf("Unable to unwind into user mode\n");
+			finished = true;
+		} else if (state->update_mask == 0) {
+			db_printf("Unwind failure (no registers changed)\n");
+			finished = true;
+		}
 	}
 }
 #endif
