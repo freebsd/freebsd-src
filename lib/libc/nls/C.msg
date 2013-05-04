@@ -191,6 +191,8 @@ $ EPROTO
 92 Protocol error
 $ ENOTCAPABLE
 93 Capabilities insufficient
+$ ECAPMODE
+94 Not permitted in capability mode
 $
 $ strsignal() support catalog
 $
