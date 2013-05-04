@@ -80,6 +80,9 @@ extern int nfscl_ticks;
 extern struct timeval nfsboottime;
 extern struct nfsstats	newnfsstats;
 extern int nfsrv_useacl;
+extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
+extern struct mtx ncl_iod_mutex;
 
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
 MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
@@ -1410,7 +1413,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 {
 	struct thread *td;
 	struct nfsmount *nmp;
-	int error, flags = 0, trycnt = 0;
+	int error, flags = 0, i, trycnt = 0;
 
 	td = curthread;
 
@@ -1445,6 +1448,14 @@ nfs_unmount(struct mount *mp, int mntflags)
 	 */
 	if ((mntflags & MNT_FORCE) == 0)
 		nfscl_umount(nmp, td);
+	/* Make sure no nfsiods are assigned to this mount. */
+	mtx_lock(&ncl_iod_mutex);
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
+		if (ncl_iodmount[i] == nmp) {
+			ncl_iodwant[i] = NFSIOD_AVAILABLE;
+			ncl_iodmount[i] = NULL;
+		}
+	mtx_unlock(&ncl_iod_mutex);
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
 	FREE(nmp->nm_nam, M_SONAME);
