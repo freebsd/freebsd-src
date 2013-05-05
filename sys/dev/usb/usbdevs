@@ -323,6 +323,7 @@ vendor GUNZE		0x0637	Gunze Electronics USA
 vendor AVISION		0x0638	Avision
 vendor TEAC		0x0644	TEAC
 vendor ACTON		0x0647	Acton Research Corp.
+vendor OPTO		0x065a	Optoelectronics Co., Ltd
 vendor SGI		0x065e	Silicon Graphics
 vendor SANWASUPPLY	0x0663	Sanwa Supply
 vendor MEGATEC		0x0665	Megatec
@@ -3139,6 +3140,13 @@ product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
 product OPTION ICON505		0xd055	Globetrotter iCON 505
 product OPTION ICON452		0x7901	Globetrotter iCON 452
+
+/* Optoelectronics Co., Ltd */
+product OPTO BARCODE		0x0001	Barcode Reader
+product OPTO OPTICONCODE	0x0009	Opticon Code Reader
+product OPTO BARCODE_1		0xa002	Barcode Reader
+product OPTO CRD7734		0xc000	USB Cradle CRD-7734-RU
+product OPTO CRD7734_1		0xc001	USB Cradle CRD-7734-RU
 
 /* OvisLink product */
 product OVISLINK RT3072		0x3072	RT3072
