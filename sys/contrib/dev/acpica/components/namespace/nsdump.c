@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acoutput.h>
 
 
 #define _COMPONENT          ACPI_NAMESPACE
@@ -92,7 +93,9 @@ AcpiNsPrintPathname (
     ACPI_FUNCTION_NAME (NsPrintPathname);
 
 
-    if (!(AcpiDbgLevel & ACPI_LV_NAMES) || !(AcpiDbgLayer & ACPI_NAMESPACE))
+    /* Check if debug output enabled */
+
+    if (!ACPI_IS_DEBUG_ENABLED (ACPI_LV_NAMES, ACPI_NAMESPACE))
     {
         return;
     }
@@ -151,7 +154,7 @@ AcpiNsDumpPathname (
 
     /* Do this only if the requested debug level and component are enabled */
 
-    if (!(AcpiDbgLevel & Level) || !(AcpiDbgLayer & Component))
+    if (!ACPI_IS_DEBUG_ENABLED (Level, Component))
     {
         return_VOID;
     }

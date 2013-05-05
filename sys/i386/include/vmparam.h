@@ -206,9 +206,4 @@
 #define VM_MAX_AUTOTUNE_MAXUSERS 384
 #endif
 
-#ifndef VM_MAX_AUTOTUNE_NMBCLUSTERS
-/* old maxusers max value. */
-#define VM_MAX_AUTOTUNE_NMBCLUSTERS (1024 + VM_MAX_AUTOTUNE_MAXUSERS * 64)
-#endif
-
 #endif /* _MACHINE_VMPARAM_H_ */

@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
@@ -30,6 +28,9 @@ __FBSDID("$FreeBSD$");
  * This file contains the USB template for an USB Modem Device.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -51,9 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_cdc.h>
 
 #include <dev/usb/template/usb_template.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
 	INDEX_LANG,
@@ -62,21 +65,14 @@ enum {
 	INDEX_MAX,
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_PRODUCT \
-  'M', 0, 'o', 0, 'd', 0, 'e', 0, 'm', 0, ' ', 0, \
-  'T', 0, 'e', 0, 's', 0, 't', 0, ' ', 0, \
-  'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0, ' ', 0, 
+  "M\0o\0d\0e\0m\0 \0T\0e\0s\0t\0 \0D\0e\0v\0i\0c\0e"
 
 #define	STRING_MODEM \
-  'M', 0, 'o', 0, 'd', 0, 'e', 0, 'm', 0, ' ', 0, \
-  'i', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0,
+  "M\0o\0d\0e\0m\0 \0i\0n\0t\0e\0r\0f\0a\0c\0e"
 
 /* make the real string descriptors */
 
-USB_MAKE_STRING_DESC(STRING_LANG, string_lang);
 USB_MAKE_STRING_DESC(STRING_MODEM, string_modem);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, string_product);
 
@@ -234,13 +230,13 @@ static const void *
 modem_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
 	static const void *ptr[INDEX_MAX] = {
-		[INDEX_LANG] = &string_lang,
+		[INDEX_LANG] = &usb_string_lang_en,
 		[INDEX_MODEM] = &string_modem,
 		[INDEX_PRODUCT] = &string_product,
 	};
 
 	if (string_index == 0) {
-		return (&string_lang);
+		return (&usb_string_lang_en);
 	}
 	if (lang_id != 0x0409) {
 		return (NULL);

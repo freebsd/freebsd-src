@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,11 +189,9 @@ AcpiDebugPrint (
     va_list                 args;
 
 
-    /*
-     * Stay silent if the debug level or component ID is disabled
-     */
-    if (!(RequestedDebugLevel & AcpiDbgLevel) ||
-        !(ComponentId & AcpiDbgLayer))
+    /* Check if debug output enabled */
+
+    if (!ACPI_IS_DEBUG_ENABLED (RequestedDebugLevel, ComponentId))
     {
         return;
     }
@@ -268,8 +266,9 @@ AcpiDebugPrintRaw (
     va_list                 args;
 
 
-    if (!(RequestedDebugLevel & AcpiDbgLevel) ||
-        !(ComponentId & AcpiDbgLayer))
+    /* Check if debug output enabled */
+
+    if (!ACPI_IS_DEBUG_ENABLED (RequestedDebugLevel, ComponentId))
     {
         return;
     }
@@ -309,9 +308,14 @@ AcpiUtTrace (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s\n", AcpiGbl_FnEntryStr);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s\n", AcpiGbl_FnEntryStr);
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtTrace)
@@ -346,9 +350,14 @@ AcpiUtTracePtr (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %p\n", AcpiGbl_FnEntryStr, Pointer);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %p\n", AcpiGbl_FnEntryStr, Pointer);
+    }
 }
 
 
@@ -381,9 +390,14 @@ AcpiUtTraceStr (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %s\n", AcpiGbl_FnEntryStr, String);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %s\n", AcpiGbl_FnEntryStr, String);
+    }
 }
 
 
@@ -416,9 +430,14 @@ AcpiUtTraceU32 (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %08X\n", AcpiGbl_FnEntryStr, Integer);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %08X\n", AcpiGbl_FnEntryStr, Integer);
+    }
 }
 
 
@@ -446,9 +465,14 @@ AcpiUtExit (
     UINT32                  ComponentId)
 {
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s\n", AcpiGbl_FnExitStr);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s\n", AcpiGbl_FnExitStr);
+    }
 
     AcpiGbl_NestingLevel--;
 }
@@ -482,19 +506,24 @@ AcpiUtStatusExit (
     ACPI_STATUS             Status)
 {
 
-    if (ACPI_SUCCESS (Status))
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
     {
-        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-            LineNumber, FunctionName, ModuleName, ComponentId,
-            "%s %s\n", AcpiGbl_FnExitStr,
-            AcpiFormatException (Status));
-    }
-    else
-    {
-        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-            LineNumber, FunctionName, ModuleName, ComponentId,
-            "%s ****Exception****: %s\n", AcpiGbl_FnExitStr,
-            AcpiFormatException (Status));
+        if (ACPI_SUCCESS (Status))
+        {
+            AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+                LineNumber, FunctionName, ModuleName, ComponentId,
+                "%s %s\n", AcpiGbl_FnExitStr,
+                AcpiFormatException (Status));
+        }
+        else
+        {
+            AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+                LineNumber, FunctionName, ModuleName, ComponentId,
+                "%s ****Exception****: %s\n", AcpiGbl_FnExitStr,
+                AcpiFormatException (Status));
+        }
     }
 
     AcpiGbl_NestingLevel--;
@@ -529,10 +558,15 @@ AcpiUtValueExit (
     UINT64                  Value)
 {
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %8.8X%8.8X\n", AcpiGbl_FnExitStr,
-        ACPI_FORMAT_UINT64 (Value));
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %8.8X%8.8X\n", AcpiGbl_FnExitStr,
+            ACPI_FORMAT_UINT64 (Value));
+    }
 
     AcpiGbl_NestingLevel--;
 }
@@ -566,9 +600,14 @@ AcpiUtPtrExit (
     UINT8                   *Ptr)
 {
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %p\n", AcpiGbl_FnExitStr, Ptr);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %p\n", AcpiGbl_FnExitStr, Ptr);
+    }
 
     AcpiGbl_NestingLevel--;
 }

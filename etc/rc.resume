@@ -43,10 +43,6 @@ if [ -r /var/run/rc.suspend.pid ]; then
 	echo 'rc.resume: killed rc.suspend that was still around'
 fi
 
-if [ -r /var/run/moused.pid ]; then
-	pkill -HUP -F /var/run/moused.pid
-fi
-
 # Turns on a power supply of a card in the slot inactivated.
 # See also contrib/pccardq.c (only for PAO users).
 # pccardq | awk -F '~' '$5 == "inactive" \

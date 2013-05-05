@@ -112,7 +112,7 @@
 #define ZYD_MACB_MAX_RETRY	0x9b28
 
 /*
- * Miscellanous registers.
+ * Miscellaneous registers.
  */
 #define ZYD_FIRMWARE_START_ADDR	0xee00
 #define ZYD_FIRMWARE_BASE_ADDR	0xee1d /* Firmware base address */
@@ -1259,6 +1259,7 @@ struct zyd_softc {
 #define	ZYD_FLAG_FWLOADED		(1 << 0)
 #define	ZYD_FLAG_INITONCE		(1 << 1)
 #define	ZYD_FLAG_INITDONE		(1 << 2)
+#define	ZYD_FLAG_DETACHED		(1 << 3)
 
 	struct zyd_rf		sc_rf;
 

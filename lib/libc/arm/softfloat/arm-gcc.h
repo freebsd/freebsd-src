@@ -95,7 +95,7 @@ what the endianness of the CPU.  VFP is sane.
 #define FLOAT64_DEMANGLE(a)	(a)
 #define FLOAT64_MANGLE(a)	(a)
 #else
-#define FLOAT64_DEMANGLE(a)	(((a) << 32) | ((a) >> 32))
+#define FLOAT64_DEMANGLE(a)	((((a) & 0xfffffffful) << 32) | ((a) >> 32))
 #define FLOAT64_MANGLE(a)	FLOAT64_DEMANGLE(a)
 #endif
 #endif

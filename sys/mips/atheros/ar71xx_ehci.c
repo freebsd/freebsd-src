@@ -157,6 +157,8 @@ ar71xx_ehci_attach(device_t self)
 		case AR71XX_SOC_AR7242:
 		case AR71XX_SOC_AR9130:
 		case AR71XX_SOC_AR9132:
+		case AR71XX_SOC_AR9330:
+		case AR71XX_SOC_AR9331:
 			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
 			break;
 		default:

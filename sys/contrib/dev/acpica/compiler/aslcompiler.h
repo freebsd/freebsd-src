@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,6 +160,10 @@ CmCleanupAndExit (
     void);
 
 ACPI_STATUS
+FlCheckForAcpiTable (
+    FILE                    *Handle);
+
+ACPI_STATUS
 FlCheckForAscii (
     FILE                    *Handle,
     char                    *Filename,
@@ -188,19 +192,23 @@ AnOperandTypecheckWalkEnd (
     void                    *Context);
 
 ACPI_STATUS
-AnMethodAnalysisWalkBegin (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    void                    *Context);
-
-ACPI_STATUS
-AnMethodAnalysisWalkEnd (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    void                    *Context);
-
-ACPI_STATUS
 AnMethodTypingWalkEnd (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
+
+
+/*
+ * aslmethod - Control method analysis walk
+ */
+ACPI_STATUS
+MtMethodAnalysisWalkBegin (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
+
+ACPI_STATUS
+MtMethodAnalysisWalkEnd (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context);
@@ -351,12 +359,66 @@ LsWriteNode (
     UINT32                  FileId);
 
 void
-LsDoHexOutput (
-    void);
-
-void
 LsDumpParseTree (
     void);
+
+
+/*
+ * asllistsup - Listing file support utilities
+ */
+void
+LsDumpAscii (
+    UINT32                  FileId,
+    UINT32                  Count,
+    UINT8                   *Buffer);
+
+void
+LsDumpAsciiInComment (
+    UINT32                  FileId,
+    UINT32                  Count,
+    UINT8                   *Buffer);
+
+void
+LsCheckException (
+    UINT32                  LineNumber,
+    UINT32                  FileId);
+
+void
+LsFlushListingBuffer (
+    UINT32                  FileId);
+
+void
+LsWriteListingHexBytes (
+    UINT8                   *Buffer,
+    UINT32                  Length,
+    UINT32                  FileId);
+
+void
+LsWriteSourceLines (
+    UINT32                  ToLineNumber,
+    UINT32                  ToLogicalLineNumber,
+    UINT32                  FileId);
+
+UINT32
+LsWriteOneSourceLine (
+    UINT32                  FileId);
+
+void
+LsPushNode (
+    char                    *Filename);
+
+ASL_LISTING_NODE *
+LsPopNode (
+    void);
+
+
+/*
+ * aslhex - generate all "hex" output files (C, ASM, ASL)
+ */
+void
+HxDoHexOutput (
+    void);
+
 
 /*
  * aslfold - constant folding
@@ -366,6 +428,24 @@ OpcAmlConstantWalk (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context);
+
+
+/*
+ * asloffset - generate C offset file for BIOS support
+ */
+ACPI_STATUS
+LsAmlOffsetWalk (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
+
+void
+LsDoOffsetTableHeader (
+    UINT32                  FileId);
+
+void
+LsDoOffsetTableFooter (
+    UINT32                  FileId);
 
 
 /*
@@ -494,9 +574,25 @@ ApCheckForPredefinedObject (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name);
 
+ACPI_STATUS
+ApCheckObjectType (
+    const char              *PredefinedName,
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  ExpectedBtypes,
+    UINT32                  PackageIndex);
+
 void
 ApDisplayReservedNames (
     void);
+
+
+/*
+ * aslprepkg - ACPI predefined names support for packages
+ */
+void
+ApCheckPackage (
+    ACPI_PARSE_OBJECT           *ParentOp,
+    const ACPI_PREDEFINED_INFO  *Predefined);
 
 
 /*
@@ -689,23 +785,31 @@ LdLoadNamespace (
 
 
 /*
- * asllookup - namespace cross reference
+ * asllookup - namespace lookup functions
  */
-ACPI_STATUS
-LkCrossReferenceNamespace (
-    void);
-
 void
 LkFindUnreferencedObjects (
     void);
 
+
+/*
+ * aslnamesp - namespace output file generation
+ */
 ACPI_STATUS
-LsDisplayNamespace (
+NsDisplayNamespace (
     void);
 
 void
-LsSetupNsList (
+NsSetupNamespaceListing (
     void                    *Handle);
+
+
+/*
+ * aslxref - namespace cross reference
+ */
+ACPI_STATUS
+XfCrossReferenceNamespace (
+    void);
 
 
 /*

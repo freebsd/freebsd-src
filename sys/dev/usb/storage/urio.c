@@ -185,7 +185,8 @@ static device_method_t urio_methods[] = {
 	DEVMETHOD(device_probe, urio_probe),
 	DEVMETHOD(device_attach, urio_attach),
 	DEVMETHOD(device_detach, urio_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t urio_driver = {

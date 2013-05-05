@@ -45,6 +45,7 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_platform.h"
+#include "opt_sched.h"
 #include "opt_timer.h"
 
 #include <sys/cdefs.h>
@@ -70,8 +71,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
+#include <sys/rwlock.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
@@ -162,14 +166,41 @@ const struct pmap_devmap *pmap_devmap_bootstrap_table;
 
 uint32_t board_id;
 struct arm_lbabi_tag *atag_list;
-uint32_t revision;
-uint64_t serial;
 char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
 char atags[LBABI_MAX_COMMAND_LINE * 2];
 uint32_t memstart[LBABI_MAX_BANKS];
 uint32_t memsize[LBABI_MAX_BANKS];
 uint32_t membanks;
 #endif
+
+static uint32_t board_revision;
+/* hex representation of uint64_t */
+static char board_serial[32];
+
+SYSCTL_NODE(_hw, OID_AUTO, board, CTLFLAG_RD, 0, "Board attributes");
+SYSCTL_UINT(_hw_board, OID_AUTO, revision, CTLFLAG_RD,
+    &board_revision, 0, "Board revision");
+SYSCTL_STRING(_hw_board, OID_AUTO, serial, CTLFLAG_RD,
+    board_serial, 0, "Board serial");
+
+int vfp_exists;
+SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
+    &vfp_exists, 0, "Floating point support enabled");
+
+void
+board_set_serial(uint64_t serial)
+{
+
+	snprintf(board_serial, sizeof(board_serial)-1, 
+		    "%016jx", serial);
+}
+
+void
+board_set_revision(uint32_t revision)
+{
+
+	board_revision = revision;
+}
 
 void
 sendsig(catcher, ksi, mask)
@@ -409,19 +440,24 @@ void
 cpu_idle(int busy)
 {
 	
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
 	}
 #endif
-	cpu_sleep(0);
+	if (!sched_runnable())
+		cpu_sleep(0);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
 	}
 #endif
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int
@@ -849,6 +885,8 @@ vm_offset_t
 linux_parse_boot_param(struct arm_boot_params *abp)
 {
 	struct arm_lbabi_tag *walker;
+	uint32_t revision;
+	uint64_t serial;
 
 	/*
 	 * Linux boot ABI: r0 = 0, r1 is the board type (!= 0) and r2
@@ -883,9 +921,11 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		case ATAG_SERIAL:
 			serial = walker->u.tag_sn.low |
 			    ((uint64_t)walker->u.tag_sn.high << 32);
+			board_set_serial(serial);
 			break;
 		case ATAG_REVISION:
 			revision = walker->u.tag_rev.rev;
+			board_set_revision(revision);
 			break;
 		case ATAG_CMDLINE:
 			/* XXX open question: Parse this for boothowto? */
@@ -1150,7 +1190,6 @@ initarm(struct arm_boot_params *abp)
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	vm_offset_t pmap_bootstrap_lastaddr;
 	uint32_t memsize, l2size;
 	char *env;
 	void *kmdp;
@@ -1260,7 +1299,7 @@ initarm(struct arm_boot_params *abp)
 	availmem_regions_sz = curr;
 
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = initarm_lastaddr();
+	vm_max_kernel_address = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -1446,9 +1485,10 @@ initarm(struct arm_boot_params *abp)
 
 	init_proc0(kernelstack.pv_va);
 
+	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
-	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
+	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();

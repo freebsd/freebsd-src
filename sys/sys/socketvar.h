@@ -133,7 +133,7 @@ struct socket {
  * avoid defining a lock order between listen and accept sockets
  * until such time as it proves to be a good idea.
  */
-extern struct mtx accept_mtx;
+extern struct mtx_padalign accept_mtx;
 #define	ACCEPT_LOCK_ASSERT()		mtx_assert(&accept_mtx, MA_OWNED)
 #define	ACCEPT_UNLOCK_ASSERT()		mtx_assert(&accept_mtx, MA_NOTOWNED)
 #define	ACCEPT_LOCK()			mtx_lock(&accept_mtx)
@@ -318,8 +318,12 @@ void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 int	socheckuid(struct socket *so, uid_t uid);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
+int	sobindat(int fd, struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
 int	soclose(struct socket *so);
 int	soconnect(struct socket *so, struct sockaddr *nam, struct thread *td);
+int	soconnectat(int fd, struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
 int	soconnect2(struct socket *so1, struct socket *so2);
 int	socow_setup(struct mbuf *m0, struct uio *uio);
 int	socreate(int dom, struct socket **aso, int type, int proto,

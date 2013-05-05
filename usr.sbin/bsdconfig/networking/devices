@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@ f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/networking/device.subr
 f_include $BSDCFG_SHARE/networking/ipaddr.subr
 f_include $BSDCFG_SHARE/networking/media.subr
@@ -53,7 +54,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 # Process command-line options
 #
-while getopts hSX flag; do
+while getopts dD:hSX flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -70,10 +71,12 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
+defaultitem=""
 while :; do
-	f_dialog_menu_netdev
+	f_dialog_menu_netdev "$defaultitem"
 	retval=$?
 	interface=$( f_dialog_menutag )
+	defaultitem="$interface"
 
 	[ $retval -eq 0 ] || break
 
@@ -96,6 +99,7 @@ while :; do
 	# fallback to reading the active configuration if not configured in
 	# the rc.conf(5) file(s).
 	#
+	dhcp=
 	_ipaddr=
 	_netmask=
 	_ifconfig=$( f_sysrc_get ifconfig_$interface )
@@ -144,7 +148,7 @@ while :; do
 
 	# Block on user-configuration of the probed settings
 	f_dialog_menu_netdev_edit \
-		$interface $_ipaddr $_netmask "$_options" $dhcp
+		"$interface" "$_ipaddr" "$_netmask" "$_options" $dhcp
 
 	# Return to root menu if above returns success
 	[ $? -eq $SUCCESS ] && break

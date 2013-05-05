@@ -113,12 +113,20 @@ PO_FLAG=-pg
 
 all: objwarn
 
+.if defined(SHLIB_NAME)
+.if defined(DEBUG_FLAGS)
+SHLIB_NAME_FULL=${SHLIB_NAME}.debug
+.else
+SHLIB_NAME_FULL=${SHLIB_NAME}
+.endif
+.endif
+
 .include <bsd.symver.mk>
 
 # Allow libraries to specify their own version map or have it
 # automatically generated (see bsd.symver.mk above).
 .if ${MK_SYMVER} == "yes" && !empty(VERSION_MAP)
-${SHLIB_NAME}:	${VERSION_MAP}
+${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
 
@@ -171,17 +179,14 @@ SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
-${SHLIB_NAME}: beforelinking
+beforelinking: ${SOBJS}
+${SHLIB_NAME_FULL}: beforelinking
 .endif
-.if defined(DEBUG_FLAGS)
-${SHLIB_NAME}.debug: ${SOBJS}
-.else
-${SHLIB_NAME}: ${SOBJS}
-.endif
+${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
-	@ln -fs ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
 	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
@@ -197,14 +202,15 @@ ${SHLIB_NAME}: ${SOBJS}
 .endif
 
 .if defined(DEBUG_FLAGS)
-${SHLIB_NAME}: ${SHLIB_NAME}.debug ${SHLIB_NAME}.symbols
+CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
-	    ${SHLIB_NAME}.debug ${.TARGET}
+	    ${SHLIB_NAME_FULL} ${.TARGET}
 
-${SHLIB_NAME}.symbols: ${SHLIB_NAME}.debug
-	${OBJCOPY} --only-keep-debug ${SHLIB_NAME}.debug ${.TARGET}
+${SHLIB_NAME}.symbols: ${SHLIB_NAME_FULL}
+	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
-.endif
+.endif #defined(SHLIB_NAME)
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 _LIBS+=		lib${LIB}_pic.a
@@ -306,9 +312,9 @@ _libinstall:
 	    ${_INSTALLFLAGS} lib${LIB}.ld ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .else
 .if ${SHLIBDIR} == ${LIBDIR}
-	ln -fs ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .else
-	ln -fs ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
+	${INSTALL_SYMLINK} ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .if exists(${DESTDIR}${LIBDIR}/${SHLIB_NAME})
 	-chflags noschg ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
@@ -328,12 +334,15 @@ _libinstall:
 .endif
 .endif # !defined(INTERNALLIB)
 
+.if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
+.endif
+
 .include <bsd.links.mk>
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 realinstall: _maninstall
 .ORDER: beforeinstall _maninstall
 .endif
@@ -345,7 +354,7 @@ lint: ${SRCS:M*.c}
 	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 .include <bsd.man.mk>
 .endif
 
@@ -390,10 +399,7 @@ clean:
 .endif
 	rm -f ${SHLIB_LINK}
 .endif
-.if defined(LIB) && !empty(LIB)
-	rm -f lib${LIB}.so.* lib${LIB}.so
-.endif
-.endif
+.endif # defined(SHLIB_NAME)
 .if defined(WANT_LINT) && defined(LIB) && !empty(LIB)
 	rm -f ${LINTOBJS}
 .endif

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clanglex
 
 SRCDIR=	tools/clang/lib/Lex
@@ -12,6 +14,7 @@ SRCS=	HeaderMap.cpp \
 	ModuleMap.cpp \
 	PPCaching.cpp \
 	PPCallbacks.cpp \
+	PPConditionalDirectiveRecord.cpp \
 	PPDirectives.cpp \
 	PPExpressions.cpp \
 	PPLexerChange.cpp \

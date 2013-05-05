@@ -42,9 +42,10 @@ LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
-	dev/acpica dev/an dev/bktr dev/ciss dev/filemon dev/firewire dev/hwpmc \
+	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
+	dev/hwpmc \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
-	dev/ofw dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
+	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/udf fs/unionfs \
@@ -154,7 +155,7 @@ copies:
 	done
 .endif
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/acpica:Ndev/bktr:Ndev/nand} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
@@ -162,6 +163,9 @@ copies:
 	cd ${.CURDIR}/../sys/dev/acpica; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
+	cd ${.CURDIR}/../sys/dev/agp; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/agp
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/bktr
@@ -172,6 +176,9 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand
 .endif
+	cd ${.CURDIR}/../sys/dev/pci; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/pci
 	cd ${.CURDIR}/../sys/contrib/altq/altq; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/altq
@@ -225,7 +232,7 @@ symlinks:
 		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/acpica:Ndev/bktr:Ndev/nand}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -235,6 +242,11 @@ symlinks:
 	for h in acpiio.h; do \
 		ln -fs ../../../../sys/dev/acpica/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
+	done
+	cd ${.CURDIR}/../sys/dev/agp; \
+	for h in agpreg.h; do \
+		ln -fs ../../../../sys/dev/agp/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/agp; \
 	done
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	for h in ioctl_*.h; do \
@@ -248,6 +260,11 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done
 .endif
+	cd ${.CURDIR}/../sys/dev/pci; \
+	for h in pcireg.h; do \
+		ln -fs ../../../../sys/dev/pci/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/pci; \
+	done
 .for i in ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \

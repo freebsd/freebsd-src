@@ -58,7 +58,18 @@
 # that mmc/sd card drivers call to make requests.
 #
 
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/taskqueue.h>
+
 #include <machine/bus.h>
+
+#include <dev/mmc/bridge.h>
+#include <dev/mmc/mmcreg.h>
+#include <dev/sdhci/sdhci.h>
+
 CODE {
 	struct sdhci_slot;
 }
@@ -119,3 +130,24 @@ METHOD void write_multi_4 {
 	uint32_t		*data;
 	bus_size_t		count;
 }
+
+METHOD int platform_will_handle {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+}
+
+METHOD void platform_start_transfer {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+	uint32_t		*intmask;
+}
+
+METHOD void platform_finish_transfer {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+}
+
+METHOD uint32_t min_freq {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+} DEFAULT sdhci_generic_min_freq;

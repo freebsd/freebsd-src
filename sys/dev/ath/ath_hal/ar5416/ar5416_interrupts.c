@@ -307,6 +307,8 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 			mask |= AR_IMR_TXDESC;
 		if (ahp->ah_txEolInterruptMask)
 			mask |= AR_IMR_TXEOL;
+		if (ahp->ah_txUrnInterruptMask)
+			mask |= AR_IMR_TXURN;
 	}
 	if (ints & (HAL_INT_BMISC)) {
 		mask |= AR_IMR_BCNMISC;

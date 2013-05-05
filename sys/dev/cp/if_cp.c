@@ -93,7 +93,7 @@ static	device_method_t cp_methods[] = {
 	DEVMETHOD(device_attach,	cp_attach),
 	DEVMETHOD(device_detach,	cp_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 typedef struct _cp_dma_mem_t {

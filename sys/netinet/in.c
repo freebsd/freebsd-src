@@ -819,19 +819,14 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 		return (error);
 
 	/*
-	 * Give the interface a chance to initialize if this is its first
-	 * address, and to validate the address if necessary.
-	 *
-	 * Historically, drivers managed IFF_UP flag theirselves, so we
-	 * need to check whether driver did that.
+	 * Give the interface a chance to initialize
+	 * if this is its first address,
+	 * and to validate the address if necessary.
 	 */
-	flags = ifp->if_flags;
 	if (ifp->if_ioctl != NULL &&
 	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia)) != 0)
 			/* LIST_REMOVE(ia, ia_hash) is done in in_control */
 			return (error);
-	if ((ifp->if_flags & IFF_UP) && (flags & IFF_UP) == 0)
-		if_up(ifp);
 
 	/*
 	 * Be compatible with network classes, if netmask isn't supplied,
@@ -1472,10 +1467,14 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			LLE_WLOCK(lle);
 			lle->la_flags |= LLE_DELETED;
 			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 
@@ -1499,7 +1498,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	/* XXX stack use */
 	struct {
 		struct rt_msghdr	rtm;
-		struct sockaddr_inarp	sin;
+		struct sockaddr_in	sin;
 		struct sockaddr_dl	sdl;
 	} arpc;
 	int error, i;
@@ -1520,7 +1519,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
-			 *  struct sockaddr_inarp; (IPv4)
+			 *  struct sockaddr_in; (IPv4)
 			 *  struct sockaddr_dl;
 			 */
 			bzero(&arpc, sizeof(arpc));
@@ -1534,12 +1533,8 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			arpc.sin.sin_addr.s_addr = SIN(lle)->sin_addr.s_addr;
 
 			/* publish */
-			if (lle->la_flags & LLE_PUB) {
+			if (lle->la_flags & LLE_PUB)
 				arpc.rtm.rtm_flags |= RTF_ANNOUNCE;
-				/* proxy only */
-				if (lle->la_flags & LLE_PROXY)
-					arpc.sin.sin_other = SIN_PROXY;
-			}
 
 			sdl = &arpc.sdl;
 			sdl->sdl_family = AF_LINK;

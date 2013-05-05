@@ -143,9 +143,8 @@ lines(FILE *fp, const char *fn, off_t off)
 	char *p, *sp;
 	int blen, cnt, recno, wrap;
 
-	if ((llines = malloc(off * sizeof(*llines))) == NULL)
-		err(1, "malloc");
-	bzero(llines, off * sizeof(*llines));
+	if ((llines = calloc(off, sizeof(*llines))) == NULL)
+		err(1, "calloc");
 	p = sp = NULL;
 	blen = cnt = recno = wrap = 0;
 	rc = 0;

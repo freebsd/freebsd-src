@@ -17,11 +17,6 @@
 
 #define DEBUG_TYPE "gvn"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/Hashing.h"
@@ -37,11 +32,16 @@
 #include "llvm/Analysis/PHITransAddr.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/PatternMatch.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
@@ -849,8 +849,8 @@ static int AnalyzeLoadFromClobberingWrite(Type *LoadTy, Value *LoadPtr,
     return -1;
 
   int64_t StoreOffset = 0, LoadOffset = 0;
-  Value *StoreBase = GetPointerBaseWithConstantOffset(WritePtr, StoreOffset,TD);
-  Value *LoadBase = GetPointerBaseWithConstantOffset(LoadPtr, LoadOffset, TD);
+  Value *StoreBase = GetPointerBaseWithConstantOffset(WritePtr,StoreOffset,&TD);
+  Value *LoadBase = GetPointerBaseWithConstantOffset(LoadPtr, LoadOffset, &TD);
   if (StoreBase != LoadBase)
     return -1;
 
@@ -945,7 +945,7 @@ static int AnalyzeLoadFromClobberingLoad(Type *LoadTy, Value *LoadPtr,
   // then we should widen it!
   int64_t LoadOffs = 0;
   const Value *LoadBase =
-    GetPointerBaseWithConstantOffset(LoadPtr, LoadOffs, TD);
+    GetPointerBaseWithConstantOffset(LoadPtr, LoadOffs, &TD);
   unsigned LoadSize = TD.getTypeStoreSize(LoadTy);
 
   unsigned Size = MemoryDependenceAnalysis::
@@ -1526,10 +1526,8 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
   BasicBlock *LoadBB = LI->getParent();
   BasicBlock *TmpBB = LoadBB;
 
-  bool isSinglePred = false;
   bool allSingleSucc = true;
   while (TmpBB->getSinglePredecessor()) {
-    isSinglePred = true;
     TmpBB = TmpBB->getSinglePredecessor();
     if (TmpBB == LoadBB) // Infinite (unreachable) loop.
       return false;
@@ -1547,28 +1545,6 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
 
   assert(TmpBB);
   LoadBB = TmpBB;
-
-  // FIXME: It is extremely unclear what this loop is doing, other than
-  // artificially restricting loadpre.
-  if (isSinglePred) {
-    bool isHot = false;
-    for (unsigned i = 0, e = ValuesPerBlock.size(); i != e; ++i) {
-      const AvailableValueInBlock &AV = ValuesPerBlock[i];
-      if (AV.isSimpleValue())
-        // "Hot" Instruction is in some loop (because it dominates its dep.
-        // instruction).
-        if (Instruction *I = dyn_cast<Instruction>(AV.getSimpleValue()))
-          if (DT->dominates(LI, I)) {
-            isHot = true;
-            break;
-          }
-    }
-
-    // We are interested only in "hot" instructions. We don't want to do any
-    // mis-optimizations here.
-    if (!isHot)
-      return false;
-  }
 
   // Check to see how many predecessors have the loaded value fully
   // available.
@@ -1738,7 +1714,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
   return true;
 }
 
-static void patchReplacementInstruction(Value *Repl, Instruction *I) {
+static void patchReplacementInstruction(Instruction *I, Value *Repl) {
   // Patch the replacement so that it is not more restrictive than the value
   // being replaced.
   BinaryOperator *Op = dyn_cast<BinaryOperator>(I);
@@ -1780,8 +1756,8 @@ static void patchReplacementInstruction(Value *Repl, Instruction *I) {
   }
 }
 
-static void patchAndReplaceAllUsesWith(Value *Repl, Instruction *I) {
-  patchReplacementInstruction(Repl, I);
+static void patchAndReplaceAllUsesWith(Instruction *I, Value *Repl) {
+  patchReplacementInstruction(I, Repl);
   I->replaceAllUsesWith(Repl);
 }
 
@@ -1943,7 +1919,7 @@ bool GVN::processLoad(LoadInst *L) {
     }
 
     // Remove it!
-    patchAndReplaceAllUsesWith(AvailableVal, L);
+    patchAndReplaceAllUsesWith(L, AvailableVal);
     if (DepLI->getType()->getScalarType()->isPointerTy())
       MD->invalidateCachedPointerInfo(DepLI);
     markInstructionForDeletion(L);
@@ -2284,7 +2260,7 @@ bool GVN::processInstruction(Instruction *I) {
   }
 
   // Remove it!
-  patchAndReplaceAllUsesWith(repl, I);
+  patchAndReplaceAllUsesWith(I, repl);
   if (MD && repl->getType()->getScalarType()->isPointerTy())
     MD->invalidateCachedPointerInfo(repl);
   markInstructionForDeletion(I);
@@ -2371,8 +2347,8 @@ bool GVN::processBlock(BasicBlock *BB) {
          E = InstrsToErase.end(); I != E; ++I) {
       DEBUG(dbgs() << "GVN removed: " << **I << '\n');
       if (MD) MD->removeInstruction(*I);
-      (*I)->eraseFromParent();
       DEBUG(verifyRemoved(*I));
+      (*I)->eraseFromParent();
     }
     InstrsToErase.clear();
 
@@ -2389,7 +2365,7 @@ bool GVN::processBlock(BasicBlock *BB) {
 /// control flow patterns and attempts to perform simple PRE at the join point.
 bool GVN::performPRE(Function &F) {
   bool Changed = false;
-  DenseMap<BasicBlock*, Value*> predMap;
+  SmallVector<std::pair<Value*, BasicBlock*>, 8> predMap;
   for (df_iterator<BasicBlock*> DI = df_begin(&F.getEntryBlock()),
        DE = df_end(&F.getEntryBlock()); DI != DE; ++DI) {
     BasicBlock *CurrentBlock = *DI;
@@ -2445,19 +2421,22 @@ bool GVN::performPRE(Function &F) {
         if (P == CurrentBlock) {
           NumWithout = 2;
           break;
-        } else if (!DT->dominates(&F.getEntryBlock(), P))  {
+        } else if (!DT->isReachableFromEntry(P))  {
           NumWithout = 2;
           break;
         }
 
         Value* predV = findLeader(P, ValNo);
         if (predV == 0) {
+          predMap.push_back(std::make_pair(static_cast<Value *>(0), P));
           PREPred = P;
           ++NumWithout;
         } else if (predV == CurInst) {
+          /* CurInst dominates this predecessor. */
           NumWithout = 2;
+          break;
         } else {
-          predMap[P] = predV;
+          predMap.push_back(std::make_pair(predV, P));
           ++NumWith;
         }
       }
@@ -2504,15 +2483,14 @@ bool GVN::performPRE(Function &F) {
       // the PRE predecessor.  This is typically because of loads which
       // are not value numbered precisely.
       if (!success) {
-        delete PREInstr;
         DEBUG(verifyRemoved(PREInstr));
+        delete PREInstr;
         continue;
       }
 
       PREInstr->insertBefore(PREPred->getTerminator());
       PREInstr->setName(CurInst->getName() + ".pre");
       PREInstr->setDebugLoc(CurInst->getDebugLoc());
-      predMap[PREPred] = PREInstr;
       VN.add(PREInstr, ValNo);
       ++NumGVNPRE;
 
@@ -2520,13 +2498,14 @@ bool GVN::performPRE(Function &F) {
       addToLeaderTable(ValNo, PREInstr, PREPred);
 
       // Create a PHI to make the value available in this block.
-      pred_iterator PB = pred_begin(CurrentBlock), PE = pred_end(CurrentBlock);
-      PHINode* Phi = PHINode::Create(CurInst->getType(), std::distance(PB, PE),
+      PHINode* Phi = PHINode::Create(CurInst->getType(), predMap.size(),
                                      CurInst->getName() + ".pre-phi",
                                      CurrentBlock->begin());
-      for (pred_iterator PI = PB; PI != PE; ++PI) {
-        BasicBlock *P = *PI;
-        Phi->addIncoming(predMap[P], P);
+      for (unsigned i = 0, e = predMap.size(); i != e; ++i) {
+        if (Value *V = predMap[i].first)
+          Phi->addIncoming(V, predMap[i].second);
+        else
+          Phi->addIncoming(PREInstr, PREPred);
       }
 
       VN.add(Phi, ValNo);
@@ -2551,8 +2530,8 @@ bool GVN::performPRE(Function &F) {
 
       DEBUG(dbgs() << "GVN PRE removed: " << *CurInst << '\n');
       if (MD) MD->removeInstruction(CurInst);
-      CurInst->eraseFromParent();
       DEBUG(verifyRemoved(CurInst));
+      CurInst->eraseFromParent();
       Changed = true;
     }
   }

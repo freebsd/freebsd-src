@@ -138,10 +138,14 @@ typedef struct irqframe {
 } irqframe_t;
 
 /*
- * Switch frame
+ * Switch frame.
+ *
+ * It is important this is a multiple of 8 bytes so the stack is correctly
+ * aligned when we create new threads.
  */
 
 struct switchframe {
+	u_int	pad;	/* Used to pad the struct to a multiple of 8-bytes */
 	u_int	sf_r4;
 	u_int	sf_r5;
 	u_int	sf_r6;

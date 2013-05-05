@@ -487,12 +487,14 @@ xlp_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
 }
 
 /*
- * Enable byte swap in hardware. Program a link's PCIe SWAP regions
- * from the link's IO and MEM address ranges.
+ * Enable byte swap in hardware when compiled big-endian.
+ * Programs a link's PCIe SWAP regions from the link's IO and MEM address
+ * ranges.
  */
 static void
 xlp_pcib_hardware_swap_enable(int node, int link)
 {
+#if BYTE_ORDER == BIG_ENDIAN
 	uint64_t bbase, linkpcibase;
 	uint32_t bar;
 	int pcieoffset;
@@ -514,6 +516,7 @@ xlp_pcib_hardware_swap_enable(int node, int link)
 
 	bar = nlm_read_bridge_reg(bbase, BRIDGE_PCIEIO_LIMIT0 + link);
 	nlm_write_pci_reg(linkpcibase, PCIE_BYTE_SWAP_IO_LIM, bar | 0xFFF);
+#endif
 }
 
 static int 

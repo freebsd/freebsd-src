@@ -13,12 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/TargetSchedule.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -240,7 +240,10 @@ unsigned TargetSchedModel::computeOperandLatency(
     report_fatal_error(ss.str());
   }
 #endif
-  return DefMI->isTransient() ? 0 : 1;
+  // FIXME: Automatically giving all implicit defs defaultDefLatency is
+  // undesirable. We should only do it for defs that are known to the MC
+  // desc like flags. Truly implicit defs should get 1 cycle latency.
+  return DefMI->isTransient() ? 0 : TII->defaultDefLatency(&SchedModel, DefMI);
 }
 
 unsigned TargetSchedModel::computeInstrLatency(const MachineInstr *MI) const {

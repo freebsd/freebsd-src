@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_MESH
 #include <net80211/ieee80211_mesh.h>
 #endif
+#include <net80211/ieee80211_ratectl.h>
 
 #include <net/bpf.h>
 
@@ -1567,6 +1568,7 @@ adhoc_pick_bss(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	struct sta_table *st = ss->ss_priv;
 	struct sta_entry *selbs;
 	struct ieee80211_channel *chan;
+	struct ieee80211com *ic = vap->iv_ic;
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_IBSS ||
 		vap->iv_opmode == IEEE80211_M_AHDEMO ||
@@ -1612,15 +1614,19 @@ notfound:
 			 */
 			if (vap->iv_des_chan == IEEE80211_CHAN_ANYC ||
 			    IEEE80211_IS_CHAN_RADAR(vap->iv_des_chan)) {
-				struct ieee80211com *ic = vap->iv_ic;
-
 				chan = adhoc_pick_channel(ss, 0);
-				if (chan != NULL)
-					chan = ieee80211_ht_adjust_channel(ic,
-					    chan, vap->iv_flags_ht);
 			} else
 				chan = vap->iv_des_chan;
 			if (chan != NULL) {
+				struct ieee80211com *ic = vap->iv_ic;
+				/*
+				 * Create a HT capable IBSS; the per-node
+				 * probe request/response will result in
+				 * "correct" rate control capabilities being
+				 * negotiated.
+				 */
+				chan = ieee80211_ht_adjust_channel(ic,
+				    chan, vap->iv_flags_ht);
 				ieee80211_create_ibss(vap, chan);
 				return 1;
 			}
@@ -1644,6 +1650,14 @@ notfound:
 	chan = selbs->base.se_chan;
 	if (selbs->se_flags & STA_DEMOTE11B)
 		chan = demote11b(vap, chan);
+	/*
+	 * If HT is available, make it a possibility here.
+	 * The intent is to enable HT20/HT40 when joining a non-HT
+	 * IBSS node; we can then advertise HT IEs and speak HT
+	 * to any subsequent nodes that support it.
+	 */
+	chan = ieee80211_ht_adjust_channel(ic,
+	    chan, vap->iv_flags_ht);
 	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
 	return 1;				/* terminate scan */

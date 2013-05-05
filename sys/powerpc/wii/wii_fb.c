@@ -514,8 +514,12 @@ wiifb_configure(int flags)
 	int progressive;
 
 	sc = &wiifb_softc;
-	if (sc->sc_initialized)
+	if (sc->sc_initialized) {
+		/* XXX We should instead use bus_space */
+		sc->sc_fb_addr = (intptr_t)pmap_mapdev(WIIFB_FB_ADDR, WIIFB_FB_LEN);
+		sc->sc_reg_addr = (intptr_t)pmap_mapdev(WIIFB_REG_ADDR, WIIFB_REG_LEN);
 		return 0;
+	}
 
 	sc->sc_console = 1;
 

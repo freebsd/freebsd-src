@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,8 @@ ASL_FILE_INFO                       Gbl_Files [ASL_NUM_FILES] =
     {NULL, NULL, "ASM Source:   ", "Assembly Code Output"},
     {NULL, NULL, "C Source:     ", "C Code Output"},
     {NULL, NULL, "ASM Include:  ", "Assembly Header Output"},
-    {NULL, NULL, "C Include:    ", "C Header Output"}
+    {NULL, NULL, "C Include:    ", "C Header Output"},
+    {NULL, NULL, "Offset Table: ", "C Offset Table Output"}
 };
 
 #else
@@ -143,6 +144,7 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessorOutputFlag,
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DebugFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_AsmOutputFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_C_OutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_C_OffsetTableFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_AsmIncludeOutputFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_C_IncludeOutputFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_ListingFlag, FALSE);

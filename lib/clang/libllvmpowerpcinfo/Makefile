@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmpowerpcinfo
 
 SRCDIR=	lib/Target/PowerPC/TargetInfo

@@ -63,7 +63,7 @@ error(const char *msg, ...)
 		"-u"|"-g"|"-k"|"-s"|"-t"|"-z"|"-n"|"-o"|"-O"|"-G"|"-L"|"-S";
 
 	binary-operator ::= "="|"!="|"-eq"|"-ne"|"-ge"|"-gt"|"-le"|"-lt"|
-			"-nt"|"-ot"|"-ef";
+			"-nt"|"-nt[abcm][abcm]"|"-ot"|"-ot[abcm][abcm])"|"-ef";
 	operand ::= <any legal UNIX file name>
 */
 
@@ -85,8 +85,38 @@ enum token {
 	FILSUID,
 	FILSGID,
 	FILSTCK,
-	FILNT,
-	FILOT,
+	FILNTAA,
+	FILNTAB,
+	FILNTAC,
+	FILNTAM,
+	FILNTBA,
+	FILNTBB,
+	FILNTBC,
+	FILNTBM,
+	FILNTCA,
+	FILNTCB,
+	FILNTCC,
+	FILNTCM,
+	FILNTMA,
+	FILNTMB,
+	FILNTMC,
+	FILNTMM,
+	FILOTAA,
+	FILOTAB,
+	FILOTAC,
+	FILOTAM,
+	FILOTBA,
+	FILOTBB,
+	FILOTBC,
+	FILOTBM,
+	FILOTCA,
+	FILOTCB,
+	FILOTCC,
+	FILOTCM,
+	FILOTMA,
+	FILOTMB,
+	FILOTMC,
+	FILOTMM,
 	FILEQ,
 	FILUID,
 	FILGID,
@@ -118,9 +148,16 @@ enum token_types {
 	PAREN
 };
 
+enum time_types {
+	ATIME,
+	BTIME,
+	CTIME,
+	MTIME
+};
+
 static struct t_op {
-	char op_text[4];
-	short op_num, op_type;
+	char op_text[6];
+	char op_num, op_type;
 } const ops [] = {
 	{"-r",	FILRD,	UNOP},
 	{"-w",	FILWR,	UNOP},
@@ -154,8 +191,40 @@ static struct t_op {
 	{"-gt",	INTGT,	BINOP},
 	{"-le",	INTLE,	BINOP},
 	{"-lt",	INTLT,	BINOP},
-	{"-nt",	FILNT,	BINOP},
-	{"-ot",	FILOT,	BINOP},
+	{"-nt",	FILNTMM,	BINOP},
+	{"-ntaa",	FILNTAA,	BINOP},
+	{"-ntab",	FILNTAB,	BINOP},
+	{"-ntac",	FILNTAC,	BINOP},
+	{"-ntam",	FILNTAM,	BINOP},
+	{"-ntba",	FILNTBA,	BINOP},
+	{"-ntbb",	FILNTBB,	BINOP},
+	{"-ntbc",	FILNTBC,	BINOP},
+	{"-ntbm",	FILNTBM,	BINOP},
+	{"-ntca",	FILNTCA,	BINOP},
+	{"-ntcb",	FILNTCB,	BINOP},
+	{"-ntcc",	FILNTCC,	BINOP},
+	{"-ntcm",	FILNTCM,	BINOP},
+	{"-ntma",	FILNTMA,	BINOP},
+	{"-ntmb",	FILNTMB,	BINOP},
+	{"-ntmc",	FILNTMC,	BINOP},
+	{"-ntmm",	FILNTMM,	BINOP},
+	{"-ot",	FILOTMM,	BINOP},
+	{"-otaa",	FILOTAA,	BINOP},
+	{"-otab",	FILOTBB,	BINOP},
+	{"-otac",	FILOTAC,	BINOP},
+	{"-otam",	FILOTAM,	BINOP},
+	{"-otba",	FILOTBA,	BINOP},
+	{"-otbb",	FILOTBB,	BINOP},
+	{"-otbc",	FILOTBC,	BINOP},
+	{"-otbm",	FILOTBM,	BINOP},
+	{"-otca",	FILOTCA,	BINOP},
+	{"-otcb",	FILOTCB,	BINOP},
+	{"-otcc",	FILOTCC,	BINOP},
+	{"-otcm",	FILOTCM,	BINOP},
+	{"-otma",	FILOTMA,	BINOP},
+	{"-otmb",	FILOTMB,	BINOP},
+	{"-otmc",	FILOTMC,	BINOP},
+	{"-otmm",	FILOTMM,	BINOP},
 	{"-ef",	FILEQ,	BINOP},
 	{"!",	UNOT,	BUNOP},
 	{"-a",	BAND,	BBINOP},
@@ -180,10 +249,10 @@ static int	intcmp(const char *, const char *);
 static int	isunopoperand(void);
 static int	islparenoperand(void);
 static int	isrparenoperand(void);
-static int	newerf(const char *, const char *);
+static int	newerf(const char *, const char *, enum time_types,
+		       enum time_types);
 static int	nexpr(enum token);
 static int	oexpr(enum token);
-static int	olderf(const char *, const char *);
 static int	primary(enum token);
 static void	syntax(const char *, const char *);
 static enum	token t_lex(char *);
@@ -353,10 +422,70 @@ binop(void)
 		return intcmp(opnd1, opnd2) <= 0;
 	case INTLT:
 		return intcmp(opnd1, opnd2) < 0;
-	case FILNT:
-		return newerf (opnd1, opnd2);
-	case FILOT:
-		return olderf (opnd1, opnd2);
+	case FILNTAA:
+		return newerf(opnd1, opnd2, ATIME, ATIME);
+	case FILNTAB:
+		return newerf(opnd1, opnd2, ATIME, BTIME);
+	case FILNTAC:
+		return newerf(opnd1, opnd2, ATIME, CTIME);
+	case FILNTAM:
+		return newerf(opnd1, opnd2, ATIME, MTIME);
+	case FILNTBA:
+		return newerf(opnd1, opnd2, BTIME, ATIME);
+	case FILNTBB:
+		return newerf(opnd1, opnd2, BTIME, BTIME);
+	case FILNTBC:
+		return newerf(opnd1, opnd2, BTIME, CTIME);
+	case FILNTBM:
+		return newerf(opnd1, opnd2, BTIME, MTIME);
+	case FILNTCA:
+		return newerf(opnd1, opnd2, CTIME, ATIME);
+	case FILNTCB:
+		return newerf(opnd1, opnd2, CTIME, BTIME);
+	case FILNTCC:
+		return newerf(opnd1, opnd2, CTIME, CTIME);
+	case FILNTCM:
+		return newerf(opnd1, opnd2, CTIME, MTIME);
+	case FILNTMA:
+		return newerf(opnd1, opnd2, MTIME, ATIME);
+	case FILNTMB:
+		return newerf(opnd1, opnd2, MTIME, BTIME);
+	case FILNTMC:
+		return newerf(opnd1, opnd2, MTIME, CTIME);
+	case FILNTMM:
+		return newerf(opnd1, opnd2, MTIME, MTIME);
+	case FILOTAA:
+		return newerf(opnd2, opnd1, ATIME, ATIME);
+	case FILOTAB:
+		return newerf(opnd2, opnd1, BTIME, ATIME);
+	case FILOTAC:
+		return newerf(opnd2, opnd1, CTIME, ATIME);
+	case FILOTAM:
+		return newerf(opnd2, opnd1, MTIME, ATIME);
+	case FILOTBA:
+		return newerf(opnd2, opnd1, ATIME, BTIME);
+	case FILOTBB:
+		return newerf(opnd2, opnd1, BTIME, BTIME);
+	case FILOTBC:
+		return newerf(opnd2, opnd1, CTIME, BTIME);
+	case FILOTBM:
+		return newerf(opnd2, opnd1, MTIME, BTIME);
+	case FILOTCA:
+		return newerf(opnd2, opnd1, ATIME, CTIME);
+	case FILOTCB:
+		return newerf(opnd2, opnd1, BTIME, CTIME);
+	case FILOTCC:
+		return newerf(opnd2, opnd1, CTIME, CTIME);
+	case FILOTCM:
+		return newerf(opnd2, opnd1, MTIME, CTIME);
+	case FILOTMA:
+		return newerf(opnd2, opnd1, ATIME, MTIME);
+	case FILOTMB:
+		return newerf(opnd2, opnd1, BTIME, MTIME);
+	case FILOTMC:
+		return newerf(opnd2, opnd1, CTIME, MTIME);
+	case FILOTMM:
+		return newerf(opnd2, opnd1, MTIME, MTIME);
 	case FILEQ:
 		return equalf (opnd1, opnd2);
 	default:
@@ -570,25 +699,34 @@ intcmp (const char *s1, const char *s2)
 }
 
 static int
-newerf (const char *f1, const char *f2)
+newerf (const char *f1, const char *f2, enum time_types t1, enum time_types t2)
 {
 	struct stat b1, b2;
+	struct timespec *ts1, *ts2;
 
 	if (stat(f1, &b1) != 0 || stat(f2, &b2) != 0)
 		return 0;
 
-	if (b1.st_mtim.tv_sec > b2.st_mtim.tv_sec)
+	switch (t1) {
+	case ATIME:	ts1 = &b1.st_atim;	break;
+	case BTIME:	ts1 = &b1.st_birthtim;	break;
+	case CTIME:	ts1 = &b1.st_ctim;	break;
+	default:	ts1 = &b1.st_mtim;	break;
+	}
+
+	switch (t2) {
+	case ATIME:	ts2 = &b2.st_atim;	break;
+	case BTIME:	ts2 = &b2.st_birthtim;	break;
+	case CTIME:	ts2 = &b2.st_ctim;	break;
+	default:	ts2 = &b2.st_mtim;	break;
+	}
+
+	if (ts1->tv_sec > ts2->tv_sec)
 		return 1;
-	if (b1.st_mtim.tv_sec < b2.st_mtim.tv_sec)
+	if (ts1->tv_sec < ts2->tv_sec)
 		return 0;
 
-       return (b1.st_mtim.tv_nsec > b2.st_mtim.tv_nsec);
-}
-
-static int
-olderf (const char *f1, const char *f2)
-{
-	return (newerf(f2, f1));
+       return (ts1->tv_nsec > ts2->tv_nsec);
 }
 
 static int

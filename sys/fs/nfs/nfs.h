@@ -523,7 +523,6 @@ struct nfsrv_descript {
 	int			*nd_errp;	/* Pointer to ret status */
 	u_int32_t		nd_retxid;	/* Reply xid */
 	struct nfsrvcache	*nd_rp;		/* Assoc. cache entry */
-	struct timeval		nd_starttime;	/* Time RPC initiated */
 	fhandle_t		nd_fh;		/* File handle */
 	struct ucred		*nd_cred;	/* Credentials */
 	uid_t			nd_saveduid;	/* Saved uid */

@@ -108,7 +108,7 @@ font.h:
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-loader.help: help.common help.ps3
+loader.help: help.common help.ps3 ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 

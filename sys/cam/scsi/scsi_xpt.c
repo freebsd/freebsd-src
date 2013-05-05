@@ -556,7 +556,6 @@ static const int scsi_quirk_table_size =
 static cam_status	proberegister(struct cam_periph *periph,
 				      void *arg);
 static void	 probeschedule(struct cam_periph *probe_periph);
-static int	 device_has_vpd(struct cam_ed *device, uint8_t page_id);
 static void	 probestart(struct cam_periph *periph, union ccb *start_ccb);
 static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
 static int       proberequestbackoff(struct cam_periph *periph,
@@ -648,11 +647,6 @@ proberegister(struct cam_periph *periph, void *arg)
 	 */
 	cam_periph_freeze_after_event(periph, &periph->path->bus->last_reset,
 				      scsi_delay);
-	/*
-	 * Ensure nobody slip in until probe finish.
-	 */
-	cam_freeze_devq_arg(periph->path,
-	    RELSIM_RELEASE_RUNLEVEL, CAM_RL_XPT + 1);
 	probeschedule(periph);
 	return(CAM_REQ_CMP);
 }
@@ -706,21 +700,6 @@ probeschedule(struct cam_periph *periph)
 		softc->flags &= ~PROBE_NO_ANNOUNCE;
 
 	xpt_schedule(periph, CAM_PRIORITY_XPT);
-}
-
-static int
-device_has_vpd(struct cam_ed *device, uint8_t page_id)
-{
-	int i, num_pages;
-	struct scsi_vpd_supported_pages *vpds;
-
-	vpds = (struct scsi_vpd_supported_pages *)device->supported_vpds;
-	num_pages = device->supported_vpds_len - SVPD_SUPPORTED_PAGES_HDR_LEN;
-	for (i = 0;i < num_pages;i++)
-		if (vpds->page_list[i] == page_id)
-			return 1;
-
-	return 0;
 }
 
 static void
@@ -904,17 +883,16 @@ again:
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
+		cam_freeze_devq(periph->path);
 		probedone(periph, start_ccb);
 		return;
 	}
 	case PROBE_DEVICE_ID:
 	{
 		struct scsi_vpd_device_id *devid;
-		struct cam_ed *device;
 
 		devid = NULL;
-		device = periph->path->device;
-		if (device_has_vpd(device, SVPD_DEVICE_ID))
+		if (scsi_vpd_supported_page(periph, SVPD_DEVICE_ID))
 			devid = malloc(SVPD_DEVICE_ID_MAX_SIZE, M_CAMXPT,
 			    M_NOWAIT | M_ZERO);
 
@@ -936,6 +914,7 @@ again:
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
+		cam_freeze_devq(periph->path);
 		probedone(periph, start_ccb);
 		return;
 	}
@@ -952,7 +931,7 @@ again:
 			device->serial_num_len = 0;
 		}
 
-		if (device_has_vpd(device, SVPD_UNIT_SERIAL_NUMBER))
+		if (scsi_vpd_supported_page(periph, SVPD_UNIT_SERIAL_NUMBER))
 			serial_buf = (struct scsi_vpd_unit_serial_number *)
 				malloc(sizeof(*serial_buf), M_CAMXPT,
 				    M_NOWAIT|M_ZERO);
@@ -975,12 +954,14 @@ again:
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
+		cam_freeze_devq(periph->path);
 		probedone(periph, start_ccb);
 		return;
 	}
 	default:
 		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
+	start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 	xpt_action(start_ccb);
 }
 
@@ -1127,8 +1108,12 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 
 			if (cam_periph_error(done_ccb, 0,
-					     SF_NO_PRINT, NULL) == ERESTART)
+					     SF_NO_PRINT, NULL) == ERESTART) {
+out:
+				/* Drop freeze taken due to CAM_DEV_QFREEZE */
+				cam_release_devq(path, 0, 0, 0, FALSE);
 				return;
+			}
 			else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				/* Don't wedge the queue */
 				xpt_release_devq(done_ccb->ccb_h.path,
@@ -1138,7 +1123,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		PROBE_SET_ACTION(softc, PROBE_INQUIRY);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	}
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
@@ -1173,7 +1158,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 					PROBE_SET_ACTION(softc, PROBE_FULL_INQUIRY);
 					xpt_release_ccb(done_ccb);
 					xpt_schedule(periph, priority);
-					return;
+					goto out;
 				}
 
 				scsi_find_quirk(path->device);
@@ -1203,7 +1188,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				}
 				xpt_release_ccb(done_ccb);
 				xpt_schedule(periph, priority);
-				return;
+				goto out;
 			} else if (path->device->lun_id == 0 &&
 			    SID_ANSI_REV(inq_buf) > SCSI_REV_SPC2 &&
 			    (SCSI_QUIRK(path->device)->quirks &
@@ -1218,14 +1203,14 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				periph->path->target->rpl_size = 16;
 				xpt_release_ccb(done_ccb);
 				xpt_schedule(periph, priority);
-				return;
+				goto out;
 			}
 		} else if (cam_periph_error(done_ccb, 0,
 					    done_ccb->ccb_h.target_lun > 0
 					    ? SF_RETRY_UA|SF_QUIET_IR
 					    : SF_RETRY_UA,
 					    &softc->saved_ccb) == ERESTART) {
-			return;
+			goto out;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1266,7 +1251,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			    done_ccb->ccb_h.target_lun > 0 ?
 			    SF_RETRY_UA|SF_QUIET_IR : SF_RETRY_UA,
 			    &softc->saved_ccb) == ERESTART) {
-				return;
+				goto out;
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 				xpt_release_devq(done_ccb->ccb_h.path, 1,
@@ -1285,7 +1270,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			path->target->rpl_size = (nlun << 3) + 8;
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		} else if (nlun == 0) {
 			/*
 			 * If there don't appear to be any luns, bail.
@@ -1358,7 +1343,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				    PROBE_SUPPORTED_VPD_LIST);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		if (lp) {
 			free(lp, M_CAMXPT);
@@ -1383,7 +1368,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA|SF_NO_PRINT,
 					    &softc->saved_ccb) == ERESTART) {
-			return;
+			goto out;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path,
@@ -1393,7 +1378,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		free(mode_hdr, M_CAMXPT);
 		PROBE_SET_ACTION(softc, PROBE_SUPPORTED_VPD_LIST);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	}
 	case PROBE_SUPPORTED_VPD_LIST:
 	{
@@ -1422,11 +1407,11 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_release_ccb(done_ccb);
 			PROBE_SET_ACTION(softc, PROBE_DEVICE_ID);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA|SF_NO_PRINT,
 					    &softc->saved_ccb) == ERESTART) {
-			return;
+			goto out;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1471,7 +1456,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA,
 					    &softc->saved_ccb) == ERESTART) {
-			return;
+			goto out;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1484,7 +1469,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_release_ccb(done_ccb);
 		PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	}
 
 probe_device_check:
@@ -1526,7 +1511,7 @@ probe_device_check:
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA|SF_NO_PRINT,
 					    &softc->saved_ccb) == ERESTART) {
-			return;
+			goto out;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1585,7 +1570,7 @@ probe_device_check:
 			 */
 			PROBE_SET_ACTION(softc, PROBE_TUR_FOR_NEGOTIATION);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		xpt_release_ccb(done_ccb);
 		break;
@@ -1615,7 +1600,7 @@ probe_device_check:
 			xpt_release_ccb(done_ccb);
 			PROBE_SET_ACTION(softc, PROBE_INQUIRY_BASIC_DV1);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		if (softc->action == PROBE_DV_EXIT) {
 			CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
@@ -1668,14 +1653,14 @@ probe_device_check:
 			free(nbuf, M_CAMXPT);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		free(nbuf, M_CAMXPT);
 		if (softc->action == PROBE_INQUIRY_BASIC_DV1) {
 			PROBE_SET_ACTION(softc, PROBE_INQUIRY_BASIC_DV2);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		if (softc->action == PROBE_INQUIRY_BASIC_DV2) {
 			CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
@@ -1707,12 +1692,13 @@ probe_device_check:
 	xpt_done(done_ccb);
 	if (TAILQ_FIRST(&softc->request_ccbs) == NULL) {
 		CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
+		/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+		cam_release_devq(path, 0, 0, 0, FALSE);
 		cam_periph_invalidate(periph);
-		cam_release_devq(periph->path,
-		    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
 		cam_periph_release_locked(periph);
 	} else {
 		probeschedule(periph);
+		goto out;
 	}
 }
 
@@ -1952,7 +1938,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (i == initiator_id)
 				continue;
 
-			status = xpt_create_path(&path, xpt_periph,
+			status = xpt_create_path(&path, NULL,
 						 request_ccb->ccb_h.path_id,
 						 i, 0);
 			if (status != CAM_REQ_CMP) {
@@ -2153,7 +2139,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_free_ccb(request_ccb);
 				break;
 			}
-			status = xpt_create_path(&path, xpt_periph,
+			status = xpt_create_path(&path, NULL,
 			    scan_info->request_ccb->ccb_h.path_id,
 			    scan_info->counter, 0);
 			if (status != CAM_REQ_CMP) {
@@ -2176,7 +2162,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			request_ccb->crcn.flags =
 			    scan_info->request_ccb->crcn.flags;
 		} else {
-			status = xpt_create_path(&path, xpt_periph,
+			status = xpt_create_path(&path, NULL,
 						 path_id, target_id, lun_id);
 			/*
 			 * Free the old request path- we're done with it. We
@@ -2249,7 +2235,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			    "can't continue\n");
 			return;
 		}
-		status = xpt_create_path(&new_path, xpt_periph,
+		status = xpt_create_path(&new_path, NULL,
 					  path->bus->path_id,
 					  path->target->target_id,
 					  path->device->lun_id);
@@ -2306,7 +2292,6 @@ scsi_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	struct cam_path path;
 	struct scsi_quirk_entry *quirk;
 	struct cam_ed *device;
-	struct cam_ed *cur_device;
 
 	device = xpt_alloc_device(bus, target, lun_id);
 	if (device == NULL)
@@ -2335,16 +2320,6 @@ scsi_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	 * do.
 	 */
 	bus->sim->max_ccbs += device->ccbq.devq_openings;
-	/* Insertion sort into our target's device list */
-	cur_device = TAILQ_FIRST(&target->ed_entries);
-	while (cur_device != NULL && cur_device->lun_id < lun_id)
-		cur_device = TAILQ_NEXT(cur_device, links);
-	if (cur_device != NULL) {
-		TAILQ_INSERT_BEFORE(cur_device, device, links);
-	} else {
-		TAILQ_INSERT_TAIL(&target->ed_entries, device, links);
-	}
-	target->generation++;
 	if (lun_id != CAM_LUN_WILDCARD) {
 		xpt_compile_path(&path,
 				 NULL,

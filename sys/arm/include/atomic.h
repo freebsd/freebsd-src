@@ -47,9 +47,25 @@
 #include <machine/cpuconf.h>
 #endif
 
-#define mb()
-#define wmb()
-#define rmb()
+#if defined (__ARM_ARCH_7__) || defined (__ARM_ARCH_7A__)
+#define isb()  __asm __volatile("isb" : : : "memory")
+#define dsb()  __asm __volatile("dsb" : : : "memory")
+#define dmb()  __asm __volatile("dmb" : : : "memory")
+#elif defined (__ARM_ARCH_6__) || defined (__ARM_ARCH_6J__) || \
+  defined (__ARM_ARCH_6K__) || defined (__ARM_ARCH_6Z__) || \
+  defined (__ARM_ARCH_6ZK__)
+#define isb()  __asm __volatile("mcr p15, 0, %0, c7, c5, 4" : : "r" (0) : "memory")
+#define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
+#define dmb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
+#else
+#define isb()
+#define dsb()
+#define dmb()
+#endif
+
+#define mb()   dmb()
+#define wmb()  dmb()
+#define rmb()  dmb()
 
 #ifndef I32_bit
 #define I32_bit (1 << 7)        /* IRQ disable */
@@ -661,6 +677,17 @@ atomic_readandclear_32(volatile u_int32_t *p)
 #define atomic_store_rel_long	atomic_store_long
 #define atomic_load_acq_32	atomic_load_32
 #define atomic_load_acq_long	atomic_load_long
+#define atomic_add_acq_long		atomic_add_long
+#define atomic_add_rel_long		atomic_add_long
+#define atomic_subtract_acq_long	atomic_subtract_long
+#define atomic_subtract_rel_long	atomic_subtract_long
+#define atomic_clear_acq_long		atomic_clear_long
+#define atomic_clear_rel_long		atomic_clear_long
+#define atomic_set_acq_long		atomic_set_long
+#define atomic_set_rel_long		atomic_set_long
+#define atomic_cmpset_acq_long		atomic_cmpset_long
+#define atomic_cmpset_rel_long		atomic_cmpset_long
+#define atomic_load_acq_long		atomic_load_long
 #undef __with_interrupts_disabled
 
 static __inline void
@@ -742,25 +769,13 @@ atomic_store_long(volatile u_long *dst, u_long src)
 	*dst = src;
 }
 
-#define atomic_add_acq_long		atomic_add_long
-#define atomic_add_rel_long		atomic_add_long
-#define atomic_subtract_acq_long	atomic_subtract_long
-#define atomic_subtract_rel_long	atomic_subtract_long
-#define atomic_clear_acq_long		atomic_clear_long
-#define atomic_clear_rel_long		atomic_clear_long
-#define atomic_set_acq_long		atomic_set_long
-#define atomic_set_rel_long		atomic_set_long
-#define atomic_cmpset_acq_long		atomic_cmpset_long
-#define atomic_cmpset_rel_long		atomic_cmpset_long
-#define atomic_load_acq_long		atomic_load_long
-
 #define atomic_clear_ptr		atomic_clear_32
 #define atomic_set_ptr			atomic_set_32
 #define atomic_cmpset_ptr		atomic_cmpset_32
 #define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
 #define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
 #define atomic_store_ptr		atomic_store_32
-#define atomic_store_rel_ptr		atomic_store_ptr
+#define atomic_store_rel_ptr		atomic_store_rel_32
 
 #define atomic_add_int			atomic_add_32
 #define atomic_add_acq_int		atomic_add_acq_32

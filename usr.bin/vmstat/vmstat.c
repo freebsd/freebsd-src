@@ -469,6 +469,7 @@ fill_vmmeter(struct vmmeter *vmmp)
 			ADD_FROM_PCPU(i, v_intr);
 			ADD_FROM_PCPU(i, v_soft);
 			ADD_FROM_PCPU(i, v_vm_faults);
+			ADD_FROM_PCPU(i, v_io_faults);
 			ADD_FROM_PCPU(i, v_cow_faults);
 			ADD_FROM_PCPU(i, v_cow_optim);
 			ADD_FROM_PCPU(i, v_zfod);
@@ -507,6 +508,7 @@ fill_vmmeter(struct vmmeter *vmmp)
 
 		/* vm */
 		GET_VM_STATS(vm, v_vm_faults);
+		GET_VM_STATS(vm, v_io_faults);
 		GET_VM_STATS(vm, v_cow_faults);
 		GET_VM_STATS(vm, v_cow_optim);
 		GET_VM_STATS(vm, v_zfod);
@@ -968,6 +970,7 @@ dosum(void)
 	(void)printf("%9u zero fill pages prezeroed\n", sum.v_ozfod);
 	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
 	(void)printf("%9u total VM faults taken\n", sum.v_vm_faults);
+	(void)printf("%9u page faults requiring I/O\n", sum.v_io_faults);
 	(void)printf("%9u pages affected by kernel thread creation\n", sum.v_kthreadpages);
 	(void)printf("%9u pages affected by  fork()\n", sum.v_forkpages);
 	(void)printf("%9u pages affected by vfork()\n", sum.v_vforkpages);

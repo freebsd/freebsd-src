@@ -42,8 +42,7 @@ static const char rcsid[] =
  * messages. Protocol is defined in /usr/include/protocols/timed.h
  */
 void
-bytenetorder(ptr)
-	struct tsp *ptr;
+bytenetorder(struct tsp *ptr)
 {
 	ptr->tsp_seq = htons((u_short)ptr->tsp_seq);
 	switch (ptr->tsp_type) {
@@ -62,8 +61,7 @@ bytenetorder(ptr)
 }
 
 void
-bytehostorder(ptr)
-	struct tsp *ptr;
+bytehostorder(struct tsp *ptr)
 {
 	ptr->tsp_seq = ntohs((u_short)ptr->tsp_seq);
 	switch (ptr->tsp_type) {

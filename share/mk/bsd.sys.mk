@@ -54,6 +54,10 @@ CWARNFLAGS+=	-Wcast-align
 .if ${WARNS} >= 6
 CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls\
 		-Wold-style-definition
+.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD) && \
+    !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
+CWARNFLAGS+=	-Wmissing-variable-declarations
+.endif
 .endif # WARNS >= 6
 .if ${WARNS} >= 2 && ${WARNS} <= 4
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
@@ -72,7 +76,7 @@ CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
 		-Wno-parentheses-equality -Wno-unused-function -Wno-conversion
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
-CWARNFLAGS+=	-Wno-switch -Wno-switch-enum
+CWARNFLAGS+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
 .endif # WARNS <= 2
 .if ${WARNS} <= 1
 CWARNFLAGS+=	-Wno-parentheses

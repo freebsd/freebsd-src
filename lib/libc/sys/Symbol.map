@@ -364,7 +364,6 @@ FBSD_1.2 {
 	cap_enter;
 	cap_getmode;
 	cap_new;
-	cap_getrights;
 	getloginclass;
 	pdfork;
 	pdgetpid;
@@ -379,10 +378,22 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	accept4;
+	bindat;
+	cap_fcntls_get;
+	cap_fcntls_limit;
+	cap_ioctls_get;
+	cap_ioctls_limit;
+	cap_rights_get;
+	cap_rights_limit;
+	cap_sandboxed;
+	chflagsat;
 	clock_getcpuclockid2;
+	connectat;
 	ffclock_getcounter;
 	ffclock_getestimate;
 	ffclock_setestimate;
+	pipe2;
 	posix_fadvise;
 	wait6;
 };
@@ -452,6 +463,8 @@ FBSDprivate_1.0 {
 	__sys_abort2;
 	_accept;
 	__sys_accept;
+	_accept4;
+	__sys_accept4;
 	_access;
 	__sys_access;
 	_acct;

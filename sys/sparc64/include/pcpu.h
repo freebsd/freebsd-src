@@ -60,7 +60,8 @@ struct pmap;
 	u_int	pc_node;						\
 	u_int	pc_tlb_ctx;						\
 	u_int	pc_tlb_ctx_max;						\
-	u_int	pc_tlb_ctx_min
+	u_int	pc_tlb_ctx_min;						\
+	char	__pad[405]
 
 #ifdef _KERNEL
 

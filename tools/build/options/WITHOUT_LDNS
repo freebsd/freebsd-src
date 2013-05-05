@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Setting this variable will prevent LDNS from being built.

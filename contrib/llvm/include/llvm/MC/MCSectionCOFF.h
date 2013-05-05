@@ -14,9 +14,9 @@
 #ifndef LLVM_MC_MCSECTIONCOFF_H
 #define LLVM_MC_MCSECTIONCOFF_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/Support/COFF.h"
-#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
@@ -50,6 +50,12 @@ namespace llvm {
     bool ShouldOmitSectionDirective(StringRef Name, const MCAsmInfo &MAI) const;
 
     StringRef getSectionName() const { return SectionName; }
+    virtual std::string getLabelBeginName() const {
+      return SectionName.str() + "_begin";
+    }
+    virtual std::string getLabelEndName() const {
+      return SectionName.str() + "_end";
+    }
     unsigned getCharacteristics() const { return Characteristics; }
     int getSelection () const { return Selection; }
 

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,7 +164,7 @@ AcpiDsGetPredicateValue (
 
     /* Truncate the predicate to 32-bits if necessary */
 
-    AcpiExTruncateFor32bitTable (LocalObjDesc);
+    (void) AcpiExTruncateFor32bitTable (LocalObjDesc);
 
     /*
      * Save the result of the predicate evaluation on
@@ -727,7 +727,7 @@ AcpiDsExecEndOp (
         default:
 
             ACPI_ERROR ((AE_INFO,
-                "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
+                "Unimplemented opcode, class=0x%X type=0x%X Opcode=0x%X Op=%p",
                 OpClass, OpType, Op->Common.AmlOpcode, Op));
 
             Status = AE_NOT_IMPLEMENTED;
@@ -739,7 +739,7 @@ AcpiDsExecEndOp (
      * ACPI 2.0 support for 64-bit integers: Truncate numeric
      * result value if we are executing from a 32-bit ACPI table
      */
-    AcpiExTruncateFor32bitTable (WalkState->ResultObj);
+    (void) AcpiExTruncateFor32bitTable (WalkState->ResultObj);
 
     /*
      * Check if we just completed the evaluation of a

@@ -101,11 +101,6 @@ typedef struct {
 /*
  * Miscellaneous
  */
-#define	LINUX_NAME_MAX		255
-#define	LINUX_MAX_UTSNAME	65
-
-#define	LINUX_CTL_MAXNAME	10
-
 #define LINUX_AT_COUNT		16	/* Count of used aux entry types.
 					 * Keep this synchronized with
 					 * elf_linux_fixup() code.
@@ -120,11 +115,6 @@ struct l___sysctl_args
 	l_size_t	newlen;
 	l_ulong		__spare[4];
 };
-
-/* Scheduling policies */
-#define	LINUX_SCHED_OTHER	0
-#define	LINUX_SCHED_FIFO	1
-#define	LINUX_SCHED_RR		2
 
 /* Resource limits */
 #define	LINUX_RLIMIT_CPU	0
@@ -238,15 +228,6 @@ struct l_statfs64 {
         l_fsid_t        f_fsid;
         l_int           f_namelen;
         l_int           f_spare[6];
-};
-
-struct l_new_utsname {
-	char	sysname[LINUX_MAX_UTSNAME];
-	char	nodename[LINUX_MAX_UTSNAME];
-	char	release[LINUX_MAX_UTSNAME];
-	char	version[LINUX_MAX_UTSNAME];
-	char	machine[LINUX_MAX_UTSNAME];
-	char	domainname[LINUX_MAX_UTSNAME];
 };
 
 /*
@@ -510,26 +491,8 @@ struct l_rt_sigframe {
 	l_handler_t 		sf_handler;
 };
 
-extern int bsd_to_linux_signal[];
-extern int linux_to_bsd_signal[];
 extern struct sysentvec linux_sysvec;
 extern struct sysentvec elf_linux_sysvec;
-
-/*
- * Pluggable ioctl handlers
- */
-struct linux_ioctl_args;
-struct thread;
-
-typedef int linux_ioctl_function_t(struct thread *, struct linux_ioctl_args *);
-
-struct linux_ioctl_handler {
-	linux_ioctl_function_t *func;
-	int	low, high;
-};
-
-int	linux_ioctl_register_handler(struct linux_ioctl_handler *h);
-int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 
 /*
  * open/fcntl flags
@@ -573,65 +536,6 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_F_WRLCK		1
 #define	LINUX_F_UNLCK		2
 
-/*
- * posix_fadvise advice
- */
-#define	LINUX_POSIX_FADV_NORMAL		0
-#define	LINUX_POSIX_FADV_RANDOM		1
-#define	LINUX_POSIX_FADV_SEQUENTIAL    	2
-#define	LINUX_POSIX_FADV_WILLNEED      	3
-#define	LINUX_POSIX_FADV_DONTNEED      	4
-#define	LINUX_POSIX_FADV_NOREUSE       	5
-
-/*
- * mount flags
- */
-#define	LINUX_MS_RDONLY		0x0001
-#define	LINUX_MS_NOSUID		0x0002
-#define	LINUX_MS_NODEV		0x0004
-#define	LINUX_MS_NOEXEC		0x0008
-#define	LINUX_MS_REMOUNT	0x0020
-
-/*
- * SystemV IPC defines
- */
-#define	LINUX_SEMOP		1
-#define	LINUX_SEMGET		2
-#define	LINUX_SEMCTL		3
-#define	LINUX_MSGSND		11
-#define	LINUX_MSGRCV		12
-#define	LINUX_MSGGET		13
-#define	LINUX_MSGCTL		14
-#define	LINUX_SHMAT		21
-#define	LINUX_SHMDT		22
-#define	LINUX_SHMGET		23
-#define	LINUX_SHMCTL		24
-
-#define	LINUX_IPC_RMID		0
-#define	LINUX_IPC_SET		1
-#define	LINUX_IPC_STAT		2
-#define	LINUX_IPC_INFO		3
-
-#define	LINUX_SHM_LOCK		11
-#define	LINUX_SHM_UNLOCK	12
-#define	LINUX_SHM_STAT		13
-#define	LINUX_SHM_INFO		14
-
-#define	LINUX_SHM_RDONLY	0x1000
-#define	LINUX_SHM_RND		0x2000
-#define	LINUX_SHM_REMAP		0x4000
-
-/* semctl commands */
-#define	LINUX_GETPID		11
-#define	LINUX_GETVAL		12
-#define	LINUX_GETALL		13
-#define	LINUX_GETNCNT		14
-#define	LINUX_GETZCNT		15
-#define	LINUX_SETVAL		16
-#define	LINUX_SETALL		17
-#define	LINUX_SEM_STAT		18
-#define	LINUX_SEM_INFO		19
-
 union l_semun {
 	l_int		val;
 	struct l_semid_ds	*buf;
@@ -643,25 +547,6 @@ union l_semun {
 /*
  * Socket defines
  */
-#define	LINUX_SOCKET 		1
-#define	LINUX_BIND		2
-#define	LINUX_CONNECT 		3
-#define	LINUX_LISTEN 		4
-#define	LINUX_ACCEPT 		5
-#define	LINUX_GETSOCKNAME	6
-#define	LINUX_GETPEERNAME	7
-#define	LINUX_SOCKETPAIR	8
-#define	LINUX_SEND		9
-#define	LINUX_RECV		10
-#define	LINUX_SENDTO 		11
-#define	LINUX_RECVFROM 		12
-#define	LINUX_SHUTDOWN 		13
-#define	LINUX_SETSOCKOPT	14
-#define	LINUX_GETSOCKOPT	15
-#define	LINUX_SENDMSG		16
-#define	LINUX_RECVMSG		17
-#define	LINUX_ACCEPT4		18
-
 #define	LINUX_SOL_SOCKET	1
 #define	LINUX_SOL_IP		0
 #define	LINUX_SOL_IPX		256
@@ -689,17 +574,6 @@ union l_semun {
 #define	LINUX_SO_SNDTIMEO	21
 #define	LINUX_SO_TIMESTAMP	29
 #define	LINUX_SO_ACCEPTCONN	30
-
-#define	LINUX_IP_TOS		1
-#define	LINUX_IP_TTL		2
-#define	LINUX_IP_HDRINCL	3
-#define	LINUX_IP_OPTIONS	4
-
-#define	LINUX_IP_MULTICAST_IF		32
-#define	LINUX_IP_MULTICAST_TTL		33
-#define	LINUX_IP_MULTICAST_LOOP		34
-#define	LINUX_IP_ADD_MEMBERSHIP		35
-#define	LINUX_IP_DROP_MEMBERSHIP	36
 
 struct l_sockaddr {
 	l_ushort	sa_family;
@@ -860,30 +734,6 @@ struct l_desc_struct {
 #define	LINUX_GET_USEABLE(desc)		\
 	(((desc)->b >> LINUX_ENTRY_B_USEABLE) & 1)
 
-#define	LINUX_CLOCK_REALTIME		0
-#define	LINUX_CLOCK_MONOTONIC		1
-#define	LINUX_CLOCK_PROCESS_CPUTIME_ID	2
-#define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
-#define	LINUX_CLOCK_REALTIME_HR		4
-#define	LINUX_CLOCK_MONOTONIC_HR	5
-
-#define	LINUX_CLONE_VM			0x00000100
-#define	LINUX_CLONE_FS			0x00000200
-#define	LINUX_CLONE_FILES		0x00000400
-#define	LINUX_CLONE_SIGHAND		0x00000800
-#define	LINUX_CLONE_PID			0x00001000	/* No longer exist in Linux */
-#define	LINUX_CLONE_VFORK		0x00004000
-#define	LINUX_CLONE_PARENT		0x00008000
-#define	LINUX_CLONE_THREAD		0x00010000
-#define	LINUX_CLONE_SETTLS		0x00080000
-#define	LINUX_CLONE_PARENT_SETTID	0x00100000
-#define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
-#define	LINUX_CLONE_CHILD_SETTID	0x01000000
-
-#define	LINUX_THREADING_FLAGS					\
-	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
-	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
-
 /* robust futexes */
 struct linux_robust_list {
 	struct linux_robust_list	*next;
@@ -894,8 +744,5 @@ struct linux_robust_list_head {
 	l_long				futex_offset;
 	struct linux_robust_list	*pending_list;
 };
-
-int linux_set_upcall_kse(struct thread *td, register_t stack);
-int linux_set_cloned_tls(struct thread *td, void *desc);
 
 #endif /* !_I386_LINUX_H_ */

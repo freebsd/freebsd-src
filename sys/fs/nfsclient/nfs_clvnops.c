@@ -697,9 +697,9 @@ nfs_close(struct vop_close_args *ap)
 	     * mmap'ed writes or via write().
 	     */
 	    if (nfs_clean_pages_on_close && vp->v_object) {
-		VM_OBJECT_LOCK(vp->v_object);
+		VM_OBJECT_WLOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 	    }
 	    mtx_lock(&np->n_mtx);
 	    if (np->n_flag & NMODIFIED) {
@@ -2660,7 +2660,7 @@ ncl_flush(struct vnode *vp, int waitfor, struct ucred *cred, struct thread *td,
 	if (called_from_renewthread != 0)
 		slptimeo = hz;
 	if (nmp->nm_flag & NFSMNT_INT)
-		slpflag = NFS_PCATCH;
+		slpflag = PCATCH;
 	if (!commit)
 		passone = 0;
 	bo = &vp->v_bufobj;
@@ -2866,7 +2866,7 @@ loop:
 				error = EINTR;
 				goto done;
 			}
-			if (slpflag & PCATCH) {
+			if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			}
@@ -2912,7 +2912,7 @@ loop:
 			    error = newnfs_sigintr(nmp, td);
 			    if (error)
 				goto done;
-			    if (slpflag & PCATCH) {
+			    if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			    }
@@ -3247,7 +3247,7 @@ nfsfifo_read(struct vop_read_args *ap)
 	 */
 	mtx_lock(&np->n_mtx);
 	np->n_flag |= NACC;
-	getnanotime(&np->n_atim);
+	vfs_timestamp(&np->n_atim);
 	mtx_unlock(&np->n_mtx);
 	error = fifo_specops.vop_read(ap);
 	return error;	
@@ -3266,7 +3266,7 @@ nfsfifo_write(struct vop_write_args *ap)
 	 */
 	mtx_lock(&np->n_mtx);
 	np->n_flag |= NUPD;
-	getnanotime(&np->n_mtim);
+	vfs_timestamp(&np->n_mtim);
 	mtx_unlock(&np->n_mtx);
 	return(fifo_specops.vop_write(ap));
 }
@@ -3286,7 +3286,7 @@ nfsfifo_close(struct vop_close_args *ap)
 
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & (NACC | NUPD)) {
-		getnanotime(&ts);
+		vfs_timestamp(&ts);
 		if (np->n_flag & NACC)
 			np->n_atim = ts;
 		if (np->n_flag & NUPD)

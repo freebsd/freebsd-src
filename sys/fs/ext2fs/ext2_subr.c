@@ -63,11 +63,7 @@ void	ext2_checkoverlap(struct buf *, struct inode *);
  * remaining space in the directory.
  */
 int
-ext2_blkatoff(vp, offset, res, bpp)
-	struct vnode *vp;
-	off_t offset;
-	char **res;
-	struct buf **bpp;
+ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 {
 	struct inode *ip;
 	struct m_ext2fs *fs;
@@ -93,9 +89,7 @@ ext2_blkatoff(vp, offset, res, bpp)
 
 #ifdef KDB
 void
-ext2_checkoverlap(bp, ip)
-	struct buf *bp;
-	struct inode *ip;
+ext2_checkoverlap(struct buf *bp, struct inode *ip)
 {
 	struct buf *ebp, *ep;
 	int32_t start, last;

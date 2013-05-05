@@ -136,6 +136,7 @@ struct video_adapter_softc {
 	int		console;
 
 	intptr_t	fb_addr;
+	intptr_t	fb_paddr;
 	unsigned int	fb_size;
 
 	unsigned int	height;
@@ -222,6 +223,7 @@ bcm_fb_init(void *arg)
 			fb_config->screen_size);
 
 		va_sc->fb_addr = (intptr_t)pmap_mapdev(fb_config->base, fb_config->screen_size);
+		va_sc->fb_paddr = fb_config->base;
 		va_sc->fb_size = fb_config->screen_size;
 		va_sc->depth = fb_config->bpp;
 		va_sc->stride = fb_config->pitch;
@@ -795,7 +797,7 @@ bcmfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 	 * framebuffer, since it shouldn't be touched
 	 */
 	if (offset < sc->stride*sc->height) {
-		*paddr = sc->fb_addr + offset;
+		*paddr = sc->fb_paddr + offset;
 		return (0);
 	}
 
@@ -805,6 +807,27 @@ bcmfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 static int
 bcmfb_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 {
+	struct video_adapter_softc *sc;
+	struct fbtype *fb;
+
+	sc = (struct video_adapter_softc *)adp;
+
+	switch (cmd) {
+	case FBIOGTYPE:
+		fb = (struct fbtype *)data;
+		fb->fb_type = FBTYPE_PCIMISC;
+		fb->fb_height = sc->height;
+		fb->fb_width = sc->width;
+		fb->fb_depth = sc->depth;
+		if (sc->depth <= 1 || sc->depth > 8)
+			fb->fb_cmsize = 0;
+		else
+			fb->fb_cmsize = 1 << sc->depth;
+		fb->fb_size = sc->fb_size;
+		break;
+	default:
+		return (fb_commonioctl(adp, cmd, data));
+	}
 
 	return (0);
 }
@@ -891,7 +914,7 @@ bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	    + (sc->depth/8) * (col + sc->xmargin);
 
 	fg = a & 0xf ;
-	bg = (a >> 8) & 0xf;
+	bg = (a >> 4) & 0xf;
 
 	for (i = 0; i < BCMFB_FONT_HEIGHT; i++) {
 		for (j = 0, k = 7; j < 8; j++, k--) {

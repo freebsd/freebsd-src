@@ -56,14 +56,12 @@ static n_short seqno = 0;
 /*
  * Measures the differences between machines' clocks using
  * ICMP timestamp messages.
+ * maxmsec	wait this many msec at most
+ * wmsec	msec to wait for an answer
+ * print	print complaints on stderr
  */
 int					/* status val defined in globals.h */
-measure(maxmsec, wmsec, hname, addr, print)
-	u_long maxmsec;			/* wait this many msec at most */
-	u_long wmsec;			/* msec to wait for an answer */
-	char *hname;
-	struct sockaddr_in *addr;
-	int print;			/* print complaints on stderr */
+measure(u_long maxmsec, u_long wmsec, char *hname, struct sockaddr_in *addr, int print)
 {
 	int length;
 	int measure_status;
@@ -292,9 +290,7 @@ quit:
  * round a number of milliseconds into a struct timeval
  */
 void
-mstotvround(res, x)
-	struct timeval *res;
-	long x;
+mstotvround(struct timeval *res, long x)
 {
 	if (x < 0)
 		x = -((-x + 3)/5);
@@ -310,8 +306,7 @@ mstotvround(res, x)
 }
 
 void
-timevaladd(tv1, tv2)
-	struct timeval *tv1, *tv2;
+timevaladd(struct timeval *tv1, struct timeval *tv2)
 {
 	tv1->tv_sec += tv2->tv_sec;
 	tv1->tv_usec += tv2->tv_usec;
@@ -326,8 +321,7 @@ timevaladd(tv1, tv2)
 }
 
 void
-timevalsub(res, tv1, tv2)
-	struct timeval *res, *tv1, *tv2;
+timevalsub(struct timeval *res, struct timeval *tv1, struct timeval *tv2)
 {
 	res->tv_sec = tv1->tv_sec - tv2->tv_sec;
 	res->tv_usec = tv1->tv_usec - tv2->tv_usec;

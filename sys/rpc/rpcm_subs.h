@@ -80,7 +80,7 @@
 
 #define	rpcm_build(a,c,s) \
 		{ if ((s) > M_TRAILINGSPACE(mb)) { \
-			MGET(mb2, M_WAITOK, MT_DATA); \
+			mb2 = m_get(M_WAITOK, MT_DATA); \
 			if ((s) > MLEN) \
 				panic("build > MLEN"); \
 			mb->m_next = mb2; \

@@ -76,7 +76,6 @@ device		da
 
 # SATA
 device		ata
-device		atadisk
 #device		mvs
 
 # Serial ports

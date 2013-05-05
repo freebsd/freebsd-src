@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -165,7 +165,7 @@ DtDoCompile (
     /* Write the binary, then the optional hex file */
 
     DtOutputBinary (Gbl_RootTable);
-    LsDoHexOutput ();
+    HxDoHexOutput ();
     DtWriteTableToListing ();
 
 CleanupAndExit:
@@ -284,6 +284,7 @@ DtCompileDataTable (
     char                    *Signature;
     ACPI_TABLE_HEADER       *AcpiTableHeader;
     ACPI_STATUS             Status;
+    DT_FIELD                *RootField = *FieldList;
 
 
     /* Verify that we at least have a table signature and save it */
@@ -354,7 +355,7 @@ DtCompileDataTable (
     if (!TableData || Gbl_CompileGeneric)
     {
         DtCompileGeneric ((void **) FieldList);
-        goto Out;
+        goto FinishHeader;
     }
 
     /* Dispatch to per-table compile */
@@ -391,7 +392,8 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
-Out:
+FinishHeader:
+
     /* Set the final table length and then the checksum */
 
     DtSetTableLength ();
@@ -399,6 +401,8 @@ Out:
         ACPI_TABLE_HEADER, Gbl_RootTable->Buffer);
     DtSetTableChecksum (&AcpiTableHeader->Checksum);
 
+    DtDumpFieldList (RootField);
+    DtDumpSubtableList ();
     return (AE_OK);
 }
 

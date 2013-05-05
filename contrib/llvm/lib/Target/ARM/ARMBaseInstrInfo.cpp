@@ -18,9 +18,7 @@
 #include "ARMHazardRecognizer.h"
 #include "ARMMachineFunctionInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
-#include "llvm/Constants.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalValue.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/LiveVariables.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -29,12 +27,14 @@
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/ADT/STLExtras.h"
 
 #define GET_INSTRINFO_CTOR
 #include "ARMGenInstrInfo.inc"
@@ -106,7 +106,7 @@ CreateTargetHazardRecognizer(const TargetMachine *TM,
     const InstrItineraryData *II = TM->getInstrItineraryData();
     return new ScoreboardHazardRecognizer(II, DAG, "pre-RA-sched");
   }
-  return TargetInstrInfoImpl::CreateTargetHazardRecognizer(TM, DAG);
+  return TargetInstrInfo::CreateTargetHazardRecognizer(TM, DAG);
 }
 
 ScheduleHazardRecognizer *ARMBaseInstrInfo::
@@ -115,7 +115,7 @@ CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
   if (Subtarget.isThumb2() || Subtarget.hasVFP2())
     return (ScheduleHazardRecognizer *)
       new ARMHazardRecognizer(II, *this, getRegisterInfo(), Subtarget, DAG);
-  return TargetInstrInfoImpl::CreateTargetPostRAHazardRecognizer(II, DAG);
+  return TargetInstrInfo::CreateTargetPostRAHazardRecognizer(II, DAG);
 }
 
 MachineInstr *
@@ -464,8 +464,9 @@ PredicateInstruction(MachineInstr *MI,
   unsigned Opc = MI->getOpcode();
   if (isUncondBranchOpcode(Opc)) {
     MI->setDesc(get(getMatchingCondBranchOpcode(Opc)));
-    MI->addOperand(MachineOperand::CreateImm(Pred[0].getImm()));
-    MI->addOperand(MachineOperand::CreateReg(Pred[1].getReg(), false));
+    MachineInstrBuilder(*MI->getParent()->getParent(), MI)
+      .addImm(Pred[0].getImm())
+      .addReg(Pred[1].getReg());
     return true;
   }
 
@@ -1124,7 +1125,7 @@ bool ARMBaseInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const{
   // copyPhysReg() calls.  Look for VMOVS instructions that can legally be
   // widened to VMOVD.  We prefer the VMOVD when possible because it may be
   // changed into a VORR that can go down the NEON pipeline.
-  if (!WidenVMOVS || !MI->isCopy())
+  if (!WidenVMOVS || !MI->isCopy() || Subtarget.isCortexA15())
     return false;
 
   // Look for a copy between even S-registers.  That is where we keep floats
@@ -1154,6 +1155,7 @@ bool ARMBaseInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const{
 
   // All clear, widen the COPY.
   DEBUG(dbgs() << "widening:    " << *MI);
+  MachineInstrBuilder MIB(*MI->getParent()->getParent(), MI);
 
   // Get rid of the old <imp-def> of DstRegD.  Leave it if it defines a Q-reg
   // or some other super-register.
@@ -1165,14 +1167,14 @@ bool ARMBaseInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const{
   MI->setDesc(get(ARM::VMOVD));
   MI->getOperand(0).setReg(DstRegD);
   MI->getOperand(1).setReg(SrcRegD);
-  AddDefaultPred(MachineInstrBuilder(MI));
+  AddDefaultPred(MIB);
 
   // We are now reading SrcRegD instead of SrcRegS.  This may upset the
   // register scavenger and machine verifier, so we need to indicate that we
   // are reading an undefined value from SrcRegD, but a proper value from
   // SrcRegS.
   MI->getOperand(1).setIsUndef();
-  MachineInstrBuilder(MI).addReg(SrcRegS, RegState::Implicit);
+  MIB.addReg(SrcRegS, RegState::Implicit);
 
   // SrcRegD may actually contain an unrelated value in the ssub_1
   // sub-register.  Don't kill it.  Only kill the ssub_0 sub-register.
@@ -1269,7 +1271,7 @@ reMaterialize(MachineBasicBlock &MBB,
 
 MachineInstr *
 ARMBaseInstrInfo::duplicate(MachineInstr *Orig, MachineFunction &MF) const {
-  MachineInstr *MI = TargetInstrInfoImpl::duplicate(Orig, MF);
+  MachineInstr *MI = TargetInstrInfo::duplicate(Orig, MF);
   switch(Orig->getOpcode()) {
   case ARM::tLDRpci_pic:
   case ARM::t2LDRpci_pic: {
@@ -1373,6 +1375,9 @@ bool ARMBaseInstrInfo::produceSameValue(const MachineInstr *MI0,
 /// only return true if the base pointers are the same and the only differences
 /// between the two addresses is the offset. It also returns the offsets by
 /// reference.
+///
+/// FIXME: remove this in favor of the MachineInstr interface once pre-RA-sched
+/// is permanently disabled.
 bool ARMBaseInstrInfo::areLoadsFromSameBasePtr(SDNode *Load1, SDNode *Load2,
                                                int64_t &Offset1,
                                                int64_t &Offset2) const {
@@ -1447,6 +1452,9 @@ bool ARMBaseInstrInfo::areLoadsFromSameBasePtr(SDNode *Load1, SDNode *Load2,
 /// from the common base address. It returns true if it decides it's desirable
 /// to schedule the two loads together. "NumLoads" is the number of loads that
 /// have already been scheduled after Load1.
+///
+/// FIXME: remove this in favor of the MachineInstr interface once pre-RA-sched
+/// is permanently disabled.
 bool ARMBaseInstrInfo::shouldScheduleLoadsNear(SDNode *Load1, SDNode *Load2,
                                                int64_t Offset1, int64_t Offset2,
                                                unsigned NumLoads) const {
@@ -1598,7 +1606,7 @@ ARMBaseInstrInfo::commuteInstruction(MachineInstr *MI, bool NewMI) const {
     // MOVCC AL can't be inverted. Shouldn't happen.
     if (CC == ARMCC::AL || PredReg != ARM::CPSR)
       return NULL;
-    MI = TargetInstrInfoImpl::commuteInstruction(MI, NewMI);
+    MI = TargetInstrInfo::commuteInstruction(MI, NewMI);
     if (!MI)
       return NULL;
     // After swapping the MOVCC operands, also invert the condition.
@@ -1607,7 +1615,7 @@ ARMBaseInstrInfo::commuteInstruction(MachineInstr *MI, bool NewMI) const {
     return MI;
   }
   }
-  return TargetInstrInfoImpl::commuteInstruction(MI, NewMI);
+  return TargetInstrInfo::commuteInstruction(MI, NewMI);
 }
 
 /// Identify instructions that can be folded into a MOVCC instruction, and
@@ -1710,7 +1718,7 @@ MachineInstr *ARMBaseInstrInfo::optimizeSelect(MachineInstr *MI,
   // same register as operand 0.
   MachineOperand FalseReg = MI->getOperand(Invert ? 2 : 1);
   FalseReg.setImplicit();
-  NewMI->addOperand(FalseReg);
+  NewMI.addOperand(FalseReg);
   NewMI->tieOperands(0, NewMI->getNumOperands() - 1);
 
   // The caller will erase MI, but not DefMI.
@@ -2711,7 +2719,6 @@ ARMBaseInstrInfo::getNumMicroOps(const InstrItineraryData *ItinData,
   case ARM::t2STMDB_UPD: {
     unsigned NumRegs = MI->getNumOperands() - Desc.getNumOperands() + 1;
     if (Subtarget.isSwift()) {
-      // rdar://8402126
       int UOps = 1 + NumRegs;  // One for address computation, one for each ld / st.
       switch (Opc) {
       default: break;
@@ -3321,8 +3328,9 @@ ARMBaseInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     // instructions).
     if (Latency > 0 && Subtarget.isThumb2()) {
       const MachineFunction *MF = DefMI->getParent()->getParent();
-      if (MF->getFunction()->getFnAttributes().
-            hasAttribute(Attributes::OptimizeForSize))
+      if (MF->getFunction()->getAttributes().
+            hasAttribute(AttributeSet::FunctionIndex,
+                         Attribute::OptimizeForSize))
         --Latency;
     }
     return Latency;
@@ -3726,9 +3734,9 @@ ARMBaseInstrInfo::getExecutionDomain(const MachineInstr *MI) const {
   if (MI->getOpcode() == ARM::VMOVD && !isPredicated(MI))
     return std::make_pair(ExeVFP, (1<<ExeVFP) | (1<<ExeNEON));
 
-  // A9-like cores are particularly picky about mixing the two and want these
+  // CortexA9 is particularly picky about mixing the two and wants these
   // converted.
-  if (Subtarget.isLikeA9() && !isPredicated(MI) &&
+  if (Subtarget.isCortexA9() && !isPredicated(MI) &&
       (MI->getOpcode() == ARM::VMOVRS ||
        MI->getOpcode() == ARM::VMOVSR ||
        MI->getOpcode() == ARM::VMOVS))
@@ -3813,7 +3821,7 @@ void
 ARMBaseInstrInfo::setExecutionDomain(MachineInstr *MI, unsigned Domain) const {
   unsigned DstReg, SrcReg, DReg;
   unsigned Lane;
-  MachineInstrBuilder MIB(MI);
+  MachineInstrBuilder MIB(*MI->getParent()->getParent(), MI);
   const TargetRegisterInfo *TRI = &getRegisterInfo();
   switch (MI->getOpcode()) {
     default:
@@ -4015,14 +4023,12 @@ ARMBaseInstrInfo::setExecutionDomain(MachineInstr *MI, unsigned Domain) const {
 // VLD1DUPd32 - Writes all D-regs, no partial reg update, 2 uops.
 //
 // FCONSTD can be used as a dependency-breaking instruction.
-
-
 unsigned ARMBaseInstrInfo::
 getPartialRegUpdateClearance(const MachineInstr *MI,
                              unsigned OpNum,
                              const TargetRegisterInfo *TRI) const {
-  // Only Swift has partial register update problems.
-  if (!SwiftPartialUpdateClearance || !Subtarget.isSwift())
+  if (!SwiftPartialUpdateClearance ||
+      !(Subtarget.isSwift() || Subtarget.isCortexA15()))
     return 0;
 
   assert(TRI && "Need TRI instance");
@@ -4038,7 +4044,6 @@ getPartialRegUpdateClearance(const MachineInstr *MI,
   case ARM::VLDRS:
   case ARM::FCONSTS:
   case ARM::VMOVSR:
-    // rdar://problem/8791586
   case ARM::VMOVv8i8:
   case ARM::VMOVv4i16:
   case ARM::VMOVv2i32:
@@ -4049,7 +4054,7 @@ getPartialRegUpdateClearance(const MachineInstr *MI,
 
     // Explicitly reads the dependency.
   case ARM::VLD1LNd32:
-    UseOp = 1;
+    UseOp = 3;
     break;
   default:
     return 0;
@@ -4117,4 +4122,16 @@ breakPartialRegDependency(MachineBasicBlock::iterator MI,
 
 bool ARMBaseInstrInfo::hasNOP() const {
   return (Subtarget.getFeatureBits() & ARM::HasV6T2Ops) != 0;
+}
+
+bool ARMBaseInstrInfo::isSwiftFastImmShift(const MachineInstr *MI) const {
+  unsigned ShOpVal = MI->getOperand(3).getImm();
+  unsigned ShImm = ARM_AM::getSORegOffset(ShOpVal);
+  // Swift supports faster shifts for: lsl 2, lsl 1, and lsr 1.
+  if ((ShImm == 1 && ARM_AM::getSORegShOp(ShOpVal) == ARM_AM::lsr) ||
+      ((ShImm == 1 || ShImm == 2) &&
+       ARM_AM::getSORegShOp(ShOpVal) == ARM_AM::lsl))
+    return true;
+
+  return false;
 }

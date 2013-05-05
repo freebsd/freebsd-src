@@ -27,7 +27,6 @@ dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
-dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
@@ -233,5 +232,5 @@ powerpc/wii/platform_wii.c	optional	wii
 powerpc/wii/wii_bus.c		optional	wii
 powerpc/wii/wii_pic.c		optional	wii
 powerpc/wii/wii_fb.c		optional	wii
-powerpc/wii/wii_gpio.c		optional	wiigpio
+powerpc/wii/wii_gpio.c		optional	wii wiigpio
 powerpc/wii/wii_ipc.c		optional	wii

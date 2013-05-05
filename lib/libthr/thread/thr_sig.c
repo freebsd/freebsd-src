@@ -336,13 +336,6 @@ check_deferred_signal(struct pthread *curthread)
 		memcpy(&info, &curthread->deferred_siginfo, sizeof(siginfo_t));
 		/* remove signal */
 		curthread->deferred_siginfo.si_signo = 0;
-		if (act.sa_flags & SA_RESETHAND) {
-			struct sigaction tact;
-
-			tact = act;
-			tact.sa_handler = SIG_DFL;
-			_sigaction(info.si_signo, &tact, NULL);
-		}
 		handle_signal(&act, info.si_signo, &info, uc);
 	}
 }
@@ -732,8 +725,12 @@ _setcontext(const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
+	if (ucp == NULL)
+		return (EINVAL);
+	if (!SIGISMEMBER(uc.uc_sigmask, SIGCANCEL))
+		return __sys_setcontext(ucp);
 	(void) memcpy(&uc, ucp, sizeof(uc));
-	remove_thr_signals(&uc.uc_sigmask);
+	SIGDELSET(uc.uc_sigmask, SIGCANCEL);
 	return __sys_setcontext(&uc);
 }
 
@@ -743,7 +740,12 @@ _swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
-	(void) memcpy(&uc, ucp, sizeof(uc));
-	remove_thr_signals(&uc.uc_sigmask);
-	return __sys_swapcontext(oucp, &uc);
+	if (oucp == NULL || ucp == NULL)
+		return (EINVAL);
+	if (SIGISMEMBER(ucp->uc_sigmask, SIGCANCEL)) {
+		(void) memcpy(&uc, ucp, sizeof(uc));
+		SIGDELSET(uc.uc_sigmask, SIGCANCEL);
+		ucp = &uc;
+	}
+	return __sys_swapcontext(oucp, ucp);
 }

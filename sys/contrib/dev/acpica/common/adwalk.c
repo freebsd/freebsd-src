@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -837,7 +837,7 @@ AcpiDmXrefDescendingOp (
             }
         }
 
-        AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, ParamCount);
+        AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, ParamCount | 0x80);
         Op->Common.Node = Node;
     }
     else

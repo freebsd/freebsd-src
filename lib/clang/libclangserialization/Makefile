@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangserialization
 
 SRCDIR=	tools/clang/lib/Serialization
@@ -11,6 +13,7 @@ SRCS=	ASTCommon.cpp \
 	ASTWriterDecl.cpp \
 	ASTWriterStmt.cpp \
 	GeneratePCH.cpp \
+	GlobalModuleIndex.cpp \
 	Module.cpp \
 	ModuleManager.cpp
 
@@ -19,6 +22,7 @@ TGHDRS=	AttrList \
 	AttrPCHWrite \
 	AttrParsedAttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

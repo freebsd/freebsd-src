@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -39,7 +39,7 @@
 #include <sys/sa_impl.h>
 
 static void dbuf_destroy(dmu_buf_impl_t *db);
-static int dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
+static boolean_t dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 static void dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx);
 
 /*
@@ -499,7 +499,7 @@ dbuf_read_done(zio_t *zio, arc_buf_t *buf, void *vdb)
 	} else {
 		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
 		ASSERT3P(db->db_buf, ==, NULL);
-		VERIFY(arc_buf_remove_ref(buf, db) == 1);
+		VERIFY(arc_buf_remove_ref(buf, db));
 		db->db_state = DB_UNCACHED;
 	}
 	cv_broadcast(&db->db_changed);
@@ -513,7 +513,6 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t *flags)
 	spa_t *spa;
 	zbookmark_t zb;
 	uint32_t aflags = ARC_NOWAIT;
-	arc_buf_t *pbuf;
 
 	DB_DNODE_ENTER(db);
 	dn = DB_DNODE(db);
@@ -575,14 +574,8 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t *flags)
 	    db->db.db_object, db->db_level, db->db_blkid);
 
 	dbuf_add_ref(db, NULL);
-	/* ZIO_FLAG_CANFAIL callers have to check the parent zio's error */
 
-	if (db->db_parent)
-		pbuf = db->db_parent->db_buf;
-	else
-		pbuf = db->db_objset->os_phys_buf;
-
-	(void) dsl_read(zio, spa, db->db_blkptr, pbuf,
+	(void) arc_read(zio, spa, db->db_blkptr,
 	    dbuf_read_done, db, ZIO_PRIORITY_SYNC_READ,
 	    (*flags & DB_RF_CANFAIL) ? ZIO_FLAG_CANFAIL : ZIO_FLAG_MUSTSUCCEED,
 	    &aflags, &zb);
@@ -605,7 +598,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 	ASSERT(!refcount_is_zero(&db->db_holds));
 
 	if (db->db_state == DB_NOFILL)
-		return (EIO);
+		return (SET_ERROR(EIO));
 
 	DB_DNODE_ENTER(db);
 	dn = DB_DNODE(db);
@@ -662,7 +655,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 				cv_wait(&db->db_changed, &db->db_mtx);
 			}
 			if (db->db_state == DB_UNCACHED)
-				err = EIO;
+				err = SET_ERROR(EIO);
 		}
 		mutex_exit(&db->db_mtx);
 	}
@@ -835,10 +828,12 @@ dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
 			continue;
 
 		/* found a level 0 buffer in the range */
-		if (dbuf_undirty(db, tx))
-			continue;
-
 		mutex_enter(&db->db_mtx);
+		if (dbuf_undirty(db, tx)) {
+			/* mutex has been dropped and dbuf destroyed */
+			continue;
+		}
+
 		if (db->db_state == DB_UNCACHED ||
 		    db->db_state == DB_NOFILL ||
 		    db->db_state == DB_EVICTING) {
@@ -965,7 +960,7 @@ dbuf_new_size(dmu_buf_impl_t *db, int size, dmu_tx_t *tx)
 
 	mutex_enter(&db->db_mtx);
 	dbuf_set_data(db, buf);
-	VERIFY(arc_buf_remove_ref(obuf, db) == 1);
+	VERIFY(arc_buf_remove_ref(obuf, db));
 	db->db.db_size = size;
 
 	if (db->db_level == 0) {
@@ -982,7 +977,6 @@ void
 dbuf_release_bp(dmu_buf_impl_t *db)
 {
 	objset_t *os;
-	zbookmark_t zb;
 
 	DB_GET_OBJSET(&os, db);
 	ASSERT(dsl_pool_sync_context(dmu_objset_pool(os)));
@@ -990,13 +984,7 @@ dbuf_release_bp(dmu_buf_impl_t *db)
 	    list_link_active(&os->os_dsl_dataset->ds_synced_link));
 	ASSERT(db->db_parent == NULL || arc_released(db->db_parent->db_buf));
 
-	zb.zb_objset = os->os_dsl_dataset ?
-	    os->os_dsl_dataset->ds_object : 0;
-	zb.zb_object = db->db.db_object;
-	zb.zb_level = db->db_level;
-	zb.zb_blkid = db->db_blkid;
-	(void) arc_release_bp(db->db_buf, db,
-	    db->db_blkptr, os->os_spa, &zb);
+	(void) arc_release(db->db_buf, db);
 }
 
 dbuf_dirty_record_t *
@@ -1272,7 +1260,10 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	return (dr);
 }
 
-static int
+/*
+ * Return TRUE if this evicted the dbuf.
+ */
+static boolean_t
 dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 {
 	dnode_t *dn;
@@ -1281,18 +1272,17 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 
 	ASSERT(txg != 0);
 	ASSERT(db->db_blkid != DMU_BONUS_BLKID);
+	ASSERT0(db->db_level);
+	ASSERT(MUTEX_HELD(&db->db_mtx));
 
-	mutex_enter(&db->db_mtx);
 	/*
 	 * If this buffer is not dirty, we're done.
 	 */
 	for (drp = &db->db_last_dirty; (dr = *drp) != NULL; drp = &dr->dr_next)
 		if (dr->dr_txg <= txg)
 			break;
-	if (dr == NULL || dr->dr_txg < txg) {
-		mutex_exit(&db->db_mtx);
-		return (0);
-	}
+	if (dr == NULL || dr->dr_txg < txg)
+		return (B_FALSE);
 	ASSERT(dr->dr_txg == txg);
 	ASSERT(dr->dr_dbuf == db);
 
@@ -1300,24 +1290,12 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	dn = DB_DNODE(db);
 
 	/*
-	 * If this buffer is currently held, we cannot undirty
-	 * it, since one of the current holders may be in the
-	 * middle of an update.  Note that users of dbuf_undirty()
-	 * should not place a hold on the dbuf before the call.
-	 * Also note: we can get here with a spill block, so
-	 * test for that similar to how dbuf_dirty does.
+	 * Note:  This code will probably work even if there are concurrent
+	 * holders, but it is untested in that scenerio, as the ZPL and
+	 * ztest have additional locking (the range locks) that prevents
+	 * that type of concurrent access.
 	 */
-	if (refcount_count(&db->db_holds) > db->db_dirtycnt) {
-		mutex_exit(&db->db_mtx);
-		/* Make sure we don't toss this buffer at sync phase */
-		if (db->db_blkid != DMU_SPILL_BLKID) {
-			mutex_enter(&dn->dn_mtx);
-			dnode_clear_range(dn, db->db_blkid, 1, tx);
-			mutex_exit(&dn->dn_mtx);
-		}
-		DB_DNODE_EXIT(db);
-		return (0);
-	}
+	ASSERT3U(refcount_count(&db->db_holds), ==, db->db_dirtycnt);
 
 	dprintf_dbuf(db, "size=%llx\n", (u_longlong_t)db->db.db_size);
 
@@ -1346,21 +1324,13 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	}
 	DB_DNODE_EXIT(db);
 
-	if (db->db_level == 0) {
-		if (db->db_state != DB_NOFILL) {
-			dbuf_unoverride(dr);
+	if (db->db_state != DB_NOFILL) {
+		dbuf_unoverride(dr);
 
-			ASSERT(db->db_buf != NULL);
-			ASSERT(dr->dt.dl.dr_data != NULL);
-			if (dr->dt.dl.dr_data != db->db_buf)
-				VERIFY(arc_buf_remove_ref(dr->dt.dl.dr_data,
-				    db) == 1);
-		}
-	} else {
 		ASSERT(db->db_buf != NULL);
-		ASSERT(list_head(&dr->dt.di.dr_children) == NULL);
-		mutex_destroy(&dr->dt.di.dr_mtx);
-		list_destroy(&dr->dt.di.dr_children);
+		ASSERT(dr->dt.dl.dr_data != NULL);
+		if (dr->dt.dl.dr_data != db->db_buf)
+			VERIFY(arc_buf_remove_ref(dr->dt.dl.dr_data, db));
 	}
 	kmem_free(dr, sizeof (dbuf_dirty_record_t));
 
@@ -1372,13 +1342,12 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 
 		ASSERT(db->db_state == DB_NOFILL || arc_released(buf));
 		dbuf_set_data(db, NULL);
-		VERIFY(arc_buf_remove_ref(buf, db) == 1);
+		VERIFY(arc_buf_remove_ref(buf, db));
 		dbuf_evict(db);
-		return (1);
+		return (B_TRUE);
 	}
 
-	mutex_exit(&db->db_mtx);
-	return (0);
+	return (B_FALSE);
 }
 
 #pragma weak dmu_buf_will_dirty = dbuf_will_dirty
@@ -1477,7 +1446,7 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 		mutex_exit(&db->db_mtx);
 		(void) dbuf_dirty(db, tx);
 		bcopy(buf->b_data, db->db.db_data, db->db.db_size);
-		VERIFY(arc_buf_remove_ref(buf, db) == 1);
+		VERIFY(arc_buf_remove_ref(buf, db));
 		xuio_stat_wbuf_copied();
 		return;
 	}
@@ -1495,10 +1464,10 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 				arc_release(db->db_buf, db);
 			}
 			dr->dt.dl.dr_data = buf;
-			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 1);
+			VERIFY(arc_buf_remove_ref(db->db_buf, db));
 		} else if (dr == NULL || dr->dt.dl.dr_data != db->db_buf) {
 			arc_release(db->db_buf, db);
-			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 1);
+			VERIFY(arc_buf_remove_ref(db->db_buf, db));
 		}
 		db->db_buf = NULL;
 	}
@@ -1624,7 +1593,7 @@ dbuf_findbp(dnode_t *dn, int level, uint64_t blkid, int fail_sparse,
 	if (level >= nlevels ||
 	    (blkid > (dn->dn_phys->dn_maxblkid >> (level * epbs)))) {
 		/* the buffer has no parent yet */
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	} else if (level < nlevels-1) {
 		/* this block is referenced from an indirect block */
 		int err = dbuf_hold_impl(dn, level+1,
@@ -1831,7 +1800,6 @@ dbuf_prefetch(dnode_t *dn, uint64_t blkid)
 		if (bp && !BP_IS_HOLE(bp)) {
 			int priority = dn->dn_type == DMU_OT_DDT_ZAP ?
 			    ZIO_PRIORITY_DDT_PREFETCH : ZIO_PRIORITY_ASYNC_READ;
-			arc_buf_t *pbuf;
 			dsl_dataset_t *ds = dn->dn_objset->os_dsl_dataset;
 			uint32_t aflags = ARC_NOWAIT | ARC_PREFETCH;
 			zbookmark_t zb;
@@ -1839,13 +1807,8 @@ dbuf_prefetch(dnode_t *dn, uint64_t blkid)
 			SET_BOOKMARK(&zb, ds ? ds->ds_object : DMU_META_OBJSET,
 			    dn->dn_object, 0, blkid);
 
-			if (db)
-				pbuf = db->db_buf;
-			else
-				pbuf = dn->dn_objset->os_phys_buf;
-
-			(void) dsl_read(NULL, dn->dn_objset->os_spa,
-			    bp, pbuf, NULL, NULL, priority,
+			(void) arc_read(NULL, dn->dn_objset->os_spa,
+			    bp, NULL, NULL, priority,
 			    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE,
 			    &aflags, &zb);
 		}
@@ -1881,7 +1844,7 @@ top:
 		err = dbuf_findbp(dn, level, blkid, fail_sparse, &parent, &bp);
 		if (fail_sparse) {
 			if (err == 0 && bp && BP_IS_HOLE(bp))
-				err = ENOENT;
+				err = SET_ERROR(ENOENT);
 			if (err) {
 				if (parent)
 					dbuf_rele(parent, NULL);
@@ -1978,7 +1941,7 @@ dbuf_spill_set_blksz(dmu_buf_t *db_fake, uint64_t blksz, dmu_tx_t *tx)
 	dnode_t *dn;
 
 	if (db->db_blkid != DMU_SPILL_BLKID)
-		return (ENOTSUP);
+		return (SET_ERROR(ENOTSUP));
 	if (blksz == 0)
 		blksz = SPA_MINBLOCKSIZE;
 	if (blksz > SPA_MAXBLOCKSIZE)
@@ -2087,10 +2050,10 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag)
 			 * This dbuf has anonymous data associated with it.
 			 */
 			dbuf_set_data(db, NULL);
-			VERIFY(arc_buf_remove_ref(buf, db) == 1);
+			VERIFY(arc_buf_remove_ref(buf, db));
 			dbuf_evict(db);
 		} else {
-			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 0);
+			VERIFY(!arc_buf_remove_ref(db->db_buf, db));
 
 			/*
 			 * A dbuf will be eligible for eviction if either the
@@ -2591,7 +2554,7 @@ dbuf_write_done(zio_t *zio, arc_buf_t *buf, void *vdb)
 		if (db->db_state != DB_NOFILL) {
 			if (dr->dt.dl.dr_data != db->db_buf)
 				VERIFY(arc_buf_remove_ref(dr->dt.dl.dr_data,
-				    db) == 1);
+				    db));
 			else if (!arc_released(db->db_buf))
 				arc_set_callback(db->db_buf, dbuf_do_evict, db);
 		}

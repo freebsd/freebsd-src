@@ -50,6 +50,7 @@ static device_method_t uart_isa_methods[] = {
 	DEVMETHOD(device_probe,		uart_isa_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
+	DEVMETHOD(device_resume,	uart_bus_resume),
 	{ 0, 0 }
 };
 

@@ -73,18 +73,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/un.h>
 
-#include <ctype.h>
+#include <cctype>
+#include <cerrno>
+#include <cstdlib>
+#include <cstdio>
+#include <csignal>
+#include <cstring>
+
 #include <dirent.h>
-#include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <libutil.h>
 #include <paths.h>
+#include <poll.h>
 #include <regex.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -115,7 +117,7 @@ static struct pidfh *pfh;
 int Dflag;
 int dflag;
 int nflag;
-int romeo_must_die = 0;
+static volatile sig_atomic_t romeo_must_die = 0;
 
 static const char *configfile = CF;
 
@@ -136,7 +138,7 @@ config cfg;
 
 event_proc::event_proc() : _prio(-1)
 {
-	// nothing
+	_epsvec.reserve(4);
 }
 
 event_proc::~event_proc()
@@ -240,25 +242,18 @@ my_system(const char *command)
 bool
 action::do_action(config &c)
 {
-	string s = c.expand_string(_cmd);
+	string s = c.expand_string(_cmd.c_str());
 	if (Dflag)
 		fprintf(stderr, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
 
-match::match(config &c, const char *var, const char *re)
-	: _var(var), _re("^")
+match::match(config &c, const char *var, const char *re) :
+	_inv(re[0] == '!'),
+	_var(var),
+	_re(c.expand_string(_inv ? re + 1 : re, "^", "$"))
 {
-	if (!c.expand_string(string(re)).empty() &&
-	    c.expand_string(string(re)).at(0) == '!') {
-		_re.append(c.expand_string(string(re)).substr(1));
-		_inv = 1;
-	} else {
-		_re.append(c.expand_string(string(re)));
-		_inv = 0;
-	}
-	_re.append("$");
 	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB | REG_ICASE);
 }
 
@@ -325,7 +320,7 @@ media::do_match(config &c)
 	// the name of interest, first try device-name and fall back
 	// to subsystem if none exists.
 	value = c.get_variable("device-name");
-	if (value.length() == 0)
+	if (value.empty())
 		value = c.get_variable("subsystem");
 	if (Dflag)
 		fprintf(stderr, "Testing media type of %s against 0x%x\n",
@@ -466,7 +461,7 @@ config::open_pidfile()
 {
 	pid_t otherpid;
 	
-	if (_pidfile == "")
+	if (_pidfile.empty())
 		return;
 	pfh = pidfile_open(_pidfile.c_str(), 0600, &otherpid);
 	if (pfh == NULL) {
@@ -534,7 +529,7 @@ config::add_notify(int prio, event_proc *p)
 void
 config::set_pidfile(const char *fn)
 {
-	_pidfile = string(fn);
+	_pidfile = fn;
 }
 
 void
@@ -591,7 +586,7 @@ config::expand_one(const char *&src, string &dst)
 	src++;
 	// $$ -> $
 	if (*src == '$') {
-		dst.append(src++, 1);
+		dst += *src++;
 		return;
 	}
 		
@@ -599,7 +594,7 @@ config::expand_one(const char *&src, string &dst)
 	// Not sure if I want to support this or not, so for now we just pass
 	// it through.
 	if (*src == '(') {
-		dst.append("$");
+		dst += '$';
 		count = 1;
 		/* If the string ends before ) is matched , return. */
 		while (count > 0 && *src) {
@@ -607,46 +602,59 @@ config::expand_one(const char *&src, string &dst)
 				count--;
 			else if (*src == '(')
 				count++;
-			dst.append(src++, 1);
+			dst += *src++;
 		}
 		return;
 	}
 	
-	// ${^A-Za-z] -> $\1
+	// $[^A-Za-z] -> $\1
 	if (!isalpha(*src)) {
-		dst.append("$");
-		dst.append(src++, 1);
+		dst += '$';
+		dst += *src++;
 		return;
 	}
 
 	// $var -> replace with value
 	do {
-		buffer.append(src++, 1);
+		buffer += *src++;
 	} while (is_id_char(*src));
-	buffer.append("", 1);
-	dst.append(get_variable(buffer.c_str()));
+	dst.append(get_variable(buffer));
 }
 
 const string
-config::expand_string(const string &s)
+config::expand_string(const char *src, const char *prepend, const char *append)
 {
-	const char *src;
+	const char *var_at;
 	string dst;
 
-	src = s.c_str();
-	while (*src) {
-		if (*src == '$')
-			expand_one(src, dst);
-		else
-			dst.append(src++, 1);
+	/*
+	 * 128 bytes is enough for 2427 of 2438 expansions that happen
+	 * while parsing config files, as tested on 2013-01-30.
+	 */
+	dst.reserve(128);
+
+	if (prepend != NULL)
+		dst = prepend;
+
+	for (;;) {
+		var_at = strchr(src, '$');
+		if (var_at == NULL) {
+			dst.append(src);
+			break;
+		}
+		dst.append(src, var_at - src);
+		src = var_at;
+		expand_one(src, dst);
 	}
-	dst.append("", 1);
+
+	if (append != NULL)
+		dst.append(append);
 
 	return (dst);
 }
 
 bool
-config::chop_var(char *&buffer, char *&lhs, char *&rhs)
+config::chop_var(char *&buffer, char *&lhs, char *&rhs) const
 {
 	char *walker;
 	
@@ -814,23 +822,58 @@ create_socket(const char *name)
 	return (fd);
 }
 
+unsigned int max_clients = 10;	/* Default, can be overriden on cmdline. */
+unsigned int num_clients;
 list<int> clients;
 
 void
 notify_clients(const char *data, int len)
 {
-	list<int> bad;
-	list<int>::const_iterator i;
+	list<int>::iterator i;
 
-	for (i = clients.begin(); i != clients.end(); ++i) {
-		if (write(*i, data, len) <= 0) {
-			bad.push_back(*i);
+	/*
+	 * Deliver the data to all clients.  Throw clients overboard at the
+	 * first sign of trouble.  This reaps clients who've died or closed
+	 * their sockets, and also clients who are alive but failing to keep up
+	 * (or who are maliciously not reading, to consume buffer space in
+	 * kernel memory or tie up the limited number of available connections).
+	 */
+	for (i = clients.begin(); i != clients.end(); ) {
+		if (write(*i, data, len) != len) {
+			--num_clients;
 			close(*i);
-		}
+			i = clients.erase(i);
+		} else
+			++i;
 	}
+}
 
-	for (i = bad.begin(); i != bad.end(); ++i)
-		clients.erase(find(clients.begin(), clients.end(), *i));
+void
+check_clients(void)
+{
+	int s;
+	struct pollfd pfd;
+	list<int>::iterator i;
+
+	/*
+	 * Check all existing clients to see if any of them have disappeared.
+	 * Normally we reap clients when we get an error trying to send them an
+	 * event.  This check eliminates the problem of an ever-growing list of
+	 * zombie clients because we're never writing to them on a system
+	 * without frequent device-change activity.
+	 */
+	pfd.events = 0;
+	for (i = clients.begin(); i != clients.end(); ) {
+		pfd.fd = *i;
+		s = poll(&pfd, 1, 0);
+		if ((s < 0 && s != EINTR ) ||
+		    (s > 0 && (pfd.revents & POLLHUP))) {
+			--num_clients;
+			close(*i);
+			i = clients.erase(i);
+		} else
+			++i;
+	}
 }
 
 void
@@ -838,9 +881,18 @@ new_client(int fd)
 {
 	int s;
 
+	/*
+	 * First go reap any zombie clients, then accept the connection, and
+	 * shut down the read side to stop clients from consuming kernel memory
+	 * by sending large buffers full of data we'll never read.
+	 */
+	check_clients();
 	s = accept(fd, NULL, NULL);
-	if (s != -1)
+	if (s != -1) {
+		shutdown(s, SHUT_RD);
 		clients.push_back(s);
+		++num_clients;
+	}
 }
 
 static void
@@ -851,6 +903,7 @@ event_loop(void)
 	char buffer[DEVCTL_MAXBUF];
 	int once = 0;
 	int server_fd, max_fd;
+	int accepting;
 	timeval tv;
 	fd_set fds;
 
@@ -858,10 +911,9 @@ event_loop(void)
 	if (fd == -1)
 		err(1, "Can't open devctl device %s", PATH_DEVCTL);
 	server_fd = create_socket(PIPE);
+	accepting = 1;
 	max_fd = max(fd, server_fd) + 1;
-	while (1) {
-		if (romeo_must_die)
-			break;
+	while (!romeo_must_die) {
 		if (!once && !dflag && !nflag) {
 			// Check to see if we have any events pending.
 			tv.tv_sec = 0;
@@ -880,15 +932,38 @@ event_loop(void)
 				once++;
 			}
 		}
+		/*
+		 * When we've already got the max number of clients, stop
+		 * accepting new connections (don't put server_fd in the set),
+		 * shrink the accept() queue to reject connections quickly, and
+		 * poll the existing clients more often, so that we notice more
+		 * quickly when any of them disappear to free up client slots.
+		 */
 		FD_ZERO(&fds);
 		FD_SET(fd, &fds);
-		FD_SET(server_fd, &fds);
-		rv = select(max_fd, &fds, NULL, NULL, NULL);
+		if (num_clients < max_clients) {
+			if (!accepting) {
+				listen(server_fd, max_clients);
+				accepting = 1;
+			}
+			FD_SET(server_fd, &fds);
+			tv.tv_sec = 60;
+			tv.tv_usec = 0;
+		} else {
+			if (accepting) {
+				listen(server_fd, 0);
+				accepting = 0;
+			}
+			tv.tv_sec = 2;
+			tv.tv_usec = 0;
+		}
+		rv = select(max_fd, &fds, NULL, NULL, &tv);
 		if (rv == -1) {
 			if (errno == EINTR)
 				continue;
 			err(1, "select");
-		}
+		} else if (rv == 0)
+			check_clients();
 		if (FD_ISSET(fd, &fds)) {
 			rv = read(fd, buffer, sizeof(buffer) - 1);
 			if (rv > 0) {
@@ -1000,14 +1075,14 @@ set_variable(const char *var, const char *val)
 static void
 gensighand(int)
 {
-	romeo_must_die++;
-	_exit(0);
+	romeo_must_die = 1;
 }
 
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-Ddn] [-f file]\n", getprogname());
+	fprintf(stderr, "usage: %s [-Ddn] [-l connlimit] [-f file]\n",
+	    getprogname());
 	exit(1);
 }
 
@@ -1036,7 +1111,7 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "Ddf:n")) != -1) {
+	while ((ch = getopt(argc, argv, "Ddf:l:n")) != -1) {
 		switch (ch) {
 		case 'D':
 			Dflag++;
@@ -1046,6 +1121,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			configfile = optarg;
+			break;
+		case 'l':
+			max_clients = MAX(1, strtoul(optarg, NULL, 0));
 			break;
 		case 'n':
 			nflag++;

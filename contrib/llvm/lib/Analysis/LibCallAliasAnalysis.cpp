@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LibCallAliasAnalysis.h"
-#include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/LibCallSemantics.h"
-#include "llvm/Function.h"
+#include "llvm/Analysis/Passes.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Pass.h"
 using namespace llvm;
   

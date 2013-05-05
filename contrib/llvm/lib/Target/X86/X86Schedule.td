@@ -7,9 +7,94 @@
 //
 //===----------------------------------------------------------------------===//
 
+// InstrSchedModel annotations for out-of-order CPUs.
+//
+// These annotations are independent of the itinerary classes defined below.
+
+// Instructions with folded loads need to read the memory operand immediately,
+// but other register operands don't have to be read until the load is ready.
+// These operands are marked with ReadAfterLd.
+def ReadAfterLd : SchedRead;
+
+// Instructions with both a load and a store folded are modeled as a folded
+// load + WriteRMW.
+def WriteRMW : SchedWrite;
+
+// Most instructions can fold loads, so almost every SchedWrite comes in two
+// variants: With and without a folded load.
+// An X86FoldableSchedWrite holds a reference to the corresponding SchedWrite
+// with a folded load.
+class X86FoldableSchedWrite : SchedWrite {
+  // The SchedWrite to use when a load is folded into the instruction.
+  SchedWrite Folded;
+}
+
+// Multiclass that produces a linked pair of SchedWrites.
+multiclass X86SchedWritePair {
+  // Register-Memory operation.
+  def Ld : SchedWrite;
+  // Register-Register operation.
+  def NAME : X86FoldableSchedWrite {
+    let Folded = !cast<SchedWrite>(NAME#"Ld");
+  }
+}
+
+// Arithmetic.
+defm WriteALU  : X86SchedWritePair; // Simple integer ALU op.
+defm WriteIMul : X86SchedWritePair; // Integer multiplication.
+defm WriteIDiv : X86SchedWritePair; // Integer division.
+def  WriteLEA  : SchedWrite;        // LEA instructions can't fold loads.
+
+// Integer shifts and rotates.
+defm WriteShift : X86SchedWritePair;
+
+// Loads, stores, and moves, not folded with other operations.
+def WriteLoad  : SchedWrite;
+def WriteStore : SchedWrite;
+def WriteMove  : SchedWrite;
+
+// Idioms that clear a register, like xorps %xmm0, %xmm0.
+// These can often bypass execution ports completely.
+def WriteZero : SchedWrite;
+
+// Branches don't produce values, so they have no latency, but they still
+// consume resources. Indirect branches can fold loads.
+defm WriteJump : X86SchedWritePair;
+
+// Floating point. This covers both scalar and vector operations.
+defm WriteFAdd  : X86SchedWritePair; // Floating point add/sub/compare.
+defm WriteFMul  : X86SchedWritePair; // Floating point multiplication.
+defm WriteFDiv  : X86SchedWritePair; // Floating point division.
+defm WriteFSqrt : X86SchedWritePair; // Floating point square root.
+defm WriteFRcp  : X86SchedWritePair; // Floating point reciprocal.
+defm WriteFMA   : X86SchedWritePair; // Fused Multiply Add.
+
+// FMA Scheduling helper class.
+class FMASC { X86FoldableSchedWrite Sched = WriteFAdd; }
+
+// Vector integer operations.
+defm WriteVecALU   : X86SchedWritePair; // Vector integer ALU op, no logicals.
+defm WriteVecShift : X86SchedWritePair; // Vector integer shifts.
+defm WriteVecIMul  : X86SchedWritePair; // Vector integer multiply.
+
+// Vector bitwise operations.
+// These are often used on both floating point and integer vectors.
+defm WriteVecLogic : X86SchedWritePair; // Vector and/or/xor.
+defm WriteShuffle  : X86SchedWritePair; // Vector shuffles and blends.
+
+// Conversion between integer and float.
+defm WriteCvtF2I : X86SchedWritePair; // Float -> Integer.
+defm WriteCvtI2F : X86SchedWritePair; // Integer -> Float.
+defm WriteCvtF2F : X86SchedWritePair; // Float -> Float size conversion.
+
+// Catch-all for expensive system instructions.
+def WriteSystem : SchedWrite;
+
+// Old microcoded instructions that nobody use.
+def WriteMicrocoded : SchedWrite;
+
 //===----------------------------------------------------------------------===//
 // Instruction Itinerary classes used for X86
-def IIC_DEFAULT     : InstrItinClass;
 def IIC_ALU_MEM     : InstrItinClass;
 def IIC_ALU_NONMEM  : InstrItinClass;
 def IIC_LEA         : InstrItinClass;
@@ -470,12 +555,19 @@ def IIC_NOP : InstrItinClass;
 // latencies. Since these latencies are not used for pipeline hazards,
 // they do not need to be exact.
 //
+// ILPWindow=10 is an arbitrary threshold that approximates cycles of
+// latency hidden by instruction buffers. The actual value is not very
+// important but should be zero for inorder and nonzero for OOO processors.
+//
 // The GenericModel contains no instruciton itineraries.
 def GenericModel : SchedMachineModel {
   let IssueWidth = 4;
   let MinLatency = 0;
   let LoadLatency = 4;
   let HighLatency = 10;
+  let ILPWindow = 10;
 }
 
 include "X86ScheduleAtom.td"
+include "X86SchedSandyBridge.td"
+include "X86SchedHaswell.td"

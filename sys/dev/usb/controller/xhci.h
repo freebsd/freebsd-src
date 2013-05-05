@@ -434,8 +434,7 @@ struct xhci_softc {
 	struct xhci_hw_softc	sc_hw;
 	/* base device */
 	struct usb_bus		sc_bus;
-	/* configure process */
-	struct usb_process	sc_config_proc;
+	/* configure message */
 	struct usb_bus_msg	sc_config_msg[2];
 
 	union xhci_hub_desc	sc_hub_desc;

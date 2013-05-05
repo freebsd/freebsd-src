@@ -12,23 +12,18 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "isel"
+#include "llvm/CodeGen/SelectionDAGISel.h"
 #include "ScheduleDAGSDNodes.h"
 #include "SelectionDAGBuilder.h"
-#include "llvm/Constants.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Function.h"
-#include "llvm/InlineAsm.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
-#include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/CodeGen/GCMetadata.h"
+#include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -37,22 +32,29 @@
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetIntrinsicInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/PostOrderIterator.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetIntrinsicInfo.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -142,7 +144,12 @@ EnableFastISelVerbose("fast-isel-verbose", cl::Hidden,
                    "instruction selector"));
 static cl::opt<bool>
 EnableFastISelAbort("fast-isel-abort", cl::Hidden,
-          cl::desc("Enable abort calls when \"fast\" instruction fails"));
+          cl::desc("Enable abort calls when \"fast\" instruction selection "
+                   "fails to lower an instruction"));
+static cl::opt<bool>
+EnableFastISelAbortArgs("fast-isel-abort-args", cl::Hidden,
+          cl::desc("Enable abort calls when \"fast\" instruction selection "
+                   "fails to lower a formal argument"));
 
 static cl::opt<bool>
 UseMBPI("use-mbpi",
@@ -216,8 +223,9 @@ namespace llvm {
   ScheduleDAGSDNodes* createDefaultScheduler(SelectionDAGISel *IS,
                                              CodeGenOpt::Level OptLevel) {
     const TargetLowering &TLI = IS->getTargetLowering();
+    const TargetSubtargetInfo &ST = IS->TM.getSubtarget<TargetSubtargetInfo>();
 
-    if (OptLevel == CodeGenOpt::None ||
+    if (OptLevel == CodeGenOpt::None || ST.enableMachineScheduler() ||
         TLI.getSchedulingPreference() == Sched::Source)
       return createSourceListDAGScheduler(IS, OptLevel);
     if (TLI.getSchedulingPreference() == Sched::RegPressure)
@@ -348,13 +356,19 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   RegInfo = &MF->getRegInfo();
   AA = &getAnalysis<AliasAnalysis>();
   LibInfo = &getAnalysis<TargetLibraryInfo>();
+  TTI = getAnalysisIfAvailable<TargetTransformInfo>();
   GFI = Fn.hasGC() ? &getAnalysis<GCModuleInfo>().getFunctionInfo(Fn) : 0;
+
+  TargetSubtargetInfo &ST =
+    const_cast<TargetSubtargetInfo&>(TM.getSubtarget<TargetSubtargetInfo>());
+  ST.resetSubtargetFeatures(MF);
+  TM.resetTargetOptions(MF);
 
   DEBUG(dbgs() << "\n\n\n=== " << Fn.getName() << "\n");
 
   SplitCriticalSideEffectEdges(const_cast<Function&>(Fn), this);
 
-  CurDAG->init(*MF);
+  CurDAG->init(*MF, TTI);
   FuncInfo->set(Fn, *MF);
 
   if (UseMBPI && OptLevel != CodeGenOpt::None)
@@ -364,6 +378,7 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 
   SDB->init(GFI, *AA, LibInfo);
 
+  MF->setHasMSInlineAsm(false);
   SelectAllBasicBlocks(Fn);
 
   // If the first basic block in the function has live ins that need to be
@@ -434,24 +449,26 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 
   // Determine if there are any calls in this machine function.
   MachineFrameInfo *MFI = MF->getFrameInfo();
-  if (!MFI->hasCalls()) {
-    for (MachineFunction::const_iterator
-           I = MF->begin(), E = MF->end(); I != E; ++I) {
-      const MachineBasicBlock *MBB = I;
-      for (MachineBasicBlock::const_iterator
-             II = MBB->begin(), IE = MBB->end(); II != IE; ++II) {
-        const MCInstrDesc &MCID = TM.getInstrInfo()->get(II->getOpcode());
+  for (MachineFunction::const_iterator I = MF->begin(), E = MF->end(); I != E;
+       ++I) {
 
-        if ((MCID.isCall() && !MCID.isReturn()) ||
-            II->isStackAligningInlineAsm()) {
-          MFI->setHasCalls(true);
-          goto done;
-        }
+    if (MFI->hasCalls() && MF->hasMSInlineAsm())
+      break;
+
+    const MachineBasicBlock *MBB = I;
+    for (MachineBasicBlock::const_iterator II = MBB->begin(), IE = MBB->end();
+         II != IE; ++II) {
+      const MCInstrDesc &MCID = TM.getInstrInfo()->get(II->getOpcode());
+      if ((MCID.isCall() && !MCID.isReturn()) ||
+          II->isStackAligningInlineAsm()) {
+        MFI->setHasCalls(true);
+      }
+      if (II->isMSInlineAsm()) {
+        MF->setHasMSInlineAsm(true);
       }
     }
   }
 
-  done:
   // Determine if there is a call to setjmp in the machine function.
   MF->setExposesReturnsTwice(Fn.callsFunctionThatReturnsTwice());
 
@@ -768,8 +785,12 @@ void SelectionDAGISel::DoInstructionSelection() {
       if (ResNode == Node || Node->getOpcode() == ISD::DELETED_NODE)
         continue;
       // Replace node.
-      if (ResNode)
+      if (ResNode) {
+        // Propagate ordering
+        CurDAG->AssignOrdering(ResNode, CurDAG->GetOrdering(Node));
+
         ReplaceUses(Node, ResNode);
+      }
 
       // If after the replacement this node is not used any more,
       // remove this dead node.
@@ -1004,33 +1025,27 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
 
       if (AllPredsVisited) {
         for (BasicBlock::const_iterator I = LLVMBB->begin();
-             isa<PHINode>(I); ++I)
-          FuncInfo->ComputePHILiveOutRegInfo(cast<PHINode>(I));
+             const PHINode *PN = dyn_cast<PHINode>(I); ++I)
+          FuncInfo->ComputePHILiveOutRegInfo(PN);
       } else {
         for (BasicBlock::const_iterator I = LLVMBB->begin();
-             isa<PHINode>(I); ++I)
-          FuncInfo->InvalidatePHILiveOutRegInfo(cast<PHINode>(I));
+             const PHINode *PN = dyn_cast<PHINode>(I); ++I)
+          FuncInfo->InvalidatePHILiveOutRegInfo(PN);
       }
 
       FuncInfo->VisitedBBs.insert(LLVMBB);
     }
 
-    FuncInfo->MBB = FuncInfo->MBBMap[LLVMBB];
-    FuncInfo->InsertPt = FuncInfo->MBB->getFirstNonPHI();
-
     BasicBlock::const_iterator const Begin = LLVMBB->getFirstNonPHI();
     BasicBlock::const_iterator const End = LLVMBB->end();
     BasicBlock::const_iterator BI = End;
 
+    FuncInfo->MBB = FuncInfo->MBBMap[LLVMBB];
     FuncInfo->InsertPt = FuncInfo->MBB->getFirstNonPHI();
 
     // Setup an EH landing-pad block.
     if (FuncInfo->MBB->isLandingPad())
       PrepareEHLandingPad();
-
-    // Lower any arguments needed in this block if this is the entry block.
-    if (LLVMBB == &Fn.getEntryBlock())
-      LowerArguments(LLVMBB);
 
     // Before doing SelectionDAG ISel, see if FastISel has been requested.
     if (FastIS) {
@@ -1039,9 +1054,18 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
       // Emit code for any incoming arguments. This must happen before
       // beginning FastISel on the entry block.
       if (LLVMBB == &Fn.getEntryBlock()) {
-        CurDAG->setRoot(SDB->getControlRoot());
-        SDB->clear();
-        CodeGenAndEmitDAG();
+        // Lower any arguments needed in this block if this is the entry block.
+        if (!FastIS->LowerArguments()) {
+          // Fast isel failed to lower these arguments
+          if (EnableFastISelAbortArgs)
+            llvm_unreachable("FastISel didn't lower all arguments");
+
+          // Use SelectionDAG argument lowering
+          LowerArguments(Fn);
+          CurDAG->setRoot(SDB->getControlRoot());
+          SDB->clear();
+          CodeGenAndEmitDAG();
+        }
 
         // If we inserted any instructions at the beginning, make a note of
         // where they are, so we can be sure to emit subsequent instructions
@@ -1111,19 +1135,21 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
           }
 
           bool HadTailCall = false;
+          MachineBasicBlock::iterator SavedInsertPt = FuncInfo->InsertPt;
           SelectBasicBlock(Inst, BI, HadTailCall);
+
+          // If the call was emitted as a tail call, we're done with the block.
+          // We also need to delete any previously emitted instructions.
+          if (HadTailCall) {
+            FastIS->removeDeadCode(SavedInsertPt, FuncInfo->MBB->end());
+            --BI;
+            break;
+          }
 
           // Recompute NumFastIselRemaining as Selection DAG instruction
           // selection may have handled the call, input args, etc.
           unsigned RemainingNow = std::distance(Begin, BI);
           NumFastIselFailures += NumFastIselRemaining - RemainingNow;
-
-          // If the call was emitted as a tail call, we're done with the block.
-          if (HadTailCall) {
-            --BI;
-            break;
-          }
-
           NumFastIselRemaining = RemainingNow;
           continue;
         }
@@ -1150,6 +1176,10 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
       }
 
       FastIS->recomputeInsertPt();
+    } else {
+      // Lower any arguments needed in this block if this is the entry block.
+      if (LLVMBB == &Fn.getEntryBlock())
+        LowerArguments(Fn);
     }
 
     if (Begin != BI)
@@ -1189,14 +1219,12 @@ SelectionDAGISel::FinishBasicBlock() {
       SDB->JTCases.empty() &&
       SDB->BitTestCases.empty()) {
     for (unsigned i = 0, e = FuncInfo->PHINodesToUpdate.size(); i != e; ++i) {
-      MachineInstr *PHI = FuncInfo->PHINodesToUpdate[i].first;
+      MachineInstrBuilder PHI(*MF, FuncInfo->PHINodesToUpdate[i].first);
       assert(PHI->isPHI() &&
              "This is not a machine PHI node that we are updating!");
       if (!FuncInfo->MBB->isSuccessor(PHI->getParent()))
         continue;
-      PHI->addOperand(
-        MachineOperand::CreateReg(FuncInfo->PHINodesToUpdate[i].second, false));
-      PHI->addOperand(MachineOperand::CreateMBB(FuncInfo->MBB));
+      PHI.addReg(FuncInfo->PHINodesToUpdate[i].second).addMBB(FuncInfo->MBB);
     }
     return;
   }
@@ -1248,33 +1276,23 @@ SelectionDAGISel::FinishBasicBlock() {
     // Update PHI Nodes
     for (unsigned pi = 0, pe = FuncInfo->PHINodesToUpdate.size();
          pi != pe; ++pi) {
-      MachineInstr *PHI = FuncInfo->PHINodesToUpdate[pi].first;
+      MachineInstrBuilder PHI(*MF, FuncInfo->PHINodesToUpdate[pi].first);
       MachineBasicBlock *PHIBB = PHI->getParent();
       assert(PHI->isPHI() &&
              "This is not a machine PHI node that we are updating!");
       // This is "default" BB. We have two jumps to it. From "header" BB and
       // from last "case" BB.
-      if (PHIBB == SDB->BitTestCases[i].Default) {
-        PHI->addOperand(MachineOperand::
-                        CreateReg(FuncInfo->PHINodesToUpdate[pi].second,
-                                  false));
-        PHI->addOperand(MachineOperand::CreateMBB(SDB->BitTestCases[i].Parent));
-        PHI->addOperand(MachineOperand::
-                        CreateReg(FuncInfo->PHINodesToUpdate[pi].second,
-                                  false));
-        PHI->addOperand(MachineOperand::CreateMBB(SDB->BitTestCases[i].Cases.
-                                                  back().ThisBB));
-      }
+      if (PHIBB == SDB->BitTestCases[i].Default)
+        PHI.addReg(FuncInfo->PHINodesToUpdate[pi].second)
+           .addMBB(SDB->BitTestCases[i].Parent)
+           .addReg(FuncInfo->PHINodesToUpdate[pi].second)
+           .addMBB(SDB->BitTestCases[i].Cases.back().ThisBB);
       // One of "cases" BB.
       for (unsigned j = 0, ej = SDB->BitTestCases[i].Cases.size();
            j != ej; ++j) {
         MachineBasicBlock* cBB = SDB->BitTestCases[i].Cases[j].ThisBB;
-        if (cBB->isSuccessor(PHIBB)) {
-          PHI->addOperand(MachineOperand::
-                          CreateReg(FuncInfo->PHINodesToUpdate[pi].second,
-                                    false));
-          PHI->addOperand(MachineOperand::CreateMBB(cBB));
-        }
+        if (cBB->isSuccessor(PHIBB))
+          PHI.addReg(FuncInfo->PHINodesToUpdate[pi].second).addMBB(cBB);
       }
     }
   }
@@ -1309,25 +1327,17 @@ SelectionDAGISel::FinishBasicBlock() {
     // Update PHI Nodes
     for (unsigned pi = 0, pe = FuncInfo->PHINodesToUpdate.size();
          pi != pe; ++pi) {
-      MachineInstr *PHI = FuncInfo->PHINodesToUpdate[pi].first;
+      MachineInstrBuilder PHI(*MF, FuncInfo->PHINodesToUpdate[pi].first);
       MachineBasicBlock *PHIBB = PHI->getParent();
       assert(PHI->isPHI() &&
              "This is not a machine PHI node that we are updating!");
       // "default" BB. We can go there only from header BB.
-      if (PHIBB == SDB->JTCases[i].second.Default) {
-        PHI->addOperand
-          (MachineOperand::CreateReg(FuncInfo->PHINodesToUpdate[pi].second,
-                                     false));
-        PHI->addOperand
-          (MachineOperand::CreateMBB(SDB->JTCases[i].first.HeaderBB));
-      }
+      if (PHIBB == SDB->JTCases[i].second.Default)
+        PHI.addReg(FuncInfo->PHINodesToUpdate[pi].second)
+           .addMBB(SDB->JTCases[i].first.HeaderBB);
       // JT BB. Just iterate over successors here
-      if (FuncInfo->MBB->isSuccessor(PHIBB)) {
-        PHI->addOperand
-          (MachineOperand::CreateReg(FuncInfo->PHINodesToUpdate[pi].second,
-                                     false));
-        PHI->addOperand(MachineOperand::CreateMBB(FuncInfo->MBB));
-      }
+      if (FuncInfo->MBB->isSuccessor(PHIBB))
+        PHI.addReg(FuncInfo->PHINodesToUpdate[pi].second).addMBB(FuncInfo->MBB);
     }
   }
   SDB->JTCases.clear();
@@ -1335,14 +1345,11 @@ SelectionDAGISel::FinishBasicBlock() {
   // If the switch block involved a branch to one of the actual successors, we
   // need to update PHI nodes in that block.
   for (unsigned i = 0, e = FuncInfo->PHINodesToUpdate.size(); i != e; ++i) {
-    MachineInstr *PHI = FuncInfo->PHINodesToUpdate[i].first;
+    MachineInstrBuilder PHI(*MF, FuncInfo->PHINodesToUpdate[i].first);
     assert(PHI->isPHI() &&
            "This is not a machine PHI node that we are updating!");
-    if (FuncInfo->MBB->isSuccessor(PHI->getParent())) {
-      PHI->addOperand(
-        MachineOperand::CreateReg(FuncInfo->PHINodesToUpdate[i].second, false));
-      PHI->addOperand(MachineOperand::CreateMBB(FuncInfo->MBB));
-    }
+    if (FuncInfo->MBB->isSuccessor(PHI->getParent()))
+      PHI.addReg(FuncInfo->PHINodesToUpdate[i].second).addMBB(FuncInfo->MBB);
   }
 
   // If we generated any switch lowering information, build and codegen any
@@ -1378,18 +1385,16 @@ SelectionDAGISel::FinishBasicBlock() {
       // FuncInfo->MBB may have been removed from the CFG if a branch was
       // constant folded.
       if (ThisBB->isSuccessor(FuncInfo->MBB)) {
-        for (MachineBasicBlock::iterator Phi = FuncInfo->MBB->begin();
-             Phi != FuncInfo->MBB->end() && Phi->isPHI();
-             ++Phi) {
+        for (MachineBasicBlock::iterator
+             MBBI = FuncInfo->MBB->begin(), MBBE = FuncInfo->MBB->end();
+             MBBI != MBBE && MBBI->isPHI(); ++MBBI) {
+          MachineInstrBuilder PHI(*MF, MBBI);
           // This value for this PHI node is recorded in PHINodesToUpdate.
           for (unsigned pn = 0; ; ++pn) {
             assert(pn != FuncInfo->PHINodesToUpdate.size() &&
                    "Didn't find PHI entry!");
-            if (FuncInfo->PHINodesToUpdate[pn].first == Phi) {
-              Phi->addOperand(MachineOperand::
-                              CreateReg(FuncInfo->PHINodesToUpdate[pn].second,
-                                        false));
-              Phi->addOperand(MachineOperand::CreateMBB(ThisBB));
+            if (FuncInfo->PHINodesToUpdate[pn].first == PHI) {
+              PHI.addReg(FuncInfo->PHINodesToUpdate[pn].second).addMBB(ThisBB);
               break;
             }
           }
@@ -1669,9 +1674,7 @@ SDNode *SelectionDAGISel::Select_INLINEASM(SDNode *N) {
   std::vector<SDValue> Ops(N->op_begin(), N->op_end());
   SelectInlineAsmMemoryOperands(Ops);
 
-  std::vector<EVT> VTs;
-  VTs.push_back(MVT::Other);
-  VTs.push_back(MVT::Glue);
+  EVT VTs[] = { MVT::Other, MVT::Glue };
   SDValue New = CurDAG->getNode(ISD::INLINEASM, N->getDebugLoc(),
                                 VTs, &Ops[0], Ops.size());
   New->setNodeId(-1);
@@ -2605,11 +2608,11 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       SDValue Imm = RecordedNodes[RecNo].first;
 
       if (Imm->getOpcode() == ISD::Constant) {
-        int64_t Val = cast<ConstantSDNode>(Imm)->getZExtValue();
-        Imm = CurDAG->getTargetConstant(Val, Imm.getValueType());
+        const ConstantInt *Val=cast<ConstantSDNode>(Imm)->getConstantIntValue();
+        Imm = CurDAG->getConstant(*Val, Imm.getValueType(), true);
       } else if (Imm->getOpcode() == ISD::ConstantFP) {
         const ConstantFP *Val=cast<ConstantFPSDNode>(Imm)->getConstantFPValue();
-        Imm = CurDAG->getTargetConstantFP(*Val, Imm.getValueType());
+        Imm = CurDAG->getConstantFP(*Val, Imm.getValueType(), true);
       }
 
       RecordedNodes.push_back(std::make_pair(Imm, RecordedNodes[RecNo].second));

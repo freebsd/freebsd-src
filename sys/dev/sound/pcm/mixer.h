@@ -40,11 +40,15 @@ int mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struc
 int mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi);
 
 int mixer_hwvol_init(device_t dev);
+void mixer_hwvol_mute_locked(struct snd_mixer *m);
 void mixer_hwvol_mute(device_t dev);
+void mixer_hwvol_step_locked(struct snd_mixer *m, int l_step, int r_step);
 void mixer_hwvol_step(device_t dev, int left_step, int right_step);
 
 int mixer_busy(struct snd_mixer *m);
 
+int mix_get_locked(struct snd_mixer *m, u_int dev, int *pleft, int *pright);
+int mix_set_locked(struct snd_mixer *m, u_int dev, int left, int right);
 int mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right);
 int mix_get(struct snd_mixer *m, u_int dev);
 int mix_setrecsrc(struct snd_mixer *m, u_int32_t src);

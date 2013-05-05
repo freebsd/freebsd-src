@@ -149,7 +149,4 @@
  */
 #define	NINDIR(fs)	(EXT2_ADDR_PER_BLOCK(fs))
 
-extern int inside[], around[];
-extern u_char *fragtbl[];
-
 #endif /* !_FS_EXT2FS_FS_H_ */

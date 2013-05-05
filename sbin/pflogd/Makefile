@@ -9,7 +9,7 @@ MAN=	pflogd.8
 CFLAGS+=-include ${.CURDIR}/../../lib/libpcap/config.h
 
 LDADD=	-lpcap
-DPADD=	${LIBPCAP} ${LIBUTIL}
+DPADD=	${LIBPCAP}
 
 WARNS?=	2
 

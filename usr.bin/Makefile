@@ -37,6 +37,7 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
+	dtc \
 	du \
 	ee \
 	elf2aout \
@@ -123,6 +124,7 @@ SUBDIR=	alias \
 	pagesize \
 	passwd \
 	paste \
+	patch \
 	pathchk \
 	perror \
 	pr \
@@ -146,7 +148,6 @@ SUBDIR=	alias \
 	sockstat \
 	sort \
 	split \
-	ssh-copy-id \
 	stat \
 	stdbuf \
 	su \
@@ -299,6 +300,10 @@ SUBDIR+=	nc
 SUBDIR+=	ypcat
 SUBDIR+=	ypmatch
 SUBDIR+=	ypwhich
+.endif
+
+.if ${MK_OPENSSH} != "no"
+SUBDIR+=	ssh-copy-id
 .endif
 
 .if ${MK_OPENSSL} != "no"

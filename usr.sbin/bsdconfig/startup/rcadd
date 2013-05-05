@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ dialog_menu_main()
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
@@ -97,7 +97,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts dD:hSX flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac

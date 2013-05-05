@@ -78,6 +78,8 @@ void ASTStmtWriter::VisitCompoundStmt(CompoundStmt *S) {
 void ASTStmtWriter::VisitSwitchCase(SwitchCase *S) {
   VisitStmt(S);
   Record.push_back(Writer.getSwitchCaseID(S));
+  Writer.AddSourceLocation(S->getKeywordLoc(), Record);
+  Writer.AddSourceLocation(S->getColonLoc(), Record);
 }
 
 void ASTStmtWriter::VisitCaseStmt(CaseStmt *S) {
@@ -85,17 +87,13 @@ void ASTStmtWriter::VisitCaseStmt(CaseStmt *S) {
   Writer.AddStmt(S->getLHS());
   Writer.AddStmt(S->getRHS());
   Writer.AddStmt(S->getSubStmt());
-  Writer.AddSourceLocation(S->getCaseLoc(), Record);
   Writer.AddSourceLocation(S->getEllipsisLoc(), Record);
-  Writer.AddSourceLocation(S->getColonLoc(), Record);
   Code = serialization::STMT_CASE;
 }
 
 void ASTStmtWriter::VisitDefaultStmt(DefaultStmt *S) {
   VisitSwitchCase(S);
   Writer.AddStmt(S->getSubStmt());
-  Writer.AddSourceLocation(S->getDefaultLoc(), Record);
-  Writer.AddSourceLocation(S->getColonLoc(), Record);
   Code = serialization::STMT_DEFAULT;
 }
 
@@ -326,8 +324,9 @@ void ASTStmtWriter::VisitIntegerLiteral(IntegerLiteral *E) {
 
 void ASTStmtWriter::VisitFloatingLiteral(FloatingLiteral *E) {
   VisitExpr(E);
-  Writer.AddAPFloat(E->getValue(), Record);
+  Record.push_back(E->getRawSemantics());
   Record.push_back(E->isExact());
+  Writer.AddAPFloat(E->getValue(), Record);
   Writer.AddSourceLocation(E->getLocation(), Record);
   Code = serialization::EXPR_FLOATING_LITERAL;
 }
@@ -499,6 +498,7 @@ void ASTStmtWriter::VisitObjCIsaExpr(ObjCIsaExpr *E) {
   VisitExpr(E);
   Writer.AddStmt(E->getBase());
   Writer.AddSourceLocation(E->getIsaMemberLoc(), Record);
+  Writer.AddSourceLocation(E->getOpLoc(), Record);
   Record.push_back(E->isArrow());
   Code = serialization::EXPR_OBJC_ISA;
 }
@@ -857,6 +857,7 @@ void ASTStmtWriter::VisitObjCIvarRefExpr(ObjCIvarRefExpr *E) {
   VisitExpr(E);
   Writer.AddDeclRef(E->getDecl(), Record);
   Writer.AddSourceLocation(E->getLocation(), Record);
+  Writer.AddSourceLocation(E->getOpLoc(), Record);
   Writer.AddStmt(E->getBase());
   Record.push_back(E->isArrow());
   Record.push_back(E->isFreeIvar());
@@ -1076,6 +1077,7 @@ void ASTStmtWriter::VisitCXXConstructExpr(CXXConstructExpr *E) {
   Writer.AddSourceLocation(E->getLocation(), Record);
   Record.push_back(E->isElidable());
   Record.push_back(E->hadMultipleCandidates());
+  Record.push_back(E->isListInitialization());
   Record.push_back(E->requiresZeroInitialization());
   Record.push_back(E->getConstructionKind()); // FIXME: stable encoding
   Writer.AddSourceRange(E->getParenRange(), Record);
@@ -1124,6 +1126,7 @@ void ASTStmtWriter::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
   VisitExplicitCastExpr(E);
   Writer.AddSourceRange(SourceRange(E->getOperatorLoc(), E->getRParenLoc()),
                         Record);
+  Writer.AddSourceRange(E->getAngleBrackets(), Record);
 }
 
 void ASTStmtWriter::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {

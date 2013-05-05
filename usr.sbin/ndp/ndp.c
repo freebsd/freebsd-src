@@ -436,9 +436,6 @@ set(argc, argv)
 				goto overwrite;
 			}
 		}
-		/*
-		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
-		 */
 		fprintf(stderr, "set: cannot configure a new entry\n");
 		return 1;
 	}
@@ -523,9 +520,6 @@ delete(host)
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
 			goto delete;
 		}
-		/*
-		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
-		 */
 		fprintf(stderr, "delete: cannot delete non-NDP entry\n");
 		return 1;
 	}
@@ -982,6 +976,9 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		SETFLAG("auto_linklocal", ND6_IFF_AUTO_LINKLOCAL);
 #endif
+#ifdef ND6_IFF_NO_PREFER_IFACE
+		SETFLAG("no_prefer_iface", ND6_IFF_NO_PREFER_IFACE);
+#endif
 		SETVALUE("basereachable", ND.basereachable);
 		SETVALUE("retrans", ND.retrans);
 		SETVALUE("curhlim", ND.chlim);
@@ -1054,6 +1051,10 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		if ((ND.flags & ND6_IFF_AUTO_LINKLOCAL))
 			printf("auto_linklocal ");
+#endif
+#ifdef ND6_IFF_NO_PREFER_IFACE
+		if ((ND.flags & ND6_IFF_NO_PREFER_IFACE))
+			printf("no_prefer_iface ");
 #endif
 	}
 	putc('\n', stdout);

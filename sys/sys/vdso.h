@@ -61,13 +61,9 @@ struct timeval;
 struct timezone;
 
 int __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts);
-#pragma weak __vdso_clock_gettime
-
 int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz);
-#pragma weak __vdso_gettimeofday
-
 u_int __vdso_gettc(const struct vdso_timehands *vdso_th);
-#pragma weak __vdso_gettc
+int __vdso_gettimekeep(struct vdso_timekeep **tk);
 
 #endif
 

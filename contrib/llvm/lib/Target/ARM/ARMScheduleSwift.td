@@ -1078,8 +1078,67 @@ def SwiftModel : SchedMachineModel {
   let IssueWidth = 3; // 3 micro-ops are dispatched per cycle.
   let MinLatency = 0; // Data dependencies are allowed within dispatch groups.
   let LoadLatency = 3;
+  let MispredictPenalty = 14; // A branch direction mispredict.
 
   let Itineraries = SwiftItineraries;
 }
 
-// TODO: Add Swift processor and scheduler resources.
+// Swift predicates.
+def IsFastImmShiftSwiftPred : SchedPredicate<[{TII->isSwiftFastImmShift(MI)}]>;
+
+// Swift resource mapping.
+let SchedModel = SwiftModel in {
+  // Processor resources.
+  def SwiftUnitP01 : ProcResource<2>; // ALU unit.
+  def SwiftUnitP0 : ProcResource<1> { let Super = SwiftUnitP01; } // Mul unit.
+  def SwiftUnitP1 : ProcResource<1> { let Super = SwiftUnitP01; } // Br unit.
+  def SwiftUnitP2 : ProcResource<1>; // LS unit.
+  def SwiftUnitDiv : ProcResource<1>;
+
+  // Generic resource requirements.
+  def SwiftWriteP01TwoCycle : SchedWriteRes<[SwiftUnitP01]> { let Latency = 2; }
+  def SwiftWriteP01ThreeCycleTwoUops :
+    SchedWriteRes<[SwiftUnitP01, SwiftUnitP01]> {
+    let Latency = 3;
+    let NumMicroOps = 2;
+  }
+  def SwiftWriteP0ThreeCycleThreeUops : SchedWriteRes<[SwiftUnitP0]> {
+    let Latency = 3;
+    let NumMicroOps = 3;
+    let ResourceCycles = [3];
+  }
+
+  // 4.2.4 Arithmetic and Logical.
+  // ALU operation register shifted by immediate variant.
+  def SwiftWriteALUsi : SchedWriteVariant<[
+    // lsl #2, lsl #1, or lsr #1.
+    SchedVar<IsFastImmShiftSwiftPred, [SwiftWriteP01TwoCycle]>,
+    SchedVar<NoSchedPred,             [WriteALU]>
+  ]>;
+  def SwiftWriteALUsr : SchedWriteVariant<[
+    SchedVar<IsPredicatedPred, [SwiftWriteP01ThreeCycleTwoUops]>,
+    SchedVar<NoSchedPred,      [SwiftWriteP01TwoCycle]>
+  ]>;
+  def SwiftWriteALUSsr : SchedWriteVariant<[
+    SchedVar<IsPredicatedPred, [SwiftWriteP0ThreeCycleThreeUops]>,
+    SchedVar<NoSchedPred,      [SwiftWriteP01TwoCycle]>
+  ]>;
+  def SwiftReadAdvanceALUsr : SchedReadVariant<[
+    SchedVar<IsPredicatedPred, [SchedReadAdvance<2>]>,
+    SchedVar<NoSchedPred,      [NoReadAdvance]>
+  ]>;
+  // ADC,ADD,NEG,RSB,RSC,SBC,SUB,ADR
+  // AND,BIC,EOR,ORN,ORR
+  // CLZ,RBIT,REV,REV16,REVSH,PKH
+  def : WriteRes<WriteALU, [SwiftUnitP01]>;
+  def : SchedAlias<WriteALUsi, SwiftWriteALUsi>;
+  def : SchedAlias<WriteALUsr, SwiftWriteALUsr>;
+  def : SchedAlias<WriteALUSsr, SwiftWriteALUSsr>;
+  def : ReadAdvance<ReadALU, 0>;
+  def : SchedAlias<ReadALUsr, SwiftReadAdvanceALUsr>;
+
+  // 4.2.5 Integer comparison
+  def : WriteRes<WriteCMP, [SwiftUnitP01]>;
+  def : WriteRes<WriteCMPsi, [SwiftUnitP01]>;
+  def : WriteRes<WriteCMPsr, [SwiftUnitP01]>;
+}

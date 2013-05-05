@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2012
+.Dd April 26, 2013
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -103,7 +103,7 @@
 .Ft int
 .Fo \*(lp*if_output\*(rp
 .Fa "struct ifnet *ifp" "struct mbuf *m"
-.Fa "struct sockaddr *dst" "struct route *ro"
+.Fa "const struct sockaddr *dst" "struct route *ro"
 .Fc
 .Ft void
 .Fn \*(lp*if_start\*(rp "struct ifnet *ifp"

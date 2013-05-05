@@ -84,6 +84,8 @@ usage(void)
 	fprintf(stderr, "    start patrol              - start a patrol read\n");
 	fprintf(stderr, "    stop patrol               - stop a patrol read\n");
 	fprintf(stderr, "    flash <firmware>\n");
+	fprintf(stderr, "    start learn               - start a BBU relearn\n");
+	fprintf(stderr, "    bbu <setting> <value>     - set BBU properties\n");
 #ifdef DEBUG
 	fprintf(stderr, "    debug                     - debug 'show config'\n");
 	fprintf(stderr, "    dump                      - display 'saved' config\n");

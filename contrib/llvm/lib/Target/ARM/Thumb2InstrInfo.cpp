@@ -51,7 +51,7 @@ Thumb2InstrInfo::ReplaceTailWithBranchTo(MachineBasicBlock::iterator Tail,
   MachineBasicBlock *MBB = Tail->getParent();
   ARMFunctionInfo *AFI = MBB->getParent()->getInfo<ARMFunctionInfo>();
   if (!AFI->hasITBlocks()) {
-    TargetInstrInfoImpl::ReplaceTailWithBranchTo(Tail, NewDest);
+    TargetInstrInfo::ReplaceTailWithBranchTo(Tail, NewDest);
     return;
   }
 
@@ -65,7 +65,7 @@ Thumb2InstrInfo::ReplaceTailWithBranchTo(MachineBasicBlock::iterator Tail,
     --MBBI;
 
   // Actually replace the tail.
-  TargetInstrInfoImpl::ReplaceTailWithBranchTo(Tail, NewDest);
+  TargetInstrInfo::ReplaceTailWithBranchTo(Tail, NewDest);
 
   // Fix up IT.
   if (CC != ARMCC::AL) {
@@ -408,7 +408,7 @@ bool llvm::rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
       // Remove offset and remaining explicit predicate operands.
       do MI.RemoveOperand(FrameRegIdx+1);
       while (MI.getNumOperands() > FrameRegIdx+1);
-      MachineInstrBuilder MIB(&MI);
+      MachineInstrBuilder MIB(*MI.getParent()->getParent(), &MI);
       AddDefaultPred(MIB);
       return true;
     }

@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
@@ -279,6 +280,8 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 #define VSHOULDFREE(vp) (!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
 #define VSHOULDBUSY(vp) (((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
 
+/* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
+static int vnsz2log;
 
 /*
  * Initialize the vnode management data structures.
@@ -293,6 +296,7 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 static void
 vntblinit(void *dummy __unused)
 {
+	u_int i;
 	int physvnodes, virtvnodes;
 
 	/*
@@ -332,6 +336,9 @@ vntblinit(void *dummy __unused)
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
 	cv_init(&sync_wakeup, "syncer");
+	for (i = 1; i <= sizeof(struct vnode); i <<= 1)
+		vnsz2log++;
+	vnsz2log--;
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
@@ -724,6 +731,7 @@ vlrureclaim(struct mount *mp)
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp, LK_INTERLOCK);
+			vdrop(vp);
 			goto next_iter_mntunlocked;
 		}
 		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
@@ -1067,6 +1075,14 @@ alloc:
 	}
 	rangelock_init(&vp->v_rl);
 
+	/*
+	 * For the filesystems which do not use vfs_hash_insert(),
+	 * still initialize v_hash to have vfs_hash_index() useful.
+	 * E.g., nullfs uses vfs_hash_index() on the lower vnode for
+	 * its own hashing.
+	 */
+	vp->v_hash = (uintptr_t)vp >> vnsz2log;
+
 	*vpp = vp;
 	return (0);
 }
@@ -1230,9 +1246,9 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 		bufobj_wwait(bo, 0, 0);
 		BO_UNLOCK(bo);
 		if (bo->bo_object != NULL) {
-			VM_OBJECT_LOCK(bo->bo_object);
+			VM_OBJECT_WLOCK(bo->bo_object);
 			vm_object_pip_wait(bo->bo_object, "bovlbx");
-			VM_OBJECT_UNLOCK(bo->bo_object);
+			VM_OBJECT_WUNLOCK(bo->bo_object);
 		}
 		BO_LOCK(bo);
 	} while (bo->bo_numoutput > 0);
@@ -1243,10 +1259,10 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	 */
 	if (bo->bo_object != NULL &&
 	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0) {
-		VM_OBJECT_LOCK(bo->bo_object);
+		VM_OBJECT_WLOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
 		    OBJPR_CLEANONLY : 0);
-		VM_OBJECT_UNLOCK(bo->bo_object);
+		VM_OBJECT_WUNLOCK(bo->bo_object);
 	}
 
 #ifdef INVARIANTS
@@ -1297,8 +1313,7 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		xflags = 0;
 		if (nbp != NULL) {
 			lblkno = nbp->b_lblkno;
-			xflags = nbp->b_xflags &
-				(BX_BKGRDMARKER | BX_VNDIRTY | BX_VNCLEAN);
+			xflags = nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN);
 		}
 		retval = EAGAIN;
 		error = BUF_TIMELOCK(bp,
@@ -1342,8 +1357,7 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		if (nbp != NULL &&
 		    (nbp->b_bufobj != bo ||
 		     nbp->b_lblkno != lblkno ||
-		     (nbp->b_xflags &
-		      (BX_BKGRDMARKER | BX_VNDIRTY | BX_VNCLEAN)) != xflags))
+		     (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) != xflags))
 			break;			/* nbp invalid */
 	}
 	return (retval);
@@ -1486,9 +1500,7 @@ buf_splay(daddr_t lblkno, b_xflags_t xflags, struct buf *root)
 		return (NULL);
 	lefttreemax = righttreemin = &dummy;
 	for (;;) {
-		if (lblkno < root->b_lblkno ||
-		    (lblkno == root->b_lblkno &&
-		    (xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+		if (lblkno < root->b_lblkno) {
 			if ((y = root->b_left) == NULL)
 				break;
 			if (lblkno < y->b_lblkno) {
@@ -1502,9 +1514,7 @@ buf_splay(daddr_t lblkno, b_xflags_t xflags, struct buf *root)
 			/* Link into the new root's right tree. */
 			righttreemin->b_left = root;
 			righttreemin = root;
-		} else if (lblkno > root->b_lblkno ||
-		    (lblkno == root->b_lblkno &&
-		    (xflags & BX_BKGRDMARKER) > (root->b_xflags & BX_BKGRDMARKER))) {
+		} else if (lblkno > root->b_lblkno) {
 			if ((y = root->b_right) == NULL)
 				break;
 			if (lblkno > y->b_lblkno) {
@@ -1588,9 +1598,7 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 		bp->b_left = NULL;
 		bp->b_right = NULL;
 		TAILQ_INSERT_TAIL(&bv->bv_hd, bp, b_bobufs);
-	} else if (bp->b_lblkno < root->b_lblkno ||
-	    (bp->b_lblkno == root->b_lblkno &&
-	    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+	} else if (bp->b_lblkno < root->b_lblkno) {
 		bp->b_left = root->b_left;
 		bp->b_right = root;
 		root->b_left = NULL;
@@ -1623,20 +1631,18 @@ gbincore(struct bufobj *bo, daddr_t lblkno)
 	struct buf *bp;
 
 	ASSERT_BO_LOCKED(bo);
-	if ((bp = bo->bo_clean.bv_root) != NULL &&
-	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+	if ((bp = bo->bo_clean.bv_root) != NULL && bp->b_lblkno == lblkno)
 		return (bp);
-	if ((bp = bo->bo_dirty.bv_root) != NULL &&
-	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+	if ((bp = bo->bo_dirty.bv_root) != NULL && bp->b_lblkno == lblkno)
 		return (bp);
 	if ((bp = bo->bo_clean.bv_root) != NULL) {
 		bo->bo_clean.bv_root = bp = buf_splay(lblkno, 0, bp);
-		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		if (bp->b_lblkno == lblkno)
 			return (bp);
 	}
 	if ((bp = bo->bo_dirty.bv_root) != NULL) {
 		bo->bo_dirty.bv_root = bp = buf_splay(lblkno, 0, bp);
-		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		if (bp->b_lblkno == lblkno)
 			return (bp);
 	}
 	return (NULL);
@@ -2506,9 +2512,9 @@ vinactive(struct vnode *vp, struct thread *td)
 	 */
 	obj = vp->v_object;
 	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
-		VM_OBJECT_LOCK(obj);
+		VM_OBJECT_WLOCK(obj);
 		vm_object_page_clean(obj, 0, 0, OBJPC_NOSYNC);
-		VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_WUNLOCK(obj);
 	}
 	VOP_INACTIVE(vp, td);
 	VI_LOCK(vp);
@@ -2589,9 +2595,9 @@ loop:
 		 */
 		if (flags & WRITECLOSE) {
 			if (vp->v_object != NULL) {
-				VM_OBJECT_LOCK(vp->v_object);
+				VM_OBJECT_WLOCK(vp->v_object);
 				vm_object_page_clean(vp->v_object, 0, 0, 0);
-				VM_OBJECT_UNLOCK(vp->v_object);
+				VM_OBJECT_WUNLOCK(vp->v_object);
 			}
 			error = VOP_FSYNC(vp, MNT_WAIT, td);
 			if (error != 0) {
@@ -3489,11 +3495,11 @@ vfs_msync(struct mount *mp, int flags)
 
 				obj = vp->v_object;
 				if (obj != NULL) {
-					VM_OBJECT_LOCK(obj);
+					VM_OBJECT_WLOCK(obj);
 					vm_object_page_clean(obj, 0, 0,
 					    flags == MNT_WAIT ?
 					    OBJPC_SYNC : OBJPC_NOSYNC);
-					VM_OBJECT_UNLOCK(obj);
+					VM_OBJECT_WUNLOCK(obj);
 				}
 				vput(vp);
 			}
@@ -4118,7 +4124,7 @@ vop_lock_post(void *ap, int rc)
 	struct vop_lock1_args *a = ap;
 
 	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
-	if (rc == 0)
+	if (rc == 0 && (a->a_flags & LK_EXCLOTHER) == 0)
 		ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
 #endif
 }

@@ -30,12 +30,6 @@ MachineRegisterInfo::MachineRegisterInfo(const TargetRegisterInfo &TRI)
 }
 
 MachineRegisterInfo::~MachineRegisterInfo() {
-#ifndef NDEBUG
-  clearVirtRegs();
-  for (unsigned i = 0, e = TRI->getNumRegs(); i != e; ++i)
-    assert(!PhysRegUseDefLists[i] &&
-           "PhysRegUseDefLists has entries after all instructions are deleted");
-#endif
   delete [] PhysRegUseDefLists;
 }
 
@@ -43,6 +37,7 @@ MachineRegisterInfo::~MachineRegisterInfo() {
 ///
 void
 MachineRegisterInfo::setRegClass(unsigned Reg, const TargetRegisterClass *RC) {
+  assert(RC && RC->isAllocatable() && "Invalid RC for virtual register");
   VRegInfo[Reg].first = RC;
 }
 
@@ -180,6 +175,55 @@ void MachineRegisterInfo::removeRegOperandFromUseList(MachineOperand *MO) {
   MO->Contents.Reg.Next = 0;
 }
 
+/// Move NumOps operands from Src to Dst, updating use-def lists as needed.
+///
+/// The Dst range is assumed to be uninitialized memory. (Or it may contain
+/// operands that won't be destroyed, which is OK because the MO destructor is
+/// trivial anyway).
+///
+/// The Src and Dst ranges may overlap.
+void MachineRegisterInfo::moveOperands(MachineOperand *Dst,
+                                       MachineOperand *Src,
+                                       unsigned NumOps) {
+  assert(Src != Dst && NumOps && "Noop moveOperands");
+
+  // Copy backwards if Dst is within the Src range.
+  int Stride = 1;
+  if (Dst >= Src && Dst < Src + NumOps) {
+    Stride = -1;
+    Dst += NumOps - 1;
+    Src += NumOps - 1;
+  }
+
+  // Copy one operand at a time.
+  do {
+    new (Dst) MachineOperand(*Src);
+
+    // Dst takes Src's place in the use-def chain.
+    if (Src->isReg()) {
+      MachineOperand *&Head = getRegUseDefListHead(Src->getReg());
+      MachineOperand *Prev = Src->Contents.Reg.Prev;
+      MachineOperand *Next = Src->Contents.Reg.Next;
+      assert(Head && "List empty, but operand is chained");
+      assert(Prev && "Operand was not on use-def list");
+
+      // Prev links are circular, next link is NULL instead of looping back to
+      // Head.
+      if (Src == Head)
+        Head = Dst;
+      else
+        Prev->Contents.Reg.Next = Dst;
+
+      // Update Prev pointer. This also works when Src was pointing to itself
+      // in a 1-element list. In that case Head == Dst.
+      (Next ? Next : Head)->Contents.Reg.Prev = Dst;
+    }
+
+    Dst += Stride;
+    Src += Stride;
+  } while (--NumOps);
+}
+
 /// replaceRegWith - Replace all instances of FromReg with ToReg in the
 /// machine function.  This is like llvm-level X->replaceAllUsesWith(Y),
 /// except that it also changes any definitions of the register as well.
@@ -236,13 +280,6 @@ void MachineRegisterInfo::clearKillFlags(unsigned Reg) const {
 bool MachineRegisterInfo::isLiveIn(unsigned Reg) const {
   for (livein_iterator I = livein_begin(), E = livein_end(); I != E; ++I)
     if (I->first == Reg || I->second == Reg)
-      return true;
-  return false;
-}
-
-bool MachineRegisterInfo::isLiveOut(unsigned Reg) const {
-  for (liveout_iterator I = liveout_begin(), E = liveout_end(); I != E; ++I)
-    if (*I == Reg)
       return true;
   return false;
 }

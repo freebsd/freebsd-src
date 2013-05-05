@@ -105,7 +105,8 @@ static device_method_t ufm_methods[] = {
 	DEVMETHOD(device_probe, ufm_probe),
 	DEVMETHOD(device_attach, ufm_attach),
 	DEVMETHOD(device_detach, ufm_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ufm_driver = {

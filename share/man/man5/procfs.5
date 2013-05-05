@@ -2,7 +2,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd September 22, 2009
+.Dd April 22, 2013
 .Dt PROCFS 5
 .Os
 .Sh NAME
@@ -155,9 +155,10 @@ process group id
 .It
 session id
 .It
-.Ar major , Ns Ar minor
+device name
 of the controlling terminal, or
-.Dv -1,-1
+a minus sign
+.Pq Dq -
 if there is no controlling terminal.
 .It
 a list of process flags:

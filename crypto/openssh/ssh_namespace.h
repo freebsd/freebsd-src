@@ -13,9 +13,6 @@
 
 #define a2port					ssh_a2port
 #define a2tun					ssh_a2tun
-#define acss					ssh_acss
-#define acss_setkey				ssh_acss_setkey
-#define acss_setsubkey				ssh_acss_setsubkey
 #define add_host_to_hostfile			ssh_add_host_to_hostfile
 #define addargs					ssh_addargs
 #define addr_match_cidr_list			ssh_addr_match_cidr_list
@@ -150,6 +147,7 @@
 #define check_key_in_hostkeys			ssh_check_key_in_hostkeys
 #define choose_dh				ssh_choose_dh
 #define chop					ssh_chop
+#define cipher_authlen				ssh_cipher_authlen
 #define cipher_blocksize			ssh_cipher_blocksize
 #define cipher_by_name				ssh_cipher_by_name
 #define cipher_by_number			ssh_cipher_by_number
@@ -161,6 +159,7 @@
 #define cipher_get_number			ssh_cipher_get_number
 #define cipher_init				ssh_cipher_init
 #define cipher_is_cbc				ssh_cipher_is_cbc
+#define cipher_ivlen				ssh_cipher_ivlen
 #define cipher_keylen				ssh_cipher_keylen
 #define cipher_mask_ssh1			ssh_cipher_mask_ssh1
 #define cipher_name				ssh_cipher_name
@@ -208,8 +207,6 @@
 #define enable_compat13				ssh_enable_compat13
 #define enable_compat20				ssh_enable_compat20
 #define error					ssh_error
-#define evp_acss				ssh_evp_acss
-#define evp_aes_128_ctr				ssh_evp_aes_128_ctr
 #define evp_ssh1_3des				ssh_evp_ssh1_3des
 #define evp_ssh1_bf				ssh_evp_ssh1_bf
 #define export_dns_rr				ssh_export_dns_rr
@@ -311,9 +308,11 @@
 #define key_verify				ssh_key_verify
 #define key_write				ssh_key_write
 #define load_hostkeys				ssh_load_hostkeys
+#define log_change_level			ssh_log_change_level
 #define log_facility_name			ssh_log_facility_name
 #define log_facility_number			ssh_log_facility_number
 #define log_init				ssh_log_init
+#define log_is_on_stderr			ssh_log_is_on_stderr
 #define log_level_name				ssh_log_level_name
 #define log_level_number			ssh_log_level_number
 #define logit					ssh_logit
@@ -462,6 +461,10 @@
 #define tty_make_modes				ssh_tty_make_modes
 #define tty_parse_modes				ssh_tty_parse_modes
 #define tun_open				ssh_tun_open
+#define umac128_new				ssh_umac128_new
+#define umac128_update				ssh_umac128_update
+#define umac128_final				ssh_umac128_final
+#define umac128_delete				ssh_umac128_delete
 #define umac_ctx				ssh_umac_ctx
 #define umac_delete				ssh_umac_delete
 #define umac_final				ssh_umac_final

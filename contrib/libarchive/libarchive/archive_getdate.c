@@ -369,8 +369,8 @@ relunitphrase(struct gdstate *gds)
 	    && gds->tokenp[1].token == tSEC_UNIT) {
 		/* "1 day" */
 		gds->HaveRel++;
-		gds->RelSeconds += gds->tokenp[1].value * gds->tokenp[2].value;
-		gds->tokenp += 3;
+		gds->RelSeconds += gds->tokenp[0].value * gds->tokenp[1].value;
+		gds->tokenp += 2;
 		return 1;
 	}
 	if (gds->tokenp[0].token == '-'
@@ -403,7 +403,7 @@ relunitphrase(struct gdstate *gds)
 		/* "now", "tomorrow" */
 		gds->HaveRel++;
 		gds->RelSeconds += gds->tokenp[0].value;
-		++gds->tokenp;
+		gds->tokenp += 1;
 		return 1;
 	}
 	if (gds->tokenp[0].token == tMONTH_UNIT) {
@@ -1022,10 +1022,11 @@ int
 main(int argc, char **argv)
 {
     time_t	d;
+    time_t	now = time(NULL);
 
     while (*++argv != NULL) {
 	    (void)printf("Input: %s\n", *argv);
-	    d = get_date(*argv);
+	    d = get_date(now, *argv);
 	    if (d == -1)
 		    (void)printf("Bad format - couldn't convert.\n");
 	    else

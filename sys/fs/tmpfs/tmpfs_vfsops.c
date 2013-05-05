@@ -294,19 +294,8 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 	while (node != NULL) {
 		struct tmpfs_node *next;
 
-		if (node->tn_type == VDIR) {
-			struct tmpfs_dirent *de;
-
-			de = TAILQ_FIRST(&node->tn_dir.tn_dirhead);
-			while (de != NULL) {
-				struct tmpfs_dirent *nde;
-
-				nde = TAILQ_NEXT(de, td_entries);
-				tmpfs_free_dirent(tmp, de, FALSE);
-				de = nde;
-				node->tn_size -= sizeof(struct tmpfs_dirent);
-			}
-		}
+		if (node->tn_type == VDIR)
+			tmpfs_dir_destroy(tmp, node);
 
 		next = LIST_NEXT(node, tn_entries);
 		tmpfs_free_node(tmp, node);

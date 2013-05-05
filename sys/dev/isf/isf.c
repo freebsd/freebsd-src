@@ -150,6 +150,7 @@ static void	isf_task(void *arg);
  * physical package, due to variable block size support in the StrataFlash
  * part.
  */
+devclass_t	isf_devclass;
 
 static uint16_t
 isf_read_reg(struct isf_softc *sc, uint16_t reg)

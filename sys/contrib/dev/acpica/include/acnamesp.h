@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -204,6 +204,35 @@ AcpiNsCompareNames (
 
 
 /*
+ * nsconvert - Dynamic object conversion routines
+ */
+ACPI_STATUS
+AcpiNsConvertToInteger (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToString (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToBuffer (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToUnicode (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+ACPI_STATUS
+AcpiNsConvertToResource (
+    ACPI_OPERAND_OBJECT     *OriginalObject,
+    ACPI_OPERAND_OBJECT     **ReturnObject);
+
+
+/*
  * nsdump - Namespace dump/print utilities
  */
 void
@@ -257,25 +286,52 @@ AcpiNsExecModuleCodeList (
 
 
 /*
- * nspredef - Support for predefined/reserved names
+ * nsarguments - Argument count/type checking for predefined/reserved names
  */
-ACPI_STATUS
-AcpiNsCheckPredefinedNames (
-    ACPI_NAMESPACE_NODE     *Node,
-    UINT32                  UserParamCount,
-    ACPI_STATUS             ReturnStatus,
-    ACPI_OPERAND_OBJECT     **ReturnObject);
-
-const ACPI_PREDEFINED_INFO *
-AcpiNsCheckForPredefinedName (
-    ACPI_NAMESPACE_NODE     *Node);
-
 void
-AcpiNsCheckParameterCount (
+AcpiNsCheckArgumentCount (
     char                        *Pathname,
     ACPI_NAMESPACE_NODE         *Node,
     UINT32                      UserParamCount,
     const ACPI_PREDEFINED_INFO  *Info);
+
+void
+AcpiNsCheckAcpiCompliance (
+    char                        *Pathname,
+    ACPI_NAMESPACE_NODE         *Node,
+    const ACPI_PREDEFINED_INFO  *Predefined);
+
+void
+AcpiNsCheckArgumentTypes (
+    ACPI_EVALUATE_INFO          *Info);
+
+
+/*
+ * nspredef - Return value checking for predefined/reserved names
+ */
+ACPI_STATUS
+AcpiNsCheckReturnValue (
+    ACPI_NAMESPACE_NODE         *Node,
+    ACPI_EVALUATE_INFO          *Info,
+    UINT32                      UserParamCount,
+    ACPI_STATUS                 ReturnStatus,
+    ACPI_OPERAND_OBJECT         **ReturnObject);
+
+ACPI_STATUS
+AcpiNsCheckObjectType (
+    ACPI_EVALUATE_INFO          *Info,
+    ACPI_OPERAND_OBJECT         **ReturnObjectPtr,
+    UINT32                      ExpectedBtypes,
+    UINT32                      PackageIndex);
+
+
+/*
+ * nsprepkg - Validation of predefined name packages
+ */
+ACPI_STATUS
+AcpiNsCheckPackage (
+    ACPI_EVALUATE_INFO          *Info,
+    ACPI_OPERAND_OBJECT         **ReturnObjectPtr);
 
 
 /*
@@ -361,28 +417,28 @@ AcpiNsGetAttachedData (
  * predefined methods/objects
  */
 ACPI_STATUS
-AcpiNsRepairObject (
-    ACPI_PREDEFINED_DATA    *Data,
+AcpiNsSimpleRepair (
+    ACPI_EVALUATE_INFO      *Info,
     UINT32                  ExpectedBtypes,
     UINT32                  PackageIndex,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 ACPI_STATUS
 AcpiNsWrapWithPackage (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     *OriginalObject,
     ACPI_OPERAND_OBJECT     **ObjDescPtr);
 
 ACPI_STATUS
 AcpiNsRepairNullElement (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     UINT32                  ExpectedBtypes,
     UINT32                  PackageIndex,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 void
 AcpiNsRemoveNullElements (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     UINT8                   PackageType,
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
@@ -393,7 +449,7 @@ AcpiNsRemoveNullElements (
  */
 ACPI_STATUS
 AcpiNsComplexRepairs (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_STATUS             ValidateStatus,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
@@ -430,10 +486,6 @@ AcpiNsInstallNode (
 /*
  * nsutils - Utility functions
  */
-BOOLEAN
-AcpiNsValidRootPrefix (
-    char                    Prefix);
-
 ACPI_OBJECT_TYPE
 AcpiNsGetType (
     ACPI_NAMESPACE_NODE     *Node);

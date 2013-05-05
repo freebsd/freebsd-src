@@ -57,7 +57,7 @@ void setstackmark(struct stackmark *);
 void popstackmark(struct stackmark *);
 char *growstackstr(void);
 char *makestrspace(int, char *);
-char *stputbin(const char *data, int len, char *p);
+char *stputbin(const char *data, size_t len, char *p);
 char *stputs(const char *data, char *p);
 
 
@@ -67,7 +67,7 @@ char *stputs(const char *data, char *p);
 #define grabstackblock(n) stalloc(n)
 #define STARTSTACKSTR(p)	p = stackblock()
 #define STPUTC(c, p)	do { if (p == sstrend) p = growstackstr(); *p++ = (c); } while(0)
-#define CHECKSTRSPACE(n, p)	{ if (sstrend - p < n) p = makestrspace(n, p); }
+#define CHECKSTRSPACE(n, p)	{ if ((size_t)(sstrend - p) < n) p = makestrspace(n, p); }
 #define USTPUTC(c, p)	(*p++ = (c))
 /*
  * STACKSTRNUL's use is where we want to be able to turn a stack

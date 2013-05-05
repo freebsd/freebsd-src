@@ -167,7 +167,7 @@ static device_method_t ds1672_methods[] = {
 	DEVMETHOD(clock_gettime,	ds1672_gettime),
 	DEVMETHOD(clock_settime,	ds1672_settime),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t ds1672_driver = {

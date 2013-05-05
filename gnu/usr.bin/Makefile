@@ -30,7 +30,7 @@ _groff=		groff
 _cvs=		cvs
 .endif
 
-.if ${MK_FDT}	!= "no"
+.if ${MK_GPL_DTC} != "no"
 _dtc=		dtc
 .endif
 

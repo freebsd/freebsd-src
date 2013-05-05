@@ -43,7 +43,7 @@ struct rt_addrinfo;
 struct llentry;
 LIST_HEAD(llentries, llentry);
 
-extern struct rwlock lltable_rwlock;
+extern struct rwlock_padalign lltable_rwlock;
 #define	LLTABLE_RLOCK()		rw_rlock(&lltable_rwlock)
 #define	LLTABLE_RUNLOCK()	rw_runlock(&lltable_rwlock)
 #define	LLTABLE_WLOCK()		rw_wlock(&lltable_rwlock)
@@ -172,7 +172,6 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_STATIC	0x0002	/* entry is static */
 #define	LLE_IFADDR	0x0004	/* entry is interface addr */
 #define	LLE_VALID	0x0008	/* ll_addr is valid */
-#define	LLE_PROXY	0x0010	/* proxy entry ??? */
 #define	LLE_PUB		0x0020	/* publish entry ??? */
 #define	LLE_LINKED	0x0040	/* linked to lookup structure */
 #define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
@@ -205,4 +204,14 @@ lla_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 }
 
 int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
+
+#include <sys/eventhandler.h>
+enum {
+	LLENTRY_RESOLVED,
+	LLENTRY_TIMEDOUT,
+	LLENTRY_DELETED,
+	LLENTRY_EXPIRED,
+};
+typedef void (*lle_event_fn)(void *, struct llentry *, int);
+EVENTHANDLER_DECLARE(lle_event, lle_event_fn);
 #endif  /* _NET_IF_LLATBL_H_ */

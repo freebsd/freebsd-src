@@ -32,7 +32,7 @@
 .\"     @(#)bsearch.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd February 22, 2013
 .Dt BSEARCH 3
 .Os
 .Sh NAME
@@ -71,6 +71,12 @@ less than, equal to, or greater than zero if the
 .Fa key
 object is found, respectively, to be less than, to match, or be
 greater than the array member.
+See the
+.Fa int_compare
+sample function in
+.Xr qsort 3
+for a comparison function that is also compatible with
+.Fn bsearch .
 .Sh RETURN VALUES
 The
 .Fn bsearch

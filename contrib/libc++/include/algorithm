@@ -1398,7 +1398,7 @@ __search_n(_RandomAccessIterator __first, _RandomAccessIterator __last,
         // Find first element in sequence that matchs __value_, with a mininum of loop checks
         while (true)
         {
-            if (__first == __s)  // return __last if no element matches __value_
+            if (__first >= __s)  // return __last if no element matches __value_
                 return __last;
             if (__pred(*__first, __value_))
                 break;
@@ -1528,10 +1528,10 @@ copy(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
 
 // copy_backward
 
-template <class _InputIterator, class _OutputIterator>
+template <class _BidirectionalIterator, class _OutputIterator>
 inline _LIBCPP_INLINE_VISIBILITY
 _OutputIterator
-__copy_backward(_InputIterator __first, _InputIterator __last, _OutputIterator __result)
+__copy_backward(_BidirectionalIterator __first, _BidirectionalIterator __last, _OutputIterator __result)
 {
     while (__first != __last)
         *--__result = *--__last;
@@ -2764,7 +2764,7 @@ class __rs_default
 
     __rs_default();
 public:
-    typedef unsigned result_type;
+    typedef uint_fast32_t result_type;
 
     static const result_type _Min = 0;
     static const result_type _Max = 0xFFFFFFFF;

@@ -120,18 +120,15 @@ sp804_timer_tc_get_timecount(struct timecounter *tc)
 }
 
 static int
-sp804_timer_start(struct eventtimer *et, struct bintime *first,
-              struct bintime *period)
+sp804_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct sp804_timer_softc *sc = et->et_priv;
 	uint32_t count, reg;
 
-	if (first != NULL) {
+	if (first != 0) {
 		sc->et_enabled = 1;
 
-		count = (sc->et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			count += sc->et.et_frequency * first->sec;
+		count = ((uint32_t)et->et_frequency * first) >> 32;
 
 		sp804_timer_tc_write_4(SP804_TIMER2_LOAD, count);
 		reg = TIMER_CONTROL_32BIT | TIMER_CONTROL_INTREN |
@@ -142,7 +139,7 @@ sp804_timer_start(struct eventtimer *et, struct bintime *first,
 		return (0);
 	} 
 
-	if (period != NULL) {
+	if (period != 0) {
 		panic("period");
 	}
 
@@ -264,12 +261,8 @@ sp804_timer_attach(device_t dev)
 	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->sysclk_freq / DEFAULT_DIVISOR;
-	sc->et.et_min_period.sec = 0;
-	sc->et.et_min_period.frac =
-	    ((0x00000002LLU << 32) / sc->et.et_frequency) << 32;
-	sc->et.et_max_period.sec = 0xfffffff0U / sc->et.et_frequency;
-	sc->et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_min_period = (0x00000002LLU << 32) / sc->et.et_frequency;
+	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = sp804_timer_start;
 	sc->et.et_stop = sp804_timer_stop;
 	sc->et.et_priv = sc;

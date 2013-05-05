@@ -45,8 +45,11 @@ typedef STAILQ_HEAD(, ciss_request)	cr_qhead_t;
 
 /*
  * Maximum number of logical drives we support.
+ * If the controller does not indicate a maximum
+ * value.  This is a compatibiliy value to support
+ * older ciss controllers (e.g. model 6i)
  */
-#define CISS_MAX_LOGICAL	63
+#define CISS_MAX_LOGICAL	16
 
 /*
  * Maximum number of physical devices we support.
@@ -113,6 +116,7 @@ struct ciss_request
 #define CISS_REQ_DATAOUT	(1<<3)		/* data host->adapter */
 #define CISS_REQ_DATAIN		(1<<4)		/* data adapter->host */
 #define CISS_REQ_BUSY		(1<<5)		/* controller has req */
+#define CISS_REQ_CCB		(1<<6)		/* data is ccb */
 
     void			(* cr_complete)(struct ciss_request *);
     void			*cr_private;

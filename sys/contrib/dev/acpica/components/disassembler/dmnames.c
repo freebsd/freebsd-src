@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,6 @@
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
@@ -226,7 +225,8 @@ AcpiDmNamestring (
 
     /* Handle all Scope Prefix operators */
 
-    while (AcpiPsIsPrefixChar (ACPI_GET8 (Name)))
+    while (ACPI_IS_ROOT_PREFIX (ACPI_GET8 (Name)) ||
+           ACPI_IS_PARENT_PREFIX (ACPI_GET8 (Name)))
     {
         /* Append prefix character */
 
@@ -323,7 +323,7 @@ AcpiDmDisplayPath (
 
         if ((NamePath) &&
             (NamePath->Common.Value.String) &&
-            (NamePath->Common.Value.String[0] == '\\'))
+            (ACPI_IS_ROOT_PREFIX (NamePath->Common.Value.String[0])))
         {
             AcpiDmNamestring (NamePath->Common.Value.String);
             return;

@@ -1,10 +1,13 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmarmdesc
 
 SRCDIR=	lib/Target/ARM/MCTargetDesc
 SRCS=	ARMAsmBackend.cpp \
 	ARMELFObjectWriter.cpp \
+	ARMELFStreamer.cpp \
 	ARMMachObjectWriter.cpp \
 	ARMMCAsmInfo.cpp \
 	ARMMCCodeEmitter.cpp \

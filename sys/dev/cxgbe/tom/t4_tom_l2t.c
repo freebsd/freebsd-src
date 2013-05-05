@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
@@ -34,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/fnv_hash.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
@@ -48,28 +50,89 @@ __FBSDID("$FreeBSD$");
 #include <netinet/toecore.h>
 
 #include "common/common.h"
-#include "common/jhash.h"
 #include "common/t4_msg.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
 #define VLAN_NONE	0xfff
 
-#define SA(x)           ((struct sockaddr *)(x))
-#define SIN(x)          ((struct sockaddr_in *)(x))
-#define SINADDR(x)      (SIN(x)->sin_addr.s_addr)
-
 static inline void
 l2t_hold(struct l2t_data *d, struct l2t_entry *e)
 {
+
 	if (atomic_fetchadd_int(&e->refcnt, 1) == 0)  /* 0 -> 1 transition */
 		atomic_subtract_int(&d->nfree, 1);
 }
 
-static inline unsigned int
-arp_hash(const uint32_t key, int ifindex)
+static inline u_int
+l2_hash(struct l2t_data *d, const struct sockaddr *sa, int ifindex)
 {
-	return jhash_2words(key, ifindex, 0) & (L2T_SIZE - 1);
+	u_int hash, half = d->l2t_size / 2, start = 0;
+	const void *key;
+	size_t len;
+
+	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
+	    ("%s: sa %p has unexpected sa_family %d", __func__, sa,
+	    sa->sa_family));
+
+	if (sa->sa_family == AF_INET) {
+		const struct sockaddr_in *sin = (const void *)sa;
+
+		key = &sin->sin_addr;
+		len = sizeof(sin->sin_addr);
+	} else {
+		const struct sockaddr_in6 *sin6 = (const void *)sa;
+
+		key = &sin6->sin6_addr;
+		len = sizeof(sin6->sin6_addr);
+		start = half;
+	}
+
+	hash = fnv_32_buf(key, len, FNV1_32_INIT);
+	hash = fnv_32_buf(&ifindex, sizeof(ifindex), hash);
+	hash %= half;
+
+	return (hash + start);
+}
+
+static inline int
+l2_cmp(const struct sockaddr *sa, struct l2t_entry *e)
+{
+
+	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
+	    ("%s: sa %p has unexpected sa_family %d", __func__, sa,
+	    sa->sa_family));
+
+	if (sa->sa_family == AF_INET) {
+		const struct sockaddr_in *sin = (const void *)sa;
+
+		return (e->addr[0] != sin->sin_addr.s_addr);
+	} else {
+		const struct sockaddr_in6 *sin6 = (const void *)sa;
+
+		return (memcmp(&e->addr[0], &sin6->sin6_addr, sizeof(e->addr)));
+	}
+}
+
+static inline void
+l2_store(const struct sockaddr *sa, struct l2t_entry *e)
+{
+
+	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
+	    ("%s: sa %p has unexpected sa_family %d", __func__, sa,
+	    sa->sa_family));
+
+	if (sa->sa_family == AF_INET) {
+		const struct sockaddr_in *sin = (const void *)sa;
+
+		e->addr[0] = sin->sin_addr.s_addr;
+		e->ipv6 = 0;
+	} else {
+		const struct sockaddr_in6 *sin6 = (const void *)sa;
+
+		memcpy(&e->addr[0], &sin6->sin6_addr, sizeof(e->addr));
+		e->ipv6 = 1;
+	}
 }
 
 /*
@@ -100,7 +163,7 @@ send_pending(struct adapter *sc, struct l2t_entry *e)
 static void
 resolution_failed_for_wr(struct wrqe *wr)
 {
-	log(LOG_ERR, "%s: leaked work request %p, wr_len %d", __func__, wr,
+	log(LOG_ERR, "%s: leaked work request %p, wr_len %d\n", __func__, wr,
 	    wr->wr_len);
 
 	/* free(wr, M_CXGBE); */
@@ -175,15 +238,25 @@ resolve_entry(struct adapter *sc, struct l2t_entry *e)
 	struct tom_data *td = sc->tom_softc;
 	struct toedev *tod = &td->tod;
 	struct sockaddr_in sin = {0};
+	struct sockaddr_in6 sin6 = {0};
+	struct sockaddr *sa;
 	uint8_t dmac[ETHER_ADDR_LEN];
 	uint16_t vtag = VLAN_NONE;
 	int rc;
 
-	sin.sin_family = AF_INET;
-	sin.sin_len = sizeof(struct sockaddr_in);
-	SINADDR(&sin) = e->addr;
+	if (e->ipv6 == 0) {
+		sin.sin_family = AF_INET;
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_addr.s_addr = e->addr[0];
+		sa = (void *)&sin;
+	} else {
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		memcpy(&sin6.sin6_addr, &e->addr[0], sizeof(e->addr));
+		sa = (void *)&sin6;
+	}
 
-	rc = toe_l2_resolve(tod, e->ifp, SA(&sin), dmac, &vtag);
+	rc = toe_l2_resolve(tod, e->ifp, sa, dmac, &vtag);
 	if (rc == EWOULDBLOCK)
 		return (rc);
 
@@ -263,7 +336,7 @@ do_l2t_write_rpl2(struct sge_iq *iq, const struct rss_header *rss,
 	struct adapter *sc = iq->adapter;
 	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
 	unsigned int tid = GET_TID(rpl);
-	unsigned int idx = tid & (L2T_SIZE - 1);
+	unsigned int idx = tid % L2T_SIZE;
 	int rc;
 
 	rc = do_l2t_write_rpl(iq, rss, m);
@@ -271,7 +344,7 @@ do_l2t_write_rpl2(struct sge_iq *iq, const struct rss_header *rss,
 		return (rc);
 
 	if (tid & F_SYNC_WR) {
-		struct l2t_entry *e = &sc->l2t->l2tab[idx];
+		struct l2t_entry *e = &sc->l2t->l2tab[idx - sc->vres.l2t.start];
 
 		mtx_lock(&e->lock);
 		if (e->state != L2T_STATE_SWITCHING) {
@@ -310,21 +383,22 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 {
 	struct l2t_entry *e;
 	struct l2t_data *d = pi->adapter->l2t;
-	uint32_t addr = SINADDR(sa);
-	int hash = arp_hash(addr, ifp->if_index);
-	unsigned int smt_idx = pi->port_id;
+	u_int hash, smt_idx = pi->port_id;
 
-	if (sa->sa_family != AF_INET)
-		return (NULL);	/* XXX: no IPv6 support right now */
+	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
+	    ("%s: sa %p has unexpected sa_family %d", __func__, sa,
+	    sa->sa_family));
 
 #ifndef VLAN_TAG
 	if (ifp->if_type == IFT_L2VLAN)
 		return (NULL);
 #endif
 
+	hash = l2_hash(d, sa, ifp->if_index);
 	rw_wlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next) {
-		if (e->addr == addr && e->ifp == ifp && e->smt_idx == smt_idx) {
+		if (l2_cmp(sa, e) == 0 && e->ifp == ifp &&
+		    e->smt_idx == smt_idx) {
 			l2t_hold(d, e);
 			goto done;
 		}
@@ -338,7 +412,7 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 		d->l2tab[hash].first = e;
 
 		e->state = L2T_STATE_RESOLVING;
-		e->addr = addr;
+		l2_store(sa, e);
 		e->ifp = ifp;
 		e->smt_idx = smt_idx;
 		e->hash = hash;
@@ -368,14 +442,14 @@ t4_l2_update(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 	struct adapter *sc = tod->tod_softc;
 	struct l2t_entry *e;
 	struct l2t_data *d = sc->l2t;
-	uint32_t addr = SINADDR(sa);
-	int hash = arp_hash(addr, ifp->if_index);
+	u_int hash;
 
 	KASSERT(d != NULL, ("%s: no L2 table", __func__));
 
+	hash = l2_hash(d, sa, ifp->if_index);
 	rw_rlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next) {
-		if (e->addr == addr && e->ifp == ifp) {
+		if (l2_cmp(sa, e) == 0 && e->ifp == ifp) {
 			mtx_lock(&e->lock);
 			if (atomic_load_acq_int(&e->refcnt))
 				goto found;

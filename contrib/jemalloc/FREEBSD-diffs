@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 54b8747..91c4a4e 100644
+index 0930580..d45fa3d 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -51,12 +51,23 @@
@@ -27,7 +27,7 @@ index 54b8747..91c4a4e 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -2170,4 +2181,16 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+@@ -2173,4 +2184,16 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
@@ -45,7 +45,7 @@ index 54b8747..91c4a4e 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 475821a..73306ac 100644
+index c606c12..0d46d9d 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
@@ -97,10 +97,10 @@ index de44e14..564d604 100644
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex);
 diff --git a/include/jemalloc/internal/private_namespace.h b/include/jemalloc/internal/private_namespace.h
-index 06241cd..7b19906 100644
+index 903fb4d..d6638df 100644
 --- a/include/jemalloc/internal/private_namespace.h
 +++ b/include/jemalloc/internal/private_namespace.h
-@@ -204,7 +204,6 @@
+@@ -216,7 +216,6 @@
  #define	iralloc JEMALLOC_N(iralloc)
  #define	irallocx JEMALLOC_N(irallocx)
  #define	isalloc JEMALLOC_N(isalloc)
@@ -203,7 +203,7 @@ index 0000000..9c97a13
 +#define	pthread_mutex_lock	_pthread_mutex_lock
 +#define	pthread_mutex_unlock	_pthread_mutex_unlock
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 8a667b6..aaf5012 100644
+index c117685..665d98f 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -8,6 +8,10 @@ malloc_tsd_data(, arenas, arena_t *, NULL)
@@ -216,8 +216,8 @@ index 8a667b6..aaf5012 100644
 +
  /* Runtime configuration options. */
  const char	*je_malloc_conf;
- #ifdef JEMALLOC_DEBUG
-@@ -448,7 +452,8 @@ malloc_conf_init(void)
+ bool	opt_abort =
+@@ -453,7 +457,8 @@ malloc_conf_init(void)
  #endif
  			    ;
  

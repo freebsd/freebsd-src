@@ -701,3 +701,18 @@ __start(void)
 	do_call(dst, kernel, dst + (unsigned int)(&func_end) -
 	    (unsigned int)(&load_kernel) + 800, sp);
 }
+
+#ifdef __ARM_EABI__
+/* We need to provide these functions but never call them */
+void __aeabi_unwind_cpp_pr0(void);
+void __aeabi_unwind_cpp_pr1(void);
+void __aeabi_unwind_cpp_pr2(void);
+
+__strong_reference(__aeabi_unwind_cpp_pr0, __aeabi_unwind_cpp_pr1);
+__strong_reference(__aeabi_unwind_cpp_pr0, __aeabi_unwind_cpp_pr2);
+void
+__aeabi_unwind_cpp_pr0(void)
+{
+}
+#endif
+

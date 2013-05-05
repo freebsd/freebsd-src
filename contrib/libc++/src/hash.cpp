@@ -10,6 +10,14 @@
 #include "__hash_table"
 #include "algorithm"
 #include "stdexcept"
+#include "type_traits"
+
+// Don't silence a non-existent warning if clang doesn't yet have this warning.
+#ifdef __clang__
+#if (__clang_major__ > 3) || ((__clang_major__ == 3) && (__clang_minor__ >= 2))
+#pragma clang diagnostic ignored "-Wtautological-constant-out-of-range-compare"
+#endif
+#endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -144,23 +152,29 @@ const unsigned indices[] =
 // are fewer potential primes to search, and fewer potential primes to divide
 // against.
 
+template <size_t _Sz = sizeof(size_t)>
 inline _LIBCPP_INLINE_VISIBILITY
-void
-__check_for_overflow(size_t N, integral_constant<size_t, 32>)
+typename enable_if<_Sz == 4, void>::type
+__check_for_overflow(size_t N)
 {
-#ifndef _LIBCPP_NO_EXCEPTIONS 
+#ifndef _LIBCPP_NO_EXCEPTIONS
     if (N > 0xFFFFFFFB)
         throw overflow_error("__next_prime overflow");
+#else
+    (void)N;
 #endif
 }
 
+template <size_t _Sz = sizeof(size_t)>
 inline _LIBCPP_INLINE_VISIBILITY
-void
-__check_for_overflow(size_t N, integral_constant<size_t, 64>)
+typename enable_if<_Sz == 8, void>::type
+__check_for_overflow(size_t N)
 {
-#ifndef _LIBCPP_NO_EXCEPTIONS 
+#ifndef _LIBCPP_NO_EXCEPTIONS
     if (N > 0xFFFFFFFFFFFFFFC5ull)
         throw overflow_error("__next_prime overflow");
+#else
+    (void)N;
 #endif
 }
 
@@ -174,8 +188,7 @@ __next_prime(size_t n)
         return *std::lower_bound(small_primes, small_primes + N, n);
     // Else n > largest small_primes
     // Check for overflow
-    __check_for_overflow(n, integral_constant<size_t, 
-                                                   sizeof(n) * __CHAR_BIT__>());
+    __check_for_overflow(n);
     // Start searching list of potential primes: L * k0 + indices[in]
     const size_t M = sizeof(indices) / sizeof(indices[0]);
     // Select first potential prime >= n

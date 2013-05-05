@@ -139,32 +139,34 @@ static struct cap_desc {
 	/* General file I/O. */
 	{ CAP_READ,		"rd" },
 	{ CAP_WRITE,		"wr" },
+	{ CAP_SEEK,		"se" },
 	{ CAP_MMAP,		"mm" },
-	{ CAP_MAPEXEC,		"me" },
+	{ CAP_CREATE,		"cr" },
 	{ CAP_FEXECVE,		"fe" },
 	{ CAP_FSYNC,		"fy" },
 	{ CAP_FTRUNCATE,	"ft" },
-	{ CAP_SEEK,		"se" },
 
 	/* VFS methods. */
-	{ CAP_FCHFLAGS,		"cf" },
 	{ CAP_FCHDIR,		"cd" },
+	{ CAP_FCHFLAGS,		"cf" },
 	{ CAP_FCHMOD,		"cm" },
 	{ CAP_FCHOWN,		"cn" },
 	{ CAP_FCNTL,		"fc" },
-	{ CAP_FPATHCONF,	"fp" },
 	{ CAP_FLOCK,		"fl" },
+	{ CAP_FPATHCONF,	"fp" },
 	{ CAP_FSCK,		"fk" },
 	{ CAP_FSTAT,		"fs" },
 	{ CAP_FSTATFS,		"sf" },
 	{ CAP_FUTIMES,		"fu" },
-	{ CAP_CREATE,		"cr" },
-	{ CAP_DELETE,		"de" },
-	{ CAP_MKDIR,		"md" },
-	{ CAP_RMDIR,		"rm" },
-	{ CAP_MKFIFO,		"mf" },
+	{ CAP_LINKAT,		"li" },
+	{ CAP_MKDIRAT,		"md" },
+	{ CAP_MKFIFOAT,		"mf" },
+	{ CAP_MKNODAT,		"mn" },
+	{ CAP_RENAMEAT,		"rn" },
+	{ CAP_SYMLINKAT,	"sl" },
+	{ CAP_UNLINKAT,		"un" },
 
-	/* Lookups - used to constraint *at() calls. */
+	/* Lookups - used to constrain *at() calls. */
 	{ CAP_LOOKUP,		"lo" },
 
 	/* Extended attributes. */
@@ -208,11 +210,35 @@ static struct cap_desc {
 	{ CAP_IOCTL,		"io" },
 	{ CAP_TTYHOOK,		"ty" },
 
-#ifdef NOTYET
+	/* Process management via process descriptors. */
 	{ CAP_PDGETPID,		"pg" },
-	{ CAP_PDWAIT4,		"pw" },
+	{ CAP_PDWAIT,		"pw" },
 	{ CAP_PDKILL,		"pk" },
-#endif
+
+	/*
+	 * Rights that allow to use bindat(2) and connectat(2) syscalls on a
+	 * directory descriptor.
+	 */
+	{ CAP_BINDAT,		"ba" },
+	{ CAP_CONNECTAT,	"ca" },
+
+	/* Aliases and defines that combine multiple rights. */
+	{ CAP_PREAD,		"prd" },
+	{ CAP_PWRITE,		"pwr" },
+
+	{ CAP_MMAP_R,		"mmr" },
+	{ CAP_MMAP_W,		"mmw" },
+	{ CAP_MMAP_X,		"mmx" },
+	{ CAP_MMAP_RW,		"mrw" },
+	{ CAP_MMAP_RX,		"mrx" },
+	{ CAP_MMAP_WX,		"mwx" },
+	{ CAP_MMAP_RWX,		"mma" },
+
+	{ CAP_RECV,		"re" },
+	{ CAP_SEND,		"sd" },
+
+	{ CAP_SOCK_CLIENT,	"scl" },
+	{ CAP_SOCK_SERVER,	"ssr" },
 };
 static const u_int	cap_desc_count = sizeof(cap_desc) /
 			    sizeof(cap_desc[0]);
@@ -225,7 +251,7 @@ width_capability(cap_rights_t rights)
 	count = 0;
 	width = 0;
 	for (i = 0; i < cap_desc_count; i++) {
-		if (rights & cap_desc[i].cd_right) {
+		if ((cap_desc[i].cd_right & ~rights) == 0) {
 			width += strlen(cap_desc[i].cd_desc);
 			if (count)
 				width++;
@@ -249,7 +275,7 @@ print_capability(cap_rights_t rights, u_int capwidth)
 			printf("-");
 	}
 	for (i = 0; i < cap_desc_count; i++) {
-		if (rights & cap_desc[i].cd_right) {
+		if ((cap_desc[i].cd_right & ~rights) == 0) {
 			printf("%s%s", count ? "," : "", cap_desc[i].cd_desc);
 			width += strlen(cap_desc[i].cd_desc);
 			if (count)
@@ -261,7 +287,7 @@ print_capability(cap_rights_t rights, u_int capwidth)
 
 void
 procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
-{ 
+{
 	struct sockstat sock;
 	struct filestat_list *head;
 	struct filestat *fst;
@@ -423,8 +449,6 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_NONBLOCK ? "n" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_DIRECT ? "d" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_HASLOCK ? "l" : "-");
-		printf("%s ", fst->fs_fflags & PS_FST_FFLAG_CAPABILITY ?
-		    "c" : "-");
 		if (!Cflag) {
 			if (fst->fs_ref_count > -1)
 				printf("%3d ", fst->fs_ref_count);

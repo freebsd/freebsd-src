@@ -12,25 +12,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "XCoreRegisterInfo.h"
-#include "XCoreMachineFunctionInfo.h"
 #include "XCore.h"
-#include "llvm/Type.h"
-#include "llvm/Function.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineFunction.h"
+#include "XCoreMachineFunctionInfo.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 
 #define GET_REGINFO_TARGET_DESC
 #include "XCoreGenRegisterInfo.inc"
@@ -101,72 +101,14 @@ XCoreRegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
   return false;
 }
 
-// This function eliminates ADJCALLSTACKDOWN,
-// ADJCALLSTACKUP pseudo instructions
-void XCoreRegisterInfo::
-eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator I) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
-
-  if (!TFI->hasReservedCallFrame(MF)) {
-    // Turn the adjcallstackdown instruction into 'extsp <amt>' and the
-    // adjcallstackup instruction into 'ldaw sp, sp[<amt>]'
-    MachineInstr *Old = I;
-    uint64_t Amount = Old->getOperand(0).getImm();
-    if (Amount != 0) {
-      // We need to keep the stack aligned properly.  To do this, we round the
-      // amount of space needed for the outgoing arguments up to the next
-      // alignment boundary.
-      unsigned Align = TFI->getStackAlignment();
-      Amount = (Amount+Align-1)/Align*Align;
-
-      assert(Amount%4 == 0);
-      Amount /= 4;
-
-      bool isU6 = isImmU6(Amount);
-      if (!isU6 && !isImmU16(Amount)) {
-        // FIX could emit multiple instructions in this case.
-#ifndef NDEBUG
-        errs() << "eliminateCallFramePseudoInstr size too big: "
-               << Amount << "\n";
-#endif
-        llvm_unreachable(0);
-      }
-
-      MachineInstr *New;
-      if (Old->getOpcode() == XCore::ADJCALLSTACKDOWN) {
-        int Opcode = isU6 ? XCore::EXTSP_u6 : XCore::EXTSP_lu6;
-        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode))
-          .addImm(Amount);
-      } else {
-        assert(Old->getOpcode() == XCore::ADJCALLSTACKUP);
-        int Opcode = isU6 ? XCore::LDAWSP_ru6_RRegs : XCore::LDAWSP_lru6_RRegs;
-        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode), XCore::SP)
-          .addImm(Amount);
-      }
-
-      // Replace the pseudo instruction with a new instruction...
-      MBB.insert(I, New);
-    }
-  }
-  
-  MBB.erase(I);
-}
-
 void
 XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                       int SPAdj, RegScavenger *RS) const {
+                                       int SPAdj, unsigned FIOperandNum,
+                                       RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
   MachineInstr &MI = *II;
   DebugLoc dl = MI.getDebugLoc();
-  unsigned i = 0;
-
-  while (!MI.getOperand(i).isFI()) {
-    ++i;
-    assert(i < MI.getNumOperands() && "Instr doesn't have FrameIndex operand!");
-  }
-
-  MachineOperand &FrameOp = MI.getOperand(i);
+  MachineOperand &FrameOp = MI.getOperand(FIOperandNum);
   int FrameIndex = FrameOp.getIndex();
 
   MachineFunction &MF = *MI.getParent()->getParent();
@@ -190,14 +132,14 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   // Special handling of DBG_VALUE instructions.
   if (MI.isDebugValue()) {
-    MI.getOperand(i).ChangeToRegister(FrameReg, false /*isDef*/);
-    MI.getOperand(i+1).ChangeToImmediate(Offset);
+    MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false /*isDef*/);
+    MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
     return;
   }
 
   // fold constant into offset.
-  Offset += MI.getOperand(i + 1).getImm();
-  MI.getOperand(i + 1).ChangeToImmediate(0);
+  Offset += MI.getOperand(FIOperandNum + 1).getImm();
+  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(0);
   
   assert(Offset%4 == 0 && "Misaligned stack offset");
 
@@ -231,7 +173,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
               .addReg(ScratchReg, RegState::Kill);
         break;
       case XCore::STWFI:
-        BuildMI(MBB, II, dl, TII.get(XCore::STW_3r))
+        BuildMI(MBB, II, dl, TII.get(XCore::STW_l3r))
               .addReg(Reg, getKillRegState(isKill))
               .addReg(FrameReg)
               .addReg(ScratchReg, RegState::Kill);

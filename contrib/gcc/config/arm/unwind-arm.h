@@ -87,7 +87,7 @@ extern "C" {
 
   struct _Unwind_Control_Block
     {
-      char exception_class[8];
+      unsigned  exception_class __attribute__((__mode__(__DI__)));
       void (*exception_cleanup)(_Unwind_Reason_Code, _Unwind_Control_Block *);
       /* Unwinder cache, private fields for the unwinder's use */
       struct
@@ -186,7 +186,7 @@ extern "C" {
 
   /* Support functions for the PR.  */
 #define _Unwind_Exception _Unwind_Control_Block
-  typedef char _Unwind_Exception_Class[8];
+  typedef unsigned _Unwind_Exception_Class __attribute__((__mode__(__DI__)));
 
   void * _Unwind_GetLanguageSpecificData (_Unwind_Context *);
   _Unwind_Ptr _Unwind_GetRegionStart (_Unwind_Context *);

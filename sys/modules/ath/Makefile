@@ -37,7 +37,7 @@ ATH_RATE?=	sample		# tx rate control algorithm
 KMOD=	if_ath
 SRCS=	if_ath.c if_ath_alq.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
 SRCS+=	if_ath_tx.c if_ath_tx_ht.c if_ath_led.c if_ath_rx.c if_ath_tdma.c
-SRCS+=	if_ath_beacon.c if_ath_rx_edma.c if_ath_tx_edma.c
+SRCS+=	if_ath_beacon.c if_ath_rx_edma.c if_ath_tx_edma.c if_ath_spectral.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
@@ -89,7 +89,7 @@ SRCS+=	ah_eeprom_v14.c ah_eeprom_v4k.c \
 	ar5416_ani.c ar5416_attach.c ar5416_beacon.c ar5416_btcoex.c \
 	ar5416_cal.c ar5416_cal_iq.c ar5416_cal_adcgain.c ar5416_cal_adcdc.c \
 	ar5416_eeprom.c ar5416_gpio.c ar5416_interrupts.c ar5416_keycache.c \
-	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_radar.c \
+	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_radar.c ar5416_spectral.c \
 	ar5416_recv.c ar5416_reset.c ar5416_xmit.c
 
 # RF backend for 5416, 9130 and 9160
@@ -123,6 +123,15 @@ SRCS+=  ah_eeprom_9287.c
 .PATH:  ${.CURDIR}/../../dev/ath/ath_hal/ar9002
 SRCS+=  ar9287.c ar9287_reset.c ar9287_attach.c ar9287_cal.c ar9287_olc.c
 
+# + AR9300 HAL
+.PATH:  ${.CURDIR}/../../contrib/dev/ath/ath_hal/ar9300
+SRCS+= ar9300_interrupts.c ar9300_radar.c ar9300_ani.c ar9300_keycache.c
+SRCS+= ar9300_radio.c ar9300_xmit.c ar9300_attach.c ar9300_mci.c ar9300_stub.c
+SRCS+= ar9300_xmit_ds.c ar9300_beacon.c ar9300_misc.c ar9300_recv.c
+SRCS+= ar9300_stub_funcs.c ar9300_eeprom.c ar9300_paprd.c ar9300_recv_ds.c
+SRCS+= ar9300_freebsd.c ar9300_phy.c ar9300_reset.c ar9300_gpio.c
+SRCS+= ar9300_power.c ar9300_timer.c
+
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"
 .PATH:	${.CURDIR}/../../dev/ath/ath_rate/sample
@@ -140,6 +149,7 @@ SRCS+=	amrr.c
 SRCS+=	dfs_null.c
 
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
+CFLAGS+=  -I. -I${.CURDIR}/../../contrib/dev/ath/ath_hal/
 
 .if !defined(KERNBUILDDIR)
 opt_ah.h:
@@ -152,3 +162,7 @@ CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLO
 # XXX Work around clang warnings, until maintainer approves fix.
 CWARNFLAGS.if_ath.c=		${NO_WSOMETIMES_UNINITIALIZED}
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
+
+# AR9300 HAL build overrides, as there's still some code to tidy up
+CWARNFLAGS.ar9300_eeprom.c=	${NO_WCONSTANT_CONVERSION}
+CWARNFLAGS.ar9300_reset.c=	${NO_WSOMETIMES_UNINITIALIZED}

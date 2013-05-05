@@ -109,8 +109,14 @@
  */
 #define	BUS_DMA_KEEP_PG_OFFSET	0x400
 
+#define	BUS_DMA_LOAD_MBUF	0x800
+
 /* Forwards needed by prototypes below. */
+union ccb;
+struct bio;
 struct mbuf;
+struct memdesc;
+struct pmap;
 struct uio;
 
 /*
@@ -191,6 +197,56 @@ typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
 
 /*
+ * Map the buffer buf into bus space using the dmamap map.
+ */
+int bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+		    bus_size_t buflen, bus_dmamap_callback_t *callback,
+		    void *callback_arg, int flags);
+
+/*
+ * Like bus_dmamap_load but for mbufs.  Note the use of the
+ * bus_dmamap_callback2_t interface.
+ */
+int bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
+			 struct mbuf *mbuf,
+			 bus_dmamap_callback2_t *callback, void *callback_arg,
+			 int flags);
+
+int bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
+			    struct mbuf *mbuf, bus_dma_segment_t *segs,
+			    int *nsegs, int flags);
+
+/*
+ * Like bus_dmamap_load but for uios.  Note the use of the
+ * bus_dmamap_callback2_t interface.
+ */
+int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
+			struct uio *ui,
+			bus_dmamap_callback2_t *callback, void *callback_arg,
+			int flags);
+
+/*
+ * Like bus_dmamap_load but for cam control blocks.
+ */
+int bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
+			bus_dmamap_callback_t *callback, void *callback_arg,
+			int flags);
+
+/*
+ * Like bus_dmamap_load but for bios.
+ */
+int bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
+			bus_dmamap_callback_t *callback, void *callback_arg,
+			int flags);
+
+/*
+ * Loads any memory descriptor.
+ */
+int bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
+			struct memdesc *mem, bus_dmamap_callback_t *callback,
+			void *callback_arg, int flags);
+
+/*
  * XXX sparc64 uses the same interface, but a much different implementation.
  *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
  *     declarations.
@@ -224,35 +280,6 @@ int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
 
 /*
- * Map the buffer buf into bus space using the dmamap map.
- */
-int bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-		    bus_size_t buflen, bus_dmamap_callback_t *callback,
-		    void *callback_arg, int flags);
-
-/*
- * Like bus_dmamap_load but for mbufs.  Note the use of the
- * bus_dmamap_callback2_t interface.
- */
-int bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
-			 struct mbuf *mbuf,
-			 bus_dmamap_callback2_t *callback, void *callback_arg,
-			 int flags);
-
-int bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
-			    struct mbuf *mbuf, bus_dma_segment_t *segs,
-			    int *nsegs, int flags);
-
-/*
- * Like bus_dmamap_load but for uios.  Note the use of the
- * bus_dmamap_callback2_t interface.
- */
-int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
-			struct uio *ui,
-			bus_dmamap_callback2_t *callback, void *callback_arg,
-			int flags);
-
-/*
  * Perform a synchronization operation on the given map.
  */
 void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
@@ -271,6 +298,36 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 		if ((dmamap) != NULL)				\
 			_bus_dmamap_unload(dmat, dmamap);	\
 	} while (0)
+
+/*
+ * The following functions define the interface between the MD and MI
+ * busdma layers.  These are not intended for consumption by driver
+ * software.
+ */
+void __bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+			 struct memdesc *mem,
+    			 bus_dmamap_callback_t *callback,
+			 void *callback_arg);
+
+#define	_bus_dmamap_waitok(dmat, map, mem, callback, callback_arg)	\
+	do {								\
+		if ((map) != NULL)					\
+			__bus_dmamap_waitok(dmat, map, mem, callback,	\
+			    callback_arg);				\
+	} while (0);
+
+int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
+			    void *buf, bus_size_t buflen, struct pmap *pmap,
+			    int flags, bus_dma_segment_t *segs, int *segp);
+
+int _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
+			  vm_paddr_t paddr, bus_size_t buflen,
+			  int flags, bus_dma_segment_t *segs, int *segp);
+
+bus_dma_segment_t *_bus_dmamap_complete(bus_dma_tag_t dmat,
+			   		bus_dmamap_t map,
+					bus_dma_segment_t *segs,
+					int nsegs, int error);
 
 #endif /* __sparc64__ */
 

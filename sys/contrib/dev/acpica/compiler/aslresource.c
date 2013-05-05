@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -894,6 +894,7 @@ RsDoOneResourceDescriptor (
     if (Rnode)
     {
         DescriptorTypeOp->Asl.FinalAmlLength = Rnode->BufferLength;
+        DescriptorTypeOp->Asl.Extra = ((AML_RESOURCE *) Rnode->Buffer)->DescriptorType;
     }
 
     return (Rnode);

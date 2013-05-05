@@ -15,14 +15,9 @@
 #define DEBUG_TYPE "mblaze-lower"
 #include "MBlazeISelLowering.h"
 #include "MBlazeMachineFunction.h"
+#include "MBlazeSubtarget.h"
 #include "MBlazeTargetMachine.h"
 #include "MBlazeTargetObjectFile.h"
-#include "MBlazeSubtarget.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/CallingConv.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -30,6 +25,11 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -81,6 +81,7 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   setOperationAction(ISD::FCOPYSIGN,  MVT::f64, Expand);
   setOperationAction(ISD::FSIN,       MVT::f32, Expand);
   setOperationAction(ISD::FCOS,       MVT::f32, Expand);
+  setOperationAction(ISD::FSINCOS,    MVT::f32, Expand);
   setOperationAction(ISD::FPOWI,      MVT::f32, Expand);
   setOperationAction(ISD::FPOW,       MVT::f32, Expand);
   setOperationAction(ISD::FLOG,       MVT::f32, Expand);
@@ -159,7 +160,8 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   // Operations not directly supported by MBlaze.
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32,   Expand);
   setOperationAction(ISD::BR_JT,              MVT::Other, Expand);
-  setOperationAction(ISD::BR_CC,              MVT::Other, Expand);
+  setOperationAction(ISD::BR_CC,              MVT::f32,   Expand);
+  setOperationAction(ISD::BR_CC,              MVT::i32,   Expand);
   setOperationAction(ISD::SIGN_EXTEND_INREG,  MVT::i1,    Expand);
   setOperationAction(ISD::ROTL,               MVT::i32,   Expand);
   setOperationAction(ISD::ROTR,               MVT::i32,   Expand);
@@ -1027,15 +1029,17 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
   // Analize return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_MBlaze);
 
-  // If this is the first return lowered for this function, add
-  // the regs to the liveout set for the function.
-  if (DAG.getMachineFunction().getRegInfo().liveout_empty()) {
-    for (unsigned i = 0; i != RVLocs.size(); ++i)
-      if (RVLocs[i].isRegLoc())
-        DAG.getMachineFunction().getRegInfo().addLiveOut(RVLocs[i].getLocReg());
-  }
-
   SDValue Flag;
+  SmallVector<SDValue, 4> RetOps(1, Chain);
+
+  // If this function is using the interrupt_handler calling convention
+  // then use "rtid r14, 0" otherwise use "rtsd r15, 8"
+  unsigned Ret = (CallConv == CallingConv::MBLAZE_INTR) ? MBlazeISD::IRet
+                                                        : MBlazeISD::Ret;
+  unsigned Reg = (CallConv == CallingConv::MBLAZE_INTR) ? MBlaze::R14
+                                                        : MBlaze::R15;
+  RetOps.push_back(DAG.getRegister(Reg, MVT::i32));
+
 
   // Copy the result values into the output registers.
   for (unsigned i = 0; i != RVLocs.size(); ++i) {
@@ -1048,20 +1052,16 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     // guarantee that all emitted copies are
     // stuck together, avoiding something bad
     Flag = Chain.getValue(1);
+    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
   }
 
-  // If this function is using the interrupt_handler calling convention
-  // then use "rtid r14, 0" otherwise use "rtsd r15, 8"
-  unsigned Ret = (CallConv == CallingConv::MBLAZE_INTR) ? MBlazeISD::IRet
-                                                        : MBlazeISD::Ret;
-  unsigned Reg = (CallConv == CallingConv::MBLAZE_INTR) ? MBlaze::R14
-                                                        : MBlaze::R15;
-  SDValue DReg = DAG.getRegister(Reg, MVT::i32);
+  RetOps[0] = Chain;  // Update chain.
 
+  // Add the flag if we have it.
   if (Flag.getNode())
-    return DAG.getNode(Ret, dl, MVT::Other, Chain, DReg, Flag);
+    RetOps.push_back(Flag);
 
-  return DAG.getNode(Ret, dl, MVT::Other, Chain, DReg);
+  return DAG.getNode(Ret, dl, MVT::Other, &RetOps[0], RetOps.size());
 }
 
 //===----------------------------------------------------------------------===//

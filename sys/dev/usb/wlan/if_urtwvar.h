@@ -107,6 +107,7 @@ struct urtw_softc {
 #define	URTW_RTL8187B_REV_B		(1 << 3)
 #define	URTW_RTL8187B_REV_D		(1 << 4)
 #define	URTW_RTL8187B_REV_E		(1 << 5)
+#define	URTW_DETACHED			(1 << 6)
 	enum ieee80211_state		sc_state;
 
 	int				sc_epromtype;

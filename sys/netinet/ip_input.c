@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct ip) == 20);
 #endif
 
-struct	rwlock in_ifaddr_lock;
+struct rwlock_padalign	in_ifaddr_lock;
 RW_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
 
 VNET_DEFINE(int, rsvp_on);
@@ -153,14 +153,9 @@ VNET_DEFINE(struct in_ifaddrhead, in_ifaddrhead);  /* first inet address */
 VNET_DEFINE(struct in_ifaddrhashhead *, in_ifaddrhashtbl); /* inet addr hash table  */
 VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
 
-VNET_DEFINE(struct ipstat, ipstat);
-SYSCTL_VNET_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(ipstat), ipstat,
-    "IP statistics (struct ipstat, netinet/ip_var.h)");
-
 static VNET_DEFINE(uma_zone_t, ipq_zone);
 static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
-static struct mtx ipqlock;
+static struct mtx_padalign	ipqlock;
 
 #define	V_ipq_zone		VNET(ipq_zone)
 #define	V_ipq			VNET(ipq)
@@ -213,24 +208,89 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*
+ * IP statistics are stored in struct ipstat_p, which is
+ * an "array" of counter(9)s.  Although it isn't a real
+ * array, we treat it as array to reduce code bloat.
+ */
+VNET_DEFINE(struct ipstat_p, ipstatp);
+
+static void
+vnet_ipstatp_init(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++) {
+		*c = counter_u64_alloc(M_WAITOK);
+		counter_u64_zero(*c);
+	}
+}
+VNET_SYSINIT(vnet_ipstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+            vnet_ipstatp_init, NULL);
+
+#ifdef VIMAGE
+static void
+vnet_ipstatp_uninit(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++)
+		counter_u64_free(*c);
+}
+VNET_SYSUNINIT(vnet_ipstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+            vnet_ipstatp_uninit, NULL);
+#endif /* VIMAGE */
+
+static int
+ipstat_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct ipstat ipstat;
+	counter_u64_t *c;
+	uint64_t *v;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp, v = (uint64_t *)&ipstat;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++, v++) {
+		*v = counter_u64_fetch(*c);
+		/*
+		 * Old interface allowed to rewrite 'struct ipstat', and
+		 * netstat(1) used it to zero the structure. To keep
+		 * compatibility with old netstat(1) we will zero out
+		 * statistics on every write attempt, however we no longer
+		 * support writing arbitrary fake values to the statistics.
+		 */
+		if (req->newptr)
+			counter_u64_zero(*c);
+	}
+
+	return (SYSCTL_OUT(req, &ipstat, sizeof(ipstat)));
+}
+SYSCTL_VNET_PROC(_net_inet_ip, IPCTL_STATS, stats, CTLTYPE_OPAQUE | CTLFLAG_RW,
+    NULL, 0, ipstat_sysctl, "I",
+    "IP statistics (struct ipstat, netinet/ip_var.h)");
+
+/*
  * Kernel module interface for updating ipstat.  The argument is an index
- * into ipstat treated as an array of u_long.  While this encodes the general
- * layout of ipstat into the caller, it doesn't encode its location, so that
- * future changes to add, for example, per-CPU stats support won't cause
- * binary compatibility problems for kernel modules.
+ * into ipstat treated as an array.
  */
 void
 kmod_ipstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_ipstat + statnum))++;
+	counter_u64_add((counter_u64_t )&V_ipstatp + statnum, 1);
 }
 
 void
 kmod_ipstat_dec(int statnum)
 {
 
-	(*((u_long *)&V_ipstat + statnum))--;
+	counter_u64_add((counter_u64_t )&V_ipstatp + statnum, -1);
 }
 
 static int
@@ -1406,7 +1466,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	 * assume exclusive access to the IP header in `m', so any
 	 * data in a cluster may change before we reach icmp_error().
 	 */
-	MGETHDR(mcopy, M_NOWAIT, m->m_type);
+	mcopy = m_gethdr(M_NOWAIT, m->m_type);
 	if (mcopy != NULL && !m_dup_pkthdr(mcopy, m, M_NOWAIT)) {
 		/*
 		 * It's probably ok if the pkthdr dup fails (because
@@ -1592,8 +1652,8 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 
 		bintime(&bt);
 		if (inp->inp_socket->so_options & SO_BINTIME) {
-			*mp = sbcreatecontrol((caddr_t) &bt, sizeof(bt),
-			SCM_BINTIME, SOL_SOCKET);
+			*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
+			    SCM_BINTIME, SOL_SOCKET);
 			if (*mp)
 				mp = &(*mp)->m_next;
 		}
@@ -1601,20 +1661,20 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 			struct timeval tv;
 
 			bintime2timeval(&bt, &tv);
-			*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
-				SCM_TIMESTAMP, SOL_SOCKET);
+			*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
+			    SCM_TIMESTAMP, SOL_SOCKET);
 			if (*mp)
 				mp = &(*mp)->m_next;
 		}
 	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
-		*mp = sbcreatecontrol((caddr_t) &ip->ip_dst,
+		*mp = sbcreatecontrol((caddr_t)&ip->ip_dst,
 		    sizeof(struct in_addr), IP_RECVDSTADDR, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVTTL) {
-		*mp = sbcreatecontrol((caddr_t) &ip->ip_ttl,
+		*mp = sbcreatecontrol((caddr_t)&ip->ip_ttl,
 		    sizeof(u_char), IP_RECVTTL, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
@@ -1626,14 +1686,14 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 	 */
 	/* options were tossed already */
 	if (inp->inp_flags & INP_RECVOPTS) {
-		*mp = sbcreatecontrol((caddr_t) opts_deleted_above,
+		*mp = sbcreatecontrol((caddr_t)opts_deleted_above,
 		    sizeof(struct in_addr), IP_RECVOPTS, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	/* ip_srcroute doesn't do what we want here, need to fix */
 	if (inp->inp_flags & INP_RECVRETOPTS) {
-		*mp = sbcreatecontrol((caddr_t) ip_srcroute(m),
+		*mp = sbcreatecontrol((caddr_t)ip_srcroute(m),
 		    sizeof(struct in_addr), IP_RECVRETOPTS, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
@@ -1648,32 +1708,32 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		struct sockaddr_dl *sdp;
 		struct sockaddr_dl *sdl2 = &sdlbuf.sdl;
 
-		if (((ifp = m->m_pkthdr.rcvif)) 
-		&& ( ifp->if_index && (ifp->if_index <= V_if_index))) {
+		if ((ifp = m->m_pkthdr.rcvif) &&
+		    ifp->if_index && ifp->if_index <= V_if_index) {
 			sdp = (struct sockaddr_dl *)ifp->if_addr->ifa_addr;
 			/*
 			 * Change our mind and don't try copy.
 			 */
-			if ((sdp->sdl_family != AF_LINK)
-			|| (sdp->sdl_len > sizeof(sdlbuf))) {
+			if (sdp->sdl_family != AF_LINK ||
+			    sdp->sdl_len > sizeof(sdlbuf)) {
 				goto makedummy;
 			}
 			bcopy(sdp, sdl2, sdp->sdl_len);
 		} else {
 makedummy:	
-			sdl2->sdl_len
-				= offsetof(struct sockaddr_dl, sdl_data[0]);
+			sdl2->sdl_len =
+			    offsetof(struct sockaddr_dl, sdl_data[0]);
 			sdl2->sdl_family = AF_LINK;
 			sdl2->sdl_index = 0;
 			sdl2->sdl_nlen = sdl2->sdl_alen = sdl2->sdl_slen = 0;
 		}
-		*mp = sbcreatecontrol((caddr_t) sdl2, sdl2->sdl_len,
-			IP_RECVIF, IPPROTO_IP);
+		*mp = sbcreatecontrol((caddr_t)sdl2, sdl2->sdl_len,
+		    IP_RECVIF, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVTOS) {
-		*mp = sbcreatecontrol((caddr_t) &ip->ip_tos,
+		*mp = sbcreatecontrol((caddr_t)&ip->ip_tos,
 		    sizeof(u_char), IP_RECVTOS, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;

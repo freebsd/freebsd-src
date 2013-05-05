@@ -5,7 +5,7 @@
 #
 
 ident		DOCKSTAR
-include		"../mv/kirkwood/std.sheevaplug"
+include		"../mv/kirkwood/std.db88f6xxx"
 
 options 	SOC_MV_KIRKWOOD
 makeoptions	MODULES_OVERRIDE=""

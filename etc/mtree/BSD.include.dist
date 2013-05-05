@@ -92,13 +92,15 @@
         ..
     ..
     clang
-        3.2
+        3.3
         ..
     ..
     crypto
     ..
     dev
         acpica
+        ..
+        agp
         ..
         an
         ..
@@ -136,6 +138,8 @@
         ..
         pbio
         ..
+        pci
+        ..
         powermac_nvram
         ..
         ppbus
@@ -169,8 +173,6 @@
         nfs
         ..
         nullfs
-        ..
-        portalfs
         ..
         procfs
         ..

@@ -333,6 +333,9 @@ OBJFORMAT?=	elf
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
+# Tell bmake the makefile preference
+.MAKE.MAKEFILE_PREFERENCE?= BSDmakefile makefile Makefile
+
 .if !defined(.PARSEDIR)
 # We are not bmake, which is more aggressive about searching .PATH
 # It is sometime necessary to curb its enthusiasm with .NOPATH
@@ -346,5 +349,4 @@ OBJFORMAT?=	elf
 
 .endif
 
-.include <bsd.compat.mk>
 .include <bsd.cpu.mk>

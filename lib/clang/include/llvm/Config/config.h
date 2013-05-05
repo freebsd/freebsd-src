@@ -5,6 +5,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Get __FreeBSD_version. */
+#include <osreldate.h>
+
 /* Bug report URL. */
 #define BUG_REPORT_URL "http://llvm.org/bugs/"
 
@@ -74,11 +77,19 @@
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 /* #undef HAVE_CRASHREPORTERCLIENT_H */
 
-/* Define if __crashreporter_info__ exists. */
+/* can use __crashreporter_info__ */
 #define HAVE_CRASHREPORTER_INFO 0
 
 /* Define to 1 if you have the <ctype.h> header file. */
 #define HAVE_CTYPE_H 1
+
+/* Define to 1 if you have the declaration of `FE_ALL_EXCEPT', and to 0 if you
+   don't. */
+#define HAVE_DECL_FE_ALL_EXCEPT 1
+
+/* Define to 1 if you have the declaration of `FE_INEXACT', and to 0 if you
+   don't. */
+#define HAVE_DECL_FE_INEXACT 1
 
 /* Define to 1 if you have the declaration of `strerror_s', and to 0 if you
    don't. */
@@ -123,6 +134,12 @@
 
 /* Define to 1 if you have the <execinfo.h> header file. */
 /* #undef HAVE_EXECINFO_H */
+
+/* Define to 1 if you have the `exp' function. */
+#define HAVE_EXP 1
+
+/* Define to 1 if you have the `exp2' function. */
+#define HAVE_EXP2 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
@@ -226,6 +243,17 @@
 /* Define if you can use -Wl,-R. to pass -R. to the linker, in order to add
    the current directory to the dynamic linker search path. */
 #define HAVE_LINK_R 1
+
+/* Define to 1 if you have the `log' function. */
+#define HAVE_LOG 1
+
+/* Define to 1 if you have the `log10' function. */
+#define HAVE_LOG10 1
+
+/* Define to 1 if you have the `log2' function. */
+#if __FreeBSD_version >= 900027 || (__FreeBSD_version < 900000 && __FreeBSD_version >= 802502)
+#define HAVE_LOG2 1
+#endif
 
 /* Define to 1 if you have the `longjmp' function. */
 #define HAVE_LONGJMP 1
@@ -630,7 +658,7 @@
 /* #undef LLVM_PATH_XDOT_PY */
 
 /* Installation prefix directory */
-/* #undef LLVM_PREFIX */
+#define LLVM_PREFIX ""
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
@@ -642,7 +670,7 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 2
+#define LLVM_VERSION_MINOR 3
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
@@ -675,13 +703,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.2svn"
+#define PACKAGE_STRING "LLVM 3.3svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.2svn"
+#define PACKAGE_VERSION "3.3svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

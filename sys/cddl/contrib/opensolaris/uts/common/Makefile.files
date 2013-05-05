@@ -22,6 +22,7 @@
 #
 # Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
 # Copyright (c) 2012 by Delphix. All rights reserved.
+# Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 #
 #
 # This Makefile defines all file modules for the directory uts/common
@@ -48,17 +49,21 @@ ZFS_COMMON_OBJS +=		\
 	dsl_dir.o		\
 	dsl_dataset.o		\
 	dsl_deadlist.o		\
+	dsl_destroy.o		\
 	dsl_pool.o		\
 	dsl_synctask.o		\
+	dsl_userhold.o		\
 	dmu_zfetch.o		\
 	dsl_deleg.o		\
 	dsl_prop.o		\
 	dsl_scan.o		\
 	zfeature.o		\
 	gzip.o			\
+	lz4.o			\
 	lzjb.o			\
 	metaslab.o		\
 	refcount.o		\
+	rrwlock.o		\
 	sa.o			\
 	sha256.o		\
 	spa.o			\
@@ -118,7 +123,6 @@ ZFS_OBJS +=			\
 	zfs_onexit.o		\
 	zfs_replay.o		\
 	zfs_rlock.o		\
-	rrwlock.o		\
 	zfs_vfsops.o		\
 	zfs_vnops.o		\
 	zvol.o

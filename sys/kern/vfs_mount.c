@@ -232,7 +232,7 @@ vfs_equalopts(const char *opt1, const char *opt2)
 /*
  * If a mount option is specified several times,
  * (with or without the "no" prefix) only keep
- * the last occurence of it.
+ * the last occurrence of it.
  */
 static void
 vfs_sanitizeopts(struct vfsoptlist *opts)
@@ -559,7 +559,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strlcpy(errmsg, "Invalid fstype", errmsg_len);
+			strncpy(errmsg, "Invalid fstype", errmsg_len);
 		goto bail;
 	}
 	fspathlen = 0;
@@ -567,7 +567,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strlcpy(errmsg, "Invalid fspath", errmsg_len);
+			strncpy(errmsg, "Invalid fspath", errmsg_len);
 		goto bail;
 	}
 
@@ -1256,12 +1256,14 @@ dounmount(mp, flags, td)
 		return (error);
 	}
 
+	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
 			VOP_UNLOCK(coveredvp, 0);
+		vn_finished_write(mp);
 		return (EBUSY);
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
@@ -1281,7 +1283,6 @@ dounmount(mp, flags, td)
 	KASSERT(error == 0,
 	    ("%s: invalid return value for msleep in the drain path @ %s:%d",
 	    __func__, __FILE__, __LINE__));
-	vn_start_write(NULL, &mp, V_WAIT);
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
@@ -1447,7 +1448,7 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 	if (ret != 0) {
 		TAILQ_FOREACH(opt, opts, link) {
 			if (strcmp(opt->name, "errmsg") == 0) {
-				strlcpy((char *)opt->value, errmsg, opt->len);
+				strncpy((char *)opt->value, errmsg, opt->len);
 				break;
 			}
 		}
@@ -1703,103 +1704,6 @@ vfs_copyopt(opts, name, dest, len)
 		}
 	}
 	return (ENOENT);
-}
-
-/*
- * These are helper functions for filesystems to traverse all
- * their vnodes.  See MNT_VNODE_FOREACH() in sys/mount.h.
- *
- * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
- */
-
-MALLOC_DECLARE(M_VNODE_MARKER);
-
-struct vnode *
-__mnt_vnode_next(struct vnode **mvp, struct mount *mp)
-{
-	struct vnode *vp;
-
-	mtx_assert(MNT_MTX(mp), MA_OWNED);
-
-	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
-	if (should_yield()) {
-		MNT_IUNLOCK(mp);
-		kern_yield(PRI_USER);
-		MNT_ILOCK(mp);
-	}
-	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);
-	while (vp != NULL && vp->v_type == VMARKER)
-		vp = TAILQ_NEXT(vp, v_nmntvnodes);
-
-	/* Check if we are done */
-	if (vp == NULL) {
-		__mnt_vnode_markerfree(mvp, mp);
-		return (NULL);
-	}
-	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
-	TAILQ_INSERT_AFTER(&mp->mnt_nvnodelist, vp, *mvp, v_nmntvnodes);
-	return (vp);
-}
-
-struct vnode *
-__mnt_vnode_first(struct vnode **mvp, struct mount *mp)
-{
-	struct vnode *vp;
-
-	mtx_assert(MNT_MTX(mp), MA_OWNED);
-
-	vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-	while (vp != NULL && vp->v_type == VMARKER)
-		vp = TAILQ_NEXT(vp, v_nmntvnodes);
-
-	/* Check if we are done */
-	if (vp == NULL) {
-		*mvp = NULL;
-		return (NULL);
-	}
-	MNT_REF(mp);
-	MNT_IUNLOCK(mp);
-	*mvp = (struct vnode *) malloc(sizeof(struct vnode),
-				       M_VNODE_MARKER,
-				       M_WAITOK | M_ZERO);
-	MNT_ILOCK(mp);
-	(*mvp)->v_type = VMARKER;
-
-	vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-	while (vp != NULL && vp->v_type == VMARKER)
-		vp = TAILQ_NEXT(vp, v_nmntvnodes);
-
-	/* Check if we are done */
-	if (vp == NULL) {
-		MNT_IUNLOCK(mp);
-		free(*mvp, M_VNODE_MARKER);
-		MNT_ILOCK(mp);
-		*mvp = NULL;
-		MNT_REL(mp);
-		return (NULL);
-	}
-	(*mvp)->v_mount = mp;
-	TAILQ_INSERT_AFTER(&mp->mnt_nvnodelist, vp, *mvp, v_nmntvnodes);
-	return (vp);
-}
-
-
-void
-__mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
-{
-
-	if (*mvp == NULL)
-		return;
-
-	mtx_assert(MNT_MTX(mp), MA_OWNED);
-
-	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
-	TAILQ_REMOVE(&mp->mnt_nvnodelist, *mvp, v_nmntvnodes);
-	MNT_IUNLOCK(mp);
-	free(*mvp, M_VNODE_MARKER);
-	MNT_ILOCK(mp);
-	*mvp = NULL;
-	MNT_REL(mp);
 }
 
 int

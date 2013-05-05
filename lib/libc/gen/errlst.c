@@ -152,5 +152,7 @@ const char *const sys_errlist[] = {
 	"Protocol error",			/* 92 - EPROTO */
 	"Capabilities insufficient",		/* 93 - ENOTCAPABLE */
 	"Not permitted in capability mode",	/* 94 - ECAPMODE */
+	"State not recoverable",		/* 95 - ENOTRECOVERABLE */
+	"Previous owner died",			/* 96 - EOWNERDEAD */
 };
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);

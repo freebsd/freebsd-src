@@ -25,6 +25,7 @@ namespace llvm {
   class MachineFunctionPass;
   class PassInfo;
   class PassManagerBase;
+  class TargetLoweringBase;
   class TargetLowering;
   class TargetRegisterClass;
   class raw_ostream;
@@ -141,6 +142,10 @@ public:
   /// Add passes to lower exception handling for the code generator.
   void addPassesToHandleExceptions();
 
+  /// Add pass to prepare the LLVM IR for code generation. This should be done
+  /// before exception handling preparation passes.
+  virtual void addCodeGenPrepare();
+
   /// Add common passes that perform LLVM IR to IR transforms in preparation for
   /// instruction selection.
   virtual void addISelPrepare();
@@ -175,6 +180,16 @@ protected:
   /// addMachineSSAOptimization - Add standard passes that optimize machine
   /// instructions in SSA form.
   virtual void addMachineSSAOptimization();
+
+  /// Add passes that optimize instruction level parallelism for out-of-order
+  /// targets. These passes are run while the machine code is still in SSA
+  /// form, so they can use MachineTraceMetrics to control their heuristics.
+  ///
+  /// All passes added here should preserve the MachineDominatorTree,
+  /// MachineLoopInfo, and MachineTraceMetrics analyses.
+  virtual bool addILPOpts() {
+    return false;
+  }
 
   /// addPreRegAlloc - This method may be implemented by targets that want to
   /// run passes immediately before register allocation. This should return
@@ -237,6 +252,11 @@ protected:
     return false;
   }
 
+  /// addGCPasses - Add late codegen passes that analyze code for garbage
+  /// collection. This should return true if GC info should be printed after
+  /// these passes.
+  virtual bool addGCPasses();
+
   /// Add standard basic block placement passes.
   virtual void addBlockPlacement();
 
@@ -271,6 +291,13 @@ protected:
 
 /// List of target independent CodeGen pass IDs.
 namespace llvm {
+  /// \brief Create a basic TargetTransformInfo analysis pass.
+  ///
+  /// This pass implements the target transform info analysis using the target
+  /// independent information available to the LLVM code generator.
+  ImmutablePass *
+  createBasicTargetTransformInfoPass(const TargetLoweringBase *TLI);
+
   /// createUnreachableBlockEliminationPass - The LLVM code generator does not
   /// work well with unreachable basic blocks (what live ranges make sense for a
   /// block that cannot be reached?).  As such, a code generator should either
@@ -287,9 +314,6 @@ namespace llvm {
 
   /// MachineLoopInfo - This pass is a loop analysis pass.
   extern char &MachineLoopInfoID;
-
-  /// MachineLoopRanges - This pass is an on-demand loop coverage analysis.
-  extern char &MachineLoopRangesID;
 
   /// MachineDominators - This pass is a machine dominators analysis pass.
   extern char &MachineDominatorsID;
@@ -420,10 +444,6 @@ namespace llvm {
   /// information.
   extern char &MachineBlockPlacementStatsID;
 
-  /// Code Placement - This pass optimize code placement and aligns loop
-  /// headers to target specific alignment boundary.
-  extern char &CodePlacementOptID;
-
   /// GCLowering Pass - Performs target-independent LLVM IR transformations for
   /// highly portable strategies.
   ///
@@ -434,10 +454,6 @@ namespace llvm {
   /// prior to output, and importantly after all CFG transformations (such as
   /// branch folding).
   extern char &GCMachineCodeAnalysisID;
-
-  /// Deleter Pass - Releases GC metadata.
-  ///
-  FunctionPass *createGCInfoDeleter();
 
   /// Creates a pass to print GC metadata.
   ///
@@ -469,7 +485,7 @@ namespace llvm {
 
   /// createStackProtectorPass - This pass adds stack protectors to functions.
   ///
-  FunctionPass *createStackProtectorPass(const TargetLowering *tli);
+  FunctionPass *createStackProtectorPass(const TargetLoweringBase *tli);
 
   /// createMachineVerifierPass - This pass verifies cenerated machine code
   /// instructions for correctness.
@@ -483,7 +499,7 @@ namespace llvm {
   /// createSjLjEHPreparePass - This pass adapts exception handling code to use
   /// the GCC-style builtin setjmp/longjmp (sjlj) to handling EH control flow.
   ///
-  FunctionPass *createSjLjEHPreparePass(const TargetLowering *tli);
+  FunctionPass *createSjLjEHPreparePass(const TargetLoweringBase *tli);
 
   /// LocalStackSlotAllocation - This pass assigns local frame indices to stack
   /// slots relative to one another and allocates base registers to access them

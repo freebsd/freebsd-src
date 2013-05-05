@@ -29,12 +29,14 @@
 #ifndef _USB_IOCTL_H_
 #define	_USB_IOCTL_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/ioccom.h>
 
 /* Building "kdump" depends on these includes */
 
 #include <dev/usb/usb_endian.h>
 #include <dev/usb/usb.h>
+#endif
 
 #define	USB_DEVICE_NAME "usbctl"
 #define	USB_DEVICE_DIR "usb"
@@ -127,6 +129,15 @@ struct usb_device_info {
 	char	udi_vendor[128];
 	char	udi_serial[64];
 	char	udi_release[8];
+};
+
+#define	USB_DEVICE_PORT_PATH_MAX 32
+
+struct usb_device_port_path {
+	uint8_t udp_bus;		/* which bus we are on */
+	uint8_t udp_index;		/* which device index */
+	uint8_t udp_port_level;		/* how many levels: 0, 1, 2 ... */
+	uint8_t udp_port_no[USB_DEVICE_PORT_PATH_MAX];
 };
 
 struct usb_device_stats {
@@ -275,7 +286,9 @@ struct usb_gen_quirk {
 #define	USB_IFACE_DRIVER_DETACH	_IOW ('U', 125, int)
 #define	USB_GET_PLUGTIME	_IOR ('U', 126, uint32_t)
 #define	USB_READ_DIR		_IOW ('U', 127, struct usb_read_dir)
-/* 128 - 135 unused */
+/* 128 - 133 unused */
+#define	USB_GET_DEV_PORT_PATH	_IOR ('U', 134, struct usb_device_port_path)
+#define	USB_GET_POWER_USAGE	_IOR ('U', 135, int)
 #define	USB_SET_TX_FORCE_SHORT	_IOW ('U', 136, int)
 #define	USB_SET_TX_TIMEOUT	_IOW ('U', 137, int)
 #define	USB_GET_TX_FRAME_SIZE	_IOR ('U', 138, int)

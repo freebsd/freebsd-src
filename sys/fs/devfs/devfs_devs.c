@@ -655,7 +655,7 @@ devfs_cleanup(struct devfs_mount *dm)
 /*
  * devfs_create() and devfs_destroy() are called from kern_conf.c and
  * in both cases the devlock() mutex is held, so no further locking
- * is necesary and no sleeping allowed.
+ * is necessary and no sleeping allowed.
  */
 
 void

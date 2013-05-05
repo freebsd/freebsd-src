@@ -12,20 +12,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/GCs.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/GCMetadataPrinter.h"
-#include "llvm/Module.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/ADT/SmallString.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Target/Mangler.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Target/TargetMachine.h"
 #include <cctype>
 using namespace llvm;
 
@@ -100,7 +100,7 @@ void OcamlGCMetadataPrinter::finishAssembly(AsmPrinter &AP) {
   EmitCamlGlobal(getModule(), AP, "data_end");
 
   // FIXME: Why does ocaml emit this??
-  AP.OutStreamer.EmitIntValue(0, IntPtrSize, 0);
+  AP.OutStreamer.EmitIntValue(0, IntPtrSize);
 
   AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
   EmitCamlGlobal(getModule(), AP, "frametable");
@@ -145,7 +145,7 @@ void OcamlGCMetadataPrinter::finishAssembly(AsmPrinter &AP) {
                            "Live root count "+Twine(LiveCount)+" >= 65536.");
       }
 
-      AP.OutStreamer.EmitSymbolValue(J->Label, IntPtrSize, 0);
+      AP.OutStreamer.EmitSymbolValue(J->Label, IntPtrSize);
       AP.EmitInt16(FrameSize);
       AP.EmitInt16(LiveCount);
 

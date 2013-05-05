@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Mac 'Kauai' PCI ATA controller
  */
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -99,7 +98,7 @@ static device_method_t ata_kauai_methods[] = {
 
 	/* ATA interface */
 	DEVMETHOD(ata_setmode,		ata_kauai_setmode),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 struct ata_kauai_softc {
@@ -120,15 +119,15 @@ static driver_t ata_kauai_driver = {
 	sizeof(struct ata_kauai_softc),
 };
 
-DRIVER_MODULE(ata, pci, ata_kauai_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, pci, ata_kauai_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 /*
  * PCI ID search table
  */
-static struct kauai_pci_dev {
-        u_int32_t  kpd_devid;
-        char    *kpd_desc;
+static const struct kauai_pci_dev {
+        u_int32_t	kpd_devid;
+        const char	*kpd_desc;
 } kauai_pci_devlist[] = {
         { 0x0033106b, "Uninorth2 Kauai ATA Controller" },
         { 0x003b106b, "Intrepid Kauai ATA Controller" },
@@ -152,6 +151,7 @@ static const u_int pio_timing_kauai[] = {
 	0x05000249,	/* PIO3 */
 	0x04000148	/* PIO4 */
 };
+
 static const u_int pio_timing_shasta[] = {
 	0x0a000c97,	/* PIO0 */
 	0x07000712,	/* PIO1 */
@@ -165,6 +165,7 @@ static const u_int dma_timing_kauai[] = {
         0x00209000,	/* WDMA1 */
         0x00148000	/* WDMA2 */
 };
+
 static const u_int dma_timing_shasta[] = {
         0x00820800,	/* WDMA0 */
         0x0028b000,	/* WDMA1 */
@@ -179,6 +180,7 @@ static const u_int udma_timing_kauai[] = {
         0x00002a31,	/* UDMA4 */
         0x00002921	/* UDMA5 */
 };
+
 static const u_int udma_timing_shasta[] = {
         0x00035901,	/* UDMA0 */
         0x000348b1,	/* UDMA1 */
@@ -368,4 +370,3 @@ ata_kauai_begin_transaction(struct ata_request *request)
 
 	return ata_begin_transaction(request);
 }
-

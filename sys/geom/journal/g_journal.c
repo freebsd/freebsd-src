@@ -2976,7 +2976,7 @@ g_journal_do_switch(struct g_class *classp)
 		g_journal_switch_wait(sc);
 		mtx_unlock(&sc->sc_mtx);
 
-		vfs_write_resume(mp);
+		vfs_write_resume(mp, 0);
 next:
 		mtx_lock(&mountlist_mtx);
 		vfs_unbusy(mp);

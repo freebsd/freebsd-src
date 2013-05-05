@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2012
+.Dd Jan 10, 2013
 .Dt NDP 8
 .Os
 .\"
@@ -192,6 +192,15 @@ on
 This flag is set by
 .Va net.inet6.ip6.auto_linklocal
 sysctl variable.
+.It Ic no_prefer_iface
+The address on the outgoing interface is preferred by source addess
+selection rule.
+If this flag is set, stop treating the address on the
+.Ar interface
+as special even when the
+.Ar interface
+is outgoing interface.
+The default value of this flag is off.
 .It Ic disabled
 Disable IPv6 operation on the interface.
 When disabled, the interface discards any IPv6 packets

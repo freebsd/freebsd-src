@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2012
+.Dd February 3, 2013
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -116,26 +116,40 @@ Note that because this uses a chroot, it cannot be used to cross-build
 .Fx
 release media.
 .Pp
-Environment variables:
-.Bl -tag -width ".Cm MAKE_FLAGS"
-.It Ev MAKE_FLAGS
+Optional environment variables:
+.Bl -tag -width ".Cm WORLD_FLAGS"
+.It Ev WORLD_FLAGS
 This environment variable can be set to pass flags (e.g. -j) to
 .Xr make 1
-when invoked by the script.
-.It Ev SVNROOT
-The location of the FreeBSD SVN source, doc, and ports repositories.
+when invoked to build a world by the script.
+.It Ev KERNEL_FLAGS
+This environment variable can be set to pass flags (e.g. -j) to
+.Xr make 1
+when invoked to build a kernel by the script.
+.It Ev SVNROOTBASE
+The base part of URL of the FreeBSD SVN repositories.
 Defaults to
-.Pa svn://svn.freebsd.org/base
-for the source tree,
-.Pa svn://svn.freebsd.org/ports/head
-for the Ports Collection, and
-.Pa svn://svn.freebsd.org/doc/head
-for the Documentation Project source.
-.It Ev RELSTRING
-Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
-Defaults to the output of
-.Ic `uname -s`-`uname -r`-`uname -p`
-within the chroot.
+.Pa svn://svn.freebsd.org .
+.It Ev SVNROOTSRC
+The URL of the FreeBSD SVN source repository.
+Defaults to
+.Pa ${SVNROOTBASE}/base .
+.It Ev SVNROOTDOC
+The URL of the FreeBSD SVN doc repository.
+Defaults to
+.Pa ${SVNROOTBASE}/doc .
+.It Ev SVNROOTPORTS
+The URL of the FreeBSD SVN ports repository.
+Defaults to
+.Pa ${SVNROOTBASE}/ports .
+.It Ev BRANCHDOC
+The branch name of the FreeBSD SVN doc repository.
+Defaults to
+.Pa head .
+.It Ev BRANCHPORTS
+The branch name of the FreeBSD SVN ports repository.
+Defaults to
+.Pa head .
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
@@ -155,15 +169,12 @@ platform.
 Copy all produced release media to
 .Pa ${DESTDIR} .
 .It Cm cdrom
-Builds installation CD-ROM images. On some systems, this may require that
-.Xr mkisofs 8
-be installed
-.Pq Pa sysutils/cdrtools
-and possibly that the
+Builds installation CD-ROM images.
+This may require the
 .Xr md 4
 (memory disk) device driver be present in the kernel
-(either by being compiled in or available as a module). This target
-produces files called
+(either by being compiled in or available as a module).
+This target produces files called
 .Pa release.iso
 and
 .Pa bootonly.iso
@@ -171,7 +182,8 @@ as its output.
 .It Cm memstick
 Builds an installation memory stick image named
 .Pa memstick .
-Not applicable on all platforms. Requires that the
+Not applicable on all platforms.
+Requires that the
 .Xr md 4
 (memory disk) device driver be present in the kernel
 (either by being compiled in or available as a module).
@@ -207,27 +219,32 @@ target invoked by
 .El
 .Sh ENVIRONMENT
 Optional variables:
-.Bl -tag -width ".Va TARGET_ARCH"
-.It Va WORLDDIR
+.Bl -tag -width ".Ev TARGET_ARCH"
+.It Ev OSRELEASE
+Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
+Defaults to the output of
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
+.It Ev WORLDDIR
 Location of a directory containing the src tree. By default, the directory
 above the one containing the makefile
 .Pq Pa src .
-.It Va PORTSDIR
+.It Ev PORTSDIR
 Location of a directory containing the ports tree. By default,
 .Pa /usr/ports .
 If it is unset or cannot be found, ports will not be included in the release.
-.It Va DOCDIR
+.It Ev DOCDIR
 Location of a directory containing the doc tree. By default,
 .Pa /usr/doc .
 If it is unset or cannot be found, most documentation will not be included in
 the release; see
 .Ev NODOC
 below.
-.It Va NOPORTS
+.It Ev NOPORTS
 If defined, the Ports Collection will be omitted from the release.
-.It Va NOSRC
+.It Ev NOSRC
 If set, do not include system source code in the release.
-.It Va NODOC
+.It Ev NODOC
 If defined, the XML-based documentation from the
 .Fx
 Documentation Project will not be built.
@@ -236,33 +253,33 @@ However, the
 distribution will still be created with the minimal documentation set
 provided in
 .Pa src/share/doc .
-.It Va TARGET
+.It Ev TARGET
 The target hardware platform.
 This is analogous to the
 .Dq Nm uname Fl m
 output.
 This is necessary to cross-build some target architectures.
 For example, cross-building for PC98 machines requires
-.Va TARGET_ARCH Ns = Ns Li i386
+.Ev TARGET_ARCH Ns = Ns Li i386
 and
-.Va TARGET Ns = Ns Li pc98 .
+.Ev TARGET Ns = Ns Li pc98 .
 If not set,
-.Va TARGET
+.Ev TARGET
 defaults to the current hardware platform.
-.It Va TARGET_ARCH
+.It Ev TARGET_ARCH
 The target machine processor architecture.
 This is analogous to the
 .Dq Nm uname Fl p
 output.
 Set this to cross-build for a different architecture.
 If not set,
-.Va TARGET_ARCH
+.Ev TARGET_ARCH
 defaults to the current machine architecture, unless
-.Va TARGET
+.Ev TARGET
 is also set, in which case it defaults to the appropriate
 value for that platform.
 Typically, one only needs to set
-.Va TARGET .
+.Ev TARGET .
 .El
 .Sh FILES
 .Bl -tag -compact -width Pa
@@ -299,7 +316,6 @@ The following sequence of commands can be used to build a
 in a clean environment, including ports and documentation:
 .Bd -literal -offset indent
 cd /usr/src/release
-export SVNROOT=svn://svn.freebsd.org/base
 sh generate-release.sh head /local3/release
 .Ed
 .Pp
@@ -310,7 +326,7 @@ directory.
 .Xr cc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
-.Xr svn 1 Pq Pa ports/devel/subversion-freebsd ,
+.Xr svn 1 Pq Pa ports/devel/subversion ,
 .Xr uname 1 ,
 .Xr md 4 ,
 .Xr make.conf 5 ,

@@ -169,6 +169,7 @@ void		cd9660_makefs(const char *, const char *, fsnode *, fsinfo_t *);
 
 
 extern	u_int		debug;
+extern	int		dupsok;
 extern	struct timespec	start_time;
 
 /*
@@ -278,6 +279,8 @@ extern	struct timespec	start_time;
 
 struct fs;
 void   ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
+
+fsinode *link_check(fsinode *);
 
 /*
  * Declarations for compat routines.

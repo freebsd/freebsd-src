@@ -1,7 +1,9 @@
 # $FreeBSD$
 
-PROG_CXX=llvm-mc
 NO_MAN=
+.include <bsd.own.mk>
+
+PROG_CXX=llvm-mc
 
 SRCDIR=	tools/llvm-mc
 SRCS=	llvm-mc.cpp \
@@ -9,33 +11,34 @@ SRCS=	llvm-mc.cpp \
 
 LIBDEPS=llvmmcdisassembler \
 	llvmarmdisassembler \
-	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinstprinter \
 	llvmmipsdisassembler \
+	llvmmipscodegen \
+	llvmmipsasmparser \
+	llvmmipsdesc \
 	llvmmipsinfo \
+	llvmmipsinstprinter \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
+	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
 	llvmcodegen \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

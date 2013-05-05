@@ -128,6 +128,8 @@ kmemphys:
 			 */
 			addr = trunc_page(v);
 			eaddr = round_page(v + c);
+			if (addr < VM_MAXUSER_ADDRESS)
+				return (EFAULT);
 			for (; addr < eaddr; addr += PAGE_SIZE) {
 				if (pmap_kextract(addr) == 0)
 					return (EFAULT);

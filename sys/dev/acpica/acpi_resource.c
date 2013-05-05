@@ -615,7 +615,7 @@ static device_method_t acpi_sysres_methods[] = {
     DEVMETHOD(device_probe,	acpi_sysres_probe),
     DEVMETHOD(device_attach,	acpi_sysres_attach),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_sysres_driver = {

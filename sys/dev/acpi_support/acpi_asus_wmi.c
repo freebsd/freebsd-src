@@ -304,7 +304,8 @@ static device_method_t acpi_asus_wmi_methods[] = {
 	DEVMETHOD(device_probe, acpi_asus_wmi_probe),
 	DEVMETHOD(device_attach, acpi_asus_wmi_attach),
 	DEVMETHOD(device_detach, acpi_asus_wmi_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_asus_wmi_driver = {

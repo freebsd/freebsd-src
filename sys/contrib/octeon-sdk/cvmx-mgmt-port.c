@@ -126,6 +126,17 @@ static int __cvmx_mgmt_port_num_ports(void)
 
 
 /**
+ * Return the number of management ports supported on this board.
+ *
+ * @return Number of ports
+ */
+int cvmx_mgmt_port_num_ports(void)
+{
+    return __cvmx_mgmt_port_num_ports();
+}
+
+
+/**
  * Called to initialize a management port for use. Multiple calls
  * to this function across applications is safe.
  *

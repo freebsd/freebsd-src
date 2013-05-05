@@ -692,7 +692,22 @@ null_unlock(struct vop_unlock_args *ap)
 static int
 null_inactive(struct vop_inactive_args *ap __unused)
 {
+	struct vnode *vp;
+	struct mount *mp;
+	struct null_mount *xmp;
 
+	vp = ap->a_vp;
+	mp = vp->v_mount;
+	xmp = MOUNTTONULLMOUNT(mp);
+	if ((xmp->nullm_flags & NULLM_CACHE) == 0) {
+		/*
+		 * If this is the last reference and caching of the
+		 * nullfs vnodes is not enabled, then free up the
+		 * vnode so as not to tie up the lower vnodes.
+		 */
+		vp->v_object = NULL;
+		vrecycle(vp);
+	}
 	return (0);
 }
 
@@ -725,6 +740,14 @@ null_reclaim(struct vop_reclaim_args *ap)
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	VI_UNLOCK(vp);
+
+	/*
+	 * If we were opened for write, we leased one write reference
+	 * to the lower vnode.  If this is a reclamation due to the
+	 * forced unmount, undo the reference now.
+	 */
+	if (vp->v_writecount > 0)
+		VOP_ADD_WRITECOUNT(lowervp, -1);
 	vput(lowervp);
 	free(xp, M_NULLFSNODE);
 

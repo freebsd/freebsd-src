@@ -120,6 +120,7 @@ static const STRUCT_USB_HOST_ID rum_devs[] = {
     RUM_DEV(HUAWEI3COM, WUB320G),
     RUM_DEV(MELCO, G54HP),
     RUM_DEV(MELCO, SG54HP),
+    RUM_DEV(MELCO, SG54HG),
     RUM_DEV(MELCO, WLIUCG),
     RUM_DEV(MELCO, WLRUCG),
     RUM_DEV(MELCO, WLRUCGAOSS),
@@ -542,6 +543,11 @@ rum_detach(device_t self)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic;
 
+	/* Prevent further ioctls */
+	RUM_LOCK(sc);
+	sc->sc_detached = 1;
+	RUM_UNLOCK(sc);
+
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, RUM_N_TRANSFER);
 
@@ -556,7 +562,6 @@ rum_detach(device_t self)
 		if_free(ifp);
 	}
 	mtx_destroy(&sc->sc_mtx);
-
 	return (0);
 }
 
@@ -1321,7 +1326,14 @@ rum_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct rum_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	int error;
+	int startall = 0;
+
+	RUM_LOCK(sc);
+	error = sc->sc_detached ? ENXIO : 0;
+	RUM_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -2365,8 +2377,7 @@ static device_method_t rum_methods[] = {
 	DEVMETHOD(device_probe,		rum_match),
 	DEVMETHOD(device_attach,	rum_attach),
 	DEVMETHOD(device_detach,	rum_detach),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t rum_driver = {

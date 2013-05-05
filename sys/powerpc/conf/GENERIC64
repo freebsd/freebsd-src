@@ -40,6 +40,7 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
+options 	QUOTA			#Enable disk quotas for UFS
 options 	MD_ROOT			#MD is a potential root device
 options 	NFSCL			#New Network Filesystem Client
 options 	NFSD			#New Network Filesystem Server
@@ -94,7 +95,6 @@ device		agp
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_CAM		# Handle legacy controllers with CAM
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 

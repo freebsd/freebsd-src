@@ -330,7 +330,7 @@ struct inpcbinfo {
 	/*
 	 * Global lock protecting non-pcbgroup hash lookup tables.
 	 */
-	struct rwlock		 ipi_hash_lock;
+	struct rwlock_padalign	 ipi_hash_lock;
 
 	/*
 	 * Global hash of inpcbs, hashed by local and foreign addresses and

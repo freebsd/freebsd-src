@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,7 +182,8 @@ AcpiPsGetNextNamestring (
 
     /* Point past any namestring prefix characters (backslash or carat) */
 
-    while (AcpiPsIsPrefixChar (*End))
+    while (ACPI_IS_ROOT_PREFIX (*End) ||
+           ACPI_IS_PARENT_PREFIX (*End))
     {
         End++;
     }
@@ -868,7 +869,8 @@ AcpiPsGetNextArg (
         Subop = AcpiPsPeekOpcode (ParserState);
         if (Subop == 0                  ||
             AcpiPsIsLeadingChar (Subop) ||
-            AcpiPsIsPrefixChar (Subop))
+            ACPI_IS_ROOT_PREFIX (Subop) ||
+            ACPI_IS_PARENT_PREFIX (Subop))
         {
             /* NullName or NameString */
 

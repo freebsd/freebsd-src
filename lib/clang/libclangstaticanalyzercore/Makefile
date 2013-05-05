@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangstaticanalyzercore
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Core
@@ -44,6 +46,7 @@ SRCS=	APSIntType.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

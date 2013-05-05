@@ -85,7 +85,7 @@
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
-char lem_driver_version[] = "1.0.5";
+char lem_driver_version[] = "1.0.6";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -262,7 +262,7 @@ static device_method_t lem_methods[] = {
 	DEVMETHOD(device_shutdown, lem_shutdown),
 	DEVMETHOD(device_suspend, lem_suspend),
 	DEVMETHOD(device_resume, lem_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t lem_driver = {
@@ -1856,12 +1856,37 @@ lem_set_promisc(struct adapter *adapter)
 static void
 lem_disable_promisc(struct adapter *adapter)
 {
-	u32	reg_rctl;
+	struct ifnet	*ifp = adapter->ifp;
+	u32		reg_rctl;
+	int		mcnt = 0;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
-
 	reg_rctl &=  (~E1000_RCTL_UPE);
-	reg_rctl &=  (~E1000_RCTL_MPE);
+	if (ifp->if_flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else {
+		struct  ifmultiaddr *ifma;
+#if __FreeBSD_version < 800000
+		IF_ADDR_LOCK(ifp);
+#else   
+		if_maddr_rlock(ifp);
+#endif
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+				break;
+			mcnt++;
+		}
+#if __FreeBSD_version < 800000
+		IF_ADDR_UNLOCK(ifp);
+#else
+		if_maddr_runlock(ifp);
+#endif
+	}
+	/* Don't disable if in MAX groups */
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg_rctl &=  (~E1000_RCTL_MPE);
 	reg_rctl &=  (~E1000_RCTL_SBP);
 	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 }
@@ -2955,10 +2980,8 @@ lem_txeof(struct adapter *adapter)
 	EM_TX_LOCK_ASSERT(adapter);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		selwakeuppri(&NA(ifp)->tx_rings[0].si, PI_NET);
+	if (netmap_tx_irq(ifp, 0 | (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
 		return;
-	}
 #endif /* DEV_NETMAP */
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
                 return;
@@ -3434,13 +3457,8 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	    BUS_DMASYNC_POSTREAD);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-		na->rx_rings[0].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[0].si, PI_NET);
-		EM_RX_UNLOCK(adapter);
-		return (0);
-	}
+	if (netmap_rx_irq(ifp, 0 | NETMAP_LOCKED_ENTER, &rx_sent))
+		return (FALSE);
 #endif /* DEV_NETMAP */
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
@@ -3782,10 +3800,6 @@ lem_setup_vlan_hw_support(struct adapter *adapter)
 	reg &= ~E1000_RCTL_CFIEN;
 	reg |= E1000_RCTL_VFE;
 	E1000_WRITE_REG(hw, E1000_RCTL, reg);
-
-	/* Update the frame size */
-	E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
-	    adapter->max_frame_size + VLAN_TAG_SIZE);
 }
 
 static void

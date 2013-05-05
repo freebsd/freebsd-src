@@ -60,7 +60,7 @@ NETWORKS=`echo "$SCAN_RESULTS" | awk -F '\t' \
    '/..:..:..:..:..:../ {if (length($5) > 0) printf("\"%s\"\t%s\n", $5, $4);}' |
    sort | uniq`
 
-if [ -z $NETWORKS ]; then
+if [ -z "$NETWORKS" ]; then
 	dialog --backtitle "FreeBSD Installer" --title "Error" \
 	    --yesno "No wireless networks were found. Rescan?" 0 0 && \
 	    exec $0 $@

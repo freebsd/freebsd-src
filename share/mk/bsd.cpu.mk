@@ -97,13 +97,13 @@ _CPUCFLAGS = -march=${CPUTYPE}
 .  if ${CPUTYPE} == "xscale"
 #XXX: gcc doesn't seem to like -mcpu=xscale, and dies while rebuilding itself
 #_CPUCFLAGS = -mcpu=xscale
-_CPUCFLAGS = -march=armv5te -D__XSCALE__ -DARM_WANT_TP_ADDRESS
+_CPUCFLAGS = -march=armv5te -D__XSCALE__
 . elif ${CPUTYPE} == "armv6"
 _CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 . elif ${CPUTYPE} == "cortexa"
-_CPUCFLAGS = -march=armv6 -DARM_ARCH_6=1 -mfpu=vfp
+_CPUCFLAGS = -DARM_ARCH_6=1 -mfpu=vfp
 .  else
-_CPUCFLAGS = -mcpu=${CPUTYPE} -DARM_WANT_TP_ADDRESS
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"

@@ -216,7 +216,9 @@ static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
 #else
 	
 static mmu_update_t xpq_queue[XPQUEUE_SIZE];
+#ifdef INVARIANTS
 static struct mmu_log xpq_queue_log[XPQUEUE_SIZE];
+#endif
 static int xpq_idx = 0;
 
 #define	XPQ_QUEUE_LOG xpq_queue_log

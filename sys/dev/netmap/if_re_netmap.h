@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: if_re_netmap.h 10609 2012-02-22 19:44:58Z luigi $
  *
  * netmap support for "re"
  * For details on netmap support please see ixgbe_netmap.h
@@ -151,7 +150,7 @@ re_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 
 	/* update avail to what the kernel knows */
 	ring->avail = kring->nr_hwavail;
-	
+
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have new packets to send */
 		l = sc->rl_ldata.rl_tx_prodidx;
@@ -170,7 +169,7 @@ re_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 				// XXX what about prodidx ?
 				return netmap_ring_reinit(kring);
 			}
-			
+
 			if (l == lim)	/* mark end of ring */
 				cmd |= RL_TDESC_CMD_EOR;
 
@@ -245,6 +244,8 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	l = sc->rl_ldata.rl_rx_prodidx; /* next pkt to check */
 	j = netmap_idx_n2k(kring, l); /* the kring index */
 	if (netmap_no_pendintr || force_update) {
+		uint16_t slot_flags = kring->nkr_slot_flags;
+
 		for (n = kring->nr_hwavail; n < lim ; n++) {
 			struct rl_desc *cur_rx = &sc->rl_ldata.rl_rx_list[l];
 			uint32_t rxstat = le32toh(cur_rx->rl_cmdstat);
@@ -256,6 +257,7 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			/* XXX subtract crc */
 			total_len = (total_len < 4) ? 0 : total_len - 4;
 			kring->ring->slot[j].len = total_len;
+			kring->ring->slot[j].flags = slot_flags;
 			/*  sync was in re_newbuf() */
 			bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag,
 			    rxd[l].rx_dmamap, BUS_DMASYNC_POSTREAD);
@@ -332,7 +334,7 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
  */
 static void
 re_netmap_tx_init(struct rl_softc *sc)
-{   
+{
 	struct rl_txdesc *txd;
 	struct rl_desc *desc;
 	int i, n;

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.89 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: make.h,v 1.90 2013/02/25 01:57:14 dholland Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -103,7 +103,7 @@
 	((__GNUC__ == (x) && __GNUC_MINOR__ >= (y)) ||			\
 	 (__GNUC__ > (x)))
 #else /* defined(__GNUC__) */
-#define	MAKE_GNUC_PREREQx, y)	0
+#define	MAKE_GNUC_PREREQ(x, y)	0
 #endif /* defined(__GNUC__) */
 
 #if MAKE_GNUC_PREREQ(2, 7)

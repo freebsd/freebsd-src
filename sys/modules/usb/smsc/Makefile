@@ -31,7 +31,8 @@ S=     ${.CURDIR}/../../..
 
 KMOD=	if_smsc
 SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h usbdevs.h \
-	miibus_if.h opt_inet.h \
+	miibus_if.h opt_inet.h opt_platform.h \
 	if_smsc.c
+SRCS+=	ofw_bus_if.h
 
 .include <bsd.kmod.mk>

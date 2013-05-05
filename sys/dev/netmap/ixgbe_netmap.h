@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: ixgbe_netmap.h 10627 2012-02-23 19:37:15Z luigi $
  *
  * netmap modifications for ixgbe
  *
@@ -63,9 +62,6 @@
  *	This is tricky, much better to use TDH for now.
  */
 SYSCTL_DECL(_dev_netmap);
-static int ix_write_len;
-SYSCTL_INT(_dev_netmap, OID_AUTO, ix_write_len,
-    CTLFLAG_RW, &ix_write_len, 0, "write rx len");
 static int ix_rx_miss, ix_rx_miss_bufs, ix_use_dd, ix_crcstrip;
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
     CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
@@ -229,7 +225,8 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->tx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
-	u_int j, k = ring->cur, l, n = 0, lim = kring->nkr_num_slots - 1;
+	u_int j, l, n = 0;
+	u_int const k = ring->cur, lim = kring->nkr_num_slots - 1;
 
 	/*
 	 * ixgbe can generate an interrupt on every tx packet, but it
@@ -396,11 +393,10 @@ ring_reset:
 	    if (ix_use_dd) {
 		struct ixgbe_legacy_tx_desc *txd =
 		    (struct ixgbe_legacy_tx_desc *)txr->tx_base;
-
+		u_int k1 = netmap_idx_k2n(kring, kring->nr_hwcur);
 		l = txr->next_to_clean;
-		k = netmap_idx_k2n(kring, kring->nr_hwcur);
 		delta = 0;
-		while (l != k &&
+		while (l != k1 &&
 		    txd[l].upper.fields.status & IXGBE_TXD_STAT_DD) {
 		    delta++;
 		    l = (l == lim) ? 0 : l + 1;
@@ -485,12 +481,9 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
-		/* XXX apparently the length field in advanced descriptors
-		 * does not include the CRC irrespective of the setting
-		 * of CRCSTRIP. The data sheets say differently.
-		 * Very strange.
-		 */
 		int crclen = ix_crcstrip ? 0 : 4;
+		uint16_t slot_flags = kring->nkr_slot_flags;
+
 		l = rxr->next_to_check;
 		j = netmap_idx_n2k(kring, l);
 
@@ -501,8 +494,7 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			if ((staterr & IXGBE_RXD_STAT_DD) == 0)
 				break;
 			ring->slot[j].len = le16toh(curr->wb.upper.length) - crclen;
-			if (ix_write_len)
-				D("rx[%d] len %d", j, ring->slot[j].len);
+			ring->slot[j].flags = slot_flags;
 			bus_dmamap_sync(rxr->ptag,
 			    rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
 			j = (j == lim) ? 0 : j + 1;

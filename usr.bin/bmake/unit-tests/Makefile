@@ -5,9 +5,9 @@
 
 SRCTOP?= ${.CURDIR:H:H:H}
 
-# $Id: Makefile.in,v 1.39 2012/11/09 19:16:10 sjg Exp $
+# $Id: Makefile.in,v 1.42 2013/03/23 02:31:13 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.35 2012/11/09 19:08:28 sjg Exp $
+# $NetBSD: Makefile,v 1.36 2013/03/22 16:36:46 sjg Exp $
 #
 # Unit tests for make(1)
 # The main targets are:
@@ -35,6 +35,7 @@ SUBFILES= \
 	error \
 	export \
 	export-all \
+	export-env \
 	doterror \
 	dotwait \
 	forloop \
@@ -79,10 +80,12 @@ TOOL_TR?= tr
 TOOL_DIFF?= diff
 DIFF_FLAGS?= -u
 
+.if defined(.PARSEDIR)
 # ensure consistent results from sort(1)
 LC_ALL= C
 LANG= C
 .export LANG LC_ALL
+.endif
 
 # The driver.
 # We always pretend .MAKE was called 'make' 

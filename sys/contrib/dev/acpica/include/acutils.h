@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,7 +101,7 @@ ACPI_STATUS (*ACPI_WALK_AML_CALLBACK) (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context);
+    void                    **Context);
 
 typedef
 ACPI_STATUS (*ACPI_PKG_CALLBACK) (
@@ -119,9 +119,10 @@ typedef struct acpi_pkg_info
 
 } ACPI_PKG_INFO;
 
+/* Object reference counts */
+
 #define REF_INCREMENT       (UINT16) 0
 #define REF_DECREMENT       (UINT16) 1
-#define REF_FORCE_DELETE    (UINT16) 2
 
 /* AcpiUtDumpBuffer */
 
@@ -614,7 +615,7 @@ ACPI_STATUS
 AcpiUtInitializeInterfaces (
     void);
 
-void
+ACPI_STATUS
 AcpiUtInterfaceTerminate (
     void);
 
@@ -633,6 +634,38 @@ AcpiUtGetInterface (
 ACPI_STATUS
 AcpiUtOsiImplementation (
     ACPI_WALK_STATE         *WalkState);
+
+
+/*
+ * utpredef - support for predefined names
+ */
+const ACPI_PREDEFINED_INFO *
+AcpiUtGetNextPredefinedMethod (
+    const ACPI_PREDEFINED_INFO  *ThisName);
+
+const ACPI_PREDEFINED_INFO *
+AcpiUtMatchPredefinedMethod (
+    char                        *Name);
+
+const ACPI_PREDEFINED_INFO *
+AcpiUtMatchResourceName (
+    char                        *Name);
+
+void
+AcpiUtDisplayPredefinedMethod (
+    char                        *Buffer,
+    const ACPI_PREDEFINED_INFO  *ThisName,
+    BOOLEAN                     MultiLine);
+
+void
+AcpiUtGetExpectedReturnTypes (
+    char                    *Buffer,
+    UINT32                  ExpectedBtypes);
+
+UINT32
+AcpiUtGetResourceBitWidth (
+    char                    *Buffer,
+    UINT16                  Types);
 
 
 /*
@@ -706,14 +739,11 @@ AcpiUtShortDivide (
     UINT64                  *OutQuotient,
     UINT32                  *OutRemainder);
 
+
 /*
  * utmisc
  */
-void
-UtConvertBackslashes (
-    char                    *Pathname);
-
-const char *
+const ACPI_EXCEPTION_INFO *
 AcpiUtValidateException (
     ACPI_STATUS             Status);
 
@@ -726,56 +756,12 @@ AcpiUtIsAmlTable (
     ACPI_TABLE_HEADER       *Table);
 
 ACPI_STATUS
-AcpiUtAllocateOwnerId (
-    ACPI_OWNER_ID           *OwnerId);
-
-void
-AcpiUtReleaseOwnerId (
-    ACPI_OWNER_ID           *OwnerId);
-
-ACPI_STATUS
 AcpiUtWalkPackageTree (
     ACPI_OPERAND_OBJECT     *SourceObject,
     void                    *TargetObject,
     ACPI_PKG_CALLBACK       WalkCallback,
     void                    *Context);
 
-void
-AcpiUtStrupr (
-    char                    *SrcString);
-
-void
-AcpiUtStrlwr (
-    char                    *SrcString);
-
-int
-AcpiUtStricmp (
-    char                    *String1,
-    char                    *String2);
-
-void
-AcpiUtPrintString (
-    char                    *String,
-    UINT8                   MaxLength);
-
-BOOLEAN
-AcpiUtValidAcpiName (
-    UINT32                  Name);
-
-void
-AcpiUtRepairName (
-    char                    *Name);
-
-BOOLEAN
-AcpiUtValidAcpiChar (
-    char                    Character,
-    UINT32                  Position);
-
-ACPI_STATUS
-AcpiUtStrtoul64 (
-    char                    *String,
-    UINT32                  Base,
-    UINT64                  *RetInteger);
 
 /* Values for Base above (16=Hex, 10=Decimal) */
 
@@ -799,6 +785,18 @@ AcpiUtDisplayInitPathname (
 
 
 /*
+ * utownerid - Support for Table/Method Owner IDs
+ */
+ACPI_STATUS
+AcpiUtAllocateOwnerId (
+    ACPI_OWNER_ID           *OwnerId);
+
+void
+AcpiUtReleaseOwnerId (
+    ACPI_OWNER_ID           *OwnerId);
+
+
+/*
  * utresrc
  */
 ACPI_STATUS
@@ -807,7 +805,7 @@ AcpiUtWalkAmlResources (
     UINT8                   *Aml,
     ACPI_SIZE               AmlLength,
     ACPI_WALK_AML_CALLBACK  UserFunction,
-    void                    *Context);
+    void                    **Context);
 
 ACPI_STATUS
 AcpiUtValidateResource (
@@ -835,6 +833,51 @@ ACPI_STATUS
 AcpiUtGetResourceEndTag (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT8                   **EndTag);
+
+
+/*
+ * utstring - String and character utilities
+ */
+void
+AcpiUtStrupr (
+    char                    *SrcString);
+
+void
+AcpiUtStrlwr (
+    char                    *SrcString);
+
+int
+AcpiUtStricmp (
+    char                    *String1,
+    char                    *String2);
+
+ACPI_STATUS
+AcpiUtStrtoul64 (
+    char                    *String,
+    UINT32                  Base,
+    UINT64                  *RetInteger);
+
+void
+AcpiUtPrintString (
+    char                    *String,
+    UINT8                   MaxLength);
+
+void
+UtConvertBackslashes (
+    char                    *Pathname);
+
+BOOLEAN
+AcpiUtValidAcpiName (
+    UINT32                  Name);
+
+BOOLEAN
+AcpiUtValidAcpiChar (
+    char                    Character,
+    UINT32                  Position);
+
+void
+AcpiUtRepairName (
+    char                    *Name);
 
 
 /*
@@ -970,6 +1013,15 @@ AcpiUtPredefinedWarning (
 
 void ACPI_INTERNAL_VAR_XFACE
 AcpiUtPredefinedInfo (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...);
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedBiosError (
     const char              *ModuleName,
     UINT32                  LineNumber,
     char                    *Pathname,

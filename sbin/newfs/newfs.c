@@ -102,6 +102,7 @@ int	bsize = 0;		/* block size */
 int	maxbsize = 0;		/* maximum clustering */
 int	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
 int	minfree = MINFREE;	/* free space threshold */
+int	metaspace;		/* space held for metadata blocks */
 int	opt = DEFAULTOPT;	/* optimization preference (space or time) */
 int	density;		/* number of bytes per inode */
 int	maxcontig = 0;		/* max contiguous blocks to allocate */
@@ -141,7 +142,7 @@ main(int argc, char *argv[])
 	part_name = 'c';
 	reserved = 0;
 	while ((ch = getopt(argc, argv,
-	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:jlm:no:p:r:s:t")) != -1)
+	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:jk:lm:no:p:r:s:t")) != -1)
 		switch (ch) {
 		case 'E':
 			Eflag = 1;
@@ -247,6 +248,13 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			lflag = 1;
+			break;
+		case 'k':
+			if ((metaspace = atoi(optarg)) < 0)
+				errx(1, "%s: bad metadata space %%", optarg);
+			if (metaspace == 0)
+				/* force to stay zero in mkfs */
+				metaspace = -1;
 			break;
 		case 'm':
 			if ((minfree = atoi(optarg)) < 0 || minfree > 99)
@@ -501,6 +509,7 @@ usage()
 	fprintf(stderr, "\t-h average files per directory\n");
 	fprintf(stderr, "\t-i number of bytes per inode\n");
 	fprintf(stderr, "\t-j enable soft updates journaling\n");
+	fprintf(stderr, "\t-k space to hold for metadata blocks\n");
 	fprintf(stderr, "\t-l enable multilabel MAC\n");
 	fprintf(stderr, "\t-n do not create .snap directory\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");

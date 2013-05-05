@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=bugpoint
 
 SRCDIR=	tools/bugpoint
@@ -14,11 +16,12 @@ SRCS=	BugDriver.cpp \
 	bugpoint.cpp
 
 TGHDRS=	Intrinsics
-LIBDEPS=llvmbitwriter \
-	llvmlinker \
-	llvmarchive \
+LIBDEPS=llvmirreader \
+	llvmbitwriter \
 	llvmbitreader \
+	llvmlinker \
 	llvmipo \
+	llvmobjcarcopts \
 	llvmvectorize \
 	llvmscalaropts \
 	llvminstcombine \

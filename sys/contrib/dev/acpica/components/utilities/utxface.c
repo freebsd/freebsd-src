@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -373,7 +373,11 @@ AcpiInstallInterface (
         return (AE_BAD_PARAMETER);
     }
 
-    (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     /* Check if the interface name is already in the global list */
 
@@ -434,7 +438,11 @@ AcpiRemoveInterface (
         return (AE_BAD_PARAMETER);
     }
 
-    (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     Status = AcpiUtRemoveInterface (InterfaceName);
 
@@ -464,10 +472,14 @@ ACPI_STATUS
 AcpiInstallInterfaceHandler (
     ACPI_INTERFACE_HANDLER  Handler)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
 
 
-    (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     if (Handler && AcpiGbl_InterfaceHandler)
     {
