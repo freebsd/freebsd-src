@@ -445,8 +445,6 @@ do_kernel() {		# OK
 	${BINMAKE} ${o_par} KERNCONF=${l_kernconf}	\
 		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	    fail $? missing_kernel
-#		-DWITHOUT_CLANG_IS_CC			\
-
 }
 
 # Populate the variable part of the floppy filesystem. Must be done before
