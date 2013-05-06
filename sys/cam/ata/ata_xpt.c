@@ -834,6 +834,7 @@ noerror:
 	{
 		struct ccb_pathinq cpi;
 		int16_t *ptr;
+		int i;
 
 		ident_buf = &softc->ident_data;
 		for (ptr = (int16_t *)ident_buf;
@@ -913,8 +914,10 @@ noerror:
 					path->device->device_id_len = 16;
 					bcopy(&fake_device_id_hdr,
 					    path->device->device_id, 8);
-					bcopy(ident_buf->wwn,
-					    path->device->device_id + 8, 8);
+					for (i = 0; i < 4; i++) {
+						ptr = (int16_t *)(path->device->device_id + 8);
+						ptr[i] = bswap16(ident_buf->wwn[i]);
+					}
 				}
 			}
 
