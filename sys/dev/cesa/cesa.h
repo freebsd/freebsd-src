@@ -333,6 +333,11 @@ struct cesa_chain_info {
 #define CESA_TDMA_EMR_BOTH_HIT		CESA_TDMA_ECR_BOTH_HIT
 #define CESA_TDMA_EMR_DATA_ERROR	CESA_TDMA_ECR_DATA_ERROR
 
+/*  CESA TDMA address decoding registers */
+#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xA04)
+#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xA00)
+#define MV_WIN_CESA_MAX			4
+
 /* CESA SA registers definitions */
 #define CESA_SA_CMD			0xDE00
 #define CESA_SA_CMD_ACTVATE		(1 << 0)

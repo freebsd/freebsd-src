@@ -310,7 +310,6 @@ platform_devmap_init(void)
 {
 	phandle_t root, child;
 	pcell_t bank_count;
-	u_long base, size;
 	int i, num_mapped;
 
 	i = 0;
@@ -380,29 +379,6 @@ platform_devmap_init(void)
 			i += num_mapped;
 		}
 	}
-
-	/*
-	 * CESA SRAM range.
-	 */
-	if ((child = OF_finddevice("sram")) != -1)
-		if (fdt_is_compatible(child, "mrvl,cesa-sram"))
-			goto moveon;
-
-	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0)
-		/* No CESA SRAM node. */
-		return (0);
-moveon:
-	if (i >= FDT_DEVMAP_MAX)
-		return (ENOMEM);
-
-	if (fdt_regsize(child, &base, &size) != 0)
-		return (EINVAL);
-
-	fdt_devmap[i].pd_va = MV_CESA_SRAM_BASE; /* XXX */
-	fdt_devmap[i].pd_pa = base;
-	fdt_devmap[i].pd_size = size;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
 
 	return (0);
 }
