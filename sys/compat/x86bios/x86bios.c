@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #define	X86BIOS_PAGE_SIZE	0x00001000	/* 4K */
 
 #define	X86BIOS_IVT_SIZE	0x00000500	/* 1K + 256 (BDA) */
-#define	X86BIOS_SEG_SIZE	0x00010000	/* 64K */
 #define	X86BIOS_MEM_SIZE	0x00100000	/* 1M */
 
 #define	X86BIOS_IVT_BASE	0x00000000
@@ -63,11 +62,12 @@ __FBSDID("$FreeBSD$");
 #define	X86BIOS_ROM_BASE	0x000a0000
 
 #define	X86BIOS_ROM_SIZE	(X86BIOS_MEM_SIZE - (uint32_t)x86bios_rom_phys)
+#define	X86BIOS_SEG_SIZE	X86BIOS_PAGE_SIZE
 
 #define	X86BIOS_PAGES		(X86BIOS_MEM_SIZE / X86BIOS_PAGE_SIZE)
 
-#define	X86BIOS_R_DS		_pad1
 #define	X86BIOS_R_SS		_pad2
+#define	X86BIOS_R_SP		_pad3.I16_reg.x_reg
 
 static struct x86emu x86bios_emu;
 
@@ -332,8 +332,8 @@ x86bios_init_regs(struct x86regs *regs)
 {
 
 	bzero(regs, sizeof(*regs));
-	regs->X86BIOS_R_DS = 0x40;
-	regs->X86BIOS_R_SS = x86bios_seg_phys >> 4;
+	regs->X86BIOS_R_SS = X86BIOS_PHYSTOSEG(x86bios_seg_phys);
+	regs->X86BIOS_R_SP = X86BIOS_PAGE_SIZE - 2;
 }
 
 void
