@@ -493,10 +493,12 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	VM_OBJECT_WLOCK(tobj);
 	vm_page_lock(m);
 	vm_page_unhold(m);
-	vm_page_deactivate(m);
-	/* Requeue to maintain LRU ordering. */
-	if (m->queue != PQ_NONE)
+	if (m->queue == PQ_NONE) {
+		vm_page_deactivate(m);
+	} else {
+		/* Requeue to maintain LRU ordering. */
 		vm_page_requeue(m);
+	}
 	vm_page_unlock(m);
 	VM_OBJECT_WUNLOCK(tobj);
 
@@ -609,10 +611,12 @@ tmpfs_mappedwrite(vm_object_t tobj, size_t len, struct uio *uio)
 		vm_page_dirty(tpg);
 	vm_page_lock(tpg);
 	vm_page_unhold(tpg);
-	vm_page_deactivate(tpg);
-	/* Requeue to maintain LRU ordering. */
-	if (tpg->queue != PQ_NONE)
+	if (tpg->queue == PQ_NONE) {
+		vm_page_deactivate(tpg);
+	} else {
+		/* Requeue to maintain LRU ordering. */
 		vm_page_requeue(tpg);
+	}
 	vm_page_unlock(tpg);
 	VM_OBJECT_WUNLOCK(tobj);
 
