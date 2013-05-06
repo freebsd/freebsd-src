@@ -89,6 +89,7 @@ static int decode_win_xor_valid(void);
 
 #ifndef SOC_MV_FREY
 static void decode_win_cpu_setup(void);
+static int decode_win_sdram_fixup(void);
 #endif
 static void decode_win_usb_setup(u_long);
 static void decode_win_eth_setup(u_long);
@@ -522,6 +523,11 @@ soc_decode_win(void)
 	/* Retrieve our ID: some windows facilities vary between SoC models */
 	soc_id(&dev, &rev);
 
+#ifdef SOC_MV_ARMADAXP
+	if ((err = decode_win_sdram_fixup()) != 0)
+		return(err);
+#endif
+
 #ifndef SOC_MV_FREY
 	if (!decode_win_cpu_valid() || !decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
@@ -617,6 +623,8 @@ WIN_REG_BASE_IDX_WR(win_sata, br, MV_WIN_SATA_BASE);
 #ifndef SOC_MV_DOVE
 WIN_REG_IDX_RD(ddr, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
 WIN_REG_IDX_RD(ddr, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
+WIN_REG_IDX_WR(ddr, br, MV_WIN_DDR_BASE, MV_DDR_CADR_BASE)
+WIN_REG_IDX_WR(ddr, sz, MV_WIN_DDR_SIZE, MV_DDR_CADR_BASE)
 #else
 /*
  * On 88F6781 (Dove) SoC DDR Controller is accessed through
@@ -871,6 +879,48 @@ decode_win_cpu_setup(void)
 			    cpu_wins[i].size, cpu_wins[i].remap);
 
 }
+
+static int
+decode_win_sdram_fixup(void)
+{
+	struct mem_region mr[FDT_MEM_REGIONS];
+	uint8_t window_valid[MV_WIN_DDR_MAX];
+	int mr_cnt, memsize, err, i, j;
+	uint32_t valid_win_num = 0;
+
+	/* Grab physical memory regions information from device tree. */
+	err = fdt_get_mem_regions(mr, &mr_cnt, &memsize);
+	if (err != 0)
+		return (err);
+
+	for (i = 0; i < MV_WIN_DDR_MAX; i++)
+		window_valid[i] = 0;
+
+	/* Try to match entries from device tree with settings from u-boot */
+	for (i = 0; i < mr_cnt; i++) {
+		for (j = 0; j < MV_WIN_DDR_MAX; j++) {
+			if (ddr_is_active(j) &&
+			    (ddr_base(j) == mr[i].mr_start) &&
+			    (ddr_size(j) == mr[i].mr_size)) {
+				window_valid[j] = 1;
+				valid_win_num++;
+			}
+		}
+	}
+
+	if (mr_cnt != valid_win_num)
+		return (EINVAL);
+
+	/* Destroy windows without corresponding device tree entry */
+	for (j = 0; j < MV_WIN_DDR_MAX; j++) {
+		if (ddr_is_active(j) && (window_valid[j] != 1)) {
+			printf("Disabling SDRAM decoding window: %d\n", j);
+			ddr_disable(j);
+		}
+	}
+
+	return (0);
+}
 #endif
 /*
  * Check if we're able to cover all active DDR banks.
@@ -905,6 +955,14 @@ ddr_is_active(int i)
 		return (1);
 
 	return (0);
+}
+
+void
+ddr_disable(int i)
+{
+
+	ddr_sz_write(i, 0);
+	ddr_br_write(i, 0);
 }
 
 uint32_t
