@@ -2649,6 +2649,7 @@ do_l2b_alloc:
 		/*
 		 * Need to do page referenced emulation.
 		 */
+		npte &= ~L2_TYPE_MASK;
 		npte |= L2_TYPE_INV;
 	}
 
