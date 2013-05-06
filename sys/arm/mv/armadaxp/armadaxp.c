@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 				    (0x0F & (sar >> 24)))
 
 static uint32_t count_l2clk(void);
+void armadaxp_l2_init(void);
+void armadaxp_init_coher_fabric(void);
+int platform_get_ncpus(void);
 
 #define ARMADAXP_L2_BASE		(MV_BASE + 0x8000)
 #define ARMADAXP_L2_CTRL		0x100
@@ -77,7 +80,11 @@ static uint32_t count_l2clk(void);
 #define ARMADAXP_L2_FLUSH_PHYS		0x7F0
 #define ARMADAXP_L2_FLUSH_WAY		0x7FC
 
-#define COHER_FABRIC_CFU		0x228
+#define MV_COHERENCY_FABRIC_BASE	(MV_MBUS_BRIDGE_BASE + 0x200)
+#define COHER_FABRIC_CTRL		0x00
+#define COHER_FABRIC_CONF		0x04
+#define COHER_FABRIC_CFU		0x28
+#define COHER_FABRIC_CIB_CTRL		0x80
 
 /* XXX Make gpio driver optional and remove it */
 struct resource_spec mv_gpio_res[] = {
@@ -188,8 +195,46 @@ get_l2clk(void)
 	return (l2clk_freq);
 }
 
-void armadaxp_l2_init(void);
-void armadaxp_l2_idcache_inv_all(void);
+static uint32_t
+read_coher_fabric(uint32_t reg)
+{
+
+	return (bus_space_read_4(fdtbus_bs_tag, MV_COHERENCY_FABRIC_BASE, reg));
+}
+
+static void
+write_coher_fabric(uint32_t reg, uint32_t val)
+{
+
+	bus_space_write_4(fdtbus_bs_tag, MV_COHERENCY_FABRIC_BASE, reg, val);
+}
+
+int
+platform_get_ncpus(void)
+{
+#if !defined(SMP)
+	return (1);
+#else
+	return ((read_coher_fabric(COHER_FABRIC_CONF) & 0xf) + 1);
+#endif
+}
+
+void
+armadaxp_init_coher_fabric(void)
+{
+	uint32_t val, cpus, mask;
+
+	cpus = platform_get_ncpus();
+	mask = (1 << cpus) - 1;
+	val = read_coher_fabric(COHER_FABRIC_CTRL);
+	val |= (mask << 24);
+	write_coher_fabric(COHER_FABRIC_CTRL, val);
+
+	val = read_coher_fabric(COHER_FABRIC_CONF);
+	val |= (mask << 24);
+	val |= (1 << 15);
+	write_coher_fabric(COHER_FABRIC_CONF, val);
+}
 
 #define ALL_WAYS	0xffffffff
 
@@ -208,7 +253,7 @@ write_l2_cache(uint32_t reg, uint32_t val)
 	bus_space_write_4(fdtbus_bs_tag, ARMADAXP_L2_BASE, reg, val);
 }
 
-void
+static void
 armadaxp_l2_idcache_inv_all(void)
 {
 	write_l2_cache(ARMADAXP_L2_INV_WAY, ALL_WAYS);
@@ -233,11 +278,6 @@ armadaxp_l2_init(void)
 	/* Clear pending L2 interrupts */
 	write_l2_cache(ARMADAXP_L2_INT_CAUSE, 0x1ff);
 
-	/* Enable Cache and TLB maintenance broadcast */
-	__asm__ __volatile__ ("mrc p15, 1, %0, c15, c2, 0" : "=r"(reg));
-	reg |= (1 << 8);
-	__asm__ __volatile__ ("mcr p15, 1, %0, c15, c2, 0" : :"r"(reg));
-
 	/* Enable l2 cache */
 	reg = read_l2_cache(ARMADAXP_L2_CTRL);
 	write_l2_cache(ARMADAXP_L2_CTRL, reg | L2_ENABLE);
@@ -254,10 +294,14 @@ armadaxp_l2_init(void)
 	 * Enable Cache maintenance operation propagation in coherency fabric
 	 * Change point of coherency and point of unification to DRAM.
 	 */
-	reg = bus_space_read_4(fdtbus_bs_tag, MV_MBUS_BRIDGE_BASE,
-	    COHER_FABRIC_CFU);
+	reg = read_coher_fabric(COHER_FABRIC_CFU);
 	reg |= (1 << 17) | (1 << 18);
-	bus_space_write_4(fdtbus_bs_tag, MV_MBUS_BRIDGE_BASE, COHER_FABRIC_CFU,
-	    reg);
+	write_coher_fabric(COHER_FABRIC_CFU, reg);
+
+	/* Coherent IO Bridge initialization */
+	reg = read_coher_fabric(COHER_FABRIC_CIB_CTRL);
+	reg &= ~(7 << 16);
+	reg |= (7 << 16);
+	write_coher_fabric(COHER_FABRIC_CIB_CTRL, reg);
 }
 

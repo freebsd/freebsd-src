@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 static int platform_mpp_init(void);
 #if defined(SOC_MV_ARMADAXP)
+void armadaxp_init_coher_fabric(void);
 void armadaxp_l2_init(void);
 #endif
 
@@ -237,6 +238,10 @@ initarm_late_init(void)
 	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
 #endif
 #if defined(SOC_MV_ARMADAXP)
+#if !defined(SMP)
+	/* For SMP case it should be initialized after APs are booted */
+	armadaxp_init_coher_fabric();
+#endif
 	armadaxp_l2_init();
 #endif
 }
