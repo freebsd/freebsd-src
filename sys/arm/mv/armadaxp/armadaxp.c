@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/armreg.h>
 
+#include <arm/mv/mvwin.h>
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
@@ -50,6 +51,33 @@ __FBSDID("$FreeBSD$");
 				    (0x0F & (sar >> 24)))
 
 static uint32_t count_l2clk(void);
+
+#define ARMADAXP_L2_BASE		(MV_BASE + 0x8000)
+#define ARMADAXP_L2_CTRL		0x100
+#define L2_ENABLE			(1 << 0)
+#define ARMADAXP_L2_AUX_CTRL		0x104
+#define L2_WBWT_MODE_MASK		(3 << 0)
+#define L2_WBWT_MODE_PAGE		0
+#define L2_WBWT_MODE_WB			1
+#define L2_WBWT_MODE_WT			2
+#define L2_REP_STRAT_MASK		(3 << 27)
+#define L2_REP_STRAT_LSFR		(1 << 27)
+#define L2_REP_STRAT_SEMIPLRU		(3 << 27)
+
+#define ARMADAXP_L2_CNTR_CTRL		0x200
+#define ARMADAXP_L2_CNTR_CONF(x)	(0x204 + (x) * 0xc)
+#define ARMADAXP_L2_CNTR2_VAL_LOW	(0x208 + (x) * 0xc)
+#define ARMADAXP_L2_CNTR2_VAL_HI	(0x20c + (x) * 0xc)
+
+#define ARMADAXP_L2_INT_CAUSE		0x220
+
+#define ARMADAXP_L2_SYNC_BARRIER	0x700
+#define ARMADAXP_L2_INV_WAY		0x778
+#define ARMADAXP_L2_CLEAN_WAY		0x7BC
+#define ARMADAXP_L2_FLUSH_PHYS		0x7F0
+#define ARMADAXP_L2_FLUSH_WAY		0x7FC
+
+#define COHER_FABRIC_CFU		0x228
 
 /* XXX Make gpio driver optional and remove it */
 struct resource_spec mv_gpio_res[] = {
@@ -158,5 +186,78 @@ get_l2clk(void)
 		l2clk_freq = count_l2clk();
 
 	return (l2clk_freq);
+}
+
+void armadaxp_l2_init(void);
+void armadaxp_l2_idcache_inv_all(void);
+
+#define ALL_WAYS	0xffffffff
+
+/* L2 cache configuration registers */
+static uint32_t
+read_l2_cache(uint32_t reg)
+{
+
+	return (bus_space_read_4(fdtbus_bs_tag, ARMADAXP_L2_BASE, reg));
+}
+
+static void
+write_l2_cache(uint32_t reg, uint32_t val)
+{
+
+	bus_space_write_4(fdtbus_bs_tag, ARMADAXP_L2_BASE, reg, val);
+}
+
+void
+armadaxp_l2_idcache_inv_all(void)
+{
+	write_l2_cache(ARMADAXP_L2_INV_WAY, ALL_WAYS);
+}
+
+void
+armadaxp_l2_init(void)
+{
+	u_int32_t reg;
+
+	/* Set L2 policy */
+	reg = read_l2_cache(ARMADAXP_L2_AUX_CTRL);
+	reg &= ~(L2_WBWT_MODE_MASK);
+	reg &= ~(L2_REP_STRAT_MASK);
+	reg |= L2_REP_STRAT_SEMIPLRU;
+	reg |= L2_WBWT_MODE_WT;
+	write_l2_cache(ARMADAXP_L2_AUX_CTRL, reg);
+
+	/* Invalidate l2 cache */
+	armadaxp_l2_idcache_inv_all();
+
+	/* Clear pending L2 interrupts */
+	write_l2_cache(ARMADAXP_L2_INT_CAUSE, 0x1ff);
+
+	/* Enable Cache and TLB maintenance broadcast */
+	__asm__ __volatile__ ("mrc p15, 1, %0, c15, c2, 0" : "=r"(reg));
+	reg |= (1 << 8);
+	__asm__ __volatile__ ("mcr p15, 1, %0, c15, c2, 0" : :"r"(reg));
+
+	/* Enable l2 cache */
+	reg = read_l2_cache(ARMADAXP_L2_CTRL);
+	write_l2_cache(ARMADAXP_L2_CTRL, reg | L2_ENABLE);
+
+	/*
+	 * For debug purposes
+	 * Configure and enable counter
+	 */
+	write_l2_cache(ARMADAXP_L2_CNTR_CONF(0), 0xf0000 | (4 << 2));
+	write_l2_cache(ARMADAXP_L2_CNTR_CONF(1), 0xf0000 | (2 << 2));
+	write_l2_cache(ARMADAXP_L2_CNTR_CTRL, 0x303);
+
+	/*
+	 * Enable Cache maintenance operation propagation in coherency fabric
+	 * Change point of coherency and point of unification to DRAM.
+	 */
+	reg = bus_space_read_4(fdtbus_bs_tag, MV_MBUS_BRIDGE_BASE,
+	    COHER_FABRIC_CFU);
+	reg |= (1 << 17) | (1 << 18);
+	bus_space_write_4(fdtbus_bs_tag, MV_MBUS_BRIDGE_BASE, COHER_FABRIC_CFU,
+	    reg);
 }
 
