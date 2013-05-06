@@ -983,6 +983,7 @@ pmap_set_prot(pt_entry_t *ptep, vm_prot_t prot, uint8_t user)
 	if (!(prot & VM_PROT_EXECUTE))
 		*ptep |= L2_XN;
 
+	*ptep |= L2_APX;
 	*ptep |= L2_S_PROT_R;
 
 	if (user)
@@ -990,6 +991,8 @@ pmap_set_prot(pt_entry_t *ptep, vm_prot_t prot, uint8_t user)
 
 	if (prot & VM_PROT_WRITE)
 		*ptep &= ~(L2_APX);
+	else if (user)
+		*ptep &= ~(L2_S_PROT_R);
 }
 
 /*
@@ -1216,7 +1219,7 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 	/*
 	 * Catch a userland access to the vector page mapped at 0x0
 	 */
-	if (user && ((pte & L2_S_PROT_MASK) == L2_S_PROT_U))
+	if (user && !(pte & L2_S_PROT_U))
 		goto out;
 	if (va == vector_page)
 		goto out;
@@ -2649,7 +2652,10 @@ do_l2b_alloc:
 		npte |= L2_TYPE_INV;
 	}
 
+	npte |= L2_APX;
 	npte |= L2_S_PROT_R;
+	if (user)
+		npte |= L2_S_PROT_U;
 
 	if (prot & VM_PROT_WRITE) {
 		npte &= ~(L2_APX);
@@ -2657,11 +2663,8 @@ do_l2b_alloc:
 		if (m != NULL &&
 		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
-	}
-
-	if (user)
-		npte |= L2_S_PROT_U;
-
+	} else if (user)
+		npte &= ~(L2_S_PROT_R);
 
 	if (!(prot & VM_PROT_EXECUTE) && m)
 		npte |= L2_XN;

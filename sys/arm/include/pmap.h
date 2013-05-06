@@ -352,7 +352,7 @@ extern int pmap_needs_pte_sync;
 #elif (ARM_MMU_V6 + ARM_MMU_V7) != 0
 
 #define	L2_S_PROT_U		(L2_AP0(2))		/* user access */
-#define	L2_S_PROT_R		(L2_APX|L2_AP0(1))	/* read access */
+#define	L2_S_PROT_R		(L2_AP0(1))		/* read access */
 
 #define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R)
 #define	L2_S_WRITABLE(pte)	(!(pte & L2_APX))
