@@ -83,7 +83,7 @@ static int decode_win_usb_valid(void);
 static int decode_win_eth_valid(void);
 static int decode_win_pcie_valid(void);
 static int decode_win_sata_valid(void);
-static int decode_win_cesa_valid(void);
+
 static int decode_win_idma_valid(void);
 static int decode_win_xor_valid(void);
 
@@ -93,11 +93,10 @@ static void decode_win_cpu_setup(void);
 static void decode_win_usb_setup(u_long);
 static void decode_win_eth_setup(u_long);
 static void decode_win_sata_setup(u_long);
-static void decode_win_cesa_setup(u_long);
+
 static void decode_win_idma_setup(u_long);
 static void decode_win_xor_setup(u_long);
 
-static void decode_win_cesa_dump(u_long);
 static void decode_win_usb_dump(u_long);
 static void decode_win_eth_dump(u_long base);
 static void decode_win_idma_dump(u_long base);
@@ -127,7 +126,6 @@ struct soc_node_spec {
 };
 
 static struct soc_node_spec soc_nodes[] = {
-	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump },
 	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
 	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
 	{ "mrvl,sata", &decode_win_sata_setup, NULL },
@@ -143,7 +141,6 @@ struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
 	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(0) },
 	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(1) },
 	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(2) },
-	{ "mrvl,cesa",		CPU_PM_CTRL_CRYPTO },
 	{ "mrvl,xor",		CPU_PM_CTRL_XOR },
 	{ "mrvl,sata",		CPU_PM_CTRL_SATA },
 
@@ -529,7 +526,7 @@ soc_decode_win(void)
 	if (!decode_win_cpu_valid() || !decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_cesa_valid() || !decode_win_xor_valid())
+	    !decode_win_xor_valid())
 		return (EINVAL);
 
 	decode_win_cpu_setup();
@@ -537,7 +534,7 @@ soc_decode_win(void)
 	if (!decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_cesa_valid() || !decode_win_xor_valid())
+	    !decode_win_xor_valid())
 		return (EINVAL);
 #endif
 	if (MV_DUMP_WIN)
@@ -569,11 +566,6 @@ WIN_REG_BASE_IDX_RD(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_RD(win_usb, br, MV_WIN_USB_BASE)
 WIN_REG_BASE_IDX_WR(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_WR(win_usb, br, MV_WIN_USB_BASE)
-
-WIN_REG_BASE_IDX_RD(win_cesa, cr, MV_WIN_CESA_CTRL)
-WIN_REG_BASE_IDX_RD(win_cesa, br, MV_WIN_CESA_BASE)
-WIN_REG_BASE_IDX_WR(win_cesa, cr, MV_WIN_CESA_CTRL)
-WIN_REG_BASE_IDX_WR(win_cesa, br, MV_WIN_CESA_BASE)
 
 WIN_REG_BASE_IDX_RD(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_RD(win_eth, sz, MV_WIN_ETH_SIZE)
@@ -1791,98 +1783,6 @@ decode_win_xor_dump(u_long base)
 #endif
 
 /**************************************************************************
- * CESA TDMA windows routines
- **************************************************************************/
-#if defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-/*
- * Dump CESA TDMA decode windows.
- */
-static void
-decode_win_cesa_dump(u_long base)
-{
-	int i;
-
-	if (pm_is_disabled(CPU_PM_CTRL_CRYPTO))
-		return;
-
-	for (i = 0; i < MV_WIN_CESA_MAX; i++)
-		printf("CESA window#%d: c 0x%08x, b 0x%08x\n", i,
-		    win_cesa_cr_read(base, i), win_cesa_br_read(base, i));
-}
-
-
-/*
- * Set CESA TDMA decode windows.
- */
-static void
-decode_win_cesa_setup(u_long base)
-{
-	uint32_t br, cr;
-	int i, j;
-
-	if (pm_is_disabled(CPU_PM_CTRL_CRYPTO))
-		return;
-
-	/* Disable and clear all CESA windows */
-	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
-		win_cesa_cr_write(base, i, 0);
-		win_cesa_br_write(base, i, 0);
-	}
-
-	/* Only access to active DRAM banks is required. */
-	for (i = 0; i < MV_WIN_DDR_MAX; i++)
-		if (ddr_is_active(i)) {
-			br = ddr_base(i);
-			cr = (((ddr_size(i) - 1) & 0xffff0000) |
-			   (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1);
-
-			/* Set the first available CESA window */
-			for (j = 0; j < MV_WIN_CESA_MAX; j++) {
-				if (win_cesa_cr_read(base, j) & 0x1)
-					continue;
-
-				win_cesa_br_write(base, j, br);
-				win_cesa_cr_write(base, j, cr);
-				break;
-			}
-		}
-}
-
-/*
- * Check CESA TDMA decode windows.
- */
-static int
-decode_win_cesa_valid(void)
-{
-
-	return (decode_win_can_cover_ddr(MV_WIN_CESA_MAX));
-}
-#else
-
-/*
- * Provide dummy functions to satisfy the build for SoCs not equipped with
- * CESA
- */
-
-static int
-decode_win_cesa_valid(void)
-{
-
-	return (1);
-}
-
-static void
-decode_win_cesa_setup(u_long base)
-{
-}
-
-static void
-decode_win_cesa_dump(u_long base)
-{
-}
-#endif
-
-/**************************************************************************
  * SATA windows routines
  **************************************************************************/
 static void
@@ -1979,33 +1879,34 @@ static int
 win_cpu_from_dt(void)
 {
 	pcell_t ranges[48];
-	u_long sram_base, sram_size;
 	phandle_t node;
 	int i, entry_size, err, t, tuple_size, tuples;
+	u_long sram_base, sram_size;
 
+	t = 0;
 	/* Retrieve 'ranges' property of '/localbus' node. */
 	if ((err = fdt_get_ranges("/localbus", ranges, sizeof(ranges),
-	    &tuples, &tuple_size)) != 0)
-		return (0);
+	    &tuples, &tuple_size)) == 0) {
+		/*
+		 * Fill CPU decode windows table.
+		 */
+		bzero((void *)&cpu_win_tbl, sizeof(cpu_win_tbl));
 
-	/*
-	 * Fill CPU decode windows table.
-	 */
-	bzero((void *)&cpu_win_tbl, sizeof(cpu_win_tbl));
+		entry_size = tuple_size / sizeof(pcell_t);
+		cpu_wins_no = tuples;
 
-	entry_size = tuple_size / sizeof(pcell_t);
-	cpu_wins_no = tuples;
-
-	for (i = 0, t = 0; t < tuples; i += entry_size, t++) {
-		cpu_win_tbl[t].target = 1;
-		cpu_win_tbl[t].attr = fdt32_to_cpu(ranges[i + 1]);
-		cpu_win_tbl[t].base = fdt32_to_cpu(ranges[i + 2]);
-		cpu_win_tbl[t].size = fdt32_to_cpu(ranges[i + 3]);
-		cpu_win_tbl[t].remap = ~0;
-		debugf("target = 0x%0x attr = 0x%0x base = 0x%0x "
-		    "size = 0x%0x remap = 0x%0x\n", cpu_win_tbl[t].target,
-		    cpu_win_tbl[t].attr, cpu_win_tbl[t].base,
-		    cpu_win_tbl[t].size, cpu_win_tbl[t].remap);
+		for (i = 0, t = 0; t < tuples; i += entry_size, t++) {
+			cpu_win_tbl[t].target = 1;
+			cpu_win_tbl[t].attr = fdt32_to_cpu(ranges[i + 1]);
+			cpu_win_tbl[t].base = fdt32_to_cpu(ranges[i + 2]);
+			cpu_win_tbl[t].size = fdt32_to_cpu(ranges[i + 3]);
+			cpu_win_tbl[t].remap = ~0;
+			debugf("target = 0x%0x attr = 0x%0x base = 0x%0x "
+			    "size = 0x%0x remap = 0x%0x\n",
+			    cpu_win_tbl[t].target,
+			    cpu_win_tbl[t].attr, cpu_win_tbl[t].base,
+			    cpu_win_tbl[t].size, cpu_win_tbl[t].remap);
+		}
 	}
 
 	/*
@@ -2015,7 +1916,7 @@ win_cpu_from_dt(void)
 		if (fdt_is_compatible(node, "mrvl,cesa-sram"))
 			goto moveon;
 
-	if ((node = OF_finddevice("/")) == -1)
+	if ((node = OF_finddevice("/")) == 0)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "mrvl,cesa-sram", 0)) == 0)
@@ -2026,11 +1927,12 @@ moveon:
 	if (fdt_regsize(node, &sram_base, &sram_size) != 0)
 		return (EINVAL);
 
-	cpu_win_tbl[++t].target = MV_WIN_CESA_TARGET;
-	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR;
+	cpu_win_tbl[t].target = MV_WIN_CESA_TARGET;
+	cpu_win_tbl[t].attr = MV_WIN_CESA_ATTR(1);
 	cpu_win_tbl[t].base = sram_base;
 	cpu_win_tbl[t].size = sram_size;
 	cpu_win_tbl[t].remap = ~0;
+	cpu_wins_no++;
 	debugf("sram: base = 0x%0lx size = 0x%0lx\n", sram_base, sram_size);
 
 	return (0);

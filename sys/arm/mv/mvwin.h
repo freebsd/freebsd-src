@@ -208,16 +208,28 @@
 #define MV_WIN_DDR_MAX			4
 #endif /* SOC_MV_DOVE */
 
-#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xa04)
-#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xa00)
-#define MV_WIN_CESA_MAX			4
+/*
+ * These values are valid only for peripherals decoding windows
+ * Bit in ATTR is zeroed according to CS bank number
+ */
+#define MV_WIN_DDR_ATTR(cs)		(0x0F & ~(0x01 << (cs)))
+#define MV_WIN_DDR_TARGET		0x0
 
 #if defined(SOC_MV_DISCOVERY)
 #define MV_WIN_CESA_TARGET		9
-#define MV_WIN_CESA_ATTR		1
+#define MV_WIN_CESA_ATTR(eng_sel)	1
+#elif defined(SOC_MV_ARMADAXP)
+#define MV_WIN_CESA_TARGET		9
+/*
+ * Bits [2:3] of cesa attribute select engine:
+ * eng_sel:
+ *  1: engine1
+ *  2: engine0
+ */
+#define MV_WIN_CESA_ATTR(eng_sel)	(1 | ((eng_sel) << 2))
 #else
 #define MV_WIN_CESA_TARGET		3
-#define MV_WIN_CESA_ATTR		0
+#define MV_WIN_CESA_ATTR(eng_sel)	0
 #endif
 
 #define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x320)
