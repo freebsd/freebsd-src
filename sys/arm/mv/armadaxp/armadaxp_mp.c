@@ -33,21 +33,21 @@
 #include <sys/mutex.h>
 #include <sys/smp.h>
 
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
+
 #include <machine/smp.h>
 #include <machine/fdt.h>
+#include <machine/armreg.h>
 
 #include <arm/mv/mvwin.h>
-
-static int platform_get_ncpus(void);
 
 #define MV_AXP_CPU_DIVCLK_BASE		(MV_BASE + 0x18700)
 #define CPU_DIVCLK_CTRL0		0x00
 #define CPU_DIVCLK_CTRL2_RATIO_FULL0	0x08
 #define CPU_DIVCLK_CTRL2_RATIO_FULL1	0x0c
-
-#define MV_COHERENCY_FABRIC_BASE	(MV_MBUS_BRIDGE_BASE + 0x200)
-#define COHER_FABRIC_CTRL		0x00
-#define COHER_FABRIC_CONF		0x04
+#define CPU_DIVCLK_MASK(x)		(~(0xff << (8 * (x))))
 
 #define CPU_PMU(x)			(MV_BASE + 0x22100 + (0x100 * (x)))
 #define CPU_PMU_BOOT			0x24
@@ -57,20 +57,8 @@ static int platform_get_ncpus(void);
 
 #define CPU_RESUME_CONTROL		(0x20988)
 
-/* Coherency Fabric registers */
-static uint32_t
-read_coher_fabric(uint32_t reg)
-{
-
-	return (bus_space_read_4(fdtbus_bs_tag, MV_COHERENCY_FABRIC_BASE, reg));
-}
-
-static void
-write_coher_fabric(uint32_t reg, uint32_t val)
-{
-
-	bus_space_write_4(fdtbus_bs_tag, MV_COHERENCY_FABRIC_BASE, reg, val);
-}
+void armadaxp_init_coher_fabric(void);
+int platform_get_ncpus(void);
 
 /* Coherency Fabric registers */
 static uint32_t
@@ -111,56 +99,58 @@ platform_mp_init_secondary(void)
 void mpentry(void);
 void mptramp(void);
 
-static void
-initialize_coherency_fabric(void)
-{
-	uint32_t val, cpus, mask;
-
-	cpus = platform_get_ncpus();
-	mask = (1 << cpus) - 1;
-	val = read_coher_fabric(COHER_FABRIC_CTRL);
-	val |= (mask << 24);
-	write_coher_fabric(COHER_FABRIC_CTRL, val);
-
-	val = read_coher_fabric(COHER_FABRIC_CONF);
-	val |= (mask << 24);
-	write_coher_fabric(COHER_FABRIC_CONF, val);
-}
 
 
 void
 platform_mp_start_ap(void)
 {
-	uint32_t reg, *ptr, cpu_num;
+	uint32_t reg, *src, *dst, cpu_num, div_val, cputype;
+	vm_offset_t smp_boot;
+	/*
+	 * Initialization procedure depends on core revision,
+	 * in this step CHIP ID is checked to choose proper procedure
+	 */
+	cputype = cpufunc_id();
+	cputype &= CPU_ID_CPU_MASK;
 
-	/* Copy boot code to SRAM */
-	*((unsigned int*)(0xf1020240)) = 0xffff0101;
-	*((unsigned int*)(0xf1008500)) = 0xffff0003;
+	smp_boot = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	pmap_kenter_nocache(smp_boot, 0xffff0000);
+	dst = (uint32_t *) smp_boot;
 
-	pmap_kenter_nocache(0x880f0000, 0xffff0000);
-	reg = 0x880f0000;
-
-	for (ptr = (uint32_t *)mptramp; ptr < (uint32_t *)mpentry;
-	    ptr++, reg += 4)
-		*((uint32_t *)reg) = *ptr;
-
-	if (mp_ncpus > 1) {
-		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0);
-		reg &= 0x00ffffff;
-		reg |= 0x01000000;
-		write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0, reg);
+	for (src = (uint32_t *)mptramp; src < (uint32_t *)mpentry;
+	    src++, dst++) {
+		*dst = *src;
 	}
-	if (mp_ncpus > 2) {
-		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
-		reg &= 0xff00ffff;
-		reg |= 0x00010000;
-		write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
-	}
-	if (mp_ncpus > 3) {
-		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
-		reg &= 0x00ffffff;
-		reg |= 0x01000000;
-		write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
+	kmem_free(kernel_map, smp_boot, PAGE_SIZE);
+
+	if (cputype == CPU_ID_MV88SV584X_V7) {
+		/* Core rev A0 */
+		div_val = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
+		div_val &= 0x3f;
+
+		for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ ) {
+			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
+			reg &= CPU_DIVCLK_MASK(cpu_num);
+			reg |= div_val << (cpu_num * 8);
+			write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
+		}
+	} else {
+		/* Core rev Z1 */
+		div_val = 0x01;
+
+		if (mp_ncpus > 1) {
+			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0);
+			reg &= CPU_DIVCLK_MASK(3);
+			reg |= div_val << 24;
+			write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0, reg);
+		}
+
+		for (cpu_num = 2; cpu_num < mp_ncpus; cpu_num++ ) {
+			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
+			reg &= CPU_DIVCLK_MASK(cpu_num);
+			reg |= div_val << (cpu_num * 8);
+			write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
+		}
 	}
 
 	reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL0);
@@ -190,14 +180,7 @@ platform_mp_start_ap(void)
 	wmb();
 	DELAY(10);
 
-	initialize_coherency_fabric();
-}
-
-static int
-platform_get_ncpus(void)
-{
-
-	return ((read_coher_fabric(COHER_FABRIC_CONF) & 0xf) + 1);
+	armadaxp_init_coher_fabric();
 }
 
 void
