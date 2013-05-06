@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 static int platform_mpp_init(void);
+#if defined(SOC_MV_ARMADAXP)
+void armadaxp_l2_init(void);
+#endif
 
 #define MPP_PIN_MAX		68
 #define MPP_PIN_CELLS		2
@@ -232,6 +235,9 @@ initarm_late_init(void)
 #else
 	/* Disable watchdog and timers */
 	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
+#endif
+#if defined(SOC_MV_ARMADAXP)
+	armadaxp_l2_init();
 #endif
 }
 
