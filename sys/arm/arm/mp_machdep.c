@@ -173,8 +173,15 @@ init_secondary(int cpu)
 
 	pc = &__pcpu[cpu];
 	set_pcpu(pc);
-	pcpu_init(pc, cpu, sizeof(struct pcpu));
 
+	/*
+	 * pcpu_init() updates queue, so it should not be executed in parallel
+	 * on several cores
+	 */
+	while(mp_naps < (cpu - 1))
+		;
+
+	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
 
 	/* Provide stack pointers for other processor modes. */
