@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2012 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -711,19 +711,17 @@ qla_config_ipv4_addr(qla_host_t *ha, uint32_t ipv4_addr)
  *	Ring Structure are plugged in.
  */
 static int
-qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd)
+qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 {
 	struct ether_vlan_header *eh;
 	struct ip *ip = NULL;
 	struct tcphdr *th = NULL;
-	uint32_t ehdrlen,  hdrlen, ip_hlen, tcp_hlen;
+	uint32_t ehdrlen,  hdrlen = 0, ip_hlen, tcp_hlen, tcp_opt_off;
 	uint16_t etype, opcode, offload = 1;
+	uint8_t *tcp_opt;
 	device_t dev;
 
 	dev = ha->pci_dev;
-
-	if (mp->m_pkthdr.len <= ha->max_frame_size)
-		return (-1);
 
 	eh = mtod(mp, struct ether_vlan_header *);
 
@@ -737,14 +735,26 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd)
 
 	switch (etype) {
 		case ETHERTYPE_IP:
-			ip = (struct ip *)(mp->m_data + ehdrlen);
+
+			tcp_opt_off = ehdrlen + sizeof(struct ip) +
+					sizeof(struct tcphdr);
+
+			if (mp->m_len < tcp_opt_off) {
+				m_copydata(mp, 0, tcp_opt_off, hdr);
+				ip = (struct ip *)hdr;
+			} else {
+				ip = (struct ip *)(mp->m_data + ehdrlen);
+			}
+
 			ip_hlen = ip->ip_hl << 2;
 			opcode = Q8_TX_CMD_OP_XMT_TCP_LSO;
 
-			if (ip->ip_p != IPPROTO_TCP) {
+			if ((ip->ip_p != IPPROTO_TCP) ||
+				(ip_hlen != sizeof (struct ip))) {
 				offload = 0;
-			} else
+			} else {
 				th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
+			}
 		break;
 
 		default:
@@ -758,11 +768,43 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd)
 
 	tcp_hlen = th->th_off << 2;
 
+
 	hdrlen = ehdrlen + ip_hlen + tcp_hlen;
 
 	if (mp->m_len < hdrlen) {
-		device_printf(dev, "%s: (mp->m_len < hdrlen)\n", __func__);
-		return (-1);
+		if (mp->m_len < tcp_opt_off) {
+			if (tcp_hlen > sizeof(struct tcphdr)) {
+				m_copydata(mp, tcp_opt_off,
+					(tcp_hlen - sizeof(struct tcphdr)),
+					&hdr[tcp_opt_off]);
+			}
+		} else {
+			m_copydata(mp, 0, hdrlen, hdr);
+		}
+	}
+
+	if ((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) {
+
+		/* If TCP options are preset only time stamp option is supported */
+		if ((tcp_hlen - sizeof(struct tcphdr)) != 10) 
+			return -1;
+		else {
+
+			if (mp->m_len < hdrlen) {
+				tcp_opt = &hdr[tcp_opt_off];
+			} else {
+				tcp_opt = (uint8_t *)(mp->m_data + tcp_opt_off);
+			}
+
+			if ((*tcp_opt != 0x01) || (*(tcp_opt + 1) != 0x01) ||
+				(*(tcp_opt + 2) != 0x08) || (*(tcp_opt + 2) != 10)) {
+				return -1;
+			}
+		}
+
+		tx_cmd->mss = ha->max_frame_size - ETHER_CRC_LEN - hdrlen;
+	} else {
+		tx_cmd->mss = mp->m_pkthdr.tso_segsz;
 	}
 
 	tx_cmd->flags_opcode = opcode ;
@@ -774,6 +816,10 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd)
 	/* Check for Multicast least significant bit of MSB == 1 */
 	if (eh->evl_dhost[0] & 0x01) {
 		tx_cmd->flags_opcode = Q8_TX_CMD_FLAGS_MULTICAST;
+	}
+
+	if (mp->m_len < hdrlen) {
+		return (1);
 	}
 
 	return (0);
@@ -815,7 +861,7 @@ qla_tx_chksum(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd)
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(mp->m_data + ehdrlen);
 
-			ip_hlen = ip->ip_hl << 2;
+			ip_hlen = sizeof (struct ip);
 
 			if (mp->m_len < (ehdrlen + ip_hlen)) {
 				device_printf(dev, "%s: ipv4 mlen\n", __func__);
@@ -886,7 +932,8 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	uint32_t num_tx_cmds, hdr_len = 0;
 	uint32_t total_length = 0, bytes, tx_cmd_count = 0;
 	device_t dev;
-	int i;
+	int i, ret;
+	uint8_t *src = NULL, *dst = NULL;
 
 	dev = ha->pci_dev;
 
@@ -902,26 +949,36 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 			__func__, total_length);
 		return (-1);
 	}
+	eh = mtod(mp, struct ether_vlan_header *);
 
-	bzero((void *)&tso_cmd, sizeof(q80_tx_cmd_t));
+	if ((mp->m_pkthdr.len > ha->max_frame_size)||(nsegs > Q8_TX_MAX_SEGMENTS)) {
 
-	if (qla_tx_tso(ha, mp, &tso_cmd) == 0) {
-		/* find the additional tx_cmd descriptors required */
+		bzero((void *)&tso_cmd, sizeof(q80_tx_cmd_t));
 
-		hdr_len = tso_cmd.total_hdr_len;
+		src = ha->hw.frame_hdr;
+		ret = qla_tx_tso(ha, mp, &tso_cmd, src);
 
-		bytes = sizeof(q80_tx_cmd_t) - Q8_TX_CMD_TSO_ALIGN;
-		bytes = QL_MIN(bytes, hdr_len);
+		if (!(ret & ~1)) {
+			/* find the additional tx_cmd descriptors required */
 
-		num_tx_cmds++;
-		hdr_len -= bytes;
+			hdr_len = tso_cmd.total_hdr_len;
 
-		while (hdr_len) {
-			bytes = QL_MIN((sizeof(q80_tx_cmd_t)), hdr_len);
-			hdr_len -= bytes;
+			bytes = sizeof(q80_tx_cmd_t) - Q8_TX_CMD_TSO_ALIGN;
+			bytes = QL_MIN(bytes, hdr_len);
+	
 			num_tx_cmds++;
+			hdr_len -= bytes;
+
+			while (hdr_len) {
+				bytes = QL_MIN((sizeof(q80_tx_cmd_t)), hdr_len);
+				hdr_len -= bytes;
+				num_tx_cmds++;
+			}
+			hdr_len = tso_cmd.total_hdr_len;
+
+			if (ret == 0)
+				src = (uint8_t *)eh;
 		}
-		hdr_len = tso_cmd.total_hdr_len;
 	}
 
 	if (hw->txr_free <= (num_tx_cmds + QLA_TX_MIN_FREE)) {
@@ -957,7 +1014,6 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 		bcopy(&tso_cmd, tx_cmd, sizeof(q80_tx_cmd_t));
 	}
 
-	eh = mtod(mp, struct ether_vlan_header *);
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN))
         	tx_cmd->flags_opcode |= Q8_TX_CMD_FLAGS_VLAN_TAGGED;
 	else if (mp->m_flags & M_VLANTAG) {
@@ -1015,9 +1071,6 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 
 	if (hdr_len) {
 		/* TSO : Copy the header in the following tx cmd descriptors */
-		uint8_t *src, *dst;
-
-		src = (uint8_t *)eh;
 
 		tx_cmd = &hw->tx_ring_base[hw->txr_next];
 		bzero((void *)tx_cmd, sizeof(q80_tx_cmd_t));
@@ -1704,6 +1757,7 @@ void
 qla_update_link_state(qla_host_t *ha)
 {
 	uint32_t link_state;
+	uint32_t prev_link_state;
 
 	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		ha->hw.flags.link_up = 0;
@@ -1711,10 +1765,20 @@ qla_update_link_state(qla_host_t *ha)
 	}
 	link_state = READ_REG32(ha, Q8_LINK_STATE);
 
-	if (ha->pci_func == 0) 
+	prev_link_state =  ha->hw.flags.link_up;
+
+	if (ha->pci_func == 0)
 		ha->hw.flags.link_up = (((link_state & 0xF) == 1)? 1 : 0);
 	else
 		ha->hw.flags.link_up = ((((link_state >> 4)& 0xF) == 1)? 1 : 0);
+
+	if (prev_link_state !=  ha->hw.flags.link_up) {
+		if (ha->hw.flags.link_up) {
+			if_link_state_change(ha->ifp, LINK_STATE_UP);
+		} else {
+			if_link_state_change(ha->ifp, LINK_STATE_DOWN);
+		}
+	}
 }
 
 int
