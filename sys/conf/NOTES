@@ -224,6 +224,10 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32
 
+# MAXMEMDOM defines the maximum number of memory domains that can boot in the
+# system.  A default value should already be defined by every architecture.
+options 	MAXMEMDOM=1
+
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
 # CPU.  This behavior is enabled by default, so this option can be used

@@ -28,8 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_vm.h"
-
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -47,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
@@ -265,7 +263,7 @@ renumber_domains(void)
 			domains[j] = domains[j - 1];
 		domains[slot] = mem_info[i].domain;
 		ndomain++;
-		if (ndomain > VM_NDOMAIN) {
+		if (ndomain > MAXMEMDOM) {
 			printf("SRAT: Too many memory domains\n");
 			return (EFBIG);
 		}
@@ -362,4 +360,4 @@ srat_set_cpus(void *dummy)
 	}
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
-#endif /* VM_NDOMAIN > 1 */
+#endif /* MAXMEMDOM > 1 */
