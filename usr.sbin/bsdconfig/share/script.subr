@@ -35,6 +35,7 @@ f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/any.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/packages/packages.subr
 
 ############################################################ GLOBALS
 
@@ -187,6 +188,9 @@ f_resword_new mediaSetFTPUserPass	f_media_set_ftp_userpass
 # media/httpproxy.subr
 f_resword_new mediaSetHTTP	f_media_set_http_proxy
 f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
+
+# packages/packages.subr
+f_resword_new configPackages	f_package_config
 
 f_dprintf "%s: Successfully loaded." script.subr
 
