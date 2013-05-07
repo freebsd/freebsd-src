@@ -196,14 +196,16 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	path_id = xpt_path_path_id(path);
 	target_id = xpt_path_target_id(path);
 	lun_id = xpt_path_lun_id(path);
-	cam_init_pinfo(&periph->pinfo);
 	periph->periph_start = periph_start;
 	periph->periph_dtor = periph_dtor;
 	periph->periph_oninval = periph_oninvalidate;
 	periph->type = type;
 	periph->periph_name = name;
+	periph->scheduled_priority = CAM_PRIORITY_NONE;
+	periph->immediate_priority = CAM_PRIORITY_NONE;
 	periph->refcount = 1;		/* Dropped by invalidation. */
 	periph->sim = sim;
+	SLIST_INIT(&periph->ccb_list);
 	mtx_init(&periph->periph_mtx, "CAM periph lock", NULL, MTX_DEF);
 	status = xpt_create_path(&path, periph, path_id, target_id, lun_id);
 	if (status != CAM_REQ_CMP)

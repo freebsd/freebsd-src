@@ -103,7 +103,6 @@ typedef cam_status	periph_ctor_t (struct cam_periph *periph,
 typedef void		periph_oninv_t (struct cam_periph *periph);
 typedef void		periph_dtor_t (struct cam_periph *periph);
 struct cam_periph {
-	cam_pinfo		 pinfo;
 	periph_start_t		*periph_start;
 	periph_oninv_t		*periph_oninval;
 	periph_dtor_t		*periph_dtor;
@@ -121,7 +120,12 @@ struct cam_periph {
 #define CAM_PERIPH_NEW_DEV_FOUND	0x10
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
 #define CAM_PERIPH_FREE			0x80
+	uint32_t		 scheduled_priority;
+	uint32_t		 immediate_priority;
+	int			 periph_allocating;
+	int			 periph_allocated;
 	u_int32_t		 refcount;
+	SLIST_HEAD(, ccb_hdr)	 ccb_list;	/* For "immediate" requests */
 	SLIST_ENTRY(cam_periph)  periph_links;
 	TAILQ_ENTRY(cam_periph)  unit_links;
 	ac_callback_t		*deferred_callback; 

@@ -222,8 +222,8 @@ static void		xpt_async_bcast(struct async_list *async_head,
 					void *async_arg);
 static path_id_t xptnextfreepathid(void);
 static path_id_t xptpathid(const char *sim_name, int sim_unit, int sim_bus);
-static union ccb *xpt_get_ccb(struct cam_ed *device);
-static void	 xpt_run_dev_allocq(struct cam_ed *device);
+static union ccb *xpt_get_ccb(struct cam_periph *periph);
+static void	 xpt_run_allocq(struct cam_periph *periph);
 static void	 xpt_run_devq(struct cam_devq *devq);
 static timeout_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
@@ -297,7 +297,6 @@ static xpt_devicefunc_t	xptsetasyncfunc;
 static xpt_busfunc_t	xptsetasyncbusfunc;
 static cam_status	xptregister(struct cam_periph *periph,
 				    void *arg);
-static __inline int periph_is_queued(struct cam_periph *periph);
 static __inline int device_is_queued(struct cam_ed *device);
 
 static __inline int
@@ -322,12 +321,6 @@ xpt_schedule_devq(struct cam_devq *devq, struct cam_ed *dev)
 		retval = 0;
 	}
 	return (retval);
-}
-
-static __inline int
-periph_is_queued(struct cam_periph *periph)
-{
-	return (periph->pinfo.index != CAM_UNQUEUED_INDEX);
 }
 
 static __inline int
@@ -3034,39 +3027,16 @@ xpt_polled_action(union ccb *start_ccb)
  * target device has space for more transactions.
  */
 void
-xpt_schedule(struct cam_periph *perph, u_int32_t new_priority)
+xpt_schedule(struct cam_periph *periph, u_int32_t new_priority)
 {
-	struct cam_ed *device;
 	struct cam_devq *devq;
-	int runq = 0;
 
-	CAM_DEBUG(perph->path, CAM_DEBUG_TRACE, ("xpt_schedule\n"));
-	device = perph->path->device;
-	devq = device->sim->devq;
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("xpt_schedule\n"));
+	devq = periph->sim->devq;
 	mtx_lock(&devq->send_mtx);
-	if (periph_is_queued(perph)) {
-		/* Simply reorder based on new priority */
-		CAM_DEBUG(perph->path, CAM_DEBUG_SUBTRACE,
-			  ("   change priority to %d\n", new_priority));
-		if (new_priority < perph->pinfo.priority) {
-			camq_change_priority(&device->drvq,
-					     perph->pinfo.index,
-					     new_priority);
-			runq = 1;
-		}
-	} else {
-		/* New entry on the queue */
-		CAM_DEBUG(perph->path, CAM_DEBUG_SUBTRACE,
-			  ("   added periph to queue\n"));
-		perph->pinfo.priority = new_priority;
-		perph->pinfo.generation = ++device->drvq.generation;
-		camq_insert(&device->drvq, &perph->pinfo);
-		runq = 1;
-	}
-	if (runq != 0) {
-		CAM_DEBUG(perph->path, CAM_DEBUG_SUBTRACE,
-			  ("   calling xpt_run_dev_allocq\n"));
-		xpt_run_dev_allocq(device);
+	if (new_priority < periph->scheduled_priority) {
+		periph->scheduled_priority = new_priority;
+		xpt_run_allocq(periph);
 	}
 	mtx_unlock(&devq->send_mtx);
 }
@@ -3120,36 +3090,26 @@ xpt_schedule_dev(struct camq *queue, cam_pinfo *pinfo,
 }
 
 static void
-xpt_run_dev_allocq(struct cam_ed *device)
+xpt_run_allocq(struct cam_periph *periph)
 {
+	struct cam_ed	*device;
 	struct cam_devq	*devq;
-	struct camq	*drvq;
+	uint32_t	 prio;
 
-	devq = device->sim->devq;
+	devq = periph->sim->devq;
 	mtx_assert(&devq->send_mtx, MA_OWNED);
-	if (device->ccbq.devq_allocating)
+	if (periph->periph_allocating)
 		return;
-	device->ccbq.devq_allocating = 1;
-	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_dev_allocq(%p)\n", device));
-	drvq = &device->drvq;
-	while ((drvq->entries > 0) &&
-	    (device->ccbq.devq_openings > 0 ||
-	     CAMQ_GET_PRIO(drvq) <= CAM_PRIORITY_OOB)) {
-		union	ccb *work_ccb;
-		struct	cam_periph *drv;
+	periph->periph_allocating = 1;
+	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_allocq(%p)\n", periph));
+	device = periph->path->device;
+	while ((prio = min(periph->scheduled_priority,
+	    periph->immediate_priority)) != CAM_PRIORITY_NONE &&
+	    (periph->periph_allocated < device->ccbq.total_openings ||
+	     prio <= CAM_PRIORITY_OOB)) {
+		union	ccb *ccb;
 
-		KASSERT(drvq->entries > 0, ("xpt_run_dev_allocq: "
-		    "Device on queue without any work to do"));
-		if ((work_ccb = xpt_get_ccb(device)) != NULL) {
-			drv = (struct cam_periph*)camq_remove(drvq, CAMQ_HEAD);
-			xpt_setup_ccb(&work_ccb->ccb_h, drv->path,
-				      drv->pinfo.priority);
-			CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
-					("calling periph start\n"));
-			mtx_unlock(&devq->send_mtx);
-			drv->periph_start(drv, work_ccb);
-			mtx_lock(&devq->send_mtx);
-		} else {
+		if ((ccb = xpt_get_ccb(periph)) == NULL) {
 			/*
 			 * Malloc failure in alloc_ccb
 			 */
@@ -3161,8 +3121,24 @@ xpt_run_dev_allocq(struct cam_ed *device)
 			 */
 			break;
 		}
+		xpt_setup_ccb(&ccb->ccb_h, periph->path, prio);
+		if (prio == periph->immediate_priority) {
+			periph->immediate_priority = CAM_PRIORITY_NONE;
+			CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
+					("waking cam_periph_getccb()\n"));
+			SLIST_INSERT_HEAD(&periph->ccb_list, &ccb->ccb_h,
+					  periph_links.sle);
+			wakeup(&periph->ccb_list);
+		} else {
+			periph->scheduled_priority = CAM_PRIORITY_NONE;
+			CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
+					("calling periph_start()\n"));
+			mtx_unlock(&devq->send_mtx);
+			periph->periph_start(periph, ccb);
+			mtx_lock(&devq->send_mtx);
+		}
 	}
-	device->ccbq.devq_allocating = 0;
+	periph->periph_allocating = 0;
 }
 
 static void
@@ -3721,17 +3697,20 @@ void
 xpt_release_ccb(union ccb *free_ccb)
 {
 	struct	 cam_ed *device;
-	struct cam_devq *devq;
+	struct	 cam_devq *devq;
+	struct	 cam_periph *periph;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_release_ccb\n"));
 	device = free_ccb->ccb_h.path->device;
 	devq = device->sim->devq;
+	periph = free_ccb->ccb_h.path->periph;
 
-	mtx_lock(&devq->send_mtx);
-	cam_ccbq_release_opening(&device->ccbq);
-	xpt_run_dev_allocq(device);
-	mtx_unlock(&devq->send_mtx);
 	xpt_free_ccb(free_ccb);
+	mtx_lock(&devq->send_mtx);
+	periph->periph_allocated--;
+	cam_ccbq_release_opening(&device->ccbq);
+	xpt_run_allocq(periph);
+	mtx_unlock(&devq->send_mtx);
 }
 
 /* Functions accessed by SIM drivers */
@@ -4319,32 +4298,41 @@ xpt_free_ccb(union ccb *free_ccb)
  * ccbs, we also return NULL.
  */
 static union ccb *
-xpt_get_ccb(struct cam_ed *device)
+xpt_get_ccb(struct cam_periph *periph)
 {
 	union ccb *new_ccb;
 
 	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_NOWAIT);
 	if (new_ccb == NULL)
 		return (NULL);
-	cam_ccbq_take_opening(&device->ccbq);
+	periph->periph_allocated++;
+	cam_ccbq_take_opening(&periph->path->device->ccbq);
 	return (new_ccb);
 }
 
 union ccb *
 cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 {
-	union ccb	*ccb;
-	struct cam_devq	*devq;
+	struct cam_devq *devq;
+	struct ccb_hdr *ccb_h;
 
-	cam_periph_unlock(periph);
-	ccb = malloc(sizeof(*ccb), M_CAMCCB, M_WAITOK);
-	cam_periph_lock(periph);
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("cam_periph_getccb\n"));
 	devq = periph->sim->devq;
+	cam_periph_unlock(periph);
 	mtx_lock(&devq->send_mtx);
-	cam_ccbq_take_opening(&periph->path->device->ccbq);
-	xpt_setup_ccb(&ccb->ccb_h, periph->path, priority);
+	while ((ccb_h = SLIST_FIRST(&periph->ccb_list)) == NULL ||
+	    ccb_h->pinfo.priority != priority) {
+		if (priority < periph->immediate_priority) {
+			periph->immediate_priority = priority;
+			xpt_run_allocq(periph);
+		} else
+			mtx_sleep(&periph->ccb_list, &devq->send_mtx, PRIBIO,
+			    "cgticb", 0);
+	}
+	SLIST_REMOVE_HEAD(&periph->ccb_list, periph_links.sle);
 	mtx_unlock(&devq->send_mtx);
-	return (ccb);
+	cam_periph_lock(periph);
+	return ((union ccb *)ccb_h);
 }
 
 static void

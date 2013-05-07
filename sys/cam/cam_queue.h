@@ -61,8 +61,8 @@ struct cam_ccbq {
 	struct	camq queue;
 	struct ccb_hdr_tailq	queue_extra_head;
 	int	queue_extra_entries;
+	int	total_openings;
 	int	devq_openings;
-	int	devq_allocating;
 	int	dev_openings;
 	int	dev_active;
 	int	held;
