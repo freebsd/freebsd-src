@@ -299,6 +299,12 @@ if [ "$SHOW_INCLUDES" ]; then
 fi
 
 #
+# Add script.subr to includes if it exists
+#
+[ -f $BSDCFG_SHARE/script.subr ] &&
+	include_file_list="$include_file_list script.subr"
+
+#
 # Start the directional-graph (digraph) output
 #
 printf 'strict digraph "" { // Empty name to prevent SVG Auto-Tooltip\n'
