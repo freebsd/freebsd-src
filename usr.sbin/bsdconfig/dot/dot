@@ -260,8 +260,7 @@ if [ "$SHOW_INCLUDES" ]; then
 	include_file_list=
 	for file in $file_list; do
 		include_file_list="$include_file_list $(
-			awk -v file="$file" -v item="${file%%/*}" \
-				"$print_includes_awk" $file
+			awk "$print_includes_awk" $file
 		)"
 	done
 
@@ -279,8 +278,7 @@ if [ "$SHOW_INCLUDES" ]; then
 	#
 	for file in $include_file_list; do
 		include_file_list="$include_file_list $(
-			awk -v file="$file" -v item="${file%%/*}" \
-				"$print_includes_awk" $BSDCFG_SHARE/$file
+			awk "$print_includes_awk" $BSDCFG_SHARE/$file
 		)"
 	done
 
