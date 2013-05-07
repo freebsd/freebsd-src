@@ -441,7 +441,7 @@ int	libusb_handle_events(libusb_context * ctx);
 int	libusb_handle_events_locked(libusb_context * ctx, struct timeval *tv);
 int	libusb_get_next_timeout(libusb_context * ctx, struct timeval *tv);
 void	libusb_set_pollfd_notifiers(libusb_context * ctx, libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb, void *user_data);
-struct libusb_pollfd **libusb_get_pollfds(libusb_context * ctx);
+const struct libusb_pollfd **libusb_get_pollfds(libusb_context * ctx);
 
 /* Synchronous device I/O */
 
