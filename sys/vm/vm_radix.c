@@ -234,11 +234,9 @@ vm_radix_keydiff(vm_pindex_t index1, vm_pindex_t index2)
 	    __func__, (uintmax_t)index1));
 
 	index1 ^= index2;
-	for (clev = 0; clev <= VM_RADIX_LIMIT ; clev++)
-		if (vm_radix_slot(index1, clev))
+	for (clev = 0;; clev++)
+		if (vm_radix_slot(index1, clev) != 0)
 			return (clev);
-	panic("%s: cannot reach this point", __func__);
-	return (0);
 }
 
 /*
