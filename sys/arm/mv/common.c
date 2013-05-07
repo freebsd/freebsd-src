@@ -89,6 +89,8 @@ static int decode_win_xor_valid(void);
 
 #ifndef SOC_MV_FREY
 static void decode_win_cpu_setup(void);
+#endif
+#ifdef SOC_MV_ARMADAXP
 static int decode_win_sdram_fixup(void);
 #endif
 static void decode_win_usb_setup(u_long);
@@ -879,7 +881,9 @@ decode_win_cpu_setup(void)
 			    cpu_wins[i].size, cpu_wins[i].remap);
 
 }
+#endif
 
+#ifdef SOC_MV_ARMADAXP
 static int
 decode_win_sdram_fixup(void)
 {
