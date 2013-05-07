@@ -57,6 +57,10 @@
 #define MAXCPU		1
 #endif /* SMP || KLD_MODULE */
 
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
+
 #define	INT_SHIFT	2
 #define	PTR_SHIFT	3
 
