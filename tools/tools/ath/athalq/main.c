@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_alq.h>
 
-#if 0
+#if 1
 #include "ar9300_ds.h"
 #endif
 #include "ar5210_ds.h"
@@ -156,7 +156,7 @@ main(int argc, const char *argv[])
 					ar5212_alq_payload(a);
 				else if (be32toh(hdr.sc_hal_magic) == AR5416_MAGIC)
 					ar5416_alq_payload(a);
-#if 0
+#if 1
 				else if (be32toh(hdr.sc_hal_magic) == AR9300_MAGIC)
 					ar9300_alq_payload(a);
 #endif

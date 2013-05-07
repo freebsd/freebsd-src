@@ -328,7 +328,7 @@ MTREES+=	mtree/BSD.sendmail.dist		/
 MTREES+=	../${mtree}			/
 .endfor
 
-distrib-dirs:
+distrib-dirs: ${MTREES:N/*}
 	@set ${MTREES}; \
 	while test $$# -ge 2; do \
 		m=${.CURDIR}/$$1; \

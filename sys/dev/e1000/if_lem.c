@@ -2980,10 +2980,8 @@ lem_txeof(struct adapter *adapter)
 	EM_TX_LOCK_ASSERT(adapter);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		selwakeuppri(&NA(ifp)->tx_rings[0].si, PI_NET);
+	if (netmap_tx_irq(ifp, 0 | (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
 		return;
-	}
 #endif /* DEV_NETMAP */
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
                 return;
@@ -3459,13 +3457,8 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	    BUS_DMASYNC_POSTREAD);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-		na->rx_rings[0].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[0].si, PI_NET);
-		EM_RX_UNLOCK(adapter);
-		return (0);
-	}
+	if (netmap_rx_irq(ifp, 0 | NETMAP_LOCKED_ENTER, &rx_sent))
+		return (FALSE);
 #endif /* DEV_NETMAP */
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {

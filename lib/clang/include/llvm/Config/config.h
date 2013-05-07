@@ -5,6 +5,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Get __FreeBSD_version. */
+#include <osreldate.h>
+
 /* Bug report URL. */
 #define BUG_REPORT_URL "http://llvm.org/bugs/"
 
@@ -248,7 +251,9 @@
 #define HAVE_LOG10 1
 
 /* Define to 1 if you have the `log2' function. */
+#if __FreeBSD_version >= 900027 || (__FreeBSD_version < 900000 && __FreeBSD_version >= 802502)
 #define HAVE_LOG2 1
+#endif
 
 /* Define to 1 if you have the `longjmp' function. */
 #define HAVE_LONGJMP 1

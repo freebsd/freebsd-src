@@ -38,9 +38,6 @@
 #include "y.tab.h"
 #include "config.h"
 
-#define YY_NO_UNPUT
-#define YY_NO_INPUT
-
 /*
  * Data for returning to previous files from include files.
  */
@@ -97,6 +94,10 @@ unsigned int hex(const char *);
 int yyerror(const char *);
 
 %}
+
+%option nounput
+%option noinput
+
 ID	[A-Za-z_][-A-Za-z_0-9]*
 PATH	[./][-/.%^A-Za-z_0-9]+
 %START TOEOL

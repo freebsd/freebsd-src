@@ -799,6 +799,7 @@ struct ath_softc {
 	 *
 	 * + mcastq_maxdepth is the maximum depth allowed of the cabq.
 	 */
+	int			sc_txq_node_maxdepth;
 	int			sc_txq_data_minfree;
 	int			sc_txq_mcastq_maxdepth;
 

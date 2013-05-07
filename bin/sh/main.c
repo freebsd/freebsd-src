@@ -248,7 +248,7 @@ read_profile(const char *name)
 	if (expandedname == NULL)
 		return;
 	INTOFF;
-	if ((fd = open(expandedname, O_RDONLY)) >= 0)
+	if ((fd = open(expandedname, O_RDONLY | O_CLOEXEC)) >= 0)
 		setinputfd(fd, 1);
 	INTON;
 	if (fd < 0)

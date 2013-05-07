@@ -1643,7 +1643,7 @@ pfsync_insert_state(struct pf_state *st)
 	}
 
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
-		("%s: st->sync_state == PFSYNC_S_NONE", __func__));
+		("%s: st->sync_state %u", __func__, st->sync_state));
 
 	PFSYNC_LOCK(sc);
 	if (sc->sc_len == PFSYNC_MINPKT)
@@ -1966,7 +1966,7 @@ pfsync_q_ins(struct pf_state *st, int q)
 	PFSYNC_LOCK_ASSERT(sc);
 
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
-		("%s: st->sync_state == PFSYNC_S_NONE", __func__));
+		("%s: st->sync_state %u", __func__, st->sync_state));
 	KASSERT(sc->sc_len >= PFSYNC_MINPKT, ("pfsync pkt len is too low %zu",
 	    sc->sc_len));
 

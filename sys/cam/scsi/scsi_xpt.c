@@ -883,6 +883,7 @@ again:
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
+		cam_freeze_devq(periph->path);
 		probedone(periph, start_ccb);
 		return;
 	}
@@ -913,6 +914,7 @@ again:
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
+		cam_freeze_devq(periph->path);
 		probedone(periph, start_ccb);
 		return;
 	}
@@ -952,6 +954,7 @@ again:
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
+		cam_freeze_devq(periph->path);
 		probedone(periph, start_ccb);
 		return;
 	}

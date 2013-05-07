@@ -106,6 +106,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
 
+VNET_DECLARE(int, icmp6_nodeinfo_oldmcprefix);
+#define V_icmp6_nodeinfo_oldmcprefix	VNET(icmp6_nodeinfo_oldmcprefix)
+
 /*
  * Definitions of some costant IP6 addresses.
  */
@@ -938,6 +941,17 @@ in6_update_ifa_join_mc(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	}
 	if (in6_nigroup(ifp, NULL, -1, &mltaddr.sin6_addr) == 0) {
 		/* XXX jinmei */
+		imm = in6_joingroup(ifp, &mltaddr.sin6_addr, &error, delay);
+		if (imm == NULL)
+			nd6log((LOG_WARNING, "%s: addmulti failed for %s on %s "
+			    "(errno=%d)\n", __func__, ip6_sprintf(ip6buf,
+			    &mltaddr.sin6_addr), if_name(ifp), error));
+			/* XXX not very fatal, go on... */
+		else
+			LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
+	}
+	if (V_icmp6_nodeinfo_oldmcprefix && 
+	     in6_nigroup_oldmcprefix(ifp, NULL, -1, &mltaddr.sin6_addr) == 0) {
 		imm = in6_joingroup(ifp, &mltaddr.sin6_addr, &error, delay);
 		if (imm == NULL)
 			nd6log((LOG_WARNING, "%s: addmulti failed for %s on %s "

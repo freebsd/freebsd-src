@@ -195,6 +195,16 @@ f_getvar()
 	return $__retval
 }
 
+# f_isset $var
+#
+# Check if variable $var is set. Returns success if variable is set, otherwise
+# returns failure.
+#
+f_isset()
+{
+	eval [ \"\${${1%%[$IFS]*}+set}\" ]
+}
+
 # f_die [ $status [ $fmt [ $opts ... ]]]
 #
 # Abruptly terminate due to an error optionally displaying a message in a

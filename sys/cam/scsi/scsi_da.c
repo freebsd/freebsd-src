@@ -82,7 +82,6 @@ typedef enum {
 	DA_FLAG_NEW_PACK	= 0x002,
 	DA_FLAG_PACK_LOCKED	= 0x004,
 	DA_FLAG_PACK_REMOVABLE	= 0x008,
-	DA_FLAG_SAW_MEDIA	= 0x010,
 	DA_FLAG_NEED_OTAG	= 0x020,
 	DA_FLAG_WENT_IDLE	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
@@ -132,14 +131,14 @@ typedef enum {
 	DA_DELETE_WS16,
 	DA_DELETE_WS10,
 	DA_DELETE_ZERO,
-	DA_DELETE_MIN = DA_DELETE_UNMAP,
+	DA_DELETE_MIN = DA_DELETE_ATA_TRIM,
 	DA_DELETE_MAX = DA_DELETE_ZERO
 } da_delete_methods;
 
 static const char *da_delete_method_names[] =
-    { "NONE", "DISABLE", "UNMAP", "ATA_TRIM", "WS16", "WS10", "ZERO" };
+    { "NONE", "DISABLE", "ATA_TRIM", "UNMAP", "WS16", "WS10", "ZERO" };
 static const char *da_delete_method_desc[] =
-    { "NONE", "DISABLED", "UNMAP", "ATA TRIM", "WRITE SAME(16) with UNMAP",
+    { "NONE", "DISABLED", "ATA TRIM", "UNMAP", "WRITE SAME(16) with UNMAP",
       "WRITE SAME(10) with UNMAP", "ZERO" };
 
 /* Offsets into our private area for storing information */
@@ -917,6 +916,7 @@ static	off_t		dadeletemaxsize(struct da_softc *softc,
 					da_delete_methods delete_method);
 static	void		dadeletemethodchoose(struct da_softc *softc,
 					     da_delete_methods default_method);
+static	void		daprobedone(struct cam_periph *periph, union ccb *ccb);
 
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
@@ -1024,9 +1024,6 @@ daopen(struct disk *dp)
 	    ("daopen\n"));
 
 	softc = (struct da_softc *)periph->softc;
-	softc->flags |= DA_FLAG_OPEN;
-	softc->flags &= ~DA_FLAG_PACK_INVALID;
-
 	dareprobe(periph);
 
 	/* Wait for the disk size update.  */
@@ -1035,25 +1032,23 @@ daopen(struct disk *dp)
 	if (error != 0)
 		xpt_print(periph->path, "unable to retrieve capacity data");
 
-	if (periph->flags & CAM_PERIPH_INVALID ||
-	    softc->disk->d_sectorsize == 0 ||
-	    softc->disk->d_mediasize == 0)
+	if (periph->flags & CAM_PERIPH_INVALID)
 		error = ENXIO;
 
 	if (error == 0 && (softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
 	    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 		daprevent(periph, PR_PREVENT);
 
-	if (error == 0)
-		softc->flags |= DA_FLAG_SAW_MEDIA;
+	if (error == 0) {
+		softc->flags &= ~DA_FLAG_PACK_INVALID;
+		softc->flags |= DA_FLAG_OPEN;
+	}
 
 	cam_periph_unhold(periph);
 	cam_periph_unlock(periph);
 
-	if (error != 0) {
-		softc->flags &= ~DA_FLAG_OPEN;
+	if (error != 0)
 		cam_periph_release(periph);
-	}
 
 	return (error);
 }
@@ -1668,6 +1663,65 @@ dadeletemaxsize(struct da_softc *softc, da_delete_methods delete_method)
 
 	return (off_t)softc->params.secsize *
 	    min(sectors, (off_t)softc->params.sectors);
+}
+
+static void
+daprobedone(struct cam_periph *periph, union ccb *ccb)
+{
+	struct da_softc *softc;
+
+	softc = (struct da_softc *)periph->softc;
+
+	dadeletemethodchoose(softc, DA_DELETE_NONE);
+
+	if (bootverbose && (softc->flags & DA_FLAG_PROBED) == 0) {
+		char buf[80];
+		int i, sep;
+
+		snprintf(buf, sizeof(buf), "Delete methods: <");
+		sep = 0;
+		for (i = DA_DELETE_MIN; i <= DA_DELETE_MAX; i++) {
+			if (softc->delete_available & (1 << i)) {
+				if (sep) {
+					strlcat(buf, ",", sizeof(buf));
+				} else {
+				    sep = 1;
+				}
+				strlcat(buf, da_delete_method_names[i],
+				    sizeof(buf));
+				if (i == softc->delete_method) {
+					strlcat(buf, "(*)", sizeof(buf));
+				}
+			}
+		}
+		if (sep == 0) {
+			if (softc->delete_method == DA_DELETE_NONE) 
+				strlcat(buf, "NONE(*)", sizeof(buf));
+			else
+				strlcat(buf, "DISABLED(*)", sizeof(buf));
+		}
+		strlcat(buf, ">", sizeof(buf));
+		printf("%s%d: %s\n", periph->periph_name,
+		    periph->unit_number, buf);
+	}
+
+	/*
+	 * Since our peripheral may be invalidated by an error
+	 * above or an external event, we must release our CCB
+	 * before releasing the probe lock on the peripheral.
+	 * The peripheral will only go away once the last lock
+	 * is removed, and we need it around for the CCB release
+	 * operation.
+	 */
+	xpt_release_ccb(ccb);
+	softc->state = DA_STATE_NORMAL;
+	daschedule(periph);
+	wakeup(&softc->disk->d_mediasize);
+	if ((softc->flags & DA_FLAG_PROBED) == 0) {
+		softc->flags |= DA_FLAG_PROBED;
+		cam_periph_unhold(periph);
+	} else
+		cam_periph_release_locked(periph);
 }
 
 static void
@@ -2369,7 +2423,7 @@ out:
 
 		if (!scsi_vpd_supported_page(periph, SVPD_BLOCK_LIMITS)) {
 			/* Not supported skip to next probe */
-			softc->state = DA_STATE_PROBE_ATA;
+			softc->state = DA_STATE_PROBE_BDC;
 			goto skipstate;
 		}
 
@@ -2433,6 +2487,11 @@ out:
 	case DA_STATE_PROBE_ATA:
 	{
 		struct ata_params *ata_params;
+
+		if (!scsi_vpd_supported_page(periph, SVPD_ATA_INFORMATION)) {
+			daprobedone(periph, start_ccb);
+			break;
+		}
 
 		ata_params = (struct ata_params*)
 			malloc(sizeof(*ata_params), M_SCSIDA, M_NOWAIT|M_ZERO);
@@ -2711,9 +2770,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * with the short version of the command.
 				 */
 				if (maxsector == 0xffffffff) {
-					softc->state = DA_STATE_PROBE_RC16;
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
+					softc->state = DA_STATE_PROBE_RC16;
 					xpt_schedule(periph, priority);
 					return;
 				}
@@ -2730,9 +2789,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * here.
 			 */
 			if (block_size == 0 && maxsector == 0) {
-				snprintf(announce_buf, sizeof(announce_buf),
-				        "0MB (no media?)");
-			} else if (block_size >= MAXPHYS || block_size == 0) {
+				block_size = 512;
+				maxsector = -1;
+			}
+			if (block_size >= MAXPHYS || block_size == 0) {
 				xpt_print(periph->path,
 				    "unsupportable block size %ju\n",
 				    (uintmax_t) block_size);
@@ -2815,9 +2875,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				      (error_code == SSD_CURRENT_ERROR) &&
 				      (sense_key == SSD_KEY_ILLEGAL_REQUEST)))) {
 					softc->flags &= ~DA_FLAG_CAN_RC16;
-					softc->state = DA_STATE_PROBE_RC;
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
+					softc->state = DA_STATE_PROBE_RC;
 					xpt_schedule(periph, priority);
 					return;
 				} else
@@ -2832,6 +2892,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					const char *sense_key_desc;
 					const char *asc_desc;
 
+					dasetgeom(periph, 512, -1, NULL, 0);
 					scsi_sense_desc(sense_key, asc, ascq,
 							&cgd.inq_data,
 							&sense_key_desc,
@@ -2874,34 +2935,37 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 						  &softc->sysctl_task);
 				xpt_announce_periph(periph, announce_buf);
 
-				if (lbp) {
-					/*
-					 * Based on older SBC-3 spec revisions
-					 * any of the UNMAP methods "may" be
-					 * available via LBP given this flag so
-					 * we flag all of them as availble and
-					 * then remove those which further
-					 * probes confirm aren't available
-					 * later.
-					 *
-					 * We could also check readcap(16) p_type
-					 * flag to exclude one or more invalid
-					 * write same (X) types here
-					 */
-					dadeleteflag(softc, DA_DELETE_WS16, 1);
-					dadeleteflag(softc, DA_DELETE_WS10, 1);
-					dadeleteflag(softc, DA_DELETE_ZERO, 1);
-					dadeleteflag(softc, DA_DELETE_UNMAP, 1);
-
-					softc->state = DA_STATE_PROBE_LBP;
-					xpt_release_ccb(done_ccb);
-					xpt_schedule(periph, priority);
-					return;
-				}
 			} else {
 				xpt_print(periph->path, "fatal error, "
 				    "could not acquire reference count\n");
 			}
+		}
+
+		/* Ensure re-probe doesn't see old delete. */
+		softc->delete_available = 0;
+		if (lbp) {
+			/*
+			 * Based on older SBC-3 spec revisions
+			 * any of the UNMAP methods "may" be
+			 * available via LBP given this flag so
+			 * we flag all of them as availble and
+			 * then remove those which further
+			 * probes confirm aren't available
+			 * later.
+			 *
+			 * We could also check readcap(16) p_type
+			 * flag to exclude one or more invalid
+			 * write same (X) types here
+			 */
+			dadeleteflag(softc, DA_DELETE_WS16, 1);
+			dadeleteflag(softc, DA_DELETE_WS10, 1);
+			dadeleteflag(softc, DA_DELETE_ZERO, 1);
+			dadeleteflag(softc, DA_DELETE_UNMAP, 1);
+
+			xpt_release_ccb(done_ccb);
+			softc->state = DA_STATE_PROBE_LBP;
+			xpt_schedule(periph, priority);
+			return;
 		}
 
 		xpt_release_ccb(done_ccb);
@@ -2931,8 +2995,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 			if (lbp->flags & SVPD_LBP_UNMAP) {
 				free(lbp, M_SCSIDA);
-				softc->state = DA_STATE_PROBE_BLK_LIMITS;
 				xpt_release_ccb(done_ccb);
+				softc->state = DA_STATE_PROBE_BLK_LIMITS;
 				xpt_schedule(periph, priority);
 				return;
 			}
@@ -2961,7 +3025,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		free(lbp, M_SCSIDA);
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_PROBE_ATA;
+		softc->state = DA_STATE_PROBE_BDC;
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -3024,7 +3088,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		free(block_limits, M_SCSIDA);
 		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_PROBE_ATA;
+		softc->state = DA_STATE_PROBE_BDC;
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -3035,6 +3099,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		bdc = (struct scsi_vpd_block_characteristics *)csio->data_ptr;
 
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			/*
+			 * Disable queue sorting for non-rotational media
+			 * by default.
+			 */
 			if (scsi_2btoul(bdc->medium_rotation_rate) ==
 			    SVPD_BDC_RATE_NONE_ROTATING)
 				softc->sort_io_queue = 0;
@@ -3057,8 +3125,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		free(bdc, M_SCSIDA);
-		softc->state = DA_STATE_PROBE_ATA;
 		xpt_release_ccb(done_ccb);
+		softc->state = DA_STATE_PROBE_ATA;
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -3083,15 +3151,15 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					  ATA_DSM_BLK_RANGES);
 			}
 			/*
-			 * Disable queue sorting for non-rotatational media
-			 * by default
+			 * Disable queue sorting for non-rotational media
+			 * by default.
 			 */
 			if (ata_params->media_rotation_rate == 1)
 				softc->sort_io_queue = 0;
 		} else {
 			int error;
 			error = daerror(done_ccb, CAM_RETRY_SELTO,
-					SF_RETRY_UA|SF_QUIET_IR);
+					SF_RETRY_UA|SF_NO_PRINT);
 			if (error == ERESTART)
 				return;
 			else if (error != 0) {
@@ -3107,24 +3175,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		free(ata_params, M_SCSIDA);
-		dadeletemethodchoose(softc, DA_DELETE_NONE);
-		/*
-		 * Since our peripheral may be invalidated by an error
-		 * above or an external event, we must release our CCB
-		 * before releasing the probe lock on the peripheral.
-		 * The peripheral will only go away once the last lock
-		 * is removed, and we need it around for the CCB release
-		 * operation.
-		 */
-		xpt_release_ccb(done_ccb);
-		softc->state = DA_STATE_NORMAL;
-		daschedule(periph);
-		wakeup(&softc->disk->d_mediasize);
-		if ((softc->flags & DA_FLAG_PROBED) == 0) {
-			softc->flags |= DA_FLAG_PROBED;
-			cam_periph_unhold(periph);
-		} else
-			cam_periph_release_locked(periph);
+		daprobedone(periph, done_ccb);
 		return;
 	}
 	case DA_CCB_DUMP:
@@ -3164,7 +3215,7 @@ dareprobe(struct cam_periph *periph)
 	softc = (struct da_softc *)periph->softc;
 
 	/* Probe in progress; don't interfere. */
-	if ((softc->flags & DA_FLAG_PROBED) == 0)
+	if (softc->state != DA_STATE_NORMAL)
 		return;
 
 	status = cam_periph_acquire(periph);
@@ -3213,8 +3264,8 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 		    asc == 0x28 && ascq == 0x00)
 			disk_media_changed(softc->disk, M_NOWAIT);
 		else if (sense_key == SSD_KEY_NOT_READY &&
-		    asc == 0x3a && (softc->flags & DA_FLAG_SAW_MEDIA)) {
-			softc->flags &= ~DA_FLAG_SAW_MEDIA;
+		    asc == 0x3a && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
+			softc->flags |= DA_FLAG_PACK_INVALID;
 			disk_media_gone(softc->disk, M_NOWAIT);
 		}
 	}

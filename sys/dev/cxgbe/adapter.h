@@ -757,6 +757,13 @@ is_10G_port(const struct port_info *pi)
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
+static inline bool
+is_40G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
 static inline int
 tx_resume_threshold(struct sge_eq *eq)
 {
