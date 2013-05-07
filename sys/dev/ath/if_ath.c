@@ -694,6 +694,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_txq_mcastq_maxdepth = ath_txbuf;
 
+	/*
+	 * Default the maximum queue depth for a given node
+	 * to 1/4'th the TX buffers, or 64, whichever
+	 * is larger.
+	 */
+	sc->sc_txq_node_maxdepth = MAX(64, ath_txbuf / 4);
+
 	/* Enable CABQ by default */
 	sc->sc_cabq_enable = 1;
 
@@ -2661,33 +2668,98 @@ ath_start(struct ifnet *ifp)
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start: called");
 
 	for (;;) {
-		ATH_TXBUF_LOCK(sc);
-		if (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree) {
-			/* XXX increment counter? */
-			ATH_TXBUF_UNLOCK(sc);
+		/*
+		 * Grab the frame that we're going to try and transmit.
+		 */
+		IFQ_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL)
+			break;
+		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+
+		/*
+		 * Enforce how deep a node queue can get.
+		 *
+		 * XXX it would be nicer if we kept an mbuf queue per
+		 * node and only whacked them into ath_bufs when we
+		 * are ready to schedule some traffic from them.
+		 * .. that may come later.
+		 *
+		 * XXX we should also track the per-node hardware queue
+		 * depth so it is easy to limit the _SUM_ of the swq and
+		 * hwq frames.  Since we only schedule two HWQ frames
+		 * at a time, this should be OK for now.
+		 */
+		if ((!(m->m_flags & M_EAPOL)) &&
+		    (ATH_NODE(ni)->an_swq_depth > sc->sc_txq_node_maxdepth)) {
+			sc->sc_stats.ast_tx_nodeq_overflow++;
+			if (ni != NULL)
+				ieee80211_free_node(ni);
+			m_freem(m);
+			m = NULL;
+			continue;
+		}
+
+		/*
+		 * Check how many TX buffers are available.
+		 *
+		 * If this is for non-EAPOL traffic, just leave some
+		 * space free in order for buffer cloning and raw
+		 * frame transmission to occur.
+		 *
+		 * If it's for EAPOL traffic, ignore this for now.
+		 * Management traffic will be sent via the raw transmit
+		 * method which bypasses this check.
+		 *
+		 * This is needed to ensure that EAPOL frames during
+		 * (re) keying have a chance to go out.
+		 *
+		 * See kern/138379 for more information.
+		 */
+		if ((!(m->m_flags & M_EAPOL)) &&
+		    (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree)) {
+			sc->sc_stats.ast_tx_nobuf++;
 			IF_LOCK(&ifp->if_snd);
+			_IF_PREPEND(&ifp->if_snd, m);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IF_UNLOCK(&ifp->if_snd);
+			m = NULL;
 			break;
 		}
-		ATH_TXBUF_UNLOCK(sc);
-		
+
 		/*
 		 * Grab a TX buffer and associated resources.
+		 *
+		 * If it's an EAPOL frame, allocate a MGMT ath_buf.
+		 * That way even with temporary buffer exhaustion due to
+		 * the data path doesn't leave us without the ability
+		 * to transmit management frames.
+		 *
+		 * Otherwise allocate a normal buffer.
 		 */
-		bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
-		if (bf == NULL)
-			break;
+		if (m->m_flags & M_EAPOL)
+			bf = ath_getbuf(sc, ATH_BUFTYPE_MGMT);
+		else
+			bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
 
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL) {
-			ATH_TXBUF_LOCK(sc);
-			ath_returnbuf_head(sc, bf);
-			ATH_TXBUF_UNLOCK(sc);
+		if (bf == NULL) {
+			/*
+			 * If we failed to allocate a buffer, prepend it
+			 * and continue.
+			 *
+			 * We shouldn't fail normally, due to the check
+			 * above.
+			 */
+			sc->sc_stats.ast_tx_nobuf++;
+			IF_LOCK(&ifp->if_snd);
+			_IF_PREPEND(&ifp->if_snd, m);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IF_UNLOCK(&ifp->if_snd);
+			m = NULL;
 			break;
 		}
-		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+
 		npkts ++;
+
 		/*
 		 * Check for fragmentation.  If this frame
 		 * has been broken up verify we have enough
