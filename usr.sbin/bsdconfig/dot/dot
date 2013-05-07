@@ -276,20 +276,26 @@ if [ "$SHOW_INCLUDES" ]; then
 	#
 	# Search previously-discovered include files for further includes
 	#
-	for file in $include_file_list; do
-		include_file_list="$include_file_list $(
-			awk "$print_includes_awk" $BSDCFG_SHARE/$file
-		)"
-	done
+	before="$include_file_list"
+	while :; do
+		for file in $include_file_list; do
+			include_file_list="$include_file_list $(
+				awk "$print_includes_awk" $BSDCFG_SHARE/$file
+			)"
+		done
 
-	#
-	# Sort the list of includes and remove duplicate entries [again]
-	#
-	include_file_list=$(
-		for include_file in $include_file_list; do
-			echo "$include_file"
-		done | sort -u
-	)
+		#
+		# Sort list of includes and remove duplicate entries [again]
+		#
+		include_file_list=$(
+			for include_file in $include_file_list; do
+				echo "$include_file"
+			done | sort -u
+		)
+
+		[ "$include_file_list" = "$before" ] && break
+		before="$include_file_list"
+	done
 fi
 
 #
@@ -435,7 +441,8 @@ if [ "$SHOW_INCLUDES" ]; then
 	shape=oval color=black fillcolor=white style=filled edge_color=grey
 	begin_nodelist "$shape" "$color" "$fillcolor" "$style"
 	print_node edge "style = dashed" "color = $edge_color"
-	print_node edge "label = \"\\T\"" "fontsize = 9"
+	#print_node edge "label = \"\\T\"" "fontsize = 9"
+		# NOTE: Edge labels are buggy on large graphs
 	file_list=$(
 		for file in \
 			$BSDCONFIG \
