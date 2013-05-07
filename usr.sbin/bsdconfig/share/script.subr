@@ -151,26 +151,42 @@ f_script_load()
 #
 # Reserved words meant for scripting
 #
-f_resword_new deviceRescan		f_device_rescan
+
+# this file
+f_resword_new loadConfig	f_script_load
+
+# device.subr
+f_resword_new deviceRescan	f_device_rescan
+
+# variable.subr
+f_resword_new installVarDefaults	f_variable_set_defaults
 f_resword_new dumpVariables		f_dump_variables
-f_resword_new loadConfig		f_script_load
-f_resword_new mediaClose		f_media_close
-f_resword_new mediaGetType		f_media_get_type
-f_resword_new mediaOpen			f_media_open
-f_resword_new mediaSetCDROM		f_media_set_cdrom
-f_resword_new mediaSetDOS		f_media_set_dos
+
+# media/common.subr
+f_resword_new mediaOpen		f_media_open
+f_resword_new mediaClose	f_media_close
+
+# media includes
+f_resword_new mediaGetType	f_media_get_type         # media/any.subr
+f_resword_new mediaSetCDROM	f_media_set_cdrom        # media/cdrom.subr
+f_resword_new mediaSetDOS	f_media_set_dos          # media/dos.subr
+f_resword_new mediaSetDirectory	f_media_set_directory    # media/directory.subr
+f_resword_new mediaSetFloppy	f_media_set_floppy       # media/floppy.subr
+f_resword_new mediaSetNFS	f_media_set_nfs          # media/nfs.subr
+f_resword_new mediaSetUFS	f_media_set_ufs          # media/ufs.subr
+f_resword_new mediaSetUSB	f_media_set_usb          # media/usb.subr
+f_resword_new optionsEditor	f_media_options_menu     # media/options.subr
+f_resword_new tcpMenuSelect	f_dialog_menu_select_tcp # media/tcp.subr
+
+# media/ftp.subr
 f_resword_new mediaSetFTP		f_media_set_ftp
 f_resword_new mediaSetFTPActive		f_media_set_ftp_active
 f_resword_new mediaSetFTPPassive	f_media_set_ftp_passive
 f_resword_new mediaSetFTPUserPass	f_media_set_ftp_userpass
-f_resword_new mediaSetFloppy		f_media_set_floppy
-f_resword_new mediaSetHTTP		f_media_set_http_proxy
-f_resword_new mediaSetHTTPProxy		f_media_set_http_proxy
-f_resword_new mediaSetNFS		f_media_set_nfs
-f_resword_new mediaSetUFS		f_media_set_ufs
-f_resword_new mediaSetUSB		f_media_set_usb
-f_resword_new optionsEditor		f_media_options_menu
-f_resword_new tcpMenuSelect		f_dialog_menu_select_tcp
+
+# media/httpproxy.subr
+f_resword_new mediaSetHTTP	f_media_set_http_proxy
+f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
 
 f_dprintf "%s: Successfully loaded." script.subr
 
