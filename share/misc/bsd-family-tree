@@ -537,10 +537,11 @@ NetBSD 5.0		2009-04-29 [NBD]
 OpenBSD 4.5		2009-05-01 [OBD]
 FreeBSD 7.2		2009-05-04 [FBD]
 Mac OS X 10.6		2009-06-08 [APL]
-NetBSD 5.0.1		2010-02-12 [NBD] (security/critical release)
+NetBSD 5.0.1		2009-08-02 [NBD] (security/critical release)
 DragonFly 2.4.0		2009-09-16 [DFB]
 OpenBSD 4.6		2009-10-18 [OBD]
 FreeBSD 8.0		2009-11-26 [FBD]
+NetBSD 5.0.2		2010-02-12 [NBD] (security/critical release)
 FreeBSD 7.3		2010-03-23 [FBD]
 DragonFly 2.6.0		2010-03-28 [DFB]
 OpenBSD 4.7		2010-05-19 [OBD]
