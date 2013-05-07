@@ -1821,11 +1821,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (sc->sc_cabq->axq_depth + sc->sc_cabq->fifo.axq_depth
 		    > sc->sc_txq_mcastq_maxdepth) {
 			sc->sc_stats.ast_tx_mcastq_overflow++;
-			r = ENOBUFS;
-		}
-		if (r != 0) {
 			m_freem(m0);
-			return r;
+			return (ENOBUFS);
 		}
 	}
 
