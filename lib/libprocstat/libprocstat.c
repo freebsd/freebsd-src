@@ -897,7 +897,8 @@ procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
 		return (procstat_get_pipe_info_sysctl(fst, ps, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
-		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		if (errbuf != NULL)
+			snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
 }
@@ -926,7 +927,8 @@ procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
 	return (0);
 
 fail:
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	if (errbuf != NULL)
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 	return (1);
 }
 
@@ -962,7 +964,8 @@ procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
 		return (procstat_get_pts_info_sysctl(fst, pts, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
-		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		if (errbuf != NULL)
+			snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
 }
@@ -990,7 +993,8 @@ procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
 	return (0);
 
 fail:
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	if (errbuf != NULL)
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 	return (1);
 }
 
@@ -1025,7 +1029,8 @@ procstat_get_sem_info(struct procstat *procstat, struct filestat *fst,
 		return (procstat_get_sem_info_sysctl(fst, sem, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
-		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		if (errbuf != NULL)
+			snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
 }
@@ -1071,7 +1076,8 @@ procstat_get_sem_info_kvm(kvm_t *kd, struct filestat *fst,
 	return (0);
 
 fail:
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	if (errbuf != NULL)
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 	return (1);
 }
 
@@ -1106,7 +1112,8 @@ procstat_get_shm_info(struct procstat *procstat, struct filestat *fst,
 		return (procstat_get_shm_info_sysctl(fst, shm, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
-		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		if (errbuf != NULL)
+			snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
 }
@@ -1152,7 +1159,8 @@ procstat_get_shm_info_kvm(kvm_t *kd, struct filestat *fst,
 	return (0);
 
 fail:
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	if (errbuf != NULL)
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 	return (1);
 }
 
@@ -1187,7 +1195,8 @@ procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
 		return (procstat_get_vnode_info_sysctl(fst, vn, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
-		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		if (errbuf != NULL)
+			snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
 }
@@ -1254,7 +1263,8 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 			break;
 		}
 	if (i == NTYPES) {
-		snprintf(errbuf, _POSIX2_LINE_MAX, "?(%s)", tagstr);
+		if (errbuf != NULL)
+			snprintf(errbuf, _POSIX2_LINE_MAX, "?(%s)", tagstr);
 		return (1);
 	}
 	vn->vn_mntdir = getmnton(kd, vnode.v_mount);
@@ -1268,7 +1278,8 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	return (0);
 
 fail:
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	if (errbuf != NULL)
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 	return (1);
 }
 
@@ -1349,7 +1360,10 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 	if (vntype == PS_FST_VTYPE_VNON || vntype == PS_FST_VTYPE_VBAD)
 		return (0);
 	if ((status & KF_ATTR_VALID) == 0) {
-		snprintf(errbuf, _POSIX2_LINE_MAX, "? (no info available)");
+		if (errbuf != NULL) {
+			snprintf(errbuf, _POSIX2_LINE_MAX,
+			    "? (no info available)");
+		}
 		return (1);
 	}
 	if (path && *path) {
@@ -1390,7 +1404,8 @@ procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
 		return (procstat_get_socket_info_sysctl(fst, sock, errbuf));
 	} else {
 		warnx("unknown access method: %d", procstat->type);
-		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		if (errbuf != NULL)
+			snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 		return (1);
 	}
 }
@@ -1488,7 +1503,8 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 	return (0);
 
 fail:
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	if (errbuf != NULL)
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 	return (1);
 }
 
