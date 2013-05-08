@@ -1945,7 +1945,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	caps = a->pm_caps;
 	if ((IAP_PMC_CAPS & caps) != caps)
 		return (EPERM);
-
+	map = 0;	/* XXX: silent GCC warning */
 	arch = iap_is_event_architectural(pm->pm_event, &map);
 	if (arch == EV_IS_ARCH_NOTSUPP)
 		return (EOPNOTSUPP);

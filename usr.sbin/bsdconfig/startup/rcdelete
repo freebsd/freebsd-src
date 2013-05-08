@@ -388,7 +388,7 @@ while :; do
 		var="${mtag# }"
 
 		# Toggle the state-variable and loop back to menu
-		if eval [ \"\${_${var}_delete+set}\" ]; then
+		if f_isset _${var}_delete; then
 			unset _${var}_delete
 		else
 			setvar _${var}_delete 1

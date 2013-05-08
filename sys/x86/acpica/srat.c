@@ -28,8 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_vm.h"
-
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -47,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
@@ -265,7 +263,7 @@ renumber_domains(void)
 			domains[j] = domains[j - 1];
 		domains[slot] = mem_info[i].domain;
 		ndomain++;
-		if (ndomain > VM_NDOMAIN) {
+		if (ndomain > MAXMEMDOM) {
 			printf("SRAT: Too many memory domains\n");
 			return (EFBIG);
 		}
@@ -333,6 +331,48 @@ srat_walk_table(acpi_subtable_handler *handler, void *arg)
 	acpi_walk_subtables(srat + 1, (char *)srat + srat->Header.Length,
 	    handler, arg);
 }
+ 
+static void
+acpi_handle_slit(ACPI_TABLE_SLIT *slit)
+{
+	UINT64 i, j;
+
+	printf("ACPI System Locality Information Table: %ju localities\n",
+	    (uintmax_t)slit->LocalityCount);
+	printf("      ");
+	for (i = 0; i < slit->LocalityCount; i++)
+		printf(" %3ju", (uintmax_t)i);
+	printf("\n     +");
+	for (i = 0; i < slit->LocalityCount; i++)
+		printf("----");
+	printf("\n");
+	for (i = 0; i < slit->LocalityCount; i++) {
+		printf(" %3ju |", (uintmax_t)i);
+		for (j = 0; j < slit->LocalityCount; j++)
+			printf(" %3u",
+			    slit->Entry[i * slit->LocalityCount + j]);
+		printf("\n");
+	}
+}
+
+static void
+parse_slit(void *arg __unused)
+{
+	ACPI_TABLE_SLIT *slit;
+	vm_paddr_t slit_physaddr;
+
+	if (resource_disabled("slit", 0))
+		return;
+
+	slit_physaddr = acpi_find_table(ACPI_SIG_SLIT);
+	if (slit_physaddr == 0)
+		return;
+	slit = acpi_map_table(slit_physaddr, ACPI_SIG_SLIT);
+	acpi_handle_slit(slit);
+	acpi_unmap_table(slit);
+}
+
+SYSINIT(parse_slit, SI_SUB_VM - 1, SI_ORDER_SECOND, parse_slit, NULL);
 
 /*
  * Setup per-CPU ACPI IDs.
@@ -362,4 +402,4 @@ srat_set_cpus(void *dummy)
 	}
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
-#endif /* VM_NDOMAIN > 1 */
+#endif /* MAXMEMDOM > 1 */

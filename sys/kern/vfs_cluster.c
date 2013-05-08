@@ -76,6 +76,10 @@ static int read_max = 64;
 SYSCTL_INT(_vfs, OID_AUTO, read_max, CTLFLAG_RW, &read_max, 0,
     "Cluster read-ahead max block count");
 
+static int read_min = 1;
+SYSCTL_INT(_vfs, OID_AUTO, read_min, CTLFLAG_RW, &read_min, 0,
+    "Cluster read min block count");
+
 /* Page expended to mark partially backed buffers */
 extern vm_page_t	bogus_page;
 
@@ -166,11 +170,19 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 	} else {
 		off_t firstread = bp->b_offset;
 		int nblks;
+		long minread;
 
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("cluster_read: no buffer offset"));
 
 		ncontig = 0;
+
+		/*
+		 * Adjust totread if needed
+		 */
+		minread = read_min * size;
+		if (minread > totread)
+			totread = minread;
 
 		/*
 		 * Compute the total number of blocks that we should read

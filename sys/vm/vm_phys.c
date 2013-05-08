@@ -63,11 +63,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 
 /*
- * VM_FREELIST_DEFAULT is split into VM_NDOMAIN lists, one for each
+ * VM_FREELIST_DEFAULT is split into MAXMEMDOM lists, one for each
  * domain.  These extra lists are stored at the end of the regular
  * free lists starting with VM_NFREELIST.
  */
-#define VM_RAW_NFREELIST	(VM_NFREELIST + VM_NDOMAIN - 1)
+#define VM_RAW_NFREELIST	(VM_NFREELIST + MAXMEMDOM - 1)
 
 struct vm_freelist {
 	struct pglist pl;
@@ -100,7 +100,7 @@ MALLOC_DEFINE(M_FICT_PAGES, "", "");
 static struct vm_freelist
     vm_phys_free_queues[VM_RAW_NFREELIST][VM_NFREEPOOL][VM_NFREEORDER];
 static struct vm_freelist
-(*vm_phys_lookup_lists[VM_NDOMAIN][VM_RAW_NFREELIST])[VM_NFREEPOOL][VM_NFREEORDER];
+(*vm_phys_lookup_lists[MAXMEMDOM][VM_RAW_NFREELIST])[VM_NFREEPOOL][VM_NFREEORDER];
 
 static int vm_nfreelists = VM_FREELIST_DEFAULT + 1;
 
@@ -116,12 +116,14 @@ static int sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_segs, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_segs, "A", "Phys Seg Info");
 
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 static int sysctl_vm_phys_lookup_lists(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_lookup_lists, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_vm_phys_lookup_lists, "A", "Phys Lookup Lists");
 #endif
 
+static vm_page_t vm_phys_alloc_domain_pages(int domain, int flind, int pool,
+    int order);
 static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind,
     int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind);
@@ -198,7 +200,7 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 /*
  * Outputs the set of free list lookup lists.
  */
@@ -253,7 +255,7 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind, int domain)
 #else
 	seg->first_page = PHYS_TO_VM_PAGE(start);
 #endif
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 	if (flind == VM_FREELIST_DEFAULT && domain != 0) {
 		flind = VM_NFREELIST + (domain - 1);
 		if (flind >= vm_nfreelists)
@@ -300,7 +302,7 @@ vm_phys_init(void)
 {
 	struct vm_freelist *fl;
 	int flind, i, oind, pind;
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 	int ndomains, j;
 #endif
 
@@ -345,7 +347,7 @@ vm_phys_init(void)
 				TAILQ_INIT(&fl[oind].pl);
 		}
 	}
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 	/*
 	 * Build a free list lookup list for each domain.  All of the
 	 * memory domain lists are inserted at the VM_FREELIST_DEFAULT
@@ -435,10 +437,20 @@ vm_page_t
 vm_phys_alloc_pages(int pool, int order)
 {
 	vm_page_t m;
-	int flind;
+	int domain, flind;
 
+	KASSERT(pool < VM_NFREEPOOL,
+	    ("vm_phys_alloc_pages: pool %d is out of range", pool));
+	KASSERT(order < VM_NFREEORDER,
+	    ("vm_phys_alloc_pages: order %d is out of range", order));
+
+#if MAXMEMDOM > 1
+	domain = PCPU_GET(domain);
+#else
+	domain = 0;
+#endif
 	for (flind = 0; flind < vm_nfreelists; flind++) {
-		m = vm_phys_alloc_freelist_pages(flind, pool, order);
+		m = vm_phys_alloc_domain_pages(domain, flind, pool, order);
 		if (m != NULL)
 			return (m);
 	}
@@ -451,11 +463,12 @@ vm_phys_alloc_pages(int pool, int order)
  */
 vm_page_t
 vm_phys_alloc_freelist_pages(int flind, int pool, int order)
-{	
-	struct vm_freelist *fl;
-	struct vm_freelist *alt;
-	int domain, oind, pind;
+{
+#if VM_NDOMAIN > 1
 	vm_page_t m;
+	int i, ndomains;
+#endif
+	int domain;
 
 	KASSERT(flind < VM_NFREELIST,
 	    ("vm_phys_alloc_freelist_pages: freelist %d is out of range", flind));
@@ -465,10 +478,39 @@ vm_phys_alloc_freelist_pages(int flind, int pool, int order)
 	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
 
 #if VM_NDOMAIN > 1
+	/*
+	 * This routine expects to be called with a VM_FREELIST_* constant.
+	 * On a system with multiple domains we need to adjust the flind
+	 * appropriately.  If it is for VM_FREELIST_DEFAULT we need to
+	 * iterate over the per-domain lists.
+	 */
 	domain = PCPU_GET(domain);
+	ndomains = vm_nfreelists - VM_NFREELIST + 1;
+	if (flind == VM_FREELIST_DEFAULT) {
+		m = NULL;
+		for (i = 0; i < ndomains; i++, flind++) {
+			m = vm_phys_alloc_domain_pages(domain, flind, pool,
+			    order);
+			if (m != NULL)
+				break;
+		}
+		return (m);
+	} else if (flind > VM_FREELIST_DEFAULT)
+		flind += ndomains - 1;
 #else
 	domain = 0;
 #endif
+	return (vm_phys_alloc_domain_pages(domain, flind, pool, order));
+}
+
+static vm_page_t
+vm_phys_alloc_domain_pages(int domain, int flind, int pool, int order)
+{	
+	struct vm_freelist *fl;
+	struct vm_freelist *alt;
+	int oind, pind;
+	vm_page_t m;
+
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	fl = (*vm_phys_lookup_lists[domain][flind])[pool];
 	for (oind = order; oind < VM_NFREEORDER; oind++) {
@@ -883,7 +925,7 @@ vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 	int domain, flind, oind, order, pind;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 	domain = PCPU_GET(domain);
 #else
 	domain = 0;

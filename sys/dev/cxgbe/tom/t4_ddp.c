@@ -217,13 +217,7 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 	INP_WLOCK_ASSERT(inp);
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	m = m_get(M_NOWAIT, MT_DATA);
-	if (m == NULL)
-		CXGBE_UNIMPLEMENTED("mbuf alloc failure");
-	m->m_len = n;
-	m->m_flags |= M_DDP;	/* Data is already where it should be */
-	m->m_data = "nothing to see here";
-
+	m = get_ddp_mbuf(n);
 	tp->rcv_nxt += n;
 #ifndef USE_DDP_RX_FLOW_CONTROL
 	KASSERT(tp->rcv_wnd >= n, ("%s: negative window size", __func__));
@@ -457,13 +451,7 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
 	tp->rcv_wnd -= len;
 #endif
-
-	m = m_get(M_NOWAIT, MT_DATA);
-	if (m == NULL)
-		CXGBE_UNIMPLEMENTED("mbuf alloc failure");
-	m->m_len = len;
-	m->m_flags |= M_DDP;	/* Data is already where it should be */
-	m->m_data = "nothing to see here";
+	m = get_ddp_mbuf(len);
 
 	SOCKBUF_LOCK(sb);
 	if (report & F_DDP_BUF_COMPLETE)
@@ -1022,6 +1010,29 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 	CXGBE_UNIMPLEMENTED(__func__);
 }
 
+static char ddp_magic_str[] = "nothing to see here";
+
+struct mbuf *
+get_ddp_mbuf(int len)
+{
+	struct mbuf *m;
+
+	m = m_get(M_NOWAIT, MT_DATA);
+	if (m == NULL)
+		CXGBE_UNIMPLEMENTED("mbuf alloc failure");
+	m->m_len = len;
+	m->m_data = &ddp_magic_str[0];
+
+	return (m);
+}
+
+static inline int
+is_ddp_mbuf(struct mbuf *m)
+{
+
+	return (m->m_data == &ddp_magic_str[0]);
+}
+
 /*
  * Copy an mbuf chain into a uio limited by len if set.
  */
@@ -1040,7 +1051,7 @@ m_mbuftouio_ddp(struct uio *uio, struct mbuf *m, int len)
 	for (; m != NULL; m = m->m_next) {
 		length = min(m->m_len, total - progress);
 
-		if (m->m_flags & M_DDP) {
+		if (is_ddp_mbuf(m)) {
 			enum uio_seg segflag = uio->uio_segflg;
 
 			uio->uio_segflg	= UIO_NOCOPY;

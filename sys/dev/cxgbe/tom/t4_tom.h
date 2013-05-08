@@ -49,8 +49,6 @@
 #define	DDP_RSVD_WIN (16 * 1024U)
 #define	SB_DDP_INDICATE	SB_IN_TOE	/* soreceive must respond to indicate */
 
-#define	M_DDP	M_PROTO1
-
 #define USE_DDP_RX_FLOW_CONTROL
 
 /* TOE PCB flags */
@@ -279,6 +277,7 @@ void t4_init_ddp(struct adapter *, struct tom_data *);
 void t4_uninit_ddp(struct adapter *, struct tom_data *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
+struct mbuf *get_ddp_mbuf(int);
 void enable_ddp(struct adapter *, struct toepcb *toep);
 void release_ddp_resources(struct toepcb *toep);
 void insert_ddp_data(struct toepcb *, uint32_t);

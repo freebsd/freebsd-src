@@ -165,7 +165,8 @@ struct ath_stats {
 	u_int32_t	ast_tx_swfiltered;
 	u_int32_t	ast_tx_node_psq_overflow;
 	u_int32_t	ast_rx_stbc;		/* RX STBC frame */
-	u_int32_t	ast_pad[13];
+	u_int32_t	ast_tx_nodeq_overflow;	/* node sw queue overflow */
+	u_int32_t	ast_pad[12];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)

@@ -1364,13 +1364,12 @@ vn_ioctl(fp, com, data, active_cred, td)
 	case VREG:
 	case VDIR:
 		if (com == FIONREAD) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+			vn_lock(vp, LK_SHARED | LK_RETRY);
 			error = VOP_GETATTR(vp, &vattr, active_cred);
 			VOP_UNLOCK(vp, 0);
 			if (!error)
 				*(int *)data = vattr.va_size - fp->f_offset;
-		}
-		if (com == FIONBIO || com == FIOASYNC)	/* XXX */
+		} else if (com == FIONBIO || com == FIOASYNC)	/* XXX */
 			error = 0;
 		else
 			error = VOP_IOCTL(vp, com, data, fp->f_flag,

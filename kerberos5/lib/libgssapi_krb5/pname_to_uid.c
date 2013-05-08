@@ -26,6 +26,7 @@
  */
 /* $FreeBSD$ */
 
+#include <errno.h>
 #include <pwd.h>
 
 #include "krb5/gsskrb5_locl.h"
@@ -37,8 +38,12 @@ _gsskrb5_pname_to_uid(OM_uint32 *minor_status, const gss_name_t pname,
 	krb5_context context;
 	krb5_const_principal name = (krb5_const_principal) pname;
 	krb5_error_code kret;
-	char lname[MAXLOGNAME + 1], buf[128];
+	char lname[MAXLOGNAME + 1], buf[1024], *bufp;
 	struct passwd pwd, *pw;
+	size_t buflen;
+	int error;
+	OM_uint32 ret;
+	static size_t buflen_hint = 1024;
 
 	GSSAPI_KRB5_INIT (&context);
 
@@ -49,11 +54,30 @@ _gsskrb5_pname_to_uid(OM_uint32 *minor_status, const gss_name_t pname,
 	}
 
 	*minor_status = 0;
-	getpwnam_r(lname, &pwd, buf, sizeof(buf), &pw);
+	buflen = buflen_hint;
+	for (;;) {
+		pw = NULL;
+		bufp = buf;
+		if (buflen > sizeof(buf))
+			bufp = malloc(buflen);
+		if (bufp == NULL)
+			break;
+		error = getpwnam_r(lname, &pwd, bufp, buflen, &pw);
+		if (error != ERANGE)
+			break;
+		if (buflen > sizeof(buf))
+			free(bufp);
+		buflen += 1024;
+		if (buflen > buflen_hint)
+			buflen_hint = buflen;
+	}
 	if (pw) {
 		*uidp = pw->pw_uid;
-		return (GSS_S_COMPLETE);
+		ret = GSS_S_COMPLETE;
 	} else {
-		return (GSS_S_FAILURE);
+		ret = GSS_S_FAILURE;
 	}
+	if (bufp != NULL && buflen > sizeof(buf))
+		free(bufp);
+	return (ret);
 }

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2013
+.Dd May 3, 2013
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -113,6 +113,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_get_priv_sc1 "struct libusb20_transfer *xfer"
 .Ft const char *
 .Fn libusb20_dev_get_backend_name "struct libusb20_device *"
+.Ft int
+.Fn libusb20_dev_get_port_path "struct libusb20_device *pdev" "uint8_t *buf" "uint8_t bufsize"
 .Ft int
 .Fn libusb20_dev_get_info "struct libusb20_device *pdev" "struct usb_device_info *pinfo"
 .Ft int
@@ -549,6 +551,20 @@ with an USB transfer.
 .
 .Fn libusb20_dev_get_backend_name
 returns a zero terminated string describing the backend used.
+.
+.Pp
+.
+.Fn libusb20_dev_get_port_path
+retrieves the list of USB port numbers which the datastream for a given USB device follows.
+The first port number is the Root HUB port number.
+Then children port numbers follow.
+The Root HUB device itself has a port path length of zero.
+Valid port numbers start at one and range until and including 255.
+Typically there should not be more than 16 levels, due to electrical and protocol limitations.
+This functions returns the number of actual port levels upon success
+else a LIBUSB20_ERROR value is returned which are always negative.
+If the actual number of port levels is greater than the maximum
+specified, a LIBUSB20_ERROR value is returned.
 .
 .Pp
 .
