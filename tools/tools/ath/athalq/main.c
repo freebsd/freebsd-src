@@ -75,6 +75,36 @@ ath_alq_print_intr_status(struct if_ath_alq_payload *a)
 	    be32toh(is.intr_status));
 }
 
+static void
+ath_alq_print_beacon_miss(struct if_ath_alq_payload *a)
+{
+
+	printf("[%u.%06u] [%llu] BMISS\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
+	    (unsigned long long) be64toh(a->hdr.threadid));
+}
+
+static void
+ath_alq_print_beacon_stuck(struct if_ath_alq_payload *a)
+{
+
+	printf("[%u.%06u] [%llu] BSTUCK\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
+	    (unsigned long long) be64toh(a->hdr.threadid));
+}
+
+static void
+ath_alq_print_beacon_resume(struct if_ath_alq_payload *a)
+{
+
+	printf("[%u.%06u] [%llu] BRESUME\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
+	    (unsigned long long) be64toh(a->hdr.threadid));
+}
+
 int
 main(int argc, const char *argv[])
 {
@@ -146,6 +176,15 @@ main(int argc, const char *argv[])
 				break;
 			case ATH_ALQ_INTR_STATUS:
 				ath_alq_print_intr_status(a);
+				break;
+			case ATH_ALQ_MISSED_BEACON:
+				ath_alq_print_beacon_miss(a);
+				break;
+			case ATH_ALQ_STUCK_BEACON:
+				ath_alq_print_beacon_stuck(a);
+				break;
+			case ATH_ALQ_RESUME_BEACON:
+				ath_alq_print_beacon_resume(a);
 				break;
 			default:
 				if (be32toh(hdr.sc_hal_magic) == AR5210_MAGIC)
