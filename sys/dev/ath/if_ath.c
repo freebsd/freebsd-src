@@ -3896,6 +3896,7 @@ ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
 	struct ath_node *an = NULL;
 
 	ATH_TX_UNLOCK_ASSERT(sc);
+	ATH_TXQ_UNLOCK_ASSERT(txq);
 
 	/* If unicast frame, update general statistics */
 	if (ni != NULL) {
@@ -4000,6 +4001,28 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
+
+		/*
+		 * Sanity check.
+		 */
+		if (txq->axq_qnum != bf->bf_state.bfs_tx_queue) {
+			device_printf(sc->sc_dev,
+			    "%s: TXQ=%d: bf=%p, bfs_tx_queue=%d\n",
+			    __func__,
+			    txq->axq_qnum,
+			    bf,
+			    bf->bf_state.bfs_tx_queue);
+		}
+		if (txq->axq_qnum != bf->bf_last->bf_state.bfs_tx_queue) {
+			device_printf(sc->sc_dev,
+			    "%s: TXQ=%d: bf_last=%p, bfs_tx_queue=%d\n",
+			    __func__,
+			    txq->axq_qnum,
+			    bf->bf_last,
+			    bf->bf_last->bf_state.bfs_tx_queue);
+		}
+
+#if 0
 		if (txq->axq_depth > 0) {
 			/*
 			 * More frames follow.  Mark the buffer busy
@@ -4013,6 +4036,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			bf->bf_last->bf_flags |= ATH_BUF_BUSY;
 		} else
 			txq->axq_link = NULL;
+#else
+		bf->bf_last->bf_flags |= ATH_BUF_BUSY;
+#endif
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth--;
 
@@ -4288,13 +4314,18 @@ ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf)
 void
 ath_txq_freeholdingbuf(struct ath_softc *sc, struct ath_txq *txq)
 {
-	ATH_TXBUF_LOCK_ASSERT(sc);
+	ATH_TXBUF_UNLOCK_ASSERT(sc);
+	ATH_TXQ_LOCK_ASSERT(txq);
 
 	if (txq->axq_holdingbf == NULL)
 		return;
 
 	txq->axq_holdingbf->bf_flags &= ~ATH_BUF_BUSY;
+
+	ATH_TXBUF_LOCK(sc);
 	ath_returnbuf_tail(sc, txq->axq_holdingbf);
+	ATH_TXBUF_UNLOCK(sc);
+
 	txq->axq_holdingbf = NULL;
 }
 
@@ -4307,7 +4338,10 @@ ath_txq_addholdingbuf(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_txq *txq;
 
-	ATH_TXBUF_LOCK_ASSERT(sc);
+	txq = &sc->sc_txq[bf->bf_state.bfs_tx_queue];
+
+	ATH_TXBUF_UNLOCK_ASSERT(sc);
+	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/* XXX assert ATH_BUF_BUSY is set */
 
@@ -4321,7 +4355,6 @@ ath_txq_addholdingbuf(struct ath_softc *sc, struct ath_buf *bf)
 		ath_returnbuf_tail(sc, bf);
 		return;
 	}
-	txq = &sc->sc_txq[bf->bf_state.bfs_tx_queue];
 	ath_txq_freeholdingbuf(sc, txq);
 	txq->axq_holdingbf = bf;
 }
@@ -4336,20 +4369,30 @@ ath_txq_addholdingbuf(struct ath_softc *sc, struct ath_buf *bf)
  * for restart (eg for TDMA.)
  *
  * The caller must free the mbuf and recycle the node reference.
+ *
+ * XXX This method of handling busy / holding buffers is insanely stupid.
+ * It requires bf_state.bfs_tx_queue to be correctly assigned.  It would
+ * be much nicer if buffers in the processq() methods would instead be
+ * always completed there (pushed onto a txq or ath_bufhead) so we knew
+ * exactly what hardware queue they came from in the first place.
  */
 void
 ath_freebuf(struct ath_softc *sc, struct ath_buf *bf)
 {
+	struct ath_txq *txq;
+
+	txq = &sc->sc_txq[bf->bf_state.bfs_tx_queue];
+
 	KASSERT((bf->bf_node == NULL), ("%s: bf->bf_node != NULL\n", __func__));
 	KASSERT((bf->bf_m == NULL), ("%s: bf->bf_m != NULL\n", __func__));
 
 	/*
-	 * If this buffer is busy, push it onto the holding queue
+	 * If this buffer is busy, push it onto the holding queue.
 	 */
 	if (bf->bf_flags & ATH_BUF_BUSY) {
-		ATH_TXBUF_LOCK(sc);
+		ATH_TXQ_LOCK(txq);
 		ath_txq_addholdingbuf(sc, bf);
-		ATH_TXBUF_UNLOCK(sc);
+		ATH_TXQ_UNLOCK(txq);
 		return;
 	}
 
@@ -4521,9 +4564,9 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	/*
 	 * Free the holding buffer if it exists
 	 */
-	ATH_TXBUF_LOCK(sc);
+	ATH_TXQ_LOCK(txq);
 	ath_txq_freeholdingbuf(sc, txq);
-	ATH_TXBUF_UNLOCK(sc);
+	ATH_TXQ_UNLOCK(txq);
 
 	/*
 	 * Drain software queued frames which are on
