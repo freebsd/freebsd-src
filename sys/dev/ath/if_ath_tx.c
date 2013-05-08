@@ -5761,17 +5761,7 @@ ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an)
 		if (tid->hwq_depth == 0)
 			continue;
 		ath_tx_tid_pause(sc, tid);
-
-		/*
-		 * XXX the TID cleanup code needs to be given an athbuf list
-		 * to add completing frames to. Grr.
-		 *
-		 * So do that before this goes into the tree!
-		 *
-		 * That way we can hold the TX lock for the entirety of all
-		 * of this nonsense; then the caller can make it sane.
-		 */
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_NODE,
 		    "%s: %6D: TID %d: cleaning up TID\n",
 		    __func__,
 		    an->an_node.ni_macaddr,
