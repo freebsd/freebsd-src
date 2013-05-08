@@ -131,10 +131,16 @@ extern	void ath_start_task(void *arg, int npending);
 static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
+	IEEE80211_TX_UNLOCK_ASSERT(ic);
+	ATH_TX_UNLOCK_ASSERT(sc);
+
+	IEEE80211_TX_LOCK(ic);
 	ATH_TX_LOCK(sc);
 	ath_start(sc->sc_ifp);
 	ATH_TX_UNLOCK(sc);
+	IEEE80211_TX_UNLOCK(ic);
 }
 
 /*
