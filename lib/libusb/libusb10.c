@@ -290,6 +290,13 @@ libusb_get_bus_number(libusb_device *dev)
 	return (libusb20_dev_get_bus_number(dev->os_priv));
 }
 
+int
+libusb_get_port_path(libusb_context *ctx, libusb_device *dev, uint8_t *buf,
+    uint8_t bufsize)
+{
+	return (libusb20_dev_get_port_path(dev->os_priv, buf, bufsize));
+}
+
 uint8_t
 libusb_get_device_address(libusb_device *dev)
 {
