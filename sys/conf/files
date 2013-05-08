@@ -1331,6 +1331,11 @@ dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
 dev/etherswitch/etherswitch.c		optional etherswitch
 dev/etherswitch/etherswitch_if.m	optional etherswitch
+dev/etherswitch/ip17x/ip17x.c		optional ip17x
+dev/etherswitch/ip17x/ip175c.c		optional ip17x
+dev/etherswitch/ip17x/ip175d.c		optional ip17x
+dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
+dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
 dev/etherswitch/mdio_if.m		optional miiproxy
 dev/etherswitch/mdio.c			optional miiproxy
 dev/etherswitch/miiproxy.c		optional miiproxy
