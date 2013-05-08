@@ -464,7 +464,7 @@ vm_phys_alloc_pages(int pool, int order)
 vm_page_t
 vm_phys_alloc_freelist_pages(int flind, int pool, int order)
 {
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 	vm_page_t m;
 	int i, ndomains;
 #endif
@@ -477,7 +477,7 @@ vm_phys_alloc_freelist_pages(int flind, int pool, int order)
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_alloc_freelist_pages: order %d is out of range", order));
 
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 	/*
 	 * This routine expects to be called with a VM_FREELIST_* constant.
 	 * On a system with multiple domains we need to adjust the flind
