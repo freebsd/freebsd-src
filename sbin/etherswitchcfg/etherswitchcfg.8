@@ -80,7 +80,8 @@ Sets the default port VID that is used to process incoming frames that are not t
 .It Ar media mediaspec
 Specifies the physical media configuration to be configured for a port.
 .It Ar mediaopt mediaoption
-Specifies a list of media options for a port. See
+Specifies a list of media options for a port.
+See
 .Xr ifconfig 8
 for details on
 .Ar media
@@ -103,7 +104,8 @@ This options makes the switch port lock on the first MAC address it seems.
 After that, usually you need to reset the switch to learn different
 MAC addresses.
 .It Ar -firstlock
-Disable the first lock option.  Note that sometimes you need to reset the
+Disable the first lock option.
+Note that sometimes you need to reset the
 switch to really disable this option.
 .It Ar dropuntagged
 Drop packets without a VLAN tag.
