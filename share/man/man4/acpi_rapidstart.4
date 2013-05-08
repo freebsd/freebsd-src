@@ -48,11 +48,13 @@ acpi_rapidstart_load="YES"
 The
 .Nm
 driver provides support for Intel Rapid Start technology ACPI device interface.
-Note that this is only for ACPI device interface . This has _CID PNP0C02 so
-should be loaded in boot time to avoid attaching acpi_sysresource driver.
-
+Note that this is only for the ACPI device interface.
+This has _CID PNP0C02 so it should be loaded at boot time to avoid attaching
+to the acpi_sysresource driver.
 .Sh SYSCTLS
-The following sysctl nodes are currently implemented:
+The following
+.Xr sysctl 8
+nodes are currently implemented:
 .Bl -tag -width indent
 .It Va dev.acpi_rapidstart.0.ffs
 Rapid start flag.
