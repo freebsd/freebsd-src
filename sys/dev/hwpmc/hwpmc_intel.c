@@ -250,6 +250,9 @@ pmc_intel_initialize(void)
 		KASSERT(0, ("[intel,%d] Unknown CPU type", __LINE__));
 	}
 
+	if (error)
+		goto error;
+
 	/*
 	 * Init the uncore class.
 	 */

@@ -2613,8 +2613,12 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 	PMCDBG(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
 	    md->pmd_cputype, maxcpu, ipa_version);
 
-	if (ipa_version < 1 || ipa_version > 3)	/* Unknown PMC architecture. */
+	if (ipa_version < 1 || ipa_version > 3) {
+		/* Unknown PMC architecture. */
+		printf("hwpc_core: unknown PMC architecture: %d\n",
+			ipa_version);
 		return (EPROGMISMATCH);
+	}
 
 	core_cputype = md->pmd_cputype;
 
