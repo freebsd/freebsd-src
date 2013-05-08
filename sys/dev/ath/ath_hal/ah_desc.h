@@ -155,6 +155,7 @@ struct ath_rx_status {
 #define	HAL_RX_DECRYPT_BUSY	0x0040	/* decrypt was too slow */
 #define	HAL_RX_HI_RX_CHAIN	0x0080	/* SM power save: hi Rx chain control */
 #define	HAL_RX_IS_APSD		0x0100	/* Is ASPD trigger frame */
+#define	HAL_RX_STBC		0x0200	/* Is an STBC frame */
 
 enum {
 	HAL_PHYERR_UNDERRUN		= 0,	/* Transmit underrun */
