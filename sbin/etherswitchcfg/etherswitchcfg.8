@@ -11,12 +11,16 @@
 .Ar info
 .Nm
 .Op Fl "f control file"
+.Ar config
+.Ar command parameter
+.Nm
+.Op Fl "f control file"
 .Ar phy
 .Ar phy.register[=value]
 .Nm
 .Op Fl "f control file"
 .Ar port%d
-.Ar command parameter
+.Ar [flags] command parameter
 .Nm
 .Op Fl "f control file"
 .Ar reg
@@ -46,6 +50,14 @@ Produce more verbose output.
 Without this flag, lines that represent inactive or empty configuration
 options are omitted.
 .El
+.Ss config
+The config command provides access to global switch configuration
+parameters.
+It support the following commands:
+.Bl -tag -width ".Ar vlan_mode mode" -compact
+.It Ar vlan_mode mode
+Sets the switch VLAN mode (depends on the hardware).
+.El
 .Ss phy
 The phy command provides access to the registers of the PHYs attached
 to or integrated into the switch controller.
@@ -74,6 +86,37 @@ for details on
 .Ar media
 and
 .Ar mediaopt .
+.El
+And the following flags (please note that not all flags
+are supporterd by all switch drivers):
+.Bl -tag -width ".Ar addtag" -compact
+.It Ar addtag
+Add VLAN tag to each packet sent by the port.
+.It Ar -addtag
+Disable the add VLAN tag option.
+.It Ar striptag
+Strip the VLAN tags from the packets sent by the port.
+.It Ar -striptag
+Disable the strip VLAN tag option.
+.It Ar firstlock
+This options makes the switch port lock on the first MAC address it seems.
+After that, usually you need to reset the switch to learn different
+MAC addresses.
+.It Ar -firstlock
+Disable the first lock option.  Note that sometimes you need to reset the
+switch to really disable this option.
+.It Ar dropuntagged
+Drop packets without a VLAN tag.
+.It Ar -dropuntagged
+Disable the drop untagged packets option.
+.It Ar doubletag
+Enable QinQ for the port.
+.It Ar -doubletag
+Disable QinQ for the port.
+.It Ar ingress
+Enable the ingress filter on the port.
+.It Ar -ingress
+Disable the ingress filter.
 .El
 .Ss reg
 The reg command provides access to the registers of the switch controller.
