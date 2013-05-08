@@ -381,6 +381,8 @@ struct ath_txq {
 #define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
 #define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+#define	ATH_TXQ_UNLOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock,	\
+					    MA_NOTOWNED)
 
 
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
@@ -964,6 +966,8 @@ struct ath_softc {
 #define	ATH_TXBUF_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_txbuflock)
 #define	ATH_TXBUF_LOCK_ASSERT(_sc) \
 	mtx_assert(&(_sc)->sc_txbuflock, MA_OWNED)
+#define	ATH_TXBUF_UNLOCK_ASSERT(_sc) \
+	mtx_assert(&(_sc)->sc_txbuflock, MA_NOTOWNED)
 
 #define	ATH_TXSTATUS_LOCK_INIT(_sc) do { \
 	snprintf((_sc)->sc_txcompname, sizeof((_sc)->sc_txcompname), \
