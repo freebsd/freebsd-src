@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2008
+.Dd May 9, 2013
 .Dt POSIX_SPAWN_FILE_ACTIONS_ADDOPEN 3
 .Os
 .Sh NAME
@@ -145,7 +145,7 @@ otherwise, an error number is returned to indicate the error.
 These
 functions fail if:
 .Bl -tag -width Er
-.It Bq Er EINVAL
+.It Bq Er EBADF
 The value specified by
 .Fa fildes
 or
