@@ -79,6 +79,7 @@ struct lock_class {
 #define	LO_SLEEPABLE	0x00100000	/* Lock may be held while sleeping. */
 #define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
 #define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
+#define	LO_IS_VNODE	0x00800000	/* Tell WITNESS about a VNODE lock */
 #define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
 #define LO_NOPROFILE    0x10000000      /* Don't profile this lock */
 

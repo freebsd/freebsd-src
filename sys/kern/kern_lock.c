@@ -393,6 +393,8 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 		iflags |= LO_WITNESS;
 	if (flags & LK_QUIET)
 		iflags |= LO_QUIET;
+	if (flags & LK_IS_VNODE)
+		iflags |= LO_IS_VNODE;
 	iflags |= flags & (LK_ADAPTIVE | LK_NOSHARE);
 
 	lk->lk_lock = LK_UNLOCKED;
