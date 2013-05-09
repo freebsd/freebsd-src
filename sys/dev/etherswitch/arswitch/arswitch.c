@@ -440,6 +440,7 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 	mii = arswitch_miiforport(sc, p->es_port);
 	if (p->es_port == 0) {
 		/* fill in fixed values for CPU port */
+		p->es_flags |= ETHERSWITCH_PORT_CPU;
 		ifmr->ifm_count = 0;
 		ifmr->ifm_current = ifmr->ifm_active =
 		    IFM_ETHER | IFM_1000_T | IFM_FDX;

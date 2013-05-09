@@ -669,8 +669,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = (1 * 1000 * 1000 *1000);
+	if_initbaudrate(ifp, IF_Gbps(10));
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -690,6 +689,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 				IFCAP_JUMBO_MTU;
 
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
 
 #if defined(__FreeBSD_version) && (__FreeBSD_version < 900002)
 	ifp->if_timer = 0;

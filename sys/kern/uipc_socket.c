@@ -515,7 +515,7 @@ sonewconn(struct socket *head, int connstatus)
 #endif
 		log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
 		    "%i already in queue awaiting acceptance\n",
-		    __func__, head->so_pcb, over);
+		    __func__, head->so_pcb, head->so_qlen);
 		return (NULL);
 	}
 	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",

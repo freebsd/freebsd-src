@@ -5,12 +5,17 @@
 # Uncomment this hint for RS (not PRO)
 # PHY20 = 1 << 20
 hint.arge.0.phymask=0x100000
+hint.arge.0.mdio=mdioproxy1	# .. off of the switch mdiobus
 
 # should be 100 for RS 
 hint.arge.1.media=100
 hint.arge.1.fduplex=1
-# Uncomment this hint for RS (not PRO)
-hint.arge.1.phymask=0x30000
+hint.arge.1.phymask=0x0
+hint.arge.1.mdio=mdioproxy1	# .. off of the switch mdiobus
+
+# ukswitch
+hint.ukswitch.0.at="mdio0"
+hint.ukswitch.0.phymask=0x30000
 
 # RF led
 hint.gpioled.0.at="gpiobus0"

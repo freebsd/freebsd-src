@@ -725,8 +725,10 @@ _setcontext(const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
-	if (ucp == NULL)
-		return (EINVAL);
+	if (ucp == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (!SIGISMEMBER(uc.uc_sigmask, SIGCANCEL))
 		return __sys_setcontext(ucp);
 	(void) memcpy(&uc, ucp, sizeof(uc));
@@ -740,8 +742,10 @@ _swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
-	if (oucp == NULL || ucp == NULL)
-		return (EINVAL);
+	if (oucp == NULL || ucp == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (SIGISMEMBER(ucp->uc_sigmask, SIGCANCEL)) {
 		(void) memcpy(&uc, ucp, sizeof(uc));
 		SIGDELSET(uc.uc_sigmask, SIGCANCEL);
