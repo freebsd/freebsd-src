@@ -13,7 +13,7 @@ SRCS+=	parse.y pjdlog.c
 SRCS+=	proto.c proto_common.c proto_uds.c
 SRCS+=	token.l
 SRCS+=	y.tab.h
-MAN=	snmp_hast.8
+MAN=	snmp_hast.3
 
 NO_WFORMAT=
 NO_WCAST_ALIGN=
