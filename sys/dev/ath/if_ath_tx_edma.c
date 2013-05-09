@@ -409,7 +409,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		wh = mtod(bf_last->bf_m, struct ieee80211_frame *);
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
 
-		/* sync descriptor to memory */
+		/* re-sync buffer to memory */
 		bus_dmamap_sync(sc->sc_dmat, bf_last->bf_dmamap,
 		   BUS_DMASYNC_PREWRITE);
 
@@ -734,9 +734,9 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		 * buffer any longer.
 		 */
 		if (bf->bf_flags & ATH_BUF_FIFOEND) {
-			ATH_TXBUF_LOCK(sc);
+			ATH_TXQ_LOCK(txq);
 			ath_txq_freeholdingbuf(sc, txq);
-			ATH_TXBUF_UNLOCK(sc);
+			ATH_TXQ_UNLOCK(txq);
 		}
 
 		/*
