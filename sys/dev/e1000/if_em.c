@@ -4333,6 +4333,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		/* Setup the Base and Length of the Rx Descriptor Ring */
+		u32 rdt = adapter->num_rx_desc - 1; /* default */
+
 		bus_addr = rxr->rxdma.dma_paddr;
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 		    adapter->num_rx_desc * sizeof(struct e1000_rx_desc));
@@ -4344,18 +4346,11 @@ em_initialize_receive_unit(struct adapter *adapter)
 		/*
 		 * an init() while a netmap client is active must
 		 * preserve the rx buffers passed to userspace.
-		 * In this driver it means we adjust RDT to
-		 * something different from na->num_rx_desc - 1.
 		 */
-		if (ifp->if_capenable & IFCAP_NETMAP) {
-			struct netmap_adapter *na = NA(adapter->ifp);
-			struct netmap_kring *kring = &na->rx_rings[i];
-			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
-
-			E1000_WRITE_REG(hw, E1000_RDT(i), t);
-		} else
+		if (ifp->if_capenable & IFCAP_NETMAP)
+			rdt -= NA(adapter->ifp)->rx_rings[i].nr_hwavail;
 #endif /* DEV_NETMAP */
-		E1000_WRITE_REG(hw, E1000_RDT(i), adapter->num_rx_desc - 1);
+		E1000_WRITE_REG(hw, E1000_RDT(i), rdt);
 	}
 
 	/* Set PTHRESH for improved jumbo performance */

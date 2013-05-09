@@ -3361,19 +3361,13 @@ lem_initialize_receive_unit(struct adapter *adapter)
 	 * Tail Descriptor Pointers
 	 */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDH(0), 0);
+	rctl = adapter->num_rx_desc - 1; /* default RDT value */
 #ifdef DEV_NETMAP
 	/* preserve buffers already made available to clients */
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(adapter->ifp);
-		struct netmap_kring *kring = &na->rx_rings[0];
-		int t = na->num_rx_desc - 1 - kring->nr_hwavail;
-
-		if (t >= na->num_rx_desc)
-			t -= na->num_rx_desc;
-		E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), t);
-	} else
+	if (ifp->if_capenable & IFCAP_NETMAP)
+		rctl -= NA(adapter->ifp)->rx_rings[0].nr_hwavail;
 #endif /* DEV_NETMAP */
-	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), adapter->num_rx_desc - 1);
+	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), rctl);
 
 	return;
 }
