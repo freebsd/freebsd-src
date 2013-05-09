@@ -281,6 +281,9 @@ MODULE_DEPEND(lem, ether, 1, 1, 1);
 #define EM_TICKS_TO_USECS(ticks)	((1024 * (ticks) + 500) / 1000)
 #define EM_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
 
+#define MAX_INTS_PER_SEC	8000
+#define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
+
 static int lem_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int lem_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
 static int lem_tx_abs_int_delay_dflt = EM_TICKS_TO_USECS(EM_TADV);
@@ -442,6 +445,11 @@ lem_attach(device_t dev)
 		    &adapter->tx_abs_int_delay,
 		    E1000_REGISTER(&adapter->hw, E1000_TADV),
 		    lem_tx_abs_int_delay_dflt);
+		lem_add_int_delay_sysctl(adapter, "itr",
+		    "interrupt delay limit in usecs/4",
+		    &adapter->tx_itr,
+		    E1000_REGISTER(&adapter->hw, E1000_ITR),
+		    DEFAULT_ITR);
 	}
 
 	/* Sysctls for limiting the amount of work done in the taskqueue */
@@ -1337,12 +1345,16 @@ lem_handle_rxtx(void *context, int pending)
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		lem_rxeof(adapter, adapter->rx_process_limit, NULL);
+		bool more = lem_rxeof(adapter, adapter->rx_process_limit, NULL);
 		EM_TX_LOCK(adapter);
 		lem_txeof(adapter);
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			lem_start_locked(ifp);
 		EM_TX_UNLOCK(adapter);
+		if (more) {
+			taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
+			return;
+		}
 	}
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -3269,8 +3281,6 @@ lem_setup_receive_structures(struct adapter *adapter)
  *  Enable receive unit.
  *
  **********************************************************************/
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
 
 static void
 lem_initialize_receive_unit(struct adapter *adapter)
@@ -4596,6 +4606,8 @@ lem_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	info->value = usecs;
 	ticks = EM_USECS_TO_TICKS(usecs);
+	if (info->offset == E1000_ITR)	/* units are 256ns here */
+		ticks *= 4;
 
 	adapter = info->adapter;
 	
