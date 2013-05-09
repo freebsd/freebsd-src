@@ -335,6 +335,9 @@ MODULE_DEPEND(em, ether, 1, 1, 1);
 #define EM_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
 #define M_TSO_LEN			66
 
+#define MAX_INTS_PER_SEC	8000
+#define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
+
 /* Allow common code without TSO */
 #ifndef CSUM_TSO
 #define CSUM_TSO	0
@@ -570,6 +573,11 @@ em_attach(device_t dev)
 	    &adapter->tx_abs_int_delay,
 	    E1000_REGISTER(hw, E1000_TADV),
 	    em_tx_abs_int_delay_dflt);
+	em_add_int_delay_sysctl(adapter, "itr",
+	    "interrupt delay limit in usecs/4",
+	    &adapter->tx_itr,
+	    E1000_REGISTER(hw, E1000_ITR),
+	    DEFAULT_ITR);
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	em_set_sysctl_value(adapter, "rx_processing_limit",
@@ -4271,8 +4279,6 @@ em_free_receive_buffers(struct rx_ring *rxr)
  *  Enable receive unit.
  *
  **********************************************************************/
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
 
 static void
 em_initialize_receive_unit(struct adapter *adapter)
@@ -5618,6 +5624,8 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	info->value = usecs;
 	ticks = EM_USECS_TO_TICKS(usecs);
+	if (info->offset == E1000_ITR)	/* units are 256ns here */
+		ticks *= 4;
 
 	adapter = info->adapter;
 	
