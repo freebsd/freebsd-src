@@ -6272,7 +6272,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	 * turn-around time.
 	 */
 
-	ATH_NODE_LOCK(an);
+	ATH_TX_LOCK(sc);
 
 	/*
 	 * Legacy - we're called and the node isn't asleep.
@@ -6284,7 +6284,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 		    __func__,
 		    ni->ni_macaddr,
 		    ":");
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		avp->av_recv_pspoll(ni, m);
 		return;
 	}
@@ -6304,7 +6304,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	 * only care if there are any frames here!
 	 */
 	if (an->an_swq_depth == 0) {
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 		    "%s: %6D: SWQ empty; punting to net80211\n",
 		    __func__,
@@ -6314,13 +6314,10 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 		return;
 	}
 
-	ATH_NODE_UNLOCK(an);
-
 	/*
 	 * Ok, let's schedule the highest TID that has traffic
 	 * and then schedule something.
 	 */
-	ATH_TX_LOCK(sc);
 	for (tid = IEEE80211_TID_SIZE - 1; tid >= 0; tid--) {
 		struct ath_tid *atid = &an->an_tid[tid];
 		/*
@@ -6334,6 +6331,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 		 * scheduler code here to optimise latency
 		 * at the expense of a REALLY deep callstack.
 		 */
+		ATH_TX_UNLOCK(sc);
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
 		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 		    "%s: %6D: leaking frame to TID %d\n",
@@ -6341,7 +6339,6 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 		    ni->ni_macaddr,
 		    ":",
 		    tid);
-		ATH_TX_UNLOCK(sc);
 		return;
 	}
 
