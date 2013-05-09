@@ -123,7 +123,19 @@ to be duplicated as
 dup2(fildes, newfildes)
 .Ed
 .Pp
-had been called) when a new process is spawned using this file actions object.
+had been called) when a new process is spawned using this file actions object,
+except that the
+.Dv FD_CLOEXEC
+flag for
+.Fa newfildes
+is cleared even if
+.Fa fildes
+is equal to
+.Fa newfildes .
+The difference from
+.Fn dup2
+is useful for passing a particular file descriptor
+to a particular child process.
 .Pp
 The
 .Fn posix_spawn_file_actions_addclose
@@ -169,7 +181,16 @@ The
 and
 .Fn posix_spawn_file_actions_addclose
 functions conform to
-.St -p1003.1-2001 .
+.St -p1003.1-2001 ,
+with the exception of the behavior of
+.Fn posix_spawn_file_actions_adddup2
+if
+.Fa fildes
+is equal to
+.Fa newfildes
+(clearing
+.Dv FD_CLOEXEC ) .
+A future update of the Standard is expected to require this behavior,
 .Sh HISTORY
 The
 .Fn posix_spawn_file_actions_addopen ,
