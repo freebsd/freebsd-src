@@ -1037,7 +1037,7 @@ alloc:
 	 * By default, don't allow shared locks unless filesystems
 	 * opt-in.
 	 */
-	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOSHARE);
+	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOSHARE | LK_IS_VNODE);
 	/*
 	 * Initialize bufobj.
 	 */
