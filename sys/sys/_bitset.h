@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008,	Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2008, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
  * Copyright (c) 2008 Nokia Corporation
@@ -29,28 +29,33 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS__CPUSET_H_
-#define	_SYS__CPUSET_H_
+#ifndef _SYS__BITSET_H_
+#define	_SYS__BITSET_H_
 
-#include <sys/_bitset.h>
+/*
+ * Macros addressing word and bit within it, tuned to make compiler
+ * optimize cases when SETSIZE fits into single machine word.
+ */
+#define	_BITSET_BITS		(sizeof(long) * NBBY)
 
-#ifdef _KERNEL
-#define	CPU_SETSIZE	MAXCPU
-#endif
+#define	__bitset_words(_s)	(howmany(_s, _BITSET_BITS))
 
-#define	CPU_MAXSIZE	128
+#define	__bitset_mask(_s, n)						\
+	(1L << ((__bitset_words((_s)) == 1) ?				\
+	    (__size_t)(n) : ((n) % _BITSET_BITS)))
 
-#ifndef	CPU_SETSIZE
-#define	CPU_SETSIZE	CPU_MAXSIZE
-#endif
+#define	__bitset_word(_s, n)						\
+	((__bitset_words((_s)) == 1) ? 0 : ((n) / _BITSET_BITS))
 
-#define	_NCPUBITS	_BITSET_BITS
-#define	_NCPUWORDS	__bitset_words(CPU_SETSIZE)
+#define	BITSET_DEFINE(t, _s)						\
+struct t {								\
+        long    __bits[__bitset_words((_s))];				\
+};
 
-BITSET_DEFINE(_cpuset, CPU_SETSIZE);
-typedef struct _cpuset cpuset_t;
+#define	BITSET_T_INITIALIZER(x)						\
+	{ .__bits = { x } }
 
-#define	CPUSET_FSET		BITSET_FSET(_NCPUWORDS)
-#define	CPUSET_T_INITIALIZER	BITSET_T_INITIALIZER
+#define	BITSET_FSET(n)							\
+	[ 0 ... ((n) - 1) ] = (-1L)
 
-#endif /* !_SYS__CPUSET_H_ */
+#endif /* !_SYS__BITSET_H_ */
