@@ -146,11 +146,11 @@ f_index_read()
 	BEGIN {
 		valid_chars = ENVIRON["VALID_VARNAME_CHARS"]
 		default_desc = ENVIRON["msg_no_description_provided"]
-		npkgs = 0
+		tpkgs = 0
 		prefix = ""
 	}
 	{
-		npkgs++
+		tpkgs++
 		varpkg = $1
 		gsub("[^" valid_chars "]", "_", varpkg)
 		print "_categories_" varpkg "=\"" $7 "\""
@@ -160,7 +160,7 @@ f_index_read()
 		print "_rundeps_" varpkg "=\"" $9 "\""
 	}
 	END {
-		print "_npkgs=" npkgs # For convenience, total package count
+		print "_npkgs=" tpkgs # For convenience, total package count
 
 		n = asorti(categories, categories_sorted)
 
@@ -175,7 +175,7 @@ f_index_read()
 
 		# Create menu list and generate list of categories at same time
 		print "CATEGORY_MENU_LIST=\""
-		print_category(ENVIRON["msg_all"], npkgs,
+		print_category(ENVIRON["msg_all"], tpkgs,
 		               ENVIRON["msg_all_desc"])
 		category_list = ""
 		for (i = 1; i <= n; i++)
