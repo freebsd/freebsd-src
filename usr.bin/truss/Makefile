@@ -73,10 +73,3 @@ freebsd32_syscalls.h:	fbsd32-syscalls.master
 .endif
 
 .include <bsd.prog.mk>
-
-
-.if ${MK_STAGING} != ""
-# we are interested in the files put in ${STAGE_OBJTOP}/include
-DESTDIR= ${STAGE_OBJTOP}
-INCLUDEDIR= /include
-.endif
