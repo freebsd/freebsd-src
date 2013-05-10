@@ -92,13 +92,13 @@ void    ccladd (cclp, ch)
 
 static void    dump_cclp (FILE* file, int cclp)
 {
-	register int i;
+	int i;
 
 	putc ('[', file);
 
 	for (i = 0; i < csize; ++i) {
 		if (ccl_contains(cclp, i)){
-			register int start_char = i;
+			int start_char = i;
 
 			putc (' ', file);
 
@@ -244,13 +244,13 @@ void    list_character_set (file, cset)
      FILE   *file;
      int     cset[];
 {
-	register int i;
+	int i;
 
 	putc ('[', file);
 
 	for (i = 0; i < csize; ++i) {
 		if (cset[i]) {
-			register int start_char = i;
+			int start_char = i;
 
 			putc (' ', file);
 

@@ -168,7 +168,7 @@ void   *allocate_array (size, element_size)
      int size;
      size_t element_size;
 {
-	register void *mem;
+	void *mem;
 	size_t  num_bytes = element_size * size;
 
 	mem = flex_alloc (num_bytes);
@@ -183,7 +183,7 @@ void   *allocate_array (size, element_size)
 /* all_lower - true if a string is all lower-case */
 
 int all_lower (str)
-     register char *str;
+     char *str;
 {
 	while (*str) {
 		if (!isascii ((Char) * str) || !islower ((Char) * str))
@@ -198,7 +198,7 @@ int all_lower (str)
 /* all_upper - true if a string is all upper-case */
 
 int all_upper (str)
-     register char *str;
+     char *str;
 {
 	while (*str) {
 		if (!isascii ((Char) * str) || !isupper ((Char) * str))
@@ -241,7 +241,7 @@ void check_char (c)
 /* clower - replace upper-case letter to lower-case */
 
 Char clower (c)
-     register int c;
+     int c;
 {
 	return (Char) ((isascii (c) && isupper (c)) ? tolower (c) : c);
 }
@@ -250,10 +250,10 @@ Char clower (c)
 /* copy_string - returns a dynamically allocated copy of a string */
 
 char   *copy_string (str)
-     register const char *str;
+     const char *str;
 {
-	register const char *c1;
-	register char *c2;
+	const char *c1;
+	char *c2;
 	char   *copy;
 	unsigned int size;
 
@@ -278,9 +278,9 @@ char   *copy_string (str)
  */
 
 Char   *copy_unsigned_string (str)
-     register Char *str;
+     Char *str;
 {
-	register Char *c;
+	Char *c;
 	Char   *copy;
 
 	/* find length */
@@ -740,13 +740,13 @@ void out_m4_define (const char* def, const char* val)
 }
 
 
-/* readable_form - return the the human-readable form of a character
+/* readable_form - return the human-readable form of a character
  *
  * The returned string is in static storage.
  */
 
 char   *readable_form (c)
-     register int c;
+     int c;
 {
 	static char rform[10];
 
@@ -795,7 +795,7 @@ void   *reallocate_array (array, size, element_size)
      int size;
      size_t element_size;
 {
-	register void *new_array;
+	void *new_array;
 	size_t  num_bytes = element_size * size;
 
 	new_array = flex_realloc (array, num_bytes);
@@ -991,7 +991,7 @@ void zero_out (region_ptr, size_in_bytes)
      char   *region_ptr;
      size_t size_in_bytes;
 {
-	register char *rp, *rp_end;
+	char *rp, *rp_end;
 
 	rp = region_ptr;
 	rp_end = region_ptr + size_in_bytes;

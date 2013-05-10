@@ -613,7 +613,7 @@ Changes between release 2.4.3 (03Dec93) and release 2.4.2:
 	  sources.  One side-effect of this change is that -+ and -CF
 	  are now incompatible.
 
-	- libfl.a now supplies private versions of the the <string.h>/
+	- libfl.a now supplies private versions of the <string.h>/
 	  <strings.h> string routines needed by flex and the scanners
 	  it generates, to enhance portability to some BSD systems.
 
@@ -944,7 +944,7 @@ User-visible:
 	  given.  To specify an end-of-file action for just the initial
 	  state, use <INITIAL><<EOF>>.
 
-	- -d debug output is now contigent on the global yy_flex_debug
+	- -d debug output is now contingent on the global yy_flex_debug
 	  being set to a non-zero value, which it is by default.
 
 	- A new macro, YY_USER_INIT, is provided for the user to specify
@@ -987,7 +987,7 @@ Things which didn't used to be documented but now are:
 	- yy_switch_to_buffer() can be used in the yywrap() macro/routine.
 
 	- flex scanners do not use stdio for their input, and hence when
-	  writing an interactive scanner one must explictly call fflush()
+	  writing an interactive scanner one must explicitly call fflush()
 	  after writing out a prompt.
 
 	- flex scanner can be made reentrant (after a fashion) by using

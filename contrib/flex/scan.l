@@ -661,7 +661,7 @@ M4QEND      "]]"
      * context.
      */
 	"{"{NAME}"}"[[:space:]]?	 {
-			register Char *nmdefptr;
+			Char *nmdefptr;
             int end_is_ws, end_ch;
 
             end_ch = yytext[yyleng-1];

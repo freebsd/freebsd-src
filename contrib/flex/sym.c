@@ -59,12 +59,12 @@ static struct hash_entry *ccltab[CCL_HASH_SIZE];
 
 /* declare functions that have forward references */
 
-static int addsym PROTO ((register char[], char *, int, hash_table, int));
-static struct hash_entry *findsym PROTO ((register const char *sym,
+static int addsym PROTO ((char[], char *, int, hash_table, int));
+static struct hash_entry *findsym PROTO ((const char *sym,
 					  hash_table table,
 
 					  int table_size));
-static int hashfunct PROTO ((register const char *, int));
+static int hashfunct PROTO ((const char *, int));
 
 
 /* addsym - add symbol and definitions to symbol table
@@ -73,16 +73,16 @@ static int hashfunct PROTO ((register const char *, int));
  */
 
 static int addsym (sym, str_def, int_def, table, table_size)
-     register char sym[];
+     char sym[];
      char   *str_def;
      int     int_def;
      hash_table table;
      int     table_size;
 {
 	int     hash_val = hashfunct (sym, table_size);
-	register struct hash_entry *sym_entry = table[hash_val];
-	register struct hash_entry *new_entry;
-	register struct hash_entry *successor;
+	struct hash_entry *sym_entry = table[hash_val];
+	struct hash_entry *new_entry;
+	struct hash_entry *successor;
 
 	while (sym_entry) {
 		if (!strcmp (sym, sym_entry->name)) {	/* entry already exists */
@@ -147,7 +147,7 @@ int     ccllookup (ccltxt)
 /* findsym - find symbol in symbol table */
 
 static struct hash_entry *findsym (sym, table, table_size)
-     register const char *sym;
+     const char *sym;
      hash_table table;
      int     table_size;
 {
@@ -155,7 +155,7 @@ static struct hash_entry *findsym (sym, table, table_size)
 		(struct hash_entry *) 0, (struct hash_entry *) 0,
 		(char *) 0, (char *) 0, 0,
 	};
-	register struct hash_entry *sym_entry =
+	struct hash_entry *sym_entry =
 
 		table[hashfunct (sym, table_size)];
 
@@ -171,11 +171,11 @@ static struct hash_entry *findsym (sym, table, table_size)
 /* hashfunct - compute the hash value for "str" and hash size "hash_size" */
 
 static int hashfunct (str, hash_size)
-     register const char *str;
+     const char *str;
      int     hash_size;
 {
-	register int hashval;
-	register int locstr;
+	int hashval;
+	int locstr;
 
 	hashval = 0;
 	locstr = 0;
