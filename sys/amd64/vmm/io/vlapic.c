@@ -430,6 +430,8 @@ vlapic_fire_timer(struct vlapic *vlapic)
 	}
 }
 
+static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
+
 static int
 lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 {
@@ -466,9 +468,11 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 		while ((i = cpusetobj_ffs(&dmask)) != 0) {
 			i--;
 			CPU_CLR(i, &dmask);
-			if (mode == APIC_DELMODE_FIXED)
+			if (mode == APIC_DELMODE_FIXED) {
 				lapic_set_intr(vlapic->vm, i, vec);
-			else
+				vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
+						    IPIS_SENT, i, 1);
+			} else
 				vm_inject_nmi(vlapic->vm, i);
 		}
 

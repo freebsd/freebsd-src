@@ -39,8 +39,16 @@ __FBSDID("$FreeBSD$");
 #include "vmm_util.h"
 #include "vmm_stat.h"
 
-static int vstnum;
-static struct vmm_stat_type *vsttab[MAX_VMM_STAT_TYPES];
+/*
+ * 'vst_num_elems' is the total number of addressable statistic elements
+ * 'vst_num_types' is the number of unique statistic types
+ *
+ * It is always true that 'vst_num_elems' is greater than or equal to
+ * 'vst_num_types'. This is because a stat type may represent more than
+ * one element (for e.g. VMM_STAT_ARRAY).
+ */
+static int vst_num_elems, vst_num_types;
+static struct vmm_stat_type *vsttab[MAX_VMM_STAT_ELEMS];
 
 static MALLOC_DEFINE(M_VMM_STAT, "vmm stat", "vmm stat");
 
@@ -59,13 +67,15 @@ vmm_stat_init(void *arg)
 	if (vst->scope == VMM_STAT_SCOPE_AMD && !vmm_is_amd())
 		return;
 
-	if (vstnum >= MAX_VMM_STAT_TYPES) {
+	if (vst_num_elems + vst->nelems >= MAX_VMM_STAT_ELEMS) {
 		printf("Cannot accomodate vmm stat type \"%s\"!\n", vst->desc);
 		return;
 	}
 
-	vst->index = vstnum;
-	vsttab[vstnum++] = vst;
+	vst->index = vst_num_elems;
+	vst_num_elems += vst->nelems;
+
+	vsttab[vst_num_types++] = vst;
 }
 
 int
@@ -78,9 +88,9 @@ vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
 		return (EINVAL);
 		
 	stats = vcpu_stats(vm, vcpu);
-	for (i = 0; i < vstnum; i++)
+	for (i = 0; i < vst_num_elems; i++)
 		buf[i] = stats[i];
-	*num_stats = vstnum;
+	*num_stats = vst_num_elems;
 	return (0);
 }
 
@@ -89,7 +99,7 @@ vmm_stat_alloc(void)
 {
 	u_long size;
 	
-	size = vstnum * sizeof(uint64_t);
+	size = vst_num_elems * sizeof(uint64_t);
 
 	return (malloc(size, M_VMM_STAT, M_ZERO | M_WAITOK));
 }
@@ -100,14 +110,26 @@ vmm_stat_free(void *vp)
 	free(vp, M_VMM_STAT);
 }
 
-const char *
-vmm_stat_desc(int index)
+int
+vmm_stat_desc_copy(int index, char *buf, int bufsize)
 {
+	int i;
+	struct vmm_stat_type *vst;
 
-	if (index >= 0 && index < vstnum)
-		return (vsttab[index]->desc);
-	else
-		return (NULL);
+	for (i = 0; i < vst_num_types; i++) {
+		vst = vsttab[i];
+		if (index >= vst->index && index < vst->index + vst->nelems) {
+			if (vst->nelems > 1) {
+				snprintf(buf, bufsize, "%s[%d]",
+					 vst->desc, index - vst->index);
+			} else {
+				strlcpy(buf, vst->desc, bufsize);
+			}
+			return (0);	/* found it */
+		}
+	}
+
+	return (EINVAL);
 }
 
 /* global statistics */
