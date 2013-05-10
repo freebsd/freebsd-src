@@ -600,6 +600,7 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 # Checks to be sure system is ready for installworld/installkernel.
 #
 installcheck:
+installcheck_UGID:
 
 #
 # Require DESTDIR to be set if installing for a different architecture or
@@ -631,7 +632,6 @@ CHECK_GIDS+=	smmsp
 CHECK_UIDS+=	proxy
 CHECK_GIDS+=	proxy authpf
 .endif
-installcheck: installcheck_UGID
 installcheck_UGID:
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
@@ -685,7 +685,7 @@ EXTRA_DISTRIBUTIONS+=	games
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
 
-distributeworld installworld: installcheck
+distributeworld installworld: installcheck installcheck_UGID
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
