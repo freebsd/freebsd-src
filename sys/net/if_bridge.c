@@ -1700,6 +1700,9 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct bridge_softc *sc = ifp->if_bridge;
 	struct bridge_iflist *bif;
 
+	if (ifp->if_flags & IFF_RENAMING)
+		return;
+
 	/* Check if the interface is a bridge member */
 	if (sc != NULL) {
 		BRIDGE_LOCK(sc);
