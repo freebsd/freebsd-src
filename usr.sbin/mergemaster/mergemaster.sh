@@ -483,6 +483,7 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
   sleep 3
   SOURCEDIR=${SOURCEDIR}/..
 fi
+SOURCEDIR=$(realpath "$SOURCEDIR")
 
 # Setup make to use system files from SOURCEDIR
 MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
