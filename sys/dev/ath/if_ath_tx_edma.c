@@ -551,6 +551,22 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	 */
 	if (reset_type == ATH_RESET_NOLOSS) {
 		ath_edma_tx_processq(sc, 0);
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				/*
+				 * Free the holding buffer; DMA is now
+				 * stopped.
+				 */
+				ath_txq_freeholdingbuf(sc, &sc->sc_txq[i]);
+				/*
+				 * Reset the link pointer to NULL; there's
+				 * no frames to chain DMA to.
+				 */
+				sc->sc_txq[i].axq_link = NULL;
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
 	} else {
 		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i))
