@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2012 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_kern.h 11829 2012-09-26 04:06:34Z luigi $
  *
  * The header contains the definitions of constants and function
  * prototypes used only in kernelspace.
@@ -34,9 +33,8 @@
 #ifndef _NET_NETMAP_KERN_H_
 #define _NET_NETMAP_KERN_H_
 
-#define NETMAP_MEM2    // use the new memory allocator
-
 #if defined(__FreeBSD__)
+
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 
@@ -44,8 +42,10 @@
 #define	NM_SELINFO_T	struct selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
 #define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
+
 #elif defined (linux)
-#define	NM_LOCK_T	spinlock_t
+
+#define	NM_LOCK_T	safe_spinlock_t	// see bsd_glue.h
 #define	NM_SELINFO_T	wait_queue_head_t
 #define	MBUF_LEN(m)	((m)->len)
 #define	NM_SEND_UP(ifp, m)	netif_rx(m)
@@ -67,6 +67,7 @@
 #endif
 
 #elif defined (__APPLE__)
+
 #warning apple support is incomplete.
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
@@ -76,8 +77,10 @@
 #define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
 
 #else
+
 #error unsupported platform
-#endif
+
+#endif /* end - platform-specific code */
 
 #define ND(format, ...)
 #define D(format, ...)						\
@@ -207,10 +210,20 @@ struct netmap_adapter {
 	int (*nm_config)(struct ifnet *, u_int *txr, u_int *txd,
 					u_int *rxr, u_int *rxd);
 
+	/*
+	 * Bridge support:
+	 *
+	 * bdg_port is the port number used in the bridge;
+	 * na_bdg_refcount is a refcount used for bridge ports,
+	 *	when it goes to 0 we can detach+free this port
+	 *	(a bridge port is always attached if it exists;
+	 *	it is not always registered)
+	 */
 	int bdg_port;
+	int na_bdg_refcount;
+
 #ifdef linux
 	struct net_device_ops nm_ndo;
-	int if_refcount;	// XXX additions for bridge
 #endif /* linux */
 };
 
@@ -245,6 +258,10 @@ enum {
 #endif
 };
 
+/* How to handle locking support in netmap_rx_irq/netmap_tx_irq */
+#define	NETMAP_LOCKED_ENTER	0x10000000	/* already locked on enter */
+#define	NETMAP_LOCKED_EXIT	0x20000000	/* keep locked on exit */
+
 /*
  * The following are support routines used by individual drivers to
  * support netmap operation.
@@ -272,7 +289,7 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 int netmap_ring_reinit(struct netmap_kring *);
 
 extern u_int netmap_buf_size;
-#define NETMAP_BUF_SIZE	netmap_buf_size
+#define NETMAP_BUF_SIZE	netmap_buf_size	// XXX remove
 extern int netmap_mitigate;
 extern int netmap_no_pendintr;
 extern u_int netmap_total_buffers;
@@ -431,20 +448,16 @@ netmap_idx_k2n(struct netmap_kring *kr, int idx)
 }
 
 
-#ifdef NETMAP_MEM2
 /* Entries of the look-up table. */
 struct lut_entry {
 	void *vaddr;		/* virtual address. */
-	vm_paddr_t paddr;	/* phisical address. */
+	vm_paddr_t paddr;	/* physical address. */
 };
 
 struct netmap_obj_pool;
 extern struct lut_entry *netmap_buffer_lut;
 #define NMB_VA(i)	(netmap_buffer_lut[i].vaddr)
 #define NMB_PA(i)	(netmap_buffer_lut[i].paddr)
-#else /* NETMAP_MEM1 */
-#define NMB_VA(i)	(netmap_buffer_base + (i * NETMAP_BUF_SIZE) )
-#endif /* NETMAP_MEM2 */
 
 /*
  * NMB return the virtual address of a buffer (buffer 0 on bad index)
@@ -462,11 +475,8 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 {
 	uint32_t i = slot->buf_idx;
 	void *ret = (i >= netmap_total_buffers) ? NMB_VA(0) : NMB_VA(i);
-#ifdef NETMAP_MEM2
+
 	*pp = (i >= netmap_total_buffers) ? NMB_PA(0) : NMB_PA(i);
-#else
-	*pp = vtophys(ret);
-#endif
 	return ret;
 }
 
@@ -474,5 +484,4 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 int netmap_rx_irq(struct ifnet *, int, int *);
 #define netmap_tx_irq(_n, _q) netmap_rx_irq(_n, _q, NULL)
 
-extern int netmap_copy;
 #endif /* _NET_NETMAP_KERN_H_ */
