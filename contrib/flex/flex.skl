@@ -1030,10 +1030,12 @@ extern int yywrap M4_YY_PARAMS( M4_YY_PROTO_ONLY_ARG );
 #endif
 
 %not-for-header
+#ifndef YY_NO_UNPUT
     m4_ifdef( [[M4_YY_NO_UNPUT]],,
     [[
     static void yyunput M4_YY_PARAMS( int c, char *buf_ptr  M4_YY_PROTO_LAST_ARG);
     ]])
+#endif
 %ok-for-header
 %endif
 
@@ -1808,6 +1810,7 @@ m4_ifdef( [[M4_YY_USES_REJECT]],
 
 
 %if-c-only
+#ifndef YY_NO_UNPUT
 m4_ifdef( [[M4_YY_NO_UNPUT]],,
 [[
     static void yyunput YYFARGS2( int,c, char *,yy_bp)
@@ -1861,6 +1864,7 @@ m4_ifdef( [[M4_YY_USE_LINENO]],
 }
 %if-c-only
 ]])
+#endif	/* ifndef YY_NO_UNPUT */
 %endif
 
 %if-c-only
