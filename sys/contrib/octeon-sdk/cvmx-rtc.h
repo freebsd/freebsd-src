@@ -126,18 +126,9 @@ static inline uint32_t cvmx_rtc_read(void)
         return cvmx_rtc_ds1374_read();
         break;
 
-    case CVMX_BOARD_TYPE_EBH3000:
-    case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
-    case CVMX_BOARD_TYPE_EBH5200:
-#if defined(OCTEON_VENDOR_GEFES)
-    case CVMX_BOARD_TYPE_CUST_W63XX:
-#endif
+    default:
 	return cvmx_rtc_ds1337_read();
 	break;
-
-    default:
-        return 0;
-        break;
     }
 }
 
@@ -156,18 +147,9 @@ static inline uint32_t cvmx_rtc_write(uint32_t time)
         return cvmx_rtc_ds1374_write(time);
         break;
 
-    case CVMX_BOARD_TYPE_EBH3000:
-    case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
-    case CVMX_BOARD_TYPE_EBH5200:
-#if defined(OCTEON_VENDOR_GEFES)
-    case CVMX_BOARD_TYPE_CUST_W63XX:
-#endif
+    default:
 	return cvmx_rtc_ds1337_write(time);
 	break;
-
-    default:
-        return 0;
-        break;
     }
 }
 
