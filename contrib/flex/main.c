@@ -1575,11 +1575,12 @@ void readin ()
     }
 
 	if (!do_yywrap) {
-		if (!C_plus_plus)
+		if (!C_plus_plus) {
 			 if (reentrant)
 				outn ("\n#define yywrap(yyscanner) 1");
 			 else
 				outn ("\n#define yywrap() 1");
+		}
 		outn ("#define YY_SKIP_YYWRAP");
 	}
 

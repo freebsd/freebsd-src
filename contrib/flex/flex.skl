@@ -196,6 +196,9 @@ m4_ifdef( [[M4_YY_TABLES_EXTERNAL]],
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
 #if defined(__FreeBSD__)
+#ifndef __STDC_LIMIT_MACROS
+#define	__STDC_LIMIT_MACROS
+#endif
 #include <sys/cdefs.h>
 #else
 #define	__dead2
@@ -203,6 +206,7 @@ m4_ifdef( [[M4_YY_TABLES_EXTERNAL]],
 
 /* begin standard C headers. */
 %if-c-only
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

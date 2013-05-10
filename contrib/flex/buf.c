@@ -98,7 +98,7 @@ struct Buf *buf_linedir (struct Buf *buf, const char* filename, int lineno)
                     1);                                  /* NUL */
     if (!t)
       flexfatal (_("Allocation of buffer for line directive failed"));
-    for (dst = t + sprintf (t, "#line %d \"", lineno), src = filename; *src; *dst++ = *src++)
+    for (dst = t + sprintf (t, "#line %d \"", lineno), src = (char *)filename; *src; *dst++ = *src++)
       if (*src == '\\')   /* escape backslashes */
         *dst++ = '\\';
     *dst++ = '"';

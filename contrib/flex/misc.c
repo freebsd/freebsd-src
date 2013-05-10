@@ -117,7 +117,7 @@ void action_define (defname, value)
  *  @param defname The macro name.
  *  @param value The macro value, can be NULL, which is the same as the empty string.
  */
-void action_m4_define (const char *defname, const char * value)
+static void action_m4_define (const char *defname, const char * value)
 {
 	char    buf[MAXLINE];
 
