@@ -4668,9 +4668,21 @@ ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 			if (sc->sc_debug & ATH_DEBUG_RESET)
 				ath_tx_dump(sc, &sc->sc_txq[i]);
 #endif	/* ATH_DEBUG */
-			if (reset_type == ATH_RESET_NOLOSS)
+			if (reset_type == ATH_RESET_NOLOSS) {
 				ath_tx_processq(sc, &sc->sc_txq[i], 0);
-			else
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				/*
+				 * Free the holding buffer; DMA is now
+				 * stopped.
+				 */
+				ath_txq_freeholdingbuf(sc, &sc->sc_txq[i]);
+				/*
+				 * Reset the link pointer to NULL; there's
+				 * no frames to chain DMA to.
+				 */
+				sc->sc_txq[i].axq_link = NULL;
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			} else
 				ath_tx_draintxq(sc, &sc->sc_txq[i]);
 		}
 	}
