@@ -914,8 +914,8 @@ hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter, MV_EVENT_TYPE eventType,
 				else
 				{
 
-					MV_ERROR("RR18xx: illigal value for param1(%d) at "
-							 "connect/disconect event, host=%d\n", param1,
+					MV_ERROR("RR18xx: illegal value for param1(%d) at "
+							 "connect/disconnect event, host=%d\n", param1,
 							 pMvSataAdapter->adapterId );
 
 				}
@@ -983,7 +983,7 @@ hptmv_allocate_edma_queues(IAL_ADAPTER_T *pAdapter)
 	if ((pAdapter->responsesArrayBaseDmaAlignedAddr - pAdapter->responsesArrayBaseDmaAddr) != 
 		(pAdapter->responsesArrayBaseAlignedAddr - pAdapter->responsesArrayBaseAddr))
 	{
-		MV_ERROR("RR18xx[%d]: Error in Response Quueues Alignment\n",
+		MV_ERROR("RR18xx[%d]: Error in Response Queues Alignment\n",
 				 pAdapter->mvSataAdapter.adapterId);
 		contigfree(pAdapter->requestsArrayBaseAddr, REQUESTS_ARRAY_SIZE, M_DEVBUF);
 		contigfree(pAdapter->responsesArrayBaseAddr, RESPONSES_ARRAY_SIZE, M_DEVBUF);
