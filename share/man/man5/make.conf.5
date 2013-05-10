@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2013
+.Dd April 26, 2013
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -205,7 +205,7 @@ instead of
 the default install command.
 To install only files for which the target differs or does not exist, use
 .Bd -literal -offset indent
-INSTALL="install -C"
+INSTALL+= -C
 .Ed
 Note that some makefiles (including those in
 .Pa /usr/share/mk )
