@@ -151,5 +151,12 @@ int	mfi_reconfig_supported(void);
 const char *mfi_status(u_int status_code);
 const char *mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id,
     uint32_t def);
+int	mfi_bbu_get_props(int fd, struct mfi_bbu_properties *props,
+	    uint8_t *statusp);
+int	mfi_bbu_set_props(int fd, struct mfi_bbu_properties *props,
+	    uint8_t *statusp);
+void	mfi_autolearn_period(uint32_t, char *, size_t);
+void	mfi_next_learn_time(uint32_t, char *, size_t);
+void	mfi_autolearn_mode(uint8_t, char *, size_t);
 
 #endif /* !__MFIUTIL_H__ */
