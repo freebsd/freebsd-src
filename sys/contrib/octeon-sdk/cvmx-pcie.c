@@ -518,41 +518,6 @@ retry:
         return -1;
     }
 
-#if defined(CONFIG_GEFES_SUPPORT) /* Commented out for now */
-    /* check if we should initialize this port */
-    if ((cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_TNPA56X4) ||
-                (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_TNPA5651X)) {
-        unsigned char fpga_ekeylanes0 = 0;
-        unsigned char fpga_ekeylanes1 = 0;
-
-        cvmx_get_mmc_ekeying(&fpga_ekeylanes0, &fpga_ekeylanes1);
-        /* For pcie_port 0 - QLM0 (& optionally QLM1)
-           x4 PCIe AMC ports 4-7 via QLM0
-           x8 PCIe AMC ports 4-7 via QLM0 and AMC ports 8-11 via QLM1
-           root complex or end point configuration
-           must be root complex via "if (npei_ctl_status.s.host_mode) {"
-        */
-
-        if ((pcie_port == 0) && (fpga_ekeylanes1 == 0)) {
-                return -1;
-        }
-
-        /* For pcie_port 1 - QLM2 in RC only connected to 82571 ethernet */
-        /* always enabled, don't check ekeying lanes */
-    }
-    else /* all other GEFES boards(maybe just WANIC?)*/
-    {
-        cvmx_npei_ctl_status_t npei_ctl_status;
-
-        npei_ctl_status.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_CTL_STATUS);
-        if ( (pcie_port == 1) && (!npei_ctl_status.s.host_mode) )
-        {
-                cvmx_dprintf("PCIe: Port 1 not used (RC only), skipping.\\n");
-                return -1;
-        }
-    }
-#endif /* CONFIG_GEFES_SUPPORT */
-
     /* PCIe switch arbitration mode. '0' == fixed priority NPEI, PCIe0, then PCIe1. '1' == round robin. */
     npei_ctl_status.s.arb = 1;
     /* Allow up to 0x20 config retries */
@@ -1023,27 +988,6 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
         return -1;
     }
 
-#ifdef CONFIG_GEFES_SUPPORT /* commented out for now */
-    /* check if we should initialize this port */
-    if ((cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_TNPA56X4) ||
-            (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_TNPA5651X)) {
-        unsigned char fpga_ekeylanes0;
-        unsigned char fpga_ekeylanes1;
-
-        cvmx_get_mmc_ekeying(&fpga_ekeylanes0, &fpga_ekeylanes1);
-        /* For pcie_port 0 - QLM0 (& optionally QLM1)
-           x4 PCIe AMC ports 4-7 via QLM0
-           x8 PCIe AMC ports 4-7 via QLM0 and AMC ports 8-11 via QLM1
-           root complex or end point configuration
-           must be endpoint via "if (npei_ctl_status.s.host_mode) {"
-        */
-        if (( pcie_port == 0) && (fpga_ekeylanes1 == 0)) {
-                return -1;
-        }
-        /* can't get here for pcie_port 1 as is always only root complex configured */
-    }
-#endif /* CONFIG_GEFES_SUPPORT */
-
     /* CN63XX Pass 1.0 errata G-14395 requires the QLM De-emphasis be programmed */
     if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_0))
     {
@@ -1398,43 +1342,6 @@ uint32_t cvmx_pcie_config_read32(int pcie_port, int bus, int dev, int fn, int re
 {
     uint64_t address;
 
-#ifdef CONFIG_GEFES_SUPPORT /* Commented out for now */
-	
-    int result;
-
-	/* if U-boot initializes the PCIe ports, then to Linux
-	   it looks as if the ports are up, when in fact, the
-	   port 0 link could be down because there is no endpoint
-	   configured card present.  If that is the case, U-boot
-	   would not have configured the access to the PCIe config
-	   space for that port and Linux would crash when it tries
-	   to access that memory space.  This code checks to see
-	   if root complex mode is configured, and if it is, if
-	   the link is up for the port before trying to access
-	   the config space.
-	*/
-
-	/* root complex ? */
-	result = cvmx_pcie_dogetinfo(pcie_port, 2);
-	if (result == 1) {
-		//cvmx_dprintf("cvmx_pcie_config_read32: pcie_port %d in root complex mode\n", pcie_port);
-	} else {
-		//cvmx_dprintf("cvmx_pcie_config_read32: pcie_port %d in end point mode\n", pcie_port);
-	}
-		
-	if (result == 1) {
-		/* link up? */
-		result = cvmx_pcie_dogetinfo(pcie_port, 0);
-
-		if (result == 1) {
-			//cvmx_dprintf("cvmx_pcie_config_read32: pcie_port %d link UP\n", pcie_port);
-		} else {
-			cvmx_dprintf("cvmx_pcie_config_read32: pcie_port %d link DOWN\n", pcie_port);
-			return 0xffffffff;
-		}
-	}
-#endif  /* CONFIG_GEFES_SUPPORT */
-	
     address = __cvmx_pcie_build_config_addr(pcie_port, bus, dev, fn, reg);
     if (address)
         return cvmx_le32_to_cpu(cvmx_read64_uint32(address));
@@ -1793,135 +1700,3 @@ void cvmx_pcie_wait_for_pending(int pcie_port)
         }
     }
 }
-
-#ifdef CONFIG_GEFES_SUPPORT
-/* eastestdebug - add ekeying from MMC routine */
-/* support routine for CVMX_BOARD_TYPE_TNPA56X4 ekeying */
-void cvmx_get_mmc_ekeying(unsigned char *fpga_ekeylanes0, unsigned char *fpga_ekeylanes1)
-{
-    switch (cvmx_sysinfo_get()->board_type) {
-    case CVMX_BOARD_TYPE_TNPA56X4:
-        case CVMX_BOARD_TYPE_TNPA5651X:
-            /*TODO: need to check AMC shelf response for 4-7 and 8-11*/
-        /*TODO: get rid of magic numbers for FPGA access*/
-        /* IPMI define = BOARD_FPGA_DPRAM_PORT_EN_0 */
-        /* base ports 0 & 1, fabric xaui 4-7 */
-        *fpga_ekeylanes0 = *(char*)0x8000000016000080;
-        /* IPMI define = BOARD_FPGA_DPRAM_PORT_EN_1 */
-        /* fabric pcie 4-7, fabric pcie 8-11 */
-        *fpga_ekeylanes1 = *(char*)0x8000000016000082;
-    default:
-        /* TBD for other board types */
-        break;
-    }
-}
-
-/* eastestdebug - add cvmx_pcie_getinfo for PCIe /proc/ data */
-/**
- * Get desired info for a PCIe port on our Octeon.
- * Note not possible to have multiple devObj from caller.
- *
- * @param pcie_port PCIe port to get info for
- *
- * @return uint8_t value for desired info
- */
-int cvmx_pcie_dogetinfo(int pcie_port, int infotype)
-{
-cvmx_pciercx_cfg032_t pciercx_cfg032;
-cvmx_npei_ctl_status_t npei_ctl_status;
-unsigned char fpga_ekeylanes0 = 0;
-unsigned char fpga_ekeylanes1 = 0;
-uint64_t start_cycle;
-
-    switch (cvmx_sysinfo_get()->board_type) {
-    case CVMX_BOARD_TYPE_TNPA56X4:
-    case CVMX_BOARD_TYPE_TNPA5651X:
-        switch (infotype) {
-        case 0:     /* link up (1) /down (0) */
-#if 0
-            pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
-            if (pciercx_cfg032.s.nlw) {
-                /* link up */
-                return(1);
-            }
-            return(0);
-#endif
-            /* Wait for the link to come up */
-            //cvmx_dprintf("PCIe: Waiting for port %d link\n", pcie_port);
-            start_cycle = cvmx_get_cycle();
-            pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
-            while (pciercx_cfg032.s.dlla == 0) {
-	        /* if (cvmx_get_cycle() - start_cycle > 2*cvmx_sysinfo_get()->cpu_clock_hz) */
-		if (cvmx_get_cycle() - start_cycle > 100 * cvmx_sysinfo_get()->cpu_clock_hz)
-                {
-                    cvmx_dprintf("PCIe: Port %d link timeout\n", pcie_port);
-                    return 0;
-                }
-		/* cvmx_wait(10000); */
-		cvmx_wait(50000);
-                pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
-            }
-
-            /* Display the link status */
-            //cvmx_dprintf("PCIe: Port %d link active, %d lanes\n", pcie_port, pciercx_cfg032.s.nlw);
-       	    return(1);
-
-        case 1:     /* link valid (1) / disabled (0) */
-            /* CVMX_BOARD_TYPE_TNPA56X4 specific */
-            if (pcie_port == 1) {
-                /* port 1 - QLM2 RC x4 always enabled */
-                return (1);
-            }
-            cvmx_get_mmc_ekeying(&fpga_ekeylanes0, &fpga_ekeylanes1);
-            if (fpga_ekeylanes1) {
-                /* ekeying on for something - i.e. valid */
-                return(1);
-            }
-            return(0);
-        case 2:     /* link type root complex (1) /end point (0) */
-            if (pcie_port == 1) {
-                /* port 1 - QLM2 RC x4 always enabled */
-                return (1);
-            }
-            /* check if port 0 host (rc) or endpoint */
-            npei_ctl_status.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_CTL_STATUS);
-            if (npei_ctl_status.s.host_mode) {
-                return(1);
-            }
-            return(0);
-        case 3:     /* desired link size x8 (8) /x4 (4) */
-            cvmx_get_mmc_ekeying(&fpga_ekeylanes0, &fpga_ekeylanes1);
-            if (fpga_ekeylanes1 & 0xf0) {
-                return (8);     /* x8 */
-            } else if (fpga_ekeylanes1 & 0x0f) {
-                return (4);     /* x4 */
-            }
-            break;  /* disabled */
-        case 4:     /* actual configured link size x32 (32)/ x16 (16) /x8 (8) /x4 (4) /x2 (2) x1 (1) */
-            pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
-            switch (pciercx_cfg032.s.nlw) {
-            case 1: /* 1 lane */
-                return(1);
-            case 2: /* 2 lanes */
-                return(2);
-            case 4: /* 4 lanes */
-                return(4);
-            case 8: /* 8 lanes */
-                return(8);
-            default:
-                break;
-            }
-            /* unknown, return x4 */
-            return(4);
-        default:
-            /* TBD for other info types */
-            return 0;
-        }
-        break;
-    default:
-        /* TBD for other board types */
-        break;
-    }
-    return 0;
-}
-#endif  /* CONFIG_GEFES_SUPPORT */
