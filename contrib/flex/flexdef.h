@@ -61,7 +61,6 @@ char *alloca ();
 #include <setjmp.h>
 #include <ctype.h>
 #include <string.h>
-#include <math.h>
 #endif
 #ifdef HAVE_ASSERT_H
 #include <assert.h>
@@ -170,6 +169,9 @@ char *alloca ();
  * readability.
  */
 #define NUMDATALINES 10
+
+/* Number of characters to print a line number, i.e., 1 + log10(INT_MAX) */
+#define NUMCHARLINES 10
 
 /* transition_struct_out() definitions. */
 #define TRANS_STRUCT_PRINT_LENGTH 14
