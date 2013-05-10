@@ -2,6 +2,8 @@
 
 .include <bsd.own.mk>
 
+.PATH:	${.CURDIR}/../../../contrib/flex
+
 LIB=    ln
 SRCS=   libmain.c libyywrap.c
 NO_PIC=

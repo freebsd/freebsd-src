@@ -1138,6 +1138,10 @@ _nmtree=	lib/libnetbsd \
 _cat=		bin/cat
 .endif
 
+.if ${BOOTSTRAPPING} < 1000033
+_m4=		usr.bin/m4
+.endif
+
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
 _awk=		usr.bin/awk
 .endif
@@ -1200,6 +1204,7 @@ bootstrap-tools:
     usr.bin/rpcgen \
     ${_sed} \
     ${_yacc} \
+    ${_m4} \
     ${_lex} \
     lib/libmd \
     usr.bin/xinstall \
