@@ -36,10 +36,12 @@
 .Nd split a file into pieces
 .Sh SYNOPSIS
 .Nm
+.Fl d
 .Op Fl l Ar line_count
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
+.Fl d
 .Fl b Ar byte_count Ns
 .Oo
 .Sm off
@@ -49,10 +51,12 @@
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
+.Fl d
 .Fl n Ar chunk_count
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
+.Fl d
 .Fl p Ar pattern
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
@@ -108,6 +112,8 @@ or
 is appended to the number, the file is split into
 .Ar byte_count
 gigabyte pieces.
+.It Fl d
+Use a numeric suffix instead of a alphabetic suffix.
 .It Fl l Ar line_count
 Create split files
 .Ar line_count
