@@ -1511,7 +1511,7 @@ static void
 delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 {
 	char *logfname, *s, *dir, errbuf[80];
-	int dirfd, i, logcnt, max_logcnt, valid;
+	int dirfd, i, logcnt, max_logcnt;
 	struct oldlog_entry *oldlogs;
 	struct dirent *dp;
 	const char *cdir;
