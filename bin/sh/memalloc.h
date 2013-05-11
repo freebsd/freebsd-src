@@ -39,7 +39,6 @@ struct stackmark {
 	struct stack_block *stackp;
 	char *stacknxt;
 	int stacknleft;
-        struct stackmark *marknext;
 };
 
 
