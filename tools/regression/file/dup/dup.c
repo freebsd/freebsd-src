@@ -144,9 +144,13 @@ main(int __unused argc, char __unused *argv[])
 		printf("ok %d - dup2(2) didn't clear close-on-exec\n", test);
 
 	/* Does fcntl(F_DUPFD) work? */
-	if ((fd2 = fcntl(fd1, F_DUPFD)) < 0)
+	if ((fd2 = fcntl(fd1, F_DUPFD, 10)) < 0)
 		err(1, "fcntl(F_DUPFD)");
-	printf("ok %d - fcntl(F_DUPFD) works\n", ++test);
+	if (fd2 < 10)
+		printf("not ok %d - fcntl(F_DUPFD) returned wrong fd %d\n",
+		    ++test, fd2);
+	else
+		printf("ok %d - fcntl(F_DUPFD) works\n", ++test);
 
 	/* Was close-on-exec cleared? */
 	++test;
