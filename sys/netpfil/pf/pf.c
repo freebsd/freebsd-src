@@ -1102,7 +1102,7 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 	if (cur != NULL) {
 		PF_HASHROW_UNLOCK(ih);
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
-			printf("pf: state insert failed: "
+			printf("pf: state ID collision: "
 			    "id: %016llx creatorid: %08x\n",
 			    (unsigned long long)be64toh(s->id),
 			    ntohl(s->creatorid));
