@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 *  ThunderBolt specific Register
 */
 
+#define MFI_RFPI	0x48 		/* reply_free_post_host_index */
 #define MFI_RPI		0x6c 		/* reply_post_host_index */
 #define MFI_ILQP 	0xc0		/* inbound_low_queue_port */
 #define MFI_IHQP 	0xc4		/* inbound_high_queue_port */
@@ -262,6 +263,13 @@ typedef enum {
 #define MFI_FRAME_DIR_READ			0x0010
 #define MFI_FRAME_DIR_BOTH			0x0018
 #define MFI_FRAME_IEEE_SGL			0x0020
+#define MFI_FRAME_FMT "\20" \
+    "\1NOPOST" \
+    "\2SGL64" \
+    "\3SENSE64" \
+    "\4WRITE" \
+    "\5READ" \
+    "\6IEEESGL"
 
 /* ThunderBolt Specific */
 
@@ -459,8 +467,8 @@ typedef enum {
 #define MFI_FRAME_SIZE		64
 #define MFI_MBOX_SIZE		12
 
-/* Firmware flashing can take 40s */
-#define MFI_POLL_TIMEOUT_SECS	50
+/* Firmware flashing can take 50+ seconds */
+#define MFI_POLL_TIMEOUT_SECS	60
 
 /* Allow for speedier math calculations */
 #define MFI_SECTOR_LEN		512

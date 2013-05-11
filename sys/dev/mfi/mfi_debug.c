@@ -57,14 +57,7 @@ __FBSDID("$FreeBSD$");
 static void
 mfi_print_frame_flags(device_t dev, uint32_t flags)
 {
-	device_printf(dev, "flags=%b\n", flags,
-	    "\20"
-	    "\1NOPOST"
-	    "\2SGL64"
-	    "\3SENSE64"
-	    "\4WRITE"
-	    "\5READ"
-	    "\6IEEESGL");
+	device_printf(dev, "flags=%b\n", flags, MFI_FRAME_FMT);
 }
 
 static void
@@ -214,16 +207,7 @@ mfi_print_cmd(struct mfi_command *cm)
 	device_printf(dev, "cm=%p index=%d total_frame_size=%d "
 	    "extra_frames=%d\n", cm, cm->cm_index, cm->cm_total_frame_size,
 	    cm->cm_extra_frames);
-	device_printf(dev, "flags=%b\n", cm->cm_flags,
-	    "\20"
-	    "\1MAPPED"
-	    "\2DATAIN"
-	    "\3DATAOUT"
-	    "\4COMPLETED"
-	    "\5POLLED"
-	    "\6Q_FREE"
-	    "\7Q_READY"
-	    "\10Q_BUSY");
+	device_printf(dev, "flags=%b\n", cm->cm_flags, MFI_CMD_FLAGS_FMT);
 
 	switch (cm->cm_frame->header.cmd) {
 	case MFI_CMD_DCMD:
@@ -246,7 +230,7 @@ mfi_dump_cmds(struct mfi_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < sc->mfi_total_cmds; i++)
+	for (i = 0; i < sc->mfi_max_fw_cmds; i++)
 		mfi_print_generic_frame(sc, &sc->mfi_commands[i]);
 }
 
