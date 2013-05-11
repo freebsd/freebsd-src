@@ -111,16 +111,24 @@ _py_d =
 .if ${META2DEPS:E} == "py"
 # we can afford to do this all the time.
 DPDEPS ?= no
-META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} \
-	-R ${RELDIR} -H ${HOST_TARGET} \
-	${M2D_OBJROOTS:O:u:@o@-O $o@}
+META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} 
+.if ${DPDEPS:tl} != "no"
+META2DEPS_CMD += -D ${DPDEPS}
+.endif
+META2DEPS_FILTER = sed 's,^src:,${SRCTOP}/,;s,^\([^/]\),${OBJTOP}/\1,' |
+.elif ${META2DEPS:E} == "sh"
+META2DEPS_CMD = ${_time} ${_sh_x} ${META2DEPS} OBJTOP=${_OBJTOP}
+.else
+META2DEPS_CMD ?= ${META2DEPS}
+.endif
 
 .if ${TARGET_OBJ_SPEC:U${MACHINE}} != ${MACHINE}
 META2DEPS_CMD += -T ${TARGET_OBJ_SPEC}
 .endif
-.if ${DPDEPS:tl} != "no"
-META2DEPS_CMD += -D ${DPDEPS}
-.endif
+META2DEPS_CMD += \
+	-R ${RELDIR} -H ${HOST_TARGET} \
+	${M2D_OBJROOTS:O:u:@o@-O $o@}
+
 
 M2D_OBJROOTS += ${OBJTOP} ${_OBJROOT} ${_objroot}
 .if defined(SB_OBJROOT)
@@ -135,13 +143,6 @@ META2DEPS_ARGS += MACHINE=none
 .if defined(SB_BACKING_SB) 
 META2DEPS_CMD += -S ${SB_BACKING_SB}/src 
 M2D_OBJROOTS += ${SB_BACKING_SB}/${SB_OBJPREFIX}
-.endif
-META2DEPS_FILTER = sed 's,^src:,${SRCTOP}/,;s,^\([^/]\),${OBJTOP}/\1,' |
-.elif ${META2DEPS:E} == "sh"
-META2DEPS_CMD = ${_time} ${_sh_x} ${META2DEPS} \
-	OBJTOP=${_objtop} SB_OBJROOT=${_objroot}
-.else
-META2DEPS_CMD ?= ${META2DEPS}
 .endif
 
 # we are only interested in the dirs

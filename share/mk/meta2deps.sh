@@ -114,16 +114,89 @@ meta2dirs() {
     sort -u
 }
 
+add_list() {
+    sep=' '
+    suffix=
+    while :
+    do
+	case "$1" in
+	"|") sep="$1"; shift;;
+	-s) suffix="$2"; shift 2;;
+	*) break;;
+	esac
+    done
+    name=$1
+    shift
+    eval list="\$$name"
+    for top in "$@"
+    do
+	case "$sep$list$sep" in
+	*"$sep$top$suffix$sep"*) continue;;
+	esac
+	list="${list:+$list$sep}$top$suffix"
+    done
+    eval "$name=\"$list\""
+}
+
 meta2deps() {
     DPDEPS=
+    SRCTOPS=$SRCTOP
+    OBJROOTS=
     while :
     do
 	case "$1" in
 	*=*) eval export "$1"; shift;;
+	-a) MACHINE_ARCH=$2; shift 2;;
+	-m) MACHINE=$2; shift 2;;
+	-C) CURDIR=$2; shift 2;;
+	-H) HOST_TARGET=$2; shift 2;;
+	-S) add_list SRCTOPS $2; shift 2;;
+	-O) add_list OBJROOTS $2; shift 2;;
+	-R) RELDIR=$2; shift 2;;
+	-T) TARGET_SPEC=$2; shift 2;;
 	*) break;;
 	esac
     done
 
+    _th= _o=
+    case "$MACHINE" in
+    host) _ht=$HOST_TARGET;;
+    esac
+    
+    for o in $OBJROOTS
+    do
+	case "$MACHINE,/$o/" in
+	host,*$HOST_TARGET*) ;;
+	*$MACHINE*|*${TARGET_SPEC:-$MACHINE}*) ;;
+	*) add_list _o $o; continue;;
+	esac
+	for x in $_ht $TARGET_SPEC $MACHINE
+	do
+	    case "$o" in
+	    "") continue;;
+	    */$x/) add_list _o ${o%$x/}; o=;;
+	    */$x) add_list _o ${o%$x}; o=;;
+	    *$x/) add_list _o ${o%$x/}; o=;;
+	    *$x) add_list _o ${o%$x}; o=;;
+	    esac
+	done
+    done
+    OBJROOTS="$_o"
+
+    case "$OBJTOP" in
+    "")
+	for o in $OBJROOTS
+	do
+	    OBJTOP=$o${TARGET_SPEC:-$MACHINE}
+	    break
+	done
+	;;
+    esac
+    src_re=
+    obj_re=
+    add_list '|' -s '/*' src_re $SRCTOPS
+    add_list '|' -s '*' obj_re $OBJROOTS
+    
     [ -z "$RELDIR" ] && unset DPDEPS
     tf=/tmp/m2d$$-$USER
     rm -f $tf.*
@@ -165,7 +238,7 @@ meta2deps() {
 	esac
 
 	case "$op,$path" in
-	W,*srcrel) continue;;
+	W,*srcrel|*.dirdep) continue;;
 	C,*)
 	    case "$path" in
 	    /*) cwd=$path;;
@@ -180,8 +253,7 @@ meta2deps() {
 	    ;;	  
 	*)  dir=${path%/*}
 	    case "$path" in
-	    $SB/*|${SB_BACKING_SB:-$SB}/*) ;;
-	    $SB_OBJROOT*) ;;
+	    $src_re|$obj_re) ;;
 	    /*/stage/*) ;;
 	    /*) continue;;
 	    *)	for path in $ldir/$path $cwd/$path
@@ -213,7 +285,7 @@ meta2deps() {
 	esac
 	case "$dir" in
 	${CURDIR:-.}|${CURDIR:-.}/*|"") continue;;
-	$SRCTOP/*|${SB_BACKING_SB:-$SB}/src/*)
+	$src_re)
 	    # avoid repeating ourselves...
 	    case "$DPDEPS,$seensrc," in
 	    ,*)
@@ -239,7 +311,7 @@ meta2deps() {
 	[ -f $path ] || continue
 	case "$dir" in
 	$CWD) continue;;		# ignore
-	$SRCTOP/*|${SB_BACKING_SB:-$SB}/src/*)
+	$src_re)
 	    seenit="$seenit,$seen"
 	    echo $dir >> $tf.srcdep
 	    case "$DPDEPS,$reldir,$seensrc," in
@@ -265,7 +337,7 @@ meta2deps() {
 	fi
 	seenit="$seenit,$seen"
 	case "$dir" in
-	$SB/*|${SB_OBJROOT:-$SB/}*|${SB_BACKING_SB:-$SB}/*)
+	$obj_re)
 	    echo $dir;;
 	esac
     done > $tf.dirdep
@@ -281,7 +353,7 @@ meta2deps() {
 	    # qualified with .<machine> as needed.
 	    # We strip .$MACHINE though
 	    xargs cat < $f | sort -u |
-	    sed "s,^# ,,;s,^,$OBJTOP/,;s,\.$MACHINE\$,,"
+	    sed "s,^# ,,;s,^,$OBJTOP/,;s,\.${TARGET_SPEC:-$MACHINE}\$,,;s,\.$MACHINE\$,,"
 	    ;;
 	*)  sort -u $f;;
 	esac
