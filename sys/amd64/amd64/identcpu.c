@@ -407,11 +407,11 @@ printcpuinfo(void)
 				       /* Restricted Transactional Memory */
 				       "\014RTM"
 				       /* Enhanced NRBG */
-				       "\022RDSEED"
+				       "\023RDSEED"
 				       /* ADCX + ADOX */
-				       "\023ADX"
+				       "\024ADX"
 				       /* Supervisor Mode Access Prevention */
-				       "\024SMAP"
+				       "\025SMAP"
 				       );
 			}
 
