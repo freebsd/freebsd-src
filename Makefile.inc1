@@ -1176,7 +1176,8 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/lib/libroken \
 	kerberos5/lib/libvers \
 	kerberos5/tools/asn1_compile \
-	kerberos5/tools/slc
+	kerberos5/tools/slc \
+	usr.bin/compile_et
 .endif
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
