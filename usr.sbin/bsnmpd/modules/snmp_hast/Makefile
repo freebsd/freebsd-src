@@ -29,8 +29,8 @@ CFLAGS+=-DYY_NO_UNPUT
 CFLAGS+=-DYY_NO_INPUT
 CFLAGS+= -DSNMPTREE_TYPES
 
-DPADD=	${LIBL} ${LIBUTIL}
-LDADD=	-ll -lutil
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 XSYM=	begemotHast
 DEFS=	${MOD}_tree.def

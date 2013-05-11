@@ -46,6 +46,7 @@ int lineno;
 
 %option noinput
 %option nounput
+%option noyywrap
 
 %%
 control			{ DP; return CONTROL; }
