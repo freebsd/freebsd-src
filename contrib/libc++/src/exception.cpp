@@ -14,7 +14,7 @@
 #define __has_include(inc) 0
 #endif
 
-#if __APPLE__
+#ifdef __APPLE__
   #include <cxxabi.h>
 
   using namespace __cxxabiv1;
@@ -33,7 +33,7 @@
   #if defined(LIBCXXRT) || defined(_LIBCPPABI_VERSION)
     #define HAVE_DEPENDENT_EH_ABI 1
   #endif
-#else  // __has_include(<cxxabi.h>)
+#elif !defined(__GLIBCXX__) // __has_include(<cxxabi.h>)
   static std::terminate_handler  __terminate_handler;
   static std::unexpected_handler __unexpected_handler;
 #endif // __has_include(<cxxabi.h>)
@@ -41,7 +41,7 @@
 namespace std
 {
 
-#if !defined(LIBCXXRT) && !defined(_LIBCPPABI_VERSION)
+#if !defined(LIBCXXRT) && !defined(_LIBCPPABI_VERSION) && !defined(__GLIBCXX__)
 
 // libcxxrt provides implementations of these functions itself.
 unexpected_handler
@@ -77,6 +77,7 @@ get_terminate() _NOEXCEPT
     return __sync_fetch_and_add(&__terminate_handler, (terminate_handler)0);
 }
 
+#ifndef EMSCRIPTEN // We provide this in JS
 _LIBCPP_NORETURN
 void
 terminate() _NOEXCEPT
@@ -97,12 +98,13 @@ terminate() _NOEXCEPT
     }
 #endif  // _LIBCPP_NO_EXCEPTIONS
 }
+#endif // !EMSCRIPTEN
 #endif // !defined(LIBCXXRT) && !defined(_LIBCPPABI_VERSION)
 
-#ifndef LIBCXXRT
+#if !defined(LIBCXXRT) && !defined(__GLIBCXX__) && !defined(EMSCRIPTEN)
 bool uncaught_exception() _NOEXCEPT
 {
-#if __APPLE__ || defined(_LIBCPPABI_VERSION)
+#if defined(__APPLE__) || defined(_LIBCPPABI_VERSION)
     // on Darwin, there is a helper function so __cxa_get_globals is private
     return __cxa_uncaught_exception();
 #else  // __APPLE__
@@ -124,7 +126,7 @@ const char* exception::what() const _NOEXCEPT
 
 #endif  // _LIBCPPABI_VERSION
 #endif //LIBCXXRT
-#ifndef _LIBCPPABI_VERSION
+#if !defined(_LIBCPPABI_VERSION) && !defined(__GLIBCXX__)
 
 bad_exception::~bad_exception() _NOEXCEPT
 {
