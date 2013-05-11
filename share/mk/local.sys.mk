@@ -25,22 +25,12 @@ M_whence = ${M_type}:M/*
 # convert a path to a valid shell variable
 M_P2V = tu:C,[./-],_,g
 
-# convert path to absolute
-.if ${MAKE_VERSION:U0} > 20100408
-M_tA = tA
-.else
-M_tA = C,.*,('cd' & \&\& 'pwd') 2> /dev/null || echo &,:sh
-.endif
-
-# this is handy for forcing a space into something.
-AnEmptyVar=
-
 # absoulte path to what we are reading.
-_PARSEDIR = ${.PARSEDIR:${M_tA}}
+_PARSEDIR = ${.PARSEDIR:tA}
 
 .if !empty(SB)
 SB_SRC ?= ${SB}/src
-SB_OBJROOT ?= ${SB}/obj
+SB_OBJROOT ?= ${SB}/obj/
 # this is what we use below
 SRCTOP ?= ${SB_SRC}
 OBJROOT ?= ${SB_OBJROOT}
@@ -55,7 +45,21 @@ OBJROOT ?= ${SRCTOP:H}/obj/
 # we need HOST_TARGET etc below.
 .include <host-target.mk>
 
-OBJTOP ?= ${OBJROOT}${MACHINE}
+# from src/Makefile (for universe)
+TARGET_ARCHES_arm?=     arm armeb armv6 armv6eb
+TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32
+TARGET_ARCHES_powerpc?= powerpc powerpc64
+TARGET_ARCHES_pc98?=    i386
+
+# the list of machines we support
+ALL_MACHINE_LIST?= amd64 arm i386 ia64 mips pc98 powerpc sparc64
+.for m in ${ALL_MACHINE_LIST:O:u}
+MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
+MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
+.endfor
+.if empty(MACHINE_ARCH)
+MACHINE_ARCH:= ${TARGET_ARCH:U${MACHINE_ARCH.${MACHINE}}}
+.endif
 
 .if !defined(_TARGETS)
 # some things we do only once
@@ -70,6 +74,36 @@ OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 .export OBJROOT
 .endif
 .endif
+
+# now because for universe we want to potentially
+# build for multiple MACHINE_ARCH per MACHINE
+# we need more than MACHINE in TARGET_SPEC
+TARGET_SPEC_VARS= MACHINE MACHINE_ARCH
+# see dirdeps.mk
+.if ${TARGET_SPEC:Uno:M*,*} != ""
+_tspec := ${TARGET_SPEC:S/,/ /g}
+MACHINE := ${_tspec:[1]}
+MACHINE_ARCH := ${_tspec:[2]}
+# etc.
+# We need to stop that TARGET_SPEC affecting any submakes
+# and deal with MACHINE=${TARGET_SPEC} in the environment.
+TARGET_SPEC=
+# export but do not track
+.export-env TARGET_SPEC 
+.export ${TARGET_SPEC_VARS}
+.for v in ${TARGET_SPEC_VARS:O:u}
+.if empty($v)
+.undef $v
+.endif
+.endfor
+.endif
+# make sure we know what TARGET_SPEC is
+# as we may need it to find Makefile.depend*
+TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
+
+# to be consistent with src/Makefile just concatenate with '.'s
+TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
+OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
 
 .if !empty(SRCTOP)
 .if ${.CURDIR} == ${SRCTOP}
@@ -140,11 +174,11 @@ STAGE_ROOT?= ${OBJROOT}stage
 .if ${MACHINE} == "host"
 STAGE_MACHINE= ${HOST_TARGET}
 .else
-STAGE_MACHINE= ${MACHINE}
+STAGE_MACHINE:= ${TARGET_OBJ_SPEC}
 .endif
-STAGE_OBJTOP= ${STAGE_ROOT}/${STAGE_MACHINE}
-STAGE_COMMON_OBJTOP= ${STAGE_ROOT}/common
-STAGE_HOST_OBJTOP= ${STAGE_ROOT}/${HOST_TARGET}
+STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
+STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
+STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
 
 STAGE_LIBDIR= ${STAGE_OBJTOP}${LIBDIR:U/lib}
 # this is not the same as INCLUDEDIR
