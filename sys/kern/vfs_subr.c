@@ -2700,19 +2700,20 @@ vgone(struct vnode *vp)
 }
 
 static void
-vgonel_reclaim_lowervp_vfs(struct mount *mp __unused,
+notify_lowervp_vfs_dummy(struct mount *mp __unused,
     struct vnode *lowervp __unused)
 {
 }
 
 /*
- * Notify upper mounts about reclaimed vnode.
+ * Notify upper mounts about reclaimed or unlinked vnode.
  */
-static void
-vgonel_reclaim_lowervp(struct vnode *vp)
+void
+vfs_notify_upper(struct vnode *vp, int event)
 {
 	static struct vfsops vgonel_vfsops = {
-		.vfs_reclaim_lowervp = vgonel_reclaim_lowervp_vfs
+		.vfs_reclaim_lowervp = notify_lowervp_vfs_dummy,
+		.vfs_unlink_lowervp = notify_lowervp_vfs_dummy,
 	};
 	struct mount *mp, *ump, *mmp;
 
@@ -2736,7 +2737,17 @@ vgonel_reclaim_lowervp(struct vnode *vp)
 		}
 		TAILQ_INSERT_AFTER(&mp->mnt_uppers, ump, mmp, mnt_upper_link);
 		MNT_IUNLOCK(mp);
-		VFS_RECLAIM_LOWERVP(ump, vp);
+		switch (event) {
+		case VFS_NOTIFY_UPPER_RECLAIM:
+			VFS_RECLAIM_LOWERVP(ump, vp);
+			break;
+		case VFS_NOTIFY_UPPER_UNLINK:
+			VFS_UNLINK_LOWERVP(ump, vp);
+			break;
+		default:
+			KASSERT(0, ("invalid event %d", event));
+			break;
+		}
 		MNT_ILOCK(mp);
 		ump = TAILQ_NEXT(mmp, mnt_upper_link);
 		TAILQ_REMOVE(&mp->mnt_uppers, mmp, mnt_upper_link);
@@ -2783,7 +2794,7 @@ vgonel(struct vnode *vp)
 	active = vp->v_usecount;
 	oweinact = (vp->v_iflag & VI_OWEINACT);
 	VI_UNLOCK(vp);
-	vgonel_reclaim_lowervp(vp);
+	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_RECLAIM);
 
 	/*
 	 * Clean out any buffers associated with the vnode.
