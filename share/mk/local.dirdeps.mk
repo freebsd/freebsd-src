@@ -13,6 +13,13 @@ DIRDEPS += gnu/lib/libssp/libssp_nonshared
 DIRDEPS += pkgs/pseudo/stage
 .endif
 
+M_dep_qual_fixes += C;\.host,[^/.,]*$$;.host;
+M_dep_qual_fixes += C;\.common,[^/.,]*$$;.common;
+
+CSU_DIR.i386 = csu/i386-elf
+CSU_DIR.${DEP_MACHINE_ARCH} ?= csu/${DEP_MACHINE_ARCH}
+CSU_DIR := ${CSU_DIR.${DEP_MACHINE_ARCH}}
+
 # we want to supress these dependencies for host tools
 DIRDEPS_FILTER.host = \
 	Ninclude* \
