@@ -505,6 +505,9 @@ static int log_arp_wrong_iface = 1;
 static int log_arp_movements = 1;
 static int log_arp_permanent_modify = 1;
 static int allow_multicast = 0;
+static struct timeval arp_lastlog;
+static int arp_curpps;
+static int arp_maxpps = 1;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
@@ -517,6 +520,15 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
 	"log arp replies from MACs different than the one in the permanent arp entry");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, allow_multicast, CTLFLAG_RW,
 	&allow_multicast, 0, "accept multicast addresses");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
+	CTLFLAG_RW, &arp_maxpps, 0,
+	"Maximum number of remotely triggered ARP messages that can be "
+	"logged per second");
+
+#define	ARP_LOG(pri, ...)	do {					\
+	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
+		log((pri), "arp: " __VA_ARGS__);			\
+} while (0)
 
 static void
 in_arpinput(struct mbuf *m)
@@ -546,7 +558,7 @@ in_arpinput(struct mbuf *m)
 
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
 	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
-		log(LOG_NOTICE, "in_arp: runt packet -- m_pullup failed\n");
+		ARP_LOG(LOG_NOTICE, "runt packet -- m_pullup failed\n");
 		return;
 	}
 
@@ -556,13 +568,13 @@ in_arpinput(struct mbuf *m)
 	 * a protocol length not equal to an IPv4 address.
 	 */
 	if (ah->ar_pln != sizeof(struct in_addr)) {
-		log(LOG_NOTICE, "in_arp: requested protocol length != %zu\n",
+		ARP_LOG(LOG_NOTICE, "requested protocol length != %zu\n",
 		    sizeof(struct in_addr));
 		goto drop;
 	}
 
 	if (allow_multicast == 0 && ETHER_IS_MULTICAST(ar_sha(ah))) {
-		log(LOG_NOTICE, "arp: %*D is multicast\n",
+		ARP_LOG(LOG_NOTICE, "%*D is multicast\n",
 		    ifp->if_addrlen, (u_char *)ar_sha(ah), ":");
 		goto drop;
 	}
@@ -658,9 +670,8 @@ match:
 	if (!bcmp(ar_sha(ah), enaddr, ifp->if_addrlen))
 		goto drop;	/* it's from me, ignore it. */
 	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
-		log(LOG_NOTICE,
-		    "arp: link address is broadcast for IP address %s!\n",
-		    inet_ntoa(isaddr));
+		ARP_LOG(LOG_NOTICE, "link address is broadcast for IP address "
+		    "%s!\n", inet_ntoa(isaddr));
 		goto drop;
 	}
 	/*
@@ -671,7 +682,7 @@ match:
 	 */
 	if (!bridged && !carped && isaddr.s_addr == myaddr.s_addr &&
 	    myaddr.s_addr != 0) {
-		log(LOG_ERR, "arp: %*D is using my IP address %s on %s!\n",
+		ARP_LOG(LOG_ERR, "%*D is using my IP address %s on %s!\n",
 		   ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
 		   inet_ntoa(isaddr), ifp->if_xname);
 		itaddr = myaddr;
@@ -694,7 +705,7 @@ match:
 		/* the following is not an error when doing bridging */
 		if (!bridged && la->lle_tbl->llt_ifp != ifp) {
 			if (log_arp_wrong_iface)
-				log(LOG_WARNING, "arp: %s is on %s "
+				ARP_LOG(LOG_WARNING, "%s is on %s "
 				    "but got reply from %*D on %s\n",
 				    inet_ntoa(isaddr),
 				    la->lle_tbl->llt_ifp->if_xname,
@@ -708,8 +719,8 @@ match:
 			if (la->la_flags & LLE_STATIC) {
 				LLE_WUNLOCK(la);
 				if (log_arp_permanent_modify)
-					log(LOG_ERR,
-					    "arp: %*D attempts to modify "
+					ARP_LOG(LOG_ERR,
+					    "%*D attempts to modify "
 					    "permanent entry for %s on %s\n",
 					    ifp->if_addrlen,
 					    (u_char *)ar_sha(ah), ":",
@@ -717,7 +728,7 @@ match:
 				goto reply;
 			}
 			if (log_arp_movements) {
-				log(LOG_INFO, "arp: %s moved from %*D "
+				ARP_LOG(LOG_INFO, "%s moved from %*D "
 				    "to %*D on %s\n",
 				    inet_ntoa(isaddr),
 				    ifp->if_addrlen,
@@ -729,7 +740,7 @@ match:
 
 		if (ifp->if_addrlen != ah->ar_hln) {
 			LLE_WUNLOCK(la);
-			log(LOG_WARNING, "arp from %*D: addr len: new %d, "
+			ARP_LOG(LOG_WARNING, "from %*D: addr len: new %d, "
 			    "i/f %d (ignored)\n", ifp->if_addrlen,
 			    (u_char *) ar_sha(ah), ":", ah->ar_hln,
 			    ifp->if_addrlen);
@@ -837,7 +848,7 @@ reply:
 			if (!rt)
 				goto drop;
 			if (rt->rt_ifp != ifp) {
-				log(LOG_INFO, "arp_proxy: ignoring request"
+				ARP_LOG(LOG_INFO, "proxy: ignoring request"
 				    " from %s via %s, expecting %s\n",
 				    inet_ntoa(isaddr), ifp->if_xname,
 				    rt->rt_ifp->if_xname);
