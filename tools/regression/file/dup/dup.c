@@ -32,6 +32,12 @@
  * Test #18: check if fcntl(F_DUPFD_CLOEXEC) works.
  * Test #19: check if fcntl(F_DUPFD_CLOEXEC) set close-on-exec flag for duped
  *           fd.
+ * Test #20: check if fcntl(F_DUP2FD_CLOEXEC) works.
+ * Test #21: check if fcntl(F_DUP2FD_CLOEXEC) returned a fd we asked for.
+ * Test #22: check if fcntl(F_DUP2FD_CLOEXEC) set close-on-exec flag for duped
+ *           fd.
+ * Test #23: check if fcntl(F_DUP2FD_CLOEXEC) to a fd > current maximum number
+ *           of open files limit work.
  */
 
 #include <sys/types.h>
@@ -68,7 +74,7 @@ main(int __unused argc, char __unused *argv[])
 
 	orgfd = getafile();
 
-	printf("1..19\n");
+	printf("1..23\n");
 
 	/* If dup(2) ever work? */
 	if ((fd1 = dup(orgfd)) < 0)
@@ -249,6 +255,46 @@ main(int __unused argc, char __unused *argv[])
 		    test);
 	else
 		printf("ok %d - fcntl(F_DUPFD_CLOEXEC) set close-on-exec\n",
+		    test);
+
+	/* If fcntl(F_DUP2FD_CLOEXEC) ever work? */
+	if ((fd2 = fcntl(fd1, F_DUP2FD_CLOEXEC, fd1 + 1)) < 0)
+		err(1, "fcntl(F_DUP2FD_CLOEXEC)");
+	printf("ok %d - fcntl(F_DUP2FD_CLOEXEC) works\n", ++test);
+
+	/* Do we get the right fd? */
+	++test;
+	if (fd2 != fd1 + 1)
+		printf(
+		    "no ok %d - fcntl(F_DUP2FD_CLOEXEC) didn't give us the right fd\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUP2FD_CLOEXEC) returned a correct fd\n",
+		    test);
+
+	/* Was close-on-exec set? */
+	++test;
+	if (fcntl(fd2, F_GETFD) != FD_CLOEXEC)
+		printf(
+		    "not ok %d - fcntl(F_DUP2FD_CLOEXEC) didn't set close-on-exec\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUP2FD_CLOEXEC) set close-on-exec\n",
+		    test);
+
+	/*
+	 * It is unclear what F_DUP2FD_CLOEXEC should do when duplicating a
+	 * file descriptor onto itself.
+	 */
+
+	++test;
+	if (getrlimit(RLIMIT_NOFILE, &rlp) < 0)
+		err(1, "getrlimit");
+	if ((fd2 = fcntl(fd1, F_DUP2FD_CLOEXEC, rlp.rlim_cur + 1)) >= 0)
+		printf("not ok %d - fcntl(F_DUP2FD_CLOEXEC) bypassed NOFILE limit\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUP2FD_CLOEXEC) didn't bypass NOFILE limit\n",
 		    test);
 
 	return (0);
