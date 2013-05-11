@@ -115,6 +115,9 @@ META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} \
 	-R ${RELDIR} -H ${HOST_TARGET} \
 	${M2D_OBJROOTS:O:u:@o@-O $o@}
 
+.if ${TARGET_OBJ_SPEC:U${MACHINE}} != ${MACHINE}
+META2DEPS_CMD += -T ${TARGET_OBJ_SPEC}
+.endif
 .if ${DPDEPS:tl} != "no"
 META2DEPS_CMD += -D ${DPDEPS}
 .endif
