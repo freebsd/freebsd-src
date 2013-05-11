@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 
 /* Returns one unit associated with specified level. */
 #define	VM_RADIX_UNITLEVEL(lev)						\
-	((vm_pindex_t)1 << ((VM_RADIX_LIMIT - (lev)) * VM_RADIX_WIDTH))
+	((vm_pindex_t)1 << ((lev) * VM_RADIX_WIDTH))
 
 struct vm_radix_node {
 	vm_pindex_t	 rn_owner;			/* Owner of record. */
@@ -150,8 +150,7 @@ static __inline int
 vm_radix_slot(vm_pindex_t index, uint16_t level)
 {
 
-	return ((index >> ((VM_RADIX_LIMIT - level) * VM_RADIX_WIDTH)) &
-	    VM_RADIX_MASK);
+	return ((index >> (level * VM_RADIX_WIDTH)) & VM_RADIX_MASK);
 }
 
 /* Trims the key after the specified level. */
@@ -161,9 +160,9 @@ vm_radix_trimkey(vm_pindex_t index, uint16_t level)
 	vm_pindex_t ret;
 
 	ret = index;
-	if (level < VM_RADIX_LIMIT) {
-		ret >>= (VM_RADIX_LIMIT - level) * VM_RADIX_WIDTH;
-		ret <<= (VM_RADIX_LIMIT - level) * VM_RADIX_WIDTH;
+	if (level > 0) {
+		ret >>= level * VM_RADIX_WIDTH;
+		ret <<= level * VM_RADIX_WIDTH;
 	}
 	return (ret);
 }
@@ -234,7 +233,7 @@ vm_radix_keydiff(vm_pindex_t index1, vm_pindex_t index2)
 	    __func__, (uintmax_t)index1));
 
 	index1 ^= index2;
-	for (clev = 0;; clev++)
+	for (clev = VM_RADIX_LIMIT;; clev--)
 		if (vm_radix_slot(index1, clev) != 0)
 			return (clev);
 }
@@ -247,8 +246,8 @@ static __inline boolean_t
 vm_radix_keybarr(struct vm_radix_node *rnode, vm_pindex_t idx)
 {
 
-	if (rnode->rn_clev > 0) {
-		idx = vm_radix_trimkey(idx, rnode->rn_clev - 1);
+	if (rnode->rn_clev < VM_RADIX_LIMIT) {
+		idx = vm_radix_trimkey(idx, rnode->rn_clev + 1);
 		return (idx != rnode->rn_owner);
 	}
 	return (FALSE);
@@ -384,7 +383,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 				    __func__, (uintmax_t)index);
 			clev = vm_radix_keydiff(m->pindex, index);
 			tmp = vm_radix_node_get(vm_radix_trimkey(index,
-			    clev - 1), 2, clev);
+			    clev + 1), 2, clev);
 			*parentp = tmp;
 			vm_radix_addpage(tmp, index, clev, page);
 			vm_radix_addpage(tmp, m->pindex, clev, m);
@@ -408,7 +407,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	 */
 	newind = rnode->rn_owner;
 	clev = vm_radix_keydiff(newind, index);
-	tmp = vm_radix_node_get(vm_radix_trimkey(index, clev - 1), 2,
+	tmp = vm_radix_node_get(vm_radix_trimkey(index, clev + 1), 2,
 	    clev);
 	*parentp = tmp;
 	vm_radix_addpage(tmp, index, clev, page);
@@ -545,7 +544,7 @@ ascend:
 		 */
 		goto ascend;
 descend:
-		KASSERT(rnode->rn_clev < VM_RADIX_LIMIT,
+		KASSERT(rnode->rn_clev > 0,
 		    ("vm_radix_lookup_ge: pushing leaf's parent"));
 		KASSERT(tos < VM_RADIX_LIMIT,
 		    ("vm_radix_lookup_ge: stack overflow"));
@@ -658,7 +657,7 @@ ascend:
 		 */
 		goto ascend;
 descend:
-		KASSERT(rnode->rn_clev < VM_RADIX_LIMIT,
+		KASSERT(rnode->rn_clev > 0,
 		    ("vm_radix_lookup_le: pushing leaf's parent"));
 		KASSERT(tos < VM_RADIX_LIMIT,
 		    ("vm_radix_lookup_le: stack overflow"));
