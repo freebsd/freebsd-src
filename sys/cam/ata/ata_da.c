@@ -350,12 +350,28 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Intel 320 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSA2CW*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * Intel 330 Series SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
 		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2ct*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Intel 510 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2MH*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
