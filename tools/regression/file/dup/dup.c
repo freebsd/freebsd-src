@@ -29,6 +29,9 @@
  *           duped fd.
  * Test #17: check if fcntl(F_DUP2FD) to a fd > current maximum number of open
  *           files limit work.
+ * Test #18: check if fcntl(F_DUPFD_CLOEXEC) works.
+ * Test #19: check if fcntl(F_DUPFD_CLOEXEC) set close-on-exec flag for duped
+ *           fd.
  */
 
 #include <sys/types.h>
@@ -65,7 +68,7 @@ main(int __unused argc, char __unused *argv[])
 
 	orgfd = getafile();
 
-	printf("1..17\n");
+	printf("1..19\n");
 
 	/* If dup(2) ever work? */
 	if ((fd1 = dup(orgfd)) < 0)
@@ -227,6 +230,25 @@ main(int __unused argc, char __unused *argv[])
 		    test);
 	else
 		printf("ok %d - fcntl(F_DUP2FD) didn't bypass NOFILE limit\n",
+		    test);
+
+	/* Does fcntl(F_DUPFD_CLOEXEC) work? */
+	if ((fd2 = fcntl(fd1, F_DUPFD_CLOEXEC, 10)) < 0)
+		err(1, "fcntl(F_DUPFD_CLOEXEC)");
+	if (fd2 < 10)
+		printf("not ok %d - fcntl(F_DUPFD_CLOEXEC) returned wrong fd %d\n",
+		    ++test, fd2);
+	else
+		printf("ok %d - fcntl(F_DUPFD_CLOEXEC) works\n", ++test);
+
+	/* Was close-on-exec cleared? */
+	++test;
+        if (fcntl(fd2, F_GETFD) != 1)
+		printf(
+		    "not ok %d - fcntl(F_DUPFD_CLOEXEC) didn't set close-on-exec\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUPFD_CLOEXEC) set close-on-exec\n",
 		    test);
 
 	return (0);
