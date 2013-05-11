@@ -4017,7 +4017,6 @@ OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 
 .if ${MK_SENDMAIL} == no
 OLD_FILES+=etc/periodic/daily/150.clean-hoststat
-OLD_FILES+=etc/periodic/daily/210.backup-aliases
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
