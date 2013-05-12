@@ -100,7 +100,7 @@ f_category_desc_set()
 
 #
 # Load descriptions for package categories. Note that we don't internationalize
-# category names because this would be confusing for people used to that browse
+# category names because this would be confusing for people used to browsing
 # the FTP mirrors or are otherwise familiar with an interface that does not
 # provide internationalized names. The descriptions can be used to provide i18n
 # users a description of the non-i18n category name.
