@@ -90,9 +90,6 @@ static inline cvmx_rtc_options_t cvmx_rtc_supported(void)
 	case CVMX_BOARD_TYPE_EBH3000:
 	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
 	case CVMX_BOARD_TYPE_EBH5200:
-#if defined(OCTEON_VENDOR_GEFES)
-	case CVMX_BOARD_TYPE_CUST_W63XX:
-#endif
 	    supported = CVMX_RTC_READ | CVMX_RTC_WRITE | CVMX_RTC_TIME_CAL;
 	    break;
 
