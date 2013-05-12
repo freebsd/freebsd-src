@@ -78,20 +78,28 @@ f_package_accent_category_menu()
 	while [ $# -gt 0 ]; do
 		cat="${1%\*}" desc="${2%%; *}" help="$3"
 		shift 3 # cat/desc/help
-		f_str2varname "${cat# }" varcat
 
-		# Add an asterisk to the category if its index has been cached
-		f_isset _index_page_${varcat}_1 && cat="$cat*"
+		cat="${cat# }" # Trim leading space inserted by sort-method
+		f_str2varname "$cat" varcat
 
 		# Add number of installed packages for this category (if any)
 		n=0
-		debug= f_getvar "_${varcat}_ninstalled" n &&
-			[ $n -ge 1 ] && desc="$desc; $n installed"
+		case "$cat" in
+		"$msg_all") debug= f_getvar "_All_ninstalled" n ;;
+		         *) debug= f_getvar "_${varcat}_ninstalled" n ;;
+		esac &&
+			[ $n -ge 1 ] && desc="$desc; $n $msg_installed_lc"
 
 		# Add number of selected packages for this category (if any)
 		n=0
-		debug= f_getvar "_${varcat}_nselected" n &&
-			[ $n -ge 1 ] && desc="$desc; $n selected"
+		case "$cat" in
+		"$msg_all") debug= f_getvar "_All_nselected" n ;;
+		         *) debug= f_getvar "_${varcat}_nselected" n ;;
+		esac &&
+			[ $n -ge 1 ] && desc="$desc; $n $msg_selected"
+
+		# Add an asterisk to the category if its index has been cached
+		f_isset _index_page_${varcat}_1 && cat="$cat*"
 
 		# Update buffer with modified elements
 		menu_buf="$menu_buf
@@ -365,7 +373,7 @@ f_package_menu_select()
 
 	# Get number of packages for this category
 	case "$category" in
-	"All"|"") npkgs="${_npkgs:-0}";;
+	"$msg_all"|"") npkgs="${_npkgs:-0}";;
 	*) f_getvar _npkgs_$varcat npkgs
 	esac
 
@@ -437,7 +445,12 @@ f_package_menu_select()
 	" # End-Quote
 
 	local prompt=""
-	f_category_desc_get "$category" prompt
+	# Accept/Translate i18n "All" but other category names must
+	# match tree definitions from INDEX, ports, FTP, etc.
+	case "$category" in
+	"$msg_all"|"") f_category_desc_get "All" prompt ;;
+	            *) f_category_desc_get "$category" prompt ;;
+	esac
 	prompt="$prompt $( printf "$msg_page_of_npages" \
 	                          "$page" "$npages" )"
 
