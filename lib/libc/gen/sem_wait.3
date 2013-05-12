@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2000
+.Dd April 16, 2013
 .Dt SEM_WAIT 3
 .Os
 .Sh NAME
@@ -74,6 +74,14 @@ argument
 points to an invalid semaphore.
 .El
 .Pp
+Additionally,
+.Fn sem_wait
+will fail if:
+.Bl -tag -width Er
+.Pp
+.It Bq Er EINTR
+A signal interrupted this function.
+.El
 Additionally,
 .Fn sem_trywait
 will fail if:

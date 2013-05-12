@@ -2970,7 +2970,8 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 		error = 0;
 	else {
 		umtxq_remove(uq);
-		if (error == ERESTART)
+		/* A relative timeout cannot be restarted. */
+		if (error == ERESTART && timeout != NULL)
 			error = EINTR;
 	}
 	umtxq_unlock(&uq->uq_key);
