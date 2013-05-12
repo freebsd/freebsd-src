@@ -965,7 +965,7 @@ ucom_cfg_line_state(struct usb_proc_msg *_task)
 	sc->sc_pls_set = 0;
 	sc->sc_pls_clr = 0;
 
-	/* ensure that we don't loose any levels */
+	/* ensure that we don't lose any levels */
 	if (notch_bits & UCOM_LS_DTR)
 		sc->sc_callback->ucom_cfg_set_dtr(sc,
 		    (prev_value & UCOM_LS_DTR) ? 1 : 0);
