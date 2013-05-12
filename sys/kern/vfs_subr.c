@@ -3494,7 +3494,6 @@ vfs_unmountall(void)
 	struct thread *td;
 	int error;
 
-	KASSERT(curthread != NULL, ("vfs_unmountall: NULL curthread"));
 	CTR1(KTR_VFS, "%s: unmounting all filesystems", __func__);
 	td = curthread;
 

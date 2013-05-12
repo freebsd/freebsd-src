@@ -623,7 +623,6 @@ thread_single(int mode)
 	p = td->td_proc;
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT((td != NULL), ("curthread is NULL"));
 
 	if ((p->p_flag & P_HADTHREADS) == 0)
 		return (0);
