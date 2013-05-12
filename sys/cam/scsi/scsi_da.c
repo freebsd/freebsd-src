@@ -3355,7 +3355,7 @@ daprevent(struct cam_periph *periph, int action)
 		     5000);
 
 	error = cam_periph_runccb(ccb, daerror, CAM_RETRY_SELTO,
-	    SF_RETRY_UA | SF_QUIET_IR, softc->disk->d_devstat);
+	    SF_RETRY_UA | SF_NO_PRINT, softc->disk->d_devstat);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)
