@@ -199,7 +199,6 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
@@ -221,7 +220,6 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
@@ -244,7 +242,6 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock_spin() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
@@ -268,7 +265,6 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
@@ -299,7 +295,6 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return (1);
 
-	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_trylock() of destroyed mutex @ %s:%d", file, line));
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,

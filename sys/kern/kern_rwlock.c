@@ -237,7 +237,6 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
@@ -282,7 +281,6 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return;
-	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wunlock() of destroyed rwlock @ %s:%d", file, line));
 	_rw_assert(rw, RA_WLOCKED, file, line);
