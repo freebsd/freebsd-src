@@ -54,6 +54,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pctrie.h>
 
 struct bufobj;
 struct buf_ops;
@@ -65,7 +66,7 @@ TAILQ_HEAD(buflists, buf);
 /* A Buffer splay list */
 struct bufv {
 	struct buflists	bv_hd;		/* Sorted blocklist */
-	struct buf	*bv_root;	/* Buf splay tree */
+	struct pctrie	bv_root;	/* Buf trie */
 	int		bv_cnt;		/* Number of buffers */
 };
 
