@@ -99,7 +99,11 @@ f_category_desc_set()
 ############################################################ MAIN
 
 #
-# Load descriptions for package categories
+# Load descriptions for package categories. Note that we don't internationalize
+# category names because this would be confusing for people used to that browse
+# the FTP mirrors or are otherwise familiar with an interface that does not
+# provide internationalized names. The descriptions can be used to provide i18n
+# users a description of the non-i18n category name.
 #
 f_category() { f_category_desc_set "$1" "$2"; }
 f_category All           "$msg_all_available_packages_in_all_categories"
