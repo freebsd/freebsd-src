@@ -38,7 +38,11 @@
 #define	PCTRIE_DEFINE(name, type, field, allocfn, freefn)		\
 									\
 CTASSERT(sizeof(((struct type *)0)->field) == sizeof(uint64_t));	\
-CTASSERT((__offsetof(struct type, field) & (sizeof(uint64_t) - 1)) == 0); \
+/*									\
+ * XXX This assert protects flag bits, it does not enforce natural	\
+ * alignment.  32bit architectures do not naturally align 64bit fields.	\
+ */									\
+CTASSERT((__offsetof(struct type, field) & (sizeof(uint32_t) - 1)) == 0); \
 									\
 static __inline struct type *						\
 name##_PCTRIE_VAL2PTR(uint64_t *val)					\
