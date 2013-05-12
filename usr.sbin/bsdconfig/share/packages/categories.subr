@@ -106,7 +106,7 @@ f_category_desc_set()
 # users a description of the non-i18n category name.
 #
 f_category() { f_category_desc_set "$1" "$2"; }
-f_category All           "$msg_all_available_packages_in_all_categories"
+f_category All           "$msg_all_desc"
 f_category accessibility "$msg_accessibility_desc"
 f_category afterstep     "$msg_afterstep_desc"
 f_category arabic        "$msg_arabic_desc"
