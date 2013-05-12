@@ -1452,16 +1452,27 @@ oldlog_entry_compare(const void *a, const void *b)
  * tm if this is the case; otherwise return false.
  */
 static int
-validate_old_timelog(const struct dirent *dp, const char *logfname, struct tm *tm)
+validate_old_timelog(int fd, const struct dirent *dp, const char *logfname,
+    struct tm *tm)
 {
+	struct stat sb;
 	size_t logfname_len;
 	char *s;
 	int c;
 
 	logfname_len = strlen(logfname);
 
-	if (dp->d_type != DT_REG)
-		return (0);
+	if (dp->d_type != DT_REG) {
+		/*
+		 * Some filesystems (e.g. NFS) don't fill out the d_type field
+		 * and leave it set to DT_UNKNOWN; in this case we must obtain
+		 * the file type ourselves.
+		 */
+		if (dp->d_type != DT_UNKNOWN ||
+		    fstatat(fd, dp->d_name, &sb, AT_SYMLINK_NOFOLLOW) != 0 ||
+		    !S_ISREG(sb.st_mode))
+			return (0);
+	}
 	/* Ignore everything but files with our logfile prefix. */
 	if (strncmp(dp->d_name, logfname, logfname_len) != 0)
 		return (0);
@@ -1547,7 +1558,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		err(1, "Cannot open log directory '%s'", dir);
 	dir_fd = dirfd(dirp);
 	while ((dp = readdir(dirp)) != NULL) {
-		if (validate_old_timelog(dp, logfname, &tm) == 0)
+		if (validate_old_timelog(dir_fd, dp, logfname, &tm) == 0)
 			continue;
 
 		/*
@@ -2312,10 +2323,10 @@ mtime_old_timelog(const char *file)
 	dir_fd = dirfd(dirp);
 	/* Open the archive dir and find the most recent archive of logfname. */
 	while ((dp = readdir(dirp)) != NULL) {
-		if (validate_old_timelog(dp, logfname, &tm) == 0)
+		if (validate_old_timelog(dir_fd, dp, logfname, &tm) == 0)
 			continue;
 
-		if (fstatat(dir_fd, logfname, &sb, 0) == -1) {
+		if (fstatat(dir_fd, logfname, &sb, AT_SYMLINK_NOFOLLOW) == -1) {
 			warn("Cannot stat '%s'", file);
 			continue;
 		}
