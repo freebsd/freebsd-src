@@ -1290,6 +1290,8 @@ m4_ifdef( [[M4_YY_NOT_REENTRANT]],
     ]])
 ]])
 
+%% [7.0] user's declarations go here
+
 m4_ifdef( [[M4_YY_BISON_LVAL]],
 [[
     yylval = yylval_param;
@@ -1344,9 +1346,6 @@ m4_ifdef( [[M4_YY_USES_REJECT]],
 
 		yy_load_buffer_state( M4_YY_CALL_ONLY_ARG );
 		}
-
-	{
-%% [7.0] user's declarations go here
 
 	while ( 1 )		/* loops until end-of-file is reached */
 		{
@@ -1505,7 +1504,6 @@ do_action:	/* This label is used only to access EOF actions. */
 			"fatal flex scanner internal error--no action found" );
 	} /* end of action switch */
 		} /* end of scanning one token */
-	} /* end of user's declarations */
 } /* end of yylex */
 %ok-for-header
 
