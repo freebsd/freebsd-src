@@ -124,6 +124,9 @@ soft_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (ps == NULL)
 		return (EINVAL);
 	pmc_soft_ev_release(ps);
+	/* Module unload is protected by pmc SX lock. */
+	if (ps->ps_alloc != NULL)
+		ps->ps_alloc();
 
 	return (0);
 }
@@ -311,6 +314,8 @@ static int
 soft_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
 	struct pmc_hw *phw;
+	enum pmc_event ev;
+	struct pmc_soft *ps;
 
 	(void) pmc;
 
@@ -324,9 +329,16 @@ soft_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[soft,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-	/*
-	 * Nothing to do.
-	 */
+	ev = pmc->pm_event;
+
+	/* Check if event is registered. */
+	ps = pmc_soft_ev_acquire(ev);
+	KASSERT(ps != NULL,
+	    ("[soft,%d] unregistered event %d", __LINE__, ev));
+	pmc_soft_ev_release(ps);
+	/* Module unload is protected by pmc SX lock. */
+	if (ps->ps_release != NULL)
+		ps->ps_release();
 	return (0);
 }
 

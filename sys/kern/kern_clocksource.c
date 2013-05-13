@@ -732,12 +732,15 @@ cpu_startprofclock(void)
 {
 
 	ET_LOCK();
-	if (periodic) {
-		configtimer(0);
-		profiling = 1;
-		configtimer(1);
+	if (profiling == 0) {
+		if (periodic) {
+			configtimer(0);
+			profiling = 1;
+			configtimer(1);
+		} else
+			profiling = 1;
 	} else
-		profiling = 1;
+		profiling++;
 	ET_UNLOCK();
 }
 
@@ -749,12 +752,15 @@ cpu_stopprofclock(void)
 {
 
 	ET_LOCK();
-	if (periodic) {
-		configtimer(0);
+	if (profiling == 1) {
+		if (periodic) {
+			configtimer(0);
+			profiling = 0;
+			configtimer(1);
+		} else
 		profiling = 0;
-		configtimer(1);
 	} else
-		profiling = 0;
+		profiling--;
 	ET_UNLOCK();
 }
 
