@@ -62,15 +62,15 @@ int rflag, Iflag;
 uid_t uid;
 volatile sig_atomic_t info;
 
-int	check(char *, char *, struct stat *);
-int	check2(char **);
-void	checkdot(char **);
-void	checkslash(char **);
-void	rm_file(char **);
-int	rm_overwrite(char *, struct stat *);
-void	rm_tree(char **);
+static int	check(const char *, const char *, struct stat *);
+static int	check2(char **);
+static void	checkdot(char **);
+static void	checkslash(char **);
+static void	rm_file(char **);
+static int	rm_overwrite(const char *, struct stat *);
+static void	rm_tree(char **);
 static void siginfo(int __unused);
-void	usage(void);
+static void	usage(void);
 
 /*
  * rm --
@@ -169,7 +169,7 @@ main(int argc, char *argv[])
 	exit (eval);
 }
 
-void
+static void
 rm_tree(char **argv)
 {
 	FTS *fts;
@@ -412,7 +412,7 @@ rm_file(char **argv)
  * have kernel support.
  */
 int
-rm_overwrite(char *file, struct stat *sbp)
+rm_overwrite(const char *file, struct stat *sbp)
 {
 	struct stat sb, sb2;
 	struct statfs fsb;
@@ -478,8 +478,8 @@ err:	eval = 1;
 }
 
 
-int
-check(char *path, char *name, struct stat *sp)
+static int
+check(const char *path, const char *name, struct stat *sp)
 {
 	int ch, first;
 	char modep[15], *flagsp;
@@ -490,7 +490,7 @@ check(char *path, char *name, struct stat *sp)
 	else {
 		/*
 		 * If it's not a symbolic link and it's unwritable and we're
-		 * talking to a terminal, ask.	Symbolic links are excluded
+		 * talking to a terminal, ask.  Symbolic links are excluded
 		 * because their permissions are meaningless.  Check stdin_ok
 		 * first because we may not have stat'ed the file.
 		 */
@@ -523,7 +523,7 @@ check(char *path, char *name, struct stat *sp)
 }
 
 #define ISSLASH(a)	((a)[0] == '/' && (a)[1] == '\0')
-void
+static void
 checkslash(char **argv)
 {
 	char **t, **u;
@@ -543,7 +543,7 @@ checkslash(char **argv)
 	}
 }
 
-int
+static int
 check2(char **argv)
 {
 	struct stat st;
@@ -594,7 +594,7 @@ check2(char **argv)
 }
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
-void
+static void
 checkdot(char **argv)
 {
 	char *p, **save, **t;
@@ -618,7 +618,7 @@ checkdot(char **argv)
 	}
 }
 
-void
+static void
 usage(void)
 {
 
