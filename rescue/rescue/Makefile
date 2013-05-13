@@ -184,6 +184,9 @@ CRUNCH_PROGS_usr.bin+= bzip2
 CRUNCH_ALIAS_bzip2= bunzip2 bzcat
 CRUNCH_LIBS+= -lbz2
 
+CRUNCH_PROGS_usr.bin+= less
+CRUNCH_ALIAS_less= more
+
 CRUNCH_PROGS_usr.bin+= xz
 CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
 CRUNCH_LIBS+= -llzma
