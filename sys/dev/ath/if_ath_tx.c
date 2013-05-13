@@ -3251,13 +3251,19 @@ ath_tx_tid_bar_unsuspend(struct ath_softc *sc, struct ath_tid *tid)
 	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: tid=%p, called\n",
+	    "%s: %6D: tid=%p, called\n",
 	    __func__,
+	    tid->an->an_node.ni_macaddr,
+	    ":",
 	    tid);
 
 	if (tid->bar_tx == 0 || tid->bar_wait == 0) {
-		device_printf(sc->sc_dev, "%s: bar_tx=%d, bar_wait=%d: ?\n",
-		    __func__, tid->bar_tx, tid->bar_wait);
+		device_printf(sc->sc_dev,
+		    "%s: %6D: bar_tx=%d, bar_wait=%d: ?\n",
+		    __func__,
+		    tid->an->an_node.ni_macaddr,
+		    ":",
+		    tid->bar_tx, tid->bar_wait);
 	}
 
 	tid->bar_tx = tid->bar_wait = 0;
@@ -3278,8 +3284,12 @@ ath_tx_tid_bar_tx_ready(struct ath_softc *sc, struct ath_tid *tid)
 	if (tid->bar_wait == 0 || tid->hwq_depth > 0)
 		return (0);
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR, "%s: tid=%p (%d), bar ready\n",
-	    __func__, tid, tid->tid);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
+	    "%s: %6D: tid=%p (%d), bar ready\n",
+	    __func__,
+	    tid->an->an_node.ni_macaddr,
+	    ":",
+	    tid, tid->tid);
 
 	return (1);
 }
@@ -3304,8 +3314,10 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: tid=%p, called\n",
+	    "%s: %6D: tid=%p, called\n",
 	    __func__,
+	    tid->an->an_node.ni_macaddr,
+	    ":",
 	    tid);
 
 	tap = ath_tx_get_tx_tid(tid->an, tid->tid);
@@ -3315,8 +3327,10 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 */
 	if (tid->bar_wait == 0 || tid->bar_tx == 1) {
 		device_printf(sc->sc_dev,
-		    "%s: tid=%p, bar_tx=%d, bar_wait=%d: ?\n",
+		    "%s: %6D: tid=%p, bar_tx=%d, bar_wait=%d: ?\n",
 		    __func__,
+		    tid->an->an_node.ni_macaddr,
+		    ":",
 		    tid,
 		    tid->bar_tx,
 		    tid->bar_wait);
@@ -3326,8 +3340,10 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	/* Don't do anything if we still have pending frames */
 	if (tid->hwq_depth > 0) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-		    "%s: tid=%p, hwq_depth=%d, waiting\n",
+		    "%s: %6D: tid=%p, hwq_depth=%d, waiting\n",
 		    __func__,
+		    tid->an->an_node.ni_macaddr,
+		    ":",
 		    tid,
 		    tid->hwq_depth);
 		return;
@@ -3349,8 +3365,10 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 * XXX verify this is _actually_ the valid value to begin at!
 	 */
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: tid=%p, new BAW left edge=%d\n",
+	    "%s: %6D: tid=%p, new BAW left edge=%d\n",
 	    __func__,
+	    tid->an->an_node.ni_macaddr,
+	    ":",
 	    tid,
 	    tap->txa_start);
 
@@ -3366,8 +3384,12 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 
 	/* Failure? For now, warn loudly and continue */
 	ATH_TX_LOCK(sc);
-	device_printf(sc->sc_dev, "%s: tid=%p, failed to TX BAR, continue!\n",
-	    __func__, tid);
+	device_printf(sc->sc_dev,
+	    "%s: %6D: tid=%p, failed to TX BAR, continue!\n",
+	    __func__,
+	    tid->an->an_node.ni_macaddr,
+	    ":",
+	    tid);
 	ath_tx_tid_bar_unsuspend(sc, tid);
 }
 
@@ -3545,10 +3567,15 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 
 	/* But don't do it for non-QoS TIDs */
 	if (tap) {
-#if 0
+#if 1
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-		    "%s: node %p: TID %d: sliding BAW left edge to %d\n",
-		    __func__, an, tid->tid, tap->txa_start);
+		    "%s: %6D: node %p: TID %d: sliding BAW left edge to %d\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    an,
+		    tid->tid,
+		    tap->txa_start);
 #endif
 		ni->ni_txseqs[tid->tid] = tap->txa_start;
 		tid->baw_tail = tid->baw_head;
@@ -3641,6 +3668,18 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 	    &an->an_node);
 
 	ATH_TX_LOCK(sc);
+	DPRINTF(sc, ATH_DEBUG_NODE,
+	    "%s: %6D: flush; is_powersave=%d, stack_psq=%d, tim=%d, "
+	    "swq_depth=%d, clrdmask=%d\n",
+	    __func__,
+	    an->an_node.ni_macaddr,
+	    ":",
+	    an->an_is_powersave,
+	    an->an_stack_psq,
+	    an->an_tim_set,
+	    an->an_swq_depth,
+	    an->clrdmask);
+
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
 
@@ -5263,8 +5302,11 @@ ath_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	ATH_TX_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-	    "%s: called; dialogtoken=%d, baparamset=%d, batimeout=%d\n",
-	    __func__, dialogtoken, baparamset, batimeout);
+	    "%s: %6D: called; dialogtoken=%d, baparamset=%d, batimeout=%d\n",
+	    __func__,
+	    ni->ni_macaddr,
+	    ":",
+	    dialogtoken, baparamset, batimeout);
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 	    "%s: txa_start=%d, ni_txseqs=%d\n",
 	    __func__, tap->txa_start, ni->ni_txseqs[tid]);
@@ -5304,7 +5346,9 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	int r;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-	    "%s: called; status=%d, code=%d, batimeout=%d\n", __func__,
+	    "%s: %6D: called; status=%d, code=%d, batimeout=%d\n", __func__,
+	    ni->ni_macaddr,
+	    ":",
 	    status, code, batimeout);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
@@ -5349,7 +5393,10 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	ath_bufhead bf_cq;
 	struct ath_buf *bf;
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: %6D: called\n",
+	    __func__,
+	    ni->ni_macaddr,
+	    ":");
 
 	/*
 	 * Pause TID traffic early, so there aren't any races
@@ -5450,8 +5497,10 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	int attempts = tap->txa_attempts;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: called; tap=%p, atid=%p, txa_tid=%d, atid->tid=%d, status=%d, attempts=%d\n",
+	    "%s: %6D: called; tap=%p, atid=%p, txa_tid=%d, atid->tid=%d, status=%d, attempts=%d\n",
 	    __func__,
+	    ni->ni_macaddr,
+	    ":",
 	    tap,
 	    atid,
 	    tap->txa_tid,
@@ -5498,7 +5547,10 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	struct ath_tid *atid = &an->an_tid[tid];
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-	    "%s: called; resuming\n", __func__);
+	    "%s: %6D: called; resuming\n",
+	    __func__,
+	    ni->ni_macaddr,
+	    ":");
 
 	ATH_TX_LOCK(sc);
 	atid->addba_tx_pending = 0;
