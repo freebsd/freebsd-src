@@ -3556,6 +3556,72 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 }
 
 /*
+ * Reset the TID state.  This must be only called once the node has
+ * had its frames flushed from this TID, to ensure that no other
+ * pause / unpause logic can kick in.
+ */
+static void
+ath_tx_tid_reset(struct ath_softc *sc, struct ath_tid *tid)
+{
+
+#if 0
+	tid->bar_wait = tid->bar_tx = tid->isfiltered = 0;
+	tid->paused = tid->sched = tid->addba_tx_pending = 0;
+	tid->incomp = tid->cleanup_inprogress = 0;
+#endif
+
+	/*
+	 * If we have a bar_wait set, we need to unpause the TID
+	 * here.  Otherwise once cleanup has finished, the TID won't
+	 * have the right paused counter.
+	 *
+	 * XXX I'm not going through resume here - I don't want the
+	 * node to be rescheuled just yet.  This however should be
+	 * methodized!
+	 */
+	if (tid->bar_wait) {
+		if (tid->paused > 0) {
+			tid->paused --;
+		}
+	}
+
+	/*
+	 * XXX same with a currently filtered TID.
+	 *
+	 * Since this is being called during a flush, we assume that
+	 * the filtered frame list is actually empty.
+	 *
+	 * XXX TODO: add in a check to ensure that the filtered queue
+	 * depth is actually 0!
+	 */
+	if (tid->isfiltered) {
+		if (tid->paused > 0) {
+			tid->paused --;
+		}
+	}
+
+	/*
+	 * Clear BAR, filtered frames, scheduled and ADDBA pending.
+	 * The TID may be going through cleanup from the last association
+	 * where things in the BAW are still in the hardware queue.
+	 */
+	tid->bar_wait = 0;
+	tid->bar_tx = 0;
+	tid->isfiltered = 0;
+	tid->sched = 0;
+	tid->addba_tx_pending = 0;
+
+	/*
+	 * XXX TODO: it may just be enough to walk the HWQs and mark
+	 * frames for that node as non-aggregate; or mark the ath_node
+	 * with something that indicates that aggregation is no longer
+	 * occuring.  Then we can just toss the BAW complaints and
+	 * do a complete hard reset of state here - no pause, no
+	 * complete counter, etc.
+	 */
+}
+
+/*
  * Flush all software queued packets for the given node.
  *
  * This occurs when a completion handler frees the last buffer
@@ -3582,6 +3648,8 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 		ath_tx_tid_drain(sc, an, atid, &bf_cq);
 		/* Remove this tid from the list of active tids */
 		ath_tx_tid_unsched(sc, atid);
+		/* Reset the per-TID pause, BAR, etc state */
+		ath_tx_tid_reset(sc, atid);
 	}
 	ATH_TX_UNLOCK(sc);
 
@@ -3748,18 +3816,17 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
  * The caller is responsible for pausing the TID.
  */
 static void
-ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
+ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid,
+    ath_bufhead *bf_cq)
 {
 	struct ath_tid *atid = &an->an_tid[tid];
 	struct ieee80211_tx_ampdu *tap;
 	struct ath_buf *bf, *bf_next;
-	ath_bufhead bf_cq;
+
+	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAW,
 	    "%s: TID %d: called\n", __func__, tid);
-
-	TAILQ_INIT(&bf_cq);
-	ATH_TX_LOCK(sc);
 
 	/*
 	 * Move the filtered frames to the TX queue, before
@@ -3795,7 +3862,7 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 			 * Call the default completion handler with "fail" just
 			 * so upper levels are suitably notified about this.
 			 */
-			TAILQ_INSERT_TAIL(&bf_cq, bf, bf_list);
+			TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
 			bf = bf_next;
 			continue;
 		}
@@ -3840,13 +3907,8 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
 		    "%s: TID %d: cleanup needed: %d packets\n",
 		    __func__, tid, atid->incomp);
-	ATH_TX_UNLOCK(sc);
 
-	/* Handle completing frames and fail them */
-	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
-		TAILQ_REMOVE(&bf_cq, bf, bf_list);
-		ath_tx_default_comp(sc, bf, 1);
-	}
+	/* Owner now must free completed frames */
 }
 
 static struct ath_buf *
@@ -5284,6 +5346,8 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	int tid = tap->txa_tid;
 	struct ath_node *an = ATH_NODE(ni);
 	struct ath_tid *atid = &an->an_tid[tid];
+	ath_bufhead bf_cq;
+	struct ath_buf *bf;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL, "%s: called\n", __func__);
 
@@ -5312,7 +5376,57 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	 * it'll set the cleanup flag, and it'll be unpaused once
 	 * things have been cleaned up.
 	 */
-	ath_tx_tid_cleanup(sc, an, tid);
+	TAILQ_INIT(&bf_cq);
+	ATH_TX_LOCK(sc);
+	ath_tx_tid_cleanup(sc, an, tid, &bf_cq);
+	ATH_TX_UNLOCK(sc);
+
+	/* Handle completing frames and fail them */
+	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
+		TAILQ_REMOVE(&bf_cq, bf, bf_list);
+		ath_tx_default_comp(sc, bf, 1);
+	}
+}
+
+/*
+ * Handle a node reassociation.
+ *
+ * We may have a bunch of frames queued to the hardware; those need
+ * to be marked as cleanup.
+ */
+void
+ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an)
+{
+	struct ath_tid *tid;
+	int i;
+	ath_bufhead bf_cq;
+	struct ath_buf *bf;
+
+	TAILQ_INIT(&bf_cq);
+
+	ATH_TX_UNLOCK_ASSERT(sc);
+
+	ATH_TX_LOCK(sc);
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		tid = &an->an_tid[i];
+		if (tid->hwq_depth == 0)
+			continue;
+		ath_tx_tid_pause(sc, tid);
+		DPRINTF(sc, ATH_DEBUG_NODE,
+		    "%s: %6D: TID %d: cleaning up TID\n",
+		    __func__,
+		    an->an_node.ni_macaddr,
+		    ":",
+		    i);
+		ath_tx_tid_cleanup(sc, an, i, &bf_cq);
+	}
+	ATH_TX_UNLOCK(sc);
+
+	/* Handle completing frames and fail them */
+	while ((bf = TAILQ_FIRST(&bf_cq)) != NULL) {
+		TAILQ_REMOVE(&bf_cq, bf, bf_list);
+		ath_tx_default_comp(sc, bf, 1);
+	}
 }
 
 /*
@@ -5406,7 +5520,7 @@ int
 ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an)
 {
 
-	ATH_NODE_LOCK_ASSERT(an);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	return (an->an_is_powersave);
 }
@@ -5436,7 +5550,7 @@ ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
 	struct ath_txq *txq;
 	int tid;
 
-	ATH_NODE_UNLOCK_ASSERT(an);
+	ATH_TX_UNLOCK_ASSERT(sc);
 
 	/*
 	 * It's possible that a parallel call to ath_tx_node_wakeup()
@@ -5471,17 +5585,12 @@ ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
 
 		ath_tx_tid_pause(sc, atid);
 	}
-	ATH_TX_UNLOCK(sc);
-
-	ATH_NODE_LOCK(an);
 
 	/* In case of concurrency races from net80211.. */
 	if (an->an_is_powersave == 1) {
-		ATH_NODE_UNLOCK(an);
 		device_printf(sc->sc_dev,
 		    "%s: an=%p: node was already asleep\n",
 		    __func__, an);
-		ATH_TX_LOCK(sc);
 		for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 			atid = &an->an_tid[tid];
 			txq = sc->sc_ac2q[atid->ac];
@@ -5495,7 +5604,7 @@ ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
 	/* Mark node as in powersaving */
 	an->an_is_powersave = 1;
 
-	ATH_NODE_UNLOCK(an);
+	ATH_TX_UNLOCK(sc);
 }
 
 /*
@@ -5509,12 +5618,13 @@ ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
 	struct ath_txq *txq;
 	int tid;
 
-	ATH_NODE_UNLOCK_ASSERT(an);
-	ATH_NODE_LOCK(an);
+	ATH_TX_UNLOCK_ASSERT(sc);
+
+	ATH_TX_LOCK(sc);
 
 	/* In case of concurrency races from net80211.. */
 	if (an->an_is_powersave == 0) {
-		ATH_NODE_UNLOCK(an);
+		ATH_TX_UNLOCK(sc);
 		device_printf(sc->sc_dev,
 		    "%s: an=%p: node was already awake\n",
 		    __func__, an);
@@ -5524,9 +5634,6 @@ ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
 	/* Mark node as awake */
 	an->an_is_powersave = 0;
 
-	ATH_NODE_UNLOCK(an);
-
-	ATH_TX_LOCK(sc);
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		atid = &an->an_tid[tid];
 		txq = sc->sc_ac2q[atid->ac];
