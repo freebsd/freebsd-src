@@ -434,15 +434,31 @@ local executables, libraries, etc.
 Also used as the default destination for the
 .Fx
 ports framework.
-Within local/, the general layout sketched out by
+Within
+.Pa local/ ,
+the general layout sketched out by
 .Nm
-for /usr
+for
+.Pa /usr
 should be used.
-Exceptions are the man directory (directly under local/
-rather than under local/share/), ports documentation (in share/doc/<port>/),
-and /usr/local/etc (mimics /etc).
+Exceptions are the
+.Pa man
+directory
+.Po directly under
+.Pa local/
+rather than under
+.Pa local/share/ Ns Pc ,
+ports documentation
+.Po in
+.Pa share/doc/<port>/ Ns Pc ,
+and
+.Pa /usr/local/etc
+.Po mimics
+.Pa /etc Ns Pc .
 .It Pa obj/
-architecture-specific target tree produced by building the /usr/src tree
+architecture-specific target tree produced by building the
+.Pa /usr/src
+tree
 .It Pa ports/
 The
 .Fx
@@ -633,38 +649,48 @@ source code for contributed software
 .It Pa crypto/
 source code for contributed cryptography software
 .It Pa etc/
-source code for files in /etc
+source code for files in
+.Pa /etc
 .It Pa games/
-source code for files in /usr/games
+source code for files in
+.Pa /usr/games
 .It Pa gnu/
 Utilities covered by the GNU General Public License
 .It Pa include/
-source code for files in /usr/include
+source code for files in
+.Pa /usr/include
 .It Pa kerberos5/
 build infrastructure for kerberos version 5
 .It Pa lib/
-source code for files in /usr/lib
+source code for files in
+.Pa /usr/lib
 .It Pa libexec/
-source code for files in /usr/libexec
+source code for files in
+.Pa /usr/libexec
 .It Pa release/
 files required to produce a
 .Fx
 release
 .It Pa sbin/
-source code for files in /sbin
+source code for files in
+.Pa /sbin
 .It Pa secure/
-build directory for files in /usr/src/crypto
+build directory for files in
+.Pa /usr/src/crypto
 .It Pa share/
-source for files in /usr/share
+source for files in
+.Pa /usr/share
 .It Pa sys/
 kernel source code
 .It Pa tools/
 tools used for maintenance and testing of
 .Fx
 .It Pa usr.bin/
-source code for files in /usr/bin
+source code for files in
+.Pa /usr/bin
 .It Pa usr.sbin/
-source code for files in /usr/sbin
+source code for files in
+.Pa /usr/sbin
 .El
 .El
 .It Pa /var/
