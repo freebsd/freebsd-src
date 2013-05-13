@@ -134,6 +134,7 @@ extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
 extern	void ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an);
 extern	void ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an);
 extern	int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
+extern	void ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an);
 
 /*
  * Misc debugging stuff
