@@ -1054,7 +1054,9 @@ can be used on a channel are defined by this setting.
 Country/Region codes are specified as a 2-character abbreviation
 defined by ISO 3166 or using a longer, but possibly ambiguous, spelling;
 e.g., "ES" and "Spain".
-The set of country codes are taken from /etc/regdomain.xml and can also
+The set of country codes are taken from
+.Pa /etc/regdomain.xml
+and can also
 be viewed with the ``list countries'' request.
 Note that not all devices support changing the country code from a default
 setting; typically stored in EEPROM.
@@ -1072,7 +1074,9 @@ according to a least-congested criteria.
 DFS support is mandatory for some 5GHz frequencies in certain
 locales (e.g., ETSI).
 By default DFS is enabled according to the regulatory definitions
-specified in /etc/regdomain.xml and the current country code, regdomain,
+specified in
+.Pa /etc/regdomain.xml
+and the current country code, regdomain,
 and channel.
 Note the underlying device (and driver) must support radar detection
 for full DFS support to work.
@@ -1578,7 +1582,9 @@ for operation.
 In particular the set of available channels, how the wireless device
 will operation on the channels, and the maximum transmit power that
 can be used on a channel are defined by this setting.
-Regdomain codes (SKU's) are taken from /etc/regdomain.xml and can also
+Regdomain codes (SKU's) are taken from
+.Pa /etc/regdomain.xml
+and can also
 be viewed with the ``list countries'' request.
 Note that not all devices support changing the regdomain from a default
 setting; typically stored in EEPROM.

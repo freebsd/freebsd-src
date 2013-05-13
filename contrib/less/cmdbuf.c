@@ -727,9 +727,9 @@ cmd_updown(action)
 			s = ml->string;
 			if (s == NULL)
 				s = "";
-			strcpy(cmdbuf, s);
 			cmd_home();
 			clear_eol();
+			strcpy(cmdbuf, s);
 			for (cp = cmdbuf;  *cp != '\0';  )
 				cmd_right();
 			return (CC_OK);

@@ -2616,10 +2616,17 @@ build_medialist(struct port_info *pi)
 			ifmedia_add(media, m | IFM_40G_SR4, data, NULL);
 			ifmedia_set(media, m | IFM_40G_SR4);
 			break;
+
 		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
 		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
 			ifmedia_add(media, m | IFM_40G_CR4, data, NULL);
 			ifmedia_set(media, m | IFM_40G_CR4);
+			break;
+
+		case FW_PORT_MOD_TYPE_NONE:
+			m &= ~IFM_FDX;
+			ifmedia_add(media, m | IFM_NONE, data, NULL);
+			ifmedia_set(media, m | IFM_NONE);
 			break;
 
 		default:

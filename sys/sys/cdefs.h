@@ -36,6 +36,23 @@
 #ifndef	_SYS_CDEFS_H_
 #define	_SYS_CDEFS_H_
 
+/*
+ * Testing against Clang-specific extensions.
+ */
+
+#ifndef	__has_extension
+#define	__has_extension		__has_feature
+#endif
+#ifndef	__has_feature
+#define	__has_feature(x)	0
+#endif
+#ifndef	__has_include
+#define	__has_include(x)	0
+#endif
+#ifndef	__has_builtin
+#define	__has_builtin(x)	0
+#endif
+
 #if defined(__cplusplus)
 #define	__BEGIN_DECLS	extern "C" {
 #define	__END_DECLS	}
@@ -232,22 +249,36 @@
 /*
  * Keywords added in C11.
  */
-#if defined(__cplusplus) && __cplusplus >= 201103L
-#define	_Alignas(e)		alignas(e)
-#define	_Alignof(e)		alignof(e)
-#define	_Noreturn		[[noreturn]]
-#define	_Static_assert(e, s)	static_assert(e, s)
-/* FIXME: change this to thread_local when clang in base supports it */
-#define	_Thread_local		__thread
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-/* Do nothing.  They are language keywords. */
+
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
+
+#if !__has_extension(c_alignas)
+#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
+    __has_extension(cxx_alignas)
+#define	_Alignas(x)		alignas(x)
 #else
-/* Not supported.  Implement them using our versions. */
+/* XXX: Only emulates _Alignas(constant-expression); not _Alignas(type-name). */
 #define	_Alignas(x)		__aligned(x)
+#endif
+#endif
+
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Alignof(x)		alignof(x)
+#else
 #define	_Alignof(x)		__alignof(x)
+#endif
+
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Noreturn		[[noreturn]]
+#else
 #define	_Noreturn		__dead2
-#define	_Thread_local		__thread
-#ifdef __COUNTER__
+#endif
+
+#if !__has_extension(c_static_assert)
+#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
+    __has_extension(cxx_static_assert)
+#define	_Static_assert(x, y)	static_assert(x, y)
+#elif defined(__COUNTER__)
 #define	_Static_assert(x, y)	__Static_assert(x, __COUNTER__)
 #define	__Static_assert(x, y)	___Static_assert(x, y)
 #define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1]
@@ -255,6 +286,20 @@
 #define	_Static_assert(x, y)	struct __hack
 #endif
 #endif
+
+#if !__has_extension(c_thread_local)
+/* XXX: Change this to test against C++11 when clang in base supports it. */
+#if /* (defined(__cplusplus) && __cplusplus >= 201103L) || */ \
+    __has_extension(cxx_thread_local)
+#define	_Thread_local		thread_local
+#elif defined(lint)
+#define	_Thread_local
+#else
+#define	_Thread_local		__thread
+#endif
+#endif
+
+#endif /* __STDC_VERSION__ || __STDC_VERSION__ < 201112L */
 
 /*
  * Emulation of C11 _Generic().  Unlike the previously defined C11
@@ -680,19 +725,6 @@
 #define	__BSD_VISIBLE		1
 #define	__ISO_C_VISIBLE		2011
 #endif
-#endif
-
-#ifndef	__has_extension
-#define	__has_extension  __has_feature
-#endif
-#ifndef	__has_feature
-#define	__has_feature(x) 0
-#endif
-#ifndef	__has_include
-#define	__has_include(x) 0
-#endif
-#ifndef	__has_builtin
-#define	__has_builtin(x) 0
 #endif
 
 #if defined(__mips) || defined(__powerpc64__)
