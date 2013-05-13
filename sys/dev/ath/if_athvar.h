@@ -415,17 +415,17 @@ struct ath_txq {
 #define ATH_TID_INSERT_HEAD(_tq, _elm, _field) do { \
 	TAILQ_INSERT_HEAD(&(_tq)->tid_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
-	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+	(_tq)->an->an_swq_depth++; \
 } while (0)
 #define ATH_TID_INSERT_TAIL(_tq, _elm, _field) do { \
 	TAILQ_INSERT_TAIL(&(_tq)->tid_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
-	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+	(_tq)->an->an_swq_depth++; \
 } while (0)
 #define ATH_TID_REMOVE(_tq, _elm, _field) do { \
 	TAILQ_REMOVE(&(_tq)->tid_q, _elm, _field); \
 	(_tq)->axq_depth--; \
-	atomic_subtract_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+	(_tq)->an->an_swq_depth--; \
 } while (0)
 #define	ATH_TID_FIRST(_tq)		TAILQ_FIRST(&(_tq)->tid_q)
 #define	ATH_TID_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->tid_q, _field)
@@ -436,17 +436,17 @@ struct ath_txq {
 #define ATH_TID_FILT_INSERT_HEAD(_tq, _elm, _field) do { \
 	TAILQ_INSERT_HEAD(&(_tq)->filtq.tid_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
-	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+	(_tq)->an->an_swq_depth++; \
 } while (0)
 #define ATH_TID_FILT_INSERT_TAIL(_tq, _elm, _field) do { \
 	TAILQ_INSERT_TAIL(&(_tq)->filtq.tid_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
-	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+	(_tq)->an->an_swq_depth++; \
 } while (0)
 #define ATH_TID_FILT_REMOVE(_tq, _elm, _field) do { \
 	TAILQ_REMOVE(&(_tq)->filtq.tid_q, _elm, _field); \
 	(_tq)->axq_depth--; \
-	atomic_subtract_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+	(_tq)->an->an_swq_depth--; \
 } while (0)
 #define	ATH_TID_FILT_FIRST(_tq)		TAILQ_FIRST(&(_tq)->filtq.tid_q)
 #define	ATH_TID_FILT_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->filtq.tid_q,_field)
