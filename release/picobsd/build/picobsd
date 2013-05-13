@@ -173,17 +173,10 @@ create_includes_and_libraries2() { # opt_dir opt_target
     if [ -d "$1" ] ; then
 	cd $1 ; ${BINMAKE} ${o_par} $2	# specific target, e.g. ld-elf.so
     else
-	MAKEOBJDIRPREFIX=${l_objtree}
-	export MAKEOBJDIRPREFIX
-	# export WITH_RESCUE=yes	# build crunchide
-	# ${BINMAKE} ${o_par} _+_= $no toolchain _includes _libraries
-	(
-	    # eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V BMAKEENV`
-	    eval "export XMAKE=\"`cd ${SRC}; make -f Makefile -V XMAKE`\""
-	    ${BINMAKE} ${o_par} _+_= $no toolchain
-	)
+	export MAKEOBJDIRPREFIX=${l_objtree}
+	make ${o_par} $no toolchain
+	# XXX do we need any of these ?
         eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
-	${BINMAKE} ${o_par} _+_= $no _includes _libraries
 	[ ${o_arch} != `uname -m` ] && \
 	    (cd ${l_objtree}; ln -s . ${o_arch}.${o_arch} || true )
     fi
@@ -440,7 +433,8 @@ do_kernel() {		# OK
 	# export CONFIG
 	export WARNS CWARNFLAGS
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
-	${BINMAKE} ${o_par} KERNCONF=${l_kernconf}	\
+	# kernel build not parallelizable yet
+	${BINMAKE} KERNCONF=${l_kernconf}	\
 		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	    fail $? missing_kernel
 }
@@ -971,6 +965,7 @@ set_build_parameters() {
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
 	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
+	export WITHOUT_CLANG_IS_CC=1
 	# XXX why change machine_arch ?
 	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
 	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
