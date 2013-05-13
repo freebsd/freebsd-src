@@ -52,6 +52,7 @@ public int use_lessopen;	/* Use the LESSOPEN filter */
 public int quit_on_intr;	/* Quit on interrupt */
 public int follow_mode;		/* F cmd Follows file desc or file name? */
 public int oldbot;		/* Old bottom of screen behavior {{REMOVE}} */
+public int opt_use_backslash;	/* Use backslash escaping in option parsing */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -115,6 +116,7 @@ static struct optname pound_optname  = { "shift",                NULL };
 static struct optname keypad_optname = { "no-keypad",            NULL };
 static struct optname oldbot_optname = { "old-bot",              NULL };
 static struct optname follow_optname = { "follow-name",          NULL };
+static struct optname use_backslash_optname = { "use-backslash", NULL };
 
 
 /*
@@ -443,6 +445,14 @@ static struct loption option[] =
 		{
 			"F command follows file descriptor",
 			"F command follows file name",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &use_backslash_optname,
+		BOOL, OPT_OFF, &opt_use_backslash, NULL,
+		{
+			"Use backslash escaping in command line parameters",
+			"Don't use backslash escaping in command line parameters",
 			NULL
 		}
 	},

@@ -11,9 +11,10 @@
 
 ======================================================================
 
-	Major changes between "less" versions 451 and 456
+	Major changes between "less" versions 451 and 458
 
-* Allow backslash escaping of metacharacters in LESS environment variable.
+* Allow backslash escaping of metacharacters in LESS environment variable
+  after the --use-backslash option.
 
 * Don't quit if syntax errors are found in command line options.
 
@@ -24,6 +25,8 @@
 * Fix crash with "stty rows 0".
 
 * Fix Win32 attribute display bug.
+
+* Fix display bug when using up/down arrow on the command line.
 
 ======================================================================
 
