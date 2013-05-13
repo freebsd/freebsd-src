@@ -2328,7 +2328,7 @@ skipstate:
 
 out:
 		/*
-		 * Block out any asyncronous callbacks
+		 * Block out any asynchronous callbacks
 		 * while we touch the pending ccb list.
 		 */
 		LIST_INSERT_HEAD(&softc->pending_ccbs,
@@ -2729,7 +2729,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		/*
-		 * Block out any asyncronous callbacks
+		 * Block out any asynchronous callbacks
 		 * while we touch the pending ccb list.
 		 */
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
@@ -3355,7 +3355,7 @@ daprevent(struct cam_periph *periph, int action)
 		     5000);
 
 	error = cam_periph_runccb(ccb, daerror, CAM_RETRY_SELTO,
-	    SF_RETRY_UA | SF_QUIET_IR, softc->disk->d_devstat);
+	    SF_RETRY_UA | SF_NO_PRINT, softc->disk->d_devstat);
 
 	if (error == 0) {
 		if (action == PR_ALLOW)

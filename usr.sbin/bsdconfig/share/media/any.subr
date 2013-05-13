@@ -72,8 +72,8 @@ f_media_get_type()
 	local menu_list size
 
 	menu_list="
-		'1 $msg_cd_dvd'	   '$msg_install_from_a_freebsd_cd_dvd'
-		'2 $msg_ftp'	   '$msg_install_from_an_ftp_server'
+		'1 $msg_cd_dvd'    '$msg_install_from_a_freebsd_cd_dvd'
+		'2 $msg_ftp'       '$msg_install_from_an_ftp_server'
 		'3 $msg_ftp_passive'
 		                '$msg_install_from_an_ftp_server_thru_firewall'
 		'4 $msg_http'      '$msg_install_from_an_ftp_server_thru_proxy'

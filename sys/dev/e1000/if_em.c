@@ -335,6 +335,9 @@ MODULE_DEPEND(em, ether, 1, 1, 1);
 #define EM_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
 #define M_TSO_LEN			66
 
+#define MAX_INTS_PER_SEC	8000
+#define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
+
 /* Allow common code without TSO */
 #ifndef CSUM_TSO
 #define CSUM_TSO	0
@@ -570,6 +573,11 @@ em_attach(device_t dev)
 	    &adapter->tx_abs_int_delay,
 	    E1000_REGISTER(hw, E1000_TADV),
 	    em_tx_abs_int_delay_dflt);
+	em_add_int_delay_sysctl(adapter, "itr",
+	    "interrupt delay limit in usecs/4",
+	    &adapter->tx_itr,
+	    E1000_REGISTER(hw, E1000_ITR),
+	    DEFAULT_ITR);
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	em_set_sysctl_value(adapter, "rx_processing_limit",
@@ -4271,8 +4279,6 @@ em_free_receive_buffers(struct rx_ring *rxr)
  *  Enable receive unit.
  *
  **********************************************************************/
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
 
 static void
 em_initialize_receive_unit(struct adapter *adapter)
@@ -4333,6 +4339,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		/* Setup the Base and Length of the Rx Descriptor Ring */
+		u32 rdt = adapter->num_rx_desc - 1; /* default */
+
 		bus_addr = rxr->rxdma.dma_paddr;
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 		    adapter->num_rx_desc * sizeof(struct e1000_rx_desc));
@@ -4344,18 +4352,11 @@ em_initialize_receive_unit(struct adapter *adapter)
 		/*
 		 * an init() while a netmap client is active must
 		 * preserve the rx buffers passed to userspace.
-		 * In this driver it means we adjust RDT to
-		 * something different from na->num_rx_desc - 1.
 		 */
-		if (ifp->if_capenable & IFCAP_NETMAP) {
-			struct netmap_adapter *na = NA(adapter->ifp);
-			struct netmap_kring *kring = &na->rx_rings[i];
-			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
-
-			E1000_WRITE_REG(hw, E1000_RDT(i), t);
-		} else
+		if (ifp->if_capenable & IFCAP_NETMAP)
+			rdt -= NA(adapter->ifp)->rx_rings[i].nr_hwavail;
 #endif /* DEV_NETMAP */
-		E1000_WRITE_REG(hw, E1000_RDT(i), adapter->num_rx_desc - 1);
+		E1000_WRITE_REG(hw, E1000_RDT(i), rdt);
 	}
 
 	/* Set PTHRESH for improved jumbo performance */
@@ -5623,6 +5624,8 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	info->value = usecs;
 	ticks = EM_USECS_TO_TICKS(usecs);
+	if (info->offset == E1000_ITR)	/* units are 256ns here */
+		ticks *= 4;
 
 	adapter = info->adapter;
 	

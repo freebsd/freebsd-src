@@ -333,7 +333,7 @@ fdesc_lookup(ap)
 		 * and the root vnode lock will be obtained afterwards (in case
 		 * we're looking up the fd of the root vnode), which will be the
 		 * opposite lock order. Vhold the root vnode first so we don't
-		 * loose it.
+		 * lose it.
 		 */
 		vhold(dvp);
 		VOP_UNLOCK(dvp, 0);
@@ -538,7 +538,7 @@ fdesc_readdir(ap)
 				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;
-			dp->d_type = DT_UNKNOWN;
+			dp->d_type = DT_CHR;
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}

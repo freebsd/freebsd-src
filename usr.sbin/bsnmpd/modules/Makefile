@@ -10,6 +10,7 @@ _snmp_atm= snmp_atm
 
 SUBDIR=	${_snmp_atm} \
 	snmp_bridge \
+	snmp_hast \
 	snmp_hostres \
 	snmp_mibII \
 	snmp_pf \

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include "dd.h"
@@ -91,6 +92,8 @@ pos_in(void)
 				}
 			} else
 				--cnt;
+			if (need_summary)
+				summary();
 			continue;
 		}
 

@@ -106,8 +106,6 @@ struct buf {
 	daddr_t b_blkno;		/* Underlying physical block number. */
 	off_t	b_offset;		/* Offset into file. */
 	TAILQ_ENTRY(buf) b_bobufs;	/* (V) Buffer's associated vnode. */
-	struct buf	*b_left;	/* (V) splay tree link */
-	struct buf	*b_right;	/* (V) splay tree link */
 	uint32_t	b_vflags;	/* (V) BV_* flags */
 	TAILQ_ENTRY(buf) b_freelist;	/* (Q) Free list position inactive. */
 	unsigned short b_qindex;	/* (Q) buffer queue index */

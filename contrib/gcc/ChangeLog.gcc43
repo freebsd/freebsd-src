@@ -182,6 +182,10 @@
 
 	* doc/invoke.texi: Document -mssse3/-mno-ssse3 switches.
 
+2006-10-22  H.J. Lu  <hongjiu.lu@intel.com>
+  	 
+	* config/i386/tmmintrin.h: Remove the duplicated content.
+
 2006-10-21  Richard Guenther  <rguenther@suse.de> (r117932)
 
 	PR tree-optimization/3511

@@ -39,17 +39,16 @@ __FBSDID("$FreeBSD$");
 static void
 stack_capture(struct stack *st, u_int32_t *frame)
 {
+#if !defined(__ARM_EABI__) && !defined(__clang__)
 	vm_offset_t callpc;
 
-	stack_zero(st);
-	while (1) {
-		if (!INKERNEL(frame))
-			break;
+	while (INKERNEL(frame)) {
 		callpc = frame[FR_SCP];
 		if (stack_put(st, callpc) == -1)
 			break;
 		frame = (u_int32_t *)(frame[FR_RFP]);
 	}
+#endif
 }
 
 void
@@ -63,6 +62,7 @@ stack_save_td(struct stack *st, struct thread *td)
 		panic("stack_save_td: running");
 
 	frame = (u_int32_t *)td->td_pcb->un_32.pcb32_r11;
+	stack_zero(st);
 	stack_capture(st, frame);
 }
 
@@ -72,5 +72,6 @@ stack_save(struct stack *st)
 	u_int32_t *frame;
 
 	frame = (u_int32_t *)__builtin_frame_address(0);
+	stack_zero(st);
 	stack_capture(st, frame);
 }

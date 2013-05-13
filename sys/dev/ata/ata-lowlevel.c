@@ -503,7 +503,7 @@ ata_generic_reset(device_t dev)
 		      mask, ostat0, ostat1);
 
     /* if nothing showed up there is no need to get any further */
-    /* XXX SOS is that too strong?, we just might loose devices here */
+    /* XXX SOS is that too strong?, we just might lose devices here */
     ch->devices = 0;
     if (!mask)
 	return;
