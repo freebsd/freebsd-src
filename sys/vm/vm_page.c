@@ -1209,6 +1209,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	vm_page_t m, mpred;
 	int flags, req_class;
 
+	mpred = 0;	/* XXX: pacify gcc */
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0),
 	    ("vm_page_alloc: inconsistent object/req"));
 	if (object != NULL)
