@@ -1122,6 +1122,9 @@ _sed=		usr.bin/sed
 
 .if ${BOOTSTRAPPING} < 900006
 _lex=		usr.bin/lex
+.endif
+
+.if ${BOOTSTRAPPING} < 1000002
 _m4=		usr.bin/m4
 .endif
 
