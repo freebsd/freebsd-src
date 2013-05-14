@@ -2068,11 +2068,9 @@ extern int yywrap (void );
 #endif
 
 #ifndef YY_NO_UNPUT
-    
     static void yyunput (int c,char *buf_ptr  );
-    
 #endif
-
+    
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char *,yyconst char *,int );
 #endif
@@ -2205,6 +2203,19 @@ YY_DECL
 	char *yy_cp, *yy_bp;
 	int yy_act;
     
+#line 131 "scan.l"
+
+	static int bracelevel, didadef, indented_code;
+	static int doing_rule_action = false;
+	static int option_sense;
+
+	int doing_codeblock = false;
+	int i, brace_depth=0, brace_start_line=0;
+	Char nmdef[MAXLINE];
+
+
+#line 2218 "<stdout>"
+
 	if ( !(yy_init) )
 		{
 		(yy_init) = 1;
@@ -2236,20 +2247,6 @@ YY_DECL
 
 		yy_load_buffer_state( );
 		}
-
-	{
-#line 131 "scan.l"
-
-	static int bracelevel, didadef, indented_code;
-	static int doing_rule_action = false;
-	static int option_sense;
-
-	int doing_codeblock = false;
-	int i, brace_depth=0, brace_start_line=0;
-	Char nmdef[MAXLINE];
-
-
-#line 2253 "<stdout>"
 
 	while ( 1 )		/* loops until end-of-file is reached */
 		{
@@ -4125,7 +4122,7 @@ YY_RULE_SETUP
 #line 969 "scan.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 4129 "<stdout>"
+#line 4126 "<stdout>"
 			case YY_STATE_EOF(INITIAL):
 			case YY_STATE_EOF(SECT2):
 			case YY_STATE_EOF(CODEBLOCK):
@@ -4269,7 +4266,6 @@ YY_FATAL_ERROR( "flex scanner jammed" );
 			"fatal flex scanner internal error--no action found" );
 	} /* end of action switch */
 		} /* end of scanning one token */
-	} /* end of user's declarations */
 } /* end of yylex */
 
 /* yy_get_next_buffer - try to read in a new buffer
@@ -4436,7 +4432,6 @@ static int yy_get_next_buffer (void)
 }
 
 #ifndef YY_NO_UNPUT
-
     static void yyunput (int c, char * yy_bp )
 {
 	char *yy_cp;
@@ -4473,7 +4468,6 @@ static int yy_get_next_buffer (void)
 	(yy_hold_char) = *yy_cp;
 	(yy_c_buf_p) = yy_cp;
 }
-
 #endif	/* ifndef YY_NO_UNPUT */
 
 #ifndef YY_NO_INPUT
