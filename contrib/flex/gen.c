@@ -121,7 +121,7 @@ static struct yytbl_data *mkeoltbl (void)
 }
 
 /* Generate the table for possible eol matches. */
-static void geneoltbl ()
+static void geneoltbl (void)
 {
 	int     i;
 
