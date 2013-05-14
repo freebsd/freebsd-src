@@ -67,6 +67,16 @@ export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 #
 : ${DEBUG_SELF_INITIALIZE=1}
 
+#
+# Define standard optstring arguments that should be supported by all programs
+# using this include (unless DEBUG_SELF_INITIALIZE is set to NULL to prevent
+# f_debug_init() from autamatically processing "$@" for the below arguments):
+#
+# 	d	Sets $debug to 1
+# 	D:	Sets $debugFile to $OPTARG
+#
+GETOPTS_STDARGS="dD:"
+
 ############################################################ FUNCTIONS
 
 # f_dprintf $fmt [ $opts ... ]
@@ -102,7 +112,9 @@ f_debug_init()
 	#
 	set -- $ARGV
 	local OPTIND
-	while getopts dD: flag > /dev/null; do
+	f_dprintf "f_debug_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
+	          "$ARGV" "$GETOPTS_STDARGS"
+	while getopts "$GETOPTS_STDARGS" flag > /dev/null; do
 		case "$flag" in
 		d) debug=1;;
 		D) debugFile="$OPTARG";;
@@ -110,6 +122,8 @@ f_debug_init()
 		esac
 	done
 	shift $(( $OPTIND - 1 ))
+	f_dprintf "f_debug_init: debug=[%s] debugFile=[%s]" \
+	          "$debug" "$debugFile"
 
 	#
 	# Automagically enable debugging if debugFile is set (and non-NULL)
