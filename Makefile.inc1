@@ -1122,6 +1122,7 @@ _sed=		usr.bin/sed
 
 .if ${BOOTSTRAPPING} < 900006
 _lex=		usr.bin/lex
+_m4=		usr.bin/m4
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
@@ -1136,10 +1137,6 @@ _nmtree=	lib/libnetbsd \
 
 .if ${BOOTSTRAPPING} < 1000027
 _cat=		bin/cat
-.endif
-
-.if ${BOOTSTRAPPING} < 1000033
-_m4=		usr.bin/m4
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
