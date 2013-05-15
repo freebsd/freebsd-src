@@ -1587,7 +1587,8 @@ re_attach(device_t dev)
 	 * packet has IP options so disable TX IP checksum offloading.
 	 */
 	if (sc->rl_hwrev->rl_rev == RL_HWREV_8168C ||
-	    sc->rl_hwrev->rl_rev == RL_HWREV_8168C_SPIN2)
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8168C_SPIN2 ||
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8168CP)
 		ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
 	else
 		ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
@@ -3415,7 +3416,8 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0) {
 				rev = sc->rl_hwrev->rl_rev;
 				if (rev == RL_HWREV_8168C ||
-				    rev == RL_HWREV_8168C_SPIN2)
+				    rev == RL_HWREV_8168C_SPIN2 ||
+				    rev == RL_HWREV_8168CP)
 					ifp->if_hwassist |= CSUM_TCP | CSUM_UDP;
 				else
 					ifp->if_hwassist |= RE_CSUM_FEATURES;
