@@ -51,7 +51,7 @@ skel.c: mkskel.sh flex.skl
 	sed 's/m4postproc_/m4_/g' | \
 	sh ${FLEXDIR}/mkskel.sh > ${.TARGET}
 
-bootstrap: initparse.c initparse.h initscan.c initskel.c
+bootstrap: ${GENFILES:S/^/init/g}
 .for _f in ${GENFILES}
 	@diff -I '^#line ' -I '\$$FreeBS[D]: .*\$$' -q \
 	    ${.CURDIR}/init${_f} ${_f} 2> /dev/null || { \
