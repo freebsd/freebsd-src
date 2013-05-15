@@ -232,6 +232,13 @@ dev/qlxgb/qla_ioctl.c		optional	qlxgb pci
 dev/qlxgb/qla_isr.c		optional	qlxgb pci
 dev/qlxgb/qla_misc.c		optional	qlxgb pci
 dev/qlxgb/qla_os.c		optional	qlxgb pci
+dev/qlxgbe/ql_dbg.c		optional	qlxgbe pci
+dev/qlxgbe/ql_hw.c		optional	qlxgbe pci
+dev/qlxgbe/ql_ioctl.c		optional	qlxgbe pci
+dev/qlxgbe/ql_isr.c		optional	qlxgbe pci
+dev/qlxgbe/ql_misc.c		optional	qlxgbe pci
+dev/qlxgbe/ql_os.c		optional	qlxgbe pci
+dev/qlxgbe/ql_reset.c		optional	qlxgbe pci
 dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
 dev/sfxge/common/efx_ev.c	optional sfxge inet pci
 dev/sfxge/common/efx_filter.c	optional sfxge inet pci
