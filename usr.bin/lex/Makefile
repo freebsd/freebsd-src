@@ -33,6 +33,7 @@ MLINKS+=	lex.1 lex++.1
 WARNS?=		3
 
 CLEANFILES=	scan.c skel.c
+GENFILES=	parse.c parse.h scan.c skel.c
 
 SUBDIR=		lib
 
@@ -50,21 +51,19 @@ skel.c: mkskel.sh flex.skl
 	sed 's/m4postproc_/m4_/g' | \
 	sh ${FLEXDIR}/mkskel.sh > ${.TARGET}
 
-bootstrap: scan.c skel.c
-	cmp -s ${.CURDIR}/initscan.c scan.c || { \
-		rm -f scan.c ; \
-		cp -f ${.CURDIR}/initscan.c scan.c ; \
+bootstrap: initparse.c initparse.h initscan.c initskel.c
+.for _f in ${GENFILES}
+	@diff -I '^#line ' -I '\$$FreeBS[D]: .*\$$' -q \
+	    ${.CURDIR}/init${_f} ${_f} 2> /dev/null || { \
+		echo "Bootstrapping ${_f}" ; \
+		cp -f ${.CURDIR}/init${_f} ${_f} ; \
 	}
-	cmp -s ${.CURDIR}/initskel.c skel.c || { \
-		rm -f skel.c ; \
-		cp -f ${.CURDIR}/initskel.c skel.c ; \
-	}
+.endfor
 
 test: check
 check: ${PROG}
-	./${PROG} ${LFLAGS} -t ${COMPRESSION} ${FLEXDIR}/scan.l \
-	| sed 's,\"${FLEXDIR}/scan.l\",\"scan.l\",' \
-	| diff -I '\$$FreeBS[D]: .*\$$' ${.CURDIR}/initscan.c -
+	./${PROG} ${LFLAGS} -t ${COMPRESSION} ${FLEXDIR}/scan.l | \
+	diff -I '^#line ' -I '\$$FreeBS[D]: .*\$$' ${.CURDIR}/initscan.c -
 	@echo "Check successful"
 
 .include <bsd.prog.mk>
