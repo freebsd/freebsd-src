@@ -206,7 +206,9 @@ m4_ifdef( [[M4_YY_TABLES_EXTERNAL]],
 
 /* begin standard C headers. */
 %if-c-only
+#if defined(__FreeBSD__)
 #include <stdint.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
