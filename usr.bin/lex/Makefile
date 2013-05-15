@@ -37,17 +37,12 @@ GENFILES=	parse.c parse.h scan.c skel.c
 
 SUBDIR=		lib
 
-MAJOR_VERSION=		2
-MINOR_VERSION=		5
-SUBMINOR_VERSION=	37
+FLEX_VERSION=	`awk -f ${.CURDIR}/version.awk ${.CURDIR}/config.h`
 
-skel.c: mkskel.sh flex.skl
+skel.c: config.h mkskel.sh flex.skl version.awk
 	sed 's/m4_/m4postproc_/g; s/m4preproc_/m4_/g' \
 	    ${FLEXDIR}/flex.skl | \
-	m4 -I${FLEXDIR} -P \
-	    -DFLEX_MAJOR_VERSION=${MAJOR_VERSION} \
-	    -DFLEX_MINOR_VERSION=${MINOR_VERSION} \
-	    -DFLEX_SUBMINOR_VERSION=${SUBMINOR_VERSION} | \
+	m4 -I${FLEXDIR} -P ${FLEX_VERSION} | \
 	sed 's/m4postproc_/m4_/g' | \
 	sh ${FLEXDIR}/mkskel.sh > ${.TARGET}
 
