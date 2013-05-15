@@ -7138,8 +7138,12 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 			continue;
 		}
 
-		item = findsasdevice(&devlist,
-			scsi_8btou64(disresponse->attached_sas_address));
+		if (disresponse->attached_device == SMP_DIS_AD_TYPE_NONE) {
+			item = NULL;
+		} else {
+			item = findsasdevice(&devlist,
+			    scsi_8btou64(disresponse->attached_sas_address));
+		}
 
 		if ((quiet == 0)
 		 || (item != NULL)) {
