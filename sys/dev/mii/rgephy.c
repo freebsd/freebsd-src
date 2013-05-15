@@ -517,7 +517,7 @@ static void
 rgephy_reset(struct mii_softc *sc)
 {
 	struct rgephy_softc *rsc;
-	uint16_t ssr;
+	uint16_t pcr, ssr;
 
 	rsc = (struct rgephy_softc *)sc;
 	if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 && rsc->mii_revision == 3) {
@@ -526,6 +526,15 @@ rgephy_reset(struct mii_softc *sc)
 		if ((ssr & RGEPHY_SSR_ALDPS) != 0) {
 			ssr &= ~RGEPHY_SSR_ALDPS;
 			PHY_WRITE(sc, RGEPHY_MII_SSR, ssr);
+		}
+	}
+
+	if (rsc->mii_revision >= 2) {
+		pcr = PHY_READ(sc, RGEPHY_MII_PCR);
+		if ((pcr & RGEPHY_PCR_MDIX_AUTO) == 0) {
+			pcr &= ~RGEPHY_PCR_MDI_MASK;
+			pcr |= RGEPHY_PCR_MDIX_AUTO;
+			PHY_WRITE(sc, RGEPHY_MII_PCR, pcr);
 		}
 	}
 
