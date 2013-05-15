@@ -26,7 +26,9 @@
 #endif
 
 /* begin standard C headers. */
+#if defined(__FreeBSD__)
 #include <stdint.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -1986,7 +1988,7 @@ extern const char *escaped_qstart, *escaped_qend;
 
 
 
-#line 1989 "<stdout>"
+#line 1991 "<stdout>"
 
 #define INITIAL 0
 #define SECT2 1
@@ -2215,7 +2217,7 @@ YY_DECL
 	Char nmdef[MAXLINE];
 
 
-#line 2218 "<stdout>"
+#line 2220 "<stdout>"
 
 	if ( !(yy_init) )
 		{
@@ -4123,7 +4125,7 @@ YY_RULE_SETUP
 #line 969 "scan.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 4126 "<stdout>"
+#line 4128 "<stdout>"
 			case YY_STATE_EOF(INITIAL):
 			case YY_STATE_EOF(SECT2):
 			case YY_STATE_EOF(CODEBLOCK):
