@@ -64,7 +64,7 @@ test: check
 check: ${PROG}
 	./${PROG} ${LFLAGS} -t ${COMPRESSION} ${FLEXDIR}/scan.l \
 	| sed 's,\"${FLEXDIR}/scan.l\",\"scan.l\",' \
-	| diff -I '\$$FreeBSD${.CURDIR}/initscan.c -
+	| diff -I '\$$FreeBS[D]: .*\$$' ${.CURDIR}/initscan.c -
 	@echo "Check successful"
 
 .include <bsd.prog.mk>
