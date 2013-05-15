@@ -273,15 +273,67 @@ WMAKEENV=	${CROSSENV} \
 .if ${MK_CDDL} == "no"
 WMAKEENV+=	NO_CTF=1
 .endif
-.if ${CC:T:Mgcc} == "gcc"
+
+.if defined(CROSS_TOOLCHAIN_PREFIX)
+CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
+.endif
+XCOMPILERS=	CC CXX CPP
+.for COMPILER in ${XCOMPILERS}
+.if defined(CROSS_COMPILER_PREFIX)
+X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
+.else
+X${COMPILER}?=	${${COMPILER}}
+.endif
+.endfor
+XBINUTILS=	AS AR LD NM OBJDUMP RANLIB STRINGS
+.for BINUTIL in ${XBINUTILS}
+.if defined(CROSS_BINUTILS_PREFIX)
+X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
+.else
+X${BINUTIL}?=	${${BINUTIL}}
+.endif
+.endfor
+WMAKEENV+=	CC="${XCC} ${XFLAGS}" CXX="${XCXX} ${XFLAGS}" \
+		CPP="${XCPP} ${XFLAGS}" \
+		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
+		OBJDUMP=${XOBJDUMP} RANLIB=${XRANLIB} STRINGS=${XSTRINGS}
+
+.if ${XCC:T:Mgcc} == "gcc"
 WMAKE_COMPILER_TYPE=	gcc
-.elif ${CC:T:Mclang} == "clang"
+.elif ${XCC:T:Mclang} == "clang"
 WMAKE_COMPILER_TYPE=	clang
 .elif ${MK_CLANG_IS_CC} == "no"
 WMAKE_COMPILER_TYPE=	gcc
 .else
 WMAKE_COMPILER_TYPE=	clang
 .endif
+IMAKE_COMPILER_TYPE=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
+
+.if ${XCC:M/*}
+XFLAGS=		--sysroot=${WORLDTMP}
+.if defined(CROSS_BINUTILS_PREFIX)
+# In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
+# directory, but the compiler will look in the right place for it's
+# tools so we don't need to tell it where to look.
+.if exists(${CROSS_BINUTILS_PREFIX})
+XFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
+.endif
+.else
+XFLAGS+=	-B${WORLDTMP}/usr/bin
+.endif
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} && ${WMAKE_COMPILER_TYPE} == "clang"
+.if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
+${MK_ARM_EABI} != "no"
+TARGET_ABI=	gnueabi
+.else
+TARGET_ABI=	unknown
+.endif
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd10.0
+XFLAGS+=	-target ${TARGET_TRIPLE}
+.endif
+.endif
+
 WMAKEENV+=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
@@ -314,6 +366,7 @@ LIB32WMAKEFLAGS=	\
 
 
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
+		--sysroot=${WORLDTMP} \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
@@ -329,8 +382,8 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		SHLIBDIR=/usr/lib32 \
 		COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
 LIB32WMAKEFLAGS+=	\
-		CC="${CC} ${LIB32FLAGS}" \
-		CXX="${CXX} ${LIB32FLAGS}" \
+		CC="${XCC} ${LIB32FLAGS}" \
+		CXX="${XCXX} ${LIB32FLAGS}" \
 		DESTDIR=${LIB32TMP} \
 		-DCOMPAT_32BIT \
 		-DLIBRARIES_ONLY \
@@ -346,7 +399,7 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
-		${IMAKE_INSTALL} ${IMAKE_MTREE}
+		${IMAKE_INSTALL} ${IMAKE_MTREE} ${IMAKE_COMPILER_TYPE}
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 		LD_LIBRARY_PATH=${INSTALLTMP} \
@@ -1279,10 +1332,13 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
-.if ${MK_BINUTILS} != "no"
+.if ${XAS:M/*} == "" && ${MK_BINUTILS} != "no"
 _binutils=	gnu/usr.bin/binutils
 .endif
 
+# If an full path to an external cross compiler is given, don't build
+# a cross compiler.
+.if ${XCC:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
 .if ${MK_CLANG} != "no" && (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
@@ -1290,6 +1346,7 @@ _clang_libs=	lib/clang
 
 .if ${MK_GCC} != "no" && (${MK_CLANG_IS_CC} == "no" || ${TARGET} == "pc98")
 _cc=		gnu/usr.bin/cc
+.endif
 .endif
 
 cross-tools:
