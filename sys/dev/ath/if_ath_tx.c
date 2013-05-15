@@ -1401,6 +1401,69 @@ ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
 }
 
 /*
+ * Return whether this frame should be software queued or
+ * direct dispatched.
+ *
+ * When doing powersave, BAR frames should be queued but other management
+ * frames should be directly sent.
+ *
+ * When not doing powersave, stick BAR frames into the hardware queue
+ * so it goes out even though the queue is paused.
+ *
+ * For now, management frames are also software queued by default.
+ */
+static int
+ath_tx_should_swq_frame(struct ath_softc *sc, struct ath_node *an,
+    struct mbuf *m0, int *queue_to_head)
+{
+	struct ieee80211_node *ni = &an->an_node;
+	struct ieee80211_frame *wh;
+	uint8_t type, subtype;
+
+	wh = mtod(m0, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+
+	(*queue_to_head) = 0;
+
+	/* If it's not in powersave - direct-dispatch BAR */
+	if ((ATH_NODE(ni)->an_is_powersave == 0)
+	    && type == IEEE80211_FC0_TYPE_CTL &&
+	    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
+		    "%s: BAR: TX'ing direct\n", __func__);
+		return (0);
+	} else if ((ATH_NODE(ni)->an_is_powersave == 1)
+	    && type == IEEE80211_FC0_TYPE_CTL &&
+	    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
+		/* BAR TX whilst asleep; queue */
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
+		    "%s: swq: TX'ing\n", __func__);
+		(*queue_to_head) = 1;
+		return (1);
+	} else if ((ATH_NODE(ni)->an_is_powersave == 1)
+	    && (type == IEEE80211_FC0_TYPE_MGT ||
+	        type == IEEE80211_FC0_TYPE_CTL)) {
+		/*
+		 * Other control/mgmt frame; bypass software queuing
+		 * for now!
+		 */
+		device_printf(sc->sc_dev,
+		    "%s: %6D: Node is asleep; sending mgmt "
+		    "(type=%d, subtype=%d)\n",
+		    __func__,
+		    ni->ni_macaddr,
+		    ":",
+		    type,
+		    subtype);
+		return (0);
+	} else {
+		return (1);
+	}
+}
+
+
+/*
  * Transmit the given frame to the hardware.
  *
  * The frame must already be setup; rate control must already have
@@ -1410,6 +1473,10 @@ ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
  * it for this long when not doing software aggregation), later on
  * break this function into "setup_normal" and "xmit_normal". The
  * lock only needs to be held for the ath_tx_handoff call.
+ *
+ * XXX we don't update the leak count here - if we're doing
+ * direct frame dispatch, we need to be able to do it without
+ * decrementing the leak count (eg multicast queue frames.)
  */
 static void
 ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
@@ -1786,6 +1853,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	int is_ampdu, is_ampdu_tx, is_ampdu_pending;
 	ieee80211_seq seqno;
 	uint8_t type, subtype;
+	int queue_to_head;
 
 	ATH_TX_LOCK_ASSERT(sc);
 
@@ -1824,6 +1892,32 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 			m_freem(m0);
 			return (ENOBUFS);
 		}
+	}
+
+	/*
+	 * Enforce how deep the unicast queue can grow.
+	 *
+	 * If the node is in power save then we don't want
+	 * the software queue to grow too deep, or a node may
+	 * end up consuming all of the ath_buf entries.
+	 *
+	 * For now, only do this for DATA frames.
+	 *
+	 * We will want to cap how many management/control
+	 * frames get punted to the software queue so it doesn't
+	 * fill up.  But the correct solution isn't yet obvious.
+	 * In any case, this check should at least let frames pass
+	 * that we are direct-dispatching.
+	 *
+	 * XXX TODO: duplicate this to the raw xmit path!
+	 */
+	if (type == IEEE80211_FC0_TYPE_DATA &&
+	    ATH_NODE(ni)->an_is_powersave &&
+	    ATH_NODE(ni)->an_swq_depth >
+	     sc->sc_txq_node_psq_maxdepth) {
+		sc->sc_stats.ast_tx_node_psq_overflow++;
+		m_freem(m0);
+		return (ENOBUFS);
 	}
 
 	/* A-MPDU TX */
@@ -1924,22 +2018,26 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * either been TXed successfully or max retries has been
 	 * reached.)
 	 */
+	/*
+	 * Until things are better debugged - if this node is asleep
+	 * and we're sending it a non-BAR frame, direct dispatch it.
+	 * Why? Because we need to figure out what's actually being
+	 * sent - eg, during reassociation/reauthentication after
+	 * the node (last) disappeared whilst asleep, the driver should
+	 * have unpaused/unsleep'ed the node.  So until that is
+	 * sorted out, use this workaround.
+	 */
 	if (txq == &avp->av_mcastq) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: bf=%p: mcastq: TX'ing\n", __func__, bf);
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 		ath_tx_xmit_normal(sc, txq, bf);
-	} else if (type == IEEE80211_FC0_TYPE_CTL &&
-		    subtype == IEEE80211_FC0_SUBTYPE_BAR) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX,
-		    "%s: BAR: TX'ing direct\n", __func__);
+	} else if (ath_tx_should_swq_frame(sc, ATH_NODE(ni), m0,
+	    &queue_to_head)) {
+		ath_tx_swq(sc, ni, txq, queue_to_head, bf);
+	} else {
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 		ath_tx_xmit_normal(sc, txq, bf);
-	} else {
-		/* add to software queue */
-		DPRINTF(sc, ATH_DEBUG_SW_TX,
-		    "%s: bf=%p: swq: TX'ing\n", __func__, bf);
-		ath_tx_swq(sc, ni, txq, bf);
 	}
 #else
 	/*
@@ -1947,6 +2045,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * direct-dispatch to the hardware.
 	 */
 	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+	/*
+	 * Update the current leak count if
+	 * we're leaking frames; and set the
+	 * MORE flag as appropriate.
+	 */
+	ath_tx_leak_count_update(sc, tid, bf);
 	ath_tx_xmit_normal(sc, txq, bf);
 #endif
 done:
@@ -1973,6 +2077,8 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	u_int pri;
 	int o_tid = -1;
 	int do_override;
+	uint8_t type, subtype;
+	int queue_to_head;
 
 	ATH_TX_LOCK_ASSERT(sc);
 
@@ -1985,6 +2091,9 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
+
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
 	ATH_KTR(sc, ATH_KTR_TX, 2,
 	     "ath_tx_raw_start: ni=%p, bf=%p, raw", ni, bf);
@@ -2162,16 +2271,35 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	    __func__, do_override);
 
 #if 1
+	/*
+	 * Put addba frames in the right place in the right TID/HWQ.
+	 */
 	if (do_override) {
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+		/*
+		 * XXX if it's addba frames, should we be leaking
+		 * them out via the frame leak method?
+		 * XXX for now let's not risk it; but we may wish
+		 * to investigate this later.
+		 */
 		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
-	} else {
+	} else if (ath_tx_should_swq_frame(sc, ATH_NODE(ni), m0,
+	    &queue_to_head)) {
 		/* Queue to software queue */
-		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], bf);
+		ath_tx_swq(sc, ni, sc->sc_ac2q[pri], queue_to_head, bf);
+	} else {
+		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+		ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
 	}
 #else
 	/* Direct-dispatch to the hardware */
 	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
+	/*
+	 * Update the current leak count if
+	 * we're leaking frames; and set the
+	 * MORE flag as appropriate.
+	 */
+	ath_tx_leak_count_update(sc, tid, bf);
 	ath_tx_xmit_normal(sc, sc->sc_ac2q[pri], bf);
 #endif
 	return 0;
@@ -2603,6 +2731,60 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
 	    __func__, tap->txa_start, tap->txa_wnd, tid->baw_head);
 }
 
+static void
+ath_tx_leak_count_update(struct ath_softc *sc, struct ath_tid *tid,
+    struct ath_buf *bf)
+{
+	struct ieee80211_frame *wh;
+
+	ATH_TX_LOCK_ASSERT(sc);
+
+	if (tid->an->an_leak_count > 0) {
+		wh = mtod(bf->bf_m, struct ieee80211_frame *);
+
+		/*
+		 * Update MORE based on the software/net80211 queue states.
+		 */
+		if ((tid->an->an_stack_psq > 0)
+		    || (tid->an->an_swq_depth > 0))
+			wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
+		else
+			wh->i_fc[1] &= ~IEEE80211_FC1_MORE_DATA;
+
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: %6D: leak count = %d, psq=%d, swq=%d, MORE=%d\n",
+		    __func__,
+		    tid->an->an_node.ni_macaddr,
+		    ":",
+		    tid->an->an_leak_count,
+		    tid->an->an_stack_psq,
+		    tid->an->an_swq_depth,
+		    !! (wh->i_fc[1] & IEEE80211_FC1_MORE_DATA));
+
+		/*
+		 * Re-sync the underlying buffer.
+		 */
+		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
+		    BUS_DMASYNC_PREWRITE);
+
+		tid->an->an_leak_count --;
+	}
+}
+
+static int
+ath_tx_tid_can_tx_or_sched(struct ath_softc *sc, struct ath_tid *tid)
+{
+
+	ATH_TX_LOCK_ASSERT(sc);
+
+	if (tid->an->an_leak_count > 0) {
+		return (1);
+	}
+	if (tid->paused)
+		return (0);
+	return (1);
+}
+
 /*
  * Mark the current node/TID as ready to TX.
  *
@@ -2611,14 +2793,19 @@ ath_tx_update_baw(struct ath_softc *sc, struct ath_node *an,
  *
  * The TXQ lock must be held.
  */
-static void
+void
 ath_tx_tid_sched(struct ath_softc *sc, struct ath_tid *tid)
 {
 	struct ath_txq *txq = sc->sc_ac2q[tid->ac];
 
 	ATH_TX_LOCK_ASSERT(sc);
 
-	if (tid->paused)
+	/*
+	 * If we are leaking out a frame to this destination
+	 * for PS-POLL, ensure that we allow scheduling to
+	 * occur.
+	 */
+	if (! ath_tx_tid_can_tx_or_sched(sc, tid))
 		return;		/* paused, can't schedule yet */
 
 	if (tid->sched)
@@ -2626,6 +2813,30 @@ ath_tx_tid_sched(struct ath_softc *sc, struct ath_tid *tid)
 
 	tid->sched = 1;
 
+#if 0
+	/*
+	 * If this is a sleeping node we're leaking to, given
+	 * it a higher priority.  This is so bad for QoS it hurts.
+	 */
+	if (tid->an->an_leak_count) {
+		TAILQ_INSERT_HEAD(&txq->axq_tidq, tid, axq_qelem);
+	} else {
+		TAILQ_INSERT_TAIL(&txq->axq_tidq, tid, axq_qelem);
+	}
+#endif
+
+	/*
+	 * We can't do the above - it'll confuse the TXQ software
+	 * scheduler which will keep checking the _head_ TID
+	 * in the list to see if it has traffic.  If we queue
+	 * a TID to the head of the list and it doesn't transmit,
+	 * we'll check it again.
+	 *
+	 * So, get the rest of this leaking frames support working
+	 * and reliable first and _then_ optimise it so they're
+	 * pushed out in front of any other pending software
+	 * queued nodes.
+	 */
 	TAILQ_INSERT_TAIL(&txq->axq_tidq, tid, axq_qelem);
 }
 
@@ -2722,7 +2933,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	/* paused? queue */
-	if (tid->paused) {
+	if (! ath_tx_tid_can_tx_or_sched(sc, tid)) {
 		ATH_TID_INSERT_HEAD(tid, bf, bf_list);
 		/* XXX don't sched - we're paused! */
 		return;
@@ -2782,6 +2993,13 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 	/* Set completion handler, multi-frame aggregate or not */
 	bf->bf_comp = ath_tx_aggr_comp;
 
+	/*
+	 * Update the current leak count if
+	 * we're leaking frames; and set the
+	 * MORE flag as appropriate.
+	 */
+	ath_tx_leak_count_update(sc, tid, bf);
+
 	/* Hand off to hardware */
 	ath_tx_handoff(sc, txq, bf);
 }
@@ -2793,8 +3011,8 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
  *  relevant software queue.
  */
 void
-ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
-    struct ath_buf *bf)
+ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
+    struct ath_txq *txq, int queue_to_head, struct ath_buf *bf)
 {
 	struct ath_node *an = ATH_NODE(ni);
 	struct ieee80211_frame *wh;
@@ -2824,11 +3042,21 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 	 * If the hardware queue is busy, queue it.
 	 * If the TID is paused or the traffic it outside BAW, software
 	 * queue it.
+	 *
+	 * If the node is in power-save and we're leaking a frame,
+	 * leak a single frame.
 	 */
-	if (atid->paused) {
+	if (! ath_tx_tid_can_tx_or_sched(sc, atid)) {
 		/* TID is paused, queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: paused\n", __func__);
-		ATH_TID_INSERT_TAIL(atid, bf, bf_list);
+		/*
+		 * If the caller requested that it be sent at a high
+		 * priority, queue it at the head of the list.
+		 */
+		if (queue_to_head)
+			ATH_TID_INSERT_HEAD(atid, bf, bf_list);
+		else
+			ATH_TID_INSERT_TAIL(atid, bf, bf_list);
 	} else if (ath_tx_ampdu_pending(sc, an, tid)) {
 		/* AMPDU pending; queue */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pending\n", __func__);
@@ -2878,6 +3106,17 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
 		/* See if clrdmask needs to be set */
 		ath_tx_update_clrdmask(sc, atid, bf);
+
+		/*
+		 * Update the current leak count if
+		 * we're leaking frames; and set the
+		 * MORE flag as appropriate.
+		 */
+		ath_tx_leak_count_update(sc, atid, bf);
+
+		/*
+		 * Dispatch the frame.
+		 */
 		ath_tx_xmit_normal(sc, txq, bf);
 	} else {
 		/* Busy; queue */
@@ -3646,6 +3885,7 @@ ath_tx_tid_reset(struct ath_softc *sc, struct ath_tid *tid)
 	 * do a complete hard reset of state here - no pause, no
 	 * complete counter, etc.
 	 */
+
 }
 
 /*
@@ -3670,7 +3910,7 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 	ATH_TX_LOCK(sc);
 	DPRINTF(sc, ATH_DEBUG_NODE,
 	    "%s: %6D: flush; is_powersave=%d, stack_psq=%d, tim=%d, "
-	    "swq_depth=%d, clrdmask=%d\n",
+	    "swq_depth=%d, clrdmask=%d, leak_count=%d\n",
 	    __func__,
 	    an->an_node.ni_macaddr,
 	    ":",
@@ -3678,18 +3918,26 @@ ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an)
 	    an->an_stack_psq,
 	    an->an_tim_set,
 	    an->an_swq_depth,
-	    an->clrdmask);
+	    an->clrdmask,
+	    an->an_leak_count);
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		struct ath_tid *atid = &an->an_tid[tid];
 
 		/* Free packets */
 		ath_tx_tid_drain(sc, an, atid, &bf_cq);
+
 		/* Remove this tid from the list of active tids */
 		ath_tx_tid_unsched(sc, atid);
+
 		/* Reset the per-TID pause, BAR, etc state */
 		ath_tx_tid_reset(sc, atid);
 	}
+
+	/*
+	 * Clear global leak count
+	 */
+	an->an_leak_count = 0;
 	ATH_TX_UNLOCK(sc);
 
 	/* Handle completed frames */
@@ -4860,6 +5108,11 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid->tid);
 	ATH_TX_LOCK_ASSERT(sc);
 
+	/*
+	 * XXX TODO: If we're called for a queue that we're leaking frames to,
+	 * ensure we only leak one.
+	 */
+
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	if (tid->tid == IEEE80211_NONQOS_TID)
@@ -4877,7 +5130,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * of packet loss; but as its serialised with this code,
 		 * it won't "appear" half way through queuing packets.
 		 */
-		if (tid->paused)
+		if (! ath_tx_tid_can_tx_or_sched(sc, tid))
 			break;
 
 		bf = ATH_TID_FIRST(tid);
@@ -5029,6 +5282,14 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		if (bf->bf_state.bfs_tid == IEEE80211_NONQOS_TID)
 		    device_printf(sc->sc_dev, "%s: TID=16?\n", __func__);
 
+		/*
+		 * Update leak count and frame config if were leaking frames.
+		 *
+		 * XXX TODO: it should update all frames in an aggregate
+		 * correctly!
+		 */
+		ath_tx_leak_count_update(sc, tid, bf);
+
 		/* Punt to txq */
 		ath_tx_handoff(sc, txq, bf);
 
@@ -5044,7 +5305,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * XXX locking on txq here?
 		 */
 		if (txq->axq_aggr_depth >= sc->sc_hwq_limit ||
-		    status == ATH_AGGR_BAW_CLOSED)
+		    (status == ATH_AGGR_BAW_CLOSED ||
+		     status == ATH_AGGR_LEAK_CLOSED))
 			break;
 	}
 }
@@ -5077,8 +5339,11 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		/*
 		 * If the upper layers have paused the TID, don't
 		 * queue any further packets.
+		 *
+		 * XXX if we are leaking frames, make sure we decrement
+		 * that counter _and_ we continue here.
 		 */
-		if (tid->paused)
+		if (! ath_tx_tid_can_tx_or_sched(sc, tid))
 			break;
 
 		bf = ATH_TID_FIRST(tid);
@@ -5113,6 +5378,13 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		ath_tx_set_rtscts(sc, bf);
 		ath_tx_rate_fill_rcflags(sc, bf);
 		ath_tx_setds(sc, bf);
+
+		/*
+		 * Update the current leak count if
+		 * we're leaking frames; and set the
+		 * MORE flag as appropriate.
+		 */
+		ath_tx_leak_count_update(sc, tid, bf);
 
 		/* Track outstanding buffer count to hardware */
 		/* aggregates are "one" buffer */
@@ -5161,7 +5433,11 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, paused=%d\n",
 		    __func__, tid->tid, tid->paused);
 		ath_tx_tid_unsched(sc, tid);
-		if (tid->paused) {
+		/*
+		 * This node may be in power-save and we're leaking
+		 * a frame; be careful.
+		 */
+		if (! ath_tx_tid_can_tx_or_sched(sc, tid)) {
 			continue;
 		}
 		if (ath_tx_ampdu_running(sc, tid->an, tid->tid))
@@ -5182,6 +5458,11 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		 * If this was the last entry on the original list, stop.
 		 * Otherwise nodes that have been rescheduled onto the end
 		 * of the TID FIFO list will just keep being rescheduled.
+		 *
+		 * XXX What should we do about nodes that were paused
+		 * but are pending a leaking frame in response to a ps-poll?
+		 * They'll be put at the front of the list; so they'll
+		 * prematurely trigger this condition! Ew.
 		 */
 		if (tid == last)
 			break;
@@ -5433,6 +5714,7 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 		TAILQ_REMOVE(&bf_cq, bf, bf_list);
 		ath_tx_default_comp(sc, bf, 1);
 	}
+
 }
 
 /*
@@ -5604,53 +5886,24 @@ ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an)
 
 	ATH_TX_UNLOCK_ASSERT(sc);
 
-	/*
-	 * It's possible that a parallel call to ath_tx_node_wakeup()
-	 * will unpause these queues.
-	 *
-	 * The node lock can't just be grabbed here, as there's places
-	 * in the driver where the node lock is grabbed _within_ a
-	 * TXQ lock.
-	 * So, we do this delicately and unwind state if needed.
-	 *
-	 * + Pause all the queues
-	 * + Grab the node lock
-	 * + If the queue is already asleep, unpause and quit
-	 * + else just mark as asleep.
-	 *
-	 * A parallel sleep() call will just pause and then
-	 * find they're already paused, so undo it.
-	 *
-	 * A parallel wakeup() call will check if asleep is 1
-	 * and if it's not (ie, it's 0), it'll treat it as already
-	 * being awake. If it's 1, it'll mark it as 0 and then
-	 * unpause everything.
-	 *
-	 * (Talk about a delicate hack.)
-	 */
-
 	/* Suspend all traffic on the node */
 	ATH_TX_LOCK(sc);
+
+	if (an->an_is_powersave) {
+		device_printf(sc->sc_dev,
+		    "%s: %6D: node was already asleep!\n",
+		    __func__,
+		    an->an_node.ni_macaddr,
+		    ":");
+		ATH_TX_UNLOCK(sc);
+		return;
+	}
+
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		atid = &an->an_tid[tid];
 		txq = sc->sc_ac2q[atid->ac];
 
 		ath_tx_tid_pause(sc, atid);
-	}
-
-	/* In case of concurrency races from net80211.. */
-	if (an->an_is_powersave == 1) {
-		device_printf(sc->sc_dev,
-		    "%s: an=%p: node was already asleep\n",
-		    __func__, an);
-		for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
-			atid = &an->an_tid[tid];
-			txq = sc->sc_ac2q[atid->ac];
-
-			ath_tx_tid_resume(sc, atid);
-		}
-		ATH_TX_UNLOCK(sc);
-		return;
 	}
 
 	/* Mark node as in powersaving */
@@ -5674,7 +5927,7 @@ ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
 
 	ATH_TX_LOCK(sc);
 
-	/* In case of concurrency races from net80211.. */
+	/* !? */
 	if (an->an_is_powersave == 0) {
 		ATH_TX_UNLOCK(sc);
 		device_printf(sc->sc_dev,
@@ -5685,6 +5938,10 @@ ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an)
 
 	/* Mark node as awake */
 	an->an_is_powersave = 0;
+	/*
+	 * Clear any pending leaked frame requests
+	 */
+	an->an_leak_count = 0;
 
 	for (tid = 0; tid < IEEE80211_TID_SIZE; tid++) {
 		atid = &an->an_tid[tid];

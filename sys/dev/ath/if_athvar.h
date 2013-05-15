@@ -182,6 +182,7 @@ struct ath_node {
 	uint32_t	an_swq_depth;	/* how many SWQ packets for this
 					   node */
 	int			clrdmask;	/* has clrdmask been set */
+	uint32_t	an_leak_count;	/* How many frames to leak during pause */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -465,6 +466,8 @@ struct ath_vap {
 	void		(*av_bmiss)(struct ieee80211vap *);
 	void		(*av_node_ps)(struct ieee80211_node *, int);
 	int		(*av_set_tim)(struct ieee80211_node *, int);
+	void		(*av_recv_pspoll)(struct ieee80211_node *,
+				struct mbuf *);
 };
 #define	ATH_VAP(vap)	((struct ath_vap *)(vap))
 
@@ -794,6 +797,8 @@ struct ath_softc {
 	 *   management/multicast frames;
 	 * + multicast frames overwhelming everything (when the
 	 *   air is sufficiently busy that cabq can't drain.)
+	 * + A node in powersave shouldn't be allowed to exhaust
+	 *   all available mbufs;
 	 *
 	 * These implement:
 	 * + data_minfree is the maximum number of free buffers
@@ -804,6 +809,7 @@ struct ath_softc {
 	int			sc_txq_node_maxdepth;
 	int			sc_txq_data_minfree;
 	int			sc_txq_mcastq_maxdepth;
+	int			sc_txq_node_psq_maxdepth;
 
 	/*
 	 * Aggregation twiddles
