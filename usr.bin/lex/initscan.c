@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 
 #line 3 "<stdout>"
 

@@ -51,20 +51,20 @@ skel.c: mkskel.sh flex.skl
 	sh ${FLEXDIR}/mkskel.sh > ${.TARGET}
 
 bootstrap: scan.c skel.c
-	cmp -s ${FLEXDIR}/scan.c scan.c || { \
+	cmp -s ${.CURDIR}/initscan.c scan.c || { \
 		rm -f scan.c ; \
-		cp -f ${FLEXDIR}/scan.c scan.c ; \
+		cp -f ${.CURDIR}/initscan.c scan.c ; \
 	}
-	cmp -s ${FLEXDIR}/skel.c skel.c || { \
+	cmp -s ${.CURDIR}/initskel.c skel.c || { \
 		rm -f skel.c ; \
-		cp -f ${FLEXDIR}/skel.c skel.c ; \
+		cp -f ${.CURDIR}/initskel.c skel.c ; \
 	}
 
 test: check
-check: $(PROG)
-	./$(PROG) $(LFLAGS) -t $(COMPRESSION) $(FLEXDIR)/scan.l \
-	| sed s,\"$(FLEXDIR)/scan.l",\"scan.l", \
-	| diff -I '\$$FreeBS[D]:.*\$$' $(FLEXDIR)/scan.c -
+check: ${PROG}
+	./${PROG} ${LFLAGS} -t ${COMPRESSION} ${FLEXDIR}/scan.l \
+	| sed 's,\"${FLEXDIR}/scan.l\",\"scan.l\",' \
+	| diff -I '\$$FreeBSD${.CURDIR}/initscan.c -
 	@echo "Check successful"
 
 .include <bsd.prog.mk>
