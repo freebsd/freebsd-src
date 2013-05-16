@@ -4602,15 +4602,25 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_hal *ah = sc->sc_ah;
 
 	DPRINTF(sc, ATH_DEBUG_RESET,
-	    "%s: tx queue [%u] %p, active=%d, hwpending=%d, flags 0x%08x, link %p\n",
+	    "%s: tx queue [%u] %p, active=%d, hwpending=%d, flags 0x%08x, "
+	    "link %p, holdingbf=%p\n",
 	    __func__,
 	    txq->axq_qnum,
 	    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, txq->axq_qnum),
 	    (int) (!! ath_hal_txqenabled(ah, txq->axq_qnum)),
 	    (int) ath_hal_numtxpending(ah, txq->axq_qnum),
 	    txq->axq_flags,
-	    txq->axq_link);
+	    txq->axq_link,
+	    txq->axq_holdingbf);
+
 	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
+
+#ifdef	ATH_DEBUG
+	if ((sc->sc_debug & ATH_DEBUG_RESET)
+	    && (txq->axq_holdingbf != NULL)) {
+		ath_printtxbuf(sc, txq->axq_holdingbf, txq->axq_qnum, 0, 0);
+	}
+#endif
 }
 
 int
