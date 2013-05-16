@@ -59,8 +59,8 @@ directory will be placed in the root of the UFS image
 will be placed in the root of the UFS image
 .Ar image-file .
 .Pp
-Images can be customized with a number of different flags.
-.Bl -tag -compact -width indent
+Images can be customized with a number of different flags:
+.Bl -tag -width indent
 .It Fl B Ar byte-order
 Set the byte order of the image to
 .Ar byte-order .
@@ -92,7 +92,7 @@ stored in
 and install it in the home directory of
 .Ar user .
 If no
-.F K
+.Fl K
 argument is supplied then the files will be installed in the root user's
 directory.
 .It Fl p Ar master.passwd Op Fl g Ar group
