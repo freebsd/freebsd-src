@@ -571,7 +571,8 @@ options 	HWPMC_HOOKS		# Other necessary kernel hooks
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
 
-options 	ROUTETABLES=2		# max 16. 1 is back compatible.
+options 	ROUTETABLES=2		# allocated fibs up to 65536. default is 1.
+					# but that would be a bad idea as they are large.
 
 options 	TCP_OFFLOAD		# TCP offload support.
 
