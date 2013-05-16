@@ -281,7 +281,7 @@ kernel: buildkernel installkernel
 #
 upgrade_checks:
 .if !defined(.PARSEDIR)
-.if defined(WITH_BMAKE)
+.if !defined(WITHOUT_BMAKE)
 	(cd ${.CURDIR} && ${MAKE} bmake)
 .else
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
