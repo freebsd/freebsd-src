@@ -11,7 +11,7 @@
 PROG= make
 .endif
 
-.if ${MK_SHARED_TOOLCHAIN} == "no"
+.if !defined(MK_SHARED_TOOLCHAIN) || ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=     YES
 .endif
 
