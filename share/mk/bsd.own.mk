@@ -251,6 +251,7 @@ __DEFAULT_YES_OPTIONS = \
     BIND_UTILS \
     BINUTILS \
     BLUETOOTH \
+    BMAKE \
     BOOT \
     BSD_CPIO \
     BSNMP \
@@ -360,7 +361,6 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    BMAKE \
     BSDCONFIG \
     BSD_GREP \
     CLANG_EXTRAS \
