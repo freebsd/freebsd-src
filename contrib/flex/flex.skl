@@ -200,15 +200,13 @@ m4_ifdef( [[M4_YY_TABLES_EXTERNAL]],
 #define	__STDC_LIMIT_MACROS
 #endif
 #include <sys/cdefs.h>
+#include <stdint.h>
 #else
 #define	__dead2
 #endif
 
 /* begin standard C headers. */
 %if-c-only
-#if defined(__FreeBSD__)
-#include <stdint.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

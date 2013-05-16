@@ -21,14 +21,12 @@
 #define	__STDC_LIMIT_MACROS
 #endif
 #include <sys/cdefs.h>
+#include <stdint.h>
 #else
 #define	__dead2
 #endif
 
 /* begin standard C headers. */
-#if defined(__FreeBSD__)
-#include <stdint.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -43,7 +41,8 @@
 
 /* C99 systems have <inttypes.h>. Non-C99 systems may or may not. */
 
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#if defined(__FreeBSD__) || \
+    (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
  * if you want the limit (max/min) macros for int types. 
@@ -1988,7 +1987,7 @@ extern const char *escaped_qstart, *escaped_qend;
 
 
 
-#line 1991 "<stdout>"
+#line 1990 "<stdout>"
 
 #define INITIAL 0
 #define SECT2 1
@@ -2217,7 +2216,7 @@ YY_DECL
 	Char nmdef[MAXLINE];
 
 
-#line 2220 "<stdout>"
+#line 2219 "<stdout>"
 
 	if ( !(yy_init) )
 		{
@@ -4125,7 +4124,7 @@ YY_RULE_SETUP
 #line 969 "scan.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 4128 "<stdout>"
+#line 4127 "<stdout>"
 			case YY_STATE_EOF(INITIAL):
 			case YY_STATE_EOF(SECT2):
 			case YY_STATE_EOF(CODEBLOCK):
