@@ -1023,25 +1023,50 @@ distributekernel distributekernel.debug:
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
 .endif
+	mkdir -p ${DESTDIR}/${DISTDIR}
+.if defined(NO_ROOT)
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
+.endif
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel \
+	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
+	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
+	    DESTDIR=${INSTALL_DDIR:S://:/:g:C:/$::}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
+	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
+	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+.if defined(NO_ROOT)
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
+.endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
+	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
+	    DESTDIR=${INSTALL_DDIR:S://:/:g:C:/$::}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
+	sed -e 's|^./kernel|.|' \
+	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
+	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endfor
 
 packagekernel:
+.if defined(NO_ROOT)
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz \
+	    @${DESTDIR}/${DISTDIR}/kernel.meta
+.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz \
+	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+.endfor
+.else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
 .endfor
+.endif
 
 #
 # doxygen
