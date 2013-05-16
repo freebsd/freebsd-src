@@ -68,8 +68,7 @@
 
 #include <vm/uma.h>
 
-/* We use 4 bits in the mbuf flags, thus we are limited to 16 FIBS. */
-#define	RT_MAXFIBS	16
+#define	RT_MAXFIBS	UINT16_MAX
 
 /* Kernel config default option. */
 #ifdef ROUTETABLES
@@ -86,17 +85,10 @@
 #define	RT_NUMFIBS	1
 #endif
 
+/* This is read-only.. */
 u_int rt_numfibs = RT_NUMFIBS;
 SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
-/*
- * Allow the boot code to allow LESS than RT_MAXFIBS to be used.
- * We can't do more because storage is statically allocated for now.
- * (for compatibility reasons.. this will change. When this changes, code should
- * be refactored to protocol independent parts and protocol dependent parts,
- * probably hanging of domain(9) specific storage to not need the full
- * fib * af RNH allocation etc. but allow tuning the number of tables per
- * address family).
- */
+/* and this can be set too big but will be fixed before it is used */
 TUNABLE_INT("net.fibs", &rt_numfibs);
 
 /*
