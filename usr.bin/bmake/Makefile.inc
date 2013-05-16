@@ -7,7 +7,7 @@
 .export SRCTOP
 .endif
 
-.if ${MK_BMAKE} != "no"
+.if defined(MK_BMAKE) && ${MK_BMAKE} != "no"
 PROG= make
 .endif
 
