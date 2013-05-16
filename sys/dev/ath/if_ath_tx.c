@@ -3456,9 +3456,9 @@ ath_tx_tid_bar_suspend(struct ath_softc *sc, struct ath_tid *tid)
 	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: tid=%p, bar_wait=%d, bar_tx=%d, called\n",
+	    "%s: tid=%d, bar_wait=%d, bar_tx=%d, called\n",
 	    __func__,
-	    tid,
+	    tid->tid,
 	    tid->bar_wait,
 	    tid->bar_tx);
 
@@ -3490,19 +3490,21 @@ ath_tx_tid_bar_unsuspend(struct ath_softc *sc, struct ath_tid *tid)
 	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: %6D: tid=%p, called\n",
+	    "%s: %6D: TID=%d, called\n",
 	    __func__,
 	    tid->an->an_node.ni_macaddr,
 	    ":",
-	    tid);
+	    tid->tid);
 
 	if (tid->bar_tx == 0 || tid->bar_wait == 0) {
 		device_printf(sc->sc_dev,
-		    "%s: %6D: bar_tx=%d, bar_wait=%d: ?\n",
+		    "%s: %6D: TID=%d, bar_tx=%d, bar_wait=%d: ?\n",
 		    __func__,
 		    tid->an->an_node.ni_macaddr,
 		    ":",
-		    tid->bar_tx, tid->bar_wait);
+		    tid->tid,
+		    tid->bar_tx,
+		    tid->bar_wait);
 	}
 
 	tid->bar_tx = tid->bar_wait = 0;
@@ -3524,11 +3526,11 @@ ath_tx_tid_bar_tx_ready(struct ath_softc *sc, struct ath_tid *tid)
 		return (0);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: %6D: tid=%p (%d), bar ready\n",
+	    "%s: %6D: TID=%d, bar ready\n",
 	    __func__,
 	    tid->an->an_node.ni_macaddr,
 	    ":",
-	    tid, tid->tid);
+	    tid->tid);
 
 	return (1);
 }
@@ -3553,11 +3555,11 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: %6D: tid=%p, called\n",
+	    "%s: %6D: TID=%d, called\n",
 	    __func__,
 	    tid->an->an_node.ni_macaddr,
 	    ":",
-	    tid);
+	    tid->tid);
 
 	tap = ath_tx_get_tx_tid(tid->an, tid->tid);
 
@@ -3566,11 +3568,11 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 */
 	if (tid->bar_wait == 0 || tid->bar_tx == 1) {
 		device_printf(sc->sc_dev,
-		    "%s: %6D: tid=%p, bar_tx=%d, bar_wait=%d: ?\n",
+		    "%s: %6D: TID=%d, bar_tx=%d, bar_wait=%d: ?\n",
 		    __func__,
 		    tid->an->an_node.ni_macaddr,
 		    ":",
-		    tid,
+		    tid->tid,
 		    tid->bar_tx,
 		    tid->bar_wait);
 		return;
@@ -3579,11 +3581,11 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	/* Don't do anything if we still have pending frames */
 	if (tid->hwq_depth > 0) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-		    "%s: %6D: tid=%p, hwq_depth=%d, waiting\n",
+		    "%s: %6D: TID=%d, hwq_depth=%d, waiting\n",
 		    __func__,
 		    tid->an->an_node.ni_macaddr,
 		    ":",
-		    tid,
+		    tid->tid,
 		    tid->hwq_depth);
 		return;
 	}
@@ -3604,11 +3606,11 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 * XXX verify this is _actually_ the valid value to begin at!
 	 */
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: %6D: tid=%p, new BAW left edge=%d\n",
+	    "%s: %6D: TID=%d, new BAW left edge=%d\n",
 	    __func__,
 	    tid->an->an_node.ni_macaddr,
 	    ":",
-	    tid,
+	    tid->tid,
 	    tap->txa_start);
 
 	/* Try sending the BAR frame */
@@ -3624,11 +3626,11 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	/* Failure? For now, warn loudly and continue */
 	ATH_TX_LOCK(sc);
 	device_printf(sc->sc_dev,
-	    "%s: %6D: tid=%p, failed to TX BAR, continue!\n",
+	    "%s: %6D: TID=%d, failed to TX BAR, continue!\n",
 	    __func__,
 	    tid->an->an_node.ni_macaddr,
 	    ":",
-	    tid);
+	    tid->tid);
 	ath_tx_tid_bar_unsuspend(sc, tid);
 }
 
@@ -5783,12 +5785,10 @@ ath_bar_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	int attempts = tap->txa_attempts;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_BAR,
-	    "%s: %6D: called; tap=%p, atid=%p, txa_tid=%d, atid->tid=%d, status=%d, attempts=%d\n",
+	    "%s: %6D: called; txa_tid=%d, atid->tid=%d, status=%d, attempts=%d\n",
 	    __func__,
 	    ni->ni_macaddr,
 	    ":",
-	    tap,
-	    atid,
 	    tap->txa_tid,
 	    atid->tid,
 	    status,
@@ -5833,10 +5833,11 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	struct ath_tid *atid = &an->an_tid[tid];
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
-	    "%s: %6D: called; resuming\n",
+	    "%s: %6D: TID=%d, called; resuming\n",
 	    __func__,
 	    ni->ni_macaddr,
-	    ":");
+	    ":",
+	    tid);
 
 	ATH_TX_LOCK(sc);
 	atid->addba_tx_pending = 0;
