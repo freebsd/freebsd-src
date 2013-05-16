@@ -204,7 +204,7 @@ f_uridecode()
 
 # f_replaceall $string $find $replace [$var_to_set]
 #
-# Replace all occurrences of $find in $sting with $replace. If $var_to_set is
+# Replace all occurrences of $find in $string with $replace. If $var_to_set is
 # either missing or NULL, the variable name is produced on standard out for
 # capturing in a sub-shell (which is less recommended due to performance
 # degradation).
