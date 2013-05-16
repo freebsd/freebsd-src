@@ -5449,8 +5449,12 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		if (tid->axq_depth != 0)
 			ath_tx_tid_sched(sc, tid);
 
-		/* Give the software queue time to aggregate more packets */
-		if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
+		/*
+		 * Give the software queue time to aggregate more
+		 * packets.  If we aren't running aggregation then
+		 * we should still limit the hardware queue depth.
+		 */
+		if (txq->axq_depth >= sc->sc_hwq_limit) {
 			break;
 		}
 
