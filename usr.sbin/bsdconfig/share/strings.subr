@@ -51,6 +51,26 @@ f_substr()
 	echo "$string" | awk "{ print substr(\$0, $start, $len) }"
 }
 
+# f_snprintf $var_to_set $size $format ...
+#
+# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
+# using printf(1) syntax (`$format ...'). The value of $var_to_set is NULL
+# unless at-least one byte is stored from the output.
+#
+f_snprintf()
+{
+	local __var_to_set="$1" __size="$2"
+	shift 2 # var_to_set/size
+	eval "$__var_to_set"=\$\( printf \"\$@\" \| awk -v max=\"\$__size\" \''
+	{
+		len = length($0)
+		max -= len
+		print substr($0,0,(max > 0 ? len : max + len))
+		if ( max < 0 ) exit
+		max--
+	}'\' \)
+}
+
 # f_longest_line_length
 #
 # Simple wrapper to an awk(1) script to print the length of the longest line of
