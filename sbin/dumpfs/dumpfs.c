@@ -417,12 +417,15 @@ marshal(const char *name)
 	printf("-f %d ", fs->fs_fsize);
 	printf("-g %d ", fs->fs_avgfilesize);
 	printf("-h %d ", fs->fs_avgfpdir);
-	/* -i is dumb */
+	printf("-i %jd ", fragroundup(fs, lblktosize(fs, fragstoblks(fs,
+	    fs->fs_fpg)) / fs->fs_ipg));
 	if (fs->fs_flags & FS_SUJ)
 		printf("-j ");
 	if (fs->fs_flags & FS_GJOURNAL)
 		printf("-J ");
-	/* -k..l unimplemented */
+	printf("-k %jd ", fs->fs_metaspace);
+	if (fs->fs_flags & FS_MULTILABEL)
+		printf("-l ");
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */
 	printf("-o ");
