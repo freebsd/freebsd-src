@@ -1010,14 +1010,14 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 static int inline
 rt_m_getfib(struct mbuf *m)
 {
-	KASSERT(m->m_flags & M_EXT , ("attempt to set FIB on non header mbuf"));
+	KASSERT(m->m_flags & M_PKTHDR , ("Attempt to get FIB from non header mbuf."));
 	return (m->m_pkthdr.fibnum);
 }
 
 #define M_GETFIB(_m)   rt_m_getfib(_m)
 
 #define M_SETFIB(_m, _fib) do {						\
-        KASSERT((_m)->m_flags & M_EXT, ("No FIB on non header mbuf"));	\
+        KASSERT((_m)->m_flags & M_PKTHDR, ("Attempt to set FIB on non header mbuf."));	\
 	((_m)->m_pkthdr.fibnum) = (_fib);				\
 } while (0)
 
