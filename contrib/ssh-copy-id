@@ -165,6 +165,9 @@ done
 
 eval set -- "$SAVEARGS"
 
+if [ $# == 0 ] ; then
+  usage
+fi
 if [ $# != 1 ] ; then
   printf '%s: ERROR: Too many arguments.  Expecting a target hostname, got: %s\n\n' "$0" "$SAVEARGS" >&2
   usage
@@ -196,7 +199,11 @@ populate_new_ids() {
 
   umask 0177
   local L_TMP_ID_FILE=$(mktemp ~/.ssh/ssh-copy-id_id.XXXXXXXXXX)
-  trap "rm -f $L_TMP_ID_FILE*" EXIT TERM INT QUIT
+  if test $? -ne 0 || test "x$L_TMP_ID_FILE" = "x" ; then
+    echo "mktemp failed" 1>&2
+    exit 1
+  fi
+  trap "rm -f $L_TMP_ID_FILE ${L_TMP_ID_FILE}.pub" EXIT TERM INT QUIT
   printf '%s: INFO: attempting to log in with the new key(s), to filter out any that are already installed\n' "$0" >&2
   NEW_IDS=$(
     eval $GET_ID | {

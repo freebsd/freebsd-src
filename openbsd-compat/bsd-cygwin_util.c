@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2001, 2011 Corinna Vinschen <vinschen@redhat.com>
+ * Copyright (c) 2000, 2001, 2011, 2013 Corinna Vinschen <vinschen@redhat.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,20 +27,15 @@
  * binary mode on Windows systems.
  */
 
+#define NO_BINARY_OPEN	/* Avoid redefining open to binary_open for this file */
 #include "includes.h"
 
 #ifdef HAVE_CYGWIN
 
-#if defined(open) && open == binary_open
-# undef open
-#endif
-
 #include <sys/types.h>
-
 #include <fcntl.h>
-#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <windows.h>
 
 #include "xmalloc.h"
 
