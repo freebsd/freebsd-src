@@ -606,6 +606,7 @@ AxExtractTables (
             continue;
 
         default:
+
             Status = -1;
             goto CleanupAndExit;
         }

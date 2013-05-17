@@ -297,16 +297,6 @@ AcpiRsCreatePciRoutingTable (
          */
         UserPrt->Length = (sizeof (ACPI_PCI_ROUTING_TABLE) - 4);
 
-        /* Each element of the top-level package must also be a package */
-
-        if ((*TopObjectList)->Common.Type != ACPI_TYPE_PACKAGE)
-        {
-            ACPI_ERROR ((AE_INFO,
-                "(PRT[%u]) Need sub-package, found %s",
-                Index, AcpiUtGetObjectTypeName (*TopObjectList)));
-            return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
-        }
-
         /* Each sub-package must be of length 4 */
 
         if ((*TopObjectList)->Package.Count != 4)
@@ -349,23 +339,6 @@ AcpiRsCreatePciRoutingTable (
         UserPrt->Pin = (UINT32) ObjDesc->Integer.Value;
 
         /*
-         * If the BIOS has erroneously reversed the _PRT SourceName (index 2)
-         * and the SourceIndex (index 3), fix it. _PRT is important enough to
-         * workaround this BIOS error. This also provides compatibility with
-         * other ACPI implementations.
-         */
-        ObjDesc = SubObjectList[3];
-        if (!ObjDesc || (ObjDesc->Common.Type != ACPI_TYPE_INTEGER))
-        {
-            SubObjectList[3] = SubObjectList[2];
-            SubObjectList[2] = ObjDesc;
-
-            ACPI_WARNING ((AE_INFO,
-                "(PRT[%X].Source) SourceName and SourceIndex are reversed, fixed",
-                Index));
-        }
-
-        /*
          * 3) Third subobject: Dereference the PRT.SourceName
          * The name may be unresolved (slack mode), so allow a null object
          */
@@ -400,7 +373,6 @@ AcpiRsCreatePciRoutingTable (
                 UserPrt->Length += (UINT32) ACPI_STRLEN (UserPrt->Source) + 1;
                 break;
 
-
             case ACPI_TYPE_STRING:
 
                 ACPI_STRCPY (UserPrt->Source, ObjDesc->String.Pointer);
@@ -412,7 +384,6 @@ AcpiRsCreatePciRoutingTable (
                 UserPrt->Length += ObjDesc->String.Length + 1;
                 break;
 
-
             case ACPI_TYPE_INTEGER:
                 /*
                  * If this is a number, then the Source Name is NULL, since the
@@ -422,7 +393,6 @@ AcpiRsCreatePciRoutingTable (
                  */
                 UserPrt->Length += sizeof (UINT32);
                 break;
-
 
             default:
 

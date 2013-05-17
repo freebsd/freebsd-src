@@ -192,6 +192,18 @@ AcpiTbLoadNamespace (
             continue;
         }
 
+        /*
+         * Optionally do not load any SSDTs from the RSDT/XSDT. This can
+         * be useful for debugging ACPI problems on some machines.
+         */
+        if (AcpiGbl_DisableSsdtTableLoad)
+        {
+            ACPI_INFO ((AE_INFO, "Ignoring %4.4s at %p",
+                AcpiGbl_RootTableList.Tables[i].Signature.Ascii,
+                ACPI_CAST_PTR (void, AcpiGbl_RootTableList.Tables[i].Address)));
+            continue;
+        }
+
         /* Ignore errors while loading tables, get as many as possible */
 
         (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);

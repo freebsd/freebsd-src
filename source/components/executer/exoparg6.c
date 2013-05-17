@@ -130,7 +130,6 @@ AcpiExDoMatch (
         break;
 
     case MATCH_MEQ:
-
         /*
          * True if equal: (P[i] == M)
          * Change to:     (M == P[i])
@@ -144,7 +143,6 @@ AcpiExDoMatch (
         break;
 
     case MATCH_MLE:
-
         /*
          * True if less than or equal: (P[i] <= M) (P[i] NotGreater than M)
          * Change to:                  (M >= P[i]) (M NotLess than P[i])
@@ -159,7 +157,6 @@ AcpiExDoMatch (
         break;
 
     case MATCH_MLT:
-
         /*
          * True if less than: (P[i] < M)
          * Change to:         (M > P[i])
@@ -173,7 +170,6 @@ AcpiExDoMatch (
         break;
 
     case MATCH_MGE:
-
         /*
          * True if greater than or equal: (P[i] >= M) (P[i] NotLess than M)
          * Change to:                     (M <= P[i]) (M NotGreater than P[i])
@@ -188,7 +184,6 @@ AcpiExDoMatch (
         break;
 
     case MATCH_MGT:
-
         /*
          * True if greater than: (P[i] > M)
          * Change to:            (M < P[i])
@@ -328,12 +323,10 @@ AcpiExOpcode_6A_0T_1R (
         }
         break;
 
-
     case AML_LOAD_TABLE_OP:
 
         Status = AcpiExLoadTableOp (WalkState, &ReturnDesc);
         break;
-
 
     default:
 

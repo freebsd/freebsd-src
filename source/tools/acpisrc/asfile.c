@@ -143,6 +143,7 @@ AsDoWildcard (
                 break;
 
             default:
+
                 break;
             }
         }
@@ -311,6 +312,7 @@ AsConvertFile (
     switch (FileType)
     {
     case FILE_TYPE_SOURCE:
+        
         Functions           = ConversionTable->SourceFunctions;
         StringTable         = ConversionTable->SourceStringTable;
         LineTable           = ConversionTable->SourceLineTable;
@@ -320,6 +322,7 @@ AsConvertFile (
        break;
 
     case FILE_TYPE_HEADER:
+
         Functions           = ConversionTable->HeaderFunctions;
         StringTable         = ConversionTable->HeaderStringTable;
         LineTable           = ConversionTable->HeaderLineTable;
@@ -329,6 +332,7 @@ AsConvertFile (
         break;
 
     default:
+
         printf ("Unknown file type, cannot process\n");
         return;
     }
@@ -406,75 +410,64 @@ AsConvertFile (
         switch ((1 << i) & Functions)
         {
         case 0:
+
             /* This function not configured */
             break;
-
 
         case CVT_COUNT_TABS:
 
             AsCountTabs (FileBuffer, Filename);
             break;
 
-
         case CVT_COUNT_NON_ANSI_COMMENTS:
 
             AsCountNonAnsiComments (FileBuffer, Filename);
             break;
-
 
         case CVT_CHECK_BRACES:
 
             AsCheckForBraces (FileBuffer, Filename);
             break;
 
-
         case CVT_TRIM_LINES:
 
             AsTrimLines (FileBuffer, Filename);
             break;
-
 
         case CVT_COUNT_LINES:
 
             AsCountSourceLines (FileBuffer, Filename);
             break;
 
-
         case CVT_BRACES_ON_SAME_LINE:
 
             AsBracesOnSameLine (FileBuffer);
             break;
-
 
         case CVT_MIXED_CASE_TO_UNDERSCORES:
 
             AsMixedCaseToUnderscores (FileBuffer, Filename);
             break;
 
-
         case CVT_LOWER_CASE_IDENTIFIERS:
 
             AsLowerCaseIdentifiers (FileBuffer);
             break;
-
 
         case CVT_REMOVE_DEBUG_MACROS:
 
             AsRemoveDebugMacros (FileBuffer);
             break;
 
-
         case CVT_TRIM_WHITESPACE:
 
             AsTrimWhitespace (FileBuffer);
             break;
 
-
         case CVT_REMOVE_EMPTY_BLOCKS:
 
             AsRemoveEmptyBlocks (FileBuffer, Filename);
             break;
-
 
         case CVT_REDUCE_TYPEDEFS:
 
@@ -482,12 +475,10 @@ AsConvertFile (
             AsReduceTypedefs (FileBuffer, "typedef struct");
             break;
 
-
         case CVT_SPACES_TO_TABS4:
 
             AsTabify4 (FileBuffer);
             break;
-
 
         case CVT_SPACES_TO_TABS8:
 

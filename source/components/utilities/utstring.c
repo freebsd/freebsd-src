@@ -220,10 +220,13 @@ AcpiUtStrtoul64 (
     {
     case ACPI_ANY_BASE:
     case 16:
+
         break;
 
     default:
+
         /* Invalid Base */
+
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -423,36 +426,44 @@ AcpiUtPrintString (
         switch (String[i])
         {
         case 0x07:
+
             AcpiOsPrintf ("\\a");       /* BELL */
             break;
 
         case 0x08:
+
             AcpiOsPrintf ("\\b");       /* BACKSPACE */
             break;
 
         case 0x0C:
+
             AcpiOsPrintf ("\\f");       /* FORMFEED */
             break;
 
         case 0x0A:
+
             AcpiOsPrintf ("\\n");       /* LINEFEED */
             break;
 
         case 0x0D:
+
             AcpiOsPrintf ("\\r");       /* CARRIAGE RETURN*/
             break;
 
         case 0x09:
+
             AcpiOsPrintf ("\\t");       /* HORIZONTAL TAB */
             break;
 
         case 0x0B:
+
             AcpiOsPrintf ("\\v");       /* VERTICAL TAB */
             break;
 
         case '\'':                      /* Single Quote */
         case '\"':                      /* Double Quote */
         case '\\':                      /* Backslash */
+
             AcpiOsPrintf ("\\%c", (int) String[i]);
             break;
 
@@ -530,7 +541,8 @@ AcpiUtValidAcpiChar (
  *
  * FUNCTION:    AcpiUtValidAcpiName
  *
- * PARAMETERS:  Name            - The name to be examined
+ * PARAMETERS:  Name            - The name to be examined. Does not have to
+ *                                be NULL terminated string.
  *
  * RETURN:      TRUE if the name is valid, FALSE otherwise
  *
@@ -543,7 +555,7 @@ AcpiUtValidAcpiChar (
 
 BOOLEAN
 AcpiUtValidAcpiName (
-    UINT32                  Name)
+    char                    *Name)
 {
     UINT32                  i;
 
@@ -553,7 +565,7 @@ AcpiUtValidAcpiName (
 
     for (i = 0; i < ACPI_NAME_SIZE; i++)
     {
-        if (!AcpiUtValidAcpiChar ((ACPI_CAST_PTR (char, &Name))[i], i))
+        if (!AcpiUtValidAcpiChar (Name[i], i))
         {
             return (FALSE);
         }

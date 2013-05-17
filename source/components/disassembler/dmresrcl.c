@@ -153,16 +153,19 @@ AcpiDmMemoryFields (
         switch (Type)
         {
         case 16:
+
             AcpiDmDumpInteger16 (ACPI_CAST_PTR (UINT16, Source)[i],
                 AcpiDmMemoryNames[i]);
             break;
 
         case 32:
+
             AcpiDmDumpInteger32 (ACPI_CAST_PTR (UINT32, Source)[i],
                 AcpiDmMemoryNames[i]);
             break;
 
         default:
+
             return;
         }
     }
@@ -201,21 +204,25 @@ AcpiDmAddressFields (
         switch (Type)
         {
         case 16:
+
             AcpiDmDumpInteger16 (ACPI_CAST_PTR (UINT16, Source)[i],
                 AcpiDmAddressNames[i]);
             break;
 
         case 32:
+
             AcpiDmDumpInteger32 (ACPI_CAST_PTR (UINT32, Source)[i],
                 AcpiDmAddressNames[i]);
             break;
 
         case 64:
+
             AcpiDmDumpInteger64 (ACPI_CAST_PTR (UINT64, Source)[i],
                 AcpiDmAddressNames[i]);
             break;
 
         default:
+
             return;
         }
     }
@@ -242,22 +249,27 @@ AcpiDmAddressPrefix (
     switch (Type)
     {
     case ACPI_RESOURCE_TYPE_ADDRESS16:
+
         AcpiOsPrintf ("Word");
         break;
 
     case ACPI_RESOURCE_TYPE_ADDRESS32:
+
         AcpiOsPrintf ("DWord");
         break;
 
     case ACPI_RESOURCE_TYPE_ADDRESS64:
+
         AcpiOsPrintf ("QWord");
         break;
 
     case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
+
         AcpiOsPrintf ("Extended");
         break;
 
     default:
+
         return;
     }
 }

@@ -420,6 +420,8 @@ AcpiEvCreateGpeBlock (
     Status = AcpiEvInstallGpeBlock (GpeBlock, InterruptNumber);
     if (ACPI_FAILURE (Status))
     {
+        ACPI_FREE (GpeBlock->RegisterInfo);
+        ACPI_FREE (GpeBlock->EventInfo);
         ACPI_FREE (GpeBlock);
         return_ACPI_STATUS (Status);
     }

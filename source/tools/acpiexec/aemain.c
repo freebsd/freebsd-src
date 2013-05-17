@@ -43,12 +43,9 @@
 
 #include "aecommon.h"
 
-#ifdef _DEBUG
-#include <crtdbg.h>
-#endif
-
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("aemain")
+
 
 /* Local prototypes */
 
@@ -94,7 +91,7 @@ static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buf
 static char                 *FileList[ASL_MAX_FILES];
 static AE_TABLE_DESC        *AeTableListHead = NULL;
 
-#define AE_SUPPORTED_OPTIONS        "?b:d:e:f:gm^orv:x:"
+#define AE_SUPPORTED_OPTIONS        "?b:d:e:f:ghm^orv:x:"
 
 
 /******************************************************************************
@@ -116,8 +113,8 @@ usage (
 
     ACPI_USAGE_HEADER ("acpiexec [options] AMLfile1 AMLfile2 ...");
 
-    ACPI_OPTION ("-?",                  "Display this message");
     ACPI_OPTION ("-b \"CommandLine\"",  "Batch mode command line execution (cmd1;cmd2;...)");
+    ACPI_OPTION ("-h -?",               "Display this help message");
     ACPI_OPTION ("-m [Method]",         "Batch mode method execution. Default=MAIN");
     printf ("\n");
 
@@ -166,6 +163,7 @@ AeDoOptions (
     while ((j = AcpiGetopt (argc, argv, AE_SUPPORTED_OPTIONS)) != EOF) switch (j)
     {
     case 'b':
+
         if (strlen (AcpiGbl_Optarg) > (AE_BUFFER_SIZE -1))
         {
             printf ("**** The length of command line (%u) exceeded maximum (%u)\n",
@@ -177,128 +175,159 @@ AeDoOptions (
         break;
 
     case 'd':
+
         switch (AcpiGbl_Optarg[0])
         {
         case 'a':
+
             AcpiGbl_IgnoreErrors = TRUE;
             break;
 
         case 'i':
+
             AcpiGbl_DbOpt_ini_methods = FALSE;
             break;
 
         case 'o':
+
             AcpiGbl_DbOpt_NoRegionSupport = TRUE;
             break;
 
         case 'r':
+            
             AcpiGbl_DisableAutoRepair = TRUE;
             break;
 
         case 't':
+            
             #ifdef ACPI_DBG_TRACK_ALLOCATIONS
                 AcpiGbl_DisableMemTracking = TRUE;
             #endif
             break;
 
         default:
+            
             printf ("Unknown option: -d%s\n", AcpiGbl_Optarg);
             return (-1);
         }
         break;
 
     case 'e':
+
         switch (AcpiGbl_Optarg[0])
         {
         case 'f':
+
             #ifdef ACPI_DBG_TRACK_ALLOCATIONS
                 AcpiGbl_DisplayFinalMemStats = TRUE;
             #endif
             break;
 
         case 'i':
+
             AcpiGbl_DoInterfaceTests = TRUE;
             break;
 
         case 'm':
+
             AcpiGbl_AllMethodsSerialized = TRUE;
             printf ("Enabling AML Interpreter serialized mode\n");
             break;
 
         case 's':
+
             AcpiGbl_EnableInterpreterSlack = TRUE;
             printf ("Enabling AML Interpreter slack mode\n");
             break;
 
         case 't':
+
             AcpiGbl_DebugTimeout = TRUE;
             break;
 
         default:
+
             printf ("Unknown option: -e%s\n", AcpiGbl_Optarg);
             return (-1);
         }
         break;
 
     case 'f':
+
         AcpiGbl_RegionFillValue = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
         break;
 
     case 'g':
+
         AcpiGbl_DbOpt_tables = TRUE;
         AcpiGbl_DbFilename = NULL;
         break;
 
+    case 'h':
+    case '?':
+
+        usage();
+        return (0);
+
     case 'm':
+
         AcpiGbl_ExecutionMode = AE_MODE_BATCH_SINGLE;
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
+
             strcpy (BatchBuffer, "MAIN");
             break;
 
         default:
+
             strcpy (BatchBuffer, AcpiGbl_Optarg);
             break;
         }
         break;
 
     case 'o':
+
         AcpiGbl_DbOpt_disasm = TRUE;
         AcpiGbl_DbOpt_stats = TRUE;
         break;
 
     case 'r':
+
         AcpiGbl_UseHwReducedFadt = TRUE;
         printf ("Using ACPI 5.0 Hardware Reduced Mode via version 5 FADT\n");
         break;
 
     case 'v':
+
         switch (AcpiGbl_Optarg[0])
         {
         case 'i':
+
             AcpiDbgLevel |= ACPI_LV_INIT_NAMES;
             break;
 
         case 'r':
+
             AcpiGbl_DisplayRegionAccess = TRUE;
             break;
 
         default:
+
             printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);
             return (-1);
         }
         break;
 
     case 'x':
+
         AcpiDbgLevel = strtoul (AcpiGbl_Optarg, NULL, 0);
         AcpiGbl_DbConsoleDebugLevel = AcpiDbgLevel;
         printf ("Debug Level: 0x%8.8X\n", AcpiDbgLevel);
         break;
 
-    case '?':
-    case 'h':
     default:
+        
         usage();
         return (-1);
     }
@@ -335,18 +364,9 @@ main (
     char                    *FullPathname;
 
 
-#ifdef _DEBUG
-    _CrtSetDbgFlag (_CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF |
-                    _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG));
-/*
- * Debugging memory corruption issues with windows:
- * Add #include <crtdbg.h> to accommon.h
- * Add _ASSERTE(_CrtCheckMemory()); where needed to test memory integrity
- */
-#endif
+    ACPI_DEBUG_INITIALIZE (); /* For debug version only */
 
     printf (ACPI_COMMON_SIGNON ("AML Execution/Debug Utility"));
-
     if (argc < 2)
     {
         usage ();

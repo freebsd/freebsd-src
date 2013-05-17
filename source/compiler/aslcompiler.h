@@ -291,6 +291,15 @@ AslError (
     ACPI_PARSE_OBJECT       *Op,
     char                    *ExtraMessage);
 
+ACPI_STATUS
+AslDisableException (
+    char                    *MessageIdString);
+
+BOOLEAN
+AslIsExceptionDisabled (
+    UINT8                   Level,
+    UINT8                   MessageId);
+
 void
 AslCoreSubsystemError (
     ACPI_PARSE_OBJECT       *Op,
@@ -791,6 +800,17 @@ void
 LkFindUnreferencedObjects (
     void);
 
+/*
+ * aslmain - startup
+ */
+void
+Usage (
+    void);
+
+void
+AslFilenameHelp (
+    void);
+
 
 /*
  * aslnamesp - namespace output file generation
@@ -803,6 +823,13 @@ void
 NsSetupNamespaceListing (
     void                    *Handle);
 
+/*
+ * asloptions - command line processing
+ */
+int
+AslCommandLine (
+    int                     argc,
+    char                    **argv);
 
 /*
  * aslxref - namespace cross reference
