@@ -1,3 +1,20 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % devauto-ru PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//RU" "devauto.ru.ent">
+%devauto-ru;
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "devauto.ent">
+%devauto;
+<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "i386">
+<!ENTITY arch.print "i386">
+]>
+
 <!--
      The FreeBSD Russian Documentation Project
 
@@ -6,25 +23,6 @@
 
      Original revision: 1.6
 -->
-
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
-%articles.ent;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-<!ENTITY % devauto-ru PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//RU">
-%devauto-ru;
-<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
-%devauto;
-<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
-
-<!-- Architecture-specific customization -->
-
-<!ENTITY arch "i386">
-<!ENTITY arch.print "i386">
-
-]>
 
 <article lang="ru">
   &artheader;
