@@ -1,17 +1,8 @@
-<?xml version="1.0" encoding="gb2312" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//EN">
-%entities;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-
-<!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 182873 -->
-<!-- Text constants which probably don't need to be changed.-->
-
-<!ENTITY % include.historic "IGNORE">
-<!ENTITY % no.include.historic "IGNORE">
+<?xml version="1.0" encoding="gb2312"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
 ]>
 
 <article>
@@ -61,36 +52,24 @@
     修改或删除了的 &os; 特性的说明。 同时，
     它也将给出如何从先前的 &os; 版本完成升级的说明。</para>
 
-<![ %release.type.current [
-
-  <para>这篇文档所介绍的 &release.type; 软件包，
+  <para releasetype="current">这篇文档所介绍的 &release.type; 软件包，
     介绍了 &release.branch; 开发分支自 &release.branch;
     创建以来的进展。 关于这一分支上预编译的、 二进制版本的
     &release.type; 软件包， 可以在 <ulink url="&release.url;"></ulink>
     找到。</para>
 
-]]>
-
-<![ %release.type.snapshot [
-
-  <para>这份说明所说的 &release.type; 版本，
+  <para releasetype="snapshot">这份说明所说的 &release.type; 版本，
     是在 &release.branch; 开发分支上 &release.prev; 到未来的 &release.next;
     上的一点。 这一开发分支上预编译的二进制形式的 &release.type;
     安装包， 可以在 <ulink url="&release.url;"></ulink> 找到。</para>
 
-]]>
-
-<![ %release.type.release [
-
-  <para>这是一份 &os; &release.current; 的
+  <para releasetype="release">这是一份 &os; &release.current; 的
     &release.type; 发布包。 您可以从 <ulink
     url="&release.url;"></ulink> 或其他镜像那里得到它的副本。
     关于这个 (或其他) &release.type; 发布包的更多信息，可以在
     <ulink url="&url.books.handbook;/">&os; 手册</ulink>
     中的 <ulink url="&url.books.handbook;/mirrors.html"><quote>如何获得
     &os;</quote>附录</ulink> 中找到。</para>
-
-]]>
 
   <para>我们鼓励所有的用户在开始安装 &os;
     之前首先参考这一版本所对应的勘误信息。

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
 <!--
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
@@ -24,15 +25,8 @@
   <abstract>
   <para>Les notes de version pour &os; &release.current;
   contiennent un r&eacute;sum&eacute; des 
-
-<![ %include.historic; [
-   changements r&eacute;alis&eacute;s dans le syst&egrave;me &os; de base 
-   depuis &release.prev;. 
-]]>
-<![ %no.include.historic; [
    changements r&eacute;cents r&eacute;alis&eacute;s dans le syst&egrave;me &os; de 
    base de la branche de d&eacute;veloppement &release.branch;.
-]]>
   Les changements concernant le noyau et les programmes
   utilisateurs sont mentionn&eacute;s ainsi que les avis de
   s&eacute;curit&eacute; applicables au syst&egrave;me de base qui ont &eacute;t&eacute;
@@ -50,21 +44,15 @@
   ajout&eacute;es, modifi&eacute;es ou retir&eacute;es dans &os;. Il
   contient &eacute;galement quelques notes sur la mise &agrave; jour
   depuis la version	pr&eacute;c&eacute;dente de &os;.</para>
-<![ %release.type.snapshot [
 
-<para>La distribution snapshot &agrave; laquelle s'applique ces notes
+<para releasetype="snapshot">La distribution snapshot &agrave; laquelle s'applique ces notes
 de version repr&eacute;sente une &eacute;tape sur la branche de
 d&eacute;veloppement &release.branch; entre &release.prev; et la
 future	&release.next;. Quelques distributions binaires
 pr&eacute;-compil&eacute;es de la version snapshot pour cette branche
 sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
-]]>
-
-
-<![ %release.type.release [
-
-  <para>Cette distribution de &os; &release.current; est une distribution
+  <para releasetype="release">Cette distribution de &os; &release.current; est une distribution
   de type &release.type;. Elle est disponible &agrave; <ulink
   url="&release.url;"></ulink> 
   ou sur un des mirroirs. Pour plus d'informations sur la façon d'obtenir 
@@ -75,7 +63,6 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
   <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">
   guide de r&eacute;f&eacute;rence de FreeBSD</ulink>.</para>
 
-]]>
 </sect1>
 
 <!--
@@ -1646,7 +1633,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
       <para>Lors de l'installation de &os;, taper les lignes suivantes
        au moment du prompt du gestionnaire de d&eacute;marrage peut
-       etre tr&egrave;s utile pour d&eacute;marrer pour la premi&egrave;re fois &os :</para>
+       etre tr&egrave;s utile pour d&eacute;marrer pour la premi&egrave;re fois &os;:</para>
 
       <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
       <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
@@ -2076,7 +2063,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     <filename>/etc/apmd.conf</filename> pour la syntaxe. &merged;</para>
 
     <para>&man.arp.8; affiche maintenant le nom de l'interface correspondante 
-    &agrave; chaque entr&eacute;e ARP. &merged</para>
+    &agrave; chaque entr&eacute;e ARP. &merged;</para>
 
     <para>&man.arp.8; affiche maintenant <literal>[fddi]</literal> ou
     <literal>[atm]</literal> pour les adresses d'interfaces de ce type.</para>
@@ -2322,7 +2309,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para arch="i386">&man.gdb.1; supporte maintenant des points d'arrets 
     mat&eacute;riel (en utilisant les registres de d&eacute;boggage du noyau qui
-    a &eacute;t&eacute; introduit dans &os 4.0). &merged;</para>
+    a &eacute;t&eacute; introduit dans &os; 4.0). &merged;</para>
 
     <para>Les fonctions &man.getprogname.3; et  &man.setprogname.3;
     ont &eacute;t&eacute; ajout&eacute;e pour permettre de manipuler le nom du programme courant.
