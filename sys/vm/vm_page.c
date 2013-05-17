@@ -942,7 +942,7 @@ vm_page_t
 vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	return (vm_radix_lookup(&object->rtree, pindex));
 }
 
