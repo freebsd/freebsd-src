@@ -1,5 +1,12 @@
 # $FreeBSD$ 
 
+# we need the up to date bsd.own.mk
+.if ${.CURDIR:M*make} == ""
+.sinclude "share/mk/bsd.own.mk"
+.else
+.sinclude "../../share/mk/bsd.own.mk"
+.endif
+# the above should have found it...
 .include "bsd.own.mk"
 
 .if defined(.PARSEDIR)
@@ -16,3 +23,4 @@ NO_SHARED?=     YES
 .endif
 
 WARNS=3
+CFLAGS+= -DNO_PWD_OVERRIDE
