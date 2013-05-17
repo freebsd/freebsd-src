@@ -1,17 +1,16 @@
 # $FreeBSD$ 
 
-# we need the up to date bsd.own.mk
-.if ${.CURDIR:M*make} == ""
-.sinclude "share/mk/bsd.own.mk"
-.else
-.sinclude "../../share/mk/bsd.own.mk"
-.endif
-# the above should have found it...
 .include "bsd.own.mk"
 
 .if defined(.PARSEDIR)
 # make sure this is available to unit-tests/Makefile
 .export SRCTOP
+.endif
+
+# Sadly, we cannot assume bsd.own.mk did its job,
+# nor can we safely include the one we want
+.if !defined(WITHOUT_BMAKE)
+MK_BMAKE= yes
 .endif
 
 .if defined(MK_BMAKE) && ${MK_BMAKE} != "no"
