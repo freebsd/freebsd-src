@@ -703,6 +703,19 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	     ("%s: busy status 0x%x", __func__, bf->bf_flags));
 
+	/*
+	 * Ensure that the tx queue is the cabq, so things get
+	 * mapped correctly.
+	 */
+	if (bf->bf_state.bfs_tx_queue != sc->sc_cabq->axq_qnum) {
+		device_printf(sc->sc_dev,
+		    "%s: bf=%p, bfs_tx_queue=%d, axq_qnum=%d\n",
+		    __func__,
+		    bf,
+		    bf->bf_state.bfs_tx_queue,
+		    txq->axq_qnum);
+	}
+
 	ATH_TXQ_LOCK(txq);
 	if (ATH_TXQ_LAST(txq, axq_q_s) != NULL) {
 		struct ath_buf *bf_last = ATH_TXQ_LAST(txq, axq_q_s);
@@ -900,6 +913,16 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 
 		}
 #endif /* IEEE80211_SUPPORT_TDMA */
+
+		if (bf->bf_state.bfs_tx_queue != txq->axq_qnum) {
+			device_printf(sc->sc_dev,
+			    "%s: bf=%p, bfs_tx_queue=%d, axq_qnum=%d\n",
+			    __func__,
+			    bf,
+			    bf->bf_state.bfs_tx_queue,
+			    txq->axq_qnum);
+		}
+
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth++;
 		ath_hal_gettxdesclinkptr(ah, bf->bf_lastds, &txq->axq_link);
