@@ -2192,7 +2192,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
+SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
     CTLTYPE_STRUCT|CTLFLAG_WR|CTLFLAG_SKIP, NULL,
     0, sysctl_drop, "", "Drop TCP connection");
 
