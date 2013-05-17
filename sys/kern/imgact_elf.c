@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capability.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
+#include <sys/filedesc.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/syslog.h>
 #include <sys/eventhandler.h>
+#include <sys/user.h>
 
 #include <net/zlib.h>
 
@@ -80,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+#define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
@@ -160,7 +163,7 @@ __elfN(freebsd_trans_osrel)(const Elf_Note *note, int32_t *osrel)
 	uintptr_t p;
 
 	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+	p += roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE);
 	*osrel = *(const int32_t *)(p);
 
 	return (TRUE);
@@ -185,7 +188,7 @@ kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel)
 	uintptr_t p;
 
 	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+	p += roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE);
 
 	desc = (const Elf32_Word *)p;
 	if (desc[0] != GNU_KFREEBSD_ABI_DESC)
@@ -1064,12 +1067,22 @@ static void __elfN(puthdr)(struct thread *, void *, size_t, int, size_t);
 static void __elfN(putnote)(struct note_info *, struct sbuf *);
 static size_t register_note(struct note_info_list *, int, outfunc_t, void *);
 static int sbuf_drain_core_output(void *, const char *, int);
+static int sbuf_drain_count(void *arg, const char *data, int len);
 
 static void __elfN(note_fpregset)(void *, struct sbuf *, size_t *);
 static void __elfN(note_prpsinfo)(void *, struct sbuf *, size_t *);
 static void __elfN(note_prstatus)(void *, struct sbuf *, size_t *);
 static void __elfN(note_threadmd)(void *, struct sbuf *, size_t *);
 static void __elfN(note_thrmisc)(void *, struct sbuf *, size_t *);
+static void __elfN(note_procstat_auxv)(void *, struct sbuf *, size_t *);
+static void __elfN(note_procstat_proc)(void *, struct sbuf *, size_t *);
+static void __elfN(note_procstat_psstrings)(void *, struct sbuf *, size_t *);
+static void note_procstat_files(void *, struct sbuf *, size_t *);
+static void note_procstat_groups(void *, struct sbuf *, size_t *);
+static void note_procstat_osrel(void *, struct sbuf *, size_t *);
+static void note_procstat_rlimit(void *, struct sbuf *, size_t *);
+static void note_procstat_umask(void *, struct sbuf *, size_t *);
+static void note_procstat_vmmap(void *, struct sbuf *, size_t *);
 
 #ifdef COMPRESS_USER_CORES
 extern int compress_user_cores;
@@ -1115,9 +1128,21 @@ static int
 sbuf_drain_core_output(void *arg, const char *data, int len)
 {
 	struct sbuf_drain_core_params *p;
-	int error;
+	int error, locked;
 
 	p = (struct sbuf_drain_core_params *)arg;
+
+	/*
+	 * Some kern_proc out routines that print to this sbuf may
+	 * call us with the process lock held. Draining with the
+	 * non-sleepable lock held is unsafe. The lock is needed for
+	 * those routines when dumping a live process. In our case we
+	 * can safely release the lock before draining and acquire
+	 * again after.
+	 */
+	locked = PROC_LOCKED(p->td->td_proc);
+	if (locked)
+		PROC_UNLOCK(p->td->td_proc);
 #ifdef COMPRESS_USER_CORES
 	if (p->gzfile != Z_NULL)
 		error = compress_core(p->gzfile, NULL, __DECONST(char *, data),
@@ -1128,9 +1153,24 @@ sbuf_drain_core_output(void *arg, const char *data, int len)
 		    __DECONST(void *, data), len, p->offset, UIO_SYSSPACE,
 		    IO_UNIT | IO_DIRECT, p->active_cred, p->file_cred, NULL,
 		    p->td);
+	if (locked)
+		PROC_LOCK(p->td->td_proc);
 	if (error != 0)
 		return (-error);
 	p->offset += len;
+	return (len);
+}
+
+/*
+ * Drain into a counter.
+ */
+static int
+sbuf_drain_count(void *arg, const char *data __unused, int len)
+{
+	size_t *sizep;
+
+	sizep = (size_t *)arg;
+	*sizep += len;
 	return (len);
 }
 
@@ -1438,6 +1478,25 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 			thr = TAILQ_NEXT(thr, td_plist);
 	}
 
+	size += register_note(list, NT_PROCSTAT_PROC,
+	    __elfN(note_procstat_proc), p);
+	size += register_note(list, NT_PROCSTAT_FILES,
+	    note_procstat_files, p);
+	size += register_note(list, NT_PROCSTAT_VMMAP,
+	    note_procstat_vmmap, p);
+	size += register_note(list, NT_PROCSTAT_GROUPS,
+	    note_procstat_groups, p);
+	size += register_note(list, NT_PROCSTAT_UMASK,
+	    note_procstat_umask, p);
+	size += register_note(list, NT_PROCSTAT_RLIMIT,
+	    note_procstat_rlimit, p);
+	size += register_note(list, NT_PROCSTAT_OSREL,
+	    note_procstat_osrel, p);
+	size += register_note(list, NT_PROCSTAT_PSSTRINGS,
+	    __elfN(note_procstat_psstrings), p);
+	size += register_note(list, NT_PROCSTAT_AUXV,
+	    __elfN(note_procstat_auxv), p);
+
 	*sizep = size;
 }
 
@@ -1491,7 +1550,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	phdr->p_filesz = notesz;
 	phdr->p_memsz = 0;
 	phdr->p_flags = PF_R;
-	phdr->p_align = sizeof(Elf32_Size);
+	phdr->p_align = ELF_NOTE_ROUNDSIZE;
 	phdr++;
 
 	/* All the writable segments from the program. */
@@ -1519,8 +1578,8 @@ register_note(struct note_info_list *list, int type, outfunc_t out, void *arg)
 		return (size);
 
 	notesize = sizeof(Elf_Note) +		/* note header */
-	    roundup2(8, sizeof(Elf32_Size)) +	/* note name ("FreeBSD") */
-	    roundup2(size, sizeof(Elf32_Size));	/* note description */
+	    roundup2(8, ELF_NOTE_ROUNDSIZE) +	/* note name ("FreeBSD") */
+	    roundup2(size, ELF_NOTE_ROUNDSIZE);	/* note description */
 
 	return (notesize);
 }
@@ -1543,12 +1602,12 @@ __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 	sbuf_bcat(sb, &note, sizeof(note));
 	sbuf_start_section(sb, &old_len);
 	sbuf_bcat(sb, "FreeBSD", note.n_namesz);
-	sbuf_end_section(sb, old_len, sizeof(Elf32_Size), 0);
+	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
 	if (note.n_descsz == 0)
 		return;
 	sbuf_start_section(sb, &old_len);
 	ninfo->outfunc(ninfo->outarg, sb, &ninfo->outsize);
-	sbuf_end_section(sb, old_len, sizeof(Elf32_Size), 0);
+	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
 }
 
 /*
@@ -1564,6 +1623,9 @@ typedef struct fpreg32 elf_prfpregset_t;
 typedef struct fpreg32 elf_fpregset_t;
 typedef struct reg32 elf_gregset_t;
 typedef struct thrmisc32 elf_thrmisc_t;
+#define ELF_KERN_PROC_MASK	KERN_PROC_MASK32
+typedef struct kinfo_proc32 elf_kinfo_proc_t;
+typedef uint32_t elf_ps_strings_t;
 #else
 typedef prstatus_t elf_prstatus_t;
 typedef prpsinfo_t elf_prpsinfo_t;
@@ -1571,6 +1633,9 @@ typedef prfpregset_t elf_prfpregset_t;
 typedef prfpregset_t elf_fpregset_t;
 typedef gregset_t elf_gregset_t;
 typedef thrmisc_t elf_thrmisc_t;
+#define ELF_KERN_PROC_MASK	0
+typedef struct kinfo_proc elf_kinfo_proc_t;
+typedef vm_offset_t elf_ps_strings_t;
 #endif
 
 static void
@@ -1688,6 +1753,221 @@ __elfN(note_threadmd)(void *arg, struct sbuf *sb, size_t *sizep)
 	*sizep = size;
 }
 
+#ifdef KINFO_PROC_SIZE
+CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
+#endif
+
+static void
+__elfN(note_procstat_proc)(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	size = sizeof(structsize) + p->p_numthreads *
+	    sizeof(elf_kinfo_proc_t);
+
+	if (sb != NULL) {
+		KASSERT(*sizep == size, ("invalid size"));
+		structsize = sizeof(elf_kinfo_proc_t);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PROC_LOCK(p);
+		kern_proc_out(p, sb, ELF_KERN_PROC_MASK);
+	}
+	*sizep = size;
+}
+
+#ifdef KINFO_FILE_SIZE
+CTASSERT(sizeof(struct kinfo_file) == KINFO_FILE_SIZE);
+#endif
+
+static void
+note_procstat_files(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	if (sb == NULL) {
+		size = 0;
+		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
+		sbuf_set_drain(sb, sbuf_drain_count, &size);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PROC_LOCK(p);
+		kern_proc_filedesc_out(p, sb, -1);
+		sbuf_finish(sb);
+		sbuf_delete(sb);
+		*sizep = size;
+	} else {
+		structsize = sizeof(struct kinfo_file);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PROC_LOCK(p);
+		kern_proc_filedesc_out(p, sb, -1);
+	}
+}
+
+#ifdef KINFO_VMENTRY_SIZE
+CTASSERT(sizeof(struct kinfo_vmentry) == KINFO_VMENTRY_SIZE);
+#endif
+
+static void
+note_procstat_vmmap(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	if (sb == NULL) {
+		size = 0;
+		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
+		sbuf_set_drain(sb, sbuf_drain_count, &size);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PROC_LOCK(p);
+		kern_proc_vmmap_out(p, sb);
+		sbuf_finish(sb);
+		sbuf_delete(sb);
+		*sizep = size;
+	} else {
+		structsize = sizeof(struct kinfo_vmentry);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PROC_LOCK(p);
+		kern_proc_vmmap_out(p, sb);
+	}
+}
+
+static void
+note_procstat_groups(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	size = sizeof(structsize) + p->p_ucred->cr_ngroups * sizeof(gid_t);
+	if (sb != NULL) {
+		KASSERT(*sizep == size, ("invalid size"));
+		structsize = sizeof(gid_t);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sbuf_bcat(sb, p->p_ucred->cr_groups, p->p_ucred->cr_ngroups *
+		    sizeof(gid_t));
+	}
+	*sizep = size;
+}
+
+static void
+note_procstat_umask(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	size = sizeof(structsize) + sizeof(p->p_fd->fd_cmask);
+	if (sb != NULL) {
+		KASSERT(*sizep == size, ("invalid size"));
+		structsize = sizeof(p->p_fd->fd_cmask);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sbuf_bcat(sb, &p->p_fd->fd_cmask, sizeof(p->p_fd->fd_cmask));
+	}
+	*sizep = size;
+}
+
+static void
+note_procstat_rlimit(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	struct rlimit rlim[RLIM_NLIMITS];
+	size_t size;
+	int structsize, i;
+
+	p = (struct proc *)arg;
+	size = sizeof(structsize) + sizeof(rlim);
+	if (sb != NULL) {
+		KASSERT(*sizep == size, ("invalid size"));
+		structsize = sizeof(rlim);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PROC_LOCK(p);
+		for (i = 0; i < RLIM_NLIMITS; i++)
+			lim_rlimit(p, i, &rlim[i]);
+		PROC_UNLOCK(p);
+		sbuf_bcat(sb, rlim, sizeof(rlim));
+	}
+	*sizep = size;
+}
+
+static void
+note_procstat_osrel(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	size = sizeof(structsize) + sizeof(p->p_osrel);
+	if (sb != NULL) {
+		KASSERT(*sizep == size, ("invalid size"));
+		structsize = sizeof(p->p_osrel);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sbuf_bcat(sb, &p->p_osrel, sizeof(p->p_osrel));
+	}
+	*sizep = size;
+}
+
+static void
+__elfN(note_procstat_psstrings)(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	elf_ps_strings_t ps_strings;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	size = sizeof(structsize) + sizeof(ps_strings);
+	if (sb != NULL) {
+		KASSERT(*sizep == size, ("invalid size"));
+		structsize = sizeof(ps_strings);
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+		ps_strings = PTROUT(p->p_sysent->sv_psstrings);
+#else
+		ps_strings = p->p_sysent->sv_psstrings;
+#endif
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sbuf_bcat(sb, &ps_strings, sizeof(ps_strings));
+	}
+	*sizep = size;
+}
+
+static void
+__elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct proc *p;
+	size_t size;
+	int structsize;
+
+	p = (struct proc *)arg;
+	if (sb == NULL) {
+		size = 0;
+		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
+		sbuf_set_drain(sb, sbuf_drain_count, &size);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PHOLD(p);
+		proc_getauxv(curthread, p, sb);
+		PRELE(p);
+		sbuf_finish(sb);
+		sbuf_delete(sb);
+		*sizep = size;
+	} else {
+		structsize = sizeof(Elf_Auxinfo);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		PHOLD(p);
+		proc_getauxv(curthread, p, sb);
+		PRELE(p);
+	}
+}
+
 static boolean_t
 __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
     int32_t *osrel, const Elf_Phdr *pnote)
@@ -1728,8 +2008,8 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
 
 nextnote:
 		note = (const Elf_Note *)((const char *)(note + 1) +
-		    roundup2(note->n_namesz, sizeof(Elf32_Addr)) +
-		    roundup2(note->n_descsz, sizeof(Elf32_Addr)));
+		    roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE) +
+		    roundup2(note->n_descsz, ELF_NOTE_ROUNDSIZE));
 	}
 
 	return (FALSE);
