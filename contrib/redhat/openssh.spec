@@ -1,4 +1,4 @@
-%define ver 6.2p1
+%define ver 6.2p2
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
