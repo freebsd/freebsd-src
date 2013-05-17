@@ -7,7 +7,6 @@
 # string will be treated as a 64-bit OS. Otherwise, the default is 32-bit.
 #
 HARDWARE_NAME := $(shell uname -m)
-BITS=0
 
 #
 # Main rule will only generate versions that are appropriate for the running
@@ -16,73 +15,54 @@ BITS=0
 all:	${PROGS}
 ${PROGS}: FORCE
 	@cd $(BUILD_DIRECTORY_PATH)/$@; \
-	if [ $(BITS) -eq 32 ]; then \
-		echo "Forced 32-bit generation of $@"; \
-		mkdir -p obj32; \
-		make BITS=32; \
-		echo "32-bit version of $@:"; \
-		ls -al ../bin32/$@; \
-	elif [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
-		mkdir -p obj64; \
-		make BITS=64; \
+	mkdir -p obj; \
+	make || exit "$$?"; \
+	if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
 		echo "64-bit version of $@:"; \
-		ls -al ../bin64/$@; \
 	else \
-		mkdir -p obj32; \
-		make BITS=32; \
 		echo "32-bit version of $@:"; \
-		ls -al ../bin32/$@; \
-	fi;
+	fi; \
+	ls -al ../bin/$@; \
+	echo "";
 
 #
-# Make 32-bit and 64-bit versions of all the tools
+# Simple clean removes all .obj files, but leaves the executables
+# in the local bin directory
 #
-both:	32 64
-
-#
-# Make only 32-bit versions of all the tools
-#
-32:	FORCE
-	@for toolname in ${PROGS}; do \
-		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
-		pwd; \
-		mkdir -p obj32; \
-		make BITS=32; \
-		echo "32-bit version of $$toolname:"; \
-		ls -al obj32/$$toolname \
-		); \
-	done;
-
-#
-# Make only 64-bit versions of all the tools
-#
-64:	FORCE
-	@for toolname in ${PROGS}; do \
-		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
-		pwd; \
-		mkdir -p obj64; \
-		make BITS=64; \
-		echo "64-bit version of $$toolname:"; \
-		ls -al obj64/$$toolname \
-		); \
-	done;
-
 clean:	FORCE
 	@for toolname in ${PROGS}; do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
-		echo "Removing $$toolname"; \
-		pwd; \
-		if [ -d "obj32" ] ; then \
-			make BITS=32 clean; \
-			rmdir obj32; \
+		if [ -d "obj" ] ; then \
+			echo "Removing $$toolname:"; \
+			pwd; \
+			make clean; \
+			rmdir obj; \
+			echo ""; \
 		fi; \
-		if [ -d "obj64" ] ; then \
-			make BITS=64 clean; \
-			rmdir obj64; \
-		fi; \
-		echo ""; \
 		); \
 	done;
+
+#
+# Very clean removes all executables and the local bin directory
+#
+veryclean:	FORCE
+	@for toolname in ${PROGS}; do \
+		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
+		if [ -d "obj" ] ; then \
+			echo "Removing $$toolname:"; \
+			pwd; \
+			make clean; \
+			rmdir obj; \
+			echo ""; \
+		fi; \
+		); \
+		if [ -e "$(BUILD_DIRECTORY_PATH)/bin/$$toolname" ] ; then \
+			rm $(BUILD_DIRECTORY_PATH)/bin/$$toolname; \
+		fi; \
+	done; \
+	if [ -d "bin" ] ; then \
+		rmdir bin; \
+	fi;
 
 #
 # Install all tools, either 32-bit or 64-bit as appropriate for the host OS
@@ -91,11 +71,10 @@ install:	FORCE
 	@for toolname in ${PROGS}; do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
 		pwd; \
+		make PROG=$$toolname install; \
 		if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
-			make BITS=64 PROG=$$toolname install; \
 			echo "Installed 64-bit version of $$toolname"; \
 		else \
-			make BITS=32 PROG=$$toolname install; \
 			echo "Installed 32-bit version of $$toolname"; \
 		fi; \
 		echo ""; \

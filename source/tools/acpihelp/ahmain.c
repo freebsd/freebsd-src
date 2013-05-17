@@ -103,6 +103,7 @@ main (
     int                     j;
 
 
+    ACPI_DEBUG_INITIALIZE (); /* For debug version only */
     printf (ACPI_COMMON_SIGNON ("ACPI Help Utility"));
     DecodeType = AH_DECODE_DEFAULT;
 
@@ -117,35 +118,43 @@ main (
     while ((j = AcpiGetopt (argc, argv, "ehikmops")) != EOF) switch (j)
     {
     case 'e':
+
         DecodeType = AH_DECODE_EXCEPTION;
         break;
 
     case 'i':
+
         DecodeType = AH_DISPLAY_DEVICE_IDS;
         break;
 
     case 'k':
+
         DecodeType = AH_DECODE_ASL_KEYWORD;
         break;
 
     case 'm':
+
         DecodeType = AH_DECODE_AML;
         break;
 
     case 'o':
+
         DecodeType = AH_DECODE_AML_OPCODE;
         break;
 
     case 'p':
+
         DecodeType = AH_DECODE_PREDEFINED_NAME;
         break;
 
     case 's':
+        
         DecodeType = AH_DECODE_ASL;
         break;
 
     case 'h':
     default:
+
         AhDisplayUsage ();
         return (-1);
     }
@@ -157,34 +166,42 @@ main (
     switch (DecodeType)
     {
     case AH_DECODE_AML:
+
         AhFindAmlOpcode (Name);
         break;
 
     case AH_DECODE_AML_OPCODE:
+        
         AhDecodeAmlOpcode (Name);
         break;
 
     case AH_DECODE_PREDEFINED_NAME:
+
         AhFindPredefinedNames (Name);
         break;
 
     case AH_DECODE_ASL:
+
         AhFindAslOperators (Name);
         break;
 
     case AH_DECODE_ASL_KEYWORD:
+
         AhFindAslKeywords (Name);
         break;
 
     case AH_DISPLAY_DEVICE_IDS:
+
         AhDisplayDeviceIds ();
         break;
 
     case AH_DECODE_EXCEPTION:
+
         AhDecodeException (Name);
         break;
 
     default:
+
         if (!Name)
         {
             AhFindAslOperators (Name);

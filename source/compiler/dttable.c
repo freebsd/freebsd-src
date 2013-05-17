@@ -280,26 +280,32 @@ DtCompileAsf (
         switch (AsfTable->Header.Type & 0x7F) /* Mask off top bit */
         {
         case ACPI_ASF_TYPE_INFO:
+
             InfoTable = AcpiDmTableInfoAsf0;
             break;
 
         case ACPI_ASF_TYPE_ALERT:
+
             InfoTable = AcpiDmTableInfoAsf1;
             break;
 
         case ACPI_ASF_TYPE_CONTROL:
+
             InfoTable = AcpiDmTableInfoAsf2;
             break;
 
         case ACPI_ASF_TYPE_BOOT:
+
             InfoTable = AcpiDmTableInfoAsf3;
             break;
 
         case ACPI_ASF_TYPE_ADDRESS:
+
             InfoTable = AcpiDmTableInfoAsf4;
             break;
 
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "ASF!");
             return (AE_ERROR);
         }
@@ -316,10 +322,12 @@ DtCompileAsf (
         switch (AsfTable->Header.Type & 0x7F) /* Mask off top bit */
         {
         case ACPI_ASF_TYPE_INFO:
+
             DataInfoTable = NULL;
             break;
 
         case ACPI_ASF_TYPE_ALERT:
+
             DataInfoTable = AcpiDmTableInfoAsf1a;
             DataCount = ACPI_CAST_PTR (ACPI_ASF_ALERT,
                         ACPI_SUB_PTR (UINT8, Subtable->Buffer,
@@ -327,6 +335,7 @@ DtCompileAsf (
             break;
 
         case ACPI_ASF_TYPE_CONTROL:
+
             DataInfoTable = AcpiDmTableInfoAsf2a;
             DataCount = ACPI_CAST_PTR (ACPI_ASF_REMOTE,
                         ACPI_SUB_PTR (UINT8, Subtable->Buffer,
@@ -334,10 +343,12 @@ DtCompileAsf (
             break;
 
         case ACPI_ASF_TYPE_BOOT:
+
             DataInfoTable = NULL;
             break;
 
         case ACPI_ASF_TYPE_ADDRESS:
+
             DataInfoTable = TableInfoAsfAddress;
             DataCount = ACPI_CAST_PTR (ACPI_ASF_ADDRESS,
                         ACPI_SUB_PTR (UINT8, Subtable->Buffer,
@@ -345,6 +356,7 @@ DtCompileAsf (
             break;
 
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "ASF!");
             return (AE_ERROR);
         }
@@ -574,18 +586,27 @@ DtCompileDmar (
         switch (DmarHeader->Type)
         {
         case ACPI_DMAR_TYPE_HARDWARE_UNIT:
+
             InfoTable = AcpiDmTableInfoDmar0;
             break;
+
         case ACPI_DMAR_TYPE_RESERVED_MEMORY:
+
             InfoTable = AcpiDmTableInfoDmar1;
             break;
+
         case ACPI_DMAR_TYPE_ATSR:
+
             InfoTable = AcpiDmTableInfoDmar2;
             break;
+
         case ACPI_DMAR_HARDWARE_AFFINITY:
+
             InfoTable = AcpiDmTableInfoDmar3;
             break;
+
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "DMAR");
             return (AE_ERROR);
         }
@@ -810,14 +831,17 @@ DtCompileFpdt (
         switch (FpdtHeader->Type)
         {
         case ACPI_FPDT_TYPE_BOOT:
+
             InfoTable = AcpiDmTableInfoFpdt0;
             break;
 
         case ACPI_FPDT_TYPE_S3PERF:
+
             InfoTable = AcpiDmTableInfoFpdt1;
             break;
 
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "FPDT");
             return (AE_ERROR);
             break;
@@ -884,34 +908,42 @@ DtCompileHest (
         switch (Type)
         {
         case ACPI_HEST_TYPE_IA32_CHECK:
+
             InfoTable = AcpiDmTableInfoHest0;
             break;
 
         case ACPI_HEST_TYPE_IA32_CORRECTED_CHECK:
+
             InfoTable = AcpiDmTableInfoHest1;
             break;
 
         case ACPI_HEST_TYPE_IA32_NMI:
+
             InfoTable = AcpiDmTableInfoHest2;
             break;
 
         case ACPI_HEST_TYPE_AER_ROOT_PORT:
+
             InfoTable = AcpiDmTableInfoHest6;
             break;
 
         case ACPI_HEST_TYPE_AER_ENDPOINT:
+
             InfoTable = AcpiDmTableInfoHest7;
             break;
 
         case ACPI_HEST_TYPE_AER_BRIDGE:
+
             InfoTable = AcpiDmTableInfoHest8;
             break;
 
         case ACPI_HEST_TYPE_GENERIC_ERROR:
+
             InfoTable = AcpiDmTableInfoHest9;
             break;
 
         default:
+
             /* Cannot continue on unknown type */
 
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "HEST");
@@ -933,16 +965,19 @@ DtCompileHest (
         switch (Type)
         {
         case ACPI_HEST_TYPE_IA32_CHECK:
+
             BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_MACHINE_CHECK,
                             Subtable->Buffer))->NumHardwareBanks;
             break;
 
         case ACPI_HEST_TYPE_IA32_CORRECTED_CHECK:
+
             BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_CORRECTED,
                             Subtable->Buffer))->NumHardwareBanks;
             break;
 
         default:
+
             break;
         }
 
@@ -1019,16 +1054,19 @@ DtCompileIvrs (
         switch (IvrsHeader->Type)
         {
         case ACPI_IVRS_TYPE_HARDWARE:
+
             InfoTable = AcpiDmTableInfoIvrs0;
             break;
 
         case ACPI_IVRS_TYPE_MEMORY1:
         case ACPI_IVRS_TYPE_MEMORY2:
         case ACPI_IVRS_TYPE_MEMORY3:
+
             InfoTable = AcpiDmTableInfoIvrs1;
             break;
 
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "IVRS");
             return (AE_ERROR);
         }
@@ -1088,6 +1126,7 @@ DtCompileIvrs (
                     break;
 
                 default:
+
                     DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart,
                         "IVRS Device Entry");
                     return (AE_ERROR);
@@ -1165,45 +1204,72 @@ DtCompileMadt (
         switch (MadtHeader->Type)
         {
         case ACPI_MADT_TYPE_LOCAL_APIC:
+
             InfoTable = AcpiDmTableInfoMadt0;
             break;
+
         case ACPI_MADT_TYPE_IO_APIC:
+
             InfoTable = AcpiDmTableInfoMadt1;
             break;
+
         case ACPI_MADT_TYPE_INTERRUPT_OVERRIDE:
+
             InfoTable = AcpiDmTableInfoMadt2;
             break;
+
         case ACPI_MADT_TYPE_NMI_SOURCE:
+
             InfoTable = AcpiDmTableInfoMadt3;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_APIC_NMI:
+
             InfoTable = AcpiDmTableInfoMadt4;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE:
+
             InfoTable = AcpiDmTableInfoMadt5;
             break;
+
         case ACPI_MADT_TYPE_IO_SAPIC:
+
             InfoTable = AcpiDmTableInfoMadt6;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_SAPIC:
+
             InfoTable = AcpiDmTableInfoMadt7;
             break;
+
         case ACPI_MADT_TYPE_INTERRUPT_SOURCE:
+
             InfoTable = AcpiDmTableInfoMadt8;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_X2APIC:
+
             InfoTable = AcpiDmTableInfoMadt9;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_X2APIC_NMI:
+
             InfoTable = AcpiDmTableInfoMadt10;
             break;
+
         case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
+
             InfoTable = AcpiDmTableInfoMadt11;
             break;
+
         case ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR:
+
             InfoTable = AcpiDmTableInfoMadt12;
             break;
+
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "MADT");
             return (AE_ERROR);
         }
@@ -1665,14 +1731,17 @@ DtCompileS3pt (
         switch (S3ptHeader->Type)
         {
         case ACPI_S3PT_TYPE_RESUME:
+
             InfoTable = AcpiDmTableInfoS3pt0;
             break;
 
         case ACPI_S3PT_TYPE_SUSPEND:
+
             InfoTable = AcpiDmTableInfoS3pt1;
             break;
 
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "S3PT");
             return (AE_ERROR);
         }
@@ -1736,12 +1805,17 @@ DtCompileSlic (
         switch (SlicHeader->Type)
         {
         case ACPI_SLIC_TYPE_PUBLIC_KEY:
+
             InfoTable = AcpiDmTableInfoSlic0;
             break;
+
         case ACPI_SLIC_TYPE_WINDOWS_MARKER:
+
             InfoTable = AcpiDmTableInfoSlic1;
             break;
+
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "SLIC");
             return (AE_ERROR);
         }
@@ -1871,15 +1945,22 @@ DtCompileSrat (
         switch (SratHeader->Type)
         {
         case ACPI_SRAT_TYPE_CPU_AFFINITY:
+
             InfoTable = AcpiDmTableInfoSrat0;
             break;
+
         case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
+
             InfoTable = AcpiDmTableInfoSrat1;
             break;
+
         case ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY:
+
             InfoTable = AcpiDmTableInfoSrat2;
             break;
+
         default:
+
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "SRAT");
             return (AE_ERROR);
         }

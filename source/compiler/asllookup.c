@@ -144,9 +144,11 @@ LkIsObjectUsed (
     case ACPI_TYPE_PROCESSOR:
     case ACPI_TYPE_POWER:
     case ACPI_TYPE_LOCAL_RESOURCE:
+
         return (AE_OK);
 
     default:
+
         break;
     }
 

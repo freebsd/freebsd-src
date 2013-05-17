@@ -282,10 +282,12 @@ AcpiNsDumpOneObject (
             case ACPI_TYPE_BUFFER:
             case ACPI_TYPE_STRING:
             case ACPI_TYPE_METHOD:
+
                 AcpiOsPrintf ("<No attached object>");
                 break;
 
             default:
+
                 break;
             }
 
@@ -302,12 +304,10 @@ AcpiNsDumpOneObject (
                 ACPI_CAST_PTR (void, ObjDesc->Processor.Address));
             break;
 
-
         case ACPI_TYPE_DEVICE:
 
             AcpiOsPrintf ("Notify Object: %p\n", ObjDesc);
             break;
-
 
         case ACPI_TYPE_METHOD:
 
@@ -316,13 +316,11 @@ AcpiNsDumpOneObject (
                 ObjDesc->Method.AmlLength, ObjDesc->Method.AmlStart);
             break;
 
-
         case ACPI_TYPE_INTEGER:
 
             AcpiOsPrintf ("= %8.8X%8.8X\n",
                 ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
             break;
-
 
         case ACPI_TYPE_PACKAGE:
 
@@ -336,7 +334,6 @@ AcpiNsDumpOneObject (
                 AcpiOsPrintf ("[Length not yet evaluated]\n");
             }
             break;
-
 
         case ACPI_TYPE_BUFFER:
 
@@ -363,14 +360,12 @@ AcpiNsDumpOneObject (
             }
             break;
 
-
         case ACPI_TYPE_STRING:
 
             AcpiOsPrintf ("Len %.2X ", ObjDesc->String.Length);
             AcpiUtPrintString (ObjDesc->String.Pointer, 32);
             AcpiOsPrintf ("\n");
             break;
-
 
         case ACPI_TYPE_REGION:
 
@@ -388,12 +383,10 @@ AcpiNsDumpOneObject (
             }
             break;
 
-
         case ACPI_TYPE_LOCAL_REFERENCE:
 
             AcpiOsPrintf ("[%s]\n", AcpiUtGetReferenceName (ObjDesc));
             break;
-
 
         case ACPI_TYPE_BUFFER_FIELD:
 
@@ -406,14 +399,12 @@ AcpiNsDumpOneObject (
             }
             break;
 
-
         case ACPI_TYPE_LOCAL_REGION_FIELD:
 
             AcpiOsPrintf ("Rgn [%4.4s]",
                 AcpiUtGetNodeName (
                     ObjDesc->CommonField.RegionObj->Region.Node));
             break;
-
 
         case ACPI_TYPE_LOCAL_BANK_FIELD:
 
@@ -424,7 +415,6 @@ AcpiNsDumpOneObject (
                     ObjDesc->BankField.BankObj->CommonField.Node));
             break;
 
-
         case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
             AcpiOsPrintf ("Idx [%4.4s] Dat [%4.4s]",
@@ -433,7 +423,6 @@ AcpiNsDumpOneObject (
                 AcpiUtGetNodeName (
                     ObjDesc->IndexField.DataObj->CommonField.Node));
             break;
-
 
         case ACPI_TYPE_LOCAL_ALIAS:
         case ACPI_TYPE_LOCAL_METHOD_ALIAS:
@@ -465,10 +454,10 @@ AcpiNsDumpOneObject (
             break;
 
         default:
+
             break;
         }
         break;
-
 
     case ACPI_DISPLAY_OBJECTS:
 
@@ -517,7 +506,6 @@ AcpiNsDumpOneObject (
             break;
         }
         break;
-
 
     default:
         AcpiOsPrintf ("\n");
@@ -605,30 +593,37 @@ AcpiNsDumpOneObject (
             goto Cleanup;
 
         case ACPI_TYPE_BUFFER_FIELD:
+
             ObjDesc = (ACPI_OPERAND_OBJECT *) ObjDesc->BufferField.BufferObj;
             break;
 
         case ACPI_TYPE_PACKAGE:
+
             ObjDesc = (void *) ObjDesc->Package.Elements;
             break;
 
         case ACPI_TYPE_METHOD:
+
             ObjDesc = (void *) ObjDesc->Method.AmlStart;
             break;
 
         case ACPI_TYPE_LOCAL_REGION_FIELD:
+
             ObjDesc = (void *) ObjDesc->Field.RegionObj;
             break;
 
         case ACPI_TYPE_LOCAL_BANK_FIELD:
+
             ObjDesc = (void *) ObjDesc->BankField.RegionObj;
             break;
 
         case ACPI_TYPE_LOCAL_INDEX_FIELD:
+            
             ObjDesc = (void *) ObjDesc->IndexField.IndexObj;
             break;
 
         default:
+
             goto Cleanup;
         }
 

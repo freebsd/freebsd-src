@@ -88,6 +88,49 @@ extern const char                       *AcpiGbl_FcDecode[];
 extern const char                       *AcpiGbl_PtDecode[];
 #endif
 
+/*
+ * For the iASL compiler case, the output is redirected to stderr so that
+ * any of the various ACPI errors and warnings do not appear in the output
+ * files, for either the compiler or disassembler portions of the tool.
+ */
+#ifdef ACPI_ASL_COMPILER
+
+#include <stdio.h>
+extern FILE                 *AcpiGbl_OutputFile;
+
+#define ACPI_MSG_REDIRECT_BEGIN \
+    FILE                    *OutputFile = AcpiGbl_OutputFile; \
+    AcpiOsRedirectOutput (stderr);
+
+#define ACPI_MSG_REDIRECT_END \
+    AcpiOsRedirectOutput (OutputFile);
+
+#else
+/*
+ * non-iASL case - no redirection, nothing to do
+ */
+#define ACPI_MSG_REDIRECT_BEGIN
+#define ACPI_MSG_REDIRECT_END
+#endif
+
+/*
+ * Common error message prefixes
+ */
+#define ACPI_MSG_ERROR          "ACPI Error: "
+#define ACPI_MSG_EXCEPTION      "ACPI Exception: "
+#define ACPI_MSG_WARNING        "ACPI Warning: "
+#define ACPI_MSG_INFO           "ACPI: "
+
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+
+/*
+ * Common message suffix
+ */
+#define ACPI_MSG_SUFFIX \
+    AcpiOsPrintf (" (%8.8X/%s-%u)\n", ACPI_CA_VERSION, ModuleName, LineNumber)
+
+
 /* Types for Resource descriptor entries */
 
 #define ACPI_INVALID_RESOURCE           0
@@ -868,7 +911,7 @@ UtConvertBackslashes (
 
 BOOLEAN
 AcpiUtValidAcpiName (
-    UINT32                  Name);
+    char                    *Name);
 
 BOOLEAN
 AcpiUtValidAcpiChar (

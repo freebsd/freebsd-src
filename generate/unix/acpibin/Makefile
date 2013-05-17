@@ -30,8 +30,8 @@ OBJECTS = \
 	$(OBJDIR)/abcompare.o\
 	$(OBJDIR)/abmain.o\
 	$(OBJDIR)/utalloc.o\
+	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utcache.o\
-	$(OBJDIR)/utdebug.o\
 	$(OBJDIR)/utdecode.o\
 	$(OBJDIR)/utexcep.o\
 	$(OBJDIR)/utglobal.o\

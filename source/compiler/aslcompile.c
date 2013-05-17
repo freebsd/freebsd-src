@@ -133,7 +133,9 @@ AslCompilerSignon (
         break;
 
     default:
+
         /* No other output types supported */
+
         break;
     }
 
@@ -207,7 +209,9 @@ AslCompilerFileHeader (
         break;
 
     default:
+
         /* No other output types supported */
+
         break;
     }
 
@@ -226,11 +230,14 @@ AslCompilerFileHeader (
     case ASL_FILE_C_SOURCE_OUTPUT:
     case ASL_FILE_C_OFFSET_OUTPUT:
     case ASL_FILE_C_INCLUDE_OUTPUT:
+
         FlPrintFile (FileId, " */\n");
         break;
 
     default:
+
         /* Nothing to do for other output types */
+
         break;
     }
 }

@@ -382,14 +382,17 @@ AcpiEvMatchGpeMethod (
     switch (Name[1])
     {
     case 'L':
+
         Type = ACPI_GPE_LEVEL_TRIGGERED;
         break;
 
     case 'E':
+
         Type = ACPI_GPE_EDGE_TRIGGERED;
         break;
 
     default:
+
         /* Unknown method type, just ignore it */
 
         ACPI_DEBUG_PRINT ((ACPI_DB_LOAD,

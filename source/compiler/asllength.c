@@ -258,6 +258,7 @@ CgGenerateAmlOpcodeLength (
         break;
 
     default:
+
         /* All data opcodes must be above */
         break;
     }
@@ -326,6 +327,7 @@ CgGenerateAmlLengths (
         return;
 
     default:
+
         break;
     }
 

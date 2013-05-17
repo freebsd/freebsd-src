@@ -1,7 +1,7 @@
 #
 # Common rules for generation of ACPICA utilities
 #
-# FINAL_PROG - Copies the utility to the local binXX directory (32/64)
+# FINAL_PROG - Copies the utility to the local bin directory
 # PROG - Builds the utility (links the object files)
 #
 # Note: $(INTERMEDIATES) and $(MISC) are used for iASL compiler only.

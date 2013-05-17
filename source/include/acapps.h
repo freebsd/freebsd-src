@@ -103,11 +103,18 @@ AcpiGetopt(
     char                    **argv,
     char                    *opts);
 
+int
+AcpiGetoptArgument (
+    int                     argc,
+    char                    **argv);
+
 extern int                  AcpiGbl_Optind;
 extern int                  AcpiGbl_Opterr;
+extern int                  AcpiGbl_SubOptChar;
 extern char                 *AcpiGbl_Optarg;
 
 
+#ifndef ACPI_DUMP_APP
 /*
  * adisasm
  */
@@ -212,5 +219,6 @@ AdWriteTable (
     UINT32                  Length,
     char                    *TableName,
     char                    *OemTableId);
+#endif
 
 #endif /* _ACAPPS */
