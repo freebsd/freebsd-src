@@ -1044,28 +1044,28 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
 		lobject = object;
-		VM_OBJECT_WLOCK(lobject);
+		VM_OBJECT_RLOCK(lobject);
 		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
 		    lobject->type == OBJT_DEFAULT &&
 		    (backing_object = lobject->backing_object) != NULL) {
 			KASSERT((lobject->backing_object_offset & PAGE_MASK) ==
 			    0, ("vm_fault_prefault: unaligned object offset"));
 			pindex += lobject->backing_object_offset >> PAGE_SHIFT;
-			VM_OBJECT_WLOCK(backing_object);
-			VM_OBJECT_WUNLOCK(lobject);
+			VM_OBJECT_RLOCK(backing_object);
+			VM_OBJECT_RUNLOCK(lobject);
 			lobject = backing_object;
 		}
 		/*
 		 * give-up when a page is not in memory
 		 */
 		if (m == NULL) {
-			VM_OBJECT_WUNLOCK(lobject);
+			VM_OBJECT_RUNLOCK(lobject);
 			break;
 		}
 		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0)
 			pmap_enter_quick(pmap, addr, m, entry->protection);
-		VM_OBJECT_WUNLOCK(lobject);
+		VM_OBJECT_RUNLOCK(lobject);
 	}
 }
 
