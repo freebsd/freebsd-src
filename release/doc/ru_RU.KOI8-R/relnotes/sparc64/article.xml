@@ -1,3 +1,17 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % sections SYSTEM "../common/relnotes.ent">
+%sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSPARC">
+]>
+
 <!--
      The FreeBSD Russian Documentation Project
 
@@ -6,25 +20,6 @@
 
      Original revision: 1.6
 -->
-
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-
-<!ENTITY release.url "ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/">
-
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
-%articles.ent;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-<!ENTITY % sections SYSTEM "../common/relnotes.ent">
-%sections;
-
-<!-- Architecture-specific customization -->
-
-<!ENTITY arch "sparc64">
-<!ENTITY arch.print "UltraSPARC">
-
-]>
 
 <article lang="ru">
   &art;
