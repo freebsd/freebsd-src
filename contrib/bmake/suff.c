@@ -2058,6 +2058,10 @@ SuffFindNormalDeps(GNode *gn, Lst slst)
      * children, then look for any overriding transformations they imply.
      * Should we find one, we discard the one we found before.
      */
+    bottom = NULL;
+    targ = NULL;
+
+    if (!(gn->type & OP_PHONY)) {
 
     while (ln != NULL) {
 	/*
@@ -2170,6 +2174,7 @@ SuffFindNormalDeps(GNode *gn, Lst slst)
 	 */
 	for (targ = bottom; targ->parent != NULL; targ = targ->parent)
 	    continue;
+    }
     }
 
     Var_Set(TARGET, gn->path ? gn->path : gn->name, gn, 0);
@@ -2419,12 +2424,7 @@ SuffFindDeps(GNode *gn, Lst slst)
      */
     Var_Set(TARGET, gn->path ? gn->path : gn->name, gn, 0);
     Var_Set(PREFIX, gn->name, gn, 0);
-    if (gn->type & OP_PHONY) {
-	/*
-	 * If this is a .PHONY target, we do not apply suffix rules.
-	 */
-	return;
-    }
+
     if (DEBUG(SUFF)) {
 	fprintf(debug_file, "SuffFindDeps (%s)\n", gn->name);
     }
