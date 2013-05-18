@@ -2779,13 +2779,19 @@ static ipfw_insn *
 add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 {
 	struct in6_addr a;
-	char *host, *ch;
+	char *host, *ch, buf[INET6_ADDRSTRLEN];
 	ipfw_insn *ret = NULL;
+	int len;
 
-	if ((host = strdup(av)) == NULL)
-		return NULL;
-	if ((ch = strrchr(host, '/')) != NULL)
-		*ch = '\0';
+	/* Copy first address in set if needed */
+	if ((ch = strpbrk(av, "/,")) != NULL) {
+		len = ch - av;
+		strlcpy(buf, av, sizeof(buf));
+		if (len < sizeof(buf))
+			buf[len] = '\0';
+		host = buf;
+	} else
+		host = av;
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
@@ -2797,7 +2803,6 @@ add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
-	free(host);
 	return ret;
 }
 
@@ -2805,13 +2810,19 @@ static ipfw_insn *
 add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 {
 	struct in6_addr a;
-	char *host, *ch;
+	char *host, *ch, buf[INET6_ADDRSTRLEN];
 	ipfw_insn *ret = NULL;
+	int len;
 
-	if ((host = strdup(av)) == NULL)
-		return NULL;
-	if ((ch = strrchr(host, '/')) != NULL)
-		*ch = '\0';
+	/* Copy first address in set if needed */
+	if ((ch = strpbrk(av, "/,")) != NULL) {
+		len = ch - av;
+		strlcpy(buf, av, sizeof(buf));
+		if (len < sizeof(buf))
+			buf[len] = '\0';
+		host = buf;
+	} else
+		host = av;
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
@@ -2823,7 +2834,6 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
-	free(host);
 	return ret;
 }
 
