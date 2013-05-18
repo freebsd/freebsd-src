@@ -1084,6 +1084,15 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		       periph->unit_number, announce_string);
 }
 
+void
+xpt_announce_quirks(struct cam_periph *periph, int quirks, char *bit_string)
+{
+	if (quirks != 0) {
+		printf("%s%d: quirks=0x%b\n", periph->periph_name,
+		    periph->unit_number, quirks, bit_string);
+	}
+}
+
 int
 xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 {

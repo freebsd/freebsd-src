@@ -125,6 +125,10 @@ typedef enum {
 	CH_Q_NO_DBD	= 0x01
 } ch_quirks;
 
+#define CH_Q_BIT_STRING	\
+	"\020"		\
+	"\001NO_DBD"
+
 #define ccb_state	ppriv_field0
 #define ccb_bp		ppriv_ptr1
 
@@ -706,8 +710,11 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				announce_buf[0] = '\0';
 			}
 		}
-		if (announce_buf[0] != '\0')
+		if (announce_buf[0] != '\0') {
 			xpt_announce_periph(periph, announce_buf);
+			xpt_announce_quirks(periph, softc->quirks,
+			    CH_Q_BIT_STRING);
+		}
 		softc->state = CH_STATE_NORMAL;
 		free(mode_header, M_SCSICH);
 		/*
