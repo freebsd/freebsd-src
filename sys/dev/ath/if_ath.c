@@ -2620,9 +2620,28 @@ ath_start_queue(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
 
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		IF_LOCK(&ifp->if_snd);
+		sc->sc_stats.ast_tx_qstop++;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
+		ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: OACTIVE, finish");
+		return;
+	}
+	sc->sc_txstart_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: start");
 	ath_tx_kick(sc);
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: finished");
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txstart_cnt--;
+	ATH_PCU_UNLOCK(sc);
 }
 
 void
