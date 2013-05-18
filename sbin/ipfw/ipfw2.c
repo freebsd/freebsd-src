@@ -167,6 +167,32 @@ static struct _s_x f_iptos[] = {
 	{ NULL,	0 }
 };
 
+static struct _s_x f_ipdscp[] = {
+	{ "af11", IPTOS_DSCP_AF11 >> 2 },	/* 001010 */
+	{ "af12", IPTOS_DSCP_AF12 >> 2 },	/* 001100 */
+	{ "af13", IPTOS_DSCP_AF13 >> 2 },	/* 001110 */
+	{ "af21", IPTOS_DSCP_AF21 >> 2 },	/* 010010 */
+	{ "af22", IPTOS_DSCP_AF22 >> 2 },	/* 010100 */
+	{ "af23", IPTOS_DSCP_AF23 >> 2 },	/* 010110 */
+	{ "af31", IPTOS_DSCP_AF31 >> 2 },	/* 011010 */
+	{ "af32", IPTOS_DSCP_AF32 >> 2 },	/* 011100 */
+	{ "af33", IPTOS_DSCP_AF33 >> 2 },	/* 011110 */
+	{ "af41", IPTOS_DSCP_AF41 >> 2 },	/* 100010 */
+	{ "af42", IPTOS_DSCP_AF42 >> 2 },	/* 100100 */
+	{ "af43", IPTOS_DSCP_AF43 >> 2 },	/* 100110 */
+	{ "be", IPTOS_DSCP_CS0 >> 2 }, 	/* 000000 */
+	{ "ef", IPTOS_DSCP_EF >> 2 },	/* 101110 */
+	{ "cs0", IPTOS_DSCP_CS0 >> 2 },	/* 000000 */
+	{ "cs1", IPTOS_DSCP_CS1 >> 2 },	/* 001000 */
+	{ "cs2", IPTOS_DSCP_CS2 >> 2 },	/* 010000 */
+	{ "cs3", IPTOS_DSCP_CS3 >> 2 },	/* 011000 */
+	{ "cs4", IPTOS_DSCP_CS4 >> 2 },	/* 100000 */
+	{ "cs5", IPTOS_DSCP_CS5 >> 2 },	/* 101000 */
+	{ "cs6", IPTOS_DSCP_CS6 >> 2 },	/* 110000 */
+	{ "cs7", IPTOS_DSCP_CS7 >> 2 },	/* 100000 */
+	{ NULL, 0 }
+};
+
 static struct _s_x limit_masks[] = {
 	{"all",		DYN_SRC_ADDR|DYN_SRC_PORT|DYN_DST_ADDR|DYN_DST_PORT},
 	{"src-addr",	DYN_SRC_ADDR},
@@ -237,6 +263,7 @@ static struct _s_x rule_actions[] = {
 	{ "nat",		TOK_NAT },
 	{ "reass",		TOK_REASS },
 	{ "setfib",		TOK_SETFIB },
+	{ "setdscp",		TOK_SETDSCP },
 	{ "call",		TOK_CALL },
 	{ "return",		TOK_RETURN },
 	{ NULL, 0 }	/* terminator */
@@ -714,6 +741,51 @@ fill_newports(ipfw_insn_u16 *cmd, char *av, int proto, int cblen)
 	return (i);
 }
 
+/*
+ * Fill the body of the command with the list of DiffServ codepoints.
+ */
+static void
+fill_dscp(ipfw_insn *cmd, char *av, int cblen)
+{
+	uint32_t *low, *high;
+	char *s = av, *a;
+	int code;
+
+	cmd->opcode = O_DSCP;
+	cmd->len |= F_INSN_SIZE(ipfw_insn_u32) + 1;
+
+	CHECK_CMDLEN;
+
+	low = (uint32_t *)(cmd + 1);
+	high = low + 1;
+
+	*low = 0;
+	*high = 0;
+
+	while (s != NULL) {
+		a = strchr(s, ',');
+
+		if (a != NULL)
+			*a++ = '\0';
+
+		if (isalpha(*s)) {
+			if ((code = match_token(f_ipdscp, s)) == -1)
+				errx(EX_DATAERR, "Unknown DSCP code");
+		} else {
+			code = strtoul(s, NULL, 10);
+			if (code < 0 || code > 63)
+				errx(EX_DATAERR, "Invalid DSCP value");
+		}
+
+		if (code > 32)
+			*high |= 1 << (code - 32);
+		else
+			*low |= 1 << code;
+
+		s = a;
+	}
+}
+
 static struct _s_x icmpcodes[] = {
       { "net",			ICMP_UNREACH_NET },
       { "host",			ICMP_UNREACH_HOST },
@@ -972,6 +1044,32 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 	}
 }
 
+static void
+print_dscp(ipfw_insn_u32 *cmd)
+{
+	int i, c;
+	uint32_t *v;
+	char sep= ' ';
+	const char *code;
+
+	printf(" dscp");
+	i = 0;
+	c = 0;
+	v = cmd->d;
+	while (i < 64) {
+		if (*v & (1 << i)) {
+			if ((code = match_value(f_ipdscp, i)) != NULL)
+				printf("%c%s", sep, code);
+			else
+				printf("%c%d", sep, i);
+			sep = ',';
+		}
+
+		if ((++i % 32) == 0)
+			v++;
+	}
+}
+
 /*
  * show_ipfw() prints the body of an ipfw rule.
  * Because the standard rule has at least proto src_ip dst_ip, we use
@@ -1202,6 +1300,17 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
+ 			break;
+
+		case O_SETDSCP:
+		    {
+			const char *code;
+
+			if ((code = match_value(f_ipdscp, cmd->arg1)) != NULL)
+				printf("setdscp %s", code);
+			else
+				PRINT_UINT_ARG("setdscp ", cmd->arg1);
+		    }
  			break;
 
 		case O_REASS:
@@ -1498,6 +1607,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			case O_IPPRECEDENCE:
 				printf(" ipprecedence %u", (cmd->arg1) >> 5 );
 				break;
+
+			case O_DSCP:
+				print_dscp((ipfw_insn_u32 *)cmd);
+	 			break;
 
 			case O_IPLEN:
 				if (F_LEN(cmd) == 1)
@@ -3035,6 +3148,24 @@ chkarg:
 		break;
 	    }
 
+	case TOK_SETDSCP:
+	    {
+		int code;
+
+		action->opcode = O_SETDSCP;
+		NEED1("missing DSCP code");
+		if (_substrcmp(*av, "tablearg") == 0) {
+			action->arg1 = IP_FW_TABLEARG;
+		} else if (isalpha(*av[0])) {
+			if ((code = match_token(f_ipdscp, *av)) == -1)
+				errx(EX_DATAERR, "Unknown DSCP code");
+			action->arg1 = code;
+		} else
+		        action->arg1 = strtoul(*av, NULL, 10);
+		av++;
+		break;
+	    }
+
 	case TOK_REASS:
 		action->opcode = O_REASS;
 		break;
@@ -3444,6 +3575,12 @@ read_options:
 			NEED1("ipprecedence requires value");
 			fill_cmd(cmd, O_IPPRECEDENCE, 0,
 			    (strtoul(*av, NULL, 0) & 7) << 5);
+			av++;
+			break;
+
+		case TOK_DSCP:
+			NEED1("missing DSCP code");
+			fill_dscp(cmd, *av, cblen);
 			av++;
 			break;
 

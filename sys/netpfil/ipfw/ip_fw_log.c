@@ -209,10 +209,8 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 				altq->qid);
 			cmd += F_LEN(cmd);
 		}
-		if (cmd->opcode == O_PROB)
-			cmd += F_LEN(cmd);
-
-		if (cmd->opcode == O_TAG)
+		if (cmd->opcode == O_PROB || cmd->opcode == O_TAG ||
+		    cmd->opcode == O_SETDSCP)
 			cmd += F_LEN(cmd);
 
 		action = action2;
