@@ -327,7 +327,8 @@ struct ath_txq {
 #define	ATH_TXQ_SWQ	(HAL_NUM_TX_QUEUES+1)	/* qnum for s/w only queue */
 	u_int			axq_ac;		/* WME AC */
 	u_int			axq_flags;
-#define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
+//#define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
+#define	ATH_TXQ_PUTRUNNING	0x0002		/* ath_hal_puttxbuf has been called */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_aggr_depth;	/* how many aggregates are queued */
 	u_int			axq_intrcnt;	/* interrupt count */
