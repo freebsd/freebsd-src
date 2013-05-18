@@ -594,7 +594,7 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *ru
 	r->expire = time_uptime + V_dyn_syn_lifetime;
 	r->rule = rule;
 	r->dyn_type = dyn_type;
-	r->pcnt = r->bcnt = 0;
+	IPFW_ZERO_DYN_COUNTER(r);
 	r->count = 0;
 
 	r->bucket = i;

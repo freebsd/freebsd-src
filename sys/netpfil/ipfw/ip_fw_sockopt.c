@@ -177,9 +177,7 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 	/* clear fields not settable from userland */
 	rule->x_next = NULL;
 	rule->next_rule = NULL;
-	rule->pcnt = 0;
-	rule->bcnt = 0;
-	rule->timestamp = 0;
+	IPFW_ZERO_RULE_COUNTER(rule);
 
 	if (V_autoinc_step < 1)
 		V_autoinc_step = 1;
@@ -442,10 +440,8 @@ clear_counters(struct ip_fw *rule, int log_only)
 {
 	ipfw_insn_log *l = (ipfw_insn_log *)ACTION_PTR(rule);
 
-	if (log_only == 0) {
-		rule->bcnt = rule->pcnt = 0;
-		rule->timestamp = 0;
-	}
+	if (log_only == 0)
+		IPFW_ZERO_RULE_COUNTER(rule);
 	if (l->o.opcode == O_LOG)
 		l->log_left = l->max_log;
 }
