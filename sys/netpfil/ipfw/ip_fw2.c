@@ -782,6 +782,38 @@ set_match(struct ip_fw_args *args, int slot,
 }
 
 /*
+ * Helper function to enable cached rule lookups using
+ * x_next and next_rule fields in ipfw rule.
+ */
+static int
+jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards)
+{
+	int f_pos;
+
+	/* If possible use cached f_pos (in f->next_rule),
+	 * whose version is written in f->next_rule
+	 * (horrible hacks to avoid changing the ABI).
+	 */
+	if (num != IP_FW_TABLEARG && (uintptr_t)f->x_next == chain->id)
+		f_pos = (uintptr_t)f->next_rule;
+	else {
+		int i = IP_FW_ARG_TABLEARG(num);
+		/* make sure we do not jump backward */
+		if (jump_backwards == 0 && i <= f->rulenum)
+			i = f->rulenum + 1;
+		f_pos = ipfw_find_rule(chain, i, 0);
+		/* update the cache */
+		if (num != IP_FW_TABLEARG) {
+			f->next_rule = (void *)(uintptr_t)f_pos;
+			f->x_next = (void *)(uintptr_t)chain->id;
+		}
+	}
+
+	return (f_pos);
+}
+
+/*
  * The main check routine for the firewall.
  *
  * All arguments are in args so we can modify them and return them
@@ -1842,8 +1874,7 @@ do {								\
 
 			case O_TAG: {
 				struct m_tag *mtag;
-				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
-				    tablearg : cmd->arg1;
+				uint32_t tag = IP_FW_ARG_TABLEARG(cmd->arg1);
 
 				/* Packet is already tagged with this tag? */
 				mtag = m_tag_locate(m, MTAG_IPFW, tag, NULL);
@@ -1922,8 +1953,7 @@ do {								\
 
 			case O_TAGGED: {
 				struct m_tag *mtag;
-				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
-				    tablearg : cmd->arg1;
+				uint32_t tag = IP_FW_ARG_TABLEARG(cmd->arg1);
 
 				if (cmdlen == 1) {
 					match = m_tag_locate(m, MTAG_IPFW,
@@ -2062,8 +2092,7 @@ do {								\
 			case O_PIPE:
 			case O_QUEUE:
 				set_match(args, f_pos, chain);
-				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
-					tablearg : cmd->arg1;
+				args->rule.info = IP_FW_ARG_TABLEARG(cmd->arg1);
 				if (cmd->opcode == O_PIPE)
 					args->rule.info |= IPFW_IS_PIPE;
 				if (V_fw_one_pass)
@@ -2083,8 +2112,7 @@ do {								\
 				retval = (cmd->opcode == O_DIVERT) ?
 					IP_FW_DIVERT : IP_FW_TEE;
 				set_match(args, f_pos, chain);
-				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
-				    tablearg : cmd->arg1;
+				args->rule.info = IP_FW_ARG_TABLEARG(cmd->arg1);
 				break;
 
 			case O_COUNT:
@@ -2098,28 +2126,7 @@ do {								\
 			    f->pcnt++;	/* update stats */
 			    f->bcnt += pktlen;
 			    f->timestamp = time_uptime;
-			    /* If possible use cached f_pos (in f->next_rule),
-			     * whose version is written in f->next_rule
-			     * (horrible hacks to avoid changing the ABI).
-			     */
-			    if (cmd->arg1 != IP_FW_TABLEARG &&
-				    (uintptr_t)f->x_next == chain->id) {
-				f_pos = (uintptr_t)f->next_rule;
-			    } else {
-				int i = (cmd->arg1 == IP_FW_TABLEARG) ?
-					tablearg : cmd->arg1;
-				/* make sure we do not jump backward */
-				if (i <= f->rulenum)
-				    i = f->rulenum + 1;
-				f_pos = ipfw_find_rule(chain, i, 0);
-				/* update the cache */
-				if (cmd->arg1 != IP_FW_TABLEARG) {
-				    f->next_rule =
-					(void *)(uintptr_t)f_pos;
-				    f->x_next =
-					(void *)(uintptr_t)chain->id;
-				}
-			    }
+			    f_pos = jump_fast(chain, f, cmd->arg1, tablearg, 0);
 			    /*
 			     * Skip disabled rules, and re-enter
 			     * the inner loop with the correct
@@ -2210,26 +2217,8 @@ do {								\
 				if (IS_CALL) {
 					stack[mtag->m_tag_id] = f->rulenum;
 					mtag->m_tag_id++;
-					if (cmd->arg1 != IP_FW_TABLEARG &&
-					    (uintptr_t)f->x_next == chain->id) {
-						f_pos = (uintptr_t)f->next_rule;
-					} else {
-						jmpto = (cmd->arg1 ==
-						    IP_FW_TABLEARG) ? tablearg:
-						    cmd->arg1;
-						f_pos = ipfw_find_rule(chain,
-						    jmpto, 0);
-						/* update the cache */
-						if (cmd->arg1 !=
-						    IP_FW_TABLEARG) {
-							f->next_rule =
-							    (void *)(uintptr_t)
-							    f_pos;
-							f->x_next =
-							    (void *)(uintptr_t)
-							    chain->id;
-						}
-					}
+			    		f_pos = jump_fast(chain, f, cmd->arg1,
+					    tablearg, 1);
 				} else {	/* `return' action */
 					mtag->m_tag_id--;
 					jmpto = stack[mtag->m_tag_id] + 1;
@@ -2336,8 +2325,7 @@ do {								\
 			case O_NETGRAPH:
 			case O_NGTEE:
 				set_match(args, f_pos, chain);
-				args->rule.info = (cmd->arg1 == IP_FW_TABLEARG) ?
-					tablearg : cmd->arg1;
+				args->rule.info = IP_FW_ARG_TABLEARG(cmd->arg1);
 				if (V_fw_one_pass)
 					args->rule.info |= IPFW_ONEPASS;
 				retval = (cmd->opcode == O_NETGRAPH) ?
@@ -2352,8 +2340,7 @@ do {								\
 				f->pcnt++;	/* update stats */
 				f->bcnt += pktlen;
 				f->timestamp = time_uptime;
-				fib = (cmd->arg1 == IP_FW_TABLEARG) ? tablearg:
-				    cmd->arg1;
+				fib = IP_FW_ARG_TABLEARG(cmd->arg1);
 				if (fib >= rt_numfibs)
 					fib = 0;
 				M_SETFIB(m, fib);
@@ -2379,8 +2366,7 @@ do {								\
 				    }
 				    t = ((ipfw_insn_nat *)cmd)->nat;
 				    if (t == NULL) {
-					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
-						tablearg : cmd->arg1;
+					nat_id = IP_FW_ARG_TABLEARG(cmd->arg1);
 					t = (*lookup_nat_ptr)(&chain->nat, nat_id);
 
 					if (t == NULL) {

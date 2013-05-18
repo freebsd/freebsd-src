@@ -255,19 +255,19 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			break;
 		case O_SETFIB:
 			snprintf(SNPARGS(action2, 0), "SetFib %d",
-				cmd->arg1);
+				IP_FW_ARG_TABLEARG(cmd->arg1));
 			break;
 		case O_SKIPTO:
 			snprintf(SNPARGS(action2, 0), "SkipTo %d",
-				cmd->arg1);
+				IP_FW_ARG_TABLEARG(cmd->arg1));
 			break;
 		case O_PIPE:
 			snprintf(SNPARGS(action2, 0), "Pipe %d",
-				cmd->arg1);
+				IP_FW_ARG_TABLEARG(cmd->arg1));
 			break;
 		case O_QUEUE:
 			snprintf(SNPARGS(action2, 0), "Queue %d",
-				cmd->arg1);
+				IP_FW_ARG_TABLEARG(cmd->arg1));
 			break;
 		case O_FORWARD_IP: {
 			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;

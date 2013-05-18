@@ -696,8 +696,7 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		uint16_t limit_mask = cmd->limit_mask;
 		int pindex;
 
-		conn_limit = (cmd->conn_limit == IP_FW_TABLEARG) ?
-		    tablearg : cmd->conn_limit;
+		conn_limit = IP_FW_ARG_TABLEARG(cmd->conn_limit);
 		  
 		DEB(
 		if (cmd->conn_limit == IP_FW_TABLEARG)
