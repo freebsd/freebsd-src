@@ -4620,6 +4620,8 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	DPRINTF(sc, ATH_DEBUG_RESET,
 	    "%s: tx queue [%u] %p, active=%d, hwpending=%d, flags 0x%08x, "
 	    "link %p, holdingbf=%p\n",
@@ -4633,6 +4635,8 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 	    txq->axq_holdingbf);
 
 	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
+	/* We've stopped TX DMA, so mark this as stopped. */
+	txq->axq_flags &= ~ATH_TXQ_PUTRUNNING;
 
 #ifdef	ATH_DEBUG
 	if ((sc->sc_debug & ATH_DEBUG_RESET)
@@ -4658,17 +4662,25 @@ ath_stoptxdma(struct ath_softc *sc)
 		    __func__, sc->sc_bhalq,
 		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq),
 		    NULL);
+
+		/* stop the beacon queue */
 		(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
-		for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-			if (ATH_TXQ_SETUP(sc, i))
+
+		/* Stop the data queues */
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
 				ath_tx_stopdma(sc, &sc->sc_txq[i]);
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
 	}
 
 	return 1;
 }
 
 #ifdef	ATH_DEBUG
-static void
+void
 ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -4702,6 +4714,7 @@ ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 #endif
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
+	struct ath_buf *bf_last;
 
 	(void) ath_stoptxdma(sc);
 
@@ -4727,10 +4740,20 @@ ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 				 */
 				ath_txq_freeholdingbuf(sc, &sc->sc_txq[i]);
 				/*
-				 * Reset the link pointer to NULL; there's
-				 * no frames to chain DMA to.
+				 * Setup the link pointer to be the
+				 * _last_ buffer/descriptor in the list.
+				 * If there's nothing in the list, set it
+				 * to NULL.
 				 */
-				sc->sc_txq[i].axq_link = NULL;
+				bf_last = ATH_TXQ_LAST(&sc->sc_txq[i],
+				    axq_q_s);
+				if (bf_last != NULL) {
+					ath_hal_gettxdesclinkptr(ah,
+					    bf_last->bf_lastds,
+					    &sc->sc_txq[i].axq_link);
+				} else {
+					sc->sc_txq[i].axq_link = NULL;
+				}
 				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
 			} else
 				ath_tx_draintxq(sc, &sc->sc_txq[i]);
