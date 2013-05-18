@@ -642,6 +642,7 @@ ath_beacon_cabq_start_edma(struct ath_softc *sc)
 
 	/* Push the first entry into the hardware */
 	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+	cabq->axq_flags |= ATH_TXQ_PUTRUNNING;
 
 	/* NB: gated by beacon so safe to start here */
 	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
@@ -661,6 +662,7 @@ ath_beacon_cabq_start_legacy(struct ath_softc *sc)
 
 	/* Push the first entry into the hardware */
 	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+	cabq->axq_flags |= ATH_TXQ_PUTRUNNING;
 
 	/* NB: gated by beacon so safe to start here */
 	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
@@ -735,6 +737,16 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			 * out as otherwise this vap's stations will get cab
 			 * frames from a different vap.
 			 * XXX could be slow causing us to miss DBA
+			 */
+			/*
+			 * XXX TODO: this doesn't stop CABQ DMA - it assumes
+			 * that since we're about to transmit a beacon, we've
+			 * already stopped transmitting on the CABQ.  But this
+			 * doesn't at all mean that the CABQ DMA QCU will
+			 * accept a new TXDP!  So what, should we do a DMA
+			 * stop? What if it fails?
+			 *
+			 * More thought is required here.
 			 */
 			ath_tx_draintxq(sc, cabq);
 		}
