@@ -1566,7 +1566,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			info.rti_ifa = NULL;
 			info.rti_flags = RTF_RNH_LOCKED;
 
-			error = rtrequest1_fib(RTM_DELETE, &info, &rt, fibnum);
+			error = rtrequest1_fib(RTM_DELETE, &info, NULL, fibnum);
 			if (error == 0) {
 				info.rti_ifa = ifa;
 				info.rti_flags = flags | RTF_RNH_LOCKED |
