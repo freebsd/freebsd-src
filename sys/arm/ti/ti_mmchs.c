@@ -1747,7 +1747,7 @@ ti_mmchs_attach(device_t dev)
 	sc->host.host_ocr = MMC_OCR_290_300 | MMC_OCR_300_310;
 	sc->host.caps = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 
-	device_add_child(dev, "mmc", 0);
+	device_add_child(dev, "mmc", sc->device_id);
 
 	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
