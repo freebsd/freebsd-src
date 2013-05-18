@@ -28,6 +28,7 @@ MAC Framework	rwatson	Pre-commit review requested.
 MAC Modules	rwatson	Pre-commit review requested.
 contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
+ath(4)		achadd	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
 PC Card		imp	Pre-commit review requested.
@@ -63,6 +64,7 @@ procfs		des	Pre-commit review requested.
 linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
+net80211	achadd	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
