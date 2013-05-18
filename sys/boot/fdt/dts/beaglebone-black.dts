@@ -78,6 +78,7 @@
 				/* MMC1 */
 				"GPMC_CSn1", "mmc1_clk", "input_pulldown",
 				"GPMC_CSn2", "mmc1_cmd", "input_pulldown",
+				"GPMC_CSn3", "gpio2_0", "output", /* Reset */
 				"GPMC_AD0", "mmc1_dat0", "input_pulldown",
 				"GPMC_AD1", "mmc1_dat1", "input_pulldown",
 				"GPMC_AD2", "mmc1_dat2", "input_pulldown",
@@ -130,7 +131,7 @@
  		};
 
 		mmchs1@481D8000 {
-			status = "ok";
+			status = "okay";
 		};
 
  
