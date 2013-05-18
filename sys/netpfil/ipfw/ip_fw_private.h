@@ -236,6 +236,28 @@ struct ip_fw_chain {
 
 struct sockopt;	/* used by tcp_var.h */
 
+/* Macro for working with various counters */
+#define	IPFW_INC_RULE_COUNTER(_cntr, _bytes)	do {	\
+	(_cntr)->pcnt++;				\
+	(_cntr)->bcnt += _bytes;			\
+	(_cntr)->timestamp = time_uptime;		\
+	} while (0)
+
+#define	IPFW_INC_DYN_COUNTER(_cntr, _bytes)	do {		\
+	(_cntr)->pcnt++;				\
+	(_cntr)->bcnt += _bytes;			\
+	} while (0)
+
+#define	IPFW_ZERO_RULE_COUNTER(_cntr) do {		\
+	(_cntr)->pcnt = 0;				\
+	(_cntr)->bcnt = 0;				\
+	(_cntr)->timestamp = 0;				\
+	} while (0)
+
+#define	IPFW_ZERO_DYN_COUNTER(_cntr) do {		\
+	(_cntr)->pcnt = 0;				\
+	(_cntr)->bcnt = 0;				\
+	} while (0)
 
 #define	IP_FW_ARG_TABLEARG(a)	((a) == IP_FW_TABLEARG) ? tablearg : (a)
 /*
