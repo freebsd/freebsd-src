@@ -545,7 +545,7 @@ Var_Delete(const char *name, GNode *ctxt)
     if (strchr(name, '$')) {
 	cp = Var_Subst(NULL, name, VAR_GLOBAL, 0);
     } else {
-	cp = name;
+	cp = (char *)name;
     }
     ln = Hash_FindEntry(&ctxt->context, cp);
     if (DEBUG(VAR)) {
