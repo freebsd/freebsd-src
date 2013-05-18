@@ -540,11 +540,20 @@ void
 Var_Delete(const char *name, GNode *ctxt)
 {
     Hash_Entry 	  *ln;
-
-    ln = Hash_FindEntry(&ctxt->context, name);
+    char *cp;
+    
+    if (strchr(name, '$')) {
+	cp = Var_Subst(NULL, name, VAR_GLOBAL, 0);
+    } else {
+	cp = name;
+    }
+    ln = Hash_FindEntry(&ctxt->context, cp);
     if (DEBUG(VAR)) {
 	fprintf(debug_file, "%s:delete %s%s\n",
-	    ctxt->name, name, ln ? "" : " (not found)");
+	    ctxt->name, cp, ln ? "" : " (not found)");
+    }
+    if (cp != name) {
+	free(cp);
     }
     if (ln != NULL) {
 	Var 	  *v;
