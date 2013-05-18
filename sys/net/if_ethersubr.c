@@ -141,6 +141,22 @@ static MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
+static void
+update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
+{
+	int csum_flags = 0;
+
+	if (src->m_pkthdr.csum_flags & CSUM_IP)
+		csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
+	if (src->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
+		csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
+	if (src->m_pkthdr.csum_flags & CSUM_SCTP)
+		csum_flags |= CSUM_SCTP_VALID;
+	dst->m_pkthdr.csum_flags |= csum_flags;
+	if (csum_flags & CSUM_DATA_VALID)
+		dst->m_pkthdr.csum_data = 0xffff;
+}
+
 /*
  * Ethernet output routine.
  * Encapsulate a packet of type family for the local net.
@@ -300,15 +316,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	if (lle != NULL && (lle->la_flags & LLE_IFADDR)) {
-		int csum_flags = 0;
-		if (m->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
-			csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-			csum_flags |= CSUM_SCTP_VALID;
-		m->m_pkthdr.csum_flags |= csum_flags;
-		m->m_pkthdr.csum_data = 0xffff;
+		update_mbuf_csumflags(m, m);
 		return (if_simloop(ifp, m, dst->sa_family, 0));
 	}
 
@@ -341,15 +349,6 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	 */
 	if ((ifp->if_flags & IFF_SIMPLEX) && loop_copy &&
 	    ((t = pf_find_mtag(m)) == NULL || !t->routed)) {
-		int csum_flags = 0;
-
-		if (m->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
-			csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
-			csum_flags |= CSUM_SCTP_VALID;
-
 		if (m->m_flags & M_BCAST) {
 			struct mbuf *n;
 
@@ -366,17 +365,13 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			 * See PR kern/105943 for a proposed general solution.
 			 */
 			if ((n = m_dup(m, M_NOWAIT)) != NULL) {
-				n->m_pkthdr.csum_flags |= csum_flags;
-				if (csum_flags & CSUM_DATA_VALID)
-					n->m_pkthdr.csum_data = 0xffff;
+				update_mbuf_csumflags(m, n);
 				(void)if_simloop(ifp, n, dst->sa_family, hlen);
 			} else
 				ifp->if_iqdrops++;
 		} else if (bcmp(eh->ether_dhost, eh->ether_shost,
 				ETHER_ADDR_LEN) == 0) {
-			m->m_pkthdr.csum_flags |= csum_flags;
-			if (csum_flags & CSUM_DATA_VALID)
-				m->m_pkthdr.csum_data = 0xffff;
+			update_mbuf_csumflags(m, m);
 			(void) if_simloop(ifp, m, dst->sa_family, hlen);
 			return (0);	/* XXX */
 		}
