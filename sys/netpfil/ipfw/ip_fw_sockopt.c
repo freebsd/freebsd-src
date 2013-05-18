@@ -681,6 +681,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			break;
 
+		case O_DSCP:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1)
+				goto bad_size;
+			break;
+
 		case O_MAC_TYPE:
 		case O_IP_SRCPORT:
 		case O_IP_DSTPORT: /* XXX artificial limit, 30 port pairs */
@@ -741,6 +746,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_ACCEPT:
 		case O_DENY:
 		case O_REJECT:
+		case O_SETDSCP:
 #ifdef INET6
 		case O_UNREACH6:
 #endif
