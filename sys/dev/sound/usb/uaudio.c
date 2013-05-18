@@ -5592,7 +5592,6 @@ umidi_open(struct usb_fifo *fifo, int fflags)
 		}
 		/* clear stall first */
 		mtx_lock(&chan->mtx);
-		usbd_xfer_set_stall(chan->xfer[UMIDI_TX_TRANSFER]);
 		chan->write_open_refcount++;
 		sub->write_open = 1;
 
@@ -5690,9 +5689,6 @@ umidi_probe(device_t dev)
 	}
 
 	mtx_lock(&chan->mtx);
-
-	/* clear stall first */
-	usbd_xfer_set_stall(chan->xfer[UMIDI_RX_TRANSFER]);
 
 	/*
 	 * NOTE: At least one device will not work properly unless the
@@ -5798,8 +5794,11 @@ tr_setup:
 		break;
 
 	default:			/* Error */
+
+		DPRINTF("error=%s\n", usbd_errstr(error));
+
 		if (error != USB_ERR_CANCELLED) {
-			/* try clear stall first */
+			/* try to clear stall first */
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
