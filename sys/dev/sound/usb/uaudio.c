@@ -868,6 +868,7 @@ uaudio_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uaudio_softc *sc = device_get_softc(dev);
 	struct usb_interface_descriptor *id;
+	usb_error_t err;
 	device_t child;
 
 	sc->sc_play_chan.priv_sc = sc;
@@ -925,6 +926,19 @@ uaudio_attach(device_t dev)
 
 	if (sc->sc_play_chan.num_alt > 0) {
 		uint8_t x;
+
+		/*
+		 * Need to set a default alternate interface, else
+		 * some USB audio devices might go into an infinte
+		 * re-enumeration loop:
+		 */
+		err = usbd_set_alt_interface_index(sc->sc_udev,
+		    sc->sc_play_chan.usb_alt[0].iface_index,
+		    sc->sc_play_chan.usb_alt[0].iface_alt_index);
+		if (err) {
+			DPRINTF("setting of alternate index failed: %s!\n",
+			    usbd_errstr(err));
+		}
 		for (x = 0; x != sc->sc_play_chan.num_alt; x++) {
 			device_printf(dev, "Play: %d Hz, %d ch, %s format, "
 			    "2x8ms buffer.\n",
@@ -938,6 +952,19 @@ uaudio_attach(device_t dev)
 
 	if (sc->sc_rec_chan.num_alt > 0) {
 		uint8_t x;
+
+		/*
+		 * Need to set a default alternate interface, else
+		 * some USB audio devices might go into an infinte
+		 * re-enumeration loop:
+		 */
+		err = usbd_set_alt_interface_index(sc->sc_udev,
+		    sc->sc_rec_chan.usb_alt[0].iface_index,
+		    sc->sc_rec_chan.usb_alt[0].iface_alt_index);
+		if (err) {
+			DPRINTF("setting of alternate index failed: %s!\n",
+			    usbd_errstr(err));
+		}
 		for (x = 0; x != sc->sc_rec_chan.num_alt; x++) {
 			device_printf(dev, "Record: %d Hz, %d ch, %s format, "
 			    "2x8ms buffer.\n",
