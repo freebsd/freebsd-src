@@ -159,13 +159,10 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	 */
 	error = EPERM;
 out:
-	if (error) {
-		SDT_PROBE(priv, kernel, priv_check, priv_err, priv, 0, 0, 0,
-		    0);
-	} else {
-		SDT_PROBE(priv, kernel, priv_check, priv_ok, priv, 0, 0, 0,
-		    0);
-	}
+	if (error)
+		SDT_PROBE1(priv, kernel, priv_check, priv_err, priv);
+	else
+		SDT_PROBE1(priv, kernel, priv_check, priv_ok, priv);
 	return (error);
 }
 
