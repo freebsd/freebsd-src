@@ -4709,9 +4709,7 @@ ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq)
 void
 ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
-#ifdef	ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
-#endif
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 	struct ath_buf *bf_last;
