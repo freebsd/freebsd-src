@@ -292,8 +292,6 @@
 #if /* (defined(__cplusplus) && __cplusplus >= 201103L) || */ \
     __has_extension(cxx_thread_local)
 #define	_Thread_local		thread_local
-#elif defined(lint)
-#define	_Thread_local
 #else
 #define	_Thread_local		__thread
 #endif
