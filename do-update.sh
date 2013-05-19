@@ -8,7 +8,6 @@ ECHO=
 SVN=${SVN:-/usr/local/bin/svn}
 SITE=${SITE:-ftp://ftp.netbsd.org/pub/NetBSD/misc/sjg}
 
-
 # For consistency...
 Error() {
 	echo ERROR: ${1+"$@"} >&2
@@ -56,51 +55,31 @@ option_parsing() {
 	return $(($_shift - $#))
 }
 
-# Call this function after all argument parsing has been done.
-sanity_checks() {
-    # Do we have a working Subversion client?
-    ${SVN} --version -q >/dev/null || \
-	Error "Cannot find a working subversion client."
-
-    # Verify that a PR number and reviewer(s) were specified on the
-    # command line.
-    [ "$VERSION" ] || Error "We will a version \"number\" (can be a string).  Use VERSION=<version>."
-    # Need one (and only one) of ${url} or ${TARBALL} set.
-    [ "${url:-$TARBALL}" -a "${url:-$TARBALL}" != "${TARBALL:-$url}" ] && Error "Please set either \"url\" or \"TARBALL\" (not both) in your import script."
-    [ -d dist ] || Error "The directory dist/ does not exist."
-}
-
 ###
 
 option_parsing "$@"
 shift $?
-sanity_checks
 
-fetch $SITE/bmake-${VERSION}.tar.gz.sha1
-fetch $SITE/bmake-${VERSION}.tar.gz
+Cd `dirname $0`
+test -s ${TARBALL:-/dev/null} || Error need TARBALL
+rm -rf bmake
+TF=/tmp/.$USER.$$
 
-HAVE=`sha1 bmake-${VERSION}.tar.gz`
-WANT=`cat bmake-${VERSION}.tar.gz.sha1`
-if [ x"$HAVE" != x"$WANT" ]; then
-	Error "Fetched distfile does not have the expected SHA1 hash."
-fi
-
-tar xf bmake-${VERSION}.tar.gz
+tar zxf $TARBALL
+MAKE_VERSION=`grep '^MAKE_VERSION' bmake/Makefile | sed 's,.*=[[:space:]]*,,'`
 rm -rf bmake/missing
+('cd' dist && $SVN list -R) | grep -v '/$' | sort > $TF.old
+('cd' bmake && find . -type f ) | cut -c 3- | sort > $TF.new
+comm -23 $TF.old $TF.new > $TF.rmlist
+comm -13 $TF.old $TF.new > $TF.addlist
+[ -s $TF.rmlist ] && { echo rm:; cat $TF.rmlist; }
+[ -s $TF.addlist ] && { echo add:; cat $TF.addlist; }
+('cd' bmake && tar cf - . | tar xf - -C ../dist)
+('cd' dist
+test -s $TF.rmlist && xargs $SVN rm < $TF.rmlist
+test -s $TF.addlist && xargs $SVN --parents add < $TF.addlist
+)
 
-svn-vendorimport.sh bmake dist
-${SVN} stat dist
-
-rm -f bmake-${VERSION}.tar.gz bmake-${VERSION}.tar.gz.sha1
-
-echo "Import the ${VERSION} release of the \"Portable\" BSD make tool (from NetBSD).
-
-Submitted by:	Simon Gerraty <sjg@juniper.net>" > /tmp/commit-log
-
-${ECHO} ${SVN} ci -F /tmp/commit-log dist
-
-SVNURL=$(${SVN} info | grep URL: | awk '{print $2}')
-
-${ECHO} ${SVN} copy \
-    -m "\"Tag\" the ${VERSION} Portable BSD make import." \
-    ${SVNURL}/dist ${SVNURL}/${VERSION}
+url=`$SVN info | sed -n '/URL:/s,URL: ,,p'`
+echo After committing dist...
+echo $SVN cp $url/dist $url/$MAKE_VERSION
