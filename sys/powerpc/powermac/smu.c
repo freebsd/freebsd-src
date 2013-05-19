@@ -78,8 +78,8 @@ struct smu_fan {
 		SMU_FAN_RPM,
 		SMU_FAN_PWM
 	} type;
-	int	old_style;
 	int	setpoint;
+	int	old_style;
 	int     rpm;
 };
 
@@ -123,6 +123,7 @@ struct smu_softc {
 
 	struct smu_fan	*sc_fans;
 	int		sc_nfans;
+	int		old_style_fans;
 	struct smu_sensor *sc_sensors;
 	int		sc_nsensors;
 
@@ -654,6 +655,37 @@ doorbell_attach(device_t dev)
  */
 
 static int
+smu_fan_check_old_style(struct smu_fan *fan)
+{
+	device_t smu = fan->dev;
+	struct smu_softc *sc = device_get_softc(smu);
+	struct smu_cmd cmd;
+	int error;
+
+	if (sc->old_style_fans != -1)
+		return (sc->old_style_fans);
+
+	/*
+	 * Apple has two fan control mechanisms. We can't distinguish
+	 * them except by seeing if the new one fails. If the new one
+	 * fails, use the old one.
+	 */
+	
+	cmd.cmd = SMU_FAN;
+	cmd.len = 2;
+	cmd.data[0] = 0x31;
+	cmd.data[1] = fan->reg;
+
+	do {
+		error = smu_run_cmd(smu, &cmd, 1);
+	} while (error == EWOULDBLOCK);
+
+	sc->old_style_fans = (error != 0);
+
+	return (sc->old_style_fans);
+}
+
+static int
 smu_fan_set_rpm(struct smu_fan *fan, int rpm)
 {
 	device_t smu = fan->dev;
@@ -667,12 +699,8 @@ smu_fan_set_rpm(struct smu_fan *fan, int rpm)
 	rpm = max(fan->fan.min_rpm, rpm);
 	rpm = min(fan->fan.max_rpm, rpm);
 
-	/*
-	 * Apple has two fan control mechanisms. We can't distinguish
-	 * them except by seeing if the new one fails. If the new one
-	 * fails, use the old one.
-	 */
-	
+	smu_fan_check_old_style(fan);
+
 	if (!fan->old_style) {
 		cmd.len = 4;
 		cmd.data[0] = 0x30;
@@ -683,9 +711,7 @@ smu_fan_set_rpm(struct smu_fan *fan, int rpm)
 		error = smu_run_cmd(smu, &cmd, 1);
 		if (error && error != EWOULDBLOCK)
 			fan->old_style = 1;
-	}
-
-	if (fan->old_style) {
+	} else {
 		cmd.len = 14;
 		cmd.data[0] = 0x00; /* RPM fan. */
 		cmd.data[1] = 1 << fan->reg;
@@ -706,6 +732,8 @@ smu_fan_read_rpm(struct smu_fan *fan)
 	device_t smu = fan->dev;
 	struct smu_cmd cmd;
 	int rpm, error;
+
+	smu_fan_check_old_style(fan);
 
 	if (!fan->old_style) {
 		cmd.cmd = SMU_FAN;
@@ -944,9 +972,10 @@ smu_count_fans(device_t dev)
 			     child = OF_peer(child)) {
 				nfans++;
 				/* When allocated, fill the fan properties. */
-				if (sc->sc_fans != NULL)
+				if (sc->sc_fans != NULL) {
 					smu_fill_fan_prop(dev, child,
 							  nfans - 1);
+				}
 			}
 	}
 	if (nfans == 0) {
