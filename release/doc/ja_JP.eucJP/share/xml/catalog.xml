@@ -7,5 +7,5 @@
 <catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
   <public
         publicId="-//FreeBSD//ENTITIES Auto Generated Device Lists//JA"
-        uri="dev-auto-ja.xml"/>
+        uri="dev-auto-ja.ent"/>
 </catalog>
