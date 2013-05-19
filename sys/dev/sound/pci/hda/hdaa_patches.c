@@ -347,6 +347,16 @@ hdac_pin_patch(struct hdaa_widget *w)
 		case 25:
 			patch = "as=1 seq=15";
 			break;
+		/* 
+		 * Group onboard mic and headphone mic
+		 * together.  Fixes onboard mic.
+		 */
+		case 27:
+			patch = "as=2 seq=15";
+			break;
+		case 35:
+			patch = "as=2";
+			break;
 		}
 	} else if (id == HDA_CODEC_ALC269 &&
 	    (subid == LENOVO_X1CRBN_SUBVENDOR ||
