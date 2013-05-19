@@ -184,11 +184,12 @@ struct sdt_provider {
 #define SDT_PROBE_DECLARE(prov, mod, func, name)				\
 	extern struct sdt_probe sdt_##prov##_##mod##_##func##_##name[1]
 
-#define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)		\
+#define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)	do {	\
 	if (sdt_##prov##_##mod##_##func##_##name->id)				\
 		(*sdt_probe_func)(sdt_##prov##_##mod##_##func##_##name->id,	\
 		    (uintptr_t) arg0, (uintptr_t) arg1, (uintptr_t) arg2,	\
-		    (uintptr_t) arg3, (uintptr_t) arg4)
+		    (uintptr_t) arg3, (uintptr_t) arg4);			\
+} while (0)
 
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)			\
 	static struct sdt_argtype sdt_##prov##_##mod##_##func##_##name##num[1]	\
