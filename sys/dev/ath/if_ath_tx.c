@@ -929,7 +929,6 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 static void
 ath_legacy_tx_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf, *bf_last;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
@@ -949,8 +948,10 @@ ath_legacy_tx_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 	    bf_last,
 	    (uint32_t) bf->bf_daddr);
 
+#ifdef	ATH_DEBUG
 	if (sc->sc_debug & ATH_DEBUG_RESET)
 		ath_tx_dump(sc, txq);
+#endif
 
 	/*
 	 * This is called from a restart, so DMA is known to be
@@ -964,8 +965,9 @@ ath_legacy_tx_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 	ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
 	txq->axq_flags |= ATH_TXQ_PUTRUNNING;
 
-	ath_hal_gettxdesclinkptr(ah, bf_last->bf_lastds, &txq->axq_link);
-	ath_hal_txstart(ah, txq->axq_qnum);
+	ath_hal_gettxdesclinkptr(sc->sc_ah, bf_last->bf_lastds,
+	    &txq->axq_link);
+	ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
 }
 
 /*
