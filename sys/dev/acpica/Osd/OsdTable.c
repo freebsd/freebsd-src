@@ -76,11 +76,11 @@ AcpiOsTableOverride(ACPI_TABLE_HEADER *ExistingTable,
 		return (AE_BAD_PARAMETER);
 
 	*NewTable = NULL;
-#ifdef notyet
-	for (int i = 0; i < ACPI_NAME_SIZE; i++)
-		modname[i + 5] = tolower(ExistingTable->Signature[i]);
-#else
 	if (!ACPI_COMPARE_NAME(ExistingTable->Signature, ACPI_SIG_DSDT))
+#ifdef notyet
+		for (int i = 0; i < ACPI_NAME_SIZE; i++)
+			modname[i + 5] = tolower(ExistingTable->Signature[i]);
+#else
 		return (AE_SUPPORT);
 #endif
 	acpi_table = preload_search_by_type(modname);
@@ -90,6 +90,10 @@ AcpiOsTableOverride(ACPI_TABLE_HEADER *ExistingTable,
 	sz = preload_fetch_size(acpi_table);
 	if (hdr == NULL || sz == 0)
 		return (AE_ERROR);
+#ifndef notyet
+	/* Assume SSDT is loaded with DSDT. */
+	AcpiGbl_DisableSsdtTableLoad = TRUE;
+#endif
 	*NewTable = hdr;
 	return (AE_OK);
 }

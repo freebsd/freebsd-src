@@ -176,6 +176,7 @@ AcpiRsMoveData (
         case ACPI_RSC_MOVE_GPIO_RES:
         case ACPI_RSC_MOVE_SERIAL_VEN:
         case ACPI_RSC_MOVE_SERIAL_RES:
+
             ACPI_MEMCPY (Destination, Source, ItemCount);
             return;
 
@@ -186,21 +187,25 @@ AcpiRsMoveData (
          */
         case ACPI_RSC_MOVE16:
         case ACPI_RSC_MOVE_GPIO_PIN:
+
             ACPI_MOVE_16_TO_16 (&ACPI_CAST_PTR (UINT16, Destination)[i],
                                 &ACPI_CAST_PTR (UINT16, Source)[i]);
             break;
 
         case ACPI_RSC_MOVE32:
+            
             ACPI_MOVE_32_TO_32 (&ACPI_CAST_PTR (UINT32, Destination)[i],
                                 &ACPI_CAST_PTR (UINT32, Source)[i]);
             break;
 
         case ACPI_RSC_MOVE64:
+
             ACPI_MOVE_64_TO_64 (&ACPI_CAST_PTR (UINT64, Destination)[i],
                                 &ACPI_CAST_PTR (UINT64, Source)[i]);
             break;
 
         default:
+
             return;
         }
     }

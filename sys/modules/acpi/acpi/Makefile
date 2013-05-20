@@ -32,7 +32,7 @@
 KMOD=	acpi
 
 # ACPI CA sources
-SRCS+=	dbcmds.c dbconvert.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
+SRCS=	dbcmds.c dbconvert.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
 SRCS+=	dbinput.c dbmethod.c dbnames.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmobject.c dmresrc.c
 SRCS+=	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
@@ -56,11 +56,13 @@ SRCS+=	psargs.c psloop.c psobject.c psopcode.c psopinfo.c psparse.c
 SRCS+=	psscope.c pstree.c psutils.c pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsdumpinfo.c rsinfo.c rsio.c
 SRCS+=	rsirq.c rslist.c rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
-SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfload.c tbxfroot.c
-SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
-SRCS+=	utdelete.c uteval.c utexcep.c utglobal.c utids.c utinit.c utlock.c
-SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utownerid.c utpredef.c
-SRCS+=	utresrc.c utstate.c utstring.c utxface.c utxferror.c utxfinit.c
+SRCS+=	tbfadt.c tbfind.c tbinstal.c tbprint.c tbutils.c tbxface.c tbxfload.c
+SRCS+=	tbxfroot.c
+SRCS+=	utaddress.c utalloc.c utbuffer.c utcache.c utcopy.c utdebug.c
+SRCS+=	utdecode.c utdelete.c uterror.c uteval.c utexcep.c utglobal.c utids.c
+SRCS+=	utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c utosi.c
+SRCS+=	utownerid.c utpredef.c utresrc.c utstate.c utstring.c utxface.c
+SRCS+=	utxferror.c utxfinit.c
 #SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers

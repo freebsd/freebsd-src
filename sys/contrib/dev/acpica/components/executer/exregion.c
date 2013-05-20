@@ -99,22 +99,27 @@ AcpiExSystemMemorySpaceHandler (
     switch (BitWidth)
     {
     case 8:
+
         Length = 1;
         break;
 
     case 16:
+
         Length = 2;
         break;
 
     case 32:
+
         Length = 4;
         break;
 
     case 64:
+
         Length = 8;
         break;
 
     default:
+
         ACPI_ERROR ((AE_INFO, "Invalid SystemMemory width %u",
             BitWidth));
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
@@ -231,23 +236,29 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
+
             *Value = (UINT64) ACPI_GET8 (LogicalAddrPtr);
             break;
 
         case 16:
+
             *Value = (UINT64) ACPI_GET16 (LogicalAddrPtr);
             break;
 
         case 32:
+
             *Value = (UINT64) ACPI_GET32 (LogicalAddrPtr);
             break;
 
         case 64:
+
             *Value = (UINT64) ACPI_GET64 (LogicalAddrPtr);
             break;
 
         default:
+
             /* BitWidth was already validated */
+
             break;
         }
         break;
@@ -257,28 +268,35 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
+
             ACPI_SET8 (LogicalAddrPtr, *Value);
             break;
 
         case 16:
+
             ACPI_SET16 (LogicalAddrPtr, *Value);
             break;
 
         case 32:
+
             ACPI_SET32 (LogicalAddrPtr, *Value);
             break;
 
         case 64:
+
             ACPI_SET64 (LogicalAddrPtr, *Value);
             break;
 
         default:
+
             /* BitWidth was already validated */
+
             break;
         }
         break;
 
     default:
+
         Status = AE_BAD_PARAMETER;
         break;
     }
@@ -343,6 +361,7 @@ AcpiExSystemIoSpaceHandler (
         break;
 
     default:
+
         Status = AE_BAD_PARAMETER;
         break;
     }

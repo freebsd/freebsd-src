@@ -185,20 +185,24 @@ TrUpdateNode (
         switch (ParseOpcode)
         {
         case PARSEOP_BYTECONST:
+
             Op->Asl.Value.Integer = ACPI_UINT8_MAX;
             break;
 
         case PARSEOP_WORDCONST:
+
             Op->Asl.Value.Integer = ACPI_UINT16_MAX;
             break;
 
         case PARSEOP_DWORDCONST:
+
             Op->Asl.Value.Integer = ACPI_UINT32_MAX;
             break;
 
         /* Don't need to do the QWORD case */
 
         default:
+
             /* Don't care about others */
             break;
         }
@@ -214,22 +218,27 @@ TrUpdateNode (
     switch (ParseOpcode)
     {
     case PARSEOP_BYTECONST:
+
         UtCheckIntegerRange (Op, 0x00, ACPI_UINT8_MAX);
         Op->Asl.Value.Integer &= ACPI_UINT8_MAX;
         break;
 
     case PARSEOP_WORDCONST:
+
         UtCheckIntegerRange (Op, 0x00, ACPI_UINT16_MAX);
         Op->Asl.Value.Integer &= ACPI_UINT16_MAX;
         break;
 
     case PARSEOP_DWORDCONST:
+
         UtCheckIntegerRange (Op, 0x00, ACPI_UINT32_MAX);
         Op->Asl.Value.Integer &= ACPI_UINT32_MAX;
         break;
 
     default:
+
         /* Don't care about others, don't need to check QWORD */
+
         break;
     }
 
@@ -257,54 +266,71 @@ TrGetNodeFlagName (
     switch (Flags)
     {
     case NODE_VISITED:
+
         return ("NODE_VISITED");
 
     case NODE_AML_PACKAGE:
+
         return ("NODE_AML_PACKAGE");
 
     case NODE_IS_TARGET:
+
         return ("NODE_IS_TARGET");
 
     case NODE_IS_RESOURCE_DESC:
+
         return ("NODE_IS_RESOURCE_DESC");
 
     case NODE_IS_RESOURCE_FIELD:
+
         return ("NODE_IS_RESOURCE_FIELD");
 
     case NODE_HAS_NO_EXIT:
+
         return ("NODE_HAS_NO_EXIT");
 
     case NODE_IF_HAS_NO_EXIT:
+
         return ("NODE_IF_HAS_NO_EXIT");
 
     case NODE_NAME_INTERNALIZED:
+
         return ("NODE_NAME_INTERNALIZED");
 
     case NODE_METHOD_NO_RETVAL:
+
         return ("NODE_METHOD_NO_RETVAL");
 
     case NODE_METHOD_SOME_NO_RETVAL:
+
         return ("NODE_METHOD_SOME_NO_RETVAL");
 
     case NODE_RESULT_NOT_USED:
+
         return ("NODE_RESULT_NOT_USED");
 
     case NODE_METHOD_TYPED:
+
         return ("NODE_METHOD_TYPED");
 
     case NODE_COMPILE_TIME_CONST:
+
         return ("NODE_COMPILE_TIME_CONST");
 
     case NODE_IS_TERM_ARG:
+
         return ("NODE_IS_TERM_ARG");
 
     case NODE_WAS_ONES_OP:
+
         return ("NODE_WAS_ONES_OP");
 
     case NODE_IS_NAME_DECLARATION:
+
         return ("NODE_IS_NAME_DECLARATION");
 
     default:
+
         return ("Multiple Flags (or unknown flag) set");
     }
 }
@@ -470,11 +496,13 @@ TrCreateConstantLeafNode (
     switch (ParseOpcode)
     {
     case PARSEOP___LINE__:
+
         Op = TrAllocateNode (PARSEOP_INTEGER);
         Op->Asl.Value.Integer = Op->Asl.LineNumber;
         break;
 
     case PARSEOP___PATH__:
+
         Op = TrAllocateNode (PARSEOP_STRING_LITERAL);
 
         /* Op.Asl.Filename contains the full pathname to the file */
@@ -483,6 +511,7 @@ TrCreateConstantLeafNode (
         break;
 
     case PARSEOP___FILE__:
+
         Op = TrAllocateNode (PARSEOP_STRING_LITERAL);
 
         /* Get the simple filename from the full path */
@@ -493,6 +522,7 @@ TrCreateConstantLeafNode (
         break;
 
     case PARSEOP___DATE__:
+
         Op = TrAllocateNode (PARSEOP_STRING_LITERAL);
 
         /* Get a copy of the current time */
@@ -507,6 +537,7 @@ TrCreateConstantLeafNode (
         break;
 
     default: /* This would be an internal error */
+
         return (NULL);
     }
 
@@ -551,30 +582,37 @@ TrCreateValuedLeafNode (
     switch (ParseOpcode)
     {
     case PARSEOP_STRING_LITERAL:
+
         DbgPrint (ASL_PARSE_OUTPUT, "STRING->%s", Value);
         break;
 
     case PARSEOP_NAMESEG:
+
         DbgPrint (ASL_PARSE_OUTPUT, "NAMESEG->%s", Value);
         break;
 
     case PARSEOP_NAMESTRING:
+
         DbgPrint (ASL_PARSE_OUTPUT, "NAMESTRING->%s", Value);
         break;
 
     case PARSEOP_EISAID:
+
         DbgPrint (ASL_PARSE_OUTPUT, "EISAID->%s", Value);
         break;
 
     case PARSEOP_METHOD:
+
         DbgPrint (ASL_PARSE_OUTPUT, "METHOD");
         break;
 
     case PARSEOP_INTEGER:
+
         DbgPrint (ASL_PARSE_OUTPUT, "INTEGER");
         break;
 
     default:
+
         break;
     }
 
@@ -628,20 +666,25 @@ TrCreateNode (
     switch (ParseOpcode)
     {
     case PARSEOP_DEFINITIONBLOCK:
+
         RootNode = Op;
         DbgPrint (ASL_PARSE_OUTPUT, "DEFINITION_BLOCK (Tree Completed)->");
         break;
 
     case PARSEOP_OPERATIONREGION:
+
         DbgPrint (ASL_PARSE_OUTPUT, "OPREGION->");
         break;
 
     case PARSEOP_OR:
+
         DbgPrint (ASL_PARSE_OUTPUT, "OR->");
         break;
 
     default:
+
         /* Nothing to do for other opcodes */
+
         break;
     }
 
@@ -746,20 +789,25 @@ TrLinkChildren (
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_DEFINITIONBLOCK:
+
         RootNode = Op;
         DbgPrint (ASL_PARSE_OUTPUT, "DEFINITION_BLOCK (Tree Completed)->");
         break;
 
     case PARSEOP_OPERATIONREGION:
+
         DbgPrint (ASL_PARSE_OUTPUT, "OPREGION->");
         break;
 
     case PARSEOP_OR:
+
         DbgPrint (ASL_PARSE_OUTPUT, "OR->");
         break;
 
     default:
+
         /* Nothing to do for other opcodes */
+
         break;
     }
 
@@ -1106,7 +1154,6 @@ TrWalkParseTree (
         }
         break;
 
-
     case ASL_WALK_VISIT_UPWARD:
 
         while (Op)
@@ -1160,7 +1207,6 @@ TrWalkParseTree (
             }
         }
         break;
-
 
      case ASL_WALK_VISIT_TWICE:
 

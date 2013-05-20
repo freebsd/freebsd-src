@@ -168,16 +168,19 @@ AcpiRsDumpDescriptor (
         /* Strings */
 
         case ACPI_RSD_LITERAL:
+
             AcpiRsOutString (Name, ACPI_CAST_PTR (char, Table->Pointer));
             break;
 
         case ACPI_RSD_STRING:
+
             AcpiRsOutString (Name, ACPI_CAST_PTR (char, Target));
             break;
 
         /* Data items, 8/16/32/64 bit */
 
         case ACPI_RSD_UINT8:
+
             if (Table->Pointer)
             {
                 AcpiRsOutString (Name, ACPI_CAST_PTR (char,
@@ -190,30 +193,36 @@ AcpiRsDumpDescriptor (
             break;
 
         case ACPI_RSD_UINT16:
+
             AcpiRsOutInteger16 (Name, ACPI_GET16 (Target));
             break;
 
         case ACPI_RSD_UINT32:
+
             AcpiRsOutInteger32 (Name, ACPI_GET32 (Target));
             break;
 
         case ACPI_RSD_UINT64:
+            
             AcpiRsOutInteger64 (Name, ACPI_GET64 (Target));
             break;
 
         /* Flags: 1-bit and 2-bit flags supported */
 
         case ACPI_RSD_1BITFLAG:
+
             AcpiRsOutString (Name, ACPI_CAST_PTR (char,
                 Table->Pointer [*Target & 0x01]));
             break;
 
         case ACPI_RSD_2BITFLAG:
+
             AcpiRsOutString (Name, ACPI_CAST_PTR (char,
                 Table->Pointer [*Target & 0x03]));
             break;
 
         case ACPI_RSD_3BITFLAG:
+
             AcpiRsOutString (Name, ACPI_CAST_PTR (char,
                 Table->Pointer [*Target & 0x07]));
             break;
@@ -293,6 +302,7 @@ AcpiRsDumpDescriptor (
             break;
 
         default:
+
             AcpiOsPrintf ("**** Invalid table opcode [%X] ****\n",
                 Table->Opcode);
             return;

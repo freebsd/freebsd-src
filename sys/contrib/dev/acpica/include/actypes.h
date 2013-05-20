@@ -310,6 +310,14 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 #define ACPI_EXPORT_SYMBOL(Symbol)
 #endif
 
+/*
+ * Compiler/Clibrary-dependent debug initialization. Used for ACPICA
+ * utilities only.
+ */
+#ifndef ACPI_DEBUG_INITIALIZE
+#define ACPI_DEBUG_INITIALIZE()
+#endif
+
 
 /******************************************************************************
  *

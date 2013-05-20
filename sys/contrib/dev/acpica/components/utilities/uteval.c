@@ -136,22 +136,27 @@ AcpiUtEvaluateObject (
     switch ((Info->ReturnObject)->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
+
         ReturnBtype = ACPI_BTYPE_INTEGER;
         break;
 
     case ACPI_TYPE_BUFFER:
+
         ReturnBtype = ACPI_BTYPE_BUFFER;
         break;
 
     case ACPI_TYPE_STRING:
+
         ReturnBtype = ACPI_BTYPE_STRING;
         break;
 
     case ACPI_TYPE_PACKAGE:
+
         ReturnBtype = ACPI_BTYPE_PACKAGE;
         break;
 
     default:
+
         ReturnBtype = 0;
         break;
     }

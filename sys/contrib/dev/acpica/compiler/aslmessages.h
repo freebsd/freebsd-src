@@ -46,17 +46,52 @@
 #define __ASLMESSAGES_H
 
 
-#define ASL_WARNING             0
-#define ASL_WARNING2            1
-#define ASL_WARNING3            2
-#define ASL_ERROR               3
-#define ASL_REMARK              4
-#define ASL_OPTIMIZATION        5
-#define ASL_NUM_REPORT_LEVELS   6
+typedef enum
+{
+    ASL_OPTIMIZATION = 0,
+    ASL_REMARK,
+    ASL_WARNING,
+    ASL_WARNING2,
+    ASL_WARNING3,
+    ASL_ERROR,
+    ASL_NUM_REPORT_LEVELS
 
+} ASL_MESSAGE_TYPES;
 
-/* Values for all compiler messages */
+#ifdef ASL_EXCEPTIONS
 
+/* Strings for message reporting levels, must match values above */
+
+const char              *AslErrorLevel [ASL_NUM_REPORT_LEVELS] = {
+    "Optimize",
+    "Remark  ",
+    "Warning ",
+    "Warning ",
+    "Warning ",
+    "Error   "
+};
+
+/* All lowercase versions for IDEs */
+
+const char              *AslErrorLevelIde [ASL_NUM_REPORT_LEVELS] = {
+    "optimize",
+    "remark  ",
+    "warning ",
+    "warning ",
+    "warning ",
+    "error   "
+};
+
+#define ASL_ERROR_LEVEL_LENGTH          8       /* Length of strings above */
+#endif
+
+/*
+ * Values for all compiler messages.
+ *
+ * NOTE: With the introduction of the -vw option to disable specific messages,
+ * new messages should only be added to the end of this list, so that values
+ * for existing messages are not disturbed.
+ */
 typedef enum
 {
     ASL_MSG_RESERVED = 0,
@@ -180,6 +215,7 @@ typedef enum
     ASL_MSG_SCOPE_TYPE,
     ASL_MSG_SEEK,
     ASL_MSG_SERIALIZED,
+    ASL_MSG_SERIALIZED_REQUIRED,
     ASL_MSG_SINGLE_NAME_OPTIMIZATION,
     ASL_MSG_SOME_NO_RETVAL,
     ASL_MSG_STRING_LENGTH,
@@ -235,9 +271,15 @@ typedef enum
 
 #ifdef ASL_EXCEPTIONS
 
-/* Actual message strings for each compiler message */
-
-char                        *AslMessages [] = {
+/*
+ * Actual message strings for each compiler message.
+ *
+ * NOTE: With the introduction of the -vw option to disable specific messages,
+ * new messages should only be added to the end of this list, so that values
+ * for existing messages are not disturbed.
+ */
+char                        *AslMessages [] =
+{
 /*    The zeroth message is reserved */    "",
 /*    ASL_MSG_ALIGNMENT */                  "Must be a multiple of alignment/granularity value",
 /*    ASL_MSG_ALPHANUMERIC_STRING */        "String must be entirely alphanumeric",
@@ -358,6 +400,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_SCOPE_TYPE */                 "Existing object has invalid type for Scope operator",
 /*    ASL_MSG_SEEK */                       "Could not seek file",
 /*    ASL_MSG_SERIALIZED */                 "Control Method marked Serialized",
+/*    ASL_MSG_SERIALIZED_REQUIRED */        "Control Method should be made Serialized",
 /*    ASL_MSG_SINGLE_NAME_OPTIMIZATION */   "NamePath optimized to NameSeg (uses run-time search path)",
 /*    ASL_MSG_SOME_NO_RETVAL */             "Called method may not always return a value",
 /*    ASL_MSG_STRING_LENGTH */              "String literal too long",
@@ -407,27 +450,6 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_UNKNOWN_TABLE */              "Unknown ACPI table signature",
 /*    ASL_MSG_ZERO_VALUE */                 "Value must be non-zero"
 };
-
-
-const char              *AslErrorLevel [ASL_NUM_REPORT_LEVELS] = {
-    "Warning ",
-    "Warning ",
-    "Warning ",
-    "Error   ",
-    "Remark  ",
-    "Optimize"
-};
-
-const char              *AslErrorLevelIde [ASL_NUM_REPORT_LEVELS] = {
-    "warning ",
-    "warning ",
-    "warning ",
-    "error   ",
-    "remark  ",
-    "optimize"
-};
-
-#define ASL_ERROR_LEVEL_LENGTH          8       /* Length of strings above */
 
 #endif  /* ASL_EXCEPTIONS */
 
