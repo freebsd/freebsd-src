@@ -1,3 +1,23 @@
+2013-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20130505
+	* gendirdeps.mk, meta2deps.py, meta2deps.sh: handle $TARGET_SPEC
+	  for when $MACHINE isn't enough for objdir distinction.
+	  Bring meta2deps.sh closer to par with meta2deps.py.
+
+2013-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.stage.mk: set INSTALL to STAGE_INSTALL when making 'all'
+	  also if the target 'beforeinstall' exists, make it depend on
+	  .dirdep (incase it uses STAGE_INSTALL).
+
+2013-04-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20130401 ;-)
+	* meta.stage.mk (STAGE_INSTALL_SH): add stage-install.sh as
+	  wrapper around install(1).
+	* options.mk (OPTION_PREFIX): Allow a prefix other than MK_
+
 2013-03-30  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* meta2deps.py (MetaFile.__init__): ensure self.cwd is initialized.
