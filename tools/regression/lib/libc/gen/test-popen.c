@@ -70,10 +70,10 @@ main(int argc, char *argv[])
 	FILE *fp, *fp2;
 	int i, j, status;
 	const char *mode;
-	const char *allmodes[] = { "r", "w", "r+" };
-	const char *rmodes[] = { "r", "r+" };
-	const char *wmodes[] = { "w", "r+" };
-	const char *rwmodes[] = { "r+" };
+	const char *allmodes[] = { "r", "w", "r+", "re", "we", "r+e", "re+" };
+	const char *rmodes[] = { "r", "r+", "re", "r+e", "re+" };
+	const char *wmodes[] = { "w", "r+", "we", "r+e", "re+" };
+	const char *rwmodes[] = { "r+", "r+e", "re+" };
 	char buf[80];
 	struct sigaction act, oact;
 
