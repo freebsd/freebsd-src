@@ -31,6 +31,7 @@ progs.mk
 rst2htm.mk
 scripts.mk
 srctop.mk
+stage-install.sh
 subdir.mk
 sys.mk
 sys.clean-env.mk
