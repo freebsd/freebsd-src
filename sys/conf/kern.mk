@@ -5,7 +5,7 @@
 #
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-Wundef -Wno-pointer-sign ${FORMAT_EXTENTIONS} \
+		-Wundef -Wno-pointer-sign ${FORMAT_EXTENSIONS} \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
 		${CWARNEXTRA}
 #
@@ -37,7 +37,7 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 .if ${MK_FORMAT_EXTENSIONS} == "no"
 NO_WFORMAT=		-Wno-format
 .else
-FORMAT_EXTENTIONS=	-fformat-extensions
+FORMAT_EXTENSIONS=	-fformat-extensions
 .endif
 
 #
