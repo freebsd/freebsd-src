@@ -266,6 +266,7 @@ OpcSetOptimalIntegerSize (
             break;
 
         default:
+
             break;
         }
     }
@@ -811,7 +812,9 @@ OpcGenerateAmlOpcode (
         break;
 
     default:
+
         /* Nothing to do for other opcodes */
+
         break;
     }
 

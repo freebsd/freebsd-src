@@ -680,6 +680,7 @@ AcpiDsEvalDataObjectOperands (
         break;
 
     default:
+
         return_ACPI_STATUS (AE_AML_BAD_OPCODE);
     }
 
