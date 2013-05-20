@@ -64,10 +64,13 @@ with
 where
 .Em N
 is an integer.
-However, this maximum is capped at 16 due to the implementation storing
-the fib number in a 4-bit field in
+This maximum is capped at 65536 due to the implementation storing
+the fib number in a 16-bit field in the
 .Xr mbuf 9
-flags.
+packet header, however it is not suggested that one use such a large number
+as memory is allocated for every FIB regardless of whether it is used, and
+there are places where all FIBs are iterated over.
+.Pp
 The default fib of the process will be applied to all protocol families
 that support multiple fibs, and ignored by those that do not.
 The default fib for a process may be overridden for a socket with the use
