@@ -1998,13 +1998,6 @@ dt_cg(dt_pcb_t *pcb, dt_node_t *dnp)
 
 	dt_cg_node(dnp, &pcb->pcb_ir, pcb->pcb_regs);
 
-	if ((idp = dt_node_resolve(dnp, DT_IDENT_XLSOU)) != NULL) {
-		int reg = dt_cg_xlate_expand(dnp, idp,
-		    &pcb->pcb_ir, pcb->pcb_regs);
-		dt_regset_free(pcb->pcb_regs, dnp->dn_reg);
-		dnp->dn_reg = reg;
-	}
-
 	instr = DIF_INSTR_RET(dnp->dn_reg);
 	dt_regset_free(pcb->pcb_regs, dnp->dn_reg);
 	dt_irlist_append(&pcb->pcb_ir, dt_cg_node_alloc(DT_LBL_NONE, instr));
