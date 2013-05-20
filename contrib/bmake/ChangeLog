@@ -1,3 +1,17 @@
+2013-05-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130520
+	  generate manifest from component FILES rather than have to
+	  update FILES when mk/FILES changes.
+
+2013-05-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130518
+	  Merge with NetBSD make, pick up
+	  o suff.c: don't skip all processsing for .PHONY targets
+	    else wildcard srcs do not get expanded.
+	  o var.c: expand name of variable to delete if necessary.
+
 2013-03-30  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20130330
