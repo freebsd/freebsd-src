@@ -1032,8 +1032,10 @@ distributekernel distributekernel.debug:
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
 	    DESTDIR=${INSTALL_DDIR:S://:/:g:C:/$::}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
+.if defined(NO_ROOT)
 	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
+.endif
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 .if defined(NO_ROOT)
 	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
