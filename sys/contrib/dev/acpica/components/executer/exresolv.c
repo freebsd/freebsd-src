@@ -176,7 +176,6 @@ AcpiExResolveObjectToValue (
         {
         case ACPI_REFCLASS_LOCAL:
         case ACPI_REFCLASS_ARG:
-
             /*
              * Get the local from the method's state info
              * Note: this increments the local's object reference count
@@ -199,7 +198,6 @@ AcpiExResolveObjectToValue (
             *StackPtr = ObjDesc;
             break;
 
-
         case ACPI_REFCLASS_INDEX:
 
             switch (StackDesc->Reference.TargetType)
@@ -208,7 +206,6 @@ AcpiExResolveObjectToValue (
 
                 /* Just return - do not dereference */
                 break;
-
 
             case ACPI_TYPE_PACKAGE:
 
@@ -247,7 +244,6 @@ AcpiExResolveObjectToValue (
                 }
                 break;
 
-
             default:
 
                 /* Invalid reference object */
@@ -259,7 +255,6 @@ AcpiExResolveObjectToValue (
                 break;
             }
             break;
-
 
         case ACPI_REFCLASS_REFOF:
         case ACPI_REFCLASS_DEBUG:
@@ -300,18 +295,15 @@ AcpiExResolveObjectToValue (
         }
         break;
 
-
     case ACPI_TYPE_BUFFER:
 
         Status = AcpiDsGetBufferArguments (StackDesc);
         break;
 
-
     case ACPI_TYPE_PACKAGE:
 
         Status = AcpiDsGetPackageArguments (StackDesc);
         break;
-
 
     case ACPI_TYPE_BUFFER_FIELD:
     case ACPI_TYPE_LOCAL_REGION_FIELD:
@@ -330,6 +322,7 @@ AcpiExResolveObjectToValue (
         break;
 
     default:
+
         break;
     }
 
@@ -374,10 +367,12 @@ AcpiExResolveMultiple (
     switch (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc))
     {
     case ACPI_DESC_TYPE_OPERAND:
+
         Type = ObjDesc->Common.Type;
         break;
 
     case ACPI_DESC_TYPE_NAMED:
+
         Type = ((ACPI_NAMESPACE_NODE *) ObjDesc)->Type;
         ObjDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) ObjDesc);
 
@@ -454,7 +449,6 @@ AcpiExResolveMultiple (
             }
             break;
 
-
         case ACPI_REFCLASS_INDEX:
 
             /* Get the type of this reference (index into another object) */
@@ -482,12 +476,10 @@ AcpiExResolveMultiple (
             }
             break;
 
-
         case ACPI_REFCLASS_TABLE:
 
             Type = ACPI_TYPE_DDB_HANDLE;
             goto Exit;
-
 
         case ACPI_REFCLASS_LOCAL:
         case ACPI_REFCLASS_ARG:
@@ -520,14 +512,12 @@ AcpiExResolveMultiple (
             }
             break;
 
-
         case ACPI_REFCLASS_DEBUG:
 
             /* The Debug Object is of type "DebugObject" */
 
             Type = ACPI_TYPE_DEBUG_OBJECT;
             goto Exit;
-
 
         default:
 
@@ -564,7 +554,9 @@ Exit:
         break;
 
     default:
+
         /* No change to Type required */
+
         break;
     }
 

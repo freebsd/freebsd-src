@@ -55,16 +55,16 @@ SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsdumpinfo.c	\
 	rsserial.c rsutils.c rsxface.c
 
 # components/tables
-SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
-	tbxfload.c
+SRCS+=	tbfadt.c tbfind.c tbinstal.c tbprint.c tbutils.c	\
+	tbxface.c tbxfload.c
 
 # components/utilities
-SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
-	utdecode.c utdelete.c uteval.c utexcep.c utglobal.c	\
-	utids.c	utinit.c utlock.c utmath.c utmisc.c utmutex.c	\
-	utobject.c utosi.c utownerid.c utpredef.c utresrc.c	\
-	utstate.c utstring.c uttrack.c utxface.c utxferror.c	\
-	utxfinit.c
+SRCS+=	utaddress.c utalloc.c utbuffer.c utcache.c utcopy.c	\
+	utdebug.c utdecode.c utdelete.c uterror.c uteval.c	\
+	utexcep.c utglobal.c utids.c utinit.c utlock.c utmath.c	\
+	utmisc.c utmutex.c utobject.c utosi.c utownerid.c	\
+	utpredef.c utresrc.c utstate.c utstring.c uttrack.c	\
+	utxface.c utxferror.c utxfinit.c
 
 MAN=	acpidb.8
 WARNS?=	3

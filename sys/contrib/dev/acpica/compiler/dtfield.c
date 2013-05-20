@@ -104,14 +104,17 @@ DtCompileOneField (
     switch (Type)
     {
     case DT_FIELD_TYPE_INTEGER:
+
         DtCompileInteger (Buffer, Field, ByteLength, Flags);
         break;
 
     case DT_FIELD_TYPE_STRING:
+
         DtCompileString (Buffer, Field, ByteLength);
         break;
 
     case DT_FIELD_TYPE_UUID:
+
         Status = DtCompileUuid (Buffer, Field, ByteLength);
         if (ACPI_SUCCESS (Status))
         {
@@ -121,17 +124,21 @@ DtCompileOneField (
         /* Fall through. */
 
     case DT_FIELD_TYPE_BUFFER:
+
         DtCompileBuffer (Buffer, Field->Value, Field, ByteLength);
         break;
 
     case DT_FIELD_TYPE_UNICODE:
+
         DtCompileUnicode (Buffer, Field, ByteLength);
         break;
 
     case DT_FIELD_TYPE_DEVICE_PATH:
+
         break;
 
     default:
+
         DtFatal (ASL_MSG_COMPILER_INTERNAL, Field, "Invalid field type");
         break;
     }
@@ -382,10 +389,12 @@ DtNormalizeBuffer (
         case ']':
         case ' ':
         case ',':
+
             Separator = TRUE;
             break;
 
         default:
+
             if (Separator)
             {
                 /* Insert blank as the standard separator */
