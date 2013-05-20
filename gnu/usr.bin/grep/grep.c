@@ -1346,9 +1346,9 @@ int
 main (int argc, char **argv)
 {
   char *keys;
-  size_t cc, keycc, oldcc, keyalloc;
+  size_t keycc, oldcc, keyalloc;
   int with_filenames;
-  int opt, status;
+  int opt, cc, status;
   int default_context;
   FILE *fp;
   extern char *optarg;
