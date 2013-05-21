@@ -379,8 +379,10 @@ newfile(void)
 
 	/* maxfiles = pattlen^sufflen, but don't use libm. */
 	for (maxfiles = 1, i = 0; i < sufflen; i++)
-		if ((maxfiles *= pattlen) <= 0)
+		if (LONG_MAX / pattlen < maxfiles)
 			errx(EX_USAGE, "suffix is too long (max %ld)", i);
+		else
+			maxfiles *= pattlen;
 
 	if (fnum == maxfiles)
 		errx(EX_DATAERR, "too many files");
