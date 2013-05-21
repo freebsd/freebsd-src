@@ -28,7 +28,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2012
+.Dd May 21, 2013
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -37,8 +37,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
-.In sys/stat.h
 .In fts.h
 .Ft FTS *
 .Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
