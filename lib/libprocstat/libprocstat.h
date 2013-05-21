@@ -30,6 +30,14 @@
 #define	_LIBPROCSTAT_H_
 
 /*
+ * XXX: sys/elf.h conflicts with zfs_context.h. Workaround this by not
+ * including conflicting parts when building zfs code.
+ */
+#ifndef ZFS
+#include <sys/elf.h>
+#endif
+
+/*
  * Vnode types.
  */
 #define	PS_FST_VTYPE_VNON	1
@@ -90,7 +98,10 @@
 #define	PS_FST_FFLAG_HASLOCK	0x4000
 #define	PS_FST_FFLAG_CAPABILITY	0x8000
 
+struct kinfo_kstack;
+struct kinfo_vmentry;
 struct procstat;
+struct rlimit;
 struct filestat {
 	int	fs_type;	/* Descriptor type. */
 	int	fs_flags;	/* filestat specific flags. */
@@ -146,9 +157,19 @@ STAILQ_HEAD(filestat_list, filestat);
 
 __BEGIN_DECLS
 void	procstat_close(struct procstat *procstat);
+void	procstat_freeargv(struct procstat *procstat);
+#ifndef ZFS
+void	procstat_freeauxv(struct procstat *procstat, Elf_Auxinfo *auxv);
+#endif
+void	procstat_freeenvv(struct procstat *procstat);
+void	procstat_freegroups(struct procstat *procstat, gid_t *groups);
+void	procstat_freekstack(struct procstat *procstat,
+    struct kinfo_kstack *kkstp);
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
     struct filestat_list *head);
+void	procstat_freevmmap(struct procstat *procstat,
+    struct kinfo_vmentry *vmmap);
 struct filestat_list	*procstat_getfiles(struct procstat *procstat,
     struct kinfo_proc *kp, int mmapped);
 struct kinfo_proc	*procstat_getprocs(struct procstat *procstat,
@@ -163,6 +184,29 @@ int	procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
     struct sockstat *sock, char *errbuf);
 int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
+char	**procstat_getargv(struct procstat *procstat, struct kinfo_proc *p,
+    size_t nchr);
+#ifndef ZFS
+Elf_Auxinfo	*procstat_getauxv(struct procstat *procstat,
+    struct kinfo_proc *kp, unsigned int *cntp);
+#endif
+char	**procstat_getenvv(struct procstat *procstat, struct kinfo_proc *p,
+    size_t nchr);
+gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned int *count);
+struct kinfo_kstack	*procstat_getkstack(struct procstat *procstat,
+    struct kinfo_proc *kp, unsigned int *count);
+int	procstat_getosrel(struct procstat *procstat, struct kinfo_proc *kp,
+    int *osrelp);
+int	procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
+    char *pathname, size_t maxlen);
+int	procstat_getrlimit(struct procstat *procstat, struct kinfo_proc *kp,
+    int which, struct rlimit* rlimit);
+int	procstat_getumask(struct procstat *procstat, struct kinfo_proc *kp,
+    unsigned short* umask);
+struct kinfo_vmentry	*procstat_getvmmap(struct procstat *procstat,
+    struct kinfo_proc *kp, unsigned int *count);
+struct procstat	*procstat_open_core(const char *filename);
 struct procstat	*procstat_open_sysctl(void);
 struct procstat	*procstat_open_kvm(const char *nlistf, const char *memf);
 __END_DECLS
