@@ -670,6 +670,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
 	sc->sc_rxtsf32 = ath_hal_has_long_rxdesc_tsf(ah);
+	sc->sc_hasenforcetxop = ath_hal_hasenforcetxop(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);
@@ -1586,6 +1587,15 @@ ath_resume(struct ath_softc *sc)
 	/* Let spectral at in case spectral is enabled */
 	ath_spectral_enable(sc, ic->ic_curchan);
 
+	/*
+	 * If we're doing TDMA, enforce the TXOP limitation for chips that
+	 * support it.
+	 */
+	if (sc->sc_hasenforcetxop && sc->sc_tdma)
+		ath_hal_setenforcetxop(sc->sc_ah, 1);
+	else
+		ath_hal_setenforcetxop(sc->sc_ah, 0);
+
 	/* Restore the LED configuration */
 	ath_led_config(sc);
 	ath_hal_setledstate(ah, HAL_LED_INIT);
@@ -2034,6 +2044,15 @@ ath_init(void *arg)
 	ath_spectral_enable(sc, ic->ic_curchan);
 
 	/*
+	 * If we're doing TDMA, enforce the TXOP limitation for chips that
+	 * support it.
+	 */
+	if (sc->sc_hasenforcetxop && sc->sc_tdma)
+		ath_hal_setenforcetxop(sc->sc_ah, 1);
+	else
+		ath_hal_setenforcetxop(sc->sc_ah, 0);
+
+	/*
 	 * Likewise this is set during reset so update
 	 * state cached in the driver.
 	 */
@@ -2347,6 +2366,15 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	/* Let spectral at in case spectral is enabled */
 	ath_spectral_enable(sc, ic->ic_curchan);
+
+	/*
+	 * If we're doing TDMA, enforce the TXOP limitation for chips that
+	 * support it.
+	 */
+	if (sc->sc_hasenforcetxop && sc->sc_tdma)
+		ath_hal_setenforcetxop(sc->sc_ah, 1);
+	else
+		ath_hal_setenforcetxop(sc->sc_ah, 0);
 
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
@@ -4867,6 +4895,15 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 		/* Let spectral at in case spectral is enabled */
 		ath_spectral_enable(sc, chan);
+
+		/*
+		 * If we're doing TDMA, enforce the TXOP limitation for chips
+		 * that support it.
+		 */
+		if (sc->sc_hasenforcetxop && sc->sc_tdma)
+			ath_hal_setenforcetxop(sc->sc_ah, 1);
+		else
+			ath_hal_setenforcetxop(sc->sc_ah, 0);
 
 		/*
 		 * Re-enable rx framework.

@@ -627,7 +627,8 @@ struct ath_softc {
 	 */
 	u_int32_t		sc_use_ent  : 1,
 				sc_rx_stbc  : 1,
-				sc_tx_stbc  : 1;
+				sc_tx_stbc  : 1,
+				sc_hasenforcetxop : 1; /* support enforce TxOP */
 
 
 	int			sc_cabq_enable;	/* Enable cabq transmission */
@@ -1255,6 +1256,14 @@ void	ath_intr(void *);
 #define	ath_hal_setintmit(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, \
 	HAL_CAP_INTMIT_ENABLE, _v, NULL)
+
+#define	ath_hal_hasenforcetxop(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ENFORCE_TXOP, 0, NULL) == HAL_OK)
+#define	ath_hal_getenforcetxop(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ENFORCE_TXOP, 1, NULL) == HAL_OK)
+#define	ath_hal_setenforcetxop(_ah, _v) \
+	ath_hal_setcapability(_ah, HAL_CAP_ENFORCE_TXOP, 1, _v, NULL)
+
 
 /* EDMA definitions */
 #define	ath_hal_hasedma(_ah) \
