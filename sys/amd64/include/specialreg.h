@@ -230,6 +230,11 @@
 #define	CPUID_TYPE_CORE		2
 
 /*
+ * CPUID instruction 0xd Processor Extended State Enumeration Sub-leaf 1
+ */
+#define	CPUID_EXTSTATE_XSAVEOPT	0x00000001
+
+/*
  * AMD extended function 8000_0007h edx info
  */
 #define	AMDPM_TS		0x00000001

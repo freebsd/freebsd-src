@@ -154,6 +154,11 @@ int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
 static	struct savefpu *fpu_initialstate;
 
+struct xsave_area_elm_descr {
+	u_int	offset;
+	u_int	size;
+} *xsave_area_desc;
+
 void
 fpusave(void *addr)
 {
@@ -200,6 +205,16 @@ fpuinit_bsp1(void)
 	TUNABLE_ULONG_FETCH("hw.xsave_mask", &xsave_mask_user);
 	xsave_mask_user |= XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE;
 	xsave_mask &= xsave_mask_user;
+
+	cpuid_count(0xd, 0x1, cp);
+	if ((cp[0] & CPUID_EXTSTATE_XSAVEOPT) != 0) {
+		/*
+		 * Patch the XSAVE instruction in the cpu_switch code
+		 * to XSAVEOPT.  We assume that XSAVE encoding used
+		 * REX byte, and set the bit 4 of the r/m byte.
+		 */
+		ctx_switch_xsave[3] |= 0x10;
+	}
 }
 
 /*
@@ -270,6 +285,7 @@ static void
 fpuinitstate(void *arg __unused)
 {
 	register_t saveintr;
+	int cp[4], i, max_ext_n;
 
 	fpu_initialstate = malloc(cpu_max_ext_state_size, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -290,6 +306,28 @@ fpuinitstate(void *arg __unused)
 	 * signal handler XMM register content predictable.
 	 */
 	bzero(&fpu_initialstate->sv_xmm[0], sizeof(struct xmmacc));
+
+	/*
+	 * Create a table describing the layout of the CPU Extended
+	 * Save Area.
+	 */
+	if (use_xsave) {
+		max_ext_n = flsl(xsave_mask);
+		xsave_area_desc = malloc(max_ext_n * sizeof(struct
+		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
+		/* x87 state */
+		xsave_area_desc[0].offset = 0;
+		xsave_area_desc[0].size = 160;
+		/* XMM */
+		xsave_area_desc[1].offset = 160;
+		xsave_area_desc[1].size = 288 - 160;
+
+		for (i = 2; i < max_ext_n; i++) {
+			cpuid_count(0xd, i, cp);
+			xsave_area_desc[i].offset = cp[1];
+			xsave_area_desc[i].size = cp[0];
+		}
+	}
 
 	start_emulating();
 	intr_restore(saveintr);
@@ -578,8 +616,14 @@ fpudna(void)
 		 * This is the first time this thread has used the FPU or
 		 * the PCB doesn't contain a clean FPU state.  Explicitly
 		 * load an initial state.
+		 *
+		 * We prefer to restore the state from the actual save
+		 * area in PCB instead of directly loading from
+		 * fpu_initialstate, to ignite the XSAVEOPT
+		 * tracking engine.
 		 */
-		fpurestore(fpu_initialstate);
+		bcopy(fpu_initialstate, pcb->pcb_save, cpu_max_ext_state_size);
+		fpurestore(pcb->pcb_save);
 		if (pcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
 			fldcw(pcb->pcb_initial_fpucw);
 		if (PCB_USER_FPU(pcb))
@@ -614,6 +658,9 @@ int
 fpugetregs(struct thread *td)
 {
 	struct pcb *pcb;
+	uint64_t *xstate_bv, bit;
+	char *sa;
+	int max_ext_n, i, owned;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_USERFPUINITDONE) == 0) {
@@ -627,12 +674,31 @@ fpugetregs(struct thread *td)
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 		fpusave(get_pcb_user_save_pcb(pcb));
-		critical_exit();
-		return (_MC_FPOWNED_FPU);
+		owned = _MC_FPOWNED_FPU;
 	} else {
-		critical_exit();
-		return (_MC_FPOWNED_PCB);
+		owned = _MC_FPOWNED_PCB;
 	}
+	critical_exit();
+	if (use_xsave) {
+		/*
+		 * Handle partially saved state.
+		 */
+		sa = (char *)get_pcb_user_save_pcb(pcb);
+		xstate_bv = (uint64_t *)(sa + sizeof(struct savefpu) +
+		    offsetof(struct xstate_hdr, xstate_bv));
+		max_ext_n = flsl(xsave_mask);
+		for (i = 0; i < max_ext_n; i++) {
+			bit = 1ULL << i;
+			if ((xsave_mask & bit) == 0 || (*xstate_bv & bit) != 0)
+				continue;
+			bcopy((char *)fpu_initialstate +
+			    xsave_area_desc[i].offset,
+			    sa + xsave_area_desc[i].offset,
+			    xsave_area_desc[i].size);
+			*xstate_bv |= bit;
+		}
+	}
+	return (owned);
 }
 
 void
@@ -675,9 +741,6 @@ fpusetxstate(struct thread *td, char *xfpustate, size_t xfpustate_size)
 	 * Avoid #gp.
 	 */
 	if (bv & ~xsave_mask)
-		return (EINVAL);
-	if ((bv & (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE)) !=
-	    (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE))
 		return (EINVAL);
 
 	hdr = (struct xstate_hdr *)(get_pcb_user_save_td(td) + 1);
