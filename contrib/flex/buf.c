@@ -90,7 +90,8 @@ struct Buf *buf_prints (struct Buf *buf, const char *fmt, const char *s)
  */
 struct Buf *buf_linedir (struct Buf *buf, const char* filename, int lineno)
 {
-    char *dst, *src, *t;
+    char *dst, *t;
+    const char *src;
 
     t = flex_alloc (strlen ("#line \"\"\n")          +   /* constant parts */
                     2 * strlen (filename)            +   /* filename with possibly all backslashes escaped */
