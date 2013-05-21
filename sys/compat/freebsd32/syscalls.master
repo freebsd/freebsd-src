@@ -994,6 +994,22 @@
 529	AUE_NULL	NOPROTO	{ int rctl_remove_rule(const void *inbufp, \
 				    size_t inbuflen, void *outbufp, \
 				    size_t outbuflen); }
+#ifdef PAD64_REQUIRED
+530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd, \
+				    int pad, \
+				    uint32_t offset1, uint32_t offset2,\
+				    uint32_t len1, uint32_t len2); }
+531	AUE_NULL	STD	{ int freebsd32_posix_fadvise(int fd, \
+				    int pad, \
+				    uint32_t offset1, uint32_t offset2,\
+				    uint32_t len1, uint32_t len2, \
+				    int advice); }
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, int pad, \
+				    uint32_t id1, uint32_t id2, \
+				    int *status, int options, \
+				    struct wrusage32 *wrusage, \
+				    siginfo_t *info); }
+#else
 530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2); }
@@ -1001,11 +1017,12 @@
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
 				    int advice); }
-532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, int id, \
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, \
+				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
-
+#endif
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ int cap_rights_limit(int fd, \
 				    uint64_t rights); }
 534	AUE_CAP_IOCTLS_LIMIT	NOPROTO	{ int cap_ioctls_limit(int fd, \
