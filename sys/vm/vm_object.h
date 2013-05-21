@@ -223,6 +223,8 @@ extern struct vm_object kmem_object_store;
 	rw_assert(&(object)->lock, RA_RLOCKED)
 #define	VM_OBJECT_ASSERT_WLOCKED(object)				\
 	rw_assert(&(object)->lock, RA_WLOCKED)
+#define	VM_OBJECT_LOCK_DOWNGRADE(object)				\
+	rw_downgrade(&(object)->lock)
 #define	VM_OBJECT_RLOCK(object)						\
 	rw_rlock(&(object)->lock)
 #define	VM_OBJECT_RUNLOCK(object)					\
