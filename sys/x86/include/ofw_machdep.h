@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2013 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,11 +26,11 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#ifndef _MACHINE_OFW_MACHDEP_H_
+#define _MACHINE_OFW_MACHDEP_H_
 
-#define	MODINFOMD_SMAP		0x1001
-#define	MODINFOMD_SMAP_XATTR	0x1002
-#define	MODINFOMD_DTBP		0x1003
+#include <x86/bus.h>
 
-#endif /* !_MACHINE_METADATA_H_ */
+typedef	uint32_t	cell_t;
+
+#endif /* _MACHINE_OFW_MACHDEP_H_ */

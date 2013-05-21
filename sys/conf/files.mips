@@ -53,7 +53,6 @@ kern/subr_dummy_vdso_tc.c		standard
 libkern/ffsl.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
-libkern/memchr.c			optional	fdt
 libkern/memmove.c			standard
 libkern/ucmpdi2.c			optional	mips | mipsel
 
@@ -72,6 +71,7 @@ mips/mips/sc_machdep.c			optional	sc
 
 # FDT support
 dev/fdt/fdt_mips.c			optional	fdt
+dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic
 crypto/blowfish/bf_enc.c		optional	crypto | ipsec 

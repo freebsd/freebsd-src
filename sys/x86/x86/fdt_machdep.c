@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2013 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,15 +22,56 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	MODINFOMD_SMAP		0x1001
-#define	MODINFOMD_SMAP_XATTR	0x1002
-#define	MODINFOMD_DTBP		0x1003
+#include "opt_platform.h"
 
-#endif /* !_MACHINE_METADATA_H_ */
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker.h>
+
+#include <machine/metadata.h>
+#include <x86/fdt.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+
+int
+x86_init_fdt(void)
+{
+	void *dtbp, *mdp;
+	int error;
+
+	if (OF_install(OFW_FDT, 0) == FALSE) {
+		error = ENXIO;
+		goto out;
+	}
+
+	mdp = preload_search_by_type("elf kernel");
+	if (mdp == NULL)
+		mdp = preload_search_by_type("elf32 kernel");
+	dtbp = (mdp != NULL) ? MD_FETCH(mdp, MODINFOMD_DTBP, void *) : NULL;
+
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == NULL)
+		dtbp = &fdt_static_dtb;
+#endif
+
+	if (dtbp == NULL) {
+		error = ENOENT;
+		goto out;
+	}
+
+	error = OF_init(dtbp) ? ENXIO : 0;
+
+ out:
+	return (error);
+}

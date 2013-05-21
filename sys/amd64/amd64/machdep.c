@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
 #include "opt_perfmon.h"
+#include "opt_platform.h"
 #include "opt_sched.h"
 #include "opt_kdtrace.h"
 
@@ -132,6 +133,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>
+#endif
+#ifdef FDT
+#include <x86/fdt.h>
 #endif
 
 #ifdef DEV_ATPIC
@@ -1885,6 +1889,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #endif
 
 	cpu_probe_amdc1e();
+
+#ifdef FDT
+	x86_init_fdt();
+#endif
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
