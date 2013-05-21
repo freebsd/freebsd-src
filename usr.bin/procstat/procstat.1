@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2012
+.Dd April 20, 2013
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Op Fl C
 .Op Fl w Ar interval
 .Op Fl b | c | e | f | i | j | k | l | s | t | v | x
-.Op Fl a | Ar pid ...
+.Op Fl a | Ar pid | Ar core ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -47,6 +47,8 @@ utility displays detailed information about the processes identified by the
 arguments, or if the
 .Fl a
 flag is used, all processes.
+It can also display information extracted from a process core file, if
+the core file is specified as the argument.
 .Pp
 By default, basic process statistics are printed; one of the following
 options may be specified in order to select more detailed process information

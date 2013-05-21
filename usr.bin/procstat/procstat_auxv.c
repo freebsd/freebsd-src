@@ -43,113 +43,26 @@
 
 #include "procstat.h"
 
-#define PROC_AUXV_MAX	256
-
-static Elf_Auxinfo auxv[PROC_AUXV_MAX];
-static char prefix[256];
-
-#if __ELF_WORD_SIZE == 64
-static Elf32_Auxinfo auxv32[PROC_AUXV_MAX];
-
-static const char *elf32_sv_names[] = {
-	"Linux ELF32",
-	"FreeBSD ELF32",
-};
-
-static int
-is_elf32(pid_t pid)
-{
-	int error, name[4];
-	size_t len, i;
-	static char sv_name[256];
-
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_SV_NAME;
-	name[3] = pid;
-	len = sizeof(sv_name);
-	error = sysctl(name, 4, sv_name, &len, NULL, 0);
-	if (error != 0 || len == 0)
-		return (0);
-	for (i = 0; i < sizeof(elf32_sv_names) / sizeof(*elf32_sv_names); i++) {
-		if (strncmp(sv_name, elf32_sv_names[i], sizeof(sv_name)) == 0)
-			return (1);
-	}
-	return (0);
-}
-
-static size_t
-retrieve_auxv32(pid_t pid)
-{
-	int name[4];
-	size_t len, i;
-	void *ptr;
-
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_AUXV;
-	name[3] = pid;
-	len = sizeof(auxv32);
-	if (sysctl(name, 4, auxv32, &len, NULL, 0) == -1) {
-		if (errno != ESRCH && errno != EPERM)
-			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
-		return (0);
-	}
-	for (i = 0; i < len; i++) {
-		/*
-		 * XXX: We expect that values for a_type on a 32-bit platform
-		 * are directly mapped to those on 64-bit one, which is not
-		 * necessarily true.
-		 */
-		auxv[i].a_type = auxv32[i].a_type;
-		ptr = &auxv32[i].a_un;
-		auxv[i].a_un.a_val = *((uint32_t *)ptr);
-	}
-	return (len);
-}
-#endif /* __ELF_WORD_SIZE == 64 */
-
 #define	PRINT(name, spec, val)		\
 	printf("%s %-16s " #spec "\n", prefix, #name, (val))
 #define	PRINT_UNKNOWN(type, val)	\
 	printf("%s %16ld %#lx\n", prefix, (long)type, (u_long)(val))
 
-static size_t
-retrieve_auxv(pid_t pid)
-{
-	int name[4];
-	size_t len;
-
-#if __ELF_WORD_SIZE == 64
-	if (is_elf32(pid))
-		return (retrieve_auxv32(pid));
-#endif
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_AUXV;
-	name[3] = pid;
-	len = sizeof(auxv);
-	if (sysctl(name, 4, auxv, &len, NULL, 0) == -1) {
-		if (errno != ESRCH && errno != EPERM)
-			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
-		return (0);
-	}
-	return (len);
-}
-
 void
-procstat_auxv(struct kinfo_proc *kipp)
+procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 {
-	size_t len, i;
+	Elf_Auxinfo *auxv;
+	u_int count, i;
+	static char prefix[256];
 
 	if (!hflag)
 		printf("%5s %-16s %-16s %-16s\n", "PID", "COMM", "AUXV", "VALUE");
-	len = retrieve_auxv(kipp->ki_pid);
-	if (len == 0)
+	auxv = procstat_getauxv(procstat, kipp, &count);
+	if (auxv == NULL)
 		return;
 	snprintf(prefix, sizeof(prefix), "%5d %-16s", kipp->ki_pid,
 	    kipp->ki_comm);
-	for (i = 0; i < len; i++) {
+	for (i = 0; i < count; i++) {
 		switch(auxv[i].a_type) {
 		case AT_NULL:
 			return;
@@ -242,5 +155,6 @@ procstat_auxv(struct kinfo_proc *kipp)
 		}
 	}
 	printf("\n");
+	procstat_freeauxv(procstat, auxv);
 }
 
