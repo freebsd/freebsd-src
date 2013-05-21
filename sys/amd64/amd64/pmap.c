@@ -5535,4 +5535,16 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	pte = pmap_pde_to_pte(pde, va);
 	db_printf(" pte %#016lx\n", *pte);
 }
+
+DB_SHOW_COMMAND(phys2dmap, pmap_phys2dmap)
+{
+	vm_paddr_t a;
+
+	if (have_addr) {
+		a = (vm_paddr_t)addr;
+		db_printf("0x%jx\n", (uintmax_t)PHYS_TO_DMAP(a));
+	} else {
+		db_printf("show phys2dmap addr\n");
+	}
+}
 #endif
