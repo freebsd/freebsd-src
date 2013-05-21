@@ -1371,7 +1371,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
-		lib/libexpat \
+		lib/libelf lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
