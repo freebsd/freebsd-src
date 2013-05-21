@@ -1686,6 +1686,8 @@ unp_freerights(struct filedescent **fdep, int fdcount)
 	struct file *fp;
 	int i;
 
+	if (fdcount == 0)
+		return;
 	for (i = 0; i < fdcount; i++) {
 		fp = fdep[i]->fde_file;
 		filecaps_free(&fdep[i]->fde_caps);
@@ -1768,7 +1770,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				unp_externalize_fp(fde->fde_file);
 			}
 			FILEDESC_XUNLOCK(fdesc);
-			free(fdep[0], M_FILECAPS);
+			if (newfds != 0)
+				free(fdep[0], M_FILECAPS);
 		} else {
 			/* We can just copy anything else across. */
 			if (error || controlp == NULL)
@@ -1924,6 +1927,10 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 				FILEDESC_SUNLOCK(fdesc);
 				error = E2BIG;
 				goto out;
+			}
+			if (oldfds == 0) {
+				FILEDESC_SUNLOCK(fdesc);
+				break;
 			}
 			fdp = data;
 			fdep = (struct filedescent **)
