@@ -366,10 +366,12 @@ LIB32WMAKEFLAGS=	\
 
 
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
-		--sysroot=${WORLDTMP} \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
+.if ${XCC:M/*}
+LIB32FLAGS+=		--sysroot=${WORLDTMP}
+.endif
 
 # Yes, the flags are redundant.
 LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
