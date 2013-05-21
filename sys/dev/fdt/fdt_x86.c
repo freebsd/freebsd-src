@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2013 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,15 +22,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	MODINFOMD_SMAP		0x1001
-#define	MODINFOMD_SMAP_XATTR	0x1002
-#define	MODINFOMD_DTBP		0x1003
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
-#endif /* !_MACHINE_METADATA_H_ */
+#include <machine/intr_machdep.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#include "ofw_bus_if.h"
+#include "fdt_common.h"
+
+struct fdt_fixup_entry fdt_fixup_table[] = {
+	{ NULL, NULL }
+};
+
+fdt_pic_decode_t fdt_pic_table[] = {
+	NULL
+};
