@@ -638,6 +638,7 @@ m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
 #define YY_CURRENT_BUFFER ( YY_G(yy_buffer_stack) \
                           ? YY_G(yy_buffer_stack)[YY_G(yy_buffer_stack_top)] \
                           : NULL)
+#define yy_current_buffer YY_CURRENT_BUFFER
 ]])
 
 m4_ifdef( [[M4_YY_NOT_IN_HEADER]],
