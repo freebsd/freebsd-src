@@ -409,16 +409,28 @@ nullfs_unlink_lowervp(struct mount *mp, struct vnode *lowervp)
 	vhold(vp);
 	vunref(vp);
 
-	/*
-	 * If vunref() dropped the last use reference on the nullfs
-	 * vnode, it must be reclaimed, and its lock was split from
-	 * the lower vnode lock.  Need to do extra unlock before
-	 * allowing the final vdrop() to free the vnode.
-	 */
 	if (vp->v_usecount == 0) {
+		/*
+		 * If vunref() dropped the last use reference on the
+		 * nullfs vnode, it must be reclaimed, and its lock
+		 * was split from the lower vnode lock.  Need to do
+		 * extra unlock before allowing the final vdrop() to
+		 * free the vnode.
+		 */
 		KASSERT((vp->v_iflag & VI_DOOMED) != 0,
-		    ("not reclaimed %p", vp));
+		    ("not reclaimed nullfs vnode %p", vp));
 		VOP_UNLOCK(vp, 0);
+	} else {
+		/*
+		 * Otherwise, the nullfs vnode still shares the lock
+		 * with the lower vnode, and must not be unlocked.
+		 * Also clear the NULLV_NOUNLOCK, the flag is not
+		 * relevant for future reclamations.
+		 */
+		ASSERT_VOP_ELOCKED(vp, "unlink_lowervp");
+		KASSERT((vp->v_iflag & VI_DOOMED) == 0,
+		    ("reclaimed nullfs vnode %p", vp));
+		xp->null_flags &= ~NULLV_NOUNLOCK;
 	}
 	vdrop(vp);
 }
