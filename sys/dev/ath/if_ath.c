@@ -839,7 +839,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/*
 	 * Initial aggregation settings.
 	 */
-	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
+	sc->sc_hwq_limit_aggr = ATH_AGGR_MIN_QDEPTH;
+	sc->sc_hwq_limit_nonaggr = ATH_NONAGGR_MIN_QDEPTH;
 	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
 	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
 	sc->sc_aggr_limit = ATH_AGGR_MAXSIZE;

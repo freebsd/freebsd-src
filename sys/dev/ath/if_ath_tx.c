@@ -3108,9 +3108,15 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * the head frame in the list.  Don't schedule the
 		 * TID - let it build some more frames first?
 		 *
+		 * When running A-MPDU, always just check the hardware
+		 * queue depth against the aggregate frame limit.
+		 * We don't want to burst a large number of single frames
+		 * out to the hardware; we want to aggressively hold back.
+		 *
 		 * Otherwise, schedule the TID.
 		 */
-		if (txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit) {
+		/* XXX TXQ locking */
+		if (txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit_aggr) {
 			bf = ATH_TID_FIRST(atid);
 			ATH_TID_REMOVE(atid, bf, bf_list);
 
@@ -3134,7 +3140,22 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
 
 			ath_tx_tid_sched(sc, atid);
 		}
-	} else if (txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit) {
+	/*
+	 * If we're not doing A-MPDU, be prepared to direct dispatch
+	 * up to both limits if possible.  This particular corner
+	 * case may end up with packet starvation between aggregate
+	 * traffic and non-aggregate traffic: we wnat to ensure
+	 * that non-aggregate stations get a few frames queued to the
+	 * hardware before the aggregate station(s) get their chance.
+	 *
+	 * So if you only ever see a couple of frames direct dispatched
+	 * to the hardware from a non-AMPDU client, check both here
+	 * and in the software queue dispatcher to ensure that those
+	 * non-AMPDU stations get a fair chance to transmit.
+	 */
+	/* XXX TXQ locking */
+	} else if ((txq->axq_depth + txq->fifo.axq_depth < sc->sc_hwq_limit_nonaggr) &&
+		    (txq->axq_aggr_depth < sc->sc_hwq_limit_aggr)) {
 		/* AMPDU not running, attempt direct dispatch */
 		DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: xmit_normal\n", __func__);
 		/* See if clrdmask needs to be set */
@@ -5339,7 +5360,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		 *
 		 * XXX locking on txq here?
 		 */
-		if (txq->axq_aggr_depth >= sc->sc_hwq_limit ||
+		/* XXX TXQ locking */
+		if (txq->axq_aggr_depth >= sc->sc_hwq_limit_aggr ||
 		    (status == ATH_AGGR_BAW_CLOSED ||
 		     status == ATH_AGGR_LEAK_CLOSED))
 			break;
@@ -5348,6 +5370,15 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 
 /*
  * Schedule some packets from the given node/TID to the hardware.
+ *
+ * XXX TODO: this routine doesn't enforce the maximum TXQ depth.
+ * It just dumps frames into the TXQ.  We should limit how deep
+ * the transmit queue can grow for frames dispatched to the given
+ * TXQ.
+ *
+ * To avoid locking issues, either we need to own the TXQ lock
+ * at this point, or we need to pass in the maximum frame count
+ * from the caller.
  */
 void
 ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
@@ -5452,8 +5483,16 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 	 * Don't schedule if the hardware queue is busy.
 	 * This (hopefully) gives some more time to aggregate
 	 * some packets in the aggregation queue.
+	 *
+	 * XXX It doesn't stop a parallel sender from sneaking
+	 * in transmitting a frame!
 	 */
-	if (txq->axq_aggr_depth >= sc->sc_hwq_limit) {
+	/* XXX TXQ locking */
+	if (txq->axq_aggr_depth + txq->fifo.axq_depth >= sc->sc_hwq_limit_aggr) {
+		sc->sc_aggr_stats.aggr_sched_nopkt++;
+		return;
+	}
+	if (txq->axq_depth >= sc->sc_hwq_limit_nonaggr) {
 		sc->sc_aggr_stats.aggr_sched_nopkt++;
 		return;
 	}
@@ -5489,7 +5528,11 @@ ath_txq_sched(struct ath_softc *sc, struct ath_txq *txq)
 		 * packets.  If we aren't running aggregation then
 		 * we should still limit the hardware queue depth.
 		 */
-		if (txq->axq_depth >= sc->sc_hwq_limit) {
+		/* XXX TXQ locking */
+		if (txq->axq_aggr_depth + txq->fifo.axq_depth >= sc->sc_hwq_limit_aggr) {
+			break;
+		}
+		if (txq->axq_depth >= sc->sc_hwq_limit_nonaggr) {
 			break;
 		}
 
