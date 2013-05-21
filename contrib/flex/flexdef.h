@@ -380,7 +380,7 @@ char *alloca ();
  * use_read - if true (-f, -F, or -Cr) then use read() for scanner input;
  *   otherwise, use fread().
  * yytext_is_array - if true (i.e., %array directive), then declare
- *   yytext as a array instead of a character pointer.  Nice and inefficient.
+ *   yytext as an array instead of a character pointer.  Nice and inefficient.
  * do_yywrap - do yywrap() processing on EOF.  If false, EOF treated as
  *   "no more files".
  * csize - size of character set for the scanner we're generating;
@@ -843,10 +843,10 @@ extern void action_define PROTO ((const char *defname, int value));
 extern void add_action PROTO ((const char *new_text));
 
 /* True if a string is all lower case. */
-extern int all_lower PROTO ((register char *));
+extern int all_lower PROTO ((char *));
 
 /* True if a string is all upper case. */
-extern int all_upper PROTO ((register char *));
+extern int all_upper PROTO ((char *));
 
 /* Compare two integers for use by qsort. */
 extern int intcmp PROTO ((const void *, const void *));
@@ -858,10 +858,10 @@ extern void check_char PROTO ((int c));
 extern Char clower PROTO ((int));
 
 /* Returns a dynamically allocated copy of a string. */
-extern char *copy_string PROTO ((register const char *));
+extern char *copy_string PROTO ((const char *));
 
 /* Returns a dynamically allocated copy of a (potentially) unsigned string. */
-extern Char *copy_unsigned_string PROTO ((register Char *));
+extern Char *copy_unsigned_string PROTO ((Char *));
 
 /* Compare two characters for use by qsort with '\0' sorting last. */
 extern int cclcmp PROTO ((const void *, const void *));
@@ -922,7 +922,7 @@ extern void mark_defs1 PROTO ((void));
 /* Mark the current position in the action array as the end of the prolog. */
 extern void mark_prolog PROTO ((void));
 
-/* Generate a data statment for a two-dimensional array. */
+/* Generate a data statement for a two-dimensional array. */
 extern void mk2data PROTO ((int));
 
 extern void mkdata PROTO ((int));	/* generate a data statement */
@@ -987,7 +987,7 @@ extern int link_machines PROTO ((int, int));
 /* Mark each "beginning" state in a machine as being a "normal" (i.e.,
  * not trailing context associated) state.
  */
-extern void mark_beginning_as_normal PROTO ((register int));
+extern void mark_beginning_as_normal PROTO ((int));
 
 /* Make a machine that branches to two machines. */
 extern int mkbranch PROTO ((int, int));
