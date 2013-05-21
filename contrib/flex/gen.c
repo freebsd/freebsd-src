@@ -121,7 +121,7 @@ static struct yytbl_data *mkeoltbl (void)
 }
 
 /* Generate the table for possible eol matches. */
-static void geneoltbl ()
+static void geneoltbl (void)
 {
 	int     i;
 
@@ -431,7 +431,7 @@ void genctbl ()
 
 /* mkecstbl - Make equivalence-class tables.  */
 
-struct yytbl_data *mkecstbl (void)
+static struct yytbl_data *mkecstbl (void)
 {
 	int i;
 	struct yytbl_data *tbl = 0;

@@ -135,9 +135,6 @@ struct filter *filter_create_int (struct filter *chain,
 bool filter_apply_chain (struct filter * chain)
 {
 	int     pid, pipes[2];
-	int     r;
-	const int readsz = 512;
-	char   *buf;
 
 
 	/* Tricky recursion, since we want to begin the chain
