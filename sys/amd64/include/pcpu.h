@@ -78,8 +78,13 @@
 	struct system_segment_descriptor *pc_tss;			\
 	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
 	PCPU_XEN_FIELDS;						\
-	char	__pad[293]		/* be divisor of PAGE_SIZE	\
+	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
+	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
+	char	__pad[161]		/* be divisor of PAGE_SIZE	\
 					   after cache alignment */
+
+#define	PC_DBREG_CMD_NONE	0
+#define	PC_DBREG_CMD_LOAD	1
 
 #ifdef _KERNEL
 
