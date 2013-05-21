@@ -1206,6 +1206,10 @@ _sed=		usr.bin/sed
 _lex=		usr.bin/lex
 .endif
 
+.if ${BOOTSTRAPPING} < 1000002
+_m4=		usr.bin/m4
+.endif
+
 .if ${BOOTSTRAPPING} < 1000013
 _yacc=		lib/liby \
 		usr.bin/yacc
@@ -1283,6 +1287,7 @@ bootstrap-tools:
     usr.bin/rpcgen \
     ${_sed} \
     ${_yacc} \
+    ${_m4} \
     ${_lex} \
     lib/libmd \
     usr.bin/xinstall \
