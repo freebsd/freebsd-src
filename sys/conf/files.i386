@@ -176,6 +176,7 @@ dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
 dev/fdc/fdc_isa.c		optional fdc isa
 dev/fdc/fdc_pccard.c		optional fdc pccard
+dev/fdt/fdt_x86.c		optional fdt
 dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
@@ -545,6 +546,7 @@ x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/fdt_machdep.c		optional fdt
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		optional native

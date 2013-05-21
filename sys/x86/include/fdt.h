@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2013 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,11 +26,29 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#ifndef _MACHINE_FDT_H_
+#define _MACHINE_FDT_H_
 
-#define	MODINFOMD_SMAP		0x1001
-#define	MODINFOMD_SMAP_XATTR	0x1002
-#define	MODINFOMD_DTBP		0x1003
+#include <machine/intr_machdep.h>
+#include <x86/bus.h>
 
-#endif /* !_MACHINE_METADATA_H_ */
+/* Max interrupt number. */
+#define FDT_INTR_MAX	NUM_IO_INTS
+
+/* Map phandle/intpin pair to global IRQ number */
+#define	FDT_MAP_IRQ(node, pin)	\
+	    (panic("%s: FDT_MAP_IRQ(%#x, %#x)", __func__, node, pin), -1)
+
+/* Bus space tag. XXX we only support I/O port space this way. */
+#define fdtbus_bs_tag	X86_BUS_SPACE_IO
+
+struct mem_region {
+	vm_offset_t	mr_start;
+	vm_size_t	mr_size;
+};
+
+__BEGIN_DECLS
+int x86_init_fdt(void);
+__END_DECLS
+
+#endif /* _MACHINE_FDT_H_ */
