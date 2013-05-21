@@ -4211,7 +4211,6 @@ vfs_bio_bzero_buf(struct buf *bp, int base, int size)
 	} else {
 		BUF_CHECK_UNMAPPED(bp);
 		n = PAGE_SIZE - (base & PAGE_MASK);
-		VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 		for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 			m = bp->b_pages[i];
 			if (n > size)
@@ -4221,7 +4220,6 @@ vfs_bio_bzero_buf(struct buf *bp, int base, int size)
 			size -= n;
 			n = PAGE_SIZE;
 		}
-		VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 	}
 }
 
