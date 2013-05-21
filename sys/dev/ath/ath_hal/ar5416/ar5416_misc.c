@@ -504,7 +504,7 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return AH_TRUE;
 	case HAL_CAP_ENFORCE_TXOP:
 		if (capability != 1)
-			return (HAL_ENOTSUPP);
+			return AH_FALSE;
 		if (setting) {
 			AH5212(ah)->ah_miscMode
 			    |= AR_PCU_TXOP_TBTT_LIMIT_ENA;
