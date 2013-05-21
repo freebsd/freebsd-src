@@ -329,7 +329,7 @@ int     link_machines (first, last)
  */
 
 void    mark_beginning_as_normal (mach)
-     register int mach;
+     int mach;
 {
 	switch (state_type[mach]) {
 	case STATE_NORMAL:

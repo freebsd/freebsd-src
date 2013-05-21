@@ -139,7 +139,7 @@ void    mkeccl (ccls, lenccl, fwd, bck, llsiz, NUL_mapping)
 
 		for (i = fwd[cclm]; i != NIL && i <= llsiz; i = fwd[i]) {	/* look for the symbol in the character class */
 			for (; j < lenccl; ++j) {
-				register int ccl_char;
+				int ccl_char;
 
 				if (NUL_mapping && ccls[j] == 0)
 					ccl_char = NUL_mapping;

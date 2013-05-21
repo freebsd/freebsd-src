@@ -81,7 +81,7 @@ static const char *get_state_decl (void)
 
 void do_indent ()
 {
-	register int i = indent_level * 8;
+	int i = indent_level * 8;
 
 	while (i >= 8) {
 		outc ('\t');
@@ -201,7 +201,7 @@ void gen_bu_action ()
 
 static struct yytbl_data *mkctbl (void)
 {
-	register int i;
+	int i;
 	struct yytbl_data *tbl = 0;
 	flex_int32_t *tdata = 0, curr = 0;
 	int     end_of_buffer_action = num_rules + 1;
@@ -332,7 +332,7 @@ static struct yytbl_data *mkssltbl (void)
 
 void genctbl ()
 {
-	register int i;
+	int i;
 	int     end_of_buffer_action = num_rules + 1;
 
 	/* Table of verify for transition and offset to next state. */
@@ -433,7 +433,7 @@ void genctbl ()
 
 struct yytbl_data *mkecstbl (void)
 {
-	register int i;
+	int i;
 	struct yytbl_data *tbl = 0;
 	flex_int32_t *tdata = 0;
 
@@ -462,7 +462,7 @@ struct yytbl_data *mkecstbl (void)
 
 void genecs ()
 {
-	register int i, j;
+	int i, j;
 	int     numrows;
 
 	out_str_dec (get_int32_decl (), "yy_ec", csize);
@@ -507,6 +507,7 @@ void gen_find_action ()
 		indent_puts ("yy_current_state = *--YY_G(yy_state_ptr);");
 		indent_puts ("YY_G(yy_lp) = yy_accept[yy_current_state];");
 
+		outn ("goto find_rule; /* avoid `defined but not used' warning */");
 		outn ("find_rule: /* we branch to this label when backing up */");
 
 		indent_puts
@@ -637,7 +638,7 @@ void gen_find_action ()
 
 struct yytbl_data *mkftbl (void)
 {
-	register int i;
+	int i;
 	int     end_of_buffer_action = num_rules + 1;
 	struct yytbl_data *tbl;
 	flex_int32_t *tdata = 0;
@@ -654,7 +655,7 @@ struct yytbl_data *mkftbl (void)
 	dfaacc[end_of_buffer_state].dfaacc_state = end_of_buffer_action;
 
 	for (i = 1; i <= lastdfa; ++i) {
-		register int anum = dfaacc[i].dfaacc_state;
+		int anum = dfaacc[i].dfaacc_state;
 
 		tdata[i] = anum;
 
@@ -674,7 +675,7 @@ struct yytbl_data *mkftbl (void)
 
 void genftbl ()
 {
-	register int i;
+	int i;
 	int     end_of_buffer_action = num_rules + 1;
 
 	out_str_dec (long_align ? get_int32_decl () : get_int16_decl (),
@@ -683,7 +684,7 @@ void genftbl ()
 	dfaacc[end_of_buffer_state].dfaacc_state = end_of_buffer_action;
 
 	for (i = 1; i <= lastdfa; ++i) {
-		register int anum = dfaacc[i].dfaacc_state;
+		int anum = dfaacc[i].dfaacc_state;
 
 		mkdata (anum);
 
@@ -708,7 +709,7 @@ void genftbl ()
 void gen_next_compressed_state (char_map)
      char   *char_map;
 {
-	indent_put2s ("register YY_CHAR yy_c = %s;", char_map);
+	indent_put2s ("YY_CHAR yy_c = %s;", char_map);
 
 	/* Save the backing-up info \before/ computing the next state
 	 * because we always compute one more state than needed - we
@@ -794,8 +795,8 @@ void gen_next_match ()
 	else if (fullspd) {
 		indent_puts ("{");
 		indent_puts
-			("register yyconst struct yy_trans_info *yy_trans_info;\n");
-		indent_puts ("register YY_CHAR yy_c;\n");
+			("yyconst struct yy_trans_info *yy_trans_info;\n");
+		indent_puts ("YY_CHAR yy_c;\n");
 		indent_put2s ("for ( yy_c = %s;", char_map);
 		indent_puts
 			("      (yy_trans_info = &yy_current_state[(unsigned int) yy_c])->");
@@ -938,7 +939,7 @@ void gen_NUL_trans ()
 		/* We're going to need yy_cp lying around for the call
 		 * below to gen_backing_up().
 		 */
-		indent_puts ("register char *yy_cp = YY_G(yy_c_buf_p);");
+		indent_puts ("char *yy_cp = YY_G(yy_c_buf_p);");
 
 	outc ('\n');
 
@@ -959,10 +960,10 @@ void gen_NUL_trans ()
 
 	else if (fullspd) {
 		do_indent ();
-		out_dec ("register int yy_c = %d;\n", NUL_ec);
+		out_dec ("int yy_c = %d;\n", NUL_ec);
 
 		indent_puts
-			("register yyconst struct yy_trans_info *yy_trans_info;\n");
+			("yyconst struct yy_trans_info *yy_trans_info;\n");
 		indent_puts
 			("yy_trans_info = &yy_current_state[(unsigned int) yy_c];");
 		indent_puts ("yy_current_state += yy_trans_info->yy_nxt;");
@@ -1319,7 +1320,7 @@ void gentabs ()
 	yybase_curr = 1;
 
 	for (i = 1; i <= lastdfa; ++i) {
-		register int d = def[i];
+		int d = def[i];
 
 		if (base[i] == JAMSTATE)
 			base[i] = jambase;
@@ -1501,7 +1502,7 @@ void indent_puts (str)
 
 void make_tables ()
 {
-	register int i;
+	int i;
 	int     did_eof_rule = false;
 	struct yytbl_data *yynultrans_tbl;
 
