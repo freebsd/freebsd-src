@@ -4219,6 +4219,7 @@ product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
 product WESTERN MYPASSWORD	0x0704	MyPassword External HDD
+product WESTERN MYPASSPORT	0x0748	MyPassport External HDD
 
 /* WeTelecom products */
 product WETELECOM WM_D200	0x6801	WM-D200
