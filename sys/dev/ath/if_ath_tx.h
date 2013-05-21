@@ -47,6 +47,7 @@
  * How 'busy' to try and keep the hardware txq
  */
 #define	ATH_AGGR_MIN_QDEPTH		2
+#define	ATH_NONAGGR_MIN_QDEPTH		32
 
 /*
  * Watermark for scheduling TIDs in order to maximise aggregation.
