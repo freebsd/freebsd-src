@@ -451,7 +451,7 @@ void check_options ()
              char *str, *fmt = "#define %s %d\n";
              size_t strsz;
 
-             str = (char*)flex_alloc(strsz = strlen(fmt) + strlen(scname[i]) + (int)(1 + log10(i)) + 2);
+             str = (char*)flex_alloc(strsz = strlen(fmt) + strlen(scname[i]) + NUMCHARLINES + 2);
              if (!str)
                flexfatal(_("allocation of macro definition failed"));
              snprintf(str, strsz, fmt,      scname[i], i - 1);

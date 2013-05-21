@@ -95,7 +95,7 @@ struct Buf *buf_linedir (struct Buf *buf, const char* filename, int lineno)
 
     t = flex_alloc (strlen ("#line \"\"\n")          +   /* constant parts */
                     2 * strlen (filename)            +   /* filename with possibly all backslashes escaped */
-                    (int) (1 + log10 (abs (lineno))) +   /* line number */
+                    NUMCHARLINES                     +   /* line number */
                     1);                                  /* NUL */
     if (!t)
       flexfatal (_("Allocation of buffer for line directive failed"));
