@@ -17,10 +17,10 @@ CFLAGS+=-funsigned-char
 
 CFLAGS+=-DHAVE_CONFIG_H
 CFLAGS+=-DPR_PROGRAM=\"/usr/bin/pr\"
-CFLAGS+=-I${DESTDIR}/usr/include/gnu
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/src
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/lib
+CFLAGS+=-I${.CURDIR}/../../lib/libregex
 
 SUBDIR+=doc
 
