@@ -4984,13 +4984,14 @@ bmsafemap_lookup(mp, bp, cg, newbmsafemap)
 	struct fs *fs;
 
 	mtx_assert(&lk, MA_OWNED);
-	if (bp)
-		LIST_FOREACH(wk, &bp->b_dep, wk_list)
-			if (wk->wk_type == D_BMSAFEMAP) {
-				if (newbmsafemap)
-					WORKITEM_FREE(newbmsafemap,D_BMSAFEMAP);
-				return (WK_BMSAFEMAP(wk));
-			}
+	KASSERT(bp != NULL, ("bmsafemap_lookup: missing buffer"));
+	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
+		if (wk->wk_type == D_BMSAFEMAP) {
+			if (newbmsafemap)
+				WORKITEM_FREE(newbmsafemap, D_BMSAFEMAP);
+			return (WK_BMSAFEMAP(wk));
+		}
+	}
 	fs = VFSTOUFS(mp)->um_fs;
 	bmsafemaphd = BMSAFEMAP_HASH(fs, cg);
 	if (bmsafemap_find(bmsafemaphd, mp, cg, &bmsafemap) == 1) {
