@@ -8150,6 +8150,7 @@ setup_newdir(dap, newinum, dinum, newdirbp, mkdirp)
 	    (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE) {
 		dap->da_state &= ~MKDIR_PARENT;
 		WORKITEM_FREE(mkdir2, D_MKDIR);
+		mkdir2 = NULL;
 	} else {
 		LIST_INSERT_HEAD(&mkdirlisthd, mkdir2, md_mkdirs);
 		WORKLIST_INSERT(&inodedep->id_bufwait, &mkdir2->md_list);
