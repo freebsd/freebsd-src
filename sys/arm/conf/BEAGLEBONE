@@ -1,5 +1,7 @@
 # BEAGLEBONE -- Custom configuration for the BeagleBone ARM development
-# platform, check out http://www.beagleboard.org/bone
+# platforms, check out http://www.beagleboard.org/bone and
+# http://www.beagleboard.org/black. This kernel config file is used for the
+# original BeagleBone and the BeagleBone Black.
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:

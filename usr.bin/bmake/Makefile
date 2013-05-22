@@ -14,10 +14,10 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.10 2013/03/31 05:57:19 sjg Exp $
+#	$Id: Makefile,v 1.12 2013/05/20 16:05:10 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20130330
+MAKE_VERSION= 20130520
 
 PROG?=	${.CURDIR:T}
 

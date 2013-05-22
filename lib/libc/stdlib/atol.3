@@ -32,7 +32,7 @@
 .\"     @(#)atol.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2009
+.Dd May 14, 2013
 .Dt ATOL 3
 .Os
 .Sh NAME
@@ -88,13 +88,13 @@ and
 functions are thin wrappers around
 .Fn strtol
 and
-.Fn stroll
+.Fn strtoll
 respectively, so these functions will affect the value of
 .Va errno
 in the same way that the
 .Fn strtol
 and
-.Fn stroll
+.Fn strtoll
 functions are able to.
 This behavior of
 .Fn atol

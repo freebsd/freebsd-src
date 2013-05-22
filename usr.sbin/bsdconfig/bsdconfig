@@ -239,7 +239,7 @@ fi
 # Process command-line arguments
 #
 scripts_loaded=0
-while getopts dD:f:hSX flag; do
+while getopts f:h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	f) [ $scripts_loaded -eq 0 ] && f_include $BSDCFG_SHARE/script.subr
 	   f_script_load "$OPTARG"

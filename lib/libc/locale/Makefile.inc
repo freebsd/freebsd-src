@@ -4,11 +4,11 @@
 # locale sources
 .PATH: ${.CURDIR}/${LIBC_ARCH}/locale ${.CURDIR}/locale
 
-SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
-	gb18030.c gb2312.c gbk.c ctype.c isctype.c iswctype.c \
+SRCS+=	ascii.c big5.c btowc.c c16rtomb.c c32rtomb.c collate.c collcmp.c euc.c \
+	fix_grouping.c gb18030.c gb2312.c gbk.c ctype.c isctype.c iswctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mblen.c \
 	mbrlen.c \
-	mbrtowc.c mbsinit.c mbsnrtowcs.c \
+	mbrtoc16.c mbrtoc32.c mbrtowc.c mbsinit.c mbsnrtowcs.c \
 	mbsrtowcs.c mbtowc.c mbstowcs.c \
 	mskanji.c nextwctype.c nl_langinfo.c nomacros.c none.c rpmatch.c \
 	rune.c \
@@ -72,7 +72,9 @@ MLINKS+=iswalnum_l.3 iswalpha_l.3 iswalnum_l.3 iswcntrl_l.3 \
 	iswalnum_l.3 iswspecial_l.3 iswalnum_l.3 nextwctype_l.3 \
 	iswalnum_l.3 towctrans_l.3 iswalnum_l.3 wctrans_l.3
 MLINKS+=isxdigit.3 ishexnumber.3
+MLINKS+=mbrtowc.3 mbrtoc16.3 mbrtowc.3 mbrtoc32.3
 MLINKS+=mbsrtowcs.3 mbsnrtowcs.3
+MLINKS+=wcrtomb.3 c16rtomb.3 wcrtomb.3 c32rtomb.3
 MLINKS+=wcsrtombs.3 wcsnrtombs.3
 MLINKS+=wcstod.3 wcstof.3 wcstod.3 wcstold.3
 MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \

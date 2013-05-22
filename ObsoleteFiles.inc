@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130417: nfs fha moved from nfsserver to nfs
+OLD_FILES+=usr/include/nfsserver/nfs_fha.h
 # 20130411: new clang import which bumps version from 3.2 to 3.3.
 OLD_FILES+=usr/include/clang/3.2/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.2/__wmmintrin_pclmul.h

@@ -2772,7 +2772,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 		size = vp->v_mount->mnt_stat.f_iosize;
 	off = (vm_ooffset_t)blkno * (vm_ooffset_t)vp->v_mount->mnt_stat.f_iosize;
 
-	VM_OBJECT_WLOCK(obj);
+	VM_OBJECT_RLOCK(obj);
 	for (toff = 0; toff < vp->v_mount->mnt_stat.f_iosize; toff += tinc) {
 		m = vm_page_lookup(obj, OFF_TO_IDX(off + toff));
 		if (!m)
@@ -2784,11 +2784,11 @@ inmem(struct vnode * vp, daddr_t blkno)
 		    (vm_offset_t) ((toff + off) & PAGE_MASK), tinc) == 0)
 			goto notinmem;
 	}
-	VM_OBJECT_WUNLOCK(obj);
+	VM_OBJECT_RUNLOCK(obj);
 	return 1;
 
 notinmem:
-	VM_OBJECT_WUNLOCK(obj);
+	VM_OBJECT_RUNLOCK(obj);
 	return (0);
 }
 
@@ -4211,7 +4211,6 @@ vfs_bio_bzero_buf(struct buf *bp, int base, int size)
 	} else {
 		BUF_CHECK_UNMAPPED(bp);
 		n = PAGE_SIZE - (base & PAGE_MASK);
-		VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 		for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 			m = bp->b_pages[i];
 			if (n > size)
@@ -4221,7 +4220,6 @@ vfs_bio_bzero_buf(struct buf *bp, int base, int size)
 			size -= n;
 			n = PAGE_SIZE;
 		}
-		VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
 	}
 }
 

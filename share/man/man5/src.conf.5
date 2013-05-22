@@ -343,6 +343,10 @@ amd64/amd64, i386/i386 and pc98/i386.
 .\" from FreeBSD: head/tools/build/options/WITHOUT_CPP 156932 2006-03-21 07:50:50Z ru
 Set to not build
 .Xr cpp 1 .
+.It Va WITHOUT_CROSS_COMPILER
+.\" from FreeBSD: head/tools/build/options/WITHOUT_CROSS_COMPILER 250659 2013-05-15 14:30:03Z brooks
+Set to not build a cross compiler in the cross-tools stage of
+buildworld, buildkernel, etc.
 .It Va WITHOUT_CRYPT
 .\" from FreeBSD: head/tools/build/options/WITHOUT_CRYPT 156932 2006-03-21 07:50:50Z ru
 Set to not build any crypto code.
@@ -433,6 +437,12 @@ amd64/amd64, i386/i386, ia64/ia64, pc98/i386 and sparc64/sparc64.
 .\" from FreeBSD: head/tools/build/options/WITHOUT_FLOPPY 221540 2011-05-06 19:13:03Z ru
 Set to not build or install programs
 for operating floppy disk driver.
+.It Va WITHOUT_FORMAT_EXTENSIONS
+.\" from FreeBSD: head/tools/build/options/WITHOUT_FORMAT_EXTENSIONS 250658 2013-05-15 13:04:10Z brooks
+Set to not enable
+.Fl fformat-extensions
+when compiling the kernel.
+Also disables all format checking.
 .It Va WITHOUT_FORTH
 .\" from FreeBSD: head/tools/build/options/WITHOUT_FORTH 156932 2006-03-21 07:50:50Z ru
 Set to build bootloaders without Forth support.

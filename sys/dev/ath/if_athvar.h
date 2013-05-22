@@ -327,7 +327,8 @@ struct ath_txq {
 #define	ATH_TXQ_SWQ	(HAL_NUM_TX_QUEUES+1)	/* qnum for s/w only queue */
 	u_int			axq_ac;		/* WME AC */
 	u_int			axq_flags;
-#define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
+//#define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
+#define	ATH_TXQ_PUTRUNNING	0x0002		/* ath_hal_puttxbuf has been called */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_aggr_depth;	/* how many aggregates are queued */
 	u_int			axq_intrcnt;	/* interrupt count */
@@ -625,7 +626,8 @@ struct ath_softc {
 	 */
 	u_int32_t		sc_use_ent  : 1,
 				sc_rx_stbc  : 1,
-				sc_tx_stbc  : 1;
+				sc_tx_stbc  : 1,
+				sc_hasenforcetxop : 1; /* support enforce TxOP */
 
 
 	int			sc_cabq_enable;	/* Enable cabq transmission */
@@ -811,16 +813,21 @@ struct ath_softc {
 	int			sc_txq_node_psq_maxdepth;
 
 	/*
-	 * Aggregation twiddles
+	 * Software queue twiddles
 	 *
-	 * hwq_limit:	how busy to keep the hardware queue - don't schedule
-	 *		further packets to the hardware, regardless of the TID
+	 * hwq_limit_nonaggr:
+	 *		when to begin limiting non-aggregate frames to the
+	 *		hardware queue, regardless of the TID.
+	 * hwq_limit_aggr:
+	 *		when to begin limiting A-MPDU frames to the
+	 *		hardware queue, regardless of the TID.
 	 * tid_hwq_lo:	how low the per-TID hwq count has to be before the
 	 *		TID will be scheduled again
 	 * tid_hwq_hi:	how many frames to queue to the HWQ before the TID
 	 *		stops being scheduled.
 	 */
-	int			sc_hwq_limit;
+	int			sc_hwq_limit_nonaggr;
+	int			sc_hwq_limit_aggr;
 	int			sc_tid_hwq_lo;
 	int			sc_tid_hwq_hi;
 
@@ -1253,6 +1260,14 @@ void	ath_intr(void *);
 #define	ath_hal_setintmit(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, \
 	HAL_CAP_INTMIT_ENABLE, _v, NULL)
+
+#define	ath_hal_hasenforcetxop(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ENFORCE_TXOP, 0, NULL) == HAL_OK)
+#define	ath_hal_getenforcetxop(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ENFORCE_TXOP, 1, NULL) == HAL_OK)
+#define	ath_hal_setenforcetxop(_ah, _v) \
+	ath_hal_setcapability(_ah, HAL_CAP_ENFORCE_TXOP, 1, _v, NULL)
+
 
 /* EDMA definitions */
 #define	ath_hal_hasedma(_ah) \

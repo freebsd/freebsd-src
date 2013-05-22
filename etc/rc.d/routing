@@ -7,7 +7,7 @@
 
 # PROVIDE: routing
 # REQUIRE: faith netif ppp stf
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 . /etc/network.subr

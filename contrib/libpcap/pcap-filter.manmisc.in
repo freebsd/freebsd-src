@@ -783,7 +783,8 @@ The following ICMP type field values are available: \fBicmp-echoreply\fP,
 
 The following TCP flags field values are available: \fBtcp-fin\fP,
 \fBtcp-syn\fP, \fBtcp-rst\fP, \fBtcp-push\fP,
-\fBtcp-ack\fP, \fBtcp-urg\fP.
+\fBtcp-ack\fP, \fBtcp-urg\fP, \fBtcp-ece\fP,
+\fBtcp-cwr\fP.
 .LP
 Primitives may be combined using:
 .IP

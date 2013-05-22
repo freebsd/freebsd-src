@@ -722,8 +722,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"mask of error frames to pass when monitoring");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
-		"Hardware queue depth before software-queuing TX frames");
+		"hwq_limit_nonaggr", CTLFLAG_RW, &sc->sc_hwq_limit_nonaggr, 0,
+		"Hardware non-AMPDU queue depth before software-queuing TX frames");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hwq_limit_aggr", CTLFLAG_RW, &sc->sc_hwq_limit_aggr, 0,
+		"Hardware AMPDU queue depth before software-queuing TX frames");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
 		"");

@@ -868,6 +868,7 @@ uaudio_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uaudio_softc *sc = device_get_softc(dev);
 	struct usb_interface_descriptor *id;
+	usb_error_t err;
 	device_t child;
 
 	sc->sc_play_chan.priv_sc = sc;
@@ -925,6 +926,19 @@ uaudio_attach(device_t dev)
 
 	if (sc->sc_play_chan.num_alt > 0) {
 		uint8_t x;
+
+		/*
+		 * Need to set a default alternate interface, else
+		 * some USB audio devices might go into an infinte
+		 * re-enumeration loop:
+		 */
+		err = usbd_set_alt_interface_index(sc->sc_udev,
+		    sc->sc_play_chan.usb_alt[0].iface_index,
+		    sc->sc_play_chan.usb_alt[0].iface_alt_index);
+		if (err) {
+			DPRINTF("setting of alternate index failed: %s!\n",
+			    usbd_errstr(err));
+		}
 		for (x = 0; x != sc->sc_play_chan.num_alt; x++) {
 			device_printf(dev, "Play: %d Hz, %d ch, %s format, "
 			    "2x8ms buffer.\n",
@@ -938,6 +952,19 @@ uaudio_attach(device_t dev)
 
 	if (sc->sc_rec_chan.num_alt > 0) {
 		uint8_t x;
+
+		/*
+		 * Need to set a default alternate interface, else
+		 * some USB audio devices might go into an infinte
+		 * re-enumeration loop:
+		 */
+		err = usbd_set_alt_interface_index(sc->sc_udev,
+		    sc->sc_rec_chan.usb_alt[0].iface_index,
+		    sc->sc_rec_chan.usb_alt[0].iface_alt_index);
+		if (err) {
+			DPRINTF("setting of alternate index failed: %s!\n",
+			    usbd_errstr(err));
+		}
 		for (x = 0; x != sc->sc_rec_chan.num_alt; x++) {
 			device_printf(dev, "Record: %d Hz, %d ch, %s format, "
 			    "2x8ms buffer.\n",
@@ -5565,7 +5592,6 @@ umidi_open(struct usb_fifo *fifo, int fflags)
 		}
 		/* clear stall first */
 		mtx_lock(&chan->mtx);
-		usbd_xfer_set_stall(chan->xfer[UMIDI_TX_TRANSFER]);
 		chan->write_open_refcount++;
 		sub->write_open = 1;
 
@@ -5663,9 +5689,6 @@ umidi_probe(device_t dev)
 	}
 
 	mtx_lock(&chan->mtx);
-
-	/* clear stall first */
-	usbd_xfer_set_stall(chan->xfer[UMIDI_RX_TRANSFER]);
 
 	/*
 	 * NOTE: At least one device will not work properly unless the
@@ -5771,8 +5794,11 @@ tr_setup:
 		break;
 
 	default:			/* Error */
+
+		DPRINTF("error=%s\n", usbd_errstr(error));
+
 		if (error != USB_ERR_CANCELLED) {
-			/* try clear stall first */
+			/* try to clear stall first */
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}

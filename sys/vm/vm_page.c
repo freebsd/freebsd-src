@@ -942,7 +942,7 @@ vm_page_t
 vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	return (vm_radix_lookup(&object->rtree, pindex));
 }
 
@@ -959,7 +959,7 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	if ((m = TAILQ_FIRST(&object->memq)) != NULL && m->pindex < pindex)
 		m = vm_radix_lookup_ge(&object->rtree, pindex);
 	return (m);
@@ -2883,5 +2883,28 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 	db_printf("PQ_ACTIVE: %d, PQ_INACTIVE: %d\n",
 		*vm_pagequeues[PQ_ACTIVE].pq_cnt,
 		*vm_pagequeues[PQ_INACTIVE].pq_cnt);
+}
+
+DB_SHOW_COMMAND(pginfo, vm_page_print_pginfo)
+{
+	vm_page_t m;
+	boolean_t phys;
+
+	if (!have_addr) {
+		db_printf("show pginfo addr\n");
+		return;
+	}
+
+	phys = strchr(modif, 'p') != NULL;
+	if (phys)
+		m = PHYS_TO_VM_PAGE(addr);
+	else
+		m = (vm_page_t)addr;
+	db_printf(
+    "page %p obj %p pidx 0x%jx phys 0x%jx q %d hold %d wire %d\n"
+    "  af 0x%x of 0x%x f 0x%x act %d busy %d valid 0x%x dirty 0x%x\n",
+	    m, m->object, (uintmax_t)m->pindex, (uintmax_t)m->phys_addr,
+	    m->queue, m->hold_count, m->wire_count, m->aflags, m->oflags,
+	    m->flags, m->act_count, m->busy, m->valid, m->dirty);
 }
 #endif /* DDB */

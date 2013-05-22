@@ -1,3 +1,11 @@
+<?xml version="1.0" encoding="euc-jp"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY release.bugfix "5.2.1-RELEASE">
+]>
+
 <!--
     FreeBSD Japanese Documentation Project
 
@@ -17,36 +25,10 @@
 
 -->
 
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % ja-authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//JA">
-%ja-authors;
-<!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
-%ja-mlists;
-<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
-%ja-trademarks;
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
-%articles.ent;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-
-<!ENTITY release.bugfix "5.2.1-RELEASE">
-]>
-
 <article>
   <articleinfo>
 
-    <title>&os;
-<![ %release.type.current [
-    &release.current;
-]]>
-<![ %release.type.snapshot [
-    &release.prev;
-]]>
-<![ %release.type.release [
-    &release.current;
-]]>
-    Errata</title>
+    <title>&os; &release; Errata</title>
 
     <corpauthor>&os; プロジェクト</corpauthor>
 
@@ -72,16 +54,7 @@
 
   <abstract>
 
-    <para>この文書は &os;
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-       &release.current;
-]]>
+    <para>この文書は &os; &release;
       の公開後に判明した重要な情報、あるいはリリース工程の終盤で判明し、
       リリース文書に収録できなかった重要な情報が書かれている errata リスト (正誤表) です。
       これにはセキュリティ勧告および、
@@ -90,16 +63,7 @@
       このバージョンの &os; をインストールする前には必ず、
       最新の errata を参照するようにしてください。</para>
 
-    <para>これは &os; 
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
- <![ %release.type.release [
-      &release.current;
-]]>
+    <para>これは &os; &release;
       用の errata 文書です。&os; &release.next; の公開までの間、保守されます。</para>
 
     <para>&release.branch;
@@ -116,16 +80,7 @@
   <sect1 id="intro">
     <title>はじめに</title>
 
-    <para>この errata 文書には &os;
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
+    <para>この errata 文書には &os; &release;
       に関する
       <quote>最新の障害情報</quote> が書かれています。
       この文書を読み、
@@ -157,49 +112,31 @@
   <sect1 id="security">
     <title>セキュリティ勧告</title>
 
-<![ %release.type.release [
-    <para>セキュリティ勧告は発行されていません。</para>
-]]>
+    <para releasetype="release">セキュリティ勧告は発行されていません。</para>
 
-<![ %release.type.current [
-    <para>セキュリティ勧告は発行されていません。</para>
-]]>
+    <para releasetype="current">セキュリティ勧告は発行されていません。</para>
 
-<![ %release.type.snapshot [
-    <para>セキュリティ勧告は発行されていません。</para>
-]]>
+    <para releasetype="snapshot">セキュリティ勧告は発行されていません。</para>
 
   </sect1>
 
   <sect1 id="open-issues">
     <title>未解決の問題</title>
 
-<![ %release.type.release [
-    <para>未解決の問題はありません。</para>
-]]>
+    <para releasetype="release">未解決の問題はありません。</para>
 
-<![ %release.type.current [
-    <para>未解決の問題はありません。</para>
-]]>
+    <para releasetype="current">未解決の問題はありません。</para>
 
-<![ %release.type.snapshot [
-    <para>未解決の問題はありません。</para>
-]]>
+    <para releasetype="snapshot">未解決の問題はありません。</para>
+  </sect1>
 
   <sect1 id="late-news">
     <title>最新情報</title>
 
-<![ %release.type.release [
-    <para>情報はありません。</para>
-]]>
+    <para releasetype="release">情報はありません。</para>
 
-<![ %release.type.current [
-    <para>情報はありません。</para>
-]]>
+    <para releasetype="current">情報はありません。</para>
 
-<![ %release.type.snapshot [
-    <para>情報はありません。</para>
-]]>
+    <para releasetype="snapshot">情報はありません。</para>
   </sect1>
-
 </article>

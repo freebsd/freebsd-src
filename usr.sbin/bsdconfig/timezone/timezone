@@ -117,7 +117,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts C:dD:ehnrsSvX flag; do
+while getopts C:ehnrsv$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	C) CHROOTENV="$OPTARG";;
 	e) TZ_OR_FAIL=1;;

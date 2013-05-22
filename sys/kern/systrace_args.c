@@ -3278,7 +3278,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 532: {
 		struct wait6_args *p = params;
 		iarg[0] = p->idtype; /* int */
-		iarg[1] = p->id; /* int */
+		iarg[1] = p->id; /* id_t */
 		uarg[2] = (intptr_t) p->status; /* int * */
 		iarg[3] = p->options; /* int */
 		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
@@ -8817,7 +8817,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "int";
+			p = "id_t";
 			break;
 		case 2:
 			p = "int *";

@@ -1126,7 +1126,7 @@ passout:
 				IP6STAT_INC(ip6s_odropped);
 				goto sendorfree;
 			}
-			m->m_flags = m0->m_flags & M_COPYFLAGS;	/* incl. FIB */
+			m->m_flags = m0->m_flags & M_COPYFLAGS;
 			*mnext = m;
 			mnext = &m->m_nextpkt;
 			m->m_data += max_linkhdr;
@@ -1152,6 +1152,7 @@ passout:
 			}
 			m_cat(m, m_frgpart);
 			m->m_pkthdr.len = len + hlen + sizeof(*ip6f);
+			m->m_pkthdr.fibnum = m0->m_pkthdr.fibnum;
 			m->m_pkthdr.rcvif = NULL;
 			ip6f->ip6f_reserved = 0;
 			ip6f->ip6f_ident = id;

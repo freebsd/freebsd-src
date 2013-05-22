@@ -1531,24 +1531,36 @@ f_dialog_init()
 	eval exec $DIALOG_TERMINAL_PASSTHRU_FD\>\&1
 
 	#
+	# Add `-S' and `-X' to the list of standard arguments supported by all
+	#
+	case "$GETOPTS_STDARGS" in
+	*SX*) : good ;; # already present
+	   *) GETOPTS_STDARGS="${GETOPTS_STDARGS}SX"
+	esac
+
+	#
 	# Process stored command-line arguments
 	#
-	SECURE=$( set -- "$ARGV"
-		while getopts S flag > /dev/null; do
+	f_dprintf "f_dialog_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
+	          "$ARGV" "$GETOPTS_STDARGS"
+	SECURE=$( set -- $ARGV
+		while getopts "$GETOPTS_STDARGS" flag > /dev/null; do
 			case "$flag" in
 			S) echo 1;;
 			\?) continue;;
 			esac
 		done
 	)
-	USE_XDIALOG=$( set -- "$ARGV"
-		while getopts SX flag > /dev/null; do
+	USE_XDIALOG=$( set -- $ARGV
+		while getopts $GETOPTS_STDARGS flag > /dev/null; do
 			case "$flag" in
 			S|X) echo 1;;
 			\?) continue;;
 			esac
 		done
 	)
+	f_dprintf "f_dialog_init: SECURE=[%s] USE_XDIALOG=[%s]" \
+	          "$SECURE" "$USE_XDIALOG"
 
 	#
 	# Process `-X' command-line option

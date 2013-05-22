@@ -670,6 +670,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
 	sc->sc_rxtsf32 = ath_hal_has_long_rxdesc_tsf(ah);
+	sc->sc_hasenforcetxop = ath_hal_hasenforcetxop(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);
@@ -839,7 +840,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/*
 	 * Initial aggregation settings.
 	 */
-	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
+	sc->sc_hwq_limit_aggr = ATH_AGGR_MIN_QDEPTH;
+	sc->sc_hwq_limit_nonaggr = ATH_NONAGGR_MIN_QDEPTH;
 	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
 	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
 	sc->sc_aggr_limit = ATH_AGGR_MAXSIZE;
@@ -1587,6 +1589,15 @@ ath_resume(struct ath_softc *sc)
 	/* Let spectral at in case spectral is enabled */
 	ath_spectral_enable(sc, ic->ic_curchan);
 
+	/*
+	 * If we're doing TDMA, enforce the TXOP limitation for chips that
+	 * support it.
+	 */
+	if (sc->sc_hasenforcetxop && sc->sc_tdma)
+		ath_hal_setenforcetxop(sc->sc_ah, 1);
+	else
+		ath_hal_setenforcetxop(sc->sc_ah, 0);
+
 	/* Restore the LED configuration */
 	ath_led_config(sc);
 	ath_hal_setledstate(ah, HAL_LED_INIT);
@@ -2035,6 +2046,15 @@ ath_init(void *arg)
 	ath_spectral_enable(sc, ic->ic_curchan);
 
 	/*
+	 * If we're doing TDMA, enforce the TXOP limitation for chips that
+	 * support it.
+	 */
+	if (sc->sc_hasenforcetxop && sc->sc_tdma)
+		ath_hal_setenforcetxop(sc->sc_ah, 1);
+	else
+		ath_hal_setenforcetxop(sc->sc_ah, 0);
+
+	/*
 	 * Likewise this is set during reset so update
 	 * state cached in the driver.
 	 */
@@ -2349,6 +2369,15 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	/* Let spectral at in case spectral is enabled */
 	ath_spectral_enable(sc, ic->ic_curchan);
 
+	/*
+	 * If we're doing TDMA, enforce the TXOP limitation for chips that
+	 * support it.
+	 */
+	if (sc->sc_hasenforcetxop && sc->sc_tdma)
+		ath_hal_setenforcetxop(sc->sc_ah, 1);
+	else
+		ath_hal_setenforcetxop(sc->sc_ah, 0);
+
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	/*
@@ -2621,9 +2650,28 @@ ath_start_queue(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
 
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		IF_LOCK(&ifp->if_snd);
+		sc->sc_stats.ast_tx_qstop++;
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
+		ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: OACTIVE, finish");
+		return;
+	}
+	sc->sc_txstart_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: start");
 	ath_tx_kick(sc);
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: finished");
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txstart_cnt--;
+	ATH_PCU_UNLOCK(sc);
 }
 
 void
@@ -4633,16 +4681,30 @@ ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
+	ATH_TXQ_LOCK_ASSERT(txq);
+
 	DPRINTF(sc, ATH_DEBUG_RESET,
-	    "%s: tx queue [%u] %p, active=%d, hwpending=%d, flags 0x%08x, link %p\n",
+	    "%s: tx queue [%u] %p, active=%d, hwpending=%d, flags 0x%08x, "
+	    "link %p, holdingbf=%p\n",
 	    __func__,
 	    txq->axq_qnum,
 	    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, txq->axq_qnum),
 	    (int) (!! ath_hal_txqenabled(ah, txq->axq_qnum)),
 	    (int) ath_hal_numtxpending(ah, txq->axq_qnum),
 	    txq->axq_flags,
-	    txq->axq_link);
+	    txq->axq_link,
+	    txq->axq_holdingbf);
+
 	(void) ath_hal_stoptxdma(ah, txq->axq_qnum);
+	/* We've stopped TX DMA, so mark this as stopped. */
+	txq->axq_flags &= ~ATH_TXQ_PUTRUNNING;
+
+#ifdef	ATH_DEBUG
+	if ((sc->sc_debug & ATH_DEBUG_RESET)
+	    && (txq->axq_holdingbf != NULL)) {
+		ath_printtxbuf(sc, txq->axq_holdingbf, txq->axq_qnum, 0, 0);
+	}
+#endif
 }
 
 int
@@ -4661,17 +4723,25 @@ ath_stoptxdma(struct ath_softc *sc)
 		    __func__, sc->sc_bhalq,
 		    (caddr_t)(uintptr_t) ath_hal_gettxbuf(ah, sc->sc_bhalq),
 		    NULL);
+
+		/* stop the beacon queue */
 		(void) ath_hal_stoptxdma(ah, sc->sc_bhalq);
-		for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-			if (ATH_TXQ_SETUP(sc, i))
+
+		/* Stop the data queues */
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
 				ath_tx_stopdma(sc, &sc->sc_txq[i]);
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
 	}
 
 	return 1;
 }
 
 #ifdef	ATH_DEBUG
-static void
+void
 ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -4700,11 +4770,10 @@ ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq)
 void
 ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 {
-#ifdef	ATH_DEBUG
 	struct ath_hal *ah = sc->sc_ah;
-#endif
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
+	struct ath_buf *bf_last;
 
 	(void) ath_stoptxdma(sc);
 
@@ -4730,10 +4799,20 @@ ath_legacy_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 				 */
 				ath_txq_freeholdingbuf(sc, &sc->sc_txq[i]);
 				/*
-				 * Reset the link pointer to NULL; there's
-				 * no frames to chain DMA to.
+				 * Setup the link pointer to be the
+				 * _last_ buffer/descriptor in the list.
+				 * If there's nothing in the list, set it
+				 * to NULL.
 				 */
-				sc->sc_txq[i].axq_link = NULL;
+				bf_last = ATH_TXQ_LAST(&sc->sc_txq[i],
+				    axq_q_s);
+				if (bf_last != NULL) {
+					ath_hal_gettxdesclinkptr(ah,
+					    bf_last->bf_lastds,
+					    &sc->sc_txq[i].axq_link);
+				} else {
+					sc->sc_txq[i].axq_link = NULL;
+				}
 				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
 			} else
 				ath_tx_draintxq(sc, &sc->sc_txq[i]);
@@ -4849,6 +4928,15 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 		/* Let spectral at in case spectral is enabled */
 		ath_spectral_enable(sc, chan);
+
+		/*
+		 * If we're doing TDMA, enforce the TXOP limitation for chips
+		 * that support it.
+		 */
+		if (sc->sc_hasenforcetxop && sc->sc_tdma)
+			ath_hal_setenforcetxop(sc->sc_ah, 1);
+		else
+			ath_hal_setenforcetxop(sc->sc_ah, 0);
 
 		/*
 		 * Re-enable rx framework.
@@ -6236,6 +6324,7 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 static void
 ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 {
+#ifdef	ATH_SW_PSQ
 	struct ath_node *an;
 	struct ath_vap *avp;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -6364,6 +6453,9 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	    ni->ni_macaddr,
 	    ":");
 	avp->av_recv_pspoll(ni, m);
+#else
+	avp->av_recv_pspoll(ni, m);
+#endif	/* ATH_SW_PSQ */
 }
 
 MODULE_VERSION(if_ath, 1);
