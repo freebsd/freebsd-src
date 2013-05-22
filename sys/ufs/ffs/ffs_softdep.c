@@ -711,6 +711,8 @@ SOFTDEP_TYPE(SBDEP, sbdep, "Superblock write dependency");
 SOFTDEP_TYPE(JTRUNC, jtrunc, "Journal inode truncation");
 SOFTDEP_TYPE(JFSYNC, jfsync, "Journal fsync complete");
 
+static MALLOC_DEFINE(M_SENTINEL, "sentinal", "Worklist sentinal");
+
 static MALLOC_DEFINE(M_SAVEDINO, "savedino", "Saved inodes");
 static MALLOC_DEFINE(M_JBLOCKS, "jblocks", "Journal block locations");
 
@@ -745,7 +747,8 @@ static struct malloc_type *memtype[] = {
 	M_JSEGDEP,
 	M_SBDEP,
 	M_JTRUNC,
-	M_JFSYNC
+	M_JFSYNC,
+	M_SENTINEL
 };
 
 static LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
