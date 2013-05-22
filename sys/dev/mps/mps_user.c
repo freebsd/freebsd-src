@@ -208,8 +208,8 @@ mps_detach_user(struct mps_softc *sc)
 {
 
 	/* XXX: do a purge of pending requests? */
-	destroy_dev(sc->mps_cdev);
-
+	if (sc->mps_cdev != NULL)
+		destroy_dev(sc->mps_cdev);
 }
 
 static int
