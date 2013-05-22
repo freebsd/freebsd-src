@@ -362,6 +362,7 @@ struct ieee80211vap {
 	int			iv_nstate_arg;	/* pending state arg */
 	struct task		iv_nstate_task;	/* deferred state processing */
 	struct task		iv_swbmiss_task;/* deferred iv_bmiss call */
+	struct task		iv_tx_task;	/* VAP deferred TX task */
 	struct callout		iv_mgtsend;	/* mgmt frame response timer */
 						/* inactivity timer settings */
 	int			iv_inact_init;	/* setting for new station */
