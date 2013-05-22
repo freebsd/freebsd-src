@@ -736,43 +736,6 @@ ath_tx_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	ATH_TXQ_UNLOCK(txq);
 }
 
-void
-ath_tx_push_pending(struct ath_softc *sc, struct ath_txq *txq)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
-
-	/*
-	 * The q was busy when we previously tried
-	 * to write the address of the first buffer
-	 * in the chain.  Since it's not busy now
-	 * handle this chore.  We are certain the
-	 * buffer at the front is the right one since
-	 * axq_link is NULL only when the buffer list
-	 * is/was empty.
-	 */
-	bf = TAILQ_FIRST(&txq->axq_q);
-	if (bf == NULL) {
-		device_printf(sc->sc_dev,
-		    "%s: TXQ %d: called, but no buf?\n",
-		    __func__,
-		    txq->axq_qnum);
-		return;
-	}
-	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-	txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
-	DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
-	    "%s: Q%u restarted\n", __func__,
-	    txq->axq_qnum);
-	ATH_KTR(sc, ATH_KTR_TX, 4,
-	  "ath_tx_handoff: txq[%d] restarted, bf=%p "
-	  "daddr=%p ds=%p",
-	    txq->axq_qnum,
-	    bf,
-	    (caddr_t)bf->bf_daddr,
-	    bf->bf_desc);
-}
-
 /*
  * Hand-off packet to a hardware queue.
  */
@@ -3808,12 +3771,10 @@ ath_tx_tid_drain_print(struct ath_softc *sc, struct ath_node *an,
 	     tid->baw_tail, tap == NULL ? -1 : tap->txa_start,
 	     ni->ni_txseqs[tid->tid]);
 
-#if 0
 	/* XXX Dump the frame, see what it is? */
 	ieee80211_dump_pkt(ni->ni_ic,
 	    mtod(bf->bf_m, const uint8_t *),
 	    bf->bf_m->m_len, 0, -1);
-#endif
 }
 
 /*
@@ -3854,7 +3815,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 
 		if (t == 0) {
 			ath_tx_tid_drain_print(sc, an, "norm", tid, bf);
-//			t = 1;
+			t = 1;
 		}
 
 		ATH_TID_REMOVE(tid, bf, bf_list);
@@ -3870,7 +3831,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 
 		if (t == 0) {
 			ath_tx_tid_drain_print(sc, an, "filt", tid, bf);
-//			t = 1;
+			t = 1;
 		}
 
 		ATH_TID_FILT_REMOVE(tid, bf, bf_list);
@@ -5269,6 +5230,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_rate_fill_rcflags(sc, bf);
 			ath_tx_setds(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
+
 			sc->sc_aggr_stats.aggr_nonbaw_pkt++;
 
 			/* Queue the packet; continue */
@@ -5367,6 +5329,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			 * already points to the rest in the chain.
 			 */
 			ath_tx_setds_11n(sc, bf);
+
 		}
 	queuepkt:
 		/* Set completion handler, multi-frame aggregate or not */

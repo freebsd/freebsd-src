@@ -689,7 +689,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * otherwise) to be transmitted.
 	 */
 	sc->sc_txq_data_minfree = 10;
-
 	/*
 	 * Leave this as default to maintain legacy behaviour.
 	 * Shortening the cabq/mcastq may end up causing some
@@ -4020,9 +4019,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 #endif	/* IEEE80211_SUPPORT_SUPERG */
 	int nacked;
 	HAL_STATUS status;
-#ifdef	IEEE80211_SUPPORT_TDMA
-	int qbusy;
-#endif	/* IEEE80211_SUPPORT_TDMA */
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: tx queue %u head %p link %p\n",
 		__func__, txq->axq_qnum,
@@ -4149,40 +4145,12 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		ieee80211_ff_flush(ic, txq->axq_ac);
 #endif
 
-	ATH_TX_LOCK(sc);
-
-	/*
-	 * Check whether the queue is currently waiting for
-	 * a buffer push and if so, push it.
-	 *
-	 * Since we now limit how deep the TXQ can get,
-	 * we may reach a point where we can't make further
-	 * progress even though there's frames in the
-	 * queue to be scheduled.  If we hit this highly
-	 * unlikely case, let's print out a warning and
-	 * restart transmit.
-	 */
-#ifdef IEEE80211_SUPPORT_TDMA
-	qbusy = ath_hal_txqenabled(ah, txq->axq_qnum);
-	/*
-	 * If the queue is no longer busy yet there's a
-	 * pending push, make sure it's done.
-	 */
-	if ((txq->axq_flags & ATH_TXQ_PUTPENDING) && !qbusy) {
-		device_printf(sc->sc_dev,
-		    "%s: TXQ %d: PUTPENDING!\n",
-		    __func__,
-		    txq->axq_qnum);
-		ath_tx_push_pending(sc, txq);
-	}
-#endif
-
 	/* Kick the software TXQ scheduler */
 	if (dosched) {
+		ATH_TX_LOCK(sc);
 		ath_txq_sched(sc, txq);
+		ATH_TX_UNLOCK(sc);
 	}
-
-	ATH_TX_UNLOCK(sc);
 
 	ATH_KTR(sc, ATH_KTR_TXCOMP, 1,
 	    "ath_tx_processq: txq=%u: done",
@@ -6275,13 +6243,6 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 	ATH_TX_LOCK_ASSERT(sc);
 
 	if (enable) {
-		/*
-		 * Don't bother grabbing the lock unless the queue is not
-		 * empty.
-		 */
-		if (an->an_swq_depth == 0)
-			return;
-
 		if (an->an_is_powersave &&
 		    an->an_tim_set == 0 &&
 		    an->an_swq_depth != 0) {
@@ -6294,6 +6255,12 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 			(void) avp->av_set_tim(ni, 1);
 		}
 	} else {
+		/*
+		 * Don't bother grabbing the lock unless the queue is empty.
+		 */
+		if (&an->an_swq_depth != 0)
+			return;
+
 		if (an->an_is_powersave &&
 		    an->an_stack_psq == 0 &&
 		    an->an_tim_set == 1 &&
