@@ -1318,7 +1318,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 * (Because the source is wired down, the page will be in
 		 * memory.)
 		 */
-		VM_OBJECT_WLOCK(src_object);
+		VM_OBJECT_RLOCK(src_object);
 		object = src_object;
 		pindex = src_pindex + dst_pindex;
 		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
@@ -1327,15 +1327,15 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			/*
 			 * Allow fallback to backing objects if we are reading.
 			 */
-			VM_OBJECT_WLOCK(backing_object);
+			VM_OBJECT_RLOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
-			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
 		pmap_copy_page(src_m, dst_m);
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		dst_m->valid = VM_PAGE_BITS_ALL;
 		dst_m->dirty = VM_PAGE_BITS_ALL;
 		VM_OBJECT_WUNLOCK(dst_object);
