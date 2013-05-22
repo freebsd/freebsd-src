@@ -9362,13 +9362,16 @@ clear_unlinked_inodedep(inodedep)
 		if (idp && (idp->id_state & UNLINKNEXT))
 			pino = idp->id_ino;
 		FREE_LOCK(&lk);
-		if (pino == 0)
+		if (pino == 0) {
 			bp = getblk(ump->um_devvp, btodb(fs->fs_sblockloc),
 			    (int)fs->fs_sbsize, 0, 0, 0);
-		else
+		} else {
 			error = bread(ump->um_devvp,
 			    fsbtodb(fs, ino_to_fsba(fs, pino)),
 			    (int)fs->fs_bsize, NOCRED, &bp);
+			if (error)
+				brelse(bp);
+		}
 		ACQUIRE_LOCK(&lk);
 		if (error)
 			break;
@@ -13183,6 +13186,7 @@ softdep_inode_append(ip, cred, wkhd)
 	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, cred, &bp);
 	if (error) {
+		bqrelse(bp);
 		softdep_freework(wkhd);
 		return;
 	}
