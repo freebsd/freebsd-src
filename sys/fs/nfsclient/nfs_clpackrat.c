@@ -142,8 +142,9 @@ nfscl_packratthread(struct nfscldeleg *dp, NFSPROC_T *td)
 	struct iovec io;
 	struct ucred *incred, *outcred;
 	char *iobuf;
-	int resid, error;
+	int error;
 	off_t off;
+	ssize_t resid;
 
 	incred = newnfs_getcred();
 	outcred = newnfs_getcred();
