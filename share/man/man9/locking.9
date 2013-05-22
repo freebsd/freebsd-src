@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2012
+.Dd May 22, 2013
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -167,7 +167,7 @@ Giant is an instance of a mutex, with some special characteristics:
 .It
 It is recursive.
 .It
-Drivers and filesystems can request that Giant be locked around them
+Drivers can request that Giant be locked around them
 by not marking themselves MPSAFE.
 Note that infrastructure to do this is slowly going away as non-MPSAFE
 drivers either became properly locked or disappear.
