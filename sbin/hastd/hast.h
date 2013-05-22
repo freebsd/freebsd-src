@@ -259,7 +259,4 @@ struct hast_resource {
 struct hastd_config *yy_config_parse(const char *config, bool exitonerror);
 void yy_config_free(struct hastd_config *config);
 
-void yyerror(const char *);
-int yylex(void);
-
 #endif	/* !_HAST_H_ */
