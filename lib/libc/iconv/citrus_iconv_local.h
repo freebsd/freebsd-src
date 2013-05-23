@@ -57,6 +57,7 @@ static void	 _citrus_##_m_##_iconv_uninit_context			\
 
 
 #define _CITRUS_ICONV_DEF_OPS(_m_)					\
+extern struct _citrus_iconv_ops _citrus_##_m_##_iconv_ops;		\
 struct _citrus_iconv_ops _citrus_##_m_##_iconv_ops = {			\
 	/* io_init_shared */	&_citrus_##_m_##_iconv_init_shared,	\
 	/* io_uninit_shared */	&_citrus_##_m_##_iconv_uninit_shared,	\
