@@ -391,6 +391,7 @@ extern int pmap_needs_pte_sync;
 #define L2_S_REF		(L2_AP0(1))	/* reference flag */
 
 #define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R)
+#define	L2_S_EXECUTABLE(pte)	(!(pte & L2_XN))
 #define	L2_S_WRITABLE(pte)	(!(pte & L2_APX))
 #define	L2_S_REFERENCED(pte)	(!!(pte & L2_S_REF))
 

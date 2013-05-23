@@ -383,13 +383,13 @@ int	pmap_needs_pte_sync;
  * Macro to determine if a mapping might be resident in the
  * instruction cache and/or TLB
  */
-#define	PV_BEEN_EXECD(f)  (((f) & (PVF_REF | PVF_EXEC)) == (PVF_REF | PVF_EXEC))
+#define	PTE_BEEN_EXECD(pte)  (L2_S_EXECUTABLE(pte) && L2_S_REFERENCED(pte))
 
 /*
  * Macro to determine if a mapping might be resident in the
  * data cache and/or TLB
  */
-#define	PV_BEEN_REFD(f)   (((f) & PVF_REF) != 0)
+#define	PTE_BEEN_REFD(pte)   (L2_S_REFERENCED(pte))
 
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
@@ -947,9 +947,9 @@ pmap_clearbit(struct vm_page *m, u_int maskbits)
 			*ptep = npte;
 			PTE_SYNC(ptep);
 			/* Flush the TLB entry if a current pmap. */
-			if (PV_BEEN_EXECD(oflags))
+			if (PTE_BEEN_EXECD(opte))
 				cpu_tlb_flushID_SE(pv->pv_va);
-			else if (PV_BEEN_REFD(oflags))
+			else if (PTE_BEEN_REFD(opte))
 				cpu_tlb_flushD_SE(pv->pv_va);
 		}
 
@@ -1358,7 +1358,6 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		}
 
 		vm_page_dirty(m);
-		pv->pv_flags |= PVF_REF | PVF_MOD;
 
 		/* Re-enable write permissions for the page */
 		pmap_set_prot(ptep, VM_PROT_WRITE, *ptep & L2_S_PROT_U);
@@ -1382,7 +1381,6 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 			goto out;
 
 		vm_page_aflag_set(m, PGA_REFERENCED);
-		pv->pv_flags |= PVF_REF;
 
 		/* Mark the page "referenced" */
 		*ptep = pte | L2_S_REF;
@@ -2436,7 +2434,7 @@ pmap_remove_all(vm_page_t m)
 	struct l2_bucket *l2b;
 	boolean_t flush = FALSE;
 	pmap_t curpmap;
-	int flags = 0;
+	u_int is_exec = 0;
 
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_remove_all: page %p is fictitious", m));
@@ -2455,19 +2453,19 @@ pmap_remove_all(vm_page_t m)
 		l2b = pmap_get_l2_bucket(pmap, pv->pv_va);
 		KASSERT(l2b != NULL, ("No l2 bucket"));
 		ptep = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
+		is_exec |= PTE_BEEN_EXECD(*ptep);
 		*ptep = 0;
 		if (pmap_is_current(pmap))
 			PTE_SYNC(ptep);
 		pmap_free_l2_bucket(pmap, l2b, 1);
 		pmap->pm_stats.resident_count--;
-		flags |= pv->pv_flags;
 		pmap_nuke_pv(m, pmap, pv);
 		pmap_free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
 
 	if (flush) {
-		if (PV_BEEN_EXECD(flags))
+		if (is_exec)
 			cpu_tlb_flushID();
 		else
 			cpu_tlb_flushD();
@@ -2545,7 +2543,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
 	vm_offset_t next_bucket;
-	u_int flags;
+	u_int is_exec, is_refd;
 	int flush;
 
 	if ((prot & VM_PROT_READ) == 0) {
@@ -2570,7 +2568,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	 */
 
 	flush = ((eva - sva) >= (PAGE_SIZE * 4)) ? 0 : -1;
-	flags = 0;
+	is_exec = is_refd = 0;
 
 	while (sva < eva) {
 		next_bucket = L2_NEXT_BUCKET(sva);
@@ -2588,25 +2586,24 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		while (sva < next_bucket) {
 			if ((pte = *ptep) != 0 && L2_S_WRITABLE(pte)) {
 				struct vm_page *m;
-				u_int f;
 
 				m = PHYS_TO_VM_PAGE(l2pte_pa(pte));
 				pmap_set_prot(ptep, prot,
 				    !(pmap == pmap_kernel()));
 				PTE_SYNC(ptep);
 
-				f = pmap_modify_pv(m, pmap, sva,
-				    PVF_WRITE, 0);
+				pmap_modify_pv(m, pmap, sva, PVF_WRITE, 0);
 
 				if (flush >= 0) {
 					flush++;
-					flags |= f;
-				} else
-				if (PV_BEEN_EXECD(f))
-					cpu_tlb_flushID_SE(sva);
-				else
-				if (PV_BEEN_REFD(f))
-					cpu_tlb_flushD_SE(sva);
+					is_exec |= PTE_BEEN_EXECD(pte);
+					is_refd |= PTE_BEEN_REFD(pte);
+				} else {
+					if (PTE_BEEN_EXECD(pte))
+						cpu_tlb_flushID_SE(sva);
+					else if (PTE_BEEN_REFD(pte))
+						cpu_tlb_flushD_SE(sva);
+				}
 			}
 
 			sva += PAGE_SIZE;
@@ -2616,10 +2613,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 
 	if (flush) {
-		if (PV_BEEN_EXECD(flags))
+		if (is_exec)
 			cpu_tlb_flushID();
 		else
-		if (PV_BEEN_REFD(flags))
+		if (is_refd)
 			cpu_tlb_flushD();
 	}
 	rw_wunlock(&pvh_global_lock);
@@ -2665,7 +2662,7 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	struct pv_entry *pve = NULL;
 	pt_entry_t *ptep, npte, opte;
 	u_int nflags;
-	u_int oflags;
+	u_int is_exec, is_refd;
 	vm_paddr_t pa;
 	u_char user;
 
@@ -2692,8 +2689,6 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	if (prot & VM_PROT_WRITE)
 		nflags |= PVF_WRITE;
-	if (prot & VM_PROT_EXECUTE)
-		nflags |= PVF_EXEC;
 	if (wired)
 		nflags |= PVF_WIRED;
 
@@ -2725,7 +2720,8 @@ do_l2b_alloc:
 
 	opte = *ptep;
 	npte = pa;
-	oflags = 0;
+	is_exec = is_refd = 0;
+
 	if (opte) {
 		/*
 		 * There is already a mapping at this address.
@@ -2748,7 +2744,6 @@ do_l2b_alloc:
 		 *   so no need to re-do referenced emulation here.
 		 */
 		npte |= L2_S_REF;
-		nflags |= PVF_REF;
 
 		if (m != NULL &&
 		    (m->oflags & VPO_UNMANAGED) == 0)
@@ -2799,9 +2794,9 @@ do_l2b_alloc:
 		/*
 		 * We're changing the attrs of an existing mapping.
 		 */
-		oflags = pmap_modify_pv(m, pmap, va,
-		    PVF_WRITE | PVF_EXEC | PVF_WIRED |
-		    PVF_MOD | PVF_REF, nflags);
+		pmap_modify_pv(m, pmap, va, PVF_WRITE | PVF_WIRED, nflags);
+		is_exec |= PTE_BEEN_EXECD(opte);
+		is_refd |= PTE_BEEN_REFD(opte);
 	} else {
 		/*
 		 * New mapping, or changing the backing page
@@ -2814,7 +2809,8 @@ do_l2b_alloc:
 			 * must remove it from the PV list
 			 */
 			if ((pve = pmap_remove_pv(om, pmap, va))) {
-			    oflags = pve->pv_flags;
+				is_exec |= PTE_BEEN_EXECD(opte);
+				is_refd |= PTE_BEEN_REFD(opte);
 
 			    if (m && ((m->oflags & VPO_UNMANAGED)))
 				pmap_free_pv_entry(pmap, pve);
@@ -2877,9 +2873,9 @@ do_l2b_alloc:
 			}
 		}
 
-		if (PV_BEEN_EXECD(oflags))
+		if (is_exec)
 			cpu_tlb_flushID_SE(va);
-		else if (PV_BEEN_REFD(oflags))
+		else if (is_refd)
 			cpu_tlb_flushD_SE(va);
 	}
 
@@ -3488,8 +3484,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 				pve = pmap_remove_pv(m, pmap, sva);
 				if (pve) {
-					is_exec = PV_BEEN_EXECD(pve->pv_flags);
-					is_refd = PV_BEEN_REFD(pve->pv_flags);
+					is_exec = PTE_BEEN_EXECD(pte);
+					is_refd = PTE_BEEN_REFD(pte);
 					pmap_free_pv_entry(pmap, pve);
 				}
 			}
