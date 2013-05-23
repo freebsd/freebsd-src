@@ -373,12 +373,27 @@ extern int pmap_needs_pte_sync;
 #define	L2_S_PROTO		L2_S_PROTO_xscale
 
 #elif (ARM_MMU_V6 + ARM_MMU_V7) != 0
-
-#define	L2_S_PROT_U		(L2_AP0(2))		/* user access */
-#define	L2_S_PROT_R		(L2_AP0(1))		/* read access */
+/*
+ * AP[2:1] access permissions model:
+ *
+ * AP[2](APX)	- Write Disable
+ * AP[1]	- User Enable
+ * AP[0]	- Reference Flag
+ *
+ * AP[2]     AP[1]     Kernel     User
+ *  0          0        R/W        N
+ *  0          1        R/W       R/W
+ *  1          0         R         N
+ *  1          1         R         R
+ *
+ */
+#define	L2_S_PROT_R		(0)		/* kernel read */
+#define	L2_S_PROT_U		(L2_AP0(2))	/* user read */
+#define L2_S_REF		(L2_AP0(1))	/* reference flag */
 
 #define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R)
 #define	L2_S_WRITABLE(pte)	(!(pte & L2_APX))
+#define	L2_S_REFERENCED(pte)	(!!(pte & L2_S_REF))
 
 #ifndef SMP
 #define	L1_S_CACHE_MASK		(L1_S_TEX_MASK|L1_S_B|L1_S_C)
