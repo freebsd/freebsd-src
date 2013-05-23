@@ -31,6 +31,8 @@ extern int32_t yylval;
 int32_t number(void);
 int32_t parse_radix(void);
 extern int yylex(void);
+
+#define	YY_DECL	int yylex(void)
 %}
 
 delim 	[ \t\n]
