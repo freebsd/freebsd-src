@@ -908,7 +908,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	}
 
 	bp = getpbuf(&vnode_pbuf_freecnt);
-	kva = (vm_offset_t) bp->b_data;
+	kva = (vm_offset_t)bp->b_data;
 
 	/*
 	 * and map the pages to be read into the kva

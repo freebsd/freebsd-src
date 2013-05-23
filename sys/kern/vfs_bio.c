@@ -855,9 +855,8 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
  * getblk(). Also starts asynchronous I/O on read-ahead blocks.
  */
 int
-breadn_flags(struct vnode * vp, daddr_t blkno, int size,
-    daddr_t * rablkno, int *rabsize, int cnt,
-    struct ucred * cred, int flags, struct buf **bpp)
+breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
+    int *rabsize, int cnt, struct ucred *cred, int flags, struct buf **bpp)
 {
 	struct buf *bp;
 	int rv = 0, readwait = 0;
@@ -1844,7 +1843,7 @@ vfs_bio_awrite(struct buf *bp)
 	nwritten = bp->b_bufsize;
 	(void) bwrite(bp);
 
-	return nwritten;
+	return (nwritten);
 }
 
 /*
@@ -2678,7 +2677,7 @@ vfs_setdirty_locked_object(struct buf *bp)
  *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
 struct buf *
-getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
+getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
     int flags)
 {
 	struct buf *bp;
@@ -2752,9 +2751,8 @@ loop:
 		BO_UNLOCK(bo);
 
 		/*
-		 * check for size inconsistancies for non-VMIO case.
+		 * check for size inconsistencies for non-VMIO case.
 		 */
-
 		if (bp->b_bcount != size) {
 			if ((bp->b_flags & B_VMIO) == 0 ||
 			    (size > bp->b_kvasize)) {

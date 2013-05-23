@@ -681,9 +681,9 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		if (osize < fs->fs_bsize && osize > 0) {
 			UFS_LOCK(ump);
 			error = ffs_realloccg(ip, nb, dp->di_db[nb],
-				ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
-				    &dp->di_db[0]), osize, (int)fs->fs_bsize,
-				    flags, cred, &bp);
+			    ffs_blkpref_ufs2(ip, lastlbn, (int)nb,
+			    &dp->di_db[0]), osize, (int)fs->fs_bsize,
+			    flags, cred, &bp);
 			if (error)
 				return (error);
 			if (DOINGSOFTDEP(vp))
@@ -735,7 +735,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				UFS_LOCK(ump);
 				error = ffs_realloccg(ip, lbn, dp->di_db[lbn],
 				    ffs_blkpref_ufs2(ip, lbn, (int)lbn,
-				       &dp->di_db[0]), osize, nsize, flags,
+				    &dp->di_db[0]), osize, nsize, flags,
 				    cred, &bp);
 				if (error)
 					return (error);
