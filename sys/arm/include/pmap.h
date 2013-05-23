@@ -150,7 +150,6 @@ struct	pmap {
 	u_int8_t		pm_domain;
 	struct l1_ttable	*pm_l1;
 	struct l2_dtable	*pm_l2[L2_SIZE];
-	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	cpuset_t		pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
