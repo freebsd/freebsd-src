@@ -1880,6 +1880,19 @@ CH_COM_OBJS =	ch_mac.o ch_subr.o cspi.o espi.o ixf1010.o mc3.o mc4.o mc5.o \
 		vsc7321.o vsc7326.o xpak.o
 
 #
+#	Chelsio Terminator 4 10G NIC nexus driver module
+#
+CXGBE_FW_OBJS  =	t4_fw.o t4_cfg.o
+CXGBE_COM_OBJS =	t4_hw.o common.o
+CXGBE_NEX_OBJS =	t4_nexus.o t4_sge.o t4_mac.o t4_ioctl.o shared.o \
+			t4_l2t.o adapter.o osdep.o
+
+#
+#	Chelsio Terminator 4 10G NIC driver module
+#
+CXGBE_OBJS =	cxgbe.o
+
+#
 #	PCI strings file
 #
 PCI_STRING_OBJS = pci_strings.o
