@@ -163,13 +163,8 @@ The options are as follows:
 .It Fl a
 Autoprobe outgoing interface.
 .Nm
-will try to find a non-loopback, non-point-to-point, IPv6-capable interface.
-If
-.Nm
-finds multiple interfaces,
-.Nm
-will exit with error.
-.\"
+will try to find non-loopback, non-point-to-point, IPv6-capable interfaces
+and send router solicitation messages on all of them.
 .It Fl d
 Enable debugging.
 .It Fl D
