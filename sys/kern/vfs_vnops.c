@@ -428,10 +428,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 {
 	struct uio auio;
 	struct iovec aiov;
-	struct mount *mp;
-	struct ucred *cred;
-	void *rl_cookie;
-	int error, lock_flags;
+	int error;
 
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -442,18 +439,34 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 	auio.uio_segflg = segflg;
 	auio.uio_rw = rw;
 	auio.uio_td = td;
+	error = vn_rdwr_uio(&auio, vp, ioflg, active_cred, file_cred, aresid);
+	return (error);
+}
+
+/*
+ * Do an I/O request on a vnode specified in a uio.
+ */
+int
+vn_rdwr_uio(struct uio *uiop, struct vnode *vp, int ioflg,
+    struct ucred *active_cred, struct ucred *file_cred, ssize_t *aresid)
+{
+	struct mount *mp;
+	struct ucred *cred;
+	void *rl_cookie;
+	int error, lock_flags;
+
 	error = 0;
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
-		if (rw == UIO_READ) {
-			rl_cookie = vn_rangelock_rlock(vp, offset,
-			    offset + len);
+		if (uiop->uio_rw == UIO_READ) {
+			rl_cookie = vn_rangelock_rlock(vp, uiop->uio_offset,
+			    uiop->uio_offset + uiop->uio_resid);
 		} else {
-			rl_cookie = vn_rangelock_wlock(vp, offset,
-			    offset + len);
+			rl_cookie = vn_rangelock_wlock(vp, uiop->uio_offset,
+			    uiop->uio_offset + uiop->uio_resid);
 		}
 		mp = NULL;
-		if (rw == UIO_WRITE) { 
+		if (uiop->uio_rw == UIO_WRITE) { 
 			if (vp->v_type != VCHR &&
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
@@ -472,7 +485,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
 #ifdef MAC
 	if ((ioflg & IO_NOMACCHECK) == 0) {
-		if (rw == UIO_READ)
+		if (uiop->uio_rw == UIO_READ)
 			error = mac_vnode_check_read(active_cred, file_cred,
 			    vp);
 		else
@@ -485,15 +498,15 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 			cred = file_cred;
 		else
 			cred = active_cred;
-		if (rw == UIO_READ)
-			error = VOP_READ(vp, &auio, ioflg, cred);
+		if (uiop->uio_rw == UIO_READ)
+			error = VOP_READ(vp, uiop, ioflg, cred);
 		else
-			error = VOP_WRITE(vp, &auio, ioflg, cred);
+			error = VOP_WRITE(vp, uiop, ioflg, cred);
 	}
 	if (aresid)
-		*aresid = auio.uio_resid;
+		*aresid = uiop->uio_resid;
 	else
-		if (auio.uio_resid && error == 0)
+		if (uiop->uio_resid && error == 0)
 			error = EIO;
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		VOP_UNLOCK(vp, 0);
@@ -1168,19 +1181,17 @@ vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
 
 
 /*
- * File table truncate routine.
+ * Vnode truncate routine.
  */
-static int
-vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
+int
+vn_truncate_vnode(struct vnode *vp, off_t length, struct ucred *active_cred,
+    struct ucred *file_cred, struct thread *td)
 {
 	struct vattr vattr;
 	struct mount *mp;
-	struct vnode *vp;
+	struct ucred *cred;
 	void *rl_cookie;
 	int error;
-
-	vp = fp->f_vnode;
 
 	/*
 	 * Lock the whole range for truncation.  Otherwise split i/o
@@ -1196,7 +1207,7 @@ vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 		goto out;
 	}
 #ifdef MAC
-	error = mac_vnode_check_write(active_cred, fp->f_cred, vp);
+	error = mac_vnode_check_write(active_cred, file_cred, vp);
 	if (error)
 		goto out;
 #endif
@@ -1204,13 +1215,32 @@ vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 	if (error == 0) {
 		VATTR_NULL(&vattr);
 		vattr.va_size = length;
-		error = VOP_SETATTR(vp, &vattr, fp->f_cred);
+		if (file_cred != NULL)
+			cred = file_cred;
+		else
+			cred = active_cred;
+		error = VOP_SETATTR(vp, &vattr, cred);
 	}
 out:
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 out1:
 	vn_rangelock_unlock(vp, rl_cookie);
+	return (error);
+}
+
+/*
+ * File table truncate routine.
+ */
+static int
+vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct vnode *vp;
+	int error;
+
+	vp = fp->f_vnode;
+	error = vn_truncate_vnode(vp, length, active_cred, fp->f_cred, td);
 	return (error);
 }
 

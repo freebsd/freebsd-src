@@ -677,6 +677,9 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *active_cred, struct ucred *file_cred, size_t *aresid,
 	    struct thread *td);
+int	vn_rdwr_uio(struct uio *uiop, struct vnode *vp, int ioflg,
+	    struct ucred *active_cred, struct ucred *file_cred,
+	    ssize_t *aresid);
 int	vn_rlimit_fsize(const struct vnode *vn, const struct uio *uio,
 	    const struct thread *td);
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
@@ -693,6 +696,9 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
+int	vn_truncate_vnode(struct vnode *vp, off_t length,
+	    struct ucred *active_cred, struct ucred *file_cred,
+	    struct thread *td);
 
 int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
