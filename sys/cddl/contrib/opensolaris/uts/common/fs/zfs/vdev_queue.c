@@ -23,6 +23,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
+
 #include <sys/zfs_context.h>
 #include <sys/vdev_impl.h>
 #include <sys/zio.h>
@@ -40,8 +44,11 @@
 int zfs_vdev_max_pending = 10;
 int zfs_vdev_min_pending = 4;
 
-/* deadline = pri + ddi_get_lbolt64() >> time_shift) */
-int zfs_vdev_time_shift = 6;
+/*
+ * The deadlines are grouped into buckets based on zfs_vdev_time_shift:
+ * deadline = pri + gethrtime() >> time_shift)
+ */
+int zfs_vdev_time_shift = 29; /* each bucket is 0.537 seconds */
 
 /* exponential I/O issue ramp-up rate */
 int zfs_vdev_ramp_rate = 2;
@@ -315,6 +322,7 @@ again:
 		    zio_buf_alloc(size), size, fio->io_type, ZIO_PRIORITY_AGG,
 		    flags | ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE,
 		    vdev_queue_agg_io_done, NULL);
+		aio->io_timestamp = fio->io_timestamp;
 
 		nio = fio;
 		do {
@@ -386,7 +394,8 @@ vdev_queue_io(zio_t *zio)
 
 	mutex_enter(&vq->vq_lock);
 
-	zio->io_deadline = (ddi_get_lbolt64() >> zfs_vdev_time_shift) +
+	zio->io_timestamp = gethrtime();
+	zio->io_deadline = (zio->io_timestamp >> zfs_vdev_time_shift) +
 	    zio->io_priority;
 
 	vdev_queue_io_add(vq, zio);
@@ -411,9 +420,14 @@ vdev_queue_io_done(zio_t *zio)
 {
 	vdev_queue_t *vq = &zio->io_vd->vdev_queue;
 
+	if (zio_injection_enabled)
+		delay(SEC_TO_TICK(zio_handle_io_delay(zio)));
+
 	mutex_enter(&vq->vq_lock);
 
 	avl_remove(&vq->vq_pending_tree, zio);
+
+	vq->vq_io_complete_ts = gethrtime();
 
 	for (int i = 0; i < zfs_vdev_ramp_rate; i++) {
 		zio_t *nio = vdev_queue_io_to_issue(vq, zfs_vdev_max_pending);

@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
@@ -187,9 +188,8 @@ struct cfi_softc {
 MALLOC_DEFINE(M_CTL_CFI, "ctlcfi", "CTL CFI");
 
 static struct cfi_softc fetd_internal_softc;
-extern int ctl_disable;
 
-void cfi_init(void);
+int cfi_init(void);
 void cfi_shutdown(void) __unused;
 static void cfi_online(void *arg);
 static void cfi_offline(void *arg);
@@ -217,9 +217,19 @@ static void cfi_metatask_io_done(union ctl_io *io);
 static void cfi_err_recovery_done(union ctl_io *io);
 static void cfi_lun_io_done(union ctl_io *io);
 
-SYSINIT(cfi_init, SI_SUB_CONFIGURE, SI_ORDER_FOURTH, cfi_init, NULL);
+static int cfi_module_event_handler(module_t, int /*modeventtype_t*/, void *);
 
-void
+static moduledata_t cfi_moduledata = {
+	"ctlcfi",
+	cfi_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctlcfi, cfi_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
+MODULE_VERSION(ctlcfi, 1);
+MODULE_DEPEND(ctlcfi, ctl, 1, 1, 1);
+
+int
 cfi_init(void)
 {
 	struct cfi_softc *softc;
@@ -232,17 +242,13 @@ cfi_init(void)
 
 	retval = 0;
 
-	/* If we're disabled, don't initialize */
-	if (ctl_disable != 0)
-		return;
-
 	if (sizeof(struct cfi_lun_io) > CTL_PORT_PRIV_SIZE) {
 		printf("%s: size of struct cfi_lun_io %zd > "
 		       "CTL_PORT_PRIV_SIZE %d\n", __func__,
 		       sizeof(struct cfi_lun_io),
 		       CTL_PORT_PRIV_SIZE);
 	}
-	memset(softc, 0, sizeof(softc));
+	memset(softc, 0, sizeof(*softc));
 
 	mtx_init(&softc->lock, "CTL frontend mutex", NULL, MTX_DEF);
 	softc->flags |= CTL_FLAG_MASTER_SHELF;
@@ -292,7 +298,7 @@ cfi_init(void)
 	}
 bailout:
 
-	return;
+	return (0);
 
 bailout_error:
 
@@ -309,6 +315,8 @@ bailout_error:
 	default:
 		break;
 	}
+
+	return (ENOMEM);
 }
 
 void
@@ -329,6 +337,20 @@ cfi_shutdown(void)
 
 	if (ctl_shrink_mem_pool(&softc->metatask_pool) != 0)
 		printf("%s: error shrinking LUN pool\n", __func__);
+}
+
+static int
+cfi_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		return (cfi_init());
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 
 static void

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,6 +134,12 @@ UINT8       ACPI_INIT_GLOBAL (AcpiGbl_TruncateIoAddresses, FALSE);
  */
 UINT8       ACPI_INIT_GLOBAL (AcpiGbl_DisableAutoRepair, FALSE);
 
+/*
+ * Optionally do not load any SSDTs from the RSDT/XSDT during initialization.
+ * This can be useful for debugging ACPI problems on some machines.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_DisableSsdtTableLoad, FALSE);
+
 
 /* AcpiGbl_FADT is a local copy of the FADT, converted to a common format. */
 
@@ -228,6 +234,7 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockPending;
  */
 ACPI_EXTERN ACPI_SPINLOCK               AcpiGbl_GpeLock;      /* For GPE data structs and registers */
 ACPI_EXTERN ACPI_SPINLOCK               AcpiGbl_HardwareLock; /* For ACPI H/W except GPE registers */
+ACPI_EXTERN ACPI_SPINLOCK               AcpiGbl_ReferenceCountLock;
 
 /* Mutex for _OSI support */
 
@@ -349,7 +356,6 @@ ACPI_EXTERN UINT32                      AcpiGbl_DeepestNesting;
  *
  ****************************************************************************/
 
-
 ACPI_EXTERN ACPI_THREAD_STATE          *AcpiGbl_CurrentWalkList;
 
 /* Control method single step flag */
@@ -413,7 +419,7 @@ ACPI_EXTERN UINT32                      AcpiGbl_TraceDbgLayer;
 
 /*****************************************************************************
  *
- * Debugger globals
+ * Debugger and Disassembler globals
  *
  ****************************************************************************/
 
@@ -421,8 +427,12 @@ ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
 #ifdef ACPI_DISASSEMBLER
 
+ACPI_EXTERN BOOLEAN                     ACPI_INIT_GLOBAL (AcpiGbl_IgnoreNoopOperator, FALSE);
+
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
+ACPI_EXTERN BOOLEAN                     AcpiGbl_NumExternalMethods;
+ACPI_EXTERN UINT32                      AcpiGbl_ResolvedExternalMethods;
 ACPI_EXTERN ACPI_EXTERNAL_LIST         *AcpiGbl_ExternalList;
 ACPI_EXTERN ACPI_EXTERNAL_FILE         *AcpiGbl_ExternalFileList;
 #endif

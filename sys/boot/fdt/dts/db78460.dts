@@ -303,6 +303,11 @@
 			>;
 	};
 
+	sram@ffff0000 {
+		compatible = "mrvl,cesa-sram";
+		reg = <0xffff0000 0x00010000>;
+	};
+
 	chosen {
 		stdin = "serial0";
 		stdout = "serial0";

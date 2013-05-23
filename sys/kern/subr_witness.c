@@ -602,7 +602,7 @@ static struct witness_order_list_entry order_lists[] = {
 	 * VM
 	 */
 	{ "vm map (user)", &lock_class_sx },
-	{ "vm object", &lock_class_mtx_sleep },
+	{ "vm object", &lock_class_rw },
 	{ "vm page", &lock_class_mtx_sleep },
 	{ "vm page queue", &lock_class_mtx_sleep },
 	{ "pmap pv global", &lock_class_rw },
@@ -1289,7 +1289,19 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			w->w_reversed = w1->w_reversed = 1;
 			witness_increment_graph_generation();
 			mtx_unlock_spin(&w_mtx);
-			
+
+#ifdef WITNESS_NO_VNODE
+			/*
+			 * There are known LORs between VNODE locks. They are
+			 * not an indication of a bug. VNODE locks are flagged
+			 * as such (LO_IS_VNODE) and we don't yell if the LOR
+			 * is between 2 VNODE locks.
+			 */
+			if ((lock->lo_flags & LO_IS_VNODE) != 0 &&
+			    (lock1->li_lock->lo_flags & LO_IS_VNODE) != 0)
+				return;
+#endif
+
 			/*
 			 * Ok, yell about it.
 			 */

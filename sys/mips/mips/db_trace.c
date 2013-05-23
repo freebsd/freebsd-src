@@ -423,9 +423,9 @@ db_trace_thread(struct thread *thr, int count)
 
 	} else {
 		ctx = kdb_thr_ctx(thr);
-		sp = (register_t)ctx->pcb_context[PREG_SP];
-		pc = (register_t)ctx->pcb_context[PREG_PC];
-		ra = (register_t)ctx->pcb_context[PREG_RA];
+		sp = (register_t)ctx->pcb_context[PCB_REG_SP];
+		pc = (register_t)ctx->pcb_context[PCB_REG_PC];
+		ra = (register_t)ctx->pcb_context[PCB_REG_RA];
 	}
 
 	stacktrace_subr(pc, sp, ra,

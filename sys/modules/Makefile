@@ -78,6 +78,7 @@ SUBDIR=	\
 	${_cs} \
 	${_ct} \
 	${_ctau} \
+	ctl \
 	${_cxgb} \
 	cxgbe \
 	${_cyclic} \
@@ -242,6 +243,7 @@ SUBDIR=	\
 	nmdm \
 	${_nsp} \
 	nullfs \
+	${_ntb} \
 	${_nvd} \
 	${_nve} \
 	${_nvme} \
@@ -269,6 +271,7 @@ SUBDIR=	\
 	pty  \
 	puc \
 	${_qlxgb} \
+	${_qlxgbe} \
 	ral \
 	${_ralfw} \
 	${_random} \
@@ -335,6 +338,7 @@ SUBDIR=	\
 	vge \
 	${_viawd} \
 	vkbd \
+	${_vmm} \
 	${_vpo} \
 	vr \
 	vte \
@@ -691,6 +695,7 @@ _mthca=		mthca
 .endif
 _ndis=		ndis
 _nfe=		nfe
+_ntb=		ntb
 _nvd=		nvd
 .if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
@@ -706,6 +711,7 @@ _padlock=	padlock
 .endif
 _pccard=	pccard
 _qlxgb=		qlxgb
+_qlxgbe=	qlxgbe
 _rdma=		rdma
 _s3=		s3
 _safe=		safe
@@ -720,6 +726,7 @@ _twa=		twa
 _vesa=		vesa
 _viawd=		viawd
 _virtio=	virtio
+_vmm=		vmm
 _vxge=  	vxge
 _x86bios=	x86bios
 _wbwd=		wbwd

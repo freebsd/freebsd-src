@@ -194,14 +194,20 @@ struct ieee80211_meshbeacont_ie {
 #endif
 
 /* Gate (GANN) Annoucement */
+/*
+ * NB: these macros used for the length in the IEs does not include 2 bytes
+ * for _ie and _len fields as is defined by the standard.
+ */
+#define	IEEE80211_MESHGANN_BASE_SZ 	(15)
 struct ieee80211_meshgann_ie {
-	uint8_t		pann_ie;		/* IEEE80211_ELEMID_MESHGANN */
-	uint8_t		pann_len;
-	uint8_t		pann_flags;
-	uint8_t		pann_hopcount;
-	uint8_t		pann_ttl;
-	uint8_t		pann_addr[IEEE80211_ADDR_LEN];
-	uint8_t		pann_seq;		/* PANN Sequence Number */
+	uint8_t		gann_ie;		/* IEEE80211_ELEMID_MESHGANN */
+	uint8_t		gann_len;
+	uint8_t		gann_flags;
+	uint8_t		gann_hopcount;
+	uint8_t		gann_ttl;
+	uint8_t		gann_addr[IEEE80211_ADDR_LEN];
+	uint32_t	gann_seq;		/* GANN Sequence Number */
+	uint16_t	gann_interval;		/* GANN Interval */
 } __packed;
 
 /* Root (MP) Annoucement */
@@ -399,6 +405,7 @@ MALLOC_DECLARE(M_80211_MESH_PREP);
 MALLOC_DECLARE(M_80211_MESH_PERR);
 
 MALLOC_DECLARE(M_80211_MESH_RT);
+MALLOC_DECLARE(M_80211_MESH_GT_RT);
 /*
  * Basic forwarding information:
  * o Destination MAC
@@ -423,12 +430,23 @@ struct ieee80211_mesh_route {
 #define	IEEE80211_MESHRT_FLAGS_DISCOVER	0x01	/* path discovery */
 #define	IEEE80211_MESHRT_FLAGS_VALID	0x02	/* path discovery complete */
 #define	IEEE80211_MESHRT_FLAGS_PROXY	0x04	/* proxy entry */
+#define	IEEE80211_MESHRT_FLAGS_GATE	0x08	/* mesh gate entry */
 	uint32_t		rt_lifetime;	/* route timeout */
 	uint32_t		rt_lastmseq;	/* last seq# seen dest */
 	uint32_t		rt_ext_seq;	/* proxy seq number */
 	void			*rt_priv;	/* private data */
 };
 #define	IEEE80211_MESH_ROUTE_PRIV(rt, cast)	((cast *)rt->rt_priv)
+
+/*
+ * Stored information about known mesh gates.
+ */
+struct ieee80211_mesh_gate_route {
+	TAILQ_ENTRY(ieee80211_mesh_gate_route)	gr_next;
+	uint8_t				gr_addr[IEEE80211_ADDR_LEN];
+	uint32_t			gr_lastseq;
+	struct ieee80211_mesh_route 	*gr_route;
+};
 
 #define	IEEE80211_MESH_PROTO_DSZ	12	/* description size */
 /*
@@ -495,9 +513,13 @@ struct ieee80211_mesh_state {
 #define IEEE80211_MESHFLAGS_AP		0x01	/* accept peers */
 #define IEEE80211_MESHFLAGS_GATE	0x02	/* mesh gate role */
 #define IEEE80211_MESHFLAGS_FWD		0x04	/* forward packets */
+#define IEEE80211_MESHFLAGS_ROOT	0x08	/* configured as root */
 	uint8_t				ms_flags;
 	struct mtx			ms_rt_lock;
 	struct callout			ms_cleantimer;
+	struct callout			ms_gatetimer;
+	ieee80211_mesh_seq		ms_gateseq;
+	TAILQ_HEAD(, ieee80211_mesh_gate_route) ms_known_gates;
 	TAILQ_HEAD(, ieee80211_mesh_route)  ms_routes;
 	struct ieee80211_mesh_proto_metric *ms_pmetric;
 	struct ieee80211_mesh_proto_path   *ms_ppath;
@@ -530,6 +552,8 @@ uint8_t *	ieee80211_add_meshconf(uint8_t *, struct ieee80211vap *);
 uint8_t *	ieee80211_add_meshpeer(uint8_t *, uint8_t, uint16_t, uint16_t,
 		    uint16_t);
 uint8_t *	ieee80211_add_meshlmetric(uint8_t *, uint8_t, uint32_t);
+uint8_t *	ieee80211_add_meshgate(uint8_t *,
+		    struct ieee80211_meshgann_ie *);
 
 void		ieee80211_mesh_node_init(struct ieee80211vap *,
 		    struct ieee80211_node *);
@@ -542,6 +566,14 @@ void		ieee80211_mesh_init_neighbor(struct ieee80211_node *,
 		   const struct ieee80211_scanparams *);
 void		ieee80211_mesh_update_beacon(struct ieee80211vap *,
 		    struct ieee80211_beacon_offsets *);
+struct ieee80211_mesh_gate_route *
+		ieee80211_mesh_mark_gate(struct ieee80211vap *,
+		    const uint8_t *, struct ieee80211_mesh_route *);
+void		ieee80211_mesh_forward_to_gates(struct ieee80211vap *,
+		    struct ieee80211_mesh_route *);
+struct ieee80211_node *
+		ieee80211_mesh_find_txnode(struct ieee80211vap *,
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 
 /*
  * Return non-zero if proxy operation is enabled.

@@ -35,6 +35,7 @@
 #define MILLISEC	1000
 #define MICROSEC	1000000
 #define NANOSEC		1000000000
+#define TIME_MAX	LLONG_MAX
 
 typedef longlong_t	hrtime_t;
 
@@ -45,6 +46,9 @@ typedef longlong_t	hrtime_t;
 #define	TIMESPEC_OVERFLOW(ts)						\
 	((ts)->tv_sec < INT64_MIN || (ts)->tv_sec > INT64_MAX)
 #endif
+
+#define	SEC_TO_TICK(sec)	((sec) * hz)
+#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
 
 #ifdef _KERNEL
 static __inline hrtime_t

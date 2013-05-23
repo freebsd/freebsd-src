@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -72,13 +72,12 @@ s32 ixgbe_check_phy_link(struct ixgbe_hw *hw,
 			 bool *link_up);
 s32 ixgbe_setup_phy_link_speed(struct ixgbe_hw *hw,
 			       ixgbe_link_speed speed,
-			       bool autoneg,
 			       bool autoneg_wait_to_complete);
 void ixgbe_disable_tx_laser(struct ixgbe_hw *hw);
 void ixgbe_enable_tx_laser(struct ixgbe_hw *hw);
 void ixgbe_flap_tx_laser(struct ixgbe_hw *hw);
 s32 ixgbe_setup_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
-		     bool autoneg, bool autoneg_wait_to_complete);
+		     bool autoneg_wait_to_complete);
 s32 ixgbe_check_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		     bool *link_up, bool link_up_wait_to_complete);
 s32 ixgbe_get_link_capabilities(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
@@ -159,6 +158,7 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 					  union ixgbe_atr_input *mask);
 u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
 				     union ixgbe_atr_hash_dword common);
+bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 s32 ixgbe_read_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
 			u8 *data);
 s32 ixgbe_write_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,

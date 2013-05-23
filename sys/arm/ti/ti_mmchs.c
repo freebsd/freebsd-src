@@ -1584,7 +1584,6 @@ static int
 ti_mmchs_activate(device_t dev)
 {
 	struct ti_mmchs_softc *sc = device_get_softc(dev);
-	unsigned long addr;
 	int rid;
 	int err;
 
@@ -1630,8 +1629,8 @@ ti_mmchs_activate(device_t dev)
 		panic("Unknown OMAP device\n");
 
 	/* Get the physical address of the MMC data register, needed for DMA */
-	addr = vtophys(rman_get_start(sc->sc_mem_res));
-	sc->sc_data_reg_paddr = addr + sc->sc_reg_off + MMCHS_DATA;
+	sc->sc_data_reg_paddr = BUS_SPACE_PHYSADDR(sc->sc_mem_res, 
+	    sc->sc_reg_off + MMCHS_DATA);
 
 	/* Set the initial power state to off */
 	sc->sc_cur_power_mode = power_off;

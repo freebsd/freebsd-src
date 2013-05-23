@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
@@ -102,7 +103,7 @@ static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 static void	seltdinit(struct thread *);
-static int	seltdwait(struct thread *, int);
+static int	seltdwait(struct thread *, sbintime_t, sbintime_t);
 static void	seltdclear(struct thread *);
 
 /*
@@ -244,7 +245,7 @@ kern_readv(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
+	error = fget_read(td, fd, CAP_READ, &fp);
 	if (error)
 		return (error);
 	error = dofileread(td, fd, fp, auio, (off_t)-1, 0);
@@ -287,7 +288,7 @@ kern_preadv(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, CAP_READ, &fp);
+	error = fget_read(td, fd, CAP_PREAD, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -453,7 +454,7 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
+	error = fget_write(td, fd, CAP_WRITE, &fp);
 	if (error)
 		return (error);
 	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
@@ -496,7 +497,7 @@ kern_pwritev(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, CAP_WRITE, &fp);
+	error = fget_write(td, fd, CAP_PWRITE, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -704,28 +705,60 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 {
 	struct file *fp;
 	struct filedesc *fdp;
-	int error;
-	int tmp;
+	int error, tmp, locked;
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_CMD(com);
-	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0)
-		return (error);
-	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
-		fdrop(fp, td);
-		return (EBADF);
-	}
+
 	fdp = td->td_proc->p_fd;
+
 	switch (com) {
 	case FIONCLEX:
-		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
-		FILEDESC_XUNLOCK(fdp);
-		goto out;
 	case FIOCLEX:
 		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-		FILEDESC_XUNLOCK(fdp);
+		locked = LA_XLOCKED;
+		break;
+	default:
+#ifdef CAPABILITIES
+		FILEDESC_SLOCK(fdp);
+		locked = LA_SLOCKED;
+#else
+		locked = LA_UNLOCKED;
+#endif
+		break;
+	}
+
+#ifdef CAPABILITIES
+	if ((fp = fget_locked(fdp, fd)) == NULL) {
+		error = EBADF;
+		goto out;
+	}
+	if ((error = cap_ioctl_check(fdp, fd, com)) != 0) {
+		fp = NULL;	/* fhold() was not called yet */
+		goto out;
+	}
+	fhold(fp);
+	if (locked == LA_SLOCKED) {
+		FILEDESC_SUNLOCK(fdp);
+		locked = LA_UNLOCKED;
+	}
+#else
+	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0) {
+		fp = NULL;
+		goto out;
+	}
+#endif
+	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
+		error = EBADF;
+		goto out;
+	}
+
+	switch (com) {
+	case FIONCLEX:
+		fdp->fd_ofiles[fd].fde_flags &= ~UF_EXCLOSE;
+		goto out;
+	case FIOCLEX:
+		fdp->fd_ofiles[fd].fde_flags |= UF_EXCLOSE;
 		goto out;
 	case FIONBIO:
 		if ((tmp = *(int *)data))
@@ -745,7 +778,21 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 
 	error = fo_ioctl(fp, com, data, td->td_ucred, td);
 out:
-	fdrop(fp, td);
+	switch (locked) {
+	case LA_XLOCKED:
+		FILEDESC_XUNLOCK(fdp);
+		break;
+#ifdef CAPABILITIES
+	case LA_SLOCKED:
+		FILEDESC_SUNLOCK(fdp);
+		break;
+#endif
+	default:
+		FILEDESC_UNLOCK_ASSERT(fdp);
+		break;
+	}
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 
@@ -903,9 +950,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
-	struct timeval atv, rtv, ttv;
-	int error, lf, ndu, timo;
+	struct timeval rtv;
+	sbintime_t asbt, precision, rsbt;
 	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
+	int error, lf, ndu;
 
 	if (nd < 0)
 		return (EINVAL);
@@ -995,35 +1043,37 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nbufbytes != 0)
 		bzero(selbits, nbufbytes / 2);
 
+	precision = 0;
 	if (tvp != NULL) {
-		atv = *tvp;
-		if (itimerfix(&atv)) {
+		rtv = *tvp;
+		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 ||
+		    rtv.tv_usec >= 1000000) {
 			error = EINVAL;
 			goto done;
 		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-	}
-	timo = 0;
+		if (!timevalisset(&rtv))
+			asbt = 0;
+		else if (rtv.tv_sec <= INT32_MAX) {
+			rsbt = tvtosbt(rtv);
+			precision = rsbt;
+			precision >>= tc_precexp;
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			if (asbt <= INT64_MAX - rsbt)
+				asbt += rsbt;
+			else
+				asbt = -1;
+		} else
+			asbt = -1;
+	} else
+		asbt = -1;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = selscan(td, ibits, obits, nd);
 		if (error || td->td_retval[0] != 0)
 			break;
-		if (atv.tv_sec || atv.tv_usec) {
-			getmicrouptime(&rtv);
-			if (timevalcmp(&rtv, &atv, >=))
-				break;
-			ttv = atv;
-			timevalsub(&ttv, &rtv);
-			timo = ttv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&ttv);
-		}
-		error = seltdwait(td, timo);
+		error = seltdwait(td, asbt, precision);
 		if (error)
 			break;
 		error = selrescan(td, ibits, obits);
@@ -1130,32 +1180,8 @@ selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
 static __inline int
 getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
-	struct file *fp;
-#ifdef CAPABILITIES
-	struct file *fp_fromcap;
-	int error;
-#endif
 
-	if ((fp = fget_unlocked(fdp, fd)) == NULL)
-		return (EBADF);
-#ifdef CAPABILITIES
-	/*
-	 * If the file descriptor is for a capability, test rights and use
-	 * the file descriptor references by the capability.
-	 */
-	error = cap_funwrap(fp, CAP_POLL_EVENT, &fp_fromcap);
-	if (error) {
-		fdrop(fp, curthread);
-		return (error);
-	}
-	if (fp != fp_fromcap) {
-		fhold(fp_fromcap);
-		fdrop(fp, curthread);
-		fp = fp_fromcap;
-	}
-#endif /* CAPABILITIES */
-	*fpp = fp;
-	return (0);
+	return (fget_unlocked(fdp, fd, CAP_POLL_EVENT, 0, fpp, NULL));
 }
 
 /*
@@ -1255,9 +1281,9 @@ sys_poll(td, uap)
 {
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
-	struct timeval atv, rtv, ttv;
-	int error, timo;
+	sbintime_t asbt, precision, rsbt;
 	u_int nfds;
+	int error;
 	size_t ni;
 
 	nfds = uap->nfds;
@@ -1271,36 +1297,31 @@ sys_poll(td, uap)
 	error = copyin(uap->fds, bits, ni);
 	if (error)
 		goto done;
+	precision = 0;
 	if (uap->timeout != INFTIM) {
-		atv.tv_sec = uap->timeout / 1000;
-		atv.tv_usec = (uap->timeout % 1000) * 1000;
-		if (itimerfix(&atv)) {
+		if (uap->timeout < 0) {
 			error = EINVAL;
 			goto done;
 		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-	}
-	timo = 0;
+		if (uap->timeout == 0)
+			asbt = 0;
+		else {
+			rsbt = SBT_1MS * uap->timeout;
+			precision = rsbt;
+			precision >>= tc_precexp;
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			asbt += rsbt;
+		}
+	} else
+		asbt = -1;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = pollscan(td, bits, nfds);
 		if (error || td->td_retval[0] != 0)
 			break;
-		if (atv.tv_sec || atv.tv_usec) {
-			getmicrouptime(&rtv);
-			if (timevalcmp(&rtv, &atv, >=))
-				break;
-			ttv = atv;
-			timevalsub(&ttv, &rtv);
-			timo = ttv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&ttv);
-		}
-		error = seltdwait(td, timo);
+		error = seltdwait(td, asbt, precision);
 		if (error)
 			break;
 		error = pollrescan(td);
@@ -1349,13 +1370,14 @@ pollrescan(struct thread *td)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		fp = fdp->fd_ofiles[fd->fd];
+		fp = fdp->fd_ofiles[fd->fd].fde_file;
 #ifdef CAPABILITIES
-		if ((fp == NULL)
-		    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+		if (fp == NULL ||
+		    cap_check(cap_rights(fdp, fd->fd), CAP_POLL_EVENT) != 0)
 #else
-		if (fp == NULL) {
+		if (fp == NULL)
 #endif
+		{
 			fd->revents = POLLNVAL;
 			n++;
 			continue;
@@ -1408,9 +1430,8 @@ pollscan(td, fds, nfd)
 	u_int nfd;
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
-	int i;
 	struct file *fp;
-	int n = 0;
+	int i, n = 0;
 
 	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
@@ -1420,13 +1441,15 @@ pollscan(td, fds, nfd)
 		} else if (fds->fd < 0) {
 			fds->revents = 0;
 		} else {
-			fp = fdp->fd_ofiles[fds->fd];
+			fp = fdp->fd_ofiles[fds->fd].fde_file;
 #ifdef CAPABILITIES
-			if ((fp == NULL)
-			    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+			if (fp == NULL ||
+			    cap_check(cap_rights(fdp, fds->fd),
+			    CAP_POLL_EVENT) != 0)
 #else
-			if (fp == NULL) {
+			if (fp == NULL)
 #endif
+			{
 				fds->revents = POLLNVAL;
 				n++;
 			} else {
@@ -1642,7 +1665,7 @@ out:
 }
 
 static int
-seltdwait(struct thread *td, int timo)
+seltdwait(struct thread *td, sbintime_t sbt, sbintime_t precision)
 {
 	struct seltd *stp;
 	int error;
@@ -1661,8 +1684,11 @@ seltdwait(struct thread *td, int timo)
 		mtx_unlock(&stp->st_mtx);
 		return (0);
 	}
-	if (timo > 0)
-		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
+	if (sbt == 0)
+		error = EWOULDBLOCK;
+	else if (sbt != -1)
+		error = cv_timedwait_sig_sbt(&stp->st_wait, &stp->st_mtx,
+		    sbt, precision, C_ABSOLUTE);
 	else
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
 	mtx_unlock(&stp->st_mtx);

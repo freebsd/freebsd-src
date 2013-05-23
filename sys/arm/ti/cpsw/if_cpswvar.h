@@ -35,105 +35,90 @@
 #define CPSW_MIIBUS_RETRIES	5
 #define CPSW_MIIBUS_DELAY	1000
 
-#define CPSW_MAX_TX_BUFFERS	128
-#define CPSW_MAX_RX_BUFFERS	128
 #define CPSW_MAX_ALE_ENTRIES	1024
 
+#define CPSW_SYSCTL_COUNT 34
+
 struct cpsw_slot {
+	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
 	bus_dmamap_t dmamap;
 	struct mbuf *mbuf;
-	int index;
 	STAILQ_ENTRY(cpsw_slot) next;
 };
-STAILQ_HEAD(cpsw_queue, cpsw_slot);
+STAILQ_HEAD(cpsw_slots, cpsw_slot);
+
+struct cpsw_queue {
+	struct mtx	lock;
+	int		running;
+	struct cpsw_slots active;
+	struct cpsw_slots avail;
+	uint32_t	queue_adds; /* total bufs added */
+	uint32_t	queue_removes; /* total bufs removed */
+	uint32_t	queue_removes_at_last_tick; /* Used by watchdog */
+	int		queue_slots;
+	int		active_queue_len;
+	int		max_active_queue_len;
+	int		avail_queue_len;
+	int		max_avail_queue_len;
+	int		longest_chain; /* Largest # segments in a single packet. */
+	int		hdp_offset;
+};
 
 struct cpsw_softc {
 	struct ifnet	*ifp;
 	phandle_t	node;
 	device_t	dev;
+	struct bintime	attach_uptime; /* system uptime when attach happened. */
+	struct bintime	init_uptime; /* system uptime when init happened. */
+
+	/* TODO: We should set up a child structure for each port;
+	   store mac, phy information, etc, in that structure. */
 	uint8_t		mac_addr[ETHER_ADDR_LEN];
+
 	device_t	miibus;
 	struct mii_data	*mii;
-	struct mtx	tx_lock;			/* transmitter lock */
-	struct mtx	rx_lock;			/* receiver lock */
-	struct resource	*res[1 + CPSW_INTR_COUNT];	/* resources */
-	void		*ih_cookie[CPSW_INTR_COUNT];	/* interrupt handlers cookies */
+	/* We expect 1 memory resource and 4 interrupts from the device tree. */
+	struct resource	*res[1 + CPSW_INTR_COUNT];
+
+	/* Interrupts get recorded here as we initialize them. */
+	/* Interrupt teardown just walks this list. */
+	struct {
+		struct resource *res;
+		void		*ih_cookie;
+		const char *description;
+	} interrupts[CPSW_INTR_COUNT];
+	int		interrupt_count;
 
 	uint32_t	cpsw_if_flags;
 	int		cpsw_media_status;
 
-	struct callout	wd_callout;
-	int		tx_wd_timer;
+	struct {
+		int resets;
+		int timer;
+		struct callout	callout;
+	} watchdog;
 
 	bus_dma_tag_t	mbuf_dtag;
 
-	/* RX buffer tracking */
-	int		rx_running;
-	struct cpsw_queue rx_active;
-	struct cpsw_queue rx_avail;
-	struct cpsw_slot _rx_slots[CPSW_MAX_RX_BUFFERS];
+	/* An mbuf full of nulls for TX padding. */
+	bus_dmamap_t null_mbuf_dmamap;
+	struct mbuf *null_mbuf;
+	bus_addr_t null_mbuf_paddr;
 
-	/* TX buffer tracking. */
-	int		tx_running;
-	struct cpsw_queue tx_active;
-	struct cpsw_queue tx_avail;
-	struct cpsw_slot _tx_slots[CPSW_MAX_TX_BUFFERS];
+	/* RX and TX buffer tracking */
+	struct cpsw_queue rx, tx;
 
-	/* Statistics */
-	uint32_t	tx_enqueues; /* total TX bufs added to queue */
-	uint32_t	tx_retires; /* total TX bufs removed from queue */
-	uint32_t	tx_retires_at_last_tick; /* used for watchdog */
-	/* Note:  tx_queued != tx_enqueues - tx_retires
-	   At driver reset, packets can be discarded
-	   from TX queue without being retired. */
-	int		tx_queued; /* Current bufs in TX queue */
-	int		tx_max_queued;
+	/* 64-bit versions of 32-bit hardware statistics counters */
+	uint64_t shadow_stats[CPSW_SYSCTL_COUNT];
+
+	/* CPPI STATERAM has 512 slots for building TX/RX queues. */
+	/* TODO: Size here supposedly varies with different versions
+	   of the controller.  Check DaVinci specs and find a good
+	   way to adjust this.  One option is to have a separate
+	   Device Tree parameter for number slots; another option
+	   is to calculate it from the memory size in the device tree. */
+	struct cpsw_slot _slots[CPSW_CPPI_RAM_SIZE / sizeof(struct cpsw_cpdma_bd)];
+	struct cpsw_slots avail;
 };
-
-#define CPDMA_BD_SOP		(1<<15)
-#define CPDMA_BD_EOP		(1<<14)
-#define CPDMA_BD_OWNER		(1<<13)
-#define CPDMA_BD_EOQ		(1<<12)
-#define CPDMA_BD_TDOWNCMPLT	(1<<11)
-#define CPDMA_BD_PKT_ERR_MASK	(3<< 4)
-
-struct cpsw_cpdma_bd {
-	volatile uint32_t next;
-	volatile uint32_t bufptr;
-	volatile uint16_t buflen;
-	volatile uint16_t bufoff;
-	volatile uint16_t pktlen;
-	volatile uint16_t flags;
-};
-
-/* Read/Write macros */
-#define cpsw_read_4(reg)		bus_read_4(sc->res[0], reg)
-#define cpsw_write_4(reg, val)		bus_write_4(sc->res[0], reg, val)
-
-#define cpsw_cpdma_txbd_offset(i)	\
-	(CPSW_CPPI_RAM_OFFSET + ((i)*16))
-#define cpsw_cpdma_txbd_paddr(i)	(cpsw_cpdma_txbd_offset(i) + \
-	vtophys(rman_get_start(sc->res[0])))
-#define cpsw_cpdma_read_txbd(i, val)	\
-	bus_read_region_4(sc->res[0], cpsw_cpdma_txbd_offset(i), (uint32_t *) val, 4)
-#define cpsw_cpdma_write_txbd(i, val)	\
-	bus_write_region_4(sc->res[0], cpsw_cpdma_txbd_offset(i), (uint32_t *) val, 4)
-#define cpsw_cpdma_write_txbd_next(i, val) \
-	bus_write_4(sc->res[0], cpsw_cpdma_txbd_offset(i), val)
-#define cpsw_cpdma_read_txbd_flags(i) \
-	bus_read_2(sc->res[0], cpsw_cpdma_txbd_offset(i)+14)
-
-#define cpsw_cpdma_rxbd_offset(i)	\
-	(CPSW_CPPI_RAM_OFFSET + ((CPSW_MAX_TX_BUFFERS + (i))*16))
-#define cpsw_cpdma_rxbd_paddr(i)	(cpsw_cpdma_rxbd_offset(i) + \
-	vtophys(rman_get_start(sc->res[0])))
-#define cpsw_cpdma_read_rxbd(i, val)	\
-	bus_read_region_4(sc->res[0], cpsw_cpdma_rxbd_offset(i), (uint32_t *) val, 4)
-#define cpsw_cpdma_write_rxbd(i, val)	\
-	bus_write_region_4(sc->res[0], cpsw_cpdma_rxbd_offset(i), (uint32_t *) val, 4)
-#define cpsw_cpdma_write_rxbd_next(i, val) \
-	bus_write_4(sc->res[0], cpsw_cpdma_rxbd_offset(i), val)
-#define cpsw_cpdma_read_rxbd_flags(i) \
-	bus_read_2(sc->res[0], cpsw_cpdma_rxbd_offset(i)+14)
 
 #endif /*_IF_CPSWVAR_H */

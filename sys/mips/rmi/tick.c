@@ -219,22 +219,17 @@ DELAY(int n)
 }
 
 static int
-clock_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+clock_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	uint32_t fdiv, div, next;
 
-	if (period != NULL) {
-		div = (et->et_frequency * (period->frac >> 32)) >> 32;
-		if (period->sec != 0)
-			div += et->et_frequency * period->sec;
-	} else
+	if (period != 0)
+		div = (et->et_frequency * period) >> 32;
+	else
 		div = 0;
-	if (first != NULL) {
-		fdiv = (et->et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			fdiv += et->et_frequency * first->sec;
-	} else 
+	if (first != 0)
+		fdiv = (et->et_frequency * first) >> 32;
+	else 
 		fdiv = div;
 	DPCPU_SET(cycles_per_tick, div);
 	next = mips_rd_count() + fdiv;
@@ -351,11 +346,8 @@ clock_attach(device_t dev)
 	    ET_FLAGS_PERCPU;
 	sc->et.et_quality = 800;
 	sc->et.et_frequency = counter_freq;
-	sc->et.et_min_period.sec = 0;
-	sc->et.et_min_period.frac = 0x00004000LLU << 32; /* To be safe. */
-	sc->et.et_max_period.sec = 0xfffffffeU / sc->et.et_frequency;
-	sc->et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_min_period = 0x00004000LLU; /* To be safe. */
+	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = clock_start;
 	sc->et.et_stop = clock_stop;
 	sc->et.et_priv = sc;

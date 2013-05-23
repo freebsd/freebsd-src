@@ -1314,7 +1314,7 @@ siftr_manage_ops(uint8_t action)
 		 * flow seen and freeing any malloc'd memory.
 		 * The hash consists of an array of LISTs (man 3 queue).
 		 */
-		for (i = 0; i < siftr_hashmask; i++) {
+		for (i = 0; i <= siftr_hashmask; i++) {
 			LIST_FOREACH_SAFE(counter, counter_hash + i, nodes,
 			    tmp_counter) {
 				key = counter->key;

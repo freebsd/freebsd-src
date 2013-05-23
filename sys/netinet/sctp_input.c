@@ -956,7 +956,6 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	} else {
 		/* no outstanding data to send, so move on... */
 		/* send SHUTDOWN-ACK */
-		sctp_send_shutdown_ack(stcb, net);
 		/* move to SHUTDOWN-ACK-SENT state */
 		if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
@@ -965,6 +964,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 		SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 		sctp_stop_timers_for_shutdown(stcb);
+		sctp_send_shutdown_ack(stcb, net);
 		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK, stcb->sctp_ep,
 		    stcb, net);
 	}
@@ -2130,13 +2130,13 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 
 	asoc = &stcb->asoc;
 	/* get scope variables out of cookie */
-	asoc->ipv4_local_scope = cookie->ipv4_scope;
-	asoc->site_scope = cookie->site_scope;
-	asoc->local_scope = cookie->local_scope;
-	asoc->loopback_scope = cookie->loopback_scope;
+	asoc->scope.ipv4_local_scope = cookie->ipv4_scope;
+	asoc->scope.site_scope = cookie->site_scope;
+	asoc->scope.local_scope = cookie->local_scope;
+	asoc->scope.loopback_scope = cookie->loopback_scope;
 
-	if ((asoc->ipv4_addr_legal != cookie->ipv4_addr_legal) ||
-	    (asoc->ipv6_addr_legal != cookie->ipv6_addr_legal)) {
+	if ((asoc->scope.ipv4_addr_legal != cookie->ipv4_addr_legal) ||
+	    (asoc->scope.ipv6_addr_legal != cookie->ipv6_addr_legal)) {
 		struct mbuf *op_err;
 
 		/*

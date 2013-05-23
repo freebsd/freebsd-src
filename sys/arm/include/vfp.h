@@ -124,5 +124,6 @@
 #define COPROC10		(0x3 << 20)
 #define COPROC11		(0x3 << 22)
 
+void    vfp_init(void);
 
 #endif

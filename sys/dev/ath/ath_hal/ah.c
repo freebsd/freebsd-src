@@ -139,6 +139,9 @@ ath_hal_mac_name(struct ath_hal *ah)
 		return "9550";
 	case AR_SREV_VERSION_AR9485:
 		return "9485";
+	case AR_SREV_VERSION_QCA9565:
+		/* XXX should say QCA, not AR */
+		return "9565";
 	}
 	return "????";
 }
@@ -324,9 +327,9 @@ ath_computedur_ht(uint32_t frameLen, uint16_t rate, int streams,
 	KASSERT((rate &~ IEEE80211_RATE_MCS) < 31, ("bad mcs 0x%x", rate));
 
 	if (isht40)
-		bitsPerSymbol = ht40_bps[rate & 0xf];
+		bitsPerSymbol = ht40_bps[rate & 0x1f];
 	else
-		bitsPerSymbol = ht20_bps[rate & 0xf];
+		bitsPerSymbol = ht20_bps[rate & 0x1f];
 	numBits = OFDM_PLCP_BITS + (frameLen << 3);
 	numSymbols = howmany(numBits, bitsPerSymbol);
 	if (isShortGI)
@@ -692,6 +695,10 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->hal4AddrAggrSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_EXT_CHAN_DFS:
 		return pCap->halExtChanDfsSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_RX_STBC:
+		return pCap->halRxStbcSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_TX_STBC:
+		return pCap->halTxStbcSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_COMBINED_RADAR_RSSI:
 		return pCap->halUseCombinedRadarRssi ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_AUTO_SLEEP:

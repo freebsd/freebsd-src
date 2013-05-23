@@ -43,12 +43,11 @@ unsigned int get_coprocessorACR(void);
 int	vfp_bounce(u_int, u_int, struct trapframe *, int);
 void	vfp_discard(void);
 void	vfp_enable(void);
-void	vfp_init(void);
 void	vfp_restore(struct vfp_state *);
 void	vfp_store(struct vfp_state *);
 void	set_coprocessorACR(u_int);
 
-boolean_t vfp_exists;
+extern int vfp_exists;
 static struct undefined_handler vfp10_uh, vfp11_uh;
 
 /* The VFMXR command using coprocessor commands */
@@ -74,8 +73,8 @@ void
 set_coprocessorACR(u_int val)
 {
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 2\n\t"
-			 "isb\n\t"
 	 : : "r" (val) : "cc");
+	isb();
 }
 
 
@@ -140,7 +139,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 #ifdef SMP
 		/* don't save if newer registers are on another processor */
 		if (vfptd /* && (vfptd == curthread) */ &&
-		   (vfptd->td_pcb->pcb_vfpcpu == PCPU_GET(vfpcpu))
+		   (vfptd->td_pcb->pcb_vfpcpu == PCPU_GET(cpu)))
 #else
 		/* someone did not save their registers, */
 		if (vfptd /* && (vfptd == curthread) */)
@@ -168,7 +167,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	 */
 	vfp_restore(&curpcb->pcb_vfpstate);
 #ifdef SMP
-	curpcb->pcb_cpu = PCPU_GET(cpu);
+	curpcb->pcb_vfpcpu = PCPU_GET(cpu);
 #endif
 	PCPU_SET(vfpcthread, PCPU_GET(curthread));
 	return 0;

@@ -184,6 +184,7 @@ int sysctl_handle_long(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_64(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS);
 
 int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
@@ -378,6 +379,19 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
 	    SYSCTL_ADD_ASSERT_TYPE(UINT64, ptr), 0,			\
 	    sysctl_handle_64, "QU", __DESCR(descr))
+
+/* Oid for a 64-bin unsigned counter(9).  The pointer must be non NULL. */
+#define	SYSCTL_COUNTER_U64(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_ASSERT_TYPE(UINT64, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_counter_u64, "QU", descr)
+
+#define	SYSCTL_ADD_COUNTER_U64(ctx, parent, nbr, name, access, ptr, descr)\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(UINT64, ptr), 0,			\
+	    sysctl_handle_counter_u64, "QU", __DESCR(descr))
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \

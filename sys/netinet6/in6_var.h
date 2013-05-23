@@ -542,7 +542,6 @@ do {								\
 		((struct in6_ifextra *)((ifp)->if_afdata[AF_INET6]))->in6_ifstat->tag++; \
 } while (/*CONSTCOND*/ 0)
 
-extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
 VNET_DECLARE(unsigned long, in6_maxmtu);
 #define	V_in6_maxmtu			VNET(in6_maxmtu)

@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
-#include <machine/asm.h>
 #include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -81,6 +80,18 @@ __FBSDID("$FreeBSD$");
 
 #ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
+#endif
+
+/* Duplicated from asm.h */
+#if defined(__mips_o32)
+#define	SZREG	4
+#else
+#define	SZREG	8
+#endif
+#if defined(__mips_o32) || defined(__mips_o64)
+#define	CALLFRAME_SIZ	(SZREG * (4 + 2))
+#elif defined(__mips_n32) || defined(__mips_n64)
+#define	CALLFRAME_SIZ	(SZREG * 4)
 #endif
 
 #ifndef __mips_n64
@@ -437,10 +448,11 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	register_t sp;
 
 	/*
-	* At the point where a function is called, sp must be 8
-	* byte aligned[for compatibility with 64-bit CPUs]
-	* in ``See MIPS Run'' by D. Sweetman, p. 269
-	* align stack */
+	 * At the point where a function is called, sp must be 8
+	 * byte aligned[for compatibility with 64-bit CPUs]
+	 * in ``See MIPS Run'' by D. Sweetman, p. 269
+	 * align stack
+	 */
 	sp = ((register_t)(intptr_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
 	    CALLFRAME_SIZ;
 
@@ -613,6 +625,16 @@ dump_trapframe(struct trapframe *trapframe)
 	DB_PRINT_REG(trapframe, a1);
 	DB_PRINT_REG(trapframe, a2);
 	DB_PRINT_REG(trapframe, a3);
+#if defined(__mips_n32) || defined(__mips_n64)
+	DB_PRINT_REG(trapframe, a4);
+	DB_PRINT_REG(trapframe, a5);
+	DB_PRINT_REG(trapframe, a6);
+	DB_PRINT_REG(trapframe, a7);
+	DB_PRINT_REG(trapframe, t0);
+	DB_PRINT_REG(trapframe, t1);
+	DB_PRINT_REG(trapframe, t2);
+	DB_PRINT_REG(trapframe, t3);
+#else
 	DB_PRINT_REG(trapframe, t0);
 	DB_PRINT_REG(trapframe, t1);
 	DB_PRINT_REG(trapframe, t2);
@@ -621,6 +643,7 @@ dump_trapframe(struct trapframe *trapframe)
 	DB_PRINT_REG(trapframe, t5);
 	DB_PRINT_REG(trapframe, t6);
 	DB_PRINT_REG(trapframe, t7);
+#endif
 	DB_PRINT_REG(trapframe, s0);
 	DB_PRINT_REG(trapframe, s1);
 	DB_PRINT_REG(trapframe, s2);

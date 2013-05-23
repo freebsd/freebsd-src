@@ -48,7 +48,11 @@ struct usb_hub {
 	uint16_t portpower;		/* mA per USB port */
 	uint8_t	isoc_last_time;
 	uint8_t	nports;
+#if (USB_HAVE_FIXED_PORT == 0)
 	struct usb_port ports[0];
+#else
+	struct usb_port ports[USB_MAX_PORTS];
+#endif
 };
 
 /* function prototypes */

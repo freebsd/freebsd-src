@@ -102,7 +102,6 @@ device		fdc
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_CAM		# Handle legacy controllers with CAM
 options 	ATA_STATIC_ID	# Static device numbering
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
@@ -138,7 +137,7 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# Enclosure Services (SES and SAF-TE)
-device		ctl		# CAM Target Layer
+#device		ctl		# CAM Target Layer
 
 # RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID
@@ -197,7 +196,6 @@ device		uart		# Generic UART driver
 device		ppc
 device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
-device		plip		# TCP/IP over parallel
 device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 
@@ -332,3 +330,11 @@ device		snd_via8233	# VIA VT8233x Audio
 device		mmc		# MMC/SD bus
 device		mmcsd		# MMC/SD memory card
 device		sdhci		# Generic PCI SD Host Controller
+
+# VirtIO support
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI device
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device

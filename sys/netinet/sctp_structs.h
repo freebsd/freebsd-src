@@ -1177,17 +1177,7 @@ struct sctp_association {
 	 */
 	uint8_t peer_supports_pktdrop;
 
-	/* Do we allow V6/V4? */
-	uint8_t ipv4_addr_legal;
-	uint8_t ipv6_addr_legal;
-	/* Address scoping flags */
-	/* scope value for IPv4 */
-	uint8_t ipv4_local_scope;
-	/* scope values for IPv6 */
-	uint8_t local_scope;
-	uint8_t site_scope;
-	/* loopback scope */
-	uint8_t loopback_scope;
+	struct sctp_scoping scope;
 	/* flags to handle send alternate net tracking */
 	uint8_t used_alt_onsack;
 	uint8_t used_alt_asconfack;

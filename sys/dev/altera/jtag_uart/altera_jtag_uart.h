@@ -75,7 +75,7 @@ struct altera_jtag_uart_softc {
 	u_int			*ajus_jtag_missedp;
 };
 
-#define	AJU_TTYNAME	"ttyu"
+#define	AJU_TTYNAME	"ttyj"
 
 /*
  * Flag values for ajus_flags.
@@ -193,5 +193,7 @@ extern u_int		aju_cons_jtag_missed;
  */
 int	altera_jtag_uart_attach(struct altera_jtag_uart_softc *sc);
 void	altera_jtag_uart_detach(struct altera_jtag_uart_softc *sc);
+
+extern devclass_t	altera_jtag_uart_devclass;
 
 #endif /* _DEV_ALTERA_JTAG_UART_H_ */

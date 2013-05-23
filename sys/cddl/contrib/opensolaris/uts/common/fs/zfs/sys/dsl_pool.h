@@ -36,6 +36,7 @@
 #include <sys/arc.h>
 #include <sys/bpobj.h>
 #include <sys/bptree.h>
+#include <sys/rrwlock.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -113,7 +114,7 @@ typedef struct dsl_pool {
 	 * syncing context does not need to ever have it for read, since
 	 * nobody else could possibly have it for write.
 	 */
-	krwlock_t dp_config_rwlock;
+	rrwlock_t dp_config_rwlock;
 
 	zfs_all_blkstats_t *dp_blkstats;
 } dsl_pool_t;
@@ -134,26 +135,25 @@ void dsl_pool_willuse_space(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx);
 void dsl_free(dsl_pool_t *dp, uint64_t txg, const blkptr_t *bpp);
 void dsl_free_sync(zio_t *pio, dsl_pool_t *dp, uint64_t txg,
     const blkptr_t *bpp);
-int dsl_read(zio_t *pio, spa_t *spa, const blkptr_t *bpp, arc_buf_t *pbuf,
-    arc_done_func_t *done, void *priv, int priority, int zio_flags,
-    uint32_t *arc_flags, const zbookmark_t *zb);
-int dsl_read_nolock(zio_t *pio, spa_t *spa, const blkptr_t *bpp,
-    arc_done_func_t *done, void *priv, int priority, int zio_flags,
-    uint32_t *arc_flags, const zbookmark_t *zb);
 void dsl_pool_create_origin(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_upgrade_clones(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_upgrade_dir_clones(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_mos_diduse_space(dsl_pool_t *dp,
     int64_t used, int64_t comp, int64_t uncomp);
+void dsl_pool_config_enter(dsl_pool_t *dp, void *tag);
+void dsl_pool_config_exit(dsl_pool_t *dp, void *tag);
+boolean_t dsl_pool_config_held(dsl_pool_t *dp);
 
 taskq_t *dsl_pool_vnrele_taskq(dsl_pool_t *dp);
 
-extern int dsl_pool_user_hold(dsl_pool_t *dp, uint64_t dsobj,
-    const char *tag, uint64_t *now, dmu_tx_t *tx);
-extern int dsl_pool_user_release(dsl_pool_t *dp, uint64_t dsobj,
+int dsl_pool_user_hold(dsl_pool_t *dp, uint64_t dsobj,
+    const char *tag, uint64_t now, dmu_tx_t *tx);
+int dsl_pool_user_release(dsl_pool_t *dp, uint64_t dsobj,
     const char *tag, dmu_tx_t *tx);
-extern void dsl_pool_clean_tmp_userrefs(dsl_pool_t *dp);
+void dsl_pool_clean_tmp_userrefs(dsl_pool_t *dp);
 int dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **);
+int dsl_pool_hold(const char *name, void *tag, dsl_pool_t **dp);
+void dsl_pool_rele(dsl_pool_t *dp, void *tag);
 
 #ifdef	__cplusplus
 }

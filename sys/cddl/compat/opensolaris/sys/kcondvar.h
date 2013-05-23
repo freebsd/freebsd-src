@@ -55,7 +55,7 @@ typedef enum {
 		_name = #cv;						\
 	cv_init((cv), _name);						\
 } while (0)
-#define	cv_init(cv, name, type, arg)	zfs_cv_init((cv), (name), (type), (arg))
+#define	cv_init(cv, name, type, arg)	zfs_cv_init(cv, name, type, arg)
 
 #endif	/* _KERNEL */
 

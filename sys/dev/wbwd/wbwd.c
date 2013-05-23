@@ -179,6 +179,12 @@ struct winbond_vendor_device_id {
 		.device_rev	= 0x73,
 		.descr		= "Winbond 83627DHG-P",   
 	},
+	{
+		.vendor_id	= 0x5ca3,
+		.device_id	= 0xc3,
+		.device_rev	= 0x33,
+		.descr		= "Nuvoton WPCM450RA0BX",   
+	},
 };
 
 static void
@@ -596,6 +602,9 @@ wb_probe_enable(device_t dev, int probe)
 			goto cleanup;
 		}
 
+		if (dev_id == 0xff && dev_rev == 0xff)
+			goto cleanup;
+
 		for (j = 0; j < sizeof(wb_devs) / sizeof(*wb_devs); j++) {
 			if (wb_devs[j].device_id == dev_id &&
 			    wb_devs[j].device_rev == dev_rev) {
@@ -605,6 +614,16 @@ wb_probe_enable(device_t dev, int probe)
 				break;
 			}
 		}
+
+		if (!found) {
+			if (probe && dev != NULL) {
+				device_set_desc(dev, "Unknown Winbond/Nuvoton model");
+				device_printf(dev, "DevID 0x%02x DevRev 0x%02x, "
+				    "please report this.\n", dev_id, dev_rev);
+			}
+			found++;
+		}
+
 		if (probe && found && bootverbose && dev != NULL)
 			device_printf(dev, "%s EFER 0x%02x ID 0x%02x Rev 0x%02x"
 			     " CR26 0x%02x (probing)\n", device_get_desc(dev),

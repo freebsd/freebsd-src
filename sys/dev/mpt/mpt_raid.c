@@ -705,7 +705,7 @@ mpt_raid_thread(void *arg)
 			ccb = xpt_alloc_ccb();
 
 			MPT_LOCK(mpt);
-			error = xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			error = xpt_create_path(&ccb->ccb_h.path, NULL,
 			    cam_sim_path(mpt->phydisk_sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 			if (error != CAM_REQ_CMP) {
@@ -1662,7 +1662,7 @@ mpt_raid_set_vol_queue_depth(struct mpt_softc *mpt, u_int vol_queue_depth)
 
 		mpt->raid_rescan = 0;
 
-		error = xpt_create_path(&path, xpt_periph,
+		error = xpt_create_path(&path, NULL,
 					cam_sim_path(mpt->sim),
 					mpt_vol->config_page->VolumeID,
 					/*lun*/0);

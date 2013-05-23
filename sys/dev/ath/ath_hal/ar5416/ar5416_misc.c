@@ -256,6 +256,20 @@ ar5416GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 }
 
 /*
+ * Setup the TX/RX chainmasks - this needs to be done before a call
+ * to the reset method as it doesn't update the hardware.
+ */
+void
+ar5416SetChainMasks(struct ath_hal *ah, uint32_t tx_chainmask,
+    uint32_t rx_chainmask)
+{
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+
+	AH5416(ah)->ah_tx_chainmask = tx_chainmask & pCap->halTxChainMask;
+	AH5416(ah)->ah_rx_chainmask = rx_chainmask & pCap->halRxChainMask;
+}
+
+/*
  * Return approximation of extension channel busy over an time interval
  * 0% (clear) -> 100% (busy)
  *
@@ -452,6 +466,10 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
 		return HAL_ENXIO;
 	case HAL_CAP_ENFORCE_TXOP:
+		if (capability == 0)
+			return (HAL_OK);
+		if (capability != 1)
+			return (HAL_ENOTSUPP);
 		(*result) =
 		    !! (AH5212(ah)->ah_miscMode & AR_PCU_TXOP_TBTT_LIMIT_ENA);
 		return (HAL_OK);
@@ -485,6 +503,8 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			pCap->halTxStreams = 1;
 		return AH_TRUE;
 	case HAL_CAP_ENFORCE_TXOP:
+		if (capability != 1)
+			return AH_FALSE;
 		if (setting) {
 			AH5212(ah)->ah_miscMode
 			    |= AR_PCU_TXOP_TBTT_LIMIT_ENA;

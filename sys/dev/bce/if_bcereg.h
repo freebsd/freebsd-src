@@ -622,7 +622,7 @@ struct bce_type {
 	u_int16_t bce_did;
 	u_int16_t bce_svid;
 	u_int16_t bce_sdid;
-	char      *bce_name;
+	const char *bce_name;
 };
 
 /****************************************************************************/
@@ -716,7 +716,7 @@ struct flash_spec {
 	u32 page_size;
 	u32 addr_mask;
 	u32 total_size;
-	u8  *name;
+	const u8 *name;
 };
 
 
@@ -6318,19 +6318,19 @@ struct fw_info {
 	u32 text_addr;
 	u32 text_len;
 	u32 text_index;
-	u32 *text;
+	const u32 *text;
 
 	/* Data section. */
 	u32 data_addr;
 	u32 data_len;
 	u32 data_index;
-	u32 *data;
+	const u32 *data;
 
 	/* SBSS section. */
 	u32 sbss_addr;
 	u32 sbss_len;
 	u32 sbss_index;
-	u32 *sbss;
+	const u32 *sbss;
 
 	/* BSS section. */
 	u32 bss_addr;
@@ -6421,7 +6421,7 @@ struct fw_info {
 
 struct bce_softc
 {
-	/* Interface info.  Must be first!! */
+	/* Interface info */
 	struct ifnet		*bce_ifp;
 
 	/* Parent device handle */
@@ -6451,10 +6451,7 @@ struct bce_softc
 	struct mtx		bce_mtx;
 
 	/* Interrupt handler. */
-	driver_intr_t		*bce_intr;
 	void			*bce_intrhand;
-	int			bce_irq_rid;
-	int			bce_msi_count;
 
 	/* ASIC Chip ID. */
 	u32			bce_chipid;
@@ -6509,7 +6506,7 @@ struct bce_softc
 	u16			link_speed;
 
 	/* Flash NVRAM settings */
-	struct flash_spec	*bce_flash_info;
+	const struct flash_spec	*bce_flash_info;
 
 	/* Flash NVRAM size */
 	u32			bce_flash_size;
@@ -6518,7 +6515,7 @@ struct bce_softc
 	u32			bce_shmem_base;
 
 	/* Name string */
-	char			*bce_name;
+	const char		*bce_name;
 
 	/* Tracks the version of bootcode firmware. */
 	char			bce_bc_ver[32];
@@ -6834,4 +6831,3 @@ struct bce_softc
 };
 
 #endif /* __BCEREG_H_DEFINED */
-

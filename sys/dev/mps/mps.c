@@ -136,8 +136,8 @@ mps_diag_reset(struct mps_softc *sc,int sleep_flag)
 
 	/*Force NO_SLEEP for threads prohibited to sleep
  	* e.a Thread from interrupt handler are prohibited to sleep.
- 	*/	
-	if(curthread->td_pflags & TDP_NOSLEEPING)
+ 	*/
+	if (curthread->td_no_sleeping != 0)
 		sleep_flag = NO_SLEEP;
  
 	/* Push the magic sequence */
@@ -469,8 +469,8 @@ mps_request_sync(struct mps_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 	uint16_t *data16;
 	int i, count, ioc_sz, residual;
 	int sleep_flags = CAN_SLEEP;
-	
-	if(curthread->td_pflags & TDP_NOSLEEPING)
+
+	if (curthread->td_no_sleeping != 0)
 		sleep_flags = NO_SLEEP;
 
 	/* Step 1 */
@@ -2278,6 +2278,9 @@ mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 	if (cm->cm_flags & MPS_CM_FLAGS_USE_UIO) {
 		error = bus_dmamap_load_uio(sc->buffer_dmat, cm->cm_dmamap,
 		    &cm->cm_uio, mps_data_cb2, cm, 0);
+	} else if (cm->cm_flags & MPS_CM_FLAGS_USE_CCB) {
+		error = bus_dmamap_load_ccb(sc->buffer_dmat, cm->cm_dmamap,
+		    cm->cm_data, mps_data_cb, cm, 0);
 	} else if ((cm->cm_data != NULL) && (cm->cm_length != 0)) {
 		error = bus_dmamap_load(sc->buffer_dmat, cm->cm_dmamap,
 		    cm->cm_data, cm->cm_length, mps_data_cb, cm, 0);

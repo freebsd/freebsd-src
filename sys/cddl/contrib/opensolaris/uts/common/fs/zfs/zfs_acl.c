@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -681,7 +682,7 @@ zfs_copy_ace_2_fuid(zfsvfs_t *zfsvfs, vtype_t obj_type, zfs_acl_t *aclp,
 		 */
 		if (zfs_ace_valid(obj_type, aclp, aceptr->z_hdr.z_type,
 		    aceptr->z_hdr.z_flags) != B_TRUE)
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 
 		switch (acep->a_type) {
 		case ACE_ACCESS_ALLOWED_OBJECT_ACE_TYPE:
@@ -788,7 +789,7 @@ zfs_copy_ace_2_oldace(vtype_t obj_type, zfs_acl_t *aclp, ace_t *acep,
 		 */
 		if (zfs_ace_valid(obj_type, aclp, aceptr->z_type,
 		    aceptr->z_flags) != B_TRUE)
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 	}
 	*size = (caddr_t)aceptr - (caddr_t)z_acl;
 	return (0);
@@ -1122,7 +1123,7 @@ zfs_acl_node_read(znode_t *zp, boolean_t have_lock, zfs_acl_t **aclpp,
 		zfs_acl_node_free(aclnode);
 		/* convert checksum errors into IO errors */
 		if (error == ECKSUM)
-			error = EIO;
+			error = SET_ERROR(EIO);
 		goto done;
 	}
 
@@ -1781,7 +1782,7 @@ zfs_getacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 	    VSA_ACE_ACLFLAGS | VSA_ACE_ALLTYPES);
 
 	if (mask == 0)
-		return (ENOSYS);
+		return (SET_ERROR(ENOSYS));
 
 	if (error = zfs_zaccess(zp, ACE_READ_ACL, 0, skipaclchk, cr))
 		return (error);
@@ -1875,7 +1876,7 @@ zfs_vsec_2_aclp(zfsvfs_t *zfsvfs, vtype_t obj_type,
 	int error;
 
 	if (vsecp->vsa_aclcnt > MAX_ACL_ENTRIES || vsecp->vsa_aclcnt <= 0)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	aclp = zfs_acl_alloc(zfs_acl_version(zfsvfs->z_version));
 
@@ -1937,10 +1938,10 @@ zfs_setacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
 	uint64_t	acl_obj;
 
 	if (mask == 0)
-		return (ENOSYS);
+		return (SET_ERROR(ENOSYS));
 
 	if (zp->z_pflags & ZFS_IMMUTABLE)
-		return (EPERM);
+		return (SET_ERROR(EPERM));
 
 	if (error = zfs_zaccess(zp, ACE_WRITE_ACL, 0, skipaclchk, cr))
 		return (error);
@@ -2037,7 +2038,7 @@ zfs_zaccess_dataset_check(znode_t *zp, uint32_t v4_mode)
 	    (zp->z_zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) &&
 	    (!IS_DEVVP(ZTOV(zp)) ||
 	    (IS_DEVVP(ZTOV(zp)) && (v4_mode & WRITE_MASK_ATTRS)))) {
-		return (EROFS);
+		return (SET_ERROR(EROFS));
 	}
 
 	/*
@@ -2048,13 +2049,13 @@ zfs_zaccess_dataset_check(znode_t *zp, uint32_t v4_mode)
 	    (zp->z_pflags & (ZFS_READONLY | ZFS_IMMUTABLE))) ||
 	    (ZTOV(zp)->v_type == VDIR &&
 	    (zp->z_pflags & ZFS_IMMUTABLE)))) {
-		return (EPERM);
+		return (SET_ERROR(EPERM));
 	}
 
 #ifdef sun
 	if ((v4_mode & (ACE_DELETE | ACE_DELETE_CHILD)) &&
 	    (zp->z_pflags & ZFS_NOUNLINK)) {
-		return (EPERM);
+		return (SET_ERROR(EPERM));
 	}
 #else
 	/*
@@ -2070,7 +2071,7 @@ zfs_zaccess_dataset_check(znode_t *zp, uint32_t v4_mode)
 
 	if (((v4_mode & (ACE_READ_DATA|ACE_EXECUTE)) &&
 	    (zp->z_pflags & ZFS_AV_QUARANTINED))) {
-		return (EACCES);
+		return (SET_ERROR(EACCES));
 	}
 
 	return (0);
@@ -2178,7 +2179,7 @@ zfs_zaccess_aces_check(znode_t *zp, uint32_t *working_mode,
 				break;
 			} else {
 				mutex_exit(&zp->z_acl_lock);
-				return (EIO);
+				return (SET_ERROR(EIO));
 			}
 		}
 
@@ -2212,7 +2213,7 @@ zfs_zaccess_aces_check(znode_t *zp, uint32_t *working_mode,
 	/* Put the found 'denies' back on the working mode */
 	if (deny_mask) {
 		*working_mode |= deny_mask;
-		return (EACCES);
+		return (SET_ERROR(EACCES));
 	} else if (*working_mode) {
 		return (-1);
 	}
@@ -2279,7 +2280,7 @@ zfs_zaccess_append(znode_t *zp, uint32_t *working_mode, boolean_t *check_privs,
     cred_t *cr)
 {
 	if (*working_mode != ACE_WRITE_DATA)
-		return (EACCES);
+		return (SET_ERROR(EACCES));
 
 	return (zfs_zaccess_common(zp, ACE_APPEND_DATA, working_mode,
 	    check_privs, B_FALSE, cr));
@@ -2295,7 +2296,7 @@ zfs_fastaccesschk_execute(znode_t *zdp, cred_t *cr)
 	int error;
 
 	if (zdp->z_pflags & ZFS_AV_QUARANTINED)
-		return (EACCES);
+		return (SET_ERROR(EACCES));
 
 	is_attr = ((zdp->z_pflags & ZFS_XATTR) &&
 	    (ZTOV(zdp)->v_type == VDIR));
@@ -2501,7 +2502,7 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 			 * for are still present.  If so then return EACCES
 			 */
 			if (working_mode & ~(ZFS_CHECKED_MASKS)) {
-				error = EACCES;
+				error = SET_ERROR(EACCES);
 			}
 		}
 	} else if (error == 0) {
@@ -2615,7 +2616,7 @@ zfs_zaccess_delete(znode_t *dzp, znode_t *zp, cred_t *cr)
 	 */
 
 	if (zp->z_pflags & (ZFS_IMMUTABLE | ZFS_NOUNLINK))
-		return (EPERM);
+		return (SET_ERROR(EPERM));
 
 	/*
 	 * First row
@@ -2682,7 +2683,7 @@ zfs_zaccess_rename(znode_t *sdzp, znode_t *szp, znode_t *tdzp,
 	int error;
 
 	if (szp->z_pflags & ZFS_AV_QUARANTINED)
-		return (EACCES);
+		return (SET_ERROR(EACCES));
 
 	add_perm = (ZTOV(szp)->v_type == VDIR) ?
 	    ACE_ADD_SUBDIRECTORY : ACE_ADD_FILE;

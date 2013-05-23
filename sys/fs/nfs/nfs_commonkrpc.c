@@ -459,18 +459,17 @@ nfs_feedback(int type, int proc, void *arg)
 {
 	struct nfs_feedback_arg *nf = (struct nfs_feedback_arg *) arg;
 	struct nfsmount *nmp = nf->nf_mount;
-	struct timeval now;
-
-	getmicrouptime(&now);
+	time_t now;
 
 	switch (type) {
 	case FEEDBACK_REXMIT2:
 	case FEEDBACK_RECONNECT:
-		if (nf->nf_lastmsg + nmp->nm_tprintf_delay < now.tv_sec) {
+		now = NFSD_MONOSEC;
+		if (nf->nf_lastmsg + nmp->nm_tprintf_delay < now) {
 			nfs_down(nmp, nf->nf_td,
 			    "not responding", 0, NFSSTA_TIMEO);
 			nf->nf_tprintfmsg = TRUE;
-			nf->nf_lastmsg = now.tv_sec;
+			nf->nf_lastmsg = now;
 		}
 		break;
 
@@ -501,7 +500,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
 	struct nfs_feedback_arg nf;
-	struct timeval timo, now;
+	struct timeval timo;
 	AUTH *auth;
 	struct rpc_callextra ext;
 	enum clnt_stat stat;
@@ -617,8 +616,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		bzero(&nf, sizeof(struct nfs_feedback_arg));
 		nf.nf_mount = nmp;
 		nf.nf_td = td;
-		getmicrouptime(&now);
-		nf.nf_lastmsg = now.tv_sec -
+		nf.nf_lastmsg = NFSD_MONOSEC -
 		    ((nmp->nm_tprintf_delay)-(nmp->nm_tprintf_initial_delay));
 	}
 
@@ -767,12 +765,18 @@ tryagain:
 	if (stat == RPC_SUCCESS) {
 		error = 0;
 	} else if (stat == RPC_TIMEDOUT) {
+		NFSINCRGLOBAL(newnfsstats.rpctimeouts);
 		error = ETIMEDOUT;
 	} else if (stat == RPC_VERSMISMATCH) {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EOPNOTSUPP;
 	} else if (stat == RPC_PROGVERSMISMATCH) {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EPROTONOSUPPORT;
+	} else if (stat == RPC_INTR) {
+		error = EINTR;
 	} else {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EACCES;
 	}
 	if (error) {
@@ -793,7 +797,7 @@ tryagain:
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	newnfs_realign(&nd->nd_mrep);
+	newnfs_realign(&nd->nd_mrep, M_WAITOK);
 	nd->nd_md = nd->nd_mrep;
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
@@ -1027,7 +1031,6 @@ int newnfs_sig_set[] = {
 	SIGTERM,
 	SIGHUP,
 	SIGKILL,
-	SIGSTOP,
 	SIGQUIT
 };
 
@@ -1048,7 +1051,7 @@ nfs_sig_pending(sigset_t set)
  
 /*
  * The set/restore sigmask functions are used to (temporarily) overwrite
- * the process p_sigmask during an RPC call (for example). These are also
+ * the thread td_sigmask during an RPC call (for example). These are also
  * used in other places in the NFS client that might tsleep().
  */
 void
@@ -1077,8 +1080,9 @@ newnfs_set_sigmask(struct thread *td, sigset_t *oldset)
 			SIGDELSET(newset, newnfs_sig_set[i]);
 	}
 	mtx_unlock(&p->p_sigacts->ps_mtx);
+	kern_sigprocmask(td, SIG_SETMASK, &newset, oldset,
+	    SIGPROCMASK_PROC_LOCKED);
 	PROC_UNLOCK(p);
-	kern_sigprocmask(td, SIG_SETMASK, &newset, oldset, 0);
 }
 
 void

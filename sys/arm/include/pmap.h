@@ -61,7 +61,7 @@
 #else
 #define PTE_NOCACHE	1
 #endif
-#define PTE_CACHE	4
+#define PTE_CACHE	6
 #define PTE_DEVICE	2
 #define PTE_PAGETABLE	4
 #else
@@ -116,6 +116,7 @@ struct pv_addr {
 };
 
 struct	pv_entry;
+struct	pv_chunk;
 
 struct	md_page {
 	int pvh_attrs;
@@ -152,7 +153,11 @@ struct	pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
 	cpuset_t		pm_active;	/* active on cpus */
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
+	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
+#else
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
+#endif
 };
 
 typedef struct pmap *pmap_t;
@@ -180,12 +185,30 @@ extern struct pmap	kernel_pmap_store;
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_list.
  */
 typedef struct pv_entry {
-	pmap_t          pv_pmap;        /* pmap where mapping lies */
 	vm_offset_t     pv_va;          /* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry)   pv_list;
-	TAILQ_ENTRY(pv_entry)	pv_plist;
 	int		pv_flags;	/* flags (wired, etc...) */
+#if (ARM_MMU_V6 + ARM_MMU_V7) == 0
+	pmap_t          pv_pmap;        /* pmap where mapping lies */
+	TAILQ_ENTRY(pv_entry)	pv_plist;
+#endif
 } *pv_entry_t;
+
+/*
+ * pv_entries are allocated in chunks per-process.  This avoids the
+ * need to track per-pmap assignments.
+ */
+#define	_NPCM	8
+#define	_NPCPV	252
+
+struct pv_chunk {
+	pmap_t			pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_list;
+	uint32_t		pc_map[_NPCM];	/* bitmap; 1 = free */
+	uint32_t		pc_dummy[3];	/* aligns pv_chunk to 4KB */
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	struct pv_entry		pc_pventry[_NPCPV];
+};
 
 #ifdef _KERNEL
 
@@ -222,7 +245,7 @@ extern vm_paddr_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
+void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
@@ -352,7 +375,7 @@ extern int pmap_needs_pte_sync;
 #elif (ARM_MMU_V6 + ARM_MMU_V7) != 0
 
 #define	L2_S_PROT_U		(L2_AP0(2))		/* user access */
-#define	L2_S_PROT_R		(L2_APX|L2_AP0(1))	/* read access */
+#define	L2_S_PROT_R		(L2_AP0(1))		/* read access */
 
 #define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R)
 #define	L2_S_WRITABLE(pte)	(!(pte & L2_APX))
@@ -533,6 +556,8 @@ extern pt_entry_t		pte_l1_c_proto;
 extern pt_entry_t		pte_l2_s_proto;
 
 extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
+extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
+    vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
 #if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)

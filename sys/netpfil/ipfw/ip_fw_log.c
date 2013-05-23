@@ -113,7 +113,7 @@ log_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
 
 static int
 ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	if (m != NULL)
 		FREE_PKT(m);
@@ -292,10 +292,8 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 				altq->qid);
 			cmd += F_LEN(cmd);
 		}
-		if (cmd->opcode == O_PROB)
-			cmd += F_LEN(cmd);
-
-		if (cmd->opcode == O_TAG)
+		if (cmd->opcode == O_PROB || cmd->opcode == O_TAG ||
+		    cmd->opcode == O_SETDSCP)
 			cmd += F_LEN(cmd);
 
 		action = action2;

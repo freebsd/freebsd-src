@@ -113,13 +113,7 @@
 	((unsigned long)(l2) << PDRSHIFT) | \
 	((unsigned long)(l1) << PAGE_SHIFT))
 
-/* Initial number of kernel page tables. */
-#ifndef NKPT
-#define	NKPT		32
-#endif
-
 #define NKPML4E		1		/* number of kernel PML4 slots */
-#define NKPDPE		howmany(NKPT, NPDEPG)/* number of kernel PDP slots */
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
@@ -156,6 +150,8 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+#include <vm/_vm_radix.h>
+
 typedef u_int64_t pd_entry_t;
 typedef u_int64_t pt_entry_t;
 typedef u_int64_t pdp_entry_t;
@@ -181,6 +177,7 @@ typedef u_int64_t pml4_entry_t;
 #define	PML4map		((pd_entry_t *)(addr_PML4map))
 #define	PML4pml4e	((pd_entry_t *)(addr_PML4pml4e))
 
+extern int nkpt;		/* Initial number of kernel page tables */
 extern u_int64_t KPDPphys;	/* physical address of kernel level 3 */
 extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 
@@ -255,7 +252,7 @@ struct pmap {
 	cpuset_t		pm_active;	/* active on cpus */
 	/* spare u_int here due to padding */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
-	vm_page_t		pm_root;	/* spare page table pages */
+	struct vm_radix		pm_root;	/* spare page table pages */
 };
 
 typedef struct pmap	*pmap_t;
@@ -282,7 +279,7 @@ extern struct pmap	kernel_pmap_store;
  */
 typedef struct pv_entry {
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_list;
+	TAILQ_ENTRY(pv_entry)	pv_next;
 } *pv_entry_t;
 
 /*

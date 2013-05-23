@@ -70,7 +70,6 @@ device		da
 
 # SATA
 device		ata
-options 	ATA_CAM
 
 # Flattened Device Tree
 options 	FDT

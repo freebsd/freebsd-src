@@ -199,8 +199,6 @@ set_rootvnode(void)
 	VREF(rootvnode);
 
 	FILEDESC_XUNLOCK(p->p_fd);
-
-	EVENTHANDLER_INVOKE(mountroot);
 }
 
 static int
@@ -991,6 +989,8 @@ vfs_mountroot(void)
 	atomic_store_rel_int(&root_mount_complete, 1);
 	wakeup(&root_mount_complete);
 	mtx_unlock(&mountlist_mtx);
+
+	EVENTHANDLER_INVOKE(mountroot);
 }
 
 static struct mntarg *

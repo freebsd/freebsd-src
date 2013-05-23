@@ -671,6 +671,12 @@ ar5210GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 }
 
 void
+ar5210SetChainMasks(struct ath_hal *ah, uint32_t txchainmask,
+    uint32_t rxchainmask)
+{
+}
+
+void
 ar5210EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 {
 }

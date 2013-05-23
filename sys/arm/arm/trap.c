@@ -240,8 +240,8 @@ data_abort_handler(trapframe_t *tf)
 	far = cpu_faultaddress();
 	fsr = cpu_faultstatus();
 #if 0
-	printf("data abort: %p (from %p %p)\n", (void*)far, (void*)tf->tf_pc,
-	    (void*)tf->tf_svc_lr);
+	printf("data abort: fault address=%p (from pc=%p lr=%p)\n",
+	       (void*)far, (void*)tf->tf_pc, (void*)tf->tf_svc_lr);
 #endif
 
 	/* Update vmmeter statistics */
@@ -866,7 +866,11 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	register_t *ap;
 	int error;
 
+#ifdef __ARM_EABI__
+	sa->code = td->td_frame->tf_r7;
+#else
 	sa->code = sa->insn & 0x000fffff;
+#endif
 	ap = &td->td_frame->tf_r0;
 	if (sa->code == SYS_syscall) {
 		sa->code = *ap++;
@@ -905,16 +909,18 @@ syscall(struct thread *td, trapframe_t *frame)
 	struct syscall_args sa;
 	int error;
 
+#ifndef __ARM_EABI__
 	sa.insn = *(uint32_t *)(frame->tf_pc - INSN_SIZE);
 	switch (sa.insn & SWI_OS_MASK) {
 	case 0: /* XXX: we need our own one. */
-		sa.nap = 4;
 		break;
 	default:
 		call_trapsignal(td, SIGILL, 0);
 		userret(td, frame);
 		return;
 	}
+#endif
+	sa.nap = 4;
 
 	error = syscallenter(td, &sa);
 	KASSERT(error != 0 || td->td_ar == NULL,

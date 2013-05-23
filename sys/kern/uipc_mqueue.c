@@ -45,6 +45,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 
 #include <sys/param.h>
@@ -1976,7 +1977,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
 
-	error = falloc(td, &fp, &fd, 0);
+	error = falloc(td, &fp, &fd, O_CLOEXEC);
 	if (error)
 		return (error);
 
@@ -2031,10 +2032,6 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	finit(fp, flags & (FREAD | FWRITE | O_NONBLOCK), DTYPE_MQUEUE, pn,
 	    &mqueueops);
 
-	FILEDESC_XLOCK(fdp);
-	if (fdp->fd_ofiles[fd] == fp)
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-	FILEDESC_XUNLOCK(fdp);
 	td->td_retval[0] = fd;
 	fdrop(fp, td);
 	return (0);
@@ -2275,11 +2272,13 @@ again:
 		error = EBADF;
 		goto out;
 	}
-	error = cap_funwrap(fp2, CAP_POLL_EVENT, &fp2);
+#ifdef CAPABILITIES
+	error = cap_check(cap_rights(fdp, uap->mqd), CAP_POLL_EVENT);
 	if (error) {
 		FILEDESC_SUNLOCK(fdp);
 		goto out;
 	}
+#endif
 	if (fp2 != fp) {
 		FILEDESC_SUNLOCK(fdp);
 		error = EBADF;

@@ -2171,10 +2171,14 @@ netfront_detach(device_t dev)
 static void
 netif_free(struct netfront_info *info)
 {
+	XN_LOCK(info);
+	xn_stop(info);
+	XN_UNLOCK(info);
+	callout_drain(&info->xn_stat_ch);
 	netif_disconnect_backend(info);
-#if 0
-	close_netdev(info);
-#endif
+	ifmedia_removeall(&info->sc_media);
+	ether_ifdetach(info->xn_ifp);
+	if_free(info->xn_ifp);
 }
 
 static void

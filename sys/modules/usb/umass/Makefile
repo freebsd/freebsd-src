@@ -30,8 +30,7 @@ S=     ${.CURDIR}/../../..
 .PATH: $S/dev/usb/storage
 
 KMOD=	umass
-SRCS=	ata_if.h bus_if.h device_if.h usb_if.h vnode_if.h \
-	opt_usb.h opt_bus.h opt_cam.h opt_ata.h ata_if.h usbdevs.h \
-	umass.c
+SRCS=   bus_if.h device_if.h opt_bus.h opt_cam.h opt_usb.h umass.c usb_if.h \
+	usbdevs.h vnode_if.h
 
 .include <bsd.kmod.mk>

@@ -215,10 +215,9 @@ propagate_priority(struct thread *td)
 
 		/*
 		 * If the thread is asleep, then we are probably about
-		 * to deadlock.  To make debugging this easier, just
-		 * panic and tell the user which thread misbehaved so
-		 * they can hopefully get a stack trace from the truly
-		 * misbehaving thread.
+		 * to deadlock.  To make debugging this easier, show
+		 * backtrace of misbehaving thread and panic to not
+		 * leave the kernel deadlocked.
 		 */
 		if (TD_IS_SLEEPING(td)) {
 			printf(

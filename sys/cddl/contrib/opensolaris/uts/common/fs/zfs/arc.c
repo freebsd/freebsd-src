@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 /*
@@ -130,6 +130,7 @@
 #endif
 #include <sys/callb.h>
 #include <sys/kstat.h>
+#include <sys/trim_map.h>
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 
@@ -947,7 +948,6 @@ buf_cons(void *vbuf, void *unused, int kmflag)
 
 	bzero(buf, sizeof (arc_buf_t));
 	mutex_init(&buf->b_evict_lock, NULL, MUTEX_DEFAULT, NULL);
-	rw_init(&buf->b_data_lock, NULL, RW_DEFAULT, NULL);
 	arc_space_consume(sizeof (arc_buf_t), ARC_SPACE_HDRS);
 
 	return (0);
@@ -977,7 +977,6 @@ buf_dest(void *vbuf, void *unused)
 	arc_buf_t *buf = vbuf;
 
 	mutex_destroy(&buf->b_evict_lock);
-	rw_destroy(&buf->b_data_lock);
 	arc_space_return(sizeof (arc_buf_t), ARC_SPACE_HDRS);
 }
 
@@ -1693,6 +1692,8 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 		}
 
 		if (l2hdr != NULL) {
+			trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
+			    hdr->b_size, 0);
 			list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
 			kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
@@ -1789,12 +1790,12 @@ arc_buf_free(arc_buf_t *buf, void *tag)
 	}
 }
 
-int
+boolean_t
 arc_buf_remove_ref(arc_buf_t *buf, void* tag)
 {
 	arc_buf_hdr_t *hdr = buf->b_hdr;
 	kmutex_t *hash_lock = HDR_LOCK(hdr);
-	int no_callback = (buf->b_efunc == NULL);
+	boolean_t no_callback = (buf->b_efunc == NULL);
 
 	if (hdr->b_state == arc_anon) {
 		ASSERT(hdr->b_datacnt == 1);
@@ -2044,7 +2045,7 @@ evict_start:
 		ARCSTAT_INCR(arcstat_mutex_miss, missed);
 
 	/*
-	 * We have just evicted some date into the ghost state, make
+	 * We have just evicted some data into the ghost state, make
 	 * sure we also adjust the ghost state size if necessary.
 	 */
 	if (arc_no_grow &&
@@ -2877,7 +2878,7 @@ arc_bcopy_func(zio_t *zio, arc_buf_t *buf, void *arg)
 {
 	if (zio == NULL || zio->io_error == 0)
 		bcopy(buf->b_data, arg, buf->b_hdr->b_size);
-	VERIFY(arc_buf_remove_ref(buf, arg) == 1);
+	VERIFY(arc_buf_remove_ref(buf, arg));
 }
 
 /* a generic arc_done_func_t */
@@ -2886,7 +2887,7 @@ arc_getbuf_func(zio_t *zio, arc_buf_t *buf, void *arg)
 {
 	arc_buf_t **bufp = arg;
 	if (zio && zio->io_error) {
-		VERIFY(arc_buf_remove_ref(buf, arg) == 1);
+		VERIFY(arc_buf_remove_ref(buf, arg));
 		*bufp = NULL;
 	} else {
 		*bufp = buf;
@@ -3040,45 +3041,14 @@ arc_read_done(zio_t *zio)
  *
  * arc_read_done() will invoke all the requested "done" functions
  * for readers of this block.
- *
- * Normal callers should use arc_read and pass the arc buffer and offset
- * for the bp.  But if you know you don't need locking, you can use
- * arc_read_nolock.
  */
 int
-arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp, arc_buf_t *pbuf,
-    arc_done_func_t *done, void *private, int priority, int zio_flags,
-    uint32_t *arc_flags, const zbookmark_t *zb)
-{
-	int err;
-
-	if (pbuf == NULL) {
-		/*
-		 * XXX This happens from traverse callback funcs, for
-		 * the objset_phys_t block.
-		 */
-		return (arc_read_nolock(pio, spa, bp, done, private, priority,
-		    zio_flags, arc_flags, zb));
-	}
-
-	ASSERT(!refcount_is_zero(&pbuf->b_hdr->b_refcnt));
-	ASSERT3U((char *)bp - (char *)pbuf->b_data, <, pbuf->b_hdr->b_size);
-	rw_enter(&pbuf->b_data_lock, RW_READER);
-
-	err = arc_read_nolock(pio, spa, bp, done, private, priority,
-	    zio_flags, arc_flags, zb);
-	rw_exit(&pbuf->b_data_lock);
-
-	return (err);
-}
-
-int
-arc_read_nolock(zio_t *pio, spa_t *spa, const blkptr_t *bp,
-    arc_done_func_t *done, void *private, int priority, int zio_flags,
-    uint32_t *arc_flags, const zbookmark_t *zb)
+arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp, arc_done_func_t *done,
+    void *private, int priority, int zio_flags, uint32_t *arc_flags,
+    const zbookmark_t *zb)
 {
 	arc_buf_hdr_t *hdr;
-	arc_buf_t *buf;
+	arc_buf_t *buf = NULL;
 	kmutex_t *hash_lock;
 	zio_t *rzio;
 	uint64_t guid = spa_load_guid(spa);
@@ -3160,7 +3130,7 @@ top:
 		uint64_t size = BP_GET_LSIZE(bp);
 		arc_callback_t	*acb;
 		vdev_t *vd = NULL;
-		uint64_t addr;
+		uint64_t addr = 0;
 		boolean_t devw = B_FALSE;
 
 		if (hdr == NULL) {
@@ -3277,6 +3247,10 @@ top:
 				cb->l2rcb_bp = *bp;
 				cb->l2rcb_zb = *zb;
 				cb->l2rcb_flags = zio_flags;
+
+				ASSERT(addr >= VDEV_LABEL_START_SIZE &&
+				    addr + size < vd->vdev_psize -
+				    VDEV_LABEL_END_SIZE);
 
 				/*
 				 * l2arc read.  The SCL_L2ARC lock will be
@@ -3473,8 +3447,8 @@ arc_release(arc_buf_t *buf, void *tag)
 	if (l2hdr) {
 		mutex_enter(&l2arc_buflist_mtx);
 		hdr->b_l2hdr = NULL;
-		buf_size = hdr->b_size;
 	}
+	buf_size = hdr->b_size;
 
 	/*
 	 * Do we have more than one buf?
@@ -3557,24 +3531,13 @@ arc_release(arc_buf_t *buf, void *tag)
 	buf->b_private = NULL;
 
 	if (l2hdr) {
+		trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
+		    hdr->b_size, 0);
 		list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 		kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
 		ARCSTAT_INCR(arcstat_l2_size, -buf_size);
 		mutex_exit(&l2arc_buflist_mtx);
 	}
-}
-
-/*
- * Release this buffer.  If it does not match the provided BP, fill it
- * with that block's contents.
- */
-/* ARGSUSED */
-int
-arc_release_bp(arc_buf_t *buf, void *tag, blkptr_t *bp, spa_t *spa,
-    zbookmark_t *zb)
-{
-	arc_release(buf, tag);
-	return (0);
 }
 
 int
@@ -3775,14 +3738,14 @@ arc_memory_throttle(uint64_t reserve, uint64_t inflight_data, uint64_t txg)
 	 */
 	if (curproc == pageproc) {
 		if (page_load > available_memory / 4)
-			return (ERESTART);
+			return (SET_ERROR(ERESTART));
 		/* Note: reserve is inflated, so we deflate */
 		page_load += reserve / 8;
 		return (0);
 	} else if (page_load > 0 && arc_reclaim_needed()) {
 		/* memory is low, delay before restarting */
 		ARCSTAT_INCR(arcstat_memory_throttle_count, 1);
-		return (EAGAIN);
+		return (SET_ERROR(EAGAIN));
 	}
 	page_load = 0;
 
@@ -3797,7 +3760,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t inflight_data, uint64_t txg)
 
 	if (inflight_data > available_memory / 4) {
 		ARCSTAT_INCR(arcstat_memory_throttle_count, 1);
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 #endif
 	return (0);
@@ -3822,13 +3785,13 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 	 */
 	if (spa_get_random(10000) == 0) {
 		dprintf("forcing random failure\n");
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 #endif
 	if (reserve > arc_c/4 && !arc_no_grow)
 		arc_c = MIN(arc_c_max, reserve * 4);
 	if (reserve > arc_c)
-		return (ENOMEM);
+		return (SET_ERROR(ENOMEM));
 
 	/*
 	 * Don't count loaned bufs as in flight dirty data to prevent long
@@ -3861,7 +3824,7 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 		    arc_anon->arcs_lsize[ARC_BUFC_METADATA]>>10,
 		    arc_anon->arcs_lsize[ARC_BUFC_DATA]>>10,
 		    reserve>>10, arc_c>>10);
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 	atomic_add_64(&arc_tempreserve, reserve);
 	return (0);
@@ -4484,6 +4447,8 @@ l2arc_write_done(zio_t *zio)
 			list_remove(buflist, ab);
 			abl2 = ab->b_l2hdr;
 			ab->b_l2hdr = NULL;
+			trim_map_free(abl2->b_dev->l2ad_vdev, abl2->b_daddr,
+			    ab->b_size, 0);
 			kmem_free(abl2, sizeof (l2arc_buf_hdr_t));
 			ARCSTAT_INCR(arcstat_l2_size, -ab->b_size);
 		}
@@ -4553,7 +4518,7 @@ l2arc_read_done(zio_t *zio)
 		if (zio->io_error != 0) {
 			ARCSTAT_BUMP(arcstat_l2_io_error);
 		} else {
-			zio->io_error = EIO;
+			zio->io_error = SET_ERROR(EIO);
 		}
 		if (!equal)
 			ARCSTAT_BUMP(arcstat_l2_cksum_bad);
@@ -4590,7 +4555,7 @@ l2arc_read_done(zio_t *zio)
 static list_t *
 l2arc_list_locked(int list_num, kmutex_t **lock)
 {
-	list_t *list;
+	list_t *list = NULL;
 	int idx;
 
 	ASSERT(list_num >= 0 && list_num < 2 * ARC_BUFC_NUMLISTS);

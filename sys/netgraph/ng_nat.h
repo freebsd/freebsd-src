@@ -172,6 +172,33 @@ struct ng_nat_list_redirects {
 	  { NULL }						\
 }
 
+/* Structure returned by NGM_NAT_LIBALIAS_INFO */
+struct ng_nat_libalias_info {
+	uint32_t	icmpLinkCount;
+	uint32_t	udpLinkCount;
+	uint32_t	tcpLinkCount;
+	uint32_t	sctpLinkCount;
+	uint32_t	pptpLinkCount;
+	uint32_t	protoLinkCount;
+	uint32_t	fragmentIdLinkCount;
+	uint32_t	fragmentPtrLinkCount;
+	uint32_t	sockCount;
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_LIBALIAS_INFO {					\
+	  { "icmpLinkCount",	&ng_parse_uint32_type	},	\
+	  { "udpLinkCount",	&ng_parse_uint32_type	},	\
+	  { "tcpLinkCount",	&ng_parse_uint32_type	},	\
+	  { "sctpLinkCount",	&ng_parse_uint32_type	},	\
+	  { "pptpLinkCount",	&ng_parse_uint32_type	},	\
+	  { "protoLinkCount",	&ng_parse_uint32_type	},	\
+	  { "fragmentIdLinkCount", &ng_parse_uint32_type },	\
+	  { "fragmentPtrLinkCount", &ng_parse_uint32_type },	\
+	  { "sockCount",	&ng_parse_uint32_type	},	\
+	  { NULL }						\
+}
+
 enum {
 	NGM_NAT_SET_IPADDR = 1,
 	NGM_NAT_SET_MODE,
@@ -184,4 +211,5 @@ enum {
 	NGM_NAT_ADD_SERVER,
 	NGM_NAT_LIST_REDIRECTS,
 	NGM_NAT_PROXY_RULE,
+	NGM_NAT_LIBALIAS_INFO,
 };

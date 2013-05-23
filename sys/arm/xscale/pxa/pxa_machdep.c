@@ -79,10 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_map.h>
-#include <vm/vnode_pager.h>
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -365,7 +362,8 @@ initarm(struct arm_boot_params *abp)
 	}
 	dump_avail[i] = 0;
 	dump_avail[i] = 0;
-	pmap_bootstrap(pmap_curmaxkvaddr, 0xd0000000, &kernel_l1pt);
+	vm_max_kernel_address = 0xd0000000;
+	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();

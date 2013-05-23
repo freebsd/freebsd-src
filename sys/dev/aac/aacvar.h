@@ -33,9 +33,12 @@
 #include <sys/callout.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/taskqueue.h>
 #include <sys/selinfo.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <geom/geom_disk.h>
+
+SYSCTL_DECL(_hw_aac);
 
 #define	AAC_TYPE_DEVO			1
 #define	AAC_TYPE_ALPHA			2
@@ -242,28 +245,28 @@ struct aac_interface
 	int (*aif_get_outb_queue)(struct aac_softc *sc);
 	void (*aif_set_outb_queue)(struct aac_softc *sc, int index);
 };
-extern struct aac_interface	aac_rx_interface;
-extern struct aac_interface	aac_sa_interface;
-extern struct aac_interface	aac_fa_interface;
-extern struct aac_interface	aac_rkt_interface;
+extern const struct aac_interface	aac_rx_interface;
+extern const struct aac_interface	aac_sa_interface;
+extern const struct aac_interface	aac_fa_interface;
+extern const struct aac_interface	aac_rkt_interface;
 
-#define AAC_GET_FWSTATUS(sc)		((sc)->aac_if.aif_get_fwstatus((sc)))
-#define AAC_QNOTIFY(sc, qbit)		((sc)->aac_if.aif_qnotify((sc), (qbit)))
-#define AAC_GET_ISTATUS(sc)		((sc)->aac_if.aif_get_istatus((sc)))
-#define AAC_CLEAR_ISTATUS(sc, mask)	((sc)->aac_if.aif_clr_istatus((sc), \
+#define AAC_GET_FWSTATUS(sc)		((sc)->aac_if->aif_get_fwstatus((sc)))
+#define AAC_QNOTIFY(sc, qbit)		((sc)->aac_if->aif_qnotify((sc), (qbit)))
+#define AAC_GET_ISTATUS(sc)		((sc)->aac_if->aif_get_istatus((sc)))
+#define AAC_CLEAR_ISTATUS(sc, mask)	((sc)->aac_if->aif_clr_istatus((sc), \
 					(mask)))
 #define AAC_SET_MAILBOX(sc, command, arg0, arg1, arg2, arg3) \
-	((sc)->aac_if.aif_set_mailbox((sc), (command), (arg0), (arg1), (arg2), \
+	((sc)->aac_if->aif_set_mailbox((sc), (command), (arg0), (arg1), (arg2), \
 	(arg3)))
-#define AAC_GET_MAILBOX(sc, mb)		((sc)->aac_if.aif_get_mailbox((sc), \
+#define AAC_GET_MAILBOX(sc, mb)		((sc)->aac_if->aif_get_mailbox((sc), \
 					(mb)))
-#define	AAC_MASK_INTERRUPTS(sc)		((sc)->aac_if.aif_set_interrupts((sc), \
+#define	AAC_MASK_INTERRUPTS(sc)		((sc)->aac_if->aif_set_interrupts((sc), \
 					0))
-#define AAC_UNMASK_INTERRUPTS(sc)	((sc)->aac_if.aif_set_interrupts((sc), \
+#define AAC_UNMASK_INTERRUPTS(sc)	((sc)->aac_if->aif_set_interrupts((sc), \
 					1))
-#define AAC_SEND_COMMAND(sc, cm)	((sc)->aac_if.aif_send_command((sc), (cm)))
-#define AAC_GET_OUTB_QUEUE(sc)		((sc)->aac_if.aif_get_outb_queue((sc)))
-#define AAC_SET_OUTB_QUEUE(sc, idx)	((sc)->aac_if.aif_set_outb_queue((sc), (idx)))
+#define AAC_SEND_COMMAND(sc, cm)	((sc)->aac_if->aif_send_command((sc), (cm)))
+#define AAC_GET_OUTB_QUEUE(sc)		((sc)->aac_if->aif_get_outb_queue((sc)))
+#define AAC_SET_OUTB_QUEUE(sc, idx)	((sc)->aac_if->aif_set_outb_queue((sc), (idx)))
 
 #define AAC_MEM0_SETREG4(sc, reg, val)	bus_space_write_4(sc->aac_btag0, \
 					sc->aac_bhandle0, reg, val)
@@ -307,14 +310,12 @@ struct aac_softc
 	/* bus connections */
 	device_t		aac_dev;
 	struct resource		*aac_regs_res0, *aac_regs_res1; /* reg. if. window */
-	int			aac_regs_rid0, aac_regs_rid1;		/* resource ID */
 	bus_space_handle_t	aac_bhandle0, aac_bhandle1;		/* bus space handle */
 	bus_space_tag_t		aac_btag0, aac_btag1;		/* bus space tag */
 	bus_dma_tag_t		aac_parent_dmat;	/* parent DMA tag */
 	bus_dma_tag_t		aac_buffer_dmat;	/* data buffer/command
 							 * DMA tag */
 	struct resource		*aac_irq;		/* interrupt */
-	int			aac_irq_rid;
 	void			*aac_intr;		/* interrupt handle */
 	eventhandler_tag	eh;
 
@@ -339,7 +340,7 @@ struct aac_softc
 							 * DMA map */
 	struct aac_common	*aac_common;
 	u_int32_t		aac_common_busaddr;
-	struct aac_interface	aac_if;
+	const struct aac_interface	*aac_if;
 
 	/* command/fib resources */
 	bus_dma_tag_t		aac_fib_dmat;	/* DMA tag for allocing FIBs */
@@ -499,7 +500,7 @@ extern void	aac_print_aif(struct aac_softc *sc,
 #endif
 
 struct aac_code_lookup {
-	char	*string;
+	const char	*string;
 	u_int32_t	code;
 };
 
@@ -581,7 +582,6 @@ aac_remove_ ## name (struct aac_command *cm)				\
 	cm->cm_flags &= ~AAC_ON_ ## index;				\
 	AACQ_REMOVE(cm->cm_sc, index);					\
 }									\
-struct hack
 
 AACQ_COMMAND_QUEUE(free, AACQ_FREE);
 AACQ_COMMAND_QUEUE(ready, AACQ_READY);
@@ -644,4 +644,3 @@ aac_release_sync_fib(struct aac_softc *sc)
 
 	mtx_assert(&sc->aac_io_lock, MA_OWNED);
 }
-

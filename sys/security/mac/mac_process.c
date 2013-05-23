@@ -54,9 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/mac.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
 #include <sys/systm.h>
@@ -284,14 +284,14 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 		object = vme->object.vm_object;
 		if (object == NULL)
 			continue;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		while ((backing_object = object->backing_object) != NULL) {
-			VM_OBJECT_LOCK(backing_object);
+			VM_OBJECT_WLOCK(backing_object);
 			offset += object->backing_object_offset;
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			object = backing_object;
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		/*
 		 * At the moment, vm_maps and objects aren't considered by
 		 * the MAC system, so only things with backing by a normal
@@ -334,10 +334,10 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 				vm_object_reference(object);
 				(void) vn_start_write(vp, &mp, V_WAIT);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-				VM_OBJECT_LOCK(object);
+				VM_OBJECT_WLOCK(object);
 				vm_object_page_clean(object, offset, offset +
 				    vme->end - vme->start, OBJPC_SYNC);
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				VOP_UNLOCK(vp, 0);
 				vn_finished_write(mp);
 				vm_object_deallocate(object);

@@ -92,6 +92,27 @@ struct if_ath_alq_tdma_timer_set {
 	uint32_t	sc_tdmaswbaprep;
 };
 
+#define	ATH_ALQ_INTR_STATUS		10
+struct if_ath_alq_interrupt {
+	uint32_t	intr_status;
+	uint32_t	intr_state[8];
+	uint32_t	intr_syncstate;
+};
+
+#define	ATH_ALQ_MIB_COUNTERS		11
+struct if_ath_alq_mib_counters {
+	uint32_t	valid;
+	uint32_t	tx_busy;
+	uint32_t	rx_busy;
+	uint32_t	chan_busy;
+	uint32_t	ext_chan_busy;
+	uint32_t	cycle_count;
+};
+
+#define	ATH_ALQ_MISSED_BEACON		12
+#define	ATH_ALQ_STUCK_BEACON		13
+#define	ATH_ALQ_RESUME_BEACON		14
+
 /*
  * These will always be logged, regardless.
  */
@@ -116,7 +137,8 @@ struct if_ath_alq {
 
 struct if_ath_alq_hdr {
 	uint64_t	threadid;
-	uint32_t	tstamp;
+	uint32_t	tstamp_sec;
+	uint32_t	tstamp_usec;
 	uint16_t	op;
 	uint16_t	len;	/* Length of (optional) payload */
 };
@@ -143,6 +165,27 @@ extern	int if_ath_alq_start(struct if_ath_alq *alq);
 extern	int if_ath_alq_stop(struct if_ath_alq *alq);
 extern	void if_ath_alq_post(struct if_ath_alq *alq, uint16_t op,
 	    uint16_t len, const char *buf);
+
+/* XXX maybe doesn't belong here? */
+static inline void
+if_ath_alq_post_intr(struct if_ath_alq *alq, uint32_t status,
+    uint32_t *state, uint32_t sync_state)
+{
+	int i;
+	struct if_ath_alq_interrupt intr;
+
+	if (! if_ath_alq_checkdebug(alq, ATH_ALQ_INTR_STATUS))
+		return;
+
+	intr.intr_status = htobe32(status);
+	for (i = 0; i < 8; i++)
+		intr.intr_state[i] = htobe32(state[i]);
+	intr.intr_syncstate = htobe32(sync_state);
+
+	if_ath_alq_post(alq, ATH_ALQ_INTR_STATUS, sizeof(intr),
+	    (const char *) &intr);
+}
+
 #endif	/* _KERNEL */
 
 #endif

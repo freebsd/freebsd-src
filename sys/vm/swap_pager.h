@@ -68,6 +68,7 @@ struct swdevt {
 	sw_close_t		*sw_close;
 };
 
+#define	SW_UNMAPPED	0x01
 #define	SW_CLOSING	0x04
 
 #ifdef _KERNEL

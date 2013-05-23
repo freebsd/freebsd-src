@@ -34,124 +34,29 @@
 
 #include <sys/_cpuset.h>
 
+#include <sys/bitset.h>
+
 #define	CPUSETBUFSIZ	((2 + sizeof(long) * 2) * _NCPUWORDS)
 
-/*
- * Macros addressing word and bit within it, tuned to make compiler
- * optimize cases when CPU_SETSIZE fits into single machine word.
- */
-#define	__cpuset_mask(n)				\
-	((long)1 << ((_NCPUWORDS == 1) ? (__size_t)(n) : ((n) % _NCPUBITS)))
-#define	__cpuset_word(n)	((_NCPUWORDS == 1) ? 0 : ((n) / _NCPUBITS))
-
-#define	CPU_CLR(n, p)	((p)->__bits[__cpuset_word(n)] &= ~__cpuset_mask(n))
-#define	CPU_COPY(f, t)	(void)(*(t) = *(f))
-#define	CPU_ISSET(n, p)	(((p)->__bits[__cpuset_word(n)] & __cpuset_mask(n)) != 0)
-#define	CPU_SET(n, p)	((p)->__bits[__cpuset_word(n)] |= __cpuset_mask(n))
-#define	CPU_ZERO(p) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(p)->__bits[__i] = 0;			\
-} while (0)
-
-#define	CPU_FILL(p) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(p)->__bits[__i] = -1;			\
-} while (0)
-
-#define	CPU_SETOF(n, p) do {					\
-	CPU_ZERO(p);						\
-	((p)->__bits[__cpuset_word(n)] = __cpuset_mask(n));	\
-} while (0)
-
-/* Is p empty. */
-#define	CPU_EMPTY(p) __extension__ ({			\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if ((p)->__bits[__i])			\
-			break;				\
-	__i == _NCPUWORDS;				\
-})
-
-/* Is p full set. */
-#define	CPU_ISFULLSET(p) __extension__ ({		\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if ((p)->__bits[__i] != (long)-1)	\
-			break;				\
-	__i == _NCPUWORDS;				\
-})
-
-/* Is c a subset of p. */
-#define	CPU_SUBSET(p, c) __extension__ ({		\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if (((c)->__bits[__i] &			\
-		    (p)->__bits[__i]) !=		\
-		    (c)->__bits[__i])			\
-			break;				\
-	__i == _NCPUWORDS;				\
-})
-
-/* Are there any common bits between b & c? */
-#define	CPU_OVERLAP(p, c) __extension__ ({		\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if (((c)->__bits[__i] &			\
-		    (p)->__bits[__i]) != 0)		\
-			break;				\
-	__i != _NCPUWORDS;				\
-})
-
-/* Compare two sets, returns 0 if equal 1 otherwise. */
-#define	CPU_CMP(p, c) __extension__ ({			\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		if (((c)->__bits[__i] !=		\
-		    (p)->__bits[__i]))			\
-			break;				\
-	__i != _NCPUWORDS;				\
-})
-
-#define	CPU_OR(d, s) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(d)->__bits[__i] |= (s)->__bits[__i];	\
-} while (0)
-
-#define	CPU_AND(d, s) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(d)->__bits[__i] &= (s)->__bits[__i];	\
-} while (0)
-
-#define	CPU_NAND(d, s) do {				\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		(d)->__bits[__i] &= ~(s)->__bits[__i];	\
-} while (0)
-
-#define	CPU_CLR_ATOMIC(n, p)						\
-	atomic_clear_long(&(p)->__bits[__cpuset_word(n)], __cpuset_mask(n))
-
-#define	CPU_SET_ATOMIC(n, p)						\
-	atomic_set_long(&(p)->__bits[__cpuset_word(n)], __cpuset_mask(n))
-
-/* Convenience functions catering special cases. */ 
-#define	CPU_OR_ATOMIC(d, s) do {			\
-	__size_t __i;					\
-	for (__i = 0; __i < _NCPUWORDS; __i++)		\
-		atomic_set_long(&(d)->__bits[__i],	\
-		    (s)->__bits[__i]);			\
-} while (0)
-
-#define	CPU_COPY_STORE_REL(f, t) do {				\
-	__size_t __i;						\
-	for (__i = 0; __i < _NCPUWORDS; __i++)			\
-		atomic_store_rel_long(&(t)->__bits[__i],	\
-		    (f)->__bits[__i]);				\
-} while (0)
+#define	CPU_CLR(n, p)			BIT_CLR(CPU_SETSIZE, n, p)
+#define	CPU_COPY(f, t)			BIT_COPY(CPU_SETSIZE, f, t)
+#define	CPU_ISSET(n, p)			BIT_ISSET(CPU_SETSIZE, n, p)
+#define	CPU_SET(n, p)			BIT_SET(CPU_SETSIZE, n, p)
+#define	CPU_ZERO(p) 			BIT_ZERO(CPU_SETSIZE, p)
+#define	CPU_FILL(p) 			BIT_FILL(CPU_SETSIZE, p)
+#define	CPU_SETOF(n, p)			BIT_SETOF(CPU_SETSIZE, n, p)
+#define	CPU_EMPTY(p)			BIT_EMPTY(CPU_SETSIZE, p)
+#define	CPU_ISFULLSET(p)		BIT_ISFULLSET(CPU_SETSIZE, p)
+#define	CPU_SUBSET(p, c)		BIT_SUBSET(CPU_SETSIZE, p, c)
+#define	CPU_OVERLAP(p, c)		BIT_OVERLAP(CPU_SETSIZE, p, c)
+#define	CPU_CMP(p, c)			BIT_CMP(CPU_SETSIZE, p, c)
+#define	CPU_OR(d, s)			BIT_OR(CPU_SETSIZE, d, s)
+#define	CPU_AND(d, s)			BIT_AND(CPU_SETSIZE, d, s)
+#define	CPU_NAND(d, s)			BIT_NAND(CPU_SETSIZE, d, s)
+#define	CPU_CLR_ATOMIC(n, p)		BIT_CLR_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_SET_ATOMIC(n, p)		BIT_SET_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_OR_ATOMIC(d, s)		BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
+#define	CPU_COPY_STORE_REL(f, t)	BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
 
 /*
  * Valid cpulevel_t values.

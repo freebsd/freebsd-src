@@ -1236,6 +1236,7 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 		   distinguish name from values by seeing if the next
 		   token is an equals sign */
 		if (ctype != CT_STRUCT) {
+			u_long ul;
 			int len2, off2;
 			char *eptr;
 
@@ -1259,11 +1260,12 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 			}
 
 			/* Index was specified explicitly; parse it */
-			index = (u_int)strtoul(s + *off, &eptr, 0);
-			if (index < 0 || eptr - (s + *off) != len) {
+			ul = strtoul(s + *off, &eptr, 0);
+			if (ul == ULONG_MAX || eptr - (s + *off) != len) {
 				error = EINVAL;
 				goto done;
 			}
+			index = (u_int)ul;
 			nextIndex = index + 1;
 			*off += len + len2;
 		} else {			/* a structure field */

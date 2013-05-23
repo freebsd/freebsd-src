@@ -105,13 +105,14 @@
 #ifdef QUEUE_MACRO_DEBUG
 /* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
-	char * lastfile;
-	int lastline;
-	char * prevfile;
-	int prevline;
+	unsigned long	 lastline;
+	unsigned long	 prevline;
+	const char	*lastfile;
+	const char	*prevfile;
 };
 
 #define	TRACEBUF	struct qm_trace trace;
+#define	TRACEBUF_INITIALIZER	{ __FILE__, __LINE__, NULL, 0 } ,
 #define	TRASHIT(x)	do {(x) = (void *)-1;} while (0)
 #define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
 
@@ -134,6 +135,7 @@ struct qm_trace {
 #define	QMD_TRACE_HEAD(head)
 #define	QMD_SAVELINK(name, link)
 #define	TRACEBUF
+#define	TRACEBUF_INITIALIZER
 #define	TRASHIT(x)
 #endif	/* QUEUE_MACRO_DEBUG */
 
@@ -461,7 +463,7 @@ struct name {								\
 }
 
 #define	TAILQ_HEAD_INITIALIZER(head)					\
-	{ NULL, &(head).tqh_first }
+	{ NULL, &(head).tqh_first, TRACEBUF_INITIALIZER }
 
 #define	TAILQ_ENTRY(type)						\
 struct {								\

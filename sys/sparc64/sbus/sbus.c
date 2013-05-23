@@ -199,7 +199,7 @@ static driver_t sbus_driver = {
 
 static devclass_t sbus_devclass;
 
-EARLY_DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0,
+EARLY_DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, NULL, NULL,
     BUS_PASS_BUS);
 MODULE_DEPEND(sbus, nexus, 1, 1, 1);
 MODULE_VERSION(sbus, 1);
@@ -898,7 +898,7 @@ sbus_get_devinfo(device_t bus, device_t child)
  * The same needs to be done to PCI controller drivers.
  */
 static void
-sbus_overtemp(void *arg)
+sbus_overtemp(void *arg __unused)
 {
 	static int shutdown;
 
@@ -912,7 +912,7 @@ sbus_overtemp(void *arg)
 
 /* Try to shut down in time in case of power failure. */
 static void
-sbus_pwrfail(void *arg)
+sbus_pwrfail(void *arg __unused)
 {
 	static int shutdown;
 
@@ -921,7 +921,7 @@ sbus_pwrfail(void *arg)
 		return;
 	shutdown++;
 	printf("Power failure detected\nShutting down NOW.\n");
-	shutdown_nice(0);
+	shutdown_nice(RB_POWEROFF);
 }
 
 static int

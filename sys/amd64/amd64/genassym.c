@@ -167,7 +167,6 @@ ASSYM(PCB_FPUSUSPEND, offsetof(struct pcb, pcb_fpususpend));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_FULL_IRET, PCB_FULL_IRET);
 ASSYM(PCB_DBREGS, PCB_DBREGS);
-ASSYM(PCB_GS32BIT, PCB_GS32BIT);
 ASSYM(PCB_32BIT, PCB_32BIT);
 
 ASSYM(COMMON_TSS_RSP0, offsetof(struct amd64tss, tss_rsp0));

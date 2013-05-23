@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/endian.h>
+#include <sys/kenv.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>   
 #include <sys/module.h>
@@ -261,6 +262,10 @@ cfi_attach(device_t dev)
 	struct cfi_softc *sc;
 	u_int blksz, blocks;
 	u_int r, u;
+#ifdef CFI_SUPPORT_STRATAFLASH
+	uint64_t ppr;
+	char name[KENV_MNAMELEN], value[32];
+#endif
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -311,6 +316,20 @@ cfi_attach(device_t dev)
 	sc->sc_nod = make_dev(&cfi_cdevsw, u, UID_ROOT, GID_WHEEL, 0600,
 	    "%s%u", cfi_driver_name, u);
 	sc->sc_nod->si_drv1 = sc;
+
+#ifdef CFI_SUPPORT_STRATAFLASH
+	/*
+	 * Store the Intel factory PPR in the environment.  In some
+	 * cases it is the most unique ID on a board.
+	 */
+	if (cfi_intel_get_factory_pr(sc, &ppr) == 0) {
+		if (snprintf(name, sizeof(name), "%s.factory_ppr",
+		    device_get_nameunit(dev)) < (sizeof(name) - 1) &&
+		    snprintf(value, sizeof(value), "0x%016jx", ppr) <
+		    (sizeof(value) - 1))
+			(void) setenv(name, value);
+	}
+#endif
 
 	device_add_child(dev, "cfid", -1);
 	bus_generic_attach(dev);

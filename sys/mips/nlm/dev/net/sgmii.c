@@ -69,13 +69,6 @@ nlm_configure_sgmii_interface(uint64_t nae_base, int block, int port,
 void
 nlm_sgmii_pcs_init(uint64_t nae_base, uint32_t cplx_mask)
 {
-	/* reset internal MDIO */
-	nlm_int_gmac_mdio_reset(nae_base, 0, BLOCK_7, LANE_CFG);
-
-	/* reset external MDIO */
-	nlm_gmac_mdio_reset(nae_base, 0, BLOCK_7, LANE_CFG);
-	nlm_gmac_mdio_reset(nae_base, 1, BLOCK_7, LANE_CFG);
-
 	xlp_nae_config_lane_gmac(nae_base, cplx_mask);
 }
 

@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 
 #include <machine/atomic.h>
 #include <machine/cache.h>

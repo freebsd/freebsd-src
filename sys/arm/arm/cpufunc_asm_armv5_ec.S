@@ -66,6 +66,7 @@ ENTRY(armv5_ec_setttb)
 
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	RET
+END(armv5_ec_setttb)
 
 /*
  * Cache operations.  For the entire cache we use the enhanced cache
@@ -90,6 +91,7 @@ ENTRY_NP(armv5_ec_icache_sync_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv5_ec_icache_sync_range)
 
 ENTRY_NP(armv5_ec_icache_sync_all)
 .Larmv5_ec_icache_sync_all:
@@ -107,6 +109,7 @@ ENTRY_NP(armv5_ec_icache_sync_all)
 	bne	1b			/* More to do? */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv5_ec_icache_sync_all)
 
 .Larmv5_ec_line_size:
 	.word	_C_LABEL(arm_pdcache_line_size)
@@ -128,6 +131,7 @@ ENTRY(armv5_ec_dcache_wb_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv5_ec_dcache_wb_range)
 
 ENTRY(armv5_ec_dcache_wbinv_range)
 	ldr	ip, .Larmv5_ec_line_size
@@ -146,6 +150,7 @@ ENTRY(armv5_ec_dcache_wbinv_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv5_ec_dcache_wbinv_range)
 
 /*
  * Note, we must not invalidate everything.  If the range is too big we
@@ -168,6 +173,7 @@ ENTRY(armv5_ec_dcache_inv_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv5_ec_dcache_inv_range)
 
 ENTRY(armv5_ec_idcache_wbinv_range)
 	ldr	ip, .Larmv5_ec_line_size
@@ -187,6 +193,7 @@ ENTRY(armv5_ec_idcache_wbinv_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv5_ec_idcache_wbinv_range)
 
 ENTRY_NP(armv5_ec_idcache_wbinv_all)
 .Larmv5_ec_idcache_wbinv_all:
@@ -197,6 +204,7 @@ ENTRY_NP(armv5_ec_idcache_wbinv_all)
 	 */
 	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate ICache */
 	/* Fall through to purge Dcache. */
+END(armv5_ec_idcache_wbinv_all)
 
 ENTRY(armv5_ec_dcache_wbinv_all)
 .Larmv5_ec_dcache_wbinv_all:
@@ -204,4 +212,5 @@ ENTRY(armv5_ec_dcache_wbinv_all)
 	bne	1b			/* More to do? */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv5_ec_dcache_wbinv_all)
 

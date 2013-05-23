@@ -86,6 +86,7 @@ struct nd_ifinfo {
 #define ND6_IFF_DONT_SET_IFROUTE	0x10
 #define ND6_IFF_AUTO_LINKLOCAL	0x20
 #define	ND6_IFF_NO_RADR		0x40
+#define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
 
 #define	ND6_CREATE		LLE_CREATE
 #define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
@@ -416,7 +417,7 @@ int nd6_output_flush(struct ifnet *, struct ifnet *, struct mbuf *,
 	struct sockaddr_in6 *, struct route *);
 int nd6_need_cache(struct ifnet *);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
-	struct sockaddr *, u_char *, struct llentry **);
+	const struct sockaddr *, u_char *, struct llentry **);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);

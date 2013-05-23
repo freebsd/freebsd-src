@@ -205,7 +205,7 @@ fdesc_statfs(mp, sbp)
 	last = min(fdp->fd_nfiles, lim);
 	freefd = 0;
 	for (i = fdp->fd_freefile; i < last; i++)
-		if (fdp->fd_ofiles[i] == NULL)
+		if (fdp->fd_ofiles[i].fde_file == NULL)
 			freefd++;
 
 	/*

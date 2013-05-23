@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -1053,10 +1054,11 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 {
 	struct ccb_dev_advinfo cdai;
 	ses_setphyspath_callback_args_t args;
-	int ret;
+	int i, ret;
 	struct sbuf sb;
 	uint8_t *devid, *elmaddr;
 	ses_element_t *elmpriv;
+	const char *c;
 
 	ret = EIO;
 	devid = NULL;
@@ -1099,7 +1101,13 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	elmpriv = elm->elm_private;
 	if (elmpriv->descr != NULL && elmpriv->descr_len > 0) {
 		sbuf_cat(&sb, "/elmdesc@");
-		sbuf_bcat(&sb, elmpriv->descr, elmpriv->descr_len);
+		for (i = 0, c = elmpriv->descr; i < elmpriv->descr_len;
+		    i++, c++) {
+			if (!isprint(*c) || isspace(*c) || *c == '/')
+				sbuf_putc(&sb, '_');
+			else
+				sbuf_putc(&sb, *c);
+		}
 	}
 	sbuf_finish(&sb);
 

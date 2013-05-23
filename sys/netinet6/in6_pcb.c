@@ -106,8 +106,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
-struct	in6_addr zeroin6_addr;
-
 int
 in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred)

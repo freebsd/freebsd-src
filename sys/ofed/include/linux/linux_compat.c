@@ -37,6 +37,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

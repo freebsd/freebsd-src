@@ -1700,6 +1700,9 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct bridge_softc *sc = ifp->if_bridge;
 	struct bridge_iflist *bif;
 
+	if (ifp->if_flags & IFF_RENAMING)
+		return;
+
 	/* Check if the interface is a bridge member */
 	if (sc != NULL) {
 		BRIDGE_LOCK(sc);
@@ -2314,6 +2317,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 					BRIDGE_UNLOCK(sc);		\
 					return (NULL);			\
 				}					\
+				eh = mtod(m, struct ether_header *);	\
 			}						\
 		}							\
 		if (bif->bif_flags & IFBIF_LEARNING) {			\
@@ -3332,14 +3336,14 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 		if ((m = m_copyup(m, sizeof(struct ip6_hdr),
 			    (max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
-			V_ip6stat.ip6s_toosmall++;
+			IP6STAT_INC(ip6s_toosmall);
 			in6_ifstat_inc(inifp, ifs6_in_hdrerr);
 			goto bad;
 		}
 	} else if (__predict_false(m->m_len < sizeof(struct ip6_hdr))) {
 		struct ifnet *inifp = m->m_pkthdr.rcvif;
 		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
-			V_ip6stat.ip6s_toosmall++;
+			IP6STAT_INC(ip6s_toosmall);
 			in6_ifstat_inc(inifp, ifs6_in_hdrerr);
 			goto bad;
 		}
@@ -3348,7 +3352,7 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
-		V_ip6stat.ip6s_badvers++;
+		IP6STAT_INC(ip6s_badvers);
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
 		goto bad;
 	}

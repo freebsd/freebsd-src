@@ -116,7 +116,7 @@ static device_method_t ipheth_methods[] = {
 	DEVMETHOD(device_attach, ipheth_attach),
 	DEVMETHOD(device_detach, ipheth_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ipheth_driver = {

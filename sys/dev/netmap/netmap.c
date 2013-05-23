@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2012 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>	/* PROT_EXEC */
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <vm/vm.h>	/* vtophys */
 #include <vm/pmap.h>	/* vtophys */
 #include <sys/socket.h> /* sockaddrs */
@@ -98,6 +99,7 @@ MALLOC_DEFINE(M_NETMAP, "netmap", "Network memory map");
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
 
+/* XXX the following variables must be deprecated and included in nm_mem */
 u_int netmap_total_buffers;
 u_int netmap_buf_size;
 char *netmap_buffer_base;	/* address of an invalid buffer */
@@ -120,11 +122,11 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, no_pendintr,
 
 int netmap_drop = 0;	/* debugging */
 int netmap_flags = 0;	/* debug flags */
-int netmap_copy = 0;	/* debugging, copy content */
+int netmap_fwd = 0;	/* force transparent mode */
 
 SYSCTL_INT(_dev_netmap, OID_AUTO, drop, CTLFLAG_RW, &netmap_drop, 0 , "");
 SYSCTL_INT(_dev_netmap, OID_AUTO, flags, CTLFLAG_RW, &netmap_flags, 0 , "");
-SYSCTL_INT(_dev_netmap, OID_AUTO, copy, CTLFLAG_RW, &netmap_copy, 0 , "");
+SYSCTL_INT(_dev_netmap, OID_AUTO, fwd, CTLFLAG_RW, &netmap_fwd, 0 , "");
 
 #ifdef NM_BRIDGE /* support for netmap bridge */
 
@@ -145,21 +147,32 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, copy, CTLFLAG_RW, &netmap_copy, 0 , "");
 #define NM_BDG_HASH		1024	/* forwarding table entries */
 #define NM_BDG_BATCH		1024	/* entries in the forwarding buffer */
 #define	NM_BRIDGES		4	/* number of bridges */
+
+
 int netmap_bridge = NM_BDG_BATCH; /* bridge batch size */
 SYSCTL_INT(_dev_netmap, OID_AUTO, bridge, CTLFLAG_RW, &netmap_bridge, 0 , "");
 
 #ifdef linux
-#define	ADD_BDG_REF(ifp)	(NA(ifp)->if_refcount++)
-#define	DROP_BDG_REF(ifp)	(NA(ifp)->if_refcount-- <= 1)
+
+#define	refcount_acquire(_a)	atomic_add(1, (atomic_t *)_a)
+#define	refcount_release(_a)	atomic_dec_and_test((atomic_t *)_a)
+
 #else /* !linux */
-#define	ADD_BDG_REF(ifp)	(ifp)->if_refcount++
-#define	DROP_BDG_REF(ifp)	refcount_release(&(ifp)->if_refcount)
+
 #ifdef __FreeBSD__
 #include <sys/endian.h>
 #include <sys/refcount.h>
 #endif /* __FreeBSD__ */
+
 #define prefetch(x)	__builtin_prefetch(x)
+
 #endif /* !linux */
+
+/*
+ * These are used to handle reference counters for bridge ports.
+ */
+#define	ADD_BDG_REF(ifp)	refcount_acquire(&NA(ifp)->na_bdg_refcount)
+#define	DROP_BDG_REF(ifp)	refcount_release(&NA(ifp)->na_bdg_refcount)
 
 static void bdg_netmap_attach(struct ifnet *ifp);
 static int bdg_netmap_reg(struct ifnet *ifp, int onoff);
@@ -177,9 +190,14 @@ struct nm_hash_ent {
 };
 
 /*
- * Interfaces for a bridge are all in ports[].
+ * Interfaces for a bridge are all in bdg_ports[].
  * The array has fixed size, an empty entry does not terminate
- * the search.
+ * the search. But lookups only occur on attach/detach so we
+ * don't mind if they are slow.
+ *
+ * The bridge is non blocking on the transmit ports.
+ *
+ * bdg_lock protects accesses to the bdg_ports array.
  */
 struct nm_bridge {
 	struct ifnet *bdg_ports[NM_BDG_MAXPORTS];
@@ -275,12 +293,53 @@ nm_find_bridge(const char *name)
 }
 #endif /* NM_BRIDGE */
 
+
+/*
+ * Fetch configuration from the device, to cope with dynamic
+ * reconfigurations after loading the module.
+ */
+static int
+netmap_update_config(struct netmap_adapter *na)
+{
+	struct ifnet *ifp = na->ifp;
+	u_int txr, txd, rxr, rxd;
+
+	txr = txd = rxr = rxd = 0;
+	if (na->nm_config) {
+		na->nm_config(ifp, &txr, &txd, &rxr, &rxd);
+	} else {
+		/* take whatever we had at init time */
+		txr = na->num_tx_rings;
+		txd = na->num_tx_desc;
+		rxr = na->num_rx_rings;
+		rxd = na->num_rx_desc;
+	}
+
+	if (na->num_tx_rings == txr && na->num_tx_desc == txd &&
+	    na->num_rx_rings == rxr && na->num_rx_desc == rxd)
+		return 0; /* nothing changed */
+	if (netmap_verbose || na->refcount > 0) {
+		D("stored config %s: txring %d x %d, rxring %d x %d",
+			ifp->if_xname,
+			na->num_tx_rings, na->num_tx_desc,
+			na->num_rx_rings, na->num_rx_desc);
+		D("new config %s: txring %d x %d, rxring %d x %d",
+			ifp->if_xname, txr, txd, rxr, rxd);
+	}
+	if (na->refcount == 0) {
+		D("configuration changed (but fine)");
+		na->num_tx_rings = txr;
+		na->num_tx_desc = txd;
+		na->num_rx_rings = rxr;
+		na->num_rx_desc = rxd;
+		return 0;
+	}
+	D("configuration changed while active, this is bad...");
+	return 1;
+}
+
 /*------------- memory allocator -----------------*/
-#ifdef NETMAP_MEM2
 #include "netmap_mem2.c"
-#else /* !NETMAP_MEM2 */
-#include "netmap_mem1.c"
-#endif /* !NETMAP_MEM2 */
 /*------------ end of memory allocator ----------*/
 
 
@@ -351,7 +410,8 @@ netmap_dtor_locked(void *data)
 	if (na->refcount <= 0) {	/* last instance */
 		u_int i, j, lim;
 
-		D("deleting last netmap instance for %s", ifp->if_xname);
+		if (netmap_verbose)
+			D("deleting last instance for %s", ifp->if_xname);
 		/*
 		 * there is a race here with *_netmap_task() and
 		 * netmap_poll(), which don't run under NETMAP_REG_LOCK.
@@ -449,16 +509,16 @@ netmap_dtor(void *data)
 {
 	struct netmap_priv_d *priv = data;
 	struct ifnet *ifp = priv->np_ifp;
-	struct netmap_adapter *na;
 
 	NMA_LOCK();
 	if (ifp) {
-		na = NA(ifp);
+		struct netmap_adapter *na = NA(ifp);
+
 		na->nm_lock(ifp, NETMAP_REG_LOCK, 0);
 		netmap_dtor_locked(data);
 		na->nm_lock(ifp, NETMAP_REG_UNLOCK, 0);
 
-		nm_if_rele(ifp);
+		nm_if_rele(ifp); /* might also destroy *na */
 	}
 	if (priv->ref_done) {
 		netmap_memory_deref();
@@ -482,7 +542,8 @@ static int
 netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
-	D("first mmap for %p", handle);
+	if (netmap_verbose)
+		D("first mmap for %p", handle);
 	return saved_cdev_pager_ops.cdev_pg_ctor(handle,
 			size, prot, foff, cred, color);
 }
@@ -491,7 +552,7 @@ static void
 netmap_dev_pager_dtor(void *handle)
 {
 	saved_cdev_pager_ops.cdev_pg_dtor(handle);
-	D("ready to release memory for %p", handle);
+	ND("ready to release memory for %p", handle);
 }
 
 
@@ -507,7 +568,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 {
 	vm_object_t obj;
 
-	D("cdev %p foff %jd size %jd objp %p prot %d", cdev,
+	ND("cdev %p foff %jd size %jd objp %p prot %d", cdev,
 	    (intmax_t )*foff, (intmax_t )objsize, objp, prot);
 	obj = vm_pager_allocate(OBJT_DEVICE, cdev, objsize, prot, *foff,
             curthread->td_ucred);
@@ -515,7 +576,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 	if (obj == NULL)
 		return EINVAL;
 	if (saved_cdev_pager_ops.cdev_pg_fault == NULL) {
-		D("initialize cdev_pager_ops");
+		ND("initialize cdev_pager_ops");
 		saved_cdev_pager_ops = *(obj->un_pager.devp.ops);
 		netmap_cdev_pager_ops.cdev_pg_fault =
 			saved_cdev_pager_ops.cdev_pg_fault;
@@ -572,7 +633,9 @@ netmap_mmap(__unused struct cdev *dev,
 static int
 netmap_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	D("dev %p fflag 0x%x devtype %d td %p", dev, fflag, devtype, td);
+	if (netmap_verbose)
+		D("dev %p fflag 0x%x devtype %d td %p",
+			dev, fflag, devtype, td);
 	return 0;
 }
 
@@ -598,20 +661,152 @@ netmap_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 /*
  * Handlers for synchronization of the queues from/to the host.
- *
+ * Netmap has two operating modes:
+ * - in the default mode, the rings connected to the host stack are
+ *   just another ring pair managed by userspace;
+ * - in transparent mode (XXX to be defined) incoming packets
+ *   (from the host or the NIC) are marked as NS_FORWARD upon
+ *   arrival, and the user application has a chance to reset the
+ *   flag for packets that should be dropped.
+ *   On the RXSYNC or poll(), packets in RX rings between
+ *   kring->nr_kcur and ring->cur with NS_FORWARD still set are moved
+ *   to the other side.
+ * The transfer NIC --> host is relatively easy, just encapsulate
+ * into mbufs and we are done. The host --> NIC side is slightly
+ * harder because there might not be room in the tx ring so it
+ * might take a while before releasing the buffer.
+ */
+
+/*
+ * pass a chain of buffers to the host stack as coming from 'dst'
+ */
+static void
+netmap_send_up(struct ifnet *dst, struct mbuf *head)
+{
+	struct mbuf *m;
+
+	/* send packets up, outside the lock */
+	while ((m = head) != NULL) {
+		head = head->m_nextpkt;
+		m->m_nextpkt = NULL;
+		if (netmap_verbose & NM_VERB_HOST)
+			D("sending up pkt %p size %d", m, MBUF_LEN(m));
+		NM_SEND_UP(dst, m);
+	}
+}
+
+struct mbq {
+	struct mbuf *head;
+	struct mbuf *tail;
+	int count;
+};
+
+/*
+ * put a copy of the buffers marked NS_FORWARD into an mbuf chain.
+ * Run from hwcur to cur - reserved
+ */
+static void
+netmap_grab_packets(struct netmap_kring *kring, struct mbq *q, int force)
+{
+	/* Take packets from hwcur to cur-reserved and pass them up.
+	 * In case of no buffers we give up. At the end of the loop,
+	 * the queue is drained in all cases.
+	 * XXX handle reserved
+	 */
+	int k = kring->ring->cur - kring->ring->reserved;
+	u_int n, lim = kring->nkr_num_slots - 1;
+	struct mbuf *m, *tail = q->tail;
+
+	if (k < 0)
+		k = k + kring->nkr_num_slots;
+	for (n = kring->nr_hwcur; n != k;) {
+		struct netmap_slot *slot = &kring->ring->slot[n];
+
+		n = (n == lim) ? 0 : n + 1;
+		if ((slot->flags & NS_FORWARD) == 0 && !force)
+			continue;
+		if (slot->len < 14 || slot->len > NETMAP_BUF_SIZE) {
+			D("bad pkt at %d len %d", n, slot->len);
+			continue;
+		}
+		slot->flags &= ~NS_FORWARD; // XXX needed ?
+		m = m_devget(NMB(slot), slot->len, 0, kring->na->ifp, NULL);
+
+		if (m == NULL)
+			break;
+		if (tail)
+			tail->m_nextpkt = m;
+		else
+			q->head = m;
+		tail = m;
+		q->count++;
+		m->m_nextpkt = NULL;
+	}
+	q->tail = tail;
+}
+
+/*
+ * called under main lock to send packets from the host to the NIC
+ * The host ring has packets from nr_hwcur to (cur - reserved)
+ * to be sent down. We scan the tx rings, which have just been
+ * flushed so nr_hwcur == cur. Pushing packets down means
+ * increment cur and decrement avail.
+ * XXX to be verified
+ */
+static void
+netmap_sw_to_nic(struct netmap_adapter *na)
+{
+	struct netmap_kring *kring = &na->rx_rings[na->num_rx_rings];
+	struct netmap_kring *k1 = &na->tx_rings[0];
+	int i, howmany, src_lim, dst_lim;
+
+	howmany = kring->nr_hwavail;	/* XXX otherwise cur - reserved - nr_hwcur */
+
+	src_lim = kring->nkr_num_slots;
+	for (i = 0; howmany > 0 && i < na->num_tx_rings; i++, k1++) {
+		ND("%d packets left to ring %d (space %d)", howmany, i, k1->nr_hwavail);
+		dst_lim = k1->nkr_num_slots;
+		while (howmany > 0 && k1->ring->avail > 0) {
+			struct netmap_slot *src, *dst, tmp;
+			src = &kring->ring->slot[kring->nr_hwcur];
+			dst = &k1->ring->slot[k1->ring->cur];
+			tmp = *src;
+			src->buf_idx = dst->buf_idx;
+			src->flags = NS_BUF_CHANGED;
+
+			dst->buf_idx = tmp.buf_idx;
+			dst->len = tmp.len;
+			dst->flags = NS_BUF_CHANGED;
+			ND("out len %d buf %d from %d to %d",
+				dst->len, dst->buf_idx,
+				kring->nr_hwcur, k1->ring->cur);
+
+			if (++kring->nr_hwcur >= src_lim)
+				kring->nr_hwcur = 0;
+			howmany--;
+			kring->nr_hwavail--;
+			if (++k1->ring->cur >= dst_lim)
+				k1->ring->cur = 0;
+			k1->ring->avail--;
+		}
+		kring->ring->cur = kring->nr_hwcur; // XXX
+		k1++;
+	}
+}
+
+/*
  * netmap_sync_to_host() passes packets up. We are called from a
  * system call in user process context, and the only contention
  * can be among multiple user threads erroneously calling
- * this routine concurrently. In principle we should not even
- * need to lock.
+ * this routine concurrently.
  */
 static void
 netmap_sync_to_host(struct netmap_adapter *na)
 {
 	struct netmap_kring *kring = &na->tx_rings[na->num_tx_rings];
 	struct netmap_ring *ring = kring->ring;
-	struct mbuf *head = NULL, *tail = NULL, *m;
-	u_int k, n, lim = kring->nkr_num_slots - 1;
+	u_int k, lim = kring->nkr_num_slots - 1;
+	struct mbq q = { NULL, NULL };
 
 	k = ring->cur;
 	if (k > lim) {
@@ -624,37 +819,12 @@ netmap_sync_to_host(struct netmap_adapter *na)
 	 * In case of no buffers we give up. At the end of the loop,
 	 * the queue is drained in all cases.
 	 */
-	for (n = kring->nr_hwcur; n != k;) {
-		struct netmap_slot *slot = &ring->slot[n];
-
-		n = (n == lim) ? 0 : n + 1;
-		if (slot->len < 14 || slot->len > NETMAP_BUF_SIZE) {
-			D("bad pkt at %d len %d", n, slot->len);
-			continue;
-		}
-		m = m_devget(NMB(slot), slot->len, 0, na->ifp, NULL);
-
-		if (m == NULL)
-			break;
-		if (tail)
-			tail->m_nextpkt = m;
-		else
-			head = m;
-		tail = m;
-		m->m_nextpkt = NULL;
-	}
+	netmap_grab_packets(kring, &q, 1);
 	kring->nr_hwcur = k;
 	kring->nr_hwavail = ring->avail = lim;
 	// na->nm_lock(na->ifp, NETMAP_CORE_UNLOCK, 0);
 
-	/* send packets up, outside the lock */
-	while ((m = head) != NULL) {
-		head = head->m_nextpkt;
-		m->m_nextpkt = NULL;
-		if (netmap_verbose & NM_VERB_HOST)
-			D("sending up pkt %p size %d", m, MBUF_LEN(m));
-		NM_SEND_UP(na->ifp, m);
-	}
+	netmap_send_up(na->ifp, q.head);
 }
 
 /*
@@ -877,6 +1047,7 @@ netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
 	priv->np_txpoll = (ringid & NETMAP_NO_TX_POLL) ? 0 : 1;
 	if (need_lock)
 		na->nm_lock(ifp, NETMAP_CORE_UNLOCK, 0);
+    if (netmap_verbose) {
 	if (ringid & NETMAP_SW_RING)
 		D("ringid %s set to SW RING", ifp->if_xname);
 	else if (ringid & NETMAP_HW_RING)
@@ -884,6 +1055,7 @@ netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
 			priv->np_qfirst);
 	else
 		D("ringid %s set to all %d HW RINGS", ifp->if_xname, lim);
+    }
 	return 0;
 }
 
@@ -965,6 +1137,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		if (error)
 			break;
 		na = NA(ifp); /* retrieve netmap_adapter */
+		netmap_update_config(na);
 		nmr->nr_rx_rings = na->num_rx_rings;
 		nmr->nr_tx_rings = na->num_tx_rings;
 		nmr->nr_rx_slots = na->num_rx_desc;
@@ -1014,6 +1187,8 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			break;
 		}
 
+		/* ring configuration may have changed, fetch from the card */
+		netmap_update_config(na);
 		priv->np_ifp = ifp;	/* store the reference */
 		error = netmap_set_ringid(priv, nmr->nr_ringid);
 		if (error)
@@ -1182,7 +1357,8 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	struct ifnet *ifp;
 	struct netmap_kring *kring;
 	u_int core_lock, i, check_all, want_tx, want_rx, revents = 0;
-	u_int lim_tx, lim_rx;
+	u_int lim_tx, lim_rx, host_forwarded = 0;
+	struct mbq q = { NULL, NULL, 0 };
 	enum {NO_CL, NEED_CL, LOCKED_CL }; /* see below */
 	void *pwait = dev;	/* linux compatibility */
 
@@ -1228,6 +1404,17 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 			}
 		}
 		return (revents);
+	}
+
+	/* if we are in transparent mode, check also the host rx ring */
+	kring = &na->rx_rings[lim_rx];
+	if ( (priv->np_qlast == NETMAP_HW_RING) // XXX check_all
+			&& want_rx
+			&& (netmap_fwd || kring->ring->flags & NR_FORWARD) ) {
+		if (kring->ring->avail == 0)
+			netmap_sync_from_host(na, td, dev);
+		if (kring->ring->avail > 0)
+			revents |= want_rx;
 	}
 
 	/*
@@ -1305,6 +1492,7 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	 * to avoid that the tx rings stall).
 	 */
 	if (priv->np_txpoll || want_tx) {
+flush_tx:
 		for (i = priv->np_qfirst; i < lim_tx; i++) {
 			kring = &na->tx_rings[i];
 			/*
@@ -1357,6 +1545,11 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 			}
 			if (na->separate_locks)
 				na->nm_lock(ifp, NETMAP_RX_LOCK, i);
+			if (netmap_fwd ||kring->ring->flags & NR_FORWARD) {
+				ND(10, "forwarding some buffers up %d to %d",
+				    kring->nr_hwcur, kring->ring->cur);
+				netmap_grab_packets(kring, &q, netmap_fwd);
+			}
 
 			if (na->nm_rxsync(ifp, i, 0 /* no lock */))
 				revents |= POLLERR;
@@ -1379,8 +1572,28 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 		if (want_rx)
 			selrecord(td, &na->rx_si);
 	}
+
+	/* forward host to the netmap ring */
+	kring = &na->rx_rings[lim_rx];
+	if (kring->nr_hwavail > 0)
+		ND("host rx %d has %d packets", lim_rx, kring->nr_hwavail);
+	if ( (priv->np_qlast == NETMAP_HW_RING) // XXX check_all
+			&& (netmap_fwd || kring->ring->flags & NR_FORWARD)
+			 && kring->nr_hwavail > 0 && !host_forwarded) {
+		if (core_lock == NEED_CL) {
+			na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
+			core_lock = LOCKED_CL;
+		}
+		netmap_sw_to_nic(na);
+		host_forwarded = 1; /* prevent another pass */
+		want_rx = 0;
+		goto flush_tx;
+	}
+
 	if (core_lock == LOCKED_CL)
 		na->nm_lock(ifp, NETMAP_CORE_UNLOCK, 0);
+	if (q.head)
+		netmap_send_up(na->ifp, q.head);
 
 	return (revents);
 }
@@ -1444,58 +1657,49 @@ netmap_lock_wrapper(struct ifnet *dev, int what, u_int queueid)
  * setups.
  */
 int
-netmap_attach(struct netmap_adapter *na, int num_queues)
+netmap_attach(struct netmap_adapter *arg, int num_queues)
 {
-	int n, size;
-	void *buf;
-	struct ifnet *ifp = na->ifp;
+	struct netmap_adapter *na = NULL;
+	struct ifnet *ifp = arg ? arg->ifp : NULL;
 
-	if (ifp == NULL) {
-		D("ifp not set, giving up");
-		return EINVAL;
-	}
-	/* clear other fields ? */
-	na->refcount = 0;
+	if (arg == NULL || ifp == NULL)
+		goto fail;
+	na = malloc(sizeof(*na), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (na == NULL)
+		goto fail;
+	WNA(ifp) = na;
+	*na = *arg; /* copy everything, trust the driver to not pass junk */
+	NETMAP_SET_CAPABLE(ifp);
 	if (na->num_tx_rings == 0)
 		na->num_tx_rings = num_queues;
 	na->num_rx_rings = num_queues;
-	/* on each direction we have N+1 resources
-	 * 0..n-1	are the hardware rings
-	 * n		is the ring attached to the stack.
-	 */
-	n = na->num_rx_rings + na->num_tx_rings + 2;
-	size = sizeof(*na) + n * sizeof(struct netmap_kring);
-
-	buf = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (buf) {
-		WNA(ifp) = buf;
-		na->tx_rings = (void *)((char *)buf + sizeof(*na));
-		na->rx_rings = na->tx_rings + na->num_tx_rings + 1;
-		bcopy(na, buf, sizeof(*na));
-		NETMAP_SET_CAPABLE(ifp);
-
-		na = buf;
-		/* Core lock initialized here.  Others are initialized after
-		 * netmap_if_new.
-		 */
-		mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK,
-		    MTX_DEF);
-		if (na->nm_lock == NULL) {
-			ND("using default locks for %s", ifp->if_xname);
-			na->nm_lock = netmap_lock_wrapper;
-		}
+	na->refcount = na->na_single = na->na_multi = 0;
+	/* Core lock initialized here, others after netmap_if_new. */
+	mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK, MTX_DEF);
+	if (na->nm_lock == NULL) {
+		ND("using default locks for %s", ifp->if_xname);
+		na->nm_lock = netmap_lock_wrapper;
 	}
+
 #ifdef linux
-	if (ifp->netdev_ops) {
-		ND("netdev_ops %p", ifp->netdev_ops);
-		/* prepare a clone of the netdev ops */
-		na->nm_ndo = *ifp->netdev_ops;
+	if (!ifp->netdev_ops) {
+		D("ouch, we cannot override netdev_ops");
+		goto fail;
 	}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
+	/* if needed, prepare a clone of the entire netdev ops */
+	na->nm_ndo = *ifp->netdev_ops;
+#endif /* 2.6.28 and above */
 	na->nm_ndo.ndo_start_xmit = linux_netmap_start;
-#endif
-	D("%s for %s", buf ? "ok" : "failed", ifp->if_xname);
+#endif /* linux */
 
-	return (buf ? 0 : ENOMEM);
+	D("success for %s", ifp->if_xname);
+	return 0;
+
+fail:
+	D("fail, arg %p ifp %p na %p", arg, ifp, na);
+	netmap_detach(ifp);
+	return (na ? EINVAL : ENOMEM);
 }
 
 
@@ -1513,6 +1717,10 @@ netmap_detach(struct ifnet *ifp)
 
 	mtx_destroy(&na->core_lock);
 
+	if (na->tx_rings) { /* XXX should not happen */
+		D("freeing leftover tx_rings");
+		free(na->tx_rings, M_DEVBUF);
+	}
 	bzero(na, sizeof(*na));
 	WNA(ifp) = NULL;
 	free(na, M_DEVBUF);
@@ -1536,15 +1744,17 @@ netmap_start(struct ifnet *ifp, struct mbuf *m)
 	if (netmap_verbose & NM_VERB_HOST)
 		D("%s packet %d len %d from the stack", ifp->if_xname,
 			kring->nr_hwcur + kring->nr_hwavail, len);
+	if (len > NETMAP_BUF_SIZE) { /* too long for us */
+		D("%s from_host, drop packet size %d > %d", ifp->if_xname,
+			len, NETMAP_BUF_SIZE);
+		m_freem(m);
+		return EINVAL;
+	}
 	na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
 	if (kring->nr_hwavail >= lim) {
 		if (netmap_verbose)
 			D("stack ring %s full\n", ifp->if_xname);
 		goto done;	/* no space */
-	}
-	if (len > NETMAP_BUF_SIZE) {
-		D("drop packet size %d > %d", len, NETMAP_BUF_SIZE);
-		goto done;	/* too long for us */
 	}
 
 	/* compute the insert position */
@@ -1554,6 +1764,7 @@ netmap_start(struct ifnet *ifp, struct mbuf *m)
 	slot = &kring->ring->slot[i];
 	m_copydata(m, 0, len, NMB(slot));
 	slot->len = len;
+	slot->flags = kring->nkr_slot_flags;
 	kring->nr_hwavail++;
 	if (netmap_verbose  & NM_VERB_HOST)
 		D("wake up host ring %s %d", na->ifp->if_xname, na->num_rx_rings);
@@ -1645,6 +1856,10 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
  * N rings, separate locks:
  *	lock(i); wake(i); unlock(i); lock(core) wake(N+1) unlock(core)
  * work_done is non-null on the RX path.
+ *
+ * The 'q' argument also includes flag to tell whether the queue is
+ * already locked on enter, and whether it should remain locked on exit.
+ * This helps adapting to different defaults in drivers and OSes.
  */
 int
 netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
@@ -1652,9 +1867,14 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 	struct netmap_adapter *na;
 	struct netmap_kring *r;
 	NM_SELINFO_T *main_wq;
+	int locktype, unlocktype, lock;
 
 	if (!(ifp->if_capenable & IFCAP_NETMAP))
 		return 0;
+
+	lock = q & (NETMAP_LOCKED_ENTER | NETMAP_LOCKED_EXIT);
+	q = q & NETMAP_RING_MASK;
+
 	ND(5, "received %s queue %d", work_done ? "RX" : "TX" , q);
 	na = NA(ifp);
 	if (na->na_flags & NAF_SKIP_INTR) {
@@ -1664,32 +1884,42 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 
 	if (work_done) { /* RX path */
 		if (q >= na->num_rx_rings)
-			return 0;	// regular queue
+			return 0;	// not a physical queue
 		r = na->rx_rings + q;
 		r->nr_kflags |= NKR_PENDINTR;
 		main_wq = (na->num_rx_rings > 1) ? &na->rx_si : NULL;
-	} else { /* tx path */
+		locktype = NETMAP_RX_LOCK;
+		unlocktype = NETMAP_RX_UNLOCK;
+	} else { /* TX path */
 		if (q >= na->num_tx_rings)
-			return 0;	// regular queue
+			return 0;	// not a physical queue
 		r = na->tx_rings + q;
 		main_wq = (na->num_tx_rings > 1) ? &na->tx_si : NULL;
 		work_done = &q; /* dummy */
+		locktype = NETMAP_TX_LOCK;
+		unlocktype = NETMAP_TX_UNLOCK;
 	}
 	if (na->separate_locks) {
-		mtx_lock(&r->q_lock);
+		if (!(lock & NETMAP_LOCKED_ENTER))
+			na->nm_lock(ifp, locktype, q);
 		selwakeuppri(&r->si, PI_NET);
-		mtx_unlock(&r->q_lock);
+		na->nm_lock(ifp, unlocktype, q);
 		if (main_wq) {
-			mtx_lock(&na->core_lock);
+			na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
 			selwakeuppri(main_wq, PI_NET);
-			mtx_unlock(&na->core_lock);
+			na->nm_lock(ifp, NETMAP_CORE_UNLOCK, 0);
 		}
+		/* lock the queue again if requested */
+		if (lock & NETMAP_LOCKED_EXIT)
+			na->nm_lock(ifp, locktype, q);
 	} else {
-		mtx_lock(&na->core_lock);
+		if (!(lock & NETMAP_LOCKED_ENTER))
+			na->nm_lock(ifp, NETMAP_CORE_LOCK, 0);
 		selwakeuppri(&r->si, PI_NET);
 		if (main_wq)
 			selwakeuppri(main_wq, PI_NET);
-		mtx_unlock(&na->core_lock);
+		if (!(lock & NETMAP_LOCKED_EXIT))
+			na->nm_lock(ifp, NETMAP_CORE_UNLOCK, 0);
 	}
 	*work_done = 1; /* do not fire napi again */
 	return 1;
@@ -1710,7 +1940,9 @@ netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 static u_int
 linux_netmap_poll(struct file * file, struct poll_table_struct *pwait)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+	int events = POLLIN | POLLOUT; /* XXX maybe... */
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0)
 	int events = pwait ? pwait->key : POLLIN | POLLOUT;
 #else /* in 3.4.0 field 'key' was renamed to '_key' */
 	int events = pwait ? pwait->_key : POLLIN | POLLOUT;
@@ -1750,7 +1982,7 @@ linux_netmap_mmap(struct file *f, struct vm_area_struct *vma)
 		 * vtophys mapping in lut[k] so we use that, scanning
 		 * the lut[] array in steps of clustentries,
 		 * and we map each cluster (not individual pages,
-		 * it would be overkill).
+		 * it would be overkill -- XXX slow ? 20130415).
 		 */
 
 		/*

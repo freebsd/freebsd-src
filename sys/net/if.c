@@ -130,10 +130,11 @@ void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
 /* These are external hooks for CARP. */
 void	(*carp_linkstate_p)(struct ifnet *ifp);
 void	(*carp_demote_adj_p)(int, char *);
+int	(*carp_master_p)(struct ifaddr *);
 #if defined(INET) || defined(INET6)
 int	(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
 int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
-    struct sockaddr *sa);
+    const struct sockaddr *sa);
 int	(*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);   
 int	(*carp_attach_p)(struct ifaddr *, int);
 void	(*carp_detach_p)(struct ifaddr *);
@@ -1356,7 +1357,8 @@ if_rtdel(struct radix_node *rn, void *arg)
 			return (0);
 
 		err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-				rt_mask(rt), rt->rt_flags|RTF_RNH_LOCKED,
+				rt_mask(rt),
+				rt->rt_flags|RTF_RNH_LOCKED|RTF_PINNED,
 				(struct rtentry **) NULL, rt->rt_fibnum);
 		if (err) {
 			log(LOG_WARNING, "if_rtdel: error %d\n", err);
@@ -1706,11 +1708,13 @@ next:				continue;
 				/*
 				 * If the netmask of what we just found
 				 * is more specific than what we had before
-				 * (if we had one) then remember the new one
-				 * before continuing to search
-				 * for an even better one.
+				 * (if we had one), or if the virtual status
+				 * of new prefix is better than of the old one,
+				 * then remember the new one before continuing
+				 * to search for an even better one.
 				 */
 				if (ifa_maybe == NULL ||
+				    ifa_preferred(ifa_maybe, ifa) ||
 				    rn_refines((caddr_t)ifa->ifa_netmask,
 				    (caddr_t)ifa_maybe->ifa_netmask)) {
 					if (ifa_maybe != NULL)
@@ -1780,6 +1784,21 @@ done:
 		ifa_ref(ifa);
 	IF_ADDR_RUNLOCK(ifp);
 	return (ifa);
+}
+
+/*
+ * See whether new ifa is better than current one:
+ * 1) A non-virtual one is preferred over virtual.
+ * 2) A virtual in master state preferred over any other state.
+ *
+ * Used in several address selecting functions.
+ */
+int
+ifa_preferred(struct ifaddr *cur, struct ifaddr *next)
+{
+
+	return (cur->ifa_carp && (!next->ifa_carp ||
+	    ((*carp_master_p)(next) && !(*carp_master_p)(cur))));
 }
 
 #include <net/if_llatbl.h>

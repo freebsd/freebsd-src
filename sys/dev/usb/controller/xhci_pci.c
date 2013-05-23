@@ -99,6 +99,9 @@ xhci_pci_match(device_t self)
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
 
+	case 0x10421b21:
+		return ("ASMedia ASM1042 USB 3.0 controller");
+
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
 	case 0x8c318086:

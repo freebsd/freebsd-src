@@ -19,9 +19,9 @@ fulldirs="common compiler components include os_specific"
 # files to remove
 stripdirs="generate libraries tests tools"
 stripfiles="Makefile README accygwin.h acefi.h achaiku.h acintel.h	\
-	aclinux.h acmsvc.h acnetbsd.h acos2.h acwin.h acwin64.h		\
-	new_table.txt osunixdir.c oswindir.c oswintbl.c oswinxf.c	\
-	readme.txt utclib.c"
+	aclinux.h acmacosx.h acmsvc.h acnetbsd.h acos2.h acwin.h	\
+	acwin64.h new_table.txt oslinuxtbl.c osunixdir.c oswindir.c	\
+	oswintbl.c oswinxf.c readme.txt utclib.c"
 
 # include files to canonify
 src_headers="acapps.h acbuffer.h accommon.h acconfig.h acdebug.h	\
