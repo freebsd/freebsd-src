@@ -581,7 +581,7 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
 {
 	int r = 0;
 
-	switch(write_behind) {
+	switch (write_behind) {
 	case 2:
 		if (start_lbn < len)
 			break;
