@@ -1001,7 +1001,7 @@ nfs_setattr(struct vop_setattr_args *ap)
 	}
 	if (NFS_ISV4(vp) && error == 0 && vap->va_size != VNOVAL &&
 	    vp->v_type == VREG)
-		nfscl_packratsetsize(vp, vap->va_size);
+		nfscl_packratsetsize(vp, vap->va_size, ap->a_cred, td);
 	return (error);
 }
 

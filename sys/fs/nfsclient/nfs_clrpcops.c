@@ -316,8 +316,10 @@ else printf(" fhl=0\n");
 				NFSUNLOCKNODE(np);
 #endif
 				(void) nfscl_deleg(nmp->nm_mountp,
-				    op->nfso_own->nfsow_clp,
-				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, &dp);
+				    op->nfso_own->nfsow_clp, np->n_v4->n4_data,
+				    np->n_v4->n4_fhlen, NFS4NODENAME(np->n_v4),
+				    np->n_v4->n4_namelen, nfhp->nfh_fh,
+				    nfhp->nfh_len, cred, p, &dp);
 			}
 		} else {
 			error = EIO;
@@ -1828,9 +1830,11 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	struct nfscldeleg *dp;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(dvp));
 	u_int32_t clidrev;
+	struct nfsnode *dnp;
 
 	if (NFSHASNFSV4(nmp)) {
 	    retrycnt = 0;
+	    dnp = VTONFS(dvp);
 	    do {
 		dp = NULL;
 		error = nfscl_open(dvp, NULL, 0, (NFSV4OPEN_ACCESSWRITE |
@@ -1853,7 +1857,9 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		 */
 		if (dp != NULL)
 			(void) nfscl_deleg(nmp->nm_mountp, owp->nfsow_clp,
-			    (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred, p, &dp);
+			    dnp->n_fhp->nfh_fh, dnp->n_fhp->nfh_len, name,
+			    namelen, (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred,
+			    p, &dp);
 		nfscl_ownerrelease(owp, error, newone, unlocked);
 		if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||

@@ -501,8 +501,8 @@ void nfscl_dupopen(vnode_t, int);
 int nfscl_getclose(vnode_t, struct nfsclclient **);
 int nfscl_doclose(vnode_t, struct nfsclclient **, NFSPROC_T *);
 void nfsrpc_doclose(struct nfsmount *, struct nfsclopen *, NFSPROC_T *);
-int nfscl_deleg(mount_t, struct nfsclclient *, u_int8_t *, int,
-    struct ucred *, NFSPROC_T *, struct nfscldeleg **);
+int nfscl_deleg(mount_t, struct nfsclclient *, u_int8_t *, int, u_int8_t *, int,
+    u_int8_t *, int, struct ucred *, NFSPROC_T *, struct nfscldeleg **);
 void nfscl_lockinit(struct nfsv4lock *);
 void nfscl_lockexcl(struct nfsv4lock *, void *);
 void nfscl_lockunlock(struct nfsv4lock *);
@@ -657,8 +657,8 @@ int nfscbd_addsock(struct file *);
 int nfscbd_nfsd(NFSPROC_T *, struct nfsd_nfscbd_args *);
 
 /* nfs_clpackrat.c */
-void nfscl_packratsetup(struct nfscldeleg *, struct nfsmount *, struct ucred *,
-    NFSPROC_T *);
+void nfscl_packratsetup(struct nfscldeleg *, struct nfsmount *, uint8_t *, int,
+    uint8_t *, int, struct ucred *, NFSPROC_T *);
 void nfscl_packratopen(vnode_t, NFSPROC_T *);
 void nfscl_packratclose(vnode_t, NFSPROC_T *);
 int nfscbd_packrat(char *);
@@ -667,5 +667,5 @@ int nfscl_packratwrite(vnode_t, struct uio *, int, struct ucred *,
     NFSPROC_T *, int *);
 int nfscl_deleglocalflush(struct nfscldeleg *, struct nfsmount *, NFSPROC_T *,
     int, int);
-void nfscl_packratsetsize(vnode_t, uint64_t);
+void nfscl_packratsetsize(vnode_t, uint64_t, struct ucred *, NFSPROC_T *);
 

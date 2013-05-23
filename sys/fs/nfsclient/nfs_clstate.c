@@ -398,24 +398,12 @@ nfscl_newopen(struct nfsclclient *clp, struct nfscldeleg *dp,
  * Called to find/add a delegation to a client.
  */
 APPLESTATIC int
-nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
-    int fhlen, struct ucred *cred, NFSPROC_T *p, struct nfscldeleg **dpp)
+nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *dfhp, int dfhlen,
+    u_int8_t *name, int namelen, u_int8_t *nfhp, int fhlen, struct ucred *cred,
+    NFSPROC_T *p, struct nfscldeleg **dpp)
 {
 	struct nfscldeleg *dp = *dpp, *tdp;
 	struct nfsmount *nmp = VFSTONFS(mp);
-
-	/*
-	 * First, if we have received a Read delegation for a file on a
-	 * read/write file system, just return it, because they aren't
-	 * useful, imho.
-	 */
-	if (mp != NULL && dp != NULL && !NFSMNT_RDONLY(mp) &&
-	    (dp->nfsdl_flags & NFSCLDL_READ)) {
-		(void) nfscl_trydelegreturn(dp, cred, nmp, p);
-		FREE((caddr_t)dp, M_NFSCLDELEG);
-		*dpp = NULL;
-		return (0);
-	}
 
 	/* Look for the correct deleg, based upon FH */
 	NFSLOCKCLSTATE();
@@ -439,7 +427,8 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 		 * Call nfscl_packratsetup() to create the local copy
 		 * and start the copying via a kernel thread.
 		 */
-		nfscl_packratsetup(dp, nmp, cred, p);
+		nfscl_packratsetup(dp, nmp, dfhp, dfhlen, name, namelen, cred,
+		    p);
 	} else {
 		/*
 		 * Delegation already exists, what do we do if a new one??
@@ -1469,8 +1458,8 @@ nfscl_expireopen(struct nfsclclient *clp, struct nfsclopen *op,
 			}
 		}
 		if (dp != NULL)
-			nfscl_deleg(nmp->nm_mountp, clp, op->nfso_fh,
-			    op->nfso_fhlen, cred, p, &dp);
+			nfscl_deleg(nmp->nm_mountp, clp, NULL, 0, NULL, 0,
+			    op->nfso_fh, op->nfso_fhlen, cred, p, &dp);
 	}
 
 	/*
@@ -2009,8 +1998,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 			tcred, p);
 		    if (!error) {
 			/* Handle any replied delegation */
-			if (ndp != NULL && ((ndp->nfsdl_flags & NFSCLDL_WRITE)
-			    || NFSMNT_RDONLY(nmp->nm_mountp))) {
+			if (ndp != NULL) {
 			    if ((ndp->nfsdl_flags & NFSCLDL_WRITE))
 				mode = NFSV4OPEN_ACCESSWRITE;
 			    else

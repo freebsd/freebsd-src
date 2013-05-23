@@ -188,6 +188,7 @@ struct nfscldeleg {
 #define	NFSCLDL_LOCALSIZESET	0x0100
 #define	NFSCLDL_HASCOPY		0x0200
 #define	NFSCLDL_WAITRECALL	0x0400
+#define	NFSCLDL_LOCALFLUSHED	0x0800
 
 /*
  * Maximum length of a local filename used by the packrat daemons.
@@ -197,6 +198,20 @@ struct nfscldeleg {
  * 174 - the maximum length of the file handle in ascii.
  */
 #define	NFSPCKRAT_MAXFILELEN	(1 + 1 + 32 + 174)
+
+/*
+ * Structure that stores delegation recovery information. It is fixed
+ * size, so that it can easily be written/read from the packrat delegation
+ * file.
+ */
+struct nfsdelegrecover {
+	uint16_t	nfsdr_dirty;
+	uint16_t	nfsdr_flags;
+	uint16_t	nfsdr_dfhlen;
+	uint16_t	nfsdr_namelen;
+	uint8_t		nfsdr_dfh[NFSX_V4FHMAX];
+	uint8_t		nfsdr_name[NAME_MAX + 1];
+};
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle.

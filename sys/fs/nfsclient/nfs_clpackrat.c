@@ -69,6 +69,7 @@ static void nfscl_truncdirty(struct nfscldeleg *, uint64_t);
 static int nfscl_packrathostaddr(struct nfsmount *, char *, int);
 static void nfscl_packratgetvp(struct nfscldeleg *, struct nfsmount *, char *,
     int, struct ucred *, NFSPROC_T *);
+static int nfscl_writedelegdirty(vnode_t, int, struct ucred *, NFSPROC_T *);
 
 /*
  * This function opens/creates a file for reading and writing, returning the
@@ -332,12 +333,13 @@ nfscl_fhtofilename(u_int8_t *fh, u_int16_t fhlen, char *name)
  * Set up a new delegation for packrat support.
  */
 void
-nfscl_packratsetup(struct nfscldeleg *dp, struct nfsmount *nmp,
-    struct ucred *cred, NFSPROC_T *p)
+nfscl_packratsetup(struct nfscldeleg *dp, struct nfsmount *nmp, uint8_t *dfhp,
+    int dfhlen, uint8_t *name, int namelen, struct ucred *cred, NFSPROC_T *p)
 {
 	vnode_t delegvp, filevp;
 	char fname[MAXPATHLEN + 1];
-	int pathlen, pathlen2;
+	int error, pathlen, pathlen2;
+	struct nfsdelegrecover delegrecover;
 
 	NFSLOCKCLSTATE();
 	if (nfscl_packratpathlen == 0 ||
@@ -375,10 +377,23 @@ nfscl_packratsetup(struct nfscldeleg *dp, struct nfsmount *nmp,
 		NFSUNLOCKCLSTATE();
 		return;
 	}
+
+	/* Write out the delegation record for use during recovery. */
+	delegrecover.nfsdr_dirty = 0;
+	delegrecover.nfsdr_flags = dp->nfsdl_flags;
+	delegrecover.nfsdr_dfhlen = dfhlen;
+	bcopy(dfhp, delegrecover.nfsdr_dfh, dfhlen);
+	delegrecover.nfsdr_namelen = namelen;
+	bcopy(name, delegrecover.nfsdr_name, namelen);
+	delegrecover.nfsdr_name[namelen] = 0;
 	VOP_UNLOCK(delegvp, 0);
+	error = vn_rdwr(UIO_WRITE, delegvp, &delegrecover, sizeof(delegrecover),
+	    (off_t)0, UIO_SYSSPACE, 0, cred, NOCRED, NULL, p);
+
 	fname[pathlen2] = 'F';
-	filevp = nfscl_openfile(fname, TRUE, cred, p);
-	if (filevp == NULL) {
+	if (error == 0)
+		filevp = nfscl_openfile(fname, TRUE, cred, p);
+	if (error != 0 || filevp == NULL) {
 		nfscl_closefile(delegvp, fname, TRUE, cred, p);
 		NFSLOCKCLSTATE();
 		dp->nfsdl_flags &= ~NFSCLDL_COPYINPROG;
@@ -423,9 +438,8 @@ nfscl_packratopen(vnode_t vp, NFSPROC_T *p)
 		return;
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp == NULL || (dp->nfsdl_flags &
-	    (NFSCLDL_RECALL | NFSCLDL_WRITE | NFSCLDL_HASCOPY)) !=
-	    (NFSCLDL_WRITE | NFSCLDL_HASCOPY) ||
+	if (dp == NULL || (dp->nfsdl_flags & (NFSCLDL_RECALL |
+	    NFSCLDL_DELEGRET | NFSCLDL_HASCOPY)) != NFSCLDL_HASCOPY ||
 	    dp->nfsdl_filevp != NULL) {
 		NFSUNLOCKCLSTATE();
 		return;
@@ -524,8 +538,8 @@ nfscl_packratbreakdown(struct nfscldeleg *dp, struct nfsmount *nmp,
 		nfscl_fhtofilename(dp->nfsdl_fh, dp->nfsdl_fhlen,
 		    &fname[pathlen]);
 	while (dp->nfsdl_localiocnt > 0)
-		(void) nfsmsleep(&dp->nfsdl_localiocnt, NFSCLSTATEMUTEXPTR,
-		    PZERO, "nfspckbr", NULL);
+		(void)mtx_sleep(&dp->nfsdl_localiocnt, NFSCLSTATEMUTEXPTR,
+		    PZERO, "nfspckbr", 0);
 	if ((dp->nfsdl_flags & NFSCLDL_COPYINPROG) != 0) {
 		dp->nfsdl_flags &= ~NFSCLDL_COPYINPROG;
 		wakeup(&dp->nfsdl_flags);
@@ -573,9 +587,8 @@ nfscl_packratclose(vnode_t vp, NFSPROC_T *p)
 		return;
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp == NULL || (dp->nfsdl_flags &
-	    (NFSCLDL_RECALL | NFSCLDL_WRITE | NFSCLDL_HASCOPY)) !=
-	    (NFSCLDL_WRITE | NFSCLDL_HASCOPY) ||
+	if (dp == NULL || (dp->nfsdl_flags & (NFSCLDL_RECALL |
+	    NFSCLDL_DELEGRET | NFSCLDL_HASCOPY)) != NFSCLDL_HASCOPY ||
 	    dp->nfsdl_filevp == NULL) {
 		NFSUNLOCKCLSTATE();
 		return;
@@ -587,8 +600,8 @@ nfscl_packratclose(vnode_t vp, NFSPROC_T *p)
 	dp->nfsdl_delegvp = NULL;
 	dp->nfsdl_filevp = NULL;
 	while (dp->nfsdl_localiocnt > 0)
-		(void) nfsmsleep(&dp->nfsdl_localiocnt, NFSCLSTATEMUTEXPTR,
-		    PZERO, "nfspckbr", NULL);
+		(void)mtx_sleep(&dp->nfsdl_localiocnt, NFSCLSTATEMUTEXPTR,
+		    PZERO, "nfspckbr", 0);
 	NFSUNLOCKCLSTATE();
 	pathlen2 = pathlen;
 	fname[pathlen++] = 'D';
@@ -655,15 +668,20 @@ nfscl_packratread(vnode_t vp, struct uio *uio, int ioflag, struct ucred *cred,
 		return (0);
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp == NULL || (dp->nfsdl_flags &
-	    (NFSCLDL_RECALL | NFSCLDL_WRITE)) != NFSCLDL_WRITE ||
-	    dp->nfsdl_filevp == NULL ||
+	if (dp == NULL || (dp->nfsdl_flags & (NFSCLDL_RECALL |
+	    NFSCLDL_DELEGRET)) != 0 || dp->nfsdl_filevp == NULL ||
 	    ((dp->nfsdl_flags & NFSCLDL_COPYINPROG) != 0 &&
 	     uio->uio_offset + uio->uio_resid > dp->nfsdl_localsize)) {
-		if (dp != NULL && (dp->nfsdl_flags & NFSCLDL_RECALL) != 0) {
+		if (dp != NULL && (dp->nfsdl_flags & (NFSCLDL_RECALL |
+		    NFSCLDL_DELEGRET)) != 0 &&
+		    (dp->nfsdl_flags & NFSCLDL_LOCALFLUSHED) == 0) {
 			dp->nfsdl_flags |= NFSCLDL_WAITRECALL;
-			(void) nfsmsleep(&dp->nfsdl_ldirty, NFSCLSTATEMUTEXPTR,
-			    PZERO, "nfspkrc", NULL);
+			(void)mtx_sleep(&dp->nfsdl_ldirty, NFSCLSTATEMUTEXPTR,
+			    PZERO, "nfspkrc", 0);
+			/*
+			 * After this sleep, do not access "dp", since it
+			 * may be free'd.
+			 */
 		}
 		NFSUNLOCKCLSTATE();
 		NFSLOCKNODE(np);
@@ -687,15 +705,7 @@ nfscl_packratread(vnode_t vp, struct uio *uio, int ioflag, struct ucred *cred,
 	dp->nfsdl_localiocnt++;
 	filevp = dp->nfsdl_filevp;
 	NFSUNLOCKCLSTATE();
-	error = 0;
-	vn_lock(filevp, LK_SHARED | LK_RETRY);
-	VI_LOCK(filevp);
-	if ((filevp->v_iflag & VI_DOOMED) != 0)
-		error = ENOENT;
-	VI_UNLOCK(filevp);
-	if (error == 0)
-		error = VOP_READ(filevp, uio, ioflag, cred);
-	VOP_UNLOCK(filevp, 0);
+	error = vn_rdwr_uio(uio, filevp, ioflag, cred, NULL, NULL);
 	uio->uio_resid += tresid;
 	NFSLOCKCLSTATE();
 	dp->nfsdl_localiocnt--;
@@ -720,13 +730,15 @@ nfscl_packratwrite(vnode_t vp, struct uio *uio, int ioflag, struct ucred *cred,
 	struct mount *mp;
 	struct nfsldirty *wp;
 	vnode_t filevp;
+	vnode_t delegvp;
 	uint64_t end;
-	int error;
+	int error, mark_dirty;
 	off_t setsize;
 
 	*didwrite = 0;
 	nmp = VFSTONFS(vnode_mount(vp));
 	NFSLOCKCLSTATE();
+tryagain:
 	if (nfscl_packratpathlen == 0 || (nmp->nm_flag & NFSMNT_NFSV4) == 0) {
 		NFSUNLOCKCLSTATE();
 		NFSLOCKNODE(np);
@@ -743,13 +755,32 @@ nfscl_packratwrite(vnode_t vp, struct uio *uio, int ioflag, struct ucred *cred,
 		return (0);
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp == NULL || (dp->nfsdl_flags &
-	    (NFSCLDL_RECALL | NFSCLDL_WRITE)) != NFSCLDL_WRITE ||
+	if (dp == NULL || (dp->nfsdl_flags & (NFSCLDL_RECALL |
+	    NFSCLDL_DELEGRET | NFSCLDL_WRITE)) != NFSCLDL_WRITE ||
 	    dp->nfsdl_filevp == NULL) {
-		if (dp != NULL && (dp->nfsdl_flags & NFSCLDL_RECALL) != 0) {
-			dp->nfsdl_flags |= NFSCLDL_WAITRECALL;
-			(void) nfsmsleep(&dp->nfsdl_ldirty, NFSCLSTATEMUTEXPTR,
-			    PZERO, "nfspkwc", NULL);
+		if (dp != NULL) {
+			if ((dp->nfsdl_flags & (NFSCLDL_RECALL |
+			    NFSCLDL_DELEGRET)) == 0 &&
+			    dp->nfsdl_filevp != NULL) {
+				/*
+				 * Start a Recall, so the local copy of
+				 * the file for a read delegation won't
+				 * continue to be used.
+				 */
+				dp->nfsdl_flags |= NFSCLDL_RECALL;
+				wakeup(clp);
+			}
+			if ((dp->nfsdl_flags & (NFSCLDL_RECALL |
+			    NFSCLDL_DELEGRET)) != 0 &&
+			    (dp->nfsdl_flags & NFSCLDL_LOCALFLUSHED) == 0) {
+				dp->nfsdl_flags |= NFSCLDL_WAITRECALL;
+				(void)mtx_sleep(&dp->nfsdl_ldirty,
+				    NFSCLSTATEMUTEXPTR, PZERO, "nfspkwc", 0);
+				/*
+				 * After this sleep, do not access "dp", since
+				 * it may be free'd.
+				 */
+			}
 		}
 		NFSUNLOCKCLSTATE();
 		NFSLOCKNODE(np);
@@ -761,16 +792,21 @@ nfscl_packratwrite(vnode_t vp, struct uio *uio, int ioflag, struct ucred *cred,
 	/*
 	 * We can now try and do the write. It cannot be done until the
 	 * local copy has been read in to past the point at which we
-	 * are writing, so we must loop until enough reading has been
+	 * are writing, so we must sleep until enough reading has been
 	 * completed.
+	 * Go back up to the top after sleeping, just in case the delegation
+	 * has gone away or similar.
 	 */
 	end = (uint64_t)uio->uio_offset + uio->uio_resid;
-	while ((dp->nfsdl_flags & NFSCLDL_COPYINPROG) != 0 &&
-	    (end > dp->nfsdl_localsize || (ioflag & IO_APPEND) != 0))
-		(void) nfsmsleep(&dp->nfsdl_localsize, NFSCLSTATEMUTEXPTR,
-		    PZERO, "nfspckw", NULL);
+	if ((dp->nfsdl_flags & NFSCLDL_COPYINPROG) != 0 &&
+	    (end > dp->nfsdl_localsize || (ioflag & IO_APPEND) != 0)) {
+		(void)mtx_sleep(&dp->nfsdl_localsize, NFSCLSTATEMUTEXPTR,
+		    PZERO, "nfspckw", 0);
+		goto tryagain;
+	}
 	filevp = dp->nfsdl_filevp;
-	if (filevp == NULL) {
+	delegvp = dp->nfsdl_delegvp;
+	if (filevp == NULL || delegvp == NULL) {
 		NFSUNLOCKCLSTATE();
 		NFSLOCKNODE(np);
 		np->n_flag &= ~NLOCALCACHE;
@@ -796,6 +832,7 @@ nfscl_packratwrite(vnode_t vp, struct uio *uio, int ioflag, struct ucred *cred,
 		return (0);
 	}
 	dp->nfsdl_localiocnt++;
+	mark_dirty = LIST_EMPTY(&dp->nfsdl_ldirty);
 	NFSUNLOCKCLSTATE();
 	NFSLOCKNODE(np);
 	np->n_flag |= (NMODIFIED | NLOCALCACHE);
@@ -814,22 +851,15 @@ nfscl_packratwrite(vnode_t vp, struct uio *uio, int ioflag, struct ucred *cred,
 	wp->nfsw_first = (uint64_t)uio->uio_offset;
 	wp->nfsw_end = end;
 	mp = NULL;
-	if (error == 0)
-		error = vn_start_write(filevp, &mp, V_WAIT);
 	if (error == 0) {
-		if (MNT_SHARED_WRITES(mp) || ((mp == NULL) &&
-		    MNT_SHARED_WRITES(filevp->v_mount)))
-			vn_lock(filevp, LK_SHARED | LK_RETRY);
-		else
-			vn_lock(filevp, LK_EXCLUSIVE | LK_RETRY);
-		VI_LOCK(filevp);
-		if ((filevp->v_iflag & VI_DOOMED) != 0)
-			error = ENOENT;
-		VI_UNLOCK(filevp);
-		if (error == 0)
-			error = VOP_WRITE(filevp, uio, ioflag, cred);
-		vn_finished_write(mp);
-		VOP_UNLOCK(filevp, 0);
+		error = vn_rdwr_uio(uio, filevp, ioflag, cred, NULL, NULL);
+
+		/*
+		 * Now, write the dirty mark to the delegation file, as
+		 * required.
+		 */
+		if (mark_dirty != 0 && error == 0)
+			error = nfscl_writedelegdirty(delegvp, 1, cred, p);
 	}
 	setsize = 0;
 	NFSLOCKCLSTATE();
@@ -922,20 +952,22 @@ nfscl_deleglocalflush(struct nfscldeleg *dp, struct nfsmount *nmp, NFSPROC_T *p,
 	if (nfscl_packratpathlen == 0) {
 		if ((dp->nfsdl_flags & NFSCLDL_WAITRECALL) != 0)
 			wakeup(&dp->nfsdl_ldirty);
+		dp->nfsdl_flags |= NFSCLDL_LOCALFLUSHED;
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
 
 	/* Wait for the packrat thread to complete. */
 	while ((dp->nfsdl_flags & NFSCLDL_COPYINPROG) != 0)
-		(void) nfsmsleep(&dp->nfsdl_flags, NFSCLSTATEMUTEXPTR,
-		    PZERO, "nfspckth", NULL);
+		(void)mtx_sleep(&dp->nfsdl_flags, NFSCLSTATEMUTEXPTR,
+		    PZERO, "nfspckth", 0);
 
 	if ((dp->nfsdl_flags & NFSCLDL_WRITE) == 0 ||
 	    (dp->nfsdl_filevp == NULL &&
 	     (dp->nfsdl_flags & NFSCLDL_HASCOPY) == 0)) {
 		if ((dp->nfsdl_flags & NFSCLDL_WAITRECALL) != 0)
 			wakeup(&dp->nfsdl_ldirty);
+		dp->nfsdl_flags |= NFSCLDL_LOCALFLUSHED;
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
@@ -973,6 +1005,7 @@ nfscl_deleglocalflush(struct nfscldeleg *dp, struct nfsmount *nmp, NFSPROC_T *p,
 		NFSLOCKCLSTATE();
 		if ((dp->nfsdl_flags & NFSCLDL_WAITRECALL) != 0)
 			wakeup(&dp->nfsdl_ldirty);
+		dp->nfsdl_flags |= NFSCLDL_LOCALFLUSHED;
 		NFSUNLOCKCLSTATE();
 		/* Now, the local files can be closed/deleted. */
 		nfscl_packratbreakdown(dp, nmp, incred, p);
@@ -1114,13 +1147,17 @@ nfsmout:
  * dirty region(s) that no longer apply.
  */
 void
-nfscl_packratsetsize(vnode_t vp, uint64_t size)
+nfscl_packratsetsize(vnode_t vp, uint64_t size, struct ucred *cred,
+    NFSPROC_T *p)
 {
 	struct nfsclclient *clp;
 	struct nfscldeleg *dp;
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp;
+	int mark_clean;
+	vnode_t delegvp = NULL, filevp;
 
+	mark_clean = 0;
 	nmp = VFSTONFS(vnode_mount(vp));
 	NFSLOCKCLSTATE();
 	if (nfscl_packratpathlen == 0 || (nmp->nm_flag & NFSMNT_NFSV4) == 0) {
@@ -1133,8 +1170,8 @@ nfscl_packratsetsize(vnode_t vp, uint64_t size)
 		return;
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp == NULL || (dp->nfsdl_flags &
-	    (NFSCLDL_RECALL | NFSCLDL_WRITE)) != NFSCLDL_WRITE ||
+	if (dp == NULL || (dp->nfsdl_flags & (NFSCLDL_RECALL |
+	    NFSCLDL_DELEGRET | NFSCLDL_WRITE)) != NFSCLDL_WRITE ||
 	    (dp->nfsdl_filevp == NULL &&
 	     (dp->nfsdl_flags & NFSCLDL_HASCOPY) == 0) ||
 	    dp->nfsdl_localsize == size) {
@@ -1142,14 +1179,27 @@ nfscl_packratsetsize(vnode_t vp, uint64_t size)
 		return;
 	}
 
-	if (size < dp->nfsdl_localsize)
+	if (size < dp->nfsdl_localsize) {
 		/* Get rid of dirty region(s) that no longer apply. */
 		nfscl_truncdirty(dp, size);
+		mark_clean = LIST_EMPTY(&dp->nfsdl_ldirty);
+		delegvp = dp->nfsdl_delegvp;
+	}
+	filevp = dp->nfsdl_filevp;
 	/* Update the local size. */
 	dp->nfsdl_localsize = size;
 	dp->nfsdl_flags |= NFSCLDL_LOCALSIZESET;
+	dp->nfsdl_localiocnt++;
 	NFSUNLOCKCLSTATE();
 	vnode_pager_setsize(vp, size);
+	if (mark_clean != 0 && delegvp != NULL)
+		(void)nfscl_writedelegdirty(delegvp, 0, cred, p);
+	(void)vn_truncate_vnode(filevp, size, cred, NULL, p);
+	NFSLOCKCLSTATE();
+	dp->nfsdl_localiocnt--;
+	if (dp->nfsdl_localiocnt == 0)
+		wakeup(&dp->nfsdl_localiocnt);
+	NFSUNLOCKCLSTATE();
 }
 
 /*
@@ -1208,5 +1258,20 @@ nfscl_packrathostaddr(struct nfsmount *nmp, char *fname, int pathlen)
 		}
 	}
 	return (pathlen);
+}
+
+/*
+ * Write the dirty flag field of the delegation recovery file.
+ */
+static int
+nfscl_writedelegdirty(vnode_t vp, int dirty, struct ucred *cred, NFSPROC_T *p)
+{
+	uint16_t dirtyflag;
+	int error;
+
+	dirtyflag = (dirty != 0) ? 1 : 0;
+	error = vn_rdwr(UIO_WRITE, vp, &dirtyflag, sizeof(dirtyflag),
+	    (off_t)0, UIO_SYSSPACE, 0, cred, NOCRED, NULL, p);
+	return (error);
 }
 
