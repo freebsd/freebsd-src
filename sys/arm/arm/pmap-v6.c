@@ -2723,86 +2723,18 @@ do_l2b_alloc:
 	is_exec = is_refd = 0;
 
 	if (opte) {
-		/*
-		 * There is already a mapping at this address.
-		 * If the physical address is different, lookup the
-		 * vm_page.
-		 */
-		if (l2pte_pa(opte) != pa)
-			om = PHYS_TO_VM_PAGE(l2pte_pa(opte));
-		else
-			om = m;
-	} else
-		om = NULL;
-
-	if ((prot & (VM_PROT_ALL)) || !m) {
-		/*
-		 * - The access type indicates that we don't need
-		 *   to do referenced emulation.
-		 * OR
-		 * - The physical page has already been referenced
-		 *   so no need to re-do referenced emulation here.
-		 */
-		npte |= L2_S_REF;
-
-		if (m != NULL &&
-		    (m->oflags & VPO_UNMANAGED) == 0)
-			vm_page_aflag_set(m, PGA_REFERENCED);
-	} else {
-		/*
-		 * Need to do page referenced emulation.
-		 */
-		npte &= ~L2_S_REF;
-	}
-
-	/* Make the new PTE valid */
-	npte |= L2_S_PROTO;
-#ifdef SMP
-	npte |= L2_SHARED;
-#endif
-	/* Set defaults first - kernel read access */
-	npte |= L2_APX;
-	npte |= L2_S_PROT_R;
-
-	/* Now tune APs as desired */
-	if (user)
-		npte |= L2_S_PROT_U;
-
-	if (prot & VM_PROT_WRITE) {
-		npte &= ~(L2_APX);
-
-		if (m != NULL && (m->oflags & VPO_UNMANAGED) == 0) {
-			vm_page_aflag_set(m, PGA_WRITEABLE);
+		if (l2pte_pa(opte) == pa) {
 			/*
-			 * The access type and permissions indicate 
-			 * that the page will be written as soon as returned
-			 * from fault service.
-			 * Mark it dirty from the outset.
+			 * We're changing the attrs of an existing mapping.
 			 */
-			if ((access & VM_PROT_WRITE) != 0)
-				vm_page_dirty(m);
+			if (m != NULL)
+				pmap_modify_pv(m, pmap, va,
+				    PVF_WRITE | PVF_WIRED, nflags);
+			is_exec |= PTE_BEEN_EXECD(opte);
+			is_refd |= PTE_BEEN_REFD(opte);
+			goto validate;
 		}
-	}
-
-	if (!(prot & VM_PROT_EXECUTE) && m)
-		npte |= L2_XN;
-
-	if (m && (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE))
-		npte |= pte_l2_s_cache_mode;
-
-	if (m && m == om) {
-		/*
-		 * We're changing the attrs of an existing mapping.
-		 */
-		pmap_modify_pv(m, pmap, va, PVF_WRITE | PVF_WIRED, nflags);
-		is_exec |= PTE_BEEN_EXECD(opte);
-		is_refd |= PTE_BEEN_REFD(opte);
-	} else {
-		/*
-		 * New mapping, or changing the backing page
-		 * of an existing mapping.
-		 */
-		if (om) {
+		if ((om = PHYS_TO_VM_PAGE(l2pte_pa(opte)))) {
 			/*
 			 * Replacing an existing mapping with a new one.
 			 * It is part of our managed memory so we
@@ -2811,30 +2743,84 @@ do_l2b_alloc:
 			if ((pve = pmap_remove_pv(om, pmap, va))) {
 				is_exec |= PTE_BEEN_EXECD(opte);
 				is_refd |= PTE_BEEN_REFD(opte);
-
-			    if (m && ((m->oflags & VPO_UNMANAGED)))
-				pmap_free_pv_entry(pmap, pve);
+		
+				if (m && ((m->oflags & VPO_UNMANAGED)))
+					pmap_free_pv_entry(pmap, pve);
 			}
 		}
 
-		if ((m && !(m->oflags & VPO_UNMANAGED))) {
-			if ((!pve) &&
-			    (pve = pmap_get_pv_entry(pmap, FALSE)) == NULL)
-				panic("pmap_enter: no pv entries");
-
-			KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
-			("pmap_enter: managed mapping within the clean submap"));
-			KASSERT(pve != NULL, ("No pv"));
-			pmap_enter_pv(m, pve, pmap, va, nflags);
-		}
+	} else {
+		/*
+		 * Keep the stats up to date
+		 */
+		l2b->l2b_occupancy++;
+		pmap->pm_stats.resident_count++;
 	}
 
 	/*
-	 * Keep the stats up to date
+	 * Enter on the PV list if part of our managed memory.
 	 */
-	if (opte == 0) {
-		l2b->l2b_occupancy++;
-		pmap->pm_stats.resident_count++;
+	if ((m && !(m->oflags & VPO_UNMANAGED))) {
+		if ((!pve) && (pve = pmap_get_pv_entry(pmap, FALSE)) == NULL)
+			panic("pmap_enter: no pv entries");
+
+		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
+		("pmap_enter: managed mapping within the clean submap"));
+		KASSERT(pve != NULL, ("No pv"));
+		pmap_enter_pv(m, pve, pmap, va, nflags);
+	}
+
+validate:
+	/* Make the new PTE valid */
+	npte |= L2_S_PROTO;
+#ifdef SMP
+	npte |= L2_SHARED;
+#endif
+	/* Set defaults first - kernel read access */
+	npte |= L2_APX;
+	npte |= L2_S_PROT_R;
+	/* Set "referenced" flag */
+	npte |= L2_S_REF;
+
+	/* Now tune APs as desired */
+	if (user)
+		npte |= L2_S_PROT_U;
+	/*
+	 * If this is not a vector_page
+	 * then continue setting mapping parameters
+	 */
+	if (m != NULL) {
+		if (prot & (VM_PROT_ALL)) {
+			if ((m->oflags & VPO_UNMANAGED) == 0)
+				vm_page_aflag_set(m, PGA_REFERENCED);
+		} else {
+			/*
+			 * Need to do page referenced emulation.
+			 */
+			npte &= ~L2_S_REF;
+		}
+
+		if (prot & VM_PROT_WRITE) {
+			/* Write enable */
+			npte &= ~(L2_APX);
+
+			if ((m->oflags & VPO_UNMANAGED) == 0) {
+				vm_page_aflag_set(m, PGA_WRITEABLE);
+				/*
+				 * The access type and permissions indicate 
+				 * that the page will be written as soon as
+				 * returned from fault service.
+				 * Mark it dirty from the outset.
+				 */
+				if ((access & VM_PROT_WRITE) != 0)
+					vm_page_dirty(m);
+			}
+		}
+		if (!(prot & VM_PROT_EXECUTE))
+			npte |= L2_XN;
+
+		if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+			npte |= pte_l2_s_cache_mode;
 	}
 
 	CTR5(KTR_PMAP,"enter: pmap:%p va:%x prot:%x pte:%x->%x",
