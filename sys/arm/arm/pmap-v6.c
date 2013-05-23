@@ -220,8 +220,8 @@ static void		pmap_free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t 	pmap_get_pv_entry(pmap_t pmap, boolean_t try);
 static vm_page_t 	pmap_pv_reclaim(pmap_t locked_pmap);
 
-static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
-    vm_prot_t, boolean_t, int);
+static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_prot_t,
+    vm_page_t, vm_prot_t, boolean_t, int);
 static vm_paddr_t	pmap_extract_locked(pmap_t pmap, vm_offset_t va);
 static void		pmap_alloc_l1(pmap_t);
 static void		pmap_free_l1(pmap_t);
@@ -902,10 +902,6 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 
 	if (maskbits & PVF_WRITE)
 		maskbits |= PVF_MOD;
-	/*
-	 * Clear saved attributes (modify, reference)
-	 */
-	pg->md.pvh_attrs &= ~(maskbits & (PVF_MOD | PVF_REF));
 
 	if (TAILQ_EMPTY(&pg->md.pv_list)) {
 		rw_wunlock(&pvh_global_lock);
@@ -935,14 +931,13 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 			npte |= L2_APX;
 		}
 
-		if (maskbits & PVF_REF) {
+		if ((maskbits & PVF_REF) && L2_S_REFERENCED(opte)) {
 			/*
-			 * Make the PTE invalid so that we will take a
-			 * page fault the next time the mapping is
-			 * referenced.
+			 * Clear referenced flag in PTE so that we
+			 * will take a flag fault the next time the mapping
+			 * is referenced.
 			 */
-			npte &= ~L2_TYPE_MASK;
-			npte |= L2_TYPE_INV;
+			npte &= ~L2_S_REF;
 		}
 
 		CTR4(KTR_PMAP,"clearbit: pmap:%p bits:%x pte:%x->%x",
@@ -998,7 +993,6 @@ pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
 	pve->pv_flags = flags;
 
 	TAILQ_INSERT_HEAD(&pg->md.pv_list, pve, pv_list);
-	pg->md.pvh_attrs |= flags & (PVF_REF | PVF_MOD);
 	if (pve->pv_flags & PVF_WIRED)
 		++pm->pm_stats.wired_count;
 	vm_page_aflag_set(pg, PGA_REFERENCED);
@@ -1036,6 +1030,12 @@ vector_page_setprot(int prot)
 	l2b = pmap_get_l2_bucket(pmap_kernel(), vector_page);
 
 	ptep = &l2b->l2b_kva[l2pte_index(vector_page)];
+	/*
+	 * Set referenced flag.
+	 * Vectors' page is always desired
+	 * to be allowed to reside in TLB. 
+	 */
+	*ptep |= L2_S_REF;
 
 	pmap_set_prot(ptep, prot|VM_PROT_EXECUTE, 0);
 
@@ -1052,16 +1052,15 @@ pmap_set_prot(pt_entry_t *ptep, vm_prot_t prot, uint8_t user)
 	if (!(prot & VM_PROT_EXECUTE))
 		*ptep |= L2_XN;
 
+	/* Set defaults first - kernel read access */
 	*ptep |= L2_APX;
 	*ptep |= L2_S_PROT_R;
-
+	/* Now tune APs as desired */
 	if (user)
 		*ptep |= L2_S_PROT_U;
 
 	if (prot & VM_PROT_WRITE)
 		*ptep &= ~(L2_APX);
-	else if (user)
-		*ptep &= ~(L2_S_PROT_R);
 }
 
 /*
@@ -1087,20 +1086,11 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 	if (pve->pv_flags & PVF_WIRED)
 		--pm->pm_stats.wired_count;
 
-	if (pg->md.pvh_attrs & PVF_MOD)
-		vm_page_dirty(pg);
-
-	if (TAILQ_FIRST(&pg->md.pv_list) == NULL)
-		pg->md.pvh_attrs &= ~PVF_REF;
-	else
-		vm_page_aflag_set(pg, PGA_REFERENCED);
-
 	if (pve->pv_flags & PVF_WRITE) {
 		TAILQ_FOREACH(pve, &pg->md.pv_list, pv_list)
 		    if (pve->pv_flags & PVF_WRITE)
 			    break;
 		if (!pve) {
-			pg->md.pvh_attrs &= ~PVF_MOD;
 			vm_page_aflag_clear(pg, PGA_WRITEABLE);
 		}
 	}
@@ -1150,10 +1140,6 @@ pmap_modify_pv(struct vm_page *pg, pmap_t pm, vm_offset_t va,
 	/*
 	 * There is at least one VA mapping this page.
 	 */
-
-	if (clr_mask & (PVF_REF | PVF_MOD))
-		pg->md.pvh_attrs |= set_mask & (PVF_REF | PVF_MOD);
-
 	oflags = npv->pv_flags;
 	npv->pv_flags = flags = (oflags & ~clr_mask) | set_mask;
 
@@ -1168,10 +1154,8 @@ pmap_modify_pv(struct vm_page *pg, pmap_t pm, vm_offset_t va,
 			if (npv->pv_flags & PVF_WRITE)
 				break;
 		}
-		if (!npv) {
-			pg->md.pvh_attrs &= ~PVF_MOD;
+		if (!npv)
 			vm_page_aflag_clear(pg, PGA_WRITEABLE);
-		}
 	}
 
 	return (oflags);
@@ -1350,7 +1334,8 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 	pa = l2pte_pa(pte);
 	CTR5(KTR_PMAP, "pmap_fault_fix: pmap:%p va:%x pte:0x%x ftype:%x user:%x",
 	    pm, va, pte, ftype, user);
-	if ((ftype & VM_PROT_WRITE) && !(L2_S_WRITABLE(pte))) {
+	if ((ftype & VM_PROT_WRITE) && !(L2_S_WRITABLE(pte)) &&
+	    L2_S_REFERENCED(pte)) {
 		/*
 		 * This looks like a good candidate for "page modified"
 		 * emulation...
@@ -1379,17 +1364,16 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		if ((pv->pv_flags & PVF_WRITE) == 0) {
 			goto out;
 		}
-		pg->md.pvh_attrs |= PVF_REF | PVF_MOD;
+
 		vm_page_dirty(pg);
 		pv->pv_flags |= PVF_REF | PVF_MOD;
 
 		/* Re-enable write permissions for the page */
-		*ptep = (pte & ~L2_TYPE_MASK) | L2_S_PROTO;
 		pmap_set_prot(ptep, VM_PROT_WRITE, *ptep & L2_S_PROT_U);
 		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", pte);
 		PTE_SYNC(ptep);
 		rv = 1;
-	} else if ((pte & L2_TYPE_MASK) == L2_TYPE_INV) {
+	} else if (!L2_S_REFERENCED(pte)) {
 		/*
 		 * This looks like a good candidate for "page referenced"
 		 * emulation.
@@ -1401,16 +1385,15 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		if ((pg = PHYS_TO_VM_PAGE(pa)) == NULL)
 			goto out;
 		/* Get the current flags for this page. */
-
 		pv = pmap_find_pv(pg, pm, va);
 		if (pv == NULL)
 			goto out;
 
-		pg->md.pvh_attrs |= PVF_REF;
+		vm_page_aflag_set(pg, PGA_REFERENCED);
 		pv->pv_flags |= PVF_REF;
 
-
-		*ptep = (pte & ~L2_TYPE_MASK) | L2_S_PROTO;
+		/* Mark the page "referenced" */
+		*ptep = pte | L2_S_REF;
 		PTE_SYNC(ptep);
 		rv = 1;
 	}
@@ -1901,7 +1884,7 @@ pmap_grow_map(vm_offset_t va, pt_entry_t cache_mode, vm_paddr_t *pap)
 	l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	*ptep = L2_S_PROTO | pa | cache_mode;
+	*ptep = L2_S_PROTO | pa | cache_mode | L2_S_REF;
 	pmap_set_prot(ptep, VM_PROT_READ | VM_PROT_WRITE, 0);
 	PTE_SYNC(ptep);
 
@@ -2208,11 +2191,11 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	}
 
 	if (flags & KENTER_CACHE) {
-		*pte = L2_S_PROTO | pa | pte_l2_s_cache_mode;
+		*pte = L2_S_PROTO | pa | pte_l2_s_cache_mode | L2_S_REF;
 		pmap_set_prot(pte, VM_PROT_READ | VM_PROT_WRITE,
 		    flags & KENTER_USER);
 	} else {
-		*pte = L2_S_PROTO | pa;
+		*pte = L2_S_PROTO | pa | L2_S_REF;
 		pmap_set_prot(pte, VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE,
 		    0);
 	}
@@ -2476,8 +2459,6 @@ pmap_remove_all(vm_page_t m)
 		l2b = pmap_get_l2_bucket(pmap, pv->pv_va);
 		KASSERT(l2b != NULL, ("No l2 bucket"));
 		ptep = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
-		if (L2_S_WRITABLE(*ptep))
-			vm_page_dirty(m);
 		*ptep = 0;
 		if (pmap_is_current(pmap))
 			PTE_SYNC(ptep);
@@ -2488,7 +2469,6 @@ pmap_remove_all(vm_page_t m)
 		pmap_free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
-	m->md.pvh_attrs &= ~(PVF_MOD | PVF_REF);
 
 	if (flush) {
 		if (PV_BEEN_EXECD(flags))
@@ -2620,8 +2600,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 				f = pmap_modify_pv(pg, pm, sva,
 				    PVF_WRITE, 0);
-				if (f & PVF_WRITE)
-					vm_page_dirty(pg);
 
 				if (flush >= 0) {
 					flush++;
@@ -2673,7 +2651,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, m, prot, wired, M_WAITOK);
+	pmap_enter_locked(pmap, va, access, m, prot, wired, M_WAITOK);
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
 }
@@ -2682,8 +2660,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
  *	The pvh global and pmap locks must be held.
  */
 static void
-pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    boolean_t wired, int flags)
+pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired, int flags)
 {
 	struct l2_bucket *l2b = NULL;
 	struct vm_page *opg;
@@ -2763,8 +2741,7 @@ do_l2b_alloc:
 	} else
 		opg = NULL;
 
-	if ((prot & (VM_PROT_ALL)) ||
-	    (!m || m->md.pvh_attrs & PVF_REF)) {
+	if ((prot & (VM_PROT_ALL)) || !m) {
 		/*
 		 * - The access type indicates that we don't need
 		 *   to do referenced emulation.
@@ -2772,48 +2749,47 @@ do_l2b_alloc:
 		 * - The physical page has already been referenced
 		 *   so no need to re-do referenced emulation here.
 		 */
-		npte |= L2_S_PROTO;
-#ifdef SMP
-		npte |= L2_SHARED;
-#endif
-
+		npte |= L2_S_REF;
 		nflags |= PVF_REF;
 
-		if (m && ((prot & VM_PROT_WRITE) != 0 ||
-		    (m->md.pvh_attrs & PVF_MOD))) {
-			/*
-			 * This is a writable mapping, and the
-			 * page's mod state indicates it has
-			 * already been modified. Make it
-			 * writable from the outset.
-			 */
-			nflags |= PVF_MOD;
-			if (!(m->md.pvh_attrs & PVF_MOD))
-				vm_page_dirty(m);
-		}
-		if (m && opte)
+		if (m != NULL &&
+		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_REFERENCED);
 	} else {
 		/*
 		 * Need to do page referenced emulation.
 		 */
-		npte &= ~L2_TYPE_MASK;
-		npte |= L2_TYPE_INV;
+		npte &= ~L2_S_REF;
 	}
 
+	/* Make the new PTE valid */
+	npte |= L2_S_PROTO;
+#ifdef SMP
+	npte |= L2_SHARED;
+#endif
+	/* Set defaults first - kernel read access */
 	npte |= L2_APX;
 	npte |= L2_S_PROT_R;
+
+	/* Now tune APs as desired */
 	if (user)
 		npte |= L2_S_PROT_U;
 
 	if (prot & VM_PROT_WRITE) {
 		npte &= ~(L2_APX);
 
-		if (m != NULL &&
-		    (m->oflags & VPO_UNMANAGED) == 0)
+		if (m != NULL && (m->oflags & VPO_UNMANAGED) == 0) {
 			vm_page_aflag_set(m, PGA_WRITEABLE);
-	} else if (user)
-		npte &= ~(L2_S_PROT_R);
+			/*
+			 * The access type and permissions indicate 
+			 * that the page will be written as soon as returned
+			 * from fault service.
+			 * Mark it dirty from the outset.
+			 */
+			if ((access & VM_PROT_WRITE) != 0)
+				vm_page_dirty(m);
+		}
+	}
 
 	if (!(prot & VM_PROT_EXECUTE) && m)
 		npte |= L2_XN;
@@ -2930,16 +2906,18 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 {
 	vm_page_t m;
 	vm_pindex_t diff, psize;
+	vm_prot_t access;
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	psize = atop(end - start);
 	m = m_start;
+	access = prot = prot & (VM_PROT_READ | VM_PROT_EXECUTE);
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE, M_NOWAIT);
+		pmap_enter_locked(pmap, start + ptoa(diff), access, m, prot,
+		    FALSE, M_NOWAIT);
 		m = TAILQ_NEXT(m, listq);
 	}
 	PMAP_UNLOCK(pmap);
@@ -2958,11 +2936,12 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
+	vm_prot_t access;
 
+	access = prot = prot & (VM_PROT_READ | VM_PROT_EXECUTE);
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    FALSE, M_NOWAIT);
+	pmap_enter_locked(pmap, va, access, m, prot, FALSE, M_NOWAIT);
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
 }
@@ -3567,7 +3546,7 @@ pmap_zero_page_gen(vm_page_t pg, int off, int size)
 	 * Note the temporary zero-page mapping must be a non-cached page in
 	 * order to work without corruption when write-allocate is enabled.
 	 */
-	*cdst_pte = L2_S_PROTO | phys | pte_l2_s_cache_mode;
+	*cdst_pte = L2_S_PROTO | phys | pte_l2_s_cache_mode | L2_S_REF;
 	pmap_set_prot(cdst_pte, VM_PROT_WRITE, 0);
 	PTE_SYNC(cdst_pte);
 	cpu_tlb_flushD_SE(cdstp);
@@ -3659,11 +3638,11 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	 * bits set to 0x0 makes page not accessible. csrc_pte is mapped
 	 * read/write until proper mapping defines are created for ARMv6.
 	 */
-	*csrc_pte = L2_S_PROTO | src | pte_l2_s_cache_mode;
+	*csrc_pte = L2_S_PROTO | src | pte_l2_s_cache_mode | L2_S_REF;
 	pmap_set_prot(csrc_pte, VM_PROT_READ, 0);
 	PTE_SYNC(csrc_pte);
 
-	*cdst_pte = L2_S_PROTO | dst | pte_l2_s_cache_mode;
+	*cdst_pte = L2_S_PROTO | dst | pte_l2_s_cache_mode | L2_S_REF;
 	pmap_set_prot(cdst_pte, VM_PROT_READ | VM_PROT_WRITE, 0);
 	PTE_SYNC(cdst_pte);
 
@@ -3705,11 +3684,11 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
 		*csrc_pte = L2_S_PROTO | VM_PAGE_TO_PHYS(a_pg) |
-		    pte_l2_s_cache_mode;
+		    pte_l2_s_cache_mode | L2_S_REF;
 		pmap_set_prot(csrc_pte, VM_PROT_READ, 0);
 		PTE_SYNC(csrc_pte);
 		*cdst_pte = L2_S_PROTO | VM_PAGE_TO_PHYS(b_pg) |
-		    pte_l2_s_cache_mode;
+		    pte_l2_s_cache_mode | L2_S_REF;
 		pmap_set_prot(cdst_pte, VM_PROT_READ | VM_PROT_WRITE, 0);
 		PTE_SYNC(cdst_pte);
 		cpu_tlb_flushD_SE(csrcp);
@@ -3800,10 +3779,28 @@ pmap_page_wired_mappings(vm_page_t m)
 boolean_t
 pmap_is_referenced(vm_page_t m)
 {
+	struct l2_bucket *l2b;
+	pv_entry_t pv;
+	pt_entry_t *pte;
+	pmap_t pmap;
+	boolean_t rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
-	return ((m->md.pvh_attrs & PVF_REF) != 0);
+	rv = FALSE;
+	rw_wlock(&pvh_global_lock);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = PV_PMAP(pv);
+		PMAP_LOCK(pmap);
+		l2b = pmap_get_l2_bucket(pmap, pv->pv_va);
+		pte = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
+		rv = L2_S_REFERENCED(*pte);
+		PMAP_UNLOCK(pmap);
+		if (rv)
+			break;
+	}
+	rw_wunlock(&pvh_global_lock);
+	return (rv);
 }
 
 /*
@@ -3824,13 +3821,37 @@ pmap_ts_referenced(vm_page_t m)
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
+	struct l2_bucket *l2b;
+	pv_entry_t pv;
+	pt_entry_t *pte;
+	pmap_t pmap;
+	boolean_t rv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_modified: page %p is not managed", m));
-	if (m->md.pvh_attrs & PVF_MOD)
-		return (TRUE);
-
-	return(FALSE);
+	rv = FALSE;
+	/*
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
+	 * is clear, no PTEs can have PG_M set.
+	 */
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	if ((m->oflags & VPO_BUSY) == 0 &&
+	    (m->aflags & PGA_WRITEABLE) == 0)
+		return (rv);
+	rw_wlock(&pvh_global_lock);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = PV_PMAP(pv);
+		PMAP_LOCK(pmap);
+		l2b = pmap_get_l2_bucket(pmap, pv->pv_va);
+		pte = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
+		rv = (L2_S_WRITABLE(*pte));
+		PMAP_UNLOCK(pmap);
+		if (rv)
+			break;
+	}
+	rw_wunlock(&pvh_global_lock);
+	return (rv);
 }
 
 
@@ -3854,8 +3875,7 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
-
-	if (m->md.pvh_attrs & PVF_MOD)
+	if (pmap_is_modified(m))
 		pmap_clearbit(m, PVF_MOD);
 }
 
@@ -3871,7 +3891,7 @@ pmap_clear_reference(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_reference: page %p is not managed", m));
-	if (m->md.pvh_attrs & PVF_REF)
+	if (pmap_is_referenced(m))
 		pmap_clearbit(m, PVF_REF);
 }
 
@@ -3932,18 +3952,7 @@ retry:
 	if (m != NULL && (m->oflags & VPO_UNMANAGED) == 0)
 		managed = TRUE;
 	if (managed) {
-		/*
-		 * The ARM pmap tries to maintain a per-mapping
-		 * reference bit.  The trouble is that it's kept in
-		 * the PV entry, not the PTE, so it's costly to access
-		 * here.  You would need to acquire the pvh global
-		 * lock, call pmap_find_pv(), and introduce a custom
-		 * version of vm_page_pa_tryrelock() that releases and
-		 * reacquires the pvh global lock.  In the end, I
-		 * doubt it's worthwhile.  This may falsely report
-		 * the given address as referenced.
-		 */
-		if ((m->md.pvh_attrs & PVF_REF) != 0)
+		if (L2_S_REFERENCED(pte))
 			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
 	}
 	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
@@ -4074,7 +4083,7 @@ pmap_map_entry(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa, int prot,
 	if (pte == NULL)
 		panic("pmap_map_entry: can't find L2 table for VA 0x%08x", va);
 
-	pte[l2pte_index(va)] = L2_S_PROTO | pa | fl;
+	pte[l2pte_index(va)] = L2_S_PROTO | pa | fl | L2_S_REF;
 	pmap_set_prot(&pte[l2pte_index(va)], prot, 0);
 	PTE_SYNC(&pte[l2pte_index(va)]);
 }
@@ -4161,7 +4170,7 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 #ifdef VERBOSE_INIT_ARM
 		printf("P");
 #endif
-		pte[l2pte_index(va)] = L2_S_PROTO | pa | f2s;
+		pte[l2pte_index(va)] = L2_S_PROTO | pa | f2s | L2_S_REF;
 		pmap_set_prot(&pte[l2pte_index(va)], prot, 0);
 		PTE_SYNC(&pte[l2pte_index(va)]);
 		va += PAGE_SIZE;

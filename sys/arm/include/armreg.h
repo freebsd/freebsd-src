@@ -290,6 +290,7 @@
 #define CPU_CONTROL_UNAL_ENABLE 0x00400000 /* U: unaligned data access */
 #define CPU_CONTROL_V6_EXTPAGE	0x00800000 /* XP: ARMv6 extended page tables */
 #define CPU_CONTROL_L2_ENABLE	0x04000000 /* L2 Cache enabled */
+#define CPU_CONTROL_AF_ENABLE	0x20000000 /* Access Flag enable */
 
 #define CPU_CONTROL_IDC_ENABLE	CPU_CONTROL_DC_ENABLE
 
@@ -395,6 +396,7 @@
 #define FAULT_ALIGN_0   0x01 /* Alignment */
 #define FAULT_ALIGN_1   0x03 /* Alignment */
 #define FAULT_TRANS_S   0x05 /* Translation -- Section */
+#define FAULT_TRANS_F   0x06 /* Translation -- Flag */
 #define FAULT_TRANS_P   0x07 /* Translation -- Page */
 #define FAULT_DOMAIN_S  0x09 /* Domain -- Section */
 #define FAULT_DOMAIN_P  0x0b /* Domain -- Page */
