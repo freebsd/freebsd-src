@@ -470,6 +470,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
 		m->m_pkthdr.flowid = 0;
+		m->m_pkthdr.fibnum = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -695,6 +696,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
 		m->m_pkthdr.flowid = 0;
+		m->m_pkthdr.fibnum = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -720,6 +722,7 @@ m_pkthdr_init(struct mbuf *m, int how)
 	m->m_pkthdr.header = NULL;
 	m->m_pkthdr.len = 0;
 	m->m_pkthdr.flowid = 0;
+	m->m_pkthdr.fibnum = 0;
 	m->m_pkthdr.csum_flags = 0;
 	m->m_pkthdr.csum_data = 0;
 	m->m_pkthdr.tso_segsz = 0;
