@@ -612,6 +612,10 @@
 #define	PCIM_HTCAP_VCSET		0xb800	/* 10111 */
 #define	PCIM_HTCAP_RETRY_MODE		0xc000	/* 11000 */
 #define	PCIM_HTCAP_X86_ENCODING		0xc800	/* 11001 */
+#define	PCIM_HTCAP_GEN3			0xd000	/* 11010 */
+#define	PCIM_HTCAP_FLE			0xd800	/* 11011 */
+#define	PCIM_HTCAP_PM			0xe000	/* 11100 */
+#define	PCIM_HTCAP_HIGH_NODE_COUNT	0xe800	/* 11101 */
 
 /* HT MSI Mapping Capability definitions. */
 #define	PCIM_HTCMD_MSI_ENABLE		0x0001
