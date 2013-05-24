@@ -303,7 +303,7 @@ main(int argc, char *argv[])
 				    ++fuzz <= mymaxfuzz);
 
 				if (skip_rest_of_patch) {	/* just got decided */
-					if (ferror(ofp) || fclose(ofp)) {
+					if (ferror(ofp) | fclose(ofp)) {
 						say("Error writing %s\n",
 						    TMPOUTNAME);
 						error = 1;
@@ -385,7 +385,7 @@ main(int argc, char *argv[])
 				}
 			}
 		}
-		if (ferror(rejfp) || fclose(rejfp)) {
+		if (ferror(rejfp) | fclose(rejfp)) {
 			say("Error writing %s\n", rejname);
 			error = 1;
 		}
@@ -977,7 +977,7 @@ spew_output(void)
 #endif
 	if (input_lines)
 		copy_till(input_lines, true);	/* dump remainder of file */
-	rv = ferror(ofp) == 0 && fclose(ofp) == 0;
+	rv = ferror(ofp) == 0 & fclose(ofp) == 0;
 	ofp = NULL;
 	return rv;
 }
