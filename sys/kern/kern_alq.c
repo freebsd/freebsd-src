@@ -99,6 +99,7 @@ static LIST_HEAD(, alq) ald_active;
 static int ald_shutingdown = 0;
 struct thread *ald_thread;
 static struct proc *ald_proc;
+static eventhandler_tag alq_eventhandler_tag = NULL;
 
 #define	ALD_LOCK()	mtx_lock(&ald_mtx)
 #define	ALD_UNLOCK()	mtx_unlock(&ald_mtx)
@@ -194,8 +195,8 @@ ald_daemon(void)
 
 	ald_thread = FIRST_THREAD_IN_PROC(ald_proc);
 
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, ald_shutdown, NULL,
-	    SHUTDOWN_PRI_FIRST);
+	alq_eventhandler_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+	    ald_shutdown, NULL, SHUTDOWN_PRI_FIRST);
 
 	ALD_LOCK();
 
@@ -227,6 +228,8 @@ static void
 ald_shutdown(void *arg, int howto)
 {
 	struct alq *alq;
+
+	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, alq_eventhandler_tag);
 
 	ALD_LOCK();
 
