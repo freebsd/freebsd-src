@@ -573,6 +573,11 @@ dev/aac/aac_debug.c		optional aac
 dev/aac/aac_disk.c		optional aac
 dev/aac/aac_linux.c		optional aac compat_linux
 dev/aac/aac_pci.c		optional aac pci
+dev/aacraid/aacraid.c		optional aacraid
+dev/aacraid/aacraid_cam.c	optional aacraid scbus
+dev/aacraid/aacraid_debug.c	optional aacraid
+dev/aacraid/aacraid_linux.c	optional aacraid compat_linux
+dev/aacraid/aacraid_pci.c	optional aacraid pci
 dev/acpi_support/acpi_wmi.c	optional acpi_wmi acpi
 dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
 dev/acpi_support/acpi_asus_wmi.c	optional acpi_asus_wmi acpi
