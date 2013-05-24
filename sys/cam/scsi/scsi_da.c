@@ -1780,7 +1780,8 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
-		if (strcmp(buf, da_delete_method_names[i]) != 0)
+		if (!(softc->delete_available & (1 << i)) ||
+		    strcmp(buf, da_delete_method_names[i]) != 0)
 			continue;
 		dadeletemethodset(softc, i);
 		return (0);
