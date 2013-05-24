@@ -1215,6 +1215,10 @@ _yacc=		lib/liby \
 		usr.bin/yacc
 .endif
 
+.if ${BOOTSTRAPPING} < 1000014
+_crunch=	usr.sbin/crunch
+.endif
+
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
@@ -1293,6 +1297,7 @@ bootstrap-tools:
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
+    ${_crunch} \
     ${_nmtree}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
