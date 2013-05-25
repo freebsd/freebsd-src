@@ -341,7 +341,6 @@ uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 
 	DPRINTF("reattaching port %d\n", portno);
 
-	err = 0;
 	timeout = 0;
 	udev = sc->sc_udev;
 	child = usb_bus_port_get_device(udev->bus,
