@@ -53,7 +53,11 @@ struct null_node {
 	LIST_ENTRY(null_node)	null_hash;	/* Hash list */
 	struct vnode	        *null_lowervp;	/* VREFed once */
 	struct vnode		*null_vnode;	/* Back pointer */
+	u_int			null_flags;
 };
+
+#define	NULLV_NOUNLOCK	0x0001
+#define	NULLV_DROP	0x0002
 
 #define	MOUNTTONULLMOUNT(mp) ((struct null_mount *)((mp)->mnt_data))
 #define	VTONULL(vp) ((struct null_node *)(vp)->v_data)
