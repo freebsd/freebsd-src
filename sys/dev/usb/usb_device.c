@@ -799,9 +799,6 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 			/* find maximum number of endpoints */
 			if (ep_max < temp)
 				ep_max = temp;
-
-			/* optimalisation */
-			id = (struct usb_interface_descriptor *)ed;
 		}
 	}
 
