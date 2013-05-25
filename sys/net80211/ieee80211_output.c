@@ -1495,18 +1495,28 @@ static int
 ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_frame *wh, *whf;
 	struct mbuf *m, *prev, *next;
 	u_int totalhdrsize, fragno, fragsize, off, remainder, payload;
+	u_int hdrspace;
 
 	KASSERT(m0->m_nextpkt == NULL, ("mbuf already chained?"));
 	KASSERT(m0->m_pkthdr.len > mtu,
 		("pktlen %u mtu %u", m0->m_pkthdr.len, mtu));
 
+	/*
+	 * Honor driver DATAPAD requirement.
+	 */
+	if (ic->ic_flags & IEEE80211_F_DATAPAD)
+		hdrspace = roundup(hdrsize, sizeof(uint32_t));
+	else
+		hdrspace = hdrsize;
+
 	wh = mtod(m0, struct ieee80211_frame *);
 	/* NB: mark the first frag; it will be propagated below */
 	wh->i_fc[1] |= IEEE80211_FC1_MORE_FRAG;
-	totalhdrsize = hdrsize + ciphdrsize;
+	totalhdrsize = hdrspace + ciphdrsize;
 	fragno = 1;
 	off = mtu - ciphdrsize;
 	remainder = m0->m_pkthdr.len - off;
@@ -1553,9 +1563,10 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 
 		payload = fragsize - totalhdrsize;
 		/* NB: destination is known to be contiguous */
-		m_copydata(m0, off, payload, mtod(m, uint8_t *) + hdrsize);
-		m->m_len = hdrsize + payload;
-		m->m_pkthdr.len = hdrsize + payload;
+
+		m_copydata(m0, off, payload, mtod(m, uint8_t *) + hdrspace);
+		m->m_len = hdrspace + payload;
+		m->m_pkthdr.len = hdrspace + payload;
 		m->m_flags |= M_FRAG;
 
 		/* chain up the fragment */
