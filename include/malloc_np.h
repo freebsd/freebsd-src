@@ -61,6 +61,18 @@ int	rallocm(void **ptr, size_t *rsize, size_t size, size_t extra,
 int	sallocm(const void *ptr, size_t *rsize, int flags) __nonnull(1);
 int	dallocm(void *ptr, int flags) __nonnull(1);
 int	nallocm(size_t *rsize, size_t size, int flags);
+
+void *	__calloc(size_t, size_t) __malloc_like;
+void *	__malloc(size_t) __malloc_like;
+void *	__realloc(void *, size_t);
+void	__free(void *);
+int	__posix_memalign(void **, size_t, size_t);
+size_t	__malloc_usable_size(const void *);
+int	__allocm(void **, size_t *, size_t, int) __nonnull(1);
+int	__rallocm(void **, size_t *, size_t, size_t, int) __nonnull(1);
+int	__sallocm(const void *, size_t *, int) __nonnull(1);
+int	__dallocm(void *, int) __nonnull(1);
+int	__nallocm(size_t *, size_t, int);
 __END_DECLS
 
 #endif /* _MALLOC_NP_H_ */
