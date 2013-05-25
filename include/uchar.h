@@ -32,6 +32,16 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#ifndef _CHAR16_T_DECLARED
+typedef	__char16_t	char16_t;
+#define	_CHAR16_T_DECLARED
+#endif
+
+#ifndef _CHAR32_T_DECLARED
+typedef	__char32_t	char32_t;
+#define	_CHAR32_T_DECLARED
+#endif
+
 #ifndef _MBSTATE_T_DECLARED
 typedef	__mbstate_t	mbstate_t;
 #define	_MBSTATE_T_DECLARED
@@ -41,9 +51,6 @@ typedef	__mbstate_t	mbstate_t;
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
-
-typedef	__char16_t	char16_t;
-typedef	__char32_t	char32_t;
 
 __BEGIN_DECLS
 size_t	c16rtomb(char * __restrict, char16_t, mbstate_t * __restrict);
