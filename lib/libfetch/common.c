@@ -418,7 +418,6 @@ fetch_cache_data(conn_t *conn, char *src, size_t nbytes)
 	if (conn->cache.size < nbytes) {
 		tmp = realloc(conn->cache.buf, nbytes);
 		if (tmp == NULL) {
-			errno = ENOMEM;
 			fetch_syserr();
 			return (-1);
 		}
@@ -481,7 +480,7 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 		conn->cache.len -= total;
 		conn->cache.pos += total;
 		len -= total;
-		buf+= total;
+		buf += total;
 	}
 
 	while (len > 0) {
