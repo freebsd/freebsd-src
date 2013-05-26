@@ -257,7 +257,9 @@ OLD_FILES+=usr/share/man/man1/yyfix.1.gz
 # 20120505: new clang import installed a redundant internal header
 OLD_FILES+=usr/include/clang/3.1/stdalign.h
 # 20120428: MD2 removed from libmd
+OLD_LIBS+=lib/libmd.so.5
 OLD_FILES+=usr/include/md2.h
+OLD_LIBS+=usr/lib32/libmd.so.5
 OLD_FILES+=usr/share/man/man3/MD2Data.3.gz
 OLD_FILES+=usr/share/man/man3/MD2End.3.gz
 OLD_FILES+=usr/share/man/man3/MD2File.3.gz
@@ -824,7 +826,6 @@ OLD_LIBS+=lib/libipx.so.4
 OLD_LIBS+=lib/libkiconv.so.3
 OLD_LIBS+=lib/libkvm.so.4
 OLD_LIBS+=lib/libmd.so.4
-OLD_LIBS+=lib/libmd.so.5
 OLD_LIBS+=lib/libncurses.so.7
 OLD_LIBS+=lib/libncursesw.so.7
 OLD_LIBS+=lib/libnvpair.so.1
