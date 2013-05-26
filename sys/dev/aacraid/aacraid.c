@@ -2522,7 +2522,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 		srb_sg_address = (u_int64_t)sgp->SgAddress;
 	} else if (fibsize == (sizeof(struct aac_srb) + 
 		srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry64))) {
-#ifdef __amd64__
+#ifdef __LP64__
 		struct aac_sg_entry64 *sgp = 
 			(struct aac_sg_entry64 *)srbcmd->sg_map.SgEntry;
 		srb_sg_bytecount = sgp->SgByteCount;
@@ -2576,12 +2576,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 			cm->cm_flags |= AAC_CMD_DATAOUT;
 
 		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_OUT) {
-			if ((error = copyin(
-#ifdef __amd64__
-				(void *)srb_sg_address,
-#else
-				(void *)(u_int32_t)srb_sg_address,
-#endif
+			if ((error = copyin((void *)(uintptr_t)srb_sg_address,
 				cm->cm_data, cm->cm_datalen)) != 0)
 				goto out;
 			/* sync required for bus_dmamem_alloc() alloc. mem.? */
@@ -2624,12 +2619,8 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 
 	/* copy data */
 	if (transfer_data && (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN)) {
-		if ((error = copyout(cm->cm_data, 
-#ifdef __amd64__
-			(void *)srb_sg_address,
-#else
-			(void *)(u_int32_t)srb_sg_address,
-#endif
+		if ((error = copyout(cm->cm_data,
+			(void *)(uintptr_t)srb_sg_address,
 			cm->cm_datalen)) != 0)
 			goto out;
 		/* sync required for bus_dmamem_alloc() allocated mem.? */
