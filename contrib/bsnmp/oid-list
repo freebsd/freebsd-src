@@ -17,6 +17,7 @@ enterprises
       200	BEGEMOT-PF		snmpd PF module (phillip@freebsd.org)
       201	BEGEMOT-NTP		snmpd NTP module
       202	BEGEMOT-HOSTRES		snmpd HOSTRES module private stuff
+      220	begemotHast		HAST module
       300	BEGEMOT-ACM		DLR ACM project
 
 If you need an OID and don't know where to stuck it in, I can assign you one -
