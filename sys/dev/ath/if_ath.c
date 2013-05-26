@@ -152,7 +152,8 @@ static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
-static void	ath_start_queue(struct ifnet *ifp);
+static int	ath_transmit(struct ifnet *ifp, struct mbuf *m);
+static void	ath_qflush(struct ifnet *ifp);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
 static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
@@ -437,9 +438,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_txqtask, 0, ath_txq_sched_tasklet, sc);
 	TASK_INIT(&sc->sc_fataltask, 0, ath_fatal_proc, sc);
 
-	/* XXX make this a higher priority taskqueue? */
-	TASK_INIT(&sc->sc_txpkttask, 0, ath_start_task, sc);
-
 	/*
 	 * Allocate hardware transmit queues: one queue for
 	 * beacon frames and one data queue for each QoS
@@ -558,7 +556,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-	ifp->if_start = ath_start_queue;
+	ifp->if_transmit = ath_transmit;
+	ifp->if_qflush = ath_qflush;
 	ifp->if_ioctl = ath_ioctl;
 	ifp->if_init = ath_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
@@ -2645,43 +2644,32 @@ ath_getbuf(struct ath_softc *sc, ath_buf_type_t btype)
 }
 
 static void
-ath_start_queue(struct ifnet *ifp)
+ath_qflush(struct ifnet *ifp)
 {
-	struct ath_softc *sc = ifp->if_softc;
 
-	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
-		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
-		ATH_PCU_UNLOCK(sc);
-		IF_LOCK(&ifp->if_snd);
-		sc->sc_stats.ast_tx_qstop++;
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		IF_UNLOCK(&ifp->if_snd);
-		ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: OACTIVE, finish");
-		return;
-	}
-	sc->sc_txstart_cnt++;
-	ATH_PCU_UNLOCK(sc);
-
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: start");
-	ath_tx_kick(sc);
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: finished");
-
-	ATH_PCU_LOCK(sc);
-	sc->sc_txstart_cnt--;
-	ATH_PCU_UNLOCK(sc);
+	/* XXX TODO */
 }
 
-void
-ath_start_task(void *arg, int npending)
+/*
+ * Transmit a single frame.
+ *
+ * net80211 will free the node reference if the transmit
+ * fails, so don't free the node reference here.
+ */
+static int
+ath_transmit(struct ifnet *ifp, struct mbuf *m)
 {
-	struct ath_softc *sc = (struct ath_softc *) arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ieee80211_node *ni;
+	struct mbuf *next;
+	struct ath_buf *bf;
+	ath_bufhead frags;
+	int retval = 0;
 
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: start");
-
-	/* XXX is it ok to hold the ATH_LOCK here? */
+	/*
+	 * Tell the reset path that we're currently transmitting.
+	 */
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
 		device_printf(sc->sc_dev,
@@ -2692,211 +2680,249 @@ ath_start_task(void *arg, int npending)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		IF_UNLOCK(&ifp->if_snd);
 		ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: OACTIVE, finish");
-		return;
+		return (ENOBUFS);	/* XXX should be EINVAL or? */
 	}
 	sc->sc_txstart_cnt++;
 	ATH_PCU_UNLOCK(sc);
 
+	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_transmit: start");
+	/*
+	 * Grab the TX lock - it's ok to do this here; we haven't
+	 * yet started transmitting.
+	 */
 	ATH_TX_LOCK(sc);
-	ath_start(sc->sc_ifp);
+
+	/*
+	 * Node reference, if there's one.
+	 */
+	ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+
+	/*
+	 * Enforce how deep a node queue can get.
+	 *
+	 * XXX it would be nicer if we kept an mbuf queue per
+	 * node and only whacked them into ath_bufs when we
+	 * are ready to schedule some traffic from them.
+	 * .. that may come later.
+	 *
+	 * XXX we should also track the per-node hardware queue
+	 * depth so it is easy to limit the _SUM_ of the swq and
+	 * hwq frames.  Since we only schedule two HWQ frames
+	 * at a time, this should be OK for now.
+	 */
+	if ((!(m->m_flags & M_EAPOL)) &&
+	    (ATH_NODE(ni)->an_swq_depth > sc->sc_txq_node_maxdepth)) {
+		sc->sc_stats.ast_tx_nodeq_overflow++;
+		m_freem(m);
+		m = NULL;
+		retval = ENOBUFS;
+		goto finish;
+	}
+
+	/*
+	 * Check how many TX buffers are available.
+	 *
+	 * If this is for non-EAPOL traffic, just leave some
+	 * space free in order for buffer cloning and raw
+	 * frame transmission to occur.
+	 *
+	 * If it's for EAPOL traffic, ignore this for now.
+	 * Management traffic will be sent via the raw transmit
+	 * method which bypasses this check.
+	 *
+	 * This is needed to ensure that EAPOL frames during
+	 * (re) keying have a chance to go out.
+	 *
+	 * See kern/138379 for more information.
+	 */
+	if ((!(m->m_flags & M_EAPOL)) &&
+	    (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree)) {
+		sc->sc_stats.ast_tx_nobuf++;
+		m_freem(m);
+		m = NULL;
+		retval = ENOBUFS;
+		goto finish;
+	}
+
+	/*
+	 * Grab a TX buffer and associated resources.
+	 *
+	 * If it's an EAPOL frame, allocate a MGMT ath_buf.
+	 * That way even with temporary buffer exhaustion due to
+	 * the data path doesn't leave us without the ability
+	 * to transmit management frames.
+	 *
+	 * Otherwise allocate a normal buffer.
+	 */
+	if (m->m_flags & M_EAPOL)
+		bf = ath_getbuf(sc, ATH_BUFTYPE_MGMT);
+	else
+		bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
+
+	if (bf == NULL) {
+		/*
+		 * If we failed to allocate a buffer, fail.
+		 *
+		 * We shouldn't fail normally, due to the check
+		 * above.
+		 */
+		sc->sc_stats.ast_tx_nobuf++;
+		IF_LOCK(&ifp->if_snd);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
+		m_freem(m);
+		m = NULL;
+		retval = ENOBUFS;
+		goto finish;
+	}
+
+	/*
+	 * At this point we have a buffer; so we need to free it
+	 * if we hit any error conditions.
+	 */
+
+	/*
+	 * Check for fragmentation.  If this frame
+	 * has been broken up verify we have enough
+	 * buffers to send all the fragments so all
+	 * go out or none...
+	 */
+	TAILQ_INIT(&frags);
+	if ((m->m_flags & M_FRAG) &&
+	    !ath_txfrag_setup(sc, &frags, m, ni)) {
+		DPRINTF(sc, ATH_DEBUG_XMIT,
+		    "%s: out of txfrag buffers\n", __func__);
+		sc->sc_stats.ast_tx_nofrag++;
+		ifp->if_oerrors++;
+		ath_freetx(m);
+		goto bad;
+	}
+
+	/*
+	 * At this point if we have any TX fragments, then we will
+	 * have bumped the node reference once for each of those.
+	 */
+
+	/*
+	 * XXX Is there anything actually _enforcing_ that the
+	 * fragments are being transmitted in one hit, rather than
+	 * being interleaved with other transmissions on that
+	 * hardware queue?
+	 *
+	 * The ATH TX output lock is the only thing serialising this
+	 * right now.
+	 */
+
+	/*
+	 * Calculate the "next fragment" length field in ath_buf
+	 * in order to let the transmit path know enough about
+	 * what to next write to the hardware.
+	 */
+	if (m->m_flags & M_FRAG) {
+		struct ath_buf *fbf = bf;
+		struct ath_buf *n_fbf = NULL;
+		struct mbuf *fm = m->m_nextpkt;
+
+		/*
+		 * We need to walk the list of fragments and set
+		 * the next size to the following buffer.
+		 * However, the first buffer isn't in the frag
+		 * list, so we have to do some gymnastics here.
+		 */
+		TAILQ_FOREACH(n_fbf, &frags, bf_list) {
+			fbf->bf_nextfraglen = fm->m_pkthdr.len;
+			fbf = n_fbf;
+			fm = fm->m_nextpkt;
+		}
+	}
+
+	/*
+	 * Bump the ifp output counter.
+	 *
+	 * XXX should use atomics?
+	 */
+	ifp->if_opackets++;
+nextfrag:
+	/*
+	 * Pass the frame to the h/w for transmission.
+	 * Fragmented frames have each frag chained together
+	 * with m_nextpkt.  We know there are sufficient ath_buf's
+	 * to send all the frags because of work done by
+	 * ath_txfrag_setup.  We leave m_nextpkt set while
+	 * calling ath_tx_start so it can use it to extend the
+	 * the tx duration to cover the subsequent frag and
+	 * so it can reclaim all the mbufs in case of an error;
+	 * ath_tx_start clears m_nextpkt once it commits to
+	 * handing the frame to the hardware.
+	 *
+	 * Note: if this fails, then the mbufs are freed but
+	 * not the node reference.
+	 */
+	next = m->m_nextpkt;
+	if (ath_tx_start(sc, ni, bf, m)) {
+bad:
+		ifp->if_oerrors++;
+reclaim:
+		bf->bf_m = NULL;
+		bf->bf_node = NULL;
+		ATH_TXBUF_LOCK(sc);
+		ath_returnbuf_head(sc, bf);
+		/*
+		 * Free the rest of the node references and
+		 * buffers for the fragment list.
+		 */
+		ath_txfrag_cleanup(sc, &frags, ni);
+		ATH_TXBUF_UNLOCK(sc);
+		retval = ENOBUFS;
+		goto finish;
+	}
+
+	/*
+	 * Check here if the node is in power save state.
+	 */
+	ath_tx_update_tim(sc, ni, 1);
+
+	if (next != NULL) {
+		/*
+		 * Beware of state changing between frags.
+		 * XXX check sta power-save state?
+		 */
+		if (ni->ni_vap->iv_state != IEEE80211_S_RUN) {
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: flush fragmented packet, state %s\n",
+			    __func__,
+			    ieee80211_state_name[ni->ni_vap->iv_state]);
+			/* XXX dmamap */
+			ath_freetx(next);
+			goto reclaim;
+		}
+		m = next;
+		bf = TAILQ_FIRST(&frags);
+		KASSERT(bf != NULL, ("no buf for txfrag"));
+		TAILQ_REMOVE(&frags, bf, bf_list);
+		goto nextfrag;
+	}
+
+	/*
+	 * Bump watchdog timer.
+	 */
+	sc->sc_wd_timer = 5;
+
+finish:
 	ATH_TX_UNLOCK(sc);
 
+	/*
+	 * Finished transmitting!
+	 */
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: finished");
+
+	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_transmit: finished");
+	
+	return (retval);
 }
 
-void
-ath_start(struct ifnet *ifp)
-{
-	struct ath_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni;
-	struct ath_buf *bf;
-	struct mbuf *m, *next;
-	ath_bufhead frags;
-	int npkts = 0;
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
-		return;
-
-	ATH_TX_LOCK_ASSERT(sc);
-
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start: called");
-
-	for (;;) {
-		/*
-		 * Grab the frame that we're going to try and transmit.
-		 */
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
-		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-
-		/*
-		 * Enforce how deep a node queue can get.
-		 *
-		 * XXX it would be nicer if we kept an mbuf queue per
-		 * node and only whacked them into ath_bufs when we
-		 * are ready to schedule some traffic from them.
-		 * .. that may come later.
-		 *
-		 * XXX we should also track the per-node hardware queue
-		 * depth so it is easy to limit the _SUM_ of the swq and
-		 * hwq frames.  Since we only schedule two HWQ frames
-		 * at a time, this should be OK for now.
-		 */
-		if ((!(m->m_flags & M_EAPOL)) &&
-		    (ATH_NODE(ni)->an_swq_depth > sc->sc_txq_node_maxdepth)) {
-			sc->sc_stats.ast_tx_nodeq_overflow++;
-			if (ni != NULL)
-				ieee80211_free_node(ni);
-			m_freem(m);
-			m = NULL;
-			continue;
-		}
-
-		/*
-		 * Check how many TX buffers are available.
-		 *
-		 * If this is for non-EAPOL traffic, just leave some
-		 * space free in order for buffer cloning and raw
-		 * frame transmission to occur.
-		 *
-		 * If it's for EAPOL traffic, ignore this for now.
-		 * Management traffic will be sent via the raw transmit
-		 * method which bypasses this check.
-		 *
-		 * This is needed to ensure that EAPOL frames during
-		 * (re) keying have a chance to go out.
-		 *
-		 * See kern/138379 for more information.
-		 */
-		if ((!(m->m_flags & M_EAPOL)) &&
-		    (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree)) {
-			sc->sc_stats.ast_tx_nobuf++;
-			IF_LOCK(&ifp->if_snd);
-			_IF_PREPEND(&ifp->if_snd, m);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IF_UNLOCK(&ifp->if_snd);
-			m = NULL;
-			break;
-		}
-
-		/*
-		 * Grab a TX buffer and associated resources.
-		 *
-		 * If it's an EAPOL frame, allocate a MGMT ath_buf.
-		 * That way even with temporary buffer exhaustion due to
-		 * the data path doesn't leave us without the ability
-		 * to transmit management frames.
-		 *
-		 * Otherwise allocate a normal buffer.
-		 */
-		if (m->m_flags & M_EAPOL)
-			bf = ath_getbuf(sc, ATH_BUFTYPE_MGMT);
-		else
-			bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
-
-		if (bf == NULL) {
-			/*
-			 * If we failed to allocate a buffer, prepend it
-			 * and continue.
-			 *
-			 * We shouldn't fail normally, due to the check
-			 * above.
-			 */
-			sc->sc_stats.ast_tx_nobuf++;
-			IF_LOCK(&ifp->if_snd);
-			_IF_PREPEND(&ifp->if_snd, m);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IF_UNLOCK(&ifp->if_snd);
-			m = NULL;
-			break;
-		}
-
-		npkts ++;
-
-		/*
-		 * Check for fragmentation.  If this frame
-		 * has been broken up verify we have enough
-		 * buffers to send all the fragments so all
-		 * go out or none...
-		 */
-		TAILQ_INIT(&frags);
-		if ((m->m_flags & M_FRAG) &&
-		    !ath_txfrag_setup(sc, &frags, m, ni)) {
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: out of txfrag buffers\n", __func__);
-			sc->sc_stats.ast_tx_nofrag++;
-			ifp->if_oerrors++;
-			ath_freetx(m);
-			goto bad;
-		}
-		ifp->if_opackets++;
-	nextfrag:
-		/*
-		 * Pass the frame to the h/w for transmission.
-		 * Fragmented frames have each frag chained together
-		 * with m_nextpkt.  We know there are sufficient ath_buf's
-		 * to send all the frags because of work done by
-		 * ath_txfrag_setup.  We leave m_nextpkt set while
-		 * calling ath_tx_start so it can use it to extend the
-		 * the tx duration to cover the subsequent frag and
-		 * so it can reclaim all the mbufs in case of an error;
-		 * ath_tx_start clears m_nextpkt once it commits to
-		 * handing the frame to the hardware.
-		 */
-		next = m->m_nextpkt;
-		if (ath_tx_start(sc, ni, bf, m)) {
-	bad:
-			ifp->if_oerrors++;
-	reclaim:
-			bf->bf_m = NULL;
-			bf->bf_node = NULL;
-			ATH_TXBUF_LOCK(sc);
-			ath_returnbuf_head(sc, bf);
-			ath_txfrag_cleanup(sc, &frags, ni);
-			ATH_TXBUF_UNLOCK(sc);
-			/*
-			 * XXX todo, free the node outside of
-			 * the TX lock context!
-			 */
-			if (ni != NULL)
-				ieee80211_free_node(ni);
-			continue;
-		}
-
-		/*
-		 * Check here if the node is in power save state.
-		 */
-		ath_tx_update_tim(sc, ni, 1);
-
-		if (next != NULL) {
-			/*
-			 * Beware of state changing between frags.
-			 * XXX check sta power-save state?
-			 */
-			if (ni->ni_vap->iv_state != IEEE80211_S_RUN) {
-				DPRINTF(sc, ATH_DEBUG_XMIT,
-				    "%s: flush fragmented packet, state %s\n",
-				    __func__,
-				    ieee80211_state_name[ni->ni_vap->iv_state]);
-				/* XXX dmamap */
-				ath_freetx(next);
-				goto reclaim;
-			}
-			m = next;
-			bf = TAILQ_FIRST(&frags);
-			KASSERT(bf != NULL, ("no buf for txfrag"));
-			TAILQ_REMOVE(&frags, bf, bf_list);
-			goto nextfrag;
-		}
-
-		sc->sc_wd_timer = 5;
-	}
-	ATH_KTR(sc, ATH_KTR_TX, 1, "ath_start: finished; npkts=%d", npkts);
-}
 static int
 ath_media_change(struct ifnet *ifp)
 {
