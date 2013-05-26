@@ -29,8 +29,8 @@ CFLAGS+=-DINET6
 # This is needed to have WARNS > 1.
 CFLAGS+=-DYY_NO_UNPUT
 
-DPADD=	${LIBL} ${LIBUTIL}
-LDADD=	-ll -lutil
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto
