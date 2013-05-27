@@ -15,6 +15,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130524:
+	`list' command has been added to hastctl(8).  For now, it is full
+	equivalent of `status' command.
+	WARNING: in the near future the output of hastctl's status command
+	will change to more terse format.  If you use `hastctl status'
+	for parsing in your scripts, switch to `hastctl list'.
+
 20130429:
 	Fix a bug that allows NFS clients to issue READDIR on files.
 
