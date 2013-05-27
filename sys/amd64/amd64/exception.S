@@ -818,6 +818,10 @@ doreti_iret_fault:
 	.globl	ds_load_fault
 ds_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movw	$KUDSEL,TF_DS(%rsp)
@@ -827,6 +831,10 @@ ds_load_fault:
 	.globl	es_load_fault
 es_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movw	$KUDSEL,TF_ES(%rsp)
@@ -835,6 +843,10 @@ es_load_fault:
 	ALIGN_TEXT
 	.globl	fs_load_fault
 fs_load_fault:
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
 	movq	%rsp,%rdi
 	call	trap
@@ -846,6 +858,10 @@ fs_load_fault:
 gs_load_fault:
 	popfq
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movw	$KUG32SEL,TF_GS(%rsp)
@@ -855,6 +871,10 @@ gs_load_fault:
 	.globl	fsbase_load_fault
 fsbase_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movq	PCPU(CURTHREAD),%r8
@@ -866,6 +886,10 @@ fsbase_load_fault:
 	.globl	gsbase_load_fault
 gsbase_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movq	PCPU(CURTHREAD),%r8
