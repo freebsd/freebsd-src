@@ -205,9 +205,9 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	curthread->in_sigsuspend = 0;
 
 	/*
-	 * if thread is in deferred cancellation mode, disable cancellation
+	 * If thread is in deferred cancellation mode, disable cancellation
 	 * in signal handler.
-	 * if user signal handler calls a cancellation point function, e.g,
+	 * If user signal handler calls a cancellation point function, e.g,
 	 * it calls write() to write data to file, because write() is a
 	 * cancellation point, the thread is immediately cancelled if 
 	 * cancellation is pending, to avoid this problem while thread is in
@@ -229,7 +229,7 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	 * We have already reset cancellation point flags, so if user's code
 	 * longjmp()s out of its signal handler, wish its jmpbuf was set
 	 * outside of a cancellation point, in most cases, this would be
-	 * true. however, ther is no way to save cancel_enable in jmpbuf,
+	 * true.  However, there is no way to save cancel_enable in jmpbuf,
 	 * so after setjmps() returns once more, the user code may need to
 	 * re-set cancel_enable flag by calling pthread_setcancelstate().
 	 */
