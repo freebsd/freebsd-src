@@ -56,6 +56,15 @@ struct AsanStats {
   void Print();
 };
 
+// Returns stats for GetCurrentThread(), or stats for fake "unknown thread"
+// if GetCurrentThread() returns 0.
+AsanStats &GetCurrentThreadStats();
+// Flushes all thread-local stats to accumulated stats, and makes
+// a copy of accumulated stats.
+void GetAccumulatedStats(AsanStats *stats);
+// Flushes a given stats into accumulated stats.
+void FlushToAccumulatedStats(AsanStats *stats);
+
 // A cross-platform equivalent of malloc_statistics_t on Mac OS.
 struct AsanMallocStats {
   uptr blocks_in_use;
@@ -63,6 +72,8 @@ struct AsanMallocStats {
   uptr max_size_in_use;
   uptr size_allocated;
 };
+
+void FillMallocStatistics(AsanMallocStats *malloc_stats);
 
 }  // namespace __asan
 

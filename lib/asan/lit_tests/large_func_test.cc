@@ -32,7 +32,7 @@ static void LargeFunction(int *x, int zero) {
   // CHECK: {{.*ERROR: AddressSanitizer: heap-buffer-overflow on address}}
   // CHECK:   {{0x.* at pc 0x.* bp 0x.* sp 0x.*}}
   // CHECK: {{READ of size 4 at 0x.* thread T0}}
-  x[zero + 111]++;  // we should report this exact line
+  x[zero + 103]++;  // we should report this exact line
   // atos incorrectly extracts the symbol name for the static functions on
   // Darwin.
   // CHECK-Linux:  {{#0 0x.* in LargeFunction.*large_func_test.cc:}}[[@LINE-3]]
@@ -54,9 +54,10 @@ int main(int argc, char **argv) {
   int *x = new int[100];
   LargeFunction(x, argc - 1);
   // CHECK: {{    #1 0x.* in _?main .*large_func_test.cc:}}[[@LINE-1]]
-  // CHECK: {{0x.* is located 44 bytes to the right of 400-byte region}}
+  // CHECK: {{0x.* is located 12 bytes to the right of 400-byte region}}
   // CHECK: {{allocated by thread T0 here:}}
-  // CHECK: {{    #0 0x.* in operator new.*}}
-  // CHECK: {{    #1 0x.* in _?main .*large_func_test.cc:}}[[@LINE-6]]
+  // CHECK-Linux: {{    #0 0x.* in operator new.*}}
+  // CHECK-Darwin: {{    #0 0x.* in .*_Zna.*}}
+  // CHECK: {{    #1 0x.* in _?main .*large_func_test.cc:}}[[@LINE-7]]
   delete x;
 }

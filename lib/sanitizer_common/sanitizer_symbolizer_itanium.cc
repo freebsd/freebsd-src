@@ -10,7 +10,9 @@
 // This file is shared between the sanitizer run-time libraries.
 // Itanium C++ ABI-specific implementation of symbolizer parts.
 //===----------------------------------------------------------------------===//
-#if defined(__APPLE__) || defined(__linux__)
+
+#include "sanitizer_platform.h"
+#if SANITIZER_MAC || SANITIZER_LINUX
 
 #include "sanitizer_symbolizer.h"
 
@@ -39,4 +41,4 @@ const char *__sanitizer::Demangle(const char *MangledName) {
   return MangledName;
 }
 
-#endif  // __APPLE__ || __linux__
+#endif  // SANITIZER_MAC || SANITIZER_LINUX

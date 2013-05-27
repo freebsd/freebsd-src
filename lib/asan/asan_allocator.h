@@ -9,7 +9,7 @@
 //
 // This file is a part of AddressSanitizer, an address sanity checker.
 //
-// ASan-private header for asan_allocator.cc.
+// ASan-private header for asan_allocator2.cc.
 //===----------------------------------------------------------------------===//
 
 #ifndef ASAN_ALLOCATOR_H
@@ -18,18 +18,6 @@
 #include "asan_internal.h"
 #include "asan_interceptors.h"
 #include "sanitizer_common/sanitizer_list.h"
-
-// We are in the process of transitioning from the old allocator (version 1)
-// to a new one (version 2). The change is quite intrusive so both allocators
-// will co-exist in the source base for a while. The actual allocator is chosen
-// at build time by redefining this macro.
-#ifndef ASAN_ALLOCATOR_VERSION
-# if ASAN_LINUX && !ASAN_ANDROID
-#  define ASAN_ALLOCATOR_VERSION 2
-# else
-#  define ASAN_ALLOCATOR_VERSION 1
-# endif
-#endif  // ASAN_ALLOCATOR_VERSION
 
 namespace __asan {
 
@@ -42,6 +30,8 @@ enum AllocType {
 static const uptr kNumberOfSizeClasses = 255;
 struct AsanChunk;
 
+void InitializeAllocator();
+
 class AsanChunkView {
  public:
   explicit AsanChunkView(AsanChunk *chunk) : chunk_(chunk) {}
@@ -53,14 +43,14 @@ class AsanChunkView {
   uptr FreeTid();
   void GetAllocStack(StackTrace *stack);
   void GetFreeStack(StackTrace *stack);
-  bool AddrIsInside(uptr addr, uptr access_size, uptr *offset) {
+  bool AddrIsInside(uptr addr, uptr access_size, sptr *offset) {
     if (addr >= Beg() && (addr + access_size) <= End()) {
       *offset = addr - Beg();
       return true;
     }
     return false;
   }
-  bool AddrIsAtLeft(uptr addr, uptr access_size, uptr *offset) {
+  bool AddrIsAtLeft(uptr addr, uptr access_size, sptr *offset) {
     (void)access_size;
     if (addr < Beg()) {
       *offset = Beg() - addr;
@@ -68,12 +58,9 @@ class AsanChunkView {
     }
     return false;
   }
-  bool AddrIsAtRight(uptr addr, uptr access_size, uptr *offset) {
-    if (addr + access_size >= End()) {
-      if (addr <= End())
-        *offset = 0;
-      else
-        *offset = addr - End();
+  bool AddrIsAtRight(uptr addr, uptr access_size, sptr *offset) {
+    if (addr + access_size > End()) {
+      *offset = addr - End();
       return true;
     }
     return false;
@@ -104,107 +91,15 @@ class AsanChunkFifoList: public IntrusiveList<AsanChunk> {
 
 struct AsanThreadLocalMallocStorage {
   explicit AsanThreadLocalMallocStorage(LinkerInitialized x)
-#if ASAN_ALLOCATOR_VERSION == 1
-      : quarantine_(x)
-#endif
       { }
   AsanThreadLocalMallocStorage() {
     CHECK(REAL(memset));
     REAL(memset)(this, 0, sizeof(AsanThreadLocalMallocStorage));
   }
 
-#if ASAN_ALLOCATOR_VERSION == 1
-  AsanChunkFifoList quarantine_;
-  AsanChunk *free_lists_[kNumberOfSizeClasses];
-#else
   uptr quarantine_cache[16];
   uptr allocator2_cache[96 * (512 * 8 + 16)];  // Opaque.
-#endif
   void CommitBack();
-};
-
-// Fake stack frame contains local variables of one function.
-// This struct should fit into a stack redzone (32 bytes).
-struct FakeFrame {
-  uptr magic;  // Modified by the instrumented code.
-  uptr descr;  // Modified by the instrumented code.
-  FakeFrame *next;
-  u64 real_stack     : 48;
-  u64 size_minus_one : 16;
-};
-
-struct FakeFrameFifo {
- public:
-  void FifoPush(FakeFrame *node);
-  FakeFrame *FifoPop();
- private:
-  FakeFrame *first_, *last_;
-};
-
-class FakeFrameLifo {
- public:
-  void LifoPush(FakeFrame *node) {
-    node->next = top_;
-    top_ = node;
-  }
-  void LifoPop() {
-    CHECK(top_);
-    top_ = top_->next;
-  }
-  FakeFrame *top() { return top_; }
- private:
-  FakeFrame *top_;
-};
-
-// For each thread we create a fake stack and place stack objects on this fake
-// stack instead of the real stack. The fake stack is not really a stack but
-// a fast malloc-like allocator so that when a function exits the fake stack
-// is not poped but remains there for quite some time until gets used again.
-// So, we poison the objects on the fake stack when function returns.
-// It helps us find use-after-return bugs.
-// We can not rely on __asan_stack_free being called on every function exit,
-// so we maintain a lifo list of all current fake frames and update it on every
-// call to __asan_stack_malloc.
-class FakeStack {
- public:
-  FakeStack();
-  explicit FakeStack(LinkerInitialized) {}
-  void Init(uptr stack_size);
-  void StopUsingFakeStack() { alive_ = false; }
-  void Cleanup();
-  uptr AllocateStack(uptr size, uptr real_stack);
-  static void OnFree(uptr ptr, uptr size, uptr real_stack);
-  // Return the bottom of the maped region.
-  uptr AddrIsInFakeStack(uptr addr);
-  bool StackSize() { return stack_size_; }
-
- private:
-  static const uptr kMinStackFrameSizeLog = 9;  // Min frame is 512B.
-  static const uptr kMaxStackFrameSizeLog = 16;  // Max stack frame is 64K.
-  static const uptr kMaxStackMallocSize = 1 << kMaxStackFrameSizeLog;
-  static const uptr kNumberOfSizeClasses =
-      kMaxStackFrameSizeLog - kMinStackFrameSizeLog + 1;
-
-  bool AddrIsInSizeClass(uptr addr, uptr size_class);
-
-  // Each size class should be large enough to hold all frames.
-  uptr ClassMmapSize(uptr size_class);
-
-  uptr ClassSize(uptr size_class) {
-    return 1UL << (size_class + kMinStackFrameSizeLog);
-  }
-
-  void DeallocateFrame(FakeFrame *fake_frame);
-
-  uptr ComputeSizeClass(uptr alloc_size);
-  void AllocateOneSizeClass(uptr size_class);
-
-  uptr stack_size_;
-  bool   alive_;
-
-  uptr allocated_size_classes_[kNumberOfSizeClasses];
-  FakeFrameFifo size_classes_[kNumberOfSizeClasses];
-  FakeFrameLifo call_stack_;
 };
 
 void *asan_memalign(uptr alignment, uptr size, StackTrace *stack,
@@ -226,51 +121,6 @@ void asan_mz_force_lock();
 void asan_mz_force_unlock();
 
 void PrintInternalAllocatorStats();
-
-// Log2 and RoundUpToPowerOfTwo should be inlined for performance.
-#if defined(_WIN32) && !defined(__clang__)
-extern "C" {
-unsigned char _BitScanForward(unsigned long *index, unsigned long mask);  // NOLINT
-unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);  // NOLINT
-#if defined(_WIN64)
-unsigned char _BitScanForward64(unsigned long *index, unsigned __int64 mask);  // NOLINT
-unsigned char _BitScanReverse64(unsigned long *index, unsigned __int64 mask);  // NOLINT
-#endif
-}
-#endif
-
-static inline uptr Log2(uptr x) {
-  CHECK(IsPowerOfTwo(x));
-#if !defined(_WIN32) || defined(__clang__)
-  return __builtin_ctzl(x);
-#elif defined(_WIN64)
-  unsigned long ret;  // NOLINT
-  _BitScanForward64(&ret, x);
-  return ret;
-#else
-  unsigned long ret;  // NOLINT
-  _BitScanForward(&ret, x);
-  return ret;
-#endif
-}
-
-static inline uptr RoundUpToPowerOfTwo(uptr size) {
-  CHECK(size);
-  if (IsPowerOfTwo(size)) return size;
-
-  unsigned long up;  // NOLINT
-#if !defined(_WIN32) || defined(__clang__)
-  up = SANITIZER_WORDSIZE - 1 - __builtin_clzl(size);
-#elif defined(_WIN64)
-  _BitScanReverse64(&up, size);
-#else
-  _BitScanReverse(&up, size);
-#endif
-  CHECK(size < (1ULL << (up + 1)));
-  CHECK(size > (1ULL << up));
-  return 1UL << (up + 1);
-}
-
 
 }  // namespace __asan
 #endif  // ASAN_ALLOCATOR_H

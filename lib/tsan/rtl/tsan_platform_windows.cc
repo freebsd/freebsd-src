@@ -12,7 +12,8 @@
 // Windows-specific code.
 //===----------------------------------------------------------------------===//
 
-#ifdef _WIN32
+#include "sanitizer_common/sanitizer_platform.h"
+#if SANITIZER_WINDOWS
 
 #include "tsan_platform.h"
 
@@ -34,25 +35,13 @@ void FlushShadowMemory() {
 }
 
 const char *InitializePlatform() {
-  return getenv(kTsanOptionsEnv);
+  return GetEnv(kTsanOptionsEnv);
 }
 
 void FinalizePlatform() {
   fflush(0);
 }
 
-uptr GetTlsSize() {
-  return 0;
-}
-
-void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
-                          uptr *tls_addr, uptr *tls_size) {
-  *stk_addr = 0;
-  *stk_size = 0;
-  *tls_addr = 0;
-  *tls_size = 0;
-}
-
 }  // namespace __tsan
 
-#endif  // #ifdef _WIN32
+#endif  // SANITIZER_WINDOWS

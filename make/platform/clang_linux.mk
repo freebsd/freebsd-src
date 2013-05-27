@@ -8,8 +8,8 @@ Configs :=
 
 # We don't currently have any general purpose way to target architectures other
 # than the compiler defaults (because there is no generalized way to invoke
-# cross compilers). For now, we just find the target archicture of the compiler
-# and only define configurations we know that compiler can generate.
+# cross compilers). For now, we just find the target architecture of the
+# compiler and only define configurations we know that compiler can generate.
 CompilerTargetTriple := $(shell \
 	$(CC) -v 2>&1 | grep 'Target:' | cut -d' ' -f2)
 ifneq ($(DEBUGMAKE),)
@@ -51,21 +51,27 @@ endif
 
 # Build runtime libraries for i386.
 ifeq ($(call contains,$(SupportedArches),i386),true)
-Configs += full-i386 profile-i386 asan-i386 ubsan-i386
+Configs += full-i386 profile-i386 san-i386 asan-i386 ubsan-i386 ubsan_cxx-i386
 Arch.full-i386 := i386
 Arch.profile-i386 := i386
+Arch.san-i386 := i386
 Arch.asan-i386 := i386
 Arch.ubsan-i386 := i386
+Arch.ubsan_cxx-i386 := i386
 endif
 
 # Build runtime libraries for x86_64.
 ifeq ($(call contains,$(SupportedArches),x86_64),true)
-Configs += full-x86_64 profile-x86_64 asan-x86_64 tsan-x86_64 ubsan-x86_64
+Configs += full-x86_64 profile-x86_64 san-x86_64 asan-x86_64 tsan-x86_64 \
+           msan-x86_64 ubsan-x86_64 ubsan_cxx-x86_64
 Arch.full-x86_64 := x86_64
 Arch.profile-x86_64 := x86_64
+Arch.san-x86_64 := x86_64
 Arch.asan-x86_64 := x86_64
 Arch.tsan-x86_64 := x86_64
+Arch.msan-x86_64 := x86_64
 Arch.ubsan-x86_64 := x86_64
+Arch.ubsan_cxx-x86_64 := x86_64
 endif
 
 ifneq ($(LLVM_ANDROID_TOOLCHAIN_DIR),)
@@ -79,23 +85,31 @@ endif
 ###
 
 CFLAGS := -Wall -Werror -O3 -fomit-frame-pointer
+SANITIZER_CFLAGS := -fPIE -fno-builtin -gline-tables-only
 
 CFLAGS.full-i386 := $(CFLAGS) -m32
 CFLAGS.full-x86_64 := $(CFLAGS) -m64
 CFLAGS.profile-i386 := $(CFLAGS) -m32
 CFLAGS.profile-x86_64 := $(CFLAGS) -m64
-CFLAGS.asan-i386 := $(CFLAGS) -m32 -fPIE -fno-builtin
-CFLAGS.asan-x86_64 := $(CFLAGS) -m64 -fPIE -fno-builtin
-CFLAGS.tsan-x86_64 := $(CFLAGS) -m64 -fPIE -fno-builtin
-CFLAGS.ubsan-i386 := $(CFLAGS) -m32 -fPIE -fno-builtin
-CFLAGS.ubsan-x86_64 := $(CFLAGS) -m64 -fPIE -fno-builtin
+CFLAGS.san-i386 := $(CFLAGS) -m32 $(SANITIZER_CFLAGS) -fno-rtti
+CFLAGS.san-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS) -fno-rtti
+CFLAGS.asan-i386 := $(CFLAGS) -m32 $(SANITIZER_CFLAGS) -fno-rtti \
+                    -DASAN_FLEXIBLE_MAPPING_AND_OFFSET=1
+CFLAGS.asan-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS) -fno-rtti \
+                    -DASAN_FLEXIBLE_MAPPING_AND_OFFSET=1
+CFLAGS.tsan-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS) -fno-rtti
+CFLAGS.msan-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS) -fno-rtti
+CFLAGS.ubsan-i386 := $(CFLAGS) -m32 $(SANITIZER_CFLAGS) -fno-rtti
+CFLAGS.ubsan-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS) -fno-rtti
+CFLAGS.ubsan_cxx-i386 := $(CFLAGS) -m32 $(SANITIZER_CFLAGS)
+CFLAGS.ubsan_cxx-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS)
 
 SHARED_LIBRARY.asan-arm-android := 1
 ANDROID_COMMON_FLAGS := -target arm-linux-androideabi \
 	--sysroot=$(LLVM_ANDROID_TOOLCHAIN_DIR)/sysroot \
 	-B$(LLVM_ANDROID_TOOLCHAIN_DIR)
 CFLAGS.asan-arm-android := $(CFLAGS) -fPIC -fno-builtin \
-	$(ANDROID_COMMON_FLAGS) -mllvm -arm-enable-ehabi
+	$(ANDROID_COMMON_FLAGS) -mllvm -arm-enable-ehabi -fno-rtti
 LDFLAGS.asan-arm-android := $(LDFLAGS) $(ANDROID_COMMON_FLAGS) -ldl \
 	-Wl,-soname=libclang_rt.asan-arm-android.so
 
@@ -111,16 +125,22 @@ FUNCTIONS.full-i386 := $(CommonFunctions) $(ArchFunctions.i386)
 FUNCTIONS.full-x86_64 := $(CommonFunctions) $(ArchFunctions.x86_64)
 FUNCTIONS.profile-i386 := GCDAProfiling
 FUNCTIONS.profile-x86_64 := GCDAProfiling
+FUNCTIONS.san-i386 := $(SanitizerCommonFunctions)
+FUNCTIONS.san-x86_64 := $(SanitizerCommonFunctions)
 FUNCTIONS.asan-i386 := $(AsanFunctions) $(InterceptionFunctions) \
                                         $(SanitizerCommonFunctions)
 FUNCTIONS.asan-x86_64 := $(AsanFunctions) $(InterceptionFunctions) \
-                                          $(SanitizerCommonFunctions)
+                         $(SanitizerCommonFunctions) $(LsanCommonFunctions)
 FUNCTIONS.asan-arm-android := $(AsanFunctions) $(InterceptionFunctions) \
                                           $(SanitizerCommonFunctions)
 FUNCTIONS.tsan-x86_64 := $(TsanFunctions) $(InterceptionFunctions) \
                                           $(SanitizerCommonFunctions)
-FUNCTIONS.ubsan-i386 := $(UbsanFunctions) $(SanitizerCommonFunctions)
-FUNCTIONS.ubsan-x86_64 := $(UbsanFunctions) $(SanitizerCommonFunctions)
+FUNCTIONS.msan-x86_64 := $(MsanFunctions) $(InterceptionFunctions) \
+                                          $(SanitizerCommonFunctions)
+FUNCTIONS.ubsan-i386 := $(UbsanFunctions)
+FUNCTIONS.ubsan-x86_64 := $(UbsanFunctions)
+FUNCTIONS.ubsan_cxx-i386 := $(UbsanCXXFunctions)
+FUNCTIONS.ubsan_cxx-x86_64 := $(UbsanCXXFunctions)
 
 # Always use optimized variants.
 OPTIMIZED := 1

@@ -15,9 +15,7 @@
 #include "asan_allocator.h"
 #include "asan_internal.h"
 #include "asan_mapping.h"
-#include "asan_stack.h"
 #include "asan_test_utils.h"
-#include "sanitizer/asan_interface.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -25,6 +23,7 @@
 #include <string.h>  // for memset()
 #include <algorithm>
 #include <vector>
+#include <limits>
 
 
 TEST(AddressSanitizer, InternalSimpleDeathTest) {
@@ -33,17 +32,17 @@ TEST(AddressSanitizer, InternalSimpleDeathTest) {
 
 static void MallocStress(size_t n) {
   u32 seed = my_rand();
-  __asan::StackTrace stack1;
+  StackTrace stack1;
   stack1.trace[0] = 0xa123;
   stack1.trace[1] = 0xa456;
   stack1.size = 2;
 
-  __asan::StackTrace stack2;
+  StackTrace stack2;
   stack2.trace[0] = 0xb123;
   stack2.trace[1] = 0xb456;
   stack2.size = 2;
 
-  __asan::StackTrace stack3;
+  StackTrace stack3;
   stack3.trace[0] = 0xc123;
   stack3.trace[1] = 0xc456;
   stack3.size = 2;
@@ -79,11 +78,20 @@ static void MallocStress(size_t n) {
 
 
 TEST(AddressSanitizer, NoInstMallocTest) {
-#ifdef __arm__
-  MallocStress(300000);
-#else
-  MallocStress(1000000);
-#endif
+  MallocStress(ASAN_LOW_MEMORY ? 300000 : 1000000);
+}
+
+TEST(AddressSanitizer, ThreadedMallocStressTest) {
+  const int kNumThreads = 4;
+  const int kNumIterations = (ASAN_LOW_MEMORY) ? 10000 : 100000;
+  pthread_t t[kNumThreads];
+  for (int i = 0; i < kNumThreads; i++) {
+    PTHREAD_CREATE(&t[i], 0, (void* (*)(void *x))MallocStress,
+        (void*)kNumIterations);
+  }
+  for (int i = 0; i < kNumThreads; i++) {
+    PTHREAD_JOIN(t[i], 0);
+  }
 }
 
 static void PrintShadow(const char *tag, uptr ptr, size_t size) {
@@ -207,16 +215,16 @@ void CompressStackTraceTest(size_t n_iter) {
 
   for (size_t iter = 0; iter < n_iter; iter++) {
     std::random_shuffle(pc_array, pc_array + kNumPcs);
-    __asan::StackTrace stack0, stack1;
+    StackTrace stack0, stack1;
     stack0.CopyFrom(pc_array, kNumPcs);
     stack0.size = std::max((size_t)1, (size_t)(my_rand_r(&seed) % stack0.size));
     size_t compress_size =
       std::max((size_t)2, (size_t)my_rand_r(&seed) % (2 * kNumPcs));
     size_t n_frames =
-      __asan::StackTrace::CompressStack(&stack0, compressed, compress_size);
+      StackTrace::CompressStack(&stack0, compressed, compress_size);
     Ident(n_frames);
     assert(n_frames <= stack0.size);
-    __asan::StackTrace::UncompressStack(&stack1, compressed, compress_size);
+    StackTrace::UncompressStack(&stack1, compressed, compress_size);
     assert(stack1.size == n_frames);
     for (size_t i = 0; i < stack1.size; i++) {
       assert(stack0.trace[i] == stack1.trace[i]);
@@ -233,13 +241,13 @@ void CompressStackTraceBenchmark(size_t n_iter) {
   u32 compressed[2 * kNumPcs];
   std::random_shuffle(pc_array, pc_array + kNumPcs);
 
-  __asan::StackTrace stack0;
+  StackTrace stack0;
   stack0.CopyFrom(pc_array, kNumPcs);
   stack0.size = kNumPcs;
   for (size_t iter = 0; iter < n_iter; iter++) {
     size_t compress_size = kNumPcs;
     size_t n_frames =
-      __asan::StackTrace::CompressStack(&stack0, compressed, compress_size);
+      StackTrace::CompressStack(&stack0, compressed, compress_size);
     Ident(n_frames);
   }
 }
@@ -249,11 +257,11 @@ TEST(AddressSanitizer, CompressStackTraceBenchmark) {
 }
 
 TEST(AddressSanitizer, QuarantineTest) {
-  __asan::StackTrace stack;
+  StackTrace stack;
   stack.trace[0] = 0x890;
   stack.size = 1;
 
-  const int size = 32;
+  const int size = 1024;
   void *p = __asan::asan_malloc(size, &stack);
   __asan::asan_free(p, &stack, __asan::FROM_MALLOC);
   size_t i;
@@ -263,15 +271,14 @@ TEST(AddressSanitizer, QuarantineTest) {
     __asan::asan_free(p1, &stack, __asan::FROM_MALLOC);
     if (p1 == p) break;
   }
-  // fprintf(stderr, "i=%ld\n", i);
-  EXPECT_GE(i, 100000U);
+  EXPECT_GE(i, 10000U);
   EXPECT_LT(i, max_i);
 }
 
 void *ThreadedQuarantineTestWorker(void *unused) {
   (void)unused;
   u32 seed = my_rand();
-  __asan::StackTrace stack;
+  StackTrace stack;
   stack.trace[0] = 0x890;
   stack.size = 1;
 
@@ -298,7 +305,7 @@ TEST(AddressSanitizer, ThreadedQuarantineTest) {
 
 void *ThreadedOneSizeMallocStress(void *unused) {
   (void)unused;
-  __asan::StackTrace stack;
+  StackTrace stack;
   stack.trace[0] = 0x890;
   stack.size = 1;
   const size_t kNumMallocs = 1000;
@@ -326,11 +333,13 @@ TEST(AddressSanitizer, ThreadedOneSizeMallocStressTest) {
 }
 
 TEST(AddressSanitizer, MemsetWildAddressTest) {
+  using __asan::kHighMemEnd;
   typedef void*(*memset_p)(void*, int, size_t);
   // Prevent inlining of memset().
   volatile memset_p libc_memset = (memset_p)memset;
   EXPECT_DEATH(libc_memset((void*)(kLowShadowBeg + 200), 0, 100),
-               "unknown-crash.*low shadow");
+               (kLowShadowEnd == 0) ? "unknown-crash.*shadow gap"
+                                    : "unknown-crash.*low shadow");
   EXPECT_DEATH(libc_memset((void*)(kShadowGapBeg + 200), 0, 100),
                "unknown-crash.*shadow gap");
   EXPECT_DEATH(libc_memset((void*)(kHighShadowBeg + 200), 0, 100),
@@ -338,11 +347,7 @@ TEST(AddressSanitizer, MemsetWildAddressTest) {
 }
 
 TEST(AddressSanitizerInterface, GetEstimatedAllocatedSize) {
-#if ASAN_ALLOCATOR_VERSION == 1
-  EXPECT_EQ(1U, __asan_get_estimated_allocated_size(0));
-#elif ASAN_ALLOCATOR_VERSION == 2
   EXPECT_EQ(0U, __asan_get_estimated_allocated_size(0));
-#endif
   const size_t sizes[] = { 1, 30, 1<<30 };
   for (size_t i = 0; i < 3; i++) {
     EXPECT_EQ(sizes[i], __asan_get_estimated_allocated_size(sizes[i]));
@@ -416,99 +421,18 @@ static void DoDoubleFree() {
   delete Ident(x);
 }
 
-#if ASAN_ALLOCATOR_VERSION == 1
-// This test is run in a separate process, so that large malloced
-// chunk won't remain in the free lists after the test.
-// Note: use ASSERT_* instead of EXPECT_* here.
-static void RunGetHeapSizeTestAndDie() {
-  size_t old_heap_size, new_heap_size, heap_growth;
-  // We unlikely have have chunk of this size in free list.
-  static const size_t kLargeMallocSize = 1 << 29;  // 512M
-  old_heap_size = __asan_get_heap_size();
-  fprintf(stderr, "allocating %zu bytes:\n", kLargeMallocSize);
-  free(Ident(malloc(kLargeMallocSize)));
-  new_heap_size = __asan_get_heap_size();
-  heap_growth = new_heap_size - old_heap_size;
-  fprintf(stderr, "heap growth after first malloc: %zu\n", heap_growth);
-  ASSERT_GE(heap_growth, kLargeMallocSize);
-  ASSERT_LE(heap_growth, 2 * kLargeMallocSize);
-
-  // Now large chunk should fall into free list, and can be
-  // allocated without increasing heap size.
-  old_heap_size = new_heap_size;
-  free(Ident(malloc(kLargeMallocSize)));
-  heap_growth = __asan_get_heap_size() - old_heap_size;
-  fprintf(stderr, "heap growth after second malloc: %zu\n", heap_growth);
-  ASSERT_LT(heap_growth, kLargeMallocSize);
-
-  // Test passed. Now die with expected double-free.
-  DoDoubleFree();
-}
-
-TEST(AddressSanitizerInterface, GetHeapSizeTest) {
-  EXPECT_DEATH(RunGetHeapSizeTestAndDie(), "double-free");
-}
-#elif ASAN_ALLOCATOR_VERSION == 2
 TEST(AddressSanitizerInterface, GetHeapSizeTest) {
   // asan_allocator2 does not keep huge chunks in free list, but unmaps them.
   // The chunk should be greater than the quarantine size,
   // otherwise it will be stuck in quarantine instead of being unmaped.
-  static const size_t kLargeMallocSize = 1 << 29;  // 512M
+  static const size_t kLargeMallocSize = (1 << 28) + 1;  // 256M
+  free(Ident(malloc(kLargeMallocSize)));  // Drain quarantine.
   uptr old_heap_size = __asan_get_heap_size();
   for (int i = 0; i < 3; i++) {
     // fprintf(stderr, "allocating %zu bytes:\n", kLargeMallocSize);
     free(Ident(malloc(kLargeMallocSize)));
     EXPECT_EQ(old_heap_size, __asan_get_heap_size());
   }
-}
-#endif
-
-// Note: use ASSERT_* instead of EXPECT_* here.
-static void DoLargeMallocForGetFreeBytesTestAndDie() {
-#if ASAN_ALLOCATOR_VERSION == 1
-  // asan_allocator2 does not keep large chunks in free_lists, so this test
-  // will not work.
-  size_t old_free_bytes, new_free_bytes;
-  static const size_t kLargeMallocSize = 1 << 29;  // 512M
-  // If we malloc and free a large memory chunk, it will not fall
-  // into quarantine and will be available for future requests.
-  old_free_bytes = __asan_get_free_bytes();
-  fprintf(stderr, "allocating %zu bytes:\n", kLargeMallocSize);
-  fprintf(stderr, "free bytes before malloc: %zu\n", old_free_bytes);
-  free(Ident(malloc(kLargeMallocSize)));
-  new_free_bytes = __asan_get_free_bytes();
-  fprintf(stderr, "free bytes after malloc and free: %zu\n", new_free_bytes);
-  ASSERT_GE(new_free_bytes, old_free_bytes + kLargeMallocSize);
-#endif  // ASAN_ALLOCATOR_VERSION
-  // Test passed.
-  DoDoubleFree();
-}
-
-TEST(AddressSanitizerInterface, GetFreeBytesTest) {
-#if ASAN_ALLOCATOR_VERSION == 1
-  // Allocate a small chunk. Now allocator probably has a lot of these
-  // chunks to fulfill future requests. So, future requests will decrease
-  // the number of free bytes. Do this only on systems where there
-  // is enough memory for such assumptions.
-  if (SANITIZER_WORDSIZE == 64 && !ASAN_LOW_MEMORY) {
-    static const size_t kNumOfChunks = 100;
-    static const size_t kChunkSize = 100;
-    char *chunks[kNumOfChunks];
-    size_t i;
-    size_t old_free_bytes, new_free_bytes;
-    chunks[0] = Ident((char*)malloc(kChunkSize));
-    old_free_bytes = __asan_get_free_bytes();
-    for (i = 1; i < kNumOfChunks; i++) {
-      chunks[i] = Ident((char*)malloc(kChunkSize));
-      new_free_bytes = __asan_get_free_bytes();
-      EXPECT_LT(new_free_bytes, old_free_bytes);
-      old_free_bytes = new_free_bytes;
-    }
-    for (i = 0; i < kNumOfChunks; i++)
-      free(chunks[i]);
-  }
-#endif
-  EXPECT_DEATH(DoLargeMallocForGetFreeBytesTestAndDie(), "double-free");
 }
 
 static const size_t kManyThreadsMallocSizes[] = {5, 1UL<<10, 1UL<<14, 357};
@@ -631,6 +555,53 @@ TEST(AddressSanitizerInterface, PushAndPopWithPoisoningTest) {
   free(vec);
 }
 
+TEST(AddressSanitizerInterface, GlobalRedzones) {
+  GOOD_ACCESS(glob1, 1 - 1);
+  GOOD_ACCESS(glob2, 2 - 1);
+  GOOD_ACCESS(glob3, 3 - 1);
+  GOOD_ACCESS(glob4, 4 - 1);
+  GOOD_ACCESS(glob5, 5 - 1);
+  GOOD_ACCESS(glob6, 6 - 1);
+  GOOD_ACCESS(glob7, 7 - 1);
+  GOOD_ACCESS(glob8, 8 - 1);
+  GOOD_ACCESS(glob9, 9 - 1);
+  GOOD_ACCESS(glob10, 10 - 1);
+  GOOD_ACCESS(glob11, 11 - 1);
+  GOOD_ACCESS(glob12, 12 - 1);
+  GOOD_ACCESS(glob13, 13 - 1);
+  GOOD_ACCESS(glob14, 14 - 1);
+  GOOD_ACCESS(glob15, 15 - 1);
+  GOOD_ACCESS(glob16, 16 - 1);
+  GOOD_ACCESS(glob17, 17 - 1);
+  GOOD_ACCESS(glob1000, 1000 - 1);
+  GOOD_ACCESS(glob10000, 10000 - 1);
+  GOOD_ACCESS(glob100000, 100000 - 1);
+
+  BAD_ACCESS(glob1, 1);
+  BAD_ACCESS(glob2, 2);
+  BAD_ACCESS(glob3, 3);
+  BAD_ACCESS(glob4, 4);
+  BAD_ACCESS(glob5, 5);
+  BAD_ACCESS(glob6, 6);
+  BAD_ACCESS(glob7, 7);
+  BAD_ACCESS(glob8, 8);
+  BAD_ACCESS(glob9, 9);
+  BAD_ACCESS(glob10, 10);
+  BAD_ACCESS(glob11, 11);
+  BAD_ACCESS(glob12, 12);
+  BAD_ACCESS(glob13, 13);
+  BAD_ACCESS(glob14, 14);
+  BAD_ACCESS(glob15, 15);
+  BAD_ACCESS(glob16, 16);
+  BAD_ACCESS(glob17, 17);
+  BAD_ACCESS(glob1000, 1000);
+  BAD_ACCESS(glob1000, 1100);  // Redzone is at least 101 bytes.
+  BAD_ACCESS(glob10000, 10000);
+  BAD_ACCESS(glob10000, 11000);  // Redzone is at least 1001 bytes.
+  BAD_ACCESS(glob100000, 100000);
+  BAD_ACCESS(glob100000, 110000);  // Redzone is at least 10001 bytes.
+}
+
 // Make sure that each aligned block of size "2^granularity" doesn't have
 // "true" value before "false" value.
 static void MakeShadowValid(bool *shadow, int length, int granularity) {
@@ -715,10 +686,19 @@ TEST(AddressSanitizerInterface, PoisonedRegion) {
 //     10.50%   [.] __sanitizer::mem_is_zero
 // I.e. mem_is_zero should consume ~ SHADOW_GRANULARITY less CPU cycles
 // than memset itself.
-TEST(AddressSanitizerInterface, DISABLED_Stress_memset) {
+TEST(AddressSanitizerInterface, DISABLED_StressLargeMemset) {
   size_t size = 1 << 20;
   char *x = new char[size];
   for (int i = 0; i < 100000; i++)
+    Ident(memset)(x, 0, size);
+  delete [] x;
+}
+
+// Same here, but we run memset with small sizes.
+TEST(AddressSanitizerInterface, DISABLED_StressSmallMemset) {
+  size_t size = 32;
+  char *x = new char[size];
+  for (int i = 0; i < 100000000; i++)
     Ident(memset)(x, 0, size);
   delete [] x;
 }
@@ -761,12 +741,7 @@ TEST(AddressSanitizerInterface, SetErrorReportCallbackTest) {
 TEST(AddressSanitizerInterface, GetOwnershipStressTest) {
   std::vector<char *> pointers;
   std::vector<size_t> sizes;
-#if ASAN_ALLOCATOR_VERSION == 1
-  const size_t kNumMallocs =
-      (SANITIZER_WORDSIZE <= 32 || ASAN_LOW_MEMORY) ? 1 << 10 : 1 << 14;
-#elif ASAN_ALLOCATOR_VERSION == 2  // too slow with asan_allocator2. :(
   const size_t kNumMallocs = 1 << 9;
-#endif
   for (size_t i = 0; i < kNumMallocs; i++) {
     size_t size = i * 100 + 1;
     pointers.push_back((char*)malloc(size));
@@ -781,4 +756,39 @@ TEST(AddressSanitizerInterface, GetOwnershipStressTest) {
   }
   for (size_t i = 0, n = pointers.size(); i < n; i++)
     free(pointers[i]);
+}
+
+TEST(AddressSanitizerInterface, CallocOverflow) {
+  size_t kArraySize = 4096;
+  volatile size_t kMaxSizeT = std::numeric_limits<size_t>::max();
+  volatile size_t kArraySize2 = kMaxSizeT / kArraySize + 10;
+  void *p = calloc(kArraySize, kArraySize2);  // Should return 0.
+  EXPECT_EQ(0L, Ident(p));
+}
+
+TEST(AddressSanitizerInterface, CallocOverflow2) {
+#if SANITIZER_WORDSIZE == 32
+  size_t kArraySize = 112;
+  volatile size_t kArraySize2 = 43878406;
+  void *p = calloc(kArraySize, kArraySize2);  // Should return 0.
+  EXPECT_EQ(0L, Ident(p));
+#endif
+}
+
+TEST(AddressSanitizerInterface, CallocReturnsZeroMem) {
+  size_t sizes[] = {16, 1000, 10000, 100000, 2100000};
+  for (size_t s = 0; s < ARRAY_SIZE(sizes); s++) {
+    size_t size = sizes[s];
+    for (size_t iter = 0; iter < 5; iter++) {
+      char *x = Ident((char*)calloc(1, size));
+      EXPECT_EQ(x[0], 0);
+      EXPECT_EQ(x[size - 1], 0);
+      EXPECT_EQ(x[size / 2], 0);
+      EXPECT_EQ(x[size / 3], 0);
+      EXPECT_EQ(x[size / 4], 0);
+      memset(x, 0x42, size);
+      free(Ident(x));
+      free(Ident(malloc(Ident(1 << 27))));  // Try to drain the quarantine.
+    }
+  }
 }

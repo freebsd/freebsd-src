@@ -17,10 +17,6 @@
 
 namespace __tsan {
 
-void InitializeSuppressions();
-void FinalizeSuppressions();
-uptr IsSuppressed(ReportType typ, const ReportStack *stack);
-
 // Exposed for testing.
 enum SuppressionType {
   SuppressionRace,
@@ -33,9 +29,14 @@ struct Suppression {
   Suppression *next;
   SuppressionType type;
   char *templ;
+  int hit_count;
 };
 
-Suppression *SuppressionParse(const char* supp);
+void InitializeSuppressions();
+void FinalizeSuppressions();
+void PrintMatchedSuppressions();
+uptr IsSuppressed(ReportType typ, const ReportStack *stack, Suppression **sp);
+Suppression *SuppressionParse(Suppression *head, const char* supp);
 bool SuppressionMatch(char *templ, const char *str);
 
 }  // namespace __tsan

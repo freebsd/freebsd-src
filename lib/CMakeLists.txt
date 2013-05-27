@@ -7,6 +7,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin|Linux")
   add_subdirectory(interception)
   add_subdirectory(sanitizer_common)
   if(NOT ANDROID)
+    add_subdirectory(profile)
     add_subdirectory(ubsan)
   endif()
 endif()
@@ -14,9 +15,9 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux" AND NOT ANDROID)
   # ThreadSanitizer and MemorySanitizer are supported on Linux only.
   add_subdirectory(tsan)
   add_subdirectory(msan)
+  add_subdirectory(msandr)
+  add_subdirectory(lsan)
 endif()
-
-# FIXME: Add support for the profile library.
 
 # The top-level lib directory contains a large amount of C code which provides
 # generic implementations of the core runtime library along with optimized
@@ -36,6 +37,8 @@ set(GENERIC_SOURCES
   ashlti3.c
   ashrdi3.c
   ashrti3.c
+  # FIXME: atomic.c may only be compiled if host compiler understands _Atomic
+  # atomic.c
   clear_cache.c
   clzdi2.c
   clzsi2.c
@@ -152,37 +155,36 @@ set(GENERIC_SOURCES
   umodti3.c
   )
 
-if(CAN_TARGET_x86_64)
-  add_library(clang_rt.x86_64 STATIC
-    x86_64/floatdidf.c
-    x86_64/floatdisf.c
-    x86_64/floatdixf.c
-    x86_64/floatundidf.S
-    x86_64/floatundisf.S
-    x86_64/floatundixf.S
-    ${GENERIC_SOURCES}
-    )
-  set_target_properties(clang_rt.x86_64 PROPERTIES COMPILE_FLAGS "-std=c99 ${TARGET_x86_64_CFLAGS}")
-  add_clang_compiler_rt_libraries(clang_rt.x86_64)
-endif()
-if(CAN_TARGET_i386)
-  add_library(clang_rt.i386 STATIC
-    i386/ashldi3.S
-    i386/ashrdi3.S
-    i386/divdi3.S
-    i386/floatdidf.S
-    i386/floatdisf.S
-    i386/floatdixf.S
-    i386/floatundidf.S
-    i386/floatundisf.S
-    i386/floatundixf.S
-    i386/lshrdi3.S
-    i386/moddi3.S
-    i386/muldi3.S
-    i386/udivdi3.S
-    i386/umoddi3.S
-    ${GENERIC_SOURCES}
-    )
-  set_target_properties(clang_rt.i386 PROPERTIES COMPILE_FLAGS "-std=c99 ${TARGET_i386_CFLAGS}")
-  add_clang_compiler_rt_libraries(clang_rt.i386)
-endif()
+set(x86_64_SOURCES
+  x86_64/floatdidf.c
+  x86_64/floatdisf.c
+  x86_64/floatdixf.c
+  x86_64/floatundidf.S
+  x86_64/floatundisf.S
+  x86_64/floatundixf.S
+  ${GENERIC_SOURCES})
+
+set(i386_SOURCES
+  i386/ashldi3.S
+  i386/ashrdi3.S
+  i386/divdi3.S
+  i386/floatdidf.S
+  i386/floatdisf.S
+  i386/floatdixf.S
+  i386/floatundidf.S
+  i386/floatundisf.S
+  i386/floatundixf.S
+  i386/lshrdi3.S
+  i386/moddi3.S
+  i386/muldi3.S
+  i386/udivdi3.S
+  i386/umoddi3.S
+  ${GENERIC_SOURCES})
+
+foreach(arch x86_64 i386)
+  if(CAN_TARGET_${arch})
+    add_compiler_rt_static_runtime(clang_rt.${arch} ${arch}
+      SOURCES ${${arch}_SOURCES}
+      CFLAGS "-std=c99")
+  endif()
+endforeach()

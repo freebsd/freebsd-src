@@ -11,7 +11,9 @@
 //
 // Windows-specific malloc interception.
 //===----------------------------------------------------------------------===//
-#ifdef _WIN32
+
+#include "sanitizer_common/sanitizer_platform.h"
+#if SANITIZER_WINDOWS
 
 #include "asan_allocator.h"
 #include "asan_interceptors.h"

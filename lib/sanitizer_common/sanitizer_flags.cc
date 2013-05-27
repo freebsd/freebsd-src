@@ -18,15 +18,35 @@
 
 namespace __sanitizer {
 
+CommonFlags common_flags_dont_use_directly;
+
+void ParseCommonFlagsFromString(const char *str) {
+  CommonFlags *f = common_flags();
+  ParseFlag(str, &f->malloc_context_size, "malloc_context_size");
+  ParseFlag(str, &f->strip_path_prefix, "strip_path_prefix");
+  ParseFlag(str, &f->fast_unwind_on_fatal, "fast_unwind_on_fatal");
+  ParseFlag(str, &f->fast_unwind_on_malloc, "fast_unwind_on_malloc");
+  ParseFlag(str, &f->symbolize, "symbolize");
+}
+
 static bool GetFlagValue(const char *env, const char *name,
                          const char **value, int *value_length) {
   if (env == 0)
     return false;
-  const char *pos = internal_strstr(env, name);
-  const char *end;
-  if (pos == 0)
-    return false;
+  const char *pos = 0;
+  for (;;) {
+    pos = internal_strstr(env, name);
+    if (pos == 0)
+      return false;
+    if (pos != env && ((pos[-1] >= 'a' && pos[-1] <= 'z') || pos[-1] == '_')) {
+      // Seems to be middle of another flag name or value.
+      env = pos + 1;
+      continue;
+    }
+    break;
+  }
   pos += internal_strlen(name);
+  const char *end;
   if (pos[0] != '=') {
     end = pos;
   } else {
@@ -38,7 +58,8 @@ static bool GetFlagValue(const char *env, const char *name,
       pos += 1;
       end = internal_strchr(pos, '\'');
     } else {
-      end = internal_strchr(pos, ' ');
+      // Read until the next space or colon.
+      end = pos + internal_strcspn(pos, " :");
     }
     if (end == 0)
       end = pos + internal_strlen(pos);

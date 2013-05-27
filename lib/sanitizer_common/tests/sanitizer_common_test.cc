@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_libc.h"
+#include "sanitizer_common/sanitizer_platform.h"
 #include "gtest/gtest.h"
 
 namespace __sanitizer {
@@ -79,7 +80,7 @@ TEST(SanitizerCommon, MmapAlignedOrDie) {
   }
 }
 
-#ifdef __linux__
+#if SANITIZER_LINUX
 TEST(SanitizerCommon, SanitizerSetThreadName) {
   const char *names[] = {
     "0123456789012",
@@ -96,4 +97,65 @@ TEST(SanitizerCommon, SanitizerSetThreadName) {
 }
 #endif
 
-}  // namespace sanitizer
+TEST(SanitizerCommon, InternalVector) {
+  InternalVector<uptr> vector(1);
+  for (uptr i = 0; i < 100; i++) {
+    EXPECT_EQ(i, vector.size());
+    vector.push_back(i);
+  }
+  for (uptr i = 0; i < 100; i++) {
+    EXPECT_EQ(i, vector[i]);
+  }
+  for (int i = 99; i >= 0; i--) {
+    EXPECT_EQ((uptr)i, vector.back());
+    vector.pop_back();
+    EXPECT_EQ((uptr)i, vector.size());
+  }
+}
+
+void TestThreadInfo(bool main) {
+  uptr stk_addr = 0;
+  uptr stk_size = 0;
+  uptr tls_addr = 0;
+  uptr tls_size = 0;
+  GetThreadStackAndTls(main, &stk_addr, &stk_size, &tls_addr, &tls_size);
+
+  int stack_var;
+  EXPECT_NE(stk_addr, (uptr)0);
+  EXPECT_NE(stk_size, (uptr)0);
+  EXPECT_GT((uptr)&stack_var, stk_addr);
+  EXPECT_LT((uptr)&stack_var, stk_addr + stk_size);
+
+#if SANITIZER_LINUX && defined(__x86_64__)
+  static __thread int thread_var;
+  EXPECT_NE(tls_addr, (uptr)0);
+  EXPECT_NE(tls_size, (uptr)0);
+  EXPECT_GT((uptr)&thread_var, tls_addr);
+  EXPECT_LT((uptr)&thread_var, tls_addr + tls_size);
+
+  // Ensure that tls and stack do not intersect.
+  uptr tls_end = tls_addr + tls_size;
+  EXPECT_TRUE(tls_addr < stk_addr || tls_addr >= stk_addr + stk_size);
+  EXPECT_TRUE(tls_end  < stk_addr || tls_end  >=  stk_addr + stk_size);
+  EXPECT_TRUE((tls_addr < stk_addr) == (tls_end  < stk_addr));
+#endif
+}
+
+static void *WorkerThread(void *arg) {
+  TestThreadInfo(false);
+  return 0;
+}
+
+TEST(SanitizerCommon, ThreadStackTlsMain) {
+  InitTlsSize();
+  TestThreadInfo(true);
+}
+
+TEST(SanitizerCommon, ThreadStackTlsWorker) {
+  InitTlsSize();
+  pthread_t t;
+  pthread_create(&t, 0, WorkerThread, 0);
+  pthread_join(t, 0);
+}
+
+}  // namespace __sanitizer

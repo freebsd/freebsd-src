@@ -17,8 +17,9 @@
 #include "sanitizer_symbolizer.h"
 
 namespace __sanitizer {
-static const char *StripPathPrefix(const char *filepath,
-                                   const char *strip_file_prefix) {
+const char *StripPathPrefix(const char *filepath,
+                            const char *strip_file_prefix) {
+  if (filepath == 0) return 0;
   if (filepath == internal_strstr(filepath, strip_file_prefix))
     return filepath + internal_strlen(strip_file_prefix);
   return filepath;
@@ -63,7 +64,7 @@ static void PrintModuleAndOffset(const char *module, uptr offset,
 void StackTrace::PrintStack(const uptr *addr, uptr size,
                             bool symbolize, const char *strip_file_prefix,
                             SymbolizeCallback symbolize_callback ) {
-  MemoryMappingLayout proc_maps;
+  MemoryMappingLayout proc_maps(/*cache_enabled*/true);
   InternalScopedBuffer<char> buff(GetPageSizeCached() * 2);
   InternalScopedBuffer<AddressInfo> addr_frames(64);
   uptr frame_num = 0;
@@ -84,7 +85,7 @@ void StackTrace::PrintStack(const uptr *addr, uptr size,
         frame_num++;
       }
     }
-    if (symbolize && addr_frames_num == 0) {
+    if (symbolize && addr_frames_num == 0 && &SymbolizeCode) {
       // Use our own (online) symbolizer, if necessary.
       addr_frames_num = SymbolizeCode(pc, addr_frames.data(),
                                       addr_frames.size());
@@ -112,7 +113,8 @@ void StackTrace::PrintStack(const uptr *addr, uptr size,
       PrintStackFramePrefix(frame_num, pc);
       uptr offset;
       if (proc_maps.GetObjectNameAndOffset(pc, &offset,
-                                           buff.data(), buff.size())) {
+                                           buff.data(), buff.size(),
+                                           /* protection */0)) {
         PrintModuleAndOffset(buff.data(), offset, strip_file_prefix);
       }
       Printf("\n");
@@ -130,10 +132,12 @@ void StackTrace::FastUnwindStack(uptr pc, uptr bp,
   CHECK(size == 0 && trace[0] == pc);
   size = 1;
   uhwptr *frame = (uhwptr *)bp;
-  uhwptr *prev_frame = frame;
-  while (frame >= prev_frame &&
+  uhwptr *prev_frame = frame - 1;
+  // Avoid infinite loop when frame == frame[0] by using frame > prev_frame.
+  while (frame > prev_frame &&
          frame < (uhwptr *)stack_top - 2 &&
          frame > (uhwptr *)stack_bottom &&
+         IsAligned((uptr)frame, sizeof(*frame)) &&
          size < max_size) {
     uhwptr pc1 = frame[1];
     if (pc1 != pc) {

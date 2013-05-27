@@ -22,12 +22,15 @@
 typedef __SIZE_TYPE__ size_t;
 
 void abort(void) __attribute__((__nothrow__)) __attribute__((__noreturn__));
+int atexit(void (*)(void)) __attribute__((__nothrow__));
 int atoi(const char *) __attribute__((__nothrow__));
 void free(void *) __attribute__((__nothrow__));
 char *getenv(const char *) __attribute__((__nothrow__))
   __attribute__((__nonnull__(1)));
   __attribute__((__warn_unused_result__));
 void *malloc(size_t) __attribute__((__nothrow__)) __attribute((__malloc__))
+     __attribute__((__warn_unused_result__));
+void *realloc(void *, size_t) __attribute__((__nothrow__)) __attribute((__malloc__))
      __attribute__((__warn_unused_result__));
 
 #endif /* __STDLIB_H__ */

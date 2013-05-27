@@ -11,14 +11,13 @@
 // run-time libraries.
 // These tools can not use some of the libc functions directly because those
 // functions are intercepted. Instead, we implement a tiny subset of libc here.
-// NOTE: This file may be included into user code.
 //===----------------------------------------------------------------------===//
 #ifndef SANITIZER_LIBC_H
 #define SANITIZER_LIBC_H
 
 // ----------- ATTENTION -------------
 // This header should NOT include any other headers from sanitizer runtime.
-#include "sanitizer/common_interface_defs.h"
+#include "sanitizer_internal_defs.h"
 
 namespace __sanitizer {
 
@@ -46,6 +45,7 @@ char *internal_strrchr(const char *s, int c);
 char *internal_strstr(const char *haystack, const char *needle);
 // Works only for base=10 and doesn't set errno.
 s64 internal_simple_strtoll(const char *nptr, char **endptr, int base);
+int internal_snprintf(char *buffer, uptr length, const char *format, ...);
 
 // Return true if all bytes in [mem, mem+size) are zero.
 // Optimized for the case when the result is true.
@@ -53,28 +53,46 @@ bool mem_is_zero(const char *mem, uptr size);
 
 
 // Memory
-void *internal_mmap(void *addr, uptr length, int prot, int flags,
-                    int fd, u64 offset);
-int internal_munmap(void *addr, uptr length);
+uptr internal_mmap(void *addr, uptr length, int prot, int flags,
+                   int fd, u64 offset);
+uptr internal_munmap(void *addr, uptr length);
 
 // I/O
-typedef int fd_t;
 const fd_t kInvalidFd = -1;
 const fd_t kStdinFd = 0;
 const fd_t kStdoutFd = 1;
 const fd_t kStderrFd = 2;
-int internal_close(fd_t fd);
+uptr internal_close(fd_t fd);
 int internal_isatty(fd_t fd);
-fd_t internal_open(const char *filename, bool write);
+
+// Use __sanitizer::OpenFile() instead.
+uptr internal_open(const char *filename, int flags);
+uptr internal_open(const char *filename, int flags, u32 mode);
+
 uptr internal_read(fd_t fd, void *buf, uptr count);
 uptr internal_write(fd_t fd, const void *buf, uptr count);
+
+// OS
 uptr internal_filesize(fd_t fd);  // -1 on error.
-int internal_dup2(int oldfd, int newfd);
+uptr internal_stat(const char *path, void *buf);
+uptr internal_lstat(const char *path, void *buf);
+uptr internal_fstat(fd_t fd, void *buf);
+uptr internal_dup2(int oldfd, int newfd);
 uptr internal_readlink(const char *path, char *buf, uptr bufsize);
-int internal_snprintf(char *buffer, uptr length, const char *format, ...);
+uptr internal_unlink(const char *path);
+void NORETURN internal__exit(int exitcode);
+uptr internal_lseek(fd_t fd, OFF_T offset, int whence);
+
+uptr internal_ptrace(int request, int pid, void *addr, void *data);
+uptr internal_waitpid(int pid, int *status, int options);
+uptr internal_getpid();
+uptr internal_getppid();
 
 // Threading
-int internal_sched_yield();
+uptr internal_sched_yield();
+
+// Error handling
+bool internal_iserror(uptr retval, int *rverrno = 0);
 
 }  // namespace __sanitizer
 

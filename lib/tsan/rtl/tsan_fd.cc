@@ -74,13 +74,14 @@ static FdDesc *fddesc(ThreadState *thr, uptr pc, int fd) {
   uptr l1 = atomic_load(pl1, memory_order_consume);
   if (l1 == 0) {
     uptr size = kTableSizeL2 * sizeof(FdDesc);
-    void *p = internal_alloc(MBlockFD, size);
+    // We need this to reside in user memory to properly catch races on it.
+    void *p = user_alloc(thr, pc, size);
     internal_memset(p, 0, size);
     MemoryResetRange(thr, (uptr)&fddesc, (uptr)p, size);
     if (atomic_compare_exchange_strong(pl1, &l1, (uptr)p, memory_order_acq_rel))
       l1 = (uptr)p;
     else
-      internal_free(p);
+      user_free(thr, pc, p);
   }
   return &((FdDesc*)l1)[fd % kTableSizeL2];  // NOLINT
 }
@@ -150,7 +151,7 @@ void FdAcquire(ThreadState *thr, uptr pc, int fd) {
   FdDesc *d = fddesc(thr, pc, fd);
   FdSync *s = d->sync;
   DPrintf("#%d: FdAcquire(%d) -> %p\n", thr->tid, fd, s);
-  MemoryRead8Byte(thr, pc, (uptr)d);
+  MemoryRead(thr, pc, (uptr)d, kSizeLog8);
   if (s)
     Acquire(thr, pc, (uptr)s);
 }
@@ -161,20 +162,20 @@ void FdRelease(ThreadState *thr, uptr pc, int fd) {
   DPrintf("#%d: FdRelease(%d) -> %p\n", thr->tid, fd, s);
   if (s)
     Release(thr, pc, (uptr)s);
-  MemoryRead8Byte(thr, pc, (uptr)d);
+  MemoryRead(thr, pc, (uptr)d, kSizeLog8);
 }
 
 void FdAccess(ThreadState *thr, uptr pc, int fd) {
   DPrintf("#%d: FdAccess(%d)\n", thr->tid, fd);
   FdDesc *d = fddesc(thr, pc, fd);
-  MemoryRead8Byte(thr, pc, (uptr)d);
+  MemoryRead(thr, pc, (uptr)d, kSizeLog8);
 }
 
 void FdClose(ThreadState *thr, uptr pc, int fd) {
   DPrintf("#%d: FdClose(%d)\n", thr->tid, fd);
   FdDesc *d = fddesc(thr, pc, fd);
   // To catch races between fd usage and close.
-  MemoryWrite8Byte(thr, pc, (uptr)d);
+  MemoryWrite(thr, pc, (uptr)d, kSizeLog8);
   // We need to clear it, because if we do not intercept any call out there
   // that creates fd, we will hit false postives.
   MemoryResetRange(thr, pc, (uptr)d, 8);
@@ -193,7 +194,7 @@ void FdDup(ThreadState *thr, uptr pc, int oldfd, int newfd) {
   DPrintf("#%d: FdDup(%d, %d)\n", thr->tid, oldfd, newfd);
   // Ignore the case when user dups not yet connected socket.
   FdDesc *od = fddesc(thr, pc, oldfd);
-  MemoryRead8Byte(thr, pc, (uptr)od);
+  MemoryRead(thr, pc, (uptr)od, kSizeLog8);
   FdClose(thr, pc, newfd);
   init(thr, pc, newfd, ref(od->sync));
 }
