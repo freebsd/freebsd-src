@@ -11,6 +11,13 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130524:
+	`list' command has been added to hastctl(8).  For now, it is full
+	equivalent of `status' command.
+	WARNING: in the near future the output of hastctl's status command
+	will change to more terse format.  If you use `hastctl status'
+	for parsing in your scripts, switch to `hastctl list'.
+
 20130430:
 	The mergemaster command now uses the default MAKEOBJDIRPREFIX
 	rather than creating it's own in the temporary directory in
