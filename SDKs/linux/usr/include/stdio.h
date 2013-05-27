@@ -33,6 +33,7 @@ extern struct _IO_FILE *stderr;
 extern int fclose(FILE *);
 extern int fflush(FILE *);
 extern FILE *fopen(const char * restrict, const char * restrict);
+extern FILE *fdopen(int, const char * restrict);
 extern int fprintf(FILE * restrict, const char * restrict, ...);
 extern size_t fwrite(const void * restrict, size_t, size_t, FILE * restrict);
 extern size_t fread(void * restrict, size_t, size_t, FILE * restrict);

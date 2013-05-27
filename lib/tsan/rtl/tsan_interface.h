@@ -16,7 +16,7 @@
 #ifndef TSAN_INTERFACE_H
 #define TSAN_INTERFACE_H
 
-#include <sanitizer/common_interface_defs.h>
+#include <sanitizer_common/sanitizer_internal_defs.h>
 
 // This header should NOT include any other headers.
 // All functions in this header are extern "C" and start with __tsan_.
@@ -41,6 +41,14 @@ void __tsan_write4(void *addr) SANITIZER_INTERFACE_ATTRIBUTE;
 void __tsan_write8(void *addr) SANITIZER_INTERFACE_ATTRIBUTE;
 void __tsan_write16(void *addr) SANITIZER_INTERFACE_ATTRIBUTE;
 
+u16 __tsan_unaligned_read2(void *addr) SANITIZER_INTERFACE_ATTRIBUTE;
+u32 __tsan_unaligned_read4(void *addr) SANITIZER_INTERFACE_ATTRIBUTE;
+u64 __tsan_unaligned_read8(void *addr) SANITIZER_INTERFACE_ATTRIBUTE;
+void __tsan_unaligned_write2(void *addr, u16 v) SANITIZER_INTERFACE_ATTRIBUTE;
+void __tsan_unaligned_write4(void *addr, u32 v) SANITIZER_INTERFACE_ATTRIBUTE;
+void __tsan_unaligned_write8(void *addr, u64 v) SANITIZER_INTERFACE_ATTRIBUTE;
+
+void __tsan_vptr_read(void **vptr_p) SANITIZER_INTERFACE_ATTRIBUTE;
 void __tsan_vptr_update(void **vptr_p, void *new_val)
     SANITIZER_INTERFACE_ATTRIBUTE;
 

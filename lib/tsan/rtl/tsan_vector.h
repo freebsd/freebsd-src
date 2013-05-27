@@ -64,6 +64,11 @@ class Vector {
     return &end_[-1];
   }
 
+  void PopBack() {
+    DCHECK_GT(end_, begin_);
+    end_--;
+  }
+
   void Resize(uptr size) {
     uptr old_size = Size();
     EnsureSize(size);
@@ -105,6 +110,6 @@ class Vector {
   Vector(const Vector&);
   void operator=(const Vector&);
 };
-}
+}  // namespace __tsan
 
 #endif  // #ifndef TSAN_VECTOR_H

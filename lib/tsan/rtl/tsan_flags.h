@@ -43,6 +43,8 @@ struct Flags {
   // Report violations of async signal-safety
   // (e.g. malloc() call from a signal handler).
   bool report_signal_unsafe;
+  // Report races between atomic and plain memory accesses.
+  bool report_atomic_races;
   // If set, all atomics are effectively sequentially consistent (seq_cst),
   // regardless of what user actually specified.
   bool force_seq_cst_atomics;
@@ -50,6 +52,10 @@ struct Flags {
   const char *strip_path_prefix;
   // Suppressions filename.
   const char *suppressions;
+  // Print matched suppressions at exit.
+  bool print_suppressions;
+  // Print matched "benign" races at exit.
+  bool print_benign;
   // Override exit status if something was reported.
   int exitcode;
   // Write logs to "log_path.pid".
@@ -65,6 +71,8 @@ struct Flags {
   const char *profile_memory;
   // Flush shadow memory every X ms.
   int flush_memory_ms;
+  // Flush symbolizer caches every X ms.
+  int flush_symbolizer_ms;
   // Stops on start until __tsan_resume() is called (for debugging).
   bool stop_on_start;
   // Controls whether RunningOnValgrind() returns true or false.
@@ -86,6 +94,6 @@ struct Flags {
 
 Flags *flags();
 void InitializeFlags(Flags *flags, const char *env);
-}
+}  // namespace __tsan
 
 #endif  // TSAN_FLAGS_H

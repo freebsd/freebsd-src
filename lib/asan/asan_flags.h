@@ -15,13 +15,15 @@
 #ifndef ASAN_FLAGS_H
 #define ASAN_FLAGS_H
 
-#include "sanitizer/common_interface_defs.h"
+#include "sanitizer_common/sanitizer_internal_defs.h"
 
-// ASan flag values can be defined in three ways:
+// ASan flag values can be defined in four ways:
 // 1) initialized with default values at startup.
-// 2) overriden from string returned by user-specified function
+// 2) overriden during compilation of ASan runtime by providing
+//    compile definition ASAN_DEFAULT_OPTIONS.
+// 3) overriden from string returned by user-specified function
 //    __asan_default_options().
-// 3) overriden from env variable ASAN_OPTIONS.
+// 4) overriden from env variable ASAN_OPTIONS.
 
 namespace __asan {
 
@@ -30,8 +32,6 @@ struct Flags {
   // Lower value may reduce memory usage but increase the chance of
   // false negatives.
   int  quarantine_size;
-  // If set, uses in-process symbolizer from common sanitizer runtime.
-  bool symbolize;
   // Verbosity level (0 - silent, 1 - a bit of output, 2+ - more output).
   int  verbosity;
   // Size (in bytes) of redzones around heap objects.
@@ -45,22 +45,18 @@ struct Flags {
   int  report_globals;
   // If set, attempts to catch initialization order issues.
   bool check_initialization_order;
-  // Max number of stack frames kept for each allocation/deallocation.
-  int  malloc_context_size;
   // If set, uses custom wrappers and replacements for libc string functions
   // to find more errors.
   bool replace_str;
   // If set, uses custom wrappers for memset/memcpy/memmove intinsics.
   bool replace_intrin;
-  // Used on Mac only. See comments in asan_mac.cc and asan_malloc_mac.cc.
-  bool replace_cfallocator;
   // Used on Mac only.
   bool mac_ignore_invalid_free;
-  // ASan allocator flag. See asan_allocator.cc.
+  // ASan allocator flag.
   bool use_fake_stack;
-  // ASan allocator flag. Sets the maximal size of allocation request
-  // that would return memory filled with zero bytes.
-  int  max_malloc_fill_size;
+  // ASan allocator flag. max_malloc_fill_size is the maximal amount of bytes
+  // that will be filled with malloc_fill_byte on malloc.
+  int max_malloc_fill_size, malloc_fill_byte;
   // Override exit status if something was reported.
   int  exitcode;
   // If set, user may manually mark memory regions as poisoned or unpoisoned.
@@ -71,6 +67,8 @@ struct Flags {
   int  sleep_before_dying;
   // If set, registers ASan custom segv handler.
   bool handle_segv;
+  // If set, allows user register segv handler even if ASan registers one.
+  bool allow_user_segv_handler;
   // If set, uses alternate stack for signal handling.
   bool use_sigaltstack;
   // Allow the users to work around the bug in Nvidia drivers prior to 295.*.
@@ -79,6 +77,10 @@ struct Flags {
   bool unmap_shadow_on_exit;
   // If set, calls abort() instead of _exit() after printing an error report.
   bool abort_on_error;
+  // Print various statistics after printing an error message or if atexit=1.
+  bool print_stats;
+  // Print the legend for the shadow bytes.
+  bool print_legend;
   // If set, prints ASan exit stats even after program terminates successfully.
   bool atexit;
   // By default, disable core dumper on 64-bit - it makes little sense
@@ -87,18 +89,12 @@ struct Flags {
   // Allow the tool to re-exec the program. This may interfere badly with the
   // debugger.
   bool allow_reexec;
-  // Strips this prefix from file paths in error reports.
-  const char *strip_path_prefix;
   // If set, prints not only thread creation stacks for threads in error report,
   // but also thread creation stacks for threads that created those threads,
   // etc. up to main thread.
   bool print_full_thread_history;
   // ASan will write logs to "log_path.pid" instead of stderr.
   const char *log_path;
-  // Use fast (frame-pointer-based) unwinder on fatal errors (if available).
-  bool fast_unwind_on_fatal;
-  // Use fast (frame-pointer-based) unwinder on malloc/free (if available).
-  bool fast_unwind_on_malloc;
   // Poison (or not) the heap memory on [de]allocation. Zero value is useful
   // for benchmarking the allocator or instrumentator.
   bool poison_heap;
@@ -106,9 +102,20 @@ struct Flags {
   bool alloc_dealloc_mismatch;
   // Use stack depot instead of storing stacks in the redzones.
   bool use_stack_depot;
+  // If true, assume that memcmp(p1, p2, n) always reads n bytes before
+  // comparing p1 and p2.
+  bool strict_memcmp;
+  // If true, assume that dynamic initializers can never access globals from
+  // other modules, even if the latter are already initialized.
+  bool strict_init_order;
+  // Invoke LeakSanitizer at process exit.
+  bool detect_leaks;
 };
 
-Flags *flags();
+extern Flags asan_flags_dont_use_directly;
+inline Flags *flags() {
+  return &asan_flags_dont_use_directly;
+}
 void InitializeFlags(Flags *f, const char *env);
 
 }  // namespace __asan

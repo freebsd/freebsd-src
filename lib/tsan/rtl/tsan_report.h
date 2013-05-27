@@ -20,6 +20,7 @@ namespace __tsan {
 
 enum ReportType {
   ReportTypeRace,
+  ReportTypeVptrRace,
   ReportTypeUseAfterFree,
   ReportTypeThreadLeak,
   ReportTypeMutexDestroyLocked,
@@ -48,6 +49,7 @@ struct ReportMop {
   uptr addr;
   int size;
   bool write;
+  bool atomic;
   Vector<ReportMopMutex> mset;
   ReportStack *stack;
 
@@ -100,6 +102,7 @@ class ReportDesc {
   Vector<ReportMutex*> mutexes;
   Vector<ReportThread*> threads;
   ReportStack *sleep;
+  int count;
 
   ReportDesc();
   ~ReportDesc();

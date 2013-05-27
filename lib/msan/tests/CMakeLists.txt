@@ -31,8 +31,13 @@ set(MSAN_LIBCXX_LINK_FLAGS
   -fsanitize=memory)
 
 # Unittest sources and build flags.
-set(MSAN_UNITTEST_SOURCE msan_test.cc)
-set(MSAN_UNITTEST_HEADERS msandr_test_so.h)
+set(MSAN_UNITTEST_SOURCES msan_test.cc msan_test_main.cc)
+set(MSAN_LOADABLE_SOURCE msan_loadable.cc)
+set(MSAN_UNITTEST_HEADERS
+  msan_test_config.h
+  msandr_test_so.h
+  ../../../include/sanitizer/msan_interface.h
+)
 set(MSANDR_UNITTEST_SOURCE msandr_test_so.cc)
 set(MSAN_UNITTEST_COMMON_CFLAGS
   -I${MSAN_LIBCXX_PATH}/include
@@ -42,7 +47,6 @@ set(MSAN_UNITTEST_COMMON_CFLAGS
   -I${COMPILER_RT_SOURCE_DIR}/lib/msan
   -std=c++0x
   -stdlib=libc++
-  -fPIE
   -g
   -O2
   -fno-exceptions
@@ -57,10 +61,13 @@ set(MSAN_UNITTEST_INSTRUMENTED_CFLAGS
 )
 set(MSAN_UNITTEST_LINK_FLAGS
   -fsanitize=memory
-  -pie
   -ldl
   # FIXME: we build libcxx without cxxabi and need libstdc++ to provide it.
   -lstdc++
+)
+set(MSAN_LOADABLE_LINK_FLAGS
+  -fsanitize=memory
+  -shared
 )
 
 # Compile source for the given architecture, using compiler
@@ -77,9 +84,7 @@ endmacro()
 
 macro(msan_link_shared so_list so_name arch)
   parse_arguments(SOURCE "OBJECTS;LINKFLAGS;DEPS" "" ${ARGN})
-  get_unittest_directory(OUTPUT_DIR)
-  file(MAKE_DIRECTORY ${OUTPUT_DIR})
-  set(output_so "${OUTPUT_DIR}/${so_name}.${arch}.so")
+  set(output_so "${CMAKE_CURRENT_BINARY_DIR}/${so_name}.${arch}.so")
   get_target_flags_for_arch(${arch} TARGET_LINKFLAGS)
   clang_link_shared(${output_so}
                 OBJECTS ${SOURCE_OBJECTS}
@@ -92,13 +97,13 @@ endmacro()
 # of objects in ${ARGN}.
 macro(add_msan_test test_suite test_name arch)
   get_target_flags_for_arch(${arch} TARGET_LINK_FLAGS)
-  get_unittest_directory(OUTPUT_DIR)
   add_compiler_rt_test(${test_suite} ${test_name}
                        OBJECTS ${ARGN}
                        DEPS ${MSAN_RUNTIME_LIBRARIES} ${ARGN}
+                            ${MSAN_LOADABLE_SO}
                        LINK_FLAGS ${MSAN_UNITTEST_LINK_FLAGS}
                                   ${TARGET_LINK_FLAGS}
-                                  "-Wl,-rpath=${OUTPUT_DIR}")
+                                  "-Wl,-rpath=${CMAKE_CURRENT_BINARY_DIR}")
 endmacro()
 
 # Main MemorySanitizer unit tests.
@@ -127,13 +132,26 @@ macro(add_msan_tests_for_arch arch)
 
   # Instrumented tests.
   set(MSAN_INST_TEST_OBJECTS)
-  msan_compile(MSAN_INST_TEST_OBJECTS ${MSAN_UNITTEST_SOURCE} ${arch}
+  foreach (SOURCE ${MSAN_UNITTEST_SOURCES})
+    msan_compile(MSAN_INST_TEST_OBJECTS ${SOURCE} ${arch}
+                 ${MSAN_UNITTEST_INSTRUMENTED_CFLAGS})
+  endforeach(SOURCE)
+
+  # Instrumented loadable module objects.
+  set(MSAN_INST_LOADABLE_OBJECTS)
+  msan_compile(MSAN_INST_LOADABLE_OBJECTS ${MSAN_LOADABLE_SOURCE} ${arch}
                ${MSAN_UNITTEST_INSTRUMENTED_CFLAGS})
 
   # Uninstrumented shared object for MSanDR tests.
   set(MSANDR_TEST_OBJECTS)
   msan_compile(MSANDR_TEST_OBJECTS ${MSANDR_UNITTEST_SOURCE} ${arch}
                ${MSAN_UNITTEST_COMMON_CFLAGS})
+
+  # Instrumented loadable library tests.
+  set(MSAN_LOADABLE_SO)
+  msan_link_shared(MSAN_LOADABLE_SO "libmsan_loadable" ${arch}
+                   OBJECTS ${MSAN_INST_LOADABLE_OBJECTS}
+                   DEPS ${MSAN_INST_LOADABLE_OBJECTS} ${MSAN_RUNTIME_LIBRARIES})
 
   # Uninstrumented shared library tests.
   set(MSANDR_TEST_SO)
@@ -151,16 +169,4 @@ if(COMPILER_RT_CAN_EXECUTE_TESTS AND EXISTS ${MSAN_LIBCXX_PATH}/)
   if(CAN_TARGET_x86_64)
     add_msan_tests_for_arch(x86_64)
   endif()
-
-  # Run unittests as a part of lit testsuite.
-  configure_lit_site_cfg(
-    ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.in
-    ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg
-    )
-
-  add_lit_testsuite(check-msan "Running MemorySanitizer unittests"
-    ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS MsanUnitTests
-    )
-  set_target_properties(check-msan PROPERTIES FOLDER "MemorySanitizer unittests")
 endif()

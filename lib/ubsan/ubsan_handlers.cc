@@ -22,7 +22,7 @@ using namespace __ubsan;
 namespace __ubsan {
   const char *TypeCheckKinds[] = {
     "load of", "store to", "reference binding to", "member access within",
-    "member call on", "constructor call on"
+    "member call on", "constructor call on", "downcast of", "downcast of"
   };
 }
 
@@ -180,6 +180,22 @@ void __ubsan::__ubsan_handle_shift_out_of_bounds_abort(
                                                      ValueHandle LHS,
                                                      ValueHandle RHS) {
   __ubsan_handle_shift_out_of_bounds(Data, LHS, RHS);
+  Die();
+}
+
+void __ubsan::__ubsan_handle_out_of_bounds(OutOfBoundsData *Data,
+                                           ValueHandle Index) {
+  SourceLocation Loc = Data->Loc.acquire();
+  if (Loc.isDisabled())
+    return;
+
+  Value IndexVal(Data->IndexType, Index);
+  Diag(Loc, DL_Error, "index %0 out of bounds for type %1")
+    << IndexVal << Data->ArrayType;
+}
+void __ubsan::__ubsan_handle_out_of_bounds_abort(OutOfBoundsData *Data,
+                                                 ValueHandle Index) {
+  __ubsan_handle_out_of_bounds(Data, Index);
   Die();
 }
 

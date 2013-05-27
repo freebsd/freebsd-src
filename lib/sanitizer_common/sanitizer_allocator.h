@@ -25,16 +25,16 @@ namespace __sanitizer {
 
 // SizeClassMap maps allocation sizes into size classes and back.
 // Class 0 corresponds to size 0.
-// Classes 1 - 16 correspond to sizes 8 - 128 (size = class_id * 8).
-// Next 8 classes: 128 + i * 16 (i = 1 to 8).
-// Next 8 classes: 256 + i * 32 (i = 1 to 8).
+// Classes 1 - 16 correspond to sizes 16 to 256 (size = class_id * 16).
+// Next 4 classes: 256 + i * 64  (i = 1 to 4).
+// Next 4 classes: 512 + i * 128 (i = 1 to 4).
 // ...
-// Next 8 classes: 2^k + i * 2^(k-3) (i = 1 to 8).
+// Next 4 classes: 2^k + i * 2^(k-2) (i = 1 to 4).
 // Last class corresponds to kMaxSize = 1 << kMaxSizeLog.
 //
 // This structure of the size class map gives us:
 //   - Efficient table-free class-to-size and size-to-class functions.
-//   - Difference between two consequent size classes is betweed 12% and 6%
+//   - Difference between two consequent size classes is betweed 14% and 25%
 //
 // This class also gives a hint to a thread-caching allocator about the amount
 // of chunks that need to be cached per-thread:
@@ -42,50 +42,70 @@ namespace __sanitizer {
 //  - (1 << kMaxBytesCachedLog) is the maximal number of bytes per size class.
 //
 // Part of output of SizeClassMap::Print():
-//    c00 => s: 0 diff: +0 00% l 0 cached: 0 0; id 0
-//    c01 => s: 8 diff: +8 00% l 3 cached: 256 2048; id 1
-//    c02 => s: 16 diff: +8 100% l 4 cached: 256 4096; id 2
-//    ...
-//    c07 => s: 56 diff: +8 16% l 5 cached: 256 14336; id 7
+// c00 => s: 0 diff: +0 00% l 0 cached: 0 0; id 0
+// c01 => s: 16 diff: +16 00% l 4 cached: 256 4096; id 1
+// c02 => s: 32 diff: +16 100% l 5 cached: 256 8192; id 2
+// c03 => s: 48 diff: +16 50% l 5 cached: 256 12288; id 3
+// c04 => s: 64 diff: +16 33% l 6 cached: 256 16384; id 4
+// c05 => s: 80 diff: +16 25% l 6 cached: 256 20480; id 5
+// c06 => s: 96 diff: +16 20% l 6 cached: 256 24576; id 6
+// c07 => s: 112 diff: +16 16% l 6 cached: 256 28672; id 7
 //
-//    c08 => s: 64 diff: +8 14% l 6 cached: 256 16384; id 8
-//    ...
-//    c15 => s: 120 diff: +8 07% l 6 cached: 256 30720; id 15
+// c08 => s: 128 diff: +16 14% l 7 cached: 256 32768; id 8
+// c09 => s: 144 diff: +16 12% l 7 cached: 256 36864; id 9
+// c10 => s: 160 diff: +16 11% l 7 cached: 256 40960; id 10
+// c11 => s: 176 diff: +16 10% l 7 cached: 256 45056; id 11
+// c12 => s: 192 diff: +16 09% l 7 cached: 256 49152; id 12
+// c13 => s: 208 diff: +16 08% l 7 cached: 256 53248; id 13
+// c14 => s: 224 diff: +16 07% l 7 cached: 256 57344; id 14
+// c15 => s: 240 diff: +16 07% l 7 cached: 256 61440; id 15
 //
-//    c16 => s: 128 diff: +8 06% l 7 cached: 256 32768; id 16
-//    c17 => s: 144 diff: +16 12% l 7 cached: 227 32688; id 17
-//    ...
-//    c23 => s: 240 diff: +16 07% l 7 cached: 136 32640; id 23
+// c16 => s: 256 diff: +16 06% l 8 cached: 256 65536; id 16
+// c17 => s: 320 diff: +64 25% l 8 cached: 204 65280; id 17
+// c18 => s: 384 diff: +64 20% l 8 cached: 170 65280; id 18
+// c19 => s: 448 diff: +64 16% l 8 cached: 146 65408; id 19
 //
-//    c24 => s: 256 diff: +16 06% l 8 cached: 128 32768; id 24
-//    c25 => s: 288 diff: +32 12% l 8 cached: 113 32544; id 25
-//    ...
-//    c31 => s: 480 diff: +32 07% l 8 cached: 68 32640; id 31
+// c20 => s: 512 diff: +64 14% l 9 cached: 128 65536; id 20
+// c21 => s: 640 diff: +128 25% l 9 cached: 102 65280; id 21
+// c22 => s: 768 diff: +128 20% l 9 cached: 85 65280; id 22
+// c23 => s: 896 diff: +128 16% l 9 cached: 73 65408; id 23
 //
-//    c32 => s: 512 diff: +32 06% l 9 cached: 64 32768; id 32
+// c24 => s: 1024 diff: +128 14% l 10 cached: 64 65536; id 24
+// c25 => s: 1280 diff: +256 25% l 10 cached: 51 65280; id 25
+// c26 => s: 1536 diff: +256 20% l 10 cached: 42 64512; id 26
+// c27 => s: 1792 diff: +256 16% l 10 cached: 36 64512; id 27
+//
+// ...
+//
+// c48 => s: 65536 diff: +8192 14% l 16 cached: 1 65536; id 48
+// c49 => s: 81920 diff: +16384 25% l 16 cached: 1 81920; id 49
+// c50 => s: 98304 diff: +16384 20% l 16 cached: 1 98304; id 50
+// c51 => s: 114688 diff: +16384 16% l 16 cached: 1 114688; id 51
+//
+// c52 => s: 131072 diff: +16384 14% l 17 cached: 1 131072; id 52
 
-
-template <uptr kMaxSizeLog, uptr kMaxNumCachedT, uptr kMaxBytesCachedLog,
-          uptr kMinBatchClassT>
+template <uptr kMaxSizeLog, uptr kMaxNumCachedT, uptr kMaxBytesCachedLog>
 class SizeClassMap {
-  static const uptr kMinSizeLog = 3;
+  static const uptr kMinSizeLog = 4;
   static const uptr kMidSizeLog = kMinSizeLog + 4;
   static const uptr kMinSize = 1 << kMinSizeLog;
   static const uptr kMidSize = 1 << kMidSizeLog;
   static const uptr kMidClass = kMidSize / kMinSize;
-  static const uptr S = 3;
+  static const uptr S = 2;
   static const uptr M = (1 << S) - 1;
 
  public:
   static const uptr kMaxNumCached = kMaxNumCachedT;
+  // We transfer chunks between central and thread-local free lists in batches.
+  // For small size classes we allocate batches separately.
+  // For large size classes we use one of the chunks to store the batch.
   struct TransferBatch {
     TransferBatch *next;
     uptr count;
     void *batch[kMaxNumCached];
   };
 
-  static const uptr kMinBatchClass = kMinBatchClassT;
-  static const uptr kMaxSize = 1 << kMaxSizeLog;
+  static const uptr kMaxSize = 1UL << kMaxSizeLog;
   static const uptr kNumClasses =
       kMidClass + ((kMaxSizeLog - kMidSizeLog) << S) + 1;
   COMPILER_CHECK(kNumClasses >= 32 && kNumClasses <= 256);
@@ -106,7 +126,7 @@ class SizeClassMap {
     if (size <= kMidSize)
       return (size + kMinSize - 1) >> kMinSizeLog;
     if (size > kMaxSize) return 0;
-    uptr l = SANITIZER_WORDSIZE - 1 - __builtin_clzl(size);
+    uptr l = MostSignificantSetBitIndex(size);
     uptr hbits = (size >> (l - S)) & M;
     uptr lbits = size & ((1 << (l - S)) - 1);
     uptr l1 = l - kMidSizeLog;
@@ -116,7 +136,7 @@ class SizeClassMap {
   static uptr MaxCached(uptr class_id) {
     if (class_id == 0) return 0;
     uptr n = (1UL << kMaxBytesCachedLog) / Size(class_id);
-    return Max(1UL, Min(kMaxNumCached, n));
+    return Max<uptr>(1, Min(kMaxNumCached, n));
   }
 
   static void Print() {
@@ -128,7 +148,7 @@ class SizeClassMap {
         Printf("\n");
       uptr d = s - prev_s;
       uptr p = prev_s ? (d * 100 / prev_s) : 0;
-      uptr l = SANITIZER_WORDSIZE - 1 - __builtin_clzl(s);
+      uptr l = s ? MostSignificantSetBitIndex(s) : 0;
       uptr cached = MaxCached(i) * s;
       Printf("c%02zd => s: %zd diff: +%zd %02zd%% l %zd "
              "cached: %zd %zd; id %zd\n",
@@ -139,10 +159,16 @@ class SizeClassMap {
     Printf("Total cached: %zd\n", total_cached);
   }
 
+  static bool SizeClassRequiresSeparateTransferBatch(uptr class_id) {
+    return Size(class_id) < sizeof(TransferBatch) -
+        sizeof(uptr) * (kMaxNumCached - MaxCached(class_id));
+  }
+
   static void Validate() {
     for (uptr c = 1; c < kNumClasses; c++) {
       // Printf("Validate: c%zd\n", c);
       uptr s = Size(c);
+      CHECK_NE(s, 0U);
       CHECK_EQ(ClassID(s), c);
       if (c != kNumClasses - 1)
         CHECK_EQ(ClassID(s + 1), c + 1);
@@ -160,25 +186,92 @@ class SizeClassMap {
       if (c > 0)
         CHECK_LT(Size(c-1), s);
     }
-
-    // TransferBatch for kMinBatchClass must fit into the block itself.
-    const uptr batch_size = sizeof(TransferBatch)
-        - sizeof(void*)  // NOLINT
-            * (kMaxNumCached - MaxCached(kMinBatchClass));
-    CHECK_LE(batch_size, Size(kMinBatchClass));
-    // TransferBatch for kMinBatchClass-1 must not fit into the block itself.
-    const uptr batch_size1 = sizeof(TransferBatch)
-        - sizeof(void*)  // NOLINT
-            * (kMaxNumCached - MaxCached(kMinBatchClass - 1));
-    CHECK_GT(batch_size1, Size(kMinBatchClass - 1));
   }
 };
 
-typedef SizeClassMap<17, 256, 16, FIRST_32_SECOND_64(33, 36)>
-    DefaultSizeClassMap;
-typedef SizeClassMap<17, 64, 14, FIRST_32_SECOND_64(25, 28)>
-    CompactSizeClassMap;
+typedef SizeClassMap<17, 128, 16> DefaultSizeClassMap;
+typedef SizeClassMap<17, 64,  14> CompactSizeClassMap;
 template<class SizeClassAllocator> struct SizeClassAllocatorLocalCache;
+
+// Memory allocator statistics
+enum AllocatorStat {
+  AllocatorStatMalloced,
+  AllocatorStatFreed,
+  AllocatorStatMmapped,
+  AllocatorStatUnmapped,
+  AllocatorStatCount
+};
+
+typedef u64 AllocatorStatCounters[AllocatorStatCount];
+
+// Per-thread stats, live in per-thread cache.
+class AllocatorStats {
+ public:
+  void Init() {
+    internal_memset(this, 0, sizeof(*this));
+  }
+
+  void Add(AllocatorStat i, u64 v) {
+    v += atomic_load(&stats_[i], memory_order_relaxed);
+    atomic_store(&stats_[i], v, memory_order_relaxed);
+  }
+
+  void Set(AllocatorStat i, u64 v) {
+    atomic_store(&stats_[i], v, memory_order_relaxed);
+  }
+
+  u64 Get(AllocatorStat i) const {
+    return atomic_load(&stats_[i], memory_order_relaxed);
+  }
+
+ private:
+  friend class AllocatorGlobalStats;
+  AllocatorStats *next_;
+  AllocatorStats *prev_;
+  atomic_uint64_t stats_[AllocatorStatCount];
+};
+
+// Global stats, used for aggregation and querying.
+class AllocatorGlobalStats : public AllocatorStats {
+ public:
+  void Init() {
+    internal_memset(this, 0, sizeof(*this));
+    next_ = this;
+    prev_ = this;
+  }
+
+  void Register(AllocatorStats *s) {
+    SpinMutexLock l(&mu_);
+    s->next_ = next_;
+    s->prev_ = this;
+    next_->prev_ = s;
+    next_ = s;
+  }
+
+  void Unregister(AllocatorStats *s) {
+    SpinMutexLock l(&mu_);
+    s->prev_->next_ = s->next_;
+    s->next_->prev_ = s->prev_;
+    for (int i = 0; i < AllocatorStatCount; i++)
+      Add(AllocatorStat(i), s->Get(AllocatorStat(i)));
+  }
+
+  void Get(AllocatorStatCounters s) const {
+    internal_memset(s, 0, AllocatorStatCount * sizeof(u64));
+    SpinMutexLock l(&mu_);
+    const AllocatorStats *stats = this;
+    for (;;) {
+      for (int i = 0; i < AllocatorStatCount; i++)
+        s[i] += stats->Get(AllocatorStat(i));
+      stats = stats->next_;
+      if (stats == this)
+        break;
+    }
+  }
+
+ private:
+  mutable SpinMutex mu_;
+};
 
 // Allocators call these callbacks on mmap/munmap.
 struct NoOpMapUnmapCallback {
@@ -233,18 +326,20 @@ class SizeClassAllocator64 {
       alignment <= SizeClassMap::kMaxSize;
   }
 
-  Batch *NOINLINE AllocateBatch(AllocatorCache *c, uptr class_id) {
+  NOINLINE Batch* AllocateBatch(AllocatorStats *stat, AllocatorCache *c,
+                                uptr class_id) {
     CHECK_LT(class_id, kNumClasses);
     RegionInfo *region = GetRegionInfo(class_id);
     Batch *b = region->free_list.Pop();
     if (b == 0)
-      b = PopulateFreeList(c, class_id, region);
+      b = PopulateFreeList(stat, c, class_id, region);
     region->n_allocated += b->count;
     return b;
   }
 
-  void NOINLINE DeallocateBatch(uptr class_id, Batch *b) {
+  NOINLINE void DeallocateBatch(AllocatorStats *stat, uptr class_id, Batch *b) {
     RegionInfo *region = GetRegionInfo(class_id);
+    CHECK_GT(b->count, 0);
     region->free_list.Push(b);
     region->n_freed += b->count;
   }
@@ -260,10 +355,12 @@ class SizeClassAllocator64 {
   void *GetBlockBegin(void *p) {
     uptr class_id = GetSizeClass(p);
     uptr size = SizeClassMap::Size(class_id);
+    if (!size) return 0;
     uptr chunk_idx = GetChunkIdx((uptr)p, size);
     uptr reg_beg = (uptr)p & ~(kRegionSize - 1);
     uptr beg = chunk_idx * size;
     uptr next_beg = beg + size;
+    if (class_id >= kNumClasses) return 0;
     RegionInfo *region = GetRegionInfo(class_id);
     if (region->mapped_user >= next_beg)
       return reinterpret_cast<void*>(reg_beg + beg);
@@ -322,6 +419,38 @@ class SizeClassAllocator64 {
     }
   }
 
+  // ForceLock() and ForceUnlock() are needed to implement Darwin malloc zone
+  // introspection API.
+  void ForceLock() {
+    for (uptr i = 0; i < kNumClasses; i++) {
+      GetRegionInfo(i)->mutex.Lock();
+    }
+  }
+
+  void ForceUnlock() {
+    for (int i = (int)kNumClasses - 1; i >= 0; i--) {
+      GetRegionInfo(i)->mutex.Unlock();
+    }
+  }
+
+  // Iterate over existing chunks. May include chunks that are not currently
+  // allocated to the user (e.g. freed).
+  // The caller is expected to call ForceLock() before calling this function.
+  template<typename Callable>
+  void ForEachChunk(const Callable &callback) {
+    for (uptr class_id = 1; class_id < kNumClasses; class_id++) {
+      RegionInfo *region = GetRegionInfo(class_id);
+      uptr chunk_size = SizeClassMap::Size(class_id);
+      uptr region_beg = kSpaceBeg + class_id * kRegionSize;
+      for (uptr p = region_beg;
+           p < region_beg + region->allocated_user;
+           p += chunk_size) {
+        // Too slow: CHECK_EQ((void *)p, GetBlockBegin((void *)p));
+        callback((void *)p);
+      }
+    }
+  }
+
   typedef SizeClassMap SizeClassMapT;
   static const uptr kNumClasses = SizeClassMap::kNumClasses;
   static const uptr kNumClassesRounded = SizeClassMap::kNumClassesRounded;
@@ -336,7 +465,7 @@ class SizeClassAllocator64 {
   // or with one element if its size is greater.
   static const uptr kPopulateSize = 1 << 14;
   // Call mmap for user memory with at least this size.
-  static const uptr kUserMapSize = 1 << 15;
+  static const uptr kUserMapSize = 1 << 16;
   // Call mmap for metadata memory with at least this size.
   static const uptr kMetaMapSize = 1 << 16;
 
@@ -363,15 +492,16 @@ class SizeClassAllocator64 {
   }
 
   static uptr GetChunkIdx(uptr chunk, uptr size) {
-    u32 offset = chunk % kRegionSize;
+    uptr offset = chunk % kRegionSize;
     // Here we divide by a non-constant. This is costly.
-    // We require that kRegionSize is at least 2^32 so that offset is 32-bit.
-    // We save 2x by using 32-bit div, but may need to use a 256-way switch.
-    return offset / (u32)size;
+    // size always fits into 32-bits. If the offset fits too, use 32-bit div.
+    if (offset >> (SANITIZER_WORDSIZE / 2))
+      return offset / size;
+    return (u32)offset / (u32)size;
   }
 
-  Batch *NOINLINE PopulateFreeList(AllocatorCache *c, uptr class_id,
-                                   RegionInfo *region) {
+  NOINLINE Batch* PopulateFreeList(AllocatorStats *stat, AllocatorCache *c,
+                                   uptr class_id, RegionInfo *region) {
     BlockingMutexLock l(&region->mutex);
     Batch *b = region->free_list.Pop();
     if (b)
@@ -388,6 +518,7 @@ class SizeClassAllocator64 {
         map_size += kUserMapSize;
       CHECK_GE(region->mapped_user + map_size, end_idx);
       MapWithCallback(region_beg + region->mapped_user, map_size);
+      stat->Add(AllocatorStatMmapped, map_size);
       region->mapped_user += map_size;
     }
     uptr total_count = (region->mapped_user - beg_idx - size)
@@ -404,14 +535,14 @@ class SizeClassAllocator64 {
       region->mapped_meta += map_size;
     }
     CHECK_LE(region->allocated_meta, region->mapped_meta);
-    if (region->allocated_user + region->allocated_meta > kRegionSize) {
-      Printf("Out of memory. Dying.\n");
+    if (region->mapped_user + region->mapped_meta > kRegionSize) {
+      Printf("%s: Out of memory. Dying. ", SanitizerToolName);
       Printf("The process has exhausted %zuMB for size class %zu.\n",
           kRegionSize / 1024 / 1024, size);
       Die();
     }
     for (;;) {
-      if (class_id < SizeClassMap::kMinBatchClass)
+      if (SizeClassMap::SizeClassRequiresSeparateTransferBatch(class_id))
         b = (Batch*)c->Allocate(this, SizeClassMap::ClassID(sizeof(Batch)));
       else
         b = (Batch*)(region_beg + beg_idx);
@@ -423,11 +554,36 @@ class SizeClassAllocator64 {
       beg_idx += count * size;
       if (beg_idx + count * size + size > region->mapped_user)
         break;
+      CHECK_GT(b->count, 0);
       region->free_list.Push(b);
     }
     return b;
   }
 };
+
+// Maps integers in rage [0, kSize) to u8 values.
+template<u64 kSize>
+class FlatByteMap {
+ public:
+  void TestOnlyInit() {
+    internal_memset(map_, 0, sizeof(map_));
+  }
+
+  void set(uptr idx, u8 val) {
+    CHECK_LT(idx, kSize);
+    CHECK_EQ(0U, map_[idx]);
+    map_[idx] = val;
+  }
+  u8 operator[] (uptr idx) {
+    CHECK_LT(idx, kSize);
+    // FIXME: CHECK may be too expensive here.
+    return map_[idx];
+  }
+ private:
+  u8 map_[kSize];
+};
+
+// FIXME: Also implement TwoLevelByteMap.
 
 // SizeClassAllocator32 -- allocator for 32-bit address space.
 // This allocator can theoretically be used on 64-bit arch, but there it is less
@@ -440,7 +596,7 @@ class SizeClassAllocator64 {
 //   a result of a single call to MmapAlignedOrDie(kRegionSize, kRegionSize).
 // Since the regions are aligned by kRegionSize, there are exactly
 // kNumPossibleRegions possible regions in the address space and so we keep
-// an u8 array possible_regions[kNumPossibleRegions] to store the size classes.
+// a ByteMap possible_regions to store the size classes of each Region.
 // 0 size class means the region is not used by the allocator.
 //
 // One Region is used to allocate chunks of a single size class.
@@ -451,16 +607,19 @@ class SizeClassAllocator64 {
 // chache-line aligned.
 template <const uptr kSpaceBeg, const u64 kSpaceSize,
           const uptr kMetadataSize, class SizeClassMap,
+          const uptr kRegionSizeLog,
+          class ByteMap,
           class MapUnmapCallback = NoOpMapUnmapCallback>
 class SizeClassAllocator32 {
  public:
   typedef typename SizeClassMap::TransferBatch Batch;
   typedef SizeClassAllocator32<kSpaceBeg, kSpaceSize, kMetadataSize,
-      SizeClassMap, MapUnmapCallback> ThisT;
+      SizeClassMap, kRegionSizeLog, ByteMap, MapUnmapCallback> ThisT;
   typedef SizeClassAllocatorLocalCache<ThisT> AllocatorCache;
 
   void Init() {
-    state_ = reinterpret_cast<State *>(MapWithCallback(sizeof(State)));
+    possible_regions.TestOnlyInit();
+    internal_memset(size_class_info_array, 0, sizeof(size_class_info_array));
   }
 
   void *MapWithCallback(uptr size) {
@@ -469,6 +628,7 @@ class SizeClassAllocator32 {
     MapUnmapCallback().OnMap((uptr)res, size);
     return res;
   }
+
   void UnmapWithCallback(uptr beg, uptr size) {
     MapUnmapCallback().OnUnmap(beg, size);
     UnmapOrDie(reinterpret_cast<void *>(beg), size);
@@ -490,22 +650,24 @@ class SizeClassAllocator32 {
     return reinterpret_cast<void*>(meta);
   }
 
-  Batch *NOINLINE AllocateBatch(AllocatorCache *c, uptr class_id) {
+  NOINLINE Batch* AllocateBatch(AllocatorStats *stat, AllocatorCache *c,
+                                uptr class_id) {
     CHECK_LT(class_id, kNumClasses);
     SizeClassInfo *sci = GetSizeClassInfo(class_id);
     SpinMutexLock l(&sci->mutex);
     if (sci->free_list.empty())
-      PopulateFreeList(c, sci, class_id);
+      PopulateFreeList(stat, c, sci, class_id);
     CHECK(!sci->free_list.empty());
     Batch *b = sci->free_list.front();
     sci->free_list.pop_front();
     return b;
   }
 
-  void NOINLINE DeallocateBatch(uptr class_id, Batch *b) {
+  NOINLINE void DeallocateBatch(AllocatorStats *stat, uptr class_id, Batch *b) {
     CHECK_LT(class_id, kNumClasses);
     SizeClassInfo *sci = GetSizeClassInfo(class_id);
     SpinMutexLock l(&sci->mutex);
+    CHECK_GT(b->count, 0);
     sci->free_list.push_front(b);
   }
 
@@ -514,7 +676,7 @@ class SizeClassAllocator32 {
   }
 
   uptr GetSizeClass(void *p) {
-    return state_->possible_regions[ComputeRegionId(reinterpret_cast<uptr>(p))];
+    return possible_regions[ComputeRegionId(reinterpret_cast<uptr>(p))];
   }
 
   void *GetBlockBegin(void *p) {
@@ -539,16 +701,48 @@ class SizeClassAllocator32 {
     // No need to lock here.
     uptr res = 0;
     for (uptr i = 0; i < kNumPossibleRegions; i++)
-      if (state_->possible_regions[i])
+      if (possible_regions[i])
         res += kRegionSize;
     return res;
   }
 
   void TestOnlyUnmap() {
     for (uptr i = 0; i < kNumPossibleRegions; i++)
-      if (state_->possible_regions[i])
+      if (possible_regions[i])
         UnmapWithCallback((i * kRegionSize), kRegionSize);
-    UnmapWithCallback(reinterpret_cast<uptr>(state_), sizeof(State));
+  }
+
+  // ForceLock() and ForceUnlock() are needed to implement Darwin malloc zone
+  // introspection API.
+  void ForceLock() {
+    for (uptr i = 0; i < kNumClasses; i++) {
+      GetSizeClassInfo(i)->mutex.Lock();
+    }
+  }
+
+  void ForceUnlock() {
+    for (int i = kNumClasses - 1; i >= 0; i--) {
+      GetSizeClassInfo(i)->mutex.Unlock();
+    }
+  }
+
+  // Iterate over existing chunks. May include chunks that are not currently
+  // allocated to the user (e.g. freed).
+  // The caller is expected to call ForceLock() before calling this function.
+  template<typename Callable>
+  void ForEachChunk(const Callable &callback) {
+    for (uptr region = 0; region < kNumPossibleRegions; region++)
+      if (possible_regions[region]) {
+        uptr chunk_size = SizeClassMap::Size(possible_regions[region]);
+        uptr max_chunks_in_region = kRegionSize / (chunk_size + kMetadataSize);
+        uptr region_beg = region * kRegionSize;
+        for (uptr p = region_beg;
+             p < region_beg + max_chunks_in_region * chunk_size;
+             p += chunk_size) {
+          // Too slow: CHECK_EQ((void *)p, GetBlockBegin((void *)p));
+          callback((void *)p);
+        }
+      }
   }
 
   void PrintStats() {
@@ -558,7 +752,6 @@ class SizeClassAllocator32 {
   static const uptr kNumClasses = SizeClassMap::kNumClasses;
 
  private:
-  static const uptr kRegionSizeLog = SANITIZER_WORDSIZE == 64 ? 24 : 20;
   static const uptr kRegionSize = 1 << kRegionSizeLog;
   static const uptr kNumPossibleRegions = kSpaceSize / kRegionSize;
 
@@ -579,31 +772,32 @@ class SizeClassAllocator32 {
     return mem & ~(kRegionSize - 1);
   }
 
-  uptr AllocateRegion(uptr class_id) {
+  uptr AllocateRegion(AllocatorStats *stat, uptr class_id) {
     CHECK_LT(class_id, kNumClasses);
     uptr res = reinterpret_cast<uptr>(MmapAlignedOrDie(kRegionSize, kRegionSize,
                                       "SizeClassAllocator32"));
     MapUnmapCallback().OnMap(res, kRegionSize);
+    stat->Add(AllocatorStatMmapped, kRegionSize);
     CHECK_EQ(0U, (res & (kRegionSize - 1)));
-    CHECK_EQ(0U, state_->possible_regions[ComputeRegionId(res)]);
-    state_->possible_regions[ComputeRegionId(res)] = class_id;
+    possible_regions.set(ComputeRegionId(res), class_id);
     return res;
   }
 
   SizeClassInfo *GetSizeClassInfo(uptr class_id) {
     CHECK_LT(class_id, kNumClasses);
-    return &state_->size_class_info_array[class_id];
+    return &size_class_info_array[class_id];
   }
 
-  void PopulateFreeList(AllocatorCache *c, SizeClassInfo *sci, uptr class_id) {
+  void PopulateFreeList(AllocatorStats *stat, AllocatorCache *c,
+                        SizeClassInfo *sci, uptr class_id) {
     uptr size = SizeClassMap::Size(class_id);
-    uptr reg = AllocateRegion(class_id);
+    uptr reg = AllocateRegion(stat, class_id);
     uptr n_chunks = kRegionSize / (size + kMetadataSize);
     uptr max_count = SizeClassMap::MaxCached(class_id);
     Batch *b = 0;
     for (uptr i = reg; i < reg + n_chunks * size; i += size) {
       if (b == 0) {
-        if (class_id < SizeClassMap::kMinBatchClass)
+        if (SizeClassMap::SizeClassRequiresSeparateTransferBatch(class_id))
           b = (Batch*)c->Allocate(this, SizeClassMap::ClassID(sizeof(Batch)));
         else
           b = (Batch*)i;
@@ -611,19 +805,19 @@ class SizeClassAllocator32 {
       }
       b->batch[b->count++] = (void*)i;
       if (b->count == max_count) {
+        CHECK_GT(b->count, 0);
         sci->free_list.push_back(b);
         b = 0;
       }
     }
-    if (b)
+    if (b) {
+      CHECK_GT(b->count, 0);
       sci->free_list.push_back(b);
+    }
   }
 
-  struct State {
-    u8 possible_regions[kNumPossibleRegions];
-    SizeClassInfo size_class_info_array[kNumClasses];
-  };
-  State *state_;
+  ByteMap possible_regions;
+  SizeClassInfo size_class_info_array[kNumClasses];
 };
 
 // Objects of this type should be used as local caches for SizeClassAllocator64
@@ -634,14 +828,22 @@ struct SizeClassAllocatorLocalCache {
   typedef SizeClassAllocator Allocator;
   static const uptr kNumClasses = SizeClassAllocator::kNumClasses;
 
-  // Don't need to call Init if the object is a global (i.e. zero-initialized).
-  void Init() {
-    internal_memset(this, 0, sizeof(*this));
+  void Init(AllocatorGlobalStats *s) {
+    stats_.Init();
+    if (s)
+      s->Register(&stats_);
+  }
+
+  void Destroy(SizeClassAllocator *allocator, AllocatorGlobalStats *s) {
+    Drain(allocator);
+    if (s)
+      s->Unregister(&stats_);
   }
 
   void *Allocate(SizeClassAllocator *allocator, uptr class_id) {
     CHECK_NE(class_id, 0UL);
     CHECK_LT(class_id, kNumClasses);
+    stats_.Add(AllocatorStatMalloced, SizeClassMap::Size(class_id));
     PerClass *c = &per_class_[class_id];
     if (UNLIKELY(c->count == 0))
       Refill(allocator, class_id);
@@ -653,7 +855,12 @@ struct SizeClassAllocatorLocalCache {
   void Deallocate(SizeClassAllocator *allocator, uptr class_id, void *p) {
     CHECK_NE(class_id, 0UL);
     CHECK_LT(class_id, kNumClasses);
+    // If the first allocator call on a new thread is a deallocation, then
+    // max_count will be zero, leading to check failure.
+    InitCache();
+    stats_.Add(AllocatorStatFreed, SizeClassMap::Size(class_id));
     PerClass *c = &per_class_[class_id];
+    CHECK_NE(c->max_count, 0UL);
     if (UNLIKELY(c->count == c->max_count))
       Drain(allocator, class_id);
     c->batch[c->count++] = p;
@@ -676,9 +883,10 @@ struct SizeClassAllocatorLocalCache {
     void *batch[2 * SizeClassMap::kMaxNumCached];
   };
   PerClass per_class_[kNumClasses];
+  AllocatorStats stats_;
 
   void InitCache() {
-    if (per_class_[0].max_count)
+    if (per_class_[1].max_count)
       return;
     for (uptr i = 0; i < kNumClasses; i++) {
       PerClass *c = &per_class_[i];
@@ -686,22 +894,23 @@ struct SizeClassAllocatorLocalCache {
     }
   }
 
-  void NOINLINE Refill(SizeClassAllocator *allocator, uptr class_id) {
+  NOINLINE void Refill(SizeClassAllocator *allocator, uptr class_id) {
     InitCache();
     PerClass *c = &per_class_[class_id];
-    Batch *b = allocator->AllocateBatch(this, class_id);
+    Batch *b = allocator->AllocateBatch(&stats_, this, class_id);
+    CHECK_GT(b->count, 0);
     for (uptr i = 0; i < b->count; i++)
       c->batch[i] = b->batch[i];
     c->count = b->count;
-    if (class_id < SizeClassMap::kMinBatchClass)
+    if (SizeClassMap::SizeClassRequiresSeparateTransferBatch(class_id))
       Deallocate(allocator, SizeClassMap::ClassID(sizeof(Batch)), b);
   }
 
-  void NOINLINE Drain(SizeClassAllocator *allocator, uptr class_id) {
+  NOINLINE void Drain(SizeClassAllocator *allocator, uptr class_id) {
     InitCache();
     PerClass *c = &per_class_[class_id];
     Batch *b;
-    if (class_id < SizeClassMap::kMinBatchClass)
+    if (SizeClassMap::SizeClassRequiresSeparateTransferBatch(class_id))
       b = (Batch*)Allocate(allocator, SizeClassMap::ClassID(sizeof(Batch)));
     else
       b = (Batch*)c->batch[0];
@@ -712,7 +921,8 @@ struct SizeClassAllocatorLocalCache {
     }
     b->count = cnt;
     c->count -= cnt;
-    allocator->DeallocateBatch(class_id, b);
+    CHECK_GT(b->count, 0);
+    allocator->DeallocateBatch(&stats_, class_id, b);
   }
 };
 
@@ -727,7 +937,7 @@ class LargeMmapAllocator {
     page_size_ = GetPageSizeCached();
   }
 
-  void *Allocate(uptr size, uptr alignment) {
+  void *Allocate(AllocatorStats *stat, uptr size, uptr alignment) {
     CHECK(IsPowerOfTwo(alignment));
     uptr map_size = RoundUpMapSize(size);
     if (alignment > page_size_)
@@ -746,7 +956,7 @@ class LargeMmapAllocator {
     h->size = size;
     h->map_beg = map_beg;
     h->map_size = map_size;
-    uptr size_log = SANITIZER_WORDSIZE - __builtin_clzl(map_size) - 1;
+    uptr size_log = MostSignificantSetBitIndex(map_size);
     CHECK_LT(size_log, ARRAY_SIZE(stats.by_size_log));
     {
       SpinMutexLock l(&mutex_);
@@ -758,11 +968,13 @@ class LargeMmapAllocator {
       stats.currently_allocated += map_size;
       stats.max_allocated = Max(stats.max_allocated, stats.currently_allocated);
       stats.by_size_log[size_log]++;
+      stat->Add(AllocatorStatMalloced, map_size);
+      stat->Add(AllocatorStatMmapped, map_size);
     }
     return reinterpret_cast<void*>(res);
   }
 
-  void Deallocate(void *p) {
+  void Deallocate(AllocatorStats *stat, void *p) {
     Header *h = GetHeader(p);
     {
       SpinMutexLock l(&mutex_);
@@ -774,6 +986,8 @@ class LargeMmapAllocator {
       n_chunks_--;
       stats.n_frees++;
       stats.currently_allocated -= h->map_size;
+      stat->Add(AllocatorStatFreed, h->map_size);
+      stat->Add(AllocatorStatUnmapped, h->map_size);
     }
     MapUnmapCallback().OnUnmap(h->map_beg, h->map_size);
     UnmapOrDie(reinterpret_cast<void*>(h->map_beg), h->map_size);
@@ -822,7 +1036,7 @@ class LargeMmapAllocator {
     CHECK_GE(nearest_chunk, h->map_beg);
     CHECK_LT(nearest_chunk, h->map_beg + h->map_size);
     CHECK_LE(nearest_chunk, p);
-    if (h->map_beg + h->map_size < p)
+    if (h->map_beg + h->map_size <= p)
       return 0;
     return GetUser(h);
   }
@@ -838,6 +1052,25 @@ class LargeMmapAllocator {
       Printf("%zd:%zd; ", i, c);
     }
     Printf("\n");
+  }
+
+  // ForceLock() and ForceUnlock() are needed to implement Darwin malloc zone
+  // introspection API.
+  void ForceLock() {
+    mutex_.Lock();
+  }
+
+  void ForceUnlock() {
+    mutex_.Unlock();
+  }
+
+  // Iterate over existing chunks. May include chunks that are not currently
+  // allocated to the user (e.g. freed).
+  // The caller is expected to call ForceLock() before calling this function.
+  template<typename Callable>
+  void ForEachChunk(const Callable &callback) {
+    for (uptr i = 0; i < n_chunks_; i++)
+      callback(GetUser(chunks_[i]));
   }
 
  private:
@@ -886,6 +1119,7 @@ class CombinedAllocator {
   void Init() {
     primary_.Init();
     secondary_.Init();
+    stats_.Init();
   }
 
   void *Allocate(AllocatorCache *cache, uptr size, uptr alignment,
@@ -901,7 +1135,7 @@ class CombinedAllocator {
     if (primary_.CanAllocate(size, alignment))
       res = cache->Allocate(&primary_, primary_.ClassID(size));
     else
-      res = secondary_.Allocate(size, alignment);
+      res = secondary_.Allocate(&stats_, size, alignment);
     if (alignment > 8)
       CHECK_EQ(reinterpret_cast<uptr>(res) & (alignment - 1), 0);
     if (cleared && res)
@@ -914,7 +1148,7 @@ class CombinedAllocator {
     if (primary_.PointerIsMine(p))
       cache->Deallocate(&primary_, primary_.GetSizeClass(p), p);
     else
-      secondary_.Deallocate(p);
+      secondary_.Deallocate(&stats_, p);
   }
 
   void *Reallocate(AllocatorCache *cache, void *p, uptr new_size,
@@ -969,8 +1203,20 @@ class CombinedAllocator {
 
   void TestOnlyUnmap() { primary_.TestOnlyUnmap(); }
 
+  void InitCache(AllocatorCache *cache) {
+    cache->Init(&stats_);
+  }
+
+  void DestroyCache(AllocatorCache *cache) {
+    cache->Destroy(&primary_, &stats_);
+  }
+
   void SwallowCache(AllocatorCache *cache) {
     cache->Drain(&primary_);
+  }
+
+  void GetStats(AllocatorStatCounters s) const {
+    stats_.Get(s);
   }
 
   void PrintStats() {
@@ -978,10 +1224,35 @@ class CombinedAllocator {
     secondary_.PrintStats();
   }
 
+  // ForceLock() and ForceUnlock() are needed to implement Darwin malloc zone
+  // introspection API.
+  void ForceLock() {
+    primary_.ForceLock();
+    secondary_.ForceLock();
+  }
+
+  void ForceUnlock() {
+    secondary_.ForceUnlock();
+    primary_.ForceUnlock();
+  }
+
+  // Iterate over existing chunks. May include chunks that are not currently
+  // allocated to the user (e.g. freed).
+  // The caller is expected to call ForceLock() before calling this function.
+  template<typename Callable>
+  void ForEachChunk(const Callable &callback) {
+    primary_.ForEachChunk(callback);
+    secondary_.ForEachChunk(callback);
+  }
+
  private:
   PrimaryAllocator primary_;
   SecondaryAllocator secondary_;
+  AllocatorGlobalStats stats_;
 };
+
+// Returns true if calloc(size, n) should return 0 due to overflow in size*n.
+bool CallocShouldReturnNullDueToOverflow(uptr size, uptr n);
 
 }  // namespace __sanitizer
 

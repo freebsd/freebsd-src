@@ -15,21 +15,21 @@
 #include "asan_allocator.h"
 #include "asan_internal.h"
 #include "asan_thread.h"
-#include "sanitizer/asan_interface.h"
 
 namespace __asan {
 
 // The following functions prints address description depending
 // on the memory type (shadow/heap/stack/global).
 void DescribeHeapAddress(uptr addr, uptr access_size);
-bool DescribeAddressIfGlobal(uptr addr);
-bool DescribeAddressRelativeToGlobal(uptr addr, const __asan_global &g);
+bool DescribeAddressIfGlobal(uptr addr, uptr access_size);
+bool DescribeAddressRelativeToGlobal(uptr addr, uptr access_size,
+                                     const __asan_global &g);
 bool DescribeAddressIfShadow(uptr addr);
 bool DescribeAddressIfStack(uptr addr, uptr access_size);
 // Determines memory type on its own.
 void DescribeAddress(uptr addr, uptr access_size);
 
-void DescribeThread(AsanThreadSummary *summary);
+void DescribeThread(AsanThreadContext *context);
 
 // Different kinds of error reports.
 void NORETURN ReportSIGSEGV(uptr pc, uptr sp, uptr bp, uptr addr);

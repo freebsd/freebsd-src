@@ -11,7 +11,10 @@
 // run-time libraries and implements windows-specific functions from
 // sanitizer_libc.h.
 //===----------------------------------------------------------------------===//
-#ifdef _WIN32
+
+#include "sanitizer_platform.h"
+#if SANITIZER_WINDOWS
+
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
 #include <stdlib.h>
@@ -20,10 +23,13 @@
 
 #include "sanitizer_common.h"
 #include "sanitizer_libc.h"
-#include "sanitizer_placement_new.h"
 #include "sanitizer_mutex.h"
+#include "sanitizer_placement_new.h"
+#include "sanitizer_stacktrace.h"
 
 namespace __sanitizer {
+
+#include "sanitizer_syscall_generic.inc"
 
 // --------------------- sanitizer_common.h
 uptr GetPageSize() {
@@ -38,12 +44,18 @@ bool FileExists(const char *filename) {
   UNIMPLEMENTED();
 }
 
-int GetPid() {
+uptr internal_getpid() {
   return GetProcessId(GetCurrentProcess());
 }
 
-uptr GetThreadSelf() {
+// In contrast to POSIX, on Windows GetCurrentThreadId()
+// returns a system-unique identifier.
+uptr GetTid() {
   return GetCurrentThreadId();
+}
+
+uptr GetThreadSelf() {
+  return GetTid();
 }
 
 void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
@@ -97,6 +109,11 @@ void *Mprotect(uptr fixed_addr, uptr size) {
                       MEM_RESERVE | MEM_COMMIT, PAGE_NOACCESS);
 }
 
+void FlushUnneededShadowMemory(uptr addr, uptr size) {
+  // This is almost useless on 32-bits.
+  // FIXME: add madvice-analog when we move to 64-bits.
+}
+
 bool MemoryRangeIsAvailable(uptr range_start, uptr range_end) {
   // FIXME: shall we do anything here on Windows?
   return true;
@@ -106,23 +123,46 @@ void *MapFileToMemory(const char *file_name, uptr *buff_size) {
   UNIMPLEMENTED();
 }
 
+static const int kMaxEnvNameLength = 128;
+static const int kMaxEnvValueLength = 32767;
+
+namespace {
+
+struct EnvVariable {
+  char name[kMaxEnvNameLength];
+  char value[kMaxEnvValueLength];
+};
+
+}  // namespace
+
+static const int kEnvVariables = 5;
+static EnvVariable env_vars[kEnvVariables];
+static int num_env_vars;
+
 const char *GetEnv(const char *name) {
-  static char env_buffer[32767] = {};
-
-  // Note: this implementation stores the result in a static buffer so we only
-  // allow it to be called just once.
-  static bool called_once = false;
-  if (called_once)
-    UNIMPLEMENTED();
-  called_once = true;
-
-  DWORD rv = GetEnvironmentVariableA(name, env_buffer, sizeof(env_buffer));
-  if (rv > 0 && rv < sizeof(env_buffer))
-    return env_buffer;
+  // Note: this implementation caches the values of the environment variables
+  // and limits their quantity.
+  for (int i = 0; i < num_env_vars; i++) {
+    if (0 == internal_strcmp(name, env_vars[i].name))
+      return env_vars[i].value;
+  }
+  CHECK_LT(num_env_vars, kEnvVariables);
+  DWORD rv = GetEnvironmentVariableA(name, env_vars[num_env_vars].value,
+                                     kMaxEnvValueLength);
+  if (rv > 0 && rv < kMaxEnvValueLength) {
+    CHECK_LT(internal_strlen(name), kMaxEnvNameLength);
+    internal_strncpy(env_vars[num_env_vars].name, name, kMaxEnvNameLength);
+    num_env_vars++;
+    return env_vars[num_env_vars - 1].value;
+  }
   return 0;
 }
 
 const char *GetPwd() {
+  UNIMPLEMENTED();
+}
+
+u32 GetUid() {
   UNIMPLEMENTED();
 }
 
@@ -158,10 +198,6 @@ void SleepForMillis(int millis) {
   Sleep(millis);
 }
 
-void Exit(int exitcode) {
-  _exit(exitcode);
-}
-
 void Abort() {
   abort();
   _exit(-1);  // abort is not NORETURN on Windows.
@@ -174,16 +210,16 @@ int Atexit(void (*function)(void)) {
 #endif
 
 // ------------------ sanitizer_libc.h
-void *internal_mmap(void *addr, uptr length, int prot, int flags,
-                    int fd, u64 offset) {
+uptr internal_mmap(void *addr, uptr length, int prot, int flags,
+                   int fd, u64 offset) {
   UNIMPLEMENTED();
 }
 
-int internal_munmap(void *addr, uptr length) {
+uptr internal_munmap(void *addr, uptr length) {
   UNIMPLEMENTED();
 }
 
-int internal_close(fd_t fd) {
+uptr internal_close(fd_t fd) {
   UNIMPLEMENTED();
 }
 
@@ -191,7 +227,15 @@ int internal_isatty(fd_t fd) {
   return _isatty(fd);
 }
 
-fd_t internal_open(const char *filename, bool write) {
+uptr internal_open(const char *filename, int flags) {
+  UNIMPLEMENTED();
+}
+
+uptr internal_open(const char *filename, int flags, u32 mode) {
+  UNIMPLEMENTED();
+}
+
+uptr OpenFile(const char *filename, bool write) {
   UNIMPLEMENTED();
 }
 
@@ -211,11 +255,23 @@ uptr internal_write(fd_t fd, const void *buf, uptr count) {
   return ret;
 }
 
+uptr internal_stat(const char *path, void *buf) {
+  UNIMPLEMENTED();
+}
+
+uptr internal_lstat(const char *path, void *buf) {
+  UNIMPLEMENTED();
+}
+
+uptr internal_fstat(fd_t fd, void *buf) {
+  UNIMPLEMENTED();
+}
+
 uptr internal_filesize(fd_t fd) {
   UNIMPLEMENTED();
 }
 
-int internal_dup2(int oldfd, int newfd) {
+uptr internal_dup2(int oldfd, int newfd) {
   UNIMPLEMENTED();
 }
 
@@ -223,21 +279,29 @@ uptr internal_readlink(const char *path, char *buf, uptr bufsize) {
   UNIMPLEMENTED();
 }
 
-int internal_sched_yield() {
+uptr internal_sched_yield() {
   Sleep(0);
   return 0;
 }
 
+void internal__exit(int exitcode) {
+  _exit(exitcode);
+}
+
 // ---------------------- BlockingMutex ---------------- {{{1
-enum LockState {
-  LOCK_UNINITIALIZED = 0,
-  LOCK_READY = -1,
-};
+const uptr LOCK_UNINITIALIZED = 0;
+const uptr LOCK_READY = (uptr)-1;
 
 BlockingMutex::BlockingMutex(LinkerInitialized li) {
   // FIXME: see comments in BlockingMutex::Lock() for the details.
   CHECK(li == LINKER_INITIALIZED || owner_ == LOCK_UNINITIALIZED);
 
+  CHECK(sizeof(CRITICAL_SECTION) <= sizeof(opaque_storage_));
+  InitializeCriticalSection((LPCRITICAL_SECTION)opaque_storage_);
+  owner_ = LOCK_READY;
+}
+
+BlockingMutex::BlockingMutex() {
   CHECK(sizeof(CRITICAL_SECTION) <= sizeof(opaque_storage_));
   InitializeCriticalSection((LPCRITICAL_SECTION)opaque_storage_);
   owner_ = LOCK_READY;
@@ -254,14 +318,62 @@ void BlockingMutex::Lock() {
     // locks while we're starting in one thread to avoid double-init races.
   }
   EnterCriticalSection((LPCRITICAL_SECTION)opaque_storage_);
-  CHECK(owner_ == LOCK_READY);
+  CHECK_EQ(owner_, LOCK_READY);
   owner_ = GetThreadSelf();
 }
 
 void BlockingMutex::Unlock() {
-  CHECK(owner_ == GetThreadSelf());
+  CHECK_EQ(owner_, GetThreadSelf());
   owner_ = LOCK_READY;
   LeaveCriticalSection((LPCRITICAL_SECTION)opaque_storage_);
+}
+
+void BlockingMutex::CheckLocked() {
+  CHECK_EQ(owner_, GetThreadSelf());
+}
+
+uptr GetTlsSize() {
+  return 0;
+}
+
+void InitTlsSize() {
+}
+
+void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
+                          uptr *tls_addr, uptr *tls_size) {
+  uptr stack_top, stack_bottom;
+  GetThreadStackTopAndBottom(main, &stack_top, &stack_bottom);
+  *stk_addr = stack_bottom;
+  *stk_size = stack_top - stack_bottom;
+  *tls_addr = 0;
+  *tls_size = 0;
+}
+
+void GetStackTrace(StackTrace *stack, uptr max_s, uptr pc, uptr bp,
+                   uptr stack_top, uptr stack_bottom, bool fast) {
+  (void)fast;
+  (void)stack_top;
+  (void)stack_bottom;
+  stack->max_size = max_s;
+  void *tmp[kStackTraceMax];
+
+  // FIXME: CaptureStackBackTrace might be too slow for us.
+  // FIXME: Compare with StackWalk64.
+  // FIXME: Look at LLVMUnhandledExceptionFilter in Signals.inc
+  uptr cs_ret = CaptureStackBackTrace(1, stack->max_size, tmp, 0);
+  uptr offset = 0;
+  // Skip the RTL frames by searching for the PC in the stacktrace.
+  // FIXME: this doesn't work well for the malloc/free stacks yet.
+  for (uptr i = 0; i < cs_ret; i++) {
+    if (pc != (uptr)tmp[i])
+      continue;
+    offset = i;
+    break;
+  }
+
+  stack->size = cs_ret - offset;
+  for (uptr i = 0; i < stack->size; i++)
+    stack->trace[i] = (uptr)tmp[i + offset];
 }
 
 }  // namespace __sanitizer

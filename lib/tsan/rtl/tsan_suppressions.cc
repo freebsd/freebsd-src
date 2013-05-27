@@ -19,6 +19,13 @@
 #include "tsan_mman.h"
 #include "tsan_platform.h"
 
+// Can be overriden in frontend.
+#ifndef TSAN_GO
+extern "C" const char *WEAK __tsan_default_suppressions() {
+  return 0;
+}
+#endif
+
 namespace __tsan {
 
 static Suppression *g_suppressions;
@@ -31,12 +38,13 @@ static char *ReadFile(const char *filename) {
     internal_snprintf(tmp.data(), tmp.size(), "%s", filename);
   else
     internal_snprintf(tmp.data(), tmp.size(), "%s/%s", GetPwd(), filename);
-  fd_t fd = internal_open(tmp.data(), false);
-  if (fd == kInvalidFd) {
+  uptr openrv = OpenFile(tmp.data(), false);
+  if (internal_iserror(openrv)) {
     Printf("ThreadSanitizer: failed to open suppressions file '%s'\n",
                tmp.data());
     Die();
   }
+  fd_t fd = openrv;
   const uptr fsize = internal_filesize(fd);
   if (fsize == (uptr)-1) {
     Printf("ThreadSanitizer: failed to stat suppressions file '%s'\n",
@@ -80,8 +88,7 @@ bool SuppressionMatch(char *templ, const char *str) {
   return true;
 }
 
-Suppression *SuppressionParse(const char* supp) {
-  Suppression *head = 0;
+Suppression *SuppressionParse(Suppression *head, const char* supp) {
   const char *line = supp;
   while (line) {
     while (line[0] == ' ' || line[0] == '\t')
@@ -121,6 +128,7 @@ Suppression *SuppressionParse(const char* supp) {
       s->templ = (char*)internal_alloc(MBlockSuppression, end2 - line + 1);
       internal_memcpy(s->templ, line, end2 - line);
       s->templ[end2 - line] = 0;
+      s->hit_count = 0;
     }
     if (end[0] == 0)
       break;
@@ -130,11 +138,15 @@ Suppression *SuppressionParse(const char* supp) {
 }
 
 void InitializeSuppressions() {
-  char *supp = ReadFile(flags()->suppressions);
-  g_suppressions = SuppressionParse(supp);
+  const char *supp = ReadFile(flags()->suppressions);
+  g_suppressions = SuppressionParse(0, supp);
+#ifndef TSAN_GO
+  supp = __tsan_default_suppressions();
+  g_suppressions = SuppressionParse(g_suppressions, supp);
+#endif
 }
 
-uptr IsSuppressed(ReportType typ, const ReportStack *stack) {
+uptr IsSuppressed(ReportType typ, const ReportStack *stack, Suppression **sp) {
   if (g_suppressions == 0 || stack == 0)
     return 0;
   SuppressionType stype;
@@ -152,12 +164,41 @@ uptr IsSuppressed(ReportType typ, const ReportStack *stack) {
     for (Suppression *supp = g_suppressions; supp; supp = supp->next) {
       if (stype == supp->type &&
           (SuppressionMatch(supp->templ, frame->func) ||
-          SuppressionMatch(supp->templ, frame->file))) {
+           SuppressionMatch(supp->templ, frame->file) ||
+           SuppressionMatch(supp->templ, frame->module))) {
         DPrintf("ThreadSanitizer: matched suppression '%s'\n", supp->templ);
+        supp->hit_count++;
+        *sp = supp;
         return frame->pc;
       }
     }
   }
   return 0;
+}
+
+static const char *SuppTypeStr(SuppressionType t) {
+  switch (t) {
+  case SuppressionRace:   return "race";
+  case SuppressionMutex:  return "mutex";
+  case SuppressionThread: return "thread";
+  case SuppressionSignal: return "signal";
+  }
+  CHECK(0);
+  return "unknown";
+}
+
+void PrintMatchedSuppressions() {
+  int hit_count = 0;
+  for (Suppression *supp = g_suppressions; supp; supp = supp->next)
+    hit_count += supp->hit_count;
+  if (hit_count == 0)
+    return;
+  Printf("ThreadSanitizer: Matched %d suppressions (pid=%d):\n",
+      hit_count, (int)internal_getpid());
+  for (Suppression *supp = g_suppressions; supp; supp = supp->next) {
+    if (supp->hit_count == 0)
+      continue;
+    Printf("%d %s:%s\n", supp->hit_count, SuppTypeStr(supp->type), supp->templ);
+  }
 }
 }  // namespace __tsan

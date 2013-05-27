@@ -11,7 +11,9 @@
 // run-time libraries.
 // Mac-specific implementation of symbolizer parts.
 //===----------------------------------------------------------------------===//
-#ifdef __APPLE__
+
+#include "sanitizer_platform.h"
+#if SANITIZER_MAC
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_symbolizer.h"
 
@@ -22,10 +24,17 @@ bool StartSymbolizerSubprocess(const char *path_to_symbolizer,
   UNIMPLEMENTED();
 }
 
-uptr GetListOfModules(LoadedModule *modules, uptr max_modules) {
-  UNIMPLEMENTED();
+uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
+                      string_predicate_t filter) {
+  // FIXME: Actually implement this on Mac. Just using MemoryMappingLayout
+  // may be enough for this on Mac.
+  return 0;
+}
+
+void SymbolizerPrepareForSandboxing() {
+  // Do nothing on Mac.
 }
 
 }  // namespace __sanitizer
 
-#endif  // __APPLE__
+#endif  // SANITIZER_MAC
