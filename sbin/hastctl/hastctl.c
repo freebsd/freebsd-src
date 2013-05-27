@@ -70,7 +70,8 @@ enum {
 	CMD_CREATE,
 	CMD_ROLE,
 	CMD_STATUS,
-	CMD_DUMP
+	CMD_DUMP,
+	CMD_LIST
 };
 
 static __dead2 void
@@ -83,6 +84,9 @@ usage(void)
 	    getprogname());
 	fprintf(stderr,
 	    "       %s role [-d] [-c config] <init | primary | secondary> all | name ...\n",
+	    getprogname());
+	fprintf(stderr,
+	    "       %s list [-d] [-c config] [all | name ...]\n",
 	    getprogname());
 	fprintf(stderr,
 	    "       %s status [-d] [-c config] [all | name ...]\n",
@@ -381,6 +385,9 @@ main(int argc, char *argv[])
 	} else if (strcmp(argv[1], "role") == 0) {
 		cmd = CMD_ROLE;
 		optstr = "c:dh";
+	} else if (strcmp(argv[1], "list") == 0) {
+		cmd = CMD_LIST;
+		optstr = "c:dh";
 	} else if (strcmp(argv[1], "status") == 0) {
 		cmd = CMD_STATUS;
 		optstr = "c:dh";
@@ -469,6 +476,7 @@ main(int argc, char *argv[])
 		for (ii = 0; ii < argc - 1; ii++)
 			nv_add_string(nv, argv[ii + 1], "resource%d", ii);
 		break;
+	case CMD_LIST:
 	case CMD_STATUS:
 		/* Obtain status of the given resources. */
 		nv = nv_alloc();
@@ -524,6 +532,7 @@ main(int argc, char *argv[])
 	case CMD_ROLE:
 		error = control_set_role(nv, argv[0]);
 		break;
+	case CMD_LIST:
 	case CMD_STATUS:
 		error = control_status(nv);
 		break;
