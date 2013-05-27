@@ -193,7 +193,7 @@ static const double tbl[TBLSIZE * 2] = {
 	0x1.68155d44ca973p+0,	 0x1.038ae44f74p-57,
 };
 
-/*-
+/**
  * Compute the base 2 exponential of x for Intel 80-bit format.
  *
  * Accuracy: Peak error < 0.511 ulp.
