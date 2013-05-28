@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdint.h>
@@ -87,8 +88,8 @@ main(int argc, char *argv[])
 			warnx("about %d second(s) left out of the original %d",
 			    (int)time_to_sleep.tv_sec, (int)original);
 			report_requested = 0;
-		} else
-			break;
+		} else if (errno != EINTR)
+			err(1, "nanosleep");
 	}
 	return (0);
 }
