@@ -114,15 +114,8 @@ LOCAL_TOOL_DIRS?=
 
 BUILDENV_SHELL?=/bin/sh
 
-CVS?=		cvs
-CVSFLAGS?=	-A -P -d -I!
-SVN?=		svn
+SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
-SUP?=		/usr/bin/csup
-SUPFLAGS?=	-g -L 2
-.if defined(SUPHOST)
-SUPFLAGS+=	-h ${SUPHOST}
-.endif
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 .if !defined(OSRELDATE)
@@ -1080,59 +1073,18 @@ doxygen:
 # latest copy.
 #
 update:
-.if defined(SUP_UPDATE)
+.if (defined(CVS_UPDATE) || defined(SUP_UPDATE)) && !defined(SVN_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Running ${SUP}"
+	@echo "CVS_UPDATE and SUP_UPDATE are no longer supported."
+	@echo "Please see: https://wiki.freebsd.org/CvsIsDeprecated"
 	@echo "--------------------------------------------------------------"
-	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
-	@echo "!! Update methods with ${SUP} are deprecated."
-	@echo "!! Please see http://www.freebsd.org/handbook/svn.html"
-	@echo "!! and convert your update method to SVN_UPDATE or"
-	@echo "!! freebsd-update(8)."
-	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
-	@sleep 5
-.if defined(SUPFILE)
-	@${SUP} ${SUPFLAGS} ${SUPFILE}
-.endif
-.if defined(SUPFILE1)
-	@${SUP} ${SUPFLAGS} ${SUPFILE1}
-.endif
-.if defined(SUPFILE2)
-	@${SUP} ${SUPFLAGS} ${SUPFILE2}
-.endif
-.if defined(PORTSSUPFILE) && !defined(NO_PORTSUPDATE)
-	@${SUP} ${SUPFLAGS} ${PORTSSUPFILE}
-.endif
-.if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
-	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
-.endif
-.endif
-.if defined(CVS_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d CVS ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
-		echo "--------------------------------------------------------------" ; \
-		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
-		echo "!! Update methods with CVS are deprecated." ; \
-		echo "!! Please see http://www.freebsd.org/handbook/svn.html" ; \
-		echo "!! and convert your update method to SVN_UPDATE or" ; \
-		echo "!! freebsd-update(8)." ; \
-		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
-		sleep 5 ; \
-		echo ${CVS} -R -q update ${CVSFLAGS} ; \
-		${CVS} -R -q update ${CVSFLAGS} ; \
-	fi
+	@exit 1
 .endif
 .if defined(SVN_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d .svn ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} using Subversion" ; \
-		echo "--------------------------------------------------------------" ; \
-		echo ${SVN} update ${SVNFLAGS} ; \
-		${SVN} update ${SVNFLAGS} ; \
-	fi
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Updating ${.CURDIR} using Subversion"
+	@echo "--------------------------------------------------------------"
+	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
 .endif
 
 #
