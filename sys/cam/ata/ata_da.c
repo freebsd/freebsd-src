@@ -272,12 +272,11 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD?????PVT*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
+	/* SSDs */
 	{
 		/*
 		 * Corsair Force 2 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair CSSD-F*", "*" },
 		/*quirks*/ADA_Q_4K
@@ -286,71 +285,33 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*
 		 * Corsair Force 3 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Force 3*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
-		 * OCZ Agility 3 SSDs
+		 * Corsair Force GT SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-AGILITY3*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Force GT*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
-		 * OCZ Vertex 2 SSDs (inc pro series)
+		 * Crucial M4 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ?VERTEX2*", "*" },
-		/*quirks*/ADA_Q_4K
-	},
-	{
-		/*
-		 * OCZ Vertex 3 SSDs
-		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-VERTEX3*", "*" },
-		/*quirks*/ADA_Q_4K
-	},
-	{
-		/*
-		 * SuperTalent TeraDrive CT SSDs
-		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "FTM??CT25H*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "M4-CT???M4SSD2*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
 		 * Crucial RealSSD C300 SSDs
 		 * 4k optimised
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "C300-CTFDDAC???MAG*",
 		"*" }, /*quirks*/ADA_Q_4K
-	},
-	{
-		/*
-		 * XceedIOPS SATA SSDs
-		 * 4k optimised
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SG9XCS2D*", "*" },
-		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
@@ -364,10 +325,8 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*
 		 * Intel 330 Series SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2ct*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2CT*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
@@ -380,22 +339,82 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
-		 * OCZ Deneva R Series SSDs
+		 * Intel 520 Series SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "DENRSTE251M45*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2BW*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Kingston E100 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "KINGSTON SE100S3*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
 		 * Kingston HyperX 3k SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "KINGSTON SH103S3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Agility 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-AGILITY3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Deneva R Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "DENRSTE251M45*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Vertex 2 SSDs (inc pro series)
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ?VERTEX2*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Vertex 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-VERTEX3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Samsung 830 Series SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG SSD 830 Series*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * SuperTalent TeraDrive CT SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "FTM??CT25H*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * XceedIOPS SATA SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SG9XCS2D*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
