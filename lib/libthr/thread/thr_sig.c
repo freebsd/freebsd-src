@@ -323,8 +323,13 @@ check_deferred_signal(struct pthread *curthread)
 		return;
 
 #if defined(__amd64__) || defined(__i386__)
-	uc = alloca(__getcontextx_size());
-	__fillcontextx((char *)uc);
+	int uc_len;
+	uc_len = __getcontextx_size();
+	uc = alloca(uc_len);
+	getcontext(uc);
+	if (curthread->deferred_siginfo.si_signo == 0)
+		return;
+	__fillcontextx2((char *)uc);
 #else
 	ucontext_t ucv;
 	uc = &ucv;
