@@ -3023,6 +3023,47 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
+#ifdef PAD64_REQUIRED
+	/* freebsd32_posix_fallocate */
+	case 530: {
+		struct freebsd32_posix_fallocate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->pad; /* int */
+		uarg[2] = p->offset1; /* uint32_t */
+		uarg[3] = p->offset2; /* uint32_t */
+		uarg[4] = p->len1; /* uint32_t */
+		uarg[5] = p->len2; /* uint32_t */
+		*n_args = 6;
+		break;
+	}
+	/* freebsd32_posix_fadvise */
+	case 531: {
+		struct freebsd32_posix_fadvise_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->pad; /* int */
+		uarg[2] = p->offset1; /* uint32_t */
+		uarg[3] = p->offset2; /* uint32_t */
+		uarg[4] = p->len1; /* uint32_t */
+		uarg[5] = p->len2; /* uint32_t */
+		iarg[6] = p->advice; /* int */
+		*n_args = 7;
+		break;
+	}
+	/* freebsd32_wait6 */
+	case 532: {
+		struct freebsd32_wait6_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->pad; /* int */
+		uarg[2] = p->id1; /* uint32_t */
+		uarg[3] = p->id2; /* uint32_t */
+		uarg[4] = (intptr_t) p->status; /* int * */
+		iarg[5] = p->options; /* int */
+		uarg[6] = (intptr_t) p->wrusage; /* struct wrusage32 * */
+		uarg[7] = (intptr_t) p->info; /* siginfo_t * */
+		*n_args = 8;
+		break;
+	}
+#else
 	/* freebsd32_posix_fallocate */
 	case 530: {
 		struct freebsd32_posix_fallocate_args *p = params;
@@ -3050,14 +3091,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 532: {
 		struct freebsd32_wait6_args *p = params;
 		iarg[0] = p->idtype; /* int */
-		iarg[1] = p->id; /* int */
-		uarg[2] = (intptr_t) p->status; /* int * */
-		iarg[3] = p->options; /* int */
-		uarg[4] = (intptr_t) p->wrusage; /* struct wrusage32 * */
-		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
-		*n_args = 6;
+		uarg[1] = p->id1; /* uint32_t */
+		uarg[2] = p->id2; /* uint32_t */
+		uarg[3] = (intptr_t) p->status; /* int * */
+		iarg[4] = p->options; /* int */
+		uarg[5] = (intptr_t) p->wrusage; /* struct wrusage32 * */
+		uarg[6] = (intptr_t) p->info; /* siginfo_t * */
+		*n_args = 7;
 		break;
 	}
+#endif
 	default:
 		*n_args = 0;
 		break;
@@ -8095,6 +8138,92 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+#ifdef PAD64_REQUIRED
+	/* freebsd32_posix_fallocate */
+	case 530:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_posix_fadvise */
+	case 531:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "uint32_t";
+			break;
+		case 6:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_wait6 */
+	case 532:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "int *";
+			break;
+		case 5:
+			p = "int";
+			break;
+		case 6:
+			p = "struct wrusage32 *";
+			break;
+		case 7:
+			p = "siginfo_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+#else
 	/* freebsd32_posix_fallocate */
 	case 530:
 		switch(ndx) {
@@ -8149,24 +8278,28 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "int";
+			p = "uint32_t";
 			break;
 		case 2:
-			p = "int *";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "int";
+			p = "int *";
 			break;
 		case 4:
-			p = "struct wrusage32 *";
+			p = "int";
 			break;
 		case 5:
+			p = "struct wrusage32 *";
+			break;
+		case 6:
 			p = "siginfo_t *";
 			break;
 		default:
 			break;
 		};
 		break;
+#endif
 	default:
 		break;
 	};
