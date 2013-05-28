@@ -53,10 +53,10 @@ The
 driver provides support for the Adaptec by PMC RAID controllers,
 including Series 6/7/8 and upcoming families.
 .Pp
-The RAID containers are handled via the 
+The RAID containers are handled via the
 .Nm aacraidp0
 bus.
-The physical buses are represented by the 
+The physical buses are represented by the
 .Nm aacraidp?
 devices (beginning with aacraidp1). These devices enable the
 SCSI pass-thru interface and allows devices connected
@@ -135,5 +135,4 @@ and are also queued for retrieval by a management application.
 .An Scott Long
 .Aq scottl@FreeBSD.org
 .Sh BUGS
-.Pp
 The controller is not actually paused on suspend/resume.
