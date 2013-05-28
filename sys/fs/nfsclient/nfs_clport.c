@@ -448,12 +448,10 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
 			}
-		} else {
-			np->n_size = vap->va_size;
-		}
-		if (vap->va_type == VREG || vap->va_type == VDIR) {
 			setnsize = 1;
 			nsize = vap->va_size;
+		} else {
+			np->n_size = vap->va_size;
 		}
 	}
 	/*
