@@ -35,7 +35,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
 .else
-	@echo "Error: Please define SUP_UPDATE first."
+	@echo "Error: Please define SVN_UPDATE first."
 .endif
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
