@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 #include "opt_sched.h"
 #include "opt_smp.h"
@@ -1396,6 +1397,10 @@ cpustop_handler(void)
 
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+
+#ifdef DDB
+	amd64_db_resume_dbreg();
+#endif
 
 	if (cpu == 0 && cpustop_restartfunc != NULL) {
 		cpustop_restartfunc();
