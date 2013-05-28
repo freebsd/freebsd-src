@@ -965,19 +965,22 @@ noerror:
 		xpt_schedule(periph, priority);
 		return;
 	case PROBE_SETMODE:
-		if (path->device->transport != XPORT_SATA)
-			goto notsata;
 		/* Set supported bits. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
 		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		xpt_action((union ccb *)&cts);
-		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+		if (path->device->transport == XPORT_SATA &&
+		    cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
 			caps = cts.xport_specific.sata.caps & CTS_SATA_CAPS_H;
+		else if (path->device->transport == XPORT_ATA &&
+		    cts.xport_specific.ata.valid & CTS_ATA_VALID_CAPS)
+			caps = cts.xport_specific.ata.caps & CTS_ATA_CAPS_H;
 		else
 			caps = 0;
-		if (ident_buf->satacapabilities != 0xffff) {
+		if (path->device->transport == XPORT_SATA &&
+		    ident_buf->satacapabilities != 0xffff) {
 			if (ident_buf->satacapabilities & ATA_SUPPORT_IFPWRMNGTRCV)
 				caps |= CTS_SATA_CAPS_D_PMREQ;
 			if (ident_buf->satacapabilities & ATA_SUPPORT_HAPST)
@@ -989,19 +992,42 @@ noerror:
 		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_USER_SETTINGS;
 		xpt_action((union ccb *)&cts);
-		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+		if (path->device->transport == XPORT_SATA &&
+		    cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
 			caps &= cts.xport_specific.sata.caps;
+		else if (path->device->transport == XPORT_ATA &&
+		    cts.xport_specific.ata.valid & CTS_ATA_VALID_CAPS)
+			caps &= cts.xport_specific.ata.caps;
 		else
 			caps = 0;
+		/*
+		 * Remember what transport thinks about 48-bit DMA.  If
+		 * capability information is not provided or transport is
+		 * SATA, we take support for granted.
+		 */
+		if (!(path->device->inq_flags & SID_DMA) ||
+		    (path->device->transport == XPORT_ATA &&
+		    (cts.xport_specific.ata.valid & CTS_ATA_VALID_CAPS) &&
+		    !(caps & CTS_ATA_CAPS_H_DMA48)))
+			path->device->inq_flags &= ~SID_DMA48;
+		else
+			path->device->inq_flags |= SID_DMA48;
 		/* Store result to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
 		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
-		cts.xport_specific.sata.caps = caps;
-		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
+		if (path->device->transport == XPORT_SATA) {
+			cts.xport_specific.sata.caps = caps;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
+		} else {
+			cts.xport_specific.ata.caps = caps;
+			cts.xport_specific.ata.valid = CTS_ATA_VALID_CAPS;
+		}
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
+		if (path->device->transport != XPORT_SATA)
+			goto notsata;
 		if ((ident_buf->satasupport & ATA_SUPPORT_IFPWRMNGT) &&
 		    (!(softc->caps & CTS_SATA_CAPS_H_PMREQ)) !=
 		    (!(ident_buf->sataenabled & ATA_SUPPORT_IFPWRMNGT))) {
@@ -1154,6 +1180,11 @@ notsata:
 			caps &= cts.xport_specific.sata.caps;
 		else
 			caps = 0;
+		/* Remember what transport thinks about AEN. */
+		if (caps & CTS_SATA_CAPS_H_AN)
+			path->device->inq_flags |= SID_AEN;
+		else
+			path->device->inq_flags &= ~SID_AEN;
 		/* Store result to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
@@ -1163,11 +1194,6 @@ notsata:
 		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
-		/* Remember what transport thinks about AEN. */
-		if (softc->caps & CTS_SATA_CAPS_H_AN)
-			path->device->inq_flags |= SID_AEN;
-		else
-			path->device->inq_flags &= ~SID_AEN;
 		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
@@ -2077,4 +2103,3 @@ ata_announce_periph(struct cam_periph *periph)
 	}
 	printf("\n");
 }
-
