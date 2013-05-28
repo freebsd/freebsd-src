@@ -2454,7 +2454,6 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	uint16_t tlen;
 	uint8_t sa;
 	uint8_t sb;
-	uint8_t first = 1;
 
 #ifdef USB_DEBUG
 	uint8_t once = 1;
@@ -2619,16 +2618,6 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 			    EHCI_SITD_IOC |
 			    EHCI_SITD_ACTIVE |
 			    EHCI_SITD_SET_LEN(*plen));
-		} else if (first != 0) {
-			/*
-			 * Workaround for lost or too early
-			 * completion interrupt:
-			 */
-			first = 0;
-			td->sitd_status = htohc32(sc,
-			    EHCI_SITD_IOC |
-			    EHCI_SITD_ACTIVE |
-			    EHCI_SITD_SET_LEN(*plen));
 		} else {
 			td->sitd_status = htohc32(sc,
 			    EHCI_SITD_ACTIVE |
@@ -2770,7 +2759,6 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	uint8_t td_no;
 	uint8_t page_no;
 	uint8_t shift = usbd_xfer_get_fps_shift(xfer);
-	uint8_t first = 1;
 
 #ifdef USB_DEBUG
 	uint8_t once = 1;
@@ -2932,13 +2920,6 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 			/* set IOC bit if we are complete */
 			if (nframes == 0) {
 				td->itd_status[td_no - 1] |= htohc32(sc, EHCI_ITD_IOC);
-			} else if (first != 0) {
-				/*
-				 * Workaround for lost or too early
-				 * completion interrupt:
-				 */
-				first = 0;
-				td->itd_status[0] |= htohc32(sc, EHCI_ITD_IOC);
 			}
 			usb_pc_cpu_flush(td->page_cache);
 #ifdef USB_DEBUG
