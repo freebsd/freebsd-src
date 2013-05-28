@@ -46,6 +46,7 @@ extern int errno;
 #include <sys/errno.h>
 #undef _KERNEL
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/errno.h>
 #define _KERNEL
 #include <sys/time.h>
@@ -73,10 +74,12 @@ extern int errno;
 #include <grp.h>
 #include <inttypes.h>
 #include <locale.h>
+#include <nl_types.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
@@ -105,6 +108,7 @@ void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
 void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
+void limitfd(int fd);
 void usage(void);
 void ioctlname(unsigned long, int);
 
@@ -230,6 +234,18 @@ main(int argc, char *argv[])
 		errx(1, "%s", strerror(ENOMEM));
 	if (!freopen(tracefile, "r", stdin))
 		err(1, "%s", tracefile);
+
+	/*
+	 * Cache NLS data before entering capability mode.
+	 * XXXPJD: There should be strerror_init() and strsignal_init() in libc.
+	 */
+	(void)catopen("libc", NL_CAT_LOCALE);
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
+	limitfd(STDIN_FILENO);
+	limitfd(STDOUT_FILENO);
+	limitfd(STDERR_FILENO);
+
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
 	while (fread_tail(&ktr_header, sizeof(struct ktr_header), 1)) {
@@ -329,6 +345,40 @@ main(int argc, char *argv[])
 			fflush(stdout);
 	}
 	return 0;
+}
+
+void
+limitfd(int fd)
+{
+	cap_rights_t rights;
+	unsigned long cmd;
+
+	rights = CAP_FSTAT;
+	cmd = -1;
+
+	switch (fd) {
+	case STDIN_FILENO:
+		rights |= CAP_READ;
+		break;
+	case STDOUT_FILENO:
+		rights |= CAP_IOCTL | CAP_WRITE;
+		cmd = TIOCGETA;	/* required by isatty(3) in printf(3) */
+		break;
+	case STDERR_FILENO:
+		rights |= CAP_WRITE;
+		if (!suppressdata) {
+			rights |= CAP_IOCTL;
+			cmd = TIOCGWINSZ;
+		}
+		break;
+	default:
+		abort();
+	}
+
+	if (cap_rights_limit(fd, rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for descriptor %d", fd);
+	if (cmd != -1 && cap_ioctls_limit(fd, &cmd, 1) < 0 && errno != ENOSYS)
+		err(1, "unable to limit ioctls for descriptor %d", fd);
 }
 
 int
