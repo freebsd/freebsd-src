@@ -1533,16 +1533,16 @@ typedef struct _qla_hw {
 } qla_hw_t;
 
 #define QL_UPDATE_RDS_PRODUCER_INDEX(ha, prod_reg, val) \
-		WRITE_REG32(ha, prod_reg, val);
+		bus_write_4((ha->pci_reg), prod_reg, val);
 
 #define QL_UPDATE_TX_PRODUCER_INDEX(ha, val, i) \
-	WRITE_REG32(ha, ha->hw.tx_cntxt[i].tx_prod_reg, val)
+		WRITE_REG32(ha, ha->hw.tx_cntxt[i].tx_prod_reg, val)
 
 #define QL_UPDATE_SDS_CONSUMER_INDEX(ha, i, val) \
-	WRITE_REG32(ha, ha->hw.sds[i].sds_consumer, val)
+	bus_write_4((ha->pci_reg), (ha->hw.sds[i].sds_consumer), val);
 
-#define QL_ENABLE_INTERRUPTS(ha, i) WRITE_REG32(ha, ha->hw.intr_src[i], 0);
-
+#define QL_ENABLE_INTERRUPTS(ha, i) \
+		bus_write_4((ha->pci_reg), (ha->hw.intr_src[i]), 0);
 
 #define QL_BUFFER_ALIGN                16
 
