@@ -1205,6 +1205,11 @@ ktrgenio(struct ktr_genio *ktr, int len)
 	static int screenwidth = 0;
 	int i, binary;
 
+	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
+		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
+		datalen == 1 ? "" : "s");
+	if (suppressdata)
+		return;
 	if (screenwidth == 0) {
 		struct winsize ws;
 
@@ -1214,11 +1219,6 @@ ktrgenio(struct ktr_genio *ktr, int len)
 		else
 			screenwidth = 80;
 	}
-	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
-		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
-		datalen == 1 ? "" : "s");
-	if (suppressdata)
-		return;
 	if (maxdata && datalen > maxdata)
 		datalen = maxdata;
 
