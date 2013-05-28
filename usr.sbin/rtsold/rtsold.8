@@ -161,9 +161,9 @@ will dump the current internal state into
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a
-Autoprobe outgoing interface.
+Autoprobe outgoing interfaces.
 .Nm
-will try to find non-loopback, non-point-to-point, IPv6-capable interfaces
+will try to find any non-loopback, non-point-to-point, IPv6-capable interfaces
 and send router solicitation messages on all of them.
 .It Fl d
 Enable debugging.
@@ -256,10 +256,10 @@ If not, it will be
 .Sh FILES
 .Bl -tag -width /var/run/rtsold.dump -compact
 .It Pa /var/run/rtsold.pid
-the pid of the currently running
+The PID of the currently running
 .Nm .
 .It Pa /var/run/rtsold.dump
-dumps internal state on.
+Internal state dump file.
 .El
 .\"
 .Sh EXIT STATUS
