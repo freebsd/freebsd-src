@@ -2138,7 +2138,6 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 	uint32_t nframes;
 	uint32_t temp;
 	uint32_t *plen;
-	uint8_t first = 1;
 
 #ifdef USB_DEBUG
 	uint8_t once = 1;
@@ -2248,18 +2247,6 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 
 		/* update status */
 		if (nframes == 0) {
-			td->td_status = htole32
-			    (UHCI_TD_ZERO_ACTLEN
-			    (UHCI_TD_SET_ERRCNT(0) |
-			    UHCI_TD_ACTIVE |
-			    UHCI_TD_IOS |
-			    UHCI_TD_IOC));
-		} else if (first != 0) {
-			/*
-			 * Workaround for lost or too early completion
-			 * interrupt:
-			 */
-			first = 0;
 			td->td_status = htole32
 			    (UHCI_TD_ZERO_ACTLEN
 			    (UHCI_TD_SET_ERRCNT(0) |
