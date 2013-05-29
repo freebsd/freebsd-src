@@ -65,8 +65,8 @@
 #  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
-#  8.  `make delete-old'
-#  9.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  8.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  9.  `make delete-old'
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
