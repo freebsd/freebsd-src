@@ -1,5 +1,4 @@
 /*-
- * Copyright (c) 2008-2013 The FreeBSD Foundation
  * Copyright (c) 2004-2005, Juniper Networks, Inc.
  * All rights reserved.
  *
