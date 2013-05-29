@@ -1087,6 +1087,7 @@ product APPLE IPOD_TOUCH	0x1291	iPod Touch
 product APPLE IPHONE_3G		0x1292	iPhone 3G
 product APPLE IPHONE_3GS	0x1294	iPhone 3GS
 product APPLE IPHONE_4		0x1297	iPhone 4
+product APPLE IPHONE_4S		0x12a0	iPhone 4S
 product APPLE IPHONE_5		0x12a8  iPhone 5
 product APPLE IPAD		0x129a	iPad
 product APPLE ETHERNET		0x1402	Ethernet A1277
