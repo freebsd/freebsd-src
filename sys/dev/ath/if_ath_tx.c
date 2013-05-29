@@ -4156,7 +4156,9 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
  * - Count the number of unacked frames, and let transmit completion
  *   handle it later.
  *
- * The caller is responsible for pausing the TID.
+ * The caller is responsible for pausing the TID and unpausing the
+ * TID if no cleanup was required. Otherwise the cleanup path will
+ * unpause the TID once the last hardware queued frame is completed.
  */
 static void
 ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid,
@@ -4214,12 +4216,6 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid,
 		bf = TAILQ_NEXT(bf, bf_list);
 	}
 
-	/* The caller is required to pause the TID */
-#if 0
-	/* Pause the TID */
-	ath_tx_tid_pause(sc, atid);
-#endif
-
 	/*
 	 * Calculate what hardware-queued frames exist based
 	 * on the current BAW size. Ie, what frames have been
@@ -4237,14 +4233,6 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid,
 		INCR(atid->baw_head, ATH_TID_MAX_BUFS);
 		INCR(tap->txa_start, IEEE80211_SEQ_RANGE);
 	}
-
-	/*
-	 * If cleanup is required, defer TID scheduling
-	 * until all the HW queued packets have been
-	 * sent.
-	 */
-	if (! atid->cleanup_inprogress)
-		ath_tx_tid_resume(sc, atid);
 
 	if (atid->cleanup_inprogress)
 		DPRINTF(sc, ATH_DEBUG_SW_TX_CTRL,
@@ -5789,6 +5777,11 @@ ath_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	TAILQ_INIT(&bf_cq);
 	ATH_TX_LOCK(sc);
 	ath_tx_tid_cleanup(sc, an, tid, &bf_cq);
+	/*
+	 * Unpause the TID if no cleanup is required.
+	 */
+	if (! atid->cleanup_inprogress)
+		ath_tx_tid_resume(sc, atid);
 	ATH_TX_UNLOCK(sc);
 
 	/* Handle completing frames and fail them */
@@ -5830,6 +5823,11 @@ ath_tx_node_reassoc(struct ath_softc *sc, struct ath_node *an)
 		    ":",
 		    i);
 		ath_tx_tid_cleanup(sc, an, i, &bf_cq);
+		/*
+		 * Unpause the TID if no cleanup is required.
+		 */
+		if (! tid->cleanup_inprogress)
+			ath_tx_tid_resume(sc, tid);
 	}
 	ATH_TX_UNLOCK(sc);
 
