@@ -5511,6 +5511,7 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	an->an_mgmtrix = ath_tx_findrix(sc, tp->mgmtrate);
 
 	ath_rate_newassoc(sc, an, isnew);
+
 	if (isnew &&
 	    (vap->iv_flags & IEEE80211_F_PRIVACY) == 0 && sc->sc_hasclrkey &&
 	    ni->ni_ucastkey.wk_keyix == IEEE80211_KEYIX_NONE)
@@ -5526,7 +5527,7 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	 * marked as non-aggregate.
 	 */
 	if (! isnew) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_NODE,
 		    "%s: %6D: reassoc; is_powersave=%d\n",
 		    __func__,
 		    ni->ni_macaddr,
