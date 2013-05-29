@@ -3554,7 +3554,7 @@ ar9300_init_cal_internal(struct ath_hal *ah, struct ieee80211_channel *chan,
              * no chip specific code for Jupiter/Posdeion except for register names.
              */
             if (txiqcal_success_flag) {
-                ar9300_tx_iq_cal_post_proc(ah,ichan, 1, 1,is_cal_reusable,false);
+                ar9300_tx_iq_cal_post_proc(ah,ichan, 1, 1,is_cal_reusable, AH_FALSE);
             }
     } else {
         if (!txiqcal_success_flag) {
