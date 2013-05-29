@@ -463,6 +463,8 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct timespec mtime, mtime_save;
 	int v3 = NFS_ISV3(vp);
 	int error = 0;
+	u_quad_t nsize;
+	int setnsize;
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
@@ -565,6 +567,8 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 		vap->va_filerev = 0;
 	}
 	np->n_attrstamp = time_second;
+	setnsize = 0;
+	nsize = 0;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -591,7 +595,8 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 				np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
 			}
-			vnode_pager_setsize(vp, np->n_size);
+			setnsize = 1;
+			nsize = vap->va_size;
 		} else {
 			np->n_size = vap->va_size;
 		}
@@ -628,6 +633,8 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, &np->n_vattr, 0);
 #endif
 	mtx_unlock(&np->n_mtx);
+	if (setnsize)
+		vnode_pager_setsize(vp, nsize);
 out:
 #ifdef KDTRACE_HOOKS
 	if (error)
