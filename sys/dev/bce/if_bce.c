@@ -7876,7 +7876,7 @@ bce_watchdog_exit:
 /* interrupt causes (PHY, TX, RX).                                          */
 /*                                                                          */
 /* Returns:                                                                 */
-/*   0 for success, positive value for failure.                             */
+/*   Nothing.                                                               */
 /****************************************************************************/
 static void
 bce_intr(void *xsc)
@@ -7898,16 +7898,16 @@ bce_intr(void *xsc)
 	DBRUN(sc->interrupts_generated++);
 
 	/* Synchnorize before we read from interface's status block */
-	bus_dmamap_sync(sc->status_tag, sc->status_map,
-	    BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(sc->status_tag, sc->status_map, BUS_DMASYNC_POSTREAD);
 
 	/*
-	 * If the hardware status block index
-	 * matches the last value read by the
-	 * driver and we haven't asserted our
-	 * interrupt then there's nothing to do.
+	 * If the hardware status block index matches the last value read
+	 * by the driver and we haven't asserted our interrupt then there's
+	 * nothing to do.  This may only happen in case of INTx due to the
+	 * interrupt arriving at the CPU before the status block is updated.
 	 */
-	if ((sc->status_block->status_idx == sc->last_status_idx) &&
+	if ((sc->bce_flags & (BCE_USING_MSI_FLAG | BCE_USING_MSIX_FLAG)) == 0 &&
+	    sc->status_block->status_idx == sc->last_status_idx &&
 	    (REG_RD(sc, BCE_PCICFG_MISC_STATUS) &
 	     BCE_PCICFG_MISC_STATUS_INTA_VALUE)) {
 		DBPRINT(sc, BCE_VERBOSE_INTR, "%s(): Spurious interrupt.\n",
@@ -7995,11 +7995,9 @@ bce_intr(void *xsc)
 		if ((hw_rx_cons == sc->hw_rx_cons) &&
 		    (hw_tx_cons == sc->hw_tx_cons))
 			break;
-
 	}
 
-	bus_dmamap_sync(sc->status_tag,	sc->status_map,
-	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->status_tag,	sc->status_map, BUS_DMASYNC_PREREAD);
 
 	/* Re-enable interrupts. */
 	bce_enable_intr(sc, 0);
@@ -8123,6 +8121,8 @@ bce_stats_update(struct bce_softc *sc)
 	DBENTER(BCE_EXTREME_MISC);
 
 	ifp = sc->bce_ifp;
+
+	bus_dmamap_sync(sc->stats_tag, sc->stats_map, BUS_DMASYNC_POSTREAD);
 
 	stats = (struct statistics_block *) sc->stats_block;
 
@@ -8651,6 +8651,8 @@ bce_sysctl_stats_clear(SYSCTL_HANDLER_ARGS)
 
 		stats = (struct statistics_block *) sc->stats_block;
 		bzero(stats, sizeof(struct statistics_block));
+		bus_dmamap_sync(sc->stats_tag, sc->stats_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 		/* Clear the internal H/W statistics counters. */
 		REG_WR(sc, BCE_HC_COMMAND, BCE_HC_COMMAND_CLR_STAT_NOW);
@@ -10636,6 +10638,8 @@ bce_dump_status_block(struct bce_softc *sc)
 {
 	struct status_block *sblk;
 
+	bus_dmamap_sync(sc->status_tag, sc->status_map, BUS_DMASYNC_POSTREAD);
+
 	sblk = sc->status_block;
 
 	BCE_PRINTF(
@@ -10697,6 +10701,8 @@ static __attribute__ ((noinline)) void
 bce_dump_stats_block(struct bce_softc *sc)
 {
 	struct statistics_block *sblk;
+
+	bus_dmamap_sync(sc->stats_tag, sc->stats_map, BUS_DMASYNC_POSTREAD);
 
 	sblk = sc->stats_block;
 
