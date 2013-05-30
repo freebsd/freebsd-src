@@ -351,8 +351,6 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	if (flags & SLEEPQ_INTERRUPTIBLE) {
 		td->td_flags |= TDF_SINTR;
 		td->td_flags &= ~TDF_SLEEPABORT;
-		if (flags & SLEEPQ_STOP_ON_BDRY)
-			td->td_flags |= TDF_SBDRY;
 	}
 	thread_unlock(td);
 }
@@ -599,7 +597,7 @@ sleepq_check_signals(void)
 
 	/* We are no longer in an interruptible sleep. */
 	if (td->td_flags & TDF_SINTR)
-		td->td_flags &= ~(TDF_SINTR | TDF_SBDRY);
+		td->td_flags &= ~TDF_SINTR;
 
 	if (td->td_flags & TDF_SLEEPABORT) {
 		td->td_flags &= ~TDF_SLEEPABORT;
@@ -746,7 +744,7 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 
 	td->td_wmesg = NULL;
 	td->td_wchan = NULL;
-	td->td_flags &= ~(TDF_SINTR | TDF_SBDRY);
+	td->td_flags &= ~TDF_SINTR;
 
 	CTR3(KTR_PROC, "sleepq_wakeup: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, td->td_name);

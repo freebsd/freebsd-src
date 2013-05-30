@@ -2352,6 +2352,13 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		}
 
 		/*
+		 * Don't awaken a sleeping thread for SIGSTOP if the
+		 * STOP signal is deferred.
+		 */
+		if ((prop & SA_STOP) && (td->td_flags & TDF_SBDRY))
+			goto out;
+
+		/*
 		 * Give low priority threads a better chance to run.
 		 */
 		if (td->td_priority > PUSER)
@@ -2392,12 +2399,13 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
 		    (td2->td_flags & TDF_SINTR)) {
 			if (td2->td_flags & TDF_SBDRY) {
-				if (TD_IS_SUSPENDED(td2))
-					wakeup_swapper |=
-					    thread_unsuspend_one(td2);
-				if (TD_ON_SLEEPQ(td2))
-					wakeup_swapper |=
-					    sleepq_abort(td2, ERESTART);
+				/*
+				 * Once a thread is asleep with
+				 * TDF_SBDRY set, it should never
+				 * become suspended due to this check.
+				 */
+				KASSERT(!TD_IS_SUSPENDED(td2),
+				    ("thread with deferred stops suspended"));
 			} else if (!TD_IS_SUSPENDED(td2)) {
 				thread_suspend_one(td2);
 			}
@@ -2517,6 +2525,40 @@ tdsigcleanup(struct thread *td)
 }
 
 /*
+ * Defer the delivery of SIGSTOP for the current thread.  Returns true
+ * if stops were deferred and false if they were already deferred.
+ */
+int
+sigdeferstop(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_flags & TDF_SBDRY)
+		return (0);
+	thread_lock(td);
+	td->td_flags |= TDF_SBDRY;
+	thread_unlock(td);
+	return (1);
+}
+
+/*
+ * Permit the delivery of SIGSTOP for the current thread.  This does
+ * not immediately suspend if a stop was posted.  Instead, the thread
+ * will suspend either via ast() or a subsequent interruptible sleep.
+ */
+void
+sigallowstop()
+{
+	struct thread *td;
+
+	td = curthread;
+	thread_lock(td);
+	td->td_flags &= ~TDF_SBDRY;
+	thread_unlock(td);
+}
+
+/*
  * If the current process has received a signal (should be caught or cause
  * termination, should interrupt current syscall), return the signal number.
  * Stop signals with default action are processed immediately, then cleared;
@@ -2548,7 +2590,7 @@ issignal(struct thread *td, int stop_allowed)
 		SIGSETOR(sigpending, p->p_sigqueue.sq_signals);
 		SIGSETNAND(sigpending, td->td_sigmask);
 
-		if (p->p_flag & P_PPWAIT)
+		if (p->p_flag & P_PPWAIT || td->td_flags & TDF_SBDRY)
 			SIG_STOPSIGMASK(sigpending);
 		if (SIGISEMPTY(sigpending))	/* no signal to send */
 			return (0);
@@ -2663,10 +2705,6 @@ issignal(struct thread *td, int stop_allowed)
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
-
-				/* Ignore, but do not drop the stop signal. */
-				if (stop_allowed != SIG_STOP_ALLOWED)
-					return (sig);
 				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
