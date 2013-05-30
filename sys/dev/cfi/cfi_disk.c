@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/cfi/cfi_var.h>
 
+#include <geom/geom.h>
 #include <geom/geom_disk.h>
 
 struct cfi_disk_softc {
@@ -64,6 +65,7 @@ static int cfi_disk_detach(device_t);
 static int cfi_disk_open(struct disk *);
 static int cfi_disk_close(struct disk *);
 static void cfi_io_proc(void *, int);
+static int cfi_disk_getattr(struct bio *);
 static void cfi_disk_strategy(struct bio *);
 static int cfi_disk_ioctl(struct disk *, u_long, void *, int, struct thread *);
 
@@ -95,6 +97,7 @@ cfi_disk_attach(device_t dev)
 	sc->disk->d_strategy = cfi_disk_strategy;
 	sc->disk->d_ioctl = cfi_disk_ioctl;
 	sc->disk->d_dump = NULL;		/* NB: no dumps */
+	sc->disk->d_getattr = cfi_disk_getattr;
 	sc->disk->d_sectorsize = CFI_DISK_SECSIZE;
 	sc->disk->d_mediasize = sc->parent->sc_size;
 	sc->disk->d_maxsize = CFI_DISK_MAXIOSIZE;
@@ -274,6 +277,31 @@ cfi_io_proc(void *arg, int pending)
 		}
 	}
 }
+
+static int
+cfi_disk_getattr(struct bio *bp)
+{
+	struct cfi_disk_softc *dsc;
+	struct cfi_softc *sc;
+	device_t dev;
+
+	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
+		return (ENXIO);
+
+	dsc = bp->bio_disk->d_drv1;
+	sc = dsc->parent;
+	dev = sc->sc_dev;
+
+	do {
+		if (g_handleattr(bp, "CFI::device", &dev, sizeof(device_t)))
+			break;
+
+		return (ERESTART);
+	} while(0);
+
+	return (EJUSTRETURN);
+}
+
 
 static void
 cfi_disk_strategy(struct bio *bp)
