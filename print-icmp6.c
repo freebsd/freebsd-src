@@ -136,6 +136,7 @@ static struct tok icmp6_opt_values[] = {
    { ND_OPT_REDIRECTED_HEADER, "redirected header"},
    { ND_OPT_MTU, "mtu"},
    { ND_OPT_RDNSS, "rdnss"},
+   { ND_OPT_DNSSL, "dnssl"},
    { ND_OPT_ADVINTERVAL, "advertisement interval"},
    { ND_OPT_HOMEAGENT_INFO, "homeagent information"},
    { ND_OPT_ROUTE_INFO, "route info"},
@@ -174,7 +175,7 @@ get_lifetime(u_int32_t v)
 	if (v == (u_int32_t)~0UL)
 		return "infinity";
 	else {
-		snprintf(buf, sizeof(buf), "%u", v);
+		snprintf(buf, sizeof(buf), "%us", v);
 		return buf;
 	}
 }
@@ -439,7 +440,7 @@ icmp6_print(netdissect_options *ndo,
 		if (length == MLD_MINLEN) {
 			mld6_print((const u_char *)dp);
 		} else if (length >= MLDV2_MINLEN) {
-			printf("v2 ");
+			printf(" v2");
 			mldv2_query_print((const u_char *)dp, length);
 		} else {
 			printf(" unknown-version (len %u) ", length);
@@ -673,10 +674,11 @@ icmp6_opt_print(const u_char *bp, int resid)
 	const struct icmp6_opts_redirect *opr;
 	const struct nd_opt_mtu *opm;
 	const struct nd_opt_rdnss *oprd;
+	const struct nd_opt_dnssl *opds;
 	const struct nd_opt_advinterval *opa;
 	const struct nd_opt_homeagent_info *oph;
 	const struct nd_opt_route_info *opri;
-	const u_char *cp, *ep;
+	const u_char *cp, *ep, *domp;
 	struct in6_addr in6, *in6p;
 	size_t l;
 	u_int i;
@@ -718,13 +720,13 @@ icmp6_opt_print(const u_char *bp, int resid)
 		case ND_OPT_PREFIX_INFORMATION:
 			opp = (struct nd_opt_prefix_info *)op;
 			TCHECK(opp->nd_opt_pi_prefix);
-                        printf("%s/%u%s, Flags [%s], valid time %ss",
+                        printf("%s/%u%s, Flags [%s], valid time %s",
                                ip6addr_string(&opp->nd_opt_pi_prefix),
                                opp->nd_opt_pi_prefix_len,
                                (op->nd_opt_len != 4) ? "badlen" : "",
                                bittok2str(icmp6_opt_pi_flag_values, "none", opp->nd_opt_pi_flags_reserved),
                                get_lifetime(EXTRACT_32BITS(&opp->nd_opt_pi_valid_time)));
-                        printf(", pref. time %ss", get_lifetime(EXTRACT_32BITS(&opp->nd_opt_pi_preferred_time)));
+                        printf(", pref. time %s", get_lifetime(EXTRACT_32BITS(&opp->nd_opt_pi_preferred_time)));
 			break;
 		case ND_OPT_REDIRECTED_HEADER:
 			opr = (struct icmp6_opts_redirect *)op;
@@ -747,6 +749,18 @@ icmp6_opt_print(const u_char *bp, int resid)
 				TCHECK(oprd->nd_opt_rdnss_addr[i]);
 				printf(" addr: %s", 
 				    ip6addr_string(&oprd->nd_opt_rdnss_addr[i]));
+			}
+			break;
+		case ND_OPT_DNSSL:
+			opds = (struct nd_opt_dnssl *)op;
+			printf(" lifetime %us, domain(s):",
+				EXTRACT_32BITS(&opds->nd_opt_dnssl_lifetime));
+			domp = cp + 8; /* domain names, variable-sized, RFC1035-encoded */
+			while (domp < cp + (op->nd_opt_len << 3) && *domp != '\0')
+			{
+				printf (" ");
+				if ((domp = ns_nprint (domp, bp)) == NULL)
+					goto trunc;
 			}
 			break;
 		case ND_OPT_ADVINTERVAL:

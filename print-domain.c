@@ -144,7 +144,7 @@ labellen(const u_char *cp)
 		return(i);
 }
 
-static const u_char *
+const u_char *
 ns_nprint(register const u_char *cp, register const u_char *bp)
 {
 	register u_int i, l;

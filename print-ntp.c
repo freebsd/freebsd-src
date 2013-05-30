@@ -117,7 +117,7 @@ ntp_print(register const u_char *cp, u_int length)
 		tok2str(ntp_stratum_values, (bp->stratum >=2 && bp->stratum<=15) ? "secondary reference" : "reserved", bp->stratum));
 
 	TCHECK(bp->ppoll);
-	printf(", poll %us", bp->ppoll);
+	printf(", poll %u (%us)", bp->ppoll, 1 << bp->ppoll);
 
 	/* Can't TCHECK bp->precision bitfield so bp->distance + 0 instead */
 	TCHECK2(bp->root_delay, 0);

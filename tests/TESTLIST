@@ -1,5 +1,6 @@
-# BGP test
+# BGP tests
 bgp_vpn_attrset bgp_vpn_attrset.pcap bgp_vpn_attrset.out -t -v 
+mpbgp-linklocal-nexthop mpbgp-linklocal-nexthop.pcap mpbgp-linklocal-nexthop.out -t -v
 
 # EAP tests
 eapon1 eapon1.pcap eapon1.out -t 
@@ -60,9 +61,36 @@ sflow1          sflow_multiple_counter_30_pdus.pcap     sflow_multiple_counter_3
 # Babel tests
 babel1          babel.pcap             babel1.out      -t 
 babel1v         babel.pcap             babel1v.out     -t -v
+babel_auth      babel_auth.pcap        babel_auth.out  -t -v
 
 # PPPoE tests
 pppoe           pppoe.pcap             pppoe.out       -t
 
+# IGMP tests
+igmpv3-queries  igmpv3-queries.pcap     igmpv3-queries.out      -t
+
 # ICMPv6
-icmpv6          icmpv6.pcap             icmpv6.out      -t -vv -c1
+icmpv6          icmpv6.pcap             icmpv6.out      -t -vv
+
+# SPB tests
+spb	            spb.pcap	            spb.out -t
+
+# SPB BPDUv4 tests
+spb_bpduv4      spb_bpduv4.pcap       spb_bpduv4.out -t
+
+# RIP tests
+ripv1v2         ripv1v2.pcap            ripv1v2.out     -t -v
+ripv2_auth      ripv2_auth.pcap         ripv2_auth.out  -t -v
+
+# DHCPv6 tests
+dhcpv6-aftr-name	dhcpv6-AFTR-Name-RFC6334.pcap	dhcpv6-AFTR-Name-RFC6334.out	-t -v
+dhcpv6-ia-na	dhcpv6-ia-na.pcap	dhcpv6-ia-na.out	-t -v
+dhcpv6-ia-pd	dhcpv6-ia-pd.pcap	dhcpv6-ia-pd.out	-t -v
+dhcpv6-ia-ta	dhcpv6-ia-ta.pcap	dhcpv6-ia-ta.out	-t -v
+
+# ZeroMQ tests
+zmtp1v		zmtp1.pcap		zmtp1.out	-t -v -T zmtp1
+
+# MS NLB tests
+msnlb		msnlb.pcap		msnlb.out	-t
+msnlb2		msnlb2.pcap		msnlb2.out	-t
