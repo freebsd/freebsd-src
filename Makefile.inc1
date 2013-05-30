@@ -523,7 +523,7 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} par-includes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
