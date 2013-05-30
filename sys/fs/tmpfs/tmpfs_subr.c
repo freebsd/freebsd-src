@@ -314,6 +314,8 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 			TMPFS_LOCK(tmp);
 			tmp->tm_pages_used -= uobj->size;
 			TMPFS_UNLOCK(tmp);
+			KASSERT((uobj->flags & OBJ_TMPFS) == 0,
+			    ("leaked OBJ_TMPFS node %p vm_obj %p", node, uobj));
 			vm_object_deallocate(uobj);
 		}
 		break;
