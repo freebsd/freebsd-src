@@ -397,6 +397,7 @@ aac_disk_attach(device_t dev)
 	sc->unit = device_get_unit(dev);
 	sc->ad_disk = disk_alloc();
 	sc->ad_disk->d_drv1 = sc;
+	sc->ad_disk->d_flags = DISKFLAG_UNMAPPED_BIO;
 	sc->ad_disk->d_name = "aacd";
 	sc->ad_disk->d_maxsize = sc->ad_controller->aac_max_sectors << 9;
 	sc->ad_disk->d_open = aac_disk_open;
