@@ -407,11 +407,12 @@ IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 INSTALLFLAGS+=	-N ${.CURDIR}/etc
 MTREEFLAGS+=	-N ${.CURDIR}/etc
 .endif
+_INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
+INSTALL_DDIR=	${_INSTALL_DDIR:S://:/:g:C:/$::}
 .if defined(NO_ROOT)
 METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
 IMAKE+=		-DNO_ROOT METALOG=${METALOG}
-INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
-INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g:C:/$::}
+INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR}
 MTREEFLAGS+=	-W
 .endif
 .if defined(DB_FROM_SRC) || defined(NO_ROOT)
@@ -522,7 +523,7 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
+	${_+_}cd ${.CURDIR}; ${WMAKE} par-includes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1014,7 +1015,7 @@ distributekernel distributekernel.debug:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
-	    DESTDIR=${INSTALL_DDIR:S://:/:g:C:/$::}/kernel \
+	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
@@ -1028,7 +1029,7 @@ distributekernel distributekernel.debug:
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
-	    DESTDIR=${INSTALL_DDIR:S://:/:g:C:/$::}/kernel.${_kernel} \
+	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
 	sed -e 's|^./kernel|.|' \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
