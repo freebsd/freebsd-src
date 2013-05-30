@@ -237,6 +237,18 @@ FBSD_1.3 {
 	fegetround;
 	fesetround;
 	fesetenv;
+	cacos;
+	cacosf;
+	cacosh;
+	cacoshf;
+	casin;
+	casinf;
+	casinh;
+	casinhf;
+	catan;
+	catanf;
+	catanh;
+	catanhf;
 	csin;
 	csinf;
 	csinh;
