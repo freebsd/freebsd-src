@@ -126,6 +126,8 @@ static struct tok isis_pdu_values[] = {
 #define ISIS_TLV_EXTD_IP_REACH       135 /* draft-ietf-isis-traffic-05 */
 #define ISIS_TLV_HOSTNAME            137 /* rfc2763 */
 #define ISIS_TLV_SHARED_RISK_GROUP   138 /* draft-ietf-isis-gmpls-extensions */
+#define ISIS_TLV_MT_PORT_CAP         143 /* rfc6165 */
+#define ISIS_TLV_MT_CAPABILITY       144 /* rfc6329 */
 #define ISIS_TLV_NORTEL_PRIVATE1     176
 #define ISIS_TLV_NORTEL_PRIVATE2     177
 #define ISIS_TLV_RESTART_SIGNALING   211 /* rfc3847 */
@@ -170,6 +172,8 @@ static struct tok isis_tlv_values[] = {
     { ISIS_TLV_TE_ROUTER_ID,       "Traffic Engineering Router ID"},
     { ISIS_TLV_EXTD_IP_REACH,      "Extended IPv4 Reachability"},
     { ISIS_TLV_SHARED_RISK_GROUP,  "Shared Risk Link Group"},
+    { ISIS_TLV_MT_PORT_CAP,        "Multi-Topology-Aware Port Capability"},
+    { ISIS_TLV_MT_CAPABILITY,      "Multi-Topology Capability"},
     { ISIS_TLV_NORTEL_PRIVATE1,    "Nortel Proprietary"},
     { ISIS_TLV_NORTEL_PRIVATE2,    "Nortel Proprietary"},
     { ISIS_TLV_HOSTNAME,           "Hostname"},
@@ -350,6 +354,8 @@ static struct tok clnp_option_qos_global_values[] = {
 #define ISIS_SUBTLV_EXT_IS_REACH_INTF_SW_CAP_DESCR    21 /* rfc4205 */
 #define ISIS_SUBTLV_EXT_IS_REACH_BW_CONSTRAINTS       22 /* rfc4124 */
 
+#define ISIS_SUBTLV_SPB_METRIC                        29 /* rfc6329 */
+
 static struct tok isis_ext_is_reach_subtlv_values[] = {
     { ISIS_SUBTLV_EXT_IS_REACH_ADMIN_GROUP,            "Administrative groups" },
     { ISIS_SUBTLV_EXT_IS_REACH_LINK_LOCAL_REMOTE_ID,   "Link Local/Remote Identifier" },
@@ -365,6 +371,7 @@ static struct tok isis_ext_is_reach_subtlv_values[] = {
     { ISIS_SUBTLV_EXT_IS_REACH_INTF_SW_CAP_DESCR,      "Interface Switching Capability" },
     { ISIS_SUBTLV_EXT_IS_REACH_BW_CONSTRAINTS_OLD,     "Bandwidth Constraints (old)" },
     { ISIS_SUBTLV_EXT_IS_REACH_BW_CONSTRAINTS,         "Bandwidth Constraints" },
+    { ISIS_SUBTLV_SPB_METRIC,                          "SPB Metric" },
     { 250,                                             "Reserved for cisco specific extensions" },
     { 251,                                             "Reserved for cisco specific extensions" },
     { 252,                                             "Reserved for cisco specific extensions" },
@@ -415,6 +422,53 @@ static struct tok isis_subtlv_idrp_values[] = {
     { ISIS_SUBTLV_IDRP_LOCAL,       "Routing-Domain Specific"},
     { ISIS_SUBTLV_IDRP_ASN,         "AS Number Tag"},
     { 0, NULL}
+};
+
+#define ISIS_SUBTLV_SPB_MCID          4
+#define ISIS_SUBTLV_SPB_DIGEST        5
+#define ISIS_SUBTLV_SPB_BVID          6
+
+#define ISIS_SUBTLV_SPB_INSTANCE      1
+#define ISIS_SUBTLV_SPBM_SI           3
+
+#define ISIS_SPB_MCID_LEN                         51
+#define ISIS_SUBTLV_SPB_MCID_MIN_LEN              102
+#define ISIS_SUBTLV_SPB_DIGEST_MIN_LEN            33
+#define ISIS_SUBTLV_SPB_BVID_MIN_LEN              6
+#define ISIS_SUBTLV_SPB_INSTANCE_MIN_LEN          19
+#define ISIS_SUBTLV_SPB_INSTANCE_VLAN_TUPLE_LEN   8
+
+static struct tok isis_mt_port_cap_subtlv_values[] = {
+    { ISIS_SUBTLV_SPB_MCID,           "SPB MCID" },
+    { ISIS_SUBTLV_SPB_DIGEST,         "SPB Digest" },
+    { ISIS_SUBTLV_SPB_BVID,           "SPB BVID" },
+    { 0, NULL }
+};
+
+static struct tok isis_mt_capability_subtlv_values[] = {
+    { ISIS_SUBTLV_SPB_INSTANCE,      "SPB Instance" },
+    { ISIS_SUBTLV_SPBM_SI,      "SPBM Service Identifier and Unicast Address" },
+    { 0, NULL }
+};
+
+struct isis_spb_mcid {
+  u_int8_t  format_id;    
+  u_int8_t  name[32];  
+  u_int8_t  revision_lvl[2];
+  u_int8_t  digest[16]; 
+};
+
+struct isis_subtlv_spb_mcid {
+  struct isis_spb_mcid mcid;
+  struct isis_spb_mcid aux_mcid;
+};
+
+struct isis_subtlv_spb_instance {
+  u_int8_t cist_root_id[8];
+  u_int8_t cist_external_root_path_cost[4];
+  u_int8_t bridge_priority[2];
+  u_int8_t spsourceid[4];
+  u_int8_t no_of_trees;  
 };
 
 #define CLNP_SEGMENT_PART  0x80
@@ -1247,6 +1301,258 @@ trunc:
 	return;
 }   
 
+
+static void
+isis_print_mcid (const struct isis_spb_mcid *mcid)
+{
+  int i;
+
+  printf( "ID: %d, Name: ", mcid->format_id);
+
+  for(i=0; i<32; i++) 
+  { 
+    printf("%c", mcid->name[i]);
+    if(mcid->name[i] == '\0')
+        break;
+  }
+
+  printf("\n\t              Lvl: %d", 
+          EXTRACT_16BITS(mcid->revision_lvl));
+
+  printf( ", Digest: ");
+
+  for(i=0;i<16;i++) 
+    printf("%.2x ",mcid->digest[i]);
+}
+
+static int
+isis_print_mt_port_cap_subtlv (const u_int8_t *tptr, int len)
+{
+  int stlv_type, stlv_len;
+  const struct isis_subtlv_spb_mcid *subtlv_spb_mcid;
+  int i;
+
+  while (len > 0)
+  {
+    stlv_type = *(tptr++);
+    stlv_len  = *(tptr++);
+
+    /* first lets see if we know the subTLVs name*/
+    printf("\n\t       %s subTLV #%u, length: %u",
+               tok2str(isis_mt_port_cap_subtlv_values, "unknown", stlv_type),
+               stlv_type,
+               stlv_len);
+
+    /*len -= TLV_TYPE_LEN_OFFSET;*/
+    len = len -2;
+
+    switch (stlv_type)
+    {
+      case ISIS_SUBTLV_SPB_MCID:
+      {
+        if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_MCID_MIN_LEN))
+          goto trunctlv;
+
+        subtlv_spb_mcid = (struct isis_subtlv_spb_mcid *)tptr;
+
+        printf( "\n\t         MCID: ");
+        isis_print_mcid (&(subtlv_spb_mcid->mcid));
+
+          /*tptr += SPB_MCID_MIN_LEN;
+            len -= SPB_MCID_MIN_LEN; */
+
+        printf( "\n\t         AUX-MCID: ");
+        isis_print_mcid (&(subtlv_spb_mcid->aux_mcid));
+
+          /*tptr += SPB_MCID_MIN_LEN;
+            len -= SPB_MCID_MIN_LEN; */
+        tptr = tptr + sizeof(struct isis_subtlv_spb_mcid);
+        len = len - sizeof(struct isis_subtlv_spb_mcid);
+
+        break;
+      }
+
+      case ISIS_SUBTLV_SPB_DIGEST:
+      {
+        if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_DIGEST_MIN_LEN))
+          goto trunctlv;
+
+        printf ("\n\t        RES: %d V: %d A: %d D: %d",
+                        (*(tptr) >> 5), (((*tptr)>> 4) & 0x01),
+                        ((*(tptr) >> 2) & 0x03), ((*tptr) & 0x03));
+
+        tptr++;
+
+        printf( "\n\t         Digest: ");
+          
+        for(i=1;i<=8; i++)
+        {
+            printf("%08x ", EXTRACT_32BITS(tptr));
+            if (i%4 == 0 && i != 8)
+              printf("\n\t                 ");
+            tptr = tptr + 4;
+        }
+
+        len = len - ISIS_SUBTLV_SPB_DIGEST_MIN_LEN;
+
+        break;
+      }
+
+      case ISIS_SUBTLV_SPB_BVID:
+      {
+        if (!TTEST2(*(tptr), stlv_len))
+          goto trunctlv;
+
+        while (len)
+        {
+          if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_BVID_MIN_LEN))
+            goto trunctlv;
+
+          printf("\n\t           ECT: %08x", 
+                      EXTRACT_32BITS(tptr));
+
+          tptr = tptr+4;
+
+          printf(" BVID: %d, U:%01x M:%01x ",
+                     (EXTRACT_16BITS (tptr) >> 4) ,
+                     (EXTRACT_16BITS (tptr) >> 3) & 0x01,
+                     (EXTRACT_16BITS (tptr) >> 2) & 0x01);
+
+          tptr = tptr + 2;
+          len = len - ISIS_SUBTLV_SPB_BVID_MIN_LEN;
+        }
+
+        break;
+      }
+      
+      default:
+          break;
+    }
+  }
+
+  return 0;
+
+  trunctlv:
+    printf("\n\t\t packet exceeded snapshot");
+    return(1); 
+}
+
+static int
+isis_print_mt_capability_subtlv (const u_int8_t *tptr, int len)
+{
+  int stlv_type, stlv_len, tmp;
+
+  while (len > 0) 
+  {   
+    stlv_type = *(tptr++);
+    stlv_len  = *(tptr++);
+
+    /* first lets see if we know the subTLVs name*/
+    printf("\n\t      %s subTLV #%u, length: %u",
+               tok2str(isis_mt_capability_subtlv_values, "unknown", stlv_type),
+               stlv_type,
+               stlv_len);
+ 
+    len = len - 2;
+
+    switch (stlv_type)
+    {    
+      case ISIS_SUBTLV_SPB_INSTANCE:
+
+          if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_INSTANCE_MIN_LEN)) 
+            goto trunctlv;
+
+          printf("\n\t        CIST Root-ID: %08x", EXTRACT_32BITS(tptr));
+          tptr = tptr+4;
+          printf(" %08x", EXTRACT_32BITS(tptr));
+          tptr = tptr+4;
+          printf(", Path Cost: %08x", EXTRACT_32BITS(tptr));
+          tptr = tptr+4;
+          printf(", Prio: %d", EXTRACT_16BITS(tptr));
+          tptr = tptr + 2; 
+          printf("\n\t        RES: %d", 
+                    EXTRACT_16BITS(tptr) >> 5);
+          printf(", V: %d", 
+                    (EXTRACT_16BITS(tptr) >> 4) & 0x0001);
+          printf(", SPSource-ID: %d", 
+                    (EXTRACT_32BITS(tptr) & 0x000fffff));
+          tptr = tptr+4;
+          printf(", No of Trees: %x", *(tptr));
+
+          tmp = *(tptr++);
+
+          len = len - ISIS_SUBTLV_SPB_INSTANCE_MIN_LEN;
+
+          while (tmp)
+          {
+            if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_INSTANCE_VLAN_TUPLE_LEN))
+              goto trunctlv;
+
+            printf ("\n\t         U:%d, M:%d, A:%d, RES:%d",
+                      *(tptr) >> 7, (*(tptr) >> 6) & 0x01,
+                      (*(tptr) >> 5) & 0x01, (*(tptr) & 0x1f));
+            
+            tptr++;
+    
+            printf (", ECT: %08x", EXTRACT_32BITS(tptr));
+
+            tptr = tptr + 4;
+
+            printf (", BVID: %d, SPVID: %d",
+                      (EXTRACT_24BITS(tptr) >> 12) & 0x000fff,
+                      EXTRACT_24BITS(tptr) & 0x000fff);
+
+            tptr = tptr + 3;
+            len = len - ISIS_SUBTLV_SPB_INSTANCE_VLAN_TUPLE_LEN;
+            tmp--;             
+          }
+
+          break;
+
+      case ISIS_SUBTLV_SPBM_SI:
+
+          if (!TTEST2(*(tptr), 6)) 
+            goto trunctlv;
+
+          printf("\n\t        BMAC: %08x", EXTRACT_32BITS(tptr));
+          tptr = tptr+4;
+          printf("%04x", EXTRACT_16BITS(tptr));
+          tptr = tptr+2;
+
+          printf (", RES: %d, VID: %d", EXTRACT_16BITS(tptr) >> 12,
+                    (EXTRACT_16BITS(tptr)) & 0x0fff);
+
+          tptr = tptr+2;
+          len = len - 8;
+          stlv_len = stlv_len - 8;
+
+          while (stlv_len)
+          {
+            printf("\n\t        T: %d, R: %d, RES: %d, ISID: %d",
+                    (EXTRACT_32BITS(tptr) >> 31),
+                    (EXTRACT_32BITS(tptr) >> 30) & 0x01,
+                    (EXTRACT_32BITS(tptr) >> 24) & 0x03f,
+                    (EXTRACT_32BITS(tptr)) & 0x0ffffff);
+
+            tptr = tptr + 4;
+            len = len - 4;
+            stlv_len = stlv_len - 4;
+          }
+
+        break;
+
+      default:
+        break;
+    }
+  }
+  return 0;
+
+  trunctlv:
+    printf("\n\t\t packet exceeded snapshot");
+    return(1);
+}
+
+
 /* shared routine for printing system, node and lsp-ids */
 static char *
 isis_print_id(const u_int8_t *cp, int id_len)
@@ -1502,6 +1808,14 @@ isis_print_is_reach_subtlv (const u_int8_t *tptr,u_int subt,u_int subl,const cha
               printf(", %s, Priority %u",
 		   bittok2str(gmpls_link_prot_values, "none", *tptr),
                    *(tptr+1));
+            }
+            break;
+        case ISIS_SUBTLV_SPB_METRIC:
+            if (subl >= 6) {
+              printf (", LM: %u", EXTRACT_24BITS(tptr));
+              tptr=tptr+3;
+              printf (", P: %u", *(tptr));
+              printf (", P-ID: %u", EXTRACT_16BITS(++tptr));
             }
             break;
         case ISIS_SUBTLV_EXT_IS_REACH_INTF_SW_CAP_DESCR:
@@ -2444,6 +2758,42 @@ static int isis_print (const u_int8_t *p, u_int length)
                 tmp--;
 	    }
 	    break;
+
+    case ISIS_TLV_MT_PORT_CAP:
+    {
+      if (!TTEST2(*(tptr), 2))
+        goto trunctlv;
+
+      printf("\n\t       RES: %d, MTID(s): %d",
+              (EXTRACT_16BITS (tptr) >> 12),    
+              (EXTRACT_16BITS (tptr) & 0x0fff));
+
+      tmp = tmp-2;
+      tptr = tptr+2;
+
+      if (tmp)
+        isis_print_mt_port_cap_subtlv (tptr, tmp);
+
+      break;
+    }
+
+    case ISIS_TLV_MT_CAPABILITY:
+
+      if (!TTEST2(*(tptr), 2))
+        goto trunctlv;
+
+      printf("\n\t      O: %d, RES: %d, MTID(s): %d",
+                (EXTRACT_16BITS(tptr) >> 15) & 0x01,
+                (EXTRACT_16BITS(tptr) >> 12) & 0x07,
+                EXTRACT_16BITS(tptr) & 0x0fff);
+
+      tmp = tmp-2;
+      tptr = tptr+2;
+
+      if (tmp)
+        isis_print_mt_capability_subtlv (tptr, tmp);
+
+      break;
 
 	case ISIS_TLV_TE_ROUTER_ID:
 	    if (!TTEST2(*pptr, sizeof(struct in_addr)))

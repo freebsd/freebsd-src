@@ -153,6 +153,9 @@
 #ifndef ETHERTYPE_PPPOES2
 #define ETHERTYPE_PPPOES2	0x3c13
 #endif
+#ifndef ETHERTYPE_MS_NLB_HB
+#define ETHERTYPE_MS_NLB_HB	0x886f /* MS Network Load Balancing Heartbeat */
+#endif
 #ifndef ETHERTYPE_JUMBO
 #define ETHERTYPE_JUMBO         0x8870
 #endif

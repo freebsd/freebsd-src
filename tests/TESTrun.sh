@@ -4,6 +4,7 @@ mkdir -p NEW
 mkdir -p DIFF
 passed=0
 failed=0
+cat /dev/null > failure-outputs.txt
 
 # first run any specific tests.
 for i in *.sh
@@ -42,6 +43,10 @@ do
       echo $name: failed.
       failed=`expr $failed + 1`
       echo $failed >.failed
+      echo "Failed test: $name" >> failure-outputs.txt
+      echo >> failure-outputs.txt
+      cat DIFF/$output.diff >> failure-outputs.txt
+      echo >> failure-outputs.txt
   fi
 done 
 
@@ -54,6 +59,9 @@ echo
 echo
 printf "%4u tests failed\n" $failed
 printf "%4u tests passed\n" $passed
+echo
+echo
+cat failure-outputs.txt
 echo
 echo
 exit $failed      
