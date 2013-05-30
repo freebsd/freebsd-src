@@ -1133,7 +1133,7 @@ struct bpf_program {
 #define DLT_NETANALYZER_TRANSPARENT	241
 
 /*
- * IP-over-Infiniband, as specified by RFC 4391.
+ * IP-over-InfiniBand, as specified by RFC 4391.
  *
  * Requested by Petr Sumbera <petr.sumbera@oracle.com>.
  */
@@ -1175,7 +1175,21 @@ struct bpf_program {
 #define DLT_PFSYNC		246
 #endif
 
-#define DLT_MATCHING_MAX	246	/* highest value in the "matching" range */
+/*
+ * Raw InfiniBand packets, starting with the Local Routing Header.
+ *
+ * Requested by Oren Kladnitsky <orenk@mellanox.com>.
+ */
+#define DLT_INFINIBAND		247
+
+/*
+ * SCTP, with no lower-level protocols (i.e., no IPv4 or IPv6).
+ *
+ * Requested by Michael Tuexen <Michael.Tuexen@lurchi.franken.de>.
+ */
+#define DLT_SCTP		248
+
+#define DLT_MATCHING_MAX	248	/* highest value in the "matching" range */
 
 /*
  * DLT and savefile link type values are split into a class and

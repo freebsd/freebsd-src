@@ -256,7 +256,7 @@ AC_DEFUN(AC_LBL_SHLIBS_INIT,
 		    sparc64*)
 			case "$host_os" in
 
-			freebsd*)
+			freebsd*|openbsd*)
 			    PIC_OPT=-fPIC
 			    ;;
 			esac
@@ -458,7 +458,22 @@ dnl Check for flex, default to lex
 dnl Require flex 2.4 or higher
 dnl Check for bison, default to yacc
 dnl Default to lex/yacc if both flex and bison are not available
-dnl Define the yy prefix string if using flex and bison
+dnl
+dnl If we're using flex and bison, pass -P to flex and -p to bison
+dnl to define a prefix string for the lexer and parser
+dnl
+dnl If we're not using flex and bison, don't pass those options
+dnl (as they might not work - although if "lex" is a wrapper for
+dnl Flex and "yacc" is a wrapper for Bison, they will work), and
+dnl define NEED_YYPARSE_WRAPPER (we *CANNOT* use YYBISON to check
+dnl whether the wrapper is needed, as some people apparently, for
+dnl some unknown reason, choose to use --without-flex and
+dnl --without-bison on systems that have Flex and Bison, which
+dnl means that the "yacc" they end up using is a wrapper that
+dnl runs "bison -y", and at least some versions of Bison define
+dnl YYBISON even if run with "-y", so we end up not compiling
+dnl the yyparse wrapper and end up with a libpcap that doesn't
+dnl define pcap_parse())
 dnl
 dnl usage:
 dnl
@@ -510,6 +525,8 @@ AC_DEFUN(AC_LBL_LEX_AND_YACC,
     if test "$$1" = flex -a -n "$3" ; then
 	    $1="$$1 -P$3"
 	    $2="$$2 -p $3"
+    else
+	    AC_DEFINE(NEED_YYPARSE_WRAPPER,1,[if we need a pcap_parse wrapper around yyparse])
     fi])
 
 dnl
