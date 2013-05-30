@@ -194,11 +194,20 @@ yyerror(const char *msg)
 {
 	perror(msg);
 }
-#line 198 "ftp.tab.c"
-
-#ifndef YYSTYPE
-typedef int YYSTYPE;
+#line 126 "ftp.y"
+#ifdef YYSTYPE
+#undef  YYSTYPE_IS_DECLARED
+#define YYSTYPE_IS_DECLARED 1
 #endif
+#ifndef YYSTYPE_IS_DECLARED
+#define YYSTYPE_IS_DECLARED 1
+typedef union
+{
+	int ival;
+	char *sval;
+} YYSTYPE;
+#endif /* !YYSTYPE_IS_DECLARED */
+#line 211 "ftp.tab.c"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -231,23 +240,23 @@ typedef int YYSTYPE;
 
 extern int YYPARSE_DECL();
 
-#define A 257
-#define B 258
-#define C 259
-#define E 260
-#define F 261
-#define I 262
-#define L 263
-#define N 264
-#define P 265
-#define R 266
-#define S 267
-#define T 268
-#define SP 269
-#define CRLF 270
-#define COMMA 271
-#define STRING 272
-#define NUMBER 273
+#define NUMBER 257
+#define STRING 258
+#define A 259
+#define B 260
+#define C 261
+#define E 262
+#define F 263
+#define I 264
+#define L 265
+#define N 266
+#define P 267
+#define R 268
+#define S 269
+#define T 270
+#define SP 271
+#define CRLF 272
+#define COMMA 273
 #define USER 274
 #define PASS 275
 #define ACCT 276
@@ -296,14 +305,14 @@ extern int YYPARSE_DECL();
 #define LEXERR 319
 #define YYERRCODE 256
 static const short ftp_lhs[] = {                         -1,
-    0,    0,    0,    1,    1,    1,    1,    1,    1,    1,
-    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
-    1,    1,    1,    1,    1,    1,    2,    3,    4,    4,
-   12,    5,   13,   13,   13,    6,    6,    6,    6,    6,
-    6,    6,    6,    7,    7,    7,    8,    8,    8,   10,
-   14,   11,    9,
+    0,    0,    0,   11,   11,   11,   11,   11,   11,   11,
+   11,   11,   11,   11,   11,   11,   11,   11,   11,   11,
+   11,   11,   11,   11,   11,   11,   11,   11,   11,   11,
+   11,   11,   11,   11,   11,   11,   11,   11,   11,   11,
+   11,   11,   11,   11,   11,   11,   12,   10,    7,    7,
+    1,   13,    3,    3,    3,   14,   14,   14,   14,   14,
+   14,   14,   14,    6,    6,    6,    4,    4,    4,    8,
+    9,    5,    2,
 };
 static const short ftp_len[] = {                          2,
     0,    2,    2,    4,    4,    4,    2,    4,    4,    4,
@@ -328,7 +337,7 @@ static const short ftp_defred[] = {                       1,
     0,    0,    0,   71,    0,   70,    0,    0,   25,    0,
    18,    0,   16,    0,   73,    0,   73,    0,    0,    0,
     0,   32,   33,    0,    0,    0,    4,    5,    0,    6,
-    0,    0,    0,   51,   63,    8,    9,   10,    0,    0,
+    0,    0,   51,    0,   63,    8,    9,   10,    0,    0,
     0,    0,   11,    0,   23,    0,    0,    0,    0,    0,
    34,    0,    0,   39,    0,    0,   28,    0,    0,    0,
     0,    0,    0,   55,   53,   54,   57,   59,   62,   13,
@@ -338,40 +347,40 @@ static const short ftp_defred[] = {                       1,
     0,   12,    0,    0,   38,    0,    0,    0,   52,
 };
 static const short ftp_dgoto[] = {                        1,
-   34,   35,   71,   73,   75,   80,   84,   88,   45,   95,
-  184,  125,  157,   96,
+  125,   45,  157,   88,  184,   84,   73,   95,   96,   71,
+   34,   35,   75,   80,
 };
 static const short ftp_sindex[] = {                       0,
- -224, -247, -239, -236, -232, -222, -204, -200, -181, -177,
-    0,    0,    0, -166,    0, -161, -199,    0,    0,    0,
-    0, -160, -159, -264, -158,    0,    0,    0,    0,    0,
- -157,    0,    0,    0,    0,    0, -167, -162,    0, -156,
-    0, -250, -198, -165, -155, -154, -153, -151, -150, -152,
-    0, -145, -252, -229, -217, -302,    0, -144, -146,    0,
-    0, -142, -141, -140, -139, -137,    0, -136, -135,    0,
- -134,    0, -133, -132, -130, -131, -128,    0, -249, -127,
-    0,    0,    0, -126,    0,    0,    0, -125, -152, -152,
- -152, -205, -152,    0, -124,    0, -152, -152,    0, -152,
-    0, -143,    0, -173,    0, -171,    0, -152, -123, -152,
- -152,    0,    0, -152, -152, -152,    0,    0, -138,    0,
- -164, -164, -122,    0,    0,    0,    0,    0, -121, -120,
- -118, -148,    0, -117,    0, -116, -115, -114, -113, -112,
-    0, -163, -111,    0, -110, -109,    0, -107, -106, -105,
- -104, -103, -129,    0,    0,    0,    0,    0,    0,    0,
-    0,    0, -101,    0,    0,    0,    0,    0, -100, -102,
-    0,  -98, -102,    0,    0,    0,    0,    0,    0,  -99,
-  -97,    0,    0,  -95,    0,  -96,  -94,  -92,    0, -152,
-  -93,    0,  -91,  -90,    0,  -88,  -87,  -86,    0,
+ -224, -256, -248, -241, -239, -233, -225, -218, -200, -165,
+    0,    0,    0, -164,    0, -163, -176,    0,    0,    0,
+    0, -162, -161, -231, -160,    0,    0,    0,    0,    0,
+ -159,    0,    0,    0,    0,    0, -240, -148,    0, -143,
+    0, -252, -175, -255, -156, -155, -154, -139, -152, -138,
+    0, -149, -205, -203, -177, -253,    0, -147, -133,    0,
+    0, -145, -144, -142, -141, -137,    0, -136, -135,    0,
+ -140,    0, -134, -132, -130, -131, -128,    0, -254, -127,
+    0,    0,    0, -126,    0,    0,    0, -125, -138, -138,
+ -138, -174, -138,    0, -124,    0, -138, -138,    0, -138,
+    0, -129,    0, -172,    0, -169,    0, -138, -123, -138,
+ -138,    0,    0, -138, -138, -138,    0,    0, -120,    0,
+ -246, -246,    0, -118,    0,    0,    0,    0, -122, -121,
+ -119, -116,    0, -117,    0, -115, -114, -113, -112, -104,
+    0, -167, -101,    0, -110, -109,    0, -108, -107, -106,
+ -105, -103, -111,    0,    0,    0,    0,    0,    0,    0,
+    0,    0, -100,    0,    0,    0,    0,    0, -102,  -85,
+    0,  -99,  -85,    0,    0,    0,    0,    0,    0,  -83,
+  -82,    0,    0,  -96,    0,  -94,  -95,  -93,    0, -138,
+  -77,    0,  -91,  -90,    0,  -75,  -88,  -73,    0,
 };
 static const short ftp_rindex[] = {                       0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,  -83,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,    0,    0,  -82,    0,    0,
+    0,    0,  -84,    0,    0,    0,    0,    0,    0,    0,
+    0,    0,    0,    0,    0,    0,    0,  -86,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-    0,    0,    0,    0,    0,  -81,  -80,    0, -158,    0,
+    0,    0,    0,    0,    0,  -81,  -80,    0, -160,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
@@ -386,51 +395,53 @@ static const short ftp_rindex[] = {                       0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,
 };
 static const short ftp_gindex[] = {                       0,
-    0,    0,    0,    0,    0,    0,    0,    0,   16,  -89,
-  -25,   35,   47,    0,
+    4,   16,   11,    0,  -29,    0,    0,  -89,    0,    0,
+    0,    0,    0,    0,
 };
-#define YYTABLESIZE 190
+#define YYTABLESIZE 192
 static const short ftp_table[] = {                      129,
-  130,  131,  104,  134,   59,   60,   76,  136,  137,   77,
-  138,   78,   79,  105,  106,  107,   98,   99,  146,  123,
-  148,  149,   36,  124,  150,  151,  152,   46,   47,   37,
-   49,    2,   38,   52,   53,   54,   55,   39,   58,  100,
-  101,   62,   63,   64,   65,   66,   40,   68,   69,    3,
-    4,  102,  103,    5,    6,    7,    8,    9,   10,   11,
-   12,   13,   81,  132,  133,   41,   82,   83,   42,   14,
-   51,   15,   16,   17,   18,   19,   20,   21,   22,   23,
-   24,   25,   26,   27,   28,   29,   30,   43,   31,   32,
-   33,   44,   85,   86,  154,  140,  141,  143,  144,  155,
-  193,   87,   48,  156,   70,  170,  171,   50,   56,   72,
-   57,   61,   67,   89,   90,   91,   74,  163,   93,   94,
-  142,   92,  145,   97,  108,  109,  110,  111,  139,  112,
-  113,  114,  115,  116,  153,  117,  118,  121,  119,  120,
-  122,  180,  126,  127,  128,  135,  147,  186,  160,  161,
-  124,  162,  164,  165,  166,  167,  168,  159,  173,  169,
-  174,  172,  175,  176,  177,  178,  179,  181,  158,  182,
-  183,  185,  190,  187,  189,  188,  191,  192,  195,  194,
-  196,    0,    0,  198,  197,   73,  199,   49,   56,   58,
+  130,  131,  123,  134,   85,   86,   76,  136,  137,   77,
+  138,   78,   79,   87,  154,   36,  124,   70,  146,  155,
+  148,  149,   37,  156,  150,  151,  152,   46,   47,   38,
+   49,    2,   39,   52,   53,   54,   55,   40,   58,   59,
+   60,   62,   63,   64,   65,   66,   41,   68,   69,    3,
+    4,  104,   42,    5,    6,    7,    8,    9,   10,   11,
+   12,   13,  105,  106,  107,   98,   99,  100,  101,   14,
+   43,   15,   16,   17,   18,   19,   20,   21,   22,   23,
+   24,   25,   26,   27,   28,   29,   30,   81,   31,   32,
+   33,   82,   83,  102,  103,   51,  132,  133,  140,  141,
+  193,  143,  144,  170,  171,   44,   48,   50,   56,   72,
+   57,   61,   67,   74,   89,   90,   91,   92,   93,   94,
+  142,   97,  145,  108,  109,  110,  111,  159,  139,  112,
+  113,  117,  158,  114,  115,  116,  153,  118,  123,  121,
+  119,  120,  122,  186,  126,  127,  128,  135,  147,  160,
+  161,  163,  162,  169,  164,  172,  165,  166,  167,  168,
+  173,  180,  174,  175,  176,  177,  178,    0,  179,  182,
+  181,  183,  185,  187,  188,  189,  190,  191,  192,  194,
+  195,  197,  196,  199,  198,   49,   73,    0,    0,    0,
+   56,   58,
 };
 static const short ftp_check[] = {                       89,
-   90,   91,  305,   93,  269,  270,  257,   97,   98,  260,
-  100,  262,  263,  316,  317,  318,  269,  270,  108,  269,
-  110,  111,  270,  273,  114,  115,  116,   12,   13,  269,
-   15,  256,  269,   18,   19,   20,   21,  270,   23,  269,
-  270,   26,   27,   28,   29,   30,  269,   32,   33,  274,
-  275,  269,  270,  278,  279,  280,  281,  282,  283,  284,
-  285,  286,  261,  269,  270,  270,  265,  266,  269,  294,
-  270,  296,  297,  298,  299,  300,  301,  302,  303,  304,
-  305,  306,  307,  308,  309,  310,  311,  269,  313,  314,
-  315,  269,  258,  259,  259,  269,  270,  269,  270,  264,
-  190,  267,  269,  268,  272,  269,  270,  269,  269,  272,
-  270,  270,  270,  269,  269,  269,  273,  266,  269,  272,
-  105,  273,  107,  269,  269,  272,  269,  269,  272,  270,
-  270,  269,  269,  269,  273,  270,  270,  269,  271,  270,
-  269,  271,  270,  270,  270,  270,  270,  173,  270,  270,
-  273,  270,  270,  270,  270,  270,  270,  123,  269,  272,
-  270,  273,  270,  270,  270,  270,  270,  269,  122,  270,
-  273,  270,  269,  273,  270,  273,  271,  270,  270,  273,
-  271,   -1,   -1,  271,  273,  269,  273,  270,  270,  270,
+   90,   91,  257,   93,  260,  261,  259,   97,   98,  262,
+  100,  264,  265,  269,  261,  272,  271,  258,  108,  266,
+  110,  111,  271,  270,  114,  115,  116,   12,   13,  271,
+   15,  256,  272,   18,   19,   20,   21,  271,   23,  271,
+  272,   26,   27,   28,   29,   30,  272,   32,   33,  274,
+  275,  305,  271,  278,  279,  280,  281,  282,  283,  284,
+  285,  286,  316,  317,  318,  271,  272,  271,  272,  294,
+  271,  296,  297,  298,  299,  300,  301,  302,  303,  304,
+  305,  306,  307,  308,  309,  310,  311,  263,  313,  314,
+  315,  267,  268,  271,  272,  272,  271,  272,  271,  272,
+  190,  271,  272,  271,  272,  271,  271,  271,  271,  258,
+  272,  272,  272,  257,  271,  271,  271,  257,  271,  258,
+  105,  271,  107,  271,  258,  271,  271,  124,  258,  272,
+  272,  272,  122,  271,  271,  271,  257,  272,  257,  271,
+  273,  272,  271,  173,  272,  272,  272,  272,  272,  272,
+  272,  268,  272,  258,  272,  257,  272,  272,  272,  272,
+  271,  273,  272,  272,  272,  272,  272,   -1,  272,  272,
+  271,  257,  272,  257,  257,  272,  271,  273,  272,  257,
+  272,  257,  273,  257,  273,  272,  271,   -1,   -1,   -1,
+  272,  272,
 };
 #define YYFINAL 1
 #ifndef YYDEBUG
@@ -446,12 +457,12 @@ static const char *yyname[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"A","B","C","E","F","I","L","N",
-"P","R","S","T","SP","CRLF","COMMA","STRING","NUMBER","USER","PASS","ACCT",
-"REIN","QUIT","PORT","PASV","TYPE","STRU","MODE","RETR","STOR","APPE","MLFL",
-"MAIL","MSND","MSOM","MSAM","MRSQ","MRCP","ALLO","REST","RNFR","RNTO","ABOR",
-"DELE","CWD","LIST","NLST","SITE","STAT","HELP","NOOP","MKD","RMD","PWD","CDUP",
-"STOU","SMNT","SYST","SIZE","MDTM","UMASK","IDLE","CHMOD","LEXERR",
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"NUMBER","STRING","A","B","C","E",
+"F","I","L","N","P","R","S","T","SP","CRLF","COMMA","USER","PASS","ACCT","REIN",
+"QUIT","PORT","PASV","TYPE","STRU","MODE","RETR","STOR","APPE","MLFL","MAIL",
+"MSND","MSOM","MSAM","MRSQ","MRCP","ALLO","REST","RNFR","RNTO","ABOR","DELE",
+"CWD","LIST","NLST","SITE","STAT","HELP","NOOP","MKD","RMD","PWD","CDUP","STOU",
+"SMNT","SYST","SIZE","MDTM","UMASK","IDLE","CHMOD","LEXERR",
 };
 static const char *yyrule[] = {
 "$accept : cmd_list",
@@ -565,7 +576,7 @@ typedef struct {
 } YYSTACKDATA;
 /* variables for the parser stack */
 static YYSTACKDATA yystack;
-#line 707 "ftp.y"
+#line 733 "ftp.y"
 
 #ifdef YYBYACC
 extern int YYLEX_DECL();
@@ -704,7 +715,7 @@ get_line(char *s, int n, FILE *iop)
 			}
 		    }
 		}
-		*cs++ = c;
+		*cs++ = (char) c;
 		if (--n <= 0 || c == '\n')
 			break;
 	}
@@ -762,7 +773,7 @@ yylex(void)
 				*cp = '\0';
 			}
 			if ((cp = strpbrk(cbuf, " \n")))
-				cpos = cp - cbuf;
+				cpos = (int) (cp - cbuf);
 			if (cpos == 0)
 				cpos = 4;
 			c = cbuf[cpos];
@@ -789,7 +800,7 @@ yylex(void)
 			}
 			cp = &cbuf[cpos];
 			if ((cp2 = strpbrk(cp, " \n")))
-				cpos = cp2 - cbuf;
+				cpos = (int) (cp2 - cbuf);
 			c = cbuf[cpos];
 			cbuf[cpos] = '\0';
 			upper(cp);
@@ -838,7 +849,7 @@ yylex(void)
 
 		case STR2:
 			cp = &cbuf[cpos];
-			n = strlen(cp);
+			n = (int) strlen(cp);
 			cpos += n - 1;
 			/*
 			 * Make sure the string is nonempty and \n terminated.
@@ -863,7 +874,7 @@ yylex(void)
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
-				yylval = atoi(cp);
+				yylval.ival = atoi(cp);
 				cbuf[cpos] = c;
 				state = STR1;
 				return (NUMBER);
@@ -878,7 +889,7 @@ yylex(void)
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
-				yylval = atoi(cp);
+				yylval.ival = atoi(cp);
 				cbuf[cpos] = c;
 				return (NUMBER);
 			}
@@ -990,7 +1001,7 @@ help(struct tab *ctab, char *s)
 		help_type = "";
 	width = 0, NCMDS = 0;
 	for (c = ctab; c->name != 0; c++) {
-		int len = strlen(c->name);
+		int len = (int) strlen(c->name);
 
 		if (len > width)
 			width = len;
@@ -1016,7 +1027,7 @@ help(struct tab *ctab, char *s)
 					c->implemented ? ' ' : '*');
 				if (c + lines >= &ctab[NCMDS])
 					break;
-				w = strlen(c->name) + 1;
+				w = (int) strlen(c->name) + 1;
 				while (w < width) {
 					putchar(' ');
 					w++;
@@ -1088,7 +1099,7 @@ sizecmd(char *filename)
 		reply(504, "SIZE not implemented for Type %c.", "?AEIL"[type]);
 	}
 }
-#line 1092 "ftp.tab.c"
+#line 1103 "ftp.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>		/* needed for printf */
@@ -1112,7 +1123,7 @@ static int yygrowstack(YYSTACKDATA *data)
     else if ((newsize *= 2) > YYMAXDEPTH)
         newsize = YYMAXDEPTH;
 
-    i = data->s_mark - data->s_base;
+    i = (int) (data->s_mark - data->s_base);
     newss = (short *)realloc(data->s_base, newsize * sizeof(*newss));
     if (newss == 0)
         return -1;
@@ -1295,27 +1306,27 @@ yyreduce:
     switch (yyn)
     {
 case 2:
-#line 150 "ftp.y"
+#line 172 "ftp.y"
 	{
 			fromname = (char *) 0;
 		}
 break;
 case 4:
-#line 157 "ftp.y"
+#line 179 "ftp.y"
 	{
-			user((char *) yystack.l_mark[-1]);
-			free((char *) yystack.l_mark[-1]);
+			user(yystack.l_mark[-1].sval);
+			free(yystack.l_mark[-1].sval);
 		}
 break;
 case 5:
-#line 162 "ftp.y"
+#line 184 "ftp.y"
 	{
-			pass((char *) yystack.l_mark[-1]);
-			free((char *) yystack.l_mark[-1]);
+			pass(yystack.l_mark[-1].sval);
+			free(yystack.l_mark[-1].sval);
 		}
 break;
 case 6:
-#line 167 "ftp.y"
+#line 189 "ftp.y"
 	{
 			usedefault = 0;
 			if (pdata >= 0) {
@@ -1326,13 +1337,13 @@ case 6:
 		}
 break;
 case 7:
-#line 176 "ftp.y"
+#line 198 "ftp.y"
 	{
 			passive();
 		}
 break;
 case 8:
-#line 180 "ftp.y"
+#line 202 "ftp.y"
 	{
 			switch (cmd_type) {
 
@@ -1369,9 +1380,9 @@ case 8:
 		}
 break;
 case 9:
-#line 215 "ftp.y"
+#line 237 "ftp.y"
 	{
-			switch (yystack.l_mark[-1]) {
+			switch (yystack.l_mark[-1].ival) {
 
 			case STRU_F:
 				reply(200, "STRU F ok.");
@@ -1383,9 +1394,9 @@ case 9:
 		}
 break;
 case 10:
-#line 227 "ftp.y"
+#line 249 "ftp.y"
 	{
-			switch (yystack.l_mark[-1]) {
+			switch (yystack.l_mark[-1].ival) {
 
 			case MODE_S:
 				reply(200, "MODE S ok.");
@@ -1397,148 +1408,148 @@ case 10:
 		}
 break;
 case 11:
-#line 239 "ftp.y"
+#line 261 "ftp.y"
 	{
 			reply(202, "ALLO command ignored.");
 		}
 break;
 case 12:
-#line 243 "ftp.y"
+#line 265 "ftp.y"
 	{
 			reply(202, "ALLO command ignored.");
 		}
 break;
 case 13:
-#line 247 "ftp.y"
+#line 269 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				retrieve((char *) 0, (char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				retrieve((char *) 0, yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free(yystack.l_mark[-1].sval);
 		}
 break;
 case 14:
-#line 254 "ftp.y"
+#line 276 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				store((char *) yystack.l_mark[-1], "w", 0);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				store(yystack.l_mark[-1].sval, "w", 0);
+			if (yystack.l_mark[-1].sval != 0)
+				free(yystack.l_mark[-1].sval);
 		}
 break;
 case 15:
-#line 261 "ftp.y"
+#line 283 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				store((char *) yystack.l_mark[-1], "a", 0);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				store(yystack.l_mark[-1].sval, "a", 0);
+			if (yystack.l_mark[-1].sval != 0)
+				free(yystack.l_mark[-1].sval);
 		}
 break;
 case 16:
-#line 268 "ftp.y"
+#line 290 "ftp.y"
 	{
-			if (yystack.l_mark[-1])
+			if (yystack.l_mark[-1].ival)
 				send_file_list(".");
 		}
 break;
 case 17:
-#line 273 "ftp.y"
+#line 295 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				send_file_list((char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				send_file_list((char *) yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 18:
-#line 280 "ftp.y"
+#line 302 "ftp.y"
 	{
-			if (yystack.l_mark[-1])
+			if (yystack.l_mark[-1].ival)
 				retrieve("/bin/ls -lgA", "");
 		}
 break;
 case 19:
-#line 285 "ftp.y"
+#line 307 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				retrieve("/bin/ls -lgA %s", (char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				retrieve("/bin/ls -lgA %s", yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free(yystack.l_mark[-1].sval);
 		}
 break;
 case 20:
-#line 292 "ftp.y"
+#line 314 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				statfilecmd((char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				statfilecmd(yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free(yystack.l_mark[-1].sval);
 		}
 break;
 case 21:
-#line 299 "ftp.y"
+#line 321 "ftp.y"
 	{
 			statcmd();
 		}
 break;
 case 22:
-#line 303 "ftp.y"
+#line 325 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				remove((char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				remove((char *) yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 23:
-#line 310 "ftp.y"
+#line 332 "ftp.y"
 	{
 			if (fromname) {
-				renamecmd(fromname, (char *) yystack.l_mark[-1]);
+				renamecmd(fromname, (char *) yystack.l_mark[-1].sval);
 				free(fromname);
 				fromname = (char *) 0;
 			} else {
 				reply(503, "Bad sequence of commands.");
 			}
-			free((char *) yystack.l_mark[-1]);
+			free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 24:
-#line 321 "ftp.y"
+#line 343 "ftp.y"
 	{
 			reply(225, "ABOR command successful.");
 		}
 break;
 case 25:
-#line 325 "ftp.y"
+#line 347 "ftp.y"
 	{
-			if (yystack.l_mark[-1])
+			if (yystack.l_mark[-1].ival)
 				cwd(pw->pw_dir);
 		}
 break;
 case 26:
-#line 330 "ftp.y"
+#line 352 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				cwd((char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				cwd((char *) yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 27:
-#line 337 "ftp.y"
+#line 359 "ftp.y"
 	{
 			help(cmdtab, (char *) 0);
 		}
 break;
 case 28:
-#line 341 "ftp.y"
+#line 363 "ftp.y"
 	{
-			register char *cp = (char *)yystack.l_mark[-1];
+			register char *cp = (char *)yystack.l_mark[-1].sval;
 
 			if (strncasecmp(cp, "SITE", 4) == 0) {
-				cp = (char *)yystack.l_mark[-1] + 4;
+				cp = (char *)yystack.l_mark[-1].sval + 4;
 				if (*cp == ' ')
 					cp++;
 				if (*cp)
@@ -1546,65 +1557,65 @@ case 28:
 				else
 					help(sitetab, (char *) 0);
 			} else
-				help(cmdtab, (char *) yystack.l_mark[-1]);
+				help(cmdtab, (char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 29:
-#line 356 "ftp.y"
+#line 378 "ftp.y"
 	{
 			reply(200, "NOOP command successful.");
 		}
 break;
 case 30:
-#line 360 "ftp.y"
+#line 382 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				makedir((char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				makedir((char *) yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 31:
-#line 367 "ftp.y"
+#line 389 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				removedir((char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				removedir((char *) yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 32:
-#line 374 "ftp.y"
+#line 396 "ftp.y"
 	{
-			if (yystack.l_mark[-1])
+			if (yystack.l_mark[-1].ival)
 				pwd();
 		}
 break;
 case 33:
-#line 379 "ftp.y"
+#line 401 "ftp.y"
 	{
-			if (yystack.l_mark[-1])
+			if (yystack.l_mark[-1].ival)
 				cwd("..");
 		}
 break;
 case 34:
-#line 384 "ftp.y"
+#line 406 "ftp.y"
 	{
 			help(sitetab, (char *) 0);
 		}
 break;
 case 35:
-#line 388 "ftp.y"
+#line 410 "ftp.y"
 	{
-			help(sitetab, (char *) yystack.l_mark[-1]);
+			help(sitetab, (char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 36:
-#line 392 "ftp.y"
+#line 414 "ftp.y"
 	{
 			int oldmask;
 
-			if (yystack.l_mark[-1]) {
+			if (yystack.l_mark[-1].ival) {
 				oldmask = umask(0);
 				(void) umask(oldmask);
 				reply(200, "Current UMASK is %03o", oldmask);
@@ -1612,40 +1623,40 @@ case 36:
 		}
 break;
 case 37:
-#line 402 "ftp.y"
+#line 424 "ftp.y"
 	{
 			int oldmask;
 
-			if (yystack.l_mark[-3]) {
-				if ((yystack.l_mark[-1] == -1) || (yystack.l_mark[-1] > 0777)) {
+			if (yystack.l_mark[-3].ival) {
+				if ((yystack.l_mark[-1].ival == -1) || (yystack.l_mark[-1].ival > 0777)) {
 					reply(501, "Bad UMASK value");
 				} else {
-					oldmask = umask(yystack.l_mark[-1]);
+					oldmask = umask(yystack.l_mark[-1].ival);
 					reply(200,
 					    "UMASK set to %03o (was %03o)",
-					    yystack.l_mark[-1], oldmask);
+					    yystack.l_mark[-1].ival, oldmask);
 				}
 			}
 		}
 break;
 case 38:
-#line 417 "ftp.y"
+#line 439 "ftp.y"
 	{
-			if (yystack.l_mark[-5] && (yystack.l_mark[-1] != 0)) {
-				if (yystack.l_mark[-3] > 0777)
+			if (yystack.l_mark[-5].ival && (yystack.l_mark[-1].sval != 0)) {
+				if (yystack.l_mark[-3].ival > 0777)
 					reply(501,
 				"CHMOD: Mode value must be between 0 and 0777");
-				else if (chmod((char *) yystack.l_mark[-1], yystack.l_mark[-3]) < 0)
-					perror_reply(550, (char *) yystack.l_mark[-1]);
+				else if (chmod((char *) yystack.l_mark[-1].sval, yystack.l_mark[-3].ival) < 0)
+					perror_reply(550, (char *) yystack.l_mark[-1].sval);
 				else
 					reply(200, "CHMOD command successful.");
 			}
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 39:
-#line 431 "ftp.y"
+#line 453 "ftp.y"
 	{
 			reply(200,
 			    "Current IDLE time limit is %d seconds; max %d",
@@ -1653,14 +1664,14 @@ case 39:
 		}
 break;
 case 40:
-#line 437 "ftp.y"
+#line 459 "ftp.y"
 	{
-			if (yystack.l_mark[-1] < 30 || yystack.l_mark[-1] > maxtimeout) {
+			if (yystack.l_mark[-1].ival < 30 || yystack.l_mark[-1].ival > maxtimeout) {
 				reply(501,
 			"Maximum IDLE time must be between 30 and %d seconds",
 				    maxtimeout);
 			} else {
-				timeout = yystack.l_mark[-1];
+				timeout = yystack.l_mark[-1].ival;
 				(void) alarm((unsigned) timeout);
 				reply(200,
 				    "Maximum IDLE time set to %d seconds",
@@ -1669,16 +1680,16 @@ case 40:
 		}
 break;
 case 41:
-#line 451 "ftp.y"
+#line 473 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				store((char *) yystack.l_mark[-1], "w", 1);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				store((char *) yystack.l_mark[-1].sval, "w", 1);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 42:
-#line 458 "ftp.y"
+#line 480 "ftp.y"
 	{
 #ifdef unix
 #ifdef BSD
@@ -1693,24 +1704,24 @@ case 42:
 		}
 break;
 case 43:
-#line 479 "ftp.y"
+#line 501 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0)
-				sizecmd((char *) yystack.l_mark[-1]);
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0)
+				sizecmd((char *) yystack.l_mark[-1].sval);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 44:
-#line 496 "ftp.y"
+#line 518 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1] != 0) {
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval != 0) {
 				struct stat stbuf;
-				if (stat((char *) yystack.l_mark[-1], &stbuf) < 0)
-					perror_reply(550, "%s", (char *) yystack.l_mark[-1]);
+				if (stat((char *) yystack.l_mark[-1].sval, &stbuf) < 0)
+					perror_reply(550, "%s", (char *) yystack.l_mark[-1].sval);
 				else if ((stbuf.st_mode&S_IFMT) != S_IFREG) {
 					reply(550, "%s: not a plain file.",
-						(char *) yystack.l_mark[-1]);
+						(char *) yystack.l_mark[-1].sval);
 				} else {
 					register struct tm *t;
 					t = gmtime(&stbuf.st_mtime);
@@ -1721,182 +1732,186 @@ case 44:
 					    t->tm_hour, t->tm_min, t->tm_sec);
 				}
 			}
-			if (yystack.l_mark[-1] != 0)
-				free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-1].sval != 0)
+				free((char *) yystack.l_mark[-1].sval);
 		}
 break;
 case 45:
-#line 518 "ftp.y"
+#line 540 "ftp.y"
 	{
 			reply(221, "Goodbye.");
 			dologout(0);
 		}
 break;
 case 46:
-#line 523 "ftp.y"
+#line 545 "ftp.y"
 	{
 			yyerrok;
 		}
 break;
 case 47:
-#line 528 "ftp.y"
+#line 550 "ftp.y"
 	{
-			if (yystack.l_mark[-3] && yystack.l_mark[-1]) {
-				fromname = renamefrom((char *) yystack.l_mark[-1]);
-				if (fromname == (char *) 0 && yystack.l_mark[-1]) {
-					free((char *) yystack.l_mark[-1]);
+			if (yystack.l_mark[-3].ival && yystack.l_mark[-1].sval) {
+				fromname = renamefrom((char *) yystack.l_mark[-1].sval);
+				if (fromname == (char *) 0 && yystack.l_mark[-1].sval) {
+					free((char *) yystack.l_mark[-1].sval);
 				}
 			}
 		}
 break;
 case 49:
-#line 542 "ftp.y"
+#line 564 "ftp.y"
 	{
-			*(const char **)(&(yyval)) = "";
+			*(const char **)(&(yyval.sval)) = "";
 		}
 break;
 case 52:
-#line 553 "ftp.y"
+#line 575 "ftp.y"
 	{
 			register char *a, *p;
 
 			a = (char *)&data_dest.sin_addr;
-			a[0] = yystack.l_mark[-10]; a[1] = yystack.l_mark[-8]; a[2] = yystack.l_mark[-6]; a[3] = yystack.l_mark[-4];
+			a[0] = (char) yystack.l_mark[-10].ival;
+			a[1] = (char) yystack.l_mark[-8].ival;
+			a[2] = (char) yystack.l_mark[-6].ival;
+			a[3] = (char) yystack.l_mark[-4].ival;
 			p = (char *)&data_dest.sin_port;
-			p[0] = yystack.l_mark[-2]; p[1] = yystack.l_mark[0];
+			p[0] = (char) yystack.l_mark[-2].ival;
+			p[1] = (char) yystack.l_mark[0].ival;
 			data_dest.sin_family = AF_INET;
 		}
 break;
 case 53:
-#line 565 "ftp.y"
+#line 591 "ftp.y"
 	{
-		yyval = FORM_N;
+		yyval.ival = FORM_N;
 	}
 break;
 case 54:
-#line 569 "ftp.y"
+#line 595 "ftp.y"
 	{
-		yyval = FORM_T;
+		yyval.ival = FORM_T;
 	}
 break;
 case 55:
-#line 573 "ftp.y"
+#line 599 "ftp.y"
 	{
-		yyval = FORM_C;
+		yyval.ival = FORM_C;
 	}
 break;
 case 56:
-#line 579 "ftp.y"
+#line 605 "ftp.y"
 	{
 		cmd_type = TYPE_A;
 		cmd_form = FORM_N;
 	}
 break;
 case 57:
-#line 584 "ftp.y"
+#line 610 "ftp.y"
 	{
 		cmd_type = TYPE_A;
-		cmd_form = yystack.l_mark[0];
+		cmd_form = yystack.l_mark[0].ival;
 	}
 break;
 case 58:
-#line 589 "ftp.y"
+#line 615 "ftp.y"
 	{
 		cmd_type = TYPE_E;
 		cmd_form = FORM_N;
 	}
 break;
 case 59:
-#line 594 "ftp.y"
+#line 620 "ftp.y"
 	{
 		cmd_type = TYPE_E;
-		cmd_form = yystack.l_mark[0];
+		cmd_form = yystack.l_mark[0].ival;
 	}
 break;
 case 60:
-#line 599 "ftp.y"
+#line 625 "ftp.y"
 	{
 		cmd_type = TYPE_I;
 	}
 break;
 case 61:
-#line 603 "ftp.y"
+#line 629 "ftp.y"
 	{
 		cmd_type = TYPE_L;
 		cmd_bytesz = NBBY;
 	}
 break;
 case 62:
-#line 608 "ftp.y"
+#line 634 "ftp.y"
 	{
 		cmd_type = TYPE_L;
-		cmd_bytesz = yystack.l_mark[0];
+		cmd_bytesz = yystack.l_mark[0].ival;
 	}
 break;
 case 63:
-#line 614 "ftp.y"
+#line 640 "ftp.y"
 	{
 		cmd_type = TYPE_L;
-		cmd_bytesz = yystack.l_mark[0];
+		cmd_bytesz = yystack.l_mark[0].ival;
 	}
 break;
 case 64:
-#line 621 "ftp.y"
+#line 647 "ftp.y"
 	{
-		yyval = STRU_F;
+		yyval.ival = STRU_F;
 	}
 break;
 case 65:
-#line 625 "ftp.y"
+#line 651 "ftp.y"
 	{
-		yyval = STRU_R;
+		yyval.ival = STRU_R;
 	}
 break;
 case 66:
-#line 629 "ftp.y"
+#line 655 "ftp.y"
 	{
-		yyval = STRU_P;
+		yyval.ival = STRU_P;
 	}
 break;
 case 67:
-#line 635 "ftp.y"
+#line 661 "ftp.y"
 	{
-		yyval = MODE_S;
+		yyval.ival = MODE_S;
 	}
 break;
 case 68:
-#line 639 "ftp.y"
+#line 665 "ftp.y"
 	{
-		yyval = MODE_B;
+		yyval.ival = MODE_B;
 	}
 break;
 case 69:
-#line 643 "ftp.y"
+#line 669 "ftp.y"
 	{
-		yyval = MODE_C;
+		yyval.ival = MODE_C;
 	}
 break;
 case 70:
-#line 649 "ftp.y"
+#line 675 "ftp.y"
 	{
 		/*
 		 * Problem: this production is used for all pathname
 		 * processing, but only gives a 550 error reply.
 		 * This is a valid reply in some cases but not in others.
 		 */
-		if (logged_in && yystack.l_mark[0] && strncmp((char *) yystack.l_mark[0], "~", 1) == 0) {
-			*(char **)&(yyval) = *glob((char *) yystack.l_mark[0]);
+		if (logged_in && yystack.l_mark[0].sval && strncmp((char *) yystack.l_mark[0].sval, "~", 1) == 0) {
+			*(char **)&(yyval.sval) = *glob((char *) yystack.l_mark[0].sval);
 			if (globerr != 0) {
 				reply(550, globerr);
-				yyval = 0;
+				yyval.sval = 0;
 			}
-			free((char *) yystack.l_mark[0]);
+			free((char *) yystack.l_mark[0].sval);
 		} else
-			yyval = yystack.l_mark[0];
+			yyval.sval = yystack.l_mark[0].sval;
 	}
 break;
 case 72:
-#line 671 "ftp.y"
+#line 697 "ftp.y"
 	{
 		register int ret, dec, multby, digit;
 
@@ -1904,7 +1919,7 @@ case 72:
 		 * Convert a number that was read as decimal number
 		 * to what it would be if it had been read as octal.
 		 */
-		dec = yystack.l_mark[0];
+		dec = yystack.l_mark[0].ival;
 		multby = 1;
 		ret = 0;
 		while (dec) {
@@ -1917,21 +1932,21 @@ case 72:
 			multby *= 8;
 			dec /= 10;
 		}
-		yyval = ret;
+		yyval.ival = ret;
 	}
 break;
 case 73:
-#line 696 "ftp.y"
+#line 722 "ftp.y"
 	{
 		if (logged_in)
-			yyval = 1;
+			yyval.ival = 1;
 		else {
 			reply(530, "Please login with USER and PASS.");
-			yyval = 0;
+			yyval.ival = 0;
 		}
 	}
 break;
-#line 1935 "ftp.tab.c"
+#line 1950 "ftp.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;
