@@ -1830,7 +1830,7 @@ vfs_bio_awrite(struct buf *bp)
 		if (ncl != 1) {
 			BUF_UNLOCK(bp);
 			nwritten = cluster_wbuild(vp, size, lblkno - j, ncl);
-			return nwritten;
+			return (nwritten);
 		}
 	}
 	bremfree(bp);
