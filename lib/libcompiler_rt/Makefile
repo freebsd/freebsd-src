@@ -164,6 +164,7 @@ SRCF+=	__sync_fetch_and_add_4 \
 	__sync_fetch_and_sub_4 \
 	__sync_fetch_and_xor_4 \
 	__sync_lock_test_and_set_4 \
+	__sync_synchronize \
 	__sync_val_compare_and_swap_4
 .endif
 .if ${MACHINE_ARCH:Mmips64*} != ""
