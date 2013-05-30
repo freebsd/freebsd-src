@@ -437,13 +437,18 @@ LESS(1)                                                                LESS(1)
        appears in the LESS variable, it can be reset to its default  value  on
        the command line by beginning the command line option with "-+".
 
-       For  options like -P or -D which take a following string, a dollar sign
-       ($) must be used to signal the end of the string.  For example, to  set
-       two  -D  options  on  MS-DOS, you must have a dollar sign between them,
+       Some  options  like -k or -D require a string to follow the option let-
+       ter.  The string for that option is considered to  end  when  a  dollar
+       sign  ($)  is found.  For example, you can set two -D options on MS-DOS
        like this:
 
-       LESS="-Dn9.1$-Ds4.1"
+       LESS="Dn9.1$Ds4.1"
 
+       If the --use-backslash option appears earlier in the  options,  then  a
+       dollar  sign or backslash may be included literally in an option string
+       by preceding it with a backslash.  If the --use-backslash option is not
+       in  effect, then backslashes are not treated specially, and there is no
+       way to include a dollar sign in the option string.
 
        -? or --help
               This option displays a summary of the commands accepted by  [4mless[0m
@@ -836,11 +841,6 @@ LESS(1)                                                                LESS(1)
               actual scroll remains at the specified fraction  of  the  screen
               width.
 
-       --no-keypad
-              Disables  sending the keypad initialization and deinitialization
-              strings to the terminal.  This is sometimes useful if the keypad
-              strings make the numeric keypad behave in an undesirable manner.
-
        --follow-name
               Normally,  if  the  input  file is renamed while an F command is
               executing, [4mless[24m will continue to display  the  contents  of  the
@@ -850,6 +850,18 @@ LESS(1)                                                                LESS(1)
               a different file from the original (which means that a new  file
               has  been  created  with  the  same  name  as  the original (now
               renamed) file), [4mless[24m will display the contents of that new file.
+
+       --no-keypad
+              Disables sending the keypad initialization and  deinitialization
+              strings to the terminal.  This is sometimes useful if the keypad
+              strings make the numeric keypad behave in an undesirable manner.
+
+       --use-backslash
+              This option changes the interpretations of options which  follow
+              this one.  After the --use-backslash option, any backslash in an
+              option string is removed and the following  character  is  taken
+              literally.   This  allows a dollar sign to be included in option
+              strings.
 
        --     A command line argument of "--" marks the end  of  option  argu-
               ments.   Any  arguments  following this are interpreted as file-
@@ -1597,8 +1609,8 @@ LESS(1)                                                                LESS(1)
 
 
 [1mAUTHOR[0m
-       Mark Nudelman <bug-less@gnu.org>
-       Send bug reports or comments to bug-less@gnu.org.
+       Mark Nudelman
+       Send bug reports or comments to <bug-less@gnu.org>
        See http://www.greenwoodsoftware.com/less/bugs.html for the latest list
        of known bugs in less.
        For more information, see the less homepage at
@@ -1606,4 +1618,4 @@ LESS(1)                                                                LESS(1)
 
 
 
-                           Version 451: 21 Jul 2012                    LESS(1)
+                           Version 458: 04 Apr 2013                    LESS(1)
