@@ -39,6 +39,7 @@
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 
 #define	NM_LOCK_T	struct mtx
+#define	NM_RWLOCK_T	struct rwlock
 #define	NM_SELINFO_T	struct selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
 #define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
@@ -46,6 +47,7 @@
 #elif defined (linux)
 
 #define	NM_LOCK_T	safe_spinlock_t	// see bsd_glue.h
+#define	NM_RWLOCK_T	safe_spinlock_t	// see bsd_glue.h
 #define	NM_SELINFO_T	wait_queue_head_t
 #define	MBUF_LEN(m)	((m)->len)
 #define	NM_SEND_UP(ifp, m)	netif_rx(m)
@@ -63,7 +65,7 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
 #define IFCAP_NETMAP	0x8000
 #else
-#define IFCAP_NETMAP	0x100000
+#define IFCAP_NETMAP	0x200000
 #endif
 
 #elif defined (__APPLE__)
@@ -105,6 +107,9 @@
 	} while (0)
 
 struct netmap_adapter;
+struct nm_bdg_fwd;
+struct nm_bridge;
+struct netmap_priv_d;
 
 /*
  * private, kernel view of a ring. Keeps track of the status of
@@ -138,6 +143,7 @@ struct netmap_kring {
 	uint16_t	nkr_slot_flags;	/* initial value for flags */
 	int	nkr_hwofs;	/* offset between NIC and netmap ring */
 	struct netmap_adapter *na;
+	struct nm_bdg_fwd *nkr_ft;
 	NM_SELINFO_T si;	/* poll/select wait queue */
 	NM_LOCK_T q_lock;	/* used if no device lock available */
 } __attribute__((__aligned__(64)));
@@ -160,6 +166,7 @@ struct netmap_adapter {
 #define NAF_SKIP_INTR	1	/* use the regular interrupt handler.
 				 * useful during initialization
 				 */
+#define NAF_SW_ONLY	2	/* forward packets only to sw adapter */
 	int refcount; /* number of user-space descriptors using this
 			 interface, which is equal to the number of
 			 struct netmap_if objs in the mapped region. */
@@ -218,10 +225,17 @@ struct netmap_adapter {
 	 *	when it goes to 0 we can detach+free this port
 	 *	(a bridge port is always attached if it exists;
 	 *	it is not always registered)
+	 * na_bdg points to the bridge this NA is attached to.
 	 */
 	int bdg_port;
 	int na_bdg_refcount;
-
+	struct nm_bridge *na_bdg;
+	/* When we attach a physical interface to the bridge, we
+	 * allow the controlling process to terminate, so we need
+	 * a place to store the netmap_priv_d data structure.
+	 * This is only done when physical interfaces are attached to a bridge.
+	 */
+	struct netmap_priv_d *na_kpriv;
 #ifdef linux
 	struct net_device_ops nm_ndo;
 #endif /* linux */
@@ -288,6 +302,22 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
 int netmap_ring_reinit(struct netmap_kring *);
 
+/*
+ * The following bridge-related interfaces are used by other kernel modules
+ * In the version that only supports unicast or broadcast, the lookup
+ * function can return 0 .. NM_BDG_MAXPORTS-1 for regular ports,
+ * NM_BDG_MAXPORTS for broadcast, NM_BDG_MAXPORTS+1 for unknown.
+ * XXX in practice "unknown" might be handled same as broadcast.
+ */
+typedef u_int (*bdg_lookup_fn_t)(char *buf, u_int len, uint8_t *ring_nr,
+		struct netmap_adapter *);
+int netmap_bdg_ctl(struct nmreq *nmr, bdg_lookup_fn_t func);
+u_int netmap_bdg_learning(char *, u_int, uint8_t *, struct netmap_adapter *);
+#define	NM_NAME			"vale"	/* prefix for the bridge port name */
+#define	NM_BDG_MAXPORTS		254	/* up to 32 for bitmap, 254 ok otherwise */
+#define	NM_BDG_BROADCAST	NM_BDG_MAXPORTS
+#define	NM_BDG_NOPORT		(NM_BDG_MAXPORTS+1)
+
 extern u_int netmap_buf_size;
 #define NETMAP_BUF_SIZE	netmap_buf_size	// XXX remove
 extern int netmap_mitigate;
@@ -309,11 +339,15 @@ enum {                                  /* verbose flags */
 /*
  * NA returns a pointer to the struct netmap adapter from the ifp,
  * WNA is used to write it.
+ * SWNA() is used for the "host stack" endpoint associated
+ *	to an interface. It is allocated together with the main NA(),
+ *	as an array of two objects.
  */
 #ifndef WNA
 #define	WNA(_ifp)	(_ifp)->if_pspare[0]
 #endif
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
+#define	SWNA(_ifp)	(NA(_ifp) + 1)
 
 /*
  * Macros to determine if an interface is netmap capable or netmap enabled.
