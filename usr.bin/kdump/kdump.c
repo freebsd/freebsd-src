@@ -240,8 +240,10 @@ main(int argc, char *argv[])
 	 * XXXPJD: There should be strerror_init() and strsignal_init() in libc.
 	 */
 	(void)catopen("libc", NL_CAT_LOCALE);
-	if (cap_enter() < 0 && errno != ENOSYS)
-		err(1, "unable to enter capability mode");
+	if (resolv == 0) {
+		if (cap_enter() < 0 && errno != ENOSYS)
+			err(1, "unable to enter capability mode");
+	}
 	limitfd(STDIN_FILENO);
 	limitfd(STDOUT_FILENO);
 	limitfd(STDERR_FILENO);
