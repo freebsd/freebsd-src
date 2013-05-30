@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -127,8 +127,15 @@
  *		transparent mode, buffers released with the flag set
  *		will be forwarded to the 'other' side (host stack
  *		or NIC, respectively) on the next select() or ioctl()
+ *
+ *		The following will be supported from NETMAP_API = 5
  * NS_NO_LEARN	on a VALE switch, do not 'learn' the source port for
  *		this packet.
+ * NS_INDIRECT	the netmap buffer contains a 64-bit pointer to
+ *		the actual userspace buffer. This may be useful
+ *		to reduce copies in a VM environment.
+ * NS_MOREFRAG	Part of a multi-segment frame. The last (or only)
+ *		segment must not have this flag.
  * NS_PORT_MASK	the high 8 bits of the flag, if not zero, indicate the
  *		destination port for the VALE switch, overriding
  *		the lookup table.
@@ -146,6 +153,8 @@ struct netmap_slot {
 				 * (host stack or device)
 				 */
 #define	NS_NO_LEARN	0x0008
+#define	NS_INDIRECT	0x0010
+#define	NS_MOREFRAG	0x0020
 #define	NS_PORT_SHIFT	8
 #define	NS_PORT_MASK	(0xff << NS_PORT_SHIFT)
 };
@@ -277,10 +286,24 @@ struct netmap_if {
  * NIOCREGIF takes an interface name within a struct ifreq,
  *	and activates netmap mode on the interface (if possible).
  *
+ *	For vale ports, starting with NETMAP_API = 5,
+ *	nr_tx_rings and nr_rx_rings specify how many software rings
+ *	are created (0 means 1).
+ *
+ *	NIOCREGIF is also used to attach a NIC to a VALE switch.
+ *	In this case the name is vale*:ifname, and "nr_cmd"
+ *	is set to 'NETMAP_BDG_ATTACH' or 'NETMAP_BDG_DETACH'.
+ *	nr_ringid specifies which rings should be attached, 0 means all,
+ *	NETMAP_HW_RING + n means only the n-th ring.
+ *	The process can terminate after the interface has been attached.
+ *
  * NIOCUNREGIF unregisters the interface associated to the fd.
+ *	this is deprecated and will go away.
  *
  * NIOCTXSYNC, NIOCRXSYNC synchronize tx or rx queues,
  *	whose identity is set in NIOCREGIF through nr_ringid
+ *
+ * NETMAP_API is the API version.
  */
 
 /*
@@ -289,7 +312,7 @@ struct netmap_if {
 struct nmreq {
 	char		nr_name[IFNAMSIZ];
 	uint32_t	nr_version;	/* API version */
-#define	NETMAP_API	3		/* current version */
+#define	NETMAP_API	4		/* current version */
 	uint32_t	nr_offset;	/* nifp offset in the shared region */
 	uint32_t	nr_memsize;	/* size of the shared region */
 	uint32_t	nr_tx_slots;	/* slots in tx rings */
@@ -301,8 +324,15 @@ struct nmreq {
 #define NETMAP_SW_RING	0x2000		/* process the sw ring */
 #define NETMAP_NO_TX_POLL	0x1000	/* no automatic txsync on poll */
 #define NETMAP_RING_MASK 0xfff		/* the ring number */
-	uint16_t	spare1;
-	uint32_t	spare2[4];
+	uint16_t	nr_cmd;
+#define NETMAP_BDG_ATTACH	1	/* attach the NIC */
+#define NETMAP_BDG_DETACH	2	/* detach the NIC */
+#define NETMAP_BDG_LOOKUP_REG	3	/* register lookup function */
+#define NETMAP_BDG_LIST		4	/* get bridge's info */
+	uint16_t	nr_arg1;
+#define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
+	uint16_t	nr_arg2;
+	uint32_t	spare2[3];
 };
 
 /*
