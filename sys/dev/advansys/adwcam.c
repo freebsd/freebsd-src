@@ -47,6 +47,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -74,8 +75,6 @@ __FBSDID("$FreeBSD$");
 #define ccb_acb_ptr spriv_ptr0
 #define ccb_adw_ptr spriv_ptr1
 
-u_long adw_unit;
-
 static __inline cam_status	adwccbstatus(union ccb*);
 static __inline struct acb*	adwgetacb(struct adw_softc *adw);
 static __inline void		adwfreeacb(struct adw_softc *adw,
@@ -90,6 +89,7 @@ static int		adwallocacbs(struct adw_softc *adw);
 static void		adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs,
 				      int nseg, int error);
 static void		adw_action(struct cam_sim *sim, union ccb *ccb);
+static void		adw_intr_locked(struct adw_softc *adw);
 static void		adw_poll(struct cam_sim *sim);
 static void		adw_async(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
@@ -110,21 +110,20 @@ static __inline struct acb*
 adwgetacb(struct adw_softc *adw)
 {
 	struct	acb* acb;
-	int	s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&adw->lock, MA_OWNED);
 	if ((acb = SLIST_FIRST(&adw->free_acb_list)) != NULL) {
 		SLIST_REMOVE_HEAD(&adw->free_acb_list, links);
 	} else if (adw->num_acbs < adw->max_acbs) {
 		adwallocacbs(adw);
 		acb = SLIST_FIRST(&adw->free_acb_list);
 		if (acb == NULL)
-			printf("%s: Can't malloc ACB\n", adw_name(adw));
+			device_printf(adw->device, "Can't malloc ACB\n");
 		else {
 			SLIST_REMOVE_HEAD(&adw->free_acb_list, links);
 		}
 	}
-	splx(s);
 
 	return (acb);
 }
@@ -132,9 +131,9 @@ adwgetacb(struct adw_softc *adw)
 static __inline void
 adwfreeacb(struct adw_softc *adw, struct acb *acb)
 {
-	int s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&adw->lock, MA_OWNED);
 	if ((acb->state & ACB_ACTIVE) != 0)
 		LIST_REMOVE(&acb->ccb->ccb_h, sim_links.le);
 	if ((acb->state & ACB_RELEASE_SIMQ) != 0)
@@ -146,7 +145,6 @@ adwfreeacb(struct adw_softc *adw, struct acb *acb)
 	}
 	acb->state = ACB_FREE;
 	SLIST_INSERT_HEAD(&adw->free_acb_list, acb, links);
-	splx(s);
 }
 
 static void
@@ -186,7 +184,6 @@ adwallocsgmap(struct adw_softc *adw)
 
 /*
  * Allocate another chunk of CCB's. Return count of entries added.
- * Assumed to be called at splcam().
  */
 static int
 adwallocacbs(struct adw_softc *adw)
@@ -222,6 +219,7 @@ adwallocacbs(struct adw_softc *adw)
 		next_acb->sg_blocks = blocks;
 		next_acb->sg_busaddr = busaddr;
 		next_acb->state = ACB_FREE;
+		callout_init_mtx(&next_acb->timer, &adw->lock, 0);
 		SLIST_INSERT_HEAD(&adw->free_acb_list, next_acb, links);
 		blocks += ADW_SG_BLOCKCNT;
 		busaddr += ADW_SG_BLOCKCNT * sizeof(*blocks);
@@ -237,16 +235,17 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct	 acb *acb;
 	union	 ccb *ccb;
 	struct	 adw_softc *adw;
-	int	 s;
 
 	acb = (struct acb *)arg;
 	ccb = acb->ccb;
 	adw = (struct adw_softc *)ccb->ccb_h.ccb_adw_ptr;
 
+	if (!dumping)
+		mtx_assert(&adw->lock, MA_OWNED);
 	if (error != 0) {
 		if (error != EFBIG)
-			printf("%s: Unexepected error 0x%x returned from "
-			       "bus_dmamap_load\n", adw_name(adw), error);
+			device_printf(adw->device, "Unexepected error 0x%x "
+			    "returned from bus_dmamap_load\n", error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			ccb->ccb_h.status = CAM_REQ_TOO_BIG|CAM_DEV_QFRZN;
@@ -315,8 +314,6 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		acb->queue.sg_real_addr = 0;
 	}
 
-	s = splcam();
-
 	/*
 	 * Last time we need to check if this CCB needs to
 	 * be aborted.
@@ -326,20 +323,16 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			bus_dmamap_unload(adw->buffer_dmat, acb->dmamap);
 		adwfreeacb(adw, acb);
 		xpt_done(ccb);
-		splx(s);
 		return;
 	}
 
 	acb->state |= ACB_ACTIVE;
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&adw->pending_ccbs, &ccb->ccb_h, sim_links.le);
-	ccb->ccb_h.timeout_ch =
-	    timeout(adwtimeout, (caddr_t)acb,
-		    (ccb->ccb_h.timeout * hz) / 1000);
+	callout_reset(&acb->timer, (ccb->ccb_h.timeout * hz) / 1000,
+	    adwtimeout, acb);
 
 	adw_send_acb(adw, acb, acbvtob(adw, acb));
-
-	splx(s);
 }
 
 static void
@@ -350,6 +343,8 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("adw_action\n"));
 	
 	adw = (struct adw_softc *)cam_sim_softc(sim);
+	if (!dumping)
+		mtx_assert(&adw->lock, MA_OWNED);
 
 	switch (ccb->ccb_h.func_code) {
 	/* Common cases first */
@@ -370,11 +365,7 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		if ((acb = adwgetacb(adw)) == NULL) {
-			int s;
-	
-			s = splcam();
 			adw->state |= ADW_RESOURCE_SHORTAGE;
-			splx(s);
 			xpt_freeze_simq(sim, /*count*/1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
@@ -447,10 +438,8 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 				 * to a single buffer.
 				 */
 				if ((ccbh->flags & CAM_DATA_PHYS) == 0) {
-					int s;
 					int error;
 
-					s = splsoftvm();
 					error =
 					    bus_dmamap_load(adw->buffer_dmat,
 							    acb->dmamap,
@@ -468,7 +457,6 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 						xpt_freeze_simq(sim, 1);
 						acb->state |= CAM_RELEASE_SIMQ;
 					}
-					splx(s);
 				} else {
 					struct bus_dma_segment seg; 
 
@@ -530,12 +518,10 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings_spi *spi;
 		struct	  ccb_trans_settings *cts;
 		u_int	  target_mask;
-		int	  s;
 
 		cts = &ccb->cts;
 		target_mask = 0x01 << ccb->ccb_h.target_id;
 
-		s = splcam();
 		scsi = &cts->proto_specific.scsi;
 		spi = &cts->xport_specific.spi;
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
@@ -647,7 +633,6 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 				}
 			} 
 		}
-		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -801,7 +786,7 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 static void
 adw_poll(struct cam_sim *sim)
 {
-	adw_intr(cam_sim_softc(sim));
+	adw_intr_locked(cam_sim_softc(sim));
 }
 
 static void
@@ -813,33 +798,15 @@ struct adw_softc *
 adw_alloc(device_t dev, struct resource *regs, int regs_type, int regs_id)
 {
 	struct	 adw_softc *adw;
-	int	 i;
-   
-	/*
-	 * Allocate a storage area for us
-	 */
-	adw = malloc(sizeof(struct adw_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (adw == NULL) {
-		printf("adw%d: cannot malloc!\n", device_get_unit(dev));
-		return NULL;
-	}
+
+	adw = device_get_softc(dev);
 	LIST_INIT(&adw->pending_ccbs);
 	SLIST_INIT(&adw->sg_maps);
+	mtx_init(&adw->lock, "adw", NULL, MTX_DEF);
 	adw->device = dev;
-	adw->unit = device_get_unit(dev);
 	adw->regs_res_type = regs_type;
 	adw->regs_res_id = regs_id;
 	adw->regs = regs;
-	adw->tag = rman_get_bustag(regs);
-	adw->bsh = rman_get_bushandle(regs);
-	i = adw->unit / 10;
-	adw->name = malloc(sizeof("adw") + i + 1, M_DEVBUF, M_NOWAIT);
-	if (adw->name == NULL) {
-		printf("adw%d: cannot malloc name!\n", adw->unit);
-		free(adw, M_DEVBUF);
-		return NULL;
-	}
-	sprintf(adw->name, "adw%d", adw->unit);
 	return(adw);
 }
 
@@ -904,8 +871,7 @@ adw_free(struct adw_softc *adw)
 		xpt_bus_deregister(cam_sim_path(adw->sim));
 		cam_sim_free(adw->sim, /*free_devq*/TRUE);
 	}
-	free(adw->name, M_DEVBUF);
-	free(adw, M_DEVBUF);
+	mtx_destroy(&adw->lock);
 }
 
 int
@@ -924,8 +890,8 @@ adw_init(struct adw_softc *adw)
 		u_int16_t serial_number[3];
 
 		adw->flags |= ADW_EEPROM_FAILED;
-		printf("%s: EEPROM checksum failed.  Restoring Defaults\n",
-		       adw_name(adw));
+		device_printf(adw->device,
+		    "EEPROM checksum failed.  Restoring Defaults\n");
 
 	        /*
 		 * Restore the default EEPROM settings.
@@ -1004,10 +970,10 @@ adw_init(struct adw_softc *adw)
 	if ((adw->features & ADW_ULTRA2) != 0) {
 		switch (eep_config.termination_lvd) {
 		default:
-			printf("%s: Invalid EEPROM LVD Termination Settings.\n",
-			       adw_name(adw));
-			printf("%s: Reverting to Automatic LVD Termination\n",
-			       adw_name(adw));
+			device_printf(adw->device,
+			    "Invalid EEPROM LVD Termination Settings.\n");
+			device_printf(adw->device,
+			    "Reverting to Automatic LVD Termination\n");
 			/* FALLTHROUGH */
 		case ADW_EEPROM_TERM_AUTO:
 			break;
@@ -1025,10 +991,10 @@ adw_init(struct adw_softc *adw)
 
 	switch (eep_config.termination_se) {
 	default:
-		printf("%s: Invalid SE EEPROM Termination Settings.\n",
-		       adw_name(adw));
-		printf("%s: Reverting to Automatic SE Termination\n",
-		       adw_name(adw));
+		device_printf(adw->device,
+		    "Invalid SE EEPROM Termination Settings.\n");
+		device_printf(adw->device,
+		    "Reverting to Automatic SE Termination\n");
 		/* FALLTHROUGH */
 	case ADW_EEPROM_TERM_AUTO:
 		break;
@@ -1042,7 +1008,7 @@ adw_init(struct adw_softc *adw)
 		scsicfg1 |= ADW_SCSI_CFG1_TERM_CTL_MANUAL;
 		break;
 	}
-	printf("%s: SCSI ID %d, ", adw_name(adw), adw->initiator_id);
+	device_printf(adw->device, "SCSI ID %d, ", adw->initiator_id);
 
 	/* DMA tag for mapping buffers into device visible space. */
 	if (bus_dma_tag_create(
@@ -1058,7 +1024,7 @@ adw_init(struct adw_softc *adw)
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ BUS_DMA_ALLOCNOW,
 			/* lockfunc	*/ busdma_lock_mutex,
-			/* lockarg	*/ &Giant,
+			/* lockarg	*/ &adw->lock,
 			&adw->buffer_dmat) != 0) {
 		return (ENOMEM);
 	}
@@ -1080,8 +1046,8 @@ adw_init(struct adw_softc *adw)
 			/* nsegments	*/ 1,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ 0,
-			/* lockfunc	*/ busdma_lock_mutex,
-			/* lockarg	*/ &Giant,
+			/* lockfunc	*/ NULL,
+			/* lockarg	*/ NULL,
 			&adw->carrier_dmat) != 0) {
 		return (ENOMEM);
         }
@@ -1141,8 +1107,8 @@ adw_init(struct adw_softc *adw)
 			/* nsegments	*/ 1,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ 0,
-			/* lockfunc	*/ busdma_lock_mutex,
-			/* lockarg	*/ &Giant,
+			/* lockfunc	*/ NULL,
+			/* lockarg	*/ NULL,
 			&adw->acb_dmat) != 0) {
 		return (ENOMEM);
         }
@@ -1178,8 +1144,8 @@ adw_init(struct adw_softc *adw)
 			/* nsegments	*/ 1,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ 0,
-			/* lockfunc	*/ busdma_lock_mutex,
-			/* lockarg	*/ &Giant,
+			/* lockfunc	*/ NULL,
+			/* lockarg	*/ NULL,
 			&adw->sg_dmat) != 0) {
 		return (ENOMEM);
         }
@@ -1187,13 +1153,19 @@ adw_init(struct adw_softc *adw)
 	adw->init_level++;
 
 	/* Allocate our first batch of ccbs */
-	if (adwallocacbs(adw) == 0)
+	mtx_lock(&adw->lock);
+	if (adwallocacbs(adw) == 0) {
+		mtx_unlock(&adw->lock);
 		return (ENOMEM);
+	}
 
-	if (adw_init_chip(adw, scsicfg1) != 0)
+	if (adw_init_chip(adw, scsicfg1) != 0) {
+		mtx_unlock(&adw->lock);
 		return (ENXIO);
+	}
 
 	printf("Queue Depth %d\n", adw->max_acbs);
+	mtx_unlock(&adw->lock);
 
 	return (0);
 }
@@ -1206,18 +1178,16 @@ adw_attach(struct adw_softc *adw)
 {
 	struct ccb_setasync csa;
 	struct cam_devq *devq;
-	int s;
 	int error;
 
-	error = 0;
-	s = splcam();
 	/* Hook up our interrupt handler */
-	if ((error = bus_setup_intr(adw->device, adw->irq,
-				    INTR_TYPE_CAM | INTR_ENTROPY, NULL, 
-				    adw_intr, adw, &adw->ih)) != 0) {				    
+	error = bus_setup_intr(adw->device, adw->irq,
+	    INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE, NULL, adw_intr, adw,
+	    &adw->ih);
+	if (error != 0) {				    
 		device_printf(adw->device, "bus_setup_intr() failed: %d\n",
 			      error);
-		goto fail;
+		return (error);
 	}
 
 	/* Start the Risc processor now that we are fully configured. */
@@ -1233,16 +1203,15 @@ adw_attach(struct adw_softc *adw)
 	/*
 	 * Construct our SIM entry.
 	 */
-	adw->sim = cam_sim_alloc(adw_action, adw_poll, "adw", adw, adw->unit,
-				 &Giant, 1, adw->max_acbs, devq);
-	if (adw->sim == NULL) {
-		error = ENOMEM;
-		goto fail;
-	}
+	adw->sim = cam_sim_alloc(adw_action, adw_poll, "adw", adw,
+	    device_get_unit(adw->device), &adw->lock, 1, adw->max_acbs, devq);
+	if (adw->sim == NULL)
+		return (ENOMEM);
 
 	/*
 	 * Register the bus.
 	 */
+	mtx_lock(&adw->lock);
 	if (xpt_bus_register(adw->sim, adw->device, 0) != CAM_SUCCESS) {
 		cam_sim_free(adw->sim, /*free devq*/TRUE);
 		error = ENOMEM;
@@ -1261,7 +1230,7 @@ adw_attach(struct adw_softc *adw)
 	}
 
 fail:
-	splx(s);
+	mtx_unlock(&adw->lock);
 	return (error);
 }
 
@@ -1269,9 +1238,18 @@ void
 adw_intr(void *arg)
 {
 	struct	adw_softc *adw;
+
+	adw = arg;
+	mtx_lock(&adw->lock);
+	adw_intr_locked(adw);
+	mtx_unlock(&adw->lock);
+}
+
+void
+adw_intr_locked(struct adw_softc *adw)
+{
 	u_int	int_stat;
 	
-	adw = (struct adw_softc *)arg;
 	if ((adw_inw(adw, ADW_CTRL_REG) & ADW_CTRL_REG_HOST_INTR) == 0)
 		return;
 
@@ -1296,7 +1274,7 @@ adw_intr(void *arg)
 			/*
 			 * The firmware detected a SCSI Bus reset.
 			 */
-			printf("Someone Reset the Bus\n");
+			device_printf(adw->device, "Someone Reset the Bus\n");
 			adw_handle_bus_reset(adw, /*initiated*/FALSE);
 			break;
 		case ADW_ASYNC_RDMA_FAILURE:
@@ -1356,7 +1334,7 @@ adw_intr(void *arg)
 
 		/* Process CCB */
 		ccb = acb->ccb;
-		untimeout(adwtimeout, acb, ccb->ccb_h.timeout_ch);
+		callout_stop(&acb->timer);
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 			bus_dmasync_op_t op;
 
@@ -1433,6 +1411,7 @@ adwprocesserror(struct adw_softc *adw, struct acb *acb)
 			break;
 		case QHSTA_M_QUEUE_ABORTED:
 			/* BDR or Bus Reset */
+			xpt_print_path(adw->path);
 			printf("Saw Queue Aborted\n");
 			ccb->ccb_h.status = adw->last_reset;
 			break;
@@ -1446,7 +1425,7 @@ adwprocesserror(struct adw_softc *adw, struct acb *acb)
 		{
 			/* The SCSI bus hung in a phase */
 			xpt_print_path(adw->path);
-			printf("Watch Dog timer expired.  Reseting bus\n");
+			printf("Watch Dog timer expired.  Resetting bus\n");
 			adw_reset_bus(adw);
 			break;
 		}
@@ -1475,7 +1454,8 @@ adwprocesserror(struct adw_softc *adw, struct acb *acb)
 			break;
 		default:
 			panic("%s: Unhandled Host status error %x",
-			      adw_name(adw), acb->queue.host_status);
+			    device_get_nameunit(adw->device),
+			    acb->queue.host_status);
 			/* NOTREACHED */
 		}
 	}
@@ -1500,7 +1480,6 @@ adwtimeout(void *arg)
 	struct adw_softc     *adw;
 	adw_idle_cmd_status_t status;
 	int		      target_id;
-	int		      s;
 
 	acb = (struct acb *)arg;
 	ccb = acb->ccb;
@@ -1508,13 +1487,12 @@ adwtimeout(void *arg)
 	xpt_print_path(ccb->ccb_h.path);
 	printf("ACB %p - timed out\n", (void *)acb);
 
-	s = splcam();
+	mtx_assert(&adw->lock, MA_OWNED);
 
 	if ((acb->state & ACB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("ACB %p - timed out CCB already completed\n",
 		       (void *)acb);
-		splx(s);
 		return;
 	}
 
@@ -1524,10 +1502,9 @@ adwtimeout(void *arg)
 	/* Attempt a BDR first */
 	status = adw_idle_cmd_send(adw, ADW_IDLE_CMD_DEVICE_RESET,
 				   ccb->ccb_h.target_id);
-	splx(s);
 	if (status == ADW_IDLE_CMD_SUCCESS) {
-		printf("%s: BDR Delivered.  No longer in timeout\n",
-		       adw_name(adw));
+		device_printf(adw->device,
+		    "BDR Delivered.  No longer in timeout\n");
 		adw_handle_device_reset(adw, target_id);
 	} else {
 		adw_reset_bus(adw);

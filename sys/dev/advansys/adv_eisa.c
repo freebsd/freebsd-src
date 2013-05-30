@@ -131,17 +131,27 @@ adv_eisa_probe(device_t dev)
 	return 0;
 }
 
+/*
+ * The adv_b stuff to handle twin-channel cards will not work in its current
+ * incarnation.  It tries to reuse the same softc since adv_alloc() doesn't
+ * actually allocate a softc.  It also tries to reuse the same unit number
+ * for both sims.  This can be re-enabled if someone fixes it properly.
+ */
 static int
 adv_eisa_attach(device_t dev)
 {
 	struct adv_softc *adv;
+#if 0
 	struct adv_softc *adv_b;
+#endif
 	struct resource *io;
 	struct resource *irq;
 	int rid, error;
 	void *ih;
 
+#if 0
 	adv_b = NULL;
+#endif
 
 	rid = 0;
 	io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
@@ -162,8 +172,8 @@ adv_eisa_attach(device_t dev)
 
 	switch (eisa_get_id(dev) & ~0xF) {
 	case EISA_DEVICE_ID_ADVANSYS_750:
-		adv_b = adv_alloc(dev, rman_get_bustag(io),
-				  rman_get_bushandle(io) + ADV_EISA_OFFSET_CHAN2);
+#if 0
+		adv_b = adv_alloc(dev, io, ADV_EISA_OFFSET_CHAN2);
 		if (adv_b == NULL)
 			goto bad;
 		
@@ -183,26 +193,28 @@ adv_eisa_attach(device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ ADV_EISA_MAX_DMA_COUNT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&adv_b->parent_dmat);
  
 		if (error != 0) {
-			printf("%s: Could not allocate DMA tag - error %d\n",
-			       adv_name(adv_b), error);
+			device_printf(dev, "Could not allocate DMA tag - error %d\n",
+			       error);
 			adv_free(adv_b);
 			goto bad;
 		}
 
 		adv_b->init_level++;
+#endif
 
 		/* FALLTHROUGH */
 	case EISA_DEVICE_ID_ADVANSYS_740:
-		adv = adv_alloc(dev, rman_get_bustag(io),
-				rman_get_bushandle(io) + ADV_EISA_OFFSET_CHAN1);
+		adv = adv_alloc(dev, io, ADV_EISA_OFFSET_CHAN1);
 		if (adv == NULL) {
+#if 0
 			if (adv_b != NULL)
 				adv_free(adv_b);
+#endif
 			goto bad;
 		}
 
@@ -222,13 +234,13 @@ adv_eisa_attach(device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ ADV_EISA_MAX_DMA_COUNT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&adv->parent_dmat);
  
 		if (error != 0) {
-			printf("%s: Could not allocate DMA tag - error %d\n",
-			       adv_name(adv), error);
+			device_printf(dev, "Could not allocate DMA tag - error %d\n",
+			       error);
 			adv_free(adv);
 			goto bad;
 		}
@@ -244,7 +256,7 @@ adv_eisa_attach(device_t dev)
 	if (overrun_buf == NULL) {
 		/* Need to allocate our overrun buffer */
 		if (bus_dma_tag_create(
-				/* parent	*/ adv->parent_dmat,
+				/* parent	*/ bus_get_dma_tag(dev),
 				/* alignment	*/ 8,
 				/* boundary	*/ 0,
 				/* lowaddr	*/ ADV_EISA_MAX_DMA_ADDR,
@@ -255,8 +267,8 @@ adv_eisa_attach(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&overrun_dmat) != 0) {
 			adv_free(adv);
 			goto bad;
@@ -292,14 +304,17 @@ adv_eisa_attach(device_t dev)
 
 	if (adv_init(adv) != 0) {
 		adv_free(adv);
+#if 0
 		if (adv_b != NULL)
 			adv_free(adv_b);
-		return(-1);
+#endif
+		goto bad;
 	}
 
 	adv->max_dma_count = ADV_EISA_MAX_DMA_COUNT;
 	adv->max_dma_addr = ADV_EISA_MAX_DMA_ADDR;
 
+#if 0
 	if (adv_b != NULL) {
 		/*
 		 * Stop the chip.
@@ -317,24 +332,33 @@ adv_eisa_attach(device_t dev)
 			adv_b->max_dma_addr = ADV_EISA_MAX_DMA_ADDR;
 		}
 	}
+#endif
 
 	/*
 	 * Enable our interrupt handler.
 	 */
-	bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, NULL, adv_intr, 
-	    adv, &ih);
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE, NULL,
+	    adv_intr, adv, &ih) != 0) {
+		adv_free(adv);
+		goto bad;
+	}
 
-	/* Attach sub-devices - always succeeds */
-	adv_attach(adv);
+	/* Attach sub-devices */
+	if (adv_attach(adv) != 0) {
+		adv_free(adv);
+		goto bad;
+	}
+#if 0
 	if (adv_b != NULL)
 		adv_attach(adv_b);
+#endif
 
 	return 0;
 
  bad:
 	bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
-	return -1;
+	return ENXIO;
 }
 
 static device_method_t adv_eisa_methods[] = {
