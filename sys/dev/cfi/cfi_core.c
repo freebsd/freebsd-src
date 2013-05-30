@@ -409,6 +409,16 @@ cfi_write_block(struct cfi_softc *sc)
 	register_t intr;
 	int error, i;
 
+	/* Intel flash must be unlocked before modification */
+	switch (sc->sc_cmdset) {
+	case CFI_VEND_INTEL_ECS:
+	case CFI_VEND_INTEL_SCS:
+		cfi_write(sc, sc->sc_wrofs, CFI_INTEL_LBS);
+		cfi_write(sc, sc->sc_wrofs, CFI_INTEL_UB);
+		cfi_write(sc, sc->sc_wrofs, CFI_BCS_READ_ARRAY);
+		break;
+	}
+
 	/* Erase the block. */
 	switch (sc->sc_cmdset) {
 	case CFI_VEND_INTEL_ECS:
@@ -477,6 +487,16 @@ cfi_write_block(struct cfi_softc *sc)
 
  out:
 	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+
+	/* Relock Intel flash */
+	switch (sc->sc_cmdset) {
+	case CFI_VEND_INTEL_ECS:
+	case CFI_VEND_INTEL_SCS:
+		cfi_write(sc, sc->sc_wrofs, CFI_INTEL_LBS);
+		cfi_write(sc, sc->sc_wrofs, CFI_INTEL_LB);
+		cfi_write(sc, sc->sc_wrofs, CFI_BCS_READ_ARRAY);
+		break;
+	}
 	return (error);
 }
 
