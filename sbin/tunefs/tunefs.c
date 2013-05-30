@@ -82,8 +82,8 @@ void sbdirty(void);
 int
 main(int argc, char *argv[])
 {
-	char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
-	char *tvalue;
+	const char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
+	const char *tvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
@@ -712,7 +712,7 @@ journal_findfile(void)
 }
 
 static void
-dir_clear_block(char *block, off_t off)
+dir_clear_block(const char *block, off_t off)
 {
 	struct direct *dp;
 
