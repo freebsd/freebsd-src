@@ -833,6 +833,18 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 }
 
 /*
+ * Operates like bread, but with getblk flags.
+ */
+int
+bread_gb(struct vnode * vp, daddr_t blkno, int cnt, struct ucred * cred,
+    int gbflags, struct buf **bpp)
+{
+
+	return (breadn_flags(vp, blkno, cnt, NULL, NULL, 0,
+		    cred, gbflags, bpp));
+}
+
+/*
  * Operates like bread, but also starts asynchronous I/O on
  * read-ahead blocks.
  */
