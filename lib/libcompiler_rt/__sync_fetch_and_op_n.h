@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <machine/atomic.h>
 
-#if defined __clang__
+#ifdef __clang__
 static TYPE
 atomic_func(volatile TYPE *ptr, TYPE value, ...)
 #else
