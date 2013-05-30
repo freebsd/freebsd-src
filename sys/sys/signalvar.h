@@ -327,6 +327,8 @@ extern int kern_logsigexit;	/* Sysctl variable kern.logsigexit */
  * Machine-independent functions:
  */
 int	cursig(struct thread *td, int stop_allowed);
+int	sigdeferstop(void);
+void	sigallowstop(void);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig, ksiginfo_t *ksi);
 void	killproc(struct proc *p, char *why);

@@ -40,6 +40,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
+#include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/syslog.h>

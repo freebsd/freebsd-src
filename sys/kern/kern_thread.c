@@ -741,6 +741,17 @@ thread_suspend_check(int return_instead)
 		    (p->p_flag & P_SINGLE_BOUNDARY) && return_instead)
 			return (ERESTART);
 
+		/*
+		 * Ignore suspend requests for stop signals if they
+		 * are deferred.
+		 */
+		if (P_SHOULDSTOP(p) == P_STOPPED_SIG &&
+		    td->td_flags & TDF_SBDRY) {
+			KASSERT(return_instead,
+			    ("TDF_SBDRY set for unsafe thread_suspend_check"));
+			return (0);
+		}
+
 		/* If thread will exit, flush its pending signals */
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
 			sigqueue_flush(&td->td_sigqueue);

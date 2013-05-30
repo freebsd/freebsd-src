@@ -699,7 +699,6 @@ int nfs_sig_set[] = {
 	SIGTERM,
 	SIGHUP,
 	SIGKILL,
-	SIGSTOP,
 	SIGQUIT
 };
 
@@ -720,7 +719,7 @@ nfs_sig_pending(sigset_t set)
 
 /*
  * The set/restore sigmask functions are used to (temporarily) overwrite
- * the process p_sigmask during an RPC call (for example).  These are also
+ * the thread td_sigmask during an RPC call (for example).  These are also
  * used in other places in the NFS client that might tsleep().
  */
 void
@@ -749,8 +748,9 @@ nfs_set_sigmask(struct thread *td, sigset_t *oldset)
 			SIGDELSET(newset, nfs_sig_set[i]);
 	}
 	mtx_unlock(&p->p_sigacts->ps_mtx);
+	kern_sigprocmask(td, SIG_SETMASK, &newset, oldset,
+	    SIGPROCMASK_PROC_LOCKED);
 	PROC_UNLOCK(p);
-	kern_sigprocmask(td, SIG_SETMASK, &newset, oldset, 0);
 }
 
 void
