@@ -23,8 +23,10 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-l2tp.c print-lane.c print-ldp.c print-lldp.c print-llc.c \
         print-lmp.c print-lspping.c \
 	print-lwapp.c print-lwres.c print-mobile.c print-mpls.c print-msdp.c \
+	print-msnlb.c \
 	print-mpcp.c \
 	print-nfs.c print-ntp.c print-null.c print-olsr.c print-ospf.c \
+	print-otv.c \
 	print-pfsync.c \
 	print-pgm.c print-pim.c print-ppi.c print-ppp.c print-pppoe.c \
 	print-pptp.c print-radius.c print-raw.c print-rip.c \
@@ -36,7 +38,9 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-timed.c print-tipc.c \
 	print-token.c print-udld.c print-udp.c print-vjc.c \
 	print-vqp.c print-vrrp.c print-vtp.c \
+	print-vxlan.c \
 	print-wb.c print-zephyr.c setsignal.c tcpdump.c util.c \
+	print-zeromq.c \
 	print-smb.c signature.c smbutil.c \
 	version.c
 CLEANFILES+=	version.c
