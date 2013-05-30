@@ -379,8 +379,6 @@ aac_add_event(struct aac_softc *sc, struct aac_event *event)
 		    event->ev_type);
 		break;
 	}
-
-	return;
 }
 
 /*
@@ -1631,8 +1629,6 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			aac_requeue_ready(cm);
 		}
 	}
-
-	return;
 }
 
 /*
@@ -2362,7 +2358,6 @@ aac_timeout(struct aac_softc *sc)
 				      "longer running! code= 0x%x\n", code);
 		}
 	}
-	return;
 }
 
 /*
@@ -3372,8 +3367,6 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	/* Wakeup any poll()ers */
 	selwakeuppri(&sc->rcv_select, PRIBIO);
 	mtx_unlock(&sc->aac_aifq_lock);
-
-	return;
 }
 
 /*
@@ -3788,6 +3781,4 @@ aac_get_bus_info(struct aac_softc *sc)
 
 	if (found)
 		bus_generic_attach(sc->aac_dev);
-
-	return;
 }
