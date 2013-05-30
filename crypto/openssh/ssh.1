@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.326 2012/06/18 12:17:18 dtucker Exp $
+.\" $OpenBSD: ssh.1,v 1.330 2012/10/04 13:21:50 markus Exp $
 .\" $FreeBSD$
-.Dd June 18 2012
+.Dd October 4, 2012
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -676,7 +676,7 @@ it provides additional mechanisms for confidentiality
 (the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
 and integrity (hmac-md5, hmac-sha1,
 hmac-sha2-256, hmac-sha2-512,
-umac-64, hmac-ripemd160).
+umac-64, umac-128, hmac-ripemd160).
 Protocol 1 lacks a strong mechanism for ensuring the
 integrity of the connection.
 .Pp
@@ -928,6 +928,14 @@ option.
 .It Cm ~R
 Request rekeying of the connection
 (only useful for SSH protocol version 2 and if the peer supports it).
+.It Cm ~V
+Decrease the verbosity
+.Pq Ic LogLevel
+when errors are being written to stderr.
+.It Cm ~v
+Increase the verbosity
+.Pq Ic LogLevel
+when errors are being written to stderr.
 .El
 .Sh TCP FORWARDING
 Forwarding of arbitrary TCP connections over the secure channel can
@@ -1428,77 +1436,118 @@ if an error occurred.
 .Xr ssh_config 5 ,
 .Xr ssh-keysign 8 ,
 .Xr sshd 8
+.Sh STANDARDS
 .Rs
+.%A S. Lehtinen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4250
-.%T "The Secure Shell (SSH) Protocol Assigned Numbers"
-.%D 2006
+.%T The Secure Shell (SSH) Protocol Assigned Numbers
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4251
-.%T "The Secure Shell (SSH) Protocol Architecture"
-.%D 2006
+.%T The Secure Shell (SSH) Protocol Architecture
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4252
-.%T "The Secure Shell (SSH) Authentication Protocol"
-.%D 2006
+.%T The Secure Shell (SSH) Authentication Protocol
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4253
-.%T "The Secure Shell (SSH) Transport Layer Protocol"
-.%D 2006
+.%T The Secure Shell (SSH) Transport Layer Protocol
 .Re
+.Pp
 .Rs
+.%A T. Ylonen
+.%A C. Lonvick
+.%D January 2006
 .%R RFC 4254
-.%T "The Secure Shell (SSH) Connection Protocol"
-.%D 2006
+.%T The Secure Shell (SSH) Connection Protocol
 .Re
+.Pp
 .Rs
+.%A J. Schlyter
+.%A W. Griffin
+.%D January 2006
 .%R RFC 4255
-.%T "Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints"
-.%D 2006
+.%T Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints
 .Re
+.Pp
 .Rs
+.%A F. Cusack
+.%A M. Forssen
+.%D January 2006
 .%R RFC 4256
-.%T "Generic Message Exchange Authentication for the Secure Shell Protocol (SSH)"
-.%D 2006
+.%T Generic Message Exchange Authentication for the Secure Shell Protocol (SSH)
 .Re
+.Pp
 .Rs
+.%A J. Galbraith
+.%A P. Remaker
+.%D January 2006
 .%R RFC 4335
-.%T "The Secure Shell (SSH) Session Channel Break Extension"
-.%D 2006
+.%T The Secure Shell (SSH) Session Channel Break Extension
 .Re
+.Pp
 .Rs
+.%A M. Bellare
+.%A T. Kohno
+.%A C. Namprempre
+.%D January 2006
 .%R RFC 4344
-.%T "The Secure Shell (SSH) Transport Layer Encryption Modes"
-.%D 2006
+.%T The Secure Shell (SSH) Transport Layer Encryption Modes
 .Re
+.Pp
 .Rs
+.%A B. Harris
+.%D January 2006
 .%R RFC 4345
-.%T "Improved Arcfour Modes for the Secure Shell (SSH) Transport Layer Protocol"
-.%D 2006
+.%T Improved Arcfour Modes for the Secure Shell (SSH) Transport Layer Protocol
 .Re
+.Pp
 .Rs
+.%A M. Friedl
+.%A N. Provos
+.%A W. Simpson
+.%D March 2006
 .%R RFC 4419
-.%T "Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol"
-.%D 2006
+.%T Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol
 .Re
+.Pp
 .Rs
+.%A J. Galbraith
+.%A R. Thayer
+.%D November 2006
 .%R RFC 4716
-.%T "The Secure Shell (SSH) Public Key File Format"
-.%D 2006
+.%T The Secure Shell (SSH) Public Key File Format
 .Re
+.Pp
 .Rs
+.%A D. Stebila
+.%A J. Green
+.%D December 2009
 .%R RFC 5656
-.%T "Elliptic Curve Algorithm Integration in the Secure Shell Transport Layer"
-.%D 2009
+.%T Elliptic Curve Algorithm Integration in the Secure Shell Transport Layer
 .Re
+.Pp
 .Rs
-.%T "Hash Visualization: a New Technique to improve Real-World Security"
 .%A A. Perrig
 .%A D. Song
 .%D 1999
-.%O "International Workshop on Cryptographic Techniques and E-Commerce (CrypTEC '99)"
+.%O International Workshop on Cryptographic Techniques and E-Commerce (CrypTEC '99)
+.%T Hash Visualization: a New Technique to improve Real-World Security
 .Re
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free

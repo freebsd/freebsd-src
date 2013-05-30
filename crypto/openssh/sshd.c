@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.393 2012/07/10 02:19:15 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.397 2013/02/11 21:21:58 dtucker Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -370,6 +370,15 @@ grace_alarm_handler(int sig)
 {
 	if (use_privsep && pmonitor != NULL && pmonitor->m_pid > 0)
 		kill(pmonitor->m_pid, SIGALRM);
+
+	/*
+	 * Try to kill any processes that we have spawned, E.g. authorized
+	 * keys command helpers.
+	 */
+	if (getpgid(0) == getpid()) {
+		signal(SIGTERM, SIG_IGN);
+		killpg(0, SIGTERM);
+	}
 
 	/* Log error and exit. */
 	sigdie("Timeout before authentication for %s", get_remote_ipaddr());
@@ -1354,6 +1363,7 @@ main(int ac, char **av)
 	int remote_port;
 	char *line;
 	int config_s[2] = { -1 , -1 };
+	u_int n;
 	u_int64_t ibytes, obytes;
 	mode_t new_umask;
 	Key *key;
@@ -1576,6 +1586,33 @@ main(int ac, char **av)
 	if (options.challenge_response_authentication)
 		options.kbd_interactive_authentication = 1;
 
+	/* Check that options are sensible */
+	if (options.authorized_keys_command_user == NULL &&
+	    (options.authorized_keys_command != NULL &&
+	    strcasecmp(options.authorized_keys_command, "none") != 0))
+		fatal("AuthorizedKeysCommand set without "
+		    "AuthorizedKeysCommandUser");
+
+	/*
+	 * Check whether there is any path through configured auth methods.
+	 * Unfortunately it is not possible to verify this generally before
+	 * daemonisation in the presence of Match block, but this catches
+	 * and warns for trivial misconfigurations that could break login.
+	 */
+	if (options.num_auth_methods != 0) {
+		if ((options.protocol & SSH_PROTO_1))
+			fatal("AuthenticationMethods is not supported with "
+			    "SSH protocol 1");
+		for (n = 0; n < options.num_auth_methods; n++) {
+			if (auth2_methods_valid(options.auth_methods[n],
+			    1) == 0)
+				break;
+		}
+		if (n >= options.num_auth_methods)
+			fatal("AuthenticationMethods cannot be satisfied by "
+			    "enabled authentication methods");
+	}
+
 	/* set default channel AF */
 	channel_set_af(options.address_family);
 
@@ -1585,11 +1622,12 @@ main(int ac, char **av)
 		exit(1);
 	}
 
-	debug("sshd version %.100s%.100s%s%.100s",
+	debug("sshd version %.100s%.100s%s%.100s, %.100s",
 	    SSH_RELEASE,
 	    options.hpn_disabled ? "" : SSH_VERSION_HPN,
 	    *options.version_addendum == '\0' ? "" : " ",
-	    options.version_addendum);
+	    options.version_addendum,
+	    SSLeay_version(SSLEAY_VERSION));
 
 	/* Store privilege separation user for later use if required. */
 	if ((privsep_pw = getpwnam(SSH_PRIVSEP_USER)) == NULL) {
