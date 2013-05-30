@@ -180,10 +180,6 @@
 # include <util.h>
 #endif
 
-#ifdef HAVE_LIBUTIL_H
-# include <libutil.h>
-#endif
-
 /**
  ** prototypes for helper functions in this file
  **/

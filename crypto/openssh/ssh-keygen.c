@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.216 2012/07/06 06:38:03 jmc Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.225 2013/02/10 23:32:10 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -48,8 +48,11 @@
 #include "match.h"
 #include "hostfile.h"
 #include "dns.h"
+#include "ssh.h"
 #include "ssh2.h"
 #include "ssh-pkcs11.h"
+#include "atomicio.h"
+#include "krl.h"
 
 /* Number of bits in the RSA/DSA key.  This value can be set on the command line. */
 #define DEFAULT_BITS		2048
@@ -104,7 +107,7 @@ char *identity_comment = NULL;
 char *ca_key_path = NULL;
 
 /* Certificate serial number */
-long long cert_serial = 0;
+unsigned long long cert_serial = 0;
 
 /* Key type when certifying */
 u_int cert_key_type = SSH2_CERT_TYPE_USER;
@@ -723,15 +726,33 @@ do_download(struct passwd *pw)
 #ifdef ENABLE_PKCS11
 	Key **keys = NULL;
 	int i, nkeys;
+	enum fp_rep rep;
+	enum fp_type fptype;
+	char *fp, *ra;
+
+	fptype = print_bubblebabble ? SSH_FP_SHA1 : SSH_FP_MD5;
+	rep =    print_bubblebabble ? SSH_FP_BUBBLEBABBLE : SSH_FP_HEX;
 
 	pkcs11_init(0);
 	nkeys = pkcs11_add_provider(pkcs11provider, NULL, &keys);
 	if (nkeys <= 0)
 		fatal("cannot read public key from pkcs11");
 	for (i = 0; i < nkeys; i++) {
-		key_write(keys[i], stdout);
+		if (print_fingerprint) {
+			fp = key_fingerprint(keys[i], fptype, rep);
+			ra = key_fingerprint(keys[i], SSH_FP_MD5,
+			    SSH_FP_RANDOMART);
+			printf("%u %s %s (PKCS11 key)\n", key_size(keys[i]),
+			    fp, key_type(keys[i]));
+			if (log_level >= SYSLOG_LEVEL_VERBOSE)
+				printf("%s\n", ra);
+			xfree(ra);
+			xfree(fp);
+		} else {
+			key_write(keys[i], stdout);
+			fprintf(stdout, "\n");
+		}
 		key_free(keys[i]);
-		fprintf(stdout, "\n");
 	}
 	xfree(keys);
 	pkcs11_terminate();
@@ -1088,8 +1109,14 @@ do_known_hosts(struct passwd *pw, const char *name)
 					    ca ? " (CA key)" : "");
 					printhost(out, cp, pub, ca, 0);
 				}
-				if (delete_host && !c && !ca)
-					printhost(out, cp, pub, ca, 0);
+				if (delete_host) {
+					if (!c && !ca)
+						printhost(out, cp, pub, ca, 0);
+					else
+						printf("# Host %s found: "
+						    "line %d type %s\n", name,
+						    num, key_type(pub));
+				}
 			} else if (hash_hosts)
 				printhost(out, cp, pub, ca, 0);
 		} else {
@@ -1104,8 +1131,14 @@ do_known_hosts(struct passwd *pw, const char *name)
 					printhost(out, name, pub,
 					    ca, hash_hosts && !ca);
 				}
-				if (delete_host && !c && !ca)
-					printhost(out, cp, pub, ca, 0);
+				if (delete_host) {
+					if (!c && !ca)
+						printhost(out, cp, pub, ca, 0);
+					else
+						printf("# Host %s found: "
+						    "line %d type %s\n", name,
+						    num, key_type(pub));
+				}
 			} else if (hash_hosts) {
 				for (cp2 = strsep(&cp, ",");
 				    cp2 != NULL && *cp2 != '\0';
@@ -1867,6 +1900,226 @@ do_show_cert(struct passwd *pw)
 }
 
 static void
+load_krl(const char *path, struct ssh_krl **krlp)
+{
+	Buffer krlbuf;
+	int fd;
+
+	buffer_init(&krlbuf);
+	if ((fd = open(path, O_RDONLY)) == -1)
+		fatal("open %s: %s", path, strerror(errno));
+	if (!key_load_file(fd, path, &krlbuf))
+		fatal("Unable to load KRL");
+	close(fd);
+	/* XXX check sigs */
+	if (ssh_krl_from_blob(&krlbuf, krlp, NULL, 0) != 0 ||
+	    *krlp == NULL)
+		fatal("Invalid KRL file");
+	buffer_free(&krlbuf);
+}
+
+static void
+update_krl_from_file(struct passwd *pw, const char *file, const Key *ca,
+    struct ssh_krl *krl)
+{
+	Key *key = NULL;
+	u_long lnum = 0;
+	char *path, *cp, *ep, line[SSH_MAX_PUBKEY_BYTES];
+	unsigned long long serial, serial2;
+	int i, was_explicit_key, was_sha1, r;
+	FILE *krl_spec;
+
+	path = tilde_expand_filename(file, pw->pw_uid);
+	if (strcmp(path, "-") == 0) {
+		krl_spec = stdin;
+		free(path);
+		path = xstrdup("(standard input)");
+	} else if ((krl_spec = fopen(path, "r")) == NULL)
+		fatal("fopen %s: %s", path, strerror(errno));
+
+	if (!quiet)
+		printf("Revoking from %s\n", path);
+	while (read_keyfile_line(krl_spec, path, line, sizeof(line),
+	    &lnum) == 0) {
+		was_explicit_key = was_sha1 = 0;
+		cp = line + strspn(line, " \t");
+		/* Trim trailing space, comments and strip \n */
+		for (i = 0, r = -1; cp[i] != '\0'; i++) {
+			if (cp[i] == '#' || cp[i] == '\n') {
+				cp[i] = '\0';
+				break;
+			}
+			if (cp[i] == ' ' || cp[i] == '\t') {
+				/* Remember the start of a span of whitespace */
+				if (r == -1)
+					r = i;
+			} else
+				r = -1;
+		}
+		if (r != -1)
+			cp[r] = '\0';
+		if (*cp == '\0')
+			continue;
+		if (strncasecmp(cp, "serial:", 7) == 0) {
+			if (ca == NULL) {
+				fatal("revoking certificated by serial number "
+				    "requires specification of a CA key");
+			}
+			cp += 7;
+			cp = cp + strspn(cp, " \t");
+			errno = 0;
+			serial = strtoull(cp, &ep, 0);
+			if (*cp == '\0' || (*ep != '\0' && *ep != '-'))
+				fatal("%s:%lu: invalid serial \"%s\"",
+				    path, lnum, cp);
+			if (errno == ERANGE && serial == ULLONG_MAX)
+				fatal("%s:%lu: serial out of range",
+				    path, lnum);
+			serial2 = serial;
+			if (*ep == '-') {
+				cp = ep + 1;
+				errno = 0;
+				serial2 = strtoull(cp, &ep, 0);
+				if (*cp == '\0' || *ep != '\0')
+					fatal("%s:%lu: invalid serial \"%s\"",
+					    path, lnum, cp);
+				if (errno == ERANGE && serial2 == ULLONG_MAX)
+					fatal("%s:%lu: serial out of range",
+					    path, lnum);
+				if (serial2 <= serial)
+					fatal("%s:%lu: invalid serial range "
+					    "%llu:%llu", path, lnum,
+					    (unsigned long long)serial,
+					    (unsigned long long)serial2);
+			}
+			if (ssh_krl_revoke_cert_by_serial_range(krl,
+			    ca, serial, serial2) != 0) {
+				fatal("%s: revoke serial failed",
+				    __func__);
+			}
+		} else if (strncasecmp(cp, "id:", 3) == 0) {
+			if (ca == NULL) {
+				fatal("revoking certificated by key ID "
+				    "requires specification of a CA key");
+			}
+			cp += 3;
+			cp = cp + strspn(cp, " \t");
+			if (ssh_krl_revoke_cert_by_key_id(krl, ca, cp) != 0)
+				fatal("%s: revoke key ID failed", __func__);
+		} else {
+			if (strncasecmp(cp, "key:", 4) == 0) {
+				cp += 4;
+				cp = cp + strspn(cp, " \t");
+				was_explicit_key = 1;
+			} else if (strncasecmp(cp, "sha1:", 5) == 0) {
+				cp += 5;
+				cp = cp + strspn(cp, " \t");
+				was_sha1 = 1;
+			} else {
+				/*
+				 * Just try to process the line as a key.
+				 * Parsing will fail if it isn't.
+				 */
+			}
+			if ((key = key_new(KEY_UNSPEC)) == NULL)
+				fatal("key_new");
+			if (key_read(key, &cp) != 1)
+				fatal("%s:%lu: invalid key", path, lnum);
+			if (was_explicit_key)
+				r = ssh_krl_revoke_key_explicit(krl, key);
+			else if (was_sha1)
+				r = ssh_krl_revoke_key_sha1(krl, key);
+			else
+				r = ssh_krl_revoke_key(krl, key);
+			if (r != 0)
+				fatal("%s: revoke key failed", __func__);
+			key_free(key);
+		}
+	}
+	if (strcmp(path, "-") != 0)
+		fclose(krl_spec);
+}
+
+static void
+do_gen_krl(struct passwd *pw, int updating, int argc, char **argv)
+{
+	struct ssh_krl *krl;
+	struct stat sb;
+	Key *ca = NULL;
+	int fd, i;
+	char *tmp;
+	Buffer kbuf;
+
+	if (*identity_file == '\0')
+		fatal("KRL generation requires an output file");
+	if (stat(identity_file, &sb) == -1) {
+		if (errno != ENOENT)
+			fatal("Cannot access KRL \"%s\": %s",
+			    identity_file, strerror(errno));
+		if (updating)
+			fatal("KRL \"%s\" does not exist", identity_file);
+	}
+	if (ca_key_path != NULL) {
+		tmp = tilde_expand_filename(ca_key_path, pw->pw_uid);
+		if ((ca = key_load_public(tmp, NULL)) == NULL)
+			fatal("Cannot load CA public key %s", tmp);
+		xfree(tmp);
+	}
+
+	if (updating)
+		load_krl(identity_file, &krl);
+	else if ((krl = ssh_krl_init()) == NULL)
+		fatal("couldn't create KRL");
+
+	if (cert_serial != 0)
+		ssh_krl_set_version(krl, cert_serial);
+	if (identity_comment != NULL)
+		ssh_krl_set_comment(krl, identity_comment);
+
+	for (i = 0; i < argc; i++)
+		update_krl_from_file(pw, argv[i], ca, krl);
+
+	buffer_init(&kbuf);
+	if (ssh_krl_to_blob(krl, &kbuf, NULL, 0) != 0)
+		fatal("Couldn't generate KRL");
+	if ((fd = open(identity_file, O_WRONLY|O_CREAT|O_TRUNC, 0644)) == -1)
+		fatal("open %s: %s", identity_file, strerror(errno));
+	if (atomicio(vwrite, fd, buffer_ptr(&kbuf), buffer_len(&kbuf)) !=
+	    buffer_len(&kbuf))
+		fatal("write %s: %s", identity_file, strerror(errno));
+	close(fd);
+	buffer_free(&kbuf);
+	ssh_krl_free(krl);
+}
+
+static void
+do_check_krl(struct passwd *pw, int argc, char **argv)
+{
+	int i, r, ret = 0;
+	char *comment;
+	struct ssh_krl *krl;
+	Key *k;
+
+	if (*identity_file == '\0')
+		fatal("KRL checking requires an input file");
+	load_krl(identity_file, &krl);
+	for (i = 0; i < argc; i++) {
+		if ((k = key_load_public(argv[i], &comment)) == NULL)
+			fatal("Cannot load public key %s", argv[i]);
+		r = ssh_krl_check_key(krl, k);
+		printf("%s%s%s%s: %s\n", argv[i],
+		    *comment ? " (" : "", comment, *comment ? ")" : "",
+		    r == 0 ? "ok" : "REVOKED");
+		if (r != 0)
+			ret = 1;
+		key_free(k);
+		free(comment);
+	}
+	ssh_krl_free(krl);
+	exit(ret);
+}
+
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: %s [options]\n", __progname);
@@ -1892,6 +2145,7 @@ usage(void)
 	fprintf(stderr, "  -J number   Screen this number of moduli lines.\n");
 	fprintf(stderr, "  -j number   Start screening moduli at specified line.\n");
 	fprintf(stderr, "  -K checkpt  Write checkpoints to this file.\n");
+	fprintf(stderr, "  -k          Generate a KRL file.\n");
 	fprintf(stderr, "  -L          Print the contents of a certificate.\n");
 	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
 	fprintf(stderr, "  -M memory   Amount of memory (MB) to use for generating DH-GEX moduli.\n");
@@ -1901,6 +2155,7 @@ usage(void)
 	fprintf(stderr, "  -O option   Specify a certificate option.\n");
 	fprintf(stderr, "  -P phrase   Provide old passphrase.\n");
 	fprintf(stderr, "  -p          Change passphrase of private key file.\n");
+	fprintf(stderr, "  -Q          Test whether key(s) are revoked in KRL.\n");
 	fprintf(stderr, "  -q          Quiet.\n");
 	fprintf(stderr, "  -R hostname Remove host from known_hosts file.\n");
 	fprintf(stderr, "  -r hostname Print DNS resource record.\n");
@@ -1908,6 +2163,7 @@ usage(void)
 	fprintf(stderr, "  -s ca_key   Certify keys with CA key.\n");
 	fprintf(stderr, "  -T file     Screen candidates for DH-GEX moduli.\n");
 	fprintf(stderr, "  -t type     Specify type of key to create.\n");
+	fprintf(stderr, "  -u          Update KRL rather than creating a new one.\n");
 	fprintf(stderr, "  -V from:to  Specify certificate validity interval.\n");
 	fprintf(stderr, "  -v          Verbose.\n");
 	fprintf(stderr, "  -W gen      Generator to use for generating DH-GEX moduli.\n");
@@ -1925,14 +2181,14 @@ main(int argc, char **argv)
 {
 	char dotsshdir[MAXPATHLEN], comment[1024], *passphrase1, *passphrase2;
 	char *checkpoint = NULL;
-	char out_file[MAXPATHLEN], *rr_hostname = NULL;
+	char out_file[MAXPATHLEN], *ep, *rr_hostname = NULL;
 	Key *private, *public;
 	struct passwd *pw;
 	struct stat st;
 	int opt, type, fd;
 	u_int32_t memory = 0, generator_wanted = 0, trials = 100;
 	int do_gen_candidates = 0, do_screen_candidates = 0;
-	int gen_all_hostkeys = 0;
+	int gen_all_hostkeys = 0, gen_krl = 0, update_krl = 0, check_krl = 0;
 	unsigned long start_lineno = 0, lines_to_process = 0;
 	BIGNUM *start = NULL;
 	FILE *f;
@@ -1962,8 +2218,8 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	while ((opt = getopt(argc, argv, "AegiqpclBHLhvxXyF:b:f:t:D:I:J:j:K:P:"
-	    "m:N:n:O:C:r:g:R:T:G:M:S:s:a:V:W:z")) != -1) {
+	while ((opt = getopt(argc, argv, "ABHLQXceghiklpquvxy"
+	    "C:D:F:G:I:J:K:M:N:O:P:R:S:T:V:W:a:b:f:g:j:m:n:r:s:t:z:")) != -1) {
 		switch (opt) {
 		case 'A':
 			gen_all_hostkeys = 1;
@@ -2042,6 +2298,9 @@ main(int argc, char **argv)
 		case 'N':
 			identity_new_passphrase = optarg;
 			break;
+		case 'Q':
+			check_krl = 1;
+			break;
 		case 'O':
 			add_cert_option(optarg);
 			break;
@@ -2060,6 +2319,9 @@ main(int argc, char **argv)
 			cert_key_type = SSH2_CERT_TYPE_HOST;
 			certflags_flags = 0;
 			break;
+		case 'k':
+			gen_krl = 1;
+			break;
 		case 'i':
 		case 'X':
 			/* import key */
@@ -2076,6 +2338,9 @@ main(int argc, char **argv)
 			break;
 		case 'D':
 			pkcs11provider = optarg;
+			break;
+		case 'u':
+			update_krl = 1;
 			break;
 		case 'v':
 			if (log_level == SYSLOG_LEVEL_INFO)
@@ -2133,9 +2398,11 @@ main(int argc, char **argv)
 			parse_cert_times(optarg);
 			break;
 		case 'z':
-			cert_serial = strtonum(optarg, 0, LLONG_MAX, &errstr);
-			if (errstr)
-				fatal("Invalid serial number: %s", errstr);
+			errno = 0;
+			cert_serial = strtoull(optarg, &ep, 10);
+			if (*optarg < '0' || *optarg > '9' || *ep != '\0' ||
+			    (errno == ERANGE && cert_serial == ULLONG_MAX))
+				fatal("Invalid serial number \"%s\"", optarg);
 			break;
 		case '?':
 		default:
@@ -2150,11 +2417,11 @@ main(int argc, char **argv)
 	argc -= optind;
 
 	if (ca_key_path != NULL) {
-		if (argc < 1) {
+		if (argc < 1 && !gen_krl) {
 			printf("Too few arguments.\n");
 			usage();
 		}
-	} else if (argc > 0) {
+	} else if (argc > 0 && !gen_krl && !check_krl) {
 		printf("Too many arguments.\n");
 		usage();
 	}
@@ -2163,8 +2430,16 @@ main(int argc, char **argv)
 		usage();
 	}
 	if (print_fingerprint && (delete_host || hash_hosts)) {
-		printf("Cannot use -l with -D or -R.\n");
+		printf("Cannot use -l with -H or -R.\n");
 		usage();
+	}
+	if (gen_krl) {
+		do_gen_krl(pw, update_krl, argc, argv);
+		return (0);
+	}
+	if (check_krl) {
+		do_check_krl(pw, argc, argv);
+		return (0);
 	}
 	if (ca_key_path != NULL) {
 		if (cert_key_id == NULL)
@@ -2175,6 +2450,8 @@ main(int argc, char **argv)
 		do_show_cert(pw);
 	if (delete_host || hash_hosts || find_host)
 		do_known_hosts(pw, rr_hostname);
+	if (pkcs11provider != NULL)
+		do_download(pw);
 	if (print_fingerprint || print_bubblebabble)
 		do_fingerprint(pw);
 	if (change_passphrase)
@@ -2212,8 +2489,6 @@ main(int argc, char **argv)
 			exit(0);
 		}
 	}
-	if (pkcs11provider != NULL)
-		do_download(pw);
 
 	if (do_gen_candidates) {
 		FILE *out = fopen(out_file, "w");
@@ -2233,7 +2508,7 @@ main(int argc, char **argv)
 
 	if (do_screen_candidates) {
 		FILE *in;
-		FILE *out = fopen(out_file, "w");
+		FILE *out = fopen(out_file, "a");
 
 		if (have_identity && strcmp(identity_file, "-") != 0) {
 			if ((in = fopen(identity_file, "r")) == NULL) {

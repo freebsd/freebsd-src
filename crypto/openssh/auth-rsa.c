@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.80 2011/05/23 03:30:07 djm Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.81 2012/10/30 21:29:54 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -276,6 +276,8 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 	temporarily_use_uid(pw);
 
 	for (i = 0; !allowed && i < options.num_authkeys_files; i++) {
+		if (strcasecmp(options.authorized_keys_files[i], "none") == 0)
+			continue;
 		file = expand_authorized_keys(
 		    options.authorized_keys_files[i], pw);
 		allowed = rsa_key_allowed_in_file(pw, file, client_n, rkey);

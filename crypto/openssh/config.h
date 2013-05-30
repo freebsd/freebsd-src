@@ -75,6 +75,9 @@
 /* Define if your snprintf is busted */
 /* #undef BROKEN_SNPRINTF */
 
+/* FreeBSD strnvis does not do what we need */
+#define BROKEN_STRNVIS 1
+
 /* tcgetattr with ICANON may hang */
 /* #undef BROKEN_TCGETATTR_ICANON */
 
@@ -100,7 +103,7 @@
 /* #undef DISABLE_FD_PASSING */
 
 /* Define if you don't want to use lastlog */
-/* #undef DISABLE_LASTLOG */
+#define DISABLE_LASTLOG 1
 
 /* Define if you don't want to use your system's login() call */
 /* #undef DISABLE_LOGIN */
@@ -216,6 +219,9 @@
 /* Define to 1 if you have the `BN_is_prime_ex' function. */
 #define HAVE_BN_IS_PRIME_EX 1
 
+/* Define to 1 if you have the <bsd/libutil.h> header file. */
+/* #undef HAVE_BSD_LIBUTIL_H */
+
 /* Define to 1 if you have the <bsm/audit.h> header file. */
 /* #undef HAVE_BSM_AUDIT_H */
 
@@ -256,6 +262,10 @@
 /* Define to 1 if you have the declaration of `GLOB_NOMATCH', and to 0 if you
    don't. */
 #define HAVE_DECL_GLOB_NOMATCH 1
+
+/* Define to 1 if you have the declaration of `GSS_C_NT_HOSTBASED_SERVICE',
+   and to 0 if you don't. */
+/* #undef HAVE_DECL_GSS_C_NT_HOSTBASED_SERVICE */
 
 /* Define to 1 if you have the declaration of `h_errno', and to 0 if you
    don't. */
@@ -319,13 +329,16 @@
 #define HAVE_DIRENT_H 1
 
 /* Define to 1 if you have the `dirfd' function. */
-/* #undef HAVE_DIRFD */
+#define HAVE_DIRFD 1
 
 /* Define to 1 if you have the `dirname' function. */
 #define HAVE_DIRNAME 1
 
 /* Define to 1 if you have the `DSA_generate_parameters_ex' function. */
 #define HAVE_DSA_GENERATE_PARAMETERS_EX 1
+
+/* Define to 1 if you have the <elf.h> header file. */
+#define HAVE_ELF_H 1
 
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
@@ -338,6 +351,9 @@
 
 /* Define if your system has /etc/default/login */
 /* #undef HAVE_ETC_DEFAULT_LOGIN */
+
+/* Define if libcrypto has EVP_CIPHER_CTX_ctrl */
+#define HAVE_EVP_CIPHER_CTX_CTRL 1
 
 /* Define to 1 if you have the `EVP_sha256' function. */
 #define HAVE_EVP_SHA256 1
@@ -428,6 +444,12 @@
 
 /* Define to 1 if you have the `getpeerucred' function. */
 /* #undef HAVE_GETPEERUCRED */
+
+/* Define to 1 if you have the `getpgid' function. */
+#define HAVE_GETPGID 1
+
+/* Define to 1 if you have the `getpgrp' function. */
+#define HAVE_GETPGRP 1
 
 /* Define to 1 if you have the `getpwanam' function. */
 /* #undef HAVE_GETPWANAM */
@@ -956,7 +978,7 @@
 #define HAVE_STRNLEN 1
 
 /* Define to 1 if you have the `strnvis' function. */
-/* #undef HAVE_STRNVIS */
+#define HAVE_STRNVIS 1
 
 /* Define to 1 if you have the `strptime' function. */
 #define HAVE_STRPTIME 1
@@ -972,6 +994,9 @@
 
 /* Define to 1 if you have the `strtoul' function. */
 #define HAVE_STRTOUL 1
+
+/* Define to 1 if you have the `strtoull' function. */
+#define HAVE_STRTOULL 1
 
 /* define if you have struct addrinfo data type */
 #define HAVE_STRUCT_ADDRINFO 1
@@ -1153,6 +1178,9 @@
 /* Define to 1 if you have the `user_from_uid' function. */
 #define HAVE_USER_FROM_UID 1
 
+/* Define to 1 if you have the `usleep' function. */
+#define HAVE_USLEEP 1
+
 /* Define to 1 if you have the <util.h> header file. */
 /* #undef HAVE_UTIL_H */
 
@@ -1308,6 +1336,9 @@
 /* Need setpgrp to acquire controlling tty */
 /* #undef NEED_SETPGRP */
 
+/* compiler does not accept __attribute__ on return types */
+/* #undef NO_ATTRIBUTE_ON_RETURN_TYPE */
+
 /* Define if the concept of ports only accessible to superusers isn't known */
 /* #undef NO_IPPORT_RESERVED_CONCEPT */
 
@@ -1322,6 +1353,12 @@
 
 /* libcrypto includes complete ECC support */
 #define OPENSSL_HAS_ECC 1
+
+/* libcrypto has EVP AES CTR */
+/* #undef OPENSSL_HAVE_EVPCTR */
+
+/* libcrypto has EVP AES GCM */
+/* #undef OPENSSL_HAVE_EVPGCM */
 
 /* libcrypto is missing AES 192 and 256 bit functions */
 /* #undef OPENSSL_LOBOTOMISED_AES */
@@ -1356,6 +1393,9 @@
 
 /* must supply username to passwd */
 /* #undef PASSWD_NEEDS_USERNAME */
+
+/* System dirs owned by bin (uid 2) */
+/* #undef PLATFORM_SYS_DIR_UID */
 
 /* Port number of PRNGD/EGD random number socket */
 /* #undef PRNGD_PORT */
@@ -1528,7 +1568,7 @@
 #endif
 
 /* Define if xauth is found in your path */
-#define XAUTH_PATH "/usr/local/bin/xauth"
+/* #undef XAUTH_PATH */
 
 /* Enable large inode numbers on Mac OS X 10.5.  */
 #ifndef _DARWIN_USE_64_BIT_INODE
