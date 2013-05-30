@@ -216,10 +216,8 @@ static int rand_deg = DEG_3;
 static int rand_sep = SEP_3;
 static uint32_t *end_ptr = &randtbl[DEG_3 + 1];
 
-static inline uint32_t good_rand(int32_t);
-
-static inline uint32_t good_rand (x)
-	int32_t x;
+static inline uint32_t
+good_rand(int32_t x)
 {
 #ifdef  USE_WEAK_SEEDING
 /*
@@ -264,8 +262,7 @@ static inline uint32_t good_rand (x)
  * for default usage relies on values produced by this routine.
  */
 void
-srandom(x)
-	unsigned long x;
+srandom(unsigned long x)
 {
 	int i, lim;
 
@@ -295,7 +292,7 @@ srandom(x)
  * a fixed seed.
  */
 void
-srandomdev()
+srandomdev(void)
 {
 	int fd, done;
 	size_t len;
@@ -351,10 +348,7 @@ srandomdev()
  * complain about mis-alignment, but you should disregard these messages.
  */
 char *
-initstate(seed, arg_state, n)
-	unsigned long seed;		/* seed for R.N.G. */
-	char *arg_state;		/* pointer to state array */
-	long n;				/* # bytes of state info */
+initstate(unsigned long seed, char *arg_state, long n)
 {
 	char *ostate = (char *)(&state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;
@@ -366,7 +360,7 @@ initstate(seed, arg_state, n)
 	if (n < BREAK_0) {
 		(void)fprintf(stderr,
 		    "random: not enough state (%ld bytes); ignored.\n", n);
-		return(0);
+		return (0);
 	}
 	if (n < BREAK_1) {
 		rand_type = TYPE_0;
@@ -396,7 +390,7 @@ initstate(seed, arg_state, n)
 		int_arg_state[0] = rand_type;
 	else
 		int_arg_state[0] = MAX_TYPES * (rptr - state) + rand_type;
-	return(ostate);
+	return (ostate);
 }
 
 /*
@@ -419,8 +413,7 @@ initstate(seed, arg_state, n)
  * complain about mis-alignment, but you should disregard these messages.
  */
 char *
-setstate(arg_state)
-	char *arg_state;		/* pointer to state array */
+setstate(char *arg_state)
 {
 	uint32_t *new_state = (uint32_t *)arg_state;
 	uint32_t type = new_state[0] % MAX_TYPES;
@@ -451,7 +444,7 @@ setstate(arg_state)
 		fptr = &state[(rear + rand_sep) % rand_deg];
 	}
 	end_ptr = &state[rand_deg];		/* set end_ptr too */
-	return(ostate);
+	return (ostate);
 }
 
 /*
@@ -472,7 +465,7 @@ setstate(arg_state)
  * Returns a 31-bit random number.
  */
 long
-random()
+random(void)
 {
 	uint32_t i;
 	uint32_t *f, *r;
@@ -497,5 +490,5 @@ random()
 
 		fptr = f; rptr = r;
 	}
-	return((long)i);
+	return ((long)i);
 }
