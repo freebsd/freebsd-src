@@ -557,7 +557,7 @@ vm_object_deallocate(vm_object_t object)
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
 				KASSERT((object->flags & OBJ_TMPFS) == 0,
-				    ("Shadowed tmpfs v_object"));
+				    ("shadowed tmpfs v_object %p", object));
 				vm_object_t robject;
 
 				robject = LIST_FIRST(&object->shadow_head);
