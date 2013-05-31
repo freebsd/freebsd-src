@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -554,7 +555,7 @@ softdep_check_suspend(struct mount *mp,
 	(void) softdep_accdeps;
 
 	bo = &devvp->v_bufobj;
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 
 	MNT_ILOCK(mp);
 	while (mp->mnt_secondary_writes != 0) {
@@ -808,7 +809,7 @@ struct jextent {
  */
 static	void softdep_error(char *, int);
 static	void drain_output(struct vnode *);
-static	struct buf *getdirtybuf(struct buf *, struct mtx *, int);
+static	struct buf *getdirtybuf(struct buf *, struct rwlock *, int);
 static	void clear_remove(void);
 static	void clear_inodedeps(void);
 static	void unlinked_inodedep(struct mount *, struct inodedep *);
@@ -1030,12 +1031,12 @@ static	void softdep_disk_write_complete(struct buf *);
 static	void softdep_deallocate_dependencies(struct buf *);
 static	int softdep_count_dependencies(struct buf *bp, int);
 
-static struct mtx lk;
-MTX_SYSINIT(softdep_lock, &lk, "Softdep Lock", MTX_DEF);
+static struct rwlock lk;
+RW_SYSINIT(softdep_lock, &lk, "Softdep Lock");
 
-#define TRY_ACQUIRE_LOCK(lk)		mtx_trylock(lk)
-#define ACQUIRE_LOCK(lk)		mtx_lock(lk)
-#define FREE_LOCK(lk)			mtx_unlock(lk)
+#define TRY_ACQUIRE_LOCK(lk)		rw_try_wlock(lk)
+#define ACQUIRE_LOCK(lk)		rw_wlock(lk)
+#define FREE_LOCK(lk)			rw_wunlock(lk)
 
 #define	BUF_AREC(bp)			lockallowrecurse(&(bp)->b_lock)
 #define	BUF_NOREC(bp)			lockdisablerecurse(&(bp)->b_lock)
@@ -1073,7 +1074,7 @@ worklist_insert(head, item, locked)
 {
 
 	if (locked)
-		mtx_assert(&lk, MA_OWNED);
+		rw_assert(&lk, RA_WLOCKED);
 	if (item->wk_state & ONWORKLIST)
 		panic("worklist_insert: %p %s(0x%X) already on list",
 		    item, TYPENAME(item->wk_type), item->wk_state);
@@ -1088,7 +1089,7 @@ worklist_remove(item, locked)
 {
 
 	if (locked)
-		mtx_assert(&lk, MA_OWNED);
+		rw_assert(&lk, RA_WLOCKED);
 	if ((item->wk_state & ONWORKLIST) == 0)
 		panic("worklist_remove: %p %s(0x%X) not on list",
 		    item, TYPENAME(item->wk_type), item->wk_state);
@@ -1161,7 +1162,7 @@ jwork_move(dst, src)
 			freedep = freedep_merge(WK_FREEDEP(wk), freedep);
 	}
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	while ((wk = LIST_FIRST(src)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		WORKLIST_INSERT(dst, wk);
@@ -1212,7 +1213,7 @@ workitem_free(item, type)
 	int type;
 {
 	struct ufsmount *ump;
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 
 #ifdef DEBUG
 	if (item->wk_state & ONWORKLIST)
@@ -1428,7 +1429,7 @@ softdep_flush(void)
 static void
 worklist_speedup(void)
 {
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	if (req_pending == 0) {
 		req_pending = 1;
 		wakeup(&req_pending);
@@ -1462,7 +1463,7 @@ add_to_worklist(wk, flags)
 {
 	struct ufsmount *ump;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	ump = VFSTOUFS(wk->wk_mp);
 	if (wk->wk_state & ONWORKLIST)
 		panic("add_to_worklist: %s(0x%X) already on list",
@@ -1604,7 +1605,7 @@ process_removes(vp)
 	struct mount *mp;
 	ino_t inum;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 
 	mp = vp->v_mount;
 	inum = VTOI(vp)->i_number;
@@ -1654,7 +1655,7 @@ process_truncates(vp)
 	ino_t inum;
 	int cgwait;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 
 	mp = vp->v_mount;
 	inum = VTOI(vp)->i_number;
@@ -1727,7 +1728,7 @@ process_worklist_item(mp, target, flags)
 	int matchcnt;
 	int error;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	KASSERT(mp != NULL, ("process_worklist_item: NULL mp"));
 	/*
 	 * If we are being called because of a process doing a
@@ -2061,7 +2062,7 @@ pagedep_lookup(mp, bp, ino, lbn, flags, pagedeppp)
 	int ret;
 	int i;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	if (bp) {
 		LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 			if (wk->wk_type == D_PAGEDEP) {
@@ -2150,7 +2151,7 @@ inodedep_lookup(mp, inum, flags, inodedeppp)
 	struct inodedep_hashhead *inodedephd;
 	struct fs *fs;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	fs = VFSTOUFS(mp)->um_fs;
 	inodedephd = INODEDEP_HASH(fs, inum);
 
@@ -2704,7 +2705,7 @@ add_to_journal(wk)
 {
 	struct ufsmount *ump;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	ump = VFSTOUFS(wk->wk_mp);
 	if (wk->wk_state & ONWORKLIST)
 		panic("add_to_journal: %s(0x%X) already on list",
@@ -2730,7 +2731,7 @@ remove_from_journal(wk)
 {
 	struct ufsmount *ump;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	ump = VFSTOUFS(wk->wk_mp);
 #ifdef SUJ_DEBUG
 	{
@@ -2898,7 +2899,7 @@ softdep_prelink(dvp, vp)
 	struct ufsmount *ump;
 
 	ump = VFSTOUFS(dvp->v_mount);
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	/*
 	 * Nothing to do if we have sufficient journal space.
 	 * If we currently hold the snapshot lock, we must avoid
@@ -4986,7 +4987,7 @@ bmsafemap_lookup(mp, bp, cg, newbmsafemap)
 	struct worklist *wk;
 	struct fs *fs;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	KASSERT(bp != NULL, ("bmsafemap_lookup: missing buffer"));
 	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 		if (wk->wk_type == D_BMSAFEMAP) {
@@ -5257,7 +5258,7 @@ allocdirect_merge(adphead, newadp, oldadp)
 	struct freefrag *freefrag;
 
 	freefrag = NULL;
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	if (newadp->ad_oldblkno != oldadp->ad_newblkno ||
 	    newadp->ad_oldsize != oldadp->ad_newsize ||
 	    newadp->ad_offset >= NDADDR)
@@ -5718,7 +5719,7 @@ indirdep_lookup(mp, ip, bp)
 	struct fs *fs;
 	ufs2_daddr_t blkno;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	indirdep = NULL;
 	newindirdep = NULL;
 	fs = ip->i_fs;
@@ -5797,7 +5798,7 @@ setup_allocindir_phase2(bp, ip, inodedep, aip, lbn)
 	struct freefrag *freefrag;
 	struct mount *mp;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	mp = UFSTOVFS(ip->i_ump);
 	fs = ip->i_fs;
 	if (bp->b_lblkno >= 0)
@@ -6130,7 +6131,7 @@ complete_trunc_indir(freework)
 			BUF_UNLOCK(bp);
 		ACQUIRE_LOCK(&lk);
 	}
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	freework->fw_state |= DEPCOMPLETE;
 	TAILQ_REMOVE(&indirdep->ir_trunc, freework, fw_next);
 	/*
@@ -6874,7 +6875,7 @@ restart:
 			bp->b_vflags |= BV_SCANNED;
 			continue;
 		}
-		if ((bp = getdirtybuf(bp, BO_MTX(bo), MNT_WAIT)) == NULL)
+		if ((bp = getdirtybuf(bp, BO_LOCKPTR(bo), MNT_WAIT)) == NULL)
 			goto restart;
 		BO_UNLOCK(bo);
 		if (deallocate_dependencies(bp, freeblks, blkoff))
@@ -6899,14 +6900,12 @@ cleanrestart:
 		}
 		if (BUF_LOCK(bp,
 		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-		    BO_MTX(bo)) == ENOLCK) {
+		    BO_LOCKPTR(bo)) == ENOLCK) {
 			BO_LOCK(bo);
 			goto cleanrestart;
 		}
 		bp->b_vflags |= BV_SCANNED;
-		BO_LOCK(bo);
 		bremfree(bp);
-		BO_UNLOCK(bo);
 		if (blkoff != 0) {
 			allocbuf(bp, blkoff);
 			bqrelse(bp);
@@ -7220,7 +7219,7 @@ free_newblk(newblk)
 
 	KASSERT(newblk->nb_jnewblk == NULL,
 	    ("free_newblk; jnewblk %p still attached", newblk->nb_jnewblk));
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	newblk_freefrag(newblk);
 	if (newblk->nb_state & ONDEPLIST)
 		LIST_REMOVE(newblk, nb_deps);
@@ -7250,7 +7249,7 @@ free_newdirblk(newdirblk)
 	struct diradd *dap;
 	struct worklist *wk;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	WORKLIST_REMOVE(&newdirblk->db_list);
 	/*
 	 * If the pagedep is still linked onto the directory buffer
@@ -7381,7 +7380,7 @@ check_inode_unwritten(inodedep)
 	struct inodedep *inodedep;
 {
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 
 	if ((inodedep->id_state & (DEPCOMPLETE | UNLINKED)) != 0 ||
 	    !LIST_EMPTY(&inodedep->id_dirremhd) ||
@@ -7429,7 +7428,7 @@ free_inodedep(inodedep)
 	struct inodedep *inodedep;
 {
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	if ((inodedep->id_state & (ONWORKLIST | UNLINKED)) != 0 ||
 	    (inodedep->id_state & ALLCOMPLETE) != ALLCOMPLETE ||
 	    !LIST_EMPTY(&inodedep->id_dirremhd) ||
@@ -7472,7 +7471,7 @@ freework_freeblock(freework)
 	int bsize;
 	int needj;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	/*
 	 * Handle partial truncate separately.
 	 */
@@ -8578,7 +8577,7 @@ free_diradd(dap, wkhd)
 	struct inodedep *inodedep;
 	struct mkdir *mkdir, *nextmd;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	LIST_REMOVE(dap, da_pdlist);
 	if (dap->da_state & ONWORKLIST)
 		WORKLIST_REMOVE(&dap->da_list);
@@ -9198,7 +9197,7 @@ first_unlinked_inodedep(ump)
 	struct inodedep *inodedep;
 	struct inodedep *idp;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	for (inodedep = TAILQ_LAST(&ump->softdep_unlinked, inodedeplst);
 	    inodedep; inodedep = idp) {
 		if ((inodedep->id_state & UNLINKNEXT) == 0)
@@ -9247,7 +9246,7 @@ handle_written_sbdep(sbdep, bp)
 	struct mount *mp;
 	struct fs *fs;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	fs = sbdep->sb_fs;
 	mp = UFSTOVFS(sbdep->sb_ump);
 	/*
@@ -9289,7 +9288,7 @@ unlinked_inodedep(mp, inodedep)
 {
 	struct ufsmount *ump;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	if (MOUNTEDSUJ(mp) == 0)
 		return;
 	ump = VFSTOUFS(mp);
@@ -9323,7 +9322,7 @@ clear_unlinked_inodedep(inodedep)
 	ino = inodedep->id_ino;
 	error = 0;
 	for (;;) {
-		mtx_assert(&lk, MA_OWNED);
+		rw_assert(&lk, RA_WLOCKED);
 		KASSERT((inodedep->id_state & UNLINKED) != 0,
 		    ("clear_unlinked_inodedep: inodedep %p not unlinked",
 		    inodedep));
@@ -12444,7 +12443,7 @@ flush_deplist(listhead, waitfor, errorp)
 	struct newblk *newblk;
 	struct buf *bp;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	TAILQ_FOREACH(adp, listhead, ad_next) {
 		newblk = (struct newblk *)adp;
 		if (newblk->nb_jnewblk != NULL) {
@@ -12536,7 +12535,7 @@ flush_newblk_dep(vp, mp, lbn)
 		bp = gbincore(bo, lbn);
 		if (bp != NULL) {
 			error = BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
-			    LK_INTERLOCK, BO_MTX(bo));
+			    LK_INTERLOCK, BO_LOCKPTR(bo));
 			if (error == ENOLCK) {
 				ACQUIRE_LOCK(&lk);
 				continue; /* Slept, retry */
@@ -12922,7 +12921,7 @@ request_cleanup(mp, resource)
 	struct thread *td = curthread;
 	struct ufsmount *ump;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	/*
 	 * We never hold up the filesystem syncer or buf daemon.
 	 */
@@ -13031,7 +13030,7 @@ clear_remove(void)
 	int error, cnt;
 	ino_t ino;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 
 	for (cnt = 0; cnt <= pagedep_hash; cnt++) {
 		pagedephd = &pagedep_hashtbl[next++];
@@ -13090,7 +13089,7 @@ clear_inodedeps(void)
 	int error, cnt;
 	ino_t firstino, lastino, ino;
 
-	mtx_assert(&lk, MA_OWNED);
+	rw_assert(&lk, RA_WLOCKED);
 	/*
 	 * Pick a random inode dependency to be cleared.
 	 * We will then gather up all the inodes in its block 
@@ -13372,57 +13371,57 @@ out:
  * Return acquired buffer or NULL on failure.
  */
 static struct buf *
-getdirtybuf(bp, mtx, waitfor)
+getdirtybuf(bp, lock, waitfor)
 	struct buf *bp;
-	struct mtx *mtx;
+	struct rwlock *lock;
 	int waitfor;
 {
 	int error;
 
-	mtx_assert(mtx, MA_OWNED);
+	rw_assert(lock, RA_WLOCKED);
 	if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0) {
 		if (waitfor != MNT_WAIT)
 			return (NULL);
 		error = BUF_LOCK(bp,
-		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, mtx);
+		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, lock);
 		/*
 		 * Even if we sucessfully acquire bp here, we have dropped
-		 * mtx, which may violates our guarantee.
+		 * lock, which may violates our guarantee.
 		 */
 		if (error == 0)
 			BUF_UNLOCK(bp);
 		else if (error != ENOLCK)
 			panic("getdirtybuf: inconsistent lock: %d", error);
-		mtx_lock(mtx);
+		rw_wlock(lock);
 		return (NULL);
 	}
 	if ((bp->b_vflags & BV_BKGRDINPROG) != 0) {
-		if (mtx == &lk && waitfor == MNT_WAIT) {
-			mtx_unlock(mtx);
+		if (lock == &lk && waitfor == MNT_WAIT) {
+			rw_wunlock(lock);
 			BO_LOCK(bp->b_bufobj);
 			BUF_UNLOCK(bp);
 			if ((bp->b_vflags & BV_BKGRDINPROG) != 0) {
 				bp->b_vflags |= BV_BKGRDWAIT;
-				msleep(&bp->b_xflags, BO_MTX(bp->b_bufobj),
+				msleep(&bp->b_xflags, BO_LOCKPTR(bp->b_bufobj),
 				       PRIBIO | PDROP, "getbuf", 0);
 			} else
 				BO_UNLOCK(bp->b_bufobj);
-			mtx_lock(mtx);
+			rw_wlock(lock);
 			return (NULL);
 		}
 		BUF_UNLOCK(bp);
 		if (waitfor != MNT_WAIT)
 			return (NULL);
 		/*
-		 * The mtx argument must be bp->b_vp's mutex in
+		 * The lock argument must be bp->b_vp's mutex in
 		 * this case.
 		 */
 #ifdef	DEBUG_VFS_LOCKS
 		if (bp->b_vp->v_type != VCHR)
-			ASSERT_BO_LOCKED(bp->b_bufobj);
+			ASSERT_BO_WLOCKED(bp->b_bufobj);
 #endif
 		bp->b_vflags |= BV_BKGRDWAIT;
-		msleep(&bp->b_xflags, mtx, PRIBIO, "getbuf", 0);
+		rw_sleep(&bp->b_xflags, lock, PRIBIO, "getbuf", 0);
 		return (NULL);
 	}
 	if ((bp->b_flags & B_DELWRI) == 0) {
@@ -13454,7 +13453,7 @@ softdep_check_suspend(struct mount *mp,
 
 	ump = VFSTOUFS(mp);
 	bo = &devvp->v_bufobj;
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 
 	for (;;) {
 		if (!TRY_ACQUIRE_LOCK(&lk)) {
@@ -13532,12 +13531,12 @@ drain_output(vp)
 
 	bo = &vp->v_bufobj;
 	ASSERT_VOP_LOCKED(vp, "drain_output");
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 
 	while (bo->bo_numoutput) {
 		bo->bo_flag |= BO_WWAIT;
 		msleep((caddr_t)&bo->bo_numoutput,
-		    BO_MTX(bo), PRIBIO + 1, "drainvp", 0);
+		    BO_LOCKPTR(bo), PRIBIO + 1, "drainvp", 0);
 	}
 }
 

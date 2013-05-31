@@ -1073,7 +1073,7 @@ alloc:
 	 */
 	bo = &vp->v_bufobj;
 	bo->__bo_vnode = vp;
-	mtx_init(BO_MTX(bo), "bufobj interlock", NULL, MTX_DEF);
+	rw_init(BO_LOCKPTR(bo), "bufobj interlock");
 	bo->bo_ops = &buf_ops_bio;
 	bo->bo_private = vp;
 	TAILQ_INIT(&bo->bo_clean.bv_hd);
@@ -1331,7 +1331,7 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 	daddr_t lblkno;
 	b_xflags_t xflags;
 
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 
 	retval = 0;
 	TAILQ_FOREACH_SAFE(bp, &bufv->bv_hd, b_bobufs, nbp) {
@@ -1347,7 +1347,7 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		}
 		retval = EAGAIN;
 		error = BUF_TIMELOCK(bp,
-		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, BO_MTX(bo),
+		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, BO_LOCKPTR(bo),
 		    "flushbuf", slpflag, slptimeo);
 		if (error) {
 			BO_LOCK(bo);
@@ -1369,17 +1369,13 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		 */
 		if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
 		    (flags & V_SAVE)) {
-			BO_LOCK(bo);
 			bremfree(bp);
-			BO_UNLOCK(bo);
 			bp->b_flags |= B_ASYNC;
 			bwrite(bp);
 			BO_LOCK(bo);
 			return (EAGAIN);	/* XXX: why not loop ? */
 		}
-		BO_LOCK(bo);
 		bremfree(bp);
-		BO_UNLOCK(bo);
 		bp->b_flags |= (B_INVAL | B_RELBUF);
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
@@ -1426,12 +1422,10 @@ restart:
 				continue;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_MTX(bo)) == ENOLCK)
+			    BO_LOCKPTR(bo)) == ENOLCK)
 				goto restart;
 
-			BO_LOCK(bo);
 			bremfree(bp);
-			BO_UNLOCK(bo);
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
@@ -1452,11 +1446,9 @@ restart:
 				continue;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_MTX(bo)) == ENOLCK)
+			    BO_LOCKPTR(bo)) == ENOLCK)
 				goto restart;
-			BO_LOCK(bo);
 			bremfree(bp);
-			BO_UNLOCK(bo);
 			bp->b_flags |= (B_INVAL | B_RELBUF);
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
@@ -1484,15 +1476,13 @@ restartsync:
 			 */
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_MTX(bo)) == ENOLCK) {
+			    BO_LOCKPTR(bo)) == ENOLCK) {
 				goto restart;
 			}
 			VNASSERT((bp->b_flags & B_DELWRI), vp,
 			    ("buf(%p) on dirty queue without DELWRI", bp));
 
-			BO_LOCK(bo);
 			bremfree(bp);
-			BO_UNLOCK(bo);
 			bawrite(bp);
 			BO_LOCK(bo);
 			goto restartsync;
@@ -1512,7 +1502,7 @@ buf_vlist_remove(struct buf *bp)
 	struct bufv *bv;
 
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
-	ASSERT_BO_LOCKED(bp->b_bufobj);
+	ASSERT_BO_WLOCKED(bp->b_bufobj);
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) !=
 	    (BX_VNDIRTY|BX_VNCLEAN),
 	    ("buf_vlist_remove: Buf %p is on two lists", bp));
@@ -1538,7 +1528,7 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	struct buf *n;
 	int error;
 
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
 	    ("buf_vlist_add: Buf %p has existing xflags %d", bp, bp->b_xflags));
 	bp->b_xflags |= xflags;
@@ -1598,7 +1588,7 @@ bgetvp(struct vnode *vp, struct buf *bp)
 	struct bufobj *bo;
 
 	bo = &vp->v_bufobj;
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 	VNASSERT(bp->b_vp == NULL, bp->b_vp, ("bgetvp: not free"));
 
 	CTR3(KTR_BUF, "bgetvp(%p) vp %p flags %X", bp, vp, bp->b_flags);
@@ -1657,7 +1647,7 @@ vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 {
 	int slot;
 
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 
 	mtx_lock(&sync_mtx);
 	if (bo->bo_flag & BO_ONWORKLST)
@@ -2422,7 +2412,7 @@ vdropl(struct vnode *vp)
 	rangelock_destroy(&vp->v_rl);
 	lockdestroy(vp->v_vnlock);
 	mtx_destroy(&vp->v_interlock);
-	mtx_destroy(BO_MTX(bo));
+	rw_destroy(BO_LOCKPTR(bo));
 	uma_zfree(vnode_zone, vp);
 }
 

@@ -215,7 +215,7 @@ struct buf {
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_00800000	0x00800000	/* Available flag. */
 #define	B_NOCOPY	0x01000000	/* Don't copy-on-write this buf. */
-#define	B_02000000	0x02000000	/* Available flag. */
+#define	B_INFREECNT	0x02000000	/* buf is counted in numfreebufs */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
 #define B_MANAGED	0x08000000	/* Managed by FS. */
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
@@ -224,7 +224,7 @@ struct buf {
 #define B_REMFREE	0x80000000	/* Delayed bremfree */
 
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
-	"\33paging\32needsgiant\31nocopy\30b23\27relbuf\26dirty\25b20" \
+	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26dirty\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
 	"\15b12\14b11\13eintr\12done\11persist\10delwri\7validsuspwrt" \
 	"\6cache\5deferred\4direct\3async\2needcommit\1age"
@@ -248,9 +248,8 @@ struct buf {
 #define	BV_SCANNED	0x00000001	/* VOP_FSYNC funcs mark written bufs */
 #define	BV_BKGRDINPROG	0x00000002	/* Background write in progress */
 #define	BV_BKGRDWAIT	0x00000004	/* Background write waiting */
-#define	BV_INFREECNT	0x80000000	/* buf is counted in numfreebufs */
 
-#define	PRINT_BUF_VFLAGS "\20\40infreecnt\3bkgrdwait\2bkgrdinprog\1scanned"
+#define	PRINT_BUF_VFLAGS "\20\3bkgrdwait\2bkgrdinprog\1scanned"
 
 #ifdef _KERNEL
 /*
@@ -271,7 +270,7 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  * Get a lock sleeping non-interruptably until it becomes available.
  */
 #define	BUF_LOCK(bp, locktype, interlock)				\
-	_lockmgr_args(&(bp)->b_lock, (locktype), (interlock),		\
+	_lockmgr_args_rw(&(bp)->b_lock, (locktype), (interlock),	\
 	    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT,		\
 	    LOCK_FILE, LOCK_LINE)
 
@@ -279,7 +278,7 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
  * Get a lock sleeping with specified interruptably and timeout.
  */
 #define	BUF_TIMELOCK(bp, locktype, interlock, wmesg, catch, timo)	\
-	_lockmgr_args(&(bp)->b_lock, (locktype) | LK_TIMELOCK,		\
+	_lockmgr_args_rw(&(bp)->b_lock, (locktype) | LK_TIMELOCK,	\
 	    (interlock), (wmesg), (PRIBIO + 4) | (catch), (timo),	\
 	    LOCK_FILE, LOCK_LINE)
 

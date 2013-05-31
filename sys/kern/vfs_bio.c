@@ -418,11 +418,9 @@ bufcountwakeup(struct buf *bp)
 {
 	int old;
 
-	KASSERT((bp->b_vflags & BV_INFREECNT) == 0,
+	KASSERT((bp->b_flags & B_INFREECNT) == 0,
 	    ("buf %p already counted as free", bp));
-	if (bp->b_bufobj != NULL)
-		mtx_assert(BO_MTX(bp->b_bufobj), MA_OWNED);
-	bp->b_vflags |= BV_INFREECNT;
+	bp->b_flags |= B_INFREECNT;
 	old = atomic_fetchadd_int(&numfreebuffers, 1);
 	KASSERT(old >= 0 && old < nbuf,
 	    ("numfreebuffers climbed to %d", old + 1));
@@ -670,11 +668,10 @@ bufinit(void)
 	for (i = 0; i < nbuf; i++) {
 		bp = &buf[i];
 		bzero(bp, sizeof *bp);
-		bp->b_flags = B_INVAL;	/* we're just an empty header */
+		bp->b_flags = B_INVAL | B_INFREECNT;
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
-		bp->b_vflags = BV_INFREECNT;	/* buf is counted as free */
 		bp->b_xflags = 0;
 		LIST_INIT(&bp->b_dep);
 		BUF_LOCKINIT(bp);
@@ -848,16 +845,14 @@ bremfree(struct buf *bp)
 	    ("bremfree: buffer %p already marked for delayed removal.", bp));
 	KASSERT(bp->b_qindex != QUEUE_NONE,
 	    ("bremfree: buffer %p not on a queue.", bp));
-	BUF_ASSERT_HELD(bp);
+	BUF_ASSERT_XLOCKED(bp);
 
 	bp->b_flags |= B_REMFREE;
 	/* Fixup numfreebuffers count.  */
 	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
-		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
+		KASSERT((bp->b_flags & B_INFREECNT) != 0,
 		    ("buf %p not counted in numfreebuffers", bp));
-		if (bp->b_bufobj != NULL)
-			mtx_assert(BO_MTX(bp->b_bufobj), MA_OWNED);
-		bp->b_vflags &= ~BV_INFREECNT;
+		bp->b_flags &= ~B_INFREECNT;
 		old = atomic_fetchadd_int(&numfreebuffers, -1);
 		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
 	}
@@ -892,7 +887,7 @@ bremfreel(struct buf *bp)
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(bp->b_qindex != QUEUE_NONE,
 	    ("bremfreel: buffer %p not on a queue.", bp));
-	BUF_ASSERT_HELD(bp);
+	BUF_ASSERT_XLOCKED(bp);
 	mtx_assert(&bqlock, MA_OWNED);
 
 	TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
@@ -916,11 +911,9 @@ bremfreel(struct buf *bp)
 	 * numfreebuffers.
 	 */
 	if ((bp->b_flags & B_INVAL) || (bp->b_flags & B_DELWRI) == 0) {
-		KASSERT((bp->b_vflags & BV_INFREECNT) != 0,
+		KASSERT((bp->b_flags & B_INFREECNT) != 0,
 		    ("buf %p not counted in numfreebuffers", bp));
-		if (bp->b_bufobj != NULL)
-			mtx_assert(BO_MTX(bp->b_bufobj), MA_OWNED);
-		bp->b_vflags &= ~BV_INFREECNT;
+		bp->b_flags &= ~B_INFREECNT;
 		old = atomic_fetchadd_int(&numfreebuffers, -1);
 		KASSERT(old > 0, ("numfreebuffers dropped to %d", old - 1));
 	}
@@ -1476,15 +1469,10 @@ brelse(struct buf *bp)
 		bp->b_flags &= ~B_RELBUF;
 	else if (buf_vm_page_count_severe()) {
 		/*
-		 * The locking of the BO_LOCK is not necessary since
-		 * BKGRDINPROG cannot be set while we hold the buf
-		 * lock, it can only be cleared if it is already
-		 * pending.
+		 * BKGRDINPROG can only be set with the buf and bufobj
+		 * locks both held.  We tolerate a race to clear it here.
 		 */
-		if (bp->b_vp) {
-			if (!(bp->b_vflags & BV_BKGRDINPROG))
-				bp->b_flags |= B_RELBUF;
-		} else
+		if (!(bp->b_vflags & BV_BKGRDINPROG))
 			bp->b_flags |= B_RELBUF;
 	}
 
@@ -1603,16 +1591,9 @@ brelse(struct buf *bp)
 	/* enqueue */
 	mtx_lock(&bqlock);
 	/* Handle delayed bremfree() processing. */
-	if (bp->b_flags & B_REMFREE) {
-		struct bufobj *bo;
-
-		bo = bp->b_bufobj;
-		if (bo != NULL)
-			BO_LOCK(bo);
+	if (bp->b_flags & B_REMFREE)
 		bremfreel(bp);
-		if (bo != NULL)
-			BO_UNLOCK(bo);
-	}
+
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
 
@@ -1676,16 +1657,8 @@ brelse(struct buf *bp)
 	 * if B_INVAL is set ).
 	 */
 
-	if (!(bp->b_flags & B_DELWRI)) {
-		struct bufobj *bo;
-
-		bo = bp->b_bufobj;
-		if (bo != NULL)
-			BO_LOCK(bo);
+	if (!(bp->b_flags & B_DELWRI))
 		bufcountwakeup(bp);
-		if (bo != NULL)
-			BO_UNLOCK(bo);
-	}
 
 	/*
 	 * Something we can maybe free or reuse
@@ -1730,11 +1703,7 @@ bqrelse(struct buf *bp)
 	if (bp->b_flags & B_MANAGED) {
 		if (bp->b_flags & B_REMFREE) {
 			mtx_lock(&bqlock);
-			if (bo != NULL)
-				BO_LOCK(bo);
 			bremfreel(bp);
-			if (bo != NULL)
-				BO_UNLOCK(bo);
 			mtx_unlock(&bqlock);
 		}
 		bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
@@ -1744,13 +1713,9 @@ bqrelse(struct buf *bp)
 
 	mtx_lock(&bqlock);
 	/* Handle delayed bremfree() processing. */
-	if (bp->b_flags & B_REMFREE) {
-		if (bo != NULL)
-			BO_LOCK(bo);
+	if (bp->b_flags & B_REMFREE)
 		bremfreel(bp);
-		if (bo != NULL)
-			BO_UNLOCK(bo);
-	}
+
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("bqrelse: free buffer onto another queue???");
 	/* buffers with stale but valid contents */
@@ -1762,13 +1727,11 @@ bqrelse(struct buf *bp)
 #endif
 	} else {
 		/*
-		 * The locking of the BO_LOCK for checking of the
-		 * BV_BKGRDINPROG is not necessary since the
-		 * BV_BKGRDINPROG cannot be set while we hold the buf
-		 * lock, it can only be cleared if it is already
-		 * pending.
+		 * BKGRDINPROG can only be set with the buf and bufobj
+		 * locks both held.  We tolerate a race to clear it here.
 		 */
-		if (!buf_vm_page_count_severe() || (bp->b_vflags & BV_BKGRDINPROG)) {
+		if (!buf_vm_page_count_severe() ||
+		    (bp->b_vflags & BV_BKGRDINPROG)) {
 			bp->b_qindex = QUEUE_CLEAN;
 			TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp,
 			    b_freelist);
@@ -1788,13 +1751,8 @@ bqrelse(struct buf *bp)
 	}
 	mtx_unlock(&bqlock);
 
-	if ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI)) {
-		if (bo != NULL)
-			BO_LOCK(bo);
+	if ((bp->b_flags & B_INVAL) || !(bp->b_flags & B_DELWRI))
 		bufcountwakeup(bp);
-		if (bo != NULL)
-			BO_UNLOCK(bo);
-	}
 
 	/*
 	 * Something we can maybe free or reuse.
@@ -1940,7 +1898,7 @@ vfs_bio_awrite(struct buf *bp)
 		size = vp->v_mount->mnt_stat.f_iosize;
 		maxcl = MAXPHYS / size;
 
-		BO_LOCK(bo);
+		BO_RLOCK(bo);
 		for (i = 1; i < maxcl; i++)
 			if (vfs_bio_clcheck(vp, size, lblkno + i,
 			    bp->b_blkno + ((i * size) >> DEV_BSHIFT)) == 0)
@@ -1950,7 +1908,7 @@ vfs_bio_awrite(struct buf *bp)
 			if (vfs_bio_clcheck(vp, size, lblkno - j,
 			    bp->b_blkno - ((j * size) >> DEV_BSHIFT)) == 0)
 				break;
-		BO_UNLOCK(bo);
+		BO_RUNLOCK(bo);
 		--j;
 		ncl = i + j;
 		/*
@@ -2145,7 +2103,7 @@ getnewbuf_reuse_bp(struct buf *bp, int qindex)
 	bp->b_flags &= B_UNMAPPED | B_KVAALLOC;
 	bp->b_ioflags = 0;
 	bp->b_xflags = 0;
-	KASSERT((bp->b_vflags & BV_INFREECNT) == 0,
+	KASSERT((bp->b_flags & B_INFREECNT) == 0,
 	    ("buf %p still counted as free?", bp));
 	bp->b_vflags = 0;
 	bp->b_vp = NULL;
@@ -2293,24 +2251,19 @@ restart:
 		 */
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 			continue;
-		if (bp->b_vp) {
-			BO_LOCK(bp->b_bufobj);
-			if (bp->b_vflags & BV_BKGRDINPROG) {
-				BO_UNLOCK(bp->b_bufobj);
-				BUF_UNLOCK(bp);
-				continue;
-			}
-			BO_UNLOCK(bp->b_bufobj);
+		/*
+		 * BKGRDINPROG can only be set with the buf and bufobj
+		 * locks both held.  We tolerate a race to clear it here.
+		 */
+		if (bp->b_vflags & BV_BKGRDINPROG) {
+			BUF_UNLOCK(bp);
+			continue;
 		}
 
 		KASSERT(bp->b_qindex == qindex,
 		    ("getnewbuf: inconsistent queue %d bp %p", qindex, bp));
 
-		if (bp->b_bufobj != NULL)
-			BO_LOCK(bp->b_bufobj);
 		bremfreel(bp);
-		if (bp->b_bufobj != NULL)
-			BO_UNLOCK(bp->b_bufobj);
 		mtx_unlock(&bqlock);
 		/*
 		 * NOTE:  nbp is now entirely invalid.  We can only restart
@@ -2653,14 +2606,15 @@ flushbufqueues(struct vnode *lvp, int queue, int flushdeps)
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		BO_LOCK(bp->b_bufobj);
+		/*
+		 * BKGRDINPROG can only be set with the buf and bufobj
+		 * locks both held.  We tolerate a race to clear it here.
+		 */
 		if ((bp->b_vflags & BV_BKGRDINPROG) != 0 ||
 		    (bp->b_flags & B_DELWRI) == 0) {
-			BO_UNLOCK(bp->b_bufobj);
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		BO_UNLOCK(bp->b_bufobj);
 		if (bp->b_flags & B_INVAL) {
 			bremfreel(bp);
 			mtx_unlock(&bqlock);
@@ -2737,9 +2691,9 @@ incore(struct bufobj *bo, daddr_t blkno)
 {
 	struct buf *bp;
 
-	BO_LOCK(bo);
+	BO_RLOCK(bo);
 	bp = gbincore(bo, blkno);
-	BO_UNLOCK(bo);
+	BO_RUNLOCK(bo);
 	return (bp);
 }
 
@@ -3053,7 +3007,7 @@ loop:
 		mtx_unlock(&nblock);
 	}
 
-	BO_LOCK(bo);
+	BO_RLOCK(bo);
 	bp = gbincore(bo, blkno);
 	if (bp != NULL) {
 		int lockflags;
@@ -3067,7 +3021,7 @@ loop:
 			lockflags |= LK_NOWAIT;
 
 		error = BUF_TIMELOCK(bp, lockflags,
-		    BO_MTX(bo), "getblk", slpflag, slptimeo);
+		    BO_LOCKPTR(bo), "getblk", slpflag, slptimeo);
 
 		/*
 		 * If we slept and got the lock we have to restart in case
@@ -3094,11 +3048,8 @@ loop:
 			bp->b_flags |= B_CACHE;
 		if (bp->b_flags & B_MANAGED)
 			MPASS(bp->b_qindex == QUEUE_NONE);
-		else {
-			BO_LOCK(bo);
+		else
 			bremfree(bp);
-			BO_UNLOCK(bo);
-		}
 
 		/*
 		 * check for size inconsistencies for non-VMIO case.
@@ -3193,7 +3144,7 @@ loop:
 		 * returned by getnewbuf() is locked.  Note that the returned
 		 * buffer is also considered valid (not marked B_INVAL).
 		 */
-		BO_UNLOCK(bo);
+		BO_RUNLOCK(bo);
 		/*
 		 * If the user does not want us to create the buffer, bail out
 		 * here.
@@ -4400,7 +4351,7 @@ bufobj_wrefl(struct bufobj *bo)
 {
 
 	KASSERT(bo != NULL, ("NULL bo in bufobj_wref"));
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 	bo->bo_numoutput++;
 }
 
@@ -4434,11 +4385,11 @@ bufobj_wwait(struct bufobj *bo, int slpflag, int timeo)
 	int error;
 
 	KASSERT(bo != NULL, ("NULL bo in bufobj_wwait"));
-	ASSERT_BO_LOCKED(bo);
+	ASSERT_BO_WLOCKED(bo);
 	error = 0;
 	while (bo->bo_numoutput) {
 		bo->bo_flag |= BO_WWAIT;
-		error = msleep(&bo->bo_numoutput, BO_MTX(bo),
+		error = msleep(&bo->bo_numoutput, BO_LOCKPTR(bo),
 		    slpflag | (PRIBIO + 1), "bo_wwait", timeo);
 		if (error)
 			break;
@@ -4596,7 +4547,7 @@ DB_COMMAND(countfreebufs, db_coundfreebufs)
 
 	for (i = 0; i < nbuf; i++) {
 		bp = &buf[i];
-		if ((bp->b_vflags & BV_INFREECNT) != 0)
+		if ((bp->b_flags & B_INFREECNT) != 0)
 			nfree++;
 		else
 			used++;
