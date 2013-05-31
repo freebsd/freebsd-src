@@ -105,7 +105,7 @@ static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
 
 /*---------------------------- Command Processing ----------------------------*/
 static inline void 
-flush_requests(struct xbd_softc *sc)
+xbd_flush_requests(struct xbd_softc *sc)
 {
 	int notify;
 
@@ -232,7 +232,7 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * instead of in the startio context, so an explicit flush is needed.
 	 */
 	if (cm->cm_flags & XBD_CMD_FROZEN)
-		flush_requests(sc);
+		xbd_flush_requests(sc);
 
 	return;
 }
@@ -344,7 +344,7 @@ xbd_startio(struct xbd_softc *sc)
 	}
 
 	if (queued != 0) 
-		flush_requests(sc);
+		xbd_flush_requests(sc);
 }
 
 static void
@@ -640,7 +640,7 @@ xbd_strategy(struct bio *bp)
 
 /*------------------------------ Ring Management -----------------------------*/
 static int 
-xbd_setup_ring(struct xbd_softc *sc)
+xbd_alloc_ring(struct xbd_softc *sc)
 {
 	blkif_sring_t *sring;
 	uintptr_t sring_page_addr;
@@ -1071,7 +1071,7 @@ xbd_initialize(struct xbd_softc *sc)
 		xbd_free_command(cm);
 	}
 
-	if (xbd_setup_ring(sc) != 0)
+	if (xbd_alloc_ring(sc) != 0)
 		return;
 
 	/* Support both backend schemes for relaying ring page limits. */
