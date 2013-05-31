@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2012  Mark Nudelman
  *
