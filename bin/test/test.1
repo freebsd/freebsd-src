@@ -331,6 +331,20 @@ missing.
 .It >1
 An error occurred.
 .El
+.Sh EXAMPLES
+Implement
+.Li test FILE1 -nt FILE2
+using only
+.Tn POSIX
+functionality:
+.Pp
+.Dl test -n \&"$(find -L -- FILE1 -prune -newer FILE2 2>/dev/null)\&"
+.Pp
+This can be modified using non-standard
+.Xr find 1
+primaries like
+.Cm -newerca
+to compare other timestamps.
 .Sh COMPATIBILITY
 For compatibility with some other implementations,
 the
@@ -341,7 +355,9 @@ with the same meaning.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr expr 1 ,
+.Xr find 1 ,
 .Xr sh 1 ,
+.Xr stat 1 ,
 .Xr symlink 7
 .Sh STANDARDS
 The
