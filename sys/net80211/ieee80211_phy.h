@@ -85,7 +85,14 @@ const struct ieee80211_rate_table *ieee80211_get_ratetable(
 static __inline__ uint8_t
 ieee80211_ack_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
-	uint8_t cix = rt->info[rt->rateCodeToIndex[rate]].ctlRateIndex;
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
+	uint8_t cix = rt->info[rt->rateCodeToIndex[rate & IEEE80211_RATE_VAL]].ctlRateIndex;
 	KASSERT(cix != (uint8_t)-1, ("rate %d has no info", rate));
 	return rt->info[cix].dot11Rate;
 }
@@ -93,7 +100,14 @@ ieee80211_ack_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 static __inline__ uint8_t
 ieee80211_ctl_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
-	uint8_t cix = rt->info[rt->rateCodeToIndex[rate]].ctlRateIndex;
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
+	uint8_t cix = rt->info[rt->rateCodeToIndex[rate & IEEE80211_RATE_VAL]].ctlRateIndex;
 	KASSERT(cix != (uint8_t)-1, ("rate %d has no info", rate));
 	return rt->info[cix].dot11Rate;
 }
@@ -101,7 +115,14 @@ ieee80211_ctl_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 static __inline__ enum ieee80211_phytype
 ieee80211_rate2phytype(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
-	uint8_t rix = rt->rateCodeToIndex[rate];
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
+	uint8_t rix = rt->rateCodeToIndex[rate & IEEE80211_RATE_VAL];
 	KASSERT(rix != (uint8_t)-1, ("rate %d has no info", rate));
 	return rt->info[rix].phy;
 }
@@ -109,6 +130,13 @@ ieee80211_rate2phytype(const struct ieee80211_rate_table *rt, uint8_t rate)
 static __inline__ int
 ieee80211_isratevalid(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
 	return rt->rateCodeToIndex[rate] != (uint8_t)-1;
 }
 
