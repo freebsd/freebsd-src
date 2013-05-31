@@ -28,7 +28,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2012
+.Dd May 31, 2013
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -346,13 +346,19 @@ Any attempt to do so will be silently ignored.
 The following functions are either reentrant or not interruptible
 by signals and are async-signal safe.
 Therefore applications may
-invoke them, without restriction, from signal-catching functions:
+invoke them, without restriction, from signal-catching functions
+or from a child process after calling
+.Xr fork 2
+in a multi-threaded process:
 .Pp
 Base Interfaces:
 .Pp
+.Fn _Exit ,
 .Fn _exit ,
+.Fn accept ,
 .Fn access ,
 .Fn alarm ,
+.Fn bind ,
 .Fn cfgetispeed ,
 .Fn cfgetospeed ,
 .Fn cfsetispeed ,
@@ -361,41 +367,65 @@ Base Interfaces:
 .Fn chmod ,
 .Fn chown ,
 .Fn close ,
+.Fn connect ,
 .Fn creat ,
 .Fn dup ,
 .Fn dup2 ,
+.Fn execl ,
 .Fn execle ,
+.Fn execv ,
 .Fn execve ,
+.Fn fchdir ,
+.Fn fchmod ,
+.Fn fchown ,
 .Fn fcntl ,
 .Fn fork ,
-.Fn fpathconf ,
 .Fn fstat ,
 .Fn fsync ,
+.Fn ftruncate ,
 .Fn getegid ,
 .Fn geteuid ,
 .Fn getgid ,
 .Fn getgroups ,
+.Fn getpeername ,
 .Fn getpgrp ,
 .Fn getpid ,
 .Fn getppid ,
+.Fn getsockname ,
+.Fn getsockopt ,
 .Fn getuid ,
 .Fn kill ,
 .Fn link ,
+.Fn listen ,
 .Fn lseek ,
+.Fn lstat ,
 .Fn mkdir ,
 .Fn mkfifo ,
+.Fn mknod ,
 .Fn open ,
-.Fn pathconf ,
 .Fn pause ,
 .Fn pipe ,
+.Fn poll ,
+.Fn pselect ,
+.Fn pthread_sigmask ,
 .Fn raise ,
 .Fn read ,
+.Fn readlink ,
+.Fn recv ,
+.Fn recvfrom ,
+.Fn recvmsg ,
 .Fn rename ,
 .Fn rmdir ,
+.Fn select ,
+.Fn send ,
+.Fn sendmsg ,
+.Fn sendto ,
 .Fn setgid ,
 .Fn setpgid ,
 .Fn setsid ,
+.Fn setsockopt ,
 .Fn setuid ,
+.Fn shutdown ,
 .Fn sigaction ,
 .Fn sigaddset ,
 .Fn sigdelset ,
@@ -407,8 +437,11 @@ Base Interfaces:
 .Fn sigprocmask ,
 .Fn sigsuspend ,
 .Fn sleep ,
+.Fn sockatmark ,
+.Fn socket ,
+.Fn socketpair ,
 .Fn stat ,
-.Fn sysconf ,
+.Fn symlink ,
 .Fn tcdrain ,
 .Fn tcflow ,
 .Fn tcflush ,
@@ -427,11 +460,16 @@ Base Interfaces:
 .Fn waitpid ,
 .Fn write .
 .Pp
+X/Open Systems Interfaces:
+.Pp
+.Fn sigpause ,
+.Fn sigset ,
+.Fn utimes .
+.Pp
 Realtime Interfaces:
 .Pp
 .Fn aio_error ,
 .Fn clock_gettime ,
-.Fn sigpause ,
 .Fn timer_getoverrun ,
 .Fn aio_return ,
 .Fn fdatasync ,
@@ -439,27 +477,84 @@ Realtime Interfaces:
 .Fn timer_gettime ,
 .Fn aio_suspend ,
 .Fn sem_post ,
-.Fn sigset ,
 .Fn timer_settime .
 .Pp
-.Tn ANSI C
-Interfaces:
+Base Interfaces not specified as async-signal safe by
+.Tn POSIX :
 .Pp
-.Fn strcpy ,
+.Fn fpathconf ,
+.Fn pathconf ,
+.Fn sysconf .
+.Pp
+Base Interfaces not specified as async-signal safe by
+.Tn POSIX ,
+but planned to be:
+.Pp
+.Fn ffs ,
+.Fn htonl ,
+.Fn htons ,
+.Fn memccpy ,
+.Fn memchr ,
+.Fn memcmp ,
+.Fn memcpy ,
+.Fn memmove ,
+.Fn memset ,
+.Fn ntohl ,
+.Fn ntohs ,
+.Fn stpcpy ,
+.Fn stpncpy ,
 .Fn strcat ,
-.Fn strncpy ,
+.Fn strchr ,
+.Fn strcmp ,
+.Fn strcpy ,
+.Fn strcspn ,
+.Fn strlen ,
 .Fn strncat ,
-and perhaps some others.
+.Fn strncmp ,
+.Fn strncpy ,
+.Fn strnlen ,
+.Fn strpbrk ,
+.Fn strrchr ,
+.Fn strspn ,
+.Fn strstr ,
+.Fn strtok_r ,
+.Fn wcpcpy ,
+.Fn wcpncpy ,
+.Fn wcscat ,
+.Fn wcschr ,
+.Fn wcscmp ,
+.Fn wcscpy ,
+.Fn wcscspn ,
+.Fn wcslen ,
+.Fn wcsncat ,
+.Fn wcsncmp ,
+.Fn wcsncpy ,
+.Fn wcsnlen ,
+.Fn wcspbrk ,
+.Fn wcsrchr ,
+.Fn wcsspn ,
+.Fn wcsstr ,
+.Fn wcstok ,
+.Fn wmemchr ,
+.Fn wmemcmp ,
+.Fn wmemcpy ,
+.Fn wmemmove ,
+.Fn wmemset .
 .Pp
 Extension Interfaces:
 .Pp
 .Fn strlcpy ,
 .Fn strlcat .
 .Pp
+In addition, reading or writing
+.Va errno
+is async-signal safe.
+.Pp
 All functions not in the above lists are considered to be unsafe
 with respect to signals.
 That is to say, the behaviour of such
-functions when called from a signal handler is undefined.
+functions is undefined when they are called from a signal handler
+that interrupted an unsafe function.
 In general though, signal handlers should do little more than set a
 flag; most other actions are not safe.
 .Pp
