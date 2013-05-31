@@ -141,7 +141,7 @@ rip_entry_print_v2(register const struct rip_netinfo *ni, const unsigned remaini
 				putchar (isprint(*p) ? *p : '.');
 		} else if (auth_type == 3) {
 			printf("\n\t  Auth header:");
-			printf(" Packet Len %u,", EXTRACT_16BITS(&ni->rip_dest));
+			printf(" Packet Len %u,", EXTRACT_16BITS((u_int8_t *)ni + 4));
 			printf(" Key-ID %u,", *((u_int8_t *)ni + 6));
 			printf(" Auth Data Len %u,", *((u_int8_t *)ni + 7));
 			printf(" SeqNo %u,", EXTRACT_32BITS(&ni->rip_dest_mask));
