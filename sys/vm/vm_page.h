@@ -222,18 +222,17 @@ extern struct mtx_padalign pa_lock[];
 #define	vm_page_lock(m)		vm_page_lock_KBI((m), LOCK_FILE, LOCK_LINE)
 #define	vm_page_unlock(m)	vm_page_unlock_KBI((m), LOCK_FILE, LOCK_LINE)
 #define	vm_page_trylock(m)	vm_page_trylock_KBI((m), LOCK_FILE, LOCK_LINE)
-#if defined(INVARIANTS)
-#define	vm_page_lock_assert(m, a)		\
-    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
-#else
-#define	vm_page_lock_assert(m, a)
-#endif
 #else	/* !KLD_MODULE */
 #define	vm_page_lockptr(m)	(PA_LOCKPTR(VM_PAGE_TO_PHYS((m))))
 #define	vm_page_lock(m)		mtx_lock(vm_page_lockptr((m)))
 #define	vm_page_unlock(m)	mtx_unlock(vm_page_lockptr((m)))
 #define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
-#define	vm_page_lock_assert(m, a)	mtx_assert(vm_page_lockptr((m)), (a))
+#endif
+#if defined(INVARIANTS)
+#define	vm_page_lock_assert(m, a)		\
+    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
+#else
+#define	vm_page_lock_assert(m, a)
 #endif
 
 /*
