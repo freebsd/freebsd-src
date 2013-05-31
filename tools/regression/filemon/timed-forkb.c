@@ -45,6 +45,7 @@
 #define	SLEEP	20	/* seconds */
 #endif
 
+extern int verbose;
 int verbose;
 
 static void
