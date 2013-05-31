@@ -669,7 +669,9 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
 		VM_OBJECT_LOCK(sc->object);
 		if (bp->bio_cmd == BIO_READ) {
-			if (m->valid != VM_PAGE_BITS_ALL)
+			if (m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
@@ -691,6 +693,8 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
 				sched_unpin();
@@ -702,6 +706,8 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
 				sf_buf_free(sf);
 				sched_unpin();
