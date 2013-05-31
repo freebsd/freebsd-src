@@ -69,7 +69,7 @@ f_media_get_type()
 	f_dialog_title_restore
 	local prompt="$msg_choose_installation_media_description"
 	local hline="$hline_choose_help_for_more_information_on_media_types"
-	local menu_list size
+	local menu_list
 
 	menu_list="
 		'1 $msg_cd_dvd'    '$msg_install_from_a_freebsd_cd_dvd'
@@ -86,26 +86,29 @@ f_media_get_type()
 		'X $msg_options'   '$msg_view_set_various_media_options'
 	" # END-QUOTE
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$title\"  \
-	        	\"\$btitle\" \
-	        	\"\$prompt\" \
-	        	\"\$hline\"  \
-	        	$menu_list   )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
 
 	local dialog_menu
 
 	while :; do
 		dialog_menu=$( eval $DIALOG \
-			--title \"\$title\"                  \
-			--backtitle \"\$btitle\"             \
-			--hline \"\$hline\"                  \
-			--ok-label \"\$msg_ok\"              \
-			--cancel-label \"\$msg_cancel\"      \
-			--help-button                        \
-			--help-label \"\$msg_help\"          \
-			${USE_XDIALOG:+--help \"\"}          \
-			--menu \"\$prompt\" $size $menu_list \
+			--title \"\$title\"             \
+			--backtitle \"\$btitle\"        \
+			--hline \"\$hline\"             \
+			--ok-label \"\$msg_ok\"         \
+			--cancel-label \"\$msg_cancel\" \
+			--help-button                   \
+			--help-label \"\$msg_help\"     \
+			${USE_XDIALOG:+--help \"\"}     \
+			--menu \"\$prompt\"             \
+			$height $width $rows            \
+			$menu_list                      \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		local retval=$?

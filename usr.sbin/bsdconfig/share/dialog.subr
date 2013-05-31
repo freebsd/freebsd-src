@@ -83,6 +83,28 @@ unset XDIALOG_INFOBOX_TIMEOUT
 #
 : ${DEFAULT_TERMINAL_SIZE:=24 80}
 
+#
+# Minimum width(s) for various dialog(1) implementations (sensible global
+# default(s) for all widgets of a given variant)
+#
+: ${DIALOG_MIN_WIDTH:=24}
+: ${XDIALOG_MIN_WIDTH:=35}
+
+#
+# When manually sizing Xdialog(1) widgets such as calendar and timebox, you'll
+# need to know the size of the embedded GUI objects because the height passed
+# to Xdialog(1) for these widgets has to be tall enough to accomodate them.
+#
+# These values are helpful when manually sizing with dialog(1) too, but in a
+# different way. dialog(1) does not make you accomodate the custom items in the
+# height (but does for width) -- a height of 3 will display three lines and a
+# full calendar, for example (whereas Xdialog will truncate the calendar if
+# given a height of 3). For dialog(1), use these values for making sure that
+# the height does not exceed max_height (obtained by f_dialog_max_size()).
+#
+DIALOG_CALENDAR_HEIGHT=15
+DIALOG_TIMEBOX_HEIGHT=6
+
 ############################################################ GENERIC FUNCTIONS
 
 # f_dialog_title [$new_title]
@@ -174,889 +196,1163 @@ f_dialog_backtitle_restore()
 
 ############################################################ SIZE FUNCTIONS
 
-# f_dialog_infobox_size $title $backtitle $prompt [$hline]
+# f_dialog_max_size $var_height $var_width
+#
+# Get the maximum height and width for a dialog widget and store the values in
+# $var_height and $var_width (respectively).
+#
+f_dialog_max_size()
+{
+	local __var_height="$1" __var_width="$2" __max_size
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
+	if [ "$USE_XDIALOG" ]; then
+		__max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
+	else
+		__max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${__max_size:=$DEFAULT_TERMINAL_SIZE}
+	fi
+	[ "$__var_height" ] && setvar "$__var_height" "${__max_size%%[$IFS]*}"
+	[ "$__var_width" ] && setvar "$__var_width" "${__max_size##*[$IFS]}"
+}
+
+# f_dialog_size_constrain $var_height $var_width [$min_height [$min_width]]
+#
+# Modify $var_height to be no-less-than $min_height (if given; zero otherwise)
+# and no-greater-than terminal height (or screen height if $USE_XDIALOG is
+# set).
+#
+# Also modify $var_width to be no-less-than $XDIALOG_MIN_WIDTH (or
+# $XDIALOG_MIN_WIDTH if $_USE_XDIALOG is set) and no-greater-than terminal
+# or screen width. The use of $[X]DIALOG_MIN_WIDTH can be overridden by
+# passing $min_width.
+#
+# Return status is success unless one of the passed arguments is invalid
+# or all of the $var_* arguments are either NULL or missing.
+#
+f_dialog_size_constrain()
+{
+	local __var_height="$1" __var_width="$2"
+	local __min_height="$3" __min_width="$4"
+	local __retval=$SUCCESS
+
+	# Return failure unless at least one var_* argument is passed
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
+
+	#
+	# Print debug warnings if any given (non-NULL) argument are invalid
+	# NOTE: Don't change the name of $__{var,min,}{height,width}
+	#
+	local __height __width
+	local __arg __cp __fname=f_dialog_size_constrain 
+	for __arg in height width; do
+		debug= f_getvar __var_$__arg __cp
+		[ "$__cp" ] || continue
+		if ! f_getvar "$__cp" __$__arg; then
+			f_dprintf "%s: var_%s variable \`%s' not set" \
+			          $__fname $__arg "$__cp"
+			__retval=$FAILURE
+		elif ! eval f_isinteger \$__$__arg; then
+			f_dprintf "%s: var_%s variable value not a number" \
+			          $__fname $__arg
+			__retval=$FAILURE
+		fi
+	done
+	for __arg in height width; do
+		debug= f_getvar __min_$__arg __cp
+		[ "$__cp" ] || continue
+		f_isinteger "$__cp" && continue
+		f_dprintf "%s: min_%s value not a number" $__fname $__arg
+		__retval=$FAILURE
+		setvar __min_$__arg ""
+	done
+
+	# Obtain maximum height and width values
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __max_height_size_constain __max_width_size_constrain
+	f_dialog_max_size \
+		__max_height_size_constrain __max_width_size_constrain
+
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		if [ $__height -lt ${__min_height:-0} ]; then
+			setvar "$__var_height" $__min_height
+		elif [ $__height -gt $__max_height_size_constrain ]; then
+			setvar "$__var_height" $__max_height_size_constrain
+		fi
+	fi
+
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		if [ "$USE_XDIALOG" ]; then
+			: ${__min_width:=${XDIALOG_MIN_WIDTH:-35}}
+		else
+			: ${__min_width:=${DIALOG_MIN_WIDTH:-24}}
+		fi
+		if [ $__width -lt $__min_width ]; then
+			setvar "$__var_width" $__min_width
+		elif [ $__width -gt $__max_width_size_constrain ]; then
+			setvar "$__var_width" $__max_width_size_constrain
+		fi
+	fi
+
+	return $__retval # success if no debug warnings were printed
+}
+
+# f_dialog_menu_constrain $var_height $var_width $var_rows "$prompt" \
+#                         [$min_height [$min_width [$min_rows]]]
+#
+# Modify $var_height to be no-less-than $min_height (if given; zero otherwise)
+# and no-greater-than terminal height (or screen height if $USE_XDIALOG is
+# set).
+#
+# Also modify $var_width to be no-less-than $XDIALOG_MIN_WIDTH (or
+# $XDIALOG_MIN_WIDTH if $_USE_XDIALOG is set) and no-greater-than terminal
+# or screen width. The use of $[X]DIALOG_MIN_WIDTH can be overridden by
+# passing $min_width.
+#
+# Last, modify $var_rows to be no-less-than $min_rows (if specified; zero
+# otherwise) and no-greater-than (max_height - 8) where max_height is the
+# terminal height (or screen height if $USE_XDIALOG is set). If $prompt is NULL
+# or missing, dialog(1) allows $var_rows to be (max_height - 7), maximizing the
+# number of visible rows.
+#
+# Return status is success unless one of the passed arguments is invalid
+# or all of the $var_* arguments are either NULL or missing.
+#
+f_dialog_menu_constrain()
+{
+	local __var_height="$1" __var_width="$2" __var_rows="$3" __prompt="$4"
+	local __min_height="$5" __min_width="$6" __min_rows="$7"
+
+	# Return failure unless at least one var_* argument is passed
+	[ "$__var_height" -o "$__var_width" -o "$__var_rows" ] ||
+		return $FAILURE
+
+	#
+	# Print debug warnings if any given (non-NULL) argument are invalid
+	# NOTE: Don't change the name of $__{var,min,}{height,width,rows}
+	#
+	local __height __width __rows
+	local __arg __cp __fname=f_dialog_menu_constrain 
+	for __arg in height width rows; do
+		debug= f_getvar __var_$__arg __cp
+		[ "$__cp" ] || continue
+		if ! f_getvar "$__cp" __$__arg; then
+			f_dprintf "%s: var_%s variable \`%s' not set" \
+			          $__fname $__arg "$__cp"
+			__retval=$FAILURE
+		elif ! eval f_isinteger \$__$__arg; then
+			f_dprintf "%s: var_%s variable value not a number" \
+			          $__fname $__arg
+			__retval=$FAILURE
+		fi
+	done
+	for __arg in height width rows; do
+		debug= f_getvar __min_$__arg __cp
+		[ "$__cp" ] || continue
+		f_isinteger "$__cp" && continue
+		f_dprintf "%s: min_%s value not a number" $__fname $__arg
+		__retval=$FAILURE
+		setvar __min_$__arg ""
+	done
+
+	# Obtain maximum height and width values
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __max_height_menu_constrain __max_width_menu_constrain
+	f_dialog_max_size \
+		__max_height_menu_constrain __max_width_menu_constrain
+
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		if [ $__height -lt ${__min_height:-0} ]; then
+			setvar "$__var_height" $__min_height
+		elif [ $__height -gt $__max_height_menu_constrain ]; then
+			setvar "$__var_height" $__max_height_menu_constrain
+		fi
+	fi
+
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		if [ "$USE_XDIALOG" ]; then
+			: ${__min_width:=${XDIALOG_MIN_WIDTH:-35}}
+		else
+			: ${__min_width:=${DIALOG_MIN_WIDTH:-24}}
+		fi
+		if [ $__width -lt $__min_width ]; then
+			setvar "$__var_width" $__min_width
+		elif [ $__width -gt $__max_width_menu_constrain ]; then
+			setvar "$__var_width" $__max_width_menu_constrain
+		fi
+	fi
+
+	# Adjust rows if desired
+	if [ "$__var_rows" ]; then
+		if [ "$USE_XDIALOG" ]; then
+			: ${__min_rows:=1}
+		else
+			: ${__min_rows:=0}
+		fi
+
+		local __max_rows=$(( $__max_height_menu_constrain - 8 ))
+		# If prompt_len is zero (no prompt), bump the max-rows by 1
+		# Default assumption is (if no argument) that there's no prompt
+		[ ${__prompt_len:-0} -gt 0 ] ||
+			__max_rows=$(( $__max_rows + 1 ))
+
+		if [ $__rows -lt $__min_rows ]; then
+			setvar "$__var_rows" $__min_rows
+		elif [ $__rows -gt $__max_rows ]; then
+			setvar "$__var_rows" $__max_rows
+		fi
+	fi
+
+	return $__retval # success if no debug warnings were printed
+}
+
+# f_dialog_infobox_size [-n] $var_height $var_width \
+#                       $title $backtitle $prompt [$hline]
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--infobox' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, and [optionally] hline returning
-# the optimal width and height for the box (not exceeding the actual terminal
-# width or height).
+# This function helps solve this issue by taking two sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height and width. The second set of arguments are the
+# title, backtitle, prompt, and [optionally] hline. The optimal height and
+# width for the described widget (not exceeding the actual terminal height or
+# width) is stored in $var_height and $var_width (respectively).
+#
+# If the first argument is `-n', the calculated sizes ($var_height and
+# $var_width) are not constrained to minimum/maximum values.
 #
 # Newline character sequences (``\n'') in $prompt are expanded as-is done by
 # dialog(1).
 #
-# Output is in the format of "height width".
-#
 f_dialog_infobox_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
-	local min_width max_size
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2"
+	local __title="$3" __btitle="$4" __prompt="$5" __hline="$6"
 
-	if [ "$USE_XDIALOG" ]; then
-		min_width=35
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	else
-		min_width=24
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
-	fi
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
 
-	local max_height="${max_size%%[$IFS]*}"
-	local max_width="${max_size##*[$IFS]}"
-	local height width=$min_width
+	# Default height/width of zero for auto-sizing
+	local __height=0 __width=0 __n
 
-	#
-	# Bump width for long titles (but don't exceed terminal width).
-	#
-	n=$(( ${#title} + 4 ))
-	if [ $n -gt $width -a $n -gt $min_width ]; then
-		# Add 16.6% width for Xdialog(1)
-		[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 ))
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		#
+		# Set height based on number of rows in prompt
+		#
+		__n=$( echo -n "$__prompt" | f_number_of_lines )
+		__n=$(( $__n + 2 ))
+		[ $__n -gt $__height ] && __height=$__n
 
-		if [ $n -lt $max_width ]; then
-			width=$n
-		else
-			width=$max_width
+		#
+		# For Xdialog(1) bump height if backtitle is enabled (displayed
+		# in the X11 window with a separator line between the backtitle
+		# and msg text).
+		#
+		if [ "$USE_XDIALOG" -a "$__btitle" ]; then
+			__n=$( echo "$__btitle" | f_number_of_lines )
+			__height=$(( $__height + $__n + 2 ))
 		fi
+
+		setvar "$__var_height" $__height
 	fi
 
-	#
-	# For Xdialog(1), bump width for long backtitles (which appear within
-	# the window; don't exceed maximum width).
-	#
-	if [ "$USE_XDIALOG" ]; then
-		n=$(( ${#btitle} + 4 ))
-		n=$(( $n + $n / 6 ))
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		#
+		# Bump width for long titles
+		#
+		__n=$(( ${#__title} + 4 ))
+		[ $__n -gt $__width ] && __width=$__n
+
+		#
+		# If using Xdialog(1), bump width for long backtitles (which
+		# appear within the window).
+		#
+		if [ "$USE_XDIALOG" ]; then
+			__n=$(( ${#__btitle} + 4 ))
+			[ $__n -gt $__width ] && __width=$__n
 		fi
-	fi
 
-	#
-	# Bump width for long prompts (if not already at maximum width).
-	#
-	if [ $width -lt $max_width ]; then
-		n=$( echo "$prompt" | f_longest_line_length )
-		n=$(( $n + 4 ))
+		#
+		# Bump width for long prompts
+		#
+		__n=$( echo "$__prompt" | f_longest_line_length )
+		__n=$(( $__n + 4 )) # add width for border
+		[ $__n -gt $__width ] && __width=$__n
 
-		# Add 16.6% width for Xdialog(1)
-		[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 ))
-
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
+		#
+		# Bump width for long hlines. Xdialog(1) supports `--hline' but
+		# it's currently not used (so don't do anything here if using
+		# Xdialog(1)).
+		#
+		if [ ! "$USE_XDIALOG" ]; then
+			__n=$(( ${#__hline} + 10 ))
+			[ $__n -gt $__width ] && __width=$__n
 		fi
+
+		# Bump width by 16.6% if using Xdialog(1)
+		[ "$USE_XDIALOG" ] && __width=$(( $__width + $__width / 6 ))
+
+		setvar "$__var_width" $__width
 	fi
 
-	#
-	# Bump width for long hlines (if not already at maximum width).
-	# NOTE: Though Xdialog(1) supports `--hline', it's not currently used.
-	#
-	if [ ! "$USE_XDIALOG" ]; then
-		if [ $width -lt $max_width ]; then
-			n=$(( ${#hline} + 10 ))
-			if [ $n -gt $width -a $n -gt $min_width ]; then
-				if [ $n -lt $max_width ]; then
-					width=$n
-				else
-					width=$max_width
-				fi
-			fi
-		fi
-	fi
-
-	#
-	# Set height based on number of rows in prompt
-	#
-	height=$( echo -n "$prompt" | f_number_of_lines )
-	height=$(( $height + 2 ))
-
-	#
-	# For Xdialog(1) bump height if backtitle is enabled (displayed in the
-	# X11 window with a separator line between the backtitle and msg text)
-	#
-	if [ "$USE_XDIALOG" -a "$btitle" ]; then
-		n=$( echo "$btitle" | f_number_of_lines )
-		height=$(( $height + $n + 2 ))
-	fi
-
-	# Make sure height is less than maximum screen size
-	[ $height -le $max_height ] || height=$max_height
-
-	# Return both
-	echo "$height $width"
+	# Constrain values to sensible minimums/maximums unless `-n' was passed
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] ||
+		f_dialog_size_constrain "$__var_height" "$__var_width"
 }
 
-# f_dialog_buttonbox_size $title $backtitle $prompt [$hline]
+# f_dialog_buttonbox_size [-n] $var_height $var_width \
+#                         $title $backtitle $prompt [$hline]
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--msgbox' and `--yesno' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, and [optionally] hline returning
-# the optimal width and height for the box (not exceeding the actual terminal
-# width or height).
+# This function helps solve this issue by taking two sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height and width. The second set of arguments are the
+# title, backtitle, prompt, and [optionally] hline. The optimal height and
+# width for the described widget (not exceeding the actual terminal height or
+# width) is stored in $var_height and $var_width (respectively).
+#
+# If the first argument is `-n', the calculated sizes ($var_height and
+# $var_width) are not constrained to minimum/maximum values.
 #
 # Newline character sequences (``\n'') in $prompt are expanded as-is done by
 # dialog(1).
 #
-# Output is in the format of "height width".
-#
 f_dialog_buttonbox_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4"
-	local size="$( f_dialog_infobox_size \
-	               		"$title" "$btitle" "$prompt" "$hline" )"
-	local height="${size%%[$IFS]*}"
-	local width="${size##*[$IFS]}"
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2"
+	local __title="$3" __btitle="$4" __prompt="$5" __hline="$6"
 
-	# Add height to accomodate the buttons
-	height=$(( $height + 2 ))
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
 
-	# Adjust for clipping with Xdialog(1) on Linux/GTK2
-	[ "$USE_XDIALOG" ] && height=$(( $height + 3 ))
+	# Calculate height/width of infobox (adjusted/constrained below)
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_bbox_size __width_bbox_size
+	f_dialog_infobox_size -n \
+		"${__var_height:+__height_bbox_size}" \
+		"${__var_width:+__width_bbox_size}" \
+		"$__title" "$__btitle" "$__prompt" "$__hline"
 
-	#
-	# Enforce maximum height regardless
-	#
-	local max_size
-	if [ "$USE_XDIALOG" ]; then
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	else
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		# Add height to accomodate the buttons
+		__height_bbox_size=$(( $__height_bbox_size + 2 ))
+
+		# Adjust for clipping with Xdialog(1) on Linux/GTK2
+		[ "$USE_XDIALOG" ] &&
+			__height_bbox_size=$(( $__height_bbox_size + 3 ))
+
+		setvar "$__var_height" $__height_bbox_size
 	fi
-	local max_height="${max_size%%[$IFS]*}"
-	[ $height -le $max_height ] || height=$max_height
 
-	# Return both
-	echo "$height $width"
+	# No adjustemnts to width, just pass-thru the infobox width
+	if [ "$__var_width" ]; then
+		setvar "$__var_width" $__width_bbox_size
+	fi
+
+	# Constrain values to sensible minimums/maximums unless `-n' was passed
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] ||
+		f_dialog_size_constrain "$__var_height" "$__var_width"
 }
 
-# f_dialog_inputbox_size $title $backtitle $prompt $init [$hline]
+# f_dialog_inputbox_size [-n] $var_height $var_width \
+#                        $title $backtitle $prompt $init [$hline]
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--inputbox' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, initial text, and [optionally]
-# hline returning the optimal width and height for the box (not exceeding the
-# actual terminal width and height).
+# This function helps solve this issue by taking two sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height and width. The second set of arguments are the
+# title, backtitle, prompt, and [optionally] hline. The optimal height and
+# width for the described widget (not exceeding the actual terminal height or
+# width) is stored in $var_height and $var_width (respectively).
+#
+# If the first argument is `-n', the calculated sizes ($var_height and
+# $var_width) are not constrained to minimum/maximum values.
 #
 # Newline character sequences (``\n'') in $prompt are expanded as-is done by
 # dialog(1).
 #
-# Output is in the format of "height width".
-#
 f_dialog_inputbox_size()
 {
-	local title="$1" btitle="$2" prompt="$3" init="$4" hline="$5" n
-	local size="$( f_dialog_buttonbox_size \
-	               		"$title" "$btitle" "$prompt" "$hline" )"
-	local height="${size%%[$IFS]*}"
-	local width="${size##*[$IFS]}"
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2"
+	local __title="$3" __btitle="$4" __prompt="$5" __init="$6" __hline="$7"
 
-	local min_width max_size
-	if [ "$USE_XDIALOG" ]; then
-		min_width=35
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	else
-		min_width=24
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
-	fi
-	local max_height="${max_size%%[$IFS]*}"
-	local max_width="${max_size##*[$IFS]}"
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
 
-	#
-	# Add height to accomodate the input box
-	#
-	[ ! "$USE_XDIALOG" ] && height=$(( $height + 3 ))
-	[ $height -le $max_height ] || height=$max_height
+	# Calculate height/width of buttonbox (adjusted/constrained below)
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_ibox_size __width_ibox_size
+	f_dialog_buttonbox_size -n \
+		"${__var_height:+__height_ibox_size}" \
+		"${__var_width:+__width_ibox_size}" \
+		"$__title" "$__btitle" "$__prompt" "$__hline"
 
-	#
-	# Bump width for initial text (if not already at maximum width).
-	# NOTE: Something neither dialog(1)/Xdialog(1) do, but worth it!
-	#
-	if [ $width -lt $max_width ]; then
-		n=$(( ${#init} + 7 ))
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		# Add height for input box (not needed for Xdialog(1))
+		[ ! "$USE_XDIALOG" ] &&
+			__height_ibox_size=$(( $__height_ibox_size + 3 ))
 
-		# Add 16.6% width for Xdialog(1)
-		[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 ))
-
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
-		fi
+		setvar "$__var_height" $__height_ibox_size
 	fi
 
-	# Return both
-	echo "$height $width"
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		# Bump width for initial text (something neither dialog(1) nor
+		# Xdialog(1) do, but worth it!; add 16.6% if using Xdialog(1))
+		local __n=$(( ${#__init} + 7 ))
+		[ "$USE_XDIALOG" ] && __n=$(( $__n + $__n / 6 ))
+		[ $__n -gt $__width_ibox_size ] && __width_ibox_size=$__n
+
+		setvar "$__var_width" $__width_ibox_size
+	fi
+
+	# Constrain values to sensible minimums/maximums unless `-n' was passed
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] ||
+		f_dialog_size_constrain "$__var_height" "$__var_width"
 }
 
-# f_xdialog_2inputsbox_size $title $backtitle $prompt \
+# f_xdialog_2inputsbox_size [-n] $var_height $var_width \
+#                           $title $backtitle $prompt \
 #                           $label1 $init1 $label2 $init2
 #
 # Xdialog(1) does not perform auto-sizing of the width and height of
 # `--2inputsbox' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, label for the first field, initial
-# text for said field, label for the second field, and initial text for said
-# field returning the optimal width and height for the box (not exceeding the
-# actual terminal width and height).
+# This function helps solve this issue by taking two sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height and width. The second set of arguments are the
+# title, backtitle, prompt, label for the first field, initial text for said
+# field, label for the second field, and initial text for said field. The
+# optimal height and width for the described widget (not exceeding the actual
+# terminal height or width) is stored in $var_height and $var_width
+# (respectively).
+#
+# If the first argument is `-n', the calculated sizes ($var_height and
+# $var_width) are not constrained to minimum/maximum values.
 #
 # Newline character sequences (``\n'') in $prompt are expanded as-is done by
 # Xdialog(1).
 #
-# Output is in the format of "height width".
-#
 f_xdialog_2inputsbox_size()
 {
-	local title="$1" btitle="$2" prompt="$3"
-	local label1="$4" init1="$5" label2="$6" init2="$7" n
-	local size="$( f_dialog_inputbox_size \
-	               		"$title" "$btitle" "$prompt" "$init1" )"
-	local height="${size%%[$IFS]*}"
-	local width="${size##*[$IFS]}"
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2"
+	local __title="$3" __btitle="$4" __prompt="$5"
+	local __label1="$6" __init1="$7" __label2="$8" __init2="$9"
 
-	local min_width=35
-	local max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	local max_height="${max_size%%[$IFS]*}"
-	local max_width="${max_size##*[$IFS]}"
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
 
-	# Add height for first label
-	height=$(( $height + 2 ))
-
-	#
-	# Bump width for first label text (if not already at maximum width).
-	#
-	if [ $width -lt $max_width ]; then
-		n=$(( ${#label1} + 7 ))
-
-		# Add 16.6% width for Xdialog(1)
-		n=$(( $n + $n / 6 ))
-
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
-		fi
+	# Calculate height/width of inputbox (adjusted/constrained below)
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_2ibox_size __width_2ibox_size
+	f_dialog_inputbox_size -n \
+		"${__var_height:+__height_2ibox_size}" \
+		"${__var_width:+__width_2ibox_size}" \
+		"$__title" "$__btitle" "$__prompt" "$__hline" "$__init1"
+	
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		# Add height for 1st label, 2nd label, and 2nd input box
+		__height_2ibox_size=$(( $__height_2ibox_size + 2 + 2 + 2  ))
+		setvar "$__var_height" $__height_2ibox_size
 	fi
 
-	# Add height for second label
-	height=$(( $height + 2 ))
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		local __n
 
-	#
-	# Bump width for second label text (if not already at maximum width).
-	#
-	if [ $width -lt $max_width ]; then
-		n=$(( ${#label2} + 7 ))
+		# Bump width for first label text (+16.6% since Xdialog(1))
+		__n=$(( ${#__label1} + 7 ))
+		__n=$(( $__n + $__n / 6 ))
+		[ $__n -gt $__width_2ibox_size ] && __width_2ibox_size=$__n
 
-		# Add 16.6% width for Xdialog(1)
-		n=$(( $n + $n / 6 ))
+		# Bump width for second label text (+16.6% since Xdialog(1))
+		__n=$(( ${#__label2} + 7 ))
+		__n=$(( $__n + $__n / 6 ))
+		[ $__n -gt $__width_2ibox_size ] && __width_2ibox_size=$__n
 
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
-		fi
+		# Bump width for 2nd initial text (something neither dialog(1)
+		# nor Xdialog(1) do, but worth it!; +16.6% since Xdialog(1))
+		__n=$(( ${#__init2} + 7 ))
+		__n=$(( $__n + $__n / 6 ))
+		[ $__n -gt $__width_2ibox_size ] && __width_2ibox_size=$__n
+
+		setvar "$__var_width" $__width_2ibox_size
 	fi
 
-	# Add height for a second inputbox
-	height=$(( $height + 2 ))
-	[ $height -le $max_height ] || height=$max_height
-
-	#
-	# Bump width for second initial text (if not already at maximum width).
-	# NOTE: Something neither dialog(1)/Xdialog(1) do, but worth it!
-	#
-	if [ $width -lt $max_width ]; then
-		n=$(( ${#init2} + 7 ))
-
-		# Add 16.6% width for Xdialog(1)
-		n=$(( $n + $n / 6 ))
-
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
-		fi
-	fi
-
-	# Return both
-	echo "$height $width"
+	# Constrain values to sensible minimums/maximums unless `-n' was passed
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] ||
+		f_dialog_size_constrain "$__var_height" "$__var_width"
 }
 
-# f_dialog_menu_size $title $backtitle $prompt $hline \
+# f_dialog_menu_size [-n] $var_height $var_width $var_rows \
+#                    $title $backtitle $prompt $hline \
 #                    $tag1 $item1 $tag2 $item2 ...
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--menu' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, hline and list of tag/item pairs,
-# returning the optimal width and height for the menu (not exceeding the actual
-# terminal width or height).
+# This function helps solve this issue by taking three sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height, width, and rows. The second set of arguments
+# are the title, backtitle, prompt, and hline. The [optional] third set of
+# arguments are the menu list itself (comprised of tag/item couplets). The
+# optimal height, width, and rows for the described widget (not exceeding the
+# actual terminal height or width) is stored in $var_height, $var_width, and
+# $var_rows (respectively).
 #
-# Output is in the format of "height width rows".
+# If the first argument is `-n', the calculated sizes ($var_height, $var_width,
+# and $var_rows) are not constrained to minimum/maximum values.
 #
 f_dialog_menu_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
-	local min_width min_rows max_size
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2" __var_rows="$3"
+	local __title="$4" __btitle="$5" __prompt="$6" __hline="$7"
+	shift 7 # var_height/var_width/var_rows/title/btitle/prompt/hline
 
-	if [ "$USE_XDIALOG" ]; then
-		min_width=35
-		min_rows=1
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	else
-		min_width=24
-		min_rows=0
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
-	fi
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" -o "$__var_rows" ] ||
+		return $FAILURE
 
-	local max_width="${max_size##*[$IFS]}"
-	local max_height="${max_size%%[$IFS]*}"
-	local box_size="$( f_dialog_infobox_size \
-	                   	"$title" "$btitle" "$prompt" "$hline" )"
-	local box_height="${box_size%%[$IFS]*}"
-	local box_width="${box_size##*[$IFS]}"
-	local max_rows=$(( $max_height - 8 ))
-	local height width=$box_width rows=$min_rows
-
-	shift 4 # title/btitle/prompt/hline
-
-	# If there's no prompt, bump the max-rows by 1
-	[ "$prompt" ] || max_rows=$(( $max_rows + 1 ))
+	# Calculate height/width of infobox (adjusted/constrained below)
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_menu_size __width_menu_size
+	f_dialog_infobox_size -n \
+		"${__var_height:+__height_menu_size}" \
+		"${__var_width:+__width_menu_size}" \
+		"$__title" "$__btitle" "$__prompt" "$__hline"
 
 	#
-	# The sum total between the longest tag-length and longest item-length
-	# should be used for the menu width (not to exceed terminal width).
+	# Always process the menu-item arguments to get the longest tag-length,
+	# longest item-length (both used to bump the width), and the number of
+	# rows (used to bump the height).
 	#
-	# Also, calculate the number of rows (not to exceed terminal height).
-	#
-	local longest_tag=0 longest_item=0
+	local __longest_tag=0 __longest_item=0 __rows=0
 	while [ $# -ge 2 ]; do
-		local tag="$1" item="$2"
+		local __tag="$1" __item="$2"
 		shift 2 # tag/item
-
-		[ ${#tag} -gt $longest_tag ] && longest_tag=${#tag}
-		[ ${#item} -gt $longest_item ] && longest_item=${#item}
-		[ $rows -lt $max_rows ] && rows=$(( $rows + 1 ))
+		[ ${#__tag} -gt $__longest_tag ] && __longest_tag=${#__tag}
+		[ ${#__item} -gt $__longest_item ] && __longest_item=${#__item}
+		__rows=$(( $__rows + 1 ))
 	done
 
-	# Update width
-	n=$(( $longest_tag + $longest_item + 10 ))
-	[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 )) # Add 16.6% for Xdialog(1)
-	if [ $n -gt $width -a $n -gt $min_width ]; then
-		if [ $n -lt $max_width ]; then
-			width=$n
+	# Adjust rows early (for up-comning height calculation)
+	if [ "$__var_height" -o "$__var_rows" ]; then
+		# Add a row for visual aid if using Xdialog(1)
+		[ "$USE_XDIALOG" ] && __rows=$(( $__rows + 1 ))
+	fi
+
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		# Add rows to height
+		if [ "$USE_XDIALOG" ]; then
+			__height_menu_size=$((
+				$__height_menu_size + $__rows + 7 ))
 		else
-			width=$max_width
+			__height_menu_size=$((
+				$__height_menu_size + $__rows + 4 ))
 		fi
+		setvar "$__var_height" $__height_menu_size
 	fi
 
-	# Fix rows and set height
-	[ $rows -gt 0 ] || rows=1
-	if [ "$USE_XDIALOG" ]; then
-		height=$(( $rows + $box_height + 7 ))
-	else
-		height=$(( $rows + $box_height + 4 ))
-	fi
-	[ $height -le $max_height ] || height=$max_height
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		# The sum total between the longest tag-length and the
+		# longest item-length should be used to bump menu width
+		local __n=$(( $__longest_tag + $__longest_item + 10 ))
+		[ "$USE_XDIALOG" ] && __n=$(( $__n + $__n / 6 )) # plus 16.6%
+		[ $__n -gt $__width_menu_size ] && __width_menu_size=$__n
 
-	# Return all three
-	echo "$height $width $rows"
+		setvar "$__var_width" $__width_menu_size
+	fi
+
+	# Store adjusted rows if desired
+	[ "$__var_rows" ] && setvar "$__var_rows" $__rows
+
+	# Constrain height, width, and rows to sensible minimum/maximum values
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] || f_dialog_menu_constrain \
+		"$__var_height" "$__var_width" "$__var_rows" "$__prompt"
 }
 
-# f_dialog_menu_with_help_size $title $backtitle $prompt $hline \
+# f_dialog_menu_with_help_size [-n] $var_height $var_width $var_rows \
+#                              $title $backtitle $prompt $hline \
 #                              $tag1 $item1 $help1 $tag2 $item2 $help2 ...
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--menu' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, hline and list of tag/item/help
-# triplets, returning the optimal width and height for the menu (not exceeding
-# the actual terminal width or height).
+# This function helps solve this issue by taking three sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height, width, and rows. The second set of arguments
+# are the title, backtitle, prompt, and hline. The [optional] third set of
+# arguments are the menu list itself (comprised of tag/item/help triplets). The
+# optimal height, width, and rows for the described widget (not exceeding the
+# actual terminal height or width) is stored in $var_height, $var_width, and
+# $var_rows (respectively).
 #
-# Output is in the format of "height width rows".
+# If the first argument is `-n', the calculated sizes ($var_height, $var_width,
+# and $var_rows) are not constrained to minimum/maximum values.
 #
 f_dialog_menu_with_help_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
-	local min_width min_rows max_size
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2" __var_rows="$3"
+	local __title="$4" __btitle="$5" __prompt="$6" __hline="$7"
+	shift 7 # var_height/var_width/var_rows/title/btitle/prompt/hline
 
-	if [ "$USE_XDIALOG" ]; then
-		min_width=35
-		min_rows=1
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	else
-		min_width=24
-		min_rows=0
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
-	fi
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" -o "$__var_rows" ] ||
+		return $FAILURE
 
-	local max_width="${max_size##*[$IFS]}"
-	local max_height="${max_size%%[$IFS]*}"
-	local box_size="$( f_dialog_infobox_size \
-	                   	"$title" "$btitle" "$prompt" "$hline" )"
-	local box_height="${box_size%%[$IFS]*}"
-	local box_width="${box_size##*[$IFS]}"
-	local max_rows=$(( $max_height - 8 ))
-	local height width=$box_width rows=$min_rows
-
-	shift 4 # title/btitle/prompt/hline
-
-	# If there's no prompt, bump the max-rows by 1
-	[ "$prompt" ] || max_rows=$(( $max_rows + 1 ))
+	# Calculate height/width of infobox (adjusted/constrained below)
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_menu_with_help_size __width_menu_with_help_size
+	f_dialog_infobox_size -n \
+		"${__var_height:+__height_menu_with_help_size}" \
+		"${__var_width:+__width_menu_with_help_size}" \
+		"$__title" "$__btitle" "$__prompt" "$__hline"
 
 	#
-	# The sum total between the longest tag-length and longest item-length
-	# should be used for the menu width (not to exceed terminal width).
+	# Always process the menu-item arguments to get the longest tag-length,
+	# longest item-length, longest help-length (help-length only considered
+	# if using Xdialog(1), as it places the help string in the widget) --
+	# all used to bump the width -- and the number of rows (used to bump
+	# the height).
 	#
-	# Also, calculate the number of rows (not to exceed terminal height).
-	#
-	# Also, calculate the longest help while we're here. This will be used
-	# to influence the width of the menu if (and only-if) using Xdialog(1).
-	#
-	local longest_tag=0 longest_item=0 longest_help=0
+	local __longest_tag=0 __longest_item=0 __longest_help=0 __rows=0
 	while [ $# -ge 3 ]; do
-		local tag="$1" item="$2" help="$3"
+		local __tag="$1" __item="$2" __help="$3"
 		shift 3 # tag/item/help
-
-		[ ${#tag} -gt $longest_tag ] && longest_tag=${#tag}
-		[ ${#item} -gt $longest_item ] && longest_item=${#item}
-		[ ${#help} -gt $longest_help ] && longest_help=${#help}
-		[ $rows -lt $max_rows ] && rows=$(( $rows + 1 ))
+		[ ${#__tag} -gt $__longest_tag ] && __longest_tag=${#__tag}
+		[ ${#__item} -gt $__longest_item ] && __longest_item=${#__item}
+		[ ${#__help} -gt $__longest_help ] && __longest_help=${#__help}
+		__rows=$(( $__rows + 1 ))
 	done
 
-	# Update width
-	n=$(( $longest_tag + $longest_item + 10 ))
-	[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 )) # Add 16.6% for Xdialog(1)
-	if [ $n -gt $width -a $n -gt $min_width ]; then
-		if [ $n -lt $max_width ]; then
-			width=$n
+	# Adjust rows early (for up-coming height calculation)
+	if [ "$__var_height" -o "$__var_rows" ]; then
+		# Add a row for visual aid if using Xdialog(1)
+		[ "$USE_XDIALOG" ] && __rows=$(( $__rows + 1 ))
+	fi
+
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		# Add rows to height
+		if [ "$USE_XDIALOG" ]; then
+			__height_menu_with_help_size=$((
+				$__height_menu_with_help_size + $__rows + 8 ))
 		else
-			width=$max_width
+			__height_menu_with_help_size=$((
+				$__height_menu_with_help_size + $__rows + 4 ))
 		fi
+		setvar "$__var_height" $__height_menu_with_help_size
 	fi
 
-	# Update width for help text if using Xdialog(1)
-	if [ "$USE_XDIALOG" ]; then
-		n=$(( $longest_help + 10 ))
-		n=$(( $n + $n / 6 )) # +16.6%
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		# The sum total between the longest tag-length and the
+		# longest item-length should be used to bump menu width
+		local __n=$(( $__longest_tag + $__longest_item + 10 ))
+		[ "$USE_XDIALOG" ] && __n=$(( $__n + $__n / 6 )) # plus 16.6%
+		[ $__n -gt $__width_menu_with_help_size ] &&
+			__width_menu_with_help_size=$__n
+
+		# Update width for help text if using Xdialog(1)
+		if [ "$USE_XDIALOG" ]; then
+			__n=$(( $__longest_help + 10 ))
+			__n=$(( $__n + $__n / 6 )) # plus 16.6%
+			[ $__n -gt $__width_menu_with_help_size ] &&
+				__width_menu_with_help_size=$__n
 		fi
+
+		setvar "$__var_width" $__width_menu_with_help_size
 	fi
 
-	# Fix rows and set height
-	[ $rows -gt 0 ] || rows=1
-	if [ "$USE_XDIALOG" ]; then
-		height=$(( $rows + $box_height + 8 ))
-	else
-		height=$(( $rows + $box_height + 4 ))
-	fi
-	[ $height -le $max_height ] || height=$max_height
+	# Store adjusted rows if desired
+	[ "$__var_rows" ] && setvar "$__var_rows" $__rows
 
-	# Return all three
-	echo "$height $width $rows"
+	# Constrain height, width, and rows to sensible minimum/maximum values
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] || f_dialog_menu_constrain \
+		"$__var_height" "$__var_width" "$__var_rows" "$__prompt"
 }
 
-# f_dialog_radiolist_size $title $backtitle $prompt $hline \
+# f_dialog_radiolist_size [-n] $var_height $var_width $var_rows \
+#                         $title $backtitle $prompt $hline \
 #                         $tag1 $item1 $status1 $tag2 $item2 $status2 ...
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--radiolist' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, hline and list of tag/item/status
-# triplets, returning the optimal width and height for the radiolist (not
-# exceeding the actual terminal width or height).
+# This function helps solve this issue by taking three sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height, width, and rows. The second set of arguments
+# are the title, backtitle, prompt, and hline. The [optional] third set of
+# arguments are the radio list itself (comprised of tag/item/status triplets).
+# The optimal height, width, and rows for the described widget (not exceeding
+# the actual terminal height or width) is stored in $var_height, $var_width,
+# and $var_rows (respectively).
 #
-# Output is in the format of "height width rows".
+# If the first argument is `-n', the calculated sizes ($var_height, $var_width,
+# and $var_rows) are not constrained to minimum/maximum values.
 #
 f_dialog_radiolist_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
-	local min_width min_rows max_size
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2" __var_rows="$3"
+	local __title="$4" __btitle="$5" __prompt="$6" __hline="$7"
+	shift 7 # var_height/var_width/var_rows/title/btitle/prompt/hline
 
-	if [ "$USE_XDIALOG" ]; then
-		min_width=35
-		min_rows=1
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	else
-		min_width=24
-		min_rows=0
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
-	fi
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" -o "$__var_rows" ] ||
+		return $FAILURE
 
-	local max_width="${max_size##*[$IFS]}"
-	local max_height="${max_size%%[$IFS]*}"
-	local box_size="$( f_dialog_infobox_size \
-	                   	"$title" "$btitle" "$prompt" "$hline" )"
-	local box_height="${box_size%%[$IFS]*}"
-	local box_width="${box_size##*[$IFS]}"
-	local max_rows=$(( $max_height - 8 ))
-	local height width=$box_width rows=$min_rows
-
-	shift 4 # title/btitle/prompt/hline
+	# Calculate height/width of infobox (adjusted/constrained below)
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_rlist_size __width_rlist_size
+	f_dialog_infobox_size -n \
+		"${__var_height:+__height_rlist_size}" \
+		"${__var_width:+__width_rlist_size}" \
+		"$__title" "$__btitle" "$__prompt" "$__hline"
 
 	#
-	# The sum total between the longest tag-length, longest item-length,
-	# and radio-button width should be used for the menu width (not to
-	# exceed terminal width).
+	# Always process the menu-item arguments to get the longest tag-length,
+	# longest item-length (both used to bump the width), and the number of
+	# rows (used to bump the height).
 	#
-	# Also, calculate the number of rows (not to exceed terminal height).
-	#
-	local longest_tag=0 longest_item=0
+	local __longest_tag=0 __longest_item=0 __rows=0
 	while [ $# -ge 3 ]; do
-		local tag="$1" item="$2"
+		local __tag="$1" __item="$2"
 		shift 3 # tag/item/status
-
-		[ ${#tag} -gt $longest_tag ] && longest_tag=${#tag}
-		[ ${#item} -gt $longest_item ] && longest_item=${#item}
-		[ $rows -lt $max_rows ] && rows=$(( $rows + 1 ))
+		[ ${#__tag} -gt $__longest_tag ] && __longest_tag=${#__tag}
+		[ ${#__item} -gt $__longest_item ] && __longest_item=${#__item}
+		__rows=$(( $__rows + 1 ))
 	done
 
-	# Update width
-	n=$(( $longest_tag + $longest_item + 13 ))
-	[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 )) # Add 16.6% for Xdialog(1)
-	if [ $n -gt $width -a $n -gt $min_width ]; then
-		if [ $n -lt $max_width ]; then
-			width=$n
+	# Adjust rows early (for up-coming height calculation)
+	if [ "$__var_height" -o "$__var_rows" ]; then
+		# Add a row for visual aid if using Xdialog(1)
+		[ "$USE_XDIALOG" ] && __rows=$(( $__rows + 1 ))
+	fi
+
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		# Add rows to height
+		if [ "$USE_XDIALOG" ]; then
+			__height_rlist_size=$((
+				$__height_rlist_size + $__rows + 7 ))
 		else
-			width=$max_width
+			__height_rlist_size=$((
+				$__height_rlist_size + $__rows + 4 ))
 		fi
+		setvar "$__var_height" $__height_rlist_size
 	fi
 
-	# Fix rows and set height
-	[ $rows -gt 0 ] || rows=1
-	if [ "$USE_XDIALOG" ]; then
-		height=$(( $rows + $box_height + 7 ))
-	else
-		height=$(( $rows + $box_height + 4 ))
-	fi
-	[ $height -le $max_height ] || height=$max_height
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		# Sum total between longest tag-length, longest item-length,
+		# and radio-button width should be used to bump menu width
+		local __n=$(( $__longest_tag + $__longest_item + 13 ))
+		[ "$USE_XDIALOG" ] && __n=$(( $__n + $__n / 6 )) # plus 16.6%
+		[ $__n -gt $__width_rlist_size ] && __width_rlist_size=$__n
 
-	# Return all three
-	echo "$height $width $rows"
+		setvar "$__var_width" $__width_rlist_size
+	fi
+
+	# Store adjusted rows if desired
+	[ "$__var_rows" ] && setvar "$__var_rows" $__rows
+
+	# Constrain height, width, and rows to sensible minimum/maximum values
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] || f_dialog_menu_constrain \
+		"$__var_height" "$__var_width" "$__var_rows" "$__prompt"
 }
 
-# f_dialog_checklist_size $title $backtitle $prompt $hline \
+# f_dialog_checklist_size [-n] $var_height $var_width $var_rows \
+#                         $title $backtitle $prompt $hline \
 #                         $tag1 $item1 $status1 $tag2 $item2 $status2 ...
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--checklist' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, hline and list of tag/item/status
-# triplets, returning the optimal width and height for the checklist (not
-# exceeding the actual terminal width or height).
+# This function helps solve this issue by taking three sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height, width, and rows. The second set of arguments
+# are the title, backtitle, prompt, and hline. The [optional] third set of
+# arguments are the check list itself (comprised of tag/item/status triplets).
+# The optimal height, width, and rows for the described widget (not exceeding
+# the actual terminal height or width) is stored in $var_height, $var_width,
+# and $var_rows (respectively). 
 #
-# Output is in the format of "height width rows".
+# If the first argument is `-n', the calculated sizes ($var_height, $var_width,
+# and $var_rows) are not constrained to minimum/maximum values.
 #
 f_dialog_checklist_size()
 {
 	f_dialog_radiolist_size "$@"
 }
 
-# f_dialog_radiolist_with_help_size $title $backtitle $prompt $hline \
+# f_dialog_radiolist_with_help_size [-n] $var_height $var_width $var_rows \
+#                                   $title $backtitle $prompt $hline \
 #                                   $tag1 $item1 $status1 $help1 \
 #                                   $tag2 $item2 $status2 $help2 ...
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--radiolist' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, hline and list of
-# tag/item/status/help quads, returning the optimal width and height for the
-# radiolist (not exceeding the actual terminal width or height).
+# This function helps solve this issue by taking three sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height, width, and rows. The second set of arguments
+# are the title, backtitle, prompt, and hline. The [optional] third set of
+# arguments are the radio list itself (comprised of tag/item/status/help
+# quadruplets). The optimal height, width, and rows for the described widget
+# (not exceeding the actual terminal height or width) is stored in $var_height,
+# $var_width, and $var_rows (respectively).
 #
-# Output is in the format of "height width rows".
+# If the first argument is `-n', the calculated sizes ($var_height, $var_width,
+# and $var_rows) are not constrained to minimum/maximum values.
 #
 f_dialog_radiolist_with_help_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
-	local min_width min_rows max_size
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2" __var_rows="$3"
+	local __title="$4" __btitle="$5" __prompt="$6" __hline="$7"
+	shift 7 # var_height/var_width/var_rows/title/btitle/prompt/hline
 
-	if [ "$USE_XDIALOG" ]; then
-		min_width=35
-		min_rows=1
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
-	else
-		min_width=24
-		min_rows=0
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
-	fi
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" -o "$__var_rows" ] ||
+		return $FAILURE
 
-	local max_width="${max_size##*[$IFS]}"
-	local max_height="${max_size%%[$IFS]*}"
-	local box_size="$( f_dialog_infobox_size \
-	                   	"$title" "$btitle" "$prompt" "$hline" )"
-	local box_height="${box_size%%[$IFS]*}"
-	local box_width="${box_size##*[$IFS]}"
-	local max_rows=$(( $max_height - 8 ))
-	local height width=$box_width rows=$min_rows
-
-	shift 4 # title/btitle/prompt/hline
+	# Calculate height/width of infobox (adjusted/constrained below)
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_rlist_with_help_size __width_rlist_with_help_size
+	f_dialog_infobox_size -n \
+		"${__var_height:+__height_rlist_with_help_size}" \
+		"${__var_width:+__width_rlist_with_help_size}" \
+		"$__title" "$__btitle" "$__prompt" "$__hline"
 
 	#
-	# The sum total between the longest tag-length, longest item-length,
-	# and radio-button width should be used for the menu width (not to
-	# exceed terminal width).
+	# Always process the menu-item arguments to get the longest tag-length,
+	# longest item-length, longest help-length (help-length only considered
+	# if using Xdialog(1), as it places the help string in the widget) --
+	# all used to bump the width -- and the number of rows (used to bump
+	# the height).
 	#
-	# Also, calculate the number of rows (not to exceed terminal height).
-	#
-	# Also, calculate the longest help while we're here. This will be used
-	# to influence the width of the menu if (and only-if) using Xdialog(1).
-	#
-	local longest_tag=0 longest_item=0 longest_help=0
+	local __longest_tag=0 __longest_item=0 __longest_help=0 __rows=0
 	while [ $# -ge 4 ]; do
-		local tag="$1" item="$2" status="$3" help="$4"
+		local __tag="$1" __item="$2" __status="$3" __help="$4"
 		shift 4 # tag/item/status/help
-
-		[ ${#tag} -gt $longest_tag ] && longest_tag=${#tag}
-		[ ${#item} -gt $longest_item ] && longest_item=${#item}
-		[ ${#help} -gt $longest_help ] && longest_help=${#help}
-		[ $rows -lt $max_rows ] && rows=$(( $rows + 1 ))
+		[ ${#__tag} -gt $__longest_tag ] && __longest_tag=${#__tag}
+		[ ${#__item} -gt $__longest_item ] && __longest_item=${#__item}
+		[ ${#__help} -gt $__longest_help ] && __longest_help=${#__help}
+		__rows=$(( $__rows + 1 ))
 	done
 
-	# Update width
-	n=$(( $longest_tag + $longest_item + 13 ))
-	[ "$USE_XDIALOG" ] && n=$(( $n + $n / 6 )) # Add 16.6% for Xdialog(1)
-	if [ $n -gt $width -a $n -gt $min_width ]; then
-		if [ $n -lt $max_width ]; then
-			width=$n
+	# Adjust rows early (for up-coming height calculation)
+	if [ "$__var_height" -o "$__var_rows" ]; then
+		# Add a row for visual aid if using Xdialog(1)
+		[ "$USE_XDIALOG" ] && __rows=$(( $__rows + 1 ))
+	fi
+
+	# Adjust height if desired
+	if [ "$__var_height" ]; then
+		# Add rows to height
+		if [ "$USE_XDIALOG" ]; then
+			__height_rlist_with_help_size=$((
+				$__height_rlist_with_help_size + $__rows + 7 ))
 		else
-			width=$max_width
+			__height_rlist_with_help_size=$((
+				$__height_rlist_with_help_size + $__rows + 4 ))
 		fi
+		setvar "$__var_height" $__height
 	fi
 
-	# Update width for help text if using Xdialog(1)
-	if [ "$USE_XDIALOG" ]; then
-		n=$(( $longest_help + 10 ))
-		n=$(( $n + $n / 6 )) # +16.6%
-		if [ $n -gt $width -a $n -gt $min_width ]; then
-			if [ $n -lt $max_width ]; then
-				width=$n
-			else
-				width=$max_width
-			fi
+	# Adjust width if desired
+	if [ "$__var_width" ]; then
+		# Sum total between longest tag-length, longest item-length,
+		# and radio-button width should be used to bump menu width
+		local __n=$(( $__longest_tag + $__longest_item + 13 ))
+		[ "$USE_XDIALOG" ] && __n=$(( $__n + $__n / 6 )) # plus 16.6%
+		[ $__n -gt $__width_rlist_with_help_size ] &&
+			__width_rlist_with_help_size=$__n
+
+		# Update width for help text if using Xdialog(1)
+		if [ "$USE_XDIALOG" ]; then
+			__n=$(( $__longest_help + 10 ))
+			__n=$(( $__n + $__n / 6 )) # plus 16.6%
+			[ $__n -gt $__width_rlist_with_help_size ] &&
+				__width_rlist_with_help_size=$__n
 		fi
+
+		setvar "$__var_width" $__width_rlist_with_help_size
 	fi
 
-	# Fix rows and set height
-	[ $rows -gt 0 ] || rows=1
-	if [ "$USE_XDIALOG" ]; then
-		height=$(( $rows + $box_height + 7 ))
-	else
-		height=$(( $rows + $box_height + 4 ))
-	fi
-	[ $height -le $max_height ] || height=$max_height
+	# Store adjusted rows if desired
+	[ "$__var_rows" ] && setvar "$__var_rows" $__rows
 
-	# Return all three
-	echo "$height $width $rows"
+	# Constrain height, width, and rows to sensible minimum/maximum values
+	# Return success if no-constrain, else return status from constrain
+	[ ! "$__constrain" ] || f_dialog_menu_constrain \
+		"$__var_height" "$__var_width" "$__var_rows" "$__prompt"
 }
 
-# f_dialog_checklist_with_help_size $title $backtitle $prompt $hline \
+# f_dialog_checklist_with_help_size [-n] $var_height $var_width $var_rows \
+#                                   $title $backtitle $prompt $hline \
 #                                   $tag1 $item1 $status1 $help1 \
 #                                   $tag2 $item2 $status2 $help2 ...
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--checklist' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, hline and list of
-# tag/item/status/help quads, returning the optimal width and height for the
-# checklist (not exceeding the actual terminal width or height).
+# This function helps solve this issue by taking three sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height, width, and rows. The second set of arguments
+# are the title, backtitle, prompt, and hline. The [optional] third set of
+# arguments are the check list itself (comprised of tag/item/status/help
+# quadruplets). The optimal height, width, and rows for the described widget
+# (not exceeding the actual terminal height or width) is stored in $var_height,
+# $var_width, and $var_rows (respectively).
 #
-# Output is in the format of "height width rows".
+# If the first argument is `-n', the calculated sizes ($var_height, $var_width,
+# and $var_rows) are not constrained to minimum/maximum values.
 #
 f_dialog_checklist_with_help_size()
 {
 	f_dialog_radiolist_with_help_size "$@"
 }
 
-# f_dialog_calendar_size $title $backtitle $prompt [$hline]
+# f_dialog_calendar_size [-n] $var_height $var_width \
+#                        $title $backtitle $prompt [$hline]
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--calendar' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, and [optionally] hline returning
-# the optimal width and height for the box (not exceeding the actual terminal
-# width and height).
+# This function helps solve this issue by taking two sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height and width. The second set of arguments are the
+# title, backtitle, prompt, and [optionally] hline. The optimal height and
+# width for the described widget (not exceeding the actual terminal height or
+# width) is stored in $var_height and $var_width (respectively).
+#
+# If the first argument is `-n', the calculated sizes ($var_height and
+# $var_width) are not constrained to minimum/maximum values.
 #
 # Newline character sequences (``\n'') in $prompt are expanded as-is done by
 # dialog(1).
 #
-# Output is in the format of "height width".
-#
 f_dialog_calendar_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4" n
-	local size="$( f_dialog_infobox_size \
-	               		"$title" "$btitle" "$prompt" "$hline" )"
-	local height="${size%%[$IFS]*}"
-	local width="${size##*[$IFS]}"
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2"
+	local __title="$3" __btitle="$4" __prompt="$5" __hline="$6"
 
-	local min_width min_height max_size
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
+
+	#
+	# Obtain/Adjust minimum and maximum thresholds
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	#
+	local __max_height_cal_size __max_width_cal_size
+	f_dialog_max_size __max_height_cal_size __max_width_cal_size
+	__max_width_cal_size=$(( $__max_width_cal_size - 2 ))
+		# the calendar box will refuse to display if too wide
+	local __min_width
 	if [ "$USE_XDIALOG" ]; then
-		min_height=15
-		min_width=55
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
+		__min_width=55
 	else
-		min_height=0
-		min_width=40
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
+		__min_width=40
+		__max_height_cal_size=$((
+			$__max_height_cal_size - $DIALOG_CALENDAR_HEIGHT ))
+		# When using dialog(1), we can't predict whether the user has
+		# disabled shadow's in their `$HOME/.dialogrc' file, so we'll
+		# subtract one for the potential shadow around the widget
+		__max_height_cal_size=$(( $__max_height_cal_size - 1 ))
 	fi
-	local max_height="${max_size%%[$IFS]*}"
-	local max_width="${max_size##*[$IFS]}"
 
-	#
-	# Enforce the minimum width for displaying the calendar
-	#
-	[ $width -ge $min_width ] || width=$min_width
+	# Calculate height if desired
+	if [ "$__var_height" ]; then
+		local __height
+		__height=$( echo "$__prompt" | f_number_of_lines )
 
-	#
-	# When using dialog(1), the calendar box is unique from other dialog(1)
-	# boxes in-that the height passed should not accomodate the 15-lines
-	# required to display the calendar. This does not apply to Xdialog(1).
-	#
-	# When using Xdialog(1), the height must accomodate the 15-lines
-	# required to display the calendar.
-	#
-	# NOTE: Also under dialog(1), because we can't predict whether the user
-	# has disabled shadow's in their `$HOME/.dialogrc' file, we'll subtract
-	# 16 rather than 15. This does not apply to Xdialog(1).
-	#
-	max_height=$(( $max_height - 16 ))
-	height=$( echo "$prompt" | f_number_of_lines )
-	if [ "$USE_XDIALOG" ]; then
-		# Add height to accomodate for the embedded calendar widget
-		height=$(( $height + $min_height - 1 ))
+		if [ "$USE_XDIALOG" ]; then
+			# Add height to accomodate for embedded calendar widget
+			__height=$(( $__height + $DIALOG_CALENDAR_HEIGHT - 1 ))
 
-		# Also, bump height if backtitle is enabled
-		if [ "$btitle" ]; then
-			local n="$( echo "$btitle" | f_number_of_lines )"
-			height=$(( $height + $n + 2 ))
+			# Also, bump height if backtitle is enabled
+			if [ "$__btitle" ]; then
+				local __n
+				__n=$( echo "$__btitle" | f_number_of_lines )
+				__height=$(( $__height + $__n + 2 ))
+			fi
+		else
+			[ "$__prompt" ] && __height=$(( $__height + 1 ))
 		fi
-	else
-		[ "$prompt" ] && height=$(( $height + 1 ))
+
+		# Enforce maximum height, unless `-n' was passed
+		[ "$__constrain" -a $__height -gt $__max_height_cal_size ] &&
+			__height=$__max_height_cal_size
+
+		setvar "$__var_height" $__height
 	fi
-	[ $height -le $max_height ] || height=$max_height
 
-	#
-	# The calendar box refuses to display if too large.
-	#
-	max_width=$(( $max_width - 2 ))
-	[ $width -le $max_width ] || width=$max_width
+	# Calculate width if desired
+	if [ "$__var_width" ]; then
+		# NOTE: Function name appended to prevent __var_{height,width}
+		#       values from becoming local (and thus preventing setvar
+		#       from working).
+		local __width_cal_size
+		f_dialog_infobox_size -n "" __width_cal_size \
+			"$__title" "$__btitle" "$__prompt" "$__hline"
 
-	# Return both
-	echo "$height $width"
+		# Enforce minimum/maximum width, unless `-n' was passed
+		if [ "$__constrain" ]; then
+			if [ $__width_cal_size -lt $__min_width ]; then
+				__width_cal_size=$__min_width
+			elif [ $__width_cal_size -gt $__max_width_cal_size ]
+			then
+				__width_cal_size=$__max_width_size
+			fi
+		fi
+
+		setvar "$__var_width" $__width_cal_size
+	fi
+
+	return $SUCCESS
 }
 
-# f_dialog_timebox_size $title $backtitle $prompt [$hline]
+# f_dialog_timebox_size [-n] $var_height $var_width \
+#                       $title $backtitle $prompt [$hline]
 #
 # Not all versions of dialog(1) perform auto-sizing of the width and height of
 # `--timebox' boxes sensibly.
 #
-# This function helps solve this issue by taking as arguments (in order of
-# appearance) the title, backtitle, prompt, and [optionally] hline returning
-# the optimal width and height for the box (not exceeding the actual terminal
-# width and height).
+# This function helps solve this issue by taking two sets of sequential
+# arguments. The first set of arguments are the variable names to use when
+# storing the calculated height and width. The second set of arguments are the
+# title, backtitle, prompt, and [optionally] hline. The optional height and
+# width for the described widget (not exceeding the actual terminal height or
+# width) is stored in $var_height and $var_width (respectively).
+#
+# If the first argument is `-n', the calculated sizes ($var_height and
+# $var_width) are not constrained to minimum/maximum values.
 #
 # Newline character sequences (``\n'') in $prompt are expanded as-is done by
 # dialog(1).
 #
-# Output is in the format of "height width".
-#
 f_dialog_timebox_size()
 {
-	local title="$1" btitle="$2" prompt="$3" hline="$4" n
-	local size="$( f_dialog_infobox_size \
-	               		"$title" "$btitle" "$prompt" "$hline" )"
-	local height="${size%%[$IFS]*}"
-	local width="${size##*[$IFS]}"
+	local __constrain=1
+	[ "$1" = "-n" ] && __constrain= && shift 1 # -n
+	local __var_height="$1" __var_width="$2"
+	local __title="$3" __btitle="$4" __prompt="$5" __hline="$6"
 
-	local min_width min_height max_size
+	# Return unless at least one size aspect has been requested
+	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
+
+	#
+	# Obtain/Adjust minimum and maximum thresholds
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	#
+	local __max_height_tbox_size __max_width_tbox_size
+	f_dialog_max_size __max_height_tbox_size __max_width_tbox_size
+	__max_width_tbox_size=$(( $__max_width_tbox_size - 2 ))
+		# the timebox widget refuses to display if too wide
+	local __min_width
 	if [ "$USE_XDIALOG" ]; then
-		min_width=40
-		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
+		__min_width=40
 	else
-		min_height=0
-		min_width=20
-		max_size=$( stty size 2> /dev/null ) # usually "24 80"
-		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
-	fi
-	local max_height="${max_size%%[$IFS]*}"
-	local max_width="${max_size##*[$IFS]}"
-
-	#
-	# Enforce the minimum width for displaying the timebox
-	#
-	[ $width -ge $min_width ] || width=$min_width
-
-	#
-	# When using dialog(1), the timebox box is unique from other dialog(1)
-	# boxes in-that the height passed should not accomodate the 6-lines
-	# required to display the timebox. This does not apply to Xdialog(1).
-	#
-	# When using Xdialog(1), the height seems to have no effect. All values
-	# provide the same results.
-	#
-	# NOTE: Also under dialog(1), because we can't predict whether the user
-	# has disabled shadow's in their `$HOME/.dialogrc' file, we'll subtract
-	# 7 rather than 6. This does not apply to Xdialog(1).
-	#
-	if [ "$USE_XDIALOG" ]; then
-		height=0 # Autosize; all values produce same results
-	else
-		max_height=$(( $max_height - 7 ))
-		height=$( echo "$prompt" | f_number_of_lines )
-		height=$(( $height + 1 ))
-		[ $height -le $max_height ] || height=$max_height
-		[ "$prompt" ] && height=$(( $height + 1 ))
+		__min_width=20
+		__max_height_tbox_size=$(( \
+			$__max_height_tbox_size - $DIALOG_TIMEBOX_HEIGHT ))
+		# When using dialog(1), we can't predict whether the user has
+		# disabled shadow's in their `$HOME/.dialogrc' file, so we'll
+		# subtract one for the potential shadow around the widget
+		__max_height_tbox_size=$(( $__max_height_tbox_size - 1 ))
 	fi
 
-	#
-	# The timebox box refuses to display if too large.
-	#
-	max_width=$(( $max_width - 2 ))
-	[ $width -le $max_width ] || width=$max_width
+	# Calculate height if desired
+	if [ "$__var_height" -a "$USE_XDIALOG" ]; then
+		# When using Xdialog(1), the height seems to have
+		# no effect. All values provide the same results.
+		setvar "$__var_height" 0 # autosize
+	elif [ "$__var_height" ]; then
+		local __height
+		__height=$( echo "$__prompt" | f_number_of_lines )
+		__height=$(( $__height ${__prompt:++1} + 1 ))
 
-	# Return both
-	echo "$height $width"
+		# Enforce maximum height, unless `-n' was passed
+		[ "$__constrain" -a $__height -gt $__max_height_tbox_size ] &&
+			__height=$__max_height_tbox_size
+
+		setvar "$__var_height" $__height
+	fi
+
+	# Calculate width if desired
+	if [ "$__var_width" ]; then
+		# NOTE: Function name appended to prevent __var_{height,width}
+		#       values from becoming local (and thus preventing setvar
+		#       from working).
+		local __width_tbox_size
+		f_dialog_infobox_size -n "" __width_tbox_size \
+			"$__title" "$__btitle" "$__prompt" "$__hline"
+
+		# Enforce the minimum width for displaying the timebox
+		if [ "$__constrain" ]; then
+			if [ $__width_tbox_size -lt $__min_width ]; then
+				__width_tbox_size=$__min_width
+			elif [ $__width_tbox_size -ge $__max_width_tbox_size ]
+			then
+				__width_tbox_size=$__max_width_tbox_size
+			fi
+		fi
+
+		setvar "$__var_width" $__width_tbox_size
+	fi
+
+	return $SUCCESS
 }
 
 ############################################################ CLEAR FUNCTIONS
@@ -1079,18 +1375,15 @@ f_dialog_clear()
 #
 f_dialog_info()
 {
-	local info_text="$*"
-	local size="$( f_dialog_infobox_size \
-	               		"$DIALOG_TITLE"     \
-	               		"$DIALOG_BACKTITLE" \
-	               		"$info_text"        )"
-
-	eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		${USE_XDIALOG:+--ignore-eof}       \
-		${USE_XDIALOG:+--no-buttons}       \
-		--infobox \"\$info_text\" $size
+	local info_text="$*" height width
+	f_dialog_infobox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$info_text"
+	$DIALOG \
+		--title "$DIALOG_TITLE"         \
+		--backtitle "$DIALOG_BACKTITLE" \
+		${USE_XDIALOG:+--ignore-eof}    \
+		${USE_XDIALOG:+--no-buttons}    \
+		--infobox "$info_text" $height $width
 }
 
 # f_xdialog_info $info_text ...
@@ -1101,17 +1394,14 @@ f_dialog_info()
 #
 f_xdialog_info()
 {
-	local info_text="$*"
-	local size="$( f_dialog_infobox_size \
-	               		"$DIALOG_TITLE"     \
-	               		"$DIALOG_BACKTITLE" \
-	               		"$info_text"        )"
-
-	eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--no-close --no-buttons            \
-		--infobox \"\$info_text\" $size    \
+	local info_text="$*" height width
+	f_dialog_infobox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$info_text"
+	$DIALOG \
+		--title "$DIALOG_TITLE"               \
+		--backtitle "$DIALOG_BACKTITLE"       \
+		--no-close --no-buttons               \
+		--infobox "$info_text" $height $width \
 		-1 # timeout of -1 means abort when EOF on stdin
 }
 
@@ -1127,17 +1417,14 @@ f_xdialog_info()
 #
 f_dialog_msgbox()
 {
-	local msg_text="$*"
-	local size="$( f_dialog_buttonbox_size \
-	               		"$DIALOG_TITLE"     \
-	               		"$DIALOG_BACKTITLE" \
-	               		"$msg_text"         )"
-
-	eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--ok-label \"\$msg_ok\"            \
-		--msgbox \"\$msg_text\" $size
+	local msg_text="$*" height width
+	f_dialog_buttonbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$msg_text"
+	$DIALOG \
+		--title "$DIALOG_TITLE"         \
+		--backtitle "$DIALOG_BACKTITLE" \
+		--ok-label "$msg_ok"            \
+		--msgbox "$msg_text" $height $width
 }
 
 ############################################################ TEXTBOX FUNCTIONS
@@ -1154,29 +1441,27 @@ f_dialog_msgbox()
 f_dialog_textbox()
 {
 	local file="$1"
-	local contents retval size
+	local contents height width retval
 
 	contents=$( cat "$file" 2>&1 )
 	retval=$?
 
-	size=$( f_dialog_buttonbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$contents"         )
+	f_dialog_buttonbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$contents"
 
 	if [ $retval -eq $SUCCESS ]; then
-		eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--exit-label \"\$msg_ok\"          \
-			--no-cancel                        \
-			--textbox \"\$file\" $size
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--exit-label "$msg_ok"          \
+			--no-cancel                     \
+			--textbox "$file" $height $width
 	else
-		eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--ok-label \"\$msg_ok\"            \
-			--msgbox \"\$contents\" $size
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--ok-label "$msg_ok"            \
+			--msgbox "$contents" $height $width
 	fi
 }
 
@@ -1193,33 +1478,30 @@ f_dialog_textbox()
 #
 f_dialog_yesno()
 {
-	local msg_text="$*"
+	local msg_text="$*" height width
 	local hline="$hline_arrows_tab_enter"
 
 	f_interactive || return 0 # If non-interactive, return YES all the time
 
-	local size="$( f_dialog_buttonbox_size \
-	               		"$DIALOG_TITLE"     \
-	               		"$DIALOG_BACKTITLE" \
-	               		"$msg_text"         \
-	               		"$hline"            )"
+	f_dialog_buttonbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$msg_text" "$hline"
 
 	if [ "$USE_XDIALOG" ]; then
-		eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_yes\"           \
-			--cancel-label \"\$msg_no\"        \
-			--yesno \"\$msg_text\" $size
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_yes"           \
+			--cancel-label "$msg_no"        \
+			--yesno "$msg_text" $height $width
 	else
-		eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--yes-label \"\$msg_yes\"          \
-			--no-label \"\$msg_no\"            \
-			--yesno \"\$msg_text\" $size
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--yes-label "$msg_yes"          \
+			--no-label "$msg_no"            \
+			--yesno "$msg_text" $height $width
 	fi
 }
 
@@ -1236,35 +1518,32 @@ f_dialog_yesno()
 #
 f_dialog_noyes()
 {
-	local msg_text="$*"
+	local msg_text="$*" height width
 	local hline="$hline_arrows_tab_enter"
 
 	f_interactive || return 1 # If non-interactive, return NO all the time
 
-	local size="$( f_dialog_buttonbox_size \
-	               		"$DIALOG_TITLE"     \
-	               		"$DIALOG_BACKTITLE" \
-	               		"$msg_text"         \
-	               		"$hline"            )"
+	f_dialog_buttonbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$msg_text" "$hline"
 
 	if [ "$USE_XDIALOG" ]; then
-		eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--default-no                       \
-			--ok-label \"\$msg_yes\"           \
-			--cancel-label \"\$msg_no\"        \
-			--yesno \"\$msg_text\" $size
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--default-no                    \
+			--ok-label "$msg_yes"           \
+			--cancel-label "$msg_no"        \
+			--yesno "$msg_text" $height $width
 	else
-		eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--defaultno                        \
-			--yes-label \"\$msg_yes\"          \
-			--no-label \"\$msg_no\"            \
-			--yesno \"\$msg_text\" $size
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--defaultno                     \
+			--yes-label "$msg_yes"          \
+			--no-label "$msg_no"            \
+			--yesno "$msg_text" $height $width
 	fi
 }
 
@@ -1312,26 +1591,25 @@ f_dialog_inputstr()
 f_dialog_input()
 {
 	local prompt="$1" init="$2" hline="$3"
-	local size="$( f_dialog_inputbox_size \
-	               		"$DIALOG_TITLE"     \
-	                        "$DIALOG_BACKTITLE" \
-	               		"$prompt"           \
-	               		"$init"             \
-	               		"$hline"            )"
+	local height width
+	f_dialog_inputbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" \
+		"$prompt" "$init" "$hline"
 
 	local opterm="--"
 	[ "$USE_XDIALOG" ] && opterm=
 
 	local dialog_input
 	dialog_input=$(
-		eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$prompt\" $size      \
-			$opterm \"\$init\"                 \
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--inputbox "$prompt"            \
+			$height $width                  \
+			$opterm "$init"                 \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
@@ -1609,14 +1887,16 @@ f_dialog_init()
 		then
 			# Xdialog(1) failed, fall back to dialog(1)
 			unset USE_XDIALOG
-			size=$( f_dialog_buttonbox_size "$DIALOG_TITLE" \
-			                                "$DIALOG_BACKTITLE" \
-			                                "$maxsize" "" )
-			eval dialog \
-				--title \"\$DIALOG_TITLE\"         \
-				--backtitle \"\$DIALOG_BACKTITLE\" \
-				--ok-label \"\$msg_ok\"            \
-				--msgbox \"\$maxsize\" $size
+
+			# Display the error message produced by Xdialog(1)
+			local height width
+			f_dialog_buttonbox_size height width \
+				"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$maxsize"
+			dialog \
+				--title "$DIALOG_TITLE"         \
+				--backtitle "$DIALOG_BACKTITLE" \
+				--ok-label "$msg_ok"            \
+				--msgbox "$maxsize" $height $width
 			exit $FAILURE
 		fi
 

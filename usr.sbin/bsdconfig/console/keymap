@@ -77,7 +77,7 @@ KEYMAP_NAMES="
 #
 dialog_menu_main()
 {
-	local menu_list size defaultitem=
+	local menu_list defaultitem=
 	local hline="$hline_choose_a_keyboard_map"
 	local prompt="$msg_keymap_menu_text"
 
@@ -110,12 +110,13 @@ dialog_menu_main()
 		}'
 	)
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	case "$( f_sysrc_get keymap )" in
 	be.iso) defaultitem="$msg_belgian";;
@@ -200,7 +201,8 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)

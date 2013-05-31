@@ -273,7 +273,7 @@ f_startup_rcconf_map_expand()
 #
 f_dialog_input_view_details()
 {
-	local menu_list size
+	local menu_list
 	local hline="$hline_arrows_tab_enter"
 	local prompt=""
 
@@ -301,12 +301,13 @@ f_dialog_input_view_details()
 		'3 ($m3) $msg_show_configured'    '$msg_show_configured_desc'
 	" # END-QUOTE
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	f_dialog_title "$msg_choose_view_details"
 
@@ -318,7 +319,8 @@ f_dialog_input_view_details()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -367,7 +369,6 @@ f_dialog_input_view_details()
 #
 f_dialog_input_rclist()
 {
-	local size
 	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_please_select_an_rcconf_directive"
 	local menu_list
@@ -414,12 +415,14 @@ f_dialog_input_rclist()
 
 	set -f # noglob
 
-	size=$( eval f_dialog_menu_${SHOW_DESC:+with_help_}size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \

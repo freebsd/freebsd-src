@@ -55,7 +55,7 @@ f_media_options_menu()
 	f_dialog_title_restore
 	local prompt=""
 	local hline="$hline_arrows_tab_enter"
-	local menu_list size cp
+	local menu_list cp
 
 	#
 	# A hack so that the dialogs below are always interactive in a script
@@ -200,27 +200,30 @@ f_media_options_menu()
 			    '$msg_reset_all_values_to_startup_defaults'
 		" # END-QUOTE
 
-		size=$( eval f_dialog_menu_with_help_size \
-		        	\"\$title\"  \
-		        	\"\$btitle\" \
-		        	\"\$prompt\" \
-		        	\"\$hline\"  \
-		        	$menu_list   )
+		local height width rows
+		eval f_dialog_menu_with_help_size height width rows \
+		                                  \"\$title\"  \
+		                                  \"\$btitle\" \
+		                                  \"\$prompt\" \
+		                                  \"\$hline\"  \
+		                                  $menu_list
 
 		local dialog_menu
 
 		dialog_menu=$( eval $DIALOG \
-			--title \"\$title\"                  \
-			--backtitle \"\$btitle\"             \
-			--hline \"\$hline\"                  \
-			--item-help                          \
-			--ok-label \"\$msg_ok\"              \
-			--cancel-label \"\$msg_done\"        \
-			--help-button                        \
-			--help-label \"\$msg_help\"          \
-			--default-item \"\$defaultitem\"     \
-			${USE_XDIALOG:+--help \"\"}          \
-			--menu \"\$prompt\" $size $menu_list \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--hline \"\$hline\"              \
+			--item-help                      \
+			--ok-label \"\$msg_ok\"          \
+			--cancel-label \"\$msg_done\"    \
+			--help-button                    \
+			--help-label \"\$msg_help\"      \
+			--default-item \"\$defaultitem\" \
+			${USE_XDIALOG:+--help \"\"}      \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
+			$menu_list                       \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		local retval=$?

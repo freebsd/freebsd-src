@@ -142,14 +142,15 @@ f_dialog_menu_netdev()
 	#
 	# Ask user to select an interface
 	#
-	local prompt size
+	local prompt
 	prompt="$msg_select_network_interface"
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$interfaces            )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $interfaces
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
@@ -158,7 +159,8 @@ f_dialog_menu_netdev()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$interfaces                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -175,7 +177,7 @@ f_dialog_menu_netdev()
 f_dialog_menu_netdev_edit()
 {
 	local interface="$1" ipaddr="$2" netmask="$3" options="$4" dhcp="$5"
-	local prompt menu_list size
+	local prompt menu_list height width rows
 
 	#
 	# Create a duplicate set of variables for change-tracking...
@@ -216,12 +218,12 @@ f_dialog_menu_netdev_edit()
 			'4 $msg_netmask'   '$netmask'
 			'5 $msg_options'   '$options'
 		"
-		size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$prompt\"           \
-		        	\"\$hline\"            \
-		        	$menu_list             )
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
 		local dialog_menu
 		dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
@@ -233,7 +235,8 @@ f_dialog_menu_netdev_edit()
 			--help-label \"\$msg_help\"        \
 			${USE_XDIALOG:+--help \"\"}        \
 			--default-item \"\$defaultitem\"   \
-			--menu \"\$prompt\" $size          \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
