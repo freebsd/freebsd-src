@@ -148,16 +148,16 @@ blkfront_vdevice_to_unit(uint32_t vdevice, int *unit, const char **name)
 		int base;
 		const char *name;
 	} info[] = {
-		{3,	6,	0,	"ad"},	/* ide0 */
-		{22,	6,	2,	"ad"},	/* ide1 */
-		{33,	6,	4,	"ad"},	/* ide2 */
-		{34,	6,	6,	"ad"},	/* ide3 */
-		{56,	6,	8,	"ad"},	/* ide4 */
-		{57,	6,	10,	"ad"},	/* ide5 */
-		{88,	6,	12,	"ad"},	/* ide6 */
-		{89,	6,	14,	"ad"},	/* ide7 */
-		{90,	6,	16,	"ad"},	/* ide8 */
-		{91,	6,	18,	"ad"},	/* ide9 */
+		{3,	6,	0,	"ada"},	/* ide0 */
+		{22,	6,	2,	"ada"},	/* ide1 */
+		{33,	6,	4,	"ada"},	/* ide2 */
+		{34,	6,	6,	"ada"},	/* ide3 */
+		{56,	6,	8,	"ada"},	/* ide4 */
+		{57,	6,	10,	"ada"},	/* ide5 */
+		{88,	6,	12,	"ada"},	/* ide6 */
+		{89,	6,	14,	"ada"},	/* ide7 */
+		{90,	6,	16,	"ada"},	/* ide8 */
+		{91,	6,	18,	"ada"},	/* ide9 */
 
 		{8,	4,	0,	"da"},	/* scsi disk0 */
 		{65,	4,	16,	"da"},	/* scsi disk1 */
