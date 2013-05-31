@@ -70,20 +70,22 @@ __FBSDID("$FreeBSD$");
 
 #include "xenbus_if.h"
 
-/* prototypes */
-static void xbd_free_command(struct xbd_command *cm);
-static void xbd_startio(struct xbd_softc *sc);
-static void xbd_connect(struct xbd_softc *);
+/*--------------------------- Forward Declarations ---------------------------*/
 static void xbd_closing(device_t);
-static int xbd_detach(device_t);
-static int xbd_setup_ring(struct xbd_softc *);
-static void xbd_int(void *);
-static void xbd_initialize(struct xbd_softc *);
-static int xbd_completion(struct xbd_command *);
-static void xbd_free(struct xbd_softc *);
-static void xbd_queue_cb(void *, bus_dma_segment_t *, int, int);
+static void xbd_startio(struct xbd_softc *sc);
 
-static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
+/*---------------------------------- Macros ----------------------------------*/
+#if 0
+#define DPRINTK(fmt, args...) printf("[XEN] %s:%d: " fmt ".\n", __func__, __LINE__, ##args)
+#else
+#define DPRINTK(fmt, args...) 
+#endif
+
+/* XXX move to xbd_vbd.c when VBD update support is added */
+#define MAX_VBDS 64
+
+#define XBD_SECTOR_SIZE		512	/* XXX: assume for now */
+#define XBD_SECTOR_SHFT		9
 
 #define GRANT_INVALID_REF 0
 
@@ -98,174 +100,251 @@ static void vbd_update(void);
 #define XBD_STATE_CONNECTED    1
 #define XBD_STATE_SUSPENDED    2
 
-#ifdef notyet
-static char *xbd_state_name[] = {
-	[XBD_STATE_DISCONNECTED] = "disconnected",
-	[XBD_STATE_CONNECTED]    = "connected",
-	[XBD_STATE_SUSPENDED]    = "closed",
-};
+/*---------------------------- Global Static Data ----------------------------*/
+static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
 
-static char * xbd_status_name[] = {
-	[BLKIF_INTERFACE_STATUS_CLOSED]       = "closed",
-	[BLKIF_INTERFACE_STATUS_DISCONNECTED] = "disconnected",
-	[BLKIF_INTERFACE_STATUS_CONNECTED]    = "connected",
-	[BLKIF_INTERFACE_STATUS_CHANGED]      = "changed",
-};
-#endif
-
-#if 0
-#define DPRINTK(fmt, args...) printf("[XEN] %s:%d: " fmt ".\n", __func__, __LINE__, ##args)
-#else
-#define DPRINTK(fmt, args...) 
-#endif
-
-static int xbd_open(struct disk *dp);
-static int xbd_close(struct disk *dp);
-static int xbd_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td);
-static int xbd_queue_request(struct xbd_softc *sc, struct xbd_command *cm);
-static void xbd_strategy(struct bio *bp);
-
-// In order to quiesce the device during kernel dumps, outstanding requests to
-// DOM0 for disk reads/writes need to be accounted for.
-static	int	xbd_dump(void *, void *, vm_offset_t, off_t, size_t);
-
-/* XXX move to xbd_vbd.c when VBD update support is added */
-#define MAX_VBDS 64
-
-#define XBD_SECTOR_SIZE		512	/* XXX: assume for now */
-#define XBD_SECTOR_SHFT		9
-
-/*
- * Translate Linux major/minor to an appropriate name and unit
- * number. For HVM guests, this allows us to use the same drive names
- * with blkfront as the emulated drives, easing transition slightly.
- */
-static void
-xbd_vdevice_to_unit(uint32_t vdevice, int *unit, const char **name)
+/*---------------------------- Command Processing ----------------------------*/
+static inline void 
+flush_requests(struct xbd_softc *sc)
 {
-	static struct vdev_info {
-		int major;
-		int shift;
-		int base;
-		const char *name;
-	} info[] = {
-		{3,	6,	0,	"ada"},	/* ide0 */
-		{22,	6,	2,	"ada"},	/* ide1 */
-		{33,	6,	4,	"ada"},	/* ide2 */
-		{34,	6,	6,	"ada"},	/* ide3 */
-		{56,	6,	8,	"ada"},	/* ide4 */
-		{57,	6,	10,	"ada"},	/* ide5 */
-		{88,	6,	12,	"ada"},	/* ide6 */
-		{89,	6,	14,	"ada"},	/* ide7 */
-		{90,	6,	16,	"ada"},	/* ide8 */
-		{91,	6,	18,	"ada"},	/* ide9 */
+	int notify;
 
-		{8,	4,	0,	"da"},	/* scsi disk0 */
-		{65,	4,	16,	"da"},	/* scsi disk1 */
-		{66,	4,	32,	"da"},	/* scsi disk2 */
-		{67,	4,	48,	"da"},	/* scsi disk3 */
-		{68,	4,	64,	"da"},	/* scsi disk4 */
-		{69,	4,	80,	"da"},	/* scsi disk5 */
-		{70,	4,	96,	"da"},	/* scsi disk6 */
-		{71,	4,	112,	"da"},	/* scsi disk7 */
-		{128,	4,	128,	"da"},	/* scsi disk8 */
-		{129,	4,	144,	"da"},	/* scsi disk9 */
-		{130,	4,	160,	"da"},	/* scsi disk10 */
-		{131,	4,	176,	"da"},	/* scsi disk11 */
-		{132,	4,	192,	"da"},	/* scsi disk12 */
-		{133,	4,	208,	"da"},	/* scsi disk13 */
-		{134,	4,	224,	"da"},	/* scsi disk14 */
-		{135,	4,	240,	"da"},	/* scsi disk15 */
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&sc->xbd_ring, notify);
 
-		{202,	4,	0,	"xbd"},	/* xbd */
+	if (notify)
+		notify_remote_via_irq(sc->xbd_irq);
+}
 
-		{0,	0,	0,	NULL},
-	};
-	int major = vdevice >> 8;
-	int minor = vdevice & 0xff;
-	int i;
+static void
+xbd_free_command(struct xbd_command *cm)
+{
 
-	if (vdevice & (1 << 28)) {
-		*unit = (vdevice & ((1 << 28) - 1)) >> 8;
-		*name = "xbd";
+	KASSERT((cm->cm_flags & XBD_ON_XBDQ_MASK) == 0,
+	    ("Freeing command that is still on a queue\n"));
+
+	cm->cm_flags = 0;
+	cm->cm_bp = NULL;
+	cm->cm_complete = NULL;
+	xbd_enqueue_free(cm);
+}
+
+static void
+xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct xbd_softc *sc;
+	struct xbd_command *cm;
+	blkif_request_t	*ring_req;
+	struct blkif_request_segment *sg;
+	struct blkif_request_segment *last_block_sg;
+	grant_ref_t *sg_ref;
+	vm_paddr_t buffer_ma;
+	uint64_t fsect, lsect;
+	int ref;
+	int op;
+	int block_segs;
+
+	cm = arg;
+	sc = cm->cm_sc;
+
+	if (error) {
+		printf("error %d in xbd_queue_cb\n", error);
+		cm->cm_bp->bio_error = EIO;
+		biodone(cm->cm_bp);
+		xbd_free_command(cm);
 		return;
 	}
 
-	for (i = 0; info[i].major; i++) {
-		if (info[i].major == major) {
-			*unit = info[i].base + (minor >> info[i].shift);
-			*name = info[i].name;
-			return;
+	/* Fill out a communications ring structure. */
+	ring_req = RING_GET_REQUEST(&sc->xbd_ring, sc->xbd_ring.req_prod_pvt);
+	sc->xbd_ring.req_prod_pvt++;
+	ring_req->id = cm->cm_id;
+	ring_req->operation = cm->cm_operation;
+	ring_req->sector_number = cm->cm_sector_number;
+	ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
+	ring_req->nr_segments = nsegs;
+	cm->cm_nseg = nsegs;
+
+	block_segs    = MIN(nsegs, BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK);
+	sg            = ring_req->seg;
+	last_block_sg = sg + block_segs;
+	sg_ref        = cm->cm_sg_refs;
+
+	while (1) {
+
+		while (sg < last_block_sg) {
+			buffer_ma = segs->ds_addr;
+			fsect = (buffer_ma & PAGE_MASK) >> XBD_SECTOR_SHFT;
+			lsect = fsect + (segs->ds_len  >> XBD_SECTOR_SHFT) - 1;
+
+			KASSERT(lsect <= 7, ("XEN disk driver data cannot "
+			    "cross a page boundary"));
+
+			/* install a grant reference. */
+			ref = gnttab_claim_grant_reference(&cm->cm_gref_head);
+
+			/*
+			 * GNTTAB_LIST_END == 0xffffffff, but it is private
+			 * to gnttab.c.
+			 */
+			KASSERT(ref != ~0, ("grant_reference failed"));
+
+			gnttab_grant_foreign_access_ref(
+			    ref,
+			    xenbus_get_otherend_id(sc->xbd_dev),
+			    buffer_ma >> PAGE_SHIFT,
+			    ring_req->operation == BLKIF_OP_WRITE);
+
+			*sg_ref = ref;
+			*sg = (struct blkif_request_segment) {
+				.gref       = ref,
+				.first_sect = fsect, 
+				.last_sect  = lsect
+			};
+			sg++;
+			sg_ref++;
+			segs++;
+			nsegs--;
 		}
+		block_segs = MIN(nsegs, BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK);
+		if (block_segs == 0)
+			break;
+
+		sg = BLKRING_GET_SEG_BLOCK(&sc->xbd_ring,
+		    sc->xbd_ring.req_prod_pvt);
+		sc->xbd_ring.req_prod_pvt++;
+		last_block_sg = sg + block_segs;
 	}
 
-	*unit = minor >> 4;
-	*name = "xbd";
-}
+	if (cm->cm_operation == BLKIF_OP_READ)
+		op = BUS_DMASYNC_PREREAD;
+	else if (cm->cm_operation == BLKIF_OP_WRITE)
+		op = BUS_DMASYNC_PREWRITE;
+	else
+		op = 0;
+	bus_dmamap_sync(sc->xbd_io_dmat, cm->cm_map, op);
 
-int
-xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
-    int vdevice, uint16_t vdisk_info, unsigned long sector_size)
-{
-	int unit, error = 0;
-	const char *name;
+	gnttab_free_grant_references(cm->cm_gref_head);
 
-	xbd_vdevice_to_unit(vdevice, &unit, &name);
-
-	sc->xbd_unit = unit;
-
-	if (strcmp(name, "xbd"))
-		device_printf(sc->xbd_dev, "attaching as %s%d\n", name, unit);
-
-	sc->xbd_disk = disk_alloc();
-	sc->xbd_disk->d_unit = sc->xbd_unit;
-	sc->xbd_disk->d_open = xbd_open;
-	sc->xbd_disk->d_close = xbd_close;
-	sc->xbd_disk->d_ioctl = xbd_ioctl;
-	sc->xbd_disk->d_strategy = xbd_strategy;
-	sc->xbd_disk->d_dump = xbd_dump;
-	sc->xbd_disk->d_name = name;
-	sc->xbd_disk->d_drv1 = sc;
-	sc->xbd_disk->d_sectorsize = sector_size;
-
-	sc->xbd_disk->d_mediasize = sectors * sector_size;
-	sc->xbd_disk->d_maxsize = sc->xbd_max_request_size;
-	sc->xbd_disk->d_flags = 0;
-	disk_create(sc->xbd_disk, DISK_VERSION);
-
-	return error;
-}
-
-/************************ end VBD support *****************/
-
-/*
- * Read/write routine for a buffer.  Finds the proper unit, place it on
- * the sortq and kick the controller.
- */
-static void
-xbd_strategy(struct bio *bp)
-{
-	struct xbd_softc *sc = bp->bio_disk->d_drv1;
-
-	/* bogus disk? */
-	if (sc == NULL) {
-		bp->bio_error = EINVAL;
-		bp->bio_flags |= BIO_ERROR;
-		bp->bio_resid = bp->bio_bcount;
-		biodone(bp);
-		return;
-	}
+	xbd_enqueue_busy(cm);
 
 	/*
-	 * Place it in the queue of disk activities for this disk
+	 * This flag means that we're probably executing in the busdma swi
+	 * instead of in the startio context, so an explicit flush is needed.
 	 */
+	if (cm->cm_flags & XBD_CMD_FROZEN)
+		flush_requests(sc);
+
+	return;
+}
+
+static int
+xbd_queue_request(struct xbd_softc *sc, struct xbd_command *cm)
+{
+	int error;
+
+	error = bus_dmamap_load(sc->xbd_io_dmat, cm->cm_map, cm->cm_data,
+	    cm->cm_datalen, xbd_queue_cb, cm, 0);
+	if (error == EINPROGRESS) {
+		printf("EINPROGRESS\n");
+		sc->xbd_flags |= XBD_FROZEN;
+		cm->cm_flags |= XBD_CMD_FROZEN;
+		return (0);
+	}
+
+	return (error);
+}
+
+static void
+xbd_restart_queue_callback(void *arg)
+{
+	struct xbd_softc *sc = arg;
+
 	mtx_lock(&sc->xbd_io_lock);
 
-	xbd_enqueue_bio(sc, bp);
 	xbd_startio(sc);
 
 	mtx_unlock(&sc->xbd_io_lock);
-	return;
+}
+
+static struct xbd_command *
+xbd_bio_command(struct xbd_softc *sc)
+{
+	struct xbd_command *cm;
+	struct bio *bp;
+
+	if (unlikely(sc->xbd_connected != XBD_STATE_CONNECTED))
+		return (NULL);
+
+	bp = xbd_dequeue_bio(sc);
+	if (bp == NULL)
+		return (NULL);
+
+	if ((cm = xbd_dequeue_free(sc)) == NULL) {
+		xbd_requeue_bio(sc, bp);
+		return (NULL);
+	}
+
+	if (gnttab_alloc_grant_references(sc->xbd_max_request_segments,
+	    &cm->cm_gref_head) != 0) {
+		gnttab_request_free_callback(&sc->xbd_callback,
+		    xbd_restart_queue_callback, sc,
+		    sc->xbd_max_request_segments);
+		xbd_requeue_bio(sc, bp);
+		xbd_enqueue_free(cm);
+		sc->xbd_flags |= XBD_FROZEN;
+		return (NULL);
+	}
+
+	cm->cm_bp = bp;
+	cm->cm_data = bp->bio_data;
+	cm->cm_datalen = bp->bio_bcount;
+	cm->cm_operation = (bp->bio_cmd == BIO_READ) ?
+	    BLKIF_OP_READ : BLKIF_OP_WRITE;
+	cm->cm_sector_number = (blkif_sector_t)bp->bio_pblkno;
+
+	return (cm);
+}
+
+/*
+ * Dequeue buffers and place them in the shared communication ring.
+ * Return when no more requests can be accepted or all buffers have 
+ * been queued.
+ *
+ * Signal XEN once the ring has been filled out.
+ */
+static void
+xbd_startio(struct xbd_softc *sc)
+{
+	struct xbd_command *cm;
+	int error, queued = 0;
+
+	mtx_assert(&sc->xbd_io_lock, MA_OWNED);
+
+	if (sc->xbd_connected != XBD_STATE_CONNECTED)
+		return;
+
+	while (RING_FREE_REQUESTS(&sc->xbd_ring) >=
+	    sc->xbd_max_request_blocks) {
+		if (sc->xbd_flags & XBD_FROZEN)
+			break;
+
+		cm = xbd_dequeue_ready(sc);
+
+		if (cm == NULL)
+		    cm = xbd_bio_command(sc);
+
+		if (cm == NULL)
+			break;
+
+		if ((error = xbd_queue_request(sc, cm)) != 0) {
+			printf("xbd_queue_request returned %d\n", error);
+			break;
+		}
+		queued++;
+	}
+
+	if (queued != 0) 
+		flush_requests(sc);
 }
 
 static void
@@ -290,7 +369,92 @@ xbd_bio_complete(struct xbd_softc *sc, struct xbd_command *cm)
 	biodone(bp);
 }
 
-// Quiesce the disk writes for a dump file before allowing the next buffer.
+static int
+xbd_completion(struct xbd_command *cm)
+{
+	gnttab_end_foreign_access_references(cm->cm_nseg, cm->cm_sg_refs);
+	return (BLKIF_SEGS_TO_BLOCKS(cm->cm_nseg));
+}
+
+static void
+xbd_int(void *xsc)
+{
+	struct xbd_softc *sc = xsc;
+	struct xbd_command *cm;
+	blkif_response_t *bret;
+	RING_IDX i, rp;
+	int op;
+
+	mtx_lock(&sc->xbd_io_lock);
+
+	if (unlikely(sc->xbd_connected == XBD_STATE_DISCONNECTED)) {
+		mtx_unlock(&sc->xbd_io_lock);
+		return;
+	}
+
+ again:
+	rp = sc->xbd_ring.sring->rsp_prod;
+	rmb(); /* Ensure we see queued responses up to 'rp'. */
+
+	for (i = sc->xbd_ring.rsp_cons; i != rp;) {
+		bret = RING_GET_RESPONSE(&sc->xbd_ring, i);
+		cm   = &sc->xbd_shadow[bret->id];
+
+		xbd_remove_busy(cm);
+		i += xbd_completion(cm);
+
+		if (cm->cm_operation == BLKIF_OP_READ)
+			op = BUS_DMASYNC_POSTREAD;
+		else if (cm->cm_operation == BLKIF_OP_WRITE)
+			op = BUS_DMASYNC_POSTWRITE;
+		else
+			op = 0;
+		bus_dmamap_sync(sc->xbd_io_dmat, cm->cm_map, op);
+		bus_dmamap_unload(sc->xbd_io_dmat, cm->cm_map);
+
+		/*
+		 * If commands are completing then resources are probably
+		 * being freed as well.  It's a cheap assumption even when
+		 * wrong.
+		 */
+		sc->xbd_flags &= ~XBD_FROZEN;
+
+		/*
+		 * Directly call the i/o complete routine to save an
+		 * an indirection in the common case.
+		 */
+		cm->cm_status = bret->status;
+		if (cm->cm_bp)
+			xbd_bio_complete(sc, cm);
+		else if (cm->cm_complete != NULL)
+			cm->cm_complete(cm);
+		else
+			xbd_free_command(cm);
+	}
+
+	sc->xbd_ring.rsp_cons = i;
+
+	if (i != sc->xbd_ring.req_prod_pvt) {
+		int more_to_do;
+		RING_FINAL_CHECK_FOR_RESPONSES(&sc->xbd_ring, more_to_do);
+		if (more_to_do)
+			goto again;
+	} else {
+		sc->xbd_ring.sring->rsp_event = i + 1;
+	}
+
+	xbd_startio(sc);
+
+	if (unlikely(sc->xbd_connected == XBD_STATE_SUSPENDED))
+		wakeup(&sc->xbd_cm_busy);
+
+	mtx_unlock(&sc->xbd_io_lock);
+}
+
+/*------------------------------- Dump Support -------------------------------*/
+/**
+ * Quiesce the disk writes for a dump file before allowing the next buffer.
+ */
 static void
 xbd_quiesce(struct xbd_softc *sc)
 {
@@ -396,20 +560,156 @@ xbd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	return (rc);
 }
 
-
+/*----------------------------- Disk Entrypoints -----------------------------*/
 static int
-xbd_probe(device_t dev)
+xbd_open(struct disk *dp)
 {
+	struct xbd_softc *sc = dp->d_drv1;
 
-	if (!strcmp(xenbus_get_type(dev), "vbd")) {
-		device_set_desc(dev, "Virtual Block Device");
-		device_quiet(dev);
-		return (0);
+	if (sc == NULL) {
+		printf("xb%d: not found", sc->xbd_unit);
+		return (ENXIO);
 	}
 
-	return (ENXIO);
+	sc->xbd_flags |= XBD_OPEN;
+	sc->xbd_users++;
+	return (0);
 }
 
+static int
+xbd_close(struct disk *dp)
+{
+	struct xbd_softc *sc = dp->d_drv1;
+
+	if (sc == NULL)
+		return (ENXIO);
+	sc->xbd_flags &= ~XBD_OPEN;
+	if (--(sc->xbd_users) == 0) {
+		/*
+		 * Check whether we have been instructed to close.  We will
+		 * have ignored this request initially, as the device was
+		 * still mounted.
+		 */
+		if (xenbus_get_otherend_state(sc->xbd_dev) ==
+		    XenbusStateClosing)
+			xbd_closing(sc->xbd_dev);
+	}
+	return (0);
+}
+
+static int
+xbd_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
+{
+	struct xbd_softc *sc = dp->d_drv1;
+
+	if (sc == NULL)
+		return (ENXIO);
+
+	return (ENOTTY);
+}
+
+/*
+ * Read/write routine for a buffer.  Finds the proper unit, place it on
+ * the sortq and kick the controller.
+ */
+static void
+xbd_strategy(struct bio *bp)
+{
+	struct xbd_softc *sc = bp->bio_disk->d_drv1;
+
+	/* bogus disk? */
+	if (sc == NULL) {
+		bp->bio_error = EINVAL;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_resid = bp->bio_bcount;
+		biodone(bp);
+		return;
+	}
+
+	/*
+	 * Place it in the queue of disk activities for this disk
+	 */
+	mtx_lock(&sc->xbd_io_lock);
+
+	xbd_enqueue_bio(sc, bp);
+	xbd_startio(sc);
+
+	mtx_unlock(&sc->xbd_io_lock);
+	return;
+}
+
+/*------------------------------ Ring Management -----------------------------*/
+static int 
+xbd_setup_ring(struct xbd_softc *sc)
+{
+	blkif_sring_t *sring;
+	uintptr_t sring_page_addr;
+	int error;
+	int i;
+
+	sring = malloc(sc->xbd_ring_pages * PAGE_SIZE, M_XENBLOCKFRONT,
+	    M_NOWAIT|M_ZERO);
+	if (sring == NULL) {
+		xenbus_dev_fatal(sc->xbd_dev, ENOMEM, "allocating shared ring");
+		return (ENOMEM);
+	}
+	SHARED_RING_INIT(sring);
+	FRONT_RING_INIT(&sc->xbd_ring, sring, sc->xbd_ring_pages * PAGE_SIZE);
+
+	for (i = 0, sring_page_addr = (uintptr_t)sring;
+	     i < sc->xbd_ring_pages;
+	     i++, sring_page_addr += PAGE_SIZE) {
+
+		error = xenbus_grant_ring(sc->xbd_dev,
+		    (vtomach(sring_page_addr) >> PAGE_SHIFT),
+		    &sc->xbd_ring_ref[i]);
+		if (error) {
+			xenbus_dev_fatal(sc->xbd_dev, error,
+			    "granting ring_ref(%d)", i);
+			return (error);
+		}
+	}
+	if (sc->xbd_ring_pages == 1) {
+		error = xs_printf(XST_NIL, xenbus_get_node(sc->xbd_dev),
+		    "ring-ref", "%u", sc->xbd_ring_ref[0]);
+		if (error) {
+			xenbus_dev_fatal(sc->xbd_dev, error,
+			    "writing %s/ring-ref",
+			    xenbus_get_node(sc->xbd_dev));
+			return (error);
+		}
+	} else {
+		for (i = 0; i < sc->xbd_ring_pages; i++) {
+			char ring_ref_name[]= "ring_refXX";
+
+			snprintf(ring_ref_name, sizeof(ring_ref_name),
+			    "ring-ref%u", i);
+			error = xs_printf(XST_NIL, xenbus_get_node(sc->xbd_dev),
+			     ring_ref_name, "%u", sc->xbd_ring_ref[i]);
+			if (error) {
+				xenbus_dev_fatal(sc->xbd_dev, error,
+				    "writing %s/%s",
+				    xenbus_get_node(sc->xbd_dev),
+				    ring_ref_name);
+				return (error);
+			}
+		}
+	}
+
+	error = bind_listening_port_to_irqhandler(
+	    xenbus_get_otherend_id(sc->xbd_dev),
+	    "xbd", (driver_intr_t *)xbd_int, sc,
+	    INTR_TYPE_BIO | INTR_MPSAFE, &sc->xbd_irq);
+	if (error) {
+		xenbus_dev_fatal(sc->xbd_dev, error,
+		    "bind_evtchn_to_irqhandler failed");
+		return (error);
+	}
+
+	return (0);
+}
+
+/*-------------------------- Initialization/Teardown -------------------------*/
 static void
 xbd_setup_sysctl(struct xbd_softc *xbd)
 {
@@ -443,96 +743,164 @@ xbd_setup_sysctl(struct xbd_softc *xbd)
 }
 
 /*
- * Setup supplies the backend dir, virtual device.  We place an event
- * channel and shared frame entries.  We watch backend to wait if it's
- * ok.
+ * Translate Linux major/minor to an appropriate name and unit
+ * number. For HVM guests, this allows us to use the same drive names
+ * with blkfront as the emulated drives, easing transition slightly.
  */
-static int
-xbd_attach(device_t dev)
+static void
+xbd_vdevice_to_unit(uint32_t vdevice, int *unit, const char **name)
 {
-	struct xbd_softc *sc;
-	const char *name;
-	uint32_t vdevice;
-	int error;
-	int i;
-	int unit;
+	static struct vdev_info {
+		int major;
+		int shift;
+		int base;
+		const char *name;
+	} info[] = {
+		{3,	6,	0,	"ada"},	/* ide0 */
+		{22,	6,	2,	"ada"},	/* ide1 */
+		{33,	6,	4,	"ada"},	/* ide2 */
+		{34,	6,	6,	"ada"},	/* ide3 */
+		{56,	6,	8,	"ada"},	/* ide4 */
+		{57,	6,	10,	"ada"},	/* ide5 */
+		{88,	6,	12,	"ada"},	/* ide6 */
+		{89,	6,	14,	"ada"},	/* ide7 */
+		{90,	6,	16,	"ada"},	/* ide8 */
+		{91,	6,	18,	"ada"},	/* ide9 */
 
-	/* FIXME: Use dynamic device id if this is not set. */
-	error = xs_scanf(XST_NIL, xenbus_get_node(dev),
-	    "virtual-device", NULL, "%" PRIu32, &vdevice);
-	if (error) {
-		xenbus_dev_fatal(dev, error, "reading virtual-device");
-		device_printf(dev, "Couldn't determine virtual device.\n");
-		return (error);
+		{8,	4,	0,	"da"},	/* scsi disk0 */
+		{65,	4,	16,	"da"},	/* scsi disk1 */
+		{66,	4,	32,	"da"},	/* scsi disk2 */
+		{67,	4,	48,	"da"},	/* scsi disk3 */
+		{68,	4,	64,	"da"},	/* scsi disk4 */
+		{69,	4,	80,	"da"},	/* scsi disk5 */
+		{70,	4,	96,	"da"},	/* scsi disk6 */
+		{71,	4,	112,	"da"},	/* scsi disk7 */
+		{128,	4,	128,	"da"},	/* scsi disk8 */
+		{129,	4,	144,	"da"},	/* scsi disk9 */
+		{130,	4,	160,	"da"},	/* scsi disk10 */
+		{131,	4,	176,	"da"},	/* scsi disk11 */
+		{132,	4,	192,	"da"},	/* scsi disk12 */
+		{133,	4,	208,	"da"},	/* scsi disk13 */
+		{134,	4,	224,	"da"},	/* scsi disk14 */
+		{135,	4,	240,	"da"},	/* scsi disk15 */
+
+		{202,	4,	0,	"xbd"},	/* xbd */
+
+		{0,	0,	0,	NULL},
+	};
+	int major = vdevice >> 8;
+	int minor = vdevice & 0xff;
+	int i;
+
+	if (vdevice & (1 << 28)) {
+		*unit = (vdevice & ((1 << 28) - 1)) >> 8;
+		*name = "xbd";
+		return;
 	}
 
-	xbd_vdevice_to_unit(vdevice, &unit, &name);
-	if (!strcmp(name, "xbd"))
-		device_set_unit(dev, unit);
-
-	sc = device_get_softc(dev);
-	mtx_init(&sc->xbd_io_lock, "blkfront i/o lock", NULL, MTX_DEF);
-	xbd_initq_free(sc);
-	xbd_initq_busy(sc);
-	xbd_initq_ready(sc);
-	xbd_initq_complete(sc);
-	xbd_initq_bio(sc);
-	for (i = 0; i < XBD_MAX_RING_PAGES; i++)
-		sc->xbd_ring_ref[i] = GRANT_INVALID_REF;
-
-	sc->xbd_dev = dev;
-	sc->xbd_vdevice = vdevice;
-	sc->xbd_connected = XBD_STATE_DISCONNECTED;
-
-	xbd_setup_sysctl(sc);
-
-	/* Wait for backend device to publish its protocol capabilities. */
-	xenbus_set_state(dev, XenbusStateInitialising);
-
-	return (0);
-}
-
-static int
-xbd_suspend(device_t dev)
-{
-	struct xbd_softc *sc = device_get_softc(dev);
-	int retval;
-	int saved_state;
-
-	/* Prevent new requests being issued until we fix things up. */
-	mtx_lock(&sc->xbd_io_lock);
-	saved_state = sc->xbd_connected;
-	sc->xbd_connected = XBD_STATE_SUSPENDED;
-
-	/* Wait for outstanding I/O to drain. */
-	retval = 0;
-	while (TAILQ_EMPTY(&sc->xbd_cm_busy) == 0) {
-		if (msleep(&sc->xbd_cm_busy, &sc->xbd_io_lock,
-		    PRIBIO, "blkf_susp", 30 * hz) == EWOULDBLOCK) {
-			retval = EBUSY;
-			break;
+	for (i = 0; info[i].major; i++) {
+		if (info[i].major == major) {
+			*unit = info[i].base + (minor >> info[i].shift);
+			*name = info[i].name;
+			return;
 		}
 	}
+
+	*unit = minor >> 4;
+	*name = "xbd";
+}
+
+int
+xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
+    int vdevice, uint16_t vdisk_info, unsigned long sector_size)
+{
+	int unit, error = 0;
+	const char *name;
+
+	xbd_vdevice_to_unit(vdevice, &unit, &name);
+
+	sc->xbd_unit = unit;
+
+	if (strcmp(name, "xbd"))
+		device_printf(sc->xbd_dev, "attaching as %s%d\n", name, unit);
+
+	sc->xbd_disk = disk_alloc();
+	sc->xbd_disk->d_unit = sc->xbd_unit;
+	sc->xbd_disk->d_open = xbd_open;
+	sc->xbd_disk->d_close = xbd_close;
+	sc->xbd_disk->d_ioctl = xbd_ioctl;
+	sc->xbd_disk->d_strategy = xbd_strategy;
+	sc->xbd_disk->d_dump = xbd_dump;
+	sc->xbd_disk->d_name = name;
+	sc->xbd_disk->d_drv1 = sc;
+	sc->xbd_disk->d_sectorsize = sector_size;
+
+	sc->xbd_disk->d_mediasize = sectors * sector_size;
+	sc->xbd_disk->d_maxsize = sc->xbd_max_request_size;
+	sc->xbd_disk->d_flags = 0;
+	disk_create(sc->xbd_disk, DISK_VERSION);
+
+	return error;
+}
+
+static void 
+xbd_free(struct xbd_softc *sc)
+{
+	uint8_t *sring_page_ptr;
+	int i;
+	
+	/* Prevent new requests being issued until we fix things up. */
+	mtx_lock(&sc->xbd_io_lock);
+	sc->xbd_connected = XBD_STATE_DISCONNECTED; 
 	mtx_unlock(&sc->xbd_io_lock);
 
-	if (retval != 0)
-		sc->xbd_connected = saved_state;
+	/* Free resources associated with old device channel. */
+	if (sc->xbd_ring.sring != NULL) {
+		sring_page_ptr = (uint8_t *)sc->xbd_ring.sring;
+		for (i = 0; i < sc->xbd_ring_pages; i++) {
+			grant_ref_t *ref;
 
-	return (retval);
+			ref = &sc->xbd_ring_ref[i];
+			if (*ref != GRANT_INVALID_REF) {
+				gnttab_end_foreign_access_ref(*ref);
+				*ref = GRANT_INVALID_REF;
+			}
+			sring_page_ptr += PAGE_SIZE;
+		}
+		free(sc->xbd_ring.sring, M_XENBLOCKFRONT);
+		sc->xbd_ring.sring = NULL;
+	}
+
+	if (sc->xbd_shadow) {
+
+		for (i = 0; i < sc->xbd_max_requests; i++) {
+			struct xbd_command *cm;
+
+			cm = &sc->xbd_shadow[i];
+			if (cm->cm_sg_refs != NULL) {
+				free(cm->cm_sg_refs, M_XENBLOCKFRONT);
+				cm->cm_sg_refs = NULL;
+			}
+
+			bus_dmamap_destroy(sc->xbd_io_dmat, cm->cm_map);
+		}
+		free(sc->xbd_shadow, M_XENBLOCKFRONT);
+		sc->xbd_shadow = NULL;
+
+		bus_dma_tag_destroy(sc->xbd_io_dmat);
+		
+		xbd_initq_free(sc);
+		xbd_initq_ready(sc);
+		xbd_initq_complete(sc);
+	}
+		
+	if (sc->xbd_irq) {
+		unbind_from_irqhandler(sc->xbd_irq);
+		sc->xbd_irq = 0;
+	}
 }
 
-static int
-xbd_resume(device_t dev)
-{
-	struct xbd_softc *sc = device_get_softc(dev);
-
-	DPRINTK("xbd_resume: %s\n", xenbus_get_node(dev));
-
-	xbd_free(sc);
-	xbd_initialize(sc);
-	return (0);
-}
-
+/*--------------------------- State Change Handlers --------------------------*/
 static void
 xbd_initialize(struct xbd_softc *sc)
 {
@@ -780,114 +1148,6 @@ xbd_initialize(struct xbd_softc *sc)
 	xenbus_set_state(sc->xbd_dev, XenbusStateInitialised);
 }
 
-static int 
-xbd_setup_ring(struct xbd_softc *sc)
-{
-	blkif_sring_t *sring;
-	uintptr_t sring_page_addr;
-	int error;
-	int i;
-
-	sring = malloc(sc->xbd_ring_pages * PAGE_SIZE, M_XENBLOCKFRONT,
-	    M_NOWAIT|M_ZERO);
-	if (sring == NULL) {
-		xenbus_dev_fatal(sc->xbd_dev, ENOMEM, "allocating shared ring");
-		return (ENOMEM);
-	}
-	SHARED_RING_INIT(sring);
-	FRONT_RING_INIT(&sc->xbd_ring, sring, sc->xbd_ring_pages * PAGE_SIZE);
-
-	for (i = 0, sring_page_addr = (uintptr_t)sring;
-	     i < sc->xbd_ring_pages;
-	     i++, sring_page_addr += PAGE_SIZE) {
-
-		error = xenbus_grant_ring(sc->xbd_dev,
-		    (vtomach(sring_page_addr) >> PAGE_SHIFT),
-		    &sc->xbd_ring_ref[i]);
-		if (error) {
-			xenbus_dev_fatal(sc->xbd_dev, error,
-			    "granting ring_ref(%d)", i);
-			return (error);
-		}
-	}
-	if (sc->xbd_ring_pages == 1) {
-		error = xs_printf(XST_NIL, xenbus_get_node(sc->xbd_dev),
-		    "ring-ref", "%u", sc->xbd_ring_ref[0]);
-		if (error) {
-			xenbus_dev_fatal(sc->xbd_dev, error,
-			    "writing %s/ring-ref",
-			    xenbus_get_node(sc->xbd_dev));
-			return (error);
-		}
-	} else {
-		for (i = 0; i < sc->xbd_ring_pages; i++) {
-			char ring_ref_name[]= "ring_refXX";
-
-			snprintf(ring_ref_name, sizeof(ring_ref_name),
-			    "ring-ref%u", i);
-			error = xs_printf(XST_NIL, xenbus_get_node(sc->xbd_dev),
-			     ring_ref_name, "%u", sc->xbd_ring_ref[i]);
-			if (error) {
-				xenbus_dev_fatal(sc->xbd_dev, error,
-				    "writing %s/%s",
-				    xenbus_get_node(sc->xbd_dev),
-				    ring_ref_name);
-				return (error);
-			}
-		}
-	}
-
-	error = bind_listening_port_to_irqhandler(
-	    xenbus_get_otherend_id(sc->xbd_dev),
-	    "xbd", (driver_intr_t *)xbd_int, sc,
-	    INTR_TYPE_BIO | INTR_MPSAFE, &sc->xbd_irq);
-	if (error) {
-		xenbus_dev_fatal(sc->xbd_dev, error,
-		    "bind_evtchn_to_irqhandler failed");
-		return (error);
-	}
-
-	return (0);
-}
-
-/**
- * Callback received when the backend's state changes.
- */
-static void
-xbd_backend_changed(device_t dev, XenbusState backend_state)
-{
-	struct xbd_softc *sc = device_get_softc(dev);
-
-	DPRINTK("backend_state=%d\n", backend_state);
-
-	switch (backend_state) {
-	case XenbusStateUnknown:
-	case XenbusStateInitialising:
-	case XenbusStateReconfigured:
-	case XenbusStateReconfiguring:
-	case XenbusStateClosed:
-		break;
-
-	case XenbusStateInitWait:
-	case XenbusStateInitialised:
-		xbd_initialize(sc);
-		break;
-
-	case XenbusStateConnected:
-		xbd_initialize(sc);
-		xbd_connect(sc);
-		break;
-
-	case XenbusStateClosing:
-		if (sc->xbd_users > 0)
-			xenbus_dev_error(dev, -EBUSY,
-			    "Device in use; refusing to close");
-		else
-			xbd_closing(dev);
-		break;	
-	}
-}
-
 /* 
  * Invoked when the backend is finally 'ready' (and has published
  * the details about the physical device - #sectors, size, etc). 
@@ -967,6 +1227,69 @@ xbd_closing(device_t dev)
 	xenbus_set_state(dev, XenbusStateClosed); 
 }
 
+/*---------------------------- NewBus Entrypoints ----------------------------*/
+static int
+xbd_probe(device_t dev)
+{
+
+	if (!strcmp(xenbus_get_type(dev), "vbd")) {
+		device_set_desc(dev, "Virtual Block Device");
+		device_quiet(dev);
+		return (0);
+	}
+
+	return (ENXIO);
+}
+
+/*
+ * Setup supplies the backend dir, virtual device.  We place an event
+ * channel and shared frame entries.  We watch backend to wait if it's
+ * ok.
+ */
+static int
+xbd_attach(device_t dev)
+{
+	struct xbd_softc *sc;
+	const char *name;
+	uint32_t vdevice;
+	int error;
+	int i;
+	int unit;
+
+	/* FIXME: Use dynamic device id if this is not set. */
+	error = xs_scanf(XST_NIL, xenbus_get_node(dev),
+	    "virtual-device", NULL, "%" PRIu32, &vdevice);
+	if (error) {
+		xenbus_dev_fatal(dev, error, "reading virtual-device");
+		device_printf(dev, "Couldn't determine virtual device.\n");
+		return (error);
+	}
+
+	xbd_vdevice_to_unit(vdevice, &unit, &name);
+	if (!strcmp(name, "xbd"))
+		device_set_unit(dev, unit);
+
+	sc = device_get_softc(dev);
+	mtx_init(&sc->xbd_io_lock, "blkfront i/o lock", NULL, MTX_DEF);
+	xbd_initq_free(sc);
+	xbd_initq_busy(sc);
+	xbd_initq_ready(sc);
+	xbd_initq_complete(sc);
+	xbd_initq_bio(sc);
+	for (i = 0; i < XBD_MAX_RING_PAGES; i++)
+		sc->xbd_ring_ref[i] = GRANT_INVALID_REF;
+
+	sc->xbd_dev = dev;
+	sc->xbd_vdevice = vdevice;
+	sc->xbd_connected = XBD_STATE_DISCONNECTED;
+
+	xbd_setup_sysctl(sc);
+
+	/* Wait for backend device to publish its protocol capabilities. */
+	xenbus_set_state(dev, XenbusStateInitialising);
+
+	return (0);
+}
 
 static int
 xbd_detach(device_t dev)
@@ -981,447 +1304,86 @@ xbd_detach(device_t dev)
 	return 0;
 }
 
-
-static inline void 
-flush_requests(struct xbd_softc *sc)
-{
-	int notify;
-
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&sc->xbd_ring, notify);
-
-	if (notify)
-		notify_remote_via_irq(sc->xbd_irq);
-}
-
-static void
-xbd_restart_queue_callback(void *arg)
-{
-	struct xbd_softc *sc = arg;
-
-	mtx_lock(&sc->xbd_io_lock);
-
-	xbd_startio(sc);
-
-	mtx_unlock(&sc->xbd_io_lock);
-}
-
 static int
-xbd_open(struct disk *dp)
+xbd_suspend(device_t dev)
 {
-	struct xbd_softc *sc = dp->d_drv1;
+	struct xbd_softc *sc = device_get_softc(dev);
+	int retval;
+	int saved_state;
 
-	if (sc == NULL) {
-		printf("xb%d: not found", sc->xbd_unit);
-		return (ENXIO);
-	}
-
-	sc->xbd_flags |= XBD_OPEN;
-	sc->xbd_users++;
-	return (0);
-}
-
-static int
-xbd_close(struct disk *dp)
-{
-	struct xbd_softc *sc = dp->d_drv1;
-
-	if (sc == NULL)
-		return (ENXIO);
-	sc->xbd_flags &= ~XBD_OPEN;
-	if (--(sc->xbd_users) == 0) {
-		/*
-		 * Check whether we have been instructed to close.  We will
-		 * have ignored this request initially, as the device was
-		 * still mounted.
-		 */
-		if (xenbus_get_otherend_state(sc->xbd_dev) ==
-		    XenbusStateClosing)
-			xbd_closing(sc->xbd_dev);
-	}
-	return (0);
-}
-
-static int
-xbd_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
-{
-	struct xbd_softc *sc = dp->d_drv1;
-
-	if (sc == NULL)
-		return (ENXIO);
-
-	return (ENOTTY);
-}
-
-static void
-xbd_free_command(struct xbd_command *cm)
-{
-
-	KASSERT((cm->cm_flags & XBD_ON_XBDQ_MASK) == 0,
-	    ("Freeing command that is still on a queue\n"));
-
-	cm->cm_flags = 0;
-	cm->cm_bp = NULL;
-	cm->cm_complete = NULL;
-	xbd_enqueue_free(cm);
-}
-
-/*
- * xbd_queue_request
- *
- * request block io
- * 
- * id: for guest use only.
- * operation: BLKIF_OP_{READ,WRITE,PROBE}
- * buffer: buffer to read/write into. this should be a
- *   virtual address in the guest os.
- */
-static struct xbd_command *
-xbd_bio_command(struct xbd_softc *sc)
-{
-	struct xbd_command *cm;
-	struct bio *bp;
-
-	if (unlikely(sc->xbd_connected != XBD_STATE_CONNECTED))
-		return (NULL);
-
-	bp = xbd_dequeue_bio(sc);
-	if (bp == NULL)
-		return (NULL);
-
-	if ((cm = xbd_dequeue_free(sc)) == NULL) {
-		xbd_requeue_bio(sc, bp);
-		return (NULL);
-	}
-
-	if (gnttab_alloc_grant_references(sc->xbd_max_request_segments,
-	    &cm->cm_gref_head) != 0) {
-		gnttab_request_free_callback(&sc->xbd_callback,
-		    xbd_restart_queue_callback, sc,
-		    sc->xbd_max_request_segments);
-		xbd_requeue_bio(sc, bp);
-		xbd_enqueue_free(cm);
-		sc->xbd_flags |= XBD_FROZEN;
-		return (NULL);
-	}
-
-	cm->cm_bp = bp;
-	cm->cm_data = bp->bio_data;
-	cm->cm_datalen = bp->bio_bcount;
-	cm->cm_operation = (bp->bio_cmd == BIO_READ) ?
-	    BLKIF_OP_READ : BLKIF_OP_WRITE;
-	cm->cm_sector_number = (blkif_sector_t)bp->bio_pblkno;
-
-	return (cm);
-}
-
-static int
-xbd_queue_request(struct xbd_softc *sc, struct xbd_command *cm)
-{
-	int error;
-
-	error = bus_dmamap_load(sc->xbd_io_dmat, cm->cm_map, cm->cm_data,
-	    cm->cm_datalen, xbd_queue_cb, cm, 0);
-	if (error == EINPROGRESS) {
-		printf("EINPROGRESS\n");
-		sc->xbd_flags |= XBD_FROZEN;
-		cm->cm_flags |= XBD_CMD_FROZEN;
-		return (0);
-	}
-
-	return (error);
-}
-
-static void
-xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{
-	struct xbd_softc *sc;
-	struct xbd_command *cm;
-	blkif_request_t	*ring_req;
-	struct blkif_request_segment *sg;
-	struct blkif_request_segment *last_block_sg;
-	grant_ref_t *sg_ref;
-	vm_paddr_t buffer_ma;
-	uint64_t fsect, lsect;
-	int ref;
-	int op;
-	int block_segs;
-
-	cm = arg;
-	sc = cm->cm_sc;
-
-	if (error) {
-		printf("error %d in xbd_queue_cb\n", error);
-		cm->cm_bp->bio_error = EIO;
-		biodone(cm->cm_bp);
-		xbd_free_command(cm);
-		return;
-	}
-
-	/* Fill out a communications ring structure. */
-	ring_req = RING_GET_REQUEST(&sc->xbd_ring, sc->xbd_ring.req_prod_pvt);
-	sc->xbd_ring.req_prod_pvt++;
-	ring_req->id = cm->cm_id;
-	ring_req->operation = cm->cm_operation;
-	ring_req->sector_number = cm->cm_sector_number;
-	ring_req->handle = (blkif_vdev_t)(uintptr_t)sc->xbd_disk;
-	ring_req->nr_segments = nsegs;
-	cm->cm_nseg = nsegs;
-
-	block_segs    = MIN(nsegs, BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK);
-	sg            = ring_req->seg;
-	last_block_sg = sg + block_segs;
-	sg_ref        = cm->cm_sg_refs;
-
-	while (1) {
-
-		while (sg < last_block_sg) {
-			buffer_ma = segs->ds_addr;
-			fsect = (buffer_ma & PAGE_MASK) >> XBD_SECTOR_SHFT;
-			lsect = fsect + (segs->ds_len  >> XBD_SECTOR_SHFT) - 1;
-
-			KASSERT(lsect <= 7, ("XEN disk driver data cannot "
-			    "cross a page boundary"));
-
-			/* install a grant reference. */
-			ref = gnttab_claim_grant_reference(&cm->cm_gref_head);
-
-			/*
-			 * GNTTAB_LIST_END == 0xffffffff, but it is private
-			 * to gnttab.c.
-			 */
-			KASSERT(ref != ~0, ("grant_reference failed"));
-
-			gnttab_grant_foreign_access_ref(
-			    ref,
-			    xenbus_get_otherend_id(sc->xbd_dev),
-			    buffer_ma >> PAGE_SHIFT,
-			    ring_req->operation == BLKIF_OP_WRITE);
-
-			*sg_ref = ref;
-			*sg = (struct blkif_request_segment) {
-				.gref       = ref,
-				.first_sect = fsect, 
-				.last_sect  = lsect
-			};
-			sg++;
-			sg_ref++;
-			segs++;
-			nsegs--;
-		}
-		block_segs = MIN(nsegs, BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK);
-		if (block_segs == 0)
-			break;
-
-		sg = BLKRING_GET_SEG_BLOCK(&sc->xbd_ring,
-		    sc->xbd_ring.req_prod_pvt);
-		sc->xbd_ring.req_prod_pvt++;
-		last_block_sg = sg + block_segs;
-	}
-
-	if (cm->cm_operation == BLKIF_OP_READ)
-		op = BUS_DMASYNC_PREREAD;
-	else if (cm->cm_operation == BLKIF_OP_WRITE)
-		op = BUS_DMASYNC_PREWRITE;
-	else
-		op = 0;
-	bus_dmamap_sync(sc->xbd_io_dmat, cm->cm_map, op);
-
-	gnttab_free_grant_references(cm->cm_gref_head);
-
-	xbd_enqueue_busy(cm);
-
-	/*
-	 * This flag means that we're probably executing in the busdma swi
-	 * instead of in the startio context, so an explicit flush is needed.
-	 */
-	if (cm->cm_flags & XBD_CMD_FROZEN)
-		flush_requests(sc);
-
-	return;
-}
-
-/*
- * Dequeue buffers and place them in the shared communication ring.
- * Return when no more requests can be accepted or all buffers have 
- * been queued.
- *
- * Signal XEN once the ring has been filled out.
- */
-static void
-xbd_startio(struct xbd_softc *sc)
-{
-	struct xbd_command *cm;
-	int error, queued = 0;
-
-	mtx_assert(&sc->xbd_io_lock, MA_OWNED);
-
-	if (sc->xbd_connected != XBD_STATE_CONNECTED)
-		return;
-
-	while (RING_FREE_REQUESTS(&sc->xbd_ring) >=
-	    sc->xbd_max_request_blocks) {
-		if (sc->xbd_flags & XBD_FROZEN)
-			break;
-
-		cm = xbd_dequeue_ready(sc);
-
-		if (cm == NULL)
-		    cm = xbd_bio_command(sc);
-
-		if (cm == NULL)
-			break;
-
-		if ((error = xbd_queue_request(sc, cm)) != 0) {
-			printf("xbd_queue_request returned %d\n", error);
-			break;
-		}
-		queued++;
-	}
-
-	if (queued != 0) 
-		flush_requests(sc);
-}
-
-static void
-xbd_int(void *xsc)
-{
-	struct xbd_softc *sc = xsc;
-	struct xbd_command *cm;
-	blkif_response_t *bret;
-	RING_IDX i, rp;
-	int op;
-
-	mtx_lock(&sc->xbd_io_lock);
-
-	if (unlikely(sc->xbd_connected == XBD_STATE_DISCONNECTED)) {
-		mtx_unlock(&sc->xbd_io_lock);
-		return;
-	}
-
- again:
-	rp = sc->xbd_ring.sring->rsp_prod;
-	rmb(); /* Ensure we see queued responses up to 'rp'. */
-
-	for (i = sc->xbd_ring.rsp_cons; i != rp;) {
-		bret = RING_GET_RESPONSE(&sc->xbd_ring, i);
-		cm   = &sc->xbd_shadow[bret->id];
-
-		xbd_remove_busy(cm);
-		i += xbd_completion(cm);
-
-		if (cm->cm_operation == BLKIF_OP_READ)
-			op = BUS_DMASYNC_POSTREAD;
-		else if (cm->cm_operation == BLKIF_OP_WRITE)
-			op = BUS_DMASYNC_POSTWRITE;
-		else
-			op = 0;
-		bus_dmamap_sync(sc->xbd_io_dmat, cm->cm_map, op);
-		bus_dmamap_unload(sc->xbd_io_dmat, cm->cm_map);
-
-		/*
-		 * If commands are completing then resources are probably
-		 * being freed as well.  It's a cheap assumption even when
-		 * wrong.
-		 */
-		sc->xbd_flags &= ~XBD_FROZEN;
-
-		/*
-		 * Directly call the i/o complete routine to save an
-		 * an indirection in the common case.
-		 */
-		cm->cm_status = bret->status;
-		if (cm->cm_bp)
-			xbd_bio_complete(sc, cm);
-		else if (cm->cm_complete != NULL)
-			cm->cm_complete(cm);
-		else
-			xbd_free_command(cm);
-	}
-
-	sc->xbd_ring.rsp_cons = i;
-
-	if (i != sc->xbd_ring.req_prod_pvt) {
-		int more_to_do;
-		RING_FINAL_CHECK_FOR_RESPONSES(&sc->xbd_ring, more_to_do);
-		if (more_to_do)
-			goto again;
-	} else {
-		sc->xbd_ring.sring->rsp_event = i + 1;
-	}
-
-	xbd_startio(sc);
-
-	if (unlikely(sc->xbd_connected == XBD_STATE_SUSPENDED))
-		wakeup(&sc->xbd_cm_busy);
-
-	mtx_unlock(&sc->xbd_io_lock);
-}
-
-static void 
-xbd_free(struct xbd_softc *sc)
-{
-	uint8_t *sring_page_ptr;
-	int i;
-	
 	/* Prevent new requests being issued until we fix things up. */
 	mtx_lock(&sc->xbd_io_lock);
-	sc->xbd_connected = XBD_STATE_DISCONNECTED; 
+	saved_state = sc->xbd_connected;
+	sc->xbd_connected = XBD_STATE_SUSPENDED;
+
+	/* Wait for outstanding I/O to drain. */
+	retval = 0;
+	while (TAILQ_EMPTY(&sc->xbd_cm_busy) == 0) {
+		if (msleep(&sc->xbd_cm_busy, &sc->xbd_io_lock,
+		    PRIBIO, "blkf_susp", 30 * hz) == EWOULDBLOCK) {
+			retval = EBUSY;
+			break;
+		}
+	}
 	mtx_unlock(&sc->xbd_io_lock);
 
-	/* Free resources associated with old device channel. */
-	if (sc->xbd_ring.sring != NULL) {
-		sring_page_ptr = (uint8_t *)sc->xbd_ring.sring;
-		for (i = 0; i < sc->xbd_ring_pages; i++) {
-			grant_ref_t *ref;
+	if (retval != 0)
+		sc->xbd_connected = saved_state;
 
-			ref = &sc->xbd_ring_ref[i];
-			if (*ref != GRANT_INVALID_REF) {
-				gnttab_end_foreign_access_ref(*ref);
-				*ref = GRANT_INVALID_REF;
-			}
-			sring_page_ptr += PAGE_SIZE;
-		}
-		free(sc->xbd_ring.sring, M_XENBLOCKFRONT);
-		sc->xbd_ring.sring = NULL;
-	}
-
-	if (sc->xbd_shadow) {
-
-		for (i = 0; i < sc->xbd_max_requests; i++) {
-			struct xbd_command *cm;
-
-			cm = &sc->xbd_shadow[i];
-			if (cm->cm_sg_refs != NULL) {
-				free(cm->cm_sg_refs, M_XENBLOCKFRONT);
-				cm->cm_sg_refs = NULL;
-			}
-
-			bus_dmamap_destroy(sc->xbd_io_dmat, cm->cm_map);
-		}
-		free(sc->xbd_shadow, M_XENBLOCKFRONT);
-		sc->xbd_shadow = NULL;
-
-		bus_dma_tag_destroy(sc->xbd_io_dmat);
-		
-		xbd_initq_free(sc);
-		xbd_initq_ready(sc);
-		xbd_initq_complete(sc);
-	}
-		
-	if (sc->xbd_irq) {
-		unbind_from_irqhandler(sc->xbd_irq);
-		sc->xbd_irq = 0;
-	}
+	return (retval);
 }
 
 static int
-xbd_completion(struct xbd_command *cm)
+xbd_resume(device_t dev)
 {
-	gnttab_end_foreign_access_references(cm->cm_nseg, cm->cm_sg_refs);
-	return (BLKIF_SEGS_TO_BLOCKS(cm->cm_nseg));
+	struct xbd_softc *sc = device_get_softc(dev);
+
+	DPRINTK("xbd_resume: %s\n", xenbus_get_node(dev));
+
+	xbd_free(sc);
+	xbd_initialize(sc);
+	return (0);
 }
 
-/* ** Driver registration ** */
+/**
+ * Callback received when the backend's state changes.
+ */
+static void
+xbd_backend_changed(device_t dev, XenbusState backend_state)
+{
+	struct xbd_softc *sc = device_get_softc(dev);
+
+	DPRINTK("backend_state=%d\n", backend_state);
+
+	switch (backend_state) {
+	case XenbusStateUnknown:
+	case XenbusStateInitialising:
+	case XenbusStateReconfigured:
+	case XenbusStateReconfiguring:
+	case XenbusStateClosed:
+		break;
+
+	case XenbusStateInitWait:
+	case XenbusStateInitialised:
+		xbd_initialize(sc);
+		break;
+
+	case XenbusStateConnected:
+		xbd_initialize(sc);
+		xbd_connect(sc);
+		break;
+
+	case XenbusStateClosing:
+		if (sc->xbd_users > 0)
+			xenbus_dev_error(dev, -EBUSY,
+			    "Device in use; refusing to close");
+		else
+			xbd_closing(dev);
+		break;	
+	}
+}
+
+/*---------------------------- NewBus Registration ---------------------------*/
 static device_method_t xbd_methods[] = { 
 	/* Device interface */ 
 	DEVMETHOD(device_probe,         xbd_probe), 
