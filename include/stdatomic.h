@@ -123,7 +123,7 @@ enum memory_order {
 
 #if defined(__CLANG_ATOMICS) || defined(__GNUC_ATOMICS)
 #define	atomic_is_lock_free(obj) \
-	__atomic_is_lock_free(sizeof((obj)->__val), &(obj)->val)
+	__atomic_is_lock_free(sizeof((obj)->__val), &(obj)->__val)
 #else
 #define	atomic_is_lock_free(obj) \
 	((void)(obj), sizeof((obj)->__val) <= sizeof(void *))
