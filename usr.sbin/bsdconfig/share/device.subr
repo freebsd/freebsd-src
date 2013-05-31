@@ -607,13 +607,13 @@ f_device_menu()
 		menu_list="$menu_list '$dev' '$desc'"
 	done
 
-	local size mtag
-	size=$( eval f_dialog_menu_size \
-	         	\"\$title\"  \
-	         	\"\$btitle\" \
-	         	\"\$prompt\" \
-	         	\"\$hline\"  \
-	         	$menu_list   )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
 
 	local errexit=
 	case $- in *e*) errexit=1; esac
@@ -630,7 +630,8 @@ f_device_menu()
 			  --help-label \"\$msg_help\"   \
 			  ${USE_XDIALOG:+--help \"\"}   \
 			}                               \
-			--menu \"\$prompt\" $size       \
+			--menu \"\$prompt\"             \
+			$height $width $rows            \
 			$menu_list                      \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)

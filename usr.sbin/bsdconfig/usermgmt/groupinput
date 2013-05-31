@@ -221,12 +221,12 @@ while :; do
 		" # END-QUOTE
 	esac
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$menu_text\"        \
-	        	\"\$hline\"            \
-	        	$menu_items            )
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$menu_text\"        \
+	                        \"\$hline\"            \
+	                        $menu_items
 
 	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"          \
@@ -235,7 +235,8 @@ while :; do
 		--ok-label \"\$msg_ok\"             \
 		--cancel-label \"\$msg_cancel\"     \
 		--default-item \"\$DEFAULTITEM_$$\" \
-		--menu \"\$menu_text\" $size        \
+		--menu \"\$menu_text\"              \
+		$height $width $rows                \
 		$menu_items                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)

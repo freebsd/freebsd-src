@@ -77,7 +77,7 @@ SECURE_DIVULGE_UNKNOWN_USER=
 #
 f_become_root_via_sudo()
 {
-	local msg hline size
+	local msg hline height width rows
 
 	[ "$( id -u )" = "0" ] && return $SUCCESS
 
@@ -98,12 +98,12 @@ f_become_root_via_sudo()
 		" # END-QUOTE
 		msg=$( printf "$msg_you_are_not_root_but" bsdconfig )
 		hline="$hline_arrows_tab_enter"
-		size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$msg\"              \
-		        	\"\$hline\"            \
-		        	$menu_list             )
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$msg\"              \
+		                        \"\$hline\"            \
+		                        $menu_list
 
 		local dialog_menu mtag retval
 		dialog_menu=$( eval $DIALOG \
@@ -112,7 +112,8 @@ f_become_root_via_sudo()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$msg\" $size             \
+			--menu \"\$msg\"                   \
+			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -152,11 +153,11 @@ f_become_root_via_sudo()
 		#
 		msg="$msg_please_enter_password"
 		hline="$hline_alnum_punc_tab_enter"
-		size=$( f_dialog_inputbox_size \
-		        	"$DIALOG_TITLE"     \
-		        	"$DIALOG_BACKTITLE" \
-		        	"$msg"              \
-		        	"$hline"            )
+		f_dialog_inputbox_size height width \
+		                       "$DIALOG_TITLE"     \
+		                       "$DIALOG_BACKTITLE" \
+		                       "$msg"              \
+		                       "$hline"
 
 		#
 		# Continue prompting until they either Cancel, succeed
@@ -166,12 +167,13 @@ f_become_root_via_sudo()
 		while [ $nfailures -lt $PASSWD_TRIES ]; do
 			if [ "$USE_XDIALOG" ]; then
 				password=$( $DIALOG \
-					--title "$DIALOG_TITLE"            \
-					--backtitle "$DIALOG_BACKTITLE"    \
-					--hline "$hline"                   \
-					--ok-label "$msg_ok"               \
-					--cancel-label "$msg_cancel"       \
-					--password --inputbox "$msg" $size \
+					--title "$DIALOG_TITLE"         \
+					--backtitle "$DIALOG_BACKTITLE" \
+					--hline "$hline"                \
+					--ok-label "$msg_ok"            \
+					--cancel-label "$msg_cancel"    \
+					--password --inputbox "$msg"    \
+					$height $width                  \
 					2>&1 > /dev/null )
 				retval=$?
 
@@ -187,7 +189,8 @@ f_become_root_via_sudo()
 					--ok-label "$msg_ok"            \
 					--cancel-label "$msg_cancel"    \
 					--insecure                      \
-					--passwordbox "$msg" $size      \
+					--passwordbox "$msg"            \
+					$height $width                  \
 					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 				)
 				retval=$?
@@ -272,7 +275,7 @@ f_become_root_via_sudo()
 #
 f_authenticate_some_user()
 {
-	local msg hline size width height
+	local msg hline height width
 
 	f_have sudo || f_die 1 "$msg_must_be_root_to_execute" "$pgm"
 
@@ -289,14 +292,12 @@ f_authenticate_some_user()
 
 	msg="$msg_please_enter_username_password"
 	hline="$hline_alnum_punc_tab_enter"
-	size=$( f_xdialog_2inputsbox_size \
-	        	"$DIALOG_TITLE"      \
-	        	"$DIALOG_BACKTITLE"  \
-	        	"$msg"               \
-	        	"$field_username" "" \
-	        	"$field_password" "" )
-	width="${size##*[$IFS]}"
-	height="${size%%[$IFS]*}"
+	f_xdialog_2inputsbox_size height width \
+	                          "$DIALOG_TITLE"      \
+	                          "$DIALOG_BACKTITLE"  \
+	                          "$msg"               \
+	                          "$field_username" "" \
+	                          "$field_password" ""
 	height=$(( $height + 2 )) # Add height for --password
 
 	#

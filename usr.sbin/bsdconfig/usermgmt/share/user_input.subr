@@ -91,7 +91,7 @@ f_input_user()
 f_dialog_menu_user_list()
 {
 	local defaultitem="$1"
-	local menu_list size
+	local menu_list
 	local hline="$hline_alnum_punc_tab_enter"
 
 	menu_list="
@@ -105,12 +105,13 @@ f_dialog_menu_user_list()
 		}'
 	)"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\"                   \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\"                   \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
@@ -120,7 +121,9 @@ f_dialog_menu_user_list()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\" $size $menu_list       \
+		--menu \"\"                        \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
@@ -142,7 +145,7 @@ f_dialog_input_member_groups()
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local size retval all_groups checklist_groups="" _member_groups="$1"
+	local retval all_groups checklist_groups="" _member_groups="$1"
 	all_groups=$( pw groupshow -a | awk -F: '
 		!/^[[:space:]]*(#|$)/ {
 			printf "%s\n", $1
@@ -157,13 +160,14 @@ f_dialog_input_member_groups()
 		fi
 	done
 
+	local height width rows
 	while :; do
-		size=$( eval f_dialog_radiolist_size \
+		eval f_dialog_checklist_size height width rows \
 		        	\"\$DIALOG_TITLE\"     \
 		        	\"\$DIALOG_BACKTITLE\" \
 		        	\"\"                   \
 		        	\"\$hline\"            \
-		        	$checklist_groups      )
+		        	$checklist_groups
 		local dialog_inputbox
 		dialog_inputbox=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
@@ -172,7 +176,8 @@ f_dialog_input_member_groups()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--checklist \"\$msg\" $size        \
+			--checklist \"\$msg\"              \
+			$height $width $rows               \
 			$checklist_groups                  \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -275,23 +280,25 @@ f_dialog_input_name()
 f_dialog_input_password()
 {
 	local hline="$hline_alnum_punc_tab_enter"
-	local msg size rmsg rsize
+	local msg rmsg
 
 	msg=$( printf "$msg_password" )
-	size=$( f_dialog_inputbox_size \
+	local height1 width1
+	f_dialog_inputbox_size height1 width1 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
 	        	"$msg"              \
 	        	""                  \
-	        	"$hline"            )
+	        	"$hline"
 
 	rmsg=$( printf "$msg_reenter_password" )
-	rsize=$( f_dialog_inputbox_size \
+	local height2 width2
+	f_dialog_inputbox_size height2 width2 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
 	        	"$rmsg"             \
 	        	""                  \
-	        	"$hline"            )
+	        	"$hline"
 
 	#
 	# Loop until the user provides taint-free/valid input
@@ -299,14 +306,15 @@ f_dialog_input_password()
 	local retval _password1 _password2
 	while :; do
 		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--insecure                         \
-			--passwordbox \"\$msg\" $size      \
+		dialog_inputbox=$( $DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--insecure                      \
+			--passwordbox "$msg"            \
+			$height1 $width1                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 
@@ -314,17 +322,15 @@ f_dialog_input_password()
 		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 		_password1=$( f_dialog_inputstr )
 
-		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
-
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--insecure                         \
-			--passwordbox \"\$rmsg\" $rsize    \
+		dialog_inputbox=$( $DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--insecure                      \
+			--passwordbox "$rmsg"           \
+			$height2 $width2                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 
@@ -463,8 +469,8 @@ f_dialog_input_class()
 #
 f_dialog_input_change()
 {
-	local calendar_size timebox_size
-	local msg menu_size size retval _input="$1"
+	local retval _input="$1"
+	local msg="$msg_password_expires_on"
 	local hline="$hline_num_arrows_tab_enter"
 
 	local menu_list="
@@ -474,18 +480,30 @@ f_dialog_input_change()
 		'4' '$msg_enter_value_manually'
 	" # END-QUOTE
 
+	local mheight mwidth mrows
+	eval f_dialog_menu_size mheight mwidth mrows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$msg\"              \
+	                        \"\$hline\"            \
+	                        $menu_list
+	local cheight cwidth
+	f_dialog_calendar_size cheight cwidth \
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$msg"              \
+	                       "$hline"
+	local theight twidth
+	f_dialog_timebox_size theight twidth \
+	                      "$DIALOG_TITLE"     \
+	                      "$DIALOG_BACKTITLE" \
+	                      "$msg"              \
+	                      "$hline"
+
 	#
 	# Loop until the user provides taint-free/cancellation-free input
 	#
 	while :; do
-		msg="$msg_password_expires_on"
-		menu_size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$msg\"              \
-		        	\"\$hline\"            \
-		        	$menu_list             )
-
 		local dialog_menu
 		dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
@@ -493,7 +511,8 @@ f_dialog_input_change()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$msg\" $menu_size        \
+			--menu \"\$msg\"                   \
+			$mheight $mwidth $mrows            \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -517,11 +536,6 @@ f_dialog_input_change()
 			{ f_isinteger "$secs" && [ $secs -gt 0 ]; } || secs=
 			_input_date=$( date -j -f "%s" -- "$secs" \
 			               		"+%d %m %Y" 2> /dev/null )
-			calendar_size=$( f_dialog_calendar_size \
-			                 	"$DIALOG_TITLE"     \
-			                 	"$DIALOG_BACKTITLE" \
-			                 	"$msg"              \
-			                 	"$hline"            )
 			local dialog_inputbox
 			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"          \
@@ -529,7 +543,8 @@ f_dialog_input_change()
 				--hline \"\$hline\"                 \
 				--ok-label \"\$msg_ok\"             \
 				--cancel-label \"\$msg_cancel\"     \
-				--calendar \"\$msg\" $calendar_size \
+				--calendar \"\$msg\"                \
+				$cheight $cwidth                    \
 				$_input_date                        \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
@@ -544,11 +559,6 @@ f_dialog_input_change()
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
 				-f %s -- "$_input" "+%H %M %S" 2> /dev/null )
-			timebox_size=$( f_dialog_timebox_size \
-			                	"$DIALOG_TITLE"     \
-			                	"$DIALOG_BACKTITLE" \
-			                	"$msg"              \
-			                	"$hline"            )
 			local dialog_inputbox
 			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
@@ -556,7 +566,8 @@ f_dialog_input_change()
 				--hline \"\$hline\"                \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_cancel\"    \
-				--timebox \"\$msg\" $timebox_size  \
+				--timebox \"\$msg\"                \
+				$theight $twidth                   \
 				$_input_time                       \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
@@ -649,8 +660,8 @@ f_dialog_input_change()
 #
 f_dialog_input_expire()
 {
-	local calendar_size timebox_size
-	local msg menu_size size retval _input="$1"
+	local retval _input="$1"
+	local msg="$msg_account_expires_on"
 	local hline="$hline_num_arrows_tab_enter"
 
 	local menu_list="
@@ -660,18 +671,30 @@ f_dialog_input_expire()
 		'4' '$msg_enter_value_manually'
 	" # END-QUOTE
 
+	local mheight mwidth mrows 
+	eval f_dialog_menu_size mheight mwidth mrows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$msg\"              \
+	                        \"\$hline\"            \
+	                        $menu_list
+	local cheight cwidth
+	f_dialog_calendar_size cheight cwidth \
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$msg"              \
+	                       "$hline"
+	local theight twidth
+	f_dialog_timebox_size theight twidth \
+	                      "$DIALOG_TITLE"     \
+	                      "$DIALOG_BACKTITLE" \
+	                      "$msg"              \
+	                      "$hline"
+
 	#
 	# Loop until the user provides taint-free/cancellation-free input
 	#
 	while :; do
-		msg="$msg_account_expires_on"
-		menu_size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$msg\"              \
-		        	\"\$hline\"            \
-		        	$menu_list             )
-
 		local dialog_menu
 		dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
@@ -679,7 +702,8 @@ f_dialog_input_expire()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$msg\" $menu_size        \
+			--menu \"\$msg\"                   \
+			$mheight $mwidth $mrows            \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -703,11 +727,6 @@ f_dialog_input_expire()
 			{ f_isinteger "$secs" && [ $secs -gt 0 ]; } || secs=
 			_input_date=$( date -j -f "%s" -- "$secs" \
 			               		"+%d %m %Y" 2> /dev/null )
-			calendar_size=$( f_dialog_calendar_size \
-			                 	"$DIALOG_TITLE"     \
-			                 	"$DIALOG_BACKTITLE" \
-			                 	"$msg"              \
-			                 	"$hline"            )
 			local dialog_inputbox
 			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"          \
@@ -715,7 +734,8 @@ f_dialog_input_expire()
 				--hline \"\$hline\"                 \
 				--ok-label \"\$msg_ok\"             \
 				--cancel-label \"\$msg_cancel\"     \
-				--calendar \"\$msg\" $calendar_size \
+				--calendar \"\$msg\"                \
+				$cheight $cwidth                    \
 				$_input_date                        \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
@@ -730,18 +750,14 @@ f_dialog_input_expire()
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
 				-f %s -- "$_input" "+%H %M %S" 2> /dev/null )
-			timebox_size=$( f_dialog_timebox_size \
-			                	"$DIALOG_TITLE"     \
-			                	"$DIALOG_BACKTITLE" \
-			                	"$msg"              \
-			                	"$hline"            )
 			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_cancel\"    \
-				--timebox \"\$msg\" $timebox_size  \
+				--timebox \"\$msg\"                \
+				$theight $twidth                   \
 				$_input_time                       \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
@@ -982,7 +998,7 @@ f_dialog_input_dotfiles_create()
 #
 f_dialog_input_shell()
 {
-	local size retval shells shell_list _input="$1"
+	local retval shells shell_list _input="$1"
 	local hline="$hline_arrows_space_tab_enter"
 	local prompt="$msg_select_login_shell"
 
@@ -997,12 +1013,13 @@ f_dialog_input_shell()
 		done
 	)
 
-	size=$( eval f_dialog_radiolist_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$shell_list            )
+	local height width rows
+	eval f_dialog_radiolist_size height width rows \
+	                             \"\$DIALOG_TITLE\"     \
+	                             \"\$DIALOG_BACKTITLE\" \
+	                             \"\$prompt\"           \
+	                             \"\$hline\"            \
+	                             $shell_list
 
 	local dialog_inputbox
 	dialog_inputbox=$( eval $DIALOG \
@@ -1011,7 +1028,8 @@ f_dialog_input_shell()
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--radiolist \"\$prompt\" $size     \
+		--radiolist \"\$prompt\"           \
+		$height $width $rows               \
 		$shell_list                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)

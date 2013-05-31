@@ -65,7 +65,6 @@ RCVAR_MENU_LIST=
 #
 dialog_menu_main()
 {
-	local size
 	local hline="$hline_arrows_tab_enter"
 	local prompt=""
 
@@ -126,12 +125,14 @@ dialog_menu_main()
 
 	set -f # noglob
 
-	size=$( eval f_dialog_menu_${SHOW_DESC:+with_help_}size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$RCVAR_MENU_LIST       )
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows      \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$RCVAR_MENU_LIST
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
@@ -143,7 +144,8 @@ dialog_menu_main()
 		--cancel-label \"\$msg_cancel\"     \
 		${SHOW_DESC:+--item-help}           \
 		--default-item \"\$DEFAULTITEM_$$\" \
-		--menu \"\$prompt\" $size           \
+		--menu \"\$prompt\"                 \
+		$height $width $rows                \
 		$RCVAR_MENU_LIST                    \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)

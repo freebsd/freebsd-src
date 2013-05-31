@@ -49,7 +49,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size defaultitem=
+	local menu_list defaultitem=
 	local hline="$hline_choose_a_keyboard_repeat_rate"
 	local prompt="$msg_repeat_menu_text"
 
@@ -60,12 +60,13 @@ dialog_menu_main()
 		'$msg_fast'    '$msg_fast_desc'
 	" # END-QUOTE
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	case "$( f_sysrc_get keyrate )" in
 	slow) defaultitem="$msg_slow";;
@@ -82,7 +83,8 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
