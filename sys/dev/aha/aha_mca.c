@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -191,7 +192,7 @@ aha_mca_attach (device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_CAM | INTR_ENTROPY |
-	    INTR_MPSAFE, NULL, aha_intr, sc, &aha->ih);
+	    INTR_MPSAFE, NULL, aha_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n");
 		aha_detach(sc);
