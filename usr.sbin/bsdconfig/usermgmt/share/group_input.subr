@@ -66,7 +66,7 @@ f_input_group()
 f_dialog_menu_group_list()
 {
 	local defaultitem="$1"
-	local menu_list size
+	local menu_list
 	local hline="$hline_alnum_punc_tab_enter"
 
 	menu_list="
@@ -80,12 +80,13 @@ f_dialog_menu_group_list()
 		}'
 	)"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\"                   \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\"                   \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
@@ -95,7 +96,9 @@ f_dialog_menu_group_list()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\" $size $menu_list       \
+		--menu \"\"                        \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
@@ -170,23 +173,25 @@ f_dialog_input_group_name()
 f_dialog_input_group_password()
 {
 	local hline="$hline_alnum_punc_tab_enter"
-	local msg size rmsg rsize
+	local msg rmsg
 
 	msg=$( printf "$msg_group_password" )
-	size=$( f_dialog_inputbox_size \
+	local height1 width1
+	f_dialog_inputbox_size height1 width1 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
 	        	"$msg"              \
 	        	""                  \
-	        	"$hline"            )
+	        	"$hline"
 
 	rmsg=$( printf "$msg_reenter_group_password" )
-	rsize=$( f_dialog_inputbox_size \
+	local height2 width2
+	f_dialog_inputbox_size height2 width2 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
 	        	"$rmsg"             \
 	        	""                  \
-	        	"$hline"            )
+	        	"$hline"
 
 	#
 	# Loop until the user provides taint-free/valid input
@@ -194,14 +199,15 @@ f_dialog_input_group_password()
 	local retval _password1 _password2
 	while :; do
 		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--insecure                         \
-			--passwordbox \"\$msg\" $size      \
+		dialog_inputbox=$( $DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--insecure                      \
+			--passwordbox "$msg"            \
+			$height1 $width1                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 
@@ -212,14 +218,15 @@ f_dialog_input_group_password()
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
 
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--insecure                         \
-			--passwordbox \"\$rmsg\" $rsize    \
+		dialog_inputbox=$( $DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_ok"            \
+			--cancel-label "$msg_cancel"    \
+			--insecure                      \
+			--passwordbox "$rmsg"           \
+			$height2 $width2                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 
@@ -288,7 +295,8 @@ f_dialog_input_group_gid()
 #
 f_dialog_input_group_members()
 {
-	local menu_choice msg size retval _input="$1"
+	local menu_choice retval _input="$1"
+	local msg="$msg_group_members:"
 	local hline="$hline_num_arrows_tab_enter"
 	local user 
 	local menu_list
@@ -303,14 +311,15 @@ f_dialog_input_group_members()
 	" # END-QUOTE
 
 	local dialog_menu defaultitem=
+	local mheight mwidth mrows
+	eval f_dialog_menu_size mheight mwidth mrows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$msg\"              \
+	                        \"\$hline\"            \
+	                        $menu_list
+
 	while :; do
-		msg="$msg_group_members:"
-		menu_size=$( eval f_dialog_menu_size \
-				\"\$DIALOG_TITLE\"     \
-				\"\$DIALOG_BACKTITLE\" \
-				\"\$msg\"              \
-				\"\$hline\"            \
-				$menu_list             )
 		dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
@@ -318,7 +327,8 @@ f_dialog_input_group_members()
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
 			--default-item \"\$defaultitem\"   \
-			--menu \"\$msg\" $menu_size        \
+			--menu \"\$msg\"                   \
+			$mheight $mwidth $mrows            \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -347,12 +357,13 @@ f_dialog_input_group_members()
 				fi
 			done
 
-			size=$( eval f_dialog_radiolist_size \
-			        	\"\$DIALOG_TITLE\"     \
-			        	\"\$DIALOG_BACKTITLE\" \
-			        	\"\"                   \
-			        	\"\$hline\"            \
-			        	$checklist_users       )
+			local cheight cwidth crows
+			eval f_dialog_checklist_size cheight cwidth crows \
+			                             \"\$DIALOG_TITLE\"     \
+			                             \"\$DIALOG_BACKTITLE\" \
+			                             \"\"                   \
+			                             \"\$hline\"            \
+			                             $checklist_users
 			local dialog_inputbox
 			dialog_inputbox=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
@@ -361,7 +372,8 @@ f_dialog_input_group_members()
 				--hline \"\$hline\"                \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_cancel\"    \
-				--checklist \"\$msg\" $size        \
+				--checklist \"\$msg\"              \
+				$cheight $cwidth $crows            \
 				$checklist_users                   \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)

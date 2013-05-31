@@ -83,14 +83,14 @@ dialog_menu_main()
 	local title="$DIALOG_TITLE"
 	local btitle="$DIALOG_BACKTITLE"
 	local prompt="$msg_select_region"
-	local size
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$title\"  \
-	        	\"\$btitle\" \
-	        	\"\$prompt\" \
-			\"\"         \
-	        	$continent_menu_list )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$\"       \
+	                        $continent_menu_list
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
@@ -99,7 +99,8 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"             \
 		--cancel-label \"\$msg_cancel\"     \
 		--default-item \"\$DEFAULTITEM_$$\" \
-		--menu \"\$prompt\" $size           \
+		--menu \"\$prompt\"                 \
+		$height $width $rows                \
 		$continent_menu_list                \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -240,7 +241,7 @@ if [ $# -ge 1 ]; then
 	btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
 	msg=$( printf "\n$msg_use_default_zone" "$default" )
-	size=$( f_dialog_buttonbox_size "$title" "$btitle" "$msg" )
+	f_dialog_buttonbox_size height width "$title" "$btitle" "$msg"
 
 	if [ "$USE_XDIALOG" ]; then
 		eval $DIALOG \
@@ -248,7 +249,7 @@ if [ $# -ge 1 ]; then
 			--backtitle \"\$btitle\"    \
 			--ok-label \"\$msg_yes\"    \
 			--cancel-label \"\$msg_no\" \
-			--yesno \"\$msg\" $size
+			--yesno \"\$msg\" $height $width
 		result=$?
 	else
 		eval $DIALOG \
@@ -256,7 +257,7 @@ if [ $# -ge 1 ]; then
 			--backtitle \"\$btitle\"  \
 			--yes-label \"\$msg_yes\" \
 			--no-label \"\$msg_no\"   \
-			--yesno \"\$msg\" $size
+			--yesno \"\$msg\" $height $width
 		result=$?
 	fi
 
@@ -353,12 +354,12 @@ while :; do
 			# Calculate size of menu
 			#
 			menu_list=$( f_continent $cont menu_list )
-			size=$( eval f_dialog_menu_size \
-			        	\"\$title\"  \
-			        	\"\$btitle\" \
-			        	\"\$prompt\" \
-			        	\"\"         \
-			        	$menu_list   )
+			eval f_dialog_menu_size height width rows \
+			                        \"\$title\"  \
+			                        \"\$btitle\" \
+			                        \"\$prompt\" \
+			                        \"\"         \
+			                        $menu_list
 
 			#
 			# Launch the country selection menu
@@ -369,7 +370,8 @@ while :; do
 				--ok-label \"\$msg_ok\"          \
 				--cancel-label \"\$msg_cancel\"  \
 				--default-item \"\$defaultctry\" \
-				--menu \"\$prompt\" $size        \
+				--menu \"\$prompt\"              \
+				$height $width $rows             \
 				$menu_list                       \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
@@ -415,8 +417,8 @@ while :; do
 		f_dialog_title_restore
 		prompt="$msg_select_zone"
 		menu_list=$( f_country $tlc menu_list )
-		size=$( eval f_dialog_menu_size \"\$title\"  \"\$btitle\" \
-		        	\"\$prompt\" \"\" $menu_list )
+		eval f_dialog_menu_size height width rows \
+			\"\$title\"  \"\$btitle\" \"\$prompt\" \"\" $menu_list
 
 		#
 		# Launch the zone selection menu
@@ -428,7 +430,8 @@ while :; do
 			--ok-label \"\$msg_ok\"          \
 			--cancel-label \"\$msg_cancel\"  \
 			--default-item \"\$defaultzone\" \
-			--menu \"\$prompt\" $size        \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
 			$menu_list                       \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)

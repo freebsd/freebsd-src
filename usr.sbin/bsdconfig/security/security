@@ -49,7 +49,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size mark=" " defaultitem=
+	local menu_list mark=" " defaultitem=
 	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_menu_text"
 
@@ -97,12 +97,13 @@ dialog_menu_main()
 	# Update default-item if appropriate
 	[ "$ditem" = 3 ] && defaultitem="3 [$mark] $msg_nfs_port"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
@@ -112,7 +113,8 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
