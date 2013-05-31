@@ -493,10 +493,32 @@ ieee80211_vap_tx_task(void *arg, int npending)
 	 * need a lock to ensure they were dispatched in the correct order
 	 */
 	for (;;) {
+		struct ieee80211_tx_info *txinfo;
+		struct ieee80211_bpf_params *params;
+		struct ieee80211_node *ni;
+
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		(void) ieee80211_vap_start_pkt(vap, m);
+
+		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+
+		/* Fetch TX info from the mbuf if it has it */
+		if (m->m_flags & M_TXINFO)
+			txinfo = ieee80211_get_txinfo(m);
+		else
+			txinfo = NULL;
+
+		/* Raw packet? or normal data packet? */
+		if (txinfo != NULL && txinfo->is_raw_tx) {
+			params = NULL;
+			if (txinfo->has_tx_params) {
+				params = &txinfo->bpf_params;
+			}
+			(void) (ic->ic_raw_xmit(ni, m, params));
+		} else {
+			(void) ieee80211_vap_start_pkt(vap, m);
+		}
 		/* mbuf is consumed here */
 	}
 }
@@ -509,8 +531,51 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
     struct mbuf *m, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+#if 0
+	struct ifnet *ifp = vap->iv_ifp;
+	struct ieee80211_tx_info txinfo;
 
+	/*
+	 * Queue the given mbuf into the VAP queue.
+	 *
+	 * Dispatch to the hardware will occur in the VAP transimt
+	 * thread.
+	 */
+	bzero(&txinfo, sizeof(txinfo));
+
+	txinfo.is_raw_tx = 1;
+
+	if (params != NULL) {
+		txinfo.has_tx_params = 1;
+		memcpy(&txinfo.bpf_params, params, sizeof(*params));
+	}
+
+	if (! ieee80211_add_txinfo(m, &txinfo)) {
+		m_freem(m);
+		return (ENOBUFS);	/* XXX correct? */
+	}
+
+	IF_LOCK(&ifp->if_snd);
+
+	/* Enforce queue limits */
+	if (_IF_QFULL(&ifp->if_snd)) {
+		IF_UNLOCK(&ifp->if_snd);
+		m_free(m);
+		return (ENOBUFS);       /* XXX errno? */
+	}
+
+	/* XXX sanitize TX mbuf flags? */
+	m->m_flags |= M_TXINFO;
+	_IF_ENQUEUE(&ifp->if_snd, m);
+	IF_UNLOCK(&ifp->if_snd);
+
+	/* Schedule the deferred TX task */
+	ieee80211_runtask(ic, &vap->iv_tx_task);
+
+	return (0);
+#else
 	return (ic->ic_raw_xmit(ni, m, params));
+#endif
 }
 
 /*
