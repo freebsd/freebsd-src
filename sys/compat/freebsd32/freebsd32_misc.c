@@ -104,6 +104,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
+FEATURE(compat_freebsd_32bit, "Compatible with 32-bit FreeBSD");
+
 #ifndef __mips__
 CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
