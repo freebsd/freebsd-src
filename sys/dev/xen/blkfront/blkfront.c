@@ -81,18 +81,7 @@ static void xbd_startio(struct xbd_softc *sc);
 #define DPRINTK(fmt, args...) 
 #endif
 
-/* XXX move to xbd_vbd.c when VBD update support is added */
-#define MAX_VBDS 64
-
-#define XBD_SECTOR_SIZE		512	/* XXX: assume for now */
 #define XBD_SECTOR_SHFT		9
-
-/* Control whether runtime update of vbds is enabled. */
-#define ENABLE_VBD_UPDATE 0
-
-#if ENABLE_VBD_UPDATE
-static void vbd_update(void);
-#endif
 
 #define XBD_STATE_DISCONNECTED 0
 #define XBD_STATE_CONNECTED    1
