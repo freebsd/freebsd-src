@@ -1837,7 +1837,6 @@ vm_page_activate(vm_page_t m)
 	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((queue = m->queue) != PQ_ACTIVE) {
 		if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
