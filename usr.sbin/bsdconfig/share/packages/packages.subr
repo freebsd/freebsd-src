@@ -272,8 +272,8 @@ f_package_calculate_rundeps()
 # Dislay the menu of package categories, complete with package counts for each
 # category, accents, and other miscellany. If $defaultitem is non-NULL and
 # matches one of the existing menu-items, it will be pre-highlighted in the
-# menu dialog (HINT: Use f_dialog_menutag() to populate a local variable that
-# is passed as $defaultitem to highlight the user's last selection by default).
+# menu dialog (HINT: Use f_dialog_menutag_fetch() to populate a local variable
+# that is passed as $defaultitem to highlight the user's last selection).
 #
 f_package_menu_categories()
 {
@@ -297,14 +297,15 @@ f_package_menu_categories()
 		$category_list
 	" # End-Quote
 
-	local height width rows dialog_menu
+	local height width rows
 	eval f_dialog_menu_with_help_size height width rows \
 	                                  \"\$DIALOG_TITLE\"     \
 	                                  \"\$DIALOG_BACKTITLE\" \
 	                                  \"\$prompt\"           \
 	                                  \"\$hline\"            \
 	                                  $menu_list
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -318,7 +319,7 @@ f_package_menu_categories()
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -360,7 +361,7 @@ f_package_index_get_page()
 #
 # On success, if the user doesn't press ESC or choose Cancel, the environment
 # variable $DIALOG_MENUITEM_$$ will hold the item associated with the chosen
-# tag (accessible through f_dialog_menutag()).
+# tag (accessible through f_dialog_menutag_fetch()).
 #
 f_package_menu_select()
 {
@@ -464,8 +465,9 @@ f_package_menu_select()
 	f_dialog_infobox_size iheight iwidth \
 	         	"$DIALOG_TITLE" "$DIALOG_BACKTITLE" \
 	         	"$msg_processing_selection"
-	local dialog_menu item
-	dialog_menu=$( eval $DIALOG \
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -484,11 +486,13 @@ f_package_menu_select()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
 
 	if [ $retval -eq $SUCCESS ]; then
+		local item
 		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
-		             	\"\$dialog_menu\" $menu_list )
+		             	\"\$menu_choice\" $menu_list )
 		setvar DIALOG_MENUITEM_$$ "$item"
 	fi
 
@@ -501,11 +505,11 @@ f_package_menu_select()
 # with regard to "deselecting" an already installed package. Choices include
 # uninstall, re-install, or cancel (leave $package marked as installed).
 # Returns success if the user does not press ESC or choose Cnacel. Use the
-# f_dialog_menutag() function upon success to retrieve the user's choice.
+# f_dialog_menutag_fetch() function upon success to retrieve the user's choice.
 #
 f_package_menu_deselect()
 {
-	local package="$1" prompt menu_list dialog_menu
+	local package="$1" prompt menu_list
 	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 	menu_list="
@@ -521,8 +525,8 @@ f_package_menu_deselect()
 	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
-
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -534,7 +538,7 @@ f_package_menu_deselect()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -547,7 +551,7 @@ f_package_menu_deselect()
 #
 f_package_review()
 {
-	local prompt dialog_menu package varpkg mark menu_list=
+	local prompt package varpkg mark menu_list=
 	prompt=$( printf "$msg_reviewing_selected_packages" \
 	                 "$_All_nselected" )
 	local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -576,7 +580,8 @@ f_package_review()
 	                        \"\$hline\"            \
 	                        $menu_list
 
-	dialog_menu=$( eval $DIALOG \
+	# Show the review menu (ignore menu choice)
+	eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -585,10 +590,8 @@ f_package_review()
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
 		$menu_list                         \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
+		2> /dev/null
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
 
 	#
 	# XXX
@@ -626,7 +629,7 @@ f_package_config()
 		f_package_menu_categories \
 			CATEGORY_MENU_LIST "$category_defaultitem"
 		retval=$?
-		category=$( f_dialog_menutag )
+		f_dialog_menutag_fetch category
 		f_dprintf "retval=%u mtag=[%s]" $retval "$category"
 		category_defaultitem="$category"
 
@@ -648,7 +651,7 @@ f_package_config()
 
 		f_str2varname "$category" varcat
 
-		local page package varpkg mark
+		local page package varpkg mark menu_choice
 		while :; do
 			# Display the list of packages for selected category
 			page=1 defaultitem=""
@@ -657,8 +660,8 @@ f_package_config()
 			f_package_menu_select \
 				"$category" "${page:=1}" "$defaultitem"
 			retval=$?
-			dialog_menu=$( f_dialog_menutag )
-			f_dprintf "retval=%u mtag=[%s]" $retval "$dialog_menu"
+			f_dialog_menutag_fetch menu_choice
+			f_dprintf "retval=%u mtag=[%s]" $retval "$menu_choice"
 
 			# NOTE: When --and-widget is used only ESC will cause
 			# dialog(1) to return without going to the next widget.
@@ -666,24 +669,24 @@ f_package_config()
 			# the Cancel button because stdout will be NULL.
 			# Alternatively, Xdialog(1) will terminate with 1
 			# if/when Cancel is chosen on any widget.
-			if [ $retval -eq 255 -o ! "$dialog_menu" ]; then
+			if [ $retval -eq 255 -o ! "$menu_choice" ]; then
 				# User pressed ESC or chose Cancel
 				break
 			elif [ $retval -eq 1 ]; then
 				# Using X11, Xdialog(1) returned 1 for Cancel
-				f_show_msg "%s" "$dialog_menu"
+				f_show_msg "%s" "$menu_choice"
 				break
 			elif [ $retval -ne $SUCCESS ]; then
 				# X11-related error occurred using Xdialog(1)
-				f_show_msg "%s" "$dialog_menu"
+				f_show_msg "%s" "$menu_choice"
 				break
 			fi
 
-			defaultitem="$dialog_menu"
+			defaultitem="$menu_choice"
 
 			# NOTE: f_package_menu_select() does not show the
 			# `Previous Page' or `Next Page' items unless needed
-			case "$dialog_menu" in
+			case "$menu_choice" in
 			"> $msg_previous_page"|"> $msg_previous_page*")
 				page=$(( $page - 1 ))
 				setvar _defaultpage_$varcat $page
@@ -722,7 +725,7 @@ f_package_config()
 			esac
 
 			# Treat any other selection as a package
-			package="${dialog_menu# }" # Trim leading space
+			package="${menu_choice# }" # Trim leading space
 			f_str2varname $package varpkg
 			f_getvar DIALOG_MENUITEM_$$ mark
 			mark="${mark#?}"
@@ -738,8 +741,8 @@ f_package_config()
 				;;
 			"X"|"R"|"U")
 				f_package_menu_deselect $package || continue
-				dialog_menu=$( f_dialog_menutag )
-				case "$dialog_menu" in
+				f_dialog_menutag_fetch menu_choice
+				case "$menu_choice" in
 				"X $msg_installed")
 					f_package_deselect "$package"
 					mark="X"

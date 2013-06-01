@@ -71,7 +71,7 @@ defaultitem=""
 while :; do
 	f_dialog_menu_user_list "$defaultitem"
 	retval=$?
-	mtag=$( f_dialog_menutag )
+	f_dialog_menutag_fetch mtag
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 	defaultitem="$mtag"
 

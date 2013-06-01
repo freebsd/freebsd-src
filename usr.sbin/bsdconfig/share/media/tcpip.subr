@@ -1399,8 +1399,7 @@ f_device_dialog_tcp()
 					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 				)
 				local retval=$?
-				setvar DIALOG_MENU_$$ "$cp"
-				cp=$( f_dialog_menutag )
+				f_dialog_data_sanitize cp
 				f_dprintf "retval=%u mtag=[%s]" $retval "$cp"
 
 				if [ $retval -eq 2 ]; then

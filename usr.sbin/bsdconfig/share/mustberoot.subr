@@ -105,8 +105,8 @@ f_become_root_via_sudo()
 		                        \"\$hline\"            \
 		                        $menu_list
 
-		local dialog_menu mtag retval
-		dialog_menu=$( eval $DIALOG \
+		local mtag
+		mtag=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -116,12 +116,8 @@ f_become_root_via_sudo()
 			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-		retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		mtag=$( f_dialog_menutag )
-
-		[ $retval -eq 0 ] || f_die
+		) || f_die
+		f_dialog_data_sanitize mtag
 
 		case "$mtag" in
 		X) # Cancel/Exit

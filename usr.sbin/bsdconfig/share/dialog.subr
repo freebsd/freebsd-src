@@ -107,6 +107,45 @@ DIALOG_TIMEBOX_HEIGHT=6
 
 ############################################################ GENERIC FUNCTIONS
 
+# f_dialog_data_sanitize $var_to_edit ...
+#
+# When using dialog(1) or Xdialog(1) sometimes unintended warnings or errors
+# are generated from underlying libraries. For example, if $LANG is set to an
+# invalid or unknown locale, the warnings from the Xdialog(1) libraries will
+# clutter the output. This function helps by providing a centralied function
+# that removes spurious warnings from the dialog(1) (or Xdialog(1)) response.
+#
+# Simply pass the name of one or more variables that need to be sanitized.
+# After execution, the variables will hold their newly-sanitized data.
+#
+f_dialog_data_sanitize()
+{
+	if [ "$#" -eq 0 ]; then
+		f_dprintf "%s: called with zero arguments" \
+		          f_dialog_response_sanitize
+		return $FAILURE
+	fi
+
+	local __var_to_edit
+	for __var_to_edit in $*; do
+		# Skip warnings and trim leading/trailing whitespace
+		setvar $__var_to_edit "$( f_getvar $__var_to_edit | awk '
+			BEGIN { data = 0 }
+			{
+				if ( ! data )
+				{
+					if ( $0 ~ /^$/ ) next
+					if ( $0 ~ /^Gdk-WARNING \*\*:/ ) next
+					data = 1
+				}
+				print
+			}
+		' )"
+	done
+}
+
+############################################################ TITLE FUNCTIONS
+
 # f_dialog_title [$new_title]
 #
 # Set the title of future dialog(1) ($DIALOG_TITLE) or backtitle of Xdialog(1)
@@ -1622,29 +1661,41 @@ f_dialog_input()
 
 ############################################################ MENU FUNCTIONS
 
-# f_dialog_menutag
+# f_dialog_menutag_store [-s] $text
+#
+# Store some text from a dialog(1) menu to be retrieved later by
+# f_dialog_menutag_fetch(). If the first argument is `-s', the text is
+# sanitized before being stored.
+#
+f_dialog_menutag_store()
+{
+	local sanitize=
+	[ "$1" = "-s" ] && sanitize=1 && shift 1 # -s
+	local text="$1"
+
+	# Sanitize the menutag before storing it if desired
+	[ "$sanitize" ] && f_dialog_data_sanitize text
+
+	setvar DIALOG_MENU_$$ "$text"
+}
+
+# f_dialog_menutag_fetch [$var_to_set]
 #
 # Obtain the menutag chosen by the user from the most recently displayed
-# dialog(1) menu and clean up any temporary files/variables.
+# dialog(1) menu (previously stored with f_dialog_menutag_store() above). If
+# $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
 #
-f_dialog_menutag()
+f_dialog_menutag_fetch()
 {
-	# Skip warnings
-	eval echo \"\$DIALOG_MENU_$$\" | awk '
-		BEGIN { found = 0 }
-		{
-			if ( found ) # ... just spew
-			{
-				print
-				next
-			}
-			if ( $0 ~ /^$/ ) next
-			if ( $0 ~ /^Gdk-WARNING \*\*:/ ) next
-			found = 1
-			print
-		}
-	'
+	local __var_to_set="$1" __cp
+
+	debug= f_getvar DIALOG_MENU_$$ "${__var_to_set:-__cp}" # get the data
 	setvar DIALOG_MENU_$$ "" # scrub memory in case data was sensitive
+
+	# Return the data on standard-out if desired
+	[ "$__var_to_set" ] || echo "$__cp"
+
 	return $SUCCESS
 }
 

@@ -113,8 +113,8 @@ f_dialog_menu_user_list()
 	                        \"\$hline\"            \
 	                        $menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -127,7 +127,7 @@ f_dialog_menu_user_list()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -168,8 +168,7 @@ f_dialog_input_member_groups()
 		        	\"\"                   \
 		        	\"\$hline\"            \
 		        	$checklist_groups
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
+		_member_groups=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--separate-output                  \
@@ -180,14 +179,9 @@ f_dialog_input_member_groups()
 			$height $width $rows               \
 			$checklist_groups                  \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_member_groups=$( f_dialog_inputstr )
-
-		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		) || return $?
+			# Return if user either pressed ESC or chose Cancel/No
+		f_dialog_data_sanitize _member_groups
 
 		#
 		# Validate each of the groups the user has entered
@@ -503,9 +497,9 @@ f_dialog_input_change()
 	#
 	# Loop until the user provides taint-free/cancellation-free input
 	#
+	local date_type
 	while :; do
-		local dialog_menu
-		dialog_menu=$( eval $DIALOG \
+		date_type=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -517,8 +511,7 @@ f_dialog_input_change()
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 	        retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-	        date_type=$( f_dialog_menutag )
+		f_dialog_data_sanitize date_type
 	        f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -536,8 +529,7 @@ f_dialog_input_change()
 			{ f_isinteger "$secs" && [ $secs -gt 0 ]; } || secs=
 			_input_date=$( date -j -f "%s" -- "$secs" \
 			               		"+%d %m %Y" 2> /dev/null )
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
+			ret_date=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"          \
 				--backtitle \"\$DIALOG_BACKTITLE\"  \
 				--hline \"\$hline\"                 \
@@ -549,8 +541,7 @@ f_dialog_input_change()
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
 			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_date=$( f_dialog_inputstr )
+			f_dialog_data_sanitize ret_date
 			f_dprintf "retval=%u ret_date=[%s]" $retval "$ret_date"
 
 			# Return to menu if either ESC or Cancel/No
@@ -559,8 +550,7 @@ f_dialog_input_change()
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
 				-f %s -- "$_input" "+%H %M %S" 2> /dev/null )
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
+			ret_time=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -572,8 +562,7 @@ f_dialog_input_change()
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
 			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_time=$( f_dialog_inputstr )
+			f_dialog_data_sanitize ret_time
 			f_dprintf "retval=%u ret_time=[%s]" $retval "$ret_time"
 
 			# Return to menu if either ESC or Cancel/No
@@ -694,9 +683,9 @@ f_dialog_input_expire()
 	#
 	# Loop until the user provides taint-free/cancellation-free input
 	#
+	local date_type
 	while :; do
-		local dialog_menu
-		dialog_menu=$( eval $DIALOG \
+		date_type=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -708,8 +697,7 @@ f_dialog_input_expire()
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 	        retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-	        date_type=$( f_dialog_menutag )
+		f_dialog_data_sanitize date_type
 	        f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -727,8 +715,7 @@ f_dialog_input_expire()
 			{ f_isinteger "$secs" && [ $secs -gt 0 ]; } || secs=
 			_input_date=$( date -j -f "%s" -- "$secs" \
 			               		"+%d %m %Y" 2> /dev/null )
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
+			ret_date=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"          \
 				--backtitle \"\$DIALOG_BACKTITLE\"  \
 				--hline \"\$hline\"                 \
@@ -740,8 +727,7 @@ f_dialog_input_expire()
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
 			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_date=$( f_dialog_inputstr )
+			f_dialog_data_sanitize ret_date
 			f_dprintf "retval=%u ret_date=[%s]" $retval "$ret_date"
 
 			# Return to menu if either ESC or Cancel/No
@@ -750,7 +736,7 @@ f_dialog_input_expire()
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
 				-f %s -- "$_input" "+%H %M %S" 2> /dev/null )
-			dialog_inputbox=$( eval $DIALOG \
+			ret_time=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--hline \"\$hline\"                \
@@ -762,8 +748,7 @@ f_dialog_input_expire()
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
 			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_time=$( f_dialog_inputstr )
+			f_dialog_data_sanitize ret_time
 			f_dprintf "retval=%u ret_time=[%s]" $retval "$ret_time"
 
 			# Return to menu if either ESC or Cancel/No
@@ -998,7 +983,7 @@ f_dialog_input_dotfiles_create()
 #
 f_dialog_input_shell()
 {
-	local retval shells shell_list _input="$1"
+	local shells shell_list _input="$1"
 	local hline="$hline_arrows_space_tab_enter"
 	local prompt="$msg_select_login_shell"
 
@@ -1021,8 +1006,7 @@ f_dialog_input_shell()
 	                             \"\$hline\"            \
 	                             $shell_list
 
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
+	_input=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -1032,14 +1016,9 @@ f_dialog_input_shell()
 		$height $width $rows               \
 		$shell_list                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
-
-	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	) || return $?
+		# Return if user either pressed ESC or chose Cancel/No
+	f_dialog_data_sanitize _input
 
 	pw_shell="$_input"
 	save_flag=1
