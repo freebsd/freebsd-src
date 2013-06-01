@@ -87,8 +87,6 @@ static void xbd_startio(struct xbd_softc *sc);
 #define XBD_SECTOR_SIZE		512	/* XXX: assume for now */
 #define XBD_SECTOR_SHFT		9
 
-#define GRANT_INVALID_REF 0
-
 /* Control whether runtime update of vbds is enabled. */
 #define ENABLE_VBD_UPDATE 0
 
@@ -709,6 +707,24 @@ xbd_alloc_ring(struct xbd_softc *sc)
 	return (0);
 }
 
+static void
+xbd_free_ring(struct xbd_softc *sc)
+{
+	int i;
+
+	if (sc->xbd_ring.sring == NULL)
+		return;
+
+	for (i = 0; i < sc->xbd_ring_pages; i++) {
+		if (sc->xbd_ring_ref[i] != GRANT_REF_INVALID) {
+			gnttab_end_foreign_access_ref(sc->xbd_ring_ref[i]);
+			sc->xbd_ring_ref[i] = GRANT_REF_INVALID;
+		}
+	}
+	free(sc->xbd_ring.sring, M_XENBLOCKFRONT);
+	sc->xbd_ring.sring = NULL;
+}
+
 /*-------------------------- Initialization/Teardown -------------------------*/
 static void
 xbd_setup_sysctl(struct xbd_softc *xbd)
@@ -846,7 +862,6 @@ xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
 static void 
 xbd_free(struct xbd_softc *sc)
 {
-	uint8_t *sring_page_ptr;
 	int i;
 	
 	/* Prevent new requests being issued until we fix things up. */
@@ -855,22 +870,7 @@ xbd_free(struct xbd_softc *sc)
 	mtx_unlock(&sc->xbd_io_lock);
 
 	/* Free resources associated with old device channel. */
-	if (sc->xbd_ring.sring != NULL) {
-		sring_page_ptr = (uint8_t *)sc->xbd_ring.sring;
-		for (i = 0; i < sc->xbd_ring_pages; i++) {
-			grant_ref_t *ref;
-
-			ref = &sc->xbd_ring_ref[i];
-			if (*ref != GRANT_INVALID_REF) {
-				gnttab_end_foreign_access_ref(*ref);
-				*ref = GRANT_INVALID_REF;
-			}
-			sring_page_ptr += PAGE_SIZE;
-		}
-		free(sc->xbd_ring.sring, M_XENBLOCKFRONT);
-		sc->xbd_ring.sring = NULL;
-	}
-
+	xbd_free_ring(sc);
 	if (sc->xbd_shadow) {
 
 		for (i = 0; i < sc->xbd_max_requests; i++) {
@@ -1277,7 +1277,7 @@ xbd_attach(device_t dev)
 	xbd_initq_complete(sc);
 	xbd_initq_bio(sc);
 	for (i = 0; i < XBD_MAX_RING_PAGES; i++)
-		sc->xbd_ring_ref[i] = GRANT_INVALID_REF;
+		sc->xbd_ring_ref[i] = GRANT_REF_INVALID;
 
 	sc->xbd_dev = dev;
 	sc->xbd_vdevice = vdevice;
