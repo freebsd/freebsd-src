@@ -382,6 +382,8 @@ static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_la(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_ma_la(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_ddp_stats(SYSCTL_HANDLER_ARGS);
@@ -390,13 +392,16 @@ static int sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_sched(SYSCTL_HANDLER_ARGS);
 static int sysctl_lb_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_meminfo(SYSCTL_HANDLER_ARGS);
+static int sysctl_mps_tcam(SYSCTL_HANDLER_ARGS);
 static int sysctl_path_mtus(SYSCTL_HANDLER_ARGS);
 static int sysctl_pm_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
+static int sysctl_ulprx_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_wcwr_stats(SYSCTL_HANDLER_ARGS);
 #endif
 static inline void txq_start(struct ifnet *, struct sge_txq *);
@@ -4220,6 +4225,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_cim_la, "A", "CIM logic analyzer");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ma_la",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_cim_ma_la, "A", "CIM MA logic analyzer");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp0",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0 + CIM_NUM_IBQ,
 	    sysctl_cim_ibq_obq, "A", "CIM OBQ 0 (ULP0)");
@@ -4253,6 +4262,10 @@ t4_sysctls(struct adapter *sc)
 		    CTLTYPE_STRING | CTLFLAG_RD, sc, 7 + CIM_NUM_IBQ,
 		    sysctl_cim_ibq_obq, "A", "CIM OBQ 7 (SGE1-RX)");
 	}
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_pif_la",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_cim_pif_la, "A", "CIM PIF logic analyzer");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_qcfg",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
@@ -4290,6 +4303,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_meminfo, "A", "memory regions");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "mps_tcam",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_mps_tcam, "A", "MPS TCAM entries");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "path_mtus",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_path_mtus, "A", "path MTUs");
@@ -4314,9 +4331,17 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tp_err_stats, "A", "TP error statistics");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_tp_la, "A", "TP logic analyzer");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_rate",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tx_rate, "A", "Tx rate");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "ulprx_la",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_ulprx_la, "A", "ULPRX logic analyzer");
 
 	if (is_t5(sc)) {
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "wcwr_stats",
@@ -4907,6 +4932,92 @@ sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 done:
+	free(buf, M_CXGBE);
+	return (rc);
+}
+
+static int
+sysctl_cim_ma_la(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int i;
+	struct sbuf *sb;
+	uint32_t *buf, *p;
+	int rc;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	buf = malloc(2 * CIM_MALA_SIZE * 5 * sizeof(uint32_t), M_CXGBE,
+	    M_ZERO | M_WAITOK);
+
+	t4_cim_read_ma_la(sc, buf, buf + 5 * CIM_MALA_SIZE);
+	p = buf;
+
+	for (i = 0; i < CIM_MALA_SIZE; i++, p += 5) {
+		sbuf_printf(sb, "\n%02x%08x%08x%08x%08x", p[4], p[3], p[2],
+		    p[1], p[0]);
+	}
+
+	sbuf_printf(sb, "\n\nCnt ID Tag UE       Data       RDY VLD");
+	for (i = 0; i < CIM_MALA_SIZE; i++, p += 5) {
+		sbuf_printf(sb, "\n%3u %2u  %x   %u %08x%08x  %u   %u",
+		    (p[2] >> 10) & 0xff, (p[2] >> 7) & 7,
+		    (p[2] >> 3) & 0xf, (p[2] >> 2) & 1,
+		    (p[1] >> 2) | ((p[2] & 3) << 30),
+		    (p[0] >> 2) | ((p[1] & 3) << 30), (p[0] >> 1) & 1,
+		    p[0] & 1);
+	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+	free(buf, M_CXGBE);
+	return (rc);
+}
+
+static int
+sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int i;
+	struct sbuf *sb;
+	uint32_t *buf, *p;
+	int rc;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	buf = malloc(2 * CIM_PIFLA_SIZE * 6 * sizeof(uint32_t), M_CXGBE,
+	    M_ZERO | M_WAITOK);
+
+	t4_cim_read_pif_la(sc, buf, buf + 6 * CIM_PIFLA_SIZE, NULL, NULL);
+	p = buf;
+
+	sbuf_printf(sb, "Cntl ID DataBE   Addr                 Data");
+	for (i = 0; i < CIM_MALA_SIZE; i++, p += 6) {
+		sbuf_printf(sb, "\n %02x  %02x  %04x  %08x %08x%08x%08x%08x",
+		    (p[5] >> 22) & 0xff, (p[5] >> 16) & 0x3f, p[5] & 0xffff,
+		    p[4], p[3], p[2], p[1], p[0]);
+	}
+
+	sbuf_printf(sb, "\n\nCntl ID               Data");
+	for (i = 0; i < CIM_MALA_SIZE; i++, p += 6) {
+		sbuf_printf(sb, "\n %02x  %02x %08x%08x%08x%08x",
+		    (p[4] >> 6) & 0xff, p[4] & 0x3f, p[3], p[2], p[1], p[0]);
+	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
 	free(buf, M_CXGBE);
 	return (rc);
 }
@@ -5534,6 +5645,104 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
+static inline void
+tcamxy2valmask(uint64_t x, uint64_t y, uint8_t *addr, uint64_t *mask)
+{
+	*mask = x | y;
+	y = htobe64(y);
+	memcpy(addr, (char *)&y + 2, ETHER_ADDR_LEN);
+}
+
+static int
+sysctl_mps_tcam(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, i, n;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb,
+	    "Idx  Ethernet address     Mask     Vld Ports PF"
+	    "  VF              Replication             P0 P1 P2 P3  ML");
+	n = is_t4(sc) ? NUM_MPS_CLS_SRAM_L_INSTANCES :
+	    NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	for (i = 0; i < n; i++) {
+		uint64_t tcamx, tcamy, mask;
+		uint32_t cls_lo, cls_hi;
+		uint8_t addr[ETHER_ADDR_LEN];
+
+		tcamy = t4_read_reg64(sc, MPS_CLS_TCAM_Y_L(i));
+		tcamx = t4_read_reg64(sc, MPS_CLS_TCAM_X_L(i));
+		cls_lo = t4_read_reg(sc, MPS_CLS_SRAM_L(i));
+		cls_hi = t4_read_reg(sc, MPS_CLS_SRAM_H(i));
+
+		if (tcamx & tcamy)
+			continue;
+
+		tcamxy2valmask(tcamx, tcamy, addr, &mask);
+		sbuf_printf(sb, "\n%3u %02x:%02x:%02x:%02x:%02x:%02x %012jx"
+			   "  %c   %#x%4u%4d", i, addr[0], addr[1], addr[2],
+			   addr[3], addr[4], addr[5], (uintmax_t)mask,
+			   (cls_lo & F_SRAM_VLD) ? 'Y' : 'N',
+			   G_PORTMAP(cls_hi), G_PF(cls_lo),
+			   (cls_lo & F_VF_VALID) ? G_VF(cls_lo) : -1);
+
+		if (cls_lo & F_REPLICATE) {
+			struct fw_ldst_cmd ldst_cmd;
+
+			memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+			ldst_cmd.op_to_addrspace =
+			    htobe32(V_FW_CMD_OP(FW_LDST_CMD) |
+				F_FW_CMD_REQUEST | F_FW_CMD_READ |
+				V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MPS));
+			ldst_cmd.cycles_to_len16 = htobe32(FW_LEN16(ldst_cmd));
+			ldst_cmd.u.mps.fid_ctl =
+			    htobe16(V_FW_LDST_CMD_FID(FW_LDST_MPS_RPLC) |
+				V_FW_LDST_CMD_CTL(i));
+
+			rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK,
+			    "t4mps");
+			if (rc)
+				break;
+			rc = -t4_wr_mbox(sc, sc->mbox, &ldst_cmd,
+			    sizeof(ldst_cmd), &ldst_cmd);
+			end_synchronized_op(sc, 0);
+
+			if (rc != 0) {
+				sbuf_printf(sb,
+				    " ------------ error %3u ------------", rc);
+				rc = 0;
+			} else {
+				sbuf_printf(sb, " %08x %08x %08x %08x",
+				    be32toh(ldst_cmd.u.mps.rplc127_96),
+				    be32toh(ldst_cmd.u.mps.rplc95_64),
+				    be32toh(ldst_cmd.u.mps.rplc63_32),
+				    be32toh(ldst_cmd.u.mps.rplc31_0));
+			}
+		} else
+			sbuf_printf(sb, "%36s", "");
+
+		sbuf_printf(sb, "%4u%3u%3u%3u %#3x", G_SRAM_PRIO0(cls_lo),
+		    G_SRAM_PRIO1(cls_lo), G_SRAM_PRIO2(cls_lo),
+		    G_SRAM_PRIO3(cls_lo), (cls_lo >> S_MULTILISTEN0) & 0xf);
+	}
+
+	if (rc)
+		(void) sbuf_finish(sb);
+	else
+		rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
 static int
 sysctl_path_mtus(SYSCTL_HANDLER_ARGS)
 {
@@ -5771,6 +5980,242 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
+struct field_desc {
+	const char *name;
+	u_int start;
+	u_int width;
+};
+
+static void
+field_desc_show(struct sbuf *sb, uint64_t v, const struct field_desc *f)
+{
+	char buf[32];
+	int line_size = 0;
+
+	while (f->name) {
+		uint64_t mask = (1ULL << f->width) - 1;
+		int len = snprintf(buf, sizeof(buf), "%s: %ju", f->name,
+		    ((uintmax_t)v >> f->start) & mask);
+
+		if (line_size + len >= 79) {
+			line_size = 8;
+			sbuf_printf(sb, "\n        ");
+		}
+		sbuf_printf(sb, "%s ", buf);
+		line_size += len + 1;
+		f++;
+	}
+	sbuf_printf(sb, "\n");
+}
+
+static struct field_desc tp_la0[] = {
+	{ "RcfOpCodeOut", 60, 4 },
+	{ "State", 56, 4 },
+	{ "WcfState", 52, 4 },
+	{ "RcfOpcSrcOut", 50, 2 },
+	{ "CRxError", 49, 1 },
+	{ "ERxError", 48, 1 },
+	{ "SanityFailed", 47, 1 },
+	{ "SpuriousMsg", 46, 1 },
+	{ "FlushInputMsg", 45, 1 },
+	{ "FlushInputCpl", 44, 1 },
+	{ "RssUpBit", 43, 1 },
+	{ "RssFilterHit", 42, 1 },
+	{ "Tid", 32, 10 },
+	{ "InitTcb", 31, 1 },
+	{ "LineNumber", 24, 7 },
+	{ "Emsg", 23, 1 },
+	{ "EdataOut", 22, 1 },
+	{ "Cmsg", 21, 1 },
+	{ "CdataOut", 20, 1 },
+	{ "EreadPdu", 19, 1 },
+	{ "CreadPdu", 18, 1 },
+	{ "TunnelPkt", 17, 1 },
+	{ "RcfPeerFin", 16, 1 },
+	{ "RcfReasonOut", 12, 4 },
+	{ "TxCchannel", 10, 2 },
+	{ "RcfTxChannel", 8, 2 },
+	{ "RxEchannel", 6, 2 },
+	{ "RcfRxChannel", 5, 1 },
+	{ "RcfDataOutSrdy", 4, 1 },
+	{ "RxDvld", 3, 1 },
+	{ "RxOoDvld", 2, 1 },
+	{ "RxCongestion", 1, 1 },
+	{ "TxCongestion", 0, 1 },
+	{ NULL }
+};
+
+static struct field_desc tp_la1[] = {
+	{ "CplCmdIn", 56, 8 },
+	{ "CplCmdOut", 48, 8 },
+	{ "ESynOut", 47, 1 },
+	{ "EAckOut", 46, 1 },
+	{ "EFinOut", 45, 1 },
+	{ "ERstOut", 44, 1 },
+	{ "SynIn", 43, 1 },
+	{ "AckIn", 42, 1 },
+	{ "FinIn", 41, 1 },
+	{ "RstIn", 40, 1 },
+	{ "DataIn", 39, 1 },
+	{ "DataInVld", 38, 1 },
+	{ "PadIn", 37, 1 },
+	{ "RxBufEmpty", 36, 1 },
+	{ "RxDdp", 35, 1 },
+	{ "RxFbCongestion", 34, 1 },
+	{ "TxFbCongestion", 33, 1 },
+	{ "TxPktSumSrdy", 32, 1 },
+	{ "RcfUlpType", 28, 4 },
+	{ "Eread", 27, 1 },
+	{ "Ebypass", 26, 1 },
+	{ "Esave", 25, 1 },
+	{ "Static0", 24, 1 },
+	{ "Cread", 23, 1 },
+	{ "Cbypass", 22, 1 },
+	{ "Csave", 21, 1 },
+	{ "CPktOut", 20, 1 },
+	{ "RxPagePoolFull", 18, 2 },
+	{ "RxLpbkPkt", 17, 1 },
+	{ "TxLpbkPkt", 16, 1 },
+	{ "RxVfValid", 15, 1 },
+	{ "SynLearned", 14, 1 },
+	{ "SetDelEntry", 13, 1 },
+	{ "SetInvEntry", 12, 1 },
+	{ "CpcmdDvld", 11, 1 },
+	{ "CpcmdSave", 10, 1 },
+	{ "RxPstructsFull", 8, 2 },
+	{ "EpcmdDvld", 7, 1 },
+	{ "EpcmdFlush", 6, 1 },
+	{ "EpcmdTrimPrefix", 5, 1 },
+	{ "EpcmdTrimPostfix", 4, 1 },
+	{ "ERssIp4Pkt", 3, 1 },
+	{ "ERssIp6Pkt", 2, 1 },
+	{ "ERssTcpUdpPkt", 1, 1 },
+	{ "ERssFceFipPkt", 0, 1 },
+	{ NULL }
+};
+
+static struct field_desc tp_la2[] = {
+	{ "CplCmdIn", 56, 8 },
+	{ "MpsVfVld", 55, 1 },
+	{ "MpsPf", 52, 3 },
+	{ "MpsVf", 44, 8 },
+	{ "SynIn", 43, 1 },
+	{ "AckIn", 42, 1 },
+	{ "FinIn", 41, 1 },
+	{ "RstIn", 40, 1 },
+	{ "DataIn", 39, 1 },
+	{ "DataInVld", 38, 1 },
+	{ "PadIn", 37, 1 },
+	{ "RxBufEmpty", 36, 1 },
+	{ "RxDdp", 35, 1 },
+	{ "RxFbCongestion", 34, 1 },
+	{ "TxFbCongestion", 33, 1 },
+	{ "TxPktSumSrdy", 32, 1 },
+	{ "RcfUlpType", 28, 4 },
+	{ "Eread", 27, 1 },
+	{ "Ebypass", 26, 1 },
+	{ "Esave", 25, 1 },
+	{ "Static0", 24, 1 },
+	{ "Cread", 23, 1 },
+	{ "Cbypass", 22, 1 },
+	{ "Csave", 21, 1 },
+	{ "CPktOut", 20, 1 },
+	{ "RxPagePoolFull", 18, 2 },
+	{ "RxLpbkPkt", 17, 1 },
+	{ "TxLpbkPkt", 16, 1 },
+	{ "RxVfValid", 15, 1 },
+	{ "SynLearned", 14, 1 },
+	{ "SetDelEntry", 13, 1 },
+	{ "SetInvEntry", 12, 1 },
+	{ "CpcmdDvld", 11, 1 },
+	{ "CpcmdSave", 10, 1 },
+	{ "RxPstructsFull", 8, 2 },
+	{ "EpcmdDvld", 7, 1 },
+	{ "EpcmdFlush", 6, 1 },
+	{ "EpcmdTrimPrefix", 5, 1 },
+	{ "EpcmdTrimPostfix", 4, 1 },
+	{ "ERssIp4Pkt", 3, 1 },
+	{ "ERssIp6Pkt", 2, 1 },
+	{ "ERssTcpUdpPkt", 1, 1 },
+	{ "ERssFceFipPkt", 0, 1 },
+	{ NULL }
+};
+
+static void
+tp_la_show(struct sbuf *sb, uint64_t *p, int idx)
+{
+
+	field_desc_show(sb, *p, tp_la0);
+}
+
+static void
+tp_la_show2(struct sbuf *sb, uint64_t *p, int idx)
+{
+
+	if (idx)
+		sbuf_printf(sb, "\n");
+	field_desc_show(sb, p[0], tp_la0);
+	if (idx < (TPLA_SIZE / 2 - 1) || p[1] != ~0ULL)
+		field_desc_show(sb, p[1], tp_la0);
+}
+
+static void
+tp_la_show3(struct sbuf *sb, uint64_t *p, int idx)
+{
+
+	if (idx)
+		sbuf_printf(sb, "\n");
+	field_desc_show(sb, p[0], tp_la0);
+	if (idx < (TPLA_SIZE / 2 - 1) || p[1] != ~0ULL)
+		field_desc_show(sb, p[1], (p[0] & (1 << 17)) ? tp_la2 : tp_la1);
+}
+
+static int
+sysctl_tp_la(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	uint64_t *buf, *p;
+	int rc;
+	u_int i, inc;
+	void (*show_func)(struct sbuf *, uint64_t *, int);
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	buf = malloc(TPLA_SIZE * sizeof(uint64_t), M_CXGBE, M_ZERO | M_WAITOK);
+
+	t4_tp_read_la(sc, buf, NULL);
+	p = buf;
+
+	switch (G_DBGLAMODE(t4_read_reg(sc, A_TP_DBG_LA_CONFIG))) {
+	case 2:
+		inc = 2;
+		show_func = tp_la_show2;
+		break;
+	case 3:
+		inc = 2;
+		show_func = tp_la_show3;
+		break;
+	default:
+		inc = 1;
+		show_func = tp_la_show;
+	}
+
+	for (i = 0; i < TPLA_SIZE / inc; i++, p += inc)
+		(*show_func)(sb, p, i);
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+	free(buf, M_CXGBE);
+	return (rc);
+}
+
 static int
 sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 {
@@ -5798,6 +6243,41 @@ sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
+	return (rc);
+}
+
+static int
+sysctl_ulprx_la(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	uint32_t *buf, *p;
+	int rc, i;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	buf = malloc(ULPRX_LA_SIZE * 8 * sizeof(uint32_t), M_CXGBE,
+	    M_ZERO | M_WAITOK);
+
+	t4_ulprx_read_la(sc, buf);
+	p = buf;
+
+	sbuf_printf(sb, "      Pcmd        Type   Message"
+	    "                Data");
+	for (i = 0; i < ULPRX_LA_SIZE; i++, p += 8) {
+		sbuf_printf(sb, "\n%08x%08x  %4x  %08x  %08x%08x%08x%08x",
+		    p[1], p[0], p[2], p[3], p[7], p[6], p[5], p[4]);
+	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+	free(buf, M_CXGBE);
 	return (rc);
 }
 
