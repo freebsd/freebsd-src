@@ -248,7 +248,8 @@
     <sect2 id="kernel">
       <title>Kernel Changes</title>
 
-      <para></para>
+      <para revision="232757">A bug which could cause a kernel thread
+	to have a wrong CPU affinity configuration has been fixed.</para>
 
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
@@ -270,24 +271,43 @@
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
-	  <para></para>
+	  <para revision="232594">The &man.run.4; driver now supports
+	    Logitec LAN-W300NU2.</para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
-	<para></para>
+	<para revision="232552">&os; IPv6 stack now supports multiple
+	  FIBs.  One can use &man.setfib.1; to select a different
+	  routing table for IPv6.</para>
+
+	<para revision="232819"><literal>SO_PROTOCOL</literal> and
+	  <literal>SO_PROTOTYPE</literal> socket option have been
+	  added.  These are socket level options to get the protocol
+	  number found in <application>Linux</application> or
+	  <application>Solaris</application>.  For more detail, see
+	  &man.setsockopt.2; manual page.</para>
       </sect3>
 
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
-	<para></para>
+	<para revision="232554">The &man.isci.4; driver now supports
+	  Intel C600 Serial Attached SCSI controllers with chip IDs from
+	  <literal>0x1d6c</literal> to <literal>0x1d6f</literal>.</para>
+
+	<para revision="232563">A bug which could make the &man.mpt.4;
+	  driver attach LSI MegaRAID cards which should be handled by
+	  the &man.mfi.4; driver has been fixed.</para>
       </sect3>
 
       <sect3 id="fs">
 	<title>File Systems</title>
+
+	<para revision="232665">Several bugs in &man.nullfs.5; which
+	  could cause a system panic have been fixed.</para>
 
 	<para>ZFS is upgraded to support zpool feature flags.  ZFS
 	  pool creation defaults to version 28 allowing upgrades to
@@ -328,6 +348,17 @@
 
       <para></para>
 
+      <sect3 id="rcd-scripts">
+        <title><filename>/etc/rc.d</filename> Scripts</title>
+
+	<para revision="232549">The <filename>rc.d</filename> scripts
+	  now display <computeroutput>script filename
+	  running</computeroutput> to standard error when
+	  <literal>SIGINFO</literal> is issued.  This message was sent
+	  to standard output and could prevent redirection from
+	  working.</para>
+      </sect3>
+
       <sect3 id="periodic-scripts">
         <title><filename>/etc/periodic</filename> Scripts</title>
 
@@ -338,7 +369,8 @@
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
-      <para></para>
+      <para revision="232635"><application>TENEX C shell</application>
+	(&man.tcsh.1;) has been updated to version 6.18.01.</para>
     </sect2>
 
     <sect2 id="ports">
