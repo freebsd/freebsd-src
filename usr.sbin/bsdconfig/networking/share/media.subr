@@ -205,8 +205,8 @@ f_dialog_menu_media_options()
 
 	local hline="$hline_arrows_tab_enter"
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local tag
+	tag=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -216,11 +216,10 @@ f_dialog_menu_media_options()
 		$supported_media                   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize tag
+
 	if [ $retval -eq $SUCCESS ]; then
-		local tag="$( f_dialog_menutag )"
 		options=$( eval f_dialog_menutag2item \"\$tag\" \
 		                                      $supported_media )
 		[ "$options" = "$opt_none" ] && options=

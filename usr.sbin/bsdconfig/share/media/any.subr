@@ -94,10 +94,9 @@ f_media_get_type()
 	                        \"\$hline\"  \
 	                        $menu_list
 
-	local dialog_menu
-
+	local mtag
 	while :; do
-		dialog_menu=$( eval $DIALOG \
+		mtag=$( eval $DIALOG \
 			--title \"\$title\"             \
 			--backtitle \"\$btitle\"        \
 			--hline \"\$hline\"             \
@@ -112,10 +111,7 @@ f_media_get_type()
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-
-		local mtag
-		mtag=$( f_dialog_menutag )
+		f_dialog_data_sanitize mtag
 		f_dprintf "retval=%s mtag=[%s]" $retval "$mtag"
 
 		if [ $retval -eq 2 ]; then

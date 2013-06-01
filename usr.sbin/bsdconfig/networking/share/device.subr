@@ -151,8 +151,8 @@ f_dialog_menu_netdev()
 	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $interfaces
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -165,7 +165,7 @@ f_dialog_menu_netdev()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -224,8 +224,8 @@ f_dialog_menu_netdev_edit()
 		                        \"\$prompt\"           \
 		                        \"\$hline\"            \
 		                        $menu_list
-		local dialog_menu
-		dialog_menu=$( eval $DIALOG \
+		local tag
+		tag=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -240,10 +240,8 @@ f_dialog_menu_netdev_edit()
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		local tag="$( f_dialog_menutag )"
+		f_dialog_data_sanitize tag
 
 		if [ $retval -eq 2 ]; then
 			# The Help button was pressed

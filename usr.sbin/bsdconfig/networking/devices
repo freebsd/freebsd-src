@@ -73,12 +73,9 @@ f_mustberoot_init
 #
 defaultitem=""
 while :; do
-	f_dialog_menu_netdev "$defaultitem"
-	retval=$?
-	interface=$( f_dialog_menutag )
+	f_dialog_menu_netdev "$defaultitem" || break
+	f_dialog_menutag_fetch interface
 	defaultitem="$interface"
-
-	[ $retval -eq 0 ] || break
 
 	#
 	# dialog_menu_netdev adds an asterisk (*) to the right of the

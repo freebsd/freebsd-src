@@ -237,8 +237,8 @@ f_dialog_menu_media_ftp()
 	                        \"\$hline\"  \
 	                        $menu_list
 
-	local dialog_menu retval mtag value
-	dialog_menu=$( eval $DIALOG \
+	local mtag
+	mtag=$( eval $DIALOG \
 		--title \"\$title\"             \
 		--backtitle \"\$btitle\"        \
 		--hline \"\$hline\"             \
@@ -248,16 +248,13 @@ f_dialog_menu_media_ftp()
 		$height $width $rows            \
 		$menu_list                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-	retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || return $FAILURE
+	) || return $FAILURE
+	f_dialog_data_sanitize mtag
 
 	case "$mtag" in
 	URL) setvar $VAR_FTP_PATH "other" ;;
 	*)
+		local value
 		value=$( eval f_dialog_menutag2item \"\$mtag\" $menu_list )
 		setvar $VAR_FTP_PATH "ftp://$value"
 	esac

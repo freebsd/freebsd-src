@@ -205,8 +205,8 @@ dialog_menu_main()
 		\"\$hline\"            \
 		$menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"          \
 		--backtitle \"\$DIALOG_BACKTITLE\"  \
 		--hline \"\$hline\"                 \
@@ -223,10 +223,11 @@ dialog_menu_main()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && setvar DEFAULTITEM_$$ "$dialog_menu"
+	[ $retval -eq 0 ] && setvar DEFAULTITEM_$$ "$menu_choice"
 
 	return $retval
 }
@@ -331,7 +332,7 @@ dialog_create_main
 while :; do
 	dialog_menu_main
 	retval=$?
-	mtag=$( f_dialog_menutag )
+	f_dialog_menutag_fetch mtag
 
 	if [ "$USE_XDIALOG" ]; then
 		case "$mtag" in "> $msg_view_details")

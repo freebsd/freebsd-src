@@ -619,6 +619,7 @@ f_device_menu()
 	case $- in *e*) errexit=1; esac
 	set +e
 
+	local mtag
 	while :; do
 		mtag=$( eval $DIALOG \
 			--title \"\$title\"             \
@@ -648,8 +649,7 @@ f_device_menu()
 
 	if [ $retval -eq 0 ]; then
 		# Clean up the output of [X]dialog(1) and return it
-		setvar DIALOG_MENU_$$ "$mtag"
-		mtag=$( f_dialog_menutag )
+		f_dialog_data_sanitize mtag
 		echo "$mtag" >&2
 	fi
 
