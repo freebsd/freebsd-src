@@ -266,14 +266,19 @@
 	<filename>GENERIC</filename> kernel to support break-to-debugger
 	capability.</para>
 
+      <para revision="236684">The &man.shm.map.9; and
+	&man.shm.unmap.9; functions have been added to allow in-kernel
+	code to map portions of shared memory objects created by
+	&man.shm.open.2; into the kernel's address space.</para>
+
       <para revision="235502">A new &man.sysctl.8; variable
 	<varname>kern.stop_scheduler_on_panic</varname> has been
 	added.  When set to <literal>1</literal>, only one thread runs
 	uninterruptedly after a system panic and the other CPUs are
 	stopped.  The default value is <literal>0</literal>.</para>
 
-      <para revision="233765,234094">A bug that changes to a mapped
-	file with the &man.mmap.2; system call were not flushed
+      <para revision="233765,234094,236150">A bug that changes to a
+	mapped file with the &man.mmap.2; system call were not flushed
 	properly under certain circumstances has been fixed.  If a
 	process has an NFS-backed file and adds changes to it,
 	normally the changes are written into the backing store
@@ -294,12 +299,21 @@
 	  prevents a UFS1 filesystem on big endian platforms from
 	  booting.</para>
 
+	<para revision="235998" arch="sparc64">&os; &man.loader.8; now
+	  supports <command>heap</command> to show the heap
+	  usage.</para>
+
 	<para revision="234694">The <application>gptboot</application>
 	  boot block now reads the backup GPT header from the last LBA
 	  only when the primary GPT header and tables are invalid.
 	  This mitigates interoperability issues with some
 	  &man.geom.4; providers like <literal>MIRROR</literal> which
 	  use the last LBA for the metadata.</para>
+
+	<para revision="236077" arch="sparc64">&os;/&arch.sparc64; now
+	  supports booting from ZFS via the
+	  <filename>zfsboot</filename> boot block and
+	  <filename>zfsloader</filename>.</para>
 
 	<para revision="234680">A bug in the
 	  <application>zfsboot</application> boot block which could
@@ -318,6 +332,10 @@
 	  near-call instructions, or a long series of pop and/or
 	  near-return instructions.</para>
 
+	<para revision="237009" arch="amd64">The extended FPU states
+	  for native 64-bit and 32-bit ABIs have been supported.  AVX
+	  instructions are also enabled on capable CPUs.</para>
+
 	<para revision="233795" arch="amd64,i386,pc98">The
 	  &man.atkbdc.4; driver now supports a keyboard controller
 	  which has PnP ID <literal>PNP0320</literal>.  This can be
@@ -332,11 +350,17 @@
 	  could cause a deadlock in &man.pmcstat.8; utility has been
 	  fixed.</para>
 
+	<para revision="236079">The &man.pcf8563.4; driver for the NXP
+	  (Philips) PCF8563 RTC has been added.</para>
+
 	<para revision="234151" arch="amd64">The &man.pci.4; driver
 	  now supports mapping between MSI (Message Signaled Interrupt)
 	  and HyperTransport interrupt messages on HyperTransport to PCI
 	  bus briges.  This change improves handling of MSIs on AMD
 	  CPUs.</para>
+
+	<para revision="236651">The &man.puc.4; driver now supports
+	  Sun 1040 PCI Quad Serial.</para>
 
 	<para revision="233065" arch="amd64,i386">The &man.uart.4;
 	  driver now supports Intel AMT Serial Port for Remote
@@ -360,7 +384,13 @@
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
-	  <para></para>
+	  <para revision="236750,236753">The &man.snd.hda.4; driver
+	    has been updated. It now supports and provides HDMI, new
+	    volume control, automatic recording source selection,
+	    runtime reconfiguration, more then 4 PCM devices on a
+	    controller, multichannel recording, additional
+	    playback/record streams, higher bandwidth, and more
+	    informative device names.</para>
 	</sect4>
 
 	<sect4 id="net-if">
@@ -375,6 +405,11 @@
 	  <para revision="235424">A bug in the &man.bce.4; network
 	    driver has been fixed.  It could prevent jumbo frame
 	    configuration from working.</para>
+
+	  <para revision="236217">A bug in &man.bce.4; which could
+	    prevent IPMI (Intelligent Platform Management Interface)
+	    from working when the interface is down has been
+	    fixed.</para>
 
 	  <para revision="235819">The &man.bce.4; network driver now
 	    supports remote PHYs, which allow the controller to perform
@@ -393,6 +428,9 @@
 	    driver running on BCM5700, 5701, 5702, 5703, or 5704
 	    controller has been fixed.  It reported only the number of
 	    discarded packets.</para>
+
+	  <para revision="236219">A bug in &man.bge.4; which could
+	    make the device stop working has been fixed.</para>
 
 	  <para revision="233744" arch="amd64,i386,pc98">&man.cas.4;,
 	    &man.gem.4;, and &man.hme.4; drivers have been added to
@@ -415,10 +453,16 @@
 	    chipsets, and Intel Centrino Wireless-N 100/130
 	    devices.</para>
 
+	  <para revision="236416">The &man.mxge.4; driver has been
+	    updated to firmware version 1.4.55 from Myricom.</para>
+
 	  <para revision="235666">A bug in &man.ixgbe.4; network
 	    driver has been fixed.  It could cause a packet loss in
 	    TCP communication when TSO (TCP Segmentation Offload) is
 	    enabled.</para>
+
+	  <para revision="236008">The &man.ral.4; network driver now
+	    supports Ralink RT2800 and RT3000 chipsets.</para>
 
 	  <para revision="233490">A bug in the &man.re.4; and
 	    &man.rl.4; network drivers which could cause a problem on
@@ -457,6 +501,19 @@
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
+	<para revision="r236056">The &man.if.bridge.4; pseudo network
+	  interface driver now supports multiple bridges in the same
+	  STP domain.  It used the same MAC address as the bridge ID
+	  for all bridges on the system.</para>
+
+	<para revision="236058">The &man.if.bridge.4; now supports
+	  link state change notification and works with &man.carp.4;
+	  protocol.</para>
+
+	<para revision="236072">The <varname>net.link.bridge</varname>
+	  &man.sysctl.8; variables can be set in &man.loader.8; and/or
+	  &man.loader.conf.5; now.</para>
+
 	<para revision="233085">The default number of the bridge
 	  forwarding cache entries of the &man.if.bridge.4; pseudo
 	  network interface driver has been increased from
@@ -484,10 +541,21 @@
 	  FIBs.  One can use &man.setfib.1; to select a different
 	  routing table for IPv6.</para>
 
+	<para revision="236609,236611,236827">A bug in reference
+	  counting of IPv6 interface routes has been fixed.</para>
+
 	<para revision="233605">A bug which could cause a system panic
 	  in multicast routing in kernel with <option>VIMAGE</option>
 	  kernel option has been fixed.  This option is disabled in
 	  <filename>GENERIC</filename> kernel.</para>
+
+	<para revision="236057">The &man.lagg.4; pseudo network
+	  driver now allows to set which layers are used for the load
+	  balance hash calculation.  It can be set in
+	  <command>ifconfig lagghash</command> option in a
+	  comma-separated list.  The default value is <option>lagghash
+	  l2,l3,l4</option>.  For more detail, see &man.ifconfig.8;
+	  manual page.</para>
 
 	<para revision="234682">A bug in the &man.ng.patch.4;
 	  &man.netgraph.4; node which could cause a system panic has
@@ -527,6 +595,9 @@
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
+	<para revision="236319">A bug in the &man.amr.4; driver which
+	  could cause data corruption has been fixed.</para>
+
 	<para revision="234912">The &man.ata.4; driver now creates
 	  symbolic links for backward compatibility when
 	  <option>ATA_CAM</option> kernel option is enabled.  In a
@@ -547,7 +618,14 @@
 	  is enabled or not.  This option is disabled in
 	  <filename>GENERIC</filename> kernel.</para>
 
-	<para revision="232942">The &man.cam.4; driver now uses
+	<para revision="236766">A new &man.sysctl.8; variable
+	  <varname>kern.cam.pmp.hide_special</varname> has been added.
+	  This controls whether special PMP ports such as PMP (Port
+	  MultiPlier) configuration or SEMB (SATA Enclosure Management
+	  Bridge) will be exposed or hidden. The default value is
+	  <literal>1</literal> (hidden).</para>
+
+	<para revision="232942,236804">The &man.cam.4; driver now uses
 	  <literal>READ CAPACITY(16)</literal> SCSI command to get
 	  device information by default when possible.  This enables
 	  to detect whether Logical Block Provisioning (also known as
@@ -560,9 +638,9 @@
 	  <literal>BIO_DELETE</literal> requests handled as a single
 	  <literal>TRIM</literal> request.</para>
 
-	<para revision="235086">The &man.da.4; now supports Olympus
-	  FE-210 camera, LG UP3S MP3 player, and Laser MP3-2GA13
-	  MP3.</para>
+	<para revision="235086,236654">The &man.umass.4; driver now
+	  supports Olympus FE-210 camera, LG UP3S MP3 player, Laser
+	  MP3-2GA13 MP3, and Garmin GPS devices.</para>
 
 	<para revision="232554">The &man.isci.4; driver now supports
 	  Intel C600 Serial Attached SCSI controllers with chip IDs from
@@ -572,6 +650,11 @@
 	  could not correctly handle <literal>READ
 	  CAPACITY(16)</literal> SCSI command for an SATA device has
 	  been fixed.</para>
+
+	<para revision="236264">A bug in &man.isci.4; driver which
+	  could prevent <application>smartctl</application>
+	  (<filename>sysutils/smartmontools</filename> in the Ports
+	  Collection) from working.</para>
 
 	<para revision="235625">The &man.mfi.4; driver now supports
 	  LSI MegaRAID SAS cards named "Drake Skinny" and
@@ -620,6 +703,12 @@
 	<para revision="233286">Bugs in &os; NFS subsystem has been
 	  fixed.  They could cause stale name cache entries on an NFS
 	  client.</para>
+
+	<para revision="236147">A memory leak when a ZFS volume is
+	  exported via the &os; NFS (<application>newnfs</application>)
+	  server has been fixed.  Note that
+	  <application>oldnfs</application> is used as the default NFS
+	  implementation in <filename>GENERIC</filename> kernel.</para>
 
 	<para revision="233327">&os; NFS subsystem now supports a
 	  timeout parameter on positive name cache entries on the NFS
@@ -705,6 +794,10 @@
 	profiling data for the &man.gprof.1; utility with a filename
 	including the process ID.</para>
 
+      <para revision="236875">A bug in the &man.inetd.8; daemon which
+	could cause wrong accounting for elapsed time has been
+	fixed.</para>
+
       <para revision="235888">The &man.lastcomm.1; utility now
 	supports <option>+<replaceable>format</replaceable></option>
 	option to specify &man.strftime.3; format for process start
@@ -746,6 +839,14 @@
 	displays <varname>osreldate</varname> in binary information
 	for a process.</para>
 
+      <para revision="236699">The &man.procstat.1; and &man.fstat.1;
+	utilities now shows pathname associated with a shared memory
+	object.</para>
+
+      <para revision="236306">The &man.ps.1; utility now supports
+	<option>cow</option> keyword to show the number of
+	copy-on-write faults in a process.</para>
+
       <para revision="234534">A bug in the &man.remquo.3; functions
 	where the quotient did not always have the correct sign when
 	the remainder was 0, and another bug that the remainder and
@@ -782,12 +883,17 @@
 	allows to not request current values from the device, but only
 	receive changes.</para>
 
-      <para revision="233862"><command>zfs list -t snapshot</command>
-	command has been improved dramatically in performance.</para>
+      <para revision="233862">The &man.zfs.8; <command>list -t
+	  snapshot</command> command has been improved dramatically in
+	performance.</para>
 
-      <para revision="233862"><command>zfs get</command> command now
-	supports <option>-t
-	  <replaceable>datatype</replaceable></option> option.</para>
+      <para revision="233862">The &man.zfs.8; <command>get</command>
+	command now supports <option>-t
+	<replaceable>datatype</replaceable></option> option.</para>
+
+      <para revision="235952">The &man.zfs.8; <command>send</command>
+	command now reports transmitted data size in bytes when
+	<option>-v</option> flag is specified.</para>
 
       <sect3 id="rcd-scripts">
         <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -810,8 +916,8 @@
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
-      <para revision="233915"><application>ISC BIND</application> has
-	been updated to 9.6-ESV-R6.</para>
+      <para revision="236590"><application>ISC BIND</application> has
+	been updated to 9.6-ESV-R7-P1.</para>
 
       <para revision="232635"><application>TENEX C shell</application>
 	(&man.tcsh.1;) has been updated to version 6.18.01.</para>
