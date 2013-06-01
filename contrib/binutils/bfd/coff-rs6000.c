@@ -1548,7 +1548,7 @@ _bfd_xcoff_stat_arch_elt (abfd, s)
     {
       struct xcoff_ar_hdr *hdrp = arch_xhdr (abfd);
 
-      s->st_mtime = strtol (hdrp->date, (char **) NULL, 10);
+      s->st_mtime = strtoll (hdrp->date, (char **) NULL, 10);
       s->st_uid = strtol (hdrp->uid, (char **) NULL, 10);
       s->st_gid = strtol (hdrp->gid, (char **) NULL, 10);
       s->st_mode = strtol (hdrp->mode, (char **) NULL, 8);
@@ -1558,7 +1558,7 @@ _bfd_xcoff_stat_arch_elt (abfd, s)
     {
       struct xcoff_ar_hdr_big *hdrp = arch_xhdr_big (abfd);
 
-      s->st_mtime = strtol (hdrp->date, (char **) NULL, 10);
+      s->st_mtime = strtoll (hdrp->date, (char **) NULL, 10);
       s->st_uid = strtol (hdrp->uid, (char **) NULL, 10);
       s->st_gid = strtol (hdrp->gid, (char **) NULL, 10);
       s->st_mode = strtol (hdrp->mode, (char **) NULL, 8);
@@ -1678,6 +1678,7 @@ xcoff_write_armap_old (abfd, elength, map, orl_count, stridx)
 static char buff20[XCOFFARMAGBIG_ELEMENT_SIZE + 1];
 #define FMT20  "%-20lld"
 #define FMT12  "%-12d"
+#define FMT12_LL  "%-12lld"
 #define FMT12_OCTAL  "%-12o"
 #define FMT4  "%-4d"
 #define PRINT20(d, v) \
@@ -1686,6 +1687,10 @@ static char buff20[XCOFFARMAGBIG_ELEMENT_SIZE + 1];
 
 #define PRINT12(d, v) \
   sprintf (buff20, FMT12, (int)(v)), \
+  memcpy ((void *) (d), buff20, 12)
+
+#define PRINT12_LL(d, v) \
+  sprintf (buff20, FMT12_LL, (long long)(v)), \
   memcpy ((void *) (d), buff20, 12)
 
 #define PRINT12_OCTAL(d, v) \
@@ -2152,7 +2157,7 @@ xcoff_write_archive_contents_old (abfd)
 	    }
 
 	  sprintf (ahdrp->size, "%ld", (long) s.st_size);
-	  sprintf (ahdrp->date, "%ld", (long) s.st_mtime);
+	  sprintf (ahdrp->date, "%lld", (long long) s.st_mtime);
 	  sprintf (ahdrp->uid, "%ld", (long) s.st_uid);
 	  sprintf (ahdrp->gid, "%ld", (long) s.st_gid);
 	  sprintf (ahdrp->mode, "%o", (unsigned int) s.st_mode);
@@ -2388,7 +2393,7 @@ xcoff_write_archive_contents_big (abfd)
 	    }
 
 	  PRINT20 (ahdrp->size, s.st_size);
-	  PRINT12 (ahdrp->date, s.st_mtime);
+	  PRINT12_LL (ahdrp->date, s.st_mtime);
 	  PRINT12 (ahdrp->uid,  s.st_uid);
 	  PRINT12 (ahdrp->gid,  s.st_gid);
 	  PRINT12_OCTAL (ahdrp->mode, s.st_mode);
