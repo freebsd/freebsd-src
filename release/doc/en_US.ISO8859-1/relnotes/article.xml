@@ -5,6 +5,8 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
+<!ENTITY % man-refs SYSTEM "man-refs.ent">
+%man-refs;
 ]>
 
 <article>
@@ -251,16 +253,84 @@
       <para revision="232757">A bug which could cause a kernel thread
 	to have a wrong CPU affinity configuration has been fixed.</para>
 
+      <para revision="233584">A bug in VIMAGE &man.jail.8; which could
+	make the network subsystem run on an wrong vnet context has been
+	fixed.</para>
+
+      <para revision="233765,234094">A bug that changes to a mapped
+	file with the &man.mmap.2; system call were not flushed
+	properly under certain circumstances has been fixed.  If a
+	process has an NFS-backed file and adds changes to it,
+	normally the changes are written into the backing store
+	automatically.  However, the NFS client recognized the
+	modified parts are written successfully even when the write
+	operation was failed for some reason such as permission
+	denied.</para>
+
       <sect3 id="boot">
 	<title>Boot Loader Changes</title>
 
-	<para></para>
+	<para revision="233377,234563" arch="amd64,i386,pc98">A bug in
+	  &os; boot block has been fixed.  A pathname of the third
+	  stage loader (or kernel) in the &man.boot.config.5;
+	  configuration file could not be recognized.</para>
+
+	<para revision="232963">A bug in &man.loader.8; which could
+	  prevents a UFS1 filesystem on big endian platforms from
+	  booting.</para>
+
+	<para revision="234694">The <application>gptboot</application>
+	  boot block now reads the backup GPT header from the last LBA
+	  only when the primary GPT header and tables are invalid.
+	  This mitigates interoperability issues with some
+	  &man.geom.4; providers like <literal>MIRROR</literal> which
+	  use the last LBA for the metadata.</para>
+
+	<para revision="234680">A bug in the
+	  <application>zfsboot</application> boot block which could
+	  prevent <option>-q</option> option from working has been
+	  fixed.</para>
       </sect3>
 
       <sect3 id="proc">
 	<title>Hardware Support</title>
 
-	<para></para>
+	<para revision="233799" arch="amd64">A workaround for Erratum
+	  721 for AMD Processor Family 10h and 12h has been
+	  implemented. Under a highly specific and detailed set of
+	  internal timing conditions, the processor may incorrectly
+	  update the stack pointer after a long series of push and/or
+	  near-call instructions, or a long series of pop and/or
+	  near-return instructions.</para>
+
+	<para revision="233795" arch="amd64,i386,pc98">The
+	  &man.atkbdc.4; driver now supports a keyboard controller
+	  which has PnP ID <literal>PNP0320</literal>.  This can be
+	  found on machines which have Japanese PS/2 keyboard with
+	  106/109 keys.</para>
+
+	<para revision="233369">A bug in &man.cpufreq.4; which could
+	  prevent CPU frequency tuning from working properly has been
+	  fixed.</para>
+
+	<para revision="233825">A bug in &man.hwpmc.4; driver which
+	  could cause a deadlock in &man.pmcstat.8; utility has been
+	  fixed.</para>
+
+	<para revision="234151" arch="amd64">The &man.pci.4; driver
+	  now supports mapping between MSI (Message Signaled Interrupt)
+	  and HyperTransport interrupt messages on HyperTransport to PCI
+	  bus briges.  This change improves handling of MSIs on AMD
+	  CPUs.</para>
+
+	<para revision="233065" arch="amd64,i386">The &man.uart.4;
+	  driver now supports Intel AMT Serial Port for Remote
+	  Keyboard and Text (KT) Redirection (Serial Over LAN) on
+	  Intel 4 Series Chipset family.</para>
+
+	<para revision="232871">The &man.usb.4; driver now handles
+	  suspend events synchronously.  This fixed problems of
+	  suspend and resume.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -271,17 +341,114 @@
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
 
+	  <para revision="234127">Link state change handling in the
+	    &man.ale.4; network driver has been improved.</para>
+
+	  <para revision="234241">The &man.ale.4; network driver now
+	    supports flow control.</para>
+
+	  <para revision="233496">A bug in the &man.bge.4; network
+	    driver which could cause watchdog timeout on BCM5704
+	    controller connected behind AMD 8131 PCI-X bridge has been
+	    fixed.</para>
+
+	  <para revision="233499">A bug in
+	    <varname>if_ierrors</varname> counter in the &man.bge.4;
+	    driver running on BCM5700, 5701, 5702, 5703, or 5704
+	    controller has been fixed.  It reported only the number of
+	    discarded packets.</para>
+
+	  <para revision="233744" arch="amd64,i386,pc98">&man.cas.4;,
+	    &man.gem.4;, and &man.hme.4; drivers have been added to
+	    <filename>GENERIC</filename> kernel.</para>
+
+	  <para revision="233502">The &man.fxp.4; network driver has
+	    been improved.  It does not cause unnecessary media change
+	    in controller reconfiguration such as promiscuos mode
+	    change which leads to an extra link
+	    reestablishment.</para>
+
+	  <para revision="233839">The &man.iwn.4; driver now supports
+	    Intel Centrino 6150 wireless N and WiMAX chipsets.</para>
+
+	  <para revision="233490">A bug in the &man.re.4; and
+	    &man.rl.4; network drivers which could cause a problem on
+	    RTL8139 family has been fixed.</para>
+
+	  <para revision="233493">A bug in the &man.re.4; network
+	    driver which could cause intermittent link up/down on
+	    RTL8169 controller has been fixed.</para>
+
+	  <para revision="233490">WoL (Wake-on-LAN) support
+	    in the &man.rl.4; driver is now disabled by
+	    default.</para>
+
 	  <para revision="232594">The &man.run.4; driver now supports
 	    Logitec LAN-W300NU2.</para>
+
+	  <para revision="233461">The &man.run.4; network driver now
+	    load the firmware upon initialization, not attachment.
+	    This fixes an issue when the root filesystem is not
+	    available at the time of the device detection.</para>
+
+	  <para revision="234029">The &man.run.4; driver has been
+	    updated to firmware verion 0.236.</para>
+
+	  <para revision="233487">The &man.sf.4; network driver has
+	    been improved.  A system load fluctuation under high network
+	    load has been fixed.</para>
+
+	  <para revision="232875">The &man.u3g.4; driver now supports
+	    Qualcomm Vertex Wireless 110L modem, Qualcomm 3G modem, and
+	    Qualcomm Vertex VW110L modem.</para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
+	<para revision="233085">The default number of the bridge
+	  forwarding cache entries of the &man.if.bridge.4; pseudo
+	  network interface driver has been increased from
+	  <literal>100</literal> to <literal>2000</literal>.</para>
+
+	<para>The <literal>table</literal> argument
+	  in the &man.ipfw.4; packet filter rule syntax now supports
+	  IP address, interface name, port number, and jail ID.  The
+	  following syntax is valid:</para>
+
+	<programlisting>skipto tablearg ip from any to any via table(42) in</programlisting>
+
+	<para revision="234637">A new &man.sysctl.8; variable
+	  <varname>net.inet.ip.fw.tables_max</varname> has been added
+	  to specify the maximum number of tables.  The default value
+	  is <literal>128</literal>.</para>
+
+	<para revision="233112">A bug in &os; IPv6 stack has been
+	  fixed.  It could cause a &man.vlan.4; pseudo network
+	  interface to get the EUI64 part in an autoconfigured IPv6
+	  address from an unrelated Ethernet interface on the
+	  system.</para>
+
 	<para revision="232552">&os; IPv6 stack now supports multiple
 	  FIBs.  One can use &man.setfib.1; to select a different
 	  routing table for IPv6.</para>
+
+	<para revision="233605">A bug which could cause a system panic
+	  in multicast routing in kernel with <option>VIMAGE</option>
+	  kernel option has been fixed.  This option is disabled in
+	  <filename>GENERIC</filename> kernel.</para>
+
+	<para revision="234682">A bug in the &man.ng.patch.4;
+	  &man.netgraph.4; node which could cause a system panic has
+	  been fixed.</para>
+
+	<para revision="233245,233246">&os; SCTP stack now supports
+	  &man.ng.iface.4; and &man.stf.4; interface.</para>
+
+	<para revision="234805">&os; SCTP stack now supports
+	  <varname>net.inet.udp.checksum</varname> &man.sysctl.8;
+	  variable for SCTP over UDP over IPv4 encapsulation.</para>
 
 	<para revision="232819"><literal>SO_PROTOCOL</literal> and
 	  <literal>SO_PROTOTYPE</literal> socket option have been
@@ -294,17 +461,62 @@
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
+	<para revision="233714">A new &man.sysctl.8;
+	  <varname>kern.features.ata_cam</varname> has been added.
+	  This shows whether <literal>ATA_CAM</literal> kernel option
+	  is enabled or not.  This option is disabled in
+	  <filename>GENERIC</filename> kernel.</para>
+
+	<para revision="232942">The &man.cam.4; driver now uses
+	  <literal>READ CAPACITY(16)</literal> SCSI command to get
+	  device information by default when possible.  This enables
+	  to detect whether Logical Block Provisioning (also known as
+	  <literal>TRIM</literal> or <literal>UNMAP</literal>) in
+	  SBC-3 (SCSI Block Commands-3) Specification is supported on
+	  the device.</para>
+
 	<para revision="232554">The &man.isci.4; driver now supports
 	  Intel C600 Serial Attached SCSI controllers with chip IDs from
 	  <literal>0x1d6c</literal> to <literal>0x1d6f</literal>.</para>
 
+	<para revision="233789">A bug in the &man.isci.4; driver which
+	  could not correctly handle <literal>READ
+	  CAPACITY(16)</literal> SCSI command for an SATA device has
+	  been fixed.</para>
+
 	<para revision="232563">A bug which could make the &man.mpt.4;
 	  driver attach LSI MegaRAID cards which should be handled by
 	  the &man.mfi.4; driver has been fixed.</para>
+
+	<para revision="234407">The <literal>PART_LDM</literal>
+	  &man.geom.4; class has been added. This partition scheme has
+	  support for Logical Disk Manager, which is also known as
+	  dynamic volumes in Microsoft Windows NT.  Note that JBOD,
+	  RAID0, and RAID5 volumes are not supported yet.</para>
+
+	<para revision="234512">The &man.tmpfs.5; filesystem is not an
+	  experimental implementation anymore.</para>
+
+	<para revision="233791">A bug in the &man.xen.4;
+	  <application>blkfront</application> driver has been fixed.
+	  It could not attach on Citrix XenServer configurations that
+	  advertise the multi-page ring extension.</para>
       </sect3>
 
       <sect3 id="fs">
 	<title>File Systems</title>
+
+	<para revision="233286">Bugs in &os; NFS subsystem has been
+	  fixed.  They could cause stale name cache entries on an NFS
+	  client.</para>
+
+	<para revision="233327">&os; NFS subsystem now supports a
+	  timeout parameter on positive name cache entries on the NFS
+	  client side.  <literal>nametimeo</literal> mount option has
+	  been added to specify the timeout.  The default value is
+	  <literal>60</literal> seconds, and one can disable the
+	  positive name caching by setting it to
+	  <literal>0</literal>.</para>
 
 	<para revision="232665">Several bugs in &man.nullfs.5; which
 	  could cause a system panic have been fixed.</para>
@@ -346,7 +558,70 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
-      <para></para>
+      <para revision="233762">The &man.daemon.8; utility now supports
+	<option>-r</option> flag to restart the program if it has been
+	terminated.</para>
+
+      <para revision="233867">The &man.devfs.5; mount now supports
+	<option>ruleset=number</option> mount option and updating the
+	existing mount by using <option>-u</option> flag in the
+	&man.mount.8; utility.  This new option sets the specified
+	ruleset number as the active ruleset of the new devfs mount
+	and applies all its rules at mount time.  If the specified
+	ruleset doesn't exist, a new empty ruleset is created.</para>
+
+      <para revision="234045">The <application>libpmc</application>
+	library has been updated to support more PMCs (Performance
+	Monitoring Counters) in Intel Core i7 and Xeon 5500 family
+	based on Intel documentatino as of October 2011.
+	Specifically, <literal>DTLB_MISSES.PDE_MISS</literal> and
+	<literal>DTLB_MISSES.LARGE_WALK_COMPLETED</literal> have been
+	added.</para>
+
+      <para revision="234555">The <application>libradius</application>
+	now supports &man.rad.bind.to.3; function.</para>
+
+      <para revision="233153">A bug in the the
+	<application>libutil</application> library has been fixed.  It
+	could prevent configuration of <varname>priority</varname>
+	class capability in <filename>/etc/login.conf</filename>
+	(<literal>LOGIN_SETPRIORITY</literal> in
+	&man.setusercontext.3; function) from working when the
+	password is not set.</para>
+
+      <para revision="234741">A bug in &man.pam.unix.8; module has
+	been fixed.  It could prevent <varname>passwordtime</varname>
+	login capability in &man.login.conf.5; from working.</para>
+
+      <para revision="233953">The &man.procstat.1; utility now
+	displays <varname>osreldate</varname> in binary information
+	for a process.</para>
+
+      <para revision="234534">A bug in the &man.remquo.3; functions
+	where the quotient did not always have the correct sign when
+	the remainder was 0, and another bug that the remainder and
+	quotient were both off by a bit in certain cases involving
+	subnormal remainders, have been fixed.  Note that these bugs
+	affected all platforms except &arch.amd64; and
+	&arch.i386;.</para>
+
+      <para revision="233067">The &man.rtld.1; dynamic linker has been
+	improved in performance of TLS (Thread Local Storage)
+	handling.</para>
+
+      <para revision="234001">The &man.sh.1; program now allows
+	underscore characters in the arithmetic expansion.</para>
+
+      <para revision="234331">The &man.unzip.1; program now supports a
+	<option>-Z</option> flag to enable
+	<application>zipinfo</application> mode.</para>
+
+      <para revision="233862"><command>zfs list -t snapshot</command>
+	command has been improved dramatically in performance.</para>
+
+      <para revision="233862"><command>zfs get</command> command now
+	supports <option>-t
+	  <replaceable>datatype</replaceable></option> option.</para>
 
       <sect3 id="rcd-scripts">
         <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -369,14 +644,23 @@
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
+      <para revision="233915"><application>ISC BIND</application> has
+	been updated to 9.6-ESV-R6.</para>
+
       <para revision="232635"><application>TENEX C shell</application>
 	(&man.tcsh.1;) has been updated to version 6.18.01.</para>
+
+      <para revision="233448">The <application>timezone</application>
+	database has been updated to
+	<application>tzdata2012a</application> release.</para>
     </sect2>
 
     <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para></para>
+      <para revision="233686">The &man.pkg.create.1; program now
+	allows a relative pathname in the <option>-p</option>
+	option.</para>
     </sect2>
 
     <sect2 id="releng">
