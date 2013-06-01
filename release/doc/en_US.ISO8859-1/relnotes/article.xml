@@ -257,6 +257,21 @@
 	make the network subsystem run on an wrong vnet context has been
 	fixed.</para>
 
+      <para revision="235121"><varname>debug.kdb.break_to_debugger</varname>
+	and <varname>debug.kdb.alt_break_to_debugger</varname> have been
+	added as &man.sysctl.8; variables and loader tunables.  These
+	are disabled by default and <option>BREAK_TO_DEBUGGER</option>
+	and <option>ALT_BREAK_TO_DEBUGGER</option> kernel options now
+	set them enabled.  These changes allow
+	<filename>GENERIC</filename> kernel to support break-to-debugger
+	capability.</para>
+
+      <para revision="235502">A new &man.sysctl.8; variable
+	<varname>kern.stop_scheduler_on_panic</varname> has been
+	added.  When set to <literal>1</literal>, only one thread runs
+	uninterruptedly after a system panic and the other CPUs are
+	stopped.  The default value is <literal>0</literal>.</para>
+
       <para revision="233765,234094">A bug that changes to a mapped
 	file with the &man.mmap.2; system call were not flushed
 	properly under certain circumstances has been fixed.  If a
@@ -332,6 +347,16 @@
 	  suspend events synchronously.  This fixed problems of
 	  suspend and resume.</para>
 
+	<para revision="235011">The &man.usb.4; driver now supports
+	  multi-TT mode operation, which can have one transaction
+	  translator for each downstream-facing port on a USB hub.
+	  This allows more bandwidth for isochronous FULL speed
+	  application connected through a High Speed USB HUB.</para>
+
+	<para revision="235947">The &man.wbwd.4; driver, which
+	  supports the watchdog timer found in Winbond Super I/O
+	  chips, has been added.</para>
+
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
 
@@ -346,6 +371,17 @@
 
 	  <para revision="234241">The &man.ale.4; network driver now
 	    supports flow control.</para>
+
+	  <para revision="235424">A bug in the &man.bce.4; network
+	    driver has been fixed.  It could prevent jumbo frame
+	    configuration from working.</para>
+
+	  <para revision="235819">The &man.bce.4; network driver now
+	    supports remote PHYs, which allow the controller to perform
+	    MDIO type accesses to a remote transceiver by using message
+	    pages defined through MRBE (MultiRate Backplane
+	    Ethernet). This is found on machines such as the Dell
+	    PowerEdge M610 Blade.</para>
 
 	  <para revision="233496">A bug in the &man.bge.4; network
 	    driver which could cause watchdog timeout on BCM5704
@@ -368,8 +404,21 @@
 	    change which leads to an extra link
 	    reestablishment.</para>
 
-	  <para revision="233839">The &man.iwn.4; driver now supports
-	    Intel Centrino 6150 wireless N and WiMAX chipsets.</para>
+	  <para revision="235616">The &man.igb.4; network driver now
+	    attempts to attach as many CPUs as possible to each queue.
+	    If the number of CPUs are greater than or equal to the
+	    number of queues, all of queues are bound to different
+	    CPUs.</para>
+
+	  <para revision="233839,235844">The &man.iwn.4; driver now
+	    supports Intel Centrino 6150 wireless N and WiMAX
+	    chipsets, and Intel Centrino Wireless-N 100/130
+	    devices.</para>
+
+	  <para revision="235666">A bug in &man.ixgbe.4; network
+	    driver has been fixed.  It could cause a packet loss in
+	    TCP communication when TSO (TCP Segmentation Offload) is
+	    enabled.</para>
 
 	  <para revision="233490">A bug in the &man.re.4; and
 	    &man.rl.4; network drivers which could cause a problem on
@@ -398,9 +447,10 @@
 	    been improved.  A system load fluctuation under high network
 	    load has been fixed.</para>
 
-	  <para revision="232875">The &man.u3g.4; driver now supports
-	    Qualcomm Vertex Wireless 110L modem, Qualcomm 3G modem, and
-	    Qualcomm Vertex VW110L modem.</para>
+	  <para revision="232875,235012">The &man.u3g.4; driver now
+	    supports Qualcomm Vertex Wireless 110L modem, Qualcomm 3G
+	    modem, Qualcomm Vertex VW110L modem, and SIMCom
+	    SIM5218.</para>
 	</sect4>
       </sect3>
 
@@ -443,6 +493,17 @@
 	  &man.netgraph.4; node which could cause a system panic has
 	  been fixed.</para>
 
+	<para revision="235056">&os; routing table handling has been
+	  improved.  It can now perform packet forwarding even while a
+	  user application is reading the whole routing table via
+	  &man.sysctl.8;.</para>
+
+	<para revision="235104">A loader tunable
+	  <varname>net.fibs</varname> now supports to specify the
+	  number of routing tables.  The <option>ROUTETABLES</option>
+	  kernel option can still be used to set the default number of
+	  routing tables.</para>
+
 	<para revision="233245,233246">&os; SCTP stack now supports
 	  &man.ng.iface.4; and &man.stf.4; interface.</para>
 
@@ -456,10 +517,29 @@
 	  number found in <application>Linux</application> or
 	  <application>Solaris</application>.  For more detail, see
 	  &man.setsockopt.2; manual page.</para>
+
+	<para revision="235053">An issue in &os; &man.tcp.4; host
+	  cache has been fixed.  It could cause extra ICMP message
+	  exchanges when an ICMP unreach is received but allocation of
+	  the corresponding TCP host cache is failed.</para>
       </sect3>
 
       <sect3 id="disks">
 	<title>Disks and Storage</title>
+
+	<para revision="234912">The &man.ata.4; driver now creates
+	  symbolic links for backward compatibility when
+	  <option>ATA_CAM</option> kernel option is enabled.  In a
+	  kernel with <option>ATA_CAM</option>, an ATA/SATA disk is
+	  recognized as a device node with a name
+	  <filename>ada0</filename> instead of
+	  <filename>ad0</filename>.  A symbolic link
+	  <filename>/dev/ad0</filename> is automatically generated for
+	  <filename>/dev/ada0</filename> to keep backward
+	  compatibility.  This symbolic link generation can be
+	  controlled by a
+	  <varname>kern.cam.ada.legacy_aliases</varname> (enabled by
+	  default when <option>ATA_CAM</option> is set).</para>
 
 	<para revision="233714">A new &man.sysctl.8;
 	  <varname>kern.features.ata_cam</varname> has been added.
@@ -475,6 +555,15 @@
 	  SBC-3 (SCSI Block Commands-3) Specification is supported on
 	  the device.</para>
 
+	<para revision="234914">The &man.da.4; driver has been
+	  improved in performance of subsequent
+	  <literal>BIO_DELETE</literal> requests handled as a single
+	  <literal>TRIM</literal> request.</para>
+
+	<para revision="235086">The &man.da.4; now supports Olympus
+	  FE-210 camera, LG UP3S MP3 player, and Laser MP3-2GA13
+	  MP3.</para>
+
 	<para revision="232554">The &man.isci.4; driver now supports
 	  Intel C600 Serial Attached SCSI controllers with chip IDs from
 	  <literal>0x1d6c</literal> to <literal>0x1d6f</literal>.</para>
@@ -484,15 +573,37 @@
 	  CAPACITY(16)</literal> SCSI command for an SATA device has
 	  been fixed.</para>
 
+	<para revision="235625">The &man.mfi.4; driver now supports
+	  LSI MegaRAID SAS cards named "Drake Skinny" and
+	  "ThunderBolt".  This includes Dell PERC H810/H800/H710/H700
+	  and Intel RAID Controller RS25DB080/RS25NB008.</para>
+
 	<para revision="232563">A bug which could make the &man.mpt.4;
 	  driver attach LSI MegaRAID cards which should be handled by
 	  the &man.mfi.4; driver has been fixed.</para>
+
+	<para revision="234917">The <literal>MULTIPATH</literal>
+	  &man.geom.4; class has been updated. It now supports
+	  Active/Active mode, Active/Read mode as hybrid of
+	  Active/Active and Active/Passive, keeping a failed path
+	  without removing the geom provider, manual configuration
+	  without on-disk metadata, and add, remove, fail, restore,
+	  configure subcommands in the &man.gmultipath.8; utility to
+	  manage the configured paths.</para>
 
 	<para revision="234407">The <literal>PART_LDM</literal>
 	  &man.geom.4; class has been added. This partition scheme has
 	  support for Logical Disk Manager, which is also known as
 	  dynamic volumes in Microsoft Windows NT.  Note that JBOD,
 	  RAID0, and RAID5 volumes are not supported yet.</para>
+
+	<para revision="235875">The <literal>RAID</literal>
+	  &man.geom.4; class now supports the DDF metadata format,
+	  which is defined in the SNIA Common RAID Disk Data Format
+	  Specification v2.0.  It can read non-degraded
+	  RAID4/5/5E/5EE/5R/6/MDF volumes.  An <option>-o</option>
+	  option in &man.graid.8; utility can be used to specify byte
+	  order for the DDF metadata.</para>
 
 	<para revision="234512">The &man.tmpfs.5; filesystem is not an
 	  experimental implementation anymore.</para>
@@ -518,8 +629,18 @@
 	  positive name caching by setting it to
 	  <literal>0</literal>.</para>
 
+	<para revision="235417">A workaround has been implemented in
+	  &os; NFS subsystem to handle a reply to an NFS create RPC
+	  which do not include file attributes under certain
+	  circumstances.  This improves interoperability between
+	  non-&os; NFS servers and &os; NFS clients.</para>
+
 	<para revision="232665">Several bugs in &man.nullfs.5; which
 	  could cause a system panic have been fixed.</para>
+
+	<para revision="235507">The &man.sysctl.8; variable
+	  <varname>vfs.zfs.txg.timeout</varname> has been changed from
+	  read-only to writable.</para>
 
 	<para>ZFS is upgraded to support zpool feature flags.  ZFS
 	  pool creation defaults to version 28 allowing upgrades to
@@ -558,6 +679,11 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
+      <para revision="234979">The default
+	<filename>dot.cshrc</filename> file for &man.csh.1; and
+	&man.tcsh.1; has been changed.  For more detail, see
+	<filename>/usr/share/skel/dot.cshrc</filename>.</para>
+
       <para revision="233762">The &man.daemon.8; utility now supports
 	<option>-r</option> flag to restart the program if it has been
 	terminated.</para>
@@ -570,6 +696,20 @@
 	and applies all its rules at mount time.  If the specified
 	ruleset doesn't exist, a new empty ruleset is created.</para>
 
+      <para revision="235254">The &man.fetch.1; utility now supports
+	percent-encoded string in user and password component of a
+	URL.</para>
+
+      <para revision="235084">A new environment variable
+	<varname>PROFIL_USE_PID</varname> has been added to generate
+	profiling data for the &man.gprof.1; utility with a filename
+	including the process ID.</para>
+
+      <para revision="235888">The &man.lastcomm.1; utility now
+	supports <option>+<replaceable>format</replaceable></option>
+	option to specify &man.strftime.3; format for process start
+	and exit times.</para>
+
       <para revision="234045">The <application>libpmc</application>
 	library has been updated to support more PMCs (Performance
 	Monitoring Counters) in Intel Core i7 and Xeon 5500 family
@@ -581,6 +721,9 @@
       <para revision="234555">The <application>libradius</application>
 	now supports &man.rad.bind.to.3; function.</para>
 
+      <para revision="235017">The &man.libusb.3; library now supports
+	&man.libusb.get.max.iso.packet.size.3; function.</para>
+
       <para revision="233153">A bug in the the
 	<application>libutil</application> library has been fixed.  It
 	could prevent configuration of <varname>priority</varname>
@@ -588,6 +731,12 @@
 	(<literal>LOGIN_SETPRIORITY</literal> in
 	&man.setusercontext.3; function) from working when the
 	password is not set.</para>
+
+      <para revision="234843">The &man.pam.exec.8; module now supports
+	<option>return_prog_exit_status</option>.  When this option is
+	enabled, the program exit status is used as the
+	&man.pam.exec.8; return code.  It allows the program to tell
+	why the step failed (user unknown, for example).</para>
 
       <para revision="234741">A bug in &man.pam.unix.8; module has
 	been fixed.  It could prevent <varname>passwordtime</varname>
@@ -609,12 +758,29 @@
 	improved in performance of TLS (Thread Local Storage)
 	handling.</para>
 
+      <para revision="235141">The &man.setbuf.1; utility and
+	<application>libstdbuf</application> library have been added.
+	This controls the default buffering behavior of standard stdio
+	streams.</para>
+
       <para revision="234001">The &man.sh.1; program now allows
 	underscore characters in the arithmetic expansion.</para>
+
+      <para revision="235163">A bug in &man.traceroute.8; utility
+	which could result in not accepting any incoming packets has
+	been fixed.</para>
 
       <para revision="234331">The &man.unzip.1; program now supports a
 	<option>-Z</option> flag to enable
 	<application>zipinfo</application> mode.</para>
+
+      <para revision="235015">The &man.usbdump.8; utility now supports
+	filtering USB devices and USB endpoints.</para>
+
+      <para revision="235881">The &man.usbhidctl.1; utility now
+	supports <option>-z</option> flag for reading operation.  It
+	allows to not request current values from the device, but only
+	receive changes.</para>
 
       <para revision="233862"><command>zfs list -t snapshot</command>
 	command has been improved dramatically in performance.</para>
