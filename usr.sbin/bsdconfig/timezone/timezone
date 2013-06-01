@@ -89,7 +89,7 @@ dialog_menu_main()
 	                        \"\$title\"  \
 	                        \"\$btitle\" \
 	                        \"\$prompt\" \
-	                        \"\$\"       \
+	                        \"\"         \
 	                        $continent_menu_list
 
 	local dialog_menu
