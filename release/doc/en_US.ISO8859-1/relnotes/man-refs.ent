@@ -9,6 +9,8 @@
 
 <!ENTITY man.boot.config.5 "<citerefentry><refentrytitle>boot.config</refentrytitle><manvolnum>5</manvolnum></citerefentry>">
 
+<!ENTITY man.flowctl.8 "<citerefentry><refentrytitle>flowctl</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
+
 <!ENTITY man.shm.map.9 "<citerefentry><refentrytitle>shm_map</refentrytitle><manvolnum>9</manvolnum></citerefentry>">
 <!ENTITY man.shm.unmap.9 "<citerefentry><refentrytitle>shm_unmap</refentrytitle><manvolnum>9</manvolnum></citerefentry>">
 
