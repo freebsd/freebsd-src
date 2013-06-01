@@ -19,7 +19,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	printf.h proc_service.h pthread.h \
 	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h \
 	res_update.h resolv.h runetype.h search.h semaphore.h setjmp.h \
-	signal.h spawn.h stab.h stdalign.h stdatomic.h stdbool.h stddef.h \
+	signal.h spawn.h stab.h stdalign.h stdbool.h stddef.h \
 	stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
@@ -33,8 +33,8 @@ MHDRS=	float.h floatingpoint.h stdarg.h
 
 PHDRS=	sched.h _semaphore.h
 
-LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
-	ucontext.h
+LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
+	syslog.h ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	netipsec ${_netipx} netnatm \
