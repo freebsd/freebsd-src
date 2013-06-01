@@ -385,8 +385,10 @@
 	  bus briges.  This change improves handling of MSIs on AMD
 	  CPUs.</para>
 
-	<para revision="236651">The &man.puc.4; driver now supports
-	  Sun 1040 PCI Quad Serial.</para>
+	<para revision="236651,238775">The &man.puc.4; driver now
+	  supports Sun 1040 PCI Quad Serial and Moxa PCIe
+	  CP102E/CP102EL/CP104EL-A/CP104JU/CP114EL/CP118EL-A/CP168EL-A
+	  multiport serial boards.</para>
 
 	<para revision="233065" arch="amd64,i386">The &man.uart.4;
 	  driver now supports Intel AMT Serial Port for Remote
@@ -413,6 +415,11 @@
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
+
+	  <para revision="238674" arch="i386">A bug in the
+	    &man.snd.emu10kx.4; driver which could prevent it from
+	    working with <option>PAE</option> kernel option has been
+	    fixed.</para>
 
 	  <para revision="236750,236753">The &man.snd.hda.4; driver
 	    has been updated. It now supports and provides HDMI, new
@@ -577,6 +584,14 @@
 	<para revision="236609,236611,236827">A bug in reference
 	  counting of IPv6 interface routes has been fixed.</para>
 
+	<para revision="238495">&os; IPv6 stack now handles fragment
+	  packets which are not actually fragments but have Fragment
+	  Header with both the <literal>Fragment Offset</literal> and
+	  the <literal>M</literal> bit set to <literal>0</literal> as
+	  a regular (non-fragment) packet.  For more detail, see
+	  Internet Draft
+	  <filename>draft-gont-6man-ipv6-atomic-fragments</filename>.</para>
+
 	<para revision="233605">A bug which could cause a system panic
 	  in multicast routing in kernel with <option>VIMAGE</option>
 	  kernel option has been fixed.  This option is disabled in
@@ -589,6 +604,17 @@
 	  comma-separated list.  The default value is <option>lagghash
 	  l2,l3,l4</option>.  For more detail, see &man.ifconfig.8;
 	  manual page.</para>
+
+	<para revision="238048">A bug in the &man.lagg.4; pseudo
+	  network interface driver which could cause an unexpected
+	  removal of a member interface upon interface renaming has been
+	  fixed.</para>
+
+	<para revision="238619,238620">The &man.ng.netflow.4;
+	  &man.netgraph.4; node and &man.flowctl.8; utility now
+	  supports NetFlow version 9.  A new export9 hook has been
+	  added for NetFlow v9 data.  Note that data export can be
+	  done simultaneously in both version 5 and version 9.</para>
 
 	<para revision="234682">A bug in the &man.ng.patch.4;
 	  &man.netgraph.4; node which could cause a system panic has
@@ -710,8 +736,9 @@
 	  Level Retries (TLR) for tape drives, and LSI's userland
 	  utility.</para>
 
-	<para revision="237944" arch="sparc64">The &man.mps.4; driver
-	  has been added to <filename>GENERIC</filename> kernel.</para>
+	<para revision="237944,238074" arch="sparc64,powerpc">The
+	  &man.mps.4; driver has been added to
+	  <filename>GENERIC</filename> kernel.</para>
 
 	<para revision="234917">The <literal>MULTIPATH</literal>
 	  &man.geom.4; class has been updated. It now supports
@@ -902,6 +929,10 @@
       <para revision="233953">The &man.procstat.1; utility now
 	displays <varname>osreldate</varname> in binary information
 	for a process.</para>
+
+      <para revision="238752">The &man.procstat.1; utility now
+	displays superpage mapping flag in the process virtual memory
+	mappings.</para>
 
       <para revision="236699">The &man.procstat.1; and &man.fstat.1;
 	utilities now shows pathname associated with a shared memory
