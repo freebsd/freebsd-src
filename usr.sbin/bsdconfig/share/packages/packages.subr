@@ -297,13 +297,13 @@ f_package_menu_categories()
 		$category_list
 	" # End-Quote
 
-	local size dialog_menu
-	size=$( eval f_dialog_menu_with_help_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows dialog_menu
+	eval f_dialog_menu_with_help_size height width rows \
+	                                  \"\$DIALOG_TITLE\"     \
+	                                  \"\$DIALOG_BACKTITLE\" \
+	                                  \"\$prompt\"           \
+	                                  \"\$hline\"            \
+	                                  $menu_list
 	dialog_menu=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
@@ -312,7 +312,8 @@ f_package_menu_categories()
 			--default-item \"\$defaultitem\"   \
 			--ok-label \"$msg_select\"         \
 			--cancel-label \"$msg_cancel\"     \
-			--menu \"\$prompt\" $size          \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -455,17 +456,15 @@ f_package_menu_select()
 	                          "$page" "$npages" )"
 
 	local hline="$hline_arrows_tab_punc_enter"
-	local size isize dialog_menu item
-	size=$( eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
-	isize=$( f_dialog_infobox_size \
-	         	"$DIALOG_TITLE"             \
-	         	"$DIALOG_BACKTITLE"         \
-	         	"$msg_processing_selection" )
+	local mheight mwidth mrows
+	f_dialog_menu${SHOW_DESC:+_with_help}_size mheight mwidth mrows \
+	        	\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
+	        	\"\$prompt\" \"\$hline\" $menu_list
+	local iheight iwidth
+	f_dialog_infobox_size iheight iwidth \
+	         	"$DIALOG_TITLE" "$DIALOG_BACKTITLE" \
+	         	"$msg_processing_selection"
+	local dialog_menu item
 	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
@@ -475,11 +474,13 @@ f_package_menu_select()
 		--cancel-label \"$msg_back\"       \
 		${SHOW_DESC:+--item-help}          \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$mheight $mwidth $mrows            \
 		$menu_list                         \
 		--and-widget                       \
 		${USE_XDIALOG:+--no-buttons}       \
-		--infobox \"\$msg_processing_selection\" $isize \
+		--infobox \"\$msg_processing_selection\" \
+		$iheight $iwidth                   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
@@ -504,7 +505,7 @@ f_package_menu_select()
 #
 f_package_menu_deselect()
 {
-	local package="$1" prompt menu_list size dialog_menu
+	local package="$1" prompt menu_list dialog_menu
 	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 	menu_list="
@@ -512,19 +513,23 @@ f_package_menu_deselect()
 		'R $msg_reinstall' '$msg_reinstall_desc'
 		'U $msg_uninstall' '$msg_uninstall_desc'
 	" # End-Quote
-	size=$( eval f_dialog_menu_size \
-	         	\"\$DIALOG_TITLE\"     \
-	         	\"\$DIALOG_BACKTITLE\" \
-	         	\"\$prompt\"           \
-	         	\"\$hline\"            \
-	         	$menu_list             )
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
 	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"$msg_select\"         \
 		--cancel-label \"$msg_cancel\"     \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -542,7 +547,7 @@ f_package_menu_deselect()
 #
 f_package_review()
 {
-	local prompt size dialog_menu package varpkg mark menu_list=
+	local prompt dialog_menu package varpkg mark menu_list=
 	prompt=$( printf "$msg_reviewing_selected_packages" \
 	                 "$_All_nselected" )
 	local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -562,19 +567,23 @@ f_package_review()
 		return $FAILURE # They might have selected this by accident
 	fi
 	menu_list=$( echo "$menu_list" | sort )
-	size=$( eval f_dialog_menu_size \
-			\"\$DIALOG_TITLE\"     \
-			\"\$DIALOG_BACKTITLE\" \
-			\"\$prompt\"           \
-			\"\$hline\"            \
-			$menu_list             )
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
 	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_proceed\"       \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
