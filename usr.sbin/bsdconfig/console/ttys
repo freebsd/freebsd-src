@@ -83,8 +83,8 @@ dialog_menu_main()
 	                        \"\$hline\"            \
 	                        $TTY_MENU_LIST
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -96,7 +96,7 @@ dialog_menu_main()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -182,11 +182,9 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
-	[ $retval -eq 0 ] || f_die
 	[ "$mtag" = "1 $msg_none" ] && break
 
 	consterm=$( eval f_dialog_menutag2item \"\$mtag\" $TTY_MENU_LIST )

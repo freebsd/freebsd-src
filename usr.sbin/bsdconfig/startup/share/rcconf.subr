@@ -311,8 +311,8 @@ f_dialog_input_view_details()
 
 	f_dialog_title "$msg_choose_view_details"
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local mtag
+	mtag=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -324,10 +324,8 @@ f_dialog_input_view_details()
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
-	local mtag="$( f_dialog_menutag )"
+	f_dialog_data_sanitize mtag
 
 	f_dialog_title_restore
 
@@ -364,8 +362,8 @@ f_dialog_input_view_details()
 #
 # Presents a menu of rc.conf(5) defaults (with, or without descriptions). This
 # function should be treated like a call to dialog(1) (the exit status should
-# be captured and f_dialog_menutag() should be used to clean-up and get the
-# user's response).
+# be captured and f_dialog_menutag_fetch() should be used to get the user's
+# response).
 #
 f_dialog_input_rclist()
 {
@@ -424,8 +422,8 @@ f_dialog_input_rclist()
 		\"\$hline\"            \
 		$menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -437,7 +435,7 @@ f_dialog_input_rclist()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 

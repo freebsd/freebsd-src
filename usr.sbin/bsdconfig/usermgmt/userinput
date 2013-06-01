@@ -391,7 +391,7 @@ while :; do
 	                        \"\$hline\"            \
 	                        $menu_items
 
-	dialog_menu=$( eval $DIALOG \
+	mtag=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"          \
 		--backtitle \"\$DIALOG_BACKTITLE\"  \
 		--hline \"\$hline\"                 \
@@ -403,11 +403,9 @@ while :; do
 		$menu_items                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	retval=$?
-	setvar DEFAULTITEM_$$ "$dialog_menu"
-	setvar DIALOG_MENU_$$ "$dialog_menu"
-	mtag=$( f_dialog_menutag )
+	f_dialog_data_sanitize mtag
+	setvar DEFAULTITEM_$$ "$mtag"
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
@@ -426,7 +424,7 @@ while :; do
 	   Edit/View|Delete)
 	   	f_dialog_menu_user_list "$pw_name"
 	   	retval=$?
-	   	mtag=$( f_dialog_menutag )
+	   	f_dialog_menutag_fetch mtag
 	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No

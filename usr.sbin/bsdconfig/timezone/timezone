@@ -92,8 +92,8 @@ dialog_menu_main()
 	                        \"\"         \
 	                        $continent_menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$title\"                 \
 		--backtitle \"\$btitle\"            \
 		--ok-label \"\$msg_ok\"             \
@@ -105,8 +105,9 @@ dialog_menu_main()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DEFAULTITEM_$$ "$dialog_menu"
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	setvar DEFAULTITEM_$$ "$menu_choice"
 	return $retval
 }
 
@@ -296,7 +297,7 @@ while :; do
 	if [ "$NEED_CONTINENT" ]; then
 		dialog_menu_main # prompt the user to select a continent/ocean
 		retval=$?
-		mtag=$( f_dialog_menutag )
+		f_dialog_menutag_fetch mtag
 
 		if [ $retval -ne 0 ]; then
 			[ "$TZ_OR_FAIL" ] && f_die
@@ -364,7 +365,7 @@ while :; do
 			#
 			# Launch the country selection menu
 			#
-			dialog_menu=$( eval $DIALOG \
+			tag=$( eval $DIALOG \
 				--title \"\$title\"              \
 				--backtitle \"\$btitle\"         \
 				--ok-label \"\$msg_ok\"          \
@@ -376,8 +377,7 @@ while :; do
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			)
 			retval=$?
-			setvar DIALOG_MENU_$$ "$dialog_menu"
-			tag=$( f_dialog_menutag )
+			f_dialog_data_sanitize tag
 			defaultctry="$tag"
 
 			if [ $retval -ne 0 ]; then
@@ -424,7 +424,7 @@ while :; do
 		# Launch the zone selection menu
 		# NOTE: This is as deep as we go
 		#
-		dialog_menu=$( eval $DIALOG \
+		n=$( eval $DIALOG \
 			--title \"\$title\"              \
 			--backtitle \"\$btitle\"         \
 			--ok-label \"\$msg_ok\"          \
@@ -436,8 +436,7 @@ while :; do
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		n=$( f_dialog_menutag )
+		f_dialog_data_sanitize n
 		defaultzone="$n"
 
 		if [ $retval -ne 0 ]; then

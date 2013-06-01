@@ -435,8 +435,8 @@ f_dialog_menu_nameservers()
 		                        \"\$prompt\"           \
 		                        \"\$hline\"            \
 		                        $menu_list
-		local dialog_menu
-		dialog_menu=$( eval $DIALOG \
+		local tag
+		tag=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -448,10 +448,8 @@ f_dialog_menu_nameservers()
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		local tag="$( f_dialog_menutag )" ns=""
+		f_dialog_data_sanitize tag
 
 		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
 		if [ $retval -ne $SUCCESS ]; then
@@ -467,6 +465,7 @@ f_dialog_menu_nameservers()
 			f_dialog_input_nameserver
 			;;
 		*)
+			local n ns
 			n=$( eval f_dialog_menutag2index \"\$tag\" $menu_list )
 			ns=$( eval f_dialog_menutag2item \"\$tag\" $menu_list )
 			f_dialog_input_nameserver $(( $n - 2 )) "$ns"

@@ -88,8 +88,8 @@ f_dialog_menu_group_list()
 	                        \"\$hline\"            \
 	                        $menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -102,7 +102,7 @@ f_dialog_menu_group_list()
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -310,7 +310,7 @@ f_dialog_input_group_members()
 		'2' '$msg_enter_group_members_manually'
 	" # END-QUOTE
 
-	local dialog_menu defaultitem=
+	local menu_choice defaultitem=
 	local mheight mwidth mrows
 	eval f_dialog_menu_size mheight mwidth mrows \
 	                        \"\$DIALOG_TITLE\"     \
@@ -320,7 +320,7 @@ f_dialog_input_group_members()
 	                        $menu_list
 
 	while :; do
-		dialog_menu=$( eval $DIALOG \
+		menu_choice=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -333,9 +333,8 @@ f_dialog_input_group_members()
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		defaultitem="$dialog_menu"
-		menu_choice=$( f_dialog_menutag )
+		f_dialog_data_sanitize menu_choice
+		defaultitem="$menu_choice"
 		f_dprintf "retval=%u menu_choice=[%s]" $retval "$menu_choice"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -364,8 +363,7 @@ f_dialog_input_group_members()
 			                             \"\"                   \
 			                             \"\$hline\"            \
 			                             $checklist_users
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
+			_group_members=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--separate-output                  \
@@ -376,15 +374,18 @@ f_dialog_input_group_members()
 				$cheight $cwidth $crows            \
 				$checklist_users                   \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			)
-			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			_group_members=$( f_dialog_inputstr | tr '\n' ' ' |
-				sed -e 's/[[:space:]]\{1,\}/,/g;s/^,//;s/,$//' )
+			) || continue
+				# Return to previous menu if user either
+				# pressed ESC or chose Cancel/No
+			f_dialog_data_sanitize _group_members
 
-			# Return to previous menu if user has either
-			#     pressed ESC or chosen Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			# Convert the newline separated list into a comma-
+			# separated one so that if the user switches over to
+			# manual editing, list reflects checklist selections
+			_group_members=$( echo "$_group_members" |
+				tr '\n' ' ' |
+				sed -e 's/[[:space:]]\{1,\}/,/g;s/^,//;s/,$//'
+			)
 
 			_input="$_group_members"
 			;;
