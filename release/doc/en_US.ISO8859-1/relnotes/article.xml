@@ -319,10 +319,36 @@
 	  <application>zfsboot</application> boot block which could
 	  prevent <option>-q</option> option from working has been
 	  fixed.</para>
+
+	<para revision="237765">The <filename>zfsboot</filename> boot
+	  block and <filename>zfsloader</filename> support filesystems
+	  within a ZFS storage pool.  In
+	  <filename>zfsloader</filename>, the ZFS device name format
+	  is now <filename>zfs:pool/fs</filename> and the fully
+	  qualified file path format is
+	  <filename>zfs:pool/fs:/path/to/file</filename>.  The
+	  <filename>zfsboot</filename> boot block accepts the
+	  kernel/loader name in the format
+	  <filename>pool:fs:path/to/file</filename> or, as before,
+	  <filename>pool:path/to/file</filename>.  In the latter case
+	  a default filesystem is used (the pool root or a filesystem
+	  with the bootfs property). The <filename>zfsboot</filename>
+	  boot block passes the GUIDs of the selected storage pool and
+	  dataset to <filename>zfsloader</filename> to be used as its
+	  defaults.</para>
       </sect3>
 
       <sect3 id="proc">
 	<title>Hardware Support</title>
+
+	<para revision="237823">&os; &man.acpi.4; subsystem now uses
+	  MADT to match ACPI Processor objects to CPUs and ignores
+	  disabled cores while it is possible that MADT and DSDT/SSDTs
+	  may list CPUs in different orders.  A new loader tunable
+	  <varname>debug.acpi.cpu_unordered</varname> has been added
+	  for buggy systems that do not have unique ACPI IDs for MADT
+	  and Processor objects.  Setting it to <literal>1</literal>
+	  restores the old behavior.</para>
 
 	<para revision="233799" arch="amd64">A workaround for Erratum
 	  721 for AMD Processor Family 10h and 12h has been
@@ -366,6 +392,10 @@
 	  driver now supports Intel AMT Serial Port for Remote
 	  Keyboard and Text (KT) Redirection (Serial Over LAN) on
 	  Intel 4 Series Chipset family.</para>
+
+	<para revision="237189,237381">The &man.uftdi.4; driver now
+	  supports BeagleBone and FT2232-based egnite Turtelizer 2
+	  JTAG/RS232 Adapter.</para>
 
 	<para revision="232871">The &man.usb.4; driver now handles
 	  suspend events synchronously.  This fixed problems of
@@ -491,6 +521,9 @@
 	    been improved.  A system load fluctuation under high network
 	    load has been fixed.</para>
 
+	  <para revision="237145">The &man.tap.4; pseudo network
+	    interface driver now supports VIMAGE &man.jail.8;.</para>
+
 	  <para revision="232875,235012">The &man.u3g.4; driver now
 	    supports Qualcomm Vertex Wireless 110L modem, Qualcomm 3G
 	    modem, Qualcomm Vertex VW110L modem, and SIMCom
@@ -595,6 +628,10 @@
       <sect3 id="disks">
 	<title>Disks and Storage</title>
 
+	<para revision="237114">The &man.ahci.4; driver now supports
+	  Marvell 88SE9220/9230/9235 PCIe 2.0 x2 6Gbps SATA
+	  controllers.</para>
+
 	<para revision="236319">A bug in the &man.amr.4; driver which
 	  could cause data corruption has been fixed.</para>
 
@@ -664,6 +701,17 @@
 	<para revision="232563">A bug which could make the &man.mpt.4;
 	  driver attach LSI MegaRAID cards which should be handled by
 	  the &man.mfi.4; driver has been fixed.</para>
+
+	<para revision="237877">The &man.mps.4; driver has been
+	  updated to version 14.00.00.01-fbsd. This now supports
+	  Integrated RAID, WarpDrive controllers,
+	  <literal>WRITE12</literal> and <literal>READ12</literal> for
+	  direct I/O, SCSI protection information (EEDP), Transport
+	  Level Retries (TLR) for tape drives, and LSI's userland
+	  utility.</para>
+
+	<para revision="237944" arch="sparc64">The &man.mps.4; driver
+	  has been added to <filename>GENERIC</filename> kernel.</para>
 
 	<para revision="234917">The <literal>MULTIPATH</literal>
 	  &man.geom.4; class has been updated. It now supports
@@ -798,10 +846,18 @@
 	could cause wrong accounting for elapsed time has been
 	fixed.</para>
 
+      <para revision="237790">The &man.kdump.1; utility now supports a
+	<option>-p <replaceable>pid</replaceable></option> option to
+	accept either a process ID or a thread ID.</para>
+
       <para revision="235888">The &man.lastcomm.1; utility now
 	supports <option>+<replaceable>format</replaceable></option>
 	option to specify &man.strftime.3; format for process start
 	and exit times.</para>
+
+      <para revision="237739">The <application>libedit</application>
+	library has been updated to a NetBSD snapshot as of 28
+	December, 2009.</para>
 
       <para revision="234045">The <application>libpmc</application>
 	library has been updated to support more PMCs (Performance
@@ -835,6 +891,14 @@
 	been fixed.  It could prevent <varname>passwordtime</varname>
 	login capability in &man.login.conf.5; from working.</para>
 
+      <para revision="237732">The &man.pciconf.8; utility now supports
+	a <option>-e</option> flag to display PCI error details in
+	listing mode. When this is specified, the status of any error
+	bits in the PCI status register and PCI-express device status
+	register will be displayed. It also lists any errors indicated
+	by version 1 of PCI-express Advanced Error Reporting
+	(AER).</para>
+
       <para revision="233953">The &man.procstat.1; utility now
 	displays <varname>osreldate</varname> in binary information
 	for a process.</para>
@@ -867,6 +931,11 @@
       <para revision="234001">The &man.sh.1; program now allows
 	underscore characters in the arithmetic expansion.</para>
 
+      <para revision="237672">The &man.sockstat.1; utility now
+	supports a <option>-j <replaceable>jid</replaceable></option>
+	option to specify the socket list to be limited to a specific
+	&man.jail.8; ID.</para>
+
       <para revision="235163">A bug in &man.traceroute.8; utility
 	which could result in not accepting any incoming packets has
 	been fixed.</para>
@@ -895,6 +964,11 @@
 	command now reports transmitted data size in bytes when
 	<option>-v</option> flag is specified.</para>
 
+      <para revision="237457">Changing &man.zfs.8;
+	<literal>canmount</literal> property to <literal>on</literal>
+	when dataset is already mounted does not cause remount of the
+	ZFS dataset now.</para>
+
       <sect3 id="rcd-scripts">
         <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -921,6 +995,12 @@
 
       <para revision="232635"><application>TENEX C shell</application>
 	(&man.tcsh.1;) has been updated to version 6.18.01.</para>
+
+      <para revision="237614"><application>netcat</application> has
+	been updated to a version as of OpenBSD 5.1.</para>
+
+      <para revision="237999"><application>OpenSSL</application> has
+	been updated to version 0.9.8x.</para>
 
       <para revision="233448">The <application>timezone</application>
 	database has been updated to
