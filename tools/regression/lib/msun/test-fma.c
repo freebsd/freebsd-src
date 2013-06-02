@@ -37,8 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
+#include "test-utils.h"
 
 #pragma STDC FENV_ACCESS ON
 
@@ -53,14 +52,17 @@ __FBSDID("$FreeBSD$");
  * meaningful error messages.
  */
 #define	test(func, x, y, z, result, exceptmask, excepts) do {		\
+	volatile long double _vx = (x), _vy = (y), _vz = (z);		\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)((x), (y), (z)), (result)));		\
-	assert(((func), fetestexcept(exceptmask) == (excepts)));	\
+	assert(fpequal((func)(_vx, _vy, _vz), (result)));		\
+	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 #define	testall(x, y, z, result, exceptmask, excepts)	do {		\
-	test(fma, (x), (y), (z), (double)(result), (exceptmask), (excepts)); \
-	test(fmaf, (x), (y), (z), (float)(result), (exceptmask), (excepts)); \
+	test(fma, (double)(x), (double)(y), (double)(z),		\
+		(double)(result), (exceptmask), (excepts));		\
+	test(fmaf, (float)(x), (float)(y), (float)(z),			\
+		(float)(result), (exceptmask), (excepts));		\
 	test(fmal, (x), (y), (z), (result), (exceptmask), (excepts));	\
 } while (0)
 
@@ -81,19 +83,6 @@ __FBSDID("$FreeBSD$");
  * in rounding modes other than FE_TONEAREST.
  */
 volatile double one = 1.0;
-
-/*
- * Determine whether x and y are equal, with two special rules:
- *	+0.0 != -0.0
- *	 NaN == NaN
- */
-int
-fpequal(long double x, long double y)
-{
-
-	return ((x == y && !signbit(x) == !signbit(y))
-		|| (isnan(x) && isnan(y)));
-}
 
 static void
 test_zeroes(void)
