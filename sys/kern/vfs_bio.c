@@ -1522,7 +1522,6 @@ brelse(struct buf *bp)
 		 */
 		resid = bp->b_bufsize;
 		foff = bp->b_offset;
-		VM_OBJECT_WLOCK(obj);
 		for (i = 0; i < bp->b_npages; i++) {
 			int had_bogus = 0;
 
@@ -1536,6 +1535,7 @@ brelse(struct buf *bp)
 				poff = OFF_TO_IDX(bp->b_offset);
 				had_bogus = 1;
 
+				VM_OBJECT_RLOCK(obj);
 				for (j = i; j < bp->b_npages; j++) {
 					vm_page_t mtmp;
 					mtmp = bp->b_pages[j];
@@ -1547,6 +1547,7 @@ brelse(struct buf *bp)
 						bp->b_pages[j] = mtmp;
 					}
 				}
+				VM_OBJECT_RUNLOCK(obj);
 
 				if ((bp->b_flags & (B_INVAL | B_UNMAPPED)) == 0) {
 					BUF_CHECK_MAPPED(bp);
@@ -1564,14 +1565,15 @@ brelse(struct buf *bp)
 					(PAGE_SIZE - poffset) : resid;
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
+				VM_OBJECT_WLOCK(obj);
 				vm_page_set_invalid(m, poffset, presid);
+				VM_OBJECT_WUNLOCK(obj);
 				if (had_bogus)
 					printf("avoided corruption bug in bogus_page/brelse code\n");
 			}
 			resid -= PAGE_SIZE - (foff & PAGE_MASK);
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
-		VM_OBJECT_WUNLOCK(obj);
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
 
