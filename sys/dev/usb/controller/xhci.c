@@ -1550,6 +1550,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 	uint32_t buf_offset;
 	uint32_t average;
 	uint32_t len_old;
+	uint32_t npkt_off;
 	uint32_t dword;
 	uint8_t shortpkt_old;
 	uint8_t precompute;
@@ -1560,6 +1561,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 	buf_offset = 0;
 	shortpkt_old = temp->shortpkt;
 	len_old = temp->len;
+	npkt_off = 0;
 	precompute = 1;
 
 restart:
@@ -1666,7 +1668,7 @@ restart:
 			/* fill out buffer pointers */
 
 			if (average == 0) {
-				npkt = 1;
+				npkt = 0;
 				memset(&buf_res, 0, sizeof(buf_res));
 			} else {
 				usbd_get_page(temp->pc, temp->offset +
@@ -1680,8 +1682,10 @@ restart:
 				if (buf_res.length > XHCI_TD_PAGE_SIZE)
 					buf_res.length = XHCI_TD_PAGE_SIZE;
 
+				npkt_off += buf_res.length;
+
 				/* setup npkt */
-				npkt = (average + temp->max_packet_size - 1) /
+				npkt = (len_old - npkt_off + temp->max_packet_size - 1) /
 				    temp->max_packet_size;
 
 				if (npkt > 31)
