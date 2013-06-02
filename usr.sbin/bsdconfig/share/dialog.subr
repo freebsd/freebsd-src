@@ -2000,7 +2000,7 @@ f_dialog_init()
 	#
 	if ! f_have $DIALOG; then
 		unset USE_XDIALOG
-		failed_dialog="$DIALOG"
+		local failed_dialog="$DIALOG"
 		DIALOG=dialog
 		f_die 1 "$msg_no_such_file_or_directory" "$pgm" "$failed_dialog"
 	fi
@@ -2021,7 +2021,7 @@ f_dialog_init()
 			f_die 1 "$msg_no_such_file_or_directory" "$pgm" "xauth"
 		fi
 		HOSTNAME=$(hostname)
-		displaynum="${DISPLAY#*:}"
+		local displaynum="${DISPLAY#*:}"
 		eval xauth -if \~$SUDO_USER/.Xauthority extract - \
 			\"\$HOSTNAME/unix:\$displaynum\" \
 			\"\$HOSTNAME:\$displaynum\" | sudo sh -c 'xauth -ivf \
@@ -2033,6 +2033,7 @@ f_dialog_init()
 	# gracefully
 	#
 	if [ "$USE_XDIALOG" ]; then
+		local maxsize
 		if ! maxsize=$( LANG= LC_ALL= $DIALOG --print-maxsize 2>&1 )
 		then
 			# Xdialog(1) failed, fall back to dialog(1)
@@ -2058,7 +2059,6 @@ f_dialog_init()
 
 			echo $height $width
 		)
-		unset maxsize
 	fi
 
 	#
@@ -2068,10 +2068,9 @@ f_dialog_init()
 	# --title with Xdialog(1)).
 	#
 	if [ "$USE_XDIALOG" ]; then
-		_DIALOG_TITLE="$DIALOG_TITLE"
+		local _DIALOG_TITLE="$DIALOG_TITLE"
 		DIALOG_TITLE="$DIALOG_BACKTITLE"
 		DIALOG_BACKTITLE="$_DIALOG_TITLE"
-		unset _DIALOG_TITLE
 	fi
 
 	f_dprintf "f_dialog_init: dialog(1) API initialized."
