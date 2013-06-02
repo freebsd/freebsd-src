@@ -65,13 +65,12 @@ f_input_group()
 #
 f_dialog_menu_group_list()
 {
-	local defaultitem="$1"
-	local menu_list
-	local hline="$hline_alnum_punc_tab_enter"
-
-	menu_list="
+	local prompt=
+	local menu_list="
 		'X $msg_exit' ''
 	" # END-QUOTE
+	local defaultitem="$1"
+	local hline="$hline_alnum_punc_tab_enter"
 
 	# Add groups from group(5)
 	menu_list="$menu_list $( pw groupshow -a | awk -F: '
@@ -84,7 +83,7 @@ f_dialog_menu_group_list()
 	eval f_dialog_menu_size height width rows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\"                   \
+	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
 
@@ -96,7 +95,7 @@ f_dialog_menu_group_list()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\"                        \
+		--menu \"\$prompt\"                \
 		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -171,24 +170,23 @@ f_dialog_input_group_name()
 #
 f_dialog_input_group_password()
 {
+	local prompt1="$msg_group_password"
+	local prompt2="$msg_reenter_group_password"
 	local hline="$hline_alnum_punc_tab_enter"
-	local msg rmsg
 
-	msg=$( printf "$msg_group_password" )
 	local height1 width1
 	f_dialog_inputbox_size height1 width1 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
+	        	"$prompt1"          \
 	        	""                  \
 	        	"$hline"
 
-	rmsg=$( printf "$msg_reenter_group_password" )
 	local height2 width2
 	f_dialog_inputbox_size height2 width2 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
-	        	"$rmsg"             \
+	        	"$prompt2"          \
 	        	""                  \
 	        	"$hline"
 
@@ -204,7 +202,7 @@ f_dialog_input_group_password()
 			--ok-label "$msg_ok"            \
 			--cancel-label "$msg_cancel"    \
 			--insecure                      \
-			--passwordbox "$msg"            \
+			--passwordbox "$prompt1"        \
 			$height1 $width1                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -221,7 +219,7 @@ f_dialog_input_group_password()
 			--ok-label "$msg_ok"            \
 			--cancel-label "$msg_cancel"    \
 			--insecure                      \
-			--passwordbox "$rmsg"           \
+			--passwordbox "$prompt2"        \
 			$height2 $width2                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -288,30 +286,25 @@ f_dialog_input_group_gid()
 #
 f_dialog_input_group_members()
 {
-	local menu_choice retval _input="$1"
-	local msg="$msg_group_members:"
-	local hline="$hline_num_arrows_tab_enter"
-	local user 
-	local menu_list
-	local all_users_valid
-	local _group_members
-	local checklist_users
-
-	menu_list="
+	local _input="$1"
+	local prompt="$msg_group_members:"
+	local menu_list="
 		'X' '$msg_continue'
 		'1' '$msg_select_group_members_from_list'
 		'2' '$msg_enter_group_members_manually'
 	" # END-QUOTE
+	local defaultitem=
+	local hline="$hline_num_arrows_tab_enter"
 
-	local menu_choice defaultitem=
 	local mheight mwidth mrows
 	eval f_dialog_menu_size mheight mwidth mrows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\$msg\"              \
+	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
 
+	local menu_choice retval
 	while :; do
 		menu_choice=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
@@ -320,7 +313,7 @@ f_dialog_input_group_members()
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
 			--default-item \"\$defaultitem\"   \
-			--menu \"\$msg\"                   \
+			--menu \"\$prompt\"                \
 			$mheight $mwidth $mrows            \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -333,19 +326,20 @@ f_dialog_input_group_members()
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
 
+		local _group_members
 		case "$menu_choice" in
 		X) # Exit
 			break ;;
 		1) # Select Group Members from a list
-			user_list=$( pw usershow -a | awk -F: '
-				!/^[[:space:]]*(#|$)/ { printf "%s\n", $1 }' )
-			checklist_users=
-			for user in $user_list; do
-				checklist_users="$checklist_users $user \"\""
+			local user check_list=
+			for user in $( pw usershow -a |
+				awk -F: '!/^[[:space:]]*(#|$)/{print $1}'
+			); do
+				# Format of a checklist entry: tag item status
 				if echo "$_input" | grep -q "\<$user\>"; then
-					checklist_users="$checklist_users on"
+					check_list="$check_list $user '' on"
 				else
-					checklist_users="$checklist_users off"
+					check_list="$check_list $user '' off"
 				fi
 			done
 
@@ -353,9 +347,9 @@ f_dialog_input_group_members()
 			eval f_dialog_checklist_size cheight cwidth crows \
 			                             \"\$DIALOG_TITLE\"     \
 			                             \"\$DIALOG_BACKTITLE\" \
-			                             \"\"                   \
+			                             \"\$prompt\"           \
 			                             \"\$hline\"            \
-			                             $checklist_users
+			                             $check_list
 			_group_members=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
@@ -363,9 +357,9 @@ f_dialog_input_group_members()
 				--hline \"\$hline\"                \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_cancel\"    \
-				--checklist \"\$msg\"              \
+				--checklist \"\$prompt\"           \
 				$cheight $cwidth $crows            \
-				$checklist_users                   \
+				$check_list                        \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			) || continue
 				# Return to previous menu if user either
@@ -383,9 +377,9 @@ f_dialog_input_group_members()
 			_input="$_group_members"
 			;;
 		2) # Enter Group Members manually
-			msg="$msg_group_members ($msg_separated_by_commas)"
+			local p="$msg_group_members ($msg_separated_by_commas)"
 
-			f_dialog_input _group_members "$msg" "$_input" \
+			f_dialog_input _group_members "$p" "$_input" \
 			               "$hline_num_tab_enter" || continue
 				# Return to previous menu if user either
 				# pressed ESC or chose Cancel/No

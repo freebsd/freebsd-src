@@ -77,9 +77,9 @@ KEYMAP_NAMES="
 #
 dialog_menu_main()
 {
-	local menu_list defaultitem=
-	local hline="$hline_choose_a_keyboard_map"
 	local prompt="$msg_keymap_menu_text"
+	local menu_list defaultitem= # Calculated below
+	local hline="$hline_choose_a_keyboard_map"
 
 	#
 	# Export variables for awk(1) ENVIRON visibility

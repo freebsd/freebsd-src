@@ -277,25 +277,26 @@ f_package_calculate_rundeps()
 #
 f_package_menu_categories()
 {
-	local var_to_get="$1" defaultitem="$2" category_list menu_list
+	local var_to_get="$1" defaultitem="$2"
+	local prompt="$msg_please_select_a_category_to_display"
+	local menu_list="
+		'> $msg_review' '$msg_review_desc' '$msg_review_help'
+	" # End-Quote
+	local hline=
 
 	f_package_calculate_rundeps
 		# updates package mark variables and SELECTED_PACKAGES
 	f_package_calculate_totals
 		# creates _{varcat}_ninstalled and _{varcat}_nselected
 
+	local category_list
 	debug= f_getvar "$var_to_get" category_list || return $FAILURE
 
 	# Accent the category menu list with ninstalled/nselected
 	eval f_package_accent_category_menu category_list $category_list
 
-	local prompt="$msg_please_select_a_category_to_display"
-	local hline=""
-
-	menu_list="
-		'> $msg_review' '$msg_review_desc' '$msg_review_help'
-		$category_list
-	" # End-Quote
+	# Add list of categories to menu list
+	menu_list="$menu_list $category_list"
 
 	local height width rows
 	eval f_dialog_menu_with_help_size height width rows \
@@ -365,22 +366,26 @@ f_package_index_get_page()
 #
 f_package_menu_select()
 {
-	local category="$1" page="${2:-1}" defaultitem="$3"
-	local varcat npkgs=0 npages menu_list
+	local category="$1" page="${2:-1}"
+	local prompt= # Calculated below
+	local menu_list # Calculated below
+	local defaultitem="$3"
+	local hline="$hline_arrows_tab_punc_enter"
 
 	f_isinteger "$page" || return $FAILURE
 
+	local varcat
 	f_str2varname "$category" varcat
-	f_package_index_get_page "$category" $page index_page
 
 	# Get number of packages for this category
+	local npkgs=0
 	case "$category" in
 	"$msg_all"|"") npkgs="${_npkgs:-0}";;
 	*) f_getvar _npkgs_$varcat npkgs
 	esac
 
 	# Calculate number of pages
-	npages=$(( ${npkgs:=0} / $PACKAGE_MENU_PAGESIZE ))
+	local npages=$(( ${npkgs:=0} / $PACKAGE_MENU_PAGESIZE ))
 
 	# Add a page to the pagecount if not evenly divisible
 	[ $(( $npages * $PACKAGE_MENU_PAGESIZE )) -lt $npkgs ] &&
@@ -406,6 +411,9 @@ f_package_menu_select()
 		f_isset _index_page_${varcat}_$(( $page + 1 )) &&
 			next_page="$next_page*"
 	fi
+
+	local index_page
+	f_package_index_get_page "$category" $page index_page
 
 	menu_list="
 		${add_prev:+'> $previous_page' '' ${SHOW_DESC:+''}}
@@ -446,7 +454,6 @@ f_package_menu_select()
 		${add_next:+'> $next_page' '' ${SHOW_DESC:+''}}
 	" # End-Quote
 
-	local prompt=""
 	# Accept/Translate i18n "All" but other category names must
 	# match tree definitions from INDEX, ports, FTP, etc.
 	case "$category" in
@@ -456,7 +463,6 @@ f_package_menu_select()
 	prompt="$prompt $( printf "$msg_page_of_npages" \
 	                          "$page" "$npages" )"
 
-	local hline="$hline_arrows_tab_punc_enter"
 	local mheight mwidth mrows
 	f_dialog_menu${SHOW_DESC:+_with_help}_size mheight mwidth mrows \
 	        	\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
@@ -509,14 +515,16 @@ f_package_menu_select()
 #
 f_package_menu_deselect()
 {
-	local package="$1" prompt menu_list
-	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
-	local hline="$hline_alnum_arrows_punc_tab_enter"
-	menu_list="
+	local package="$1"
+	local prompt # Calculated below
+	local menu_list="
 		'X $msg_installed' '$msg_installed_desc'
 		'R $msg_reinstall' '$msg_reinstall_desc'
 		'U $msg_uninstall' '$msg_uninstall_desc'
 	" # End-Quote
+	local hline="$hline_alnum_arrows_punc_tab_enter"
+
+	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
@@ -551,12 +559,16 @@ f_package_menu_deselect()
 #
 f_package_review()
 {
-	local prompt package varpkg mark menu_list=
-	prompt=$( printf "$msg_reviewing_selected_packages" \
-	                 "$_All_nselected" )
+	local prompt # Calculated below
+	local menu_list # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
+
 	f_dprintf "f_package_review: SELECTED_PACKAGES=[%s]" \
 	          "$SELECTED_PACKAGES"
+
+	prompt=$( printf "$msg_reviewing_selected_packages" "$_All_nselected" )
+
+	local package varpkg mark
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg

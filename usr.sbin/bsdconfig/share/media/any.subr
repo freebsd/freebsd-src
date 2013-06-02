@@ -68,10 +68,7 @@ f_media_get_type()
 	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
 	local prompt="$msg_choose_installation_media_description"
-	local hline="$hline_choose_help_for_more_information_on_media_types"
-	local menu_list
-
-	menu_list="
+	local menu_list="
 		'1 $msg_cd_dvd'    '$msg_install_from_a_freebsd_cd_dvd'
 		'2 $msg_ftp'       '$msg_install_from_an_ftp_server'
 		'3 $msg_ftp_passive'
@@ -85,6 +82,7 @@ f_media_get_type()
 		'A $msg_usb'       '$msg_install_from_a_usb_drive'
 		'X $msg_options'   '$msg_view_set_various_media_options'
 	" # END-QUOTE
+	local hline="$hline_choose_help_for_more_information_on_media_types"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \

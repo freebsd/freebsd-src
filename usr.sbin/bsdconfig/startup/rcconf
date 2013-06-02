@@ -49,7 +49,6 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 RCCONF_MAP=
 _RCCONF_MAP=
-RCCONF_MENU_LIST=
 
 #
 # Options
@@ -79,11 +78,8 @@ fi
 #
 dialog_menu_main()
 {
-	local hline="$hline_arrows_tab_enter"
-	local prompt=""
-	local defaultitem= # Calculated below
-
-	RCCONF_MENU_LIST="
+	local prompt=
+	local menu_list="
 		'X $msg_exit'    '$msg_exit_desc'
 		                  ${SHOW_DESC:+'$msg_exit_help'}
 		'> $msg_add_new' '$msg_add_new_desc'
@@ -95,6 +91,8 @@ dialog_menu_main()
 		                       ${SHOW_DESC:+'$msg_view_details_help'}
 	}
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	if [ ! "$_RCCONF_MAP" ]; then
 		# Genreate RCCONF_MAP of `var desc ...' per-line
@@ -110,7 +108,7 @@ dialog_menu_main()
 	[ "$SHOW_DEFAULT_VALUE" -o "$SHOW_CONFIGURED" ] &&
 		f_dialog_info "$msg_creating_menu_list"
 
-	RCCONF_MENU_LIST="$RCCONF_MENU_LIST $(
+	menu_list="$menu_list $(
 		. "$RC_DEFAULTS" > /dev/null
 		source_rc_confs > /dev/null
 		var_list=$( f_startup_rcconf_list )
@@ -169,7 +167,7 @@ dialog_menu_main()
 		\"\$DIALOG_BACKTITLE\" \
 		\"\$prompt\"           \
 		\"\$hline\"            \
-		$RCCONF_MENU_LIST
+		$menu_list
 
 	# Obtain default-item from previously stored selection
 	f_dialog_default_fetch defaultitem
@@ -187,7 +185,7 @@ dialog_menu_main()
 		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
-		$RCCONF_MENU_LIST                  \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?

@@ -84,13 +84,14 @@ dialog_menu_main()
 	local btitle="$DIALOG_BACKTITLE"
 	local prompt="$msg_select_region"
 	local defaultitem= # Calculated below
+	local hline=
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
 	                        \"\$title\"  \
 	                        \"\$btitle\" \
 	                        \"\$prompt\" \
-	                        \"\"         \
+	                        \"\$hline\"  \
 	                        $continent_menu_list
 
 	# Obtain default-item from previously stored selection
@@ -100,6 +101,7 @@ dialog_menu_main()
 	menu_choice=$( eval $DIALOG \
 		--title \"\$title\"              \
 		--backtitle \"\$btitle\"         \
+		--hline \"\$hline\"              \
 		--ok-label \"\$msg_ok\"          \
 		--cancel-label \"\$msg_cancel\"  \
 		--default-item \"\$defaultitem\" \

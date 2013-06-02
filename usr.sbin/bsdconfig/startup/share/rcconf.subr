@@ -273,15 +273,16 @@ f_startup_rcconf_map_expand()
 #
 f_dialog_input_view_details()
 {
-	local menu_list
+	local prompt=
+	local menu_list # calculated below
+	local defaultitem= # calculated below
 	local hline="$hline_arrows_tab_enter"
-	local prompt=""
 
 	local md=" "
 	if [ "$SHOW_DESC" ]; then
 		md="X"
 	fi
-	local m1=" " m2=" " m3=" " defaultitem=
+	local m1=" " m2=" " m3=" "
 	if [ "$SHOW_VALUE" ]; then
 		m1="*"
 		defaultitem="1 ($m1) $msg_show_value"
@@ -367,13 +368,11 @@ f_dialog_input_view_details()
 #
 f_dialog_input_rclist()
 {
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_please_select_an_rcconf_directive"
-	local menu_list
-
-	menu_list="
+	local menu_list="
 		'X $msg_exit' '' ${SHOW_DESC:+'$msg_exit_help'}
 	" # END-QUOTE
+	local hline="$hline_arrows_tab_enter"
 
 	if [ ! "$_RCCONF_MAP" ]; then
 		# Generate RCCONF_MAP of `var desc ...' per-line

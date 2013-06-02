@@ -49,11 +49,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list defaultitem=
-	local hline=""
 	local prompt="$msg_port_menu_text"
-
-	menu_list="
+	local menu_list="
 		'1 $msg_ps2'      '$msg_ps2_desc'
 		'2 $msg_com1'     '$msg_com1_desc'
 		'3 $msg_com2'     '$msg_com2_desc'
@@ -61,6 +58,8 @@ dialog_menu_main()
 		'5 $msg_com4'     '$msg_com4_desc'
 		'6 $msg_busmouse' '$msg_busmouse_desc'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline=
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \

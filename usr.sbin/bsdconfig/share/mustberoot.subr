@@ -77,7 +77,7 @@ SECURE_DIVULGE_UNKNOWN_USER=
 #
 f_become_root_via_sudo()
 {
-	local msg hline height width rows
+	local prompt hline height width rows msg
 
 	[ "$( id -u )" = "0" ] && return $SUCCESS
 
@@ -90,18 +90,19 @@ f_become_root_via_sudo()
 	#
 	local checkpath="${HOME%/}/.bsdconfig_uses_sudo"
 	if [ ! -e "$checkpath" ]; then
+		prompt=$( printf "$msg_you_are_not_root_but" bsdconfig )
 		msg=$( printf "$msg_always_try_sudo_when_run_as" "$USER" )
 		local menu_list="
 			'X' '$msg_cancel_exit'
 			'1' '$msg'
 			'2' '$msg_try_sudo_only_this_once'
 		" # END-QUOTE
-		msg=$( printf "$msg_you_are_not_root_but" bsdconfig )
 		hline="$hline_arrows_tab_enter"
+
 		eval f_dialog_menu_size height width rows \
 		                        \"\$DIALOG_TITLE\"     \
 		                        \"\$DIALOG_BACKTITLE\" \
-		                        \"\$msg\"              \
+		                        \"\$prompt\"           \
 		                        \"\$hline\"            \
 		                        $menu_list
 
@@ -112,7 +113,7 @@ f_become_root_via_sudo()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$msg\"                   \
+			--menu \"\$prompt\"                \
 			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -147,12 +148,12 @@ f_become_root_via_sudo()
 		#
 		# sudo(8) access denied. Prompt for their password.
 		#
-		msg="$msg_please_enter_password"
+		prompt="$msg_please_enter_password"
 		hline="$hline_alnum_punc_tab_enter"
 		f_dialog_inputbox_size height width \
 		                       "$DIALOG_TITLE"     \
 		                       "$DIALOG_BACKTITLE" \
-		                       "$msg"              \
+		                       "$prompt"           \
 		                       "$hline"
 
 		#
@@ -168,7 +169,7 @@ f_become_root_via_sudo()
 					--hline "$hline"                \
 					--ok-label "$msg_ok"            \
 					--cancel-label "$msg_cancel"    \
-					--password --inputbox "$msg"    \
+					--password --inputbox "$prompt" \
 					$height $width                  \
 					2>&1 > /dev/null )
 				retval=$?
@@ -184,7 +185,7 @@ f_become_root_via_sudo()
 					--ok-label "$msg_ok"            \
 					--cancel-label "$msg_cancel"    \
 					--insecure                      \
-					--passwordbox "$msg"            \
+					--passwordbox "$prompt"         \
 					$height $width                  \
 					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 				) || exit $?

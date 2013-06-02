@@ -48,12 +48,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list
-	local hline="$hline_configure_system_console_settings"
 	local prompt="$msg_console_menu_text"
-	local defaultitem= # Calculated below
-
-	menu_list="
+	local menu_list="
 		'X $msg_exit'      '$msg_exit_this_menu'
 		'2 $msg_font'      '$msg_choose_alternate_screen_font'
 		'3 $msg_keymap'    '$msg_choose_alternate_keyboard_map'
@@ -62,6 +58,8 @@ dialog_menu_main()
 		'6 $msg_screenmap' '$msg_choose_alternate_screenmap'
 		'7 $msg_ttys'      '$msg_choose_console_terminal_type'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_configure_system_console_settings"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \

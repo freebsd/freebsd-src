@@ -53,9 +53,10 @@ f_media_options_menu()
 	f_dialog_title "$msg_options_editor"
 	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
-	local prompt=""
+	local prompt=
+	local menu_list # Calculated below
+	local defaultitem=
 	local hline="$hline_arrows_tab_enter"
-	local menu_list cp
 
 	#
 	# A hack so that the dialogs below are always interactive in a script
@@ -66,7 +67,7 @@ f_media_options_menu()
 		unset $VAR_NONINTERACTIVE
 	fi
 
-	local defaultitem=
+	local cp
 	while :; do
 		menu_list=""
 

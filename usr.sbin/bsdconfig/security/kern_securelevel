@@ -51,16 +51,15 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list defaultitem=
-	local hline="$hline_select_securelevel_to_operate_at"
 	local prompt="$msg_securelevels_menu_text"
-
-	menu_list="
+	local menu_list="
 		'$msg_disabled'       '$msg_disable_securelevels'
 		'$msg_secure'         '$msg_secure_mode'
 		'$msg_highly_secure'  '$msg_highly_secure_mode'
 		'$msg_network_secure' '$msg_network_secure_mode'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_select_securelevel_to_operate_at"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
