@@ -253,7 +253,7 @@ f_str2varname()
 #
 # 	foo="abc'123"
 # 	f_shell_escape "$foo" bar # bar=[abc'\''123]
-# 	eval echo \'$foo\' # produces abc'123
+# 	eval echo \'$bar\' # produces abc'123
 #
 # This is helpful when processing an argument list that has to retain its
 # escaped structure for later evaluations.
