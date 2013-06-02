@@ -50,6 +50,7 @@ MOUNTPOINT=/dist
 #
 f_media_open()
 {
+	f_dprintf "f_media_open: Verifying and initiliazing media device"
 	{ # Verify and initialize device media if-defined
 		f_struct device_media &&
 		f_media_verify &&
@@ -64,6 +65,7 @@ f_media_open()
 #
 f_media_close()
 {
+	f_dprintf "f_media_close: Shutting down media device"
 	f_struct device_media &&
 		f_device_shutdown media
 	f_struct_free device_media
@@ -77,6 +79,7 @@ f_media_close()
 #
 f_media_verify()
 {
+	f_dprintf "f_media_verify: Verifying media device"
 	f_struct device_media || f_media_get_type
 }
 
@@ -86,8 +89,12 @@ f_media_verify()
 # 
 f_media_generic_get()
 {
-	local base="$1" file="$2" rel path
+	local base="$1" file="$2"
 
+	local fname=f_media_generic_get
+	f_dprintf "%s: base=[%s] files=[%s]" $fname "$base" "$file"
+
+	local rel path
 	f_getvar $VAR_RELNAME rel
 	for path in \
 		"$base/$file" \
@@ -96,6 +103,7 @@ f_media_generic_get()
 		"$base/$rel/$file" \
 	; do
 		if [ -f "$path" -a -r "$path" ]; then
+			f_dprintf "%s: file exists path=[%s]" $fname "$path"
 			cat "$path"
 			return
 		fi
