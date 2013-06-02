@@ -253,6 +253,18 @@
       <para revision="232757">A bug which could cause a kernel thread
 	to have a wrong CPU affinity configuration has been fixed.</para>
 
+      <para revision="239860,239861">The
+	<literal>F_DUPFD_CLOEXEC</literal> command for &man.fcntl.2;
+	has been implemented.  This is standardized in IEEE Std
+	1003.1-2008 (POSIX, Single UNIX Specification Version 4).  In
+	addition to this, <literal>F_DUP2FD_CLOEXEC</literal> has been
+	implemented in analogy with
+	<literal>F_DUP2FD</literal>.</para>
+
+      <para revision="240707">The &man.filemon.4; pseudo-device has
+	been added. This allows a process to collect file operations
+	data of its children.</para>
+
       <para revision="233584">A bug in VIMAGE &man.jail.8; which could
 	make the network subsystem run on an wrong vnet context has been
 	fixed.</para>
@@ -276,6 +288,15 @@
 	added.  When set to <literal>1</literal>, only one thread runs
 	uninterruptedly after a system panic and the other CPUs are
 	stopped.  The default value is <literal>0</literal>.</para>
+
+      <para revision="240502">The &man.loader.8; tunables
+	<varname>kern.maxtsiz</varname>,
+	<varname>kern.dfldsiz</varname>,
+	<varname>kern.maxdsiz</varname>,
+	<varname>kern.dflssiz</varname>,
+	<varname>kern.maxssiz</varname>, and
+	<varname>kern.sgrowsiz</varname> are now writable
+	&man.sysctl.8; variables.</para>
 
       <para revision="233765,234094,236150">A bug that changes to a
 	mapped file with the &man.mmap.2; system call were not flushed
@@ -390,6 +411,22 @@
 	  CP102E/CP102EL/CP104EL-A/CP104JU/CP114EL/CP118EL-A/CP168EL-A
 	  multiport serial boards.</para>
 
+	<para revision="240991" arch="amd64,i386">The &man.random.4;
+	  driver now supports VIA C3 Nehemiah random number generator
+	  on VIA Nano processors.  <option>PADLOCK</option> kernel
+	  option has been replaced with <option>PADLOCK_RNG</option>
+	  in <filename>GENERIC</filename> kernel.</para>
+
+	<para revision="240994"> arch="amd64,i386">The &man.random.4;
+	  driver now supports <literal>RDRAND</literal> instruction on
+	  Intel on-chip Digital Random Number Generator (called Bull
+	  Mountain).  <option>RDRAND_RND</option> kernel option has been
+	  added to <filename>GENERIC</filename> kernel.</para>
+
+	<para revision="242338">A new &man.syscons.4; keyboard map for
+	  Danish ISO-8859-1 keyboard found on Apple MacBook has been
+	  added.</para>
+
 	<para revision="233065" arch="amd64,i386">The &man.uart.4;
 	  driver now supports Intel AMT Serial Port for Remote
 	  Keyboard and Text (KT) Redirection (Serial Over LAN) on
@@ -398,6 +435,16 @@
 	<para revision="237189,237381">The &man.uftdi.4; driver now
 	  supports BeagleBone and FT2232-based egnite Turtelizer 2
 	  JTAG/RS232 Adapter.</para>
+
+	<para revision="240570">The &man.uchcom.4; driver now supports
+	  CH341/CH340 USB-Serial Bridge.</para>
+
+	<para revision="239426">The &man.ukbd.4; driver now supports
+	  Microsoft Natural Egronomic Keyboard 4000.  It had an issue
+	  that function keys were not recognized.</para>
+
+	<para revision="239726">The &man.uplcom.4; driver now supports
+	  Motorola cable.</para>
 
 	<para revision="232871">The &man.usb.4; driver now handles
 	  suspend events synchronously.  This fixed problems of
@@ -408,6 +455,23 @@
 	  translator for each downstream-facing port on a USB hub.
 	  This allows more bandwidth for isochronous FULL speed
 	  application connected through a High Speed USB HUB.</para>
+
+	<para revision="239820,239827">The &man.uslcom.4; driver now
+	  supports Silicon Laboratories CP2103/CP2104/CP2105 based USB
+	  serial adapter.</para>
+
+	<para revision="239473" arch="amd64,i386">The paravirtualized
+	  <filename>virtio</filename> drivers have been added as
+	  kernel modules.  They include PCI fontend,
+	  <literal>net</literal>, <literal>block</literal>,
+	  <literal>balloon</literal>, and <literal>scsi</literal>
+	  drivers.  The module files are
+	  <filename>virtio.ko</filename>,
+	  <filename>virtio_pci.ko</filename>,
+	  <filename>if_vtnet.ko</filename>,
+	  <filename>virtio_blk.ko</filename>,
+	  <filename>virtio_balloon.ko</filename>, and
+	  <filename>virtio_scsi.ko</filename>, respectively.</para>
 
 	<para revision="235947">The &man.wbwd.4; driver, which
 	  supports the watchdog timer found in Winbond Super I/O
@@ -473,6 +537,10 @@
 	    &man.gem.4;, and &man.hme.4; drivers have been added to
 	    <filename>GENERIC</filename> kernel.</para>
 
+	  <para revision="241376">A bug in statistics counters in the
+	    &man.em.4;, lem(4), and &man.igb.4; drivers has been
+	    fixed.</para>
+
 	  <para revision="233502">The &man.fxp.4; network driver has
 	    been improved.  It does not cause unnecessary media change
 	    in controller reconfiguration such as promiscuos mode
@@ -484,6 +552,9 @@
 	    If the number of CPUs are greater than or equal to the
 	    number of queues, all of queues are bound to different
 	    CPUs.</para>
+
+	  <para revision="242279">The ipheth(4) driver now supports
+	    Apple iPhone 5 tethering mode.</para>
 
 	  <para revision="233839,235844">The &man.iwn.4; driver now
 	    supports Intel Centrino 6150 wireless N and WiMAX
@@ -658,6 +729,9 @@
 	  Marvell 88SE9220/9230/9235 PCIe 2.0 x2 6Gbps SATA
 	  controllers.</para>
 
+	<para revision="240715">The &man.arcmsr.4; driver has been
+	  updated to version 1.20.00.25.</para>
+
 	<para revision="236319">A bug in the &man.amr.4; driver which
 	  could cause data corruption has been fixed.</para>
 
@@ -701,9 +775,9 @@
 	  <literal>BIO_DELETE</literal> requests handled as a single
 	  <literal>TRIM</literal> request.</para>
 
-	<para revision="235086,236654">The &man.umass.4; driver now
-	  supports Olympus FE-210 camera, LG UP3S MP3 player, Laser
-	  MP3-2GA13 MP3, and Garmin GPS devices.</para>
+	<para revision="239159,242216">The &man.hptiop.4; driver has
+	  bee updated to version 1.8 and now supports HighPoint
+	  RocketRAID 4500/4311/4310/4211/4210/3560/3530.</para>
 
 	<para revision="232554">The &man.isci.4; driver now supports
 	  Intel C600 Serial Attached SCSI controllers with chip IDs from
@@ -713,6 +787,9 @@
 	  could not correctly handle <literal>READ
 	  CAPACITY(16)</literal> SCSI command for an SATA device has
 	  been fixed.</para>
+
+	<para revision="239735">The &man.isci.4; driver now supports
+	  SCSI UNMAP to ATA DSM translation.</para>
 
 	<para revision="236264">A bug in &man.isci.4; driver which
 	  could prevent <application>smartctl</application>
@@ -763,8 +840,31 @@
 	  option in &man.graid.8; utility can be used to specify byte
 	  order for the DDF metadata.</para>
 
+	<para revision="240554,240556">The <literal>RAID</literal>
+	  &man.geom.4; class now supports &man.sysctl.8; variables
+	  <varname>kern.geom.raid.enable</varname> and
+	  <varname>kern.geom.raid.<replaceable>format</replaceable></varname>.
+	  <varname>kern.geom.raid.enable</varname> is to control
+	  on-disk metadata recognition in a systemwide basis.  When it
+	  is set to <literal>1</literal>, it is enabled (the default
+	  value is <literal>1</literal>).
+	  <varname>kern.geom.raid.<replaceable>format</replaceable></varname>
+	  are similar variables to control enable/disable of specific
+	  metadata or transformation modules.  The valid keywords for
+	  <varname><replaceable>format</replaceable></varname> are
+	  <literal>raid0</literal>, <literal>raid1</literal>,
+	  <literal>raid1e</literal>, <literal>raid5</literal>, and
+	  <literal>concat</literal>.</para>
+
 	<para revision="234512">The &man.tmpfs.5; filesystem is not an
 	  experimental implementation anymore.</para>
+
+	<para revision="241763">The &man.tws.4; driver has been
+	  updated to version 10.80.00.005 from LSI.</para>
+
+	<para revision="235086,236654">The &man.umass.4; driver now
+	  supports Olympus FE-210 camera, LG UP3S MP3 player, Laser
+	  MP3-2GA13 MP3, and Garmin GPS devices.</para>
 
 	<para revision="233791">A bug in the &man.xen.4;
 	  <application>blkfront</application> driver has been fixed.
@@ -798,6 +898,11 @@
 	  which do not include file attributes under certain
 	  circumstances.  This improves interoperability between
 	  non-&os; NFS servers and &os; NFS clients.</para>
+
+	<para revision="241348">A bug in &man.exports.5; handling in
+	  &os; NFS subsystem has been fixed.  It could cause an
+	  unintended security configuration when there are multiple
+	  export entries with different security flavors.</para>
 
 	<para revision="232665">Several bugs in &man.nullfs.5; which
 	  could cause a system panic have been fixed.</para>
@@ -843,6 +948,15 @@
     <sect2 id="userland">
       <title>Userland Changes</title>
 
+      <para revision="239877">The &man.crontab.1; utility now waits
+	for a second before updating the spool directory's mtime.  It
+	could happen that the modified crontab updated the
+	<literal>mtime</literal> of the spool directory, and then
+	&man.crontab.1; utility updated the <literal>mtime</literal>
+	again within a second.  In this case, the
+	<literal>crontab</literal> database is not updated
+	properly.</para>
+
       <para revision="234979">The default
 	<filename>dot.cshrc</filename> file for &man.csh.1; and
 	&man.tcsh.1; has been changed.  For more detail, see
@@ -863,6 +977,14 @@
       <para revision="235254">The &man.fetch.1; utility now supports
 	percent-encoded string in user and password component of a
 	URL.</para>
+
+      <para revision="242034">The maximum number of HTTP redirection
+	has been increased from <literal>5</literal> to
+	<literal>20</literal> in the &man.fetch.1; utility.</para>
+
+      <para revision="242288,242291">The &man.fetch.1; utility now
+	supports HTTP status code <literal>305</literal> (Use Proxy)
+	and <literal>308</literal> (Permanent Redirect).</para>
 
       <para revision="235084">A new environment variable
 	<varname>PROFIL_USE_PID</varname> has been added to generate
@@ -908,6 +1030,21 @@
 	&man.setusercontext.3; function) from working when the
 	password is not set.</para>
 
+      <para revision="241368">The &man.make.1; utility has been
+	updated to version <literal>8201210080</literal>.  It now
+	supports <option>-V ${<replaceable>VAR</replaceable>}</option>
+	variable expansion, and <literal>:tu</literal> and
+	<literal>:tl</literal> variable modifiers.</para>
+
+      <para revision="241422">The &man.mktemp.1; utility now uses
+	<filename>tmp</filename> as the default prefix when no
+	<option>-t</option> is specified.</para>
+
+      <para revision="241321">The &man.mv.1; utility now supports
+	<option>-h</option> flag.  This forces it to treat a symbolic
+	link to a directory for the target as a symbolic instead of a
+	directory.</para>
+
       <para revision="234843">The &man.pam.exec.8; module now supports
 	<option>return_prog_exit_status</option>.  When this option is
 	enabled, the program exit status is used as the
@@ -926,6 +1063,11 @@
 	by version 1 of PCI-express Advanced Error Reporting
 	(AER).</para>
 
+      <para revision="242198">A workaround has been implemented in
+	&man.ppp.8; daemon to support some 3G modems which return a
+	wrong signature in echo packets and make it impossible to use
+	LQR and ECHO.</para>
+
       <para revision="233953">The &man.procstat.1; utility now
 	displays <varname>osreldate</varname> in binary information
 	for a process.</para>
@@ -941,6 +1083,10 @@
       <para revision="236306">The &man.ps.1; utility now supports
 	<option>cow</option> keyword to show the number of
 	copy-on-write faults in a process.</para>
+
+      <para revision="241159">The &man.ps.1; utility now supports
+	<varname>dsiz</varname> and <varname>ssiz</varname> keywords
+	to show data and stack size respectively.</para>
 
       <para revision="234534">A bug in the &man.remquo.3; functions
 	where the quotient did not always have the correct sign when
@@ -966,6 +1112,18 @@
 	supports a <option>-j <replaceable>jid</replaceable></option>
 	option to specify the socket list to be limited to a specific
 	&man.jail.8; ID.</para>
+
+      <para revision="241969">A variable
+	<varname>NO_<replaceable>FOO</replaceable></varname> in
+	&man.src.conf.5; now overrides
+	<varname>WITH_<replaceable>FOO</replaceable></varname>.</para>
+
+      <para revision="241472">The &man.syslogd.8; daemon now supports
+	IPv6 address as destination address in
+	&man.syslog.conf.5;.</para>
+
+      <para revision="239751">The &man.top.1; utility now displays ZFS
+	ARC memory usage on hosts using ZFS.</para>
 
       <para revision="235163">A bug in &man.traceroute.8; utility
 	which could result in not accepting any incoming packets has
@@ -1009,6 +1167,10 @@
 	  <literal>SIGINFO</literal> is issued.  This message was sent
 	  to standard output and could prevent redirection from
 	  working.</para>
+
+	<para revision="242083">The <filename>rc.d/jail</filename>
+	  script now supports <varname>jail_parameters</varname>
+	  variable to specify extra parameters for each jail.</para>
       </sect3>
 
       <sect3 id="periodic-scripts">
@@ -1021,11 +1183,14 @@
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
-      <para revision="236590"><application>ISC BIND</application> has
-	been updated to 9.6-ESV-R7-P1.</para>
+      <para revision="241443"><application>ISC BIND</application> has
+	been updated to 9.6-ESV-R7-P4.</para>
 
       <para revision="232635"><application>TENEX C shell</application>
 	(&man.tcsh.1;) has been updated to version 6.18.01.</para>
+
+      <para revision="240160"><application>LESS</application>
+	(&man.less.1;) has been updated to version v451.</para>
 
       <para revision="237614"><application>netcat</application> has
 	been updated to a version as of OpenBSD 5.1.</para>
@@ -1040,6 +1205,15 @@
 
     <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
+
+      <para revision="239563">The <command>pkg(8)</command> command
+	has been added.  This is used as a bootstrap tool for
+	<filename>ports-mgmt/pkg</filename> in the Ports
+	Collection.</para>
+
+      <para revision="240674">The &man.pkg.add.1; utility now suports
+	<varname>PACKAGESUFFIX</varname> to specify extension in a
+	package filename.</para>
 
       <para revision="233686">The &man.pkg.create.1; program now
 	allows a relative pathname in the <option>-p</option>
