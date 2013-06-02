@@ -1757,6 +1757,45 @@ f_dialog_menutag_fetch()
 	return $SUCCESS
 }
 
+# f_dialog_default_store [-s] $text
+#
+# Store some text to be used later as the --default-item argument to dialog(1)
+# (or Xdialog(1)) for --menu, --checklist, and --radiolist widgets. Retrieve
+# the text later with f_dialog_menutag_fetch(). If the first argument is `-s',
+# the text is sanitized before being stored.
+#
+f_dialog_default_store()
+{
+	local sanitize=
+	[ "$1" = "-s" ] && sanitize=1 && shift 1 # -s
+	local text="$1"
+
+	# Sanitize the defaulitem before storing it if desired
+	[ "$sanitize" ] && f_dialog_data_sanitize text
+
+	setvar DEFAULTITEM_$$ "$text"
+}
+
+# f_dialog_default_fetch [$var_to_set]
+#
+# Obtain text to be used with the --default-item argument of dialog(1) (or
+# Xdialog(1)) (previously stored with f_dialog_default_store() above). If
+# $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
+#
+f_dialog_default_fetch()
+{
+	local __var_to_set="$1" __cp
+
+	debug= f_getvar DEFAULTITEM_$$ "${__var_to_set:-__cp}" # get the data
+	setvar DEFAULTITEM_$$ "" # scrub memory in case data was sensitive
+
+	# Return the data on standard-out if desired
+	[ "$__var_to_set" ] || echo "$__cp"
+
+	return $SUCCESS
+}
+
 # f_dialog_menutag2item $tag_chosen $tag1 $item1 $tag2 $item2 ...
 #
 # To use the `--menu' option of dialog(1) you must pass an ordered list of

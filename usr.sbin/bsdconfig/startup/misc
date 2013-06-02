@@ -61,7 +61,7 @@ dialog_menu_main()
 	local prompt="$msg_miscellaneous_menu_text"
 
 	# Obtain default-item (adjusted below for dynamic tags)
-	f_getvar DEFAULTITEM_$$ defaultitem
+	f_dialog_default_fetch defaultitem
 	local ditem="${defaultitem%%[$IFS]*}"
 
 	menu_list="
@@ -289,7 +289,7 @@ dialog_menu_main()
 	local retval=$?
 	f_dialog_data_sanitize menu_choice
 	f_dialog_menutag_store "$menu_choice"
-	setvar DEFAULTITEM_$$ "$menu_choice"
+	f_dialog_default_store "$menu_choice"
 	return $retval
 }
 

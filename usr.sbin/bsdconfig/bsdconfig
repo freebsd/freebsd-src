@@ -146,6 +146,7 @@ dialog_menu_main()
 	local btitle="$DIALOG_BACKTITLE"
 	local prompt="$msg_menu_text"
 	local menu_list
+	local defaultitem= # Calculated below
 
 	menu_list="
 		'X' '$msg_exit'  '$msg_exit_bsdconfig'
@@ -187,6 +188,9 @@ dialog_menu_main()
 	                                  \"\"         \
 	                                  $menu_list
 
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
 	local menu_choice
 	menu_choice=$( eval $DIALOG \
 		--clear                                 \
@@ -198,7 +202,7 @@ dialog_menu_main()
 		--help-button                           \
 		--help-label \"\$msg_help\"             \
 		${USE_XDIALOG:+--help \"\"}             \
-		--default-item \"\$DEFAULTITEM_$$\"     \
+		--default-item \"\$defaultitem\"        \
 		--menu \"\$prompt\"                     \
 		$height $width $rows                    \
 		$menu_list                              \
@@ -209,7 +213,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && setvar DEFAULTITEM_$$ "$menu_choice"
+	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
 
 	return $retval
 }

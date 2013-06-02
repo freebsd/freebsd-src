@@ -81,6 +81,7 @@ dialog_menu_main()
 {
 	local hline="$hline_arrows_tab_enter"
 	local prompt=""
+	local defaultitem= # Calculated below
 
 	RCCONF_MENU_LIST="
 		'X $msg_exit'    '$msg_exit_desc'
@@ -170,20 +171,23 @@ dialog_menu_main()
 		\"\$hline\"            \
 		$RCCONF_MENU_LIST
 
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
 	local menu_choice
 	menu_choice=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"          \
-		--backtitle \"\$DIALOG_BACKTITLE\"  \
-		--hline \"\$hline\"                 \
-		--ok-label \"\$msg_ok\"             \
-		--cancel-label \"\$msg_cancel\"     \
-		--help-button                       \
-		--help-label \"\$msg_details\"      \
-		${SHOW_DESC:+--item-help}           \
-		--default-item \"\$DEFAULTITEM_$$\" \
-		--menu \"\$prompt\"                 \
-		$height $width $rows                \
-		$RCCONF_MENU_LIST                   \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--help-button                      \
+		--help-label \"\$msg_details\"     \
+		${SHOW_DESC:+--item-help}          \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$RCCONF_MENU_LIST                  \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
@@ -191,7 +195,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && setvar DEFAULTITEM_$$ "$menu_choice"
+	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
 
 	return $retval
 }
