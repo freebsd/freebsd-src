@@ -2326,7 +2326,7 @@ mtime_old_timelog(const char *file)
 		if (validate_old_timelog(dir_fd, dp, logfname, &tm) == 0)
 			continue;
 
-		if (fstatat(dir_fd, logfname, &sb, AT_SYMLINK_NOFOLLOW) == -1) {
+		if (fstatat(dir_fd, dp->d_name, &sb, AT_SYMLINK_NOFOLLOW) == -1) {
 			warn("Cannot stat '%s'", file);
 			continue;
 		}
