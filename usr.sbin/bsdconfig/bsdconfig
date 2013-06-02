@@ -93,10 +93,9 @@ usage()
 	#
 	# Determine the maximum width of terminal/console
 	#
-	local max_size max_width
-	max_size=$( stty size 2> /dev/null )
+	local max_size="$( stty size 2> /dev/null )"
 	: ${max_size:="24 80"}
-	max_width="${max_size#*[$IFS]}"
+	local max_width="${max_size#*[$IFS]}"
 	f_dprintf "max_width=[%s]" "$max_width"
 
 	#
