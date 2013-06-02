@@ -1545,7 +1545,6 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 {
 	struct usb_page_search buf_res;
 	struct xhci_td *td;
-	struct xhci_td *td_first;
 	struct xhci_td *td_next;
 	struct xhci_td *td_alt_next;
 	uint32_t buf_offset;
@@ -1555,6 +1554,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 	uint8_t shortpkt_old;
 	uint8_t precompute;
 	uint8_t x;
+	uint8_t first_trb = 1;
 
 	td_alt_next = NULL;
 	buf_offset = 0;
@@ -1565,7 +1565,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 restart:
 
 	td = temp->td;
-	td_next = td_first = temp->td_next;
+	td_next = temp->td_next;
 
 	while (1) {
 
@@ -1702,10 +1702,21 @@ restart:
 			/* BEI: Interrupts are inhibited until EOT */
 			dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
 			  XHCI_TRB_3_BEI_BIT |
-			  XHCI_TRB_3_TYPE_SET(temp->trb_type) |
 			  XHCI_TRB_3_TBC_SET(temp->tbc) |
 			  XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
 
+			if (first_trb != 0) {
+				first_trb = 0;
+				dword |= XHCI_TRB_3_TYPE_SET(temp->trb_type);
+				/*
+				 * Remove cycle bit from the first TRB
+				 * if we are stepping them:
+				 */
+				if (temp->step_td != 0)
+					dword &= ~XHCI_TRB_3_CYCLE_BIT;
+			} else {
+				dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
+			}
 			if (temp->trb_type == XHCI_TRB_TYPE_ISOCH) {
 				if (temp->do_isoc_sync != 0) {
 					temp->do_isoc_sync = 0;
@@ -1797,9 +1808,6 @@ restart:
 
 	/* need to force an interrupt if we are stepping the TRBs */
 	if ((temp->direction & UE_DIR_IN) != 0 && temp->multishort == 0) {
-		/* remove cycle bit from first TRB if we are stepping them */
-		if (temp->step_td)
-			td_first->td_trb[0].dwTrb3 &= ~htole32(XHCI_TRB_3_CYCLE_BIT);
 		/* make sure the last LINK event generates an interrupt */
 		td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_BEI_BIT);
 	}
