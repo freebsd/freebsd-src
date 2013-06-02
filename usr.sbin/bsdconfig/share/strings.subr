@@ -71,6 +71,41 @@ f_snprintf()
 	}'\' \)
 }
 
+# f_vsnprintf $var_to_set $size $format $format_args
+#
+# Similar to vsnprintf(3), write at most $size number of bytes into $var_to_set
+# using printf(1) syntax (`$format $format_args'). The value of $var_to_set is
+# NULL unless at-least one byte is stored from the output.
+#
+# Example 1:
+#
+# 	limit=7 format="%s"
+# 	format_args="'abc   123'" # 3-spaces between abc and 123
+# 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[abc   1]
+#
+# Example 2:
+#
+# 	limit=12 format="%s %s"
+# 	format_args="   'doghouse'      'foxhound'   "
+# 		# even more spaces added to illustrate escape-method
+# 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[doghouse fox]
+#
+# Example 3:
+#
+# 	limit=13 format="%s %s"
+# 	f_shell_escape arg1 'aaa"aaa' # arg1=[aaa"aaa] (no change)
+# 	f_shell_escape arg2 "aaa'aaa" # arg2=[aaa'\''aaa] (escaped s-quote)
+# 	format_args="'$arg1' '$arg2'" # use single-quotes to surround args
+# 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[aaa"aaa aaa'a]
+#
+# In all of the above examples, the call to f_vsnprintf() does not change. Only
+# the contents of $limit, $format, and $format_args changes in each example.
+#
+f_vsnprintf()
+{
+	eval f_snprintf \"\$1\" \"\$2\" \"\$3\" $4
+}
+
 # f_longest_line_length
 #
 # Simple wrapper to an awk(1) script to print the length of the longest line of
