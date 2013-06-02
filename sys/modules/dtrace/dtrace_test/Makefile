@@ -5,8 +5,9 @@
 KMOD=		dtrace_test
 SRCS=		dtrace_test.c
 
+SRCS+=		opt_kdtrace.h
 SRCS+=		vnode_if.h
-		
+
 CFLAGS+=	-I${.CURDIR}/../../..
 
 CFLAGS+=	-D_KERNEL
