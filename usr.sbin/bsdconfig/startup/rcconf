@@ -158,7 +158,9 @@ dialog_menu_main()
 		}'
 	)"
 
-	set -f # noglob
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
 
 	local height width rows
 	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
