@@ -69,7 +69,7 @@ f_media_options_menu()
 
 	local cp
 	while :; do
-		menu_list=""
+		menu_list=
 
 		f_getvar $VAR_NFS_SECURE cp
 		if [ "$cp" = "YES" ]; then menu_list="$menu_list

@@ -71,7 +71,7 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-defaultitem=""
+defaultitem=
 while :; do
 	f_dialog_menu_netdev "$defaultitem" || break
 	f_dialog_menutag_fetch interface
