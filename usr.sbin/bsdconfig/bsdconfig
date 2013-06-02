@@ -29,6 +29,21 @@
 #
 ############################################################ INCLUDES
 
+# When common.subr is included, it automatically scans "$@" for `-d' and/or
+# `-D file' arguments to conditionally enable debugging. Similarly, when
+# dialog.subr is included, it automatically scans "$@" for `-X' and/or `-S'.
+# To prevent this scanning from becoming confused by extra options, define
+# any/all extra arguments to use in the optstring to getopts when scanning
+# for dedicated options such as those described.
+#
+# NOTE: This needs to be declared before including `common.subr'.
+# NOTE: You really only need to list flags that require an argument as unknown
+#       flags are silently accepted unless they take an argument (in which case
+#       the following argument will terminate option processing unless it looks
+#       like a flag).
+#
+GETOPTS_EXTRA="f:"
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
