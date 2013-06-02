@@ -50,6 +50,7 @@ dialog_menu_main()
 {
 	local menu_list
 	local hline="$hline_arrows_tab_enter"
+	local defaultitem= # Calculated below
 
 	menu_list="
 		'X' '$msg_exit'
@@ -67,23 +68,26 @@ dialog_menu_main()
 	                        \"\$hline\"            \
 	                        $menu_list
 
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
 	local menu_choice
 	menu_choice=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"          \
-		--backtitle \"\$DIALOG_BACKTITLE\"  \
-		--hline \"\$hline\"                 \
-		--ok-label \"\$msg_ok\"             \
-		--cancel-label \"\$msg_cancel\"     \
-		--default-item \"\$DEFAULTITEM_$$\" \
-		--menu \"\"                         \
-		$height $width $rows                \
-		$menu_list                          \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\"                        \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
 	f_dialog_data_sanitize menu_choice
 	f_dialog_menutag_store "$menu_choice"
-	setvar DEFAULTITEM_$$ "$menu_choice"
+	f_dialog_default_store "$menu_choice"
 	return $retval
 }
 
