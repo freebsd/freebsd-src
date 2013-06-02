@@ -391,21 +391,22 @@ while :; do
 	                        \"\$hline\"            \
 	                        $menu_items
 
+	f_dialog_default_fetch defaultitem
 	mtag=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"          \
-		--backtitle \"\$DIALOG_BACKTITLE\"  \
-		--hline \"\$hline\"                 \
-		--ok-label \"\$msg_ok\"             \
-		--cancel-label \"\$msg_cancel\"     \
-		--default-item \"\$DEFAULTITEM_$$\" \
-		--menu \"\$menu_text\"              \
-		$height $width $rows                \
-		$menu_items                         \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$menu_text\"             \
+		$height $width $rows               \
+		$menu_items                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	retval=$?
 	f_dialog_data_sanitize mtag
-	setvar DEFAULTITEM_$$ "$mtag"
+	f_dialog_default_store "$mtag"
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
