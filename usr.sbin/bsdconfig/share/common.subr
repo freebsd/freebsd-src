@@ -77,6 +77,33 @@ export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 #
 GETOPTS_STDARGS="dD:"
 
+#
+# The getopts builtin will return 1 either when the end of "$@" or the first
+# invalid flag is reached. This makes it impossible to determine if you've
+# processed all the arguments or simply have hit an invalid flag. In the cases
+# where we want to tolerate invalid flags (f_debug_init() for example), the
+# following variable can be appended to your optstring argument to getopts,
+# preventing it from prematurely returning 1 before the end of the arguments.
+#
+# NOTE: This assumes that all unknown flags are argument-less.
+#
+GETOPTS_ALLFLAGS="abcdefghijklmnopqrstuvwxyz"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}0123456789"
+
+#
+# When we get included, f_debug_init() will fire (unless $DEBUG_SELF_INITIALIZE
+# is set to disable automatic initialization) and process "$@" for a few global
+# options such as `-d' and/or `-D file'. However, if your program takes custom
+# flags that take arguments, this automatic processing may fail unexpectedly.
+#
+# The solution to this problem is to pre-define (before including this file)
+# the following variable (which defaults to NULL) to indicate that there are
+# extra flags that should be considered when performing automatic processing of
+# globally persistent flags.
+#
+: ${GETOPTS_EXTRA:=}
+
 ############################################################ FUNCTIONS
 
 # f_dprintf $fmt [ $opts ... ]
@@ -114,11 +141,11 @@ f_debug_init()
 	local OPTIND
 	f_dprintf "f_debug_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
 	          "$ARGV" "$GETOPTS_STDARGS"
-	while getopts "$GETOPTS_STDARGS" flag > /dev/null; do
+	while getopts "$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" flag \
+	> /dev/null; do
 		case "$flag" in
 		d) debug=1;;
 		D) debugFile="$OPTARG";;
-		\?) continue;;
 		esac
 	done
 	shift $(( $OPTIND - 1 ))
