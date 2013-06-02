@@ -1700,14 +1700,17 @@ restart:
 
 			dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
 			  XHCI_TRB_3_TYPE_SET(temp->trb_type) |
-			  (temp->do_isoc_sync ?
-			   XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8) :
-			   XHCI_TRB_3_ISO_SIA_BIT) |
 			  XHCI_TRB_3_TBC_SET(temp->tbc) |
 			  XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
 
-			temp->do_isoc_sync = 0;
-
+			if (temp->trb_type == XHCI_TRB_TYPE_ISOCH) {
+				if (temp->do_isoc_sync != 0) {
+					temp->do_isoc_sync = 0;
+					dword |= XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8);
+				} else {
+					dword |= XHCI_TRB_3_ISO_SIA_BIT;
+				}
+			}
 			if (temp->direction == UE_DIR_IN) {
 				dword |= XHCI_TRB_3_DIR_IN;
 
