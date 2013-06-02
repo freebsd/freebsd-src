@@ -70,13 +70,14 @@ f_index_initialize()
 
 	f_show_info "$msg_attempting_to_fetch_file_from_selected_media" \
 	            "$__path"
-	eval "$__var_to_set"='$( f_device_get media "$__path" | sort )'
+	eval "$__var_to_set"='$( f_device_get media "$__path" )'
 	if [ $? -ne $SUCCESS ]; then
 		f_show_msg "$msg_unable_to_get_file_from_selected_media" \
 		           "$__path"
 		f_device_shutdown media
 		return $FAILURE
 	fi
+	eval "$__var_to_set"='$( debug= f_getvar "$__var_to_set" | sort )'
 
 	f_show_info "$msg_located_index_now_reading_package_data_from_it"
 	if ! f_index_read "$__var_to_set"; then
