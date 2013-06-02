@@ -1394,12 +1394,6 @@
 	  supports <option>-R</option> flag to restart all third party
 	  services in <filename>/usr/local/etc/rc.d</filename>.</para>
       </sect3>
-
-      <sect3 id="periodic-scripts">
-        <title><filename>/etc/periodic</filename> Scripts</title>
-
-	<para></para>
-      </sect3>
     </sect2>
 
     <sect2 id="contrib">
@@ -1463,7 +1457,10 @@
     <sect2 id="releng">
       <title>Release Engineering and Integration</title>
 
-      <para></para>
+      <para>The supported version of the
+	<application>KDE</application> desktop environment (<filename
+	  role="ports">x11/kde4</filename>) has been updated from 4.7.4
+	to 4.10.1.</para>
     </sect2>
   </sect1>
 
