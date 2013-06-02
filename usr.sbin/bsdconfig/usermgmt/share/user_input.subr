@@ -441,14 +441,14 @@ f_dialog_input_class()
 	return $SUCCESS
 }
 
-# f_dialog_input_change [$seconds]
+# f_dialog_input_expire_password [$seconds]
 #
 # Allow the user to enter a date/time (in number-of-seconds since the `epoch')
 # for when a given user's password must be changed. If the user does not cancel
 # or press ESC, the $pw_password_expire variable will hold the newly-
 # configured value upon return.
 #
-f_dialog_input_change()
+f_dialog_input_expire_password()
 {
 	local prompt="$msg_password_expires_on"
 	local menu_list="
@@ -622,14 +622,14 @@ f_dialog_input_change()
 	return $SUCCESS
 }
 
-# f_dialog_input_expire [$seconds]
+# f_dialog_input_expire_account [$seconds]
 #
 # Allow the user to enter a date/time (in number-of-seconds since the `epoch')
 # for when a given user's account should become expired. If the user does not
 # cancel or press ESC, the $pw_account_expire variable will hold the newly-
 # configured value upon return.
 #
-f_dialog_input_expire()
+f_dialog_input_expire_account()
 {
 	local prompt="$msg_account_expires_on"
 	local menu_list="
