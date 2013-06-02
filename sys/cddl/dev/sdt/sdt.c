@@ -134,7 +134,7 @@ sdt_probe_callback(struct sdt_probe *probe, void *arg __unused)
 		return (0);
 
 	(void) dtrace_probe_create(prov->id, probe->mod, probe->func,
-	    probe->name, 0, probe);
+	    probe->name, 1, probe);
 
 	return (0);
 }
