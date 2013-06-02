@@ -502,6 +502,7 @@ f_media_set_ftp_userpass()
 f_device_network_up()
 {
 	local dev="$1" netDev
+	f_struct device_$dev || return $FAILURE
 	device_$dev get private netDev || return $SUCCESS # No net == happy net
 	f_device_init $netDev
 }
@@ -513,6 +514,7 @@ f_device_network_up()
 f_device_network_down()
 {
 	local dev="$1" netDev
+	f_struct device_$dev || return $FAILURE
 	device_$dev get private netDev || return $SUCCESS
 	f_device_shutdown $netDev
 }
