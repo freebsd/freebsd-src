@@ -3973,7 +3973,7 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (stcb == NULL) {
 		/* Got to have a TCB */
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-			if (LIST_FIRST(&inp->sctp_asoc_list) == NULL) {
+			if (LIST_EMPTY(&inp->sctp_asoc_list)) {
 				sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 				    SCTP_CALLED_DIRECTLY_NOCMPSET);
 			}
@@ -4028,7 +4028,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
 	SCTP_STAT_INCR_COUNTER32(sctps_outoftheblue);
 	/* Generate a TO address for future reference */
 	if (inp && (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
-		if (LIST_FIRST(&inp->sctp_asoc_list) == NULL) {
+		if (LIST_EMPTY(&inp->sctp_asoc_list)) {
 			sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 			    SCTP_CALLED_DIRECTLY_NOCMPSET);
 		}
