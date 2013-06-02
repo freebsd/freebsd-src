@@ -103,9 +103,8 @@ f_media_set_nfs()
 		f_dprintf "%s: $msg_net_device_init_failed\n" f_media_set_nfs
 
 	local hostname="${nfs%%:*}"
-	if f_quietly f_getvar $VAR_NAMESERVER && ! {
-		f_validate_ipaddr "$hostname" ||
-		f_validate_ipaddr6 "$hostname"
+	if f_isset $VAR_NAMESERVER && ! {
+		f_validate_ipaddr "$hostname" || f_validate_ipaddr6 "$hostname"
 	}; then
 		f_show_info "$msg_looking_up_host" "$hostname"
 		f_dprintf "%s Looking up hostname, %s, using host(1)" \
