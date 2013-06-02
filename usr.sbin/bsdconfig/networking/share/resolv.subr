@@ -311,9 +311,8 @@ f_dialog_input_nameserver()
 	# Loop until the user provides taint-free input.
 	#
 	while :; do
-		new_ns=$( f_dialog_input "$msg" "$ns" \
-		                         "$hline_num_punc_tab_enter"
-		        ) || return
+		f_dialog_input new_ns "$msg" "$ns" \
+		               "$hline_num_punc_tab_enter" || return
 
 		# Take only the first "word" of the user's input
 		new_ns="${new_ns%%[$IFS]*}"

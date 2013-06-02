@@ -183,9 +183,9 @@ while :; do
 		break ;;
 	"$msg_timeout") # Set the screen saver timeout interval
 		f_dialog_title "$msg_value_required"
-		blanktime=$( f_dialog_input "$msg_enter_timeout_period" \
-		                            "$( f_sysrc_get blanktime )"
-		           ) && f_sysrc_set blanktime "$blanktime"
+		f_dialog_input blanktime "$msg_enter_timeout_period" \
+		               "$( f_sysrc_get blanktime )" &&
+			f_sysrc_set blanktime "$blanktime"
 		f_dialog_title_restore
 		;;
 	esac

@@ -125,9 +125,8 @@ f_dialog_input_group_name()
 	while :; do
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		_input=$( f_dialog_input "$msg_group" "$_input" \
-		                         "$hline_alnum_tab_enter"
-		        ) || return
+		f_dialog_input _input "$msg_group" "$_input" \
+		               "$hline_alnum_tab_enter" || return
 
 		# Check for no-change
 		[ "$_input" = "$_name" ] && return $SUCCESS
@@ -198,8 +197,7 @@ f_dialog_input_group_password()
 	#
 	local retval _password1 _password2
 	while :; do
-		local dialog_inputbox
-		dialog_inputbox=$( $DIALOG \
+		_password1=$( $DIALOG \
 			--title "$DIALOG_TITLE"         \
 			--backtitle "$DIALOG_BACKTITLE" \
 			--hline "$hline"                \
@@ -210,15 +208,13 @@ f_dialog_input_group_password()
 			$height1 $width1                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-
 		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_password1=$( f_dialog_inputstr )
+		debug= f_dialog_line_sanitize _password1
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
 
-		dialog_inputbox=$( $DIALOG \
+		_password2=$( $DIALOG \
 			--title "$DIALOG_TITLE"         \
 			--backtitle "$DIALOG_BACKTITLE" \
 			--hline "$hline"                \
@@ -229,10 +225,8 @@ f_dialog_input_group_password()
 			$height2 $width2                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-
 		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_password2=$( f_dialog_inputstr )
+		debug= f_dialog_line_sanitize _password2
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
@@ -275,9 +269,8 @@ f_dialog_input_group_gid()
 	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	_input=$( f_dialog_input "$msg_group_id_leave_empty_for_default" \
-	                         "$_input" "$hline_num_tab_enter"
-	        ) || return
+	f_dialog_input _input "$msg_group_id_leave_empty_for_default" \
+	               "$_input" "$hline_num_tab_enter" || return
 
 	group_gid="$_input"
 	save_flag=1
@@ -392,11 +385,10 @@ f_dialog_input_group_members()
 		2) # Enter Group Members manually
 			msg="$msg_group_members ($msg_separated_by_commas)"
 
-			# Return to previous menu if user has either
-			#     pressed ESC or chosen Cancel/No
-			_group_members=$( f_dialog_input "$msg" "$_input" \
-			                                 "$hline_num_tab_enter"
-			                ) || continue
+			f_dialog_input _group_members "$msg" "$_input" \
+			               "$hline_num_tab_enter" || continue
+				# Return to previous menu if user either
+				# pressed ESC or chose Cancel/No
 
 			_input="$_group_members"
 			;;

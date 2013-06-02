@@ -177,8 +177,7 @@ f_become_root_via_sudo()
 				[ $retval -eq 255 ] &&
 					f_die $retval "$password"
 			else
-				local dialog_inputbox
-				dialog_inputbox=$( $DIALOG \
+				password=$( $DIALOG \
 					--title "$DIALOG_TITLE"         \
 					--backtitle "$DIALOG_BACKTITLE" \
 					--hline "$hline"                \
@@ -188,14 +187,9 @@ f_become_root_via_sudo()
 					--passwordbox "$msg"            \
 					$height $width                  \
 					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-				)
-				retval=$?
-				setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-				password=$( f_dialog_inputstr )
+				) || exit $?
 			fi
-
-			# Exit if the user cancelled.
-			[ $retval -eq $SUCCESS ] || exit $retval
+			debug= f_dialog_line_sanitize password
 
 			#
 			# Validate sudo(8) credentials

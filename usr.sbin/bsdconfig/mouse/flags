@@ -79,9 +79,8 @@ flags=$( f_sysrc_get moused_flags )
 # Prompt the user with the current value
 #
 f_dialog_title "$msg_value_required"
-flags=$( f_dialog_input "$msg_please_specify_the_mouse_daemon_flags" \
-                        "$flags"
-       ) || f_die
+f_dialog_input flags "$msg_please_specify_the_mouse_daemon_flags" \
+               "$flags" || f_die
 f_dialog_title_restore
 
 #

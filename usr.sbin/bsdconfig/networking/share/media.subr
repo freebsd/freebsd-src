@@ -122,8 +122,8 @@ f_dialog_input_options()
 	local msg="$( printf "$msg_please_enter_mediaopts" "$interface" )"
 	local hline="$hline_alnum_punc_tab_enter"
 
-	local dialog_inputbox
-	dialog_inputbox=$( $DIALOG \
+	local _options
+	_options=$( $DIALOG \
 		--title "$DIALOG_TITLE"         \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--hline "$hline"                \
@@ -133,10 +133,8 @@ f_dialog_input_options()
 		"$options"                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	local retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	local _options="$( f_dialog_inputstr )"
+	f_dialog_line_sanitize _options
 
 	[ $retval -eq $SUCCESS ] && options="$_options"
 
