@@ -1545,6 +1545,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 {
 	struct usb_page_search buf_res;
 	struct xhci_td *td;
+	struct xhci_td *td_first;
 	struct xhci_td *td_next;
 	struct xhci_td *td_alt_next;
 	uint32_t buf_offset;
@@ -1564,7 +1565,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 restart:
 
 	td = temp->td;
-	td_next = temp->td_next;
+	td_next = td_first = temp->td_next;
 
 	while (1) {
 
@@ -1698,7 +1699,9 @@ restart:
 
 			td->td_trb[x].dwTrb2 = htole32(dword);
 
+			/* BEI: Interrupts are inhibited until EOT */
 			dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+			  XHCI_TRB_3_BEI_BIT |
 			  XHCI_TRB_3_TYPE_SET(temp->trb_type) |
 			  XHCI_TRB_3_TBC_SET(temp->tbc) |
 			  XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
@@ -1761,8 +1764,10 @@ restart:
 
 		td->td_trb[x].dwTrb2 = htole32(dword);
 
+		/* BEI: interrupts are inhibited until EOT */
 		dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) |
-		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT;
+		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT |
+		    XHCI_TRB_3_BEI_BIT;
 
 		td->td_trb[x].dwTrb3 = htole32(dword);
 
@@ -1790,9 +1795,14 @@ restart:
 		goto restart;
 	}
 
-	/* remove cycle bit from first if we are stepping the TRBs */
-	if (temp->step_td)
-		td->td_trb[0].dwTrb3 &= ~htole32(XHCI_TRB_3_CYCLE_BIT);
+	/* need to force an interrupt if we are stepping the TRBs */
+	if ((temp->direction & UE_DIR_IN) != 0 && temp->multishort == 0) {
+		/* remove cycle bit from first TRB if we are stepping them */
+		if (temp->step_td)
+			td_first->td_trb[0].dwTrb3 &= ~htole32(XHCI_TRB_3_CYCLE_BIT);
+		/* make sure the last LINK event generates an interrupt */
+		td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_BEI_BIT);
+	}
 
 	/* remove chain bit because this is the last TRB in the chain */
 	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(15));
@@ -2655,6 +2665,7 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 {
 	struct xhci_td *td_first;
 	struct xhci_td *td_last;
+	struct xhci_trb *trb_link;
 	struct xhci_endpoint_ext *pepext;
 	uint64_t addr;
 	usb_stream_t id;
@@ -2730,11 +2741,15 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 	/* compute terminating return address */
 	addr += (inext * sizeof(struct xhci_trb));
 
+	/* compute link TRB pointer */
+	trb_link = td_last->td_trb + td_last->ntrb;
+
 	/* update next pointer of last link TRB */
-	td_last->td_trb[td_last->ntrb].qwTrb0 = htole64(addr);
-	td_last->td_trb[td_last->ntrb].dwTrb2 = htole32(XHCI_TRB_2_IRQ_SET(0));
-	td_last->td_trb[td_last->ntrb].dwTrb3 = htole32(XHCI_TRB_3_IOC_BIT |
-	    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK));
+	trb_link->qwTrb0 = htole64(addr);
+	trb_link->dwTrb2 = htole32(XHCI_TRB_2_IRQ_SET(0));
+	trb_link->dwTrb3 = htole32(XHCI_TRB_3_IOC_BIT |
+	    XHCI_TRB_3_CYCLE_BIT |
+	    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK));
 
 #ifdef USB_DEBUG
 	xhci_dump_trb(&td_last->td_trb[td_last->ntrb]);
