@@ -253,6 +253,24 @@
       <para revision="232757">A bug which could cause a kernel thread
 	to have a wrong CPU affinity configuration has been fixed.</para>
 
+      <para revision="245847">&man.loader.8; environment variables
+	<varname>comconsole_port</varname> and
+	<varname>comconsole_pcidev</varname> have been added.  The
+	former allows to set the base address of the serial console
+	I/O port. The later takes the string of the format
+	<literal><replaceable>bus</replaceable>:<replaceable>device</replaceable>:<replaceable>function</replaceable>:<replaceable>[bar]</replaceable></literal>
+	as a value and uses the serial port attached as PCI device at
+	the specified location for console.  Both variants pass
+	<varname>hw.uart.console</varname> variable to the
+	&man.uart.4; driver to properly hand-over the kernel
+	console.</para>
+
+      <para revision="246626">A new &man.loader.8; tunable
+	<varname>hw.broken_txfifo</varname> has been added to enable
+	workaround for old version of <application>QEMU</application>
+	and <application>Xen</application> which have a buggy emulated
+	UART.</para>
+
       <para revision="239860,239861">The
 	<literal>F_DUPFD_CLOEXEC</literal> command for &man.fcntl.2;
 	has been implemented.  This is standardized in IEEE Std
@@ -277,6 +295,17 @@
 	set them enabled.  These changes allow
 	<filename>GENERIC</filename> kernel to support break-to-debugger
 	capability.</para>
+
+      <para revision="241246">The &os; &man.sched.ule.4; scheduler has
+	been improved in CPU selection on systems which support SMT
+	(Symmetric MultiThreading, also known as HyperThreading on
+	Intel CPUs).  It now prefers a logical CPU when the the other
+	logical CPUs on the physical one are idle, and an idle CPU in
+	an SMT CPU group always has lower priority.  The CPU load
+	calculation for load balancing has also been improved to
+	consider highest and lowest CPU load in comparison to
+	differentiate load in CPU groups.  This change gives 10-15%
+	performance improvement in SMT CPUs such as Core i7.</para>
 
       <para revision="236684">The &man.shm.map.9; and
 	&man.shm.unmap.9; functions have been added to allow in-kernel
@@ -389,6 +418,10 @@
 	  found on machines which have Japanese PS/2 keyboard with
 	  106/109 keys.</para>
 
+	<para revision="244982" arch="amd64,i386,pc98">The
+	  &man.atkbdc.4; driver now supports Synaptics touchpad v7.5
+	  and above.</para>
+
 	<para revision="233369">A bug in &man.cpufreq.4; which could
 	  prevent CPU frequency tuning from working properly has been
 	  fixed.</para>
@@ -406,10 +439,12 @@
 	  bus briges.  This change improves handling of MSIs on AMD
 	  CPUs.</para>
 
-	<para revision="236651,238775">The &man.puc.4; driver now
-	  supports Sun 1040 PCI Quad Serial and Moxa PCIe
+	<para revision="236651,238775,243009,248041">The &man.puc.4;
+	  driver now supports Sun 1040 PCI Quad Serial, Moxa PCIe
 	  CP102E/CP102EL/CP104EL-A/CP104JU/CP114EL/CP118EL-A/CP168EL-A
-	  multiport serial boards.</para>
+	  multiport serial boards, Advantech PCI-1602 RS-485/RS-422
+	  serial card, and Sunix SER5437A dual serial PCI Express
+	  card.</para>
 
 	<para revision="240991" arch="amd64,i386">The &man.random.4;
 	  driver now supports VIA C3 Nehemiah random number generator
@@ -427,10 +462,20 @@
 	  Danish ISO-8859-1 keyboard found on Apple MacBook has been
 	  added.</para>
 
+	<para revision="246787">A bug in the &man.syscons.4; driver
+	  has been fixed.  It could cause a button of a USB mouse to
+	  be pressed and never released after detaching.</para>
+
 	<para revision="233065" arch="amd64,i386">The &man.uart.4;
 	  driver now supports Intel AMT Serial Port for Remote
 	  Keyboard and Text (KT) Redirection (Serial Over LAN) on
 	  Intel 4 Series Chipset family.</para>
+
+	<para revision="242883,243357,244140">The &man.uart.4; driver
+	  now supports Wacom Tablet at FuS Lifebook T, multiport
+	  serial device IrDA devices with PnP ID PNP0502, PNP0510, and
+	  PNP0511, V.34 modems based on CIR1000 Cirrus Logic chip, and
+	  MosChip MCS9904 four serial ports controller.</para>
 
 	<para revision="237189,237381">The &man.uftdi.4; driver now
 	  supports BeagleBone and FT2232-based egnite Turtelizer 2
@@ -460,10 +505,10 @@
 	  supports Silicon Laboratories CP2103/CP2104/CP2105 based USB
 	  serial adapter.</para>
 
-	<para revision="239473" arch="amd64,i386">The paravirtualized
-	  <filename>virtio</filename> drivers have been added as
-	  kernel modules.  They include PCI fontend,
-	  <literal>net</literal>, <literal>block</literal>,
+	<para revision="239473,247907,247909" arch="amd64,i386">The
+	  paravirtualized &man.virtio.4; drivers have been added to
+	  <filename>GENERIC</filename> kernel.  They include PCI
+	  fontend, <literal>net</literal>, <literal>block</literal>,
 	  <literal>balloon</literal>, and <literal>scsi</literal>
 	  drivers.  The module files are
 	  <filename>virtio.ko</filename>,
@@ -476,6 +521,17 @@
 	<para revision="235947">The &man.wbwd.4; driver, which
 	  supports the watchdog timer found in Winbond Super I/O
 	  chips, has been added.</para>
+
+	<para revision="242985">The &man.xhci.4; USB driver now
+	  supports XHCI port routing on Intel 7 Series chipsets
+	  (Panther Point) and Intel 8 Series chipsets (Lynx Point).  A
+	  new &man.loader.8; tunable
+	  <varname>hw.usb.xhci.xhci_port_route</varname> has been
+	  added for routing bitmap for switching EHCI ports to XHCI
+	  controller.</para>
+
+	<para revision="245736">The &man.xhci.4; USB driver now
+	  supports Etron EJ168 USB 3.0 Host Controllers.</para>
 
 	<sect4 id="mm">
 	  <title>Multimedia Support</title>
@@ -492,10 +548,25 @@
 	    controller, multichannel recording, additional
 	    playback/record streams, higher bandwidth, and more
 	    informative device names.</para>
+
+	  <para revision="242983">The &man.snd.uaudio.4; driver now
+	    supports USB Audio v2.0.</para>
+
+	  <para revision="247121">The &man.snd.uaudio.4; driver now
+	    supports Intel 8 Series chipsets (Lynx Point).</para>
+
+	  <para revision="244248">The &man.snd.uaudio.4; driver now
+	    supports various Yamaha keyboards.</para>
+
+	  <para revision="246788">The &man.snd.uaudio.4; driver now
+	    supports buttons such as volume up/down.</para>
 	</sect4>
 
 	<sect4 id="net-if">
 	  <title>Network Interface Support</title>
+
+	  <para revision="246725">The &man.age.4; network interface
+	    driver now supports jumbo frames.</para>
 
 	  <para revision="234127">Link state change handling in the
 	    &man.ale.4; network driver has been improved.</para>
@@ -524,6 +595,10 @@
 	    controller connected behind AMD 8131 PCI-X bridge has been
 	    fixed.</para>
 
+	  <para revision="243547,245152">The &man.bge.4; driver now
+	    supports
+	    BCM5717/5718/5719/5720/5761/57766. controllers.</para>
+
 	  <para revision="233499">A bug in
 	    <varname>if_ierrors</varname> counter in the &man.bge.4;
 	    driver running on BCM5700, 5701, 5702, 5703, or 5704
@@ -537,9 +612,17 @@
 	    &man.gem.4;, and &man.hme.4; drivers have been added to
 	    <filename>GENERIC</filename> kernel.</para>
 
+	  <para revision="247670">The &man.cxgbe.4; network interface
+	    driver has been updated to firmware version 1.8.4.</para>
+
 	  <para revision="241376">A bug in statistics counters in the
 	    &man.em.4;, lem(4), and &man.igb.4; drivers has been
 	    fixed.</para>
+
+	  <para revision="247430">The &man.em.4; and lem(4) network
+	    interface drivers have been updated to version 7.3.7 and
+	    2.3.9, respectively.  It now supports Intel 82580 and
+	    I210/I217/I218 interfaces.</para>
 
 	  <para revision="233502">The &man.fxp.4; network driver has
 	    been improved.  It does not cause unnecessary media change
@@ -561,13 +644,19 @@
 	    chipsets, and Intel Centrino Wireless-N 100/130
 	    devices.</para>
 
-	  <para revision="236416">The &man.mxge.4; driver has been
-	    updated to firmware version 1.4.55 from Myricom.</para>
+	  <para revision="247501">The &man.ixgbe.4; network interface
+	    driver has been updated to version 1.1.4.</para>
 
 	  <para revision="235666">A bug in &man.ixgbe.4; network
 	    driver has been fixed.  It could cause a packet loss in
 	    TCP communication when TSO (TCP Segmentation Offload) is
 	    enabled.</para>
+
+	  <para revision="236416">The &man.mxge.4; driver has been
+	    updated to firmware version 1.4.55 from Myricom.</para>
+
+	  <para revision="248062">The &man.oce.4; network interface
+	    driver has been updated to version 4.6.95.0.</para>
 
 	  <para revision="236008">The &man.ral.4; network driver now
 	    supports Ralink RT2800 and RT3000 chipsets.</para>
@@ -579,6 +668,9 @@
 	  <para revision="233493">A bug in the &man.re.4; network
 	    driver which could cause intermittent link up/down on
 	    RTL8169 controller has been fixed.</para>
+
+	  <para revision="245858">The &man.rl.4; network interface
+	    driver now supports D-Link DFE-520TX rev C1.</para>
 
 	  <para revision="233490">WoL (Wake-on-LAN) support
 	    in the &man.rl.4; driver is now disabled by
@@ -602,17 +694,24 @@
 	  <para revision="237145">The &man.tap.4; pseudo network
 	    interface driver now supports VIMAGE &man.jail.8;.</para>
 
-	  <para revision="232875,235012">The &man.u3g.4; driver now
-	    supports Qualcomm Vertex Wireless 110L modem, Qualcomm 3G
-	    modem, Qualcomm Vertex VW110L modem, and SIMCom
-	    SIM5218.</para>
+	  <para revision="232875,235012,243655">The &man.u3g.4; driver
+	    now supports Qualcomm Vertex Wireless 110L modem, Qualcomm
+	    3G modem, Qualcomm Vertex VW110L modem, SIMCom SIM5218,
+	    and Huawei K4505, K3770, E3131, E392, E3131, K3765, K4505,
+	    and ETS2055 3G modems.</para>
+
+	  <para revision="242984">The &man.udav.4; network interface
+	    driver now supports JP1082 USB-LAN adapter.</para>
 	</sect4>
       </sect3>
 
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
-	<para revision="r236056">The &man.if.bridge.4; pseudo network
+	<para revision="247732">The &man.bpf.4; Berkeley Packet Filter
+	  has been improved in the locking performance.</para>
+
+	<para revision="236056">The &man.if.bridge.4; pseudo network
 	  interface driver now supports multiple bridges in the same
 	  STP domain.  It used the same MAC address as the bridge ID
 	  for all bridges on the system.</para>
@@ -641,6 +740,12 @@
 	  <varname>net.inet.ip.fw.tables_max</varname> has been added
 	  to specify the maximum number of tables.  The default value
 	  is <literal>128</literal>.</para>
+
+	<para revision="247944"><literal>IP_RECVTOS</literal> socket
+	  option to receive for received UDP/IPv4 packets a cmsg of type
+	  IP_RECVTOS which contains the TOS byte has been implemented.
+	  This allows to implement a protocol on top of UDP and
+	  implementing ECN.</para>
 
 	<para revision="233112">A bug in &os; IPv6 stack has been
 	  fixed.  It could cause a &man.vlan.4; pseudo network
@@ -720,6 +825,12 @@
 	  cache has been fixed.  It could cause extra ICMP message
 	  exchanges when an ICMP unreach is received but allocation of
 	  the corresponding TCP host cache is failed.</para>
+
+	<para revision="247499">A &man.sysctl.8; variable
+	  <varname>net.inet.tcp.rexmit_drop_options</varname> has been
+	  added to not drop options from the third retransmitted SYN.
+	  The default value is set to <literal>1</literal> for
+	  backward compatibility.</para>
       </sect3>
 
       <sect3 id="disks">
@@ -729,11 +840,15 @@
 	  Marvell 88SE9220/9230/9235 PCIe 2.0 x2 6Gbps SATA
 	  controllers.</para>
 
-	<para revision="240715">The &man.arcmsr.4; driver has been
-	  updated to version 1.20.00.25.</para>
+	<para revision="244923,247827">The &man.arcmsr.4; driver has
+	  been updated to version 1.20.00.26 and now supports
+	  ARC-1214 and ARC-1224.</para>
 
 	<para revision="236319">A bug in the &man.amr.4; driver which
 	  could cause data corruption has been fixed.</para>
+
+	<para revision="247099">The &man.ata.4; driver now supports
+	  Intel 8 Series chipsets (Lynx Point).</para>
 
 	<para revision="234912">The &man.ata.4; driver now creates
 	  symbolic links for backward compatibility when
@@ -748,6 +863,19 @@
 	  controlled by a
 	  <varname>kern.cam.ada.legacy_aliases</varname> (enabled by
 	  default when <option>ATA_CAM</option> is set).</para>
+
+	<para revision="243124">The &man.ata.4; driver now has
+	  &man.loader.8; tunables to set initial SATA revision for the
+	  specific device.  The tunable name is
+	  <varname>hint.ata.<replaceable>busnum</replaceable>.dev<replaceable>devnum</replaceable>.sata_rev</varname>
+	  for a device <replaceable>devnum</replaceable> on a bus
+	  <replaceable>busnum</replaceable>, or
+	  <varname>hint.ata.<replaceable>busnum</replaceable>.sata_rev</varname>
+	  for all devices on a bus <replaceable>busnum</replaceable>.
+	  The valid values are <literal>1</literal>,
+	  <literal>2</literal>, and <literal>3</literal>, which
+	  correspond to 1.5&nbsp;Gbps, 3&nbsp;Gbps, and
+	  6&nbsp;Gbps.</para>
 
 	<para revision="233714">A new &man.sysctl.8;
 	  <varname>kern.features.ata_cam</varname> has been added.
@@ -770,10 +898,20 @@
 	  SBC-3 (SCSI Block Commands-3) Specification is supported on
 	  the device.</para>
 
+	<para revision="247105">The &man.sysctl.8; variables
+	  <varname>kern.cam.da.da_send_ordered</varname> and
+	  <varname>kern.cam.ada.ada_send_ordered</varname> have been
+	  renamed with <varname>kern.cam.da.send_ordered</varname> and
+	  <varname>kern.cam.ada.send_ordered</varname>.</para>
+
 	<para revision="234914">The &man.da.4; driver has been
 	  improved in performance of subsequent
 	  <literal>BIO_DELETE</literal> requests handled as a single
 	  <literal>TRIM</literal> request.</para>
+
+	<para revision="245941" arch="amd64,i386">The &man.hpt27xx.4;
+	  driver has been included in <filename>GENERIC</filename>
+	  kernel.</para>
 
 	<para revision="239159,242216">The &man.hptiop.4; driver has
 	  bee updated to version 1.8 and now supports HighPoint
@@ -804,6 +942,12 @@
 	<para revision="232563">A bug which could make the &man.mpt.4;
 	  driver attach LSI MegaRAID cards which should be handled by
 	  the &man.mfi.4; driver has been fixed.</para>
+
+	<para revision="243826">The &man.mfi.4; driver now supports
+	  &man.loader.8; tunable
+	  <varname>hw.mfi.allow_cam_disk_passthrough</varname> to
+	  control raw disk attachment.  The default value is
+	  <literal>0</literal> (disabled).</para>
 
 	<para revision="237877">The &man.mps.4; driver has been
 	  updated to version 14.00.00.01-fbsd. This now supports
@@ -840,6 +984,14 @@
 	  option in &man.graid.8; utility can be used to specify byte
 	  order for the DDF metadata.</para>
 
+	<para revision="246170">The <literal>RAID</literal>
+	  &man.geom.4; class now partially supports Intel Rapid
+	  Recover Technology (Intel RRT).  It is alike to RAID1, but
+	  with dedicating master and recovery disks and providing
+	  manual control over synchronization.  It allows to use
+	  recovery disk as snapshot of the master disk from the time
+	  of the last sync.</para>
+
 	<para revision="240554,240556">The <literal>RAID</literal>
 	  &man.geom.4; class now supports &man.sysctl.8; variables
 	  <varname>kern.geom.raid.enable</varname> and
@@ -855,6 +1007,10 @@
 	  <literal>raid0</literal>, <literal>raid1</literal>,
 	  <literal>raid1e</literal>, <literal>raid5</literal>, and
 	  <literal>concat</literal>.</para>
+
+	<para revision="243679">The <literal>RAID</literal>
+	  &man.geom.4; class now supports <literal>BIO_DELETE</literal>
+	  requests.</para>
 
 	<para revision="234512">The &man.tmpfs.5; filesystem is not an
 	  experimental implementation anymore.</para>
@@ -874,6 +1030,15 @@
 
       <sect3 id="fs">
 	<title>File Systems</title>
+
+	<para revision="247808">The &man.linprocfs.5; filesystem now
+	  supports <filename>/proc/filesystems</filename>.</para>
+
+	<para revision="246547,246548,246550">Bugs in &man.msdosfs.5;
+	  which could fail a FAT32 filesystem to mount, create a
+	  broken directory entry in a FAT32 filesystem, and prevent
+	  <option>sync</option> and <option>async</option> mount
+	  option from working, have been fixed.</para>
 
 	<para revision="233286">Bugs in &os; NFS subsystem has been
 	  fixed.  They could cause stale name cache entries on an NFS
@@ -907,46 +1072,46 @@
 	<para revision="232665">Several bugs in &man.nullfs.5; which
 	  could cause a system panic have been fixed.</para>
 
+	<para revision="243717,244088,247310">&os; ZFS subsystem has
+	  been updated to support feature flags for ZFS pools (the SPA
+	  version is 5000).  Asynchronous destroy of ZFS dataset, LZ4
+	  compression, ZIO NOP-write optimization have been
+	  implemented as new feature.  &man.loader.8; tunables
+	  <varname>vfs.zfs.sync_pass_deferred_free</varname>,
+	  <varname>vfs.zfs.sync_pass_dont_compress</varname>,
+	  <varname>vfs.zfs.sync_pass_rewrite</varname>, and
+	  <varname>vfs.zfs.nopwrite_enabled</varname> have been
+	  added.</para>
+
+	<para>Note that this upgrade can cause interoperability issue
+	  when upgrading a &os; 8.4 system to 9.0 or 9.1.  This is
+	  because &os; 9.0 and 9.1 support SPA version 28 and do not
+	  recognize version 5000.  To mitigate this issue, the default
+	  SPA version for a newly created ZFS pool on &os; 8.4 is set
+	  to version 28.  To create a ZFS pool with version 5000, use
+	  &man.zpool.8; <command>upgrade</command> command after the
+	  creation.</para>
+
+	<para revision="246578">A bug in ZFS subsystem which could
+	  cause a system panic when importing a ZFS pool has been
+	  fixed.</para>
+
 	<para revision="235507">The &man.sysctl.8; variable
 	  <varname>vfs.zfs.txg.timeout</varname> has been changed from
 	  read-only to writable.</para>
-
-	<para>ZFS is upgraded to support zpool feature flags.  ZFS
-	  pool creation defaults to version 28 allowing upgrades to
-	  &os;&nbsp;9.1-RELEASE, which does not support
-	  zpool feature flags.</para>
-
-	<para>Users who wish to enable these features can upgrade
-	  storage pools created on &os;&nbsp;8.4-RC1 and later by
-	  running <command>zpool upgrade</command>.</para>
-
-	<para>The new features available are:</para>
-
-	<itemizedlist>
-	  <listitem>
-	    <para><literal>async_destroy</literal>: allows a ZFS
-	      dataset to be destroyed asynchronously, reclaiming space
-	      by a background process.</para>
-	  </listitem>
-
-	  <listitem>
-	    <para><literal>empty_bpobj</literal>: improves performance
-	      and reduces disk space needed by snapshots.</para>
-	  </listitem>
-
-	  <listitem>
-	    <para><literal>lz4_compress</literal>: a new high
-	      performance compression algorithm that features better
-	      performance and compression ratio than lzjb.</para>
-	  </listitem>
-	</itemizedlist>
-
-	<para>For more information, see &man.zpool-features.7;.</para>
       </sect3>
     </sect2>
 
     <sect2 id="userland">
       <title>Userland Changes</title>
+
+      <para revision="242991">The load average limit in the
+	&man.atrun.8; utility has been set based on the number of
+	CPUs.</para>
+
+      <para revision="244064">The &man.chkgrp.8; utility now supports
+	<option>-q</option> flag to disable printing of text when the
+	group format is correct.</para>
 
       <para revision="239877">The &man.crontab.1; utility now waits
 	for a second before updating the spool directory's mtime.  It
@@ -957,7 +1122,11 @@
 	<literal>crontab</literal> database is not updated
 	properly.</para>
 
-      <para revision="234979">The default
+      <para revision="244305">The &man.cut.1; utility now supports
+	<option>-w</option> flag to specify whitespace as the
+	delimiter.</para>
+
+      <para revision="234979,242642">The default
 	<filename>dot.cshrc</filename> file for &man.csh.1; and
 	&man.tcsh.1; has been changed.  For more detail, see
 	<filename>/usr/share/skel/dot.cshrc</filename>.</para>
@@ -966,6 +1135,11 @@
 	<option>-r</option> flag to restart the program if it has been
 	terminated.</para>
 
+      <para revision="247768">The &man.devd.8; daemon now supports
+	<literal>!</literal> character in regex matching in
+	&man.devd.conf.5;.  It inverts the logic of the
+	matching.</para>
+
       <para revision="233867">The &man.devfs.5; mount now supports
 	<option>ruleset=number</option> mount option and updating the
 	existing mount by using <option>-u</option> flag in the
@@ -973,6 +1147,10 @@
 	ruleset number as the active ruleset of the new devfs mount
 	and applies all its rules at mount time.  If the specified
 	ruleset doesn't exist, a new empty ruleset is created.</para>
+
+      <para revision="247539">The &man.du.1; utility now supports
+	<option>-g</option> flag to display the results in
+	gigabytes.</para>
 
       <para revision="235254">The &man.fetch.1; utility now supports
 	percent-encoded string in user and password component of a
@@ -986,14 +1164,33 @@
 	supports HTTP status code <literal>305</literal> (Use Proxy)
 	and <literal>308</literal> (Permanent Redirect).</para>
 
+      <para revision="246357">A countermeasure against a possible DoS
+	(Denial of Service) attack described in CVE-2010-2632 in the
+	&man.ftpd.8; daemon has been implemented.</para>
+
       <para revision="235084">A new environment variable
 	<varname>PROFIL_USE_PID</varname> has been added to generate
 	profiling data for the &man.gprof.1; utility with a filename
 	including the process ID.</para>
 
+      <para revision="243466">The &man.ifconfig.8; now supports
+	<varname>state</varname> option for &man.carp.4; protocol to
+	set the state of a carp cluster.  The valid keywords are
+	<literal>master</literal> and
+	<literal>backup</literal>.</para>
+
       <para revision="236875">A bug in the &man.inetd.8; daemon which
 	could cause wrong accounting for elapsed time has been
 	fixed.</para>
+
+      <para revision="246403">The &man.inetd.8; daemon now set the
+	listen queue size to the value of
+	<varname>kern.ipc.somaxconn</varname> instead of hardcoded value
+	<literal>64</literal>.</para>
+
+      <para revision="246599">The default &man.ip6addrctl.8; address
+	selection policy for IPv4 and IPv6 has been updated to one in
+	RFC 6724.</para>
 
       <para revision="237790">The &man.kdump.1; utility now supports a
 	<option>-p <replaceable>pid</replaceable></option> option to
@@ -1088,6 +1285,13 @@
 	<varname>dsiz</varname> and <varname>ssiz</varname> keywords
 	to show data and stack size respectively.</para>
 
+      <para revision="245077">The &man.rarpd.8; daemon now supports
+	&man.vlan.4; interface and <option>-P</option> option to
+	specify the PID file.  When <option>-a</option> flag is
+	specified,
+	<filename>/var/run/rarpd.<replaceable>ifname</replaceable>.pid</filename>
+	is used as the PID filename by default.</para>
+
       <para revision="234534">A bug in the &man.remquo.3; functions
 	where the quotient did not always have the correct sign when
 	the remainder was 0, and another bug that the remainder and
@@ -1122,6 +1326,15 @@
 	IPv6 address as destination address in
 	&man.syslog.conf.5;.</para>
 
+      <para revision="243684">The &man.systat.1; utility now accepts
+	fractional number of seconds.</para>
+
+      <para revision="247563">The &man.tcpdrop.8; utility now accepts
+	the address and ports to be separated by a colon or period
+	rather than a space to permit directly pasting the output of
+	commands such as netstat and sockstat on the command
+	line.</para>
+
       <para revision="239751">The &man.top.1; utility now displays ZFS
 	ARC memory usage on hosts using ZFS.</para>
 
@@ -1149,6 +1362,11 @@
 	command now supports <option>-t
 	<replaceable>datatype</replaceable></option> option.</para>
 
+      <para revision="246750">The &man.zfs.8; <command>jail</command>
+	and <command>unjail</command> commands now support
+	<literal>jailnames</literal> and
+	<literal>jailid</literal>.</para>
+
       <para revision="235952">The &man.zfs.8; <command>send</command>
 	command now reports transmitted data size in bytes when
 	<option>-v</option> flag is specified.</para>
@@ -1171,6 +1389,10 @@
 	<para revision="242083">The <filename>rc.d/jail</filename>
 	  script now supports <varname>jail_parameters</varname>
 	  variable to specify extra parameters for each jail.</para>
+
+	<para revision="246609">The &man.service.8; utility now
+	  supports <option>-R</option> flag to restart all third party
+	  services in <filename>/usr/local/etc/rc.d</filename>.</para>
       </sect3>
 
       <sect3 id="periodic-scripts">
@@ -1183,8 +1405,14 @@
     <sect2 id="contrib">
       <title>Contributed Software</title>
 
-      <para revision="241443"><application>ISC BIND</application> has
-	been updated to 9.6-ESV-R7-P4.</para>
+      <para revision="246374"><application>AWK</application> has been
+	updated to 20121220.</para>
+
+      <para revision="248807"><application>ISC BIND</application> has
+	been updated to version 9.8.4-P2.</para>
+
+      <para revision="247448"><application>BZIP2</application> has
+	been updated to version 1.0.6.</para>
 
       <para revision="232635"><application>TENEX C shell</application>
 	(&man.tcsh.1;) has been updated to version 6.18.01.</para>
@@ -1192,15 +1420,27 @@
       <para revision="240160"><application>LESS</application>
 	(&man.less.1;) has been updated to version v451.</para>
 
-      <para revision="237614"><application>netcat</application> has
-	been updated to a version as of OpenBSD 5.1.</para>
+      <para revision="247514"><application>libexpat</application> has
+	been updated to version 2.1.0.</para>
 
-      <para revision="237999"><application>OpenSSL</application> has
-	been updated to version 0.9.8x.</para>
+      <para revision="243819"><application>netcat</application> has
+	been updated to a version as of OpenBSD 5.2.</para>
 
-      <para revision="233448">The <application>timezone</application>
+      <para revision="247521"><application>OpenSSH</application> has
+	been updated to version 6.1.</para>
+
+      <para revision="248057"><application>OpenSSL</application> has
+	been updated to version 0.9.8y.</para>
+
+      <para revision="250167"><application>sendmail</application> has
+	been updated to version 8.14.7.</para>
+
+      <para revision="243006">The <application>timezone</application>
 	database has been updated to
-	<application>tzdata2012a</application> release.</para>
+	<application>tzdata2012j</application> release.</para>
+
+      <para revision="245129"><application>XZ</application> has been
+	updated to version 5.0.4.</para>
     </sect2>
 
     <sect2 id="ports">

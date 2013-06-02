@@ -7,6 +7,7 @@
 
 <!ENTITY man.pcf8563.4 "<citerefentry><refentrytitle>pcf8563</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
 <!ENTITY man.uchcom.4 "<citerefentry><refentrytitle>uchcom</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.virtio.4 "<citerefentry><refentrytitle>virtio</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
 
 <!ENTITY man.boot.config.5 "<citerefentry><refentrytitle>boot.config</refentrytitle><manvolnum>5</manvolnum></citerefentry>">
 
