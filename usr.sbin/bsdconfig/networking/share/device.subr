@@ -142,8 +142,7 @@ f_dialog_menu_netdev()
 	#
 	# Ask user to select an interface
 	#
-	local prompt
-	prompt="$msg_select_network_interface"
+	local prompt="$msg_select_network_interface"
 	local height width rows
 	eval f_dialog_menu_size height width rows \
 	                        \"\$DIALOG_TITLE\"     \
