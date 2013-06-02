@@ -307,18 +307,18 @@ f_package_menu_categories()
 	                                  $menu_list
 	local menu_choice
 	menu_choice=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--item-help                        \
-			--default-item \"\$defaultitem\"   \
-			--ok-label \"$msg_select\"         \
-			--cancel-label \"$msg_cancel\"     \
-			--menu \"\$prompt\"                \
-			$height $width $rows               \
-			$menu_list                         \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--item-help                        \
+		--default-item \"\$defaultitem\"   \
+		--ok-label \"$msg_select\"         \
+		--cancel-label \"$msg_cancel\"     \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 	local retval=$?
 	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
@@ -353,7 +353,7 @@ f_package_index_get_page()
 	fi
 }
 
-# f_package_menu_select $category [ $page [ $defaultitem ] ]
+# f_package_menu_select $category [$page [$defaultitem]]
 #
 # Display list of packages for $category, optionally $page N and with a default
 # item selected. If $page is omitted, the first page is displayed (but this

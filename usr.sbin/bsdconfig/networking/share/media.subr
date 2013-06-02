@@ -101,7 +101,9 @@ f_ifconfig_media()
 
 # f_dialog_input_options $interface
 #
-# Input custom interface options.
+# Input custom interface options. If the user does not press ESC or choose
+# Cancel/No, $options will hold the user's input. Default input is taken from
+# the same variable ($options).
 #
 f_dialog_input_options()
 {

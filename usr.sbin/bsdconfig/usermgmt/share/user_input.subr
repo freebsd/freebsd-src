@@ -280,18 +280,18 @@ f_dialog_input_password()
 
 	local height1 width1
 	f_dialog_inputbox_size height1 width1 \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$prompt1"          \
-	        	""                  \
-	        	"$hline"
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$prompt1"          \
+	                       ""                  \
+	                       "$hline"
 	local height2 width2
 	f_dialog_inputbox_size height2 width2 \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$prompt2"          \
-	        	""                  \
-	        	"$hline"
+	                       "$DIALOG_TITLE"     \
+	                       "$DIALOG_BACKTITLE" \
+	                       "$prompt2"          \
+	                       ""                  \
+	                       "$hline"
 
 	#
 	# Loop until the user provides taint-free/valid input
@@ -496,9 +496,9 @@ f_dialog_input_change()
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-	        retval=$?
+		retval=$?
 		f_dialog_data_sanitize date_type
-	        f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
+		f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
@@ -677,9 +677,9 @@ f_dialog_input_expire()
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-	        retval=$?
+		retval=$?
 		f_dialog_data_sanitize date_type
-	        f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
+		f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval

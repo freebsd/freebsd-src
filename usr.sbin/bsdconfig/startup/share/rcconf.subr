@@ -278,6 +278,7 @@ f_dialog_input_view_details()
 	local defaultitem= # calculated below
 	local hline="$hline_arrows_tab_enter"
 
+	# Calculate marks for checkboxes and radio buttons
 	local md=" "
 	if [ "$SHOW_DESC" ]; then
 		md="X"
@@ -294,6 +295,7 @@ f_dialog_input_view_details()
 		defaultitem="3 ($m3) $msg_show_configured"
 	fi
 
+	# Create the menu list with the above-calculated marks
 	menu_list="
 		'R $msg_reset'                    '$msg_reset_desc'
 		'D [$md] $msg_desc'               '$msg_desc_desc'
@@ -410,7 +412,9 @@ f_dialog_input_rclist()
 		}'
 	)"
 
-	set -f # noglob
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
 
 	local height width rows
 	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \

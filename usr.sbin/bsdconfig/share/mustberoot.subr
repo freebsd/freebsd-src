@@ -171,7 +171,8 @@ f_become_root_via_sudo()
 					--cancel-label "$msg_cancel"    \
 					--password --inputbox "$prompt" \
 					$height $width                  \
-					2>&1 > /dev/null )
+					2>&1 > /dev/null
+				)
 				retval=$?
 
 				# Catch X11-related errors
