@@ -1133,11 +1133,12 @@ f_device_dialog_tcp()
 		# Otherwise, ask the question interactively.
 		#
 		local try6
-		if ! f_quietly f_getvar $VAR_NO_INET6 && {
+		if ! f_isset $VAR_NO_INET6 && {
 		   { f_getvar $VAR_TRY_RTSOL try6 && [ "$try6" = "YES" ]; } ||
 		   {
-			! f_quietly f_getvar $VAR_TRY_RTSOL &&
-			f_dialog_noyes "$msg_try_ipv6_configuration"
+			# Only prompt the user when VAR_TRY_RTSOL is unset
+			! f_isset $VAR_TRY_RTSOL &&
+				f_dialog_noyes "$msg_try_ipv6_configuration"
 		   }
 		}; then
 			local i
@@ -1169,8 +1170,9 @@ f_device_dialog_tcp()
 		#
 		local try4
 		if { f_getvar $VAR_TRY_DHCP try4 && [ "$try4" = "YES" ]; } || {
-			! f_quietly f_getvar $VAR_TRY_DHCP &&
-			f_dialog_noyes "$msg_try_dhcp_configuration"
+			# Only prompt the user when VAR_TRY_DHCP is unset
+			! f_isset $VAR_TRY_DHCP &&
+				f_dialog_noyes "$msg_try_dhcp_configuration"
 		}; then
 			f_quietly ifconfig $dev delete
 			f_quietly mkdir -p /var/db
