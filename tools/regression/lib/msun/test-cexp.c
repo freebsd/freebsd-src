@@ -38,33 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
-#define	FLT_ULP()	ldexpl(1.0, 1 - FLT_MANT_DIG)
-#define	DBL_ULP()	ldexpl(1.0, 1 - DBL_MANT_DIG)
-#define	LDBL_ULP()	ldexpl(1.0, 1 - LDBL_MANT_DIG)
+#include "test-utils.h"
 
 #define	N(i)	(sizeof(i) / sizeof((i)[0]))
 
 #pragma STDC FENV_ACCESS	ON
 #pragma	STDC CX_LIMITED_RANGE	OFF
-
-/*
- * XXX gcc implements complex multiplication incorrectly. In
- * particular, it implements it as if the CX_LIMITED_RANGE pragma
- * were ON. Consequently, we need this function to form numbers
- * such as x + INFINITY * I, since gcc evalutes INFINITY * I as
- * NaN + INFINITY * I.
- */
-static inline long double complex
-cpackl(long double x, long double y)
-{
-	long double complex z;
-
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
-}
 
 /*
  * Test that a function returns the correct value and sets the
@@ -83,14 +62,15 @@ cpackl(long double x, long double y)
 #define	test(func, z, result, exceptmask, excepts, checksign)	do {	\
 	volatile long double complex _d = z;				\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(cfpequal((func)(_d), (result), (checksign)));		\
-	assert(((func), fetestexcept(exceptmask) == (excepts)));	\
+	assert(cfpequal_cs((func)(_d), (result), (checksign)));		\
+	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 /* Test within a given tolerance. */
 #define	test_tol(func, z, result, tol)				do {	\
 	volatile long double complex _d = z;				\
-	assert(cfpequal_tol((func)(_d), (result), (tol)));		\
+	assert(cfpequal_tol((func)(_d), (result), (tol),		\
+	    FPE_ABS_ZERO | CS_BOTH));					\
 } while (0)
 
 /* Test all the functions that compute cexp(x). */
@@ -112,67 +92,6 @@ cpackl(long double x, long double y)
 static const float finites[] =
 { -42.0e20, -1.0, -1.0e-10, -0.0, 0.0, 1.0e-10, 1.0, 42.0e20 };
 
-/*
- * Determine whether x and y are equal, with two special rules:
- *	+0.0 != -0.0
- *	 NaN == NaN
- * If checksign is 0, we compare the absolute values instead.
- */
-static int
-fpequal(long double x, long double y, int checksign)
-{
-	if (isnan(x) || isnan(y))
-		return (1);
-	if (checksign)
-		return (x == y && !signbit(x) == !signbit(y));
-	else
-		return (fabsl(x) == fabsl(y));
-}
-
-static int
-fpequal_tol(long double x, long double y, long double tol)
-{
-	fenv_t env;
-	int ret;
-
-	if (isnan(x) && isnan(y))
-		return (1);
-	if (!signbit(x) != !signbit(y))
-		return (0);
-	if (x == y)
-		return (1);
-	if (tol == 0)
-		return (0);
-
-	/* Hard case: need to check the tolerance. */
-	feholdexcept(&env);
-	/*
-	 * For our purposes here, if y=0, we interpret tol as an absolute
-	 * tolerance. This is to account for roundoff in the input, e.g.,
-	 * cos(Pi/2) ~= 0.
-	 */
-	if (y == 0.0)
-		ret = fabsl(x - y) <= fabsl(tol);
-	else
-		ret = fabsl(x - y) <= fabsl(y * tol);
-	fesetenv(&env);
-	return (ret);
-}
-
-static int
-cfpequal(long double complex x, long double complex y, int checksign)
-{
-	return (fpequal(creal(x), creal(y), checksign)
-		&& fpequal(cimag(x), cimag(y), checksign));
-}
-
-static int
-cfpequal_tol(long double complex x, long double complex y, long double tol)
-{
-	return (fpequal_tol(creal(x), creal(y), tol)
-		&& fpequal_tol(cimag(x), cimag(y), tol));
-}
-
 
 /* Tests for 0 */
 void
@@ -182,8 +101,8 @@ test_zero(void)
 	/* cexp(0) = 1, no exceptions raised */
 	testall(0.0, 1.0, ALL_STD_EXCEPT, 0, 1);
 	testall(-0.0, 1.0, ALL_STD_EXCEPT, 0, 1);
-	testall(cpackl(0.0, -0.0), cpackl(1.0, -0.0), ALL_STD_EXCEPT, 0, 1);
-	testall(cpackl(-0.0, -0.0), cpackl(1.0, -0.0), ALL_STD_EXCEPT, 0, 1);
+	testall(CMPLXL(0.0, -0.0), CMPLXL(1.0, -0.0), ALL_STD_EXCEPT, 0, 1);
+	testall(CMPLXL(-0.0, -0.0), CMPLXL(1.0, -0.0), ALL_STD_EXCEPT, 0, 1);
 }
 
 /*
@@ -198,27 +117,27 @@ test_nan()
 	/* cexp(x + NaNi) = NaN + NaNi and optionally raises invalid */
 	/* cexp(NaN + yi) = NaN + NaNi and optionally raises invalid (|y|>0) */
 	for (i = 0; i < N(finites); i++) {
-		testall(cpackl(finites[i], NAN), cpackl(NAN, NAN),
+		testall(CMPLXL(finites[i], NAN), CMPLXL(NAN, NAN),
 			ALL_STD_EXCEPT & ~FE_INVALID, 0, 0);
 		if (finites[i] == 0.0)
 			continue;
 		/* XXX FE_INEXACT shouldn't be raised here */
-		testall(cpackl(NAN, finites[i]), cpackl(NAN, NAN),
+		testall(CMPLXL(NAN, finites[i]), CMPLXL(NAN, NAN),
 			ALL_STD_EXCEPT & ~(FE_INVALID | FE_INEXACT), 0, 0);
 	}
 
 	/* cexp(NaN +- 0i) = NaN +- 0i */
-	testall(cpackl(NAN, 0.0), cpackl(NAN, 0.0), ALL_STD_EXCEPT, 0, 1);
-	testall(cpackl(NAN, -0.0), cpackl(NAN, -0.0), ALL_STD_EXCEPT, 0, 1);
+	testall(CMPLXL(NAN, 0.0), CMPLXL(NAN, 0.0), ALL_STD_EXCEPT, 0, 1);
+	testall(CMPLXL(NAN, -0.0), CMPLXL(NAN, -0.0), ALL_STD_EXCEPT, 0, 1);
 
 	/* cexp(inf + NaN i) = inf + nan i */
-	testall(cpackl(INFINITY, NAN), cpackl(INFINITY, NAN),
+	testall(CMPLXL(INFINITY, NAN), CMPLXL(INFINITY, NAN),
 		ALL_STD_EXCEPT, 0, 0);
 	/* cexp(-inf + NaN i) = 0 */
-	testall(cpackl(-INFINITY, NAN), cpackl(0.0, 0.0),
+	testall(CMPLXL(-INFINITY, NAN), CMPLXL(0.0, 0.0),
 		ALL_STD_EXCEPT, 0, 0);
 	/* cexp(NaN + NaN i) = NaN + NaN i */
-	testall(cpackl(NAN, NAN), cpackl(NAN, NAN),
+	testall(CMPLXL(NAN, NAN), CMPLXL(NAN, NAN),
 		ALL_STD_EXCEPT, 0, 0);
 }
 
@@ -229,37 +148,37 @@ test_inf(void)
 
 	/* cexp(x + inf i) = NaN + NaNi and raises invalid */
 	for (i = 0; i < N(finites); i++) {
-		testall(cpackl(finites[i], INFINITY), cpackl(NAN, NAN),
+		testall(CMPLXL(finites[i], INFINITY), CMPLXL(NAN, NAN),
 			ALL_STD_EXCEPT, FE_INVALID, 1);
 	}
 	/* cexp(-inf + yi) = 0 * (cos(y) + sin(y)i) */
 	/* XXX shouldn't raise an inexact exception */
-	testall(cpackl(-INFINITY, M_PI_4), cpackl(0.0, 0.0),
+	testall(CMPLXL(-INFINITY, M_PI_4), CMPLXL(0.0, 0.0),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-	testall(cpackl(-INFINITY, 3 * M_PI_4), cpackl(-0.0, 0.0),
+	testall(CMPLXL(-INFINITY, 3 * M_PI_4), CMPLXL(-0.0, 0.0),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-	testall(cpackl(-INFINITY, 5 * M_PI_4), cpackl(-0.0, -0.0),
+	testall(CMPLXL(-INFINITY, 5 * M_PI_4), CMPLXL(-0.0, -0.0),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-	testall(cpackl(-INFINITY, 7 * M_PI_4), cpackl(0.0, -0.0),
+	testall(CMPLXL(-INFINITY, 7 * M_PI_4), CMPLXL(0.0, -0.0),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-	testall(cpackl(-INFINITY, 0.0), cpackl(0.0, 0.0),
+	testall(CMPLXL(-INFINITY, 0.0), CMPLXL(0.0, 0.0),
 		ALL_STD_EXCEPT, 0, 1);
-	testall(cpackl(-INFINITY, -0.0), cpackl(0.0, -0.0),
+	testall(CMPLXL(-INFINITY, -0.0), CMPLXL(0.0, -0.0),
 		ALL_STD_EXCEPT, 0, 1);
 	/* cexp(inf + yi) = inf * (cos(y) + sin(y)i) (except y=0) */
 	/* XXX shouldn't raise an inexact exception */
-	testall(cpackl(INFINITY, M_PI_4), cpackl(INFINITY, INFINITY),
+	testall(CMPLXL(INFINITY, M_PI_4), CMPLXL(INFINITY, INFINITY),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-	testall(cpackl(INFINITY, 3 * M_PI_4), cpackl(-INFINITY, INFINITY),
+	testall(CMPLXL(INFINITY, 3 * M_PI_4), CMPLXL(-INFINITY, INFINITY),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-	testall(cpackl(INFINITY, 5 * M_PI_4), cpackl(-INFINITY, -INFINITY),
+	testall(CMPLXL(INFINITY, 5 * M_PI_4), CMPLXL(-INFINITY, -INFINITY),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-	testall(cpackl(INFINITY, 7 * M_PI_4), cpackl(INFINITY, -INFINITY),
+	testall(CMPLXL(INFINITY, 7 * M_PI_4), CMPLXL(INFINITY, -INFINITY),
 		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
 	/* cexp(inf + 0i) = inf + 0i */
-	testall(cpackl(INFINITY, 0.0), cpackl(INFINITY, 0.0),
+	testall(CMPLXL(INFINITY, 0.0), CMPLXL(INFINITY, 0.0),
 		ALL_STD_EXCEPT, 0, 1);
-	testall(cpackl(INFINITY, -0.0), cpackl(INFINITY, -0.0),
+	testall(CMPLXL(INFINITY, -0.0), CMPLXL(INFINITY, -0.0),
 		ALL_STD_EXCEPT, 0, 1);
 }
 
@@ -270,17 +189,17 @@ test_reals(void)
 
 	for (i = 0; i < N(finites); i++) {
 		/* XXX could check exceptions more meticulously */
-		test(cexp, cpackl(finites[i], 0.0),
-		     cpackl(exp(finites[i]), 0.0),
+		test(cexp, CMPLXL(finites[i], 0.0),
+		     CMPLXL(exp(finites[i]), 0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
-		test(cexp, cpackl(finites[i], -0.0),
-		     cpackl(exp(finites[i]), -0.0),
+		test(cexp, CMPLXL(finites[i], -0.0),
+		     CMPLXL(exp(finites[i]), -0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
-		test(cexpf, cpackl(finites[i], 0.0),
-		     cpackl(expf(finites[i]), 0.0),
+		test(cexpf, CMPLXL(finites[i], 0.0),
+		     CMPLXL(expf(finites[i]), 0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
-		test(cexpf, cpackl(finites[i], -0.0),
-		     cpackl(expf(finites[i]), -0.0),
+		test(cexpf, CMPLXL(finites[i], -0.0),
+		     CMPLXL(expf(finites[i]), -0.0),
 		     FE_INVALID | FE_DIVBYZERO, 0, 1);
 	}
 }
@@ -291,17 +210,17 @@ test_imaginaries(void)
 	int i;
 
 	for (i = 0; i < N(finites); i++) {
-		test(cexp, cpackl(0.0, finites[i]),
-		     cpackl(cos(finites[i]), sin(finites[i])),
+		test(cexp, CMPLXL(0.0, finites[i]),
+		     CMPLXL(cos(finites[i]), sin(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-		test(cexp, cpackl(-0.0, finites[i]),
-		     cpackl(cos(finites[i]), sin(finites[i])),
+		test(cexp, CMPLXL(-0.0, finites[i]),
+		     CMPLXL(cos(finites[i]), sin(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-		test(cexpf, cpackl(0.0, finites[i]),
-		     cpackl(cosf(finites[i]), sinf(finites[i])),
+		test(cexpf, CMPLXL(0.0, finites[i]),
+		     CMPLXL(cosf(finites[i]), sinf(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-		test(cexpf, cpackl(-0.0, finites[i]),
-		     cpackl(cosf(finites[i]), sinf(finites[i])),
+		test(cexpf, CMPLXL(-0.0, finites[i]),
+		     CMPLXL(cosf(finites[i]), sinf(finites[i])),
 		     ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
 	}
 }
@@ -326,12 +245,12 @@ test_small(void)
 		b = tests[i + 1];
 		x = tests[i + 2];
 		y = tests[i + 3];
-		test_tol(cexp, cpackl(a, b), cpackl(x, y), 3 * DBL_ULP());
+		test_tol(cexp, CMPLXL(a, b), CMPLXL(x, y), 3 * DBL_ULP());
 
 		/* float doesn't have enough precision to pass these tests */
 		if (x == 0 || y == 0)
 			continue;
-		test_tol(cexpf, cpackl(a, b), cpackl(x, y), 1 * FLT_ULP());
+		test_tol(cexpf, CMPLXL(a, b), CMPLXL(x, y), 1 * FLT_ULP());
         }
 }
 
@@ -340,27 +259,27 @@ void
 test_large(void)
 {
 
-	test_tol(cexp, cpackl(709.79, 0x1p-1074),
-		 cpackl(INFINITY, 8.94674309915433533273e-16), DBL_ULP());
-	test_tol(cexp, cpackl(1000, 0x1p-1074),
-		 cpackl(INFINITY, 9.73344457300016401328e+110), DBL_ULP());
-	test_tol(cexp, cpackl(1400, 0x1p-1074),
-		 cpackl(INFINITY, 5.08228858149196559681e+284), DBL_ULP());
-	test_tol(cexp, cpackl(900, 0x1.23456789abcdep-1020),
-		 cpackl(INFINITY, 7.42156649354218408074e+83), DBL_ULP());
-	test_tol(cexp, cpackl(1300, 0x1.23456789abcdep-1020),
-		 cpackl(INFINITY, 3.87514844965996756704e+257), DBL_ULP());
+	test_tol(cexp, CMPLXL(709.79, 0x1p-1074),
+		 CMPLXL(INFINITY, 8.94674309915433533273e-16), DBL_ULP());
+	test_tol(cexp, CMPLXL(1000, 0x1p-1074),
+		 CMPLXL(INFINITY, 9.73344457300016401328e+110), DBL_ULP());
+	test_tol(cexp, CMPLXL(1400, 0x1p-1074),
+		 CMPLXL(INFINITY, 5.08228858149196559681e+284), DBL_ULP());
+	test_tol(cexp, CMPLXL(900, 0x1.23456789abcdep-1020),
+		 CMPLXL(INFINITY, 7.42156649354218408074e+83), DBL_ULP());
+	test_tol(cexp, CMPLXL(1300, 0x1.23456789abcdep-1020),
+		 CMPLXL(INFINITY, 3.87514844965996756704e+257), DBL_ULP());
 
-	test_tol(cexpf, cpackl(88.73, 0x1p-149),
-		 cpackl(INFINITY, 4.80265603e-07), 2 * FLT_ULP());
-	test_tol(cexpf, cpackl(90, 0x1p-149),
-		 cpackl(INFINITY, 1.7101492622e-06f), 2 * FLT_ULP());
-	test_tol(cexpf, cpackl(192, 0x1p-149),
-		 cpackl(INFINITY, 3.396809344e+38f), 2 * FLT_ULP());
-	test_tol(cexpf, cpackl(120, 0x1.234568p-120),
-		 cpackl(INFINITY, 1.1163382522e+16f), 2 * FLT_ULP());
-	test_tol(cexpf, cpackl(170, 0x1.234568p-120),
-		 cpackl(INFINITY, 5.7878851079e+37f), 2 * FLT_ULP());
+	test_tol(cexpf, CMPLXL(88.73, 0x1p-149),
+		 CMPLXL(INFINITY, 4.80265603e-07), 2 * FLT_ULP());
+	test_tol(cexpf, CMPLXL(90, 0x1p-149),
+		 CMPLXL(INFINITY, 1.7101492622e-06f), 2 * FLT_ULP());
+	test_tol(cexpf, CMPLXL(192, 0x1p-149),
+		 CMPLXL(INFINITY, 3.396809344e+38f), 2 * FLT_ULP());
+	test_tol(cexpf, CMPLXL(120, 0x1.234568p-120),
+		 CMPLXL(INFINITY, 1.1163382522e+16f), 2 * FLT_ULP());
+	test_tol(cexpf, CMPLXL(170, 0x1.234568p-120),
+		 CMPLXL(INFINITY, 5.7878851079e+37f), 2 * FLT_ULP());
 }
 
 int

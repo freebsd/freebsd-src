@@ -38,27 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
-#define	OPT_INVALID	(ALL_STD_EXCEPT & ~FE_INVALID)
-#define	OPT_INEXACT	(ALL_STD_EXCEPT & ~FE_INEXACT)
-#define	FLT_ULP()	ldexpl(1.0, 1 - FLT_MANT_DIG)
-#define	DBL_ULP()	ldexpl(1.0, 1 - DBL_MANT_DIG)
-#define	LDBL_ULP()	ldexpl(1.0, 1 - LDBL_MANT_DIG)
+#include "test-utils.h"
 
 #pragma	STDC FENV_ACCESS	ON
 #pragma	STDC CX_LIMITED_RANGE	OFF
-
-/* Flags that determine whether to check the signs of the result. */
-#define	CS_REAL	1
-#define	CS_IMAG	2
-#define	CS_BOTH	(CS_REAL | CS_IMAG)
-
-#ifdef	DEBUG
-#define	debug(...)	printf(__VA_ARGS__)
-#else
-#define	debug(...)	(void)0
-#endif
 
 /*
  * Test that a function returns the correct value and sets the
@@ -78,8 +61,8 @@ __FBSDID("$FreeBSD$");
 	debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(cfpequal((func)(_d), (result), (checksign)));		\
-	assert(((func), fetestexcept(exceptmask) == (excepts)));	\
+	assert(cfpequal_cs((func)(_d), (result), (checksign)));		\
+	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 /*
@@ -90,7 +73,7 @@ __FBSDID("$FreeBSD$");
 	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) ~= %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	assert(cfpequal_tol((func)(_d), (result), (tol)));		\
+	assert(cfpequal_tol((func)(_d), (result), (tol), CS_BOTH));	\
 } while (0)
 
 /* These wrappers apply the identities f(conj(z)) = conj(f(z)). */
@@ -137,59 +120,6 @@ __FBSDID("$FreeBSD$");
 static const long double
 pi = 3.14159265358979323846264338327950280L,
 c3pi = 9.42477796076937971538793014983850839L;
-
-/*
- * Determine whether x and y are equal, with two special rules:
- *	+0.0 != -0.0
- *	 NaN == NaN
- * If checksign is 0, we compare the absolute values instead.
- */
-static int
-fpequal(long double x, long double y, int checksign)
-{
-	if (isnan(x) && isnan(y))
-		return (1);
-	if (checksign)
-		return (x == y && !signbit(x) == !signbit(y));
-	else
-		return (fabsl(x) == fabsl(y));
-}
-
-static int
-fpequal_tol(long double x, long double y, long double tol)
-{
-	fenv_t env;
-	int ret;
-
-	if (isnan(x) && isnan(y))
-		return (1);
-	if (!signbit(x) != !signbit(y))
-		return (0);
-	if (x == y)
-		return (1);
-	if (tol == 0 || y == 0.0)
-		return (0);
-
-	/* Hard case: need to check the tolerance. */
-	feholdexcept(&env);
-	ret = fabsl(x - y) <= fabsl(y * tol);
-	fesetenv(&env);
-	return (ret);
-}
-
-static int
-cfpequal(long double complex x, long double complex y, int checksign)
-{
-	return (fpequal(creal(x), creal(y), checksign & CS_REAL)
-		&& fpequal(cimag(x), cimag(y), checksign & CS_IMAG));
-}
-
-static int
-cfpequal_tol(long double complex x, long double complex y, long double tol)
-{
-	return (fpequal_tol(creal(x), creal(y), tol)
-		&& fpequal_tol(cimag(x), cimag(y), tol));
-}
 
 
 /* Tests for 0 */
