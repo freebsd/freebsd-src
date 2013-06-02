@@ -1672,7 +1672,7 @@ f_dialog_inputstr_fetch()
 #
 # Prompt the user with a dialog(1) inputbox to enter some value. The inputbox
 # remains until the the user presses ENTER or ESC, or otherwise ends the
-# editing session, by selecting `Cancel' for example.
+# editing session (by selecting `Cancel' for example).
 #
 # If the user presses ENTER, the exit status is zero (success), otherwise if
 # the user presses ESC the exit status is 255, or if the user chose Cancel, the

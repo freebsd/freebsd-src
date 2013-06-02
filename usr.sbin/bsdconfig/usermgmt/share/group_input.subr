@@ -280,9 +280,9 @@ f_dialog_input_group_gid()
 
 # f_dialog_input_group_members [$group_members]
 #
-# Allow the user to modify a list of members for a given group. If the user does
-# not cancel or press ESC, the $group_members variable will hold the newly-
-# configured value upon return.
+# Allow the user to modify a list of members for a given group. If the user
+# does not cancel or press ESC, the $group_members variable will hold the
+# newly-configured value upon return.
 #
 f_dialog_input_group_members()
 {

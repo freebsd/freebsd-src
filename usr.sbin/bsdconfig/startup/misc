@@ -63,6 +63,7 @@ dialog_menu_main()
 	local defaultitem= # Calculated below
 	local hline="$hline_arrows_tab_enter"
 
+	# List of variables we'll need from rc.conf(5)
 	local var_list="
 		accounting_enable
 		local_startup
@@ -75,6 +76,7 @@ dialog_menu_main()
 		startup_dirs
 	" # END-QUOTE
 
+	# Add i386-specific variables if appropriate
 	if [ "$UNAME_P" = "i386" ]; then
 		var_list="$var_list
 			apm_enable

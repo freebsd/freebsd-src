@@ -194,7 +194,9 @@ dialog_menu_main()
 	done
 	menu_list="$menu_list $menu_buf"
 
-	set -f # noglob (descriptions in $RCCONF_MENU_LIST may contain *)
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
 
 	local height width rows
 	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
@@ -249,11 +251,14 @@ dialog_menu_confirm_delete()
 
 	[ $# -ge 1 ] || return $FAILURE
 
+	# If asked to delete only one variable, simply ask and return
 	if [ $# -eq 1 ]; then
 		f_noyes "$msg_are_you_sure_you_want_to_delete" "$delete_vars"
 		return $?
 	fi
+	# Not reached unless requested to delete multiple variables
 
+	# Generate a menu to cleanly display the variables to be deleted
 	local var_list
 	var_list=$( for var in $*; do echo "$var"; done | sort -u )
 	menu_list=$(

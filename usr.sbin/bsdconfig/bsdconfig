@@ -169,7 +169,6 @@ dialog_menu_main()
 	local hline=
 
 	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
-
 	local menuitem menu_title menu_help menu_selection index=2
 	for menuitem in $( cd $BSDCFG_LIBE && ls -d [0-9][0-9][0-9].* ); do
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
