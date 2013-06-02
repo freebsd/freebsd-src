@@ -226,9 +226,8 @@ f_dialog_input_name()
 	while :; do
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		_input=$( f_dialog_input "$msg_login" "$_input" \
-		                         "$hline_alnum_tab_enter"
-		        ) || return
+		f_dialog_input _input "$msg_login" "$_input" \
+		               "$hline_alnum_tab_enter" || return
 
 		# Check for no-change
 		[ "$_input" = "$_name" ] && return $SUCCESS
@@ -297,10 +296,9 @@ f_dialog_input_password()
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local retval _password1 _password2
+	local _password1 _password2
 	while :; do
-		local dialog_inputbox
-		dialog_inputbox=$( $DIALOG \
+		_password1=$( $DIALOG \
 			--title "$DIALOG_TITLE"         \
 			--backtitle "$DIALOG_BACKTITLE" \
 			--hline "$hline"                \
@@ -310,13 +308,11 @@ f_dialog_input_password()
 			--passwordbox "$msg"            \
 			$height1 $width1                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
+		) || return $?
+			# Return if user either pressed ESC or chose Cancel/No
+		debug= f_dialog_line_sanitize _password1
 
-		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_password1=$( f_dialog_inputstr )
-
-		dialog_inputbox=$( $DIALOG \
+		_password2=$( $DIALOG \
 			--title "$DIALOG_TITLE"         \
 			--backtitle "$DIALOG_BACKTITLE" \
 			--hline "$hline"                \
@@ -326,14 +322,9 @@ f_dialog_input_password()
 			--passwordbox "$rmsg"           \
 			$height2 $width2                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_password2=$( f_dialog_inputstr )
-
-		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		) || return $?
+			# Return if user either pressed ESC or chose Cancel/No
+		debug= f_dialog_line_sanitize _password2
 
 		# Check for password mismatch
 		if [ "$_password1" != "$_password2" ]; then
@@ -373,9 +364,8 @@ f_dialog_input_gecos()
 	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	_input=$( f_dialog_input "$msg_full_name" "$_input" \
-	                         "$hline_alnum_punc_tab_enter"
-	        ) || return
+	f_dialog_input _input "$msg_full_name" "$_input" \
+	               "$hline_alnum_punc_tab_enter" || return
 
 	pw_gecos="$_input"
 	save_flag=1
@@ -396,9 +386,8 @@ f_dialog_input_uid()
 	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	_input=$( f_dialog_input "$msg_user_id_leave_empty_for_default" \
-	                         "$_input" "$hline_num_tab_enter"
-	        ) || return
+	f_dialog_input _input "$msg_user_id_leave_empty_for_default" \
+	               "$_input" "$hline_num_tab_enter" || return
 
 	pw_uid="$_input"
 	save_flag=1
@@ -419,9 +408,8 @@ f_dialog_input_gid()
 	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	_input=$( f_dialog_input "$msg_group_id_leave_empty_for_default" \
-	                         "$_input" "$hline_num_tab_enter"
-	        ) || return
+	f_dialog_input _input "$msg_group_id_leave_empty_for_default" \
+	               "$_input" "$hline_num_tab_enter" || return
 
 	pw_gid="$_input"
 	save_flag=1
@@ -442,9 +430,8 @@ f_dialog_input_class()
 	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	_input=$( f_dialog_input "$msg_login_class" "$_input" \
-	                         "$hline_alnum_tab_enter"
-	        ) || return
+	f_dialog_input _input "$msg_login_class" "$_input" \
+	               "$hline_alnum_tab_enter" || return
 
 	pw_class="$_input"
 	save_flag=1
@@ -585,10 +572,9 @@ f_dialog_input_change()
 				ret_days=$(( $ret_days + 1 ))
 
 			# Return to menu if either ESC or Cancel/No
-			ret_days=$( f_dialog_input \
+			f_dialog_input ret_days \
 				"$msg_password_expires_in_how_many_days" \
-				"$ret_days" "$hline"
-			) || continue
+				"$ret_days" "$hline" || continue
 
 			# Taint-check the user's input
 			if ! f_isinteger "$ret_days"; then
@@ -606,16 +592,12 @@ f_dialog_input_change()
 			break ;;
 
 		4) # Enter value manually
-			local ret_secs
-
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
 
 			# Return to menu if either ESC or Cancel/No
-			ret_secs=$( f_dialog_input \
-			            	"$msg" "$_input" "$hline" ) || continue
-
-			_input="$ret_secs"
+			f_dialog_input _input \
+			               "$msg" "$_input" "$hline" || continue
 
 			# Taint-check the user's input
 			if ! f_isinteger "${_input:-0}"; then
@@ -771,10 +753,9 @@ f_dialog_input_expire()
 				ret_days=$(( $ret_days + 1 ))
 
 			# Return to menu if either ESC or Cancel/No
-			ret_days=$( f_dialog_input \
+			f_dialog_input ret_days \
 				"$msg_account_expires_in_how_many_days" \
-				"$ret_days" "$hline"
-			) || continue
+				"$ret_days" "$hline" || continue
 
 			# Taint-check the user's input
 			if ! f_isinteger "$ret_days"; then
@@ -792,16 +773,12 @@ f_dialog_input_expire()
 			break ;;
 
 		4) # Enter value manually
-			local ret_secs
-
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
 
 			# Return to menu if either ESC or Cancel/No
-			ret_secs=$( f_dialog_input \
-			            	"$msg" "$_input" "$hline" ) || continue
-
-			_input="$ret_secs"
+			f_dialog_input _input "$msg" \
+			               "$_input" "$hline" || continue
 
 			# Taint-check the user's input
 			if ! f_isinteger "${_input:-0}"; then
@@ -837,9 +814,8 @@ f_dialog_input_home_dir()
 	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	_input=$( f_dialog_input "$msg_home_directory" "$_input" \
-	                         "$hline_alnum_punc_tab_enter"
-	        ) || return
+	f_dialog_input _input "$msg_home_directory" "$_input" \
+	               "$hline_alnum_punc_tab_enter" || return
 
 	pw_home_dir="$_input"
 	save_flag=1

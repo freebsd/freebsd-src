@@ -303,7 +303,7 @@ dialog_input_value()
 	local prompt="$1" _input="$2"
 
 	f_dialog_title "$msg_value_required"
-	_input=$( f_dialog_input "$prompt" "$_input" "$hline_alnum_tab_enter" )
+	f_dialog_input _input "$prompt" "$_input" "$hline_alnum_tab_enter"
 	local retval=$?
 	f_dialog_title_restore
 
