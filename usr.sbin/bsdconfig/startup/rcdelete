@@ -253,7 +253,7 @@ dialog_menu_confirm_delete()
 
 	# If asked to delete only one variable, simply ask and return
 	if [ $# -eq 1 ]; then
-		f_noyes "$msg_are_you_sure_you_want_to_delete" "$delete_vars"
+		f_noyes "$msg_are_you_sure_you_want_to_delete" "$1"
 		return $?
 	fi
 	# Not reached unless requested to delete multiple variables
