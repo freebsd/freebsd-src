@@ -51,11 +51,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list
-	local hline="$hline_arrows_tab_enter"
-	local defaultitem= # Calculated below
-
-	menu_list="
+	local prompt=
+	local menu_list="
 		'X' '$msg_exit'
 		'1' '$msg_add_login'
 		'2' '$msg_edit_login'
@@ -65,12 +62,14 @@ dialog_menu_main()
 		'5' '$msg_edit_group'
 		'6' '$msg_delete_group'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\"                   \
+	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
 
@@ -91,7 +90,7 @@ dialog_menu_main()
 		--help-label \"\$msg_help\"        \
 		${USE_XDIALOG:+--help \"\"}        \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\"                        \
+		--menu \"\$prompt\"                \
 		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD

@@ -146,9 +146,23 @@ dialog_create_main()
 #
 dialog_menu_main()
 {
-	local hline="$hline_arrows_tab_enter"
-	local prompt=""
+	local prompt=
+	local menu_list="
+		'X $msg_exit_cancel'     '$msg_exit_cancel_desc'
+		            ${SHOW_DESC:+'$msg_exit_cancel_help'}
+		'> $msg_delete_selected' '$msg_delete_selected_desc'
+		            ${SHOW_DESC:+'$msg_delete_selected_help'}
+		'> $msg_all'             '$msg_all_desc'
+		            ${SHOW_DESC:+'$msg_all_help'}
+		'> $msg_none'            '$msg_none_desc'
+		            ${SHOW_DESC:+'$msg_none_help'}
+	${USE_XDIALOG:+
+		'> $msg_view_details'    '$msg_view_details_desc'
+		            ${SHOW_DESC:+'$msg_view_details_help'}
+	}
+	" # END-QUOTE
 	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	#
 	# [Re-]Accent the menu list before incorporating it
@@ -178,22 +192,7 @@ dialog_menu_main()
 		menu_buf="$menu_buf
 		'$rcconf_var' '$details' ${SHOW_DESC:+'$help'}" # End-Quote
 	done
-
-	local menu_list="
-		'X $msg_exit_cancel'     '$msg_exit_cancel_desc'
-		            ${SHOW_DESC:+'$msg_exit_cancel_help'}
-		'> $msg_delete_selected' '$msg_delete_selected_desc'
-		            ${SHOW_DESC:+'$msg_delete_selected_help'}
-		'> $msg_all'             '$msg_all_desc'
-		            ${SHOW_DESC:+'$msg_all_help'}
-		'> $msg_none'            '$msg_none_desc'
-		            ${SHOW_DESC:+'$msg_none_help'}
-	${USE_XDIALOG:+
-		'> $msg_view_details'    '$msg_view_details_desc'
-		            ${SHOW_DESC:+'$msg_view_details_help'}
-	}
-		$menu_buf
-	" # END-QUOTE
+	menu_list="$menu_list $menu_buf"
 
 	set -f # noglob (descriptions in $RCCONF_MENU_LIST may contain *)
 
@@ -244,9 +243,9 @@ dialog_menu_main()
 #
 dialog_menu_confirm_delete()
 {
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_are_you_sure_you_want_delete_the_following"
-	local var_list menu_list
+	local menu_list # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	[ $# -ge 1 ] || return $FAILURE
 
@@ -255,6 +254,7 @@ dialog_menu_confirm_delete()
 		return $?
 	fi
 
+	local var_list
 	var_list=$( for var in $*; do echo "$var"; done | sort -u )
 	menu_list=$(
 		. "$RC_DEFAULTS"

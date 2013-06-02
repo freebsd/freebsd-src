@@ -56,19 +56,14 @@ UNAME_P=$( uname -p ) # Processor Architecture (i.e. i386)
 #
 dialog_menu_main()
 {
-	local menu_list var_list defaultitem=
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_miscellaneous_menu_text"
-
-	# Obtain default-item (adjusted below for dynamic tags)
-	f_dialog_default_fetch defaultitem
-	local ditem="${defaultitem%%[$IFS]*}"
-
-	menu_list="
+	local menu_list="
 		'X <<< $msg_exit' '$msg_exit_this_menu'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
-	var_list="
+	local var_list="
 		accounting_enable
 		local_startup
 		lpd_enable
@@ -87,6 +82,10 @@ dialog_menu_main()
 			svr4_enable
 		" # END-QUOTE
 	fi
+
+	# Obtain default-item (adjusted below for dynamic tags)
+	f_dialog_default_fetch defaultitem
+	local ditem="${defaultitem%%[$IFS]*}"
 
 	eval "$(
 		. "$RC_DEFAULTS"

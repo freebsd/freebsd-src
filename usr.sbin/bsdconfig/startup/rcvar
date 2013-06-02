@@ -65,8 +65,8 @@ RCVAR_MENU_LIST=
 #
 dialog_menu_main()
 {
+	local prompt=
 	local hline="$hline_arrows_tab_enter"
-	local prompt=""
 	local defaultitem= # Calculated below
 
 	RCVAR_MENU_LIST="

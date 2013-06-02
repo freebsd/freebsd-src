@@ -49,11 +49,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list defaultitem=
-	local hline="$hline_choose_a_screen_saver"
 	local prompt="$msg_saver_menu_text"
-
-	menu_list="
+	local menu_list="
 		'1 $msg_blank'   '$msg_blank_desc'
 		'2 $msg_beastie' '$msg_beastie_desc'
 		'3 $msg_daemon'  '$msg_daemon_desc'
@@ -69,6 +66,8 @@ dialog_menu_main()
 		'd $msg_none'    '$msg_none_saver_desc'
 		'$msg_timeout'   '$msg_timeout_desc'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_screen_saver"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \

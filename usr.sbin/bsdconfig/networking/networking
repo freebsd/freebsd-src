@@ -48,23 +48,22 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list
-	local hline="$hline_arrows_tab_enter"
-	local defaultitem= # Calculated below
-
-	menu_list="
+	local prompt=
+	local menu_list="
 		'X' '$msg_exit'
 		'1' '$msg_hostname_domain'
 		'2' '$msg_network_interfaces'
 		'3' '$msg_default_router'
 		'4' '$msg_dns_nameservers'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\"                   \
+	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
 
@@ -79,7 +78,7 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\"                        \
+		--menu \"\$prompt\"                \
 		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD

@@ -49,11 +49,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list defaultitem=
-	local hline="$hline_choose_a_font"
 	local prompt="$msg_font_menu_text"
-
-	menu_list="
+	local menu_list="
 		'1 $msg_none'        '$msg_use_hardware_default_font'
 		'2 $msg_ibm_437'     '$msg_ibm_437_desc'
 		'3 $msg_ibm_850'     '$msg_ibm_850_desc'
@@ -69,6 +66,8 @@ dialog_menu_main()
 		'd $msg_iso_8859_15' '$msg_iso_8859_15_desc'
 		'e $msg_swiss'       '$msg_swiss_desc'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_font"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \

@@ -49,16 +49,15 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list defaultitem=
-	local hline="$hline_choose_a_keyboard_repeat_rate"
 	local prompt="$msg_repeat_menu_text"
-
-	menu_list="
+	local menu_list="
 		'$msg_default' '$msg_default_desc'
 		'$msg_slow'    '$msg_slow_desc'
 		'$msg_normal'  '$msg_normal_desc'
 		'$msg_fast'    '$msg_fast_desc'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_keyboard_repeat_rate"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
