@@ -108,9 +108,8 @@ f_dialog_input_hostname()
 	# Loop until the user provides taint-free input.
 	#
 	while :; do
-		hostname=$( f_dialog_input "$msg" "$hostname" \
-		                           "$hline_alnum_punc_tab_enter"
-		          ) || return
+		f_dialog_input hostname "$msg" "$hostname" \
+		               "$hline_alnum_punc_tab_enter" || return
 		# Taint-check the user's input
 		f_dialog_validate_hostname "$hostname" && break
 	done

@@ -454,9 +454,8 @@ f_dialog_input_rcvar()
 	while :; do
 
 		# Return if user either pressed ESC or chosen Cancel/No
-		_input=$( f_dialog_input "$msg_please_enter_rcvar_name" \
-		                         "$_input" "$hline_alnum_tab_enter"
-		        ) || return
+		f_dialog_input _input "$msg_please_enter_rcvar_name" \
+		               "$_input" "$hline_alnum_tab_enter" || return
 
 		# Check for invalid entry (1of2)
 		if ! echo "$_input" | grep -q "^[[:alpha:]_]"; then

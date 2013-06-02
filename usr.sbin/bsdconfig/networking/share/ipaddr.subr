@@ -162,9 +162,8 @@ f_dialog_input_ipaddr()
 		# - User has either pressed ESC or chosen Cancel/No
 		# - User has not made any changes to the given value
 		#
-		_input=$( f_dialog_input "$msg" "$_ipaddr" \
-		                         "$hline_num_punc_tab_enter"
-		        ) || return
+		f_dialog_input _input "$msg" "$_ipaddr" \
+		               "$hline_num_punc_tab_enter" || return
 		[ "$_ipaddr" = "$_input" ] && return $FAILURE
 
 		# Return success if NULL value was entered

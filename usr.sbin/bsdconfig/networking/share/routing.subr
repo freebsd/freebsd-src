@@ -83,10 +83,9 @@ f_dialog_input_defaultrouter()
 	#
 	local retval
 	while :; do
-		defaultrouter=$( f_dialog_input \
-			"$msg_please_enter_default_router" \
-			"$defaultrouter" "$hline_num_punc_tab_enter"
-		)
+		f_dialog_input defaultrouter \
+		               "$msg_please_enter_default_router" \
+		               "$defaultrouter" "$hline_num_punc_tab_enter"
 		retval=$?
 		[ "$defaultrouter" ] || return $SUCCESS
 		[ $retval -eq $SUCCESS ] || return $retval

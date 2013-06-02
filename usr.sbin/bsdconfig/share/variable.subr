@@ -93,8 +93,7 @@ f_variable_get_value()
 
 	if ! { f_getvar $var cp && ! f_interactive; }; then
 		shift 1 # var
-		cp=$( f_dialog_input "$( printf "$@" )" "$cp" ) &&
-			setvar $var "$cp"
+		f_dialog_input cp "$( printf "$@" )" "$cp" && setvar $var "$cp"
 	fi
 
 	return $SUCCESS

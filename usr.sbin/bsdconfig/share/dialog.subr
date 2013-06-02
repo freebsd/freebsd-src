@@ -144,6 +144,48 @@ f_dialog_data_sanitize()
 	done
 }
 
+# f_dialog_line_sanitize $var_to_edit ...
+#
+# When using dialog(1) or Xdialog(1) sometimes unintended warnings or errors
+# are generated from underlying libraries. For example, if $LANG is set to an
+# invalid or unknown locale, the warnings from the Xdialog(1) libraries will
+# clutter the output. This function helps by providing a centralied function
+# that removes spurious warnings from the dialog(1) (or Xdialog(1)) response.
+#
+# Simply pass the name of one or more variables that need to be sanitized.
+# After execution, the variables will hold their newly-sanitized data.
+#
+# This function, unlike f_dialog_data_sanitize(), also removes leading/trailing
+# whitespace from each line.
+#
+f_dialog_line_sanitize()
+{
+	if [ "$#" -eq 0 ]; then
+		f_dprintf "%s: called with zero arguments" \
+		          f_dialog_response_sanitize
+		return $FAILURE
+	fi
+
+	local __var_to_edit
+	for __var_to_edit in $*; do
+		# Skip warnings and trim leading/trailing whitespace
+		setvar $__var_to_edit "$( f_getvar $__var_to_edit | awk '
+			BEGIN { data = 0 }
+			{
+				if ( ! data )
+				{
+					if ( $0 ~ /^$/ ) next
+					if ( $0 ~ /^Gdk-WARNING \*\*:/ ) next
+					data = 1
+				}
+				sub(/^[[:space:]]*/, "")
+				sub(/[[:space:]]*$/, "")
+				print
+			}
+		' )"
+	done
+}
+
 ############################################################ TITLE FUNCTIONS
 
 # f_dialog_title [$new_title]
@@ -1588,33 +1630,45 @@ f_dialog_noyes()
 
 ############################################################ INPUT FUNCTIONS
 
-# f_dialog_inputstr
+# f_dialog_inputstr_store [-s] $text
+#
+# Store some text from a dialog(1) inputbox to be retrieved later by
+# f_dialog_inputstr_fetch(). If the first argument is `-s', the text is
+# sanitized before being stored.
+#
+f_dialog_inputstr_store()
+{
+	local sanitize=
+	[ "$1" = "-s" ] && sanitize=1 && shift 1 # -s
+	local text="$1"
+
+	# Sanitize the line before storing it if desired
+	[ "$sanitize" ] && f_dialog_line_sanitize text
+
+	setvar DIALOG_INPUTBOX_$$ "$text"
+}
+
+# f_dialog_inputstr_fetch [$var_to_set]
 #
 # Obtain the inputstr entered by the user from the most recently displayed
-# dialog(1) inputbox and clean up any temporary files/variables.
+# dialog(1) inputbox (previously stored with f_dialog_inputstr_store() above).
+# If $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
 #
-f_dialog_inputstr()
+f_dialog_inputstr_fetch()
 {
-	# Skip warnings and trim leading/trailing whitespace from user input
-	eval echo \"\$DIALOG_INPUTBOX_$$\" | awk '
-		BEGIN { found = 0 }
-		{
-			if ( ! found )
-			{
-				if ( $0 ~ /^$/ ) next
-				if ( $0 ~ /^Gdk-WARNING \*\*:/ ) next
-				found = 1
-			}
-			sub(/^[[:space:]]*/, "")
-			sub(/[[:space:]]*$/, "")
-			print
-		}
-	'
+	local __var_to_set="$1" __cp
+
+	debug= f_getvar DIALOG_INPUTBOX_$$ "${__var_to_set:-__cp}" # get data
 	setvar DIALOG_INPUTBOX_$$ "" # scrub memory in case data was sensitive
+
+	# Return the line on standard-out if desired
+	[ "$__var_to_set" ] || echo "$__cp"
+
 	return $SUCCESS
 }
 
-# f_dialog_input $prompt [$init [$hline]]
+# f_dialog_input $var_to_set $prompt [$init [$hline]]
 #
 # Prompt the user with a dialog(1) inputbox to enter some value. The inputbox
 # remains until the the user presses ENTER or ESC, or otherwise ends the
@@ -1629,34 +1683,38 @@ f_dialog_inputstr()
 #
 f_dialog_input()
 {
-	local prompt="$1" init="$2" hline="$3"
-	local height width
-	f_dialog_inputbox_size height width \
+	local __var_to_set="$1" __prompt="$2" __init="$3" __hline="$4"
+
+	# NOTE: Function name appended to prevent __var_{height,width} values
+	#       from becoming local (and thus preventing setvar from working).
+	local __height_input __width_input
+	f_dialog_inputbox_size __height_input __width_input \
 		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" \
-		"$prompt" "$init" "$hline"
+		"$__prompt" "$__init" "$__hline"
 
-	local opterm="--"
-	[ "$USE_XDIALOG" ] && opterm=
+	local __opterm="--"
+	[ "$USE_XDIALOG" ] && __opterm=
 
-	local dialog_input
-	dialog_input=$(
+	local __dialog_input
+	__dialog_input=$(
 		$DIALOG \
 			--title "$DIALOG_TITLE"         \
 			--backtitle "$DIALOG_BACKTITLE" \
-			--hline "$hline"                \
+			--hline "$__hline"              \
 			--ok-label "$msg_ok"            \
 			--cancel-label "$msg_cancel"    \
-			--inputbox "$prompt"            \
-			$height $width                  \
-			$opterm "$init"                 \
+			--inputbox "$__prompt"          \
+			$__height_input $__width_input  \
+			$__opterm "$__init"             \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-	local retval=$?
+	local __retval=$?
 
-	setvar DIALOG_INPUTBOX_$$ "$dialog_input"
-	f_dialog_inputstr
+	# Remove warnings and leading/trailing whitespace from user input
+	f_dialog_line_sanitize __dialog_input
 
-	return $retval
+	setvar "$__var_to_set" "$__dialog_input"
+	return $__retval
 }
 
 ############################################################ MENU FUNCTIONS

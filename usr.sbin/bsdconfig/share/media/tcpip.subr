@@ -1422,29 +1422,23 @@ f_device_dialog_tcp()
 						"$_netmask" \
 						&& break ;;
 				"$msg_host_name_including_domain:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_hostname"
-					    ) && _hostname="$cp" ;;
+					f_dialog_input cp "$cp" "$_hostname" \
+						&& _hostname="$cp" ;;
 				"$msg_ipv4_gateway:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_gateway"
-					    ) && _gateway="$cp" ;;
+					f_dialog_input cp "$cp" "$_gateway" \
+						&& _gateway="$cp" ;;
 				"$msg_name_server:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_nameserver"
-					    ) && _nameserver="$cp" ;;
+					f_dialog_input cp "$cp" "$_nameserver" \
+						&& _nameserver="$cp" ;;
 				"$msg_ipv4_address:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_ipaddr"
-					    ) && _ipaddr="$cp" ;;
+					f_dialog_input cp "$cp" "$_ipaddr" \
+						&& _ipaddr="$cp" ;;
 				"$msg_netmask:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_netmask"
-					    ) && _netmask="$cp" ;;
+					f_dialog_input cp "$cp" "$_netmask" \
+						&& _netmask="$cp" ;;
 				"$msg_extra_options_to_ifconfig")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_extras"
-					    ) && _extras="$cp" ;;
+					f_dialog_input cp "$cp" "$_extras" \
+						&& _extras="$cp" ;;
 				esac
 			done
 
