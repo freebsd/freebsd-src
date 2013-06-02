@@ -49,11 +49,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list defaultitem=
-	local hline="$hline_choose_a_screen_map"
 	local prompt="$msg_screenmap_menu_text"
-
-	menu_list="
+	local menu_list="
 		'1 $msg_none'                 '$msg_none_screenmap_desc'
 		'2 $msg_iso_8859_1_to_ibm437' '$msg_iso_8859_1_to_ibm437_desc'
 		'3 $msg_iso_8859_7_to_ibm437' '$msg_iso_8859_7_to_ibm437_desc'
@@ -61,6 +58,8 @@ dialog_menu_main()
 		'5 $msg_koi8_r_to_ibm866'     '$msg_koi8_r_to_ibm866_desc'
 		'6 $msg_koi8_u_to_ibm866u'    '$msg_koi8_u_to_ibm866u_desc'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_screen_map"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \

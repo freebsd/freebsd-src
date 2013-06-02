@@ -90,13 +90,12 @@ f_input_user()
 #
 f_dialog_menu_user_list()
 {
-	local defaultitem="$1"
-	local menu_list
-	local hline="$hline_alnum_punc_tab_enter"
-
-	menu_list="
+	local prompt=
+	local menu_list="
 		'X $msg_exit' ''
 	" # END-QUOTE
+	local defaultitem="$1"
+	local hline="$hline_alnum_punc_tab_enter"
 
 	# Add users from passwd(5)
 	menu_list="$menu_list $( pw usershow -a | awk -F: '
@@ -109,7 +108,7 @@ f_dialog_menu_user_list()
 	eval f_dialog_menu_size height width rows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\"                   \
+	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
 
@@ -121,7 +120,7 @@ f_dialog_menu_user_list()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\"                        \
+		--menu \"\$prompt\"                \
 		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -139,35 +138,38 @@ f_dialog_menu_user_list()
 #
 f_dialog_input_member_groups()
 {
-	local msg="$( printf "$msg_member_of_groups" )"
+	local _member_groups="$1"
+	local prompt="$msg_member_of_groups"
+	local check_list= # Calculated below
 	local hline="$hline_alnum_space_tab_enter"
+	local group
+
+	#
+	# Generate the checklist menu
+	#
+	for group in $(
+		pw groupshow -a | awk -F: '!/^[[:space:]]*(#|$)/{print $1}'
+	); do
+		# Format of a checklist menu entry is "tag item status"
+		# (setting both tag and item to the group name below).
+		if echo "$_member_groups" | grep -q "\<$group\>"; then
+			check_list="$check_list $group $group on"
+		else
+			check_list="$check_list $group $group off"
+		fi
+	done
 
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local retval all_groups checklist_groups="" _member_groups="$1"
-	all_groups=$( pw groupshow -a | awk -F: '
-		!/^[[:space:]]*(#|$)/ {
-			printf "%s\n", $1
-                }'
-        )
-	for grp in $all_groups; do
-		checklist_groups="$checklist_groups $grp $grp"
-		if echo "$_member_groups" | grep -q "\<$grp\>"; then
-			checklist_groups="$checklist_groups on"
-		else
-			checklist_groups="$checklist_groups off"
-		fi
-	done
-
 	local height width rows
 	while :; do
 		eval f_dialog_checklist_size height width rows \
 		        	\"\$DIALOG_TITLE\"     \
 		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\"                   \
+		        	\"\$prompt\"           \
 		        	\"\$hline\"            \
-		        	$checklist_groups
+		        	$check_list
 		_member_groups=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
@@ -175,9 +177,9 @@ f_dialog_input_member_groups()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--checklist \"\$msg\"              \
+			--checklist \"\$prompt\"           \
 			$height $width $rows               \
-			$checklist_groups                  \
+			$check_list                        \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		) || return $?
 			# Return if user either pressed ESC or chose Cancel/No
@@ -186,7 +188,7 @@ f_dialog_input_member_groups()
 		#
 		# Validate each of the groups the user has entered
 		#
-		local group all_groups_valid=1
+		local all_groups_valid=1
 		for group in $_member_groups; do
 			if ! f_quietly pw groupshow -n "$group"; then
 				f_show_msg "$msg_group_not_found" "$group"
@@ -272,24 +274,22 @@ f_dialog_input_name()
 #
 f_dialog_input_password()
 {
+	local prompt1="$msg_password"
+	local prompt2="$msg_reenter_password"
 	local hline="$hline_alnum_punc_tab_enter"
-	local msg rmsg
 
-	msg=$( printf "$msg_password" )
 	local height1 width1
 	f_dialog_inputbox_size height1 width1 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
+	        	"$prompt1"          \
 	        	""                  \
 	        	"$hline"
-
-	rmsg=$( printf "$msg_reenter_password" )
 	local height2 width2
 	f_dialog_inputbox_size height2 width2 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
-	        	"$rmsg"             \
+	        	"$prompt2"          \
 	        	""                  \
 	        	"$hline"
 
@@ -305,7 +305,7 @@ f_dialog_input_password()
 			--ok-label "$msg_ok"            \
 			--cancel-label "$msg_cancel"    \
 			--insecure                      \
-			--passwordbox "$msg"            \
+			--passwordbox "$prompt1"        \
 			$height1 $width1                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		) || return $?
@@ -319,7 +319,7 @@ f_dialog_input_password()
 			--ok-label "$msg_ok"            \
 			--cancel-label "$msg_cancel"    \
 			--insecure                      \
-			--passwordbox "$rmsg"           \
+			--passwordbox "$prompt2"        \
 			$height2 $width2                \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		) || return $?
@@ -450,35 +450,34 @@ f_dialog_input_class()
 #
 f_dialog_input_change()
 {
-	local retval _input="$1"
-	local msg="$msg_password_expires_on"
-	local hline="$hline_num_arrows_tab_enter"
-
+	local prompt="$msg_password_expires_on"
 	local menu_list="
 		'1' '$msg_password_does_not_expire'
 		'2' '$msg_edit_date_time_with_a_calendar'
 		'3' '$msg_enter_number_of_days_into_the_future'
 		'4' '$msg_enter_value_manually'
 	" # END-QUOTE
+	local hline="$hline_num_arrows_tab_enter"
+	local retval _input="$1"
 
 	local mheight mwidth mrows
 	eval f_dialog_menu_size mheight mwidth mrows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\$msg\"              \
+	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
 	local cheight cwidth
 	f_dialog_calendar_size cheight cwidth \
 	                       "$DIALOG_TITLE"     \
 	                       "$DIALOG_BACKTITLE" \
-	                       "$msg"              \
+	                       "$prompt"           \
 	                       "$hline"
 	local theight twidth
 	f_dialog_timebox_size theight twidth \
 	                      "$DIALOG_TITLE"     \
 	                      "$DIALOG_BACKTITLE" \
-	                      "$msg"              \
+	                      "$prompt"           \
 	                      "$hline"
 
 	#
@@ -492,7 +491,7 @@ f_dialog_input_change()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$msg\"                   \
+			--menu \"\$prompt\"                \
 			$mheight $mwidth $mrows            \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -522,7 +521,7 @@ f_dialog_input_change()
 				--hline \"\$hline\"                 \
 				--ok-label \"\$msg_ok\"             \
 				--cancel-label \"\$msg_cancel\"     \
-				--calendar \"\$msg\"                \
+				--calendar \"\$prompt\"             \
 				$cheight $cwidth                    \
 				$_input_date                        \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -543,7 +542,7 @@ f_dialog_input_change()
 				--hline \"\$hline\"                \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_cancel\"    \
-				--timebox \"\$msg\"                \
+				--timebox \"\$prompt\"             \
 				$theight $twidth                   \
 				$_input_time                       \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -592,6 +591,7 @@ f_dialog_input_change()
 			break ;;
 
 		4) # Enter value manually
+			local msg
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
 
@@ -631,35 +631,34 @@ f_dialog_input_change()
 #
 f_dialog_input_expire()
 {
-	local retval _input="$1"
-	local msg="$msg_account_expires_on"
-	local hline="$hline_num_arrows_tab_enter"
-
+	local prompt="$msg_account_expires_on"
 	local menu_list="
 		'1' '$msg_account_does_not_expire'
 		'2' '$msg_edit_date_time_with_a_calendar'
 		'3' '$msg_enter_number_of_days_into_the_future'
 		'4' '$msg_enter_value_manually'
 	" # END-QUOTE
+	local hline="$hline_num_arrows_tab_enter"
+	local retval _input="$1"
 
 	local mheight mwidth mrows 
 	eval f_dialog_menu_size mheight mwidth mrows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\$msg\"              \
+	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
 	                        $menu_list
 	local cheight cwidth
 	f_dialog_calendar_size cheight cwidth \
 	                       "$DIALOG_TITLE"     \
 	                       "$DIALOG_BACKTITLE" \
-	                       "$msg"              \
+	                       "$prompt"           \
 	                       "$hline"
 	local theight twidth
 	f_dialog_timebox_size theight twidth \
 	                      "$DIALOG_TITLE"     \
 	                      "$DIALOG_BACKTITLE" \
-	                      "$msg"              \
+	                      "$prompt"           \
 	                      "$hline"
 
 	#
@@ -673,7 +672,7 @@ f_dialog_input_expire()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$msg\"                   \
+			--menu \"\$prompt\"                \
 			$mheight $mwidth $mrows            \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -703,7 +702,7 @@ f_dialog_input_expire()
 				--hline \"\$hline\"                 \
 				--ok-label \"\$msg_ok\"             \
 				--cancel-label \"\$msg_cancel\"     \
-				--calendar \"\$msg\"                \
+				--calendar \"\$prompt\"             \
 				$cheight $cwidth                    \
 				$_input_date                        \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -724,7 +723,7 @@ f_dialog_input_expire()
 				--hline \"\$hline\"                \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_cancel\"    \
-				--timebox \"\$msg\"                \
+				--timebox \"\$prompt\"             \
 				$theight $twidth                   \
 				$_input_time                       \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -773,6 +772,7 @@ f_dialog_input_expire()
 			break ;;
 
 		4) # Enter value manually
+			local msg
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
 
@@ -959,20 +959,23 @@ f_dialog_input_dotfiles_create()
 #
 f_dialog_input_shell()
 {
-	local shells shell_list _input="$1"
-	local hline="$hline_arrows_space_tab_enter"
+	local _input="$1"
 	local prompt="$msg_select_login_shell"
+	local radio_list= # Calculated below
+	local hline="$hline_arrows_space_tab_enter"
 
-	shells=$( awk '!/^[[:space:]]*(#|$)/{print}' "$ETC_SHELLS" )
-	shell_list=$(
-		for shell in $shells; do
-			if [ "$shell" = "$_input" ]; then
-				echo "'$shell' '' 'on'"
-			else
-				echo "'$shell' '' 'off'"
-			fi
-		done
-	)
+	#
+	# Generate the radiolist of shells
+	#
+	local shell
+	for shell in $( awk '!/^[[:space:]]*(#|$)/{print}' "$ETC_SHELLS" ); do
+		# Format of a radiolist menu entry is "tag item status"
+		if [ "$shell" = "$_input" ]; then
+			radio_list="$radio_list '$shell' '' 'on'"
+		else
+			radio_list="$radio_list '$shell' '' 'off'"
+		fi
+	done
 
 	local height width rows
 	eval f_dialog_radiolist_size height width rows \
@@ -980,7 +983,7 @@ f_dialog_input_shell()
 	                             \"\$DIALOG_BACKTITLE\" \
 	                             \"\$prompt\"           \
 	                             \"\$hline\"            \
-	                             $shell_list
+	                             $radio_list
 
 	_input=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
@@ -990,7 +993,7 @@ f_dialog_input_shell()
 		--cancel-label \"\$msg_cancel\"    \
 		--radiolist \"\$prompt\"           \
 		$height $width $rows               \
-		$shell_list                        \
+		$radio_list                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	) || return $?
 		# Return if user either pressed ESC or chose Cancel/No

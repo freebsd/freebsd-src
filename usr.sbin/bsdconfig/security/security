@@ -49,21 +49,21 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list mark=" " defaultitem=
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_menu_text"
+	local menu_list="
+		'X <<< $msg_exit' '$msg_exit_this_menu'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	# Obtain default-item (adjusted below for dynamic tags)
 	f_dialog_default_fetch defaultitem
 	local ditem="${defaultitem%%[$IFS]*}"
 
-	menu_list="
-		'X <<< $msg_exit' '$msg_exit_this_menu'
-	" # END-QUOTE
-
 	#
 	# Add dynamically tagged entry for kern_securelevels
 	#
+	local mark=" "
 	case "$( f_sysrc_get kern_securelevel_enable )" in
 	[Yy][Ee][Ss])
 		local kern_securelevel="$( f_sysrc_get kern_securelevel )"

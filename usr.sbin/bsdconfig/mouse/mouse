@@ -48,12 +48,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list
-	local hline=""
 	local prompt="$msg_menu_text"
-	local defaultitem= # Calculated below
-
-	menu_list="
+	local menu_list="
 		'X $msg_exit'    '$msg_exit_this_menu'
 		'2 $msg_enable'  '$msg_test_and_run_the_mouse_daemon'
 		'3 $msg_type'    '$msg_select_mouse_protocol_type'
@@ -61,6 +57,8 @@ dialog_menu_main()
 		'5 $msg_flags'   '$msg_set_additional_flags'
 		'6 $msg_disable' '$msg_disable_the_mouse_daemon'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline=
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \

@@ -50,7 +50,8 @@ USAGE_HELPFILE=$BSDCFG_LIBE/include/usage.hlp
 #
 usage()
 {
-	local index="INDEX" cmd_list=""
+	local index="INDEX"
+	local cmd_list # Calculated below
 
 	cd $BSDCFG_LIBE
 		# No need to preserve CWD (headed toward exit)
@@ -145,13 +146,12 @@ dialog_menu_main()
 	local title="$DIALOG_TITLE"
 	local btitle="$DIALOG_BACKTITLE"
 	local prompt="$msg_menu_text"
-	local menu_list
-	local defaultitem= # Calculated below
-
-	menu_list="
+	local menu_list="
 		'X' '$msg_exit'  '$msg_exit_bsdconfig'
 		'1' '$msg_usage' '$msg_quick_start_how_to_use_this_menu_system'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline=
 
 	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
 
@@ -185,7 +185,7 @@ dialog_menu_main()
 	                                  \"\$title\"  \
 	                                  \"\$btitle\" \
 	                                  \"\$prompt\" \
-	                                  \"\"         \
+	                                  \"\$hline\"  \
 	                                  $menu_list
 
 	# Obtain default-item from previously stored selection
@@ -196,6 +196,7 @@ dialog_menu_main()
 		--clear                                 \
 		--title \"\$title\"                     \
 		--backtitle \"\$btitle\"                \
+		--hline \"\$hline\"                     \
 		--item-help                             \
 		--ok-label \"\$msg_ok\"                 \
 		--cancel-label \"\$msg_exit_bsdconfig\" \

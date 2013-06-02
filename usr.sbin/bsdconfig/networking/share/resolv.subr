@@ -392,23 +392,24 @@ f_dialog_input_nameserver()
 #
 f_dialog_menu_nameservers()
 {
+	local prompt="$msg_dns_configuration"
+	local menu_list # Calculated below
+	local hline="$hline_arrows_tab_enter"
+	local defaultitem=
 
 	local height width rows
 	local opt_exit="$msg_return_to_previous_menu"
 	local opt_add="$msg_add_nameserver"
-	local hline="$hline_arrows_tab_enter"
-	local prompt defaultitem=
 
 	#
 	# Loop forever until the user has finished configuring nameservers
 	#
-	prompt="$msg_dns_configuration"
 	while :; do
 		#
 		# Re/Build list of nameservers
 		#
 		local nameservers="$( f_resolv_conf_nameservers )"
-		local menu_list="$(
+		menu_list=$(
 			index=1
 
 			echo "'X $msg_exit' '$opt_exit'" 
@@ -423,7 +424,7 @@ f_dialog_menu_nameservers()
 				echo "'$tag nameserver' '$ns'"
 				index=$(( $index + 1 ))
 			done
-		)"
+		)
 
 		#
 		# Display configuration-edit menu
