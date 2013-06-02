@@ -1371,7 +1371,7 @@ f_device_dialog_tcp()
 			# Create a persistent menu instead
 
 			f_dialog_title "$msg_network_configuration"
-			local prompt=""
+			local prompt=
 
 			while :; do
 				cp=$( $DIALOG \
