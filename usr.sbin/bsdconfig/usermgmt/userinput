@@ -254,8 +254,8 @@ if [ "$mode" = "Add" ]; then
 	f_dialog_input_gid || exit 0
 	f_dialog_input_member_groups || exit 0
 	f_dialog_input_class || exit 0
-	f_dialog_input_change || exit 0
-	f_dialog_input_expire || exit 0
+	f_dialog_input_expire_password || exit 0
+	f_dialog_input_expire_account || exit 0
 	f_dialog_input_home_dir "$homeprefix/$pw_name" || exit 0
 	pw_dotfiles_create="$msg_no"
 	if [ ! -d "$homeprefix/$pw_name" ]; then
@@ -472,10 +472,10 @@ while :; do
 	   f_dialog_input_class "$pw_class"
 	   ;;
 	8) # Password Expire on
-	   f_dialog_input_change "$pw_password_expire"
+	   f_dialog_input_expire_password "$pw_password_expire"
 	   ;;
 	9) # Account Expire on
-	   f_dialog_input_expire "$pw_account_expire"
+	   f_dialog_input_expire_account "$pw_account_expire"
 	   ;;
 	A) # Home Directory
 	   f_dialog_input_home_dir "$pw_home_dir"
