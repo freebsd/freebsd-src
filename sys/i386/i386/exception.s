@@ -417,6 +417,7 @@ doreti_popl_es_fault:
 	pushl	%fs
 	.globl	doreti_popl_fs_fault
 doreti_popl_fs_fault:
+	sti
 	movl	$0,TF_ERR(%esp)	/* XXX should be the error code */
 	movl	$T_PROTFLT,TF_TRAPNO(%esp)
 	jmp	alltraps_with_regs_pushed
