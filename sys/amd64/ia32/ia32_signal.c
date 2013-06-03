@@ -112,7 +112,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 		len = max_len;
 		bzero(xfpusave + max_len, len - max_len);
 	}
-	mcp->mc_flags |= _MC_HASFPXSTATE;
+	mcp->mc_flags |= _MC_IA32_HASFPXSTATE;
 	mcp->mc_xfpustate_len = len;
 	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
 }
