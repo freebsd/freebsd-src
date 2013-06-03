@@ -4,11 +4,11 @@
 # locale sources
 .PATH: ${.CURDIR}/${LIBC_ARCH}/locale ${.CURDIR}/locale
 
-SRCS+=	ascii.c big5.c btowc.c c16rtomb.c c32rtomb.c collate.c collcmp.c euc.c \
-	fix_grouping.c gb18030.c gb2312.c gbk.c ctype.c isctype.c iswctype.c \
+SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
+	gb18030.c gb2312.c gbk.c ctype.c isctype.c iswctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mblen.c \
 	mbrlen.c \
-	mbrtoc16.c mbrtoc32.c mbrtowc.c mbsinit.c mbsnrtowcs.c \
+	mbrtowc.c mbsinit.c mbsnrtowcs.c \
 	mbsrtowcs.c mbtowc.c mbstowcs.c \
 	mskanji.c nextwctype.c nl_langinfo.c nomacros.c none.c rpmatch.c \
 	rune.c \
@@ -22,6 +22,12 @@ SRCS+=	ascii.c big5.c btowc.c c16rtomb.c c32rtomb.c collate.c collcmp.c euc.c \
 	wcstoul.c wcstoull.c wcstoumax.c wctob.c wctomb.c wctrans.c wctype.c \
 	wcwidth.c\
 	xlocale.c
+
+.if ${MK_ICONV} != "no"
+SRCS+=	c16rtomb_iconv.c c32rtomb_iconv.c mbrtoc16_iconv.c mbrtoc32_iconv.c
+.else
+SRCS+=	c16rtomb.c c32rtomb.c mbrtoc16.c mbrtoc32.c
+.endif
 
 SYM_MAPS+=${.CURDIR}/locale/Symbol.map
 
