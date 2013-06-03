@@ -275,10 +275,10 @@ expl(long double x)
 	/* Depend on the sign bit being propagated: */
 	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;
-	r2 = -fn * L2;
+	r2 = fn * -L2;
 
 	/* Prepare scale factors. */
-	v.xbits.man = 1ULL << 63;
+	v.e = 1ULL << 63;
 	if (k >= LDBL_MIN_EXP) {
 		v.xbits.expsign = BIAS + k;
 		twopk = v.e;
