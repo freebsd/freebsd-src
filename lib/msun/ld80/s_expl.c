@@ -61,9 +61,12 @@ static volatile const long double tiny = 0x1p-10000L;
 
 static const union IEEEl2bits
 /* log(2**16384 - 0.5) rounded towards zero: */
-o_threshold = LD80C(0xb17217f7d1cf79ab, 13,  11356.5234062941439488L),
+/* log(2**16384 - 0.5 + 1) rounded towards zero for expm1l() is the same: */
+o_thresholdu = LD80C(0xb17217f7d1cf79ab, 13,  11356.5234062941439488L),
+#define o_threshold	 (o_thresholdu.e)
 /* log(2**(-16381-64-1)) rounded towards zero: */
-u_threshold = LD80C(0xb21dfe7f09e2baa9, 13, -11399.4985314888605581L);
+u_thresholdu = LD80C(0xb21dfe7f09e2baa9, 13, -11399.4985314888605581L);
+#define u_threshold	 (u_thresholdu.e)
 
 static const double
 /*
@@ -246,9 +249,9 @@ expl(long double x)
 				return (0.0L);	/* x is -Inf */
 			return (x + x); /* x is +Inf, NaN or unsupported */
 		}
-		if (x > o_threshold.e)
+		if (x > o_threshold)
 			return (huge * huge);
-		if (x < u_threshold.e)
+		if (x < u_threshold)
 			return (tiny * tiny);
 	} else if (ix < BIAS - 66) {	/* |x| < 0x1p-66 */
 					/* includes pseudo-denormals */
