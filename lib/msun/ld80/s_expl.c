@@ -235,7 +235,8 @@ long double
 expl(long double x)
 {
 	union IEEEl2bits u, v;
-	long double fn, q, r, r1, r2, t, t23, t45, twopk, twopkp10000, z;
+	long double fn, q, r, r1, r2, t, twopk, twopkp10000;
+	long double z;
 	int k, n, n2;
 	uint16_t hx, ix;
 
@@ -288,12 +289,9 @@ expl(long double x)
 		twopkp10000 = v.e;
 	}
 
-	/* Evaluate expl(midpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2). */
-	/* Here q = q(r), not q(r1), since r1 is lopped like L1. */
-	t45 = r * A5 + A4;
+	/* Evaluate expl(endpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2). */
 	z = r * r;
-	t23 = r * A3 + A2;
-	q = r2 + z * t23 + z * z * t45 + z * z * z * A6;
+	q = r2 + z * (A2 + r * A3) + z * z * (A4 + r * A5) + z * z * z * A6;
 	t = (long double)tbl[n2].lo + tbl[n2].hi;
 	t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
 

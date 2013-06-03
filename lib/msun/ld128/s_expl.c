@@ -41,28 +41,48 @@ __FBSDID("$FreeBSD$");
 #define	LOG2_INTERVALS	7
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
+static const long double
+huge = 0x1p10000L,
+twom10000 = 0x1p-10000L,
+/* XXX Prevent gcc from erroneously constant folding this: */
 static volatile const long double tiny = 0x1p-10000L;
 
 static const long double
-INV_L = 1.84664965233787316142070359168242182e+02L,
-L1 = 5.41521234812457272982212595914567508e-03L,
-L2 = -1.02536706388947310094527932552595546e-29L,
-huge = 0x1p10000L,
+/* log(2**16384 - 0.5) rounded towards zero: */
+/* log(2**16384 - 0.5 + 1) rounded towards zero for expm1l() is the same: */
 o_threshold =  11356.523406294143949491931077970763428L,
-twom10000 = 0x1p-10000L,
+/* log(2**(-16381-64-1)) rounded towards zero: */
 u_threshold = -11433.462743336297878837243843452621503L;
 
+static const double
+/*
+ * ln2/INTERVALS = L1+L2 (hi+lo decomposition for multiplication).  L1 must
+ * have at least 22 (= log2(|LDBL_MIN_EXP-extras|) + log2(INTERVALS)) lowest
+ * bits zero so that multiplication of it by n is exact.
+ */
+INV_L = 1.8466496523378731e+2,		/*  0x171547652b82fe.0p-45 */
+L2 = -1.0253670638894731e-29;		/* -0x1.9ff0342542fc3p-97 */
 static const long double
-A2 = 5.00000000000000000000000000000000000e-1L,
-A3 = 1.66666666666666666666666666666666972e-1L,
-A4 = 4.16666666666666666666666666653708268e-2L,
-A5 = 8.33333333333333333333333315069867254e-3L,
-A6 = 1.38888888888888888888996596213795377e-3L,
-A7 = 1.98412698412698412718821436278644414e-4L,
-A8 = 2.48015873015869681884882576649543128e-5L,
-A9 = 2.75573192240103867817876199544468806e-6L,
-A10 = 2.75573236172670046201884000197885520e-7L,
-A11 = 2.50517544183909126492878226167697856e-8L;
+/* 0x1.62e42fefa39ef35793c768000000p-8 */
+L1 =  5.41521234812457272982212595914567508e-3L;
+
+static const long double
+/*
+ * Domain [-0.002708, 0.002708], range ~[-2.4011e-38, 2.4244e-38]:
+ * |exp(x) - p(x)| < 2**-124.9
+ * (0.002708 is ln2/(2*INTERVALS) rounded up a little).
+ */
+A2  =  0.5,
+A3  =  1.66666666666666666666666666651085500e-1L,
+A4  =  4.16666666666666666666666666425885320e-2L,
+A5  =  8.33333333333333333334522877160175842e-3L,
+A6  =  1.38888888888888888889971139751596836e-3L;
+
+static const double
+A7  =  1.9841269841269471e-4,
+A8  =  2.4801587301585284e-5,
+A9  =  2.7557324277411234e-6,
+A10 =  2.7557333722375072e-7;
 
 static const struct {
 	long double	hi;
@@ -202,7 +222,9 @@ long double
 expl(long double x)
 {
 	union IEEEl2bits u, v;
-	long double fn, r, r1, r2, q, t, twopk, twopkp10000;
+	long double q, r, r1, t, twopk, twopkp10000;
+	double dr, fn, r2;
+
 	int k, n, n2;
 	uint32_t hx, ix;
 
@@ -227,8 +249,15 @@ expl(long double x)
 	}
 
 	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
-	fn = x * INV_L + 0x1.8p112 - 0x1.8p112;
+	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
+	/* XXX assume no extra precision for the additions, as for trig fns. */
+	/* XXX this set of comments is now quadruplicated. */
+	fn = (double)x * INV_L + 0x1.8p52 - 0x1.8p52;
+#if defined(HAVE_EFFICIENT_IRINT)
+	n = irint(fn);
+#else
 	n = (int)fn;
+#endif
 	n2 = (unsigned)n % INTERVALS;
 	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;
@@ -245,11 +274,12 @@ expl(long double x)
 		twopkp10000 = v.e;
 	}
 
-	r = r1 + r2;
-	q = r * r * (A2 + r * (A3 + r * (A4 + r * (A5 + r * (A6 + r * (A7 +
-	    r * (A8 + r * (A9 + r * (A10 + r * A11)))))))));
+	/* Evaluate expl(endpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2). */
+	dr = r;
+	q = r2 + r * r * (A2 + r * (A3 + r * (A4 + r * (A5 + r * (A6 +
+	    dr * (A7 + dr * (A8 + dr * (A9 + dr * A10))))))));
 	t = tbl[n2].lo + tbl[n2].hi;
-	t = tbl[n2].hi + (tbl[n2].lo + t * (r2 + q + r1));
+	t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
 
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
