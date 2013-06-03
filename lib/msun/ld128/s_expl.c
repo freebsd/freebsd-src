@@ -228,7 +228,7 @@ expl(long double x)
 	double dr, fn, r2;
 
 	int k, n, n2;
-	uint32_t hx, ix;
+	uint16_t hx, ix;
 
 	/* Filter out exceptional cases. */
 	u.e = x;
@@ -248,6 +248,8 @@ expl(long double x)
 		return (1 + x);		/* 1 with inexact iff x != 0 */
 	}
 
+	ENTERI();
+
 	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
 	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
 	/* XXX assume no extra precision for the additions, as for trig fns. */
@@ -262,10 +264,11 @@ expl(long double x)
 	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;
 	r2 = fn * -L2;
+	r = r1 + r2;
 
 	/* Prepare scale factors. */
-	v.xbits.manh = 0;
-	v.xbits.manl = 0;
+	/* XXX sparc64 multiplication is so slow that scalbnl() is faster. */
+	v.e = 1;
 	if (k >= LDBL_MIN_EXP) {
 		v.xbits.expsign = BIAS + k;
 		twopk = v.e;
@@ -284,9 +287,9 @@ expl(long double x)
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
 		if (k == LDBL_MAX_EXP)
-			return (t * 2.0L * 0x1p16383L);
-		return (t * twopk);
+			RETURNI(t * 2 * 0x1p16383L);
+		RETURNI(t * twopk);
 	} else {
-		return (t * twopkp10000 * twom10000);
+		RETURNI(t * twopkp10000 * twom10000);
 	}
 }
