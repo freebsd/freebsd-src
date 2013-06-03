@@ -234,18 +234,16 @@ expl(long double x)
 	ix = hx & 0x7fff;
 	if (ix >= BIAS + 13) {		/* |x| >= 8192 or x is NaN */
 		if (ix == BIAS + LDBL_MAX_EXP) {
-			if (hx & 0x8000 && u.xbits.manh == 0 &&
-			    u.xbits.manl == 0)
-				return (0.0L);	/* x is -Inf */
+			if (hx & 0x8000)  /* x is -Inf or -NaN */
+				return (-1 / x);
 			return (x + x);	/* x is +Inf or NaN */
 		}
 		if (x > o_threshold)
 			return (huge * huge);
 		if (x < u_threshold)
 			return (tiny * tiny);
-	} else if (ix < BIAS - 115) {	/* |x| < 0x1p-115 */
-	    	if (huge + x > 1.0L)	/* trigger inexact iff x != 0 */
-			return (1.0L + x);
+	} else if (ix < BIAS - 114) {	/* |x| < 0x1p-114 */
+		return (1 + x);		/* 1 with inexact iff x != 0 */
 	}
 
 	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
