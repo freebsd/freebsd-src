@@ -797,7 +797,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	double pct;
 	struct handle *hp;
 	char status[16];
-	int state;
+	int cpu, state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
 	char *proc_fmt, thr_buf[6], jid_buf[6];
@@ -996,6 +996,13 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	}
 
 	/* format this entry */
+	if (smpmode) {
+		if (state == SRUN && pp->ki_oncpu != 0xff)
+			cpu = pp->ki_oncpu;
+		else
+			cpu = pp->ki_lastcpu;
+	} else
+		cpu = 0;
 	proc_fmt = smpmode ? smp_Proc_format : up_Proc_format;
 	if (ps.thread != 0)
 		thr_buf[0] = '\0';
@@ -1013,7 +1020,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	    format_k2(PROCSIZE(pp)),
 	    format_k2(pagetok(pp->ki_rssize)),
 	    status,
-	    smpmode ? pp->ki_lastcpu : 0,
+	    cpu,
 	    format_time(cputime),
 	    ps.wcpu ? 100.0 * weighted_cpu(pct, pp) : 100.0 * pct,
 	    screen_width > cmdlengthdelta ? screen_width - cmdlengthdelta : 0,
