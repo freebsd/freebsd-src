@@ -104,7 +104,7 @@ g_confdot(void *p, int flag )
 	sbuf_printf(sb, "digraph geom {\n");
 	LIST_FOREACH(mp, &g_classes, class)
 		g_confdot_class(sb, mp);
-	sbuf_printf(sb, "};\n");
+	sbuf_printf(sb, "}\n");
 	sbuf_finish(sb);
 }
 
