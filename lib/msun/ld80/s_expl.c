@@ -78,11 +78,11 @@ L2 = -3.2819649005320973e-13,		/* -0x1718432a1b0e26.0p-94 */
  * |exp(x) - p(x)| < 2**-77.2
  * (0.002708 is ln2/(2*INTERVALS) rounded up a little).
  */
-P2 =  0.5,
-P3 =  1.6666666666666119e-1,		/*  0x15555555555490.0p-55 */
-P4 =  4.1666666666665887e-2,		/*  0x155555555554e5.0p-57 */
-P5 =  8.3333354987869413e-3,		/*  0x1111115b789919.0p-59 */
-P6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
+A2 =  0.5,
+A3 =  1.6666666666666119e-1,		/*  0x15555555555490.0p-55 */
+A4 =  4.1666666666665887e-2,		/*  0x155555555554e5.0p-57 */
+A5 =  8.3333354987869413e-3,		/*  0x1111115b789919.0p-59 */
+A6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
 
 /*
  * 2^(i/INTERVALS) for i in [0,INTERVALS] is represented by two values where
@@ -96,8 +96,7 @@ P6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
 static const struct {
 	double	hi;
 	double	lo;
-/* XXX should rename 's'. */
-} s[INTERVALS] = {
+} tbl[INTERVALS] = {
 	0x1p+0, 0x0p+0,
 	0x1.0163da9fb3335p+0, 0x1.b61299ab8cdb7p-54,
 	0x1.02c9a3e778060p+0, 0x1.dcdef95949ef4p-53,
@@ -284,14 +283,14 @@ expl(long double x)
 		twopkp10000 = v.e;
 	}
 
-	/* Evaluate expl(midpoint[n2] + r1 + r2) = s[n2] * expl(r1 + r2). */
+	/* Evaluate expl(midpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2). */
 	/* Here q = q(r), not q(r1), since r1 is lopped like L1. */
 	t45 = r * P5 + P4;
 	z = r * r;
 	t23 = r * P3 + P2;
 	q = r2 + z * t23 + z * z * t45 + z * z * z * P6;
-	t = (long double)s[n2].lo + s[n2].hi;
-	t = s[n2].lo + t * (q + r1) + s[n2].hi;
+	t = (long double)tbl[n2].lo + tbl[n2].hi;
+	t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
 
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
