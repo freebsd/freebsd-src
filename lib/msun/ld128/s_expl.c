@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 static const long double
 huge = 0x1p10000L,
-twom10000 = 0x1p-10000L,
+twom10000 = 0x1p-10000L;
 /* XXX Prevent gcc from erroneously constant folding this: */
 static volatile const long double tiny = 0x1p-10000L;
 
@@ -231,7 +231,6 @@ expl(long double x)
 	union IEEEl2bits u, v;
 	long double q, r, r1, t, twopk, twopkp10000;
 	double dr, fn, r2;
-
 	int k, n, n2;
 	uint16_t hx, ix;
 
@@ -243,7 +242,7 @@ expl(long double x)
 		if (ix == BIAS + LDBL_MAX_EXP) {
 			if (hx & 0x8000)  /* x is -Inf or -NaN */
 				return (-1 / x);
-			return (x + x);	/* x is +Inf or NaN */
+			return (x + x);	/* x is +Inf or +NaN */
 		}
 		if (x > o_threshold)
 			return (huge * huge);
