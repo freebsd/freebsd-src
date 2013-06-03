@@ -3136,7 +3136,7 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 	*cdb_string = '\0';
 	for (i = 0; i < cdb_len; i++)
 		snprintf(cdb_string + strlen(cdb_string),
-			 len - strlen(cdb_string), "%x ", cdb_ptr[i]);
+			 len - strlen(cdb_string), "%02hhx ", cdb_ptr[i]);
 
 	return(cdb_string);
 }
