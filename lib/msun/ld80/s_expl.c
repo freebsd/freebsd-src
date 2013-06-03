@@ -261,7 +261,7 @@ expl(long double x)
 
 	ENTERI();
 
-	/* Reduce x to (k*ln2 + midpoint[n2] + r1 + r2). */
+	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
 	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
 	fn = x * INV_L + 0x1.8p63 - 0x1.8p63;
 	r = x - fn * L1 - fn * L2;	/* r = r1 + r2 done independently. */
