@@ -115,7 +115,7 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 	int i;
 
 	ei->e2di_mode = ip->i_mode;
-        ei->e2di_nlink = ip->i_nlink;
+	ei->e2di_nlink = ip->i_nlink;
 	/* 
 	   Godmar thinks: if dtime is nonzero, ext2 says this inode
 	   has been deleted, this would correspond to a zero link count
