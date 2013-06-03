@@ -2244,7 +2244,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
 	size_t max_len, len;
 
 	mcp->mc_ownedfp = fpugetregs(td);
-	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate,
+	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 	if (!use_xsave || xfpusave_len == 0)
