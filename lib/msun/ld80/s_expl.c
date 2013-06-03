@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Steven G. Kargl
+ * Copyright (c) 2009-2013 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
