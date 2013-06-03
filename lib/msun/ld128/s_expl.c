@@ -261,7 +261,7 @@ expl(long double x)
 	n2 = (unsigned)n % INTERVALS;
 	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;
-	r2 = -fn * L2;
+	r2 = fn * -L2;
 
 	/* Prepare scale factors. */
 	v.xbits.manh = 0;
