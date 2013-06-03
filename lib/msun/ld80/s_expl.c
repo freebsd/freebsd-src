@@ -290,10 +290,10 @@ expl(long double x)
 
 	/* Evaluate expl(midpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2). */
 	/* Here q = q(r), not q(r1), since r1 is lopped like L1. */
-	t45 = r * P5 + P4;
+	t45 = r * A5 + A4;
 	z = r * r;
-	t23 = r * P3 + P2;
-	q = r2 + z * t23 + z * z * t45 + z * z * z * P6;
+	t23 = r * A3 + A2;
+	q = r2 + z * t23 + z * z * t45 + z * z * z * A6;
 	t = (long double)tbl[n2].lo + tbl[n2].hi;
 	t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
 
