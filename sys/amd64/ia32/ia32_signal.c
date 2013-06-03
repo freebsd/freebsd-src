@@ -187,7 +187,6 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_xfpustate = 0;
 	mcp->mc_xfpustate_len = 0;
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 
