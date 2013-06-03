@@ -226,7 +226,7 @@ expl(long double x)
 			return (1.0L + x);
 	}
 
-	/* Reduce x to (k*ln2 + midpoint[n2] + r1 + r2). */
+	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
 	fn = x * INV_L + 0x1.8p112 - 0x1.8p112;
 	n = (int)fn;
 	n2 = (unsigned)n % INTERVALS;
