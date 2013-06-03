@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
  * to produce the hexadecimal values shown.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -139,3 +141,7 @@ __ieee754_log(double x)
 		     return dk*ln2_hi-((s*(f-R)-dk*ln2_lo)-f);
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(log, logl);
+#endif
