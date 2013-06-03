@@ -28,7 +28,7 @@
 .\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2012
+.Dd June 3, 2013
 .Dt EXP 3
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Nm exp2l ,
 .Nm expm1 ,
 .Nm expm1f ,
+.Nm expm1l ,
 .Nm pow ,
 .Nm powf
 .Nd exponential and power functions
@@ -64,6 +65,8 @@
 .Fn expm1 "double x"
 .Ft float
 .Fn expm1f "float x"
+.Ft long double
+.Fn expm1l "long double x"
 .Ft double
 .Fn pow "double x" "double y"
 .Ft float
@@ -88,9 +91,10 @@ functions compute the base 2 exponential of the given argument
 .Fa x .
 .Pp
 The
-.Fn expm1
+.Fn expm1 ,
+.Fn expm1f ,
 and the
-.Fn expm1f
+.Fn expm1l
 functions compute the value exp(x)\-1 accurately even for tiny argument
 .Fa x .
 .Pp
