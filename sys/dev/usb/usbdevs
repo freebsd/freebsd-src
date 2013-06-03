@@ -3498,7 +3498,7 @@ product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 product RATOC REXUSB60		0xb000	USB serial adapter REX-USB60
 product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
 
-/* ReakTek products */
+/* Realtek products */
 /* Green House and CompUSA OEM this part */
 product REALTEK DUMMY		0x0000	Dummy product
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
