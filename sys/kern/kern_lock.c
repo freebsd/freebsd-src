@@ -511,7 +511,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	case LK_SHARED:
 		if (LK_CAN_WITNESS(flags))
 			WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER,
-			    file, line, ilk);
+			    file, line, flags & LK_INTERLOCK ? ilk : NULL);
 		for (;;) {
 			x = lk->lk_lock;
 
@@ -723,7 +723,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	case LK_EXCLUSIVE:
 		if (LK_CAN_WITNESS(flags))
 			WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER |
-			    LOP_EXCLUSIVE, file, line, ilk);
+			    LOP_EXCLUSIVE, file, line, flags & LK_INTERLOCK ?
+			    ilk : NULL);
 
 		/*
 		 * If curthread already holds the lock and this one is
@@ -1072,7 +1073,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	case LK_DRAIN:
 		if (LK_CAN_WITNESS(flags))
 			WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER |
-			    LOP_EXCLUSIVE, file, line, ilk);
+			    LOP_EXCLUSIVE, file, line, flags & LK_INTERLOCK ?
+			    ilk : NULL);
 
 		/*
 		 * Trying to drain a lock we already own will result in a
