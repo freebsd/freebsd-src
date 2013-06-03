@@ -70,7 +70,7 @@ L1 =  5.41521234812457272982212595914567508e-3L;
 
 static const long double
 /*
- * Domain [-0.002708, 0.002708], range ~[-2.4011e-38, 2.4244e-38]:
+ * Domain [-0.002708, 0.002708], range ~[-2.4021e-38, 2.4234e-38]:
  * |exp(x) - p(x)| < 2**-124.9
  * (0.002708 is ln2/(2*INTERVALS) rounded up a little).
  */
@@ -87,6 +87,11 @@ A9  =  2.7557324277411234e-6,
 A10 =  2.7557333722375072e-7;
 
 static const struct {
+	/*
+	 * hi must be rounded to at most 106 bits so that multiplication
+	 * by r1 in expm1l() is exact, but it is rounded to 88 bits due to
+	 * historical accidents.
+	 */
 	long double	hi;
 	long double	lo;
 } tbl[INTERVALS] = {
