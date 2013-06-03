@@ -2328,12 +2328,27 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	taskqueue_block(sc->sc_tq);
 
 	ATH_PCU_LOCK(sc);
-	ath_hal_intrset(ah, 0);		/* disable interrupts */
-	ath_txrx_stop_locked(sc);	/* Ensure TX/RX is stopped */
+
+	/*
+	 * Grab the reset lock before TX/RX is stopped.
+	 *
+	 * This is needed to ensure that when the TX/RX actually does finish,
+	 * no further TX/RX/reset runs in parallel with this.
+	 */
 	if (ath_reset_grablock(sc, 1) == 0) {
 		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
+
+	/* disable interrupts */
+	ath_hal_intrset(ah, 0);
+
+	/*
+	 * Now, ensure that any in progress TX/RX completes before we
+	 * continue.
+	 */
+	ath_txrx_stop_locked(sc);
+
 	ATH_PCU_UNLOCK(sc);
 
 	/*
@@ -4871,12 +4886,18 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	taskqueue_block(sc->sc_tq);
 
 	ATH_PCU_LOCK(sc);
-	ath_hal_intrset(ah, 0);		/* Stop new RX/TX completion */
-	ath_txrx_stop_locked(sc);	/* Stop pending RX/TX completion */
+
+	/* Stop new RX/TX/interrupt completion */
 	if (ath_reset_grablock(sc, 1) == 0) {
 		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
+
+	ath_hal_intrset(ah, 0);
+
+	/* Stop pending RX/TX completion */
+	ath_txrx_stop_locked(sc);
+
 	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %u (%u MHz, flags 0x%x)\n",
