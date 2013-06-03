@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "math_private.h"
 
 #define	INTERVALS	128
+#define	LOG2_INTERVALS	7
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
 static const long double
@@ -269,7 +270,8 @@ expl(long double x)
 	n = (int)fn;
 #endif
 	n2 = (unsigned)n % INTERVALS;
-	k = (n - n2) / INTERVALS;
+	/* Depend on the sign bit being propagated: */
+	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;
 	r2 = -fn * L2;
 
