@@ -278,7 +278,7 @@ expl(long double x)
 	r2 = fn * -L2;
 
 	/* Prepare scale factors. */
-	v.e = 1ULL << 63;
+	v.e = 1;
 	if (k >= LDBL_MIN_EXP) {
 		v.xbits.expsign = BIAS + k;
 		twopk = v.e;
@@ -296,7 +296,7 @@ expl(long double x)
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
 		if (k == LDBL_MAX_EXP)
-			RETURNI(t * 2.0L * 0x1p16383L);
+			RETURNI(t * 2 * 0x1p16383L);
 		RETURNI(t * twopk);
 	} else {
 		RETURNI(t * twopkp10000 * twom10000);
