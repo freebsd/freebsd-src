@@ -74,18 +74,18 @@
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
-/*XXX*/
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/ip.h>
 #include <netinet/ip_carp.h>
+#ifdef INET
+#include <netinet/if_ether.h>
+#endif /* INET */
 #ifdef INET6
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
-#endif
-#endif
-#ifdef INET
-#include <netinet/if_ether.h>
-#endif
+#endif /* INET6 */
+#endif /* INET || INET6 */
 
 #include <security/mac/mac_framework.h>
 
@@ -653,6 +653,13 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
+
+		/* Initialize to max value. */
+		if (ifp->if_hw_tsomax == 0)
+			ifp->if_hw_tsomax = IP_MAXPACKET;
+		KASSERT(ifp->if_hw_tsomax <= IP_MAXPACKET &&
+		    ifp->if_hw_tsomax >= IP_MAXPACKET / 8,
+		    ("%s: tsomax outside of range", __func__));
 	}
 #ifdef VIMAGE
 	else {

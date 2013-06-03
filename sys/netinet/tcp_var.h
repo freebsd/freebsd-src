@@ -208,6 +208,8 @@ struct tcpcb {
 	u_int	t_keepintvl;		/* interval between keepalives */
 	u_int	t_keepcnt;		/* number of keepalives before close */
 
+	u_int	t_tsomax;		/* tso burst length limit */
+
 	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 4 TBD */
 	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
@@ -322,6 +324,15 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 	u_long	rmx_cwnd;	/* congestion window */
 	u_long	rmx_sendpipe;   /* outbound delay-bandwidth product */
 	u_long	rmx_recvpipe;   /* inbound delay-bandwidth product */
+};
+
+/*
+ * Used by tcp_maxmtu() to communicate interface specific features
+ * and limits at the time of connection setup.
+ */
+struct tcp_ifcap {
+	int	ifcap;
+	u_int	tsomax;
 };
 
 #ifndef _NETINET_IN_PCB_H_
@@ -782,10 +793,10 @@ void	 tcp_reass_flush(struct tcpcb *);
 void	 tcp_reass_destroy(void);
 #endif
 void	 tcp_input(struct mbuf *, int);
-u_long	 tcp_maxmtu(struct in_conninfo *, int *);
-u_long	 tcp_maxmtu6(struct in_conninfo *, int *);
+u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
+u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
-	    int *);
+	    struct tcp_ifcap *);
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *
