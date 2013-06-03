@@ -82,6 +82,34 @@ main(int argc, char *argv[])
 	assert(c16rtomb(buf, 0xd83d, &s) == 0);
 	assert(c16rtomb(buf, 0xdca9, &s) == (size_t)-1);
 	assert(errno == EILSEQ);
+	assert((unsigned char)buf[0] == 0xcc);
+
+	/*
+	 * ISO8859-1.
+	 */
+
+	assert(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-1"),
+	    "en_US.ISO8859-1") == 0);
+
+	/* Unicode character 'Euro sign'. */
+	memset(&s, 0, sizeof(s));
+	memset(buf, 0xcc, sizeof(buf));
+	assert(c16rtomb(buf, 0x20ac, &s) == (size_t)-1);
+	assert(errno == EILSEQ);
+	assert((unsigned char)buf[0] == 0xcc);
+
+	/*
+	 * ISO8859-15.
+	 */
+
+	assert(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-15"),
+	    "en_US.ISO8859-15") == 0);
+
+	/* Unicode character 'Euro sign'. */
+	memset(&s, 0, sizeof(s));
+	memset(buf, 0xcc, sizeof(buf));
+	assert(c16rtomb(buf, 0x20ac, &s) == 1);
+	assert((unsigned char)buf[0] == 0xa4 && (unsigned char)buf[1] == 0xcc);
 
 	/*
 	 * UTF-8.
@@ -104,12 +132,14 @@ main(int argc, char *argv[])
 	assert(c16rtomb(buf, 0xd83d, &s) == 0);
 	assert(c16rtomb(buf, L'A', &s) == (size_t)-1);
 	assert(errno == EILSEQ);
+	assert((unsigned char)buf[0] == 0xcc);
 
 	/* Invalid code; 'Pile of poo' without the lead surrogate. */
 	memset(&s, 0, sizeof(s));
 	memset(buf, 0xcc, sizeof(buf));
 	assert(c16rtomb(buf, 0xdca9, &s) == (size_t)-1);
 	assert(errno == EILSEQ);
+	assert((unsigned char)buf[0] == 0xcc);
 
 	printf("ok 1 - c16rtomb()\n");
 }
