@@ -560,7 +560,8 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 			nbuf += min((physmem_est - 4096) / factor,
 			    65536 / factor);
 		if (physmem_est > 65536)
-			nbuf += (physmem_est - 65536) * 2 / (factor * 5);
+			nbuf += min((physmem_est - 65536) * 2 / (factor * 5),
+			    32 * 1024 * 1024 / (factor * 5));
 
 		if (maxbcache && nbuf > maxbcache / BKVASIZE)
 			nbuf = maxbcache / BKVASIZE;
