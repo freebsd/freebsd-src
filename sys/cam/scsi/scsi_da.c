@@ -868,7 +868,7 @@ static	void		daasync(void *callback_arg, u_int32_t code,
 static	void		dasysctlinit(void *context, int pending);
 static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
-static	int		dadeletemethodset(struct da_softc *softc,
+static	void		dadeletemethodset(struct da_softc *softc,
 					  da_delete_methods delete_method);
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
@@ -1568,12 +1568,10 @@ dacmdsizesysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
+static void
 dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
 {
 
-	if (delete_method < 0 || delete_method > DA_DELETE_MAX)
-		return (EINVAL);
 
 	softc->delete_method = delete_method;
 
@@ -1581,8 +1579,6 @@ dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 	else
 		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
-
-	return (0);
 }
 
 static int
@@ -1607,7 +1603,8 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
 		if (strcmp(buf, da_delete_method_names[i]) != 0)
 			continue;
-		return dadeletemethodset(softc, i);
+		dadeletemethodset(softc, i);
+		return (0);
 	}
 	return (EINVAL);
 }
