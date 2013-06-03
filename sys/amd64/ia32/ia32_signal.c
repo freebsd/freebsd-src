@@ -101,7 +101,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 	 * for now, it should be irrelevant for most applications.
 	 */
 	mcp->mc_ownedfp = fpugetregs(td);
-	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate,
+	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 	if (!use_xsave || xfpusave_len == 0)
