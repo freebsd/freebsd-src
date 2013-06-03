@@ -2725,6 +2725,13 @@ vm_page_trylock_KBI(vm_page_t m, const char *file, int line)
 
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void
+vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line)
+{
+
+	vm_page_lock_assert_KBI(m, MA_OWNED, file, line);
+}
+
+void
 vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
 {
 
