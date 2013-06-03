@@ -134,6 +134,7 @@ static const int MODPARM_rx_flip = 0;
  * to mirror the Linux MAX_SKB_FRAGS constant.
  */
 #define	MAX_TX_REQ_FRAGS (65536 / PAGE_SIZE + 2)
+#define	NF_TSO_MAXBURST ((IP_MAXPACKET / PAGE_SIZE) * MCLBYTES)
 
 #define RX_COPY_THRESHOLD 256
 
@@ -2122,6 +2123,7 @@ create_netdev(device_t dev)
 	
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_hw_tsomax = NF_TSO_MAXBURST;
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
