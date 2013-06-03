@@ -262,11 +262,11 @@ expl(long double x)
 	fn = x * INV_L + 0x1.8p63 - 0x1.8p63;
 	r = x - fn * L1 - fn * L2;	/* r = r1 + r2 done independently. */
 #if defined(HAVE_EFFICIENT_IRINTL)
-	n  = irintl(fn);
+	n = irintl(fn);
 #elif defined(HAVE_EFFICIENT_IRINT)
-	n  = irint(fn);
+	n = irint(fn);
 #else
-	n  = (int)fn;
+	n = (int)fn;
 #endif
 	n2 = (unsigned)n % INTERVALS;
 	k = (n - n2) / INTERVALS;
