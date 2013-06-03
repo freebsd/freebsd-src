@@ -227,7 +227,7 @@ expl(long double x)
 
 	/* Reduce x to (k*ln2 + midpoint[n2] + r1 + r2). */
 	fn = x * INV_L + 0x1.8p112 - 0x1.8p112;
-	n  = (int)fn;
+	n = (int)fn;
 	n2 = (unsigned)n % INTERVALS;
 	k = (n - n2) / INTERVALS;
 	r1 = x - fn * L1;
