@@ -99,8 +99,8 @@ COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
 	s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
 	s_csqrtl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
-	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
-	s_remquol.c s_rintl.c s_scalbnl.c \
+	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
+	s_nexttoward.c s_remquol.c s_rintl.c s_scalbnl.c \
 	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
 .endif
 
@@ -187,7 +187,9 @@ MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 \
 	lgamma.3 tgamma.3 lgamma.3 tgammaf.3
-MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log1p.3 log.3 log1pf.3 log.3 logf.3 log.3 log2.3 log.3 log2f.3
+MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log10l.3 log.3 \
+	log1p.3 log.3 log1pf.3 log.3 log1pl.3 log.3 logf.3 log.3 logl.3 \
+	log.3 log2.3 log.3 log2f.3 log.3 log2l.3
 MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 llrintl.3 \
 	lrint.3 lrintf.3 lrint.3 lrintl.3
 MLINKS+=lround.3 llround.3 lround.3 llroundf.3 lround.3 llroundl.3 \

@@ -262,4 +262,8 @@ FBSD_1.3 {
 	ctanh;
 	ctanhf;
 	expl;
+	log10l;
+	log1pl;
+	log2l;
+	logl;
 };
