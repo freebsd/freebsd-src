@@ -73,13 +73,13 @@ SELECTED_PACKAGES=
 #
 f_package_accent_category_menu()
 {
-	local var_to_set="$1" cat desc help varcat menu_buf n
+	local var_to_set="$1" category cat desc help varcat menu_buf n
 	shift 1 # var_to_set
 	while [ $# -gt 0 ]; do
-		cat="${1%\*}" desc="${2%%; *}" help="$3"
+		category="${1%\*}" desc="${2%%; *}" help="$3"
 		shift 3 # cat/desc/help
 
-		cat="${cat# }" # Trim leading space inserted by sort-method
+		cat="${category# }" # Trim lead space inserted by sort-method
 		f_str2varname "$cat" varcat
 
 		# Add number of installed packages for this category (if any)
@@ -99,11 +99,11 @@ f_package_accent_category_menu()
 		[ $n -ge 1 ] && desc="$desc; $n $msg_selected"
 
 		# Re-Add asterisk to the category if its index has been cached
-		f_isset _index_page_${varcat}_1 && cat="$cat*"
+		f_isset _index_page_${varcat}_1 && category="$category*"
 
 		# Update buffer with modified elements
 		menu_buf="$menu_buf
-		'$cat' '$desc' '$help'" # End-Quote
+		'$category' '$desc' '$help'" # End-Quote
 	done
 	setvar "$var_to_set" "$menu_buf" # return our buffer
 }
