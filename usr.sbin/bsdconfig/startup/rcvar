@@ -49,7 +49,6 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 RCVAR_MAP=
 _RCVAR_MAP=
-RCVAR_MENU_LIST=
 
 #
 # Options
@@ -66,15 +65,12 @@ RCVAR_MENU_LIST=
 dialog_menu_main()
 {
 	local prompt=
-	local hline="$hline_arrows_tab_enter"
-	local defaultitem= # Calculated below
-
-	# NOTE: Using a GLOBAL here because caller will need this list to turn
-	#       the menu tag into the menu item with f_dialog_menutag2item()
-	RCVAR_MENU_LIST="
+	local menu_list="
 		'X $msg_exit' '$msg_exit_this_menu'
 		              ${SHOW_DESC:+'$msg_exit_this_menu'}
 	" # END-QUOTE
+	local hline="$hline_arrows_tab_enter"
+	local defaultitem= # Calculated below
 
 	if [ ! "$_RCVAR_MAP" ]; then
 		# Generate RCVAR_MAP of `rcvar dflt script desc ...' per-line
@@ -84,7 +80,7 @@ dialog_menu_main()
 		export _RCVAR_MAP=1
 	fi
 
-	RCVAR_MENU_LIST="$RCVAR_MENU_LIST $(
+	menu_list="$menu_list $(
 		. "$RC_DEFAULTS" > /dev/null
 		source_rc_confs > /dev/null
 		for rcvar in $( echo "$RCVAR_MAP" | awk '{print $1}' ); do
@@ -126,7 +122,7 @@ dialog_menu_main()
 		}'
 	)"
 
-	set -f # set noglob because descriptions in the $RCVAR_MENU_LIST may
+	set -f # set noglob because descriptions in the $menu_list may
 	       # contain `*' and get expanded by dialog(1). This prevents
 	       # dialog(1) from expanding wildcards in the help line.
 
@@ -137,7 +133,7 @@ dialog_menu_main()
 		\"\$DIALOG_BACKTITLE\" \
 		\"\$prompt\"           \
 		\"\$hline\"            \
-		$RCVAR_MENU_LIST
+		$menu_list
 
 	# Obtain default-item from previously stored selection
 	f_dialog_default_fetch defaultitem
@@ -154,13 +150,21 @@ dialog_menu_main()
 		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
-		$RCVAR_MENU_LIST                   \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
 	f_dialog_data_sanitize menu_choice
 	f_dialog_menutag_store "$menu_choice"
 	f_dialog_default_store "$menu_choice"
+
+	if [ $retval -eq $SUCCESS ]; then
+		local item
+		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
+		         	\"\$menu_choice\" $menu_list )
+		f_dialog_menuitem_store "$item"
+	fi
+
 	return $retval
 }
 
@@ -193,10 +197,8 @@ while :; do
 	case "$mtag" in
 	"X $msg_exit") break ;;
 	*) # Anything else is an rcvar to toggle
-
 		rcvar="${mtag# }"
-		value=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
-		         	\"\$mtag\" $RCVAR_MENU_LIST )
+		f_dialog_menuitem_fetch value
 
 		# Determine the new [toggled] value to use
 		case "$value" in

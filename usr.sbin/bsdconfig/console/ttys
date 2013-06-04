@@ -48,22 +48,6 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 ETC_TTYS=/etc/ttys
 
-############################################################ GLOBALS
-
-#
-# Terminal-type map/menu-item list
-#
-TTY_MENU_LIST="
-	'1 $msg_none'                '$msg_none_ttys_desc'
-	'2 $msg_ibm_437_vga_default' 'cons25'
-	'3 $msg_iso_8859_1'          'cons25l1'
-	'4 $msg_iso_8859_2'          'cons25l2'
-	'5 $msg_iso_8859_7'          'cons25l7'
-	'6 $msg_koi8_r'              'cons25r'
-	'7 $msg_koi8_u'              'cons25u'
-	'8 $msg_us_ascii'            'cons25w'
-" # END-QUOTE
-
 ############################################################ FUNCTIONS
 
 # dialog_menu_main
@@ -73,6 +57,16 @@ TTY_MENU_LIST="
 dialog_menu_main()
 {
 	local prompt="$msg_ttys_menu_text"
+	local menu_list="
+		'1 $msg_none'                '$msg_none_ttys_desc'
+		'2 $msg_ibm_437_vga_default' 'cons25'
+		'3 $msg_iso_8859_1'          'cons25l1'
+		'4 $msg_iso_8859_2'          'cons25l2'
+		'5 $msg_iso_8859_7'          'cons25l7'
+		'6 $msg_koi8_r'              'cons25r'
+		'7 $msg_koi8_u'              'cons25u'
+		'8 $msg_us_ascii'            'cons25w'
+	" # END-QUOTE
 	local hline="$hline_choose_a_terminal_type"
 
 	local height width rows
@@ -81,7 +75,7 @@ dialog_menu_main()
 	                        \"\$DIALOG_BACKTITLE\" \
 	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
-	                        $TTY_MENU_LIST
+	                        $menu_list
 
 	local menu_choice
 	menu_choice=$( eval $DIALOG \
@@ -92,11 +86,19 @@ dialog_menu_main()
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
-		$TTY_MENU_LIST                     \
+		$menu_ist                          \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
 	f_dialog_menutag_store -s "$menu_choice"
+
+	if [ $retval -eq $SUCCESS ]; then
+		local item
+		item=$( eval f_dialog_menutag2item \
+		        	\"\$menu_choice\" $menu_list )
+		f_dialog_menuitem_store "$item"
+	fi
+		
 	return $retval
 }
 
@@ -187,7 +189,7 @@ while :; do
 
 	[ "$mtag" = "1 $msg_none" ] && break
 
-	consterm=$( eval f_dialog_menutag2item \"\$mtag\" $TTY_MENU_LIST )
+	f_dialog_menuitem_fetch consterm
 	err=$( ttys_set_type "$consterm" 2>&1 )
 	[ "$err" ] || break
 
