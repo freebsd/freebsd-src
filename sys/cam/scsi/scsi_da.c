@@ -100,6 +100,13 @@ typedef enum {
 	DA_Q_4K			= 0x08
 } da_quirks;
 
+#define DA_Q_BIT_STRING		\
+	"\020"			\
+	"\001NO_SYNC_CACHE"	\
+	"\002NO_6_BYTE"		\
+	"\003NO_PREVENT"	\
+	"\0044K"
+
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
 	DA_CCB_PROBE_RC16	= 0x02,
@@ -2903,7 +2910,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				taskqueue_enqueue(taskqueue_thread,
 						  &softc->sysctl_task);
 				xpt_announce_periph(periph, announce_buf);
-
+				xpt_announce_quirks(periph, softc->quirks,
+				    DA_Q_BIT_STRING);
 			} else {
 				xpt_print(periph->path, "fatal error, "
 				    "could not acquire reference count\n");

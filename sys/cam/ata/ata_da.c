@@ -95,6 +95,10 @@ typedef enum {
 	ADA_Q_4K		= 0x01,
 } ada_quirks;
 
+#define ADA_Q_BIT_STRING	\
+	"\020"			\
+	"\0014K"
+
 typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
 	ADA_CCB_WCACHE		= 0x02,
@@ -1267,6 +1271,7 @@ adaregister(struct cam_periph *periph, void *arg)
 		dp->secsize, dp->heads,
 		dp->secs_per_track, dp->cylinders);
 	xpt_announce_periph(periph, announce_buf);
+	xpt_announce_quirks(periph, softc->quirks, ADA_Q_BIT_STRING);
 	if (legacy_id >= 0)
 		printf("%s%d: Previously was known as ad%d\n",
 		       periph->periph_name, periph->unit_number, legacy_id);
