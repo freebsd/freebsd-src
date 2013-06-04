@@ -25,10 +25,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
+#include "opt_compat.h"
+
 #include <sys/file.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
