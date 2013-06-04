@@ -654,12 +654,14 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
 
+#if defined(INET) || defined(INET6)
 		/* Initialize to max value. */
 		if (ifp->if_hw_tsomax == 0)
 			ifp->if_hw_tsomax = IP_MAXPACKET;
 		KASSERT(ifp->if_hw_tsomax <= IP_MAXPACKET &&
 		    ifp->if_hw_tsomax >= IP_MAXPACKET / 8,
 		    ("%s: tsomax outside of range", __func__));
+#endif
 	}
 #ifdef VIMAGE
 	else {
