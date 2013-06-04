@@ -51,19 +51,19 @@ dialog_menu_main()
 {
 	local prompt="$msg_saver_menu_text"
 	local menu_list="
-		'1 $msg_blank'   '$msg_blank_desc'
-		'2 $msg_beastie' '$msg_beastie_desc'
-		'3 $msg_daemon'  '$msg_daemon_desc'
-		'4 $msg_dragon'  '$msg_dragon_desc'
-		'5 $msg_fade'    '$msg_fade_desc'
-		'6 $msg_fire'    '$msg_fire_desc'
-		'7 $msg_green'   '$msg_green_desc'
-		'8 $msg_logo'    '$msg_logo_desc'
-		'9 $msg_rain'    '$msg_rain_desc'
-		'a $msg_snake'   '$msg_snake_desc'
-		'b $msg_star'    '$msg_star_desc'
-		'c $msg_warp'    '$msg_warp_desc'
-		'd $msg_none'    '$msg_none_saver_desc'
+		'1 $msg_none'    '$msg_none_saver_desc'
+		'2 $msg_blank'   '$msg_blank_desc'
+		'3 $msg_beastie' '$msg_beastie_desc'
+		'4 $msg_daemon'  '$msg_daemon_desc'
+		'5 $msg_dragon'  '$msg_dragon_desc'
+		'6 $msg_fade'    '$msg_fade_desc'
+		'7 $msg_fire'    '$msg_fire_desc'
+		'8 $msg_green'   '$msg_green_desc'
+		'9 $msg_logo'    '$msg_logo_desc'
+		'a $msg_rain'    '$msg_rain_desc'
+		'b $msg_snake'   '$msg_snake_desc'
+		'c $msg_star'    '$msg_star_desc'
+		'd $msg_warp'    '$msg_warp_desc'
 		'$msg_timeout'   '$msg_timeout_desc'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
@@ -78,19 +78,19 @@ dialog_menu_main()
 	                        $menu_list
 
 	case "$( f_sysrc_get saver )" in
-	blank)       defaultitem="1 $msg_blank"  ;;
-	beastie)     defaultitem="2 $msg_beastie";;
-	daemon)      defaultitem="3 $msg_daemon" ;;
-	dragon)      defaultitem="4 $msg_dragon" ;;
-	fade)        defaultitem="5 $msg_fade"   ;;
-	fire)        defaultitem="6 $msg_fire"   ;;
-	green)       defaultitem="7 $msg_green"  ;;
-	logo)        defaultitem="8 $msg_logo"   ;;
-	rain)        defaultitem="9 $msg_rain"   ;;
-	snake)       defaultitem="a $msg_snake"  ;;
-	star)        defaultitem="b $msg_star"   ;;
-	warp)        defaultitem="c $msg_warp"   ;;
-	[Nn][Oo]|'') defaultitem="d $msg_none"   ;;
+	[Nn][Oo]|'') defaultitem="1 $msg_none"   ;;
+	blank)       defaultitem="2 $msg_blank"  ;;
+	beastie)     defaultitem="3 $msg_beastie";;
+	daemon)      defaultitem="4 $msg_daemon" ;;
+	dragon)      defaultitem="5 $msg_dragon" ;;
+	fade)        defaultitem="6 $msg_fade"   ;;
+	fire)        defaultitem="7 $msg_fire"   ;;
+	green)       defaultitem="8 $msg_green"  ;;
+	logo)        defaultitem="9 $msg_logo"   ;;
+	rain)        defaultitem="a $msg_rain"   ;;
+	snake)       defaultitem="b $msg_snake"  ;;
+	star)        defaultitem="c $msg_star"   ;;
+	warp)        defaultitem="d $msg_warp"   ;;
 	esac
 
 	local menu_choice
@@ -141,44 +141,44 @@ while :; do
 	f_dialog_menutag_fetch mtag
 
 	case "$mtag" in
-	"1 $msg_blank") # Simply blank the screen
+	"1 $msg_none") # Disable the screensaver
+		f_sysrc_set saver "NO" || f_die
+		break ;;
+	"2 $msg_blank") # Simply blank the screen
 		f_sysrc_set saver "blank" || f_die
 		break ;;
-	"2 $msg_beastie") # "BSD Daemon" animated screen saver (graphics)
+	"3 $msg_beastie") # "BSD Daemon" animated screen saver (graphics)
 		f_sysrc_set saver "beastie" || f_die
 		break ;;
-	"3 $msg_daemon") # "BSD Daemon" animated screen saver (text)
+	"4 $msg_daemon") # "BSD Daemon" animated screen saver (text)
 		f_sysrc_set saver "daemon" || f_die
 		break ;;
-	"4 $msg_dragon") # Dragon screensaver (graphics)
+	"5 $msg_dragon") # Dragon screensaver (graphics)
 		f_sysrc_set saver "dragon" || f_die
 		break ;;
-	"5 $msg_fade") # Fade out effect screen saver
+	"6 $msg_fade") # Fade out effect screen saver
 		f_sysrc_set saver "fade" || f_die
 		break ;;
-	"6 $msg_fire") # Flames effect screen saver
+	"7 $msg_fire") # Flames effect screen saver
 		f_sysrc_set saver "fire" || f_die
 		break ;;
-	"7 $msg_green") # "Green" power saving mode (if supported by monitor)
+	"8 $msg_green") # "Green" power saving mode (if supported by monitor)
 		f_sysrc_set saver "green" || f_die
 		break ;;
-	"8 $msg_logo") # FreeBSD "logo" animated screen saver (graphics)
+	"9 $msg_logo") # FreeBSD "logo" animated screen saver (graphics)
 		f_sysrc_set saver "logo" || f_die
 		break ;;
-	"9 $msg_rain") # Rain drops screen saver
+	"a $msg_rain") # Rain drops screen saver
 		f_sysrc_set saver "rain" || f_die
 		break ;;
-	"a $msg_snake") # Draw a FreeBSD "snake" on your screen
+	"b $msg_snake") # Draw a FreeBSD "snake" on your screen
 		f_sysrc_set saver "snake" || f_die
 		break ;;
-	"b $msg_star") # A "twinkling stars" effect
+	"c $msg_star") # A "twinkling stars" effect
 		f_sysrc_set saver "star" || f_die
 		break ;;
-	"c $msg_warp") # A "stars warping" effect
+	"d $msg_warp") # A "stars warping" effect
 		f_sysrc_set saver "warp" || f_die
-		break ;;
-	"d $msg_none") # Disable the screensaver
-		f_sysrc_set saver "NO" || f_die
 		break ;;
 	"$msg_timeout") # Set the screen saver timeout interval
 		f_dialog_title "$msg_value_required"
