@@ -167,7 +167,6 @@ dialog_menu_main()
 	local defaultitem= # Calculated below
 	local hline=
 
-	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
 	local menuitem menu_title menu_help menu_selection index=2
 	for menuitem in $( cd $BSDCFG_LIBE && ls -d [0-9][0-9][0-9].* ); do
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
@@ -185,8 +184,8 @@ dialog_menu_main()
 			menu_program="$menuitem/$menu_program"
 		esac
 
-		menu_title=$( echo "$menu_title" | awk "$sanitize_awk" )
-		menu_help=$( echo "$menu_help" | awk "$sanitize_awk" )
+		f_shell_escape "$menu_title" menu_title
+		f_shell_escape "$menu_help" menu_help
 		setvar "menu_program$tag" "$menu_program"
 		menu_list="$menu_list '$tag' '$menu_title' '$menu_help'"
 
