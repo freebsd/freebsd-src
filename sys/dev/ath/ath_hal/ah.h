@@ -169,6 +169,7 @@ typedef enum {
 
 	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
 
+	HAL_CAP_ANT_DIV_COMB	= 105,	/* Enable antenna diversity/combining */
 	HAL_CAP_PHYRESTART_CLR_WAR	= 106,	/* in some cases, clear phy restart to fix bb hang */
 	HAL_CAP_ENTERPRISE_MODE	= 107,	/* Enterprise mode features */
 	HAL_CAP_LDPCWAR		= 108,
