@@ -222,13 +222,16 @@ f_dialog_menu_media_options()
 	if [ $retval -eq $SUCCESS ]; then
 		options=$( eval f_dialog_menutag2item \"\$tag\" \
 		                                      $supported_media )
-		[ "$options" = "$opt_none" ] && options=
-
-		if [ "$options" = "$opt_cust" ]; then
+		case "$options" in
+		"$opt_none")
+			options=
+			;;
+		"$opt_cust")
 			options="$_options"
 			f_dialog_input_options "$interface"
 			retval=$?
-		fi
+			;;
+		esac
 	fi
 
 	return $retval
