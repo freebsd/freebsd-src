@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #define MAX_WATCHDOG_TICKS	(0xffffffff)
 
 #if defined(SOC_MV_ARMADAXP)
-#define MV_CLOCK_SRC		get_l2clk()
+#define MV_CLOCK_SRC		25000000	/* Timers' 25MHz mode */
 #else
 #define MV_CLOCK_SRC		get_tclk()
 #endif
@@ -323,6 +323,9 @@ mv_watchdog_enable(void)
 
 	val = mv_get_timer_control();
 	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO;
+#if defined(SOC_MV_ARMADAXP)
+	val |= CPU_TIMER_WD_25MHZ_EN;
+#endif
 	mv_set_timer_control(val);
 }
 
@@ -440,6 +443,10 @@ mv_setup_timers(void)
 	val = mv_get_timer_control();
 	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	val |= CPU_TIMER1_EN | CPU_TIMER1_AUTO;
+#if defined(SOC_MV_ARMADAXP)
+	/* Enable 25MHz mode */
+	val |= CPU_TIMER0_25MHZ_EN | CPU_TIMER1_25MHZ_EN;
+#endif
 	mv_set_timer_control(val);
 	timers_initialized = 1;
 }
