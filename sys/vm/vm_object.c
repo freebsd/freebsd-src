@@ -1390,7 +1390,8 @@ retry:
 		vm_page_rename(m, new_object, idx);
 		vm_page_unlock(m);
 		/* page automatically made dirty by rename and cache handled */
-		vm_page_busy(m);
+		if (orig_object->type == OBJT_SWAP)
+			vm_page_busy(m);
 	}
 	if (orig_object->type == OBJT_SWAP) {
 		/*
@@ -1398,6 +1399,8 @@ retry:
 		 * and new_object's locks are released and reacquired. 
 		 */
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
+		TAILQ_FOREACH(m, &new_object->memq, listq)
+			vm_page_wakeup(m);
 
 		/*
 		 * Transfer any cached pages from orig_object to new_object.
@@ -1413,8 +1416,6 @@ retry:
 			    new_object);
 	}
 	VM_OBJECT_WUNLOCK(orig_object);
-	TAILQ_FOREACH(m, &new_object->memq, listq)
-		vm_page_wakeup(m);
 	VM_OBJECT_WUNLOCK(new_object);
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
