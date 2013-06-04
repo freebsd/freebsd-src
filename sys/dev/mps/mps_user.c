@@ -305,6 +305,7 @@ mps_user_read_extcfg_header(struct mps_softc *sc,
 	hdr = &params.hdr.Ext;
 	params.action = MPI2_CONFIG_ACTION_PAGE_HEADER;
 	hdr->PageVersion = ext_page_req->header.PageVersion;
+	hdr->PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
 	hdr->ExtPageLength = 0;
 	hdr->PageNumber = ext_page_req->header.PageNumber;
 	hdr->ExtPageType = ext_page_req->header.ExtPageType;
@@ -346,6 +347,7 @@ mps_user_read_extcfg_page(struct mps_softc *sc,
 	params.action = MPI2_CONFIG_ACTION_PAGE_READ_CURRENT;
 	params.page_address = le32toh(ext_page_req->page_address);
 	hdr->PageVersion = reqhdr->PageVersion;
+	hdr->PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
 	hdr->PageNumber = reqhdr->PageNumber;
 	hdr->ExtPageType = reqhdr->ExtPageType;
 	hdr->ExtPageLength = reqhdr->ExtPageLength;
