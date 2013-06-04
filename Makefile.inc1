@@ -91,7 +91,6 @@ SUBDIR+=sys usr.bin usr.sbin
 .if ${MK_OFED} != "no"
 SUBDIR+=contrib/ofed
 .endif
-SUBDIR+=external/bsd
 
 #
 # We must do etc/ last for install/distribute to work.
