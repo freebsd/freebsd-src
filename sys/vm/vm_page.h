@@ -74,9 +74,9 @@
  *
  *	A small structure is kept for each resident
  *	page, indexed by page number.  Each structure
- *	is an element of several lists:
+ *	is an element of several collections:
  *
- *		A hash table bucket used to quickly
+ *		A radix tree used to quickly
  *		perform object/offset lookups
  *
  *		A list of all pages for a given object,
