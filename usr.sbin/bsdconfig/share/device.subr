@@ -598,12 +598,10 @@ f_device_menu()
 	done
 	[ "$devs" ] || return $FAILURE
 
-	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
-
 	local desc menu_list=
 	for dev in $devs; do
 		device_$dev get desc desc
-		desc=$( echo "$desc" | awk "$sanitize_awk" )
+		f_shell_escape "$desc" desc
 		menu_list="$menu_list '$dev' '$desc'"
 	done
 
