@@ -1770,6 +1770,44 @@ f_dialog_menutag_fetch()
 	return $SUCCESS
 }
 
+# f_dialog_menuitem_store [-s] $text
+#
+# Store the item from a dialog(1) menu (see f_dialog_menutag2item()) to be
+# retrieved later by f_dialog_menuitem_fetch(). If the first argument is `-s',
+# the text is sanitized before being stored.
+#
+f_dialog_menuitem_store()
+{
+	local sanitize=
+	[ "$1" = "-s" ] && sanitize=1 && shift 1 # -s
+	local text="$1"
+
+	# Sanitize the menuitem before storing it if desired
+	[ "$sanitize" ] && f_dialog_data_sanitize text
+
+	setvar DIALOG_MENUITEM_$$ "$text"
+}
+
+# f_dialog_menuitem_fetch [$var_to_set]
+#
+# Obtain the menuitem chosen by the user from the most recently displayed
+# dialog(1) menu (previously stored with f_dialog_menuitem_store() above). If
+# $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
+#
+f_dialog_menuitem_fetch()
+{
+	local __var_to_set="$1" __cp
+
+	debug= f_getvar DIALOG_MENUITEM_$$ "${__var_to_set:-__cp}" # get data
+	setvar DIALOG_MENUITEM_$$ "" # scrub memory in case data was sensitive
+
+	# Return the data on standard-out if desired
+	[ "$__var_to_set" ] || echo "$__cp"
+
+	return $SUCCESS
+}
+
 # f_dialog_default_store [-s] $text
 #
 # Store some text to be used later as the --default-item argument to dialog(1)
