@@ -2966,6 +2966,126 @@ void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
     vm_size_t len, vm_offset_t src_addr)
 {
+	struct l2_bucket *l2b_src, *l2b_dst;
+	struct pv_entry *pve;
+	vm_offset_t addr;
+	vm_offset_t end_addr;
+	vm_offset_t next_bucket;
+	u_int flags;
+	boolean_t l2b_alloc;
+
+	CTR4(KTR_PMAP, "%s: VA = 0x%08x, len = 0x%08x. Will %s\n", __func__,
+	    src_addr, len, (dst_addr != src_addr) ? "exit" : "copy");
+
+	if (dst_addr != src_addr)
+		return;
+
+	rw_wlock(&pvh_global_lock);
+	if (dst_pmap < src_pmap) {
+		PMAP_LOCK(dst_pmap);
+		PMAP_LOCK(src_pmap);
+	} else {
+		PMAP_LOCK(src_pmap);
+		PMAP_LOCK(dst_pmap);
+	}
+
+	end_addr = src_addr + len;
+	addr = src_addr;
+	/*
+	 * Iterate through all used l2_buckets in a given range.
+	 */
+	while (addr < end_addr) {
+		pt_entry_t *src_ptep, *dst_ptep;
+		pt_entry_t src_pte;
+
+		next_bucket = L2_NEXT_BUCKET(addr);
+		/*
+		 * If the next bucket VA is out of the
+		 * copy range then set it to end_addr in order
+		 * to copy all mappings until the given limit.
+		 */ 
+		if (next_bucket > end_addr)
+			next_bucket = end_addr;
+
+		l2b_src = pmap_get_l2_bucket(src_pmap, addr);
+		if (l2b_src == NULL) {
+			addr = next_bucket;
+			continue;
+		}
+		src_ptep = &l2b_src->l2b_kva[l2pte_index(addr)];
+
+		while (addr < next_bucket) {
+			vm_page_t srcmpte;
+
+			src_pte = *src_ptep;
+			srcmpte = PHYS_TO_VM_PAGE(l2pte_pa(src_pte));
+			/*
+			 * We only virtual copy managed pages
+			 */
+			if (srcmpte && (srcmpte->oflags & VPO_UNMANAGED) == 0) {
+				l2b_alloc = FALSE;
+				l2b_dst = pmap_get_l2_bucket(dst_pmap, addr);
+				/*
+				 * Check if the allocation of another
+				 * l2_bucket is necessary.
+				 */
+				if (l2b_dst == NULL) {
+					l2b_dst = pmap_alloc_l2_bucket(dst_pmap,
+					    addr);
+					l2b_alloc = TRUE;
+				}
+				if (l2b_dst == NULL)
+					goto out;
+
+				dst_ptep = &l2b_dst->l2b_kva[l2pte_index(addr)];
+
+				if (*dst_ptep == 0 &&
+				    (pve = pmap_get_pv_entry(dst_pmap, TRUE))) {
+					/*
+					 * Check whether the source mapping is
+					 * writable and set the proper flag
+					 * for a copied mapping so that right
+					 * permissions could be set on the
+					 * access fault.
+					 */
+					flags = 0;
+					if ((src_pte & L2_APX) == 0)
+						flags = PVF_WRITE;
+					pmap_enter_pv(srcmpte, pve, dst_pmap,
+					    addr, flags);
+					/*
+					 * Clear the modified and
+					 * accessed (referenced) flags
+					 * and don't set the wired flag
+					 * during the copy.
+					 */
+					*dst_ptep = src_pte;
+					*dst_ptep &= ~L2_S_REF;
+					*dst_ptep |= L2_APX;
+					/*
+					 * Update stats
+					 */
+					l2b_dst->l2b_occupancy++;
+					dst_pmap->pm_stats.resident_count++;
+				} else {
+					/*
+					 * If the l2_bucket was acquired as
+					 * a result of allocation then free it.
+					 */
+					if (l2b_alloc)
+						pmap_free_l2_bucket(dst_pmap,
+						    l2b_dst, 1);
+					goto out;
+				}
+			}
+			addr += PAGE_SIZE;
+			src_ptep++;
+		}
+	}
+out:
+	rw_wunlock(&pvh_global_lock);
+	PMAP_UNLOCK(src_pmap);
+	PMAP_UNLOCK(dst_pmap);
 }
 
 
