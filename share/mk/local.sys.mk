@@ -227,11 +227,6 @@ UPDATE_DEPENDFILE= NO
 
 .MAKE.META.BAILIWICK = ${SB} ${OBJROOT} ${STAGE_ROOT}
 
-.endif				# meta mode
-
-# ensure we have a value
-.MAKE.MODE ?= normal
-
 # don't rely on MACHINE_ARCH being set or valid
 
 MACHINE_ARCH.host = ${_HOST_ARCH}
@@ -241,6 +236,11 @@ MACHINE_ARCH := ${MACHINE_ARCH.${MACHINE}}
 CSU_DIR.i386 = csu/i386-elf
 CSU_DIR.${MACHINE_ARCH} ?= csu/${MACHINE_ARCH}
 CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
+
+.endif				# meta mode
+
+# ensure we have a value
+.MAKE.MODE ?= normal
 
 MAKE_PRINT_VAR_ON_ERROR+= \
 	.CURDIR \
