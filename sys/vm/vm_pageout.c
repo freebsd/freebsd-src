@@ -714,13 +714,13 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 	vm_page_t p;
 	int actcount, remove_mode;
 
-	VM_OBJECT_ASSERT_WLOCKED(first_object);
+	VM_OBJECT_ASSERT_LOCKED(first_object);
 	if ((first_object->flags & OBJ_FICTITIOUS) != 0)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
 			goto unlock_return;
-		VM_OBJECT_ASSERT_WLOCKED(object);
+		VM_OBJECT_ASSERT_LOCKED(object);
 		if ((object->flags & OBJ_UNMANAGED) != 0 ||
 		    object->paging_in_progress != 0)
 			goto unlock_return;
@@ -776,13 +776,13 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 		}
 		if ((backing_object = object->backing_object) == NULL)
 			goto unlock_return;
-		VM_OBJECT_WLOCK(backing_object);
+		VM_OBJECT_RLOCK(backing_object);
 		if (object != first_object)
-			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_RUNLOCK(object);
 	}
 unlock_return:
 	if (object != first_object)
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 }
 
 /*
@@ -812,15 +812,15 @@ vm_pageout_map_deactivate_pages(map, desired)
 	while (tmpe != &map->header) {
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
-			if (obj != NULL && VM_OBJECT_TRYWLOCK(obj)) {
+			if (obj != NULL && VM_OBJECT_TRYRLOCK(obj)) {
 				if (obj->shadow_count <= 1 &&
 				    (bigobj == NULL ||
 				     bigobj->resident_page_count < obj->resident_page_count)) {
 					if (bigobj != NULL)
-						VM_OBJECT_WUNLOCK(bigobj);
+						VM_OBJECT_RUNLOCK(bigobj);
 					bigobj = obj;
 				} else
-					VM_OBJECT_WUNLOCK(obj);
+					VM_OBJECT_RUNLOCK(obj);
 			}
 		}
 		if (tmpe->wired_count > 0)
@@ -830,7 +830,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 
 	if (bigobj != NULL) {
 		vm_pageout_object_deactivate_pages(map->pmap, bigobj, desired);
-		VM_OBJECT_WUNLOCK(bigobj);
+		VM_OBJECT_RUNLOCK(bigobj);
 	}
 	/*
 	 * Next, hunt around for other pages to deactivate.  We actually
@@ -843,9 +843,9 @@ vm_pageout_map_deactivate_pages(map, desired)
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
 			if (obj != NULL) {
-				VM_OBJECT_WLOCK(obj);
+				VM_OBJECT_RLOCK(obj);
 				vm_pageout_object_deactivate_pages(map->pmap, obj, desired);
-				VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(obj);
 			}
 		}
 		tmpe = tmpe->next;
