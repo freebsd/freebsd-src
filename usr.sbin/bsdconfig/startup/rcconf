@@ -81,7 +81,7 @@ dialog_menu_main()
 	local prompt=
 	local menu_list="
 		'X $msg_exit'    '$msg_exit_desc'
-		                  ${SHOW_DESC:+'$msg_exit_help'}
+		                  ${SHOW_DESC:+'$msg_exit_this_menu'}
 		'> $msg_add_new' '$msg_add_new_desc'
 		                  ${SHOW_DESC:+'$msg_add_new_help'}
 		'> $msg_delete'  '$msg_delete_desc'

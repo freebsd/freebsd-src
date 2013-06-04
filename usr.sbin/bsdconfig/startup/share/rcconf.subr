@@ -372,7 +372,7 @@ f_dialog_input_rclist()
 {
 	local prompt="$msg_please_select_an_rcconf_directive"
 	local menu_list="
-		'X $msg_exit' '' ${SHOW_DESC:+'$msg_exit_help'}
+		'X $msg_exit' '' ${SHOW_DESC:+'$msg_exit_this_menu'}
 	" # END-QUOTE
 	local hline="$hline_arrows_tab_enter"
 
