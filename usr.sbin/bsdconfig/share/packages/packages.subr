@@ -88,7 +88,7 @@ f_package_accent_category_menu()
 		"$msg_all") debug= f_getvar "_All_ninstalled" n ;;
 		         *) debug= f_getvar "_${varcat}_ninstalled" n ;;
 		esac &&
-			[ $n -ge 1 ] && desc="$desc; $n $msg_installed_lc"
+		[ $n -ge 1 ] && desc="$desc; $n $msg_installed_lc"
 
 		# Add number of selected packages for this category (if any)
 		n=0
@@ -96,9 +96,9 @@ f_package_accent_category_menu()
 		"$msg_all") debug= f_getvar "_All_nselected" n ;;
 		         *) debug= f_getvar "_${varcat}_nselected" n ;;
 		esac &&
-			[ $n -ge 1 ] && desc="$desc; $n $msg_selected"
+		[ $n -ge 1 ] && desc="$desc; $n $msg_selected"
 
-		# Add an asterisk to the category if its index has been cached
+		# Re-Add asterisk to the category if its index has been cached
 		f_isset _index_page_${varcat}_1 && cat="$cat*"
 
 		# Update buffer with modified elements
