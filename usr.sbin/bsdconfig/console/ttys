@@ -191,7 +191,7 @@ while :; do
 
 	f_dialog_menuitem_fetch consterm
 	err=$( ttys_set_type "$consterm" 2>&1 )
-	[ "$err" ] || break
+	[ "$err" ] || break # to success
 
 	f_dialog_msgbox "$err"
 done
