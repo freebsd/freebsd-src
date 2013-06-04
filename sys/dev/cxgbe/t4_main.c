@@ -6573,9 +6573,15 @@ get_filter_hits(struct adapter *sc, uint32_t fid)
 	memwin_info(sc, 0, &mw_base, NULL);
 	off = position_memwin(sc, 0,
 	    tcb_base + (fid + sc->tids.ftid_base) * TCB_SIZE);
-	hits = t4_read_reg64(sc, mw_base + off + 16);
+	if (is_t4(sc)) {
+		hits = t4_read_reg64(sc, mw_base + off + 16);
+		hits = be64toh(hits);
+	} else {
+		hits = t4_read_reg(sc, mw_base + off + 24);
+		hits = be32toh(hits);
+	}
 
-	return (be64toh(hits));
+	return (hits);
 }
 
 static int
