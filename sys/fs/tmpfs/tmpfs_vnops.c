@@ -490,7 +490,6 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	vm_page_unlock(m);
 	VM_OBJECT_WUNLOCK(tobj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
-	VM_OBJECT_WLOCK(tobj);
 	vm_page_lock(m);
 	vm_page_unhold(m);
 	if (m->queue == PQ_NONE) {
@@ -500,7 +499,6 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 		vm_page_requeue(m);
 	}
 	vm_page_unlock(m);
-	VM_OBJECT_WUNLOCK(tobj);
 
 	return (error);
 }
