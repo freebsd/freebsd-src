@@ -464,7 +464,7 @@ f_package_menu_select()
 	                          "$page" "$npages" )"
 
 	local mheight mwidth mrows
-	f_dialog_menu${SHOW_DESC:+_with_help}_size mheight mwidth mrows \
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size mheight mwidth mrows \
 	        	\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
 	        	\"\$prompt\" \"\$hline\" $menu_list
 	local iheight iwidth
