@@ -158,6 +158,7 @@ gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n1999/01/15"]
 gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2009/12/07"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
+gjb [label="Glen Barber\ngjb@FreeBSD.org\n2013/06/04"]
 gleb [label="Gleb Kurtsou\ngleb@FreeBSD.org\n2011/09/19"]
 glebius [label="Gleb Smirnoff\nglebius@FreeBSD.org\n2004/07/14"]
 gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
@@ -508,6 +509,7 @@ ken -> asomers
 
 kib -> ae
 kib -> dchagin
+kib -> gjb
 kib -> jlh
 kib -> jpaetzel
 kib -> lulf
