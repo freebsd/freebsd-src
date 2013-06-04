@@ -458,3 +458,11 @@ universe_epilogue:
 
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
+
+.if defined(.PARSEDIR)
+# this makefile does not run in meta mode
+.MAKE.MODE= normal
+# make sure things we run from here don't either
+WITHOUT_META_MODE=
+.export WITHOUT_META_MODE
+.endif
