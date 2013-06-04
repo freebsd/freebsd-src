@@ -162,8 +162,8 @@ MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3
 MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
-MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 pow.3 exp.3 powf.3 \
-	exp.3 exp2.3 exp.3 exp2f.3 exp.3 exp2l.3 exp.3 expf.3
+MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 expm1l.3 exp.3 pow.3 exp.3 powf.3 \
+	exp.3 exp2.3 exp.3 exp2f.3 exp.3 exp2l.3 exp.3 expf.3 exp.3 expl.3
 MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3
 MLINKS+=fdim.3 fdimf.3 fdim.3 fdiml.3
 MLINKS+=feclearexcept.3 fegetexceptflag.3 feclearexcept.3 feraiseexcept.3 \
