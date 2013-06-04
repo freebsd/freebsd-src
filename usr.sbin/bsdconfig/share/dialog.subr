@@ -328,7 +328,7 @@ f_dialog_size_constrain()
 	for __arg in height width; do
 		debug= f_getvar __var_$__arg __cp
 		[ "$__cp" ] || continue
-		if ! f_getvar "$__cp" __$__arg; then
+		if ! debug= f_getvar "$__cp" __$__arg; then
 			f_dprintf "%s: var_%s variable \`%s' not set" \
 			          $__fname $__arg "$__cp"
 			__retval=$FAILURE
@@ -377,6 +377,12 @@ f_dialog_size_constrain()
 		fi
 	fi
 
+	if [ "$debug" ]; then
+		# Print final constrained values to debuggin
+		f_quietly f_getvar "$__var_height"
+		f_quietly f_getvar "$__var_width"
+	fi
+
 	return $__retval # success if no debug warnings were printed
 }
 
@@ -419,7 +425,7 @@ f_dialog_menu_constrain()
 	for __arg in height width rows; do
 		debug= f_getvar __var_$__arg __cp
 		[ "$__cp" ] || continue
-		if ! f_getvar "$__cp" __$__arg; then
+		if ! debug= f_getvar "$__cp" __$__arg; then
 			f_dprintf "%s: var_%s variable \`%s' not set" \
 			          $__fname $__arg "$__cp"
 			__retval=$FAILURE
@@ -487,6 +493,13 @@ f_dialog_menu_constrain()
 		elif [ $__rows -gt $__max_rows ]; then
 			setvar "$__var_rows" $__max_rows
 		fi
+	fi
+
+	if [ "$debug" ]; then
+		# Print final constrained values to debuggin
+		f_quietly f_getvar "$__var_height"
+		f_quietly f_getvar "$__var_width"
+		f_quietly f_getvar "$__var_rows"
 	fi
 
 	return $__retval # success if no debug warnings were printed
