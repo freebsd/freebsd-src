@@ -31,7 +31,11 @@
  * Mathematical Software, Volume 23 Issue 3, 1997, Pages 299-335,
  * http://dl.acm.org/citation.cfm?id=275324.
  *
- * The code for catrig.c contains complete comments.
+ * See catrig.c for complete comments.
+ *
+ * XXX comments were removed automatically, and even short ones on the right
+ * of statements were removed (all of them), contrary to normal style.  Only
+ * a few comments on the right of declarations remain.
  */
 
 #include <sys/cdefs.h>
@@ -82,7 +86,7 @@ f(float a, float b, float hypot_a_b)
 
 static inline void
 do_hard_work(float x, float y, float *rx, int *B_is_usable, float *B,
-	     float *sqrt_A2my2, float *new_y)
+    float *sqrt_A2my2, float *new_y)
 {
 	float R, S, A;
 	float Am1, Amy;
@@ -101,7 +105,7 @@ do_hard_work(float x, float y, float *rx, int *B_is_usable, float *B,
 			Am1 = f(x, 1 + y, R) + f(x, 1 - y, S);
 			*rx = log1pf(Am1 + sqrtf(Am1 * (A + 1)));
 		} else if (y < 1) {
-			*rx = x / sqrtf((1 - y)*(1 + y));
+			*rx = x / sqrtf((1 - y) * (1 + y));
 		} else {
 			*rx = log1pf((y - 1) + sqrtf((y - 1) * (y + 1)));
 		}
@@ -130,7 +134,7 @@ do_hard_work(float x, float y, float *rx, int *B_is_usable, float *B,
 			*sqrt_A2my2 = sqrtf(Amy * (A + y));
 		} else if (y > 1) {
 			*sqrt_A2my2 = x * (4 / FLT_EPSILON / FLT_EPSILON) * y /
-				sqrtf((y + 1) * (y - 1));
+			    sqrtf((y + 1) * (y - 1));
 			*new_y = y * (4 / FLT_EPSILON / FLT_EPSILON);
 		} else {
 			*sqrt_A2my2 = sqrtf((1 - y) * (1 + y));
@@ -166,7 +170,7 @@ casinhf(float complex z)
 		else
 			w = clog_for_large_values(-z) + m_ln2;
 		return (cpackf(copysignf(crealf(w), x),
-			       copysignf(cimagf(w), y)));
+		    copysignf(cimagf(w), y)));
 	}
 
 	if (x == 0 && y == 0)
@@ -189,6 +193,7 @@ float complex
 casinf(float complex z)
 {
 	float complex w = casinhf(cpackf(cimagf(z), crealf(z)));
+
 	return (cpackf(cimagf(w), crealf(w)));
 }
 
@@ -212,7 +217,8 @@ cacosf(float complex z)
 			return (cpackf(y + y, -INFINITY));
 		if (isinf(y))
 			return (cpackf(x + x, -y));
-		if (x == 0) return (cpackf(pio2_hi + pio2_lo, y + y));
+		if (x == 0)
+			return (cpackf(pio2_hi + pio2_lo, y + y));
 		return (cpackf(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
 	}
 
@@ -235,17 +241,17 @@ cacosf(float complex z)
 
 	do_hard_work(ay, ax, &ry, &B_is_usable, &B, &sqrt_A2mx2, &new_x);
 	if (B_is_usable) {
-		if (sx==0)
+		if (sx == 0)
 			rx = acosf(B);
 		else
 			rx = acosf(-B);
 	} else {
-		if (sx==0)
+		if (sx == 0)
 			rx = atan2f(sqrt_A2mx2, new_x);
 		else
 			rx = atan2f(sqrt_A2mx2, -new_x);
 	}
-	if (sy==0)
+	if (sy == 0)
 		ry = -ry;
 	return (cpackf(rx, ry));
 }
@@ -284,10 +290,9 @@ clog_for_large_values(float complex z)
 		ay = t;
 	}
 
-	if (ax > FLT_MAX / 2) {
+	if (ax > FLT_MAX / 2)
 		return (cpackf(logf(hypotf(x / m_e, y / m_e)) + 1,
-			       atan2f(y, x)));
-	}
+		    atan2f(y, x)));
 
 	if (ax > QUARTER_SQRT_MAX || ay < SQRT_MIN)
 		return (cpackf(logf(hypotf(x, y)), atan2f(y, x)));
@@ -300,8 +305,9 @@ sum_squares(float x, float y)
 {
 
 	if (y < SQRT_MIN)
-		return (x*x);
-	return (x*x + y*y);
+		return (x * x);
+
+	return (x * x + y * y);
 }
 
 static inline float
@@ -318,9 +324,9 @@ real_part_reciprocal(float x, float y)
 #define	BIAS	(FLT_MAX_EXP - 1)
 #define	CUTOFF	(FLT_MANT_DIG / 2 + 1)
 	if (ix - iy >= CUTOFF << 23 || isinf(x))
-		return (1/x);
+		return (1 / x);
 	if (iy - ix >= CUTOFF << 23)
-		return (x/y/y);
+		return (x / y / y);
 	if (ix <= (BIAS + FLT_MAX_EXP / 2 - CUTOFF) << 23)
 		return (x / (x * x + y * y));
 	SET_FLOAT_WORD(scale, 0x7f800000 - ix);
@@ -340,25 +346,23 @@ catanhf(float complex z)
 	ay = fabsf(y);
 
 	if (y == 0 && ax <= 1)
-		return (cpackf(atanhf(x), y)); 
+		return (cpackf(atanhf(x), y));
 
 	if (x == 0)
 		return (cpackf(x, atanf(y)));
 
 	if (isnan(x) || isnan(y)) {
 		if (isinf(x))
-			return (cpackf(copysignf(0, x), y+y));
-		if (isinf(y)) {
+			return (cpackf(copysignf(0, x), y + y));
+		if (isinf(y))
 			return (cpackf(copysignf(0, x),
-				       copysignf(pio2_hi + pio2_lo, y)));
-		}
+			    copysignf(pio2_hi + pio2_lo, y)));
 		return (cpackf(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
 	}
 
-	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON) {
+	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON)
 		return (cpackf(real_part_reciprocal(x, y),
-			       copysignf(pio2_hi + pio2_lo, y)));
-	}
+		    copysignf(pio2_hi + pio2_lo, y)));
 
 	if (ax < SQRT_3_EPSILON / 2 && ay < SQRT_3_EPSILON / 2) {
 		raise_inexact();
@@ -366,7 +370,7 @@ catanhf(float complex z)
 	}
 
 	if (ax == 1 && ay < FLT_EPSILON)
-		rx = (logf(ay) - m_ln2) / -2;
+		rx = (m_ln2 - logf(ay)) / 2;
 	else
 		rx = log1pf(4 * ax / sum_squares(ax - 1, ay)) / 4;
 
@@ -384,5 +388,6 @@ float complex
 catanf(float complex z)
 {
 	float complex w = catanhf(cpackf(cimagf(z), crealf(z)));
+
 	return (cpackf(cimagf(w), crealf(w)));
 }
