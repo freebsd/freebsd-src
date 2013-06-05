@@ -105,6 +105,28 @@ ar9285AniSetup(struct ath_hal *ah)
         ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
+static const char * ar9285_lna_conf[] = {
+	"LNA1-LNA2",
+	"LNA2",
+	"LNA1",
+	"LNA1+LNA2",
+};
+
+static void
+ar9285_eeprom_print_diversity_settings(struct ath_hal *ah)
+{
+	const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
+	const MODAL_EEP4K_HEADER *pModal = &ee->ee_base.modalHeader;
+
+	ath_hal_printf(ah, "[ath] AR9285 Main LNA config: %s\n",
+	    ar9285_lna_conf[(pModal->antdiv_ctl2 >> 2) & 0x3]);
+	ath_hal_printf(ah, "[ath] AR9285 Alt LNA config: %s\n",
+	    ar9285_lna_conf[pModal->antdiv_ctl2 & 0x3]);
+	ath_hal_printf(ah, "[ath] LNA diversity %s, Diversity %s\n",
+	    ((pModal->antdiv_ctl1 & 0x1) ? "enabled" : "disabled"),
+	    ((pModal->antdiv_ctl1 & 0x8) ? "enabled" : "disabled"));
+}
+
 /*
  * Attach for an AR9285 part.
  */
@@ -308,6 +330,13 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		ecode = HAL_EEREAD;
 		goto bad;
 	}
+
+	/*
+	 * Print out the EEPROM antenna configuration mapping.
+	 * Some devices have a hard-coded LNA configuration profile;
+	 * others enable diversity.
+	 */
+	ar9285_eeprom_print_diversity_settings(ah);
 
 	/* Print out whether the EEPROM settings enable AR9285 diversity */
 	if (ar9285_check_div_comb(ah)) {
