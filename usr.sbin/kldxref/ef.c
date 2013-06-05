@@ -42,7 +42,6 @@
 #include <fcntl.h>
 #include <machine/elf.h>
 #define FREEBSD_ELF
-#include <link.h>
 
 #include <err.h>
 

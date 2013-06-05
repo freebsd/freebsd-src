@@ -32,7 +32,6 @@
 
 #include <err.h>
 #include <errno.h>
-#include <string.h>
 
 #include "ef.h"
 
