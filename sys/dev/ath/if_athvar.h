@@ -629,8 +629,8 @@ struct ath_softc {
 	u_int32_t		sc_use_ent  : 1,
 				sc_rx_stbc  : 1,
 				sc_tx_stbc  : 1,
-				sc_hasenforcetxop : 1; /* support enforce TxOP */
-
+				sc_hasenforcetxop : 1, /* support enforce TxOP */
+				sc_rx_lnamixer : 1;    /* RX using LNA mixing */
 
 	int			sc_cabq_enable;	/* Enable cabq transmission */
 
@@ -1269,6 +1269,8 @@ void	ath_intr(void *);
 #define	ath_hal_setenforcetxop(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_ENFORCE_TXOP, 1, _v, NULL)
 
+#define	ath_hal_hasrxlnamixer(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RX_LNA_MIXING, 0, NULL) == HAL_OK)
 
 /* EDMA definitions */
 #define	ath_hal_hasedma(_ah) \
