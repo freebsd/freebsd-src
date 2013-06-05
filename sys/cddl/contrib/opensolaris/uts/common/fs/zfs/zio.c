@@ -35,6 +35,7 @@
 #include <sys/dmu_objset.h>
 #include <sys/arc.h>
 #include <sys/ddt.h>
+#include <sys/trim_map.h>
 
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
@@ -42,6 +43,19 @@ static int zio_use_uma = 0;
 TUNABLE_INT("vfs.zfs.zio.use_uma", &zio_use_uma);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, use_uma, CTLFLAG_RDTUN, &zio_use_uma, 0,
     "Use uma(9) for ZIO allocations");
+
+zio_trim_stats_t zio_trim_stats = {
+	{ "bytes",		KSTAT_DATA_UINT64,
+	  "Number of bytes successfully TRIMmed" },
+	{ "success",		KSTAT_DATA_UINT64,
+	  "Number of successful TRIM requests" },
+	{ "unsupported",	KSTAT_DATA_UINT64,
+	  "Number of TRIM requests that failed because TRIM is not supported" },
+	{ "failed",		KSTAT_DATA_UINT64,
+	  "Number of TRIM requests that failed for reasons other than not supported" },
+};
+
+static kstat_t *zio_trim_ksp;
 
 /*
  * ==========================================================================
@@ -61,6 +75,7 @@ uint8_t zio_priority_table[ZIO_PRIORITY_TABLE_SIZE] = {
 	10,	/* ZIO_PRIORITY_RESILVER	*/
 	20,	/* ZIO_PRIORITY_SCRUB		*/
 	2,	/* ZIO_PRIORITY_DDT_PREFETCH	*/
+	30,	/* ZIO_PRIORITY_TRIM		*/
 };
 
 /*
@@ -209,6 +224,16 @@ zio_init(void)
 		zfs_mg_alloc_failures = 8;
 
 	zio_inject_init();
+
+	zio_trim_ksp = kstat_create("zfs", 0, "zio_trim", "misc",
+	    KSTAT_TYPE_NAMED,
+	    sizeof(zio_trim_stats) / sizeof(kstat_named_t),
+	    KSTAT_FLAG_VIRTUAL);
+
+	if (zio_trim_ksp != NULL) {
+		zio_trim_ksp->ks_data = &zio_trim_stats;
+		kstat_install(zio_trim_ksp);
+	}
 }
 
 void
@@ -236,6 +261,11 @@ zio_fini(void)
 	kmem_cache_destroy(zio_cache);
 
 	zio_inject_fini();
+
+	if (zio_trim_ksp != NULL) {
+		kstat_delete(zio_trim_ksp);
+		zio_trim_ksp = NULL;
+	}
 }
 
 /*
@@ -543,7 +573,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 {
 	zio_t *zio;
 
-	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
+	ASSERT3U(type == ZIO_TYPE_FREE || size, <=, SPA_MAXBLOCKSIZE);
 	ASSERT(P2PHASE(size, SPA_MINBLOCKSIZE) == 0);
 	ASSERT(P2PHASE(offset, SPA_MINBLOCKSIZE) == 0);
 
@@ -730,7 +760,7 @@ zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp)
 
 zio_t *
 zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
-    enum zio_flag flags)
+    uint64_t size, enum zio_flag flags)
 {
 	zio_t *zio;
 
@@ -743,7 +773,7 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 
 	metaslab_check_free(spa, bp);
 
-	zio = zio_create(pio, spa, txg, bp, NULL, BP_GET_PSIZE(bp),
+	zio = zio_create(pio, spa, txg, bp, NULL, size,
 	    NULL, NULL, ZIO_TYPE_FREE, ZIO_PRIORITY_FREE, flags,
 	    NULL, 0, NULL, ZIO_STAGE_OPEN, ZIO_FREE_PIPELINE);
 
@@ -780,15 +810,16 @@ zio_claim(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 }
 
 zio_t *
-zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
-    zio_done_func_t *done, void *private, int priority, enum zio_flag flags)
+zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd, uint64_t offset,
+    uint64_t size, zio_done_func_t *done, void *private, int priority,
+    enum zio_flag flags)
 {
 	zio_t *zio;
 	int c;
 
 	if (vd->vdev_children == 0) {
-		zio = zio_create(pio, spa, 0, NULL, NULL, 0, done, private,
-		    ZIO_TYPE_IOCTL, priority, flags, vd, 0, NULL,
+		zio = zio_create(pio, spa, 0, NULL, NULL, size, done, private,
+		    ZIO_TYPE_IOCTL, priority, flags, vd, offset, NULL,
 		    ZIO_STAGE_OPEN, ZIO_IOCTL_PIPELINE);
 
 		zio->io_cmd = cmd;
@@ -797,7 +828,7 @@ zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
 
 		for (c = 0; c < vd->vdev_children; c++)
 			zio_nowait(zio_ioctl(zio, spa, vd->vdev_child[c], cmd,
-			    done, private, priority, flags));
+			    offset, size, done, private, priority, flags));
 	}
 
 	return (zio);
@@ -922,9 +953,20 @@ zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, void *data, uint64_t size,
 void
 zio_flush(zio_t *zio, vdev_t *vd)
 {
-	zio_nowait(zio_ioctl(zio, zio->io_spa, vd, DKIOCFLUSHWRITECACHE,
+	zio_nowait(zio_ioctl(zio, zio->io_spa, vd, DKIOCFLUSHWRITECACHE, 0, 0,
 	    NULL, NULL, ZIO_PRIORITY_NOW,
 	    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY));
+}
+
+zio_t *
+zio_trim(zio_t *zio, spa_t *spa, vdev_t *vd, uint64_t offset, uint64_t size)
+{
+
+	ASSERT(vd->vdev_ops->vdev_op_leaf);
+
+	return zio_ioctl(zio, spa, vd, DKIOCTRIM, offset, size,
+	    NULL, NULL, ZIO_PRIORITY_TRIM,
+	    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY);
 }
 
 void
@@ -1549,6 +1591,7 @@ zio_t *
 zio_free_gang(zio_t *pio, blkptr_t *bp, zio_gang_node_t *gn, void *data)
 {
 	return (zio_free_sync(pio, pio->io_spa, pio->io_txg, bp,
+	    BP_IS_GANG(bp) ? SPA_GANGBLOCKSIZE : BP_GET_PSIZE(bp),
 	    ZIO_GANG_CHILD_FLAGS(pio)));
 }
 
@@ -1681,7 +1724,7 @@ zio_gang_tree_issue(zio_t *pio, zio_gang_node_t *gn, blkptr_t *bp, void *data)
 		}
 	}
 
-	if (gn == gio->io_gang_tree)
+	if (gn == gio->io_gang_tree && gio->io_data != NULL)
 		ASSERT3P((char *)gio->io_data + gio->io_size, ==, data);
 
 	if (zio != pio)
@@ -2403,7 +2446,7 @@ zio_free_zil(spa_t *spa, uint64_t txg, blkptr_t *bp)
 
 /*
  * ==========================================================================
- * Read and write to physical devices
+ * Read, write and delete to physical devices
  * ==========================================================================
  */
 static int
@@ -2424,6 +2467,11 @@ zio_vdev_io_start(zio_t *zio)
 		 * The mirror_ops handle multiple DVAs in a single BP.
 		 */
 		return (vdev_mirror_ops.vdev_op_io_start(zio));
+	}
+
+	if (vd->vdev_ops->vdev_op_leaf && zio->io_type == ZIO_TYPE_FREE) {
+		trim_map_free(vd, zio->io_offset, zio->io_size, zio->io_txg);
+		return (ZIO_PIPELINE_CONTINUE);
 	}
 
 	/*
@@ -2450,18 +2498,22 @@ zio_vdev_io_start(zio_t *zio)
 
 	if (P2PHASE(zio->io_size, align) != 0) {
 		uint64_t asize = P2ROUNDUP(zio->io_size, align);
-		char *abuf = zio_buf_alloc(asize);
+		char *abuf = NULL;
+		if (zio->io_type == ZIO_TYPE_READ ||
+		    zio->io_type == ZIO_TYPE_WRITE)
+			abuf = zio_buf_alloc(asize);
 		ASSERT(vd == vd->vdev_top);
 		if (zio->io_type == ZIO_TYPE_WRITE) {
 			bcopy(zio->io_data, abuf, zio->io_size);
 			bzero(abuf + zio->io_size, asize - zio->io_size);
 		}
-		zio_push_transform(zio, abuf, asize, asize, zio_subblock);
+		zio_push_transform(zio, abuf, asize, abuf ? asize : 0,
+		    zio_subblock);
 	}
 
 	ASSERT(P2PHASE(zio->io_offset, align) == 0);
 	ASSERT(P2PHASE(zio->io_size, align) == 0);
-	VERIFY(zio->io_type != ZIO_TYPE_WRITE || spa_writeable(spa));
+	VERIFY(zio->io_type == ZIO_TYPE_READ || spa_writeable(spa));
 
 	/*
 	 * If this is a repair I/O, and there's no self-healing involved --
@@ -2501,6 +2553,11 @@ zio_vdev_io_start(zio_t *zio)
 		}
 	}
 
+	if (vd->vdev_ops->vdev_op_leaf && zio->io_type == ZIO_TYPE_WRITE) {
+		if (!trim_map_write_start(zio))
+			return (ZIO_PIPELINE_STOP);
+	}
+
 	return (vd->vdev_ops->vdev_op_io_start(zio));
 }
 
@@ -2514,9 +2571,16 @@ zio_vdev_io_done(zio_t *zio)
 	if (zio_wait_for_children(zio, ZIO_CHILD_VDEV, ZIO_WAIT_DONE))
 		return (ZIO_PIPELINE_STOP);
 
-	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
+	ASSERT(zio->io_type == ZIO_TYPE_READ ||
+	    zio->io_type == ZIO_TYPE_WRITE || zio->io_type == ZIO_TYPE_FREE);
 
-	if (vd != NULL && vd->vdev_ops->vdev_op_leaf) {
+	if (vd != NULL && vd->vdev_ops->vdev_op_leaf &&
+	    zio->io_type == ZIO_TYPE_WRITE) {
+		trim_map_write_done(zio);
+	}
+
+	if (vd != NULL && vd->vdev_ops->vdev_op_leaf &&
+	    (zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE)) {
 
 		vdev_queue_io_done(zio);
 
@@ -2591,6 +2655,20 @@ zio_vdev_io_assess(zio_t *zio)
 
 	if (zio_injection_enabled && zio->io_error == 0)
 		zio->io_error = zio_handle_fault_injection(zio, EIO);
+
+	if (zio->io_type == ZIO_TYPE_IOCTL && zio->io_cmd == DKIOCTRIM)
+		switch (zio->io_error) {
+		case 0:
+			ZIO_TRIM_STAT_INCR(bytes, zio->io_size);
+			ZIO_TRIM_STAT_BUMP(success);
+			break;
+		case EOPNOTSUPP:
+			ZIO_TRIM_STAT_BUMP(unsupported);
+			break;
+		default:
+			ZIO_TRIM_STAT_BUMP(failed);
+			break;
+		}
 
 	/*
 	 * If the I/O failed, determine whether we should attempt to retry it.
