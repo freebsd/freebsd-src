@@ -38,6 +38,8 @@
 
 #include "nm_util.h"
 
+#include <ctype.h>	// isprint()
+
 const char *default_payload="netmap pkt-gen payload\n"
 	"http://info.iet.unipi.it/~luigi/netmap/ ";
 
@@ -86,6 +88,8 @@ struct glob_arg {
 #define OPT_COPY	4
 #define OPT_MEMCPY	8
 #define OPT_TS		16	/* add a timestamp */
+#define OPT_INDIRECT	32	/* use indirect buffers, tx only */
+#define OPT_DUMP	64	/* dump rx/tx traffic */
 	int dev_type;
 	pcap_t *p;
 
@@ -346,6 +350,33 @@ wrapsum(u_int32_t sum)
 	return (htons(sum));
 }
 
+/* Check the payload of the packet for errors (use it for debug).
+ * Look for consecutive ascii representations of the size of the packet.
+ */
+static void
+dump_payload(char *p, int len, struct netmap_ring *ring, int cur)
+{
+	char buf[128];
+	int i, j, i0;
+
+	/* get the length in ASCII of the length of the packet. */
+	
+	printf("ring %p cur %5d len %5d buf %p\n", ring, cur, len, p);
+	/* hexdump routine */
+	for (i = 0; i < len; ) {
+		memset(buf, sizeof(buf), ' ');
+		sprintf(buf, "%5d: ", i);
+		i0 = i;
+		for (j=0; j < 16 && i < len; i++, j++)
+			sprintf(buf+7+j*3, "%02x ", (uint8_t)(p[i]));
+		i = i0;
+		for (j=0; j < 16 && i < len; i++, j++)
+			sprintf(buf+7+j + 48, "%c",
+				isprint(p[i]) ? p[i] : '.');
+		printf("%s\n", buf);
+	}
+}
+
 /*
  * Fill a packet with some payload.
  * We create a UDP packet so the payload starts at
@@ -357,6 +388,7 @@ wrapsum(u_int32_t sum)
 #define uh_ulen len
 #define uh_sum check
 #endif /* linux */
+
 static void
 initialize_packet(struct targ *targ)
 {
@@ -365,11 +397,13 @@ initialize_packet(struct targ *targ)
 	struct ip *ip;
 	struct udphdr *udp;
 	uint16_t paylen = targ->g->pkt_size - sizeof(*eh) - sizeof(struct ip);
-	int i, l, l0 = strlen(default_payload);
+	const char *payload = targ->g->options & OPT_INDIRECT ?
+		"XXXXXXXXXXXXXXXXXXXXXX" : default_payload;
+	int i, l, l0 = strlen(payload);
 
 	for (i = 0; i < paylen;) {
 		l = min(l0, paylen - i);
-		bcopy(default_payload, pkt->body + i, l);
+		bcopy(payload, pkt->body + i, l);
 		i += l;
 	}
 	pkt->body[i-1] = '\0';
@@ -415,34 +449,9 @@ initialize_packet(struct targ *targ)
 	bcopy(&targ->g->src_mac.start, eh->ether_shost, 6);
 	bcopy(&targ->g->dst_mac.start, eh->ether_dhost, 6);
 	eh->ether_type = htons(ETHERTYPE_IP);
+	// dump_payload((void *)pkt, targ->g->pkt_size, NULL, 0);
 }
 
-/* Check the payload of the packet for errors (use it for debug).
- * Look for consecutive ascii representations of the size of the packet.
- */
-static void
-check_payload(char *p, int psize)
-{
-	char temp[64];
-	int n_read, size, sizelen;
-
-	/* get the length in ASCII of the length of the packet. */
-	sizelen = sprintf(temp, "%d", psize) + 1; // include a whitespace
-
-	/* dummy payload. */
-	p += 14; /* skip packet header. */
-	n_read = 14;
-	while (psize - n_read >= sizelen) {
-		sscanf(p, "%d", &size);
-		if (size != psize) {
-			D("Read %d instead of %d", size, psize);
-			break;
-		}
-
-		p += sizelen;
-		n_read += sizelen;
-	}
-}
 
 
 /*
@@ -475,7 +484,13 @@ send_packets(struct netmap_ring *ring, struct pkt *pkt,
 		struct netmap_slot *slot = &ring->slot[cur];
 		char *p = NETMAP_BUF(ring, slot->buf_idx);
 
-		if (options & OPT_COPY)
+		slot->flags = 0;
+		if (options & OPT_DUMP)
+			dump_payload(p, size, ring, cur);
+		if (options & OPT_INDIRECT) {
+			slot->flags |= NS_INDIRECT;
+			*((struct pkt **)(void *)p) = pkt;
+		} else if (options & OPT_COPY)
 			pkt_copy(pkt, p, size);
 		else if (options & OPT_MEMCPY)
 			memcpy(p, pkt, size);
@@ -756,6 +771,7 @@ sender_body(void *data)
 	struct timespec tmptime, nexttime = { 0, 0}; // XXX silence compiler
 	int rate_limit = targ->g->tx_rate;
 	long long waited = 0;
+
 	D("start");
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
@@ -882,7 +898,7 @@ receive_pcap(u_char *user, const struct pcap_pkthdr * h,
 }
 
 static int
-receive_packets(struct netmap_ring *ring, u_int limit, int skip_payload)
+receive_packets(struct netmap_ring *ring, u_int limit, int dump)
 {
 	u_int cur, rx;
 
@@ -893,8 +909,9 @@ receive_packets(struct netmap_ring *ring, u_int limit, int skip_payload)
 		struct netmap_slot *slot = &ring->slot[cur];
 		char *p = NETMAP_BUF(ring, slot->buf_idx);
 
-		if (!skip_payload)
-			check_payload(p, slot->len);
+		slot->flags = OPT_INDIRECT; // XXX
+		if (dump)
+			dump_payload(p, slot->len, ring, cur);
 
 		cur = NETMAP_RING_NEXT(ring, cur);
 	}
@@ -946,6 +963,7 @@ receiver_body(void *data)
 			targ->count++;
 	}
     } else {
+	int dump = targ->g->options & OPT_DUMP;
 	while (!targ->cancel) {
 		/* Once we started to receive packets, wait at most 1 seconds
 		   before quitting. */
@@ -962,8 +980,7 @@ receiver_body(void *data)
 			if (rxring->avail == 0)
 				continue;
 
-			m = receive_packets(rxring, targ->g->burst,
-					SKIP_PAYLOAD);
+			m = receive_packets(rxring, targ->g->burst, dump);
 			received += m;
 		}
 		targ->count = received;
@@ -1324,10 +1341,11 @@ main(int arc, char **argv)
 	g.burst = 512;		// default
 	g.nthreads = 1;
 	g.cpus = 1;
+	g.forever = 1;
 	g.tx_rate = 0;
 
 	while ( (ch = getopt(arc, argv,
-			"a:f:n:i:t:r:l:d:s:D:S:b:c:o:p:PT:w:WvR:")) != -1) {
+			"a:f:n:i:It:r:l:d:s:D:S:b:c:o:p:PT:w:WvR:X")) != -1) {
 		struct sf *fn;
 
 		switch(ch) {
@@ -1367,6 +1385,10 @@ main(int arc, char **argv)
 				g.dev_type = DEV_NETMAP;
 			break;
 
+		case 'I':
+			g.options |= OPT_INDIRECT;	/* XXX use indirect buffer */
+			break;
+
 		case 't':	/* send, deprecated */
 			D("-t deprecated, please use -f tx -n %s", optarg);
 			g.td_body = sender_body;
@@ -1399,8 +1421,8 @@ main(int arc, char **argv)
 			wait_link = atoi(optarg);
 			break;
 
-		case 'W':
-			g.forever = 1; /* do not exit rx even with no traffic */
+		case 'W': /* XXX changed default */
+			g.forever = 0; /* do not exit rx even with no traffic */
 			break;
 
 		case 'b':	/* burst */
@@ -1430,6 +1452,8 @@ main(int arc, char **argv)
 		case 'R':
 			g.tx_rate = atoi(optarg);
 			break;
+		case 'X':
+			g.options |= OPT_DUMP;
 		}
 	}
 
@@ -1572,10 +1596,11 @@ main(int arc, char **argv)
     }
 
 	if (g.options) {
-		D("special options:%s%s%s%s\n",
+		D("--- SPECIAL OPTIONS:%s%s%s%s%s\n",
 			g.options & OPT_PREFETCH ? " prefetch" : "",
 			g.options & OPT_ACCESS ? " access" : "",
 			g.options & OPT_MEMCPY ? " memcpy" : "",
+			g.options & OPT_INDIRECT ? " indirect" : "",
 			g.options & OPT_COPY ? " copy" : "");
 	}
 	
