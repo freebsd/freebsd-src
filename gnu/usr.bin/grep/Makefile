@@ -13,7 +13,8 @@ SRCS=	closeout.c dfa.c error.c exclude.c grep.c grepmat.c hard-locale.c \
 	isdir.c kwset.c obstack.c quotearg.c savedir.c search.c xmalloc.c \
 	xstrtoumax.c
 
-CFLAGS+=-I${.CURDIR} -I${.CURDIR}/../../lib/libregex -DHAVE_CONFIG_H
+CFLAGS+=-I${.CURDIR} -I${.CURDIR}/../../../contrib/libgnuregex
+CFLAGS+=-DHAVE_CONFIG_H -D__USE_GNU
 
 .if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
