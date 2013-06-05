@@ -279,7 +279,8 @@ typedef struct {
 			halAntDivCombSupport		: 1,
 			halAntDivCombSupportOrg		: 1,
 			halRadioRetentionSupport	: 1,
-			halSpectralScanSupport		: 1;
+			halSpectralScanSupport		: 1,
+			halRxUsingLnaMixing		: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;

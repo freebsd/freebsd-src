@@ -525,6 +525,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halMbssidAggrSupport = AH_TRUE;  
 	pCap->hal4AddrAggrSupport = AH_TRUE;
 	pCap->halSpectralScanSupport = AH_TRUE;
+	pCap->halRxUsingLnaMixing = AH_TRUE;
 
 	if (AR_SREV_KITE_12_OR_LATER(ah))
 		pCap->halPSPollBroken = AH_FALSE;
