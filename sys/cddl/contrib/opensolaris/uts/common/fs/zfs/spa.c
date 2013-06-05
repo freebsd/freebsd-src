@@ -67,6 +67,7 @@
 #include <sys/dsl_userhold.h>
 #include <sys/zfeature.h>
 #include <sys/zvol.h>
+#include <sys/trim_map.h>
 
 #ifdef	_KERNEL
 #include <sys/callb.h>
@@ -1001,6 +1002,11 @@ spa_activate(spa_t *spa, int mode)
 		spa_create_zio_taskqs(spa);
 	}
 
+	/*
+	 * Start TRIM thread.
+	 */
+	trim_thread_create(spa);
+
 	list_create(&spa->spa_config_dirty_list, sizeof (vdev_t),
 	    offsetof(vdev_t, vdev_config_dirty_node));
 	list_create(&spa->spa_state_dirty_list, sizeof (vdev_t),
@@ -1028,6 +1034,12 @@ spa_deactivate(spa_t *spa)
 	ASSERT(spa->spa_root_vdev == NULL);
 	ASSERT(spa->spa_async_zio_root == NULL);
 	ASSERT(spa->spa_state != POOL_STATE_UNINITIALIZED);
+
+	/*
+	 * Stop TRIM thread in case spa_unload() wasn't called directly
+	 * before spa_deactivate().
+	 */
+	trim_thread_destroy(spa);
 
 	txg_list_destroy(&spa->spa_vdev_txg_list);
 
@@ -1143,6 +1155,11 @@ spa_unload(spa_t *spa)
 	int i;
 
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+
+	/*
+	 * Stop TRIM thread.
+	 */
+	trim_thread_destroy(spa);
 
 	/*
 	 * Stop async tasks.
@@ -5875,7 +5892,7 @@ spa_free_sync_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 	zio_t *zio = arg;
 
 	zio_nowait(zio_free_sync(zio, zio->io_spa, dmu_tx_get_txg(tx), bp,
-	    zio->io_flags));
+	    BP_GET_PSIZE(bp), zio->io_flags));
 	return (0);
 }
 

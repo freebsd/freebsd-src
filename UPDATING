@@ -11,6 +11,22 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130605:
+	Added ZFS TRIM support which is enabled by default. To disable
+	ZFS TRIM support set vfs.zfs.trim.enabled=0 in loader.conf.
+
+	Creating new ZFS pools and adding new devices to existing pools
+	first performs a full device level TRIM which can take a significant
+	amount of time. The sysctl vfs.zfs.vdev.trim_on_init can be set to 0
+	to disable this behaviour.
+
+	ZFS TRIM requires the underlying device support BIO_DELETE which
+	is currently provided by methods such as ATA TRIM and SCSI UNMAP
+	via CAM, which are typically supported by SSD's.
+
+	Stats for ZFS TRIM can be monitored by looking at the sysctl's
+	under kstat.zfs.misc.zio_trim.
+
 20130524:
 	`list' command has been added to hastctl(8).  For now, it is full
 	equivalent of `status' command.
