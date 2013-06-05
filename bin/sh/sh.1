@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2013
+.Dd June 5, 2013
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2642,12 +2642,17 @@ If the
 option is specified, the
 .Ar name
 arguments are treated as function names.
-.It Ic wait Op Ar job
-Wait for the specified
+.It Ic wait Op Ar job ...
+Wait for each specified
 .Ar job
 to complete and return the exit status of the last process in the
+last specified
 .Ar job .
-If the argument is omitted, wait for all jobs to complete
+If any
+.Ar job
+specified is unknown to the shell, it is treated as if it
+were a known job that exited with exit status 127.
+If no operands are given, wait for all jobs to complete
 and return an exit status of zero.
 .El
 .Ss Commandline Editing
