@@ -417,7 +417,9 @@ static unsigned int re_string_context_at (const re_string_t *input, int idx,
 #define re_string_skip_bytes(pstr,idx) ((pstr)->cur_idx += (idx))
 #define re_string_set_index(pstr,idx) ((pstr)->cur_idx = (idx))
 
+#ifndef __FreeBSD__
 #include <alloca.h>
+#endif
 
 #ifndef _LIBC
 # if HAVE_ALLOCA
