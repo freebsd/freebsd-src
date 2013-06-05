@@ -1912,17 +1912,14 @@ fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
 }
 
 /*
- * The firmware in the KLD is usable and can be installed.  But should it be?
- * This routine explains itself in detail if it indicates the KLD firmware
- * should be installed.
+ * The firmware in the KLD is usable, but should it be installed?  This routine
+ * explains itself in detail if it indicates the KLD firmware should be
+ * installed.
  */
 static int
 should_install_kld_fw(struct adapter *sc, int card_fw_usable, int k, int c)
 {
 	const char *reason;
-
-	KASSERT(t4_fw_install != 0, ("%s: Can't install; shouldn't be asked "
-	    "to evaluate if install is a good idea.", __func__));
 
 	if (!card_fw_usable) {
 		reason = "incompatible or unusable";
@@ -1942,6 +1939,16 @@ should_install_kld_fw(struct adapter *sc, int card_fw_usable, int k, int c)
 	return (0);
 
 install:
+	if (t4_fw_install == 0) {
+		device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
+		    "but the driver is prohibited from installing a different "
+		    "firmware on the card.\n",
+		    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
+		    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason);
+
+		return (0);
+	}
+
 	device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
 	    "installing firmware %u.%u.%u.%u on card.\n",
 	    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
@@ -2028,15 +2035,13 @@ prep_firmware(struct adapter *sc)
 	}
 
 	if (card_fw_usable && card_fw->fw_ver == drv_fw->fw_ver &&
-	    (!kld_fw_usable || kld_fw->fw_ver == drv_fw->fw_ver ||
-	    t4_fw_install == 0)) {
+	    (!kld_fw_usable || kld_fw->fw_ver == drv_fw->fw_ver)) {
 		/*
 		 * Common case: the firmware on the card is an exact match and
 		 * the KLD is an exact match too, or the KLD is
-		 * absent/incompatible, or we're prohibited from using it.  Note
-		 * that t4_fw_install = 2 is ignored here -- use cxgbetool
-		 * loadfw if you want to reinstall the same firmware as the one
-		 * on the card.
+		 * absent/incompatible.  Note that t4_fw_install = 2 is ignored
+		 * here -- use cxgbetool loadfw if you want to reinstall the
+		 * same firmware as the one on the card.
 		 */
 	} else if (kld_fw_usable && state == DEV_STATE_UNINIT &&
 	    should_install_kld_fw(sc, card_fw_usable, be32toh(kld_fw->fw_ver),
