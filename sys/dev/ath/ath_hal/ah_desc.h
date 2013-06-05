@@ -157,6 +157,32 @@ struct ath_rx_status {
 #define	HAL_RX_IS_APSD		0x0100	/* Is ASPD trigger frame */
 #define	HAL_RX_STBC		0x0200	/* Is an STBC frame */
 
+/*
+ * This is the format of RSSI[2] on the AR9285/AR9485.
+ * It encodes the LNA configuration information.
+ *
+ * For boards with an external diversity antenna switch,
+ * HAL_RX_LNA_EXTCFG encodes which configuration was
+ * used (antenna 1 or antenna 2.)  This feeds into the
+ * switch table and ensures that the given antenna was
+ * connected to an LNA.
+ */
+#define	HAL_RX_LNA_LNACFG	0x80	/* 1 = main LNA config used, 0 = ALT */
+#define	HAL_RX_LNA_EXTCFG	0x40	/* 0 = external diversity ant1, 1 = ant2 */
+#define	HAL_RX_LNA_CFG_USED	0x30	/* 2 bits; LNA config used on RX */
+#define	HAL_RX_LNA_CFG_USED_S		4
+#define	HAL_RX_LNA_CFG_MAIN	0x0c	/* 2 bits; "Main" LNA config */
+#define	HAL_RX_LNA_CFG_ALT	0x02	/* 2 bits; "Alt" LNA config */
+
+/*
+ * This is the format of RSSI_EXT[2] on the AR9285/AR9485.
+ * It encodes the switch table configuration and fast diversity
+ * value.
+ */
+#define	HAL_RX_LNA_FASTDIV	0x40	/* 1 = fast diversity measurement done */
+#define	HAL_RX_LNA_SWITCH_0	0x30	/* 2 bits; sw_0[1:0] */
+#define	HAL_RX_LNA_SWITCH_COM	0x0f	/* 4 bits, sw_com[3:0] */
+
 enum {
 	HAL_PHYERR_UNDERRUN		= 0,	/* Transmit underrun */
 	HAL_PHYERR_TIMING		= 1,	/* Timing error */
