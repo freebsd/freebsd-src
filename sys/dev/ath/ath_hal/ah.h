@@ -198,6 +198,7 @@ typedef enum {
 	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
 	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
+	HAL_CAP_RX_LNA_MIXING	= 247,	/* RX hardware uses LNA mixing */
 } HAL_CAPABILITY_TYPE;
 
 /* 
