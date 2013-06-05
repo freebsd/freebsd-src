@@ -78,8 +78,7 @@ ENTRY(setjmp)
 ENTRY(__longjmp)
 	ldr	r2, [r0]
 	ldr	ip, .Lsetjmp_magic
-	bic	r3, r2, #(_JB_MAGIC_SETJMP ^ _JB_MAGIC_SETJMP_VFP)
-	teq	r3, ip
+	teq	r2, ip
 	bne	.Lbotch
 
 	/* Restore the signal mask. */
