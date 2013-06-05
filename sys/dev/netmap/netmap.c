@@ -188,8 +188,9 @@ static int kern_netmap_regif(struct nmreq *nmr);
 
 /* per-tx-queue entry */
 struct nm_bdg_fwd {	/* forwarding entry for a bridge */
-	void *buf;
-	uint32_t ft_dst;	/* dst port */
+	void *ft_buf;
+	uint16_t _ft_dst;	/* dst port, unused */
+	uint16_t ft_flags;	/* flags, e.g. indirect */
 	uint16_t ft_len;	/* src len */
 	uint16_t ft_next;	/* next packet to same destination */
 };
@@ -2289,8 +2290,10 @@ bdg_netmap_start(struct ifnet *ifp, struct mbuf *m)
 	if (!na->na_bdg) /* SWNA is not configured to be attached */
 		return EBUSY;
 	m_copydata(m, 0, len, buf);
+	ft->ft_flags = 0;	// XXX could be indirect ?
 	ft->ft_len = len;
-	ft->buf = buf;
+	ft->ft_buf = buf;
+	ft->ft_next = NM_BDG_BATCH; // XXX is it needed ?
 	nm_bdg_flush(ft, 1, na, 0);
 
 	/* release the mbuf in either cases of success or failure. As an
@@ -2435,12 +2438,19 @@ nm_bdg_preflush(struct netmap_adapter *na, u_int ring_nr,
 
 	for (; likely(j != end); j = unlikely(j == lim) ? 0 : j+1) {
 		struct netmap_slot *slot = &ring->slot[j];
+		char *buf = NMB(slot);
 		int len = ft[ft_i].ft_len = slot->len;
-		char *buf = ft[ft_i].buf = NMB(slot);
 
-		prefetch(buf);
+		ft[ft_i].ft_flags = slot->flags;
+
+		ND("flags is 0x%x", slot->flags);
+		/* this slot goes into a list so initialize the link field */
+		ft[ft_i].ft_next = NM_BDG_BATCH; /* equivalent to NULL */
 		if (unlikely(len < 14))
 			continue;
+		buf = ft[ft_i].ft_buf = (slot->flags & NS_INDIRECT) ?
+			*((void **)buf) : buf;
+		prefetch(buf);
 		if (unlikely(++ft_i == netmap_bridge))
 			ft_i = nm_bdg_flush(ft, ft_i, na, ring_nr);
 	}
@@ -2935,7 +2945,7 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, int n, struct netmap_adapter *na,
 
 	/* first pass: find a destination */
 	for (i = 0; likely(i < n); i++) {
-		uint8_t *buf = ft[i].buf;
+		uint8_t *buf = ft[i].ft_buf;
 		uint8_t dst_ring = ring_nr;
 		uint16_t dst_port, d_i;
 		struct nm_bdg_q *d;
@@ -2960,9 +2970,10 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, int n, struct netmap_adapter *na,
 			/* remember this position to be scanned later */
 			if (dst_port != NM_BDG_BROADCAST)
 				dsts[num_dsts++] = d_i;
+		} else {
+			ft[d->bq_tail].ft_next = i;
+			d->bq_tail = i;
 		}
-		ft[d->bq_tail].ft_next = i;
-		d->bq_tail = i;
 	}
 
 	/* if there is a broadcast, set ring 0 of all ports to be scanned
@@ -3043,20 +3054,36 @@ retry:
 			struct netmap_slot *slot;
 			struct nm_bdg_fwd *ft_p;
 
+			/* our 'NULL' is always higher than valid indexes
+			 * so we never dereference it if the other list
+			 * has packets (and if both are NULL we never
+			 * get here).
+			 */
 			if (next < brd_next) {
 				ft_p = ft + next;
 				next = ft_p->ft_next;
+				ND("j %d uni %d next %d %d",
+					j, ft_p - ft, next, brd_next);
 			} else { /* insert broadcast */
 				ft_p = ft + brd_next;
 				brd_next = ft_p->ft_next;
+				ND("j %d brd %d next %d %d",
+					j, ft_p - ft, next, brd_next);
 			}
 			slot = &ring->slot[j];
 			ND("send %d %d bytes at %s:%d", i, ft_p->ft_len, dst_ifp->if_xname, j);
-			pkt_copy(ft_p->buf, NMB(slot), ft_p->ft_len);
+		    if (ft_p->ft_flags & NS_INDIRECT) {
+			ND("copying from INDIRECT source");
+			copyin(ft_p->ft_buf, NMB(slot),
+				(ft_p->ft_len + 63) & ~63);
+		    } else {
+			pkt_copy(ft_p->ft_buf, NMB(slot), ft_p->ft_len);
+		    }
 			slot->len = ft_p->ft_len;
-			j = (j == lim) ? 0: j + 1; /* XXX to be macro-ed */
+			j = unlikely(j == lim) ? 0: j + 1; /* XXX to be macro-ed */
 			sent++;
-			if (next == d->bq_tail && brd_next == brddst->bq_tail)
+			/* are we done ? */
+			if (next == NM_BDG_BATCH && brd_next == NM_BDG_BATCH)
 				break;
 		}
 		if (netmap_verbose && (howmany < 0))
@@ -3078,6 +3105,7 @@ retry:
 				goto retry;
 			dst_na->nm_lock(dst_ifp, NETMAP_TX_UNLOCK, dst_nr);
 		}
+		/* NM_BDG_BATCH means 'no packet' */
 		d->bq_head = d->bq_tail = NM_BDG_BATCH; /* cleanup */
 	}
 	brddst->bq_head = brddst->bq_tail = NM_BDG_BATCH; /* cleanup */
