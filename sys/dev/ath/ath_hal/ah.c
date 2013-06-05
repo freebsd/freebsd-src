@@ -784,6 +784,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MFP:			/* Management frame protection setting */
 		*result = pCap->halMfpSupport;
 		return HAL_OK;
+	case HAL_CAP_RX_LNA_MIXING:	/* Hardware uses an RX LNA mixer to map 2 antennas to a 1 stream receiver */
+		return pCap->halRxUsingLnaMixing ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
