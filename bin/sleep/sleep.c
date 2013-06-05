@@ -82,6 +82,12 @@ main(int argc, char *argv[])
 	time_to_sleep.tv_nsec = 1e9 * (d - time_to_sleep.tv_sec);
 
 	signal(SIGINFO, report_request);
+
+	/*
+	 * Note: [EINTR] is supposed to happen only when a signal was handled
+	 * but the kernel also returns it when a ptrace-based debugger
+	 * attaches. This is a bug but it is hard to fix.
+	 */
 	while (nanosleep(&time_to_sleep, &time_to_sleep) != 0) {
 		if (report_requested) {
 			/* Reporting does not bother with nanoseconds. */
