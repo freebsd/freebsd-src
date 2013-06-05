@@ -1,3 +1,16 @@
+2013-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130604
+	  Merge with NetBSD make, pick up
+	  o job.c: JobCreatePipe: do fcntl() after any tweaking of fd's
+	    to avoid leaking descriptors.
+
+2013-05-28  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130528
+	  Merge with NetBSD make, pick up
+	  o var.c: cleanup some left-overs in VarHash()
+
 2013-05-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20130520
