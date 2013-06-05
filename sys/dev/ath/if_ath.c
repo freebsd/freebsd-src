@@ -670,6 +670,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
 	sc->sc_rxtsf32 = ath_hal_has_long_rxdesc_tsf(ah);
 	sc->sc_hasenforcetxop = ath_hal_hasenforcetxop(ah);
+	sc->sc_rx_lnamixer = ath_hal_hasrxlnamixer(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);

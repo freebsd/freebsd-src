@@ -704,6 +704,34 @@ rx_accept:
 		rs->rs_antenna = 0;	/* XXX better than nothing */
 	}
 
+	/*
+	 * If this is an AR9285/AR9485, then the receive and LNA
+	 * configuration is stored in RSSI[2] / EXTRSSI[2].
+	 * We can extract this out to build a much better
+	 * receive antenna profile.
+	 *
+	 * Yes, this just blurts over the above RX antenna field
+	 * for now.  It's fine, the AR9285 doesn't really use
+	 * that.
+	 *
+	 * Later on we should store away the fine grained LNA
+	 * information and keep separate counters just for
+	 * that.  It'll help when debugging the AR9285/AR9485
+	 * combined diversity code.
+	 */
+	if (sc->sc_rx_lnamixer) {
+		rs->rs_antenna = 0;
+
+		/* Bits 0:1 - the LNA configuration used */
+		rs->rs_antenna |=
+		    ((rs->rs_rssi_ctl[2] & HAL_RX_LNA_CFG_USED)
+		      >> HAL_RX_LNA_CFG_USED_S);
+
+		/* Bit 2 - the external RX antenna switch */
+		if (rs->rs_rssi_ctl[2] & HAL_RX_LNA_EXTCFG)
+			rs->rs_antenna |= 0x4;
+	}
+
 	ifp->if_ipackets++;
 	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
