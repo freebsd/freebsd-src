@@ -157,6 +157,11 @@ SYSCTL_INT(_hw_mfi, OID_AUTO, polled_cmd_timeout, CTLFLAG_RWTUN,
 	   &mfi_polled_cmd_timeout, 0,
 	   "Polled command timeout - used for firmware flash etc (in seconds)");
 
+static int	mfi_cmd_timeout = MFI_CMD_TIMEOUT;
+TUNABLE_INT("hw.mfi.cmd_timeout", &mfi_cmd_timeout);
+SYSCTL_INT(_hw_mfi, OID_AUTO, cmd_timeout, CTLFLAG_RWTUN, &mfi_cmd_timeout,
+	   0, "Command timeout (in seconds)");
+
 /* Management interface */
 static d_open_t		mfi_open;
 static d_close_t	mfi_close;
@@ -782,7 +787,7 @@ mfi_attach(struct mfi_softc *sc)
 
 	/* Start the timeout watchdog */
 	callout_init(&sc->mfi_watchdog_callout, CALLOUT_MPSAFE);
-	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
+	callout_reset(&sc->mfi_watchdog_callout, mfi_cmd_timeout * hz,
 	    mfi_timeout, sc);
 
 	if (sc->mfi_flags & MFI_FLAGS_TBOLT) {
@@ -3703,7 +3708,7 @@ mfi_dump_all(void)
 			break;
 		device_printf(sc->mfi_dev, "Dumping\n\n");
 		timedout = 0;
-		deadline = time_uptime - MFI_CMD_TIMEOUT;
+		deadline = time_uptime - mfi_cmd_timeout;
 		mtx_lock(&sc->mfi_io_lock);
 		TAILQ_FOREACH(cm, &sc->mfi_busy, cm_link) {
 			if (cm->cm_timestamp <= deadline) {
@@ -3734,10 +3739,11 @@ mfi_timeout(void *data)
 	time_t deadline;
 	int timedout = 0;
 
-	deadline = time_uptime - MFI_CMD_TIMEOUT;
+	deadline = time_uptime - mfi_cmd_timeout;
 	if (sc->adpreset == 0) {
 		if (!mfi_tbolt_reset(sc)) {
-			callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz, mfi_timeout, sc);
+			callout_reset(&sc->mfi_watchdog_callout,
+			    mfi_cmd_timeout * hz, mfi_timeout, sc);
 			return;
 		}
 	}
@@ -3774,7 +3780,7 @@ mfi_timeout(void *data)
 
 	mtx_unlock(&sc->mfi_io_lock);
 
-	callout_reset(&sc->mfi_watchdog_callout, MFI_CMD_TIMEOUT * hz,
+	callout_reset(&sc->mfi_watchdog_callout, mfi_cmd_timeout * hz,
 	    mfi_timeout, sc);
 
 	if (0)
