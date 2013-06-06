@@ -74,7 +74,7 @@ CFLAGS+= -DWITHOUT_BZIP2
 .endif
 
 .if !defined(WITHOUT_GNU_COMPAT)
-CFLAGS+= -I/usr/include/gnu
+CFLAGS+= -I${DESTDIR}/usr/include/gnu
 LDADD+=	-lgnuregex
 DPADD+=	${LIBGNUREGEX}
 .endif
