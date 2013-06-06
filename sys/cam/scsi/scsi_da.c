@@ -1883,7 +1883,6 @@ out:
 	}
 	case DA_STATE_PROBE:
 	{
-		struct ccb_scsiio *csio;
 		struct scsi_read_capacity_data *rcap;
 
 		rcap = (struct scsi_read_capacity_data *)
@@ -1893,8 +1892,7 @@ out:
 			/* da_free_periph??? */
 			break;
 		}
-		csio = &start_ccb->csio;
-		scsi_read_capacity(csio,
+		scsi_read_capacity(&start_ccb->csio,
 				   /*retries*/4,
 				   dadone,
 				   MSG_SIMPLE_Q_TAG,
@@ -1908,7 +1906,6 @@ out:
 	}
 	case DA_STATE_PROBE2:
 	{
-		struct ccb_scsiio *csio;
 		struct scsi_read_capacity_data_long *rcaplong;
 
 		rcaplong = (struct scsi_read_capacity_data_long *)
@@ -1918,8 +1915,7 @@ out:
 			/* da_free_periph??? */
 			break;
 		}
-		csio = &start_ccb->csio;
-		scsi_read_capacity_16(csio,
+		scsi_read_capacity_16(&start_ccb->csio,
 				      /*retries*/ 4,
 				      /*cbfcnp*/ dadone,
 				      /*tag_action*/ MSG_SIMPLE_Q_TAG,
