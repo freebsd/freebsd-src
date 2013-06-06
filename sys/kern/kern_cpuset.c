@@ -303,7 +303,7 @@ cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
  * empty as well as RDONLY flags.
  */
 static int
-cpuset_testupdate(struct cpuset *set, cpuset_t *mask)
+cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int check_mask)
 {
 	struct cpuset *nset;
 	cpuset_t newmask;
@@ -312,13 +312,16 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask)
 	mtx_assert(&cpuset_lock, MA_OWNED);
 	if (set->cs_flags & CPU_SET_RDONLY)
 		return (EPERM);
-	if (!CPU_OVERLAP(&set->cs_mask, mask))
-		return (EDEADLK);
-	CPU_COPY(&set->cs_mask, &newmask);
-	CPU_AND(&newmask, mask);
+	if (check_mask) {
+		if (!CPU_OVERLAP(&set->cs_mask, mask))
+			return (EDEADLK);
+		CPU_COPY(&set->cs_mask, &newmask);
+		CPU_AND(&newmask, mask);
+	} else
+		CPU_COPY(mask, &newmask);
 	error = 0;
 	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
-		if ((error = cpuset_testupdate(nset, &newmask)) != 0)
+		if ((error = cpuset_testupdate(nset, &newmask, 1)) != 0)
 			break;
 	return (error);
 }
@@ -370,11 +373,11 @@ cpuset_modify(struct cpuset *set, cpuset_t *mask)
 	if (root && !CPU_SUBSET(&root->cs_mask, mask))
 		return (EINVAL);
 	mtx_lock_spin(&cpuset_lock);
-	error = cpuset_testupdate(set, mask);
+	error = cpuset_testupdate(set, mask, 0);
 	if (error)
 		goto out;
-	cpuset_update(set, mask);
 	CPU_COPY(mask, &set->cs_mask);
+	cpuset_update(set, mask);
 out:
 	mtx_unlock_spin(&cpuset_lock);
 
