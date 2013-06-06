@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 
 #include <machine/bus.h>
+#include <machine/vmparam.h>
 
 /* For use with destroy_dev(9). */
 static struct cdev *null_dev;

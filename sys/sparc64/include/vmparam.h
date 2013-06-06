@@ -245,4 +245,11 @@
 extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;
 
+/*
+ * Older sparc64 machines have a virtually indexed L1 data cache of 16KB.
+ * Consequently, mapping the same physical page multiple times may have
+ * caching disabled.
+ */
+#define	ZERO_REGION_SIZE	PAGE_SIZE
+
 #endif /* !_MACHINE_VMPARAM_H_ */

@@ -182,4 +182,6 @@ struct pmap_physseg {
 #define	VM_KMEM_SIZE		(12 * 1024 * 1024)
 #endif
 
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
 #endif /* _MACHINE_VMPARAM_H_ */
