@@ -1,3 +1,10 @@
+<?xml version="1.0" encoding="gb2312"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+]>
+
 <!--
 	The FreeBSD Documentation Project
 	The FreeBSD Simplified Chinese Project
@@ -90,70 +97,53 @@
     <sect2>
       <title>目标用户</title>
 
-<![ %release.type.current; [
-
-      <para>&release.type; 主要是针对富于冒险精神，
+      <para releasetype="current">&release.type; 主要是针对富于冒险精神，
 	以及那些希望参与下一步的 &os; 开发的用户。
 	尽管  &os; 开发团队尽最大努力来确保每一个
 	&release.type; 能够像所宣传的那样运行，
 	&release.branch; 仍然处于开发过程中。</para>
 
-      <para>使用这个 &release.type; 的基本要求是精通 &os;
+      <para releasetype="current">使用这个 &release.type; 的基本要求是精通 &os;
 	并且理解正在进行的 &os; &release.branch; 开发进程
 	(在 &a.current;中讨论)。</para>
 
-      <para>对于那些对在商业中使用 &os; 而不是体验新的 &os;
+      <para releasetype="current">对于那些对在商业中使用 &os; 而不是体验新的 &os;
 	技术感兴趣的人来说，正式的发行版
 	(比如 &release.prev.stable;) 往往更合适。
 	这些版本经历了一定时期的测试和质量保证检测来确保高可用性和可靠性。</para>
 
-]]>
-
-<![ %release.type.current; [
-
-      <para>这个 &release.type; 主要针对追求最新功能，
+      <para releasetype="current">这个 &release.type; 主要针对追求最新功能，
 	以及希望参与正在进行的 &os; 开发活动的用户。 尽管 &os;
 	的开发团队会尽最大努力确保每一个 &release.type;
 	都能够如宣传的那样工作， 但 &release.branch; 仍然是一个开发中的分支。</para>
 
-      <para>使用这个 &release.type; 的基本要求是对 &os; 技术的熟练性，
+      <para releasetype="current">使用这个 &release.type; 的基本要求是对 &os; 技术的熟练性，
 	以及对正在进行的 &os; &release.branch; 开发过程的理解 (这些，
 	都会在 &a.current; 中进行讨论)。</para>
 
-      <para>对于那些希望用 &os; 来处理日常业务，
+      <para releasetype="current">对于那些希望用 &os; 来处理日常业务，
 	而不是尝试最新 &os; 技术的用户来说， 正式的发行版本
 	(例如 &release.prev.stable;) 通常更为合适。
 	发行版本经过了一段时间的测试和质量保障检查，
 	以确保其高可靠性。</para>
 
-]]>
-
-<![ %release.type.snapshot; [
-
-      <para>&release.type; 主要目标是有冒险精神的，
+      <para releasetype="snapshot">&release.type; 主要目标是有冒险精神的，
 	以及想参与正在进行的 &os; 开发的用户。
 	尽管 &os; 开发团队尽最大努力来确保每一个
 	&release.type; 能够像所宣传的那样运行，
 	&release.branch; 仍然处于开发过程中。</para>
 
-      <para>使用这个 &release.type; 的基本要求是精通
+      <para releasetype="snapshot">使用这个 &release.type; 的基本要求是精通
 	&os; 并且理解正在进行的 &os; &release.branch;
 	开发进程 (在 &a.current; 中讨论)。</para>
 
-      <para>对于那些对在商业中使用 &os; 而不是体验新的 &os;
+      <para releasetype="snapshot">对于那些对在商业中使用 &os; 而不是体验新的 &os;
 	技术感兴趣的人来说，正式的发行版
 	(比如 &release.prev.stable;) 往往更合适。
 	这些版本经历了一定时期的测试和质量保证检测来确保高可用性和可靠性。</para>
 
-]]>
-
-<![ %release.type.release; [
-
-      <para>&os; 的这个 &release.type; 适用于所有用户。
+      <para releasetype="release">&os; 的这个 &release.type; 适用于所有用户。
 	它经历了一定时期的测试和质量检测来确保最高的可用性和可靠性。</para>
-
-]]>
-
     </sect2>
   </sect1>
 
@@ -198,7 +188,7 @@
       <para>我们非常欢迎您建立新的镜像站点。 联系
 	<email>freebsd-admin@FreeBSD.org</email> 了解成为官方镜像站点的更多细节。
 	也可以在<ulink
-        URL="&url.articles.hubs;/">如何为 &os; 做镜像站点</ulink>
+        url="&url.articles.hubs;/">如何为 &os; 做镜像站点</ulink>
         这篇文章中找到关于镜像站点的更多有用的信息。</para>
 
       <para>镜像站点通常会提供用于刻录 &os; 发行版本的 CDROM

@@ -1,13 +1,10 @@
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
-%articles.ent;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
+<?xml version="1.0" encoding="gb2312"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "devauto.ent">
 %devauto;
-
-<!-- Text constants which probably don't need to be changed.-->
 
 ]>
 
@@ -130,13 +127,13 @@
     不过，这里给出了一些一般的指导原则。</para>
 
   <para>几乎所有的包含浮点运算单元的 &i386;-兼容 处理器都能被很好地支持。
-    &os 支持从 80486 开始的所有
+    &os; 支持从 80486 开始的所有
     &intel; 处理器， 这包括 80486、 &pentium;、 &pentium; Pro、 &pentium; II、 &pentium; III、
     &pentium; 4， 以及这些处理器的各种变体， 如 &xeon; 和 &celeron;
     处理器。 除此之外， 所有 &i386;-兼容的 AMD
     处理器也都被支持， 这包括 &am486;、 &am5x86;、 K5、 &amd.k6;
     (及其变体)、 &amd.athlon; (包括 Athlon-MP、 Athlon-XP、 Athlon-4、
-    以及 Athlon Thunderbird)， 以及 &amd.duron; 处理器。 另外， &os 还支持 AMD
+    以及 Athlon Thunderbird)， 以及 &amd.duron; 处理器。 另外， &os; 还支持 AMD
     &Eacute;lan SC520 嵌入式处理器。 Transmeta
     Crusoe 能够被识别并支持， 类似地还有 Cyrix 和 NexGen 制造的其他 &i386;-兼容处理器。</para>
 
@@ -426,7 +423,7 @@
 <sect1 id="support">
   <title>支持的硬件</title>
 
-  <para>这一节描述了目前已知的 &os 支持的硬件。
+  <para>这一节描述了目前已知的 &os; 支持的硬件。
   其他配置可能也能用， 只是尚未测试过。
   我们鼓励您对这份列表的内容进行反馈、 更新和修正。</para>
 
@@ -468,7 +465,9 @@
 
     &hwlist.aic;
 
+<!--
     &hwlist.amd;
+-->
 
     &hwlist.amr;
 
@@ -667,7 +666,7 @@
 
     &hwlist.tl;
 
-    <para>[&arch.amd64;, &arch.i386, &arch.pc98;] 基于 SMC 83c17x (EPIC) 的以太网 NIC (&man.tx.4; 驱动程序)
+    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] 基于 SMC 83c17x (EPIC) 的以太网 NIC (&man.tx.4; 驱动程序)
     </para>
 
     &hwlist.txp;
@@ -690,23 +689,23 @@
 
   <sect2 id="fddi">
     <title>FDDI 接口</title>
-    <para>[&arch.i386, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4; 驱动程序)</para>
+    <para>[&arch.i386;, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4; 驱动程序)</para>
     <para>[&arch.i386;] DEC DEFEA EISA (&man.fpa.4; 驱动程序)</para>
   </sect2>
 
   <sect2 id="atm">
     <title>ATM 接口</title>
 
-    <para>[&arch.i386, &arch.pc98;] 基于 Midway 的 ATM 接口 (&man.en.4;
+    <para>[&arch.i386;, &arch.pc98;] 基于 Midway 的 ATM 接口 (&man.en.4;
       驱动程序)</para>
 
-    <para>[&arch.i386, &arch.pc98; &arch.sparc64;] FORE Systems, Inc. PCA-200E ATM PCI
+    <para>[&arch.i386;, &arch.pc98; &arch.sparc64;] FORE Systems, Inc. PCA-200E ATM PCI
       适配器 (hfa 和 &man.fatm.4; 驱动程序)</para>
 
     <para>[&arch.i386;, &arch.pc98;] 基于 IDT NICStAR 77201/211 的 ATM 适配器 (&man.idt.4;
     驱动程序)</para>
 
-    <para>[&arch.i386, &arch.pc98; &arch.sparc64;] FORE Systems, Inc. HE155 和 HE622
+    <para>[&arch.i386;, &arch.pc98; &arch.sparc64;] FORE Systems, Inc. HE155 和 HE622
       ATM 接口 (&man.hatm.4; 驱动程序)</para>
 
     <para>[&arch.i386;, &arch.pc98;] 基于 IDT77252 的 ATM 卡 (&man.patm.4;
@@ -908,7 +907,7 @@
     <para>[&arch.i386;] DigiBoard 智能串口卡 (digi 驱动程序)
     </para>
 
-    <para>[&arch.amd64;, &arch.i386, &arch.ia64;] 基于 PCI 的多口串口板 (&man.puc.4;
+    <para>[&arch.amd64;, &arch.i386;, &arch.ia64;] 基于 PCI 的多口串口板 (&man.puc.4;
     驱动程序)
       <itemizedlist>
 	<listitem>
@@ -985,7 +984,9 @@
 
     &hwlist.rc;
 
+<!--
     &hwlist.sr;
+-->
 
     <para>[&arch.i386;, &arch.amd64;] 支持 Specialix SI/XIO/SX 多口串口卡, 同时包括较旧的
     SIHOST2.x 以及 <quote>增强型</quote> (基于 transputer，
@@ -1171,7 +1172,7 @@
     </para>
     <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] 键盘 (&man.ukbd.4; 驱动程序)
     </para>
-    <para>[&arch.amd64;, &arch.i386, &arch.pc98;] 其他
+    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] 其他
       <itemizedlist>
         <listitem>
 	  <para>Assist Computer Systems PC Camera C-M1</para>

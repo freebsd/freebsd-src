@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="euc-jp"?>
 <!--
 
 	The "Supported Devices" section of the release notes.
@@ -139,8 +140,9 @@
     &hwlist.stg;
 
     &hwlist.isp;
-
+<!--
     &hwlist.amd;
+-->
 
     &hwlist.nsp;
 
@@ -589,7 +591,9 @@
 
     &hwlist.rc;
 
+<!--
     &hwlist.sr;
+-->
 
     <!-- 2002/03/03 hrs: "enhanced" is a part of product name? -->
     <para arch="i386,amd64">Specialix SI/XIO/SX マルチポートシリアルカード。
@@ -916,7 +920,7 @@
 
     <para arch="i386,amd64">PC 互換のジョイスティック (&man.joy.4; ドライバ)</para>
 
-    <para arch="pc98">SoundBlaster(98) のジョイスティックポート (&man.joy.4
+    <para arch="pc98">SoundBlaster(98) のジョイスティックポート (&man.joy.4;
       ドライバ)</para>
 
     <para arch="i386,pc98">PHS データ通信カード/PCCARD
@@ -943,9 +947,3 @@
 
   </sect2>
 </sect1>
-<!-- 
-     Local Variables:
-     mode: sgml
-     sgml-parent-document: ("../i386/article.sgml" "article" "articleinfo")
-     End:
--->

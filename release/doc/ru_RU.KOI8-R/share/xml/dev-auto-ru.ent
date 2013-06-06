@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="koi8-r"?>
 <!--
      The FreeBSD Russian Documentation Project
 
@@ -10,7 +11,7 @@
      This script maintained in HEAD branch.
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/dev-auto-ru.sgml,v 1.5 2005/06/30 12:11:18 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/xml/dev-auto-ru.xml,v 1.5 2005/06/30 12:11:18 den Exp $
 -->
 <!ENTITY hwlist.62c9ec99a9ca598d738dcf66b339aa1e 'Контроллеры, поддерживаемые драйвером &man.aac.4;, включая:'>
 <!ENTITY hwlist.43922be022d49dabc274b2afffd0db8b 'Драйвер &man.adv.4; поддерживает следующие контроллеры SCSI:'>

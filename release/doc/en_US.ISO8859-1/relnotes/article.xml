@@ -1,10 +1,8 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//EN">
-%entities;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
 ]>
 
 <article>
@@ -49,30 +47,20 @@
     It also provides some notes on upgrading
     from previous versions of &os;.</para>
 
-<![ %release.type.current [
-
-  <para>The &release.type; distribution to which these release notes
+  <para releasetype="current">The &release.type; distribution to which these release notes
     apply represents the latest point along the &release.branch; development
     branch since &release.branch; was created.	Information regarding pre-built, binary
     &release.type; distributions along this branch
     can be found at <ulink url="&release.url;"></ulink>.</para>
 
-]]>
-
-<![ %release.type.snapshot [
-
-  <para>The &release.type; distribution to which these release notes
+  <para releasetype="snapshot">The &release.type; distribution to which these release notes
     apply represents a point along the &release.branch; development
     branch between &release.prev; and the future &release.next;.
     Information regarding
     pre-built, binary &release.type; distributions along this branch
     can be found at <ulink url="&release.url;"></ulink>.</para>
 
-]]>
-
-<![ %release.type.release [
-
-  <para>This distribution of &os; &release.current; is a
+  <para releasetype="release">This distribution of &os; &release.current; is a
     &release.type; distribution.  It can be found at <ulink
     url="&release.url;"></ulink> or any of its mirrors.	 More
     information on obtaining this (or other) &release.type;
@@ -81,8 +69,6 @@
     &os;</quote> appendix</ulink> to the <ulink
     url="&url.books.handbook;/">&os;
     Handbook</ulink>.</para>
-
-]]>
 
   <para>All users are encouraged to consult the release errata before
     installing &os;.  The errata document is updated with
@@ -617,11 +603,12 @@
 	  was created before the underlying interface and its
 	  linkstate became <literal>UP</literal>.</para>
 
-	<para revision="212738,216348">A bug in the &man.ipfw.4;
-	  packet filter subsystem has been fixed.  The &man.sysctl.8;
-	  variable <varname>net.inet.ip.fw.one_pass</varname> did not
-	  work for <literal>netgraph</literal> action and in-kernel
-	  NAT.</para>
+    <para>The stdtime part of libc, &man.zdump.8; and &man.zic.8;
+      have been updated from the <application>tzcode2004a</application>
+      release to the <application>tzcode2009h</application> release.
+      If you have upgraded from source or via the &man.freebsd-update.8;,
+      then please run &man.tzsetup.8; to install a new /etc/localtime.
+      </para>
 
 	<para revision="215342">A new loader tunable
 	  <varname>net.link.ifqmaxlen</varname> has been added.  It

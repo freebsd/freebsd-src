@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
 <!--
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.35 2003/05/24 19:11:43 ue Exp $
@@ -392,7 +393,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>PS/2 Maus & Tastatur ODER 5pin DIN Tastatur (2
+	  <para>PS/2 Maus &amp; Tastatur ODER 5pin DIN Tastatur (2
 	    verschiedene Mainboards)</para>
 	</listitem>
 
@@ -579,7 +580,7 @@ cpu     EV4</programlisting>
 	</listitem>
 
 	<listitem>
-	  <para>Anschl&uuml;sse f&uuml;r PS/2 Maus & Tastatur</para>
+	  <para>Anschl&uuml;sse f&uuml;r PS/2 Maus &amp; Tastatur</para>
 	</listitem>
 
 	<listitem>

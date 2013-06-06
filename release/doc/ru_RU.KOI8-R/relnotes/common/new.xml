@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="koi8-r"?>
 <!--
      The FreeBSD Russian Documentation Project
 
@@ -52,29 +53,19 @@
     &os;.  Он также представляет некоторые заметки по обновлению
     с предыдущей версии &os;.</para>
 
-<![ %release.type.current [
-
-  <para>Дистрибутив (&release.type;), для которого предоставлена эта
+  <para releasetype="current">Дистрибутив (&release.type;), для которого предоставлена эта
     информация, представляет собой последнюю точку на ветви разработки
     с момента создания &release.branch;.  Информацию о собранных бинарных дистрибутивах
     (&release.type;) из этой ветви можно найти на <ulink
     url="&release.url;"></ulink>.</para>
 
-]]>
-
-<![ %release.type.snapshot [
-
-  <para>Дистрибутив (&release.type;), для которого предоставлена эта
+  <para releasetype="snapshot">Дистрибутив (&release.type;), для которого предоставлена эта
     информация, представляет собой точку на ветви разработки между
     &release.prev; и будущим релизом &release.next;.   Информацию о
     собранных бинарных дистрибутивах (&release.type;) из этой ветви
     можно найти на <ulink url="&release.url;"></ulink>.</para>
 
-]]>
-
-<![ %release.type.release [
-
-  <para>Этот дистрибутив &os; &release.current; представляет собой
+  <para releasetype="release">Этот дистрибутив &os; &release.current; представляет собой
     &release.type;.  Его можно найти на <ulink
     url="&release.url;"></ulink> или на любом из зеркал.  Дополнительная
     информация по получению этого (или другого) &release.type;
@@ -85,8 +76,6 @@
     <quote>Получение &os;</quote></ulink> <ulink
     url="&url.books.handbook;/">Руководства
     &os;</ulink>.</para>
-
-]]>
 
   <para>Всем пользователям рекомендуется ознакомиться с сообщениями о
     проблемах перед установкой &os;.  В этот документ вносятся
@@ -287,8 +276,8 @@
 
     <informaltable frame="none">
       <tgroup cols="2">
-	<colspec colwidth="1*">
-	<colspec colwidth="3*">
+	<colspec colwidth="1*"/>
+	<colspec colwidth="3*"/>
 	<thead>
 	  <row>
 	    <entry>Значение</entry>

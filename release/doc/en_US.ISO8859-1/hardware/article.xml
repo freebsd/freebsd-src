@@ -1,11 +1,9 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//EN">
-%entities;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
-<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "nonexistent">
 %devauto;
 ]>
 
@@ -312,8 +310,63 @@
     <sect2 id="proc-powerpc">
       <title>powerpc</title>
 
-      <para>The information for this paragraph has yet to be
-	compiled.</para>
+      <para>This section describes the systems currently known to be
+	supported by &os; on the PowerPC platform. This list is not
+	exhaustive.</para>
+
+      <para>In general, all New World architecture Apple hardware
+	is supported, as well a limited selection of non-Apple
+	machines.</para>
+
+      <para>All systems listed below are fully supported, with the
+	exception that software fan control is currently missing on
+	some Power Macintosh G5 models. SMP is supported on all systems
+	with more than 1 processor.</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Apple iMac G3</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iMac G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iMac G5</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G3 (Blue &amp; White)</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Power Macintosh G5</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iBook G3</para>
+	</listitem>
+	<listitem>
+	  <para>Apple iBook G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple PowerBook G3 (Lombard and Pismo)</para>
+	</listitem>
+	<listitem>
+	  <para>Apple PowerBook G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple XServe G4</para>
+	</listitem>
+	<listitem>
+	  <para>Apple XServe G5</para>
+	</listitem>
+	<listitem>
+	  <para>Apple Mac Mini</para>
+	</listitem>
+	<listitem>
+	  <para>Embedded boards based on MPC85XX</para>
+	</listitem>
+      </itemizedlist>
     </sect2>
 
     <sect2 id="proc-sparc64">
@@ -482,7 +535,7 @@
       <para>The following systems are partially supported by &os;.  In
 	particular the fiber channel controllers in SBus-based systems are not
 	supported.  However, it is possible to use these with a SCSI controller
-	supported by the &man.esp.4 driver (Sun ESP SCSI, Sun FAS Fast-SCSI
+	supported by the &man.esp.4; driver (Sun ESP SCSI, Sun FAS Fast-SCSI
 	and Sun FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>
