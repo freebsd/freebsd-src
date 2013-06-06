@@ -77,7 +77,8 @@
 #define EXT3_EPOCH_MASK	((1 << EXT3_EPOCH_BITS) - 1)
 #define EXT3_NSEC_MASK	(~0UL << EXT3_EPOCH_BITS)
 
-#define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs, EXT2F_ROCOMPAT_EXTRA_ISIZE))
+#define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
+				    EXT2F_ROCOMPAT_EXTRA_ISIZE))
 
 /*
  * Structure of an inode on the disk

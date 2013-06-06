@@ -47,8 +47,8 @@
 
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_mount.h>
 
 /*
  * Bmap converts the logical block number of a file to its physical block
