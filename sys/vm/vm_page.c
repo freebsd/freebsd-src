@@ -902,11 +902,6 @@ vm_page_splay(vm_pindex_t pindex, vm_page_t root)
  *
  *	Inserts the given mem entry into the object and object list.
  *
- *	The pagetables are not updated but will presumably fault the page
- *	in if necessary, or if a kernel page the caller will at some point
- *	enter the page into the kernel's pmap.  We are not allowed to sleep
- *	here so we *can't* do this anyway.
- *
  *	The object must be locked.
  */
 void
@@ -975,8 +970,6 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
  *	Removes the given mem entry from the object/offset-page
  *	table and the object page list, but do not invalidate/terminate
  *	the backing store.
- *
- *	The underlying pmap entry (if any) is NOT removed here.
  *
  *	The object must be locked.  The page must be locked if it is managed.
  */
