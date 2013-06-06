@@ -857,11 +857,26 @@ struct scsi_vpd_supported_page_list
 {
 	u_int8_t device;
 	u_int8_t page_code;
-#define	SVPD_SUPPORTED_PAGE_LIST 0x00
+#define	SVPD_SUPPORTED_PAGE_LIST	0x00
+#define	SVPD_SUPPORTED_PAGES_HDR_LEN	4
 	u_int8_t reserved;
 	u_int8_t length;	/* number of VPD entries */
 #define	SVPD_SUPPORTED_PAGES_SIZE	251
 	u_int8_t list[SVPD_SUPPORTED_PAGES_SIZE];
+};
+
+/*
+ * This structure is more suited to target operation, because the
+ * number of supported pages is left to the user to allocate.
+ */
+struct scsi_vpd_supported_pages
+{
+	u_int8_t device;
+	u_int8_t page_code;
+	u_int8_t reserved;
+#define	SVPD_SUPPORTED_PAGES	0x00
+	u_int8_t length;
+	u_int8_t page_list[0];
 };
 
 struct scsi_vpd_unit_serial_number
@@ -1250,6 +1265,8 @@ int		scsi_sense_sbuf(struct ccb_scsiio *csio, struct sbuf *sb,
 char *		scsi_sense_string(struct ccb_scsiio *csio,
 				  char *str, int str_len);
 void		scsi_sense_print(struct ccb_scsiio *csio);
+int 		scsi_vpd_supported_page(struct cam_periph *periph,
+					uint8_t page_id);
 #else /* _KERNEL */
 int		scsi_command_string(struct cam_device *device,
 				    struct ccb_scsiio *csio, struct sbuf *sb);

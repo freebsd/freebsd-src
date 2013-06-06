@@ -134,8 +134,8 @@ typedef enum {
 	PROBE_FULL_INQUIRY,
 	PROBE_REPORT_LUNS,
 	PROBE_MODE_SENSE,
-	PROBE_SERIAL_NUM_0,
-	PROBE_SERIAL_NUM_1,
+	PROBE_SUPPORTED_VPD_LIST,
+	PROBE_SERIAL_NUM,
 	PROBE_TUR_FOR_NEGOTIATION,
 	PROBE_INQUIRY_BASIC_DV1,
 	PROBE_INQUIRY_BASIC_DV2,
@@ -150,8 +150,8 @@ static char *probe_action_text[] = {
 	"PROBE_FULL_INQUIRY",
 	"PROBE_REPORT_LUNS",
 	"PROBE_MODE_SENSE",
-	"PROBE_SERIAL_NUM_0",
-	"PROBE_SERIAL_NUM_1",
+	"PROBE_SUPPORTED_VPD_LIST",
+	"PROBE_SERIAL_NUM",
 	"PROBE_TUR_FOR_NEGOTIATION",
 	"PROBE_INQUIRY_BASIC_DV1",
 	"PROBE_INQUIRY_BASIC_DV2",
@@ -824,7 +824,8 @@ again:
 			if (INQ_DATA_TQ_ENABLED(inq_buf))
 				PROBE_SET_ACTION(softc, PROBE_MODE_SENSE);
 			else
-				PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
+				PROBE_SET_ACTION(softc,
+				    PROBE_SUPPORTED_VPD_LIST);
 			goto again;
 		}
 		scsi_report_luns(csio, 5, probedone, MSG_SIMPLE_Q_TAG,
@@ -857,10 +858,10 @@ again:
 		}
 		xpt_print(periph->path, "Unable to mode sense control page - "
 		    "malloc failure\n");
-		PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
+		PROBE_SET_ACTION(softc, PROBE_SUPPORTED_VPD_LIST);
 	}
 	/* FALLTHROUGH */
-	case PROBE_SERIAL_NUM_0:
+	case PROBE_SUPPORTED_VPD_LIST:
 	{
 		struct scsi_vpd_supported_page_list *vpd_list = NULL;
 		struct cam_ed *device;
@@ -892,7 +893,7 @@ again:
 		probedone(periph, start_ccb);
 		return;
 	}
-	case PROBE_SERIAL_NUM_1:
+	case PROBE_SERIAL_NUM:
 	{
 		struct scsi_vpd_unit_serial_number *serial_buf;
 		struct cam_ed* device;
@@ -905,8 +906,10 @@ again:
 			device->serial_num_len = 0;
 		}
 
-		serial_buf = (struct scsi_vpd_unit_serial_number *)
-			malloc(sizeof(*serial_buf), M_CAMXPT, M_NOWAIT|M_ZERO);
+		if (scsi_vpd_supported_page(periph, SVPD_UNIT_SERIAL_NUMBER))
+			serial_buf = (struct scsi_vpd_unit_serial_number *)
+				malloc(sizeof(*serial_buf), M_CAMXPT,
+				    M_NOWAIT|M_ZERO);
 
 		if (serial_buf != NULL) {
 			scsi_inquiry(csio,
@@ -1144,7 +1147,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 					    PROBE_MODE_SENSE);
 				else
 					PROBE_SET_ACTION(softc,
-					    PROBE_SERIAL_NUM_0);
+					    PROBE_SUPPORTED_VPD_LIST);
 
 				if (path->device->flags & CAM_DEV_UNCONFIGURED) {
 					path->device->flags &= ~CAM_DEV_UNCONFIGURED;
@@ -1303,7 +1306,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			if (INQ_DATA_TQ_ENABLED(inq_buf))
 				PROBE_SET_ACTION(softc, PROBE_MODE_SENSE);
 			else
-				PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
+				PROBE_SET_ACTION(softc,
+				    PROBE_SUPPORTED_VPD_LIST);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
 			return;
@@ -1339,36 +1343,40 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		xpt_release_ccb(done_ccb);
 		free(mode_hdr, M_CAMXPT);
-		PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
+		PROBE_SET_ACTION(softc, PROBE_SUPPORTED_VPD_LIST);
 		xpt_schedule(periph, priority);
 		return;
 	}
-	case PROBE_SERIAL_NUM_0:
+	case PROBE_SUPPORTED_VPD_LIST:
 	{
 		struct ccb_scsiio *csio;
 		struct scsi_vpd_supported_page_list *page_list;
-		int length, serialnum_supported, i;
 
-		serialnum_supported = 0;
 		csio = &done_ccb->csio;
 		page_list =
 		    (struct scsi_vpd_supported_page_list *)csio->data_ptr;
+
+		if (path->device->supported_vpds != NULL) {
+			free(path->device->supported_vpds, M_CAMXPT);
+			path->device->supported_vpds = NULL;
+			path->device->supported_vpds_len = 0;
+		}
 
 		if (page_list == NULL) {
 			/*
 			 * Don't process the command as it was never sent
 			 */
-		} else if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP
-		    && (page_list->length > 0)) {
-			length = min(page_list->length,
-			    SVPD_SUPPORTED_PAGES_SIZE);
-			for (i = 0; i < length; i++) {
-				if (page_list->list[i] ==
-				    SVPD_UNIT_SERIAL_NUMBER) {
-					serialnum_supported = 1;
-					break;
-				}
-			}
+		} else if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			/* Got vpd list */
+			path->device->supported_vpds_len = page_list->length +
+			    SVPD_SUPPORTED_PAGES_HDR_LEN;
+			path->device->supported_vpds = (uint8_t *)page_list;
+
+			xpt_release_ccb(done_ccb);
+			PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM);
+			xpt_schedule(periph, priority);
+			return;
+
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA|SF_NO_PRINT,
 					    &softc->saved_ccb) == ERESTART) {
@@ -1382,18 +1390,12 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		if (page_list != NULL)
 			free(page_list, M_CAMXPT);
 
-		if (serialnum_supported) {
-			xpt_release_ccb(done_ccb);
-			PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_1);
-			xpt_schedule(periph, priority);
-			return;
-		}
-
+		/* No VPDs available, skip to device check. */
 		csio->data_ptr = NULL;
 		/* FALLTHROUGH */
 	}
 
-	case PROBE_SERIAL_NUM_1:
+	case PROBE_SERIAL_NUM:
 	{
 		struct ccb_scsiio *csio;
 		struct scsi_vpd_unit_serial_number *serial_buf;
@@ -2245,6 +2247,8 @@ scsi_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	device->queue_flags = 0;
 	device->serial_num = NULL;
 	device->serial_num_len = 0;
+	device->supported_vpds = NULL;
+	device->supported_vpds_len  = 0;
 
 	/*
 	 * XXX should be limited by number of CCBs this bus can

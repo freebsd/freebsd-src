@@ -93,6 +93,8 @@ struct cam_ed {
 	cam_xport	 transport;
 	u_int		 transport_version;
 	struct		 scsi_inquiry_data inq_data;
+	uint8_t		 *supported_vpds;
+	uint8_t		 supported_vpds_len;
 	struct		 ata_params ident_data;
 	u_int8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.
