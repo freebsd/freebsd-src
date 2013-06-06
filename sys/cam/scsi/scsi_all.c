@@ -361,6 +361,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x40,	D | T | L | P | W | R | O | M | S | C, "CHANGE DEFINITION" },
 	/* 41  O               WRITE SAME(10) */
 	{ 0x41,	D, "WRITE SAME(10)" },
+	/* 42       O          UNMAP */
+	{ 0x42,	D, "UNMAP" },
 	/* 42       O          READ SUB-CHANNEL */
 	{ 0x42,	R, "READ SUB-CHANNEL" },
 	/* 43       O          READ TOC/PMA/ATIP */
@@ -4315,6 +4317,104 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		      dxfer_len,
 		      sense_len,
 		      cdb_len,
+		      timeout);
+}
+
+void
+scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
+		void (*cbfcnp)(struct cam_periph *, union ccb *),
+		u_int8_t tag_action, u_int8_t byte2,
+		int minimum_cmd_size, u_int64_t lba, u_int32_t block_count,
+		u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
+		u_int32_t timeout)
+{
+	u_int8_t cdb_len;
+	if ((minimum_cmd_size < 16) &&
+	    ((block_count & 0xffff) == block_count) &&
+	    ((lba & 0xffffffff) == lba)) {
+		/*
+		 * Need a 10 byte cdb.
+		 */
+		struct scsi_write_same_10 *scsi_cmd;
+
+		scsi_cmd = (struct scsi_write_same_10 *)&csio->cdb_io.cdb_bytes;
+		scsi_cmd->opcode = WRITE_SAME_10;
+		scsi_cmd->byte2 = byte2;
+		scsi_ulto4b(lba, scsi_cmd->addr);
+		scsi_cmd->group = 0;
+		scsi_ulto2b(block_count, scsi_cmd->length);
+		scsi_cmd->control = 0;
+		cdb_len = sizeof(*scsi_cmd);
+
+		CAM_DEBUG(csio->ccb_h.path, CAM_DEBUG_SUBTRACE,
+			  ("10byte: %x%x%x%x:%x%x: %d\n", scsi_cmd->addr[0],
+			   scsi_cmd->addr[1], scsi_cmd->addr[2],
+			   scsi_cmd->addr[3], scsi_cmd->length[0],
+			   scsi_cmd->length[1], dxfer_len));
+	} else {
+		/*
+		 * 16 byte CDB.  We'll only get here if the LBA is larger
+		 * than 2^32, or if the user asks for a 16 byte command.
+		 */
+		struct scsi_write_same_16 *scsi_cmd;
+
+		scsi_cmd = (struct scsi_write_same_16 *)&csio->cdb_io.cdb_bytes;
+		scsi_cmd->opcode = WRITE_SAME_16;
+		scsi_cmd->byte2 = byte2;
+		scsi_u64to8b(lba, scsi_cmd->addr);
+		scsi_ulto4b(block_count, scsi_cmd->length);
+		scsi_cmd->group = 0;
+		scsi_cmd->control = 0;
+		cdb_len = sizeof(*scsi_cmd);
+
+		CAM_DEBUG(csio->ccb_h.path, CAM_DEBUG_SUBTRACE,
+			  ("16byte: %x%x%x%x%x%x%x%x:%x%x%x%x: %d\n",
+			   scsi_cmd->addr[0], scsi_cmd->addr[1],
+			   scsi_cmd->addr[2], scsi_cmd->addr[3],
+			   scsi_cmd->addr[4], scsi_cmd->addr[5],
+			   scsi_cmd->addr[6], scsi_cmd->addr[7],
+			   scsi_cmd->length[0], scsi_cmd->length[1],
+			   scsi_cmd->length[2], scsi_cmd->length[3],
+			   dxfer_len));
+	}
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      cdb_len,
+		      timeout);
+}
+
+void
+scsi_unmap(struct ccb_scsiio *csio, u_int32_t retries,
+	   void (*cbfcnp)(struct cam_periph *, union ccb *),
+	   u_int8_t tag_action, u_int8_t byte2,
+	   u_int8_t *data_ptr, u_int16_t dxfer_len, u_int8_t sense_len,
+	   u_int32_t timeout)
+{
+	struct scsi_unmap *scsi_cmd;
+
+	scsi_cmd = (struct scsi_unmap *)&csio->cdb_io.cdb_bytes;
+	scsi_cmd->opcode = UNMAP;
+	scsi_cmd->byte2 = byte2;
+	scsi_ulto4b(0, scsi_cmd->reserved);
+	scsi_cmd->group = 0;
+	scsi_ulto2b(dxfer_len, scsi_cmd->length);
+	scsi_cmd->control = 0;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
 		      timeout);
 }
 

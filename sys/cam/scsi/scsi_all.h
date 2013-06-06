@@ -512,6 +512,41 @@ struct scsi_rw_16
 	u_int8_t control;
 };
 
+struct scsi_write_same_10
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+#define	SWS_LBDATA	0x02
+#define	SWS_PBDATA	0x04
+#define	SWS_UNMAP	0x08
+#define	SWS_ANCHOR	0x10
+	uint8_t	addr[4];
+	uint8_t	group;
+	uint8_t	length[2];
+	uint8_t	control;
+};
+
+struct scsi_write_same_16
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+	uint8_t	addr[8];
+	uint8_t	length[4];
+	uint8_t	group;
+	uint8_t	control;
+};
+
+struct scsi_unmap
+{
+	uint8_t	opcode;
+	uint8_t	byte2;
+#define	SU_ANCHOR	0x01
+	uint8_t	reserved[4];
+	uint8_t	group;
+	uint8_t	length[2];
+	uint8_t	control;
+};
+
 struct scsi_start_stop_unit
 {
 	u_int8_t opcode;
@@ -595,6 +630,8 @@ struct ata_pass_16 {
 #define	WRITE_BUFFER            0x3B
 #define	READ_BUFFER             0x3C
 #define	CHANGE_DEFINITION	0x40
+#define	WRITE_SAME_10		0x41
+#define	UNMAP			0x42
 #define	LOG_SELECT		0x4C
 #define	LOG_SENSE		0x4D
 #define	MODE_SELECT_10		0x55
@@ -602,6 +639,7 @@ struct ata_pass_16 {
 #define	ATA_PASS_16		0x85
 #define	READ_16			0x88
 #define	WRITE_16		0x8A
+#define	WRITE_SAME_16		0x93
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
 #define	ATA_PASS_12		0xA1
@@ -1286,6 +1324,20 @@ void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		     u_int32_t block_count, u_int8_t *data_ptr,
 		     u_int32_t dxfer_len, u_int8_t sense_len,
 		     u_int32_t timeout);
+
+void scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
+		     void (*cbfcnp)(struct cam_periph *, union ccb *),
+		     u_int8_t tag_action, u_int8_t byte2, 
+		     int minimum_cmd_size, u_int64_t lba,
+		     u_int32_t block_count, u_int8_t *data_ptr,
+		     u_int32_t dxfer_len, u_int8_t sense_len,
+		     u_int32_t timeout);
+
+void scsi_unmap(struct ccb_scsiio *csio, u_int32_t retries,
+		void (*cbfcnp)(struct cam_periph *, union ccb *),
+		u_int8_t tag_action, u_int8_t byte2,
+		u_int8_t *data_ptr, u_int16_t dxfer_len,
+		u_int8_t sense_len, u_int32_t timeout);
 
 void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
