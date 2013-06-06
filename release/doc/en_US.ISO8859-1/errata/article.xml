@@ -5,18 +5,6 @@
 %release;
 ]>
 
-<!--
-	FreeBSD errata document.  Unlike some of the other RELNOTESng
-	files, this file should remain as a single SGML file, so that
-	the dollar FreeBSD dollar header has a meaningful modification
-	time.  This file is all but useless without a datestamp on it,
-	so we'll take some extra care to make sure it has one.
-
-	(If we didn't do this, then the file with the datestamp might
-	not be the one that received the last change in the document.)
-
--->
-
 <article>
   <articleinfo>
     <title>&os; &release; Errata </title>
@@ -28,7 +16,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2011</year>
+      <year>2013</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -85,30 +73,178 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-    <para releasetype="current">No advisories.</para>
+    <para>The following security advisories pertain to &os; &release;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
-    <para releasetype="release">No advisories.</para>
+    <informaltable frame="none" pgwide="1">
+      <tgroup cols="3">
+	<colspec colwidth="1*" />
+	<colspec colwidth="1*" />
+	<colspec colwidth="3*" />
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
 
-    <para releasetype="snapshot">No advisories.</para>
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc"
+		>SA-12:01.openssl</ulink></entry>
+
+	    <entry>03&nbsp;May&nbsp;2012</entry>
+
+	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc"
+		>SA-12:02.crypt</ulink></entry>
+
+	    <entry>30&nbsp;May&nbsp;2012</entry>
+
+	    <entry><para>Incorrect crypt() hashing</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc"
+		>SA-12:03.bind</ulink></entry>
+
+	    <entry>12&nbsp;June&nbsp;2012</entry>
+
+	    <entry><para>Incorrect handling of zero-length RDATA fields in named(8)</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc"
+		>SA-12:04.sysret</ulink></entry>
+
+	    <entry>12&nbsp;June&nbsp;2012</entry>
+
+	    <entry><para>Privilege escalation when returning from kernel</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc"
+		>SA-12:05.bind</ulink></entry>
+
+	    <entry>06&nbsp;August&nbsp;2012</entry>
+
+	    <entry><para>named(8) DNSSEC validation Denial of Service</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc"
+		>SA-12:06.bind</ulink></entry>
+
+	    <entry>22&nbsp;November&nbsp;2012</entry>
+
+	    <entry><para>Multiple Denial of Service vulnerabilities with named(8)</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc"
+		>SA-12:07.hostapd</ulink></entry>
+
+	    <entry>22&nbsp;November&nbsp;2012</entry>
+
+	    <entry><para>Insufficient message length validation for EAP-TLS messages</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc"
+		>SA-12:08.linux</ulink></entry>
+
+	    <entry>22&nbsp;November&nbsp;2012</entry>
+
+	    <entry><para>Linux compatibility layer input validation error</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-13:02.libc.asc"
+		>SA-13:02.libc</ulink></entry>
+
+	    <entry>19&nbsp;February&nbsp;2013</entry>
+
+	    <entry><para>glob(3) related resource exhaustion</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-13:03.openssl.asc"
+		>SA-13:03.openssl</ulink></entry>
+
+	    <entry>02&nbsp;April&nbsp;2013</entry>
+
+	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-13:04.bind.asc"
+		>SA-13:04.bind</ulink></entry>
+
+	    <entry>02&nbsp;April&nbsp;2013</entry>
+
+	    <entry><para>BIND remote denial of service</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-13:05.nfsserver.asc"
+		>SA-13:05.nfsserver</ulink></entry>
+
+	    <entry>29&nbsp;April&nbsp;2013</entry>
+
+	    <entry><para>Insufficient input validation in the NFS server</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
   </sect1>
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para releasetype="current">No open issues.</para>
+    <para>[20130606] The &man.fxp.4; network interface driver may not
+      work well with the &man.dhclient.8; utility.  More specifically,
+      if the <filename>/etc/rc.conf</filename> has the following
+      line:</para>
 
-    <para releasetype="release">No open issues.</para>
+    <programlisting>ifconfig_fxp0="DHCP"</programlisting>
 
-    <para releasetype="snapshot">No open issues.</para>
+    <para>to activate a DHCP client to configure the network
+      interface, the following notification messages are displayed and
+      the &man.dhclient.8; utility keeps trying to initialize the
+      network interface forever.</para>
+
+    <screen>kernel: fxp0: link state changed to UP
+kernel: fxp0: link state changed to DOWN</screen>
+
+    <para>A patch to fix this issue will be released as an Errata
+      Notice.</para>
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-    <para releasetype="current">No news.</para>
+    <para>[20130606] As described in &os; &release; Release Notes,
+      &os; ZFS subsystem has been updated to support feature flags for
+      ZFS pools.  However, the default version number of a newly
+      created ZFS pool is still <literal>28</literal>.</para>
 
-    <para releasetype="release">No news.</para>
+    <para>This is because &os; 9.0 and 9.1 do not support the feature
+      flags.  This means ZFS pools with feature flag support cannot be
+      used on &os; 9.0 and 9.1.  An 8.X system with v28 ZFS pools can
+      be upgraded to 9.X with no problem.  Note that &man.zfs.8;
+      <command>send</command> and <command>receive</command> commands
+      do not work between pools with different versions.  Once a ZFS
+      pool is upgraded from v28, there is no way to upgrade the system
+      to &os; 9.0 and 9.1.  &os; 9.2 and later will support ZFS pools
+      with feature flags.</para>
 
-    <para releasetype="snapshot">No news.</para>
+    <para>To create a ZFS pool with feature flag support, use the
+      &man.zpool.8; <command>create</command> command and then the
+      &man.zpool.8; <command>upgrade</command> command.</para>
   </sect1>
 </article>
