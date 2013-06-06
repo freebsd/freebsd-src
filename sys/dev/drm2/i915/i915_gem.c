@@ -2487,8 +2487,10 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 	int rv;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_busy(m);
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &m, 1, 0);
 			m = vm_page_lookup(object, pindex);
@@ -2505,11 +2507,11 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 			m->valid = VM_PAGE_BITS_ALL;
 			m->dirty = 0;
 		}
+		vm_page_wakeup(m);
 	}
 	vm_page_lock(m);
 	vm_page_wire(m);
 	vm_page_unlock(m);
-	vm_page_wakeup(m);
 	atomic_add_long(&i915_gem_wired_pages_cnt, 1);
 	return (m);
 }
