@@ -36,6 +36,10 @@
 #error FPA is not supported anymore
 #endif
 
+#ifdef __ARM_EABI__
+	.fpu	vfp
+#endif
+
 #include <machine/asm.h>
 #include <machine/setjmp.h>
 
@@ -61,6 +65,27 @@ ENTRY(setjmp)
 	ldmfd	sp!, {r0, r14}
 
 	ldr	r1, .Lsetjmp_magic
+
+#ifdef __ARM_EABI__
+	ldr	r2, .Lfpu_present
+#ifdef PIC
+	GOT_INIT(r3, .Lsetjmp_got, .Lsetjmp_gotinit)
+	ldr	r2, [r2, r3]
+#else
+	ldr	r2, [r2]
+#endif
+	teq	r2, #0		/* do we have a FPU? */
+	beq	1f		/*   no, don't save VFP registers */
+
+	orr	r1, r1, #(_JB_MAGIC_SETJMP ^ _JB_MAGIC_SETJMP_VFP)
+				/* change magic to VFP magic */
+	add	r2, r0, #(_JB_REG_D8 * 4)
+	vstmia	r2, {d8-d15}
+	vmrs	r2, fpscr
+	str	r2, [r0, #(_JB_REG_FPSCR * 4)]
+1:
+#endif /* __ARM_EABI__ */
+
 	str	r1, [r0]		/* store magic */
 
 	/* Store integer registers */
@@ -71,6 +96,11 @@ ENTRY(setjmp)
 
 .Lsetjmp_magic:
 	.word	_JB_MAGIC_SETJMP
+#ifdef __ARM_EABI__
+	GOT_INITSYM(.Lsetjmp_got, .Lsetjmp_gotinit)
+.Lfpu_present:
+	.word	PIC_SYM(_libc_arm_fpu_present, GOTOFF)
+#endif /* __ARM_EABI__ */
 
 
 .weak _C_LABEL(longjmp)
@@ -78,7 +108,8 @@ ENTRY(setjmp)
 ENTRY(__longjmp)
 	ldr	r2, [r0]
 	ldr	ip, .Lsetjmp_magic
-	teq	r2, ip
+	bic	r3, r2, #(_JB_MAGIC_SETJMP ^ _JB_MAGIC_SETJMP_VFP)
+	teq	r3, ip
 	bne	.Lbotch
 
 	/* Restore the signal mask. */
@@ -88,6 +119,17 @@ ENTRY(__longjmp)
 	mov	r0, #3				/* SIG_SETMASK */
 	bl	PIC_SYM(_C_LABEL(sigprocmask), PLT)
 	ldmfd	sp!, {r0-r2, r14}
+
+#ifdef __ARM_EABI__
+	tst	r2, #(_JB_MAGIC_SETJMP ^ _JB_MAGIC_SETJMP_VFP)
+						/* is this a VFP magic? */
+	beq	1f				/*   no, don't restore VFP */
+	add	ip, r0, #(_JB_REG_D8 * 4)
+	vldmia	ip, {d8-d15}
+	ldr	ip, [r0, #(_JB_REG_FPSCR * 4)]
+	vmsr	fpscr, ip
+1:
+#endif /* __ARM_EABI__ */
 
 	add	r0, r0, #(_JB_REG_R4 * 4)
 	/* Restore integer registers */
