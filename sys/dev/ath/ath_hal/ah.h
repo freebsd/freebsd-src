@@ -1581,7 +1581,7 @@ struct ath_hal {
 				uint32_t);
 	void	    __ahdecl(*ah_btCoexSetBmissThresh)(struct ath_hal *,
 				uint32_t);
-	void	    __ahdecl(*ah_btcoexSetParameter)(struct ath_hal *,
+	void	    __ahdecl(*ah_btCoexSetParameter)(struct ath_hal *,
 				uint32_t, uint32_t);
 	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
 	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
