@@ -40,21 +40,8 @@
 #define _MACHINE_ASM_H_
 #include <sys/cdefs.h>
 
-#ifdef __ELF__
-# define _C_LABEL(x)	x
-#else
-# ifdef __STDC__
-#  define _C_LABEL(x)	_ ## x
-# else
-#  define _C_LABEL(x)	_/**/x
-# endif
-#endif
+#define	_C_LABEL(x)	x
 #define	_ASM_LABEL(x)	x
-
-#ifndef _JB_MAGIC__SETJMP
-#define _JB_MAGIC__SETJMP       0x4278f500
-#define _JB_MAGIC_SETJMP        0x4278f501
-#endif
 
 #define I32_bit (1 << 7)	/* IRQ disable */
 #define F32_bit (1 << 6)        /* FIQ disable */
@@ -79,7 +66,7 @@
 /*
  * gas/arm uses @ as a single comment character and thus cannot be used here
  * Instead it recognised the # instead of an @ symbols in .type directives
- * We define a couple of macros so that assembly code will not be dependant
+ * We define a couple of macros so that assembly code will not be dependent
  * on one or the other.
  */
 #define _ASM_TYPE_FUNCTION	#function
@@ -88,7 +75,7 @@
 #define _ENTRY(x) \
 	.text; _ALIGN_TEXT; .globl x; .type x,_ASM_TYPE_FUNCTION; x: _FNSTART
 
-#define	END(x)	.size x, . - x; _FNEND
+#define	_END(x)	.size x, . - x; _FNEND
 
 #ifdef GPROF
 #  define _PROF_PROLOGUE	\
@@ -99,20 +86,41 @@
 
 #define	ENTRY(y)	_ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
 #define	ENTRY_NP(y)	_ENTRY(_C_LABEL(y))
+#define	END(y)		_END(_C_LABEL(y))
 #define	ASENTRY(y)	_ENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
 #define	ASENTRY_NP(y)	_ENTRY(_ASM_LABEL(y))
+#define	ASEND(y)	_END(_ASM_LABEL(y))
 
 #define	ASMSTR		.asciz
 
-#if defined(__ELF__) && defined(PIC)
+#if defined(PIC)
+#define	PLT_SYM(x)	PIC_SYM(x, PLT)
+#define	GOT_SYM(x)	PIC_SYM(x, GOT)
+#define	GOT_GET(x,got,sym)	\
+	ldr	x, sym;		\
+	ldr	x, [x, got]
+#define	GOT_INIT(got,gotsym,pclabel) \
+	ldr	got, gotsym;	\
+	add	got, got, pc;	\
+	pclabel:
+#define	GOT_INITSYM(gotsym,pclabel) \
+	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) + (. - (pclabel+4))
+
 #ifdef __STDC__
 #define	PIC_SYM(x,y)	x ## ( ## y ## )
 #else
 #define	PIC_SYM(x,y)	x/**/(/**/y/**/)
 #endif
+
 #else
+#define	PLT_SYM(x)	x
+#define	GOT_SYM(x)	x
+#define	GOT_GET(x,got,sym)	\
+	ldr	x, sym;
+#define	GOT_INIT(got,gotsym,pclabel)
+#define	GOT_INITSYM(gotsym,pclabel)
 #define	PIC_SYM(x,y)	x
-#endif
+#endif	/* PIC */
 
 #undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
@@ -122,24 +130,18 @@
 #endif
 	
 
-#ifdef __ELF__
 #define	WEAK_ALIAS(alias,sym)						\
 	.weak alias;							\
 	alias = sym
-#endif
 
 #ifdef __STDC__
 #define	WARN_REFERENCES(sym,msg)					\
 	.stabs msg ## ,30,0,0,0 ;					\
 	.stabs __STRING(_C_LABEL(sym)) ## ,1,0,0,0
-#elif defined(__ELF__)
-#define	WARN_REFERENCES(sym,msg)					\
-	.stabs msg,30,0,0,0 ;						\
-	.stabs __STRING(sym),1,0,0,0
 #else
 #define	WARN_REFERENCES(sym,msg)					\
 	.stabs msg,30,0,0,0 ;						\
-	.stabs __STRING(_/**/sym),1,0,0,0
+	.stabs __STRING(sym),1,0,0,0
 #endif /* __STDC__ */
 
 /* Exactly one of the __ARM_ARCH_*__ macros will be defined by the compiler. */
