@@ -328,6 +328,11 @@ ar5416InitBTCoex(struct ath_hal *ah)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 
+	HALDEBUG(ah, HAL_DEBUG_BT_COEX,
+	    "%s: called; configType=%d\n",
+	    __func__,
+	    ahp->ah_btCoexConfigType);
+
 	if (ahp->ah_btCoexConfigType == HAL_BT_COEX_CFG_3WIRE) {
 		OS_REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
 		    (AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB |
