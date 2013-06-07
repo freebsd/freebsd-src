@@ -470,6 +470,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 				printf(
 		    "tmpfs: vm_obj %p idx %jd null lookup rv %d\n",
 				    tobj, idx, rv);
+				VM_OBJECT_WUNLOCK(tobj);
 				return (EIO);
 			}
 			if (rv != VM_PAGER_OK) {
@@ -586,6 +587,7 @@ tmpfs_mappedwrite(vm_object_t tobj, size_t len, struct uio *uio)
 				printf(
 		    "tmpfs: vm_obj %p idx %jd null lookup rv %d\n",
 				    tobj, idx, rv);
+				VM_OBJECT_WUNLOCK(tobj);
 				return (EIO);
 			}
 			if (rv != VM_PAGER_OK) {
