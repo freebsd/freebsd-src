@@ -726,21 +726,8 @@ targsendccb(struct targ_softc *softc, union ccb *ccb,
 	ccb_h->cbfcnp = targdone;
 	ccb_h->targ_descr = descr;
 
-	/*
-	 * We only attempt to map the user memory into kernel space
-	 * if they haven't passed in a physical memory pointer,
-	 * and if there is actually an I/O operation to perform.
-	 * Right now cam_periph_mapmem() only supports SCSI and device
-	 * match CCBs.  For the SCSI CCBs, we only pass the CCB in if
-	 * there's actually data to map.  cam_periph_mapmem() will do the
-	 * right thing, even if there isn't data to map, but since CCBs
-	 * without data are a reasonably common occurrence (e.g. test unit
-	 * ready), it will save a few cycles if we check for it here.
-	 */
-	if (((ccb_h->flags & CAM_DATA_MASK) == CAM_DATA_VADDR)
-	 && (((ccb_h->func_code == XPT_CONT_TARGET_IO)
-	    && ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE))
-	  || (ccb_h->func_code == XPT_DEV_MATCH))) {
+	if ((ccb_h->func_code == XPT_CONT_TARGET_IO) ||
+	    (ccb_h->func_code == XPT_DEV_MATCH)) {
 
 		error = cam_periph_mapmem(ccb, mapinfo);
 
