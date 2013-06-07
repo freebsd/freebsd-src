@@ -438,6 +438,8 @@ struct xhci_softc {
 	/* configure message */
 	struct usb_bus_msg	sc_config_msg[2];
 
+	struct usb_callout	sc_callout;
+
 	union xhci_hub_desc	sc_hub_desc;
 
 	struct cv		sc_cmd_cv;
@@ -500,6 +502,7 @@ struct xhci_softc {
 /* prototypes */
 
 uint32_t	xhci_get_port_route(void);
+uint8_t 	xhci_use_polling(void);
 usb_error_t xhci_halt_controller(struct xhci_softc *);
 usb_error_t xhci_init(struct xhci_softc *, device_t);
 usb_error_t xhci_start_controller(struct xhci_softc *);

@@ -90,6 +90,7 @@
 #ifdef USB_DEBUG
 static int xhcidebug;
 static int xhciroute;
+static int xhcipolling;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
@@ -98,6 +99,9 @@ TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RW | CTLFLAG_TUN,
     &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
 TUNABLE_INT("hw.usb.xhci.xhci_port_route", &xhciroute);
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, use_polling, CTLFLAG_RW | CTLFLAG_TUN,
+    &xhcipolling, 0, "Set to enable software interrupt polling for XHCI controller");
+TUNABLE_INT("hw.usb.xhci.use_polling", &xhcipolling);
 #endif
 
 #define	XHCI_INTR_ENDPT 1
@@ -191,6 +195,16 @@ xhci_get_port_route(void)
 	return (0xFFFFFFFFU ^ ((uint32_t)xhciroute));
 #else
 	return (0xFFFFFFFFU);
+#endif
+}
+
+uint8_t
+xhci_use_polling(void)
+{
+#ifdef USB_DEBUG
+	return (xhcipolling != 0);
+#else
+	return (0);
 #endif
 }
 
