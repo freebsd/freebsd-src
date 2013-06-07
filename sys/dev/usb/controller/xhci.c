@@ -1561,6 +1561,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 	struct xhci_td *td;
 	struct xhci_td *td_next;
 	struct xhci_td *td_alt_next;
+	struct xhci_td *td_first;
 	uint32_t buf_offset;
 	uint32_t average;
 	uint32_t len_old;
@@ -1569,7 +1570,6 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 	uint8_t shortpkt_old;
 	uint8_t precompute;
 	uint8_t x;
-	uint8_t first_trb = 1;
 
 	td_alt_next = NULL;
 	buf_offset = 0;
@@ -1581,7 +1581,7 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 restart:
 
 	td = temp->td;
-	td_next = temp->td_next;
+	td_next = td_first = temp->td_next;
 
 	while (1) {
 
@@ -1717,48 +1717,55 @@ restart:
 
 			td->td_trb[x].dwTrb2 = htole32(dword);
 
-			/* BEI: Interrupts are inhibited until EOT */
-			dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-			  XHCI_TRB_3_BEI_BIT |
-			  XHCI_TRB_3_TBC_SET(temp->tbc) |
-			  XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
-
-			if (first_trb != 0) {
-				first_trb = 0;
-				dword |= XHCI_TRB_3_TYPE_SET(temp->trb_type);
-				/*
-				 * Remove cycle bit from the first TRB
-				 * if we are stepping them:
-				 */
-				if (temp->step_td != 0)
-					dword &= ~XHCI_TRB_3_CYCLE_BIT;
-			} else {
-				dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
-			}
-			if (temp->trb_type == XHCI_TRB_TYPE_ISOCH) {
-				if (temp->do_isoc_sync != 0) {
+			switch (temp->trb_type) {
+			case XHCI_TRB_TYPE_ISOCH:
+				/* BEI: Interrupts are inhibited until EOT */
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_BEI_BIT |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (td != td_first) {
+					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
+				} else if (temp->do_isoc_sync != 0) {
 					temp->do_isoc_sync = 0;
-					dword |= XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8);
+					/* wait until "isoc_frame" */
+					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ISOCH) |
+					    XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8);
 				} else {
-					dword |= XHCI_TRB_3_ISO_SIA_BIT;
+					/* start data transfer at next interval */
+					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ISOCH) |
+					    XHCI_TRB_3_ISO_SIA_BIT;
 				}
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+				break;
+			case XHCI_TRB_TYPE_DATA_STAGE:
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE) |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+				break;
+			case XHCI_TRB_TYPE_STATUS_STAGE:
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE) |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN;
+				break;
+			default:	/* XHCI_TRB_TYPE_NORMAL */
+				/* BEI: Interrupts are inhibited until EOT */
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL) |
+				    XHCI_TRB_3_BEI_BIT |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+				break;
 			}
-			if (temp->direction == UE_DIR_IN) {
-				dword |= XHCI_TRB_3_DIR_IN;
-
-				/*
-				 * NOTE: Only the SETUP stage should
-				 * use the IDT bit. Else transactions
-				 * can be sent using the wrong data
-				 * toggle value.
-				 */
-				if (temp->trb_type !=
-				    XHCI_TRB_TYPE_SETUP_STAGE &&
-				    temp->trb_type !=
-				    XHCI_TRB_TYPE_STATUS_STAGE)
-					dword |= XHCI_TRB_3_ISP_BIT;
-			}
-
 			td->td_trb[x].dwTrb3 = htole32(dword);
 
 			average -= buf_res.length;
@@ -1793,10 +1800,8 @@ restart:
 
 		td->td_trb[x].dwTrb2 = htole32(dword);
 
-		/* BEI: interrupts are inhibited until EOT */
 		dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) |
-		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT |
-		    XHCI_TRB_3_BEI_BIT;
+		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT;
 
 		td->td_trb[x].dwTrb3 = htole32(dword);
 
@@ -1824,10 +1829,13 @@ restart:
 		goto restart;
 	}
 
-	/* need to force an interrupt if we are stepping the TRBs */
-	if ((temp->direction & UE_DIR_IN) != 0 && temp->multishort == 0) {
-		/* make sure the last LINK event generates an interrupt */
-		td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_BEI_BIT);
+	/*
+	 * Remove cycle bit from the first TRB if we are
+	 * stepping them:
+	 */
+	if (temp->step_td != 0) {
+		td_first->td_trb[0].dwTrb3 &= ~htole32(XHCI_TRB_3_CYCLE_BIT);
+		usb_pc_cpu_flush(td_first->page_cache);
 	}
 
 	/* remove chain bit because this is the last TRB in the chain */
