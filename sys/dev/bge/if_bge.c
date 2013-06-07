@@ -5583,6 +5583,10 @@ bge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	BGE_LOCK(sc);
 
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		BGE_UNLOCK(sc);
+		return;
+	}
 	if (sc->bge_flags & BGE_FLAG_TBI) {
 		ifmr->ifm_status = IFM_AVALID;
 		ifmr->ifm_active = IFM_ETHER;
