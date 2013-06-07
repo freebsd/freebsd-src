@@ -1437,4 +1437,25 @@ void	ath_intr(void *);
 #define	ath_hal_spectral_stop(_ah) \
 	((*(_ah)->ah_spectralStop)((_ah)))
 
+#define	ath_hal_btcoex_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_BT_COEX, 0, NULL) == HAL_OK)
+#define	ath_hal_btcoex_set_info(_ah, _info) \
+	((*(_ah)->ah_btCoexSetInfo)((_ah), (_info)))
+#define	ath_hal_btcoex_set_config(_ah, _cfg) \
+	((*(_ah)->ah_btCoexSetConfig)((_ah), (_cfg)))
+#define	ath_hal_btcoex_set_qcu_thresh(_ah, _qcuid) \
+	((*(_ah)->ah_btCoexSetQcuThresh)((_ah), (_qcuid)))
+#define	ath_hal_btcoex_set_weights(_ah, _weight) \
+	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
+#define	ath_hal_btcoex_set_weights(_ah, _weight) \
+	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
+#define	ath_hal_btcoex_set_bmiss_thresh(_ah, _thr) \
+	((*(_ah)->ah_btCoexSetBmissThresh)((_ah), (_thr)))
+#define	ath_hal_btcoex_set_parameter(_ah, _attrib, _val) \
+	((*(_ah)->ah_btCoexSetParameter)((_ah), (_attrib), (_val)))
+#define	ath_hal_btcoex_enable(_ah) \
+	((*(_ah)->ah_btCoexEnable)((_ah)))
+#define	ath_hal_btcoex_disable(_ah) \
+	((*(_ah)->ah_btCoexDisable)((_ah)))
+
 #endif /* _DEV_ATH_ATHVAR_H */
