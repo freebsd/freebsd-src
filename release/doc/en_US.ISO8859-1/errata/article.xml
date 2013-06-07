@@ -206,6 +206,23 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
+    <para>[20130607] The &man.bge.4; network interface driver has an
+      issue when TSO (TCP Segmentation Offload) is enabled.  It causes
+      intermittent reset and re-initialization.</para>
+
+    <para>A workaround is disabling the TSO feature.  One can disable
+      it by adding the following line into the &man.rc.conf.5;
+      file:</para>
+
+    <programlisting>ifconfig_<replaceable>bge0</replaceable>="-tso"</programlisting>
+
+    <para>or by using the &man.ifconfig.8; utility manually:</para>
+
+    <screen>&prompt.root; <userinput>ifconfig <replaceable>bge0</replaceable> -tso</userinput></screen>
+
+    <para>A patch to fix this issue will be released as an Errata
+      Notice.</para>
+
     <para>[20130606] The &man.fxp.4; network interface driver may not
       work well with the &man.dhclient.8; utility.  More specifically,
       if the <filename>/etc/rc.conf</filename> has the following
