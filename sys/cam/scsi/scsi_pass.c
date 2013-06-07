@@ -668,11 +668,10 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 {
 	struct pass_softc *softc;
 	struct cam_periph_map_info mapinfo;
-	int error, need_unmap;
+	xpt_opcode fc;
+	int error;
 
 	softc = (struct pass_softc *)periph->softc;
-
-	need_unmap = 0;
 
 	/*
 	 * There are some fields in the CCB header that need to be
@@ -687,28 +686,13 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	ccb->ccb_h.cbfcnp = passdone;
 
 	/*
-	 * We only attempt to map the user memory into kernel space
-	 * if they haven't passed in a physical memory pointer,
-	 * and if there is actually an I/O operation to perform.
-	 * cam_periph_mapmem() supports SCSI, ATA, SMP, ADVINFO and device
-	 * match CCBs.  For the SCSI, ATA and ADVINFO CCBs, we only pass the
-	 * CCB in if there's actually data to map.  cam_periph_mapmem() will
-	 * do the right thing, even if there isn't data to map, but since CCBs
-	 * without data are a reasonably common occurrence (e.g. test unit
-	 * ready), it will save a few cycles if we check for it here.
-	 *
-	 * XXX What happens if a sg list is supplied?  We don't filter that
-	 * out.
+	 * Let cam_periph_mapmem do a sanity check on the data pointer format.
+	 * Even if no data transfer is needed, it's a cheap check and it
+	 * simplifies the code.
 	 */
-	if (((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR)
-	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO ||
-	       ccb->ccb_h.func_code == XPT_ATA_IO)
-	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))
-	  || (ccb->ccb_h.func_code == XPT_DEV_MATCH)
-	  || (ccb->ccb_h.func_code == XPT_SMP_IO)
-	  || ((ccb->ccb_h.func_code == XPT_DEV_ADVINFO)
-	   && (ccb->cdai.bufsiz > 0)))) {
-
+	fc = ccb->ccb_h.func_code;
+	if ((fc == XPT_SCSI_IO) || (fc == XPT_ATA_IO) || (fc == XPT_SMP_IO)
+	 || (fc == XPT_DEV_MATCH) || (fc == XPT_DEV_ADVINFO)) {
 		bzero(&mapinfo, sizeof(mapinfo));
 
 		/*
@@ -726,13 +710,9 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 		 */
 		if (error)
 			return(error);
-
-		/*
-		 * We successfully mapped the memory in, so we need to
-		 * unmap it when the transaction is done.
-		 */
-		need_unmap = 1;
-	}
+	} else
+		/* Ensure that the unmap call later on is a no-op. */
+		mapinfo.num_bufs_used = 0;
 
 	/*
 	 * If the user wants us to perform any error recovery, then honor
@@ -744,8 +724,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	     SF_RETRY_UA : SF_NO_RECOVERY) | SF_NO_PRINT,
 	    softc->device_stats);
 
-	if (need_unmap != 0)
-		cam_periph_unmapmem(ccb, &mapinfo);
+	cam_periph_unmapmem(ccb, &mapinfo);
 
 	ccb->ccb_h.cbfcnp = NULL;
 	ccb->ccb_h.periph_priv = inccb->ccb_h.periph_priv;
