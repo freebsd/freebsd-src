@@ -43,6 +43,12 @@ CTFFLAGS+= -g
 STRIP?=	-s
 .endif
 
+.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
+    empty(DEBUG_FLAGS:M-gdwarf*)
+CFLAGS+= -g
+CTFFLAGS+= -g
+.endif
+
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
@@ -114,8 +120,17 @@ PO_FLAG=-pg
 all: objwarn
 
 .if defined(SHLIB_NAME)
-.if defined(DEBUG_FLAGS)
-SHLIB_NAME_FULL=${SHLIB_NAME}.debug
+.if ${MK_DEBUG_FILES} != "no"
+SHLIB_NAME_FULL=${SHLIB_NAME}.full
+# Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
+.if ${SHLIBDIR} == "/boot" ||\
+    ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
+    ${SHLIBDIR:C%/usr/lib(32)?(/.*)?%/usr/lib%} == "/usr/lib"
+DEBUGFILEDIR=${DEBUGDIR}${SHLIBDIR}
+.else
+DEBUGFILEDIR=${SHLIBDIR}/.debug
+DEBUGMKDIR=
+.endif
 .else
 SHLIB_NAME_FULL=${SHLIB_NAME}
 .endif
@@ -201,13 +216,13 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
 
-.if defined(DEBUG_FLAGS)
-CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
-${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
+.if ${MK_DEBUG_FILES} != "no"
+CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 
-${SHLIB_NAME}.symbols: ${SHLIB_NAME_FULL}
+${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
 .endif #defined(SHLIB_NAME)
@@ -286,10 +301,13 @@ _libinstall:
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
-.if defined(DEBUG_FLAGS)
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+.if ${MK_DEBUG_FILES} != "no"
+.if defined(DEBUGMKDIR)
+	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}
+.endif
+	${INSTALL} -T debug -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
 	    ${_INSTALLFLAGS} \
-	    ${SHLIB_NAME}.symbols ${DESTDIR}${SHLIBDIR}
+	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}
 .endif
 .if defined(SHLIB_LINK)
 # ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building

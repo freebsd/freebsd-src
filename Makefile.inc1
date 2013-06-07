@@ -470,6 +470,13 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+.if ${MK_DEBUG_FILES} != "no"
+	# We could instead disable debug files for these build stages
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${WORLDTMP}/usr/lib >/dev/null
+.endif
 .if ${MK_BIND_LIBS} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
@@ -555,6 +562,10 @@ build32:
 	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${LIB32TMP}/usr/lib >/dev/null
+.endif
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .for _t in obj includes
@@ -779,6 +790,10 @@ distributeworld installworld: installcheck installcheck_UGID
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
+.endif
 .if defined(NO_ROOT)
 	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
