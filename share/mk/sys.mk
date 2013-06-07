@@ -334,7 +334,7 @@ OBJFORMAT?=	elf
 .MAKE.EXPAND_VARIABLES= yes
 
 # Tell bmake the makefile preference
-.MAKE.MAKEFILE_PREFERENCE?= BSDmakefile makefile Makefile
+.MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
 
 .if !defined(.PARSEDIR)
 # We are not bmake, which is more aggressive about searching .PATH
