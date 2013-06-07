@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_rx_edma.h>
 #include <dev/ath/if_ath_tx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
+#include <dev/ath/if_ath_btcoex.h>
 #include <dev/ath/if_ath_spectral.h>
 #include <dev/ath/if_athdfs.h>
 
@@ -517,6 +518,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ath_spectral_attach(sc) < 0) {
 		device_printf(sc->sc_dev,
 		    "%s: unable to attach spectral\n", __func__);
+		error = EIO;
+		goto bad2;
+	}
+
+	/* Attach bluetooth coexistence module */
+	if (ath_btcoex_attach(sc) < 0) {
+		device_printf(sc->sc_dev,
+		    "%s: unable to attach bluetooth coexistence\n", __func__);
 		error = EIO;
 		goto bad2;
 	}
@@ -1029,6 +1038,7 @@ ath_detach(struct ath_softc *sc)
 #ifdef	ATH_DEBUG_ALQ
 	if_ath_alq_tidyup(&sc->sc_alq);
 #endif
+	ath_btcoex_detach(sc);
 	ath_spectral_detach(sc);
 	ath_dfs_detach(sc);
 	ath_desc_free(sc);
@@ -1589,6 +1599,11 @@ ath_resume(struct ath_softc *sc)
 	ath_spectral_enable(sc, ic->ic_curchan);
 
 	/*
+	 * Let bluetooth coexistence at in case it's needed for this channel
+	 */
+	ath_btcoex_enable(sc, ic->ic_curchan);
+
+	/*
 	 * If we're doing TDMA, enforce the TXOP limitation for chips that
 	 * support it.
 	 */
@@ -2045,6 +2060,11 @@ ath_init(void *arg)
 	ath_spectral_enable(sc, ic->ic_curchan);
 
 	/*
+	 * Let bluetooth coexistence at in case it's needed for this channel
+	 */
+	ath_btcoex_enable(sc, ic->ic_curchan);
+
+	/*
 	 * If we're doing TDMA, enforce the TXOP limitation for chips that
 	 * support it.
 	 */
@@ -2382,6 +2402,11 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	/* Let spectral at in case spectral is enabled */
 	ath_spectral_enable(sc, ic->ic_curchan);
+
+	/*
+	 * Let bluetooth coexistence at in case it's needed for this channel
+	 */
+	ath_btcoex_enable(sc, ic->ic_curchan);
 
 	/*
 	 * If we're doing TDMA, enforce the TXOP limitation for chips that
@@ -4944,6 +4969,12 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 		/* Let spectral at in case spectral is enabled */
 		ath_spectral_enable(sc, chan);
+
+		/*
+		 * Let bluetooth coexistence at in case it's needed for this
+		 * channel
+		 */
+		ath_btcoex_enable(sc, ic->ic_curchan);
 
 		/*
 		 * If we're doing TDMA, enforce the TXOP limitation for chips
