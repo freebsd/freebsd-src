@@ -289,6 +289,12 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		ar5416StartTsf2(ah);
 #endif
 
+	/*
+	 * Enable Bluetooth Coexistence if it's enabled.
+	 */
+	if (AH5416(ah)->ah_btCoexConfigType != HAL_BT_COEX_CFG_NONE)
+		ar5416InitBTCoex(ah);
+
 	/* Restore previous antenna */
 	OS_REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
