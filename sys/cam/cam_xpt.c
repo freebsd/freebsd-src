@@ -1099,6 +1099,15 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		       periph->unit_number, announce_string);
 }
 
+void
+xpt_announce_quirks(struct cam_periph *periph, int quirks, char *bit_string)
+{
+	if (quirks != 0) {
+		printf("%s%d: quirks=0x%b\n", periph->periph_name,
+		    periph->unit_number, quirks, bit_string);
+	}
+}
+
 static dev_match_ret
 xptbusmatch(struct dev_match_pattern *patterns, u_int num_patterns,
 	    struct cam_eb *bus)

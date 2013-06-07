@@ -121,6 +121,22 @@ static struct {
 #define AHCI_Q_NOCOUNT	1024
 #define AHCI_Q_ALTSIG	2048
 #define AHCI_Q_NOMSI	4096
+
+#define AHCI_Q_BIT_STRING	\
+	"\020"			\
+	"\001NOFORCE"		\
+	"\002NOPMP"		\
+	"\003NONCQ"		\
+	"\0041CH"		\
+	"\0052CH"		\
+	"\0064CH"		\
+	"\007EDGEIS"		\
+	"\010SATA2"		\
+	"\011NOBSYRES"		\
+	"\012NOAA"		\
+	"\013NOCOUNT"		\
+	"\014ALTSIG"		\
+	"\015NOMSI"
 } ahci_ids[] = {
 	{0x43801002, 0x00, "ATI IXP600",	AHCI_Q_NOMSI},
 	{0x43901002, 0x00, "ATI IXP700",	0},
@@ -482,6 +498,10 @@ ahci_attach(device_t dev)
 		    "supported" : "not supported",
 		    (ctlr->caps & AHCI_CAP_FBSS) ?
 		    " with FBS" : "");
+	if (ctlr->quirks != 0) {
+		device_printf(dev, "quirks=0x%b\n", ctlr->quirks,
+		    AHCI_Q_BIT_STRING);
+	}
 	if (bootverbose) {
 		device_printf(dev, "Caps:%s%s%s%s%s%s%s%s %sGbps",
 		    (ctlr->caps & AHCI_CAP_64BIT) ? " 64bit":"",
