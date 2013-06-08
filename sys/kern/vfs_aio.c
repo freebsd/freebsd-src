@@ -338,7 +338,8 @@ static struct unrhdr *aiod_unr;
 void		aio_init_aioinfo(struct proc *p);
 static int	aio_onceonly(void);
 static int	aio_free_entry(struct aiocblist *aiocbe);
-static void	aio_process(struct aiocblist *aiocbe);
+static void	aio_process_rw(struct aiocblist *aiocbe);
+static void	aio_process_sync(struct aiocblist *aiocbe);
 static int	aio_newproc(int *);
 int		aio_aqueue(struct thread *td, struct aiocb *job,
 			struct aioliojob *lio, int type, struct aiocb_ops *ops);
@@ -855,15 +856,15 @@ drop:
 }
 
 /*
- * The AIO processing activity.  This is the code that does the I/O request for
- * the non-physio version of the operations.  The normal vn operations are used,
- * and this code should work in all instances for every type of file, including
- * pipes, sockets, fifos, and regular files.
+ * The AIO processing activity for LIO_READ/LIO_WRITE.  This is the code that
+ * does the I/O request for the non-physio version of the operations.  The
+ * normal vn operations are used, and this code should work in all instances
+ * for every type of file, including pipes, sockets, fifos, and regular files.
  *
  * XXX I don't think it works well for socket, pipe, and fifo.
  */
 static void
-aio_process(struct aiocblist *aiocbe)
+aio_process_rw(struct aiocblist *aiocbe)
 {
 	struct ucred *td_savedcred;
 	struct thread *td;
@@ -877,22 +878,15 @@ aio_process(struct aiocblist *aiocbe)
 	int oublock_st, oublock_end;
 	int inblock_st, inblock_end;
 
+	KASSERT(aiocbe->uaiocb.aio_lio_opcode == LIO_READ ||
+	    aiocbe->uaiocb.aio_lio_opcode == LIO_WRITE,
+	    ("%s: opcode %d", __func__, aiocbe->uaiocb.aio_lio_opcode));
+
 	td = curthread;
 	td_savedcred = td->td_ucred;
 	td->td_ucred = aiocbe->cred;
 	cb = &aiocbe->uaiocb;
 	fp = aiocbe->fd_file;
-
-	if (cb->aio_lio_opcode == LIO_SYNC) {
-		error = 0;
-		cnt = 0;
-		if (fp->f_vnode != NULL)
-			error = aio_fsync_vnode(td, fp->f_vnode);
-		cb->_aiocb_private.error = error;
-		cb->_aiocb_private.status = 0;
-		td->td_ucred = td_savedcred;
-		return;
-	}
 
 	aiov.iov_base = (void *)(uintptr_t)cb->aio_buf;
 	aiov.iov_len = cb->aio_nbytes;
@@ -950,6 +944,26 @@ aio_process(struct aiocblist *aiocbe)
 	cnt -= auio.uio_resid;
 	cb->_aiocb_private.error = error;
 	cb->_aiocb_private.status = cnt;
+	td->td_ucred = td_savedcred;
+}
+
+static void
+aio_process_sync(struct aiocblist *aiocbe)
+{
+	struct thread *td = curthread;
+	struct ucred *td_savedcred = td->td_ucred;
+	struct aiocb *cb = &aiocbe->uaiocb;
+	struct file *fp = aiocbe->fd_file;
+	int error = 0;
+
+	KASSERT(aiocbe->uaiocb.aio_lio_opcode == LIO_SYNC,
+	    ("%s: opcode %d", __func__, aiocbe->uaiocb.aio_lio_opcode));
+
+	td->td_ucred = aiocbe->cred;
+	if (fp->f_vnode != NULL)
+		error = aio_fsync_vnode(td, fp->f_vnode);
+	cb->_aiocb_private.error = error;
+	cb->_aiocb_private.status = 0;
 	td->td_ucred = td_savedcred;
 }
 
@@ -1024,7 +1038,7 @@ notification_done:
 }
 
 /*
- * The AIO daemon, most of the actual work is done in aio_process,
+ * The AIO daemon, most of the actual work is done in aio_process_*,
  * but the setup (and address space mgmt) is done in this routine.
  */
 static void
@@ -1121,7 +1135,15 @@ aio_daemon(void *_id)
 			ki = userp->p_aioinfo;
 
 			/* Do the I/O function. */
-			aio_process(aiocbe);
+			switch(aiocbe->uaiocb.aio_lio_opcode) {
+			case LIO_READ:
+			case LIO_WRITE:
+				aio_process_rw(aiocbe);
+				break;
+			case LIO_SYNC:
+				aio_process_sync(aiocbe);
+				break;
+			}
 
 			mtx_lock(&aio_job_mtx);
 			/* Decrement the active job count. */
