@@ -108,7 +108,7 @@ dialog_menu_main()
 #
 ttys_set_type()
 {
-	local consterm="$1"
+	local consterm="$1" err
 
 	#
 	# Create new temporary file to write our ttys(5) update with new types.
@@ -130,7 +130,7 @@ ttys_set_type()
 	# Operate on ttys(5), replacing only the types of `ttyv*' and
 	# `cons[0-9]' terminals with the new type.
 	#
-	awk -v consterm="$consterm" '
+	if ! err=$( awk -v consterm="$consterm" '
 	BEGIN {
 	}
 	{
@@ -152,8 +152,14 @@ ttys_set_type()
 		right = substr($0, RSTART)
 		printf "%s%s%s\n", left, consterm, right
 	}
-	' "$ETC_TTYS" > "$tmpfile" || return $FAILURE
-	f_quietly mv -f "$tmpfile" "$ETC_TTYS" || return $FAILURE
+	' "$ETC_TTYS" > "$tmpfile" 2>&1 ); then
+		f_dialog_msgbox "$err"
+		return $FAILURE
+	fi
+	if ! err=$( mv -f "$tmpfile" "$ETC_TTYS" 2>&1 ); then
+		f_dialog_msgbox "$err"
+		return $FAILURE
+	fi
 
 	return $SUCCESS
 }
@@ -190,10 +196,7 @@ while :; do
 	[ "$mtag" = "1 $msg_none" ] && break
 
 	f_dialog_menuitem_fetch consterm
-	err=$( ttys_set_type "$consterm" 2>&1 )
-	[ "$err" ] || break # to success
-
-	f_dialog_msgbox "$err"
+	ttys_set_type "$consterm" && break
 done
 
 exit $SUCCESS
