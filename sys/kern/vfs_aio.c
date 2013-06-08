@@ -340,6 +340,7 @@ static int	aio_onceonly(void);
 static int	aio_free_entry(struct aiocblist *aiocbe);
 static void	aio_process_rw(struct aiocblist *aiocbe);
 static void	aio_process_sync(struct aiocblist *aiocbe);
+static void	aio_process_mlock(struct aiocblist *aiocbe);
 static int	aio_newproc(int *);
 int		aio_aqueue(struct thread *td, struct aiocb *job,
 			struct aioliojob *lio, int type, struct aiocb_ops *ops);
@@ -426,6 +427,7 @@ static struct syscall_helper_data aio_syscalls[] = {
 	SYSCALL_INIT_HELPER(aio_cancel),
 	SYSCALL_INIT_HELPER(aio_error),
 	SYSCALL_INIT_HELPER(aio_fsync),
+	SYSCALL_INIT_HELPER(aio_mlock),
 	SYSCALL_INIT_HELPER(aio_read),
 	SYSCALL_INIT_HELPER(aio_return),
 	SYSCALL_INIT_HELPER(aio_suspend),
@@ -453,6 +455,7 @@ static struct syscall_helper_data aio32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_aio_cancel),
 	SYSCALL32_INIT_HELPER(freebsd32_aio_error),
 	SYSCALL32_INIT_HELPER(freebsd32_aio_fsync),
+	SYSCALL32_INIT_HELPER(freebsd32_aio_mlock),
 	SYSCALL32_INIT_HELPER(freebsd32_aio_read),
 	SYSCALL32_INIT_HELPER(freebsd32_aio_write),
 	SYSCALL32_INIT_HELPER(freebsd32_aio_waitcomplete),
@@ -702,7 +705,8 @@ aio_free_entry(struct aiocblist *aiocbe)
 	 * at open time, but this is already true of file descriptors in
 	 * a multithreaded process.
 	 */
-	fdrop(aiocbe->fd_file, curthread);
+	if (aiocbe->fd_file)
+		fdrop(aiocbe->fd_file, curthread);
 	crfree(aiocbe->cred);
 	uma_zfree(aiocb_zone, aiocbe);
 	AIO_LOCK(ki);
@@ -968,6 +972,21 @@ aio_process_sync(struct aiocblist *aiocbe)
 }
 
 static void
+aio_process_mlock(struct aiocblist *aiocbe)
+{
+	struct aiocb *cb = &aiocbe->uaiocb;
+	int error;
+
+	KASSERT(aiocbe->uaiocb.aio_lio_opcode == LIO_MLOCK,
+	    ("%s: opcode %d", __func__, aiocbe->uaiocb.aio_lio_opcode));
+
+	error = vm_mlock(aiocbe->userproc, aiocbe->cred,
+	    __DEVOLATILE(void *, cb->aio_buf), cb->aio_nbytes);
+	cb->_aiocb_private.error = error;
+	cb->_aiocb_private.status = 0;
+}
+
+static void
 aio_bio_done_notify(struct proc *userp, struct aiocblist *aiocbe, int type)
 {
 	struct aioliojob *lj;
@@ -1143,6 +1162,9 @@ aio_daemon(void *_id)
 			case LIO_SYNC:
 				aio_process_sync(aiocbe);
 				break;
+			case LIO_MLOCK:
+				aio_process_mlock(aiocbe);
+				break;
 			}
 
 			mtx_lock(&aio_job_mtx);
@@ -1283,7 +1305,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	cb = &aiocbe->uaiocb;
 	fp = aiocbe->fd_file;
 
-	if (fp->f_type != DTYPE_VNODE)
+	if (fp == NULL || fp->f_type != DTYPE_VNODE)
 		return (-1);
 
 	vp = fp->f_vnode;
@@ -1635,6 +1657,9 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	case LIO_SYNC:
 		error = fget(td, fd, CAP_FSYNC, &fp);
 		break;
+	case LIO_MLOCK:
+		fp = NULL;
+		break;
 	case LIO_NOP:
 		error = fget(td, fd, CAP_NONE, &fp);
 		break;
@@ -1692,7 +1717,8 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	error = kqfd_register(kqfd, &kev, td, 1);
 aqueue_fail:
 	if (error) {
-		fdrop(fp, td);
+		if (fp)
+			fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		ops->store_error(job, error);
 		goto done;
@@ -1709,7 +1735,7 @@ no_kqueue:
 	if (opcode == LIO_SYNC)
 		goto queueit;
 
-	if (fp->f_type == DTYPE_SOCKET) {
+	if (fp && fp->f_type == DTYPE_SOCKET) {
 		/*
 		 * Alternate queueing for socket ops: Reach down into the
 		 * descriptor to get the socket data.  Then check to see if the
@@ -2185,6 +2211,13 @@ sys_aio_write(struct thread *td, struct aio_write_args *uap)
 {
 
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_WRITE, &aiocb_ops));
+}
+
+int
+sys_aio_mlock(struct thread *td, struct aio_mlock_args *uap)
+{
+
+	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_MLOCK, &aiocb_ops));
 }
 
 static int
@@ -2925,6 +2958,14 @@ freebsd32_aio_write(struct thread *td, struct freebsd32_aio_write_args *uap)
 {
 
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITE,
+	    &aiocb32_ops));
+}
+
+int
+freebsd32_aio_mlock(struct thread *td, struct freebsd32_aio_mlock_args *uap)
+{
+
+	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_MLOCK,
 	    &aiocb32_ops));
 }
 
