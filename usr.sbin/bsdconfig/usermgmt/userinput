@@ -238,32 +238,53 @@ save_flag=
 hline="$hline_arrows_tab_enter"
 
 if [ "$mode" = "Add" ]; then
-	#
-	# Ask a series of questions to pre-fill the editor screen.
-	#
-	# The defaults used in each dialog should allow the user to simply
-	#   hit ENTER to proceed, because cancelling a single dialog will
-	#   cause them to be returned to the main usermenu.
-	#
-
 	f_dialog_input_name || exit 0
-	f_dialog_input_gecos "$pw_name" || exit 0
-	[ "$passwdtype" = "yes" ] &&
-		{ f_dialog_input_password || exit 0; }
-	f_dialog_input_uid || exit 0
-	f_dialog_input_gid || exit 0
-	f_dialog_input_member_groups || exit 0
-	f_dialog_input_class || exit 0
-	f_dialog_input_expire_password || exit 0
-	f_dialog_input_expire_account || exit 0
-	f_dialog_input_home_dir "$homeprefix/$pw_name" || exit 0
-	pw_dotfiles_create="$msg_no"
-	if [ ! -d "$homeprefix/$pw_name" ]; then
-		f_dialog_input_home_create || exit 0
-		[ "$pw_home_create" = "$msg_yes" ] &&
-			{ f_dialog_input_dotfiles_create || exit 0; }
+
+	#
+	# Set some sensible defaults for account attributes
+	#
+	pw_gecos="${pw_gecos-$pw_name}"
+	pw_home_dir="${pw_home_dir:-$homeprefix/$pw_name}"
+	if [ -d "$pw_home_dir" ]; then
+		pw_home_create="${pw_home_create:-$msg_no}"
+		pw_dotfiles_create="${pw_dotfiles_create:-$msg_no}"
+	else
+		pw_home_create="${pw_home_create:-$msg_yes}"
+		pw_dotfiles_create="${pw_dotfiles_create:-$msg_yes}"
 	fi
-	f_dialog_input_shell "$defaultshell" || exit 0
+	pw_shell="${pw_shell:-$defaultshell}"
+
+	f_dialog_noyes "$msg_use_default_values_for_all_account_details"
+	retval=$?
+
+	if [ $retval -eq 255 ]; then # User pressed ESC
+		exit $SUCCESS
+	elif [ $retval -ne $SUCCESS ]; then
+		#
+		# Ask a series of questions to pre-fill the editor screen.
+		#
+		# The defaults used in each dialog should allow the user to
+		# simply hit ENTER to proceed, because cancelling a single
+		# dialog will cause them to be returned to the main usermenu.
+		#
+
+		f_dialog_input_gecos "$pw_gecos" || exit 0
+		[ "$passwdtype" = "yes" ] &&
+			{ f_dialog_input_password || exit 0; }
+		f_dialog_input_uid || exit 0
+		f_dialog_input_gid || exit 0
+		f_dialog_input_member_groups || exit 0
+		f_dialog_input_class || exit 0
+		f_dialog_input_expire_password || exit 0
+		f_dialog_input_expire_account || exit 0
+		f_dialog_input_home_dir "$pw_home_dir" || exit 0
+		if [ ! -d "$pw_home_dir" ]; then
+			f_dialog_input_home_create || exit 0
+			[ "$pw_home_create" = "$msg_yes" ] &&
+				{ f_dialog_input_dotfiles_create || exit 0; }
+		fi
+		f_dialog_input_shell "$pw_shell" || exit 0
+	fi
 fi
 
 if [ "$mode" = "Edit/View" -o "$mode" = "Delete" ]; then

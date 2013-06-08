@@ -157,19 +157,27 @@ save_flag=
 hline="$hline_arrows_tab_enter"
 
 if [ "$mode" = "Add" ]; then
-	#
-	# Ask a series of questions to pre-fill the editor screen.
-	#
-	# The defaults used in each dialog should allow the user to simply
-	#   hit ENTER to proceed, because cancelling a single dialog will
-	#   cause them to be returned to the main groupmenu.
-	#
-
 	f_dialog_input_group_name || exit 0
-	[ "$passwdtype" = "yes" ] &&
-		{ f_dialog_input_group_password || exit 0; }
-	f_dialog_input_group_gid  || exit 0
-	f_dialog_input_group_members || exit 0
+
+	f_dialog_noyes "$msg_use_default_values_for_all_account_details"
+	retval=$?
+
+	if [ $retval -eq 255 ]; then # User pressed ESC
+		exit $SUCCESS
+	elif [ $retval -ne $SUCCESS ]; then
+		#
+		# Ask a series of questions to pre-fill the editor screen.
+		#
+		# The defaults used in each dialog should allow the user to
+		# simply hit ENTER to proceed, because cancelling a single
+		# dialog will cause them to be returned to the main groupmenu.
+		#
+	
+		[ "$passwdtype" = "yes" ] &&
+			{ f_dialog_input_group_password || exit 0; }
+		f_dialog_input_group_gid  || exit 0
+		f_dialog_input_group_members || exit 0
+	fi
 fi
 
 if [ "$mode" = "Edit/View" -o "$mode" = "Delete" ]; then
