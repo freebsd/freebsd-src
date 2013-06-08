@@ -241,6 +241,7 @@ f_dialog_input_group_password()
 			local retval=$?
 			[ $retval -eq 255 ] && return $retval # ESC was pressed
 			[ $retval -eq $SUCCESS ] && pw_group_password_disable=1
+			continue # back to password prompt
 		else
 			pw_group_password_disable=
 		fi
