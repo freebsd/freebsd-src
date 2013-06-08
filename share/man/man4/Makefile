@@ -516,6 +516,7 @@ MAN=	aac.4 \
 	ural.4 \
 	urio.4 \
 	${_urtw.4} \
+	urtwn.4 \
 	usb.4 \
 	usb_quirk.4 \
 	uslcom.4 \
