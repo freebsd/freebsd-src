@@ -58,7 +58,7 @@ dialog_menu_main()
 {
 	local prompt="$msg_miscellaneous_menu_text"
 	local menu_list="
-		'X <<< $msg_exit' '$msg_exit_this_menu'
+		'X $msg_exit' '$msg_exit_this_menu'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline="$hline_arrows_tab_enter"
@@ -345,7 +345,7 @@ while :; do
 	f_dialog_menutag_fetch mtag
 
 	case "$mtag" in
-	"X <<< $msg_exit") break ;;
+	"X $msg_exit") break ;;
 	?" ["?"] $msg_apm")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set apm_enable NO 2>&1 ) ;;
