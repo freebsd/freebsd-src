@@ -591,13 +591,15 @@ f_dialog_input_expire_password()
 			break ;;
 
 		4) # Enter value manually
-			local msg
+			local msg ret_secs
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
 
 			# Return to menu if either ESC or Cancel/No
-			f_dialog_input _input \
+			f_dialog_input ret_secs \
 			               "$msg" "$_input" "$hline" || continue
+
+			_input="$ret_secs"
 
 			# Taint-check the user's input
 			if ! f_isinteger "${_input:-0}"; then
@@ -772,13 +774,15 @@ f_dialog_input_expire_account()
 			break ;;
 
 		4) # Enter value manually
-			local msg
+			local msg ret_secs
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
 
 			# Return to menu if either ESC or Cancel/No
-			f_dialog_input _input "$msg" \
+			f_dialog_input ret_secs "$msg" \
 			               "$_input" "$hline" || continue
+
+			_input="$ret_secs"
 
 			# Taint-check the user's input
 			if ! f_isinteger "${_input:-0}"; then
