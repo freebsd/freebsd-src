@@ -1036,18 +1036,24 @@ sys_mlock(td, uap)
 	struct thread *td;
 	struct mlock_args *uap;
 {
-	struct proc *proc;
+
+	return (vm_mlock(td->td_proc, td->td_ucred, uap->addr, uap->len));
+}
+
+int
+vm_mlock(struct proc *proc, struct ucred *cred, const void *addr0, size_t len)
+{
 	vm_offset_t addr, end, last, start;
 	vm_size_t npages, size;
 	vm_map_t map;
 	unsigned long nsize;
 	int error;
 
-	error = priv_check(td, PRIV_VM_MLOCK);
+	error = priv_check_cred(cred, PRIV_VM_MLOCK, 0);
 	if (error)
 		return (error);
-	addr = (vm_offset_t)uap->addr;
-	size = uap->len;
+	addr = (vm_offset_t)addr0;
+	size = len;
 	last = addr + size;
 	start = trunc_page(addr);
 	end = round_page(last);
@@ -1056,7 +1062,6 @@ sys_mlock(td, uap)
 	npages = atop(end - start);
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
-	proc = td->td_proc;
 	map = &proc->p_vmspace->vm_map;
 	PROC_LOCK(proc);
 	nsize = ptoa(npages + pmap_wired_count(map->pmap));
