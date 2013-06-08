@@ -28,7 +28,7 @@
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2013
+.Dd June 8, 2013
 .Dt SIGACTION 2
 .Os
 .Sh NAME
@@ -556,9 +556,22 @@ but planned to be:
 .Pp
 Extension Interfaces:
 .Pp
+.Fn accept4 ,
+.Fn bindat ,
+.Fn closefrom ,
+.Fn connectat ,
+.Fn eaccess ,
+.Fn ffsl ,
+.Fn ffsll ,
+.Fn flock ,
+.Fn fls ,
+.Fn flsl ,
+.Fn flsll ,
 .Fn futimesat ,
-.Fn strlcpy ,
+.Fn pipe2 ,
 .Fn strlcat .
+.Fn strlcpy ,
+.Fn strsep .
 .Pp
 In addition, reading or writing
 .Va errno
