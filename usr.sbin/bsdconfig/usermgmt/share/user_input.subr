@@ -483,12 +483,13 @@ f_dialog_input_expire_password()
 	#
 	# Loop until the user provides taint-free/cancellation-free input
 	#
-	local date_type
+	local date_type defaultitem=
 	while :; do
 		date_type=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
+			--default-item \"\$defaultitem\"   \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
 			--menu \"\$prompt\"                \
@@ -498,6 +499,7 @@ f_dialog_input_expire_password()
 		)
 		retval=$?
 		f_dialog_data_sanitize date_type
+		defaultitem="$date_type"
 		f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
@@ -666,12 +668,13 @@ f_dialog_input_expire_account()
 	#
 	# Loop until the user provides taint-free/cancellation-free input
 	#
-	local date_type
+	local date_type defaultitem=
 	while :; do
 		date_type=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
+			--default-item \"\$defaultitem\"   \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
 			--menu \"\$prompt\"                \
@@ -681,6 +684,7 @@ f_dialog_input_expire_account()
 		)
 		retval=$?
 		f_dialog_data_sanitize date_type
+		defaultitem="$date_type"
 		f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
