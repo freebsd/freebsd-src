@@ -207,7 +207,11 @@ f_startup_rcconf_map()
 	)
 	export STARTUP_RCCONF_MAP
 	export _STARTUP_RCCONF_MAP=1
-	echo "$STARTUP_RCCONF_MAP"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$STARTUP_RCCONF_MAP"
+	else
+		echo "$STARTUP_RCCONF_MAP"
+	fi
 
 	#
 	# Attempt to create the persistant global cache
