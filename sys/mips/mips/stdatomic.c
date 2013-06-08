@@ -72,13 +72,37 @@ mips_sync(void)
 
 typedef union {
 	uint8_t		v8[4];
-	uint16_t 	v16[2];
 	uint32_t	v32;
 } reg_t;
+
+static inline uint32_t *
+round_to_word(void *ptr)
+{
+
+	return ((uint32_t *)((intptr_t)ptr & ~3));
+}
 
 /*
  * 8-bit routines.
  */
+
+static inline void
+put_1(reg_t *r, uint8_t *offset_ptr, uint8_t val)
+{
+	size_t offset;
+
+	offset = (intptr_t)offset_ptr & 3;
+	r->v8[offset] = val;
+}
+
+static inline uint8_t
+get_1(const reg_t *r, uint8_t *offset_ptr)
+{
+	size_t offset;
+
+	offset = (intptr_t)offset_ptr & 3;
+	return (r->v8[offset]);
+}
 
 uint8_t
 __sync_lock_test_and_set_1(uint8_t *mem8, uint8_t val8)
@@ -87,11 +111,11 @@ __sync_lock_test_and_set_1(uint8_t *mem8, uint8_t val8)
 	reg_t val32, negmask32, old;
 	uint32_t temp;
 
-	mem32 = (uint32_t *)((intptr_t)mem8 & ~3);
+	mem32 = round_to_word(mem8);
 	val32.v32 = 0x00000000;
-	val32.v8[(intptr_t)mem8 & 3] = val8;
+	put_1(&val32, mem8, val8);
 	negmask32.v32 = 0xffffffff;
-	negmask32.v8[(intptr_t)mem8 & 3] = 0x00;
+	put_1(&negmask32, mem8, val8);
 
 	mips_sync();
 	__asm volatile (
@@ -103,7 +127,7 @@ __sync_lock_test_and_set_1(uint8_t *mem8, uint8_t val8)
 		"\tbeqz	%2, 1b\n"	/* Spin if failed. */
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)
 		: "r" (val32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (old.v8[(intptr_t)mem8 & 3]);
+	return (get_1(&old, mem8));
 }
 
 uint8_t
@@ -113,13 +137,13 @@ __sync_val_compare_and_swap_1(uint8_t *mem8, uint8_t expected, uint8_t desired)
 	reg_t expected32, desired32, posmask32, negmask32, old;
 	uint32_t temp;
 
-	mem32 = (uint32_t *)((intptr_t)mem8 & ~3);
+	mem32 = round_to_word(mem8);
 	expected32.v32 = 0x00000000;
-	expected32.v8[(intptr_t)mem8 & 3] = expected;
+	put_1(&expected32, mem8, expected);
 	desired32.v32 = 0x00000000;
-	desired32.v8[(intptr_t)mem8 & 3] = desired;
+	put_1(&desired32, mem8, desired);
 	posmask32.v32 = 0x00000000;
-	posmask32.v8[(intptr_t)mem8 & 3] = 0xff;
+	put_1(&posmask32, mem8, 0xff);
 	negmask32.v32 = ~posmask32.v32;
 
 	mips_sync();
@@ -136,7 +160,7 @@ __sync_val_compare_and_swap_1(uint8_t *mem8, uint8_t expected, uint8_t desired)
 		: "=&r" (old), "=m" (*mem32), "=&r" (temp)
 		: "r" (expected32.v32), "r" (desired32.v32),
 		  "r" (posmask32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (old.v8[(intptr_t)mem8 & 3]);
+	return (get_1(&old, mem8));
 }
 
 #define	EMIT_ARITHMETIC_FETCH_AND_OP_1(name, op)			\
@@ -147,11 +171,11 @@ __sync_##name##_1(uint8_t *mem8, uint8_t val8)				\
 	reg_t val32, posmask32, negmask32, old;				\
 	uint32_t temp1, temp2;						\
 									\
-	mem32 = (uint32_t *)((intptr_t)mem8 & ~3);			\
+	mem32 = round_to_word(mem8);					\
 	val32.v32 = 0x00000000;						\
-	val32.v8[(intptr_t)mem8 & 3] = val8;				\
+	put_1(&val32, mem8, val8);					\
 	posmask32.v32 = 0x00000000;					\
-	posmask32.v8[(intptr_t)mem8 & 3] = 0xff;			\
+	put_1(&posmask32, mem8, 0xff);					\
 	negmask32.v32 = ~posmask32.v32;					\
 									\
 	mips_sync();							\
@@ -168,7 +192,7 @@ __sync_##name##_1(uint8_t *mem8, uint8_t val8)				\
 		  "=&r" (temp2)						\
 		: "r" (val32.v32), "r" (posmask32.v32),			\
 		  "r" (negmask32.v32), "m" (*mem32));			\
-	return (old.v8[(intptr_t)mem8 & 3]);				\
+	return (get_1(&old, mem8));					\
 }
 
 EMIT_ARITHMETIC_FETCH_AND_OP_1(fetch_and_add, "addu")
@@ -182,9 +206,9 @@ __sync_##name##_1(uint8_t *mem8, uint8_t val8)				\
 	reg_t val32, old;						\
 	uint32_t temp;							\
 									\
-	mem32 = (uint32_t *)((intptr_t)mem8 & ~3);			\
+	mem32 = round_to_word(mem8);					\
 	val32.v32 = idempotence ? 0xffffffff : 0x00000000;		\
-	val32.v8[(intptr_t)mem8 & 3] = val8;				\
+	put_1(&val32, mem8, val8);					\
 									\
 	mips_sync();							\
 	__asm volatile (						\
@@ -195,7 +219,7 @@ __sync_##name##_1(uint8_t *mem8, uint8_t val8)				\
 		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)		\
 		: "r" (val32.v32), "m" (*mem32));			\
-	return (old.v8[(intptr_t)mem8 & 3]);				\
+	return (get_1(&old, mem8));					\
 }
 
 EMIT_BITWISE_FETCH_AND_OP_1(fetch_and_and, "and", 1)
@@ -206,6 +230,36 @@ EMIT_BITWISE_FETCH_AND_OP_1(fetch_and_xor, "xor", 0)
  * 16-bit routines.
  */
 
+static inline void
+put_2(reg_t *r, uint16_t *offset_ptr, uint16_t val)
+{
+	size_t offset;
+	union {
+		uint16_t in;
+		uint8_t out[2];
+	} bytes;
+
+	offset = (intptr_t)offset_ptr & 3;
+	bytes.in = val;
+	r->v8[offset] = bytes.out[0];
+	r->v8[offset + 1] = bytes.out[1];
+}
+
+static inline uint16_t
+get_2(const reg_t *r, uint16_t *offset_ptr)
+{
+	size_t offset;
+	union {
+		uint8_t in[2];
+		uint16_t out;
+	} bytes;
+
+	offset = (intptr_t)offset_ptr & 3;
+	bytes.in[0] = r->v8[offset];
+	bytes.in[1] = r->v8[offset + 1];
+	return (bytes.out);
+}
+
 uint16_t
 __sync_lock_test_and_set_2(uint16_t *mem16, uint16_t val16)
 {
@@ -213,11 +267,11 @@ __sync_lock_test_and_set_2(uint16_t *mem16, uint16_t val16)
 	reg_t val32, negmask32, old;
 	uint32_t temp;
 
-	mem32 = (uint32_t *)((intptr_t)mem16 & ~1);
+	mem32 = round_to_word(mem16);
 	val32.v32 = 0x00000000;
-	val32.v16[(intptr_t)mem16 & 1] = val16;
+	put_2(&val32, mem16, val16);
 	negmask32.v32 = 0xffffffff;
-	negmask32.v16[(intptr_t)mem16 & 1] = 0x0000;
+	put_2(&negmask32, mem16, 0x0000);
 
 	mips_sync();
 	__asm volatile (
@@ -229,7 +283,7 @@ __sync_lock_test_and_set_2(uint16_t *mem16, uint16_t val16)
 		"\tbeqz	%2, 1b\n"	/* Spin if failed. */
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)
 		: "r" (val32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (old.v16[(intptr_t)mem16 & 1]);
+	return (get_2(&old, mem16));
 }
 
 uint16_t
@@ -240,13 +294,13 @@ __sync_val_compare_and_swap_2(uint16_t *mem16, uint16_t expected,
 	reg_t expected32, desired32, posmask32, negmask32, old;
 	uint32_t temp;
 
-	mem32 = (uint32_t *)((intptr_t)mem16 & ~1);
+	mem32 = round_to_word(mem16);
 	expected32.v32 = 0x00000000;
-	expected32.v16[(intptr_t)mem16 & 1] = expected;
+	put_2(&expected32, mem16, expected);
 	desired32.v32 = 0x00000000;
-	desired32.v16[(intptr_t)mem16 & 1] = desired;
+	put_2(&desired32, mem16, desired);
 	posmask32.v32 = 0x00000000;
-	posmask32.v16[(intptr_t)mem16 & 1] = 0xffff;
+	put_2(&posmask32, mem16, 0xffff);
 	negmask32.v32 = ~posmask32.v32;
 
 	mips_sync();
@@ -263,7 +317,7 @@ __sync_val_compare_and_swap_2(uint16_t *mem16, uint16_t expected,
 		: "=&r" (old), "=m" (*mem32), "=&r" (temp)
 		: "r" (expected32.v32), "r" (desired32.v32),
 		  "r" (posmask32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (old.v16[(intptr_t)mem16 & 1]);
+	return (get_2(&old, mem16));
 }
 
 #define	EMIT_ARITHMETIC_FETCH_AND_OP_2(name, op)			\
@@ -274,11 +328,11 @@ __sync_##name##_2(uint16_t *mem16, uint16_t val16)			\
 	reg_t val32, posmask32, negmask32, old;				\
 	uint32_t temp1, temp2;						\
 									\
-	mem32 = (uint32_t *)((intptr_t)mem16 & ~3);			\
+	mem32 = round_to_word(mem16);					\
 	val32.v32 = 0x00000000;						\
-	val32.v16[(intptr_t)mem16 & 1] = val16;				\
+	put_2(&val32, mem16, val16);					\
 	posmask32.v32 = 0x00000000;					\
-	posmask32.v16[(intptr_t)mem16 & 1] = 0xffff;			\
+	put_2(&posmask32, mem16, 0xffff);				\
 	negmask32.v32 = ~posmask32.v32;					\
 									\
 	mips_sync();							\
@@ -295,7 +349,7 @@ __sync_##name##_2(uint16_t *mem16, uint16_t val16)			\
 		  "=&r" (temp2)						\
 		: "r" (val32.v32), "r" (posmask32.v32),			\
 		  "r" (negmask32.v32), "m" (*mem32));			\
-	return (old.v16[(intptr_t)mem16 & 1]);				\
+	return (get_2(&old, mem16));					\
 }
 
 EMIT_ARITHMETIC_FETCH_AND_OP_2(fetch_and_add, "addu")
@@ -309,9 +363,9 @@ __sync_##name##_2(uint16_t *mem16, uint16_t val16)			\
 	reg_t val32, old;						\
 	uint32_t temp;							\
 									\
-	mem32 = (uint32_t *)((intptr_t)mem16 & ~1);			\
+	mem32 = round_to_word(mem16);					\
 	val32.v32 = idempotence ? 0xffffffff : 0x00000000;		\
-	val32.v16[(intptr_t)mem16 & 1] = val16;				\
+	put_2(&val32, mem16, val16);					\
 									\
 	mips_sync();							\
 	__asm volatile (						\
@@ -322,7 +376,7 @@ __sync_##name##_2(uint16_t *mem16, uint16_t val16)			\
 		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)		\
 		: "r" (val32.v32), "m" (*mem32));			\
-	return (old.v16[(intptr_t)mem16 & 1]);				\
+	return (get_2(&old, mem16));					\
 }
 
 EMIT_BITWISE_FETCH_AND_OP_2(fetch_and_and, "and", 1)
