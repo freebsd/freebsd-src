@@ -3221,6 +3221,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* freebsd32_aio_mlock */
+	case 543: {
+		struct freebsd32_aio_mlock_args *p = params;
+		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb32 * */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8626,6 +8633,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_aio_mlock */
+	case 543:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb32 *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10453,6 +10470,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* pipe2 */
 	case 542:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_mlock */
+	case 543:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
