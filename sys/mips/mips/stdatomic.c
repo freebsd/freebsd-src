@@ -75,6 +75,11 @@ typedef union {
 	uint32_t	v32;
 } reg_t;
 
+/*
+ * Given a memory address pointing to an 8-bit or 16-bit integer, return
+ * the address of the 32-bit word containing it.
+ */
+
 static inline uint32_t *
 round_to_word(void *ptr)
 {
@@ -83,7 +88,9 @@ round_to_word(void *ptr)
 }
 
 /*
- * 8-bit routines.
+ * Utility functions for loading and storing 8-bit and 16-bit integers
+ * in 32-bit words at an offset corresponding with the location of the
+ * atomic variable.
  */
 
 static inline void
@@ -103,132 +110,6 @@ get_1(const reg_t *r, uint8_t *offset_ptr)
 	offset = (intptr_t)offset_ptr & 3;
 	return (r->v8[offset]);
 }
-
-uint8_t
-__sync_lock_test_and_set_1(uint8_t *mem8, uint8_t val8)
-{
-	uint32_t *mem32;
-	reg_t val32, negmask32, old;
-	uint32_t temp;
-
-	mem32 = round_to_word(mem8);
-	val32.v32 = 0x00000000;
-	put_1(&val32, mem8, val8);
-	negmask32.v32 = 0xffffffff;
-	put_1(&negmask32, mem8, val8);
-
-	mips_sync();
-	__asm volatile (
-		"1:"
-		"\tll	%0, %5\n"	/* Load old value. */
-		"\tand	%2, %4, %0\n"	/* Trim out affected part. */
-		"\tor	%2, %3\n"	/* Put in the new value. */
-		"\tsc	%2, %1\n"	/* Attempt to store. */
-		"\tbeqz	%2, 1b\n"	/* Spin if failed. */
-		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)
-		: "r" (val32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (get_1(&old, mem8));
-}
-
-uint8_t
-__sync_val_compare_and_swap_1(uint8_t *mem8, uint8_t expected, uint8_t desired)
-{
-	uint32_t *mem32;
-	reg_t expected32, desired32, posmask32, negmask32, old;
-	uint32_t temp;
-
-	mem32 = round_to_word(mem8);
-	expected32.v32 = 0x00000000;
-	put_1(&expected32, mem8, expected);
-	desired32.v32 = 0x00000000;
-	put_1(&desired32, mem8, desired);
-	posmask32.v32 = 0x00000000;
-	put_1(&posmask32, mem8, 0xff);
-	negmask32.v32 = ~posmask32.v32;
-
-	mips_sync();
-	__asm volatile (
-		"1:"
-		"\tll	%0, %7\n"	/* Load old value. */
-		"\tand	%2, %5, %0\n"	/* Isolate affected part. */
-		"\tbne	%2, %3, 2f\n"	/* Compare to expected value. */
-		"\tand	%2, %6, %0\n"	/* Trim out affected part. */
-		"\tor	%2, %4\n"	/* Put in the new value. */
-		"\tsc	%2, %1\n"	/* Attempt to store. */
-		"\tbeqz	%2, 1b\n"	/* Spin if failed. */
-		"2:"
-		: "=&r" (old), "=m" (*mem32), "=&r" (temp)
-		: "r" (expected32.v32), "r" (desired32.v32),
-		  "r" (posmask32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (get_1(&old, mem8));
-}
-
-#define	EMIT_ARITHMETIC_FETCH_AND_OP_1(name, op)			\
-uint8_t									\
-__sync_##name##_1(uint8_t *mem8, uint8_t val8)				\
-{									\
-	uint32_t *mem32;						\
-	reg_t val32, posmask32, negmask32, old;				\
-	uint32_t temp1, temp2;						\
-									\
-	mem32 = round_to_word(mem8);					\
-	val32.v32 = 0x00000000;						\
-	put_1(&val32, mem8, val8);					\
-	posmask32.v32 = 0x00000000;					\
-	put_1(&posmask32, mem8, 0xff);					\
-	negmask32.v32 = ~posmask32.v32;					\
-									\
-	mips_sync();							\
-	__asm volatile (						\
-		"1:"							\
-		"\tll	%0, %7\n"	/* Load old value. */		\
-		"\t"op"	%2, %0, %4\n"	/* Calculate new value. */	\
-		"\tand	%2, %5\n"	/* Isolate affected part. */	\
-		"\tand	%3, %6, %0\n"	/* Trim out affected part. */	\
-		"\tor	%2, %3\n"	/* Put in the new value. */	\
-		"\tsc	%2, %1\n"	/* Attempt to store. */		\
-		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
-		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp1),	\
-		  "=&r" (temp2)						\
-		: "r" (val32.v32), "r" (posmask32.v32),			\
-		  "r" (negmask32.v32), "m" (*mem32));			\
-	return (get_1(&old, mem8));					\
-}
-
-EMIT_ARITHMETIC_FETCH_AND_OP_1(fetch_and_add, "addu")
-EMIT_ARITHMETIC_FETCH_AND_OP_1(fetch_and_sub, "subu")
-
-#define	EMIT_BITWISE_FETCH_AND_OP_1(name, op, idempotence)		\
-uint8_t									\
-__sync_##name##_1(uint8_t *mem8, uint8_t val8)				\
-{									\
-	uint32_t *mem32;						\
-	reg_t val32, old;						\
-	uint32_t temp;							\
-									\
-	mem32 = round_to_word(mem8);					\
-	val32.v32 = idempotence ? 0xffffffff : 0x00000000;		\
-	put_1(&val32, mem8, val8);					\
-									\
-	mips_sync();							\
-	__asm volatile (						\
-		"1:"							\
-		"\tll	%0, %4\n"	/* Load old value. */		\
-		"\t"op"	%2, %3, %0\n"	/* Calculate new value. */	\
-		"\tsc	%2, %1\n"	/* Attempt to store. */		\
-		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
-		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)		\
-		: "r" (val32.v32), "m" (*mem32));			\
-	return (get_1(&old, mem8));					\
-}
-
-EMIT_BITWISE_FETCH_AND_OP_1(fetch_and_and, "and", 1)
-EMIT_BITWISE_FETCH_AND_OP_1(fetch_and_or, "or", 0)
-EMIT_BITWISE_FETCH_AND_OP_1(fetch_and_xor, "xor", 0)
-
-/*
- * 16-bit routines.
- */
 
 static inline void
 put_2(reg_t *r, uint16_t *offset_ptr, uint16_t val)
@@ -260,112 +141,129 @@ get_2(const reg_t *r, uint16_t *offset_ptr)
 	return (bytes.out);
 }
 
-uint16_t
-__sync_lock_test_and_set_2(uint16_t *mem16, uint16_t val16)
-{
-	uint32_t *mem32;
-	reg_t val32, negmask32, old;
-	uint32_t temp;
+/*
+ * 8-bit and 16-bit routines.
+ *
+ * These operations are not natively supported by the CPU, so we use
+ * some shifting and bitmasking on top of the 32-bit instructions.
+ */
 
-	mem32 = round_to_word(mem16);
-	val32.v32 = 0x00000000;
-	put_2(&val32, mem16, val16);
-	negmask32.v32 = 0xffffffff;
-	put_2(&negmask32, mem16, 0x0000);
-
-	mips_sync();
-	__asm volatile (
-		"1:"
-		"\tll	%0, %5\n"	/* Load old value. */
-		"\tand	%2, %4, %0\n"	/* Trim out affected part. */
-		"\tor	%2, %3\n"	/* Combine to new value. */
-		"\tsc	%2, %1\n"	/* Attempt to store. */
-		"\tbeqz	%2, 1b\n"	/* Spin if failed. */
-		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)
-		: "r" (val32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (get_2(&old, mem16));
-}
-
-uint16_t
-__sync_val_compare_and_swap_2(uint16_t *mem16, uint16_t expected,
-    uint16_t desired)
-{
-	uint32_t *mem32;
-	reg_t expected32, desired32, posmask32, negmask32, old;
-	uint32_t temp;
-
-	mem32 = round_to_word(mem16);
-	expected32.v32 = 0x00000000;
-	put_2(&expected32, mem16, expected);
-	desired32.v32 = 0x00000000;
-	put_2(&desired32, mem16, desired);
-	posmask32.v32 = 0x00000000;
-	put_2(&posmask32, mem16, 0xffff);
-	negmask32.v32 = ~posmask32.v32;
-
-	mips_sync();
-	__asm volatile (
-		"1:"
-		"\tll	%0, %7\n"	/* Load old value. */
-		"\tand	%2, %5, %0\n"	/* Isolate affected part. */
-		"\tbne	%2, %3, 2f\n"	/* Compare to expected value. */
-		"\tand	%2, %6, %0\n"	/* Trim out affected part. */
-		"\tor	%2, %4\n"	/* Put in the new value. */
-		"\tsc	%2, %1\n"	/* Attempt to store. */
-		"\tbeqz	%2, 1b\n"	/* Spin if failed. */
-		"2:"
-		: "=&r" (old), "=m" (*mem32), "=&r" (temp)
-		: "r" (expected32.v32), "r" (desired32.v32),
-		  "r" (posmask32.v32), "r" (negmask32.v32), "m" (*mem32));
-	return (get_2(&old, mem16));
-}
-
-#define	EMIT_ARITHMETIC_FETCH_AND_OP_2(name, op)			\
-uint16_t								\
-__sync_##name##_2(uint16_t *mem16, uint16_t val16)			\
+#define	EMIT_LOCK_TEST_AND_SET_N(N, uintN_t)				\
+uintN_t									\
+__sync_lock_test_and_set_##N(uintN_t *mem, uintN_t val)			\
 {									\
 	uint32_t *mem32;						\
-	reg_t val32, posmask32, negmask32, old;				\
+	reg_t val32, negmask, old;					\
+	uint32_t temp;							\
+									\
+	mem32 = round_to_word(mem);					\
+	val32.v32 = 0x00000000;						\
+	put_##N(&val32, mem, val);					\
+	negmask.v32 = 0xffffffff;					\
+	put_##N(&negmask, mem, 0);					\
+									\
+	mips_sync();							\
+	__asm volatile (						\
+		"1:"							\
+		"\tll	%0, %5\n"	/* Load old value. */		\
+		"\tand	%2, %4, %0\n"	/* Remove the old value. */	\
+		"\tor	%2, %3\n"	/* Put in the new value. */	\
+		"\tsc	%2, %1\n"	/* Attempt to store. */		\
+		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
+		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)		\
+		: "r" (val32.v32), "r" (negmask.v32), "m" (*mem32));	\
+	return (get_##N(&old, mem));					\
+}
+
+EMIT_LOCK_TEST_AND_SET_N(1, uint8_t)
+EMIT_LOCK_TEST_AND_SET_N(2, uint16_t)
+
+#define	EMIT_VAL_COMPARE_AND_SWAP_N(N, uintN_t)				\
+uintN_t									\
+__sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
+    uintN_t desired)							\
+{									\
+	uint32_t *mem32;						\
+	reg_t expected32, desired32, posmask, negmask, old;		\
+	uint32_t temp;							\
+									\
+	mem32 = round_to_word(mem);					\
+	expected32.v32 = 0x00000000;					\
+	put_##N(&expected32, mem, expected);				\
+	desired32.v32 = 0x00000000;					\
+	put_##N(&desired32, mem, desired);				\
+	posmask.v32 = 0x00000000;					\
+	put_##N(&posmask, mem, ~0);					\
+	negmask.v32 = ~posmask.v32;					\
+									\
+	mips_sync();							\
+	__asm volatile (						\
+		"1:"							\
+		"\tll	%0, %7\n"	/* Load old value. */		\
+		"\tand	%2, %5, %0\n"	/* Isolate the old value. */	\
+		"\tbne	%2, %3, 2f\n"	/* Compare to expected value. */\
+		"\tand	%2, %6, %0\n"	/* Remove the old value. */	\
+		"\tor	%2, %4\n"	/* Put in the new value. */	\
+		"\tsc	%2, %1\n"	/* Attempt to store. */		\
+		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
+		"2:"							\
+		: "=&r" (old), "=m" (*mem32), "=&r" (temp)		\
+		: "r" (expected32.v32), "r" (desired32.v32),		\
+		  "r" (posmask.v32), "r" (negmask.v32), "m" (*mem32));	\
+	return (get_##N(&old, mem));					\
+}
+
+EMIT_VAL_COMPARE_AND_SWAP_N(1, uint8_t)
+EMIT_VAL_COMPARE_AND_SWAP_N(2, uint16_t)
+
+#define	EMIT_ARITHMETIC_FETCH_AND_OP_N(N, uintN_t, name, op)		\
+uintN_t									\
+__sync_##name##_##N(uintN_t *mem, uintN_t val)				\
+{									\
+	uint32_t *mem32;						\
+	reg_t val32, posmask, negmask, old;				\
 	uint32_t temp1, temp2;						\
 									\
-	mem32 = round_to_word(mem16);					\
+	mem32 = round_to_word(mem);					\
 	val32.v32 = 0x00000000;						\
-	put_2(&val32, mem16, val16);					\
-	posmask32.v32 = 0x00000000;					\
-	put_2(&posmask32, mem16, 0xffff);				\
-	negmask32.v32 = ~posmask32.v32;					\
+	put_##N(&val32, mem, val);					\
+	posmask.v32 = 0x00000000;					\
+	put_##N(&posmask, mem, ~0);					\
+	negmask.v32 = ~posmask.v32;					\
 									\
 	mips_sync();							\
 	__asm volatile (						\
 		"1:"							\
 		"\tll	%0, %7\n"	/* Load old value. */		\
 		"\t"op"	%2, %0, %4\n"	/* Calculate new value. */	\
-		"\tand	%2, %5\n"	/* Isolate affected part. */	\
-		"\tand	%3, %6, %0\n"	/* Trim out affected part. */	\
-		"\tor	%2, %3\n"	/* Combine to new value. */	\
+		"\tand	%2, %5\n"	/* Isolate the new value. */	\
+		"\tand	%3, %6, %0\n"	/* Remove the old value. */	\
+		"\tor	%2, %3\n"	/* Put in the new value. */	\
 		"\tsc	%2, %1\n"	/* Attempt to store. */		\
 		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp1),	\
 		  "=&r" (temp2)						\
-		: "r" (val32.v32), "r" (posmask32.v32),			\
-		  "r" (negmask32.v32), "m" (*mem32));			\
-	return (get_2(&old, mem16));					\
+		: "r" (val32.v32), "r" (posmask.v32),			\
+		  "r" (negmask.v32), "m" (*mem32));			\
+	return (get_##N(&old, mem));					\
 }
 
-EMIT_ARITHMETIC_FETCH_AND_OP_2(fetch_and_add, "addu")
-EMIT_ARITHMETIC_FETCH_AND_OP_2(fetch_and_sub, "subu")
+EMIT_ARITHMETIC_FETCH_AND_OP_N(1, uint8_t, fetch_and_add, "addu")
+EMIT_ARITHMETIC_FETCH_AND_OP_N(1, uint8_t, fetch_and_sub, "subu")
+EMIT_ARITHMETIC_FETCH_AND_OP_N(2, uint16_t, fetch_and_add, "addu")
+EMIT_ARITHMETIC_FETCH_AND_OP_N(2, uint16_t, fetch_and_sub, "subu")
 
-#define	EMIT_BITWISE_FETCH_AND_OP_2(name, op, idempotence)		\
-uint16_t								\
-__sync_##name##_2(uint16_t *mem16, uint16_t val16)			\
+#define	EMIT_BITWISE_FETCH_AND_OP_N(N, uintN_t, name, op, idempotence)	\
+uintN_t									\
+__sync_##name##_##N(uintN_t *mem, uintN_t val)				\
 {									\
 	uint32_t *mem32;						\
 	reg_t val32, old;						\
 	uint32_t temp;							\
 									\
-	mem32 = round_to_word(mem16);					\
+	mem32 = round_to_word(mem);					\
 	val32.v32 = idempotence ? 0xffffffff : 0x00000000;		\
-	put_2(&val32, mem16, val16);					\
+	put_##N(&val32, mem, val);					\
 									\
 	mips_sync();							\
 	__asm volatile (						\
@@ -376,12 +274,15 @@ __sync_##name##_2(uint16_t *mem16, uint16_t val16)			\
 		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp)		\
 		: "r" (val32.v32), "m" (*mem32));			\
-	return (get_2(&old, mem16));					\
+	return (get_##N(&old, mem));					\
 }
 
-EMIT_BITWISE_FETCH_AND_OP_2(fetch_and_and, "and", 1)
-EMIT_BITWISE_FETCH_AND_OP_2(fetch_and_or, "or", 0)
-EMIT_BITWISE_FETCH_AND_OP_2(fetch_and_xor, "xor", 0)
+EMIT_BITWISE_FETCH_AND_OP_N(1, uint8_t, fetch_and_and, "and", 1)
+EMIT_BITWISE_FETCH_AND_OP_N(1, uint8_t, fetch_and_or, "or", 0)
+EMIT_BITWISE_FETCH_AND_OP_N(1, uint8_t, fetch_and_xor, "xor", 0)
+EMIT_BITWISE_FETCH_AND_OP_N(2, uint16_t, fetch_and_and, "and", 1)
+EMIT_BITWISE_FETCH_AND_OP_N(2, uint16_t, fetch_and_or, "or", 0)
+EMIT_BITWISE_FETCH_AND_OP_N(2, uint16_t, fetch_and_xor, "xor", 0)
 
 /*
  * 32-bit routines.
