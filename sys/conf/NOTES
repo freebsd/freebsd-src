@@ -2747,6 +2747,9 @@ device		ural
 # Realtek RTL8187B/L wireless driver
 device		urtw
 #
+# Realtek RTL8188CU/RTL8192CU wireless driver
+device		urtwn
+#
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd
 #
