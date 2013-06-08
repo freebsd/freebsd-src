@@ -237,10 +237,10 @@ f_dialog_input_group_password()
 
 		# Check for NULL entry
 		if [ ! "$_password1" ]; then
-			f_dialog_yesno \
-				"$msg_disable_password_auth_for_group" ||
-				continue
-			pw_group_password_disable=1
+			f_dialog_yesno "$msg_disable_password_auth_for_group"
+			local retval=$?
+			[ $retval -eq 255 ] && return $retval # ESC was pressed
+			[ $retval -eq $SUCCESS ] && pw_group_password_disable=1
 		else
 			pw_group_password_disable=
 		fi
