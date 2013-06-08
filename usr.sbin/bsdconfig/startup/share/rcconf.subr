@@ -136,7 +136,7 @@ f_startup_rcconf_map()
 	if [ -f "$STARTUP_RCCONF_MAP_CACHEFILE" ]; then
 		#
 		# Attempt to populate the in-memory cache with the (soon to be)
-		# be validated on-disk cache. If validation fails, fall-back to
+		# validated on-disk cache. If validation fails, fall-back to
 		# the current value and provide error exit status.
 		#
 		STARTUP_RCCONF_MAP=$(
