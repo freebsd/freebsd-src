@@ -2292,6 +2292,7 @@ dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
+dev/usb/wlan/if_urtwn.c		optional urtwn
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
