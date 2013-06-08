@@ -35,6 +35,8 @@ mips/mips/pmap.c			standard
 mips/mips/ptrace_machdep.c		standard
 mips/mips/sc_machdep.c			standard
 mips/mips/stack_machdep.c		optional	ddb | stack
+mips/mips/stdatomic.c			standard \
+	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 mips/mips/support.S			standard
 mips/mips/swtch.S			standard
 mips/mips/sys_machdep.c			standard
