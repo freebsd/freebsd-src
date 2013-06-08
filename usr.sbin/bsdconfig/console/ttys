@@ -86,7 +86,7 @@ dialog_menu_main()
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
-		$menu_ist                          \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
