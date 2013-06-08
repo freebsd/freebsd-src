@@ -208,8 +208,8 @@
 
     <para>[20130608] &os; &release; no longer supports &os; CVS
       repository.  Some documents mistakenly refer to
-      <literal>RELEASE_8_4_0</literal> as CVS tag for the release and
-      <literal>RELENG_8_4_0_RELEASE</literal> as CVS branch tag for the
+      <literal>RELENG_8_4_0_RELEASE</literal> as CVS tag for the release and
+      <literal>RELENG_8_4</literal> as CVS branch tag for the
       &release; security branch.  However, &os; Project no longer
       supports &os; CVS repository and &release; has been released by
       using &os; subversion repository instead.
