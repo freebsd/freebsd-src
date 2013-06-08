@@ -215,7 +215,7 @@
       using &os; subversion repository instead.
       <literal>RELENG_8_4</literal> corresponds to
       <literal>svn://svn.FreeBSD.org/base/releng/8.4</literal>, and
-      <literal>RELEASE_8_4_0</literal> corresponds to
+      <literal>RELENG_8_4_0_RELEASE</literal> corresponds to
       <literal>svn://svn.FreeBSD.org/base/release/8.4.0</literal>.
       Please note that &os; source tree for &release; and its security
       branch cannot be updated by using official CVSup servers.</para>
