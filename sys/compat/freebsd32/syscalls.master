@@ -1044,3 +1044,5 @@
 				    __socklen_t * __restrict anamelen, \
 				    int flags); }
 542	AUE_PIPE	NOPROTO	{ int pipe2(int *fildes, int flags); }
+543	AUE_NULL	NOSTD	{ int freebsd32_aio_mlock( \
+				    struct aiocb32 *aiocbp); }
