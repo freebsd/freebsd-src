@@ -239,9 +239,13 @@ f_dialog_input_group_password()
 		if [ ! "$_password1" ]; then
 			f_dialog_yesno "$msg_disable_password_auth_for_group"
 			local retval=$?
-			[ $retval -eq 255 ] && return $retval # ESC was pressed
-			[ $retval -eq $SUCCESS ] && pw_group_password_disable=1
-			continue # back to password prompt
+			if [ $retval -eq 255 ]; then # ESC was pressed
+				return $retval
+			elif [ $retval -eq $SUCCESS ]; then
+				pw_group_password_disable=1
+			else
+				continue # back to password prompt
+			fi
 		else
 			pw_group_password_disable=
 		fi
