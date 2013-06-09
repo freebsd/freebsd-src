@@ -147,10 +147,10 @@ struct g_command PUBSYM(class_commands)[] = {
 	},
 	{ "set", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
-		{ 'i', GPART_PARAM_INDEX, NULL, G_TYPE_NUMBER },
+		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "-a attrib -i index [-f flags] geom"
+	    "-a attrib [-i index] [-f flags] geom"
 	},
 	{ "show", 0, gpart_show, {
 		{ 'l', "show_label", NULL, G_TYPE_BOOL },
@@ -164,10 +164,10 @@ struct g_command PUBSYM(class_commands)[] = {
 	},
 	{ "unset", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
-		{ 'i', GPART_PARAM_INDEX, NULL, G_TYPE_NUMBER },
+		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "-a attrib -i index [-f flags] geom"
+	    "-a attrib [-i index] [-f flags] geom"
 	},
 	{ "resize", 0, gpart_issue, {
 		{ 'a', "alignment", GPART_AUTOFILL, G_TYPE_STRING },
