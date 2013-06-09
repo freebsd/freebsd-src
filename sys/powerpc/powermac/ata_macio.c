@@ -23,9 +23,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Mac-io ATA controller
@@ -85,7 +86,7 @@ struct ide_timings {
 	int active;     /* minimum command active time [ns] */
 };
 
-struct ide_timings pio_timings[5] = {
+static const struct ide_timings pio_timings[5] = {
 	{ 600, 180 },	/* PIO 0 */
 	{ 390, 150 },	/* PIO 1 */
 	{ 240, 105 },	/* PIO 2 */
@@ -122,7 +123,7 @@ static device_method_t ata_macio_methods[] = {
 
 	/* ATA interface */
 	DEVMETHOD(ata_setmode,		ata_macio_setmode),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 struct ata_macio_softc {
@@ -143,7 +144,7 @@ static driver_t ata_macio_driver = {
 	sizeof(struct ata_macio_softc),
 };
 
-DRIVER_MODULE(ata, macio, ata_macio_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, macio, ata_macio_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 static int
@@ -332,4 +333,3 @@ ata_macio_begin_transaction(struct ata_request *request)
 
 	return ata_begin_transaction(request);
 }
-
