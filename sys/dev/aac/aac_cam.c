@@ -163,8 +163,6 @@ aac_cam_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 		    event->ev_type);
 		break;
 	}
-
-	return;
 }
 
 static int
@@ -513,8 +511,6 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	aac_enqueue_ready(cm);
 	aac_startio(cm->cm_sc);
-
-	return;
 }
 
 static void
@@ -623,8 +619,6 @@ aac_cam_complete(struct aac_command *cm)
 
 	aac_release_command(cm);
 	xpt_done(ccb);
-
-	return;
 }
 
 static u_int32_t

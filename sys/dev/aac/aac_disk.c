@@ -167,8 +167,6 @@ aac_disk_strategy(struct bio *bp)
 	mtx_lock(&sc->ad_controller->aac_io_lock);
 	aac_submit_bio(bp);
 	mtx_unlock(&sc->ad_controller->aac_io_lock);
-
-	return;
 }
 
 /*
