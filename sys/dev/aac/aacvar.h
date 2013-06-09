@@ -158,13 +158,13 @@ struct aac_command
 	struct aac_fib		*cm_fib;	/* FIB associated with this
 						 * command */
 	u_int64_t		cm_fibphys;	/* bus address of the FIB */
-	struct bio		*cm_data;	/* pointer to data in kernel
+	void			*cm_data;	/* pointer to data in kernel
 						 * space */
 	u_int32_t		cm_datalen;	/* data length */
 	bus_dmamap_t		cm_datamap;	/* DMA map for bio data */
 	struct aac_sg_table	*cm_sgtable;	/* pointer to s/g table in
 						 * command */
-	int			cm_flags;
+	u_int			cm_flags;
 #define AAC_CMD_MAPPED		(1<<0)		/* command has had its data
 						 * mapped */
 #define AAC_CMD_DATAIN		(1<<1)		/* command involves data moving
@@ -182,7 +182,7 @@ struct aac_command
 #define AAC_QUEUE_FRZN		(1<<9)		/* Freeze the processing of
 						 * commands on the queue. */
 
-	void			(* cm_complete)(struct aac_command *cm);
+	void			(*cm_complete)(struct aac_command *cm);
 	void			*cm_private;
 	time_t			cm_timestamp;	/* command creation time */
 	int			cm_queue;
