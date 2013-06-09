@@ -273,7 +273,7 @@ static driver_t ata_cbus_driver = {
 
 static devclass_t ata_cbus_devclass;
 
-DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, 0, 0);
+DRIVER_MODULE(atacbus, isa, ata_cbus_driver, ata_cbus_devclass, NULL, NULL);
 
 static int
 ata_cbuschannel_probe(device_t dev)
