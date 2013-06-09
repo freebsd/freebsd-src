@@ -60,7 +60,7 @@ and
 in order to determine return or error status for the enqueued operation
 while it is in progress.
 .Pp
-If the request could not be enqueued (generally due to 
+If the request could not be enqueued (generally due to
 .Xr aio 4
 limits),
 then the call returns without having enqueued the request.
@@ -115,8 +115,8 @@ if the request was explicitly cancelled via a call to
 .Xr aio_cancel 2 ,
 .Xr aio_error 2 ,
 .Xr aio_return 2 ,
-.Xr aio 4 ,
-.Xr mlock 2
+.Xr mlock 2 ,
+.Xr aio 4
 .Sh PORTABILITY
 The
 .Fn aio_mlock
