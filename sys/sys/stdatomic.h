@@ -156,7 +156,10 @@ enum memory_order {
  * 7.17.5 Lock-free property.
  */
 
-#if defined(__CLANG_ATOMICS) || defined(__GNUC_ATOMICS)
+#if defined(__CLANG_ATOMICS)
+#define	atomic_is_lock_free(obj) \
+	__atomic_is_lock_free(sizeof(*(obj)), obj)
+#elif defined(__GNUC_ATOMICS)
 #define	atomic_is_lock_free(obj) \
 	__atomic_is_lock_free(sizeof((obj)->__val), &(obj)->__val)
 #else
