@@ -19,10 +19,31 @@ extra_commands="options static"
 static_cmd="routing_start static"
 options_cmd="routing_start options"
 
-afcheck()
+ROUTE_CMD="/sbin/route"
+
+routing_start()
 {
+	local _cmd _af _if _a
+	_cmd=$1
+	_af=$2
+	_if=$3
+
+	case $_if in
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])	_if="" ;;
+	esac
+
 	case $_af in
-	""|inet|inet6|ipx|atm)
+	inet|inet6|ipx|atm)
+		if afexists $_af; then
+			setroutes $_cmd $_af $_if
+		else
+			err 1 "Unsupported address family: $_af."
+		fi
+		;;
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
+		for _a in inet inet6 ipx atm; do
+			afexists $_a && setroutes $_cmd $_a $_if
+		done
 		;;
 	*)
 		err 1 "Unsupported address family: $_af."
@@ -30,44 +51,40 @@ afcheck()
 	esac
 }
 
-routing_start()
-{
-	local _cmd _af _a
-	_cmd=$1
-	_af=$2
-
-	afcheck
-
-	case $_af in
-	inet|inet6|ipx|atm)
-		setroutes $_cmd $_af
-		;;
-	"")
-		for _a in inet inet6 ipx atm; do
-			afexists $_a && setroutes $_cmd $_a
-		done
-		;;
-	esac
-}
-
 routing_stop()
 {
-	local _af _a
+	local _af _if _a
 	_af=$1
+	_if=$2
 
-	afcheck
+	case $_if in
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])	_if="" ;;
+	esac
 
 	case $_af in
 	inet|inet6|ipx|atm)
-		eval static_${_af} delete
-		eval routing_stop_${_af}
+		if afexists $_af; then
+			eval static_${_af} delete $_if 
+			# When $_if is specified, do not flush routes.
+			if ! [ -n "$_if" ]; then
+				eval routing_stop_${_af}
+			fi
+		else
+			err 1 "Unsupported address family: $_af."
+		fi
 		;;
-	"")
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
 		for _a in inet inet6 ipx atm; do
 			afexists $_a || continue
-			eval static_${_a} delete
-			eval routing_stop_${_a}
+			eval static_${_a} delete $_if
+			# When $_if is specified, do not flush routes.
+			if ! [ -n "$_if" ]; then
+				eval routing_stop_${_a}
+			fi
 		done
+		;;
+	*)
+		err 1 "Unsupported address family: $_af."
 		;;
 	esac
 }
@@ -76,13 +93,13 @@ setroutes()
 {
 	case $1 in
 	static)
-		static_$2 add
+		static_$2 add $3
 		;;
 	options)
 		options_$2
 		;;
 	doall)
-		static_$2 add
+		static_$2 add $3
 		options_$2
 		;;
 	esac
@@ -90,14 +107,14 @@ setroutes()
 
 routing_stop_inet()
 {
-	route -n flush -inet
+	${ROUTE_CMD} -n flush -inet
 }
 
 routing_stop_inet6()
 {
 	local i
 
-	route -n flush -inet6
+	${ROUTE_CMD} -n flush -inet6
 	for i in `list_net_interfaces`; do
 		if ipv6if $i; then
 			ifconfig $i inet6 -defaultif
@@ -117,30 +134,47 @@ routing_stop_ipx()
 
 static_inet()
 {
-	local _action
+	local _action _if _skip
 	_action=$1
+	_if=$2
 
+	# Add default route.
 	case ${defaultrouter} in
 	[Nn][Oo] | '')
 		;;
 	*)
-		static_routes="default ${static_routes}"
-		route_default="default ${defaultrouter}"
+		static_routes="_default ${static_routes}"
+		route__default="default ${defaultrouter}"
 		;;
 	esac
 
+	# Install configured routes.
 	if [ -n "${static_routes}" ]; then
 		for i in ${static_routes}; do
-			route_args=`get_if_var $i route_IF`
-			route ${_action} ${route_args}
+			_skip=0
+			if [ -n "$_if" ]; then
+				case $i in
+				*:$_if)	;;
+				*)	_skip=1 ;;
+				esac
+			fi
+			if [ $_skip = 0 ]; then
+				route_args=`get_if_var ${i%:*} route_IF`
+				if [ -n "$route_args" ]; then
+					${ROUTE_CMD} ${_action} ${route_args}
+				else
+					warn "route_${i%:*} not found."
+				fi
+			fi
 		done
 	fi
 }
 
 static_inet6()
 {
-	local _action fibmod fibs
+	local _action _if _skip fibmod fibs
 	_action=$1
+	_if=$2
 
 	# get the number of FIBs supported.
 	fibs=$((`${SYSCTL_N} net.fibs` - 1))
@@ -150,58 +184,74 @@ static_inet6()
 		fibmod=
 	fi
 
-	# disallow "internal" addresses to appear on the wire
-	route ${_action} -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}
-	route ${_action} -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}
+	# Add pre-defined static routes first.
+	ipv6_static_routes="_v4mapped _v4compat ${ipv6_static_routes}"
+	ipv6_static_routes="_lla _llma ${ipv6_static_routes}"
 
+	# disallow "internal" addresses to appear on the wire
+	ipv6_route__v4mapped="::ffff:0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
+	ipv6_route__v4compat="::0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
+
+	# Disallow link-local unicast packets without outgoing scope
+	# identifiers.  However, if you set "ipv6_default_interface",
+	# for the host case, you will allow to omit the identifiers.
+	# Under this configuration, the packets will go to the default
+	# interface.
+	ipv6_route__lla="fe80:: -prefixlen 10 ::1 -reject ${fibmod}"
+	ipv6_route__llma="ff02:: -prefixlen 16 ::1 -reject ${fibmod}"
+
+	# Add default route.
 	case ${ipv6_defaultrouter} in
 	[Nn][Oo] | '')
 		;;
 	*)
-		ipv6_static_routes="default ${ipv6_static_routes}"
-		ipv6_route_default="default ${ipv6_defaultrouter}"
+		ipv6_static_routes="_default ${ipv6_static_routes}"
+		ipv6_route__default="default ${ipv6_defaultrouter}"
 		;;
 	esac
 
+	# Install configured routes.
 	if [ -n "${ipv6_static_routes}" ]; then
 		for i in ${ipv6_static_routes}; do
-			ipv6_route_args=`get_if_var $i ipv6_route_IF`
-			route ${_action} -inet6 ${ipv6_route_args}
+			_skip=0
+			if [ -n "$_if" ]; then
+				case $i in
+				*:$_if)	;;
+				*)	_skip=1 ;;
+				esac
+			fi
+			if [ $_skip = 0 ]; then
+				ipv6_route_args=`get_if_var ${i%:*} ipv6_route_IF`
+				if [ -n "$ipv6_route_args" ]; then
+					${ROUTE_CMD} ${_action} \
+						-inet6 ${ipv6_route_args}
+				else
+					warn "route_${i%:*} not found"
+				fi
+			fi
 		done
-	fi
-
-	# Fixup $ipv6_network_interfaces
-	case ${ipv6_network_interfaces} in
-	[Nn][Oo][Nn][Ee])
-		ipv6_network_interfaces=''
-		;;
-	esac
-
-	if checkyesno ipv6_gateway_enable; then
-		for i in ${ipv6_network_interfaces}; do
-
-			laddr=`network6_getladdr $i exclude_tentative`
-			case ${laddr} in
-			'')
-				;;
-			*)
-				ipv6_working_interfaces="$i \
-				    ${ipv6_working_interfaces}"
-				;;
-			esac
-		done
-		ipv6_network_interfaces=${ipv6_working_interfaces}
 	fi
 
 	# Install the "default interface" to kernel, which will be used
 	# as the default route when there's no router.
+
+	# Disable installing the default interface when we act
+	# as router to avoid conflict between the default
+	# router list and the manual configured default route.
+	if checkyesno ipv6_gateway_enable; then
+		return
+	fi
+
 	case "${ipv6_default_interface}" in
 	[Nn][Oo] | [Nn][Oo][Nn][Ee])
-		ipv6_default_interface=""
+		return
 		;;
 	[Aa][Uu][Tt][Oo] | "")
 		for i in ${ipv6_network_interfaces}; do
 			case $i in
+			[Nn][Oo][Nn][Ee])
+				return
+				;;
 			lo0|faith[0-9]*)
 				continue
 				;;
@@ -219,27 +269,8 @@ static_inet6()
 		;;
 	esac
 
-	# Disallow link-local unicast packets without outgoing scope
-	# identifiers.  However, if you set "ipv6_default_interface",
-	# for the host case, you will allow to omit the identifiers.
-	# Under this configuration, the packets will go to the default
-	# interface.
-	route ${_action} -inet6 fe80:: -prefixlen 10 ::1 -reject ${fibmod}
-	route ${_action} -inet6 ff02:: -prefixlen 16 ::1 -reject ${fibmod}
-
-	case ${ipv6_default_interface} in
-	'')
-		;;
-	*)
-		# Disable installing the default interface when we act
-		# as router to avoid conflict between the default
-		# router list and the manual configured default route.
-		if ! checkyesno ipv6_gateway_enable; then
-			ifconfig ${ipv6_default_interface} inet6 defaultif
-			sysctl net.inet6.ip6.use_defaultzone=1
-		fi
-		;;
-	esac
+	ifconfig ${ipv6_default_interface} inet6 defaultif
+	sysctl net.inet6.ip6.use_defaultzone=1
 }
 
 static_atm()
@@ -250,7 +281,11 @@ static_atm()
 	if [ -n "${natm_static_routes}" ]; then
 		for i in ${natm_static_routes}; do
 			route_args=`get_if_var $i route_IF`
-			atmconfig natm ${_action} ${route_args}
+			if [ -n "$route_args" ]; then
+				atmconfig natm ${_action} ${route_args}
+			else
+				warn "route_${i} not found."
+			fi
 		done
 	fi
 }

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2012
+.Dd June 9, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2689,10 +2689,18 @@ whose contents will later be passed to a
 operation.
 For example:
 .Bd -literal
-static_routes="mcast gif0local"
+static_routes="ext mcast:gif0 gif0local:gif0"
+route_ext="-net 10.0.0.0/24 -gateway 192.168.0.1"
 route_mcast="-net 224.0.0.0/4 -iface gif0"
 route_gif0local="-host 169.254.1.1 -iface lo0"
 .Ed
+.Pp
+When an
+.Ar element
+is in the form of
+.Li name:ifname ,
+the route is specific to the interface
+.Li ifname .
 .It Va ipv6_static_routes
 .Pq Vt str
 The IPv6 equivalent of
