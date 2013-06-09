@@ -365,12 +365,12 @@ f_dialog_input_view_details()
 	esac
 }
 
-# f_dialog_input_rclist
+# f_dialog_input_rclist [$default]
 #
 # Presents a menu of rc.conf(5) defaults (with, or without descriptions). This
 # function should be treated like a call to dialog(1) (the exit status should
 # be captured and f_dialog_menutag_fetch() should be used to get the user's
-# response).
+# response). Optionally if present and non-null, highlight $default rcvar.
 #
 f_dialog_input_rclist()
 {
@@ -378,6 +378,7 @@ f_dialog_input_rclist()
 	local menu_list="
 		'X $msg_exit' '' ${SHOW_DESC:+'$msg_exit_this_menu'}
 	" # END-QUOTE
+	local defaultitem="$1"
 	local hline="$hline_arrows_tab_enter"
 
 	if [ ! "$_RCCONF_MAP" ]; then
@@ -434,6 +435,7 @@ f_dialog_input_rclist()
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
+		--default-item \"\$defaultitem\"   \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		${SHOW_DESC:+--item-help}          \

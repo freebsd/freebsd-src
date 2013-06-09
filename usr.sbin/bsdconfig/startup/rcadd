@@ -120,27 +120,25 @@ while :; do
 
 	case "$mtag" in
 	1) # Add From List
-		# Loop for easy return
+		# Loop to allow adding multiple variables quickly
+		defaultitem=
 		while :; do
-			f_dialog_input_rclist || break
+			f_dialog_input_rclist "$defaultitem" || f_die
 			f_dialog_menutag_fetch mtag
+			defaultitem="$mtag"
 
 			case "$mtag" in
 			"X $msg_exit" ) break ;;
 			*) # Anything else is a directive
 				rcvar="${mtag# }"
 				$BSDCFG_LIBE/$APP_DIR/rcedit \
-					${USE_XDIALOG:+-X} \
-					"$rcvar" || continue
+					${USE_XDIALOG:+-X} "$rcvar"
 			esac
-			break
 		done
-		[ $retval -eq 0 ] || continue
 		;;
 	2) # Add Custom
 		f_dialog_input_rcvar || continue
-		$BSDCFG_LIBE/$APP_DIR/rcedit ${USE_XDIALOG:+-X} "$rcvar" ||
-			continue
+		$BSDCFG_LIBE/$APP_DIR/rcedit ${USE_XDIALOG:+-X} "$rcvar"
 		;;
 	esac
 done
