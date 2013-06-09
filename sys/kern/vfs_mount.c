@@ -864,6 +864,7 @@ vfs_domount_first(
 	VOP_UNLOCK(newdp, 0);
 	VOP_UNLOCK(vp, 0);
 	mountcheckdirs(vp, newdp);
+	EVENTHANDLER_INVOKE(vfs_mounted, mp, newdp, td);
 	vrele(newdp);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		vfs_allocate_syncvnode(mp);
@@ -1355,6 +1356,7 @@ dounmount(mp, flags, td)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
+	EVENTHANDLER_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
 		vput(coveredvp);
