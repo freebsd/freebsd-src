@@ -2349,17 +2349,6 @@ static void sym_enqueue_cam_ccb(ccb_p cp)
 /*
  *  Complete a pending CAM CCB.
  */
-static void _sym_xpt_done(hcb_p np, union ccb *ccb)
-{
-	SYM_LOCK_ASSERT(MA_OWNED);
-
-	KASSERT((ccb->ccb_h.status & CAM_SIM_QUEUED) == 0,
-			("%s: status=CAM_SIM_QUEUED", __func__));
-
-	if (ccb->ccb_h.flags & CAM_DEV_QFREEZE)
-		sym_freeze_cam_ccb(ccb);
-	xpt_done(ccb);
-}
 
 static void sym_xpt_done(hcb_p np, union ccb *ccb, ccb_p cp)
 {
@@ -2371,7 +2360,7 @@ static void sym_xpt_done(hcb_p np, union ccb *ccb, ccb_p cp)
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		ccb->ccb_h.sym_hcb_ptr = NULL;
 	}
-	_sym_xpt_done(np, ccb);
+	xpt_done(ccb);
 }
 
 static void sym_xpt_done2(hcb_p np, union ccb *ccb, int cam_status)
@@ -2379,7 +2368,7 @@ static void sym_xpt_done2(hcb_p np, union ccb *ccb, int cam_status)
 	SYM_LOCK_ASSERT(MA_OWNED);
 
 	sym_set_cam_status(ccb, cam_status);
-	_sym_xpt_done(np, ccb);
+	xpt_done(ccb);
 }
 
 /*
@@ -8969,7 +8958,7 @@ static int sym_cam_attach(hcb_p np)
 		goto fail;
 	np->sim = sim;
 
-	if (xpt_create_path(&path, 0,
+	if (xpt_create_path(&path, NULL,
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		goto fail;
