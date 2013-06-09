@@ -206,6 +206,54 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
+    <para>[20130609] There is incompatibility in &man.jail.8;
+      configuration because the &man.jail.8; utility and
+      <filename>rc.d/jail</filename> script has been changed.  More
+      specifically, the following &man.sysctl.8; variables cannot be
+      used to set the default parameters for jails:</para>
+
+    <programlisting>security.jail.mount_zfs_allowed
+security.jail.mount_procfs_allowed
+security.jail.mount_nullfs_allowed
+security.jail.mount_devfs_allowed
+security.jail.mount_allowed
+security.jail.chflags_allowed
+security.jail.allow_raw_sockets
+security.jail.sysvipc_allowed
+security.jail.socket_unixiproute_only
+security.jail.set_hostname_allowed</programlisting>
+
+    <para>These could be set by manually using &man.sysctl.8; utility,
+      the &man.sysctl.conf.5; file, or for some of them the following
+      variables in &man.rc.conf.5;:</para>
+
+    <programlisting>jail_set_hostname_allow="yes"
+jail_socket_unixiproute_only="yes"
+jail_sysvipc_allow="yes"</programlisting>
+
+    <para>These parameters must now be specified in
+      <varname>jail_parameters</varname> (or
+      <varname>jail_<replaceable>jailname</replaceable>_parameters</varname>
+      for per-jail configuration) in &man.rc.conf.5;.  For
+      example:</para>
+
+    <programlisting>jail_parameters="allow.sysvipc allow.raw_sockets"</programlisting>
+
+    <para>The valid keywords are the following.  For more detail, see
+      &man.jail.8; manual page.</para>
+
+    <programlisting>allow.set_hostname
+allow.sysvipc
+allow.raw_sockets
+allow.chflags
+allow.mount
+allow.mount.devfs
+allow.mount.nullfs
+allow.mount.procfs
+allow.mount.zfs
+allow.quotas
+allow.socket_af</programlisting>
+
     <para>[20130608] &os; &release; no longer supports &os; CVS
       repository.  Some documents mistakenly refer to
       <literal>RELENG_8_4_0_RELEASE</literal> as CVS tag for the release and
@@ -220,22 +268,8 @@
       Please note that &os; source tree for &release; and its security
       branch cannot be updated by using official CVSup servers.</para>
 
-    <para>[20130607] The &man.bge.4; network interface driver has an
-      issue when TSO (TCP Segmentation Offload) is enabled.  It causes
-      intermittent reset and re-initialization.</para>
-
-    <para>A workaround is disabling the TSO feature.  One can disable
-      it by adding the following line into the &man.rc.conf.5;
-      file:</para>
-
-    <programlisting>ifconfig_<replaceable>bge0</replaceable>="-tso"</programlisting>
-
-    <para>or by using the &man.ifconfig.8; utility manually:</para>
-
-    <screen>&prompt.root; <userinput>ifconfig <replaceable>bge0</replaceable> -tso</userinput></screen>
-
-    <para>A patch to fix this issue will be released as an Errata
-      Notice.</para>
+    <para>[20130607] (removed about a &man.bge.4; network interface
+	driver issue because it was incorrect)</para>
 
     <para>[20130606] The &man.fxp.4; network interface driver may not
       work well with the &man.dhclient.8; utility.  More specifically,
