@@ -497,6 +497,8 @@ g_part_mbr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_mbr_entry *entry;
 	int changed;
 
+	if (baseentry == NULL)
+		return (ENODEV);
 	if (strcasecmp(attrib, "active") != 0)
 		return (EINVAL);
 
