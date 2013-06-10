@@ -779,6 +779,7 @@ trap(struct trapframe *frame)
 		    fubyte((void *)(frame->tf_eip + 6)),
 		    fubyte((void *)(frame->tf_eip + 7)));
 	}
+	KASSERT((read_eflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 
 #ifdef DEBUG
