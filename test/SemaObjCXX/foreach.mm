@@ -12,7 +12,17 @@ void f(NSArray *a) {
                  // expected-warning {{expression result unused}}
   
   for (id thisKey : keys);
+
+  for (auto thisKey : keys) { } // expected-warning{{'auto' deduced as 'id' in declaration of 'thisKey'}}
 }
+
+template<typename Collection>
+void ft(Collection col) {
+  for (id x : col) { }
+  for (auto x : col) { }
+}
+
+template void ft(NSArray *);
 
 /* // rdar://9072298 */
 @protocol NSObject @end
@@ -58,4 +68,10 @@ void test2(NSObject<NSFastEnumeration> *collection) {
   for (obj.prop : collection) { // expected-error {{for range declaration must declare a variable}} \
                                 // expected-warning {{property access result unused - getters should not be used for side effects}}
   }
+}
+
+void testErrors(NSArray *array) {
+  typedef int fn(int);
+
+  for (fn x in array) { } // expected-error{{non-variable declaration in 'for' loop}}
 }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -E -std=c1x %s -o - | FileCheck --check-prefix=CHECK-1X %s
+// RUN: %clang_cc1 -E -triple x86_64-linux-gnu -std=c1x %s -o - | FileCheck --check-prefix=CHECK-1X %s
 // RUN: %clang_cc1 -E %s -o - | FileCheck --check-prefix=CHECK-NO-1X %s
 
 #if __has_feature(c_atomic)
@@ -36,6 +36,15 @@ int no_alignas();
 
 // CHECK-1X: has_alignas
 // CHECK-NO-1X: no_alignas
+
+#if __has_feature(c_thread_local)
+int has_thread_local();
+#else
+int no_thread_local();
+#endif
+
+// CHECK-1X: has_thread_local
+// CHECK-NO-1X: no_thread_local
 
 #if __STDC_VERSION__ > 199901L
 int is_c1x();

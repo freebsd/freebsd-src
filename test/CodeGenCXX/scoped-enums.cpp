@@ -7,3 +7,11 @@ void f(Color);
 void g() {
   f(Color::red);
 }
+
+// See that struct is handled equally.
+enum struct Colour { grey };
+
+void h(Colour);
+void i() {
+  h(Colour::grey);
+}

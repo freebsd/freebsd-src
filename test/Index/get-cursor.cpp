@@ -47,6 +47,24 @@ void test() {
   };
 }
 
+template <bool (*tfn)(X*)>
+struct TS {
+  void foo();
+};
+
+template <bool (*tfn)(X*)>
+void TS<tfn>::foo() {}
+
+template <typename T>
+class TC {
+  void init();
+};
+
+template<> void TC<char>::init();
+
+#define EXTERN_TEMPLATE(...) extern template __VA_ARGS__;
+EXTERN_TEMPLATE(class TC<char>)
+
 // RUN: c-index-test -cursor-at=%s:6:4 %s | FileCheck -check-prefix=CHECK-COMPLETION-1 %s
 // CHECK-COMPLETION-1: CXXConstructor=X:6:3
 // CHECK-COMPLETION-1-NEXT: Completion string: {TypedText X}{LeftParen (}{Placeholder int}{Comma , }{Placeholder int}{RightParen )}
@@ -103,3 +121,10 @@ void test() {
 
 // RUN: c-index-test -cursor-at=%s:45:9 %s | FileCheck -check-prefix=CHECK-LOCALCLASS %s
 // CHECK-LOCALCLASS: 45:9 DeclRefExpr=x:44:11 Extent=[45:9 - 45:10] Spelling=x ([45:9 - 45:10])
+
+// RUN: c-index-test -cursor-at=%s:50:23 -cursor-at=%s:55:23 %s | FileCheck -check-prefix=CHECK-TEMPLPARAM %s
+// CHECK-TEMPLPARAM: 50:23 TypeRef=struct X:3:8 Extent=[50:23 - 50:24] Spelling=struct X ([50:23 - 50:24])
+// CHECK-TEMPLPARAM: 55:23 TypeRef=struct X:3:8 Extent=[55:23 - 55:24] Spelling=struct X ([55:23 - 55:24])
+
+// RUN: c-index-test -cursor-at=%s:66:23 %s | FileCheck -check-prefix=CHECK-TEMPLSPEC %s
+// CHECK-TEMPLSPEC: 66:23 ClassDecl=TC:66:23 (Definition) [Specialization of TC:59:7] Extent=[66:1 - 66:31] Spelling=TC ([66:23 - 66:25])

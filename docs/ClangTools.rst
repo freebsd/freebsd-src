@@ -100,7 +100,11 @@ Currently it can:
 
 * convert loops to range-based for loops;
 
-* convert null pointer constants (like ``NULL`` or ``0``) to C++11 ``nullptr``.
+* convert null pointer constants (like ``NULL`` or ``0``) to C++11 ``nullptr``;
+
+* replace the type specifier in variable declarations with the ``auto`` type specifier;
+
+* add the ``override`` specifier to applicable member functions.
 
 Extra Clang Tools
 =================
@@ -120,6 +124,27 @@ Ideas for new Tools
   ``foo.begin()`` into ``begin(foo)`` and similarly for ``end()``, where
   ``foo`` is a standard container.  We could also detect similar patterns for
   arrays.
+* ``make_shared`` / ``make_unique`` conversion.  Part of this transformation
+can be incorporated into the ``auto`` transformation.  Will convert
+
+  .. code-block:: c++
+
+    std::shared_ptr<Foo> sp(new Foo);
+    std::unique_ptr<Foo> up(new Foo);
+
+    func(std::shared_ptr<Foo>(new Foo), bar());
+
+  into:
+
+  .. code-block:: c++
+
+    auto sp = std::make_shared<Foo>();
+    auto up = std::make_unique<Foo>(); // In C++14 mode.
+
+    // This also affects correctness.  For the cases where bar() throws,
+    // make_shared() is safe and the original code may leak.
+    func(std::make_shared<Foo>(), bar());
+
 * ``tr1`` removal tool.  Will migrate source code from using TR1 library
   features to C++11 library.  For example:
 
@@ -149,4 +174,18 @@ Ideas for new Tools
   comments with deduced types.  The motivation is that there are developers
   that don't want to use ``auto`` because they are afraid that they might lose
   control over their code.
+
+* C++14: less verbose operator function objects (`N3421
+  <http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3421.htm>`_).
+  For example:
+
+  .. code-block:: c++
+
+    sort(v.begin(), v.end(), greater<ValueType>());
+
+  should be rewritten to:
+
+  .. code-block:: c++
+
+    sort(v.begin(), v.end(), greater<>());
 

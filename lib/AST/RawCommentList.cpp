@@ -21,8 +21,10 @@ using namespace clang;
 
 namespace {
 /// Get comment kind and bool describing if it is a trailing comment.
-std::pair<RawComment::CommentKind, bool> getCommentKind(StringRef Comment) {
-  if (Comment.size() < 3 || Comment[0] != '/')
+std::pair<RawComment::CommentKind, bool> getCommentKind(StringRef Comment,
+                                                        bool ParseAllComments) {
+  const size_t MinCommentLength = ParseAllComments ? 2 : 3;
+  if ((Comment.size() < MinCommentLength) || Comment[0] != '/')
     return std::make_pair(RawComment::RCK_Invalid, false);
 
   RawComment::CommentKind K;
@@ -63,9 +65,10 @@ bool mergedCommentIsTrailingComment(StringRef Comment) {
 } // unnamed namespace
 
 RawComment::RawComment(const SourceManager &SourceMgr, SourceRange SR,
-                       bool Merged) :
+                       bool Merged, bool ParseAllComments) :
     Range(SR), RawTextValid(false), BriefTextValid(false),
     IsAttached(false), IsAlmostTrailingComment(false),
+    ParseAllComments(ParseAllComments),
     BeginLineValid(false), EndLineValid(false) {
   // Extract raw comment text, if possible.
   if (SR.getBegin() == SR.getEnd() || getRawText(SourceMgr).empty()) {
@@ -75,7 +78,7 @@ RawComment::RawComment(const SourceManager &SourceMgr, SourceRange SR,
 
   if (!Merged) {
     // Guess comment kind.
-    std::pair<CommentKind, bool> K = getCommentKind(RawText);
+    std::pair<CommentKind, bool> K = getCommentKind(RawText, ParseAllComments);
     Kind = K.first;
     IsTrailingComment = K.second;
 
@@ -143,7 +146,8 @@ const char *RawComment::extractBriefText(const ASTContext &Context) const {
   // a separate allocator for all temporary stuff.
   llvm::BumpPtrAllocator Allocator;
 
-  comments::Lexer L(Allocator, Context.getCommentCommandTraits(),
+  comments::Lexer L(Allocator, Context.getDiagnostics(),
+                    Context.getCommentCommandTraits(),
                     Range.getBegin(),
                     RawText.begin(), RawText.end());
   comments::BriefParser P(L, Context.getCommentCommandTraits());
@@ -164,7 +168,8 @@ comments::FullComment *RawComment::parse(const ASTContext &Context,
   // Make sure that RawText is valid.
   getRawText(Context.getSourceManager());
 
-  comments::Lexer L(Context.getAllocator(), Context.getCommentCommandTraits(),
+  comments::Lexer L(Context.getAllocator(), Context.getDiagnostics(),
+                    Context.getCommentCommandTraits(),
                     getSourceRange().getBegin(),
                     RawText.begin(), RawText.end());
   comments::Sema S(Context.getAllocator(), Context.getSourceManager(),
@@ -253,7 +258,8 @@ void RawCommentList::addComment(const RawComment &RC,
     if (C1EndLine + 1 == C2BeginLine || C1EndLine == C2BeginLine) {
       SourceRange MergedRange(C1.getSourceRange().getBegin(),
                               C2.getSourceRange().getEnd());
-      *Comments.back() = RawComment(SourceMgr, MergedRange, true);
+      *Comments.back() = RawComment(SourceMgr, MergedRange, true,
+                                    RC.isParseAllComments());
       Merged = true;
     }
   }
@@ -262,4 +268,3 @@ void RawCommentList::addComment(const RawComment &RC,
 
   OnlyWhitespaceSeen = true;
 }
-

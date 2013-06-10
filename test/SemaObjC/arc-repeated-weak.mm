@@ -327,6 +327,32 @@ void doWhileLoop(Test *a) {
 }
 @end
 
+@interface Base1
+@end
+@interface Sub1 : Base1
+@end
+@interface Sub1(cat)
+-(id)prop;
+@end
+
+void test1(Sub1 *s) {
+  use([s prop]);
+  use([s prop]);
+}
+
+@interface Base1(cat)
+@property (weak) id prop;
+@end
+
+void test2(Sub1 *s) {
+  // This does not warn because the "prop" in "Base1(cat)" was introduced
+  // after the method declaration and we don't find it as overridden.
+  // Always looking for overridden methods after the method declaration is expensive
+  // and it's not clear it is worth it currently.
+  use([s prop]);
+  use([s prop]);
+}
+
 
 class Wrapper {
   Test *a;

@@ -41,3 +41,5 @@ const char *p10 = 3.300e+15_fritz;
 // CHECK: ;
 ;
 // CHECK-NOT: ;
+
+

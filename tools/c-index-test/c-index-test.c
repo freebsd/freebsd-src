@@ -694,6 +694,9 @@ static void PrintCursor(CXCursor Cursor,
       printf(" (static)");
     if (clang_CXXMethod_isVirtual(Cursor))
       printf(" (virtual)");
+
+    if (clang_Cursor_isVariadic(Cursor))
+      printf(" (variadic)");
     
     if (Cursor.kind == CXCursor_IBOutletCollectionAttr) {
       CXType T =
@@ -787,6 +790,44 @@ static void PrintCursor(CXCursor Cursor,
     }
 
     PrintCursorComments(Cursor, ValidationData);
+
+    {
+      unsigned PropAttrs = clang_Cursor_getObjCPropertyAttributes(Cursor, 0);
+      if (PropAttrs != CXObjCPropertyAttr_noattr) {
+        printf(" [");
+        #define PRINT_PROP_ATTR(A) \
+          if (PropAttrs & CXObjCPropertyAttr_##A) printf(#A ",")
+        PRINT_PROP_ATTR(readonly);
+        PRINT_PROP_ATTR(getter);
+        PRINT_PROP_ATTR(assign);
+        PRINT_PROP_ATTR(readwrite);
+        PRINT_PROP_ATTR(retain);
+        PRINT_PROP_ATTR(copy);
+        PRINT_PROP_ATTR(nonatomic);
+        PRINT_PROP_ATTR(setter);
+        PRINT_PROP_ATTR(atomic);
+        PRINT_PROP_ATTR(weak);
+        PRINT_PROP_ATTR(strong);
+        PRINT_PROP_ATTR(unsafe_unretained);
+        printf("]");
+      }
+    }
+
+    {
+      unsigned QT = clang_Cursor_getObjCDeclQualifiers(Cursor);
+      if (QT != CXObjCDeclQualifier_None) {
+        printf(" [");
+        #define PRINT_OBJC_QUAL(A) \
+          if (QT & CXObjCDeclQualifier_##A) printf(#A ",")
+        PRINT_OBJC_QUAL(In);
+        PRINT_OBJC_QUAL(Inout);
+        PRINT_OBJC_QUAL(Out);
+        PRINT_OBJC_QUAL(Bycopy);
+        PRINT_OBJC_QUAL(Byref);
+        PRINT_OBJC_QUAL(Oneway);
+        printf("]");
+      }
+    }
   }
 }
 
@@ -934,6 +975,23 @@ enum CXChildVisitResult FilteredPrintingVisitor(CXCursor Cursor,
            GetCursorSource(Cursor), line, column);
     PrintCursor(Cursor, &Data->ValidationData);
     PrintCursorExtent(Cursor);
+    if (clang_isDeclaration(Cursor.kind)) {
+      enum CX_CXXAccessSpecifier access = clang_getCXXAccessSpecifier(Cursor);
+      const char *accessStr = 0;
+
+      switch (access) {
+        case CX_CXXInvalidAccessSpecifier: break;
+        case CX_CXXPublic:
+          accessStr = "public"; break;
+        case CX_CXXProtected:
+          accessStr = "protected"; break;
+        case CX_CXXPrivate:
+          accessStr = "private"; break;
+      }
+
+      if (accessStr)
+        printf(" [access=%s]", accessStr);
+    }
     printf("\n");
     return CXChildVisit_Recurse;
   }
@@ -1144,6 +1202,61 @@ static enum CXChildVisitResult PrintType(CXCursor cursor, CXCursor p,
   return CXChildVisit_Recurse;
 }
 
+static enum CXChildVisitResult PrintTypeSize(CXCursor cursor, CXCursor p,
+                                             CXClientData d) {
+  CXType T;
+  enum CXCursorKind K = clang_getCursorKind(cursor);
+  if (clang_isInvalid(K))
+    return CXChildVisit_Recurse;
+  T = clang_getCursorType(cursor);
+  PrintCursor(cursor, NULL);
+  PrintTypeAndTypeKind(T, " [type=%s] [typekind=%s]");
+  /* Print the type sizeof if applicable. */
+  {
+    long long Size = clang_Type_getSizeOf(T);
+    if (Size >= 0 || Size < -1 ) {
+      printf(" [sizeof=%lld]", Size);
+    }
+  }
+  /* Print the type alignof if applicable. */
+  {
+    long long Align = clang_Type_getAlignOf(T);
+    if (Align >= 0 || Align < -1) {
+      printf(" [alignof=%lld]", Align);
+    }
+  }
+  /* Print the record field offset if applicable. */
+  {
+    const char *FieldName = clang_getCString(clang_getCursorSpelling(cursor));
+    /* recurse to get the root anonymous record parent */
+    CXCursor Parent, Root;
+    if (clang_getCursorKind(cursor) == CXCursor_FieldDecl ) {
+      const char *RootParentName;
+      Root = Parent = p;
+      do {
+        Root = Parent;
+        RootParentName = clang_getCString(clang_getCursorSpelling(Root));
+        Parent = clang_getCursorSemanticParent(Root);
+      } while ( clang_getCursorType(Parent).kind == CXType_Record &&
+                !strcmp(RootParentName, "") );
+      /* if RootParentName is "", record is anonymous. */
+      {
+        long long Offset = clang_Type_getOffsetOf(clang_getCursorType(Root),
+                                                  FieldName);
+        printf(" [offsetof=%lld]", Offset);
+      }
+    }
+  }
+  /* Print if its a bitfield */
+  {
+    int IsBitfield = clang_Cursor_isBitField(cursor);
+    if (IsBitfield)
+      printf(" [BitFieldSize=%d]", clang_getFieldDeclBitWidth(cursor));
+  }
+  printf("\n");
+  return CXChildVisit_Recurse;
+}
+
 /******************************************************************************/
 /* Bitwidth testing.                                                          */
 /******************************************************************************/
@@ -1256,7 +1369,7 @@ int perform_test_load_source(int argc, const char **argv,
   Idx = clang_createIndex(/* excludeDeclsFromPCH */
                           (!strcmp(filter, "local") || 
                            !strcmp(filter, "local-display"))? 1 : 0,
-                          /* displayDiagnostics=*/0);
+                          /* displayDiagnostics=*/1);
 
   if ((CommentSchemaFile = parse_comments_schema(argc, argv))) {
     argc--;
@@ -1301,7 +1414,7 @@ int perform_test_reparse_source(int argc, const char **argv, int trials,
   
   Idx = clang_createIndex(/* excludeDeclsFromPCH */
                           !strcmp(filter, "local") ? 1 : 0,
-                          /* displayDiagnostics=*/0);
+                          /* displayDiagnostics=*/1);
   
   if (parse_remapped_files(argc, argv, 0, &unsaved_files, &num_unsaved_files)) {
     clang_disposeIndex(Idx);
@@ -1992,14 +2105,19 @@ static int inspect_cursor_at(int argc, const char **argv) {
 
         {
           CXModule mod = clang_Cursor_getModule(Cursor);
-          CXString name;
+          CXFile astFile;
+          CXString name, astFilename;
           unsigned i, numHeaders;
           if (mod) {
+            astFile = clang_Module_getASTFile(mod);
+            astFilename = clang_getFileName(astFile);
             name = clang_Module_getFullName(mod);
             numHeaders = clang_Module_getNumTopLevelHeaders(TU, mod);
-            printf(" ModuleName=%s Headers(%d):",
-                   clang_getCString(name), numHeaders);
+            printf(" ModuleName=%s (%s) Headers(%d):",
+                   clang_getCString(name), clang_getCString(astFilename),
+                   numHeaders);
             clang_disposeString(name);
+            clang_disposeString(astFilename);
             for (i = 0; i < numHeaders; ++i) {
               CXFile file = clang_Module_getTopLevelHeader(TU, mod, i);
               CXString filename = clang_getFileName(file);
@@ -3395,6 +3513,7 @@ int write_pch_file(const char *filename, int argc, const char *argv[]) {
                                   unsaved_files,
                                   num_unsaved_files,
                                   CXTranslationUnit_Incomplete |
+                                  CXTranslationUnit_DetailedPreprocessingRecord|
                                     CXTranslationUnit_ForSerialization);
   if (!TU) {
     fprintf(stderr, "Unable to load translation unit!\n");
@@ -3642,6 +3761,7 @@ static void print_usage(void) {
   fprintf(stderr,
     "       c-index-test -test-print-linkage-source {<args>}*\n"
     "       c-index-test -test-print-type {<args>}*\n"
+    "       c-index-test -test-print-type-size {<args>}*\n"
     "       c-index-test -test-print-bitwidth {<args>}*\n"
     "       c-index-test -print-usr [<CursorKind> {<args>}]*\n"
     "       c-index-test -print-usr-file <file>\n"
@@ -3728,6 +3848,9 @@ int cindextest_main(int argc, const char **argv) {
   else if (argc > 2 && strcmp(argv[1], "-test-print-type") == 0)
     return perform_test_load_source(argc - 2, argv + 2, "all",
                                     PrintType, 0);
+  else if (argc > 2 && strcmp(argv[1], "-test-print-type-size") == 0)
+    return perform_test_load_source(argc - 2, argv + 2, "all",
+                                    PrintTypeSize, 0);
   else if (argc > 2 && strcmp(argv[1], "-test-print-bitwidth") == 0)
     return perform_test_load_source(argc - 2, argv + 2, "all",
                                     PrintBitWidth, 0);

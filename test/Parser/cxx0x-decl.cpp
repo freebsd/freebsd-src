@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify -fsyntax-only -std=c++11 -pedantic-errors %s
+// RUN: %clang_cc1 -verify -fsyntax-only -std=c++11 -pedantic-errors -triple x86_64-linux-gnu %s
 
 // Make sure we know these are legitimate commas and not typos for ';'.
 namespace Commas {
@@ -46,16 +46,15 @@ using PR14855 = int S::; // expected-error {{expected ';' after alias declaratio
 // a constexpr function.
 struct ConstexprTrailingReturn {
   int n;
-  constexpr auto f() -> decltype((n));
+  constexpr auto f() const -> decltype((n));
 };
 constexpr const int &ConstexprTrailingReturn::f() const { return n; }
 
 namespace TestIsValidAfterTypeSpecifier {
 struct s {} v;
 
-// FIXME: We should accept this once we support thread_local.
 struct s
-thread_local tl; // expected-error {{expected unqualified-id}}
+thread_local tl;
 
 struct s
 &r0 = v;
