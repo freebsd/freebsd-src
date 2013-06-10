@@ -178,8 +178,7 @@ CXXPseudoDestructorExpr::CXXPseudoDestructorExpr(ASTContext &Context,
                 SourceLocation ColonColonLoc, SourceLocation TildeLoc, 
                 PseudoDestructorTypeStorage DestroyedType)
   : Expr(CXXPseudoDestructorExprClass,
-         Context.getPointerType(Context.getFunctionType(Context.VoidTy,
-                                                        ArrayRef<QualType>(),
+         Context.getPointerType(Context.getFunctionType(Context.VoidTy, None,
                                          FunctionProtoType::ExtProtoInfo())),
          VK_RValue, OK_Ordinary,
          /*isTypeDependent=*/(Base->isTypeDependent() ||
@@ -702,6 +701,17 @@ CXXDefaultArgExpr::Create(ASTContext &C, SourceLocation Loc,
   void *Mem = C.Allocate(sizeof(CXXDefaultArgExpr) + sizeof(Stmt *));
   return new (Mem) CXXDefaultArgExpr(CXXDefaultArgExprClass, Loc, Param, 
                                      SubExpr);
+}
+
+CXXDefaultInitExpr::CXXDefaultInitExpr(ASTContext &C, SourceLocation Loc,
+                                       FieldDecl *Field, QualType T)
+    : Expr(CXXDefaultInitExprClass, T.getNonLValueExprType(C),
+           T->isLValueReferenceType() ? VK_LValue : T->isRValueReferenceType()
+                                                        ? VK_XValue
+                                                        : VK_RValue,
+           /*FIXME*/ OK_Ordinary, false, false, false, false),
+      Field(Field), Loc(Loc) {
+  assert(Field->hasInClassInitializer());
 }
 
 CXXTemporary *CXXTemporary::Create(ASTContext &C,

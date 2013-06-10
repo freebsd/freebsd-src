@@ -262,6 +262,9 @@ public:
   /// EmitGlobalVariable - Emit global variable's debug info.
   void EmitGlobalVariable(const ValueDecl *VD, llvm::Constant *Init);
 
+  /// \brief - Emit C++ using directive.
+  void EmitUsingDirective(const UsingDirectiveDecl &UD);
+
   /// getOrCreateRecordType - Emit record type's standalone debug info. 
   llvm::DIType getOrCreateRecordType(QualType Ty, SourceLocation L);
 
@@ -281,7 +284,7 @@ private:
                                             uint64_t *OffSet);
 
   /// getContextDescriptor - Get context info for the decl.
-  llvm::DIDescriptor getContextDescriptor(const Decl *Decl);
+  llvm::DIScope getContextDescriptor(const Decl *Decl);
 
   /// createRecordFwdDecl - Create a forward decl for a RecordType in a given
   /// context.

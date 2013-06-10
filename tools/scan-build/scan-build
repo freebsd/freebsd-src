@@ -931,11 +931,13 @@ sub RunXcodebuild {
   if ($oldBehavior == 0) {
     my $OutputDir = $Options->{"OUTPUT_DIR"};
     my $CLANG = $Options->{"CLANG"};
+    my $OtherFlags = $Options->{"CCC_ANALYZER_ANALYSIS"};
     push @$Args,
         "RUN_CLANG_STATIC_ANALYZER=YES",
         "CLANG_ANALYZER_OUTPUT=plist-html",
         "CLANG_ANALYZER_EXEC=$CLANG",
-        "CLANG_ANALYZER_OUTPUT_DIR=$OutputDir";
+        "CLANG_ANALYZER_OUTPUT_DIR=$OutputDir",
+        "CLANG_ANALYZER_OTHER_FLAGS=$OtherFlags";
 
     return (system(@$Args) >> 8);
   }
@@ -1560,8 +1562,16 @@ if ($ForceDisplayHelp || $RequestDisplayHelp) {
 }
 
 $ClangCXX = $Clang;
-$ClangCXX =~ s/\-\d+\.\d+$//;
-$ClangCXX .= "++";
+# Determine operating system under which this copy of Perl was built.
+my $IsWinBuild = ($^O =~/msys|cygwin|MSWin32/);
+if($IsWinBuild) {
+  $ClangCXX =~ s/.exe$/++.exe/;
+}
+else {
+  $ClangCXX =~ s/\-\d+\.\d+$//;
+  $ClangCXX .= "++";
+}
+
 # Make sure to use "" to handle paths with spaces.
 $ClangVersion = HtmlEscape(`"$Clang" --version`);
 

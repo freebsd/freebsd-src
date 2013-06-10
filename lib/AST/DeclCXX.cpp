@@ -186,7 +186,7 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       data().IsStandardLayout = false;
 
     // Record if this base is the first non-literal field or base.
-    if (!hasNonLiteralTypeFieldsOrBases() && !BaseType->isLiteralType())
+    if (!hasNonLiteralTypeFieldsOrBases() && !BaseType->isLiteralType(C))
       data().HasNonLiteralTypeFieldsOrBases = true;
     
     // Now go through all virtual bases of this base and add them.
@@ -505,7 +505,7 @@ void CXXRecordDecl::addedMember(Decl *D) {
     // C++ [dcl.init.aggr]p1:
     //   An aggregate is an array or a class with no user-declared
     //   constructors [...].
-    // C++0x [dcl.init.aggr]p1:
+    // C++11 [dcl.init.aggr]p1:
     //   An aggregate is an array or a class with no user-provided
     //   constructors [...].
     if (getASTContext().getLangOpts().CPlusPlus11
@@ -542,22 +542,28 @@ void CXXRecordDecl::addedMember(Decl *D) {
 
     // Keep the list of conversion functions up-to-date.
     if (CXXConversionDecl *Conversion = dyn_cast<CXXConversionDecl>(D)) {
-      // FIXME: We intentionally don't use the decl's access here because it
-      // hasn't been set yet.  That's really just a misdesign in Sema.
+      // FIXME: We use the 'unsafe' accessor for the access specifier here,
+      // because Sema may not have set it yet. That's really just a misdesign
+      // in Sema. However, LLDB *will* have set the access specifier correctly,
+      // and adds declarations after the class is technically completed,
+      // so completeDefinition()'s overriding of the access specifiers doesn't
+      // work.
+      AccessSpecifier AS = Conversion->getAccessUnsafe();
+
       if (Conversion->getPrimaryTemplate()) {
         // We don't record specializations.
       } else if (FunTmpl) {
         if (FunTmpl->getPreviousDecl())
           data().Conversions.replace(FunTmpl->getPreviousDecl(),
-                                     FunTmpl);
+                                     FunTmpl, AS);
         else
-          data().Conversions.addDecl(getASTContext(), FunTmpl);
+          data().Conversions.addDecl(getASTContext(), FunTmpl, AS);
       } else {
         if (Conversion->getPreviousDecl())
           data().Conversions.replace(Conversion->getPreviousDecl(),
-                                     Conversion);
+                                     Conversion, AS);
         else
-          data().Conversions.addDecl(getASTContext(), Conversion);
+          data().Conversions.addDecl(getASTContext(), Conversion, AS);
       }
     }
 
@@ -670,7 +676,7 @@ void CXXRecordDecl::addedMember(Decl *D) {
     }
 
     // Record if this field is the first non-literal or volatile field or base.
-    if (!T->isLiteralType() || T.isVolatileQualified())
+    if (!T->isLiteralType(Context) || T.isVolatileQualified())
       data().HasNonLiteralTypeFieldsOrBases = true;
 
     if (Field->hasInClassInitializer()) {
@@ -684,7 +690,10 @@ void CXXRecordDecl::addedMember(Decl *D) {
       // C++11 [dcl.init.aggr]p1:
       //   An aggregate is a [...] class with [...] no
       //   brace-or-equal-initializers for non-static data members.
-      data().Aggregate = false;
+      //
+      // This rule was removed in C++1y.
+      if (!getASTContext().getLangOpts().CPlusPlus1y)
+        data().Aggregate = false;
 
       // C++11 [class]p10:
       //   A POD struct is [...] a trivial class.
@@ -836,7 +845,7 @@ void CXXRecordDecl::addedMember(Decl *D) {
       }
     } else {
       // Base element type of field is a non-class type.
-      if (!T->isLiteralType() ||
+      if (!T->isLiteralType(Context) ||
           (!Field->hasInClassInitializer() && !isUnion()))
         data().DefaultedDefaultConstructorIsConstexpr = false;
 
@@ -1252,20 +1261,7 @@ bool CXXRecordDecl::mayBeAbstract() const {
 void CXXMethodDecl::anchor() { }
 
 bool CXXMethodDecl::isStatic() const {
-  const CXXMethodDecl *MD = this;
-  for (;;) {
-    const CXXMethodDecl *C = MD->getCanonicalDecl();
-    if (C != MD) {
-      MD = C;
-      continue;
-    }
-
-    FunctionTemplateSpecializationInfo *Info =
-      MD->getTemplateSpecializationInfo();
-    if (!Info)
-      break;
-    MD = cast<CXXMethodDecl>(Info->getTemplate()->getTemplatedDecl());
-  }
+  const CXXMethodDecl *MD = getCanonicalDecl();
 
   if (MD->getStorageClass() == SC_Static)
     return true;
@@ -1820,14 +1816,14 @@ LinkageSpecDecl *LinkageSpecDecl::Create(ASTContext &C,
                                          SourceLocation ExternLoc,
                                          SourceLocation LangLoc,
                                          LanguageIDs Lang,
-                                         SourceLocation RBraceLoc) {
-  return new (C) LinkageSpecDecl(DC, ExternLoc, LangLoc, Lang, RBraceLoc);
+                                         bool HasBraces) {
+  return new (C) LinkageSpecDecl(DC, ExternLoc, LangLoc, Lang, HasBraces);
 }
 
 LinkageSpecDecl *LinkageSpecDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   void *Mem = AllocateDeserializedDecl(C, ID, sizeof(LinkageSpecDecl));
   return new (Mem) LinkageSpecDecl(0, SourceLocation(), SourceLocation(),
-                                   lang_c, SourceLocation());
+                                   lang_c, false);
 }
 
 void UsingDirectiveDecl::anchor() { }

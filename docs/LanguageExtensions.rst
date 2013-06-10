@@ -645,8 +645,7 @@ C++11 inheriting constructors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_inheriting_constructors)`` to determine if support for
-inheriting constructors is enabled.  Clang does not currently implement this
-feature.
+inheriting constructors is enabled.
 
 C++11 inline namespaces
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -727,6 +726,12 @@ Use ``__has_feature(cxx_static_assert)`` or
 ``__has_extension(cxx_static_assert)`` to determine if support for compile-time
 assertions using ``static_assert`` is enabled.
 
+C++11 ``thread_local``
+^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_thread_local)`` to determine if support for
+``thread_local`` variables is enabled.
+
 C++11 type inference
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -774,6 +779,98 @@ Use ``__has_feature(cxx_variadic_templates)`` or
 ``__has_extension(cxx_variadic_templates)`` to determine if support for
 variadic templates is enabled.
 
+C++1y
+-----
+
+The features listed below are part of the committee draft for the C++1y
+standard.  As a result, all these features are enabled with the ``-std=c++1y``
+or ``-std=gnu++1y`` option when compiling C++ code.
+
+C++1y binary literals
+^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_binary_literals)`` or
+``__has_extension(cxx_binary_literals)`` to determine whether
+binary literals (for instance, ``0b10010``) are recognized. Clang supports this
+feature as an extension in all language modes.
+
+C++1y contextual conversions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_contextual_conversions)`` or
+``__has_extension(cxx_contextual_conversions)`` to determine if the C++1y rules
+are used when performing an implicit conversion for an array bound in a
+*new-expression*, the operand of a *delete-expression*, an integral constant
+expression, or a condition in a ``switch`` statement. Clang does not yet
+support this feature.
+
+C++1y decltype(auto)
+^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_decltype_auto)`` or
+``__has_extension(cxx_decltype_auto)`` to determine if support
+for the ``decltype(auto)`` placeholder type is enabled.
+
+C++1y default initializers for aggregates
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_aggregate_nsdmi)`` or
+``__has_extension(cxx_aggregate_nsdmi)`` to determine if support
+for default initializers in aggregate members is enabled.
+
+C++1y generalized lambda capture
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_generalized_capture)`` or
+``__has_extension(cxx_generalized_capture`` to determine if support for
+generalized lambda captures is enabled
+(for instance, ``[n(0)] { return ++n; }``).
+Clang does not yet support this feature.
+
+C++1y generic lambdas
+^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_generic_lambda)`` or
+``__has_extension(cxx_generic_lambda)`` to determine if support for generic
+(polymorphic) lambdas is enabled
+(for instance, ``[] (auto x) { return x + 1; }``).
+Clang does not yet support this feature.
+
+C++1y relaxed constexpr
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_relaxed_constexpr)`` or
+``__has_extension(cxx_relaxed_constexpr)`` to determine if variable
+declarations, local variable modification, and control flow constructs
+are permitted in ``constexpr`` functions.
+Clang's implementation of this feature is incomplete.
+
+C++1y return type deduction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_return_type_deduction)`` or
+``__has_extension(cxx_return_type_deduction)`` to determine if support
+for return type deduction for functions (using ``auto`` as a return type)
+is enabled.
+Clang's implementation of this feature is incomplete.
+
+C++1y runtime-sized arrays
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_runtime_array)`` or
+``__has_extension(cxx_runtime_array)`` to determine if support
+for arrays of runtime bound (a restricted form of variable-length arrays)
+is enabled.
+Clang's implementation of this feature is incomplete.
+
+C++1y variable templates
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(cxx_variable_templates)`` or
+``__has_extension(cxx_variable_templates)`` to determine if support for
+templated variable declarations is enabled.
+Clang does not yet support this feature.
+
 C11
 ---
 
@@ -817,6 +914,12 @@ C11 ``_Static_assert()``
 Use ``__has_feature(c_static_assert)`` or ``__has_extension(c_static_assert)``
 to determine if support for compile-time assertions using ``_Static_assert`` is
 enabled.
+
+C11 ``_Thread_local``
+^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__has_feature(c_thread_local)`` to determine if support for
+``_Thread_local`` variables is enabled.
 
 Checks for Type Traits
 ======================

@@ -41,7 +41,9 @@ decltype(
     PD(), // expected-error {{private destructor}}
     PD()) pd1; // expected-error {{private destructor}}
 decltype(DD(), // expected-error {{deleted function}}
-         DD()) dd1; // expected-error {{deleted function}}
+         DD()) dd1;
+decltype(A(),
+         DD()) dd2; // expected-error {{deleted function}}
 decltype(
     PD(), // expected-error {{temporary of type 'PD' has private destructor}}
     0) pd2;
@@ -76,7 +78,7 @@ namespace libcxx_example {
   template<typename T> struct swappable {
     typedef decltype(swap(declval<T&>(), declval<T&>())) type;
     static const bool value = !is_same<type, nat>::value;
-    constexpr operator bool() { return value; }
+    constexpr operator bool() const { return value; }
   };
 
   static_assert(swappable<int>(), "");

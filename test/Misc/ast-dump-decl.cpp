@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++11 -fms-extensions -ast-dump -ast-dump-filter Test %s | FileCheck -check-prefix CHECK -strict-whitespace %s
+// RUN: %clang_cc1 -std=c++11 -triple x86_64-linux-gnu -fms-extensions -ast-dump -ast-dump-filter Test %s | FileCheck -check-prefix CHECK -strict-whitespace %s
 
 class testEnumDecl {
   enum class TestEnumDeclScoped;
@@ -91,6 +91,9 @@ class TestCXXRecordDeclPack : public T... {
 // CHECK:      CXXRecordDecl{{.*}} class TestCXXRecordDeclPack
 // CHECK-NEXT:   public 'T'...
 // CHECK-NEXT:   CXXRecordDecl{{.*}} class TestCXXRecordDeclPack
+
+thread_local int TestThreadLocalInt;
+// CHECK: TestThreadLocalInt {{.*}} tls_dynamic
 
 __module_private__ class TestCXXRecordDeclPrivate;
 // CHECK: CXXRecordDecl{{.*}} class TestCXXRecordDeclPrivate __module_private__

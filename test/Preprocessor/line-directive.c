@@ -29,7 +29,7 @@
 # 42 "foo" 3 1   // expected-error {{invalid flag line marker directive}}
 # 42 "foo" 42    // expected-error {{invalid flag line marker directive}}
 # 42 "foo" 1 2   // expected-error {{invalid flag line marker directive}}
-
+# 42a33          // expected-error {{GNU line marker directive requires a simple digit sequence}}
 
 // These are checked by the RUN line.
 #line 92 "blonk.c"
@@ -85,11 +85,19 @@ typedef int q;  // original definition in system header, should not diagnose.
 #line 010  // expected-warning {{#line directive interprets number as decimal, not octal}}
 extern int array[__LINE__ == 10 ? 1:-1];
 
+# 020      // expected-warning {{GNU line marker directive interprets number as decimal, not octal}}
+extern int array_gnuline[__LINE__ == 20 ? 1:-1];
+
 /* PR3917 */
 #line 41
 extern char array2[\
 _\
 _LINE__ == 42 ? 1: -1];  /* line marker is location of first _ */
+
+# 51
+extern char array2_gnuline[\
+_\
+_LINE__ == 52 ? 1: -1];  /* line marker is location of first _ */
 
 // rdar://11550996
 #line 0 "line-directive.c" // expected-warning {{#line directive with zero argument is a GNU extension}}

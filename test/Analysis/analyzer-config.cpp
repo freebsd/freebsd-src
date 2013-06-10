@@ -1,4 +1,4 @@
-// RUN: %clang --analyze %s -o /dev/null -Xclang -analyzer-checker=debug.ConfigDumper > %t 2>&1
+// RUN: %clang -target x86_64-apple-darwin10 --analyze %s -o /dev/null -Xclang -analyzer-checker=debug.ConfigDumper > %t 2>&1
 // RUN: FileCheck --input-file=%t %s
 
 void bar() {}
@@ -21,9 +21,11 @@ public:
 // CHECK-NEXT: graph-trim-interval = 1000
 // CHECK-NEXT: ipa = dynamic-bifurcate
 // CHECK-NEXT: ipa-always-inline-size = 3
+// CHECK-NEXT: leak-diagnostics-reference-allocation = false
 // CHECK-NEXT: max-inlinable-size = 50
 // CHECK-NEXT: max-nodes = 150000
 // CHECK-NEXT: max-times-inline-large = 32
 // CHECK-NEXT: mode = deep
+// CHECK-NEXT: region-store-small-struct-limit = 2
 // CHECK-NEXT: [stats]
-// CHECK-NEXT: num-entries = 14
+// CHECK-NEXT: num-entries = 16

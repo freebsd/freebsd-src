@@ -68,9 +68,6 @@ public:
   }
 
   bool VisitObjCMessageExpr(ObjCMessageExpr *E) {
-    if (TypeSourceInfo *Cls = E->getClassReceiverTypeInfo())
-      IndexCtx.indexTypeSourceInfo(Cls, Parent, ParentDC);
-
     if (ObjCMethodDecl *MD = E->getMethodDecl())
       IndexCtx.handleReference(MD, E->getSelectorStartLoc(),
                                Parent, ParentDC, E,
@@ -86,6 +83,12 @@ public:
 
     // No need to do a handleReference for the objc method, because there will
     // be a message expr as part of PseudoObjectExpr.
+    return true;
+  }
+
+  bool VisitMSPropertyRefExpr(MSPropertyRefExpr *E) {
+    IndexCtx.handleReference(E->getPropertyDecl(), E->getMemberLoc(), Parent,
+                             ParentDC, E, CXIdxEntityRef_Direct);
     return true;
   }
 
