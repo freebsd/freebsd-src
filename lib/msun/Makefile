@@ -94,10 +94,10 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
-	e_hypotl.c e_remainderl.c e_sqrtl.c \
+COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
+	e_fmodl.c e_hypotl.c e_remainderl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
+	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
 	s_csqrtl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
 	s_nexttoward.c s_remquol.c s_rintl.c s_scalbnl.c \
@@ -138,11 +138,11 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	complex.3
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
-MLINKS+=acosh.3 acoshf.3
+MLINKS+=acosh.3 acoshf.3 acosh.3 acoshl.3
 MLINKS+=asin.3 asinf.3 asin.3 asinl.3
-MLINKS+=asinh.3 asinhf.3
+MLINKS+=asinh.3 asinhf.3 asinh.3 asinhl.3
 MLINKS+=atan.3 atanf.3 atan.3 atanl.3
-MLINKS+=atanh.3 atanhf.3
+MLINKS+=atanh.3 atanhf.3 atanh.3 atanhl.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
 MLINKS+=cacos.3 cacosf.3 cacos.3 cacosh.3 cacos.3 cacoshf.3 \

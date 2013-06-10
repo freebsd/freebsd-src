@@ -395,9 +395,12 @@ float	significandf(float);
  * long double versions of ISO/POSIX math functions
  */
 #if __ISO_C_VISIBLE >= 1999
+long double	acoshl(long double);
 long double	acosl(long double);
+long double	asinhl(long double);
 long double	asinl(long double);
 long double	atan2l(long double, long double);
+long double	atanhl(long double);
 long double	atanl(long double);
 long double	cbrtl(long double);
 long double	ceill(long double);
@@ -461,9 +464,6 @@ __END_DECLS
  */
 __BEGIN_DECLS
 
-long double	acoshl(long double);
-long double	asinhl(long double);
-long double	atanhl(long double);
 long double	coshl(long double);
 long double	erfcl(long double);
 long double	erfl(long double);
