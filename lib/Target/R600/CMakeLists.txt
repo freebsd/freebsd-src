@@ -21,7 +21,6 @@ add_llvm_target(R600CodeGen
   AMDILISelDAGToDAG.cpp
   AMDILISelLowering.cpp
   AMDILNIDevice.cpp
-  AMDILPeepholeOptimizer.cpp
   AMDILSIDevice.cpp
   AMDGPUAsmPrinter.cpp
   AMDGPUFrameLowering.cpp
@@ -42,6 +41,7 @@ add_llvm_target(R600CodeGen
   R600ISelLowering.cpp
   R600MachineFunctionInfo.cpp
   R600MachineScheduler.cpp
+  R600Packetizer.cpp
   R600RegisterInfo.cpp
   SIAnnotateControlFlow.cpp
   SIInsertWaits.cpp

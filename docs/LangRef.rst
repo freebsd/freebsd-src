@@ -719,12 +719,17 @@ Currently, only the following parameter attributes are defined:
 ``nest``
     This indicates that the pointer parameter can be excised using the
     :ref:`trampoline intrinsics <int_trampoline>`. This is not a valid
-    attribute for return values.
-``nobuiltin``
-    This indicates that the callee function at a call site is not
-    recognized as a built-in function. LLVM will retain the original call
-    and not replace it with equivalent code based on the semantics of the
-    built-in function.
+    attribute for return values and can only be applied to one parameter.
+
+``returned``
+    This indicates that the value of the function always returns the value
+    of the parameter as its return value. This is an optimization hint to
+    the code generator when generating the caller, allowing tail call
+    optimization and omission of register saves and restores in some cases;
+    it is not checked or enforced when generating the callee. The parameter
+    and the function return type must be valid operands for the
+    :ref:`bitcast instruction <i_bitcast>`. This is not a valid attribute for
+    return values and can only be applied to one parameter.
 
 .. _gc:
 
@@ -764,10 +769,10 @@ inlined, has a stack alignment of 4, and which shouldn't use SSE instructions:
 .. code-block:: llvm
 
    ; Target-independent attributes:
-   #0 = attributes { alwaysinline alignstack=4 }
+   attributes #0 = { alwaysinline alignstack=4 }
 
    ; Target-dependent attributes:
-   #1 = attributes { "no-sse" }
+   attributes #1 = { "no-sse" }
 
    ; Function @f has attributes: alwaysinline, alignstack=4, and "no-sse".
    define void @f() #0 #1 { ... }
@@ -814,6 +819,12 @@ example:
 ``naked``
     This attribute disables prologue / epilogue emission for the
     function. This can have very system-specific consequences.
+``nobuiltin``
+    This indicates that the callee function at a call site is not
+    recognized as a built-in function. LLVM will retain the original call
+    and not replace it with equivalent code based on the semantics of the
+    built-in function. This is only valid at call sites, not on function
+    declarations or definitions.
 ``noduplicate``
     This attribute indicates that calls to the function cannot be
     duplicated. A call to a ``noduplicate`` function may be moved
@@ -1843,11 +1854,11 @@ double, and there are three forms of long double. The 80-bit format used
 by x86 is represented as ``0xK`` followed by 20 hexadecimal digits. The
 128-bit format used by PowerPC (two adjacent doubles) is represented by
 ``0xM`` followed by 32 hexadecimal digits. The IEEE 128-bit format is
-represented by ``0xL`` followed by 32 hexadecimal digits; no currently
-supported target uses this format. Long doubles will only work if they
-match the long double format on your target. The IEEE 16-bit format
-(half precision) is represented by ``0xH`` followed by 4 hexadecimal
-digits. All hexadecimal formats are big-endian (sign bit at the left).
+represented by ``0xL`` followed by 32 hexadecimal digits. Long doubles
+will only work if they match the long double format on your target.
+The IEEE 16-bit format (half precision) is represented by ``0xH``
+followed by 4 hexadecimal digits. All hexadecimal formats are big-endian
+(sign bit at the left).
 
 There are no constants of type x86mmx.
 
@@ -2857,11 +2868,10 @@ All globals of this sort should have a section specified as
 The '``llvm.used``' Global Variable
 -----------------------------------
 
-The ``@llvm.used`` global is an array with i8\* element type which has
-:ref:`appending linkage <linkage_appending>`. This array contains a list of
-pointers to global variables and functions which may optionally have a
-pointer cast formed of bitcast or getelementptr. For example, a legal
-use of it is:
+The ``@llvm.used`` global is an array which has :ref:`appending linkage
+<linkage_appending>`. This array contains a list of pointers to global
+variables, functions and aliases which may optionally have a pointer cast formed
+of bitcast or getelementptr. For example, a legal use of it is:
 
 .. code-block:: llvm
 
@@ -2873,13 +2883,13 @@ use of it is:
        i8* bitcast (i32* @Y to i8*)
     ], section "llvm.metadata"
 
-If a global variable appears in the ``@llvm.used`` list, then the
-compiler, assembler, and linker are required to treat the symbol as if
-there is a reference to the global that it cannot see. For example, if a
-variable has internal linkage and no references other than that from the
-``@llvm.used`` list, it cannot be deleted. This is commonly used to
-represent references from inline asms and other things the compiler
-cannot "see", and corresponds to "``attribute((used))``" in GNU C.
+If a symbol appears in the ``@llvm.used`` list, then the compiler, assembler,
+and linker are required to treat the symbol as if there is a reference to the
+symbol that it cannot see. For example, if a variable has internal linkage and
+no references other than that from the ``@llvm.used`` list, it cannot be
+deleted. This is commonly used to represent references from inline asms and
+other things the compiler cannot "see", and corresponds to
+"``attribute((used))``" in GNU C.
 
 On some targets, the code generator must emit a directive to the
 assembler or object file to prevent the assembler and linker from
@@ -4534,7 +4544,7 @@ The '``load``' instruction is used to read from memory.
 Arguments:
 """"""""""
 
-The argument to the '``load``' instruction specifies the memory address
+The argument to the ``load`` instruction specifies the memory address
 from which to load. The pointer must point to a :ref:`first
 class <t_firstclass>` type. If the ``load`` is marked as ``volatile``,
 then the optimizer is not allowed to modify the number or order of
@@ -4555,14 +4565,14 @@ any defined semantics for atomic loads.
 
 The optional constant ``align`` argument specifies the alignment of the
 operation (that is, the alignment of the memory address). A value of 0
-or an omitted ``align`` argument means that the operation has the abi
+or an omitted ``align`` argument means that the operation has the ABI
 alignment for the target. It is the responsibility of the code emitter
 to ensure that the alignment information is correct. Overestimating the
 alignment results in undefined behavior. Underestimating the alignment
 may produce less efficient code. An alignment of 1 is always safe.
 
 The optional ``!nontemporal`` metadata must reference a single
-metatadata name <index> corresponding to a metadata node with one
+metatadata name ``<index>`` corresponding to a metadata node with one
 ``i32`` entry of value 1. The existence of the ``!nontemporal``
 metatadata on the instruction tells the optimizer and code generator
 that this load is not expected to be reused in the cache. The code
@@ -4570,7 +4580,7 @@ generator may select special instructions to save cache bandwidth, such
 as the ``MOVNT`` instruction on x86.
 
 The optional ``!invariant.load`` metadata must reference a single
-metatadata name <index> corresponding to a metadata node with no
+metatadata name ``<index>`` corresponding to a metadata node with no
 entries. The existence of the ``!invariant.load`` metatadata on the
 instruction tells the optimizer and code generator that this load
 address points to memory which does not change value during program
@@ -4618,10 +4628,10 @@ The '``store``' instruction is used to write to memory.
 Arguments:
 """"""""""
 
-There are two arguments to the '``store``' instruction: a value to store
-and an address at which to store it. The type of the '``<pointer>``'
+There are two arguments to the ``store`` instruction: a value to store
+and an address at which to store it. The type of the ``<pointer>``
 operand must be a pointer to the :ref:`first class <t_firstclass>` type of
-the '``<value>``' operand. If the ``store`` is marked as ``volatile``,
+the ``<value>`` operand. If the ``store`` is marked as ``volatile``,
 then the optimizer is not allowed to modify the number or order of
 execution of this ``store`` with other :ref:`volatile
 operations <volatile>`.
@@ -4638,18 +4648,18 @@ has undefined behavior if the alignment is not set to a value which is
 at least the size in bytes of the pointee. ``!nontemporal`` does not
 have any defined semantics for atomic stores.
 
-The optional constant "align" argument specifies the alignment of the
+The optional constant ``align`` argument specifies the alignment of the
 operation (that is, the alignment of the memory address). A value of 0
-or an omitted "align" argument means that the operation has the abi
+or an omitted ``align`` argument means that the operation has the ABI
 alignment for the target. It is the responsibility of the code emitter
 to ensure that the alignment information is correct. Overestimating the
-alignment results in an undefined behavior. Underestimating the
+alignment results in undefined behavior. Underestimating the
 alignment may produce less efficient code. An alignment of 1 is always
 safe.
 
-The optional !nontemporal metadata must reference a single metatadata
-name <index> corresponding to a metadata node with one i32 entry of
-value 1. The existence of the !nontemporal metatadata on the instruction
+The optional ``!nontemporal`` metadata must reference a single metatadata
+name ``<index>`` corresponding to a metadata node with one ``i32`` entry of
+value 1. The existence of the ``!nontemporal`` metatadata on the instruction
 tells the optimizer and code generator that this load is not expected to
 be reused in the cache. The code generator may select special
 instructions to save cache bandwidth, such as the MOVNT instruction on
@@ -4658,8 +4668,8 @@ x86.
 Semantics:
 """"""""""
 
-The contents of memory are updated to contain '``<value>``' at the
-location specified by the '``<pointer>``' operand. If '``<value>``' is
+The contents of memory are updated to contain ``<value>`` at the
+location specified by the ``<pointer>`` operand. If ``<value>`` is
 of scalar type then the number of bytes written does not exceed the
 minimum number of bytes needed to hold all bits of the type. For
 example, storing an ``i24`` writes at most three bytes. When writing a

@@ -1,5 +1,6 @@
 ; RUN: llc -O0 %s -mtriple=x86_64-apple-darwin -filetype=obj -o %t
 ; RUN: llvm-dwarfdump %t | FileCheck %s
+; RUN: llc < %s -O0 -mtriple=x86_64-apple-macosx10.7 | FileCheck %s -check-prefix=ASM
 
 ; rdar://13067005
 ; CHECK: .debug_info contents:
@@ -20,6 +21,11 @@
 ; CHECK: file_names[  1]    0 0x00000000 0x00000000 simple2.c
 ; CHECK-NOT: file_names
 
+; PR15408
+; ASM: L__DWARF__debug_info_begin0:
+; ASM: .long   0                       ## DW_AT_stmt_list
+; ASM: L__DWARF__debug_info_begin1:
+; ASM: .long   0                       ## DW_AT_stmt_list
 define i32 @test(i32 %a) nounwind uwtable ssp {
 entry:
   %a.addr = alloca i32, align 4
@@ -42,7 +48,7 @@ entry:
 }
 
 !llvm.dbg.cu = !{!0, !10}
-!0 = metadata !{i32 786449, metadata !23, i32 12, metadata !"clang version 3.3", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !1, metadata !""} ; [ DW_TAG_compile_unit ]
+!0 = metadata !{i32 786449, metadata !23, i32 12, metadata !"clang version 3.3", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !1,  metadata !1, metadata !""} ; [ DW_TAG_compile_unit ]
 !1 = metadata !{metadata !2}
 !2 = metadata !{i32 0}
 !3 = metadata !{metadata !5}
@@ -51,7 +57,7 @@ entry:
 !7 = metadata !{i32 786453, i32 0, metadata !"", i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, i32 0} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
 !8 = metadata !{metadata !9, metadata !9}
 !9 = metadata !{i32 786468, null, metadata !"int", null, i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!10 = metadata !{i32 786449, metadata !24, i32 12, metadata !"clang version 3.3 (trunk 172862)", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !11, metadata !1, metadata !""} ; [ DW_TAG_compile_unit ]
+!10 = metadata !{i32 786449, metadata !24, i32 12, metadata !"clang version 3.3 (trunk 172862)", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !11, metadata !1,  metadata !1, metadata !""} ; [ DW_TAG_compile_unit ]
 !11 = metadata !{metadata !13}
 !13 = metadata !{i32 786478, metadata !24, metadata !"fn", metadata !"fn", metadata !"", metadata !14, i32 1, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (i32)* @fn, null, null, metadata !1, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [fn]
 !14 = metadata !{i32 786473, metadata !24} ; [ DW_TAG_file_type ]

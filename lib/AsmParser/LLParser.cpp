@@ -528,7 +528,7 @@ bool LLParser::ParseMDNodeID(MDNode *&Result) {
   if (Result) return false;
 
   // Otherwise, create MDNode forward reference.
-  MDNode *FwdNode = MDNode::getTemporary(Context, ArrayRef<Value*>());
+  MDNode *FwdNode = MDNode::getTemporary(Context, None);
   ForwardRefMDNodes[MID] = std::make_pair(FwdNode, Lex.getLoc());
 
   if (NumberedMetadata.size() <= MID)
@@ -878,8 +878,9 @@ bool LLParser::ParseFnAttributeValuePairs(AttrBuilder &B,
 
     // Target-independent attributes:
     case lltok::kw_align: {
-      // As a hack, we allow "align 2" on functions as a synonym for "alignstack
-      // 2".
+      // As a hack, we allow function alignment to be initially parsed as an
+      // attribute on a function declaration/definition or added to an attribute
+      // group and later moved to the alignment field.
       unsigned Alignment;
       if (inAttrGrp) {
         Lex.Lex();
@@ -943,6 +944,7 @@ bool LLParser::ParseFnAttributeValuePairs(AttrBuilder &B,
     case lltok::kw_nest:
     case lltok::kw_noalias:
     case lltok::kw_nocapture:
+    case lltok::kw_returned:
     case lltok::kw_sret:
       HaveError |=
         Error(Lex.getLoc(),
@@ -1155,21 +1157,35 @@ bool LLParser::ParseOptionalParamAttrs(AttrBuilder &B) {
     case lltok::kw_nest:            B.addAttribute(Attribute::Nest); break;
     case lltok::kw_noalias:         B.addAttribute(Attribute::NoAlias); break;
     case lltok::kw_nocapture:       B.addAttribute(Attribute::NoCapture); break;
+    case lltok::kw_returned:        B.addAttribute(Attribute::Returned); break;
     case lltok::kw_signext:         B.addAttribute(Attribute::SExt); break;
     case lltok::kw_sret:            B.addAttribute(Attribute::StructRet); break;
     case lltok::kw_zeroext:         B.addAttribute(Attribute::ZExt); break;
 
-    case lltok::kw_alignstack:      case lltok::kw_nounwind:
-    case lltok::kw_alwaysinline:    case lltok::kw_optsize:
-    case lltok::kw_inlinehint:      case lltok::kw_readnone:
-    case lltok::kw_minsize:         case lltok::kw_readonly:
-    case lltok::kw_naked:           case lltok::kw_returns_twice:
-    case lltok::kw_nobuiltin:       case lltok::kw_sanitize_address:
-    case lltok::kw_noimplicitfloat: case lltok::kw_sanitize_memory:
-    case lltok::kw_noinline:        case lltok::kw_sanitize_thread:
-    case lltok::kw_nonlazybind:     case lltok::kw_ssp:
-    case lltok::kw_noredzone:       case lltok::kw_sspreq:
-    case lltok::kw_noreturn:        case lltok::kw_uwtable:
+    case lltok::kw_alignstack:
+    case lltok::kw_alwaysinline:
+    case lltok::kw_inlinehint:
+    case lltok::kw_minsize:
+    case lltok::kw_naked:
+    case lltok::kw_nobuiltin:
+    case lltok::kw_noduplicate:
+    case lltok::kw_noimplicitfloat:
+    case lltok::kw_noinline:
+    case lltok::kw_nonlazybind:
+    case lltok::kw_noredzone:
+    case lltok::kw_noreturn:
+    case lltok::kw_nounwind:
+    case lltok::kw_optsize:
+    case lltok::kw_readnone:
+    case lltok::kw_readonly:
+    case lltok::kw_returns_twice:
+    case lltok::kw_sanitize_address:
+    case lltok::kw_sanitize_memory:
+    case lltok::kw_sanitize_thread:
+    case lltok::kw_ssp:
+    case lltok::kw_sspreq:
+    case lltok::kw_sspstrong:
+    case lltok::kw_uwtable:
       HaveError |= Error(Lex.getLoc(), "invalid use of function-only attribute");
       break;
     }
@@ -1195,24 +1211,39 @@ bool LLParser::ParseOptionalReturnAttrs(AttrBuilder &B) {
     case lltok::kw_zeroext:         B.addAttribute(Attribute::ZExt); break;
 
     // Error handling.
-    case lltok::kw_sret:  case lltok::kw_nocapture:
-    case lltok::kw_byval: case lltok::kw_nest:
+    case lltok::kw_align:
+    case lltok::kw_byval:
+    case lltok::kw_nest:
+    case lltok::kw_nocapture:
+    case lltok::kw_returned:
+    case lltok::kw_sret:
       HaveError |= Error(Lex.getLoc(), "invalid use of parameter-only attribute");
       break;
 
-    case lltok::kw_align:                 case lltok::kw_noreturn:
-    case lltok::kw_alignstack:            case lltok::kw_nounwind:
-    case lltok::kw_alwaysinline:          case lltok::kw_optsize:
-    case lltok::kw_inlinehint:            case lltok::kw_readnone:
-    case lltok::kw_minsize:               case lltok::kw_readonly:
-    case lltok::kw_naked:                 case lltok::kw_returns_twice:
-    case lltok::kw_nobuiltin:             case lltok::kw_sanitize_address:
-    case lltok::kw_noduplicate:           case lltok::kw_sanitize_memory:
-    case lltok::kw_noimplicitfloat:       case lltok::kw_sanitize_thread:
-    case lltok::kw_noinline:              case lltok::kw_ssp:
-    case lltok::kw_nonlazybind:           case lltok::kw_sspreq:
-    case lltok::kw_noredzone:             case lltok::kw_sspstrong:
-                                          case lltok::kw_uwtable:
+    case lltok::kw_alignstack:
+    case lltok::kw_alwaysinline:
+    case lltok::kw_inlinehint:
+    case lltok::kw_minsize:
+    case lltok::kw_naked:
+    case lltok::kw_nobuiltin:
+    case lltok::kw_noduplicate:
+    case lltok::kw_noimplicitfloat:
+    case lltok::kw_noinline:
+    case lltok::kw_nonlazybind:
+    case lltok::kw_noredzone:
+    case lltok::kw_noreturn:
+    case lltok::kw_nounwind:
+    case lltok::kw_optsize:
+    case lltok::kw_readnone:
+    case lltok::kw_readonly:
+    case lltok::kw_returns_twice:
+    case lltok::kw_sanitize_address:
+    case lltok::kw_sanitize_memory:
+    case lltok::kw_sanitize_thread:
+    case lltok::kw_ssp:
+    case lltok::kw_sspreq:
+    case lltok::kw_sspstrong:
+    case lltok::kw_uwtable:
       HaveError |= Error(Lex.getLoc(), "invalid use of function-only attribute");
       break;
     }
@@ -4232,7 +4263,9 @@ int LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
 
   if (ParseTypeAndValue(Ptr, Loc, PFS)) return true;
 
-  if (!Ptr->getType()->getScalarType()->isPointerTy())
+  Type *BaseType = Ptr->getType();
+  PointerType *BasePointerType = dyn_cast<PointerType>(BaseType->getScalarType());
+  if (!BasePointerType)
     return Error(Loc, "base of getelementptr must be a pointer");
 
   SmallVector<Value*, 16> Indices;
@@ -4257,7 +4290,10 @@ int LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
     Indices.push_back(Val);
   }
 
-  if (!GetElementPtrInst::getIndexedType(Ptr->getType(), Indices))
+  if (!Indices.empty() && !BasePointerType->getElementType()->isSized())
+    return Error(Loc, "base element of getelementptr must be sized");
+
+  if (!GetElementPtrInst::getIndexedType(BaseType, Indices))
     return Error(Loc, "invalid getelementptr indices");
   Inst = GetElementPtrInst::Create(Ptr, Indices);
   if (InBounds)

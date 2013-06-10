@@ -20,6 +20,7 @@ declare void @callee()
 declare void @callee_fnptr(void ()*)
 declare void @invokee()
 declare i8* @returner()
+declare void @bar(i32 ()*)
 
 declare void @llvm.dbg.value(metadata, i64, metadata)
 
@@ -28,10 +29,11 @@ declare i8* @objc_msgSend(i8*, i8*, ...)
 ; Simple retain+release pair deletion, with some intervening control
 ; flow and harmless instructions.
 
-; CHECK: define void @test0(
-; CHECK-NOT: @objc_
+; CHECK: define void @test0_precise(i32* %x, i1 %p) [[NUW:#[0-9]+]] {
+; CHECK: @objc_retain
+; CHECK: @objc_release
 ; CHECK: }
-define void @test0(i32* %x, i1 %p) nounwind {
+define void @test0_precise(i32* %x, i1 %p) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   %0 = call i8* @objc_retain(i8* %a) nounwind
@@ -53,16 +55,41 @@ return:
   ret void
 }
 
+; CHECK: define void @test0_imprecise(i32* %x, i1 %p) [[NUW]] {
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test0_imprecise(i32* %x, i1 %p) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  br i1 %p, label %t, label %f
+
+t:
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  br label %return
+
+f:
+  store i32 7, i32* %x
+  br label %return
+
+return:
+  %c = bitcast i32* %x to i8*
+  call void @objc_release(i8* %c) nounwind, !clang.imprecise_release !0
+  ret void
+}
+
 ; Like test0 but the release isn't always executed when the retain is,
 ; so the optimization is not safe.
 
 ; TODO: Make the objc_release's argument be %0.
 
-; CHECK: define void @test1(
+; CHECK: define void @test1_precise(i32* %x, i1 %p, i1 %q) [[NUW]] {
 ; CHECK: @objc_retain(i8* %a)
 ; CHECK: @objc_release
 ; CHECK: }
-define void @test1(i32* %x, i1 %p, i1 %q) nounwind {
+define void @test1_precise(i32* %x, i1 %p, i1 %q) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   %0 = call i8* @objc_retain(i8* %a) nounwind
@@ -88,9 +115,69 @@ alt_return:
   ret void
 }
 
+; CHECK: define void @test1_imprecise(i32* %x, i1 %p, i1 %q) [[NUW]] {
+; CHECK: @objc_retain(i8* %a)
+; CHECK: @objc_release
+; CHECK: }
+define void @test1_imprecise(i32* %x, i1 %p, i1 %q) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  br i1 %p, label %t, label %f
+
+t:
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  br label %return
+
+f:
+  store i32 7, i32* %x
+  call void @callee()
+  br i1 %q, label %return, label %alt_return
+
+return:
+  %c = bitcast i32* %x to i8*
+  call void @objc_release(i8* %c) nounwind, !clang.imprecise_release !0
+  ret void
+
+alt_return:
+  ret void
+}
+
+
 ; Don't do partial elimination into two different CFG diamonds.
 
-; CHECK: define void @test1b(
+; CHECK: define void @test1b_precise(i8* %x, i1 %p, i1 %q) {
+; CHECK: entry:
+; CHECK:   tail call i8* @objc_retain(i8* %x) [[NUW]]
+; CHECK-NOT: @objc_
+; CHECK: if.end5:
+; CHECK:   tail call void @objc_release(i8* %x) [[NUW]]
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test1b_precise(i8* %x, i1 %p, i1 %q) {
+entry:
+  tail call i8* @objc_retain(i8* %x) nounwind
+  br i1 %p, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  tail call void @callee()
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  br i1 %q, label %if.then3, label %if.end5
+
+if.then3:                                         ; preds = %if.end
+  tail call void @use_pointer(i8* %x)
+  br label %if.end5
+
+if.end5:                                          ; preds = %if.then3, %if.end
+  tail call void @objc_release(i8* %x) nounwind
+  ret void
+}
+
+; CHECK: define void @test1b_imprecise(
 ; CHECK: entry:
 ; CHECK:   tail call i8* @objc_retain(i8* %x) [[NUW:#[0-9]+]]
 ; CHECK-NOT: @objc_
@@ -98,7 +185,7 @@ alt_return:
 ; CHECK:   tail call void @objc_release(i8* %x) [[NUW]], !clang.imprecise_release !0
 ; CHECK-NOT: @objc_
 ; CHECK: }
-define void @test1b(i8* %x, i1 %p, i1 %q) {
+define void @test1b_imprecise(i8* %x, i1 %p, i1 %q) {
 entry:
   tail call i8* @objc_retain(i8* %x) nounwind
   br i1 %p, label %if.then, label %if.end
@@ -119,14 +206,15 @@ if.end5:                                          ; preds = %if.then3, %if.end
   ret void
 }
 
+
 ; Like test0 but the pointer is passed to an intervening call,
 ; so the optimization is not safe.
 
-; CHECK: define void @test2(
+; CHECK: define void @test2_precise(
 ; CHECK: @objc_retain(i8* %a)
 ; CHECK: @objc_release
 ; CHECK: }
-define void @test2(i32* %x, i1 %p) nounwind {
+define void @test2_precise(i32* %x, i1 %p) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   %0 = call i8* @objc_retain(i8* %a) nounwind
@@ -151,16 +239,45 @@ return:
   ret void
 }
 
+; CHECK: define void @test2_imprecise(
+; CHECK: @objc_retain(i8* %a)
+; CHECK: @objc_release
+; CHECK: }
+define void @test2_imprecise(i32* %x, i1 %p) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  br i1 %p, label %t, label %f
+
+t:
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  br label %return
+
+f:
+  store i32 7, i32* %x
+  call void @use_pointer(i8* %0)
+  %d = bitcast i32* %x to float*
+  store float 3.0, float* %d
+  br label %return
+
+return:
+  %c = bitcast i32* %x to i8*
+  call void @objc_release(i8* %c) nounwind, !clang.imprecise_release !0
+  ret void
+}
+
 ; Like test0 but the release is in a loop,
 ; so the optimization is not safe.
 
 ; TODO: For now, assume this can't happen.
 
-; CHECK: define void @test3(
+; CHECK: define void @test3_precise(
 ; TODO: @objc_retain(i8* %a)
 ; TODO: @objc_release
 ; CHECK: }
-define void @test3(i32* %x, i1* %q) nounwind {
+define void @test3_precise(i32* %x, i1* %q) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   %0 = call i8* @objc_retain(i8* %a) nounwind
@@ -175,17 +292,38 @@ loop:
 return:
   ret void
 }
+
+; CHECK: define void @test3_imprecise(
+; TODO: @objc_retain(i8* %a)
+; TODO: @objc_release
+; CHECK: }
+define void @test3_imprecise(i32* %x, i1* %q) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  br label %loop
+
+loop:
+  %c = bitcast i32* %x to i8*
+  call void @objc_release(i8* %c) nounwind, !clang.imprecise_release !0
+  %j = load volatile i1* %q
+  br i1 %j, label %loop, label %return
+
+return:
+  ret void
+}
+
 
 ; TODO: For now, assume this can't happen.
 
 ; Like test0 but the retain is in a loop,
 ; so the optimization is not safe.
 
-; CHECK: define void @test4(
+; CHECK: define void @test4_precise(
 ; TODO: @objc_retain(i8* %a)
 ; TODO: @objc_release
 ; CHECK: }
-define void @test4(i32* %x, i1* %q) nounwind {
+define void @test4_precise(i32* %x, i1* %q) nounwind {
 entry:
   br label %loop
 
@@ -201,14 +339,35 @@ return:
   ret void
 }
 
+; CHECK: define void @test4_imprecise(
+; TODO: @objc_retain(i8* %a)
+; TODO: @objc_release
+; CHECK: }
+define void @test4_imprecise(i32* %x, i1* %q) nounwind {
+entry:
+  br label %loop
+
+loop:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  %j = load volatile i1* %q
+  br i1 %j, label %loop, label %return
+
+return:
+  %c = bitcast i32* %x to i8*
+  call void @objc_release(i8* %c) nounwind, !clang.imprecise_release !0
+  ret void
+}
+
+
 ; Like test0 but the pointer is conditionally passed to an intervening call,
 ; so the optimization is not safe.
 
-; CHECK: define void @test5(
+; CHECK: define void @test5a(
 ; CHECK: @objc_retain(i8*
 ; CHECK: @objc_release
 ; CHECK: }
-define void @test5(i32* %x, i1 %q, i8* %y) nounwind {
+define void @test5a(i32* %x, i1 %q, i8* %y) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   %0 = call i8* @objc_retain(i8* %a) nounwind
@@ -220,13 +379,36 @@ entry:
   ret void
 }
 
+; CHECK: define void @test5b(
+; CHECK: @objc_retain(i8*
+; CHECK: @objc_release
+; CHECK: }
+define void @test5b(i32* %x, i1 %q, i8* %y) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  %s = select i1 %q, i8* %y, i8* %0
+  call void @use_pointer(i8* %s)
+  store i32 7, i32* %x
+  %c = bitcast i32* %x to i8*
+  call void @objc_release(i8* %c) nounwind, !clang.imprecise_release !0
+  ret void
+}
+
+
 ; retain+release pair deletion, where the release happens on two different
 ; flow paths.
 
-; CHECK: define void @test6(
-; CHECK-NOT: @objc_
+; CHECK: define void @test6a(
+; CHECK: entry:
+; CHECK:   tail call i8* @objc_retain(
+; CHECK: t:
+; CHECK:   call void @objc_release(
+; CHECK: f:
+; CHECK:   call void @objc_release(
+; CHECK: return:
 ; CHECK: }
-define void @test6(i32* %x, i1 %p) nounwind {
+define void @test6a(i32* %x, i1 %p) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   %0 = call i8* @objc_retain(i8* %a) nounwind
@@ -251,11 +433,115 @@ return:
   ret void
 }
 
+; CHECK: define void @test6b(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test6b(i32* %x, i1 %p) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  br i1 %p, label %t, label %f
+
+t:
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  %ct = bitcast i32* %x to i8*
+  call void @objc_release(i8* %ct) nounwind, !clang.imprecise_release !0
+  br label %return
+
+f:
+  store i32 7, i32* %x
+  call void @callee()
+  %cf = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cf) nounwind, !clang.imprecise_release !0
+  br label %return
+
+return:
+  ret void
+}
+
+; CHECK: define void @test6c(
+; CHECK: entry:
+; CHECK:   tail call i8* @objc_retain(
+; CHECK: t:
+; CHECK:   call void @objc_release(
+; CHECK: f:
+; CHECK:   call void @objc_release(
+; CHECK: return:
+; CHECK: }
+define void @test6c(i32* %x, i1 %p) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  br i1 %p, label %t, label %f
+
+t:
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  %ct = bitcast i32* %x to i8*
+  call void @objc_release(i8* %ct) nounwind
+  br label %return
+
+f:
+  store i32 7, i32* %x
+  call void @callee()
+  %cf = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cf) nounwind, !clang.imprecise_release !0
+  br label %return
+
+return:
+  ret void
+}
+
+; CHECK: define void @test6d(
+; CHECK: entry:
+; CHECK:   tail call i8* @objc_retain(
+; CHECK: t:
+; CHECK:   call void @objc_release(
+; CHECK: f:
+; CHECK:   call void @objc_release(
+; CHECK: return:
+; CHECK: }
+define void @test6d(i32* %x, i1 %p) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  br i1 %p, label %t, label %f
+
+t:
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  %ct = bitcast i32* %x to i8*
+  call void @objc_release(i8* %ct) nounwind, !clang.imprecise_release !0
+  br label %return
+
+f:
+  store i32 7, i32* %x
+  call void @callee()
+  %cf = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cf) nounwind
+  br label %return
+
+return:
+  ret void
+}
+
+
 ; retain+release pair deletion, where the retain happens on two different
 ; flow paths.
 
-; CHECK: define void @test7(
-; CHECK-NOT: @objc_
+; CHECK:     define void @test7(
+; CHECK:     entry:
+; CHECK-NOT:   objc_
+; CHECK:     t:
+; CHECK:       call i8* @objc_retain
+; CHECK:     f:
+; CHECK:       call i8* @objc_retain
+; CHECK:     return:
+; CHECK:       call void @objc_release
 ; CHECK: }
 define void @test7(i32* %x, i1 %p) nounwind {
 entry:
@@ -281,17 +567,44 @@ return:
   ret void
 }
 
-; Like test7, but there's a retain/retainBlock mismatch. Don't delete!
-
-; CHECK: define void @test7b
-; CHECK: t:
-; CHECK: call i8* @objc_retainBlock
-; CHECK: f:
-; CHECK: call i8* @objc_retain
-; CHECK: return:
-; CHECK: call void @objc_release
+; CHECK: define void @test7b(
+; CHECK-NOT: @objc_
 ; CHECK: }
 define void @test7b(i32* %x, i1 %p) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  br i1 %p, label %t, label %f
+
+t:
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  br label %return
+
+f:
+  %1 = call i8* @objc_retain(i8* %a) nounwind
+  store i32 7, i32* %x
+  call void @callee()
+  br label %return
+
+return:
+  %c = bitcast i32* %x to i8*
+  call void @objc_release(i8* %c) nounwind, !clang.imprecise_release !0
+  ret void
+}
+
+; Like test7, but there's a retain/retainBlock mismatch. Don't delete!
+
+; CHECK: define void @test7c
+; CHECK: t:
+; CHECK:   call i8* @objc_retainBlock
+; CHECK: f:
+; CHECK:   call i8* @objc_retain
+; CHECK: return:
+; CHECK:   call void @objc_release
+; CHECK: }
+define void @test7c(i32* %x, i1 %p) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   br i1 %p, label %t, label %f
@@ -318,10 +631,20 @@ return:
 ; retain+release pair deletion, where the retain and release both happen on
 ; different flow paths. Wild!
 
-; CHECK: define void @test8(
-; CHECK-NOT: @objc_
+; CHECK: define void @test8a(
+; CHECK: entry:
+; CHECK: t:
+; CHECK:   @objc_retain
+; CHECK: f:
+; CHECK:   @objc_retain
+; CHECK: mid:
+; CHECK: u:
+; CHECK:   @objc_release
+; CHECK: g:
+; CHECK:   @objc_release
+; CHECK: return:
 ; CHECK: }
-define void @test8(i32* %x, i1 %p, i1 %q) nounwind {
+define void @test8a(i32* %x, i1 %p, i1 %q) nounwind {
 entry:
   %a = bitcast i32* %x to i8*
   br i1 %p, label %t, label %f
@@ -345,6 +668,140 @@ u:
   call void @callee()
   %cu = bitcast i32* %x to i8*
   call void @objc_release(i8* %cu) nounwind
+  br label %return
+
+g:
+  %cg = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cg) nounwind
+  br label %return
+
+return:
+  ret void
+}
+
+; CHECK: define void @test8b(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test8b(i32* %x, i1 %p, i1 %q) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  br i1 %p, label %t, label %f
+
+t:
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  br label %mid
+
+f:
+  %1 = call i8* @objc_retain(i8* %a) nounwind
+  store i32 7, i32* %x
+  br label %mid
+
+mid:
+  br i1 %q, label %u, label %g
+
+u:
+  call void @callee()
+  %cu = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cu) nounwind, !clang.imprecise_release !0
+  br label %return
+
+g:
+  %cg = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cg) nounwind, !clang.imprecise_release !0
+  br label %return
+
+return:
+  ret void
+}
+
+; CHECK: define void @test8c(
+; CHECK: entry:
+; CHECK: t:
+; CHECK:   @objc_retain
+; CHECK: f:
+; CHECK:   @objc_retain
+; CHECK: mid:
+; CHECK: u:
+; CHECK:   @objc_release
+; CHECK: g:
+; CHECK:   @objc_release
+; CHECK: return:
+; CHECK: }
+define void @test8c(i32* %x, i1 %p, i1 %q) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  br i1 %p, label %t, label %f
+
+t:
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  br label %mid
+
+f:
+  %1 = call i8* @objc_retain(i8* %a) nounwind
+  store i32 7, i32* %x
+  br label %mid
+
+mid:
+  br i1 %q, label %u, label %g
+
+u:
+  call void @callee()
+  %cu = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cu) nounwind
+  br label %return
+
+g:
+  %cg = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cg) nounwind, !clang.imprecise_release !0
+  br label %return
+
+return:
+  ret void
+}
+
+; CHECK: define void @test8d(
+; CHECK: entry:
+; CHECK: t:
+; CHECK:   @objc_retain
+; CHECK: f:
+; CHECK:   @objc_retain
+; CHECK: mid:
+; CHECK: u:
+; CHECK:   @objc_release
+; CHECK: g:
+; CHECK:   @objc_release
+; CHECK: return:
+; CHECK: }
+define void @test8d(i32* %x, i1 %p, i1 %q) nounwind {
+entry:
+  %a = bitcast i32* %x to i8*
+  br i1 %p, label %t, label %f
+
+t:
+  %0 = call i8* @objc_retain(i8* %a) nounwind
+  store i8 3, i8* %a
+  %b = bitcast i32* %x to float*
+  store float 2.0, float* %b
+  br label %mid
+
+f:
+  %1 = call i8* @objc_retain(i8* %a) nounwind
+  store i32 7, i32* %x
+  br label %mid
+
+mid:
+  br i1 %q, label %u, label %g
+
+u:
+  call void @callee()
+  %cu = bitcast i32* %x to i8*
+  call void @objc_release(i8* %cu) nounwind, !clang.imprecise_release !0
   br label %return
 
 g:
@@ -486,6 +943,7 @@ entry:
 ; CHECK-NEXT: @use_pointer
 ; CHECK-NEXT: @use_pointer
 ; CHECK-NEXT: ret void
+; CHECK-NEXT: }
 define void @test13b(i8* %x, i64 %n) {
 entry:
   call i8* @objc_retain(i8* %x) nounwind
@@ -527,6 +985,7 @@ entry:
 ; CHECK-NEXT: @use_pointer
 ; CHECK-NEXT: @use_pointer
 ; CHECK-NEXT: ret void
+; CHECK-NEXT: }
 define void @test13d(i8* %x, i64 %n) {
 entry:
   call i8* @objc_retain(i8* %x) nounwind
@@ -583,7 +1042,9 @@ entry:
 
 ; CHECK: define void @test15b
 ; CHECK-NEXT: entry:
+; CHECK-NEXT: @objc_retain
 ; CHECK-NEXT: @objc_autorelease
+; CHECK-NEXT: @objc_release
 ; CHECK-NEXT: ret void
 ; CHECK-NEXT: }
 define void @test15b(i8* %x, i64 %n) {
@@ -594,13 +1055,26 @@ entry:
   ret void
 }
 
+; CHECK: define void @test15c
+; CHECK-NEXT: entry:
+; CHECK-NEXT: @objc_autorelease
+; CHECK-NEXT: ret void
+; CHECK-NEXT: }
+define void @test15c(i8* %x, i64 %n) {
+entry:
+  call i8* @objc_retain(i8* %x) nounwind
+  call i8* @objc_autorelease(i8* %x) nounwind
+  call void @objc_release(i8* %x) nounwind, !clang.imprecise_release !0
+  ret void
+}
+
 ; Retain+release pairs in diamonds, all dominated by a retain.
 
-; CHECK: define void @test16(
+; CHECK: define void @test16a(
 ; CHECK: @objc_retain(i8* %x)
 ; CHECK-NOT: @objc
 ; CHECK: }
-define void @test16(i1 %a, i1 %b, i8* %x) {
+define void @test16a(i1 %a, i1 %b, i8* %x) {
 entry:
   call i8* @objc_retain(i8* %x) nounwind
   br i1 %a, label %red, label %orange
@@ -629,6 +1103,109 @@ blue:
 purple:
   ret void
 }
+
+; CHECK: define void @test16b(
+; CHECK: @objc_retain(i8* %x)
+; CHECK-NOT: @objc
+; CHECK: }
+define void @test16b(i1 %a, i1 %b, i8* %x) {
+entry:
+  call i8* @objc_retain(i8* %x) nounwind
+  br i1 %a, label %red, label %orange
+
+red:
+  call i8* @objc_retain(i8* %x) nounwind
+  br label %yellow
+
+orange:
+  call i8* @objc_retain(i8* %x) nounwind
+  br label %yellow
+
+yellow:
+  call void @use_pointer(i8* %x)
+  call void @use_pointer(i8* %x)
+  br i1 %b, label %green, label %blue
+
+green:
+  call void @objc_release(i8* %x) nounwind, !clang.imprecise_release !0
+  br label %purple
+
+blue:
+  call void @objc_release(i8* %x) nounwind
+  br label %purple
+
+purple:
+  ret void
+}
+
+; CHECK: define void @test16c(
+; CHECK: @objc_retain(i8* %x)
+; CHECK-NOT: @objc
+; CHECK: }
+define void @test16c(i1 %a, i1 %b, i8* %x) {
+entry:
+  call i8* @objc_retain(i8* %x) nounwind
+  br i1 %a, label %red, label %orange
+
+red:
+  call i8* @objc_retain(i8* %x) nounwind
+  br label %yellow
+
+orange:
+  call i8* @objc_retain(i8* %x) nounwind
+  br label %yellow
+
+yellow:
+  call void @use_pointer(i8* %x)
+  call void @use_pointer(i8* %x)
+  br i1 %b, label %green, label %blue
+
+green:
+  call void @objc_release(i8* %x) nounwind, !clang.imprecise_release !0
+  br label %purple
+
+blue:
+  call void @objc_release(i8* %x) nounwind, !clang.imprecise_release !0
+  br label %purple
+
+purple:
+  ret void
+}
+
+; CHECK: define void @test16d(
+; CHECK: @objc_retain(i8* %x)
+; CHECK-NOT: @objc
+; CHECK: }
+define void @test16d(i1 %a, i1 %b, i8* %x) {
+entry:
+  call i8* @objc_retain(i8* %x) nounwind
+  br i1 %a, label %red, label %orange
+
+red:
+  call i8* @objc_retain(i8* %x) nounwind
+  br label %yellow
+
+orange:
+  call i8* @objc_retain(i8* %x) nounwind
+  br label %yellow
+
+yellow:
+  call void @use_pointer(i8* %x)
+  call void @use_pointer(i8* %x)
+  br i1 %b, label %green, label %blue
+
+green:
+  call void @objc_release(i8* %x) nounwind
+  br label %purple
+
+blue:
+  call void @objc_release(i8* %x) nounwind, !clang.imprecise_release !0
+  br label %purple
+
+purple:
+  ret void
+}
+
 
 ; Retain+release pairs in diamonds, all post-dominated by a release.
 
@@ -720,6 +1297,7 @@ entry:
 ; CHECK: define void @test20(
 ; CHECK: %tmp1 = tail call i8* @objc_retain(i8* %tmp) [[NUW]]
 ; CHECK-NEXT: invoke
+; CHECK: }
 define void @test20(double* %self) {
 if.then12:
   %tmp = bitcast double* %self to i8*
@@ -747,6 +1325,7 @@ if.end:                                           ; preds = %invoke.cont23
 ; CHECK: define i8* @test21(
 ; CHECK: call i8* @returner()
 ; CHECK-NEXT: ret i8* %call
+; CHECK-NEXT: }
 define i8* @test21() {
 entry:
   %call = call i8* @returner()
@@ -799,7 +1378,7 @@ entry:
 
 ; Don't optimize objc_retainBlock, but do strength reduce it.
 
-; CHECK: define void @test23b
+; CHECK: define void @test23b(i8* %p) {
 ; CHECK: @objc_retain
 ; CHECK: @objc_release
 ; CHECK: }
@@ -1163,12 +1742,16 @@ done:
   ret void
 }
 
-; Delete retain,release if there's just a possible dec.
+; Delete retain,release if there's just a possible dec and we have imprecise
+; releases.
 
-; CHECK: define void @test34(
-; CHECK-NOT: @objc_
+; CHECK: define void @test34a(
+; CHECK:   call i8* @objc_retain
+; CHECK: true:
+; CHECK: done:
+; CHECK: call void @objc_release
 ; CHECK: }
-define void @test34(i8* %p, i1 %x, i8* %y) {
+define void @test34a(i8* %p, i1 %x, i8* %y) {
 entry:
   %f0 = call i8* @objc_retain(i8* %p)
   br i1 %x, label %true, label %done
@@ -1184,12 +1767,38 @@ done:
   ret void
 }
 
-; Delete retain,release if there's just a use.
-
-; CHECK: define void @test35(
+; CHECK: define void @test34b(
 ; CHECK-NOT: @objc_
 ; CHECK: }
-define void @test35(i8* %p, i1 %x, i8* %y) {
+define void @test34b(i8* %p, i1 %x, i8* %y) {
+entry:
+  %f0 = call i8* @objc_retain(i8* %p)
+  br i1 %x, label %true, label %done
+
+true:
+  call void @callee()
+  br label %done
+
+done:
+  %g = bitcast i8* %p to i8*
+  %h = getelementptr i8* %g, i64 0
+  call void @objc_release(i8* %g), !clang.imprecise_release !0
+  ret void
+}
+
+
+; Delete retain,release if there's just a use and we do not have a precise
+; release.
+
+; Precise.
+; CHECK: define void @test35a(
+; CHECK: entry:
+; CHECK:   call i8* @objc_retain
+; CHECK: true:
+; CHECK: done:
+; CHECK:   call void @objc_release
+; CHECK: }
+define void @test35a(i8* %p, i1 %x, i8* %y) {
 entry:
   %f0 = call i8* @objc_retain(i8* %p)
   br i1 %x, label %true, label %done
@@ -1205,16 +1814,36 @@ done:
   ret void
 }
 
-; Delete a retain,release if there's no actual use.
-
-; CHECK: define void @test36(
-; CHECK-NOT: @objc_
-; CHECK: call void @callee()
-; CHECK-NOT: @objc_
-; CHECK: call void @callee()
+; Imprecise.
+; CHECK: define void @test35b(
 ; CHECK-NOT: @objc_
 ; CHECK: }
-define void @test36(i8* %p) {
+define void @test35b(i8* %p, i1 %x, i8* %y) {
+entry:
+  %f0 = call i8* @objc_retain(i8* %p)
+  br i1 %x, label %true, label %done
+
+true:
+  %v = icmp eq i8* %p, %y
+  br label %done
+
+done:
+  %g = bitcast i8* %p to i8*
+  %h = getelementptr i8* %g, i64 0
+  call void @objc_release(i8* %g), !clang.imprecise_release !0
+  ret void
+}
+
+; Delete a retain,release if there's no actual use and we have precise release.
+
+; CHECK: define void @test36a(
+; CHECK: @objc_retain
+; CHECK: call void @callee()
+; CHECK-NOT: @objc_
+; CHECK: call void @callee()
+; CHECK: @objc_release
+; CHECK: }
+define void @test36a(i8* %p) {
 entry:
   call i8* @objc_retain(i8* %p)
   call void @callee()
@@ -1225,10 +1854,10 @@ entry:
 
 ; Like test36, but with metadata.
 
-; CHECK: define void @test37(
+; CHECK: define void @test36b(
 ; CHECK-NOT: @objc_
 ; CHECK: }
-define void @test37(i8* %p) {
+define void @test36b(i8* %p) {
 entry:
   call i8* @objc_retain(i8* %p)
   call void @callee()
@@ -1439,6 +2068,7 @@ define void @test44(i8** %pp) {
 ; CHECK: call void @objc_release(i8* %q)
 ; CHECK: call void @use_pointer(i8* %p)
 ; CHECK: call void @objc_release(i8* %p)
+; CHECK: }
 define void @test45(i8** %pp, i8** %qq) {
   %p = load i8** %pp
   %q = load i8** %qq
@@ -1455,6 +2085,7 @@ define void @test45(i8** %pp, i8** %qq) {
 ; CHECK: tail call i8* @objc_retain(i8* %p) [[NUW]]
 ; CHECK: true:
 ; CHECK: call i8* @objc_autorelease(i8* %p) [[NUW]]
+; CHECK: }
 define void @test46(i8* %p, i1 %a) {
 entry:
   call i8* @objc_retain(i8* %p)
@@ -1474,6 +2105,7 @@ false:
 ; CHECK: define i8* @test47(
 ; CHECK-NOT: call
 ; CHECK: ret i8* %p
+; CHECK: }
 define i8* @test47(i8* %p) nounwind {
   %x = call i8* @objc_retainedObject(i8* %p)
   ret i8* %x
@@ -1484,6 +2116,7 @@ define i8* @test47(i8* %p) nounwind {
 ; CHECK: define i8* @test48(
 ; CHECK-NOT: call
 ; CHECK: ret i8* %p
+; CHECK: }
 define i8* @test48(i8* %p) nounwind {
   %x = call i8* @objc_unretainedObject(i8* %p)
   ret i8* %x
@@ -1494,18 +2127,23 @@ define i8* @test48(i8* %p) nounwind {
 ; CHECK: define i8* @test49(
 ; CHECK-NOT: call
 ; CHECK: ret i8* %p
+; CHECK: }
 define i8* @test49(i8* %p) nounwind {
   %x = call i8* @objc_unretainedPointer(i8* %p)
   ret i8* %x
 }
 
-; Do delete retain+release with intervening stores of the
-; address value.
+; Do delete retain+release with intervening stores of the address value if we
+; have imprecise release attached to objc_release.
 
-; CHECK: define void @test50(
-; CHECK-NOT: @objc_
-; CHECK: }
-define void @test50(i8* %p, i8** %pp) {
+; CHECK:      define void @test50a(
+; CHECK-NEXT:   call i8* @objc_retain
+; CHECK-NEXT:   call void @callee
+; CHECK-NEXT:   store
+; CHECK-NEXT:   call void @objc_release
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+define void @test50a(i8* %p, i8** %pp) {
   call i8* @objc_retain(i8* %p)
   call void @callee()
   store i8* %p, i8** %pp
@@ -1513,13 +2151,27 @@ define void @test50(i8* %p, i8** %pp) {
   ret void
 }
 
+; CHECK: define void @test50b(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test50b(i8* %p, i8** %pp) {
+  call i8* @objc_retain(i8* %p)
+  call void @callee()
+  store i8* %p, i8** %pp
+  call void @objc_release(i8* %p), !clang.imprecise_release !0
+  ret void
+}
+
+
 ; Don't delete retain+release with intervening stores through the
 ; address value.
 
-; CHECK: define void @test51(
+; CHECK: define void @test51a(
 ; CHECK: call i8* @objc_retain(i8* %p)
 ; CHECK: call void @objc_release(i8* %p)
-define void @test51(i8* %p) {
+; CHECK: ret void
+; CHECK: }
+define void @test51a(i8* %p) {
   call i8* @objc_retain(i8* %p)
   call void @callee()
   store i8 0, i8* %p
@@ -1527,21 +2179,53 @@ define void @test51(i8* %p) {
   ret void
 }
 
+; CHECK: define void @test51b(
+; CHECK: call i8* @objc_retain(i8* %p)
+; CHECK: call void @objc_release(i8* %p)
+; CHECK: ret void
+; CHECK: }
+define void @test51b(i8* %p) {
+  call i8* @objc_retain(i8* %p)
+  call void @callee()
+  store i8 0, i8* %p
+  call void @objc_release(i8* %p), !clang.imprecise_release !0
+  ret void
+}
+
 ; Don't delete retain+release with intervening use of a pointer of
 ; unknown provenance.
 
-; CHECK: define void @test52(
+; CHECK: define void @test52a(
 ; CHECK: call i8* @objc_retain
 ; CHECK: call void @callee()
 ; CHECK: call void @use_pointer(i8* %z)
 ; CHECK: call void @objc_release
-define void @test52(i8** %zz, i8** %pp) {
+; CHECK: ret void
+; CHECK: }
+define void @test52a(i8** %zz, i8** %pp) {
   %p = load i8** %pp
   %1 = call i8* @objc_retain(i8* %p)
   call void @callee()
   %z = load i8** %zz
   call void @use_pointer(i8* %z)
   call void @objc_release(i8* %p)
+  ret void
+}
+
+; CHECK: define void @test52b(
+; CHECK: call i8* @objc_retain
+; CHECK: call void @callee()
+; CHECK: call void @use_pointer(i8* %z)
+; CHECK: call void @objc_release
+; CHECK: ret void
+; CHECK: }
+define void @test52b(i8** %zz, i8** %pp) {
+  %p = load i8** %pp
+  %1 = call i8* @objc_retain(i8* %p)
+  call void @callee()
+  %z = load i8** %zz
+  call void @use_pointer(i8* %z)
+  call void @objc_release(i8* %p), !clang.imprecise_release !0
   ret void
 }
 
@@ -1569,6 +2253,7 @@ define void @test53(void ()** %zz, i8** %pp) {
 ; CHECK: call i8* @returner()
 ; CHECK-NEXT: call void @objc_release(i8* %t) [[NUW]], !clang.imprecise_release !0
 ; CHECK-NEXT: ret void
+; CHECK: }
 define void @test54() {
   %t = call i8* @returner()
   call i8* @objc_autorelease(i8* %t)
@@ -1697,16 +2382,75 @@ entry:
 @constptr = external constant i8*
 @something = external global i8*
 
-; CHECK: define void @test60(
-; CHECK-NOT: @objc_
+; We have a precise lifetime retain/release here. We can not remove them since
+; @something is not constant.
+
+; CHECK: define void @test60a(
+; CHECK: call i8* @objc_retain
+; CHECK: call void @objc_release
 ; CHECK: }
-define void @test60() {
+define void @test60a() {
   %t = load i8** @constptr
   %s = load i8** @something
   call i8* @objc_retain(i8* %s)
   call void @callee()
   call void @use_pointer(i8* %t)
   call void @objc_release(i8* %s)
+  ret void
+}
+
+; CHECK: define void @test60b(
+; CHECK: call i8* @objc_retain
+; CHECK-NOT: call i8* @objc_retain
+; CHECK-NOT: call i8* @objc_rrelease
+; CHECK: }
+define void @test60b() {
+  %t = load i8** @constptr
+  %s = load i8** @something
+  call i8* @objc_retain(i8* %s)
+  call i8* @objc_retain(i8* %s)
+  call void @callee()
+  call void @use_pointer(i8* %t)
+  call void @objc_release(i8* %s)
+  ret void
+}
+
+; CHECK: define void @test60c(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test60c() {
+  %t = load i8** @constptr
+  %s = load i8** @something
+  call i8* @objc_retain(i8* %s)
+  call void @callee()
+  call void @use_pointer(i8* %t)
+  call void @objc_release(i8* %s), !clang.imprecise_release !0
+  ret void
+}
+
+; CHECK: define void @test60d(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test60d() {
+  %t = load i8** @constptr
+  %s = load i8** @something
+  call i8* @objc_retain(i8* %t)
+  call void @callee()
+  call void @use_pointer(i8* %s)
+  call void @objc_release(i8* %t)
+  ret void
+}
+
+; CHECK: define void @test60e(
+; CHECK-NOT: @objc_
+; CHECK: }
+define void @test60e() {
+  %t = load i8** @constptr
+  %s = load i8** @something
+  call i8* @objc_retain(i8* %t)
+  call void @callee()
+  call void @use_pointer(i8* %s)
+  call void @objc_release(i8* %t), !clang.imprecise_release !0
   ret void
 }
 
@@ -1876,11 +2620,13 @@ return:                                           ; preds = %if.then, %entry
 ; An objc_retain can serve as a may-use for a different pointer.
 ; rdar://11931823
 
-; CHECK: define void @test66(
-; CHECK:   %tmp7 = tail call i8* @objc_retain(i8* %cond) [[NUW]]
+; CHECK: define void @test66a(
+; CHECK:   tail call i8* @objc_retain(i8* %cond) [[NUW]]
+; CHECK:   tail call void @objc_release(i8* %call) [[NUW]]
+; CHECK:   tail call i8* @objc_retain(i8* %tmp8) [[NUW]]
 ; CHECK:   tail call void @objc_release(i8* %cond) [[NUW]]
 ; CHECK: }
-define void @test66(i8* %tmp5, i8* %bar, i1 %tobool, i1 %tobool1, i8* %call) {
+define void @test66a(i8* %tmp5, i8* %bar, i1 %tobool, i1 %tobool1, i8* %call) {
 entry:
   br i1 %tobool, label %cond.true, label %cond.end
 
@@ -1897,7 +2643,74 @@ cond.end:                                         ; preds = %cond.true, %entry
   ret void
 }
 
-declare void @bar(i32 ()*)
+; CHECK: define void @test66b(
+; CHECK:   tail call i8* @objc_retain(i8* %cond) [[NUW]]
+; CHECK:   tail call void @objc_release(i8* %call) [[NUW]]
+; CHECK:   tail call i8* @objc_retain(i8* %tmp8) [[NUW]]
+; CHECK:   tail call void @objc_release(i8* %cond) [[NUW]]
+; CHECK: }
+define void @test66b(i8* %tmp5, i8* %bar, i1 %tobool, i1 %tobool1, i8* %call) {
+entry:
+  br i1 %tobool, label %cond.true, label %cond.end
+
+cond.true:
+  br label %cond.end
+
+cond.end:                                         ; preds = %cond.true, %entry
+  %cond = phi i8* [ %tmp5, %cond.true ], [ %call, %entry ]
+  %tmp7 = tail call i8* @objc_retain(i8* %cond) nounwind
+  tail call void @objc_release(i8* %call) nounwind, !clang.imprecise_release !0
+  %tmp8 = select i1 %tobool1, i8* %cond, i8* %bar
+  %tmp9 = tail call i8* @objc_retain(i8* %tmp8) nounwind
+  tail call void @objc_release(i8* %cond) nounwind
+  ret void
+}
+
+; CHECK: define void @test66c(
+; CHECK:   tail call i8* @objc_retain(i8* %cond) [[NUW]]
+; CHECK:   tail call void @objc_release(i8* %call) [[NUW]]
+; CHECK:   tail call i8* @objc_retain(i8* %tmp8) [[NUW]]
+; CHECK:   tail call void @objc_release(i8* %cond) [[NUW]]
+; CHECK: }
+define void @test66c(i8* %tmp5, i8* %bar, i1 %tobool, i1 %tobool1, i8* %call) {
+entry:
+  br i1 %tobool, label %cond.true, label %cond.end
+
+cond.true:
+  br label %cond.end
+
+cond.end:                                         ; preds = %cond.true, %entry
+  %cond = phi i8* [ %tmp5, %cond.true ], [ %call, %entry ]
+  %tmp7 = tail call i8* @objc_retain(i8* %cond) nounwind
+  tail call void @objc_release(i8* %call) nounwind
+  %tmp8 = select i1 %tobool1, i8* %cond, i8* %bar
+  %tmp9 = tail call i8* @objc_retain(i8* %tmp8) nounwind, !clang.imprecise_release !0
+  tail call void @objc_release(i8* %cond) nounwind
+  ret void
+}
+
+; CHECK: define void @test66d(
+; CHECK:   tail call i8* @objc_retain(i8* %cond) [[NUW]]
+; CHECK:   tail call void @objc_release(i8* %call) [[NUW]]
+; CHECK:   tail call i8* @objc_retain(i8* %tmp8) [[NUW]]
+; CHECK:   tail call void @objc_release(i8* %cond) [[NUW]]
+; CHECK: }
+define void @test66d(i8* %tmp5, i8* %bar, i1 %tobool, i1 %tobool1, i8* %call) {
+entry:
+  br i1 %tobool, label %cond.true, label %cond.end
+
+cond.true:
+  br label %cond.end
+
+cond.end:                                         ; preds = %cond.true, %entry
+  %cond = phi i8* [ %tmp5, %cond.true ], [ %call, %entry ]
+  %tmp7 = tail call i8* @objc_retain(i8* %cond) nounwind
+  tail call void @objc_release(i8* %call) nounwind, !clang.imprecise_release !0
+  %tmp8 = select i1 %tobool1, i8* %cond, i8* %bar
+  %tmp9 = tail call i8* @objc_retain(i8* %tmp8) nounwind
+  tail call void @objc_release(i8* %cond) nounwind, !clang.imprecise_release !0
+  ret void
+}
 
 ; A few real-world testcases.
 
@@ -1907,7 +2720,7 @@ declare i32 @printf(i8* nocapture, ...) nounwind
 declare i32 @puts(i8* nocapture) nounwind
 @str = internal constant [16 x i8] c"-[ Top0 _getX ]\00"
 
-; CHECK: @"\01-[A z]"
+; CHECK: define { <2 x float>, <2 x float> } @"\01-[A z]"({}* %self, i8* nocapture %_cmd) [[NUW]] {
 ; CHECK-NOT: @objc_
 ; CHECK: }
 
@@ -1953,7 +2766,7 @@ invoke.cont:
   ret {<2 x float>, <2 x float>} %tmp35
 }
 
-; CHECK: @"\01-[Top0 _getX]"
+; CHECK: @"\01-[Top0 _getX]"({}* %self, i8* nocapture %_cmd) [[NUW]] {
 ; CHECK-NOT: @objc_
 ; CHECK: }
 
@@ -1972,12 +2785,13 @@ invoke.cont:
 
 ; A simple loop. Eliminate the retain and release inside of it!
 
-; CHECK: define void @loop
+; CHECK: define void @loop(i8* %x, i64 %n) {
 ; CHECK: for.body:
 ; CHECK-NOT: @objc_
 ; CHECK: @objc_msgSend
 ; CHECK-NOT: @objc_
 ; CHECK: for.end:
+; CHECK: }
 define void @loop(i8* %x, i64 %n) {
 entry:
   %0 = tail call i8* @objc_retain(i8* %x) nounwind
@@ -2001,7 +2815,7 @@ for.end:                                          ; preds = %for.body, %entry
 
 ; ObjCARCOpt can delete the retain,release on self.
 
-; CHECK: define void @TextEditTest
+; CHECK: define void @TextEditTest(%2* %self, %3* %pboard) {
 ; CHECK-NOT: call i8* @objc_retain(i8* %tmp7)
 ; CHECK: }
 

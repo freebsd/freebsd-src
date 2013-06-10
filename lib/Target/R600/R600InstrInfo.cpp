@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "R600InstrInfo.h"
+#include "AMDGPU.h"
 #include "AMDGPUSubtarget.h"
 #include "AMDGPUTargetMachine.h"
 #include "R600Defines.h"
@@ -29,7 +30,8 @@ using namespace llvm;
 
 R600InstrInfo::R600InstrInfo(AMDGPUTargetMachine &tm)
   : AMDGPUInstrInfo(tm),
-    RI(tm, *this)
+    RI(tm, *this),
+    ST(tm.getSubtarget<AMDGPUSubtarget>())
   { }
 
 const R600RegisterInfo &R600InstrInfo::getRegisterInfo() const {
@@ -139,6 +141,33 @@ bool R600InstrInfo::isALUInstr(unsigned Opcode) const {
           (TargetFlags & R600_InstFlag::OP3));
 }
 
+bool R600InstrInfo::isTransOnly(unsigned Opcode) const {
+  return (get(Opcode).TSFlags & R600_InstFlag::TRANS_ONLY);
+}
+
+bool R600InstrInfo::isTransOnly(const MachineInstr *MI) const {
+  return isTransOnly(MI->getOpcode());
+}
+
+bool R600InstrInfo::usesVertexCache(unsigned Opcode) const {
+  return ST.hasVertexCache() && IS_VTX(get(Opcode));
+}
+
+bool R600InstrInfo::usesVertexCache(const MachineInstr *MI) const {
+  const R600MachineFunctionInfo *MFI = MI->getParent()->getParent()->getInfo<R600MachineFunctionInfo>();
+  return MFI->ShaderType != ShaderType::COMPUTE && usesVertexCache(MI->getOpcode());
+}
+
+bool R600InstrInfo::usesTextureCache(unsigned Opcode) const {
+  return (!ST.hasVertexCache() && IS_VTX(get(Opcode))) || IS_TEX(get(Opcode));
+}
+
+bool R600InstrInfo::usesTextureCache(const MachineInstr *MI) const {
+  const R600MachineFunctionInfo *MFI = MI->getParent()->getParent()->getInfo<R600MachineFunctionInfo>();
+  return (MFI->ShaderType == ShaderType::COMPUTE && usesVertexCache(MI->getOpcode())) ||
+         usesTextureCache(MI->getOpcode());
+}
+
 bool
 R600InstrInfo::fitsConstReadLimitations(const std::vector<unsigned> &Consts)
     const {
@@ -183,10 +212,19 @@ R600InstrInfo::canBundle(const std::vector<MachineInstr *> &MIs) const {
       int SrcIdx = getOperandIdx(MI->getOpcode(), OpTable[j][0]);
       if (SrcIdx < 0)
         break;
-      if (MI->getOperand(SrcIdx).getReg() == AMDGPU::ALU_CONST) {
+      unsigned Reg = MI->getOperand(SrcIdx).getReg();
+      if (Reg == AMDGPU::ALU_CONST) {
         unsigned Const = MI->getOperand(
             getOperandIdx(MI->getOpcode(), OpTable[j][1])).getImm();
         Consts.push_back(Const);
+        continue;
+      }
+      if (AMDGPU::R600_KC0RegClass.contains(Reg) ||
+          AMDGPU::R600_KC1RegClass.contains(Reg)) {
+        unsigned Index = RI.getEncodingValue(Reg) & 0xff;
+        unsigned Chan = RI.getHWRegChan(Reg);
+        Consts.push_back((Index << 2) | Chan);
+        continue;
       }
     }
   }
@@ -684,7 +722,8 @@ MachineInstrBuilder R600InstrInfo::buildDefaultInstruction(MachineBasicBlock &MB
   //scheduling to the backend, we can change the default to 0.
   MIB.addImm(1)        // $last
       .addReg(AMDGPU::PRED_SEL_OFF) // $pred_sel
-      .addImm(0);        // $literal
+      .addImm(0)         // $literal
+      .addImm(0);        // $bank_swizzle
 
   return MIB;
 }

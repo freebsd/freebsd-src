@@ -66,6 +66,12 @@ define i64 @ret_bigimm() {
   ret i64 6800754272627607872
 }
 
+; CHECK: ret_bigimm2
+; CHECK: sethi 1048576
+define i64 @ret_bigimm2() {
+  ret i64 4611686018427387904 ; 0x4000000000000000
+}
+
 ; CHECK: reg_reg_alu
 ; CHECK: add %i0, %i1, [[R0:%[goli][0-7]]]
 ; CHECK: sub [[R0]], %i2, [[R1:%[goli][0-7]]]
@@ -143,4 +149,35 @@ define void @stores(i64* %p, i32* %q, i16* %r, i8* %s) {
   store i8 %sv, i8* %s2
 
   ret void
+}
+
+; CHECK: promote_shifts
+; CHECK: ldub [%i0], [[R:%[goli][0-7]]]
+; CHECK: sll [[R]], [[R]], %i0
+define i8 @promote_shifts(i8* %p) {
+  %L24 = load i8* %p
+  %L32 = load i8* %p
+  %B36 = shl i8 %L24, %L32
+  ret i8 %B36
+}
+
+; CHECK: multiply
+; CHECK: mulx %i0, %i1, %i0
+define i64 @multiply(i64 %a, i64 %b) {
+  %r = mul i64 %a, %b
+  ret i64 %r
+}
+
+; CHECK: signed_divide
+; CHECK: sdivx %i0, %i1, %i0
+define i64 @signed_divide(i64 %a, i64 %b) {
+  %r = sdiv i64 %a, %b
+  ret i64 %r
+}
+
+; CHECK: unsigned_divide
+; CHECK: udivx %i0, %i1, %i0
+define i64 @unsigned_divide(i64 %a, i64 %b) {
+  %r = udiv i64 %a, %b
+  ret i64 %r
 }

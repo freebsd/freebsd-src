@@ -69,7 +69,7 @@ const char* LTOCodeGenerator::getVersionString() {
 
 LTOCodeGenerator::LTOCodeGenerator()
   : _context(getGlobalContext()),
-    _linker("LinkTimeOptimizer", "ld-temp.o", _context), _target(NULL),
+    _linker(new Module("ld-temp.o", _context)), _target(NULL),
     _emitDwarfDebugInfo(false), _scopeRestrictionsDone(false),
     _codeModel(LTO_CODEGEN_PIC_MODEL_DYNAMIC),
     _nativeObjectFile(NULL) {
@@ -81,6 +81,7 @@ LTOCodeGenerator::LTOCodeGenerator()
 LTOCodeGenerator::~LTOCodeGenerator() {
   delete _target;
   delete _nativeObjectFile;
+  delete _linker.getModule();
 
   for (std::vector<char*>::iterator I = _codegenOptions.begin(),
          E = _codegenOptions.end(); I != E; ++I)
@@ -88,7 +89,7 @@ LTOCodeGenerator::~LTOCodeGenerator() {
 }
 
 bool LTOCodeGenerator::addModule(LTOModule* mod, std::string& errMsg) {
-  bool ret = _linker.LinkInModule(mod->getLLVVMModule(), &errMsg);
+  bool ret = _linker.linkInModule(mod->getLLVVMModule(), &errMsg);
 
   const std::vector<const char*> &undefs = mod->getAsmUndefinedRefs();
   for (int i = 0, e = undefs.size(); i != e; ++i)
@@ -287,9 +288,7 @@ static void findUsedValues(GlobalVariable *LLVMUsed,
                            SmallPtrSet<GlobalValue*, 8> &UsedValues) {
   if (LLVMUsed == 0) return;
 
-  ConstantArray *Inits = dyn_cast<ConstantArray>(LLVMUsed->getInitializer());
-  if (Inits == 0) return;
-
+  ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
   for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i)
     if (GlobalValue *GV =
         dyn_cast<GlobalValue>(Inits->getOperand(i)->stripPointerCasts()))
@@ -326,23 +325,25 @@ void LTOCodeGenerator::applyScopeRestrictions() {
   if (LLVMCompilerUsed)
     LLVMCompilerUsed->eraseFromParent();
 
-  llvm::Type *i8PTy = llvm::Type::getInt8PtrTy(_context);
-  std::vector<Constant*> asmUsed2;
-  for (SmallPtrSet<GlobalValue*, 16>::const_iterator i = asmUsed.begin(),
-         e = asmUsed.end(); i !=e; ++i) {
-    GlobalValue *GV = *i;
-    Constant *c = ConstantExpr::getBitCast(GV, i8PTy);
-    asmUsed2.push_back(c);
+  if (!asmUsed.empty()) {
+    llvm::Type *i8PTy = llvm::Type::getInt8PtrTy(_context);
+    std::vector<Constant*> asmUsed2;
+    for (SmallPtrSet<GlobalValue*, 16>::const_iterator i = asmUsed.begin(),
+           e = asmUsed.end(); i !=e; ++i) {
+      GlobalValue *GV = *i;
+      Constant *c = ConstantExpr::getBitCast(GV, i8PTy);
+      asmUsed2.push_back(c);
+    }
+
+    llvm::ArrayType *ATy = llvm::ArrayType::get(i8PTy, asmUsed2.size());
+    LLVMCompilerUsed =
+      new llvm::GlobalVariable(*mergedModule, ATy, false,
+                               llvm::GlobalValue::AppendingLinkage,
+                               llvm::ConstantArray::get(ATy, asmUsed2),
+                               "llvm.compiler.used");
+
+    LLVMCompilerUsed->setSection("llvm.metadata");
   }
-
-  llvm::ArrayType *ATy = llvm::ArrayType::get(i8PTy, asmUsed2.size());
-  LLVMCompilerUsed =
-    new llvm::GlobalVariable(*mergedModule, ATy, false,
-                             llvm::GlobalValue::AppendingLinkage,
-                             llvm::ConstantArray::get(ATy, asmUsed2),
-                             "llvm.compiler.used");
-
-  LLVMCompilerUsed->setSection("llvm.metadata");
 
   passes.add(createInternalizePass(mustPreserveList));
 

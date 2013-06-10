@@ -1791,15 +1791,6 @@ Lforward:
 @ CHECK: shsub8gt	r4, r8, r2      @ encoding: [0xf2,0x4f,0x38,0xc6]
 
 @------------------------------------------------------------------------------
-@ SMC
-@------------------------------------------------------------------------------
-        smc #0xf
-        smceq #0
-
-@ CHECK: smc	#15                     @ encoding: [0x7f,0x00,0x60,0xe1]
-@ CHECK: smceq	#0                      @ encoding: [0x70,0x00,0x60,0x01]
-
-@------------------------------------------------------------------------------
 @ SMLABB/SMLABT/SMLATB/SMLATT
 @------------------------------------------------------------------------------
         smlabb r3, r1, r9, r0
@@ -2318,7 +2309,7 @@ Lforward:
         strpl	r3, [r10, #0]!
 
 @ CHECK: strpl	r3, [r10, #-0]!         @ encoding: [0x00,0x30,0x2a,0x55]
-@ CHECK: strpl	r3, [r10]!              @ encoding: [0x00,0x30,0xaa,0x55]
+@ CHECK: strpl	r3, [r10, #0]!          @ encoding: [0x00,0x30,0xaa,0x55]
 
 @------------------------------------------------------------------------------
 @ SUB
@@ -2879,7 +2870,6 @@ Lforward:
         wfilt
         yield
         yieldne
-        hint #5
         hint #4
         hint #3
         hint #2
@@ -2892,7 +2882,6 @@ Lforward:
 @ CHECK: wfilt                          @ encoding: [0x03,0xf0,0x20,0xb3]
 @ CHECK: yield                          @ encoding: [0x01,0xf0,0x20,0xe3]
 @ CHECK: yieldne                        @ encoding: [0x01,0xf0,0x20,0x13]
-@ CHECK: hint	#5                      @ encoding: [0x05,0xf0,0x20,0xe3]
 @ CHECK: sev                            @ encoding: [0x04,0xf0,0x20,0xe3]
 @ CHECK: wfi                            @ encoding: [0x03,0xf0,0x20,0xe3]
 @ CHECK: wfe                            @ encoding: [0x02,0xf0,0x20,0xe3]

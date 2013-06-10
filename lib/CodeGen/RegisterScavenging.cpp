@@ -154,14 +154,13 @@ void RegScavenger::unprocess() {
   assert(Tracking && "Cannot unprocess because we're not tracking");
 
   MachineInstr *MI = MBBI;
-  if (MI->isDebugValue())
-    return;
+  if (!MI->isDebugValue()) {
+    determineKillsAndDefs();
 
-  determineKillsAndDefs();
-
-  // Commit the changes.
-  setUsed(KillRegs);
-  setUnused(DefRegs);
+    // Commit the changes.
+    setUsed(KillRegs);
+    setUnused(DefRegs);
+  }
 
   if (MBBI == MBB->begin()) {
     MBBI = MachineBasicBlock::iterator(NULL);

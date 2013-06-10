@@ -1,14 +1,16 @@
+; REQUIRES: object-emission
+; XFAIL: hexagon
+
 ; RUN: llc -filetype=obj -O0 < %s > %t
 ; RUN: llvm-dwarfdump -debug-dump=info %t | FileCheck %s
 ; CHECK: DW_TAG_ptr_to_member_type
 ; CHECK: [[TYPE:.*]]:   DW_TAG_subroutine_type
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK-NEXT: DW_AT_type
-; CHECK-NEXT: DW_AT_artificial [DW_FORM_flag_present]
+; CHECK-NEXT: DW_AT_artificial [DW_FORM_flag
 ; CHECK: DW_TAG_ptr_to_member_type
 ; CHECK-NEXT: DW_AT_type [DW_FORM_ref4]       (cu + {{.*}} => {[[TYPE]]})
 ; IR generated from clang -g with the following source:
-; XFAIL: hexagon
 ; struct S {
 ; };
 ;
@@ -20,7 +22,7 @@
 
 !llvm.dbg.cu = !{!0}
 
-!0 = metadata !{i32 786449, i32 4, metadata !6, metadata !"clang version 3.3 ", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !1, metadata !3, metadata !""} ; [ DW_TAG_compile_unit ] [/home/blaikie/Development/scratch/simple.cpp] [DW_LANG_C_plus_plus]
+!0 = metadata !{i32 786449, i32 4, metadata !6, metadata !"clang version 3.3 ", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !1, metadata !3,  metadata !3, metadata !""} ; [ DW_TAG_compile_unit ] [/home/blaikie/Development/scratch/simple.cpp] [DW_LANG_C_plus_plus]
 !1 = metadata !{i32 0}
 !3 = metadata !{metadata !5, metadata !10}
 !5 = metadata !{i32 786484, i32 0, null, metadata !"x", metadata !"x", metadata !"", metadata !6, i32 4, metadata !7, i32 0, i32 1, i64* @x, null} ; [ DW_TAG_variable ] [x] [line 4] [def]

@@ -9,7 +9,9 @@ set(LLVM_LINK_COMPONENTS
 
 set(MCJITTestsSources
   MCJITTest.cpp
+  MCJITCAPITest.cpp
   MCJITMemoryManagerTest.cpp
+  MCJITObjectCacheTest.cpp
   )
 
 if(MSVC)

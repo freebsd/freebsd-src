@@ -81,9 +81,8 @@ template<class ELFT>
 struct ELFDataTypeTypedefHelper;
 
 /// ELF 32bit types.
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct ELFDataTypeTypedefHelper<ELFT<TargetEndianness, MaxAlign, false> >
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct ELFDataTypeTypedefHelper<ELFType<TargetEndianness, MaxAlign, false> >
   : ELFDataTypeTypedefHelperCommon<TargetEndianness, MaxAlign> {
   typedef uint32_t value_type;
   typedef support::detail::packed_endian_specific_integral
@@ -95,9 +94,8 @@ struct ELFDataTypeTypedefHelper<ELFT<TargetEndianness, MaxAlign, false> >
 };
 
 /// ELF 64bit types.
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct ELFDataTypeTypedefHelper<ELFT<TargetEndianness, MaxAlign, true> >
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct ELFDataTypeTypedefHelper<ELFType<TargetEndianness, MaxAlign, true> >
   : ELFDataTypeTypedefHelperCommon<TargetEndianness, MaxAlign> {
   typedef uint64_t value_type;
   typedef support::detail::packed_endian_specific_integral
@@ -109,27 +107,29 @@ struct ELFDataTypeTypedefHelper<ELFT<TargetEndianness, MaxAlign, true> >
 };
 
 // I really don't like doing this, but the alternative is copypasta.
-#define LLVM_ELF_IMPORT_TYPES(ELFT) \
-typedef typename ELFDataTypeTypedefHelper <ELFT>::Elf_Addr Elf_Addr; \
-typedef typename ELFDataTypeTypedefHelper <ELFT>::Elf_Off Elf_Off; \
-typedef typename ELFDataTypeTypedefHelper <ELFT>::Elf_Half Elf_Half; \
-typedef typename ELFDataTypeTypedefHelper <ELFT>::Elf_Word Elf_Word; \
-typedef typename ELFDataTypeTypedefHelper <ELFT>::Elf_Sword Elf_Sword; \
-typedef typename ELFDataTypeTypedefHelper <ELFT>::Elf_Xword Elf_Xword; \
-typedef typename ELFDataTypeTypedefHelper <ELFT>::Elf_Sxword Elf_Sxword;
+#define LLVM_ELF_IMPORT_TYPES(E, M, W)                                         \
+typedef typename ELFDataTypeTypedefHelper<ELFType<E,M,W> >::Elf_Addr Elf_Addr; \
+typedef typename ELFDataTypeTypedefHelper<ELFType<E,M,W> >::Elf_Off Elf_Off;   \
+typedef typename ELFDataTypeTypedefHelper<ELFType<E,M,W> >::Elf_Half Elf_Half; \
+typedef typename ELFDataTypeTypedefHelper<ELFType<E,M,W> >::Elf_Word Elf_Word; \
+typedef typename                                                               \
+  ELFDataTypeTypedefHelper<ELFType<E,M,W> >::Elf_Sword Elf_Sword;              \
+typedef typename                                                               \
+  ELFDataTypeTypedefHelper<ELFType<E,M,W> >::Elf_Xword Elf_Xword;              \
+typedef typename                                                               \
+  ELFDataTypeTypedefHelper<ELFType<E,M,W> >::Elf_Sxword Elf_Sxword;
 
-// This is required to get template types into a macro :(
-#define LLVM_ELF_COMMA ,
+#define LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)                                       \
+  LLVM_ELF_IMPORT_TYPES(ELFT::TargetEndianness, ELFT::MaxAlignment,            \
+  ELFT::Is64Bits)
 
-  // Section header.
+// Section header.
 template<class ELFT>
 struct Elf_Shdr_Base;
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Shdr_Base<ELFT<TargetEndianness, MaxAlign, false> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA false>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Shdr_Base<ELFType<TargetEndianness, MaxAlign, false> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, false)
   Elf_Word sh_name;     // Section name (index into string table)
   Elf_Word sh_type;     // Section type (SHT_*)
   Elf_Word sh_flags;    // Section flags (SHF_*)
@@ -142,11 +142,9 @@ struct Elf_Shdr_Base<ELFT<TargetEndianness, MaxAlign, false> > {
   Elf_Word sh_entsize;  // Size of records contained within the section
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Shdr_Base<ELFT<TargetEndianness, MaxAlign, true> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA true>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Shdr_Base<ELFType<TargetEndianness, MaxAlign, true> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, true)
   Elf_Word  sh_name;     // Section name (index into string table)
   Elf_Word  sh_type;     // Section type (SHT_*)
   Elf_Xword sh_flags;    // Section flags (SHF_*)
@@ -175,11 +173,9 @@ struct Elf_Shdr_Impl : Elf_Shdr_Base<ELFT> {
 template<class ELFT>
 struct Elf_Sym_Base;
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Sym_Base<ELFT<TargetEndianness, MaxAlign, false> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA false>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Sym_Base<ELFType<TargetEndianness, MaxAlign, false> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, false)
   Elf_Word      st_name;  // Symbol name (index into string table)
   Elf_Addr      st_value; // Value or address associated with the symbol
   Elf_Word      st_size;  // Size of the symbol
@@ -188,11 +184,9 @@ struct Elf_Sym_Base<ELFT<TargetEndianness, MaxAlign, false> > {
   Elf_Half      st_shndx; // Which section (header table index) it's defined in
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Sym_Base<ELFT<TargetEndianness, MaxAlign, true> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA true>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Sym_Base<ELFType<TargetEndianness, MaxAlign, true> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, true)
   Elf_Word      st_name;  // Symbol name (index into string table)
   unsigned char st_info;  // Symbol's type and binding attributes
   unsigned char st_other; // Must be zero; reserved
@@ -220,7 +214,7 @@ struct Elf_Sym_Impl : Elf_Sym_Base<ELFT> {
 /// (.gnu.version). This structure is identical for ELF32 and ELF64.
 template<class ELFT>
 struct Elf_Versym_Impl {
-  LLVM_ELF_IMPORT_TYPES(ELFT)
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
   Elf_Half vs_index;   // Version index with flags (e.g. VERSYM_HIDDEN)
 };
 
@@ -231,7 +225,7 @@ struct Elf_Verdaux_Impl;
 /// (.gnu.version_d). This structure is identical for ELF32 and ELF64.
 template<class ELFT>
 struct Elf_Verdef_Impl {
-  LLVM_ELF_IMPORT_TYPES(ELFT)
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
   typedef Elf_Verdaux_Impl<ELFT> Elf_Verdaux;
   Elf_Half vd_version; // Version of this structure (e.g. VER_DEF_CURRENT)
   Elf_Half vd_flags;   // Bitwise flags (VER_DEF_*)
@@ -251,7 +245,7 @@ struct Elf_Verdef_Impl {
 /// section (.gnu.version_d). This structure is identical for ELF32 and ELF64.
 template<class ELFT>
 struct Elf_Verdaux_Impl {
-  LLVM_ELF_IMPORT_TYPES(ELFT)
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
   Elf_Word vda_name; // Version name (offset in string table)
   Elf_Word vda_next; // Offset to next Verdaux entry (in bytes)
 };
@@ -260,7 +254,7 @@ struct Elf_Verdaux_Impl {
 /// section (.gnu.version_r). This structure is identical for ELF32 and ELF64.
 template<class ELFT>
 struct Elf_Verneed_Impl {
-  LLVM_ELF_IMPORT_TYPES(ELFT)
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
   Elf_Half vn_version; // Version of this structure (e.g. VER_NEED_CURRENT)
   Elf_Half vn_cnt;     // Number of associated Vernaux entries
   Elf_Word vn_file;    // Library name (string table offset)
@@ -272,7 +266,7 @@ struct Elf_Verneed_Impl {
 /// section (.gnu.version_r). This structure is identical for ELF32 and ELF64.
 template<class ELFT>
 struct Elf_Vernaux_Impl {
-  LLVM_ELF_IMPORT_TYPES(ELFT)
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
   Elf_Word vna_hash;  // Hash of dependency name
   Elf_Half vna_flags; // Bitwise Flags (VER_FLAG_*)
   Elf_Half vna_other; // Version index, used in .gnu.version entries
@@ -285,11 +279,9 @@ struct Elf_Vernaux_Impl {
 template<class ELFT>
 struct Elf_Dyn_Base;
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Dyn_Base<ELFT<TargetEndianness, MaxAlign, false> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA false>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Dyn_Base<ELFType<TargetEndianness, MaxAlign, false> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, false)
   Elf_Sword d_tag;
   union {
     Elf_Word d_val;
@@ -297,11 +289,9 @@ struct Elf_Dyn_Base<ELFT<TargetEndianness, MaxAlign, false> > {
   } d_un;
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Dyn_Base<ELFT<TargetEndianness, MaxAlign, true> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA true>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Dyn_Base<ELFType<TargetEndianness, MaxAlign, true> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, true)
   Elf_Sxword d_tag;
   union {
     Elf_Xword d_val;
@@ -323,11 +313,9 @@ struct Elf_Dyn_Impl : Elf_Dyn_Base<ELFT> {
 template<class ELFT, bool isRela>
 struct Elf_Rel_Base;
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, false>, false> {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA false>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Rel_Base<ELFType<TargetEndianness, MaxAlign, false>, false> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, false)
   Elf_Addr      r_offset; // Location (file byte offset, or program virtual addr)
   Elf_Word      r_info;  // Symbol table index and type of relocation to apply
 
@@ -340,11 +328,9 @@ struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, false>, false> {
   }
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, true>, false> {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA true>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Rel_Base<ELFType<TargetEndianness, MaxAlign, true>, false> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, true)
   Elf_Addr      r_offset; // Location (file byte offset, or program virtual addr)
   Elf_Xword     r_info;   // Symbol table index and type of relocation to apply
 
@@ -365,11 +351,9 @@ struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, true>, false> {
   }
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, false>, true> {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA false>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Rel_Base<ELFType<TargetEndianness, MaxAlign, false>, true> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, false)
   Elf_Addr      r_offset; // Location (file byte offset, or program virtual addr)
   Elf_Word      r_info;   // Symbol table index and type of relocation to apply
   Elf_Sword     r_addend; // Compute value for relocatable field by adding this
@@ -383,11 +367,9 @@ struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, false>, true> {
   }
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, true>, true> {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA true>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Rel_Base<ELFType<TargetEndianness, MaxAlign, true>, true> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, true)
   Elf_Addr      r_offset; // Location (file byte offset, or program virtual addr)
   Elf_Xword     r_info;   // Symbol table index and type of relocation to apply
   Elf_Sxword    r_addend; // Compute value for relocatable field by adding this.
@@ -411,12 +393,10 @@ struct Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, true>, true> {
 template<class ELFT, bool isRela>
 struct Elf_Rel_Impl;
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign, bool isRela>
-struct Elf_Rel_Impl<ELFT<TargetEndianness, MaxAlign, true>, isRela>
-       : Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, true>, isRela> {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA true>)
+template<endianness TargetEndianness, std::size_t MaxAlign, bool isRela>
+struct Elf_Rel_Impl<ELFType<TargetEndianness, MaxAlign, true>, isRela>
+       : Elf_Rel_Base<ELFType<TargetEndianness, MaxAlign, true>, isRela> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, true)
 
   // These accessors and mutators correspond to the ELF64_R_SYM, ELF64_R_TYPE,
   // and ELF64_R_INFO macros defined in the ELF specification:
@@ -433,12 +413,10 @@ struct Elf_Rel_Impl<ELFT<TargetEndianness, MaxAlign, true>, isRela>
   }
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign, bool isRela>
-struct Elf_Rel_Impl<ELFT<TargetEndianness, MaxAlign, false>, isRela>
-       : Elf_Rel_Base<ELFT<TargetEndianness, MaxAlign, false>, isRela> {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA false>)
+template<endianness TargetEndianness, std::size_t MaxAlign, bool isRela>
+struct Elf_Rel_Impl<ELFType<TargetEndianness, MaxAlign, false>, isRela>
+       : Elf_Rel_Base<ELFType<TargetEndianness, MaxAlign, false>, isRela> {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, false)
 
   // These accessors and mutators correspond to the ELF32_R_SYM, ELF32_R_TYPE,
   // and ELF32_R_INFO macros defined in the ELF specification:
@@ -457,7 +435,7 @@ struct Elf_Rel_Impl<ELFT<TargetEndianness, MaxAlign, false>, isRela>
 
 template<class ELFT>
 struct Elf_Ehdr_Impl {
-  LLVM_ELF_IMPORT_TYPES(ELFT)
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
   unsigned char e_ident[ELF::EI_NIDENT]; // ELF Identification bytes
   Elf_Half e_type;     // Type of file (see ET_*)
   Elf_Half e_machine;  // Required architecture for this file (see EM_*)
@@ -483,11 +461,9 @@ struct Elf_Ehdr_Impl {
 template<class ELFT>
 struct Elf_Phdr_Impl;
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Phdr_Impl<ELFT<TargetEndianness, MaxAlign, false> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA false>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Phdr_Impl<ELFType<TargetEndianness, MaxAlign, false> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, false)
   Elf_Word p_type;   // Type of segment
   Elf_Off  p_offset; // FileOffset where segment is located, in bytes
   Elf_Addr p_vaddr;  // Virtual Address of beginning of segment
@@ -498,11 +474,9 @@ struct Elf_Phdr_Impl<ELFT<TargetEndianness, MaxAlign, false> > {
   Elf_Word p_align;  // Segment alignment constraint
 };
 
-template<template<endianness, std::size_t, bool> class ELFT,
-         endianness TargetEndianness, std::size_t MaxAlign>
-struct Elf_Phdr_Impl<ELFT<TargetEndianness, MaxAlign, true> > {
-  LLVM_ELF_IMPORT_TYPES(ELFT<TargetEndianness LLVM_ELF_COMMA
-                             MaxAlign LLVM_ELF_COMMA true>)
+template<endianness TargetEndianness, std::size_t MaxAlign>
+struct Elf_Phdr_Impl<ELFType<TargetEndianness, MaxAlign, true> > {
+  LLVM_ELF_IMPORT_TYPES(TargetEndianness, MaxAlign, true)
   Elf_Word p_type;   // Type of segment
   Elf_Word p_flags;  // Segment flags
   Elf_Off  p_offset; // FileOffset where segment is located, in bytes
@@ -515,7 +489,7 @@ struct Elf_Phdr_Impl<ELFT<TargetEndianness, MaxAlign, true> > {
 
 template<class ELFT>
 class ELFObjectFile : public ObjectFile {
-  LLVM_ELF_IMPORT_TYPES(ELFT)
+  LLVM_ELF_IMPORT_TYPES_ELFT(ELFT)
 
 public:
   /// \brief Iterate over constant sized entities.
@@ -633,6 +607,8 @@ private:
   mutable const char *dt_soname;
 
 private:
+  uint64_t getROffset(DataRefImpl Rel) const;
+
   // Records for each version index the corresponding Verdef or Vernaux entry.
   // This is filled the first time LoadVersionMap() is called.
   class VersionMapEntry : public PointerIntPair<const void*, 1> {
@@ -689,6 +665,7 @@ public:
 protected:
   const Elf_Sym  *getSymbol(DataRefImpl Symb) const; // FIXME: Should be private?
   void            validateSymbol(DataRefImpl Symb) const;
+  StringRef       getRelocationTypeName(uint32_t Type) const;
 
 public:
   error_code      getSymbolName(const Elf_Shdr *section,
@@ -705,6 +682,7 @@ protected:
   virtual error_code getSymbolName(DataRefImpl Symb, StringRef &Res) const;
   virtual error_code getSymbolFileOffset(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolAddress(DataRefImpl Symb, uint64_t &Res) const;
+  virtual error_code getSymbolAlignment(DataRefImpl Symb, uint32_t &Res) const;
   virtual error_code getSymbolSize(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolNMTypeChar(DataRefImpl Symb, char &Res) const;
   virtual error_code getSymbolFlags(DataRefImpl Symb, uint32_t &Res) const;
@@ -1138,6 +1116,21 @@ error_code ELFObjectFile<ELFT>::getSymbolAddress(DataRefImpl Symb,
 }
 
 template<class ELFT>
+error_code ELFObjectFile<ELFT>::getSymbolAlignment(DataRefImpl Symb,
+                                                   uint32_t &Res) const {
+  uint32_t flags;
+  getSymbolFlags(Symb, flags);
+  if (flags & SymbolRef::SF_Common) {
+    uint64_t Value;
+    getSymbolValue(Symb, Value);
+    Res = Value;
+  } else {
+    Res = 0;
+  }
+  return object_error::success;
+}
+
+template<class ELFT>
 error_code ELFObjectFile<ELFT>::getSymbolSize(DataRefImpl Symb,
                                               uint64_t &Result) const {
   validateSymbol(Symb);
@@ -1546,45 +1539,32 @@ error_code ELFObjectFile<ELFT>::getRelocationSymbol(DataRefImpl Rel,
 template<class ELFT>
 error_code ELFObjectFile<ELFT>::getRelocationAddress(DataRefImpl Rel,
                                                      uint64_t &Result) const {
-  uint64_t offset;
-  const Elf_Shdr *sec = getSection(Rel.w.b);
-  switch (sec->sh_type) {
-    default :
-      report_fatal_error("Invalid section type in Rel!");
-    case ELF::SHT_REL : {
-      offset = getRel(Rel)->r_offset;
-      break;
-    }
-    case ELF::SHT_RELA : {
-      offset = getRela(Rel)->r_offset;
-      break;
-    }
-  }
-
-  Result = offset;
+  assert((Header->e_type == ELF::ET_EXEC || Header->e_type == ELF::ET_DYN) &&
+         "Only executable and shared objects files have addresses");
+  Result = getROffset(Rel);
   return object_error::success;
 }
 
 template<class ELFT>
 error_code ELFObjectFile<ELFT>::getRelocationOffset(DataRefImpl Rel,
                                                     uint64_t &Result) const {
-  uint64_t offset;
+  assert(Header->e_type == ELF::ET_REL &&
+         "Only relocatable object files have relocation offsets");
+  Result = getROffset(Rel);
+  return object_error::success;
+}
+
+template<class ELFT>
+uint64_t ELFObjectFile<ELFT>::getROffset(DataRefImpl Rel) const {
   const Elf_Shdr *sec = getSection(Rel.w.b);
   switch (sec->sh_type) {
-    default :
-      report_fatal_error("Invalid section type in Rel!");
-    case ELF::SHT_REL : {
-      offset = getRel(Rel)->r_offset;
-      break;
-    }
-    case ELF::SHT_RELA : {
-      offset = getRela(Rel)->r_offset;
-      break;
-    }
+  default:
+    report_fatal_error("Invalid section type in Rel!");
+  case ELF::SHT_REL:
+    return getRel(Rel)->r_offset;
+  case ELF::SHT_RELA:
+    return getRela(Rel)->r_offset;
   }
-
-  Result = offset - sec->sh_addr;
-  return object_error::success;
 }
 
 template<class ELFT>
@@ -1607,29 +1587,14 @@ error_code ELFObjectFile<ELFT>::getRelocationType(DataRefImpl Rel,
 }
 
 #define LLVM_ELF_SWITCH_RELOC_TYPE_NAME(enum) \
-  case ELF::enum: res = #enum; break;
+  case ELF::enum: Res = #enum; break;
 
 template<class ELFT>
-error_code ELFObjectFile<ELFT>::getRelocationTypeName(
-    DataRefImpl Rel, SmallVectorImpl<char> &Result) const {
-  const Elf_Shdr *sec = getSection(Rel.w.b);
-  uint32_t type;
-  StringRef res;
-  switch (sec->sh_type) {
-    default :
-      return object_error::parse_failed;
-    case ELF::SHT_REL : {
-      type = getRel(Rel)->getType(isMips64EL());
-      break;
-    }
-    case ELF::SHT_RELA : {
-      type = getRela(Rel)->getType(isMips64EL());
-      break;
-    }
-  }
+StringRef ELFObjectFile<ELFT>::getRelocationTypeName(uint32_t Type) const {
+  StringRef Res = "Unknown";
   switch (Header->e_machine) {
   case ELF::EM_X86_64:
-    switch (type) {
+    switch (Type) {
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_NONE);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_64);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_PC32);
@@ -1657,17 +1622,22 @@ error_code ELFObjectFile<ELFT>::getRelocationTypeName(
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_PC64);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_GOTOFF64);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_GOTPC32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_GOT64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_GOTPCREL64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_GOTPC64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_GOTPLT64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_PLTOFF64);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_SIZE32);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_SIZE64);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_GOTPC32_TLSDESC);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_TLSDESC_CALL);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_TLSDESC);
-    default:
-      res = "Unknown";
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_X86_64_IRELATIVE);
+    default: break;
     }
     break;
   case ELF::EM_386:
-    switch (type) {
+    switch (Type) {
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_386_NONE);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_386_32);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_386_PC32);
@@ -1708,12 +1678,11 @@ error_code ELFObjectFile<ELFT>::getRelocationTypeName(
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_386_TLS_DESC_CALL);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_386_TLS_DESC);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_386_IRELATIVE);
-    default:
-      res = "Unknown";
+    default: break;
     }
     break;
   case ELF::EM_MIPS:
-    switch (type) {
+    switch (Type) {
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_MIPS_NONE);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_MIPS_16);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_MIPS_32);
@@ -1765,12 +1734,12 @@ error_code ELFObjectFile<ELFT>::getRelocationTypeName(
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_MIPS_GLOB_DAT);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_MIPS_COPY);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_MIPS_JUMP_SLOT);
-    default:
-      res = "Unknown";
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_MIPS_NUM);
+    default: break;
     }
     break;
   case ELF::EM_AARCH64:
-    switch (type) {
+    switch (Type) {
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_NONE);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_ABS64);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_ABS32);
@@ -1844,13 +1813,11 @@ error_code ELFObjectFile<ELFT>::getRelocationTypeName(
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_TLSDESC_LD64_LO12_NC);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_TLSDESC_ADD_LO12_NC);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_TLSDESC_CALL);
-
-    default:
-      res = "Unknown";
+    default: break;
     }
     break;
   case ELF::EM_ARM:
-    switch (type) {
+    switch (Type) {
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_NONE);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PC24);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ABS32);
@@ -1982,12 +1949,11 @@ error_code ELFObjectFile<ELFT>::getRelocationTypeName(
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ME_TOO);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_TLS_DESCSEQ16);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_TLS_DESCSEQ32);
-    default:
-      res = "Unknown";
+    default: break;
     }
     break;
   case ELF::EM_HEXAGON:
-    switch (type) {
+    switch (Type) {
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_NONE);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B22_PCREL);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_B15_PCREL);
@@ -2074,18 +2040,183 @@ error_code ELFObjectFile<ELFT>::getRelocationTypeName(
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_32_6_X);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_16_X);
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_TPREL_11_X);
-    default:
-      res = "Unknown";
+    default: break;
     }
     break;
-  default:
-    res = "Unknown";
+  case ELF::EM_PPC:
+    switch (Type) {
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_NONE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR24);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR16_HI);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR16_HA);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR14);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR14_BRTAKEN);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_ADDR14_BRNTAKEN);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_REL24);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_REL14);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_REL14_BRTAKEN);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_REL14_BRNTAKEN);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_REL32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_TPREL16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_TPREL16_HA);
+    default: break;
+    }
+    break;
+  case ELF::EM_PPC64:
+    switch (Type) {
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_NONE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR16_HI);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR14);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_REL24);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_REL32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR16_HIGHER);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR16_HIGHEST);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_REL64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TOC16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TOC16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TOC16_HA);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TOC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR16_DS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_ADDR16_LO_DS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TOC16_DS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TOC16_LO_DS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TLS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TPREL16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TPREL16_HA);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_DTPREL16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_DTPREL16_HA);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_GOT_TLSGD16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_GOT_TLSGD16_HA);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_GOT_TLSLD16_LO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_GOT_TLSLD16_HA);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_GOT_TPREL16_LO_DS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_GOT_TPREL16_HA);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TLSGD);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC64_TLSLD);
+    default: break;
+    }
+    break;
+  case ELF::EM_S390:
+    switch (Type) {
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_NONE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PC32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOT12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOT32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PLT32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_COPY);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GLOB_DAT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_JMP_SLOT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_RELATIVE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTOFF);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOT16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PC16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PC16DBL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PLT16DBL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PC32DBL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PLT32DBL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPCDBL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PC64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOT64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PLT64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTENT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTOFF16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTOFF64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPLT12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPLT16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPLT32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPLT64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPLTENT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PLTOFF16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PLTOFF32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_PLTOFF64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LOAD);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_GDCALL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LDCALL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_GD32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_GD64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_GOTIE12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_GOTIE32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_GOTIE64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LDM32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LDM64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_IE32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_IE64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_IEENT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LE32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LE64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LDO32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_LDO64);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_DTPMOD);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_DTPOFF);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_TPOFF);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_20);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOT20);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_GOTPLT20);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_TLS_GOTIE20);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_390_IRELATIVE);
+    default: break;
+    }
+    break;
+  default: break;
   }
-  Result.append(res.begin(), res.end());
-  return object_error::success;
+  return Res;
 }
 
 #undef LLVM_ELF_SWITCH_RELOC_TYPE_NAME
+
+template<class ELFT>
+error_code ELFObjectFile<ELFT>::getRelocationTypeName(
+    DataRefImpl Rel, SmallVectorImpl<char> &Result) const {
+  const Elf_Shdr *sec = getSection(Rel.w.b);
+  uint32_t type;
+  switch (sec->sh_type) {
+    default :
+      return object_error::parse_failed;
+    case ELF::SHT_REL : {
+      type = getRel(Rel)->getType(isMips64EL());
+      break;
+    }
+    case ELF::SHT_RELA : {
+      type = getRela(Rel)->getType(isMips64EL());
+      break;
+    }
+  }
+
+  if (!isMips64EL()) {
+    StringRef Name = getRelocationTypeName(type);
+    Result.append(Name.begin(), Name.end());
+  } else {
+    uint8_t Type1 = (type >>  0) & 0xFF;
+    uint8_t Type2 = (type >>  8) & 0xFF;
+    uint8_t Type3 = (type >> 16) & 0xFF;
+
+    // Concat all three relocation type names.
+    StringRef Name = getRelocationTypeName(Type1);
+    Result.append(Name.begin(), Name.end());
+
+    Name = getRelocationTypeName(Type2);
+    Result.append(1, '/');
+    Result.append(Name.begin(), Name.end());
+
+    Name = getRelocationTypeName(Type3);
+    Result.append(1, '/');
+    Result.append(Name.begin(), Name.end());
+  }
+
+  return object_error::success;
+}
 
 template<class ELFT>
 error_code ELFObjectFile<ELFT>::getRelocationAdditionalInfo(
@@ -2189,8 +2320,7 @@ ELFObjectFile<ELFT>::ELFObjectFile(MemoryBuffer *Object, error_code &ec)
   : ObjectFile(getELFType(
       static_cast<endianness>(ELFT::TargetEndianness) == support::little,
       ELFT::Is64Bits),
-      Object,
-      ec)
+      Object)
   , isDyldELFObject(false)
   , SectionHeaderTable(0)
   , dot_shstrtab_sec(0)
@@ -2566,6 +2696,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
       return "ELF64-aarch64";
     case ELF::EM_PPC64:
       return "ELF64-ppc64";
+    case ELF::EM_S390:
+      return "ELF64-s390";
     default:
       return "ELF64-unknown";
     }
@@ -2593,6 +2725,8 @@ unsigned ELFObjectFile<ELFT>::getArch() const {
            Triple::mipsel : Triple::mips;
   case ELF::EM_PPC64:
     return Triple::ppc64;
+  case ELF::EM_S390:
+    return Triple::systemz;
   default:
     return Triple::UnknownArch;
   }

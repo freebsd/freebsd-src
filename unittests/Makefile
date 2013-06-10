@@ -9,7 +9,8 @@
 
 LEVEL = ..
 
-PARALLEL_DIRS = ADT ExecutionEngine Support Transforms IR Analysis Bitcode
+PARALLEL_DIRS = ADT ExecutionEngine Support Transforms IR Analysis Bitcode \
+								DebugInfo
 
 include $(LEVEL)/Makefile.common
 
