@@ -237,6 +237,9 @@ FBSD_1.3 {
 	fegetround;
 	fesetround;
 	fesetenv;
+	acoshl;
+	asinhl;
+	atanhl;
 	cacos;
 	cacosf;
 	cacosh;
