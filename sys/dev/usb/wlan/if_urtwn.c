@@ -84,7 +84,7 @@ SYSCTL_INT(_hw_usb_urtwn, OID_AUTO, debug, CTLFLAG_RW, &urtwn_debug, 0,
 	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 
 /* various supported device vendors/products */
-static const struct usb_device_id urtwn_devs[] = {
+static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 #define URTWN_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	URTWN_DEV(ABOCOM,	RTL8188CU_1),
 	URTWN_DEV(ABOCOM,	RTL8188CU_2),
