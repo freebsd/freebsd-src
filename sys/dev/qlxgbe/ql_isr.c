@@ -858,7 +858,6 @@ ql_isr(void *arg)
 	int idx;
 	qla_hw_t *hw;
 	struct ifnet *ifp;
-	uint32_t data = 0;
 	uint32_t ret = 0;
 
 	ha = ivec->ha;
@@ -871,12 +870,7 @@ ql_isr(void *arg)
 	if (idx == 0)
 		taskqueue_enqueue(ha->tx_tq, &ha->tx_task);
 	
-
-
-	data = READ_REG32(ha, ha->hw.intr_src[idx]);
-
-	if (data & 0x1 ) 
-		ret = qla_rcv_isr(ha, idx, -1);
+	ret = qla_rcv_isr(ha, idx, -1);
 
 	if (idx == 0)
 		taskqueue_enqueue(ha->tx_tq, &ha->tx_task);
