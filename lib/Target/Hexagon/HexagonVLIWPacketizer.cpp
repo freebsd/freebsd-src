@@ -48,19 +48,32 @@
 #include "HexagonMachineFunctionInfo.h"
 
 #include <map>
+#include <vector>
 
 using namespace llvm;
+
+static cl::opt<bool> PacketizeVolatiles("hexagon-packetize-volatiles",
+      cl::ZeroOrMore, cl::Hidden, cl::init(true),
+      cl::desc("Allow non-solo packetization of volatile memory references"));
+
+namespace llvm {
+  void initializeHexagonPacketizerPass(PassRegistry&);
+}
+
 
 namespace {
   class HexagonPacketizer : public MachineFunctionPass {
 
   public:
     static char ID;
-    HexagonPacketizer() : MachineFunctionPass(ID) {}
+    HexagonPacketizer() : MachineFunctionPass(ID) {
+      initializeHexagonPacketizerPass(*PassRegistry::getPassRegistry());
+    }
 
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
       AU.addRequired<MachineDominatorTree>();
+      AU.addRequired<MachineBranchProbabilityInfo>();
       AU.addPreserved<MachineDominatorTree>();
       AU.addRequired<MachineLoopInfo>();
       AU.addPreserved<MachineLoopInfo>();
@@ -96,10 +109,17 @@ namespace {
     // schedule this instruction.
     bool FoundSequentialDependence;
 
+    /// \brief A handle to the branch probability pass.
+   const MachineBranchProbabilityInfo *MBPI;
+
+   // Track MIs with ignored dependece.
+   std::vector<MachineInstr*> IgnoreDepMIs;
+
   public:
     // Ctor.
     HexagonPacketizerList(MachineFunction &MF, MachineLoopInfo &MLI,
-                          MachineDominatorTree &MDT);
+                          MachineDominatorTree &MDT,
+                          const MachineBranchProbabilityInfo *MBPI);
 
     // initPacketizerState - initialize some internal flags.
     void initPacketizerState();
@@ -123,20 +143,20 @@ namespace {
   private:
     bool IsCallDependent(MachineInstr* MI, SDep::Kind DepType, unsigned DepReg);
     bool PromoteToDotNew(MachineInstr* MI, SDep::Kind DepType,
-                    MachineBasicBlock::iterator &MII,
-                    const TargetRegisterClass* RC);
+                         MachineBasicBlock::iterator &MII,
+                         const TargetRegisterClass* RC);
     bool CanPromoteToDotNew(MachineInstr* MI, SUnit* PacketSU,
-                    unsigned DepReg,
-                    std::map <MachineInstr*, SUnit*> MIToSUnit,
-                    MachineBasicBlock::iterator &MII,
-                    const TargetRegisterClass* RC);
+                            unsigned DepReg,
+                            std::map <MachineInstr*, SUnit*> MIToSUnit,
+                            MachineBasicBlock::iterator &MII,
+                            const TargetRegisterClass* RC);
     bool CanPromoteToNewValue(MachineInstr* MI, SUnit* PacketSU,
-                    unsigned DepReg,
-                    std::map <MachineInstr*, SUnit*> MIToSUnit,
-                    MachineBasicBlock::iterator &MII);
+                              unsigned DepReg,
+                              std::map <MachineInstr*, SUnit*> MIToSUnit,
+                              MachineBasicBlock::iterator &MII);
     bool CanPromoteToNewValueStore(MachineInstr* MI, MachineInstr* PacketMI,
-                    unsigned DepReg,
-                    std::map <MachineInstr*, SUnit*> MIToSUnit);
+                                   unsigned DepReg,
+                                   std::map <MachineInstr*, SUnit*> MIToSUnit);
     bool DemoteToDotOld(MachineInstr* MI);
     bool ArePredicatesComplements(MachineInstr* MI1, MachineInstr* MI2,
                     std::map <MachineInstr*, SUnit*> MIToSUnit);
@@ -152,19 +172,32 @@ namespace {
   };
 }
 
+INITIALIZE_PASS_BEGIN(HexagonPacketizer, "packets", "Hexagon Packetizer",
+                      false, false)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_PASS_END(HexagonPacketizer, "packets", "Hexagon Packetizer",
+                    false, false)
+
+
 // HexagonPacketizerList Ctor.
 HexagonPacketizerList::HexagonPacketizerList(
-  MachineFunction &MF, MachineLoopInfo &MLI,MachineDominatorTree &MDT)
+  MachineFunction &MF, MachineLoopInfo &MLI,MachineDominatorTree &MDT,
+  const MachineBranchProbabilityInfo *MBPI)
   : VLIWPacketizerList(MF, MLI, MDT, true){
+  this->MBPI = MBPI;
 }
 
 bool HexagonPacketizer::runOnMachineFunction(MachineFunction &Fn) {
   const TargetInstrInfo *TII = Fn.getTarget().getInstrInfo();
   MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
   MachineDominatorTree &MDT = getAnalysis<MachineDominatorTree>();
-
+  const MachineBranchProbabilityInfo *MBPI =
+    &getAnalysis<MachineBranchProbabilityInfo>();
   // Instantiate the packetizer.
-  HexagonPacketizerList Packetizer(Fn, MLI, MDT);
+  HexagonPacketizerList Packetizer(Fn, MLI, MDT, MBPI);
 
   // DFA state table should not be empty.
   assert(Packetizer.getResourceTracker() && "Empty DFA table!");
@@ -710,8 +743,10 @@ static int GetDotNewOp(const int opc) {
 }
 
 // Return .new predicate version for an instruction
-static int GetDotNewPredOp(const int opc) {
-  switch (opc) {
+static int GetDotNewPredOp(MachineInstr *MI,
+                           const MachineBranchProbabilityInfo *MBPI,
+                           const HexagonInstrInfo *QII) {
+  switch (MI->getOpcode()) {
   default: llvm_unreachable("Unknown .new type");
   // Conditional stores
   // Store byte conditionally
@@ -857,17 +892,15 @@ static int GetDotNewPredOp(const int opc) {
     return Hexagon::STw_GP_cdnNotPt_V4;
 
   // Condtional Jumps
-  case Hexagon::JMP_c:
-    return Hexagon::JMP_cdnPt;
+  case Hexagon::JMP_t:
+  case Hexagon::JMP_f:
+    return QII->getDotNewPredJumpOp(MI, MBPI);
 
-  case Hexagon::JMP_cNot:
-    return Hexagon::JMP_cdnNotPt;
+  case Hexagon::JMPR_t:
+    return Hexagon::JMPR_tnew_tV3;
 
-  case Hexagon::JMPR_cPt:
-    return Hexagon::JMPR_cdnPt_V3;
-
-  case Hexagon::JMPR_cNotPt:
-    return Hexagon::JMPR_cdnNotPt_V3;
+  case Hexagon::JMPR_f:
+    return Hexagon::JMPR_fnew_tV3;
 
   // Conditional Transfers
   case Hexagon::TFR_cPt:
@@ -1261,7 +1294,7 @@ bool HexagonPacketizerList::PromoteToDotNew(MachineInstr* MI,
 
   int NewOpcode;
   if (RC == &Hexagon::PredRegsRegClass)
-    NewOpcode = GetDotNewPredOp(MI->getOpcode());
+    NewOpcode = GetDotNewPredOp(MI, MBPI, QII);
   else
     NewOpcode = GetDotNewOp(MI->getOpcode());
   MI->setDesc(QII->get(NewOpcode));
@@ -1306,17 +1339,17 @@ static int GetDotOldOp(const int opc) {
   case Hexagon::TFRI_cdnNotPt:
     return Hexagon::TFRI_cNotPt;
 
-  case Hexagon::JMP_cdnPt:
-    return Hexagon::JMP_c;
+  case Hexagon::JMP_tnew_t:
+    return Hexagon::JMP_t;
 
-  case Hexagon::JMP_cdnNotPt:
-    return Hexagon::JMP_cNot;
+  case Hexagon::JMP_fnew_t:
+    return Hexagon::JMP_f;
 
-  case Hexagon::JMPR_cdnPt_V3:
-    return Hexagon::JMPR_cPt;
+  case Hexagon::JMPR_tnew_tV3:
+    return Hexagon::JMPR_t;
 
-  case Hexagon::JMPR_cdnNotPt_V3:
-    return Hexagon::JMPR_cNotPt;
+  case Hexagon::JMPR_fnew_tV3:
+    return Hexagon::JMPR_f;
 
   // Load double word
 
@@ -1912,7 +1945,7 @@ static bool GetPredicateSense(MachineInstr* MI,
   case Hexagon::STrih_imm_cdnPt_V4 :
   case Hexagon::STriw_imm_cPt_V4 :
   case Hexagon::STriw_imm_cdnPt_V4 :
-  case Hexagon::JMP_cdnPt :
+  case Hexagon::JMP_tnew_t :
   case Hexagon::LDrid_cPt :
   case Hexagon::LDrid_cdnPt :
   case Hexagon::LDrid_indexed_cPt :
@@ -2051,7 +2084,7 @@ static bool GetPredicateSense(MachineInstr* MI,
   case Hexagon::STrih_imm_cdnNotPt_V4 :
   case Hexagon::STriw_imm_cNotPt_V4 :
   case Hexagon::STriw_imm_cdnNotPt_V4 :
-  case Hexagon::JMP_cdnNotPt :
+  case Hexagon::JMP_fnew_t :
   case Hexagon::LDrid_cNotPt :
   case Hexagon::LDrid_cdnNotPt :
   case Hexagon::LDrid_indexed_cNotPt :
@@ -2739,9 +2772,8 @@ bool HexagonPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
     // If an instruction feeds new value jump, glue it.
     MachineBasicBlock::iterator NextMII = I;
     ++NextMII;
-    MachineInstr *NextMI = NextMII;
-
-    if (QII->isNewValueJump(NextMI)) {
+    if (NextMII != I->getParent()->end() && QII->isNewValueJump(NextMII)) {
+      MachineInstr *NextMI = NextMII;
 
       bool secondRegMatch = false;
       bool maintainNewValueJump = false;

@@ -23,16 +23,17 @@ class MCAsmBackend;
 class MCCodeEmitter;
 class MCContext;
 class MCInstrInfo;
+class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
 class Target;
+class raw_ostream;
 
 extern Target TheAMDGPUTarget;
 
 MCCodeEmitter *createR600MCCodeEmitter(const MCInstrInfo &MCII,
                                        const MCRegisterInfo &MRI,
-                                       const MCSubtargetInfo &STI,
-                                       MCContext &Ctx);
+                                       const MCSubtargetInfo &STI);
 
 MCCodeEmitter *createSIMCCodeEmitter(const MCInstrInfo &MCII,
                                      const MCRegisterInfo &MRI,
@@ -41,6 +42,8 @@ MCCodeEmitter *createSIMCCodeEmitter(const MCInstrInfo &MCII,
 
 MCAsmBackend *createAMDGPUAsmBackend(const Target &T, StringRef TT,
                                      StringRef CPU);
+
+MCObjectWriter *createAMDGPUELFObjectWriter(raw_ostream &OS);
 } // End llvm namespace
 
 #define GET_REGINFO_ENUM

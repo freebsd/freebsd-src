@@ -6,10 +6,10 @@ Auto-Vectorization in LLVM
    :local:
 
 LLVM has two vectorizers: The :ref:`Loop Vectorizer <loop-vectorizer>`,
-which operates on Loops, and the :ref:`Basic Block Vectorizer
-<bb-vectorizer>`, which optimizes straight-line code. These vectorizers
+which operates on Loops, and the :ref:`SLP Vectorizer
+<slp-vectorizer>`, which optimizes straight-line code. These vectorizers
 focus on different optimization opportunities and use different techniques.
-The BB vectorizer merges multiple scalars that are found in the code into
+The SLP vectorizer merges multiple scalars that are found in the code into
 vectors while the Loop Vectorizer widens instructions in the original loop
 to operate on multiple consecutive loop iterations.
 
@@ -21,19 +21,13 @@ The Loop Vectorizer
 Usage
 -----
 
-LLVM's Loop Vectorizer is now available and will be useful for many people.
-It is not enabled by default, but can be enabled through clang using the
-command line flag:
+LLVM's Loop Vectorizer is now enabled by default for -O3.
+We plan to enable parts of the Loop Vectorizer on -O2 and -Os in future releases.
+The vectorizer can be disabled using the command line:
 
 .. code-block:: console
 
-   $ clang -fvectorize -O3 file.c
-
-If the ``-fvectorize`` flag is used then the loop vectorizer will be enabled
-when running with ``-O3``, ``-O2``. When ``-Os`` is used, the loop vectorizer
-will only vectorize loops that do not require a major increase in code size.
-
-We plan to enable the Loop Vectorizer by default as part of the LLVM 3.3 release.
+   $ clang ... -fno-vectorize  file.c
 
 Command line flags
 ^^^^^^^^^^^^^^^^^^
@@ -299,25 +293,15 @@ And Linpack-pc with the same configuration. Result is Mflops, higher is better.
 
 .. image:: linpack-pc.png
 
-.. _bb-vectorizer:
+.. _slp-vectorizer:
 
-The Basic Block Vectorizer
-==========================
-
-Usage
-------
-
-The Basic Block Vectorizer is not enabled by default, but it can be enabled
-through clang using the command line flag:
-
-.. code-block:: console
-
-   $ clang -fslp-vectorize file.c
+The SLP Vectorizer
+==================
 
 Details
 -------
 
-The goal of basic-block vectorization (a.k.a. superword-level parallelism) is
+The goal of SLP vectorization (a.k.a. superword-level parallelism) is
 to combine similar independent instructions within simple control-flow regions
 into vector instructions. Memory accesses, arithemetic operations, comparison
 operations and some math functions can all be vectorized using this technique
@@ -329,10 +313,50 @@ into vector operations.
 
 .. code-block:: c++
 
-  int foo(int a1, int a2, int b1, int b2) {
-    int r1 = a1*(a1 + b1)/b1 + 50*b1/a1;
-    int r2 = a2*(a2 + b2)/b2 + 50*b2/a2;
-    return r1 + r2;
+  void foo(int a1, int a2, int b1, int b2, int *A) {
+    A[0] = a1*(a1 + b1)/b1 + 50*b1/a1;
+    A[1] = a2*(a2 + b2)/b2 + 50*b2/a2;
   }
 
+The SLP-vectorizer has two phases, bottom-up, and top-down. The top-down vectorization
+phase is more aggressive, but takes more time to run.
+
+Usage
+------
+
+The SLP Vectorizer is not enabled by default, but it can be enabled
+through clang using the command line flag:
+
+.. code-block:: console
+
+   $ clang -fslp-vectorize file.c
+
+LLVM has a second basic block vectorization phase
+which is more compile-time intensive (The BB vectorizer). This optimization
+can be enabled through clang using the command line flag:
+
+.. code-block:: console
+
+   $ clang -fslp-vectorize-aggressive file.c
+
+
+The SLP vectorizer is in early development stages but can already vectorize
+and accelerate many programs in the LLVM test suite.
+
+=======================   ============
+Benchmark Name              Gain
+=======================   ============
+Misc/flops-7               -32.70%
+Misc/matmul_f64_4x4        -23.23%
+Olden/power                -21.45%
+Misc/flops-4               -14.90%
+ASC_Sequoia/AMGmk          -13.85%
+TSVC/LoopRerolling-flt     -11.76%
+Misc/flops-6               -9.70%
+Misc/flops-5               -8.54%
+Misc/flops                 -8.12%
+TSVC/NodeSplitting-dbl     -6.96%
+Misc-C++/sphereflake       -6.74%
+Ptrdist/yacr2              -6.31%
+=======================   ============
 

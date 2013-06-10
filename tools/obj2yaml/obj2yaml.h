@@ -10,15 +10,15 @@
 // source file, implement it.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_UTILS_OBJ2YAML_H
-#define LLVM_UTILS_OBJ2YAML_H
+#ifndef LLVM_TOOLS_OBJ2YAML_H
+#define LLVM_TOOLS_OBJ2YAML_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
 
-namespace yaml {  // routines for writing YAML
+namespace objyaml {  // routines for writing YAML
 // Write a hex stream:
 //    <Prefix> !hex: "<hex digits>" #|<ASCII chars>\n
   llvm::raw_ostream &writeHexStream

@@ -31,7 +31,7 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 dnl Initialize autoconf and define the package name, version number and
 dnl address for reporting bugs.
-AC_INIT([LLVM],[3.3svn],[http://llvm.org/bugs/])
+AC_INIT([LLVM],[3.3],[http://llvm.org/bugs/])
 AC_DEFINE([LLVM_VERSION_MAJOR], [3], [Major version of the LLVM API])
 AC_DEFINE([LLVM_VERSION_MINOR], [3], [Minor version of the LLVM API])
 
@@ -402,6 +402,7 @@ AC_CACHE_CHECK([target architecture],[llvm_cv_target_arch],
   hexagon-*)              llvm_cv_target_arch="Hexagon" ;;
   mblaze-*)               llvm_cv_target_arch="MBlaze" ;;
   nvptx-*)                llvm_cv_target_arch="NVPTX" ;;
+  s390x-*)                llvm_cv_target_arch="SystemZ" ;;
   *)                      llvm_cv_target_arch="Unknown" ;;
 esac])
 
@@ -435,6 +436,7 @@ case $host in
   msp430-*)               host_arch="MSP430" ;;
   hexagon-*)              host_arch="Hexagon" ;;
   mblaze-*)               host_arch="MBlaze" ;;
+  s390x-*)                host_arch="SystemZ" ;;
   *)                      host_arch="Unknown" ;;
 esac
 
@@ -654,6 +656,7 @@ else
     Hexagon)     AC_SUBST(TARGET_HAS_JIT,0) ;;
     MBlaze)      AC_SUBST(TARGET_HAS_JIT,0) ;;
     NVPTX)       AC_SUBST(TARGET_HAS_JIT,0) ;;
+    SystemZ)     AC_SUBST(TARGET_HAS_JIT,1) ;;
     *)           AC_SUBST(TARGET_HAS_JIT,0) ;;
   esac
 fi
@@ -707,6 +710,21 @@ case "$enableval" in
   default) AC_SUBST(ENABLE_PTHREADS,[1]) ;;
   *) AC_MSG_ERROR([Invalid setting for --enable-pthreads. Use "yes" or "no"]) ;;
 esac
+
+dnl Allow disablement of zlib
+AC_ARG_ENABLE(zlib,
+              AS_HELP_STRING([--enable-zlib],
+                             [Use zlib for compression/decompression if
+                              available (default is YES)]),,
+                              enableval=default)
+case "$enableval" in
+  yes) AC_SUBST(LLVM_ENABLE_ZLIB,[1]) ;;
+  no)  AC_SUBST(LLVM_ENABLE_ZLIB,[0]) ;;
+  default) AC_SUBST(LLVM_ENABLE_ZLIB,[1]) ;;
+  *) AC_MSG_ERROR([Invalid setting for --enable-zlib. Use "yes" or "no"]) ;;
+esac
+AC_DEFINE_UNQUOTED([LLVM_ENABLE_ZLIB],$LLVM_ENABLE_ZLIB,
+                   [Define if zlib is enabled])
 
 dnl Allow building without position independent code
 AC_ARG_ENABLE(pic,
@@ -780,13 +798,13 @@ TARGETS_TO_BUILD=""
 AC_ARG_ENABLE([targets],AS_HELP_STRING([--enable-targets],
     [Build specific host targets: all or target1,target2,... Valid targets are:
      host, x86, x86_64, sparc, powerpc, arm, aarch64, mips, hexagon,
-     xcore, msp430, nvptx, and cpp (default=all)]),,
+     xcore, msp430, nvptx, systemz, and cpp (default=all)]),,
     enableval=all)
 if test "$enableval" = host-only ; then
   enableval=host
 fi
 case "$enableval" in
-  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend MBlaze NVPTX Hexagon" ;;
+  all) TARGETS_TO_BUILD="X86 Sparc PowerPC AArch64 ARM Mips XCore MSP430 CppBackend MBlaze NVPTX Hexagon SystemZ" ;;
   *)for a_target in `echo $enableval|sed -e 's/,/ /g' ` ; do
       case "$a_target" in
         x86)      TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
@@ -805,11 +823,13 @@ case "$enableval" in
         hexagon)  TARGETS_TO_BUILD="Hexagon $TARGETS_TO_BUILD" ;;
         mblaze)   TARGETS_TO_BUILD="MBlaze $TARGETS_TO_BUILD" ;;
         nvptx)    TARGETS_TO_BUILD="NVPTX $TARGETS_TO_BUILD" ;;
+        systemz)  TARGETS_TO_BUILD="SystemZ $TARGETS_TO_BUILD" ;;
         host) case "$llvm_cv_target_arch" in
             x86)         TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
             x86_64)      TARGETS_TO_BUILD="X86 $TARGETS_TO_BUILD" ;;
             Sparc)       TARGETS_TO_BUILD="Sparc $TARGETS_TO_BUILD" ;;
             PowerPC)     TARGETS_TO_BUILD="PowerPC $TARGETS_TO_BUILD" ;;
+            AArch64)     TARGETS_TO_BUILD="AArch64 $TARGETS_TO_BUILD" ;;
             ARM)         TARGETS_TO_BUILD="ARM $TARGETS_TO_BUILD" ;;
             Mips)        TARGETS_TO_BUILD="Mips $TARGETS_TO_BUILD" ;;
             MBlaze)      TARGETS_TO_BUILD="MBlaze $TARGETS_TO_BUILD" ;;
@@ -817,6 +837,7 @@ case "$enableval" in
             MSP430)      TARGETS_TO_BUILD="MSP430 $TARGETS_TO_BUILD" ;;
             Hexagon)     TARGETS_TO_BUILD="Hexagon $TARGETS_TO_BUILD" ;;
             NVPTX)       TARGETS_TO_BUILD="NVPTX $TARGETS_TO_BUILD" ;;
+            SystemZ)     TARGETS_TO_BUILD="SystemZ $TARGETS_TO_BUILD" ;;
             *)       AC_MSG_ERROR([Can not set target to build]) ;;
           esac ;;
         *) AC_MSG_ERROR([Unrecognized target $a_target]) ;;
@@ -1367,6 +1388,11 @@ if test "$LLVM_ENABLE_THREADS" -eq 1 && test "$ENABLE_PTHREADS" -eq 1 ; then
                  [Have pthread_getspecific]))
 fi
 
+dnl zlib is optional; used for compression/uncompression
+if test "$LLVM_ENABLE_ZLIB" -eq 1 ; then
+  AC_CHECK_LIB(z, compress2)
+fi
+
 dnl Allow extra x86-disassembler library
 AC_ARG_WITH(udis86,
   AS_HELP_STRING([--with-udis86=<path>],
@@ -1486,6 +1512,9 @@ AC_HEADER_STAT
 AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
 
+AC_LANG_PUSH([C++])
+AC_CHECK_HEADERS([cxxabi.h])
+AC_LANG_POP([C++])
 AC_CHECK_HEADERS([dlfcn.h execinfo.h fcntl.h inttypes.h limits.h link.h])
 AC_CHECK_HEADERS([malloc.h setjmp.h signal.h stdint.h termios.h unistd.h])
 AC_CHECK_HEADERS([utime.h windows.h])
@@ -1500,6 +1529,13 @@ if test "$LLVM_ENABLE_THREADS" -eq 1 && test "$ENABLE_PTHREADS" -eq 1 ; then
                    AC_SUBST(HAVE_PTHREAD, 0))
 else
   AC_SUBST(HAVE_PTHREAD, 0)
+fi
+if test "$LLVM_ENABLE_ZLIB" -eq 1 ; then
+  AC_CHECK_HEADERS(zlib.h,
+                   AC_SUBST(HAVE_LIBZ, 1),
+                   AC_SUBST(HAVE_LIBZ, 0))
+else
+  AC_SUBST(HAVE_LIBZ, 0)
 fi
 
 dnl Try to find ffi.h.
@@ -1746,7 +1782,7 @@ AC_DEFINE_UNQUOTED(LLVM_MANDIR, "$LLVM_MANDIR",
                    [Installation directory for man pages])
 AC_DEFINE_UNQUOTED(LLVM_CONFIGTIME, "$LLVM_CONFIGTIME",
                    [Time at which LLVM was configured])
-AC_DEFINE_UNQUOTED(LLVM_HOSTTRIPLE, "$host",
+AC_DEFINE_UNQUOTED(LLVM_HOST_TRIPLE, "$host",
                    [Host triple LLVM will be executed on])
 AC_DEFINE_UNQUOTED(LLVM_DEFAULT_TARGET_TRIPLE, "$target",
                    [Target triple LLVM will generate code for by default])

@@ -45,12 +45,12 @@ namespace Intrinsic {
   
   /// Intrinsic::getName(ID) - Return the LLVM name for an intrinsic, such as
   /// "llvm.ppc.altivec.lvx".
-  std::string getName(ID id, ArrayRef<Type*> Tys = ArrayRef<Type*>());
-  
+  std::string getName(ID id, ArrayRef<Type*> Tys = None);
+
   /// Intrinsic::getType(ID) - Return the function type for an intrinsic.
   ///
   FunctionType *getType(LLVMContext &Context, ID id,
-                        ArrayRef<Type*> Tys = ArrayRef<Type*>());
+                        ArrayRef<Type*> Tys = None);
 
   /// Intrinsic::isOverloaded(ID) - Returns true if the intrinsic can be
   /// overloaded.
@@ -63,14 +63,12 @@ namespace Intrinsic {
   /// Intrinsic::getDeclaration(M, ID) - Create or insert an LLVM Function
   /// declaration for an intrinsic, and return it.
   ///
-  /// The Tys and numTys parameters are for intrinsics with overloaded types
-  /// (e.g., those using iAny, fAny, vAny, or iPTRAny). For a declaration for an
-  /// overloaded intrinsic, Tys should point to an array of numTys pointers to
-  /// Type, and must provide exactly one type for each overloaded type in the
-  /// intrinsic.
-  Function *getDeclaration(Module *M, ID id,
-                           ArrayRef<Type*> Tys = ArrayRef<Type*>());
-                           
+  /// The Tys parameter is for intrinsics with overloaded types (e.g., those
+  /// using iAny, fAny, vAny, or iPTRAny).  For a declaration of an overloaded
+  /// intrinsic, Tys must provide exactly one type for each overloaded type in
+  /// the intrinsic.
+  Function *getDeclaration(Module *M, ID id, ArrayRef<Type*> Tys = None);
+
   /// Map a GCC builtin name to an intrinsic ID.
   ID getIntrinsicForGCCBuiltin(const char *Prefix, const char *BuiltinName);
   

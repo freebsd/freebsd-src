@@ -2,6 +2,9 @@
 CommandLine 2.0 Library Manual
 ==============================
 
+.. contents::
+   :local:
+
 Introduction
 ============
 
@@ -615,6 +618,55 @@ would yield the help output:
     -help             - display available options (-help-hidden for more)
     -o <filename>     - Specify output filename
 
+.. _grouping options into categories:
+
+Grouping options into categories
+--------------------------------
+
+If our program has a large number of options it may become difficult for users
+of our tool to navigate the output of ``-help``. To alleviate this problem we
+can put our options into categories. This can be done by declaring option
+categories (`cl::OptionCategory`_ objects) and then placing our options into
+these categories using the `cl::cat`_ option attribute. For example:
+
+.. code-block:: c++
+
+  cl::OptionCategory StageSelectionCat("Stage Selection Options",
+                                       "These control which stages are run.");
+
+  cl::opt<bool> Preprocessor("E",cl::desc("Run preprocessor stage."),
+                             cl::cat(StageSelectionCat));
+
+  cl::opt<bool> NoLink("c",cl::desc("Run all stages except linking."),
+                       cl::cat(StageSelectionCat));
+
+The output of ``-help`` will become categorized if an option category is
+declared. The output looks something like ::
+
+  OVERVIEW: This is a small program to demo the LLVM CommandLine API
+  USAGE: Sample [options]
+
+  OPTIONS:
+
+    General options:
+
+      -help              - Display available options (-help-hidden for more)
+      -help-list         - Display list of available options (-help-list-hidden for more)
+
+
+    Stage Selection Options:
+    These control which stages are run.
+
+      -E                 - Run preprocessor stage.
+      -c                 - Run all stages except linking.
+
+In addition to the behaviour of ``-help`` changing when an option category is
+declared, the command line option ``-help-list`` becomes visible which will
+print the command line options as uncategorized list.
+
+Note that Options that are not explicitly categorized will be placed in the
+``cl::GeneralCategory`` category.
+
 .. _Reference Guide:
 
 Reference Guide
@@ -943,6 +995,11 @@ This section describes the basic attributes that you can specify on options.
   of the usual modifiers on multi-valued options (besides
   ``cl::ValueDisallowed``, obviously).
 
+.. _cl::cat:
+
+* The **cl::cat** attribute specifies the option category that the option
+  belongs to. The category should be a `cl::OptionCategory`_ object.
+
 Option Modifiers
 ----------------
 
@@ -1212,6 +1269,57 @@ only consists of one function `cl::ParseCommandLineOptions`_) and three main
 classes: `cl::opt`_, `cl::list`_, and `cl::alias`_.  This section describes
 these three classes in detail.
 
+.. _cl::getRegisteredOptions:
+
+The ``cl::getRegisteredOptions`` function
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``cl::getRegisteredOptions`` function is designed to give a programmer
+access to declared non positional command line options so that how they appear
+in ``-help`` can be modified prior to calling `cl::ParseCommandLineOptions`_.
+Note this method should not be called during any static initialisation because
+it cannot be guaranteed that all options will have been initialised. Hence it
+should be called from ``main``.
+
+This function can be used to gain access to options declared in libraries that
+the tool writter may not have direct access to.
+
+The function retrieves a :ref:`StringMap <dss_stringmap>` that maps the option
+string (e.g. ``-help``) to an ``Option*``.
+
+Here is an example of how the function could be used:
+
+.. code-block:: c++
+
+  using namespace llvm;
+  int main(int argc, char **argv) {
+    cl::OptionCategory AnotherCategory("Some options");
+
+    StringMap<cl::Option*> Map;
+    cl::getRegisteredOptions(Map);
+
+    //Unhide useful option and put it in a different category
+    assert(Map.count("print-all-options") > 0);
+    Map["print-all-options"]->setHiddenFlag(cl::NotHidden);
+    Map["print-all-options"]->setCategory(AnotherCategory);
+
+    //Hide an option we don't want to see
+    assert(Map.count("enable-no-infs-fp-math") > 0);
+    Map["enable-no-infs-fp-math"]->setHiddenFlag(cl::Hidden);
+
+    //Change --version to --show-version
+    assert(Map.count("version") > 0);
+    Map["version"]->setArgStr("show-version");
+
+    //Change --help description
+    assert(Map.count("help") > 0);
+    Map["help"]->setDescription("Shows help");
+
+    cl::ParseCommandLineOptions(argc, argv, "This is a small program to demo the LLVM CommandLine API");
+    ...
+  }
+
+
 .. _cl::ParseCommandLineOptions:
 
 The ``cl::ParseCommandLineOptions`` function
@@ -1381,6 +1489,29 @@ For example:
 .. code-block:: c++
 
   cl::extrahelp("\nADDITIONAL HELP:\n\n  This is the extra help\n");
+
+.. _cl::OptionCategory:
+
+The ``cl::OptionCategory`` class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``cl::OptionCategory`` class is a simple class for declaring
+option categories.
+
+.. code-block:: c++
+
+  namespace cl {
+    class OptionCategory;
+  }
+
+An option category must have a name and optionally a description which are
+passed to the constructor as ``const char*``.
+
+Note that declaring an option category and associating it with an option before
+parsing options (e.g. statically) will change the output of ``-help`` from
+uncategorized to categorized. If an option category is declared but not
+associated with an option then it will be hidden from the output of ``-help``
+but will be shown in the output of ``-help-hidden``.
 
 .. _different parser:
 .. _discussed previously:

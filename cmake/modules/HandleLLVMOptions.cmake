@@ -21,6 +21,9 @@ if( LLVM_ENABLE_ASSERTIONS )
   # explicitly undefine it:
   if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
     add_definitions( -UNDEBUG )
+    # Also remove /D NDEBUG to avoid MSVC warnings about conflicting defines.
+    string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
+      CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
   endif()
 else()
   if( NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
@@ -249,8 +252,6 @@ if(LLVM_USE_SANITIZER)
     elseif (LLVM_USE_SANITIZER MATCHES "Memory(WithOrigins)?")
       append_common_sanitizer_flags()
       add_flag_or_print_warning("-fsanitize=memory")
-      # -pie is required for MSan.
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
       if(LLVM_USE_SANITIZER STREQUAL "MemoryWithOrigins")
         add_flag_or_print_warning("-fsanitize-memory-track-origins")
       endif()
