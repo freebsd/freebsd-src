@@ -39,7 +39,6 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/_mutex.h>
-#include <sys/eventhandler.h>
 #endif
 
 /*
@@ -797,17 +796,6 @@ vfs_statfs_t	__vfs_statfs;
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
 
 extern	char *mountrootfsname;
-
-/*
- * Event handlers
- */
-
-typedef void (*vfs_mounted_notify_fn)(void *, struct mount *, struct vnode *,
-    struct thread *);
-typedef void (*vfs_unmounted_notify_fn)(void *, struct mount *,
-    struct thread *);
-EVENTHANDLER_DECLARE(vfs_mounted, vfs_mounted_notify_fn);
-EVENTHANDLER_DECLARE(vfs_unmounted, vfs_unmounted_notify_fn);
 
 /*
  * exported vnode operations
