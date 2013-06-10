@@ -134,6 +134,10 @@ ath_btcoex_cfg_wb195(struct ath_softc *sc)
  * When using bluetooth coexistence, ASPM needs to be disabled
  * otherwise the sleeping interferes with the bluetooth (USB)
  * operation and the MAC sleep/wakeup hardware.
+ *
+ * The PCIe powersave routine also needs to not be called
+ * by the driver during suspend/resume, else things will get
+ * a little odd.  Check Linux ath9k for more details.
  */
 static int
 ath_btcoex_aspm_wb195(struct ath_softc *sc)
