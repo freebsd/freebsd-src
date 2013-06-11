@@ -120,6 +120,9 @@ main(int argc, char *argv[])
 			errx(1, "malloc failed");
 		if (sysctlbyname("kern.msgbuf", bp, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
+		if (clear)
+			if (sysctlbyname("kern.msgbuf_clear", NULL, NULL, &clear, sizeof(int)))
+				err(1, "sysctl kern.msgbuf_clear");
 	} else {
 		/* Read in kernel message buffer and do sanity checks. */
 		kd = kvm_open(nlistf, memf, NULL, O_RDONLY, "dmesg");
@@ -196,10 +199,6 @@ main(int argc, char *argv[])
 		(void)strvisx(visbp, p, nextp - p, 0);
 		(void)printf("%s", visbp);
 	}
-	if (clear)
-		if (sysctlbyname("kern.msgbuf_clear", NULL, NULL, &clear, sizeof(int)))
-			err(1, "sysctl kern.msgbuf_clear");
-
 	exit(0);
 }
 
