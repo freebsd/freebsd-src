@@ -198,7 +198,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     PRIV_END
 
     if (stream == NULL)
-	perr("cannot open input file");
+	perr("cannot open input file %s", filename);
 
     if ((fd_in = dup(fileno(stream))) <0)
 	perr("error duplicating input file descriptor");
