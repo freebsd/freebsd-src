@@ -110,7 +110,7 @@ f_variable_set_defaults()
 	# Initialize various user-edittable values to their defaults
 	#
 	setvar $VAR_EDITOR		"${EDITOR:-/usr/bin/ee}"
-	setvar $VAR_FTP_STATE		"passive"
+	setvar $VAR_FTP_STATE		"auto"
 	setvar $VAR_FTP_USER		"ftp"
 	setvar $VAR_HOSTNAME		"$( hostname )"
 	setvar $VAR_MEDIA_TIMEOUT	"300"
