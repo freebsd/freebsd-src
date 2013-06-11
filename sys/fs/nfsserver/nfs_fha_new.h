@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+ * Copyright (c) 2013 Spectra Logic Corporation
+ *
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,5 +26,14 @@
  */
 /* $FreeBSD$ */
 
-void fha_nd_complete(SVCTHREAD *, struct svc_req *);
-SVCTHREAD *fha_assign(SVCTHREAD *, struct svc_req *);
+#ifndef	_NFS_FHA_NEW_H
+#define	_NFS_FHA_NEW_H 1
+
+#ifdef	_KERNEL
+
+#define	FHANEW_SERVER_NAME	"nfsd"
+
+SVCTHREAD *fhanew_assign(SVCTHREAD *this_thread, struct svc_req *req);
+#endif /* _KERNEL */
+
+#endif /* _NFS_FHA_NEW_H */

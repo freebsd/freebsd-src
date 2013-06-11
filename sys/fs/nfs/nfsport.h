@@ -730,7 +730,7 @@ MALLOC_DECLARE(M_NEWNFSDROLLBACK);
  */
 int nfscl_loadattrcache(struct vnode **, struct nfsvattr *, void *, void *,
     int, int);
-void newnfs_realign(struct mbuf **);
+int newnfs_realign(struct mbuf **, int);
 
 /*
  * If the port runs on an SMP box that can enforce Atomic ops with low
