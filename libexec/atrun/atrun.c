@@ -31,6 +31,7 @@ static const char rcsid[] =
 /* System Headers */
 
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef __FreeBSD__
@@ -520,6 +521,9 @@ main(int argc, char *argv[])
      */
     if ((spool = opendir(".")) == NULL)
 	perr("cannot read %s", ATJOB_DIR);
+
+    if (flock(dirfd(spool), LOCK_EX) == -1)
+	perr("cannot lock %s", ATJOB_DIR);
 
     now = time(NULL);
     run_batch = 0;
