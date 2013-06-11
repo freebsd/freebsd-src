@@ -211,9 +211,8 @@ zfs_log_fuid_domains(zfs_fuid_info_t *fuidp, void *start)
 }
 
 /*
- * zfs_log_create() is used to handle TX_CREATE, TX_CREATE_ATTR, TX_MKDIR,
- * TX_MKDIR_ATTR and TX_MKXATTR
- * transactions.
+ * Handles TX_CREATE, TX_CREATE_ATTR, TX_MKDIR, TX_MKDIR_ATTR and
+ * TK_MKXATTR transactions.
  *
  * TX_CREATE and TX_MKDIR are standard creates, but they may have FUID
  * domain information appended prior to the name.  In this case the
@@ -340,7 +339,7 @@ zfs_log_create(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
 }
 
 /*
- * zfs_log_remove() handles both TX_REMOVE and TX_RMDIR transactions.
+ * Handles both TX_REMOVE and TX_RMDIR transactions.
  */
 void
 zfs_log_remove(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
@@ -364,7 +363,7 @@ zfs_log_remove(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
 }
 
 /*
- * zfs_log_link() handles TX_LINK transactions.
+ * Handles TX_LINK transactions.
  */
 void
 zfs_log_link(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
@@ -387,7 +386,7 @@ zfs_log_link(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
 }
 
 /*
- * zfs_log_symlink() handles TX_SYMLINK transactions.
+ * Handles TX_SYMLINK transactions.
  */
 void
 zfs_log_symlink(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
@@ -419,7 +418,7 @@ zfs_log_symlink(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
 }
 
 /*
- * zfs_log_rename() handles TX_RENAME transactions.
+ * Handles TX_RENAME transactions.
  */
 void
 zfs_log_rename(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
@@ -445,7 +444,7 @@ zfs_log_rename(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
 }
 
 /*
- * zfs_log_write() handles TX_WRITE transactions.
+ * Handles TX_WRITE transactions.
  */
 ssize_t zfs_immediate_write_sz = 32768;
 
@@ -524,7 +523,7 @@ zfs_log_write(zilog_t *zilog, dmu_tx_t *tx, int txtype,
 }
 
 /*
- * zfs_log_truncate() handles TX_TRUNCATE transactions.
+ * Handles TX_TRUNCATE transactions.
  */
 void
 zfs_log_truncate(zilog_t *zilog, dmu_tx_t *tx, int txtype,
@@ -547,7 +546,7 @@ zfs_log_truncate(zilog_t *zilog, dmu_tx_t *tx, int txtype,
 }
 
 /*
- * zfs_log_setattr() handles TX_SETATTR transactions.
+ * Handles TX_SETATTR transactions.
  */
 void
 zfs_log_setattr(zilog_t *zilog, dmu_tx_t *tx, int txtype,
@@ -609,7 +608,7 @@ zfs_log_setattr(zilog_t *zilog, dmu_tx_t *tx, int txtype,
 }
 
 /*
- * zfs_log_acl() handles TX_ACL transactions.
+ * Handles TX_ACL transactions.
  */
 void
 zfs_log_acl(zilog_t *zilog, dmu_tx_t *tx, znode_t *zp,
