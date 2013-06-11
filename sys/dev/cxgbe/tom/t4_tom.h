@@ -269,8 +269,8 @@ void t4_rcvd(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
-void t4_set_tcb_field(struct adapter *, struct toepcb *, uint16_t, uint64_t,
-    uint64_t);
+void t4_set_tcb_field(struct adapter *, struct toepcb *, int, uint16_t,
+    uint64_t, uint64_t);
 
 /* t4_ddp.c */
 void t4_init_ddp(struct adapter *, struct tom_data *);
