@@ -122,7 +122,7 @@ f_media_get_type()
 
 		case "$mtag" in
 		?" $msg_cd_dvd")      f_media_set_cdrom ;;
-		?" $msg_ftp")         f_media_set_ftp_active ;;
+		?" $msg_ftp")         f_media_set_ftp ;;
 		?" $msg_ftp_passive") f_media_set_ftp_passive ;;
 		?" $msg_http")        f_media_set_http_proxy ;;
 		?" $msg_directory")   f_media_set_directory ;;
