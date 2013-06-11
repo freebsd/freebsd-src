@@ -212,7 +212,8 @@ linux_file_dtor(void *cdp)
 	struct linux_file *filp;
 
 	filp = cdp;
-	filp->f_op->release(curthread->td_fpop->f_vnode, filp);
+	filp->f_op->release(filp->f_vnode, filp);
+	vdrop(filp->f_vnode);
 	kfree(filp);
 }
 
@@ -232,6 +233,8 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_op = ldev->ops;
 	filp->f_flags = file->f_flag;
+	vhold(file->f_vnode);
+	filp->f_vnode = file->f_vnode;
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
