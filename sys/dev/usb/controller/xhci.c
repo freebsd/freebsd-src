@@ -1533,9 +1533,11 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 	struct xhci_td *td;
 	struct xhci_td *td_next;
 	struct xhci_td *td_alt_next;
+	struct xhci_td *td_first;
 	uint32_t buf_offset;
 	uint32_t average;
 	uint32_t len_old;
+	uint32_t npkt_off;
 	uint32_t dword;
 	uint8_t shortpkt_old;
 	uint8_t precompute;
@@ -1545,12 +1547,13 @@ xhci_setup_generic_chain_sub(struct xhci_std_temp *temp)
 	buf_offset = 0;
 	shortpkt_old = temp->shortpkt;
 	len_old = temp->len;
+	npkt_off = 0;
 	precompute = 1;
 
 restart:
 
 	td = temp->td;
-	td_next = temp->td_next;
+	td_next = td_first = temp->td_next;
 
 	while (1) {
 
@@ -1651,7 +1654,7 @@ restart:
 			/* fill out buffer pointers */
 
 			if (average == 0) {
-				npkt = 1;
+				npkt = 0;
 				memset(&buf_res, 0, sizeof(buf_res));
 			} else {
 				usbd_get_page(temp->pc, temp->offset +
@@ -1665,8 +1668,10 @@ restart:
 				if (buf_res.length > XHCI_TD_PAGE_SIZE)
 					buf_res.length = XHCI_TD_PAGE_SIZE;
 
+				npkt_off += buf_res.length;
+
 				/* setup npkt */
-				npkt = (average + temp->max_packet_size - 1) /
+				npkt = (len_old - npkt_off + temp->max_packet_size - 1) /
 				    temp->max_packet_size;
 
 				if (npkt > 31)
@@ -1684,32 +1689,55 @@ restart:
 
 			td->td_trb[x].dwTrb2 = htole32(dword);
 
-			dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-			  XHCI_TRB_3_TYPE_SET(temp->trb_type) |
-			  (temp->do_isoc_sync ?
-			   XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8) :
-			   XHCI_TRB_3_ISO_SIA_BIT) |
-			  XHCI_TRB_3_TBC_SET(temp->tbc) |
-			  XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
-
-			temp->do_isoc_sync = 0;
-
-			if (temp->direction == UE_DIR_IN) {
-				dword |= XHCI_TRB_3_DIR_IN;
-
-				/*
-				 * NOTE: Only the SETUP stage should
-				 * use the IDT bit. Else transactions
-				 * can be sent using the wrong data
-				 * toggle value.
-				 */
-				if (temp->trb_type !=
-				    XHCI_TRB_TYPE_SETUP_STAGE &&
-				    temp->trb_type !=
-				    XHCI_TRB_TYPE_STATUS_STAGE)
-					dword |= XHCI_TRB_3_ISP_BIT;
+			switch (temp->trb_type) {
+			case XHCI_TRB_TYPE_ISOCH:
+				/* BEI: Interrupts are inhibited until EOT */
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_BEI_BIT |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (td != td_first) {
+					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
+				} else if (temp->do_isoc_sync != 0) {
+					temp->do_isoc_sync = 0;
+					/* wait until "isoc_frame" */
+					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ISOCH) |
+					    XHCI_TRB_3_FRID_SET(temp->isoc_frame / 8);
+				} else {
+					/* start data transfer at next interval */
+					dword |= XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ISOCH) |
+					    XHCI_TRB_3_ISO_SIA_BIT;
+				}
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+				break;
+			case XHCI_TRB_TYPE_DATA_STAGE:
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE) |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+				break;
+			case XHCI_TRB_TYPE_STATUS_STAGE:
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE) |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN;
+				break;
+			default:	/* XHCI_TRB_TYPE_NORMAL */
+				/* BEI: Interrupts are inhibited until EOT */
+				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL) |
+				    XHCI_TRB_3_BEI_BIT |
+				    XHCI_TRB_3_TBC_SET(temp->tbc) |
+				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				if (temp->direction == UE_DIR_IN)
+					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+				break;
 			}
-
 			td->td_trb[x].dwTrb3 = htole32(dword);
 
 			average -= buf_res.length;
@@ -1773,9 +1801,14 @@ restart:
 		goto restart;
 	}
 
-	/* remove cycle bit from first if we are stepping the TRBs */
-	if (temp->step_td)
-		td->td_trb[0].dwTrb3 &= ~htole32(XHCI_TRB_3_CYCLE_BIT);
+	/*
+	 * Remove cycle bit from the first TRB if we are
+	 * stepping them:
+	 */
+	if (temp->step_td != 0) {
+		td_first->td_trb[0].dwTrb3 &= ~htole32(XHCI_TRB_3_CYCLE_BIT);
+		usb_pc_cpu_flush(td_first->page_cache);
+	}
 
 	/* remove chain bit because this is the last TRB in the chain */
 	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(15));
@@ -2601,6 +2634,7 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 {
 	struct xhci_td *td_first;
 	struct xhci_td *td_last;
+	struct xhci_trb *trb_link;
 	struct xhci_endpoint_ext *pepext;
 	uint64_t addr;
 	uint8_t i;
@@ -2666,11 +2700,15 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 	/* compute terminating return address */
 	addr += inext * sizeof(struct xhci_trb);
 
+	/* compute link TRB pointer */
+	trb_link = td_last->td_trb + td_last->ntrb;
+
 	/* update next pointer of last link TRB */
-	td_last->td_trb[td_last->ntrb].qwTrb0 = htole64(addr);
-	td_last->td_trb[td_last->ntrb].dwTrb2 = htole32(XHCI_TRB_2_IRQ_SET(0));
-	td_last->td_trb[td_last->ntrb].dwTrb3 = htole32(XHCI_TRB_3_IOC_BIT |
-	    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK));
+	trb_link->qwTrb0 = htole64(addr);
+	trb_link->dwTrb2 = htole32(XHCI_TRB_2_IRQ_SET(0));
+	trb_link->dwTrb3 = htole32(XHCI_TRB_3_IOC_BIT |
+	    XHCI_TRB_3_CYCLE_BIT |
+	    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK));
 
 #ifdef USB_DEBUG
 	xhci_dump_trb(&td_last->td_trb[td_last->ntrb]);
