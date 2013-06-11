@@ -435,7 +435,7 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 		list_create(cb_list, sizeof (dmu_tx_callback_t),
 		    offsetof(dmu_tx_callback_t, dcb_node));
 
-		list_move_tail(&tc->tc_callbacks[g], cb_list);
+		list_move_tail(cb_list, &tc->tc_callbacks[g]);
 
 		(void) taskq_dispatch(tx->tx_commit_cb_taskq, (task_func_t *)
 		    txg_do_callbacks, cb_list, TQ_SLEEP);
