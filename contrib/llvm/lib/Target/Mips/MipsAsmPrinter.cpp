@@ -46,6 +46,10 @@
 using namespace llvm;
 
 bool MipsAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
+  // Initialize TargetLoweringObjectFile.
+  if (Subtarget->allowMixed16_32())
+    const_cast<TargetLoweringObjectFile&>(getObjFileLowering())
+      .Initialize(OutContext, TM);
   MipsFI = MF.getInfo<MipsFunctionInfo>();
   AsmPrinter::runOnMachineFunction(MF);
   return true;
@@ -245,12 +249,18 @@ void MipsAsmPrinter::EmitFunctionEntryLabel() {
 void MipsAsmPrinter::EmitFunctionBodyStart() {
   MCInstLowering.Initialize(Mang, &MF->getContext());
 
-  emitFrameDirective();
+  bool IsNakedFunction =
+    MF->getFunction()->
+      getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                   Attribute::Naked);
+  if (!IsNakedFunction)
+    emitFrameDirective();
 
   if (OutStreamer.hasRawTextSupport()) {
     SmallString<128> Str;
     raw_svector_ostream OS(Str);
-    printSavedRegsBitmask(OS);
+    if (!IsNakedFunction)
+      printSavedRegsBitmask(OS);
     OutStreamer.EmitRawText(OS.str());
     if (!Subtarget->inMips16Mode()) {
       OutStreamer.EmitRawText(StringRef("\t.set\tnoreorder"));
@@ -419,12 +429,18 @@ bool MipsAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
                                            unsigned OpNum, unsigned AsmVariant,
                                            const char *ExtraCode,
                                            raw_ostream &O) {
-  if (ExtraCode && ExtraCode[0])
-    return true; // Unknown modifier.
+  int Offset = 0;
+  // Currently we are expecting either no ExtraCode or 'D'
+  if (ExtraCode) {
+    if (ExtraCode[0] == 'D')
+      Offset = 4;
+    else
+      return true; // Unknown modifier.
+  }
 
   const MachineOperand &MO = MI->getOperand(OpNum);
   assert(MO.isReg() && "unexpected inline asm memory operand");
-  O << "0($" << MipsInstPrinter::getRegisterName(MO.getReg()) << ")";
+  O << Offset << "($" << MipsInstPrinter::getRegisterName(MO.getReg()) << ")";
 
   return false;
 }

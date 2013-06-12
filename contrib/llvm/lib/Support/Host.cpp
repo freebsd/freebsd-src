@@ -114,12 +114,12 @@ static bool GetX86CpuIDAndInfo(unsigned value, unsigned *rEAX,
 
 static bool OSHasAVXSupport() {
 #if defined(__GNUC__)
-  // Check xgetbv; this uses a .byte sequence instead of the instruction 
-  // directly because older assemblers do not include support for xgetbv and 
+  // Check xgetbv; this uses a .byte sequence instead of the instruction
+  // directly because older assemblers do not include support for xgetbv and
   // there is no easy way to conditionally compile based on the assembler used.
   int rEAX, rEDX;
   __asm__ (".byte 0x0f, 0x01, 0xd0" : "=a" (rEAX), "=d" (rEDX) : "c" (0));
-#elif defined(_MSC_FULL_VER) && _MSC_FULL_VER >= 160040219
+#elif defined(_MSC_FULL_VER) && defined(_XCR_XFEATURE_ENABLED_MASK)
   unsigned long long rEAX = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
 #else
   int rEAX = 0; // Ensures we return false
@@ -355,10 +355,15 @@ std::string sys::getHostCPUName() {
       case 20:
         return "btver1";
       case 21:
-        if (Model <= 15)
-          return "bdver1";
-        else if (Model <= 31)
+        if (!HasAVX) // If the OS doesn't support AVX provide a sane fallback.
+          return "btver1";
+        if (Model > 15 && Model <= 31)
           return "bdver2";
+        return "bdver1";
+      case 22:
+        if (!HasAVX) // If the OS doesn't support AVX provide a sane fallback.
+          return "btver1";
+        return "btver2";
     default:
       return "generic";
     }
@@ -608,7 +613,7 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features){
 #endif
 
 std::string sys::getProcessTriple() {
-  Triple PT(LLVM_HOSTTRIPLE);
+  Triple PT(LLVM_HOST_TRIPLE);
 
   if (sizeof(void *) == 8 && PT.isArch32Bit())
     PT = PT.get64BitArchVariant();
