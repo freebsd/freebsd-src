@@ -292,14 +292,13 @@ cfi_disk_getattr(struct bio *bp)
 	sc = dsc->parent;
 	dev = sc->sc_dev;
 
-	do {
-		if (g_handleattr(bp, "CFI::device", &dev, sizeof(device_t)))
-			break;
-
-		return (ERESTART);
-	} while(0);
-
-	return (EJUSTRETURN);
+	if (strcmp(bp->bio_attribute, "CFI::device") == 0) {
+		if (bp->bio_length != sizeof(dev))
+			return (EFAULT);
+		bcopy(&dev, bp->bio_data, sizeof(dev));
+	} else
+		return (-1);
+	return (0);
 }
 
 
