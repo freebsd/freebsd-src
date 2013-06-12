@@ -218,7 +218,6 @@ main(int argc, char *argv[])
 static void __dead2
 usage(void)
 {
-
 	fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: calendar [-A days] [-a] [-B days] [-D sun|moon] [-d]",
 	    "		     [-F friday] [-f calendarfile] [-l longitude]",
