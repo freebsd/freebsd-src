@@ -133,7 +133,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (length != 0)
 			panic("ext2_truncate: partial truncate of symlink");
 #endif
@@ -319,7 +319,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 		}
 	}
 done:
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (level = SINGLE; level <= TRIPLE; level++)
 		if (newblks[NDADDR + level] != oip->i_ib[level])
 			panic("itrunc1");
@@ -331,7 +331,7 @@ done:
 	    bo->bo_clean.bv_cnt != 0))
 		panic("itrunc3");
 	BO_UNLOCK(bo);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	/*
 	 * Put back the real size.
 	 */
