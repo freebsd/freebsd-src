@@ -1658,7 +1658,7 @@ DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
 .if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
 .if exists(${KERNCONFDIR}/${KERNCONF})
 FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
-	${KERNCONFDIR}/${KERNCONF}
+	${KERNCONFDIR}/${KERNCONF} ; echo
 .endif
 .endif
 
