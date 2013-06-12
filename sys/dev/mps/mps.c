@@ -2409,7 +2409,7 @@ mps_read_config_page(struct mps_softc *sc, struct mps_config_params *params)
 	req->SGLFlags = 0;
 	req->ChainOffset = 0;
 	req->PageAddress = params->page_address;
-	if (params->hdr.Ext.ExtPageType != 0) {
+	if (params->hdr.Struct.PageType == MPI2_CONFIG_PAGETYPE_EXTENDED) {
 		MPI2_CONFIG_EXTENDED_PAGE_HEADER *hdr;
 
 		hdr = &params->hdr.Ext;
