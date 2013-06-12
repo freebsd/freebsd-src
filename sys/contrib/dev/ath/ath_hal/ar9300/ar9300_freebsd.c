@@ -235,6 +235,12 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_setChainMasks = ar9300SetChainMasks;
 	/* ah_get11nRxClear */
 	/* ah_set11nRxClear */
+
+	/* bluetooth coexistence functions */
+
+	/* LNA diversity functions */
+	ah->ah_divLnaConfGet = ar9300_ant_div_comb_get_config;
+	ah->ah_divLnaConfSet = ar9300_ant_div_comb_set_config;
 }
 
 HAL_BOOL
