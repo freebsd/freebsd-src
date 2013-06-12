@@ -8,13 +8,13 @@
 # PROVIDE: addswap
 # REQUIRE: FILESYSTEMS kld
 # BEFORE:  netif
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
 name="addswap"
 start_cmd="addswap_start"
-stop_cmd=":"
+stop_cmd="addswap_stop"
 
 addswap_start()
 {
@@ -23,8 +23,43 @@ addswap_start()
 		;;
 	*)
 		if [ -w "${swapfile}" ]; then
-			echo "Adding ${swapfile} as additional swap"
-			mdev=`mdconfig -a -t vnode -f ${swapfile}` && swapon /dev/${mdev}
+			check_startmsgs && echo "Adding ${swapfile} as additional swap"
+
+			if [ -n "${swapfile_mdunit}" ]; then
+				mdev="/dev/md${swapfile_mdunit#md}"
+				mdconfig -a -t vnode -f "${swapfile}" -u ${swapfile_mdunit}
+			else
+				mdev="/dev/`mdconfig -a -t vnode -f "${swapfile}"`"
+			fi
+
+			if [ $? -eq 0 ]; then
+				swapon ${mdev}
+			else
+				echo "error creating swapfile device"
+			fi
+		fi
+		;;
+	esac
+}
+
+addswap_stop()
+{
+	case ${swapfile} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		if [ -n "${swapfile_mdunit}" ]; then
+			mdev="/dev/md${swapfile_mdunit#md}"
+		else
+			mdev="/dev/`mdconfig -lv | grep "${swapfile}" | cut -f1`"
+			swapfile_mdunit=${mdev#md}
+		fi
+		if [ -n "${swapfile_mdunit}" ]; then
+			swapctl -l | grep -q ${mdev}
+			if [ $? -eq 0 ]; then
+				echo "Dismounting swapfile ${swapfile}"
+				swapoff ${mdev} && mdconfig -d -u ${swapfile_mdunit}
+			fi
 		fi
 		;;
 	esac
