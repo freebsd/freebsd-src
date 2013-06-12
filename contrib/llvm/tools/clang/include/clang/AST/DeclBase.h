@@ -372,10 +372,13 @@ public:
     return const_cast<Decl*>(this)->getDeclContext();
   }
 
-  /// Finds the innermost non-closure context of this declaration.
-  /// That is, walk out the DeclContext chain, skipping any blocks.
-  DeclContext *getNonClosureContext();
-  const DeclContext *getNonClosureContext() const {
+  /// Find the innermost non-closure ancestor of this declaration,
+  /// walking up through blocks, lambdas, etc.  If that ancestor is
+  /// not a code context (!isFunctionOrMethod()), returns null.
+  ///
+  /// A declaration may be its own non-closure context.
+  Decl *getNonClosureContext();
+  const Decl *getNonClosureContext() const {
     return const_cast<Decl*>(this)->getNonClosureContext();
   }
 
@@ -399,6 +402,12 @@ public:
 #ifndef NDEBUG
     CheckAccessDeclContext();
 #endif
+    return AccessSpecifier(Access);
+  }
+
+  /// \brief Retrieve the access specifier for this declaration, even though
+  /// it may not yet have been properly set.
+  AccessSpecifier getAccessUnsafe() const {
     return AccessSpecifier(Access);
   }
 
@@ -1040,6 +1049,7 @@ public:
   bool isFunctionOrMethod() const {
     switch (DeclKind) {
     case Decl::Block:
+    case Decl::Captured:
     case Decl::ObjCMethod:
       return true;
     default:
@@ -1086,14 +1096,6 @@ public:
   /// C++0x scoped enums), and C++ linkage specifications.
   bool isTransparentContext() const;
 
-  /// \brief Determines whether this context is, or is nested within,
-  /// a C++ extern "C" linkage spec.
-  bool isExternCContext() const;
-
-  /// \brief Determines whether this context is, or is nested within,
-  /// a C++ extern "C++" linkage spec.
-  bool isExternCXXContext() const;
-
   /// \brief Determine whether this declaration context is equivalent
   /// to the declaration context DC.
   bool Equals(const DeclContext *DC) const {
@@ -1107,8 +1109,8 @@ public:
   /// \brief Find the nearest non-closure ancestor of this context,
   /// i.e. the innermost semantic parent of this context which is not
   /// a closure.  A context may be its own non-closure ancestor.
-  DeclContext *getNonClosureAncestor();
-  const DeclContext *getNonClosureAncestor() const {
+  Decl *getNonClosureAncestor();
+  const Decl *getNonClosureAncestor() const {
     return const_cast<DeclContext*>(this)->getNonClosureAncestor();
   }
 
@@ -1402,6 +1404,9 @@ public:
 
   /// @brief Removes a declaration from this context.
   void removeDecl(Decl *D);
+    
+  /// @brief Checks whether a declaration is in this context.
+  bool containsDecl(Decl *D) const;
 
   /// lookup_iterator - An iterator that provides access to the results
   /// of looking up a name within this context.

@@ -16,7 +16,9 @@
 
 #include "llvm/IR/Use.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm-c/Core.h"
 
 namespace llvm {
 
@@ -258,12 +260,22 @@ public:
   /// this value.
   bool hasValueHandle() const { return HasValueHandle; }
 
-  /// stripPointerCasts - This method strips off any unneeded pointer casts and
-  /// all-zero GEPs from the specified value, returning the original uncasted
-  /// value. If this is called on a non-pointer value, it returns 'this'.
+  /// \brief This method strips off any unneeded pointer casts,
+  /// all-zero GEPs and aliases from the specified value, returning the original
+  /// uncasted value. If this is called on a non-pointer value, it returns
+  /// 'this'.
   Value *stripPointerCasts();
   const Value *stripPointerCasts() const {
     return const_cast<Value*>(this)->stripPointerCasts();
+  }
+
+  /// \brief This method strips off any unneeded pointer casts and
+  /// all-zero GEPs from the specified value, returning the original
+  /// uncasted value. If this is called on a non-pointer value, it returns
+  /// 'this'.
+  Value *stripPointerCastsNoFollowAliases();
+  const Value *stripPointerCastsNoFollowAliases() const {
+    return const_cast<Value*>(this)->stripPointerCastsNoFollowAliases();
   }
 
   /// stripInBoundsConstantOffsets - This method strips off unneeded pointer casts and
@@ -405,6 +417,29 @@ public:
   }
   enum { NumLowBitsAvailable = 2 };
 };
+
+// Create wrappers for C Binding types (see CBindingWrapping.h).
+DEFINE_ISA_CONVERSION_FUNCTIONS(Value, LLVMValueRef)
+
+/* Specialized opaque value conversions.
+ */ 
+inline Value **unwrap(LLVMValueRef *Vals) {
+  return reinterpret_cast<Value**>(Vals);
+}
+
+template<typename T>
+inline T **unwrap(LLVMValueRef *Vals, unsigned Length) {
+#ifdef DEBUG
+  for (LLVMValueRef *I = Vals, *E = Vals + Length; I != E; ++I)
+    cast<T>(*I);
+#endif
+  (void)Length;
+  return reinterpret_cast<T**>(Vals);
+}
+
+inline LLVMValueRef *wrap(const Value **Vals) {
+  return reinterpret_cast<LLVMValueRef*>(const_cast<Value**>(Vals));
+}
 
 } // End llvm namespace
 

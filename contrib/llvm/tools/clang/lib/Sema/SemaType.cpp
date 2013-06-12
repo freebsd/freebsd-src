@@ -793,9 +793,7 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       // "At least one type specifier shall be given in the declaration
       // specifiers in each declaration, and in the specifier-qualifier list in
       // each struct declaration and type name."
-      // FIXME: Does Microsoft really have the implicit int extension in C++?
-      if (S.getLangOpts().CPlusPlus &&
-          !S.getLangOpts().MicrosoftExt) {
+      if (S.getLangOpts().CPlusPlus) {
         S.Diag(DeclLoc, diag::err_missing_type_specifier)
           << DS.getSourceRange();
 
@@ -994,11 +992,14 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
     }
     break;
 
-  case DeclSpec::TST_auto: {
+  case DeclSpec::TST_auto:
     // TypeQuals handled by caller.
-    Result = Context.getAutoType(QualType());
+    Result = Context.getAutoType(QualType(), /*decltype(auto)*/false);
     break;
-  }
+
+  case DeclSpec::TST_decltype_auto:
+    Result = Context.getAutoType(QualType(), /*decltype(auto)*/true);
+    break;
 
   case DeclSpec::TST_unknown_anytype:
     Result = Context.UnknownAnyTy;
@@ -1457,12 +1458,6 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
     return QualType();
   }
 
-  if (T->getContainedAutoType()) {
-    Diag(Loc, diag::err_illegal_decl_array_of_auto)
-      << getPrintableNameForEntity(Entity) << T;
-    return QualType();
-  }
-
   if (const RecordType *EltTy = T->getAs<RecordType>()) {
     // If the element type is a struct or union that contains a variadic
     // array, accept it as a GNU extension: C99 6.7.2.1p2.
@@ -1572,6 +1567,7 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
   if (!getLangOpts().C99) {
     if (T->isVariableArrayType()) {
       // Prohibit the use of non-POD types in VLAs.
+      // FIXME: C++1y allows this.
       QualType BaseT = Context.getBaseElementType(T);
       if (!T->isDependentType() &&
           !BaseT.isPODType(Context) &&
@@ -1587,7 +1583,9 @@ QualType Sema::BuildArrayType(QualType T, ArrayType::ArraySizeModifier ASM,
       }
       // Just extwarn about VLAs.
       else
-        Diag(Loc, diag::ext_vla);
+        Diag(Loc, getLangOpts().CPlusPlus1y
+                      ? diag::warn_cxx11_compat_array_of_runtime_bound
+                      : diag::ext_vla);
     } else if (ASM != ArrayType::Normal || Quals != 0)
       Diag(Loc,
            getLangOpts().CPlusPlus? diag::err_c99_array_usage_cxx
@@ -2020,6 +2018,8 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
   // The TagDecl owned by the DeclSpec.
   TagDecl *OwnedTagDecl = 0;
 
+  bool ContainsPlaceholderType = false;
+
   switch (D.getName().getKind()) {
   case UnqualifiedId::IK_ImplicitSelfParam:
   case UnqualifiedId::IK_OperatorFunctionId:
@@ -2027,6 +2027,7 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
   case UnqualifiedId::IK_LiteralOperatorId:
   case UnqualifiedId::IK_TemplateId:
     T = ConvertDeclSpecToType(state);
+    ContainsPlaceholderType = D.getDeclSpec().containsPlaceholderType();
 
     if (!D.isInvalidType() && D.getDeclSpec().isTypeSpecOwned()) {
       OwnedTagDecl = cast<TagDecl>(D.getDeclSpec().getRepAsDecl());
@@ -2050,6 +2051,7 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
     // converts to.
     T = SemaRef.GetTypeFromParser(D.getName().ConversionFunctionId,
                                   &ReturnTypeInfo);
+    ContainsPlaceholderType = T->getContainedAutoType();
     break;
   }
 
@@ -2060,7 +2062,7 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
   // In C++11, a function declarator using 'auto' must have a trailing return
   // type (this is checked later) and we can skip this. In other languages
   // using auto, we need to check regardless.
-  if (D.getDeclSpec().getTypeSpecType() == DeclSpec::TST_auto &&
+  if (ContainsPlaceholderType &&
       (!SemaRef.getLangOpts().CPlusPlus11 || !D.isFunctionDeclarator())) {
     int Error = -1;
 
@@ -2103,10 +2105,15 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
       Error = 10; // Type alias
       break;
     case Declarator::TrailingReturnContext:
-      Error = 11; // Function return type
+      if (!SemaRef.getLangOpts().CPlusPlus1y)
+        Error = 11; // Function return type
+      break;
+    case Declarator::ConversionIdContext:
+      if (!SemaRef.getLangOpts().CPlusPlus1y)
+        Error = 12; // conversion-type-id
       break;
     case Declarator::TypeNameContext:
-      Error = 12; // Generic
+      Error = 13; // Generic
       break;
     case Declarator::FileContext:
     case Declarator::BlockContext:
@@ -2142,15 +2149,19 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
       }
     }
 
+    SourceRange AutoRange = D.getDeclSpec().getTypeSpecTypeLoc();
+    if (D.getName().getKind() == UnqualifiedId::IK_ConversionFunctionId)
+      AutoRange = D.getName().getSourceRange();
+
     if (Error != -1) {
-      SemaRef.Diag(D.getDeclSpec().getTypeSpecTypeLoc(),
-                   diag::err_auto_not_allowed)
-        << Error;
+      SemaRef.Diag(AutoRange.getBegin(), diag::err_auto_not_allowed)
+        << Error << AutoRange;
       T = SemaRef.Context.IntTy;
       D.setInvalidType(true);
     } else
-      SemaRef.Diag(D.getDeclSpec().getTypeSpecTypeLoc(),
-                   diag::warn_cxx98_compat_auto_type_specifier);
+      SemaRef.Diag(AutoRange.getBegin(),
+                   diag::warn_cxx98_compat_auto_type_specifier)
+        << AutoRange;
   }
 
   if (SemaRef.getLangOpts().CPlusPlus &&
@@ -2182,6 +2193,7 @@ static QualType GetDeclSpecTypeForDeclarator(TypeProcessingState &state,
       D.setInvalidType(true);
       break;
     case Declarator::TypeNameContext:
+    case Declarator::ConversionIdContext:
     case Declarator::TemplateParamContext:
     case Declarator::CXXNewContext:
     case Declarator::CXXCatchContext:
@@ -2399,6 +2411,46 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
       (T->castAs<FunctionProtoType>()->getTypeQuals() != 0 ||
        T->castAs<FunctionProtoType>()->getRefQualifier() != RQ_None);
 
+  // If T is 'decltype(auto)', the only declarators we can have are parens
+  // and at most one function declarator if this is a function declaration.
+  if (const AutoType *AT = T->getAs<AutoType>()) {
+    if (AT->isDecltypeAuto()) {
+      for (unsigned I = 0, E = D.getNumTypeObjects(); I != E; ++I) {
+        unsigned Index = E - I - 1;
+        DeclaratorChunk &DeclChunk = D.getTypeObject(Index);
+        unsigned DiagId = diag::err_decltype_auto_compound_type;
+        unsigned DiagKind = 0;
+        switch (DeclChunk.Kind) {
+        case DeclaratorChunk::Paren:
+          continue;
+        case DeclaratorChunk::Function: {
+          unsigned FnIndex;
+          if (D.isFunctionDeclarationContext() &&
+              D.isFunctionDeclarator(FnIndex) && FnIndex == Index)
+            continue;
+          DiagId = diag::err_decltype_auto_function_declarator_not_declaration;
+          break;
+        }
+        case DeclaratorChunk::Pointer:
+        case DeclaratorChunk::BlockPointer:
+        case DeclaratorChunk::MemberPointer:
+          DiagKind = 0;
+          break;
+        case DeclaratorChunk::Reference:
+          DiagKind = 1;
+          break;
+        case DeclaratorChunk::Array:
+          DiagKind = 2;
+          break;
+        }
+
+        S.Diag(DeclChunk.Loc, DiagId) << DiagKind;
+        D.setInvalidType(true);
+        break;
+      }
+    }
+  }
+
   // Walk the DeclTypeInfo, building the recursive type as we go.
   // DeclTypeInfos are ordered from the identifier out, which is
   // opposite of what we want :).
@@ -2527,6 +2579,15 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         }
       }
 
+      if (const AutoType *AT = T->getContainedAutoType()) {
+        // We've already diagnosed this for decltype(auto).
+        if (!AT->isDecltypeAuto())
+          S.Diag(DeclType.Loc, diag::err_illegal_decl_array_of_auto)
+            << getPrintableNameForEntity(Name) << T;
+        T = QualType();
+        break;
+      }
+
       T = S.BuildArrayType(T, ASM, ArraySize, ATI.TypeQuals,
                            SourceRange(DeclType.Loc, DeclType.EndLoc), Name);
       break;
@@ -2544,7 +2605,8 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         // trailing-return-type is only required if we're declaring a function,
         // and not, for instance, a pointer to a function.
         if (D.getDeclSpec().getTypeSpecType() == DeclSpec::TST_auto &&
-            !FTI.hasTrailingReturnType() && chunkIndex == 0) {
+            !FTI.hasTrailingReturnType() && chunkIndex == 0 &&
+            !S.getLangOpts().CPlusPlus1y) {
           S.Diag(D.getDeclSpec().getTypeSpecTypeLoc(),
                diag::err_auto_missing_trailing_return);
           T = Context.IntTy;
@@ -2557,7 +2619,8 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
               << T << D.getDeclSpec().getSourceRange();
             D.setInvalidType(true);
           } else if (D.getContext() != Declarator::LambdaExprContext &&
-                     (T.hasQualifiers() || !isa<AutoType>(T))) {
+                     (T.hasQualifiers() || !isa<AutoType>(T) ||
+                      cast<AutoType>(T)->isDecltypeAuto())) {
             S.Diag(D.getDeclSpec().getTypeSpecTypeLoc(),
                  diag::err_trailing_return_without_auto)
               << T << D.getDeclSpec().getSourceRange();
@@ -3044,6 +3107,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
     case Declarator::ObjCCatchContext:
     case Declarator::BlockLiteralContext:
     case Declarator::LambdaExprContext:
+    case Declarator::ConversionIdContext:
     case Declarator::TrailingReturnContext:
     case Declarator::TemplateTypeArgContext:
       // FIXME: We may want to allow parameter packs in block-literal contexts
@@ -3781,7 +3845,7 @@ static bool handleObjCOwnershipTypeAttr(TypeProcessingState &state,
                                        QualType &type) {
   bool NonObjCPointer = false;
 
-  if (!type->isDependentType()) {
+  if (!type->isDependentType() && !type->isUndeducedType()) {
     if (const PointerType *ptr = type->getAs<PointerType>()) {
       QualType pointee = ptr->getPointeeType();
       if (pointee->isObjCRetainableType() || pointee->isPointerType())
@@ -4806,7 +4870,7 @@ bool Sema::RequireLiteralType(SourceLocation Loc, QualType T,
   QualType ElemType = Context.getBaseElementType(T);
   RequireCompleteType(Loc, ElemType, 0);
 
-  if (T->isLiteralType())
+  if (T->isLiteralType(Context))
     return false;
 
   if (Diagnoser.Suppressed)
@@ -4848,7 +4912,7 @@ bool Sema::RequireLiteralType(SourceLocation Loc, QualType T,
   } else if (RD->hasNonLiteralTypeFieldsOrBases()) {
     for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
          E = RD->bases_end(); I != E; ++I) {
-      if (!I->getType()->isLiteralType()) {
+      if (!I->getType()->isLiteralType(Context)) {
         Diag(I->getLocStart(),
              diag::note_non_literal_base_class)
           << RD << I->getType() << I->getSourceRange();
@@ -4857,7 +4921,7 @@ bool Sema::RequireLiteralType(SourceLocation Loc, QualType T,
     }
     for (CXXRecordDecl::field_iterator I = RD->field_begin(),
          E = RD->field_end(); I != E; ++I) {
-      if (!I->getType()->isLiteralType() ||
+      if (!I->getType()->isLiteralType(Context) ||
           I->getType().isVolatileQualified()) {
         Diag(I->getLocation(), diag::note_non_literal_field)
           << RD << *I << I->getType()

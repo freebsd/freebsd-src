@@ -28,7 +28,36 @@
 
 using namespace llvm;
 
+inline DataLayout *unwrap(LLVMTargetDataRef P) {
+  return reinterpret_cast<DataLayout*>(P);
+}
 
+inline LLVMTargetDataRef wrap(const DataLayout *P) {
+  return reinterpret_cast<LLVMTargetDataRef>(const_cast<DataLayout*>(P));
+}
+
+inline TargetLibraryInfo *unwrap(LLVMTargetLibraryInfoRef P) {
+  return reinterpret_cast<TargetLibraryInfo*>(P);
+}
+
+inline LLVMTargetLibraryInfoRef wrap(const TargetLibraryInfo *P) {
+  TargetLibraryInfo *X = const_cast<TargetLibraryInfo*>(P);
+  return reinterpret_cast<LLVMTargetLibraryInfoRef>(X);
+}
+
+inline TargetMachine *unwrap(LLVMTargetMachineRef P) {
+  return reinterpret_cast<TargetMachine*>(P);
+}
+inline Target *unwrap(LLVMTargetRef P) {
+  return reinterpret_cast<Target*>(P);
+}
+inline LLVMTargetMachineRef wrap(const TargetMachine *P) {
+  return
+    reinterpret_cast<LLVMTargetMachineRef>(const_cast<TargetMachine*>(P));
+}
+inline LLVMTargetRef wrap(const Target * P) {
+  return reinterpret_cast<LLVMTargetRef>(const_cast<Target*>(P));
+}
 
 LLVMTargetRef LLVMGetFirstTarget() {
    const Target* target = &*TargetRegistry::begin();
@@ -77,29 +106,9 @@ LLVMTargetMachineRef LLVMCreateTargetMachine(LLVMTargetRef T, char* Triple,
       break;
   }
 
-  CodeModel::Model CM;
-  switch (CodeModel) {
-    case LLVMCodeModelJITDefault:
-      CM = CodeModel::JITDefault;
-      break;
-    case LLVMCodeModelSmall:
-      CM = CodeModel::Small;
-      break;
-    case LLVMCodeModelKernel:
-      CM = CodeModel::Kernel;
-      break;
-    case LLVMCodeModelMedium:
-      CM = CodeModel::Medium;
-      break;
-    case LLVMCodeModelLarge:
-      CM = CodeModel::Large;
-      break;
-    default:
-      CM = CodeModel::Default;
-      break;
-  }
-  CodeGenOpt::Level OL;
+  CodeModel::Model CM = unwrap(CodeModel);
 
+  CodeGenOpt::Level OL;
   switch (Level) {
     case LLVMCodeGenLevelNone:
       OL = CodeGenOpt::None;
@@ -149,8 +158,8 @@ LLVMTargetDataRef LLVMGetTargetMachineData(LLVMTargetMachineRef T) {
   return wrap(unwrap(T)->getDataLayout());
 }
 
-LLVMBool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef T, LLVMModuleRef M,
-  char* Filename, LLVMCodeGenFileType codegen, char** ErrorMessage) {
+static LLVMBool LLVMTargetMachineEmit(LLVMTargetMachineRef T, LLVMModuleRef M,
+  formatted_raw_ostream &OS, LLVMCodeGenFileType codegen, char **ErrorMessage) {
   TargetMachine* TM = unwrap(T);
   Module* Mod = unwrap(M);
 
@@ -176,14 +185,7 @@ LLVMBool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef T, LLVMModuleRef M,
       ft = TargetMachine::CGFT_ObjectFile;
       break;
   }
-  raw_fd_ostream dest(Filename, error, raw_fd_ostream::F_Binary);
-  formatted_raw_ostream destf(dest);
-  if (!error.empty()) {
-    *ErrorMessage = strdup(error.c_str());
-    return true;
-  }
-
-  if (TM->addPassesToEmitFile(pass, destf, ft)) {
+  if (TM->addPassesToEmitFile(pass, OS, ft)) {
     error = "TargetMachine can't emit a file of this type";
     *ErrorMessage = strdup(error.c_str());
     return true;
@@ -191,7 +193,35 @@ LLVMBool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef T, LLVMModuleRef M,
 
   pass.run(*Mod);
 
-  destf.flush();
-  dest.flush();
+  OS.flush();
   return false;
+}
+
+LLVMBool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef T, LLVMModuleRef M,
+  char* Filename, LLVMCodeGenFileType codegen, char** ErrorMessage) {
+  std::string error;
+  raw_fd_ostream dest(Filename, error, raw_fd_ostream::F_Binary);
+  formatted_raw_ostream destf(dest);
+  if (!error.empty()) {
+    *ErrorMessage = strdup(error.c_str());
+    return true;
+  }
+  bool Result = LLVMTargetMachineEmit(T, M, destf, codegen, ErrorMessage);
+  dest.flush();
+  return Result;
+}
+
+LLVMBool LLVMTargetMachineEmitToMemoryBuffer(LLVMTargetMachineRef T,
+  LLVMModuleRef M, LLVMCodeGenFileType codegen, char** ErrorMessage,
+  LLVMMemoryBufferRef *OutMemBuf) {
+  std::string CodeString;
+  raw_string_ostream OStream(CodeString);
+  formatted_raw_ostream Out(OStream);
+  bool Result = LLVMTargetMachineEmit(T, M, Out, codegen, ErrorMessage);
+  OStream.flush();
+
+  std::string &Data = OStream.str();
+  *OutMemBuf = LLVMCreateMemoryBufferWithMemoryRangeCopy(Data.c_str(),
+                                                     Data.length(), "");
+  return Result;
 }

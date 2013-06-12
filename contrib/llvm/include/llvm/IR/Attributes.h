@@ -87,6 +87,7 @@ public:
     OptimizeForSize,       ///< opt_size
     ReadNone,              ///< Function does not access memory
     ReadOnly,              ///< Function only reads from memory
+    Returned,              ///< Return value is always equal to this argument
     ReturnsTwice,          ///< Function can return twice
     SExt,                  ///< Sign extended before/after call
     StackAlignment,        ///< Alignment of stack for function (3 bits)
@@ -209,7 +210,7 @@ private:
   AttributeSetImpl *pImpl;
 
   /// \brief The attributes for the specified index are returned.
-  AttributeSetNode *getAttributes(unsigned Idx) const;
+  AttributeSetNode *getAttributes(unsigned Index) const;
 
   /// \brief Create an AttributeSet with the specified parameters in it.
   static AttributeSet get(LLVMContext &C,
@@ -233,35 +234,35 @@ public:
 
   /// \brief Return an AttributeSet with the specified parameters in it.
   static AttributeSet get(LLVMContext &C, ArrayRef<AttributeSet> Attrs);
-  static AttributeSet get(LLVMContext &C, unsigned Idx,
+  static AttributeSet get(LLVMContext &C, unsigned Index,
                           ArrayRef<Attribute::AttrKind> Kind);
-  static AttributeSet get(LLVMContext &C, unsigned Idx, AttrBuilder &B);
+  static AttributeSet get(LLVMContext &C, unsigned Index, AttrBuilder &B);
 
   /// \brief Add an attribute to the attribute set at the given index. Since
   /// attribute sets are immutable, this returns a new set.
-  AttributeSet addAttribute(LLVMContext &C, unsigned Idx,
+  AttributeSet addAttribute(LLVMContext &C, unsigned Index,
                             Attribute::AttrKind Attr) const;
 
   /// \brief Add an attribute to the attribute set at the given index. Since
   /// attribute sets are immutable, this returns a new set.
-  AttributeSet addAttribute(LLVMContext &C, unsigned Idx,
+  AttributeSet addAttribute(LLVMContext &C, unsigned Index,
                             StringRef Kind) const;
 
   /// \brief Add attributes to the attribute set at the given index. Since
   /// attribute sets are immutable, this returns a new set.
-  AttributeSet addAttributes(LLVMContext &C, unsigned Idx,
+  AttributeSet addAttributes(LLVMContext &C, unsigned Index,
                              AttributeSet Attrs) const;
 
   /// \brief Remove the specified attribute at the specified index from this
   /// attribute list. Since attribute lists are immutable, this returns the new
   /// list.
-  AttributeSet removeAttribute(LLVMContext &C, unsigned Idx, 
+  AttributeSet removeAttribute(LLVMContext &C, unsigned Index, 
                                Attribute::AttrKind Attr) const;
 
   /// \brief Remove the specified attributes at the specified index from this
   /// attribute list. Since attribute lists are immutable, this returns the new
   /// list.
-  AttributeSet removeAttributes(LLVMContext &C, unsigned Idx, 
+  AttributeSet removeAttributes(LLVMContext &C, unsigned Index, 
                                 AttributeSet Attrs) const;
 
   //===--------------------------------------------------------------------===//
@@ -272,7 +273,7 @@ public:
   LLVMContext &getContext() const;
 
   /// \brief The attributes for the specified index are returned.
-  AttributeSet getParamAttributes(unsigned Idx) const;
+  AttributeSet getParamAttributes(unsigned Index) const;
 
   /// \brief The attributes for the ret value are returned.
   AttributeSet getRetAttributes() const;
@@ -300,7 +301,7 @@ public:
   Attribute getAttribute(unsigned Index, StringRef Kind) const;
 
   /// \brief Return the alignment for the specified function parameter.
-  unsigned getParamAlignment(unsigned Idx) const;
+  unsigned getParamAlignment(unsigned Index) const;
 
   /// \brief Get the stack alignment.
   unsigned getStackAlignment(unsigned Index) const;
@@ -310,8 +311,8 @@ public:
 
   typedef ArrayRef<Attribute>::iterator iterator;
 
-  iterator begin(unsigned Idx) const;
-  iterator end(unsigned Idx) const;
+  iterator begin(unsigned Slot) const;
+  iterator end(unsigned Slot) const;
 
   /// operator==/!= - Provide equality predicates.
   bool operator==(const AttributeSet &RHS) const {
@@ -344,7 +345,7 @@ public:
   unsigned getNumSlots() const;
 
   /// \brief Return the index for the given slot.
-  uint64_t getSlotIndex(unsigned Slot) const;
+  unsigned getSlotIndex(unsigned Slot) const;
 
   /// \brief Return the attributes at the given slot.
   AttributeSet getSlotAttributes(unsigned Slot) const;
@@ -472,9 +473,6 @@ public:
   td_const_iterator td_end() const   { return TargetDepAttrs.end(); }
 
   bool td_empty() const              { return TargetDepAttrs.empty(); }
-
-  /// \brief Remove attributes that are used on functions only.
-  void removeFunctionOnlyAttrs();
 
   bool operator==(const AttrBuilder &B);
   bool operator!=(const AttrBuilder &B) {

@@ -971,6 +971,23 @@ bool DiagnosticConsumer::IncludeInDiagnosticCounts() const { return true; }
 
 void IgnoringDiagConsumer::anchor() { }
 
+ForwardingDiagnosticConsumer::~ForwardingDiagnosticConsumer() {}
+
+void ForwardingDiagnosticConsumer::HandleDiagnostic(
+       DiagnosticsEngine::Level DiagLevel,
+       const Diagnostic &Info) {
+  Target.HandleDiagnostic(DiagLevel, Info);
+}
+
+void ForwardingDiagnosticConsumer::clear() {
+  DiagnosticConsumer::clear();
+  Target.clear();
+}
+
+bool ForwardingDiagnosticConsumer::IncludeInDiagnosticCounts() const {
+  return Target.IncludeInDiagnosticCounts();
+}
+
 PartialDiagnostic::StorageAllocator::StorageAllocator() {
   for (unsigned I = 0; I != NumCached; ++I)
     FreeList[I] = Cached + I;

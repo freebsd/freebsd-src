@@ -27,7 +27,7 @@ namespace {
 
 class MachODumper : public ObjDumper {
 public:
-  MachODumper(const llvm::object::MachOObjectFile *Obj, StreamWriter& Writer)
+  MachODumper(const MachOObjectFile *Obj, StreamWriter& Writer)
     : ObjDumper(Writer)
     , Obj(Obj) { }
 
@@ -43,7 +43,12 @@ private:
 
   void printRelocation(section_iterator SecI, relocation_iterator RelI);
 
-  const llvm::object::MachOObjectFile *Obj;
+  void printRelocation(const MachOObjectFile *Obj,
+                       section_iterator SecI, relocation_iterator RelI);
+
+  void printSections(const MachOObjectFile *Obj);
+
+  const MachOObjectFile *Obj;
 };
 
 } // namespace
@@ -157,97 +162,53 @@ namespace {
   };
 }
 
-static StringRef parseSegmentOrSectionName(ArrayRef<char> P) {
-  if (P[15] == 0)
-    // Null terminated.
-    return StringRef(P.data());
-  // Not null terminated, so this is a 16 char string.
-  return StringRef(P.data(), 16);
-}
-
-static bool is64BitLoadCommand(const MachOObject *MachOObj, DataRefImpl DRI) {
-  LoadCommandInfo LCI = MachOObj->getLoadCommandInfo(DRI.d.a);
-  if (LCI.Command.Type == macho::LCT_Segment64)
-    return true;
-  assert(LCI.Command.Type == macho::LCT_Segment && "Unexpected Type.");
-  return false;
-}
-
-static void getSection(const MachOObject *MachOObj,
-                       DataRefImpl DRI,
+static void getSection(const MachOObjectFile *Obj,
+                       DataRefImpl Sec,
                        MachOSection &Section) {
-  LoadCommandInfo LCI = MachOObj->getLoadCommandInfo(DRI.d.a);
-  if (is64BitLoadCommand(MachOObj, DRI)) {
-    InMemoryStruct<macho::Section64> Sect;
-    MachOObj->ReadSection64(LCI, DRI.d.b, Sect);
-
-    Section.Name        = ArrayRef<char>(Sect->Name);
-    Section.SegmentName = ArrayRef<char>(Sect->SegmentName);
-    Section.Address     = Sect->Address;
-    Section.Size        = Sect->Size;
-    Section.Offset      = Sect->Offset;
-    Section.Alignment   = Sect->Align;
-    Section.RelocationTableOffset = Sect->RelocationTableOffset;
-    Section.NumRelocationTableEntries = Sect->NumRelocationTableEntries;
-    Section.Flags       = Sect->Flags;
-    Section.Reserved1   = Sect->Reserved1;
-    Section.Reserved2   = Sect->Reserved2;
-  } else {
-    InMemoryStruct<macho::Section> Sect;
-    MachOObj->ReadSection(LCI, DRI.d.b, Sect);
-
-    Section.Name        = Sect->Name;
-    Section.SegmentName = Sect->SegmentName;
-    Section.Address     = Sect->Address;
-    Section.Size        = Sect->Size;
-    Section.Offset      = Sect->Offset;
-    Section.Alignment   = Sect->Align;
-    Section.RelocationTableOffset = Sect->RelocationTableOffset;
-    Section.NumRelocationTableEntries = Sect->NumRelocationTableEntries;
-    Section.Flags       = Sect->Flags;
-    Section.Reserved1   = Sect->Reserved1;
-    Section.Reserved2   = Sect->Reserved2;
+  if (!Obj->is64Bit()) {
+    macho::Section Sect = Obj->getSection(Sec);
+    Section.Address     = Sect.Address;
+    Section.Size        = Sect.Size;
+    Section.Offset      = Sect.Offset;
+    Section.Alignment   = Sect.Align;
+    Section.RelocationTableOffset = Sect.RelocationTableOffset;
+    Section.NumRelocationTableEntries = Sect.NumRelocationTableEntries;
+    Section.Flags       = Sect.Flags;
+    Section.Reserved1   = Sect.Reserved1;
+    Section.Reserved2   = Sect.Reserved2;
+    return;
   }
+  macho::Section64 Sect = Obj->getSection64(Sec);
+  Section.Address     = Sect.Address;
+  Section.Size        = Sect.Size;
+  Section.Offset      = Sect.Offset;
+  Section.Alignment   = Sect.Align;
+  Section.RelocationTableOffset = Sect.RelocationTableOffset;
+  Section.NumRelocationTableEntries = Sect.NumRelocationTableEntries;
+  Section.Flags       = Sect.Flags;
+  Section.Reserved1   = Sect.Reserved1;
+  Section.Reserved2   = Sect.Reserved2;
 }
 
-static void getSymbolTableEntry(const MachOObject *MachO,
-                                DataRefImpl DRI,
-                                InMemoryStruct<macho::SymbolTableEntry> &Res) {
-  InMemoryStruct<macho::SymtabLoadCommand> SymtabLoadCmd;
-  LoadCommandInfo LCI = MachO->getLoadCommandInfo(DRI.d.a);
-  MachO->ReadSymtabLoadCommand(LCI, SymtabLoadCmd);
-  MachO->ReadSymbolTableEntry(SymtabLoadCmd->SymbolTableOffset, DRI.d.b, Res);
-}
 
-static void getSymbol64TableEntry(const MachOObject *MachO,
-                                  DataRefImpl DRI,
-                               InMemoryStruct<macho::Symbol64TableEntry> &Res) {
-  InMemoryStruct<macho::SymtabLoadCommand> SymtabLoadCmd;
-  LoadCommandInfo LCI = MachO->getLoadCommandInfo(DRI.d.a);
-  MachO->ReadSymtabLoadCommand(LCI, SymtabLoadCmd);
-  MachO->ReadSymbol64TableEntry(SymtabLoadCmd->SymbolTableOffset, DRI.d.b, Res);
-}
-
-static void getSymbol(const MachOObject *MachOObj,
+static void getSymbol(const MachOObjectFile *Obj,
                       DataRefImpl DRI,
                       MachOSymbol &Symbol) {
-  if (MachOObj->is64Bit()) {
-    InMemoryStruct<macho::Symbol64TableEntry> Entry;
-    getSymbol64TableEntry(MachOObj, DRI, Entry);
-    Symbol.StringIndex  = Entry->StringIndex;
-    Symbol.Type         = Entry->Type;
-    Symbol.SectionIndex = Entry->SectionIndex;
-    Symbol.Flags        = Entry->Flags;
-    Symbol.Value        = Entry->Value;
-  } else {
-    InMemoryStruct<macho::SymbolTableEntry> Entry;
-    getSymbolTableEntry(MachOObj, DRI, Entry);
-    Symbol.StringIndex  = Entry->StringIndex;
-    Symbol.Type         = Entry->Type;
-    Symbol.SectionIndex = Entry->SectionIndex;
-    Symbol.Flags        = Entry->Flags;
-    Symbol.Value        = Entry->Value;
+  if (!Obj->is64Bit()) {
+    macho::SymbolTableEntry Entry = Obj->getSymbolTableEntry(DRI);
+    Symbol.StringIndex  = Entry.StringIndex;
+    Symbol.Type         = Entry.Type;
+    Symbol.SectionIndex = Entry.SectionIndex;
+    Symbol.Flags        = Entry.Flags;
+    Symbol.Value        = Entry.Value;
+    return;
   }
+  macho::Symbol64TableEntry Entry = Obj->getSymbol64TableEntry(DRI);
+  Symbol.StringIndex  = Entry.StringIndex;
+  Symbol.Type         = Entry.Type;
+  Symbol.SectionIndex = Entry.SectionIndex;
+  Symbol.Flags        = Entry.Flags;
+  Symbol.Value        = Entry.Value;
 }
 
 void MachODumper::printFileHeaders() {
@@ -255,6 +216,10 @@ void MachODumper::printFileHeaders() {
 }
 
 void MachODumper::printSections() {
+  return printSections(Obj);
+}
+
+void MachODumper::printSections(const MachOObjectFile *Obj) {
   ListScope Group(W, "Sections");
 
   int SectionIndex = -1;
@@ -266,19 +231,22 @@ void MachODumper::printSections() {
 
     ++SectionIndex;
 
-    const MachOObject *MachO = const_cast<MachOObjectFile*>(Obj)->getObject();
-
     MachOSection Section;
-    getSection(MachO, SecI->getRawDataRefImpl(), Section);
+    getSection(Obj, SecI->getRawDataRefImpl(), Section);
+    DataRefImpl DR = SecI->getRawDataRefImpl();
+
     StringRef Name;
     if (error(SecI->getName(Name)))
         Name = "";
 
+    ArrayRef<char> RawName = Obj->getSectionRawName(DR);
+    StringRef SegmentName = Obj->getSectionFinalSegmentName(DR);
+    ArrayRef<char> RawSegmentName = Obj->getSectionRawFinalSegmentName(DR);
+
     DictScope SectionD(W, "Section");
     W.printNumber("Index", SectionIndex);
-    W.printBinary("Name", Name, Section.Name);
-    W.printBinary("Segment", parseSegmentOrSectionName(Section.SegmentName),
-                    Section.SegmentName);
+    W.printBinary("Name", Name, RawName);
+    W.printBinary("Segment", SegmentName, RawSegmentName);
     W.printHex   ("Address", Section.Address);
     W.printHex   ("Size", Section.Size);
     W.printNumber("Offset", Section.Offset);
@@ -364,23 +332,53 @@ void MachODumper::printRelocations() {
 
 void MachODumper::printRelocation(section_iterator SecI,
                                   relocation_iterator RelI) {
+  return printRelocation(Obj, SecI, RelI);
+}
+
+void MachODumper::printRelocation(const MachOObjectFile *Obj,
+                                  section_iterator SecI,
+                                  relocation_iterator RelI) {
   uint64_t Offset;
   SmallString<32> RelocName;
-  int64_t Info;
   StringRef SymbolName;
   SymbolRef Symbol;
   if (error(RelI->getOffset(Offset))) return;
   if (error(RelI->getTypeName(RelocName))) return;
-  if (error(RelI->getAdditionalInfo(Info))) return;
   if (error(RelI->getSymbol(Symbol))) return;
-  if (error(Symbol.getName(SymbolName))) return;
+  if (symbol_iterator(Symbol) != Obj->end_symbols() &&
+      error(Symbol.getName(SymbolName)))
+    return;
 
-  raw_ostream& OS = W.startLine();
-  OS << W.hex(Offset)
-     << " " << RelocName
-     << " " << (SymbolName.size() > 0 ? SymbolName : "-")
-     << " " << W.hex(Info)
-     << "\n";
+  DataRefImpl DR = RelI->getRawDataRefImpl();
+  macho::RelocationEntry RE = Obj->getRelocation(DR);
+  bool IsScattered = Obj->isRelocationScattered(RE);
+
+  if (opts::ExpandRelocs) {
+    DictScope Group(W, "Relocation");
+    W.printHex("Offset", Offset);
+    W.printNumber("PCRel", Obj->getAnyRelocationPCRel(RE));
+    W.printNumber("Length", Obj->getAnyRelocationLength(RE));
+    if (IsScattered)
+      W.printString("Extern", StringRef("N/A"));
+    else
+      W.printNumber("Extern", Obj->getPlainRelocationExternal(RE));
+    W.printNumber("Type", RelocName, Obj->getAnyRelocationType(RE));
+    W.printString("Symbol", SymbolName.size() > 0 ? SymbolName : "-");
+    W.printNumber("Scattered", IsScattered);
+  } else {
+    raw_ostream& OS = W.startLine();
+    OS << W.hex(Offset)
+       << " " << Obj->getAnyRelocationPCRel(RE)
+       << " " << Obj->getAnyRelocationLength(RE);
+    if (IsScattered)
+      OS << " n/a";
+    else
+      OS << " " << Obj->getPlainRelocationExternal(RE);
+    OS << " " << RelocName
+       << " " << IsScattered
+       << " " << (SymbolName.size() > 0 ? SymbolName : "-")
+       << "\n";
+  }
 }
 
 void MachODumper::printSymbols() {
@@ -407,16 +405,14 @@ void MachODumper::printSymbol(symbol_iterator SymI) {
   if (SymI->getName(SymbolName))
     SymbolName = "";
 
-  const MachOObject *MachO = const_cast<MachOObjectFile*>(Obj)->getObject();
-
   MachOSymbol Symbol;
-  getSymbol(MachO, SymI->getRawDataRefImpl(), Symbol);
+  getSymbol(Obj, SymI->getRawDataRefImpl(), Symbol);
 
-  StringRef SectionName;
+  StringRef SectionName = "";
   section_iterator SecI(Obj->end_sections());
-  if (error(SymI->getSection(SecI)) ||
-      error(SecI->getName(SectionName)))
-    SectionName = "";
+  if (!error(SymI->getSection(SecI)) &&
+      SecI != Obj->end_sections())
+      error(SecI->getName(SectionName));
 
   DictScope D(W, "Symbol");
   W.printNumber("Name", SymbolName, Symbol.StringIndex);

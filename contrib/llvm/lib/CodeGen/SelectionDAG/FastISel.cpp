@@ -1505,3 +1505,61 @@ bool FastISel::HandlePHINodesInSuccessorBlocks(const BasicBlock *LLVMBB) {
 
   return true;
 }
+
+bool FastISel::tryToFoldLoad(const LoadInst *LI, const Instruction *FoldInst) {
+  assert(LI->hasOneUse() &&
+      "tryToFoldLoad expected a LoadInst with a single use");
+  // We know that the load has a single use, but don't know what it is.  If it
+  // isn't one of the folded instructions, then we can't succeed here.  Handle
+  // this by scanning the single-use users of the load until we get to FoldInst.
+  unsigned MaxUsers = 6;  // Don't scan down huge single-use chains of instrs.
+
+  const Instruction *TheUser = LI->use_back();
+  while (TheUser != FoldInst &&   // Scan up until we find FoldInst.
+         // Stay in the right block.
+         TheUser->getParent() == FoldInst->getParent() &&
+         --MaxUsers) {  // Don't scan too far.
+    // If there are multiple or no uses of this instruction, then bail out.
+    if (!TheUser->hasOneUse())
+      return false;
+
+    TheUser = TheUser->use_back();
+  }
+
+  // If we didn't find the fold instruction, then we failed to collapse the
+  // sequence.
+  if (TheUser != FoldInst)
+    return false;
+
+  // Don't try to fold volatile loads.  Target has to deal with alignment
+  // constraints.
+  if (LI->isVolatile())
+    return false;
+
+  // Figure out which vreg this is going into.  If there is no assigned vreg yet
+  // then there actually was no reference to it.  Perhaps the load is referenced
+  // by a dead instruction.
+  unsigned LoadReg = getRegForValue(LI);
+  if (LoadReg == 0)
+    return false;
+
+  // We can't fold if this vreg has no uses or more than one use.  Multiple uses
+  // may mean that the instruction got lowered to multiple MIs, or the use of
+  // the loaded value ended up being multiple operands of the result.
+  if (!MRI.hasOneUse(LoadReg))
+    return false;
+
+  MachineRegisterInfo::reg_iterator RI = MRI.reg_begin(LoadReg);
+  MachineInstr *User = &*RI;
+
+  // Set the insertion point properly.  Folding the load can cause generation of
+  // other random instructions (like sign extends) for addressing modes; make
+  // sure they get inserted in a logical place before the new instruction.
+  FuncInfo.InsertPt = User;
+  FuncInfo.MBB = User->getParent();
+
+  // Ask the target to try folding the load.
+  return tryToFoldLoadIntoMI(User, RI.getOperandNo(), LI);
+}
+
+

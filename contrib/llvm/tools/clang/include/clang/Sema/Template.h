@@ -40,10 +40,9 @@ namespace clang {
   /// list will contain a template argument list (int) at depth 0 and a
   /// template argument list (17) at depth 1.
   class MultiLevelTemplateArgumentList {
-  public:
-    typedef std::pair<const TemplateArgument *, unsigned> ArgList;
-    
-  private:
+    /// \brief The template argument list at a certain template depth 
+    typedef ArrayRef<TemplateArgument> ArgList;
+
     /// \brief The template argument lists, stored from the innermost template
     /// argument list (first) to the outermost template argument list (last).
     SmallVector<ArgList, 4> TemplateArgumentLists;
@@ -65,8 +64,8 @@ namespace clang {
     /// \brief Retrieve the template argument at a given depth and index.
     const TemplateArgument &operator()(unsigned Depth, unsigned Index) const {
       assert(Depth < TemplateArgumentLists.size());
-      assert(Index < TemplateArgumentLists[getNumLevels() - Depth - 1].second);
-      return TemplateArgumentLists[getNumLevels() - Depth - 1].first[Index];
+      assert(Index < TemplateArgumentLists[getNumLevels() - Depth - 1].size());
+      return TemplateArgumentLists[getNumLevels() - Depth - 1][Index];
     }
     
     /// \brief Determine whether there is a non-NULL template argument at the
@@ -76,7 +75,7 @@ namespace clang {
     bool hasTemplateArgument(unsigned Depth, unsigned Index) const {
       assert(Depth < TemplateArgumentLists.size());
       
-      if (Index >= TemplateArgumentLists[getNumLevels() - Depth - 1].second)
+      if (Index >= TemplateArgumentLists[getNumLevels() - Depth - 1].size())
         return false;
       
       return !(*this)(Depth, Index).isNull();
@@ -86,26 +85,32 @@ namespace clang {
     void setArgument(unsigned Depth, unsigned Index,
                      TemplateArgument Arg) {
       assert(Depth < TemplateArgumentLists.size());
-      assert(Index < TemplateArgumentLists[getNumLevels() - Depth - 1].second);
+      assert(Index < TemplateArgumentLists[getNumLevels() - Depth - 1].size());
       const_cast<TemplateArgument&>(
-                TemplateArgumentLists[getNumLevels() - Depth - 1].first[Index])
+                TemplateArgumentLists[getNumLevels() - Depth - 1][Index])
         = Arg;
     }
     
     /// \brief Add a new outermost level to the multi-level template argument 
     /// list.
     void addOuterTemplateArguments(const TemplateArgumentList *TemplateArgs) {
-      TemplateArgumentLists.push_back(ArgList(TemplateArgs->data(),
-                                              TemplateArgs->size()));
+      addOuterTemplateArguments(ArgList(TemplateArgs->data(),
+                                        TemplateArgs->size()));
     }
     
     /// \brief Add a new outmost level to the multi-level template argument
     /// list.
     void addOuterTemplateArguments(const TemplateArgument *Args, 
                                    unsigned NumArgs) {
-      TemplateArgumentLists.push_back(ArgList(Args, NumArgs));
+      addOuterTemplateArguments(ArgList(Args, NumArgs));
     }
-    
+
+    /// \brief Add a new outmost level to the multi-level template argument
+    /// list.
+    void addOuterTemplateArguments(ArgList Args) {
+      TemplateArgumentLists.push_back(Args);
+    }
+
     /// \brief Retrieve the innermost template argument list.
     const ArgList &getInnermost() const { 
       return TemplateArgumentLists.front(); 
@@ -187,10 +192,10 @@ namespace clang {
     /// this template instantiation.
     Sema &SemaRef;
 
-    typedef llvm::DenseMap<const Decl *, 
-                           llvm::PointerUnion<Decl *, DeclArgumentPack *> >
-      LocalDeclsMap;
-    
+    typedef llvm::SmallDenseMap<
+        const Decl *, llvm::PointerUnion<Decl *, DeclArgumentPack *>, 4>
+    LocalDeclsMap;
+
     /// \brief A mapping from local declarations that occur
     /// within a template to their instantiations.
     ///
@@ -401,6 +406,7 @@ namespace clang {
     Decl *VisitVarDecl(VarDecl *D);
     Decl *VisitAccessSpecDecl(AccessSpecDecl *D);
     Decl *VisitFieldDecl(FieldDecl *D);
+    Decl *VisitMSPropertyDecl(MSPropertyDecl *D);
     Decl *VisitIndirectFieldDecl(IndirectFieldDecl *D);
     Decl *VisitStaticAssertDecl(StaticAssertDecl *D);
     Decl *VisitEnumDecl(EnumDecl *D);

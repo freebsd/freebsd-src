@@ -30,7 +30,6 @@
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -198,6 +197,11 @@ const char *MipsTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case MipsISD::MADDU_DSP:         return "MipsISD::MADDU_DSP";
   case MipsISD::MSUB_DSP:          return "MipsISD::MSUB_DSP";
   case MipsISD::MSUBU_DSP:         return "MipsISD::MSUBU_DSP";
+  case MipsISD::SHLL_DSP:          return "MipsISD::SHLL_DSP";
+  case MipsISD::SHRA_DSP:          return "MipsISD::SHRA_DSP";
+  case MipsISD::SHRL_DSP:          return "MipsISD::SHRL_DSP";
+  case MipsISD::SETCC_DSP:         return "MipsISD::SETCC_DSP";
+  case MipsISD::SELECT_CC_DSP:     return "MipsISD::SELECT_CC_DSP";
   default:                         return NULL;
   }
 }
@@ -211,7 +215,7 @@ MipsTargetLowering(MipsTargetMachine &TM)
   // Mips does not have i1 type, so use i32 for
   // setcc operations results (slt, sgt, ...).
   setBooleanContents(ZeroOrOneBooleanContent);
-  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
+  setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
 
   // Load extented operations for i1 types must be promoted
   setLoadExtAction(ISD::EXTLOAD,  MVT::i1,  Promote);
@@ -346,9 +350,6 @@ MipsTargetLowering(MipsTargetMachine &TM)
   setOperationAction(ISD::VACOPY,            MVT::Other, Expand);
   setOperationAction(ISD::VAEND,             MVT::Other, Expand);
 
-  setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::i64, Custom);
-  setOperationAction(ISD::INTRINSIC_W_CHAIN, MVT::i64, Custom);
-
   // Use the default for now
   setOperationAction(ISD::STACKSAVE,         MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE,      MVT::Other, Expand);
@@ -449,7 +450,7 @@ static SDValue performDivRemCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
-static Mips::CondCode FPCondCCodeToFCC(ISD::CondCode CC) {
+static Mips::CondCode condCodeToFCC(ISD::CondCode CC) {
   switch (CC) {
   default: llvm_unreachable("Unknown fp condition code!");
   case ISD::SETEQ:
@@ -508,7 +509,7 @@ static SDValue createFPCmp(SelectionDAG &DAG, const SDValue &Op) {
   ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(2))->get();
 
   return DAG.getNode(MipsISD::FPCmp, DL, MVT::Glue, LHS, RHS,
-                     DAG.getConstant(FPCondCCodeToFCC(CC), MVT::i32));
+                     DAG.getConstant(condCodeToFCC(CC), MVT::i32));
 }
 
 // Creates and returns a CMovFPT/F node.
@@ -712,10 +713,7 @@ void
 MipsTargetLowering::ReplaceNodeResults(SDNode *N,
                                        SmallVectorImpl<SDValue> &Results,
                                        SelectionDAG &DAG) const {
-  SDValue Res = LowerOperation(SDValue(N, 0), DAG);
-
-  for (unsigned I = 0, E = Res->getNumValues(); I != E; ++I)
-    Results.push_back(Res.getValue(I));
+  return LowerOperationWrapper(N, Results, DAG);
 }
 
 SDValue MipsTargetLowering::
@@ -739,15 +737,12 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const
   case ISD::FRAMEADDR:          return lowerFRAMEADDR(Op, DAG);
   case ISD::RETURNADDR:         return lowerRETURNADDR(Op, DAG);
   case ISD::EH_RETURN:          return lowerEH_RETURN(Op, DAG);
-  case ISD::MEMBARRIER:         return lowerMEMBARRIER(Op, DAG);
   case ISD::ATOMIC_FENCE:       return lowerATOMIC_FENCE(Op, DAG);
   case ISD::SHL_PARTS:          return lowerShiftLeftParts(Op, DAG);
   case ISD::SRA_PARTS:          return lowerShiftRightParts(Op, DAG, true);
   case ISD::SRL_PARTS:          return lowerShiftRightParts(Op, DAG, false);
   case ISD::LOAD:               return lowerLOAD(Op, DAG);
   case ISD::STORE:              return lowerSTORE(Op, DAG);
-  case ISD::INTRINSIC_WO_CHAIN: return lowerINTRINSIC_WO_CHAIN(Op, DAG);
-  case ISD::INTRINSIC_W_CHAIN:  return lowerINTRINSIC_W_CHAIN(Op, DAG);
   case ISD::ADD:                return lowerADD(Op, DAG);
   }
   return SDValue();
@@ -1827,15 +1822,6 @@ SDValue MipsTargetLowering::lowerEH_RETURN(SDValue Op, SelectionDAG &DAG)
                      Chain.getValue(1));
 }
 
-// TODO: set SType according to the desired memory barrier behavior.
-SDValue
-MipsTargetLowering::lowerMEMBARRIER(SDValue Op, SelectionDAG &DAG) const {
-  unsigned SType = 0;
-  DebugLoc DL = Op.getDebugLoc();
-  return DAG.getNode(MipsISD::Sync, DL, MVT::Other, Op.getOperand(0),
-                     DAG.getConstant(SType, MVT::i32));
-}
-
 SDValue MipsTargetLowering::lowerATOMIC_FENCE(SDValue Op,
                                               SelectionDAG &DAG) const {
   // FIXME: Need pseudo-fence for 'singlethread' fences
@@ -1918,7 +1904,7 @@ SDValue MipsTargetLowering::lowerShiftRightParts(SDValue Op, SelectionDAG &DAG,
   return DAG.getMergeValues(Ops, 2, DL);
 }
 
-static SDValue CreateLoadLR(unsigned Opc, SelectionDAG &DAG, LoadSDNode *LD,
+static SDValue createLoadLR(unsigned Opc, SelectionDAG &DAG, LoadSDNode *LD,
                             SDValue Chain, SDValue Src, unsigned Offset) {
   SDValue Ptr = LD->getBasePtr();
   EVT VT = LD->getValueType(0), MemVT = LD->getMemoryVT();
@@ -1958,15 +1944,15 @@ SDValue MipsTargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   //  (set tmp, (ldl (add baseptr, 7), undef))
   //  (set dst, (ldr baseptr, tmp))
   if ((VT == MVT::i64) && (ExtType == ISD::NON_EXTLOAD)) {
-    SDValue LDL = CreateLoadLR(MipsISD::LDL, DAG, LD, Chain, Undef,
+    SDValue LDL = createLoadLR(MipsISD::LDL, DAG, LD, Chain, Undef,
                                IsLittle ? 7 : 0);
-    return CreateLoadLR(MipsISD::LDR, DAG, LD, LDL.getValue(1), LDL,
+    return createLoadLR(MipsISD::LDR, DAG, LD, LDL.getValue(1), LDL,
                         IsLittle ? 0 : 7);
   }
 
-  SDValue LWL = CreateLoadLR(MipsISD::LWL, DAG, LD, Chain, Undef,
+  SDValue LWL = createLoadLR(MipsISD::LWL, DAG, LD, Chain, Undef,
                              IsLittle ? 3 : 0);
-  SDValue LWR = CreateLoadLR(MipsISD::LWR, DAG, LD, LWL.getValue(1), LWL,
+  SDValue LWR = createLoadLR(MipsISD::LWR, DAG, LD, LWL.getValue(1), LWL,
                              IsLittle ? 0 : 3);
 
   // Expand
@@ -1997,7 +1983,7 @@ SDValue MipsTargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   return DAG.getMergeValues(Ops, 2, DL);
 }
 
-static SDValue CreateStoreLR(unsigned Opc, SelectionDAG &DAG, StoreSDNode *SD,
+static SDValue createStoreLR(unsigned Opc, SelectionDAG &DAG, StoreSDNode *SD,
                              SDValue Chain, unsigned Offset) {
   SDValue Ptr = SD->getBasePtr(), Value = SD->getValue();
   EVT MemVT = SD->getMemoryVT(), BasePtrVT = Ptr.getValueType();
@@ -2034,9 +2020,9 @@ SDValue MipsTargetLowering::lowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   //  (swl val, (add baseptr, 3))
   //  (swr val, baseptr)
   if ((VT == MVT::i32) || SD->isTruncatingStore()) {
-    SDValue SWL = CreateStoreLR(MipsISD::SWL, DAG, SD, Chain,
+    SDValue SWL = createStoreLR(MipsISD::SWL, DAG, SD, Chain,
                                 IsLittle ? 3 : 0);
-    return CreateStoreLR(MipsISD::SWR, DAG, SD, SWL, IsLittle ? 0 : 3);
+    return createStoreLR(MipsISD::SWR, DAG, SD, SWL, IsLittle ? 0 : 3);
   }
 
   assert(VT == MVT::i64);
@@ -2046,172 +2032,8 @@ SDValue MipsTargetLowering::lowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   // to
   //  (sdl val, (add baseptr, 7))
   //  (sdr val, baseptr)
-  SDValue SDL = CreateStoreLR(MipsISD::SDL, DAG, SD, Chain, IsLittle ? 7 : 0);
-  return CreateStoreLR(MipsISD::SDR, DAG, SD, SDL, IsLittle ? 0 : 7);
-}
-
-static SDValue initAccumulator(SDValue In, DebugLoc DL, SelectionDAG &DAG) {
-  SDValue InLo = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i32, In,
-                             DAG.getConstant(0, MVT::i32));
-  SDValue InHi = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i32, In,
-                             DAG.getConstant(1, MVT::i32));
-  return DAG.getNode(MipsISD::InsertLOHI, DL, MVT::Untyped, InLo, InHi);
-}
-
-static SDValue extractLOHI(SDValue Op, DebugLoc DL, SelectionDAG &DAG) {
-  SDValue Lo = DAG.getNode(MipsISD::ExtractLOHI, DL, MVT::i32, Op,
-                           DAG.getConstant(Mips::sub_lo, MVT::i32));
-  SDValue Hi = DAG.getNode(MipsISD::ExtractLOHI, DL, MVT::i32, Op,
-                           DAG.getConstant(Mips::sub_hi, MVT::i32));
-  return DAG.getNode(ISD::BUILD_PAIR, DL, MVT::i64, Lo, Hi);
-}
-
-// This function expands mips intrinsic nodes which have 64-bit input operands
-// or output values.
-//
-// out64 = intrinsic-node in64
-// =>
-// lo = copy (extract-element (in64, 0))
-// hi = copy (extract-element (in64, 1))
-// mips-specific-node
-// v0 = copy lo
-// v1 = copy hi
-// out64 = merge-values (v0, v1)
-//
-static SDValue lowerDSPIntr(SDValue Op, SelectionDAG &DAG, unsigned Opc) {
-  DebugLoc DL = Op.getDebugLoc();
-  bool HasChainIn = Op->getOperand(0).getValueType() == MVT::Other;
-  SmallVector<SDValue, 3> Ops;
-  unsigned OpNo = 0;
-
-  // See if Op has a chain input.
-  if (HasChainIn)
-    Ops.push_back(Op->getOperand(OpNo++));
-
-  // The next operand is the intrinsic opcode.
-  assert(Op->getOperand(OpNo).getOpcode() == ISD::TargetConstant);
-
-  // See if the next operand has type i64.
-  SDValue Opnd = Op->getOperand(++OpNo), In64;
-
-  if (Opnd.getValueType() == MVT::i64)
-    In64 = initAccumulator(Opnd, DL, DAG);
-  else
-    Ops.push_back(Opnd);
-
-  // Push the remaining operands.
-  for (++OpNo ; OpNo < Op->getNumOperands(); ++OpNo)
-    Ops.push_back(Op->getOperand(OpNo));
-
-  // Add In64 to the end of the list.
-  if (In64.getNode())
-    Ops.push_back(In64);
-
-  // Scan output.
-  SmallVector<EVT, 2> ResTys;
-
-  for (SDNode::value_iterator I = Op->value_begin(), E = Op->value_end();
-       I != E; ++I)
-    ResTys.push_back((*I == MVT::i64) ? MVT::Untyped : *I);
-
-  // Create node.
-  SDValue Val = DAG.getNode(Opc, DL, ResTys, &Ops[0], Ops.size());
-  SDValue Out = (ResTys[0] == MVT::Untyped) ? extractLOHI(Val, DL, DAG) : Val;
-
-  if (!HasChainIn)
-    return Out;
-
-  assert(Val->getValueType(1) == MVT::Other);
-  SDValue Vals[] = { Out, SDValue(Val.getNode(), 1) };
-  return DAG.getMergeValues(Vals, 2, DL);
-}
-
-SDValue MipsTargetLowering::lowerINTRINSIC_WO_CHAIN(SDValue Op,
-                                                    SelectionDAG &DAG) const {
-  switch (cast<ConstantSDNode>(Op->getOperand(0))->getZExtValue()) {
-  default:
-    return SDValue();
-  case Intrinsic::mips_shilo:
-    return lowerDSPIntr(Op, DAG, MipsISD::SHILO);
-  case Intrinsic::mips_dpau_h_qbl:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPAU_H_QBL);
-  case Intrinsic::mips_dpau_h_qbr:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPAU_H_QBR);
-  case Intrinsic::mips_dpsu_h_qbl:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPSU_H_QBL);
-  case Intrinsic::mips_dpsu_h_qbr:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPSU_H_QBR);
-  case Intrinsic::mips_dpa_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPA_W_PH);
-  case Intrinsic::mips_dps_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPS_W_PH);
-  case Intrinsic::mips_dpax_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPAX_W_PH);
-  case Intrinsic::mips_dpsx_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPSX_W_PH);
-  case Intrinsic::mips_mulsa_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::MULSA_W_PH);
-  case Intrinsic::mips_mult:
-    return lowerDSPIntr(Op, DAG, MipsISD::Mult);
-  case Intrinsic::mips_multu:
-    return lowerDSPIntr(Op, DAG, MipsISD::Multu);
-  case Intrinsic::mips_madd:
-    return lowerDSPIntr(Op, DAG, MipsISD::MAdd);
-  case Intrinsic::mips_maddu:
-    return lowerDSPIntr(Op, DAG, MipsISD::MAddu);
-  case Intrinsic::mips_msub:
-    return lowerDSPIntr(Op, DAG, MipsISD::MSub);
-  case Intrinsic::mips_msubu:
-    return lowerDSPIntr(Op, DAG, MipsISD::MSubu);
-  }
-}
-
-SDValue MipsTargetLowering::lowerINTRINSIC_W_CHAIN(SDValue Op,
-                                                   SelectionDAG &DAG) const {
-  switch (cast<ConstantSDNode>(Op->getOperand(1))->getZExtValue()) {
-  default:
-    return SDValue();
-  case Intrinsic::mips_extp:
-    return lowerDSPIntr(Op, DAG, MipsISD::EXTP);
-  case Intrinsic::mips_extpdp:
-    return lowerDSPIntr(Op, DAG, MipsISD::EXTPDP);
-  case Intrinsic::mips_extr_w:
-    return lowerDSPIntr(Op, DAG, MipsISD::EXTR_W);
-  case Intrinsic::mips_extr_r_w:
-    return lowerDSPIntr(Op, DAG, MipsISD::EXTR_R_W);
-  case Intrinsic::mips_extr_rs_w:
-    return lowerDSPIntr(Op, DAG, MipsISD::EXTR_RS_W);
-  case Intrinsic::mips_extr_s_h:
-    return lowerDSPIntr(Op, DAG, MipsISD::EXTR_S_H);
-  case Intrinsic::mips_mthlip:
-    return lowerDSPIntr(Op, DAG, MipsISD::MTHLIP);
-  case Intrinsic::mips_mulsaq_s_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::MULSAQ_S_W_PH);
-  case Intrinsic::mips_maq_s_w_phl:
-    return lowerDSPIntr(Op, DAG, MipsISD::MAQ_S_W_PHL);
-  case Intrinsic::mips_maq_s_w_phr:
-    return lowerDSPIntr(Op, DAG, MipsISD::MAQ_S_W_PHR);
-  case Intrinsic::mips_maq_sa_w_phl:
-    return lowerDSPIntr(Op, DAG, MipsISD::MAQ_SA_W_PHL);
-  case Intrinsic::mips_maq_sa_w_phr:
-    return lowerDSPIntr(Op, DAG, MipsISD::MAQ_SA_W_PHR);
-  case Intrinsic::mips_dpaq_s_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPAQ_S_W_PH);
-  case Intrinsic::mips_dpsq_s_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPSQ_S_W_PH);
-  case Intrinsic::mips_dpaq_sa_l_w:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPAQ_SA_L_W);
-  case Intrinsic::mips_dpsq_sa_l_w:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPSQ_SA_L_W);
-  case Intrinsic::mips_dpaqx_s_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPAQX_S_W_PH);
-  case Intrinsic::mips_dpaqx_sa_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPAQX_SA_W_PH);
-  case Intrinsic::mips_dpsqx_s_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPSQX_S_W_PH);
-  case Intrinsic::mips_dpsqx_sa_w_ph:
-    return lowerDSPIntr(Op, DAG, MipsISD::DPSQX_SA_W_PH);
-  }
+  SDValue SDL = createStoreLR(MipsISD::SDL, DAG, SD, Chain, IsLittle ? 7 : 0);
+  return createStoreLR(MipsISD::SDR, DAG, SD, SDL, IsLittle ? 0 : 7);
 }
 
 SDValue MipsTargetLowering::lowerADD(SDValue Op, SelectionDAG &DAG) const {
@@ -3009,8 +2831,8 @@ getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const
       return std::make_pair((unsigned)Mips::T9_64, &Mips::CPU64RegsRegClass);
     case 'l': // register suitable for indirect jump
       if (VT == MVT::i32)
-        return std::make_pair((unsigned)Mips::LO, &Mips::HILORegClass);
-      return std::make_pair((unsigned)Mips::LO64, &Mips::HILO64RegClass);
+        return std::make_pair((unsigned)Mips::LO, &Mips::LORegsRegClass);
+      return std::make_pair((unsigned)Mips::LO64, &Mips::LORegs64RegClass);
     case 'x': // register suitable for indirect jump
       // Fixme: Not triggering the use of both hi and low
       // This will generate an error message

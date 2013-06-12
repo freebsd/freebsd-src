@@ -175,7 +175,6 @@ private:
   bool SuppressAllDiagnostics;   // Suppress all diagnostics.
   bool ElideType;                // Elide common types of templates.
   bool PrintTemplateTree;        // Print a tree when comparing templates.
-  bool WarnOnSpellCheck;         // Emit warning when spellcheck is initiated.
   bool ShowColors;               // Color printing is enabled.
   OverloadsShown ShowOverloads;  // Which overload candidates to show.
   unsigned ErrorLimit;           // Cap of # errors emitted, 0 -> no limit.
@@ -467,10 +466,6 @@ public:
   /// tree format.
   void setPrintTemplateTree(bool Val = false) { PrintTemplateTree = Val; }
   bool getPrintTemplateTree() { return PrintTemplateTree; }
-
-  /// \brief Warn when spellchecking is initated, for testing.
-  void setWarnOnSpellCheck(bool Val = false) { WarnOnSpellCheck = Val; }
-  bool getWarnOnSpellCheck() { return WarnOnSpellCheck; }
  
   /// \brief Set color printing, so the type diffing will inject color markers
   /// into the output.
@@ -1301,10 +1296,6 @@ public:
   /// warnings and errors.
   virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
                                 const Diagnostic &Info);
-  
-  /// \brief Clone the diagnostic consumer, producing an equivalent consumer
-  /// that can be used in a different context.
-  virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const = 0;
 };
 
 /// \brief A diagnostic client that ignores all diagnostics.
@@ -1314,9 +1305,24 @@ class IgnoringDiagConsumer : public DiagnosticConsumer {
                         const Diagnostic &Info) {
     // Just ignore it.
   }
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-    return new IgnoringDiagConsumer();
-  }
+};
+
+/// \brief Diagnostic consumer that forwards diagnostics along to an
+/// existing, already-initialized diagnostic consumer.
+///
+class ForwardingDiagnosticConsumer : public DiagnosticConsumer {
+  DiagnosticConsumer &Target;
+
+public:
+  ForwardingDiagnosticConsumer(DiagnosticConsumer &Target) : Target(Target) {}
+
+  virtual ~ForwardingDiagnosticConsumer();
+
+  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                                const Diagnostic &Info);
+  virtual void clear();
+
+  virtual bool IncludeInDiagnosticCounts() const;
 };
 
 // Struct used for sending info about how a type should be printed.
