@@ -691,8 +691,14 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     Res = getExprAnnotation(Tok);
     ConsumeToken();
     break;
-      
+
   case tok::kw_decltype:
+    // Annotate the token and tail recurse.
+    if (TryAnnotateTypeOrScopeToken())
+      return ExprError();
+    assert(Tok.isNot(tok::kw_decltype));
+    return ParseCastExpression(isUnaryExpression, isAddressOfOperand);
+      
   case tok::identifier: {      // primary-expression: identifier
                                // unqualified-id: identifier
                                // constant: enumeration-constant
@@ -1408,8 +1414,7 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       CommaLocsTy CommaLocs;
       
       if (Tok.is(tok::code_completion)) {
-        Actions.CodeCompleteCall(getCurScope(), LHS.get(),
-                                 ArrayRef<Expr *>());
+        Actions.CodeCompleteCall(getCurScope(), LHS.get(), None);
         cutOffParsing();
         return ExprError();
       }

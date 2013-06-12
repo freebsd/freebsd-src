@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.TH "LLC" "1" "2013-04-11" "3.3" "LLVM"
+.TH "LLC" "1" "2013-06-10" "3.3" "LLVM"
 .SH NAME
 llc \- LLVM static compiler
 .
@@ -101,6 +101,15 @@ llvm\-as < /dev/null | llc \-march=xyz \-mcpu=help
 .fi
 .UNINDENT
 .UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-filetype=<output file type>
+Specify what kind of output \fBllc\fP should generated.  Options are: \fBasm\fP
+for textual assembly ( \fB\(aq.s\(aq\fP), \fBobj\fP for native object files (\fB\(aq.o\(aq\fP)
+and \fBnull\fP for not emitting anything (for performance testing).
+.sp
+Note that not all targets support all options.
 .UNINDENT
 .INDENT 0.0
 .TP

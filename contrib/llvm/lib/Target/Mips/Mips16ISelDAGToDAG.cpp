@@ -35,6 +35,11 @@
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
+bool Mips16DAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
+  if (!Subtarget.inMips16Mode())
+    return false;
+  return MipsDAGToDAGISel::runOnMachineFunction(MF);
+}
 /// Select multiply instructions.
 std::pair<SDNode*, SDNode*>
 Mips16DAGToDAGISel::selectMULT(SDNode *N, unsigned Opc, DebugLoc DL, EVT Ty,
@@ -267,7 +272,7 @@ std::pair<bool, SDNode*> Mips16DAGToDAGISel::selectNode(SDNode *Node) {
     EVT VT = LHS.getValueType();
 
     unsigned Sltu_op = Mips::SltuRxRyRz16;
-    SDNode *Carry = CurDAG->getMachineNode(Sltu_op, DL, VT, Ops, 2);
+    SDNode *Carry = CurDAG->getMachineNode(Sltu_op, DL, VT, Ops);
     unsigned Addu_op = Mips::AdduRxRyRz16;
     SDNode *AddCarry = CurDAG->getMachineNode(Addu_op, DL, VT,
                                               SDValue(Carry,0), RHS);

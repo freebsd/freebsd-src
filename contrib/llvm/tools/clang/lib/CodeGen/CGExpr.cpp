@@ -184,12 +184,16 @@ CreateReferenceTemporary(CodeGenFunction &CGF, QualType Type,
       llvm::Type *RefTempTy = CGF.ConvertTypeForMem(Type);
   
       // Create the reference temporary.
-      llvm::GlobalValue *RefTemp =
+      llvm::GlobalVariable *RefTemp =
         new llvm::GlobalVariable(CGF.CGM.getModule(), 
                                  RefTempTy, /*isConstant=*/false,
                                  llvm::GlobalValue::InternalLinkage,
                                  llvm::Constant::getNullValue(RefTempTy),
                                  Name.str());
+      // If we're binding to a thread_local variable, the temporary is also
+      // thread local.
+      if (VD->getTLSKind())
+        CGF.CGM.setTLSMode(RefTemp, *VD);
       return RefTemp;
     }
   }
@@ -201,6 +205,7 @@ static llvm::Value *
 EmitExprForReferenceBinding(CodeGenFunction &CGF, const Expr *E,
                             llvm::Value *&ReferenceTemporary,
                             const CXXDestructorDecl *&ReferenceTemporaryDtor,
+                            const InitListExpr *&ReferenceInitializerList,
                             QualType &ObjCARCReferenceLifetimeType,
                             const NamedDecl *InitializedDecl) {
   const MaterializeTemporaryExpr *M = NULL;
@@ -222,156 +227,157 @@ EmitExprForReferenceBinding(CodeGenFunction &CGF, const Expr *E,
     return EmitExprForReferenceBinding(CGF, EWC->getSubExpr(), 
                                        ReferenceTemporary, 
                                        ReferenceTemporaryDtor,
+                                       ReferenceInitializerList,
                                        ObjCARCReferenceLifetimeType,
                                        InitializedDecl);
   }
 
-  RValue RV;
   if (E->isGLValue()) {
     // Emit the expression as an lvalue.
     LValue LV = CGF.EmitLValue(E);
+    assert(LV.isSimple());
+    return LV.getAddress();
+  }
+  
+  if (!ObjCARCReferenceLifetimeType.isNull()) {
+    ReferenceTemporary = CreateReferenceTemporary(CGF, 
+                                                ObjCARCReferenceLifetimeType, 
+                                                  InitializedDecl);
     
-    if (LV.isSimple())
-      return LV.getAddress();
     
-    // We have to load the lvalue.
-    RV = CGF.EmitLoadOfLValue(LV);
-  } else {
-    if (!ObjCARCReferenceLifetimeType.isNull()) {
-      ReferenceTemporary = CreateReferenceTemporary(CGF, 
-                                                  ObjCARCReferenceLifetimeType, 
-                                                    InitializedDecl);
-      
-      
-      LValue RefTempDst = CGF.MakeAddrLValue(ReferenceTemporary, 
-                                             ObjCARCReferenceLifetimeType);
+    LValue RefTempDst = CGF.MakeAddrLValue(ReferenceTemporary, 
+                                           ObjCARCReferenceLifetimeType);
 
-      CGF.EmitScalarInit(E, dyn_cast_or_null<ValueDecl>(InitializedDecl),
-                         RefTempDst, false);
-      
-      bool ExtendsLifeOfTemporary = false;
-      if (const VarDecl *Var = dyn_cast_or_null<VarDecl>(InitializedDecl)) {
-        if (Var->extendsLifetimeOfTemporary())
-          ExtendsLifeOfTemporary = true;
-      } else if (InitializedDecl && isa<FieldDecl>(InitializedDecl)) {
+    CGF.EmitScalarInit(E, dyn_cast_or_null<ValueDecl>(InitializedDecl),
+                       RefTempDst, false);
+    
+    bool ExtendsLifeOfTemporary = false;
+    if (const VarDecl *Var = dyn_cast_or_null<VarDecl>(InitializedDecl)) {
+      if (Var->extendsLifetimeOfTemporary())
         ExtendsLifeOfTemporary = true;
+    } else if (InitializedDecl && isa<FieldDecl>(InitializedDecl)) {
+      ExtendsLifeOfTemporary = true;
+    }
+    
+    if (!ExtendsLifeOfTemporary) {
+      // Since the lifetime of this temporary isn't going to be extended,
+      // we need to clean it up ourselves at the end of the full expression.
+      switch (ObjCARCReferenceLifetimeType.getObjCLifetime()) {
+      case Qualifiers::OCL_None:
+      case Qualifiers::OCL_ExplicitNone:
+      case Qualifiers::OCL_Autoreleasing:
+        break;
+          
+      case Qualifiers::OCL_Strong: {
+        assert(!ObjCARCReferenceLifetimeType->isArrayType());
+        CleanupKind cleanupKind = CGF.getARCCleanupKind();
+        CGF.pushDestroy(cleanupKind, 
+                        ReferenceTemporary,
+                        ObjCARCReferenceLifetimeType,
+                        CodeGenFunction::destroyARCStrongImprecise,
+                        cleanupKind & EHCleanup);
+        break;
+      }
+        
+      case Qualifiers::OCL_Weak:
+        assert(!ObjCARCReferenceLifetimeType->isArrayType());
+        CGF.pushDestroy(NormalAndEHCleanup, 
+                        ReferenceTemporary,
+                        ObjCARCReferenceLifetimeType,
+                        CodeGenFunction::destroyARCWeak,
+                        /*useEHCleanupForArray*/ true);
+        break;
       }
       
-      if (!ExtendsLifeOfTemporary) {
-        // Since the lifetime of this temporary isn't going to be extended,
-        // we need to clean it up ourselves at the end of the full expression.
-        switch (ObjCARCReferenceLifetimeType.getObjCLifetime()) {
-        case Qualifiers::OCL_None:
-        case Qualifiers::OCL_ExplicitNone:
-        case Qualifiers::OCL_Autoreleasing:
-          break;
-            
-        case Qualifiers::OCL_Strong: {
-          assert(!ObjCARCReferenceLifetimeType->isArrayType());
-          CleanupKind cleanupKind = CGF.getARCCleanupKind();
-          CGF.pushDestroy(cleanupKind, 
-                          ReferenceTemporary,
-                          ObjCARCReferenceLifetimeType,
-                          CodeGenFunction::destroyARCStrongImprecise,
-                          cleanupKind & EHCleanup);
-          break;
-        }
+      ObjCARCReferenceLifetimeType = QualType();
+    }
+    
+    return ReferenceTemporary;
+  }
+
+  SmallVector<SubobjectAdjustment, 2> Adjustments;
+  E = E->skipRValueSubobjectAdjustments(Adjustments);
+  if (const OpaqueValueExpr *opaque = dyn_cast<OpaqueValueExpr>(E))
+    if (opaque->getType()->isRecordType())
+      return CGF.EmitOpaqueValueLValue(opaque).getAddress();
+
+  // Create a reference temporary if necessary.
+  AggValueSlot AggSlot = AggValueSlot::ignored();
+  if (CGF.hasAggregateEvaluationKind(E->getType())) {
+    ReferenceTemporary = CreateReferenceTemporary(CGF, E->getType(), 
+                                                  InitializedDecl);
+    CharUnits Alignment = CGF.getContext().getTypeAlignInChars(E->getType());
+    AggValueSlot::IsDestructed_t isDestructed
+      = AggValueSlot::IsDestructed_t(InitializedDecl != 0);
+    AggSlot = AggValueSlot::forAddr(ReferenceTemporary, Alignment,
+                                    Qualifiers(), isDestructed,
+                                    AggValueSlot::DoesNotNeedGCBarriers,
+                                    AggValueSlot::IsNotAliased);
+  }
+  
+  if (InitializedDecl) {
+    if (const InitListExpr *ILE = dyn_cast<InitListExpr>(E)) {
+      if (ILE->initializesStdInitializerList()) {
+        ReferenceInitializerList = ILE;
+      }
+    }
+    else if (const RecordType *RT =
+               E->getType()->getBaseElementTypeUnsafe()->getAs<RecordType>()){
+      // Get the destructor for the reference temporary.
+      CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(RT->getDecl());
+      if (!ClassDecl->hasTrivialDestructor())
+        ReferenceTemporaryDtor = ClassDecl->getDestructor();
+    }
+  }
+
+  RValue RV = CGF.EmitAnyExpr(E, AggSlot);
+
+  // Check if need to perform derived-to-base casts and/or field accesses, to
+  // get from the temporary object we created (and, potentially, for which we
+  // extended the lifetime) to the subobject we're binding the reference to.
+  if (!Adjustments.empty()) {
+    llvm::Value *Object = RV.getAggregateAddr();
+    for (unsigned I = Adjustments.size(); I != 0; --I) {
+      SubobjectAdjustment &Adjustment = Adjustments[I-1];
+      switch (Adjustment.Kind) {
+      case SubobjectAdjustment::DerivedToBaseAdjustment:
+        Object = 
+            CGF.GetAddressOfBaseClass(Object, 
+                                      Adjustment.DerivedToBase.DerivedClass, 
+                            Adjustment.DerivedToBase.BasePath->path_begin(),
+                            Adjustment.DerivedToBase.BasePath->path_end(),
+                                      /*NullCheckValue=*/false);
+        break;
           
-        case Qualifiers::OCL_Weak:
-          assert(!ObjCARCReferenceLifetimeType->isArrayType());
-          CGF.pushDestroy(NormalAndEHCleanup, 
-                          ReferenceTemporary,
-                          ObjCARCReferenceLifetimeType,
-                          CodeGenFunction::destroyARCWeak,
-                          /*useEHCleanupForArray*/ true);
+      case SubobjectAdjustment::FieldAdjustment: {
+        LValue LV = CGF.MakeAddrLValue(Object, E->getType());
+        LV = CGF.EmitLValueForField(LV, Adjustment.Field);
+        if (LV.isSimple()) {
+          Object = LV.getAddress();
           break;
         }
         
-        ObjCARCReferenceLifetimeType = QualType();
+        // For non-simple lvalues, we actually have to create a copy of
+        // the object we're binding to.
+        QualType T = Adjustment.Field->getType().getNonReferenceType()
+                                                .getUnqualifiedType();
+        Object = CreateReferenceTemporary(CGF, T, InitializedDecl);
+        LValue TempLV = CGF.MakeAddrLValue(Object,
+                                           Adjustment.Field->getType());
+        CGF.EmitStoreThroughLValue(CGF.EmitLoadOfLValue(LV), TempLV);
+        break;
       }
-      
-      return ReferenceTemporary;
-    }
 
-    SmallVector<SubobjectAdjustment, 2> Adjustments;
-    E = E->skipRValueSubobjectAdjustments(Adjustments);
-    if (const OpaqueValueExpr *opaque = dyn_cast<OpaqueValueExpr>(E))
-      if (opaque->getType()->isRecordType())
-        return CGF.EmitOpaqueValueLValue(opaque).getAddress();
-
-    // Create a reference temporary if necessary.
-    AggValueSlot AggSlot = AggValueSlot::ignored();
-    if (CGF.hasAggregateEvaluationKind(E->getType())) {
-      ReferenceTemporary = CreateReferenceTemporary(CGF, E->getType(), 
-                                                    InitializedDecl);
-      CharUnits Alignment = CGF.getContext().getTypeAlignInChars(E->getType());
-      AggValueSlot::IsDestructed_t isDestructed
-        = AggValueSlot::IsDestructed_t(InitializedDecl != 0);
-      AggSlot = AggValueSlot::forAddr(ReferenceTemporary, Alignment,
-                                      Qualifiers(), isDestructed,
-                                      AggValueSlot::DoesNotNeedGCBarriers,
-                                      AggValueSlot::IsNotAliased);
-    }
-    
-    if (InitializedDecl) {
-      // Get the destructor for the reference temporary.
-      if (const RecordType *RT =
-            E->getType()->getBaseElementTypeUnsafe()->getAs<RecordType>()) {
-        CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(RT->getDecl());
-        if (!ClassDecl->hasTrivialDestructor())
-          ReferenceTemporaryDtor = ClassDecl->getDestructor();
+      case SubobjectAdjustment::MemberPointerAdjustment: {
+        llvm::Value *Ptr = CGF.EmitScalarExpr(Adjustment.Ptr.RHS);
+        Object = CGF.CGM.getCXXABI().EmitMemberDataPointerAddress(
+                      CGF, Object, Ptr, Adjustment.Ptr.MPT);
+        break;
+      }
       }
     }
 
-    RV = CGF.EmitAnyExpr(E, AggSlot);
-
-    // Check if need to perform derived-to-base casts and/or field accesses, to
-    // get from the temporary object we created (and, potentially, for which we
-    // extended the lifetime) to the subobject we're binding the reference to.
-    if (!Adjustments.empty()) {
-      llvm::Value *Object = RV.getAggregateAddr();
-      for (unsigned I = Adjustments.size(); I != 0; --I) {
-        SubobjectAdjustment &Adjustment = Adjustments[I-1];
-        switch (Adjustment.Kind) {
-        case SubobjectAdjustment::DerivedToBaseAdjustment:
-          Object = 
-              CGF.GetAddressOfBaseClass(Object, 
-                                        Adjustment.DerivedToBase.DerivedClass, 
-                              Adjustment.DerivedToBase.BasePath->path_begin(),
-                              Adjustment.DerivedToBase.BasePath->path_end(),
-                                        /*NullCheckValue=*/false);
-          break;
-            
-        case SubobjectAdjustment::FieldAdjustment: {
-          LValue LV = CGF.MakeAddrLValue(Object, E->getType());
-          LV = CGF.EmitLValueForField(LV, Adjustment.Field);
-          if (LV.isSimple()) {
-            Object = LV.getAddress();
-            break;
-          }
-          
-          // For non-simple lvalues, we actually have to create a copy of
-          // the object we're binding to.
-          QualType T = Adjustment.Field->getType().getNonReferenceType()
-                                                  .getUnqualifiedType();
-          Object = CreateReferenceTemporary(CGF, T, InitializedDecl);
-          LValue TempLV = CGF.MakeAddrLValue(Object,
-                                             Adjustment.Field->getType());
-          CGF.EmitStoreThroughLValue(CGF.EmitLoadOfLValue(LV), TempLV);
-          break;
-        }
-
-        case SubobjectAdjustment::MemberPointerAdjustment: {
-          llvm::Value *Ptr = CGF.EmitScalarExpr(Adjustment.Ptr.RHS);
-          Object = CGF.CGM.getCXXABI().EmitMemberDataPointerAddress(
-                        CGF, Object, Ptr, Adjustment.Ptr.MPT);
-          break;
-        }
-        }
-      }
-
-      return Object;
-    }
+    return Object;
   }
 
   if (RV.isAggregate())
@@ -396,9 +402,11 @@ CodeGenFunction::EmitReferenceBindingToExpr(const Expr *E,
                                             const NamedDecl *InitializedDecl) {
   llvm::Value *ReferenceTemporary = 0;
   const CXXDestructorDecl *ReferenceTemporaryDtor = 0;
+  const InitListExpr *ReferenceInitializerList = 0;
   QualType ObjCARCReferenceLifetimeType;
   llvm::Value *Value = EmitExprForReferenceBinding(*this, E, ReferenceTemporary,
                                                    ReferenceTemporaryDtor,
+                                                   ReferenceInitializerList,
                                                    ObjCARCReferenceLifetimeType,
                                                    InitializedDecl);
   if (SanitizePerformTypeCheck && !E->getType()->isFunctionType()) {
@@ -410,7 +418,8 @@ CodeGenFunction::EmitReferenceBindingToExpr(const Expr *E,
     QualType Ty = E->getType();
     EmitTypeCheck(TCK_ReferenceBinding, E->getExprLoc(), Value, Ty);
   }
-  if (!ReferenceTemporaryDtor && ObjCARCReferenceLifetimeType.isNull())
+  if (!ReferenceTemporaryDtor && !ReferenceInitializerList &&
+      ObjCARCReferenceLifetimeType.isNull())
     return RValue::get(Value);
   
   // Make sure to call the destructor for the reference temporary.
@@ -429,9 +438,15 @@ CodeGenFunction::EmitReferenceBindingToExpr(const Expr *E,
           CGM.GetAddrOfCXXDestructor(ReferenceTemporaryDtor, Dtor_Complete);
         CleanupArg = cast<llvm::Constant>(ReferenceTemporary);
       }
-      CGM.getCXXABI().registerGlobalDtor(*this, CleanupFn, CleanupArg);
+      CGM.getCXXABI().registerGlobalDtor(*this, *VD, CleanupFn, CleanupArg);
+    } else if (ReferenceInitializerList) {
+      // FIXME: This is wrong. We need to register a global destructor to clean
+      // up the initializer_list object, rather than adding it as a local
+      // cleanup.
+      EmitStdInitializerListCleanup(ReferenceTemporary,
+                                    ReferenceInitializerList);
     } else {
-      assert(!ObjCARCReferenceLifetimeType.isNull());
+      assert(!ObjCARCReferenceLifetimeType.isNull() && !VD->getTLSKind());
       // Note: We intentionally do not register a global "destructor" to
       // release the object.
     }
@@ -445,6 +460,9 @@ CodeGenFunction::EmitReferenceBindingToExpr(const Expr *E,
                   destroyCXXObject, getLangOpts().Exceptions);
     else
       PushDestructorCleanup(ReferenceTemporaryDtor, ReferenceTemporary);
+  } else if (ReferenceInitializerList) {
+    EmitStdInitializerListCleanup(ReferenceTemporary,
+                                  ReferenceInitializerList);
   } else {
     switch (ObjCARCReferenceLifetimeType.getObjCLifetime()) {
     case Qualifiers::OCL_None:
@@ -885,6 +903,10 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
     return EmitNullInitializationLValue(cast<CXXScalarValueInitExpr>(E));
   case Expr::CXXDefaultArgExprClass:
     return EmitLValue(cast<CXXDefaultArgExpr>(E)->getExpr());
+  case Expr::CXXDefaultInitExprClass: {
+    CXXDefaultInitExprScope Scope(*this);
+    return EmitLValue(cast<CXXDefaultInitExpr>(E)->getExpr());
+  }
   case Expr::CXXTypeidExprClass:
     return EmitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
 
@@ -1164,7 +1186,7 @@ llvm::Value *CodeGenFunction::EmitLoadOfScalar(llvm::Value *Addr, bool Volatile,
   if (TBAAInfo) {
     llvm::MDNode *TBAAPath = CGM.getTBAAStructTagInfo(TBAABaseType, TBAAInfo,
                                                       TBAAOffset);
-    CGM.DecorateInstruction(Load, TBAAPath);
+    CGM.DecorateInstruction(Load, TBAAPath, false/*ConvertTypeToTag*/);
   }
 
   if ((SanOpts->Bool && hasBooleanRepresentation(Ty)) ||
@@ -1278,7 +1300,7 @@ void CodeGenFunction::EmitStoreOfScalar(llvm::Value *Value, llvm::Value *Addr,
   if (TBAAInfo) {
     llvm::MDNode *TBAAPath = CGM.getTBAAStructTagInfo(TBAABaseType, TBAAInfo,
                                                       TBAAOffset);
-    CGM.DecorateInstruction(Store, TBAAPath);
+    CGM.DecorateInstruction(Store, TBAAPath, false/*ConvertTypeToTag*/);
   }
 }
 
@@ -1656,7 +1678,7 @@ static void setObjCGCLValueClass(const ASTContext &Ctx, const Expr *E,
     if (const VarDecl *VD = dyn_cast<VarDecl>(Exp->getDecl())) {
       if (VD->hasGlobalStorage()) {
         LV.setGlobalObjCRef(true);
-        LV.setThreadLocalRef(VD->isThreadSpecified());
+        LV.setThreadLocalRef(VD->getTLSKind() != VarDecl::TLS_None);
       }
     }
     LV.setObjCArray(E->getType()->isArrayType());
@@ -1806,8 +1828,12 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
 
   if (const VarDecl *VD = dyn_cast<VarDecl>(ND)) {
     // Check if this is a global variable.
-    if (VD->hasLinkage() || VD->isStaticDataMember())
+    if (VD->hasLinkage() || VD->isStaticDataMember()) {
+      // If it's thread_local, emit a call to its wrapper function instead.
+      if (VD->getTLSKind() == VarDecl::TLS_Dynamic)
+        return CGM.getCXXABI().EmitThreadLocalDeclRefExpr(*this, E);
       return EmitGlobalVarDeclLValue(*this, E, VD);
+    }
 
     bool isBlockVariable = VD->hasAttr<BlocksAttr>();
 
@@ -2469,6 +2495,17 @@ LValue CodeGenFunction::EmitMemberExpr(const MemberExpr *E) {
   llvm_unreachable("Unhandled member declaration!");
 }
 
+/// Given that we are currently emitting a lambda, emit an l-value for
+/// one of its members.
+LValue CodeGenFunction::EmitLValueForLambdaField(const FieldDecl *Field) {
+  assert(cast<CXXMethodDecl>(CurCodeDecl)->getParent()->isLambda());
+  assert(cast<CXXMethodDecl>(CurCodeDecl)->getParent() == Field->getParent());
+  QualType LambdaTagType =
+    getContext().getTagDeclType(Field->getParent());
+  LValue LambdaLV = MakeNaturalAlignAddrLValue(CXXABIThisValue, LambdaTagType);
+  return EmitLValueForField(LambdaLV, Field);
+}
+
 LValue CodeGenFunction::EmitLValueForField(LValue base,
                                            const FieldDecl *field) {
   if (field->isBitField()) {
@@ -2562,8 +2599,8 @@ LValue CodeGenFunction::EmitLValueForField(LValue base,
         getContext().getASTRecordLayout(field->getParent());
     // Set the base type to be the base type of the base LValue and
     // update offset to be relative to the base type.
-    LV.setTBAABaseType(base.getTBAABaseType());
-    LV.setTBAAOffset(base.getTBAAOffset() +
+    LV.setTBAABaseType(mayAlias ? getContext().CharTy : base.getTBAABaseType());
+    LV.setTBAAOffset(mayAlias ? 0 : base.getTBAAOffset() +
                      Layout.getFieldOffset(field->getFieldIndex()) /
                                            getContext().getCharWidth());
   }

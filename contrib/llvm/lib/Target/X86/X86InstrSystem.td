@@ -449,15 +449,15 @@ let Uses = [RDX, RAX] in {
   def XSAVE : I<0xAE, MRM4m, (outs opaque512mem:$dst), (ins),
                "xsave\t$dst", []>, TB;
   def XSAVE64 : I<0xAE, MRM4m, (outs opaque512mem:$dst), (ins),
-                 "xsaveq\t$dst", []>, TB, REX_W, Requires<[In64BitMode]>;
+                 "xsave{q|64}\t$dst", []>, TB, REX_W, Requires<[In64BitMode]>;
   def XRSTOR : I<0xAE, MRM5m, (outs), (ins opaque512mem:$dst),
                "xrstor\t$dst", []>, TB;
   def XRSTOR64 : I<0xAE, MRM5m, (outs), (ins opaque512mem:$dst),
-                 "xrstorq\t$dst", []>, TB, REX_W, Requires<[In64BitMode]>;
+                 "xrstor{q|64}\t$dst", []>, TB, REX_W, Requires<[In64BitMode]>;
   def XSAVEOPT : I<0xAE, MRM6m, (outs opaque512mem:$dst), (ins),
                   "xsaveopt\t$dst", []>, TB;
   def XSAVEOPT64 : I<0xAE, MRM6m, (outs opaque512mem:$dst), (ins),
-                    "xsaveoptq\t$dst", []>, TB, REX_W, Requires<[In64BitMode]>;
+                    "xsaveopt{q|64}\t$dst", []>, TB, REX_W, Requires<[In64BitMode]>;
 }
 } // SchedRW
 
@@ -515,8 +515,15 @@ let Predicates = [HasFSGSBase, In64BitMode] in {
 //===----------------------------------------------------------------------===//
 // INVPCID Instruction
 def INVPCID32 : I<0x82, MRMSrcMem, (outs), (ins GR32:$src1, i128mem:$src2),
-                "invpcid {$src2, $src1|$src1, $src2}", []>, OpSize, T8,
+                "invpcid\t{$src2, $src1|$src1, $src2}", []>, OpSize, T8,
                 Requires<[In32BitMode]>;
 def INVPCID64 : I<0x82, MRMSrcMem, (outs), (ins GR64:$src1, i128mem:$src2),
-                "invpcid {$src2, $src1|$src1, $src2}", []>, OpSize, T8,
+                "invpcid\t{$src2, $src1|$src1, $src2}", []>, OpSize, T8,
                 Requires<[In64BitMode]>;
+
+//===----------------------------------------------------------------------===//
+// SMAP Instruction
+let Defs = [EFLAGS], Uses = [EFLAGS] in {
+  def CLAC : I<0x01, MRM_CA, (outs), (ins), "clac", []>, TB;
+  def STAC : I<0x01, MRM_CB, (outs), (ins), "stac", []>, TB;
+}

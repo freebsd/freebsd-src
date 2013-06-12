@@ -73,7 +73,7 @@ SDNode* SparcDAGToDAGISel::getGlobalBaseReg() {
 bool SparcDAGToDAGISel::SelectADDRri(SDValue Addr,
                                      SDValue &Base, SDValue &Offset) {
   if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
-    Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
+    Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), TLI.getPointerTy());
     Offset = CurDAG->getTargetConstant(0, MVT::i32);
     return true;
   }
@@ -87,7 +87,8 @@ bool SparcDAGToDAGISel::SelectADDRri(SDValue Addr,
         if (FrameIndexSDNode *FIN =
                 dyn_cast<FrameIndexSDNode>(Addr.getOperand(0))) {
           // Constant offset from frame ref.
-          Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i32);
+          Base = CurDAG->getTargetFrameIndex(FIN->getIndex(),
+                                             TLI.getPointerTy());
         } else {
           Base = Addr.getOperand(0);
         }
@@ -130,7 +131,7 @@ bool SparcDAGToDAGISel::SelectADDRrr(SDValue Addr, SDValue &R1, SDValue &R2) {
   }
 
   R1 = Addr;
-  R2 = CurDAG->getRegister(SP::G0, MVT::i32);
+  R2 = CurDAG->getRegister(SP::G0, TLI.getPointerTy());
   return true;
 }
 
@@ -146,6 +147,9 @@ SDNode *SparcDAGToDAGISel::Select(SDNode *N) {
 
   case ISD::SDIV:
   case ISD::UDIV: {
+    // sdivx / udivx handle 64-bit divides.
+    if (N->getValueType(0) == MVT::i64)
+      break;
     // FIXME: should use a custom expander to expose the SRA to the dag.
     SDValue DivLHS = N->getOperand(0);
     SDValue DivRHS = N->getOperand(1);
