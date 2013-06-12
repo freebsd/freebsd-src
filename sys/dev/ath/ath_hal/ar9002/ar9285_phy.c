@@ -40,8 +40,7 @@
 #include "ar9002/ar9285_phy.h"
 
 void
-ar9285_antdiv_comb_conf_get(struct ath_hal *ah,
-    struct ar9285_antcomb_conf *antconf)
+ar9285_antdiv_comb_conf_get(struct ath_hal *ah, HAL_ANT_COMB_CONFIG *antconf)
 {
 	uint32_t regval;
 
@@ -55,8 +54,7 @@ ar9285_antdiv_comb_conf_get(struct ath_hal *ah,
 }
 
 void
-ar9285_antdiv_comb_conf_set(struct ath_hal *ah,
-    struct ar9285_antcomb_conf *antconf)
+ar9285_antdiv_comb_conf_set(struct ath_hal *ah, HAL_ANT_COMB_CONFIG *antconf)
 {
 	uint32_t regval;
 

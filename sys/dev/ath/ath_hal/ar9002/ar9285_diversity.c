@@ -59,16 +59,16 @@ ath_is_alt_ant_ratio_better(int alt_ratio, int maxdelta, int mindelta,
 
 static void
 ath_lnaconf_alt_good_scan(struct ar9285_ant_comb *antcomb,
-    struct ar9285_antcomb_conf ant_conf, int main_rssi_avg)
+    HAL_ANT_COMB_CONFIG *ant_conf, int main_rssi_avg)
 {
 	antcomb->quick_scan_cnt = 0;
 
-	if (ant_conf.main_lna_conf == HAL_ANT_DIV_COMB_LNA2)
+	if (ant_conf->main_lna_conf == HAL_ANT_DIV_COMB_LNA2)
 		antcomb->rssi_lna2 = main_rssi_avg;
-	else if (ant_conf.main_lna_conf == HAL_ANT_DIV_COMB_LNA1)
+	else if (ant_conf->main_lna_conf == HAL_ANT_DIV_COMB_LNA1)
 		antcomb->rssi_lna1 = main_rssi_avg;
 
-	switch ((ant_conf.main_lna_conf << 4) | ant_conf.alt_lna_conf) {
+	switch ((ant_conf->main_lna_conf << 4) | ant_conf->alt_lna_conf) {
 	case (0x10): /* LNA2 A-B */
 		antcomb->main_conf = HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 		antcomb->first_quick_scan_conf =
@@ -114,7 +114,7 @@ ath_lnaconf_alt_good_scan(struct ar9285_ant_comb *antcomb,
 
 static void
 ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
-    struct ar9285_antcomb_conf *div_ant_conf, int main_rssi_avg,
+    HAL_ANT_COMB_CONFIG *div_ant_conf, int main_rssi_avg,
     int alt_rssi_avg, int alt_ratio)
 {
 	/* alt_good */
@@ -312,7 +312,7 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 }
 
 static void
-ath_ant_div_conf_fast_divbias(struct ar9285_antcomb_conf *ant_conf)
+ath_ant_div_conf_fast_divbias(HAL_ANT_COMB_CONFIG *ant_conf)
 {
 	/* Adjust the fast_div_bias based on main and alt lna conf */
 	switch ((ant_conf->main_lna_conf << 4) | ant_conf->alt_lna_conf) {
@@ -362,7 +362,7 @@ void
 ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
     unsigned long ticks, int hz)
 {
-	struct ar9285_antcomb_conf div_ant_conf;
+	HAL_ANT_COMB_CONFIG div_ant_conf;
 	struct ar9285_ant_comb *antcomb = &AH9285(ah)->ant_comb;
 	int alt_ratio = 0, alt_rssi_avg = 0, main_rssi_avg = 0, curr_alt_set;
 	int curr_main_set, curr_bias;
@@ -431,6 +431,7 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 				 antcomb->total_pkt_count);
 	}
 
+	OS_MEMZERO(&div_ant_conf, sizeof(div_ant_conf));
 	ar9285_antdiv_comb_conf_get(ah, &div_ant_conf);
 	curr_alt_set = div_ant_conf.alt_lna_conf;
 	curr_main_set = div_ant_conf.main_lna_conf;
@@ -440,7 +441,7 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 
 	if (antcomb->count == ATH_ANT_DIV_COMB_MAX_COUNT) {
 		if (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO) {
-			ath_lnaconf_alt_good_scan(antcomb, div_ant_conf,
+			ath_lnaconf_alt_good_scan(antcomb, &div_ant_conf,
 						  main_rssi_avg);
 			antcomb->alt_good = AH_TRUE;
 		} else {
