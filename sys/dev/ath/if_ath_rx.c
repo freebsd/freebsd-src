@@ -119,6 +119,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_alq.h>
 #endif
 
+#include <dev/ath/if_ath_lna_div.h>
+
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -516,7 +518,6 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
     uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf,
     struct mbuf *m)
 {
-	struct ath_hal *ah = sc->sc_ah;
 	uint64_t rstamp;
 	int len, type;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -843,10 +844,10 @@ rx_accept:
 			sc->sc_rxotherant = 0;
 	}
 
-	/* Newer school diversity - kite specific for now */
-	/* XXX perhaps migrate the normal diversity code to this? */
-	if ((ah)->ah_rxAntCombDiversity)
-		(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
+	/* Handle slow diversity if enabled */
+	if (sc->sc_dolnadiv) {
+		ath_lna_rx_comb_scan(sc, rs, ticks, hz);
+	}
 
 	if (sc->sc_softled) {
 		/*
