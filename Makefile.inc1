@@ -1203,8 +1203,8 @@ _clang_tblgen= \
 
 # dtrace tools are required for older bootstrap env and cross-build
 .if ${MK_CDDL} != "no" && \
-    ((${BOOTSTRAPPING} < 800038 && \
-          !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)) \
+    ((${BOOTSTRAPPING} < 1000034 && \
+          !(${BOOTSTRAPPING} >= 901505 && ${BOOTSTRAPPING} < 999999)) \
       || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
