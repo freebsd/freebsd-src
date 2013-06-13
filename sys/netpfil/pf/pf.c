@@ -724,7 +724,7 @@ pf_initialize()
 	V_pf_hashmask = V_pf_hashsize - 1;
 	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= V_pf_hashmask;
 	    i++, kh++, ih++) {
-		mtx_init(&kh->lock, "pf_keyhash", NULL, MTX_DEF);
+		mtx_init(&kh->lock, "pf_keyhash", NULL, MTX_DEF | MTX_DUPOK);
 		mtx_init(&ih->lock, "pf_idhash", NULL, MTX_DEF);
 	}
 
@@ -851,7 +851,7 @@ static int
 pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
     struct pf_state *s)
 {
-	struct pf_keyhash	*kh;
+	struct pf_keyhash	*khs, *khw, *kh;
 	struct pf_state_key	*sk, *cur;
 	struct pf_state		*si, *olds = NULL;
 	int idx;
@@ -861,15 +861,47 @@ pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
 	KASSERT(s->key[PF_SK_STACK] == NULL, ("%s: state has key", __func__));
 
 	/*
+	 * We need to lock hash slots of both keys. To avoid deadlock
+	 * we always lock the slot with lower address first. Unlock order
+	 * isn't important.
+	 *
+	 * We also need to lock ID hash slot before dropping key
+	 * locks. On success we return with ID hash slot locked.
+	 */
+
+	if (skw == sks) {
+		khs = khw = &V_pf_keyhash[pf_hashkey(skw)];
+		PF_HASHROW_LOCK(khs);
+	} else {
+		khs = &V_pf_keyhash[pf_hashkey(sks)];
+		khw = &V_pf_keyhash[pf_hashkey(skw)];
+		if (khs == khw) {
+			PF_HASHROW_LOCK(khs);
+		} else if (khs < khw) {
+			PF_HASHROW_LOCK(khs);
+			PF_HASHROW_LOCK(khw);
+		} else {
+			PF_HASHROW_LOCK(khw);
+			PF_HASHROW_LOCK(khs);
+		}
+	}
+
+#define	KEYS_UNLOCK()	do {			\
+	if (khs != khw) {			\
+		PF_HASHROW_UNLOCK(khs);		\
+		PF_HASHROW_UNLOCK(khw);		\
+	} else					\
+		PF_HASHROW_UNLOCK(khs);		\
+} while (0)
+
+	/*
 	 * First run: start with wire key.
 	 */
 	sk = skw;
+	kh = khw;
 	idx = PF_SK_WIRE;
 
 keyattach:
-	kh = &V_pf_keyhash[pf_hashkey(sk)];
-
-	PF_HASHROW_LOCK(kh);
 	LIST_FOREACH(cur, &kh->keys, entry)
 		if (bcmp(cur, sk, sizeof(struct pf_state_key_cmp)) == 0)
 			break;
@@ -885,10 +917,20 @@ keyattach:
 				if (sk->proto == IPPROTO_TCP &&
 				    si->src.state >= TCPS_FIN_WAIT_2 &&
 				    si->dst.state >= TCPS_FIN_WAIT_2) {
+					/*
+					 * New state matches an old >FIN_WAIT_2
+					 * state. We can't drop key hash locks,
+					 * thus we can't unlink it properly.
+					 *
+					 * As a workaround we drop it into
+					 * TCPS_CLOSED state, schedule purge
+					 * ASAP and push it into the very end
+					 * of the slot TAILQ, so that it won't
+					 * conflict with our new state.
+					 */
 					si->src.state = si->dst.state =
 					    TCPS_CLOSED;
-					/* Unlink later or cur can go away. */
-					pf_ref_state(si);
+					si->timeout = PFTM_PURGE;
 					olds = si;
 				} else {
 					if (V_pf_status.debug >= PF_DEBUG_MISC) {
@@ -911,7 +953,7 @@ keyattach:
 						printf("\n");
 					}
 					PF_HASHROW_UNLOCK(ih);
-					PF_HASHROW_UNLOCK(kh);
+					KEYS_UNLOCK();
 					uma_zfree(V_pf_state_key_z, sk);
 					if (idx == PF_SK_STACK)
 						pf_detach_state(s);
@@ -934,6 +976,13 @@ stateattach:
 	else
 		TAILQ_INSERT_HEAD(&s->key[idx]->states[idx], s, key_list[idx]);
 
+	if (olds) {
+		TAILQ_REMOVE(&s->key[idx]->states[idx], olds, key_list[idx]);
+		TAILQ_INSERT_TAIL(&s->key[idx]->states[idx], olds,
+		    key_list[idx]);
+		olds = NULL;
+	}
+
 	/*
 	 * Attach done. See how should we (or should not?)
 	 * attach a second key.
@@ -944,31 +993,24 @@ stateattach:
 		sks = NULL;
 		goto stateattach;
 	} else if (sks != NULL) {
-		PF_HASHROW_UNLOCK(kh);
-		if (olds) {
-			pf_unlink_state(olds, 0);
-			pf_release_state(olds);
-			olds = NULL;
-		}
 		/*
 		 * Continue attaching with stack key.
 		 */
 		sk = sks;
+		kh = khs;
 		idx = PF_SK_STACK;
 		sks = NULL;
 		goto keyattach;
-	} else
-		PF_HASHROW_UNLOCK(kh);
-
-	if (olds) {
-		pf_unlink_state(olds, 0);
-		pf_release_state(olds);
 	}
+
+	PF_STATE_LOCK(s);
+	KEYS_UNLOCK();
 
 	KASSERT(s->key[PF_SK_WIRE] != NULL && s->key[PF_SK_STACK] != NULL,
 	    ("%s failure", __func__));
 
 	return (0);
+#undef	KEYS_UNLOCK
 }
 
 static void
@@ -1091,11 +1133,12 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		s->creatorid = V_pf_status.hostid;
 	}
 
+	/* Returns with ID locked on success. */
 	if ((error = pf_state_key_attach(skw, sks, s)) != 0)
 		return (error);
 
 	ih = &V_pf_idhash[PF_IDHASH(s)];
-	PF_HASHROW_LOCK(ih);
+	PF_HASHROW_ASSERT(ih);
 	LIST_FOREACH(cur, &ih->states, entry)
 		if (cur->id == s->id && cur->creatorid == s->creatorid)
 			break;
