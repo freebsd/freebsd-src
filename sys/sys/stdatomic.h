@@ -37,7 +37,9 @@
 #define	__CLANG_ATOMICS
 #elif __GNUC_PREREQ__(4, 7)
 #define	__GNUC_ATOMICS
-#elif !defined(__GNUC__)
+#elif defined(__GNUC__)
+#define	__SYNC_ATOMICS
+#else
 #error "stdatomic.h does not support your compiler"
 #endif
 
@@ -156,7 +158,11 @@ enum memory_order {
  * 7.17.5 Lock-free property.
  */
 
-#if defined(__CLANG_ATOMICS)
+#if defined(_KERNEL)
+/* Atomics in kernelspace are always lock-free. */
+#define	atomic_is_lock_free(obj) \
+	((void)(obj), (_Bool)1)
+#elif defined(__CLANG_ATOMICS)
 #define	atomic_is_lock_free(obj) \
 	__atomic_is_lock_free(sizeof(*(obj)), obj)
 #elif defined(__GNUC_ATOMICS)
