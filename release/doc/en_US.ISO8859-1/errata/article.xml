@@ -206,6 +206,16 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
+    <para>[20130613] The &man.vtnet.4; network interface driver
+      displays the following message upon configuration when using
+      <application>QEMU</application> 1.4.1 and later:</para>
+
+    <screen>vtnet0: error setting host MAC filter table</screen>
+
+    <para>This message is harmless when the interface has only one MAC
+      address.  The patch for this issue is filed to a PR <ulink
+      url="http://www.FreeBSD.org/cgi/query-pr.cgi?pr=178955">kern/178955</ulink>.</para>
+
     <para>[20130609] There is incompatibility in &man.jail.8;
       configuration because the &man.jail.8; utility and
       <filename>rc.d/jail</filename> script has been changed.  More
