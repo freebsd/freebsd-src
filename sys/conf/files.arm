@@ -40,6 +40,8 @@ arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
 arm/arm/stack_machdep.c		optional	ddb | stack
+arm/arm/stdatomic.c		standard \
+	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
 arm/arm/sys_machdep.c		standard
