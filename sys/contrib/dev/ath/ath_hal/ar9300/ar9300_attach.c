@@ -2916,6 +2916,13 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     }
 #endif /* ATH_ANT_DIV_COMB */
 
+    /*
+     * FreeBSD: enable LNA mixing if the chip is Hornet or Poseidon.
+     */
+    if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON_11_OR_LATER(ah)) {
+        p_cap->halRxUsingLnaMixing = AH_TRUE;
+    }
+
 
 #if ATH_WOW_OFFLOAD
     if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
