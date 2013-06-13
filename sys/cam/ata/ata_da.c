@@ -1080,13 +1080,10 @@ adagetattr(struct bio *bp)
 	struct cam_periph *periph;
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
-		return (ENXIO);
 	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
 	    periph->path);
 	cam_periph_unlock(periph);
-	cam_periph_release(periph);
 	if (ret == 0)
 		bp->bio_completed = bp->bio_length;
 	return ret;
