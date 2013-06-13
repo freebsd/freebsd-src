@@ -53,6 +53,7 @@ static puc_config_f puc_config_exar;
 static puc_config_f puc_config_exar_pcie;
 static puc_config_f puc_config_icbook;
 static puc_config_f puc_config_moxa;
+static puc_config_f puc_config_oxford_pci954;
 static puc_config_f puc_config_oxford_pcie;
 static puc_config_f puc_config_quatech;
 static puc_config_f puc_config_syba;
@@ -743,8 +744,9 @@ const struct puc_cfg puc_pci_devices[] = {
 
 	{   0x1415, 0x9501, 0xffff, 0,
 	    "Oxford Semiconductor OX16PCI954 UARTs",
-	    DEFAULT_RCLK,
+	    0,
 	    PUC_PORT_4S, 0x10, 0, 8,
+	    .config_function = puc_config_oxford_pci954
 	},
 
 	{   0x1415, 0x950a, 0x131f, 0x2030,
@@ -1508,6 +1510,28 @@ puc_config_timedia(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 		return (0);
 	case PUC_CFG_GET_TYPE:
 		*res = PUC_TYPE_SERIAL;
+		return (0);
+	default:
+		break;
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_oxford_pci954(struct puc_softc *sc, enum puc_cfg_cmd cmd,
+    int port __unused, intptr_t *res)
+{
+
+	switch (cmd) {
+	case PUC_CFG_GET_CLOCK:
+		/*
+		 * OXu16PCI954 use a 14.7456 MHz clock by default while
+		 * OX16PCI954 and OXm16PCI954 employ a 1.8432 MHz one.
+		 */
+		if (pci_get_revid(sc->sc_dev) == 1)
+			*res = DEFAULT_RCLK * 8;
+		else
+			*res = DEFAULT_RCLK;
 		return (0);
 	default:
 		break;
