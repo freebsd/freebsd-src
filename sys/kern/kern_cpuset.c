@@ -621,26 +621,6 @@ out:
 }
 
 /*
- * Calculate the ffs() of the cpuset.
- */
-int
-cpusetobj_ffs(const cpuset_t *set)
-{
-	size_t i;
-	int cbit;
-
-	cbit = 0;
-	for (i = 0; i < _NCPUWORDS; i++) {
-		if (set->__bits[i] != 0) {
-			cbit = ffsl(set->__bits[i]);
-			cbit += i * _NCPUBITS;
-			break;
-		}
-	}
-	return (cbit);
-}
-
-/*
  * Return a string representing a valid layout for a cpuset_t object.
  * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
  */
