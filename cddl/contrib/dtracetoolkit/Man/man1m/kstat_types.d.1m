@@ -1,0 +1,50 @@
+.TH kstat_types.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+kstat_types.d \- Trace kstat reads with type info. Uses DTrace.
+.SH SYNOPSIS
+.B kstat_types.d
+.SH DESCRIPTION
+kstat is the Kernel Statistics framework, which is used by tools
+such as vmstat, iostat, mpstat and sar. Try running vmstat while
+kstat_types.d is tracing - you should see details of the kstat
+reads performed.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - this script uses fbt provider probes which may change for
+future updates of the OS, invalidating this script. Please read
+Docs/Notes/ALLfbt_notes.txt for further details about these fbt scripts.
+.SH EXAMPLES
+.TP
+Trace kstat reads as they occur,
+# 
+.B kstat_types.d
+.PP
+.SH FIELDS
+.TP
+CMD
+command name
+.TP
+CLASS
+kstat class (ks_class)
+.TP
+TYPE
+kstat type as a string (ks_type)
+.TP
+MOD:INS:NAME
+kstat module:instance:name
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+kstat_types.d will trace until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), kstat(1M), kstat(3KSTAT)

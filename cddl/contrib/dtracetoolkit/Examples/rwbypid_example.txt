@@ -1,0 +1,19 @@
+The following is a demonstration of the rwbypid.d script,
+
+
+Here we run it for a few seconds then hit Ctrl-C,
+
+   # rwbypid.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+      PID CMD                       DIR    COUNT
+    11131 dtrace                      W        2
+    20334 sshd                        W       17
+    20334 sshd                        R       24
+     1532 Xorg                        W       69
+     1659 mozilla-bin                 R      852
+     1659 mozilla-bin                 W     1128
+     1532 Xorg                        R     1702
+
+In the above output, we can see that Xorg with PID 1532 has made 1702 reads.
+

@@ -1,0 +1,59 @@
+The following is a demonstration of the rwtop program,
+
+
+By default it will refresh the screen every 5 seconds,
+
+   # rwtop
+   2005 Jul 24 01:00:43,  load: 1.02,  app_r:      8 KB,  app_w:     19 KB
+   
+     UID    PID   PPID CMD              D            BYTES
+       0  20320  20347 bash             R               10
+       0  20320  20347 bash             W               95
+     100  20317  20314 sshd             R              650
+     100  20317  20314 sshd             W              733
+       0   2365  20320 ls               W             1300
+       0   2364  20320 vi               R             2323
+       0   2365  20320 ls               R             2485
+     100  20334  20331 sshd             R             3010
+     100  20334  20331 sshd             W             3729
+       0   2364  20320 vi               W            14128
+
+In the above output, we can see that a "vi" process wrote 14 Kbytes and
+read 2 Kbytes. 
+
+
+
+In the following example, we print the top 5 processes in a scrolling
+output by using "-C" to not clear the screen,
+
+   # rwtop -C -t5
+   Tracing... Please wait.
+   2005 Jul 24 01:03:27,  load: 1.05,  app_r:    261 KB,  app_w:    348 KB
+   
+     UID    PID   PPID CMD              D            BYTES
+       0   2381  20320 svcs             W             5801
+       0      9      1 svc.configd      R           115712
+       0   2380  20320 find             W           140003
+     100  20334  20331 sshd             R           150740
+     100  20334  20331 sshd             W           210773
+   
+   2005 Jul 24 01:03:32,  load: 1.07,  app_r:    110 KB,  app_w:    233 KB
+   
+     UID    PID   PPID CMD              D            BYTES
+     100  20317  20314 sshd             R              419
+     100  20317  20314 sshd             W              468
+       0   2382  20320 find             W           110720
+     100  20334  20331 sshd             R           112835
+     100  20334  20331 sshd             W           128175
+   
+   2005 Jul 24 01:03:37,  load: 1.07,  app_r:      6 KB,  app_w:      7 KB
+   
+     UID    PID   PPID CMD              D            BYTES
+       0   2383  20320 df               W             1154
+       0   2385  20320 ls               W             1300
+       0   2385  20320 ls               R             2485
+     100  20334  20331 sshd             R             3929
+     100  20334  20331 sshd             W             4339
+   
+   ^C
+

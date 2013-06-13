@@ -1,0 +1,120 @@
+The following is an example of rb_malloc.d.
+
+WARNING: This script is not 100% accurate; This prints graphical
+representations of libc malloc() byte distributions by "recent" Ruby operation, 
+which we hope will be usually correct. This is an experimental script that may
+be improved over time.
+
+Here we can see it running on Code/Ruby/func_abc.rb
+
+# rb_malloc.d -c ./func_abc.rb
+Tracing... Hit Ctrl-C to end.
+Function A
+Function B
+Function C
+Ruby malloc byte distributions by recent Ruby operation,
+   func_abc.rb, method, Object::print 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |                                         0        
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@                     1        
+              32 |                                         0        
+
+   func_abc.rb, method, Module::method_added 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   ., objnew, fatal 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@                                        1        
+               4 |@                                        1        
+               8 |@@@                                      2        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@             22       
+              32 |@@@@@@                                   5        
+              64 |                                         0        
+
+   func_abc.rb, method, IO::write 
+           value  ------------- Distribution ------------- count    
+            2048 |                                         0        
+            4096 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            8192 |                                         0        
+
+   ., objnew, SystemStackError 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |                                         3        
+               4 |@@@@                                     32       
+               8 |@@                                       15       
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          279      
+              32 |@@@                                      30       
+              64 |                                         2        
+             128 |                                         0        
+
+   ., objnew, NoMemoryError 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@                                        3        
+               4 |@@@                                      17       
+               8 |@@@@@@                                   37       
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@                 146      
+              32 |@@                                       13       
+              64 |                                         2        
+             128 |@@@                                      20       
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         1        
+            2048 |                                         0        
+
+   ., objnew, ThreadGroup 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |                                         8        
+               4 |@@@                                      224      
+               8 |@                                        93       
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              1806     
+              32 |@@@@@@@@                                 496      
+              64 |                                         3        
+             128 |                                         2        
+             256 |                                         0        
+             512 |                                         1        
+            1024 |                                         0        
+
+   ., objnew, Object 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |                                         35       
+               4 |@@@                                      291      
+               8 |@@@                                      300      
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           2679     
+              32 |@@                                       215      
+              64 |                                         7        
+             128 |                                         0        
+
+   ruby, startup, - 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@                                        10       
+               4 |@@@                                      34       
+               8 |@@@                                      38       
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          409      
+              32 |@@                                       30       
+              64 |                                         1        
+             128 |                                         0        
+             256 |                                         0        
+             512 |                                         0        
+            1024 |                                         2        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |                                         0        
+           16384 |                                         0        
+           32768 |                                         0        
+           65536 |                                         0        
+          131072 |                                         1        
+          262144 |                                         0        
+
+

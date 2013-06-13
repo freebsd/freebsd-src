@@ -1,0 +1,39 @@
+The following is an example of the udpstat.d script,
+
+
+
+Here we run udpstat for a few seconds. Firstly, we run a "spray" command
+outbound, followed by a spray inbound. Both can be identified in the 
+output below,
+
+   # udpstat.d
+       UDP_out  UDP_outErr      UDP_in   UDP_inErr  UDP_noPort
+             0           0           0           0           1
+             0           0           0           0           2
+             0           0           0           0           0
+          1165           0           2           0           0
+             0           0           0           0           0
+             0           0           0           0           2
+             3           0        1166           0           1
+             0           0           0           0           0
+             0           0           0           0           0
+             0           0           0           0           0
+   ^C
+
+
+
+Here we run udpstat.d while an outbound DNS lookup is performed using
+"nslookup",
+
+   # udpstat.d
+       UDP_out  UDP_outErr      UDP_in   UDP_inErr  UDP_noPort
+             0           0           0           0           1
+             0           0           0           0           1
+             1           0           1           0           0
+             0           0           0           0           0
+             0           0           0           0           3
+   ^C
+
+Little output is observed as this tracks datagrams not bytes. There is 
+one outbound and one inbound datagram.
+

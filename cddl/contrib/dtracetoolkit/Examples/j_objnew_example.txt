@@ -1,0 +1,1460 @@
+The following are examples of j_objnew.d.
+
+This traces activity of object allocation by Java.  It will print a histogram
+of the byte size of allocation of different type, followed by a count of each
+type of allocation.  
+
+Here you can see it running on Code/Java/Func_abc
+
+# j_objnew.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Java object allocation byte distributions by pid and class,
+
+   311496  java/io/Console$1                                 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/io/DeleteOnExitHook                          
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/io/File$1                                    
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/ApplicationShutdownHooks                
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/Compiler$1                              
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/Runtime                                 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/String$CaseInsensitiveComparator        
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/System$2                                
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/Terminator$1                            
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/ref/Reference$Lock                      
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/lang/reflect/ReflectAccess                   
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/net/URLClassLoader$7                         
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/net/UnknownContentHandler                    
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/util/Collections$EmptySet                    
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/util/Collections$ReverseComparator           
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/util/Hashtable$EmptyEnumerator               
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/util/Hashtable$EmptyIterator                 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  java/util/jar/JavaUtilJarAccessImpl               
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  sun/misc/Launcher$Factory                         
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  sun/misc/Unsafe                                   
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  sun/net/www/protocol/file/Handler                 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  sun/reflect/ReflectionFactory                     
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  sun/reflect/ReflectionFactory$1                   
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   311496  [Ljava/lang/StackTraceElement;                    
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  [Ljava/security/Principal;                        
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  [Ljava/security/cert/Certificate;                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/io/Console$1$1                               
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/io/FilePermissionCollection                  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/io/FileReader                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/io/UnixFileSystem                            
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/ArithmeticException                     
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/ClassLoader$3                           
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/NoSuchMethodError                       
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/NullPointerException                    
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/Shutdown$Lock                           
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              16 |                                         0        
+
+   311496  java/lang/StringCoding$StringDecoder              
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/SystemClassLoaderAction                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/ThreadLocal$ThreadLocalMap              
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/VirtualMachineError                     
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/reflect/ReflectPermission               
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/nio/charset/CoderResult$1                    
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/nio/charset/CoderResult$2                    
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/security/BasicPermissionCollection           
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/security/Policy$UnsupportedEmptyCollection   
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/util/BitSet                                  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/util/Collections$EmptyList                   
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/util/Collections$EmptyMap                    
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/util/HashMap$KeySet                          
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/util/IdentityHashMap$KeySet                  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/util/LinkedHashSet                           
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/util/concurrent/atomic/AtomicInteger         
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/misc/FileURLMapper                            
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/misc/Launcher                                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/misc/Launcher$AppClassLoader$1                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/misc/Launcher$ExtClassLoader$1                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/misc/URLClassPath$FileLoader                  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/misc/URLClassPath$JarLoader$1                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/net/www/MessageHeader                         
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/net/www/protocol/jar/Handler                  
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              16 |                                         0        
+
+   311496  sun/nio/cs/StandardCharsets                       
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  sun/nio/cs/US_ASCII                               
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   311496  java/lang/Class$3                                 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              16 |                                         0        
+
+   311496  [J                                                
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  [Ljava/io/File;                                   
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  [Ljava/lang/OutOfMemoryError;                     
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  [Ljava/lang/ThreadGroup;                          
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  [Ljava/lang/reflect/Constructor;                  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/io/BufferedInputStream                       
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/io/BufferedOutputStream                      
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/io/BufferedReader                            
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/io/DataInputStream                           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/io/FileOutputStream                          
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/io/FilePermission$1                          
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/io/OutputStreamWriter                        
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/lang/Class$1                                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/lang/ClassLoader$NativeLibrary               
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/lang/ThreadLocal$ThreadLocalMap$Entry        
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/lang/ref/ReferenceQueue                      
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/lang/ref/ReferenceQueue$Lock                 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+              16 |                                         0        
+
+   311496  java/lang/ref/ReferenceQueue$Null                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/lang/ref/WeakReference                       
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/net/URLClassLoader$1                         
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/nio/ByteOrder                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/nio/charset/CoderResult                      
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/security/CodeSource                          
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/security/Permissions                         
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/security/PrivilegedActionException           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/security/ProtectionDomain                    
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/AbstractList$Itr                        
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/util/Collections$SynchronizedMap             
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/HashSet                                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  java/util/IdentityHashMap                         
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/LinkedHashMap                           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/LinkedHashMap$KeyIterator               
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/Properties                              
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/concurrent/ConcurrentHashMap            
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/concurrent/atomic/AtomicReferenceFieldUpdater$AtomicReferenceFieldUpdaterImpl
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/jar/JarFile                             
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/zip/Inflater                            
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/zip/ZipFile$1                           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  java/util/zip/ZipFile$ZipFileInputStream          
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  sun/misc/NativeSignalHandler                      
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  sun/misc/SoftCache                                
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  sun/misc/URLClassPath$FileLoader$1                
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  sun/nio/cs/StandardCharsets$Aliases               
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  sun/nio/cs/StandardCharsets$Cache                 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  sun/nio/cs/StandardCharsets$Classes               
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  sun/nio/cs/StreamDecoder                          
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   311496  sun/nio/cs/Surrogate$Parser                       
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  sun/reflect/DelegatingConstructorAccessorImpl     
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  sun/reflect/NativeConstructorAccessorImpl         
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   311496  sun/reflect/ReflectionFactory$GetReflectionFactoryAction
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+              16 |                                         0        
+
+   311496  [Ljava/net/URL;                                   
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@                     1        
+              32 |@@@@@@@@@@@@@@@@@@@@                     1        
+              64 |                                         0        
+
+   311496  java/io/FileInputStream                           
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  java/lang/Boolean                                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  java/lang/Integer                                 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  java/lang/RuntimePermission                       
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  java/lang/ThreadLocal                             
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  java/nio/charset/CodingErrorAction                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  java/util/Stack                                   
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  sun/misc/Signal                                   
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+              32 |                                         0        
+
+   311496  [Ljava/lang/Thread;                               
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  [Ljava/lang/ThreadLocal$ThreadLocalMap$Entry;     
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  [Ljava/lang/annotation/Annotation;                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+              32 |                                         0        
+
+   311496  [Ljava/util/concurrent/ConcurrentHashMap$Segment; 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  java/io/BufferedWriter                            
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/io/ExpiringCache                             
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/io/ExpiringCache$1                           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/io/FilePermission                            
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/io/PrintStream                               
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/lang/ClassNotFoundException                  
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/lang/ThreadGroup                             
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/lang/ref/Finalizer$FinalizerThread           
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  java/lang/ref/Reference$ReferenceHandler          
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  java/lang/reflect/Method                          
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  java/util/IdentityHashMap$KeyIterator             
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/util/StringTokenizer                         
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/util/jar/JarFile$JarFileEntry                
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  java/util/zip/ZipEntry                            
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  sun/misc/Launcher$AppClassLoader                  
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  sun/misc/Launcher$ExtClassLoader                  
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  sun/misc/MetaIndex                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+              32 |                                         0        
+
+   311496  sun/misc/URLClassPath                             
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  sun/net/www/protocol/file/FileURLConnection       
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   311496  sun/nio/cs/StreamEncoder                          
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  sun/nio/cs/US_ASCII$Encoder                       
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              64 |                                         0        
+
+   311496  java/io/FileDescriptor                            
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 5        
+              32 |                                         0        
+
+   311496  sun/misc/URLClassPath$3                           
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+              32 |                                         0        
+
+   311496  [Ljava/io/ObjectStreamField;                      
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 8        
+              32 |                                         0        
+
+   311496  [Ljava/lang/reflect/Field;                        
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+              64 |                                         0        
+
+   311496  java/lang/Object                                  
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 16       
+              16 |                                         0        
+
+   311496  java/lang/OutOfMemoryError                        
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 8        
+              32 |                                         0        
+
+   311496  java/util/ArrayList                               
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 8        
+              32 |                                         0        
+
+   311496  java/util/Vector                                  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 8        
+              32 |                                         0        
+
+   311496  sun/nio/cs/US_ASCII$Decoder                       
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+              64 |                                         0        
+
+   311496  java/lang/StringBuffer                            
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 9        
+              32 |                                         0        
+
+   311496  java/security/AccessControlContext                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 10       
+              32 |                                         0        
+
+   311496  sun/misc/URLClassPath$JarLoader                   
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 5        
+              64 |                                         0        
+
+   311496  java/net/Parts                                    
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 11       
+              32 |                                         0        
+
+   311496  [Ljava/lang/Class;                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 12       
+              32 |                                         0        
+
+   311496  java/io/ExpiringCache$Entry                       
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 12       
+              32 |                                         0        
+
+   311496  java/nio/HeapByteBuffer                           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+              64 |                                         0        
+
+   311496  java/util/Hashtable                               
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+              64 |                                         0        
+
+   311496  java/lang/ref/SoftReference                       
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 7        
+              64 |                                         0        
+
+   311496  java/util/HashMap$Entry                           
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 15       
+              32 |                                         0        
+
+   311496  java/lang/ref/Finalizer                           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 8        
+              64 |                                         0        
+
+   311496  java/lang/reflect/Constructor                     
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 4        
+             128 |                                         0        
+
+   311496  java/util/concurrent/locks/ReentrantLock$NonfairSync
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 16       
+              32 |                                         0        
+
+   311496  sun/security/action/GetPropertyAction             
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 17       
+              32 |                                         0        
+
+   311496  java/io/ObjectStreamField                         
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 10       
+              64 |                                         0        
+
+   311496  java/nio/HeapCharBuffer                           
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 11       
+              64 |                                         0        
+
+   311496  java/util/concurrent/ConcurrentHashMap$HashEntry  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 23       
+              32 |                                         0        
+
+   311496  java/lang/Thread                                  
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+             128 |                                         0        
+
+   311496  java/net/URL                                      
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 13       
+              64 |                                         0        
+
+   311496  java/util/HashMap                                 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 14       
+              64 |                                         0        
+
+   311496  java/util/LinkedHashMap$Entry                     
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 15       
+              64 |                                         0        
+
+   311496  [Ljava/util/concurrent/ConcurrentHashMap$HashEntry;
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            16       
+              32 |@@@@@@@                                  4        
+              64 |@@@@                                     2        
+             128 |                                         0        
+
+   311496  java/util/concurrent/ConcurrentHashMap$Segment    
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 16       
+              64 |                                         0        
+
+   311496  java/io/File                                      
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 37       
+              32 |                                         0        
+
+   311496  java/util/Locale                                  
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 19       
+              64 |                                         0        
+
+   311496  [Ljava/util/Hashtable$Entry;                      
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@             7        
+              64 |@@@@                                     1        
+             128 |@@@@                                     1        
+             256 |@@@@                                     1        
+             512 |                                         0        
+
+   311496  java/util/Hashtable$Entry                         
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 57       
+              32 |                                         0        
+
+   311496  [Ljava/util/HashMap$Entry;                        
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 17       
+             128 |                                         0        
+
+   311496  java/lang/StringBuilder                           
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 73       
+              32 |                                         0        
+
+   311496  [Ljava/lang/String;                               
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@                       26       
+              32 |@@@@@@@@@@@@@@@                          22       
+              64 |@@@@@@                                   9        
+             128 |                                         0        
+
+   311496  java/lang/reflect/Field                           
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 37       
+             128 |                                         0        
+
+   311496  [Ljava/lang/Object;                               
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     296      
+              32 |@@                                       18       
+              64 |                                         0        
+             128 |@                                        10       
+             256 |                                         1        
+             512 |                                         0        
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         1        
+            8192 |                                         0        
+
+   311496  java/lang/String                                  
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 931      
+              32 |                                         0        
+
+   311496  [S                                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@                            161      
+              32 |@@@@@@@@@@@@@@@@                         189      
+              64 |@@@@@@@                                  82       
+             128 |@@@                                      38       
+             256 |@                                        12       
+             512 |                                         4        
+            1024 |                                         0        
+
+   311496  [[I                                               
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@                     270      
+              32 |@@@@@@@@@@                               129      
+              64 |@@@@@@                                   85       
+             128 |@@@                                      34       
+             256 |@@                                       22       
+             512 |                                         1        
+            1024 |                                         0        
+
+   311496  java/lang/Class                                   
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 395      
+             128 |                                         0        
+
+   311496  [I                                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |                                         3        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           276      
+              64 |@@@@@@@@@                                87       
+             128 |                                         3        
+             256 |                                         1        
+             512 |                                         1        
+            1024 |                                         1        
+            2048 |                                         0        
+            4096 |                                         1        
+            8192 |                                         0        
+           16384 |                                         1        
+           32768 |                                         0        
+
+   311496  [B                                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@                                87       
+              32 |@@@@@@@@@@                               100      
+              64 |@@@@@@@@                                 83       
+             128 |@@@@@@@                                  71       
+             256 |@@@@@                                    47       
+             512 |@                                        14       
+            1024 |                                         0        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |                                         4        
+           16384 |                                         0        
+
+   311496  [C                                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@                               271      
+              32 |@@@@@@@@@@@@@@@@@@@@@                    573      
+              64 |@@@@@@                                   150      
+             128 |@@@                                      68       
+             256 |                                         8        
+             512 |                                         1        
+            1024 |                                         2        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |                                         0        
+           16384 |                                         3        
+           32768 |                                         0        
+
+Java object allocation count by pid and class,
+
+    PID     OBJS CLASS
+ 311496        1 [J
+ 311496        1 [Ljava/lang/OutOfMemoryError;
+ 311496        1 [Ljava/lang/StackTraceElement;
+ 311496        1 [Ljava/lang/ThreadGroup;
+ 311496        1 [Ljava/lang/ThreadLocal$ThreadLocalMap$Entry;
+ 311496        1 [Ljava/security/Principal;
+ 311496        1 [Ljava/security/cert/Certificate;
+ 311496        1 [Ljava/util/concurrent/ConcurrentHashMap$Segment;
+ 311496        1 java/io/BufferedInputStream
+ 311496        1 java/io/BufferedReader
+ 311496        1 java/io/Console$1
+ 311496        1 java/io/Console$1$1
+ 311496        1 java/io/DataInputStream
+ 311496        1 java/io/DeleteOnExitHook
+ 311496        1 java/io/File$1
+ 311496        1 java/io/FilePermissionCollection
+ 311496        1 java/io/FileReader
+ 311496        1 java/io/UnixFileSystem
+ 311496        1 java/lang/ApplicationShutdownHooks
+ 311496        1 java/lang/ArithmeticException
+ 311496        1 java/lang/ClassLoader$3
+ 311496        1 java/lang/ClassLoader$NativeLibrary
+ 311496        1 java/lang/Compiler$1
+ 311496        1 java/lang/NoSuchMethodError
+ 311496        1 java/lang/NullPointerException
+ 311496        1 java/lang/Runtime
+ 311496        1 java/lang/String$CaseInsensitiveComparator
+ 311496        1 java/lang/StringCoding$StringDecoder
+ 311496        1 java/lang/System$2
+ 311496        1 java/lang/SystemClassLoaderAction
+ 311496        1 java/lang/Terminator$1
+ 311496        1 java/lang/ThreadLocal$ThreadLocalMap
+ 311496        1 java/lang/ThreadLocal$ThreadLocalMap$Entry
+ 311496        1 java/lang/VirtualMachineError
+ 311496        1 java/lang/ref/Finalizer$FinalizerThread
+ 311496        1 java/lang/ref/Reference$Lock
+ 311496        1 java/lang/ref/Reference$ReferenceHandler
+ 311496        1 java/lang/reflect/Method
+ 311496        1 java/lang/reflect/ReflectAccess
+ 311496        1 java/lang/reflect/ReflectPermission
+ 311496        1 java/net/URLClassLoader$7
+ 311496        1 java/net/UnknownContentHandler
+ 311496        1 java/nio/charset/CoderResult$1
+ 311496        1 java/nio/charset/CoderResult$2
+ 311496        1 java/security/BasicPermissionCollection
+ 311496        1 java/security/CodeSource
+ 311496        1 java/security/Policy$UnsupportedEmptyCollection
+ 311496        1 java/security/PrivilegedActionException
+ 311496        1 java/security/ProtectionDomain
+ 311496        1 java/util/BitSet
+ 311496        1 java/util/Collections$EmptyList
+ 311496        1 java/util/Collections$EmptyMap
+ 311496        1 java/util/Collections$EmptySet
+ 311496        1 java/util/Collections$ReverseComparator
+ 311496        1 java/util/Collections$SynchronizedMap
+ 311496        1 java/util/HashMap$KeySet
+ 311496        1 java/util/Hashtable$EmptyEnumerator
+ 311496        1 java/util/Hashtable$EmptyIterator
+ 311496        1 java/util/IdentityHashMap
+ 311496        1 java/util/IdentityHashMap$KeySet
+ 311496        1 java/util/LinkedHashMap
+ 311496        1 java/util/LinkedHashMap$KeyIterator
+ 311496        1 java/util/LinkedHashSet
+ 311496        1 java/util/Properties
+ 311496        1 java/util/concurrent/ConcurrentHashMap
+ 311496        1 java/util/concurrent/atomic/AtomicInteger
+ 311496        1 java/util/concurrent/atomic/AtomicReferenceFieldUpdater$AtomicReferenceFieldUpdaterImpl
+ 311496        1 java/util/jar/JarFile
+ 311496        1 java/util/jar/JarFile$JarFileEntry
+ 311496        1 java/util/jar/JavaUtilJarAccessImpl
+ 311496        1 java/util/zip/Inflater
+ 311496        1 java/util/zip/ZipEntry
+ 311496        1 java/util/zip/ZipFile$1
+ 311496        1 java/util/zip/ZipFile$ZipFileInputStream
+ 311496        1 sun/misc/FileURLMapper
+ 311496        1 sun/misc/Launcher
+ 311496        1 sun/misc/Launcher$AppClassLoader
+ 311496        1 sun/misc/Launcher$AppClassLoader$1
+ 311496        1 sun/misc/Launcher$ExtClassLoader
+ 311496        1 sun/misc/Launcher$ExtClassLoader$1
+ 311496        1 sun/misc/Launcher$Factory
+ 311496        1 sun/misc/SoftCache
+ 311496        1 sun/misc/URLClassPath$FileLoader
+ 311496        1 sun/misc/URLClassPath$FileLoader$1
+ 311496        1 sun/misc/URLClassPath$JarLoader$1
+ 311496        1 sun/misc/Unsafe
+ 311496        1 sun/net/www/MessageHeader
+ 311496        1 sun/net/www/protocol/file/FileURLConnection
+ 311496        1 sun/net/www/protocol/file/Handler
+ 311496        1 sun/nio/cs/StandardCharsets
+ 311496        1 sun/nio/cs/StandardCharsets$Aliases
+ 311496        1 sun/nio/cs/StandardCharsets$Cache
+ 311496        1 sun/nio/cs/StandardCharsets$Classes
+ 311496        1 sun/nio/cs/StreamDecoder
+ 311496        1 sun/nio/cs/US_ASCII
+ 311496        1 sun/reflect/ReflectionFactory
+ 311496        1 sun/reflect/ReflectionFactory$1
+ 311496        2 [Ljava/io/File;
+ 311496        2 [Ljava/lang/Thread;
+ 311496        2 [Ljava/lang/reflect/Constructor;
+ 311496        2 [Ljava/net/URL;
+ 311496        2 java/io/BufferedOutputStream
+ 311496        2 java/io/BufferedWriter
+ 311496        2 java/io/ExpiringCache
+ 311496        2 java/io/ExpiringCache$1
+ 311496        2 java/io/FileOutputStream
+ 311496        2 java/io/FilePermission
+ 311496        2 java/io/FilePermission$1
+ 311496        2 java/io/OutputStreamWriter
+ 311496        2 java/io/PrintStream
+ 311496        2 java/lang/Class$1
+ 311496        2 java/lang/ClassNotFoundException
+ 311496        2 java/lang/Shutdown$Lock
+ 311496        2 java/lang/ThreadGroup
+ 311496        2 java/lang/ref/ReferenceQueue
+ 311496        2 java/lang/ref/ReferenceQueue$Null
+ 311496        2 java/lang/ref/WeakReference
+ 311496        2 java/net/URLClassLoader$1
+ 311496        2 java/nio/ByteOrder
+ 311496        2 java/nio/charset/CoderResult
+ 311496        2 java/security/Permissions
+ 311496        2 java/util/AbstractList$Itr
+ 311496        2 java/util/HashSet
+ 311496        2 java/util/IdentityHashMap$KeyIterator
+ 311496        2 java/util/StringTokenizer
+ 311496        2 sun/misc/NativeSignalHandler
+ 311496        2 sun/misc/URLClassPath
+ 311496        2 sun/net/www/protocol/jar/Handler
+ 311496        2 sun/nio/cs/StreamEncoder
+ 311496        2 sun/nio/cs/Surrogate$Parser
+ 311496        2 sun/nio/cs/US_ASCII$Encoder
+ 311496        2 sun/reflect/DelegatingConstructorAccessorImpl
+ 311496        2 sun/reflect/NativeConstructorAccessorImpl
+ 311496        3 java/io/FileInputStream
+ 311496        3 java/lang/Boolean
+ 311496        3 java/lang/Class$3
+ 311496        3 java/lang/Integer
+ 311496        3 java/lang/RuntimePermission
+ 311496        3 java/lang/ThreadLocal
+ 311496        3 java/nio/charset/CodingErrorAction
+ 311496        3 java/util/Stack
+ 311496        3 sun/misc/Signal
+ 311496        4 [Ljava/lang/annotation/Annotation;
+ 311496        4 [Ljava/lang/reflect/Field;
+ 311496        4 java/lang/ref/ReferenceQueue$Lock
+ 311496        4 java/lang/reflect/Constructor
+ 311496        4 sun/misc/MetaIndex
+ 311496        4 sun/nio/cs/US_ASCII$Decoder
+ 311496        4 sun/reflect/ReflectionFactory$GetReflectionFactoryAction
+ 311496        5 java/io/FileDescriptor
+ 311496        5 sun/misc/URLClassPath$JarLoader
+ 311496        6 java/lang/Thread
+ 311496        6 java/nio/HeapByteBuffer
+ 311496        6 java/util/Hashtable
+ 311496        6 sun/misc/URLClassPath$3
+ 311496        7 java/lang/ref/SoftReference
+ 311496        8 [Ljava/io/ObjectStreamField;
+ 311496        8 java/lang/OutOfMemoryError
+ 311496        8 java/lang/ref/Finalizer
+ 311496        8 java/util/ArrayList
+ 311496        8 java/util/Vector
+ 311496        9 java/lang/StringBuffer
+ 311496       10 [Ljava/util/Hashtable$Entry;
+ 311496       10 java/io/ObjectStreamField
+ 311496       10 java/security/AccessControlContext
+ 311496       11 java/net/Parts
+ 311496       11 java/nio/HeapCharBuffer
+ 311496       12 [Ljava/lang/Class;
+ 311496       12 java/io/ExpiringCache$Entry
+ 311496       13 java/net/URL
+ 311496       14 java/util/HashMap
+ 311496       15 java/util/HashMap$Entry
+ 311496       15 java/util/LinkedHashMap$Entry
+ 311496       16 java/lang/Object
+ 311496       16 java/util/concurrent/ConcurrentHashMap$Segment
+ 311496       16 java/util/concurrent/locks/ReentrantLock$NonfairSync
+ 311496       17 [Ljava/util/HashMap$Entry;
+ 311496       17 sun/security/action/GetPropertyAction
+ 311496       19 java/util/Locale
+ 311496       22 [Ljava/util/concurrent/ConcurrentHashMap$HashEntry;
+ 311496       23 java/util/concurrent/ConcurrentHashMap$HashEntry
+ 311496       37 java/io/File
+ 311496       37 java/lang/reflect/Field
+ 311496       57 [Ljava/lang/String;
+ 311496       57 java/util/Hashtable$Entry
+ 311496       73 java/lang/StringBuilder
+ 311496      326 [Ljava/lang/Object;
+ 311496      374 [I
+ 311496      395 java/lang/Class
+ 311496      406 [B
+ 311496      486 [S
+ 311496      541 [[I
+ 311496      931 java/lang/String
+ 311496     1076 [C
+
+In the first section - Java object allocation byte distributions by PID and
+class, you can see in graphical form the range of sizes of each type of
+object.  For example: 
+
+   311496  [C                                                
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@                               271      
+              32 |@@@@@@@@@@@@@@@@@@@@@                    573      
+              64 |@@@@@@                                   150      
+             128 |@@@                                      68       
+             256 |                                         8        
+             512 |                                         1        
+            1024 |                                         2        
+            2048 |                                         0        
+            4096 |                                         0        
+            8192 |                                         0        
+           16384 |                                         3        
+           32768 |                                         0        
+
+shows that there were 271 objects of type [C and size 16 bytes to 31 bytes
+created.  It is important to pay close attention to the third column, 
+"count" as this will indicate if there were any instances in a particular 
+size, even if the number is too small to show up on the histogram scale. 
+
+In the second section - Java object allocation count by pid and class, you can
+easily see that there were 395 objects of java/lang/Class created, and 931 
+objects of java/lang/String.
+

@@ -1,0 +1,15 @@
+The following is a demonstration of the uname.d script,
+
+
+Here we run the usual "uname -a" command and compare the output to that
+given by the uname.d script,
+
+   # uname -a
+   SunOS jupiter 5.10 Generic i86pc i386 i86pc
+   
+   # ./uname-a.d
+   SunOS jupiter 5.10 Generic i86pc i386 i86pc
+
+The output is the same. uname-a.d is intended as a demonstration script,
+and as a starting point for other scripts.
+

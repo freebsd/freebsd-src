@@ -1,0 +1,47 @@
+.TH rb_malloc.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+rb_malloc.d - Ruby operations and libc malloc statistics.
+.SH SYNOPSIS
+.B rb_malloc.d
+{ \-p PID | \-c cmd }	
+.SH DESCRIPTION
+Filename and method names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Ruby provider, which may change 
+as additional features are introduced. Check Ruby/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B rb_malloc.d
+.PP
+.SH FIELDS
+.TP
+1
+Filename of the Ruby program
+.TP
+2
+Type of operation (method/objnew/startup)
+.TP
+3
+Name of operation
+.SH WARNING
+This script is not 100% accurate; This prints libc malloc() byte
+distributions by "recent" Ruby operation, which we hope will be usually
+relevant. This is an experimental script that may be improved over time.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+rb_malloc.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

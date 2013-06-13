@@ -1,0 +1,46 @@
+.TH runocc.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+runocc.d \- run queue occupancy by CPU. Uses DTrace.
+.SH SYNOPSIS
+.B runocc.d
+.SH DESCRIPTION
+This prints the dispatcher run queue occupancy by CPU each second.
+A consistant run queue occupancy is a sign of CPU saturation.
+
+The value is similar to that seen in "sar -q", however this is
+calculated in a more accurate manner - sampling at 1000 Hertz.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable.
+.SH EXAMPLES
+.TP
+Print %runocc by CPU every second,
+# 
+.B runocc.d
+.PP
+.SH FIELDS
+.TP
+CPU
+cpu ID
+.TP
+%runocc
+percent run queue occupancy, sampled at 1000 Hertz
+.PP
+.SH SEE ALSO
+Solaris Internals 2nd Ed, vol 2, CPU chapter
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+runocc.d will sample until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M)

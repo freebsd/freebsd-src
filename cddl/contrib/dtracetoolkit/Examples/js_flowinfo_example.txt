@@ -1,0 +1,42 @@
+Following are examples of js_flowinfo.d.
+
+This is a simple script to trace the flow of JavaScript functions.  Here it 
+traces the example program Code/JavaScript/func_clock.html
+
+# js_flowinfo.d
+  C    PID  DELTA(us)              FILE:LINE TYPE     -- FUNC
+  0  11651          2                 .:0    func     -> start
+  0  11651         75   func_clock.html:30   func       -> getElementById
+  0  11651         51   func_clock.html:-    func       <- getElementById
+  0  11651        479   func_clock.html:31   func       -> func_a
+  0  11651         25   func_clock.html:21   func         -> getElementById
+  0  11651         23   func_clock.html:-    func         <- getElementById
+  0  11651      30611   func_clock.html:25   func         -> func_b
+  0  11651         79   func_clock.html:13   func           -> getElementById
+  0  11651         51   func_clock.html:-    func           <- getElementById
+  0  11651      33922   func_clock.html:17   func           -> func_c
+  0  11651         75   func_clock.html:6    func             -> getElementById
+  0  11651         50   func_clock.html:-    func             <- getElementById
+  0  11651      50481   func_clock.html:-    func           <- func_c
+  0  11651         24   func_clock.html:-    func         <- func_b
+  0  11651         10   func_clock.html:-    func       <- func_a
+  0  11651         39   func_clock.html:32   func       -> setTimeout
+  0  11651        118   func_clock.html:-    func       <- setTimeout
+  0  11651         11   func_clock.html:-    func     <- start
+^C
+
+As each function is entered, the last column is indented by 2 spaces. This
+shows which function is calling which.
+
+The DELTA(us) column shows the change in time from the previous line to the
+current line.
+
+The FILE::LINE column shows which line in which file was being executed. Refer
+to the source program to see what this line refers to.
+
+If the output looks shuffled, check the CPU "C" column - if it changes,
+then the output is probably shuffled. See Notes/ALLsnoop_notes.txt for
+details and suggested workarounds.
+
+See Notes/ALLflow_notes.txt for important notes about reading flow outputs.
+

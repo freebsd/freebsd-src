@@ -1,0 +1,183 @@
+The following are examples of pl_syscolors.d.
+
+This is a simple script to trace the flow of Perl subroutines and system 
+calls made, and renders the output in color ("colour") using terminal
+escape sequences (which you can tweak by modifying the script).
+
+Here it traces the example program, Code/Perl/func_abc.pl.
+
+WARNING: This output is full of terminal escape sequences, so if you are
+trying to view this through an editor or web browser - it may look awful.
+Try viewing this using "more" (although, depending on your terminal, it
+still may look awful). 
+
+# pl_syscolors.d
+C    PID  DELTA(us)              FILE:LINE TYPE     -- NAME
+[2;32m0 305181          2                 ":-    syscall  -> munmap[0m
+[2;32m0 305181         33                 ":-    syscall  <- munmap[0m
+[2;32m0 305181         59                 ":-    syscall  -> mmap[0m
+[2;32m0 305181         18                 ":-    syscall  <- mmap[0m
+[2;32m0 305181         35                 ":-    syscall  -> setcontext[0m
+[2;32m0 305181          8                 ":-    syscall  <- setcontext[0m
+[2;32m0 305181          8                 ":-    syscall  -> getrlimit[0m
+[2;32m0 305181          9                 ":-    syscall  <- getrlimit[0m
+[2;32m0 305181          8                 ":-    syscall  -> getpid[0m
+[2;32m0 305181          7                 ":-    syscall  <- getpid[0m
+[2;32m0 305181         64                 ":-    syscall  -> setcontext[0m
+[2;32m0 305181          6                 ":-    syscall  <- setcontext[0m
+[2;32m0 305181        137                 ":-    syscall  -> sigpending[0m
+[2;32m0 305181          8                 ":-    syscall  <- sigpending[0m
+[2;32m0 305181       1148                 ":-    syscall  -> sysi86[0m
+[2;32m0 305181         11                 ":-    syscall  <- sysi86[0m
+[2;32m0 305181        105                 ":-    syscall  -> open64[0m
+[2;32m0 305181         96                 ":-    syscall  <- open64[0m
+[2;32m0 305181         13                 ":-    syscall  -> ioctl[0m
+[2;32m0 305181         18                 ":-    syscall  <- ioctl[0m
+[2;32m0 305181         14                 ":-    syscall  -> close[0m
+[2;32m0 305181         14                 ":-    syscall  <- close[0m
+[2;32m0 305181        123                 ":-    syscall  -> sigaction[0m
+[2;32m0 305181          9                 ":-    syscall  <- sigaction[0m
+[2;32m0 305181         49                 ":-    syscall  -> brk[0m
+[2;32m0 305181          9                 ":-    syscall  <- brk[0m
+[2;32m0 305181          8                 ":-    syscall  -> brk[0m
+[2;32m0 305181         16                 ":-    syscall  <- brk[0m
+[2;32m0 305181         63                 ":-    syscall  -> brk[0m
+[2;32m0 305181          7                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          8                 ":-    syscall  <- brk[0m
+[2;32m0 305181         43                 ":-    syscall  -> brk[0m
+[2;32m0 305181          7                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          8                 ":-    syscall  <- brk[0m
+[2;32m0 305181        141                 ":-    syscall  -> brk[0m
+[2;32m0 305181          7                 ":-    syscall  <- brk[0m
+[2;32m0 305181          8                 ":-    syscall  -> brk[0m
+[2;32m0 305181          9                 ":-    syscall  <- brk[0m
+[2;32m0 305181         24                 ":-    syscall  -> brk[0m
+[2;32m0 305181          7                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          8                 ":-    syscall  <- brk[0m
+[2;32m0 305181         30                 ":-    syscall  -> getuid[0m
+[2;32m0 305181          7                 ":-    syscall  <- getuid[0m
+[2;32m0 305181         10                 ":-    syscall  -> getuid[0m
+[2;32m0 305181          6                 ":-    syscall  <- getuid[0m
+[2;32m0 305181         10                 ":-    syscall  -> getgid[0m
+[2;32m0 305181          7                 ":-    syscall  <- getgid[0m
+[2;32m0 305181          9                 ":-    syscall  -> getgid[0m
+[2;32m0 305181          6                 ":-    syscall  <- getgid[0m
+[2;32m0 305181        117                 ":-    syscall  -> sysconfig[0m
+[2;32m0 305181          9                 ":-    syscall  <- sysconfig[0m
+[2;32m0 305181         19                 ":-    syscall  -> open64[0m
+[2;32m0 305181         59                 ":-    syscall  <- open64[0m
+[2;32m0 305181         15                 ":-    syscall  -> read[0m
+[2;32m0 305181         11                 ":-    syscall  <- read[0m
+[2;32m0 305181          8                 ":-    syscall  -> close[0m
+[2;32m0 305181          8                 ":-    syscall  <- close[0m
+[2;32m0 305181         34                 ":-    syscall  -> gtime[0m
+[2;32m0 305181          7                 ":-    syscall  <- gtime[0m
+[2;32m0 305181         34                 ":-    syscall  -> brk[0m
+[2;32m0 305181          7                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          9                 ":-    syscall  <- brk[0m
+[2;32m0 305181         44                 ":-    syscall  -> sysconfig[0m
+[2;32m0 305181          7                 ":-    syscall  <- sysconfig[0m
+[2;32m0 305181          9                 ":-    syscall  -> brk[0m
+[2;32m0 305181          6                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          8                 ":-    syscall  <- brk[0m
+[2;32m0 305181        145                 ":-    syscall  -> open64[0m
+[2;32m0 305181         16                 ":-    syscall  <- open64[0m
+[2;32m0 305181         16                 ":-    syscall  -> fcntl[0m
+[2;32m0 305181          7                 ":-    syscall  <- fcntl[0m
+[2;32m0 305181         10                 ":-    syscall  -> sigaction[0m
+[2;32m0 305181          7                 ":-    syscall  <- sigaction[0m
+[2;32m0 305181          8                 ":-    syscall  -> brk[0m
+[2;32m0 305181          7                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          9                 ":-    syscall  <- brk[0m
+[2;32m0 305181        104                 ":-    syscall  -> brk[0m
+[2;32m0 305181          7                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          8                 ":-    syscall  <- brk[0m
+[2;32m0 305181         88                 ":-    syscall  -> getpid[0m
+[2;32m0 305181          7                 ":-    syscall  <- getpid[0m
+[2;32m0 305181          8                 ":-    syscall  -> brk[0m
+[2;32m0 305181          6                 ":-    syscall  <- brk[0m
+[2;32m0 305181          7                 ":-    syscall  -> brk[0m
+[2;32m0 305181          8                 ":-    syscall  <- brk[0m
+[2;32m0 305181        105                 ":-    syscall  -> fstat64[0m
+[2;32m0 305181         10                 ":-    syscall  <- fstat64[0m
+[2;32m0 305181         16                 ":-    syscall  -> fstat64[0m
+[2;32m0 305181          7                 ":-    syscall  <- fstat64[0m
+[2;32m0 305181         25                 ":-    syscall  -> ioctl[0m
+[2;32m0 305181          8                 ":-    syscall  <- ioctl[0m
+[2;32m0 305181          7                 ":-    syscall  -> read[0m
+[2;32m0 305181         23                 ":-    syscall  <- read[0m
+[2;32m0 305181         18                 ":-    syscall  -> llseek[0m
+[2;32m0 305181          8                 ":-    syscall  <- llseek[0m
+[2;32m0 305181        126                 ":-    syscall  -> llseek[0m
+[2;32m0 305181          7                 ":-    syscall  <- llseek[0m
+[2;32m0 305181         34                 ":-    syscall  -> llseek[0m
+[2;32m0 305181          7                 ":-    syscall  <- llseek[0m
+[2;32m0 305181         30                 ":-    syscall  -> llseek[0m
+[2;32m0 305181          7                 ":-    syscall  <- llseek[0m
+[2;32m0 305181         12                 ":-    syscall  -> read[0m
+[2;32m0 305181          8                 ":-    syscall  <- read[0m
+[2;32m0 305181         11                 ":-    syscall  -> llseek[0m
+[2;32m0 305181          6                 ":-    syscall  <- llseek[0m
+[2;32m0 305181          7                 ":-    syscall  -> close[0m
+[2;32m0 305181          8                 ":-    syscall  <- close[0m
+[2;35m0 305181         27            func_a:15   sub      -> ./func_abc.pl[0m
+[2;32m0 305181         36                 ":-    syscall    -> ioctl[0m
+[2;32m0 305181          7                 ":-    syscall    <- ioctl[0m
+[2;32m0 305181          8                 ":-    syscall    -> fstat64[0m
+[2;32m0 305181          8                 ":-    syscall    <- fstat64[0m
+[2;32m0 305181          8                 ":-    syscall    -> brk[0m
+[2;32m0 305181          7                 ":-    syscall    <- brk[0m
+[2;32m0 305181          7                 ":-    syscall    -> brk[0m
+[2;32m0 305181          9                 ":-    syscall    <- brk[0m
+[2;32m0 305181         23                 ":-    syscall    -> fstat64[0m
+[2;32m0 305181          7                 ":-    syscall    <- fstat64[0m
+[2;32m0 305181         13                 ":-    syscall    -> gtime[0m
+[2;32m0 305181          7                 ":-    syscall    <- gtime[0m
+[2;32m0 305181         11                 ":-    syscall    -> nanosleep[0m
+[2;32m0 305181    1007250                 ":-    syscall    <- nanosleep[0m
+[2;32m0 305181         24                 ":-    syscall    -> gtime[0m
+[2;32m0 305181         15                 ":-    syscall    <- gtime[0m
+[2;35m0 305181         21            func_b:9    sub        -> ./func_abc.pl[0m
+[2;32m0 305181         27                 ":-    syscall      -> gtime[0m
+[2;32m0 305181          6                 ":-    syscall      <- gtime[0m
+[2;32m0 305181          8                 ":-    syscall      -> nanosleep[0m
+[2;32m0 305181    1009847                 ":-    syscall      <- nanosleep[0m
+[2;32m0 305181         24                 ":-    syscall      -> gtime[0m
+[2;32m0 305181         15                 ":-    syscall      <- gtime[0m
+[2;35m0 305181         21            func_c:4    sub          -> ./func_abc.pl[0m
+[2;32m0 305181         27                 ":-    syscall        -> gtime[0m
+[2;32m0 305181          6                 ":-    syscall        <- gtime[0m
+[2;32m0 305181          8                 ":-    syscall        -> nanosleep[0m
+Function A
+Function B
+Function C
+[2;32m0 305181    1009916                 ":-    syscall        <- nanosleep[0m
+[2;32m0 305181         24                 ":-    syscall        -> gtime[0m
+[2;32m0 305181         15                 ":-    syscall        <- gtime[0m
+[2;35m0 305181         20            func_c:4    sub          <- ./func_abc.pl[0m
+[2;35m0 305181         29            func_b:9    sub        <- ./func_abc.pl[0m
+[2;35m0 305181         12            func_a:15   sub      <- ./func_abc.pl[0m
+[2;32m0 305181         51                 ":-    syscall  -> schedctl[0m
+[2;32m0 305181         53                 ":-    syscall  <- schedctl[0m
+[2;32m0 305181         16                 ":-    syscall  -> setcontext[0m
+[2;32m0 305181          8                 ":-    syscall  <- setcontext[0m
+[2;32m0 305181         21                 ":-    syscall  -> write[0m
+[2;32m0 305181         97                 ":-    syscall  <- write[0m
+[2;32m0 305181         28                 ":-    syscall  -> open64[0m
+[2;32m0 305181        101                 ":-    syscall  <- open64[0m
+[2;32m0 305181          9                 ":-    syscall  -> ioctl[0m
+[2;32m0 305181         10                 ":-    syscall  <- ioctl[0m
+[2;32m0 305181         10                 ":-    syscall  -> close[0m
+[2;32m0 305181         15                 ":-    syscall  <- close[0m
+[2;32m0 305181         35                 ":-    syscall  -> rexit[0m
+
+If the colors don't suit you (or you'd rather HTML colored output), it
+should be trivial to modify the script to do so.
+

@@ -1,0 +1,40 @@
+The following is a demonstration of the dnlcstat command.
+
+
+Here we run dnlcstat with no options. It prints a line every second,
+
+   # dnlcstat
+   dnlc  %hit      hit     miss
+            0        0        0
+            0        0        0
+           93       95        7
+           89     1920      231
+           89     2130      243
+           91     2358      232
+           92     1476      124
+           92     1953      159
+           94     2416      134
+           94     1962      114
+           95     2113      101
+           97     1969       54
+           98     1489       26
+           41      564      786
+           40      622      913
+           35      520      952
+           27      937     2503
+           22     1696     5806
+           22      955     3281
+           21     1377     5059
+           31     2043     4516
+           22     1423     4968
+           13      550     3438
+            2       95     3810
+            0       58     6410
+            4      223     4433
+            4      198     4491
+            7      339     4383
+
+In another window, a "find /" was run. We can see the DNLC activity above,
+initially there are high hit rates in the DNLC - over 90%. Eventually
+the find command exhausts the DNLC, and the hit rate drops to below 10%. 
+

@@ -1,0 +1,48 @@
+.TH intbycpu.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+intbycpu.d \- interrupts by CPU. Uses DTrace.
+.SH SYNOPSIS
+.B intbycpu.d
+.SH DESCRIPTION
+intbycpu.d is based on a DTrace OneLiner to a report of the number of 
+interrupts by CPU.
+
+The intrstat(1M) command can be used for further analysis
+of interrputs.
+
+Docs/oneliners.txt and Docs/Examples/oneliners_examples.txt
+in the DTraceToolkit contain this as a oneliner that can be cut-n-paste
+to run.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the sdt provider interrupt probes.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B intbycpu.d
+.PP
+.SH FIELDS
+.TP
+CPU
+This is the CPU id.
+.TP
+INTERRUPTS
+This is the number of interrputs received in the sample.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+intbycpu.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+intrstat(1M), dtrace(1M)
+
