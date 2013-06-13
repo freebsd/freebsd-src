@@ -1,0 +1,59 @@
+The following are examples of sh_syscalls.d.
+
+This is a simple script to count Shell functions, built-ins, external command
+executions and system calls.  Here we trace an example program - 
+Code/Shell/func_abc.sh.
+
+# sh_syscalls.d -c ./func_abc.sh -o /tmp/out
+Function A
+Function B
+Function C
+
+# cat /tmp/out
+Tracing... Hit Ctrl-C to end.
+
+Calls for PID 12966,
+
+ FILE                             TYPE       NAME                      COUNT
+ func_abc.sh                      func       func_a                        1
+ func_abc.sh                      func       func_b                        1
+ func_abc.sh                      func       func_c                        1
+ func_abc.sh                      syscall    getrlimit                     1
+ func_abc.sh                      syscall    mmap                          1
+ func_abc.sh                      syscall    munmap                        1
+ func_abc.sh                      syscall    rexit                         1
+ func_abc.sh                      syscall    schedctl                      1
+ func_abc.sh                      syscall    sigaltstack                   1
+ func_abc.sh                      syscall    stat64                        1
+ func_abc.sh                      syscall    sysi86                        1
+ func_abc.sh                      syscall    access                        2
+ func_abc.sh                      syscall    fcntl                         2
+ func_abc.sh                      syscall    getgid                        2
+ func_abc.sh                      syscall    getpid                        2
+ func_abc.sh                      syscall    setcontext                    2
+ func_abc.sh                      syscall    sysconfig                     2
+ func_abc.sh                      builtin    echo                          3
+ func_abc.sh                      cmd        sleep                         3
+ func_abc.sh                      syscall    fork1                         3
+ func_abc.sh                      syscall    getuid                        3
+ func_abc.sh                      syscall    lwp_sigmask                   3
+ func_abc.sh                      syscall    open64                        3
+ func_abc.sh                      syscall    read                          3
+ func_abc.sh                      syscall    write                         3
+ func_abc.sh                      syscall    close                         5
+ func_abc.sh                      syscall    setpgrp                       5
+ func_abc.sh                      syscall    waitsys                       6
+ func_abc.sh                      syscall    brk                           9
+ func_abc.sh                      syscall    ioctl                        15
+ func_abc.sh                      syscall    sigaction                    53
+
+While tracing, three functions were called - func_a(), func_b() and
+func_c().  There were 3 instances of the shell built-in 'echo' being called,
+and 3 executions of the sleep command (which is probably /usr/bin/sleep - use
+the syscall provider to confirm). There were numerous system calls made, 
+including 9 brk()'s, 15 ioctl()'s and 53 sigaction()'s.
+
+This script can provide an insight to how a script is interacting
+with the system, by providing function calls, commands, built-ins and system 
+calls in the same output.
+

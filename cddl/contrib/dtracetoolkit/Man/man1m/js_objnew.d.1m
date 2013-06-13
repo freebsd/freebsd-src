@@ -1,0 +1,46 @@
+.TH js_objnew.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+js_objnew.d - count JavaScript object creation using DTrace.
+.SH SYNOPSIS
+.B js_objnew.d
+
+.SH DESCRIPTION
+This traces JavaScript activity from all browsers running on the system
+with JavaScript provider support.
+
+Filename and class names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace JavaScript provider, which may change 
+as additional features are introduced. Check JavaScript/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B js_objnew.d
+.PP
+.SH FIELDS
+.TP
+FILE
+Filename of the JavaScript program
+.TP
+CLASS
+Class of new object
+.TP
+COUNT
+Number of object creations during tracing
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+js_objnew.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

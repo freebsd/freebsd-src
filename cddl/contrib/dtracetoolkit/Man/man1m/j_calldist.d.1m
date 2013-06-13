@@ -1,0 +1,48 @@
+.TH j_calldist.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+j_calldist.d - measure Java elapsed times for different types of operation.
+.SH SYNOPSIS
+.B j_calldist.d
+[top]	
+.SH DESCRIPTION
+This traces activity from all Java processes on the system with hotspot
+provider support (1.6.0). Method calls are only visible when using the
+flag "+ExtendedDTraceProbes". eg, java -XX:+ExtendedDTraceProbes classfile
+
+The "top" optional argument will truncate the output for each report
+section to that many lines, with a default of 10.
+.SH OS
+Solaris
+.SH STABILITY
+Evolving - uses the DTrace hotspot provider, which may change 
+as additional features are introduced. Check Java/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B j_calldist.d
+.PP
+.SH FIELDS
+.TP
+1
+Process ID
+.TP
+2
+Type of call (method/gc)
+.TP
+3
+Name of call
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+j_calldist.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

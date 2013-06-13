@@ -1,0 +1,90 @@
+This is an example of the errinfo program, which prints details on syscall
+failures.
+
+By default it "snoops" syscall failures and prints their details,
+
+   # ./errinfo
+               EXEC          SYSCALL  ERR  DESC
+        wnck-applet             read   11  Resource temporarily unavailable
+               Xorg             read   11  Resource temporarily unavailable
+           nautilus             read   11  Resource temporarily unavailable
+               Xorg             read   11  Resource temporarily unavailable
+               dsdm             read   11  Resource temporarily unavailable
+               Xorg             read   11  Resource temporarily unavailable
+               Xorg          pollsys    4  interrupted system call
+        mozilla-bin         lwp_park   62  timer expired
+   gnome-netstatus-            ioctl   12  Not enough core
+        mozilla-bin         lwp_park   62  timer expired
+               Xorg             read   11  Resource temporarily unavailable
+        mozilla-bin         lwp_park   62  timer expired
+   [...]
+
+which is useful to see these events live, but can scroll off the screen
+somewhat rapidly.. so,
+
+
+
+The "-c" option will count the number of errors. Hit Ctrl-C to stop the 
+sample. For example,
+
+# ./errinfo -c
+Tracing... Hit Ctrl-C to end.
+^C
+            EXEC          SYSCALL  ERR  COUNT  DESC
+            nscd            fcntl   22      1  Invalid argument
+    xscreensaver             read   11      1  Resource temporarily unavailable
+           inetd         lwp_park   62      1  timer expired
+      svc.startd         lwp_park   62      1  timer expired
+     svc.configd         lwp_park   62      1  timer expired
+          ttymon            ioctl   25      1  Inappropriate ioctl for device
+gnome-netstatus-            ioctl   12      2  Not enough core
+     mozilla-bin         lwp_kill    3      2  No such process
+     mozilla-bin          connect  150      5  operation now in progress
+      svc.startd           portfs   62      8  timer expired
+         java_vm    lwp_cond_wait   62      8  timer expired
+     soffice.bin             read   11      9  Resource temporarily unavailable
+  gnome-terminal             read   11     23  Resource temporarily unavailable
+     mozilla-bin             recv   11     26  Resource temporarily unavailable
+        nautilus             read   11     26  Resource temporarily unavailable
+gnome-settings-d             read   11     26  Resource temporarily unavailable
+   gnome-smproxy             read   11     34  Resource temporarily unavailable
+     gnome-panel             read   11     42  Resource temporarily unavailable
+            dsdm             read   11    112  Resource temporarily unavailable
+        metacity             read   11    128  Resource temporarily unavailable
+     mozilla-bin         lwp_park   62    133  timer expired
+            Xorg          pollsys    4    147  interrupted system call
+     wnck-applet             read   11    179  Resource temporarily unavailable
+     mozilla-bin             read   11    258  Resource temporarily unavailable
+            Xorg             read   11   1707  Resource temporarily unavailable
+
+Ok, so Xorg has received 1707 of the same type of error for the syscall read().
+
+
+
+The "-n" option lets us match on one type of process only. In the following
+we match processes that have the name "mozilla-bin",
+
+# ./errinfo -c -n mozilla-bin
+Tracing... Hit Ctrl-C to end.
+^C
+            EXEC          SYSCALL  ERR  COUNT  DESC
+     mozilla-bin      getpeername  134      1  Socket is not connected
+     mozilla-bin             recv   11      2  Resource temporarily unavailable
+     mozilla-bin         lwp_kill    3      2  No such process
+     mozilla-bin          connect  150      5  operation now in progress
+     mozilla-bin         lwp_park   62    207  timer expired
+     mozilla-bin             read   11    396  Resource temporarily unavailable
+
+
+
+The "-p" option lets us examine one PID only. The following example examines
+PID 1119,
+
+# ./errinfo -c -p 1119
+Tracing... Hit Ctrl-C to end.
+^C
+            EXEC          SYSCALL  ERR  COUNT  DESC
+            Xorg          pollsys    4     47  interrupted system call
+            Xorg             read   11    669  Resource temporarily unavailable
+
+

@@ -1,0 +1,197 @@
+The following are examples of seeksize.d.
+
+seeksize.d records disk head seek size for each operation by process.
+This allows up to identify processes that are causing "random" disk
+access and those causing "sequential" disk access.
+
+It is desirable for processes to be accesing the disks in large 
+sequential operations. By using seeksize.d and bitesize.d we can
+identify this behaviour.
+
+
+
+In this example we read through a large file by copying it to a 
+remote server. Most of the seek sizes are zero, indicating sequential
+access - and we would expect good performance from the disks
+under these conditions,
+
+# ./seeksize.d 
+Tracing... Hit Ctrl-C to end.
+^C
+
+   22349  scp /dl/sol-10-b63-x86-v1.iso mars:\0
+
+           value  ------------- Distribution ------------- count    
+              -1 |                                         0        
+               0 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   726      
+               1 |                                         0        
+               2 |                                         0        
+               4 |                                         0        
+               8 |@                                        13       
+              16 |                                         4        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         2        
+             256 |                                         3        
+             512 |                                         4        
+            1024 |                                         4        
+            2048 |                                         3        
+            4096 |                                         0        
+            8192 |                                         3        
+           16384 |                                         0        
+           32768 |                                         1        
+           65536 |                                         0        
+
+
+
+In this example we run find. The disk operations are fairly scattered,
+as illustrated below by the volume of non sequential reads,
+
+# ./seeksize.d 
+Tracing... Hit Ctrl-C to end.
+^C
+
+   22399  find /var/sadm/pkg/\0
+
+           value  ------------- Distribution ------------- count    
+              -1 |                                         0        
+               0 |@@@@@@@@@@@@@                            1475     
+               1 |                                         0        
+               2 |                                         44       
+               4 |@                                        77       
+               8 |@@@                                      286      
+              16 |@@                                       191      
+              32 |@                                        154      
+              64 |@@                                       173      
+             128 |@@                                       179      
+             256 |@@                                       201      
+             512 |@@                                       186      
+            1024 |@@                                       236      
+            2048 |@@                                       201      
+            4096 |@@                                       274      
+            8192 |@@                                       243      
+           16384 |@                                        154      
+           32768 |@                                        113      
+           65536 |@@                                       182      
+          131072 |@                                        81       
+          262144 |                                         0   
+
+
+
+
+I found the following interesting. This time I gzipp'd the large file.
+While zipping, the process is reading from one location and writing
+to another. One might expect that as the program toggles between
+reading from one location and writing to another, that often the
+distance would be the same (depending on where UFS puts the new file),
+ 
+# ./seeksize.d 
+Tracing... Hit Ctrl-C to end.
+^C
+
+   22368  gzip sol-10-b63-x86-v1.iso\0
+
+           value  ------------- Distribution ------------- count    
+              -1 |                                         0        
+               0 |@@@@@@@@@@@@                             353      
+               1 |                                         0        
+               2 |                                         0        
+               4 |                                         0        
+               8 |                                         7        
+              16 |                                         4        
+              32 |                                         2        
+              64 |                                         4        
+             128 |                                         14       
+             256 |                                         3        
+             512 |                                         3        
+            1024 |                                         5        
+            2048 |                                         1        
+            4096 |                                         0        
+            8192 |                                         3        
+           16384 |                                         1        
+           32768 |                                         1        
+           65536 |                                         1        
+          131072 |                                         1        
+          262144 |@@@@@@@@                                 249      
+          524288 |                                         1        
+         1048576 |                                         2        
+         2097152 |                                         1        
+         4194304 |                                         2        
+         8388608 |@@@@@@@@@@@@@@@@@@                       536      
+        16777216 |                                         0   
+
+
+
+
+The following example compares the operation of "find" with "tar".
+Both are reading from the same location, and we would expect that
+both programs would generally need to do the same number of seeks
+to navigate the direttory tree (depending on caching); and tar
+causing extra operations as it reads the file contents as well,
+
+# ./seeksize.d 
+Tracing... Hit Ctrl-C to end.
+^C
+
+     PID  CMD
+   22278  find /etc\0
+
+           value  ------------- Distribution ------------- count    
+              -1 |                                         0        
+               0 |@@@@@@@@@@@@@@@@@@@@                     251      
+               1 |                                         0        
+               2 |@                                        8        
+               4 |                                         5        
+               8 |@                                        10       
+              16 |@                                        10       
+              32 |@                                        10       
+              64 |@                                        9        
+             128 |@                                        11       
+             256 |@                                        14       
+             512 |@@                                       20       
+            1024 |@                                        10       
+            2048 |                                         6        
+            4096 |@                                        7        
+            8192 |@                                        10       
+           16384 |@                                        16       
+           32768 |@@                                       21       
+           65536 |@@                                       28       
+          131072 |@                                        7        
+          262144 |@                                        14       
+          524288 |                                         6        
+         1048576 |@                                        15       
+         2097152 |@                                        7        
+         4194304 |                                         0        
+
+
+   22282  tar cf /dev/null /etc\0
+
+           value  ------------- Distribution ------------- count    
+              -1 |                                         0        
+               0 |@@@@@@@@@@                               397      
+               1 |                                         0        
+               2 |                                         8        
+               4 |                                         14       
+               8 |                                         16       
+              16 |@                                        24       
+              32 |@                                        29       
+              64 |@@                                       99       
+             128 |@@                                       73       
+             256 |@@                                       78       
+             512 |@@@                                      109      
+            1024 |@@                                       62       
+            2048 |@@                                       69       
+            4096 |@@                                       73       
+            8192 |@@@                                      113      
+           16384 |@@                                       81       
+           32768 |@@@                                      111      
+           65536 |@@@                                      108      
+          131072 |@                                        49       
+          262144 |@                                        33       
+          524288 |                                         20       
+         1048576 |                                         13       
+         2097152 |                                         7        
+         4194304 |                                         5        
+         8388608 |@                                        30       
+        16777216 |                                         0  
+

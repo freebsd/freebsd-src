@@ -1,0 +1,34 @@
+.TH wpm.d 1m   "$Date:: 2007-09-12 #$" "USER COMMANDS"
+.SH NAME
+wpm.d - Measure words per minute of typing.
+.SH SYNOPSIS
+.B wpm.d
+commandname
+eg,
+wpm.d bash
+wpm.d vim
+.SH DESCRIPTION
+This script assumes that keystrokes arrive one at a time on STDIN. This
+isn't the case for all processes that read keyboard input (eg, sh).
+.SH OS
+Solaris
+.SH STABILITY
+stable - Written in DTrace (Solaris 10 3/05).
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B wpm.d
+.PP
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+wpm.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

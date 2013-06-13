@@ -1,0 +1,55 @@
+.TH creatbyproc.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+creatbyproc.d \- snoop creat()s by process name. Uses DTrace.
+.SH SYNOPSIS
+.B creatbyproc.d
+.SH DESCRIPTION
+creatbyproc.d is a DTrace OneLiner to print file creations as it 
+occurs, including the name of the process calling the open.
+
+This matches file creates from the creat() system call; not all 
+file creation occurs in this way, sometimes it is through open()
+with a O_CREAT flag, this script will not monitor that activity.
+
+Docs/oneliners.txt and Docs/Examples/oneliners_examples.txt
+in the DTraceToolkit contain this as a oneliner that can be cut-n-paste
+to run.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH EXAMPLES
+.TP
+This prints process names and new pathnames until Ctrl\-C is hit.
+# 
+.B creatbyproc.d
+.PP
+.SH FIELDS
+.TP
+CPU
+The CPU that recieved the event
+.TP
+ID
+A DTrace probe ID for the event
+.TP
+FUNCTION:NAME
+The DTrace probe name for the event
+.TP
+remaining fields
+The first is the name of the process, the second is the file pathname.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+creatbyproc.d will run forever until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M)
+

@@ -1,0 +1,19 @@
+The following is a demonstration of the loads.d script.
+
+
+Here we run both loads.d and the uptime command for comparison,
+
+   # uptime
+     1:30am  up 14 day(s),  2:27,  3 users,  load average: 3.52, 3.45, 3.05
+
+   # ./loads.d
+   2005 Jun 11 01:30:49,  load average: 3.52, 3.45, 3.05
+
+Both have returned the same load average, confirming that loads.d is
+behaving as expected.
+
+
+The point of loads.d is to demonstrate fetching the same data as uptime
+does, in the DTrace language. It is not intended as a replacement
+or substitute to the uptime(1) command.
+

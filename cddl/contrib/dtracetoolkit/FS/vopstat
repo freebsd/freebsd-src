@@ -1,0 +1,304 @@
+#!/usr/bin/sh
+#
+# vopstat - Trace the vnode interface.
+#           Written using DTrace (Solaris 10 3/05)
+#
+# Author: Richard McDougall
+#
+# $Id: vopstat 3 2007-08-01 10:50:08Z brendan $
+#
+# USAGE:	vopstat [-t] [/mountname]
+#
+#		vopstat		# default output, summary each 5 secs
+#		-t 		# trace activity as it occurs
+#
+# Example:
+#
+# ./vopstat
+# 
+# VOP Physical IO                                                   Count
+# fop_fsync                                                           236
+# 
+# VOP Count                                                         Count
+# fop_create                                                            1
+# fop_fid                                                               1
+# fop_lookup                                                            2
+# fop_access                                                            3
+# fop_read                                                              3
+# fop_poll                                                             11
+# fop_fsync                                                            31
+# fop_putpage                                                          32
+# fop_ioctl                                                           115
+# fop_write                                                           517
+# fop_rwlock                                                          520
+# fop_rwunlock                                                        520
+# fop_inactive                                                        529
+# fop_getattr                                                        1057
+# 
+# VOP Wall Time                                                  mSeconds
+# fop_fid                                                               0
+# fop_access                                                            0
+# fop_read                                                              0
+# fop_poll                                                              0
+# fop_lookup                                                            0
+# fop_create                                                            0
+# fop_ioctl                                                             0
+# fop_putpage                                                           1
+# fop_rwunlock                                                          1
+# fop_rwlock                                                            1
+# fop_inactive                                                          1
+# fop_getattr                                                           2
+# fop_write                                                            22
+# fop_fsync                                                           504
+# 
+# COPYRIGHT: Copyright (c) 2006 Richard McDougall
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Shell Wrapper Concept by Brendan Gregg
+#
+# 08-Jan-2006	Richard McDougall	Created this.
+# 23-Apr-2006	Brendan Gregg		Minor style tweaks.
+# 23-Apr-2006	   "      "		Last update.
+
+
+##############################
+# --- Process Arguments ---
+#
+
+### default variables
+opt_trace=0; opt_fs=0; opt_stats=1; opt_all=0
+
+### process options
+while getopts t name
+do
+	case $name in
+	t)	opt_trace=1 ;;
+	h|?)	cat <<-END >&2
+		USAGE: voptrace [-t] [/mountpoint]
+		        voptrace         # default output
+		                 -t      # trace
+		   eg,
+		        voptrace -t      # trace all file systems
+		        voptrace -t /tmp # trace /tmp
+		        voptrace  /tmp   # summary stats for /tmp
+		END
+		exit 1
+	esac
+done
+shift `expr $OPTIND - 1`
+filesys="$1"
+
+### option logic
+if [ $opt_trace -eq 1 ]; then
+	opt_stats=0
+fi
+if [ -z "$filesys" ]; then
+	opt_all=1
+fi
+
+#################################
+# --- Main Program, DTrace ---
+#
+/usr/sbin/dtrace -n '
+ /*
+  * Command line arguments
+  */
+ inline int OPT_fs 	= '$opt_fs';
+ inline int OPT_all 	= '$opt_all';
+ inline int OPT_trace 	= '$opt_trace';
+ inline int OPT_stats 	= '$opt_stats';
+ inline string FILESYS 	= "'$filesys'";
+ 
+ #pragma D option quiet
+
+ /*
+  * Print header
+  */
+ dtrace:::BEGIN 
+ {
+	last_event[""] = 0;
+
+	/* print main headers */
+	OPT_stats == 1 ?
+		printf("\033[H\033[2J") : 1;
+
+	OPT_trace == 1 ?
+		printf("%2s %-15s %-10s %51s %2s %8s %8s\n", 
+		    "", "Event", "Device", "Path", "RW", "Size", "Offset") : 1;
+	self->path = "";
+	self->trace = 0;
+ }
+
+ dtrace:::BEGIN
+ /OPT_trace == 1/
+ {
+	/* make D compiler happy */
+	@vop_iocnt[""] = count();
+	@vop_cnt[""]   = count();
+	@vop_time[""]  = sum(0);
+	trunc(@vop_iocnt);
+	trunc(@vop_cnt);
+	trunc(@vop_time);
+ }
+ 
+ fbt::fop_*:entry
+ {
+ 	self->trace = 0;
+
+ 	/* Get vp: fop_open has a pointer to vp */
+ 	this->vpp = (vnode_t **)arg0;
+ 	self->vp = (vnode_t *)arg0;
+ 	self->vp = probefunc == "fop_open" ? (vnode_t *)*this->vpp : self->vp;
+
+ 	/* And the containing vfs */
+         this->vfsp = self->vp ? self->vp->v_vfsp : 0;
+
+ 	/* And the paths for the vp and containing vfs */
+ 	this->vfsvp = this->vfsp ?
+	    (struct vnode *)((vfs_t *)this->vfsp)->vfs_vnodecovered : 0;
+ 	self->vfspath = this->vfsvp ? stringof(this->vfsvp->v_path) : "unknown";
+ 
+ 	/* Check if we should trace the root fs */
+ 	(OPT_all || 
+ 	    (FILESYS == "/" && this->vfsp &&
+ 	    (this->vfsp == `rootvfs))) ? self->trace = 1 : self->trace;
+ 
+ 	/* Check if we should trace the fs */
+ 	(OPT_all || (self->vfspath == FILESYS)) ? self->trace = 1 : self->trace;
+
+	self->vfspath = 0;
+ }
+ 
+ /*
+  * Trace the entry point to each fop
+  */ 
+ fbt::fop_*:entry
+ /self->trace/
+ {
+ 	self->path = (self->vp != NULL && self->vp->v_path) ?
+	    stringof(self->vp->v_path) : "unknown";
+ 
+ 	/* Some fops has the len in arg2 */
+ 	(probefunc == "fop_getpage" ||
+ 	 probefunc == "fop_putpage" ||
+ 	 probefunc == "fop_none") ? self->len = arg2 : 1; 
+ 
+ 	/* Some fops has the len in arg3 */
+ 	(probefunc == "fop_pageio" ||
+ 	 probefunc == "fop_none") ? self->len = arg3 : 1; 
+ 
+ 	/* Some fops has the len in arg4 */
+ 	(probefunc == "fop_addmap" ||
+ 	 probefunc == "fop_map" ||
+ 	 probefunc == "fop_delmap") ? self->len = arg4 : 1; 
+ 
+ 	/* Some fops has the offset in arg1 */
+ 	(probefunc == "fop_addmap" ||
+ 	 probefunc == "fop_map" ||
+ 	 probefunc == "fop_getpage" ||
+ 	 probefunc == "fop_putpage" ||
+ 	 probefunc == "fop_seek" ||
+ 	 probefunc == "fop_delmap") ? self->off = arg1 : 1; 
+ 
+ 	/* Some fops has the offset in arg3 */
+ 	(probefunc == "fop_close" ||
+ 	 probefunc == "fop_pageio") ? self->off = arg3 : 1; 
+ 
+ 	/* Some fops has the offset in arg4 */
+ 	probefunc == "fop_frlock" ? self->off = arg4 : 1; 
+ 
+ 	/* Some fops has the pathname in arg1 */
+ 	self->path = (probefunc == "fop_create" ||
+ 	 probefunc == "fop_mkdir" ||
+ 	 probefunc == "fop_rmdir" ||
+ 	 probefunc == "fop_remove" ||
+ 	 probefunc == "fop_lookup") ?
+ 	    strjoin(self->path, strjoin("/", stringof(arg1))) : self->path;
+ 
+	OPT_trace ?
+ 		printf("%2s %-15s %-10s %51s %2s %8d %8d\n", 
+ 		    "->", probefunc, "-", self->path, "-",
+		    self->len, self->off) : 1;
+
+ 	self->type = probefunc;
+ 	self->vop_entry[probefunc] = timestamp;
+ }
+ 
+ fbt::fop_*:return
+ /self->trace == 1/
+ {
+	OPT_trace ?
+ 		printf("%2s %-15s %-10s %51s %2s %8d %8d\n", 
+		    "<-", probefunc, "-", self->path, "-",
+		    self->len, self->off) : 1;
+
+	OPT_stats == 1 ?
+ 		@vop_time[probefunc] =
+			sum(timestamp - self->vop_entry[probefunc]) : 1;
+	OPT_stats == 1 ?
+ 		@vop_cnt[probefunc] = count() : 1;
+
+	self->path = 0;
+	self->len = 0;
+	self->off = 0;
+ }
+
+ fbt::fop_*:return
+ {
+	self->trace = 0;
+	self->type = 0;
+	self->vp = 0;
+ }
+ 
+ /* Capture any I/O within this fop */
+ io:::start
+ /self->trace/
+ {
+	OPT_stats == 1 ?
+ 		@vop_iocnt[self->type] = count() : 1;
+
+	OPT_trace == 1?
+	 	printf("%2s %-15s %-10s %51s %2s %8d %8u\n",
+		    "--", self->type, args[1]->dev_statname,
+		    self->path, args[0]->b_flags & B_READ ? "R" : "W",
+		    args[0]->b_bcount, args[0]->b_blkno) : 1;
+ }
+ 
+ profile:::tick-5s
+ /OPT_stats == 1/
+ {
+	/* Print top 20 only */
+ 	trunc(@vop_iocnt, 20);
+ 	trunc(@vop_time, 20);
+
+	/* Display microseconds */
+ 	normalize(@vop_time, 1000000);
+ 	printf("\033[H\033[2J");
+ 	printf("%-60s %10s\n", "VOP Physical IO", "Count");
+ 	printa("%-60s %10@d\n", @vop_iocnt);
+ 	printf("\n");
+ 	printf("%-60s %10s\n", "VOP Count", "Count");
+ 	printa("%-60s %10@d\n", @vop_cnt);
+ 	printf("\n");
+ 	printf("%-60s %10s\n", "VOP Wall Time", "mSeconds");
+ 	printa("%-60s %10@d\n", @vop_time);
+
+	/* Clear data */
+ 	trunc(@vop_iocnt);
+ 	trunc(@vop_cnt);
+ 	trunc(@vop_time);
+ }
+'

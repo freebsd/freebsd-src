@@ -1,0 +1,29 @@
+The following are examples of tcl_procflow.d.
+
+This is a simple script to trace the flow of Tcl procedures.
+
+Here it traces the example program, Code/Tcl/func_abc.tcl.
+
+# tcl_procflow.d
+  C    PID TIME(us)         -- PROCEDURE
+  0  16073 3904971507502    -> tclInit
+  0  16073 3904971509096    <- tclInit
+  0  16073 3904971509305    -> func_a
+  0  16073 3904972511039      -> func_b
+  0  16073 3904973521023        -> func_c
+  0  16073 3904974530998        <- func_c
+  0  16073 3904974531008      <- func_b
+  0  16073 3904974531014    <- func_a
+^C
+
+As each procedure starts, the third column is indented by 2 spaces. This
+shows which procedure is calling which - the output above begins with an init
+procedure and then shows that func_a began, and then called func_b.
+
+The columns are CPU, PID, Time since boot, indicator and procedure name.
+
+If the output looks shuffled, check the CPU "C" and "TIME" columns, and
+post sort based on TIME if necessary.
+
+See Notes/ALLflow_notes.txt for important notes about reading flow outputs.
+

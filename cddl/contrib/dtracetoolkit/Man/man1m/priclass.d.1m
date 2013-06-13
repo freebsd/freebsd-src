@@ -1,0 +1,66 @@
+.TH priclass.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+priclass.d \- priority distribution by scheduling class. Uses DTrace.
+.SH SYNOPSIS
+.B priclass.d
+.SH DESCRIPTION
+This is a simple DTrace script that samples at 1000 Hz the current
+thread's scheduling class and priority. A distribution plot is printed.
+
+With priorities, the higher the priority the better chance the thread
+has of being scheduled.
+
+This idea came from the script /usr/demo/dtrace/pri.d, which
+produces similar output for priority changes, not samples.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B priclass.d
+.PP
+.SH FIELDS
+.TP
+value
+process priority
+.TP
+count
+number of samples of at least this priority
+.PP
+.SH SCHEDULING CLASSES
+.TP
+TS
+time sharing
+.TP
+IA
+interactive
+.TP
+RT
+real time
+.TP
+SYS
+system
+.TP
+FSS
+fair share scheduler
+.PP
+.SH BASED ON
+/usr/demo/dtrace/pri.d
+.PP
+.SH DOCUMENTATION
+DTrace Guide "profile Provider" chapter (docs.sun.com)
+
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+priclass.d will sample until Ctrl\-C is hit.
+.SH SEE ALSO
+pridist.d(1M), dispadmin(1M), dtrace(1M)
+

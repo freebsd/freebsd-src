@@ -1,0 +1,42 @@
+The following is a demonstration of the lockbyproc.d script,
+
+   # lockbyproc.d
+   dtrace: description 'lockstat:::adaptive-block ' matched 1 probe
+   ^C
+   
+     pageout                                                       49438
+     mysql-test-run                                                96414
+     oracle                                                       149086
+     sched                                                        220601
+
+The above output shows that threads belonging to sched, the kernel, spent 
+a total of 220 microseconds waiting for an adaptive mutex lock.
+
+
+
+
+This example sampled for a longer interval,
+
+   # lockbyproc.d
+   dtrace: description 'lockstat:::adaptive-block ' matched 1 probe
+   ^C
+
+     init                                                         136228
+     java                                                         371896
+     oracle                                                       783402
+     sched                                                       2315779
+     mysqltest                                                   9428277
+     mysql-test-run                                             10093658
+     mysqld                                                     17412999
+     fsflush                                                    19676738
+
+Here we can see threads belonging to fsflush have spent a total of 19.7 ms 
+waiting for an adaptive mutex. Note: it's not easy to say that it means a
+19.7 ms delay in the completion of the fsflush program, as this value is 
+the sum of the block times across all the threads. So it is possible that 
+many threads were blocked at the same time, eg, it could have been 19 threads
+blocked during the same 1 ms.
+ 
+
+
+

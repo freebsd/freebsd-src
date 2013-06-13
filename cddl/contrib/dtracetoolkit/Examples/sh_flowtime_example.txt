@@ -1,0 +1,131 @@
+The following are examples of sh_flowtime.d.
+
+This is a simple script to trace the flow of Bourne shell functions,
+builtins and external commands. Here it traces the example program,
+Code/Shell/func_abc.sh.
+
+   # sh_flowtime.d 
+     C TIME(us)         FILE             DELTA(us) -- NAME
+     0 3060817866026    func_abc.sh              2 -> func_a
+     0 3060817866086    func_abc.sh             60   > echo
+     0 3060818871601    func_abc.sh        1005514   | sleep
+     0 3060818871639    func_abc.sh             38   -> func_b
+     0 3060818871684    func_abc.sh             44     > echo
+     0 3060819881597    func_abc.sh        1009912     | sleep
+     0 3060819881657    func_abc.sh             60     -> func_c
+     0 3060819881717    func_abc.sh             60       > echo
+     0 3060820891613    func_abc.sh        1009896       | sleep
+     0 3060820891661    func_abc.sh             47     <- func_c
+     0 3060820891675    func_abc.sh             14   <- func_b
+     0 3060820891683    func_abc.sh              7 <- func_a
+   ^C
+
+As each function is entered, the third column is indented by 2 spaces. This
+shows which function is calling who - the output above begins by showing that
+func_a() began, and then called func_b().
+
+The DELTA(us) column is interpreted as follows,
+
+	->              previous line to the start of this function
+	<-              previous line to the end of this function
+	>               previous line to the end of this builtin
+	|               previous line to the end of this command
+
+And so the above output shows that each sleep command is taking around 1.0
+seconds to execute.
+
+If the output looks shuffled, check the CPU "C" and "TIME" columns, and 
+post sort based on TIME if necessary.
+
+See Notes/ALLflow_notes.txt for important notes about reading flow outputs.
+
+
+
+The following traces the firefox start script.
+
+# sh_flowtime.d
+  C TIME(us)         FILE             DELTA(us) -- NAME
+  0 3060994282580    firefox                  2 > test
+  0 3060994286921    firefox               4341 > [
+  0 3060994286955    firefox                 34 > cd
+  0 3060994287014    firefox                 58 > [
+  0 3060994287059    firefox                 45 > [
+  0 3060994287227    firefox                167 > [
+  0 3060994293793    firefox                  2 > echo
+  0 3060994305759    firefox                  2 > echo
+  0 3060994309613    firefox              22385 > [
+  0 3060994309665    firefox                 52 > export
+  0 3060994309691    firefox                 25 -> moz_pis_startstop_scripts
+  0 3060994309752    firefox                 61   > export
+  0 3060994310199    firefox                447   > [
+  0 3060994314462    firefox               4262   -> moz_spc_verbose_echo
+  0 3060994314484    firefox                 22     > :
+  0 3060994314497    firefox                 12   <- moz_spc_verbose_echo
+  0 3060994322101    firefox               7604   > [
+  0 3060994322134    firefox                 33   -> moz_spc_verbose_echo
+  0 3060994322147    firefox                 12     > :
+  0 3060994322155    firefox                  7   <- moz_spc_verbose_echo
+  0 3060994322501    firefox                345   > [
+  0 3060994322518    firefox                 17   > [
+  0 3060994322578    firefox                 59   > [
+  0 3060994322641    firefox                 62   -> moz_spc_verbose_echo
+  0 3060994322650    firefox                  9     > :
+  0 3060994322656    firefox                  6   <- moz_spc_verbose_echo
+  0 3060994653794    firefox             331137   -> moz_spc_verbose_echo
+  0 3060994653826    firefox                 32     > :
+  0 3060994653839    firefox                 12   <- moz_spc_verbose_echo
+  0 3060994659534    firefox                  2 > [
+  0 3060994667539    firefox              13699   > [
+  0 3060994667604    firefox                 65   -> moz_spc_verbose_echo
+  0 3060994667617    firefox                 13     > :
+  0 3060994667625    firefox                  8   <- moz_spc_verbose_echo
+  0 3060994667653    firefox                 27   -> moz_spc_verbose_echo
+  0 3060994667661    firefox                  7     > :
+  0 3060994667668    firefox                  6   <- moz_spc_verbose_echo
+  0 3060994667675    firefox                  7   > .
+  0 3060994667725    firefox                 49   > [
+  0 3060994667732    firefox                  6 <- moz_pis_startstop_scripts
+  0 3060994667853    firefox                121 > [
+  0 3060994667881    firefox                 27 > [
+  0 3060994804329    run-mozilla.sh           2 > [
+  0 3060994804524    run-mozilla.sh         194 > break
+  0 3060994804560    run-mozilla.sh          36 > [
+  0 3060994804580    run-mozilla.sh          20 > shift
+  0 3060994804649    run-mozilla.sh          68 > [
+  0 3060994804710    run-mozilla.sh          61 > [
+  0 3060994804747    run-mozilla.sh          36 > [
+  0 3060994804889    run-mozilla.sh         142 > [
+  0 3060994804915    run-mozilla.sh          26 > export
+  0 3060994804952    run-mozilla.sh          36 > [
+  0 3060994804981    run-mozilla.sh          28 > [
+  0 3060994805093    run-mozilla.sh         112 > [
+  0 3060994805116    run-mozilla.sh          22 > export
+  0 3060994805160    run-mozilla.sh          44 > export
+  0 3060994805187    run-mozilla.sh          27 > [
+  0 3060994805215    run-mozilla.sh          27 -> moz_run_program
+  0 3060994805263    run-mozilla.sh          48   > [
+  0 3060994805283    run-mozilla.sh          19   -> moz_test_binary
+  0 3060994805314    run-mozilla.sh          31     > [
+  0 3060994805346    run-mozilla.sh          31     > [
+  0 3060994805358    run-mozilla.sh          12     > return
+  0 3060994805367    run-mozilla.sh           9   <- moz_test_binary
+  0 3060994805385    run-mozilla.sh          17   > [
+  0 3060994964498    run-mozilla.sh           2 > type
+  0 3060995520942    run-mozilla.sh      715556   > [
+  0 3060995520967    run-mozilla.sh          24   > [
+  0 3060995520987    run-mozilla.sh          20   > [
+  0 3061000622172    run-mozilla.sh     5101184   | /usr/lib/firefox/firefox-bin
+  0 3061000622221    run-mozilla.sh          49   > [
+  0 3061000622252    run-mozilla.sh          30   > [
+  0 3061000622266    run-mozilla.sh          14   > [
+  0 3061000622275    run-mozilla.sh           9 <- moz_run_program
+  0 3061000623686    firefox            5955805 | /usr/lib/firefox/run-mozilla.sh
+  0 3061000623793    firefox                106 -> moz_pis_startstop_scripts
+  0 3061000623864    firefox                 71   > export
+  0 3061000624108    firefox                244   > [
+  0 3061000624138    firefox                 30   > [
+  0 3061000624147    firefox                  8 <- moz_pis_startstop_scripts
+
+Points of latency during startup are visible in the output. For more details,
+see Examples/sh_flowinfo_example.txt.
+

@@ -1,0 +1,74 @@
+Who - Who the Contributers are
+
+   This is a record of contributors to the DTraceToolkit whose name isn't 
+   already mentioned (such as in the source of a script). 
+
+
+In alphabetical first-name order,
+
+Adam Leventhal
+	Location: CA, USA
+	Blog:     http://blogs.sun.com/ahl
+	wrote DTrace itself
+
+Ben Rockwood
+	Location: CA, USA
+	Website:  http://www.cuddletech.com
+	first encouraged the idea of DTrace oneliners
+
+Brendan Gregg
+	Location: Sydney, Australia
+	Website:  http://www.brendangregg.com
+	Email:    brendan.gregg@tpg.com.au (maybe, check the website above)
+	Blog:     http://bdgregg.blogspot.com
+	Notes:    Also see http://www.brendangregg.com/dtrace.html
+	created toolkit, tools, manpages, example docs, notes docs, testing
+
+Bryan Cantrill
+	Location: CA, USA
+	Blog:     http://blogs.sun.com/bmc
+	wrote DTrace itself
+
+David Rubio
+	technical advice
+
+James Dickens
+	Location: WI, USA
+	Blog:     http://uadmin.blogspot.com
+	tool ideas and testing
+
+Jonathan Adams
+	Blog:     http://blogs.sun.com/jwadams
+	wrote stacksize.d
+	
+Mike Shapiro
+	Location: CA, USA
+	Blog:     http://blogs.sun.com/mws
+	wrote DTrace itself
+
+Nathan Kroenert
+	Location: Sydney, Australia
+	thoughts on how to present tools
+
+Richard McDougall
+	Location: CA, USA
+	Website:  http://www.solarisinternals.com
+	Blog:     http://blogs.sun.com/rmc
+	wrote pfilestat, vopstat
+
+Ryan Matteson
+	Location: USA
+	Blog:     http://blogomatty.blogspot.com
+	tool ideas and testing
+
+Stefan Parvu
+	Blog:     http://stefanparvu.blogspot.com
+	suggestions, bug fixes, extensive testing
+
+unknown Sun people
+	wrote /usr/demo/dtrace tools, which some of the toolkit tools are
+	based on. See "BASED ON" in source or man page, or try the following,
+		cd Bin
+		grep 'BASED ON' *
+	for a list.
+

@@ -1,0 +1,44 @@
+.TH hotuser 1m   "$Date:: 2007-09-24 #$" "USER COMMANDS"
+.SH NAME
+hotuser - sample on-CPU user-level functions and libraries.
+.SH SYNOPSIS
+.B hotuser
+[\-hl] { \-c command | \-p PID }
+.SH DESCRIPTION
+This samples the on-CPU function at 1001 Hertz, for a simple yet
+effective user-level profiling tool for sampling exclusive function time.
+The output will identify which function is on the CPU the most - which
+is the hottest. See Notes/ALLexclusive_notes.txt for an explanation of
+exclusive time.
+.SH OS
+Solaris
+.SH STABILITY
+stable - Written using Perl and DTrace (Solaris 10 03/05)
+.SH EXAMPLES
+.TP
+Sample user functions from PID 81,
+# 
+.B hotuser
+\-p 81
+.TP
+Sample user libraries from PID 81,
+#
+.B hotuser
+\-lp 81
+.TP
+Sample Xorg,
+#
+.B hotuser
+`pgrep \-n Xorg`
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+hotuser will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M), hotkernel(1M)

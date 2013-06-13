@@ -1,0 +1,22 @@
+The following is a demonstration of the readbytes.d script,
+
+
+Here the readbytes.d script is run for a few seconds, then Ctrl-C is hit,
+
+   # readbytes.d
+   dtrace: description 'sysinfo:::readch ' matched 4 probes
+   ^C
+   
+     mozilla-bin                                                      16
+     gnome-smproxy                                                    64
+     metacity                                                         64
+     dsdm                                                             64
+     wnck-applet                                                      64
+     xscreensaver                                                     96
+     gnome-terminal                                                  900
+     ttymon                                                         5952
+     Xorg                                                          17544
+
+In this interval the Xorg command has successfully read 17.5 Kb, while
+ttymon has read 5952 bytes.
+

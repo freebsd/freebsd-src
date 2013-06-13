@@ -1,0 +1,17 @@
+The following is an example of running tcl_who.d.
+
+The output produces four fields of interest in tracing tcl calls by process.
+
+Here we see it running while Code/Tcl/func_slow.tcl and Code/Tcl/func_abc.tcl
+are executed.  
+# tcl_who.d
+Tracing... Hit Ctrl-C to end.
+^C
+      PID    UID  CALLS ARGS                                                   
+    16063    100     83 ./tclsh scripts/func_slow.tcl                          
+    16061    100     86 ./tclsh scripts/func_abc.tcl  
+
+CALLS is a measure of activity, and is a count of the procedures and commands
+that Tcl called.  The ARGS column shows the process name and arguments given
+for a particular PID in order to identify the particular Tcl code involved.
+

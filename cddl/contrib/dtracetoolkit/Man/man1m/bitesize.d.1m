@@ -1,0 +1,57 @@
+.TH bitesize.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+bitesize.d \- analyse disk I/O size by process. Uses DTrace.
+.SH SYNOPSIS
+.B bitesize.d
+.SH DESCRIPTION
+This produces a report for the size of disk events caused by
+processes. These are the disk events sent by the block I/O driver.
+
+If applications must use the disks, we generally prefer they do so
+sequentially with large I/O sizes, or larger "bites".
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the io provider.
+.SH EXAMPLES
+.TP
+Sample until Ctrl\-C is hit then print report,
+# 
+.B bitesize.d
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+CMD
+command and argument list
+.TP
+value
+size in bytes
+.TP
+count
+number of I/O operations
+.PP
+.SH NOTES
+The application may be requesting smaller sized operations, which
+are being rounded up to the nearest sector size or UFS block size.
+
+To analyse what the application is requesting, DTraceToolkit programs
+such as Proc/fddist may help.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+bitesize.d will sample until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+iosnoop(1M), seeksize(1M), dtrace(1M)
+

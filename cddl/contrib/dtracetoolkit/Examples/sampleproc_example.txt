@@ -1,0 +1,62 @@
+The following is an example of the sampleproc program.
+
+
+Here we run sampleproc for a few seconds on a workstation,
+
+   # ./sampleproc
+   Sampling at 100 hertz... Hit Ctrl-C to end.
+   ^C
+     PID CMD                       COUNT
+    1659 mozilla-bin                   3
+     109 nscd                          4
+    2197 prstat                       23
+    2190 setiathome                  421
+   
+     PID CMD                     PERCENT
+    1659 mozilla-bin                   0
+     109 nscd                          0
+    2197 prstat                        5
+    2190 setiathome                   93
+
+The first table shows a count of how many times each process was sampled
+on the CPU. The second table gives this as a percentage. 
+
+setiathome was on the CPU 421 times, which is 93% of the samples.
+
+
+
+
+The following is sampleproc running on a server with 4 CPUs. A bash shell
+is running in an infinate loop,
+
+   # ./sampleproc
+   Sampling at 100 hertz... Hit Ctrl-C to end.
+   ^C
+     PID CMD                       COUNT
+   10140 dtrace                        1
+   28286 java                          1
+   29345 esd                           2
+   29731 esd                           3
+       2 pageout                       4
+   29733 esd                           6
+   10098 bash                       1015
+       0 sched                      3028
+   
+     PID CMD                     PERCENT
+   10140 dtrace                        0
+   28286 java                          0
+   29345 esd                           0
+   29731 esd                           0
+       2 pageout                       0
+   29733 esd                           0
+   10098 bash                         24
+       0 sched                        74
+
+The bash shell was on the CPUs for 24% of the time, which is consistant 
+with a CPU bound single threaded application on a 4 CPU server.
+
+The above sample was around 10 seconds long. During this time, there were
+around 4000 samples (checking the COUNT column), this is due to
+4000 = CPUs (4) * Hertz (100) * Seconds (10).
+
+
