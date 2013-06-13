@@ -60,11 +60,11 @@ ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
-	int32_t nb;
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];
-	uint32_t newb, *bap, pref;
+	uint32_t nb, newb;
+	int32_t *bap, pref;
 	int osize, nsize, num, i, error;
 
 	*bpp = NULL;
@@ -165,8 +165,8 @@ ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
 		EXT2_LOCK(ump);
 		pref = ext2_blkpref(ip, lbn, indirs[0].in_off + 
 					     EXT2_NDIR_BLOCKS, &ip->i_db[0], 0);
-	        if ((error = ext2_alloc(ip, lbn, pref, 
-			(int)fs->e2fs_bsize, cred, &newb)))
+	        if ((error = ext2_alloc(ip, lbn, pref, fs->e2fs_bsize, cred,
+			&newb)))
 			return (error);
 		nb = newb;
 		bp = getblk(vp, indirs[1].in_lbn, fs->e2fs_bsize, 0, 0, 0);
