@@ -41,15 +41,15 @@ PROG=	${PROG_CXX}
 .endif
 
 .if defined(PROG)
+PROGNAME?=	${PROG}
 .if defined(SRCS)
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if target(beforelinking)
-${PROG}: ${OBJS} beforelinking
-.else
-${PROG}: ${OBJS}
+${PROG}: beforelinking
 .endif
+${PROG}: ${OBJS}
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
@@ -76,10 +76,9 @@ SRCS=	${PROG}.c
 OBJS=	${PROG}.o
 
 .if target(beforelinking)
-${PROG}: ${OBJS} beforelinking
-.else
-${PROG}: ${OBJS}
+${PROG}: beforelinking
 .endif
+${PROG}: ${OBJS}
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
@@ -90,7 +89,7 @@ ${PROG}: ${OBJS}
 .endif
 .endif
 
-.endif
+.endif # !defined(SRCS)
 
 .if	${MK_MAN} != "no" && !defined(MAN) && \
 	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
@@ -99,7 +98,7 @@ ${PROG}: ${OBJS}
 MAN=	${PROG}.1
 MAN1=	${MAN}
 .endif
-.endif
+.endif # defined(PROG)
 
 all: objwarn ${PROG} ${SCRIPTS}
 .if ${MK_MAN} != "no"
@@ -153,13 +152,8 @@ realinstall: _proginstall
 .ORDER: beforeinstall _proginstall
 _proginstall:
 .if defined(PROG)
-.if defined(PROGNAME)
 	${INSTALL} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
-.else
-	${INSTALL} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
-.endif
 .endif
 .endif	# !target(realinstall)
 
