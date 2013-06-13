@@ -111,7 +111,7 @@
 #define	CUE_CONFIG_IDX		0	/* config number 1 */
 #define	CUE_IFACE_IDX		0
 
-/* The interrupt endpoint is currently unused by the KLSI part. */
+/* The interrupt endpoint is currently unused by the CATC part. */
 enum {
 	CUE_BULK_DT_WR,
 	CUE_BULK_DT_RD,
