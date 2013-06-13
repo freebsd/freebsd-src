@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2005, 2009 Jeffrey Roberson <jeff@FreeBSD.org>
+ * Copyright (c) 2002-2005, 2009, 2013 Jeffrey Roberson <jeff@FreeBSD.org>
  * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
  * All rights reserved.
  *
@@ -45,12 +45,9 @@
  *  
  * The uma_slab_t may be embedded in a UMA_SLAB_SIZE chunk of memory or it may
  * be allocated off the page from a special slab zone.  The free list within a
- * slab is managed with a linked list of indices, which are 8 bit values.  If
- * UMA_SLAB_SIZE is defined to be too large I will have to switch to 16bit
- * values.  Currently on alpha you can get 250 or so 32 byte items and on x86
- * you can get 250 or so 16byte items.  For item sizes that would yield more
- * than 10% memory waste we potentially allocate a separate uma_slab_t if this
- * will improve the number of items per slab that will fit.  
+ * slab is managed with a bitmask.  For item sizes that would yield more than
+ * 10% memory waste we potentially allocate a separate uma_slab_t if this will
+ * improve the number of items per slab that will fit.  
  *
  * Other potential space optimizations are storing the 8bit of linkage in space
  * wasted between items due to alignment problems.  This may yield a much better
@@ -133,14 +130,9 @@
 /* 
  * I should investigate other hashing algorithms.  This should yield a low
  * number of collisions if the pages are relatively contiguous.
- *
- * This is the same algorithm that most processor caches use.
- *
- * I'm shifting and masking instead of % because it should be faster.
  */
 
-#define UMA_HASH(h, s) ((((unsigned long)s) >> UMA_SLAB_SHIFT) &	\
-    (h)->uh_hashmask)
+#define UMA_HASH(h, s) ((((uintptr_t)s) >> UMA_SLAB_SHIFT) & (h)->uh_hashmask)
 
 #define UMA_HASH_INSERT(h, s, mem)					\
 		SLIST_INSERT_HEAD(&(h)->uh_slab_hash[UMA_HASH((h),	\
@@ -234,10 +226,17 @@ struct uma_keg {
 };
 typedef struct uma_keg	* uma_keg_t;
 
-/* Page management structure */
+/*
+ * Free bits per-slab.
+ */
+#define	SLAB_SETSIZE	(PAGE_SIZE / UMA_SMALLEST_UNIT)
+BITSET_DEFINE(slabbits, SLAB_SETSIZE);
 
-/* Sorry for the union, but space efficiency is important */
-struct uma_slab_head {
+/*
+ * The slab structure manages a single contiguous allocation from backing
+ * store and subdivides it into individually allocatable items.
+ */
+struct uma_slab {
 	uma_keg_t	us_keg;			/* Keg we live in */
 	union {
 		LIST_ENTRY(uma_slab)	_us_link;	/* slabs in zone */
@@ -245,54 +244,30 @@ struct uma_slab_head {
 	} us_type;
 	SLIST_ENTRY(uma_slab)	us_hlink;	/* Link for hash table */
 	uint8_t		*us_data;		/* First item */
+	struct slabbits	us_free;		/* Free bitmask. */
+#ifdef INVARIANTS
+	struct slabbits	us_debugfree;		/* Debug bitmask. */
+#endif
 	uint16_t	us_freecount;		/* How many are free? */
 	uint8_t		us_flags;		/* Page flags see uma.h */
-	uint8_t		us_firstfree;		/* First free item index */
+	uint8_t		us_pad;			/* Pad to 32bits, unused. */
 };
 
-/* The standard slab structure */
-struct uma_slab {
-	struct uma_slab_head	us_head;	/* slab header data */
-	struct {
-		uint8_t		us_item;
-	} us_freelist[1];			/* actual number bigger */
-};
+#define	us_link	us_type._us_link
+#define	us_size	us_type._us_size
 
 /*
  * The slab structure for UMA_ZONE_REFCNT zones for whose items we
  * maintain reference counters in the slab for.
  */
 struct uma_slab_refcnt {
-	struct uma_slab_head	us_head;	/* slab header data */
-	struct {
-		uint8_t		us_item;
-		uint32_t	us_refcnt;
-	} us_freelist[1];			/* actual number bigger */
+	struct uma_slab		us_head;	/* slab header data */
+	uint32_t		us_refcnt[0];	/* Actually larger. */
 };
-
-#define	us_keg		us_head.us_keg
-#define	us_link		us_head.us_type._us_link
-#define	us_size		us_head.us_type._us_size
-#define	us_hlink	us_head.us_hlink
-#define	us_data		us_head.us_data
-#define	us_flags	us_head.us_flags
-#define	us_freecount	us_head.us_freecount
-#define	us_firstfree	us_head.us_firstfree
 
 typedef struct uma_slab * uma_slab_t;
 typedef struct uma_slab_refcnt * uma_slabrefcnt_t;
 typedef uma_slab_t (*uma_slaballoc)(uma_zone_t, uma_keg_t, int);
-
-
-/*
- * These give us the size of one free item reference within our corresponding
- * uma_slab structures, so that our calculations during zone setup are correct
- * regardless of what the compiler decides to do with padding the structure
- * arrays within uma_slab.
- */
-#define	UMA_FRITM_SZ	(sizeof(struct uma_slab) - sizeof(struct uma_slab_head))
-#define	UMA_FRITMREF_SZ	(sizeof(struct uma_slab_refcnt) -	\
-    sizeof(struct uma_slab_head))
 
 struct uma_klink {
 	LIST_ENTRY(uma_klink)	kl_link;
