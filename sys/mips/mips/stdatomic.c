@@ -30,11 +30,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/stdatomic.h>
 #include <sys/types.h>
 
 #ifdef _KERNEL
 #include "opt_global.h"
 #endif
+
+#if defined(__SYNC_ATOMICS)
 
 /*
  * Memory barriers.
@@ -48,7 +51,7 @@ __FBSDID("$FreeBSD$");
  */
 
 static inline void
-mips_sync(void)
+do_sync(void)
 {
 
 	__asm volatile (
@@ -94,7 +97,7 @@ round_to_word(void *ptr)
  */
 
 static inline void
-put_1(reg_t *r, uint8_t *offset_ptr, uint8_t val)
+put_1(reg_t *r, const uint8_t *offset_ptr, uint8_t val)
 {
 	size_t offset;
 
@@ -103,7 +106,7 @@ put_1(reg_t *r, uint8_t *offset_ptr, uint8_t val)
 }
 
 static inline uint8_t
-get_1(const reg_t *r, uint8_t *offset_ptr)
+get_1(const reg_t *r, const uint8_t *offset_ptr)
 {
 	size_t offset;
 
@@ -112,7 +115,7 @@ get_1(const reg_t *r, uint8_t *offset_ptr)
 }
 
 static inline void
-put_2(reg_t *r, uint16_t *offset_ptr, uint16_t val)
+put_2(reg_t *r, const uint16_t *offset_ptr, uint16_t val)
 {
 	size_t offset;
 	union {
@@ -127,7 +130,7 @@ put_2(reg_t *r, uint16_t *offset_ptr, uint16_t val)
 }
 
 static inline uint16_t
-get_2(const reg_t *r, uint16_t *offset_ptr)
+get_2(const reg_t *r, const uint16_t *offset_ptr)
 {
 	size_t offset;
 	union {
@@ -162,7 +165,7 @@ __sync_lock_test_and_set_##N(uintN_t *mem, uintN_t val)			\
 	negmask.v32 = 0xffffffff;					\
 	put_##N(&negmask, mem, 0);					\
 									\
-	mips_sync();							\
+	do_sync();							\
 	__asm volatile (						\
 		"1:"							\
 		"\tll	%0, %5\n"	/* Load old value. */		\
@@ -196,7 +199,7 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
 	put_##N(&posmask, mem, ~0);					\
 	negmask.v32 = ~posmask.v32;					\
 									\
-	mips_sync();							\
+	do_sync();							\
 	__asm volatile (						\
 		"1:"							\
 		"\tll	%0, %7\n"	/* Load old value. */		\
@@ -231,7 +234,7 @@ __sync_##name##_##N(uintN_t *mem, uintN_t val)				\
 	put_##N(&posmask, mem, ~0);					\
 	negmask.v32 = ~posmask.v32;					\
 									\
-	mips_sync();							\
+	do_sync();							\
 	__asm volatile (						\
 		"1:"							\
 		"\tll	%0, %7\n"	/* Load old value. */		\
@@ -265,7 +268,7 @@ __sync_##name##_##N(uintN_t *mem, uintN_t val)				\
 	val32.v32 = idempotence ? 0xffffffff : 0x00000000;		\
 	put_##N(&val32, mem, val);					\
 									\
-	mips_sync();							\
+	do_sync();							\
 	__asm volatile (						\
 		"1:"							\
 		"\tll	%0, %4\n"	/* Load old value. */		\
@@ -294,7 +297,7 @@ __sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
 {
 	uint32_t old, temp;
 
-	mips_sync();
+	do_sync();
 	__asm volatile (
 		"1:"
 		"\tll	%0, %5\n"	/* Load old value. */
@@ -314,7 +317,7 @@ __sync_##name##_4(uint32_t *mem, uint32_t val)				\
 {									\
 	uint32_t old, temp;						\
 									\
-	mips_sync();							\
+	do_sync();							\
 	__asm volatile (						\
 		"1:"							\
 		"\tll	%0, %4\n"	/* Load old value. */		\
@@ -349,7 +352,7 @@ __sync_val_compare_and_swap_8(uint64_t *mem, uint64_t expected,
 {
 	uint64_t old, temp;
 
-	mips_sync();
+	do_sync();
 	__asm volatile (
 		"1:"
 		"\tlld	%0, %5\n"	/* Load old value. */
@@ -369,7 +372,7 @@ __sync_##name##_8(uint64_t *mem, uint64_t val)				\
 {									\
 	uint64_t old, temp;						\
 									\
-	mips_sync();							\
+	do_sync();							\
 	__asm volatile (						\
 		"1:"							\
 		"\tlld	%0, %4\n"	/* Load old value. */		\
@@ -389,3 +392,5 @@ EMIT_FETCH_AND_OP_8(fetch_and_sub, "dsubu %2, %0, %3")
 EMIT_FETCH_AND_OP_8(fetch_and_xor, "xor %2, %0, %3")
 
 #endif /* __mips_n32 || __mips_n64 */
+
+#endif /* __SYNC_ATOMICS */
