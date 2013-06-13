@@ -833,19 +833,15 @@ axe_attach_post(struct usb_ether *ue)
 	/* Initialize controller and get station address. */
 	if (sc->sc_flags & AXE_FLAG_178) {
 		axe_ax88178_init(sc);
-		sc->sc_tx_bufsz = 16 * 1024;
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772) {
 		axe_ax88772_init(sc);
-		sc->sc_tx_bufsz = 8 * 1024;
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772A) {
 		axe_ax88772a_init(sc);
-		sc->sc_tx_bufsz = 8 * 1024;
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772B) {
 		axe_ax88772b_init(sc);
-		sc->sc_tx_bufsz = 8 * 1024;
 	} else
 		axe_cmd(sc, AXE_172_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 
