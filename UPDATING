@@ -31,6 +31,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130613:
+	Some people report the following error after the switch to bmake:
+
+		make: illegal option -- J
+		usage: make [-BPSXeiknpqrstv] [-C directory] [-D variable]
+			...
+		*** [buildworld] Error code 2
+
+	this likely due to an old instance of make in
+	${MAKEPATH} (${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE})
+	which src/Makefile will use that blindly, if it exists, so if
+	you see the above error:
+
+		rm -rf `make -V MAKEPATH`
+
+	should resolve it.
+
 20130516:
 	Use bmake by default.
 	Whereas before one could choose to build with bmake via
