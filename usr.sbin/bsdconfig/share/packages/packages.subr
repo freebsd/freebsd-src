@@ -603,18 +603,53 @@ f_package_review()
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
 		$menu_list                         \
-		2> /dev/null
-	local retval=$?
+		2> /dev/null || return $?
+			# Return if the user pressed ESC or chose Cancel/No
 
 	#
-	# XXX
+	# Process each of the selected packages:
+	# + First, process dependencies.
+	# + Second, process packages marked for Install.
+	# + Third, process packages marked for Re-install.
+	# + Finally, process packages marked for Uninstall.
 	#
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "D" ] || continue
+		# XXX Install dependency
+		f_package_deselect "$package"
+	done
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "I" ] || continue
+		# XXX Install package
+		f_package_deselect "$package"
+	done
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "R" ] || continue
+		# XXX Re-install package
+		f_package_deselect "$package"
+	done
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "U" ] || continue
+		# XXX Uninstall package
+		f_package_deselect "$package"
+	done
+
+	# XXX
 	f_show_msg "Coming soon..."
-	#
-	# XXX
-	#
 
-	return $retval
+	return $SUCCESS
 }
 
 # f_package_config
