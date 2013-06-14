@@ -22,6 +22,10 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #ifndef _SYS_ZFS_CONTEXT_H
 #define	_SYS_ZFS_CONTEXT_H
@@ -88,6 +92,11 @@ extern "C" {
 #include <sys/u8_textprep.h>
 #include <sys/fm/util.h>
 #include <sys/sunddi.h>
+#ifdef illumos
+#include <sys/cyclic.h>
+#else	/* FreeBSD */
+#include <sys/callout.h>
+#endif
 
 #include <machine/stdarg.h>
 

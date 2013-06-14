@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2013
+.Dd March 21, 2013
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -64,6 +64,7 @@
 .Op Fl r
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem@snapname Ns | Ns Ar volume@snapname
+.Ar filesystem@snapname Ns | Ns Ar volume@snapname Ns ...
 .Nm
 .Cm rollback
 .Op Fl rRf
@@ -519,6 +520,39 @@ if the snapshot has been marked for deferred destroy by using the
 .Qq Nm Cm destroy -d
 command. Otherwise, the property is
 .Cm off .
+.It Sy logicalreferenced
+The amount of space that is
+.Qq logically
+accessible by this dataset.
+See the
+.Sy referenced
+property.
+The logical space ignores the effect of the
+.Sy compression
+and
+.Sy copies
+properties, giving a quantity closer to the amount of data that applications
+see.
+However, it does include space consumed by metadata.
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy lrefer .
+.It Sy logicalused
+The amount of space that is
+.Qq logically
+consumed by this dataset and all its descendents.
+See the
+.Sy used
+property.
+The logical space ignores the effect of the
+.Sy compression
+and
+.Sy copies
+properties, giving a quantity closer to the amount of data that applications
+see.
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy lused .
 .It Sy mounted
 For file systems, indicates whether the file system is currently mounted. This
 property can be either
@@ -1158,7 +1192,7 @@ When the
 .Sy sharenfs
 property is changed for a dataset, the
 .Xr mountd 8
-dameon is reloaded.
+daemon is reloaded.
 .It Sy logbias Ns = Ns Cm latency | throughput
 Provide a hint to
 .Tn ZFS
@@ -1575,7 +1609,11 @@ multiple snapshots.
 Destroy (or mark for deferred deletion) all snapshots with this name in
 descendent file systems.
 .It Fl R
-Recursively destroy all dependents.
+Recursively destroy all clones of these snapshots, including the clones,
+snapshots, and children.
+If this flag is specified, the
+.Op fl d
+flag will have no effect.
 .It Fl n
 Do a dry-run ("No-op") deletion. No data will be deleted. This is useful in
 conjunction with the
@@ -1603,17 +1641,18 @@ behavior for mounted file systems in use.
 .Op Fl r
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem@snapname Ns | Ns volume@snapname
+.Ar filesystem@snapname Ns | Ns volume@snapname Ns ...
 .Xc
 .Pp
-Creates a snapshot with the given name. All previous modifications by
-successful system calls to the file system are part of the snapshot. See the
+Creates snapshots with the given names. All previous modifications by
+successful system calls to the file system are part of the snapshots.
+Snapshots are taken atomically, so that all snapshots correspond to the same
+moment in time. See the
 .Qq Sx Snapshots
 section for details.
 .Bl -tag -width indent
 .It Fl r
-Recursively create snapshots of all descendent datasets. Snapshots are taken
-atomically, so that all recursive snapshots correspond to the same moment in
-time.
+Recursively create snapshots of all descendent datasets
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property; see
 .Qq Nm Cm create

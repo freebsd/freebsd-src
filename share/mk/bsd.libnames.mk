@@ -161,4 +161,5 @@ LIBY?=		${DESTDIR}${LIBDIR}/liby.a
 LIBYPCLNT?=	${DESTDIR}${LIBDIR}/libypclnt.a
 LIBZ?=		${DESTDIR}${LIBDIR}/libz.a
 LIBZFS?=	${DESTDIR}${LIBDIR}/libzfs.a
+LIBZFS_CORE?=	${DESTDIR}${LIBDIR}/libzfs_core.a
 LIBZPOOL?=	${DESTDIR}${LIBDIR}/libzpool.a
