@@ -153,7 +153,7 @@ struct m_ext2fs {
 	char     e2fs_fmod;       /* super block modified flag */
 	uint32_t e2fs_bsize;      /* Block size */
 	uint32_t e2fs_bshift;     /* calc of logical block no */
-	int32_t  e2fs_bpg;	  /* Number of blocks per group */
+	uint32_t e2fs_bpg;	  /* Number of blocks per group */
 	int64_t  e2fs_qbmask;     /* = s_blocksize -1 */
 	uint32_t e2fs_fsbtodb;    /* Shift to get disk block */
 	uint32_t e2fs_ipg;	  /* Number of inodes per group */
@@ -164,7 +164,7 @@ struct m_ext2fs {
 	uint32_t e2fs_fpg;	  /* Number of fragments per group */
 	uint32_t e2fs_gdbcount;   /* Number of group descriptors */
 	uint32_t e2fs_gcount;     /* Number of groups */
-	int32_t  e2fs_isize;      /* Size of inode */
+	uint32_t e2fs_isize;	  /* Size of inode */
 	uint32_t e2fs_total_dir;  /* Total number of directories */
 	uint8_t	*e2fs_contigdirs; /* (u) # of contig. allocated dirs */
 	char     e2fs_wasvalid;   /* valid at mount time */
