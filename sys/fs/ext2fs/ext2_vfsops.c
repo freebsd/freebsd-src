@@ -748,7 +748,7 @@ ext2_flushfiles(struct mount *mp, int flags, struct thread *td)
 	return (error);
 }
 /*
- * Get file system statistics.
+ * Get filesystem statistics.
  */
 int
 ext2_statfs(struct mount *mp, struct statfs *sbp)
@@ -853,7 +853,7 @@ loop:
 	}
 
 	/*
-	 * Force stale file system control information to be flushed.
+	 * Force stale filesystem control information to be flushed.
 	 */
 	if (waitfor != MNT_LAZY) {
 		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);

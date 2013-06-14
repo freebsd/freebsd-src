@@ -63,7 +63,7 @@ static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
 
 /*
- * Allocate a block in the file system.
+ * Allocate a block in the filesystem.
  *
  * A preference may be optionally specified. If a preference is given
  * the following hierarchy is used to allocate a block:
@@ -125,8 +125,8 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
         }
 nospace:
 	EXT2_UNLOCK(ump);
-	ext2_fserr(fs, cred->cr_uid, "file system full");
-	uprintf("\n%s: write failed, file system is full\n", fs->e2fs_fsmnt);
+	ext2_fserr(fs, cred->cr_uid, "filesystem full");
+	uprintf("\n%s: write failed, filesystem is full\n", fs->e2fs_fsmnt);
 	return (ENOSPC);
 }
 
@@ -338,7 +338,7 @@ fail:
 }
 
 /*
- * Allocate an inode in the file system.
+ * Allocate an inode in the filesystem.
  * 
  */
 int
@@ -1096,7 +1096,7 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 }
 
 /*
- * Fserr prints the name of a file system with an error diagnostic.
+ * Fserr prints the name of a filesystem with an error diagnostic.
  * 
  * The form of the error message is:
  *	fs: error message
