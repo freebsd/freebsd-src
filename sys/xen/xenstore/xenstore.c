@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/xen_intr.h>
 
 #include <xen/interface/hvm/params.h>
+#include <xen/hvm.h>
 
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xenstore/xenstore_internal.h>
