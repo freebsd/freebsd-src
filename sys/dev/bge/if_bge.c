@@ -1284,7 +1284,7 @@ bge_miibus_statchg(device_t dev)
 	/* Set MAC flow control behavior to match link flow control settings. */
 	tx_mode &= ~BGE_TXMODE_FLOWCTL_ENABLE;
 	rx_mode &= ~BGE_RXMODE_FLOWCTL_ENABLE;
-	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			tx_mode |= BGE_TXMODE_FLOWCTL_ENABLE;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
