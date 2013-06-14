@@ -43,7 +43,6 @@
 #define	ATH_ANT_DIV_COMB_ALT_ANT_RATIO		30
 #define	ATH_ANT_DIV_COMB_ALT_ANT_RATIO2		20
 
-#define	ATH_ANT_DIV_COMB_LNA1_LNA2_DELTA	-3
 #define	ATH_ANT_DIV_COMB_LNA1_LNA2_SWITCH_DELTA	-1
 #define	ATH_ANT_DIV_COMB_LNA1_DELTA_HI		-4
 #define	ATH_ANT_DIV_COMB_LNA1_DELTA_MID		-2
@@ -75,6 +74,7 @@ struct if_ath_ant_comb_state {
 	HAL_BOOL first_ratio;
 	HAL_BOOL second_ratio;
 	unsigned long scan_start_time;
+	int lna1_lna2_delta;
 };
 
 extern	int ath_lna_div_attach(struct ath_softc *sc);
