@@ -61,8 +61,9 @@ struct hhook {
 static MALLOC_DEFINE(M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
 
 LIST_HEAD(hhookheadhead, hhook_head);
-VNET_DEFINE(struct hhookheadhead, hhook_head_list);
-#define	V_hhook_head_list VNET(hhook_head_list)
+struct hhookheadhead hhook_head_list;
+VNET_DEFINE(struct hhookheadhead, hhook_vhead_list);
+#define	V_hhook_vhead_list VNET(hhook_vhead_list)
 
 static struct mtx hhook_head_list_lock;
 MTX_SYSINIT(hhookheadlistlock, &hhook_head_list_lock, "hhook_head list lock",
@@ -245,13 +246,6 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 		return (EEXIST);
 	}
 
-	/* XXXLAS: Need to implement support for non-virtualised hooks. */
-	if ((flags & HHOOK_HEADISINVNET) == 0) {
-		printf("%s: only vnet-style virtualised hooks can be used\n",
-		    __func__);
-		return (EINVAL);
-	}
-
 	tmphhh = malloc(sizeof(struct hhook_head), M_HHOOK,
 	    M_ZERO | ((flags & HHOOK_WAITOK) ? M_WAITOK : M_NOWAIT));
 
@@ -270,14 +264,15 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 	} else
 		refcount_init(&tmphhh->hhh_refcount, 0);
 
+	HHHLIST_LOCK();
 	if (flags & HHOOK_HEADISINVNET) {
 		tmphhh->hhh_flags |= HHH_ISINVNET;
-		HHHLIST_LOCK();
-		LIST_INSERT_HEAD(&V_hhook_head_list, tmphhh, hhh_next);
-		HHHLIST_UNLOCK();
-	} else {
-		/* XXXLAS: Add tmphhh to the non-virtualised list. */
+		KASSERT(curvnet != NULL, ("curvnet is NULL"));
+		tmphhh->hhh_vid = (uintptr_t)curvnet;
+		LIST_INSERT_HEAD(&V_hhook_vhead_list, tmphhh, hhh_vnext);
 	}
+	LIST_INSERT_HEAD(&hhook_head_list, tmphhh, hhh_next);
+	HHHLIST_UNLOCK();
 
 	return (0);
 }
@@ -290,6 +285,8 @@ hhook_head_destroy(struct hhook_head *hhh)
 	HHHLIST_LOCK_ASSERT();
 
 	LIST_REMOVE(hhh, hhh_next);
+	if (hhook_head_is_virtualised(hhh) == HHOOK_HEADISINVNET)
+		LIST_REMOVE(hhh, hhh_vnext);
 	HHH_WLOCK(hhh);
 	STAILQ_FOREACH_SAFE(tmp, &hhh->hhh_hooks, hhk_next, tmp2)
 		free(tmp, M_HHOOK);
@@ -347,10 +344,15 @@ hhook_head_get(int32_t hhook_type, int32_t hhook_id)
 {
 	struct hhook_head *hhh;
 
-	/* XXXLAS: Pick hhook_head_list based on hhook_head flags. */
 	HHHLIST_LOCK();
-	LIST_FOREACH(hhh, &V_hhook_head_list, hhh_next) {
+	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
 		if (hhh->hhh_type == hhook_type && hhh->hhh_id == hhook_id) {
+			if (hhook_head_is_virtualised(hhh) ==
+			    HHOOK_HEADISINVNET) {
+				KASSERT(curvnet != NULL, ("curvnet is NULL"));
+				if (hhh->hhh_vid != (uintptr_t)curvnet)
+					continue;
+			}
 			refcount_acquire(&hhh->hhh_refcount);
 			break;
 		}
@@ -412,7 +414,7 @@ static void
 hhook_vnet_init(const void *unused __unused)
 {
 
-	LIST_INIT(&V_hhook_head_list);
+	LIST_INIT(&V_hhook_vhead_list);
 }
 
 /*
@@ -429,7 +431,7 @@ hhook_vnet_uninit(const void *unused __unused)
 	 * subsystem should have already called hhook_head_deregister().
 	 */
 	HHHLIST_LOCK();
-	LIST_FOREACH_SAFE(hhh, &V_hhook_head_list, hhh_next, tmphhh) {
+	LIST_FOREACH_SAFE(hhh, &V_hhook_vhead_list, hhh_vnext, tmphhh) {
 		printf("%s: hhook_head type=%d, id=%d cleanup required\n",
 		    __func__, hhh->hhh_type, hhh->hhh_id);
 		hhook_head_destroy(hhh);
@@ -439,7 +441,7 @@ hhook_vnet_uninit(const void *unused __unused)
 
 
 /*
- * When a vnet is created and being initialised, init the V_hhook_head_list.
+ * When a vnet is created and being initialised, init the V_hhook_vhead_list.
  */
 VNET_SYSINIT(hhook_vnet_init, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST,
     hhook_vnet_init, NULL);
