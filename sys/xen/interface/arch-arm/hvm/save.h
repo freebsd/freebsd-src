@@ -1,6 +1,9 @@
-/******************************************************************************
- * protocols.h
- * 
+/*
+ * Structure definitions for HVM state that is held by Xen and must
+ * be saved along with the domain's memory and device-model state.
+ *
+ * Copyright (c) 2012 Citrix Systems Ltd.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -20,24 +23,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __XEN_PROTOCOLS_H__
-#define __XEN_PROTOCOLS_H__
-
-#define XEN_IO_PROTO_ABI_X86_32     "x86_32-abi"
-#define XEN_IO_PROTO_ABI_X86_64     "x86_64-abi"
-#define XEN_IO_PROTO_ABI_IA64       "ia64-abi"
-#define XEN_IO_PROTO_ABI_ARM        "arm-abi"
-
-#if defined(__i386__)
-# define XEN_IO_PROTO_ABI_NATIVE XEN_IO_PROTO_ABI_X86_32
-#elif defined(__x86_64__)
-# define XEN_IO_PROTO_ABI_NATIVE XEN_IO_PROTO_ABI_X86_64
-#elif defined(__ia64__)
-# define XEN_IO_PROTO_ABI_NATIVE XEN_IO_PROTO_ABI_IA64
-#elif defined(__arm__)
-# define XEN_IO_PROTO_ABI_NATIVE XEN_IO_PROTO_ABI_ARM
-#else
-# error arch fixup needed here
-#endif
+#ifndef __XEN_PUBLIC_HVM_SAVE_ARM_H__
+#define __XEN_PUBLIC_HVM_SAVE_ARM_H__
 
 #endif
+
+/*
+ * Local variables:
+ * mode: C
+ * c-set-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */
