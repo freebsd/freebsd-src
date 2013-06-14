@@ -83,10 +83,6 @@ static void xbd_startio(struct xbd_softc *sc);
 
 #define XBD_SECTOR_SHFT		9
 
-#define XBD_STATE_DISCONNECTED 0
-#define XBD_STATE_CONNECTED    1
-#define XBD_STATE_SUSPENDED    2
-
 /*---------------------------- Global Static Data ----------------------------*/
 static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
 
@@ -106,13 +102,14 @@ static void
 xbd_free_command(struct xbd_command *cm)
 {
 
-	KASSERT((cm->cm_flags & XBD_ON_XBDQ_MASK) == 0,
-	    ("Freeing command that is still on a queue\n"));
+	KASSERT((cm->cm_flags & XBDCF_Q_MASK) == XBD_Q_NONE,
+	    ("Freeing command that is still on queue %d.",
+	    cm->cm_flags & XBDCF_Q_MASK));
 
-	cm->cm_flags = 0;
+	cm->cm_flags = XBDCF_INITIALIZER;
 	cm->cm_bp = NULL;
 	cm->cm_complete = NULL;
-	xbd_enqueue_free(cm);
+	xbd_enqueue_cm(cm, XBD_Q_FREE);
 }
 
 static void
@@ -212,13 +209,13 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	gnttab_free_grant_references(cm->cm_gref_head);
 
-	xbd_enqueue_busy(cm);
+	xbd_enqueue_cm(cm, XBD_Q_BUSY);
 
 	/*
 	 * This flag means that we're probably executing in the busdma swi
 	 * instead of in the startio context, so an explicit flush is needed.
 	 */
-	if (cm->cm_flags & XBD_CMD_FROZEN)
+	if (cm->cm_flags & XBDCF_FROZEN)
 		xbd_flush_requests(sc);
 
 	return;
@@ -233,8 +230,8 @@ xbd_queue_request(struct xbd_softc *sc, struct xbd_command *cm)
 	    cm->cm_datalen, xbd_queue_cb, cm, 0);
 	if (error == EINPROGRESS) {
 		printf("EINPROGRESS\n");
-		sc->xbd_flags |= XBD_FROZEN;
-		cm->cm_flags |= XBD_CMD_FROZEN;
+		sc->xbd_flags |= XBDF_FROZEN;
+		cm->cm_flags |= XBDCF_FROZEN;
 		return (0);
 	}
 
@@ -259,14 +256,14 @@ xbd_bio_command(struct xbd_softc *sc)
 	struct xbd_command *cm;
 	struct bio *bp;
 
-	if (unlikely(sc->xbd_connected != XBD_STATE_CONNECTED))
+	if (unlikely(sc->xbd_state != XBD_STATE_CONNECTED))
 		return (NULL);
 
 	bp = xbd_dequeue_bio(sc);
 	if (bp == NULL)
 		return (NULL);
 
-	if ((cm = xbd_dequeue_free(sc)) == NULL) {
+	if ((cm = xbd_dequeue_cm(sc, XBD_Q_FREE)) == NULL) {
 		xbd_requeue_bio(sc, bp);
 		return (NULL);
 	}
@@ -277,8 +274,8 @@ xbd_bio_command(struct xbd_softc *sc)
 		    xbd_restart_queue_callback, sc,
 		    sc->xbd_max_request_segments);
 		xbd_requeue_bio(sc, bp);
-		xbd_enqueue_free(cm);
-		sc->xbd_flags |= XBD_FROZEN;
+		xbd_enqueue_cm(cm, XBD_Q_FREE);
+		sc->xbd_flags |= XBDF_FROZEN;
 		return (NULL);
 	}
 
@@ -307,15 +304,15 @@ xbd_startio(struct xbd_softc *sc)
 
 	mtx_assert(&sc->xbd_io_lock, MA_OWNED);
 
-	if (sc->xbd_connected != XBD_STATE_CONNECTED)
+	if (sc->xbd_state != XBD_STATE_CONNECTED)
 		return;
 
 	while (RING_FREE_REQUESTS(&sc->xbd_ring) >=
 	    sc->xbd_max_request_blocks) {
-		if (sc->xbd_flags & XBD_FROZEN)
+		if (sc->xbd_flags & XBDF_FROZEN)
 			break;
 
-		cm = xbd_dequeue_ready(sc);
+		cm = xbd_dequeue_cm(sc, XBD_Q_READY);
 
 		if (cm == NULL)
 		    cm = xbd_bio_command(sc);
@@ -374,7 +371,7 @@ xbd_int(void *xsc)
 
 	mtx_lock(&sc->xbd_io_lock);
 
-	if (unlikely(sc->xbd_connected == XBD_STATE_DISCONNECTED)) {
+	if (unlikely(sc->xbd_state == XBD_STATE_DISCONNECTED)) {
 		mtx_unlock(&sc->xbd_io_lock);
 		return;
 	}
@@ -387,7 +384,7 @@ xbd_int(void *xsc)
 		bret = RING_GET_RESPONSE(&sc->xbd_ring, i);
 		cm   = &sc->xbd_shadow[bret->id];
 
-		xbd_remove_busy(cm);
+		xbd_remove_cm(cm, XBD_Q_BUSY);
 		i += xbd_completion(cm);
 
 		if (cm->cm_operation == BLKIF_OP_READ)
@@ -404,7 +401,7 @@ xbd_int(void *xsc)
 		 * being freed as well.  It's a cheap assumption even when
 		 * wrong.
 		 */
-		sc->xbd_flags &= ~XBD_FROZEN;
+		sc->xbd_flags &= ~XBDF_FROZEN;
 
 		/*
 		 * Directly call the i/o complete routine to save an
@@ -432,8 +429,8 @@ xbd_int(void *xsc)
 
 	xbd_startio(sc);
 
-	if (unlikely(sc->xbd_connected == XBD_STATE_SUSPENDED))
-		wakeup(&sc->xbd_cm_busy);
+	if (unlikely(sc->xbd_state == XBD_STATE_SUSPENDED))
+		wakeup(&sc->xbd_cm_q[XBD_Q_BUSY]);
 
 	mtx_unlock(&sc->xbd_io_lock);
 }
@@ -448,13 +445,13 @@ xbd_quiesce(struct xbd_softc *sc)
 	int mtd;
 
 	// While there are outstanding requests
-	while (!TAILQ_EMPTY(&sc->xbd_cm_busy)) {
+	while (!TAILQ_EMPTY(&sc->xbd_cm_q[XBD_Q_BUSY].q_tailq)) {
 		RING_FINAL_CHECK_FOR_RESPONSES(&sc->xbd_ring, mtd);
 		if (mtd) {
 			/* Recieved request completions, update queue. */
 			xbd_int(sc);
 		}
-		if (!TAILQ_EMPTY(&sc->xbd_cm_busy)) {
+		if (!TAILQ_EMPTY(&sc->xbd_cm_q[XBD_Q_BUSY].q_tailq)) {
 			/*
 			 * Still pending requests, wait for the disk i/o
 			 * to complete.
@@ -469,7 +466,7 @@ static void
 xbd_dump_complete(struct xbd_command *cm)
 {
 
-	xbd_enqueue_complete(cm);
+	xbd_enqueue_cm(cm, XBD_Q_COMPLETE);
 }
 
 static int
@@ -496,7 +493,7 @@ xbd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 
 	/* Split the 64KB block as needed */
 	for (sbp=0; length > 0; sbp++) {
-		cm = xbd_dequeue_free(sc);
+		cm = xbd_dequeue_cm(sc, XBD_Q_FREE);
 		if (cm == NULL) {
 			mtx_unlock(&sc->xbd_io_lock);
 			device_printf(sc->xbd_dev, "dump: no more commands?\n");
@@ -519,7 +516,7 @@ xbd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 		cm->cm_sector_number = offset / dp->d_sectorsize;
 		cm->cm_complete = xbd_dump_complete;
 
-		xbd_enqueue_ready(cm);
+		xbd_enqueue_cm(cm, XBD_Q_READY);
 
 		length -= chunk;
 		offset += chunk;
@@ -534,7 +531,7 @@ xbd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	xbd_quiesce(sc);	/* All quite on the eastern front */
 
 	/* If there were any errors, bail out... */
-	while ((cm = xbd_dequeue_complete(sc)) != NULL) {
+	while ((cm = xbd_dequeue_cm(sc, XBD_Q_COMPLETE)) != NULL) {
 		if (cm->cm_status != BLKIF_RSP_OKAY) {
 			device_printf(sc->xbd_dev,
 			    "Dump I/O failed at sector %jd\n",
@@ -558,7 +555,7 @@ xbd_open(struct disk *dp)
 		return (ENXIO);
 	}
 
-	sc->xbd_flags |= XBD_OPEN;
+	sc->xbd_flags |= XBDF_OPEN;
 	sc->xbd_users++;
 	return (0);
 }
@@ -570,7 +567,7 @@ xbd_close(struct disk *dp)
 
 	if (sc == NULL)
 		return (ENXIO);
-	sc->xbd_flags &= ~XBD_OPEN;
+	sc->xbd_flags &= ~XBDF_OPEN;
 	if (--(sc->xbd_users) == 0) {
 		/*
 		 * Check whether we have been instructed to close.  We will
@@ -855,7 +852,7 @@ xbd_free(struct xbd_softc *sc)
 	
 	/* Prevent new requests being issued until we fix things up. */
 	mtx_lock(&sc->xbd_io_lock);
-	sc->xbd_connected = XBD_STATE_DISCONNECTED; 
+	sc->xbd_state = XBD_STATE_DISCONNECTED; 
 	mtx_unlock(&sc->xbd_io_lock);
 
 	/* Free resources associated with old device channel. */
@@ -878,9 +875,9 @@ xbd_free(struct xbd_softc *sc)
 
 		bus_dma_tag_destroy(sc->xbd_io_dmat);
 		
-		xbd_initq_free(sc);
-		xbd_initq_ready(sc);
-		xbd_initq_complete(sc);
+		xbd_initq_cm(sc, XBD_Q_FREE);
+		xbd_initq_cm(sc, XBD_Q_READY);
+		xbd_initq_cm(sc, XBD_Q_COMPLETE);
 	}
 		
 	if (sc->xbd_irq) {
@@ -1054,6 +1051,7 @@ xbd_initialize(struct xbd_softc *sc)
 		if (cm->cm_sg_refs == NULL)
 			break;
 		cm->cm_id = i;
+		cm->cm_flags = XBDCF_INITIALIZER;
 		cm->cm_sc = sc;
 		if (bus_dmamap_create(sc->xbd_io_dmat, 0, &cm->cm_map) != 0)
 			break;
@@ -1149,8 +1147,8 @@ xbd_connect(struct xbd_softc *sc)
 	unsigned int binfo;
 	int err, feature_barrier;
 
-	if ((sc->xbd_connected == XBD_STATE_CONNECTED) || 
-	    (sc->xbd_connected == XBD_STATE_SUSPENDED))
+	if (sc->xbd_state == XBD_STATE_CONNECTED || 
+	    sc->xbd_state == XBD_STATE_SUSPENDED)
 		return;
 
 	DPRINTK("blkfront.c:connect:%s.\n", xenbus_get_otherend_path(dev));
@@ -1170,7 +1168,7 @@ xbd_connect(struct xbd_softc *sc)
 	     "feature-barrier", "%lu", &feature_barrier,
 	     NULL);
 	if (!err || feature_barrier)
-		sc->xbd_flags |= XBD_BARRIER;
+		sc->xbd_flags |= XBDF_BARRIER;
 
 	if (sc->xbd_disk == NULL) {
 		device_printf(dev, "%juMB <%s> at %s",
@@ -1187,9 +1185,9 @@ xbd_connect(struct xbd_softc *sc)
 
 	/* Kick pending requests. */
 	mtx_lock(&sc->xbd_io_lock);
-	sc->xbd_connected = XBD_STATE_CONNECTED;
+	sc->xbd_state = XBD_STATE_CONNECTED;
 	xbd_startio(sc);
-	sc->xbd_flags |= XBD_READY;
+	sc->xbd_flags |= XBDF_READY;
 	mtx_unlock(&sc->xbd_io_lock);
 }
 
@@ -1260,17 +1258,13 @@ xbd_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	mtx_init(&sc->xbd_io_lock, "blkfront i/o lock", NULL, MTX_DEF);
-	xbd_initq_free(sc);
-	xbd_initq_busy(sc);
-	xbd_initq_ready(sc);
-	xbd_initq_complete(sc);
-	xbd_initq_bio(sc);
+	xbd_initqs(sc);
 	for (i = 0; i < XBD_MAX_RING_PAGES; i++)
 		sc->xbd_ring_ref[i] = GRANT_REF_INVALID;
 
 	sc->xbd_dev = dev;
 	sc->xbd_vdevice = vdevice;
-	sc->xbd_connected = XBD_STATE_DISCONNECTED;
+	sc->xbd_state = XBD_STATE_DISCONNECTED;
 
 	xbd_setup_sysctl(sc);
 
@@ -1285,7 +1279,7 @@ xbd_detach(device_t dev)
 {
 	struct xbd_softc *sc = device_get_softc(dev);
 
-	DPRINTK("xbd_remove: %s removed\n", xenbus_get_node(dev));
+	DPRINTK("%s: %s removed\n", __func__, xenbus_get_node(dev));
 
 	xbd_free(sc);
 	mtx_destroy(&sc->xbd_io_lock);
@@ -1302,13 +1296,13 @@ xbd_suspend(device_t dev)
 
 	/* Prevent new requests being issued until we fix things up. */
 	mtx_lock(&sc->xbd_io_lock);
-	saved_state = sc->xbd_connected;
-	sc->xbd_connected = XBD_STATE_SUSPENDED;
+	saved_state = sc->xbd_state;
+	sc->xbd_state = XBD_STATE_SUSPENDED;
 
 	/* Wait for outstanding I/O to drain. */
 	retval = 0;
-	while (TAILQ_EMPTY(&sc->xbd_cm_busy) == 0) {
-		if (msleep(&sc->xbd_cm_busy, &sc->xbd_io_lock,
+	while (TAILQ_EMPTY(&sc->xbd_cm_q[XBD_Q_BUSY].q_tailq) == 0) {
+		if (msleep(&sc->xbd_cm_q[XBD_Q_BUSY], &sc->xbd_io_lock,
 		    PRIBIO, "blkf_susp", 30 * hz) == EWOULDBLOCK) {
 			retval = EBUSY;
 			break;
@@ -1317,7 +1311,7 @@ xbd_suspend(device_t dev)
 	mtx_unlock(&sc->xbd_io_lock);
 
 	if (retval != 0)
-		sc->xbd_connected = saved_state;
+		sc->xbd_state = saved_state;
 
 	return (retval);
 }

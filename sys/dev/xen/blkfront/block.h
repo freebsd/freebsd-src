@@ -30,7 +30,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef __XEN_BLKFRONT_BLOCK_H__
 #define __XEN_BLKFRONT_BLOCK_H__
 #include <xen/blkif.h>
@@ -93,20 +92,20 @@
 	BLKIF_RING_PAGES(BLKIF_SEGS_TO_BLOCKS(XBD_MAX_SEGMENTS_PER_REQUEST) \
 		       * XBD_MAX_REQUESTS)
 
+typedef enum {
+	XBDCF_Q_MASK		= 0xFF,
+	XBDCF_FROZEN		= 1<<8,
+	XBDCF_POLLED		= 1<<9,
+	XBDCF_INITIALIZER	= XBDCF_Q_MASK
+} xbdc_flag_t;
+
 struct xbd_command;
 typedef void xbd_cbcf_t(struct xbd_command *);
 
 struct xbd_command {
 	TAILQ_ENTRY(xbd_command) cm_link;
 	struct xbd_softc	*cm_sc;
-	u_int			 cm_flags;
-#define XBD_CMD_FROZEN		(1<<0)
-#define XBD_CMD_POLLED		(1<<1)
-#define XBD_ON_XBDQ_FREE	(1<<2)
-#define XBD_ON_XBDQ_READY	(1<<3)
-#define XBD_ON_XBDQ_BUSY	(1<<4)
-#define XBD_ON_XBDQ_COMPLETE	(1<<5)
-#define XBD_ON_XBDQ_MASK	((1<<2)|(1<<3)|(1<<4)|(1<<5))
+	xbdc_flag_t		 cm_flags;
 	bus_dmamap_t		 cm_map;
 	uint64_t		 cm_id;
 	grant_ref_t		*cm_sg_refs;
@@ -121,22 +120,34 @@ struct xbd_command {
 	xbd_cbcf_t		*cm_complete;
 };
 
-#define XBDQ_FREE	0
-#define XBDQ_BIO	1
-#define XBDQ_READY	2
-#define XBDQ_BUSY	3
-#define XBDQ_COMPLETE	4
-#define XBDQ_COUNT	5
+typedef enum {
+	XBD_Q_FREE,
+	XBD_Q_READY,
+	XBD_Q_BUSY,
+	XBD_Q_COMPLETE,
+	XBD_Q_BIO,
+	XBD_Q_COUNT,
+	XBD_Q_NONE = XBDCF_Q_MASK
+} xbd_q_index_t;
 
-struct xbd_qstat {
-	uint32_t	q_length;
-	uint32_t	q_max;
-};
+typedef struct xbd_cm_q {
+	TAILQ_HEAD(, xbd_command) q_tailq;
+	uint32_t		  q_length;
+	uint32_t		  q_max;
+} xbd_cm_q_t;
 
-union xbd_statrequest {
-	uint32_t		ms_item;
-	struct xbd_qstat	ms_qstat;
-};
+typedef enum {
+	XBD_STATE_DISCONNECTED,
+	XBD_STATE_CONNECTED,
+	XBD_STATE_SUSPENDED
+} xbd_state_t;
+
+typedef enum {
+	XBDF_OPEN	= 1 << 0,	/* drive is open (can't shut down) */
+	XBDF_BARRIER	= 1 << 1,	/* backend supports barriers */
+	XBDF_READY	= 1 << 2,	/* Is ready */
+	XBDF_FROZEN	= 1 << 3	/* Waiting for resources */
+} xbd_flag_t;
 
 /*
  * We have one of these per vbd, whether ide, scsi or 'other'.
@@ -146,13 +157,9 @@ struct xbd_softc {
 	struct disk			*xbd_disk;	/* disk params */
 	struct bio_queue_head 		 xbd_bioq;	/* sort queue */
 	int				 xbd_unit;
-	int				 xbd_flags;
-#define XBD_OPEN	(1<<0)		/* drive is open (can't shut down) */
-#define XBD_BARRIER	(1 << 1)	/* backend supports barriers */
-#define XBD_READY	(1 << 2)	/* Is ready */
-#define XBD_FROZEN	(1 << 3)	/* Waiting for resources */
+	xbd_flag_t			 xbd_flags;
 	int				 xbd_vdevice;
-	int				 xbd_connected;
+	xbd_state_t			 xbd_state;
 	u_int				 xbd_ring_pages;
 	uint32_t			 xbd_max_requests;
 	uint32_t			 xbd_max_request_segments;
@@ -162,11 +169,7 @@ struct xbd_softc {
 	blkif_front_ring_t		 xbd_ring;
 	unsigned int			 xbd_irq;
 	struct gnttab_free_callback	 xbd_callback;
-	TAILQ_HEAD(,xbd_command)	 xbd_cm_free;
-	TAILQ_HEAD(,xbd_command)	 xbd_cm_ready;
-	TAILQ_HEAD(,xbd_command)	 xbd_cm_busy;
-	TAILQ_HEAD(,xbd_command)	 xbd_cm_complete;
-	struct xbd_qstat		 xbd_qstat[XBDQ_COUNT];
+	xbd_cm_q_t			 xbd_cm_q[XBD_Q_COUNT];
 	bus_dma_tag_t			 xbd_io_dmat;
 
 	/**
@@ -182,113 +185,124 @@ struct xbd_softc {
 int xbd_instance_create(struct xbd_softc *, blkif_sector_t sectors, int device,
 			uint16_t vdisk_info, unsigned long sector_size);
 
-#define XBDQ_ADD(sc, qname)					\
-	do {							\
-		struct xbd_qstat *qs;				\
-								\
-		qs = &(sc)->xbd_qstat[qname];			\
-		qs->q_length++;					\
-		if (qs->q_length > qs->q_max)			\
-			qs->q_max = qs->q_length;		\
-	} while (0)
+static inline void
+xbd_added_qentry(struct xbd_softc *sc, xbd_q_index_t index)
+{
+	struct xbd_cm_q *cmq;
 
-#define XBDQ_REMOVE(sc, qname)	(sc)->xbd_qstat[qname].q_length--
+	cmq = &sc->xbd_cm_q[index];
+	cmq->q_length++;
+	if (cmq->q_length > cmq->q_max)
+		cmq->q_max = cmq->q_length;
+}
 
-#define XBDQ_INIT(sc, qname)					\
-	do {							\
-		sc->xbd_qstat[qname].q_length = 0;		\
-		sc->xbd_qstat[qname].q_max = 0;			\
-	} while (0)
+static inline void
+xbd_removed_qentry(struct xbd_softc *sc, xbd_q_index_t index)
+{
+	sc->xbd_cm_q[index].q_length--;
+}
 
-#define XBDQ_COMMAND_QUEUE(name, index)					\
-	static __inline void						\
-	xbd_initq_ ## name (struct xbd_softc *sc)			\
-	{								\
-		TAILQ_INIT(&sc->xbd_cm_ ## name);			\
-		XBDQ_INIT(sc, index);					\
-	}								\
-	static __inline void						\
-	xbd_enqueue_ ## name (struct xbd_command *cm)			\
-	{								\
-		if ((cm->cm_flags & XBD_ON_XBDQ_MASK) != 0) {		\
-			printf("command %p is on another queue, "	\
-			    "flags = %#x\n", cm, cm->cm_flags);		\
-			panic("command is on another queue");		\
-		}							\
-		TAILQ_INSERT_TAIL(&cm->cm_sc->xbd_cm_ ## name, cm, cm_link); \
-		cm->cm_flags |= XBD_ON_ ## index;			\
-		XBDQ_ADD(cm->cm_sc, index);				\
-	}								\
-	static __inline void						\
-	xbd_requeue_ ## name (struct xbd_command *cm)			\
-	{								\
-		if ((cm->cm_flags & XBD_ON_XBDQ_MASK) != 0) {		\
-			printf("command %p is on another queue, "	\
-			    "flags = %#x\n", cm, cm->cm_flags);		\
-			panic("command is on another queue");		\
-		}							\
-		TAILQ_INSERT_HEAD(&cm->cm_sc->xbd_cm_ ## name, cm, cm_link); \
-		cm->cm_flags |= XBD_ON_ ## index;			\
-		XBDQ_ADD(cm->cm_sc, index);				\
-	}								\
-	static __inline struct xbd_command *				\
-	xbd_dequeue_ ## name (struct xbd_softc *sc)			\
-	{								\
-		struct xbd_command *cm;					\
-									\
-		if ((cm = TAILQ_FIRST(&sc->xbd_cm_ ## name)) != NULL) {	\
-			if ((cm->cm_flags & XBD_ON_XBDQ_MASK) !=		\
-			     XBD_ON_ ## index) {				\
-				printf("command %p not in queue, "	\
-				    "flags = %#x, bit = %#x\n", cm,	\
-				    cm->cm_flags, XBD_ON_ ## index);	\
-				panic("command not in queue");		\
-			}						\
-			TAILQ_REMOVE(&sc->xbd_cm_ ## name, cm, cm_link);\
-			cm->cm_flags &= ~XBD_ON_ ## index;		\
-			XBDQ_REMOVE(sc, index);				\
-		}							\
-		return (cm);						\
-	}								\
-	static __inline void						\
-	xbd_remove_ ## name (struct xbd_command *cm)			\
-	{								\
-		if ((cm->cm_flags & XBD_ON_XBDQ_MASK) != XBD_ON_ ## index){\
-			printf("command %p not in queue, flags = %#x, " \
-			    "bit = %#x\n", cm, cm->cm_flags,		\
-			    XBD_ON_ ## index);				\
-			panic("command not in queue");			\
-		}							\
-		TAILQ_REMOVE(&cm->cm_sc->xbd_cm_ ## name, cm, cm_link);	\
-		cm->cm_flags &= ~XBD_ON_ ## index;			\
-		XBDQ_REMOVE(cm->cm_sc, index);				\
-	}								\
-struct hack
+static inline void
+xbd_initq_cm(struct xbd_softc *sc, xbd_q_index_t index)
+{
+	struct xbd_cm_q *cmq;
 
-XBDQ_COMMAND_QUEUE(free, XBDQ_FREE);
-XBDQ_COMMAND_QUEUE(ready, XBDQ_READY);
-XBDQ_COMMAND_QUEUE(busy, XBDQ_BUSY);
-XBDQ_COMMAND_QUEUE(complete, XBDQ_COMPLETE);
+	cmq = &sc->xbd_cm_q[index];
+	TAILQ_INIT(&cmq->q_tailq);
+	cmq->q_length = 0;
+	cmq->q_max = 0;
+}
+
+static inline void
+xbd_enqueue_cm(struct xbd_command *cm, xbd_q_index_t index)
+{
+	KASSERT(index != XBD_Q_BIO,
+	    ("%s: Commands cannot access the bio queue.", __func__));
+	if ((cm->cm_flags & XBDCF_Q_MASK) != XBD_Q_NONE)
+		panic("%s: command %p is already on queue %d.",
+		    __func__, cm, cm->cm_flags & XBDCF_Q_MASK);
+	TAILQ_INSERT_TAIL(&cm->cm_sc->xbd_cm_q[index].q_tailq, cm, cm_link);
+	cm->cm_flags &= ~XBDCF_Q_MASK;
+	cm->cm_flags |= index;
+	xbd_added_qentry(cm->cm_sc, index);
+}
+
+static inline void
+xbd_requeue_cm(struct xbd_command *cm, xbd_q_index_t index)
+{
+	KASSERT(index != XBD_Q_BIO,
+	    ("%s: Commands cannot access the bio queue.", __func__));
+	if ((cm->cm_flags & XBDCF_Q_MASK) != XBD_Q_NONE)
+		panic("%s: command %p is already on queue %d.",
+		    __func__, cm, cm->cm_flags & XBDCF_Q_MASK);
+	TAILQ_INSERT_HEAD(&cm->cm_sc->xbd_cm_q[index].q_tailq, cm, cm_link);
+	cm->cm_flags &= ~XBDCF_Q_MASK;
+	cm->cm_flags |= index;
+	xbd_added_qentry(cm->cm_sc, index);
+}
+
+static inline struct xbd_command *
+xbd_dequeue_cm(struct xbd_softc *sc, xbd_q_index_t index)
+{
+	struct xbd_command *cm;
+
+	KASSERT(index != XBD_Q_BIO,
+	    ("%s: Commands cannot access the bio queue.", __func__));
+
+	if ((cm = TAILQ_FIRST(&sc->xbd_cm_q[index].q_tailq)) != NULL) {
+		if ((cm->cm_flags & XBDCF_Q_MASK) != index) {
+			panic("%s: command %p is on queue %d, "
+			    "not specified queue %d",
+			    __func__, cm,
+			    cm->cm_flags & XBDCF_Q_MASK,
+			    index);
+		}
+		TAILQ_REMOVE(&sc->xbd_cm_q[index].q_tailq, cm, cm_link);
+		cm->cm_flags &= ~XBDCF_Q_MASK;
+		cm->cm_flags |= XBD_Q_NONE;
+		xbd_removed_qentry(cm->cm_sc, index);
+	}
+	return (cm);
+}
+
+static inline void
+xbd_remove_cm(struct xbd_command *cm, xbd_q_index_t expected_index)
+{
+	xbd_q_index_t index;
+
+	index = cm->cm_flags & XBDCF_Q_MASK;
+
+	KASSERT(index != XBD_Q_BIO,
+	    ("%s: Commands cannot access the bio queue.", __func__));
+
+	if (index != expected_index) {
+		panic("%s: command %p is on queue %d, not specified queue %d",
+		    __func__, cm, index, expected_index);
+	}
+	TAILQ_REMOVE(&cm->cm_sc->xbd_cm_q[index].q_tailq, cm, cm_link);
+	cm->cm_flags &= ~XBDCF_Q_MASK;
+	cm->cm_flags |= XBD_Q_NONE;
+	xbd_removed_qentry(cm->cm_sc, index);
+}
 
 static __inline void
 xbd_initq_bio(struct xbd_softc *sc)
 {
 	bioq_init(&sc->xbd_bioq);
-	XBDQ_INIT(sc, XBDQ_BIO);
 }
 
 static __inline void
 xbd_enqueue_bio(struct xbd_softc *sc, struct bio *bp)
 {
 	bioq_insert_tail(&sc->xbd_bioq, bp);
-	XBDQ_ADD(sc, XBDQ_BIO);
+	xbd_added_qentry(sc, XBD_Q_BIO);
 }
 
 static __inline void
 xbd_requeue_bio(struct xbd_softc *sc, struct bio *bp)
 {
 	bioq_insert_head(&sc->xbd_bioq, bp);
-	XBDQ_ADD(sc, XBDQ_BIO);
+	xbd_added_qentry(sc, XBD_Q_BIO);
 }
 
 static __inline struct bio *
@@ -298,9 +312,20 @@ xbd_dequeue_bio(struct xbd_softc *sc)
 
 	if ((bp = bioq_first(&sc->xbd_bioq)) != NULL) {
 		bioq_remove(&sc->xbd_bioq, bp);
-		XBDQ_REMOVE(sc, XBDQ_BIO);
+		xbd_removed_qentry(sc, XBD_Q_BIO);
 	}
 	return (bp);
+}
+
+static inline void
+xbd_initqs(struct xbd_softc *sc)
+{
+	u_int index;
+
+	for (index = 0; index < XBD_Q_COUNT; index++)
+		xbd_initq_cm(sc, index);
+
+	xbd_initq_bio(sc);
 }
 
 #endif /* __XEN_BLKFRONT_BLOCK_H__ */
