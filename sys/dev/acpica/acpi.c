@@ -2332,7 +2332,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 	    return (AE_NO_MEMORY);
 	rp = (ACPI_RESOURCE *)buf->Pointer;
 	rp->Type = ACPI_RESOURCE_TYPE_END_TAG;
-	rp->Length = 0;
+	rp->Length = ACPI_RS_SIZE_MIN;
     }
     if (res == NULL)
 	return (AE_OK);
@@ -2382,7 +2382,7 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     /* And add the terminator. */
     rp = ACPI_NEXT_RESOURCE(rp);
     rp->Type = ACPI_RESOURCE_TYPE_END_TAG;
-    rp->Length = 0;
+    rp->Length = ACPI_RS_SIZE_MIN;
 
     return (AE_OK);
 }
