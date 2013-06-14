@@ -209,6 +209,12 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
+.if empty(.MAKEFLAGS:M-n)
+# skip this for -n to avoid changing previous behavior of 
+# 'make -n buildworld' etc.
+${TGTS}: .MAKE
+.endif
+
 ${TGTS}:
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
