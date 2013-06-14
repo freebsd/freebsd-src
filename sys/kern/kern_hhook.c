@@ -267,9 +267,11 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 	HHHLIST_LOCK();
 	if (flags & HHOOK_HEADISINVNET) {
 		tmphhh->hhh_flags |= HHH_ISINVNET;
+#ifdef VIMAGE
 		KASSERT(curvnet != NULL, ("curvnet is NULL"));
 		tmphhh->hhh_vid = (uintptr_t)curvnet;
 		LIST_INSERT_HEAD(&V_hhook_vhead_list, tmphhh, hhh_vnext);
+#endif
 	}
 	LIST_INSERT_HEAD(&hhook_head_list, tmphhh, hhh_next);
 	HHHLIST_UNLOCK();
@@ -285,8 +287,10 @@ hhook_head_destroy(struct hhook_head *hhh)
 	HHHLIST_LOCK_ASSERT();
 
 	LIST_REMOVE(hhh, hhh_next);
+#ifdef VIMAGE
 	if (hhook_head_is_virtualised(hhh) == HHOOK_HEADISINVNET)
 		LIST_REMOVE(hhh, hhh_vnext);
+#endif
 	HHH_WLOCK(hhh);
 	STAILQ_FOREACH_SAFE(tmp, &hhh->hhh_hooks, hhk_next, tmp2)
 		free(tmp, M_HHOOK);
@@ -347,12 +351,14 @@ hhook_head_get(int32_t hhook_type, int32_t hhook_id)
 	HHHLIST_LOCK();
 	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
 		if (hhh->hhh_type == hhook_type && hhh->hhh_id == hhook_id) {
+#ifdef VIMAGE
 			if (hhook_head_is_virtualised(hhh) ==
 			    HHOOK_HEADISINVNET) {
 				KASSERT(curvnet != NULL, ("curvnet is NULL"));
 				if (hhh->hhh_vid != (uintptr_t)curvnet)
 					continue;
 			}
+#endif
 			refcount_acquire(&hhh->hhh_refcount);
 			break;
 		}
