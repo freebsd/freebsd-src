@@ -2178,12 +2178,12 @@ netif_free(struct netfront_info *info)
 	XN_UNLOCK(info);
 	callout_drain(&info->xn_stat_ch);
 	netif_disconnect_backend(info);
-	ifmedia_removeall(&info->sc_media);
 	if (info->xn_ifp != NULL) {
 		ether_ifdetach(info->xn_ifp);
 		if_free(info->xn_ifp);
 		info->xn_ifp = NULL;
 	}
+	ifmedia_removeall(&info->sc_media);
 }
 
 static void
