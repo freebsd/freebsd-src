@@ -819,6 +819,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * particular buffer method.
 	 */
 	bpf_buffer_init(d);
+	d->bd_hbuf_in_use = 0;
 	d->bd_bufmode = BPF_BUFMODE_BUFFER;
 	d->bd_sig = SIGIO;
 	d->bd_direction = BPF_D_INOUT;
@@ -872,6 +873,14 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 		callout_stop(&d->bd_callout);
 	timed_out = (d->bd_state == BPF_TIMED_OUT);
 	d->bd_state = BPF_IDLE;
+	while (d->bd_hbuf_in_use) {
+		error = mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+		    PRINET|PCATCH, "bd_hbuf", 0);
+		if (error != 0) {
+			BPFD_UNLOCK(d);
+			return (error);
+		}
+	}
 	/*
 	 * If the hold buffer is empty, then do a timed sleep, which
 	 * ends when the timeout expires or when enough packets
@@ -940,24 +949,27 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	/*
 	 * At this point, we know we have something in the hold slot.
 	 */
+	d->bd_hbuf_in_use = 1;
 	BPFD_UNLOCK(d);
 
 	/*
 	 * Move data from hold buffer into user space.
 	 * We know the entire buffer is transferred since
 	 * we checked above that the read buffer is bpf_bufsize bytes.
-	 *
-	 * XXXRW: More synchronization needed here: what if a second thread
-	 * issues a read on the same fd at the same time?  Don't want this
-	 * getting invalidated.
+  	 *
+	 * We do not have to worry about simultaneous reads because
+	 * we waited for sole access to the hold buffer above.
 	 */
 	error = bpf_uiomove(d, d->bd_hbuf, d->bd_hlen, uio);
 
 	BPFD_LOCK(d);
+	KASSERT(d->bd_hbuf != NULL, ("bpfread: lost bd_hbuf"));
 	d->bd_fbuf = d->bd_hbuf;
 	d->bd_hbuf = NULL;
 	d->bd_hlen = 0;
 	bpf_buf_reclaimed(d);
+	d->bd_hbuf_in_use = 0;
+	wakeup(&d->bd_hbuf_in_use);
 	BPFD_UNLOCK(d);
 
 	return (error);
@@ -1111,6 +1123,9 @@ reset_d(struct bpf_d *d)
 
 	BPFD_LOCK_ASSERT(d);
 
+	while (d->bd_hbuf_in_use)
+		mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock, PRINET,
+		    "bd_hbuf", 0);
 	if ((d->bd_hbuf != NULL) &&
 	    (d->bd_bufmode != BPF_BUFMODE_ZBUF || bpf_canfreebuf(d))) {
 		/* Free the hold buffer. */
@@ -1251,6 +1266,9 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 			BPFD_LOCK(d);
 			n = d->bd_slen;
+			while (d->bd_hbuf_in_use)
+				mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+				    PRINET, "bd_hbuf", 0);
 			if (d->bd_hbuf)
 				n += d->bd_hlen;
 			BPFD_UNLOCK(d);
@@ -1964,6 +1982,9 @@ filt_bpfread(struct knote *kn, long hint)
 	ready = bpf_ready(d);
 	if (ready) {
 		kn->kn_data = d->bd_slen;
+		while (d->bd_hbuf_in_use)
+			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+			    PRINET, "bd_hbuf", 0);
 		if (d->bd_hbuf)
 			kn->kn_data += d->bd_hlen;
 	} else if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
@@ -2296,6 +2317,9 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	 * spot to do it.
 	 */
 	if (d->bd_fbuf == NULL && bpf_canfreebuf(d)) {
+		while (d->bd_hbuf_in_use)
+			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+			    PRINET, "bd_hbuf", 0);
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
 		d->bd_hlen = 0;
@@ -2338,6 +2362,9 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 			++d->bd_dcount;
 			return;
 		}
+		while (d->bd_hbuf_in_use)
+			mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+			    PRINET, "bd_hbuf", 0);
 		ROTATE_BUFFERS(d);
 		do_wakeup = 1;
 		curlen = 0;
