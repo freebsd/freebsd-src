@@ -87,6 +87,30 @@ static void xbd_startio(struct xbd_softc *sc);
 static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
 
 /*---------------------------- Command Processing ----------------------------*/
+static void
+xbd_freeze(struct xbd_softc *sc, xbd_flag_t xbd_flag)
+{
+	if (xbd_flag != XBDF_NONE && (sc->xbd_flags & xbd_flag) != 0)
+		return;
+
+	sc->xbd_flags |= xbd_flag;
+	sc->xbd_qfrozen_cnt++;
+}
+
+static void
+xbd_thaw(struct xbd_softc *sc, xbd_flag_t xbd_flag)
+{
+	if (xbd_flag != XBDF_NONE && (sc->xbd_flags & xbd_flag) == 0)
+		return;
+
+	if (sc->xbd_qfrozen_cnt != 0)
+		panic("%s: Thaw with flag 0x%x while not frozen.",
+		    __func__, xbd_flag);
+
+	sc->xbd_flags &= ~xbd_flag;
+	sc->xbd_qfrozen_cnt--;
+}
+
 static inline void 
 xbd_flush_requests(struct xbd_softc *sc)
 {
@@ -110,6 +134,7 @@ xbd_free_command(struct xbd_command *cm)
 	cm->cm_bp = NULL;
 	cm->cm_complete = NULL;
 	xbd_enqueue_cm(cm, XBD_Q_FREE);
+	xbd_thaw(cm->cm_sc, XBDF_CM_SHORTAGE);
 }
 
 static void
@@ -212,10 +237,13 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	xbd_enqueue_cm(cm, XBD_Q_BUSY);
 
 	/*
-	 * This flag means that we're probably executing in the busdma swi
-	 * instead of in the startio context, so an explicit flush is needed.
+	 * If bus dma had to asynchronously call us back to dispatch
+	 * this command, we are no longer executing in the context of 
+	 * xbd_startio().  Thus we cannot rely on xbd_startio()'s call to
+	 * xbd_flush_requests() to publish this command to the backend
+	 * along with any other commands that it could batch.
 	 */
-	if (cm->cm_flags & XBDCF_FROZEN)
+	if ((cm->cm_flags & XBDCF_ASYNC_MAPPING) != 0)
 		xbd_flush_requests(sc);
 
 	return;
@@ -229,9 +257,14 @@ xbd_queue_request(struct xbd_softc *sc, struct xbd_command *cm)
 	error = bus_dmamap_load(sc->xbd_io_dmat, cm->cm_map, cm->cm_data,
 	    cm->cm_datalen, xbd_queue_cb, cm, 0);
 	if (error == EINPROGRESS) {
-		printf("EINPROGRESS\n");
-		sc->xbd_flags |= XBDF_FROZEN;
-		cm->cm_flags |= XBDCF_FROZEN;
+		/*
+		 * Maintain queuing order by freezing the queue.  The next
+		 * command may not require as many resources as the command
+		 * we just attempted to map, so we can't rely on bus dma
+		 * blocking for it too.
+		 */
+		xbd_freeze(sc, XBDF_NONE);
+		cm->cm_flags |= XBDCF_FROZEN|XBDCF_ASYNC_MAPPING;
 		return (0);
 	}
 
@@ -244,6 +277,8 @@ xbd_restart_queue_callback(void *arg)
 	struct xbd_softc *sc = arg;
 
 	mtx_lock(&sc->xbd_io_lock);
+
+	xbd_thaw(sc, XBDF_GNT_SHORTAGE);
 
 	xbd_startio(sc);
 
@@ -264,6 +299,7 @@ xbd_bio_command(struct xbd_softc *sc)
 		return (NULL);
 
 	if ((cm = xbd_dequeue_cm(sc, XBD_Q_FREE)) == NULL) {
+		xbd_freeze(sc, XBDF_CM_SHORTAGE);
 		xbd_requeue_bio(sc, bp);
 		return (NULL);
 	}
@@ -273,9 +309,9 @@ xbd_bio_command(struct xbd_softc *sc)
 		gnttab_request_free_callback(&sc->xbd_callback,
 		    xbd_restart_queue_callback, sc,
 		    sc->xbd_max_request_segments);
+		xbd_freeze(sc, XBDF_GNT_SHORTAGE);
 		xbd_requeue_bio(sc, bp);
 		xbd_enqueue_cm(cm, XBD_Q_FREE);
-		sc->xbd_flags |= XBDF_FROZEN;
 		return (NULL);
 	}
 
@@ -309,7 +345,7 @@ xbd_startio(struct xbd_softc *sc)
 
 	while (RING_FREE_REQUESTS(&sc->xbd_ring) >=
 	    sc->xbd_max_request_blocks) {
-		if (sc->xbd_flags & XBDF_FROZEN)
+		if (sc->xbd_qfrozen_cnt != 0)
 			break;
 
 		cm = xbd_dequeue_cm(sc, XBD_Q_READY);
@@ -397,11 +433,13 @@ xbd_int(void *xsc)
 		bus_dmamap_unload(sc->xbd_io_dmat, cm->cm_map);
 
 		/*
-		 * If commands are completing then resources are probably
-		 * being freed as well.  It's a cheap assumption even when
-		 * wrong.
+		 * Release any hold this command has on future command
+		 * dispatch. 
 		 */
-		sc->xbd_flags &= ~XBDF_FROZEN;
+		if ((cm->cm_flags & XBDCF_FROZEN) != 0) {
+			xbd_thaw(sc, XBDF_NONE);
+			cm->cm_flags &= ~XBDCF_FROZEN;
+		}
 
 		/*
 		 * Directly call the i/o complete routine to save an
