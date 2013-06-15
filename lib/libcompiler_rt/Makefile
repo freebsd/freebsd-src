@@ -28,6 +28,7 @@ SRCF=	absvdi2 \
 	ashlti3 \
 	ashrdi3 \
 	ashrti3 \
+	clear_cache \
 	clzdi2 \
 	clzsi2 \
 	clzti2 \
@@ -124,11 +125,6 @@ SRCF=	absvdi2 \
 	udivti3 \
 	umoddi3 \
 	umodti3
-
-# Don't build clear_cache on ARM with clang as it is a builtin there.
-.if ${MACHINE_CPUARCH} != "arm" || ${COMPILER_TYPE} != "clang"
-SRCF+=	clear_cache
-.endif
 
 # These are already shipped by libc.a on arm and mips
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
