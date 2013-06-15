@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
+ * Copyright (c) 2010,2013 Lawrence Stewart <lstewart@freebsd.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -68,6 +68,9 @@ VNET_DEFINE(struct hhookheadhead, hhook_vhead_list);
 static struct mtx hhook_head_list_lock;
 MTX_SYSINIT(hhookheadlistlock, &hhook_head_list_lock, "hhook_head list lock",
     MTX_DEF);
+
+/* Protected by hhook_head_list_lock. */
+static uint32_t n_hhookheads;
 
 /* Private function prototypes. */
 static void hhook_head_destroy(struct hhook_head *hhh);
@@ -165,21 +168,71 @@ hhook_add_hook(struct hhook_head *hhh, struct hookinfo *hki, uint32_t flags)
 }
 
 /*
- * Lookup a helper hook point and register a new helper hook function with it.
+ * Register a helper hook function with a helper hook point (including all
+ * virtual instances of the hook point if it is virtualised).
+ *
+ * The logic is unfortunately far more complex than for
+ * hhook_remove_hook_lookup() because hhook_add_hook() can call malloc() with
+ * M_WAITOK and thus we cannot call hhook_add_hook() with the
+ * hhook_head_list_lock held.
+ *
+ * The logic assembles an array of hhook_head structs that correspond to the
+ * helper hook point being hooked and bumps the refcount on each (all done with
+ * the hhook_head_list_lock held). The hhook_head_list_lock is then dropped, and
+ * hhook_add_hook() is called and the refcount dropped for each hhook_head
+ * struct in the array.
  */
 int
 hhook_add_hook_lookup(struct hookinfo *hki, uint32_t flags)
 {
-	struct hhook_head *hhh;
-	int error;
+	struct hhook_head **heads_to_hook, *hhh;
+	int error, i, n_heads_to_hook;
 
-	hhh = hhook_head_get(hki->hook_type, hki->hook_id);
+tryagain:
+	error = i = 0;
+	/*
+	 * Accessing n_hhookheads without hhook_head_list_lock held opens up a
+	 * race with hhook_head_register() which we are unlikely to lose, but
+	 * nonetheless have to cope with - hence the complex goto logic.
+	 */
+	n_heads_to_hook = n_hhookheads;
+	heads_to_hook = malloc(n_heads_to_hook * sizeof(struct hhook_head *),
+	    M_HHOOK, flags & HHOOK_WAITOK ? M_WAITOK : M_NOWAIT);
+	if (heads_to_hook == NULL)
+		return (ENOMEM);
 
-	if (hhh == NULL)
-		return (ENOENT);
+	HHHLIST_LOCK();
+	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
+		if (hhh->hhh_type == hki->hook_type &&
+		    hhh->hhh_id == hki->hook_id) {
+			if (i < n_heads_to_hook) {
+				heads_to_hook[i] = hhh;
+				refcount_acquire(&heads_to_hook[i]->hhh_refcount);
+				i++;
+			} else {
+				/*
+				 * We raced with hhook_head_register() which
+				 * inserted a hhook_head that we need to hook
+				 * but did not malloc space for. Abort this run
+				 * and try again.
+				 */
+				for (i--; i >= 0; i--)
+					refcount_release(&heads_to_hook[i]->hhh_refcount);
+				free(heads_to_hook, M_HHOOK);
+				HHHLIST_UNLOCK();
+				goto tryagain;
+			}
+		}
+	}
+	HHHLIST_UNLOCK();
 
-	error = hhook_add_hook(hhh, hki, flags);
-	hhook_head_release(hhh);
+	for (i--; i >= 0; i--) {
+		if (!error)
+			error = hhook_add_hook(heads_to_hook[i], hki, flags);
+		refcount_release(&heads_to_hook[i]->hhh_refcount);
+	}
+
+	free(heads_to_hook, M_HHOOK);
 
 	return (error);
 }
@@ -211,20 +264,21 @@ hhook_remove_hook(struct hhook_head *hhh, struct hookinfo *hki)
 }
 
 /*
- * Lookup a helper hook point and remove a helper hook function from it.
+ * Remove a helper hook function from a helper hook point (including all
+ * virtual instances of the hook point if it is virtualised).
  */
 int
 hhook_remove_hook_lookup(struct hookinfo *hki)
 {
 	struct hhook_head *hhh;
 
-	hhh = hhook_head_get(hki->hook_type, hki->hook_id);
-
-	if (hhh == NULL)
-		return (ENOENT);
-
-	hhook_remove_hook(hhh, hki);
-	hhook_head_release(hhh);
+	HHHLIST_LOCK();
+	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
+		if (hhh->hhh_type == hki->hook_type &&
+		    hhh->hhh_id == hki->hook_id)
+			hhook_remove_hook(hhh, hki);
+	}
+	HHHLIST_UNLOCK();
 
 	return (0);
 }
@@ -274,6 +328,7 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 #endif
 	}
 	LIST_INSERT_HEAD(&hhook_head_list, tmphhh, hhh_next);
+	n_hhookheads++;
 	HHHLIST_UNLOCK();
 
 	return (0);
@@ -285,6 +340,7 @@ hhook_head_destroy(struct hhook_head *hhh)
 	struct hhook *tmp, *tmp2;
 
 	HHHLIST_LOCK_ASSERT();
+	KASSERT(n_hhookheads > 0, ("n_hhookheads should be > 0"));
 
 	LIST_REMOVE(hhh, hhh_next);
 #ifdef VIMAGE
@@ -297,6 +353,7 @@ hhook_head_destroy(struct hhook_head *hhh)
 	HHH_WUNLOCK(hhh);
 	HHH_LOCK_DESTROY(hhh);
 	free(hhh, M_HHOOK);
+	n_hhookheads--;
 }
 
 /*

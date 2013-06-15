@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
+ * Copyright (c) 2010,2013 Lawrence Stewart <lstewart@freebsd.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -84,12 +84,13 @@ khelp_register_helper(struct helper *h)
 		for (i = 0; i < h->h_nhooks && !error; i++) {
 			/* We don't require the module to assign hook_helper. */
 			h->h_hooks[i].hook_helper = h;
-			error = khelp_add_hhook(&h->h_hooks[i], HHOOK_NOWAIT);
+			error = hhook_add_hook_lookup(&h->h_hooks[i],
+			    HHOOK_WAITOK);
 		}
 
 		if (error) {
 			for (i--; i >= 0; i--)
-				khelp_remove_hhook(&h->h_hooks[i]);
+				hhook_remove_hook_lookup(&h->h_hooks[i]);
 
 			osd_deregister(OSD_KHELP, h->h_id);
 		}
@@ -144,7 +145,7 @@ khelp_deregister_helper(struct helper *h)
 	if (!error) {
 		if (h->h_nhooks > 0) {
 			for (i = 0; i < h->h_nhooks; i++)
-				khelp_remove_hhook(&h->h_hooks[i]);
+				hhook_remove_hook_lookup(&h->h_hooks[i]);
 		}
 		osd_deregister(OSD_KHELP, h->h_id);
 	}
@@ -263,28 +264,13 @@ khelp_get_id(char *hname)
 int
 khelp_add_hhook(struct hookinfo *hki, uint32_t flags)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
 	int error;
 
-	error = 0;
-
 	/*
-	 * XXXLAS: If a helper is dynamically adding a helper hook function at
-	 * runtime using this function, we should update the helper's h_hooks
-	 * struct member to include the additional hookinfo struct.
+	 * XXXLAS: Should probably include the functionality to update the
+	 * helper's h_hooks struct member.
 	 */
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		error = hhook_add_hook_lookup(hki, flags);
-		CURVNET_RESTORE();
-#ifdef VIMAGE
-		if (error)
-			break;
-#endif
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
+	error = hhook_add_hook_lookup(hki, flags);
 
 	return (error);
 }
@@ -292,28 +278,13 @@ khelp_add_hhook(struct hookinfo *hki, uint32_t flags)
 int
 khelp_remove_hhook(struct hookinfo *hki)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
 	int error;
 
-	error = 0;
-
 	/*
-	 * XXXLAS: If a helper is dynamically removing a helper hook function at
-	 * runtime using this function, we should update the helper's h_hooks
-	 * struct member to remove the defunct hookinfo struct.
+	 * XXXLAS: Should probably include the functionality to update the
+	 * helper's h_hooks struct member.
 	 */
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		error = hhook_remove_hook_lookup(hki);
-		CURVNET_RESTORE();
-#ifdef VIMAGE
-		if (error)
-			break;
-#endif
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
+	error = hhook_remove_hook_lookup(hki);
 
 	return (error);
 }
