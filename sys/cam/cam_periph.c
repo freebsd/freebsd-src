@@ -203,7 +203,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	periph->type = type;
 	periph->periph_name = name;
 	periph->immediate_priority = CAM_PRIORITY_NONE;
-	periph->refcount = 0;
+	periph->refcount = 1;		/* Dropped by invalidation. */
 	periph->sim = sim;
 	SLIST_INIT(&periph->ccb_list);
 	status = xpt_create_path(&path, periph, path_id, target_id, lun_id);
@@ -381,10 +381,8 @@ cam_periph_release_locked_buses(struct cam_periph *periph)
 
 	mtx_assert(periph->sim->mtx, MA_OWNED);
 	KASSERT(periph->refcount >= 1, ("periph->refcount >= 1"));
-	if (--periph->refcount == 0
-	    && (periph->flags & CAM_PERIPH_INVALID)) {
+	if (--periph->refcount == 0)
 		camperiphfree(periph);
-	}
 }
 
 void
@@ -579,23 +577,20 @@ void
 cam_periph_invalidate(struct cam_periph *periph)
 {
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
 	mtx_assert(periph->sim->mtx, MA_OWNED);
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.
 	 */
-	if (((periph->flags & CAM_PERIPH_INVALID) == 0)
-	 && (periph->periph_oninval != NULL))
-		periph->periph_oninval(periph);
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0)
+		return;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
 	periph->flags |= CAM_PERIPH_INVALID;
 	periph->flags &= ~CAM_PERIPH_NEW_DEV_FOUND;
-
-	xpt_lock_buses();
-	if (periph->refcount == 0)
-		camperiphfree(periph);
-	xpt_unlock_buses();
+	if (periph->periph_oninval != NULL)
+		periph->periph_oninval(periph);
+	cam_periph_release_locked(periph);
 }
 
 static void
@@ -686,9 +681,9 @@ camperiphfree(struct cam_periph *periph)
 
 /*
  * Map user virtual pointers into kernel virtual address space, so we can
- * access the memory.  This won't work on physical pointers, for now it's
- * up to the caller to check for that.  (XXX KDM -- should we do that here
- * instead?)  This also only works for up to MAXPHYS memory.  Since we use
+ * access the memory.  This is now a generic function that centralizes most
+ * of the sanity checks on the data flags, if any.
+ * This also only works for up to MAXPHYS memory.  Since we use
  * buffers to map stuff in and out, we're limited to the buffer size.
  */
 int
@@ -733,9 +728,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_CONT_TARGET_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
-		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
-		    ("not VADDR for SCSI_IO %p %x\n", ccb, ccb->ccb_h.flags));
-
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+			return (EINVAL);
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		lengths[0] = ccb->csio.dxfer_len;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
@@ -744,9 +738,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_ATA_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
-		KASSERT((ccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR,
-		    ("not VADDR for ATA_IO %p %x\n", ccb, ccb->ccb_h.flags));
-
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+			return (EINVAL);
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		lengths[0] = ccb->ataio.dxfer_len;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
@@ -817,8 +810,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	}
 
-	/* this keeps the current process from getting swapped */
 	/*
+	 * This keeps the the kernel stack of current thread from getting
+	 * swapped.  In low-memory situations where the kernel stack might
+	 * otherwise get swapped out, this holds it and allows the thread
+	 * to make progress and release the kernel mapped pages sooner.
+	 *
 	 * XXX KDM should I use P_NOSWAP instead?
 	 */
 	PHOLD(curproc);
@@ -890,8 +887,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 
 	if (mapinfo->num_bufs_used <= 0) {
-		/* allow ourselves to be swapped once again */
-		PRELE(curproc);
+		/* nothing to free and the process wasn't held. */
 		return;
 	}
 

@@ -550,6 +550,7 @@ AcpiNsResolveReferences (
         break;
 
     default:
+
         return;
     }
 

@@ -49,11 +49,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size defaultitem=
-	local hline="$hline_choose_a_font"
 	local prompt="$msg_font_menu_text"
-
-	menu_list="
+	local menu_list="
 		'1 $msg_none'        '$msg_use_hardware_default_font'
 		'2 $msg_ibm_437'     '$msg_ibm_437_desc'
 		'3 $msg_ibm_850'     '$msg_ibm_850_desc'
@@ -69,13 +66,16 @@ dialog_menu_main()
 		'd $msg_iso_8859_15' '$msg_iso_8859_15_desc'
 		'e $msg_swiss'       '$msg_swiss_desc'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_choose_a_font"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	case "$( f_sysrc_get font8x8 )" in
 	[Nn][Oo]|'') defaultitem="1 $msg_none";;
@@ -94,20 +94,21 @@ dialog_menu_main()
 	swiss-8x8) defaultitem="e $msg_swiss";;
 	esac
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -119,7 +120,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts dD:hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -137,11 +138,8 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || f_die
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
 	case "$mtag" in
 	"1 $msg_none") # Use hardware default font

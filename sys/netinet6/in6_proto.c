@@ -438,6 +438,7 @@ VNET_DEFINE(int, icmp6errppslim) = 100;		/* 100pps */
 /* control how to respond to NI queries */
 VNET_DEFINE(int, icmp6_nodeinfo) =
     (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
+VNET_DEFINE(int, icmp6_nodeinfo_oldmcprefix) = 1;
 
 /*
  * sysctl related items.
@@ -602,6 +603,11 @@ SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_USELOOPBACK, nd6_useloopback,
 	CTLFLAG_RW, &VNET_NAME(nd6_useloopback), 0, "");
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo, CTLFLAG_RW,
 	&VNET_NAME(icmp6_nodeinfo), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO_OLDMCPREFIX,
+	nodeinfo_oldmcprefix, CTLFLAG_RW,
+	&VNET_NAME(icmp6_nodeinfo_oldmcprefix), 0, 
+	"Join old IPv6 NI group address in draft-ietf-ipngwg-icmp-name-lookup"
+	" for compatibility with KAME implememtation.");
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
 	CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0, "");
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT, nd6_maxnudhint,

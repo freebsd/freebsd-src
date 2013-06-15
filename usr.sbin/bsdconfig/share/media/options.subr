@@ -53,9 +53,10 @@ f_media_options_menu()
 	f_dialog_title "$msg_options_editor"
 	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
-	local prompt=""
+	local prompt=
+	local menu_list # Calculated below
+	local defaultitem=
 	local hline="$hline_arrows_tab_enter"
-	local menu_list size cp
 
 	#
 	# A hack so that the dialogs below are always interactive in a script
@@ -66,9 +67,9 @@ f_media_options_menu()
 		unset $VAR_NONINTERACTIVE
 	fi
 
-	local defaultitem=
+	local cp
 	while :; do
-		menu_list=""
+		menu_list=
 
 		f_getvar $VAR_NFS_SECURE cp
 		if [ "$cp" = "YES" ]; then menu_list="$menu_list
@@ -109,6 +110,15 @@ f_media_options_menu()
 		else menu_list="$menu_list
 			' $msg_debugging' 'NO'
 			    '$msg_emit_extra_debugging_output'"
+		fi
+
+		f_getvar $VAR_NO_CONFIRM cp
+		if [ "$cp" ]; then menu_list="$menu_list
+			' $msg_yes_to_all' 'YES'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
+		else menu_list="$menu_list
+			' $msg_yes_to_all' 'NO'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
 		fi
 
 		f_getvar $VAR_TRY_DHCP cp
@@ -179,6 +189,11 @@ f_media_options_menu()
 			' $msg_media_timeout' '$cp'
 			    '$msg_timeout_value_in_seconds_for_slow_media'"
 
+		f_getvar $VAR_PKG_TMPDIR cp
+		menu_list="$menu_list
+			' $msg_package_temp' '$cp'
+			    '$msg_directory_where_package_temporary_files_go'"
+
 		menu_list="$menu_list
 			' $msg_rescan_devices' '<*>'
 			    '$msg_rerun_bsdconfig_initial_device_probe'
@@ -186,35 +201,34 @@ f_media_options_menu()
 			    '$msg_reset_all_values_to_startup_defaults'
 		" # END-QUOTE
 
-		size=$( eval f_dialog_menu_with_help_size \
-		        	\"\$title\"  \
-		        	\"\$btitle\" \
-		        	\"\$prompt\" \
-		        	\"\$hline\"  \
-		        	$menu_list   )
+		local height width rows
+		eval f_dialog_menu_with_help_size height width rows \
+		                                  \"\$title\"  \
+		                                  \"\$btitle\" \
+		                                  \"\$prompt\" \
+		                                  \"\$hline\"  \
+		                                  $menu_list
 
-		local dialog_menu
-
-		dialog_menu=$( eval $DIALOG \
-			--title \"\$title\"                  \
-			--backtitle \"\$btitle\"             \
-			--hline \"\$hline\"                  \
-			--item-help                          \
-			--ok-label \"\$msg_ok\"              \
-			--cancel-label \"\$msg_done\"        \
-			--help-button                        \
-			--help-label \"\$msg_help\"          \
-			--default-item \"\$defaultitem\"     \
-			${USE_XDIALOG:+--help \"\"}          \
-			--menu \"\$prompt\" $size $menu_list \
+		local mtag
+		mtag=$( eval $DIALOG \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--hline \"\$hline\"              \
+			--item-help                      \
+			--ok-label \"\$msg_ok\"          \
+			--cancel-label \"\$msg_done\"    \
+			--help-button                    \
+			--help-label \"\$msg_help\"      \
+			--default-item \"\$defaultitem\" \
+			${USE_XDIALOG:+--help \"\"}      \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
+			$menu_list                       \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		defaultitem="$dialog_menu"
-
-		local mtag
-		mtag=$( f_dialog_menutag )
+		f_dialog_data_sanitize mtag
+		defaultitem="$mtag"
 		f_dprintf "retval=%s mtag=[%s]" $retval "$mtag"
 
 		if [ $retval -eq 2 ]; then
@@ -260,6 +274,12 @@ f_media_options_menu()
 			else
 				export $VAR_DEBUG=1
 			fi ;;
+		" $msg_yes_to_all")
+			if f_getvar $VAR_NO_CONFIRM cp && [ "$cp" ]; then
+				unset $VAR_NO_CONFIRM
+			else
+				export $VAR_NO_CONFIRM=1
+			fi ;;
 		" $msg_dhcp")
 			f_getvar $VAR_TRY_DHCP cp
 			if [ "$cp" = "YES" ]; then
@@ -289,6 +309,10 @@ f_media_options_menu()
 		" $msg_media_timeout")
 			f_variable_get_value $VAR_MEDIA_TIMEOUT \
 			    "$msg_please_specify_the_number_of_seconds_to_wait"
+			;;
+		" $msg_package_temp")
+			f_variable_get_value $VAR_PKG_TMPDIR \
+			    "$msg_please_specify_a_temporary_directory"
 			;;
 		" $msg_rescan_devices")
 			f_device_rescan ;;

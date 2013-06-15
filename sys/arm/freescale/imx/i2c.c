@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2008-2009 Semihalf, Michal Hajduk
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Oleksandr Rybalko

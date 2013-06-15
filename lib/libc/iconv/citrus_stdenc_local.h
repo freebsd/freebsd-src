@@ -84,6 +84,7 @@ static int	 _citrus_##_e_##_stdenc_get_state_desc			\
 		    struct _citrus_stdenc_state_desc * __restrict)
 
 #define _CITRUS_STDENC_DEF_OPS(_e_)					\
+extern struct _citrus_stdenc_ops _citrus_##_e_##_stdenc_ops;		\
 struct _citrus_stdenc_ops _citrus_##_e_##_stdenc_ops = {		\
 	/* eo_init */		&_citrus_##_e_##_stdenc_init,		\
 	/* eo_uninit */		&_citrus_##_e_##_stdenc_uninit,		\

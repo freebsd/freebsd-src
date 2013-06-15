@@ -429,6 +429,7 @@ struct adapter {
 	struct em_int_delay_info tx_abs_int_delay;
 	struct em_int_delay_info rx_int_delay;
 	struct em_int_delay_info rx_abs_int_delay;
+	struct em_int_delay_info tx_itr;
 
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;

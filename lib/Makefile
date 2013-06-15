@@ -252,7 +252,9 @@ _libusbhid=	libusbhid
 _libusb=	libusb
 .endif
 
+.if !defined(LIBRARIES_ONLY)
 afterinstall:
-	ln -hfs ../include ${DESTDIR}/usr/lib/include
+	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
+.endif
 
 .include <bsd.subdir.mk>

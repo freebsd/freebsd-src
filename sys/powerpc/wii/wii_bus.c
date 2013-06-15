@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/platform.h>
 #include <machine/pmap.h>
 #include <machine/resource.h>
+#include <machine/platformvar.h>
 
 #include <powerpc/wii/wii_picreg.h>
 #include <powerpc/wii/wii_fbreg.h>
@@ -51,6 +52,21 @@ __FBSDID("$FreeBSD$");
 #include <powerpc/wii/wii_ipcreg.h>
 #include <powerpc/wii/wii_gpioreg.h>
 
+#define	WIIBUS_CSR_ADDR		0x0d800100
+#define	WIIBUS_CSR_LEN		0x300
+#define	WIIBUS_CSR_RESET	0x94
+
+struct wiibus_softc {
+	device_t		sc_dev;
+	struct rman		sc_rman;
+	bus_space_tag_t		sc_tag;
+	bus_space_handle_t	sc_handle;
+};
+
+static struct wiibus_softc *wiibus_sc = NULL;
+
+static uint32_t	wiibus_csr_read(struct wiibus_softc *, uint16_t);
+static void	wiibus_csr_write(struct wiibus_softc *, uint16_t, uint32_t);
 static void	wiibus_identify(driver_t *, device_t);
 static int	wiibus_probe(device_t);
 static int	wiibus_attach(device_t);
@@ -61,6 +77,7 @@ static struct resource *
 		    unsigned int);
 static int	wiibus_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
+       void	wiibus_reset_system(void);
 
 static device_method_t wiibus_methods[] = {
 	/* Device interface */
@@ -79,11 +96,6 @@ static device_method_t wiibus_methods[] = {
 	DEVMETHOD_END
 };
 
-struct wiibus_softc {
-	device_t		sc_dev;
-	struct rman		sc_rman;
-};
-
 static MALLOC_DEFINE(M_WIIBUS, "wiibus", "Nintendo Wii system bus");
 
 struct wiibus_devinfo {
@@ -100,6 +112,21 @@ static driver_t wiibus_driver = {
 static devclass_t wiibus_devclass;
 
 DRIVER_MODULE(wiibus, nexus, wiibus_driver, wiibus_devclass, 0, 0);
+
+static uint32_t
+wiibus_csr_read(struct wiibus_softc *sc, uint16_t reg)
+{
+
+	return (bus_space_read_4(sc->sc_tag, sc->sc_handle, reg));
+}
+
+static void
+wiibus_csr_write(struct wiibus_softc *sc, uint16_t reg,
+    uint32_t val)
+{
+
+	bus_space_write_4(sc->sc_tag, sc->sc_handle, reg, val);
+}
 
 static void
 wiibus_identify(driver_t *driver, device_t parent)
@@ -153,6 +180,8 @@ wiibus_attach(device_t self)
 	sc->sc_rman.rm_type = RMAN_ARRAY;
 	sc->sc_rman.rm_descr = "Wii Bus Memory Mapped I/O";
 	rman_init(&sc->sc_rman);
+	KASSERT(wiibus_sc == NULL, ("wiibus_sc already initialised"));
+	wiibus_sc = sc;
 
 	/* Nintendo PIC */
 	dinfo = malloc(sizeof(*dinfo), M_WIIBUS, M_WAITOK | M_ZERO);
@@ -192,6 +221,11 @@ wiibus_attach(device_t self)
 	    WIIGPIO_REG_LEN, 0);
 	cdev = BUS_ADD_CHILD(self, 0, "wiigpio", 0);
 	device_set_ivars(cdev, dinfo);
+
+	/* The control registers */
+	sc->sc_tag    = &bs_be_tag;
+	sc->sc_handle = (bus_space_handle_t)pmap_mapdev(WIIBUS_CSR_ADDR,
+	    WIIBUS_CSR_LEN);
 
 	return (bus_generic_attach(self));
 }
@@ -295,3 +329,12 @@ wiibus_activate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_activate_resource(res));
 }
 
+void
+wiibus_reset_system(void)
+{
+	uint32_t r;
+
+	r = wiibus_csr_read(wiibus_sc, WIIBUS_CSR_RESET);
+	r &= ~1;
+	wiibus_csr_write(wiibus_sc, WIIBUS_CSR_RESET, r);
+}

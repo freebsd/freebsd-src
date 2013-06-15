@@ -136,7 +136,7 @@ f_startup_rcconf_map()
 	if [ -f "$STARTUP_RCCONF_MAP_CACHEFILE" ]; then
 		#
 		# Attempt to populate the in-memory cache with the (soon to be)
-		# be validated on-disk cache. If validation fails, fall-back to
+		# validated on-disk cache. If validation fails, fall-back to
 		# the current value and provide error exit status.
 		#
 		STARTUP_RCCONF_MAP=$(
@@ -207,7 +207,11 @@ f_startup_rcconf_map()
 	)
 	export STARTUP_RCCONF_MAP
 	export _STARTUP_RCCONF_MAP=1
-	echo "$STARTUP_RCCONF_MAP"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$STARTUP_RCCONF_MAP"
+	else
+		echo "$STARTUP_RCCONF_MAP"
+	fi
 
 	#
 	# Attempt to create the persistant global cache
@@ -273,15 +277,17 @@ f_startup_rcconf_map_expand()
 #
 f_dialog_input_view_details()
 {
-	local menu_list size
+	local prompt=
+	local menu_list # calculated below
+	local defaultitem= # calculated below
 	local hline="$hline_arrows_tab_enter"
-	local prompt=""
 
+	# Calculate marks for checkboxes and radio buttons
 	local md=" "
 	if [ "$SHOW_DESC" ]; then
 		md="X"
 	fi
-	local m1=" " m2=" " m3=" " defaultitem=
+	local m1=" " m2=" " m3=" "
 	if [ "$SHOW_VALUE" ]; then
 		m1="*"
 		defaultitem="1 ($m1) $msg_show_value"
@@ -293,6 +299,7 @@ f_dialog_input_view_details()
 		defaultitem="3 ($m3) $msg_show_configured"
 	fi
 
+	# Create the menu list with the above-calculated marks
 	menu_list="
 		'R $msg_reset'                    '$msg_reset_desc'
 		'D [$md] $msg_desc'               '$msg_desc_desc'
@@ -301,31 +308,31 @@ f_dialog_input_view_details()
 		'3 ($m3) $msg_show_configured'    '$msg_show_configured_desc'
 	" # END-QUOTE
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	f_dialog_title "$msg_choose_view_details"
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local mtag
+	mtag=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
-	local mtag="$( f_dialog_menutag )"
+	f_dialog_data_sanitize mtag
 
 	f_dialog_title_restore
 
@@ -358,23 +365,21 @@ f_dialog_input_view_details()
 	esac
 }
 
-# f_dialog_input_rclist
+# f_dialog_input_rclist [$default]
 #
 # Presents a menu of rc.conf(5) defaults (with, or without descriptions). This
 # function should be treated like a call to dialog(1) (the exit status should
-# be captured and f_dialog_menutag() should be used to clean-up and get the
-# user's response).
+# be captured and f_dialog_menutag_fetch() should be used to get the user's
+# response). Optionally if present and non-null, highlight $default rcvar.
 #
 f_dialog_input_rclist()
 {
-	local size
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_please_select_an_rcconf_directive"
-	local menu_list
-
-	menu_list="
-		'X $msg_exit' '' ${SHOW_DESC:+'$msg_exit_help'}
+	local menu_list="
+		'X $msg_exit' '' ${SHOW_DESC:+'$msg_exit_this_menu'}
 	" # END-QUOTE
+	local defaultitem="$1"
+	local hline="$hline_arrows_tab_enter"
 
 	if [ ! "$_RCCONF_MAP" ]; then
 		# Generate RCCONF_MAP of `var desc ...' per-line
@@ -412,29 +417,35 @@ f_dialog_input_rclist()
 		}'
 	)"
 
-	set -f # noglob
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
 
-	size=$( eval f_dialog_menu_${SHOW_DESC:+with_help_}size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
+		--default-item \"\$defaultitem\"   \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		${SHOW_DESC:+--item-help}          \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -453,9 +464,8 @@ f_dialog_input_rcvar()
 	while :; do
 
 		# Return if user either pressed ESC or chosen Cancel/No
-		_input=$( f_dialog_input "$msg_please_enter_rcvar_name" \
-		                         "$_input" "$hline_alnum_tab_enter"
-		        ) || return
+		f_dialog_input _input "$msg_please_enter_rcvar_name" \
+		               "$_input" "$hline_alnum_tab_enter" || return
 
 		# Check for invalid entry (1of2)
 		if ! echo "$_input" | grep -q "^[[:alpha:]_]"; then

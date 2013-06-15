@@ -72,9 +72,7 @@ f_dialog_menu_media_ftp()
 	f_dialog_title "$msg_please_select_a_freebsd_ftp_distribution_site"
 	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
-
 	local prompt="$msg_please_select_the_site_closest_to_you_or_other"
-	local hline="$msg_select_a_site_thats_close"
 	local menu_list="
 		'$msg_main_site'          'ftp.freebsd.org'
 		'URL'                     '$msg_specify_some_other_ftp_site'
@@ -228,35 +226,34 @@ f_dialog_menu_media_ftp()
 		' $msg_usa #14'           'ftp14.us.freebsd.org'
 		' $msg_usa #15'           'ftp15.us.freebsd.org'
 	" # END-QUOTE
+	local hline="$msg_select_a_site_thats_close"
 
-	local size
-	size=$( eval f_dialog_menu_size \
-	        	\"\$title\"  \
-	        	\"\$btitle\" \
-	        	\"\$prompt\" \
-	        	\"\$hline\"  \
-	        	$menu_list   )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
 
-	local dialog_menu retval mtag value
-	dialog_menu=$( eval $DIALOG \
+	local mtag
+	mtag=$( eval $DIALOG \
 		--title \"\$title\"             \
 		--backtitle \"\$btitle\"        \
 		--hline \"\$hline\"             \
 		--ok-label \"\$msg_ok\"         \
 		--cancel-label \"\$msg_cancel\" \
-		--menu \"\$prompt\" $size       \
+		--menu \"\$prompt\"             \
+		$height $width $rows            \
 		$menu_list                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-	retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || return $FAILURE
+	) || return $FAILURE
+	f_dialog_data_sanitize mtag
 
 	case "$mtag" in
 	URL) setvar $VAR_FTP_PATH "other" ;;
 	*)
+		local value
 		value=$( eval f_dialog_menutag2item \"\$mtag\" $menu_list )
 		setvar $VAR_FTP_PATH "ftp://$value"
 	esac
@@ -505,6 +502,7 @@ f_media_set_ftp_userpass()
 f_device_network_up()
 {
 	local dev="$1" netDev
+	f_struct device_$dev || return $FAILURE
 	device_$dev get private netDev || return $SUCCESS # No net == happy net
 	f_device_init $netDev
 }
@@ -516,6 +514,7 @@ f_device_network_up()
 f_device_network_down()
 {
 	local dev="$1" netDev
+	f_struct device_$dev || return $FAILURE
 	device_$dev get private netDev || return $SUCCESS
 	f_device_shutdown $netDev
 }

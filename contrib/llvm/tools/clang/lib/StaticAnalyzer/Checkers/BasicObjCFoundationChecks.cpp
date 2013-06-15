@@ -123,18 +123,29 @@ void NilArgChecker::WarnIfNilArg(CheckerContext &C,
       if (Class == FC_NSArray) {
         os << "Array element cannot be nil";
       } else if (Class == FC_NSDictionary) {
-        if (Arg == 0)
-          os << "Dictionary object cannot be nil";
-        else {
+        if (Arg == 0) {
+          os << "Value stored into '";
+          os << GetReceiverInterfaceName(msg) << "' cannot be nil";
+        } else {
           assert(Arg == 1);
-          os << "Dictionary key cannot be nil";
+          os << "'"<< GetReceiverInterfaceName(msg) << "' key cannot be nil";
         }
       } else
         llvm_unreachable("Missing foundation class for the subscript expr");
 
     } else {
-      os << "Argument to '" << GetReceiverInterfaceName(msg) << "' method '"
-      << msg.getSelector().getAsString() << "' cannot be nil";
+      if (Class == FC_NSDictionary) {
+        if (Arg == 0)
+          os << "Value argument ";
+        else {
+          assert(Arg == 1);
+          os << "Key argument ";
+        }
+        os << "to '" << msg.getSelector().getAsString() << "' cannot be nil";
+      } else {
+        os << "Argument to '" << GetReceiverInterfaceName(msg) << "' method '"
+        << msg.getSelector().getAsString() << "' cannot be nil";
+      }
     }
 
     BugReport *R = new BugReport(*BT, os.str(), N);
@@ -377,7 +388,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
   // FIXME: If the pointee isn't an integer type, should we flag a warning?
   //  People can do weird stuff with pointers.
 
-  if (!T->isIntegerType())
+  if (!T->isIntegralOrEnumerationType())
     return;
 
   uint64_t SourceSize = Ctx.getTypeSize(T);
@@ -748,38 +759,81 @@ static bool isKnownNonNilCollectionType(QualType T) {
   }
 }
 
-void ObjCLoopChecker::checkPostStmt(const ObjCForCollectionStmt *FCS,
-                                    CheckerContext &C) const {
-  ProgramStateRef State = C.getState();
-  
-  // Check if this is the branch for the end of the loop.
-  SVal CollectionSentinel = State->getSVal(FCS, C.getLocationContext());
-  if (CollectionSentinel.isZeroConstant())
-    return;
-  
+/// Assumes that the collection is non-nil.
+///
+/// If the collection is known to be nil, returns NULL to indicate an infeasible
+/// path.
+static ProgramStateRef checkCollectionNonNil(CheckerContext &C,
+                                             ProgramStateRef State,
+                                             const ObjCForCollectionStmt *FCS) {
+  if (!State)
+    return NULL;
+
+  SVal CollectionVal = C.getSVal(FCS->getCollection());
+  Optional<DefinedSVal> KnownCollection = CollectionVal.getAs<DefinedSVal>();
+  if (!KnownCollection)
+    return State;
+
+  ProgramStateRef StNonNil, StNil;
+  llvm::tie(StNonNil, StNil) = State->assume(*KnownCollection);
+  if (StNil && !StNonNil) {
+    // The collection is nil. This path is infeasible.
+    return NULL;
+  }
+
+  return StNonNil;
+}
+
+/// Assumes that the collection elements are non-nil.
+///
+/// This only applies if the collection is one of those known not to contain
+/// nil values.
+static ProgramStateRef checkElementNonNil(CheckerContext &C,
+                                          ProgramStateRef State,
+                                          const ObjCForCollectionStmt *FCS) {
+  if (!State)
+    return NULL;
+
   // See if the collection is one where we /know/ the elements are non-nil.
-  const Expr *Collection = FCS->getCollection();
-  if (!isKnownNonNilCollectionType(Collection->getType()))
-    return;
-  
-  // FIXME: Copied from ExprEngineObjC.
+  if (!isKnownNonNilCollectionType(FCS->getCollection()->getType()))
+    return State;
+
+  const LocationContext *LCtx = C.getLocationContext();
   const Stmt *Element = FCS->getElement();
-  SVal ElementVar;
+
+  // FIXME: Copied from ExprEngineObjC.
+  Optional<Loc> ElementLoc;
   if (const DeclStmt *DS = dyn_cast<DeclStmt>(Element)) {
     const VarDecl *ElemDecl = cast<VarDecl>(DS->getSingleDecl());
     assert(ElemDecl->getInit() == 0);
-    ElementVar = State->getLValue(ElemDecl, C.getLocationContext());
+    ElementLoc = State->getLValue(ElemDecl, LCtx);
   } else {
-    ElementVar = State->getSVal(Element, C.getLocationContext());
+    ElementLoc = State->getSVal(Element, LCtx).getAs<Loc>();
   }
 
-  if (!ElementVar.getAs<Loc>())
-    return;
+  if (!ElementLoc)
+    return State;
 
   // Go ahead and assume the value is non-nil.
-  SVal Val = State->getSVal(ElementVar.castAs<Loc>());
-  State = State->assume(Val.castAs<DefinedOrUnknownSVal>(), true);
-  C.addTransition(State);
+  SVal Val = State->getSVal(*ElementLoc);
+  return State->assume(Val.castAs<DefinedOrUnknownSVal>(), true);
+}
+
+void ObjCLoopChecker::checkPostStmt(const ObjCForCollectionStmt *FCS,
+                                    CheckerContext &C) const {
+  // Check if this is the branch for the end of the loop.
+  SVal CollectionSentinel = C.getSVal(FCS);
+  if (CollectionSentinel.isZeroConstant())
+    return;
+
+  ProgramStateRef State = C.getState();
+  State = checkCollectionNonNil(C, State, FCS);
+  State = checkElementNonNil(C, State, FCS);
+
+  if (!State)
+    C.generateSink();
+  else if (State != C.getState())
+    C.addTransition(State);
 }
 
 namespace {

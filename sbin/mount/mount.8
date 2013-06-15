@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2012
+.Dd June 6, 2011
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -106,6 +106,13 @@ a file system mount status from read-write to read-only.
 Also
 forces the R/W mount of an unclean file system (dangerous; use with
 caution).
+.It Fl L
+When used in conjunction with the
+.Fl a
+option, mount
+.Em only
+those file systems which are marked as
+.Dq Li late .
 .It Fl l
 When used in conjunction with the
 .Fl a
@@ -145,11 +152,6 @@ When used with the
 .Fl u
 flag, this is the same as specifying the options currently in effect for
 the mounted file system.
-.It Cm failok
-If this option is specified,
-.Nm
-will return 0 even if an error occurs
-during the mount of the filesystem.
 .It Cm force
 The same as
 .Fl f ;

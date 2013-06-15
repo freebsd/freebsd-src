@@ -77,9 +77,9 @@ KEYMAP_NAMES="
 #
 dialog_menu_main()
 {
-	local menu_list size defaultitem=
-	local hline="$hline_choose_a_keyboard_map"
 	local prompt="$msg_keymap_menu_text"
+	local menu_list defaultitem= # Calculated below
+	local hline="$hline_choose_a_keyboard_map"
 
 	#
 	# Export variables for awk(1) ENVIRON visibility
@@ -110,12 +110,13 @@ dialog_menu_main()
 		}'
 	)
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	case "$( f_sysrc_get keymap )" in
 	be.iso) defaultitem="$msg_belgian";;
@@ -192,20 +193,21 @@ dialog_menu_main()
 		) && defaultitem=" $defaultitem"
 	fi
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -217,7 +219,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts dD:hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -235,11 +237,8 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || f_die
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
 	#
 	# Reverse the users choice into the variable name

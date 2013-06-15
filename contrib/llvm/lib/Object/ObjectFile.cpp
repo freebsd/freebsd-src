@@ -23,8 +23,14 @@ using namespace object;
 
 void ObjectFile::anchor() { }
 
-ObjectFile::ObjectFile(unsigned int Type, MemoryBuffer *source, error_code &ec)
+ObjectFile::ObjectFile(unsigned int Type, MemoryBuffer *source)
   : Binary(Type, source) {
+}
+
+error_code ObjectFile::getSymbolAlignment(DataRefImpl DRI,
+                                          uint32_t &Result) const {
+  Result = 0;
+  return object_error::success;
 }
 
 ObjectFile *ObjectFile::createObjectFile(MemoryBuffer *Object) {

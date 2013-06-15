@@ -124,14 +124,6 @@ static int bpf_load(char *errbuf);
 
 #include "pcap-int.h"
 
-#ifdef HAVE_DAG_API
-#include "pcap-dag.h"
-#endif /* HAVE_DAG_API */
-
-#ifdef HAVE_SNF_API
-#include "pcap-snf.h"
-#endif /* HAVE_SNF_API */
-
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -220,30 +212,21 @@ pcap_setnonblock_bpf(pcap_t *p, int nonblock, char *errbuf)
 #ifdef HAVE_ZEROCOPY_BPF
 	if (p->md.zerocopy) {
 		/*
-		 * Map each value to the corresponding 2's complement, to
+		 * Map each value to their corresponding negation to
 		 * preserve the timeout value provided with pcap_set_timeout.
 		 * (from pcap-linux.c).
 		 */
 		if (nonblock) {
 			if (p->md.timeout >= 0) {
 				/*
-				 * Timeout is non-negative, so we're not
-				 * currently in non-blocking mode; set it
-				 * to the 2's complement, to make it
-				 * negative, as an indication that we're
-				 * in non-blocking mode.
+				 * Indicate that we're switching to
+				 * non-blocking mode.
 				 */
-				p->md.timeout = p->md.timeout * -1 - 1;
+				p->md.timeout = ~p->md.timeout;
 			}
 		} else {
 			if (p->md.timeout < 0) {
-				/*
-				 * Timeout is negative, so we're currently
-				 * in blocking mode; reverse the previous
-				 * operation, to make the timeout non-negative
-				 * again.
-				 */
-				p->md.timeout = (p->md.timeout + 1) * -1;
+				p->md.timeout = ~p->md.timeout;
 			}
 		}
 		return (0);
@@ -409,18 +392,9 @@ pcap_ack_zbuf(pcap_t *p)
 #endif /* HAVE_ZEROCOPY_BPF */
 
 pcap_t *
-pcap_create(const char *device, char *ebuf)
+pcap_create_interface(const char *device, char *ebuf)
 {
 	pcap_t *p;
-
-#ifdef HAVE_DAG_API
-	if (strstr(device, "dag"))
-		return (dag_create(device, ebuf));
-#endif /* HAVE_DAG_API */
-#ifdef HAVE_SNF_API
-	if (strstr(device, "snf"))
-		return (snf_create(device, ebuf));
-#endif /* HAVE_SNF_API */
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)
@@ -1720,7 +1694,7 @@ pcap_activate_bpf(pcap_t *p)
 			    pcap_strerror(errno));
 			goto bad;
 		}
-		bzero(&bz, sizeof(bz));
+		memset(&bz, 0, sizeof(bz)); /* bzero() deprecated, replaced with memset() */
 		bz.bz_bufa = p->md.zbuf1;
 		bz.bz_bufb = p->md.zbuf2;
 		bz.bz_buflen = p->md.zbufsize;
@@ -2303,15 +2277,6 @@ pcap_activate_bpf(pcap_t *p)
 int
 pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 {
-#ifdef HAVE_DAG_API
-	if (dag_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif /* HAVE_DAG_API */
-#ifdef HAVE_SNF_API
-	if (snf_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif /* HAVE_SNF_API */
-
 	return (0);
 }
 

@@ -121,7 +121,7 @@ redirect(union node *redir, int flags)
 
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
-			if ((i = fcntl(fd, F_DUPFD, 10)) == -1) {
+			if ((i = fcntl(fd, F_DUPFD_CLOEXEC, 10)) == -1) {
 				switch (errno) {
 				case EBADF:
 					i = CLOSED;
@@ -131,8 +131,7 @@ redirect(union node *redir, int flags)
 					error("%d: %s", fd, strerror(errno));
 					break;
 				}
-			} else
-				(void)fcntl(i, F_SETFD, FD_CLOEXEC);
+			}
 			sv->renamed[fd] = i;
 			INTON;
 		}

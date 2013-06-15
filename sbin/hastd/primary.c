@@ -78,7 +78,7 @@ struct hio {
 	 * kernel. Each component has to decrease this counter by one
 	 * even on failure.
 	 */
-	unsigned int		 hio_countdown;
+	refcnt_t		 hio_countdown;
 	/*
 	 * Each component has a place to store its own error.
 	 * Once the request is handled by all components we can decide if the
@@ -415,7 +415,7 @@ init_environment(struct hast_resource *res __unused)
 			    "Unable to allocate %zu bytes of memory for hio request.",
 			    sizeof(*hio));
 		}
-		hio->hio_countdown = 0;
+		refcnt_init(&hio->hio_countdown, 0);
 		hio->hio_errors = malloc(sizeof(hio->hio_errors[0]) * ncomps);
 		if (hio->hio_errors == NULL) {
 			primary_exitx(EX_TEMPFAIL,
@@ -1300,11 +1300,12 @@ ggate_recv_thread(void *arg)
 		}
 		pjdlog_debug(2,
 		    "ggate_recv: (%p) Moving request to the send queues.", hio);
-		hio->hio_countdown = ncomps;
 		if (hio->hio_replication == HAST_REPLICATION_MEMSYNC &&
 		    ggio->gctl_cmd == BIO_WRITE) {
 			/* Each remote request needs two responses in memsync. */
-			hio->hio_countdown++;
+			refcnt_init(&hio->hio_countdown, ncomps + 1);
+		} else {
+			refcnt_init(&hio->hio_countdown, ncomps);
 		}
 		for (ii = ncomp; ii < ncomps; ii++)
 			QUEUE_INSERT1(hio, send, ii);
@@ -2139,7 +2140,7 @@ sync_thread(void *arg __unused)
 			ncomp = 1;
 		}
 		mtx_unlock(&metadata_lock);
-		hio->hio_countdown = 1;
+		refcnt_init(&hio->hio_countdown, 1);
 		QUEUE_INSERT1(hio, send, ncomp);
 
 		/*
@@ -2189,7 +2190,7 @@ sync_thread(void *arg __unused)
 
 		pjdlog_debug(2, "sync: (%p) Moving request to the send queue.",
 		    hio);
-		hio->hio_countdown = 1;
+		refcnt_init(&hio->hio_countdown, 1);
 		QUEUE_INSERT1(hio, send, ncomp);
 
 		/*

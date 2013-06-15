@@ -365,6 +365,10 @@ struct kinfo_file {
 			uint32_t	kf_file_pad1;
 		} kf_file;
 		struct {
+			uint32_t	kf_sem_value;
+			uint16_t	kf_sem_mode;
+		} kf_sem;
+		struct {
 			uint64_t	kf_pipe_addr;
 			uint64_t	kf_pipe_peer;
 			uint32_t	kf_pipe_buffer_cnt;

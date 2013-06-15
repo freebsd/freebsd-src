@@ -1355,32 +1355,32 @@ vn_ioctl(fp, com, data, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct vnode *vp = fp->f_vnode;
 	struct vattr vattr;
+	struct vnode *vp;
 	int error;
 
-	error = ENOTTY;
+	vp = fp->f_vnode;
 	switch (vp->v_type) {
-	case VREG:
 	case VDIR:
-		if (com == FIONREAD) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	case VREG:
+		switch (com) {
+		case FIONREAD:
+			vn_lock(vp, LK_SHARED | LK_RETRY);
 			error = VOP_GETATTR(vp, &vattr, active_cred);
 			VOP_UNLOCK(vp, 0);
-			if (!error)
+			if (error == 0)
 				*(int *)data = vattr.va_size - fp->f_offset;
+			return (error);
+		case FIONBIO:
+		case FIOASYNC:
+			return (0);
+		default:
+			return (VOP_IOCTL(vp, com, data, fp->f_flag,
+			    active_cred, td));
 		}
-		if (com == FIONBIO || com == FIOASYNC)	/* XXX */
-			error = 0;
-		else
-			error = VOP_IOCTL(vp, com, data, fp->f_flag,
-			    active_cred, td);
-		break;
-
 	default:
-		break;
+		return (ENOTTY);
 	}
-	return (error);
 }
 
 /*

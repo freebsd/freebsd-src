@@ -1289,7 +1289,7 @@
 struct sk_type {
 	u_int16_t		sk_vid;
 	u_int16_t		sk_did;
-	char			*sk_name;
+	const char		*sk_name;
 };
 
 #define SK_ADDR_LO(x)	((u_int64_t) (x) & 0xffffffff)

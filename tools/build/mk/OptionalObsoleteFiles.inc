@@ -1516,6 +1516,7 @@ OLD_FILES+=usr/share/man/man8/fdcontrol.8.gz
 OLD_FILES+=etc/freebsd-update.conf
 OLD_FILES+=usr/sbin/freebsd-update
 OLD_FILES+=usr/share/examples/etc/freebsd-update.conf
+OLD_FILES+=usr/share/man/man5/freebsd-update.conf.5.gz
 OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .endif
 
@@ -2219,10 +2220,6 @@ OLD_FILES+=usr/share/man/man5/hesiod.conf.5.gz
 #.if ${MK_HTML} == no
 # to be filled in
 #.endif
-
-.if ${MK_IDEA} == no
-OLD_FILES+=usr/include/openssl/idea.h
-.endif
 
 .if ${MK_INET6} == no
 OLD_FILES+=sbin/ping6
@@ -3678,9 +3675,9 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_OPENSSH} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSH} == no
+OLD_FILES+=usr.bin/ssh-copy-id
+.endif
 
 #.if ${MK_OPENSSL} == no
 # to be filled in
@@ -4021,7 +4018,6 @@ OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 
 .if ${MK_SENDMAIL} == no
 OLD_FILES+=etc/periodic/daily/150.clean-hoststat
-OLD_FILES+=etc/periodic/daily/210.backup-aliases
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun

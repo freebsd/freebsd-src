@@ -505,7 +505,9 @@ lagg_port_setlladdr(void *arg, int pending)
 		ifp = llq->llq_ifp;
 
 		/* Set the link layer address */
+		CURVNET_SET(ifp->if_vnet);
 		error = if_setlladdr(ifp, llq->llq_lladdr, ETHER_ADDR_LEN);
+		CURVNET_RESTORE();
 		if (error)
 			printf("%s: setlladdr failed on %s\n", __func__,
 			    ifp->if_xname);

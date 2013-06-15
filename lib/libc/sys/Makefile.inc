@@ -85,6 +85,7 @@ MAN+=	abort2.2 \
 	adjtime.2 \
 	aio_cancel.2 \
 	aio_error.2 \
+	aio_mlock.2 \
 	aio_read.2 \
 	aio_return.2 \
 	aio_suspend.2 \
@@ -270,6 +271,7 @@ MAN+=	sctp_generic_recvmsg.2 \
 	wait.2 \
 	write.2
 
+MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
 	access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
@@ -351,6 +353,7 @@ MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=pdfork.2 pdgetpid.2\
 	pdfork.2 pdkill.2 \
 	pdfork.2 pdwait4.2
+MLINKS+=pipe.2 pipe2.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2

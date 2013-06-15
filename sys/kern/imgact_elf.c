@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+#define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
@@ -161,7 +162,7 @@ __elfN(freebsd_trans_osrel)(const Elf_Note *note, int32_t *osrel)
 	uintptr_t p;
 
 	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+	p += roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE);
 	*osrel = *(const int32_t *)(p);
 
 	return (TRUE);
@@ -186,7 +187,7 @@ kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel)
 	uintptr_t p;
 
 	p = (uintptr_t)(note + 1);
-	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+	p += roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE);
 
 	desc = (const Elf32_Word *)p;
 	if (desc[0] != GNU_KFREEBSD_ABI_DESC)
@@ -1546,7 +1547,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	phdr->p_filesz = notesz;
 	phdr->p_memsz = 0;
 	phdr->p_flags = PF_R;
-	phdr->p_align = sizeof(Elf32_Size);
+	phdr->p_align = ELF_NOTE_ROUNDSIZE;
 	phdr++;
 
 	/* All the writable segments from the program. */
@@ -1574,8 +1575,8 @@ register_note(struct note_info_list *list, int type, outfunc_t out, void *arg)
 		return (size);
 
 	notesize = sizeof(Elf_Note) +		/* note header */
-	    roundup2(8, sizeof(Elf32_Size)) +	/* note name ("FreeBSD") */
-	    roundup2(size, sizeof(Elf32_Size));	/* note description */
+	    roundup2(8, ELF_NOTE_ROUNDSIZE) +	/* note name ("FreeBSD") */
+	    roundup2(size, ELF_NOTE_ROUNDSIZE);	/* note description */
 
 	return (notesize);
 }
@@ -1598,12 +1599,12 @@ __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 	sbuf_bcat(sb, &note, sizeof(note));
 	sbuf_start_section(sb, &old_len);
 	sbuf_bcat(sb, "FreeBSD", note.n_namesz);
-	sbuf_end_section(sb, old_len, sizeof(Elf32_Size), 0);
+	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
 	if (note.n_descsz == 0)
 		return;
 	sbuf_start_section(sb, &old_len);
 	ninfo->outfunc(ninfo->outarg, sb, &ninfo->outsize);
-	sbuf_end_section(sb, old_len, sizeof(Elf32_Size), 0);
+	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
 }
 
 /*
@@ -2004,8 +2005,8 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
 
 nextnote:
 		note = (const Elf_Note *)((const char *)(note + 1) +
-		    roundup2(note->n_namesz, sizeof(Elf32_Addr)) +
-		    roundup2(note->n_descsz, sizeof(Elf32_Addr)));
+		    roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE) +
+		    roundup2(note->n_descsz, ELF_NOTE_ROUNDSIZE));
 	}
 
 	return (FALSE);

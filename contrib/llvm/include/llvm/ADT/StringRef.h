@@ -260,7 +260,7 @@ namespace llvm {
 
     /// Find the first character in the string that is \p C, or npos if not
     /// found. Same as find.
-    size_type find_first_of(char C, size_t From = 0) const {
+    size_t find_first_of(char C, size_t From = 0) const {
       return find(C, From);
     }
 
@@ -268,21 +268,21 @@ namespace llvm {
     /// not found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_first_of(StringRef Chars, size_t From = 0) const;
+    size_t find_first_of(StringRef Chars, size_t From = 0) const;
 
     /// Find the first character in the string that is not \p C or npos if not
     /// found.
-    size_type find_first_not_of(char C, size_t From = 0) const;
+    size_t find_first_not_of(char C, size_t From = 0) const;
 
     /// Find the first character in the string that is not in the string
     /// \p Chars, or npos if not found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_first_not_of(StringRef Chars, size_t From = 0) const;
+    size_t find_first_not_of(StringRef Chars, size_t From = 0) const;
 
     /// Find the last character in the string that is \p C, or npos if not
     /// found.
-    size_type find_last_of(char C, size_t From = npos) const {
+    size_t find_last_of(char C, size_t From = npos) const {
       return rfind(C, From);
     }
 
@@ -290,17 +290,17 @@ namespace llvm {
     /// found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_last_of(StringRef Chars, size_t From = npos) const;
+    size_t find_last_of(StringRef Chars, size_t From = npos) const;
 
     /// Find the last character in the string that is not \p C, or npos if not
     /// found.
-    size_type find_last_not_of(char C, size_t From = npos) const;
+    size_t find_last_not_of(char C, size_t From = npos) const;
 
     /// Find the last character in the string that is not in \p Chars, or
     /// npos if not found.
     ///
     /// Complexity: O(size() + Chars.size())
-    size_type find_last_not_of(StringRef Chars, size_t From = npos) const;
+    size_t find_last_not_of(StringRef Chars, size_t From = npos) const;
 
     /// @}
     /// @name Helpful Algorithms
@@ -390,14 +390,14 @@ namespace llvm {
 
     /// Return a StringRef equal to 'this' but with the first \p N elements
     /// dropped.
-    StringRef drop_front(unsigned N = 1) const {
+    StringRef drop_front(size_t N = 1) const {
       assert(size() >= N && "Dropping more elements than exist");
       return substr(N);
     }
 
     /// Return a StringRef equal to 'this' but with the last \p N elements
     /// dropped.
-    StringRef drop_back(unsigned N = 1) const {
+    StringRef drop_back(size_t N = 1) const {
       assert(size() >= N && "Dropping more elements than exist");
       return substr(0, size()-N);
     }

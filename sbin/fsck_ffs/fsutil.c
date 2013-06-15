@@ -618,6 +618,35 @@ blerase(int fd, ufs2_daddr_t blk, long size)
 	return;
 }
 
+void
+blzero(int fd, ufs2_daddr_t blk, long size)
+{
+	static char *zero;
+	off_t offset, len;
+
+	if (fd < 0)
+		return;
+	len = ZEROBUFSIZE;
+	if (zero == NULL) {
+		zero = calloc(len, 1);
+		if (zero == NULL)
+			errx(EEXIT, "cannot allocate buffer pool");
+	}
+	offset = blk * dev_bsize;
+	if (lseek(fd, offset, 0) < 0)
+		rwerror("SEEK BLK", blk);
+	while (size > 0) {
+		if (size > len)
+			size = len;
+		else
+			len = size;
+		if (write(fd, zero, len) != len)
+			rwerror("WRITE BLK", blk);
+		blk += len / dev_bsize;
+		size -= len;
+	}
+}
+
 /*
  * Verify cylinder group's magic number and other parameters.  If the
  * test fails, offer an option to rebuild the whole cylinder group.

@@ -241,8 +241,10 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 
 	VM_OBJECT_WLOCK(object);
 	pindex = OFF_TO_IDX(offset);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+	    VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_busy(m);
 		ma[0] = m;
 		rv = vm_pager_get_pages(object, ma, 1, 0);
 		m = vm_page_lookup(object, pindex);
@@ -255,11 +257,11 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 			m = NULL;
 			goto out;
 		}
+		vm_page_wakeup(m);
 	}
 	vm_page_lock(m);
 	vm_page_hold(m);
 	vm_page_unlock(m);
-	vm_page_wakeup(m);
 out:
 	VM_OBJECT_WUNLOCK(object);
 	return (m);

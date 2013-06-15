@@ -754,12 +754,14 @@ v449  6/23/12   Allow config option --with-regex=none.
 v450  7/4/12    Fix EOF bug with ESC-F.
 v451  7/20/12   Fix typo.
 -----------------------------------------------------------------
-v452 10/19/12   Fix --with-regex=none, fix "stty 0", fix Win32.
+v452  10/19/12  Fix --with-regex=none, fix "stty 0", fix Win32.
                 Don't quit if errors in cmd line options.
-v453 10/27/12   Increase buffer sizes.
-v454 11/5/12    Fix typo.
-v455 11/5/12    Fix typo.
-v456 11/8/12    Fix option string incompatibility.
+v453  10/27/12  Increase buffer sizes.
+v454  11/5/12   Fix typo.
+v455  11/5/12   Fix typo.
+v456  11/8/12   Fix option string incompatibility.
+v457  12/8/12   Use new option string syntax only after --use-backslash.
+v458  4/4/13    Fix display bug in using up/down in cmd buffer.
 */
 
-char version[] = "456";
+char version[] = "458";

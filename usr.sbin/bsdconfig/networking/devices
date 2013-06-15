@@ -54,7 +54,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 # Process command-line options
 #
-while getopts dD:hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -71,14 +71,11 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-defaultitem=""
+defaultitem=
 while :; do
-	f_dialog_menu_netdev "$defaultitem"
-	retval=$?
-	interface=$( f_dialog_menutag )
+	f_dialog_menu_netdev "$defaultitem" || break
+	f_dialog_menutag_fetch interface
 	defaultitem="$interface"
-
-	[ $retval -eq 0 ] || break
 
 	#
 	# dialog_menu_netdev adds an asterisk (*) to the right of the

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
 #include "opt_perfmon.h"
+#include "opt_platform.h"
 #include "opt_sched.h"
 #include "opt_kdtrace.h"
 
@@ -132,6 +133,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/tss.h>
 #ifdef SMP
 #include <machine/smp.h>
+#endif
+#ifdef FDT
+#include <x86/fdt.h>
 #endif
 
 #ifdef DEV_ATPIC
@@ -964,7 +968,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
-	clear_pcb_flags(pcb, PCB_32BIT | PCB_GS32BIT);
+	clear_pcb_flags(pcb, PCB_32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
@@ -1886,6 +1890,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	cpu_probe_amdc1e();
 
+#ifdef FDT
+	x86_init_fdt();
+#endif
+
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);
 }
@@ -2270,7 +2278,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
 	size_t max_len, len;
 
 	mcp->mc_ownedfp = fpugetregs(td);
-	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate,
+	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 	if (!use_xsave || xfpusave_len == 0)

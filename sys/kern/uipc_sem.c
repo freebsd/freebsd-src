@@ -71,7 +71,6 @@ FEATURE(p1003_1b_semaphores, "POSIX P1003.1B semaphores support");
  * TODO
  *
  * - Resource limits?
- * - Update fstat(1)
  * - Replace global sem_lock with mtx_pool locks?
  * - Add a MAC check_create() hook for creating new named semaphores.
  */
@@ -407,6 +406,7 @@ ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks)
 	map->km_path = path;
 	map->km_fnv = fnv;
 	map->km_ksem = ksem_hold(ks);
+	ks->ks_path = path;
 	LIST_INSERT_HEAD(KSEM_HASH(fnv), map, km_link);
 }
 
@@ -428,6 +428,7 @@ ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 			error = ksem_access(map->km_ksem, ucred);
 			if (error)
 				return (error);
+			map->km_ksem->ks_path = NULL;
 			LIST_REMOVE(map, km_link);
 			ksem_drop(map->km_ksem);
 			free(map->km_path, M_KSEM);
@@ -437,6 +438,20 @@ ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 	}
 
 	return (ENOENT);
+}
+
+static void
+ksem_info_impl(struct ksem *ks, char *path, size_t size, uint32_t *value)
+{
+
+	if (ks->ks_path == NULL)
+		return;
+	sx_slock(&ksem_dict_lock);
+	if (ks->ks_path != NULL)
+		strlcpy(path, ks->ks_path, size);
+	if (value != NULL)
+		*value = ks->ks_value;
+	sx_sunlock(&ksem_dict_lock);
 }
 
 static int
@@ -1014,6 +1029,7 @@ ksem_module_init(void)
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 200112L);
 	p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 	p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
+	ksem_info = ksem_info_impl;
 
 	error = syscall_helper_register(ksem_syscalls);
 	if (error)
@@ -1035,6 +1051,7 @@ ksem_module_destroy(void)
 #endif
 	syscall_helper_unregister(ksem_syscalls);
 
+	ksem_info = NULL;
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 0);
 	hashdestroy(ksem_dictionary, M_KSEM, ksem_hash);
 	sx_destroy(&ksem_dict_lock);

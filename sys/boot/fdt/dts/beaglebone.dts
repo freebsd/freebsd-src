@@ -32,6 +32,7 @@
 
 / {
 	model = "beaglebone";
+	compatible = "beaglebone", "ti,am335x";
 
 	aliases {
 		soc = &SOC;

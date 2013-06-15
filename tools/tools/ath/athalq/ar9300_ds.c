@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 
 #include <dev/ath/if_ath_alq.h>
-#include <dev/ath/ath_hal/ar9003/ar9300desc.h>
+#include <dev/ath/ath_hal/ar9300/ar9300desc.h>
 
 #include "ar9300_ds.h"
 

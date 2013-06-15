@@ -360,21 +360,25 @@ AcpiExWriteDataToField (
     switch (SourceDesc->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
+
         Buffer = &SourceDesc->Integer.Value;
         Length = sizeof (SourceDesc->Integer.Value);
         break;
 
     case ACPI_TYPE_BUFFER:
+
         Buffer = SourceDesc->Buffer.Pointer;
         Length = SourceDesc->Buffer.Length;
         break;
 
     case ACPI_TYPE_STRING:
+
         Buffer = SourceDesc->String.Pointer;
         Length = SourceDesc->String.Length;
         break;
 
     default:
+
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
 

@@ -4,6 +4,8 @@ NO_MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-rtdyld
+DPADD=	${LIBZ}
+LDADD=	-lz
 
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp

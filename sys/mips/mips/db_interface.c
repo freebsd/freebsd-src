@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/mips_opcode.h>
 #include <machine/vmparam.h>
 #include <machine/md_var.h>
-#define	NO_REG_DEFS	1	/* Prevent asm.h from including regdef.h */
-#include <machine/asm.h>
 #include <machine/setjmp.h>
 
 #include <ddb/ddb.h>

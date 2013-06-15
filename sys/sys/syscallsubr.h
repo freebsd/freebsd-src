@@ -60,6 +60,8 @@ int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
+int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
+	    socklen_t *namelen, int flags, struct file **fp);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
 int	kern_accessat(struct thread *td, int fd, char *path,

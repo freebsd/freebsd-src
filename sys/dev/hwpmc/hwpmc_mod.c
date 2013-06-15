@@ -1672,7 +1672,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		}
 
 		obj = entry->object.vm_object;
-		VM_OBJECT_WLOCK(obj);
+		VM_OBJECT_RLOCK(obj);
 
 		/* 
 		 * Walk the backing_object list to find the base
@@ -1680,9 +1680,9 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		 */
 		for (lobj = tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 
@@ -1692,14 +1692,14 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		if (lobj == NULL) {
 			PMCDBG(LOG,OPS,2, "hwpmc: lobj unexpectedly NULL! pid=%d "
 			    "vm_map=%p vm_obj=%p\n", p->p_pid, map, obj);
-			VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
 		if (lobj->type != OBJT_VNODE || lobj->handle == NULL) {
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
-			VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
@@ -1711,8 +1711,8 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		if (entry->start == last_end && lobj->handle == last_vp) {
 			last_end = entry->end;
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
-			VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
@@ -1734,9 +1734,9 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		vp = lobj->handle;
 		vref(vp);
 		if (lobj != obj)
-			VM_OBJECT_WUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(lobj);
 
-		VM_OBJECT_WUNLOCK(obj);
+		VM_OBJECT_RUNLOCK(obj);
 
 		freepath = NULL;
 		pmc_getfilename(vp, &fullpath, &freepath);
@@ -2210,11 +2210,8 @@ pmc_allocate_pmc_descriptor(void)
 	struct pmc *pmc;
 
 	pmc = malloc(sizeof(struct pmc), M_PMC, M_WAITOK|M_ZERO);
-
-	if (pmc != NULL) {
-		pmc->pm_owner = NULL;
-		LIST_INIT(&pmc->pm_targets);
-	}
+	pmc->pm_owner = NULL;
+	LIST_INIT(&pmc->pm_targets);
 
 	PMCDBG(PMC,ALL,1, "allocate-pmc -> pmc=%p", pmc);
 
@@ -4671,13 +4668,10 @@ pmc_mdep_alloc(int nclasses)
 	n = 1 + nclasses;
 	md = malloc(sizeof(struct pmc_mdep) + n *
 	    sizeof(struct pmc_classdep), M_PMC, M_WAITOK|M_ZERO);
-	if (md != NULL) {
-		md->pmd_nclass = n;
+	md->pmd_nclass = n;
 
-		/* Add base class. */
-		pmc_soft_initialize(md);
-	}
-
+	/* Add base class. */
+	pmc_soft_initialize(md);
 	return md;
 }
 
@@ -4888,9 +4882,6 @@ pmc_initialize(void)
 	/* allocate space for the row disposition array */
 	pmc_pmcdisp = malloc(sizeof(enum pmc_mode) * md->pmd_npmc,
 	    M_PMC, M_WAITOK|M_ZERO);
-
-	KASSERT(pmc_pmcdisp != NULL,
-	    ("[pmc,%d] pmcdisp allocation returned NULL", __LINE__));
 
 	/* mark all PMCs as available */
 	for (n = 0; n < (int) md->pmd_npmc; n++)

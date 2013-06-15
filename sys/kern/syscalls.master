@@ -952,7 +952,7 @@
 				    off_t offset, off_t len); }
 531	AUE_NULL	STD	{ int posix_fadvise(int fd, off_t offset, \
 				    off_t len, int advice); }
-532	AUE_WAIT6	STD	{ int wait6(int idtype, int id, \
+532	AUE_WAIT6	STD	{ int wait6(int idtype, id_t id, \
 				    int *status, int options, \
 				    struct __wrusage *wrusage, \
 				    siginfo_t *info); }
@@ -972,5 +972,11 @@
 				    int namelen); }
 540	AUE_CHFLAGSAT	STD	{ int chflagsat(int fd, const char *path, \
 				    u_long flags, int atflag); }
+541	AUE_ACCEPT	STD	{ int accept4(int s, \
+				    struct sockaddr * __restrict name, \
+				    __socklen_t * __restrict anamelen, \
+				    int flags); }
+542	AUE_PIPE	STD	{ int pipe2(int *fildes, int flags); }
+543	AUE_NULL	NOSTD	{ int aio_mlock(struct aiocb *aiocbp); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

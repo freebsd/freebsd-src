@@ -160,7 +160,11 @@ static const struct data_abort data_aborts[] = {
 	{dab_align,	"Alignment Fault 3"},
 	{dab_buserr,	"External Linefetch Abort (S)"},
 	{NULL,		"Translation Fault (S)"},
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
+	{NULL,		"Translation Flag Fault"},
+#else
 	{dab_buserr,	"External Linefetch Abort (P)"},
+#endif
 	{NULL,		"Translation Fault (P)"},
 	{dab_buserr,	"External Non-Linefetch Abort (S)"},
 	{NULL,		"Domain Fault (S)"},
@@ -240,8 +244,8 @@ data_abort_handler(trapframe_t *tf)
 	far = cpu_faultaddress();
 	fsr = cpu_faultstatus();
 #if 0
-	printf("data abort: %p (from %p %p)\n", (void*)far, (void*)tf->tf_pc,
-	    (void*)tf->tf_svc_lr);
+	printf("data abort: fault address=%p (from pc=%p lr=%p)\n",
+	       (void*)far, (void*)tf->tf_pc, (void*)tf->tf_svc_lr);
 #endif
 
 	/* Update vmmeter statistics */
@@ -387,22 +391,21 @@ data_abort_handler(trapframe_t *tf)
 	 * Otherwise we need to disassemble the instruction
 	 * responsible to determine if it was a write.
 	 */
-	if (IS_PERMISSION_FAULT(fsr)) {
+	if (IS_PERMISSION_FAULT(fsr))
 		ftype = VM_PROT_WRITE;
-	} else {
+	else {
 		u_int insn = ReadWord(tf->tf_pc);
 
 		if (((insn & 0x0c100000) == 0x04000000) ||	/* STR/STRB */
 		    ((insn & 0x0e1000b0) == 0x000000b0) ||	/* STRH/STRD */
-		    ((insn & 0x0a100000) == 0x08000000))	/* STM/CDT */
-		{
+		    ((insn & 0x0a100000) == 0x08000000)) {	/* STM/CDT */
 			ftype = VM_PROT_WRITE;
-	}
-		else
-		if ((insn & 0x0fb00ff0) == 0x01000090)		/* SWP */
-			ftype = VM_PROT_READ | VM_PROT_WRITE;
-		else
-			ftype = VM_PROT_READ;
+		} else {
+			if ((insn & 0x0fb00ff0) == 0x01000090)	/* SWP */
+				ftype = VM_PROT_READ | VM_PROT_WRITE;
+			else
+				ftype = VM_PROT_READ;
+		}
 	}
 
 	/*

@@ -31,6 +31,42 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130613:
+	Some people report the following error after the switch to bmake:
+
+		make: illegal option -- J
+		usage: make [-BPSXeiknpqrstv] [-C directory] [-D variable]
+			...
+		*** [buildworld] Error code 2
+
+	this likely due to an old instance of make in
+	${MAKEPATH} (${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE})
+	which src/Makefile will use that blindly, if it exists, so if
+	you see the above error:
+
+		rm -rf `make -V MAKEPATH`
+
+	should resolve it.
+
+20130516:
+	Use bmake by default.
+	Whereas before one could choose to build with bmake via
+	-DWITH_BMAKE one must now use -DWITHOUT_BMAKE to use the old
+	make. The goal is to remove these knobs for 10-RELEASE.
+
+	It is worth noting that bmake (like gmake) treats the command
+	line as the unit of failure, rather than statements within the
+	command line.  Thus '(cd some/where && dosomething)' is safer
+	than 'cd some/where; dosomething'. The '()' allows consistent
+	behavior in parallel build.
+
+20130429:
+        Fix a bug that allows NFS clients to issue READDIR on files.
+
+20130426:
+	The WITHOUT_IDEA option has been removed because
+	the IDEA patent expired.
+
 20130426:
 	The sysctl which controls TRIM support under ZFS has been renamed
 	from vfs.zfs.trim_disable -> vfs.zfs.trim.enabled and has been
@@ -96,6 +132,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	To inverse the logic and use the BSD-licensed one as default,
 	while having the GNU version installed as gnupatch, rebuild
 	and install world with the WITH_BSD_PATCH knob set.
+
+20130121:
+	Due to the use of the new -l option to install(1) during build
+	and install, you must take care not to directly set the INSTALL
+	make variable in your /etc/make.conf, /etc/src.conf, or on the
+	command line.  If you wish to use the -C flag for all installs
+	you may be able to add INSTALL+=-C to /etc/make.conf or
+	/etc/src.conf.
 
 20130118:
 	The install(1) option -M has changed meaning and now takes an
@@ -276,7 +320,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	is now spelled mips64.  mipsn32eb is now spelled mipsn32.  mipseb is
 	now spelled mips.  This is to aid compatibility with third-party
 	software that expects this naming scheme in uname(3).  Little-endian
-	settings are unchanged.
+	settings are unchanged. If you are updating a big-endian mips64 machine
+	from before this change, you may need to set MACHINE_ARCH=mips64 in
+	your environment before the new build system will recognize your machine.
 
 20120306:
 	Disable by default the option VFS_ALLOW_NONMPSAFE for all supported

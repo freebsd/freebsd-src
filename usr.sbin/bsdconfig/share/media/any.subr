@@ -68,12 +68,9 @@ f_media_get_type()
 	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
 	local prompt="$msg_choose_installation_media_description"
-	local hline="$hline_choose_help_for_more_information_on_media_types"
-	local menu_list size
-
-	menu_list="
-		'1 $msg_cd_dvd'	   '$msg_install_from_a_freebsd_cd_dvd'
-		'2 $msg_ftp'	   '$msg_install_from_an_ftp_server'
+	local menu_list="
+		'1 $msg_cd_dvd'    '$msg_install_from_a_freebsd_cd_dvd'
+		'2 $msg_ftp'       '$msg_install_from_an_ftp_server'
 		'3 $msg_ftp_passive'
 		                '$msg_install_from_an_ftp_server_thru_firewall'
 		'4 $msg_http'      '$msg_install_from_an_ftp_server_thru_proxy'
@@ -85,34 +82,34 @@ f_media_get_type()
 		'A $msg_usb'       '$msg_install_from_a_usb_drive'
 		'X $msg_options'   '$msg_view_set_various_media_options'
 	" # END-QUOTE
+	local hline="$hline_choose_help_for_more_information_on_media_types"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$title\"  \
-	        	\"\$btitle\" \
-	        	\"\$prompt\" \
-	        	\"\$hline\"  \
-	        	$menu_list   )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
 
-	local dialog_menu
-
+	local mtag
 	while :; do
-		dialog_menu=$( eval $DIALOG \
-			--title \"\$title\"                  \
-			--backtitle \"\$btitle\"             \
-			--hline \"\$hline\"                  \
-			--ok-label \"\$msg_ok\"              \
-			--cancel-label \"\$msg_cancel\"      \
-			--help-button                        \
-			--help-label \"\$msg_help\"          \
-			${USE_XDIALOG:+--help \"\"}          \
-			--menu \"\$prompt\" $size $menu_list \
+		mtag=$( eval $DIALOG \
+			--title \"\$title\"             \
+			--backtitle \"\$btitle\"        \
+			--hline \"\$hline\"             \
+			--ok-label \"\$msg_ok\"         \
+			--cancel-label \"\$msg_cancel\" \
+			--help-button                   \
+			--help-label \"\$msg_help\"     \
+			${USE_XDIALOG:+--help \"\"}     \
+			--menu \"\$prompt\"             \
+			$height $width $rows            \
+			$menu_list                      \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-
-		local mtag
-		mtag=$( f_dialog_menutag )
+		f_dialog_data_sanitize mtag
 		f_dprintf "retval=%s mtag=[%s]" $retval "$mtag"
 
 		if [ $retval -eq 2 ]; then
@@ -125,7 +122,7 @@ f_media_get_type()
 
 		case "$mtag" in
 		?" $msg_cd_dvd")      f_media_set_cdrom ;;
-		?" $msg_ftp")         f_media_set_ftp_active ;;
+		?" $msg_ftp")         f_media_set_ftp ;;
 		?" $msg_ftp_passive") f_media_set_ftp_passive ;;
 		?" $msg_http")        f_media_set_http_proxy ;;
 		?" $msg_directory")   f_media_set_directory ;;

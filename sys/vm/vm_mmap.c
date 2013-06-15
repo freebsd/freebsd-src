@@ -1036,18 +1036,24 @@ sys_mlock(td, uap)
 	struct thread *td;
 	struct mlock_args *uap;
 {
-	struct proc *proc;
+
+	return (vm_mlock(td->td_proc, td->td_ucred, uap->addr, uap->len));
+}
+
+int
+vm_mlock(struct proc *proc, struct ucred *cred, const void *addr0, size_t len)
+{
 	vm_offset_t addr, end, last, start;
 	vm_size_t npages, size;
 	vm_map_t map;
 	unsigned long nsize;
 	int error;
 
-	error = priv_check(td, PRIV_VM_MLOCK);
+	error = priv_check_cred(cred, PRIV_VM_MLOCK, 0);
 	if (error)
 		return (error);
-	addr = (vm_offset_t)uap->addr;
-	size = uap->len;
+	addr = (vm_offset_t)addr0;
+	size = len;
 	last = addr + size;
 	start = trunc_page(addr);
 	end = round_page(last);
@@ -1056,7 +1062,6 @@ sys_mlock(td, uap)
 	npages = atop(end - start);
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
-	proc = td->td_proc;
 	map = &proc->p_vmspace->vm_map;
 	PROC_LOCK(proc);
 	nsize = ptoa(npages + pmap_wired_count(map->pmap));
@@ -1284,12 +1289,12 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			error = EINVAL;
 			goto done;
 		}
-		if (obj->handle != vp) {
+		if (obj->type == OBJT_VNODE && obj->handle != vp) {
 			vput(vp);
 			vp = (struct vnode *)obj->handle;
 			/*
 			 * Bypass filesystems obey the mpsafety of the
-			 * underlying fs.
+			 * underlying fs.  Tmpfs never bypasses.
 			 */
 			error = vget(vp, locktype, td);
 			if (error != 0)
@@ -1333,7 +1338,14 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	objsize = round_page(va.va_size);
 	if (va.va_nlink == 0)
 		flags |= MAP_NOSYNC;
-	obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff, cred);
+	if (obj->type == OBJT_VNODE)
+		obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff,
+		    cred);
+	else {
+		KASSERT(obj->type == OBJT_DEFAULT || obj->type == OBJT_SWAP,
+		    ("wrong object type"));
+		vm_object_reference(obj);
+	}
 	if (obj == NULL) {
 		error = ENOMEM;
 		goto done;

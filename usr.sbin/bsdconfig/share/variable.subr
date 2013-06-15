@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." variable.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 ############################################################ GLOBALS
 
@@ -93,8 +94,7 @@ f_variable_get_value()
 
 	if ! { f_getvar $var cp && ! f_interactive; }; then
 		shift 1 # var
-		cp=$( f_dialog_input "$( printf "$@" )" "$cp" ) &&
-			setvar $var "$cp"
+		f_dialog_input cp "$( printf "$@" )" "$cp" && setvar $var "$cp"
 	fi
 
 	return $SUCCESS
@@ -110,13 +110,14 @@ f_variable_set_defaults()
 	# Initialize various user-edittable values to their defaults
 	#
 	setvar $VAR_EDITOR		"${EDITOR:-/usr/bin/ee}"
-	setvar $VAR_FTP_STATE		"passive"
+	setvar $VAR_FTP_STATE		"auto"
 	setvar $VAR_FTP_USER		"ftp"
 	setvar $VAR_HOSTNAME		"$( hostname )"
 	setvar $VAR_MEDIA_TIMEOUT	"300"
 	setvar $VAR_NFS_SECURE		"NO"
 	setvar $VAR_NFS_TCP		"NO"
 	setvar $VAR_NFS_V3		"YES"
+	setvar $VAR_PKG_TMPDIR		"/var/tmp"
 	setvar $VAR_RELNAME		"$UNAME_R"
 
 	f_dprintf "f_variable_set_defaults: Defaults initialized."
@@ -130,12 +131,12 @@ f_variable_set_defaults()
 #
 f_dump_variables()
 {
-	local err sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
+	local err
 	if ! err=$(
 		( for handle in $VARIABLES; do
 			f_getvar $handle var || continue
 			f_getvar $var value || continue
-			value=$( echo "$value" | awk "$sanitize_awk" )
+			f_shell_escape "$value" value
 			printf "%s='%s'\n" "$var" "$value"
 		  done > "$VARIABLE_DUMPFILE" ) 2>&1
 	); then
@@ -224,8 +225,12 @@ f_variable_new VAR_NFS_SECURE		nfs_reserved_port_only
 f_variable_new VAR_NFS_TCP		nfs_use_tcp
 f_variable_new VAR_NFS_V3		nfs_use_v3
 f_variable_new VAR_NONINTERACTIVE	nonInteractive
+f_variable_new VAR_NO_CONFIRM		noConfirm
 f_variable_new VAR_NO_ERROR		noError
 f_variable_new VAR_NO_INET6		noInet6
+f_variable_new VAR_PACKAGE		package
+f_variable_new VAR_PKG_TMPDIR		PKG_TMPDIR
+f_variable_new VAR_PORTS_PATH		ports
 f_variable_new VAR_RELNAME		releaseName
 f_variable_new VAR_SLOW_ETHER		slowEthernetCard
 f_variable_new VAR_TRY_DHCP		tryDHCP

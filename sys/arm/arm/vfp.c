@@ -49,16 +49,18 @@ void	set_coprocessorACR(u_int);
 
 extern int vfp_exists;
 static struct undefined_handler vfp10_uh, vfp11_uh;
+/* If true the VFP unit has 32 double registers, otherwise it has 16 */
+static int is_d32;
 
 /* The VFMXR command using coprocessor commands */
 #define fmxr(reg, val) \
-	__asm __volatile("mcr p10, 7, %0, " #reg " , c0, 0" :: "r" (val));
+    __asm __volatile("mcr p10, 7, %0, " __STRING(reg) " , c0, 0" :: "r"(val));
 
 /* The VFMRX command using coprocessor commands */
 #define fmrx(reg) \
 ({ u_int val = 0;\
-	__asm __volatile("mrc p10, 7, %0, " #reg " , c0, 0" : "=r" (val));\
-	val; \
+    __asm __volatile("mrc p10, 7, %0, " __STRING(reg) " , c0, 0" : "=r"(val));\
+    val; \
 })
 
 u_int
@@ -83,24 +85,34 @@ void
 vfp_init(void)
 {
 	u_int fpsid, fpexc, tmp;
-	u_int coproc;
+	u_int coproc, vfp_arch;
 
 	coproc = get_coprocessorACR();
 	coproc |= COPROC10 | COPROC11;
 	set_coprocessorACR(coproc);
 	
-	fpsid = fmrx(cr0);		/* read the vfp system id */
-	fpexc = fmrx(cr8);		/* read the vfp exception reg */
+	fpsid = fmrx(VFPSID);		/* read the vfp system id */
+	fpexc = fmrx(VFPEXC);		/* read the vfp exception reg */
 
 	if (!(fpsid & VFPSID_HARDSOFT_IMP)) {
 		vfp_exists = 1;
+		is_d32 = 0;
 		PCPU_SET(vfpsid, fpsid);	/* save the VFPSID */
-		if ((fpsid & VFPSID_SUBVERSION2_MASK) == VFP_ARCH3) {
-			tmp = fmrx(cr7);	/* extended registers */
+
+		vfp_arch =
+		    (fpsid & VFPSID_SUBVERSION2_MASK) >> VFPSID_SUBVERSION_OFF;
+
+		if (vfp_arch >= VFP_ARCH3) {
+			tmp = fmrx(VMVFR0);
 			PCPU_SET(vfpmvfr0, tmp);
-			tmp = fmrx(cr6);	/* extended registers */
+
+			if ((tmp & VMVFR0_RB_MASK) == 2)
+				is_d32 = 1;
+
+			tmp = fmrx(VMVFR1);
 			PCPU_SET(vfpmvfr1, tmp);
 		}
+
 		/* initialize the coprocess 10 and 11 calls
 		 * These are called to restore the registers and enable
 		 * the VFP hardware.
@@ -129,7 +141,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 
 	if (!vfp_exists)
 		return 1;		/* vfp does not exist */
-	fpexc = fmrx(cr8);		/* read the vfp exception reg */
+	fpexc = fmrx(VFPEXC);		/* read the vfp exception reg */
 	if (fpexc & VFPEXC_EN) {
 		vfptd = PCPU_GET(vfpcthread);
 		/* did the kernel call the vfp or exception that expect us
@@ -147,7 +159,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 			vfp_store(&vfptd->td_pcb->pcb_vfpstate);
 
 		fpexc &= ~VFPEXC_EN;
-		fmxr(cr8, fpexc);	/* turn vfp hardware off */
+		fmxr(VFPEXC, fpexc);	/* turn vfp hardware off */
 		if (vfptd == curthread) {
 			/* kill the process - we do not handle emulation */
 			killproc(curthread->td_proc, "vfp emulation");
@@ -158,7 +170,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 			vfptd, curthread);
 	}
 	fpexc |= VFPEXC_EN;
-	fmxr(cr8, fpexc);	/* enable the vfp and repeat command */
+	fmxr(VFPEXC, fpexc);	/* enable the vfp and repeat command */
 	curpcb = PCPU_GET(curpcb);
 	/* If we were the last process to use the VFP, the process did not
 	 * use a VFP on another processor, then the registers in the VFP
@@ -184,15 +196,14 @@ vfp_restore(struct vfp_state *vfpsave)
 	u_int vfpscr = 0;
 
 	if (vfpsave) {
-		__asm __volatile("ldc	p10, c0, [%0], #128\n" /* d0-d31 */
-#ifndef VFPv2
-			"ldcl	p11, c0, [%0], #128\n"	/* d16-d31 */
-#else
-			"add	%0, %0, #128\n"		/* slip missing regs */
-#endif
+		__asm __volatile("ldc	p10, c0, [%0], #128\n" /* d0-d15 */
+			"cmp	%0, 0\n"		/* -D16 or -D32? */
+			"ldcleq	p11, c0, [%0], #128\n"	/* d16-d31 */
+			"addne	%0, %0, #128\n"		/* skip missing regs */
 			"ldr	%1, [%0]\n"		/* set old vfpscr */
 			"mcr	p10, 7, %1, cr1, c0, 0\n"
-				:: "r" (vfpsave), "r" (vfpscr));
+				:: "r" (vfpsave), "r" (vfpscr), "r" (is_d32)
+				: "cc");
 		PCPU_SET(vfpcthread, PCPU_GET(curthread));
 	}
 }
@@ -211,24 +222,22 @@ vfp_store(struct vfp_state *vfpsave)
 {
 	u_int tmp, vfpscr = 0;
 
-	tmp = fmrx(cr8);		/* Is the vfp enabled? */
+	tmp = fmrx(VFPEXC);		/* Is the vfp enabled? */
 	if (vfpsave && tmp & VFPEXC_EN) {
-		__asm __volatile("stc	p11, c0, [%1], #128\n" /* d0-d31 */
-#ifndef VFPv2
-			"stcl	p11, c0, [%1], #128\n"
-#else
-			"add	%1, %1, #128\n"
-#endif
-			"mrc	p10, 7, %0, cr1, c0, 0\n"
-			"str	%0, [%1]\n"
-			:  "=&r" (vfpscr) : "r" (vfpsave));
+		__asm __volatile("stc	p11, c0, [%1], #128\n" /* d0-d15 */
+			"cmp	%0, 0\n"		/* -D16 or -D32? */
+			"stcleq	p11, c0, [%1], #128\n"	/* d16-d31 */
+			"addne	%1, %1, #128\n"		/* skip missing regs */
+			"mrc	p10, 7, %0, cr1, c0, 0\n" /* fmxr(VFPSCR) */
+			"str	%0, [%1]\n"		/* save vfpscr */
+			:  "=&r" (vfpscr) : "r" (vfpsave), "r" (is_d32) : "cc");
 	}
 #ifndef SMP
 		/* eventually we will use this information for UP also */
 	PCPU_SET(vfpcthread, 0);
 #endif
 	tmp &= ~VFPEXC_EN;	/* disable the vfp hardware */
-	fmxr(cr8 , tmp);
+	fmxr(VFPEXC , tmp);
 }
 
 /* discard the registers at cpu_thread_free() when fpcurthread == td.
@@ -240,9 +249,9 @@ vfp_discard()
 	u_int tmp = 0;
 
 	PCPU_SET(vfpcthread, 0);	/* permanent forget about reg */
-	tmp = fmrx(cr8);
+	tmp = fmrx(VFPEXC);
 	tmp &= ~VFPEXC_EN;		/* turn off VFP hardware */
-	fmxr(cr8, tmp);
+	fmxr(VFPEXC, tmp);
 }
 
 /* Enable the VFP hardware without restoring registers.
@@ -253,7 +262,7 @@ vfp_enable()
 {
 	u_int tmp = 0;
 
-	tmp = fmrx(cr8);
+	tmp = fmrx(VFPEXC);
 	tmp |= VFPEXC_EN;
-	fmxr(cr8 , tmp);
+	fmxr(VFPEXC, tmp);
 }

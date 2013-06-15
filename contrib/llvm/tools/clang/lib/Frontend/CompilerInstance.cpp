@@ -155,18 +155,15 @@ static void SetupSerializedDiagnostics(DiagnosticOptions *DiagOpts,
 }
 
 void CompilerInstance::createDiagnostics(DiagnosticConsumer *Client,
-                                         bool ShouldOwnClient,
-                                         bool ShouldCloneClient) {
+                                         bool ShouldOwnClient) {
   Diagnostics = createDiagnostics(&getDiagnosticOpts(), Client,
-                                  ShouldOwnClient, ShouldCloneClient,
-                                  &getCodeGenOpts());
+                                  ShouldOwnClient, &getCodeGenOpts());
 }
 
 IntrusiveRefCntPtr<DiagnosticsEngine>
 CompilerInstance::createDiagnostics(DiagnosticOptions *Opts,
                                     DiagnosticConsumer *Client,
                                     bool ShouldOwnClient,
-                                    bool ShouldCloneClient,
                                     const CodeGenOptions *CodeGenOpts) {
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
   IntrusiveRefCntPtr<DiagnosticsEngine>
@@ -175,10 +172,7 @@ CompilerInstance::createDiagnostics(DiagnosticOptions *Opts,
   // Create the diagnostic client for reporting errors or for
   // implementing -verify.
   if (Client) {
-    if (ShouldCloneClient)
-      Diags->setClient(Client->clone(*Diags), ShouldOwnClient);
-    else
-      Diags->setClient(Client, ShouldOwnClient);
+    Diags->setClient(Client, ShouldOwnClient);
   } else
     Diags->setClient(new TextDiagnosticPrinter(llvm::errs(), Opts));
 
@@ -868,9 +862,10 @@ static void compileModule(CompilerInstance &ImportingInstance,
   // module.
   CompilerInstance Instance;
   Instance.setInvocation(&*Invocation);
-  Instance.createDiagnostics(&ImportingInstance.getDiagnosticClient(),
-                             /*ShouldOwnClient=*/true,
-                             /*ShouldCloneClient=*/true);
+
+  Instance.createDiagnostics(new ForwardingDiagnosticConsumer(
+                                   ImportingInstance.getDiagnosticClient()),
+                             /*ShouldOwnClient=*/true);
 
   // Note that this module is part of the module build stack, so that we
   // can detect cycles in the module graph.
@@ -892,6 +887,7 @@ static void compileModule(CompilerInstance &ImportingInstance,
   llvm::CrashRecoveryContext CRC;
   CompileModuleMapData Data = { Instance, CreateModuleAction };
   CRC.RunSafelyOnThread(&doCompileMapModule, &Data, ThreadStackSize);
+
   
   // Delete the temporary module map file.
   // FIXME: Even though we're executing under crash protection, it would still

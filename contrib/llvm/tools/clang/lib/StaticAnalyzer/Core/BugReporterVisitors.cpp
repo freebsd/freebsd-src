@@ -41,7 +41,7 @@ bool bugreporter::isDeclRefExprToReference(const Expr *E) {
 }
 
 const Expr *bugreporter::getDerefExpr(const Stmt *S) {
-  // Pattern match for a few useful cases (do something smarter later):
+  // Pattern match for a few useful cases:
   //   a[0], p->f, *p
   const Expr *E = dyn_cast<Expr>(S);
   if (!E)
@@ -61,6 +61,10 @@ const Expr *bugreporter::getDerefExpr(const Stmt *S) {
     else if (const MemberExpr *ME = dyn_cast<MemberExpr>(E)) {
       if (ME->isArrow() || isDeclRefExprToReference(ME->getBase())) {
         return ME->getBase()->IgnoreParenCasts();
+      } else {
+        // If we have a member expr with a dot, the base must have been
+        // dereferenced.
+        return getDerefExpr(ME->getBase());
       }
     }
     else if (const ObjCIvarRefExpr *IvarRef = dyn_cast<ObjCIvarRefExpr>(E)) {
@@ -68,6 +72,9 @@ const Expr *bugreporter::getDerefExpr(const Stmt *S) {
     }
     else if (const ArraySubscriptExpr *AE = dyn_cast<ArraySubscriptExpr>(E)) {
       return AE->getBase();
+    }
+    else if (isDeclRefExprToReference(E)) {
+      return E;
     }
     break;
   }
@@ -307,9 +314,9 @@ public:
     if (LValue) {
       if (const MemRegion *MR = LValue->getAsRegion()) {
         if (MR->canPrintPretty()) {
-          Out << " (reference to '";
+          Out << " (reference to ";
           MR->printPretty(Out);
-          Out << "')";
+          Out << ")";
         }
       }
     } else {
@@ -411,6 +418,35 @@ void FindLastStoreBRVisitor ::Profile(llvm::FoldingSetNodeID &ID) const {
   ID.AddBoolean(EnableNullFPSuppression);
 }
 
+/// Returns true if \p N represents the DeclStmt declaring and initializing
+/// \p VR.
+static bool isInitializationOfVar(const ExplodedNode *N, const VarRegion *VR) {
+  Optional<PostStmt> P = N->getLocationAs<PostStmt>();
+  if (!P)
+    return false;
+
+  const DeclStmt *DS = P->getStmtAs<DeclStmt>();
+  if (!DS)
+    return false;
+
+  if (DS->getSingleDecl() != VR->getDecl())
+    return false;
+
+  const MemSpaceRegion *VarSpace = VR->getMemorySpace();
+  const StackSpaceRegion *FrameSpace = dyn_cast<StackSpaceRegion>(VarSpace);
+  if (!FrameSpace) {
+    // If we ever directly evaluate global DeclStmts, this assertion will be
+    // invalid, but this still seems preferable to silently accepting an
+    // initialization that may be for a path-sensitive variable.
+    assert(VR->getDecl()->isStaticLocal() && "non-static stackless VarRegion");
+    return true;
+  }
+
+  assert(VR->getDecl()->hasLocalStorage());
+  const LocationContext *LCtx = N->getLocationContext();
+  return FrameSpace->getStackFrame() == LCtx->getCurrentStackFrame();
+}
+
 PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
                                                        const ExplodedNode *Pred,
                                                        BugReporterContext &BRC,
@@ -425,13 +461,9 @@ PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
 
   // First see if we reached the declaration of the region.
   if (const VarRegion *VR = dyn_cast<VarRegion>(R)) {
-    if (Optional<PostStmt> P = Pred->getLocationAs<PostStmt>()) {
-      if (const DeclStmt *DS = P->getStmtAs<DeclStmt>()) {
-        if (DS->getSingleDecl() == VR->getDecl()) {
-          StoreSite = Pred;
-          InitE = VR->getDecl()->getInit();
-        }
-      }
+    if (isInitializationOfVar(Pred, VR)) {
+      StoreSite = Pred;
+      InitE = VR->getDecl()->getInit();
     }
   }
 
@@ -511,9 +543,6 @@ PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
     }
   }
 
-  if (!R->canPrintPretty())
-    return 0;
-
   // Okay, we've found the binding. Emit an appropriate message.
   SmallString<256> sbuf;
   llvm::raw_svector_ostream os(sbuf);
@@ -525,9 +554,11 @@ PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
     const VarRegion *VR = dyn_cast<VarRegion>(R);
 
     if (DS) {
-      action = "initialized to ";
+      action = R->canPrintPretty() ? "initialized to " :
+                                     "Initializing to ";
     } else if (isa<BlockExpr>(S)) {
-      action = "captured by block as ";
+      action = R->canPrintPretty() ? "captured by block as " :
+                                     "Captured by block as ";
       if (VR) {
         // See if we can get the BlockVarRegion.
         ProgramStateRef State = StoreSite->getState();
@@ -545,12 +576,10 @@ PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
     }
 
     if (action) {
-      if (!R)
-        return 0;
-
-      os << '\'';
-      R->printPretty(os);
-      os << "' ";
+      if (R->canPrintPretty()) {
+        R->printPretty(os);
+        os << " ";
+      }
 
       if (V.getAs<loc::ConcreteInt>()) {
         bool b = false;
@@ -573,14 +602,18 @@ PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
         if (V.isUndef()) {
           if (isa<VarRegion>(R)) {
             const VarDecl *VD = cast<VarDecl>(DS->getSingleDecl());
-            if (VD->getInit())
-              os << "initialized to a garbage value";
-            else
-              os << "declared without an initial value";
+            if (VD->getInit()) {
+              os << (R->canPrintPretty() ? "initialized" : "Initializing")
+                 << " to a garbage value";
+            } else {
+              os << (R->canPrintPretty() ? "declared" : "Declaring")
+                 << " without an initial value";
+            }
           }
         }
         else {
-          os << "initialized here";
+          os << (R->canPrintPretty() ? "initialized" : "Initialized")
+             << " here";
         }
       }
     }
@@ -606,10 +639,11 @@ PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
 
       // Printed parameter indexes are 1-based, not 0-based.
       unsigned Idx = Param->getFunctionScopeIndex() + 1;
-      os << " via " << Idx << llvm::getOrdinalSuffix(Idx) << " parameter '";
-
-      R->printPretty(os);
-      os << '\'';
+      os << " via " << Idx << llvm::getOrdinalSuffix(Idx) << " parameter";
+      if (R->canPrintPretty()) {
+        os << " ";
+        R->printPretty(os);
+      }
     }
   }
 
@@ -619,27 +653,42 @@ PathDiagnosticPiece *FindLastStoreBRVisitor::VisitNode(const ExplodedNode *Succ,
       if (R->isBoundable()) {
         if (const TypedValueRegion *TR = dyn_cast<TypedValueRegion>(R)) {
           if (TR->getValueType()->isObjCObjectPointerType()) {
-            os << "nil object reference stored to ";
+            os << "nil object reference stored";
             b = true;
           }
         }
       }
+      if (!b) {
+        if (R->canPrintPretty())
+          os << "Null pointer value stored";
+        else
+          os << "Storing null pointer value";
+      }
 
-      if (!b)
-        os << "Null pointer value stored to ";
-    }
-    else if (V.isUndef()) {
-      os << "Uninitialized value stored to ";
+    } else if (V.isUndef()) {
+      if (R->canPrintPretty())
+        os << "Uninitialized value stored";
+      else
+        os << "Storing uninitialized value";
+
     } else if (Optional<nonloc::ConcreteInt> CV =
                    V.getAs<nonloc::ConcreteInt>()) {
-      os << "The value " << CV->getValue() << " is assigned to ";
-    }
-    else
-      os << "Value assigned to ";
+      if (R->canPrintPretty())
+        os << "The value " << CV->getValue() << " is assigned";
+      else
+        os << "Assigning " << CV->getValue();
 
-    os << '\'';
-    R->printPretty(os);
-    os << '\'';
+    } else {
+      if (R->canPrintPretty())
+        os << "Value assigned";
+      else
+        os << "Assigning value";
+    }
+    
+    if (R->canPrintPretty()) {
+      os << " to ";
+      R->printPretty(os);
+    }
   }
 
   // Construct a new PathDiagnosticPiece.
@@ -682,6 +731,14 @@ TrackConstraintBRVisitor::VisitNode(const ExplodedNode *N,
   if (IsSatisfied)
     return NULL;
 
+  // Start tracking after we see the first state in which the value is
+  // constrained.
+  if (!IsTrackingTurnedOn)
+    if (!isUnderconstrained(N))
+      IsTrackingTurnedOn = true;
+  if (!IsTrackingTurnedOn)
+    return 0;
+
   // Check if in the previous state it was feasible for this constraint
   // to *not* be true.
   if (isUnderconstrained(PrevN)) {
@@ -691,8 +748,7 @@ TrackConstraintBRVisitor::VisitNode(const ExplodedNode *N,
     // As a sanity check, make sure that the negation of the constraint
     // was infeasible in the current state.  If it is feasible, we somehow
     // missed the transition point.
-    if (isUnderconstrained(N))
-      return NULL;
+    assert(!isUnderconstrained(N));
 
     // We found the transition point for the constraint.  We now need to
     // pretty-print the constraint. (work-in-progress)
@@ -853,7 +909,7 @@ bool bugreporter::trackNullOrUndefValue(const ExplodedNode *N,
       Inner = Ex;
   }
 
-  if (IsArg) {
+  if (IsArg && !Inner) {
     assert(N->getLocation().getAs<CallEnter>() && "Tracking arg but not at call");
   } else {
     // Walk through nodes until we get one that matches the statement exactly.
@@ -882,7 +938,7 @@ bool bugreporter::trackNullOrUndefValue(const ExplodedNode *N,
   // At this point in the path, the receiver should be live since we are at the
   // message send expr. If it is nil, start tracking it.
   if (const Expr *Receiver = NilReceiverBRVisitor::getNilReceiver(S, N))
-    trackNullOrUndefValue(N, Receiver, report, IsArg, EnableNullFPSuppression);
+    trackNullOrUndefValue(N, Receiver, report, false, EnableNullFPSuppression);
 
 
   // See if the expression we're interested refers to a variable.
@@ -926,45 +982,24 @@ bool bugreporter::trackNullOrUndefValue(const ExplodedNode *N,
 
     if (R) {
       // Mark both the variable region and its contents as interesting.
-      SVal V = state->getRawSVal(loc::MemRegionVal(R));
-
-      // If the value matches the default for the variable region, that
-      // might mean that it's been cleared out of the state. Fall back to
-      // the full argument expression (with casts and such intact).
-      if (IsArg) {
-        bool UseArgValue = V.isUnknownOrUndef() || V.isZeroConstant();
-        if (!UseArgValue) {
-          const SymbolRegionValue *SRV =
-            dyn_cast_or_null<SymbolRegionValue>(V.getAsLocSymbol());
-          if (SRV)
-            UseArgValue = (SRV->getRegion() == R);
-        }
-        if (UseArgValue)
-          V = state->getSValAsScalarOrLoc(S, N->getLocationContext());
-      }
+      SVal V = LVState->getRawSVal(loc::MemRegionVal(R));
 
       report.markInteresting(R);
       report.markInteresting(V);
       report.addVisitor(new UndefOrNullArgVisitor(R));
 
-      if (isa<SymbolicRegion>(R)) {
-        TrackConstraintBRVisitor *VI =
-          new TrackConstraintBRVisitor(loc::MemRegionVal(R), false);
-        report.addVisitor(VI);
-      }
-
       // If the contents are symbolic, find out when they became null.
-      if (V.getAsLocSymbol()) {
+      if (V.getAsLocSymbol(/*IncludeBaseRegions*/ true)) {
         BugReporterVisitor *ConstraintTracker =
           new TrackConstraintBRVisitor(V.castAs<DefinedSVal>(), false);
         report.addVisitor(ConstraintTracker);
 
         // Add visitor, which will suppress inline defensive checks.
-        if (N->getState()->isNull(V).isConstrainedTrue() &&
+        if (LVState->isNull(V).isConstrainedTrue() &&
             EnableNullFPSuppression) {
           BugReporterVisitor *IDCSuppressor =
             new SuppressInlineDefensiveChecksVisitor(V.castAs<DefinedSVal>(),
-                                                     N);
+                                                     LVNode);
           report.addVisitor(IDCSuppressor);
         }
       }
@@ -994,7 +1029,13 @@ bool bugreporter::trackNullOrUndefValue(const ExplodedNode *N,
   if (Optional<loc::MemRegionVal> L = V.getAs<loc::MemRegionVal>()) {
     // At this point we are dealing with the region's LValue.
     // However, if the rvalue is a symbolic region, we should track it as well.
-    SVal RVal = state->getSVal(L->getRegion());
+    // Try to use the correct type when looking up the value.
+    SVal RVal;
+    if (const Expr *E = dyn_cast<Expr>(S))
+      RVal = state->getRawSVal(L.getValue(), E->getType());
+    else
+      RVal = state->getSVal(L->getRegion());
+
     const MemRegion *RegionRVal = RVal.getAsRegion();
     report.addVisitor(new UndefOrNullArgVisitor(L->getRegion()));
 
@@ -1030,9 +1071,21 @@ PathDiagnosticPiece *NilReceiverBRVisitor::VisitNode(const ExplodedNode *N,
   if (!P)
     return 0;
 
-  const Expr *Receiver = getNilReceiver(P->getStmt(), N);
+  const Stmt *S = P->getStmt();
+  const Expr *Receiver = getNilReceiver(S, N);
   if (!Receiver)
     return 0;
+
+  llvm::SmallString<256> Buf;
+  llvm::raw_svector_ostream OS(Buf);
+
+  if (const ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(S)) {
+    OS << "'" << ME->getSelector().getAsString() << "' not called";
+  }
+  else {
+    OS << "No method is called";
+  }
+  OS << " because the receiver is nil";
 
   // The receiver was nil, and hence the method was skipped.
   // Register a BugReporterVisitor to issue a message telling us how
@@ -1042,8 +1095,7 @@ PathDiagnosticPiece *NilReceiverBRVisitor::VisitNode(const ExplodedNode *N,
   // Issue a message saying that the method was skipped.
   PathDiagnosticLocation L(Receiver, BRC.getSourceManager(),
                                      N->getLocationContext());
-  return new PathDiagnosticEventPiece(L, "No method is called "
-      "because the receiver is nil");
+  return new PathDiagnosticEventPiece(L, OS.str());
 }
 
 // Registers every VarDecl inside a Stmt with a last store visitor.
@@ -1372,7 +1424,7 @@ ConditionBRVisitor::VisitConditionVariable(StringRef LhsString,
     Out << (tookTrue ? "not nil" : "nil");
   else if (Ty->isBooleanType())
     Out << (tookTrue ? "true" : "false");
-  else if (Ty->isIntegerType())
+  else if (Ty->isIntegralOrEnumerationType())
     Out << (tookTrue ? "non-zero" : "zero");
   else
     return 0;

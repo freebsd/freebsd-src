@@ -34,7 +34,7 @@
 
 struct vm;
 
-#define	MAX_VMM_STAT_TYPES	64		/* arbitrary */
+#define	MAX_VMM_STAT_ELEMS	64		/* arbitrary */
 
 enum vmm_stat_scope {
 	VMM_STAT_SCOPE_ANY,
@@ -44,15 +44,16 @@ enum vmm_stat_scope {
 
 struct vmm_stat_type {
 	int	index;			/* position in the stats buffer */
+	int	nelems;			/* standalone or array */
 	const char *desc;		/* description of statistic */
 	enum vmm_stat_scope scope;
 };
 
 void	vmm_stat_init(void *arg);
 
-#define	VMM_STAT_DEFINE(type, desc, scope)				\
+#define	VMM_STAT_DEFINE(type, nelems, desc, scope)			\
 	struct vmm_stat_type type[1] = {				\
-		{ -1, desc, scope }					\
+		{ -1, nelems, desc, scope }				\
 	};								\
 	SYSINIT(type##_stat, SI_SUB_KLD, SI_ORDER_ANY, vmm_stat_init, type)
 
@@ -60,11 +61,14 @@ void	vmm_stat_init(void *arg);
 	extern struct vmm_stat_type type[1]
 
 #define	VMM_STAT(type, desc)		\
-	VMM_STAT_DEFINE(type, desc, VMM_STAT_SCOPE_ANY)
+	VMM_STAT_DEFINE(type, 1, desc, VMM_STAT_SCOPE_ANY)
 #define	VMM_STAT_INTEL(type, desc)	\
-	VMM_STAT_DEFINE(type, desc, VMM_STAT_SCOPE_INTEL)
+	VMM_STAT_DEFINE(type, 1, desc, VMM_STAT_SCOPE_INTEL)
 #define	VMM_STAT_AMD(type, desc)	\
-	VMM_STAT_DEFINE(type, desc, VMM_STAT_SCOPE_AMD)
+	VMM_STAT_DEFINE(type, 1, desc, VMM_STAT_SCOPE_AMD)
+
+#define	VMM_STAT_ARRAY(type, nelems, desc)	\
+	VMM_STAT_DEFINE(type, nelems, desc, VMM_STAT_SCOPE_ANY)
 
 void	*vmm_stat_alloc(void);
 void 	vmm_stat_free(void *vp);
@@ -73,15 +77,29 @@ void 	vmm_stat_free(void *vp);
  * 'buf' should be at least fit 'MAX_VMM_STAT_TYPES' entries
  */
 int	vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf);
-const char *vmm_stat_desc(int index);
+int	vmm_stat_desc_copy(int index, char *buf, int buflen);
+
+static void __inline
+vmm_stat_array_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
+		    int statidx, uint64_t x)
+{
+#ifdef VMM_KEEP_STATS
+	uint64_t *stats;
+	
+	stats = vcpu_stats(vm, vcpu);
+
+	if (vst->index >= 0 && statidx < vst->nelems)
+		stats[vst->index + statidx] += x;
+#endif
+}
+		   
 
 static void __inline
 vmm_stat_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst, uint64_t x)
 {
-#ifdef	VMM_KEEP_STATS
-	uint64_t *stats = vcpu_stats(vm, vcpu);
-	if (vst->index >= 0)
-		stats[vst->index] += x;
+
+#ifdef VMM_KEEP_STATS
+	vmm_stat_array_incr(vm, vcpu, vst, 0, x);
 #endif
 }
 

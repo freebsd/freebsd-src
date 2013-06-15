@@ -369,7 +369,14 @@ void X86FrameLowering::emitCalleeSavedFrameMoves(MachineFunction &MF,
 /// getCompactUnwindRegNum - Get the compact unwind number for a given
 /// register. The number corresponds to the enum lists in
 /// compact_unwind_encoding.h.
-static int getCompactUnwindRegNum(const uint16_t *CURegs, unsigned Reg) {
+static int getCompactUnwindRegNum(unsigned Reg, bool is64Bit) {
+  static const uint16_t CU32BitRegs[] = {
+    X86::EBX, X86::ECX, X86::EDX, X86::EDI, X86::ESI, X86::EBP, 0
+  };
+  static const uint16_t CU64BitRegs[] = {
+    X86::RBX, X86::R12, X86::R13, X86::R14, X86::R15, X86::RBP, 0
+  };
+  const uint16_t *CURegs = is64Bit ? CU64BitRegs : CU32BitRegs;
   for (int Idx = 1; *CURegs; ++CURegs, ++Idx)
     if (*CURegs == Reg)
       return Idx;
@@ -398,16 +405,8 @@ encodeCompactUnwindRegistersWithoutFrame(unsigned SavedRegs[CU_NUM_SAVED_REGS],
   //     4       3
   //     5       3
   //
-  static const uint16_t CU32BitRegs[] = {
-    X86::EBX, X86::ECX, X86::EDX, X86::EDI, X86::ESI, X86::EBP, 0
-  };
-  static const uint16_t CU64BitRegs[] = {
-    X86::RBX, X86::R12, X86::R13, X86::R14, X86::R15, X86::RBP, 0
-  };
-  const uint16_t *CURegs = (Is64Bit ? CU64BitRegs : CU32BitRegs);
-
   for (unsigned i = 0; i != CU_NUM_SAVED_REGS; ++i) {
-    int CUReg = getCompactUnwindRegNum(CURegs, SavedRegs[i]);
+    int CUReg = getCompactUnwindRegNum(SavedRegs[i], Is64Bit);
     if (CUReg == -1) return ~0U;
     SavedRegs[i] = CUReg;
   }
@@ -466,14 +465,6 @@ encodeCompactUnwindRegistersWithoutFrame(unsigned SavedRegs[CU_NUM_SAVED_REGS],
 static uint32_t
 encodeCompactUnwindRegistersWithFrame(unsigned SavedRegs[CU_NUM_SAVED_REGS],
                                       bool Is64Bit) {
-  static const uint16_t CU32BitRegs[] = {
-    X86::EBX, X86::ECX, X86::EDX, X86::EDI, X86::ESI, X86::EBP, 0
-  };
-  static const uint16_t CU64BitRegs[] = {
-    X86::RBX, X86::R12, X86::R13, X86::R14, X86::R15, X86::RBP, 0
-  };
-  const uint16_t *CURegs = (Is64Bit ? CU64BitRegs : CU32BitRegs);
-
   // Encode the registers in the order they were saved, 3-bits per register. The
   // registers are numbered from 1 to CU_NUM_SAVED_REGS.
   uint32_t RegEnc = 0;
@@ -481,7 +472,7 @@ encodeCompactUnwindRegistersWithFrame(unsigned SavedRegs[CU_NUM_SAVED_REGS],
     unsigned Reg = SavedRegs[I];
     if (Reg == 0) continue;
 
-    int CURegNum = getCompactUnwindRegNum(CURegs, Reg);
+    int CURegNum = getCompactUnwindRegNum(Reg, Is64Bit);
     if (CURegNum == -1) return ~0U;
 
     // Encode the 3-bit register number in order, skipping over 3-bits for each
@@ -528,11 +519,17 @@ uint32_t X86FrameLowering::getCompactUnwindEncoding(MachineFunction &MF) const {
     if (!MI.getFlag(MachineInstr::FrameSetup)) break;
 
     // We don't exect any more prolog instructions.
-    if (ExpectEnd) return 0;
+    if (ExpectEnd) return CU::UNWIND_MODE_DWARF;
 
     if (Opc == PushInstr) {
       // If there are too many saved registers, we cannot use compact encoding.
-      if (SavedRegIdx >= CU_NUM_SAVED_REGS) return 0;
+      if (SavedRegIdx >= CU_NUM_SAVED_REGS) return CU::UNWIND_MODE_DWARF;
+
+      unsigned Reg = MI.getOperand(0).getReg();
+      if (Reg == (Is64Bit ? X86::RAX : X86::EAX)) {
+        ExpectEnd = true;
+        continue;
+      }
 
       SavedRegs[SavedRegIdx++] = MI.getOperand(0).getReg();
       StackAdjust += OffsetSize;
@@ -542,7 +539,7 @@ uint32_t X86FrameLowering::getCompactUnwindEncoding(MachineFunction &MF) const {
       unsigned DstReg = MI.getOperand(0).getReg();
 
       if (DstReg != FramePtr || SrcReg != StackPtr)
-        return 0;
+        return CU::UNWIND_MODE_DWARF;
 
       StackAdjust = 0;
       memset(SavedRegs, 0, sizeof(SavedRegs));
@@ -552,7 +549,7 @@ uint32_t X86FrameLowering::getCompactUnwindEncoding(MachineFunction &MF) const {
                Opc == X86::SUB32ri || Opc == X86::SUB32ri8) {
       if (StackSize)
         // We already have a stack size.
-        return 0;
+        return CU::UNWIND_MODE_DWARF;
 
       if (!MI.getOperand(0).isReg() ||
           MI.getOperand(0).getReg() != MI.getOperand(1).getReg() ||
@@ -560,7 +557,7 @@ uint32_t X86FrameLowering::getCompactUnwindEncoding(MachineFunction &MF) const {
         // We need this to be a stack adjustment pointer. Something like:
         //
         //   %RSP<def> = SUB64ri8 %RSP, 48
-        return 0;
+        return CU::UNWIND_MODE_DWARF;
 
       StackSize = MI.getOperand(2).getImm() / StackDivide;
       SubtractInstrIdx += InstrOffset;
@@ -574,31 +571,31 @@ uint32_t X86FrameLowering::getCompactUnwindEncoding(MachineFunction &MF) const {
   if (HasFP) {
     if ((StackAdjust & 0xFF) != StackAdjust)
       // Offset was too big for compact encoding.
-      return 0;
+      return CU::UNWIND_MODE_DWARF;
 
     // Get the encoding of the saved registers when we have a frame pointer.
     uint32_t RegEnc = encodeCompactUnwindRegistersWithFrame(SavedRegs, Is64Bit);
-    if (RegEnc == ~0U) return 0;
+    if (RegEnc == ~0U) return CU::UNWIND_MODE_DWARF;
 
-    CompactUnwindEncoding |= 0x01000000;
+    CompactUnwindEncoding |= CU::UNWIND_MODE_BP_FRAME;
     CompactUnwindEncoding |= (StackAdjust & 0xFF) << 16;
-    CompactUnwindEncoding |= RegEnc & 0x7FFF;
+    CompactUnwindEncoding |= RegEnc & CU::UNWIND_BP_FRAME_REGISTERS;
   } else {
     ++StackAdjust;
     uint32_t TotalStackSize = StackAdjust + StackSize;
     if ((TotalStackSize & 0xFF) == TotalStackSize) {
       // Frameless stack with a small stack size.
-      CompactUnwindEncoding |= 0x02000000;
+      CompactUnwindEncoding |= CU::UNWIND_MODE_STACK_IMMD;
 
       // Encode the stack size.
       CompactUnwindEncoding |= (TotalStackSize & 0xFF) << 16;
     } else {
       if ((StackAdjust & 0x7) != StackAdjust)
         // The extra stack adjustments are too big for us to handle.
-        return 0;
+        return CU::UNWIND_MODE_DWARF;
 
       // Frameless stack with an offset too large for us to encode compactly.
-      CompactUnwindEncoding |= 0x03000000;
+      CompactUnwindEncoding |= CU::UNWIND_MODE_STACK_IND;
 
       // Encode the offset to the nnnnnn value in the 'subl $nnnnnn, ESP'
       // instruction.
@@ -616,10 +613,11 @@ uint32_t X86FrameLowering::getCompactUnwindEncoding(MachineFunction &MF) const {
     uint32_t RegEnc =
       encodeCompactUnwindRegistersWithoutFrame(SavedRegs, SavedRegIdx,
                                                Is64Bit);
-    if (RegEnc == ~0U) return 0;
+    if (RegEnc == ~0U) return CU::UNWIND_MODE_DWARF;
 
     // Encode the register encoding.
-    CompactUnwindEncoding |= RegEnc & 0x3FF;
+    CompactUnwindEncoding |=
+      RegEnc & CU::UNWIND_FRAMELESS_STACK_REG_PERMUTATION;
   }
 
   return CompactUnwindEncoding;

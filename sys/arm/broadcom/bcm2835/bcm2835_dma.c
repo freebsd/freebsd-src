@@ -198,7 +198,7 @@ bcm_dma_reset(device_t dev, int ch)
 
 	/* Reset control block */
 	cb = sc->sc_dma_ch[ch].cb;
-	bzero(cb, sizeof(cb));
+	bzero(cb, sizeof(*cb));
 	cb->info = INFO_WAIT_RESP;
 }
 

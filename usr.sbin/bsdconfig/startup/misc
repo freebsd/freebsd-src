@@ -56,19 +56,15 @@ UNAME_P=$( uname -p ) # Processor Architecture (i.e. i386)
 #
 dialog_menu_main()
 {
-	local menu_list var_list size defaultitem=
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_miscellaneous_menu_text"
-
-	# Obtain default-item (adjusted below for dynamic tags)
-	f_getvar DEFAULTITEM_$$ defaultitem
-	local ditem="${defaultitem%%[$IFS]*}"
-
-	menu_list="
-		'X <<< $msg_exit' '$msg_exit_this_menu'
+	local menu_list="
+		'X $msg_exit' '$msg_exit_this_menu'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
-	var_list="
+	# List of variables we'll need from rc.conf(5)
+	local var_list="
 		accounting_enable
 		local_startup
 		lpd_enable
@@ -80,6 +76,7 @@ dialog_menu_main()
 		startup_dirs
 	" # END-QUOTE
 
+	# Add i386-specific variables if appropriate
 	if [ "$UNAME_P" = "i386" ]; then
 		var_list="$var_list
 			apm_enable
@@ -87,6 +84,10 @@ dialog_menu_main()
 			svr4_enable
 		" # END-QUOTE
 	fi
+
+	# Obtain default-item (adjusted below for dynamic tags)
+	f_dialog_default_fetch defaultitem
+	local ditem="${defaultitem%%[$IFS]*}"
 
 	eval "$(
 		. "$RC_DEFAULTS"
@@ -265,28 +266,31 @@ dialog_menu_main()
 		}'
 	)"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DEFAULTITEM_$$ "$dialog_menu"
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
 	return $retval
 }
 
@@ -300,7 +304,7 @@ dialog_input_value()
 	local prompt="$1" _input="$2"
 
 	f_dialog_title "$msg_value_required"
-	_input=$( f_dialog_input "$prompt" "$_input" "$hline_alnum_tab_enter" )
+	f_dialog_input _input "$prompt" "$_input" "$hline_alnum_tab_enter"
 	local retval=$?
 	f_dialog_title_restore
 
@@ -319,7 +323,7 @@ dialog_input_value()
 #
 # Process command-line arguments
 #
-while getopts dD:hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -337,14 +341,11 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || f_die
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
 	case "$mtag" in
-	"X <<< $msg_exit") break ;;
+	"X $msg_exit") break ;;
 	?" ["?"] $msg_apm")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set apm_enable NO 2>&1 ) ;;

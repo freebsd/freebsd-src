@@ -142,28 +142,29 @@ f_dialog_menu_netdev()
 	#
 	# Ask user to select an interface
 	#
-	local prompt size
-	prompt="$msg_select_network_interface"
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$interfaces            )
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local prompt="$msg_select_network_interface"
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $interfaces
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$interfaces                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -175,7 +176,7 @@ f_dialog_menu_netdev()
 f_dialog_menu_netdev_edit()
 {
 	local interface="$1" ipaddr="$2" netmask="$3" options="$4" dhcp="$5"
-	local prompt menu_list size
+	local prompt menu_list height width rows
 
 	#
 	# Create a duplicate set of variables for change-tracking...
@@ -216,14 +217,14 @@ f_dialog_menu_netdev_edit()
 			'4 $msg_netmask'   '$netmask'
 			'5 $msg_options'   '$options'
 		"
-		size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$prompt\"           \
-		        	\"\$hline\"            \
-		        	$menu_list             )
-		local dialog_menu
-		dialog_menu=$( eval $DIALOG \
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
+		local tag
+		tag=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
@@ -233,14 +234,13 @@ f_dialog_menu_netdev_edit()
 			--help-label \"\$msg_help\"        \
 			${USE_XDIALOG:+--help \"\"}        \
 			--default-item \"\$defaultitem\"   \
-			--menu \"\$prompt\" $size          \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		local tag="$( f_dialog_menutag )"
+		f_dialog_data_sanitize tag
 
 		if [ $retval -eq 2 ]; then
 			# The Help button was pressed

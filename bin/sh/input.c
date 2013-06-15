@@ -397,10 +397,10 @@ setinputfile(const char *fname, int push)
 	int fd2;
 
 	INTOFF;
-	if ((fd = open(fname, O_RDONLY)) < 0)
+	if ((fd = open(fname, O_RDONLY | O_CLOEXEC)) < 0)
 		error("cannot open %s: %s", fname, strerror(errno));
 	if (fd < 10) {
-		fd2 = fcntl(fd, F_DUPFD, 10);
+		fd2 = fcntl(fd, F_DUPFD_CLOEXEC, 10);
 		close(fd);
 		if (fd2 < 0)
 			error("Out of file descriptors");
@@ -412,14 +412,13 @@ setinputfile(const char *fname, int push)
 
 
 /*
- * Like setinputfile, but takes an open file descriptor.  Call this with
- * interrupts off.
+ * Like setinputfile, but takes an open file descriptor (which should have
+ * its FD_CLOEXEC flag already set).  Call this with interrupts off.
  */
 
 void
 setinputfd(int fd, int push)
 {
-	(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
 	if (push) {
 		pushfile();
 		parsefile->buf = ckmalloc(BUFSIZ + 1);

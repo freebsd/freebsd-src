@@ -214,8 +214,7 @@ retry:
 		VM_OBJECT_SLEEP(object, object, PDROP | PVM, "vadead", 0);
 	}
 
-	if (vp->v_usecount == 0)
-		panic("vnode_pager_alloc: no vnode reference");
+	KASSERT(vp->v_usecount != 0, ("vnode_pager_alloc: no vnode reference"));
 
 	if (object == NULL) {
 		/*
@@ -381,6 +380,12 @@ vnode_pager_setsize(vp, nsize)
 		return;
 /* 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_setsize and not locked vnode"); */
 	VM_OBJECT_WLOCK(object);
+	if (object->type == OBJT_DEAD) {
+		VM_OBJECT_WUNLOCK(object);
+		return;
+	}
+	KASSERT(object->type == OBJT_VNODE,
+	    ("not vnode-backed object %p", object));
 	if (nsize == object->un_pager.vnp.vnp_size) {
 		/*
 		 * Hasn't changed size

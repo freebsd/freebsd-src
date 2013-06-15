@@ -175,7 +175,8 @@ static int hpt_alloc_mem(PVBUS_EXT vbus_ext)
 
 		HPT_ASSERT((f->size & (f->alignment-1))==0);
 
-		for (order=0, size=PAGE_SIZE; size<f->size; order++, size<<=1) ;
+		for (order=0, size=PAGE_SIZE; size<f->size; order++, size<<=1)
+			;
 
 		KdPrint(("%s: %d*%d=%d bytes, order %d",
 			f->tag, f->count, f->size, f->count*f->size, order));

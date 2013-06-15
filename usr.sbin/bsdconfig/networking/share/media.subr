@@ -101,7 +101,9 @@ f_ifconfig_media()
 
 # f_dialog_input_options $interface
 #
-# Input custom interface options.
+# Input custom interface options. If the user does not press ESC or choose
+# Cancel/No, $options will hold the user's input. Default input is taken from
+# the same variable ($options).
 #
 f_dialog_input_options()
 {
@@ -122,8 +124,8 @@ f_dialog_input_options()
 	local msg="$( printf "$msg_please_enter_mediaopts" "$interface" )"
 	local hline="$hline_alnum_punc_tab_enter"
 
-	local dialog_inputbox
-	dialog_inputbox=$( $DIALOG \
+	local _options
+	_options=$( $DIALOG \
 		--title "$DIALOG_TITLE"         \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--hline "$hline"                \
@@ -133,10 +135,8 @@ f_dialog_input_options()
 		"$options"                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	local retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	local _options="$( f_dialog_inputstr )"
+	f_dialog_line_sanitize _options
 
 	[ $retval -eq $SUCCESS ] && options="$_options"
 
@@ -205,8 +205,8 @@ f_dialog_menu_media_options()
 
 	local hline="$hline_arrows_tab_enter"
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local tag
+	tag=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -216,20 +216,22 @@ f_dialog_menu_media_options()
 		$supported_media                   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize tag
+
 	if [ $retval -eq $SUCCESS ]; then
-		local tag="$( f_dialog_menutag )"
 		options=$( eval f_dialog_menutag2item \"\$tag\" \
 		                                      $supported_media )
-		[ "$options" = "$opt_none" ] && options=
-
-		if [ "$options" = "$opt_cust" ]; then
+		case "$options" in
+		"$opt_none")
+			options=
+			;;
+		"$opt_cust")
 			options="$_options"
 			f_dialog_input_options "$interface"
 			retval=$?
-		fi
+			;;
+		esac
 	fi
 
 	return $retval

@@ -176,9 +176,7 @@ static void t4_report_fw_error(struct adapter *adap)
 	u32 pcie_fw;
 
 	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
-	if (!(pcie_fw & F_PCIE_FW_ERR))
-		CH_ERR(adap, "Firmware error report called with no error\n");
-	else
+	if (pcie_fw & F_PCIE_FW_ERR)
 		CH_ERR(adap, "Firmware reports adapter error: %s\n",
 		       reason[G_PCIE_FW_EVAL(pcie_fw)]);
 }
@@ -512,6 +510,7 @@ struct t4_vpd_hdr {
 #define VPD_BASE_OLD       0
 #define VPD_LEN            1024
 #define VPD_INFO_FLD_HDR_SIZE	3
+#define CHELSIO_VPD_UNIQUE_ID 0x82
 
 /**
  *	t4_seeprom_read - read a serial EEPROM location
@@ -676,7 +675,7 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	 * it at 0.
 	 */
 	ret = t4_seeprom_read(adapter, VPD_BASE, (u32 *)(vpd));
-	addr = *vpd == 0x82 ? VPD_BASE : VPD_BASE_OLD; 
+	addr = *vpd == CHELSIO_VPD_UNIQUE_ID ? VPD_BASE : VPD_BASE_OLD;
 
 	for (i = 0; i < sizeof(vpd); i += 4) {
 		ret = t4_seeprom_read(adapter, addr + i, (u32 *)(vpd + i));
@@ -714,8 +713,10 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = vpd[sn - VPD_INFO_FLD_HDR_SIZE + 2];
 	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strstrip(p->sn);
+	i = vpd[pn - VPD_INFO_FLD_HDR_SIZE + 2];
 	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
 	strstrip((char *)p->pn);
+	i = vpd[na - VPD_INFO_FLD_HDR_SIZE + 2];
 	memcpy(p->na, vpd + na, min(i, MACADDR_LEN));
 	strstrip((char *)p->na);
 
@@ -1034,14 +1035,19 @@ static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
  *	@adapter: the adapter
  *
  *	Return the address within the flash where the Firmware Configuration
- *	File is stored.
+ *	File is stored, or an error if the device FLASH is too small to contain
+ *	a Firmware Configuration File.
  */
-unsigned int t4_flash_cfg_addr(struct adapter *adapter)
+int t4_flash_cfg_addr(struct adapter *adapter)
 {
-	if (adapter->params.sf_size == 0x100000)
-		return FLASH_FPGA_CFG_START;
-	else
-		return FLASH_CFG_START;
+	/*
+	 * If the device FLASH isn't large enough to hold a Firmware
+	 * Configuration File, return an error.
+	 */
+	if (adapter->params.sf_size < FLASH_CFG_START + FLASH_CFG_MAX_SIZE)
+		return -ENOSPC;
+
+	return FLASH_CFG_START;
 }
 
 /**
@@ -1054,12 +1060,16 @@ unsigned int t4_flash_cfg_addr(struct adapter *adapter)
  */
 int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 {
-	int ret, i, n;
+	int ret, i, n, cfg_addr;
 	unsigned int addr;
 	unsigned int flash_cfg_start_sec;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
 
-	addr = t4_flash_cfg_addr(adap);
+	cfg_addr = t4_flash_cfg_addr(adap);
+	if (cfg_addr < 0)
+		return cfg_addr;
+
+	addr = cfg_addr;
 	flash_cfg_start_sec = addr / SF_SEC_SIZE;
 
 	if (size > FLASH_CFG_MAX_SIZE) {
@@ -1839,7 +1849,8 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
+		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
 
 /**
  *	t4_link_start - apply link configuration to MAC/PHY
@@ -2406,8 +2417,13 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
 		addr = EDC_REG(A_EDC_INT_CAUSE, idx);
 		cnt_addr = EDC_REG(A_EDC_ECC_STATUS, idx);
 	} else {
-		addr = A_MC_INT_CAUSE;
-		cnt_addr = A_MC_ECC_STATUS;
+		if (is_t4(adapter)) {
+			addr = A_MC_INT_CAUSE;
+			cnt_addr = A_MC_ECC_STATUS;
+		} else {
+			addr = A_MC_P_INT_CAUSE;
+			cnt_addr = A_MC_P_ECC_STATUS;
+		}
 	}
 
 	v = t4_read_reg(adapter, addr) & MEM_INT_MASK;
@@ -2514,12 +2530,19 @@ static void xgmac_intr_handler(struct adapter *adap, int port)
 static void pl_intr_handler(struct adapter *adap)
 {
 	static struct intr_info pl_intr_info[] = {
-		{ F_FATALPERR, "T4 fatal parity error", -1, 1 },
+		{ F_FATALPERR, "Fatal parity error", -1, 1 },
 		{ F_PERRVFID, "PL VFID_MAP parity error", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adap, A_PL_PL_INT_CAUSE, pl_intr_info))
+	static struct intr_info t5_pl_intr_info[] = {
+		{ F_PL_BUSPERR, "PL bus parity error", -1, 1 },
+		{ F_FATALPERR, "Fatal parity error", -1, 1 },
+		{ 0 }
+	};
+
+	if (t4_handle_intr_status(adap, A_PL_PL_INT_CAUSE,
+	    is_t4(adap) ?  pl_intr_info : t5_pl_intr_info))
 		t4_fatal_err(adap);
 }
 
@@ -2652,7 +2675,6 @@ void t4_intr_clear(struct adapter *adapter)
 		A_PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
 		A_PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
 		A_PCIE_NONFAT_ERR, A_PCIE_INT_CAUSE,
-		A_MC_INT_CAUSE,
 		A_MA_INT_WRAP_STATUS, A_MA_PARITY_ERROR_STATUS, A_MA_INT_CAUSE,
 		A_EDC_INT_CAUSE, EDC_REG(A_EDC_INT_CAUSE, 1),
 		A_CIM_HOST_INT_CAUSE, A_CIM_HOST_UPACC_INT_CAUSE,
@@ -2671,6 +2693,9 @@ void t4_intr_clear(struct adapter *adapter)
 
 	for (i = 0; i < ARRAY_SIZE(cause_reg); ++i)
 		t4_write_reg(adapter, cause_reg[i], 0xffffffff);
+
+	t4_write_reg(adapter, is_t4(adapter) ? A_MC_INT_CAUSE :
+				A_MC_P_INT_CAUSE, 0xffffffff);
 
 	t4_write_reg(adapter, A_PL_INT_CAUSE, GLBL_INTR_MASK);
 	(void) t4_read_reg(adapter, A_PL_INT_CAUSE);          /* flush */
@@ -4666,8 +4691,8 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 			    V_FW_PARAMS_CMD_VFN(vf));
 	c.retval_len16 = htonl(FW_LEN16(c));
 
-	for (i = 0; i < nparams; i++, p += 2)
-		*p = htonl(*params++);
+	for (i = 0; i < nparams; i++, p += 2, params++)
+		*p = htonl(*params);
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0)
@@ -4706,8 +4731,10 @@ int t4_set_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	c.retval_len16 = htonl(FW_LEN16(c));
 
 	while (nparams--) {
-		*p++ = htonl(*params++);
-		*p++ = htonl(*val++);
+		*p++ = htonl(*params);
+		params++;
+		*p++ = htonl(*val);
+		val++;
 	}
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
@@ -5299,6 +5326,8 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			speed = SPEED_1000;
 		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
 			speed = SPEED_10000;
+		else if (stat & V_FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
+			speed = SPEED_40000;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
@@ -5312,6 +5341,7 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			lc->link_ok = link_ok;
 			lc->speed = speed;
 			lc->fc = fc;
+			lc->supported = ntohs(p->u.info.pcap);
 			t4_os_link_changed(adap, i, link_ok);
 		}
 		if (mod != pi->mod_type) {

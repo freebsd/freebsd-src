@@ -95,7 +95,13 @@ ECHODIR		?=	true
 .endif
 .endif
 
-.if !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
+.if defined(.PARSEDIR)
+# _+_ appears to be a workaround for the special src .MAKE not working.
+# setting it to + interferes with -N
+_+_		?=
+.elif !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
+# the check above matches only a single -n, so -n -n will result
+# in _+_ = +
 _+_		?=
 .else
 _+_		?=	+
@@ -334,7 +340,7 @@ OBJFORMAT?=	elf
 .MAKE.EXPAND_VARIABLES= yes
 
 # Tell bmake the makefile preference
-.MAKE.MAKEFILE_PREFERENCE?= BSDmakefile makefile Makefile
+.MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
 
 .if !defined(.PARSEDIR)
 # We are not bmake, which is more aggressive about searching .PATH

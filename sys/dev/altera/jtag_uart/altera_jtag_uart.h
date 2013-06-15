@@ -75,7 +75,7 @@ struct altera_jtag_uart_softc {
 	u_int			*ajus_jtag_missedp;
 };
 
-#define	AJU_TTYNAME	"ttyu"
+#define	AJU_TTYNAME	"ttyj"
 
 /*
  * Flag values for ajus_flags.

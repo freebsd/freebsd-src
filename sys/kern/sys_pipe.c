@@ -477,6 +477,24 @@ sys_pipe(struct thread *td, struct pipe_args *uap)
 	return (0);
 }
 
+int
+sys_pipe2(struct thread *td, struct pipe2_args *uap)
+{
+	int error, fildes[2];
+
+	if (uap->flags & ~(O_CLOEXEC | O_NONBLOCK))
+		return (EINVAL);
+	error = kern_pipe2(td, fildes, uap->flags);
+	if (error)
+		return (error);
+	error = copyout(fildes, uap->fildes, 2 * sizeof(int));
+	if (error) {
+		(void)kern_close(td, fildes[0]);
+		(void)kern_close(td, fildes[1]);
+	}
+	return (error);
+}
+
 /*
  * Allocate kva for pipe circular buffer, the space is pageable
  * This routine will 'realloc' the size of a pipe safely, if it fails

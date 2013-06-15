@@ -827,15 +827,8 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
-		m = m_get(M_NOWAIT, MT_DATA);
-		if (m == NULL)
-			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
-
-		m->m_len = be32toh(cpl->rcv_nxt) - tp->rcv_nxt;
-		m->m_flags |= M_DDP;	/* Data is already where it should be */
-		m->m_data = "nothing to see here";
+		m = get_ddp_mbuf(be32toh(cpl->rcv_nxt) - tp->rcv_nxt);
 		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
-
 		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
 
 		KASSERT(toep->sb_cc >= sb->sb_cc,
@@ -1417,13 +1410,13 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, uint16_t word,
-    uint64_t mask, uint64_t val)
+t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, int ctrl,
+    uint16_t word, uint64_t mask, uint64_t val)
 {
 	struct wrqe *wr;
 	struct cpl_set_tcb_field *req;
 
-	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
+	wr = alloc_wrqe(sizeof(*req), ctrl ? toep->ctrlq : toep->ofld_txq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);

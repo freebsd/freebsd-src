@@ -49,11 +49,8 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size defaultitem=
-	local hline=""
 	local prompt="$msg_protocol_menu_text"
-
-	menu_list="
+	local menu_list="
 		'1 $msg_auto'          '$msg_auto_desc'
 		'2 $msg_glidepoint'    '$msg_glidepoint_desc'
 		'3 $msg_hitachi'       '$msg_hitachi_desc'
@@ -65,13 +62,16 @@ dialog_menu_main()
 		'9 $msg_mousesystems'  '$msg_mousesystems_desc'
 		'A $msg_thinkingmouse' '$msg_thinkingmouse_desc'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline=
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	case "$( f_sysrc_get moused_type )" in
 	auto)          defaultitem="1 $msg_auto"          ;;
@@ -86,20 +86,21 @@ dialog_menu_main()
 	thinkingmouse) defaultitem="A $msg_thinkingmouse" ;;
 	esac
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -111,7 +112,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts dD:hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -129,11 +130,8 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || f_die
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
 	case "$mtag" in
 	"1 $msg_auto") # Bus mouse, PS/2 style mouse or PnP serial mouse

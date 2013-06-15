@@ -248,7 +248,7 @@ cfi_init(void)
 		       sizeof(struct cfi_lun_io),
 		       CTL_PORT_PRIV_SIZE);
 	}
-	memset(softc, 0, sizeof(softc));
+	memset(softc, 0, sizeof(*softc));
 
 	mtx_init(&softc->lock, "CTL frontend mutex", NULL, MTX_DEF);
 	softc->flags |= CTL_FLAG_MASTER_SHELF;

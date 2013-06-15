@@ -3897,17 +3897,9 @@ igb_txeof(struct tx_ring *txr)
 	IGB_TX_LOCK_ASSERT(txr);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
-		IGB_TX_UNLOCK(txr);
-		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_si, PI_NET);
-		IGB_CORE_UNLOCK(adapter);
-		IGB_TX_LOCK(txr);
-		return FALSE;
-	}
+	if (netmap_tx_irq(ifp, txr->me |
+	    (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
+		return (FALSE);
 #endif /* DEV_NETMAP */
         if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = IGB_QUEUE_IDLE;
@@ -4761,17 +4753,8 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
-		IGB_RX_UNLOCK(rxr);
-		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_si, PI_NET);
-		IGB_CORE_UNLOCK(adapter);
-		return (0);
-	}
+	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+		return (FALSE);
 #endif /* DEV_NETMAP */
 
 	/* Main clean loop */

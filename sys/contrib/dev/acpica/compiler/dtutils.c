@@ -82,18 +82,11 @@ DtError (
     char                    *ExtraMessage)
 {
 
-    switch (Level)
-    {
-    case ASL_WARNING2:
-    case ASL_WARNING3:
-        if (Gbl_WarningLevel < Level)
-        {
-            return;
-        }
-        break;
+    /* Check if user wants to ignore this exception */
 
-    default:
-        break;
+    if (AslIsExceptionDisabled (Level, MessageId))
+    {
+        return;
     }
 
     if (FieldObject)
@@ -140,6 +133,7 @@ DtNameError (
     {
     case ASL_WARNING2:
     case ASL_WARNING3:
+
         if (Gbl_WarningLevel < Level)
         {
             return;
@@ -147,6 +141,7 @@ DtNameError (
         break;
 
     default:
+
         break;
     }
 
@@ -387,6 +382,7 @@ DtGetFieldType (
     case ACPI_DMT_FLAGS1:
     case ACPI_DMT_FLAGS2:
     case ACPI_DMT_FLAGS4:
+
         Type = DT_FIELD_TYPE_FLAG;
         break;
 
@@ -395,6 +391,7 @@ DtGetFieldType (
     case ACPI_DMT_NAME6:
     case ACPI_DMT_NAME8:
     case ACPI_DMT_STRING:
+
         Type = DT_FIELD_TYPE_STRING;
         break;
 
@@ -403,31 +400,38 @@ DtGetFieldType (
     case ACPI_DMT_BUF16:
     case ACPI_DMT_BUF128:
     case ACPI_DMT_PCI_PATH:
+
         Type = DT_FIELD_TYPE_BUFFER;
         break;
 
     case ACPI_DMT_GAS:
     case ACPI_DMT_HESTNTFY:
+
         Type = DT_FIELD_TYPE_INLINE_SUBTABLE;
         break;
 
     case ACPI_DMT_UNICODE:
+
         Type = DT_FIELD_TYPE_UNICODE;
         break;
 
     case ACPI_DMT_UUID:
+
         Type = DT_FIELD_TYPE_UUID;
         break;
 
     case ACPI_DMT_DEVICE_PATH:
+
         Type = DT_FIELD_TYPE_DEVICE_PATH;
         break;
 
     case ACPI_DMT_LABEL:
+
         Type = DT_FIELD_TYPE_LABEL;
         break;
 
     default:
+
         Type = DT_FIELD_TYPE_INTEGER;
         break;
     }
@@ -517,6 +521,7 @@ DtGetFieldLength (
     case ACPI_DMT_FLAGS4:
     case ACPI_DMT_LABEL:
     case ACPI_DMT_EXTRA_TEXT:
+
         ByteLength = 0;
         break;
 
@@ -535,6 +540,7 @@ DtGetFieldLength (
     case ACPI_DMT_EINJINST:
     case ACPI_DMT_ERSTACT:
     case ACPI_DMT_ERSTINST:
+
         ByteLength = 1;
         break;
 
@@ -542,10 +548,12 @@ DtGetFieldLength (
     case ACPI_DMT_DMAR:
     case ACPI_DMT_HEST:
     case ACPI_DMT_PCI_PATH:
+
         ByteLength = 2;
         break;
 
     case ACPI_DMT_UINT24:
+
         ByteLength = 3;
         break;
 
@@ -553,29 +561,35 @@ DtGetFieldLength (
     case ACPI_DMT_NAME4:
     case ACPI_DMT_SLIC:
     case ACPI_DMT_SIG:
+
         ByteLength = 4;
         break;
 
     case ACPI_DMT_UINT40:
+
         ByteLength = 5;
         break;
 
     case ACPI_DMT_UINT48:
     case ACPI_DMT_NAME6:
+
         ByteLength = 6;
         break;
 
     case ACPI_DMT_UINT56:
     case ACPI_DMT_BUF7:
+
         ByteLength = 7;
         break;
 
     case ACPI_DMT_UINT64:
     case ACPI_DMT_NAME8:
+
         ByteLength = 8;
         break;
 
     case ACPI_DMT_STRING:
+
         Value = DtGetFieldValue (Field);
         if (Value)
         {
@@ -591,14 +605,17 @@ DtGetFieldLength (
         break;
 
     case ACPI_DMT_GAS:
+
         ByteLength = sizeof (ACPI_GENERIC_ADDRESS);
         break;
 
     case ACPI_DMT_HESTNTFY:
+
         ByteLength = sizeof (ACPI_HEST_NOTIFY);
         break;
 
     case ACPI_DMT_BUFFER:
+
         Value = DtGetFieldValue (Field);
         if (Value)
         {
@@ -615,14 +632,17 @@ DtGetFieldLength (
 
     case ACPI_DMT_BUF16:
     case ACPI_DMT_UUID:
+
         ByteLength = 16;
         break;
 
     case ACPI_DMT_BUF128:
+
         ByteLength = 128;
         break;
 
     case ACPI_DMT_UNICODE:
+
         Value = DtGetFieldValue (Field);
 
         /* TBD: error if Value is NULL? (as below?) */
@@ -631,6 +651,7 @@ DtGetFieldLength (
         break;
 
     default:
+
         DtFatal (ASL_MSG_COMPILER_INTERNAL, Field, "Invalid table opcode");
         return (0);
     }

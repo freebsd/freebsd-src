@@ -2,7 +2,7 @@
 
 NO_OBJ=
 
-SUBDIR=	media
+SUBDIR=	media packages
 
 FILESDIR=	${SHAREDIR}/bsdconfig
 FILES=		common.subr device.subr dialog.subr mustberoot.subr \

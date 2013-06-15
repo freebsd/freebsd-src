@@ -824,6 +824,12 @@ void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
     // The instruction stream may change in the loop, so check BB->end()
     // directly.
     for (MachineBasicBlock::iterator I = BB->begin(); I != BB->end(); ) {
+      // We might end up here again with a NULL iterator if we scavenged a
+      // register for which we inserted spill code for definition by what was
+      // originally the first instruction in BB.
+      if (I == MachineBasicBlock::iterator(NULL))
+        I = BB->begin();
+
       MachineInstr *MI = I;
       MachineBasicBlock::iterator J = llvm::next(I);
       MachineBasicBlock::iterator P = I == BB->begin() ?
@@ -883,8 +889,6 @@ void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
           "The register scavenger has an unexpected position");
         I = P;
         RS->unprocess(P);
-
-        // RS->skipTo(I == BB->begin() ? NULL : llvm::prior(I));
       } else
         ++I;
     }

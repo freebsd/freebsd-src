@@ -43,6 +43,11 @@
 # LIBMODE	Library mode. [${NOBINMODE}]
 #
 #
+# DEBUGDIR	Base path for standalone debug files. [/usr/lib/debug]
+#
+# DEBUGMODE	Mode for debug files. [${NOBINMODE}]
+#
+#
 # KMODDIR	Base path for loadable kernel modules
 #		(see kld(4)). [/boot/kernel]
 #
@@ -147,6 +152,9 @@ LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
 LIBMODE?=	${NOBINMODE}
 
+DEBUGDIR?=	/usr/lib/debug
+DEBUGMODE?=	${NOBINMODE}
+
 
 # Share files
 SHAREDIR?=	/usr/share
@@ -213,6 +221,7 @@ COMPRESS_EXT?=	.gz
 #
 .for var in \
     CTF \
+    DEBUG_FILES \
     INSTALLLIB \
     MAN \
     PROFILE
@@ -251,6 +260,7 @@ __DEFAULT_YES_OPTIONS = \
     BIND_UTILS \
     BINUTILS \
     BLUETOOTH \
+    BMAKE \
     BOOT \
     BSD_CPIO \
     BSNMP \
@@ -259,6 +269,7 @@ __DEFAULT_YES_OPTIONS = \
     CAPSICUM \
     CDDL \
     CPP \
+    CROSS_COMPILER \
     CRYPT \
     CTM \
     CVS \
@@ -268,6 +279,7 @@ __DEFAULT_YES_OPTIONS = \
     ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
+    FORMAT_EXTENSIONS \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
@@ -358,11 +370,11 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    BMAKE \
     BSDCONFIG \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
+    DEBUG_FILES \
     GPL_DTC \
     HESIOD \
     ICONV \
