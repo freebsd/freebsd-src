@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/cons.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
 #include <geom/geom.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
@@ -3671,8 +3672,16 @@ dashutdown(void * arg, int howto)
 	int error;
 
 	CAM_PERIPH_FOREACH(periph, &dadriver) {
-		cam_periph_lock(periph);
 		softc = (struct da_softc *)periph->softc;
+		if (SCHEDULER_STOPPED()) {
+			/* If we paniced with the lock held, do not recurse. */
+			if (!cam_periph_owned(periph) &&
+			    (softc->flags & DA_FLAG_OPEN)) {
+				dadump(softc->disk, NULL, 0, 0, 0);
+			}
+			continue;
+		}
+		cam_periph_lock(periph);
 
 		/*
 		 * We only sync the cache if the drive is still open, and
