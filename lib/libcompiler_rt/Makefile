@@ -158,14 +158,9 @@ SRCF+=	divsi3 \
 
 # FreeBSD-specific atomic intrinsics.
 .if ${MACHINE_CPUARCH} == "arm"
-SRCF+=	__sync_fetch_and_add_4 \
-	__sync_fetch_and_and_4 \
-	__sync_fetch_and_or_4 \
-	__sync_fetch_and_sub_4 \
-	__sync_fetch_and_xor_4 \
-	__sync_lock_test_and_set_4 \
-	__sync_synchronize \
-	__sync_val_compare_and_swap_4
+.PATH: ${.CURDIR}/../../sys/arm/arm
+
+SRCF+=	stdatomic
 .elif ${MACHINE_CPUARCH} == "mips"
 .PATH: ${.CURDIR}/../../sys/mips/mips
 
