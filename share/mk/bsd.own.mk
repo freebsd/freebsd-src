@@ -272,7 +272,6 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CTM \
-    CVS \
     CXX \
     DICT \
     DYNAMICROOT \

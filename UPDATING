@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130615:
+	CVS has been removed from the base system.  An exact copy
+	of the code is available from the devel/cvs port.
+
 20130613:
 	Some people report the following error after the switch to bmake:
 
