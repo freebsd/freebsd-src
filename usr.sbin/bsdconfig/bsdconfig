@@ -290,8 +290,9 @@ if [ "$1" ]; then
 	#
 	# ...unless it's a long-option for usage.
 	#
-	case "$1" in
-	-help|--help|-\?) usage;;
+	case "$1" in -help|--help|-\?)
+		usage
+		# Not reached
 	esac
 
 	#
@@ -304,10 +305,12 @@ if [ "$1" ]; then
 		# no matches, display usage (which shows valid keywords)
 		f_err "%s: %s: $msg_not_found\n" "$pgm" "$1"
 		usage
+		# Not reached
 	fi
 
 	shift
 	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
+	# Not reached
 fi
 
 #
