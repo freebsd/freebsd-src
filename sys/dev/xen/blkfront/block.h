@@ -96,6 +96,7 @@ typedef enum {
 	XBDCF_Q_MASK		= 0xFF,
 	XBDCF_FROZEN		= 1<<8,
 	XBDCF_POLLED		= 1<<9,
+	XBDCF_ASYNC_MAPPING	= 1<<10,
 	XBDCF_INITIALIZER	= XBDCF_Q_MASK
 } xbdc_flag_t;
 
@@ -143,10 +144,12 @@ typedef enum {
 } xbd_state_t;
 
 typedef enum {
-	XBDF_OPEN	= 1 << 0,	/* drive is open (can't shut down) */
-	XBDF_BARRIER	= 1 << 1,	/* backend supports barriers */
-	XBDF_READY	= 1 << 2,	/* Is ready */
-	XBDF_FROZEN	= 1 << 3	/* Waiting for resources */
+	XBDF_NONE	  = 0,
+	XBDF_OPEN	  = 1 << 0, /* drive is open (can't shut down) */
+	XBDF_BARRIER	  = 1 << 1, /* backend supports barriers */
+	XBDF_READY	  = 1 << 2, /* Is ready */
+	XBDF_CM_SHORTAGE  = 1 << 3, /* Free cm resource shortage active. */
+	XBDF_GNT_SHORTAGE = 1 << 4  /* Grant ref resource shortage active */
 } xbd_flag_t;
 
 /*
@@ -158,6 +161,7 @@ struct xbd_softc {
 	struct bio_queue_head 		 xbd_bioq;	/* sort queue */
 	int				 xbd_unit;
 	xbd_flag_t			 xbd_flags;
+	int				 xbd_qfrozen_cnt;
 	int				 xbd_vdevice;
 	xbd_state_t			 xbd_state;
 	u_int				 xbd_ring_pages;
