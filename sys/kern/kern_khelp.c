@@ -72,34 +72,32 @@ khelp_register_helper(struct helper *h)
 	struct helper *tmph;
 	int error, i, inserted;
 
-	error = 0;
-	inserted = 0;
+	error = inserted = 0;
 	refcount_init(&h->h_refcount, 0);
 	h->h_id = osd_register(OSD_KHELP, NULL, NULL);
 
 	/* It's only safe to add the hooks after osd_register(). */
-	if (h->h_nhooks > 0) {
-		for (i = 0; i < h->h_nhooks && !error; i++) {
-			/* We don't require the module to assign hook_helper. */
-			h->h_hooks[i].hook_helper = h;
-			error = hhook_add_hook_lookup(&h->h_hooks[i],
-			    HHOOK_WAITOK);
-		}
-
-		if (error) {
-			for (i--; i >= 0; i--)
-				hhook_remove_hook_lookup(&h->h_hooks[i]);
-
-			osd_deregister(OSD_KHELP, h->h_id);
-		}
+	for (i = 0; i < h->h_nhooks && !error; i++) {
+		/* We don't require the module to assign hook_helper. */
+		h->h_hooks[i].hook_helper = h;
+		error = hhook_add_hook_lookup(&h->h_hooks[i], HHOOK_WAITOK);
+		if (error)
+			printf("%s: \"%s\" khelp module unable to "
+			    "hook type %d id %d due to error %d\n", __func__,
+			    h->h_name, h->h_hooks[i].hook_type,
+			    h->h_hooks[i].hook_id, error);
 	}
 
-	if (!error) {
+	if (error) {
+		for (i--; i >= 0; i--)
+			hhook_remove_hook_lookup(&h->h_hooks[i]);
+		osd_deregister(OSD_KHELP, h->h_id);
+	} else {
 		KHELP_LIST_WLOCK();
 		/*
 		 * Keep list of helpers sorted in descending h_id order. Due to
 		 * the way osd_set() works, a sorted list ensures
-		 * init_helper_osd() will operate with improved efficiency.
+		 * khelp_init_osd() will operate with improved efficiency.
 		 */
 		TAILQ_FOREACH(tmph, &helpers, h_next) {
 			if (tmph->h_id < h->h_id) {
@@ -123,8 +121,6 @@ khelp_deregister_helper(struct helper *h)
 	struct helper *tmph;
 	int error, i;
 
-	error = 0;
-
 	KHELP_LIST_WLOCK();
 	if (h->h_refcount > 0)
 		error = EBUSY;
@@ -141,10 +137,8 @@ khelp_deregister_helper(struct helper *h)
 	KHELP_LIST_WUNLOCK();
 
 	if (!error) {
-		if (h->h_nhooks > 0) {
-			for (i = 0; i < h->h_nhooks; i++)
-				hhook_remove_hook_lookup(&h->h_hooks[i]);
-		}
+		for (i = 0; i < h->h_nhooks; i++)
+			hhook_remove_hook_lookup(&h->h_hooks[i]);
 		osd_deregister(OSD_KHELP, h->h_id);
 	}
 
