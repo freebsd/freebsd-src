@@ -71,6 +71,7 @@ OLD_FILES+=usr/share/man/man5/cvs.5.gz
 OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
 # 20130607: WITH_DEBUG_FILES added
 OLD_FILES+=lib/libufs.so.6.symbols
+OLD_FILES+=usr/lib32/libufs.so.6.symbols
 # 20130417: nfs fha moved from nfsserver to nfs
 OLD_FILES+=usr/include/nfsserver/nfs_fha.h
 # 20130411: new clang import which bumps version from 3.2 to 3.3.
