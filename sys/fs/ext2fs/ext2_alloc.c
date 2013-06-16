@@ -223,7 +223,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 			brelse(sbp);
 			return (ENOSPC);
 		}
-		sbap = (int32_t *)sbp->b_data;
+		sbap = (u_int *)sbp->b_data;
 		soff = idp->in_off;
 	}
 	/*
@@ -239,7 +239,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 		ssize = len - (idp->in_off + 1);
 		if (bread(vp, idp->in_lbn, (int)fs->e2fs_bsize, NOCRED, &ebp))
 			goto fail;
-		ebap = (int32_t *)ebp->b_data;
+		ebap = (u_int *)ebp->b_data;
 	}
 	/*
 	 * Find the preferred location for the cluster.
@@ -442,10 +442,10 @@ ext2_dirpref(struct inode *pip)
 {
 	struct m_ext2fs *fs;
         int cg, prefcg, dirsize, cgsize;
-	int avgifree, avgbfree, avgndir, curdirsize;
-	int minifree, minbfree, maxndir;
-	int mincg, minndir;
-	int maxcontigdirs;
+	u_int avgifree, avgbfree, avgndir, curdirsize;
+	u_int minifree, minbfree, maxndir;
+	u_int mincg, minndir;
+	u_int maxcontigdirs;
 
 	mtx_assert(EXT2_MTX(pip->i_ump), MA_OWNED);
 	fs = pip->i_e2fs;
