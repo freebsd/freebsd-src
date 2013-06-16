@@ -41,13 +41,13 @@
 #include <sys/lock.h>
 #include <sys/queue.h>
 
-#define	NDADDR	12			/* Direct addresses in inode. */
-#define	NIADDR	3			/* Indirect addresses in inode. */
-
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
  */
 #define	doff_t		int32_t
+
+#define	NDADDR	12			/* Direct addresses in inode. */
+#define	NIADDR	3			/* Indirect addresses in inode. */
 
 /*
  * The inode is used to describe each active (or recently active) file in the

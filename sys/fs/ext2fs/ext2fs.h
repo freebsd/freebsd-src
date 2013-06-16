@@ -45,26 +45,6 @@
 #define EXT2_LINK_MAX		32000
 
 /*
- * A summary of contiguous blocks of various sizes is maintained
- * in each cylinder group. Normally this is set by the initial
- * value of fs_maxcontig.
- *
- * XXX:FS_MAXCONTIG is set to 16 to conserve space. Here we set
- * EXT2_MAXCONTIG to 32 for better performance.
- */
-#define EXT2_MAXCONTIG		32
-
-/*
- * Constants relative to the data blocks
- */
-#define	EXT2_NDIR_BLOCKS		12
-#define	EXT2_IND_BLOCK			EXT2_NDIR_BLOCKS
-#define	EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
-#define	EXT2_TIND_BLOCK			(EXT2_DIND_BLOCK + 1)
-#define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
-#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof(uint32_t))
-
-/*
  * The path name on which the file system is mounted is maintained
  * in fs_fsmnt. MAXMNTLEN defines the amount of space allocated in
  * the super block for this name.
@@ -175,11 +155,12 @@ struct m_ext2fs {
 	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
 };
 
-/*
- * The second extended file system version
- */
-#define E2FS_DATE		"95/08/09"
-#define E2FS_VERSION		"0.5b"
+/* cluster summary information */
+
+struct csum {
+	int8_t   cs_init; /* cluster summary has been initialized */
+	int32_t *cs_sum;  /* cluster summary array */
+};
 
 /*
  * The second extended file system magic number
@@ -191,9 +172,6 @@ struct m_ext2fs {
  */
 #define E2FS_REV0		0	/* The good old (original) format */
 #define E2FS_REV1		1 	/* V2 format w/ dynamic inode sizes */
-
-#define E2FS_CURRENT_REV	E2FS_REV0
-#define E2FS_MAX_SUPP_REV	E2FS_REV1
 
 #define E2FS_REV0_INODE_SIZE 128
 
@@ -251,23 +229,6 @@ struct m_ext2fs {
 	( EXT2_SB(sb)->e2fs->e2fs_features_incompat & htole32(mask) )
 
 /*
- * Definitions of behavior on errors
- */
-#define E2FS_BEH_CONTINUE		1	/* continue operation */
-#define E2FS_BEH_READONLY		2	/* remount fs read only */
-#define E2FS_BEH_PANIC			3	/* cause panic */
-#define E2FS_BEH_DEFAULT		E2FS_BEH_CONTINUE
-
-/*
- * OS identification
- */
-#define E2FS_OS_LINUX		0
-#define E2FS_OS_HURD		1
-#define E2FS_OS_MASIX		2
-#define E2FS_OS_FREEBSD		3
-#define E2FS_OS_LITES		4
-
-/*
  * File clean flags
  */
 #define	E2FS_ISCLEAN			0x0001	/* Unmounted cleanly */
@@ -290,12 +251,6 @@ struct ext2_gd {
 	uint16_t ext2bgd_csum;		/* group descriptor checksum */
 };
 
-/* cluster summary information */
-
-struct csum {
-	int8_t   cs_init; /* cluster summary has been initialized */
-	int32_t *cs_sum;  /* cluster summary array */
-};
 
 /* EXT2FS metadatas are stored in little-endian byte order. These macros
  * helps reading these metadatas
