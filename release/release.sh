@@ -165,7 +165,7 @@ build_doc_ports() {
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" != "x" ]; then
-		PBUILD_FLAGS="OSVERSION=${OSVERSION} WITHOUT_JADETEX=yes BATCH=yes"
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} WITHOUT_JADETEX=yes BATCH=yes"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
 			${PBUILD_FLAGS} install
 	fi
