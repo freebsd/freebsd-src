@@ -204,6 +204,7 @@ trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
+vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
@@ -461,6 +462,8 @@ rene -> bar
 rene -> crees
 rene -> jgh
 rene -> olivierd
+
+rm -> vg
 
 sahil -> culot
 sahil -> eadler
