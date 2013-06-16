@@ -1,88 +1,92 @@
 #!/bin/sh
-
-# generate-release.sh: check out source trees, and build release components with
-#  totally clean, fresh trees.
+#-
+# Copyright (c) 2011 Nathan Whitehorn
+# All rights reserved.
 #
-#  Usage: generate-release.sh [-r revision] [-d docrevision] \
-#	[-p portsrevision] svn-branch scratch-dir
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
 #
-# Environment variables:
-#  SVNROOT:    SVN URL to FreeBSD source repository (by default, 
-#   svn://svn.freebsd.org/base)
-#  MAKE_FLAGS: optional flags to pass to make (e.g. -j)
-#  RELSTRING:  optional base name for media images (e.g. FreeBSD-9.0-RC2-amd64)
-# 
-#  Note: Since this requires a chroot, release cross-builds will not work!
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
 #
 # $FreeBSD$
 #
 
-unset B_ARCH
-unset ARCH
-unset MACHINE_ARCH
-
-HOST_ARCH=`uname -p`
+# generate-release.sh: check out source trees, and build release components with
+#  totally clean, fresh trees.
+#
+#  Usage: generate-release.sh svn-branch[@revision] scratch-dir
+#
+# Environment variables:
+#  SVNROOTBASE: SVN base URL to FreeBSD repository (svn://svn.freebsd.org)
+#  SVNROOTSRC:  URL to FreeBSD src tree (${SVNROOTBASE}/base)
+#  SVNROOTDOC:  URL to FreeBSD doc tree (${SVNROOTBASE}/doc)
+#  SVNROOTPORTS:URL to FreeBSD ports tree (${SVNROOTBASE}/ports)
+#  BRANCHSRC:   branch name of src (svn-branch[@revision])
+#  BRANCHDOC:   branch name of doc (head)
+#  BRANCHPORTS: branch name of ports (head)
+#  WORLD_FLAGS: optional flags to pass to buildworld (e.g. -j)
+#  KERNEL_FLAGS: optional flags to pass to buildkernel (e.g. -j)
+#
 
 usage()
 {
-	echo "Usage: $0 [-a arch] [-r revision] [-d docrevision] [-p portsrevision] svn-branch scratch-dir"
+	echo "Usage: $0 svn-branch[@revision] scratch-dir" 2>&1
 	exit 1
 }
-
-arch_error ()
-{
-	echo "Architecture ${OPTARG} cannot be built on host architecture ${HOST_ARCH}"
-	exit 1
-}
-
-REVISION=
-DOCREVISION=
-PORTSREVISION=
-while getopts a:d:r:p: opt; do
-	case $opt in
-	a)
-		case "${OPTARG}" in
-			i386|amd64)
-				if [ "${HOST_ARCH}" != "amd64" ]; then
-					arch_error "${OPTARG}"
-				fi
-				;;
-			powerpc|powerpc64)
-				if [ "${HOST_ARCH}" != "powerpc64" ]; then
-					arch_error "${OPTARG}"
-				fi
-				;;
-			*)
-				arch_error "${OPTARG}"
-				;;
-		esac
-		B_ARCH="$OPTARG"
-		;;
-	d)
-		DOCREVISION="-r $OPTARG"
-		;;
-	r)
-		REVISION="-r $OPTARG"
-		;;
-	p)
-		PORTSREVISION="-r $OPTARG"
-		;;
-	\?)
-		usage
-		;;
-	esac
-done
-shift $(($OPTIND - 1))
-
-# If target architecture is not specified, use hw.machine_arch
-if [ "x${B_ARCH}" == "x" ]; then
-	B_ARCH="${HOST_ARCH}"
-fi
-ARCH_FLAGS="ARCH=${B_ARCH} TARGET_ARCH=${B_ARCH}"
 
 if [ $# -lt 2 ]; then
 	usage
 fi
+
+: ${SVNROOTBASE:=svn://svn.freebsd.org}
+: ${SVNROOTSRC:=${SVNROOTBASE}/base}
+: ${SVNROOTDOC:=${SVNROOTBASE}/doc}
+: ${SVNROOTPORTS:=${SVNROOTBASE}/ports}
+: ${SVNROOT:=${SVNROOTSRC}} # for backward compatibility
+: ${SVN_CMD:=/usr/local/bin/svn}
+BRANCHSRC=$1
+: ${BRANCHDOC:=head}
+: ${BRANCHPORTS:=head}
+: ${WORLD_FLAGS:=${MAKE_FLAGS}}
+: ${KERNEL_FLAGS:=${MAKE_FLAGS}}
+: ${CHROOTDIR:=$2}
+ 
+if [ ! -r "${CHROOTDIR}" ]; then
+	echo "${CHROOTDIR}: scratch dir not found."
+	exit 1
+fi
+
+CHROOT_CMD="/usr/sbin/chroot ${CHROOTDIR}"
+case ${TARGET} in
+"")	;;
+*)	SETENV_TARGET="TARGET=$TARGET" ;;
+esac
+case ${TARGET_ARCH} in
+"")	;;
+*)	SETENV_TARGET_ARCH="TARGET_ARCH=$TARGET_ARCH" ;;
+esac
+SETENV="env -i PATH=/bin:/usr/bin:/sbin:/usr/sbin"
+CROSSENV="${SETENV_TARGET} ${SETENV_TARGET_ARCH}"
+WMAKE="make -C /usr/src ${WORLD_FLAGS}"
+NWMAKE="${WMAKE} __MAKE_CONF=/dev/null SRCCONF=/dev/null"
+KMAKE="make -C /usr/src ${KERNEL_FLAGS}"
+RMAKE="make -C /usr/src/release"
 
 if [ $(id -u) -ne 0 ]; then
 	echo "Needs to be run as root."
@@ -91,93 +95,31 @@ fi
 
 set -e # Everything must succeed
 
-svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src
-svn co ${SVNROOT:-svn://svn.freebsd.org/doc}/head $2/usr/doc $DOCREVISION
-svn co ${SVNROOT:-svn://svn.freebsd.org/ports}/head $2/usr/ports $PORTSREVISION
+mkdir -p ${CHROOTDIR}/usr/src
+${SVN_CMD} co ${SVNROOT}/${BRANCHSRC} ${CHROOTDIR}/usr/src
+${SVN_CMD} co ${SVNROOTDOC}/${BRANCHDOC} ${CHROOTDIR}/usr/doc
+${SVN_CMD} co ${SVNROOTPORTS}/${BRANCHPORTS} ${CHROOTDIR}/usr/ports
 
-cd $2/usr/src
-make $MAKE_FLAGS ${ARCH_FLAGS} buildworld
-make $ARCH_FLAGS installworld distribution DESTDIR=$2
-mount -t devfs devfs $2/dev
-trap "umount $2/dev" EXIT # Clean up devfs mount on exit
+${SETENV} ${NWMAKE} -C ${CHROOTDIR}/usr/src ${WORLD_FLAGS} buildworld
+${SETENV} ${NWMAKE} -C ${CHROOTDIR}/usr/src installworld distribution DESTDIR=${CHROOTDIR}
+mount -t devfs devfs ${CHROOTDIR}/dev
+trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 
-# Most commands below are run in chroot, so fake getosreldate(3) right now
-OSVERSION=$(grep '#define __FreeBSD_version' $2/usr/include/sys/param.h | awk '{print $3}')
-export OSVERSION
-BRANCH=$(grep '^BRANCH=' $2/usr/src/sys/conf/newvers.sh | awk -F\= '{print $2}')
-BRANCH=`echo ${BRANCH} | sed -e 's,",,g'`
-REVISION=$(grep '^REVISION=' $2/usr/src/sys/conf/newvers.sh | awk -F\= '{print $2}')
-REVISION=`echo ${REVISION} | sed -e 's,",,g'`
-OSRELEASE="${REVISION}-${BRANCH}"
-
-pkgng_install_docports ()
-{
-	# Attempt to install docproj port from pkgng package.
-	chroot ${CHROOTDIR} /bin/sh -c 'env ASSUME_ALWAYS_YES=1 /usr/sbin/pkg install -y docproj-nojadetex'
-	# Check if docproj was installed, since pkg(8) returns '0' if unable
-	# to install a package from the repository.  If it is not installed,
-	# fallback to installing using pkg_add(1).
-	chroot ${CHROOTDIR} /bin/sh -c '/usr/sbin/pkg info -q docproj-nojadetex' || \
-		pkgadd_install_docports
-}
-
-build_compat9_port ()
-{
-	chroot ${CHROOTDIR} /bin/sh -c 'make -C /usr/ports/misc/compat9x BATCH=yes install clean'
-}
-
-pkgadd_install_docports ()
-{
-	# Attempt to install docproj package with pkg_add(1).
-	# If not successful, build the docproj port.
-	if [ "${REVISION}" == "10.0" ]; then
-		# Packages for 10-CURRENT are still located in the 9-CURRENT
-		# directory.  Override environment to use correct package
-		# location if building for 10-CURRENT.
-		PACKAGESITE="ftp://ftp.freebsd.org/pub/FreeBSD/ports/${B_ARCH}/packages-9-current/Latest/"
-		export PACKAGESITE
-		PACKAGEROOT="ftp://ftp.freebsd.org/pub/FreeBSD/ports/${B_ARCH}/packages-9-current/"
-		export PACKAGEROOT
-		PKG_PATH="ftp://ftp.freebsd.org/pub/FreeBSD/ports/${B_ARCH}/packages-9-current/All/"
-		export PKG_PATH
-		build_compat9_port
-	fi
-	chroot ${CHROOTDIR} /bin/sh -c '/usr/sbin/pkg_add -r docproj-nojadetex' || \
-		build_docports
-}
-
-build_docports() 
-{
-	# Could not install textproc/docproj from pkg(8) or pkg_add(1).  Build
-	# the port as final fallback.
-	chroot ${CHROOTDIR} /bin/sh -c 'make -C /usr/ports/textproc/docproj BATCH=yes WITH_JADETEX=no WITHOUT_X11=yes WITHOUT_PYTHON=yes install clean' || \
-		{ echo "*** Could not build the textproj/docproj port.  Exiting."; exit 2; }
-}
-
-if [ -d $2/usr/doc ]; then 
-	cp /etc/resolv.conf $2/etc/resolv.conf
+if [ -d ${CHROOTDIR}/usr/doc ]; then 
+	cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 
 	# Install docproj to build release documentation
-	CHROOTDIR="$2"
-	set +e
-	pkgng_install_docports "${CHROOTDIR}"
-	set -e
+	${CHROOT_CMD} /bin/sh -c \
+		'make -C /usr/ports/textproc/docproj \
+			BATCH=yes \
+			WITHOUT_SVN=yes \
+			WITHOUT_JADETEX=yes \
+			WITHOUT_X11=yes \
+			WITHOUT_PYTHON=yes \
+			install'
 fi
 
-chroot $2 make -C /usr/src $MAKE_FLAGS ${ARCH_FLAGS} buildworld buildkernel
-chroot $2 make -C /usr/src/release ${ARCH_FLAGS} release
-chroot $2 make -C /usr/src/release install DESTDIR=/R
-
-if [ "x${OSVERSION}" == "x" ]; then
-	OSRELEASE=`chroot $2 uname -r`
-fi
-
-: ${RELSTRING=`chroot $2 uname -s`-${OSRELEASE}-${B_ARCH}}
-
-cd $2/R
-for i in release.iso bootonly.iso memstick; do
-	mv $i $RELSTRING-$i
-done
-sha256 $RELSTRING-* > CHECKSUM.SHA256
-md5 $RELSTRING-* > CHECKSUM.MD5
-
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${WMAKE} buildworld
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${KMAKE} buildkernel
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${RMAKE} release
+${CHROOT_CMD} ${SETENV} ${CROSSENV} ${RMAKE} install DESTDIR=/R
