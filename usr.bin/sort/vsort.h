@@ -28,7 +28,7 @@
  */
 
 #if !defined(__VSORT_H__)
-#define _VSORT_H__
+#define __VSORT_H__
 
 #include "bwstring.h"
 
