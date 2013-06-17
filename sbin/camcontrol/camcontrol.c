@@ -6946,18 +6946,18 @@ findsasdevice(struct cam_devlist *devlist, uint64_t sasaddr)
 	struct cam_devitem *item;
 
 	STAILQ_FOREACH(item, &devlist->dev_queue, links) {
-		uint8_t *item_addr;
+		struct scsi_vpd_id_descriptor *idd;
 
 		/*
 		 * XXX KDM look for LUN IDs as well?
 		 */
-		item_addr = scsi_get_devid(item->device_id,
+		idd = scsi_get_devid(item->device_id,
 					   item->device_id_len,
 					   scsi_devid_is_sas_target);
-		if (item_addr == NULL)
+		if (idd == NULL)
 			continue;
 
-		if (scsi_8btou64(item_addr) == sasaddr)
+		if (scsi_8btou64(idd->identifier) == sasaddr)
 			return (item);
 	}
 
