@@ -1,8 +1,65 @@
--- $Id: CHANGES,v 1.419 2012/07/06 18:18:48 tom Exp $
+-- $Id: CHANGES,v 1.458 2013/05/24 00:23:22 tom Exp $
 -- Thomas E. Dickey <dickey@invisible-island.net>
 
 This version of dialog was originally from a Debian snapshot.  I've done this
 to it:
+
+2013/05/23
+	+ modify ifdef in arrows.c to work around packages which use the
+	  wide-character ncursesw headers with the ncurses library (report
+	  by Aleksey Cheusov).
+	+ correct workaround for xterm alternate-screen to work with/without
+	  the fix made in ncurses that makes putp() always write to the
+	  standard output (Debian #708829).
+	+ improve limit-checks for checklist, in case the dialog is resized
+	  (report by Ilya A Arkhipov).
+	+ add --last-key option (adapted from patch by Jordi Pujol, Debian
+	  #697607).
+
+2013/03/15
+	+ update zh_TW.po, add an.po from
+		http://translationproject.org/latest/dialog/
+
+2012/12/30 - release 1.2
+	+ improve some older changelog entries to help with HTML'izing content.
+	+ various fixes/improvments for scrollbar appearance.
+	+ add mappings for some equivalent options provided by whiptail;
+	  add configure option --disable-whiptail to allow suppressing these.
+	+ add configure option --disable-Xdialog2 to allow suppressing the
+	  newer features, i.e., for cdialog 1.2
+	+ add --no-items option, for consistency.
+	+ add --no-tags option, like Xdialog.
+	+ add buildlist, rangebox and treeview dialogs, like Xdialog.
+	+ remove obsolete workaround for ncurses 4.2 scrolling in checklist
+	  and menubox.
+	+ improve dialog_helpfile() by preventing it from showing extra buttons
+	  (suggested by xDog Walker).
+	+ correct logic in formbox's scroll_next() function (report by xDog
+	  Walker).
+	+ fix a case with inputbox widget where preset input text is not shown
+	  until moving the cursor within the text (report by xDog Walker).
+	+ handle SIGCHLD in dialog_prgbox() to eliminate defunct processes
+	  (report by xDog Walker).
+	+ improve the way "hotkeys" are assigned to widget buttons by checking
+	  if a given key has already been used in the row of buttons (Debian
+	  #684933).
+	+ amend fix for --trace parsing from 2012/07/03, which sometimes
+	  skipped a parameter (report by xDog Walker).
+	+ drop copismall and install files from samples, which were essentially
+	  nonfunctional.
+	+ correct secondary border colors in samples/slackware.rc and
+	  samples/whiptail.rc
+	+ update gl.po, add ia.po from
+		http://translationproject.org/latest/dialog/
+	+ fix various issues reported by coverity scan.
+	+ miscellaneous configure script fixes/updates:
+	  + require autoconf 2.52+patches
+	  + support --datarootdir option
+	  + check for clang compiler
+	  + check for tinfo library when looking for ncurses
+	  + add 3rd parameter to AC_DEFINE for autoheader
+	  + remove unused macros from aclocal.m4
+	+ update config.guess, config.sub
 
 2012/07/06
 	+ modify samples/setup-tempfile to work with Tru64's shell.
@@ -558,7 +615,8 @@ to it:
 	+ use $(INSTALL_SCRIPT) for installing dialog-config (report by
 	  Santiago Vila).
 
-2007/02/27
+2007/02/27 - release 1.1
+	+ mark as "dialog 1.1"
 	+ add dialog-config script, which provides applications with compile-
 	  and link-information for using the dialog library.
 	+ move calls to dlg_trim_string() out of loop in dialog.c, so each
@@ -791,8 +849,7 @@ to it:
 	+ modify tailboxbg by resetting tty modes at the point where it forks a
 	  process to update the screen, rather than waiting until that process
 	  exits.  This improves user feedback by making it apparent that dialog
-	  is no longer processing input after that point (Redhat Bugzilla
-	  #142538).
+	  is no longer processing input after that point (Redhat #142538).
 	+ minor updates to some .po files using Babel Fish, comparing with lynx.
 	+ update es.po (Santiago Vila).
 	+ work around bug in NetBSD 1.6 curses which seems to be confused by
@@ -978,8 +1035,7 @@ to it:
 	  before dialog is invoked (Debian #244746).
 	+ correct dlg_match_char() function, which was broken during rewrite
 	  to support wide-characters (Debian #244777).
-	+ improved ru.po, uses UTF-8 charset (Leonid Kanter, Redhat Bugzilla
-	  #119200).
+	+ improved ru.po, uses UTF-8 charset (Leonid Kanter, Redhat #119200).
 	+ correct position of shadow drawn for dialogs, which appeared to work
 	  for most versions of curses (other than NetBSD) but would have been
 	  visible for certain color schemes (discussion with Julian Coleman).
@@ -1310,7 +1366,7 @@ to it:
 	  the --stdout option does not work on HPUX but otherwise dialog works.
 	+ updated el.po (patch by kromJx <kromJx@crosswinds.net>).
 
-2002/05/19
+2002/05/19 - release 0.9b
 	+ add --no-collapse option to allow one to retain tabs and repeated
 	  blanks in a message box (request by Roberto Simoni).
 	+ use DLG_EXIT_ESC constant rather than -1's in several places.  This
@@ -1778,15 +1834,15 @@ to it:
 	  Santiago Vila <sanvila@ctv.es>:
 
 	  1999/10/07
-		+ add a password dialog box.
+		+ add a password dialog box (Debian #45964, patch by Joey Hess).
 		+ implement "--defaultno" option to specify if the default for
-		  the yes/no box is "No".
+		  the yes/no box is "No" (Debian #46076, patch by Joey Hess).
 	  1999/03/10
 		+ modify input.c to clear the input field to the right of the
-		  given string (unclear:  this seems redundant, since the
-		  dialog is drawn in a new window).
+		  given string, to help with screen-refresh
 	  1998/12/08
-		+ check for list_height less than one in checklist.c
+		+ check for list_height less than one in checklist.c (Debian
+		  #22239).
 	  1998/10/21
 		+ use function wscrl() in preference to scroll() in checklist.c
 		  and menubox.c (unclear: in ncurses, scroll() is a macro that
@@ -1796,12 +1852,14 @@ to it:
 		  that directory.
 	  1998/09/12
 		+ simplify menubox.c using new functions print_arrows() and
-		  print_items().
-		+ add logic to handle KEY_NPAGE and KEY_PPAGE.
-		+ change sample scripts to use Debian tempfile utility rather
-		  than putting files into /tmp.
-		+ change sample scripts to use 'dialog' from user's path rather
-		  than in the parent directory as in the build directory.
+		  print_items().  add logic to handle KEY_NPAGE and KEY_PPAGE
+		  (Debian #26326).
+		+ modifications to provide sample scripts (Debian #26211):
+		  + change sample scripts to use Debian tempfile utility rather
+		    than putting files into /tmp.
+		  + change sample scripts to use 'dialog' from user's path
+		    rather than in the parent directory as in the build
+		    directory.
 		+ use the system copy of GPL rather than that in the build
 		  directory as an example for the textbox script.
 
@@ -1827,16 +1885,16 @@ The relevant portions of the Debian change log for the original version
 1998/05/24
 
 	+ Replaced guage.c by the one in dialog 0.6z, which is known to work.
-	  Fixes Bug #18284: unstable dialog.
+	  Fixes Debian #18284: unstable dialog.
 
 1997/12/16
 
 	+ dialog.c:  dialog_input_result printed with "%s" format.  This was
-	  Bug #9913, fixed by Bill Mitchell, but the change was lost.
+	  Debian #9913, fixed by Bill Mitchell, but the change was lost.
 	+ Pristine source, .depend is not removed in clean target.  Instead, it
-	  is made zero lenght (otherwise it would not work *without* fakeroot).
-	+ Added '^U' support in input box (Bug #9915, patch by joey@debian.org).
-	+ Wrote patch to fix core-dumping problem (Bug #13170).  Sven Rudolph
+	  is made zero length (otherwise it would not work *without* fakeroot).
+	+ Added '^U' support in input box (Debian #9915, patch by Joey Hess).
+	+ Wrote patch to fix core-dumping problem (Debian #13170).  Sven Rudolph
 	  <sr1@inf.tu-dresden.de>:
 
 -- vile:fk=8bit

@@ -1,9 +1,9 @@
 /*
- * $Id: timebox.c,v 1.52 2012/07/02 09:34:04 tom Exp $
+ * $Id: timebox.c,v 1.54 2013/03/17 15:03:41 tom Exp $
  *
  *  timebox.c -- implements the timebox dialog
  *
- *  Copyright 2001-2011,2012   Thomas E. Dickey
+ *  Copyright 2001-2012,2013   Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -40,8 +40,6 @@ typedef enum {
 } STATES;
 
 struct _box;
-
-typedef int (*BOX_DRAW) (struct _box *, struct tm *);
 
 typedef struct _box {
     WINDOW *parent;
@@ -414,6 +412,7 @@ dialog_timebox(const char *title,
 
     dlg_add_result(buffer);
     dlg_add_separator();
+    dlg_add_last_key(-1);
 
     return CleanupResult(result, dialog, prompt, &save_vars);
 }

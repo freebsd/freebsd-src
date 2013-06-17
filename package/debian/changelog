@@ -1,3 +1,23 @@
+cdialog (20130523) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 23 May 2013 19:25:01 -0400
+
+cdialog (20130315) unstable; urgency=low
+
+  * minor fixes
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 15 Mar 2013 04:41:20 -0400
+
+cdialog (20121230) unstable; urgency=low
+
+  * new widgets
+  * coverity fixes
+  * configure-script updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 06 Oct 2012 09:19:29 -0400
+
 cdialog (20120706) unstable; urgency=high
 
   * fix regression in msgbox (ArchLinux #30574)

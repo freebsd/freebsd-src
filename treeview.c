@@ -1,9 +1,9 @@
 /*
- *  $Id: checklist.c,v 1.151 2013/03/23 10:51:48 tom Exp $
+ *  $Id: treeview.c,v 1.22 2013/05/23 23:35:46 tom Exp $
  *
- *  checklist.c -- implements the checklist box
+ *  treeview.c -- implements the treeview dialog
  *
- *  Copyright 2000-2012,2013	Thomas E. Dickey
+ *  Copyright 2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -19,32 +19,29 @@
  *	Free Software Foundation, Inc.
  *	51 Franklin St., Fifth Floor
  *	Boston, MA 02110, USA.
- *
- *  An earlier version of this program lists as authors:
- *	Savio Lam (lam836@cs.cuhk.hk)
- *	Stuart Herbert - S.Herbert@sheffield.ac.uk: radiolist extension
- *	Alessandro Rubini - rubini@ipvvis.unipv.it: merged the two
  */
 
 #include <dialog.h>
 #include <dlg_keys.h>
 
+#define INDENT 3
 #define MIN_HIGH  (1 + (5 * MARGIN))
 
 typedef struct {
     /* the outer-window */
     WINDOW *dialog;
+    bool is_check;
     int box_y;
     int box_x;
     int check_x;
     int item_x;
-    int checkflag;
     int use_height;
     int use_width;
     /* the inner-window */
     WINDOW *list;
     DIALOG_LISTITEM *items;
     int item_no;
+    int *depths;
     const char *states;
 } ALL_DATA;
 
@@ -54,15 +51,15 @@ typedef struct {
  */
 static void
 print_item(ALL_DATA * data,
-	   WINDOW *win,
 	   DIALOG_LISTITEM * item,
 	   const char *states,
+	   int depths,
 	   int choice,
 	   int selected)
 {
+    WINDOW *win = data->list;
     chtype save = dlg_get_attrs(win);
     int i;
-    bool both = (!dialog_vars.no_tags && !dialog_vars.no_items);
     bool first = TRUE;
     int climit = (getmaxx(win) - data->check_x + 1);
     const char *show = (dialog_vars.no_items
@@ -78,17 +75,20 @@ print_item(ALL_DATA * data,
     (void) wmove(win, choice, data->check_x);
     (void) wattrset(win, selected ? check_selected_attr : check_attr);
     (void) wprintw(win,
-		   (data->checkflag == FLAG_CHECK) ? "[%c]" : "(%c)",
+		   data->is_check ? "[%c]" : "(%c)",
 		   states[item->state]);
     (void) wattrset(win, menubox_attr);
-    (void) waddch(win, ' ');
 
-    if (both) {
-	dlg_print_listitem(win, item->name, climit, first, selected);
-	first = FALSE;
+    (void) wattrset(win, selected ? item_selected_attr : item_attr);
+    for (i = 0; i < depths; ++i) {
+	int j;
+	(void) wmove(win, choice, data->item_x + INDENT * i);
+	(void) waddch(win, ACS_VLINE);
+	for (j = INDENT - 1; j > 0; --j)
+	    (void) waddch(win, ' ');
     }
+    (void) wmove(win, choice, data->item_x + INDENT * depths);
 
-    (void) wmove(win, choice, data->item_x);
     dlg_print_listitem(win, show, climit, first, selected);
 
     if (selected) {
@@ -98,17 +98,21 @@ print_item(ALL_DATA * data,
 }
 
 static void
-print_list(ALL_DATA * data, int choice, int scrollamt, int max_choice)
+print_list(ALL_DATA * data,
+	   int choice,
+	   int scrollamt,
+	   int max_choice)
 {
     int i;
     int cur_y, cur_x;
 
     getyx(data->dialog, cur_y, cur_x);
+
     for (i = 0; i < max_choice; i++) {
 	print_item(data,
-		   data->list,
-		   &data->items[i + scrollamt],
+		   &data->items[scrollamt + i],
 		   data->states,
+		   data->depths[scrollamt + i],
 		   i, i == choice);
     }
     (void) wnoutrefresh(data->list);
@@ -143,22 +147,22 @@ check_hotkey(DIALOG_LISTITEM * items, int choice)
 }
 
 /*
- * This is an alternate interface to 'checklist' which allows the application
+ * This is an alternate interface to 'treeview' which allows the application
  * to read the list item states back directly without putting them in the
- * output buffer.  It also provides for more than two states over which the
- * check/radio box can display.
+ * output buffer.
  */
 int
-dlg_checklist(const char *title,
-	      const char *cprompt,
-	      int height,
-	      int width,
-	      int list_height,
-	      int item_no,
-	      DIALOG_LISTITEM * items,
-	      const char *states,
-	      int flag,
-	      int *current_item)
+dlg_treeview(const char *title,
+	     const char *cprompt,
+	     int height,
+	     int width,
+	     int list_height,
+	     int item_no,
+	     DIALOG_LISTITEM * items,
+	     const char *states,
+	     int *depths,
+	     int flag,
+	     int *current_item)
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
@@ -190,24 +194,32 @@ dlg_checklist(const char *title,
     int old_width = width;
 #endif
     ALL_DATA all;
-    int i, j, key2, found, x, y, cur_x, cur_y;
+    int i, j, key2, found, x, y, cur_y, box_x, box_y;
     int key = 0, fkey;
     int button = dialog_state.visit_items ? -1 : dlg_default_button();
     int choice = dlg_default_listitem(items);
     int scrollamt = 0;
     int max_choice;
     int was_mouse;
-    int use_width, list_width, name_width, text_width;
+    int use_height;
+    int use_width, name_width, text_width, tree_width;
     int result = DLG_EXIT_UNKNOWN;
     int num_states;
-    WINDOW *dialog;
+    WINDOW *dialog, *list;
     char *prompt = dlg_strclone(cprompt);
     const char **buttons = dlg_ok_labels();
     const char *widget_name;
 
+    /* we need at least two states */
+    if (states == 0 || strlen(states) < 2)
+	states = " *";
+    num_states = (int) strlen(states);
+
     memset(&all, 0, sizeof(all));
     all.items = items;
     all.item_no = item_no;
+    all.states = states;
+    all.depths = depths;
 
     dlg_does_output();
     dlg_tab_correct_str(prompt);
@@ -229,43 +241,32 @@ dlg_checklist(const char *title,
 		}
 	    }
 	}
-	widget_name = "radiolist";
     } else {
-	widget_name = "checklist";
+	all.is_check = TRUE;
     }
+    widget_name = "treeview";
 #ifdef KEY_RESIZE
   retry:
 #endif
 
-    all.use_height = list_height;
+    use_height = list_height;
     use_width = dlg_calc_list_width(item_no, items) + 10;
     use_width = MAX(26, use_width);
-    if (all.use_height == 0) {
+    if (use_height == 0) {
 	/* calculate height without items (4) */
 	dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, use_width);
-	dlg_calc_listh(&height, &all.use_height, item_no);
+	dlg_calc_listh(&height, &use_height, item_no);
     } else {
-	dlg_auto_size(title, prompt,
-		      &height, &width,
-		      MIN_HIGH + all.use_height, use_width);
+	dlg_auto_size(title, prompt, &height, &width, MIN_HIGH + use_height, use_width);
     }
     dlg_button_layout(buttons, &width);
     dlg_print_size(height, width);
     dlg_ctl_size(height, width);
 
-    /* we need at least two states */
-    if (states == 0 || strlen(states) < 2)
-	states = " *";
-    num_states = (int) strlen(states);
-    all.states = states;
-
-    all.checkflag = flag;
-
     x = dlg_box_x_ordinate(width);
     y = dlg_box_y_ordinate(height);
 
     dialog = dlg_new_window(height, width, y, x);
-    all.dialog = dialog;
     dlg_register_window(dialog, widget_name, binding);
     dlg_register_buttons(dialog, widget_name, buttons);
 
@@ -278,67 +279,53 @@ dlg_checklist(const char *title,
     (void) wattrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
-    all.use_width = width - 6;
-    getyx(dialog, cur_y, cur_x);
-    all.box_y = cur_y + 1;
-    all.box_x = (width - all.use_width) / 2 - 1;
+    all.use_width = width - 4;
+    cur_y = getcury(dialog);
+    box_y = cur_y + 1;
+    box_x = (width - all.use_width) / 2 - 1;
 
     /*
      * After displaying the prompt, we know how much space we really have.
      * Limit the list to avoid overwriting the ok-button.
      */
-    if (all.use_height + MIN_HIGH > height - cur_y)
-	all.use_height = height - MIN_HIGH - cur_y;
-    if (all.use_height <= 0)
-	all.use_height = 1;
+    if (use_height + MIN_HIGH > height - cur_y)
+	use_height = height - MIN_HIGH - cur_y;
+    if (use_height <= 0)
+	use_height = 1;
 
-    max_choice = MIN(all.use_height, item_no);
-    max_choice = MAX(max_choice, 1);
+    max_choice = MIN(use_height, item_no);
 
     /* create new window for the list */
-    all.list = dlg_sub_window(dialog, all.use_height, all.use_width,
-			      y + all.box_y + 1, x + all.box_x + 1);
+    list = dlg_sub_window(dialog, use_height, all.use_width,
+			  y + box_y + 1, x + box_x + 1);
 
     /* draw a box around the list items */
-    dlg_draw_box(dialog, all.box_y, all.box_x,
-		 all.use_height + 2 * MARGIN,
+    dlg_draw_box(dialog, box_y, box_x,
+		 use_height + 2 * MARGIN,
 		 all.use_width + 2 * MARGIN,
 		 menubox_border_attr, menubox_border2_attr);
 
     text_width = 0;
     name_width = 0;
-    /* Find length of longest item to center checklist */
+    tree_width = 0;
+    /* Find length of longest item to center treeview */
     for (i = 0; i < item_no; i++) {
+	tree_width = MAX(tree_width, INDENT * depths[i]);
 	text_width = MAX(text_width, dlg_count_columns(items[i].text));
 	name_width = MAX(name_width, dlg_count_columns(items[i].name));
     }
-
-    /* If the name+text is wider than the list is allowed, then truncate
-     * one or both of them.  If the name is no wider than 1/4 of the list,
-     * leave it intact.
-     */
-    use_width = (all.use_width - 6);
-    if (dialog_vars.no_tags) {
-	list_width = MIN(all.use_width, text_width);
+    if (dialog_vars.no_tags && !dialog_vars.no_items) {
+	tree_width += text_width;
     } else if (dialog_vars.no_items) {
-	list_width = MIN(all.use_width, name_width);
+	tree_width += name_width;
     } else {
-	if (text_width >= 0
-	    && name_width >= 0
-	    && use_width > 0
-	    && text_width + name_width > use_width) {
-	    int need = (int) (0.25 * use_width);
-	    if (name_width > need) {
-		int want = (int) (use_width * ((double) name_width) /
-				  (text_width + name_width));
-		name_width = (want > need) ? want : need;
-	    }
-	    text_width = use_width - name_width;
-	}
-	list_width = (text_width + name_width);
+	tree_width += (text_width + name_width);
     }
 
-    all.check_x = (use_width - list_width) / 2;
+    use_width = (all.use_width - 4);
+    tree_width = MIN(tree_width, all.use_width);
+
+    all.check_x = (use_width - tree_width) / 2;
     all.item_x = ((dialog_vars.no_tags
 		   ? 0
 		   : (dialog_vars.no_items
@@ -347,24 +334,29 @@ dlg_checklist(const char *title,
 		  + all.check_x + 4);
 
     /* ensure we are scrolled to show the current choice */
-    scrollamt = MIN(scrollamt, max_choice + item_no - 1);
-    if (choice >= (max_choice + scrollamt - 1)) {
-	scrollamt = MAX(0, choice - max_choice + 1);
+    if (choice >= (max_choice + scrollamt)) {
+	scrollamt = choice - max_choice + 1;
 	choice = max_choice - 1;
     }
-    print_list(&all, choice, scrollamt, max_choice);
 
     /* register the new window, along with its borders */
-    dlg_mouse_mkbigregion(all.box_y + 1, all.box_x,
-			  all.use_height, all.use_width + 2,
+    dlg_mouse_mkbigregion(box_y + 1, box_x,
+			  use_height, all.use_width + 2,
 			  KEY_MAX, 1, 1, 1 /* by lines */ );
+
+    all.dialog = dialog;
+    all.box_x = box_x;
+    all.box_y = box_y;
+    all.use_height = use_height;
+    all.list = list;
+    print_list(&all, choice, scrollamt, max_choice);
 
     dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
 
     dlg_trace_win(dialog);
     while (result == DLG_EXIT_UNKNOWN) {
 	if (button < 0)		/* --visit-items */
-	    wmove(dialog, all.box_y + choice + 1, all.box_x + all.check_x + 2);
+	    wmove(dialog, box_y + choice + 1, box_x + all.check_x + 2);
 
 	key = dlg_mouse_wgetch(dialog, &fkey);
 	if (dlg_result_key(key, fkey, &result))
@@ -375,7 +367,6 @@ dlg_checklist(const char *title,
 	    key -= M_EVENT;
 
 	if (was_mouse && (key >= KEY_MAX)) {
-	    getyx(dialog, cur_y, cur_x);
 	    i = (key - KEY_MAX);
 	    if (i < max_choice) {
 		choice = (key - KEY_MAX);
@@ -392,9 +383,7 @@ dlg_checklist(const char *title,
 	}
 
 	/*
-	 * A space toggles the item status.  We handle either a checklist
-	 * (any number of items can be selected) or radio list (zero or one
-	 * items can be selected).
+	 * A space toggles the item status.
 	 */
 	if (key == ' ') {
 	    int current = scrollamt + choice;
@@ -404,34 +393,20 @@ dlg_checklist(const char *title,
 		next = 0;
 
 	    if (flag == FLAG_CHECK) {	/* checklist? */
-		getyx(dialog, cur_y, cur_x);
 		items[current].state = next;
-		print_item(&all, all.list,
-			   &items[scrollamt + choice],
-			   states,
-			   choice, TRUE);
-		(void) wnoutrefresh(all.list);
-		(void) wmove(dialog, cur_y, cur_x);
-	    } else {		/* radiolist */
+	    } else {
 		for (i = 0; i < item_no; i++) {
 		    if (i != current) {
 			items[i].state = 0;
 		    }
 		}
 		if (items[current].state) {
-		    getyx(dialog, cur_y, cur_x);
 		    items[current].state = next ? next : 1;
-		    print_item(&all, all.list,
-			       &items[current],
-			       states,
-			       choice, TRUE);
-		    (void) wnoutrefresh(all.list);
-		    (void) wmove(dialog, cur_y, cur_x);
 		} else {
 		    items[current].state = 1;
-		    print_list(&all, choice, scrollamt, max_choice);
 		}
 	    }
+	    print_list(&all, choice, scrollamt, max_choice);
 	    continue;		/* wait for another key press */
 	}
 
@@ -520,7 +495,6 @@ dlg_checklist(const char *title,
 
 	if (found) {
 	    if (i != choice) {
-		getyx(dialog, cur_y, cur_x);
 		if (i < 0 || i >= max_choice) {
 		    if (i < 0) {
 			scrollamt += i;
@@ -587,29 +561,30 @@ dlg_checklist(const char *title,
 }
 
 /*
- * Display a dialog box with a list of options that can be turned on or off
- * The `flag' parameter is used to select between radiolist and checklist.
+ * Display a set of items as a tree.
  */
 int
-dialog_checklist(const char *title,
-		 const char *cprompt,
-		 int height,
-		 int width,
-		 int list_height,
-		 int item_no,
-		 char **items,
-		 int flag)
+dialog_treeview(const char *title,
+		const char *cprompt,
+		int height,
+		int width,
+		int list_height,
+		int item_no,
+		char **items,
+		int flag)
 {
     int result;
     int i, j;
     DIALOG_LISTITEM *listitems;
-    bool separate_output = ((flag == FLAG_CHECK)
-			    && (dialog_vars.separate_output));
+    int *depths;
     bool show_status = FALSE;
     int current = 0;
 
     listitems = dlg_calloc(DIALOG_LISTITEM, (size_t) item_no + 1);
-    assert_ptr(listitems, "dialog_checklist");
+    assert_ptr(listitems, "dialog_treeview");
+
+    depths = dlg_calloc(int, (size_t) item_no + 1);
+    assert_ptr(depths, "dialog_treeview");
 
     for (i = j = 0; i < item_no; ++i) {
 	listitems[i].name = items[j++];
@@ -617,22 +592,24 @@ dialog_checklist(const char *title,
 			     ? dlg_strempty()
 			     : items[j++]);
 	listitems[i].state = !dlg_strcmp(items[j++], "on");
+	depths[i] = atoi(items[j++]);
 	listitems[i].help = ((dialog_vars.item_help)
 			     ? items[j++]
 			     : dlg_strempty());
     }
     dlg_align_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);
 
-    result = dlg_checklist(title,
-			   cprompt,
-			   height,
-			   width,
-			   list_height,
-			   item_no,
-			   listitems,
-			   NULL,
-			   flag,
-			   &current);
+    result = dlg_treeview(title,
+			  cprompt,
+			  height,
+			  width,
+			  list_height,
+			  item_no,
+			  listitems,
+			  NULL,
+			  depths,
+			  flag,
+			  &current);
 
     switch (result) {
     case DLG_EXIT_OK:		/* FALLTHRU */
@@ -644,7 +621,7 @@ dialog_checklist(const char *title,
 	show_status = dialog_vars.help_status;
 	if (USE_ITEM_HELP(listitems[current].help)) {
 	    if (show_status) {
-		if (separate_output) {
+		if (dialog_vars.separate_output) {
 		    dlg_add_string(listitems[current].help);
 		    dlg_add_separator();
 		} else {
@@ -656,7 +633,7 @@ dialog_checklist(const char *title,
 	    result = DLG_EXIT_ITEM_HELP;
 	} else {
 	    if (show_status) {
-		if (separate_output) {
+		if (dialog_vars.separate_output) {
 		    dlg_add_string(listitems[current].name);
 		    dlg_add_separator();
 		} else {
@@ -672,7 +649,7 @@ dialog_checklist(const char *title,
     if (show_status) {
 	for (i = 0; i < item_no; i++) {
 	    if (listitems[i].state) {
-		if (separate_output) {
+		if (dialog_vars.separate_output) {
 		    dlg_add_string(listitems[i].name);
 		    dlg_add_separator();
 		} else {
@@ -685,10 +662,11 @@ dialog_checklist(const char *title,
 		}
 	    }
 	}
-	dlg_add_last_key(separate_output);
+	dlg_add_last_key(-1);
     }
 
     dlg_free_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);
+    free(depths);
     free(listitems);
     return result;
 }

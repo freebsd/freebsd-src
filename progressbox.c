@@ -1,10 +1,10 @@
 /*
- *  $Id: progressbox.c,v 1.21 2012/07/03 00:12:52 tom Exp $
+ *  $Id: progressbox.c,v 1.23 2012/12/21 10:00:05 tom Exp $
  *
  *  progressbox.c -- implements the progress box
  *
  *  Copyright 2005	Valery Reznic
- *  Copyright 2006-2011	Thomas E. Dickey
+ *  Copyright 2006-2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as
@@ -46,7 +46,7 @@ get_line(MY_OBJ * obj)
     int col = 0;
     int j, tmpint, ch;
 
-    while (1) {
+    for (;;) {
 	if ((ch = getc(fp)) == EOF) {
 	    obj->is_eof = 1;
 	    if (col) {
@@ -59,20 +59,23 @@ get_line(MY_OBJ * obj)
 	    break;
 	if (ch == '\r')
 	    break;
+	if (col >= MAX_LEN)
+	    continue;
 	if ((ch == TAB) && (dialog_vars.tab_correct)) {
 	    tmpint = dialog_state.tab_len
 		- (col % dialog_state.tab_len);
 	    for (j = 0; j < tmpint; j++) {
-		if (col < MAX_LEN)
+		if (col < MAX_LEN) {
 		    obj->line[col] = ' ';
-		++col;
+		    ++col;
+		} else {
+		    break;
+		}
 	    }
 	} else {
 	    obj->line[col] = (char) ch;
 	    ++col;
 	}
-	if (col >= MAX_LEN)
-	    break;
     }
 
     obj->line[col] = '\0';

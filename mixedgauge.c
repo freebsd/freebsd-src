@@ -1,9 +1,9 @@
 /*
- *  $Id: mixedgauge.c,v 1.29 2011/10/20 23:35:31 tom Exp $
+ *  $Id: mixedgauge.c,v 1.30 2012/11/18 16:30:20 tom Exp $
  *
  *  mixedgauge.c -- implements the mixedgauge dialog
  *
- *  Copyright 2007-2010,2011	Thomas E. Dickey
+ *  Copyright 2007-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -121,11 +121,8 @@ myprint_status(DIALOG_MIXEDGAUGE * dlg)
     const char *status = "";
     char *freeMe = 0;
 
-    if (win) {
-	bm -= (2 * MARGIN);
-    }
-    if (win != 0)
-	getyx(win, last_y, last_x);
+    bm -= (2 * MARGIN);
+    getyx(win, last_y, last_x);
     for (item = 0; item < dlg->item_no; ++item) {
 	chtype attr = A_NORMAL;
 

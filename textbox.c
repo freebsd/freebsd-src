@@ -1,5 +1,5 @@
 /*
- *  $Id: textbox.c,v 1.107 2012/07/01 18:13:24 Zoltan.Kelemen Exp $
+ *  $Id: textbox.c,v 1.110 2012/12/01 01:48:08 tom Exp $
  *
  *  textbox.c -- implements the text box
  *
@@ -55,6 +55,7 @@ lseek_obj(MY_OBJ * obj, long offset, int mode)
     long fpos;
     if ((fpos = (long) lseek(obj->fd, (off_t) offset, mode)) == -1) {
 	switch (mode) {
+	default:
 	case SEEK_CUR:
 	    dlg_exiterr("Cannot get file position");
 	    break;
@@ -73,6 +74,37 @@ static long
 ftell_obj(MY_OBJ * obj)
 {
     return lseek_obj(obj, 0L, SEEK_CUR);
+}
+
+static void
+lseek_set(MY_OBJ * obj, long offset)
+{
+    long actual = lseek_obj(obj, offset, SEEK_SET);
+
+    if (actual != offset) {
+	dlg_exiterr("Cannot set file position to %ld (actual %ld)\n",
+		    offset, actual);
+    }
+}
+
+static void
+lseek_end(MY_OBJ * obj, long offset)
+{
+    long actual = lseek_obj(obj, offset, SEEK_END);
+
+    if (actual > offset) {
+	obj->file_size = actual;
+    }
+}
+
+static void
+lseek_cur(MY_OBJ * obj, long offset)
+{
+    long actual = lseek_obj(obj, offset, SEEK_CUR);
+
+    if (actual != offset) {
+	dlg_trace_msg("Lseek returned %ld, expected %ld\n", actual, offset);
+    }
 }
 
 static char *
@@ -197,7 +229,7 @@ tabize(MY_OBJ * obj, long val, long *first_pos)
 
     fpos = ftell_obj(obj);
 
-    lseek_obj(obj, fpos - obj->fd_bytes_read, SEEK_SET);
+    lseek_set(obj, fpos - obj->fd_bytes_read);
 
     /* Allocate space for read buffer */
     buftab = xalloc((size_t) val + 1);
@@ -224,7 +256,7 @@ tabize(MY_OBJ * obj, long val, long *first_pos)
 	    count++;
     }
 
-    lseek_obj(obj, fpos, SEEK_SET);
+    lseek_set(obj, fpos);
     free(buftab);
     return count;
 }
@@ -309,10 +341,10 @@ back_lines(MY_OBJ * obj, long n)
 		/* Really possible to move backward BUF_SIZE/2 bytes? */
 		if (fpos < BUF_SIZE / 2 + obj->fd_bytes_read) {
 		    /* No, move less than */
-		    lseek_obj(obj, 0L, SEEK_SET);
+		    lseek_set(obj, 0L);
 		    val_to_tabize = fpos - obj->fd_bytes_read;
 		} else {	/* Move backward BUF_SIZE/2 bytes */
-		    lseek_obj(obj, -(BUF_SIZE / 2 + obj->fd_bytes_read), SEEK_CUR);
+		    lseek_cur(obj, -(BUF_SIZE / 2 + obj->fd_bytes_read));
 		    val_to_tabize = BUF_SIZE / 2;
 		}
 		read_high(obj, BUF_SIZE);
@@ -340,10 +372,10 @@ back_lines(MY_OBJ * obj, long n)
 		    /* Really possible to move backward BUF_SIZE/2 bytes? */
 		    if (fpos < BUF_SIZE / 2 + obj->fd_bytes_read) {
 			/* No, move less than */
-			lseek_obj(obj, 0L, SEEK_SET);
+			lseek_set(obj, 0L);
 			val_to_tabize = fpos - obj->fd_bytes_read;
 		    } else {	/* Move backward BUF_SIZE/2 bytes */
-			lseek_obj(obj, -(BUF_SIZE / 2 + obj->fd_bytes_read), SEEK_CUR);
+			lseek_cur(obj, -(BUF_SIZE / 2 + obj->fd_bytes_read));
 			val_to_tabize = BUF_SIZE / 2;
 		    }
 		    read_high(obj, BUF_SIZE);
@@ -493,7 +525,7 @@ get_search_term(WINDOW *dialog, char *input, int height, int width)
 		  searchbox_attr,
 		  searchbox_border_attr,
 		  searchbox_border2_attr);
-    wattrset(widget, searchbox_title_attr);
+    (void) wattrset(widget, searchbox_title_attr);
     (void) wmove(widget, 0, (box_width - len_caption) / 2);
 
     indx = dlg_index_wchars(caption);
@@ -567,7 +599,7 @@ perform_search(MY_OBJ * obj, int height, int width, int key, char *search_term)
 	    }
 #endif
 	    /* ESC pressed, or no search term, reprint page to clear box */
-	    wattrset(obj->text, dialog_attr);
+	    (void) wattrset(obj->text, dialog_attr);
 	    back_lines(obj, obj->page_length);
 	    return TRUE;
 	}
@@ -596,7 +628,7 @@ perform_search(MY_OBJ * obj, int height, int width, int key, char *search_term)
 	if (found == FALSE) {	/* not found */
 	    (void) beep();
 	    /* Restore program state to that before searching */
-	    lseek_obj(obj, fpos, SEEK_SET);
+	    lseek_set(obj, fpos);
 
 	    read_high(obj, BUF_SIZE);
 
@@ -612,7 +644,7 @@ perform_search(MY_OBJ * obj, int height, int width, int key, char *search_term)
 	    back_lines(obj, 1L);
 	}
 	/* Reprint page */
-	wattrset(obj->text, dialog_attr);
+	(void) wattrset(obj->text, dialog_attr);
 	moved = TRUE;
     } else {			/* no need to find */
 	(void) beep();
@@ -692,10 +724,10 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 
     /* Get file size. Actually, 'file_size' is the real file size - 1,
        since it's only the last byte offset from the beginning */
-    obj.file_size = lseek_obj(&obj, 0L, SEEK_END);
+    lseek_end(&obj, 0L);
 
     /* Restore file pointer to beginning of file after getting file size */
-    lseek_obj(&obj, 0L, SEEK_SET);
+    lseek_set(&obj, 0L);
 
     read_high(&obj, BUF_SIZE);
 
@@ -833,7 +865,7 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 
 		    if (fpos > obj.fd_bytes_read) {
 			/* Yes, we have to read it in */
-			lseek_obj(&obj, 0L, SEEK_SET);
+			lseek_set(&obj, 0L);
 
 			read_high(&obj, BUF_SIZE);
 		    }
@@ -848,7 +880,7 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 
 		if (fpos < obj.file_size) {
 		    /* Yes, we have to read it in */
-		    lseek_obj(&obj, -BUF_SIZE, SEEK_END);
+		    lseek_end(&obj, -BUF_SIZE);
 
 		    read_high(&obj, BUF_SIZE);
 		}

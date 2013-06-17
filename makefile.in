@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.82 2012/02/16 00:35:37 Li-Wen.Hsu Exp $
+# $Id: makefile.in,v 1.83 2012/10/06 14:05:14 tom Exp $
 # template makefile for DIALOG
 ##############################################################################
 # Copyright (c) 1999-2011,2012 Thomas E. Dickey                              #
@@ -35,6 +35,7 @@ VPATH		= @srcdir@
 
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
+datarootdir	= @datarootdir@
 
 top_builddir	= .
 

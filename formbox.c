@@ -1,9 +1,9 @@
 /*
- *  $Id: formbox.c,v 1.81 2012/07/01 18:13:51 Zoltan.Kelemen Exp $
+ *  $Id: formbox.c,v 1.85 2013/03/17 15:03:41 tom Exp $
  *
  *  formbox.c -- implements the form (i.e, some pairs label/editbox)
  *
- *  Copyright 2003-2011,2012	Thomas E. Dickey
+ *  Copyright 2003-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -287,6 +287,7 @@ tab_next(WINDOW *win,
 static bool
 scroll_next(WINDOW *win, DIALOG_FORMITEM item[], int stepsize, int *choice, int *scrollamt)
 {
+    bool result = TRUE;
     int old_choice = *choice;
     int old_scroll = *scrollamt;
     int old_row = MIN(item[old_choice].text_y, item[old_choice].name_y);
@@ -298,34 +299,40 @@ scroll_next(WINDOW *win, DIALOG_FORMITEM item[], int stepsize, int *choice, int 
 	    target = old_scroll;
 	else
 	    target = old_scroll + stepsize;
-	if (target < 0)
-	    target = 0;
+	if (target < 0) {
+	    result = FALSE;
+	}
     } else {
-	int limit = form_limit(item);
-	if (target > limit)
-	    target = limit;
-    }
-
-    for (n = 0; item[n].name != 0; ++n) {
-	if (item[n].text_flen > 0) {
-	    int new_row = MIN(item[n].text_y, item[n].name_y);
-	    if (abs(new_row - target) < abs(old_row - target)) {
-		old_row = new_row;
-		*choice = n;
-	    }
+	if (target > form_limit(item)) {
+	    result = FALSE;
 	}
     }
 
-    if (old_choice != *choice)
-	print_item(win, item + old_choice, *scrollamt, FALSE);
+    if (result) {
+	for (n = 0; item[n].name != 0; ++n) {
+	    if (item[n].text_flen > 0) {
+		int new_row = MIN(item[n].text_y, item[n].name_y);
+		if (abs(new_row - target) < abs(old_row - target)) {
+		    old_row = new_row;
+		    *choice = n;
+		}
+	    }
+	}
 
-    *scrollamt = *choice;
-    if (*scrollamt != old_scroll) {
-	scrollok(win, TRUE);
-	wscrl(win, *scrollamt - old_scroll);
-	scrollok(win, FALSE);
+	if (old_choice != *choice)
+	    print_item(win, item + old_choice, *scrollamt, FALSE);
+
+	*scrollamt = *choice;
+	if (*scrollamt != old_scroll) {
+	    scrollok(win, TRUE);
+	    wscrl(win, *scrollamt - old_scroll);
+	    scrollok(win, FALSE);
+	}
+	result = (old_choice != *choice) || (old_scroll != *scrollamt);
     }
-    return (old_choice != *choice) || (old_scroll != *scrollamt);
+    if (!result)
+	beep();
+    return result;
 }
 
 /*
@@ -447,7 +454,7 @@ prev_valid_buttonindex(int state, int extra, bool non_editable)
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,  KEY_NPAGE ), \
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,  KEY_PPAGE )
 /*
- * Display a form for fulfill a number of fields
+ * Display a form for entering a number of fields
  */
 int
 dlg_form(const char *title,
@@ -484,7 +491,7 @@ dlg_form(const char *title,
     int first = TRUE;
     int first_trace = TRUE;
     int chr_offset = 0;
-    int state = dialog_vars.default_button >=0 ? dlg_default_button() : sTEXT;
+    int state = dialog_vars.default_button >= 0 ? dlg_default_button() : sTEXT;
     int x, y, cur_x, cur_y, box_x, box_y;
     int code;
     int key = 0;
@@ -626,6 +633,8 @@ dlg_form(const char *title,
 			    current->text_x,
 			    current->text_len,
 			    is_hidden(current), first);
+	    wsyncup(form);
+	    wcursyncup(form);
 	    field_changed = FALSE;
 	}
 
@@ -964,6 +973,7 @@ dialog_form(const char *title,
 		dlg_add_separator();
 	    }
 	}
+	dlg_add_last_key(-1);
     }
 
     dlg_free_formitems(listitems);

@@ -1,9 +1,9 @@
 /*
- *  $Id: editbox.c,v 1.61 2012/07/01 18:13:32 Zoltan.Kelemen Exp $
+ *  $Id: editbox.c,v 1.62 2013/03/17 15:03:41 tom Exp $
  *
  *  editbox.c -- implements the edit box
  *
- *  Copyright 2007-2011,2012 Thomas E. Dickey
+ *  Copyright 2007-2012,2013 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -710,6 +710,7 @@ dlg_editbox(const char *title,
 	    dlg_add_result((*list)[n]);
 	    dlg_add_separator();
 	}
+	dlg_add_last_key(-1);
     }
     free(buffer);
     dlg_restore_vars(&save_vars);

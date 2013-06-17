@@ -1,5 +1,5 @@
 /*
- *  $Id: inputbox.c,v 1.74 2012/07/01 18:13:40 Zoltan.Kelemen Exp $
+ *  $Id: inputbox.c,v 1.76 2012/12/03 11:46:50 tom Exp $
  *
  *  inputbox.c -- implements the input box
  *
@@ -73,6 +73,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
     int result = DLG_EXIT_UNKNOWN;
     int state;
     int first;
+    int edited;
     char *input;
     WINDOW *dialog;
     WINDOW *editor;
@@ -85,6 +86,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 
     /* Set up the initial value */
     input = dlg_set_result(init);
+    edited = FALSE;
 
 #ifdef KEY_RESIZE
   retry:
@@ -138,7 +140,12 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
     editor = dlg_sub_window(dialog, 1, box_width, yorg + box_y, xorg + box_x);
     dlg_register_window(editor, "inputbox2", binding2);
 
-    dlg_trace_win(dialog);
+    if (*input != '\0') {
+	dlg_show_string(editor, input, chr_offset, inputbox_attr,
+			0, 0, box_width, password, first);
+	wsyncup(editor);
+	wcursyncup(editor);
+    }
     while (result == DLG_EXIT_UNKNOWN) {
 	int edit = 0;
 
@@ -153,6 +160,13 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 	}
 
 	if (!first) {
+	    if (*input != '\0' && !edited) {
+		dlg_show_string(editor, input, chr_offset, inputbox_attr,
+				0, 0, box_width, password, first);
+		wmove(editor, 0, chr_offset);
+		wsyncup(editor);
+		wcursyncup(editor);
+	    }
 	    key = dlg_mouse_wgetch((state == sTEXT) ? editor : dialog, &fkey);
 	    if (dlg_result_key(key, fkey, &result))
 		break;
@@ -173,9 +187,12 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 	    edit = dlg_edit_string(input, &chr_offset, key, fkey, first);
 
 	    if (edit) {
-		dlg_show_string(dialog, input, chr_offset, inputbox_attr,
-				box_y, box_x, box_width, password, first);
+		dlg_show_string(editor, input, chr_offset, inputbox_attr,
+				0, 0, box_width, password, first);
+		wsyncup(editor);
+		wcursyncup(editor);
 		first = FALSE;
+		edited = TRUE;
 		continue;
 	    } else if (first) {
 		first = FALSE;

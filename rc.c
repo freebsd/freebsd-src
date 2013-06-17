@@ -1,9 +1,9 @@
 /*
- *  $Id: rc.c,v 1.49 2011/10/15 00:56:44 tom Exp $
+ *  $Id: rc.c,v 1.51 2012/11/30 21:32:39 tom Exp $
  *
  *  rc.c -- routines for processing the configuration file
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -214,6 +214,7 @@ str_to_attr(char *str, int *fg, int *bg, int *hl)
     int i = 0, get_fg = 1;
     unsigned j;
     char tempstr[MAX_LEN + 1], *part;
+    size_t have;
 
     if (str[0] != '(' || lastch(str) != ')') {
 	if ((i = find_color(str)) >= 0) {
@@ -226,8 +227,14 @@ str_to_attr(char *str, int *fg, int *bg, int *hl)
     }
 
     /* remove the parenthesis */
-    strcpy(tempstr, str + 1);
-    lastch(tempstr) = '\0';
+    have = strlen(str);
+    if (have > MAX_LEN) {
+	have = MAX_LEN - 1;
+    } else {
+	have -= 2;
+    }
+    memcpy(tempstr, str + 1, have);
+    tempstr[have] = '\0';
 
     /* get foreground and background */
 

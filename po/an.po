@@ -1,40 +1,32 @@
-# Galician translation of dialog
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
 # This file is distributed under the same license as the dialog package.
-# Copyright 2003-2006, 2007 Thomas Dickey
-# Copyright 2012 Leandro Regueiro
-#
-# Diego Pérez Montes <kabute@gulo.org>, 2008
-# Leandro Regueiro <leandro.regueiro@gmail.com>, 2012.
-#
-# Proxecto Trasno - Adaptación do software libre á lingua galega:  Se desexas
-# colaborar connosco, podes atopar máis información en <http://www.trasno.net>
-#
+# Daniel Martinez <entaltoaragon@gmail.com>, 2013.
 msgid ""
 msgstr ""
 "Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2008-06-18 18:26-0400\n"
-"PO-Revision-Date: 2012-11-10 13:53+0200\n"
-"Last-Translator: Leandro Regueiro <leandro.regueiro@gmail.com>\n"
-"Language-Team: Galician <proxecto@trasno.net>\n"
-"Language: gl\n"
+"PO-Revision-Date: 2013-02-19 17:50+0100\n"
+"Last-Translator: Daniel Martinez <entaltoaragon@gmail.com>\n"
+"Language-Team: Aragonese <softaragones@googlegroups.com>\n"
+"Language: an\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Virtaal 0.7.0\n"
 
 #: buttons.c:385
 msgid "Yes"
-msgstr "Si"
+msgstr "Sí"
 
 #: buttons.c:393
 msgid "No"
-msgstr "Non"
+msgstr "No"
 
 #: buttons.c:401
 msgid "OK"
-msgstr "Aceptar"
+msgstr "Acceptar"
 
 #: buttons.c:409
 msgid "Cancel"
@@ -42,7 +34,7 @@ msgstr "Cancelar"
 
 #: buttons.c:417
 msgid "EXIT"
-msgstr "SAÍR"
+msgstr "Salir"
 
 #: buttons.c:425
 msgid "Extra"
@@ -50,7 +42,7 @@ msgstr "Extra"
 
 #: buttons.c:433
 msgid "Help"
-msgstr "Axuda"
+msgstr "Aduya"
 
 #. Headline "Month"
 #: calendar.c:273
@@ -60,11 +52,11 @@ msgstr "Mes"
 #. Headline "Year"
 #: calendar.c:293
 msgid "Year"
-msgstr "Ano"
+msgstr "Anyo"
 
 #: dialog.c:741
 msgid "Rename"
-msgstr "Renomear"
+msgstr "Renombrar"
 
 #: fselect.c:550
 msgid "Directories"
@@ -72,27 +64,27 @@ msgstr "Directorios"
 
 #: fselect.c:551
 msgid "Files"
-msgstr "Ficheiros"
+msgstr "Fichers"
 
 #: mixedgauge.c:58
 msgid "Succeeded"
-msgstr "Conseguido"
+msgstr "Finalizau con exito"
 
 #: mixedgauge.c:61
 msgid "Failed"
-msgstr "Fallou"
+msgstr "Falló"
 
 #: mixedgauge.c:64
 msgid "Passed"
-msgstr "Correcto"
+msgstr "Pasau"
 
 #: mixedgauge.c:67
 msgid "Completed"
-msgstr "Completado"
+msgstr "Completau"
 
 #: mixedgauge.c:70
 msgid "Checked"
-msgstr "Seleccionado"
+msgstr "Comprebau"
 
 #: mixedgauge.c:73
 msgid "Done"
@@ -100,7 +92,7 @@ msgstr "Feito"
 
 #: mixedgauge.c:76
 msgid "Skipped"
-msgstr "Omitido"
+msgstr "Blincau"
 
 #: mixedgauge.c:79
 msgid "In Progress"
@@ -108,7 +100,7 @@ msgstr "En progreso"
 
 #: mixedgauge.c:85
 msgid "N/A"
-msgstr "Non dispoñíbel"
+msgstr "N/A"
 
 #: mixedgauge.c:193
 msgid "Overall Progress"

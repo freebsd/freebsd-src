@@ -1,9 +1,9 @@
 /*
- * $Id: calendar.c,v 1.66 2012/07/01 18:13:07 Zoltan.Kelemen Exp $
+ * $Id: calendar.c,v 1.67 2013/03/17 15:03:41 tom Exp $
  *
  *  calendar.c -- implements the calendar box
  *
- *  Copyright 2001-2011,2012	Thomas E. Dickey
+ *  Copyright 2001-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -681,6 +681,7 @@ dialog_calendar(const char *title,
 
     dlg_add_result(buffer);
     dlg_add_separator();
+    dlg_add_last_key(-1);
 
     return CleanupResult(result, dialog, prompt, &save_vars);
 }
