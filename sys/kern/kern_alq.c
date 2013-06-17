@@ -229,8 +229,6 @@ ald_shutdown(void *arg, int howto)
 {
 	struct alq *alq;
 
-	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, alq_eventhandler_tag);
-
 	ALD_LOCK();
 
 	/* Ensure no new queues can be created. */
@@ -938,6 +936,8 @@ alq_load_handler(module_t mod, int what, void *arg)
 		if (LIST_FIRST(&ald_queues) == NULL) {
 			ald_shutingdown = 1;
 			ALD_UNLOCK();
+			EVENTHANDLER_DEREGISTER(shutdown_pre_sync,
+			    alq_eventhandler_tag);
 			ald_shutdown(NULL, 0);
 			mtx_destroy(&ald_mtx);
 		} else {
