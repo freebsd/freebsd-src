@@ -30,7 +30,7 @@
  *
  * ARM9 assembly functions for CPU / MMU / TLB specific operations
  */
- 
+
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -242,7 +242,7 @@ ENTRY(arm9_context_switch)
 
 /*
  * Parameters for the cache cleaning code.  Note that the order of these
- * four variables is assumed in the code above.  Hence the reason for 
+ * four variables is assumed in the code above.  Hence the reason for
  * declaring them in the assembler file.
  */
 	.align 0

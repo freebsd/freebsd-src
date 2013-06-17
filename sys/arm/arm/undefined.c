@@ -194,8 +194,8 @@ undefinedinstruction(trapframe_t *frame)
 
 	fault_pc = frame->tf_pc;
 
-	/* 
-	 * Get the current thread/proc structure or thread0/proc0 if there is 
+	/*
+	 * Get the current thread/proc structure or thread0/proc0 if there is
 	 * none.
 	 */
 	td = curthread == NULL ? &thread0 : curthread;

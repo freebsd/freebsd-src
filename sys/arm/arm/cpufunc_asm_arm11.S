@@ -33,7 +33,7 @@
  * XXX We make no attempt at present to take advantage of the v6 memroy
  * architecture or physically tagged cache.
  */
- 
+
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 

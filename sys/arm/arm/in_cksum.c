@@ -149,4 +149,4 @@ u_int in_cksum_hdr(const struct ip *ip)
     	union l_util l_util;
 	REDUCE16;
 	return (~sum & 0xffff);
-}			    
+}

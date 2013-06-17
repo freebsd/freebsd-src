@@ -34,14 +34,14 @@
  *
  * RiscBSD kernel project
  *
- * cpufunc.S 
+ * cpufunc.S
  *
  * Assembly functions for CPU / MMU / TLB specific operations
  *
  * Created      : 30/01/97
  *
  */
- 
+
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -86,13 +86,13 @@ ENTRY(cpufunc_faultaddress)
  * Generic functions to write the internal coprocessor registers
  *
  *
- * Currently these registers are 
+ * Currently these registers are
  *  c1 - CPU Control
  *  c3 - Domain Access Control
  *
  * All other registers are CPU architecture specific
  */
- 
+
 #if 0 /* See below. */
 ENTRY(cpufunc_control)
 	mcr	p15, 0, r0, c1, c0, 0
@@ -107,12 +107,12 @@ ENTRY(cpufunc_domains)
  * Generic functions to read/modify/write the internal coprocessor registers
  *
  *
- * Currently these registers are 
+ * Currently these registers are
  *  c1 - CPU Control
  *
  * All other registers are CPU architecture specific
  */
- 
+
 ENTRY(cpufunc_control)
 	mrc	p15, 0, r3, c1, c0, 0	/* Read the control register */
 	bic	r2, r3, r0		/* Clear bits */

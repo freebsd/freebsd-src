@@ -70,8 +70,8 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	case 12:  return (&kdb_thrctx->un_32.pcb32_r12);
 	case 13:  stacktest = kdb_thrctx->un_32.pcb32_sp + 5 * 4;
 		  return (&stacktest);
-	case 15: 
-		  /* 
+	case 15:
+		  /*
 		   * On context switch, the PC is not put in the PCB, but
 		   * we can retrieve it from the stack.
 		   */

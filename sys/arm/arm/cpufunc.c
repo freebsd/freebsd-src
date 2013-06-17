@@ -222,7 +222,7 @@ struct cpu_functions arm8_cpufuncs = {
 	arm8_context_switch,		/* context_switch	*/
 
 	arm8_setup			/* cpu setup		*/
-};          
+};
 #endif	/* CPU_ARM8 */
 
 #ifdef CPU_ARM9
@@ -328,7 +328,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
       	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
-				 
+
 	/* Other functions */
 
 	cpufunc_nullop,			/* flush_prefetchbuf	*/
@@ -530,7 +530,7 @@ struct cpu_functions sa110_cpufuncs = {
 	sa110_context_switch,		/* context_switch	*/
 
 	sa110_setup			/* cpu setup		*/
-};          
+};
 #endif	/* CPU_SA110 */
 
 #if defined(CPU_SA1100) || defined(CPU_SA1110)
@@ -591,7 +591,7 @@ struct cpu_functions sa11x0_cpufuncs = {
 	sa11x0_context_switch,		/* context_switch	*/
 
 	sa11x0_setup			/* cpu setup		*/
-};          
+};
 #endif	/* CPU_SA1100 || CPU_SA1110 */
 
 #ifdef CPU_IXP12X0
@@ -652,7 +652,7 @@ struct cpu_functions ixp12x0_cpufuncs = {
 	ixp12x0_context_switch,		/* context_switch	*/
 
 	ixp12x0_setup			/* cpu setup		*/
-};          
+};
 #endif	/* CPU_IXP12X0 */
 
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
@@ -841,7 +841,7 @@ struct cpu_functions fa526_cpufuncs = {
 	fa526_context_switch,		/* context_switch	*/
 
 	fa526_setup			/* cpu setup 		*/
-};          
+};
 #endif	/* CPU_FA526 || CPU_FA626TE */
 
 
@@ -1099,7 +1099,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* V4 or higher */
 		get_cachetype_cp15();
 		arm10_dcache_sets_inc = 1U << arm_dcache_l2_linesize;
-		arm10_dcache_sets_max = 
+		arm10_dcache_sets_max =
 		    (1U << (arm_dcache_l2_linesize + arm_dcache_l2_nsets)) -
 		    arm10_dcache_sets_inc;
 		arm10_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
@@ -1353,7 +1353,7 @@ early_abort_fixup(arg)
 		int loop;
 		int count;
 		int *registers = &frame->tf_r0;
-        
+
 		DFC_PRINTF(("LDM/STM\n"));
 		DFC_DISASSEMBLE(fault_pc);
 		if (fault_instruction & (1 << 21)) {
@@ -1533,7 +1533,7 @@ late_abort_fixup(arg)
 				offset = fault_instruction & 0x0f;
 				if (offset == base)
 					return ABORT_FIXUP_FAILED;
-                
+
 				/*
 				 * Register offset - hard we have to
 				 * cope with shifts !
@@ -1647,8 +1647,8 @@ static u_int parse_cpu_options(char *, struct cpu_option *, u_int);
 static u_int
 parse_cpu_options(args, optlist, cpuctrl)
 	char *args;
-	struct cpu_option *optlist;    
-	u_int cpuctrl; 
+	struct cpu_option *optlist;
+	u_int cpuctrl;
 {
 	int integer;
 
@@ -1811,7 +1811,7 @@ arm8_setup(args)
 	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 
-	/* Set the clock/test register */    
+	/* Set the clock/test register */
 	if (setclock)
 		arm8_clock_config(0x7f, clocktest);
 }
@@ -1891,7 +1891,7 @@ arm10_setup(args)
 	int cpuctrl, cpuctrlmask;
 
 	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_SYST_ENABLE
-	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE 
+	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
 	    | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_BPRD_ENABLE;
 	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_SYST_ENABLE
 	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
@@ -2031,7 +2031,7 @@ sa110_setup(args)
 /*	cpu_control(cpuctrlmask, cpuctrl);*/
 	cpu_control(0xffffffff, cpuctrl);
 
-	/* 
+	/*
 	 * enable clockswitching, note that this doesn't read or write to r0,
 	 * r0 is just to make it valid asm
 	 */
@@ -2089,7 +2089,7 @@ sa11x0_setup(args)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
-	/* Set the control register */    
+	/* Set the control register */
 	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 }
@@ -2198,7 +2198,7 @@ ixp12x0_setup(args)
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
 
-	/* Set the control register */    
+	/* Set the control register */
 	ctrl = cpuctrl;
 	/* cpu_control(0xffffffff, cpuctrl); */
 	cpu_control(cpuctrlmask, cpuctrl);
@@ -2292,5 +2292,5 @@ xscale_setup(args)
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
 		: : "r" (auxctl));
 }
-#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 
+#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
 	   CPU_XSCALE_80219 */
