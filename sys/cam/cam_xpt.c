@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_xpt_internal.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_compat.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -180,6 +181,7 @@ PERIPHDRIVER_DECLARE(xpt, xpt_driver);
 static d_open_t xptopen;
 static d_close_t xptclose;
 static d_ioctl_t xptioctl;
+static d_ioctl_t xptdoioctl;
 
 static struct cdevsw xpt_cdevsw = {
 	.d_version =	D_VERSION,
@@ -392,6 +394,19 @@ xptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
  */
 static int
 xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+{
+	int error;
+
+	if ((error = xptdoioctl(dev, cmd, addr, flag, td)) == ENOTTY) {
+		error = cam_compat_ioctl(dev, &cmd, &addr, &flag, td);
+		if (error == EAGAIN)
+			return (xptdoioctl(dev, cmd, addr, flag, td));
+	}
+	return (error);
+}
+	
+static int
+xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int error;
 
