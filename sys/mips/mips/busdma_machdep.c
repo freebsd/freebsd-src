@@ -152,7 +152,7 @@ static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
 static TAILQ_HEAD(,bus_dmamap) dmamap_freelist = 
 	TAILQ_HEAD_INITIALIZER(dmamap_freelist);
 
-#define BUSDMA_STATIC_MAPS	500
+#define BUSDMA_STATIC_MAPS	128
 static struct bus_dmamap map_pool[BUSDMA_STATIC_MAPS];
 
 static struct mtx busdma_mtx;
@@ -533,7 +533,6 @@ int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
-	_busdma_free_dmamap(map);
 	if (STAILQ_FIRST(&map->bpages) != NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 		    __func__, dmat, EBUSY);
@@ -542,6 +541,7 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	if (dmat->bounce_zone)
 		dmat->bounce_zone->map_count--;
         dmat->map_count--;
+	_busdma_free_dmamap(map);
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
         return (0);
 }
