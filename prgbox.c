@@ -1,9 +1,9 @@
 /*
- *  $Id: prgbox.c,v 1.8 2011/10/20 23:42:32 tom Exp $
+ *  $Id: prgbox.c,v 1.9 2012/12/02 23:40:30 tom Exp $
  *
  *  prgbox.c -- implements the prg box
  *
- *  Copyright 2011	Thomas E. Dickey
+ *  Copyright 2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -22,6 +22,12 @@
  */
 
 #include <dialog.h>
+
+static void
+reapchild(int sig)
+{
+    (void) sig;
+}
 
 /*
  * Open a pipe which ties stderr and stdout together.
@@ -96,6 +102,7 @@ dialog_prgbox(const char *title,
 {
     int code;
     FILE *fp;
+    void (*oldreaper) (int) = signal(SIGCHLD, reapchild);
 
     fp = dlg_popen(command, "r");
     if (fp == NULL)
@@ -104,6 +111,7 @@ dialog_prgbox(const char *title,
     code = dlg_progressbox(title, cprompt, height, width, pauseopt, fp);
 
     pclose(fp);
+    signal(SIGCHLD, oldreaper);
 
     return code;
 }

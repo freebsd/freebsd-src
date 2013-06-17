@@ -1,4 +1,4 @@
-# $Id: whiptail.rc,v 1.5 2011/10/15 01:01:16 tom Exp $
+# $Id: whiptail.rc,v 1.6 2012/12/01 01:15:04 tom Exp $
 # vile:confmode
 # Run-time configuration file for dialog, matches whiptail's color scheme.
 #
@@ -139,4 +139,4 @@ inputbox_border2_color = dialog_color
 searchbox_border2_color = dialog_color
 
 # Menu box border2 color
-menubox_border2_color = dialog_color
+menubox_border2_color = screen_color

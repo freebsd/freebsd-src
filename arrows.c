@@ -1,9 +1,9 @@
 /*
- *  $Id: arrows.c,v 1.41 2011/10/20 23:37:17 tom Exp $
+ *  $Id: arrows.c,v 1.50 2013/05/24 00:05:21 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -136,7 +136,7 @@ dlg_draw_arrows2(WINDOW *win,
 
     (void) wmove(win, bottom, x);
     if (bottom_arrow) {
-	(void) wattrset(win, merge_colors(darrow_attr, attr));
+	(void) wattrset(win, merge_colors(darrow_attr, borderattr));
 	(void) add_acs(win, ACS_DARROW);
 	(void) waddstr(win, "(+)");
     } else {
@@ -196,34 +196,48 @@ dlg_draw_scrollbar(WINDOW *win,
 	    whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
 	}
     }
-#define BARSIZE(num) (int) (((all_high * (num)) + all_high - 1) / total_data)
+#define BARSIZE(num) (int) (0.5 + (double) ((all_high * (int) (num)) / (double) total_data))
+#define ORDSIZE(num) (int) ((double) ((all_high * (int) (num)) / (double) all_diff))
 
     if (dialog_state.use_scrollbar) {
 	int all_high = (bottom - top - 1);
 
+	this_data = MAX(0, this_data);
+
 	if (total_data > 0 && all_high > 0) {
+	    int all_diff = (int) (total_data + 1);
+	    int bar_diff = (int) (next_data + 1 - this_data);
 	    int bar_high;
 	    int bar_y;
 
-	    bar_high = BARSIZE(next_data - this_data);
+	    bar_high = ORDSIZE(bar_diff);
 	    if (bar_high <= 0)
 		bar_high = 1;
 
 	    if (bar_high < all_high) {
+		int bar_last = BARSIZE(next_data);
+
 		wmove(win, top + 1, right);
 
 		(void) wattrset(win, save);
 		wvline(win, ACS_VLINE | A_REVERSE, all_high);
 
-		bar_y = BARSIZE(this_data);
-		if (bar_y > all_high - bar_high)
-		    bar_y = all_high - bar_high;
+		bar_y = ORDSIZE(this_data);
+		if (bar_y >= bar_last && bar_y > 0)
+		    bar_y = bar_last - 1;
+		if (bar_last - bar_y > bar_high && bar_high > 1)
+		    ++bar_y;
+		bar_last = MIN(bar_last, all_high);
 
 		wmove(win, top + 1 + bar_y, right);
 
 		(void) wattrset(win, position_indicator_attr);
 		wattron(win, A_REVERSE);
-		wvline(win, ACS_BLOCK, bar_high);
+#if defined(WACS_BLOCK) && defined(NCURSES_VERSION) && defined(USE_WIDE_CURSES)
+		wvline_set(win, WACS_BLOCK, bar_last - bar_y);
+#else
+		wvline(win, ACS_BLOCK, bar_last - bar_y);
+#endif
 	    }
 	}
     }

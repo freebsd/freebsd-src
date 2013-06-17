@@ -1,5 +1,5 @@
 /*
- *  $Id: yesno.c,v 1.56 2012/07/02 23:58:08 tom Exp $
+ *  $Id: yesno.c,v 1.57 2012/12/01 01:48:21 tom Exp $
  *
  *  yesno.c -- implements the yes/no box
  *
@@ -86,7 +86,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     dlg_draw_title(dialog, title);
     dlg_draw_helpline(dialog, FALSE);
 
-    wattrset(dialog, dialog_attr);
+    (void) wattrset(dialog, dialog_attr);
 
     page = height - (1 + 3 * MARGIN);
     dlg_draw_buttons(dialog,

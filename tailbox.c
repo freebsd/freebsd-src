@@ -1,9 +1,9 @@
 /*
- *  $Id: tailbox.c,v 1.67 2011/10/15 12:43:07 tom Exp $
+ *  $Id: tailbox.c,v 1.68 2012/11/18 15:48:52 tom Exp $
  *
  *  tailbox.c -- implements the tail box
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -34,7 +34,7 @@ typedef struct {
     const char **buttons;
     int hscroll;
     int old_hscroll;
-    char line[MAX_LEN + 1];
+    char line[MAX_LEN + 2];
     off_t last_pos;
 } MY_OBJ;
 

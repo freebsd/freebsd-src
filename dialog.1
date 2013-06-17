@@ -1,6 +1,6 @@
 '\" t
-.\" $Id: dialog.1,v 1.145 2012/07/03 08:32:33 tom Exp $
-.\" Copyright 2005-2011,2012  Thomas E. Dickey
+.\" $Id: dialog.1,v 1.165 2013/03/15 09:07:30 tom Exp $
+.\" Copyright 2005-2012,2013  Thomas E. Dickey
 .\"
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU Lesser General Public License, version 2.1
@@ -36,10 +36,14 @@
 .fi
 .RE
 ..
+.\" Bulleted paragraph
+.de bP
+.IP \(bu 4
+..
 .
-.TH \*D 1 "" "$Date: 2012/07/03 08:32:33 $"
+.TH \*D 1 "" "$Date: 2013/03/15 09:07:30 $"
 .SH NAME
-\*p \- display dialog boxes from shell scripts
+dialog \- display dialog boxes from shell scripts
 .SH SYNOPSIS
 \fB\*p --clear\fP
 .br
@@ -60,6 +64,7 @@ These types of dialog boxes are implemented
 .LP
 .nh
 .na
+.BR buildlist ", "
 .BR calendar ", "
 .BR checklist ", "
 .BR dselect ", "
@@ -81,22 +86,22 @@ These types of dialog boxes are implemented
 .BR programbox ", "
 .BR progressbox ", "
 .BR radiolist ", "
+.BR rangebox ", "
 .BR tailbox ", "
 .BR tailboxbg ", "
 .BR textbox ", "
-.BR timebox ", and "
+.BR timebox ", "
+.BR treeview ", and "
 .BR yesno " (yes/no)."
 .ad
 .hy
 .RE
 .PP
 You can put more than one dialog box into a script:
-.TP 5
--
+.bP
 Use the "\fB--and-widget\fP" token to force \fB\*p\fP to proceed to the next
 dialog unless you have pressed ESC to cancel, or
-.TP 5
--
+.bP
 Simply add the tokens for the next dialog box, making a chain.
 \*L stops chaining when the return code from a dialog is nonzero,
 e.g., Cancel or No (see DIAGNOSTICS).
@@ -379,6 +384,12 @@ marked with "\fB--keep-window\fR", even if they are not \fBtailboxbg\fR widgets.
 That causes them to be repainted in reverse order.
 See the discussion of the "\fB--clear\fR" option for examples.
 .
+.IP "\fB--last-key"
+At exit, report the last key which the user entered.
+This is the curses key code rather than a symbol or literal character.
+It can be used by scripts to distinguish between two keys which are
+bound to the same action.
+.
 .IP "\fB--max-input \fIsize"
 Limit input strings to the given size.
 If not specified, the limit is 2048.
@@ -394,6 +405,16 @@ spaces to a single space for text which is displayed in a message boxes, etc.
 Use this option to disable that feature.
 Note that \fB\*p\fR will still wrap text,
 subject to the "\fB--cr-wrap\fR" and "\fB--trim\fR" options.
+.
+.IP "\fB--no-items"
+Some widgets (checklist, inputmenu, radiolist, menu) display a list
+with two columns (a "tag" and "item", i.e., "description").
+This option tells \fB\*p\fP to read shorter rows,
+omitting the "item" part of the list.
+This is occasionally useful, e.g., if the tags provide enough information.
+.IP
+See also \fB--no-tags\fP.
+If both options are given, this one is ignored.
 .
 .IP "\fB--no-kill"
 Tells
@@ -423,9 +444,26 @@ literal newlines.
 Suppress the "OK" button in checklist, inputbox and menu box modes.
 A script can still test if the user pressed the "Enter" key to accept the data.
 .
-.
 .IP "\fB--no-shadow"
 Suppress shadows that would be drawn to the right and bottom of each dialog box.
+.
+.IP "\fB--no-tags"
+Some widgets (checklist, inputmenu, radiolist, menu) display a list
+with two columns (a "tag" and "description").
+The tag is useful for scripting, but may not help the user.
+The \fB--no-tags\fP option (from Xdialog) may be used to suppress the
+column of tags from the display.
+Unlike the \fB--no-items\fP option,
+this does not affect the data which is read from the script.
+.IP
+Xdialog does not display the tag column for the analogous buildlist
+and treeview widgets; \fB\*p\fP does the same.
+.IP
+Normally \fB\*p\fP allows you to quickly move to entries on the displayed list,
+by matching a single character to the first character of the tag.
+When the \fB--no-tags\fP option is given, \fB\*p\fP matches against
+the first character of the description.
+In either case, the matchable character is highlighted.
 .
 .IP "\fB--ok-label \fIstring"
 Override the label used for "OK" buttons.
@@ -563,7 +601,7 @@ Prints \fB\*p\fR's version to the standard output, and exits.
 See also "\fB--print-version\fP".
 .
 .IP "\fB--visit-items"
-Modify the tab-traversal of checklist, radiobox, menubox and inputmenu
+Modify the tab-traversal of checklist, radiolist, menubox and inputmenu
 to include the list of items as one of the states.
 This is useful as a visual aid,
 i.e., the cursor position helps some users.
@@ -589,6 +627,44 @@ the height of the dialog box.
 the width of the dialog box.
 .PP
 Other parameters depend on the box type.
+.
+.
+.IP "\fB--buildlist \fItext height width \fR[ \fItag item status \fR] \fI..."
+A \fBbuildlist\fP dialog displays two lists, side-by-side.
+The list on the left shows unselected items.
+The list on the right shows selected items.
+As items are selected or unselected, they move between the lists.
+.IP
+Use a carriage return or the "OK" button to accept the current value
+in the selected-window and exit.
+The results are written using the order displayed in the selected-window.
+.IP
+The initial on/off state of each entry is specified by
+.IR status "."
+.IP
+The dialog behaves like a \fBmenu\fP, using the \fB--visit-items\fP
+to control whether the cursor is allowed to visit the lists directly.
+.RS
+.bP
+If \fB--visit-items\fP is not given,
+tab-traversal uses two states (OK/Cancel).
+.bP
+If \fB--visit-items\fP is given,
+tab-traversal uses four states (Left/Right/OK/Cancel).
+.RE
+.IP
+Whether or not \fB--visit--items\fP is given,
+it is possible to move the highlight between the two lists using
+the default "^" (left-column) and "$" (right-column) keys.
+.IP
+On exit, a list of the \fItag\fP
+strings of those entries that are turned on
+will be printed on \fB\*p\fP's output.
+.IP
+If the "\fB--separate-output\fP" option is not given,
+the strings will be quoted as needed to make it simple for scripts to separate them.
+By default, this uses double-quotes.
+See the "\fB--single-quoted\fP" option, which modifies the quoting behavior.
 .
 .
 .IP "\fB--calendar \fItext height width day month year"
@@ -679,16 +755,13 @@ The former defines the length shown for a selected field,
 while the latter defines the permissible length of the data entered in the
 field.
 .RS
-.TP 3
--
+.bP
 If \fIflen\fR is zero, the corresponding field cannot be altered.
 and the contents of the field determine the displayed-length.
-.TP 3
--
+.bP
 If \fIflen\fR is negative, the corresponding field cannot be altered,
 and the negated value of \fIflen\fR is used as the displayed-length.
-.TP 3
--
+.bP
 If \fIilen\fR is zero, it is set to \fIflen\fR.
 .RE
 .IP
@@ -976,7 +1049,7 @@ The only difference is
 that you can indicate which entry is currently selected, by setting its
 .IR status " to " on "."
 .IP
-On exit, the name of the selected item is written to \fB\*p\fP's output.
+On exit, the tag of the selected item is written to \fB\*p\fP's output.
 .
 .
 .IP "\fB--tailbox \fIfile height width"
@@ -987,6 +1060,36 @@ A '0' resets the scrolling.
 On exit, no text is written to \fB\*p\fP's output.
 Only an "OK" button is provided for input,
 but an ESC exit status may be returned.
+.
+.
+.nf
+.IP "\fB--rangebox \fItext height width list-height min-value max-value default-value"
+.fi
+Allow the user to select from a range of values, e.g., using a slider.
+The dialog shows the current value as a bar (like the gauge dialog).
+Tabs or arrow keys move the cursor between the buttons and the value.
+When the cursor is on the value,
+you can edit it by:
+.RS
+.TP 5
+left/right cursor movement to select a digit to modify
+.TP 5
++/-
+characters to increment/decrement the digit by one
+.TP 5
+0 through 9
+to set the digit to the given value
+.RE
+.IP
+Some keys are also recognized in all cursor positions:
+.RS
+.TP 5
+home/end
+set the value to its maximum or minimum
+.TP 5
+pageup/pagedown
+increment the value so that the slider moves by one column
+.RE
 .
 .
 .IP "\fB--tailboxbg \fIfile height width"
@@ -1052,6 +1155,19 @@ Use tab or backtab to move between windows.
 .IP
 On exit, the result is printed in the form hour:minute:second.
 The format can be overridden using the \fB--time-format\fP option.
+.
+.
+.IP "\fB--treeview \fItext height width list-height \fR[ \fItag item status depth \fR] \fI..."
+Display data organized as a tree.
+Each group of data contains a tag,
+the text to display for the item,
+its status ("on" or "off")
+and the depth of the item in the tree.
+.IP
+Only one item can be selected (like the \fBradiolist\fP).
+The tag is not displayed.
+.IP
+On exit, the tag of the selected item is written to \fB\*p\fP's output.
 .
 .
 .IP "\fB--yesno \fItext height width"
@@ -1330,14 +1446,12 @@ or \fB\*p\fP is exited by pressing the \fIESC\fP key (DIALOG_ESC).
 \fB\*L\fP works with X/Open curses.
 However, some implementations have deficiencies:
 .RS 3
-.TP 3
--
+.bP
 HPUX curses (and perhaps others) do not open the terminal properly for
 the \fInewterm\fP function.
 This interferes with \fB\*p\fP's \fB--input-fd\fP option,
 by preventing cursor-keys and similar escape sequences from being recognized.
-.TP 3
--
+.bP
 NetBSD 5.1 curses has incomplete support for wide-characters.
 \fB\*p\fP will build, but not all examples display properly.
 .RE
@@ -1390,10 +1504,25 @@ l l.
 .RE
 .PP
 \fBXdialog\fP's manpage has a section discussing its compatibility with \fB\*p\fP.
+There are some differences not shown in the manpage.
+For example, the html documentation states
+.RS
+.PP
+Note:  former  Xdialog  releases  used  the  "\n" (line feed) as a
+results  separator  for  the  checklist  widget; this has been
+changed  to  "/"  in  Xdialog v1.5.0 so to make it compatible with
+(c)dialog.  In  your  old scripts using the Xdialog checklist, you
+will  then  have  to  add  the --separate-output option before the
+--checklist one.
+.RE
+.PP
+\fB\*L\fP has not used a different separator;
+the difference was likely due to confusion regarding some script.
 .SS WHIPTAIL
 Then there is \fBwhiptail\fP.
-For practical purposes, it is maintained by Debian.
-Its documentation claims
+For practical purposes, it is maintained by Debian
+(very little work is done by its upstream developers).
+Its documentation (README.whiptail) claims
 .RS
 .sp
 .nf
@@ -1416,18 +1545,24 @@ The comparable number for \fB\*p\fP (counting ncurses) is 520kb.
 Disregard the first paragraph.
 .PP
 The second paragraph is misleading, since \fBwhiptail\fP
-also does not work for common options of \*p, such as the gauge box.
-\fBwhiptail\fP is less compatible with \fB\*p\fP than the decade-old
-original dialog 0.4 program.
+also does not work for common options of \fB\*p\fP,
+such as the gauge box.
+\fBwhiptail\fP is less compatible with \fB\*p\fP than the
+original mid-1990s dialog 0.4 program.
 .PP
 \fBwhiptail\fP's manpage borrows features from \fB\*p\fP, e.g.,
-\fB--default-item\fP (2000),
-\fB--output-fd\fP (2002),
-but oddly cites only \fB\*p\fP versions up to 0.4 (1996) as a source.
+but oddly cites only \fB\*p\fP versions up to 0.4 (1994) as a source.
 That is, its manpage refers to features which
 were borrowed from more recent versions of \fB\*p\fP, e.g.,
-the \fB--gauge\fP and \fB--password\fP boxes,
-as well as options such as \fB--separate-output\fP (2008).
+.bP
+\fB--gauge\fP (from 0.5)
+.bP
+\fB--passwordbox\fP (from Debian changes in 1999),
+.bP
+\fB--default-item\fP (from \fB\*p\fP 2000/02/22),
+.bP
+\fB--output-fd\fP (from \fB\*p\fP 2002/08/14).
+.PP
 Somewhat humorously, one may note that the \fBpopt\fP feature
 (undocumented in its manpage)
 of using a "--" as an escape was documented in \fB\*p\fP's manpage about
@@ -1445,12 +1580,38 @@ l l
 _ _
 l l.
 \fIOption\fR	\fITreatment\fR
+\fB--cancel-button\fP	mapped to \fB--cancel-label\fP
 \fB--fb\fP	ignored
 \fB--fullbutton\fP	ignored
+\fB--no-button\fP	mapped to \fB--no-label\fP
 \fB--nocancel\fP	mapped to \fB--no-cancel\fP
-\fB--noitem\fP	ignored
+\fB--noitem\fP	mapped to \fB--no-items\fP
+\fB--notags\fP	mapped to \fB--no-tags\fP
+\fB--ok-button\fP	mapped to \fB--ok-label\fP
+\fB--scrolltext\fP	mapped to \fB--scrollbar\fP
+\fB--topleft\fP	mapped to \fB--begin 0 0\fP
+\fB--yes-button\fP	mapped to \fB--yes-label\fP
 .TE
 .RE
+.LP
+There are visual differences which are not addressed by command-line options:
+.bP
+\fB\*p\fP centers lists within the window.
+\fBwhiptail\fP typically puts lists against the left margin.
+.bP
+\fBwhiptail\fP uses angle brackets ("<" and ">") for marking buttons.
+\fB\*p\fP uses square brackets.
+.bP
+\fBwhiptail\fP marks the limits of subtitles with vertical bars.
+\fB\*p\fP does not mark the limits.
+.bP
+\fBwhiptail\fP attempts to mark the top/bottom cells of a scrollbar
+with up/down arrows.
+When it cannot do this,
+it fills those cells with the background color
+of the scrollbar and confusing the user.
+\fB\*p\fP uses the entire scrollbar space,
+thereby getting better resolution.
 .\" ************************************************************************
 .SH BUGS
 Perhaps.
@@ -1469,13 +1630,11 @@ Yura Kalinichenko adapted the gauge widget as "pause".
 This is a rewrite (except as needed to provide compatibility)
 of the earlier version of \fB\*p 0.9a\fP,
 which lists as authors:
-.RS
-.LP
+.bP
 Savio Lam - version 0.3, "dialog"
-.LP
+.bP
 Stuart Herbert - patch for version 0.4
-.LP
+.bP
 Marc Ewing - the gauge widget.
-.LP
+.bP
 Pasquale De Marco "Pako" - version 0.9a, "cdialog"
-.RE

@@ -1,9 +1,9 @@
 /*
- *  $Id: guage.c,v 1.64 2011/10/20 23:34:35 tom Exp $
+ *  $Id: guage.c,v 1.65 2012/11/30 10:43:31 tom Exp $
  *
  *  guage.c -- implements the gauge dialog
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -94,6 +94,7 @@ read_data(char *buffer, FILE *fp)
 	result = 0;
     } else if (fgets(buffer, MY_LEN, fp) != 0) {
 	DLG_TRACE(("read_data:%s", buffer));
+	buffer[MY_LEN] = '\0';
 	dlg_trim_string(buffer);
 	result = 1;
     } else {
@@ -182,7 +183,7 @@ handle_input(DIALOG_CALLBACK * cb)
     MY_OBJ *obj = (MY_OBJ *) cb;
     bool result;
     int status;
-    char buf[MY_LEN];
+    char buf[MY_LEN + 1];
 
     if (dialog_state.pipe_input == 0) {
 	status = -1;

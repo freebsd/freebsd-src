@@ -1,9 +1,9 @@
 /*
- *  $Id: dialog.h,v 1.245 2012/07/01 18:44:03 tom Exp $
+ *  $Id: dialog.h,v 1.260 2013/03/17 15:03:41 tom Exp $
  *
  *  dialog.h -- common declarations for all dialog modules
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -240,6 +240,16 @@
 #define wgetparent(win)		((win) ? (win)->_parent : 0)
 #endif
 
+#if !defined(HAVE_WSYNCUP)
+#undef wsyncup
+#define wsyncup(win) /* nothing */
+#endif
+
+#if !defined(HAVE_WCURSYNCUP)
+#undef wcursyncup
+#define wcursyncup(win) /* nothing */
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -320,6 +330,7 @@ extern WINDOW * dlg_wgetparent(WINDOW * /*win*/);
 #define mouse_mkregion(y,x,h,w,n)         dlg_mouse_mkregion(y,x,h,w,n)
 #define mouse_region(y,x)                 dlg_mouse_region(y,x)
 #define mouse_setbase(x,y)                dlg_mouse_setbase(x,y)
+#define mouse_setcode(c)                  dlg_mouse_setcode(c)
 #define mouse_wgetch(w,c)                 dlg_mouse_wgetch(w,c)
 #define new_window(h,w,y,x)               dlg_new_window(h,w,y,x)
 #define parse_rc()                        dlg_parse_rc()
@@ -433,6 +444,7 @@ typedef struct {
 #endif
     /* 1.1-20110106 */
     bool no_mouse;		/* option "--no-mouse" */
+    int visit_cols;		/* option "--visit-items" */
 } DIALOG_STATE;
 
 extern DIALOG_STATE dialog_state;
@@ -505,14 +517,31 @@ typedef struct {
     bool no_nl_expand;		/* option "--no-nl-expand" */
     /* 1.1-20120701 */
     int default_button;		/* option "--default-button" (exit code) */
+    /* 1.1-20121218 */
+    bool no_tags;		/* option "--no-tags" */
+    bool no_items;		/* option "--no-items" */
+    /* 1.2-20130315 */
+    bool last_key;		/* option "--last-key" */
 } DIALOG_VARS;
 
 #define USE_ITEM_HELP(s)        (dialog_vars.item_help && (s) != 0)
-#define CHECKBOX_TAGS           (dialog_vars.item_help ? 4 : 3)
-#define MENUBOX_TAGS            (dialog_vars.item_help ? 3 : 2)
-#define FORMBOX_TAGS            (dialog_vars.item_help ? 9 : 8)
-#define MIXEDFORM_TAGS          (FORMBOX_TAGS + 1)
+
+/*
+ * Some settings change the number of data items per row which dialog reads
+ * from a script.
+ */
+#define DLG__NO_ITEMS		(dialog_vars.no_items ? 0 : 1)
+#define DLG__ITEM_HELP          (dialog_vars.item_help ? 1 : 0)
+
+/*
+ * These are the total number of data items per row used for each widget type.
+ */
+#define CHECKBOX_TAGS           (2 + DLG__ITEM_HELP + DLG__NO_ITEMS)
+#define MENUBOX_TAGS            (1 + DLG__ITEM_HELP + DLG__NO_ITEMS)
+#define FORMBOX_TAGS            (8 + DLG__ITEM_HELP)
+#define MIXEDFORM_TAGS          (1 + FORMBOX_TAGS)
 #define MIXEDGAUGE_TAGS         2
+#define TREEVIEW_TAGS           (3 + DLG__ITEM_HELP + DLG__NO_ITEMS)
 
 extern DIALOG_VARS dialog_vars;
 
@@ -552,6 +581,7 @@ extern DIALOG_COLORS dlg_color_table[];
 extern const char *dialog_version(void);
 
 /* widgets, each in separate files */
+extern int dialog_buildlist(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*list_height*/, int /*item_no*/, char ** /*items*/, int /*order_mode*/);
 extern int dialog_calendar(const char * /*title*/, const char * /*subtitle*/, int /*height*/, int /*width*/, int /*day*/, int /*month*/, int /*year*/);
 extern int dialog_checklist(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*list_height*/, int /*item_no*/, char ** /*items*/, int /*flag*/);
 extern int dialog_dselect(const char * /*title*/, const char * /*path*/, int /*height*/, int /*width*/);
@@ -568,9 +598,11 @@ extern int dialog_msgbox(const char * /*title*/, const char * /*cprompt*/, int /
 extern int dialog_pause(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*seconds*/);
 extern int dialog_prgbox(const char * /*title*/, const char * /*cprompt*/, const char * /*command*/, int /*height*/, int /*width*/, int /*pauseopt*/);
 extern int dialog_progressbox(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/);
+extern int dialog_rangebox(const char * /*title*/, const char * /*file*/, int /*height*/, int /*width*/, int /*min_value*/, int /*max_value*/, int /*default_value*/);
 extern int dialog_tailbox(const char * /*title*/, const char * /*file*/, int /*height*/, int /*width*/, int /*bg_task*/);
 extern int dialog_textbox(const char * /*title*/, const char * /*file*/, int /*height*/, int /*width*/);
 extern int dialog_timebox(const char * /*title*/, const char * /*subtitle*/, int /*height*/, int /*width*/, int /*hour*/, int /*minute*/, int /*second*/);
+extern int dialog_treeview(const char * /*title*/, const char * /*subtitle*/, int /*height*/, int /*width*/, int /*list_height*/, int /*item_no*/, char ** /*items*/, int /*flag*/);
 extern int dialog_yesno(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/);
 
 /* some widgets have alternate entrypoints, to allow list manipulation */
@@ -616,6 +648,9 @@ extern void dlg_draw_arrows(WINDOW * /*dialog*/, int /*top_arrow*/, int /*bottom
 extern void dlg_draw_arrows2(WINDOW * /*dialog*/, int /*top_arrow*/, int /*bottom_arrow*/, int /*x*/, int /*top*/, int /*bottom*/, chtype /*attr*/, chtype /*borderattr*/);
 extern void dlg_draw_helpline(WINDOW * /*dialog*/, bool /*decorations*/);
 extern void dlg_draw_scrollbar(WINDOW * /*dialog*/, long /* first_data */, long /* this_data */, long /* next_data */, long /* total_data */, int /* left */, int /* right */, int /*top*/, int /*bottom*/, chtype /*attr*/, chtype /*borderattr*/);
+
+/* buildlist.c */
+extern int dlg_buildlist(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*list_height*/, int /*item_no*/, DIALOG_LISTITEM * /*items*/, const char * /*states*/, int /*order_mode*/, int * /*current_item*/);
 
 /* buttons.c */
 extern const char ** dlg_exit_label(void);
@@ -676,10 +711,14 @@ extern int dlg_parse_rc(void);
 extern void dlg_create_rc(const char * /*filename*/);
 #endif
 
+/* treeview.c */
+extern int dlg_treeview(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*list_height*/, int /*item_no*/, DIALOG_LISTITEM * /*items*/, const char * /*states*/, int * /*depths*/, int /*flag*/, int * /*current_item*/);
+
 /* ui_getc.c */
 extern int dlg_getc(WINDOW * /*win*/, int * /*fkey*/);
 extern int dlg_getc_callbacks(int /*ch*/, int /*fkey*/, int * /*result*/);
 extern int dlg_last_getc(void);
+extern void dlg_add_last_key(int /*mode*/);
 extern void dlg_add_callback(DIALOG_CALLBACK * /*p*/);
 extern void dlg_add_callback_ref(DIALOG_CALLBACK ** /*p*/, DIALOG_FREEBACK /* cleanup */);
 extern void dlg_flush_getc(void);
@@ -732,6 +771,7 @@ extern void dlg_draw_title(WINDOW *win, const char *title);
 extern void dlg_exit(int /*code*/) GCC_NORETURN;
 extern void dlg_item_help(const char * /*txt*/);
 extern void dlg_print_autowrap(WINDOW * /*win*/, const char * /*prompt*/, int /*height*/, int /*width*/);
+extern void dlg_print_listitem(WINDOW * /*win*/, const char * /*text*/, int /*climit*/, bool /*first*/, int /*selected*/);
 extern void dlg_print_size(int /*height*/, int /*width*/);
 extern void dlg_print_text(WINDOW * /*win*/, const char * /*txt*/, int /*len*/, chtype * /*attr*/);
 extern void dlg_put_backtitle(void);
@@ -799,6 +839,7 @@ extern mseRegion * dlg_mouse_mkregion (int /*y*/, int /*x*/, int /*height*/, int
 extern void dlg_mouse_free_regions (void);
 extern void dlg_mouse_mkbigregion (int /*y*/, int /*x*/, int /*height*/, int /*width*/, int /*code*/, int /*step_x*/, int /*step_y*/, int /*mode*/);
 extern void dlg_mouse_setbase (int /*x*/, int /*y*/);
+extern void dlg_mouse_setcode (int /*code*/);
 
 #define USE_MOUSE 1
 
@@ -810,6 +851,7 @@ extern void dlg_mouse_setbase (int /*x*/, int /*y*/);
 #define	dlg_mouse_mkregion(y, x, height, width, code) /*nothing*/
 #define	dlg_mouse_mkbigregion(y, x, height, width, code, step_x, step_y, mode) /*nothing*/
 #define	dlg_mouse_setbase(x, y) /*nothing*/
+#define	dlg_mouse_setcode(c) /*nothing*/
 
 #define USE_MOUSE 0
 
