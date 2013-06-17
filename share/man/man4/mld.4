@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2009
+.Dd April 8, 2013
 .Dt MLD 4
 .Os
 .Sh NAME
@@ -68,11 +68,6 @@ to the protocol.
 .Sh SYSCTL VARIABLES
 .Bl -tag -width indent
 .\"
-.It net.inet6.mld.stats
-This opaque read-only variable exposes the stack-wide MLDv2
-protocol statistics to
-.Xr netstat 1 .
-.\"
 .It net.inet6.mld.ifinfo
 This opaque read-only variable exposes the per-link MLDv2 status to
 .Xr ifmcstat 8 .
@@ -94,6 +89,7 @@ This sysctl is normally enabled by default.
 .\"
 .El
 .Sh SEE ALSO
+.Xr icmp6 4 ,
 .Xr ifmcstat 8 ,
 .Xr inet 4 ,
 .Xr multicast 4 ,
