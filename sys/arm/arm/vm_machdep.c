@@ -152,11 +152,11 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 void
 cpu_thread_swapin(struct thread *td)
 {
-}       
+}
 
-void    
+void
 cpu_thread_swapout(struct thread *td)
-{       
+{
 }
 
 /*
@@ -177,7 +177,7 @@ sf_buf_free(struct sf_buf *sf)
 		 if (sf_buf_alloc_want > 0)
 			 wakeup(&sf_buf_freelist);
 	 }
-	 mtx_unlock(&sf_buf_lock);				 
+	 mtx_unlock(&sf_buf_lock);
 #endif
 }
 
@@ -187,11 +187,11 @@ sf_buf_free(struct sf_buf *sf)
  */
 static void
 sf_buf_init(void *arg)
-{       
+{
 	struct sf_buf *sf_bufs;
 	vm_offset_t sf_base;
 	int i;
-				        
+
 	nsfbufs = NSFBUFS;
 	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
 		
@@ -204,7 +204,7 @@ sf_buf_init(void *arg)
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
 	}
-	sf_buf_alloc_want = 0; 
+	sf_buf_alloc_want = 0;
 	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
 }
 #endif
@@ -246,7 +246,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	
 
 		/*
-		 * If we got a signal, don't risk going back to sleep. 
+		 * If we got a signal, don't risk going back to sleep.
 		 */
 		if (error)
 			goto done;
@@ -319,7 +319,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 
 /*
  * Initialize machine state (pcb and trap frame) for a new thread about to
- * upcall. Put enough state in the new thread's PCB to get it to go back 
+ * upcall. Put enough state in the new thread's PCB to get it to go back
  * userret(), where we can intercept it again to set the return (upcall)
  * Address and stack, along with those from upcals that are from other sources
  * such as those generated in thread_userret() itself.
@@ -387,7 +387,7 @@ cpu_thread_exit(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
-	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages * 
+	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages *
 	    PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)
 	    ((u_int)td->td_kstack + USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
@@ -395,7 +395,7 @@ cpu_thread_alloc(struct thread *td)
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
 #endif
-#endif  
+#endif
 }
 
 void
@@ -429,8 +429,8 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 
 /*
  * Software interrupt handler for queued VM system processing.
- */   
-void  
+ */
+void
 swi_vm(void *dummy)
 {
 	
@@ -445,14 +445,14 @@ cpu_exit(struct thread *td)
 
 #define BITS_PER_INT	(8 * sizeof(int))
 vm_offset_t arm_nocache_startaddr;
-static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * 
+static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE *
     BITS_PER_INT)];
 
 /*
- * Functions to map and unmap memory non-cached into KVA the kernel won't try 
+ * Functions to map and unmap memory non-cached into KVA the kernel won't try
  * to allocate. The goal is to provide uncached memory to busdma, to honor
- * BUS_DMA_COHERENT. 
- * We can allocate at most ARM_NOCACHE_KVA_SIZE bytes. 
+ * BUS_DMA_COHERENT.
+ * We can allocate at most ARM_NOCACHE_KVA_SIZE bytes.
  * The allocator is rather dummy, each page is represented by a bit in
  * a bitfield, 0 meaning the page is not allocated, 1 meaning it is.
  * As soon as it finds enough contiguous pages to satisfy the request,
@@ -465,7 +465,7 @@ arm_remap_nocache(void *addr, vm_size_t size)
 
 	size = round_page(size);
 	for (i = 0; i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE; i++) {
-		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i % 
+		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i %
 		    BITS_PER_INT)))) {
 			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
 				if (arm_nocache_allocated[j / BITS_PER_INT] &
@@ -488,7 +488,7 @@ arm_remap_nocache(void *addr, vm_size_t size)
 			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
 			pmap_kenter_nocache(tomap, physaddr);
 			cpu_tlb_flushID_SE(vaddr);
-			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i % 
+			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i %
 			    BITS_PER_INT);
 		}
 		return (ret);
@@ -506,7 +506,7 @@ arm_unmap_nocache(void *addr, vm_size_t size)
 	size = round_page(size);
 	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
 	for (; size > 0; size -= PAGE_SIZE, i++) {
-		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i % 
+		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i %
 		    BITS_PER_INT));
 		pmap_kremove(raddr);
 		raddr += PAGE_SIZE;
@@ -515,9 +515,9 @@ arm_unmap_nocache(void *addr, vm_size_t size)
 
 #ifdef ARM_USE_SMALL_ALLOC
 
-static TAILQ_HEAD(,arm_small_page) pages_normal = 
+static TAILQ_HEAD(,arm_small_page) pages_normal =
 	TAILQ_HEAD_INITIALIZER(pages_normal);
-static TAILQ_HEAD(,arm_small_page) pages_wt = 
+static TAILQ_HEAD(,arm_small_page) pages_wt =
 	TAILQ_HEAD_INITIALIZER(pages_wt);
 static TAILQ_HEAD(,arm_small_page) free_pgdesc =
 	TAILQ_HEAD_INITIALIZER(free_pgdesc);
@@ -561,12 +561,12 @@ arm_init_smallalloc(void)
 	vm_offset_t to_map = 0, mapaddr;
 	int i;
 	
-	/* 
+	/*
 	 * We need to use dump_avail and not phys_avail, since we want to
 	 * map the whole memory and not just the memory available to the VM
 	 * to be able to do a pa => va association for any address.
 	 */
-	   
+
 	for (i = 0; dump_avail[i + 1]; i+= 2) {
 		to_map += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
 		    (dump_avail[i] & S_FRAME);
@@ -579,10 +579,10 @@ arm_init_smallalloc(void)
 		while (size > 0) {
 #ifdef ARM_HAVE_SUPERSECTIONS
 			pmap_kenter_supersection(mapaddr,
-			    (dump_avail[i] & L1_SUP_FRAME) + did, 
+			    (dump_avail[i] & L1_SUP_FRAME) + did,
 			    SECTION_CACHE);
 #else
-			pmap_kenter_section(mapaddr, 
+			pmap_kenter_section(mapaddr,
 			    (dump_avail[i] & L1_S_FRAME) + did, SECTION_CACHE);
 #endif
 			mapaddr += S_SIZE;
@@ -663,7 +663,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			bzero(ret, PAGE_SIZE);
 		return (ret);
-	}    
+	}
 	TAILQ_REMOVE(head, sp, pg_list);
 	TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
 	ret = sp->addr;
@@ -692,7 +692,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 			sp->addr = mem;
 			pmap_get_pde_pte(kernel_pmap, (vm_offset_t)mem, &pd,
 			    &pt);
-			if ((*pd & pte_l1_s_cache_mask) == 
+			if ((*pd & pte_l1_s_cache_mask) ==
 			    pte_l1_s_cache_mode_pt &&
 			    pte_l1_s_cache_mode_pt != pte_l1_s_cache_mode)
 				TAILQ_INSERT_HEAD(&pages_wt, sp, pg_list);

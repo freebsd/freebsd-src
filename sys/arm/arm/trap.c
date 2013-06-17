@@ -128,7 +128,7 @@ void undefinedinstruction(trapframe_t *);
 
 #include <machine/disassem.h>
 #include <machine/machdep.h>
- 
+
 extern char fusubailout[];
 
 #ifdef DEBUG
@@ -388,7 +388,7 @@ data_abort_handler(trapframe_t *tf)
 	 * responsible to determine if it was a write.
 	 */
 	if (IS_PERMISSION_FAULT(fsr)) {
-		ftype = VM_PROT_WRITE; 
+		ftype = VM_PROT_WRITE;
 	} else {
 		u_int insn = ReadWord(tf->tf_pc);
 
@@ -396,13 +396,13 @@ data_abort_handler(trapframe_t *tf)
 		    ((insn & 0x0e1000b0) == 0x000000b0) ||	/* STRH/STRD */
 		    ((insn & 0x0a100000) == 0x08000000))	/* STM/CDT */
 		{
-			ftype = VM_PROT_WRITE; 
+			ftype = VM_PROT_WRITE;
 	}
 		else
 		if ((insn & 0x0fb00ff0) == 0x01000090)		/* SWP */
-			ftype = VM_PROT_READ | VM_PROT_WRITE; 
+			ftype = VM_PROT_READ | VM_PROT_WRITE;
 		else
-			ftype = VM_PROT_READ; 
+			ftype = VM_PROT_READ;
 	}
 
 	/*
@@ -734,9 +734,7 @@ prefetch_abort_handler(trapframe_t *tf)
 		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
 			enable_interrupts(F32_bit);
 	}
-	 
 
-		       
 	/* See if the cpu state needs to be fixed up */
 	switch (prefetch_abort_fixup(tf, &ksig)) {
 	case ABORT_FIXUP_RETURN:
@@ -947,15 +945,15 @@ swi_handler(trapframe_t *frame)
 	/*
 	 * Enable interrupts if they were enabled before the exception.
 	 * Since all syscalls *should* come from user mode it will always
-	 * be safe to enable them, but check anyway. 
-	 */       
+	 * be safe to enable them, but check anyway.
+	 */
 	if (td->td_md.md_spinlock_count == 0) {
 		if (__predict_true(frame->tf_spsr & I32_bit) == 0)
 			enable_interrupts(I32_bit);
 		if (__predict_true(frame->tf_spsr & F32_bit) == 0)
 			enable_interrupts(F32_bit);
 	}
-	 
+
 	syscall(td, frame, insn);
 }
 

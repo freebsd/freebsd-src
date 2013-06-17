@@ -139,14 +139,14 @@ sendsig(catcher, ksi, mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_flags & TDP_ALTSTACK) != 0 && !(onstack) &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp + 
+		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
 		fp = (struct sigframe *)td->td_frame->tf_usr_sp;
-		 
+
 	/* make room on the stack */
 	fp--;
 	
@@ -156,7 +156,7 @@ sendsig(catcher, ksi, mask)
 	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
 	frame.sf_si = ksi->ksi_info;
 	frame.sf_uc.uc_sigmask = *mask;
-	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK ) 
+	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK )
 	    ? ((onstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	frame.sf_uc.uc_stack = td->td_sigstk;
 	mtx_unlock(&psp->ps_mtx);
@@ -449,7 +449,7 @@ ptrace_single_step(struct thread *td)
 	 ("Didn't clear single step"));
 	p = td->td_proc;
 	PROC_UNLOCK(p);
-	error = ptrace_read_int(td, td->td_frame->tf_pc + 4, 
+	error = ptrace_read_int(td, td->td_frame->tf_pc + 4,
 	    &td->td_md.md_ptrace_instr);
 	if (error)
 		goto out;

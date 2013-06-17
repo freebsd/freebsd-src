@@ -333,10 +333,10 @@ ENTRY(copyin)
 	str	r6, [r1], #0x04
 	str	r7, [r1], #0x04
 .Lcopyin_bad1:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyin_bad1_loop16
 
-	adds	r2, r2, #0x10         
+	adds	r2, r2, #0x10
 	ldmeqfd	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
@@ -394,10 +394,10 @@ ENTRY(copyin)
 	str	r6, [r1], #0x04
 	str	r7, [r1], #0x04
 .Lcopyin_bad2:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyin_bad2_loop16
 
-	adds	r2, r2, #0x10         
+	adds	r2, r2, #0x10
 	ldmeqfd	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
@@ -455,10 +455,10 @@ ENTRY(copyin)
 	str	r6, [r1], #0x04
 	str	r7, [r1], #0x04
 .Lcopyin_bad3:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyin_bad3_loop16
 
-	adds	r2, r2, #0x10         
+	adds	r2, r2, #0x10
 	ldmeqfd	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
@@ -785,10 +785,10 @@ ENTRY(copyout)
 	strt	r6, [r1], #0x04
 	strt	r7, [r1], #0x04
 .Lcopyout_bad1:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyout_bad1_loop16
 
-	adds	r2, r2, #0x10         
+	adds	r2, r2, #0x10
 	ldmeqfd	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
@@ -846,10 +846,10 @@ ENTRY(copyout)
 	strt	r6, [r1], #0x04
 	strt	r7, [r1], #0x04
 .Lcopyout_bad2:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyout_bad2_loop16
 
-	adds	r2, r2, #0x10         
+	adds	r2, r2, #0x10
 	ldmeqfd	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04
@@ -907,10 +907,10 @@ ENTRY(copyout)
 	strt	r6, [r1], #0x04
 	strt	r7, [r1], #0x04
 .Lcopyout_bad3:
-	subs	r2, r2, #0x10         
+	subs	r2, r2, #0x10
 	bge	.Lcopyout_bad3_loop16
 
-	adds	r2, r2, #0x10         
+	adds	r2, r2, #0x10
 	ldmeqfd	sp!, {r4-r7}
 	RETeq				/* Return now if done */
 	subs	r2, r2, #0x04

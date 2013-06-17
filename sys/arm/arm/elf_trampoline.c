@@ -202,7 +202,7 @@ _startC(void)
 			 "orr %0, %0, %1\n"
 			 "mrc p15, 0, %1, c1, c0, 0\n"
 			 "bic %1, %1, #1\n" /* Disable MMU */
-			 "orr %1, %1, #(4 | 8)\n" /* Add DC enable, 
+			 "orr %1, %1, #(4 | 8)\n" /* Add DC enable,
 						     WBUF enable */
 			 "orr %1, %1, #0x1000\n" /* Add IC enable */
 			 "orr %1, %1, #(0x800)\n" /* BPRD enable */
@@ -397,7 +397,7 @@ inflate_kernel(void *kernel, void *startaddr)
 #endif
 
 void *
-load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end, 
+load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
     int d)
 {
 	Elf32_Ehdr *eh;
@@ -436,7 +436,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 					if (phdr[j].p_type == PT_LOAD &&
 					    shdr[i].sh_offset >=
 					    phdr[j].p_offset &&
-					    (shdr[i].sh_offset + 
+					    (shdr[i].sh_offset +
 					     shdr[i].sh_size <=
 					     phdr[j].p_offset +
 					     phdr[j].p_filesz)) {
@@ -445,7 +445,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 						j = eh->e_phnum;
 					}
 				}
-				if (shdr[i].sh_offset != 0 && 
+				if (shdr[i].sh_offset != 0 &&
 				    shdr[i].sh_size != 0) {
 					symtabindex = i;
 					symstrindex = shdr[i].sh_link;
@@ -457,7 +457,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 			ssym = lastaddr;
 			if (d) {
 				memcpy((void *)func_end, (void *)(
-				    shdr[symtabindex].sh_offset + kstart), 
+				    shdr[symtabindex].sh_offset + kstart),
 				    shdr[symtabindex].sh_size);
 				memcpy((void *)(func_end +
 				    shdr[symtabindex].sh_size),
@@ -469,7 +469,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 				    sizeof(shdr[symtabindex].sh_size));
 				lastaddr += sizeof(shdr[symstrindex].sh_size);
 				lastaddr += shdr[symstrindex].sh_size;
-				lastaddr = roundup(lastaddr, 
+				lastaddr = roundup(lastaddr,
 				    sizeof(shdr[symstrindex].sh_size));
 			}
 			
@@ -488,13 +488,13 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
 		/* Clean space from oversized segments, eg: bss. */
 		if (phdr[i].p_filesz < phdr[i].p_memsz)
-			bzero((void *)(phdr[i].p_vaddr - KERNVIRTADDR + 
+			bzero((void *)(phdr[i].p_vaddr - KERNVIRTADDR +
 			    curaddr + phdr[i].p_filesz), phdr[i].p_memsz -
 			    phdr[i].p_filesz);
 	}
 	/* Now grab the symbol tables. */
 	if (symtabindex >= 0 && symstrindex >= 0) {
-		*(Elf_Size *)lastaddr = 
+		*(Elf_Size *)lastaddr =
 		    shdr[symtabindex].sh_size;
 		lastaddr += sizeof(shdr[symtabindex].sh_size);
 		memcpy((void*)lastaddr,
@@ -511,7 +511,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 			    shdr[symtabindex].sh_size),
 		    shdr[symstrindex].sh_size);
 		lastaddr += shdr[symstrindex].sh_size;
-		lastaddr = roundup(lastaddr, 
+		lastaddr = roundup(lastaddr,
    		    sizeof(shdr[symstrindex].sh_size));
 		*(Elf_Addr *)curaddr = MAGIC_TRAMP_NUMBER;
 		*((Elf_Addr *)curaddr + 1) = ssym - curaddr + KERNVIRTADDR;
@@ -572,10 +572,10 @@ setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend,
 			 "sub pc, pc, #4\n" :
 			 "=r" (tmp) : "r" (pd), "r" (domain));
 	
-	/* 
+	/*
 	 * XXX: This is the most stupid workaround I've ever wrote.
 	 * For some reason, the KB9202 won't boot the kernel unless
-	 * we access an address which is not in the 
+	 * we access an address which is not in the
 	 * 0x20000000 - 0x20ffffff range. I hope I'll understand
 	 * what's going on later.
 	 */
@@ -596,7 +596,7 @@ __start(void)
 	curaddr = (void*)((unsigned int)curaddr & 0xfff00000);
 #ifdef KZIP
 	if (*kernel == 0x1f && kernel[1] == 0x8b) {
-		pt_addr = (((int)&_end + KERNSIZE + 0x100) & 
+		pt_addr = (((int)&_end + KERNSIZE + 0x100) &
 		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
 		
 #ifdef CPU_ARM9
@@ -609,15 +609,15 @@ __start(void)
 		/* Gzipped kernel */
 		dst = inflate_kernel(kernel, &_end);
 		kernel = (char *)&_end;
-		altdst = 4 + load_kernel((unsigned int)kernel, 
+		altdst = 4 + load_kernel((unsigned int)kernel,
 		    (unsigned int)curaddr,
 		    (unsigned int)&func_end + 800 , 0);
 		if (altdst > dst)
 			dst = altdst;
 	} else
 #endif
-		dst = 4 + load_kernel((unsigned int)&kernel_start, 
-	    (unsigned int)curaddr, 
+		dst = 4 + load_kernel((unsigned int)&kernel_start,
+	    (unsigned int)curaddr,
 	    (unsigned int)&func_end, 0);
 	dst = (void *)(((vm_offset_t)dst & ~3));
 	pt_addr = ((unsigned int)dst &~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
@@ -626,8 +626,8 @@ __start(void)
 	sp = pt_addr + L1_TABLE_SIZE + 8192;
 	sp = sp &~3;
 	dst = (void *)(sp + 4);
-	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end - 
+	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end -
 	    (unsigned int)&load_kernel + 800);
-	do_call(dst, kernel, dst + (unsigned int)(&func_end) - 
+	do_call(dst, kernel, dst + (unsigned int)(&func_end) -
 	    (unsigned int)(&load_kernel) + 800, sp);
 }

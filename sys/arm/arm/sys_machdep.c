@@ -128,10 +128,10 @@ sysarch(td, uap)
 #endif
 
 	switch (uap->op) {
-	case ARM_SYNC_ICACHE : 
+	case ARM_SYNC_ICACHE:
 		error = arm32_sync_icache(td, uap->parms);
 		break;
-	case ARM_DRAIN_WRITEBUF : 
+	case ARM_DRAIN_WRITEBUF:
 		error = arm32_drain_writebuf(td, uap->parms);
 		break;
 	case ARM_SET_TP:
