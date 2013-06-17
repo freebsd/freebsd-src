@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130616: vfs_mounted.9 removed
+OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
 # 20130614: remove CVS from base
 OLD_FILES+=usr/bin/cvs
 OLD_FILES+=usr/bin/cvsbug
