@@ -4824,7 +4824,7 @@ restart:
 			if (ALWAYS_YIELD || should_yield()) {
 				TAILQ_INSERT_BEFORE(vp, *mvp, v_actfreelist);
 				mtx_unlock(&vnode_free_list_mtx);
-				kern_yield(PRI_USER);
+				pause("vnacti", 1);
 				mtx_lock(&vnode_free_list_mtx);
 				goto restart;
 			}
