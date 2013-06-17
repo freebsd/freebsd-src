@@ -77,4 +77,5 @@ libkern/umoddi3.c		standard
 #libkern/arm/strcmp.S		standard
 #libkern/arm/strncmp.S		standard
 #
+kern/subr_busdma_bufalloc.c	standard
 kern/subr_dummy_vdso_tc.c	standard
