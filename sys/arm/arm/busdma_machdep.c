@@ -567,16 +567,24 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	bus_dmamap_t map;
 	int error = 0;
 
-	map = uma_zalloc_arg(dmamap_zone, dmat, M_WAITOK);
+	map = uma_zalloc_arg(dmamap_zone, dmat, M_NOWAIT);
 	*mapp = map;
+	if (map == NULL)
+		return (ENOMEM);
 
 	/*
 	 * If the tag's segments haven't been allocated yet we need to do it
 	 * now, because we can't sleep for resources at map load time.
 	 */
-	if (dmat->segments == NULL)
+	if (dmat->segments == NULL) {
 		dmat->segments = malloc(dmat->nsegments * 
-		    sizeof(*dmat->segments), M_DEVBUF, M_WAITOK);
+		    sizeof(*dmat->segments), M_DEVBUF, M_NOWAIT);
+		if (dmat->segments == NULL) {
+			uma_zfree(dmamap_zone, map);
+			*mapp = NULL;
+			return (ENOMEM);
+		}
+	}
 
 	/*
 	 * Bouncing might be required if the driver asks for an active
@@ -841,9 +849,6 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 	vm_offset_t vaddr = (vm_offset_t)buf;
 	int seg;
 	int error = 0;
-	pd_entry_t *pde;
-	pt_entry_t pte;
-	pt_entry_t *ptep;
 
 	lastaddr = *lastaddrp;
 	bmask = ~(dmat->boundary - 1);
@@ -860,34 +865,9 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 	for (seg = *segp; buflen > 0 ; ) {
 		/*
 		 * Get the physical address for this segment.
-		 *
-		 * XXX Don't support checking for coherent mappings
-		 * XXX in user address space.
 		 */
 		if (__predict_true(pmap == pmap_kernel())) {
-			if (pmap_get_pde_pte(pmap, vaddr, &pde, &ptep) == FALSE)
-				return (EFAULT);
-
-			if (__predict_false(pmap_pde_section(pde))) {
-				if (*pde & L1_S_SUPERSEC)
-					curaddr = (*pde & L1_SUP_FRAME) |
-					    (vaddr & L1_SUP_OFFSET);
-				else
-					curaddr = (*pde & L1_S_FRAME) |
-					    (vaddr & L1_S_OFFSET);
-			} else {
-				pte = *ptep;
-				KASSERT((pte & L2_TYPE_MASK) != L2_TYPE_INV,
-				    ("INV type"));
-				if (__predict_false((pte & L2_TYPE_MASK)
-						    == L2_TYPE_L)) {
-					curaddr = (pte & L2_L_FRAME) |
-					    (vaddr & L2_L_OFFSET);
-				} else {
-					curaddr = (pte & L2_S_FRAME) |
-					    (vaddr & L2_S_OFFSET);
-				}
-			}
+			curaddr = pmap_kextract(vaddr);
 		} else {
 			curaddr = pmap_extract(pmap, vaddr);
 			map->flags &= ~DMAMAP_COHERENT;
