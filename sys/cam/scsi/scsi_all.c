@@ -5173,7 +5173,59 @@ scsi_devid_is_sas_target(uint8_t *bufp)
 	return 1;
 }
 
-uint8_t *
+int
+scsi_devid_is_lun_eui64(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_EUI64)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_naa(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_NAA)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_t10(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_T10)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_name(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_SCSI_NAME)
+		return 0;
+	return 1;
+}
+
+struct scsi_vpd_id_descriptor *
 scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
     scsi_devid_checkfn_t ck_fn)
 {
@@ -5194,7 +5246,7 @@ scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
 						    + desc->length)) {
 
 		if (ck_fn == NULL || ck_fn((uint8_t *)desc) != 0)
-			return (desc->identifier);
+			return (desc);
 	}
 
 	return (NULL);
