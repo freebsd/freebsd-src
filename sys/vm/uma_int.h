@@ -296,14 +296,17 @@ struct uma_zone {
 	uma_ctor	uz_ctor;	/* Constructor for each allocation */
 	uma_dtor	uz_dtor;	/* Destructor */
 	uma_init	uz_init;	/* Initializer for each item */
-	uma_fini	uz_fini;	/* Discards memory */
+	uma_fini	uz_fini;	/* Finalizer for each item. */
+	uma_import	uz_import;	/* Import new memory to cache. */
+	uma_release	uz_release;	/* Release memory from cache. */
+	void		*uz_arg;	/* Import/release argument. */
 
 	uint32_t	uz_flags;	/* Flags inherited from kegs */
 	uint32_t	uz_size;	/* Size inherited from kegs */
 
-	uint64_t	uz_allocs UMA_ALIGN; /* Total number of allocations */
-	uint64_t	uz_frees;	/* Total number of frees */
-	uint64_t	uz_fails;	/* Total number of alloc failures */
+	volatile u_long	uz_allocs UMA_ALIGN; /* Total number of allocations */
+	volatile u_long	uz_fails;	/* Total number of alloc failures */
+	volatile u_long	uz_frees;	/* Total number of frees */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest amount of items in bucket */
@@ -332,6 +335,13 @@ struct uma_zone {
 
 #define	UMA_ZFLAG_INHERIT	(UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY | \
 				    UMA_ZFLAG_BUCKET)
+
+static inline uma_keg_t
+zone_first_keg(uma_zone_t zone)
+{
+
+	return (LIST_FIRST(&zone->uz_kegs)->kl_keg);
+}
 
 #undef UMA_ALIGN
 
