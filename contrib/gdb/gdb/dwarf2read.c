@@ -6082,8 +6082,8 @@ tag_type_to_type (struct die_info *die, struct dwarf2_cu *cu)
       if (!die->type)
 	{
 	  dump_die (die);
-	  error ("Dwarf Error: Cannot find type of die [in module %s]", 
-			  cu->objfile->name);
+	  error ("Dwarf Error: Cannot find type of die 0x%x [in module %s]", 
+			  die->tag, cu->objfile->name);
 	}
       return die->type;
     }
