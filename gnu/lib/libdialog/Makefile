@@ -15,6 +15,6 @@ MAN=		dialog.3
 
 CFLAGS+= 	-I${.CURDIR} -I${DIALOG} -D_XOPEN_SOURCE_EXTENDED -DGCC_UNUSED=__unused
 .PATH:		${DIALOG}
-WARNS?=		4
+WARNS?=		1
 
 .include <bsd.lib.mk>
