@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(__VSORT_H__)
-#define __VSORT_H__
+#ifndef _VSORT_H_
+#define _VSORT_H_
 
 #include "bwstring.h"
 
