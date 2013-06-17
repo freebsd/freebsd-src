@@ -917,6 +917,7 @@ noerror:
 					    path->device->device_id, 8);
 					bcopy(ident_buf->wwn,
 					    path->device->device_id + 8, 8);
+					ata_bswap(path->device->device_id + 8, 8);
 				}
 			}
 
