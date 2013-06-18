@@ -914,7 +914,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET;
+		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
 		cpi->max_lun = 255;
@@ -2238,6 +2238,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		if ((csio->cdb_io.cdb_bytes[0] == INQUIRY) &&
 		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
 		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
+		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
 		    (csio->data_ptr != NULL) && (((uint8_t *)cm->cm_data)[0] ==
 		    T_SEQUENTIAL) && (sc->control_TLR) &&
 		    (sc->mapping_table[csio->ccb_h.target_id].device_info &
