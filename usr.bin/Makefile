@@ -366,6 +366,10 @@ SUBDIR+=	users
 SUBDIR+=	who
 .endif
 
+.if ${MK_SVN} == "yes" || ${MK_SVNLITE} == "yes"
+SUBDIR+=	svn
+.endif
+
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
