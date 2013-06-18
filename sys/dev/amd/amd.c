@@ -428,61 +428,22 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 		pSRB->ScsiCmdLen = pcsio->cdb_len;
 		bcopy(pcsio->cdb_io.cdb_bytes, pSRB->CmdBlock, pcsio->cdb_len);
 		if ((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if ((pccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
+			int error;
+
+			error - bus_dmamap_load_ccb(amd->buffer_dmat,
+						    pSRB->dmamap,
+						    pccb,
+						    amdexecutesrb,
+						    pSRB, /*flags*/0);
+			if (error == EINPROGRESS) {
 				/*
-				 * We've been given a pointer
-				 * to a single buffer.
+				 * So as to maintain ordering,
+				 * freeze the controller queue
+				 * until our mapping is
+				 * returned.
 				 */
-				if ((pccb->ccb_h.flags & CAM_DATA_PHYS) == 0) {
-					int s;
-					int error;
-
-					s = splsoftvm();
-					error =
-					    bus_dmamap_load(amd->buffer_dmat,
-							    pSRB->dmamap,
-							    pcsio->data_ptr,
-							    pcsio->dxfer_len,
-							    amdexecutesrb,
-							    pSRB, /*flags*/0);
-					if (error == EINPROGRESS) {
-						/*
-						 * So as to maintain
-						 * ordering, freeze the
-						 * controller queue
-						 * until our mapping is
-						 * returned.
-						 */
-						xpt_freeze_simq(amd->psim, 1);
-						pccb->ccb_h.status |=
-						    CAM_RELEASE_SIMQ;
-					}
-					splx(s);
-				} else {
-					struct bus_dma_segment seg;
-
-					/* Pointer to physical buffer */
-					seg.ds_addr =
-					    (bus_addr_t)pcsio->data_ptr;
-					seg.ds_len = pcsio->dxfer_len;
-					amdexecutesrb(pSRB, &seg, 1, 0);
-				}
-			} else {
-				struct bus_dma_segment *segs;
-
-				if ((pccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0
-				 || (pccb->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-					TAILQ_INSERT_HEAD(&amd->free_srbs,
-							  pSRB, links);
-					pccb->ccb_h.status = CAM_PROVIDE_FAIL;
-					xpt_done(pccb);
-					return;
-				}
-
-				/* Just use the segments provided */
-				segs =
-				    (struct bus_dma_segment *)pcsio->data_ptr;
-				amdexecutesrb(pSRB, segs, pcsio->sglist_cnt, 0);
+				xpt_freeze_simq(sim, 1);
+				pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 			}
 		} else
 			amdexecutesrb(pSRB, NULL, 0, 0);
