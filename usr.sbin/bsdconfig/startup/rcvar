@@ -205,8 +205,8 @@ while :; do
 
 		# Determine the new [toggled] value to use
 		case "$value" in
-		"[X]"*) value="NO";;
-		     *) value="YES";;
+		"[X]"*) value="NO"  ;;
+		     *) value="YES" ;;
 		esac
 
 		err=$( f_sysrc_set "$rcvar" "$value" 2>&1 ) ||
