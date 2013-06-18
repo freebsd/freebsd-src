@@ -120,19 +120,21 @@ while :; do
 	dialog_menu_main || f_die
 	f_dialog_menutag_fetch mtag
 
+	command=
 	case "$mtag" in
-	"X $msg_exit") break ;;
-	"2 $msg_enable") # Test and run the mouse daemon
-		$BSDCFG_LIBE/$APP_DIR/enable ${USE_XDIALOG:+-X} ;;
-	"3 $msg_type") # Select mouse protocol type
-		$BSDCFG_LIBE/$APP_DIR/type ${USE_XDIALOG:+-X} ;;
-	"4 $msg_port") # Select mouse port
-		$BSDCFG_LIBE/$APP_DIR/port ${USE_XDIALOG:+-X} ;;
-	"5 $msg_flags") # Set additional flags
-		$BSDCFG_LIBE/$APP_DIR/flags ${USE_XDIALOG:+-X} ;;
-	"6 $msg_disable") # Disable the mouse daemon
-		$BSDCFG_LIBE/$APP_DIR/disable ${USE_XDIALOG:+-X} ;;
+	"X $msg_exit")    break ;;
+	"2 $msg_enable")  command=enable  ;; # Test and run the mouse daemon
+	"3 $msg_type")    command=type    ;; # Select mouse protocol type
+	"4 $msg_port")    command=port    ;; # Select mouse port
+	"5 $msg_flags")   command=flags   ;; # Set additional flags
+	"6 $msg_disable") command=disable ;; # Disable the mouse daemon
 	esac
+
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X} ;;
+	else
+		f_die 1 "$msg_unknown_mouse_menu_selection"
+	fi
 done
 
 exit $SUCCESS
