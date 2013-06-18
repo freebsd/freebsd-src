@@ -5738,7 +5738,11 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
 		u_int32_t timeout)
 {
+	int read;
 	u_int8_t cdb_len;
+
+	read = (readop & SCSI_RW_DIRMASK) == SCSI_RW_READ;
+
 	/*
 	 * Use the smallest possible command to perform the operation
 	 * as some legacy hardware does not support the 10 byte commands.
@@ -5755,7 +5759,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_6 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_6 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_6 : WRITE_6;
+		scsi_cmd->opcode = read ? READ_6 : WRITE_6;
 		scsi_ulto3b(lba, scsi_cmd->addr);
 		scsi_cmd->length = block_count & 0xff;
 		scsi_cmd->control = 0;
@@ -5774,7 +5778,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_10 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_10 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_10 : WRITE_10;
+		scsi_cmd->opcode = read ? READ_10 : WRITE_10;
 		scsi_cmd->byte2 = byte2;
 		scsi_ulto4b(lba, scsi_cmd->addr);
 		scsi_cmd->reserved = 0;
@@ -5797,7 +5801,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_12 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_12 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_12 : WRITE_12;
+		scsi_cmd->opcode = read ? READ_12 : WRITE_12;
 		scsi_cmd->byte2 = byte2;
 		scsi_ulto4b(lba, scsi_cmd->addr);
 		scsi_cmd->reserved = 0;
@@ -5819,7 +5823,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		struct scsi_rw_16 *scsi_cmd;
 
 		scsi_cmd = (struct scsi_rw_16 *)&csio->cdb_io.cdb_bytes;
-		scsi_cmd->opcode = readop ? READ_16 : WRITE_16;
+		scsi_cmd->opcode = read ? READ_16 : WRITE_16;
 		scsi_cmd->byte2 = byte2;
 		scsi_u64to8b(lba, scsi_cmd->addr);
 		scsi_cmd->reserved = 0;
@@ -5830,7 +5834,8 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 	cam_fill_csio(csio,
 		      retries,
 		      cbfcnp,
-		      /*flags*/readop ? CAM_DIR_IN : CAM_DIR_OUT,
+		      (read ? CAM_DIR_IN : CAM_DIR_OUT) |
+		      ((readop & SCSI_RW_BIO) != 0 ? CAM_DATA_BIO : 0),
 		      tag_action,
 		      data_ptr,
 		      dxfer_len,

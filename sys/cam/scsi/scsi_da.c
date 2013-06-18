@@ -1378,7 +1378,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*retries*/0,
 				dadone,
 				MSG_ORDERED_Q_TAG,
-				/*read*/FALSE,
+				/*read*/SCSI_RW_WRITE,
 				/*byte2*/0,
 				/*minimum_cmd_size*/ softc->minimum_cmd_size,
 				offset / secsize,
@@ -2030,6 +2030,8 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	if ((cpi.hba_misc & PIM_UNMAPPED) != 0)
+		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
 	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
 	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
@@ -2390,14 +2392,18 @@ skipstate:
 					/*retries*/da_retry_count,
 					/*cbfcnp*/dadone,
 					/*tag_action*/tag_code,
-					/*read_op*/bp->bio_cmd
-						== BIO_READ,
+					/*read_op*/(bp->bio_cmd == BIO_READ ?
+					SCSI_RW_READ : SCSI_RW_WRITE) |
+					((bp->bio_flags & BIO_UNMAPPED) != 0 ?
+					SCSI_RW_BIO : 0),
 					/*byte2*/0,
 					softc->minimum_cmd_size,
 					/*lba*/bp->bio_pblkno,
 					/*block_count*/bp->bio_bcount /
 					softc->params.secsize,
-					/*data_ptr*/ bp->bio_data,
+					/*data_ptr*/ (bp->bio_flags &
+					BIO_UNMAPPED) != 0 ? (void *)bp :
+					bp->bio_data,
 					/*dxfer_len*/ bp->bio_bcount,
 					/*sense_len*/SSD_FULL_SIZE,
 					da_default_timeout * 1000);

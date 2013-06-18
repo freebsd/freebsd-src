@@ -2469,6 +2469,10 @@ void scsi_write_buffer(struct ccb_scsiio *csio, u_int32_t retries,
 			uint8_t *data_ptr, uint32_t param_list_length,
 			uint8_t sense_len, uint32_t timeout);
 
+#define	SCSI_RW_READ	0x0001
+#define	SCSI_RW_WRITE	0x0002
+#define	SCSI_RW_DIRMASK	0x0003
+#define	SCSI_RW_BIO	0x1000
 void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int readop, u_int8_t byte2, 

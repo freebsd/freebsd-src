@@ -92,7 +92,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			bp->b_blkno = btodb(bp->b_offset);
 			csw = dev->si_devsw;
 			if (uio->uio_segflg == UIO_USERSPACE) {
-				if (vmapbuf(bp) < 0) {
+				if (vmapbuf(bp, 0) < 0) {
 					error = EFAULT;
 					goto doerror;
 				}

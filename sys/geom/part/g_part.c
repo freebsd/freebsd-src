@@ -429,6 +429,7 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	entry->gpe_pp->stripeoffset = pp->stripeoffset + entry->gpe_offset;
 	if (pp->stripesize > 0)
 		entry->gpe_pp->stripeoffset %= pp->stripesize;
+	entry->gpe_pp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	g_error_provider(entry->gpe_pp, 0);
 }
 

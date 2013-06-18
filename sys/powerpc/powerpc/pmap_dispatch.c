@@ -560,3 +560,5 @@ pmap_mmu_install(char *name, int prio)
 
 	return (FALSE);
 }
+
+int unmapped_buf_allowed;
