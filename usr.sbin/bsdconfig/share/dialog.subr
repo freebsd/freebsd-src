@@ -1562,7 +1562,7 @@ f_dialog_textbox()
 
 ############################################################ YESNO FUNCTIONS
 
-# f_dialog_yesno $msg_text ...
+# f_dialog_yesno $msg_text [$hline]
 #
 # Display a dialog(1) Yes/No prompt to allow the user to make some decision.
 # The yesno prompt remains until the user presses ENTER or ESC, acknowledging
@@ -1573,8 +1573,8 @@ f_dialog_textbox()
 #
 f_dialog_yesno()
 {
-	local msg_text="$*" height width
-	local hline="$hline_arrows_tab_enter"
+	local msg_text="$1" height width
+	local hline="${2-$hline_arrows_tab_enter}"
 
 	f_interactive || return 0 # If non-interactive, return YES all the time
 
@@ -1600,7 +1600,7 @@ f_dialog_yesno()
 	fi
 }
 
-# f_dialog_noyes $msg_text ...
+# f_dialog_noyes $msg_text [$hline]
 #
 # Display a dialog(1) No/Yes prompt to allow the user to make some decision.
 # The noyes prompt remains until the user presses ENTER or ESC, acknowledging
@@ -1613,8 +1613,8 @@ f_dialog_yesno()
 #
 f_dialog_noyes()
 {
-	local msg_text="$*" height width
-	local hline="$hline_arrows_tab_enter"
+	local msg_text="$1" height width
+	local hline="${2-$hline_arrows_tab_enter}"
 
 	f_interactive || return 1 # If non-interactive, return NO all the time
 
