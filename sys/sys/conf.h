@@ -171,6 +171,7 @@ typedef int dumper_t(
 #define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
 #define D_NEEDGIANT	0x00400000	/* driver want Giant */
 #define	D_NEEDMINOR	0x00800000	/* driver uses clone_create() */
+#define	D_UNMAPPED_IO   0x01000000	/* d_strategy can accept unmapped IO */
 
 /*
  * Version numbers.
