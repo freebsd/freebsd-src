@@ -1076,8 +1076,6 @@ rebuild_round_done:
 				offset += vol->v_strip_size;
 			}
 			cbp->bio_offset = offset + start;
-			cbp->bio_length = bp->bio_length;
-			cbp->bio_data = bp->bio_data;
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
 			cbp->bio_caller2 = (void *)mask;
