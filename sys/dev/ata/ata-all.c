@@ -1695,6 +1695,7 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
 	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
 	request->ccb = ccb;
+	request->flags |= ATA_R_DATA_IN_CCB;
 
 	ch->running = request;
 	ch->state = ATA_ACTIVE;
