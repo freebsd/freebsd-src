@@ -133,7 +133,6 @@ while :; do
 	"6 $msg_disable") # Disable the mouse daemon
 		$BSDCFG_LIBE/$APP_DIR/disable ${USE_XDIALOG:+-X} ;;
 	esac
-
 done
 
 exit $SUCCESS

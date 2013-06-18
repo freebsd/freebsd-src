@@ -145,7 +145,6 @@ while :; do
 		f_sysrc_set moused_port "/dev/mse0" || f_die
 		break ;;
 	esac
-
 done
 
 exit $SUCCESS
