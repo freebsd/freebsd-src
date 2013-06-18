@@ -93,7 +93,7 @@ int	ia64_highfp_save_ipi(void);
 struct ia64_init_return ia64_init(void);
 u_int	ia64_itc_freq(void);
 int	ia64_physmem_add(vm_paddr_t, vm_size_t);
-vm_paddr_t ia64_physmem_alloc(vm_size_t, vm_size_t);
+void	*ia64_physmem_alloc(vm_size_t, vm_size_t);
 int	ia64_physmem_delete(vm_paddr_t, vm_size_t);
 int	ia64_physmem_fini(void);
 int	ia64_physmem_init(void);

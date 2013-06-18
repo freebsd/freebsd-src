@@ -187,9 +187,72 @@ ia64_physmem_track(vm_paddr_t base, vm_size_t len)
 	return (0);
 }
 
-vm_paddr_t
+void *
 ia64_physmem_alloc(vm_size_t len, vm_size_t align)
 {
+	vm_paddr_t base, lim, pa;
+	void *ptr;
+	u_int idx;
 
-	return (0);
+	if (phys_avail_segs == 0)
+		return (NULL);
+
+	len = round_page(len);
+
+	/*
+	 * Try and allocate with least effort.
+	 */
+	idx = phys_avail_segs * 2;
+	while (idx > 0) {
+		idx -= 2;
+		base = phys_avail[idx];
+		lim = phys_avail[idx + 1];
+
+		if (lim - base < len)
+			continue;
+
+		/* First try from the end. */
+		pa = lim - len;
+		if ((pa & (align - 1)) == 0) {
+			if (pa == base)
+				ia64_physmem_remove(idx);
+			else
+				phys_avail[idx + 1] = pa;
+			goto gotit;
+		}
+
+		/* Try from the start next. */
+		pa = base;
+		if ((pa & (align - 1)) == 0) {
+			if (pa + len == lim)
+				ia64_physmem_remove(idx);
+			else
+				phys_avail[idx] += len;
+			goto gotit;
+		}
+	}
+
+	/*
+	 * Find a good segment and split it up.
+	 */
+	idx = phys_avail_segs * 2;
+	while (idx > 0) {
+		idx -= 2;
+		base = phys_avail[idx];
+		lim = phys_avail[idx + 1];
+
+		pa = (base + align - 1) & ~(align - 1);
+		if (pa + len <= lim) {
+			ia64_physmem_delete(pa, len);
+			goto gotit;
+		}
+	}
+
+	/* Out of luck. */
+	return (NULL);
+
+ gotit:
+	ptr = (void *)IA64_PHYS_TO_RR7(pa);
+	bzero(ptr, len);
+	return (ptr);
 }

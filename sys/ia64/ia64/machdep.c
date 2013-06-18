@@ -691,7 +691,6 @@ ia64_init(void)
 	struct efi_md *md;
 	pt_entry_t *pbvm_pgtbl_ent, *pbvm_pgtbl_lim;
 	char *p;
-	vm_offset_t kernend;
 	vm_size_t mdlen;
 	int metadata_missing;
 
@@ -789,20 +788,6 @@ ia64_init(void)
 		bootverbose = 1;
 
 	/*
-	 * Find the end of the kernel.
-	 */
-#ifdef DDB
-	ksym_start = bootinfo->bi_symtab;
-	ksym_end = bootinfo->bi_esymtab;
-	kernend = (vm_offset_t)round_page(ksym_end);
-#else
-	kernend = (vm_offset_t)round_page(_end);
-#endif
-	/* But if the bootstrap tells us otherwise, believe it! */
-	if (bootinfo->bi_kernend)
-		kernend = round_page(bootinfo->bi_kernend);
-
-	/*
 	 * Wire things up so we can call the firmware.
 	 */
 	map_pal_code();
@@ -821,9 +806,8 @@ ia64_init(void)
 	pcpup = &pcpu0;
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
-	dpcpu_init((void *)kernend, 0);
+	dpcpu_init(ia64_physmem_alloc(DPCPU_SIZE, PAGE_SIZE), 0);
 	PCPU_SET(md.lid, ia64_get_lid());
-	kernend += DPCPU_SIZE;
 	PCPU_SET(curthread, &thread0);
 
 	/*
@@ -854,14 +838,15 @@ ia64_init(void)
 	/*
 	 * Initialize error message buffer (at end of core).
 	 */
-	msgbufp = (struct msgbuf *)pmap_steal_memory(msgbufsize);
+	msgbufp = ia64_physmem_alloc(msgbufsize, PAGE_SIZE);
 	msgbufinit(msgbufp, msgbufsize);
 
 	proc_linkup0(&proc0, &thread0);
 	/*
 	 * Init mapping for kernel stack for proc 0
 	 */
-	thread0.td_kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
+	p = ia64_physmem_alloc(KSTACK_PAGES * PAGE_SIZE, PAGE_SIZE);
+	thread0.td_kstack = (uintptr_t)p;
 	thread0.td_kstack_pages = KSTACK_PAGES;
 
 	mutex_init();
@@ -887,6 +872,11 @@ ia64_init(void)
 	/*
 	 * Initialize debuggers, and break into them if appropriate.
 	 */
+#ifdef DDB
+	ksym_start = bootinfo->bi_symtab;
+	ksym_end = bootinfo->bi_esymtab;
+#endif
+
 	kdb_init();
 
 #ifdef KDB
