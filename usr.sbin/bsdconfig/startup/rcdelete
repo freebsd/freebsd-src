@@ -338,6 +338,9 @@ f_startup_rcconf_map_expand RCCONF_MAP
 # Generate RCCONF_MENU_LIST from $RCCONF_MAP
 dialog_create_main
 
+#
+# Launch application main menu
+#
 while :; do
 	dialog_menu_main
 	retval=$?
