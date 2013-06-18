@@ -5466,10 +5466,10 @@ bce_get_rx_buf_exit:
 static int
 bce_get_pg_buf(struct bce_softc *sc, u16 prod, u16 prod_idx)
 {
-	bus_addr_t busaddr;
+	bus_dma_segment_t segs[1];
 	struct mbuf *m_new = NULL;
 	struct rx_bd *pgbd;
-	int error, rc = 0;
+	int error, nsegs, rc = 0;
 #ifdef BCE_DEBUG
 	u16 debug_prod_idx = prod_idx;
 #endif
@@ -5512,12 +5512,11 @@ bce_get_pg_buf(struct bce_softc *sc, u16 prod, u16 prod_idx)
 	/* ToDo: Consider calling m_fragment() to test error handling. */
 
 	/* Map the mbuf cluster into device memory. */
-	error = bus_dmamap_load(sc->pg_mbuf_tag, sc->pg_mbuf_map[prod_idx],
-	    mtod(m_new, void *), MCLBYTES, bce_dma_map_addr, &busaddr,
-	    BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->pg_mbuf_tag,
+	    sc->pg_mbuf_map[prod_idx], m_new, segs, &nsegs, BUS_DMA_NOWAIT);
 
 	/* Handle any mapping errors. */
-	if (error || busaddr == 0) {
+	if (error) {
 		BCE_PRINTF("%s(%d): Error mapping mbuf into page chain!\n",
 		    __FILE__, __LINE__);
 
@@ -5528,6 +5527,10 @@ bce_get_pg_buf(struct bce_softc *sc, u16 prod, u16 prod_idx)
 		goto bce_get_pg_buf_exit;
 	}
 
+	/* All mbufs must map to a single segment. */
+	KASSERT(nsegs == 1, ("%s(): Too many segments returned (%d)!",
+	    __FUNCTION__, nsegs));
+
 	/* ToDo: Do we need bus_dmamap_sync(,,BUS_DMASYNC_PREREAD) here? */
 
 	/*
@@ -5536,8 +5539,8 @@ bce_get_pg_buf(struct bce_softc *sc, u16 prod, u16 prod_idx)
 	 */
 	pgbd = &sc->pg_bd_chain[PG_PAGE(prod_idx)][PG_IDX(prod_idx)];
 
-	pgbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(busaddr));
-	pgbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(busaddr));
+	pgbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[0].ds_addr));
+	pgbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[0].ds_addr));
 	pgbd->rx_bd_len       = htole32(MCLBYTES);
 	pgbd->rx_bd_flags     = htole32(RX_BD_FLAGS_START | RX_BD_FLAGS_END);
 
