@@ -66,6 +66,9 @@
 #include "private/svn_client_private.h"
 #include "private/svn_cmdline_private.h"
 #include "private/svn_string_private.h"
+#ifdef HAS_ORGANIZATION_NAME
+#include "freebsd-organization.h"
+#endif
 
 
 
@@ -322,6 +325,67 @@ truncate_buffer_at_prefix(apr_size_t *new_len,
 }
 
 
+/*
+ * Since we're adding freebsd-specific tokens to the log message,
+ * clean out any leftovers to avoid accidently sending them to other
+ * projects that won't be expecting them.
+ */
+
+static const char *prefixes[] = {
+  "PR:",
+  "Submitted by:",
+  "Reviewed by:",
+  "Approved by:",
+  "Obtained from:",
+  "MFC after:",
+  "Security:",
+  "Sponsored by:"
+};
+
+void
+cleanmsg(apr_size_t *l, char *s)
+{
+  int i;
+  char *pos;
+  char *kw;
+  char *p;
+  int empty;
+
+  for (i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); i++) {
+    pos = s;
+    while ((kw = strstr(pos, prefixes[i])) != NULL) {
+      /* Check to see if keyword is at start of line (or buffer) */
+      if (!(kw == s || kw[-1] == '\r' || kw[-1] == '\n')) {
+	pos = kw + 1;
+	continue;
+      }
+      p = kw + strlen(prefixes[i]);
+      empty = 1;
+      while (1) {
+	if (*p == ' ' || *p == '\t') {
+	  p++;
+	  continue;
+	}
+	if (*p == '\0' || *p == '\r' || *p == '\n')
+	  break;
+	empty = 0;
+	break;
+      }
+      if (empty && (*p == '\r' || *p == '\n')) {
+	memmove(kw, p + 1, strlen(p + 1) + 1);
+	if (l)
+	  *l -= (p + 1 - kw);
+      } else if (empty) {
+	*kw = '\0';
+	if (l)
+	  *l -= (p - kw);
+      } else {
+	pos = p;
+      }
+    }
+  }
+}
+
 #define EDITOR_EOF_PREFIX  _("--This line, and those below, will be ignored--")
 
 svn_error_t *
@@ -337,8 +401,32 @@ svn_cl__get_log_message(const char **log_msg,
 
   /* Set default message.  */
   default_msg = svn_stringbuf_create(APR_EOL_STR, pool);
+  svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "PR:\t\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Submitted by:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Reviewed by:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Approved by:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Obtained from:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "MFC after:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Security:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Sponsored by:\t"
+#ifdef HAS_ORGANIZATION_NAME
+      ORGANIZATION_NAME
+#endif
+      APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, EDITOR_EOF_PREFIX);
-  svn_stringbuf_appendcstr(default_msg, APR_EOL_STR APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Description of fields to fill in above:                     76 columns --|" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> PR:            If a GNATS PR is affected by the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Submitted by:  If someone else sent in the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Reviewed by:   If someone else reviewed your modification." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Approved by:   If you needed approval for this commit." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Obtained from: If the change is from a third party." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> MFC after:     N [day[s]|week[s]|month[s]].  Request a reminder email." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Security:      Vulnerability reference (one per line) or description." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Sponsored by:  If the change was sponsored by an organization." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Empty fields above will be automatically removed." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
 
   *tmp_file = NULL;
   if (lmb->message)
@@ -350,6 +438,7 @@ svn_cl__get_log_message(const char **log_msg,
          that follows it.  */
       truncate_buffer_at_prefix(&(log_msg_buf->len), log_msg_buf->data,
                                 EDITOR_EOF_PREFIX);
+      cleanmsg(NULL, (char*)log_msg_buf->data);
 
       /* Make a string from a stringbuf, sharing the data allocation. */
       log_msg_str->data = log_msg_buf->data;
@@ -470,6 +559,13 @@ svn_cl__get_log_message(const char **log_msg,
       if (message)
         truncate_buffer_at_prefix(&message->len, message->data,
                                   EDITOR_EOF_PREFIX);
+      /*
+       * Since we're adding freebsd-specific tokens to the log message,
+       * clean out any leftovers to avoid accidently sending them to other
+       * projects that won't be expecting them.
+       */
+      if (message)
+	cleanmsg(&message->len, message->data);
 
       if (message)
         {
