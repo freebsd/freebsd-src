@@ -1790,21 +1790,10 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 	    (ccb->ataio.cmd.flags & (CAM_ATAIO_CONTROL | CAM_ATAIO_NEEDRESULT)))
 		ch->aslots |= (1 << slot->slot);
 	slot->dma.nsegs = 0;
-	/* If request moves data, setup and load SG list */
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		void *buf;
-		bus_size_t size;
-
 		slot->state = AHCI_SLOT_LOADING;
-		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-			buf = ccb->ataio.data_ptr;
-			size = ccb->ataio.dxfer_len;
-		} else {
-			buf = ccb->csio.data_ptr;
-			size = ccb->csio.dxfer_len;
-		}
-		bus_dmamap_load(ch->dma.data_tag, slot->dma.data_map,
-		    buf, size, ahci_dmasetprd, slot, 0);
+		bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map, ccb,
+		    ahci_dmasetprd, slot, 0);
 	} else
 		ahci_execute_transaction(slot);
 }

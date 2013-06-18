@@ -152,6 +152,52 @@ copyout_nofault(const void *kaddr, void *udaddr, size_t len)
 	return (error);
 }
 
+#define	PHYS_PAGE_COUNT(len)	(howmany(len, PAGE_SIZE) + 1)
+
+int
+physcopyin(void *src, vm_paddr_t dst, size_t len)
+{
+	vm_page_t m[PHYS_PAGE_COUNT(len)];
+	struct iovec iov[1];
+	struct uio uio;
+	int i;
+
+	iov[0].iov_base = src;
+	iov[0].iov_len = len;
+	uio.uio_iov = iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = len;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_WRITE;
+	for (i = 0; i < PHYS_PAGE_COUNT(len); i++, dst += PAGE_SIZE)
+		m[i] = PHYS_TO_VM_PAGE(dst);
+	return (uiomove_fromphys(m, dst & PAGE_MASK, len, &uio));
+}
+
+int
+physcopyout(vm_paddr_t src, void *dst, size_t len)
+{
+	vm_page_t m[PHYS_PAGE_COUNT(len)];
+	struct iovec iov[1];
+	struct uio uio;
+	int i;
+
+	iov[0].iov_base = dst;
+	iov[0].iov_len = len;
+	uio.uio_iov = iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = len;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	for (i = 0; i < PHYS_PAGE_COUNT(len); i++, src += PAGE_SIZE)
+		m[i] = PHYS_TO_VM_PAGE(src);
+	return (uiomove_fromphys(m, src & PAGE_MASK, len, &uio));
+}
+
+#undef PHYS_PAGE_COUNT
+
 int
 uiomove(void *cp, int n, struct uio *uio)
 {
