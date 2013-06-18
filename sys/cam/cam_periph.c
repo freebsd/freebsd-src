@@ -686,9 +686,9 @@ camperiphfree(struct cam_periph *periph)
 
 /*
  * Map user virtual pointers into kernel virtual address space, so we can
- * access the memory.  This won't work on physical pointers, for now it's
- * up to the caller to check for that.  (XXX KDM -- should we do that here
- * instead?)  This also only works for up to MAXPHYS memory.  Since we use
+ * access the memory.  This is now a generic function that centralizes most
+ * of the sanity checks on the data flags, if any.
+ * This also only works for up to MAXPHYS memory.  Since we use
  * buffers to map stuff in and out, we're limited to the buffer size.
  */
 int
@@ -733,7 +733,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_CONT_TARGET_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
-
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+			return (EINVAL);
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		lengths[0] = ccb->csio.dxfer_len;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
@@ -742,7 +743,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_ATA_IO:
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
-
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+			return (EINVAL);
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		lengths[0] = ccb->ataio.dxfer_len;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
@@ -813,8 +815,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	}
 
-	/* this keeps the current process from getting swapped */
 	/*
+	 * This keeps the the kernel stack of current thread from getting
+	 * swapped.  In low-memory situations where the kernel stack might
+	 * otherwise get swapped out, this holds it and allows the thread
+	 * to make progress and release the kernel mapped pages sooner.
+	 *
 	 * XXX KDM should I use P_NOSWAP instead?
 	 */
 	PHOLD(curproc);
@@ -886,8 +892,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 
 	if (mapinfo->num_bufs_used <= 0) {
-		/* allow ourselves to be swapped once again */
-		PRELE(curproc);
+		/* nothing to free and the process wasn't held. */
 		return;
 	}
 

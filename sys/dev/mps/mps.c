@@ -2296,6 +2296,9 @@ mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 	if (cm->cm_flags & MPS_CM_FLAGS_USE_UIO) {
 		error = bus_dmamap_load_uio(sc->buffer_dmat, cm->cm_dmamap,
 		    &cm->cm_uio, mps_data_cb2, cm, 0);
+	} else if (cm->cm_flags & MPS_CM_FLAGS_USE_CCB) {
+		error = bus_dmamap_load_ccb(sc->buffer_dmat, cm->cm_dmamap,
+		    cm->cm_data, mps_data_cb, cm, 0);
 	} else if ((cm->cm_data != NULL) && (cm->cm_length != 0)) {
 		error = bus_dmamap_load(sc->buffer_dmat, cm->cm_dmamap,
 		    cm->cm_data, cm->cm_length, mps_data_cb, cm, 0);

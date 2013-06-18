@@ -64,13 +64,19 @@ typedef enum {
 					      * Perform transport negotiation
 					      * with this command.
 					      */
-	CAM_SCATTER_VALID	= 0x00000010,/* Scatter/gather list is valid  */
+	CAM_DATA_ISPHYS		= 0x00000010,/* Data type with physical addrs */
 	CAM_DIS_AUTOSENSE	= 0x00000020,/* Disable autosense feature     */
 	CAM_DIR_BOTH		= 0x00000000,/* Data direction (00:IN/OUT)    */
 	CAM_DIR_IN		= 0x00000040,/* Data direction (01:DATA IN)   */
 	CAM_DIR_OUT		= 0x00000080,/* Data direction (10:DATA OUT)  */
 	CAM_DIR_NONE		= 0x000000C0,/* Data direction (11:no data)   */
 	CAM_DIR_MASK		= 0x000000C0,/* Data direction Mask	      */
+	CAM_DATA_VADDR		= 0x00000000,/* Data type (000:Virtual)       */
+	CAM_DATA_PADDR		= 0x00000010,/* Data type (001:Physical)      */
+	CAM_DATA_SG		= 0x00040000,/* Data type (010:sglist)        */
+	CAM_DATA_SG_PADDR	= 0x00040010,/* Data type (011:sglist phys)   */
+	CAM_DATA_BIO		= 0x00200000,/* Data type (100:bio)           */
+	CAM_DATA_MASK		= 0x00240010,/* Data type mask                */
 	CAM_SOFT_RST_OP		= 0x00000100,/* Use Soft reset alternative    */
 	CAM_ENG_SYNC		= 0x00000200,/* Flush resid bytes on complete */
 	CAM_DEV_QFRZDIS		= 0x00000400,/* Disable DEV Q freezing	      */
@@ -81,10 +87,8 @@ typedef enum {
 	CAM_TAG_ACTION_VALID	= 0x00008000,/* Use the tag action in this ccb*/
 	CAM_PASS_ERR_RECOVER	= 0x00010000,/* Pass driver does err. recovery*/
 	CAM_DIS_DISCONNECT	= 0x00020000,/* Disable disconnect	      */
-	CAM_SG_LIST_PHYS	= 0x00040000,/* SG list has physical addrs.   */
 	CAM_MSG_BUF_PHYS	= 0x00080000,/* Message buffer ptr is physical*/
 	CAM_SNS_BUF_PHYS	= 0x00100000,/* Autosense data ptr is physical*/
-	CAM_DATA_PHYS		= 0x00200000,/* SG/Buffer data ptrs are phys. */
 	CAM_CDB_PHYS		= 0x00400000,/* CDB poiner is physical	      */
 	CAM_ENG_SGLIST		= 0x00800000,/* SG list is for the HBA engine */
 
@@ -540,7 +544,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x16	/* Hex value for current version */
+#define CAM_VERSION	0x17	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */

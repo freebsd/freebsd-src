@@ -274,11 +274,8 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 * address
 		 */
 		if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if (ccbh->flags & CAM_DATA_PHYS)
+			if ((ccbh->flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
 				/* we can't map it */
-				ccbh->status = CAM_REQ_INVALID;
-			if (ccbh->flags & CAM_SCATTER_VALID)
-				/* we want to do the s/g setup */
 				ccbh->status = CAM_REQ_INVALID;
 		}
 	

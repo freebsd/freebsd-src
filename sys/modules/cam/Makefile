@@ -16,6 +16,7 @@ SRCS+=	opt_pt.h
 SRCS+=	opt_sa.h
 SRCS+=	device_if.h bus_if.h vnode_if.h
 SRCS+=	cam.c
+SRCS+=	cam_compat.c
 .if exists($S/${MACHINE}/${MACHINE}/cam_machdep.c)
 SRCS+=	cam_machdep.c
 .endif
