@@ -118,16 +118,19 @@ while :; do
 	dialog_menu_main || f_die
 	f_dialog_menutag_fetch mtag
 
+	command=
 	case "$mtag" in
-	X) # Exit
-		break ;;
-	1) # Toggle Startup Services
-		$BSDCFG_LIBE/$APP_DIR/rcvar ${USE_XDIALOG:+-X} ;;
-	2) # View/Edit Startup Configuration
-		$BSDCFG_LIBE/$APP_DIR/rcconf ${USE_XDIALOG:+-X} ;;
-	3) # Miscellaneous Startup Services
-		$BSDCFG_LIBE/$APP_DIR/misc ${USE_XDIALOG:+-X} ;;
+	X) break ;;
+	1) command=rcvar  ;; # Toggle Startup Services
+	2) command=rcconf ;; # View/Edit Startup Configuration
+	3) command=misc   ;; # Miscellaneous Startup Services
 	esac
+
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X} ;;
+	else
+		f_die 1 "$msg_unknown_startup_menu_selection"
+	fi
 done
 
 exit $SUCCESS

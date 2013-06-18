@@ -144,37 +144,25 @@ while :; do
 		f_die
 	fi
 
+	command=
 	case "$mtag" in
-	X) # Exit
-	   exit 0
-	   ;;
-
-	1) # Add User
-	   $BSDCFG_LIBE/$APP_DIR/useradd ${USE_XDIALOG:+-X}
-	   ;;
-
-	2) # Edit/View User
-	   $BSDCFG_LIBE/$APP_DIR/useredit ${USE_XDIALOG:+-X}
-	   ;;
-
-	3) # Delete User
-	   $BSDCFG_LIBE/$APP_DIR/userdel ${USE_XDIALOG:+-X}
-	   ;;
-
-	4) # Add Group
-	   $BSDCFG_LIBE/$APP_DIR/groupadd ${USE_XDIALOG:+-X}
-	   ;;
-
-	5) # Edit/View Group
-	   $BSDCFG_LIBE/$APP_DIR/groupedit ${USE_XDIALOG:+-X}
-	   ;;
-
-	6) # Delete Group
-	   $BSDCFG_LIBE/$APP_DIR/groupdel ${USE_XDIALOG:+-X}
-	   ;;
-
+	X) break ;;
+	1) command=useradd   ;; # Add User
+	2) command=useredit  ;; # Edit/View User
+	3) command=userdel   ;; # Delete User
+	4) command=groupadd  ;; # Add Group
+	5) command=groupedit ;; # Edit/View Group
+	6) command=groupdel  ;; # Delete Group
 	esac
+
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
+	else
+		f_die 1 "$msg_unknown_user_management_menu_selection"
+	fi
 done
+
+exit $SUCCESS
 
 ################################################################################
 # END
