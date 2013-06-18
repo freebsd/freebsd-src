@@ -129,43 +129,38 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	case "$mtag" in
-	"1 $msg_auto") # Bus mouse, PS/2 style mouse or PnP serial mouse
-		f_sysrc_set moused_type "auto" || f_die
-		break ;;
-	"2 $msg_glidepoint") # ALPS GlidePoint pad (serial)
-		f_sysrc_set moused_type "glidepoint" || f_die
-		break ;;
-	"3 $msg_hitachi") # Hitachi tablet (serial)
-		f_sysrc_set moused_type "mmhittab" || f_die
-		break ;;
-	"4 $msg_intellimouse") # Microsoft Intellimouse (serial)
-		f_sysrc_set moused_type "intellimouse" || f_die
-		break ;;
-	"5 $msg_logitech") # Logitech protocol (old models) (serial)
-		f_sysrc_set moused_type "logitech" || f_die
-		break ;;
-	"6 $msg_microsoft") # Microsoft protocol (serial)
-		f_sysrc_set moused_type "microsoft" || f_die
-		break ;;
-	"7 $msg_mm_series") # MM Series protocol (serial)
-		f_sysrc_set moused_type "mmseries" || f_die
-		break ;;
-	"8 $msg_mouseman") # Logitech MouseMan/TrackMan models (serial)
-		f_sysrc_set moused_type "mouseman" || f_die
-		break ;;
-	"9 $msg_mousesystems") # MouseSystems protocol (serial)
-		f_sysrc_set moused_type "mousesystems" || f_die
-		break ;;
-	"A $msg_thinkingmouse") # Kensignton ThinkingMouse (serial)
-		f_sysrc_set moused_type "thinkingmouse" || f_die
-		break ;;
-	esac
-done
+moused_type_to_set=
+case "$mtag" in
+"1 $msg_auto") # Bus mouse, PS/2 style mouse or PnP serial mouse
+	moused_type_to_set="auto" ;;
+"2 $msg_glidepoint") # ALPS GlidePoint pad (serial)
+	moused_type_to_set="glidepoint" ;;
+"3 $msg_hitachi") # Hitachi tablet (serial)
+	moused_type_to_set="mmhittab" ;;
+"4 $msg_intellimouse") # Microsoft Intellimouse (serial)
+	moused_type_to_set="intellimouse" ;;
+"5 $msg_logitech") # Logitech protocol (old models) (serial)
+	moused_type_to_set="logitech" ;;
+"6 $msg_microsoft") # Microsoft protocol (serial)
+	moused_type_to_set="microsoft" ;;
+"7 $msg_mm_series") # MM Series protocol (serial)
+	moused_type_to_set="mmseries" ;;
+"8 $msg_mouseman") # Logitech MouseMan/TrackMan models (serial)
+	moused_type_to_set="mouseman" ;;
+"9 $msg_mousesystems") # MouseSystems protocol (serial)
+	moused_type_to_set="mousesystems" ;;
+"A $msg_thinkingmouse") # Kensignton ThinkingMouse (serial)
+	moused_type_to_set="thinkingmouse" ;;
+esac
+
+if [ "$moused_type_to_set" ]; then
+	f_sysrc_set moused_type "$moused_type_to_set" || f_die
+else
+	f_die 1 "$msg_unknown_mouse_protocol_selection"
+fi
 
 exit $SUCCESS
 

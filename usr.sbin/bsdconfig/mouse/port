@@ -121,31 +121,30 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	case "$mtag" in
-	"1 $msg_ps2") # PS/2 style mouse (/dev/psm0)
-		f_sysrc_set moused_port "/dev/psm0" || f_die
-		break ;;
-	"2 $msg_com1") # Serial mouse on COM1 (/dev/cuau0)
-		f_sysrc_set moused_port "/dev/cuau0" || f_die
-		break ;;
-	"3 $msg_com2") # Serial mouse on COM2 (/dev/cuau1)
-		f_sysrc_set moused_port "/dev/cuau1" || f_die
-		break ;;
-	"4 $msg_com3") # Serial mouse on COM3 (/dev/cuau2)
-		f_sysrc_set moused_port "/dev/cuau2" || f_die
-		break ;;
-	"5 $msg_com4") # Serial mouse on COM4 (/dev/cuau3)
-		f_sysrc_set moused_port "/dev/cuau3" || f_die
-		break ;;
-	"6 $msg_busmouse") # Logitech, ATI or MS bus mouse (/dev/mse0)
-		f_sysrc_set moused_port "/dev/mse0" || f_die
-		break ;;
-	esac
-done
+moused_port_to_set=
+case "$mtag" in
+"1 $msg_ps2") # PS/2 style mouse (/dev/psm0)
+	moused_port_to_set="/dev/psm0" ;;
+"2 $msg_com1") # Serial mouse on COM1 (/dev/cuau0)
+	moused_port_to_set="/dev/cuau0" ;;
+"3 $msg_com2") # Serial mouse on COM2 (/dev/cuau1)
+	moused_port_to_set="/dev/cuau1" ;;
+"4 $msg_com3") # Serial mouse on COM3 (/dev/cuau2)
+	moused_port_to_set="/dev/cuau2" ;;
+"5 $msg_com4") # Serial mouse on COM4 (/dev/cuau3)
+	moused_port_to_set="/dev/cuau3" ;;
+"6 $msg_busmouse") # Logitech, ATI or MS bus mouse (/dev/mse0)
+	moused_port_to_set="/dev/mse0" ;;
+esac
+
+if [ "$moused_port_to_set" ]; then
+	f_sysrc_set moused_port "$moused_port_to_set" || f_die
+else
+	f_die 1 "$msg_unknown_mouse_port_selection"
+fi
 
 exit $SUCCESS
 
