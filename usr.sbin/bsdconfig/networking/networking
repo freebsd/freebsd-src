@@ -119,35 +119,29 @@ while :; do
 	dialog_menu_main || f_die
 	f_dialog_menutag_fetch mtag
 
+	command=
 	case "$mtag" in
-	X) # Exit
-	   break
-	   ;;
-
-	1) # Hostname/Domain
-	   $BSDCFG_LIBE/$APP_DIR/hostname ${USE_XDIALOG:+-X}
-	   ;;
-
-	2) # Network Interfaces
-	   $BSDCFG_LIBE/$APP_DIR/devices ${USE_XDIALOG:+-X}
-
-	   # Make subsequent uses of this menu faster by not performing
-	   # "ifconfig up" (limiting the pain one must endure). See also
-	   # `$BSDCFG_SHARE/networking/device.subr'.
-	   #
-	   export DIALOG_MENU_NETDEV_KICK_INTERFACES=
-	   ;;
-
-	3) # Default Router/Gateway
-	   $BSDCFG_LIBE/$APP_DIR/defaultrouter ${USE_XDIALOG:+-X}
-	   ;;
-
-	4) # DNS nameservers
-	   $BSDCFG_LIBE/$APP_DIR/nameservers ${USE_XDIALOG:+-X}
-	   ;;
-
+	X) break ;;
+	1) command=hostname      ;; # Hostname/Domain
+	2) command=devices       ;; # Network Interfaces
+	3) command=defaultrouter ;; # Default Router/Gateway
+	4) command=nameservers   ;; # DNS nameservers
 	esac
 
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
+	else
+		f_die 1 "$msg_unknown_networking_menu_selection"
+	fi
+
+	if [ "$mtag" = "devices" ]; then
+		#
+		# Make subsequent uses of this menu faster by not performing
+		# "ifconfig up" (limiting the pain one must endure). See also
+		# `$BSDCFG_SHARE/networking/device.subr'.
+		#
+		export DIALOG_MENU_NETDEV_KICK_INTERFACES=
+	fi
 done
 
 exit $SUCCESS
