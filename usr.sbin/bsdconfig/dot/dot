@@ -329,8 +329,8 @@ printf '\tcenter = 1;\t\t// center drawing on page\n'
 #
 # Perform edge-concentration when displaying a lot of information
 #
-# NOTE: This is disabled because dot version 2.28.0 (current) and older have a
-#       bug that causes a crash when rankdir = LR and concentrate = true
+# NOTE: This is disabled because dot(1) version 2.28.0 (current) and older have
+#       a bug that causes a crash when rankdir = LR and concentrate = true
 #
 # NOTE: Do not re-enable until said bug is fixed in some future revision.
 #
