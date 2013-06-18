@@ -101,7 +101,7 @@ while :; do
 	_netmask=
 	_ifconfig=$( f_sysrc_get ifconfig_$interface )
 	if [ "$_ifconfig" ]; then
-		# If DHCP get IP address/netmask later from ifconfig(8)
+		# If DHCP, get IP address/netmask later from ifconfig(8)
 		glob="[Dd][Hh][Cc][Pp]"
 		case "$_ifconfig" in
 		$glob) dhcp=1;;
@@ -109,8 +109,7 @@ while :; do
 		[Nn][Oo][Ss][Yy][Nn][Cc]$glob) dhcp=1;;
 		*)
 			#
-			# Get IP address/netmask from rc.conf(5)
-			# configuration
+			# Get IP address/netmask from rc.conf(5) configuration
 			#
 			dhcp=
 			eval "$( exec 2> /dev/null
@@ -149,7 +148,6 @@ while :; do
 
 	# Return to root menu if above returns success
 	[ $? -eq $SUCCESS ] && break
-
 done
 
 exit $SUCCESS
