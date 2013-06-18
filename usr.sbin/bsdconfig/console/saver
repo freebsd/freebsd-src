@@ -78,19 +78,19 @@ dialog_menu_main()
 	                        $menu_list
 
 	case "$( f_sysrc_get saver )" in
-	[Nn][Oo]|'') defaultitem="1 $msg_none"   ;;
-	blank)       defaultitem="2 $msg_blank"  ;;
-	beastie)     defaultitem="3 $msg_beastie";;
-	daemon)      defaultitem="4 $msg_daemon" ;;
-	dragon)      defaultitem="5 $msg_dragon" ;;
-	fade)        defaultitem="6 $msg_fade"   ;;
-	fire)        defaultitem="7 $msg_fire"   ;;
-	green)       defaultitem="8 $msg_green"  ;;
-	logo)        defaultitem="9 $msg_logo"   ;;
-	rain)        defaultitem="a $msg_rain"   ;;
-	snake)       defaultitem="b $msg_snake"  ;;
-	star)        defaultitem="c $msg_star"   ;;
-	warp)        defaultitem="d $msg_warp"   ;;
+	[Nn][Oo]|'') defaultitem="1 $msg_none"    ;;
+	blank)       defaultitem="2 $msg_blank"   ;;
+	beastie)     defaultitem="3 $msg_beastie" ;;
+	daemon)      defaultitem="4 $msg_daemon"  ;;
+	dragon)      defaultitem="5 $msg_dragon"  ;;
+	fade)        defaultitem="6 $msg_fade"    ;;
+	fire)        defaultitem="7 $msg_fire"    ;;
+	green)       defaultitem="8 $msg_green"   ;;
+	logo)        defaultitem="9 $msg_logo"    ;;
+	rain)        defaultitem="a $msg_rain"    ;;
+	snake)       defaultitem="b $msg_snake"   ;;
+	star)        defaultitem="c $msg_star"    ;;
+	warp)        defaultitem="d $msg_warp"    ;;
 	esac
 
 	local menu_choice

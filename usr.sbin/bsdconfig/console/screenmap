@@ -145,7 +145,6 @@ while :; do
 		f_sysrc_set scrnmap "koi8-u2cp866u" || f_die
 		break ;;
 	esac
-
 done
 
 exit $SUCCESS

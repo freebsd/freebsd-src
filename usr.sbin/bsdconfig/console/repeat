@@ -68,10 +68,10 @@ dialog_menu_main()
 	                        $menu_list
 
 	case "$( f_sysrc_get keyrate )" in
-	slow) defaultitem="$msg_slow";;
-	normal) defaultitem="$msg_normal";;
-	fast) defaultitem="$msg_fast";;
-	[Nn][Oo]|'') defaultitem="$msg_default";;
+	[Nn][Oo]|'') defaultitem="$msg_default" ;;
+	slow)        defaultitem="$msg_slow"    ;;
+	normal)      defaultitem="$msg_normal"  ;;
+	fast)        defaultitem="$msg_fast"    ;;
 	esac
 
 	local menu_choice
@@ -135,7 +135,6 @@ while :; do
 		f_sysrc_set keyrate "NO" || f_die
 		break ;;
 	esac
-
 done
 
 exit $SUCCESS

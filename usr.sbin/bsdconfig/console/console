@@ -136,7 +136,6 @@ while :; do
 	"7 $msg_ttys") # Choose console terminal type
 		$BSDCFG_LIBE/$APP_DIR/ttys ${USE_XDIALOG:+-X} ;;
 	esac
-
 done
 
 exit $SUCCESS
