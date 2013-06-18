@@ -813,7 +813,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			}
 		}
 		ggio->gctl_cmd = bp->bio_cmd;
-		if ((bp->bio_cmd == BIO_DELETE || bp->bio_cmd == BIO_WRITE) &&
+		if (bp->bio_cmd == BIO_WRITE &&
 		    bp->bio_length > ggio->gctl_length) {
 			mtx_unlock(&sc->sc_queue_mtx);
 			ggio->gctl_length = bp->bio_length;
