@@ -121,31 +121,31 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	case "$mtag" in
-	"1 $msg_none") # No screenmap, don't touch font
-		f_sysrc_set scrnmap "NO" || f_die
-		break ;;
-	"2 $msg_iso_8859_1_to_ibm437") # W-Europe ISO 8859-1 to IBM 437 scrnmap
-		f_sysrc_set scrnmap "iso-8859-1_to_cp437" || f_die
-		break ;;
-	"3 $msg_iso_8859_7_to_ibm437") # Greek ISO 8859-7 to IBM 437 screenmap
-		f_sysrc_set scrnmap "iso-8859-7_to_cp437" || f_die
-		break ;;
-	"4 $msg_us_ascii_to_ibm327") # US-ASCII to IBM 437 screenmap
-		f_sysrc_set scrnmap "us-ascii_to_cp437" || f_die
-		break ;;
-	"5 $msg_koi8_r_to_ibm866") # Russian KOI8-R to IBM 866 screenmap
-		f_sysrc_set scrnmap "koi8-r2cp866" || f_die
-		break ;;
-	"6 $msg_koi8_u_to_ibm866u") # Ukrainian KOI8-U to IBM 866u screenmap
-		f_sysrc_set scrnmap "koi8-u2cp866u" || f_die
-		break ;;
-	esac
-done
+scrnmap_to_set=
+case "$mtag" in
+"1 $msg_none") # No screenmap, don't touch font
+	scrnmap_to_set="NO" ;;
+"2 $msg_iso_8859_1_to_ibm437") # W-Europe ISO 8859-1 to IBM 437 scrnmap
+	scrnmap_to_set="iso-8859-1_to_cp437" ;;
+"3 $msg_iso_8859_7_to_ibm437") # Greek ISO 8859-7 to IBM 437 screenmap
+	scrnmap_to_set="iso-8859-7_to_cp437" ;;
+"4 $msg_us_ascii_to_ibm327") # US-ASCII to IBM 437 screenmap
+	scrnmap_to_set="us-ascii_to_cp437" ;;
+"5 $msg_koi8_r_to_ibm866") # Russian KOI8-R to IBM 866 screenmap
+	scrnmap_to_set="koi8-r2cp866" ;;
+"6 $msg_koi8_u_to_ibm866u") # Ukrainian KOI8-U to IBM 866u screenmap
+	scrnmap_to_set="koi8-u2cp866u" ;;
+esac
+
+if [ "$scrnmap_to_set" ]; then
+	f_sysrc_set scrnmap "$scrnmap_to_set" || f_die
+	break
+else
+	f_die "$msg_unknown_screenmap_selection"
+fi
 
 exit $SUCCESS
 

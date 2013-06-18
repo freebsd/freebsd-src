@@ -137,86 +137,52 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	case "$mtag" in
-	"1 $msg_none") # Use hardware default font
-		f_sysrc_set font8x8 "NO" || f_die
-		f_sysrc_set font8x14 "NO" || f_die
-		f_sysrc_set font8x16 "NO" || f_die
-		break ;;
-	"2 $msg_ibm_437") # English and others, VGA default
-		f_sysrc_set font8x8 "cp437-8x8" || f_die
-		f_sysrc_set font8x14 "cp437-8x14" || f_die
-		f_sysrc_set font8x16 "cp437-8x16" || f_die
-		break ;;
-	"3 $msg_ibm_850") # Western Europe, IBM encoding
-		f_sysrc_set font8x8 "cp850-8x8" || f_die
-		f_sysrc_set font8x14 "cp850-8x14" || f_die
-		f_sysrc_set font8x16 "cp850-8x16" || f_die
-		break ;;
-	"4 $msg_ibm_865") # Norwegian, IBM encoding
-		f_sysrc_set font8x8 "cp865-8x8" || f_die
-		f_sysrc_set font8x14 "cp865-8x14" || f_die
-		f_sysrc_set font8x16 "cp865-8x16" || f_die
-		break ;;
-	"5 $msg_ibm_866") # Russian, IBM encoding (use with KOI8-R screenmap)
-		f_sysrc_set font8x8 "cp866-8x8" || f_die
-		f_sysrc_set font8x14 "cp866-8x14" || f_die
-		f_sysrc_set font8x16 "cp866b-8x16" || f_die
-		f_sysrc_set mousechar_start 3 || f_die
-		break ;;
-	"6 $msg_ibm_866u") # Ukrainian, IBM encoding (use w/ KOI8-U screenmap)
-		f_sysrc_set font8x8 "cp866u-8x8" || f_die
-		f_sysrc_set font8x14 "cp866u-8x14" || f_die
-		f_sysrc_set font8x16 "cp866u-8x16" || f_die
-		f_sysrc_set mousechar_start 3 || f_die
-		break ;;
-	"7 $msg_ibm_1251") # Cyrillic, MS Windows encoding
-		f_sysrc_set font8x8 "cp1251-8x8" || f_die
-		f_sysrc_set font8x14 "cp1251-8x14" || f_die
-		f_sysrc_set font8x16 "cp1251-8x16" || f_die
-		f_sysrc_set mousechar_start 3 || f_die
-		break ;;
-	"8 $msg_iso_8859_1") # Western Europe, ISO encoding
-		f_sysrc_set font8x8 "iso-8x8" || f_die
-		f_sysrc_set font8x14 "iso-8x14" || f_die
-		f_sysrc_set font8x16 "iso-8x16" || f_die
-		break ;;
-	"9 $msg_iso_8859_2") # Eastern Europe, ISO encoding
-		f_sysrc_set font8x8 "iso02-8x8" || f_die
-		f_sysrc_set font8x14 "iso02-8x14" || f_die
-		f_sysrc_set font8x16 "iso02-8x16" || f_die
-		break ;;
-	"a $msg_iso_8859_4") # Baltic, ISO encoding
-		f_sysrc_set font8x8 "iso04-8x8" || f_die
-		f_sysrc_set font8x14 "iso04-8x14" || f_die
-		f_sysrc_set font8x16 "iso04-8x16" || f_die
-		break ;;
-	"b $msg_iso_8859_7") # Greek, ISO encoding
-		f_sysrc_set font8x8 "iso07-8x8" || f_die
-		f_sysrc_set font8x14 "iso07-8x14" || f_die
-		f_sysrc_set font8x16 "iso07-8x16" || f_die
-		break ;;
-	"c $msg_iso_8859_8") # Hebrew, ISO encoding
-		f_sysrc_set font8x8 "iso08-8x8" || f_die
-		f_sysrc_set font8x14 "iso08-8x14" || f_die
-		f_sysrc_set font8x16 "iso08-8x16" || f_die
-		break ;;
-	"d $msg_iso_8859_15") # Europe, ISO encoding
-		f_sysrc_set font8x8 "iso15-8x8" || f_die
-		f_sysrc_set font8x14 "iso15-8x14" || f_die
-		f_sysrc_set font8x16 "iso15-8x16" || f_die
-		break ;;
-	"e $msg_swiss") # English, better resolution
-		f_sysrc_set font8x8 "swiss-8x8" || f_die
-		f_sysrc_set font8x14 "NO" || f_die
-		f_sysrc_set font8x16 "swiss-8x16" || f_die
-		break ;;
-	esac
-done
+f8= f14= f16= mc_start=
+case "$mtag" in
+"1 $msg_none") # Use hardware default font
+	f8="NO" f14="NO" f16="NO" ;;
+"2 $msg_ibm_437") # English and others, VGA default
+	f8="cp437-8x8" f14="cp437-8x14" f16="cp437-8x16" ;;
+"3 $msg_ibm_850") # Western Europe, IBM encoding
+	f8="cp850-8x8" f14="cp850-8x14" f16="cp850-8x16" ;;
+"4 $msg_ibm_865") # Norwegian, IBM encoding
+	f8="cp865-8x8" f14="cp865-8x14" f16="cp865-8x16" ;;
+"5 $msg_ibm_866") # Russian, IBM encoding (use with KOI8-R screenmap)
+	f8="cp866-8x8" f14="cp866-8x14" f16="cp866b-8x16" mc_start="3" ;;
+"6 $msg_ibm_866u") # Ukrainian, IBM encoding (use w/ KOI8-U screenmap)
+	f8="cp866u-8x8" f14="cp866u-8x14" f16="cp866u-8x16" mc_start="3" ;;
+"7 $msg_ibm_1251") # Cyrillic, MS Windows encoding
+	f8="cp1251-8x8" f14="cp1251-8x14" f16="cp1251-8x16" mc_start="3" ;;
+"8 $msg_iso_8859_1") # Western Europe, ISO encoding
+	f8="iso-8x8" f14="iso-8x14" f16="iso-8x16" ;;
+"9 $msg_iso_8859_2") # Eastern Europe, ISO encoding
+	f8="iso02-8x8" f14="iso02-8x14" f16="iso02-8x16" ;;
+"a $msg_iso_8859_4") # Baltic, ISO encoding
+	f8="iso04-8x8" f14="iso04-8x14" f16="iso04-8x16" ;;
+"b $msg_iso_8859_7") # Greek, ISO encoding
+	f8="iso07-8x8" f14="iso07-8x14" f16="iso07-8x16" ;;
+"c $msg_iso_8859_8") # Hebrew, ISO encoding
+	f8="iso08-8x8" f14="iso08-8x14" f16="iso08-8x16" ;;
+"d $msg_iso_8859_15") # Europe, ISO encoding
+	f8="iso15-8x8" f14="iso15-8x14" f16="iso15-8x16" ;;
+"e $msg_swiss") # English, better resolution
+	f8="swiss-8x8" f14="NO" f16="swiss-8x16" ;;
+esac
+
+[ "$f8" -a "$f14" -a "$f16" ] || f_die "$msg_unknown_font_selection"
+
+f_sysrc_set font8x8 "$f8" || f_die
+f_sysrc_set font8x14 "$f14" || f_die
+f_sysrc_set font8x16 "$f16" || f_die
+
+if [ "$mc_start" ]; then
+	f_sysrc_set mousechar_start "$mc_start" || f_die
+else
+	f_sysrc_delete mousechar_start || f_die
+fi
 
 exit $SUCCESS
 
