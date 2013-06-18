@@ -117,25 +117,23 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	case "$mtag" in
-	"$msg_slow") # Slow keyboard repeat rate
-		f_sysrc_set keyrate "slow" || f_die
-		break ;;
-	"$msg_normal") # "Normal" keyboard repeat rate
-		f_sysrc_set keyrate "normal" || f_die
-		break ;;
-	"$msg_fast") # Fast keyboard repeat rate
-		f_sysrc_set keyrate "fast" || f_die
-		break ;;
-	"$msg_default") # Use default keyboard repeat rate
-		f_sysrc_set keyrate "NO" || f_die
-		break ;;
-	esac
-done
+repeat_rate_to_set=
+case "$mtag" in
+"$msg_default") repeat_rate_to_set="NO"     ;; # Use default repeat rate
+"$msg_slow")    repeat_rate_to_set="slow"   ;; # Slow keyboard repeat rate
+"$msg_normal")  repeat_rate_to_set="normal" ;; # "Normal" keyboard repeat rate
+"$msg_fast")    repeat_rate_to_set="fast"   ;; # Fast keyboard repeat rate
+esac
+
+if [ "$repeat_rate_to_set" ]; then
+	f_sysrc_set keyrate "$repeat_rate_to_set" || f_die
+	break
+else
+	f_die "$msg_unknown_repeat_rate"
+fi
 
 exit $SUCCESS
 
