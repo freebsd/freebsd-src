@@ -47,7 +47,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 ############################################################ CONFIGURATION
 
 #
-# Locataion of bsdconfig(8)
+# Location of bsdconfig(8)
 #
 BSDCONFIG=/usr/sbin/bsdconfig
 
