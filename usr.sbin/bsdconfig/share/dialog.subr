@@ -1501,7 +1501,7 @@ f_xdialog_info()
 
 ############################################################ MSGBOX FUNCTIONS
 
-# f_dialog_msgbox $msg_text ...
+# f_dialog_msgbox $msg_text [$hline]
 #
 # Throw up a dialog(1) msgbox. The msgbox remains until the user presses ENTER
 # or ESC, acknowledging the modal dialog.
@@ -1511,12 +1511,13 @@ f_xdialog_info()
 #
 f_dialog_msgbox()
 {
-	local msg_text="$*" height width
+	local msg_text="$1" hline="$2" height width
 	f_dialog_buttonbox_size height width \
-		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$msg_text"
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$msg_text" "$hline"
 	$DIALOG \
 		--title "$DIALOG_TITLE"         \
 		--backtitle "$DIALOG_BACKTITLE" \
+		--hline "$hline"                \
 		--ok-label "$msg_ok"            \
 		--msgbox "$msg_text" $height $width
 }
