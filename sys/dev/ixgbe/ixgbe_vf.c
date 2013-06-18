@@ -157,34 +157,33 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 		usec_delay(5);
 	}
 
-	if (timeout) {
-		/* mailbox timeout can now become active */
-		mbx->timeout = IXGBE_VF_MBX_INIT_TIMEOUT;
+	if (!timeout)
+		return IXGBE_ERR_RESET_FAILED;
 
-		msgbuf[0] = IXGBE_VF_RESET;
-		mbx->ops.write_posted(hw, msgbuf, 1, 0);
+	/* mailbox timeout can now become active */
+	mbx->timeout = IXGBE_VF_MBX_INIT_TIMEOUT;
 
-		msec_delay(10);
+	msgbuf[0] = IXGBE_VF_RESET;
+	mbx->ops.write_posted(hw, msgbuf, 1, 0);
 
-		/*
-		 * set our "perm_addr" based on info provided by PF
-		 * also set up the mc_filter_type which is piggy backed
-		 * on the mac address in word 3
-		 */
-		ret_val = mbx->ops.read_posted(hw, msgbuf,
-					       IXGBE_VF_PERMADDR_MSG_LEN, 0);
-		if (!ret_val) {
-			if (msgbuf[0] == (IXGBE_VF_RESET |
-					  IXGBE_VT_MSGTYPE_ACK)) {
-				memcpy(hw->mac.perm_addr, addr,
-				       IXGBE_ETH_LENGTH_OF_ADDRESS);
-				hw->mac.mc_filter_type =
-					msgbuf[IXGBE_VF_MC_TYPE_WORD];
-			} else {
-				ret_val = IXGBE_ERR_INVALID_MAC_ADDR;
-			}
-		}
-	}
+	msec_delay(10);
+
+	/*
+	 * set our "perm_addr" based on info provided by PF
+	 * also set up the mc_filter_type which is piggy backed
+	 * on the mac address in word 3
+	 */
+	ret_val = mbx->ops.read_posted(hw, msgbuf,
+			IXGBE_VF_PERMADDR_MSG_LEN, 0);
+	if (ret_val)
+		return ret_val;
+
+	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK) &&
+	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
+		return IXGBE_ERR_INVALID_MAC_ADDR;
+
+	memcpy(hw->mac.perm_addr, addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	hw->mac.mc_filter_type = msgbuf[IXGBE_VF_MC_TYPE_WORD];
 
 	return ret_val;
 }
