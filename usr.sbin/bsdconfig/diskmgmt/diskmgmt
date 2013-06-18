@@ -75,9 +75,9 @@ if [ "$USE_XDIALOG" ]; then
 	f_have "$X11TERM" || f_die 1 \
 		"$msg_no_such_file_or_directory" "$pgm" "$X11TERM"
 
-	exec $X11TERM $X11TERM_OPTS -e /usr/sbin/sade
+	exec $X11TERM $X11TERM_OPTS -e /usr/sbin/bsdinstall partedit
 else
-	exec /usr/sbin/sade
+	exec /usr/sbin/bsdinstall partedit
 fi
 
 ################################################################################
