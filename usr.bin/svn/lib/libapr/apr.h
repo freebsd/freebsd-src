@@ -316,7 +316,12 @@ typedef  unsigned short  apr_uint16_t;
 typedef  int             apr_int32_t;
 typedef  unsigned int    apr_uint32_t;
 
+#include <sys/_types.h>
+#ifdef __LP64__
 #define APR_SIZEOF_VOIDP 8
+#else
+#define APR_SIZEOF_VOIDP 4
+#endif
 
 /*
  * Darwin 10's default compiler (gcc42) builds for both 64 and
@@ -351,8 +356,8 @@ typedef  unsigned int    apr_uint32_t;
  #define UINT64_C(v)  (v ## ULL)
 #endif
 #else
- typedef  long            apr_int64_t;
- typedef  unsigned long   apr_uint64_t;
+ typedef  __int64_t            apr_int64_t;
+ typedef  __uint64_t           apr_uint64_t;
 #endif
 
 typedef  size_t          apr_size_t;
@@ -516,6 +521,7 @@ typedef  apr_uint32_t            apr_uintptr_t;
  * configure.in.
  */
 
+#ifdef __LP64__
 #define APR_SSIZE_T_FMT "ld"
 
 /* And APR_SIZE_T_FMT */
@@ -535,6 +541,15 @@ typedef  apr_uint32_t            apr_uintptr_t;
 
 /* And APR_UINT64_T_HEX_FMT */
 #define APR_UINT64_T_HEX_FMT "lx"
+#else
+#define APR_SSIZE_T_FMT "d"
+#define APR_SIZE_T_FMT "u"
+#define APR_OFF_T_FMT APR_INT64_T_FMT
+#define APR_PID_T_FMT "d"
+#define APR_INT64_T_FMT "lld"
+#define APR_UINT64_T_FMT "llu"
+#define APR_UINT64_T_HEX_FMT "llx"
+#endif
 
 /*
  * Ensure we work with universal binaries on Darwin
