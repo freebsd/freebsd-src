@@ -183,7 +183,7 @@ if [ "$saver_to_set" ]; then
 	f_sysrc_set saver "$saver_to_set" || f_die
 	break
 else
-	f_die "$msg_unknown_saver"
+	f_die 1 "$msg_unknown_saver"
 fi
 
 exit $SUCCESS
