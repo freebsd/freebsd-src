@@ -168,21 +168,10 @@ SYSCTL_STRING(_hw, OID_AUTO, family, CTLFLAG_RD, cpu_family, 0,
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
-
 struct msgbuf *msgbufp = NULL;
 
 /* Other subsystems (e.g., ACPI) can hook this later. */
 void (*cpu_idle_hook)(void) = NULL;
-
-long Maxmem = 0;
-long realmem = 0;
-
-#define	PHYSMAP_SIZE	(2 * VM_PHYSSEG_MAX)
-
-vm_paddr_t phys_avail[PHYSMAP_SIZE + 2];
-
-/* must be 2 less so 0 0 can signal end of chunks */
-#define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
 struct kva_md_info kmi;
 
@@ -286,25 +275,8 @@ cpu_startup(void *dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %ld (%ld MB)\n", ia64_ptob(Maxmem),
-	    ia64_ptob(Maxmem) / 1048576);
-	realmem = Maxmem;
-
-	/*
-	 * Display any holes after the first chunk of extended memory.
-	 */
-	if (bootverbose) {
-		int indx;
-
-		printf("Physical memory chunk(s):\n");
-		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			long size1 = phys_avail[indx + 1] - phys_avail[indx];
-
-			printf("0x%08lx - 0x%08lx, %ld bytes (%ld pages)\n",
-			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
-			    size1 >> PAGE_SHIFT);
-		}
-	}
+	printf("real memory  = %ld (%ld MB)\n", ptoa(realmem),
+	    ptoa(realmem) / 1048576);
 
 	vm_ksubmap_init(&kmi);
 
@@ -716,42 +688,86 @@ struct ia64_init_return
 ia64_init(void)
 {
 	struct ia64_init_return ret;
-	int phys_avail_cnt;
-	vm_offset_t kernstart, kernend;
-	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
-	char *p;
 	struct efi_md *md;
+	pt_entry_t *pbvm_pgtbl_ent, *pbvm_pgtbl_lim;
+	char *p;
+	vm_offset_t kernend;
+	vm_size_t mdlen;
 	int metadata_missing;
 
-	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
-
 	/*
-	 * TODO: Disable interrupts, floating point etc.
-	 * Maybe flush cache and tlb
+	 * NO OUTPUT ALLOWED UNTIL FURTHER NOTICE.
 	 */
+
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 
 	/*
-	 * TODO: Get critical system information (if possible, from the
-	 * information provided by the boot program).
+	 * Region 6 is direct mapped UC and region 7 is direct mapped
+	 * WC. The details of this is controlled by the Alt {I,D}TLB
+	 * handlers. Here we just make sure that they have the largest
+	 * possible page size to minimise TLB usage.
 	 */
+	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
+	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
+	ia64_srlz_d();
+
+	/* Initialize/setup physical memory datastructures */
+	ia64_physmem_init();
 
 	/*
-	 * Look for the I/O ports first - we need them for console
-	 * probing.
+	 * Process the memory map. This gives us the PAL locations,
+	 * the I/O port base address, the available memory regions
+	 * for initializing the physical memory map.
 	 */
 	for (md = efi_md_first(); md != NULL; md = efi_md_next(md)) {
+		mdlen = md->md_pages * EFI_PAGE_SIZE;
 		switch (md->md_type) {
 		case EFI_MD_TYPE_IOPORT:
 			ia64_port_base = (uintptr_t)pmap_mapdev(md->md_phys,
-			    md->md_pages * EFI_PAGE_SIZE);
+			    mdlen);
 			break;
 		case EFI_MD_TYPE_PALCODE:
-			ia64_pal_size = md->md_pages * EFI_PAGE_SIZE;
 			ia64_pal_base = md->md_phys;
+			ia64_pal_size = mdlen;
+			/*FALLTHROUGH*/
+		case EFI_MD_TYPE_BAD:
+		case EFI_MD_TYPE_FIRMWARE:
+		case EFI_MD_TYPE_RECLAIM:
+		case EFI_MD_TYPE_RT_CODE:
+		case EFI_MD_TYPE_RT_DATA:
+			/* Don't use these memory regions. */
+			ia64_physmem_track(md->md_phys, mdlen);
+			break;
+		case EFI_MD_TYPE_BS_CODE:
+		case EFI_MD_TYPE_BS_DATA:
+		case EFI_MD_TYPE_CODE:
+		case EFI_MD_TYPE_DATA:
+		case EFI_MD_TYPE_FREE:
+			/* These are ok to use. */
+			ia64_physmem_add(md->md_phys, mdlen);
 			break;
 		}
 	}
+
+	/*
+	 * Remove the PBVM and its page table from phys_avail. The loader
+	 * passes the physical address of the page table to us. The virtual
+	 * address of the page table is fixed.
+	 * Track and the PBVM limit for later use.
+	 */
+	ia64_physmem_delete(bootinfo->bi_pbvm_pgtbl, bootinfo->bi_pbvm_pgtblsz);
+	pbvm_pgtbl_ent = (void *)IA64_PBVM_PGTBL;
+	pbvm_pgtbl_lim = (void *)(IA64_PBVM_PGTBL + bootinfo->bi_pbvm_pgtblsz);
+	while (pbvm_pgtbl_ent < pbvm_pgtbl_lim) {
+		if ((*pbvm_pgtbl_ent & PTE_PRESENT) == 0)
+			break;
+		ia64_physmem_delete(*pbvm_pgtbl_ent & PTE_PPN_MASK,
+		    IA64_PBVM_PAGE_SIZE);
+		pbvm_pgtbl_ent++;
+	}
+
+	/* Finalize physical memory datastructures */
+	ia64_physmem_fini();
 
 	metadata_missing = 0;
 	if (bootinfo->bi_modulep)
@@ -773,9 +789,8 @@ ia64_init(void)
 		bootverbose = 1;
 
 	/*
-	 * Find the beginning and end of the kernel.
+	 * Find the end of the kernel.
 	 */
-	kernstart = trunc_page(kernel_text);
 #ifdef DDB
 	ksym_start = bootinfo->bi_symtab;
 	ksym_end = bootinfo->bi_esymtab;
@@ -786,16 +801,6 @@ ia64_init(void)
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo->bi_kernend)
 		kernend = round_page(bootinfo->bi_kernend);
-
-	/*
-	 * Region 6 is direct mapped UC and region 7 is direct mapped
-	 * WC. The details of this is controlled by the Alt {I,D}TLB
-	 * handlers. Here we just make sure that they have the largest
-	 * possible page size to minimise TLB usage.
-	 */
-	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
-	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
-	ia64_srlz_d();
 
 	/*
 	 * Wire things up so we can call the firmware.
@@ -844,92 +849,6 @@ ia64_init(void)
 		freeenv(p);
 	}
 
-	kernstartpfn = atop(IA64_RR_MASK(kernstart));
-	kernendpfn = atop(IA64_RR_MASK(kernend));
-
-	/*
-	 * Size the memory regions and load phys_avail[] with the results.
-	 */
-
-	/*
-	 * Find out how much memory is available, by looking at
-	 * the memory descriptors.
-	 */
-
-#ifdef DEBUG_MD
-	printf("Memory descriptor count: %d\n", mdcount);
-#endif
-
-	phys_avail_cnt = 0;
-	for (md = efi_md_first(); md != NULL; md = efi_md_next(md)) {
-#ifdef DEBUG_MD
-		printf("MD %p: type %d pa 0x%lx cnt 0x%lx\n", md,
-		    md->md_type, md->md_phys, md->md_pages);
-#endif
-
-		pfn0 = ia64_btop(round_page(md->md_phys));
-		pfn1 = ia64_btop(trunc_page(md->md_phys + md->md_pages * 4096));
-		if (pfn1 <= pfn0)
-			continue;
-
-		if (md->md_type != EFI_MD_TYPE_FREE)
-			continue;
-
-		/*
-		 * We have a memory descriptor that describes conventional
-		 * memory that is for general use. We must determine if the
-		 * loader has put the kernel in this region.
-		 */
-		physmem += (pfn1 - pfn0);
-		if (pfn0 <= kernendpfn && kernstartpfn <= pfn1) {
-			/*
-			 * Must compute the location of the kernel
-			 * within the segment.
-			 */
-#ifdef DEBUG_MD
-			printf("Descriptor %p contains kernel\n", mp);
-#endif
-			if (pfn0 < kernstartpfn) {
-				/*
-				 * There is a chunk before the kernel.
-				 */
-#ifdef DEBUG_MD
-				printf("Loading chunk before kernel: "
-				       "0x%lx / 0x%lx\n", pfn0, kernstartpfn);
-#endif
-				phys_avail[phys_avail_cnt] = ia64_ptob(pfn0);
-				phys_avail[phys_avail_cnt+1] = ia64_ptob(kernstartpfn);
-				phys_avail_cnt += 2;
-			}
-			if (kernendpfn < pfn1) {
-				/*
-				 * There is a chunk after the kernel.
-				 */
-#ifdef DEBUG_MD
-				printf("Loading chunk after kernel: "
-				       "0x%lx / 0x%lx\n", kernendpfn, pfn1);
-#endif
-				phys_avail[phys_avail_cnt] = ia64_ptob(kernendpfn);
-				phys_avail[phys_avail_cnt+1] = ia64_ptob(pfn1);
-				phys_avail_cnt += 2;
-			}
-		} else {
-			/*
-			 * Just load this cluster as one chunk.
-			 */
-#ifdef DEBUG_MD
-			printf("Loading descriptor %d: 0x%lx / 0x%lx\n", i,
-			       pfn0, pfn1);
-#endif
-			phys_avail[phys_avail_cnt] = ia64_ptob(pfn0);
-			phys_avail[phys_avail_cnt+1] = ia64_ptob(pfn1);
-			phys_avail_cnt += 2;
-			
-		}
-	}
-	phys_avail[phys_avail_cnt] = 0;
-
-	Maxmem = physmem;
 	init_param2(physmem);
 
 	/*
