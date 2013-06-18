@@ -233,6 +233,13 @@ int bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 			int flags);
 
 /*
+ * Like bus_dmamap_load but for bios.
+ */
+int bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
+			bus_dmamap_callback_t *callback, void *callback_arg,
+			int flags);
+
+/*
  * Loads any memory descriptor.
  */
 int bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
