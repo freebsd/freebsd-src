@@ -5450,7 +5450,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if (IS_FC(isp)) {
 			fcparam *fcp = FCPARAM(isp, bus);
 
-			cpi->hba_misc = PIM_NOBUSRESET;
+			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 
 			/*
 			 * Because our loop ID can shift from time to time,
@@ -5480,7 +5480,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			sdparam *sdp = SDPARAM(isp, bus);
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
-			cpi->hba_misc = 0;
+			cpi->hba_misc = PIM_UNMAPPED;
 			cpi->initiator_id = sdp->isp_initiator_id;
 			cpi->base_transfer_speed = 3300;
 			cpi->transport = XPORT_SPI;
