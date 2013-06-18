@@ -222,6 +222,9 @@ f_dialog_title "$msg_view_edit_startup_configuration"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
+#
+# Launch application main menu
+#
 while :; do
 	dialog_menu_main
 	retval=$?

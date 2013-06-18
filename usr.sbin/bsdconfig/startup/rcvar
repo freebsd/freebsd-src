@@ -190,6 +190,9 @@ f_dialog_title "$msg_toggle_startup_services"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
+#
+# Launch application main menu
+#
 while :; do
 	dialog_menu_main || f_die
 	f_dialog_menutag_fetch mtag
