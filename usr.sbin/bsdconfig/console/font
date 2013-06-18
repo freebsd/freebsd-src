@@ -172,7 +172,7 @@ case "$mtag" in
 	f8="swiss-8x8" f14="NO" f16="swiss-8x16" ;;
 esac
 
-[ "$f8" -a "$f14" -a "$f16" ] || f_die "$msg_unknown_font_selection"
+[ "$f8" -a "$f14" -a "$f16" ] || f_die 1 "$msg_unknown_font_selection"
 
 f_sysrc_set font8x8 "$f8" || f_die
 f_sysrc_set font8x14 "$f14" || f_die

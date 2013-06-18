@@ -322,7 +322,7 @@ while :; do
 		f_sysrc_set keymap "$keymap_to_set" || f_die
 		break
 	else
-		f_die "$msg_unknown_keymap"
+		f_die 1 "$msg_unknown_keymap"
 	fi
 done
 

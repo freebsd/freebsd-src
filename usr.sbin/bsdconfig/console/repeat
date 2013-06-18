@@ -132,7 +132,7 @@ if [ "$repeat_rate_to_set" ]; then
 	f_sysrc_set keyrate "$repeat_rate_to_set" || f_die
 	break
 else
-	f_die "$msg_unknown_repeat_rate"
+	f_die 1 "$msg_unknown_repeat_rate"
 fi
 
 exit $SUCCESS
