@@ -121,21 +121,22 @@ while :; do
 	dialog_menu_main || f_die
 	f_dialog_menutag_fetch mtag
 
+	command=
 	case "$mtag" in
-	"X $msg_exit") break ;;
-	"2 $msg_font") # Choose an alternate screen font
-		$BSDCFG_LIBE/$APP_DIR/font ${USE_XDIALOG:+-X} ;;
-	"3 $msg_keymap") # Choose an alternate keyboard map
-		$BSDCFG_LIBE/$APP_DIR/keymap ${USE_XDIALOG:+-X} ;;
-	"4 $msg_repeat") # Set the rate at which keys repeat
-		$BSDCFG_LIBE/$APP_DIR/repeat ${USE_XDIALOG:+-X} ;;
-	"5 $msg_saver") # Configure the screen saver
-		$BSDCFG_LIBE/$APP_DIR/saver ${USE_XDIALOG:+-X} ;;
-	"6 $msg_screenmap") # Choose an alternate screenmap
-		$BSDCFG_LIBE/$APP_DIR/screenmap ${USE_XDIALOG:+-X} ;;
-	"7 $msg_ttys") # Choose console terminal type
-		$BSDCFG_LIBE/$APP_DIR/ttys ${USE_XDIALOG:+-X} ;;
+	"X $msg_exit")      break ;;
+	"2 $msg_font")      command=font      ;; # Choose alternate screen font
+	"3 $msg_keymap")    command=keymap    ;; # Choose alt. keyboard map
+	"4 $msg_repeat")    command=repeat    ;; # Set key repeat rate
+	"5 $msg_saver")     command=saver     ;; # Configure the screen saver
+	"6 $msg_screenmap") command=screenmap ;; # Choose alternate screenmap
+	"7 $msg_ttys")      command=ttys      ;; # Choose console terminal type
 	esac
+
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X} ;;
+	else
+		f_die 1 "$msg_unknown_console_menu_selection"
+	fi
 done
 
 exit $SUCCESS
