@@ -151,7 +151,7 @@ f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
 #
-# Launch application main menu
+# Launch application main menu (loop for menu update after selection)
 #
 while :; do
 	dialog_menu_main || f_die
@@ -166,7 +166,6 @@ while :; do
 	"3 [ ] $msg_nfs_port") # Same; Toggle value
 		f_sysrc_set nfs_reserved_port_only "YES";;
 	esac
-
 done
 
 exit $SUCCESS
