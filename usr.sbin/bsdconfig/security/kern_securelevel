@@ -124,7 +124,7 @@ f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
 #
-# Launch application main menu
+# Launch application main menu (loop for additional `Help' button)
 #
 while :; do
 	dialog_menu_main
