@@ -165,7 +165,6 @@ while :; do
 		f_sysrc_set moused_type "thinkingmouse" || f_die
 		break ;;
 	esac
-
 done
 
 exit $SUCCESS
