@@ -1594,7 +1594,7 @@
 /*
  * [RW 1] Setting this bit enables a timer in the GRC block to timeout an
  * access that does not finish within
- * ~misc_registers_grc_timout_val.grc_timeout_val cycles. When this bit is
+ * ~misc_registers_grc_timeout_val.grc_timeout_val cycles. When this bit is
  * cleared; this timeout is disabled. If this timeout occurs; the GRC shall
  * assert it attention output.
  */
