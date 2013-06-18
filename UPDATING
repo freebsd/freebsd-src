@@ -9,6 +9,12 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130618:	p4	FreeBSD-SA-13:06.mmap
+        Fix a bug that allowed a tracing process (e.g. gdb) to write
+        to a memory-mapped file in the traced process's address space
+        even if neither the traced process nor the tracing process had
+        write access to that file.
+
 20130429:	p3	FreeBSD-SA-13:05.nfsserver
 	Fix a bug that allows NFS clients to issue READDIR on files.
 
