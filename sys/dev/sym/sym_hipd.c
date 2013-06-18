@@ -7869,7 +7869,6 @@ sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		xpt_freeze_simq(np->sim, 1);
 		csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
-	return;
 }
 
 /*
@@ -8055,7 +8054,7 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		if ((np->features & FE_WIDE) != 0)
 			cpi->hba_inquiry |= PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
+		cpi->hba_misc = PIM_UNMAPPED;
 		if (np->usrflags & SYM_SCAN_TARGETS_HILO)
 			cpi->hba_misc |= PIM_SCANHILO;
 		if (np->usrflags & SYM_AVOID_BUS_RESET)
