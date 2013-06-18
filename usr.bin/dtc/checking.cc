@@ -195,6 +195,7 @@ check_manager::~check_manager()
 	while (disabled_checkers.begin() != disabled_checkers.end())
 	{
 		delete disabled_checkers.begin()->second;
+		disabled_checkers.erase(disabled_checkers.begin());
 	}
 }
 
