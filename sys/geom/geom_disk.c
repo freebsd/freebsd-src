@@ -151,6 +151,8 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 				printf("Opened disk %s -> %d\n",
 				    pp->name, error);
 			g_disk_unlock_giant(dp);
+			if (error != 0)
+				return (error);
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
