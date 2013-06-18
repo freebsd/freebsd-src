@@ -136,59 +136,55 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	case "$mtag" in
-	"1 $msg_none") # Disable the screensaver
-		f_sysrc_set saver "NO" || f_die
-		break ;;
-	"2 $msg_blank") # Simply blank the screen
-		f_sysrc_set saver "blank" || f_die
-		break ;;
-	"3 $msg_beastie") # "BSD Daemon" animated screen saver (graphics)
-		f_sysrc_set saver "beastie" || f_die
-		break ;;
-	"4 $msg_daemon") # "BSD Daemon" animated screen saver (text)
-		f_sysrc_set saver "daemon" || f_die
-		break ;;
-	"5 $msg_dragon") # Dragon screensaver (graphics)
-		f_sysrc_set saver "dragon" || f_die
-		break ;;
-	"6 $msg_fade") # Fade out effect screen saver
-		f_sysrc_set saver "fade" || f_die
-		break ;;
-	"7 $msg_fire") # Flames effect screen saver
-		f_sysrc_set saver "fire" || f_die
-		break ;;
-	"8 $msg_green") # "Green" power saving mode (if supported by monitor)
-		f_sysrc_set saver "green" || f_die
-		break ;;
-	"9 $msg_logo") # FreeBSD "logo" animated screen saver (graphics)
-		f_sysrc_set saver "logo" || f_die
-		break ;;
-	"a $msg_rain") # Rain drops screen saver
-		f_sysrc_set saver "rain" || f_die
-		break ;;
-	"b $msg_snake") # Draw a FreeBSD "snake" on your screen
-		f_sysrc_set saver "snake" || f_die
-		break ;;
-	"c $msg_star") # A "twinkling stars" effect
-		f_sysrc_set saver "star" || f_die
-		break ;;
-	"d $msg_warp") # A "stars warping" effect
-		f_sysrc_set saver "warp" || f_die
-		break ;;
-	"$msg_timeout") # Set the screen saver timeout interval
-		f_dialog_title "$msg_value_required"
-		f_dialog_input blanktime "$msg_enter_timeout_period" \
-		               "$( f_sysrc_get blanktime )" &&
-			f_sysrc_set blanktime "$blanktime"
-		f_dialog_title_restore
-		;;
-	esac
-done
+case "$mtag" in
+"$msg_timeout") # Set the screen saver timeout interval
+	f_dialog_title "$msg_value_required"
+	f_dialog_input blanktime "$msg_enter_timeout_period" \
+	               "$( f_sysrc_get blanktime )" &&
+		f_sysrc_set blanktime "$blanktime" || f_die
+	f_dialog_title_restore
+	exit $SUCCESS
+esac
+
+saver_to_set=
+case "$mtag" in
+"1 $msg_none") # Disable the screensaver
+	saver_to_set="NO" ;;
+"2 $msg_blank") # Simply blank the screen
+	saver_to_set="blank" ;;
+"3 $msg_beastie") # "BSD Daemon" animated screen saver (graphics)
+	saver_to_set="beastie" ;;
+"4 $msg_daemon") # "BSD Daemon" animated screen saver (text)
+	saver_to_set="daemon" ;;
+"5 $msg_dragon") # Dragon screensaver (graphics)
+	saver_to_set="dragon" ;;
+"6 $msg_fade") # Fade out effect screen saver
+	saver_to_set="fade" ;;
+"7 $msg_fire") # Flames effect screen saver
+	saver_to_set="fire" ;;
+"8 $msg_green") # "Green" power saving mode (if supported by monitor)
+	saver_to_set="green" ;;
+"9 $msg_logo") # FreeBSD "logo" animated screen saver (graphics)
+	saver_to_set="logo" ;;
+"a $msg_rain") # Rain drops screen saver
+	saver_to_set="rain" ;;
+"b $msg_snake") # Draw a FreeBSD "snake" on your screen
+	saver_to_set="snake" ;;
+"c $msg_star") # A "twinkling stars" effect
+	saver_to_set="star" ;;
+"d $msg_warp") # A "stars warping" effect
+	saver_to_set="warp" ;;
+esac
+
+if [ "$saver_to_set" ]; then
+	f_sysrc_set saver "$saver_to_set" || f_die
+	break
+else
+	f_die "$msg_unknown_saver"
+fi
 
 exit $SUCCESS
 

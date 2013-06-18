@@ -189,15 +189,13 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main || f_die
-	f_dialog_menutag_fetch mtag
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	[ "$mtag" = "1 $msg_none" ] && break
+[ "$mtag" = "1 $msg_none" ] && exit $SUCCESS
 
-	f_dialog_menuitem_fetch consterm
-	ttys_set_type "$consterm" && break
-done
+f_dialog_menuitem_fetch consterm
+ttys_set_type "$consterm" || f_die
 
 exit $SUCCESS
 

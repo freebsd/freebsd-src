@@ -254,188 +254,76 @@ while :; do
 
 	[ "$keymap_name" ] || continue
 
+	keymap_to_set=
 	case "$keymap_name" in
-	belgian)
-		f_sysrc_set keymap "be.iso" || f_die
-		break ;;
-	brazil_cp850)
-		f_sysrc_set keymap "br275.cp850" || f_die
-		break ;;
-	brazil_iso)
-		f_sysrc_set keymap "br275.iso" || f_die
-		break ;;
-	brazil_iso_accent)
-		f_sysrc_set keymap "br275.iso.acc" || f_die
-		break ;;
-	bulgarian_bds)
-		f_sysrc_set keymap "bg.bds.ctrlcaps" || f_die
-		break ;;
-	bulgarian_phonetic)
-		f_sysrc_set keymap "bg.phonetic.ctrlcaps" || f_die
-		break ;;
-	central_european_iso)
-		f_sysrc_set keymap "ce.iso2" || f_die
-		break ;;
-	croatian_iso)
-		f_sysrc_set keymap "hr.iso" || f_die
-		break ;;
-	czech_iso_accent)
-		f_sysrc_set keymap "cs.latin2.qwertz" || f_die
-		break ;;
-	danish_cp865)
-		f_sysrc_set keymap "danish.cp865" || f_die
-		break ;;
-	danish_iso)
-		f_sysrc_set keymap "danish.iso" || f_die
-		break ;;
-	estonian_cp850)
-		f_sysrc_set keymap "estonian.cp850" || f_die
-		break ;;
-	estonian_iso)
-		f_sysrc_set keymap "estonian.iso" || f_die
-		break ;;
-	estonian_iso_15)
-		f_sysrc_set keymap "estonian.iso15" || f_die
-		break ;;
-	finnish_cp850)
-		f_sysrc_set keymap "finnish.cp850" || f_die
-		break ;;
-	finnish_iso)
-		f_sysrc_set keymap "finnish.iso" || f_die
-		break ;;
-	french_iso)
-		f_sysrc_set keymap "fr.iso" || f_die
-		break ;;
-	french_iso_accent)
-		f_sysrc_set keymap "fr.iso.acc" || f_die
-		break ;;
-	french_iso_macbook)
-		f_sysrc_set keymap "fr.macbook.acc" || f_die
-		break ;;
-	german_cp850)
-		f_sysrc_set keymap "german.cp850" || f_die
-		break ;;
-	german_iso)
-		f_sysrc_set keymap "german.iso" || f_die
-		break ;;
-	greek_101)
-		f_sysrc_set keymap "gr.us101.acc" || f_die
-		break ;;
-	greek_104)
-		f_sysrc_set keymap "el.iso07" || f_die
-		break ;;
-	greek_elot)
-		f_sysrc_set keymap "gr.elot.acc" || f_die
-		break ;;
-	hungarian_101)
-		f_sysrc_set keymap "hu.iso2.101keys" || f_die
-		break ;;
-	hungarian_102)
-		f_sysrc_set keymap "hu.iso2.102keys" || f_die
-		break ;;
-	icelandic)
-		f_sysrc_set keymap "icelandic.iso" || f_die
-		break ;;
-	icelandic_accent)
-		f_sysrc_set keymap "icelandic.iso.acc" || f_die
-		break ;;
-	italian)
-		f_sysrc_set keymap "it.iso" || f_die
-		break ;;
-	japanese_106)
-		f_sysrc_set keymap "jp.106" || f_die
-		break ;;
-	latin_american)
-		f_sysrc_set keymap "latinamerican" || f_die
-		break ;;
-	latin_american_accent)
-		f_sysrc_set keymap "latinamerican.iso.acc" || f_die
-		break ;;
-	norway_iso)
-		f_sysrc_set keymap "norwegian.iso" || f_die
-		break ;;
-	polish_iso)
-		f_sysrc_set keymap "pl_PL.ISO8859-2" || f_die
-		break ;;
-	portuguese)
-		f_sysrc_set keymap "pt.iso" || f_die
-		break ;;
-	portuguese_accent)
-		f_sysrc_set keymap "pt.iso.acc" || f_die
-		break ;;
-	russia_koi8_r)
-		f_sysrc_set keymap "ru.koi8-r" || f_die
-		break ;;
-	slovak) 
-		f_sysrc_set keymap "sk.iso2" || f_die
-		break ;;
-	slovenian)
-		f_sysrc_set keymap "si.iso" || f_die
-		break ;;
-	spanish)
-		f_sysrc_set keymap "spanish.iso" || f_die
-		break ;;
-	spanish_accent)
-		f_sysrc_set keymap "spanish.iso.acc" || f_die
-		break ;;
-	swedish_cp850)
-		f_sysrc_set keymap "swedish.cp850" || f_die
-		break ;;
-	swedish_iso)
-		f_sysrc_set keymap "swedish.iso" || f_die
-		break ;;
-	swiss_french_cp850)
-		f_sysrc_set keymap "swissfrench.cp850" || f_die
-		break ;;
-	swiss_french_iso)
-		f_sysrc_set keymap "swissfrench.iso" || f_die
-		break ;;
-	swiss_french_iso_accent)
-		f_sysrc_set keymap "swissfrench.iso.acc" || f_die
-		break ;;
-	swiss_german_cp850)
-		f_sysrc_set keymap "swissgerman.cp850" || f_die
-		break ;;
-	swiss_german_iso)
-		f_sysrc_set keymap "swissgerman.iso" || f_die
-		break ;;
-	swiss_german_iso_accent)
-		f_sysrc_set keymap "swissgerman.iso.acc" || f_die
-		break ;;
-	uk_cp850)
-		f_sysrc_set keymap "uk.cp850" || f_die
-		break ;;
-	uk_iso)
-		f_sysrc_set keymap "uk.iso" || f_die
-		break ;;
-	ukrainian_koi8_u)
-		f_sysrc_set keymap "ua.koi8-u" || f_die
-		break ;;
-	ukrainian_koi8_u_koi8_r)
-		f_sysrc_set keymap "ua.koi8-u.shift.alt" || f_die
-		break ;;
-	usa_capslock_ctrl)
-		f_sysrc_set keymap "us.pc-ctrl" || f_die
-		break ;;
-	usa_dvorak)
-		f_sysrc_set keymap "us.dvorak" || f_die
-		break ;;
-	usa_dvorak_left)
-		f_sysrc_set keymap "us.dvorakl" || f_die
-		break ;;
-	usa_dvorak_right)
-		f_sysrc_set keymap "us.dvorakr" || f_die
-		break ;;
-	usa_emacs)
-		f_sysrc_set keymap "us.emacs" || f_die
-		break ;;
-	usa_iso)
-		f_sysrc_set keymap "us.iso" || f_die
-		break ;;
-	usa_unix)
-		f_sysrc_set keymap "us.unix" || f_die
-		break ;;
+	belgian)                 keymap_to_set="be.iso"                ;;
+	brazil_cp850)            keymap_to_set="br275.cp850"           ;;
+	brazil_iso)              keymap_to_set="br275.iso"             ;;
+	brazil_iso_accent)       keymap_to_set="br275.iso.acc"         ;;
+	bulgarian_bds)           keymap_to_set="bg.bds.ctrlcaps"       ;;
+	bulgarian_phonetic)      keymap_to_set="bg.phonetic.ctrlcaps"  ;;
+	central_european_iso)    keymap_to_set="ce.iso2"               ;;
+	croatian_iso)            keymap_to_set="hr.iso"                ;;
+	czech_iso_accent)        keymap_to_set="cs.latin2.qwertz"      ;;
+	danish_cp865)            keymap_to_set="danish.cp865"          ;;
+	danish_iso)              keymap_to_set="danish.iso"            ;;
+	estonian_cp850)          keymap_to_set="estonian.cp850"        ;;
+	estonian_iso)            keymap_to_set="estonian.iso"          ;;
+	estonian_iso_15)         keymap_to_set="estonian.iso15"        ;;
+	finnish_cp850)           keymap_to_set="finnish.cp850"         ;;
+	finnish_iso)             keymap_to_set="finnish.iso"           ;;
+	french_iso)              keymap_to_set="fr.iso"                ;;
+	french_iso_accent)       keymap_to_set="fr.iso.acc"            ;;
+	french_iso_macbook)      keymap_to_set="fr.macbook.acc"        ;;
+	german_cp850)            keymap_to_set="german.cp850"          ;;
+	german_iso)              keymap_to_set="german.iso"            ;;
+	greek_101)               keymap_to_set="gr.us101.acc"          ;;
+	greek_104)               keymap_to_set="el.iso07"              ;;
+	greek_elot)              keymap_to_set="gr.elot.acc"           ;;
+	hungarian_101)           keymap_to_set="hu.iso2.101keys"       ;;
+	hungarian_102)           keymap_to_set="hu.iso2.102keys"       ;;
+	icelandic)               keymap_to_set="icelandic.iso"         ;;
+	icelandic_accent)        keymap_to_set="icelandic.iso.acc"     ;;
+	italian)                 keymap_to_set="it.iso"                ;;
+	japanese_106)            keymap_to_set="jp.106"                ;;
+	latin_american)          keymap_to_set="latinamerican"         ;;
+	latin_american_accent)   keymap_to_set="latinamerican.iso.acc" ;;
+	norway_iso)              keymap_to_set="norwegian.iso"         ;;
+	polish_iso)              keymap_to_set="pl_PL.ISO8859-2"       ;;
+	portuguese)              keymap_to_set="pt.iso"                ;;
+	portuguese_accent)       keymap_to_set="pt.iso.acc"            ;;
+	russia_koi8_r)           keymap_to_set="ru.koi8-r"             ;;
+	slovak)                  keymap_to_set="sk.iso2"               ;;
+	slovenian)               keymap_to_set="si.iso"                ;;
+	spanish)                 keymap_to_set="spanish.iso"           ;;
+	spanish_accent)          keymap_to_set="spanish.iso.acc"       ;;
+	swedish_cp850)           keymap_to_set="swedish.cp850"         ;;
+	swedish_iso)             keymap_to_set="swedish.iso"           ;;
+	swiss_french_cp850)      keymap_to_set="swissfrench.cp850"     ;;
+	swiss_french_iso)        keymap_to_set="swissfrench.iso"       ;;
+	swiss_french_iso_accent) keymap_to_set="swissfrench.iso.acc"   ;;
+	swiss_german_cp850)      keymap_to_set="swissgerman.cp850"     ;;
+	swiss_german_iso)        keymap_to_set="swissgerman.iso"       ;;
+	swiss_german_iso_accent) keymap_to_set="swissgerman.iso.acc"   ;;
+	uk_cp850)                keymap_to_set="uk.cp850"              ;;
+	uk_iso)                  keymap_to_set="uk.iso"                ;;
+	ukrainian_koi8_u)        keymap_to_set="ua.koi8-u"             ;;
+	ukrainian_koi8_u_koi8_r) keymap_to_set="ua.koi8-u.shift.alt"   ;;
+	usa_capslock_ctrl)       keymap_to_set="us.pc-ctrl"            ;;
+	usa_dvorak)              keymap_to_set="us.dvorak"             ;;
+	usa_dvorak_left)         keymap_to_set="us.dvorakl"            ;;
+	usa_dvorak_right)        keymap_to_set="us.dvorakr"            ;;
+	usa_emacs)               keymap_to_set="us.emacs"              ;;
+	usa_iso)                 keymap_to_set="us.iso"                ;;
+	usa_unix)                keymap_to_set="us.unix"               ;;
 	esac
+
+	if [ "$keymap_to_set" ]; then
+		f_sysrc_set keymap "$keymap_to_set" || f_die
+		break
+	else
+		f_die "$msg_unknown_keymap"
+	fi
 done
 
 exit $SUCCESS
