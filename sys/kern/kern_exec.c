@@ -1069,8 +1069,9 @@ exec_new_vmspace(imgp, sv)
 		vm_object_reference(obj);
 		error = vm_map_fixed(map, obj, 0,
 		    sv->sv_shared_page_base, sv->sv_shared_page_len,
-		    VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
-		    MAP_COPY_ON_WRITE | MAP_ACC_NO_CHARGE);
+		    VM_PROT_READ | VM_PROT_EXECUTE,
+		    VM_PROT_READ | VM_PROT_EXECUTE,
+		    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
 		if (error) {
 			vm_object_deallocate(obj);
 			return (error);
