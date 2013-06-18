@@ -430,7 +430,7 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 		if ((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 			int error;
 
-			error - bus_dmamap_load_ccb(amd->buffer_dmat,
+			error = bus_dmamap_load_ccb(amd->buffer_dmat,
 						    pSRB->dmamap,
 						    pccb,
 						    amdexecutesrb,
@@ -442,7 +442,7 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 				 * until our mapping is
 				 * returned.
 				 */
-				xpt_freeze_simq(sim, 1);
+				xpt_freeze_simq(psim, 1);
 				pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 			}
 		} else
