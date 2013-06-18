@@ -421,7 +421,7 @@ do_text_merge(svn_boolean_t *contains_conflicts,
                                       target_marker,
                                       right_marker,
                                       "=======", /* separator */
-                                      svn_diff_conflict_display_modified_latest,
+                                      svn_diff_conflict_display_modified_original_latest,
                                       pool));
   SVN_ERR(svn_stream_close(ostream));
 
