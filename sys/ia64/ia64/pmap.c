@@ -244,36 +244,6 @@ static int	pmap_remove_vhpt(vm_offset_t va);
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m);
 
-vm_offset_t
-pmap_steal_memory(vm_size_t size)
-{
-	vm_size_t bank_size;
-	vm_offset_t pa, va;
-
-	size = round_page(size);
-
-	bank_size = phys_avail[1] - phys_avail[0];
-	while (size > bank_size) {
-		int i;
-		for (i = 0; phys_avail[i+2]; i+= 2) {
-			phys_avail[i] = phys_avail[i+2];
-			phys_avail[i+1] = phys_avail[i+3];
-		}
-		phys_avail[i] = 0;
-		phys_avail[i+1] = 0;
-		if (!phys_avail[0])
-			panic("pmap_steal_memory: out of memory");
-		bank_size = phys_avail[1] - phys_avail[0];
-	}
-
-	pa = phys_avail[0];
-	phys_avail[0] += size;
-
-	va = IA64_PHYS_TO_RR7(pa);
-	bzero((caddr_t) va, size);
-	return va;
-}
-
 static void
 pmap_initialize_vhpt(vm_offset_t vhpt)
 {
@@ -317,7 +287,7 @@ pmap_bootstrap()
 	struct ia64_pal_result res;
 	vm_offset_t base;
 	size_t size;
-	int i, j, count, ridbits;
+	int i, ridbits;
 
 	/*
 	 * Query the PAL Code to find the loop parameters for the
@@ -379,7 +349,7 @@ pmap_bootstrap()
 
 	pmap_ridmax = (1 << ridbits);
 	pmap_ridmapsz = pmap_ridmax / 64;
-	pmap_ridmap = (uint64_t *)pmap_steal_memory(pmap_ridmax / 8);
+	pmap_ridmap = ia64_physmem_alloc(pmap_ridmax / 8, PAGE_SIZE);
 	pmap_ridmap[0] |= 0xff;
 	pmap_rididx = 0;
 	pmap_ridcount = 8;
@@ -388,13 +358,9 @@ pmap_bootstrap()
 	/*
 	 * Allocate some memory for initial kernel 'page tables'.
 	 */
-	ia64_kptdir = (void *)pmap_steal_memory(PAGE_SIZE);
+	ia64_kptdir = ia64_physmem_alloc(PAGE_SIZE, PAGE_SIZE);
 	nkpt = 0;
 	kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
-
-	for (i = 0; phys_avail[i+2]; i+= 2)
-		;
-	count = i+2;
 
 	/*
 	 * Determine a valid (mappable) VHPT size.
@@ -409,35 +375,18 @@ pmap_bootstrap()
 	if (pmap_vhpt_log2size & 1)
 		pmap_vhpt_log2size--;
 
-	base = 0;
 	size = 1UL << pmap_vhpt_log2size;
-	for (i = 0; i < count; i += 2) {
-		base = (phys_avail[i] + size - 1) & ~(size - 1);
-		if (base + size <= phys_avail[i+1])
-			break;
-	}
-	if (!phys_avail[i])
+	base = (uintptr_t)ia64_physmem_alloc(size, size);
+	if (base == 0)
 		panic("Unable to allocate VHPT");
 
-	if (base != phys_avail[i]) {
-		/* Split this region. */
-		for (j = count; j > i; j -= 2) {
-			phys_avail[j] = phys_avail[j-2];
-			phys_avail[j+1] = phys_avail[j-2+1];
-		}
-		phys_avail[i+1] = base;
-		phys_avail[i+2] = base + size;
-	} else
-		phys_avail[i] = base + size;
-
-	base = IA64_PHYS_TO_RR7(base);
 	PCPU_SET(md.vhpt, base);
 	if (bootverbose)
 		printf("VHPT: address=%#lx, size=%#lx\n", base, size);
 
 	pmap_vhpt_nbuckets = size / sizeof(struct ia64_lpte);
-	pmap_vhpt_bucket = (void *)pmap_steal_memory(pmap_vhpt_nbuckets *
-	    sizeof(struct ia64_bucket));
+	pmap_vhpt_bucket = ia64_physmem_alloc(pmap_vhpt_nbuckets *
+	    sizeof(struct ia64_bucket), PAGE_SIZE);
 	for (i = 0; i < pmap_vhpt_nbuckets; i++) {
 		/* Stolen memory is zeroed. */
 		mtx_init(&pmap_vhpt_bucket[i].mutex, "VHPT bucket lock", NULL,
