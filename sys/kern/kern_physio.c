@@ -38,7 +38,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	struct cdevsw *csw;
 	caddr_t sa;
 	u_int iolen;
-	int error, i;
+	int error, i, mapped;
 
 	/* Keep the process UPAGES from being swapped. XXX: why ? */
 	PHOLD(curproc);
@@ -90,10 +90,9 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			bp->b_bufsize = bp->b_bcount;
 
 			bp->b_blkno = btodb(bp->b_offset);
+
 			csw = dev->si_devsw;
 			if (uio->uio_segflg == UIO_USERSPACE) {
-				int mapped;
-
 				if (csw != NULL &&
                                     (csw->d_flags & D_UNMAPPED_IO) != 0)
 					mapped = 0;
