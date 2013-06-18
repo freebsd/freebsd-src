@@ -110,9 +110,6 @@
 #define atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
 #define ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
 
-#define	ia64_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
-#define	ia64_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
-
 #define pgtok(x)                ((x) * (PAGE_SIZE / 1024)) 
 
 #endif	/* !_IA64_INCLUDE_PARAM_H_ */
