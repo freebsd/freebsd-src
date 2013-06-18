@@ -84,16 +84,7 @@ f_sysrc_delete moused_flags || f_die
 # Message box
 #
 f_dialog_title "$msg_message"
-hline="$hline_press_enter_or_space"
-prompt="$msg_mouse_daemon_is_disabled"
-f_dialog_buttonbox_size height width \
-	"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$prompt"
-$DIALOG \
-	--title "$DIALOG_TITLE"         \
-	--backtitle "$DIALOG_BACKTITLE" \
-	--hline "$hline"                \
-	--ok-label "$msg_ok"            \
-	--msgbox "$prompt" $height $width
+f_dialog_msgbox "$msg_mouse_daemon_is_disabled" "$hline_press_enter_or_space"
 
 exit $SUCCESS
 
