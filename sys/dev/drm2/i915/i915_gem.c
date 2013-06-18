@@ -1371,6 +1371,23 @@ unlocked_vmobj:
 	} else
 		DRM_LOCK(dev);
 
+	/*
+	 * Since the object lock was dropped, other thread might have
+	 * faulted on the same GTT address and instantiated the
+	 * mapping for the page.  Recheck.
+	 */
+	VM_OBJECT_WLOCK(vm_obj);
+	m = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	if (m != NULL) {
+		if ((m->flags & VPO_BUSY) != 0) {
+			DRM_UNLOCK(dev);
+			vm_page_sleep(m, "915pee");
+			goto retry;
+		}
+		goto have_page;
+	} else
+		VM_OBJECT_WUNLOCK(vm_obj);
+
 	/* Now bind it into the GTT if needed */
 	if (!obj->map_and_fenceable) {
 		ret = i915_gem_object_unbind(obj);
@@ -1424,8 +1441,9 @@ unlocked_vmobj:
 		goto retry;
 	}
 	m->valid = VM_PAGE_BITS_ALL;
-	*mres = m;
 	vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
+have_page:
+	*mres = m;
 	vm_page_busy(m);
 
 	CTR4(KTR_DRM, "fault %p %jx %x phys %x", gem_obj, offset, prot,
