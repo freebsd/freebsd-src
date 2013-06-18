@@ -32,6 +32,7 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -47,7 +48,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.8 - HEAD";
+char ixgbe_driver_version[] = "2.5.13";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -109,8 +110,7 @@ static void     ixgbe_start(struct ifnet *);
 static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
 #else /* ! IXGBE_LEGACY_TX */
 static int	ixgbe_mq_start(struct ifnet *, struct mbuf *);
-static int	ixgbe_mq_start_locked(struct ifnet *,
-                    struct tx_ring *, struct mbuf *);
+static int	ixgbe_mq_start_locked(struct ifnet *, struct tx_ring *);
 static void	ixgbe_qflush(struct ifnet *);
 static void	ixgbe_deferred_mq_start(void *, int);
 #endif /* IXGBE_LEGACY_TX */
@@ -122,6 +122,7 @@ static void     ixgbe_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixgbe_media_change(struct ifnet *);
 static void     ixgbe_identify_hardware(struct adapter *);
 static int      ixgbe_allocate_pci_resources(struct adapter *);
+static void	ixgbe_get_slot_info(struct ixgbe_hw *);
 static int      ixgbe_allocate_msix(struct adapter *);
 static int      ixgbe_allocate_legacy(struct adapter *);
 static int	ixgbe_allocate_queues(struct adapter *);
@@ -149,7 +150,7 @@ static void	ixgbe_setup_hw_rsc(struct rx_ring *);
 static void     ixgbe_enable_intr(struct adapter *);
 static void     ixgbe_disable_intr(struct adapter *);
 static void     ixgbe_update_stats_counters(struct adapter *);
-static bool	ixgbe_txeof(struct tx_ring *);
+static void	ixgbe_txeof(struct tx_ring *);
 static bool	ixgbe_rxeof(struct ix_queue *);
 static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
 static void     ixgbe_set_promisc(struct adapter *);
@@ -205,6 +206,9 @@ static void	ixgbe_handle_mod(void *, int);
 static void	ixgbe_atr(struct tx_ring *, struct mbuf *);
 static void	ixgbe_reinit_fdir(void *, int);
 #endif
+
+/* Missing shared code prototype */
+extern void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
@@ -289,6 +293,13 @@ TUNABLE_INT("hw.ixgbe.txd", &ixgbe_txd);
 /* Number of RX descriptors per ring */
 static int ixgbe_rxd = PERFORM_RXD;
 TUNABLE_INT("hw.ixgbe.rxd", &ixgbe_rxd);
+
+/*
+** Defining this on will allow the use
+** of unsupported SFP+ modules, note that
+** doing so you are on your own :)
+*/
+static int allow_unsupported_sfp = FALSE;
 
 /*
 ** HW RSC control: 
@@ -507,6 +518,7 @@ ixgbe_attach(device_t dev)
 	}
 
 	/* Initialize the shared code */
+	hw->allow_unsupported_sfp = allow_unsupported_sfp;
 	error = ixgbe_init_shared_code(hw);
 	if (error == IXGBE_ERR_SFP_NOT_PRESENT) {
 		/*
@@ -576,24 +588,10 @@ ixgbe_attach(device_t dev)
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    ixgbe_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 
-        /* Print PCIE bus type/speed/width info */
-	ixgbe_get_bus_info(hw);
-	device_printf(dev,"PCI Express Bus: Speed %s %s\n",
-	    ((hw->bus.speed == ixgbe_bus_speed_5000) ? "5.0Gb/s":
-	    (hw->bus.speed == ixgbe_bus_speed_2500) ? "2.5Gb/s":"Unknown"),
-	    (hw->bus.width == ixgbe_bus_width_pcie_x8) ? "Width x8" :
-	    (hw->bus.width == ixgbe_bus_width_pcie_x4) ? "Width x4" :
-	    (hw->bus.width == ixgbe_bus_width_pcie_x1) ? "Width x1" :
-	    ("Unknown"));
-
-	if ((hw->bus.width <= ixgbe_bus_width_pcie_x4) &&
-	    (hw->bus.speed == ixgbe_bus_speed_2500)) {
-		device_printf(dev, "PCI-Express bandwidth available"
-		    " for this card\n     is not sufficient for"
-		    " optimal performance.\n");
-		device_printf(dev, "For optimal performance a x8 "
-		    "PCIE, or x4 PCIE 2 slot is required.\n");
-        }
+        /*
+	** Check PCIE slot type/speed/width
+	*/
+	ixgbe_get_slot_info(hw);
 
 	/* Set an initial default flow control value */
 	adapter->fc =  ixgbe_fc_full;
@@ -797,7 +795,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	struct adapter	*adapter = ifp->if_softc;
 	struct ix_queue	*que;
 	struct tx_ring	*txr;
-	int 		i = 0, err = 0;
+	int 		i, err = 0;
 
 	/* Which queue to use */
 	if ((m->m_flags & M_FLOWID) != 0)
@@ -808,40 +806,37 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	txr = &adapter->tx_rings[i];
 	que = &adapter->queues[i];
 
+	err = drbr_enqueue(ifp, txr->br, m);
+	if (err)
+		return (err);
 	if (IXGBE_TX_TRYLOCK(txr)) {
-		err = ixgbe_mq_start_locked(ifp, txr, m);
+		err = ixgbe_mq_start_locked(ifp, txr);
 		IXGBE_TX_UNLOCK(txr);
-	} else {
-		err = drbr_enqueue(ifp, txr->br, m);
+	} else
 		taskqueue_enqueue(que->tq, &txr->txq_task);
-	}
 
 	return (err);
 }
 
 static int
-ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
+ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 {
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
-        int             enqueued, err = 0;
+        int             enqueued = 0, err = 0;
 
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    adapter->link_active == 0) {
-		if (m != NULL)
-			err = drbr_enqueue(ifp, txr->br, m);
-		return (err);
-	}
-
-	enqueued = 0;
-	if (m != NULL) {
-		err = drbr_enqueue(ifp, txr->br, m);
-		if (err) {
-			return (err);
-		}
-	}
+	    adapter->link_active == 0)
+		return (ENETDOWN);
 
 	/* Process the queue */
+#if __FreeBSD_version < 901504
+	next = drbr_dequeue(ifp, txr->br);
+	while (next != NULL) {
+		if ((err = ixgbe_xmit(txr, &next)) != 0) {
+			if (next != NULL)
+				err = drbr_enqueue(ifp, txr->br, next);
+#else
 	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = ixgbe_xmit(txr, &next)) != 0) {
 			if (next == NULL) {
@@ -849,16 +844,20 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			} else {
 				drbr_putback(ifp, txr->br, next);
 			}
+#endif
 			break;
 		}
+#if __FreeBSD_version >= 901504
 		drbr_advance(ifp, txr->br);
+#endif
 		enqueued++;
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
-		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD)
-			ixgbe_txeof(txr);
+#if __FreeBSD_version < 901504
+		next = drbr_dequeue(ifp, txr->br);
+#endif
 	}
 
 	if (enqueued > 0) {
@@ -885,7 +884,7 @@ ixgbe_deferred_mq_start(void *arg, int pending)
 
 	IXGBE_TX_LOCK(txr);
 	if (!drbr_empty(ifp, txr->br))
-		ixgbe_mq_start_locked(ifp, txr, NULL);
+		ixgbe_mq_start_locked(ifp, txr);
 	IXGBE_TX_UNLOCK(txr);
 }
 
@@ -1418,20 +1417,19 @@ ixgbe_handle_que(void *context, int pending)
 		ixgbe_txeof(txr);
 #ifndef IXGBE_LEGACY_TX
 		if (!drbr_empty(ifp, txr->br))
-			ixgbe_mq_start_locked(ifp, txr, NULL);
+			ixgbe_mq_start_locked(ifp, txr);
 #else
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			ixgbe_start_locked(txr, ifp);
 #endif
 		IXGBE_TX_UNLOCK(txr);
-		if (more) {
-			taskqueue_enqueue(que->tq, &que->que_task);
-			return;
-		}
 	}
 
 	/* Reenable this interrupt */
-	ixgbe_enable_queue(adapter, que->msix);
+	if (que->res != NULL)
+		ixgbe_enable_queue(adapter, que->msix);
+	else
+		ixgbe_enable_intr(adapter);
 	return;
 }
 
@@ -1448,9 +1446,10 @@ ixgbe_legacy_irq(void *arg)
 	struct ix_queue *que = arg;
 	struct adapter	*adapter = que->adapter;
 	struct ixgbe_hw	*hw = &adapter->hw;
+	struct ifnet    *ifp = adapter->ifp;
 	struct 		tx_ring *txr = adapter->tx_rings;
-	bool		more_tx, more_rx;
-	u32       	reg_eicr, loop = MAX_LOOP;
+	bool		more;
+	u32       	reg_eicr;
 
 
 	reg_eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
@@ -1461,16 +1460,18 @@ ixgbe_legacy_irq(void *arg)
 		return;
 	}
 
-	more_rx = ixgbe_rxeof(que);
+	more = ixgbe_rxeof(que);
 
 	IXGBE_TX_LOCK(txr);
-	do {
-		more_tx = ixgbe_txeof(txr);
-	} while (loop-- && more_tx);
+	ixgbe_txeof(txr);
+#ifdef IXGBE_LEGACY_TX
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		ixgbe_start_locked(txr, ifp);
+#else
+	if (!drbr_empty(ifp, txr->br))
+		ixgbe_mq_start_locked(ifp, txr);
+#endif
 	IXGBE_TX_UNLOCK(txr);
-
-	if (more_rx || more_tx)
-		taskqueue_enqueue(que->tq, &que->que_task);
 
 	/* Check for fan failure */
 	if ((hw->phy.media_type == ixgbe_media_type_copper) &&
@@ -1484,7 +1485,10 @@ ixgbe_legacy_irq(void *arg)
 	if (reg_eicr & IXGBE_EICR_LSC)
 		taskqueue_enqueue(adapter->tq, &adapter->link_task);
 
-	ixgbe_enable_intr(adapter);
+	if (more)
+		taskqueue_enqueue(que->tq, &que->que_task);
+	else
+		ixgbe_enable_intr(adapter);
 	return;
 }
 
@@ -1499,29 +1503,26 @@ ixgbe_msix_que(void *arg)
 {
 	struct ix_queue	*que = arg;
 	struct adapter  *adapter = que->adapter;
+	struct ifnet    *ifp = adapter->ifp;
 	struct tx_ring	*txr = que->txr;
 	struct rx_ring	*rxr = que->rxr;
-	bool		more_tx, more_rx;
+	bool		more;
 	u32		newitr = 0;
 
 	ixgbe_disable_queue(adapter, que->msix);
 	++que->irqs;
 
-	more_rx = ixgbe_rxeof(que);
+	more = ixgbe_rxeof(que);
 
 	IXGBE_TX_LOCK(txr);
-	more_tx = ixgbe_txeof(txr);
-	/*
-	** Make certain that if the stack 
-	** has anything queued the task gets
-	** scheduled to handle it.
-	*/
+	ixgbe_txeof(txr);
 #ifdef IXGBE_LEGACY_TX
-	if (!IFQ_DRV_IS_EMPTY(&adapter->ifp->if_snd))
+	if (!IFQ_DRV_IS_EMPTY(ifp->if_snd))
+		ixgbe_start_locked(txr, ifp);
 #else
-	if (!drbr_empty(adapter->ifp, txr->br))
+	if (!drbr_empty(ifp, txr->br))
+		ixgbe_mq_start_locked(ifp, txr);
 #endif
-		more_tx = 1;
 	IXGBE_TX_UNLOCK(txr);
 
 	/* Do AIM now? */
@@ -1575,9 +1576,9 @@ ixgbe_msix_que(void *arg)
         rxr->packets = 0;
 
 no_calc:
-	if (more_tx || more_rx)
+	if (more)
 		taskqueue_enqueue(que->tq, &que->que_task);
-	else /* Reenable this interrupt */
+	else
 		ixgbe_enable_queue(adapter, que->msix);
 	return;
 }
@@ -2062,7 +2063,7 @@ ixgbe_local_timer(void *arg)
 		    (paused == 0))
 			++hung;
 		else if (txr->queue_status == IXGBE_QUEUE_WORKING)
-			taskqueue_enqueue(que->tq, &que->que_task);
+			taskqueue_enqueue(que->tq, &txr->txq_task);
         }
 	/* Only truely watchdog if all queues show hung */
         if (hung == adapter->num_queues)
@@ -2149,9 +2150,14 @@ ixgbe_stop(void *arg)
 	ixgbe_reset_hw(hw);
 	hw->adapter_stopped = FALSE;
 	ixgbe_stop_adapter(hw);
-	/* Turn off the laser */
-	if (hw->phy.multispeed_fiber)
-		ixgbe_disable_tx_laser(hw);
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		ixgbe_stop_mac_link_on_d3_82599(hw);
+	/* Turn off the laser - noop with no optics */
+	ixgbe_disable_tx_laser(hw);
+
+	/* Update the stack */
+	adapter->link_up = FALSE;
+       	ixgbe_update_link_status(adapter);
 
 	/* reprogram the RAR[0] in case user changed it. */
 	ixgbe_set_rar(&adapter->hw, 0, adapter->hw.mac.addr, 0, IXGBE_RAH_AV);
@@ -2603,7 +2609,11 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+#if __FreeBSD_version < 1000025
+	ifp->if_baudrate = 1000000000;
+#else
 	if_initbaudrate(ifp, IF_Gbps(10));
+#endif
 	ifp->if_init = ixgbe_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -2614,6 +2624,8 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 #else
 	ifp->if_start = ixgbe_start;
 	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 2);
+	ifp->if_snd.ifq_drv_maxlen = adapter->num_tx_desc - 2;
+	IFQ_SET_READY(&ifp->if_snd);
 #endif
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
@@ -3557,7 +3569,7 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
  *  tx_buffer is put back on the free queue.
  *
  **********************************************************************/
-static bool
+static void
 ixgbe_txeof(struct tx_ring *txr)
 {
 	struct adapter		*adapter = txr->adapter;
@@ -3600,13 +3612,13 @@ ixgbe_txeof(struct tx_ring *txr)
 			netmap_tx_irq(ifp, txr->me |
 			    (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT));
 		}
-		return FALSE;
+		return;
 	}
 #endif /* DEV_NETMAP */
 
 	if (txr->tx_avail == txr->num_desc) {
 		txr->queue_status = IXGBE_QUEUE_IDLE;
-		return FALSE;
+		return;
 	}
 
 	/* Get work starting point */
@@ -3700,12 +3712,10 @@ ixgbe_txeof(struct tx_ring *txr)
 	if ((!processed) && ((ticks - txr->watchdog_time) > IXGBE_WATCHDOG))
 		txr->queue_status = IXGBE_QUEUE_HUNG;
 
-	if (txr->tx_avail == txr->num_desc) {
+	if (txr->tx_avail == txr->num_desc)
 		txr->queue_status = IXGBE_QUEUE_IDLE;
-		return (FALSE);
-	}
 
-	return TRUE;
+	return;
 }
 
 /*********************************************************************
@@ -4387,6 +4397,7 @@ ixgbe_rxeof(struct ix_queue *que)
 	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
 		return (FALSE);
 #endif /* DEV_NETMAP */
+
 	for (i = rxr->next_to_check; count != 0;) {
 		struct mbuf	*sendmp, *mp;
 		u32		rsc, ptype;
@@ -4576,15 +4587,12 @@ next_desc:
 	IXGBE_RX_UNLOCK(rxr);
 
 	/*
-	** We still have cleaning to do?
-	** Schedule another interrupt if so.
+	** Still have cleaning to do?
 	*/
-	if ((staterr & IXGBE_RXD_STAT_DD) != 0) {
-		ixgbe_rearm_queues(adapter, (u64)(1 << que->msix));
+	if ((staterr & IXGBE_RXD_STAT_DD) != 0)
 		return (TRUE);
-	}
-
-	return (FALSE);
+	else
+		return (FALSE);
 }
 
 
@@ -4831,6 +4839,111 @@ ixgbe_write_pci_cfg(struct ixgbe_hw *hw, u32 reg, u16 value)
 
 	return;
 }
+
+/*
+** Get the width and transaction speed of
+** the slot this adapter is plugged into.
+*/
+static void
+ixgbe_get_slot_info(struct ixgbe_hw *hw)
+{
+	device_t		dev = ((struct ixgbe_osdep *)hw->back)->dev;
+	struct ixgbe_mac_info	*mac = &hw->mac;
+	u16			link;
+	u32			offset;
+
+	/* For most devices simply call the shared code routine */
+	if (hw->device_id != IXGBE_DEV_ID_82599_SFP_SF_QP) {
+		ixgbe_get_bus_info(hw);
+		goto display;
+	}
+
+	/*
+	** For the Quad port adapter we need to parse back
+	** up the PCI tree to find the speed of the expansion
+	** slot into which this adapter is plugged. A bit more work.
+	*/
+	dev = device_get_parent(device_get_parent(dev));
+#ifdef IXGBE_DEBUG
+	device_printf(dev, "parent pcib = %x,%x,%x\n",
+	    pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev));
+#endif
+	dev = device_get_parent(device_get_parent(dev));
+#ifdef IXGBE_DEBUG
+	device_printf(dev, "slot pcib = %x,%x,%x\n",
+	    pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev));
+#endif
+	/* Now get the PCI Express Capabilities offset */
+	pci_find_cap(dev, PCIY_EXPRESS, &offset);
+	/* ...and read the Link Status Register */
+	link = pci_read_config(dev, offset + PCIER_LINK_STA, 2);
+	switch (link & IXGBE_PCI_LINK_WIDTH) {
+	case IXGBE_PCI_LINK_WIDTH_1:
+		hw->bus.width = ixgbe_bus_width_pcie_x1;
+		break;
+	case IXGBE_PCI_LINK_WIDTH_2:
+		hw->bus.width = ixgbe_bus_width_pcie_x2;
+		break;
+	case IXGBE_PCI_LINK_WIDTH_4:
+		hw->bus.width = ixgbe_bus_width_pcie_x4;
+		break;
+	case IXGBE_PCI_LINK_WIDTH_8:
+		hw->bus.width = ixgbe_bus_width_pcie_x8;
+		break;
+	default:
+		hw->bus.width = ixgbe_bus_width_unknown;
+		break;
+	}
+
+	switch (link & IXGBE_PCI_LINK_SPEED) {
+	case IXGBE_PCI_LINK_SPEED_2500:
+		hw->bus.speed = ixgbe_bus_speed_2500;
+		break;
+	case IXGBE_PCI_LINK_SPEED_5000:
+		hw->bus.speed = ixgbe_bus_speed_5000;
+		break;
+	case IXGBE_PCI_LINK_SPEED_8000:
+		hw->bus.speed = ixgbe_bus_speed_8000;
+		break;
+	default:
+		hw->bus.speed = ixgbe_bus_speed_unknown;
+		break;
+	}
+
+	mac->ops.set_lan_id(hw);
+
+display:
+	device_printf(dev,"PCI Express Bus: Speed %s %s\n",
+	    ((hw->bus.speed == ixgbe_bus_speed_8000) ? "8.0GT/s":
+	    (hw->bus.speed == ixgbe_bus_speed_5000) ? "5.0GT/s":
+	    (hw->bus.speed == ixgbe_bus_speed_2500) ? "2.5GT/s":"Unknown"),
+	    (hw->bus.width == ixgbe_bus_width_pcie_x8) ? "Width x8" :
+	    (hw->bus.width == ixgbe_bus_width_pcie_x4) ? "Width x4" :
+	    (hw->bus.width == ixgbe_bus_width_pcie_x1) ? "Width x1" :
+	    ("Unknown"));
+
+	if ((hw->device_id != IXGBE_DEV_ID_82599_SFP_SF_QP) &&
+	    ((hw->bus.width <= ixgbe_bus_width_pcie_x4) &&
+	    (hw->bus.speed == ixgbe_bus_speed_2500))) {
+		device_printf(dev, "PCI-Express bandwidth available"
+		    " for this card\n     is not sufficient for"
+		    " optimal performance.\n");
+		device_printf(dev, "For optimal performance a x8 "
+		    "PCIE, or x4 PCIE Gen2 slot is required.\n");
+        }
+	if ((hw->device_id == IXGBE_DEV_ID_82599_SFP_SF_QP) &&
+	    ((hw->bus.width <= ixgbe_bus_width_pcie_x8) &&
+	    (hw->bus.speed < ixgbe_bus_speed_8000))) {
+		device_printf(dev, "PCI-Express bandwidth available"
+		    " for this card\n     is not sufficient for"
+		    " optimal performance.\n");
+		device_printf(dev, "For optimal performance a x8 "
+		    "PCIE Gen3 slot is required.\n");
+        }
+
+	return;
+}
+
 
 /*
 ** Setup the correct IVAR register for a particular MSIX interrupt
@@ -5633,6 +5746,7 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 /*
 ** Thermal Shutdown Trigger
 **   - cause a Thermal Overtemp IRQ
+**   - this now requires firmware enabling
 */
 static int
 ixgbe_set_thermal_test(SYSCTL_HANDLER_ARGS)
