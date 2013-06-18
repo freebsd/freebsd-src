@@ -3799,6 +3799,12 @@ RetryLookup:;
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
+	if ((fault_typea & VM_PROT_COPY) != 0 &&
+	    (entry->max_protection & VM_PROT_WRITE) == 0 &&
+	    (entry->eflags & MAP_ENTRY_COW) == 0) {
+		vm_map_unlock_read(map);
+		return (KERN_PROTECTION_FAILURE);
+	}
 
 	/*
 	 * If this page is not pageable, we have to get it for all possible

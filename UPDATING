@@ -11,6 +11,12 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130618:
+        Fix a bug that allowed a tracing process (e.g. gdb) to write
+        to a memory-mapped file in the traced process's address space
+        even if neither the traced process nor the tracing process had
+        write access to that file.
+
 20130605:
 	Added ZFS TRIM support which is enabled by default. To disable
 	ZFS TRIM support set vfs.zfs.trim.enabled=0 in loader.conf.
