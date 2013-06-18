@@ -655,6 +655,14 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 			moea64_kenter(mmup, pa, pa);
 	}
 	ENABLE_TRANS(msr);
+
+	/*
+	 * Allow user to override unmapped_buf_allowed for testing.
+	 * XXXKIB Only direct map implementation was tested.
+	 */
+	if (!TUNABLE_INT_FETCH("vfs.unmapped_buf_allowed",
+	    &unmapped_buf_allowed))
+		unmapped_buf_allowed = hw_direct_map;
 }
 
 void

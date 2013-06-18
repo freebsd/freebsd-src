@@ -1076,7 +1076,7 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
-	    MNTK_EXTENDED_SHARED | MNTK_NO_IOPF;
+	    MNTK_EXTENDED_SHARED | MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -2122,6 +2122,7 @@ ffs_bufwrite(struct buf *bp)
 		 * set b_lblkno and BKGRDMARKER before calling bgetvp()
 		 * to avoid confusing the splay tree and gbincore().
 		 */
+		KASSERT((bp->b_flags & B_UNMAPPED) == 0, ("Unmapped cg"));
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
 		newbp->b_lblkno = bp->b_lblkno;
 		newbp->b_xflags |= BX_BKGRDMARKER;

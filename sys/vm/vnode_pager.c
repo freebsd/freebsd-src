@@ -706,6 +706,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	int runpg;
 	int runend;
 	struct buf *bp;
+	struct mount *mp;
 	int count;
 	int error;
 
@@ -911,9 +912,21 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	kva = (vm_offset_t)bp->b_data;
 
 	/*
-	 * and map the pages to be read into the kva
+	 * and map the pages to be read into the kva, if the filesystem
+	 * requires mapped buffers.
 	 */
-	pmap_qenter(kva, m, count);
+	mp = vp->v_mount;
+	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0 &&
+	    unmapped_buf_allowed) {
+		bp->b_data = unmapped_buf;
+		bp->b_kvabase = unmapped_buf;
+		bp->b_offset = 0;
+		bp->b_flags |= B_UNMAPPED;
+		bp->b_npages = count;
+		for (i = 0; i < count; i++)
+			bp->b_pages[i] = m[i];
+	} else
+		pmap_qenter(kva, m, count);
 
 	/* build a minimal buffer header */
 	bp->b_iocmd = BIO_READ;
@@ -942,11 +955,22 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	if ((bp->b_ioflags & BIO_ERROR) != 0)
 		error = EIO;
 
-	if (!error) {
-		if (size != count * PAGE_SIZE)
-			bzero((caddr_t) kva + size, PAGE_SIZE * count - size);
+	if (error == 0 && size != count * PAGE_SIZE) {
+		if ((bp->b_flags & B_UNMAPPED) != 0) {
+			bp->b_flags &= ~B_UNMAPPED;
+			pmap_qenter(kva, m, count);
+		}
+		bzero((caddr_t)kva + size, PAGE_SIZE * count - size);
 	}
-	pmap_qremove(kva, count);
+	if ((bp->b_flags & B_UNMAPPED) == 0)
+		pmap_qremove(kva, count);
+	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0) {
+		bp->b_data = (caddr_t)kva;
+		bp->b_kvabase = (caddr_t)kva;
+		bp->b_flags &= ~B_UNMAPPED;
+		for (i = 0; i < count; i++)
+			bp->b_pages[i] = NULL;
+	}
 
 	/*
 	 * free the buffer header back to the swap buffer pool

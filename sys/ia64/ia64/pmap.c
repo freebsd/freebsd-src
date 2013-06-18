@@ -1884,6 +1884,8 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	bcopy(src, dst, PAGE_SIZE);
 }
 
+int unmapped_buf_allowed;
+
 void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
     vm_offset_t b_offset, int xfersize)
