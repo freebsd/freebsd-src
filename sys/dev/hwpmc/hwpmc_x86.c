@@ -161,15 +161,13 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 	KASSERT(TRAPF_USERMODE(tf) == 0,("[x86,%d] not a kernel backtrace",
 	    __LINE__));
 
+	td = curthread;
 	pc = PMC_TRAPFRAME_TO_PC(tf);
 	fp = PMC_TRAPFRAME_TO_FP(tf);
 	sp = PMC_TRAPFRAME_TO_KERNEL_SP(tf);
 
 	*cc++ = pc;
 	r = fp + sizeof(uintptr_t); /* points to return address */
-
-	if ((td = curthread) == NULL)
-		return (1);
 
 	if (nframes <= 1)
 		return (1);

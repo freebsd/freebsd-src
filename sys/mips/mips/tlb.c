@@ -35,10 +35,18 @@
 #include <sys/smp.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
+#include <vm/pmap.h>
 
 #include <machine/pte.h>
 #include <machine/tlb.h>
+
+#if defined(CPU_CNMIPS)
+#define	MIPS_MAX_TLB_ENTRIES	128
+#elif defined(CPU_NLM)
+#define	MIPS_MAX_TLB_ENTRIES	(2048 + 128)
+#else
+#define	MIPS_MAX_TLB_ENTRIES	64
+#endif
 
 struct tlb_state {
 	unsigned wired;
@@ -187,16 +195,92 @@ tlb_invalidate_all_user(struct pmap *pmap)
 	intr_restore(s);
 }
 
+/*
+ * Invalidates any TLB entries that map a virtual page from the specified
+ * address range.  If "end" is zero, then every virtual page is considered to
+ * be within the address range's upper bound.
+ */
+void
+tlb_invalidate_range(pmap_t pmap, vm_offset_t start, vm_offset_t end)
+{
+	register_t asid, end_hi, hi, hi_pagemask, s, save_asid, start_hi;
+	int i;
+
+	KASSERT(start < end || (end == 0 && start > 0),
+	    ("tlb_invalidate_range: invalid range"));
+
+	/*
+	 * Truncate the virtual address "start" to an even page frame number,
+	 * and round the virtual address "end" to an even page frame number.
+	 */
+	start &= ~((1 << TLBMASK_SHIFT) - 1);
+	end = (end + (1 << TLBMASK_SHIFT) - 1) & ~((1 << TLBMASK_SHIFT) - 1);
+
+	s = intr_disable();
+	save_asid = mips_rd_entryhi() & TLBHI_ASID_MASK;
+
+	asid = pmap_asid(pmap);
+	start_hi = TLBHI_ENTRY(start, asid);
+	end_hi = TLBHI_ENTRY(end, asid);
+
+	/*
+	 * Select the fastest method for invalidating the TLB entries.
+	 */
+	if (end - start < num_tlbentries << TLBMASK_SHIFT || (end == 0 &&
+	    start >= -(num_tlbentries << TLBMASK_SHIFT))) {
+		/*
+		 * The virtual address range is small compared to the size of
+		 * the TLB.  Probe the TLB for each even numbered page frame
+		 * within the virtual address range.
+		 */
+		for (hi = start_hi; hi != end_hi; hi += 1 << TLBMASK_SHIFT) {
+			mips_wr_pagemask(0);
+			mips_wr_entryhi(hi);
+			tlb_probe();
+			i = mips_rd_index();
+			if (i >= 0)
+				tlb_invalidate_one(i);
+		}
+	} else {
+		/*
+		 * The virtual address range is large compared to the size of
+		 * the TLB.  Test every non-wired TLB entry.
+		 */
+		for (i = mips_rd_wired(); i < num_tlbentries; i++) {
+			mips_wr_index(i);
+			tlb_read();
+			hi = mips_rd_entryhi();
+			if ((hi & TLBHI_ASID_MASK) == asid && (hi < end_hi ||
+			    end == 0)) {
+				/*
+				 * If "hi" is a large page that spans
+				 * "start_hi", then it must be invalidated.
+				 */
+				hi_pagemask = mips_rd_pagemask();
+				if (hi >= (start_hi & ~(hi_pagemask <<
+				    TLBMASK_SHIFT)))
+					tlb_invalidate_one(i);
+			}
+		}
+	}
+
+	mips_wr_entryhi(save_asid);
+	intr_restore(s);
+}
+
 /* XXX Only if DDB?  */
 void
 tlb_save(void)
 {
-	unsigned i, cpu;
+	unsigned ntlb, i, cpu;
 
 	cpu = PCPU_GET(cpuid);
-
+	if (num_tlbentries > MIPS_MAX_TLB_ENTRIES)
+		ntlb = MIPS_MAX_TLB_ENTRIES;
+	else
+		ntlb = num_tlbentries;
 	tlb_state[cpu].wired = mips_rd_wired();
-	for (i = 0; i < num_tlbentries; i++) {
+	for (i = 0; i < ntlb; i++) {
 		mips_wr_index(i);
 		tlb_read();
 
@@ -256,7 +340,7 @@ tlb_invalidate_one(unsigned i)
 DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 {
 	register_t ehi, elo0, elo1;
-	unsigned i, cpu;
+	unsigned i, cpu, ntlb;
 
 	/*
 	 * XXX
@@ -271,12 +355,18 @@ DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 		db_printf("Invalid CPU %u\n", cpu);
 		return;
 	}
+	if (num_tlbentries > MIPS_MAX_TLB_ENTRIES) {
+		ntlb = MIPS_MAX_TLB_ENTRIES;
+		db_printf("Warning: Only %d of %d TLB entries saved!\n",
+		    ntlb, num_tlbentries);
+	} else
+		ntlb = num_tlbentries;
 
 	if (cpu == PCPU_GET(cpuid))
 		tlb_save();
 
 	db_printf("Beginning TLB dump for CPU %u...\n", cpu);
-	for (i = 0; i < num_tlbentries; i++) {
+	for (i = 0; i < ntlb; i++) {
 		if (i == tlb_state[cpu].wired) {
 			if (i != 0)
 				db_printf("^^^ WIRED ENTRIES ^^^\n");

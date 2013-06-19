@@ -459,7 +459,6 @@ int ssl3_connect(SSL *s)
 				SSL3_ST_CW_CHANGE_A,SSL3_ST_CW_CHANGE_B);
 			if (ret <= 0) goto end;
 
-
 #if defined(OPENSSL_NO_TLSEXT) || defined(OPENSSL_NO_NEXTPROTONEG)
 			s->state=SSL3_ST_CW_FINISHED_A;
 #else
@@ -987,7 +986,10 @@ int ssl3_get_server_hello(SSL *s)
 	 * client authentication.
 	 */
 	if (TLS1_get_version(s) < TLS1_2_VERSION && !ssl3_digest_cached_records(s))
+		{
+		al = SSL_AD_INTERNAL_ERROR;
 		goto f_err;
+		}
 	/* lets get the compression algorithm */
 	/* COMPRESSION */
 #ifdef OPENSSL_NO_COMP

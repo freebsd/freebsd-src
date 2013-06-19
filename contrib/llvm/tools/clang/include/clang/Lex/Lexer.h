@@ -14,11 +14,11 @@
 #ifndef LLVM_CLANG_LEXER_H
 #define LLVM_CLANG_LEXER_H
 
-#include "clang/Lex/PreprocessorLexer.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Lex/PreprocessorLexer.h"
 #include "llvm/ADT/SmallVector.h"
-#include <string>
 #include <cassert>
+#include <string>
 
 namespace clang {
 class DiagnosticsEngine;
@@ -31,11 +31,11 @@ class DiagnosticBuilder;
 enum ConflictMarkerKind {
   /// Not within a conflict marker.
   CMK_None,
-  /// A normal or diff3 conflict marker, initiated by at least 7 <s,
-  /// separated by at least 7 =s or |s, and terminated by at least 7 >s.
+  /// A normal or diff3 conflict marker, initiated by at least 7 "<"s,
+  /// separated by at least 7 "="s or "|"s, and terminated by at least 7 ">"s.
   CMK_Normal,
-  /// A Perforce-style conflict marker, initiated by 4 >s, separated by 4 =s,
-  /// and terminated by 4 <s.
+  /// A Perforce-style conflict marker, initiated by 4 ">"s,
+  /// separated by 4 "="s, and terminated by 4 "<"s.
   CMK_Perforce
 };
 
@@ -83,8 +83,8 @@ class Lexer : public PreprocessorLexer {
   // CurrentConflictMarkerState - The kind of conflict marker we are handling.
   ConflictMarkerKind CurrentConflictMarkerState;
 
-  Lexer(const Lexer&);          // DO NOT IMPLEMENT
-  void operator=(const Lexer&); // DO NOT IMPLEMENT
+  Lexer(const Lexer &) LLVM_DELETED_FUNCTION;
+  void operator=(const Lexer &) LLVM_DELETED_FUNCTION;
   friend class Preprocessor;
 
   void InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd);
@@ -128,9 +128,7 @@ public:
   SourceLocation getFileLoc() const { return FileLoc; }
 
   /// Lex - Return the next token in the file.  If this is the end of file, it
-  /// return the tok::eof token.  Return true if an error occurred and
-  /// compilation should terminate, false if normal.  This implicitly involves
-  /// the preprocessor.
+  /// return the tok::eof token.  This implicitly involves the preprocessor.
   void Lex(Token &Result) {
     // Start a new token.
     Result.startToken();
@@ -176,8 +174,8 @@ public:
   /// SetKeepWhitespaceMode - This method lets clients enable or disable
   /// whitespace retention mode.
   void SetKeepWhitespaceMode(bool Val) {
-    assert((!Val || LexingRawMode) &&
-           "Can only enable whitespace retention in raw mode");
+    assert((!Val || LexingRawMode || LangOpts.TraditionalCPP) &&
+           "Can only retain whitespace in raw mode or -traditional-cpp");
     ExtendedTokenMode = Val ? 2 : 0;
   }
 
@@ -195,6 +193,14 @@ public:
            "Can't play with comment retention state when retaining whitespace");
     ExtendedTokenMode = Mode ? 1 : 0;
   }
+
+  /// Sets the extended token mode back to its initial value, according to the
+  /// language options and preprocessor. This controls whether the lexer
+  /// produces comment and whitespace tokens.
+  ///
+  /// This requires the lexer to have an associated preprocessor. A standalone
+  /// lexer has nothing to reset to.
+  void resetExtendedTokenMode();
 
   const char *getBufferStart() const { return BufferStart; }
 
@@ -262,10 +268,10 @@ public:
   /// location and does not jump to the expansion or spelling
   /// location.
   static StringRef getSpelling(SourceLocation loc,
-                                     SmallVectorImpl<char> &buffer,
-                                     const SourceManager &SourceMgr,
-                                     const LangOptions &LangOpts,
-                                     bool *invalid = 0);
+                               SmallVectorImpl<char> &buffer,
+                               const SourceManager &SourceMgr,
+                               const LangOptions &LangOpts,
+                               bool *invalid = 0);
   
   /// MeasureTokenLength - Relex the token at the specified location and return
   /// its length in bytes in the input file.  If the token needs cleaning (e.g.
@@ -275,11 +281,15 @@ public:
                                      const SourceManager &SM,
                                      const LangOptions &LangOpts);
 
+  /// \brief Relex the token at the specified location.
+  /// \returns true if there was a failure, false on success.
+  static bool getRawToken(SourceLocation Loc, Token &Result,
+                          const SourceManager &SM,
+                          const LangOptions &LangOpts);
+
   /// \brief Given a location any where in a source buffer, find the location
   /// that corresponds to the beginning of the token in which the original
   /// source location lands.
-  ///
-  /// \param Loc 
   static SourceLocation GetBeginningOfToken(SourceLocation Loc,
                                             const SourceManager &SM,
                                             const LangOptions &LangOpts);
@@ -324,7 +334,7 @@ public:
   /// \brief Returns true if the given MacroID location points at the last
   /// token of the macro expansion.
   ///
-  /// \param MacroBegin If non-null and function returns true, it is set to
+  /// \param MacroEnd If non-null and function returns true, it is set to
   /// end location of the macro.
   static bool isAtEndOfMacroExpansion(SourceLocation loc,
                                       const SourceManager &SM,
@@ -396,7 +406,36 @@ public:
   static std::pair<unsigned, bool>
   ComputePreamble(const llvm::MemoryBuffer *Buffer, const LangOptions &LangOpts,
                   unsigned MaxLines = 0);
-                                        
+
+  /// \brief Checks that the given token is the first token that occurs after
+  /// the given location (this excludes comments and whitespace). Returns the
+  /// location immediately after the specified token. If the token is not found
+  /// or the location is inside a macro, the returned source location will be
+  /// invalid.
+  static SourceLocation findLocationAfterToken(SourceLocation loc,
+                                         tok::TokenKind TKind,
+                                         const SourceManager &SM,
+                                         const LangOptions &LangOpts,
+                                         bool SkipTrailingWhitespaceAndNewLine);
+
+  /// \brief Returns true if the given character could appear in an identifier.
+  static bool isIdentifierBodyChar(char c, const LangOptions &LangOpts);
+
+  /// getCharAndSizeNoWarn - Like the getCharAndSize method, but does not ever
+  /// emit a warning.
+  static inline char getCharAndSizeNoWarn(const char *Ptr, unsigned &Size,
+                                          const LangOptions &LangOpts) {
+    // If this is not a trigraph and not a UCN or escaped newline, return
+    // quickly.
+    if (isObviouslySimpleCharacter(Ptr[0])) {
+      Size = 1;
+      return *Ptr;
+    }
+
+    Size = 0;
+    return getCharAndSizeSlowNoWarn(Ptr, Size, LangOpts);
+  }
+
   //===--------------------------------------------------------------------===//
   // Internal implementation interfaces.
 private:
@@ -405,6 +444,11 @@ private:
   /// by Lex.
   ///
   void LexTokenInternal(Token &Result);
+
+  /// Given that a token begins with the Unicode character \p C, figure out
+  /// what kind of token it is and dispatch to the appropriate lexing helper
+  /// function.
+  void LexUnicode(Token &Result, uint32_t C, const char *CurPtr);
 
   /// FormTokenWithChars - When we lex a token, we have identified a span
   /// starting at BufferPtr, going to TokEnd that forms the token.  This method
@@ -427,7 +471,6 @@ private:
 
   //===--------------------------------------------------------------------===//
   // Lexer character reading interfaces.
-public:
 
   // This lexer is built on two interfaces for reading characters, both of which
   // automatically provide phase 1/2 translation.  getAndAdvanceChar is used
@@ -467,7 +510,6 @@ public:
     return C;
   }
 
-private:
   /// ConsumeChar - When a character (identified by getCharAndSize) is consumed
   /// and added to a given token, check to see if there are diagnostics that
   /// need to be emitted or flags that need to be set on the token.  If so, do
@@ -503,22 +545,6 @@ private:
   /// getCharAndSizeSlow - Handle the slow/uncommon case of the getCharAndSize
   /// method.
   char getCharAndSizeSlow(const char *Ptr, unsigned &Size, Token *Tok = 0);
-public:
-
-  /// getCharAndSizeNoWarn - Like the getCharAndSize method, but does not ever
-  /// emit a warning.
-  static inline char getCharAndSizeNoWarn(const char *Ptr, unsigned &Size,
-                                          const LangOptions &LangOpts) {
-    // If this is not a trigraph and not a UCN or escaped newline, return
-    // quickly.
-    if (isObviouslySimpleCharacter(Ptr[0])) {
-      Size = 1;
-      return *Ptr;
-    }
-
-    Size = 0;
-    return getCharAndSizeSlowNoWarn(Ptr, Size, LangOpts);
-  }
 
   /// getEscapedNewLineSize - Return the size of the specified escaped newline,
   /// or 0 if it is not an escaped newline. P[-1] is known to be a "\" on entry
@@ -529,22 +555,6 @@ public:
   /// them), skip over them and return the first non-escaped-newline found,
   /// otherwise return P.
   static const char *SkipEscapedNewLines(const char *P);
-
-  /// \brief Checks that the given token is the first token that occurs after
-  /// the given location (this excludes comments and whitespace). Returns the
-  /// location immediately after the specified token. If the token is not found
-  /// or the location is inside a macro, the returned source location will be
-  /// invalid.
-  static SourceLocation findLocationAfterToken(SourceLocation loc,
-                                         tok::TokenKind TKind,
-                                         const SourceManager &SM,
-                                         const LangOptions &LangOpts,
-                                         bool SkipTrailingWhitespaceAndNewLine);
-
-  /// \brief Returns true if the given character could appear in an identifier.
-  static bool isIdentifierBodyChar(char c, const LangOptions &LangOpts);
-
-private:
 
   /// getCharAndSizeSlowNoWarn - Same as getCharAndSizeSlow, but never emits a
   /// diagnostic.
@@ -571,15 +581,32 @@ private:
   bool LexEndOfFile          (Token &Result, const char *CurPtr);
 
   bool SkipWhitespace        (Token &Result, const char *CurPtr);
-  bool SkipBCPLComment       (Token &Result, const char *CurPtr);
+  bool SkipLineComment       (Token &Result, const char *CurPtr);
   bool SkipBlockComment      (Token &Result, const char *CurPtr);
-  bool SaveBCPLComment       (Token &Result, const char *CurPtr);
+  bool SaveLineComment       (Token &Result, const char *CurPtr);
   
   bool IsStartOfConflictMarker(const char *CurPtr);
   bool HandleEndOfConflictMarker(const char *CurPtr);
 
   bool isCodeCompletionPoint(const char *CurPtr) const;
   void cutOffLexing() { BufferPtr = BufferEnd; }
+
+  bool isHexaLiteral(const char *Start, const LangOptions &LangOpts);
+
+
+  /// Read a universal character name.
+  ///
+  /// \param CurPtr The position in the source buffer after the initial '\'.
+  ///               If the UCN is syntactically well-formed (but not necessarily
+  ///               valid), this parameter will be updated to point to the
+  ///               character after the UCN.
+  /// \param SlashLoc The position in the source buffer of the '\'.
+  /// \param Tok The token being formed. Pass \c NULL to suppress diagnostics
+  ///            and handle token formation in the caller.
+  ///
+  /// \return The Unicode codepoint specified by the UCN, or 0 if the UCN is
+  ///         invalid.
+  uint32_t tryReadUCN(const char *&CurPtr, const char *SlashLoc, Token *Tok);
 };
 
 

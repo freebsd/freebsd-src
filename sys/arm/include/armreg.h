@@ -146,11 +146,13 @@
 #define CPU_ID_ARM1026EJS	0x4106a260
 #define CPU_ID_ARM1136JS	0x4107b360
 #define CPU_ID_ARM1136JSR1	0x4117b360
+#define CPU_ID_ARM1176JZS	0x410fb760
 #define CPU_ID_CORTEXA8R1	0x411fc080
 #define CPU_ID_CORTEXA8R2	0x412fc080
 #define CPU_ID_CORTEXA8R3	0x413fc080
 #define CPU_ID_CORTEXA9R1	0x411fc090
 #define CPU_ID_CORTEXA9R2	0x412fc090
+#define CPU_ID_CORTEXA9R3	0x413fc090
 #define CPU_ID_SA110		0x4401a100
 #define CPU_ID_SA1100		0x4401a110
 #define	CPU_ID_TI925T		0x54029250
@@ -170,11 +172,12 @@
 
 #define CPU_ID_MV88SV581X_V6		0x560F5810 /* Marvell Sheeva 88SV581x v6 Core */
 #define CPU_ID_MV88SV581X_V7		0x561F5810 /* Marvell Sheeva 88SV581x v7 Core */
-#define CPU_ID_MV88SV584X		0x561F5840 /* Marvell Sheeva 88SV584x v6 Core */
+#define CPU_ID_MV88SV584X_V6		0x561F5840 /* Marvell Sheeva 88SV584x v6 Core */
+#define CPU_ID_MV88SV584X_V7		0x562F5840 /* Marvell Sheeva 88SV584x v7 Core */
 /* Marvell's CPUIDs with ARM ID in implementor field */
 #define CPU_ID_ARM_88SV581X_V6		0x410fb760 /* Marvell Sheeva 88SV581x v6 Core */
 #define CPU_ID_ARM_88SV581X_V7		0x413FC080 /* Marvell Sheeva 88SV581x v7 Core */
-#define CPU_ID_ARM_88SV584X		0x410FB024 /* Marvell Sheeva 88SV584x v6 Core */
+#define CPU_ID_ARM_88SV584X_V6		0x410FB020 /* Marvell Sheeva 88SV584x v6 Core */
 
 #define	CPU_ID_FA526		0x66015260
 #define	CPU_ID_FA626TE		0x66056260
@@ -283,10 +286,36 @@
 #define CPU_CONTROL_VECRELOC	0x00002000 /* V: Vector relocation */
 #define CPU_CONTROL_ROUNDROBIN	0x00004000 /* RR: Predictable replacement */
 #define CPU_CONTROL_V4COMPAT	0x00008000 /* L4: ARMv4 compat LDR R15 etc */
+#define CPU_CONTROL_FI_ENABLE	0x00200000 /* FI: Low interrupt latency */
+#define CPU_CONTROL_UNAL_ENABLE 0x00400000 /* U: unaligned data access */
 #define CPU_CONTROL_V6_EXTPAGE	0x00800000 /* XP: ARMv6 extended page tables */
 #define CPU_CONTROL_L2_ENABLE	0x04000000 /* L2 Cache enabled */
+#define CPU_CONTROL_AF_ENABLE	0x20000000 /* Access Flag enable */
 
 #define CPU_CONTROL_IDC_ENABLE	CPU_CONTROL_DC_ENABLE
+
+/* ARM11x6 Auxiliary Control Register (CP15 register 1, opcode2 1) */
+#define	ARM11X6_AUXCTL_RS	0x00000001 /* return stack */
+#define	ARM11X6_AUXCTL_DB	0x00000002 /* dynamic branch prediction */
+#define	ARM11X6_AUXCTL_SB	0x00000004 /* static branch prediction */
+#define	ARM11X6_AUXCTL_TR	0x00000008 /* MicroTLB replacement strat. */
+#define	ARM11X6_AUXCTL_EX	0x00000010 /* exclusive L1/L2 cache */
+#define	ARM11X6_AUXCTL_RA	0x00000020 /* clean entire cache disable */
+#define	ARM11X6_AUXCTL_RV	0x00000040 /* block transfer cache disable */
+#define	ARM11X6_AUXCTL_CZ	0x00000080 /* restrict cache size */
+
+/* ARM1136 Auxiliary Control Register (CP15 register 1, opcode2 1) */
+#define ARM1136_AUXCTL_PFI	0x80000000 /* PFI: partial FI mode. */
+					   /* This is an undocumented flag
+					    * used to work around a cache bug
+					    * in r0 steppings. See errata
+					    * 364296.
+					    */
+/* ARM1176 Auxiliary Control Register (CP15 register 1, opcode2 1) */   
+#define	ARM1176_AUXCTL_PHD	0x10000000 /* inst. prefetch halting disable */
+#define	ARM1176_AUXCTL_BFD	0x20000000 /* branch folding disable */
+#define	ARM1176_AUXCTL_FSD	0x40000000 /* force speculative ops disable */
+#define	ARM1176_AUXCTL_FIO	0x80000000 /* low intr latency override */
 
 /* XScale Auxillary Control Register (CP15 register 1, opcode2 1) */
 #define	XSCALE_AUXCTL_K		0x00000001 /* dis. write buffer coalescing */
@@ -367,6 +396,7 @@
 #define FAULT_ALIGN_0   0x01 /* Alignment */
 #define FAULT_ALIGN_1   0x03 /* Alignment */
 #define FAULT_TRANS_S   0x05 /* Translation -- Section */
+#define FAULT_TRANS_F   0x06 /* Translation -- Flag */
 #define FAULT_TRANS_P   0x07 /* Translation -- Page */
 #define FAULT_DOMAIN_S  0x09 /* Domain -- Section */
 #define FAULT_DOMAIN_P  0x0b /* Domain -- Page */

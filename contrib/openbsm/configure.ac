@@ -2,10 +2,12 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.1p2], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#54 $])
+AC_INIT([OpenBSM], [1.2-alpha3], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#66 $])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([config/config.h])
 AM_MAINTAINER_MODE
 
@@ -25,17 +27,23 @@ AC_PATH_PROGS(MIG, mig)
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
+AC_PROG_LEX
 AC_PROG_LIBTOOL
+AC_PROG_YACC
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
 AC_SEARCH_LIBS(dlsym, dl)
+AC_SEARCH_LIBS(pthread_create, pthread)
 AC_SEARCH_LIBS(clock_gettime, rt)
+AC_SEARCH_LIBS(SSL_connect, ssl)
+AC_SEARCH_LIBS(humanize_number, util)
+AC_SEARCH_LIBS(pidfile_open, util)
 
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([endian.h mach/mach.h machine/endian.h sys/endian.h stdint.h])
+AC_CHECK_HEADERS([mach/mach.h stdint.h pthread_np.h printf.h])
 
 AC_DEFINE([_GNU_SOURCE],,[Use extended API on platforms that require it])
 
@@ -74,6 +82,13 @@ AC_CHECK_MEMBER([struct ipc_perm._seq],
 #include <sys/ipc.h>
 ])
 
+AC_CHECK_MEMBER([struct sockaddr_storage.ss_len],
+[AC_DEFINE(HAVE_SOCKADDR_STORAGE_SS_LEN,, Define if sockaddr_storage.ss_len field exists)],
+[],[
+#include <sys/types.h>
+#include <sys/socket.h>
+])
+
 AC_HEADER_TIME
 AC_STRUCT_TM
 
@@ -85,7 +100,7 @@ AC_FUNC_MKTIME
 AC_TYPE_SIGNAL
 AC_FUNC_STAT
 AC_FUNC_STRFTIME
-AC_CHECK_FUNCS([bzero clock_gettime ftruncate gettimeofday inet_ntoa memset strchr strerror strlcat strlcpy strrchr strstr strtol strtoul pthread_mutex_lock])
+AC_CHECK_FUNCS([arc4random arc4random_buf bzero cap_enter clock_gettime closefrom faccessat fdopendir fstatat ftruncate getresgid getresuid gettimeofday inet_ntoa jail kqueue memset openat pthread_cond_timedwait_relative_np pthread_condattr_setclock pthread_mutex_lock renameat setproctitle sigtimedwait strchr strerror strlcat strlcpy strndup strrchr strstr strtol strtoul unlinkat vis])
 
 # sys/queue.h exists on most systems, but its capabilities vary a great deal.
 # test for LIST_FIRST and TAILQ_FOREACH_SAFE, which appears to not exist in
@@ -124,17 +139,95 @@ have_audit_syscalls=false
 AM_CONDITIONAL(HAVE_AUDIT_SYSCALLS, $have_audit_syscalls)
 
 #
-# There are a wide variety of endian macros and functions in the wild; we try
-# to use the native support if it defines be32enc(), but otherwise have to
-# use our own.
+# We rely on the BSD be32toh() and be32enc()-style endian macros to perform
+# byte order conversions.  Availability of these varies considerably -- in
+# general, a system might have neither, be32toh(), or be32toh() and be32enc().
+# There is also variation in which headers are even present, and whether they
+# are macros or functions.  Try to organise the world into some simpler cases.
+# The following macros may be set at the end:
+#
+# USE_ENDIAN_H
+# USE_SYS_ENDIAN_H
+# USE_MACHINE_ENDIAN_H
+# USE_COMPAT_ENDIAN_H
+# USE_COMPAT_ENDIAN_ENC_H
+#
+# First, decide which system endian.h to use.
+#
+AC_CHECK_HEADERS([endian.h], [
+	have_endian_h=yes
+], [
+	have_endian_h=no
+])
+
+AC_CHECK_HEADERS([sys/endian.h], [
+	have_sys_endian_h=yes
+], [
+	have_sys_endian_h=no
+])
+
+AC_CHECK_HEADERS([machine/endian.h], [
+	have_machine_endian_h=yes
+], [
+	have_machine_endian_h=no
+])
+
+if test $have_endian_h = yes; then
+	AC_DEFINE(USE_ENDIAN_H,, Define if endian.h should be included)
+elif test $have_sys_endian_h = yes; then
+	AC_DEFINE(USE_SYS_ENDIAN_H,, Define if sys/endian.h should be included)
+elif test $have_machine_endian_h = yes; then
+	AC_DEFINE(USE_MACHINE_ENDIAN_H,, Define if machine/endian.h should be included)
+else
+	AC_MSG_ERROR([no endian.h])
+fi
+
+#
+# Next, decide if we need to supplement with compat headers.
 #
 AC_TRY_LINK([
+	#ifdef USE_ENDIAN_H
+	#include <endian.h>
+	#endif
+	#ifdef USE_SYS_ENDIAN_H
 	#include <sys/endian.h>
+	#endif
+	#ifdef USE_MACHINE_ENDIAN_H
+	#include <machine/endian.h>
+	#endif
+], [
+	(void)be32toh(0);
+], [], [
+	AC_DEFINE(USE_COMPAT_ENDIAN_H,, Define if compat/endian.h is required)
+	AC_MSG_RESULT([using compat/endian.h])
+])
+
+AC_TRY_LINK([
+	#ifdef USE_ENDIAN_H
+	#include <endian.h>
+	#endif
+	#ifdef USE_SYS_ENDIAN_H
+	#include <sys/endian.h>
+	#endif
+	#ifdef USE_MACHINE_ENDIAN_H
+	#include <machine/endian.h>
+	#endif
+	#ifdef USE_COMPAT_ENDIAN_H
+	#include "compat/endian.h"
+	#endif
 	#include <stdlib.h>
 ], [
-	be32enc(NULL, 1);
-], [
-AC_DEFINE(HAVE_BE32ENC,, Define if be32enc is present)
+	int i;
+
+	i = bswap16(0);
+	i = bswap32(0);
+	i = bswap64(0);
+	be32enc(NULL, 0);
+	i = htole64(0);
+	i = le64toh(0);
+], [], [
+	AC_DEFINE(USE_COMPAT_ENDIAN_ENC_H,, Define if compat/endian_enc.h is required)
+	AC_MSG_RESULT([using compat/endian_enc.h])
 ])
 
 # Check to see if Mach IPC is used for trigger messages.  If so, use Mach IPC
@@ -151,6 +244,7 @@ AC_CONFIG_FILES([Makefile
                  bin/Makefile
                  bin/audit/Makefile
                  bin/auditd/Makefile
+                 bin/auditdistd/Makefile
                  bin/auditfilterd/Makefile
                  bin/auditreduce/Makefile
                  bin/praudit/Makefile

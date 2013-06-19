@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Parse/Parser.h"
-#include "clang/Parse/ParseDiagnostic.h"
 #include "RAIIObjectsForParser.h"
+#include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Sema/Designator.h"
 #include "clang/Sema/Scope.h"
 #include "llvm/ADT/SmallString.h"
@@ -33,7 +33,7 @@ bool Parser::MayBeDesignationStart() {
     return true;
       
   case tok::l_square: {  // designator: array-designator
-    if (!PP.getLangOpts().CPlusPlus0x)
+    if (!PP.getLangOpts().CPlusPlus11)
       return true;
     
     // C++11 lambda expressions and C99 designators can be ambiguous all the
@@ -313,7 +313,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
       Idx = ParseAssignmentExpression();
       if (Idx.isInvalid()) {
         SkipUntil(tok::r_square);
-        return move(Idx);
+        return Idx;
       }
     }
 
@@ -341,7 +341,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
       ExprResult RHS(ParseConstantExpression());
       if (RHS.isInvalid()) {
         SkipUntil(tok::r_square);
-        return move(RHS);
+        return RHS;
       }
       Desig.AddDesignator(Designator::getArrayRange(Idx.release(),
                                                     RHS.release(),
@@ -405,15 +405,14 @@ ExprResult Parser::ParseBraceInitializer() {
 
   /// InitExprs - This is the actual list of expressions contained in the
   /// initializer.
-  ExprVector InitExprs(Actions);
+  ExprVector InitExprs;
 
   if (Tok.is(tok::r_brace)) {
     // Empty initializers are a C++ feature and a GNU extension to C.
     if (!getLangOpts().CPlusPlus)
       Diag(LBraceLoc, diag::ext_gnu_empty_initializer);
     // Match the '}'.
-    return Actions.ActOnInitList(LBraceLoc, MultiExprArg(Actions),
-                                 ConsumeBrace());
+    return Actions.ActOnInitList(LBraceLoc, None, ConsumeBrace());
   }
 
   bool InitExprsOk = true;
@@ -476,7 +475,7 @@ ExprResult Parser::ParseBraceInitializer() {
   bool closed = !T.consumeClose();
 
   if (InitExprsOk && closed)
-    return Actions.ActOnInitList(LBraceLoc, move_arg(InitExprs),
+    return Actions.ActOnInitList(LBraceLoc, InitExprs,
                                  T.getCloseLocation());
 
   return ExprError(); // an error occurred.

@@ -11,11 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/raw_ostream.h"
-#include "clang/AST/TypeLocVisitor.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/TypeLocVisitor.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -85,7 +86,7 @@ void TypeLoc::initializeImpl(ASTContext &Context, TypeLoc TL,
 #define ABSTRACT_TYPELOC(CLASS, PARENT)
 #define TYPELOC(CLASS, PARENT)        \
     case CLASS: {                     \
-      CLASS##TypeLoc TLCasted = cast<CLASS##TypeLoc>(TL); \
+      CLASS##TypeLoc TLCasted = TL.castAs<CLASS##TypeLoc>(); \
       TLCasted.initializeLocal(Context, Loc);  \
       TL = TLCasted.getNextTypeLoc(); \
       if (!TL) return;                \
@@ -98,23 +99,39 @@ void TypeLoc::initializeImpl(ASTContext &Context, TypeLoc TL,
 
 SourceLocation TypeLoc::getBeginLoc() const {
   TypeLoc Cur = *this;
+  TypeLoc LeftMost = Cur;
   while (true) {
     switch (Cur.getTypeLocClass()) {
-    // FIXME: Currently QualifiedTypeLoc does not have a source range
-    // case Qualified:
     case Elaborated:
-    case DependentName:
-    case DependentTemplateSpecialization:
+      LeftMost = Cur;
       break;
-    default:
-      TypeLoc Next = Cur.getNextTypeLoc();
-      if (Next.isNull()) break;
-      Cur = Next;
+    case FunctionProto:
+      if (Cur.castAs<FunctionProtoTypeLoc>().getTypePtr()
+              ->hasTrailingReturn()) {
+        LeftMost = Cur;
+        break;
+      }
+      /* Fall through */
+    case FunctionNoProto:
+    case ConstantArray:
+    case DependentSizedArray:
+    case IncompleteArray:
+    case VariableArray:
+      // FIXME: Currently QualifiedTypeLoc does not have a source range
+    case Qualified:
+      Cur = Cur.getNextTypeLoc();
       continue;
-    }
+    default:
+      if (!Cur.getLocalSourceRange().getBegin().isInvalid())
+        LeftMost = Cur;
+      Cur = Cur.getNextTypeLoc();
+      if (Cur.isNull())
+        break;
+      continue;
+    } // switch
     break;
-  }
-  return Cur.getLocalSourceRange().getBegin();
+  } // while
+  return LeftMost.getLocalSourceRange().getBegin();
 }
 
 SourceLocation TypeLoc::getEndLoc() const {
@@ -131,9 +148,14 @@ SourceLocation TypeLoc::getEndLoc() const {
     case DependentSizedArray:
     case IncompleteArray:
     case VariableArray:
-    case FunctionProto:
     case FunctionNoProto:
       Last = Cur;
+      break;
+    case FunctionProto:
+      if (Cur.castAs<FunctionProtoTypeLoc>().getTypePtr()->hasTrailingReturn())
+        Last = TypeLoc();
+      else
+        Last = Cur;
       break;
     case Pointer:
     case BlockPointer:
@@ -177,9 +199,9 @@ namespace {
 /// because it's a convenient base class.  Ideally we would not accept
 /// those here, but ideally we would have better implementations for
 /// them.
-bool TypeSpecTypeLoc::classof(const TypeLoc *TL) {
-  if (TL->getType().hasLocalQualifiers()) return false;
-  return TSTChecker().Visit(*TL);
+bool TypeSpecTypeLoc::isKind(const TypeLoc &TL) {
+  if (TL.getType().hasLocalQualifiers()) return false;
+  return TSTChecker().Visit(TL);
 }
 
 // Reimplemented to account for GNU/C++ extension
@@ -241,6 +263,15 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
   case BuiltinType::ObjCId:
   case BuiltinType::ObjCClass:
   case BuiltinType::ObjCSel:
+  case BuiltinType::OCLImage1d:
+  case BuiltinType::OCLImage1dArray:
+  case BuiltinType::OCLImage1dBuffer:
+  case BuiltinType::OCLImage2d:
+  case BuiltinType::OCLImage2dArray:
+  case BuiltinType::OCLImage3d:
+  case BuiltinType::OCLSampler:
+  case BuiltinType::OCLEvent:
+  case BuiltinType::BuiltinFn:
     return TST_unspecified;
   }
 
@@ -248,8 +279,8 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
 }
 
 TypeLoc TypeLoc::IgnoreParensImpl(TypeLoc TL) {
-  while (ParenTypeLoc* PTL = dyn_cast<ParenTypeLoc>(&TL))
-    TL = PTL->getInnerLoc();
+  while (ParenTypeLoc PTL = TL.getAs<ParenTypeLoc>())
+    TL = PTL.getInnerLoc();
   return TL;
 }
 
@@ -300,7 +331,9 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
     case TemplateArgument::Null: 
     case TemplateArgument::Declaration:
     case TemplateArgument::Integral:
-    case TemplateArgument::Pack:
+    case TemplateArgument::NullPtr:
+      llvm_unreachable("Impossible TemplateArgument");
+
     case TemplateArgument::Expression:
       ArgInfos[i] = TemplateArgumentLocInfo(Args[i].getAsExpr());
       break;
@@ -310,7 +343,7 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
                           Context.getTrivialTypeSourceInfo(Args[i].getAsType(), 
                                                            Loc));
       break;
-        
+
     case TemplateArgument::Template:
     case TemplateArgument::TemplateExpansion: {
       NestedNameSpecifierLocBuilder Builder;
@@ -327,7 +360,11 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
                                             ? SourceLocation()
                                             : Loc);
       break;
-    }        
+    }
+
+    case TemplateArgument::Pack:
+      ArgInfos[i] = TemplateArgumentLocInfo();
+      break;
     }
   }
 }

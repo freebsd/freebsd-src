@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asloperands - AML operand processing
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,6 +181,10 @@ OpnDoMethod (
     Next = Next->Asl.Next;
     if (Next->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
     {
+        /* This is a ByteConstExpr, so eval the constant now */
+
+        OpcAmlConstantWalk (Next, 0, NULL);
+
         if (Next->Asl.Value.Integer > 15)
         {
             AslError (ASL_ERROR, ASL_MSG_SYNC_LEVEL, Next, NULL);
@@ -259,7 +262,7 @@ OpnDoFieldCommon (
     UpdateRule = (UINT8) Next->Asl.Value.Integer;
 
     /*
-     * Generate the flags byte.  The various fields are already
+     * Generate the flags byte. The various fields are already
      * in the right bit position via translation from the
      * keywords by the parser.
      */
@@ -295,7 +298,6 @@ OpnDoFieldCommon (
             /* Nothing additional to do */
             break;
 
-
         case PARSEOP_OFFSET:
 
             /* New offset into the field */
@@ -322,7 +324,7 @@ OpnDoFieldCommon (
             {
                 /*
                  * Offset is redundant; we don't need to output an
-                 * offset opcode.  Just set these nodes to default
+                 * offset opcode. Just set these nodes to default
                  */
                 Next->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
                 PkgLengthNode->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
@@ -338,7 +340,6 @@ OpnDoFieldCommon (
                 CurrentBitOffset = NewBitOffset;
             }
             break;
-
 
         case PARSEOP_NAMESEG:
         case PARSEOP_RESERVED_BYTES:
@@ -357,6 +358,7 @@ OpnDoFieldCommon (
                 case AML_FIELD_ACCESS_BYTE:
                 case AML_FIELD_ACCESS_BUFFER:
                 default:
+
                     MinimumLength = 8;
                     break;
 
@@ -377,7 +379,9 @@ OpnDoFieldCommon (
             break;
 
         default:
+
             /* All supported field opcodes must appear above */
+
             break;
         }
 
@@ -498,7 +502,7 @@ OpnDoBankField (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Tries to get the length of the region.  Can only do this at
+ * DESCRIPTION: Tries to get the length of the region. Can only do this at
  *              compile time if the length is a constant.
  *
  ******************************************************************************/
@@ -545,7 +549,7 @@ OpnDoRegion (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Construct the AML operands for the BUFFER ASL keyword.  We
+ * DESCRIPTION: Construct the AML operands for the BUFFER ASL keyword. We
  *              build a single raw byte buffer from the initialization nodes,
  *              each parse node contains a buffer byte.
  *
@@ -607,11 +611,10 @@ OpnDoBuffer (
         }
         break;
 
-
     case PARSEOP_STRING_LITERAL:
 
         /*
-         * Only one initializer, the string.  Buffer must be big enough to hold
+         * Only one initializer, the string. Buffer must be big enough to hold
          * the string plus the null termination byte
          */
         BufferLength = strlen (InitializerOp->Asl.Value.String) + 1;
@@ -621,18 +624,16 @@ OpnDoBuffer (
         InitializerOp->Asl.ParseOpcode    = PARSEOP_RAW_DATA;
         break;
 
-
     case PARSEOP_RAW_DATA:
 
         /* Buffer nodes are already initialized (e.g. Unicode operator) */
         return;
 
-
     case PARSEOP_DEFAULT_ARG:
         break;
 
-
     default:
+
         AslError (ASL_ERROR, ASL_MSG_INVALID_OPERAND, InitializerOp,
             "Unknown buffer initializer opcode");
         printf ("Unknown buffer initializer opcode [%s]\n",
@@ -678,7 +679,7 @@ OpnDoBuffer (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Construct the AML operands for the PACKAGE ASL keyword.  NOTE:
+ * DESCRIPTION: Construct the AML operands for the PACKAGE ASL keyword. NOTE:
  *              can only be called after constants have been folded, to ensure
  *              that the PackageLength operand has been fully reduced.
  *
@@ -894,7 +895,7 @@ OpnDoDefinitionBlock (
 
 
     /*
-     * These nodes get stuffed into the table header.  They are special
+     * These nodes get stuffed into the table header. They are special
      * cased when the table is written to the output file.
      *
      * Mark all of these nodes as non-usable so they won't get output
@@ -994,7 +995,7 @@ OpnDoDefinitionBlock (
  * PARAMETERS:  Op              - Get an argument for this op
  *              Argn            - Nth argument to get
  *
- * RETURN:      The argument (as an Op object).  NULL if argument does not exist
+ * RETURN:      The argument (as an Op object). NULL if argument does not exist
  *
  * DESCRIPTION: Get the specified op's argument (peer)
  *
@@ -1089,6 +1090,7 @@ OpnAttachNameToNode (
         return;
 
     default:
+
         return;
     }
 
@@ -1107,7 +1109,7 @@ OpnAttachNameToNode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Prepare nodes to be output as AML data and operands.  The more
+ * DESCRIPTION: Prepare nodes to be output as AML data and operands. The more
  *              complex AML opcodes require processing of the child nodes
  *              (arguments/operands).
  *
@@ -1127,42 +1129,52 @@ OpnGenerateAmlOperands (
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_DEFINITIONBLOCK:
+
         OpnDoDefinitionBlock (Op);
         break;
 
     case PARSEOP_METHOD:
+
         OpnDoMethod (Op);
         break;
 
     case PARSEOP_MUTEX:
+
         OpnDoMutex (Op);
         break;
 
     case PARSEOP_FIELD:
+
         OpnDoField (Op);
         break;
 
     case PARSEOP_INDEXFIELD:
+
         OpnDoIndexField (Op);
         break;
 
     case PARSEOP_BANKFIELD:
+
         OpnDoBankField (Op);
         break;
 
     case PARSEOP_BUFFER:
+
         OpnDoBuffer (Op);
         break;
 
     case PARSEOP_LOADTABLE:
+
         OpnDoLoadTable (Op);
         break;
 
     case PARSEOP_OPERATIONREGION:
+
         OpnDoRegion (Op);
         break;
 
     case PARSEOP_RESOURCETEMPLATE:
+
         RsDoResourceTemplate (Op);
         break;
 
@@ -1170,9 +1182,11 @@ OpnGenerateAmlOperands (
     case PARSEOP_NAMESTRING:
     case PARSEOP_METHODCALL:
     case PARSEOP_STRING_LITERAL:
+
         break;
 
     default:
+
         break;
     }
 
@@ -1180,5 +1194,3 @@ OpnGenerateAmlOperands (
 
     OpnAttachNameToNode (Op);
 }
-
-

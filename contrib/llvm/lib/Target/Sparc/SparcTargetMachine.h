@@ -14,20 +14,20 @@
 #ifndef SPARCTARGETMACHINE_H
 #define SPARCTARGETMACHINE_H
 
-#include "SparcInstrInfo.h"
-#include "SparcISelLowering.h"
 #include "SparcFrameLowering.h"
+#include "SparcISelLowering.h"
+#include "SparcInstrInfo.h"
 #include "SparcSelectionDAGInfo.h"
 #include "SparcSubtarget.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
 class SparcTargetMachine : public LLVMTargetMachine {
   SparcSubtarget Subtarget;
-  const TargetData DataLayout;       // Calculates type size & alignment
+  const DataLayout DL;       // Calculates type size & alignment
   SparcInstrInfo InstrInfo;
   SparcTargetLowering TLInfo;
   SparcSelectionDAGInfo TSInfo;
@@ -52,7 +52,7 @@ public:
   virtual const SparcSelectionDAGInfo* getSelectionDAGInfo() const {
     return &TSInfo;
   }
-  virtual const TargetData       *getTargetData() const { return &DataLayout; }
+  virtual const DataLayout       *getDataLayout() const { return &DL; }
 
   // Pass Pipeline Configuration
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);

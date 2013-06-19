@@ -51,9 +51,13 @@ import sys
 import subprocess
 from subprocess import PIPE
 
+# Use input() for Python version 3
+if sys.version_info[0] == 3:
+    raw_input = input
+
 # A list of strings that are not really counters, just
 # name tags that are output by pmccontrol -L
-notcounter = ["IAF", "IAP", "TSC", "UNC", "UCF", "UCP"]
+notcounter = ["IAF", "IAP", "TSC", "UNC", "UCF", "UCP", "SOFT" ]
 
 def main():
 
@@ -67,11 +71,15 @@ def main():
 
     (options, args) = parser.parse_args()
 
+    if (options.program == None):
+        print("specify program, such as ls, with -p/--program")
+        sys.exit()
+        
     p = subprocess.Popen(["pmccontrol", "-L"], stdout=PIPE)
     counters = p.communicate()[0]
 
     if len(counters) <= 0:
-        print "no counters found"
+        print("no counters found")
         sys.exit()
 
     for counter in counters.split():
@@ -80,7 +88,7 @@ def main():
         p = subprocess.Popen(["pmcstat", "-p", counter, options.program],
                              stdout=PIPE)
         result = p.communicate()[0]
-        print result
+        print(result)
         if (options.wait == True):
             try:
                 value = raw_input("next?")

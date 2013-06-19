@@ -14,13 +14,13 @@
 #include "HexagonTargetObjectFile.h"
 #include "HexagonSubtarget.h"
 #include "HexagonTargetMachine.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/DerivedTypes.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/Support/ELF.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ELF.h"
 
 using namespace llvm;
 
@@ -73,7 +73,7 @@ IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
 
   if (Kind.isBSS() || Kind.isDataNoRel() || Kind.isCommon()) {
     Type *Ty = GV->getType()->getElementType();
-    return IsInSmallSection(TM.getTargetData()->getTypeAllocSize(Ty));
+    return IsInSmallSection(TM.getDataLayout()->getTypeAllocSize(Ty));
   }
 
   return false;

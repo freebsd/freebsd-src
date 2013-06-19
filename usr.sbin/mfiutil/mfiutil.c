@@ -44,8 +44,8 @@ MFI_TABLE(top, stop);
 MFI_TABLE(top, abort);
 
 int mfi_unit;
-
 u_int mfi_opts;
+static int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
 
 static void
 usage(void)
@@ -60,6 +60,7 @@ usage(void)
 	fprintf(stderr, "    show drives               - list physical drives\n");
 	fprintf(stderr, "    show events               - display event log\n");
 	fprintf(stderr, "    show firmware             - list firmware images\n");
+	fprintf(stderr, "    show foreign              - display detected foreign volumes\n");
 	fprintf(stderr, "    show logstate             - display event log sequence numbers\n");
 	fprintf(stderr, "    show volumes              - list logical volumes\n");
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
@@ -83,7 +84,14 @@ usage(void)
 	fprintf(stderr, "    patrol <disable|auto|manual> [interval [start]]\n");
 	fprintf(stderr, "    start patrol              - start a patrol read\n");
 	fprintf(stderr, "    stop patrol               - stop a patrol read\n");
+	fprintf(stderr, "    foreign scan              - scan for foreign configurations\n");
+	fprintf(stderr, "    foreign clear [volume]    - clear foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign diag [volume]     - diagnostic display foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign preview [volume]  - preview foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign import [volume]   - import foreign configurations (default all)\n");
 	fprintf(stderr, "    flash <firmware>\n");
+	fprintf(stderr, "    start learn               - start a BBU relearn\n");
+	fprintf(stderr, "    bbu <setting> <value>     - set BBU properties\n");
 #ifdef DEBUG
 	fprintf(stderr, "    debug                     - debug 'show config'\n");
 	fprintf(stderr, "    dump                      - display 'saved' config\n");
@@ -143,4 +151,32 @@ main(int ac, char **av)
 	}
 	warnx("Unknown command %s.", av[0]);
 	return (1);
+}
+
+void
+scan_firmware(struct mfi_info_component *comp)
+{
+	int len;
+
+	len = strlen(comp->name);
+	if (fw_name_width < len)
+		fw_name_width = len;
+	len = strlen(comp->version);
+	if (fw_version_width < len)
+		fw_version_width = len;
+	len = strlen(comp->build_date);
+	if (fw_date_width < len)
+		fw_date_width = len;
+	len = strlen(comp->build_time);
+	if (fw_time_width < len)
+		fw_time_width = len;
+}
+
+void
+display_firmware(struct mfi_info_component *comp, const char *tag)
+{
+
+	printf("%-*s  %-*s  %-*s  %-*s  %s\n", fw_name_width, comp->name,
+	    fw_version_width, comp->version, fw_date_width, comp->build_date,
+	    fw_time_width, comp->build_time, tag);
 }

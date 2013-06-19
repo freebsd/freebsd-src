@@ -65,8 +65,8 @@
 #  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
-#  8.  `make delete-old'
-#  9.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  8.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  9.  `make delete-old'
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
@@ -209,6 +209,12 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
+.if empty(.MAKEFLAGS:M-n)
+# skip this for -n to avoid changing previous behavior of 
+# 'make -n buildworld' etc.
+${TGTS}: .MAKE
+.endif
+
 ${TGTS}:
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
@@ -216,7 +222,7 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s ; echo
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif
@@ -280,12 +286,18 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
+.if !defined(.PARSEDIR)
+.if !defined(WITHOUT_BMAKE)
+	(cd ${.CURDIR} && ${MAKE} bmake)
+.else
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
 	    (cd ${.CURDIR} && ${MAKE} make); \
 	fi
+.endif
+.endif
 
 #
 # Upgrade make(1) to the current version using the installed
@@ -300,12 +312,12 @@ MMAKE=		${MMAKEENV} ${MAKE} \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR
 
-make: .PHONY
+make bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/make; \
+	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
@@ -359,7 +371,7 @@ MAKEFAIL=tee -a ${FAILFILE}
 MAKEFAIL=cat
 .endif
 
-universe: universe_prologue
+universe: universe_prologue upgrade_checks
 universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
@@ -369,7 +381,7 @@ universe_prologue:
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}
-.ORDER: universe_prologue universe_${target} universe_epilogue
+.ORDER: universe_prologue upgrade_checks universe_${target} universe_epilogue
 universe_${target}: universe_${target}_prologue
 universe_${target}_prologue:
 	@echo ">> ${target} started on `LC_ALL=C date`"
@@ -390,6 +402,14 @@ universe_${target}_${target_arch}: universe_${target}_prologue
 .endfor
 .endif
 .if !defined(MAKE_JUST_WORLDS)
+# If we are building world and kernels wait for the required worlds to finish
+.if !defined(MAKE_JUST_KERNELS)
+.for target_arch in ${TARGET_ARCHES_${target}}
+universe_${target}_kernels: universe_${target}_${target_arch}
+.endfor
+.endif
+universe_${target}: universe_${target}_kernels
+universe_${target}_kernels: universe_${target}_prologue
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
@@ -441,3 +461,6 @@ universe_epilogue:
 	fi
 .endif
 .endif
+
+buildLINT:
+	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT

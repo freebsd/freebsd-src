@@ -240,7 +240,7 @@ setup(char *dev)
 	 * read in the summary info.
 	 */
 	asked = 0;
-	sblock.fs_csp = calloc(1, sblock.fs_cssize);
+	sblock.fs_csp = Calloc(1, sblock.fs_cssize);
 	if (sblock.fs_csp == NULL) {
 		printf("cannot alloc %u bytes for cg summary info\n",
 		    (unsigned)sblock.fs_cssize);
@@ -249,6 +249,7 @@ setup(char *dev)
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
 		size = sblock.fs_cssize - i < sblock.fs_bsize ?
 		    sblock.fs_cssize - i : sblock.fs_bsize;
+		readcnt[sblk.b_type]++;
 		if (blread(fsreadfd, (char *)sblock.fs_csp + i,
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    size) != 0 && !asked) {
@@ -264,13 +265,13 @@ setup(char *dev)
 	 * allocate and initialize the necessary maps
 	 */
 	bmapsize = roundup(howmany(maxfsblock, CHAR_BIT), sizeof(short));
-	blockmap = calloc((unsigned)bmapsize, sizeof (char));
+	blockmap = Calloc((unsigned)bmapsize, sizeof (char));
 	if (blockmap == NULL) {
 		printf("cannot alloc %u bytes for blockmap\n",
 		    (unsigned)bmapsize);
 		goto badsb;
 	}
-	inostathead = calloc((unsigned)(sblock.fs_ncg),
+	inostathead = Calloc((unsigned)(sblock.fs_ncg),
 	    sizeof(struct inostatlist));
 	if (inostathead == NULL) {
 		printf("cannot alloc %u bytes for inostathead\n",
@@ -281,9 +282,9 @@ setup(char *dev)
 	dirhash = numdirs;
 	inplast = 0;
 	listmax = numdirs + 10;
-	inpsort = (struct inoinfo **)calloc((unsigned)listmax,
+	inpsort = (struct inoinfo **)Calloc((unsigned)listmax,
 	    sizeof(struct inoinfo *));
-	inphead = (struct inoinfo **)calloc((unsigned)numdirs,
+	inphead = (struct inoinfo **)Calloc((unsigned)numdirs,
 	    sizeof(struct inoinfo *));
 	if (inpsort == NULL || inphead == NULL) {
 		printf("cannot alloc %ju bytes for inphead\n",
@@ -322,6 +323,7 @@ readsb(int listerr)
 
 	if (bflag) {
 		super = bflag;
+		readcnt[sblk.b_type]++;
 		if ((blread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
 			return (0);
 		if (sblock.fs_magic == FS_BAD_MAGIC) {
@@ -337,6 +339,7 @@ readsb(int listerr)
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
 			super = sblock_try[i] / dev_bsize;
+			readcnt[sblk.b_type]++;
 			if ((blread(fsreadfd, (char *)&sblock, super,
 			    (long)SBLOCKSIZE)))
 				return (0);
@@ -439,10 +442,10 @@ sblock_init(void)
 	fswritefd = -1;
 	fsmodified = 0;
 	lfdir = 0;
-	initbarea(&sblk);
-	initbarea(&asblk);
-	sblk.b_un.b_buf = malloc(SBLOCKSIZE);
-	asblk.b_un.b_buf = malloc(SBLOCKSIZE);
+	initbarea(&sblk, BT_SUPERBLK);
+	initbarea(&asblk, BT_SUPERBLK);
+	sblk.b_un.b_buf = Malloc(SBLOCKSIZE);
+	asblk.b_un.b_buf = Malloc(SBLOCKSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	if ((lp = getdisklabel(NULL, fsreadfd)))

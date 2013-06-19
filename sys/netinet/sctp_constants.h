@@ -370,6 +370,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DATAGRAM_ACKED		10010
 #define SCTP_DATAGRAM_MARKED		20010
 #define SCTP_FORWARD_TSN_SKIP		30010
+#define SCTP_DATAGRAM_NR_ACKED		40010
 
 /* chunk output send from locations */
 #define SCTP_OUTPUT_FROM_USR_SEND       0
@@ -995,6 +996,10 @@ __FBSDID("$FreeBSD$");
      (((uint8_t *)&(a)->s_addr)[1] == 0) && \
      (((uint8_t *)&(a)->s_addr)[2] == 0) && \
      (((uint8_t *)&(a)->s_addr)[3] == 1))
+
+#define IN4_ISLINKLOCAL_ADDRESS(a) \
+    ((((uint8_t *)&(a)->s_addr)[0] == 169) && \
+     (((uint8_t *)&(a)->s_addr)[1] == 254))
 
 
 #if defined(_KERNEL)

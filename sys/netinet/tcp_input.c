@@ -120,11 +120,6 @@ __FBSDID("$FreeBSD$");
 
 const int tcprexmtthresh = 3;
 
-VNET_DEFINE(struct tcpstat, tcpstat);
-SYSCTL_VNET_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(tcpstat), tcpstat,
-    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
-
 int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0,
@@ -157,6 +152,14 @@ VNET_DEFINE(int, tcp_do_rfc3390) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3390), 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
+
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, experimental, CTLFLAG_RW, 0,
+    "Experimental TCP extensions");
+
+VNET_DEFINE(int, tcp_do_initcwnd10) = 1;
+SYSCTL_VNET_INT(_net_inet_tcp_experimental, OID_AUTO, initcwnd10, CTLFLAG_RW,
+    &VNET_NAME(tcp_do_initcwnd10), 0,
+    "Enable draft-ietf-tcpm-initcwnd-05 (Increasing initial CWND to 10)");
 
 VNET_DEFINE(int, tcp_do_rfc3465) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
@@ -237,17 +240,76 @@ static void inline	hhook_run_tcp_est_in(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to);
 
 /*
+ * TCP statistics are stored in struct tcpstat_p, which is
+ * an "array" of counter(9)s.  Although it isn't a real
+ * array, we treat it as array to reduce code bloat.
+ */
+VNET_DEFINE(struct tcpstat_p, tcpstatp);
+
+static void
+vnet_tcpstatp_init(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
+	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
+	    i++, c++) {
+		*c = counter_u64_alloc(M_WAITOK);
+		counter_u64_zero(*c);
+	}
+}
+VNET_SYSINIT(vnet_tcpstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+	    vnet_tcpstatp_init, NULL);
+
+#ifdef VIMAGE
+static void
+vnet_tcpstatp_uninit(const void *unused)
+{
+	counter_u64_t *c;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
+	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
+	    i++, c++)
+		counter_u64_free(*c);
+}
+VNET_SYSUNINIT(vnet_tcpstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+	    vnet_tcpstatp_uninit, NULL);
+#endif /* VIMAGE */
+
+static int
+tcpstat_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct tcpstat tcpstat;
+	counter_u64_t *c;
+	uint64_t *v;
+	int i;
+
+	for (i = 0, c = (counter_u64_t *)&V_tcpstatp, v = (uint64_t *)&tcpstat;
+	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
+	    i++, c++, v++) {
+		*v = counter_u64_fetch(*c);
+		if (req->newptr)
+			counter_u64_zero(*c);
+	}
+
+	return (SYSCTL_OUT(req, &tcpstat, sizeof(tcpstat)));
+}
+
+SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_STATS, stats, CTLTYPE_OPAQUE |
+    CTLFLAG_RW, NULL, 0, tcpstat_sysctl, "I", 
+    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
+
+/*
  * Kernel module interface for updating tcpstat.  The argument is an index
- * into tcpstat treated as an array of u_long.  While this encodes the
- * general layout of tcpstat into the caller, it doesn't encode its location,
- * so that future changes to add, for example, per-CPU stats support won't
- * cause binary compatibility problems for kernel modules.
+ * into tcpstat treated as an array.
  */
 void
 kmod_tcpstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_tcpstat + statnum))++;
+	counter_u64_add((counter_u64_t )&V_tcpstatp + statnum, 1);
 }
 
 /*
@@ -277,7 +339,7 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t type)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	tp->ccv->bytes_this_ack = BYTES_THIS_ACK(tp, th);
-	if (tp->snd_cwnd == min(tp->snd_cwnd, tp->snd_wnd))
+	if (tp->snd_cwnd <= tp->snd_wnd)
 		tp->ccv->flags |= CCF_CWND_LIMITED;
 	else
 		tp->ccv->flags &= ~CCF_CWND_LIMITED;
@@ -344,14 +406,31 @@ cc_conn_init(struct tcpcb *tp)
 	/*
 	 * Set the initial slow-start flight size.
 	 *
-	 * RFC3390 says only do this if SYN or SYN/ACK didn't got lost.
-	 * XXX: We currently check only in syncache_socket for that.
+	 * RFC5681 Section 3.1 specifies the default conservative values.
+	 * RFC3390 specifies slightly more aggressive values.
+	 * Draft-ietf-tcpm-initcwnd-05 increases it to ten segments.
+	 *
+	 * If a SYN or SYN/ACK was lost and retransmitted, we have to
+	 * reduce the initial CWND to one segment as congestion is likely
+	 * requiring us to be cautious.
 	 */
-	if (V_tcp_do_rfc3390)
+	if (tp->snd_cwnd == 1)
+		tp->snd_cwnd = tp->t_maxseg;		/* SYN(-ACK) lost */
+	else if (V_tcp_do_initcwnd10)
+		tp->snd_cwnd = min(10 * tp->t_maxseg,
+		    max(2 * tp->t_maxseg, 14600));
+	else if (V_tcp_do_rfc3390)
 		tp->snd_cwnd = min(4 * tp->t_maxseg,
 		    max(2 * tp->t_maxseg, 4380));
-	else
-		tp->snd_cwnd = tp->t_maxseg;
+	else {
+		/* Per RFC5681 Section 3.1 */
+		if (tp->t_maxseg > 2190)
+			tp->snd_cwnd = 2 * tp->t_maxseg;
+		else if (tp->t_maxseg > 1095)
+			tp->snd_cwnd = 3 * tp->t_maxseg;
+		else
+			tp->snd_cwnd = 4 * tp->t_maxseg;
+	}
 
 	if (CC_ALGO(tp)->conn_init != NULL)
 		CC_ALGO(tp)->conn_init(tp->ccv);
@@ -528,9 +607,6 @@ tcp_input(struct mbuf *m, int off0)
 {
 	struct tcphdr *th = NULL;
 	struct ip *ip = NULL;
-#ifdef INET
-	struct ipovly *ipov;
-#endif
 	struct inpcb *inp = NULL;
 	struct tcpcb *tp = NULL;
 	struct socket *so = NULL;
@@ -547,9 +623,7 @@ tcp_input(struct mbuf *m, int off0)
 	uint8_t sig_checked = 0;
 #endif
 	uint8_t iptos = 0;
-#ifdef IPFIREWALL_FORWARD
-	struct m_tag *fwd_tag;
-#endif
+	struct m_tag *fwd_tag = NULL;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
@@ -632,7 +706,7 @@ tcp_input(struct mbuf *m, int off0)
 		 * Note: IP leaves IP header in first mbuf.
 		 */
 		if (off0 > sizeof (struct ip)) {
-			ip_stripoptions(m, (struct mbuf *)0);
+			ip_stripoptions(m);
 			off0 = sizeof(struct ip);
 		}
 		if (m->m_len < sizeof (struct tcpiphdr)) {
@@ -643,32 +717,27 @@ tcp_input(struct mbuf *m, int off0)
 			}
 		}
 		ip = mtod(m, struct ip *);
-		ipov = (struct ipovly *)ip;
 		th = (struct tcphdr *)((caddr_t)ip + off0);
-		tlen = ip->ip_len;
+		tlen = ntohs(ip->ip_len) - off0;
 
 		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
 			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 				th->th_sum = m->m_pkthdr.csum_data;
 			else
 				th->th_sum = in_pseudo(ip->ip_src.s_addr,
-						ip->ip_dst.s_addr,
-						htonl(m->m_pkthdr.csum_data +
-							ip->ip_len +
-							IPPROTO_TCP));
+				    ip->ip_dst.s_addr,
+				    htonl(m->m_pkthdr.csum_data + tlen +
+				    IPPROTO_TCP));
 			th->th_sum ^= 0xffff;
-#ifdef TCPDEBUG
-			ipov->ih_len = (u_short)tlen;
-			ipov->ih_len = htons(ipov->ih_len);
-#endif
 		} else {
+			struct ipovly *ipov = (struct ipovly *)ip;
+
 			/*
 			 * Checksum extended TCP header and data.
 			 */
-			len = sizeof (struct ip) + tlen;
+			len = off0 + tlen;
 			bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
-			ipov->ih_len = (u_short)tlen;
-			ipov->ih_len = htons(ipov->ih_len);
+			ipov->ih_len = htons(tlen);
 			th->th_sum = in_cksum(m, len);
 		}
 		if (th->th_sum) {
@@ -721,7 +790,6 @@ tcp_input(struct mbuf *m, int off0)
 					return;
 				}
 				ip = mtod(m, struct ip *);
-				ipov = (struct ipovly *)ip;
 				th = (struct tcphdr *)((caddr_t)ip + off0);
 			}
 		}
@@ -754,6 +822,22 @@ tcp_input(struct mbuf *m, int off0)
 	} else
 		ti_locked = TI_UNLOCKED;
 
+	/*
+	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
+	 */
+        if (
+#ifdef INET6
+	    (isipv6 && (m->m_flags & M_IP6_NEXTHOP))
+#ifdef INET
+	    || (!isipv6 && (m->m_flags & M_IP_NEXTHOP))
+#endif
+#endif
+#if defined(INET) && !defined(INET6)
+	    (m->m_flags & M_IP_NEXTHOP)
+#endif
+	    )
+		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+
 findpcb:
 #ifdef INVARIANTS
 	if (ti_locked == TI_WLOCKED) {
@@ -762,16 +846,7 @@ findpcb:
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 	}
 #endif
-
-#ifdef IPFIREWALL_FORWARD
-	/*
-	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
-	 */
-	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
-#endif /* IPFIREWALL_FORWARD */
-
 #ifdef INET6
-#ifdef IPFIREWALL_FORWARD
 	if (isipv6 && fwd_tag != NULL) {
 		struct sockaddr_in6 *next_hop6;
 
@@ -795,11 +870,7 @@ findpcb:
 			    th->th_dport, INPLOOKUP_WILDCARD |
 			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
 		}
-		/* Remove the tag from the packet.  We don't need it anymore. */
-		m_tag_delete(m, fwd_tag);
-	} else
-#endif /* IPFIREWALL_FORWARD */
-	if (isipv6) {
+	} else if (isipv6) {
 		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
 		    th->th_sport, &ip6->ip6_dst, th->th_dport,
 		    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
@@ -810,7 +881,6 @@ findpcb:
 	else
 #endif
 #ifdef INET
-#ifdef IPFIREWALL_FORWARD
 	if (fwd_tag != NULL) {
 		struct sockaddr_in *next_hop;
 
@@ -834,10 +904,7 @@ findpcb:
 			    th->th_dport, INPLOOKUP_WILDCARD |
 			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
 		}
-		/* Remove the tag from the packet.  We don't need it anymore. */
-		m_tag_delete(m, fwd_tag);
 	} else
-#endif /* IPFIREWALL_FORWARD */
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
 		    th->th_sport, ip->ip_dst, th->th_dport,
 		    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
@@ -1338,6 +1405,15 @@ relocked:
 		 */
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		return;
+	} else if (tp->t_state == TCPS_LISTEN) {
+		/*
+		 * When a listen socket is torn down the SO_ACCEPTCONN
+		 * flag is removed first while connections are drained
+		 * from the accept queue in a unlock/lock cycle of the
+		 * ACCEPT_LOCK, opening a race condition allowing a SYN
+		 * attempt go through unhandled.
+		 */
+		goto dropunlock;
 	}
 
 #ifdef TCP_SIGNATURE
@@ -2488,6 +2564,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					u_long oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
 					u_int sent;
+					int avail;
 
 					KASSERT(tp->t_dupacks == 1 ||
 					    tp->t_dupacks == 2,
@@ -2509,7 +2586,17 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						 */
 						break;
 					}
-					(void) tcp_output(tp);
+					/*
+					 * Only call tcp_output when there
+					 * is new data available to be sent.
+					 * Otherwise we would send pure ACKs.
+					 */
+					SOCKBUF_LOCK(&so->so_snd);
+					avail = so->so_snd.sb_cc -
+					    (tp->snd_nxt - tp->snd_una);
+					SOCKBUF_UNLOCK(&so->so_snd);
+					if (avail > 0)
+						(void) tcp_output(tp);
 					sent = tp->snd_max - oldsndmax;
 					if (sent > tp->t_maxseg) {
 						KASSERT((tp->t_dupacks == 2 &&
@@ -3325,10 +3412,8 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 /*
  * Determine a reasonable value for maxseg size.
  * If the route is known, check route for mtu.
- * If none, use an mss that can be handled on the outgoing
- * interface without forcing IP to fragment; if bigger than
- * an mbuf cluster (MCLBYTES), round down to nearest multiple of MCLBYTES
- * to utilize large mbufs.  If no route is found, route has no mtu,
+ * If none, use an mss that can be handled on the outgoing interface
+ * without forcing IP to fragment.  If no route is found, route has no mtu,
  * or the destination isn't local, use a default, hopefully conservative
  * size (usually 512 or the default IP max size, but no more than the mtu
  * of the interface), as we can't discover anything about intervening
@@ -3349,7 +3434,7 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  */
 void
 tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
-    struct hc_metrics_lite *metricptr, int *mtuflags)
+    struct hc_metrics_lite *metricptr, struct tcp_ifcap *cap)
 {
 	int mss = 0;
 	u_long maxmtu = 0;
@@ -3376,7 +3461,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 	/* Initialize. */
 #ifdef INET6
 	if (isipv6) {
-		maxmtu = tcp_maxmtu6(&inp->inp_inc, mtuflags);
+		maxmtu = tcp_maxmtu6(&inp->inp_inc, cap);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_v6mssdflt;
 	}
 #endif
@@ -3385,7 +3470,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 #endif
 #ifdef INET
 	{
-		maxmtu = tcp_maxmtu(&inp->inp_inc, mtuflags);
+		maxmtu = tcp_maxmtu(&inp->inp_inc, cap);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_mssdflt;
 	}
 #endif
@@ -3509,13 +3594,6 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 	     (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP))
 		mss -= TCPOLEN_TSTAMP_APPA;
 
-#if	(MCLBYTES & (MCLBYTES - 1)) == 0
-	if (mss > MCLBYTES)
-		mss &= ~(MCLBYTES-1);
-#else
-	if (mss > MCLBYTES)
-		mss = mss / MCLBYTES * MCLBYTES;
-#endif
 	tp->t_maxseg = mss;
 }
 
@@ -3527,11 +3605,12 @@ tcp_mss(struct tcpcb *tp, int offer)
 	struct inpcb *inp;
 	struct socket *so;
 	struct hc_metrics_lite metrics;
-	int mtuflags = 0;
+	struct tcp_ifcap cap;
 
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
-	
-	tcp_mss_update(tp, offer, -1, &metrics, &mtuflags);
+
+	bzero(&cap, sizeof(cap));
+	tcp_mss_update(tp, offer, -1, &metrics, &cap);
 
 	mss = tp->t_maxseg;
 	inp = tp->t_inpcb;
@@ -3576,8 +3655,10 @@ tcp_mss(struct tcpcb *tp, int offer)
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/* Check the interface for TSO capabilities. */
-	if (mtuflags & CSUM_TSO)
+	if (cap.ifcap & CSUM_TSO) {
 		tp->t_flags |= TF_TSO;
+		tp->t_tsomax = cap.tsomax;
+	}
 }
 
 /*

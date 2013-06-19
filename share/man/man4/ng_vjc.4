@@ -103,20 +103,20 @@ and
 hooks, respectively.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobarbazi
-.It Dv ip
+.Bl -tag -width ".Va vjuncomp"
+.It Va ip
 Upstream (uncompressed) IP packets.
-.It Dv vjcomp
+.It Va vjcomp
 Downstream compressed TCP packets.
-.It Dv vjuncomp
+.It Va vjuncomp
 Downstream uncompressed TCP packets.
-.It Dv vjip
+.It Va vjip
 Downstream uncompressed IP packets.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_VJC_SET_CONFIG
+.It Dv NGM_VJC_SET_CONFIG Pq Ic setconfig
 This command resets the compression state and configures it according
 to the supplied
 .Dv "struct ngm_vjc_config"
@@ -169,12 +169,12 @@ either (a) it is not possible for an outgoing frame to be lost, or
 reported to the peer's decompression engine (see
 .Dv NGM_VJC_RECV_ERROR
 below).
-.It Dv NGM_VJC_GET_STATE
+.It Dv NGM_VJC_GET_STATE Pq Ic getstate
 This command returns the node's current state described by the
 .Dv "struct slcompress"
 structure, which is defined in
 .In net/slcompress.h .
-.It Dv NGM_VJC_CLR_STATS
+.It Dv NGM_VJC_CLR_STATS Pq Ic clrstats
 Clears the node statistics counters.
 Statistics are also cleared whenever the
 .Dv enableComp
@@ -183,7 +183,7 @@ or
 fields are changed from zero to one by a
 .Dv NGM_VJC_SET_CONFIG
 control message.
-.It Dv NGM_VJC_RECV_ERROR
+.It Dv NGM_VJC_RECV_ERROR Pq Ic recverror
 When the peer has CID header field compression enabled,
 this message must be sent to the local
 .Nm vjc

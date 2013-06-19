@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd April 21, 2013
 .Dt USB_QUIRK 4
 .Os
 .Sh NAME
@@ -27,7 +27,7 @@ To compile this module into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device usb_quirk"
+.Cd "device usb"
 .Ed
 .Pp
 Alternatively, to load the module at boot
@@ -66,6 +66,8 @@ device should be ignored by hid class
 device should be ignored by kbd class
 .It UQ_KBD_BOOTPROTO
 device should set the boot protocol
+.It UQ_UMS_IGNORE
+device should be ignored by ums class
 .It UQ_MS_BAD_CLASS
 doesn't identify properly
 .It UQ_MS_LEADING_BYTE
@@ -74,8 +76,6 @@ mouse sends an unknown leading byte
 mouse has Z-axis reversed
 .It UQ_NO_STRINGS
 string descriptors are broken
-.It UQ_OPEN_CLEARSTALL
-device needs clear endpoint stall
 .It UQ_POWER_CLAIM
 hub lies about power status
 .It UQ_SPUR_BUT_UP

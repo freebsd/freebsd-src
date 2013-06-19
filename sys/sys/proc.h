@@ -272,6 +272,9 @@ struct thread {
 	struct osd	td_osd;		/* (k) Object specific data. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
+	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
+	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
+	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -339,9 +342,6 @@ do {									\
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
 #endif
 
-#define	CRITICAL_ASSERT(td)						\
-    KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
-
 /*
  * Flags kept in td_flags:
  * To change these you MUST have the scheduler lock.
@@ -403,7 +403,7 @@ do {									\
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
 #define	TDP_NOFAULTING	0x00000080 /* Do not handle page faults. */
-#define	TDP_NOSLEEPING	0x00000100 /* Thread is not allowed to sleep on a sq. */
+#define	TDP_UNUSED9	0x00000100 /* --available-- */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_ITHREAD	0x00000400 /* Thread is an interrupt thread. */
 #define	TDP_SYNCIO	0x00000800 /* Local override, disable async i/o. */
@@ -583,6 +583,7 @@ struct proc {
 					   after fork. */
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
+	u_char		p_throttled;	/* (c) Flag for racct pcpu throttling */
 	/*
 	 * An orphan is the child that has beed re-parented to the
 	 * debugger as a result of attaching to it.  Need to keep
@@ -634,6 +635,7 @@ struct proc {
 #define	P_INMEM		0x10000000 /* Loaded into memory. */
 #define	P_SWAPPINGOUT	0x20000000 /* Process is being swapped out. */
 #define	P_SWAPPINGIN	0x40000000 /* Process is being swapped in. */
+#define	P_PPTRACE	0x80000000 /* PT_TRACEME by vforked child. */
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
@@ -787,17 +789,9 @@ extern pid_t pid_max;
 #define	thread_safetoswapout(td)	((td)->td_flags & TDF_CANSWAP)
 
 /* Control whether or not it is safe for curthread to sleep. */
-#define	THREAD_NO_SLEEPING() do {					\
-	KASSERT(!(curthread->td_pflags & TDP_NOSLEEPING),		\
-	    ("nested no sleeping"));					\
-	curthread->td_pflags |= TDP_NOSLEEPING;				\
-} while (0)
+#define	THREAD_NO_SLEEPING()		((curthread)->td_no_sleeping++)
 
-#define	THREAD_SLEEPING_OK() do {					\
-	KASSERT((curthread->td_pflags & TDP_NOSLEEPING),		\
-	    ("nested sleeping ok"));					\
-	curthread->td_pflags &= ~TDP_NOSLEEPING;			\
-} while (0)
+#define	THREAD_SLEEPING_OK()		((curthread)->td_no_sleeping--)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
@@ -833,6 +827,7 @@ extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct uma_zone *proc_zone;
 
 struct	proc *pfind(pid_t);		/* Find process by id. */
+struct	proc *pfind_locked(pid_t pid);
 struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 
@@ -879,12 +874,12 @@ struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
 int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb);
+int	proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
-void	proc_reap(struct thread *td, struct proc *p, int *status, int options,
-	    struct rusage *rusage);
+void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
@@ -905,7 +900,7 @@ void	tidhash_add(struct thread *);
 void	tidhash_remove(struct thread *);
 void	cpu_idle(int);
 int	cpu_idle_wakeup(int);
-extern	void (*cpu_idle_hook)(void);	/* Hook to machdep CPU idler. */
+extern	void (*cpu_idle_hook)(sbintime_t);	/* Hook to machdep CPU idler. */
 void	cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	cpu_throw(struct thread *, struct thread *) __dead2;
 void	unsleep(struct thread *);

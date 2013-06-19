@@ -15,6 +15,7 @@
 #ifndef LLVM_CLANG_SERIALIZATION_CONTINUOUS_RANGE_MAP_H
 #define LLVM_CLANG_SERIALIZATION_CONTINUOUS_RANGE_MAP_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/SmallVector.h"
 #include <algorithm>
 #include <utility>
@@ -108,8 +109,8 @@ public:
   class Builder {
     ContinuousRangeMap &Self;
     
-    Builder(const Builder&); // DO NOT IMPLEMENT
-    Builder &operator=(const Builder&); // DO NOT IMPLEMENT
+    Builder(const Builder&) LLVM_DELETED_FUNCTION;
+    Builder &operator=(const Builder&) LLVM_DELETED_FUNCTION;
     
   public:
     explicit Builder(ContinuousRangeMap &Self) : Self(Self) { }

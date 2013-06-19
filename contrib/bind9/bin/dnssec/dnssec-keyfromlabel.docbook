@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2008-2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2008-2012  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -40,6 +40,7 @@
       <year>2009</year>
       <year>2010</year>
       <year>2011</year>
+      <year>2012</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -94,7 +95,8 @@
 	  <para>
 	    Selects the cryptographic algorithm.  The value of
             <option>algorithm</option> must be one of RSAMD5, RSASHA1,
-	    DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256, RSASHA512 or ECCGOST.
+	    DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256, RSASHA512, ECCGOST,
+	    ECDSAP256SHA256 or ECDSAP384SHA384.
 	    These values are case insensitive.
 	  </para>
           <para>

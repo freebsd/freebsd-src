@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/acdebug.h>
+#include <contrib/dev/acpica/include/acpredef.h>
 
 
 #ifdef ACPI_DEBUGGER
@@ -102,7 +103,7 @@ AcpiDbBusWalk (
  * Arguments for the Objects command
  * These object types map directly to the ACPI_TYPES
  */
-static ARGUMENT_INFO        AcpiDbObjectTypes [] =
+static ACPI_DB_ARGUMENT_INFO    AcpiDbObjectTypes [] =
 {
     {"ANY"},
     {"INTEGERS"},
@@ -159,7 +160,7 @@ AcpiDbSetScope (
 
     AcpiDbPrepNamestring (Name);
 
-    if (Name[0] == '\\')
+    if (ACPI_IS_ROOT_PREFIX (Name[0]))
     {
         /* Validate new scope from the root */
 
@@ -208,7 +209,7 @@ ErrorExit:
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump entire namespace or a subtree.  Each node is displayed
+ * DESCRIPTION: Dump entire namespace or a subtree. Each node is displayed
  *              with type and other information.
  *
  ******************************************************************************/
@@ -305,7 +306,7 @@ AcpiDbDumpNamespaceByOwner (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Find a particular name/names within the namespace.  Wildcards
+ * DESCRIPTION: Find a particular name/names within the namespace. Wildcards
  *              are supported -- '?' matches any character.
  *
  ******************************************************************************/
@@ -434,9 +435,10 @@ AcpiDbWalkForPredefinedNames (
     const ACPI_PREDEFINED_INFO  *Predefined;
     const ACPI_PREDEFINED_INFO  *Package = NULL;
     char                        *Pathname;
+    char                        StringBuffer[48];
 
 
-    Predefined = AcpiNsCheckForPredefinedName (Node);
+    Predefined = AcpiUtMatchPredefinedMethod (Node->Name.Ascii);
     if (!Predefined)
     {
         return (AE_OK);
@@ -450,27 +452,33 @@ AcpiDbWalkForPredefinedNames (
 
     /* If method returns a package, the info is in the next table entry */
 
-    if (Predefined->Info.ExpectedBtypes & ACPI_BTYPE_PACKAGE)
+    if (Predefined->Info.ExpectedBtypes & ACPI_RTYPE_PACKAGE)
     {
         Package = Predefined + 1;
     }
 
-    AcpiOsPrintf ("%-32s arg %X ret %2.2X", Pathname,
-        Predefined->Info.ParamCount, Predefined->Info.ExpectedBtypes);
+    AcpiUtGetExpectedReturnTypes (StringBuffer,
+        Predefined->Info.ExpectedBtypes);
+
+    AcpiOsPrintf ("%-32s Arguments %X, Return Types: %s", Pathname,
+        METHOD_GET_ARG_COUNT (Predefined->Info.ArgumentList),
+        StringBuffer);
 
     if (Package)
     {
-        AcpiOsPrintf (" PkgType %2.2X ObjType %2.2X Count %2.2X",
+        AcpiOsPrintf (" (PkgType %2.2X, ObjType %2.2X, Count %2.2X)",
             Package->RetInfo.Type, Package->RetInfo.ObjectType1,
             Package->RetInfo.Count1);
     }
 
     AcpiOsPrintf("\n");
 
-    AcpiNsCheckParameterCount (Pathname, Node, ACPI_UINT32_MAX, Predefined);
+    /* Check that the declared argument count matches the ACPI spec */
+
+    AcpiNsCheckAcpiCompliance (Pathname, Node, Predefined);
+
     ACPI_FREE (Pathname);
     (*Count)++;
-
     return (AE_OK);
 }
 
@@ -663,7 +671,7 @@ AcpiDbIntegrityWalk (
         return (AE_OK);
     }
 
-    if (!AcpiUtValidAcpiName (Node->Name.Integer))
+    if (!AcpiUtValidAcpiName (Node->Name.Ascii))
     {
         AcpiOsPrintf ("Invalid AcpiName for Node %p\n", Node);
         return (AE_OK);

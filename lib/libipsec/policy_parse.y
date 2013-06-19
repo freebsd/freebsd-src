@@ -88,7 +88,6 @@ static caddr_t policy_parse(char *msg, int msglen);
 
 extern void __policy__strbuffer__init__(char *msg);
 extern void __policy__strbuffer__free__(void);
-extern int yyparse(void);
 extern int yylex(void);
 
 extern char *__libipsecyytext;	/*XXX*/

@@ -30,6 +30,9 @@
  * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -69,6 +72,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #define	UHUB_INTR_INTERVAL 250		/* ms */
 #define	UHUB_N_TRANSFER 1
@@ -77,9 +81,8 @@
 static int uhub_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
-SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
+SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &uhub_debug, 0,
     "Debug level");
-
 TUNABLE_INT("hw.usb.uhub.debug", &uhub_debug);
 #endif
 
@@ -97,13 +100,15 @@ struct uhub_current_state {
 
 struct uhub_softc {
 	struct uhub_current_state sc_st;/* current state */
+#if (USB_HAVE_FIXED_PORT != 0)
+	struct usb_hub sc_hub;
+#endif
 	device_t sc_dev;		/* base device */
 	struct mtx sc_mtx;		/* our mutex */
 	struct usb_device *sc_udev;	/* USB device */
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
-	char	sc_name[32];
 };
 
 #define	UHUB_PROTO(sc) ((sc)->sc_udev->ddesc.bDeviceProtocol)
@@ -161,7 +166,7 @@ static device_method_t uhub_methods[] = {
 	DEVMETHOD(bus_child_location_str, uhub_child_location_string),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
 	DEVMETHOD(bus_driver_added, uhub_driver_added),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t uhub_driver = {
@@ -241,7 +246,9 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 	/* check if device should be re-enumerated */
 
 	if (child->flags.usb_mode == USB_MODE_HOST) {
-		usbd_enum_lock(child);
+		uint8_t do_unlock;
+		
+		do_unlock = usbd_enum_lock(child);
 		if (child->re_enumerate_wait) {
 			err = usbd_set_config_index(child,
 			    USB_UNCONFIG_INDEX);
@@ -260,7 +267,8 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 			child->re_enumerate_wait = 0;
 			err = 0;
 		}
-		usbd_enum_unlock(child);
+		if (do_unlock)
+			usbd_enum_unlock(child);
 	}
 
 	/* check if probe and attach should be done */
@@ -333,7 +341,6 @@ uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 
 	DPRINTF("reattaching port %d\n", portno);
 
-	err = 0;
 	timeout = 0;
 	udev = sc->sc_udev;
 	child = usb_bus_port_get_device(udev->bus,
@@ -415,7 +422,7 @@ repeat:
 		/* wait for maximum device power up time */
 
 		usb_pause_mtx(NULL, 
-		    USB_MS_TO_TICKS(USB_PORT_POWERUP_DELAY));
+		    USB_MS_TO_TICKS(usb_port_powerup_delay));
 
 		/* reset port, which implies enabling it */
 
@@ -518,7 +525,10 @@ repeat:
 	 *
 	 * NOTE: This part is currently FreeBSD specific.
 	 */
-	if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
+	if (udev->parent_hub != NULL) {
+		/* inherit mode from the parent HUB */
+		mode = udev->parent_hub->flags.usb_mode;
+	} else if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
 		mode = USB_MODE_DEVICE;
 	else
 		mode = USB_MODE_HOST;
@@ -711,6 +721,7 @@ uhub_explore(struct usb_device *udev)
 	usb_error_t err;
 	uint8_t portno;
 	uint8_t x;
+	uint8_t do_unlock;
 
 	hub = udev->hub;
 	sc = hub->hubsoftc;
@@ -732,7 +743,7 @@ uhub_explore(struct usb_device *udev)
 	 * Make sure we don't race against user-space applications
 	 * like LibUSB:
 	 */
-	usbd_enum_lock(udev);
+	do_unlock = usbd_enum_lock(udev);
 
 	for (x = 0; x != hub->nports; x++) {
 		up = hub->ports + x;
@@ -812,7 +823,8 @@ uhub_explore(struct usb_device *udev)
 		up->restartcnt = 0;
 	}
 
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	/* initial status checked */
 	sc->sc_flags |= UHUB_FLAG_DID_EXPLORE;
@@ -912,8 +924,8 @@ uhub_attach(device_t dev)
 	struct usb_hub_descriptor hubdesc20;
 	struct usb_hub_ss_descriptor hubdesc30;
 	uint16_t pwrdly;
+	uint16_t nports;
 	uint8_t x;
-	uint8_t nports;
 	uint8_t portno;
 	uint8_t removable;
 	uint8_t iface_index;
@@ -923,9 +935,6 @@ uhub_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	mtx_init(&sc->sc_mtx, "USB HUB mutex", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
 
 	device_set_usb_desc(dev);
 
@@ -979,7 +988,7 @@ uhub_attach(device_t dev)
 
 		/* get power delay */
 		pwrdly = ((hubdesc20.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
-		    USB_EXTRA_POWER_UP_TIME);
+		    usb_extra_power_up_time);
 
 		/* get complete HUB descriptor */
 		if (nports >= 8) {
@@ -1024,7 +1033,7 @@ uhub_attach(device_t dev)
 
 		/* get power delay */
 		pwrdly = ((hubdesc30.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
-		    USB_EXTRA_POWER_UP_TIME);
+		    usb_extra_power_up_time);
 
 		/* get complete HUB descriptor */
 		if (nports >= 8) {
@@ -1053,19 +1062,26 @@ uhub_attach(device_t dev)
 		/* default number of ports */
 		nports = 1;
 		/* default power delay */
-		pwrdly = ((10 * UHD_PWRON_FACTOR) + USB_EXTRA_POWER_UP_TIME);
+		pwrdly = ((10 * UHD_PWRON_FACTOR) + usb_extra_power_up_time);
 		break;
 	}
 	if (nports == 0) {
 		DPRINTFN(0, "portless HUB\n");
 		goto error;
 	}
+	if (nports > USB_MAX_PORTS) {
+		DPRINTF("Port limit exceeded\n");
+		goto error;
+	}
+#if (USB_HAVE_FIXED_PORT == 0)
 	hub = malloc(sizeof(hub[0]) + (sizeof(hub->ports[0]) * nports),
 	    M_USBDEV, M_WAITOK | M_ZERO);
 
-	if (hub == NULL) {
+	if (hub == NULL)
 		goto error;
-	}
+#else
+	hub = &sc->sc_hub;
+#endif
 	udev->hub = hub;
 
 	/* initialize HUB structure */
@@ -1190,10 +1206,10 @@ uhub_attach(device_t dev)
 error:
 	usbd_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
 
-	if (udev->hub) {
-		free(udev->hub, M_USBDEV);
-		udev->hub = NULL;
-	}
+#if (USB_HAVE_FIXED_PORT == 0)
+	free(udev->hub, M_USBDEV);
+#endif
+	udev->hub = NULL;
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -1233,7 +1249,9 @@ uhub_detach(device_t dev)
 		usb_free_device(child, 0);
 	}
 
+#if (USB_HAVE_FIXED_PORT == 0)
 	free(hub, M_USBDEV);
+#endif
 	sc->sc_udev->hub = NULL;
 
 	mtx_destroy(&sc->sc_mtx);
@@ -1915,7 +1933,7 @@ usb_needs_explore(struct usb_bus *bus, uint8_t do_probe)
 	if (do_probe) {
 		bus->do_probe = 1;
 	}
-	if (usb_proc_msignal(&bus->explore_proc,
+	if (usb_proc_msignal(USB_BUS_EXPLORE_PROC(bus),
 	    &bus->explore_msg[0], &bus->explore_msg[1])) {
 		/* ignore */
 	}
@@ -2263,7 +2281,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	}
 
 	/* resume settle time */
-	usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+	usb_pause_mtx(NULL, USB_MS_TO_TICKS(usb_port_resume_delay));
 
 	if (bus->methods->device_resume != NULL) {
 		/* resume USB device on the USB controller */
@@ -2416,7 +2434,7 @@ repeat:
 			    NULL, udev->port_no, UHF_PORT_SUSPEND);
 
 			/* resume settle time */
-			usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(usb_port_resume_delay));
 		}
 		DPRINTF("Suspend was cancelled!\n");
 		return;

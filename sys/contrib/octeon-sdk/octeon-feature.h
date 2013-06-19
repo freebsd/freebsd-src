@@ -281,7 +281,7 @@ extern uint8_t octeon_feature_map[FEATURE_MAP_SIZE];
 #if defined(__U_BOOT__) || defined(CVMX_BUILD_FOR_LINUX_HOST) || defined(CVMX_BUILD_FOR_TOOLCHAIN)
 #define octeon_has_feature old_octeon_has_feature
 #else
-#if defined(USE_RUNTIME_MODEL_CHECKS)
+#if defined(USE_RUNTIME_MODEL_CHECKS) || (defined(__FreeBSD__) && defined(_KERNEL))
 static inline int octeon_has_feature(octeon_feature_t feature)
 {
 	int byte, bit;

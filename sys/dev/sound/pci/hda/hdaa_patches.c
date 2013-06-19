@@ -47,6 +47,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 static const struct {
 	uint32_t model;
 	uint32_t id;
+	uint32_t subsystemid;
 	uint32_t set, unset;
 	uint32_t gpio;
 } hdac_quirks[] = {
@@ -55,77 +56,81 @@ static const struct {
 	 *     on few codecs (especially ALC880) seems broken or
 	 *     perhaps unsupported.
 	 */
-	{ HDA_MATCH_ALL, HDA_MATCH_ALL,
+	{ HDA_MATCH_ALL, HDA_MATCH_ALL, HDA_MATCH_ALL,
 	    HDAA_QUIRK_FORCESTEREO | HDAA_QUIRK_IVREF, 0,
 	    0 },
-	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
+	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ ASUS_G2K_SUBVENDOR, HDA_CODEC_ALC660,
+	{ ASUS_G2K_SUBVENDOR, HDA_CODEC_ALC660, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
+	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ ASUS_A7M_SUBVENDOR, HDA_CODEC_ALC880,
+	{ ASUS_A7M_SUBVENDOR, HDA_CODEC_ALC880, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ ASUS_A7T_SUBVENDOR, HDA_CODEC_ALC882,
+	{ ASUS_A7T_SUBVENDOR, HDA_CODEC_ALC882, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ ASUS_W2J_SUBVENDOR, HDA_CODEC_ALC882,
+	{ ASUS_W2J_SUBVENDOR, HDA_CODEC_ALC882, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
+	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A, HDA_MATCH_ALL,
 	    HDAA_QUIRK_EAPDINV, 0,
 	    0 },
-	{ ASUS_A8X_SUBVENDOR, HDA_CODEC_AD1986A,
+	{ ASUS_A8X_SUBVENDOR, HDA_CODEC_AD1986A, HDA_MATCH_ALL,
 	    HDAA_QUIRK_EAPDINV, 0,
 	    0 },
-	{ ASUS_F3JC_SUBVENDOR, HDA_CODEC_ALC861,
+	{ ASUS_F3JC_SUBVENDOR, HDA_CODEC_ALC861, HDA_MATCH_ALL,
 	    HDAA_QUIRK_OVREF, 0,
 	    0 },
-	{ UNIWILL_9075_SUBVENDOR, HDA_CODEC_ALC861,
+	{ UNIWILL_9075_SUBVENDOR, HDA_CODEC_ALC861, HDA_MATCH_ALL,
 	    HDAA_QUIRK_OVREF, 0,
 	    0 },
-	/*{ ASUS_M2N_SUBVENDOR, HDA_CODEC_AD1988,
+	/*{ ASUS_M2N_SUBVENDOR, HDA_CODEC_AD1988, HDA_MATCH_ALL,
 	    HDAA_QUIRK_IVREF80, HDAA_QUIRK_IVREF50 | HDAA_QUIRK_IVREF100,
 	    0 },*/
-	{ MEDION_MD95257_SUBVENDOR, HDA_CODEC_ALC880,
+	{ MEDION_MD95257_SUBVENDOR, HDA_CODEC_ALC880, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(1) },
-	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A,
+	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A, HDA_MATCH_ALL,
 	    HDAA_QUIRK_EAPDINV | HDAA_QUIRK_SENSEINV, 0,
 	    0 },
-	{ SAMSUNG_Q1_SUBVENDOR, HDA_CODEC_AD1986A,
+	{ SAMSUNG_Q1_SUBVENDOR, HDA_CODEC_AD1986A, HDA_MATCH_ALL,
 	    HDAA_QUIRK_EAPDINV, 0,
 	    0 },
-	{ APPLE_MB3_SUBVENDOR, HDA_CODEC_ALC885,
+	{ APPLE_MB3_SUBVENDOR, HDA_CODEC_ALC885, HDA_MATCH_ALL,
 	    HDAA_QUIRK_OVREF50, 0,
 	    HDAA_GPIO_SET(0) },
-	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221,
+	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) | HDAA_GPIO_SET(1) },
-	{ APPLE_MACBOOKPRO55, HDA_CODEC_CS4206,
+	{ APPLE_MACBOOKPRO55, HDA_CODEC_CS4206, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(1) | HDAA_GPIO_SET(3) },
-	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205X,
+	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205X, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ DELL_V1400_SUBVENDOR, HDA_CODEC_STAC9228X,
+	{ DELL_V1400_SUBVENDOR, HDA_CODEC_STAC9228X, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(2) },
-	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205X,
+	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205X, HDA_MATCH_ALL,
 	    0, 0,
 	    HDAA_GPIO_SET(0) },
-	{ HDA_MATCH_ALL, HDA_CODEC_AD1988,
+	{ HDA_MATCH_ALL, HDA_CODEC_AD1988, HDA_MATCH_ALL,
 	    HDAA_QUIRK_IVREF80, HDAA_QUIRK_IVREF50 | HDAA_QUIRK_IVREF100,
 	    0 },
-	{ HDA_MATCH_ALL, HDA_CODEC_AD1988B,
+	{ HDA_MATCH_ALL, HDA_CODEC_AD1988B, HDA_MATCH_ALL,
 	    HDAA_QUIRK_IVREF80, HDAA_QUIRK_IVREF50 | HDAA_QUIRK_IVREF100,
 	    0 },
-	{ HDA_MATCH_ALL, HDA_CODEC_CX20549,
+	{ HDA_MATCH_ALL, HDA_CODEC_CX20549, HDA_MATCH_ALL,
 	    0, HDAA_QUIRK_FORCESTEREO,
+	    0 },
+	/* Mac Pro 1,1 requires ovref for proper volume level. */
+	{ 0x00000000, HDA_CODEC_ALC885, 0x106b0c00,
+	    0, HDAA_QUIRK_OVREF,
 	    0 }
 };
 #define HDAC_QUIRKS_LEN (sizeof(hdac_quirks) / sizeof(hdac_quirks[0]))
@@ -139,7 +144,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 
 	config = orig = w->wclass.pin.config;
 	id = hdaa_codec_id(w->devinfo);
-	subid = hdaa_subvendor_id(w->devinfo);
+	subid = hdaa_card_id(w->devinfo);
 
 	/* XXX: Old patches require complete review.
 	 * Now they may create more problem then solve due to
@@ -271,7 +276,17 @@ hdac_pin_patch(struct hdaa_widget *w)
 	}
 
 	/* New patches */
-	if (id == HDA_CODEC_AD1986A &&
+	if (id == HDA_CODEC_AD1984A &&
+	    subid == LENOVO_X300_SUBVENDOR) {
+		switch (nid) {
+		case 17: /* Headphones with redirection */
+			patch = "as=1 seq=15";
+			break;
+		case 20: /* Two mics together */
+			patch = "as=2 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_AD1986A &&
 	    (subid == ASUS_M2NPVMX_SUBVENDOR ||
 	    subid == ASUS_A8NVMCSM_SUBVENDOR ||
 	    subid == ASUS_P5PL2_SUBVENDOR)) {
@@ -320,6 +335,36 @@ hdac_pin_patch(struct hdaa_widget *w)
 	    subid == LENOVO_B450_SUBVENDOR) {
 		switch (nid) {
 		case 22:
+			patch = "as=1 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_CX20590 &&
+	    (subid == LENOVO_X1_SUBVENDOR ||
+	    subid == LENOVO_X220_SUBVENDOR ||
+	    subid == LENOVO_T420_SUBVENDOR ||
+	    subid == LENOVO_T520_SUBVENDOR)) {
+		switch (nid) {
+		case 25:
+			patch = "as=1 seq=15";
+			break;
+		/* 
+		 * Group onboard mic and headphone mic
+		 * together.  Fixes onboard mic.
+		 */
+		case 27:
+			patch = "as=2 seq=15";
+			break;
+		case 35:
+			patch = "as=2";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC269 &&
+	    (subid == LENOVO_X1CRBN_SUBVENDOR ||
+	    subid == LENOVO_T430_SUBVENDOR ||
+	    subid == LENOVO_T430S_SUBVENDOR ||
+	    subid == LENOVO_T530_SUBVENDOR)) {
+		switch (nid) {
+		case 21:
 			patch = "as=1 seq=15";
 			break;
 		}
@@ -372,6 +417,13 @@ hdaa_widget_patch(struct hdaa_widget *w)
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_SHIFT;
 		w->waspin = 1;
 	}
+	/*
+	 * Clear "digital" flag from digital mic input, as its signal then goes
+	 * to "analog" mixer and this separation just limits functionaity.
+	 */
+	if (hdaa_codec_id(devinfo) == HDA_CODEC_AD1984A &&
+	    w->nid == 23)
+		w->param.widget_cap &= ~HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL_MASK;
 	HDA_BOOTVERBOSE(
 		if (w->param.widget_cap != orig) {
 			device_printf(w->devinfo->dev,
@@ -388,18 +440,20 @@ void
 hdaa_patch(struct hdaa_devinfo *devinfo)
 {
 	struct hdaa_widget *w;
-	uint32_t id, subid;
+	uint32_t id, subid, subsystemid;
 	int i;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
+	subsystemid = hda_get_subsystem_id(devinfo->dev);
 
 	/*
 	 * Quirks
 	 */
 	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
 		if (!(HDA_DEV_MATCH(hdac_quirks[i].model, subid) &&
-		    HDA_DEV_MATCH(hdac_quirks[i].id, id)))
+		    HDA_DEV_MATCH(hdac_quirks[i].id, id) &&
+		    HDA_DEV_MATCH(hdac_quirks[i].subsystemid, subsystemid)))
 			continue;
 		devinfo->quirks |= hdac_quirks[i].set;
 		devinfo->quirks &= ~(hdac_quirks[i].unset);
@@ -541,6 +595,21 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		break;
+	case HDA_CODEC_ALC269:
+		/*
+		 * ASUS EeePC 1001px has strange variant of ALC269 CODEC,
+		 * that mutes speaker if unused mixer at NID 15 is muted.
+		 * Probably CODEC incorrectly reports internal connections.
+		 * Hide that muter from the driver.  There are several CODECs
+		 * sharing this ID and I have not enough information about
+		 * them to implement more universal solution.
+		 */
+		if (subid == 0x84371043) {
+			w = hdaa_widget_get(devinfo, 15);
+			if (w != NULL)
+				w->param.inamp_cap = 0;
+		}
+		break;
 	case HDA_CODEC_CX20582:
 	case HDA_CODEC_CX20583:
 	case HDA_CODEC_CX20584:
@@ -594,7 +663,7 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 	uint32_t id, subid, val;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
 
 	switch (id) {
 	case HDA_CODEC_VT1708S_0:
@@ -608,6 +677,8 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		/* Enable Mic Boost Volume controls. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf98, 0x01));
+		/* Fall though */
+	case HDA_CODEC_VT1818S:
 		/* Don't bypass mixer. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf88, 0xc0));

@@ -10,8 +10,6 @@ file.
 
 ansify		Convert K&R-style function definitions to ANSI style
 ath		Tools specific to the Atheros 802.11 support
-backout_commit	A tool for reading in a commit message and generating
-		a script that will backout the commit.
 cfi		Common Flash Interface (CFI) tool
 commitsdb	A tool for reconstructing commit history using md5
 		checksums of the commit logs.
@@ -45,8 +43,6 @@ kerninclude	Shellscript to find unused #includes in the kernel.
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
 kttcp		An in-kernel version of the ttcp network performance tool
 mctest		A multicast test program
-mfc		Merge a directory from HEAD to a branch where it does not
-		already exist and other MFC related script(s).
 mid	 	Create a Message-ID database for mailing lists.
 mwl		Tools specific to the Marvell 88W8363 support
 ncpus		Count the number of processors

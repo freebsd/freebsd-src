@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <nlist.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -79,15 +80,20 @@ main(int argc, char *argv[])
 	kvm_t *kd;
 	size_t buflen, bufpos;
 	long pri;
-	int all, ch;
+	int ch, clear;
+	bool all;
 
-	all = 0;
+	all = false;
+	clear = false;
 	(void) setlocale(LC_CTYPE, "");
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "aM:N:")) != -1)
+	while ((ch = getopt(argc, argv, "acM:N:")) != -1)
 		switch(ch) {
 		case 'a':
-			all++;
+			all = true;
+			break;
+		case 'c':
+			clear = true;
 			break;
 		case 'M':
 			memf = optarg;
@@ -114,6 +120,9 @@ main(int argc, char *argv[])
 			errx(1, "malloc failed");
 		if (sysctlbyname("kern.msgbuf", bp, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
+		if (clear)
+			if (sysctlbyname("kern.msgbuf_clear", NULL, NULL, &clear, sizeof(int)))
+				err(1, "sysctl kern.msgbuf_clear");
 	} else {
 		/* Read in kernel message buffer and do sanity checks. */
 		kd = kvm_open(nlistf, memf, NULL, O_RDONLY, "dmesg");
@@ -196,6 +205,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: dmesg [-a] [-M core [-N system]]\n");
+	fprintf(stderr, "usage: dmesg [-ac] [-M core [-N system]]\n");
 	exit(1);
 }

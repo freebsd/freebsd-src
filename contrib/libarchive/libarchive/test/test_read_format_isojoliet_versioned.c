@@ -74,7 +74,7 @@ DEFINE_TEST(test_read_format_isojoliet_versioned)
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_COMPRESS);
 
 	/* Close the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));

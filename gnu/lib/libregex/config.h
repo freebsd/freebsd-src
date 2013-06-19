@@ -10,3 +10,6 @@
 #define	HAVE_WCRTOMB	1
 #define	HAVE_MBRTOWC	1
 #define	HAVE_WCSCOLL	1
+#define	HAVE_ALLOCA	1
+#define	HAVE_STDBOOL_H	1
+#define	HAVE_STDINT_H	1

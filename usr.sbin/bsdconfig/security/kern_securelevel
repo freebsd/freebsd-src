@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,16 +28,19 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
 
-APP_DIR="130.security"
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="130.security"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+SECURELEVEL_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/securelevel.hlp
+
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ FUNCTIONS
@@ -48,34 +51,54 @@ ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
-	local hline="$hline_select_securelevel_to_operate_at"
 	local prompt="$msg_securelevels_menu_text"
-
-	menu_list="
-		'X $msg_exit'         '$msg_exit_this_menu'
+	local menu_list="
 		'$msg_disabled'       '$msg_disable_securelevels'
 		'$msg_secure'         '$msg_secure_mode'
 		'$msg_highly_secure'  '$msg_highly_secure_mode'
 		'$msg_network_secure' '$msg_network_secure_mode'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_select_securelevel_to_operate_at"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+	case "$( f_sysrc_get kern_securelevel_enable )" in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		case "$( f_sysrc_get kern_securelevel )" in
+		1) defaultitem="$msg_secure"         ;;
+		2) defaultitem="$msg_highly_secure"  ;;
+		3) defaultitem="$msg_network_secure" ;;
+		esac ;;
+	*)
+		defaultitem="$msg_disabled"
+	esac
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$prompt\" $size          \
+		--help-button                      \
+		--help-label \"\$msg_help\"        \
+		${USE_XDIALOG:+--help \"\"}        \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_menutag_store -s "$menu_choice"
+	return $retval
 }
 
 ############################################################ MAIN
@@ -86,7 +109,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -96,19 +119,28 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_securelevels_menu_title"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
 #
-# Launch application main menu
+# Launch application main menu (loop for additional `Help' button)
 #
-dialog_menu_main
-retval=$?
-mtag=$( f_dialog_menutag )
+while :; do
+	dialog_menu_main
+	retval=$?
+	f_dialog_menutag_fetch mtag
 
-[ $retval -eq 0 ] || f_die
+	if [ $retval -eq 2 ]; then
+		# The Help button was pressed
+		f_show_help "$SECURELEVEL_HELPFILE"
+		continue
+	elif [ $retval -ne 0 ]; then
+		f_die
+	fi
+
+	break
+done
 
 case "$mtag" in
 "$msg_disabled")

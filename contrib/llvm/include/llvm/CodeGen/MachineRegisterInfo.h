@@ -14,10 +14,10 @@
 #ifndef LLVM_CODEGEN_MACHINEREGISTERINFO_H
 #define LLVM_CODEGEN_MACHINEREGISTERINFO_H
 
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/IndexedMap.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <vector>
 
 namespace llvm {
@@ -77,16 +77,20 @@ class MachineRegisterInfo {
     return MO->Contents.Reg.Next;
   }
 
-  /// UsedPhysRegs - This is a bit vector that is computed and set by the
+  /// UsedRegUnits - This is a bit vector that is computed and set by the
   /// register allocator, and must be kept up to date by passes that run after
   /// register allocation (though most don't modify this).  This is used
   /// so that the code generator knows which callee save registers to save and
   /// for other target specific uses.
-  /// This vector only has bits set for registers explicitly used, not their
-  /// aliases.
-  BitVector UsedPhysRegs;
+  /// This vector has bits set for register units that are modified in the
+  /// current function. It doesn't include registers clobbered by function
+  /// calls with register mask operands.
+  BitVector UsedRegUnits;
 
-  /// UsedPhysRegMask - Additional used physregs, but including aliases.
+  /// UsedPhysRegMask - Additional used physregs including aliases.
+  /// This bit vector represents all the registers clobbered by function calls.
+  /// It can model things that UsedRegUnits can't, such as function calls that
+  /// clobber ymm7 but preserve the low half in xmm7.
   BitVector UsedPhysRegMask;
 
   /// ReservedRegs - This is a bit vector of reserved registers.  The target
@@ -95,19 +99,14 @@ class MachineRegisterInfo {
   /// started.
   BitVector ReservedRegs;
 
-  /// AllocatableRegs - From TRI->getAllocatableSet.
-  mutable BitVector AllocatableRegs;
-
-  /// LiveIns/LiveOuts - Keep track of the physical registers that are
-  /// livein/liveout of the function.  Live in values are typically arguments in
-  /// registers, live out values are typically return values in registers.
-  /// LiveIn values are allowed to have virtual registers associated with them,
-  /// stored in the second element.
+  /// Keep track of the physical registers that are live in to the function.
+  /// Live in values are typically arguments in registers.  LiveIn values are
+  /// allowed to have virtual registers associated with them, stored in the
+  /// second element.
   std::vector<std::pair<unsigned, unsigned> > LiveIns;
-  std::vector<unsigned> LiveOuts;
 
-  MachineRegisterInfo(const MachineRegisterInfo&); // DO NOT IMPLEMENT
-  void operator=(const MachineRegisterInfo&);      // DO NOT IMPLEMENT
+  MachineRegisterInfo(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
+  void operator=(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
 public:
   explicit MachineRegisterInfo(const TargetRegisterInfo &TRI);
   ~MachineRegisterInfo();
@@ -154,6 +153,15 @@ public:
 
   // Strictly for use by MachineInstr.cpp.
   void removeRegOperandFromUseList(MachineOperand *MO);
+
+  // Strictly for use by MachineInstr.cpp.
+  void moveOperands(MachineOperand *Dst, MachineOperand *Src, unsigned NumOps);
+
+  /// Verify the sanity of the use list for Reg.
+  void verifyUseList(unsigned Reg) const;
+
+  /// Verify the use list of all registers.
+  void verifyUseLists() const;
 
   /// reg_begin/reg_end - Provide iteration support to walk over all definitions
   /// and uses of a register within the MachineFunction that corresponds to this
@@ -360,29 +368,33 @@ public:
   //===--------------------------------------------------------------------===//
 
   /// isPhysRegUsed - Return true if the specified register is used in this
-  /// function.  This only works after register allocation.
+  /// function. Also check for clobbered aliases and registers clobbered by
+  /// function calls with register mask operands.
+  ///
+  /// This only works after register allocation. It is primarily used by
+  /// PrologEpilogInserter to determine which callee-saved registers need
+  /// spilling.
   bool isPhysRegUsed(unsigned Reg) const {
-    return UsedPhysRegs.test(Reg) || UsedPhysRegMask.test(Reg);
-  }
-
-  /// isPhysRegOrOverlapUsed - Return true if Reg or any overlapping register
-  /// is used in this function.
-  bool isPhysRegOrOverlapUsed(unsigned Reg) const {
     if (UsedPhysRegMask.test(Reg))
       return true;
-    for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
-      if (UsedPhysRegs.test(*AI))
+    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+      if (UsedRegUnits.test(*Units))
         return true;
     return false;
   }
 
+  /// Mark the specified register unit as used in this function.
+  /// This should only be called during and after register allocation.
+  void setRegUnitUsed(unsigned RegUnit) {
+    UsedRegUnits.set(RegUnit);
+  }
+
   /// setPhysRegUsed - Mark the specified register used in this function.
   /// This should only be called during and after register allocation.
-  void setPhysRegUsed(unsigned Reg) { UsedPhysRegs.set(Reg); }
-
-  /// addPhysRegsUsed - Mark the specified registers used in this function.
-  /// This should only be called during and after register allocation.
-  void addPhysRegsUsed(const BitVector &Regs) { UsedPhysRegs |= Regs; }
+  void setPhysRegUsed(unsigned Reg) {
+    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+      UsedRegUnits.set(*Units);
+  }
 
   /// addPhysRegsUsedFromRegMask - Mark any registers not in RegMask as used.
   /// This corresponds to the bit mask attached to register mask operands.
@@ -393,8 +405,9 @@ public:
   /// setPhysRegUnused - Mark the specified register unused in this function.
   /// This should only be called during and after register allocation.
   void setPhysRegUnused(unsigned Reg) {
-    UsedPhysRegs.reset(Reg);
     UsedPhysRegMask.reset(Reg);
+    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+      UsedRegUnits.reset(*Units);
   }
 
 
@@ -427,32 +440,54 @@ public:
     return !reservedRegsFrozen() || ReservedRegs.test(PhysReg);
   }
 
+  /// getReservedRegs - Returns a reference to the frozen set of reserved
+  /// registers. This method should always be preferred to calling
+  /// TRI::getReservedRegs() when possible.
+  const BitVector &getReservedRegs() const {
+    assert(reservedRegsFrozen() &&
+           "Reserved registers haven't been frozen yet. "
+           "Use TRI::getReservedRegs().");
+    return ReservedRegs;
+  }
+
+  /// isReserved - Returns true when PhysReg is a reserved register.
+  ///
+  /// Reserved registers may belong to an allocatable register class, but the
+  /// target has explicitly requested that they are not used.
+  ///
+  bool isReserved(unsigned PhysReg) const {
+    return getReservedRegs().test(PhysReg);
+  }
+
+  /// isAllocatable - Returns true when PhysReg belongs to an allocatable
+  /// register class and it hasn't been reserved.
+  ///
+  /// Allocatable registers may show up in the allocation order of some virtual
+  /// register, so a register allocator needs to track its liveness and
+  /// availability.
+  bool isAllocatable(unsigned PhysReg) const {
+    return TRI->isInAllocatableClass(PhysReg) && !isReserved(PhysReg);
+  }
 
   //===--------------------------------------------------------------------===//
-  // LiveIn/LiveOut Management
+  // LiveIn Management
   //===--------------------------------------------------------------------===//
 
-  /// addLiveIn/Out - Add the specified register as a live in/out.  Note that it
+  /// addLiveIn - Add the specified register as a live-in.  Note that it
   /// is an error to add the same register to the same set more than once.
   void addLiveIn(unsigned Reg, unsigned vreg = 0) {
     LiveIns.push_back(std::make_pair(Reg, vreg));
   }
-  void addLiveOut(unsigned Reg) { LiveOuts.push_back(Reg); }
 
-  // Iteration support for live in/out sets.  These sets are kept in sorted
-  // order by their register number.
+  // Iteration support for the live-ins set.  It's kept in sorted order
+  // by register number.
   typedef std::vector<std::pair<unsigned,unsigned> >::const_iterator
   livein_iterator;
-  typedef std::vector<unsigned>::const_iterator liveout_iterator;
   livein_iterator livein_begin() const { return LiveIns.begin(); }
   livein_iterator livein_end()   const { return LiveIns.end(); }
   bool            livein_empty() const { return LiveIns.empty(); }
-  liveout_iterator liveout_begin() const { return LiveOuts.begin(); }
-  liveout_iterator liveout_end()   const { return LiveOuts.end(); }
-  bool             liveout_empty() const { return LiveOuts.empty(); }
 
   bool isLiveIn(unsigned Reg) const;
-  bool isLiveOut(unsigned Reg) const;
 
   /// getLiveInPhysReg - If VReg is a live-in virtual register, return the
   /// corresponding live-in physical register.

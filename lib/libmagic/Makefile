@@ -39,9 +39,9 @@ magic.mgc: mkmagic magic
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
-mkmagic: apprentice.c encoding.c funcs.c getline.c magic.c print.c
-	${CC} ${CFLAGS} -DCOMPILE_ONLY -DHOSTPROG ${LDFLAGS} \
-	    -o ${.TARGET} ${.ALLSRC}
+mkmagic: apprentice.c encoding.c funcs.c magic.c print.c
+	${CC} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} \
+	    ${LDADD}
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
 			${.CURDIR}/config.h

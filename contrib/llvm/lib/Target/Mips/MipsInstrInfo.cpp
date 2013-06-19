@@ -11,16 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MipsAnalyzeImmediate.h"
 #include "MipsInstrInfo.h"
-#include "MipsTargetMachine.h"
-#include "MipsMachineFunction.h"
 #include "InstPrinter/MipsInstPrinter.h"
+#include "MipsAnalyzeImmediate.h"
+#include "MipsMachineFunction.h"
+#include "MipsTargetMachine.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/ADT/STLExtras.h"
 
 #define GET_INSTRINFO_CTOR
 #include "MipsGenInstrInfo.inc"
@@ -93,80 +93,11 @@ bool MipsInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
                                   MachineBasicBlock *&TBB,
                                   MachineBasicBlock *&FBB,
                                   SmallVectorImpl<MachineOperand> &Cond,
-                                  bool AllowModify) const
-{
-  MachineBasicBlock::reverse_iterator I = MBB.rbegin(), REnd = MBB.rend();
+                                  bool AllowModify) const {
+  SmallVector<MachineInstr*, 2> BranchInstrs;
+  BranchType BT = AnalyzeBranch(MBB, TBB, FBB, Cond, AllowModify, BranchInstrs);
 
-  // Skip all the debug instructions.
-  while (I != REnd && I->isDebugValue())
-    ++I;
-
-  if (I == REnd || !isUnpredicatedTerminator(&*I)) {
-    // If this block ends with no branches (it just falls through to its succ)
-    // just return false, leaving TBB/FBB null.
-    TBB = FBB = NULL;
-    return false;
-  }
-
-  MachineInstr *LastInst = &*I;
-  unsigned LastOpc = LastInst->getOpcode();
-
-  // Not an analyzable branch (must be an indirect jump).
-  if (!GetAnalyzableBrOpc(LastOpc))
-    return true;
-
-  // Get the second to last instruction in the block.
-  unsigned SecondLastOpc = 0;
-  MachineInstr *SecondLastInst = NULL;
-
-  if (++I != REnd) {
-    SecondLastInst = &*I;
-    SecondLastOpc = GetAnalyzableBrOpc(SecondLastInst->getOpcode());
-
-    // Not an analyzable branch (must be an indirect jump).
-    if (isUnpredicatedTerminator(SecondLastInst) && !SecondLastOpc)
-      return true;
-  }
-
-  // If there is only one terminator instruction, process it.
-  if (!SecondLastOpc) {
-    // Unconditional branch
-    if (LastOpc == UncondBrOpc) {
-      TBB = LastInst->getOperand(0).getMBB();
-      return false;
-    }
-
-    // Conditional branch
-    AnalyzeCondBr(LastInst, LastOpc, TBB, Cond);
-    return false;
-  }
-
-  // If we reached here, there are two branches.
-  // If there are three terminators, we don't know what sort of block this is.
-  if (++I != REnd && isUnpredicatedTerminator(&*I))
-    return true;
-
-  // If second to last instruction is an unconditional branch,
-  // analyze it and remove the last instruction.
-  if (SecondLastOpc == UncondBrOpc) {
-    // Return if the last instruction cannot be removed.
-    if (!AllowModify)
-      return true;
-
-    TBB = SecondLastInst->getOperand(0).getMBB();
-    LastInst->eraseFromParent();
-    return false;
-  }
-
-  // Conditional branch followed by an unconditional branch.
-  // The last one must be unconditional.
-  if (LastOpc != UncondBrOpc)
-    return true;
-
-  AnalyzeCondBr(SecondLastInst, SecondLastOpc, TBB, Cond);
-  FBB = LastInst->getOperand(0).getMBB();
-
-  return false;
+  return (BT == BT_None) || (BT == BT_Indirect);
 }
 
 void MipsInstrInfo::BuildCondBr(MachineBasicBlock &MBB,
@@ -177,9 +108,14 @@ void MipsInstrInfo::BuildCondBr(MachineBasicBlock &MBB,
   const MCInstrDesc &MCID = get(Opc);
   MachineInstrBuilder MIB = BuildMI(&MBB, DL, MCID);
 
-  for (unsigned i = 1; i < Cond.size(); ++i)
-    MIB.addReg(Cond[i].getReg());
-
+  for (unsigned i = 1; i < Cond.size(); ++i) {
+    if (Cond[i].isReg())
+      MIB.addReg(Cond[i].getReg());
+    else if (Cond[i].isImm())
+      MIB.addImm(Cond[i].getImm());
+    else
+       assert(true && "Cannot copy operand");
+  }
   MIB.addMBB(TBB);
 }
 
@@ -250,6 +186,90 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const
   return false;
 }
 
+MipsInstrInfo::BranchType MipsInstrInfo::
+AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
+              MachineBasicBlock *&FBB, SmallVectorImpl<MachineOperand> &Cond,
+              bool AllowModify,
+              SmallVectorImpl<MachineInstr*> &BranchInstrs) const {
+
+  MachineBasicBlock::reverse_iterator I = MBB.rbegin(), REnd = MBB.rend();
+
+  // Skip all the debug instructions.
+  while (I != REnd && I->isDebugValue())
+    ++I;
+
+  if (I == REnd || !isUnpredicatedTerminator(&*I)) {
+    // This block ends with no branches (it just falls through to its succ).
+    // Leave TBB/FBB null.
+    TBB = FBB = NULL;
+    return BT_NoBranch;
+  }
+
+  MachineInstr *LastInst = &*I;
+  unsigned LastOpc = LastInst->getOpcode();
+  BranchInstrs.push_back(LastInst);
+
+  // Not an analyzable branch (e.g., indirect jump).
+  if (!GetAnalyzableBrOpc(LastOpc))
+    return LastInst->isIndirectBranch() ? BT_Indirect : BT_None;
+
+  // Get the second to last instruction in the block.
+  unsigned SecondLastOpc = 0;
+  MachineInstr *SecondLastInst = NULL;
+
+  if (++I != REnd) {
+    SecondLastInst = &*I;
+    SecondLastOpc = GetAnalyzableBrOpc(SecondLastInst->getOpcode());
+
+    // Not an analyzable branch (must be an indirect jump).
+    if (isUnpredicatedTerminator(SecondLastInst) && !SecondLastOpc)
+      return BT_None;
+  }
+
+  // If there is only one terminator instruction, process it.
+  if (!SecondLastOpc) {
+    // Unconditional branch
+    if (LastOpc == UncondBrOpc) {
+      TBB = LastInst->getOperand(0).getMBB();
+      return BT_Uncond;
+    }
+
+    // Conditional branch
+    AnalyzeCondBr(LastInst, LastOpc, TBB, Cond);
+    return BT_Cond;
+  }
+
+  // If we reached here, there are two branches.
+  // If there are three terminators, we don't know what sort of block this is.
+  if (++I != REnd && isUnpredicatedTerminator(&*I))
+    return BT_None;
+
+  BranchInstrs.insert(BranchInstrs.begin(), SecondLastInst);
+
+  // If second to last instruction is an unconditional branch,
+  // analyze it and remove the last instruction.
+  if (SecondLastOpc == UncondBrOpc) {
+    // Return if the last instruction cannot be removed.
+    if (!AllowModify)
+      return BT_None;
+
+    TBB = SecondLastInst->getOperand(0).getMBB();
+    LastInst->eraseFromParent();
+    BranchInstrs.pop_back();
+    return BT_Uncond;
+  }
+
+  // Conditional branch followed by an unconditional branch.
+  // The last one must be unconditional.
+  if (LastOpc != UncondBrOpc)
+    return BT_None;
+
+  AnalyzeCondBr(SecondLastInst, SecondLastOpc, TBB, Cond);
+  FBB = LastInst->getOperand(0).getMBB();
+
+  return BT_CondUncond;
+}
+
 /// Return the number of bytes of code the specified instruction may be.
 unsigned MipsInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   switch (MI->getOpcode()) {
@@ -261,47 +281,4 @@ unsigned MipsInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
     return getInlineAsmLength(AsmStr, *MF->getTarget().getMCAsmInfo());
   }
   }
-}
-
-unsigned
-llvm::Mips::loadImmediate(int64_t Imm, bool IsN64, const TargetInstrInfo &TII,
-                          MachineBasicBlock& MBB,
-                          MachineBasicBlock::iterator II, DebugLoc DL,
-                          bool LastInstrIsADDiu,
-                          MipsAnalyzeImmediate::Inst *LastInst) {
-  MipsAnalyzeImmediate AnalyzeImm;
-  unsigned Size = IsN64 ? 64 : 32;
-  unsigned LUi = IsN64 ? Mips::LUi64 : Mips::LUi;
-  unsigned ZEROReg = IsN64 ? Mips::ZERO_64 : Mips::ZERO;
-  unsigned ATReg = IsN64 ? Mips::AT_64 : Mips::AT;
-
-  const MipsAnalyzeImmediate::InstSeq &Seq =
-    AnalyzeImm.Analyze(Imm, Size, LastInstrIsADDiu);
-  MipsAnalyzeImmediate::InstSeq::const_iterator Inst = Seq.begin();
-
-  if (LastInst && (Seq.size() == 1)) {
-    *LastInst = *Inst;
-    return 0;
-  }
-
-  // The first instruction can be a LUi, which is different from other
-  // instructions (ADDiu, ORI and SLL) in that it does not have a register
-  // operand.
-  if (Inst->Opc == LUi)
-    BuildMI(MBB, II, DL, TII.get(LUi), ATReg)
-      .addImm(SignExtend64<16>(Inst->ImmOpnd));
-  else
-    BuildMI(MBB, II, DL, TII.get(Inst->Opc), ATReg).addReg(ZEROReg)
-      .addImm(SignExtend64<16>(Inst->ImmOpnd));
-
-  // Build the remaining instructions in Seq. Skip the last instruction if
-  // LastInst is not 0.
-  for (++Inst; Inst != Seq.end() - !!LastInst; ++Inst)
-    BuildMI(MBB, II, DL, TII.get(Inst->Opc), ATReg).addReg(ATReg)
-      .addImm(SignExtend64<16>(Inst->ImmOpnd));
-
-  if (LastInst)
-    *LastInst = *Inst;
-
-  return Seq.size() - !!LastInst;
 }

@@ -96,11 +96,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Manages physical address maps.
  *
- * In addition to hardware address maps, this module is called upon to
- * provide software-use-only maps which may or may not be stored in the
- * same form as hardware maps.  These pseudo-maps are used to store
- * intermediate results from copy operations to and from address spaces.
- *
  * Since the information managed by this module is also stored by the
  * logical address mapping module, this module may throw away valid virtual
  * to physical mappings at almost any time.  However, invalidations of
@@ -124,6 +119,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
@@ -144,7 +140,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_pager.h>
 #include <vm/uma.h>
 
 #include <machine/_inttypes.h>
@@ -295,6 +290,8 @@ void moea64_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea64_clear_modify(mmu_t, vm_page_t);
 void moea64_clear_reference(mmu_t, vm_page_t);
 void moea64_copy_page(mmu_t, vm_page_t, vm_page_t);
+void moea64_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize);
 void moea64_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
 void moea64_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
     vm_prot_t);
@@ -339,6 +336,7 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_clear_modify,	moea64_clear_modify),
 	MMUMETHOD(mmu_clear_reference,	moea64_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea64_copy_page),
+	MMUMETHOD(mmu_copy_pages,	moea64_copy_pages),
 	MMUMETHOD(mmu_enter,		moea64_enter),
 	MMUMETHOD(mmu_enter_object,	moea64_enter_object),
 	MMUMETHOD(mmu_enter_quick,	moea64_enter_quick),
@@ -650,6 +648,14 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 			moea64_kenter(mmup, pa, pa);
 	}
 	ENABLE_TRANS(msr);
+
+	/*
+	 * Allow user to override unmapped_buf_allowed for testing.
+	 * XXXKIB Only direct map implementation was tested.
+	 */
+	if (!TUNABLE_INT_FETCH("vfs.unmapped_buf_allowed",
+	    &unmapped_buf_allowed))
+		unmapped_buf_allowed = hw_direct_map;
 }
 
 void
@@ -1109,6 +1115,72 @@ moea64_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 	}
 }
 
+static inline void
+moea64_copy_pages_dmap(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		a_cp = (char *)VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]) +
+		    a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		b_cp = (char *)VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]) +
+		    b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+}
+
+static inline void
+moea64_copy_pages_nodmap(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+{
+	void *a_cp, *b_cp;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	mtx_lock(&moea64_scratchpage_mtx);
+	while (xfersize > 0) {
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		moea64_set_scratchpage_pa(mmu, 0,
+		    VM_PAGE_TO_PHYS(ma[a_offset >> PAGE_SHIFT]));
+		a_cp = (char *)moea64_scratchpage_va[0] + a_pg_offset;
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		moea64_set_scratchpage_pa(mmu, 1,
+		    VM_PAGE_TO_PHYS(mb[b_offset >> PAGE_SHIFT]));
+		b_cp = (char *)moea64_scratchpage_va[1] + b_pg_offset;
+		bcopy(a_cp, b_cp, cnt);
+		a_offset += cnt;
+		b_offset += cnt;
+		xfersize -= cnt;
+	}
+	mtx_unlock(&moea64_scratchpage_mtx);
+}
+
+void
+moea64_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
+    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+{
+
+	if (hw_direct_map) {
+		moea64_copy_pages_dmap(mmu, ma, a_offset, mb, b_offset,
+		    xfersize);
+	} else {
+		moea64_copy_pages_nodmap(mmu, ma, a_offset, mb, b_offset,
+		    xfersize);
+	}
+}
+
 void
 moea64_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 {
@@ -1188,9 +1260,8 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pvo_flags = PVO_MANAGED;
 	}
 
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
-	    VM_OBJECT_LOCKED(m->object),
-	    ("moea64_enter: page %p is not busy", m));
+	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
@@ -1289,6 +1360,8 @@ moea64_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 	vm_page_t m;
 	vm_pindex_t diff, psize;
 
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
+
 	psize = atop(end - start);
 	m = m_start;
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
@@ -1373,13 +1446,7 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 
 	*flags = UMA_SLAB_PRIV;
 	needed_lock = !PMAP_LOCKED(kernel_pmap);
-
-        if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-                pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-        else
-                pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-        if (wait & M_ZERO)
-                pflags |= VM_ALLOC_ZERO;
+	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
         for (;;) {
                 m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
@@ -1459,7 +1526,7 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have LPTE_CHG set.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
@@ -1494,7 +1561,7 @@ moea64_clear_modify(mmu_t mmu, vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("moea64_clear_modify: page %p is busy", m));
 
@@ -1527,7 +1594,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;

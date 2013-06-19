@@ -88,7 +88,7 @@ main(int argc, char **argv)
 	printer = NULL;
 	euid = geteuid();
 	uid = getuid();
-	seteuid(uid);
+	PRIV_END
 	progname = *argv;
 	if (gethostname(local_host, sizeof(local_host)))
 		err(1, "gethostname");

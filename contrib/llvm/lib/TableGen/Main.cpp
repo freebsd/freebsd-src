@@ -22,8 +22,8 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/system_error.h"
 #include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
-#include "llvm/TableGen/TableGenAction.h"
 #include <algorithm>
 #include <cstdio>
 using namespace llvm;
@@ -47,81 +47,84 @@ namespace {
               cl::value_desc("directory"), cl::Prefix);
 }
 
+/// \brief Create a dependency file for `-d` option.
+///
+/// This functionality is really only for the benefit of the build system.
+/// It is similar to GCC's `-M*` family of options.
+static int createDependencyFile(const TGParser &Parser, const char *argv0) {
+  if (OutputFilename == "-") {
+    errs() << argv0 << ": the option -d must be used together with -o\n";
+    return 1;
+  }
+  std::string Error;
+  tool_output_file DepOut(DependFilename.c_str(), Error);
+  if (!Error.empty()) {
+    errs() << argv0 << ": error opening " << DependFilename
+      << ":" << Error << "\n";
+    return 1;
+  }
+  DepOut.os() << OutputFilename << ":";
+  const TGLexer::DependenciesMapTy &Dependencies = Parser.getDependencies();
+  for (TGLexer::DependenciesMapTy::const_iterator I = Dependencies.begin(),
+                                                  E = Dependencies.end();
+       I != E; ++I) {
+    DepOut.os() << " " << I->first;
+  }
+  DepOut.os() << "\n";
+  DepOut.keep();
+  return 0;
+}
+
 namespace llvm {
 
-int TableGenMain(char *argv0, TableGenAction &Action) {
+int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   RecordKeeper Records;
 
-  try {
-    // Parse the input file.
-    OwningPtr<MemoryBuffer> File;
-    if (error_code ec =
-          MemoryBuffer::getFileOrSTDIN(InputFilename.c_str(), File)) {
-      errs() << "Could not open input file '" << InputFilename << "': "
-             << ec.message() <<"\n";
-      return 1;
-    }
-    MemoryBuffer *F = File.take();
+  // Parse the input file.
+  OwningPtr<MemoryBuffer> File;
+  if (error_code ec =
+        MemoryBuffer::getFileOrSTDIN(InputFilename.c_str(), File)) {
+    errs() << "Could not open input file '" << InputFilename << "': "
+           << ec.message() <<"\n";
+    return 1;
+  }
+  MemoryBuffer *F = File.take();
 
-    // Tell SrcMgr about this buffer, which is what TGParser will pick up.
-    SrcMgr.AddNewSourceBuffer(F, SMLoc());
+  // Tell SrcMgr about this buffer, which is what TGParser will pick up.
+  SrcMgr.AddNewSourceBuffer(F, SMLoc());
 
-    // Record the location of the include directory so that the lexer can find
-    // it later.
-    SrcMgr.setIncludeDirs(IncludeDirs);
+  // Record the location of the include directory so that the lexer can find
+  // it later.
+  SrcMgr.setIncludeDirs(IncludeDirs);
 
-    TGParser Parser(SrcMgr, Records);
+  TGParser Parser(SrcMgr, Records);
 
-    if (Parser.ParseFile())
-      return 1;
+  if (Parser.ParseFile())
+    return 1;
 
-    std::string Error;
-    tool_output_file Out(OutputFilename.c_str(), Error);
-    if (!Error.empty()) {
-      errs() << argv0 << ": error opening " << OutputFilename
-        << ":" << Error << "\n";
-      return 1;
-    }
-    if (!DependFilename.empty()) {
-      if (OutputFilename == "-") {
-        errs() << argv0 << ": the option -d must be used together with -o\n";
-        return 1;
-      }
-      tool_output_file DepOut(DependFilename.c_str(), Error);
-      if (!Error.empty()) {
-        errs() << argv0 << ": error opening " << DependFilename
-          << ":" << Error << "\n";
-        return 1;
-      }
-      DepOut.os() << OutputFilename << ":";
-      const std::vector<std::string> &Dependencies = Parser.getDependencies();
-      for (std::vector<std::string>::const_iterator I = Dependencies.begin(),
-                                                    E = Dependencies.end();
-           I != E; ++I) {
-        DepOut.os() << " " << (*I);
-      }
-      DepOut.os() << "\n";
-      DepOut.keep();
-    }
-
-    if (Action(Out.os(), Records))
-      return 1;
-
-    // Declare success.
-    Out.keep();
-    return 0;
-
-  } catch (const TGError &Error) {
-    PrintError(Error);
-  } catch (const std::string &Error) {
-    PrintError(Error);
-  } catch (const char *Error) {
-    PrintError(Error);
-  } catch (...) {
-    errs() << argv0 << ": Unknown unexpected exception occurred.\n";
+  std::string Error;
+  tool_output_file Out(OutputFilename.c_str(), Error);
+  if (!Error.empty()) {
+    errs() << argv0 << ": error opening " << OutputFilename
+      << ":" << Error << "\n";
+    return 1;
+  }
+  if (!DependFilename.empty()) {
+    if (int Ret = createDependencyFile(Parser, argv0))
+      return Ret;
   }
 
-  return 1;
+  if (MainFn(Out.os(), Records))
+    return 1;
+
+  if (ErrorsPrinted > 0) {
+    errs() << argv0 << ": " << ErrorsPrinted << " errors.\n";
+    return 1;
+  }
+
+  // Declare success.
+  Out.keep();
+  return 0;
 }
 
 }

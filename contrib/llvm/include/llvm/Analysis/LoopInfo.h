@@ -27,21 +27,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_LOOP_INFO_H
-#define LLVM_ANALYSIS_LOOP_INFO_H
+#ifndef LLVM_ANALYSIS_LOOPINFO_H
+#define LLVM_ANALYSIS_LOOPINFO_H
 
-#include "llvm/Pass.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/Dominators.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Pass.h"
 #include <algorithm>
-#include <map>
 
 namespace llvm {
 
@@ -56,6 +51,7 @@ class DominatorTree;
 class LoopInfo;
 class Loop;
 class PHINode;
+class raw_ostream;
 template<class N, class M> class LoopInfoBase;
 template<class N, class M> class LoopBase;
 
@@ -72,10 +68,9 @@ class LoopBase {
   // Blocks - The list of blocks in this loop.  First entry is the header node.
   std::vector<BlockT*> Blocks;
 
-  // DO NOT IMPLEMENT
-  LoopBase(const LoopBase<BlockT, LoopT> &);
-  // DO NOT IMPLEMENT
-  const LoopBase<BlockT, LoopT>&operator=(const LoopBase<BlockT, LoopT> &);
+  LoopBase(const LoopBase<BlockT, LoopT> &) LLVM_DELETED_FUNCTION;
+  const LoopBase<BlockT, LoopT>&
+    operator=(const LoopBase<BlockT, LoopT> &) LLVM_DELETED_FUNCTION;
 public:
   /// Loop ctor - This creates an empty loop.
   LoopBase() : ParentLoop(0) {}
@@ -152,10 +147,10 @@ public:
   /// block that is outside of the current loop.
   ///
   bool isLoopExiting(const BlockT *BB) const {
-    typedef GraphTraits<BlockT*> BlockTraits;
+    typedef GraphTraits<const BlockT*> BlockTraits;
     for (typename BlockTraits::ChildIteratorType SI =
-         BlockTraits::child_begin(const_cast<BlockT*>(BB)),
-         SE = BlockTraits::child_end(const_cast<BlockT*>(BB)); SI != SE; ++SI) {
+         BlockTraits::child_begin(BB),
+         SE = BlockTraits::child_end(BB); SI != SE; ++SI) {
       if (!contains(*SI))
         return true;
     }
@@ -170,8 +165,8 @@ public:
 
     typedef GraphTraits<Inverse<BlockT*> > InvBlockTraits;
     for (typename InvBlockTraits::ChildIteratorType I =
-         InvBlockTraits::child_begin(const_cast<BlockT*>(H)),
-         E = InvBlockTraits::child_end(const_cast<BlockT*>(H)); I != E; ++I)
+         InvBlockTraits::child_begin(H),
+         E = InvBlockTraits::child_end(H); I != E; ++I)
       if (contains(*I))
         ++NumBackEdges;
 
@@ -382,6 +377,20 @@ public:
   /// isSafeToClone - Return true if the loop body is safe to clone in practice.
   bool isSafeToClone() const;
 
+  /// Returns true if the loop is annotated parallel.
+  ///
+  /// A parallel loop can be assumed to not contain any dependencies between
+  /// iterations by the compiler. That is, any loop-carried dependency checking
+  /// can be skipped completely when parallelizing the loop on the target
+  /// machine. Thus, if the parallel loop information originates from the
+  /// programmer, e.g. via the OpenMP parallel for pragma, it is the
+  /// programmer's responsibility to ensure there are no loop-carried
+  /// dependencies. The final execution order of the instructions across
+  /// iterations is not guaranteed, thus, the end result might or might not
+  /// implement actual concurrent execution of instructions across multiple
+  /// iterations.
+  bool isAnnotatedParallel() const;
+
   /// hasDedicatedExits - Return true if no exit block for the loop
   /// has a predecessor that is outside the loop.
   bool hasDedicatedExits() const;
@@ -416,8 +425,8 @@ class LoopInfoBase {
   friend class LoopBase<BlockT, LoopT>;
   friend class LoopInfo;
 
-  void operator=(const LoopInfoBase &); // do not implement
-  LoopInfoBase(const LoopInfo &);       // do not implement
+  void operator=(const LoopInfoBase &) LLVM_DELETED_FUNCTION;
+  LoopInfoBase(const LoopInfo &) LLVM_DELETED_FUNCTION;
 public:
   LoopInfoBase() { }
   ~LoopInfoBase() { releaseMemory(); }
@@ -550,8 +559,8 @@ class LoopInfo : public FunctionPass {
   LoopInfoBase<BasicBlock, Loop> LI;
   friend class LoopBase<BasicBlock, Loop>;
 
-  void operator=(const LoopInfo &); // do not implement
-  LoopInfo(const LoopInfo &);       // do not implement
+  void operator=(const LoopInfo &) LLVM_DELETED_FUNCTION;
+  LoopInfo(const LoopInfo &) LLVM_DELETED_FUNCTION;
 public:
   static char ID; // Pass identification, replacement for typeid
 

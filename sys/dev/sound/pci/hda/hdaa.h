@@ -260,7 +260,7 @@ struct hdaa_chan {
 		(((uint32_t)hda_get_vendor_id(devinfo->dev) << 16) +	\
 		hda_get_device_id(devinfo->dev))
 
-#define hdaa_subvendor_id(devinfo)					\
+#define hdaa_card_id(devinfo)					\
 		(((uint32_t)hda_get_subdevice_id(devinfo->dev) << 16) +	\
 		hda_get_subvendor_id(devinfo->dev))
 

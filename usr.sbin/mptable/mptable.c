@@ -42,7 +42,7 @@ static const char rcsid[] =
 #define EXTENDED_PROCESSING_READY
 #define OEM_PROCESSING_READY_NOT
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <err.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -270,8 +270,8 @@ static void pnstr( char* s, int c );
 /* global data */
 static int	pfd;		/* physical /dev/mem fd */
 
-static int	busses[16];
-static int	apics[16];
+static int	busses[256];
+static int	apics[256];
 
 static int	ncpu;
 static int	nbus;
@@ -710,10 +710,12 @@ MPConfigTableHeader( u_int32_t pap )
 
     printf( "MP Config Base Table Entries:\n\n" );
 
-    /* initialze tables */
-    for ( x = 0; x < 16; ++x ) {
-	busses[ x ] = apics[ x ] = 0xff;
-    }
+    /* initialize tables */
+    for (x = 0; x < (int)nitems(busses); x++)
+	busses[x] = 0xff;
+
+    for (x = 0; x < (int)nitems(apics); x++)
+	apics[x] = 0xff;
 
     ncpu = 0;
     nbus = 0;

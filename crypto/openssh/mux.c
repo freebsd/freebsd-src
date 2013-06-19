@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.36 2012/07/06 01:37:21 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.38 2013/01/02 00:32:07 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -61,10 +61,6 @@
 
 #ifdef HAVE_UTIL_H
 # include <util.h>
-#endif
-
-#ifdef HAVE_LIBUTIL_H
-# include <libutil.h>
 #endif
 
 #include "openbsd-compat/sys-queue.h"
@@ -188,7 +184,7 @@ static const struct {
 
 /* Cleanup callback fired on closure of mux slave _session_ channel */
 /* ARGSUSED */
-static void
+void
 mux_master_session_cleanup_cb(int cid, void *unused)
 {
 	Channel *cc, *c = channel_by_id(cid);
@@ -738,9 +734,9 @@ process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	}
 
 	if (ftype == MUX_FWD_LOCAL || ftype == MUX_FWD_DYNAMIC) {
-		if (channel_setup_local_fwd_listener(fwd.listen_host,
+		if (!channel_setup_local_fwd_listener(fwd.listen_host,
 		    fwd.listen_port, fwd.connect_host, fwd.connect_port,
-		    options.gateway_ports) < 0) {
+		    options.gateway_ports)) {
  fail:
 			logit("slave-requested %s failed", fwd_desc);
 			buffer_put_int(r, MUX_S_FAILURE);

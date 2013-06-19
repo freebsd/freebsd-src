@@ -129,17 +129,19 @@ static driver_t simplebus_driver = {
 devclass_t simplebus_devclass;
 
 DRIVER_MODULE(simplebus, fdtbus, simplebus_driver, simplebus_devclass, 0, 0);
+DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass, 0,
+    0);
 
 static int
 simplebus_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible_strict(dev, "simple-bus"))
+	if (!ofw_bus_is_compatible(dev, "simple-bus"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Flattened device tree simple bus");
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -179,7 +181,6 @@ simplebus_attach(device_t dev)
 			device_printf(dev,
 			    "%s: could not process 'reg' "
 			    "property\n", di->di_ofw.obd_name);
-			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -189,7 +190,6 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "%s: could not process "
 			    "'interrupts' property\n", di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
-			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -201,7 +201,6 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "could not add child: %s\n",
 			    di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
-			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -254,8 +253,9 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 		rle = resource_list_find(&di->di_res, type, *rid);
 		if (rle == NULL) {
-			device_printf(bus, "no default resources for "
-			    "rid = %d, type = %d\n", *rid, type);
+			if (bootverbose)
+				device_printf(bus, "no default resources for "
+				    "rid = %d, type = %d\n", *rid, type);
 			return (NULL);
 		}
 		start = rle->start;
@@ -285,9 +285,6 @@ simplebus_setup_intr(device_t bus, device_t child, struct resource *res,
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 	int error, rid;
-
-	if (device_get_parent(child) != bus)
-		return (ECHILD);
 
 	di = device_get_ivars(child);
 	if (di == NULL)

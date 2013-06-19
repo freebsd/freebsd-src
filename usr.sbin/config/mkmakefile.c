@@ -431,7 +431,7 @@ nextparam:
 		next_quoted_word(fp, wd);
 		if (wd == 0) {
 			fprintf(stderr,
-			    "%s: %s missing compile command string.\n",
+			    "%s: %s missing dependency string.\n",
 			    fname, this);
 			exit(1);
 		}
@@ -762,7 +762,7 @@ do_rules(FILE *f)
 				break;
 			}
 			snprintf(cmd, sizeof(cmd),
-			    "${%s_%c%s}\n", ftype,
+			    "${%s_%c%s}", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;

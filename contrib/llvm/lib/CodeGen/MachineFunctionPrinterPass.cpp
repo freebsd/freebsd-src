@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/SlotIndexes.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -51,7 +51,7 @@ struct MachineFunctionPrinterPass : public MachineFunctionPass {
 char MachineFunctionPrinterPass::ID = 0;
 }
 
-char &MachineFunctionPrinterPassID = MachineFunctionPrinterPass::ID;
+char &llvm::MachineFunctionPrinterPassID = MachineFunctionPrinterPass::ID;
 INITIALIZE_PASS(MachineFunctionPrinterPass, "print-machineinstrs",
                 "Machine Function Printer", false, false)
 

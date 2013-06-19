@@ -319,7 +319,7 @@ kld_file_stat_to_swrun(const struct kld_file_stat *kfs,
 }
 
 /**
- * Get all visible proceses including the kernel visible threads
+ * Get all visible processes including the kernel visible threads
  */
 static void
 swrun_OS_get_procs(void)

@@ -1,0 +1,111 @@
+/*	$Id: arch.in,v 1.12 2012/01/28 14:02:17 joerg Exp $ */
+/*
+ * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * This file defines the architecture token of the .Dt prologue macro.
+ * All architectures that your system supports (or the manuals of your
+ * system) should be included here.  The right-hand-side is the
+ * formatted output.
+ *
+ * Be sure to escape strings.
+ *
+ * REMEMBER TO ADD NEW ARCHITECTURES TO MDOC.7!
+ */
+
+LINE("acorn26",		"Acorn26")
+LINE("acorn32",		"Acorn32")
+LINE("algor",		"Algor")
+LINE("alpha",		"Alpha")
+LINE("amd64",		"AMD64")
+LINE("amiga",		"Amiga")
+LINE("amigappc",	"AmigaPPC")
+LINE("arc",		"ARC")
+LINE("arm",		"ARM")
+LINE("arm26",		"ARM26")
+LINE("arm32",		"ARM32")
+LINE("armish",		"ARMISH")
+LINE("aviion",		"AViiON")
+LINE("atari",		"ATARI")
+LINE("beagle",		"Beagle")
+LINE("bebox",		"BeBox")
+LINE("cats",		"cats")
+LINE("cesfic",		"CESFIC")
+LINE("cobalt",		"Cobalt")
+LINE("dreamcast",	"Dreamcast")
+LINE("emips",		"EMIPS")
+LINE("evbarm",		"evbARM")
+LINE("evbmips",		"evbMIPS")
+LINE("evbppc",		"evbPPC")
+LINE("evbsh3",		"evbSH3")
+LINE("ews4800mips",	"EWS4800MIPS")
+LINE("hp300",		"HP300")
+LINE("hp700",		"HP700")
+LINE("hpcarm",		"HPCARM")
+LINE("hpcmips",		"HPCMIPS")
+LINE("hpcsh",		"HPCSH")
+LINE("hppa",		"HPPA")
+LINE("hppa64",		"HPPA64")
+LINE("ia64",		"ia64")
+LINE("i386",		"i386")
+LINE("ibmnws",		"IBMNWS")
+LINE("iyonix",		"Iyonix")
+LINE("landisk",		"LANDISK")
+LINE("loongson",	"Loongson")
+LINE("luna68k",		"Luna68k")
+LINE("luna88k",		"Luna88k")
+LINE("m68k",		"m68k")
+LINE("mac68k",		"Mac68k")
+LINE("macppc",		"MacPPC")
+LINE("mips",		"MIPS")
+LINE("mips64",		"MIPS64")
+LINE("mipsco",		"MIPSCo")
+LINE("mmeye",		"mmEye")
+LINE("mvme68k",		"MVME68k")
+LINE("mvme88k",		"MVME88k")
+LINE("mvmeppc",		"MVMEPPC")
+LINE("netwinder",	"NetWinder")
+LINE("news68k",		"NeWS68k")
+LINE("newsmips",	"NeWSMIPS")
+LINE("next68k",		"NeXT68k")
+LINE("ofppc",		"OFPPC")
+LINE("palm",		"Palm")
+LINE("pc532",		"PC532")
+LINE("playstation2",	"PlayStation2")
+LINE("pmax",		"PMAX")
+LINE("pmppc",		"pmPPC")
+LINE("powerpc",		"PowerPC")
+LINE("prep",		"PReP")
+LINE("rs6000",		"RS6000")
+LINE("sandpoint",	"Sandpoint")
+LINE("sbmips",		"SBMIPS")
+LINE("sgi",		"SGI")
+LINE("sgimips",		"SGIMIPS")
+LINE("sh3",		"SH3")
+LINE("shark",		"Shark")
+LINE("socppc",		"SOCPPC")
+LINE("solbourne",	"Solbourne")
+LINE("sparc",		"SPARC")
+LINE("sparc64",		"SPARC64")
+LINE("sun2",		"Sun2")
+LINE("sun3",		"Sun3")
+LINE("tahoe",		"Tahoe")
+LINE("vax",		"VAX")
+LINE("x68k",		"X68k")
+LINE("x86",		"x86")
+LINE("x86_64",		"x86_64")
+LINE("xen",		"Xen")
+LINE("zaurus",		"Zaurus")

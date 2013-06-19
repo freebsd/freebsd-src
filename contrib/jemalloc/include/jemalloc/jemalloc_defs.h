@@ -223,6 +223,15 @@
 #define JEMALLOC_OVERRIDE_VALLOC 
 
 /*
+ * At least Linux omits the "const" in:
+ *
+ *   size_t malloc_usable_size(const void *ptr);
+ *
+ * Match the operating system's prototype.
+ */
+#define JEMALLOC_USABLE_SIZE_CONST const
+
+/*
  * Darwin (OS X) uses zones to work around Mach-O symbol override shortcomings.
  */
 /* #undef JEMALLOC_ZONE */
@@ -240,6 +249,11 @@
  */
 /* #undef JEMALLOC_PURGE_MADVISE_DONTNEED */
 #define JEMALLOC_PURGE_MADVISE_FREE 
+
+/*
+ * Define if operating system has alloca.h header.
+ */
+/* #undef JEMALLOC_HAS_ALLOCA_H */
 
 /* sizeof(void *) == 2^LG_SIZEOF_PTR. */
 #define LG_SIZEOF_PTR 3

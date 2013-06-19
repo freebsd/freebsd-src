@@ -51,6 +51,9 @@ TARGET_INC+=	${GCC_CPU}/elf.h
 .endif
 .if ${TARGET_CPUARCH} == "arm"
 TARGET_INC+=	${GCC_CPU}/aout.h
+.if ${MK_ARM_EABI} != "no"
+TARGET_INC+=	${GCC_CPU}/bpabi.h
+.endif
 .endif
 .if ${TARGET_ARCH} == "powerpc64"
 TARGET_INC+=	${GCC_CPU}/biarch64.h
@@ -349,7 +352,13 @@ gthr-default.h: ${GCCDIR}/gthr-posix.h
 
 GENSRCS+=	gthr-default.h
 
+.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
+.else
 unwind.h: ${GCCDIR}/unwind-generic.h
+.endif
+
+unwind.h:
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 GENSRCS+=	unwind.h
@@ -512,7 +521,7 @@ ${_src:R:S/$/.o/}: ${_src}
 
 ${LIBIBERTY}: ${LIBIBERTY_OBJS}
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
 	${RANLIB} ${.TARGET}
 CLEANFILES+=	${LIBIBERTY} ${LIBIBERTY_OBJS}
 

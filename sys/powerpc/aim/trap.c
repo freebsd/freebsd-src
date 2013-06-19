@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kdb.h>
@@ -103,6 +104,34 @@ struct powerpc_exception {
 	u_int	vector;
 	char	*name;
 };
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+/*
+ * This is a hook which is initialised by the dtrace module
+ * to handle traps which might occur during DTrace probe
+ * execution.
+ */
+dtrace_trap_func_t	dtrace_trap_func;
+
+dtrace_doubletrap_func_t	dtrace_doubletrap_func;
+
+/*
+ * This is a hook which is initialised by the systrace module
+ * when it is loaded. This keeps the DTrace syscall provider
+ * implementation opaque. 
+ */
+systrace_probe_func_t	systrace_probe_func;
+
+/*
+ * These hooks are necessary for the pid, usdt and fasttrap providers.
+ */
+dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
+dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
+dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
+int (*dtrace_invop_jump_addr)(struct trapframe *);
+#endif
 
 static struct powerpc_exception powerpc_exceptions[] = {
 	{ 0x0100, "system reset" },
@@ -176,6 +205,26 @@ trap(struct trapframe *frame)
 	}
 	else
 #endif
+#ifdef KDTRACE_HOOKS
+	/*
+	 * A trap can occur while DTrace executes a probe. Before
+	 * executing the probe, DTrace blocks re-scheduling and sets
+	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * want to fault. On returning from the probe, the no-fault
+	 * flag is cleared and finally re-scheduling is enabled.
+	 *
+	 * If the DTrace kernel module has registered a trap handler,
+	 * call it and if it returns non-zero, assume that it has
+	 * handled the trap and modified the trap frame so that this
+	 * function can return normally.
+	 */
+	/*
+	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
+	 */
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+		return;
+#endif
+
 	if (user) {
 		td->td_pticks = 0;
 		td->td_frame = frame;
@@ -246,7 +295,7 @@ trap(struct trapframe *frame)
 			/* Identify the trap reason */
 			if (frame->srr1 & EXC_PGM_TRAP)
 				sig = SIGTRAP;
- 			else if (ppc_instr_emulate(frame) == 0)
+			else if (ppc_instr_emulate(frame) == 0)
 				frame->srr0 += 4;
 			else
 				sig = SIGILL;
@@ -261,6 +310,16 @@ trap(struct trapframe *frame)
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 		switch (type) {
+#ifdef KDTRACE_HOOKS
+		case EXC_PGM:
+			if (frame->srr1 & EXC_PGM_TRAP) {
+				if (*(uintptr_t *)frame->srr0 == 0x7c810808) {
+					if (dtrace_invop_jump_addr != NULL) {
+						dtrace_invop_jump_addr(frame);
+					}
+				}
+			}
+#endif
 #ifdef __powerpc64__
 		case EXC_DSE:
 			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
@@ -297,7 +356,6 @@ trap(struct trapframe *frame)
 	}
 
 	userret(td, frame);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 static void
@@ -327,6 +385,8 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	case EXC_DSI:
 		printf("   virtual address = 0x%" PRIxPTR "\n",
 		    frame->cpu.aim.dar);
+		printf("   dsisr           = 0x%" PRIxPTR "\n",
+		    frame->cpu.aim.dsisr);
 		break;
 	case EXC_ISE:
 	case EXC_ISI:
@@ -618,6 +678,9 @@ trap_pfault(struct trapframe *frame, int user)
 		PROC_LOCK(p);
 		--p->p_lock;
 		PROC_UNLOCK(p);
+		/*
+		 * XXXDTRACE: add dtrace_doubletrap_func here?
+		 */
 	} else {
 		/*
 		 * Don't have to worry about process locking or stacks in the

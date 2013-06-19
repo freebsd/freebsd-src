@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines SymbolRef, ExprBindKey, and ProgramState*.
+// This file defines the state of the program along the analysisa path.
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,14 +16,15 @@
 
 #include "clang/Basic/LLVM.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ConstraintManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/DynamicTypeInfo.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/Environment.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState_Fwd.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/TaintTag.h"
-#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableMap.h"
+#include "llvm/ADT/PointerIntPair.h"
 
 namespace llvm {
 class APSInt;
@@ -39,7 +40,7 @@ class CallEvent;
 class CallEventManager;
 
 typedef ConstraintManager* (*ConstraintManagerCreator)(ProgramStateManager&,
-                                                       SubEngine&);
+                                                       SubEngine*);
 typedef StoreManager* (*StoreManagerCreator)(ProgramStateManager&);
 
 //===----------------------------------------------------------------------===//
@@ -53,32 +54,6 @@ template <typename T> struct ProgramStateTrait {
   static inline void *MakeVoidPtr(data_type D) { return (void*) D; }
   static inline data_type MakeData(void *const* P) {
     return P ? (data_type) *P : (data_type) 0;
-  }
-};
-
-/// \class Stores the dynamic type information.
-/// Information about type of an object at runtime. This is used by dynamic
-/// dispatch implementation.
-class DynamicTypeInfo {
-  QualType T;
-  bool CanBeASubClass;
-
-public:
-  DynamicTypeInfo() : T(QualType()) {}
-  DynamicTypeInfo(QualType WithType, bool CanBeSub = true)
-    : T(WithType), CanBeASubClass(CanBeSub) {}
-
-  bool isValid() const { return !T.isNull(); }
-
-  QualType getType() const { return T; }
-  bool canBeASubClass() const { return CanBeASubClass; }
-  
-  void Profile(llvm::FoldingSetNodeID &ID) const {
-    T.Profile(ID);
-    ID.AddInteger((unsigned)CanBeASubClass);
-  }
-  bool operator==(const DynamicTypeInfo &X) const {
-    return T == X.T && CanBeASubClass == X.CanBeASubClass;
   }
 };
 
@@ -100,7 +75,7 @@ public:
   typedef llvm::ImmutableMap<void*, void*>                 GenericDataMap;
 
 private:
-  void operator=(const ProgramState& R) const; // Do not implement.
+  void operator=(const ProgramState& R) LLVM_DELETED_FUNCTION;
 
   friend class ProgramStateManager;
   friend class ExplodedGraph;
@@ -130,7 +105,12 @@ public:
   ~ProgramState();
 
   /// Return the ProgramStateManager associated with this state.
-  ProgramStateManager &getStateManager() const { return *stateMgr; }
+  ProgramStateManager &getStateManager() const {
+    return *stateMgr;
+  }
+  
+  /// Return the ConstraintManager.
+  ConstraintManager &getConstraintManager() const;
 
   /// getEnvironment - Return the environment associated with this state.
   ///  The environment is the mapping from expressions to values.
@@ -190,19 +170,30 @@ public:
   // If no new state is feasible, NULL is returned.
   //
 
+  /// Assumes that the value of \p cond is zero (if \p assumption is "false")
+  /// or non-zero (if \p assumption is "true").
+  ///
+  /// This returns a new state with the added constraint on \p cond.
+  /// If no new state is feasible, NULL is returned.
   ProgramStateRef assume(DefinedOrUnknownSVal cond, bool assumption) const;
 
-  /// This method assumes both "true" and "false" for 'cond', and
-  ///  returns both corresponding states.  It's shorthand for doing
-  ///  'assume' twice.
-  std::pair<ProgramStateRef , ProgramStateRef >
+  /// Assumes both "true" and "false" for \p cond, and returns both
+  /// corresponding states (respectively).
+  ///
+  /// This is more efficient than calling assume() twice. Note that one (but not
+  /// both) of the returned states may be NULL.
+  std::pair<ProgramStateRef, ProgramStateRef>
   assume(DefinedOrUnknownSVal cond) const;
 
   ProgramStateRef assumeInBound(DefinedOrUnknownSVal idx,
                                DefinedOrUnknownSVal upperBound,
                                bool assumption,
                                QualType IndexType = QualType()) const;
-
+  
+  /// \brief Check if the given SVal is constrained to zero or is a zero
+  ///        constant.
+  ConditionTruthVal isNull(SVal V) const;
+  
   /// Utility method for getting regions.
   const VarRegion* getRegion(const VarDecl *D, const LocationContext *LC) const;
 
@@ -210,43 +201,53 @@ public:
   // Binding and retrieving values to/from the environment and symbolic store.
   //==---------------------------------------------------------------------==//
 
-  /// BindCompoundLiteral - Return the state that has the bindings currently
-  ///  in this state plus the bindings for the CompoundLiteral.
-  ProgramStateRef bindCompoundLiteral(const CompoundLiteralExpr *CL,
-                                     const LocationContext *LC,
-                                     SVal V) const;
-
   /// Create a new state by binding the value 'V' to the statement 'S' in the
   /// state's environment.
   ProgramStateRef BindExpr(const Stmt *S, const LocationContext *LCtx,
                                SVal V, bool Invalidate = true) const;
 
-  /// Create a new state by binding the value 'V' and location 'locaton' to the
-  /// statement 'S' in the state's environment.
-  ProgramStateRef bindExprAndLocation(const Stmt *S,
-                                          const LocationContext *LCtx,
-                                          SVal location, SVal V) const;
-  
-  ProgramStateRef bindDecl(const VarRegion *VR, SVal V) const;
-
-  ProgramStateRef bindDeclWithNoInit(const VarRegion *VR) const;
-
-  ProgramStateRef bindLoc(Loc location, SVal V) const;
+  ProgramStateRef bindLoc(Loc location,
+                          SVal V,
+                          bool notifyChanges = true) const;
 
   ProgramStateRef bindLoc(SVal location, SVal V) const;
 
   ProgramStateRef bindDefault(SVal loc, SVal V) const;
 
-  ProgramStateRef unbindLoc(Loc LV) const;
+  ProgramStateRef killBinding(Loc LV) const;
 
-  /// invalidateRegions - Returns the state with bindings for the given regions
-  ///  cleared from the store. The regions are provided as a continuous array
-  ///  from Begin to End. Optionally invalidates global regions as well.
-  ProgramStateRef invalidateRegions(ArrayRef<const MemRegion *> Regions,
-                               const Expr *E, unsigned BlockCount,
-                               const LocationContext *LCtx,
-                               StoreManager::InvalidatedSymbols *IS = 0,
-                               const CallEvent *Call = 0) const;
+  /// \brief Returns the state with bindings for the given regions
+  ///  cleared from the store.
+  ///
+  /// Optionally invalidates global regions as well.
+  ///
+  /// \param Regions the set of regions to be invalidated.
+  /// \param E the expression that caused the invalidation.
+  /// \param BlockCount The number of times the current basic block has been
+  //         visited.
+  /// \param CausesPointerEscape the flag is set to true when
+  ///        the invalidation entails escape of a symbol (representing a
+  ///        pointer). For example, due to it being passed as an argument in a
+  ///        call.
+  /// \param IS the set of invalidated symbols.
+  /// \param Call if non-null, the invalidated regions represent parameters to
+  ///        the call and should be considered directly invalidated.
+  /// \param ConstRegions the set of regions whose contents are accessible,
+  ///        even though the regions themselves should not be invalidated.
+  ProgramStateRef
+  invalidateRegions(ArrayRef<const MemRegion *> Regions, const Expr *E,
+                    unsigned BlockCount, const LocationContext *LCtx,
+                    bool CausesPointerEscape, InvalidatedSymbols *IS = 0,
+                    const CallEvent *Call = 0,
+                    ArrayRef<const MemRegion *> ConstRegions =
+                      ArrayRef<const MemRegion *>()) const;
+
+  ProgramStateRef
+  invalidateRegions(ArrayRef<SVal> Regions, const Expr *E,
+                    unsigned BlockCount, const LocationContext *LCtx,
+                    bool CausesPointerEscape, InvalidatedSymbols *IS = 0,
+                    const CallEvent *Call = 0,
+                    ArrayRef<SVal> ConstRegions = ArrayRef<SVal>()) const;
 
   /// enterStackFrame - Returns the state for entry to the given stack frame,
   ///  preserving the current state.
@@ -271,11 +272,8 @@ public:
   /// Get the lvalue for an array index.
   SVal getLValue(QualType ElementType, SVal Idx, SVal Base) const;
 
-  const llvm::APSInt *getSymVal(SymbolRef sym) const;
-
   /// Returns the SVal bound to the statement 'S' in the state's environment.
-  SVal getSVal(const Stmt *S, const LocationContext *LCtx,
-               bool useOnlyDirectBindings = false) const;
+  SVal getSVal(const Stmt *S, const LocationContext *LCtx) const;
   
   SVal getSValAsScalarOrLoc(const Stmt *Ex, const LocationContext *LCtx) const;
 
@@ -419,13 +417,17 @@ public:
 private:
   friend void ProgramStateRetain(const ProgramState *state);
   friend void ProgramStateRelease(const ProgramState *state);
-  
-  ProgramStateRef 
-  invalidateRegionsImpl(ArrayRef<const MemRegion *> Regions,
+
+  /// \sa invalidateValues()
+  /// \sa invalidateRegions()
+  ProgramStateRef
+  invalidateRegionsImpl(ArrayRef<SVal> Values,
                         const Expr *E, unsigned BlockCount,
                         const LocationContext *LCtx,
-                        StoreManager::InvalidatedSymbols &IS,
-                        const CallEvent *Call) const;
+                        bool ResultsInSymbolEscape,
+                        InvalidatedSymbols &IS,
+                        const CallEvent *Call,
+                        ArrayRef<SVal> ConstValues) const;
 };
 
 //===----------------------------------------------------------------------===//
@@ -469,7 +471,7 @@ public:
                  StoreManagerCreator CreateStoreManager,
                  ConstraintManagerCreator CreateConstraintManager,
                  llvm::BumpPtrAllocator& alloc,
-                 SubEngine &subeng);
+                 SubEngine *subeng);
 
   ~ProgramStateManager();
 
@@ -479,9 +481,6 @@ public:
   const ASTContext &getContext() const { return svalBuilder->getContext(); }
 
   BasicValueFactory &getBasicVals() {
-    return svalBuilder->getBasicValueFactory();
-  }
-  const BasicValueFactory& getBasicVals() const {
     return svalBuilder->getBasicValueFactory();
   }
 
@@ -514,10 +513,6 @@ public:
   ProgramStateRef removeDeadBindings(ProgramStateRef St,
                                     const StackFrameContext *LCtx,
                                     SymbolReaper& SymReaper);
-
-  /// Marshal a new state for the callee in another translation unit.
-  /// 'state' is owned by the caller's engine.
-  ProgramStateRef MarshalState(ProgramStateRef state, const StackFrameContext *L);
 
 public:
 
@@ -617,10 +612,6 @@ public:
     return ProgramStateTrait<T>::MakeContext(p);
   }
 
-  const llvm::APSInt* getSymVal(ProgramStateRef St, SymbolRef sym) {
-    return ConstraintMgr->getSymVal(St, sym);
-  }
-
   void EndPath(ProgramStateRef St) {
     ConstraintMgr->EndPath(St);
   }
@@ -631,6 +622,10 @@ public:
 // Out-of-line method definitions for ProgramState.
 //===----------------------------------------------------------------------===//
 
+inline ConstraintManager &ProgramState::getConstraintManager() const {
+  return stateMgr->getConstraintManager();
+}
+  
 inline const VarRegion* ProgramState::getRegion(const VarDecl *D,
                                                 const LocationContext *LC) const 
 {
@@ -641,22 +636,24 @@ inline ProgramStateRef ProgramState::assume(DefinedOrUnknownSVal Cond,
                                       bool Assumption) const {
   if (Cond.isUnknown())
     return this;
-  
-  return getStateManager().ConstraintMgr->assume(this, cast<DefinedSVal>(Cond),
-                                                 Assumption);
+
+  return getStateManager().ConstraintMgr
+      ->assume(this, Cond.castAs<DefinedSVal>(), Assumption);
 }
   
 inline std::pair<ProgramStateRef , ProgramStateRef >
 ProgramState::assume(DefinedOrUnknownSVal Cond) const {
   if (Cond.isUnknown())
     return std::make_pair(this, this);
-  
-  return getStateManager().ConstraintMgr->assumeDual(this,
-                                                     cast<DefinedSVal>(Cond));
+
+  return getStateManager().ConstraintMgr
+      ->assumeDual(this, Cond.castAs<DefinedSVal>());
 }
 
 inline ProgramStateRef ProgramState::bindLoc(SVal LV, SVal V) const {
-  return !isa<Loc>(LV) ? this : bindLoc(cast<Loc>(LV), V);
+  if (Optional<Loc> L = LV.getAs<Loc>())
+    return bindLoc(*L, V);
+  return this;
 }
 
 inline Loc ProgramState::getLValue(const VarDecl *VD,
@@ -690,20 +687,15 @@ inline SVal ProgramState::getLValue(const IndirectFieldDecl *D,
 }
 
 inline SVal ProgramState::getLValue(QualType ElementType, SVal Idx, SVal Base) const{
-  if (NonLoc *N = dyn_cast<NonLoc>(&Idx))
+  if (Optional<NonLoc> N = Idx.getAs<NonLoc>())
     return getStateManager().StoreMgr->getLValueElement(ElementType, *N, Base);
   return UnknownVal();
 }
 
-inline const llvm::APSInt *ProgramState::getSymVal(SymbolRef sym) const {
-  return getStateManager().getSymVal(this, sym);
-}
-
-inline SVal ProgramState::getSVal(const Stmt *Ex, const LocationContext *LCtx,
-                                  bool useOnlyDirectBindings) const{
+inline SVal ProgramState::getSVal(const Stmt *Ex,
+                                  const LocationContext *LCtx) const{
   return Env.getSVal(EnvironmentEntry(Ex, LCtx),
-                     *getStateManager().svalBuilder,
-                     useOnlyDirectBindings);
+                     *getStateManager().svalBuilder);
 }
 
 inline SVal
@@ -711,7 +703,8 @@ ProgramState::getSValAsScalarOrLoc(const Stmt *S,
                                    const LocationContext *LCtx) const {
   if (const Expr *Ex = dyn_cast<Expr>(S)) {
     QualType T = Ex->getType();
-    if (Ex->isGLValue() || Loc::isLocType(T) || T->isIntegerType())
+    if (Ex->isGLValue() || Loc::isLocType(T) ||
+        T->isIntegralOrEnumerationType())
       return getSVal(S, LCtx);
   }
 
@@ -821,7 +814,7 @@ public:
   bool scan(const SymExpr *sym);
 };
 
-} // end GR namespace
+} // end ento namespace
 
 } // end clang namespace
 

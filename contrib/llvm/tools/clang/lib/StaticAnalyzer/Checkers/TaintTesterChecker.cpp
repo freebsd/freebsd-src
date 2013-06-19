@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 
 using namespace clang;
 using namespace ento;
@@ -52,7 +52,7 @@ void TaintTesterChecker::checkPostStmt(const Expr *E,
       initBugType();
       BugReport *report = new BugReport(*BT, "tainted",N);
       report->addRange(E->getSourceRange());
-      C.EmitReport(report);
+      C.emitReport(report);
     }
   }
 }

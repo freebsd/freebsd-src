@@ -106,7 +106,7 @@ main(int argc, const char *argv[])
 				op_mark(&a);
 				break;
 			default:
-				printf("op: %s; reg: %x; val: %x\n",
+				printf("op: %d; reg: 0x%x; val: 0x%x\n",
 				    a.op, a.reg, a.val);
 		}
 	}

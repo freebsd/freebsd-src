@@ -37,13 +37,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/ParentMap.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/AST/ParentMap.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -72,6 +73,8 @@ public:
   void checkPreCall(const CallEvent &CE, CheckerContext &C) const;
   void checkPostCall(const CallEvent &CE, CheckerContext &C) const;
 
+  void printState(raw_ostream &Out, ProgramStateRef State,
+                  const char *NL, const char *Sep) const;
 };
 } // end anonymous namespace
 
@@ -97,31 +100,14 @@ enum SelfFlagEnum {
 };
 }
 
-typedef llvm::ImmutableMap<SymbolRef, unsigned> SelfFlag;
-namespace { struct CalledInit {}; }
-namespace { struct PreCallSelfFlags {}; }
+REGISTER_MAP_WITH_PROGRAMSTATE(SelfFlag, SymbolRef, unsigned)
+REGISTER_TRAIT_WITH_PROGRAMSTATE(CalledInit, bool)
 
-namespace clang {
-namespace ento {
-  template<>
-  struct ProgramStateTrait<SelfFlag> : public ProgramStatePartialTrait<SelfFlag> {
-    static void *GDMIndex() { static int index = 0; return &index; }
-  };
-  template <>
-  struct ProgramStateTrait<CalledInit> : public ProgramStatePartialTrait<bool> {
-    static void *GDMIndex() { static int index = 0; return &index; }
-  };
-
-  /// \brief A call receiving a reference to 'self' invalidates the object that
-  /// 'self' contains. This keeps the "self flags" assigned to the 'self'
-  /// object before the call so we can assign them to the new object that 'self'
-  /// points to after the call.
-  template <>
-  struct ProgramStateTrait<PreCallSelfFlags> : public ProgramStatePartialTrait<unsigned> {
-    static void *GDMIndex() { static int index = 0; return &index; }
-  };
-}
-}
+/// \brief A call receiving a reference to 'self' invalidates the object that
+/// 'self' contains. This keeps the "self flags" assigned to the 'self'
+/// object before the call so we can assign them to the new object that 'self'
+/// points to after the call.
+REGISTER_TRAIT_WITH_PROGRAMSTATE(PreCallSelfFlags, unsigned)
 
 static SelfFlagEnum getSelfFlags(SVal val, ProgramStateRef state) {
   if (SymbolRef sym = val.getAsSymbol())
@@ -137,8 +123,10 @@ static SelfFlagEnum getSelfFlags(SVal val, CheckerContext &C) {
 static void addSelfFlag(ProgramStateRef state, SVal val,
                         SelfFlagEnum flag, CheckerContext &C) {
   // We tag the symbol that the SVal wraps.
-  if (SymbolRef sym = val.getAsSymbol())
-    C.addTransition(state->set<SelfFlag>(sym, getSelfFlags(val, C) | flag));
+  if (SymbolRef sym = val.getAsSymbol()) {
+    state = state->set<SelfFlag>(sym, getSelfFlags(val, state) | flag);
+    C.addTransition(state);
+  }
 }
 
 static bool hasSelfFlag(SVal val, SelfFlagEnum flag, CheckerContext &C) {
@@ -176,7 +164,7 @@ static void checkForInvalidSelf(const Expr *E, CheckerContext &C,
 
   BugReport *report =
     new BugReport(*new InitSelfBug(), errorStr, N);
-  C.EmitReport(report);
+  C.emitReport(report);
 }
 
 void ObjCSelfInitChecker::checkPostObjCMessage(const ObjCMethodCall &Msg,
@@ -267,7 +255,7 @@ void ObjCSelfInitChecker::checkPreCall(const CallEvent &CE,
   for (unsigned i = 0; i < NumArgs; ++i) {
     SVal argV = CE.getArgSVal(i);
     if (isSelfVar(argV, C)) {
-      unsigned selfFlags = getSelfFlags(state->getSVal(cast<Loc>(argV)), C);
+      unsigned selfFlags = getSelfFlags(state->getSVal(argV.castAs<Loc>()), C);
       C.addTransition(state->set<PreCallSelfFlags>(selfFlags));
       return;
     } else if (hasSelfFlag(argV, SelfFlag_Self, C)) {
@@ -298,30 +286,34 @@ void ObjCSelfInitChecker::checkPostCall(const CallEvent &CE,
       // If the address of 'self' is being passed to the call, assume that the
       // 'self' after the call will have the same flags.
       // EX: log(&self)
-      addSelfFlag(state, state->getSVal(cast<Loc>(argV)), prevFlags, C);
+      addSelfFlag(state, state->getSVal(argV.castAs<Loc>()), prevFlags, C);
       return;
     } else if (hasSelfFlag(argV, SelfFlag_Self, C)) {
       // If 'self' is passed to the call by value, assume that the function
       // returns 'self'. So assign the flags, which were set on 'self' to the
       // return value.
       // EX: self = performMoreInitialization(self)
-      const Expr *CallExpr = CE.getOriginExpr();
-      if (CallExpr)
-        addSelfFlag(state, state->getSVal(CallExpr, C.getLocationContext()),
-                                          prevFlags, C);
+      addSelfFlag(state, CE.getReturnValue(), prevFlags, C);
       return;
     }
   }
+
+  C.addTransition(state);
 }
 
 void ObjCSelfInitChecker::checkLocation(SVal location, bool isLoad,
                                         const Stmt *S,
                                         CheckerContext &C) const {
+  if (!shouldRunOnFunctionOrMethod(dyn_cast<NamedDecl>(
+        C.getCurrentAnalysisDeclContext()->getDecl())))
+    return;
+
   // Tag the result of a load from 'self' so that we can easily know that the
   // value is the object that 'self' points to.
   ProgramStateRef state = C.getState();
   if (isSelfVar(location, C))
-    addSelfFlag(state, state->getSVal(cast<Loc>(location)), SelfFlag_Self, C);
+    addSelfFlag(state, state->getSVal(location.castAs<Loc>()), SelfFlag_Self,
+                C);
 }
 
 
@@ -345,6 +337,53 @@ void ObjCSelfInitChecker::checkBind(SVal loc, SVal val, const Stmt *S,
     C.addTransition(State);
   }
 }
+
+void ObjCSelfInitChecker::printState(raw_ostream &Out, ProgramStateRef State,
+                                     const char *NL, const char *Sep) const {
+  SelfFlagTy FlagMap = State->get<SelfFlag>();
+  bool DidCallInit = State->get<CalledInit>();
+  SelfFlagEnum PreCallFlags = (SelfFlagEnum)State->get<PreCallSelfFlags>();
+
+  if (FlagMap.isEmpty() && !DidCallInit && !PreCallFlags)
+    return;
+
+  Out << Sep << NL << "ObjCSelfInitChecker:" << NL;
+
+  if (DidCallInit)
+    Out << "  An init method has been called." << NL;
+
+  if (PreCallFlags != SelfFlag_None) {
+    if (PreCallFlags & SelfFlag_Self) {
+      Out << "  An argument of the current call came from the 'self' variable."
+          << NL;
+    }
+    if (PreCallFlags & SelfFlag_InitRes) {
+      Out << "  An argument of the current call came from an init method."
+          << NL;
+    }
+  }
+
+  Out << NL;
+  for (SelfFlagTy::iterator I = FlagMap.begin(), E = FlagMap.end();
+       I != E; ++I) {
+    Out << I->first << " : ";
+
+    if (I->second == SelfFlag_None)
+      Out << "none";
+
+    if (I->second & SelfFlag_Self)
+      Out << "self variable";
+
+    if (I->second & SelfFlag_InitRes) {
+      if (I->second != SelfFlag_InitRes)
+        Out << " | ";
+      Out << "result of init method";
+    }
+
+    Out << NL;
+  }
+}
+
 
 // FIXME: A callback should disable checkers at the start of functions.
 static bool shouldRunOnFunctionOrMethod(const NamedDecl *ND) {
@@ -379,10 +418,10 @@ static bool isSelfVar(SVal location, CheckerContext &C) {
   AnalysisDeclContext *analCtx = C.getCurrentAnalysisDeclContext(); 
   if (!analCtx->getSelfDecl())
     return false;
-  if (!isa<loc::MemRegionVal>(location))
+  if (!location.getAs<loc::MemRegionVal>())
     return false;
 
-  loc::MemRegionVal MRV = cast<loc::MemRegionVal>(location);
+  loc::MemRegionVal MRV = location.castAs<loc::MemRegionVal>();
   if (const DeclRegion *DR = dyn_cast<DeclRegion>(MRV.stripCasts()))
     return (DR->getDecl() == analCtx->getSelfDecl());
 

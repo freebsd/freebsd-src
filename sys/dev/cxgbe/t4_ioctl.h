@@ -49,6 +49,8 @@ enum {
 	T4_GET_SGE_CONTEXT,		/* get SGE context for a queue */
 	T4_LOAD_FW,			/* flash firmware */
 	T4_GET_MEM,			/* read memory */
+	T4_GET_I2C,			/* read from i2c addressible device */
+	T4_CLEAR_STATS,			/* clear a port's MAC statistics */
 };
 
 struct t4_reg {
@@ -58,6 +60,7 @@ struct t4_reg {
 };
 
 #define T4_REGDUMP_SIZE  (160 * 1024)
+#define T5_REGDUMP_SIZE  (332 * 1024)
 struct t4_regdump {
 	uint32_t version;
 	uint32_t len; /* bytes */
@@ -67,6 +70,14 @@ struct t4_regdump {
 struct t4_data {
 	uint32_t len;
 	uint8_t *data;
+};
+
+struct t4_i2c_data {
+	uint8_t port_id;
+	uint8_t dev_addr;
+	uint8_t offset;
+	uint8_t len;
+	uint8_t data[8];
 };
 
 /*
@@ -224,4 +235,6 @@ struct t4_mem_range {
     struct t4_sge_context)
 #define CHELSIO_T4_LOAD_FW	_IOW('f', T4_LOAD_FW, struct t4_data)
 #define CHELSIO_T4_GET_MEM	_IOW('f', T4_GET_MEM, struct t4_mem_range)
+#define CHELSIO_T4_GET_I2C	_IOWR('f', T4_GET_I2C, struct t4_i2c_data)
+#define CHELSIO_T4_CLEAR_STATS	_IOW('f', T4_CLEAR_STATS, uint32_t)
 #endif

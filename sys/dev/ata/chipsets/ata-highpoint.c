@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -73,7 +72,7 @@ ata_highpoint_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     const struct ata_chip_id *idx;
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_HPT374, 0x07, HPT_374, 0,       ATA_UDMA6, "HPT374" },
      { ATA_HPT372, 0x02, HPT_372, 0,       ATA_UDMA6, "HPT372N" },
      { ATA_HPT372, 0x01, HPT_372, 0,       ATA_UDMA6, "HPT372" },

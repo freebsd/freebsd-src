@@ -101,13 +101,6 @@
 #endif
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Disable superpage reservations. (not sure if this is right
  * I copied it from ARM)
  */
@@ -130,10 +123,11 @@
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Ceiling on the amount of kmem_map KVA space: 40% of the entire KVA space.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(200 * 1024 * 1024)
+#define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
 #endif
 
 /* initial pagein size of beginning of executable file */

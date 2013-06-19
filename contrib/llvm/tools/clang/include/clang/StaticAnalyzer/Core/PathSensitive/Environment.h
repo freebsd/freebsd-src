@@ -34,9 +34,7 @@ class SValBuilder;
 class EnvironmentEntry : public std::pair<const Stmt*,
                                           const StackFrameContext *> {
 public:
-  EnvironmentEntry(const Stmt *s, const LocationContext *L)
-    : std::pair<const Stmt*,
-                const StackFrameContext*>(s, L ? L->getCurrentStackFrame():0) {}
+  EnvironmentEntry(const Stmt *s, const LocationContext *L);
 
   const Stmt *getStmt() const { return first; }
   const LocationContext *getLocationContext() const { return second; }
@@ -76,9 +74,7 @@ public:
 
   /// Fetches the current binding of the expression in the
   /// Environment.
-  SVal getSVal(const EnvironmentEntry &E,
-               SValBuilder &svalBuilder,
-               bool useOnlyDirectBindings = false) const;
+  SVal getSVal(const EnvironmentEntry &E, SValBuilder &svalBuilder) const;
 
   /// Profile - Profile the contents of an Environment object for use
   ///  in a FoldingSet.
@@ -119,13 +115,6 @@ public:
   /// Bind a symbolic value to the given environment entry.
   Environment bindExpr(Environment Env, const EnvironmentEntry &E, SVal V,
                        bool Invalidate);
-  
-  /// Bind the location 'location' and value 'V' to the specified
-  /// environment entry.
-  Environment bindExprAndLocation(Environment Env,
-                                  const EnvironmentEntry &E,
-                                  SVal location,
-                                  SVal V);
 
   Environment removeDeadBindings(Environment Env,
                                  SymbolReaper &SymReaper,

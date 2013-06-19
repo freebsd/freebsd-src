@@ -101,6 +101,10 @@
 #define	MAXCPU		1
 #endif
 
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
+
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
  * data types (int, long, ...).	  The result is u_int and must be cast to
@@ -162,20 +166,6 @@
  */
 #define	KSTACK_PAGES		2	/* kernel stack */
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
-
-#define	UPAGES			2
-
-/* pages ("clicks") (4096 bytes) to disk blocks */
-#define	ctod(x)			((x) << (PAGE_SHIFT - DEV_BSHIFT))
-#define	dtoc(x)			((x) >> (PAGE_SHIFT - DEV_BSHIFT))
-
-/*
- * Map a ``block device block'' to a file system block.
- * This should be device dependent, and should use the bsize
- * field from the disk label.
- * For now though just use DEV_BSIZE.
- */
-#define	bdbtofsb(bn)		((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
 
 /*
  * Mach derived conversion macros

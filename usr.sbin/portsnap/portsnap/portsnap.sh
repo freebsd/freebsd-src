@@ -587,7 +587,7 @@ fetch_metadata_sanity() {
 
 # Take a list of ${oldhash}|${newhash} and output a list of needed patches
 fetch_make_patchlist() {
-	IFS='|'
+	local IFS='|'
 	echo "" 1>${QUIETREDIR}
 	grep -vE "^([0-9a-f]{64})\|\1$" |
 		while read X Y; do
@@ -596,7 +596,6 @@ fetch_make_patchlist() {
 			echo "${X}|${Y}"
 		done
 	echo "" 1>${QUIETREDIR}
-	IFS=
 }
 
 # Print user-friendly progress statistics
@@ -611,6 +610,28 @@ fetch_progress() {
 		fi
 	done
 	echo -n " "
+}
+
+pct_fmt()
+{
+	printf "                                     \r"
+	printf "($1/$2) %02.2f%% " `echo "scale=4;$LNC / $TOTAL * 100"|bc`
+}
+
+fetch_progress_percent() {
+	TOTAL=$1
+	LNC=0
+	pct_fmt $LNC $TOTAL
+	while read x; do
+		LNC=$(($LNC + 1))
+		if [ $(($LNC % 100)) = 0 ]; then
+                     pct_fmt $LNC $TOTAL
+		elif [ $(($LNC % 10)) = 0 ]; then
+			echo -n .
+		fi
+	done
+	pct_fmt $LNC $TOTAL
+	echo " done. "
 }
 
 # Sanity-check an index file
@@ -711,7 +732,7 @@ fetch_update() {
 
 # Attempt to apply metadata patches
 	echo -n "Applying metadata patches... "
-	IFS='|'
+	local oldifs="$IFS" IFS='|'
 	while read X Y; do
 		if [ ! -f "${X}-${Y}.gz" ]; then continue; fi
 		gunzip -c < ${X}-${Y}.gz > diff
@@ -725,7 +746,7 @@ fetch_update() {
 		fi
 		rm -f diff OLD NEW ${X}-${Y}.gz ptmp
 	done < patchlist 2>${QUIETREDIR}
-	IFS=
+	IFS="$oldifs"
 	echo "done."
 
 # Update metadata without patches
@@ -782,17 +803,19 @@ fetch_update() {
 	echo " done." 1>${QUIETREDIR}
 
 # Attempt to fetch ports patches
-	echo -n "Fetching `wc -l < patchlist | tr -d ' '` "
+	patchcnt=`wc -l < patchlist | tr -d ' '`      
+	echo -n "Fetching $patchcnt "
 	echo ${NDEBUG} "patches.${DDSTATS}"
+	echo " "
 	tr '|' '-' < patchlist | lam -s "bp/" - |
 	    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
-	    2>${STATSREDIR} | fetch_progress
+	    2>${STATSREDIR} | fetch_progress_percent $patchcnt
 	echo "done."
 
 # Attempt to apply ports patches
 	PATCHCNT=`wc -l patchlist`
 	echo "Applying patches... "
-	IFS='|'
+	local oldifs="$IFS" IFS='|'
 	I=0
 	while read X Y; do
 		I=$(($I + 1))
@@ -810,7 +833,7 @@ fetch_update() {
 		fi
 		rm -f diff OLD NEW ${X}-${Y}
 	done < patchlist 2>${QUIETREDIR}
-	IFS=
+	IFS="$oldifs"
 	echo "done."
 
 # Update ports without patches
@@ -912,7 +935,7 @@ extract_metadata() {
 
 # Do the actual work involved in "extract"
 extract_run() {
-	local IFS='|'
+	local oldifs="$IFS" IFS='|'
 	mkdir -p ${PORTSDIR} || return 1
 
 	if !
@@ -947,6 +970,8 @@ extract_run() {
 	if [ ! -z "${EXTRACTPATH}" ]; then
 		return 0;
 	fi
+
+	IFS="$oldifs"
 
 	extract_metadata
 	extract_indices
@@ -1088,7 +1113,7 @@ cmd_alfred() {
 	else
 		cmd_cron
 	fi
-	if [ -d ${PORTSDIR} ]; then
+	if [ -r ${PORTSDIR}/.portsnap.INDEX ]; then
 		cmd_update
 	else
 		cmd_extract

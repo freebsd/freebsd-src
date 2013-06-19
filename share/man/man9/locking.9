@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2012
+.Dd May 22, 2013
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -128,7 +128,7 @@ between them is that shared/exclusive locks may be held during unbounded sleep
 (and may thus perform an unbounded sleep).
 They are inherently less efficient than mutexes, reader/writer locks
 and read-mostly locks.
-They don't support priority propagation.
+They do not support priority propagation.
 They should be considered to be closely related to
 .Xr sleep 9 .
 They could in some cases be
@@ -167,7 +167,7 @@ Giant is an instance of a mutex, with some special characteristics:
 .It
 It is recursive.
 .It
-Drivers and filesystems can request that Giant be locked around them
+Drivers can request that Giant be locked around them
 by not marking themselves MPSAFE.
 Note that infrastructure to do this is slowly going away as non-MPSAFE
 drivers either became properly locked or disappear.
@@ -250,7 +250,7 @@ Shared/exclusive locks, used mostly in
 in particular as a
 .Xr vnode 9
 lock.
-They have features other lock types don't have, such as sleep timeout,
+They have features other lock types do not have, such as sleep timeout,
 writer starvation avoidance, draining, and interlock mutex, but this makes them
 complicated to implement; for this reason, they are deprecated.
 .Pp

@@ -12,19 +12,20 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "pre-RA-sched"
-#include "ScheduleDAGSDNodes.h"
-#include "llvm/InlineAsm.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Support/Debug.h"
+#include "InstrEmitter.h"
+#include "ScheduleDAGSDNodes.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 STATISTIC(NumUnfolds,    "Number of nodes unfolded");
@@ -34,6 +35,10 @@ STATISTIC(NumPRCopies,   "Number of physical copies");
 static RegisterScheduler
   fastDAGScheduler("fast", "Fast suboptimal list scheduling",
                    createFastDAGScheduler);
+static RegisterScheduler
+  linearizeDAGScheduler("linearize", "Linearize DAG, no scheduling",
+                        createDAGLinearizer);
+
 
 namespace {
   /// FastPriorityQueue - A degenerate priority queue that considers
@@ -331,7 +336,9 @@ SUnit *ScheduleDAGFast::CopyAndMoveSuccessors(SUnit *SU) {
       }
     }
     if (isNewLoad) {
-      AddPred(NewSU, SDep(LoadSU, SDep::Order, LoadSU->Latency));
+      SDep D(LoadSU, SDep::Barrier);
+      D.setLatency(LoadSU->Latency);
+      AddPred(NewSU, D);
     }
 
     ++NumUnfolds;
@@ -407,9 +414,12 @@ void ScheduleDAGFast::InsertCopiesAndMoveSuccs(SUnit *SU, unsigned Reg,
   for (unsigned i = 0, e = DelDeps.size(); i != e; ++i) {
     RemovePred(DelDeps[i].first, DelDeps[i].second);
   }
-
-  AddPred(CopyFromSU, SDep(SU, SDep::Data, SU->Latency, Reg));
-  AddPred(CopyToSU, SDep(CopyFromSU, SDep::Data, CopyFromSU->Latency, 0));
+  SDep FromDep(SU, SDep::Data, Reg);
+  FromDep.setLatency(SU->Latency);
+  AddPred(CopyFromSU, FromDep);
+  SDep ToDep(CopyFromSU, SDep::Data, 0);
+  ToDep.setLatency(CopyFromSU->Latency);
+  AddPred(CopyToSU, ToDep);
 
   Copies.push_back(CopyFromSU);
   Copies.push_back(CopyToSU);
@@ -586,18 +596,14 @@ void ScheduleDAGFast::ListScheduleBottomUp() {
           InsertCopiesAndMoveSuccs(LRDef, Reg, DestRC, RC, Copies);
           DEBUG(dbgs() << "Adding an edge from SU # " << TrySU->NodeNum
                        << " to SU #" << Copies.front()->NodeNum << "\n");
-          AddPred(TrySU, SDep(Copies.front(), SDep::Order, /*Latency=*/1,
-                              /*Reg=*/0, /*isNormalMemory=*/false,
-                              /*isMustAlias=*/false, /*isArtificial=*/true));
+          AddPred(TrySU, SDep(Copies.front(), SDep::Artificial));
           NewDef = Copies.back();
         }
 
         DEBUG(dbgs() << "Adding an edge from SU # " << NewDef->NodeNum
                      << " to SU #" << TrySU->NodeNum << "\n");
         LiveRegDefs[Reg] = NewDef;
-        AddPred(NewDef, SDep(TrySU, SDep::Order, /*Latency=*/1,
-                             /*Reg=*/0, /*isNormalMemory=*/false,
-                             /*isMustAlias=*/false, /*isArtificial=*/true));
+        AddPred(NewDef, SDep(TrySU, SDep::Artificial));
         TrySU->isAvailable = false;
         CurSU = NewDef;
       }
@@ -629,6 +635,155 @@ void ScheduleDAGFast::ListScheduleBottomUp() {
 #endif
 }
 
+
+namespace {
+//===----------------------------------------------------------------------===//
+// ScheduleDAGLinearize - No scheduling scheduler, it simply linearize the
+// DAG in topological order.
+// IMPORTANT: this may not work for targets with phyreg dependency.
+//
+class ScheduleDAGLinearize : public ScheduleDAGSDNodes {
+public:
+  ScheduleDAGLinearize(MachineFunction &mf) : ScheduleDAGSDNodes(mf) {}
+
+  void Schedule();
+
+  MachineBasicBlock *EmitSchedule(MachineBasicBlock::iterator &InsertPos);
+
+private:
+  std::vector<SDNode*> Sequence;
+  DenseMap<SDNode*, SDNode*> GluedMap;  // Cache glue to its user
+
+  void ScheduleNode(SDNode *N);
+};
+} // end anonymous namespace
+
+void ScheduleDAGLinearize::ScheduleNode(SDNode *N) {
+  if (N->getNodeId() != 0)
+    llvm_unreachable(0);
+
+  if (!N->isMachineOpcode() &&
+      (N->getOpcode() == ISD::EntryToken || isPassiveNode(N)))
+    // These nodes do not need to be translated into MIs.
+    return;
+
+  DEBUG(dbgs() << "\n*** Scheduling: ");
+  DEBUG(N->dump(DAG));
+  Sequence.push_back(N);
+
+  unsigned NumOps = N->getNumOperands();
+  if (unsigned NumLeft = NumOps) {
+    SDNode *GluedOpN = 0;
+    do {
+      const SDValue &Op = N->getOperand(NumLeft-1);
+      SDNode *OpN = Op.getNode();
+
+      if (NumLeft == NumOps && Op.getValueType() == MVT::Glue) {
+        // Schedule glue operand right above N.
+        GluedOpN = OpN;
+        assert(OpN->getNodeId() != 0 && "Glue operand not ready?");
+        OpN->setNodeId(0);
+        ScheduleNode(OpN);
+        continue;
+      }
+
+      if (OpN == GluedOpN)
+        // Glue operand is already scheduled.
+        continue;
+
+      DenseMap<SDNode*, SDNode*>::iterator DI = GluedMap.find(OpN);
+      if (DI != GluedMap.end() && DI->second != N)
+        // Users of glues are counted against the glued users.
+        OpN = DI->second;
+
+      unsigned Degree = OpN->getNodeId();
+      assert(Degree > 0 && "Predecessor over-released!");
+      OpN->setNodeId(--Degree);
+      if (Degree == 0)
+        ScheduleNode(OpN);
+    } while (--NumLeft);
+  }
+}
+
+/// findGluedUser - Find the representative use of a glue value by walking
+/// the use chain.
+static SDNode *findGluedUser(SDNode *N) {
+  while (SDNode *Glued = N->getGluedUser())
+    N = Glued;
+  return N;
+}
+
+void ScheduleDAGLinearize::Schedule() {
+  DEBUG(dbgs() << "********** DAG Linearization **********\n");
+
+  SmallVector<SDNode*, 8> Glues;
+  unsigned DAGSize = 0;
+  for (SelectionDAG::allnodes_iterator I = DAG->allnodes_begin(),
+         E = DAG->allnodes_end(); I != E; ++I) {
+    SDNode *N = I;
+
+    // Use node id to record degree.
+    unsigned Degree = N->use_size();
+    N->setNodeId(Degree);
+    unsigned NumVals = N->getNumValues();
+    if (NumVals && N->getValueType(NumVals-1) == MVT::Glue &&
+        N->hasAnyUseOfValue(NumVals-1)) {
+      SDNode *User = findGluedUser(N);
+      if (User) {
+        Glues.push_back(N);
+        GluedMap.insert(std::make_pair(N, User));
+      }
+    }
+
+    if (N->isMachineOpcode() ||
+        (N->getOpcode() != ISD::EntryToken && !isPassiveNode(N)))
+      ++DAGSize;
+  }
+
+  for (unsigned i = 0, e = Glues.size(); i != e; ++i) {
+    SDNode *Glue = Glues[i];
+    SDNode *GUser = GluedMap[Glue];
+    unsigned Degree = Glue->getNodeId();
+    unsigned UDegree = GUser->getNodeId();
+
+    // Glue user must be scheduled together with the glue operand. So other
+    // users of the glue operand must be treated as its users.
+    SDNode *ImmGUser = Glue->getGluedUser();
+    for (SDNode::use_iterator ui = Glue->use_begin(), ue = Glue->use_end();
+         ui != ue; ++ui)
+      if (*ui == ImmGUser)
+        --Degree;
+    GUser->setNodeId(UDegree + Degree);
+    Glue->setNodeId(1);
+  }
+
+  Sequence.reserve(DAGSize);
+  ScheduleNode(DAG->getRoot().getNode());
+}
+
+MachineBasicBlock*
+ScheduleDAGLinearize::EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
+  InstrEmitter Emitter(BB, InsertPos);
+  DenseMap<SDValue, unsigned> VRBaseMap;
+
+  DEBUG({
+      dbgs() << "\n*** Final schedule ***\n";
+    });
+
+  // FIXME: Handle dbg_values.
+  unsigned NumNodes = Sequence.size();
+  for (unsigned i = 0; i != NumNodes; ++i) {
+    SDNode *N = Sequence[NumNodes-i-1];
+    DEBUG(N->dump(DAG));
+    Emitter.EmitNode(N, false, false, VRBaseMap);
+  }
+
+  DEBUG(dbgs() << '\n');
+
+  InsertPos = Emitter.getInsertPos();
+  return Emitter.getBlock();
+}
+
 //===----------------------------------------------------------------------===//
 //                         Public Constructor Functions
 //===----------------------------------------------------------------------===//
@@ -636,4 +791,9 @@ void ScheduleDAGFast::ListScheduleBottomUp() {
 llvm::ScheduleDAGSDNodes *
 llvm::createFastDAGScheduler(SelectionDAGISel *IS, CodeGenOpt::Level) {
   return new ScheduleDAGFast(*IS->MF);
+}
+
+llvm::ScheduleDAGSDNodes *
+llvm::createDAGLinearizer(SelectionDAGISel *IS, CodeGenOpt::Level) {
+  return new ScheduleDAGLinearize(*IS->MF);
 }

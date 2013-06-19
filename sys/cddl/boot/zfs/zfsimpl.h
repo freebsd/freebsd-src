@@ -52,6 +52,9 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright 2013 by Saso Kiselkov. All rights reserved.
+ */
 
 #define	MAXNAMELEN	256
 
@@ -439,6 +442,7 @@ enum zio_compress {
 	ZIO_COMPRESS_GZIP_8,
 	ZIO_COMPRESS_GZIP_9,
 	ZIO_COMPRESS_ZLE,
+	ZIO_COMPRESS_LZ4,
 	ZIO_COMPRESS_FUNCTIONS
 };
 
@@ -1181,12 +1185,12 @@ typedef struct zap_leaf_phys {
 typedef union zap_leaf_chunk {
 	struct zap_leaf_entry {
 		uint8_t le_type; 		/* always ZAP_CHUNK_ENTRY */
-		uint8_t le_int_size;		/* size of ints */
+		uint8_t le_value_intlen;	/* size of ints */
 		uint16_t le_next;		/* next entry in hash chain */
 		uint16_t le_name_chunk;		/* first chunk of the name */
-		uint16_t le_name_length;	/* bytes in name, incl null */
+		uint16_t le_name_numints;	/* bytes in name, incl null */
 		uint16_t le_value_chunk;	/* first chunk of the value */
-		uint16_t le_value_length;	/* value length in ints */
+		uint16_t le_value_numints;	/* value length in ints */
 		uint32_t le_cd;			/* collision differentiator */
 		uint64_t le_hash;		/* hash value of the name */
 	} l_entry;

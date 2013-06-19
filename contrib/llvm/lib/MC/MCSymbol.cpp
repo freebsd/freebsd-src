@@ -26,7 +26,7 @@ static bool isAcceptableChar(char C) {
   return true;
 }
 
-/// NameNeedsQuoting - Return true if the identifier \arg Str needs quotes to be
+/// NameNeedsQuoting - Return true if the identifier \p Str needs quotes to be
 /// syntactically correct.
 static bool NameNeedsQuoting(StringRef Str) {
   assert(!Str.empty() && "Cannot create an empty MCSymbol");
@@ -76,6 +76,8 @@ void MCSymbol::print(raw_ostream &OS) const {
   OS << '"' << getName() << '"';
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MCSymbol::dump() const {
   print(dbgs());
 }
+#endif

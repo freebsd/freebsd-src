@@ -64,7 +64,8 @@ struct pcpu_md {
 
 #define	PCPU_MD_FIELDS							\
 	uint32_t	pc_acpi_id;		/* ACPI CPU id. */	\
-	struct pcpu_md	pc_md			/* MD fields. */
+	struct pcpu_md	pc_md;			/* MD fields. */	\
+	char		__pad[1265]
 
 #ifdef _KERNEL
 

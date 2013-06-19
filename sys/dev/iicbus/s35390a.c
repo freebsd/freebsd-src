@@ -260,10 +260,8 @@ s390rtc_gettime(device_t dev, struct timespec *ts)
 {
 	uint8_t bcd[S390_RT1_NBYTES];
 	struct clocktime ct;
-	struct s390rtc_softc *sc;
 	int error;
 
-	sc = device_get_softc(dev);
 	error = s390rtc_read(dev, S390_REALTIME1, bcd, S390_RT1_NBYTES);
 	if (error) {
 		device_printf(dev, "%s: cannot read realtime1 register\n",
@@ -291,9 +289,7 @@ s390rtc_settime(device_t dev, struct timespec *ts)
 {
 	uint8_t bcd[S390_RT1_NBYTES];
 	struct clocktime ct;
-	struct s390rtc_softc *sc;
 
-	sc = device_get_softc(dev);
 	clock_ts_to_ct(ts, &ct);
 
 	/*

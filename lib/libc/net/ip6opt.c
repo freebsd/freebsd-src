@@ -461,7 +461,7 @@ inet6_opt_append(void *extbuf, socklen_t extlen, int offset, u_int8_t type,
 int
 inet6_opt_finish(void *extbuf, socklen_t extlen, int offset)
 {
-	int updatelen = offset > 0 ? (1 + ((offset - 1) | 7)) : 0;;
+	int updatelen = offset > 0 ? (1 + ((offset - 1) | 7)) : 0;
 
 	if (extbuf) {
 		u_int8_t *padp;

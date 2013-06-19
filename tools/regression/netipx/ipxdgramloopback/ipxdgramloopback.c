@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 	if (len < 0)
 		err(-1, "sendto()");
 	if (len != sizeof(packet))
-		errx(-1, "sendto(): short send (%d length, %d sent)",
+		errx(-1, "sendto(): short send (%zu length, %zd sent)",
 		    sizeof(packet), len);
 
 	sleep(1);	/* Arbitrary non-zero amount. */
@@ -105,7 +105,7 @@ main(int argc, char *argv[])
 	if (len < 0)
 		err(-1, "recv()");
 	if (len != sizeof(packet))
-		errx(-1, "recv(): short receive (%d length, %d received)",
+		errx(-1, "recv(): short receive (%zu length, %zd received)",
 		    sizeof(packet), len);
 
 	for (i = 0; i < PACKETLEN; i++) {

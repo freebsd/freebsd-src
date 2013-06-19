@@ -9,10 +9,10 @@
 
 #include "JITRegistrar.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/MutexGuard.h"
-#include "llvm/Support/Mutex.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Mutex.h"
+#include "llvm/Support/MutexGuard.h"
 
 using namespace llvm;
 
@@ -44,7 +44,7 @@ extern "C" {
   // We put information about the JITed function in this global, which the
   // debugger reads.  Make sure to specify the version statically, because the
   // debugger checks the version before we can set it during runtime.
-  static struct jit_descriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
+  struct jit_descriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
 
   // Debuggers puts a breakpoint in this function.
   LLVM_ATTRIBUTE_NOINLINE void __jit_debug_register_code() { }
@@ -78,12 +78,12 @@ public:
   /// Creates an entry in the JIT registry for the buffer @p Object,
   /// which must contain an object file in executable memory with any
   /// debug information for the debugger.
-  void registerObject(const MemoryBuffer &Object);
+  void registerObject(const ObjectBuffer &Object);
 
   /// Removes the internal registration of @p Object, and
   /// frees associated resources.
   /// Returns true if @p Object was found in ObjectBufferMap.
-  bool deregisterObject(const MemoryBuffer &Object);
+  bool deregisterObject(const ObjectBuffer &Object);
 
 private:
   /// Deregister the debug info for the given object file from the debugger
@@ -124,7 +124,7 @@ GDBJITRegistrar::~GDBJITRegistrar() {
   ObjectBufferMap.clear();
 }
 
-void GDBJITRegistrar::registerObject(const MemoryBuffer &Object) {
+void GDBJITRegistrar::registerObject(const ObjectBuffer &Object) {
 
   const char *Buffer = Object.getBufferStart();
   size_t      Size = Object.getBufferSize();
@@ -147,7 +147,7 @@ void GDBJITRegistrar::registerObject(const MemoryBuffer &Object) {
   }
 }
 
-bool GDBJITRegistrar::deregisterObject(const MemoryBuffer& Object) {
+bool GDBJITRegistrar::deregisterObject(const ObjectBuffer& Object) {
   const char *Buffer = Object.getBufferStart();
   RegisteredObjectBufferMap::iterator I = ObjectBufferMap.find(Buffer);
 

@@ -31,12 +31,14 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -75,17 +77,20 @@ struct field_desc {
 
 #include "reg_defs_t4.c"
 #include "reg_defs_t4vf.c"
+#include "reg_defs_t5.c"
 
 static void
 usage(FILE *fp)
 {
 	fprintf(fp, "Usage: %s <nexus> [operation]\n", progname);
 	fprintf(fp,
+	    "\tclearstats <port>                   clear port statistics\n"
 	    "\tcontext <type> <id>                 show an SGE context\n"
 	    "\tfilter <idx> [<param> <val>] ...    set a filter\n"
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
+	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
 	    "\treg <address>[=<val>]               read/write register\n"
@@ -350,34 +355,75 @@ dump_regs_t4vf(int argc, const char *argv[], const uint32_t *regs)
 	    ARRAY_SIZE(t4vf_mod));
 }
 
+#define T5_MODREGS(name) { #name, t5_##name##_regs }
+static int
+dump_regs_t5(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t5_mod[] = {
+		T5_MODREGS(sge),
+		{ "pci", t5_pcie_regs },
+		T5_MODREGS(dbg),
+		{ "mc0", t5_mc_0_regs },
+		{ "mc1", t5_mc_1_regs },
+		T5_MODREGS(ma),
+		{ "edc0", t5_edc_t50_regs },
+		{ "edc1", t5_edc_t51_regs },
+		T5_MODREGS(cim),
+		T5_MODREGS(tp),
+		{ "ulprx", t5_ulp_rx_regs },
+		{ "ulptx", t5_ulp_tx_regs },
+		{ "pmrx", t5_pm_rx_regs },
+		{ "pmtx", t5_pm_tx_regs },
+		T5_MODREGS(mps),
+		{ "cplsw", t5_cpl_switch_regs },
+		T5_MODREGS(smb),
+		{ "i2c", t5_i2cm_regs },
+		T5_MODREGS(mi),
+		T5_MODREGS(uart),
+		T5_MODREGS(pmu),
+		T5_MODREGS(sf),
+		T5_MODREGS(pl),
+		T5_MODREGS(le),
+		T5_MODREGS(ncsi),
+		T5_MODREGS(mac),
+		{ "hma", t5_hma_t5_regs }
+	};
+
+	return dump_regs_table(argc, argv, regs, t5_mod, ARRAY_SIZE(t5_mod));
+}
+#undef T5_MODREGS
+
 static int
 dump_regs(int argc, const char *argv[])
 {
-	int vers, revision, is_pcie, rc;
+	int vers, revision, rc;
 	struct t4_regdump regs;
+	uint32_t len;
 
-	regs.data = calloc(1, T4_REGDUMP_SIZE);
+	len = max(T4_REGDUMP_SIZE, T5_REGDUMP_SIZE);
+	regs.data = calloc(1, len);
 	if (regs.data == NULL) {
 		warnc(ENOMEM, "regdump");
 		return (ENOMEM);
 	}
 
-	regs.len = T4_REGDUMP_SIZE;
+	regs.len = len;
 	rc = doit(CHELSIO_T4_REGDUMP, &regs);
 	if (rc != 0)
 		return (rc);
 
 	vers = get_card_vers(regs.version);
 	revision = (regs.version >> 10) & 0x3f;
-	is_pcie = (regs.version & 0x80000000) != 0;
 
 	if (vers == 4) {
 		if (revision == 0x3f)
 			rc = dump_regs_t4vf(argc, argv, regs.data);
 		else
 			rc = dump_regs_t4(argc, argv, regs.data);
-	} else {
-		warnx("%s (type %d, rev %d) is not a T4 card.",
+	} else if (vers == 5)
+		rc = dump_regs_t5(argc, argv, regs.data);
+	else {
+		warnx("%s (type %d, rev %d) is not a known card.",
 		    nexus, vers, revision);
 		return (ENOTSUP);
 	}
@@ -821,6 +867,9 @@ get_filter_mode(void)
 	if (mode & T4_FILTER_IP_DPORT)
 		printf("dport ");
 
+	if (mode & T4_FILTER_IP_FRAGMENT)
+		printf("frag ");
+
 	if (mode & T4_FILTER_MPS_HIT_TYPE)
 		printf("matchtype ");
 
@@ -840,7 +889,7 @@ get_filter_mode(void)
 		printf("vlan ");
 
 	if (mode & T4_FILTER_VNIC)
-		printf("vnic ");
+		printf("vnic/ovlan ");
 
 	if (mode & T4_FILTER_PORT)
 		printf("iport ");
@@ -859,6 +908,9 @@ set_filter_mode(int argc, const char *argv[])
 	uint32_t mode = 0;
 
 	for (; argc; argc--, argv++) {
+		if (!strcmp(argv[0], "frag"))
+			mode |= T4_FILTER_IP_FRAGMENT;
+
 		if (!strcmp(argv[0], "matchtype"))
 			mode |= T4_FILTER_MPS_HIT_TYPE;
 
@@ -952,7 +1004,7 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 			t.fs.mask.vnic = mask;
 			t.fs.val.vnic_vld = 1;
 			t.fs.mask.vnic_vld = 1;
-		} else if (!parse_val_mask("vlan", args, &val, &mask)) {
+		} else if (!parse_val_mask("ivlan", args, &val, &mask)) {
 			t.fs.val.vlan = val;
 			t.fs.mask.vlan = mask;
 			t.fs.val.vlan_vld = 1;
@@ -1044,10 +1096,17 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 				t.fs.newvlan = VLAN_REWRITE;
 			} else if (argv[start_arg + 1][0] == '+') {
 				t.fs.newvlan = VLAN_INSERT;
+			} else if (isdigit(argv[start_arg + 1][0]) &&
+			    !parse_val_mask("vlan", args, &val, &mask)) {
+				t.fs.val.vlan = val;
+				t.fs.mask.vlan = mask;
+				t.fs.val.vlan_vld = 1;
+				t.fs.mask.vlan_vld = 1;
 			} else {
 				warnx("unknown vlan parameter \"%s\"; must"
-				     " be one of \"none\", \"=<vlan>\" or"
-				     " \"+<vlan>\"", argv[start_arg + 1]);
+				     " be one of \"none\", \"=<vlan>\", "
+				     " \"+<vlan>\", or \"<vlan>\"",
+				     argv[start_arg + 1]);
 				return (EINVAL);
 			}
 			if (t.fs.newvlan == VLAN_REWRITE ||
@@ -1522,6 +1581,82 @@ read_tcb(int argc, const char *argv[])
 }
 
 static int
+read_i2c(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	struct t4_i2c_data i2cd;
+	int rc, i;
+
+	if (argc < 3 || argc > 4) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p || l > UCHAR_MAX) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	i2cd.port_id = l;
+
+	p = str_to_number(argv[1], &l, NULL);
+	if (*p || l > UCHAR_MAX) {
+		warnx("invalid i2c device address \"%s\"", argv[1]);
+		return (EINVAL);
+	}
+	i2cd.dev_addr = l;
+
+	p = str_to_number(argv[2], &l, NULL);
+	if (*p || l > UCHAR_MAX) {
+		warnx("invalid byte offset \"%s\"", argv[2]);
+		return (EINVAL);
+	}
+	i2cd.offset = l;
+
+	if (argc == 4) {
+		p = str_to_number(argv[3], &l, NULL);
+		if (*p || l > sizeof(i2cd.data)) {
+			warnx("invalid number of bytes \"%s\"", argv[3]);
+			return (EINVAL);
+		}
+		i2cd.len = l;
+	} else
+		i2cd.len = 1;
+
+	rc = doit(CHELSIO_T4_GET_I2C, &i2cd);
+	if (rc != 0)
+		return (rc);
+
+	for (i = 0; i < i2cd.len; i++)
+		printf("0x%x [%u]\n", i2cd.data[i], i2cd.data[i]);
+
+	return (0);
+}
+
+static int
+clearstats(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	uint32_t port;
+
+	if (argc != 1) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	port = l;
+
+	return doit(CHELSIO_T4_CLEAR_STATS, &port);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -1547,6 +1682,10 @@ run_cmd(int argc, const char *argv[])
 		rc = memdump(argc, argv);
 	else if (!strcmp(cmd, "tcb"))
 		rc = read_tcb(argc, argv);
+	else if (!strcmp(cmd, "i2c"))
+		rc = read_i2c(argc, argv);
+	else if (!strcmp(cmd, "clearstats"))
+		rc = clearstats(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);

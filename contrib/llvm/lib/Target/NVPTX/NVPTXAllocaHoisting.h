@@ -15,8 +15,8 @@
 #define NVPTX_ALLOCA_HOISTING_H_
 
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetData.h"
 
 namespace llvm {
 
@@ -31,7 +31,7 @@ public:
   NVPTXAllocaHoisting() : FunctionPass(ID) {}
 
   void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequired<TargetData>();
+    AU.addRequired<DataLayout>();
     AU.addPreserved<MachineFunctionAnalysis>();
   }
 

@@ -18,24 +18,23 @@
 
 #define DEBUG_TYPE "branchfolding"
 #include "BranchFolding.h"
-#include "llvm/Function.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -357,9 +356,8 @@ static unsigned ComputeCommonTailLength(MachineBasicBlock *MBB1,
   if (I1 == MBB1->begin() && I2 != MBB2->begin()) {
     --I2;
     while (I2->isDebugValue()) {
-      if (I2 == MBB2->begin()) {
+      if (I2 == MBB2->begin())
         return TailLen;
-        }
       --I2;
     }
     ++I2;
@@ -482,21 +480,19 @@ bool
 BranchFolder::MergePotentialsElt::operator<(const MergePotentialsElt &o) const {
   if (getHash() < o.getHash())
     return true;
-   else if (getHash() > o.getHash())
+  if (getHash() > o.getHash())
     return false;
-  else if (getBlock()->getNumber() < o.getBlock()->getNumber())
+  if (getBlock()->getNumber() < o.getBlock()->getNumber())
     return true;
-  else if (getBlock()->getNumber() > o.getBlock()->getNumber())
+  if (getBlock()->getNumber() > o.getBlock()->getNumber())
     return false;
-  else {
-    // _GLIBCXX_DEBUG checks strict weak ordering, which involves comparing
-    // an object with itself.
+  // _GLIBCXX_DEBUG checks strict weak ordering, which involves comparing
+  // an object with itself.
 #ifndef _GLIBCXX_DEBUG
-    llvm_unreachable("Predecessor appears twice");
+  llvm_unreachable("Predecessor appears twice");
 #else
-    return false;
+  return false;
 #endif
-  }
 }
 
 /// CountTerminators - Count the number of terminators in the given
@@ -574,7 +570,8 @@ static bool ProfitableToMerge(MachineBasicBlock *MBB1,
   // instructions that would be deleted in the merge.
   MachineFunction *MF = MBB1->getParent();
   if (EffectiveTailLen >= 2 &&
-      MF->getFunction()->hasFnAttr(Attribute::OptimizeForSize) &&
+      MF->getFunction()->getAttributes().
+        hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize) &&
       (I1 == MBB1->begin() || I2 == MBB2->begin()))
     return true;
 
@@ -1554,8 +1551,7 @@ MachineBasicBlock::iterator findHoistingInsertPosAndDeps(MachineBasicBlock *MBB,
       for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
         Uses.insert(*AI);
     } else {
-      if (Uses.count(Reg)) {
-        Uses.erase(Reg);
+      if (Uses.erase(Reg)) {
         for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
           Uses.erase(*SubRegs); // Use sub-registers to be conservative
       }

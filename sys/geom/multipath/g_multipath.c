@@ -429,7 +429,7 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 		}
 	}
 
-	gp = g_new_geomf(mp, md->md_name);
+	gp = g_new_geomf(mp, "%s", md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "multipath", NULL, MTX_DEF);
 	memcpy(sc->sc_uuid, md->md_uuid, sizeof (sc->sc_uuid));
@@ -522,6 +522,8 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 		sc->sc_pp->stripesize = pp->stripesize;
 		sc->sc_pp->stripeoffset = pp->stripeoffset;
 	}
+	if (sc->sc_pp != NULL)
+		sc->sc_pp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	mtx_lock(&sc->sc_mtx);
 	cp->index = 0;
 	sc->sc_ndisks++;

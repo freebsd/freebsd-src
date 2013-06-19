@@ -70,7 +70,7 @@ static const char *legal_colors[16] = {
 	"lightred", "lightmagenta", "yellow", "lightwhite"
 };
 
-struct {
+static struct {
 	int			active_vty;
 	vid_info_t		console_info;
 	unsigned char		screen_map[256];
@@ -959,7 +959,7 @@ show_mode_info(void)
 	printf("---------------------------------------"
 	       "---------------------------------------\n");
 
-	for (mode = 0; mode < M_VESA_MODE_MAX; ++mode) {
+	for (mode = 0; mode <= M_VESA_MODE_MAX; ++mode) {
 		_info.vi_mode = mode;
 		if (ioctl(0, CONS_MODEINFO, &_info))
 			continue;

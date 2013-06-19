@@ -16,6 +16,7 @@
 #define LLVM_CLANG_SEMA_TYPOCORRECTION_H
 
 #include "clang/AST/DeclCXX.h"
+#include "clang/Sema/DeclSpec.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace clang {
@@ -170,12 +171,23 @@ public:
     return CorrectionDecls.size() > 1;
   }
 
-  typedef llvm::SmallVector<NamedDecl*, 1>::iterator decl_iterator;
+  void setCorrectionRange(CXXScopeSpec* SS,
+                          const DeclarationNameInfo &TypoName) {
+    CorrectionRange.setBegin(CorrectionNameSpec && SS ? SS->getBeginLoc()
+                                                      : TypoName.getLoc());
+    CorrectionRange.setEnd(TypoName.getLoc());
+  }
+
+  SourceRange getCorrectionRange() const {
+    return CorrectionRange;
+  }
+
+  typedef SmallVector<NamedDecl *, 1>::iterator decl_iterator;
   decl_iterator begin() {
     return isKeyword() ? CorrectionDecls.end() : CorrectionDecls.begin();
   }
   decl_iterator end() { return CorrectionDecls.end(); }
-  typedef llvm::SmallVector<NamedDecl*, 1>::const_iterator const_decl_iterator;
+  typedef SmallVector<NamedDecl *, 1>::const_iterator const_decl_iterator;
   const_decl_iterator begin() const {
     return isKeyword() ? CorrectionDecls.end() : CorrectionDecls.begin();
   }
@@ -189,10 +201,11 @@ private:
   // Results.
   DeclarationName CorrectionName;
   NestedNameSpecifier *CorrectionNameSpec;
-  llvm::SmallVector<NamedDecl*, 1> CorrectionDecls;
+  SmallVector<NamedDecl *, 1> CorrectionDecls;
   unsigned CharDistance;
   unsigned QualifierDistance;
   unsigned CallbackDistance;
+  SourceRange CorrectionRange;
 };
 
 /// @brief Base class for callback objects used by Sema::CorrectTypo to check
@@ -215,9 +228,11 @@ class CorrectionCandidateCallback {
   /// candidate is viable, without ranking potentially viable candidates.
   /// Only ValidateCandidate or RankCandidate need to be overriden by a
   /// callback wishing to check the viability of correction candidates.
-  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
-    return true;
-  }
+  /// The default predicate always returns true if the candidate is not a type
+  /// name or keyword, true for types if WantTypeSpecifiers is true, and true
+  /// for keywords if WantTypeSpecifiers, WantExpressionKeywords,
+  /// WantCXXNamedCasts, WantRemainingKeywords, or WantObjCSuper is true.
+  virtual bool ValidateCandidate(const TypoCorrection &candidate);
 
   /// \brief Method used by Sema::CorrectTypo to assign an "edit distance" rank
   /// to a candidate (where a lower value represents a better candidate), or

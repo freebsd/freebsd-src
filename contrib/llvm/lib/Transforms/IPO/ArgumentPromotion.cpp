@@ -31,21 +31,21 @@
 
 #define DEBUG_TYPE "argpromotion"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
-#include "llvm/CallGraphSCCPass.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Support/CallSite.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Support/CFG.h"
+#include "llvm/Support/CallSite.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include <set>
 using namespace llvm;
 
@@ -153,7 +153,8 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
   SmallPtrSet<Argument*, 8> ArgsToPromote;
   SmallPtrSet<Argument*, 8> ByValArgsToTransform;
   for (unsigned i = 0; i != PointerArgs.size(); ++i) {
-    bool isByVal = F->paramHasAttr(PointerArgs[i].second+1, Attribute::ByVal);
+    bool isByVal=F->getAttributes().
+      hasAttribute(PointerArgs[i].second+1, Attribute::ByVal);
     Argument *PtrArg = PointerArgs[i].first;
     Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
 
@@ -510,15 +511,16 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
   // what the new GEP/Load instructions we are inserting look like.
   std::map<IndicesVector, LoadInst*> OriginalLoads;
 
-  // Attributes - Keep track of the parameter attributes for the arguments
+  // Attribute - Keep track of the parameter attributes for the arguments
   // that we are *not* promoting. For the ones that we do promote, the parameter
   // attributes are lost
-  SmallVector<AttributeWithIndex, 8> AttributesVec;
-  const AttrListPtr &PAL = F->getAttributes();
+  SmallVector<AttributeSet, 8> AttributesVec;
+  const AttributeSet &PAL = F->getAttributes();
 
   // Add any return attributes.
-  if (Attributes attrs = PAL.getRetAttributes())
-    AttributesVec.push_back(AttributeWithIndex::get(0, attrs));
+  if (PAL.hasAttributes(AttributeSet::ReturnIndex))
+    AttributesVec.push_back(AttributeSet::get(F->getContext(),
+                                              PAL.getRetAttributes()));
 
   // First, determine the new argument list
   unsigned ArgIndex = 1;
@@ -534,8 +536,12 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
     } else if (!ArgsToPromote.count(I)) {
       // Unchanged argument
       Params.push_back(I->getType());
-      if (Attributes attrs = PAL.getParamAttributes(ArgIndex))
-        AttributesVec.push_back(AttributeWithIndex::get(Params.size(), attrs));
+      AttributeSet attrs = PAL.getParamAttributes(ArgIndex);
+      if (attrs.hasAttributes(ArgIndex)) {
+        AttrBuilder B(attrs, ArgIndex);
+        AttributesVec.
+          push_back(AttributeSet::get(F->getContext(), Params.size(), B));
+      }
     } else if (I->use_empty()) {
       // Dead argument (which are always marked as promotable)
       ++NumArgumentsDead;
@@ -587,18 +593,11 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
   }
 
   // Add any function attributes.
-  if (Attributes attrs = PAL.getFnAttributes())
-    AttributesVec.push_back(AttributeWithIndex::get(~0, attrs));
+  if (PAL.hasAttributes(AttributeSet::FunctionIndex))
+    AttributesVec.push_back(AttributeSet::get(FTy->getContext(),
+                                              PAL.getFnAttributes()));
 
   Type *RetTy = FTy->getReturnType();
-
-  // Work around LLVM bug PR56: the CWriter cannot emit varargs functions which
-  // have zero fixed arguments.
-  bool ExtraArgHack = false;
-  if (Params.empty() && FTy->isVarArg()) {
-    ExtraArgHack = true;
-    Params.push_back(Type::getInt32Ty(F->getContext()));
-  }
 
   // Construct the new function type using the new arguments.
   FunctionType *NFTy = FunctionType::get(RetTy, Params, FTy->isVarArg());
@@ -613,7 +612,7 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
   
   // Recompute the parameter attributes list based on the new arguments for
   // the function.
-  NF->setAttributes(AttrListPtr::get(AttributesVec));
+  NF->setAttributes(AttributeSet::get(F->getContext(), AttributesVec));
   AttributesVec.clear();
 
   F->getParent()->getFunctionList().insert(F, NF);
@@ -638,11 +637,12 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
     CallSite CS(F->use_back());
     assert(CS.getCalledFunction() == F);
     Instruction *Call = CS.getInstruction();
-    const AttrListPtr &CallPAL = CS.getAttributes();
+    const AttributeSet &CallPAL = CS.getAttributes();
 
     // Add any return attributes.
-    if (Attributes attrs = CallPAL.getRetAttributes())
-      AttributesVec.push_back(AttributeWithIndex::get(0, attrs));
+    if (CallPAL.hasAttributes(AttributeSet::ReturnIndex))
+      AttributesVec.push_back(AttributeSet::get(F->getContext(),
+                                                CallPAL.getRetAttributes()));
 
     // Loop over the operands, inserting GEP and loads in the caller as
     // appropriate.
@@ -653,9 +653,11 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
       if (!ArgsToPromote.count(I) && !ByValArgsToTransform.count(I)) {
         Args.push_back(*AI);          // Unmodified argument
 
-        if (Attributes Attrs = CallPAL.getParamAttributes(ArgIndex))
-          AttributesVec.push_back(AttributeWithIndex::get(Args.size(), Attrs));
-
+        if (CallPAL.hasAttributes(ArgIndex)) {
+          AttrBuilder B(CallPAL, ArgIndex);
+          AttributesVec.
+            push_back(AttributeSet::get(F->getContext(), Args.size(), B));
+        }
       } else if (ByValArgsToTransform.count(I)) {
         // Emit a GEP and load for each element of the struct.
         Type *AgTy = cast<PointerType>(I->getType())->getElementType();
@@ -711,30 +713,33 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
         }
       }
 
-    if (ExtraArgHack)
-      Args.push_back(Constant::getNullValue(Type::getInt32Ty(F->getContext())));
-
     // Push any varargs arguments on the list.
     for (; AI != CS.arg_end(); ++AI, ++ArgIndex) {
       Args.push_back(*AI);
-      if (Attributes Attrs = CallPAL.getParamAttributes(ArgIndex))
-        AttributesVec.push_back(AttributeWithIndex::get(Args.size(), Attrs));
+      if (CallPAL.hasAttributes(ArgIndex)) {
+        AttrBuilder B(CallPAL, ArgIndex);
+        AttributesVec.
+          push_back(AttributeSet::get(F->getContext(), Args.size(), B));
+      }
     }
 
     // Add any function attributes.
-    if (Attributes attrs = CallPAL.getFnAttributes())
-      AttributesVec.push_back(AttributeWithIndex::get(~0, attrs));
+    if (CallPAL.hasAttributes(AttributeSet::FunctionIndex))
+      AttributesVec.push_back(AttributeSet::get(Call->getContext(),
+                                                CallPAL.getFnAttributes()));
 
     Instruction *New;
     if (InvokeInst *II = dyn_cast<InvokeInst>(Call)) {
       New = InvokeInst::Create(NF, II->getNormalDest(), II->getUnwindDest(),
                                Args, "", Call);
       cast<InvokeInst>(New)->setCallingConv(CS.getCallingConv());
-      cast<InvokeInst>(New)->setAttributes(AttrListPtr::get(AttributesVec));
+      cast<InvokeInst>(New)->setAttributes(AttributeSet::get(II->getContext(),
+                                                            AttributesVec));
     } else {
       New = CallInst::Create(NF, Args, "", Call);
       cast<CallInst>(New)->setCallingConv(CS.getCallingConv());
-      cast<CallInst>(New)->setAttributes(AttrListPtr::get(AttributesVec));
+      cast<CallInst>(New)->setAttributes(AttributeSet::get(New->getContext(),
+                                                          AttributesVec));
       if (cast<CallInst>(Call)->isTailCall())
         cast<CallInst>(New)->setTailCall();
     }
@@ -870,15 +875,8 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
     }
 
     // Increment I2 past all of the arguments added for this promoted pointer.
-    for (unsigned i = 0, e = ArgIndices.size(); i != e; ++i)
-      ++I2;
+    std::advance(I2, ArgIndices.size());
   }
-
-  // Notify the alias analysis implementation that we inserted a new argument.
-  if (ExtraArgHack)
-    AA.copyValue(Constant::getNullValue(Type::getInt32Ty(F->getContext())), 
-                 NF->arg_begin());
-
 
   // Tell the alias analysis that the old function is about to disappear.
   AA.replaceWithNewValue(F, NF);

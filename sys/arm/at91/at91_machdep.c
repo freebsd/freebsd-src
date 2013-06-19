@@ -76,9 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_map.h>
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -96,6 +94,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91sam9g20reg.h>
 #include <arm/at91/at91sam9g45reg.h>
 
+#ifndef MAXCPU
+#define MAXCPU 1
+#endif
+
 /* Page table for mapping proc0 zero page */
 #define KERNEL_PT_SYS		0
 #define KERNEL_PT_KERN		1
@@ -106,11 +108,6 @@ __FBSDID("$FreeBSD$");
 
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
-
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
 
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
@@ -459,7 +456,7 @@ initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr  dpcpu;
-	int loop, i;
+	int i;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t afterkern;
@@ -487,23 +484,23 @@ initarm(struct arm_boot_params *abp)
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
 		freemempos += PAGE_SIZE;
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
-	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		if (!(loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
-			valloc_pages(kernel_pt_table[loop],
+	for (i = 0; i < NUM_KERNEL_PTS; ++i) {
+		if (!(i % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
+			valloc_pages(kernel_pt_table[i],
 			    L2_TABLE_SIZE / PAGE_SIZE);
 		} else {
-			kernel_pt_table[loop].pv_va = freemempos -
-			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
+			kernel_pt_table[i].pv_va = freemempos -
+			    (i % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_pa =
-			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
+			kernel_pt_table[i].pv_pa =
+			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
 	}
 	/*
-	 * Allocate a page for the system page mapped to V0x00000000
-	 * This page will just contain the system vectors and can be
-	 * shared by all processes.
+	 * Allocate a page for the system page mapped to 0x00000000
+	 * or 0xffff0000. This page will just contain the system vectors
+	 * and can be shared by all processes.
 	 */
 	valloc_pages(systempage, 1);
 
@@ -512,10 +509,10 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE);
-	valloc_pages(abtstack, ABT_STACK_SIZE);
-	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
+	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
+	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
+	valloc_pages(kernelstack, KSTACK_PAGES * MAXCPU);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
@@ -563,22 +560,31 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, msgbufpv.pv_va, msgbufpv.pv_pa,
 	    msgbufsize, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		pmap_map_chunk(l1pagetable, kernel_pt_table[loop].pv_va,
-		    kernel_pt_table[loop].pv_pa, L2_TABLE_SIZE,
+	for (i = 0; i < NUM_KERNEL_PTS; ++i) {
+		pmap_map_chunk(l1pagetable, kernel_pt_table[i].pv_va,
+		    kernel_pt_table[i].pv_pa, L2_TABLE_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
 	pmap_devmap_bootstrap(l1pagetable, at91_devmap);
-	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
+	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
-	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
+	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
 
 	at91_soc_id();
 
-	/* Initialize all the clocks, so that the console can work */
-	at91_pmc_init_clock();
+	/*
+	 * Initialize all the clocks, so that the console can work.  We can only
+	 * do this if at91_soc_id() was able to fill in the support data.  Even
+	 * if we can't init the clocks, still try to do a console init so we can
+	 * try to print the error message about missing soc support.  There's a
+	 * chance the printf will work if the bootloader set up the DBGU.
+	 */
+	if (soc_info.soc_data != NULL) {
+		soc_info.soc_data->soc_clock_init();
+		at91_pmc_init_clock();
+	}
 
 	cninit();
 
@@ -597,12 +603,8 @@ initarm(struct arm_boot_params *abp)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....
@@ -629,7 +631,8 @@ initarm(struct arm_boot_params *abp)
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
 	arm_dump_avail_init(memsize, sizeof(dump_avail)/sizeof(dump_avail[0]));
-	pmap_bootstrap(freemempos, KERNVIRTADDR + 3 * memsize, &kernel_l1pt);
+	vm_max_kernel_address = KERNVIRTADDR + 3 * memsize;
+	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();

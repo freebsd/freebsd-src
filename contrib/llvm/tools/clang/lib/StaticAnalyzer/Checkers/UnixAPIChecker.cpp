@@ -13,20 +13,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/raw_ostream.h"
 #include <fcntl.h>
 
 using namespace clang;
 using namespace ento;
-using llvm::Optional;
 
 namespace {
 class UnixAPIChecker : public Checker< check::PreStmt<CallExpr> > {
@@ -41,6 +41,7 @@ public:
   void CheckCallocZero(CheckerContext &C, const CallExpr *CE) const;
   void CheckMallocZero(CheckerContext &C, const CallExpr *CE) const;
   void CheckReallocZero(CheckerContext &C, const CallExpr *CE) const;
+  void CheckReallocfZero(CheckerContext &C, const CallExpr *CE) const;
   void CheckAllocaZero(CheckerContext &C, const CallExpr *CE) const;
   void CheckVallocZero(CheckerContext &C, const CallExpr *CE) const;
 
@@ -101,21 +102,20 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
   // Now check if oflags has O_CREAT set.
   const Expr *oflagsEx = CE->getArg(1);
   const SVal V = state->getSVal(oflagsEx, C.getLocationContext());
-  if (!isa<NonLoc>(V)) {
+  if (!V.getAs<NonLoc>()) {
     // The case where 'V' can be a location can only be due to a bad header,
     // so in this case bail out.
     return;
   }
-  NonLoc oflags = cast<NonLoc>(V);
-  NonLoc ocreateFlag =
-    cast<NonLoc>(C.getSValBuilder().makeIntVal(Val_O_CREAT.getValue(),
-                                                oflagsEx->getType()));
+  NonLoc oflags = V.castAs<NonLoc>();
+  NonLoc ocreateFlag = C.getSValBuilder()
+      .makeIntVal(Val_O_CREAT.getValue(), oflagsEx->getType()).castAs<NonLoc>();
   SVal maskedFlagsUC = C.getSValBuilder().evalBinOpNN(state, BO_And,
                                                       oflags, ocreateFlag,
                                                       oflagsEx->getType());
   if (maskedFlagsUC.isUnknownOrUndef())
     return;
-  DefinedSVal maskedFlags = cast<DefinedSVal>(maskedFlagsUC);
+  DefinedSVal maskedFlags = maskedFlagsUC.castAs<DefinedSVal>();
 
   // Check if maskedFlags is non-zero.
   ProgramStateRef trueState, falseState;
@@ -138,7 +138,7 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
                             "Call to 'open' requires a third argument when "
                             "the 'O_CREAT' flag is set", N);
     report->addRange(oflagsEx->getSourceRange());
-    C.EmitReport(report);
+    C.emitReport(report);
   }
 }
 
@@ -183,11 +183,12 @@ void UnixAPIChecker::CheckPthreadOnce(CheckerContext &C,
 
   BugReport *report = new BugReport(*BT_pthreadOnce, os.str(), N);
   report->addRange(CE->getArg(0)->getSourceRange());
-  C.EmitReport(report);
+  C.emitReport(report);
 }
 
 //===----------------------------------------------------------------------===//
-// "calloc", "malloc", "realloc", "alloca" and "valloc" with allocation size 0
+// "calloc", "malloc", "realloc", "reallocf", "alloca" and "valloc"
+// with allocation size 0
 //===----------------------------------------------------------------------===//
 // FIXME: Eventually these should be rolled into the MallocChecker, but right now
 // they're more basic and valuable for widespread use.
@@ -199,7 +200,7 @@ static bool IsZeroByteAllocation(ProgramStateRef state,
                                 ProgramStateRef *trueState,
                                 ProgramStateRef *falseState) {
   llvm::tie(*trueState, *falseState) =
-    state->assume(cast<DefinedSVal>(argVal));
+    state->assume(argVal.castAs<DefinedSVal>());
   
   return (*falseState && !*trueState);
 }
@@ -224,8 +225,8 @@ bool UnixAPIChecker::ReportZeroByteAllocation(CheckerContext &C,
   BugReport *report = new BugReport(*BT_mallocZero, os.str(), N);
 
   report->addRange(arg->getSourceRange());
-  bugreporter::addTrackNullOrUndefValueVisitor(N, arg, report);
-  C.EmitReport(report);
+  bugreporter::trackNullOrUndefValue(N, arg, *report);
+  C.emitReport(report);
 
   return true;
 }
@@ -307,6 +308,11 @@ void UnixAPIChecker::CheckReallocZero(CheckerContext &C,
   BasicAllocationCheck(C, CE, 2, 1, "realloc");
 }
 
+void UnixAPIChecker::CheckReallocfZero(CheckerContext &C,
+                                       const CallExpr *CE) const {
+  BasicAllocationCheck(C, CE, 2, 1, "reallocf");
+}
+
 void UnixAPIChecker::CheckAllocaZero(CheckerContext &C,
                                      const CallExpr *CE) const {
   BasicAllocationCheck(C, CE, 1, 0, "alloca");
@@ -339,6 +345,7 @@ void UnixAPIChecker::checkPreStmt(const CallExpr *CE,
       .Case("calloc", &UnixAPIChecker::CheckCallocZero)
       .Case("malloc", &UnixAPIChecker::CheckMallocZero)
       .Case("realloc", &UnixAPIChecker::CheckReallocZero)
+      .Case("reallocf", &UnixAPIChecker::CheckReallocfZero)
       .Cases("alloca", "__builtin_alloca", &UnixAPIChecker::CheckAllocaZero)
       .Case("valloc", &UnixAPIChecker::CheckVallocZero)
       .Default(NULL);

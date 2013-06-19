@@ -9,18 +9,18 @@
 //
 // This file defines wrappers for the Target class and related global
 // functionality.  This makes it easier to access the data and provides a single
-// place that needs to check it for validity.  All of these classes throw
-// exceptions on error conditions.
+// place that needs to check it for validity.  All of these classes abort
+// on error conditions.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef CODEGEN_TARGET_H
 #define CODEGEN_TARGET_H
 
-#include "CodeGenRegisters.h"
 #include "CodeGenInstruction.h"
-#include "llvm/TableGen/Record.h"
+#include "CodeGenRegisters.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TableGen/Record.h"
 #include <algorithm>
 
 namespace llvm {
@@ -68,7 +68,7 @@ class CodeGenTarget {
   mutable DenseMap<const Record*, CodeGenInstruction*> Instructions;
   mutable CodeGenRegBank *RegBank;
   mutable std::vector<Record*> RegAltNameIndices;
-  mutable std::vector<MVT::SimpleValueType> LegalValueTypes;
+  mutable SmallVector<MVT::SimpleValueType, 8> LegalValueTypes;
   void ReadRegAltNameIndices() const;
   void ReadInstructions() const;
   void ReadLegalValueTypes() const;
@@ -129,7 +129,7 @@ public:
   /// specified physical register.
   std::vector<MVT::SimpleValueType> getRegisterVTs(Record *R) const;
 
-  const std::vector<MVT::SimpleValueType> &getLegalValueTypes() const {
+  ArrayRef<MVT::SimpleValueType> getLegalValueTypes() const {
     if (LegalValueTypes.empty()) ReadLegalValueTypes();
     return LegalValueTypes;
   }
@@ -137,7 +137,7 @@ public:
   /// isLegalValueType - Return true if the specified value type is natively
   /// supported by the target (i.e. there are registers that directly hold it).
   bool isLegalValueType(MVT::SimpleValueType VT) const {
-    const std::vector<MVT::SimpleValueType> &LegalVTs = getLegalValueTypes();
+    ArrayRef<MVT::SimpleValueType> LegalVTs = getLegalValueTypes();
     for (unsigned i = 0, e = LegalVTs.size(); i != e; ++i)
       if (LegalVTs[i] == VT) return true;
     return false;
@@ -176,6 +176,10 @@ public:
   /// isLittleEndianEncoding - are instruction bit patterns defined as  [0..n]?
   ///
   bool isLittleEndianEncoding() const;
+
+  /// guessInstructionProperties - should we just guess unset instruction
+  /// properties?
+  bool guessInstructionProperties() const;
 
 private:
   void ComputeInstrsByEnum() const;

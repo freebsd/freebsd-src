@@ -701,6 +701,8 @@ PCAP_SUPPORT_NETFILTER
 NETFILTER_SRC
 PCAP_SUPPORT_BT
 BT_SRC
+PCAP_SUPPORT_CANUSB
+CANUSB_SRC
 PCAP_SUPPORT_CAN
 CAN_SRC
 INSTALL_PROGRAM
@@ -1297,7 +1299,11 @@ Optional Features:
   --enable-optimizer-dbg  build optimizer debugging code
   --enable-yydebug        build parser debugging code
   --disable-universal     don't build universal on OS X
+  --enable-shared         build shared libraries [default=yes, if support
+                          available]
   --enable-bluetooth      enable Bluetooth support [default=yes, if support
+                          available]
+  --enable-canusb         enable canusb support [default=yes, if support
                           available]
   --enable-can            enable CAN support [default=yes, if support
                           available]
@@ -3244,7 +3250,7 @@ _ACEOF
 		    sparc64*)
 			case "$host_os" in
 
-			freebsd*)
+			freebsd*|openbsd*)
 			    PIC_OPT=-fPIC
 			    ;;
 			esac
@@ -3975,7 +3981,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f -r conftest*
+rm -f conftest*
 
 fi
 
@@ -3996,7 +4002,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f -r conftest*
+rm -f conftest*
 
 fi
 
@@ -5056,7 +5062,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 ;;
 esac
-rm -f -r conftest*
+rm -f conftest*
   if test $ac_cv_sys_file_offset_bits = unknown; then
     { echo "$as_me:$LINENO: checking for _LARGE_FILES value needed for large files" >&5
 echo $ECHO_N "checking for _LARGE_FILES value needed for large files... $ECHO_C" >&6; }
@@ -5177,7 +5183,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 ;;
 esac
-rm -f -r conftest*
+rm -f conftest*
   fi
 fi
 
@@ -5288,7 +5294,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 ;;
 esac
-rm -f -r conftest*
+rm -f conftest*
 
 # We used to try defining _XOPEN_SOURCE=500 too, to work around a bug
 # in glibc 2.1.3, but that breaks too many other things.
@@ -7594,10 +7600,109 @@ fi
 
 
 	if test x$with_libnl != xno ; then
+		have_any_nl="no"
+
 		#
-		# Try libnl 2.x first.
+		# Try libnl 3.x first.
 		#
-		{ echo "$as_me:$LINENO: checking for nl_socket_alloc in -lnl" >&5
+		{ echo "$as_me:$LINENO: checking for nl_socket_alloc in -lnl-3" >&5
+echo $ECHO_N "checking for nl_socket_alloc in -lnl-3... $ECHO_C" >&6; }
+if test "${ac_cv_lib_nl_3_nl_socket_alloc+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lnl-3  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char nl_socket_alloc ();
+int
+main ()
+{
+return nl_socket_alloc ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_nl_3_nl_socket_alloc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_nl_3_nl_socket_alloc=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_nl_3_nl_socket_alloc" >&5
+echo "${ECHO_T}$ac_cv_lib_nl_3_nl_socket_alloc" >&6; }
+if test $ac_cv_lib_nl_3_nl_socket_alloc = yes; then
+
+			#
+			# Yes, we have libnl 3.x.
+			#
+			LIBS="-lnl-genl-3 -lnl-3 $LIBS"
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL_3_x 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL_NLE 1
+_ACEOF
+
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL_SOCKETS 1
+_ACEOF
+
+			V_INCLS="$V_INCLS -I/usr/include/libnl3"
+			have_any_nl="yes"
+
+fi
+
+
+		if test x$have_any_nl = xno ; then
+			#
+			# Try libnl 2.x
+			#
+			{ echo "$as_me:$LINENO: checking for nl_socket_alloc in -lnl" >&5
 echo $ECHO_N "checking for nl_socket_alloc in -lnl... $ECHO_C" >&6; }
 if test "${ac_cv_lib_nl_nl_socket_alloc+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -7660,10 +7765,10 @@ fi
 echo "${ECHO_T}$ac_cv_lib_nl_nl_socket_alloc" >&6; }
 if test $ac_cv_lib_nl_nl_socket_alloc = yes; then
 
-			#
-			# Yes, we have libnl 2.x.
-			#
-			LIBS="-lnl-genl -lnl $LIBS"
+				#
+				# Yes, we have libnl 2.x.
+				#
+				LIBS="-lnl-genl -lnl $LIBS"
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBNL 1
@@ -7675,8 +7780,22 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 
-else
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL_NLE 1
+_ACEOF
 
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBNL_SOCKETS 1
+_ACEOF
+
+				have_any_nl="yes"
+
+fi
+
+		fi
+
+		if test x$have_any_nl = xno ; then
 			#
 			# No, we don't; do we have libnl 1.x?
 			#
@@ -7752,23 +7871,22 @@ cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBNL 1
 _ACEOF
 
+				have_any_nl="yes"
 
-else
+fi
 
-				#
-				# No, we don't have libnl at all.
-				#
-				if test x$with_libnl = xyes ; then
-					{ { echo "$as_me:$LINENO: error: libnl support requested but libnl not found" >&5
+		fi
+
+		if test x$have_any_nl = xno ; then
+			#
+			# No, we don't have libnl at all.
+			#
+			if test x$with_libnl = xyes ; then
+				{ { echo "$as_me:$LINENO: error: libnl support requested but libnl not found" >&5
 echo "$as_me: error: libnl support requested but libnl not found" >&2;}
    { (exit 1); exit 1; }; }
-				fi
-
-fi
-
-
-fi
-
+			fi
+		fi
 	fi
 
 
@@ -9826,6 +9944,12 @@ echo "$as_me: WARNING: don't have both flex and bison; reverting to lex/yacc" >&
     if test "$V_LEX" = flex -a -n "pcap_" ; then
 	    V_LEX="$V_LEX -Ppcap_"
 	    V_YACC="$V_YACC -p pcap_"
+    else
+
+cat >>confdefs.h <<\_ACEOF
+#define NEED_YYPARSE_WRAPPER 1
+_ACEOF
+
     fi
 if test "$V_LEX" = lex ; then
 # Some versions of lex can't handle the definitions section of scanner.l .
@@ -10123,6 +10247,13 @@ _ACEOF
 	MAN_MISC_INFO=5
 	;;
 esac
+
+# Check whether --enable-shared was given.
+if test "${enable_shared+set}" = set; then
+  enableval=$enable_shared;
+fi
+
+test "x$enable_shared" = "xno" && DYEXT="none"
 
 if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}ranlib", so it can be a program name with args.
@@ -11148,11 +11279,14 @@ cat >>conftest.$ac_ext <<_ACEOF
 
 $ac_includes_default
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <linux/types.h>
 
 #include <linux/netlink.h>
+#include <linux/netfilter.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_log.h>
+#include <linux/netfilter/nfnetlink_queue.h>
 int
 main ()
 {
@@ -11355,6 +11489,71 @@ _ACEOF
 		  { echo "$as_me:$LINENO: Bluetooth sniffing is supported" >&5
 echo "$as_me: Bluetooth sniffing is supported" >&6;}
 
+		  #
+		  # OK, does struct sockaddr_hci have an hci_channel
+		  # member?
+		  #
+		  { echo "$as_me:$LINENO: checking if struct sockaddr_hci has hci_channel member" >&5
+echo $ECHO_N "checking if struct sockaddr_hci has hci_channel member... $ECHO_C" >&6; }
+		  if test "${ac_cv_lbl_sockaddr_hci_has_hci_channel+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+
+int
+main ()
+{
+u_int i = sizeof(((struct sockaddr_hci *)0)->hci_channel)
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_cv_lbl_sockaddr_hci_has_hci_channel=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lbl_sockaddr_hci_has_hci_channel=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+
+		    { echo "$as_me:$LINENO: result: $ac_cv_lbl_sockaddr_hci_has_hci_channel" >&5
+echo "${ECHO_T}$ac_cv_lbl_sockaddr_hci_has_hci_channel" >&6; }
+		    if test $ac_cv_lbl_sockaddr_hci_has_hci_channel = yes ; then
+
+cat >>confdefs.h <<\_ACEOF
+#define SOCKADDR_HCI_HAS_HCI_CHANNEL
+_ACEOF
+
+		    fi
+
 else
   { echo "$as_me:$LINENO: Bluetooth sniffing is not supported; install bluez-lib devel to enable it" >&5
 echo "$as_me: Bluetooth sniffing is not supported; install bluez-lib devel to enable it" >&6;}
@@ -11366,6 +11565,171 @@ fi
 	*)
 		{ echo "$as_me:$LINENO: no Bluetooth sniffing support implemented for $host_os" >&5
 echo "$as_me: no Bluetooth sniffing support implemented for $host_os" >&6;}
+		;;
+	esac
+
+
+fi
+
+# Check whether --enable-canusb was given.
+if test "${enable_canusb+set}" = set; then
+  enableval=$enable_canusb;
+else
+  enable_canusb=yes
+fi
+
+
+if test "x$enable_canusb" != "xno" ; then
+		case "$host_os" in
+	linux*)
+		if test "${ac_cv_header_libusb_1_0_libusb_h+set}" = set; then
+  { echo "$as_me:$LINENO: checking for libusb-1.0/libusb.h" >&5
+echo $ECHO_N "checking for libusb-1.0/libusb.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_libusb_1_0_libusb_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_libusb_1_0_libusb_h" >&5
+echo "${ECHO_T}$ac_cv_header_libusb_1_0_libusb_h" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking libusb-1.0/libusb.h usability" >&5
+echo $ECHO_N "checking libusb-1.0/libusb.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <libusb-1.0/libusb.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking libusb-1.0/libusb.h presence" >&5
+echo $ECHO_N "checking libusb-1.0/libusb.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <libusb-1.0/libusb.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: libusb-1.0/libusb.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: libusb-1.0/libusb.h: in the future, the compiler will take precedence" >&2;}
+
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for libusb-1.0/libusb.h" >&5
+echo $ECHO_N "checking for libusb-1.0/libusb.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_libusb_1_0_libusb_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_libusb_1_0_libusb_h=$ac_header_preproc
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_libusb_1_0_libusb_h" >&5
+echo "${ECHO_T}$ac_cv_header_libusb_1_0_libusb_h" >&6; }
+
+fi
+if test $ac_cv_header_libusb_1_0_libusb_h = yes; then
+
+
+cat >>confdefs.h <<\_ACEOF
+#define PCAP_SUPPORT_CANUSB 1
+_ACEOF
+
+		    CANUSB_SRC=pcap-canusb-linux.c
+		    LIBS="-lusb-1.0 -lpthread $LIBS"
+		    { echo "$as_me:$LINENO: canusb sniffing is supported" >&5
+echo "$as_me: canusb sniffing is supported" >&6;}
+
+else
+  { echo "$as_me:$LINENO: canusb sniffing is not supported; install libusb1.0 lib devel to enable it" >&5
+echo "$as_me: canusb sniffing is not supported; install libusb1.0 lib devel to enable it" >&6;}
+
+fi
+
+
+		;;
+	*)
+		{ echo "$as_me:$LINENO: no canusb support implemented for $host_os" >&5
+echo "$as_me: no canusb support implemented for $host_os" >&6;}
 		;;
 	esac
 
@@ -12404,6 +12768,8 @@ PCAP_SUPPORT_NETFILTER!$PCAP_SUPPORT_NETFILTER$ac_delim
 NETFILTER_SRC!$NETFILTER_SRC$ac_delim
 PCAP_SUPPORT_BT!$PCAP_SUPPORT_BT$ac_delim
 BT_SRC!$BT_SRC$ac_delim
+PCAP_SUPPORT_CANUSB!$PCAP_SUPPORT_CANUSB$ac_delim
+CANUSB_SRC!$CANUSB_SRC$ac_delim
 PCAP_SUPPORT_CAN!$PCAP_SUPPORT_CAN$ac_delim
 CAN_SRC!$CAN_SRC$ac_delim
 INSTALL_PROGRAM!$INSTALL_PROGRAM$ac_delim
@@ -12412,7 +12778,7 @@ INSTALL_DATA!$INSTALL_DATA$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 93; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 95; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

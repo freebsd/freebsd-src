@@ -88,7 +88,7 @@
 
 #include <security/mac/mac_framework.h>
 
-#define GIFNAME		"gif"
+static const char gifname[] = "gif";
 
 /*
  * gif_mtx protects the global gif_softc_list.
@@ -106,8 +106,7 @@ void	(*ng_gif_detach_p)(struct ifnet *ifp);
 static void	gif_start(struct ifnet *);
 static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
-
-IFC_SIMPLE_DECLARE(gif, 0);
+static struct if_clone *gif_cloner;
 
 static int gifmodevent(module_t, int, void *);
 
@@ -171,7 +170,7 @@ gif_clone_create(ifc, unit, params)
 	GIF_LOCK_INIT(sc);
 
 	GIF2IFP(sc)->if_softc = sc;
-	if_initname(GIF2IFP(sc), ifc->ifc_name, unit);
+	if_initname(GIF2IFP(sc), gifname, unit);
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
 	sc->gif_options = GIF_ACCEPT_REVETHIP;
@@ -256,11 +255,12 @@ gifmodevent(mod, type, data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
-		if_clone_attach(&gif_cloner);
+		gif_cloner = if_clone_simple(gifname, gif_clone_create,
+		    gif_clone_destroy, 0);
 		break;
 
 	case MOD_UNLOAD:
-		if_clone_detach(&gif_cloner);
+		if_clone_detach(gif_cloner);
 		mtx_destroy(&gif_mtx);
 		break;
 	default:
@@ -422,11 +422,8 @@ gif_start(struct ifnet *ifp)
 }
 
 int
-gif_output(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	struct gif_softc *sc = ifp->if_softc;
 	struct m_tag *mtag;
@@ -482,11 +479,10 @@ gif_output(ifp, m, dst, ro)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-	af = dst->sa_family;
+	else
+		af = dst->sa_family;
 	/* 
 	 * Now save the af in the inbound pkt csum
 	 * data, this is a cheat since we are using

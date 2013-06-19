@@ -107,20 +107,20 @@ static char io_header[] =
     "%5d%s %-*.*s %6ld %6ld %6ld %6ld %6ld %6ld %6.2f%% %.*s"
 
 static char smp_header_thr[] =
-    "  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE   C   TIME %6s COMMAND";
+    "  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
 static char smp_header[] =
-    "  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE   C   TIME %6s COMMAND";
+    "  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE   C   TIME %7s COMMAND";
 
 #define smp_Proc_format \
-    "%5d%s %-*.*s %s%3d %4s%7s %6s %-6.6s %2d%7s %5.2f%% %.*s"
+    "%5d%s %-*.*s %s%3d %4s%7s %6s %-6.6s %2d%7s %6.2f%% %.*s"
 
 static char up_header_thr[] =
-    "  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
+    "  PID%s %-*.*s  THR PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
 static char up_header[] =
-    "  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %6s COMMAND";
+    "  PID%s %-*.*s "   "PRI NICE   SIZE    RES STATE    TIME %7s COMMAND";
 
 #define up_Proc_format \
-    "%5d%s %-*.*s %s%3d %4s%7s %6s %-6.6s%.0d%7s %5.2f%% %.*s"
+    "%5d%s %-*.*s %s%3d %4s%7s %6s %-6.6s%.0d%7s %6.2f%% %.*s"
 
 
 /* process state names for the "STATE" column of the display */
@@ -178,7 +178,7 @@ char *memorynames[] = {
 
 int arc_stats[7];
 char *arcnames[] = {
-	"K Total, ", "K MRU, ", "K MFU, ", "K Anon, ", "K Header, ", "K Other",
+	"K Total, ", "K MFU, ", "K MRU, ", "K Anon, ", "K Header, ", "K Other",
 	NULL
 };
 
@@ -225,7 +225,7 @@ long percentages();
 char *ordernames[] = {
 	"cpu", "size", "res", "time", "pri", "threads",
 	"total", "read", "write", "fault", "vcsw", "ivcsw",
-	"jid", NULL
+	"jid", "pid", NULL
 };
 #endif
 
@@ -786,7 +786,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	return ((caddr_t)&handle);
 }
 
-static char fmt[128];	/* static area where result is built */
+static char fmt[512];	/* static area where result is built */
 
 char *
 format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
@@ -797,12 +797,13 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	double pct;
 	struct handle *hp;
 	char status[16];
-	int state;
+	int cpu, state;
 	struct rusage ru, *rup;
 	long p_tot, s_tot;
 	char *proc_fmt, thr_buf[6], jid_buf[6];
 	char *cmdbuf = NULL;
 	char **args;
+	const int cmdlen = 128;
 
 	/* find and remember the next proc structure */
 	hp = (struct handle *)handle;
@@ -865,31 +866,31 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		break;
 	}
 
-	cmdbuf = (char *)malloc(cmdlengthdelta + 1);
+	cmdbuf = (char *)malloc(cmdlen + 1);
 	if (cmdbuf == NULL) {
-		warn("malloc(%d)", cmdlengthdelta + 1);
+		warn("malloc(%d)", cmdlen + 1);
 		return NULL;
 	}
 
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    pp->ki_tdname[0]) {
-			snprintf(cmdbuf, cmdlengthdelta, "%s{%s}", pp->ki_comm,
+			snprintf(cmdbuf, cmdlen, "%s{%s}", pp->ki_comm,
 			    pp->ki_tdname);
 		} else {
-			snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
+			snprintf(cmdbuf, cmdlen, "%s", pp->ki_comm);
 		}
 	} else {
 		if (pp->ki_flag & P_SYSTEM ||
 		    pp->ki_args == NULL ||
-		    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL ||
+		    (args = kvm_getargv(kd, pp, cmdlen)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    	    pp->ki_tdname[0]) {
-				snprintf(cmdbuf, cmdlengthdelta,
+				snprintf(cmdbuf, cmdlen,
 				    "[%s{%s}]", pp->ki_comm, pp->ki_tdname);
 			} else {
-				snprintf(cmdbuf, cmdlengthdelta,
+				snprintf(cmdbuf, cmdlen,
 				    "[%s]", pp->ki_comm);
 			}
 		} else {
@@ -898,7 +899,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 			size_t argbuflen;
 			size_t len;
 
-			argbuflen = cmdlengthdelta * 4;
+			argbuflen = cmdlen * 4;
 			argbuf = (char *)malloc(argbuflen + 1);
 			if (argbuf == NULL) {
 				warn("malloc(%d)", argbuflen + 1);
@@ -931,22 +932,22 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 				dst--;
 			*dst = '\0';
 
-			if (strcmp(cmd, pp->ki_comm) != 0 ) {
+			if (strcmp(cmd, pp->ki_comm) != 0) {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlengthdelta,
+					snprintf(cmdbuf, cmdlen,
 					    "%s (%s){%s}", argbuf, pp->ki_comm,
 					    pp->ki_tdname);
 				else
-					snprintf(cmdbuf, cmdlengthdelta,
+					snprintf(cmdbuf, cmdlen,
 					    "%s (%s)", argbuf, pp->ki_comm);
 			} else {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlengthdelta,
+					snprintf(cmdbuf, cmdlen,
 					    "%s{%s}", argbuf, pp->ki_tdname);
 				else
-					strlcpy(cmdbuf, argbuf, cmdlengthdelta);
+					strlcpy(cmdbuf, argbuf, cmdlen);
 			}
 			free(argbuf);
 		}
@@ -996,6 +997,13 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	}
 
 	/* format this entry */
+	if (smpmode) {
+		if (state == SRUN && pp->ki_oncpu != 0xff)
+			cpu = pp->ki_oncpu;
+		else
+			cpu = pp->ki_lastcpu;
+	} else
+		cpu = 0;
 	proc_fmt = smpmode ? smp_Proc_format : up_Proc_format;
 	if (ps.thread != 0)
 		thr_buf[0] = '\0';
@@ -1013,7 +1021,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	    format_k2(PROCSIZE(pp)),
 	    format_k2(pagetok(pp->ki_rssize)),
 	    status,
-	    smpmode ? pp->ki_lastcpu : 0,
+	    cpu,
 	    format_time(cputime),
 	    ps.wcpu ? 100.0 * weighted_cpu(pct, pp) : 100.0 * pct,
 	    screen_width > cmdlengthdelta ? screen_width - cmdlengthdelta : 0,

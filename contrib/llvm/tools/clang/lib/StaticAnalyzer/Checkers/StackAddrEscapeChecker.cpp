@@ -13,38 +13,40 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/ExprCXX.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
-#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 using namespace ento;
 
 namespace {
 class StackAddrEscapeChecker : public Checker< check::PreStmt<ReturnStmt>,
-                                               check::EndPath > {
+                                               check::EndFunction > {
   mutable OwningPtr<BuiltinBug> BT_stackleak;
   mutable OwningPtr<BuiltinBug> BT_returnstack;
 
 public:
   void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
-  void checkEndPath(CheckerContext &Ctx) const;
+  void checkEndFunction(CheckerContext &Ctx) const;
 private:
   void EmitStackError(CheckerContext &C, const MemRegion *R,
                       const Expr *RetE) const;
-  static SourceRange GenName(raw_ostream &os, const MemRegion *R,
-                             SourceManager &SM);
+  static SourceRange genName(raw_ostream &os, const MemRegion *R,
+                             ASTContext &Ctx);
 };
 }
 
-SourceRange StackAddrEscapeChecker::GenName(raw_ostream &os,
-                                          const MemRegion *R,
-                                          SourceManager &SM) {
+SourceRange StackAddrEscapeChecker::genName(raw_ostream &os, const MemRegion *R,
+                                            ASTContext &Ctx) {
     // Get the base region, stripping away fields and elements.
   R = R->getBaseRegion();
+  SourceManager &SM = Ctx.getSourceManager();
   SourceRange range;
   os << "Address of ";
   
@@ -77,8 +79,10 @@ SourceRange StackAddrEscapeChecker::GenName(raw_ostream &os,
     range = VR->getDecl()->getSourceRange();
   }
   else if (const CXXTempObjectRegion *TOR = dyn_cast<CXXTempObjectRegion>(R)) {
-    os << "stack memory associated with temporary object of type '"
-       << TOR->getValueType().getAsString() << '\'';
+    QualType Ty = TOR->getValueType().getLocalUnqualifiedType();
+    os << "stack memory associated with temporary object of type '";
+    Ty.print(os, Ctx.getPrintingPolicy());
+    os << "'";
     range = TOR->getExpr()->getSourceRange();
   }
   else {
@@ -102,14 +106,14 @@ void StackAddrEscapeChecker::EmitStackError(CheckerContext &C, const MemRegion *
   // Generate a report for this bug.
   SmallString<512> buf;
   llvm::raw_svector_ostream os(buf);
-  SourceRange range = GenName(os, R, C.getSourceManager());
+  SourceRange range = genName(os, R, C.getASTContext());
   os << " returned to caller";
   BugReport *report = new BugReport(*BT_returnstack, os.str(), N);
   report->addRange(RetE->getSourceRange());
   if (range.isValid())
     report->addRange(range);
 
-  C.EmitReport(report);
+  C.emitReport(report);
 }
 
 void StackAddrEscapeChecker::checkPreStmt(const ReturnStmt *RS,
@@ -118,8 +122,10 @@ void StackAddrEscapeChecker::checkPreStmt(const ReturnStmt *RS,
   const Expr *RetE = RS->getRetValue();
   if (!RetE)
     return;
- 
-  SVal V = C.getState()->getSVal(RetE, C.getLocationContext());
+  RetE = RetE->IgnoreParens();
+
+  const LocationContext *LCtx = C.getLocationContext();
+  SVal V = C.getState()->getSVal(RetE, LCtx);
   const MemRegion *R = V.getAsRegion();
 
   if (!R)
@@ -132,8 +138,9 @@ void StackAddrEscapeChecker::checkPreStmt(const ReturnStmt *RS,
     return;
 
   // Return stack memory in an ancestor stack frame is fine.
-  const StackFrameContext *SFC = SS->getStackFrame();
-  if (SFC != C.getLocationContext()->getCurrentStackFrame())
+  const StackFrameContext *CurFrame = LCtx->getCurrentStackFrame();
+  const StackFrameContext *MemFrame = SS->getStackFrame();
+  if (MemFrame != CurFrame)
     return;
 
   // Automatic reference counting automatically copies blocks.
@@ -141,10 +148,18 @@ void StackAddrEscapeChecker::checkPreStmt(const ReturnStmt *RS,
       isa<BlockDataRegion>(R))
     return;
 
+  // Returning a record by value is fine. (In this case, the returned
+  // expression will be a copy-constructor, possibly wrapped in an
+  // ExprWithCleanups node.)
+  if (const ExprWithCleanups *Cleanup = dyn_cast<ExprWithCleanups>(RetE))
+    RetE = Cleanup->getSubExpr();
+  if (isa<CXXConstructExpr>(RetE) && RetE->getType()->isRecordType())
+    return;
+
   EmitStackError(C, R, RetE);
 }
 
-void StackAddrEscapeChecker::checkEndPath(CheckerContext &Ctx) const {
+void StackAddrEscapeChecker::checkEndFunction(CheckerContext &Ctx) const {
   ProgramStateRef state = Ctx.getState();
 
   // Iterate over all bindings to global variables and see if it contains
@@ -211,8 +226,7 @@ void StackAddrEscapeChecker::checkEndPath(CheckerContext &Ctx) const {
     // Generate a report for this bug.
     SmallString<512> buf;
     llvm::raw_svector_ostream os(buf);
-    SourceRange range = GenName(os, cb.V[i].second,
-                                Ctx.getSourceManager());
+    SourceRange range = genName(os, cb.V[i].second, Ctx.getASTContext());
     os << " is still referred to by the global variable '";
     const VarRegion *VR = cast<VarRegion>(cb.V[i].first->getBaseRegion());
     os << *VR->getDecl()
@@ -221,7 +235,7 @@ void StackAddrEscapeChecker::checkEndPath(CheckerContext &Ctx) const {
     if (range.isValid())
       report->addRange(range);
 
-    Ctx.EmitReport(report);
+    Ctx.emitReport(report);
   }
 }
 

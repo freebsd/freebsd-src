@@ -9,14 +9,14 @@
 
 #include "MipsTargetObjectFile.h"
 #include "MipsSubtarget.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/GlobalVariable.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ELF.h"
+#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
 static cl::opt<unsigned>
@@ -26,6 +26,7 @@ SSThreshold("mips-ssection-threshold", cl::Hidden,
 
 void MipsTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM){
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
+  InitializeELF(TM.Options.UseInitArray);
 
   SmallDataSection =
     getContext().getELFSection(".sdata", ELF::SHT_PROGBITS,
@@ -37,6 +38,20 @@ void MipsTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM){
                                ELF::SHF_WRITE |ELF::SHF_ALLOC,
                                SectionKind::getBSS());
 
+  // Register info information
+  const MipsSubtarget &Subtarget = TM.getSubtarget<MipsSubtarget>();
+  if (Subtarget.isABI_N64() || Subtarget.isABI_N32())
+    ReginfoSection =
+      getContext().getELFSection(".MIPS.options",
+                                 ELF::SHT_MIPS_OPTIONS,
+                                 ELF::SHF_ALLOC |ELF::SHF_MIPS_NOSTRIP,
+                                 SectionKind::getMetadata());
+  else
+    ReginfoSection =
+      getContext().getELFSection(".reginfo",
+                                 ELF::SHT_MIPS_REGINFO,
+                                 ELF::SHF_ALLOC,
+                                 SectionKind::getMetadata());
 }
 
 // A address must be loaded from a small section if its size is less than the
@@ -60,9 +75,10 @@ bool MipsTargetObjectFile::
 IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
                        SectionKind Kind) const {
 
-  // Only use small section for non linux targets.
   const MipsSubtarget &Subtarget = TM.getSubtarget<MipsSubtarget>();
-  if (Subtarget.isLinux())
+
+  // Return if small section is not available.
+  if (!Subtarget.useSmallSection())
     return false;
 
   // Only global variables, not functions.
@@ -80,7 +96,7 @@ IsGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM,
     return false;
 
   Type *Ty = GV->getType()->getElementType();
-  return IsInSmallSection(TM.getTargetData()->getTypeAllocSize(Ty));
+  return IsInSmallSection(TM.getDataLayout()->getTypeAllocSize(Ty));
 }
 
 

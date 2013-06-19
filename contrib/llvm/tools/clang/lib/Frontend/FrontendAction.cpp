@@ -11,8 +11,6 @@
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclGroup.h"
-#include "clang/Lex/HeaderSearch.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/ChainedIncludesSource.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -20,13 +18,18 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/Frontend/LayoutOverrideSource.h"
 #include "clang/Frontend/MultiplexConsumer.h"
+#include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Parse/ParseAST.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
 #include "clang/Serialization/ASTReader.h"
+#include "clang/Serialization/GlobalModuleIndex.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
 using namespace clang;
 
 namespace {
@@ -155,20 +158,22 @@ ASTConsumer* FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
   return new MultiplexConsumer(Consumers);
 }
 
+
 bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
                                      const FrontendInputFile &Input) {
   assert(!Instance && "Already processing a source file!");
-  assert(!Input.File.empty() && "Unexpected empty filename!");
+  assert(!Input.isEmpty() && "Unexpected empty filename!");
   setCurrentInput(Input);
   setCompilerInstance(&CI);
 
+  StringRef InputFile = Input.getFile();
   bool HasBegunSourceFile = false;
   if (!BeginInvocation(CI))
     goto failure;
 
   // AST files follow a very different path, since they share objects via the
   // AST unit.
-  if (Input.Kind == IK_AST) {
+  if (Input.getKind() == IK_AST) {
     assert(!usesPreprocessorOnly() &&
            "Attempt to pass AST file to preprocessor only action!");
     assert(hasASTFileSupport() &&
@@ -176,12 +181,16 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
     std::string Error;
-    ASTUnit *AST = ASTUnit::LoadFromASTFile(Input.File, Diags,
+    ASTUnit *AST = ASTUnit::LoadFromASTFile(InputFile, Diags,
                                             CI.getFileSystemOpts());
     if (!AST)
       goto failure;
 
     setCurrentInput(Input, AST);
+
+    // Inform the diagnostic client we are processing a source file.
+    CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(), 0);
+    HasBegunSourceFile = true;
 
     // Set the shared objects, these are reset when we finish processing the
     // file, otherwise the CompilerInstance will happily destroy them.
@@ -191,11 +200,11 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.setASTContext(&AST->getASTContext());
 
     // Initialize the action.
-    if (!BeginSourceFileAction(CI, Input.File))
+    if (!BeginSourceFileAction(CI, InputFile))
       goto failure;
 
-    /// Create the AST consumer.
-    CI.setASTConsumer(CreateWrappedASTConsumer(CI, Input.File));
+    // Create the AST consumer.
+    CI.setASTConsumer(CreateWrappedASTConsumer(CI, InputFile));
     if (!CI.hasASTConsumer())
       goto failure;
 
@@ -209,7 +218,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.createSourceManager(CI.getFileManager());
 
   // IR files bypass the rest of initialization.
-  if (Input.Kind == IK_LLVM_IR) {
+  if (Input.getKind() == IK_LLVM_IR) {
     assert(hasIRSupport() &&
            "This action does not have IR file support!");
 
@@ -218,10 +227,41 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     HasBegunSourceFile = true;
 
     // Initialize the action.
-    if (!BeginSourceFileAction(CI, Input.File))
+    if (!BeginSourceFileAction(CI, InputFile))
       goto failure;
 
     return true;
+  }
+
+  // If the implicit PCH include is actually a directory, rather than
+  // a single file, search for a suitable PCH file in that directory.
+  if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
+    FileManager &FileMgr = CI.getFileManager();
+    PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+    StringRef PCHInclude = PPOpts.ImplicitPCHInclude;
+    if (const DirectoryEntry *PCHDir = FileMgr.getDirectory(PCHInclude)) {
+      llvm::error_code EC;
+      SmallString<128> DirNative;
+      llvm::sys::path::native(PCHDir->getName(), DirNative);
+      bool Found = false;
+      for (llvm::sys::fs::directory_iterator Dir(DirNative.str(), EC), DirEnd;
+           Dir != DirEnd && !EC; Dir.increment(EC)) {
+        // Check whether this is an acceptable AST file.
+        if (ASTReader::isAcceptableASTFile(Dir->path(), FileMgr,
+                                           CI.getLangOpts(),
+                                           CI.getTargetOpts(),
+                                           CI.getPreprocessorOpts())) {
+          PPOpts.ImplicitPCHInclude = Dir->path();
+          Found = true;
+          break;
+        }
+      }
+
+      if (!Found) {
+        CI.getDiagnostics().Report(diag::err_fe_no_pch_in_dir) << PCHInclude;
+        return true;
+      }
+    }
   }
 
   // Set up the preprocessor.
@@ -233,27 +273,29 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   HasBegunSourceFile = true;
 
   // Initialize the action.
-  if (!BeginSourceFileAction(CI, Input.File))
+  if (!BeginSourceFileAction(CI, InputFile))
     goto failure;
 
-  /// Create the AST context and consumer unless this is a preprocessor only
-  /// action.
+  // Create the AST context and consumer unless this is a preprocessor only
+  // action.
   if (!usesPreprocessorOnly()) {
     CI.createASTContext();
 
     OwningPtr<ASTConsumer> Consumer(
-                                   CreateWrappedASTConsumer(CI, Input.File));
+                                   CreateWrappedASTConsumer(CI, InputFile));
     if (!Consumer)
       goto failure;
 
     CI.getASTContext().setASTMutationListener(Consumer->GetASTMutationListener());
-
+    
     if (!CI.getPreprocessorOpts().ChainedIncludes.empty()) {
       // Convert headers to PCH and chain them.
       OwningPtr<ExternalASTSource> source;
       source.reset(ChainedIncludesSource::create(CI));
       if (!source)
         goto failure;
+      CI.setModuleManager(static_cast<ASTReader*>(
+         &static_cast<ChainedIncludesSource*>(source.get())->getFinalReader()));
       CI.getASTContext().setExternalSource(source);
 
     } else if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
@@ -270,7 +312,6 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
       CI.createPCHExternalASTSource(
                                 CI.getPreprocessorOpts().ImplicitPCHInclude,
                                 CI.getPreprocessorOpts().DisablePCHValidation,
-                                CI.getPreprocessorOpts().DisableStatCache,
                             CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
                                 DeserialListener);
       if (!CI.getASTContext().getExternalSource())
@@ -314,6 +355,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
   if (HasBegunSourceFile)
     CI.getDiagnosticClient().EndSourceFile();
+  CI.clearOutputFiles(/*EraseFiles=*/true);
   setCurrentInput(FrontendInputFile());
   setCompilerInstance(0);
   return false;
@@ -325,10 +367,7 @@ bool FrontendAction::Execute() {
   // Initialize the main file entry. This needs to be delayed until after PCH
   // has loaded.
   if (!isCurrentFileAST()) {
-    if (!CI.InitializeSourceManager(getCurrentFile(),
-                                    getCurrentInput().IsSystem
-                                      ? SrcMgr::C_System
-                                      : SrcMgr::C_User))
+    if (!CI.InitializeSourceManager(getCurrentInput()))
       return false;
   }
 
@@ -337,6 +376,15 @@ bool FrontendAction::Execute() {
     ExecuteAction();
   }
   else ExecuteAction();
+
+  // If we are supposed to rebuild the global module index, do so now unless
+  // there were any module-build failures.
+  if (CI.shouldBuildGlobalModuleIndex() && CI.hasFileManager() &&
+      CI.hasPreprocessor()) {
+    GlobalModuleIndex::writeIndex(
+      CI.getFileManager(),
+      CI.getPreprocessor().getHeaderSearchInfo().getModuleCachePath());
+  }
 
   return true;
 }

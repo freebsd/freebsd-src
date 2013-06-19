@@ -14,9 +14,9 @@
 #ifndef LLVM_CLANG_GR_STORE_H
 #define LLVM_CLANG_GR_STORE_H
 
-#include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Optional.h"
 
@@ -25,6 +25,7 @@ namespace clang {
 class Stmt;
 class Expr;
 class ObjCIvarDecl;
+class CXXBasePath;
 class StackFrameContext;
 
 namespace ento {
@@ -33,6 +34,8 @@ class CallEvent;
 class ProgramState;
 class ProgramStateManager;
 class ScanReachableSymbols;
+
+typedef llvm::DenseSet<SymbolRef> InvalidatedSymbols;
 
 class StoreManager {
 protected:
@@ -67,15 +70,11 @@ public:
   virtual StoreRef Bind(Store store, Loc loc, SVal val) = 0;
 
   virtual StoreRef BindDefault(Store store, const MemRegion *R, SVal V);
-  virtual StoreRef Remove(Store St, Loc L) = 0;
 
-  /// BindCompoundLiteral - Return the store that has the bindings currently
-  ///  in 'store' plus the bindings for the CompoundLiteral.  'R' is the region
-  ///  for the compound literal and 'BegInit' and 'EndInit' represent an
-  ///  array of initializer values.
-  virtual StoreRef BindCompoundLiteral(Store store,
-                                       const CompoundLiteralExpr *cl,
-                                       const LocationContext *LC, SVal v) = 0;
+  /// \brief Create a new store with the specified binding removed.
+  /// \param ST the original store, that is the basis for the new store.
+  /// \param L the location whose binding should be removed.
+  virtual StoreRef killBinding(Store ST, Loc L) = 0;
 
   /// getInitialStore - Returns the initial "empty" store representing the
   ///  value bindings upon entry to an analyzed function.
@@ -114,11 +113,16 @@ public:
   ///  conversions between arrays and pointers.
   virtual SVal ArrayToPointer(Loc Array) = 0;
 
-  /// Evaluates DerivedToBase casts.
-  SVal evalDerivedToBase(SVal derived, const CastExpr *Cast);
+  /// Evaluates a chain of derived-to-base casts through the path specified in
+  /// \p Cast.
+  SVal evalDerivedToBase(SVal Derived, const CastExpr *Cast);
+
+  /// Evaluates a chain of derived-to-base casts through the specified path.
+  SVal evalDerivedToBase(SVal Derived, const CXXBasePath &CastPath);
 
   /// Evaluates a derived-to-base cast through a single level of derivation.
-  virtual SVal evalDerivedToBase(SVal derived, QualType derivedPtrType) = 0;
+  SVal evalDerivedToBase(SVal Derived, QualType DerivedPtrType,
+                         bool IsVirtual);
 
   /// \brief Evaluates C++ dynamic_cast cast.
   /// The callback may result in the following 3 scenarios:
@@ -128,8 +132,7 @@ public:
   ///    enough info to determine if the cast will succeed at run time).
   /// The function returns an SVal representing the derived class; it's
   /// valid only if Failed flag is set to false.
-  virtual SVal evalDynamicCast(SVal base, QualType derivedPtrType,
-                                 bool &Failed) = 0;
+  SVal evalDynamicCast(SVal Base, QualType DerivedPtrType, bool &Failed);
 
   const ElementRegion *GetElementZeroRegion(const MemRegion *R, QualType T);
 
@@ -141,10 +144,6 @@ public:
   virtual StoreRef removeDeadBindings(Store store, const StackFrameContext *LCtx,
                                       SymbolReaper& SymReaper) = 0;
 
-  virtual StoreRef BindDecl(Store store, const VarRegion *VR, SVal initVal) = 0;
-
-  virtual StoreRef BindDeclWithNoInit(Store store, const VarRegion *VR) = 0;
-  
   virtual bool includedInBindings(Store store,
                                   const MemRegion *region) const = 0;
   
@@ -157,7 +156,6 @@ public:
   /// associated with the object is recycled.
   virtual void decrementReferenceCount(Store store) {}
 
-  typedef llvm::DenseSet<SymbolRef> InvalidatedSymbols;
   typedef SmallVector<const MemRegion *, 8> InvalidatedRegions;
 
   /// invalidateRegions - Clears out the specified regions from the store,
@@ -165,26 +163,40 @@ public:
   ///  invalidate additional regions that may have changed based on accessing
   ///  the given regions. Optionally, invalidates non-static globals as well.
   /// \param[in] store The initial store
-  /// \param[in] Regions The regions to invalidate.
+  /// \param[in] Values The values to invalidate.
+  /// \param[in] ConstValues The values to invalidate; these are known to be
+  ///   const, so only regions accesible from them should be invalidated.
   /// \param[in] E The current statement being evaluated. Used to conjure
   ///   symbols to mark the values of invalidated regions.
   /// \param[in] Count The current block count. Used to conjure
   ///   symbols to mark the values of invalidated regions.
-  /// \param[in,out] IS A set to fill with any symbols that are no longer
-  ///   accessible. Pass \c NULL if this information will not be used.
   /// \param[in] Call The call expression which will be used to determine which
   ///   globals should get invalidated.
+  /// \param[in,out] IS A set to fill with any symbols that are no longer
+  ///   accessible. Pass \c NULL if this information will not be used.
+  /// \param[in,out] ConstIS A set to fill with any symbols corresponding to
+  ///   the ConstValues.
+  /// \param[in,out] InvalidatedTopLevel A vector to fill with regions
+  ////  explicitely being invalidated. Pass \c NULL if this
+  ///   information will not be used.
+  /// \param[in,out] InvalidatedTopLevelConst A vector to fill with const 
+  ////  regions explicitely being invalidated. Pass \c NULL if this
+  ///   information will not be used.
   /// \param[in,out] Invalidated A vector to fill with any regions being
   ///   invalidated. This should include any regions explicitly invalidated
   ///   even if they do not currently have bindings. Pass \c NULL if this
   ///   information will not be used.
   virtual StoreRef invalidateRegions(Store store,
-                                     ArrayRef<const MemRegion *> Regions,
-                                     const Expr *E, unsigned Count,
-                                     const LocationContext *LCtx,
-                                     InvalidatedSymbols &IS,
-                                     const CallEvent *Call,
-                                     InvalidatedRegions *Invalidated) = 0;
+                                  ArrayRef<SVal> Values,
+                                  ArrayRef<SVal> ConstValues,
+                                  const Expr *E, unsigned Count,
+                                  const LocationContext *LCtx,
+                                  const CallEvent *Call,
+                                  InvalidatedSymbols &IS,
+                                  InvalidatedSymbols &ConstIS,
+                                  InvalidatedRegions *InvalidatedTopLevel,
+                                  InvalidatedRegions *InvalidatedTopLevelConst,
+                                  InvalidatedRegions *Invalidated) = 0;
 
   /// enterStackFrame - Let the StoreManager to do something when execution
   /// engine is about to execute into a callee.

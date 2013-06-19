@@ -18,9 +18,9 @@
 #ifndef LLVM_MC_SUBTARGETFEATURE_H
 #define LLVM_MC_SUBTARGETFEATURE_H
 
-#include <vector>
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/DataTypes.h"
+#include <vector>
 
 namespace llvm {
   class raw_ostream;
@@ -50,7 +50,7 @@ struct SubtargetFeatureKV {
 //
 struct SubtargetInfoKV {
   const char *Key;                      // K-V key string
-  void *Value;                          // K-V pointer value
+  const void *Value;                    // K-V pointer value
 
   // Compare routine for std binary search
   bool operator<(const SubtargetInfoKV &S) const {
@@ -62,10 +62,8 @@ struct SubtargetInfoKV {
 ///
 /// SubtargetFeatures - Manages the enabling and disabling of subtarget
 /// specific features.  Features are encoded as a string of the form
-///   "cpu,+attr1,+attr2,-attr3,...,+attrN"
+///   "+attr1,+attr2,-attr3,...,+attrN"
 /// A comma separates each feature from the next (all lowercase.)
-/// The first feature is always the CPU subtype (eg. pentiumm).  If the CPU
-/// value is "generic" then the CPU subtype should be generic for the target.
 /// Each of the remaining features is prefixed with + or - indicating whether
 /// that feature should be enabled or disabled contrary to the cpu
 /// specification.
@@ -94,10 +92,6 @@ public:
                           size_t CPUTableSize,
                           const SubtargetFeatureKV *FeatureTable,
                           size_t FeatureTableSize);
-
-  /// Get scheduling itinerary of a CPU.
-  void *getItinerary(const StringRef CPU,
-                     const SubtargetInfoKV *Table, size_t TableSize);
 
   /// Print feature string.
   void print(raw_ostream &OS) const;

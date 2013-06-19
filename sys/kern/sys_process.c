@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/malloc.h>
 #include <sys/signalvar.h>
@@ -59,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #ifdef COMPAT_FREEBSD32
@@ -335,7 +335,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	struct vnode *vp;
 	char *freepath, *fullpath;
 	u_int pathlen;
-	int error, index, vfslocked;
+	int error, index;
 
 	error = 0;
 	obj = NULL;
@@ -382,7 +382,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 
 		obj = entry->object.vm_object;
 		if (obj != NULL)
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_RLOCK(obj);
 	} while (0);
 
 	vm_map_unlock_read(map);
@@ -395,9 +395,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		lobj = obj;
 		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_LOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 			pve->pve_offset += tobj->backing_object_offset;
 		}
@@ -405,21 +405,19 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
-			VM_OBJECT_UNLOCK(lobj);
-		VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_RUNLOCK(lobj);
+		VM_OBJECT_RUNLOCK(obj);
 
 		if (vp != NULL) {
 			freepath = NULL;
 			fullpath = NULL;
 			vn_fullpath(td, vp, &fullpath, &freepath);
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 			if (VOP_GETATTR(vp, &vattr, td->td_ucred) == 0) {
 				pve->pve_fileid = vattr.va_fileid;
 				pve->pve_fsid = vattr.va_fsid;
 			}
 			vput(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 
 			if (fullpath != NULL) {
 				pve->pve_pathlen = strlen(fullpath) + 1;
@@ -824,6 +822,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
 		p->p_flag |= P_TRACED;
+		if (p->p_flag & P_PPWAIT)
+			p->p_flag |= P_PPTRACE;
 		p->p_oppid = p->p_pptr->p_pid;
 		break;
 

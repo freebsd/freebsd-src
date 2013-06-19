@@ -899,12 +899,9 @@ ate_intr(void *xsc)
 			/* FCS is not coppied into mbuf. */
 			remain = (sc->rx_descs[idx].status & ETH_LEN_MASK) - 4;
 
-			/* Get an appropriately sized mbuf  */
-			if (remain + ETHER_ALIGN >= MINCLSIZE)
-				mb = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-			else
-				MGETHDR(mb, M_DONTWAIT, MT_DATA);
-
+			/* Get an appropriately sized mbuf. */
+			mb = m_get2(remain + ETHER_ALIGN, M_NOWAIT, MT_DATA,
+			    M_PKTHDR);
 			if (mb == NULL) {
 				sc->ifp->if_iqdrops++;
 				rxdhead->status = 0;
@@ -1135,7 +1132,7 @@ atestart_locked(struct ifnet *ifp)
 		e = bus_dmamap_load_mbuf_sg(sc->mtag, sc->tx_map[sc->txhead], m,
 		    segs, &nseg, 0);
 		if (e == EFBIG) {
-			mdefrag = m_defrag(m, M_DONTWAIT);
+			mdefrag = m_defrag(m, M_NOWAIT);
 			if (mdefrag == NULL) {
 				IFQ_DRV_PREPEND(&ifp->if_snd, m);
 				return;

@@ -75,16 +75,13 @@ struct smbmount {
 	mode_t 			sm_dir_mode;
 	struct mount * 		sm_mp;
 	struct smbnode *	sm_root;
+	struct smb_dev *	sm_dev;
 	struct ucred *		sm_owner;
 	uint64_t		sm_flags;
 	long			sm_nextino;
 	struct smb_share * 	sm_share;
-/*	struct simplelock	sm_npslock;*/
 	struct smbnode *	sm_npstack[SMBFS_MAXPATHCOMP];
 	int			sm_caseopt;
-	struct sx		sm_hashlock;
-	LIST_HEAD(smbnode_hashhead, smbnode) *sm_hash;
-	u_long			sm_hashlen;
 	int			sm_didrele;
 };
 

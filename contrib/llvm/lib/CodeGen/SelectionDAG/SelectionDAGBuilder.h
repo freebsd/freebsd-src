@@ -14,12 +14,12 @@
 #ifndef SELECTIONDAGBUILDER_H
 #define SELECTIONDAGBUILDER_H
 
-#include "llvm/Constants.h"
-#include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <vector>
@@ -66,7 +66,7 @@ class ShuffleVectorInst;
 class SIToFPInst;
 class StoreInst;
 class SwitchInst;
-class TargetData;
+class DataLayout;
 class TargetLibraryInfo;
 class TargetLowering;
 class TruncInst;
@@ -150,9 +150,11 @@ private:
     uint64_t Mask;
     MachineBasicBlock* BB;
     unsigned Bits;
+    uint32_t ExtraWeight;
 
-    CaseBits(uint64_t mask, MachineBasicBlock* bb, unsigned bits):
-      Mask(mask), BB(bb), Bits(bits) { }
+    CaseBits(uint64_t mask, MachineBasicBlock* bb, unsigned bits,
+             uint32_t Weight):
+      Mask(mask), BB(bb), Bits(bits), ExtraWeight(Weight) { }
   };
 
   typedef std::vector<Case>           CaseVector;
@@ -247,18 +249,20 @@ private:
   typedef std::pair<JumpTableHeader, JumpTable> JumpTableBlock;
 
   struct BitTestCase {
-    BitTestCase(uint64_t M, MachineBasicBlock* T, MachineBasicBlock* Tr):
-      Mask(M), ThisBB(T), TargetBB(Tr) { }
+    BitTestCase(uint64_t M, MachineBasicBlock* T, MachineBasicBlock* Tr,
+                uint32_t Weight):
+      Mask(M), ThisBB(T), TargetBB(Tr), ExtraWeight(Weight) { }
     uint64_t Mask;
     MachineBasicBlock *ThisBB;
     MachineBasicBlock *TargetBB;
+    uint32_t ExtraWeight;
   };
 
   typedef SmallVector<BitTestCase, 3> BitTestInfo;
 
   struct BitTestBlock {
     BitTestBlock(APInt F, APInt R, const Value* SV,
-                 unsigned Rg, EVT RgVT, bool E,
+                 unsigned Rg, MVT RgVT, bool E,
                  MachineBasicBlock* P, MachineBasicBlock* D,
                  const BitTestInfo& C):
       First(F), Range(R), SValue(SV), Reg(Rg), RegVT(RgVT), Emitted(E),
@@ -267,7 +271,7 @@ private:
     APInt Range;
     const Value *SValue;
     unsigned Reg;
-    EVT RegVT;
+    MVT RegVT;
     bool Emitted;
     MachineBasicBlock *Parent;
     MachineBasicBlock *Default;
@@ -281,7 +285,7 @@ public:
   const TargetMachine &TM;
   const TargetLowering &TLI;
   SelectionDAG &DAG;
-  const TargetData *TD;
+  const DataLayout *TD;
   AliasAnalysis *AA;
   const TargetLibraryInfo *LibInfo;
 
@@ -325,7 +329,7 @@ public:
                       CodeGenOpt::Level ol)
     : SDNodeOrder(0), TM(dag.getTarget()), TLI(dag.getTargetLoweringInfo()),
       DAG(dag), FuncInfo(funcinfo), OptLevel(ol),
-      HasTailCall(false), Context(dag.getContext()) {
+      HasTailCall(false) {
   }
 
   void init(GCFunctionInfo *gfi, AliasAnalysis &aa,
@@ -452,6 +456,7 @@ public:
   void visitBitTestHeader(BitTestBlock &B, MachineBasicBlock *SwitchBB);
   void visitBitTestCase(BitTestBlock &BB,
                         MachineBasicBlock* NextMBB,
+                        uint32_t BranchWeightToNext,
                         unsigned Reg,
                         BitTestCase &B,
                         MachineBasicBlock *SwitchBB);
@@ -527,13 +532,6 @@ private:
   void visitInlineAsm(ImmutableCallSite CS);
   const char *visitIntrinsicCall(const CallInst &I, unsigned Intrinsic);
   void visitTargetIntrinsic(const CallInst &I, unsigned Intrinsic);
-
-  void visitPow(const CallInst &I);
-  void visitExp2(const CallInst &I);
-  void visitExp(const CallInst &I);
-  void visitLog(const CallInst &I);
-  void visitLog2(const CallInst &I);
-  void visitLog10(const CallInst &I);
 
   void visitVAStart(const CallInst &I);
   void visitVAArg(const VAArgInst &I);

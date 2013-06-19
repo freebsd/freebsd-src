@@ -189,8 +189,8 @@ int	format1(const struct stat *,	/* stat info */
 char   *xfflagstostr(unsigned long);
 #endif
 
-const char *timefmt;
-int linkfail;
+static const char *timefmt;
+static int linkfail;
 
 #define addchar(s, c, nl) \
 	do { \

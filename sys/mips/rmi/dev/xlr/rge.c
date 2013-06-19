@@ -568,7 +568,7 @@ get_mbuf(void)
 {
 	struct mbuf *m_new = NULL;
 
-	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+	if ((m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return NULL;
 
 	m_new->m_len = MCLBYTES;

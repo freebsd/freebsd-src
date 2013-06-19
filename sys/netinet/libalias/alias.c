@@ -1749,40 +1749,22 @@ LibAliasUnLoadAllModule(void)
 struct mbuf *
 m_megapullup(struct mbuf *m, int len) {
 	struct mbuf *mcl;
-	
+
 	if (len > m->m_pkthdr.len)
 		goto bad;
-	
-	/* Do not reallocate packet if it is sequentional,
-	 * writable and has some extra space for expansion.
-	 * XXX: Constant 100bytes is completely empirical. */
-#define	RESERVE 100
-	if (m->m_next == NULL && M_WRITABLE(m) && M_TRAILINGSPACE(m) >= RESERVE)
+
+	if (m->m_next == NULL && M_WRITABLE(m))
 		return (m);
 
-	if (len <= MCLBYTES - RESERVE) {
-		mcl = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	} else if (len < MJUM16BYTES) {
-		int size;
-		if (len <= MJUMPAGESIZE - RESERVE) {
-			size = MJUMPAGESIZE;
-		} else if (len <= MJUM9BYTES - RESERVE) {
-			size = MJUM9BYTES;
-		} else {
-			size = MJUM16BYTES;
-		};
-		mcl = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, size);
-	} else {
-		goto bad;
-	}
+	mcl = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mcl == NULL)
 		goto bad;
- 
+	m_align(mcl, len);
 	m_move_pkthdr(mcl, m);
 	m_copydata(m, 0, len, mtod(mcl, caddr_t));
 	mcl->m_len = mcl->m_pkthdr.len = len;
 	m_freem(m);
- 
+
 	return (mcl);
 bad:
 	m_freem(m);

@@ -1312,7 +1312,7 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		*sin = iw_event->local_addr;
 		sin = (struct sockaddr_in *) &id_priv->id.route.addr.dst_addr;
 		*sin = iw_event->remote_addr;
-		switch (iw_event->status) {
+		switch ((int)iw_event->status) {
 		case 0:
 			event.event = RDMA_CM_EVENT_ESTABLISHED;
 			break;

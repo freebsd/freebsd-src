@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -75,7 +74,7 @@ static int
 ata_ali_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_ALI_5289, 0x00, 2, ALI_SATA, ATA_SA150, "M5289" },
      { ATA_ALI_5288, 0x00, 4, ALI_SATA, ATA_SA300, "M5288" },
      { ATA_ALI_5287, 0x00, 4, ALI_SATA, ATA_SA150, "M5287" },
@@ -134,7 +133,7 @@ ata_ali_chipinit(device_t dev)
 			for (i--; i >=0; i--)
 				bus_release_resource(dev, SYS_RES_IOPORT,
 				    PCIR_BAR(i), res->bars[i]);
-			free(res, M_TEMP);
+			free(res, M_ATAPCI);
 			return ENXIO;
 		}
 	}
@@ -213,10 +212,8 @@ ata_ali_ch_attach(device_t dev)
 	if (ch->dma.max_iosize > 256 * 512)
 		ch->dma.max_iosize = 256 * 512;
     }
-#ifdef ATA_CAM
 	if (ctlr->chip->cfg2 & ALI_NEW)
 		ch->flags |= ATA_NO_ATAPI_DMA;
-#endif
 
     return 0;
 }

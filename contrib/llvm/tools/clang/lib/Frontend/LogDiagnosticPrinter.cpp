@@ -8,17 +8,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/LogDiagnosticPrinter.h"
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 LogDiagnosticPrinter::LogDiagnosticPrinter(raw_ostream &os,
-                                           const DiagnosticOptions &diags,
+                                           DiagnosticOptions *diags,
                                            bool _OwnsOutputStream)
-  : OS(os), LangOpts(0), DiagOpts(&diags),
+  : OS(os), LangOpts(0), DiagOpts(diags),
     OwnsOutputStream(_OwnsOutputStream) {
 }
 
@@ -168,10 +169,5 @@ void LogDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
 
   // Record the diagnostic entry.
   Entries.push_back(DE);
-}
-
-DiagnosticConsumer *
-LogDiagnosticPrinter::clone(DiagnosticsEngine &Diags) const {
-  return new LogDiagnosticPrinter(OS, *DiagOpts, /*OwnsOutputStream=*/false);
 }
 

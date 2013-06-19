@@ -46,7 +46,29 @@
 
 #include "_libproc.h"
 
+extern char *__cxa_demangle(const char *, char *, size_t *, int *);
+
 static void	proc_rdl2prmap(rd_loadobj_t *, prmap_t *);
+
+static void
+demangle(const char *symbol, char *buf, size_t len)
+{
+	char *dembuf;
+	size_t demlen = len;
+
+	dembuf = malloc(len);
+	if (!dembuf)
+		goto fail;
+	dembuf = __cxa_demangle(symbol, dembuf, &demlen, NULL);
+	if (!dembuf)
+		goto fail;
+	strlcpy(buf, dembuf, len);
+	free(dembuf);
+
+	return;
+fail:
+	strlcpy(buf, symbol, len);
+}
 
 static void
 proc_rdl2prmap(rd_loadobj_t *rdl, prmap_t *map)
@@ -266,7 +288,10 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 		if (addr >= rsym && addr <= (rsym + sym.st_size)) {
 			s = elf_strptr(e, dynsymstridx, sym.st_name);
 			if (s) {
-				strlcpy(name, s, namesz);
+				if (s[0] == '_' && s[1] == 'Z' && s[2])
+					demangle(s, name, namesz);
+				else
+					strlcpy(name, s, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain
@@ -302,7 +327,10 @@ symtab:
 		if (addr >= rsym && addr <= (rsym + sym.st_size)) {
 			s = elf_strptr(e, symtabstridx, sym.st_name);
 			if (s) {
-				strlcpy(name, s, namesz);
+				if (s[0] == '_' && s[1] == 'Z' && s[2])
+					demangle(s, name, namesz);
+				else
+					strlcpy(name, s, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain

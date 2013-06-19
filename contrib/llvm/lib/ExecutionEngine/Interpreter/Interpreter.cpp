@@ -15,8 +15,8 @@
 
 #include "Interpreter.h"
 #include "llvm/CodeGen/IntrinsicLowering.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Module.h"
 #include <cstring>
 using namespace llvm;
 
@@ -48,7 +48,7 @@ Interpreter::Interpreter(Module *M)
   : ExecutionEngine(M), TD(M) {
       
   memset(&ExitValue.Untyped, 0, sizeof(ExitValue.Untyped));
-  setTargetData(&TD);
+  setDataLayout(&TD);
   // Initialize the "backend"
   initializeExecutionEngine();
   initializeExternalFunctions();

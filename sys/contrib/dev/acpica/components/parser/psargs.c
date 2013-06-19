@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -131,7 +131,7 @@ AcpiPsGetNextPackageLength (
  * RETURN:      Pointer to end-of-package +1
  *
  * DESCRIPTION: Get next package length and return a pointer past the end of
- *              the package.  Consumes the package length field
+ *              the package. Consumes the package length field
  *
  ******************************************************************************/
 
@@ -163,8 +163,8 @@ AcpiPsGetNextPackageEnd (
  * RETURN:      Pointer to the start of the name string (pointer points into
  *              the AML.
  *
- * DESCRIPTION: Get next raw namestring within the AML stream.  Handles all name
- *              prefix characters.  Set parser state to point past the string.
+ * DESCRIPTION: Get next raw namestring within the AML stream. Handles all name
+ *              prefix characters. Set parser state to point past the string.
  *              (Name is consumed from the AML.)
  *
  ******************************************************************************/
@@ -182,7 +182,8 @@ AcpiPsGetNextNamestring (
 
     /* Point past any namestring prefix characters (backslash or carat) */
 
-    while (AcpiPsIsPrefixChar (*End))
+    while (ACPI_IS_ROOT_PREFIX (*End) ||
+           ACPI_IS_PARENT_PREFIX (*End))
     {
         End++;
     }
@@ -244,7 +245,7 @@ AcpiPsGetNextNamestring (
  *
  * DESCRIPTION: Get next name (if method call, return # of required args).
  *              Names are looked up in the internal namespace to determine
- *              if the name represents a control method.  If a method
+ *              if the name represents a control method. If a method
  *              is found, the number of arguments to the method is returned.
  *              This information is critical for parsing to continue correctly.
  *
@@ -446,7 +447,6 @@ AcpiPsGetNextSimpleArg (
         Length = 1;
         break;
 
-
     case ARGP_WORDDATA:
 
         /* Get 2 bytes from the AML stream */
@@ -455,7 +455,6 @@ AcpiPsGetNextSimpleArg (
         ACPI_MOVE_16_TO_64 (&Arg->Common.Value.Integer, Aml);
         Length = 2;
         break;
-
 
     case ARGP_DWORDDATA:
 
@@ -466,7 +465,6 @@ AcpiPsGetNextSimpleArg (
         Length = 4;
         break;
 
-
     case ARGP_QWORDDATA:
 
         /* Get 8 bytes from the AML stream */
@@ -475,7 +473,6 @@ AcpiPsGetNextSimpleArg (
         ACPI_MOVE_64_TO_64 (&Arg->Common.Value.Integer, Aml);
         Length = 8;
         break;
-
 
     case ARGP_CHARLIST:
 
@@ -494,14 +491,12 @@ AcpiPsGetNextSimpleArg (
         Length++;
         break;
 
-
     case ARGP_NAME:
     case ARGP_NAMESTRING:
 
         AcpiPsInitOp (Arg, AML_INT_NAMEPATH_OP);
         Arg->Common.Value.Name = AcpiPsGetNextNamestring (ParserState);
         return_VOID;
-
 
     default:
 
@@ -684,21 +679,25 @@ AcpiPsGetNextField (
                 switch (Opcode)
                 {
                 case AML_BYTE_OP:       /* AML_BYTEDATA_ARG */
+
                     BufferLength = ACPI_GET8 (ParserState->Aml);
                     ParserState->Aml += 1;
                     break;
 
                 case AML_WORD_OP:       /* AML_WORDDATA_ARG */
+
                     BufferLength = ACPI_GET16 (ParserState->Aml);
                     ParserState->Aml += 2;
                     break;
 
                 case AML_DWORD_OP:      /* AML_DWORDATA_ARG */
+
                     BufferLength = ACPI_GET32 (ParserState->Aml);
                     ParserState->Aml += 4;
                     break;
 
                 default:
+
                     BufferLength = 0;
                     break;
                 }
@@ -795,14 +794,12 @@ AcpiPsGetNextArg (
         AcpiPsGetNextSimpleArg (ParserState, ArgType, Arg);
         break;
 
-
     case ARGP_PKGLENGTH:
 
         /* Package length, nothing returned */
 
         ParserState->PkgEnd = AcpiPsGetNextPackageEnd (ParserState);
         break;
-
 
     case ARGP_FIELDLIST:
 
@@ -835,7 +832,6 @@ AcpiPsGetNextArg (
         }
         break;
 
-
     case ARGP_BYTELIST:
 
         if (ParserState->Aml < ParserState->PkgEnd)
@@ -860,7 +856,6 @@ AcpiPsGetNextArg (
         }
         break;
 
-
     case ARGP_TARGET:
     case ARGP_SUPERNAME:
     case ARGP_SIMPLENAME:
@@ -868,7 +863,8 @@ AcpiPsGetNextArg (
         Subop = AcpiPsPeekOpcode (ParserState);
         if (Subop == 0                  ||
             AcpiPsIsLeadingChar (Subop) ||
-            AcpiPsIsPrefixChar (Subop))
+            ACPI_IS_ROOT_PREFIX (Subop) ||
+            ACPI_IS_PARENT_PREFIX (Subop))
         {
             /* NullName or NameString */
 
@@ -907,7 +903,6 @@ AcpiPsGetNextArg (
         }
         break;
 
-
     case ARGP_DATAOBJ:
     case ARGP_TERMARG:
 
@@ -915,7 +910,6 @@ AcpiPsGetNextArg (
 
         WalkState->ArgCount = 1;
         break;
-
 
     case ARGP_DATAOBJLIST:
     case ARGP_TERMLIST:
@@ -928,7 +922,6 @@ AcpiPsGetNextArg (
             WalkState->ArgCount = ACPI_VAR_ARGS;
         }
         break;
-
 
     default:
 

@@ -12,14 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPCMCTargetDesc.h"
-#include "PPCMCAsmInfo.h"
 #include "InstPrinter/PPCInstPrinter.h"
-#include "llvm/MC/MachineLocation.h"
+#include "PPCMCAsmInfo.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MachineLocation.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
@@ -70,7 +70,7 @@ static MCAsmInfo *createPPCMCAsmInfo(const Target &T, StringRef TT) {
 
   // Initial state of the frame pointer is R1.
   MachineLocation Dst(MachineLocation::VirtualFP);
-  MachineLocation Src(PPC::R1, 0);
+  MachineLocation Src(isPPC64? PPC::X1 : PPC::R1, 0);
   MAI->addInitialFrameState(0, Dst, Src);
 
   return MAI;
@@ -87,6 +87,11 @@ static MCCodeGenInfo *createPPCMCCodeGenInfo(StringRef TT, Reloc::Model RM,
       RM = Reloc::DynamicNoPIC;
     else
       RM = Reloc::Static;
+  }
+  if (CM == CodeModel::Default) {
+    Triple T(TT);
+    if (!T.isOSDarwin() && T.getArch() == Triple::ppc64)
+      CM = CodeModel::Medium;
   }
   X->InitMCCodeGenInfo(RM, CM, OL);
   return X;

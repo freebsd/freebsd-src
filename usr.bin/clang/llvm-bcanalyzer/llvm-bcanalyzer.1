@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.TH "LLVM-BCANALYZER" "1" "2012-08-16" "3.2" "LLVM"
+.TH "LLVM-BCANALYZER" "1" "2013-04-11" "3.3" "LLVM"
 .SH NAME
 llvm-bcanalyzer \- LLVM bitcode analyzer
 .
@@ -36,58 +36,51 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 \fBllvm\-bcanalyzer\fP [\fIoptions\fP] [\fIfilename\fP]
 .SH DESCRIPTION
 .sp
-The \fBllvm\-bcanalyzer\fP command is a small utility for analyzing bitcode files.
-The tool reads a bitcode file (such as generated with the \fBllvm\-as\fP tool) and
-produces a statistical report on the contents of the bitcode file.  The tool
-can also dump a low level but human readable version of the bitcode file.
-This tool is probably not of much interest or utility except for those working
-directly with the bitcode file format. Most LLVM users can just ignore
-this tool.
+The \fBllvm\-bcanalyzer\fP command is a small utility for analyzing bitcode
+files.  The tool reads a bitcode file (such as generated with the
+\fBllvm\-as\fP tool) and produces a statistical report on the contents of
+the bitcode file.  The tool can also dump a low level but human readable
+version of the bitcode file.  This tool is probably not of much interest or
+utility except for those working directly with the bitcode file format.  Most
+LLVM users can just ignore this tool.
 .sp
-If \fIfilename\fP is omitted or is \fB\-\fP, then \fBllvm\-bcanalyzer\fP reads its input
-from standard input. This is useful for combining the tool into a pipeline.
-Output is written to the standard output.
+If \fIfilename\fP is omitted or is \fB\-\fP, then \fBllvm\-bcanalyzer\fP reads its
+input from standard input.  This is useful for combining the tool into a
+pipeline.  Output is written to the standard output.
 .SH OPTIONS
-.sp
-\fB\-nodetails\fP
 .INDENT 0.0
-.INDENT 3.5
-Causes \fBllvm\-bcanalyzer\fP to abbreviate its output by writing out only a module
-level summary. The details for individual functions are not displayed.
+.TP
+.B \-nodetails
+Causes \fBllvm\-bcanalyzer\fP to abbreviate its output by writing out only
+a module level summary.  The details for individual functions are not
+displayed.
 .UNINDENT
-.UNINDENT
-.sp
-\fB\-dump\fP
 .INDENT 0.0
-.INDENT 3.5
-Causes \fBllvm\-bcanalyzer\fP to dump the bitcode in a human readable format. This
-format is significantly different from LLVM assembly and provides details about
-the encoding of the bitcode file.
+.TP
+.B \-dump
+Causes \fBllvm\-bcanalyzer\fP to dump the bitcode in a human readable
+format.  This format is significantly different from LLVM assembly and
+provides details about the encoding of the bitcode file.
 .UNINDENT
-.UNINDENT
-.sp
-\fB\-verify\fP
 .INDENT 0.0
-.INDENT 3.5
+.TP
+.B \-verify
 Causes \fBllvm\-bcanalyzer\fP to verify the module produced by reading the
-bitcode. This ensures that the statistics generated are based on a consistent
+bitcode.  This ensures that the statistics generated are based on a consistent
 module.
 .UNINDENT
-.UNINDENT
-.sp
-\fB\-help\fP
 .INDENT 0.0
-.INDENT 3.5
+.TP
+.B \-help
 Print a summary of command line options.
-.UNINDENT
 .UNINDENT
 .SH EXIT STATUS
 .sp
-If \fBllvm\-bcanalyzer\fP succeeds, it will exit with 0.  Otherwise, if an error
-occurs, it will exit with a non\-zero value, usually 1.
+If \fBllvm\-bcanalyzer\fP succeeds, it will exit with 0.  Otherwise, if an
+error occurs, it will exit with a non\-zero value, usually 1.
 .SH SUMMARY OUTPUT DEFINITIONS
 .sp
-The following items are always printed by llvm\-bcanalyzer. They comprize the
+The following items are always printed by llvm\-bcanalyzer.  They comprize the
 summary output.
 .sp
 \fBBitcode Analysis Of Module\fP
@@ -115,14 +108,14 @@ The size, in bytes, of the entire bitcode file.
 \fBModule Bytes\fP
 .INDENT 0.0
 .INDENT 3.5
-The size, in bytes, of the module block. Percentage is relative to File Size.
+The size, in bytes, of the module block.  Percentage is relative to File Size.
 .UNINDENT
 .UNINDENT
 .sp
 \fBFunction Bytes\fP
 .INDENT 0.0
 .INDENT 3.5
-The size, in bytes, of all the function blocks. Percentage is relative to File
+The size, in bytes, of all the function blocks.  Percentage is relative to File
 Size.
 .UNINDENT
 .UNINDENT
@@ -130,8 +123,8 @@ Size.
 \fBGlobal Types Bytes\fP
 .INDENT 0.0
 .INDENT 3.5
-The size, in bytes, of the Global Types Pool. Percentage is relative to File
-Size. This is the size of the definitions of all types in the bitcode file.
+The size, in bytes, of the Global Types Pool.  Percentage is relative to File
+Size.  This is the size of the definitions of all types in the bitcode file.
 .UNINDENT
 .UNINDENT
 .sp
@@ -155,7 +148,7 @@ Percentage is relative to File Size.
 .INDENT 0.0
 .INDENT 3.5
 The size, in bytes, of all the instruction lists in all the functions.
-Percentage is relative to File Size. Note that this value is also included in
+Percentage is relative to File Size.  Note that this value is also included in
 the Function Bytes.
 .UNINDENT
 .UNINDENT
@@ -164,7 +157,7 @@ the Function Bytes.
 .INDENT 0.0
 .INDENT 3.5
 The size, in bytes, of all the compaction tables in all the functions.
-Percentage is relative to File Size. Note that this value is also included in
+Percentage is relative to File Size.  Note that this value is also included in
 the Function Bytes.
 .UNINDENT
 .UNINDENT
@@ -172,8 +165,8 @@ the Function Bytes.
 \fBSymbol Table Bytes\fP
 .INDENT 0.0
 .INDENT 3.5
-The size, in bytes, of all the symbol tables in all the functions. Percentage is
-relative to File Size. Note that this value is also included in the Function
+The size, in bytes, of all the symbol tables in all the functions.  Percentage is
+relative to File Size.  Note that this value is also included in the Function
 Bytes.
 .UNINDENT
 .UNINDENT
@@ -181,8 +174,8 @@ Bytes.
 \fBDependent Libraries Bytes\fP
 .INDENT 0.0
 .INDENT 3.5
-The size, in bytes, of the list of dependent libraries in the module. Percentage
-is relative to File Size. Note that this value is also included in the Module
+The size, in bytes, of the list of dependent libraries in the module.  Percentage
+is relative to File Size.  Note that this value is also included in the Module
 Global Bytes.
 .UNINDENT
 .UNINDENT
@@ -233,7 +226,7 @@ The total number of instructions defined in all functions in the bitcode file.
 .INDENT 0.0
 .INDENT 3.5
 The total number of long instructions defined in all functions in the bitcode
-file. Long instructions are those taking greater than 4 bytes. Typically long
+file.  Long instructions are those taking greater than 4 bytes.  Typically long
 instructions are GetElementPtr with several indices, PHI nodes, and calls to
 functions with large numbers of arguments.
 .UNINDENT
@@ -278,7 +271,7 @@ The total size of the instructions in all functions in the bitcode file.
 .INDENT 0.0
 .INDENT 3.5
 The average number of bytes per instruction across all functions in the bitcode
-file. This value is computed by dividing Total Instruction Size by Number Of
+file.  This value is computed by dividing Total Instruction Size by Number Of
 Instructions.
 .UNINDENT
 .UNINDENT
@@ -286,7 +279,7 @@ Instructions.
 \fBMaximum Type Slot Number\fP
 .INDENT 0.0
 .INDENT 3.5
-The maximum value used for a type\(aqs slot number. Larger slot number values take
+The maximum value used for a type\(aqs slot number.  Larger slot number values take
 more bytes to encode.
 .UNINDENT
 .UNINDENT
@@ -294,7 +287,7 @@ more bytes to encode.
 \fBMaximum Value Slot Number\fP
 .INDENT 0.0
 .INDENT 3.5
-The maximum value used for a value\(aqs slot number. Larger slot number values take
+The maximum value used for a value\(aqs slot number.  Larger slot number values take
 more bytes to encode.
 .UNINDENT
 .UNINDENT
@@ -302,7 +295,7 @@ more bytes to encode.
 \fBBytes Per Value\fP
 .INDENT 0.0
 .INDENT 3.5
-The average size of a Value definition (of any type). This is computed by
+The average size of a Value definition (of any type).  This is computed by
 dividing File Size by the total number of values of any type.
 .UNINDENT
 .UNINDENT
@@ -317,7 +310,7 @@ The average size of a global definition (constants and global variables).
 \fBBytes Per Function\fP
 .INDENT 0.0
 .INDENT 3.5
-The average number of bytes per function definition. This is computed by
+The average number of bytes per function definition.  This is computed by
 dividing Function Bytes by Number Of Functions.
 .UNINDENT
 .UNINDENT
@@ -419,18 +412,18 @@ The number of bytes consumed by instructions in the function.
 \fBAverage Instruction Size\fP
 .INDENT 0.0
 .INDENT 3.5
-The average number of bytes consumed by the instructions in the function. This
-value is computed by dividing Instruction Size by Instructions.
+The average number of bytes consumed by the instructions in the function.
+This value is computed by dividing Instruction Size by Instructions.
 .UNINDENT
 .UNINDENT
 .sp
 \fBBytes Per Instruction\fP
 .INDENT 0.0
 .INDENT 3.5
-The average number of bytes used by the function per instruction. This value is
-computed by dividing Byte Size by Instructions. Note that this is not the same
-as Average Instruction Size. It computes a number relative to the total function
-size not just the size of the instruction list.
+The average number of bytes used by the function per instruction.  This value
+is computed by dividing Byte Size by Instructions.  Note that this is not the
+same as Average Instruction Size.  It computes a number relative to the total
+function size not just the size of the instruction list.
 .UNINDENT
 .UNINDENT
 .sp
@@ -469,15 +462,15 @@ Bit Rate encoding scheme.
 .INDENT 0.0
 .INDENT 3.5
 The total number of bytes saved in this function by using the Variable Bit
-Rate encoding scheme. The percentage is relative to # of VBR Expanded Bytes.
+Rate encoding scheme.  The percentage is relative to # of VBR Expanded Bytes.
 .UNINDENT
 .UNINDENT
 .SH SEE ALSO
 .sp
-llvm\-dis|llvm\-dis, \fI\%http://llvm.org/docs/BitCodeFormat.html\fP
+\fB/CommandGuide/llvm\-dis\fP, \fB/BitCodeFormat\fP
 .SH AUTHOR
 Maintained by The LLVM Team (http://llvm.org/).
 .SH COPYRIGHT
-2012, LLVM Project
+2003-2013, LLVM Project
 .\" Generated by docutils manpage writer.
 .

@@ -43,7 +43,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <rpcsvc/rnusers.h>
 
-extern void rusers_service(struct svc_req *, SVCXPRT *);
+#include "extern.h"
 
 int from_inetd = 1;
 

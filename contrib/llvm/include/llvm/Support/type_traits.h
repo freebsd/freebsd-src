@@ -54,8 +54,9 @@ struct is_class
   // is_class<> metafunction due to Paul Mensonides (leavings@attbi.com). For
   // more details:
   // http://groups.google.com/groups?hl=en&selm=000001c1cc83%24e154d5e0%247772e50c%40c161550a&rnum=1
- public:
-    enum { value = sizeof(char) == sizeof(dont_use::is_class_helper<T>(0)) };
+public:
+  static const bool value =
+      sizeof(char) == sizeof(dont_use::is_class_helper<T>(0));
 };
   
   
@@ -144,6 +145,10 @@ template <typename T> struct is_pointer<T* const> : true_type {};
 template <typename T> struct is_pointer<T* volatile> : true_type {};
 template <typename T> struct is_pointer<T* const volatile> : true_type {};
 
+/// \brief Metafunction that determines wheather the given type is a reference.
+template <typename T> struct is_reference : false_type {};
+template <typename T> struct is_reference<T&> : true_type {};
+
 /// \brief Metafunction that determines whether the given type is either an
 /// integral type or an enumeration type.
 ///
@@ -162,12 +167,11 @@ template <typename T> class is_integral_or_enum {
   static UnderlyingT &nonce_instance;
 
 public:
-  enum {
+  static const bool
     value = (!is_class<UnderlyingT>::value && !is_pointer<UnderlyingT>::value &&
              !is_same<UnderlyingT, float>::value &&
              !is_same<UnderlyingT, double>::value &&
-             sizeof(char) != sizeof(check_int_convertible(nonce_instance)))
-  };
+             sizeof(char) != sizeof(check_int_convertible(nonce_instance)));
 };
 
 // enable_if_c - Enable/disable a template based on a metafunction
@@ -204,6 +208,26 @@ template <typename T> struct remove_pointer<T*const> { typedef T type; };
 template <typename T> struct remove_pointer<T*volatile> { typedef T type; };
 template <typename T> struct remove_pointer<T*const volatile> {
     typedef T type; };
+
+// If T is a pointer, just return it. If it is not, return T&.
+template<typename T, typename Enable = void>
+struct add_lvalue_reference_if_not_pointer { typedef T &type; };
+
+template<typename T>
+struct add_lvalue_reference_if_not_pointer<T,
+                                     typename enable_if<is_pointer<T> >::type> {
+  typedef T type;
+};
+
+// If T is a pointer to X, return a pointer to const X. If it is not, return
+// const T.
+template<typename T, typename Enable = void>
+struct add_const_past_pointer { typedef const T type; };
+
+template<typename T>
+struct add_const_past_pointer<T, typename enable_if<is_pointer<T> >::type> {
+  typedef const typename remove_pointer<T>::type *type;
+};
 
 template <bool, typename T, typename F>
 struct conditional { typedef T type; };

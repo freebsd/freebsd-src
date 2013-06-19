@@ -4,6 +4,10 @@
 
 PROG=	athstats
 
+# Because of a clang preprocessor parser limitation causing this
+# to not compile, use gcc for now.
+CC=	gcc
+
 SRCS=	main.c statfoo.c athstats.c opt_ah.h ah_osdep.h
 
 CLEANFILES+=	opt_ah.h

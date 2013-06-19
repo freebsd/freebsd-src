@@ -19,15 +19,16 @@
 
 #define DEBUG_TYPE "constmerge"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Pass.h"
 using namespace llvm;
 
 STATISTIC(NumMerged, "Number of global constants merged");
@@ -50,7 +51,7 @@ namespace {
     // alignment to a concrete value.
     unsigned getAlignment(GlobalVariable *GV) const;
 
-    const TargetData *TD;
+    const DataLayout *TD;
   };
 }
 
@@ -66,13 +67,13 @@ ModulePass *llvm::createConstantMergePass() { return new ConstantMerge(); }
 static void FindUsedValues(GlobalVariable *LLVMUsed,
                            SmallPtrSet<const GlobalValue*, 8> &UsedValues) {
   if (LLVMUsed == 0) return;
-  ConstantArray *Inits = dyn_cast<ConstantArray>(LLVMUsed->getInitializer());
-  if (Inits == 0) return;
-  
-  for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i)
-    if (GlobalValue *GV = 
-        dyn_cast<GlobalValue>(Inits->getOperand(i)->stripPointerCasts()))
-      UsedValues.insert(GV);
+  ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
+
+  for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i) {
+    Value *Operand = Inits->getOperand(i)->stripPointerCastsNoFollowAliases();
+    GlobalValue *GV = cast<GlobalValue>(Operand);
+    UsedValues.insert(GV);
+  }
 }
 
 // True if A is better than B.
@@ -98,7 +99,7 @@ unsigned ConstantMerge::getAlignment(GlobalVariable *GV) const {
 }
 
 bool ConstantMerge::runOnModule(Module &M) {
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
 
   // Find all the globals that are marked "used".  These cannot be merged.
   SmallPtrSet<const GlobalValue*, 8> UsedGlobals;
@@ -107,7 +108,7 @@ bool ConstantMerge::runOnModule(Module &M) {
   
   // Map unique <constants, has-unknown-alignment> pairs to globals.  We don't
   // want to merge globals of unknown alignment with those of explicit
-  // alignment.  If we have TargetData, we always know the alignment.
+  // alignment.  If we have DataLayout, we always know the alignment.
   DenseMap<PointerIntPair<Constant*, 1, bool>, GlobalVariable*> CMap;
 
   // Replacements - This vector contains a list of replacements to perform.

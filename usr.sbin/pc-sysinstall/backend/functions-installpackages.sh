@@ -76,50 +76,113 @@ fetch_package_dependencies()
 # Check for any packages specified, and begin loading them
 install_packages()
 {
+  echo "Checking for packages to install..."
+  sleep 2
+
   # First, lets check and see if we even have any packages to install
   get_value_from_cfg installPackages
-  if [ -n "${VAL}" ]
-  then
-    HERE=`pwd`
-    rc_nohalt "mkdir -p ${FSMNT}/${PKGTMPDIR}"
-    rc_nohalt "cd ${FSMNT}/${PKGTMPDIR}"
 
-    if [ ! -f "${CONFDIR}/INDEX" ]
+  # Nothing to do?
+  if [ -z "${VAL}" ]; then return; fi
+
+  echo "Installing packages..."
+  sleep 3
+
+  local PKGPTH
+
+  HERE=`pwd`
+  rc_halt "mkdir -p ${FSMNT}${PKGTMPDIR}"
+
+  # Determine the directory we will install packages from
+  get_package_location
+  rc_halt "cd ${PKGDLDIR}"
+
+  # Set the location of the INDEXFILE
+  INDEXFILE="${TMPDIR}/INDEX"
+
+  if [ ! -f "${INDEXFILE}" ]; then
+    get_package_index
+  fi
+
+  if [ ! -f "${TMPDIR}/INDEX.parsed" -a "$INSTALLMEDIUM" = "ftp" ]; then
+    parse_package_index
+  fi
+
+  # What extension are we using for pkgs?
+  PKGEXT="txz"
+  get_value_from_cfg pkgExt
+  if [ -n "${VAL}" ]; then 
+     strip_white_space ${VAL}
+     PKGEXT="$VAL"
+  fi
+  export PKGEXT
+  
+  # We dont want to be bothered with scripts asking questions
+  PACKAGE_BUILDING=yes
+  export PACKAGE_BUILDING
+
+  # Lets start by cleaning up the string and getting it ready to parse
+  get_value_from_cfg_with_spaces installPackages
+  PACKAGES="${VAL}"
+  echo_log "Packages to install: `echo $PACKAGES | wc -w | awk '{print $1}'`"
+  for i in $PACKAGES
+  do
+    if ! get_package_name "${i}"
     then
-      get_package_index
+      echo_log "Unable to locate package ${i}"
+      continue
     fi
 
-    if [ ! -f "${CONFDIR}/INDEX.parsed" ]
-    then
-      parse_package_index
+    PKGNAME="${VAL}"
+
+    # Fetch package + deps, but skip if installing from local media
+    if [ "${INSTALLMEDIUM}" = "ftp" ] ; then
+      DEPFILE="${FSMNT}/${PKGTMPDIR}/.${PKGNAME}.deps"
+      rc_nohalt "touch ${DEPFILE}"
+      determine_package_dependencies "${PKGNAME}" "${DEPFILE}"
+      fetch_package_dependencies "${DEPFILE}" "${FSMNT}/${PKGTMPDIR}"
     fi
 
-    # Lets start by cleaning up the string and getting it ready to parse
-    strip_white_space ${VAL}
-    PACKAGES=`echo ${VAL} | sed -e "s|,| |g"`
-    for i in $PACKAGES
-    do
-      if get_package_name "${i}"
-      then
-        PKGNAME="${VAL}"
-        DEPFILE="${FSMNT}/${PKGTMPDIR}/.${PKGNAME}.deps"
+    # Set package location
+    case "${INSTALLMEDIUM}" in
+      usb|dvd|local) PKGPTH="${PKGTMPDIR}/All/${PKGNAME}" ;;
+                  *) PKGPTH="${PKGTMPDIR}/${PKGNAME}" ;;
+    esac
 
-        rc_nohalt "touch ${DEPFILE}"
-        determine_package_dependencies "${PKGNAME}" "${DEPFILE}"
-        fetch_package_dependencies "${DEPFILE}" "${FSMNT}/${PKGTMPDIR}"
-
-        # If the package is not already installed, install it!
-        if ! run_chroot_cmd "pkg_info -e ${PKGNAME}"
-        then
-          rc_nohalt "pkg_add -C ${FSMNT} ${PKGTMPDIR}/${PKGNAME}.tbz"
-        fi
-
-        rc_nohalt "rm ${DEPFILE}"
+    # See if we need to determine the package format we are working with
+    if [ -z "${PKGINFO}" ] ; then
+      tar tqf "${FSMNT}${PKGPTH}" '+MANIFEST' >/dev/null 2>/dev/null	
+      if [ $? -ne 0 ] ; then
+        PKGADD="pkg_add -C ${FSMNT}" 
+        PKGINFO="pkg_info" 
+      else
+        PKGADD="pkg -c ${FSMNT} add"
+        PKGINFO="pkg info"
+        bootstrap_pkgng
       fi
+    fi
 
-      rc_nohalt "cd ${HERE}"
-    done
+    # If the package is not already installed, install it!
+    if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
+    then
+      echo_log "Installing package: ${PKGNAME}"
+      rc_nohalt "${PKGADD} ${PKGPTH}"
+    fi
 
-  rm -rf "${FSMNT}/${PKGTMPDIR}"
+    if [ "${INSTALLMEDIUM}" = "ftp" ] ; then
+      rc_nohalt "rm ${DEPFILE}"
+    fi
+
+  done
+
+  echo_log "Package installation complete!"
+
+  # Cleanup after ourselves
+  rc_halt "cd ${HERE}"
+  if [ "${INSTALLMEDIUM}" = "ftp" ] ; then
+    rc_halt "rm -rf ${FSMNT}${PKGTMPDIR}" >/dev/null 2>/dev/null
+  else
+    rc_halt "umount ${FSMNT}${PKGTMPDIR}" >/dev/null 2>/dev/null
+    rc_halt "rmdir ${FSMNT}${PKGTMPDIR}" >/dev/null 2>/dev/null
   fi
 };

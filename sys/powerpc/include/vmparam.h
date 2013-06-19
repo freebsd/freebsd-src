@@ -121,11 +121,6 @@
 
 #endif /* AIM/E500 */
 
-/* XXX max. amount of KVM to be used by buffers. */
-#ifndef VM_MAX_KERNEL_BUF
-#define	VM_MAX_KERNEL_BUF	(SEGMENT_LENGTH * 7 / 10)
-#endif
-
 #if !defined(LOCORE)
 struct pmap_physseg {
 	struct pv_entry *pvent;
@@ -166,13 +161,6 @@ struct pmap_physseg {
  * The largest allocation size is 4MB.
  */
 #define	VM_NFREEORDER		11
-
-/*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
 
 /*
  * Disable superpage reservations.

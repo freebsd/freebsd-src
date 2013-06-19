@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_PASSMANAGERBUILDER_H
-#define LLVM_SUPPORT_PASSMANAGERBUILDER_H
+#ifndef LLVM_TRANSFORMS_IPO_PASSMANAGERBUILDER_H
+#define LLVM_TRANSFORMS_IPO_PASSMANAGERBUILDER_H
 
 #include <vector>
 
@@ -103,7 +103,9 @@ public:
   bool DisableSimplifyLibCalls;
   bool DisableUnitAtATime;
   bool DisableUnrollLoops;
-  bool Vectorize;
+  bool BBVectorize;
+  bool SLPVectorize;
+  bool LoopVectorize;
 
 private:
   /// ExtensionList - This is list of all of the extensions that are registered.

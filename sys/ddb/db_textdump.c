@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_config.h"
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -118,7 +120,11 @@ CTASSERT(sizeof(struct ustar_header) == TEXTDUMP_BLOCKSIZE);
  * Is a textdump scheduled?  If so, the shutdown code will invoke our dumpsys
  * routine instead of the machine-dependent kernel dump routine.
  */
-int	textdump_pending;
+#ifdef TEXTDUMP_PREFERRED
+int	textdump_pending = 1;
+#else
+int	textdump_pending = 0;
+#endif
 SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, pending, CTLFLAG_RW,
     &textdump_pending, 0,
     "Perform textdump instead of regular kernel dump.");
@@ -201,6 +207,10 @@ textdump_mkustar(char *block_buffer, const char *filename, u_int size)
 {
 	struct ustar_header *uhp;
 
+#ifdef TEXTDUMP_VERBOSE
+	if (textdump_error == 0)
+		printf("textdump: creating '%s'.\n", filename);
+#endif
 	uhp = (struct ustar_header *)block_buffer;
 	bzero(uhp, sizeof(*uhp));
 	strlcpy(uhp->uh_filename, filename, sizeof(uhp->uh_filename));
@@ -237,6 +247,9 @@ textdump_writeblock(struct dumperinfo *di, off_t offset, char *buffer)
 		return (ENOSPC);
 	textdump_error = dump_write(di, buffer, 0, offset + di->mediaoffset,
 	    TEXTDUMP_BLOCKSIZE);
+	if (textdump_error)
+		printf("textdump_writeblock: offset %jd, error %d\n", (intmax_t)offset,
+		    textdump_error);
 	return (textdump_error);
 }
 
@@ -430,7 +443,7 @@ textdump_dumpsys(struct dumperinfo *di)
 	 * of data.
 	 */
 	if (di->mediasize < SIZEOF_METADATA + 2 * sizeof(kdh)) {
-		printf("Insufficient space on dump partition.\n");
+		printf("Insufficient space on dump partition for minimal textdump.\n");
 		return;
 	}
 	textdump_error = 0;
@@ -480,9 +493,9 @@ textdump_dumpsys(struct dumperinfo *di)
 	if (textdump_error == 0)
 		(void)dump_write(di, NULL, 0, 0, 0);
 	if (textdump_error == ENOSPC)
-		printf("Insufficient space on dump partition\n");
+		printf("Textdump: Insufficient space on dump partition\n");
 	else if (textdump_error != 0)
-		printf("Error %d writing dump\n", textdump_error);
+		printf("Textdump: Error %d writing dump\n", textdump_error);
 	else
 		printf("Textdump complete.\n");
 	textdump_pending = 0;
@@ -499,7 +512,7 @@ static void
 db_textdump_usage(void)
 {
 
-	db_printf("textdump [unset|set|status]\n");
+	db_printf("textdump [unset|set|status|dump]\n");
 }
 
 void
@@ -528,6 +541,10 @@ db_textdump_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	} else if (strcmp(db_tok_string, "unset") == 0) {
 		textdump_pending = 0;
 		db_printf("textdump unset\n");
-	} else
+	} else if (strcmp(db_tok_string, "dump") == 0) {
+		textdump_pending = 1;
+		doadump(TRUE);
+	} else {
 		db_textdump_usage();
+	}
 }

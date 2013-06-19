@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: watchdogd
-# REQUIRE: FILESYSTEMS cleanvar syslogd
+# REQUIRE: FILESYSTEMS syslogd
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr

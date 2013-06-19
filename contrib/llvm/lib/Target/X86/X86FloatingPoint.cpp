@@ -26,17 +26,17 @@
 #define DEBUG_TYPE "x86-codegen"
 #include "X86.h"
 #include "X86InstrInfo.h"
-#include "llvm/InlineAsm.h"
 #include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/EdgeBundles.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/InlineAsm.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -111,7 +111,7 @@ namespace {
     EdgeBundles *Bundles;
 
     // Return a bitmask of FP registers in block's live-in list.
-    unsigned calcLiveInMask(MachineBasicBlock *MBB) {
+    static unsigned calcLiveInMask(MachineBasicBlock *MBB) {
       unsigned Mask = 0;
       for (MachineBasicBlock::livein_iterator I = MBB->livein_begin(),
            E = MBB->livein_end(); I != E; ++I) {
@@ -171,6 +171,7 @@ namespace {
     // Shuffle live registers to match the expectations of successor blocks.
     void finishBlockStack();
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
     void dumpStack() const {
       dbgs() << "Stack contents:";
       for (unsigned i = 0; i != StackTop; ++i) {
@@ -181,6 +182,7 @@ namespace {
         dbgs() << ", ST" << i << " in FP" << unsigned(PendingST[i]);
       dbgs() << "\n";
     }
+#endif
 
     /// getSlot - Return the stack slot number a particular register number is
     /// in.
@@ -196,7 +198,7 @@ namespace {
     }
 
     /// getScratchReg - Return an FP register that is not currently in use.
-    unsigned getScratchReg() {
+    unsigned getScratchReg() const {
       for (int i = NumFPRegs - 1; i >= 8; --i)
         if (!isLive(i))
           return i;
@@ -204,7 +206,7 @@ namespace {
     }
 
     /// isScratchReg - Returns trus if RegNo is a scratch FP register.
-    bool isScratchReg(unsigned RegNo) {
+    static bool isScratchReg(unsigned RegNo) {
       return RegNo > 8 && RegNo < NumFPRegs;
     }
 
@@ -309,7 +311,7 @@ namespace {
     void handleSpecialFP(MachineBasicBlock::iterator &I);
 
     // Check if a COPY instruction is using FP registers.
-    bool isFPCopy(MachineInstr *MI) {
+    static bool isFPCopy(MachineInstr *MI) {
       unsigned DstReg = MI->getOperand(0).getReg();
       unsigned SrcReg = MI->getOperand(1).getReg();
 
@@ -575,8 +577,8 @@ namespace {
     friend bool operator<(const TableEntry &TE, unsigned V) {
       return TE.from < V;
     }
-    friend bool LLVM_ATTRIBUTE_USED operator<(unsigned V,
-                                              const TableEntry &TE) {
+    friend bool LLVM_ATTRIBUTE_UNUSED operator<(unsigned V,
+                                                const TableEntry &TE) {
       return V < TE.from;
     }
   };

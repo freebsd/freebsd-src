@@ -123,11 +123,21 @@
 /*
  * System reset
  */
+#if defined(SOC_MV_ARMADAXP)
+#define RSTOUTn_MASK		0x60
+#define SYSTEM_SOFT_RESET	0x64
+#define WD_RSTOUTn_MASK		0x4
+#define WD_GLOBAL_MASK		0x00000100
+#define WD_CPU0_MASK		0x00000001
+#define SOFT_RST_OUT_EN		0x00000001
+#define SYS_SOFT_RST		0x00000001
+#else
 #define RSTOUTn_MASK		0x8
 #define WD_RST_OUT_EN		0x00000002
 #define SOFT_RST_OUT_EN		0x00000004
 #define SYSTEM_SOFT_RESET	0xc
 #define SYS_SOFT_RST		0x00000001
+#endif
 
 /*
  * Power Control
@@ -205,6 +215,10 @@
 #define CPU_TIMER1_AUTO		0x00000008
 #define CPU_TIMER_WD_EN		0x00000010
 #define CPU_TIMER_WD_AUTO	0x00000020
+/* 25MHz mode is Armada XP - specific */
+#define CPU_TIMER_WD_25MHZ_EN	0x00000400
+#define CPU_TIMER0_25MHZ_EN	0x00000800
+#define CPU_TIMER1_25MHZ_EN	0x00001000
 #define CPU_TIMER0_REL		0x10
 #define CPU_TIMER0		0x14
 
@@ -326,14 +340,18 @@
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
-#elif defined(SOC_MV_DISCOVERY)
+#elif defined(SOC_MV_FREY)
+#define SAMPLE_AT_RESET		0x100
+#endif
+#if defined(SOC_MV_DISCOVERY)
 #define SAMPLE_AT_RESET_LO	0x30
 #define SAMPLE_AT_RESET_HI	0x34
 #elif defined(SOC_MV_DOVE)
 #define SAMPLE_AT_RESET_LO	0x14
 #define SAMPLE_AT_RESET_HI	0x18
-#elif defined(SOC_MV_FREY)
-#define SAMPLE_AT_RESET		0x100
+#elif defined(SOC_MV_ARMADAXP)
+#define SAMPLE_AT_RESET_LO	0x30
+#define SAMPLE_AT_RESET_HI	0x34
 #endif
 
 /*

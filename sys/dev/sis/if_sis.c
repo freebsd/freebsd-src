@@ -126,7 +126,7 @@ MODULE_DEPEND(sis, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct sis_type const sis_devs[] = {
+static const struct sis_type sis_devs[] = {
 	{ SIS_VENDORID, SIS_DEVICEID_900, "SiS 900 10/100BaseTX" },
 	{ SIS_VENDORID, SIS_DEVICEID_7016, "SiS 7016 10/100BaseTX" },
 	{ NS_VENDORID, NS_DEVICEID_DP83815, "NatSemi DP8381[56] 10/100BaseTX" },
@@ -625,7 +625,7 @@ sis_miibus_statchg(device_t dev)
 		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
 	}
 
-	if (sc->sis_type == SIS_TYPE_83816) {
+	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr >= NS_SRR_16A) {
 		/*
 		 * MPII03.D: Half Duplex Excessive Collisions.
 		 * Also page 49 in 83816 manual
@@ -1411,7 +1411,7 @@ sis_newbuf(struct sis_softc *sc, struct sis_rxdesc *rxd)
 	bus_dmamap_t		map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = SIS_RXLEN;
@@ -1771,7 +1771,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 		padlen = SIS_MIN_FRAMELEN - m->m_pkthdr.len;
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1780,7 +1780,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 		if (m->m_next != NULL || M_TRAILINGSPACE(m) < padlen) {
-			m = m_defrag(m, M_DONTWAIT);
+			m = m_defrag(m, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(*m_head);
 				*m_head = NULL;
@@ -1799,7 +1799,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->sis_tx_tag, txd->tx_dmamap,
 	    *m_head, segs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, SIS_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, SIS_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -1989,7 +1989,7 @@ sis_initl(struct sis_softc *sc)
 		return;
 	}
 
-	if (sc->sis_type == SIS_TYPE_83815 || sc->sis_type == SIS_TYPE_83816) {
+	if (sc->sis_type == SIS_TYPE_83815) {
 		if (sc->sis_manual_pad != 0)
 			sc->sis_flags |= SIS_FLAG_MANUAL_PAD;
 		else

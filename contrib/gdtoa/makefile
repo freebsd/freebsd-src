@@ -26,6 +26,8 @@
 .SUFFIXES: .c .o
 CC = cc
 CFLAGS = -g
+AR ?= ar
+ARFLAGS ?= ruv
 
 .c.o:
 	$(CC) -c $(CFLAGS) $*.c
@@ -52,12 +54,12 @@ gdtoa.a:  dmisc.c dtoa.c g_Qfmt.c g__fmt.c g_ddfmt.c g_dfmt.c\
 	 strtopx.c strtopxL.c strtorQ.c strtord.c strtordd.c strtorf.c\
 	 strtorx.c strtorxL.c sum.c ulp.c
 	$(CC) -c $(CFLAGS) $?
-	x=`echo $? | sed 's/\.c/.o/g'` && ar ruv gdtoa.a $$x && rm $$x
+	x=`echo $? | sed 's/\.c/.o/g'` && $(AR) $(ARFLAGS) gdtoa.a $$x && rm $$x
 	ranlib gdtoa.a || true
 
 Printf: all printf.c
 	$(CC) -c $(CFLAGS) printf.c
-	ar ruv gdtoa.a printf.o
+	$(AR) $(ARFLAGS) gdtoa.a printf.o
 	rm printf.o
 	touch Printf
 

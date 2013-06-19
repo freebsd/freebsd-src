@@ -1,9 +1,13 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmbitreader
 
 SRCDIR=	lib/Bitcode/Reader
-SRCS=	BitcodeReader.cpp
+SRCS=	BitReader.cpp \
+	BitcodeReader.cpp \
+	BitstreamReader.cpp
 
 TGHDRS=	Intrinsics
 

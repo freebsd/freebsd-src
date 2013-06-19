@@ -10,7 +10,11 @@
 
 #include "exception"
 
-#if __APPLE__
+#ifndef __has_include
+#define __has_include(inc) 0
+#endif
+
+#ifdef __APPLE__
   #include <cxxabi.h>
 
   using namespace __cxxabiv1;
@@ -23,19 +27,21 @@
     #define __terminate_handler  __cxxabiapple::__cxa_terminate_handler
     #define __unexpected_handler __cxxabiapple::__cxa_unexpected_handler
   #endif  // _LIBCPPABI_VERSION
-#elif defined(LIBCXXRT)
+#elif defined(LIBCXXRT) || __has_include(<cxxabi.h>)
   #include <cxxabi.h>
   using namespace __cxxabiv1;
-  #define HAVE_DEPENDENT_EH_ABI 1
-#else  // __APPLE__
+  #if defined(LIBCXXRT) || defined(_LIBCPPABI_VERSION)
+    #define HAVE_DEPENDENT_EH_ABI 1
+  #endif
+#elif !defined(__GLIBCXX__) // __has_include(<cxxabi.h>)
   static std::terminate_handler  __terminate_handler;
   static std::unexpected_handler __unexpected_handler;
-#endif  // __APPLE__
+#endif // __has_include(<cxxabi.h>)
 
 namespace std
 {
 
-#if !defined(LIBCXXRT) && !defined(_LIBCPPABI_VERSION)
+#if !defined(LIBCXXRT) && !defined(_LIBCPPABI_VERSION) && !defined(__GLIBCXX__)
 
 // libcxxrt provides implementations of these functions itself.
 unexpected_handler
@@ -50,7 +56,7 @@ get_unexpected() _NOEXCEPT
     return __sync_fetch_and_add(&__unexpected_handler, (unexpected_handler)0);
 }
 
-_ATTRIBUTE(noreturn)
+_LIBCPP_NORETURN
 void
 unexpected()
 {
@@ -71,7 +77,8 @@ get_terminate() _NOEXCEPT
     return __sync_fetch_and_add(&__terminate_handler, (terminate_handler)0);
 }
 
-_ATTRIBUTE(noreturn)
+#ifndef EMSCRIPTEN // We provide this in JS
+_LIBCPP_NORETURN
 void
 terminate() _NOEXCEPT
 {
@@ -91,17 +98,15 @@ terminate() _NOEXCEPT
     }
 #endif  // _LIBCPP_NO_EXCEPTIONS
 }
+#endif // !EMSCRIPTEN
 #endif // !defined(LIBCXXRT) && !defined(_LIBCPPABI_VERSION)
 
-#ifndef LIBCXXRT
+#if !defined(LIBCXXRT) && !defined(__GLIBCXX__) && !defined(EMSCRIPTEN)
 bool uncaught_exception() _NOEXCEPT
 {
-#if __APPLE__
+#if defined(__APPLE__) || defined(_LIBCPPABI_VERSION)
     // on Darwin, there is a helper function so __cxa_get_globals is private
     return __cxa_uncaught_exception();
-#elif LIBCXXRT
-    __cxa_eh_globals * globals = __cxa_get_globals();
-    return (globals->uncaughtExceptions != 0);
 #else  // __APPLE__
     #warning uncaught_exception not yet implemented
     ::abort();
@@ -121,7 +126,7 @@ const char* exception::what() const _NOEXCEPT
 
 #endif  // _LIBCPPABI_VERSION
 #endif //LIBCXXRT
-#ifndef _LIBCPPABI_VERSION
+#if !defined(_LIBCPPABI_VERSION) && !defined(__GLIBCXX__)
 
 bad_exception::~bad_exception() _NOEXCEPT
 {
@@ -181,7 +186,7 @@ nested_exception::~nested_exception() _NOEXCEPT
 {
 }
 
-_ATTRIBUTE(noreturn)
+_LIBCPP_NORETURN
 void
 nested_exception::rethrow_nested() const
 {
@@ -206,7 +211,7 @@ exception_ptr current_exception() _NOEXCEPT
 #endif  // __APPLE__
 }
 
-_ATTRIBUTE(noreturn)
+_LIBCPP_NORETURN
 void rethrow_exception(exception_ptr p)
 {
 #if HAVE_DEPENDENT_EH_ABI

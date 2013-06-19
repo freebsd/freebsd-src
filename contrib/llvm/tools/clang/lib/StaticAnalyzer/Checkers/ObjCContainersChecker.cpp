@@ -17,12 +17,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/ParentMap.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/AST/ParentMap.h"
 
 using namespace clang;
 using namespace ento;
@@ -55,16 +55,8 @@ public:
 };
 } // end anonymous namespace
 
-// ProgramState trait - a map from array symbol to it's state.
-typedef llvm::ImmutableMap<SymbolRef, DefinedSVal> ArraySizeM;
-
-namespace { struct ArraySizeMap {}; }
-namespace clang { namespace ento {
-template<> struct ProgramStateTrait<ArraySizeMap>
-    :  public ProgramStatePartialTrait<ArraySizeM > {
-  static void *GDMIndex() { return ObjCContainersChecker::getTag(); }
-};
-}}
+// ProgramState trait - a map from array symbol to its state.
+REGISTER_MAP_WITH_PROGRAMSTATE(ArraySizeMap, SymbolRef, DefinedSVal)
 
 void ObjCContainersChecker::addSizeInfo(const Expr *Array, const Expr *Size,
                                         CheckerContext &C) const {
@@ -80,7 +72,8 @@ void ObjCContainersChecker::addSizeInfo(const Expr *Array, const Expr *Size,
   if (!ArraySym)
     return;
 
-  C.addTransition(State->set<ArraySizeMap>(ArraySym, cast<DefinedSVal>(SizeV)));
+  C.addTransition(
+      State->set<ArraySizeMap>(ArraySym, SizeV.castAs<DefinedSVal>()));
   return;
 }
 
@@ -133,7 +126,7 @@ void ObjCContainersChecker::checkPreStmt(const CallExpr *CE,
     SVal IdxVal = State->getSVal(IdxExpr, C.getLocationContext());
     if (IdxVal.isUnknownOrUndef())
       return;
-    DefinedSVal Idx = cast<DefinedSVal>(IdxVal);
+    DefinedSVal Idx = IdxVal.castAs<DefinedSVal>();
     
     // Now, check if 'Idx in [0, Size-1]'.
     const QualType T = IdxExpr->getType();
@@ -146,7 +139,7 @@ void ObjCContainersChecker::checkPreStmt(const CallExpr *CE,
       initBugType();
       BugReport *R = new BugReport(*BT, "Index is out of bounds", N);
       R->addRange(IdxExpr->getSourceRange());
-      C.EmitReport(R);
+      C.emitReport(R);
       return;
     }
   }

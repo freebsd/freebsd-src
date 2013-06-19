@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.0.1c
-OPENSSL_DATE=	2012-05-10
+OPENSSL_VER=	1.0.1e
+OPENSSL_DATE=	2013-02-11
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
@@ -12,10 +12,6 @@ LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
 CFLAGS+=	-DTERMIOS -DANSI_SOURCE
 CFLAGS+=	-I${LCRYPTO_SRC} -I${LCRYPTO_SRC}/crypto -I${.OBJDIR}
 CFLAGS+=	-DOPENSSL_THREADS -DDSO_DLFCN -DHAVE_DLFCN_H
-
-.if ${MK_IDEA} == "no"
-CFLAGS+=	-DOPENSSL_NO_IDEA
-.endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=-DL_ENDIAN -DOPENSSL_IA32_SSE2

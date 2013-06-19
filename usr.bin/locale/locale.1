@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2005
+.Dd November 18, 2012
 .Dt LOCALE 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Op Ar prefix
 .Nm
 .Op Fl ck
-.Ar keyword ...
+.Op Ar keyword ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -70,12 +70,16 @@ will respect the
 .Ev PATH_LOCALE
 environment variable, and use it instead of the system's default locale
 directory.
-.It Fl m
-Print names of all available charmaps.
-.It Fl k
-Print the names and values of all selected keywords.
 .It Fl c
 Print the category name for all selected keywords.
+If no keywords are selected, print the category name for all defined
+keywords.
+.It Fl k
+Print the names and values of all selected keywords.
+If no keywords are selected, print the names and values of all defined
+keywords.
+.It Fl m
+Print names of all available charmaps.
 .El
 .Sh IMPLEMENTATION NOTES
 The special
@@ -89,6 +93,17 @@ a prefix string can be defined to limit the amount of keywords returned.
 .Ex -std
 .Sh SEE ALSO
 .Xr setlocale 3
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2004 .
+The
+.Ev LC_CTYPE ,
+.Ev LC_MESSAGES
+and
+.Ev NLSPATH
+environment variables are not interpreted.
 .Sh BUGS
 Since
 .Fx

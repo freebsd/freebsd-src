@@ -52,7 +52,8 @@ DominatingValue<RValue>::saved_type::save(CodeGenFunction &CGF, RValue rv) {
       llvm::StructType::get(V.first->getType(), V.second->getType(),
                             (void*) 0);
     llvm::Value *addr = CGF.CreateTempAlloca(ComplexTy, "saved-complex");
-    CGF.StoreComplexToAddr(V, addr, /*volatile*/ false);
+    CGF.Builder.CreateStore(V.first, CGF.Builder.CreateStructGEP(addr, 0));
+    CGF.Builder.CreateStore(V.second, CGF.Builder.CreateStructGEP(addr, 1));
     return saved_type(addr, ComplexAddress);
   }
 
@@ -79,8 +80,13 @@ RValue DominatingValue<RValue>::saved_type::restore(CodeGenFunction &CGF) {
     return RValue::getAggregate(Value);
   case AggregateAddress:
     return RValue::getAggregate(CGF.Builder.CreateLoad(Value));
-  case ComplexAddress:
-    return RValue::getComplex(CGF.LoadComplexFromAddr(Value, false));
+  case ComplexAddress: {
+    llvm::Value *real =
+      CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(Value, 0));
+    llvm::Value *imag =
+      CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(Value, 1));
+    return RValue::getComplex(real, imag);
+  }
   }
 
   llvm_unreachable("bad saved r-value kind");
@@ -365,7 +371,8 @@ void CodeGenFunction::ResolveBranchFixups(llvm::BasicBlock *Block) {
 }
 
 /// Pops cleanup blocks until the given savepoint is reached.
-void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old) {
+void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
+                                       SourceLocation EHLoc) {
   assert(Old.isValid());
 
   while (EHStack.stable_begin() != Old) {
@@ -377,7 +384,7 @@ void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old) {
     bool FallThroughIsBranchThrough =
       Old.strictlyEncloses(Scope.getEnclosingNormalCleanup());
 
-    PopCleanupBlock(FallThroughIsBranchThrough);
+    PopCleanupBlock(FallThroughIsBranchThrough, EHLoc);
   }
 }
 
@@ -526,7 +533,8 @@ static void destroyOptimisticNormalEntry(CodeGenFunction &CGF,
 /// Pops a cleanup block.  If the block includes a normal cleanup, the
 /// current insertion point is threaded through the cleanup, as are
 /// any branch fixups on the cleanup.
-void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
+void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
+                                      SourceLocation EHLoc) {
   assert(!EHStack.empty() && "cleanup stack is empty!");
   assert(isa<EHCleanupScope>(*EHStack.begin()) && "top not a cleanup!");
   EHCleanupScope &Scope = cast<EHCleanupScope>(*EHStack.begin());
@@ -827,6 +835,9 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
+    if (CGDebugInfo *DI = getDebugInfo())
+      DI->EmitLocation(Builder, EHLoc);
+
     CGBuilderTy::InsertPoint SavedIP = Builder.saveAndClearIP();
 
     EmitBlock(EHEntry);
@@ -834,6 +845,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
     // We only actually emit the cleanup code if the cleanup is either
     // active or was used before it was deactivated.
     if (EHActiveFlag || IsActive) {
+
       cleanupFlags.setIsForEHCleanup();
       EmitCleanup(*this, Fn, cleanupFlags, EHActiveFlag);
     }

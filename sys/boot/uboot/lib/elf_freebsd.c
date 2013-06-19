@@ -84,6 +84,7 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 	printf("Kernel entry at 0x%x...\n", (unsigned)entry);
 
 	dev_cleanup();
+	printf("Kernel args: %s\n", fp->f_args);
 
 	(*entry)((void *)mdp);
 	panic("exec returned");

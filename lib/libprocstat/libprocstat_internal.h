@@ -34,6 +34,9 @@ struct procstat {
 	kvm_t	*kd;
 	void	*vmentries;
 	void	*files;
+	void	*argv;
+	void	*envv;
+	struct procstat_core *core;
 };
 
 #endif	/* !_LIBPROCSTAT_INTERNAL_H_ */

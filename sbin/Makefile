@@ -6,7 +6,6 @@
 # XXX MISSING:		icheck ncheck
 
 SUBDIR=adjkerntz \
-	atacontrol \
 	badsect \
 	camcontrol \
 	ccdconfig \
@@ -49,9 +48,9 @@ SUBDIR=adjkerntz \
 	mksnap_ffs \
 	mount \
 	mount_cd9660 \
+	mount_fusefs \
 	mount_msdosfs \
 	mount_nfs \
-	mount_ntfs \
 	mount_nullfs \
 	mount_udf \
 	mount_unionfs \

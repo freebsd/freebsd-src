@@ -64,16 +64,16 @@
  * Pmap stuff
  */
 struct	pv_entry;
+struct	pv_chunk;
 
 struct md_page {
-	int			pv_list_count;
 	TAILQ_HEAD(,pv_entry)	pv_list;
 	vm_memattr_t		memattr;
 };
 
 struct pmap {
 	struct mtx		pm_mtx;
-	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
+	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	uint32_t		pm_rid[IA64_VM_MINKERN_REGION];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 };
@@ -101,10 +101,8 @@ extern struct pmap	kernel_pmap_store;
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_list.
  */
 typedef struct pv_entry {
-	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry)	pv_list;
-	TAILQ_ENTRY(pv_entry)	pv_plist;
 } *pv_entry_t;
 
 #ifdef	_KERNEL

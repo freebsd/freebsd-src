@@ -88,7 +88,7 @@ static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device);
 static void ipoib_start(struct ifnet *dev);
 static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	    struct sockaddr *dst, struct route *ro);
+	    const struct sockaddr *dst, struct route *ro);
 static int ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static void ipoib_input(struct ifnet *ifp, struct mbuf *m);
 
@@ -876,7 +876,7 @@ ipoib_intf_alloc(const char *name)
 	dev->if_output = ipoib_output;
 	dev->if_input = ipoib_input;
 	dev->if_resolvemulti = ipoib_resolvemulti;
-	dev->if_baudrate = IF_Gbps(10UL);
+	if_initbaudrate(dev, IF_Gbps(10));
 	dev->if_broadcastaddr = priv->broadcastaddr;
 	dev->if_snd.ifq_maxlen = ipoib_sendq_size * 2;
 	sdl = (struct sockaddr_dl *)dev->if_addr->ifa_addr;
@@ -1252,7 +1252,7 @@ ipoib_cleanup_module(void)
  */
 static int
 ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	u_char edst[INFINIBAND_ALEN];
 	struct llentry *lle = NULL;
@@ -1346,7 +1346,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, IPOIB_HEADER_LEN, M_DONTWAIT);
+	M_PREPEND(m, IPOIB_HEADER_LEN, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto bad;

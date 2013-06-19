@@ -572,6 +572,8 @@ arge_attach(device_t dev)
 		case AR71XX_SOC_AR7240:
 		case AR71XX_SOC_AR7241:
 		case AR71XX_SOC_AR7242:
+		case AR71XX_SOC_AR9330:
+		case AR71XX_SOC_AR9331:
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0010ffff);
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x015500aa);
 			break;
@@ -899,6 +901,8 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		case AR71XX_SOC_AR7240:
 		case AR71XX_SOC_AR7241:
 		case AR71XX_SOC_AR7242:
+		case AR71XX_SOC_AR9330:
+		case AR71XX_SOC_AR9331:
 			fifo_tx = 0x01f00140;
 			break;
 		case AR71XX_SOC_AR9130:
@@ -1090,7 +1094,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	m = *m_head;
 	if (! arge_mbuf_chain_is_tx_aligned(m)) {
 		sc->stats.tx_pkts_unaligned++;
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
@@ -1772,7 +1776,7 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;

@@ -14,10 +14,10 @@
 #ifndef LLVM_CLANG_TOKEN_H
 #define LLVM_CLANG_TOKEN_H
 
+#include "clang/Basic/OperatorKinds.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TemplateKinds.h"
 #include "clang/Basic/TokenKinds.h"
-#include "clang/Basic/SourceLocation.h"
-#include "clang/Basic/OperatorKinds.h"
 #include <cstdlib>
 
 namespace clang {
@@ -74,9 +74,10 @@ public:
     StartOfLine   = 0x01,  // At start of line or only after whitespace.
     LeadingSpace  = 0x02,  // Whitespace exists before this token.
     DisableExpand = 0x04,  // This identifier may never be macro expanded.
-    NeedsCleaning = 0x08,   // Contained an escaped newline or trigraph.
+    NeedsCleaning = 0x08,  // Contained an escaped newline or trigraph.
     LeadingEmptyMacro = 0x10, // Empty macro exists before this token.
-    HasUDSuffix = 0x20     // This string or character literal has a ud-suffix.
+    HasUDSuffix = 0x20,    // This string or character literal has a ud-suffix.
+    HasUCN = 0x40          // This identifier contains a UCN.
   };
 
   tok::TokenKind getKind() const { return (tok::TokenKind)Kind; }
@@ -90,26 +91,18 @@ public:
   /// \brief Return true if this is a raw identifier (when lexing
   /// in raw mode) or a non-keyword identifier (when lexing in non-raw mode).
   bool isAnyIdentifier() const {
-    return is(tok::identifier) || is(tok::raw_identifier);
+    return tok::isAnyIdentifier(getKind());
   }
 
-  /// isLiteral - Return true if this is a "literal", like a numeric
+  /// \brief Return true if this is a "literal", like a numeric
   /// constant, string, etc.
   bool isLiteral() const {
-    return is(tok::numeric_constant) || is(tok::char_constant) ||
-           is(tok::wide_char_constant) || is(tok::utf16_char_constant) ||
-           is(tok::utf32_char_constant) || is(tok::string_literal) ||
-           is(tok::wide_string_literal) || is(tok::utf8_string_literal) ||
-           is(tok::utf16_string_literal) || is(tok::utf32_string_literal) ||
-           is(tok::angle_string_literal);
+    return tok::isLiteral(getKind());
   }
 
+  /// \brief Return true if this is any of tok::annot_* kind tokens.
   bool isAnnotation() const {
-#define ANNOTATION(NAME) \
-    if (is(tok::annot_##NAME)) \
-      return true;
-#include "clang/Basic/TokenKinds.def"
-    return false;
+    return tok::isAnnotation(getKind());
   }
 
   /// \brief Return a source location identifier for the specified
@@ -265,6 +258,9 @@ public:
   /// \brief Return true if this token is a string or character literal which
   /// has a ud-suffix.
   bool hasUDSuffix() const { return (Flags & HasUDSuffix) ? true : false; }
+
+  /// Returns true if this token contains a universal character name.
+  bool hasUCN() const { return (Flags & HasUCN) ? true : false; }
 };
 
 /// \brief Information about the conditional stack (\#if directives)

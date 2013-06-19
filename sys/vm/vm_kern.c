@@ -70,9 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>		/* for ticks and hz */
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -85,14 +85,26 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-vm_map_t kernel_map=0;
-vm_map_t kmem_map=0;
-vm_map_t exec_map=0;
+vm_map_t kernel_map;
+vm_map_t kmem_map;
+vm_map_t exec_map;
 vm_map_t pipe_map;
-vm_map_t buffer_map=0;
+vm_map_t buffer_map;
+vm_map_t bio_transient_map;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
+
+SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
+    NULL, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
+
+SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
+#if defined(__arm__) || defined(__sparc64__)
+    &vm_max_kernel_address, 0,
+#else
+    NULL, VM_MAX_KERNEL_ADDRESS,
+#endif
+    "Max kernel address");
 
 /*
  *	kmem_alloc_nofault:
@@ -222,13 +234,8 @@ kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 	vm_object_reference(object);
 	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
 	    VM_PROT_ALL, 0);
-	if ((flags & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOBUSY;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
-	if (flags & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
-	VM_OBJECT_LOCK(object);
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
+	VM_OBJECT_WLOCK(object);
 	end_offset = offset + size;
 	for (; offset < end_offset; offset += PAGE_SIZE) {
 		tries = 0;
@@ -236,12 +243,12 @@ retry:
 		m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags, 1,
 		    low, high, PAGE_SIZE, 0, memattr);
 		if (m == NULL) {
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
 				vm_map_unlock(map);
 				vm_pageout_grow_cache(tries, low, high);
 				vm_map_lock(map);
-				VM_OBJECT_LOCK(object);
+				VM_OBJECT_WLOCK(object);
 				tries++;
 				goto retry;
 			}
@@ -260,7 +267,7 @@ retry:
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	vm_map_unlock(map);
 	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
 	    VM_MAP_WIRE_NOHOLES);
@@ -296,26 +303,19 @@ kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 	vm_object_reference(object);
 	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
 	    VM_PROT_ALL, 0);
-	if ((flags & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOBUSY;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
-	if (flags & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
-	if (flags & M_NODUMP)
-		pflags |= VM_ALLOC_NODUMP;
-	VM_OBJECT_LOCK(object);
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
+	VM_OBJECT_WLOCK(object);
 	tries = 0;
 retry:
 	m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags,
 	    atop(size), low, high, alignment, boundary, memattr);
 	if (m == NULL) {
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
 			vm_map_unlock(map);
 			vm_pageout_grow_cache(tries, low, high);
 			vm_map_lock(map);
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			tries++;
 			goto retry;
 		}
@@ -329,7 +329,7 @@ retry:
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	vm_map_unlock(map);
 	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
 	    VM_MAP_WIRE_NOHOLES);
@@ -487,17 +487,9 @@ kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
 	    entry->wired_count == 0 && (entry->eflags & MAP_ENTRY_IN_TRANSITION)
 	    == 0, ("kmem_back: entry not found or misaligned"));
 
-	if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
 
-	if (flags & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
-	if (flags & M_NODUMP)
-		pflags |= VM_ALLOC_NODUMP;
-
-	VM_OBJECT_LOCK(kmem_object);
+	VM_OBJECT_WLOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 retry:
 		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i), pflags);
@@ -509,7 +501,7 @@ retry:
 		 */
 		if (m == NULL) {
 			if ((flags & M_NOWAIT) == 0) {
-				VM_OBJECT_UNLOCK(kmem_object);
+				VM_OBJECT_WUNLOCK(kmem_object);
 				entry->eflags |= MAP_ENTRY_IN_TRANSITION;
 				vm_map_unlock(map);
 				VM_WAIT;
@@ -519,7 +511,7 @@ retry:
 				    MAP_ENTRY_IN_TRANSITION,
 				    ("kmem_back: volatile entry"));
 				entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
-				VM_OBJECT_LOCK(kmem_object);
+				VM_OBJECT_WLOCK(kmem_object);
 				goto retry;
 			}
 			/* 
@@ -535,7 +527,7 @@ retry:
 				vm_page_unwire(m, 0);
 				vm_page_free(m);
 			}
-			VM_OBJECT_UNLOCK(kmem_object);
+			VM_OBJECT_WUNLOCK(kmem_object);
 			vm_map_delete(map, addr, addr + size);
 			return (KERN_NO_SPACE);
 		}
@@ -545,7 +537,7 @@ retry:
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
 		    ("kmem_malloc: page %p is managed", m));
 	}
-	VM_OBJECT_UNLOCK(kmem_object);
+	VM_OBJECT_WUNLOCK(kmem_object);
 
 	/*
 	 * Mark map entry as non-pageable.  Repeat the assert.
@@ -565,7 +557,7 @@ retry:
 	/*
 	 * Loop thru pages, entering them in the pmap.
 	 */
-	VM_OBJECT_LOCK(kmem_object);
+	VM_OBJECT_WLOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
 		/*
@@ -575,7 +567,7 @@ retry:
 		    TRUE);
 		vm_page_wakeup(m);
 	}
-	VM_OBJECT_UNLOCK(kmem_object);
+	VM_OBJECT_WUNLOCK(kmem_object);
 
 	return (KERN_SUCCESS);
 }

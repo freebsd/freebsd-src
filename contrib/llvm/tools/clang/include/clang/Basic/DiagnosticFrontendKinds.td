@@ -48,8 +48,6 @@ def err_fe_unable_to_interface_with_target : Error<
     "unable to interface with target machine">;
 def err_fe_unable_to_open_output : Error<
     "unable to open output file '%0': '%1'">;
-def err_fe_unable_to_open_logfile : Error<
-    "unable to open logfile file '%0': '%1'">;
 def err_fe_pth_file_has_no_source_header : Error<
     "PTH file '%0' does not designate an original source header file for -include-pth">;
 def warn_fe_macro_contains_embedded_newline : Warning<
@@ -58,6 +56,10 @@ def warn_fe_cc_print_header_failure : Warning<
     "unable to open CC_PRINT_HEADERS file: %0 (using stderr)">;
 def warn_fe_cc_log_diagnostics_failure : Warning<
     "unable to open CC_LOG_DIAGNOSTICS file: %0 (using stderr)">;
+def err_fe_no_pch_in_dir : Error<
+    "no suitable precompiled header file found in directory '%0'">;
+def err_fe_action_not_available : Error<
+    "action %0 not compiled in">;
 
 def warn_fe_serialized_diag_failure : Warning<
     "unable to open file %0 for serializing diagnostics (%1)">,
@@ -65,6 +67,8 @@ def warn_fe_serialized_diag_failure : Warning<
 
 def err_verify_missing_line : Error<
     "missing or invalid line number following '@' in expected %0">;
+def err_verify_missing_file : Error<
+    "file '%0' could not be located in expected %1">;
 def err_verify_invalid_range : Error<
     "invalid range following '-' in expected %0">;
 def err_verify_missing_start : Error<
@@ -76,6 +80,11 @@ def err_verify_invalid_content : Error<
 def err_verify_inconsistent_diags : Error<
     "'%0' diagnostics %select{expected|seen}1 but not %select{seen|expected}1: "
     "%2">;
+def err_verify_invalid_no_diags : Error<
+    "%select{expected|'expected-no-diagnostics'}0 directive cannot follow "
+    "%select{'expected-no-diagnostics' directive|other expected directives}0">;
+def err_verify_no_directives : Error<
+    "no expected directives found: consider use of 'expected-no-diagnostics'">;
 
 def note_fixit_applied : Note<"FIX-IT applied suggested code changes">;
 def note_fixit_in_macro : Note<
@@ -93,19 +102,19 @@ def err_relocatable_without_isysroot : Error<
 
 def warn_unknown_warning_option : Warning<
     "unknown warning option '%0'">,
-    InGroup<DiagGroup<"unknown-warning-option"> >;
+    InGroup<UnknownWarningOption>;
 def warn_unknown_negative_warning_option : Warning<
     "unknown warning option '%0'">,
-    InGroup<DiagGroup<"unknown-warning-option"> >;
+    InGroup<UnknownWarningOption>;
 def warn_unknown_warning_option_suggest : Warning<
     "unknown warning option '%0'; did you mean '%1'?">,
-    InGroup<DiagGroup<"unknown-warning-option"> >;
+    InGroup<UnknownWarningOption>;
 def warn_unknown_negative_warning_option_suggest : Warning<
     "unknown warning option '%0'; did you mean '%1'?">,
-    InGroup<DiagGroup<"unknown-warning-option"> >;
+    InGroup<UnknownWarningOption>;
 def warn_unknown_warning_specifier : Warning<
     "unknown %0 warning specifier: '%1'">,
-    InGroup<DiagGroup<"unknown-warning-option"> >;
+    InGroup<UnknownWarningOption>;
 
 def err_unknown_analyzer_checker : Error<
     "no analyzer checkers are associated with '%0'">;
@@ -122,8 +131,6 @@ def err_missing_module_name : Error<
   DefaultFatal;
 def err_missing_module : Error<
   "no module named '%0' declared in module map file '%1'">, DefaultFatal;
-def err_missing_umbrella_header : Error<
-  "cannot open umbrella header '%0': %1">, DefaultFatal;
 def err_no_submodule : Error<"no submodule named %0 in module '%1'">;
 def err_no_submodule_suggest : Error<
   "no submodule named %0 in module '%1'; did you mean '%2'?">;
@@ -132,5 +139,11 @@ def warn_missing_submodule : Warning<"missing submodule '%0'">,
 def err_module_map_temp_file : Error<
   "unable to write temporary module map file '%0'">, DefaultFatal;
 def err_module_unavailable : Error<"module '%0' requires feature '%1'">;
-
+def warn_module_config_macro_undef : Warning<
+  "%select{definition|#undef}0 of configuration macro '%1' has no effect on "
+  "the import of '%2'; pass '%select{-D%1=...|-U%1}0' on the command line "
+  "to configure the module">,
+  InGroup<ConfigMacros>;
+def note_module_def_undef_here : Note<
+  "macro was %select{defined|#undef'd}0 here">;
 }

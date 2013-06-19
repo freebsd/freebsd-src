@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/rwlock.h>
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -77,6 +77,12 @@ static int	dirent_exists(struct vnode *vp, const char *dirname,
 			      struct thread *td);
 
 #define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
+
+static int vop_stdis_text(struct vop_is_text_args *ap);
+static int vop_stdset_text(struct vop_set_text_args *ap);
+static int vop_stdunset_text(struct vop_unset_text_args *ap);
+static int vop_stdget_writecount(struct vop_get_writecount_args *ap);
+static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -126,6 +132,11 @@ struct vop_vector default_vnodeops = {
 	.vop_unp_bind =		vop_stdunp_bind,
 	.vop_unp_connect =	vop_stdunp_connect,
 	.vop_unp_detach =	vop_stdunp_detach,
+	.vop_is_text =		vop_stdis_text,
+	.vop_set_text =		vop_stdset_text,
+	.vop_unset_text =	vop_stdunset_text,
+	.vop_get_writecount =	vop_stdget_writecount,
+	.vop_add_writecount =	vop_stdadd_writecount,
 };
 
 /*
@@ -651,7 +662,7 @@ loop2:
 				continue;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_INTERLOCK | LK_SLEEPFAIL,
-			    BO_MTX(bo)) != 0) {
+			    BO_LOCKPTR(bo)) != 0) {
 				BO_LOCK(bo);
 				goto loop1;
 			}
@@ -845,8 +856,12 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 				error = ENOMEM;
 				goto out;
 			}
-			bcopy(dp->d_name, buf + i, dp->d_namlen);
-			error = 0;
+			if (dp->d_namlen == 1 && dp->d_name[0] == '.') {
+				error = ENOENT;
+			} else {
+				bcopy(dp->d_name, buf + i, dp->d_namlen);
+				error = 0;
+			}
 			goto out;
 		}
 	} while (len > 0 || !eofflag);
@@ -1002,7 +1017,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 {
 	struct vnode *vp;
 	off_t start, end;
-	int error, vfslocked;
+	int error;
 
 	vp = ap->a_vp;
 	switch (ap->a_advice) {
@@ -1023,24 +1038,21 @@ vop_stdadvise(struct vop_advise_args *ap)
 		 * requested range.
 		 */
 		error = 0;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
 			VOP_UNLOCK(vp, 0);
-			VFS_UNLOCK_GIANT(vfslocked);
 			break;
 		}
 		vinvalbuf(vp, V_CLEANONLY, 0, 0);
 		if (vp->v_object != NULL) {
 			start = trunc_page(ap->a_start);
 			end = round_page(ap->a_end);
-			VM_OBJECT_LOCK(vp->v_object);
+			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_cache(vp->v_object, OFF_TO_IDX(start),
 			    OFF_TO_IDX(end));
-			VM_OBJECT_UNLOCK(vp->v_object);
+			VM_OBJECT_WUNLOCK(vp->v_object);
 		}
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 	default:
 		error = EINVAL;
@@ -1070,6 +1082,45 @@ vop_stdunp_detach(struct vop_unp_detach_args *ap)
 {
 
 	ap->a_vp->v_socket = NULL;
+	return (0);
+}
+
+static int
+vop_stdis_text(struct vop_is_text_args *ap)
+{
+
+	return ((ap->a_vp->v_vflag & VV_TEXT) != 0);
+}
+
+static int
+vop_stdset_text(struct vop_set_text_args *ap)
+{
+
+	ap->a_vp->v_vflag |= VV_TEXT;
+	return (0);
+}
+
+static int
+vop_stdunset_text(struct vop_unset_text_args *ap)
+{
+
+	ap->a_vp->v_vflag &= ~VV_TEXT;
+	return (0);
+}
+
+static int
+vop_stdget_writecount(struct vop_get_writecount_args *ap)
+{
+
+	*ap->a_writecount = ap->a_vp->v_writecount;
+	return (0);
+}
+
+static int
+vop_stdadd_writecount(struct vop_add_writecount_args *ap)
+{
+
+	ap->a_vp->v_writecount += ap->a_inc;
 	return (0);
 }
 

@@ -670,12 +670,14 @@ pids_init(void)
 static int
 pids_empty(void)
 {
+
 	return (curprocs == 0);
 }
 
 static int
 pids_full(void)
 {
+
 	return (curprocs >= maxprocs);
 }
 
@@ -709,7 +711,6 @@ findfreeslot(void)
 
 	if ((slot = findslot(NOPID)) < 0)
 		errx(1, "internal error: no free pid slot");
-
 	return (slot);
 }
 
@@ -721,13 +722,13 @@ findslot(pid_t pid)
 	for (slot = 0; slot < maxprocs; slot++)
 		if (childpids[slot] == pid)
 			return (slot);
-
 	return (-1);
 }
 
 static void
 clearslot(int slot)
 {
+
 	childpids[slot] = NOPID;
 }
 
@@ -762,6 +763,7 @@ prompt(void)
 static void
 usage(void)
 {
+
 	fprintf(stderr,
 "usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]]\n"
 "             [-J replstr] [-L number] [-n number [-x]] [-P maxprocs]\n"

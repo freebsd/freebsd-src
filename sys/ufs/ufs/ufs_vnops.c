@@ -1504,8 +1504,8 @@ relock:
 		if (error)
 			panic("ufs_rename: from entry went away!");
 		if (ino != fip->i_number)
-			panic("ufs_rename: ino mismatch %d != %d\n", ino,
-			    fip->i_number);
+			panic("ufs_rename: ino mismatch %ju != %ju\n",
+			    (uintmax_t)ino, (uintmax_t)fip->i_number);
 	}
 	/*
 	 * If the source is a directory with a
@@ -1554,6 +1554,7 @@ relock:
 	cache_purge(fvp);
 	if (tvp)
 		cache_purge(tvp);
+	cache_purge_negative(tdvp);
 
 unlockout:
 	vput(fdvp);

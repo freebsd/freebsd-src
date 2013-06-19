@@ -42,7 +42,6 @@ namespace {
 
   private:
     const TargetInstrInfo *TII; // Machine instruction info.
-    MachineBasicBlock *MBB;     // Current basic block
 
     // Any YMM register live-in to this function?
     bool FnHasLiveInYmm;
@@ -84,7 +83,7 @@ namespace {
     //  2) All states must be clean for the result to be clean
     //  3) If none above and one unknown, the result state is also unknown
     //
-    unsigned computeState(unsigned PrevState, unsigned CurState) {
+    static unsigned computeState(unsigned PrevState, unsigned CurState) {
       if (PrevState == ST_INIT)
         return CurState;
 
@@ -121,9 +120,19 @@ static bool checkFnHasLiveInYmm(MachineRegisterInfo &MRI) {
   return false;
 }
 
+static bool clobbersAllYmmRegs(const MachineOperand &MO) {
+  for (unsigned reg = X86::YMM0; reg < X86::YMM15; ++reg) {
+    if (!MO.clobbersPhysReg(reg))
+      return false;
+  }
+  return true;
+}
+
 static bool hasYmmReg(MachineInstr *MI) {
-  for (int i = 0, e = MI->getNumOperands(); i != e; ++i) {
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
+    if (MI->isCall() && MO.isRegMask() && !clobbersAllYmmRegs(MO))
+      return true;
     if (!MO.isReg())
       continue;
     if (MO.isDebug())
@@ -148,7 +157,7 @@ bool VZeroUpperInserter::runOnMachineFunction(MachineFunction &MF) {
   const TargetRegisterClass *RC = &X86::VR256RegClass;
   for (TargetRegisterClass::iterator i = RC->begin(), e = RC->end();
        i != e; i++) {
-    if (MRI.isPhysRegUsed(*i)) {
+    if (!MRI.reg_nodbg_empty(*i)) {
       YMMUsed = true;
       break;
     }
@@ -189,7 +198,6 @@ bool VZeroUpperInserter::processBasicBlock(MachineFunction &MF,
                                            MachineBasicBlock &BB) {
   bool Changed = false;
   unsigned BBNum = BB.getNumber();
-  MBB = &BB;
 
   // Don't process already solved BBs
   if (BBSolved[BBNum])
@@ -207,7 +215,7 @@ bool VZeroUpperInserter::processBasicBlock(MachineFunction &MF,
 
   // The entry MBB for the function may set the initial state to dirty if
   // the function receives any YMM incoming arguments
-  if (MBB == MF.begin()) {
+  if (&BB == MF.begin()) {
     EntryState = ST_CLEAN;
     if (FnHasLiveInYmm)
       EntryState = ST_DIRTY;
@@ -253,7 +261,7 @@ bool VZeroUpperInserter::processBasicBlock(MachineFunction &MF,
       // When unknown, only compute the information within the block to have
       // it available in the exit if possible, but don't change the block.
       if (EntryState != ST_UNKNOWN) {
-        BuildMI(*MBB, I, dl, TII->get(X86::VZEROUPPER));
+        BuildMI(BB, I, dl, TII->get(X86::VZEROUPPER));
         ++NumVZU;
       }
 

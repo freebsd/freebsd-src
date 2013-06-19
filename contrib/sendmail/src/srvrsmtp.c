@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010, 2012, 2013 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1008 2011/01/12 23:52:59 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1015 2013/03/12 15:24:54 ca Exp $")
 
 #include <sm/time.h>
 #include <sm/fdset.h>
@@ -30,6 +30,7 @@ SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1008 2011/01/12 23:52:59 ca Exp $")
 static int saslmechs __P((sasl_conn_t *, char **));
 #endif /* SASL */
 #if STARTTLS
+#  include <openssl/err.h>
 # include <sysexits.h>
 
 static SSL_CTX	*srv_ctx = NULL;	/* TLS server context */
@@ -1863,7 +1864,7 @@ smtp(nullserver, d_flags, e)
 			{
 				message("454 4.3.3 TLS not available: error generating SSL handle");
 				if (LogLevel > 8)
-					tlslogerr("server");
+					tlslogerr(LOG_WARNING, "server");
 				goto tls_done;
 			}
 
@@ -1914,12 +1915,19 @@ smtp(nullserver, d_flags, e)
 
 				if (LogLevel > 5)
 				{
+					unsigned long l;
+					const char *sr;
+
+					l = ERR_peek_error();
+					sr = ERR_reason_error_string(l);
 					sm_syslog(LOG_WARNING, NOQID,
-						  "STARTTLS=server, error: accept failed=%d, SSL_error=%d, errno=%d, retry=%d, relay=%.100s",
-						  r, ssl_err, errno, i,
+						  "STARTTLS=server, error: accept failed=%d, reason=%s, SSL_error=%d, errno=%d, retry=%d, relay=%.100s",
+						  r, sr == NULL ? "unknown"
+								: sr,
+						  ssl_err, errno, i,
 						  CurSmtpClient);
-					if (LogLevel > 8)
-						tlslogerr("server");
+					if (LogLevel > 9)
+						tlslogerr(LOG_WARNING, "server");
 				}
 				tls_ok_srv = false;
 				SSL_free(srv_ssl);
@@ -3481,7 +3489,7 @@ smtp_data(smtp, e)
 	collect(InChannel, true, NULL, e, true);
 
 	/* redefine message size */
-	(void) sm_snprintf(buf, sizeof(buf), "%ld", e->e_msgsize);
+	(void) sm_snprintf(buf, sizeof(buf), "%ld", PRT_NONNEGL(e->e_msgsize));
 	macdefine(&e->e_macro, A_TEMP, macid("{msg_size}"), buf);
 
 	/* rscheck() will set Errors or EF_DISCARD if it trips */
@@ -3559,7 +3567,7 @@ smtp_data(smtp, e)
 	}
 
 	/* Milter may have changed message size */
-	(void) sm_snprintf(buf, sizeof(buf), "%ld", e->e_msgsize);
+	(void) sm_snprintf(buf, sizeof(buf), "%ld", PRT_NONNEGL(e->e_msgsize));
 	macdefine(&e->e_macro, A_TEMP, macid("{msg_size}"), buf);
 
 	/* abort message filters that didn't get the body & log msg is OK */
@@ -4510,6 +4518,8 @@ rcpt_esmtp_args(a, kp, vp, e)
 	}
 	else if (sm_strcasecmp(kp, "orcpt") == 0)
 	{
+		char *p;
+
 		if (!bitset(SRV_OFFER_DSN, e->e_features))
 		{
 			usrerr("504 5.7.0 Sorry, ORCPT not supported, we do not allow DSN");
@@ -4520,16 +4530,25 @@ rcpt_esmtp_args(a, kp, vp, e)
 			usrerr("501 5.5.2 ORCPT requires a value");
 			/* NOTREACHED */
 		}
-		if (strchr(vp, ';') == NULL || !xtextok(vp))
-		{
-			usrerr("501 5.5.4 Syntax error in ORCPT parameter value");
-			/* NOTREACHED */
-		}
 		if (a->q_orcpt != NULL)
 		{
 			usrerr("501 5.5.0 Duplicate ORCPT parameter");
 			/* NOTREACHED */
 		}
+		p = strchr(vp, ';');
+		if (p == NULL)
+		{
+			usrerr("501 5.5.4 Syntax error in ORCPT parameter value");
+			/* NOTREACHED */
+		}
+		*p = '\0';
+		if (!isatom(vp) || !xtextok(p + 1))
+		{
+			*p = ';';
+			usrerr("501 5.5.4 Syntax error in ORCPT parameter value");
+			/* NOTREACHED */
+		}
+		*p = ';';
 		a->q_orcpt = sm_rpool_strdup_x(e->e_rpool, vp);
 	}
 	else
@@ -4915,7 +4934,7 @@ help(topic, e)
 
 	len = strlen(topic);
 
-	while (sm_io_fgets(hf, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(hf, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		if (buf[0] == '#')
 		{

@@ -16,16 +16,16 @@
 
 #define DEBUG_TYPE "prune-eh"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/CallGraphSCCPass.h"
-#include "llvm/Constants.h"
-#include "llvm/Function.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Analysis/CallGraph.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CFG.h"
 #include <algorithm>
 using namespace llvm;
@@ -137,16 +137,20 @@ bool PruneEH::runOnSCC(CallGraphSCC &SCC) {
   // If the SCC doesn't unwind or doesn't throw, note this fact.
   if (!SCCMightUnwind || !SCCMightReturn)
     for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
-      Attributes NewAttributes = Attribute::None;
+      AttrBuilder NewAttributes;
 
       if (!SCCMightUnwind)
-        NewAttributes |= Attribute::NoUnwind;
+        NewAttributes.addAttribute(Attribute::NoUnwind);
       if (!SCCMightReturn)
-        NewAttributes |= Attribute::NoReturn;
+        NewAttributes.addAttribute(Attribute::NoReturn);
 
       Function *F = (*I)->getFunction();
-      const AttrListPtr &PAL = F->getAttributes();
-      const AttrListPtr &NPAL = PAL.addAttr(~0, NewAttributes);
+      const AttributeSet &PAL = F->getAttributes();
+      const AttributeSet &NPAL =
+        PAL.addAttributes(F->getContext(), AttributeSet::FunctionIndex,
+                          AttributeSet::get(F->getContext(),
+                                            AttributeSet::FunctionIndex,
+                                            NewAttributes));
       if (PAL != NPAL) {
         MadeChange = true;
         F->setAttributes(NPAL);

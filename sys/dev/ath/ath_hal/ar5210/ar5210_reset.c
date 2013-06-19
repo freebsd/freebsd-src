@@ -190,7 +190,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	OS_REG_WRITE(ah, AR_CLR_TMASK, 1);
 	OS_REG_WRITE(ah, AR_TRIG_LEV, 1);	/* minimum */
 
-	OS_REG_WRITE(ah, AR_DIAG_SW, 0);
+	ar5210UpdateDiagReg(ah, 0);
 
 	OS_REG_WRITE(ah, AR_CFP_PERIOD, 0);
 	OS_REG_WRITE(ah, AR_TIMER0, 0);		/* next beacon time */
@@ -285,7 +285,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (ahp->ah_ctstimeout != (u_int) -1)
 		ar5210SetCTSTimeout(ah, ahp->ah_ctstimeout);
 	if (AH_PRIVATE(ah)->ah_diagreg != 0)
-		OS_REG_WRITE(ah, AR_DIAG_SW, AH_PRIVATE(ah)->ah_diagreg);
+		ar5210UpdateDiagReg(ah, AH_PRIVATE(ah)->ah_diagreg);
 
 	AH_PRIVATE(ah)->ah_opmode = opmode;	/* record operating mode */
 
@@ -454,7 +454,7 @@ ar5210PerCalibrationN(struct ath_hal *ah,
 	if (ichan == AH_NULL)
 		return AH_FALSE;
 	/* Disable tx and rx */
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		OS_REG_READ(ah, AR_DIAG_SW) | (AR_DIAG_SW_DIS_TX | AR_DIAG_SW_DIS_RX));
 
 	/* Disable Beacon Enable */
@@ -551,7 +551,7 @@ ar5210PerCalibrationN(struct ath_hal *ah,
 	}
 
 	/* Clear tx and rx disable bit */
-	OS_REG_WRITE(ah, AR_DIAG_SW,
+	ar5210UpdateDiagReg(ah,
 		 OS_REG_READ(ah, AR_DIAG_SW) & ~(AR_DIAG_SW_DIS_TX | AR_DIAG_SW_DIS_RX));
 
 	/* Re-enable Beacons */

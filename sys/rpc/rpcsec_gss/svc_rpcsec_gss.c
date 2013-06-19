@@ -984,7 +984,7 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 
 static bool_t
 svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
-    gss_qop_t *qop)
+    gss_qop_t *qop, rpc_gss_proc_t gcproc)
 {
 	struct opaque_auth	*oa;
 	gss_buffer_desc		 rpcbuf, checksum;
@@ -1024,7 +1024,16 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 	if (maj_stat != GSS_S_COMPLETE) {
 		rpc_gss_log_status("gss_verify_mic", client->cl_mech,
 		    maj_stat, min_stat);
-		client->cl_state = CLIENT_STALE;
+		/*
+		 * A bug in some versions of the Linux client generates a
+		 * Destroy operation with a bogus encrypted checksum. Deleting
+		 * the credential handle for that case causes the mount to fail.
+		 * Since the checksum is bogus (gss_verify_mic() failed), it
+		 * doesn't make sense to destroy the handle and not doing so
+		 * fixes the Linux mount.
+		 */
+		if (gcproc != RPCSEC_GSS_DESTROY)
+			client->cl_state = CLIENT_STALE;
 		return (FALSE);
 	}
 
@@ -1358,7 +1367,7 @@ svc_rpc_gss(struct svc_req *rqst, struct rpc_msg *msg)
 			break;
 		}
 
-		if (!svc_rpc_gss_validate(client, msg, &qop)) {
+		if (!svc_rpc_gss_validate(client, msg, &qop, gc.gc_proc)) {
 			result = RPCSEC_GSS_CREDPROBLEM;
 			break;
 		}

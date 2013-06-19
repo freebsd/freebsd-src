@@ -20,11 +20,12 @@
 #define LLVM_C_TARGETMACHINE_H
 
 #include "llvm-c/Core.h"
+#include "llvm-c/Target.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-typedef struct LLVMTargetMachine *LLVMTargetMachineRef;
+typedef struct LLVMOpaqueTargetMachine *LLVMTargetMachineRef;
 typedef struct LLVMTarget *LLVMTargetRef;
 
 typedef enum {
@@ -104,7 +105,7 @@ char *LLVMGetTargetMachineCPU(LLVMTargetMachineRef T);
   LLVMDisposeMessage. */
 char *LLVMGetTargetMachineFeatureString(LLVMTargetMachineRef T);
 
-/** Returns the llvm::TargetData used for this llvm:TargetMachine. */
+/** Returns the llvm::DataLayout used for this llvm:TargetMachine. */
 LLVMTargetDataRef LLVMGetTargetMachineData(LLVMTargetMachineRef T);
 
 /** Emits an asm or object file for the given module to the filename. This
@@ -113,29 +114,10 @@ LLVMTargetDataRef LLVMGetTargetMachineData(LLVMTargetMachineRef T);
 LLVMBool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef T, LLVMModuleRef M,
   char *Filename, LLVMCodeGenFileType codegen, char **ErrorMessage);
 
-
-
-
+/** Compile the LLVM IR stored in \p M and store the result in \p OutMemBuf. */
+LLVMBool LLVMTargetMachineEmitToMemoryBuffer(LLVMTargetMachineRef T, LLVMModuleRef M,
+  LLVMCodeGenFileType codegen, char** ErrorMessage, LLVMMemoryBufferRef *OutMemBuf);
 #ifdef __cplusplus
-}
-
-namespace llvm {
-  class TargetMachine;
-  class Target;
-
-  inline TargetMachine *unwrap(LLVMTargetMachineRef P) {
-    return reinterpret_cast<TargetMachine*>(P);
-  }
-  inline Target *unwrap(LLVMTargetRef P) {
-    return reinterpret_cast<Target*>(P);
-  }
-  inline LLVMTargetMachineRef wrap(const TargetMachine *P) {
-    return reinterpret_cast<LLVMTargetMachineRef>(
-      const_cast<TargetMachine*>(P));
-  }
-  inline LLVMTargetRef wrap(const Target * P) {
-    return reinterpret_cast<LLVMTargetRef>(const_cast<Target*>(P));
-  }
 }
 #endif
 

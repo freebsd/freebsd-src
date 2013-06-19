@@ -254,7 +254,7 @@ kread(kvm_t *kvm, void *kvm_pointer, void *address, size_t size,
 }
 
 static int
-kread_string(kvm_t *kvm, void *kvm_pointer, char *buffer, int buflen)
+kread_string(kvm_t *kvm, const void *kvm_pointer, char *buffer, int buflen)
 {
 	ssize_t ret;
 	int i;
@@ -446,7 +446,7 @@ skip_percpu:
 				    kz.uk_ipers;
 			mtp->mt_byteslimit = mtp->mt_countlimit * mtp->mt_size;
 			mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
-			for (ubp = LIST_FIRST(&uz.uz_full_bucket); ubp !=
+			for (ubp = LIST_FIRST(&uz.uz_buckets); ubp !=
 			    NULL; ubp = LIST_NEXT(&ub, ub_link)) {
 				ret = kread(kvm, ubp, &ub, sizeof(ub), 0);
 				mtp->mt_zonefree += ub.ub_cnt;

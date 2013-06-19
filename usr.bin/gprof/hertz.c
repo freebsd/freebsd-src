@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
      */
 #define	HZ_WRONG	0
 
+int hertz(void);
+
 int
 hertz(void)
 {

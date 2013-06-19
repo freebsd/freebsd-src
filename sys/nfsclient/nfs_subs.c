@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
@@ -172,23 +173,6 @@ nfs_xid_gen(void)
 }
 
 /*
- * Create the header for an rpc request packet
- * The hsiz is the size of the rest of the nfs request header.
- * (just used to decide if a cluster is a good idea)
- */
-struct mbuf *
-nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
-{
-	struct mbuf *mb;
-
-	MGET(mb, M_WAIT, MT_DATA);
-	if (hsiz >= MINCLSIZE)
-		MCLGET(mb, M_WAIT);
-	mb->m_len = 0;
-	return (mb);
-}
-
-/*
  * copies a uio scatter/gather list to an mbuf chain.
  * NOTE: can ony handle iovcnt == 1
  */
@@ -218,10 +202,10 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 		while (left > 0) {
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
-				MGET(mp, M_WAIT, MT_DATA);
 				if (clflg)
-					MCLGET(mp, M_WAIT);
-				mp->m_len = 0;
+					mp = m_getcl(M_WAITOK, MT_DATA, 0);
+				else
+					mp = m_get(M_WAITOK, MT_DATA);
 				mp2->m_next = mp;
 				mp2 = mp;
 				mlen = M_TRAILINGSPACE(mp);
@@ -251,8 +235,7 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 	}
 	if (rem > 0) {
 		if (rem > M_TRAILINGSPACE(mp)) {
-			MGET(mp, M_WAIT, MT_DATA);
-			mp->m_len = 0;
+			mp = m_get(M_WAITOK, MT_DATA);
 			mp2->m_next = mp;
 		}
 		cp = mtod(mp, caddr_t)+mp->m_len;
@@ -296,10 +279,13 @@ nfsm_strtmbuf(struct mbuf **mb, char **bpos, const char *cp, long siz)
 	}
 	/* Loop around adding mbufs */
 	while (siz > 0) {
-		MGET(m1, M_WAIT, MT_DATA);
-		if (siz > MLEN)
-			MCLGET(m1, M_WAIT);
-		m1->m_len = NFSMSIZ(m1);
+		if (siz > MLEN) {
+			m1 = m_getcl(M_WAITOK, MT_DATA, 0);
+			m1->m_len = MCLBYTES;
+		} else {
+			m1 = m_get(M_WAITOK, MT_DATA);
+			m1->m_len = MLEN;
+		}
 		m2->m_next = m1;
 		m2 = m1;
 		tl = mtod(m1, u_int32_t *);
@@ -478,10 +464,12 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct timespec mtime, mtime_save;
 	int v3 = NFS_ISV3(vp);
 	int error = 0;
+	u_quad_t nsize;
+	int setnsize;
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
-	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAIT);
+	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAITOK);
 	if (cp2 == NULL) {
 		error = EBADRPC;
 		goto out;
@@ -580,6 +568,8 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 		vap->va_filerev = 0;
 	}
 	np->n_attrstamp = time_second;
+	setnsize = 0;
+	nsize = 0;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -606,7 +596,8 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 				np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
 			}
-			vnode_pager_setsize(vp, np->n_size);
+			setnsize = 1;
+			nsize = vap->va_size;
 		} else {
 			np->n_size = vap->va_size;
 		}
@@ -643,6 +634,8 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, &np->n_vattr, 0);
 #endif
 	mtx_unlock(&np->n_mtx);
+	if (setnsize)
+		vnode_pager_setsize(vp, nsize);
 out:
 #ifdef KDTRACE_HOOKS
 	if (error)
@@ -1110,7 +1103,7 @@ nfsm_v3attrbuild_xx(struct vattr *va, int full, struct mbuf **mb,
 		*tl = nfs_false;
 	}
 	if (va->va_atime.tv_sec != VNOVAL) {
-		if (va->va_atime.tv_sec != time_second) {
+		if ((va->va_vaflags & VA_UTIMES_NULL) == 0) {
 			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
 			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 			txdr_nfsv3time(&va->va_atime, tl);
@@ -1123,7 +1116,7 @@ nfsm_v3attrbuild_xx(struct vattr *va, int full, struct mbuf **mb,
 		*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 	}
 	if (va->va_mtime.tv_sec != VNOVAL) {
-		if (va->va_mtime.tv_sec != time_second) {
+		if ((va->va_vaflags & VA_UTIMES_NULL) == 0) {
 			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
 			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 			txdr_nfsv3time(&va->va_mtime, tl);

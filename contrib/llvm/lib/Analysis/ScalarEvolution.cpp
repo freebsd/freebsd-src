@@ -59,22 +59,25 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "scalar-evolution"
-#include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/GlobalAlias.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Operator.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/Debug.h"
@@ -83,9 +86,7 @@
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -105,6 +106,11 @@ MaxBruteForceIterations("scalar-evolution-max-iterations", cl::ReallyHidden,
                                  "derived loop"),
                         cl::init(100));
 
+// FIXME: Enable this with XDEBUG when the test suite is clean.
+static cl::opt<bool>
+VerifySCEV("verify-scev",
+           cl::desc("Verify ScalarEvolution's backedge taken counts (slow)"));
+
 INITIALIZE_PASS_BEGIN(ScalarEvolution, "scalar-evolution",
                 "Scalar Evolution Analysis", false, true)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
@@ -122,10 +128,12 @@ char ScalarEvolution::ID = 0;
 // Implementation of the SCEV class.
 //
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void SCEV::dump() const {
   print(dbgs());
   dbgs() << '\n';
 }
+#endif
 
 void SCEV::print(raw_ostream &OS) const {
   switch (getSCEVType()) {
@@ -2580,7 +2588,7 @@ const SCEV *ScalarEvolution::getUMinExpr(const SCEV *LHS,
 }
 
 const SCEV *ScalarEvolution::getSizeOfExpr(Type *AllocTy) {
-  // If we have TargetData, we can bypass creating a target-independent
+  // If we have DataLayout, we can bypass creating a target-independent
   // constant expression and then folding it back into a ConstantInt.
   // This is just a compile-time optimization.
   if (TD)
@@ -2606,7 +2614,7 @@ const SCEV *ScalarEvolution::getAlignOfExpr(Type *AllocTy) {
 
 const SCEV *ScalarEvolution::getOffsetOfExpr(StructType *STy,
                                              unsigned FieldNo) {
-  // If we have TargetData, we can bypass creating a target-independent
+  // If we have DataLayout, we can bypass creating a target-independent
   // constant expression and then folding it back into a ConstantInt.
   // This is just a compile-time optimization.
   if (TD)
@@ -2671,7 +2679,7 @@ bool ScalarEvolution::isSCEVable(Type *Ty) const {
 uint64_t ScalarEvolution::getTypeSizeInBits(Type *Ty) const {
   assert(isSCEVable(Ty) && "Type is not SCEVable!");
 
-  // If we have a TargetData, use it!
+  // If we have a DataLayout, use it!
   if (TD)
     return TD->getTypeSizeInBits(Ty);
 
@@ -2679,7 +2687,7 @@ uint64_t ScalarEvolution::getTypeSizeInBits(Type *Ty) const {
   if (Ty->isIntegerTy())
     return Ty->getPrimitiveSizeInBits();
 
-  // The only other support type is pointer. Without TargetData, conservatively
+  // The only other support type is pointer. Without DataLayout, conservatively
   // assume pointers are 64-bit.
   assert(Ty->isPointerTy() && "isSCEVable permitted a non-SCEVable type!");
   return 64;
@@ -2699,7 +2707,7 @@ Type *ScalarEvolution::getEffectiveSCEVType(Type *Ty) const {
   assert(Ty->isPointerTy() && "Unexpected non-pointer non-integer type!");
   if (TD) return TD->getIntPtrType(getContext());
 
-  // Without TargetData, conservatively assume pointers are 64-bit.
+  // Without DataLayout, conservatively assume pointers are 64-bit.
   return Type::getInt64Ty(getContext());
 }
 
@@ -3929,10 +3937,19 @@ const SCEV *ScalarEvolution::createSCEV(Value *V) {
 /// before taking the branch. For loops with multiple exits, it may not be the
 /// number times that the loop header executes because the loop may exit
 /// prematurely via another branch.
+///
+/// FIXME: We conservatively call getBackedgeTakenCount(L) instead of
+/// getExitCount(L, ExitingBlock) to compute a safe trip count considering all
+/// loop exits. getExitCount() may return an exact count for this branch
+/// assuming no-signed-wrap. The number of well-defined iterations may actually
+/// be higher than this trip count if this exit test is skipped and the loop
+/// exits via a different branch. Ideally, getExitCount() would know whether it
+/// depends on a NSW assumption, and we would only fall back to a conservative
+/// trip count in that case.
 unsigned ScalarEvolution::
-getSmallConstantTripCount(Loop *L, BasicBlock *ExitingBlock) {
+getSmallConstantTripCount(Loop *L, BasicBlock */*ExitingBlock*/) {
   const SCEVConstant *ExitCount =
-    dyn_cast<SCEVConstant>(getExitCount(L, ExitingBlock));
+    dyn_cast<SCEVConstant>(getBackedgeTakenCount(L));
   if (!ExitCount)
     return 0;
 
@@ -3959,8 +3976,8 @@ getSmallConstantTripCount(Loop *L, BasicBlock *ExitingBlock) {
 /// As explained in the comments for getSmallConstantTripCount, this assumes
 /// that control exits the loop via ExitingBlock.
 unsigned ScalarEvolution::
-getSmallConstantTripMultiple(Loop *L, BasicBlock *ExitingBlock) {
-  const SCEV *ExitCount = getExitCount(L, ExitingBlock);
+getSmallConstantTripMultiple(Loop *L, BasicBlock */*ExitingBlock*/) {
+  const SCEV *ExitCount = getBackedgeTakenCount(L);
   if (ExitCount == getCouldNotCompute())
     return 1;
 
@@ -3978,15 +3995,18 @@ getSmallConstantTripMultiple(Loop *L, BasicBlock *ExitingBlock) {
 
   ConstantInt *Result = MulC->getValue();
 
-  // Guard against huge trip counts.
-  if (!Result || Result->getValue().getActiveBits() > 32)
+  // Guard against huge trip counts (this requires checking
+  // for zero to handle the case where the trip count == -1 and the
+  // addition wraps).
+  if (!Result || Result->getValue().getActiveBits() > 32 ||
+      Result->getValue().getActiveBits() == 0)
     return 1;
 
   return (unsigned)Result->getZExtValue();
 }
 
 // getExitCount - Get the expression for the number of loop iterations for which
-// this loop is guaranteed not to exit via ExitintBlock. Otherwise return
+// this loop is guaranteed not to exit via ExitingBlock. Otherwise return
 // SCEVCouldNotCompute.
 const SCEV *ScalarEvolution::getExitCount(Loop *L, BasicBlock *ExitingBlock) {
   return getBackedgeTakenInfo(L).getExact(ExitingBlock, this);
@@ -4219,6 +4239,25 @@ ScalarEvolution::BackedgeTakenInfo::getMax(ScalarEvolution *SE) const {
   return Max ? Max : SE->getCouldNotCompute();
 }
 
+bool ScalarEvolution::BackedgeTakenInfo::hasOperand(const SCEV *S,
+                                                    ScalarEvolution *SE) const {
+  if (Max && Max != SE->getCouldNotCompute() && SE->hasOperand(Max, S))
+    return true;
+
+  if (!ExitNotTaken.ExitingBlock)
+    return false;
+
+  for (const ExitNotTakenInfo *ENT = &ExitNotTaken;
+       ENT != 0; ENT = ENT->getNextExit()) {
+
+    if (ENT->ExactNotTaken != SE->getCouldNotCompute()
+        && SE->hasOperand(ENT->ExactNotTaken, S)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /// Allocate memory for BackedgeTakenInfo and copy the not-taken count of each
 /// computable exit into a persistent ExitNotTakenInfo array.
 ScalarEvolution::BackedgeTakenInfo::BackedgeTakenInfo(
@@ -4352,26 +4391,36 @@ ScalarEvolution::ComputeExitLimit(const Loop *L, BasicBlock *ExitingBlock) {
   // Proceed to the next level to examine the exit condition expression.
   return ComputeExitLimitFromCond(L, ExitBr->getCondition(),
                                   ExitBr->getSuccessor(0),
-                                  ExitBr->getSuccessor(1));
+                                  ExitBr->getSuccessor(1),
+                                  /*IsSubExpr=*/false);
 }
 
 /// ComputeExitLimitFromCond - Compute the number of times the
 /// backedge of the specified loop will execute if its exit condition
 /// were a conditional branch of ExitCond, TBB, and FBB.
+///
+/// @param IsSubExpr is true if ExitCond does not directly control the exit
+/// branch. In this case, we cannot assume that the loop only exits when the
+/// condition is true and cannot infer that failing to meet the condition prior
+/// to integer wraparound results in undefined behavior.
 ScalarEvolution::ExitLimit
 ScalarEvolution::ComputeExitLimitFromCond(const Loop *L,
                                           Value *ExitCond,
                                           BasicBlock *TBB,
-                                          BasicBlock *FBB) {
+                                          BasicBlock *FBB,
+                                          bool IsSubExpr) {
   // Check if the controlling expression for this loop is an And or Or.
   if (BinaryOperator *BO = dyn_cast<BinaryOperator>(ExitCond)) {
     if (BO->getOpcode() == Instruction::And) {
       // Recurse on the operands of the and.
-      ExitLimit EL0 = ComputeExitLimitFromCond(L, BO->getOperand(0), TBB, FBB);
-      ExitLimit EL1 = ComputeExitLimitFromCond(L, BO->getOperand(1), TBB, FBB);
+      bool EitherMayExit = L->contains(TBB);
+      ExitLimit EL0 = ComputeExitLimitFromCond(L, BO->getOperand(0), TBB, FBB,
+                                               IsSubExpr || EitherMayExit);
+      ExitLimit EL1 = ComputeExitLimitFromCond(L, BO->getOperand(1), TBB, FBB,
+                                               IsSubExpr || EitherMayExit);
       const SCEV *BECount = getCouldNotCompute();
       const SCEV *MaxBECount = getCouldNotCompute();
-      if (L->contains(TBB)) {
+      if (EitherMayExit) {
         // Both conditions must be true for the loop to continue executing.
         // Choose the less conservative count.
         if (EL0.Exact == getCouldNotCompute() ||
@@ -4399,11 +4448,14 @@ ScalarEvolution::ComputeExitLimitFromCond(const Loop *L,
     }
     if (BO->getOpcode() == Instruction::Or) {
       // Recurse on the operands of the or.
-      ExitLimit EL0 = ComputeExitLimitFromCond(L, BO->getOperand(0), TBB, FBB);
-      ExitLimit EL1 = ComputeExitLimitFromCond(L, BO->getOperand(1), TBB, FBB);
+      bool EitherMayExit = L->contains(FBB);
+      ExitLimit EL0 = ComputeExitLimitFromCond(L, BO->getOperand(0), TBB, FBB,
+                                               IsSubExpr || EitherMayExit);
+      ExitLimit EL1 = ComputeExitLimitFromCond(L, BO->getOperand(1), TBB, FBB,
+                                               IsSubExpr || EitherMayExit);
       const SCEV *BECount = getCouldNotCompute();
       const SCEV *MaxBECount = getCouldNotCompute();
-      if (L->contains(FBB)) {
+      if (EitherMayExit) {
         // Both conditions must be false for the loop to continue executing.
         // Choose the less conservative count.
         if (EL0.Exact == getCouldNotCompute() ||
@@ -4434,7 +4486,7 @@ ScalarEvolution::ComputeExitLimitFromCond(const Loop *L,
   // With an icmp, it may be feasible to compute an exact backedge-taken count.
   // Proceed to the next level to examine the icmp.
   if (ICmpInst *ExitCondICmp = dyn_cast<ICmpInst>(ExitCond))
-    return ComputeExitLimitFromICmp(L, ExitCondICmp, TBB, FBB);
+    return ComputeExitLimitFromICmp(L, ExitCondICmp, TBB, FBB, IsSubExpr);
 
   // Check for a constant condition. These are normally stripped out by
   // SimplifyCFG, but ScalarEvolution may be used by a pass which wishes to
@@ -4460,7 +4512,8 @@ ScalarEvolution::ExitLimit
 ScalarEvolution::ComputeExitLimitFromICmp(const Loop *L,
                                           ICmpInst *ExitCond,
                                           BasicBlock *TBB,
-                                          BasicBlock *FBB) {
+                                          BasicBlock *FBB,
+                                          bool IsSubExpr) {
 
   // If the condition was exit on true, convert the condition to exit on false
   ICmpInst::Predicate Cond;
@@ -4512,7 +4565,7 @@ ScalarEvolution::ComputeExitLimitFromICmp(const Loop *L,
   switch (Cond) {
   case ICmpInst::ICMP_NE: {                     // while (X != Y)
     // Convert to: while (X-Y != 0)
-    ExitLimit EL = HowFarToZero(getMinusSCEV(LHS, RHS), L);
+    ExitLimit EL = HowFarToZero(getMinusSCEV(LHS, RHS), L, IsSubExpr);
     if (EL.hasAnyInfo()) return EL;
     break;
   }
@@ -4523,24 +4576,24 @@ ScalarEvolution::ComputeExitLimitFromICmp(const Loop *L,
     break;
   }
   case ICmpInst::ICMP_SLT: {
-    ExitLimit EL = HowManyLessThans(LHS, RHS, L, true);
+    ExitLimit EL = HowManyLessThans(LHS, RHS, L, true, IsSubExpr);
     if (EL.hasAnyInfo()) return EL;
     break;
   }
   case ICmpInst::ICMP_SGT: {
     ExitLimit EL = HowManyLessThans(getNotSCEV(LHS),
-                                             getNotSCEV(RHS), L, true);
+                                    getNotSCEV(RHS), L, true, IsSubExpr);
     if (EL.hasAnyInfo()) return EL;
     break;
   }
   case ICmpInst::ICMP_ULT: {
-    ExitLimit EL = HowManyLessThans(LHS, RHS, L, false);
+    ExitLimit EL = HowManyLessThans(LHS, RHS, L, false, IsSubExpr);
     if (EL.hasAnyInfo()) return EL;
     break;
   }
   case ICmpInst::ICMP_UGT: {
     ExitLimit EL = HowManyLessThans(getNotSCEV(LHS),
-                                             getNotSCEV(RHS), L, false);
+                                    getNotSCEV(RHS), L, false, IsSubExpr);
     if (EL.hasAnyInfo()) return EL;
     break;
   }
@@ -4749,7 +4802,7 @@ static PHINode *getConstantEvolvingPHI(Value *V, const Loop *L) {
 /// reason, return null.
 static Constant *EvaluateExpression(Value *V, const Loop *L,
                                     DenseMap<Instruction *, Constant *> &Vals,
-                                    const TargetData *TD,
+                                    const DataLayout *TD,
                                     const TargetLibraryInfo *TLI) {
   // Convenient constant check, but redundant for recursive calls.
   if (Constant *C = dyn_cast<Constant>(V)) return C;
@@ -5409,7 +5462,7 @@ SolveQuadraticEquation(const SCEVAddRecExpr *AddRec, ScalarEvolution &SE) {
 /// effectively V != 0.  We know and take advantage of the fact that this
 /// expression only being used in a comparison by zero context.
 ScalarEvolution::ExitLimit
-ScalarEvolution::HowFarToZero(const SCEV *V, const Loop *L) {
+ScalarEvolution::HowFarToZero(const SCEV *V, const Loop *L, bool IsSubExpr) {
   // If the value is a constant
   if (const SCEVConstant *C = dyn_cast<SCEVConstant>(V)) {
     // If the value is already zero, the branch will execute zero times.
@@ -5507,19 +5560,20 @@ ScalarEvolution::HowFarToZero(const SCEV *V, const Loop *L) {
   }
 
   // If the recurrence is known not to wraparound, unsigned divide computes the
-  // back edge count. We know that the value will either become zero (and thus
-  // the loop terminates), that the loop will terminate through some other exit
-  // condition first, or that the loop has undefined behavior.  This means
-  // we can't "miss" the exit value, even with nonunit stride.
+  // back edge count. (Ideally we would have an "isexact" bit for udiv). We know
+  // that the value will either become zero (and thus the loop terminates), that
+  // the loop will terminate through some other exit condition first, or that
+  // the loop has undefined behavior.  This means we can't "miss" the exit
+  // value, even with nonunit stride.
   //
-  // FIXME: Prove that loops always exhibits *acceptable* undefined
-  // behavior. Loops must exhibit defined behavior until a wrapped value is
-  // actually used. So the trip count computed by udiv could be smaller than the
-  // number of well-defined iterations.
-  if (AddRec->getNoWrapFlags(SCEV::FlagNW)) {
-    // FIXME: We really want an "isexact" bit for udiv.
+  // This is only valid for expressions that directly compute the loop exit. It
+  // is invalid for subexpressions in which the loop may exit through this
+  // branch even if this subexpression is false. In that case, the trip count
+  // computed by this udiv could be smaller than the number of well-defined
+  // iterations.
+  if (!IsSubExpr && AddRec->getNoWrapFlags(SCEV::FlagNW))
     return getUDivExpr(Distance, CountDown ? getNegativeSCEV(Step) : Step);
-  }
+
   // Then, try to solve the above equation provided that Start is constant.
   if (const SCEVConstant *StartC = dyn_cast<SCEVConstant>(Start))
     return SolveLinEquationWithOverflow(StepC->getValue()->getValue(),
@@ -6110,8 +6164,8 @@ bool ScalarEvolution::isImpliedCond(ICmpInst::Predicate Pred,
       getTypeSizeInBits(ICI->getOperand(0)->getType()))
     return false;
 
-  // Now that we found a conditional branch that dominates the loop, check to
-  // see if it is the comparison we are looking for.
+  // Now that we found a conditional branch that dominates the loop or controls
+  // the loop latch. Check to see if it is the comparison we are looking for.
   ICmpInst::Predicate FoundPred;
   if (Inverse)
     FoundPred = ICI->getInversePredicate();
@@ -6141,7 +6195,7 @@ bool ScalarEvolution::isImpliedCond(ICmpInst::Predicate Pred,
       return CmpInst::isTrueWhenEqual(Pred);
   if (SimplifyICmpOperands(FoundPred, FoundLHS, FoundRHS))
     if (FoundLHS == FoundRHS)
-      return CmpInst::isFalseWhenEqual(Pred);
+      return CmpInst::isFalseWhenEqual(FoundPred);
 
   // Check to see if we can make the LHS or RHS match.
   if (LHS == FoundRHS || RHS == FoundLHS) {
@@ -6285,9 +6339,14 @@ const SCEV *ScalarEvolution::getBECount(const SCEV *Start,
 /// HowManyLessThans - Return the number of times a backedge containing the
 /// specified less-than comparison will execute.  If not computable, return
 /// CouldNotCompute.
+///
+/// @param IsSubExpr is true when the LHS < RHS condition does not directly
+/// control the branch. In this case, we can only compute an iteration count for
+/// a subexpression that cannot overflow before evaluating true.
 ScalarEvolution::ExitLimit
 ScalarEvolution::HowManyLessThans(const SCEV *LHS, const SCEV *RHS,
-                                  const Loop *L, bool isSigned) {
+                                  const Loop *L, bool isSigned,
+                                  bool IsSubExpr) {
   // Only handle:  "ADDREC < LoopInvariant".
   if (!isLoopInvariant(RHS, L)) return getCouldNotCompute();
 
@@ -6296,10 +6355,12 @@ ScalarEvolution::HowManyLessThans(const SCEV *LHS, const SCEV *RHS,
     return getCouldNotCompute();
 
   // Check to see if we have a flag which makes analysis easy.
-  bool NoWrap = isSigned ?
-    AddRec->getNoWrapFlags((SCEV::NoWrapFlags)(SCEV::FlagNSW | SCEV::FlagNW)) :
-    AddRec->getNoWrapFlags((SCEV::NoWrapFlags)(SCEV::FlagNUW | SCEV::FlagNW));
-
+  bool NoWrap = false;
+  if (!IsSubExpr) {
+    NoWrap = AddRec->getNoWrapFlags(
+      (SCEV::NoWrapFlags)(((isSigned ? SCEV::FlagNSW : SCEV::FlagNUW))
+                          | SCEV::FlagNW));
+  }
   if (AddRec->isAffine()) {
     unsigned BitWidth = getTypeSizeInBits(AddRec->getType());
     const SCEV *Step = AddRec->getStepRecurrence(*this);
@@ -6588,7 +6649,7 @@ ScalarEvolution::ScalarEvolution()
 bool ScalarEvolution::runOnFunction(Function &F) {
   this->F = &F;
   LI = &getAnalysis<LoopInfo>();
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   TLI = &getAnalysis<TargetLibraryInfo>();
   DT = &getAnalysis<DominatorTree>();
   return false;
@@ -6929,4 +6990,99 @@ void ScalarEvolution::forgetMemoizedResults(const SCEV *S) {
   BlockDispositions.erase(S);
   UnsignedRanges.erase(S);
   SignedRanges.erase(S);
+
+  for (DenseMap<const Loop*, BackedgeTakenInfo>::iterator I =
+         BackedgeTakenCounts.begin(), E = BackedgeTakenCounts.end(); I != E; ) {
+    BackedgeTakenInfo &BEInfo = I->second;
+    if (BEInfo.hasOperand(S, this)) {
+      BEInfo.clear();
+      BackedgeTakenCounts.erase(I++);
+    }
+    else
+      ++I;
+  }
+}
+
+typedef DenseMap<const Loop *, std::string> VerifyMap;
+
+/// replaceSubString - Replaces all occurences of From in Str with To.
+static void replaceSubString(std::string &Str, StringRef From, StringRef To) {
+  size_t Pos = 0;
+  while ((Pos = Str.find(From, Pos)) != std::string::npos) {
+    Str.replace(Pos, From.size(), To.data(), To.size());
+    Pos += To.size();
+  }
+}
+
+/// getLoopBackedgeTakenCounts - Helper method for verifyAnalysis.
+static void
+getLoopBackedgeTakenCounts(Loop *L, VerifyMap &Map, ScalarEvolution &SE) {
+  for (Loop::reverse_iterator I = L->rbegin(), E = L->rend(); I != E; ++I) {
+    getLoopBackedgeTakenCounts(*I, Map, SE); // recurse.
+
+    std::string &S = Map[L];
+    if (S.empty()) {
+      raw_string_ostream OS(S);
+      SE.getBackedgeTakenCount(L)->print(OS);
+
+      // false and 0 are semantically equivalent. This can happen in dead loops.
+      replaceSubString(OS.str(), "false", "0");
+      // Remove wrap flags, their use in SCEV is highly fragile.
+      // FIXME: Remove this when SCEV gets smarter about them.
+      replaceSubString(OS.str(), "<nw>", "");
+      replaceSubString(OS.str(), "<nsw>", "");
+      replaceSubString(OS.str(), "<nuw>", "");
+    }
+  }
+}
+
+void ScalarEvolution::verifyAnalysis() const {
+  if (!VerifySCEV)
+    return;
+
+  ScalarEvolution &SE = *const_cast<ScalarEvolution *>(this);
+
+  // Gather stringified backedge taken counts for all loops using SCEV's caches.
+  // FIXME: It would be much better to store actual values instead of strings,
+  //        but SCEV pointers will change if we drop the caches.
+  VerifyMap BackedgeDumpsOld, BackedgeDumpsNew;
+  for (LoopInfo::reverse_iterator I = LI->rbegin(), E = LI->rend(); I != E; ++I)
+    getLoopBackedgeTakenCounts(*I, BackedgeDumpsOld, SE);
+
+  // Gather stringified backedge taken counts for all loops without using
+  // SCEV's caches.
+  SE.releaseMemory();
+  for (LoopInfo::reverse_iterator I = LI->rbegin(), E = LI->rend(); I != E; ++I)
+    getLoopBackedgeTakenCounts(*I, BackedgeDumpsNew, SE);
+
+  // Now compare whether they're the same with and without caches. This allows
+  // verifying that no pass changed the cache.
+  assert(BackedgeDumpsOld.size() == BackedgeDumpsNew.size() &&
+         "New loops suddenly appeared!");
+
+  for (VerifyMap::iterator OldI = BackedgeDumpsOld.begin(),
+                           OldE = BackedgeDumpsOld.end(),
+                           NewI = BackedgeDumpsNew.begin();
+       OldI != OldE; ++OldI, ++NewI) {
+    assert(OldI->first == NewI->first && "Loop order changed!");
+
+    // Compare the stringified SCEVs. We don't care if undef backedgetaken count
+    // changes.
+    // FIXME: We currently ignore SCEV changes from/to CouldNotCompute. This
+    // means that a pass is buggy or SCEV has to learn a new pattern but is
+    // usually not harmful.
+    if (OldI->second != NewI->second &&
+        OldI->second.find("undef") == std::string::npos &&
+        NewI->second.find("undef") == std::string::npos &&
+        OldI->second != "***COULDNOTCOMPUTE***" &&
+        NewI->second != "***COULDNOTCOMPUTE***") {
+      dbgs() << "SCEVValidator: SCEV for loop '"
+             << OldI->first->getHeader()->getName()
+             << "' changed from '" << OldI->second
+             << "' to '" << NewI->second << "'!\n";
+      std::abort();
+    }
+  }
+
+  // TODO: Verify more things.
 }

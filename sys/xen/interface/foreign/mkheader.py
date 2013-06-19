@@ -155,7 +155,7 @@ for struct in structs:
     output = re.sub("\\b(%s)_t\\b" % struct, "\\1_%s_t" % arch, output);
 
 # replace: integer types
-integers = inttypes[arch].keys();
+integers = list(inttypes[arch].keys());
 integers.sort(lambda a, b: cmp(len(b),len(a)));
 for type in integers:
     output = re.sub("\\b%s\\b" % type, inttypes[arch][type], output);

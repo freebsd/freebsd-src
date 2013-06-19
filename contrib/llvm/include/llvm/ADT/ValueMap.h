@@ -27,10 +27,9 @@
 #define LLVM_ADT_VALUEMAP_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/Mutex.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/type_traits.h"
-#include "llvm/Support/Mutex.h"
-
 #include <iterator>
 
 namespace llvm {
@@ -80,8 +79,8 @@ class ValueMap {
   typedef typename Config::ExtraData ExtraData;
   MapT Map;
   ExtraData Data;
-  ValueMap(const ValueMap&); // DO NOT IMPLEMENT
-  ValueMap& operator=(const ValueMap&); // DO NOT IMPLEMENT
+  ValueMap(const ValueMap&) LLVM_DELETED_FUNCTION;
+  ValueMap& operator=(const ValueMap&) LLVM_DELETED_FUNCTION;
 public:
   typedef KeyT key_type;
   typedef ValueT mapped_type;

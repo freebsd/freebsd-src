@@ -3,7 +3,16 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	${_bind9} IPv6 legal ${_llvm} ${_roffdocs}
+SUBDIR=	${_IPv6} \
+	${_atf} \
+	${_bind9} \
+	legal \
+	${_llvm} \
+	${_roffdocs}
+
+.if ${MK_ATF} != "no"
+_atf= atf
+.endif
 
 .if ${MK_BIND} != "no"
 _bind9=	bind9
@@ -11,6 +20,10 @@ _bind9=	bind9
 
 .if ${MK_CLANG} != "no"
 _llvm=	llvm
+.endif
+
+.if ${MK_INET6} != "no"
+_IPv6=	IPv6
 .endif
 
 # FIXME this is not a real solution ...

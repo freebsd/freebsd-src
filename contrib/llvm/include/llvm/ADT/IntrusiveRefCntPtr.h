@@ -18,8 +18,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ADT_INTRUSIVE_REF_CNT_PTR
-#define LLVM_ADT_INTRUSIVE_REF_CNT_PTR
+#ifndef LLVM_ADT_INTRUSIVEREFCNTPTR_H
+#define LLVM_ADT_INTRUSIVEREFCNTPTR_H
 
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
@@ -123,7 +123,7 @@ namespace llvm {
       retain();
     }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
     IntrusiveRefCntPtr(IntrusiveRefCntPtr&& S) : Obj(S.Obj) {
       S.Obj = 0;
     }
@@ -226,13 +226,13 @@ namespace llvm {
 
   template<class T> struct simplify_type<IntrusiveRefCntPtr<T> > {
     typedef T* SimpleType;
-    static SimpleType getSimplifiedValue(const IntrusiveRefCntPtr<T>& Val) {
+    static SimpleType getSimplifiedValue(IntrusiveRefCntPtr<T>& Val) {
       return Val.getPtr();
     }
   };
 
   template<class T> struct simplify_type<const IntrusiveRefCntPtr<T> > {
-    typedef T* SimpleType;
+    typedef /*const*/ T* SimpleType;
     static SimpleType getSimplifiedValue(const IntrusiveRefCntPtr<T>& Val) {
       return Val.getPtr();
     }
@@ -240,4 +240,4 @@ namespace llvm {
 
 } // end namespace llvm
 
-#endif // LLVM_ADT_INTRUSIVE_REF_CNT_PTR
+#endif // LLVM_ADT_INTRUSIVEREFCNTPTR_H

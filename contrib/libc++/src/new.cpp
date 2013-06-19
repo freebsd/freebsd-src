@@ -11,7 +11,11 @@
 
 #include "new"
 
-#if __APPLE__
+#ifndef __has_include
+#define __has_include(inc) 0
+#endif
+
+#ifdef __APPLE__
     #include <cxxabi.h>
 
     #ifndef _LIBCPPABI_VERSION
@@ -21,7 +25,12 @@
         #define __new_handler __cxxabiapple::__cxa_new_handler
     #endif
 #else  // __APPLE__
-    static std::new_handler __new_handler;
+    #if defined(LIBCXXRT) || __has_include(<cxxabi.h>)
+        #include <cxxabi.h>
+    #endif  // __has_include(<cxxabi.h>)
+    #ifndef _LIBCPPABI_VERSION
+        static std::new_handler __new_handler;
+    #endif  // _LIBCPPABI_VERSION
 #endif
 
 // Implement all new and delete operators as weak definitions

@@ -71,9 +71,7 @@ __start(char **ap,
 	argc = * (long *) ap;
 	argv = ap + 1;
 	env  = ap + 2 + argc;
-	environ = env;
-	if (argc > 0 && argv[0] != NULL)
-		handle_progname(argv[0]);
+	handle_argv(argc, argv, env);
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);

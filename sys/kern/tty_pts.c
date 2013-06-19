@@ -825,10 +825,10 @@ sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	 * POSIX states it's unspecified when other flags are passed. We
 	 * don't allow this.
 	 */
-	if (uap->flags & ~(O_RDWR|O_NOCTTY))
+	if (uap->flags & ~(O_RDWR|O_NOCTTY|O_CLOEXEC))
 		return (EINVAL);
 
-	error = falloc(td, &fp, &fd, 0);
+	error = falloc(td, &fp, &fd, uap->flags);
 	if (error)
 		return (error);
 
@@ -836,6 +836,7 @@ sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	error = pts_alloc(FFLAGS(uap->flags & O_ACCMODE), td, fp);
 	if (error != 0) {
 		fdclose(td->td_proc->p_fd, fp, fd, td);
+		fdrop(fp, td);
 		return (error);
 	}
 

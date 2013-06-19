@@ -204,6 +204,8 @@ struct ieee80211_node {
 	struct callout		ni_mltimer;	/* link mesh timer */
 	uint8_t			ni_mlrcnt;	/* link mesh retry counter */
 	uint8_t			ni_mltval;	/* link mesh timer value */
+	struct callout		ni_mlhtimer;	/* link mesh backoff timer */
+	uint8_t			ni_mlhcnt;	/* link mesh holding counter */
 
 	/* 11n state */
 	uint16_t		ni_htcap;	/* HT capabilities */

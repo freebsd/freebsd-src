@@ -82,3 +82,5 @@ ENTRY(ffs)
 	rsbne	r0, r0, #32
 	RET
 #endif
+END(ffs)
+

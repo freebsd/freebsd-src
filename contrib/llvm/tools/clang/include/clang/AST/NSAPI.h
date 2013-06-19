@@ -52,7 +52,7 @@ public:
   Selector getNSStringSelector(NSStringMethodKind MK) const;
 
   /// \brief Return NSStringMethodKind if \param Sel is such a selector.
-  llvm::Optional<NSStringMethodKind> getNSStringMethodKind(Selector Sel) const;
+  Optional<NSStringMethodKind> getNSStringMethodKind(Selector Sel) const;
 
   /// \brief Returns true if the expression \param E is a reference of
   /// "NSUTF8StringEncoding" enum constant.
@@ -83,8 +83,8 @@ public:
   /// \brief The Objective-C NSArray selectors.
   Selector getNSArraySelector(NSArrayMethodKind MK) const;
 
-  /// \brief Return NSArrayMethodKind if \arg Sel is such a selector.
-  llvm::Optional<NSArrayMethodKind> getNSArrayMethodKind(Selector Sel);
+  /// \brief Return NSArrayMethodKind if \p Sel is such a selector.
+  Optional<NSArrayMethodKind> getNSArrayMethodKind(Selector Sel);
 
   /// \brief Enumerates the NSDictionary methods used to generate literals.
   enum NSDictionaryMethodKind {
@@ -96,17 +96,17 @@ public:
     NSDict_dictionaryWithObjectsAndKeys,
     NSDict_initWithDictionary,
     NSDict_initWithObjectsAndKeys,
+    NSDict_initWithObjectsForKeys,
     NSDict_objectForKey,
     NSMutableDict_setObjectForKey
   };
-  static const unsigned NumNSDictionaryMethods = 10;
+  static const unsigned NumNSDictionaryMethods = 11;
 
   /// \brief The Objective-C NSDictionary selectors.
   Selector getNSDictionarySelector(NSDictionaryMethodKind MK) const;
 
-  /// \brief Return NSDictionaryMethodKind if \arg Sel is such a selector.
-  llvm::Optional<NSDictionaryMethodKind>
-      getNSDictionaryMethodKind(Selector Sel);
+  /// \brief Return NSDictionaryMethodKind if \p Sel is such a selector.
+  Optional<NSDictionaryMethodKind> getNSDictionaryMethodKind(Selector Sel);
 
   /// \brief Returns selector for "objectForKeyedSubscript:".
   Selector getObjectForKeyedSubscriptSelector() const {
@@ -169,13 +169,13 @@ public:
            Sel == getNSNumberLiteralSelector(MK, true);
   }
 
-  /// \brief Return NSNumberLiteralMethodKind if \arg Sel is such a selector.
-  llvm::Optional<NSNumberLiteralMethodKind>
+  /// \brief Return NSNumberLiteralMethodKind if \p Sel is such a selector.
+  Optional<NSNumberLiteralMethodKind>
       getNSNumberLiteralMethodKind(Selector Sel) const;
 
   /// \brief Determine the appropriate NSNumber factory method kind for a
   /// literal of the given type.
-  llvm::Optional<NSNumberLiteralMethodKind>
+  Optional<NSNumberLiteralMethodKind>
       getNSNumberFactoryMethodKind(QualType T) const;
 
   /// \brief Returns true if \param T is a typedef of "BOOL" in objective-c.

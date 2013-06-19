@@ -20,8 +20,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_INTERVAL_PARTITION_H
-#define LLVM_INTERVAL_PARTITION_H
+#ifndef LLVM_ANALYSIS_INTERVALPARTITION_H
+#define LLVM_ANALYSIS_INTERVALPARTITION_H
 
 #include "llvm/Analysis/Interval.h"
 #include "llvm/Pass.h"
@@ -33,8 +33,8 @@ namespace llvm {
 //
 // IntervalPartition - This class builds and holds an "interval partition" for
 // a function.  This partition divides the control flow graph into a set of
-// maximal intervals, as defined with the properties above.  Intuitively, a
-// BasicBlock is a (possibly nonexistent) loop with a "tail" of non looping
+// maximal intervals, as defined with the properties above.  Intuitively, an
+// interval is a (possibly nonexistent) loop with a "tail" of non looping
 // nodes following it.
 //
 class IntervalPartition : public FunctionPass {

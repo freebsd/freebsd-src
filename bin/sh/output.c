@@ -239,6 +239,20 @@ freestdout(void)
 }
 
 
+int
+outiserror(struct output *file)
+{
+	return (file->flags & OUTPUT_ERR);
+}
+
+
+void
+outclearerror(struct output *file)
+{
+	file->flags &= ~OUTPUT_ERR;
+}
+
+
 void
 outfmt(struct output *file, const char *fmt, ...)
 {

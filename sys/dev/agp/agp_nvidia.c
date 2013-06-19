@@ -32,8 +32,6 @@ __FBSDID("$FreeBSD$");
  * NVIDIA nForce/nForce2 AGPGART Linux Kernel Patch.
  */
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>

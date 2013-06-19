@@ -1,4 +1,4 @@
-/*	$OpenBSD: extern.h,v 1.51 2011/09/27 07:24:02 espie Exp $	*/
+/*	$OpenBSD: extern.h,v 1.52 2012/04/12 17:00:11 espie Exp $	*/
 /*	$NetBSD: extern.h,v 1.3 1996/01/13 23:25:24 pk Exp $	*/
 
 /*-
@@ -43,6 +43,7 @@ extern unsigned long expansion_id;
 
 /* expr.c */
 extern int	expr(const char *);
+extern int32_t end_result;
 
 /* gnum4.c */
 extern void	addtoincludepath(const char *);

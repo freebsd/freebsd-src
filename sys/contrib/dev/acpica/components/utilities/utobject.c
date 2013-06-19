@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ AcpiUtGetElementLength (
  *
  * NOTE:        We always allocate the worst-case object descriptor because
  *              these objects are cached, and we want them to be
- *              one-size-satisifies-any-request.  This in itself may not be
+ *              one-size-satisifies-any-request. This in itself may not be
  *              the most memory efficient, but the efficiency of the object
  *              cache should more than make up for this!
  *
@@ -140,6 +140,7 @@ AcpiUtCreateInternalObjectDbg (
         break;
 
     default:
+
         /* All others have no secondary object */
         break;
     }
@@ -397,6 +398,7 @@ AcpiUtValidInternalObject (
         return (TRUE);
 
     default:
+
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "%p is not not an ACPI operand obj [%s]\n",
                 Object, AcpiUtGetDescriptorName (Object)));
@@ -415,9 +417,9 @@ AcpiUtValidInternalObject (
  *              LineNumber          - Caller's line number (for error output)
  *              ComponentId         - Caller's component ID (for error output)
  *
- * RETURN:      Pointer to newly allocated object descriptor.  Null on error
+ * RETURN:      Pointer to newly allocated object descriptor. Null on error
  *
- * DESCRIPTION: Allocate a new object descriptor.  Gracefully handle
+ * DESCRIPTION: Allocate a new object descriptor. Gracefully handle
  *              error conditions.
  *
  ******************************************************************************/
@@ -556,12 +558,10 @@ AcpiUtGetSimpleObjectSize (
         Length += (ACPI_SIZE) InternalObject->String.Length + 1;
         break;
 
-
     case ACPI_TYPE_BUFFER:
 
         Length += (ACPI_SIZE) InternalObject->Buffer.Length;
         break;
-
 
     case ACPI_TYPE_INTEGER:
     case ACPI_TYPE_PROCESSOR:
@@ -571,13 +571,11 @@ AcpiUtGetSimpleObjectSize (
 
         break;
 
-
     case ACPI_TYPE_LOCAL_REFERENCE:
 
         switch (InternalObject->Reference.Class)
         {
         case ACPI_REFCLASS_NAME:
-
             /*
              * Get the actual length of the full pathname to this object.
              * The reference will be converted to the pathname to the object
@@ -592,7 +590,6 @@ AcpiUtGetSimpleObjectSize (
             break;
 
         default:
-
             /*
              * No other reference opcodes are supported.
              * Notably, Locals and Args are not supported, but this may be
@@ -607,7 +604,6 @@ AcpiUtGetSimpleObjectSize (
         }
         break;
 
-
     default:
 
         ACPI_ERROR ((AE_INFO, "Cannot convert to external object - "
@@ -620,7 +616,7 @@ AcpiUtGetSimpleObjectSize (
 
     /*
      * Account for the space required by the object rounded up to the next
-     * multiple of the machine word size.  This keeps each object aligned
+     * multiple of the machine word size. This keeps each object aligned
      * on a machine word boundary. (preventing alignment faults on some
      * machines.)
      */
@@ -656,7 +652,6 @@ AcpiUtGetElementLength (
     switch (ObjectType)
     {
     case ACPI_COPY_TYPE_SIMPLE:
-
         /*
          * Simple object - just get the size (Null object/entry is handled
          * here also) and sum it into the running package length
@@ -670,7 +665,6 @@ AcpiUtGetElementLength (
         Info->Length += ObjectSpace;
         break;
 
-
     case ACPI_COPY_TYPE_PACKAGE:
 
         /* Package object - nothing much to do here, let the walk handle it */
@@ -678,7 +672,6 @@ AcpiUtGetElementLength (
         Info->NumPackages++;
         State->Pkg.ThisTargetObj = NULL;
         break;
-
 
     default:
 
@@ -725,7 +718,7 @@ AcpiUtGetPackageObjectSize (
     Info.NumPackages = 1;
 
     Status = AcpiUtWalkPackageTree (InternalObject, NULL,
-                            AcpiUtGetElementLength, &Info);
+        AcpiUtGetElementLength, &Info);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -783,5 +776,3 @@ AcpiUtGetObjectSize (
 
     return (Status);
 }
-
-

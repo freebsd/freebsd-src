@@ -4025,7 +4025,9 @@ list_mesh(int s)
 			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_VALID) ?
 			    'V' : '!',
 			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_PROXY) ?
-			    'P' : ' ');
+			    'P' :
+			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_GATE) ?
+			    'G' :' ');
 	}
 }
 

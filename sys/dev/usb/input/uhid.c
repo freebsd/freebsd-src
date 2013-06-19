@@ -691,10 +691,11 @@ uhid_probe(device_t dev)
 	 */
 	if ((uaa->info.bInterfaceClass == UICLASS_HID) &&
 	    (uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
-	    ((uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD) ||
-	     (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))) {
+	    (((uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD) &&
+	      !usb_test_quirk(uaa, UQ_KBD_IGNORE)) ||
+	     ((uaa->info.bInterfaceProtocol == UIPROTO_MOUSE) &&
+	      !usb_test_quirk(uaa, UQ_UMS_IGNORE))))
 		return (ENXIO);
-	}
 
 	return (BUS_PROBE_GENERIC);
 }
@@ -851,7 +852,8 @@ static device_method_t uhid_methods[] = {
 	DEVMETHOD(device_probe, uhid_probe),
 	DEVMETHOD(device_attach, uhid_attach),
 	DEVMETHOD(device_detach, uhid_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t uhid_driver = {

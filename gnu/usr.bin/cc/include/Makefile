@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 
 INCSDIR=${INCLUDEDIR}/gcc/${GCCVER}
@@ -7,7 +9,8 @@ INCSDIR=${INCLUDEDIR}/gcc/${GCCVER}
 .PATH: ${GCCDIR}/config/${GCC_CPU}
 
 .if ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
-INCS=	emmintrin.h mmintrin.h pmmintrin.h tmmintrin.h xmmintrin.h mm_malloc.h
+INCS=	ammintrin.h emmintrin.h mmintrin.h mm3dnow.h pmmintrin.h \
+	tmmintrin.h xmmintrin.h mm_malloc.h
 .elif ${TARGET_ARCH} == "ia64"
 INCS=	ia64intrin.h
 .elif ${TARGET_ARCH} == "arm"
@@ -21,6 +24,4 @@ mm_malloc.h: pmm_malloc.h
 	@cp ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	mm_malloc.h
 
-.include <bsd.init.mk>
-.include <bsd.incs.mk>
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>

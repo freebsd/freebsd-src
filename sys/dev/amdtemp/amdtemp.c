@@ -134,7 +134,7 @@ static device_method_t amdtemp_methods[] = {
 	DEVMETHOD(device_attach,	amdtemp_attach),
 	DEVMETHOD(device_detach,	amdtemp_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t amdtemp_driver = {

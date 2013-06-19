@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Read from a named field.  Returns either an Integer or a
+ * DESCRIPTION: Read from a named field. Returns either an Integer or a
  *              Buffer, depending on the size of the field.
  *
  ******************************************************************************/
@@ -161,7 +161,7 @@ AcpiExReadDataFromField (
      * Allocate a buffer for the contents of the field.
      *
      * If the field is larger than the current integer width, create
-     * a BUFFER to hold it.  Otherwise, use an INTEGER.  This allows
+     * a BUFFER to hold it. Otherwise, use an INTEGER. This allows
      * the use of arithmetic operators on the returned value if the
      * field size is equal or smaller than an Integer.
      *
@@ -360,21 +360,25 @@ AcpiExWriteDataToField (
     switch (SourceDesc->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
+
         Buffer = &SourceDesc->Integer.Value;
         Length = sizeof (SourceDesc->Integer.Value);
         break;
 
     case ACPI_TYPE_BUFFER:
+
         Buffer = SourceDesc->Buffer.Pointer;
         Length = SourceDesc->Buffer.Length;
         break;
 
     case ACPI_TYPE_STRING:
+
         Buffer = SourceDesc->String.Pointer;
         Length = SourceDesc->String.Length;
         break;
 
     default:
+
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
 
@@ -402,5 +406,3 @@ AcpiExWriteDataToField (
 
     return_ACPI_STATUS (Status);
 }
-
-

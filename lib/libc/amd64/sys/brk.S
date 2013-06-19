@@ -76,12 +76,7 @@ ok:
 	ret
 err:
 	addq	$8, %rsp
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
 	jmp	HIDENAME(cerror)
-#endif
 END(brk)
 
 	.section .note.GNU-stack,"",%progbits

@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 SUBDIR=	console \
 	diskmgmt \
 	docsinstall \
@@ -10,8 +8,10 @@ SUBDIR=	console \
 	include \
 	mouse \
 	networking \
+	packages \
 	password \
 	security \
+	share \
 	startup \
 	timezone \
 	ttys \

@@ -3,11 +3,11 @@
 DIALOG=	${.CURDIR}/../../../contrib/dialog
 PROG=   dialog
 
-DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBM}
+DPADD=	${LIBDIALOG} ${LIBNCURSESW} ${LIBM}
 LDADD=	-ldialog -lncursesw -lm
 CFLAGS+= -I${.CURDIR} -I${DIALOG}
 .PATH:	${DIALOG}
 
-WARNS?= 3
+WARNS?= 6
 
 .include <bsd.prog.mk>

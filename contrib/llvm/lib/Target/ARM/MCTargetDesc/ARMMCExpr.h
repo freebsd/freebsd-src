@@ -28,7 +28,7 @@ private:
 
   explicit ARMMCExpr(VariantKind _Kind, const MCExpr *_Expr)
     : Kind(_Kind), Expr(_Expr) {}
-  
+
 public:
   /// @name Construction
   /// @{
@@ -64,12 +64,12 @@ public:
     return getSubExpr()->FindAssociatedSection();
   }
 
+  // There are no TLS ARMMCExprs at the moment.
+  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const {}
+
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;
   }
-  
-  static bool classof(const ARMMCExpr *) { return true; }
-
 };
 } // end namespace llvm
 

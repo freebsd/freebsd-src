@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ AcpiTbFindTable (
     /* Normalize the input strings */
 
     ACPI_MEMSET (&Header, 0, sizeof (ACPI_TABLE_HEADER));
-    ACPI_STRNCPY (Header.Signature, Signature, ACPI_NAME_SIZE);
+    ACPI_MOVE_NAME (Header.Signature, Signature);
     ACPI_STRNCPY (Header.OemId, OemId, ACPI_OEM_ID_SIZE);
     ACPI_STRNCPY (Header.OemTableId, OemTableId, ACPI_OEM_TABLE_ID_SIZE);
 

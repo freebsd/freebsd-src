@@ -137,8 +137,10 @@
 # include <tmpdir.h>
 #endif
 
-#ifdef HAVE_LIBUTIL_H
-# include <libutil.h> /* Openpty on FreeBSD at least */
+#if defined(HAVE_BSD_LIBUTIL_H)
+# include <bsd/libutil.h>
+#elif defined(HAVE_LIBUTIL_H)
+# include <libutil.h>
 #endif
 
 #if defined(KRB5) && defined(USE_AFS)

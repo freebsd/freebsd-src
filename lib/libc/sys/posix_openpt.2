@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2008
+.Dd March 21, 2013
 .Dt POSIX_OPENPT 2
 .Os
 .Sh NAME
@@ -71,7 +71,7 @@ Values for
 are constructed by a bitwise-inclusive OR of flags from the following
 list, defined in
 .In fcntl.h :
-.Bl -tag -width ".Dv O_NOCTTY"
+.Bl -tag -width ".Dv O_CLOEXEC"
 .It Dv O_RDWR
 Open for reading and writing.
 .It Dv O_NOCTTY
@@ -79,6 +79,8 @@ If set
 .Fn posix_openpt
 shall not cause the terminal device to become the controlling terminal
 for the process.
+.It Dv O_CLOEXEC
+Set the close-on-exec flag for the new file descriptor.
 .El
 .Pp
 The
@@ -116,6 +118,9 @@ The
 .Fn posix_openpt
 function conforms to
 .St -p1003.1-2001 .
+The ability to use
+.Dv O_CLOEXEC
+is an extension to the standard.
 .Sh HISTORY
 The
 .Fn posix_openpt

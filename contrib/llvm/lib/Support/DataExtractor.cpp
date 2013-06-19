@@ -20,7 +20,7 @@ static T getU(uint32_t *offset_ptr, const DataExtractor *de,
   uint32_t offset = *offset_ptr;
   if (de->isValidOffsetForDataOfSize(offset, sizeof(val))) {
     std::memcpy(&val, &Data[offset], sizeof(val));
-    if (sys::isLittleEndianHost() != isLittleEndian)
+    if (sys::IsLittleEndianHost != isLittleEndian)
       val = sys::SwapByteOrder(val);
 
     // Advance the offset
@@ -139,7 +139,7 @@ uint64_t DataExtractor::getULEB128(uint32_t *offset_ptr) const {
 
   while (isValidOffset(offset)) {
     byte = Data[offset++];
-    result |= (byte & 0x7f) << shift;
+    result |= uint64_t(byte & 0x7f) << shift;
     shift += 7;
     if ((byte & 0x80) == 0)
       break;
@@ -160,7 +160,7 @@ int64_t DataExtractor::getSLEB128(uint32_t *offset_ptr) const {
 
   while (isValidOffset(offset)) {
     byte = Data[offset++];
-    result |= (byte & 0x7f) << shift;
+    result |= uint64_t(byte & 0x7f) << shift;
     shift += 7;
     if ((byte & 0x80) == 0)
       break;
@@ -168,7 +168,7 @@ int64_t DataExtractor::getSLEB128(uint32_t *offset_ptr) const {
 
   // Sign bit of byte is 2nd high order bit (0x40)
   if (shift < 64 && (byte & 0x40))
-    result |= -(1 << shift);
+    result |= -(1ULL << shift);
 
   *offset_ptr = offset;
   return result;

@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+
+<!ENTITY release.4x "4.<replaceable>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+]>
+
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.3
+-->
+
+<article>
+  <articleinfo>
+    <title>Guide pour les testeurs des nouvelles fonctions &agrave; &release.current;</title>
+
+    <authorgroup>
+      <corpauthor>L'&eacute;quipe de confection des versions de &os;</corpauthor>
+    </authorgroup>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2002</year>
+      <year>2003</year>
+      <holder role="mailto:re@FreeBSD.org">L'&eacute;quipe de confection des
+      versions de &os;</holder>
+    </copyright>
+  </articleinfo>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>&os; &release.5x; annonce une nouvelle version majeur de &os; depuis
+    deux ans. En plus d'un nombre important de nouvelles
+    fonctionnalit&eacute;s, elle contient un grand nombre de d&eacute;veloppements
+    majeur dans l'architecture du syst&egrave;me. Parmi toutes ces avanc&eacute;es,
+    ce syst&egrave;me inclu un nombre importants de code non test&eacute; sur des
+    grands environnements. Compar&eacute; &agrave; la branche des versions
+    &release.4x;, les premières versions de la branche &release.5x;
+    peuvent  comporter des regressions
+    dans la stabilit&eacute;, performance et occasionnellement dans les
+    fonctionnalit&eacute;s.</para>
+
+
+    <para>C'est pour ces raisons que &a.re; n'encourage
+    <emphasis>pas</emphasis> les utilisateurs &agrave; mettre &agrave; jour
+    aveugl&eacute;ment leur ancienne version de &os; en &release.current;. Sp&eacute;cifiquement,
+    pour les utilisateurs les plus conservateurs, nous recommandons
+    de fonctionner en version &release.4x; (comme la
+    4.7-RELEASE ou la future 4.8-RELEASE) dans un futur proche. Nous
+    pensons que de tels utilisateurs seront mieux servis d&egrave;s
+    l'apparition d'une branche de d&eacute;veloppement  5-STABLE pour une
+    mise &agrave; jour en &release.5x;  cela devrait
+    arriver au moment d'une version 5.2-RELEASE.</para>
+
+    <para>(&os; 5.0 souffre du probl&egrave;me que nous appelons
+    <quote>l'oeuf et la poule</quote>. L'ensemble du projet a comme
+    but de fournir une version 5.0-RELEASE aussi stable et utilisable
+    que possible. Cette stabilit&eacute; et cet usabilit&eacute; n&eacute;cessite
+    &eacute;norm&eacute;ment de tests, en particulier dans les nouvelles
+    fonctionnalit&eacute;s. N&eacute;anmoins, l'obtention d'un grand nombre
+    d'utilisateurs pour tester le syst&egrave;me, en pratique, implique de
+    compiler et de distribuer une version en premier!)</para>
+
+    <para>Cet article d&eacute;crit quelques probl&egrave;mes dans l'installation et
+    le fonctionnement de &os; 5.0-RELEASE. Nous commencerons par une
+    rapide description du processus de version de &os;. Puis nous
+    aborderons quelques unes des nouvelles fonctionnalit&eacute;s de &os; 5.0,
+    qui peuvent poser des probl&egrave;mes &agrave; certains utilisateurs. Pour les
+    utilisateurs pr&eacute;f&eacute;rant continuer &agrave; fonctionner sous des versions
+    bas&eacute;es sur 4.<replaceable>X</replaceable>, nous donnerons les
+    plans de d&eacute;veloppement, &agrave; court et moyen terme, de cette
+    branche. Pour finir, nous pr&eacute;senterons quelques notes pour la mise
+    &agrave; jour des syst&egrave;mes 4.<replaceable>X</replaceable> en 5.0.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Une introduction au processus de confection des versions de
+    &os;</title>
+
+    <para>&os; utilise un mod&egrave;le de d&eacute;veloppement qui se base sur de
+    multiples branches dans l'arbre du code source. La branche
+    principale s'appelle <quote>CURRENT</quote>, et se r&eacute;f&egrave;re au tag
+    <literal>HEAD</literal> de l'arbre CVS. Les nouvelles
+    fonctionnalit&eacute;s sont d'abord int&eacute;gr&eacute;es dans cette branche; cela
+    veut dire que CURRENT est la premi&egrave;re version &agrave; voir la fonction,
+    mais qu'elle souffre, par moment, d'instabilit&eacute; ou de probl&egrave;mes
+    lorsque ces nouvelles fonctionnalit&eacute;s sont ajout&eacute;es et
+    d&eacute;bogu&eacute;es.</para>
+
+    <para>La plupart des versions de &os; sont confectionn&eacute;es depuis
+    les diff&eacute;rentes branches <quote>STABLE</quote>. Les
+    fonctionnalit&eacute;s ne sont ajout&eacute;es &agrave; ces branches qu'apr&egrave;s un nombre
+    important de test dans la branche CURRENT. Actuellement, il
+    n'existe qu'une seule branche de d&eacute;veloppement STABLE; cette
+    branche est appel&eacute;e  <quote>4-STABLE</quote>, et toutes les
+    version de &os; 4.<replaceable>X</replaceable> en sont
+    issue. Cette branche dispose du tag <literal>RELENG_4</literal>
+    dans l'arbre CVS.</para>
+
+    <para>&os; 5.0 sera bas&eacute;e sur la branche CURRENT. Cela sera la
+    premi&egrave;re nouvelle version de cette branche depuis deux ans (la
+    derni&egrave;re fut  &os; 4.0, en mars 2000).</para>
+
+    <para>Quelque temps apr&egrave;s la version  &os; 5.0, une branche
+    <quote>5-STABLE</quote> sera cr&eacute;e dans l'arbre CVS de &os; avec
+    le tag de branche <literal>RELENG_5</literal>. Les anciennes deux
+    derni&egrave;res branches stable (3-STABLE et 4-STABLE) furent cr&eacute;e
+    imm&eacute;diatement apr&egrave;s la publication de leur version respective
+    (3.0 et 4.0). Cette pratique ne laisse pas assez de temps entre la
+    branche CURRENT et STABLE pour obtenir une nouvelle branche
+    suffisement stabilis&eacute;e.</para>
+
+    <para>Quoi qu'il en soit, &a.re; ne cr&eacute;era une branche 5-STABLE
+    dans l'arbre CVS que lorsqu'ils auront trouv&eacute; la version CURRENT
+    suffisement stable pour &ecirc;tre utilis&eacute;e. La plupart du temps,
+    plusieurs versions de 5.<replaceable>X</replaceable> apparaîtrons;
+    nous estimons que la branche  5-STABLE sera cr&eacute;e un peu apr&egrave;s la
+    version 5.1-RELEASE ou 5.2-RELEASE.</para>
+
+    <para>Plus d'informations sur le procesuss de version de &os; se
+    trouve &agrave; <ulink
+      url="http://www.FreeBSD.org/releng/index.html">la page Web de
+      confection des versions</ulink> et dans l'article sur <ulink
+      url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">le m&eacute;canisme de versions </ulink>.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Nouvelles fonctionnalit&eacute;s</title>
+
+    <para>L'int&eacute;r&ecirc;t de &os; 5.0 est le nombre de nouvelles
+    fonctionnalit&eacute;s. Ces nouvelles fonctionnalit&eacute;s n&eacute;cessitent
+    g&eacute;n&eacute;ralement un nombre important de changement d'architectures qui
+    ne seront pas toutes r&eacute;-int&eacute;grable dans la branche de
+    d&eacute;veloppement de &os; 4-STABLE. (N&eacute;anmoins, un nombre importants
+    d'am&eacute;liorations, comme les nouveaux gestionnaires de p&eacute;riph&eacute;riques
+    ou les nouveaux utilitaires pour les utilisateurs ont &eacute;t&eacute;
+    port&eacute;s). Une liste rapide, mais non  exaustive inclue:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>SMPng: Le support <quote>nouvelle g&eacute;n&eacute;ration
+        </quote>pour les machines SMP (en cours). Actuellement le
+        support partiel du noyau pour plusieurs processeurs.</para>
+      </listitem>
+
+      <listitem>
+	<para>KSE: les <quote>Kernel Scheduled Entities</quote>
+        permettent &agrave; un processus de disposer de plusieurs threads
+        noyaux, de façon similaire &agrave; "Scheduler Activations".</para>
+      </listitem>
+
+      <listitem>
+	<para>Nouvelles architectures:  Le support des architectures
+        sparc64 et ia64, en plus de  i386, pc98, et alpha.</para>
+      </listitem>
+
+      <listitem>
+	<para>GCC:  la chaine de compilation est maintenant bas&eacute;e sur  GCC
+	  3.<replaceable>X</replaceable>, plutot que GCC
+	  2.95.<replaceable>X</replaceable>.</para>
+      </listitem>
+
+      <listitem>
+	<para>MAC:  le support pour des politiques de controle d'acc&egrave;s
+        via des mandataires extensibles.</para>
+      </listitem>
+
+      <listitem>
+        <para>GEOM:  un nouvel environnement pour les requ&egrave;tes
+        d'entr&eacute;e/sortie sur les disques. Une fonction exp&eacute;rimentale de
+        chiffrement des disque bas&eacute;e sur GEOM a &eacute;t&eacute; d&eacute;velopp&eacute;e.</para>
+      </listitem>
+
+      <listitem>
+	<para>FFS: le syst&egrave;me de fichiers FFS supporte maintenant le
+        &man.fsck.8; en arri&egrave;re plan (pour un red&eacute;marrage plus rapide
+        apr&egrave;s un plantage) et les images de syst&egrave;me de fichiers.</para>
+      </listitem>
+
+      <listitem>
+	<para>UFS2:  un nouveau format de fichier UFSS a &eacute;t&eacute; ajout&eacute;,
+        permettant des attributs &eacute;tendus par fichier et un support de
+        plus grandes tailles de fichiers.</para>
+      </listitem>
+
+      <listitem>
+        <para>Cardbus:  le support des p&eacute;riph&eacute;riques Cardbus.</para>
+      </listitem>
+
+    </itemizedlist>
+
+    <para>Une liste plus importante des nouvelles fonctionnalit&eacute;s est
+    disponible dans les notes de version de &os; 5.0.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Retour sur l'adoption de la nouvelle version</title>
+
+    <para>Parmis toutes les nouvelles fonctions de &os; 5.0, certaines
+    peuvent poser des probl&egrave;mes ou ne pas obtenir le retour
+    d&eacute;sir&eacute;. G&eacute;n&eacute;rallement, cela arrive car un nombre importants de
+    nouvelles fonctionnalit&eacute;s est en cours de d&eacute;veloppement. Parmis
+    ces probl&egrave;mes, il y a:</para>
+
+    <itemizedlist>
+
+      <listitem>
+        <para>Un nombre important de fonctions ne sont pas
+        finies. Comme par exemple, le SMPng et KSE.</para>
+      </listitem>
+
+      <listitem>
+        <para>Du aux changements dans les structures de donn&eacute;es du
+        noyau et dans ses ABIs/APIs, les gestionnaires de
+        p&eacute;riph&eacute;riques binaires n&eacute;cessitent des modifications pour
+        fonctionner correctement sous &os; 5.0.</para>
+      </listitem>
+
+      <listitem>
+        <para>Plusieurs fonctionnalit&eacute;s du syst&egrave;me de base de &os; 
+        ont &eacute;t&eacute; d&eacute;plac&eacute;es dans la collection des ports. Les exemples
+        les plus importants sont <application>Perl</application>,
+          <application>UUCP</application>, et la plupart (mais pas
+          tous) les jeux. Comme ces programmes sont encore support&eacute;s,
+          leur effacement du syst&egrave;me de base peut porter &agrave; confusion.</para>
+      </listitem>
+
+      <listitem>
+        <para>Un nombre important d'applications port&eacute;es ne compile ou
+        ne fonctionne pas correctement sous &os; 5.0, alors qu'elles
+        le font sous &os; 4-STABLE. La plupart du temps, ces probl&egrave;mes
+        proviennent de changements dans la chaine de compilation ou
+        dans le m&eacute;nage des fichiers inclus.</para>
+      </listitem>
+
+      <listitem>
+        <para>Comme &os; 5.0 est la premi&egrave;re version de la branche
+        -CURRENT depuis deux ans, plusieurs fonctions n&eacute;cessitent
+        d'&ecirc;tre expos&eacute;es pour la premi&egrave;re fois. Plusieurs fonctions
+        (comme SMPng) ont un fort impact sur le noyau.</para>
+      </listitem>
+
+      <listitem>
+        <para>Un nombre important de code de diagnostic et de
+        d&eacute;boggage est encore pr&eacute;sent dans &os; 5.0 pour permettre de
+        tracer les probl&egrave;mes. Cela rend &os; 5.0 plus lent que
+        4-STABLE.</para>
+      </listitem>
+
+      <listitem>
+        <para>Les fonctionnalit&eacute;s ne sont aujout&eacute;es &agrave; la branche de
+        d&eacute;veloppement 4-STABLE qu'apr&egrave;s avoir passer un <quote>certain
+        temps</quote> dans -CURRENT. &os; 5.0 n'a pas comme but
+        d'influencer la stabilit&eacute; comme la branche -STABLE.(c'est ce
+        que fera la branche de d&eacute;veloppement 5-STABLE qui sera cr&eacute;er
+        aux moments de la version 5.1-RELEASE ou 5.2-RELEASE)</para>
+      </listitem>
+
+    </itemizedlist>
+
+    <para>Comme un certain nombre de probl&egrave;mes affecte la stabilit&eacute;,
+    &a.re; recommande aux sites n&eacute;cessitant cela de rester sur des
+    versions bas&eacute;es sur la branche 4-STABLE en attendant que les
+    versions 5.<replaceable>X</replaceable> soient plus &eacute;labor&eacute;es.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Plans pour la branche 4-STABLE</title>
+
+    <para>La version de &os; 5.0 ne veut pas dire la fin de la branche
+    4-STABLE. Il y aura surement une autre version dans cette branche
+    qui sera 4.8-RELEASE, actuellement pr&eacute;vue pour le 1er f&eacute;vrier
+    2003.</para>
+
+    <para>Au moment de l'&eacute;criture de ce document, &a.re; n'a pas
+    planifi&eacute; de nouvelle version (apr&egrave;s la 4.8) dans la branche
+    4-STABLE. N&eacute;anmoins des 4.9-RELEASE ou m&ecirc;me 4.10-RELEASE sont
+    possibles. Les nouvelles versions dans cette branche d&eacute;pendront de
+    diff&eacute;rents facteurs. Le plus important est l'existence et la
+    stabilit&eacute; de la branche 5-STABLE. Si CURRENT n'est pas suffisement
+    stable pour cr&eacute;er une branche 5-STABLE, alors il se peut qu'il y
+    ait plusieurs nouvelles version dans la branche 4-STABLE. En
+    attendant l'annonce de la derni&egrave;re version de la branche 4-STABLE,
+    les nouvelles fonctionnalit&eacute;s seront inclues depuis HEAD &agrave; la
+    discr&eacute;tion des d&eacute;veloppeurs, sujet &agrave; la politique de confection
+    des versions actuelle.</para>
+
+    <para>Par extension, &a.re; &eacute;coutera les utilisateurs pour la
+    cr&eacute;ation de nouvelles version dans la branche 4-STABLE. Ces
+    demandes, seront &agrave; envisag&eacute;es en fonction des ressources pour la
+    confection de version (en termes d'hommes, ressources mat&eacute;rielles
+    et de place disque sur les mirroirs).</para>
+
+    <para>&a.security-officer; continuera &agrave; supporter les futures
+    version de la branche 4-STABLE en fonction de sa politique, qui
+    peut &ecirc;tre trouv&eacute;e &agrave;  <ulink
+      url="http://www.FreeBSD.org/security/index.html">la page sur la
+      s&eacute;curit&eacute;</ulink> sur le site web de  &os;. G&eacute;n&eacute;rallement les
+      deux derni&egrave;res plus r&eacute;centes versions de toutes les branches
+      sont support&eacute;es en respectant les avis de s&eacute;curit&eacute; et leur
+      correctifs. L'&eacute;quipe peut aussi supporter d'autres versions &agrave; sa
+      discr&eacute;tion.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Notes relatives &agrave; la mise &agrave; jour</title>
+
+    <para>Pour les utilisateurs existant de &os; cette section offrent
+    quelques notes sur la mise &agrave; jour de d'un syst&egrave;me &os;
+      4.<replaceable>X</replaceable> vers
+      5.<replaceable>X</replaceable>. Comme toute mise &agrave; jour de &os;,
+      il est tr&egrave;s important de lire les notes de version et les errata
+      de la version en question tout comme le fichier
+      <filename>src/UPGRADING</filename> pour une mise &agrave; jour via les
+      sources.</para>
+
+    <sect2>
+      <title>Mise &agrave; jour binaire</title>
+
+      <para>La façon la plus simple est de <quote> tout sauvegarder,
+      reformatter, r&eacute;-installer et restaurer</quote>. Cela permet
+      d'&eacute;liminer les probl&egrave;mes de compatibilit&eacute; ou d'obscolescence des
+      &eacute;x&eacute;cutables ou des fichiers de configuration poluant le nouveau
+      syst&egrave;me.</para>
+
+      <para>Actuellement, l'option de mise &agrave; jour binaire de
+      &man.sysinstall.8; n'a pas &eacute;t&eacute; assez tester pour des mises &agrave;
+      jour entre des version majeures. L'utilisation de cette fonction
+      n'est donc pas recommand&eacute;e.</para>
+
+      <para>Sur des plateformes i386 ou pc98, un utilitaire UserConfig
+      existe sur 4-STABLE pour la configuration des p&eacute;riph&eacute;riques ISA
+      au d&eacute;marrage. Sous &os; 5.0, cette fonction a &eacute;t&eacute; remplac&eacute;e en
+      partie par le m&eacute;canisme de &man.device.hints.5; (il permet de
+      sp&eacute;cifier les m&ecirc;mes param&egrave;tres, mais n'est pas interactif).</para>
+
+      <para>Les installations binaires via des disquettes, n&eacute;cessitent
+      le t&eacute;l&eacute;chargement d'une troisi&egrave;me disquette, comportant de
+      nouveaux gestionnaires de p&eacute;riph&eacute;riques en modules
+      noyau. L'image <filename>drivers.flp</filename> se trouve la
+      plupart du temps au m&ecirc;me endroit que les images
+      <filename>kern.flp</filename> et
+      <filename>mfsroot.flp</filename>.</para>
+
+      <para>Les installations via CDROM sur les architectures i386
+      utilisent maintenant un gestionnaire de d&eacute;marrage <quote>non
+      &eacute;mul&eacute;</quote>. Cela permet, entre autre, d'utiliser un noyau
+      <literal>GENERIC</literal>, plutôt que le noyau restreint se
+      trouvant sur les disquettes images. En th&eacute;orie, tout syst&egrave;me
+      capable de d&eacute;marrer avec les CDROMs d'installation de Microsoft
+      Windows NT 4 est compatible avec les CDROMs de &os; 5.0.</para>
+
+    </sect2>
+
+    <sect2>
+      <title>Mise &agrave; jour par les sources</title>
+
+      <para>Lire le fichier <filename>src/UPDATING</filename> est
+      vraiment essentiel. La section nomm&eacute;e <quote>Mise &agrave; jour de
+      4.x-stable &agrave; CURRENT</quote> contient une proc&eacute;dure pour la mise
+      &agrave; jour pas &agrave; pas. Cette proc&eacute;dure doit &ecirc;tre suivie &agrave; la lettre,
+      sans utiliser les <quote>raccourcis</quote> que certains
+      utilisateurs peuvent occasionellement employer.</para>
+
+    </sect2>
+
+    <sect2>
+      <title>Notes communes</title>
+
+      <para><application>Perl</application> a &eacute;t&eacute; retir&eacute; du syst&egrave;me de
+      base. La mani&egrave;re recommand&eacute; d'installer Perl est d'obtenir le
+      pacquetage binaire ou la collection des ports. La compilation de
+      Perl dans le syst&egrave;me de base cr&eacute;eait un nombre important de
+      probl&egrave;mes, rendant probl&egrave;matique la mise &agrave; jour. Les utilitaires
+      du syst&egrave;me de base utilisant Perl, ont &eacute;t&eacute; r&eacute;&eacute;crit (si possible)
+      ou effac&eacute;s( si il &eacute;taient obscol&egrave;tes).</para>
+
+      <para>Il est g&eacute;n&eacute;rallement possible de faire tourner les anciens
+      ex&eacute;cutable des version
+        4.<replaceable>X</replaceable> sous
+        5.<replaceable>X</replaceable>, mais certains n&eacute;cessitent
+        l'installation de la distribution
+        <filename>compat4x</filename>. Donc l'utilisation des anciens
+        ports <emphasis>est</emphasis> possible.</para>
+
+      <para>Lors de l'installation ou la mise &agrave; jour sur un syst&egrave;mes
+      4-STABLE existant, il est extr&egrave;mement important de nettoyer les
+      anciens fichiers du r&eacute;pertoire
+      <filename>/usr/include</filename>.
+      Le renommer ou le d&eacute;placer lors d'une installation binaire ou un
+      <literal>installworld</literal> est g&eacute;n&eacute;rallement suffisant. Si
+      cette &eacute;tape n'est pas respect&eacute;e, une certaine confusion peut
+      se poser au moment de la compilation(sp&eacute;cialement avec les
+      programmes C++) du au mixte de vieux et nouveaux fichiers
+      d'include.</para>
+
+
+    </sect2>
+
+  </sect1>
+
+  <sect1>
+
+    <title>En r&eacute;sum&eacute;</title>
+
+    <para>Bien que &os; 5.0 contient &eacute;norm&eacute;ment de nouvelles
+    fonctionnalit&eacute;s, cette version ne peut convenir a tous les
+    utilisateurs actuellement. Dans ce document, nous avons pr&eacute;sent&eacute;,
+    une partie des nouvelles fonctions de la s&eacute;rie des 5.0, et leurs
+    probl&egrave;mes potentiels pour une adoption imm&eacute;diate. Nous avons aussi
+    pr&eacute;sent&eacute; les futurs plans pour la branche de d&eacute;veloppement
+    4-STABLE et certains conseils pour la mise &agrave; jour des
+    syst&egrave;mes.</para>
+
+  </sect1>
+</article>

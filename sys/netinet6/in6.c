@@ -106,6 +106,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
 
+VNET_DECLARE(int, icmp6_nodeinfo_oldmcprefix);
+#define V_icmp6_nodeinfo_oldmcprefix	VNET(icmp6_nodeinfo_oldmcprefix)
+
 /*
  * Definitions of some costant IP6 addresses.
  */
@@ -129,10 +132,10 @@ const struct in6_addr in6mask128 = IN6MASK128;
 const struct sockaddr_in6 sa6_any =
 	{ sizeof(sa6_any), AF_INET6, 0, 0, IN6ADDR_ANY_INIT, 0 };
 
-static int in6_lifaddr_ioctl __P((struct socket *, u_long, caddr_t,
-	struct ifnet *, struct thread *));
-static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
-	struct sockaddr_in6 *, int));
+static int in6_lifaddr_ioctl(struct socket *, u_long, caddr_t,
+	struct ifnet *, struct thread *);
+static int in6_ifinit(struct ifnet *, struct in6_ifaddr *,
+	struct sockaddr_in6 *, int);
 static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
 int	(*faithprefix_p)(struct in6_addr *);
@@ -195,10 +198,10 @@ in6_ifremloop(struct ifaddr *ifa)
 
 	ia = ifa2ia6(ifa);
 	ifp = ifa->ifa_ifp;
-	IF_AFDATA_LOCK(ifp);
-	lla_lookup(LLTABLE6(ifp), (LLE_DELETE | LLE_IFADDR),
-	    (struct sockaddr *)&ia->ia_addr);
-	IF_AFDATA_UNLOCK(ifp);
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	lltable_prefix_free(AF_INET6, (struct sockaddr *)&addr,
+	            (struct sockaddr *)&mask, LLE_STATIC);
 
 	/*
 	 * initialize for rtmsg generation
@@ -210,8 +213,6 @@ in6_ifremloop(struct ifaddr *ifa)
 	gateway.sdl_alen = ifp->if_addrlen;
 	bzero(&rt0, sizeof(rt0));
 	rt0.rt_gateway = (struct sockaddr *)&gateway;
-	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
-	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
 	rt_mask(&rt0) = (struct sockaddr *)&mask;
 	rt_key(&rt0) = (struct sockaddr *)&addr;
 	rt0.rt_flags = RTF_HOST | RTF_STATIC;
@@ -949,6 +950,17 @@ in6_update_ifa_join_mc(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		else
 			LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
 	}
+	if (V_icmp6_nodeinfo_oldmcprefix && 
+	     in6_nigroup_oldmcprefix(ifp, NULL, -1, &mltaddr.sin6_addr) == 0) {
+		imm = in6_joingroup(ifp, &mltaddr.sin6_addr, &error, delay);
+		if (imm == NULL)
+			nd6log((LOG_WARNING, "%s: addmulti failed for %s on %s "
+			    "(errno=%d)\n", __func__, ip6_sprintf(ip6buf,
+			    &mltaddr.sin6_addr), if_name(ifp), error));
+			/* XXX not very fatal, go on... */
+		else
+			LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
+	}
 
 	/*
 	 * Join interface-local all-nodes address.
@@ -995,7 +1007,6 @@ cleanup:
  * Update parameters of an IPv6 interface address.
  * If necessary, a new entry is created and linked into address chains.
  * This function is separated from in6_control().
- * XXX: should this be performed under splnet()?
  */
 int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
@@ -1150,6 +1161,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
 		IN6_IFADDR_WLOCK();
 		TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
+		LIST_INSERT_HEAD(IN6ADDR_HASH(&ifra->ifra_addr.sin6_addr),
+		    ia, ia6_hash);
 		IN6_IFADDR_WUNLOCK();
 	}
 
@@ -1173,6 +1186,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			goto unlink;
 		}
 		ia->ia_prefixmask = ifra->ifra_prefixmask;
+		ia->ia_prefixmask.sin6_family = AF_INET6;
 	}
 
 	/*
@@ -1522,7 +1536,6 @@ in6_purgeaddr(struct ifaddr *ifa)
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
-	int	s = splnet();
 
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
@@ -1536,6 +1549,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 */
 	IN6_IFADDR_WLOCK();
 	TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+	LIST_REMOVE(ia, ia6_hash);
 	IN6_IFADDR_WUNLOCK();
 
 	/*
@@ -1560,7 +1574,6 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 		pfxlist_onlink_check();
 	}
 	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
-	splx(s);
 }
 
 void
@@ -1856,7 +1869,6 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
     struct sockaddr_in6 *sin6, int newhost)
 {
 	int	error = 0, plen, ifacount = 0;
-	int	s = splimp();
 	struct ifaddr *ifa;
 
 	/*
@@ -1876,12 +1888,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 
 	if (ifacount <= 1 && ifp->if_ioctl) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		if (error) {
-			splx(s);
+		if (error)
 			return (error);
-		}
 	}
-	splx(s);
 
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
 
@@ -2090,7 +2099,7 @@ in6_localip(struct in6_addr *in6)
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+	LIST_FOREACH(ia, IN6ADDR_HASH(in6), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr)) {
 			IN6_IFADDR_RUNLOCK();
 			return (1);
@@ -2100,22 +2109,20 @@ in6_localip(struct in6_addr *in6)
 	return (0);
 }
 
-
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
-		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
-		    &sa6->sin6_addr) &&
-		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0) {
-			IN6_IFADDR_RUNLOCK();
-			return (1); /* true */
+	LIST_FOREACH(ia, IN6ADDR_HASH(&sa6->sin6_addr), ia6_hash) {
+		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), &sa6->sin6_addr)) {
+			if (ia->ia6_flags & IN6_IFF_DEPRECATED) {
+				IN6_IFADDR_RUNLOCK();
+				return (1); /* true */
+			}
+			break;
 		}
-
-		/* XXX: do we still have to go thru the rest of the list? */
 	}
 	IN6_IFADDR_RUNLOCK();
 
@@ -2610,10 +2617,14 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
 			lle->la_flags |= LLE_DELETED;
-			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 	}
@@ -2676,6 +2687,8 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			ndpc.sin6.sin6_family = AF_INET6;
 			ndpc.sin6.sin6_len = sizeof(ndpc.sin6);
 			bcopy(L3_ADDR(lle), &ndpc.sin6, L3_ADDR_LEN(lle));
+			if (V_deembed_scopeid)
+				sa6_recoverscope(&ndpc.sin6);
 
 			/* publish */
 			if (lle->la_flags & LLE_PUB)

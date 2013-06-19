@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="euc-jp"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % devauto-ja PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//JA" "devauto.ja.ent">
+%devauto-ja;
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "devauto.ent">
+%devauto;
+<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSPARC">
+]>
+
+<!--
+    $FreeBSD$
+    Original revision: 1.5
+-->
+
+<article>
+  &artheader;
+  &sect.intro;
+  &sect.proc.sparc64;
+  &sect.dev;
+</article>

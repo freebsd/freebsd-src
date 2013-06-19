@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,7 +104,7 @@ AcpiNsInitializeObjects (
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
         "**** Starting initialization of namespace objects ****\n"));
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
-        "Completing Region/Field/Buffer/Package initialization:"));
+        "Completing Region/Field/Buffer/Package initialization:\n"));
 
     /* Set all init info to zero */
 
@@ -121,7 +121,7 @@ AcpiNsInitializeObjects (
     }
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
-        "\nInitialized %u/%u Regions %u/%u Fields %u/%u "
+        "    Initialized %u/%u Regions %u/%u Fields %u/%u "
         "Buffers %u/%u Packages (%u nodes)\n",
         Info.OpRegionInit,  Info.OpRegionCount,
         Info.FieldInit,     Info.FieldCount,
@@ -172,7 +172,7 @@ AcpiNsInitializeDevices (
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
         "Initializing Device/Processor/Thermal objects "
-        "by executing _INI methods:"));
+        "and executing _INI/_STA methods:\n"));
 
     /* Tree analysis: find all subtrees that contain _INI methods */
 
@@ -198,7 +198,7 @@ AcpiNsInitializeDevices (
      * part of the ACPI specification.
      */
     Info.EvaluateInfo->PrefixNode = AcpiGbl_RootNode;
-    Info.EvaluateInfo->Pathname = METHOD_NAME__INI;
+    Info.EvaluateInfo->RelativePathname = METHOD_NAME__INI;
     Info.EvaluateInfo->Parameters = NULL;
     Info.EvaluateInfo->Flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -230,7 +230,7 @@ AcpiNsInitializeDevices (
     }
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
-        "\nExecuted %u _INI methods requiring %u _STA executions "
+        "    Executed %u _INI methods requiring %u _STA executions "
         "(examined %u objects)\n",
         Info.Num_INI, Info.Num_STA, Info.DeviceCount));
 
@@ -254,7 +254,7 @@ ErrorExit:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Callback from AcpiWalkNamespace.  Invoked for every object
+ * DESCRIPTION: Callback from AcpiWalkNamespace. Invoked for every object
  *              within the  namespace.
  *
  *              Currently, the only objects that require initialization are:
@@ -296,28 +296,34 @@ AcpiNsInitOneObject (
     switch (Type)
     {
     case ACPI_TYPE_REGION:
+
         Info->OpRegionCount++;
         break;
 
     case ACPI_TYPE_BUFFER_FIELD:
+
         Info->FieldCount++;
         break;
 
     case ACPI_TYPE_LOCAL_BANK_FIELD:
+
         Info->FieldCount++;
         break;
 
     case ACPI_TYPE_BUFFER:
+
         Info->BufferCount++;
         break;
 
     case ACPI_TYPE_PACKAGE:
+
         Info->PackageCount++;
         break;
 
     default:
 
         /* No init required, just exit now */
+
         return (AE_OK);
     }
 
@@ -369,7 +375,9 @@ AcpiNsInitOneObject (
         break;
 
     default:
+
         /* No other types can get here */
+
         break;
     }
 
@@ -378,15 +386,6 @@ AcpiNsInitOneObject (
         ACPI_EXCEPTION ((AE_INFO, Status,
             "Could not execute arguments for [%4.4s] (%s)",
             AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Type)));
-    }
-
-    /*
-     * Print a dot for each object unless we are going to print the entire
-     * pathname
-     */
-    if (!(AcpiDbgLevel & ACPI_LV_INIT_NAMES))
-    {
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
     }
 
     /*
@@ -465,6 +464,7 @@ AcpiNsFindIniMethods (
         break;
 
     default:
+
         break;
     }
 
@@ -618,8 +618,9 @@ AcpiNsInitOneDevice (
     ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (
         ACPI_TYPE_METHOD, DeviceNode, METHOD_NAME__INI));
 
+    ACPI_MEMSET (Info, 0, sizeof (ACPI_EVALUATE_INFO));
     Info->PrefixNode = DeviceNode;
-    Info->Pathname = METHOD_NAME__INI;
+    Info->RelativePathname = METHOD_NAME__INI;
     Info->Parameters = NULL;
     Info->Flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -627,12 +628,6 @@ AcpiNsInitOneDevice (
     if (ACPI_SUCCESS (Status))
     {
         WalkInfo->Num_INI++;
-
-        if ((AcpiDbgLevel <= ACPI_LV_ALL_EXCEPTIONS) &&
-            (!(AcpiDbgLevel & ACPI_LV_INFO)))
-        {
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
-        }
     }
 
 #ifdef ACPI_DEBUG_OUTPUT
@@ -640,7 +635,7 @@ AcpiNsInitOneDevice (
     {
         /* Ignore error and move on to next device */
 
-        char *ScopeName = AcpiNsGetExternalPathname (Info->ResolvedNode);
+        char *ScopeName = AcpiNsGetExternalPathname (Info->Node);
 
         ACPI_EXCEPTION ((AE_INFO, Status, "during %s._INI execution",
             ScopeName));

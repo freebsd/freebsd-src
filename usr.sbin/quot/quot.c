@@ -484,8 +484,8 @@ static void
 donames(int fd, struct fs *super, char *name)
 {
 	int c;
-	ino_t inode;
 	ino_t maxino;
+	uintmax_t inode;
 	union dinode *dp;
 
 	maxino = super->fs_ncg * super->fs_ipg - 1;
@@ -493,9 +493,9 @@ donames(int fd, struct fs *super, char *name)
 	while ((c = getchar()) != EOF && (c < '0' || c > '9'))
 		while ((c = getchar()) != EOF && c != '\n');
 	ungetc(c,stdin);
-	while (scanf("%u",&inode) == 1) {
+	while (scanf("%ju", &inode) == 1) {
 		if (inode > maxino) {
-			warnx("illegal inode %d",inode);
+			warnx("illegal inode %ju", inode);
 			return;
 		}
 		errno = 0;

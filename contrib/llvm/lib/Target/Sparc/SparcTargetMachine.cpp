@@ -12,8 +12,8 @@
 
 #include "SparcTargetMachine.h"
 #include "Sparc.h"
-#include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
@@ -33,7 +33,7 @@ SparcTargetMachine::SparcTargetMachine(const Target &T, StringRef TT,
                                        bool is64bit)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS, is64bit),
-    DataLayout(Subtarget.getDataLayout()),
+    DL(Subtarget.getDataLayout()),
     InstrInfo(Subtarget),
     TLInfo(*this), TSInfo(*this),
     FrameLowering(Subtarget) {

@@ -14,10 +14,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 
 using namespace clang;
 using namespace ento;
@@ -67,7 +67,7 @@ void PointerSubChecker::checkPreStmt(const BinaryOperator *B,
                           "the same memory chunk may cause incorrect result."));
     BugReport *R = new BugReport(*BT, BT->getDescription(), N);
     R->addRange(B->getSourceRange());
-    C.EmitReport(R);
+    C.emitReport(R);
   }
 }
 

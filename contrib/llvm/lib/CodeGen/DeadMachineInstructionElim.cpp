@@ -13,14 +13,14 @@
 
 #define DEBUG_TYPE "codegen-dce"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Pass.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 STATISTIC(NumDeletes,          "Number of dead instructions deleted");
@@ -33,7 +33,6 @@ namespace {
     const MachineRegisterInfo *MRI;
     const TargetInstrInfo *TII;
     BitVector LivePhysRegs;
-    BitVector ReservedRegs;
 
   public:
     static char ID; // Pass identification, replacement for typeid
@@ -70,7 +69,7 @@ bool DeadMachineInstructionElim::isDead(const MachineInstr *MI) const {
       unsigned Reg = MO.getReg();
       if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
         // Don't delete live physreg defs, or any reserved register defs.
-        if (LivePhysRegs.test(Reg) || ReservedRegs.test(Reg))
+        if (LivePhysRegs.test(Reg) || MRI->isReserved(Reg))
           return false;
       } else {
         if (!MRI->use_nodbg_empty(Reg))
@@ -90,9 +89,6 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
   TRI = MF.getTarget().getRegisterInfo();
   TII = MF.getTarget().getInstrInfo();
 
-  // Treat reserved registers as always live.
-  ReservedRegs = TRI->getReservedRegs(MF);
-
   // Loop over all instructions in all blocks, from bottom to top, so that it's
   // more likely that chains of dependent but ultimately dead instructions will
   // be cleaned up.
@@ -101,16 +97,7 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
     MachineBasicBlock *MBB = &*I;
 
     // Start out assuming that reserved registers are live out of this block.
-    LivePhysRegs = ReservedRegs;
-
-    // Also add any explicit live-out physregs for this block.
-    if (!MBB->empty() && MBB->back().isReturn())
-      for (MachineRegisterInfo::liveout_iterator LOI = MRI->liveout_begin(),
-           LOE = MRI->liveout_end(); LOI != LOE; ++LOI) {
-        unsigned Reg = *LOI;
-        if (TargetRegisterInfo::isPhysicalRegister(Reg))
-          LivePhysRegs.set(Reg);
-      }
+    LivePhysRegs = MRI->getReservedRegs();
 
     // Add live-ins from sucessors to LivePhysRegs. Normally, physregs are not
     // live across blocks, but some targets (x86) can have flags live out of a

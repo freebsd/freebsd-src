@@ -55,12 +55,12 @@ int	 prn_octal(const char *);
 int	 prn_printable(const char *);
 #ifdef COLORLS
 void	 parsecolors(const char *cs);
-void     colorquit(int);
+void	 colorquit(int);
 
-extern  char    *ansi_fgcol;
-extern  char    *ansi_bgcol;
-extern  char    *ansi_coloff;
-extern  char    *attrs_off;
-extern  char    *enter_bold;
+extern	char	*ansi_fgcol;
+extern	char	*ansi_bgcol;
+extern	char	*ansi_coloff;
+extern	char	*attrs_off;
+extern	char	*enter_bold;
 #endif
 extern int	termwidth;

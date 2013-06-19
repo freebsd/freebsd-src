@@ -84,12 +84,14 @@ struct ctlname {
 #define CTLFLAG_SKIP	0x01000000	/* Skip this sysctl when listing */
 #define CTLMASK_SECURE	0x00F00000	/* Secure level */
 #define CTLFLAG_TUN	0x00080000	/* Tunable variable */
+#define	CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
+#define	CTLFLAG_RWTUN	(CTLFLAG_RW|CTLFLAG_TUN)
 #define CTLFLAG_MPSAFE	0x00040000	/* Handler is MP safe */
 #define CTLFLAG_VNET	0x00020000	/* Prisons with vnet can fiddle */
-#define CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
 #define	CTLFLAG_DYING	0x00010000	/* oid is being removed */
 #define CTLFLAG_CAPRD	0x00008000	/* Can be read in capability mode */
 #define CTLFLAG_CAPWR	0x00004000	/* Can be written in capability mode */
+#define CTLFLAG_STATS	0x00002000	/* Statistics, not a tuneable */
 #define CTLFLAG_CAPRW	(CTLFLAG_CAPRD|CTLFLAG_CAPWR)
 
 /*
@@ -182,6 +184,7 @@ int sysctl_handle_long(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_64(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS);
 
 int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
@@ -376,6 +379,19 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
 	    SYSCTL_ADD_ASSERT_TYPE(UINT64, ptr), 0,			\
 	    sysctl_handle_64, "QU", __DESCR(descr))
+
+/* Oid for a 64-bin unsigned counter(9).  The pointer must be non NULL. */
+#define	SYSCTL_COUNTER_U64(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_ASSERT_TYPE(UINT64, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
+	    ptr, val, sysctl_handle_counter_u64, "QU", descr)
+
+#define	SYSCTL_ADD_COUNTER_U64(ctx, parent, nbr, name, access, ptr, descr)\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(UINT64, ptr), 0,			\
+	    sysctl_handle_counter_u64, "QU", __DESCR(descr))
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \

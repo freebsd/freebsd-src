@@ -1,9 +1,9 @@
 /*
- *  $Id: dlg_keys.h,v 1.26 2011/06/21 22:09:22 tom Exp $
+ *  $Id: dlg_keys.h,v 1.32 2012/12/21 21:54:30 tom Exp $
  *
  *  dlg_keys.h -- runtime binding support for dialog
  *
- *  Copyright 2005-2010,2011 Thomas E.  Dickey
+ *  Copyright 2005-2011,2012 Thomas E.  Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -23,6 +23,7 @@
 
 #ifndef DLG_KEYS_H_included
 #define DLG_KEYS_H_included 1
+/* *INDENT-OFF* */
 
 #include <dialog.h>
 
@@ -31,7 +32,7 @@
 #define dlg_toupper(ch) towupper((wint_t)ch)
 #define dlg_isupper(ch) iswupper((wint_t)ch)
 #else
-#define dlg_toupper(ch) toupper(ch)
+#define dlg_toupper(ch) (((ch) > 0 && (ch) <= 255) ? toupper(ch) : (ch))
 #define dlg_isupper(ch) (isalpha(ch) && isupper(ch))
 #endif
 
@@ -45,7 +46,7 @@ typedef struct {
     int dialog_key;
 } DLG_KEYS_BINDING;
 
-#define DLG_KEYS_DATA(dialog, curses)  { curses >= KEY_MIN, curses, dialog }
+#define DLG_KEYS_DATA(dialog, curses)  { (curses) >= KEY_MIN, curses, dialog }
 
 #define END_KEYS_BINDING { -1, 0, 0 }
 
@@ -75,6 +76,11 @@ typedef enum {
     DLGK_FIELD_LAST,
     DLGK_FIELD_NEXT,
     DLGK_FIELD_PREV,
+    /* moving from form-field to form-field (or buttons) */
+    DLGK_FORM_FIRST,
+    DLGK_FORM_LAST,
+    DLGK_FORM_NEXT,
+    DLGK_FORM_PREV,
     /* moving within a grid */
     DLGK_GRID_UP,
     DLGK_GRID_DOWN,
@@ -118,23 +124,35 @@ typedef enum {
 	DLG_KEYS_DATA( DLGK_GRID_LEFT,	   KEY_LEFT ), \
 	DLG_KEYS_DATA( DLGK_GRID_RIGHT,	   KEY_RIGHT )
 
+#define SCROLL_FKEY_BINDINGS \
+	DLG_KEYS_DATA( DLGK_GRID_DOWN,	KEY_DOWN ), \
+	DLG_KEYS_DATA( DLGK_GRID_UP,	KEY_UP ), \
+	DLG_KEYS_DATA( DLGK_PAGE_FIRST,	KEY_HOME ), \
+	DLG_KEYS_DATA( DLGK_PAGE_LAST,	KEY_END ), \
+	DLG_KEYS_DATA( DLGK_PAGE_NEXT,	KEY_NPAGE ), \
+	DLG_KEYS_DATA( DLGK_PAGE_PREV,	KEY_PPAGE )
+
 #define SCROLLKEY_BINDINGS \
+	SCROLL_FKEY_BINDINGS, \
 	DLG_KEYS_DATA( DLGK_GRID_DOWN,	'J' ), \
 	DLG_KEYS_DATA( DLGK_GRID_DOWN,	'j' ), \
-	DLG_KEYS_DATA( DLGK_GRID_DOWN,	KEY_DOWN ), \
 	DLG_KEYS_DATA( DLGK_GRID_UP,	'K' ), \
 	DLG_KEYS_DATA( DLGK_GRID_UP,	'k' ), \
-	DLG_KEYS_DATA( DLGK_GRID_UP,	KEY_UP ), \
 	DLG_KEYS_DATA( DLGK_PAGE_FIRST,	'g' ), \
-	DLG_KEYS_DATA( DLGK_PAGE_FIRST,	KEY_HOME ), \
 	DLG_KEYS_DATA( DLGK_PAGE_LAST,	'G' ), \
-	DLG_KEYS_DATA( DLGK_PAGE_LAST,	KEY_END ), \
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,	'F' ), \
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,	'f' ), \
-	DLG_KEYS_DATA( DLGK_PAGE_NEXT,	KEY_NPAGE ), \
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,	'B' ), \
-	DLG_KEYS_DATA( DLGK_PAGE_PREV,	'b' ), \
-	DLG_KEYS_DATA( DLGK_PAGE_PREV,	KEY_PPAGE )
+	DLG_KEYS_DATA( DLGK_PAGE_PREV,	'b' )
+
+#define TRAVERSE_BINDINGS \
+	DLG_KEYS_DATA( DLGK_ENTER,	' ' ), \
+	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_DOWN ), \
+	DLG_KEYS_DATA( DLGK_FIELD_NEXT, KEY_RIGHT ), \
+	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ), \
+	DLG_KEYS_DATA( DLGK_FIELD_PREV,	KEY_UP ), \
+	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_BTAB ), \
+	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_LEFT )
 
 extern int dlg_lookup_key(WINDOW * /*win*/, int /*curses_key*/, int * /*dialog_key*/);
 extern int dlg_result_key(int /*dialog_key*/, int /*fkey*/, int * /*resultp*/);
@@ -145,10 +163,12 @@ extern void dlg_unregister_window(WINDOW * /*win*/);
 #ifdef HAVE_RC_FILE
 extern int dlg_parse_bindkey(char * /*params*/);
 extern void dlg_dump_keys(FILE * /*fp*/);
+extern void dlg_dump_window_keys(FILE * /*fp*/, WINDOW * /*win*/);
 #endif
 
 #ifdef __cplusplus
 }
 #endif
+/* *INDENT-ON* */
 
 #endif /* DLG_KEYS_H_included */

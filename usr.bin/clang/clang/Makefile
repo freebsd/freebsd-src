@@ -20,9 +20,11 @@ MLINKS=	clang.1 clang++.1 \
 .if ${MK_CLANG_IS_CC} != "no"
 LINKS+=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/c++ \
+	${BINDIR}/clang ${BINDIR}/CC \
 	${BINDIR}/clang ${BINDIR}/cpp
 MLINKS+= clang.1 cc.1 \
 	clang.1 c++.1 \
+	clang.1 CC.1 \
 	clang.1 cpp.1
 .endif
 
@@ -33,6 +35,19 @@ TGHDRS=	CC1AsOptions \
 	DiagnosticLexKinds \
 	DiagnosticSemaKinds \
 	Options
+
+.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+_clangstaticanalyzer= \
+	clangstaticanalyzerfrontend \
+	clangstaticanalyzercheckers \
+	clangstaticanalyzercore
+_clangarcmigrate= \
+	clangarcmigrate
+_clangrewriter= \
+	clangrewritefrontend \
+	clangrewritecore
+.endif # !EARLY_BUILD && MK_CLANG_FULL
+
 LIBDEPS=clangfrontendtool \
 	clangfrontend \
 	clangdriver \
@@ -40,18 +55,16 @@ LIBDEPS=clangfrontendtool \
 	clangcodegen \
 	clangparse \
 	clangsema \
-	clangstaticanalyzerfrontend \
-	clangstaticanalyzercheckers \
-	clangstaticanalyzercore \
+	${_clangstaticanalyzer} \
+	${_clangarcmigrate} \
+	${_clangrewriter} \
 	clanganalysis \
-	clangarcmigrate \
-	clangrewrite \
 	clangedit \
 	clangast \
-	clanglex \
 	clangbasic \
+	clanglex \
 	llvmlinker \
-	llvmarchive \
+	llvmirreader \
 	llvmipo \
 	llvmvectorize \
 	llvminstrumentation \
@@ -59,13 +72,13 @@ LIBDEPS=clangfrontendtool \
 	llvmbitreader \
 	llvmasmparser \
 	llvmarmdisassembler \
-	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
 	llvmmipsdisassembler \
+	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
 	llvmmipsinfo \
@@ -74,18 +87,19 @@ LIBDEPS=clangfrontendtool \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
+	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
 	llvmcodegen \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

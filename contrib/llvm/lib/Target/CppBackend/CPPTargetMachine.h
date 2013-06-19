@@ -14,8 +14,8 @@
 #ifndef CPPTARGETMACHINE_H
 #define CPPTARGETMACHINE_H
 
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
 
 namespace llvm {
 
@@ -35,7 +35,7 @@ struct CPPTargetMachine : public TargetMachine {
                                    AnalysisID StartAfter,
                                    AnalysisID StopAfter);
 
-  virtual const TargetData *getTargetData() const { return 0; }
+  virtual const DataLayout *getDataLayout() const { return 0; }
 };
 
 extern Target TheCppBackendTarget;

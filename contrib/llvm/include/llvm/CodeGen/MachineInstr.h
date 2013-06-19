@@ -16,16 +16,18 @@
 #ifndef LLVM_CODEGEN_MACHINEINSTR_H
 #define LLVM_CODEGEN_MACHINEINSTR_H
 
-#include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/MC/MCInstrDesc.h"
-#include "llvm/Target/TargetOpcodes.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/ilist.h"
-#include "llvm/ADT/ilist_node.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/DenseMapInfo.h"
+#include "llvm/ADT/ilist.h"
+#include "llvm/ADT/ilist_node.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/MC/MCInstrDesc.h"
+#include "llvm/Support/ArrayRecycler.h"
 #include "llvm/Support/DebugLoc.h"
+#include "llvm/Target/TargetOpcodes.h"
 #include <vector>
 
 namespace llvm {
@@ -40,6 +42,10 @@ class MachineMemOperand;
 
 //===----------------------------------------------------------------------===//
 /// MachineInstr - Representation of each machine instruction.
+///
+/// This class isn't a POD type, but it must have a trivial destructor. When a
+/// MachineFunction is deleted, all the contained MachineInstrs are deallocated
+/// without having their destructor called.
 ///
 class MachineInstr : public ilist_node<MachineInstr> {
 public:
@@ -57,11 +63,18 @@ public:
     NoFlags      = 0,
     FrameSetup   = 1 << 0,              // Instruction is used as a part of
                                         // function frame setup code.
-    InsideBundle = 1 << 1               // Instruction is inside a bundle (not
-                                        // the first MI in a bundle)
+    BundledPred  = 1 << 1,              // Instruction has bundled predecessors.
+    BundledSucc  = 1 << 2               // Instruction has bundled successors.
   };
 private:
   const MCInstrDesc *MCID;              // Instruction descriptor.
+  MachineBasicBlock *Parent;            // Pointer to the owning basic block.
+
+  // Operands are allocated by an ArrayRecycler.
+  MachineOperand *Operands;             // Pointer to the first operand.
+  unsigned NumOperands;                 // Number of operands on instruction.
+  typedef ArrayRecycler<MachineOperand>::Capacity OperandCapacity;
+  OperandCapacity CapOperands;          // Capacity of the Operands array.
 
   uint8_t Flags;                        // Various bits of additional
                                         // information about machine
@@ -74,15 +87,15 @@ private:
                                         // anything other than to convey comment
                                         // information to AsmPrinter.
 
-  uint16_t NumMemRefs;                  // information on memory references
+  uint8_t NumMemRefs;                   // Information on memory references.
   mmo_iterator MemRefs;
 
-  std::vector<MachineOperand> Operands; // the operands
-  MachineBasicBlock *Parent;            // Pointer to the owning basic block.
   DebugLoc debugLoc;                    // Source line information.
 
-  MachineInstr(const MachineInstr&);   // DO NOT IMPLEMENT
-  void operator=(const MachineInstr&); // DO NOT IMPLEMENT
+  MachineInstr(const MachineInstr&) LLVM_DELETED_FUNCTION;
+  void operator=(const MachineInstr&) LLVM_DELETED_FUNCTION;
+  // Use MachineFunction::DeleteMachineInstr() instead.
+  ~MachineInstr() LLVM_DELETED_FUNCTION;
 
   // Intrusive list support
   friend struct ilist_traits<MachineInstr>;
@@ -93,37 +106,11 @@ private:
   /// MachineInstr in the given MachineFunction.
   MachineInstr(MachineFunction &, const MachineInstr &);
 
-  /// MachineInstr ctor - This constructor creates a dummy MachineInstr with
-  /// MCID NULL and no operands.
-  MachineInstr();
-
-  // The next two constructors have DebugLoc and non-DebugLoc versions;
-  // over time, the non-DebugLoc versions should be phased out and eventually
-  // removed.
-
-  /// MachineInstr ctor - This constructor creates a MachineInstr and adds the
-  /// implicit operands.  It reserves space for the number of operands specified
-  /// by the MCInstrDesc.  The version with a DebugLoc should be preferred.
-  explicit MachineInstr(const MCInstrDesc &MCID, bool NoImp = false);
-
-  /// MachineInstr ctor - Work exactly the same as the ctor above, except that
-  /// the MachineInstr is created and added to the end of the specified basic
-  /// block.  The version with a DebugLoc should be preferred.
-  MachineInstr(MachineBasicBlock *MBB, const MCInstrDesc &MCID);
-
   /// MachineInstr ctor - This constructor create a MachineInstr and add the
   /// implicit operands.  It reserves space for number of operands specified by
   /// MCInstrDesc.  An explicit DebugLoc is supplied.
-  explicit MachineInstr(const MCInstrDesc &MCID, const DebugLoc dl,
-                        bool NoImp = false);
-
-  /// MachineInstr ctor - Work exactly the same as the ctor above, except that
-  /// the MachineInstr is created and added to the end of the specified basic
-  /// block.
-  MachineInstr(MachineBasicBlock *MBB, const DebugLoc dl,
-               const MCInstrDesc &MCID);
-
-  ~MachineInstr();
+  MachineInstr(MachineFunction&, const MCInstrDesc &MCID,
+               const DebugLoc dl, bool NoImp = false);
 
   // MachineInstrs are pool-allocated and owned by MachineFunction.
   friend class MachineFunction;
@@ -174,7 +161,9 @@ public:
   }
 
   void setFlags(unsigned flags) {
-    Flags = flags;
+    // Filter out the automatically maintained flags.
+    unsigned Mask = BundledPred | BundledSucc;
+    Flags = (Flags & Mask) | (flags & ~Mask);
   }
 
   /// clearFlag - Clear a MI flag.
@@ -219,21 +208,36 @@ public:
   /// The first instruction has the special opcode "BUNDLE". It's not "inside"
   /// a bundle, but the next three MIs are.
   bool isInsideBundle() const {
-    return getFlag(InsideBundle);
-  }
-
-  /// setIsInsideBundle - Set InsideBundle bit.
-  ///
-  void setIsInsideBundle(bool Val = true) {
-    if (Val)
-      setFlag(InsideBundle);
-    else
-      clearFlag(InsideBundle);
+    return getFlag(BundledPred);
   }
 
   /// isBundled - Return true if this instruction part of a bundle. This is true
   /// if either itself or its following instruction is marked "InsideBundle".
-  bool isBundled() const;
+  bool isBundled() const {
+    return isBundledWithPred() || isBundledWithSucc();
+  }
+
+  /// Return true if this instruction is part of a bundle, and it is not the
+  /// first instruction in the bundle.
+  bool isBundledWithPred() const { return getFlag(BundledPred); }
+
+  /// Return true if this instruction is part of a bundle, and it is not the
+  /// last instruction in the bundle.
+  bool isBundledWithSucc() const { return getFlag(BundledSucc); }
+
+  /// Bundle this instruction with its predecessor. This can be an unbundled
+  /// instruction, or it can be the first instruction in a bundle.
+  void bundleWithPred();
+
+  /// Bundle this instruction with its successor. This can be an unbundled
+  /// instruction, or it can be the last instruction in a bundle.
+  void bundleWithSucc();
+
+  /// Break bundle above this instruction.
+  void unbundleFromPred();
+
+  /// Break bundle below this instruction.
+  void unbundleFromSucc();
 
   /// getDebugLoc - Returns the debug location id of this MachineInstr.
   ///
@@ -258,7 +262,7 @@ public:
 
   /// Access to explicit operands of the instruction.
   ///
-  unsigned getNumOperands() const { return (unsigned)Operands.size(); }
+  unsigned getNumOperands() const { return NumOperands; }
 
   const MachineOperand& getOperand(unsigned i) const {
     assert(i < getNumOperands() && "getOperand() out of range!");
@@ -274,14 +278,14 @@ public:
   unsigned getNumExplicitOperands() const;
 
   /// iterator/begin/end - Iterate over all operands of a machine instruction.
-  typedef std::vector<MachineOperand>::iterator mop_iterator;
-  typedef std::vector<MachineOperand>::const_iterator const_mop_iterator;
+  typedef MachineOperand *mop_iterator;
+  typedef const MachineOperand *const_mop_iterator;
 
-  mop_iterator operands_begin() { return Operands.begin(); }
-  mop_iterator operands_end() { return Operands.end(); }
+  mop_iterator operands_begin() { return Operands; }
+  mop_iterator operands_end() { return Operands + NumOperands; }
 
-  const_mop_iterator operands_begin() const { return Operands.begin(); }
-  const_mop_iterator operands_end() const { return Operands.end(); }
+  const_mop_iterator operands_begin() const { return Operands; }
+  const_mop_iterator operands_end() const { return Operands + NumOperands; }
 
   /// Access to memory operands of the instruction
   mmo_iterator memoperands_begin() const { return MemRefs; }
@@ -309,11 +313,11 @@ public:
   /// The second argument indicates whether the query should look inside
   /// instruction bundles.
   bool hasProperty(unsigned MCFlag, QueryType Type = AnyInBundle) const {
-    // Inline the fast path.
-    if (Type == IgnoreBundle || !isBundle())
+    // Inline the fast path for unbundled or bundle-internal instructions.
+    if (Type == IgnoreBundle || !isBundled() || isBundledWithPred())
       return getDesc().getFlags() & (1 << MCFlag);
 
-    // If we have a bundle, take the slow path.
+    // If this is the first instruction in a bundle, take the slow path.
     return hasPropertyInBundle(1 << MCFlag, Type);
   }
 
@@ -459,6 +463,11 @@ public:
   /// Instructions with this flag set are not necessarily simple load
   /// instructions, they may load a value and modify it, for example.
   bool mayLoad(QueryType Type = AnyInBundle) const {
+    if (isInlineAsm()) {
+      unsigned ExtraInfo = getOperand(InlineAsm::MIOp_ExtraInfo).getImm();
+      if (ExtraInfo & InlineAsm::Extra_MayLoad)
+        return true;
+    }
     return hasProperty(MCID::MayLoad, Type);
   }
 
@@ -468,6 +477,11 @@ public:
   /// instructions, they may store a modified value based on their operands, or
   /// may not actually modify anything, for example.
   bool mayStore(QueryType Type = AnyInBundle) const {
+    if (isInlineAsm()) {
+      unsigned ExtraInfo = getOperand(InlineAsm::MIOp_ExtraInfo).getImm();
+      if (ExtraInfo & InlineAsm::Extra_MayStore)
+        return true;
+    }
     return hasProperty(MCID::MayStore, Type);
   }
 
@@ -582,13 +596,32 @@ public:
   bool isIdenticalTo(const MachineInstr *Other,
                      MICheckType Check = CheckDefs) const;
 
-  /// removeFromParent - This method unlinks 'this' from the containing basic
-  /// block, and returns it, but does not delete it.
+  /// Unlink 'this' from the containing basic block, and return it without
+  /// deleting it.
+  ///
+  /// This function can not be used on bundled instructions, use
+  /// removeFromBundle() to remove individual instructions from a bundle.
   MachineInstr *removeFromParent();
 
-  /// eraseFromParent - This method unlinks 'this' from the containing basic
-  /// block and deletes it.
+  /// Unlink this instruction from its basic block and return it without
+  /// deleting it.
+  ///
+  /// If the instruction is part of a bundle, the other instructions in the
+  /// bundle remain bundled.
+  MachineInstr *removeFromBundle();
+
+  /// Unlink 'this' from the containing basic block and delete it.
+  ///
+  /// If this instruction is the header of a bundle, the whole bundle is erased.
+  /// This function can not be used for instructions inside a bundle, use
+  /// eraseFromBundle() to erase individual bundled instructions.
   void eraseFromParent();
+
+  /// Unlink 'this' form its basic block and delete it.
+  ///
+  /// If the instruction is part of a bundle, the other instructions in the
+  /// bundle remain bundled.
+  void eraseFromBundle();
 
   /// isLabel - Returns true if the MachineInstr represents a label.
   ///
@@ -609,7 +642,11 @@ public:
   bool isKill() const { return getOpcode() == TargetOpcode::KILL; }
   bool isImplicitDef() const { return getOpcode()==TargetOpcode::IMPLICIT_DEF; }
   bool isInlineAsm() const { return getOpcode() == TargetOpcode::INLINEASM; }
+  bool isMSInlineAsm() const { 
+    return getOpcode() == TargetOpcode::INLINEASM && getInlineAsmDialect();
+  }
   bool isStackAligningInlineAsm() const;
+  InlineAsm::AsmDialect getInlineAsmDialect() const;
   bool isInsertSubreg() const {
     return getOpcode() == TargetOpcode::INSERT_SUBREG;
   }
@@ -665,7 +702,11 @@ public:
     }
   }
 
-  /// getBundleSize - Return the number of instructions inside the MI bundle.
+  /// Return the number of instructions inside the MI bundle, excluding the
+  /// bundle header.
+  ///
+  /// This is the number of instructions that MachineBasicBlock::iterator
+  /// skips, 0 for unbundled instructions.
   unsigned getBundleSize() const;
 
   /// readsRegister - Return true if the MachineInstr reads the specified
@@ -782,27 +823,47 @@ public:
                         const TargetInstrInfo *TII,
                         const TargetRegisterInfo *TRI) const;
 
+  /// tieOperands - Add a tie between the register operands at DefIdx and
+  /// UseIdx. The tie will cause the register allocator to ensure that the two
+  /// operands are assigned the same physical register.
+  ///
+  /// Tied operands are managed automatically for explicit operands in the
+  /// MCInstrDesc. This method is for exceptional cases like inline asm.
+  void tieOperands(unsigned DefIdx, unsigned UseIdx);
+
+  /// findTiedOperandIdx - Given the index of a tied register operand, find the
+  /// operand it is tied to. Defs are tied to uses and vice versa. Returns the
+  /// index of the tied operand which must exist.
+  unsigned findTiedOperandIdx(unsigned OpIdx) const;
+
   /// isRegTiedToUseOperand - Given the index of a register def operand,
   /// check if the register def is tied to a source operand, due to either
   /// two-address elimination or inline assembly constraints. Returns the
   /// first tied use operand index by reference if UseOpIdx is not null.
-  bool isRegTiedToUseOperand(unsigned DefOpIdx, unsigned *UseOpIdx = 0) const;
+  bool isRegTiedToUseOperand(unsigned DefOpIdx, unsigned *UseOpIdx = 0) const {
+    const MachineOperand &MO = getOperand(DefOpIdx);
+    if (!MO.isReg() || !MO.isDef() || !MO.isTied())
+      return false;
+    if (UseOpIdx)
+      *UseOpIdx = findTiedOperandIdx(DefOpIdx);
+    return true;
+  }
 
   /// isRegTiedToDefOperand - Return true if the use operand of the specified
   /// index is tied to an def operand. It also returns the def operand index by
   /// reference if DefOpIdx is not null.
-  bool isRegTiedToDefOperand(unsigned UseOpIdx, unsigned *DefOpIdx = 0) const;
+  bool isRegTiedToDefOperand(unsigned UseOpIdx, unsigned *DefOpIdx = 0) const {
+    const MachineOperand &MO = getOperand(UseOpIdx);
+    if (!MO.isReg() || !MO.isUse() || !MO.isTied())
+      return false;
+    if (DefOpIdx)
+      *DefOpIdx = findTiedOperandIdx(UseOpIdx);
+    return true;
+  }
 
   /// clearKillInfo - Clears kill flags on all operands.
   ///
   void clearKillInfo();
-
-  /// copyKillDeadInfo - Copies kill / dead operand properties from MI.
-  ///
-  void copyKillDeadInfo(const MachineInstr *MI);
-
-  /// copyPredicates - Copies predicate operand(s) from MI.
-  void copyPredicates(const MachineInstr *MI);
 
   /// substituteRegister - Replace all occurrences of FromReg with ToReg:SubIdx,
   /// properly composing subreg indices where necessary.
@@ -852,11 +913,11 @@ public:
   bool isSafeToReMat(const TargetInstrInfo *TII, AliasAnalysis *AA,
                      unsigned DstReg) const;
 
-  /// hasVolatileMemoryRef - Return true if this instruction may have a
-  /// volatile memory reference, or if the information describing the
-  /// memory reference is not available. Return false if it is known to
-  /// have no volatile memory references.
-  bool hasVolatileMemoryRef() const;
+  /// hasOrderedMemoryRef - Return true if this instruction may have an ordered
+  /// or volatile memory reference, or if the information describing the memory
+  /// reference is not available. Return false if it is known to have no
+  /// ordered or volatile memory references.
+  bool hasOrderedMemoryRef() const;
 
   /// isInvariantLoad - Return true if this instruction is loading from a
   /// location whose value is invariant across the function.  For example,
@@ -885,21 +946,35 @@ public:
 
   /// copyImplicitOps - Copy implicit register operands from specified
   /// instruction to this instruction.
-  void copyImplicitOps(const MachineInstr *MI);
+  void copyImplicitOps(MachineFunction &MF, const MachineInstr *MI);
 
   //
   // Debugging support
   //
-  void print(raw_ostream &OS, const TargetMachine *TM = 0) const;
+  void print(raw_ostream &OS, const TargetMachine *TM = 0,
+             bool SkipOpers = false) const;
   void dump() const;
 
   //===--------------------------------------------------------------------===//
   // Accessors used to build up machine instructions.
 
-  /// addOperand - Add the specified operand to the instruction.  If it is an
-  /// implicit operand, it is added to the end of the operand list.  If it is
-  /// an explicit operand it is added at the end of the explicit operand list
+  /// Add the specified operand to the instruction.  If it is an implicit
+  /// operand, it is added to the end of the operand list.  If it is an
+  /// explicit operand it is added at the end of the explicit operand list
   /// (before the first implicit operand).
+  ///
+  /// MF must be the machine function that was used to allocate this
+  /// instruction.
+  ///
+  /// MachineInstrBuilder provides a more convenient interface for creating
+  /// instructions and adding operands.
+  void addOperand(MachineFunction &MF, const MachineOperand &Op);
+
+  /// Add an operand without providing an MF reference. This only works for
+  /// instructions that are inserted in a basic block.
+  ///
+  /// MachineInstrBuilder and the two-argument addOperand(MF, MO) should be
+  /// preferred.
   void addOperand(const MachineOperand &Op);
 
   /// setDesc - Replace the instruction descriptor (thus opcode) of
@@ -926,7 +1001,8 @@ public:
   /// list. This does not transfer ownership.
   void setMemRefs(mmo_iterator NewMemRefs, mmo_iterator NewMemRefsEnd) {
     MemRefs = NewMemRefs;
-    NumMemRefs = NewMemRefsEnd - NewMemRefs;
+    NumMemRefs = uint8_t(NewMemRefsEnd - NewMemRefs);
+    assert(NumMemRefs == NewMemRefsEnd - NewMemRefs && "Too many memrefs");
   }
 
 private:
@@ -935,9 +1011,18 @@ private:
   /// return null.
   MachineRegisterInfo *getRegInfo();
 
+  /// untieRegOperand - Break any tie involving OpIdx.
+  void untieRegOperand(unsigned OpIdx) {
+    MachineOperand &MO = getOperand(OpIdx);
+    if (MO.isReg() && MO.isTied()) {
+      getOperand(findTiedOperandIdx(OpIdx)).TiedTo = 0;
+      MO.TiedTo = 0;
+    }
+  }
+
   /// addImplicitDefUseOperands - Add all implicit def and use operands to
   /// this instruction.
-  void addImplicitDefUseOperands();
+  void addImplicitDefUseOperands(MachineFunction &MF);
 
   /// RemoveRegOperandsFromUseLists - Unlink all of the register operands in
   /// this instruction from their respective use lists.  This requires that the

@@ -12,9 +12,9 @@
 
 #include "XCoreTargetMachine.h"
 #include "XCore.h"
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Module.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
@@ -27,7 +27,7 @@ XCoreTargetMachine::XCoreTargetMachine(const Target &T, StringRef TT,
                                        CodeGenOpt::Level OL)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS),
-    DataLayout("e-p:32:32:32-a0:0:32-f32:32:32-f64:32:32-i1:8:32-i8:8:32-"
+    DL("e-p:32:32:32-a0:0:32-f32:32:32-f64:32:32-i1:8:32-i8:8:32-"
                "i16:16:32-i32:32:32-i64:32:32-n32"),
     InstrInfo(),
     FrameLowering(Subtarget),
@@ -46,12 +46,18 @@ public:
     return getTM<XCoreTargetMachine>();
   }
 
+  virtual bool addPreISel();
   virtual bool addInstSelector();
 };
 } // namespace
 
 TargetPassConfig *XCoreTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new XCorePassConfig(this, PM);
+}
+
+bool XCorePassConfig::addPreISel() {
+  addPass(createXCoreLowerThreadLocalPass());
+  return false;
 }
 
 bool XCorePassConfig::addInstSelector() {

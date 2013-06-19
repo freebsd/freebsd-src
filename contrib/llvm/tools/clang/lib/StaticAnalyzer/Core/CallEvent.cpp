@@ -14,19 +14,37 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
-#include "clang/Analysis/ProgramPoint.h"
 #include "clang/AST/ParentMap.h"
+#include "clang/Analysis/ProgramPoint.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
 
 QualType CallEvent::getResultType() const {
-  QualType ResultTy = getDeclaredResultType();
+  const Expr *E = getOriginExpr();
+  assert(E && "Calls without origin expressions do not have results");
+  QualType ResultTy = E->getType();
 
-  if (ResultTy.isNull())
-    ResultTy = getOriginExpr()->getType();
+  ASTContext &Ctx = getState()->getStateManager().getContext();
+
+  // A function that returns a reference to 'int' will have a result type
+  // of simply 'int'. Check the origin expr's value kind to recover the
+  // proper type.
+  switch (E->getValueKind()) {
+  case VK_LValue:
+    ResultTy = Ctx.getLValueReferenceType(ResultTy);
+    break;
+  case VK_XValue:
+    ResultTy = Ctx.getRValueReferenceType(ResultTy);
+    break;
+  case VK_RValue:
+    // No adjustment is necessary.
+    break;
+  }
 
   return ResultTy;
 }
@@ -45,7 +63,7 @@ static bool isCallbackArg(SVal V, QualType T) {
   // Check if a callback is passed inside a struct (for both, struct passed by
   // reference and by value). Dig just one level into the struct for now.
 
-  if (isa<PointerType>(T) || isa<ReferenceType>(T))
+  if (T->isAnyPointerType() || T->isReferenceType())
     T = T->getPointeeType();
 
   if (const RecordType *RT = T->getAsStructureType()) {
@@ -83,6 +101,14 @@ bool CallEvent::hasNonZeroCallbackArg() const {
   return false;
 }
 
+bool CallEvent::isGlobalCFunction(StringRef FunctionName) const {
+  const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(getDecl());
+  if (!FD)
+    return false;
+
+  return CheckerContext::isCLibraryFunction(FD, FunctionName);
+}
+
 /// \brief Returns true if a type is a pointer-to-const or reference-to-const
 /// with no further indirection.
 static bool isPointerToConst(QualType Ty) {
@@ -99,7 +125,7 @@ static bool isPointerToConst(QualType Ty) {
 // Try to retrieve the function declaration and find the function parameter
 // types which are pointers/references to a non-pointer const.
 // We will not invalidate the corresponding argument regions.
-static void findPtrToConstParams(llvm::SmallSet<unsigned, 1> &PreserveArgs,
+static void findPtrToConstParams(llvm::SmallSet<unsigned, 4> &PreserveArgs,
                                  const CallEvent &Call) {
   unsigned Idx = 0;
   for (CallEvent::param_type_iterator I = Call.param_type_begin(),
@@ -111,69 +137,35 @@ static void findPtrToConstParams(llvm::SmallSet<unsigned, 1> &PreserveArgs,
 }
 
 ProgramStateRef CallEvent::invalidateRegions(unsigned BlockCount,
-                                              ProgramStateRef Orig) const {
+                                             ProgramStateRef Orig) const {
   ProgramStateRef Result = (Orig ? Orig : getState());
 
-  SmallVector<const MemRegion *, 8> RegionsToInvalidate;
-  getExtraInvalidatedRegions(RegionsToInvalidate);
+  SmallVector<SVal, 8> ConstValues;
+  SmallVector<SVal, 8> ValuesToInvalidate;
+
+  getExtraInvalidatedValues(ValuesToInvalidate);
 
   // Indexes of arguments whose values will be preserved by the call.
-  llvm::SmallSet<unsigned, 1> PreserveArgs;
+  llvm::SmallSet<unsigned, 4> PreserveArgs;
   if (!argumentsMayEscape())
     findPtrToConstParams(PreserveArgs, *this);
 
   for (unsigned Idx = 0, Count = getNumArgs(); Idx != Count; ++Idx) {
+    // Mark this region for invalidation.  We batch invalidate regions
+    // below for efficiency.
     if (PreserveArgs.count(Idx))
-      continue;
-
-    SVal V = getArgSVal(Idx);
-
-    // If we are passing a location wrapped as an integer, unwrap it and
-    // invalidate the values referred by the location.
-    if (nonloc::LocAsInteger *Wrapped = dyn_cast<nonloc::LocAsInteger>(&V))
-      V = Wrapped->getLoc();
-    else if (!isa<Loc>(V))
-      continue;
-
-    if (const MemRegion *R = V.getAsRegion()) {
-      // Invalidate the value of the variable passed by reference.
-
-      // Are we dealing with an ElementRegion?  If the element type is
-      // a basic integer type (e.g., char, int) and the underlying region
-      // is a variable region then strip off the ElementRegion.
-      // FIXME: We really need to think about this for the general case
-      //   as sometimes we are reasoning about arrays and other times
-      //   about (char*), etc., is just a form of passing raw bytes.
-      //   e.g., void *p = alloca(); foo((char*)p);
-      if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
-        // Checking for 'integral type' is probably too promiscuous, but
-        // we'll leave it in for now until we have a systematic way of
-        // handling all of these cases.  Eventually we need to come up
-        // with an interface to StoreManager so that this logic can be
-        // appropriately delegated to the respective StoreManagers while
-        // still allowing us to do checker-specific logic (e.g.,
-        // invalidating reference counts), probably via callbacks.
-        if (ER->getElementType()->isIntegralOrEnumerationType()) {
-          const MemRegion *superReg = ER->getSuperRegion();
-          if (isa<VarRegion>(superReg) || isa<FieldRegion>(superReg) ||
-              isa<ObjCIvarRegion>(superReg))
-            R = cast<TypedRegion>(superReg);
-        }
-        // FIXME: What about layers of ElementRegions?
-      }
-
-      // Mark this region for invalidation.  We batch invalidate regions
-      // below for efficiency.
-      RegionsToInvalidate.push_back(R);
-    }
+      ConstValues.push_back(getArgSVal(Idx));
+    else
+      ValuesToInvalidate.push_back(getArgSVal(Idx));
   }
 
   // Invalidate designated regions using the batch invalidation API.
   // NOTE: Even if RegionsToInvalidate is empty, we may still invalidate
   //  global variables.
-  return Result->invalidateRegions(RegionsToInvalidate, getOriginExpr(),
+  return Result->invalidateRegions(ValuesToInvalidate, getOriginExpr(),
                                    BlockCount, getLocationContext(),
-                                   /*Symbols=*/0, this);
+                                   /*CausedByPointerEscape*/ true,
+                                   /*Symbols=*/0, this, ConstValues);
 }
 
 ProgramPoint CallEvent::getProgramPoint(bool IsPreVisit,
@@ -207,6 +199,13 @@ SourceRange CallEvent::getArgSourceRange(unsigned Index) const {
   return ArgE->getSourceRange();
 }
 
+SVal CallEvent::getReturnValue() const {
+  const Expr *E = getOriginExpr();
+  if (!E)
+    return UndefinedVal();
+  return getSVal(E);
+}
+
 void CallEvent::dump() const {
   dump(llvm::errs());
 }
@@ -230,10 +229,31 @@ void CallEvent::dump(raw_ostream &Out) const {
 }
 
 
-bool CallEvent::mayBeInlined(const Stmt *S) {
-  // FIXME: Kill this.
+bool CallEvent::isCallStmt(const Stmt *S) {
   return isa<CallExpr>(S) || isa<ObjCMessageExpr>(S)
-                          || isa<CXXConstructExpr>(S);
+                          || isa<CXXConstructExpr>(S)
+                          || isa<CXXNewExpr>(S);
+}
+
+QualType CallEvent::getDeclaredResultType(const Decl *D) {
+  assert(D);
+  if (const FunctionDecl* FD = dyn_cast<FunctionDecl>(D))
+    return FD->getResultType();
+  if (const ObjCMethodDecl* MD = dyn_cast<ObjCMethodDecl>(D))
+    return MD->getResultType();
+  if (const BlockDecl *BD = dyn_cast<BlockDecl>(D)) {
+    // Blocks are difficult because the return type may not be stored in the
+    // BlockDecl itself. The AST should probably be enhanced, but for now we
+    // just do what we can.
+    QualType Ty = BD->getSignatureAsWritten()->getType();
+    if (const FunctionType *FT = Ty->getAs<FunctionType>())
+      if (!FT->getResultType()->isDependentType())
+        return FT->getResultType();
+
+    return QualType();
+  }
+  
+  return QualType();
 }
 
 static void addParameterValuesToBindings(const StackFrameContext *CalleeCtx,
@@ -285,14 +305,6 @@ void AnyFunctionCall::getInitialStackFrameContents(
                                D->param_begin(), D->param_end());
 }
 
-QualType AnyFunctionCall::getDeclaredResultType() const {
-  const FunctionDecl *D = getDecl();
-  if (!D)
-    return QualType();
-
-  return D->getResultType();
-}
-
 bool AnyFunctionCall::argumentsMayEscape() const {
   if (hasNonZeroCallbackArg())
     return true;
@@ -303,7 +315,7 @@ bool AnyFunctionCall::argumentsMayEscape() const {
 
   const IdentifierInfo *II = D->getIdentifier();
   if (!II)
-    return true;
+    return false;
 
   // This set of "escaping" APIs is 
 
@@ -371,9 +383,19 @@ const FunctionDecl *CXXInstanceCall::getDecl() const {
   return getSVal(CE->getCallee()).getAsFunctionDecl();
 }
 
-void CXXInstanceCall::getExtraInvalidatedRegions(RegionList &Regions) const {
-  if (const MemRegion *R = getCXXThisVal().getAsRegion())
-    Regions.push_back(R);
+void CXXInstanceCall::getExtraInvalidatedValues(ValueList &Values) const {
+  Values.push_back(getCXXThisVal());
+}
+
+SVal CXXInstanceCall::getCXXThisVal() const {
+  const Expr *Base = getCXXThisExpr();
+  // FIXME: This doesn't handle an overloaded ->* operator.
+  if (!Base)
+    return UnknownVal();
+
+  SVal ThisVal = getSVal(Base);
+  assert(ThisVal.isUnknownOrUndef() || ThisVal.getAs<Loc>());
+  return ThisVal;
 }
 
 
@@ -400,13 +422,30 @@ RuntimeDefinition CXXInstanceCall::getRuntimeDefinition() const {
 
   // Is the type a C++ class? (This is mostly a defensive check.)
   QualType RegionType = DynType.getType()->getPointeeType();
+  assert(!RegionType.isNull() && "DynamicTypeInfo should always be a pointer.");
+
   const CXXRecordDecl *RD = RegionType->getAsCXXRecordDecl();
   if (!RD || !RD->hasDefinition())
     return RuntimeDefinition();
 
   // Find the decl for this method in that class.
   const CXXMethodDecl *Result = MD->getCorrespondingMethodInClass(RD, true);
-  assert(Result && "At the very least the static decl should show up.");
+  if (!Result) {
+    // We might not even get the original statically-resolved method due to
+    // some particularly nasty casting (e.g. casts to sister classes).
+    // However, we should at least be able to search up and down our own class
+    // hierarchy, and some real bugs have been caught by checking this.
+    assert(!RD->isDerivedFrom(MD->getParent()) && "Couldn't find known method");
+    
+    // FIXME: This is checking that our DynamicTypeInfo is at least as good as
+    // the static type. However, because we currently don't update
+    // DynamicTypeInfo when an object is cast, we can't actually be sure the
+    // DynamicTypeInfo is up to date. This assert should be re-enabled once
+    // this is fixed. <rdar://problem/12287087>
+    //assert(!MD->getParent()->isDerivedFrom(RD) && "Bad DynamicTypeInfo");
+
+    return RuntimeDefinition();
+  }
 
   // Does the decl that we found have an implementation?
   const FunctionDecl *Definition;
@@ -459,6 +498,18 @@ const Expr *CXXMemberCall::getCXXThisExpr() const {
   return getOriginExpr()->getImplicitObjectArgument();
 }
 
+RuntimeDefinition CXXMemberCall::getRuntimeDefinition() const {
+  // C++11 [expr.call]p1: ...If the selected function is non-virtual, or if the
+  // id-expression in the class member access expression is a qualified-id,
+  // that function is called. Otherwise, its final overrider in the dynamic type
+  // of the object expression is called.
+  if (const MemberExpr *ME = dyn_cast<MemberExpr>(getOriginExpr()->getCallee()))
+    if (ME->hasQualifier())
+      return AnyFunctionCall::getRuntimeDefinition();
+  
+  return CXXInstanceCall::getRuntimeDefinition();
+}
+
 
 const Expr *CXXMemberOperatorCall::getCXXThisExpr() const {
   return getOriginExpr()->getArg(0);
@@ -486,10 +537,10 @@ CallEvent::param_iterator BlockCall::param_end() const {
   return D->param_end();
 }
 
-void BlockCall::getExtraInvalidatedRegions(RegionList &Regions) const {
+void BlockCall::getExtraInvalidatedValues(ValueList &Values) const {
   // FIXME: This also needs to invalidate captured globals.
   if (const MemRegion *R = getBlockRegion())
-    Regions.push_back(R);
+    Values.push_back(loc::MemRegionVal(R));
 }
 
 void BlockCall::getInitialStackFrameContents(const StackFrameContext *CalleeCtx,
@@ -501,24 +552,15 @@ void BlockCall::getInitialStackFrameContents(const StackFrameContext *CalleeCtx,
 }
 
 
-QualType BlockCall::getDeclaredResultType() const {
-  const BlockDataRegion *BR = getBlockRegion();
-  if (!BR)
-    return QualType();
-  QualType BlockTy = BR->getCodeRegion()->getLocationType();
-  return cast<FunctionType>(BlockTy->getPointeeType())->getResultType();
-}
-
-
 SVal CXXConstructorCall::getCXXThisVal() const {
   if (Data)
     return loc::MemRegionVal(static_cast<const MemRegion *>(Data));
   return UnknownVal();
 }
 
-void CXXConstructorCall::getExtraInvalidatedRegions(RegionList &Regions) const {
+void CXXConstructorCall::getExtraInvalidatedValues(ValueList &Values) const {
   if (Data)
-    Regions.push_back(static_cast<const MemRegion *>(Data));
+    Values.push_back(loc::MemRegionVal(static_cast<const MemRegion *>(Data)));
 }
 
 void CXXConstructorCall::getInitialStackFrameContents(
@@ -539,8 +581,17 @@ void CXXConstructorCall::getInitialStackFrameContents(
 
 SVal CXXDestructorCall::getCXXThisVal() const {
   if (Data)
-    return loc::MemRegionVal(static_cast<const MemRegion *>(Data));
+    return loc::MemRegionVal(DtorDataTy::getFromOpaqueValue(Data).getPointer());
   return UnknownVal();
+}
+
+RuntimeDefinition CXXDestructorCall::getRuntimeDefinition() const {
+  // Base destructors are always called non-virtually.
+  // Skip CXXInstanceCall's devirtualization logic in this case.
+  if (isBaseDestructor())
+    return AnyFunctionCall::getRuntimeDefinition();
+
+  return CXXInstanceCall::getRuntimeDefinition();
 }
 
 
@@ -561,17 +612,16 @@ CallEvent::param_iterator ObjCMethodCall::param_end() const {
 }
 
 void
-ObjCMethodCall::getExtraInvalidatedRegions(RegionList &Regions) const {
-  if (const MemRegion *R = getReceiverSVal().getAsRegion())
-    Regions.push_back(R);
+ObjCMethodCall::getExtraInvalidatedValues(ValueList &Values) const {
+  Values.push_back(getReceiverSVal());
 }
 
-QualType ObjCMethodCall::getDeclaredResultType() const {
-  const ObjCMethodDecl *D = getDecl();
-  if (!D)
-    return QualType();
-
-  return D->getResultType();
+SVal ObjCMethodCall::getSelfSVal() const {
+  const LocationContext *LCtx = getLocationContext();
+  const ImplicitParamDecl *SelfDecl = LCtx->getSelfDecl();
+  if (!SelfDecl)
+    return SVal();
+  return getState()->getSVal(getState()->getRegion(SelfDecl, LCtx));
 }
 
 SVal ObjCMethodCall::getReceiverSVal() const {
@@ -584,10 +634,23 @@ SVal ObjCMethodCall::getReceiverSVal() const {
 
   // An instance message with no expression means we are sending to super.
   // In this case the object reference is the same as 'self'.
-  const LocationContext *LCtx = getLocationContext();
-  const ImplicitParamDecl *SelfDecl = LCtx->getSelfDecl();
-  assert(SelfDecl && "No message receiver Expr, but not in an ObjC method");
-  return getState()->getSVal(getState()->getRegion(SelfDecl, LCtx));
+  assert(getOriginExpr()->getReceiverKind() == ObjCMessageExpr::SuperInstance);
+  SVal SelfVal = getSelfSVal();
+  assert(SelfVal.isValid() && "Calling super but not in ObjC method");
+  return SelfVal;
+}
+
+bool ObjCMethodCall::isReceiverSelfOrSuper() const {
+  if (getOriginExpr()->getReceiverKind() == ObjCMessageExpr::SuperInstance ||
+      getOriginExpr()->getReceiverKind() == ObjCMessageExpr::SuperClass)
+      return true;
+
+  if (!isInstanceMessage())
+    return false;
+
+  SVal RecVal = getSVal(getOriginExpr()->getInstanceReceiver());
+
+  return (RecVal == getSelfSVal());
 }
 
 SourceRange ObjCMethodCall::getSourceRange() const {
@@ -747,7 +810,34 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
     // Lookup the method implementation.
     if (ReceiverT)
       if (ObjCInterfaceDecl *IDecl = ReceiverT->getInterfaceDecl()) {
-        const ObjCMethodDecl *MD = IDecl->lookupPrivateMethod(Sel);
+        // Repeatedly calling lookupPrivateMethod() is expensive, especially
+        // when in many cases it returns null.  We cache the results so
+        // that repeated queries on the same ObjCIntefaceDecl and Selector
+        // don't incur the same cost.  On some test cases, we can see the
+        // same query being issued thousands of times.
+        //
+        // NOTE: This cache is essentially a "global" variable, but it
+        // only gets lazily created when we get here.  The value of the
+        // cache probably comes from it being global across ExprEngines,
+        // where the same queries may get issued.  If we are worried about
+        // concurrency, or possibly loading/unloading ASTs, etc., we may
+        // need to revisit this someday.  In terms of memory, this table
+        // stays around until clang quits, which also may be bad if we
+        // need to release memory.
+        typedef std::pair<const ObjCInterfaceDecl*, Selector>
+                PrivateMethodKey;
+        typedef llvm::DenseMap<PrivateMethodKey,
+                               Optional<const ObjCMethodDecl *> >
+                PrivateMethodCache;
+
+        static PrivateMethodCache PMC;
+        Optional<const ObjCMethodDecl *> &Val = PMC[std::make_pair(IDecl, Sel)];
+
+        // Query lookupPrivateMethod() if the cache does not hit.
+        if (!Val.hasValue())
+          Val = IDecl->lookupPrivateMethod(Sel);
+
+        const ObjCMethodDecl *MD = Val.getValue();
         if (CanBeSubClassed)
           return RuntimeDefinition(MD, Receiver);
         else
@@ -820,7 +910,8 @@ CallEventManager::getCaller(const StackFrameContext *CalleeCtx,
       return getSimpleCall(CE, State, CallerCtx);
 
     switch (CallSite->getStmtClass()) {
-    case Stmt::CXXConstructExprClass: {
+    case Stmt::CXXConstructExprClass:
+    case Stmt::CXXTemporaryObjectExprClass: {
       SValBuilder &SVB = State->getStateManager().getSValBuilder();
       const CXXMethodDecl *Ctor = cast<CXXMethodDecl>(CalleeCtx->getDecl());
       Loc ThisPtr = SVB.getCXXThis(Ctor, CalleeCtx);
@@ -843,8 +934,9 @@ CallEventManager::getCaller(const StackFrameContext *CalleeCtx,
   // destructors, though this could change in the future.
   const CFGBlock *B = CalleeCtx->getCallSiteBlock();
   CFGElement E = (*B)[CalleeCtx->getIndex()];
-  assert(isa<CFGImplicitDtor>(E) && "All other CFG elements should have exprs");
-  assert(!isa<CFGTemporaryDtor>(E) && "We don't handle temporaries yet");
+  assert(E.getAs<CFGImplicitDtor>() &&
+         "All other CFG elements should have exprs");
+  assert(!E.getAs<CFGTemporaryDtor>() && "We don't handle temporaries yet");
 
   SValBuilder &SVB = State->getStateManager().getSValBuilder();
   const CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(CalleeCtx->getDecl());
@@ -852,11 +944,12 @@ CallEventManager::getCaller(const StackFrameContext *CalleeCtx,
   SVal ThisVal = State->getSVal(ThisPtr);
 
   const Stmt *Trigger;
-  if (const CFGAutomaticObjDtor *AutoDtor = dyn_cast<CFGAutomaticObjDtor>(&E))
+  if (Optional<CFGAutomaticObjDtor> AutoDtor = E.getAs<CFGAutomaticObjDtor>())
     Trigger = AutoDtor->getTriggerStmt();
   else
     Trigger = Dtor->getBody();
 
   return getCXXDestructorCall(Dtor, Trigger, ThisVal.getAsRegion(),
-                              State, CallerCtx);
+                              E.getAs<CFGBaseDtor>().hasValue(), State,
+                              CallerCtx);
 }

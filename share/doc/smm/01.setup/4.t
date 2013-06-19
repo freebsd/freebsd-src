@@ -89,7 +89,6 @@ miscfs		miscellaneous filesystems broken down as follows
 	kernfs	filesystem access to kernel data structures
 	lofs	loopback filesystem
 	nullfs	another loopback filesystem
-	portal	associate processes with filesystem locations
 	specfs	device special files
 	umapfs	provide alternate uid/gid mappings
 dev		generic device drivers (SCSI, vnode, concatenated disk)

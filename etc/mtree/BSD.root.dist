@@ -24,6 +24,8 @@
     etc
         X11
         ..
+        atf
+        ..
         bluetooth
         ..
         defaults

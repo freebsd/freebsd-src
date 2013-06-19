@@ -215,10 +215,9 @@ propagate_priority(struct thread *td)
 
 		/*
 		 * If the thread is asleep, then we are probably about
-		 * to deadlock.  To make debugging this easier, just
-		 * panic and tell the user which thread misbehaved so
-		 * they can hopefully get a stack trace from the truly
-		 * misbehaving thread.
+		 * to deadlock.  To make debugging this easier, show
+		 * backtrace of misbehaving thread and panic to not
+		 * leave the kernel deadlocked.
 		 */
 		if (TD_IS_SLEEPING(td)) {
 			printf(
@@ -684,7 +683,6 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 	if (owner)
 		MPASS(owner->td_proc->p_magic == P_MAGIC);
 	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
-	KASSERT(!TD_IS_IDLETHREAD(td), ("idle threads cannot block on locks"));
 
 	/*
 	 * If the lock does not already have a turnstile, use this thread's

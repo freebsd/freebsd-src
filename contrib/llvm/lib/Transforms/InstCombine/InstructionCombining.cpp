@@ -36,22 +36,23 @@
 #define DEBUG_TYPE "instcombine"
 #include "llvm/Transforms/Scalar.h"
 #include "InstCombine.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm-c/Initialization.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Support/CFG.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/PatternMatch.h"
 #include "llvm/Support/ValueHandle.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/StringSwitch.h"
-#include "llvm-c/Initialization.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 #include <climits>
 using namespace llvm;
@@ -64,6 +65,11 @@ STATISTIC(NumSunkInst , "Number of instructions sunk");
 STATISTIC(NumExpand,    "Number of expansions");
 STATISTIC(NumFactor   , "Number of factorizations");
 STATISTIC(NumReassoc  , "Number of reassociations");
+
+static cl::opt<bool> UnsafeFPShrink("enable-double-float-shrink", cl::Hidden,
+                                   cl::init(false),
+                                   cl::desc("Enable unsafe double to float "
+                                            "shrinking for math lib calls"));
 
 // Initialization Routines
 void llvm::initializeInstCombine(PassRegistry &Registry) {
@@ -88,7 +94,7 @@ void InstCombiner::getAnalysisUsage(AnalysisUsage &AU) const {
 
 
 Value *InstCombiner::EmitGEPOffset(User *GEP) {
-  return llvm::EmitGEPOffset(Builder, *getTargetData(), GEP);
+  return llvm::EmitGEPOffset(Builder, *getDataLayout(), GEP);
 }
 
 /// ShouldChangeType - Return true if it is desirable to convert a computation
@@ -156,6 +162,21 @@ static bool MaintainNoSignedWrap(BinaryOperator &I, Value *B, Value *C) {
   return !Overflow;
 }
 
+/// Conservatively clears subclassOptionalData after a reassociation or
+/// commutation. We preserve fast-math flags when applicable as they can be
+/// preserved.
+static void ClearSubclassDataAfterReassociation(BinaryOperator &I) {
+  FPMathOperator *FPMO = dyn_cast<FPMathOperator>(&I);
+  if (!FPMO) {
+    I.clearSubclassOptionalData();
+    return;
+  }
+
+  FastMathFlags FMF = I.getFastMathFlags();
+  I.clearSubclassOptionalData();
+  I.setFastMathFlags(FMF);
+}
+
 /// SimplifyAssociativeOrCommutative - This performs a few simplifications for
 /// operators which are associative or commutative:
 //
@@ -213,7 +234,7 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
             I.clearSubclassOptionalData();
             I.setHasNoSignedWrap(true);
           } else {
-            I.clearSubclassOptionalData();
+            ClearSubclassDataAfterReassociation(I);
           }
 
           Changed = true;
@@ -235,7 +256,7 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
           I.setOperand(1, C);
           // Conservatively clear the optional flags, since they may not be
           // preserved by the reassociation.
-          I.clearSubclassOptionalData();
+          ClearSubclassDataAfterReassociation(I);
           Changed = true;
           ++NumReassoc;
           continue;
@@ -257,7 +278,7 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
           I.setOperand(1, B);
           // Conservatively clear the optional flags, since they may not be
           // preserved by the reassociation.
-          I.clearSubclassOptionalData();
+          ClearSubclassDataAfterReassociation(I);
           Changed = true;
           ++NumReassoc;
           continue;
@@ -277,7 +298,7 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
           I.setOperand(1, V);
           // Conservatively clear the optional flags, since they may not be
           // preserved by the reassociation.
-          I.clearSubclassOptionalData();
+          ClearSubclassDataAfterReassociation(I);
           Changed = true;
           ++NumReassoc;
           continue;
@@ -304,7 +325,7 @@ bool InstCombiner::SimplifyAssociativeOrCommutative(BinaryOperator &I) {
         I.setOperand(1, Folded);
         // Conservatively clear the optional flags, since they may not be
         // preserved by the reassociation.
-        I.clearSubclassOptionalData();
+        ClearSubclassDataAfterReassociation(I);
 
         Changed = true;
         continue;
@@ -510,8 +531,8 @@ Value *InstCombiner::dyn_castNegVal(Value *V) const {
 // instruction if the LHS is a constant negative zero (which is the 'negate'
 // form).
 //
-Value *InstCombiner::dyn_castFNegVal(Value *V) const {
-  if (BinaryOperator::isFNeg(V))
+Value *InstCombiner::dyn_castFNegVal(Value *V, bool IgnoreZeroSign) const {
+  if (BinaryOperator::isFNeg(V, IgnoreZeroSign))
     return BinaryOperator::getFNegArgument(V);
 
   // Constants can be considered to be negated values if they can be folded.
@@ -805,6 +826,244 @@ static bool shouldMergeGEPs(GEPOperator &GEP, GEPOperator &Src) {
   return true;
 }
 
+/// Descale - Return a value X such that Val = X * Scale, or null if none.  If
+/// the multiplication is known not to overflow then NoSignedWrap is set.
+Value *InstCombiner::Descale(Value *Val, APInt Scale, bool &NoSignedWrap) {
+  assert(isa<IntegerType>(Val->getType()) && "Can only descale integers!");
+  assert(cast<IntegerType>(Val->getType())->getBitWidth() ==
+         Scale.getBitWidth() && "Scale not compatible with value!");
+
+  // If Val is zero or Scale is one then Val = Val * Scale.
+  if (match(Val, m_Zero()) || Scale == 1) {
+    NoSignedWrap = true;
+    return Val;
+  }
+
+  // If Scale is zero then it does not divide Val.
+  if (Scale.isMinValue())
+    return 0;
+
+  // Look through chains of multiplications, searching for a constant that is
+  // divisible by Scale.  For example, descaling X*(Y*(Z*4)) by a factor of 4
+  // will find the constant factor 4 and produce X*(Y*Z).  Descaling X*(Y*8) by
+  // a factor of 4 will produce X*(Y*2).  The principle of operation is to bore
+  // down from Val:
+  //
+  //     Val = M1 * X          ||   Analysis starts here and works down
+  //      M1 = M2 * Y          ||   Doesn't descend into terms with more
+  //      M2 =  Z * 4          \/   than one use
+  //
+  // Then to modify a term at the bottom:
+  //
+  //     Val = M1 * X
+  //      M1 =  Z * Y          ||   Replaced M2 with Z
+  //
+  // Then to work back up correcting nsw flags.
+
+  // Op - the term we are currently analyzing.  Starts at Val then drills down.
+  // Replaced with its descaled value before exiting from the drill down loop.
+  Value *Op = Val;
+
+  // Parent - initially null, but after drilling down notes where Op came from.
+  // In the example above, Parent is (Val, 0) when Op is M1, because M1 is the
+  // 0'th operand of Val.
+  std::pair<Instruction*, unsigned> Parent;
+
+  // RequireNoSignedWrap - Set if the transform requires a descaling at deeper
+  // levels that doesn't overflow.
+  bool RequireNoSignedWrap = false;
+
+  // logScale - log base 2 of the scale.  Negative if not a power of 2.
+  int32_t logScale = Scale.exactLogBase2();
+
+  for (;; Op = Parent.first->getOperand(Parent.second)) { // Drill down
+
+    if (ConstantInt *CI = dyn_cast<ConstantInt>(Op)) {
+      // If Op is a constant divisible by Scale then descale to the quotient.
+      APInt Quotient(Scale), Remainder(Scale); // Init ensures right bitwidth.
+      APInt::sdivrem(CI->getValue(), Scale, Quotient, Remainder);
+      if (!Remainder.isMinValue())
+        // Not divisible by Scale.
+        return 0;
+      // Replace with the quotient in the parent.
+      Op = ConstantInt::get(CI->getType(), Quotient);
+      NoSignedWrap = true;
+      break;
+    }
+
+    if (BinaryOperator *BO = dyn_cast<BinaryOperator>(Op)) {
+
+      if (BO->getOpcode() == Instruction::Mul) {
+        // Multiplication.
+        NoSignedWrap = BO->hasNoSignedWrap();
+        if (RequireNoSignedWrap && !NoSignedWrap)
+          return 0;
+
+        // There are three cases for multiplication: multiplication by exactly
+        // the scale, multiplication by a constant different to the scale, and
+        // multiplication by something else.
+        Value *LHS = BO->getOperand(0);
+        Value *RHS = BO->getOperand(1);
+
+        if (ConstantInt *CI = dyn_cast<ConstantInt>(RHS)) {
+          // Multiplication by a constant.
+          if (CI->getValue() == Scale) {
+            // Multiplication by exactly the scale, replace the multiplication
+            // by its left-hand side in the parent.
+            Op = LHS;
+            break;
+          }
+
+          // Otherwise drill down into the constant.
+          if (!Op->hasOneUse())
+            return 0;
+
+          Parent = std::make_pair(BO, 1);
+          continue;
+        }
+
+        // Multiplication by something else. Drill down into the left-hand side
+        // since that's where the reassociate pass puts the good stuff.
+        if (!Op->hasOneUse())
+          return 0;
+
+        Parent = std::make_pair(BO, 0);
+        continue;
+      }
+
+      if (logScale > 0 && BO->getOpcode() == Instruction::Shl &&
+          isa<ConstantInt>(BO->getOperand(1))) {
+        // Multiplication by a power of 2.
+        NoSignedWrap = BO->hasNoSignedWrap();
+        if (RequireNoSignedWrap && !NoSignedWrap)
+          return 0;
+
+        Value *LHS = BO->getOperand(0);
+        int32_t Amt = cast<ConstantInt>(BO->getOperand(1))->
+          getLimitedValue(Scale.getBitWidth());
+        // Op = LHS << Amt.
+
+        if (Amt == logScale) {
+          // Multiplication by exactly the scale, replace the multiplication
+          // by its left-hand side in the parent.
+          Op = LHS;
+          break;
+        }
+        if (Amt < logScale || !Op->hasOneUse())
+          return 0;
+
+        // Multiplication by more than the scale.  Reduce the multiplying amount
+        // by the scale in the parent.
+        Parent = std::make_pair(BO, 1);
+        Op = ConstantInt::get(BO->getType(), Amt - logScale);
+        break;
+      }
+    }
+
+    if (!Op->hasOneUse())
+      return 0;
+
+    if (CastInst *Cast = dyn_cast<CastInst>(Op)) {
+      if (Cast->getOpcode() == Instruction::SExt) {
+        // Op is sign-extended from a smaller type, descale in the smaller type.
+        unsigned SmallSize = Cast->getSrcTy()->getPrimitiveSizeInBits();
+        APInt SmallScale = Scale.trunc(SmallSize);
+        // Suppose Op = sext X, and we descale X as Y * SmallScale.  We want to
+        // descale Op as (sext Y) * Scale.  In order to have
+        //   sext (Y * SmallScale) = (sext Y) * Scale
+        // some conditions need to hold however: SmallScale must sign-extend to
+        // Scale and the multiplication Y * SmallScale should not overflow.
+        if (SmallScale.sext(Scale.getBitWidth()) != Scale)
+          // SmallScale does not sign-extend to Scale.
+          return 0;
+        assert(SmallScale.exactLogBase2() == logScale);
+        // Require that Y * SmallScale must not overflow.
+        RequireNoSignedWrap = true;
+
+        // Drill down through the cast.
+        Parent = std::make_pair(Cast, 0);
+        Scale = SmallScale;
+        continue;
+      }
+
+      if (Cast->getOpcode() == Instruction::Trunc) {
+        // Op is truncated from a larger type, descale in the larger type.
+        // Suppose Op = trunc X, and we descale X as Y * sext Scale.  Then
+        //   trunc (Y * sext Scale) = (trunc Y) * Scale
+        // always holds.  However (trunc Y) * Scale may overflow even if
+        // trunc (Y * sext Scale) does not, so nsw flags need to be cleared
+        // from this point up in the expression (see later).
+        if (RequireNoSignedWrap)
+          return 0;
+
+        // Drill down through the cast.
+        unsigned LargeSize = Cast->getSrcTy()->getPrimitiveSizeInBits();
+        Parent = std::make_pair(Cast, 0);
+        Scale = Scale.sext(LargeSize);
+        if (logScale + 1 == (int32_t)Cast->getType()->getPrimitiveSizeInBits())
+          logScale = -1;
+        assert(Scale.exactLogBase2() == logScale);
+        continue;
+      }
+    }
+
+    // Unsupported expression, bail out.
+    return 0;
+  }
+
+  // We know that we can successfully descale, so from here on we can safely
+  // modify the IR.  Op holds the descaled version of the deepest term in the
+  // expression.  NoSignedWrap is 'true' if multiplying Op by Scale is known
+  // not to overflow.
+
+  if (!Parent.first)
+    // The expression only had one term.
+    return Op;
+
+  // Rewrite the parent using the descaled version of its operand.
+  assert(Parent.first->hasOneUse() && "Drilled down when more than one use!");
+  assert(Op != Parent.first->getOperand(Parent.second) &&
+         "Descaling was a no-op?");
+  Parent.first->setOperand(Parent.second, Op);
+  Worklist.Add(Parent.first);
+
+  // Now work back up the expression correcting nsw flags.  The logic is based
+  // on the following observation: if X * Y is known not to overflow as a signed
+  // multiplication, and Y is replaced by a value Z with smaller absolute value,
+  // then X * Z will not overflow as a signed multiplication either.  As we work
+  // our way up, having NoSignedWrap 'true' means that the descaled value at the
+  // current level has strictly smaller absolute value than the original.
+  Instruction *Ancestor = Parent.first;
+  do {
+    if (BinaryOperator *BO = dyn_cast<BinaryOperator>(Ancestor)) {
+      // If the multiplication wasn't nsw then we can't say anything about the
+      // value of the descaled multiplication, and we have to clear nsw flags
+      // from this point on up.
+      bool OpNoSignedWrap = BO->hasNoSignedWrap();
+      NoSignedWrap &= OpNoSignedWrap;
+      if (NoSignedWrap != OpNoSignedWrap) {
+        BO->setHasNoSignedWrap(NoSignedWrap);
+        Worklist.Add(Ancestor);
+      }
+    } else if (Ancestor->getOpcode() == Instruction::Trunc) {
+      // The fact that the descaled input to the trunc has smaller absolute
+      // value than the original input doesn't tell us anything useful about
+      // the absolute values of the truncations.
+      NoSignedWrap = false;
+    }
+    assert((Ancestor->getOpcode() != Instruction::SExt || NoSignedWrap) &&
+           "Failed to keep proper track of nsw flags while drilling down?");
+
+    if (Ancestor == Val)
+      // Got to the top, all done!
+      return Val;
+
+    // Move up one level in the expression.
+    assert(Ancestor->hasOneUse() && "Drilled down when more than one use!");
+    Ancestor = Ancestor->use_back();
+  } while (1);
+}
+
 Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   SmallVector<Value*, 8> Ops(GEP.op_begin(), GEP.op_end());
 
@@ -817,7 +1076,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   // by multiples of a zero size type with zero.
   if (TD) {
     bool MadeChange = false;
-    Type *IntPtrTy = TD->getIntPtrType(GEP.getContext());
+    Type *IntPtrTy = TD->getIntPtrType(GEP.getPointerOperandType());
 
     gep_type_iterator GTI = gep_type_begin(GEP);
     for (User::op_iterator I = GEP.op_begin() + 1, E = GEP.op_end();
@@ -836,7 +1095,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
         }
 
       Type *IndexTy = (*I)->getType();
-      if (IndexTy != IntPtrTy && !IndexTy->isVectorTy()) {
+      if (IndexTy != IntPtrTy) {
         // If we are using a wider index than needed for this platform, shrink
         // it to what we need.  If narrower, sign-extend it to what we need.
         // This explicit cast can make subsequent optimizations more obvious.
@@ -855,7 +1114,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
     if (!shouldMergeGEPs(*cast<GEPOperator>(&GEP), *Src))
       return 0;
 
-    // Note that if our source is a gep chain itself that we wait for that
+    // Note that if our source is a gep chain itself then we wait for that
     // chain to be resolved before we perform this transformation.  This
     // avoids us creating a TON of code in some cases.
     if (GEPOperator *SrcGEP =
@@ -987,62 +1246,73 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       }
 
       // Transform things like:
+      // %V = mul i64 %N, 4
+      // %t = getelementptr i8* bitcast (i32* %arr to i8*), i32 %V
+      // into:  %t1 = getelementptr i32* %arr, i32 %N; bitcast
+      if (TD && ResElTy->isSized() && SrcElTy->isSized()) {
+        // Check that changing the type amounts to dividing the index by a scale
+        // factor.
+        uint64_t ResSize = TD->getTypeAllocSize(ResElTy);
+        uint64_t SrcSize = TD->getTypeAllocSize(SrcElTy);
+        if (ResSize && SrcSize % ResSize == 0) {
+          Value *Idx = GEP.getOperand(1);
+          unsigned BitWidth = Idx->getType()->getPrimitiveSizeInBits();
+          uint64_t Scale = SrcSize / ResSize;
+
+          // Earlier transforms ensure that the index has type IntPtrType, which
+          // considerably simplifies the logic by eliminating implicit casts.
+          assert(Idx->getType() == TD->getIntPtrType(GEP.getContext()) &&
+                 "Index not cast to pointer width?");
+
+          bool NSW;
+          if (Value *NewIdx = Descale(Idx, APInt(BitWidth, Scale), NSW)) {
+            // Successfully decomposed Idx as NewIdx * Scale, form a new GEP.
+            // If the multiplication NewIdx * Scale may overflow then the new
+            // GEP may not be "inbounds".
+            Value *NewGEP = GEP.isInBounds() && NSW ?
+              Builder->CreateInBoundsGEP(StrippedPtr, NewIdx, GEP.getName()) :
+              Builder->CreateGEP(StrippedPtr, NewIdx, GEP.getName());
+            // The NewGEP must be pointer typed, so must the old one -> BitCast
+            return new BitCastInst(NewGEP, GEP.getType());
+          }
+        }
+      }
+
+      // Similarly, transform things like:
       // getelementptr i8* bitcast ([100 x double]* X to i8*), i32 %tmp
       //   (where tmp = 8*tmp2) into:
       // getelementptr [100 x double]* %arr, i32 0, i32 %tmp2; bitcast
-
-      if (TD && SrcElTy->isArrayTy() && ResElTy->isIntegerTy(8)) {
+      if (TD && ResElTy->isSized() && SrcElTy->isSized() &&
+          SrcElTy->isArrayTy()) {
+        // Check that changing to the array element type amounts to dividing the
+        // index by a scale factor.
+        uint64_t ResSize = TD->getTypeAllocSize(ResElTy);
         uint64_t ArrayEltSize =
-            TD->getTypeAllocSize(cast<ArrayType>(SrcElTy)->getElementType());
+          TD->getTypeAllocSize(cast<ArrayType>(SrcElTy)->getElementType());
+        if (ResSize && ArrayEltSize % ResSize == 0) {
+          Value *Idx = GEP.getOperand(1);
+          unsigned BitWidth = Idx->getType()->getPrimitiveSizeInBits();
+          uint64_t Scale = ArrayEltSize / ResSize;
 
-        // Check to see if "tmp" is a scale by a multiple of ArrayEltSize.  We
-        // allow either a mul, shift, or constant here.
-        Value *NewIdx = 0;
-        ConstantInt *Scale = 0;
-        if (ArrayEltSize == 1) {
-          NewIdx = GEP.getOperand(1);
-          Scale = ConstantInt::get(cast<IntegerType>(NewIdx->getType()), 1);
-        } else if (ConstantInt *CI = dyn_cast<ConstantInt>(GEP.getOperand(1))) {
-          NewIdx = ConstantInt::get(CI->getType(), 1);
-          Scale = CI;
-        } else if (Instruction *Inst =dyn_cast<Instruction>(GEP.getOperand(1))){
-          if (Inst->getOpcode() == Instruction::Shl &&
-              isa<ConstantInt>(Inst->getOperand(1))) {
-            ConstantInt *ShAmt = cast<ConstantInt>(Inst->getOperand(1));
-            uint32_t ShAmtVal = ShAmt->getLimitedValue(64);
-            Scale = ConstantInt::get(cast<IntegerType>(Inst->getType()),
-                                     1ULL << ShAmtVal);
-            NewIdx = Inst->getOperand(0);
-          } else if (Inst->getOpcode() == Instruction::Mul &&
-                     isa<ConstantInt>(Inst->getOperand(1))) {
-            Scale = cast<ConstantInt>(Inst->getOperand(1));
-            NewIdx = Inst->getOperand(0);
+          // Earlier transforms ensure that the index has type IntPtrType, which
+          // considerably simplifies the logic by eliminating implicit casts.
+          assert(Idx->getType() == TD->getIntPtrType(GEP.getContext()) &&
+                 "Index not cast to pointer width?");
+
+          bool NSW;
+          if (Value *NewIdx = Descale(Idx, APInt(BitWidth, Scale), NSW)) {
+            // Successfully decomposed Idx as NewIdx * Scale, form a new GEP.
+            // If the multiplication NewIdx * Scale may overflow then the new
+            // GEP may not be "inbounds".
+            Value *Off[2];
+            Off[0] = Constant::getNullValue(Type::getInt32Ty(GEP.getContext()));
+            Off[1] = NewIdx;
+            Value *NewGEP = GEP.isInBounds() && NSW ?
+              Builder->CreateInBoundsGEP(StrippedPtr, Off, GEP.getName()) :
+              Builder->CreateGEP(StrippedPtr, Off, GEP.getName());
+            // The NewGEP must be pointer typed, so must the old one -> BitCast
+            return new BitCastInst(NewGEP, GEP.getType());
           }
-        }
-
-        // If the index will be to exactly the right offset with the scale taken
-        // out, perform the transformation. Note, we don't know whether Scale is
-        // signed or not. We'll use unsigned version of division/modulo
-        // operation after making sure Scale doesn't have the sign bit set.
-        if (ArrayEltSize && Scale && Scale->getSExtValue() >= 0LL &&
-            Scale->getZExtValue() % ArrayEltSize == 0) {
-          Scale = ConstantInt::get(Scale->getType(),
-                                   Scale->getZExtValue() / ArrayEltSize);
-          if (Scale->getZExtValue() != 1) {
-            Constant *C = ConstantExpr::getIntegerCast(Scale, NewIdx->getType(),
-                                                       false /*ZExt*/);
-            NewIdx = Builder->CreateMul(NewIdx, C, "idxscale");
-          }
-
-          // Insert the new GEP instruction.
-          Value *Idx[2];
-          Idx[0] = Constant::getNullValue(Type::getInt32Ty(GEP.getContext()));
-          Idx[1] = NewIdx;
-          Value *NewGEP = GEP.isInBounds() ?
-            Builder->CreateInBoundsGEP(StrippedPtr, Idx, GEP.getName()):
-            Builder->CreateGEP(StrippedPtr, Idx, GEP.getName());
-          // The NewGEP must be pointer typed, so must the old one -> BitCast
-          return new BitCastInst(NewGEP, GEP.getType());
         }
       }
     }
@@ -1054,21 +1324,19 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   /// into a gep of the original struct.  This is important for SROA and alias
   /// analysis of unions.  If "A" is also a bitcast, wait for A/X to be merged.
   if (BitCastInst *BCI = dyn_cast<BitCastInst>(PtrOp)) {
+    APInt Offset(TD ? TD->getPointerSizeInBits() : 1, 0);
     if (TD &&
-        !isa<BitCastInst>(BCI->getOperand(0)) && GEP.hasAllConstantIndices() &&
+        !isa<BitCastInst>(BCI->getOperand(0)) &&
+        GEP.accumulateConstantOffset(*TD, Offset) &&
         StrippedPtrTy->getAddressSpace() == GEP.getPointerAddressSpace()) {
-
-      // Determine how much the GEP moves the pointer.
-      SmallVector<Value*, 8> Ops(GEP.idx_begin(), GEP.idx_end());
-      int64_t Offset = TD->getIndexedOffset(GEP.getPointerOperandType(), Ops);
 
       // If this GEP instruction doesn't move the pointer, just replace the GEP
       // with a bitcast of the real input to the dest type.
-      if (Offset == 0) {
+      if (!Offset) {
         // If the bitcast is of an allocation, and the allocation will be
         // converted to match the type of the cast, don't touch this.
         if (isa<AllocaInst>(BCI->getOperand(0)) ||
-            isAllocationFn(BCI->getOperand(0))) {
+            isAllocationFn(BCI->getOperand(0), TLI)) {
           // See if the bitcast simplifies, if so, don't nuke this GEP yet.
           if (Instruction *I = visitBitCast(*BCI)) {
             if (I != BCI) {
@@ -1088,7 +1356,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       SmallVector<Value*, 8> NewIndices;
       Type *InTy =
         cast<PointerType>(BCI->getOperand(0)->getType())->getElementType();
-      if (FindElementAtOffset(InTy, Offset, NewIndices)) {
+      if (FindElementAtOffset(InTy, Offset.getSExtValue(), NewIndices)) {
         Value *NGEP = GEP.isInBounds() ?
           Builder->CreateInBoundsGEP(BCI->getOperand(0), NewIndices) :
           Builder->CreateGEP(BCI->getOperand(0), NewIndices);
@@ -1107,7 +1375,8 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
 
 
 static bool
-isAllocSiteRemovable(Instruction *AI, SmallVectorImpl<WeakVH> &Users) {
+isAllocSiteRemovable(Instruction *AI, SmallVectorImpl<WeakVH> &Users,
+                     const TargetLibraryInfo *TLI) {
   SmallVector<Instruction*, 4> Worklist;
   Worklist.push_back(AI);
 
@@ -1163,7 +1432,7 @@ isAllocSiteRemovable(Instruction *AI, SmallVectorImpl<WeakVH> &Users) {
           }
         }
 
-        if (isFreeCall(I)) {
+        if (isFreeCall(I, TLI)) {
           Users.push_back(I);
           continue;
         }
@@ -1188,7 +1457,7 @@ Instruction *InstCombiner::visitAllocSite(Instruction &MI) {
   // to null and free calls, delete the calls and replace the comparisons with
   // true or false as appropriate.
   SmallVector<WeakVH, 64> Users;
-  if (isAllocSiteRemovable(&MI, Users)) {
+  if (isAllocSiteRemovable(&MI, Users, TLI)) {
     for (unsigned i = 0, e = Users.size(); i != e; ++i) {
       Instruction *I = cast_or_null<Instruction>(&*Users[i]);
       if (!I) continue;
@@ -1214,13 +1483,69 @@ Instruction *InstCombiner::visitAllocSite(Instruction &MI) {
       Module *M = II->getParent()->getParent()->getParent();
       Function *F = Intrinsic::getDeclaration(M, Intrinsic::donothing);
       InvokeInst::Create(F, II->getNormalDest(), II->getUnwindDest(),
-                         ArrayRef<Value *>(), "", II->getParent());
+                         None, "", II->getParent());
     }
     return EraseInstFromFunction(MI);
   }
   return 0;
 }
 
+/// \brief Move the call to free before a NULL test.
+///
+/// Check if this free is accessed after its argument has been test
+/// against NULL (property 0).
+/// If yes, it is legal to move this call in its predecessor block.
+///
+/// The move is performed only if the block containing the call to free
+/// will be removed, i.e.:
+/// 1. it has only one predecessor P, and P has two successors
+/// 2. it contains the call and an unconditional branch
+/// 3. its successor is the same as its predecessor's successor
+///
+/// The profitability is out-of concern here and this function should
+/// be called only if the caller knows this transformation would be
+/// profitable (e.g., for code size).
+static Instruction *
+tryToMoveFreeBeforeNullTest(CallInst &FI) {
+  Value *Op = FI.getArgOperand(0);
+  BasicBlock *FreeInstrBB = FI.getParent();
+  BasicBlock *PredBB = FreeInstrBB->getSinglePredecessor();
+
+  // Validate part of constraint #1: Only one predecessor
+  // FIXME: We can extend the number of predecessor, but in that case, we
+  //        would duplicate the call to free in each predecessor and it may
+  //        not be profitable even for code size.
+  if (!PredBB)
+    return 0;
+
+  // Validate constraint #2: Does this block contains only the call to
+  //                         free and an unconditional branch?
+  // FIXME: We could check if we can speculate everything in the
+  //        predecessor block
+  if (FreeInstrBB->size() != 2)
+    return 0;
+  BasicBlock *SuccBB;
+  if (!match(FreeInstrBB->getTerminator(), m_UnconditionalBr(SuccBB)))
+    return 0;
+
+  // Validate the rest of constraint #1 by matching on the pred branch.
+  TerminatorInst *TI = PredBB->getTerminator();
+  BasicBlock *TrueBB, *FalseBB;
+  ICmpInst::Predicate Pred;
+  if (!match(TI, m_Br(m_ICmp(Pred, m_Specific(Op), m_Zero()), TrueBB, FalseBB)))
+    return 0;
+  if (Pred != ICmpInst::ICMP_EQ && Pred != ICmpInst::ICMP_NE)
+    return 0;
+
+  // Validate constraint #3: Ensure the null case just falls through.
+  if (SuccBB != (Pred == ICmpInst::ICMP_EQ ? TrueBB : FalseBB))
+    return 0;
+  assert(FreeInstrBB == (Pred == ICmpInst::ICMP_EQ ? FalseBB : TrueBB) &&
+         "Broken CFG: missing edge from predecessor to successor");
+
+  FI.moveBefore(TI);
+  return &FI;
+}
 
 
 Instruction *InstCombiner::visitFree(CallInst &FI) {
@@ -1238,6 +1563,16 @@ Instruction *InstCombiner::visitFree(CallInst &FI) {
   // when lots of inlining happens.
   if (isa<ConstantPointerNull>(Op))
     return EraseInstFromFunction(FI);
+
+  // If we optimize for code size, try to move the call to free before the null
+  // test so that simplify cfg can remove the empty block and dead code
+  // elimination the branch. I.e., helps to turn something like:
+  // if (foo) free(foo);
+  // into
+  // free(foo);
+  if (MinimizeSize)
+    if (Instruction *I = tryToMoveFreeBeforeNullTest(FI))
+      return I;
 
   return 0;
 }
@@ -1853,7 +2188,7 @@ static bool TryToSinkInstruction(Instruction *I, BasicBlock *DestBlock) {
 static bool AddReachableCodeToWorklist(BasicBlock *BB,
                                        SmallPtrSet<BasicBlock*, 64> &Visited,
                                        InstCombiner &IC,
-                                       const TargetData *TD,
+                                       const DataLayout *TD,
                                        const TargetLibraryInfo *TLI) {
   bool MadeIRChange = false;
   SmallVector<BasicBlock*, 256> Worklist;
@@ -1872,7 +2207,7 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB,
       Instruction *Inst = BBI++;
 
       // DCE instruction if trivially dead.
-      if (isInstructionTriviallyDead(Inst)) {
+      if (isInstructionTriviallyDead(Inst, TLI)) {
         ++NumDeadInst;
         DEBUG(errs() << "IC: DCE: " << *Inst << '\n');
         Inst->eraseFromParent();
@@ -2002,7 +2337,7 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
     if (I == 0) continue;  // skip null values.
 
     // Check to see if we can DCE the instruction.
-    if (isInstructionTriviallyDead(I)) {
+    if (isInstructionTriviallyDead(I, TLI)) {
       DEBUG(errs() << "IC: DCE: " << *I << '\n');
       EraseInstFromFunction(*I);
       ++NumDeadInst;
@@ -2102,7 +2437,7 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
 
         // If the instruction was modified, it's possible that it is now dead.
         // if so, remove it.
-        if (isInstructionTriviallyDead(I)) {
+        if (isInstructionTriviallyDead(I, TLI)) {
           EraseInstFromFunction(*I);
         } else {
           Worklist.Add(I);
@@ -2117,10 +2452,31 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
   return MadeIRChange;
 }
 
+namespace {
+class InstCombinerLibCallSimplifier : public LibCallSimplifier {
+  InstCombiner *IC;
+public:
+  InstCombinerLibCallSimplifier(const DataLayout *TD,
+                                const TargetLibraryInfo *TLI,
+                                InstCombiner *IC)
+    : LibCallSimplifier(TD, TLI, UnsafeFPShrink) {
+    this->IC = IC;
+  }
+
+  /// replaceAllUsesWith - override so that instruction replacement
+  /// can be defined in terms of the instruction combiner framework.
+  virtual void replaceAllUsesWith(Instruction *I, Value *With) const {
+    IC->ReplaceInstUsesWith(*I, With);
+  }
+};
+}
 
 bool InstCombiner::runOnFunction(Function &F) {
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   TLI = &getAnalysis<TargetLibraryInfo>();
+  // Minimizing size?
+  MinimizeSize = F.getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                                Attribute::MinSize);
 
   /// Builder - This is an IRBuilder that automatically inserts new
   /// instructions into the worklist when they are created.
@@ -2128,6 +2484,9 @@ bool InstCombiner::runOnFunction(Function &F) {
     TheBuilder(F.getContext(), TargetFolder(TD),
                InstCombineIRInserter(Worklist));
   Builder = &TheBuilder;
+
+  InstCombinerLibCallSimplifier TheSimplifier(TD, TLI, this);
+  Simplifier = &TheSimplifier;
 
   bool EverMadeChange = false;
 

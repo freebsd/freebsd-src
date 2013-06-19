@@ -228,7 +228,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 
 			/* We have to copy the packet. First allocate an
 			   mbuf for it */
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				DEBUGPRINT("Port %d failed to allocate mbuf, packet dropped\n", work->word1.cn38xx.ipprt);
 				cvm_oct_free_work(work);
@@ -317,7 +317,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 		} else {
 			/* Drop any packet received for a device that
 			   doesn't exist */
-			DEBUGPRINT("Port %d not controlled by Linux, packet dropped\n", work->word1.cn38xx.ipprt);
+			DEBUGPRINT("Port %d not controlled by FreeBSD, packet dropped\n", work->word1.cn38xx.ipprt);
 			m_freem(m);
 		}
 

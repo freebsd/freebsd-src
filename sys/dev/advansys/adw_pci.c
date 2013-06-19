@@ -254,8 +254,7 @@ adw_pci_attach(device_t dev)
 		return (error);
 
 	/* Ensure busmastering is enabled */
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, /*bytes*/1);
+	pci_enable_busmaster(dev);
 
 	/* Allocate a dmatag for our transfer DMA maps */
 	error = bus_dma_tag_create(
@@ -270,15 +269,15 @@ adw_pci_attach(device_t dev)
 			/* nsegments	*/ ~0,
 			/* maxsegsz	*/ ADW_PCI_MAX_DMA_COUNT,
 			/* flags	*/ 0,
-			/* lockfunc	*/ busdma_lock_mutex,
-			/* lockarg	*/ &Giant,
+			/* lockfunc	*/ NULL,
+			/* lockarg	*/ NULL,
 			&adw->parent_dmat);
 
 	adw->init_level++;
  
 	if (error != 0) {
-		printf("%s: Could not allocate DMA tag - error %d\n",
-		       adw_name(adw), error);
+		device_printf(dev, "Could not allocate DMA tag - error %d\n",
+		    error);
 		adw_free(adw);
 		return (error);
 	}

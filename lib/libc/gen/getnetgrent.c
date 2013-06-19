@@ -173,7 +173,7 @@ setnetgrent(const char *group)
 		if (((stat(_PATH_NETGROUP, &_yp_statp) < 0) &&
 		    errno == ENOENT) || _yp_statp.st_size == 0)
 			_use_only_yp = _netgr_yp_enabled = 1;
-		if ((netf = fopen(_PATH_NETGROUP,"r")) != NULL ||_use_only_yp){
+		if ((netf = fopen(_PATH_NETGROUP,"re")) != NULL ||_use_only_yp){
 		/*
 		 * Icky: grab the first character of the netgroup file
 		 * and turn on NIS if it's a '+'. rewind the stream
@@ -197,7 +197,7 @@ setnetgrent(const char *group)
 				return;
 			}
 #else
-		if ((netf = fopen(_PATH_NETGROUP, "r"))) {
+		if ((netf = fopen(_PATH_NETGROUP, "re"))) {
 #endif
 			if (parse_netgrp(group))
 				endnetgrent();

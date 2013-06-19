@@ -1,4 +1,5 @@
 .\"-
+.\" Copyright (c) 2009 Apple, Inc.
 .\" Copyright (c) 2005 Robert N. M. Watson
 .\" All rights reserved.
 .\"
@@ -23,14 +24,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_io.3#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_io.3#9 $
 .\"
-.Dd April 19, 2005
+.Dd August 4, 2009
 .Dt AU_IO 3
 .Os
 .Sh NAME
 .Nm au_fetch_tok ,
 .Nm au_print_tok ,
+.Nm au_print_flags_tok ,
 .Nm au_read_rec
 .Nd "perform I/O involving an audit record"
 .Sh LIBRARY
@@ -42,6 +44,10 @@
 .Ft void
 .Fo au_print_tok
 .Fa "FILE *outfp" "tokenstr_t *tok" "char *del" "char raw" "char sfrm"
+.Fc
+.Ft void
+.Fo au_print_flags_tok
+.Fa "FILE *outfp" "tokenstr_t *tok" "char *del" "int oflags"
 .Fc
 .Ft int
 .Fn au_read_rec "FILE *fp" "u_char **buf"
@@ -73,6 +79,30 @@ is set non-zero.
 The delimiter
 .Fa del
 is used when printing.
+The
+.Fn au_print_flags_tok
+function is a replacement for
+.Fn au_print_tok .
+The
+.Fa oflags
+controls how the output should be formatted and is specified by
+or'ing the following flags:
+.Pp
+.Bl -tag -width AU_OFLAG_NORESOLVE -compact -offset indent
+.It Li AU_OFLAG_NONE
+Use the default form.
+.It Li AU_OFLAG_NORESOLVE
+Leave user and group IDs in their numeric form.
+.It Li AU_OFLAG_RAW
+Use the raw, numeric form.
+.It Li AU_OFLAG_SHORT
+Use the short form.
+.It Li AU_OFLAG_XML
+Use the XML form.
+.El
+.Pp
+The flags options AU_OFLAG_SHORT and AU_OFLAG_RAW are exclusive and
+should not be used together.
 .Pp
 The
 .Fn au_read_rec
@@ -92,7 +122,7 @@ Each record would be broken down into components tokens through sequential
 calls to
 .Fn au_fetch_tok
 on the buffer, and then invoking
-.Fn au_print_tok
+.Fn au_print_flags_tok
 to print each token to an output stream such as
 .Dv stdout .
 On completion of the processing of each record, a call to
@@ -117,6 +147,15 @@ The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer, Inc., in 2004.
 It was subsequently adopted by the TrustedBSD Project as the foundation for
 the OpenBSM distribution.
+.Pp
+The
+.Fn au_print_flags_tok
+function was added by Stacey Son as a replacement for the
+.Fn au_print_tok
+so new output formatting flags can be easily added without changing the API.
+The
+.Fn au_print_tok
+is obsolete but remains in the API to support legacy code.
 .Sh AUTHORS
 .An -nosplit
 This software was created by

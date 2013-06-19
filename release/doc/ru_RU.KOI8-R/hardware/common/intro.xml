@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/intro.xml,v 1.2 2004/09/06 14:05:02 den Exp $
+
+     Original revision: 1.7
+-->
+
+<sect1 id="intro">
+  <title>Введение</title>
+
+  <para>В этом документе находится информация об аппаратной совместимости
+    для &os; &release.current; на аппаратной платформе &arch.print;
+    упоминаемой также как &os;/&arch; &release.current;).
+    В этом списке находятся устройства, работающие на данной платформе,
+    а также информация об отдельных настройках загрузки ядра, которые могут
+    быть полезны при включении поддержки новых устройств.</para>
+
+  <note>
+    <para>В этот документ включена информация, специфичная для аппаратной
+      платформы &arch.print;.  Версии информации об оборудовании для
+      других архитектур будут отличаться в некоторых деталях.</para>
+  </note>
+
+  <para arch="ia64">Дополнительная информация по &os;/&arch; находится на
+    странице
+    <ulink url="&url.base;/platforms/ia64/index.html">&os;/&arch; 
+    Project</ulink>.</para>
+
+</sect1>

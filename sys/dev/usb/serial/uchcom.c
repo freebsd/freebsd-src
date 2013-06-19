@@ -207,6 +207,7 @@ static const struct uchcom_divider_record dividers[] =
 static const STRUCT_USB_HOST_ID uchcom_devs[] = {
 	{USB_VPI(USB_VENDOR_WCH, USB_PRODUCT_WCH_CH341SER, 0)},
 	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER, 0)},
+	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER_2, 0)},
 };
 
 /* protypes */
@@ -869,7 +870,7 @@ static device_method_t uchcom_methods[] = {
 };
 
 static driver_t uchcom_driver = {
-	.name = "ucom",
+	.name = "uchcom",
 	.methods = uchcom_methods,
 	.size = sizeof(struct uchcom_softc)
 };

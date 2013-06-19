@@ -19,10 +19,10 @@
 #ifndef LLVM_SUPPORT_TARGETREGISTRY_H
 #define LLVM_SUPPORT_TARGETREGISTRY_H
 
-#include "llvm/Support/CodeGen.h"
 #include "llvm/ADT/Triple.h"
-#include <string>
+#include "llvm/Support/CodeGen.h"
 #include <cassert>
+#include <string>
 
 namespace llvm {
   class AsmPrinter;
@@ -41,7 +41,6 @@ namespace llvm {
   class MCRegisterInfo;
   class MCStreamer;
   class MCSubtargetInfo;
-  class MCTargetAsmLexer;
   class MCTargetAsmParser;
   class TargetMachine;
   class TargetOptions;
@@ -93,10 +92,9 @@ namespace llvm {
                                                   CodeGenOpt::Level OL);
     typedef AsmPrinter *(*AsmPrinterCtorTy)(TargetMachine &TM,
                                             MCStreamer &Streamer);
-    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T, StringRef TT);
-    typedef MCTargetAsmLexer *(*MCAsmLexerCtorTy)(const Target &T,
-                                                  const MCRegisterInfo &MRI,
-                                                  const MCAsmInfo &MAI);
+    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T,
+                                                StringRef TT,
+                                                StringRef CPU);
     typedef MCTargetAsmParser *(*MCAsmParserCtorTy)(MCSubtargetInfo &STI,
                                                     MCAsmParser &P);
     typedef MCDisassembler *(*MCDisassemblerCtorTy)(const Target &T,
@@ -180,10 +178,6 @@ namespace llvm {
     /// MCAsmBackend, if registered.
     MCAsmBackendCtorTy MCAsmBackendCtorFn;
 
-    /// MCAsmLexerCtorFn - Construction function for this target's
-    /// MCTargetAsmLexer, if registered.
-    MCAsmLexerCtorTy MCAsmLexerCtorFn;
-
     /// MCAsmParserCtorFn - Construction function for this target's
     /// MCTargetAsmParser, if registered.
     MCAsmParserCtorTy MCAsmParserCtorFn;
@@ -240,9 +234,6 @@ namespace llvm {
     /// hasMCAsmBackend - Check if this target supports .o generation.
     bool hasMCAsmBackend() const { return MCAsmBackendCtorFn != 0; }
 
-    /// hasMCAsmLexer - Check if this target supports .s lexing.
-    bool hasMCAsmLexer() const { return MCAsmLexerCtorFn != 0; }
-
     /// hasAsmParser - Check if this target supports .s parsing.
     bool hasMCAsmParser() const { return MCAsmParserCtorFn != 0; }
 
@@ -271,7 +262,7 @@ namespace llvm {
     /// createMCAsmInfo - Create a MCAsmInfo implementation for the specified
     /// target triple.
     ///
-    /// \arg Triple - This argument is used to determine the target machine
+    /// \param Triple This argument is used to determine the target machine
     /// feature set; it should always be provided. Generally this should be
     /// either the target triple from the module, or the target triple of the
     /// host if that does not exist.
@@ -317,12 +308,12 @@ namespace llvm {
 
     /// createMCSubtargetInfo - Create a MCSubtargetInfo implementation.
     ///
-    /// \arg Triple - This argument is used to determine the target machine
+    /// \param Triple This argument is used to determine the target machine
     /// feature set; it should always be provided. Generally this should be
     /// either the target triple from the module, or the target triple of the
     /// host if that does not exist.
-    /// \arg CPU - This specifies the name of the target CPU.
-    /// \arg Features - This specifies the string representation of the
+    /// \param CPU This specifies the name of the target CPU.
+    /// \param Features This specifies the string representation of the
     /// additional target features.
     MCSubtargetInfo *createMCSubtargetInfo(StringRef Triple, StringRef CPU,
                                            StringRef Features) const {
@@ -332,9 +323,9 @@ namespace llvm {
     }
 
     /// createTargetMachine - Create a target specific machine implementation
-    /// for the specified \arg Triple.
+    /// for the specified \p Triple.
     ///
-    /// \arg Triple - This argument is used to determine the target machine
+    /// \param Triple This argument is used to determine the target machine
     /// feature set; it should always be provided. Generally this should be
     /// either the target triple from the module, or the target triple of the
     /// host if that does not exist.
@@ -351,26 +342,16 @@ namespace llvm {
 
     /// createMCAsmBackend - Create a target specific assembly parser.
     ///
-    /// \arg Triple - The target triple string.
-    /// \arg Backend - The target independent assembler object.
-    MCAsmBackend *createMCAsmBackend(StringRef Triple) const {
+    /// \param Triple The target triple string.
+    MCAsmBackend *createMCAsmBackend(StringRef Triple, StringRef CPU) const {
       if (!MCAsmBackendCtorFn)
         return 0;
-      return MCAsmBackendCtorFn(*this, Triple);
-    }
-
-    /// createMCAsmLexer - Create a target specific assembly lexer.
-    ///
-    MCTargetAsmLexer *createMCAsmLexer(const MCRegisterInfo &MRI,
-                                       const MCAsmInfo &MAI) const {
-      if (!MCAsmLexerCtorFn)
-        return 0;
-      return MCAsmLexerCtorFn(*this, MRI, MAI);
+      return MCAsmBackendCtorFn(*this, Triple, CPU);
     }
 
     /// createMCAsmParser - Create a target specific assembly parser.
     ///
-    /// \arg Parser - The target independent parser implementation to use for
+    /// \param Parser The target independent parser implementation to use for
     /// parsing and lexing.
     MCTargetAsmParser *createMCAsmParser(MCSubtargetInfo &STI,
                                          MCAsmParser &Parser) const {
@@ -416,13 +397,13 @@ namespace llvm {
 
     /// createMCObjectStreamer - Create a target specific MCStreamer.
     ///
-    /// \arg TT - The target triple.
-    /// \arg Ctx - The target context.
-    /// \arg TAB - The target assembler backend object. Takes ownership.
-    /// \arg _OS - The stream object.
-    /// \arg _Emitter - The target independent assembler object.Takes ownership.
-    /// \arg RelaxAll - Relax all fixups?
-    /// \arg NoExecStack - Mark file as not needing a executable stack.
+    /// \param TT The target triple.
+    /// \param Ctx The target context.
+    /// \param TAB The target assembler backend object. Takes ownership.
+    /// \param _OS The stream object.
+    /// \param _Emitter The target independent assembler object.Takes ownership.
+    /// \param RelaxAll Relax all fixups?
+    /// \param NoExecStack Mark file as not needing a executable stack.
     MCStreamer *createMCObjectStreamer(StringRef TT, MCContext &Ctx,
                                        MCAsmBackend &TAB,
                                        raw_ostream &_OS,
@@ -673,20 +654,6 @@ namespace llvm {
     static void RegisterMCAsmBackend(Target &T, Target::MCAsmBackendCtorTy Fn) {
       if (!T.MCAsmBackendCtorFn)
         T.MCAsmBackendCtorFn = Fn;
-    }
-
-    /// RegisterMCAsmLexer - Register a MCTargetAsmLexer implementation for the
-    /// given target.
-    ///
-    /// Clients are responsible for ensuring that registration doesn't occur
-    /// while another thread is attempting to access the registry. Typically
-    /// this is done by initializing all targets at program startup.
-    ///
-    /// @param T - The target being registered.
-    /// @param Fn - A function to construct an MCAsmLexer for the target.
-    static void RegisterMCAsmLexer(Target &T, Target::MCAsmLexerCtorTy Fn) {
-      if (!T.MCAsmLexerCtorFn)
-        T.MCAsmLexerCtorFn = Fn;
     }
 
     /// RegisterMCAsmParser - Register a MCTargetAsmParser implementation for
@@ -1063,30 +1030,9 @@ namespace llvm {
     }
 
   private:
-    static MCAsmBackend *Allocator(const Target &T, StringRef Triple) {
-      return new MCAsmBackendImpl(T, Triple);
-    }
-  };
-
-  /// RegisterMCAsmLexer - Helper template for registering a target specific
-  /// assembly lexer, for use in the target machine initialization
-  /// function. Usage:
-  ///
-  /// extern "C" void LLVMInitializeFooMCAsmLexer() {
-  ///   extern Target TheFooTarget;
-  ///   RegisterMCAsmLexer<FooMCAsmLexer> X(TheFooTarget);
-  /// }
-  template<class MCAsmLexerImpl>
-  struct RegisterMCAsmLexer {
-    RegisterMCAsmLexer(Target &T) {
-      TargetRegistry::RegisterMCAsmLexer(T, &Allocator);
-    }
-
-  private:
-    static MCTargetAsmLexer *Allocator(const Target &T,
-                                       const MCRegisterInfo &MRI,
-                                       const MCAsmInfo &MAI) {
-      return new MCAsmLexerImpl(T, MRI, MAI);
+    static MCAsmBackend *Allocator(const Target &T, StringRef Triple,
+                                   StringRef CPU) {
+      return new MCAsmBackendImpl(T, Triple, CPU);
     }
   };
 

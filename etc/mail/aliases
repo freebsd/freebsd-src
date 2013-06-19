@@ -26,6 +26,7 @@ postmaster: root
 # General redirections for pseudo accounts
 _dhcp:	root
 _pflogd: root
+auditdistd:	root
 bin:	root
 bind:	root
 daemon:	root

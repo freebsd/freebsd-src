@@ -44,7 +44,15 @@ static inline unsigned long __ffs(unsigned long word)
         return word;
 }
 
+/*
+ * irq_mapping_update_lock: in order to allow an interrupt to occur in a critical
+ *	section, to set pcpu->ipending (etc...) properly, we
+ * 	must be able to get the icu lock, so it can't be
+ *	under witness.
+ */
 static struct mtx irq_mapping_update_lock;
+MTX_SYSINIT(irq_mapping_update_lock, &irq_mapping_update_lock, "xp", MTX_SPIN);
+
 static struct xenpic *xp;
 struct xenpic_intsrc {
 	struct intsrc     xp_intsrc;
@@ -138,7 +146,7 @@ static int irq_bindcount[NR_IRQS];
 #ifdef SMP
 
 static uint8_t cpu_evtchn[NR_EVENT_CHANNELS];
-static unsigned long cpu_evtchn_mask[MAX_VIRT_CPUS][NR_EVENT_CHANNELS/LONG_BIT];
+static unsigned long cpu_evtchn_mask[XEN_LEGACY_MAX_VCPUS][NR_EVENT_CHANNELS/LONG_BIT];
 
 #define active_evtchns(cpu,sh,idx)		\
 	((sh)->evtchn_pending[idx] &		\
@@ -990,7 +998,7 @@ void irq_resume(void)
 	}
 
 	/* Secondary CPUs must have no VIRQ or IPI bindings. */
-	for (cpu = 1; cpu < MAX_VIRT_CPUS; cpu++) {
+	for (cpu = 1; cpu < XEN_LEGACY_MAX_VCPUS; cpu++) {
 		for (virq = 0; virq < NR_VIRQS; virq++) {
 			KASSERT(pcpu_find(cpu)->pc_virq_to_irq[virq] == -1,
 			    ("virq_to_irq inconsistent"));
@@ -1130,11 +1138,4 @@ evtchn_init(void *dummy __unused)
 }
 
 SYSINIT(evtchn_init, SI_SUB_INTR, SI_ORDER_MIDDLE, evtchn_init, NULL);
-    /*
-     * irq_mapping_update_lock: in order to allow an interrupt to occur in a critical
-     * 	        section, to set pcpu->ipending (etc...) properly, we
-     *	        must be able to get the icu lock, so it can't be
-     *	        under witness.
-     */
 
-MTX_SYSINIT(irq_mapping_update_lock, &irq_mapping_update_lock, "xp", MTX_SPIN);

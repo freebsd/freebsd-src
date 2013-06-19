@@ -14,7 +14,11 @@ UBLDR_LOADADDR?=	0x1000000
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
 
+.if !defined(LOADER_NO_DISK_SUPPORT)
 LOADER_DISK_SUPPORT?=	yes
+.else
+LOADER_DISK_SUPPORT=	no
+.endif
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
@@ -105,13 +109,16 @@ CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 # where to get libstand from
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
+# clang doesn't understand %D as a specifier to printf
+NO_WERROR.clang=
+
 DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-loader.help: help.common help.uboot
+loader.help: help.common help.uboot ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 

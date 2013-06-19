@@ -700,8 +700,8 @@ et_bus_config(struct et_softc *sc)
 	 * max playload size
 	 */
 	val = pci_read_config(sc->dev,
-	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CAP, 4);
-	max_plsz = val & PCIM_EXP_CAP_MAX_PAYLOAD;
+	    sc->sc_expcap + PCIER_DEVICE_CAP, 4);
+	max_plsz = val & PCIEM_CAP_MAX_PAYLOAD;
 
 	switch (max_plsz) {
 	case ET_PCIV_DEVICE_CAPS_PLSZ_128:
@@ -732,7 +732,7 @@ et_bus_config(struct et_softc *sc)
 	 * Set L0s and L1 latency timer to 2us
 	 */
 	val = pci_read_config(sc->dev, ET_PCIR_L0S_L1_LATENCY, 4);
-	val &= ~(PCIM_LINK_CAP_L0S_EXIT | PCIM_LINK_CAP_L1_EXIT);
+	val &= ~(PCIEM_LINK_CAP_L0S_EXIT | PCIEM_LINK_CAP_L1_EXIT);
 	/* L0s exit latency : 2us */
 	val |= 0x00005000;
 	/* L1 exit latency : 2us */
@@ -2169,7 +2169,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tx_tag, map, *m0, segs, &nsegs,
 	    0);
 	if (error == EFBIG) {
-		m = m_collapse(*m0, M_DONTWAIT, ET_NSEG_MAX);
+		m = m_collapse(*m0, M_NOWAIT, ET_NSEG_MAX);
 		if (m == NULL) {
 			m_freem(*m0);
 			*m0 = NULL;
@@ -2331,7 +2331,7 @@ et_newbuf_cluster(struct et_rxbuf_data *rbd, int buf_idx)
 	int nsegs;
 
 	MPASS(buf_idx < ET_RX_NDESC);
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -2390,7 +2390,7 @@ et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx)
 	int nsegs;
 
 	MPASS(buf_idx < ET_RX_NDESC);
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MHLEN;

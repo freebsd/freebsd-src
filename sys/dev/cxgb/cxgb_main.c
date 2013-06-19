@@ -149,6 +149,7 @@ static devclass_t	cxgb_controller_devclass;
 DRIVER_MODULE(cxgbc, pci, cxgb_controller_driver, cxgb_controller_devclass,
     cxgbc_mod_event, 0);
 MODULE_VERSION(cxgbc, 1);
+MODULE_DEPEND(cxgbc, firmware, 1, 1, 1);
 
 /*
  * Attachment glue for the ports.  Attachment is done directly to the
@@ -476,8 +477,8 @@ cxgb_controller_attach(device_t dev)
 	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		uint16_t lnk;
 
-		lnk = pci_read_config(dev, reg + PCIR_EXPRESS_LINK_STA, 2);
-		sc->link_width = (lnk & PCIM_LINK_STA_WIDTH) >> 4;
+		lnk = pci_read_config(dev, reg + PCIER_LINK_STA, 2);
+		sc->link_width = (lnk & PCIEM_LINK_STA_WIDTH) >> 4;
 		if (sc->link_width < 8 &&
 		    (ai->caps & SUPPORTED_10000baseT_Full)) {
 			device_printf(sc->dev,
@@ -1442,7 +1443,7 @@ send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	struct mbuf *m;
 	struct mngt_pktsched_wr *req;
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m) {	
 		req = mtod(m, struct mngt_pktsched_wr *);
 		req->wr.wrh_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
@@ -2984,7 +2985,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		break;
 	}
 	case CHELSIO_SET_FILTER: {
-		struct ch_filter *f = (struct ch_filter *)data;;
+		struct ch_filter *f = (struct ch_filter *)data;
 		struct filter_info *p;
 		unsigned int nfilters = sc->params.mc5.nfilters;
 

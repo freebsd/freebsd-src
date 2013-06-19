@@ -81,9 +81,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -101,8 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
-
-#include <sys/mount.h>	/* XXX Temporary for VFS_LOCK_GIANT() */
 
 #define PFBAK 4
 #define PFFOR 4
@@ -135,7 +133,6 @@ struct faultstate {
 	vm_map_entry_t entry;
 	int lookup_still_valid;
 	struct vnode *vp;
-	int vfslocked;
 };
 
 static void vm_fault_cache_behind(const struct faultstate *fs, int distance);
@@ -166,14 +163,14 @@ unlock_and_deallocate(struct faultstate *fs)
 {
 
 	vm_object_pip_wakeup(fs->object);
-	VM_OBJECT_UNLOCK(fs->object);
+	VM_OBJECT_WUNLOCK(fs->object);
 	if (fs->object != fs->first_object) {
-		VM_OBJECT_LOCK(fs->first_object);
+		VM_OBJECT_WLOCK(fs->first_object);
 		vm_page_lock(fs->first_m);
 		vm_page_free(fs->first_m);
 		vm_page_unlock(fs->first_m);
 		vm_object_pip_wakeup(fs->first_object);
-		VM_OBJECT_UNLOCK(fs->first_object);
+		VM_OBJECT_WUNLOCK(fs->first_object);
 		fs->first_m = NULL;
 	}
 	vm_object_deallocate(fs->first_object);
@@ -182,8 +179,6 @@ unlock_and_deallocate(struct faultstate *fs)
 		vput(fs->vp);
 		fs->vp = NULL;
 	}
-	VFS_UNLOCK_GIANT(fs->vfslocked);
-	fs->vfslocked = 0;
 }
 
 /*
@@ -255,7 +250,6 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
-	fs.vfslocked = 0;
 	faultcount = reqpage = 0;
 
 RetryFault:;
@@ -296,7 +290,7 @@ RetryFault:;
 	 * truncation operations) during I/O.  This must be done after
 	 * obtaining the vnode lock in order to avoid possible deadlocks.
 	 */
-	VM_OBJECT_LOCK(fs.first_object);
+	VM_OBJECT_WLOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
@@ -369,17 +363,17 @@ RetryFault:;
 				vm_page_aflag_set(fs.m, PGA_REFERENCED);
 				vm_page_unlock(fs.m);
 				if (fs.object != fs.first_object) {
-					if (!VM_OBJECT_TRYLOCK(
+					if (!VM_OBJECT_TRYWLOCK(
 					    fs.first_object)) {
-						VM_OBJECT_UNLOCK(fs.object);
-						VM_OBJECT_LOCK(fs.first_object);
-						VM_OBJECT_LOCK(fs.object);
+						VM_OBJECT_WUNLOCK(fs.object);
+						VM_OBJECT_WLOCK(fs.first_object);
+						VM_OBJECT_WLOCK(fs.object);
 					}
 					vm_page_lock(fs.first_m);
 					vm_page_free(fs.first_m);
 					vm_page_unlock(fs.first_m);
 					vm_object_pip_wakeup(fs.first_object);
-					VM_OBJECT_UNLOCK(fs.first_object);
+					VM_OBJECT_WUNLOCK(fs.first_object);
 					fs.first_m = NULL;
 				}
 				unlock_map(&fs);
@@ -389,12 +383,12 @@ RetryFault:;
 					    "vmpfw");
 				}
 				vm_object_pip_wakeup(fs.object);
-				VM_OBJECT_UNLOCK(fs.object);
+				VM_OBJECT_WUNLOCK(fs.object);
 				PCPU_INC(cnt.v_intrans);
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
-			vm_pageq_remove(fs.m);
+			vm_page_remque(fs.m);
 			vm_page_unlock(fs.m);
 
 			/*
@@ -513,7 +507,6 @@ readrest:
 			 */
 			unlock_map(&fs);
 
-vnode_lock:
 			if (fs.object->type == OBJT_VNODE) {
 				vp = fs.object->handle;
 				if (vp == fs.vp)
@@ -524,25 +517,12 @@ vnode_lock:
 				}
 				locked = VOP_ISLOCKED(vp);
 
-				if (VFS_NEEDSGIANT(vp->v_mount) && !fs.vfslocked) {
-					fs.vfslocked = 1;
-					if (!mtx_trylock(&Giant)) {
-						VM_OBJECT_UNLOCK(fs.object);
-						mtx_lock(&Giant);
-						VM_OBJECT_LOCK(fs.object);
-						goto vnode_lock;
-					}
-				}
 				if (locked != LK_EXCLUSIVE)
 					locked = LK_SHARED;
 				/* Do not sleep for vnode lock while fs.m is busy */
 				error = vget(vp, locked | LK_CANRECURSE |
 				    LK_NOWAIT, curthread);
 				if (error != 0) {
-					int vfslocked;
-
-					vfslocked = fs.vfslocked;
-					fs.vfslocked = 0; /* Keep Giant */
 					vhold(vp);
 					release_page(&fs);
 					unlock_and_deallocate(&fs);
@@ -550,7 +530,6 @@ vnode_lock:
 					    LK_CANRECURSE, curthread);
 					vdrop(vp);
 					fs.vp = vp;
-					fs.vfslocked = vfslocked;
 					KASSERT(error == 0,
 					    ("vm_fault: vget failed"));
 					goto RetryFault;
@@ -667,12 +646,12 @@ vnode_locked:
 			 */
 			if (fs.object != fs.first_object) {
 				vm_object_pip_wakeup(fs.object);
-				VM_OBJECT_UNLOCK(fs.object);
+				VM_OBJECT_WUNLOCK(fs.object);
 
 				fs.object = fs.first_object;
 				fs.pindex = fs.first_pindex;
 				fs.m = fs.first_m;
-				VM_OBJECT_LOCK(fs.object);
+				VM_OBJECT_WLOCK(fs.object);
 			}
 			fs.first_m = NULL;
 
@@ -690,11 +669,11 @@ vnode_locked:
 		} else {
 			KASSERT(fs.object != next_object,
 			    ("object loop %p", next_object));
-			VM_OBJECT_LOCK(next_object);
+			VM_OBJECT_WLOCK(next_object);
 			vm_object_pip_add(next_object, 1);
 			if (fs.object != fs.first_object)
 				vm_object_pip_wakeup(fs.object);
-			VM_OBJECT_UNLOCK(fs.object);
+			VM_OBJECT_WUNLOCK(fs.object);
 			fs.object = next_object;
 		}
 	}
@@ -746,7 +725,7 @@ vnode_locked:
 				 */
 				((fs.object->type == OBJT_DEFAULT) ||
 				 (fs.object->type == OBJT_SWAP)) &&
-			    (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object)) &&
+			    (is_first_object_locked = VM_OBJECT_TRYWLOCK(fs.first_object)) &&
 				/*
 				 * We don't chase down the shadow chain
 				 */
@@ -795,7 +774,7 @@ vnode_locked:
 			 * conditional
 			 */
 			vm_object_pip_wakeup(fs.object);
-			VM_OBJECT_UNLOCK(fs.object);
+			VM_OBJECT_WUNLOCK(fs.object);
 			/*
 			 * Only use the new page below...
 			 */
@@ -803,7 +782,7 @@ vnode_locked:
 			fs.pindex = fs.first_pindex;
 			fs.m = fs.first_m;
 			if (!is_first_object_locked)
-				VM_OBJECT_LOCK(fs.object);
+				VM_OBJECT_WLOCK(fs.object);
 			PCPU_INC(cnt.v_cow_faults);
 			curthread->td_cow++;
 		} else {
@@ -924,7 +903,7 @@ vnode_locked:
 	 */
 	KASSERT(fs.m->valid == VM_PAGE_BITS_ALL,
 	    ("vm_fault: page %p partially invalid", fs.m));
-	VM_OBJECT_UNLOCK(fs.object);
+	VM_OBJECT_WUNLOCK(fs.object);
 
 	/*
 	 * Put this page into the physical map.  We had to do the unlock above
@@ -935,7 +914,7 @@ vnode_locked:
 	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
 	if ((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 && wired == 0)
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
-	VM_OBJECT_LOCK(fs.object);
+	VM_OBJECT_WLOCK(fs.object);
 	vm_page_lock(fs.m);
 
 	/*
@@ -960,9 +939,10 @@ vnode_locked:
 	 * Unlock everything, and return
 	 */
 	unlock_and_deallocate(&fs);
-	if (hardfault)
+	if (hardfault) {
+		PCPU_INC(cnt.v_io_faults);
 		curthread->td_ru.ru_majflt++;
-	else
+	} else 
 		curthread->td_ru.ru_minflt++;
 
 	return (KERN_SUCCESS);
@@ -980,17 +960,17 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 	vm_pindex_t pindex;
 
 	object = fs->object;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	first_object = fs->first_object;
 	if (first_object != object) {
-		if (!VM_OBJECT_TRYLOCK(first_object)) {
-			VM_OBJECT_UNLOCK(object);
-			VM_OBJECT_LOCK(first_object);
-			VM_OBJECT_LOCK(object);
+		if (!VM_OBJECT_TRYWLOCK(first_object)) {
+			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_WLOCK(first_object);
+			VM_OBJECT_WLOCK(object);
 		}
 	}
-	if (first_object->type != OBJT_DEVICE &&
-	    first_object->type != OBJT_PHYS && first_object->type != OBJT_SG) {
+	/* Neither fictitious nor unmanaged pages can be cached. */
+	if ((first_object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0) {
 		if (fs->first_pindex < distance)
 			pindex = 0;
 		else
@@ -1019,7 +999,7 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 		}
 	}
 	if (first_object != object)
-		VM_OBJECT_UNLOCK(first_object);
+		VM_OBJECT_WUNLOCK(first_object);
 }
 
 /*
@@ -1064,28 +1044,28 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
 		lobject = object;
-		VM_OBJECT_LOCK(lobject);
+		VM_OBJECT_RLOCK(lobject);
 		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
 		    lobject->type == OBJT_DEFAULT &&
 		    (backing_object = lobject->backing_object) != NULL) {
 			KASSERT((lobject->backing_object_offset & PAGE_MASK) ==
 			    0, ("vm_fault_prefault: unaligned object offset"));
 			pindex += lobject->backing_object_offset >> PAGE_SHIFT;
-			VM_OBJECT_LOCK(backing_object);
-			VM_OBJECT_UNLOCK(lobject);
+			VM_OBJECT_RLOCK(backing_object);
+			VM_OBJECT_RUNLOCK(lobject);
 			lobject = backing_object;
 		}
 		/*
 		 * give-up when a page is not in memory
 		 */
 		if (m == NULL) {
-			VM_OBJECT_UNLOCK(lobject);
+			VM_OBJECT_RUNLOCK(lobject);
 			break;
 		}
 		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0)
 			pmap_enter_quick(pmap, addr, m, entry->protection);
-		VM_OBJECT_UNLOCK(lobject);
+		VM_OBJECT_RUNLOCK(lobject);
 	}
 }
 
@@ -1277,7 +1257,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	dst_object->pg_color = atop(dst_entry->start);
 #endif
 
-	VM_OBJECT_LOCK(dst_object);
+	VM_OBJECT_WLOCK(dst_object);
 	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
 	dst_entry->object.vm_object = dst_object;
@@ -1308,9 +1288,13 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		access &= ~VM_PROT_WRITE;
 
 	/*
-	 * Loop through all of the pages in the entry's range, copying each
-	 * one from the source object (it should be there) to the destination
-	 * object.
+	 * Loop through all of the virtual pages within the entry's
+	 * range, copying each page from the source object to the
+	 * destination object.  Since the source is wired, those pages
+	 * must exist.  In contrast, the destination is pageable.
+	 * Since the destination object does share any backing storage
+	 * with the source object, all of its pages must be dirtied,
+	 * regardless of whether they can be written.
 	 */
 	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
@@ -1323,9 +1307,9 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			dst_m = vm_page_alloc(dst_object, dst_pindex,
 			    VM_ALLOC_NORMAL);
 			if (dst_m == NULL) {
-				VM_OBJECT_UNLOCK(dst_object);
+				VM_OBJECT_WUNLOCK(dst_object);
 				VM_WAIT;
-				VM_OBJECT_LOCK(dst_object);
+				VM_OBJECT_WLOCK(dst_object);
 			}
 		} while (dst_m == NULL);
 
@@ -1334,7 +1318,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 * (Because the source is wired down, the page will be in
 		 * memory.)
 		 */
-		VM_OBJECT_LOCK(src_object);
+		VM_OBJECT_RLOCK(src_object);
 		object = src_object;
 		pindex = src_pindex + dst_pindex;
 		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
@@ -1343,17 +1327,18 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			/*
 			 * Allow fallback to backing objects if we are reading.
 			 */
-			VM_OBJECT_LOCK(backing_object);
+			VM_OBJECT_RLOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
 		pmap_copy_page(src_m, dst_m);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		dst_m->valid = VM_PAGE_BITS_ALL;
-		VM_OBJECT_UNLOCK(dst_object);
+		dst_m->dirty = VM_PAGE_BITS_ALL;
+		VM_OBJECT_WUNLOCK(dst_object);
 
 		/*
 		 * Enter it in the pmap. If a wired, copy-on-write
@@ -1365,7 +1350,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		/*
 		 * Mark it no longer busy, and put it on the active list.
 		 */
-		VM_OBJECT_LOCK(dst_object);
+		VM_OBJECT_WLOCK(dst_object);
 		
 		if (upgrade) {
 			vm_page_lock(src_m);
@@ -1382,7 +1367,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		}
 		vm_page_wakeup(dst_m);
 	}
-	VM_OBJECT_UNLOCK(dst_object);
+	VM_OBJECT_WUNLOCK(dst_object);
 	if (upgrade) {
 		dst_entry->eflags &= ~(MAP_ENTRY_COW | MAP_ENTRY_NEEDS_COPY);
 		vm_object_deallocate(src_object);
@@ -1418,7 +1403,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t rtm;
 	int cbehind, cahead;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	object = m->object;
 	pindex = m->pindex;

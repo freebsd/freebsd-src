@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2008
+.Dd November 7, 2012
 .Dt WPA_SUPPLICANT 8
 .Os
 .Sh NAME
@@ -32,9 +32,26 @@
 .Nd "WPA/802.11i Supplicant for wireless network devices"
 .Sh SYNOPSIS
 .Nm
-.Op Fl BdehLqsvw
+.Op Fl BdhKLqstuvW
+.Op Fl b Ar br_ifname
+.Fl c Ar config-file
+.Op Fl C Ar ctrl
+.Op Fl D Ar driver
+.Op Fl f Ar debug file
+.Op Fl g Ar global ctrl
+.Fl i Ar ifname
+.Op Fl o Ar override driver
+.Op Fl O Ar override ctrl
+.Op Fl P Ar pid file
+.Oo Fl N
 .Fl i Ar ifname
 .Fl c Ar config-file
+.Op Fl C Ar ctrl
+.Op Fl D driver
+.Op Fl p Ar driver_param
+.Op Fl b Ar br_ifname
+.No ...
+.Oc
 .Sh DESCRIPTION
 The
 .Nm
@@ -87,15 +104,36 @@ utility, using
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
+.It Fl b
+Optional bridge interface name.
+.It Fl B
+Detach from the controlling terminal and run as a daemon process
+in the background.
 .It Fl d
 Enable debugging messages.
 If this option is supplied twice, more verbose messages are displayed.
-.It Fl e
-Use an external IEEE 802.1X Supplicant program and disable the
-internal Supplicant.
-This option is not normally used.
+.It Fl D
+Driver name (can be multiple drivers: nl80211,wext).
+.It Fl f
+Log output to debug file instead of stdout.
+.It Fl g
+Global ctrl_interface.
 .It Fl h
 Show help text.
+.It Fl K
+Include key information in debugging output.
+.It Fl L
+Display the license for this program on the terminal and exit.
+.It Fl N
+Start describing a new interface.
+.It Fl o
+Overrides driver parameter for new interfaces.
+.It Fl O
+Override ctrl_interface parameter for new interfaces.
+.It Fl p
+Specify driver parameters.
+.It Fl P
+File in which to save the process PID.
 .It Fl q
 Decrease debugging verbosity (i.e., counteract the use of the
 .Fl d
@@ -104,23 +142,14 @@ flag).
 Send log messages through
 .Xr syslog 3
 instead of to the terminal.
+.It Fl t
+Include timestamp in debug messages.
+.It Fl u
+Enable DBus control interface.
 .It Fl v
 Display version information on the terminal and exit.
-.It Fl w
-If the specified interface is not present, wait for it to be
-added; e.g.\& a cardbus device to be inserted.
-This option is not normally used; instead,
-.Xr devd 8
-should be configured to launch
-.Nm
-when a device is created.
-.It Fl B
-Detach from the controlling terminal and run as a daemon process
-in the background.
-.It Fl K
-Include key information in debugging output.
-.It Fl L
-Display the license for this program on the terminal and exit.
+.It Fl W
+Wait for a control interface monitor before starting.
 .El
 .Sh SEE ALSO
 .Xr an 4 ,

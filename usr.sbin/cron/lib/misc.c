@@ -391,7 +391,9 @@ log_it(username, xpid, event, detail)
 	char	*event;
 	char	*detail;
 {
+#if defined(LOG_FILE) || DEBUGGING
 	PID_T			pid = xpid;
+#endif
 #if defined(LOG_FILE)
 	char			*msg;
 	TIME_T			now = time((TIME_T) 0);

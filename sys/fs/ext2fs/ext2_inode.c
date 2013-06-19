@@ -43,6 +43,7 @@
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -66,9 +67,7 @@ static int ext2_indirtrunc(struct inode *, int32_t, int32_t, int32_t, int,
  * set, then wait for the write to complete.
  */
 int
-ext2_update(vp, waitfor)
-	struct vnode *vp;
-	int waitfor;
+ext2_update(struct vnode *vp, int waitfor)
 {
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -108,18 +107,14 @@ ext2_update(vp, waitfor)
  * disk blocks.
  */
 int
-ext2_truncate(vp, length, flags, cred, td)
-	struct vnode *vp;
-	off_t length;
-	int flags;
-	struct ucred *cred;
-	struct thread *td;
+ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
+    struct thread *td)
 {
 	struct vnode *ovp = vp;
 	int32_t lastblock;
 	struct inode *oip;
 	int32_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
-	int32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
+	uint32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
 	struct bufobj *bo;
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -138,7 +133,7 @@ ext2_truncate(vp, length, flags, cred, td)
 
 	if (ovp->v_type == VLNK &&
 	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (length != 0)
 			panic("ext2_truncate: partial truncate of symlink");
 #endif
@@ -180,7 +175,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (ext2_update(ovp, 1));
+		return (ext2_update(ovp, !DOINGASYNC(ovp)));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -238,7 +233,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = ext2_update(ovp, 1);
+	allerror = ext2_update(ovp, !DOINGASYNC(ovp));
 
 	/*
 	 * Having written the new inode to disk, save its new configuration
@@ -311,7 +306,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		oip->i_size = length;
 		newspace = blksize(fs, oip, lastblock);
 		if (newspace == 0)
-			panic("itrunc: newspace");
+			panic("ext2_truncate: newspace");
 		if (oldspace - newspace > 0) {
 			/*
 			 * Block number of space to be free'd is
@@ -324,7 +319,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		}
 	}
 done:
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (level = SINGLE; level <= TRIPLE; level++)
 		if (newblks[NDADDR + level] != oip->i_ib[level])
 			panic("itrunc1");
@@ -336,13 +331,14 @@ done:
 	    bo->bo_clean.bv_cnt != 0))
 		panic("itrunc3");
 	BO_UNLOCK(bo);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	/*
 	 * Put back the real size.
 	 */
 	oip->i_size = length;
-	oip->i_blocks -= blocksreleased;
-	if (oip->i_blocks < 0)			/* sanity */
+	if (oip->i_blocks >= blocksreleased)
+		oip->i_blocks -= blocksreleased;
+	else				/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
 	vnode_pager_setsize(ovp, length);
@@ -360,12 +356,8 @@ done:
  */
 
 static int
-ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
-	struct inode *ip;
-	int32_t lbn, lastbn;
-	int32_t dbn;
-	int level;
-	long *countp;
+ext2_indirtrunc(struct inode *ip, int32_t lbn, int32_t dbn, int32_t lastbn,
+    int level, long *countp)
 {
 	struct buf *bp;
 	struct m_ext2fs *fs = ip->i_e2fs;
@@ -397,8 +389,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 */
 	vp = ITOV(ip);
 	bp = getblk(vp, lbn, (int)fs->e2fs_bsize, 0, 0, 0);
-	if (bp->b_flags & (B_DONE | B_DELWRI)) {
-	} else {
+	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
 		bp->b_iocmd = BIO_READ;
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ext2_indirtrunc: bad buffer size");
@@ -421,9 +412,13 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof(int32_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
-	error = bwrite(bp);
-	if (error)
-		allerror = error;
+	if (DOINGASYNC(vp)) {
+		bdwrite(bp);
+	} else {
+		error = bwrite(bp);
+		if (error)
+			allerror = error;
+	}
 	bap = copy;
 
 	/*
@@ -466,11 +461,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
  *	discard preallocated blocks
  */
 int
-ext2_inactive(ap)
-        struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+ext2_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
@@ -506,11 +497,7 @@ out:
  * Reclaim an inode so that it can be used for other purposes.
  */
 int
-ext2_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+ext2_reclaim(struct vop_reclaim_args *ap)
 {
 	struct inode *ip;
 	struct vnode *vp = ap->a_vp;

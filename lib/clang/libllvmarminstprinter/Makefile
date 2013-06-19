@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmarminstprinter
 
 SRCDIR=	lib/Target/ARM/InstPrinter

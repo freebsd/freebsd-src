@@ -79,6 +79,7 @@ struct lock_class {
 #define	LO_SLEEPABLE	0x00100000	/* Lock may be held while sleeping. */
 #define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
 #define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
+#define	LO_IS_VNODE	0x00800000	/* Tell WITNESS about a VNODE lock */
 #define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
 #define LO_NOPROFILE    0x10000000      /* Don't profile this lock */
 
@@ -304,16 +305,5 @@ void	witness_thread_exit(struct thread *);
 #define	WITNESS_LINE(lock) (0)
 #endif	/* WITNESS */
 
-/*
- * Helper macros to allow developers to add explicit lock order checks
- * wherever they please without having to actually grab a lock to do so.
- */
-#define	witness_check(l)						\
-	WITNESS_CHECKORDER(&(l)->lock_object, LOP_EXCLUSIVE, LOCK_FILE,	\
-	    LOCK_LINE, NULL)
-
-#define	witness_check_shared(l)						\
-	WITNESS_CHECKORDER(&(l)->lock_object, 0, LOCK_FILE, LOCK_LINE, NULL)
-	
 #endif	/* _KERNEL */
 #endif	/* _SYS_LOCK_H_ */

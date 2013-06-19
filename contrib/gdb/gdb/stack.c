@@ -354,9 +354,7 @@ print_frame_args (struct symbol *func, struct frame_info *fi, int num,
 
 	  if (val)
 	    {
-	      val_print (VALUE_TYPE (val), VALUE_CONTENTS (val), 0,
-			 VALUE_ADDRESS (val),
-			 stb->stream, 0, 0, 2, Val_no_prettyprint);
+	      common_val_print (val, stb->stream, 0, 0, 2, Val_no_prettyprint);
 	      ui_out_field_stream (uiout, "value", stb);
 	    }
 	  else

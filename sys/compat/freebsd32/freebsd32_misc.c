@@ -104,6 +104,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
+FEATURE(compat_freebsd_32bit, "Compatible with 32-bit FreeBSD");
+
 #ifndef __mips__
 CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
@@ -176,6 +178,42 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 	if (uap->rusage != NULL && error == 0) {
 		freebsd32_rusage_out(&ru, &ru32);
 		error = copyout(&ru32, uap->rusage, sizeof(ru32));
+	}
+	return (error);
+}
+
+int
+freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
+{
+	struct wrusage32 wru32;
+	struct __wrusage wru, *wrup;
+	struct siginfo32 si32;
+	struct __siginfo si, *sip;
+	int error, status;
+
+	if (uap->wrusage != NULL)
+		wrup = &wru;
+	else
+		wrup = NULL;
+	if (uap->info != NULL) {
+		sip = &si;
+		bzero(sip, sizeof(*sip));
+	} else
+		sip = NULL;
+	error = kern_wait6(td, uap->idtype, PAIR32TO64(id_t, uap->id),
+	    &status, uap->options, wrup, sip);
+	if (error != 0)
+		return (error);
+	if (uap->status != NULL)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->wrusage != NULL && error == 0) {
+		freebsd32_rusage_out(&wru.wru_self, &wru32.wru_self);
+		freebsd32_rusage_out(&wru.wru_children, &wru32.wru_children);
+		error = copyout(&wru32, uap->wrusage, sizeof(wru32));
+	}
+	if (uap->info != NULL && error == 0) {
+		siginfo_to_siginfo32 (&si, &si32);
+		error = copyout(&si32, uap->info, sizeof(si32));
 	}
 	return (error);
 }

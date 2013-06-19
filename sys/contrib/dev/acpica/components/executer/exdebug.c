@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -162,9 +162,9 @@ AcpiExDoDebugObject (
     case ACPI_TYPE_BUFFER:
 
         AcpiOsPrintf ("[0x%.2X]\n", (UINT32) SourceDesc->Buffer.Length);
-        AcpiUtDumpBuffer2 (SourceDesc->Buffer.Pointer,
+        AcpiUtDumpBuffer (SourceDesc->Buffer.Pointer,
             (SourceDesc->Buffer.Length < 256) ?
-                SourceDesc->Buffer.Length : 256, DB_BYTE_DISPLAY);
+                SourceDesc->Buffer.Length : 256, DB_BYTE_DISPLAY, 0);
         break;
 
     case ACPI_TYPE_STRING:
@@ -205,9 +205,10 @@ AcpiExDoDebugObject (
             /* Case for DdbHandle */
 
             AcpiOsPrintf ("Table Index 0x%X\n", SourceDesc->Reference.Value);
-            return;
+            return_VOID;
 
         default:
+
             break;
         }
 
@@ -241,6 +242,7 @@ AcpiExDoDebugObject (
                     break;
 
                 default:
+
                     AcpiExDoDebugObject ((SourceDesc->Reference.Node)->Object,
                         Level+4, 0);
                     break;
@@ -274,5 +276,3 @@ AcpiExDoDebugObject (
     return_VOID;
 }
 #endif
-
-

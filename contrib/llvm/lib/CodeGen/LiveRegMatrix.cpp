@@ -12,15 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "regalloc"
-#include "LiveRegMatrix.h"
-#include "VirtRegMap.h"
+#include "llvm/CodeGen/LiveRegMatrix.h"
+#include "RegisterCoalescer.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
 
@@ -117,8 +118,9 @@ bool LiveRegMatrix::checkRegUnitInterference(LiveInterval &VirtReg,
                                              unsigned PhysReg) {
   if (VirtReg.empty())
     return false;
+  CoalescerPair CP(VirtReg.reg, PhysReg, *TRI);
   for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units)
-    if (VirtReg.overlaps(LIS->getRegUnit(*Units)))
+    if (VirtReg.overlaps(LIS->getRegUnit(*Units), CP, *LIS->getSlotIndexes()))
       return true;
   return false;
 }

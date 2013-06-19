@@ -2,7 +2,7 @@
 
 /*-
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
- * Copyright (C) 2012 Oleg Moskalenko <oleg.moskalenko@citrix.com>
+ * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ struct bwstring *bwsnocpy(struct bwstring *dst, const struct bwstring *src, size
 int bwscmp(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset);
 int bwsncmp(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset, size_t len);
 int bwscoll(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset);
-int bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended);
+size_t bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended);
 struct bwstring *bwsfgetln(FILE *file, size_t *len, bool zero_ended, struct reader_buffer *rb);
 
 static inline bwstring_iterator

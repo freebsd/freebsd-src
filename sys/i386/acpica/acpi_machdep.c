@@ -139,7 +139,7 @@ table_map(vm_paddr_t pa, int offset, vm_offset_t length)
 	void *data;
 
 	off = pa & PAGE_MASK;
-	length = roundup(length + off, PAGE_SIZE);
+	length = round_page(length + off);
 	pa = pa & PG_FRAME;
 	va = (vm_offset_t)pmap_kenter_temporary(pa, offset) +
 	    (offset * PAGE_SIZE);
@@ -163,7 +163,7 @@ table_unmap(void *data, vm_offset_t length)
 
 	va = (vm_offset_t)data;
 	off = va & PAGE_MASK;
-	length = roundup(length + off, PAGE_SIZE);
+	length = round_page(length + off);
 	va &= ~PAGE_MASK;
 	while (length > 0) {
 		pmap_kremove(va);

@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
 #ifndef _ZIO_H
@@ -31,6 +32,7 @@
 #include <sys/spa.h>
 #include <sys/txg.h>
 #include <sys/avl.h>
+#include <sys/kstat.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio_impl.h>
 
@@ -105,14 +107,17 @@ enum zio_compress {
 	ZIO_COMPRESS_GZIP_8,
 	ZIO_COMPRESS_GZIP_9,
 	ZIO_COMPRESS_ZLE,
+	ZIO_COMPRESS_LZ4,
 	ZIO_COMPRESS_FUNCTIONS
 };
 
+/* N.B. when altering this value, also change BOOTFS_COMPRESS_VALID below */
 #define	ZIO_COMPRESS_ON_VALUE	ZIO_COMPRESS_LZJB
 #define	ZIO_COMPRESS_DEFAULT	ZIO_COMPRESS_OFF
 
 #define	BOOTFS_COMPRESS_VALID(compress)			\
 	((compress) == ZIO_COMPRESS_LZJB ||		\
+	(compress) == ZIO_COMPRESS_LZ4 ||		\
 	((compress) == ZIO_COMPRESS_ON &&		\
 	ZIO_COMPRESS_ON_VALUE == ZIO_COMPRESS_LZJB) ||	\
 	(compress) == ZIO_COMPRESS_OFF)
@@ -133,7 +138,8 @@ enum zio_compress {
 #define	ZIO_PRIORITY_RESILVER		(zio_priority_table[9])
 #define	ZIO_PRIORITY_SCRUB		(zio_priority_table[10])
 #define	ZIO_PRIORITY_DDT_PREFETCH	(zio_priority_table[11])
-#define	ZIO_PRIORITY_TABLE_SIZE		12
+#define	ZIO_PRIORITY_TRIM		(zio_priority_table[12])
+#define	ZIO_PRIORITY_TABLE_SIZE		13
 
 #define	ZIO_PIPELINE_CONTINUE		0x100
 #define	ZIO_PIPELINE_STOP		0x101
@@ -186,7 +192,9 @@ enum zio_flag {
 	ZIO_FLAG_RAW		= 1 << 21,
 	ZIO_FLAG_GANG_CHILD	= 1 << 22,
 	ZIO_FLAG_DDT_CHILD	= 1 << 23,
-	ZIO_FLAG_GODFATHER	= 1 << 24
+	ZIO_FLAG_GODFATHER	= 1 << 24,
+	ZIO_FLAG_NOPWRITE	= 1 << 25,
+	ZIO_FLAG_REEXECUTED	= 1 << 26,
 };
 
 #define	ZIO_FLAG_MUSTSUCCEED		0
@@ -285,8 +293,9 @@ typedef struct zio_prop {
 	dmu_object_type_t	zp_type;
 	uint8_t			zp_level;
 	uint8_t			zp_copies;
-	uint8_t			zp_dedup;
-	uint8_t			zp_dedup_verify;
+	boolean_t		zp_dedup;
+	boolean_t		zp_dedup_verify;
+	boolean_t		zp_nopwrite;
 } zio_prop_t;
 
 typedef struct zio_cksum_report zio_cksum_report_t;
@@ -360,6 +369,39 @@ typedef struct zio_link {
 	list_node_t	zl_child_node;
 } zio_link_t;
 
+/*
+ * Used for TRIM kstat.
+ */
+typedef struct zio_trim_stats {
+	/*
+	 * Number of bytes successfully TRIMmed.
+	 */
+	kstat_named_t bytes;
+
+	/*
+	 * Number of successful TRIM requests.
+	 */
+	kstat_named_t success;
+
+	/*
+	 * Number of TRIM requests that failed because TRIM is not
+	 * supported.
+	 */
+	kstat_named_t unsupported;
+
+	/*
+	 * Number of TRIM requests that failed for other reasons.
+	 */
+	kstat_named_t failed;
+} zio_trim_stats_t;
+
+extern zio_trim_stats_t zio_trim_stats;
+
+#define ZIO_TRIM_STAT_INCR(stat, val) \
+	atomic_add_64(&zio_trim_stats.stat.value.ui64, (val));
+#define ZIO_TRIM_STAT_BUMP(stat) \
+	ZIO_TRIM_STAT_INCR(stat, 1);
+
 struct zio {
 	/* Core information about this I/O */
 	zbookmark_t	io_bookmark;
@@ -401,6 +443,7 @@ struct zio {
 
 	uint64_t	io_offset;
 	uint64_t	io_deadline;
+	hrtime_t	io_timestamp;
 	avl_node_t	io_offset_node;
 	avl_node_t	io_deadline_node;
 	avl_tree_t	*io_vdev_tree;
@@ -433,6 +476,8 @@ struct zio {
 	/* FreeBSD only. */
 	struct ostask	io_task;
 #endif
+	avl_node_t	io_trim_node;
+	list_node_t	io_trim_link;
 };
 
 extern zio_t *zio_null(zio_t *pio, spa_t *spa, vdev_t *vd,
@@ -454,7 +499,8 @@ extern zio_t *zio_rewrite(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
     void *data, uint64_t size, zio_done_func_t *done, void *priv,
     int priority, enum zio_flag flags, zbookmark_t *zb);
 
-extern void zio_write_override(zio_t *zio, blkptr_t *bp, int copies);
+extern void zio_write_override(zio_t *zio, blkptr_t *bp, int copies,
+    boolean_t nopwrite);
 
 extern void zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp);
 
@@ -463,8 +509,8 @@ extern zio_t *zio_claim(zio_t *pio, spa_t *spa, uint64_t txg,
     zio_done_func_t *done, void *priv, enum zio_flag flags);
 
 extern zio_t *zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
-    zio_done_func_t *done, void *priv, int priority,
-    enum zio_flag flags);
+    uint64_t offset, uint64_t size, zio_done_func_t *done, void *priv,
+    int priority, enum zio_flag flags);
 
 extern zio_t *zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset,
     uint64_t size, void *data, int checksum,
@@ -477,12 +523,14 @@ extern zio_t *zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset,
     boolean_t labels);
 
 extern zio_t *zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg,
-    const blkptr_t *bp, enum zio_flag flags);
+    const blkptr_t *bp, uint64_t size, enum zio_flag flags);
 
 extern int zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp,
     blkptr_t *old_bp, uint64_t size, boolean_t use_slog);
 extern void zio_free_zil(spa_t *spa, uint64_t txg, blkptr_t *bp);
 extern void zio_flush(zio_t *zio, vdev_t *vd);
+extern zio_t *zio_trim(zio_t *zio, spa_t *spa, vdev_t *vd, uint64_t offset,
+    uint64_t size);
 extern void zio_shrink(zio_t *zio, uint64_t size);
 
 extern int zio_wait(zio_t *zio);
@@ -549,6 +597,7 @@ extern int zio_handle_fault_injection(zio_t *zio, int error);
 extern int zio_handle_device_injection(vdev_t *vd, zio_t *zio, int error);
 extern int zio_handle_label_injection(zio_t *zio, int error);
 extern void zio_handle_ignored_writes(zio_t *zio);
+extern uint64_t zio_handle_io_delay(zio_t *zio);
 
 /*
  * Checksum ereport functions

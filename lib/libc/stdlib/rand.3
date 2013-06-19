@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2010
+.Dd April 2, 2013
 .Dt RAND 3
 .Os
 .Sh NAME
@@ -55,9 +55,15 @@
 .Fn rand_r "unsigned *ctx"
 .Sh DESCRIPTION
 .Bf -symbolic
+The functions described in this manual page are not cryptographically
+secure.
+Cryptographic applications should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
 These interfaces are obsoleted by
 .Xr random 3 .
-.Ef
 .Pp
 The
 .Fn rand
@@ -85,12 +91,7 @@ seeded with a value of 1.
 .Pp
 The
 .Fn sranddev
-function initializes a seed using the
-.Xr random 4
-random number device which returns good random numbers.
-However, the
-.Fn rand
-function still remains unsuitable for cryptographic use.
+function initializes a seed using pseudo-random numbers obtained from the kernel.
 .Pp
 The
 .Fn rand_r
@@ -105,8 +106,6 @@ For better generator quality, use
 .Xr random 3
 or
 .Xr lrand48 3 .
-Applications requiring cryptographic quality randomness should use
-.Xr arc4random 3 .
 .Sh SEE ALSO
 .Xr arc4random 3 ,
 .Xr lrand48 3 ,

@@ -18,15 +18,12 @@ umask 22
 set path = (/sbin /bin /usr/sbin /usr/bin /usr/games /usr/local/sbin /usr/local/bin $HOME/bin)
 
 setenv	EDITOR	vi
-setenv	PAGER	less
+setenv	PAGER	more
 setenv	BLOCKSIZE	K
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
-	if ($uid == 0) then
-		set user = root
-	endif
-	set prompt = "%n@%m:%/ %# "
+	set prompt = "%N@%m:%~ %# "
 	set promptchars = "%#"
 
 	set filec

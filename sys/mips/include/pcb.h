@@ -42,20 +42,7 @@
 #ifndef _MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-#include <machine/frame.h>
-
 /*
- * MIPS process control block
- */
-struct pcb
-{
-	struct trapframe pcb_regs;	/* saved CPU and registers */
-	__register_t pcb_context[14];	/* kernel context for resume */
-	void *pcb_onfault;		/* for copyin/copyout faults */
-	register_t pcb_tpc;
-};
-
-/* these match the regnum's in regnum.h
  * used by switch.S
  */
 #define	PCB_REG_S0	0
@@ -73,12 +60,26 @@ struct pcb
 #define	PCB_REG_GP	12
 #define	PCB_REG_PC	13
 
+#ifndef LOCORE
+#include <machine/frame.h>
+
+/*
+ * MIPS process control block
+ */
+struct pcb
+{
+	struct trapframe pcb_regs;	/* saved CPU and registers */
+	__register_t pcb_context[14];	/* kernel context for resume */
+	void *pcb_onfault;		/* for copyin/copyout faults */
+	register_t pcb_tpc;
+};
 
 #ifdef _KERNEL
 extern struct pcb *curpcb;		/* the current running pcb */
 
 void makectx(struct trapframe *, struct pcb *);
 int savectx(struct pcb *) __returns_twice;
+#endif
 #endif
 
 #endif	/* !_MACHINE_PCB_H_ */

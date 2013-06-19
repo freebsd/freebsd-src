@@ -52,7 +52,7 @@ rm_r(char const * dir, uid_t uid)
 
 		while ((e = readdir(d)) != NULL) {
 			if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0) {
-				sprintf(file, "%s/%s", dir, e->d_name);
+				snprintf(file, sizeof(file), "%s/%s", dir, e->d_name);
 				if (lstat(file, &st) == 0) {	/* Need symlinks, not
 								 * linked file */
 					if (S_ISDIR(st.st_mode))	/* Directory - recurse */

@@ -139,7 +139,7 @@ MODULE_DEPEND(nge, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct nge_type const nge_devs[] = {
+static const struct nge_type nge_devs[] = {
 	{ NGE_VENDORID, NGE_DEVICEID,
 	    "National Semiconductor Gigabit Ethernet" },
 	{ 0, 0, NULL }
@@ -1381,7 +1381,7 @@ nge_newbuf(struct nge_softc *sc, int idx)
 	bus_dmamap_t map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1894,7 +1894,7 @@ nge_encap(struct nge_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->nge_cdata.nge_tx_tag, map,
 	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, NGE_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, NGE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

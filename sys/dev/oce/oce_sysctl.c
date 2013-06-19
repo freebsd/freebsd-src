@@ -38,6 +38,7 @@
 
 /* $FreeBSD$ */
 
+
 #include "oce_if.h"
 
 static void copy_stats_to_sc_xe201(POCE_SOFTC sc);
@@ -49,6 +50,7 @@ static int  oce_sys_fwupgrade(SYSCTL_HANDLER_ARGS);
 static int  oce_be3_flashdata(POCE_SOFTC sc, const struct firmware
 						*fw, int num_imgs);
 static int  oce_lancer_fwupgrade(POCE_SOFTC sc, const struct firmware *fw);
+static int oce_sysctl_sfp_vpd_dump(SYSCTL_HANDLER_ARGS);
 static boolean_t oce_phy_flashing_required(POCE_SOFTC sc);
 static boolean_t oce_img_flashing_required(POCE_SOFTC sc, const char *p,
 				int img_optype, uint32_t img_offset,
@@ -61,7 +63,7 @@ static void oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 				struct sysctl_oid *stats_node);
 
 extern char component_revision[32];
-
+uint32_t sfp_vpd_dump_buffer[TRANSCEIVER_DATA_NUM_ELE];
 
 void
 oce_add_sysctls(POCE_SOFTC sc)
@@ -93,7 +95,8 @@ oce_add_sysctls(POCE_SOFTC sc)
 			sizeof(oce_max_rsp_handled),
 			"Maximum receive frames handled per interupt");
 
-	if (sc->function_mode & FNM_FLEX10_MODE)
+	if ((sc->function_mode & FNM_FLEX10_MODE) || 
+	    (sc->function_mode & FNM_UMC_MODE))
 		SYSCTL_ADD_UINT(ctx, child,
 				OID_AUTO, "speed",
 				CTLFLAG_RD,
@@ -121,6 +124,19 @@ oce_add_sysctls(POCE_SOFTC sc)
 		CTLTYPE_STRING | CTLFLAG_RW, (void *)sc, 0,
 		oce_sys_fwupgrade, "A", "Firmware ufi file");
 
+        /*
+         *  Dumps Transceiver data
+	 *  "sysctl dev.oce.0.sfp_vpd_dump=0"
+         *  "sysctl -x dev.oce.0.sfp_vpd_dump_buffer" for hex dump
+         *  "sysctl -b dev.oce.0.sfp_vpd_dump_buffer > sfp.bin" for binary dump
+         */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "sfp_vpd_dump",
+			CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, oce_sysctl_sfp_vpd_dump,
+			"I", "Initiate a sfp_vpd_dump operation");
+	SYSCTL_ADD_OPAQUE(ctx, child, OID_AUTO, "sfp_vpd_dump_buffer",
+			CTLFLAG_RD, sfp_vpd_dump_buffer,
+			TRANSCEIVER_DATA_SIZE, "IU", "Access sfp_vpd_dump buffer");
+
 	stats_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
 				CTLFLAG_RD, NULL, "Ethernet Statistics");
 
@@ -131,7 +147,6 @@ oce_add_sysctls(POCE_SOFTC sc)
 
 
 }
-
 
 
 static uint32_t
@@ -146,7 +161,6 @@ oce_loopback_test(struct oce_softc *sc, uint8_t loopback_type)
 
 	return status;
 }
-
 
 static int
 oce_sysctl_loopback(SYSCTL_HANDLER_ARGS)
@@ -1301,5 +1315,33 @@ oce_refresh_nic_stats(POCE_SOFTC sc)
 			copy_stats_to_sc_xe201(sc);
 	}
 	
+	return rc;
+}
+
+static int 
+oce_sysctl_sfp_vpd_dump(SYSCTL_HANDLER_ARGS)
+{
+	int result = 0, error;
+	int rc = 0;
+	POCE_SOFTC sc = (POCE_SOFTC) arg1;
+
+	/* sysctl default handler */
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if(result == -1) {
+		return EINVAL;
+	}
+	bzero((char *)sfp_vpd_dump_buffer, TRANSCEIVER_DATA_SIZE);
+
+	rc = oce_mbox_read_transrecv_data(sc, PAGE_NUM_A0);
+	if(rc)
+		return rc;
+
+	rc = oce_mbox_read_transrecv_data(sc, PAGE_NUM_A2);
+	if(rc)
+		return rc;
+
 	return rc;
 }

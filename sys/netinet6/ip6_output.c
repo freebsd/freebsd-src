@@ -130,21 +130,21 @@ struct ip6_exthdrs {
 	struct mbuf *ip6e_dest2;
 };
 
-static int ip6_pcbopt __P((int, u_char *, int, struct ip6_pktopts **,
-			   struct ucred *, int));
-static int ip6_pcbopts __P((struct ip6_pktopts **, struct mbuf *,
-	struct socket *, struct sockopt *));
+static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
+			   struct ucred *, int);
+static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
+	struct socket *, struct sockopt *);
 static int ip6_getpcbopt(struct ip6_pktopts *, int, struct sockopt *);
-static int ip6_setpktopt __P((int, u_char *, int, struct ip6_pktopts *,
-	struct ucred *, int, int, int));
+static int ip6_setpktopt(int, u_char *, int, struct ip6_pktopts *,
+	struct ucred *, int, int, int);
 
 static int ip6_copyexthdr(struct mbuf **, caddr_t, int);
-static int ip6_insertfraghdr __P((struct mbuf *, struct mbuf *, int,
-	struct ip6_frag **));
+static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
+	struct ip6_frag **);
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
-static int ip6_getpmtu __P((struct route_in6 *, struct route_in6 *,
-	struct ifnet *, struct in6_addr *, u_long *, int *, u_int));
+static int ip6_getpmtu(struct route_in6 *, struct route_in6 *,
+	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -257,9 +257,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int segleft_org = 0;
 	struct secpolicy *sp = NULL;
 #endif /* IPSEC */
-#ifdef IPFIREWALL_FORWARD
-	struct m_tag *fwd_tag;
-#endif
+	struct m_tag *fwd_tag = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -500,16 +498,16 @@ skip_ipsec2:;
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) &&
 	    (flags & IPV6_UNSPECSRC) == 0) {
 		error = EOPNOTSUPP;
-		V_ip6stat.ip6s_badscope++;
+		IP6STAT_INC(ip6s_badscope);
 		goto bad;
 	}
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
 		error = EOPNOTSUPP;
-		V_ip6stat.ip6s_badscope++;
+		IP6STAT_INC(ip6s_badscope);
 		goto bad;
 	}
 
-	V_ip6stat.ip6s_localout++;
+	IP6STAT_INC(ip6s_localout);
 
 	/*
 	 * Route packet.
@@ -638,26 +636,23 @@ again:
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	bzero(&dst_sa, sizeof(dst_sa));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(dst_sa);
-	dst_sa.sin6_addr = ip6->ip6_dst;
-	if (ro->ro_rt) {
+	if (ro->ro_rt && fwd_tag == NULL) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
-	} else if ((error = in6_selectroute_fib(&dst_sa, opt, im6o, ro,
-	    &ifp, &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0) {
-		switch (error) {
-		case EHOSTUNREACH:
-			V_ip6stat.ip6s_noroute++;
-			break;
-		case EADDRNOTAVAIL:
-		default:
-			break; /* XXX statistics? */
+	} else {
+		if (fwd_tag == NULL) {
+			bzero(&dst_sa, sizeof(dst_sa));
+			dst_sa.sin6_family = AF_INET6;
+			dst_sa.sin6_len = sizeof(dst_sa);
+			dst_sa.sin6_addr = ip6->ip6_dst;
 		}
-		if (ifp != NULL)
-			in6_ifstat_inc(ifp, ifs6_out_discard);
-		goto bad;
+		error = in6_selectroute_fib(&dst_sa, opt, im6o, ro, &ifp,
+		    &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+		if (error != 0) {
+			if (ifp != NULL)
+				in6_ifstat_inc(ifp, ifs6_out_discard);
+			goto bad;
+		}
 	}
 	if (rt == NULL) {
 		/*
@@ -718,7 +713,7 @@ again:
 	goto routefound;
 
   badscope:
-	V_ip6stat.ip6s_badscope++;
+	IP6STAT_INC(ip6s_badscope);
 	in6_ifstat_inc(origifp, ifs6_out_discard);
 	if (error == 0)
 		error = EHOSTUNREACH; /* XXX */
@@ -747,7 +742,7 @@ again:
 		 * Confirm that the outgoing interface supports multicast.
 		 */
 		if (!(ifp->if_flags & IFF_MULTICAST)) {
-			V_ip6stat.ip6s_noroute++;
+			IP6STAT_INC(ip6s_noroute);
 			in6_ifstat_inc(ifp, ifs6_out_discard);
 			error = ENETUNREACH;
 			goto bad;
@@ -779,9 +774,7 @@ again:
 				/*
 				 * XXX: ip6_mforward expects that rcvif is NULL
 				 * when it is called from the originating path.
-				 * However, it is not always the case, since
-				 * some versions of MGETHDR() does not
-				 * initialize the field.
+				 * However, it may not always be the case.
 				 */
 				m->m_pkthdr.rcvif = NULL;
 				if (ip6_mforward(ip6, ifp, m) != 0) {
@@ -915,7 +908,6 @@ again:
 			goto again;	/* Redo the routing table lookup. */
 	}
 
-#ifdef IPFIREWALL_FORWARD
 	/* See if local, if yes, send it to netisr. */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
@@ -933,15 +925,15 @@ again:
 		goto done;
 	}
 	/* Or forward to some other address? */
-	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
-	if (fwd_tag) {
+	if ((m->m_flags & M_IP6_NEXTHOP) &&
+	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		dst = (struct sockaddr_in6 *)&ro->ro_dst;
-		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in6));
+		bcopy((fwd_tag+1), &dst_sa, sizeof(struct sockaddr_in6));
 		m->m_flags |= M_SKIP_FIREWALL;
+		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
 		goto again;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passout:
 	/*
@@ -1081,7 +1073,7 @@ passout:
 		if (qslots <= 0 || ((u_int)qslots * (mtu - hlen)
 		    < tlen  /* - hlen */)) {
 			error = ENOBUFS;
-			V_ip6stat.ip6s_odropped++;
+			IP6STAT_INC(ip6s_odropped);
 			goto bad;
 		}
 
@@ -1128,14 +1120,13 @@ passout:
 		 */
 		m0 = m;
 		for (off = hlen; off < tlen; off += len) {
-			MGETHDR(m, M_DONTWAIT, MT_HEADER);
+			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (!m) {
 				error = ENOBUFS;
-				V_ip6stat.ip6s_odropped++;
+				IP6STAT_INC(ip6s_odropped);
 				goto sendorfree;
 			}
-			m->m_pkthdr.rcvif = NULL;
-			m->m_flags = m0->m_flags & M_COPYFLAGS;	/* incl. FIB */
+			m->m_flags = m0->m_flags & M_COPYFLAGS;
 			*mnext = m;
 			mnext = &m->m_nextpkt;
 			m->m_data += max_linkhdr;
@@ -1144,7 +1135,7 @@ passout:
 			m->m_len = sizeof(*mhip6);
 			error = ip6_insertfraghdr(m0, m, hlen, &ip6f);
 			if (error) {
-				V_ip6stat.ip6s_odropped++;
+				IP6STAT_INC(ip6s_odropped);
 				goto sendorfree;
 			}
 			ip6f->ip6f_offlg = htons((u_short)((off - hlen) & ~7));
@@ -1156,16 +1147,17 @@ passout:
 			    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
 			if ((m_frgpart = m_copy(m0, off, len)) == 0) {
 				error = ENOBUFS;
-				V_ip6stat.ip6s_odropped++;
+				IP6STAT_INC(ip6s_odropped);
 				goto sendorfree;
 			}
 			m_cat(m, m_frgpart);
 			m->m_pkthdr.len = len + hlen + sizeof(*ip6f);
+			m->m_pkthdr.fibnum = m0->m_pkthdr.fibnum;
 			m->m_pkthdr.rcvif = NULL;
 			ip6f->ip6f_reserved = 0;
 			ip6f->ip6f_ident = id;
 			ip6f->ip6f_nxt = nextproto;
-			V_ip6stat.ip6s_ofragments++;
+			IP6STAT_INC(ip6s_ofragments);
 			in6_ifstat_inc(ifp, ifs6_out_fragcreat);
 		}
 
@@ -1194,7 +1186,7 @@ sendorfree:
 	}
 
 	if (error == 0)
-		V_ip6stat.ip6s_fragmented++;
+		IP6STAT_INC(ip6s_fragmented);
 
 done:
 	if (ro == &ip6route)
@@ -1228,17 +1220,12 @@ ip6_copyexthdr(struct mbuf **mp, caddr_t hdr, int hlen)
 	if (hlen > MCLBYTES)
 		return (ENOBUFS); /* XXX */
 
-	MGET(m, M_DONTWAIT, MT_DATA);
-	if (!m)
+	if (hlen > MLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, 0);
+	else
+		m = m_get(M_NOWAIT, MT_DATA);
+	if (m == NULL)
 		return (ENOBUFS);
-
-	if (hlen > MLEN) {
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			return (ENOBUFS);
-		}
-	}
 	m->m_len = hlen;
 	if (hdr)
 		bcopy(hdr, mtod(m, caddr_t), hlen);
@@ -1266,8 +1253,8 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 	 * Otherwise, use it to store the options.
 	 */
 	if (exthdrs->ip6e_hbh == 0) {
-		MGET(mopt, M_DONTWAIT, MT_DATA);
-		if (mopt == 0)
+		mopt = m_get(M_NOWAIT, MT_DATA);
+		if (mopt == NULL)
 			return (ENOBUFS);
 		mopt->m_len = JUMBOOPTLEN;
 		optbuf = mtod(mopt, u_char *);
@@ -1298,15 +1285,8 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 			 * As a consequence, we must always prepare a cluster
 			 * at this point.
 			 */
-			MGET(n, M_DONTWAIT, MT_DATA);
-			if (n) {
-				MCLGET(n, M_DONTWAIT);
-				if ((n->m_flags & M_EXT) == 0) {
-					m_freem(n);
-					n = NULL;
-				}
-			}
-			if (!n)
+			n = m_getcl(M_NOWAIT, MT_DATA, 0);
+			if (n == NULL)
 				return (ENOBUFS);
 			n->m_len = oldoptlen + JUMBOOPTLEN;
 			bcopy(mtod(mopt, caddr_t), mtod(n, caddr_t),
@@ -1353,7 +1333,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 
 	if (hlen > sizeof(struct ip6_hdr)) {
 		n = m_copym(m0, sizeof(struct ip6_hdr),
-		    hlen - sizeof(struct ip6_hdr), M_DONTWAIT);
+		    hlen - sizeof(struct ip6_hdr), M_NOWAIT);
 		if (n == 0)
 			return (ENOBUFS);
 		m->m_next = n;
@@ -1375,8 +1355,8 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 		/* allocate a new mbuf for the fragment header */
 		struct mbuf *mfrg;
 
-		MGET(mfrg, M_DONTWAIT, MT_DATA);
-		if (mfrg == 0)
+		mfrg = m_get(M_NOWAIT, MT_DATA);
+		if (mfrg == NULL)
 			return (ENOBUFS);
 		mfrg->m_len = sizeof(struct ip6_frag);
 		*frghdrp = mtod(mfrg, struct ip6_frag *);
@@ -3051,12 +3031,12 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (m->m_len > sizeof(*ip6)) {
-		MGETHDR(mh, M_DONTWAIT, MT_HEADER);
-		if (mh == 0) {
+		mh = m_gethdr(M_NOWAIT, MT_DATA);
+		if (mh == NULL) {
 			m_freem(m);
 			return ENOBUFS;
 		}
-		M_MOVE_PKTHDR(mh, m);
+		m_move_pkthdr(mh, m);
 		MH_ALIGN(mh, sizeof(*ip6));
 		m->m_len -= sizeof(*ip6);
 		m->m_data += sizeof(*ip6);

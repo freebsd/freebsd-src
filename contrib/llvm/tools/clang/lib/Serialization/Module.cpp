@@ -12,32 +12,36 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Serialization/Module.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "ASTReaderInternals.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace serialization;
 using namespace reader;
 
 ModuleFile::ModuleFile(ModuleKind Kind, unsigned Generation)
-  : Kind(Kind), DirectlyImported(false), Generation(Generation), SizeInBits(0), 
+  : Kind(Kind), File(0), DirectlyImported(false),
+    Generation(Generation), SizeInBits(0),
     LocalNumSLocEntries(0), SLocEntryBaseID(0),
     SLocEntryBaseOffset(0), SLocEntryOffsets(0),
-    SLocFileOffsets(0), LocalNumIdentifiers(0), 
+    LocalNumIdentifiers(0),
     IdentifierOffsets(0), BaseIdentifierID(0), IdentifierTableData(0),
-    IdentifierLookupTable(0), BasePreprocessedEntityID(0),
+    IdentifierLookupTable(0),
+    LocalNumMacros(0), MacroOffsets(0),
+    BasePreprocessedEntityID(0),
     PreprocessedEntityOffsets(0), NumPreprocessedEntities(0),
     LocalNumHeaderFileInfos(0), 
     HeaderFileInfoTableData(0), HeaderFileInfoTable(0),
-    HeaderFileFrameworkStrings(0), LocalNumSubmodules(0), BaseSubmoduleID(0),
+    LocalNumSubmodules(0), BaseSubmoduleID(0),
     LocalNumSelectors(0), SelectorOffsets(0), BaseSelectorID(0),
     SelectorLookupTableData(0), SelectorLookupTable(0), LocalNumDecls(0),
     DeclOffsets(0), BaseDeclID(0),
     LocalNumCXXBaseSpecifiers(0), CXXBaseSpecifiersOffsets(0),
-    FileSortedDecls(0), RedeclarationsMap(0), LocalNumRedeclarationsInMap(0),
+    FileSortedDecls(0), NumFileSortedDecls(0),
+    RedeclarationsMap(0), LocalNumRedeclarationsInMap(0),
     ObjCCategoriesMap(0), LocalNumObjCCategoriesInMap(0),
-    LocalNumTypes(0), TypeOffsets(0), BaseTypeIndex(0), StatCache(0)
+    LocalNumTypes(0), TypeOffsets(0), BaseTypeIndex(0)
 {}
 
 ModuleFile::~ModuleFile() {
@@ -88,6 +92,10 @@ void ModuleFile::dump() {
   llvm::errs() << "  Base identifier ID: " << BaseIdentifierID << '\n'
                << "  Number of identifiers: " << LocalNumIdentifiers << '\n';
   dumpLocalRemap("Identifier ID local -> global map", IdentifierRemap);
+
+  llvm::errs() << "  Base macro ID: " << BaseMacroID << '\n'
+               << "  Number of macros: " << LocalNumMacros << '\n';
+  dumpLocalRemap("Macro ID local -> global map", MacroRemap);
 
   llvm::errs() << "  Base submodule ID: " << BaseSubmoduleID << '\n'
                << "  Number of submodules: " << LocalNumSubmodules << '\n';

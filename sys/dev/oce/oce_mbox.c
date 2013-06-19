@@ -37,10 +37,12 @@
  */
 
 
+
 /* $FreeBSD$ */
 
-#include "oce_if.h"
 
+#include "oce_if.h"
+extern uint32_t sfp_vpd_dump_buffer[TRANSCEIVER_DATA_NUM_ELE];
 
 /**
  * @brief Reset (firmware) common function
@@ -276,12 +278,17 @@ oce_get_fw_version(POCE_SOFTC sc)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	ret = oce_mbox_post(sc, &mbx, NULL);
-	if (ret)
-		return ret;
+	if (!ret)
+                ret = fwcmd->hdr.u0.rsp.status;
+	if (ret) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, ret);
+		goto error;
+	}
 
 	bcopy(fwcmd->params.rsp.fw_ver_str, sc->fw_version, 32);
-	
-	return 0;
+error:
+	return ret;
 }
 
 
@@ -428,15 +435,20 @@ oce_read_mac_addr(POCE_SOFTC sc, uint32_t if_id,
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	ret = oce_mbox_post(sc, &mbx, NULL);
-	if (ret)
-		return ret;
+	if (!ret)
+                ret = fwcmd->hdr.u0.rsp.status;
+	if (ret) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, ret);
+		goto error;
+	}
 
 	/* copy the mac addres in the output parameter */
 	mac->size_of_struct = fwcmd->params.rsp.mac.size_of_struct;
 	bcopy(&fwcmd->params.rsp.mac.mac_addr[0], &mac->mac_addr[0],
 		mac->size_of_struct);
-
-	return 0;
+error:
+	return ret;
 }
 
 /**
@@ -466,8 +478,13 @@ oce_get_fw_config(POCE_SOFTC sc)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	ret = oce_mbox_post(sc, &mbx, NULL);
-	if (ret)
-		return ret;
+	if (!ret)
+                ret = fwcmd->hdr.u0.rsp.status;
+	if (ret) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, ret);
+		goto error;
+	}
 
 	DW_SWAP(u32ptr(fwcmd), sizeof(struct mbx_common_query_fw_config));
 
@@ -485,7 +502,8 @@ oce_get_fw_config(POCE_SOFTC sc)
 		sc->max_rx_rings = fwcmd->params.rsp.ulp[1].lro_rqid_tot;
 	}
 	
-	return 0;
+error:
+	return ret;
 
 }
 
@@ -540,15 +558,20 @@ oce_if_create(POCE_SOFTC sc,
 	DW_SWAP(u32ptr(&mbx), OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc)
-		return rc;
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
+	}
 
 	*if_id = LE_32(fwcmd->params.rsp.if_id);
 
 	if (mac_addr != NULL)
 		sc->pmac_id = LE_32(fwcmd->params.rsp.pmac_id);
-
-	return 0;
+error:
+	return rc;
 }
 
 /**
@@ -581,6 +604,11 @@ oce_if_del(POCE_SOFTC sc, uint32_t if_id)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc;
 }
 
@@ -628,8 +656,12 @@ oce_config_vlan(POCE_SOFTC sc,
 	DW_SWAP(u32ptr(&mbx), (OCE_BMBX_RHDR_SZ + mbx.payload_length));
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-
-	return rc;
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+	return 0;
 
 }
 
@@ -667,7 +699,11 @@ oce_set_flow_control(POCE_SOFTC sc, uint32_t flow_control)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc;
 }
 
@@ -726,20 +762,28 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 	struct oce_mbx mbx;
 	struct mbx_config_nic_rss *fwcmd =
 				(struct mbx_config_nic_rss *)&mbx.payload;
+	int version;
 
 	bzero(&mbx, sizeof(struct oce_mbx));
+
+	if (IS_XE201(sc)) {
+		version = OCE_MBX_VER_V1;
+		fwcmd->params.req.enable_rss = RSS_ENABLE_UDP_IPV4 |
+					       RSS_ENABLE_UDP_IPV6;
+	} else
+		version = OCE_MBX_VER_V0; 
 
 	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
 				MBX_SUBSYSTEM_NIC,
 				NIC_CONFIG_RSS,
 				MBX_TIMEOUT_SEC,
 				sizeof(struct mbx_config_nic_rss),
-				OCE_MBX_VER_V0);
+				version);
 	if (enable_rss)
-		fwcmd->params.req.enable_rss = (RSS_ENABLE_IPV4 |
-						RSS_ENABLE_TCP_IPV4 |
-						RSS_ENABLE_IPV6 |
-						RSS_ENABLE_TCP_IPV6);
+		fwcmd->params.req.enable_rss |= (RSS_ENABLE_IPV4 |
+					         RSS_ENABLE_TCP_IPV4 |
+						 RSS_ENABLE_IPV6 |
+						 RSS_ENABLE_TCP_IPV6);
 	fwcmd->params.req.flush = OCE_FLUSH;
 	fwcmd->params.req.if_id = LE_32(if_id);
 
@@ -753,9 +797,12 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 		DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 		rc = oce_mbox_post(sc, &mbx, NULL);
-
+		if (!rc)
+                	rc = fwcmd->hdr.u0.rsp.status;
+		if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	}
-	
 	return rc;
 }
 
@@ -834,7 +881,12 @@ oce_set_common_iface_rx_filter(POCE_SOFTC sc, POCE_DMA_MEM sgl)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	return rc;
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+	return 0;
 }
 
 /**
@@ -848,9 +900,11 @@ oce_get_link_status(POCE_SOFTC sc, struct link_status *link)
 {
 	struct oce_mbx mbx;
 	struct mbx_query_common_link_config *fwcmd;
-	int rc = 0;
+	int rc = 0, version;
 
 	bzero(&mbx, sizeof(struct oce_mbx));
+
+	IS_XE201(sc) ? (version = OCE_MBX_VER_V1) : (version = OCE_MBX_VER_V0);
 
 	fwcmd = (struct mbx_query_common_link_config *)&mbx.payload;
 	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
@@ -858,7 +912,7 @@ oce_get_link_status(POCE_SOFTC sc, struct link_status *link)
 				OPCODE_COMMON_QUERY_LINK_CONFIG,
 				MBX_TIMEOUT_SEC,
 				sizeof(struct mbx_query_common_link_config),
-				OCE_MBX_VER_V0);
+				version);
 
 	mbx.u0.s.embedded = 1;
 	mbx.payload_length = sizeof(struct mbx_query_common_link_config);
@@ -866,15 +920,18 @@ oce_get_link_status(POCE_SOFTC sc, struct link_status *link)
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
 
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
 	if (rc) {
-		device_printf(sc->dev, "Could not get link speed: %d\n", rc);
-	} else {
-		/* interpret response */
-		bcopy(&fwcmd->params.rsp, link, sizeof(struct link_status));
-		link->logical_link_status = LE_32(link->logical_link_status);
-		link->qos_link_speed = LE_16(link->qos_link_speed);
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
 	}
-
+	/* interpret response */
+	bcopy(&fwcmd->params.rsp, link, sizeof(struct link_status));
+	link->logical_link_status = LE_32(link->logical_link_status);
+	link->qos_link_speed = LE_16(link->qos_link_speed);
+error:
 	return rc;
 }
 
@@ -916,11 +973,11 @@ oce_mbox_get_nic_stats_v0(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem)
 
 	oce_dma_sync(pstats_dma_mem, BUS_DMASYNC_POSTWRITE);
 
-	if (rc) {
-		device_printf(sc->dev, 
-			"Could not get nic statistics: %d\n", rc);
-	}
-	
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc; 
 }
 
@@ -966,10 +1023,11 @@ oce_mbox_get_nic_stats(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem)
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
 	oce_dma_sync(pstats_dma_mem, BUS_DMASYNC_POSTWRITE);
-	if (rc) {
-		device_printf(sc->dev, 
-			"Could not get nic statistics: %d\n", rc);
-	}
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc; 
 }
 
@@ -1001,7 +1059,7 @@ oce_mbox_get_pport_stats(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem,
 				OCE_MBX_VER_V0);
 
 	fwcmd->params.req.reset_stats = reset_stats;
-	fwcmd->params.req.port_number = sc->if_id;
+	fwcmd->params.req.port_number = sc->port_id;
 	
 	mbx.u0.s.embedded = 0;	/* stats too large for embedded mbx rsp */
 	mbx.u0.s.sge_count = 1; /* using scatter gather instead */
@@ -1017,11 +1075,11 @@ oce_mbox_get_pport_stats(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem,
 	rc = oce_mbox_post(sc, &mbx, NULL);
 	oce_dma_sync(pstats_dma_mem, BUS_DMASYNC_POSTWRITE);
 
-	if (rc != 0) {
-		device_printf(sc->dev,
-			  "Could not get physical port statistics: %d\n", rc);
-	}
-
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc;
 }
 
@@ -1070,11 +1128,11 @@ oce_mbox_get_vport_stats(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem,
 	rc = oce_mbox_post(sc, &mbx, NULL);
 	oce_dma_sync(pstats_dma_mem, BUS_DMASYNC_POSTWRITE);
 
-	if (rc != 0) {
-		device_printf(sc->dev,
-			  "Could not get physical port statistics: %d\n", rc);
-	}
-
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc;
 }
 
@@ -1115,7 +1173,11 @@ oce_update_multicast(POCE_SOFTC sc, POCE_DMA_MEM pdma_mem)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	
+	if (!rc)
+                rc = req->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc;
 }
 
@@ -1176,11 +1238,15 @@ oce_mbox_macaddr_add(POCE_SOFTC sc, uint8_t *mac_addr,
 	mbx.payload_length = sizeof(struct  mbx_add_common_iface_mac);
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc)
-		return rc;
-
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
+	}
 	*pmac_id = fwcmd->params.rsp.pmac_id;
-
+error:
 	return rc;
 }
 
@@ -1210,6 +1276,11 @@ oce_mbox_macaddr_del(POCE_SOFTC sc, uint32_t if_id, uint32_t pmac_id)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	return rc;
 }
 
@@ -1242,12 +1313,17 @@ oce_mbox_check_native_mode(POCE_SOFTC sc)
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	//if (rc != 0)		This can fail in legacy mode. So skip
-	//	FN_LEAVE(rc);
-
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
+	}
 	sc->be3_native = fwcmd->params.rsp.capability_flags
 			& CAP_BE3_NATIVE_ERX_API;
 
+error:
 	return 0;
 }
 
@@ -1282,6 +1358,11 @@ oce_mbox_cmd_set_loopback(POCE_SOFTC sc, uint8_t port_num,
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 
 	return rc;
 
@@ -1320,10 +1401,13 @@ oce_mbox_cmd_test_loopback(POCE_SOFTC sc, uint32_t port_num,
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
 	if (rc)
-		return rc;
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	
-	return(fwcmd->params.rsp.status);
+	return rc;
 }
 
 int
@@ -1362,11 +1446,11 @@ oce_mbox_write_flashrom(POCE_SOFTC sc, uint32_t optype,uint32_t opcode,
 
 	/* post the command */
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc) {
-		device_printf(sc->dev, "Write FlashROM mbox post failed\n");
-	} else {
-		rc = fwcmd->hdr.u0.rsp.status;
-	}
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 	
 	return rc;
 
@@ -1408,12 +1492,15 @@ oce_mbox_get_flashrom_crc(POCE_SOFTC sc, uint8_t *flash_crc,
 
 	/* post the command */
 	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
 	if (rc) {
-		device_printf(sc->dev, "Read FlashROM CRC mbox post failed\n");
-	} else {
-		bcopy(fwcmd->data_buffer, flash_crc, 4);
-		rc = fwcmd->hdr.u0.rsp.status;
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
 	}
+	bcopy(fwcmd->data_buffer, flash_crc, 4);
+error:
 	return rc;
 }
 
@@ -1440,20 +1527,22 @@ oce_mbox_get_phy_info(POCE_SOFTC sc, struct oce_phy_info *phy_info)
 
 	/* now post the command */
 	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
 	if (rc) {
-		device_printf(sc->dev, "Read PHY info  mbox post failed\n");
-	} else {
-		rc = fwcmd->hdr.u0.rsp.status;
-		phy_info->phy_type = fwcmd->params.rsp.phy_info.phy_type;
-		phy_info->interface_type =
-				fwcmd->params.rsp.phy_info.interface_type;
-		phy_info->auto_speeds_supported =
-			fwcmd->params.rsp.phy_info.auto_speeds_supported;
-		phy_info->fixed_speeds_supported =
-			fwcmd->params.rsp.phy_info.fixed_speeds_supported;
-		phy_info->misc_params =fwcmd->params.rsp.phy_info.misc_params;
-
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
 	}
+	phy_info->phy_type = fwcmd->params.rsp.phy_info.phy_type;
+	phy_info->interface_type =
+			fwcmd->params.rsp.phy_info.interface_type;
+	phy_info->auto_speeds_supported =
+		fwcmd->params.rsp.phy_info.auto_speeds_supported;
+	phy_info->fixed_speeds_supported =
+		fwcmd->params.rsp.phy_info.fixed_speeds_supported;
+	phy_info->misc_params =fwcmd->params.rsp.phy_info.misc_params;
+error:
 	return rc;
 
 }
@@ -1499,14 +1588,16 @@ oce_mbox_lancer_write_flashrom(POCE_SOFTC sc, uint32_t data_size,
 
 	/* post the command */
 	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->params.rsp.status;
 	if (rc) {
-		device_printf(sc->dev,
-			"Write Lancer FlashROM mbox post failed\n");
-	} else {
-		*written_data = fwcmd->params.rsp.actual_write_length;
-		*additional_status = fwcmd->params.rsp.additional_status;
-		rc = fwcmd->params.rsp.status;
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
 	}
+	*written_data = fwcmd->params.rsp.actual_write_length;
+	*additional_status = fwcmd->params.rsp.additional_status;
+error:
 	return rc;
 
 }
@@ -1553,15 +1644,16 @@ oce_mbox_create_rq(struct oce_rq *rq)
 	mbx.payload_length = sizeof(struct mbx_create_nic_rq);
 	
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc)
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 		goto error;
- 
+	}
 	rq->rq_id = fwcmd->params.rsp.rq_id;
 	rq->rss_cpuid = fwcmd->params.rsp.rss_cpuid;
-
-	return 0;
 error:
-	device_printf(sc->dev, "Mbox Create RQ failed\n");
 	return rc;
 
 }
@@ -1603,14 +1695,15 @@ oce_mbox_create_wq(struct oce_wq *wq)
 	mbx.payload_length = sizeof(struct mbx_create_nic_wq);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc) 
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 		goto error;
-
+	}
 	wq->wq_id = LE_16(fwcmd->params.rsp.wq_id);
-
-	return 0;
 error:
-	device_printf(sc->dev, "Mbox Create WQ failed\n");
 	return rc;
 
 }
@@ -1649,14 +1742,15 @@ oce_mbox_create_eq(struct oce_eq *eq)
 	mbx.payload_length = sizeof(struct mbx_create_common_eq);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc)
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 		goto error;
-
+	}
 	eq->eq_id = LE_16(fwcmd->params.rsp.eq_id);
-
-	return 0;
 error:
-	device_printf(sc->dev, "Mbox Create EQ failed\n");
 	return rc;
 }
 
@@ -1726,14 +1820,125 @@ oce_mbox_cq_create(struct oce_cq *cq, uint32_t ncoalesce, uint32_t is_eventable)
 	mbx.payload_length = sizeof(struct mbx_create_common_cq);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);
-	if (rc)
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
 		goto error;
-
+	}
 	cq->cq_id = LE_16(fwcmd->params.rsp.cq_id);
-
-	return 0;
 error:
-	device_printf(sc->dev, "Mbox Create CQ failed\n");
 	return rc;
 
 }
+
+int 
+oce_mbox_read_transrecv_data(POCE_SOFTC sc, uint32_t page_num)
+{
+	int rc = 0;
+	struct oce_mbx mbx;
+	struct mbx_read_common_transrecv_data *fwcmd;
+	struct oce_mq_sge *sgl;
+	OCE_DMA_MEM dma;
+
+	/* Allocate DMA mem*/
+	if (oce_dma_alloc(sc, sizeof(struct mbx_read_common_transrecv_data),
+				&dma, 0))
+		return ENOMEM;
+
+	fwcmd = OCE_DMAPTR(&dma, struct mbx_read_common_transrecv_data);
+	bzero(fwcmd, sizeof(struct mbx_read_common_transrecv_data));
+
+	bzero(&mbx, sizeof(struct oce_mbx));
+	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
+			MBX_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_READ_TRANSRECEIVER_DATA,
+			MBX_TIMEOUT_SEC,
+			sizeof(struct mbx_read_common_transrecv_data),
+			OCE_MBX_VER_V0);
+
+	/* fill rest of mbx */
+	mbx.u0.s.embedded = 0;
+	mbx.payload_length = sizeof(struct mbx_read_common_transrecv_data);
+	mbx.u0.s.sge_count = 1;
+	sgl = &mbx.payload.u0.u1.sgl[0];
+	sgl->pa_hi = htole32(upper_32_bits(dma.paddr));
+	sgl->pa_lo = htole32((dma.paddr) & 0xFFFFFFFF);
+	sgl->length = htole32(mbx.payload_length);
+	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
+
+	fwcmd->params.req.port = LE_32(sc->port_id);
+	fwcmd->params.req.page_num = LE_32(page_num);
+
+	/* command post */
+	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
+	}
+	if(fwcmd->params.rsp.page_num == PAGE_NUM_A0)
+	{
+		bcopy((char *)fwcmd->params.rsp.page_data, 
+				(char *)&sfp_vpd_dump_buffer[0], 
+				TRANSCEIVER_A0_SIZE);
+	}
+
+	if(fwcmd->params.rsp.page_num == PAGE_NUM_A2)
+	{
+		bcopy((char *)fwcmd->params.rsp.page_data, 
+				(char *)&sfp_vpd_dump_buffer[32], 
+				TRANSCEIVER_A2_SIZE);
+	}
+error:
+	return rc;
+}
+
+void
+oce_mbox_eqd_modify_periodic(POCE_SOFTC sc, struct oce_set_eqd *set_eqd,
+				int num)
+{
+	struct oce_mbx mbx;
+	struct mbx_modify_common_eq_delay *fwcmd;
+	int rc = 0;
+	int i = 0;
+
+	bzero(&mbx, sizeof(struct oce_mbx));
+
+	/* Initialize MODIFY_EQ_DELAY ioctl header */
+	fwcmd = (struct mbx_modify_common_eq_delay *)&mbx.payload;
+	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
+				MBX_SUBSYSTEM_COMMON,
+				OPCODE_COMMON_MODIFY_EQ_DELAY,
+				MBX_TIMEOUT_SEC,
+				sizeof(struct mbx_modify_common_eq_delay),
+				OCE_MBX_VER_V0);
+	/* fill rest of mbx */
+	mbx.u0.s.embedded = 1;
+	mbx.payload_length = sizeof(struct mbx_modify_common_eq_delay);
+	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
+
+	fwcmd->params.req.num_eq = num;
+	for (i = 0; i < num; i++) {
+		fwcmd->params.req.delay[i].eq_id = 
+					htole32(set_eqd[i].eq_id);
+		fwcmd->params.req.delay[i].phase = 0;
+		fwcmd->params.req.delay[i].dm =
+		htole32(set_eqd[i].delay_multiplier);
+	}
+	
+
+	/* command post */
+	rc = oce_mbox_post(sc, &mbx, NULL);
+
+	if (!rc)
+                rc = fwcmd->hdr.u0.rsp.status;
+	if (rc)
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+}
+
+

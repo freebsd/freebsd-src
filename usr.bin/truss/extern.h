@@ -37,6 +37,10 @@ extern void restore_proc(int);
 extern void waitevent(struct trussinfo *);
 extern const char *ioctlname(unsigned long val);
 extern char *strsig(int sig);
+#ifdef __arm__
+extern void arm_syscall_entry(struct trussinfo *, int);
+extern long arm_syscall_exit(struct trussinfo *, int);
+#endif
 #ifdef __amd64__
 extern void amd64_syscall_entry(struct trussinfo *, int);
 extern long amd64_syscall_exit(struct trussinfo *, int);

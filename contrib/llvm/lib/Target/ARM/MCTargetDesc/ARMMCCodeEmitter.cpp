@@ -12,11 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "mccodeemitter"
+#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "MCTargetDesc/ARMFixupKinds.h"
 #include "MCTargetDesc/ARMMCExpr.h"
-#include "MCTargetDesc/ARMMCTargetDesc.h"
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
@@ -24,8 +26,6 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -35,8 +35,8 @@ STATISTIC(MCNumCPRelocations, "Number of constant pool relocations created.");
 
 namespace {
 class ARMMCCodeEmitter : public MCCodeEmitter {
-  ARMMCCodeEmitter(const ARMMCCodeEmitter &); // DO NOT IMPLEMENT
-  void operator=(const ARMMCCodeEmitter &); // DO NOT IMPLEMENT
+  ARMMCCodeEmitter(const ARMMCCodeEmitter &) LLVM_DELETED_FUNCTION;
+  void operator=(const ARMMCCodeEmitter &) LLVM_DELETED_FUNCTION;
   const MCInstrInfo &MCII;
   const MCSubtargetInfo &STI;
   const MCContext &CTX;
@@ -655,15 +655,28 @@ getAdrLabelOpValue(const MCInst &MI, unsigned OpIdx,
   int32_t offset = MO.getImm();
   uint32_t Val = 0x2000;
 
+  int SoImmVal;
   if (offset == INT32_MIN) {
     Val = 0x1000;
-    offset = 0;
+    SoImmVal = 0;
   } else if (offset < 0) {
     Val = 0x1000;
     offset *= -1;
+    SoImmVal = ARM_AM::getSOImmVal(offset);
+    if(SoImmVal == -1) {
+      Val = 0x2000;
+      offset *= -1;
+      SoImmVal = ARM_AM::getSOImmVal(offset);
+    }
+  } else {
+    SoImmVal = ARM_AM::getSOImmVal(offset);
+    if(SoImmVal == -1) {
+      Val = 0x1000;
+      offset *= -1;
+      SoImmVal = ARM_AM::getSOImmVal(offset);
+    }
   }
 
-  int SoImmVal = ARM_AM::getSOImmVal(offset);
   assert(SoImmVal != -1 && "Not a valid so_imm value!");
 
   Val |= SoImmVal;
@@ -783,7 +796,7 @@ getT2Imm8s4OpValue(const MCInst &MI, unsigned OpIdx,
 
   // Immediate is always encoded as positive. The 'U' bit controls add vs sub.
   if (Imm8 < 0)
-    Imm8 = -Imm8;
+    Imm8 = -(uint32_t)Imm8;
 
   // Scaled by 4.
   Imm8 /= 4;
@@ -933,6 +946,10 @@ getLdStSORegOpValue(const MCInst &MI, unsigned OpIdx,
   bool isAdd = ARM_AM::getAM2Op(MO2.getImm()) == ARM_AM::add;
   ARM_AM::ShiftOpc ShOp = ARM_AM::getAM2ShiftOpc(MO2.getImm());
   unsigned SBits = getShiftOp(ShOp);
+
+  // While "lsr #32" and "asr #32" exist, they are encoded with a 0 in the shift
+  // amount. However, it would be an easy mistake to make so check here.
+  assert((ShImm & ~0x1f) == 0 && "Out of range shift amount");
 
   // {16-13} = Rn
   // {12}    = isAdd

@@ -93,6 +93,7 @@ ENTRY(copystr)
 
 	ldmfd	sp!, {r4-r5}			/* stack is 8 byte aligned */
 	RET
+END(copystr)
 
 #define SAVE_REGS	stmfd	sp!, {r4-r6}
 #define RESTORE_REGS	ldmfd	sp!, {r4-r6}
@@ -143,6 +144,7 @@ ENTRY(copyinstr)
 
 	RESTORE_REGS
 	RET
+END(copyinstr)
 
 /*
  * r0 - kernel space address
@@ -190,6 +192,7 @@ ENTRY(copyoutstr)
 
 	RESTORE_REGS
 	RET
+END(copyoutstr)
 
 /* A fault occurred during the copy */
 .Lcopystrfault:

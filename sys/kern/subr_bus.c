@@ -2762,6 +2762,13 @@ device_attach(device_t dev)
 {
 	int error;
 
+	if (resource_disabled(dev->driver->name, dev->unit)) {
+		device_disable(dev);
+		if (bootverbose)
+			 device_printf(dev, "disabled via hints entry\n");
+		return (ENXIO);
+	}
+
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
@@ -3311,7 +3318,7 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 /**
  * @brief Fully release a reserved resource
  *
- * Fully releases a resouce reserved via resource_list_reserve().
+ * Fully releases a resource reserved via resource_list_reserve().
  *
  * @param rl		the resource list which was allocated from
  * @param bus		the parent device of @p child

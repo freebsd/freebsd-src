@@ -1769,7 +1769,6 @@ nlm_convert_to_fhandle_t(fhandle_t *fhp, struct netobj *p)
 struct vfs_state {
 	struct mount	*vs_mp;
 	struct vnode	*vs_vp;
-	int		vs_vfslocked;
 	int		vs_vnlocked;
 };
 
@@ -1786,7 +1785,6 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 	if (!vs->vs_mp) {
 		return (ESTALE);
 	}
-	vs->vs_vfslocked = VFS_LOCK_GIANT(vs->vs_mp);
 
 	/* accmode == 0 means don't check, since it is an unlock. */
 	if (accmode != 0) {
@@ -1862,7 +1860,6 @@ nlm_release_vfs_state(struct vfs_state *vs)
 	}
 	if (vs->vs_mp)
 		vfs_rel(vs->vs_mp);
-	VFS_UNLOCK_GIANT(vs->vs_vfslocked);
 }
 
 static nlm4_stats

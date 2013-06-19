@@ -79,9 +79,11 @@ int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_load_inode(struct buf *, struct inode *, struct fs *, ino_t);
 int	ffs_mountroot(void);
 void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
+int	ffs_own_mount(const struct mount *mp);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);
+int	ffs_reload(struct mount *, struct thread *, int);
 int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t,
@@ -100,6 +102,8 @@ int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
 int	ffs_vgetf(struct mount *, ino_t, int, struct vnode **, int);
+void	ffs_susp_initialize(void);
+void	ffs_susp_uninitialize(void);
 
 #define	FFSV_FORCEINSMQ	0x0001
 

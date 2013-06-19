@@ -396,10 +396,10 @@ static struct ifmedia_description ifm_subtype_ieee80211_aliases[] =
 static struct ifmedia_description ifm_subtype_ieee80211_option_descriptions[] =
     IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS;
 
-struct ifmedia_description ifm_subtype_ieee80211_mode_descriptions[] =
+static struct ifmedia_description ifm_subtype_ieee80211_mode_descriptions[] =
     IFM_SUBTYPE_IEEE80211_MODE_DESCRIPTIONS;
 
-struct ifmedia_description ifm_subtype_ieee80211_mode_aliases[] =
+static struct ifmedia_description ifm_subtype_ieee80211_mode_aliases[] =
     IFM_SUBTYPE_IEEE80211_MODE_ALIASES;
 
 static struct ifmedia_description ifm_subtype_atm_descriptions[] =

@@ -169,7 +169,7 @@ MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
 MODULE_VERSION(udav, 1);
 
-static struct usb_ether_methods udav_ue_methods = {
+static const struct usb_ether_methods udav_ue_methods = {
 	.ue_attach_post = udav_attach_post,
 	.ue_start = udav_start,
 	.ue_init = udav_init,
@@ -179,6 +179,15 @@ static struct usb_ether_methods udav_ue_methods = {
 	.ue_setpromisc = udav_setpromisc,
 	.ue_mii_upd = udav_ifmedia_upd,
 	.ue_mii_sts = udav_ifmedia_status,
+};
+
+static const struct usb_ether_methods udav_ue_methods_nophy = {
+	.ue_attach_post = udav_attach_post,
+	.ue_start = udav_start,
+	.ue_init = udav_init,
+	.ue_stop = udav_stop,
+	.ue_setmulti = udav_setmulti,
+	.ue_setpromisc = udav_setpromisc,
 };
 
 #ifdef USB_DEBUG
@@ -264,17 +273,16 @@ udav_attach(device_t dev)
 	 * The JP1082 has an unusable PHY and provides no link information.
 	 */
 	if (sc->sc_flags & UDAV_FLAG_NO_PHY) {
-		udav_ue_methods.ue_tick = NULL;
-		udav_ue_methods.ue_mii_upd = NULL;
-		udav_ue_methods.ue_mii_sts = NULL;
+		ue->ue_methods = &udav_ue_methods_nophy;
 		sc->sc_flags |= UDAV_FLAG_LINK;
+	} else {
+		ue->ue_methods = &udav_ue_methods;
 	}
 
 	ue->ue_sc = sc;
 	ue->ue_dev = dev;
 	ue->ue_udev = uaa->device;
 	ue->ue_mtx = &sc->sc_mtx;
-	ue->ue_methods = &udav_ue_methods;
 
 	error = uether_ifattach(ue);
 	if (error) {
@@ -742,14 +750,15 @@ udav_ifmedia_upd(struct ifnet *ifp)
 	struct udav_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
+	int error;
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~UDAV_FLAG_LINK;
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
-	mii_mediachg(mii);
-	return (0);
+	error = mii_mediachg(mii);
+	return (error);
 }
 
 static void

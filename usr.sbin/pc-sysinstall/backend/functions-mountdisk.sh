@@ -81,15 +81,34 @@ mount_partition()
       done
 
       if [ "${ZMNT}" = "/" ] ; then
-        ZNAME=""
+	# If creating ZFS / dataset, give it name that beadm works with
+        ZNAME="/ROOT/default"
+        ZMKMNT=""
+        echo_log "zfs create $zcopt -p ${ZPOOLNAME}/ROOT"
+        rc_halt "zfs create $zcopt -p ${ZPOOLNAME}/ROOT"
+        echo_log "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
+        rc_halt "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
       else
         ZNAME="${ZMNT}"
+        ZMKMNT="${ZMNT}"
         echo_log "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
         rc_halt "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
       fi
       sleep 2
       if [ -z "$zcopt" ] ; then
-        rc_halt "zfs set mountpoint=${FSMNT}${ZNAME} ${ZPOOLNAME}${ZNAME}"
+        rc_halt "zfs set mountpoint=${FSMNT}${ZMKMNT} ${ZPOOLNAME}${ZNAME}"
+      fi
+
+      # Do we need to make this / zfs dataset bootable?
+      if [ "$ZMNT" = "/" ] ; then
+        echo_log "Stamping ${ZPOOLNAME}/ROOT/default as bootfs"
+        rc_halt "zpool set bootfs=${ZPOOLNAME}/ROOT/default ${ZPOOLNAME}"
+      fi
+
+      # Do we need to make this /boot zfs dataset bootable?
+      if [ "$ZMNT" = "/boot" ] ; then
+        echo_log "Stamping ${ZPOOLNAME}${ZMNT} as bootfs"
+        rc_halt "zpool set bootfs=${ZPOOLNAME}${ZMNT} ${ZPOOLNAME}"
       fi
 
       # If no ZFS options, we can skip
@@ -130,12 +149,12 @@ mount_all_filesystems()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'` 
-    if [ ! -e "${PARTDEV}" ]
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    if [ ! -e "${PARTDEV}" -a "${PARTFS}" != "ZFS" ]
     then
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
 
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 
@@ -167,12 +186,12 @@ mount_all_filesystems()
   for PART in `ls ${PARTDIR}`
   do
     PARTDEV=`echo $PART | sed 's|-|/|g'`
-    if [ ! -e "${PARTDEV}" ]
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    if [ ! -e "${PARTDEV}" -a "${PARTFS}" != "ZFS" ]
     then
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
      
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 

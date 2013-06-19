@@ -191,6 +191,9 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_PPT29,    "Intel Panther Point watchdog timer",	10 },
 	{ DEVICEID_PPT30,    "Intel Panther Point watchdog timer",	10 },
 	{ DEVICEID_PPT31,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_LPT0,     "Intel Lynx Point watchdog timer",		10 },
+	{ DEVICEID_LPT1,     "Intel Lynx Point watchdog timer",		10 },
+	{ DEVICEID_LPT2,     "Intel Lynx Point watchdog timer",		10 },
 	{ DEVICEID_DH89XXCC_LPC,  "Intel DH89xxCC watchdog timer",	10 },
 	{ 0, NULL, 0 },
 };
@@ -320,8 +323,6 @@ ichwd_tmr_reload(struct ichwd_softc *sc)
 		ichwd_write_tco_1(sc, TCO_RLD, 1);
 	else
 		ichwd_write_tco_2(sc, TCO_RLD, 1);
-
-	ichwd_verbose_printf(sc->device, "timer reloaded\n");
 }
 
 /*

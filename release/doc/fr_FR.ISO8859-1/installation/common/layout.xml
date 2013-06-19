@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.5
+
+     This section contains the contents of the old LAYOUT.TXT file.
+
+-->
+<sect1 id="layout">
+  <title>Format de la distribution</title>
+
+  <para>Le r&eacute;pertoire d'une distribution typique de &os;
+  ressemble &agrave;  ceci :</para>
+
+<screen>ERRATA.HTM      README.TXT      compat1x        dict            kernel
+ERRATA.TXT      RELNOTES.HTM    compat20        doc             manpages
+HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     packages
+HARDWARE.TXT    bin             compat22        filename.txt    ports
+INSTALL.HTM     boot            compat3x        floppies        proflibs
+INSTALL.TXT     catpages        compat4x        games           src
+README.HTM      cdrom.inf       crypto          info            tools</screen>
+
+    <para>Si vous avez besoin d'effectuer une installation par un CDROM,
+    FTP ou NFS, depuis ce r&eacute;pertoire, la seule chose
+    n&eacute;cesaire est de cr&eacute;er les disquettes 1.44Mb bootables
+    depuis les fichiers se trouvant dans le r&eacute;pertoire floppies
+    (voir <xref linkend="floppies"/> pour les instructions sur la façon
+    de proc&eacute;der), de d&eacute;marrer grace &agrave; elles et de
+    suivre les instructions. Le reste des donn&eacute;es
+    n&eacute;cessaires a l'installation serontcharg&eacute;es
+    automatiquement en fonction de vos s&eacute;lections. Si vous n'avez
+    jamais install&eacute; &os;, pr&eacute;cedemment, il est
+    n&eacute;cessaire de lire enti&egrave;rement ce document.</para>
+
+
+    <para>Si vous d&eacute;sirez effectuer un autre type d'installation ou
+    si vous etes tout simplement curieux &agrave; propos de l'organisation
+    de la distribution, une description un peu plus
+    d&eacute;taill&eacute;e de chaque morceau suit:
+
+    <orderedlist>
+      <listitem>
+	<para>Les fichiers <filename>*.TXT</filename> et 
+	<filename>*.HTM</filename> contiennent la documentation
+	 (par example, ce document est inclu dans les deux fichiers
+	<filename>INSTALL.TXT</filename> et
+	<filename>INSTALL.HTM</filename>) et doit etre lu 
+	avant de commencer l'installation.  Les fichiers
+	<filename>*.TXT</filename> sont en texte pur alors que les fichiers
+	<filename>*.HTM</filename> sont des fichiers HTML pouvant etre lus par
+	n'importe quel browser WWW. Certaines distributions peuvent 
+	contenir aussi d'autres formats, comme du PDF et/ou du 
+	PostScript.</para>
+      </listitem>
+      <listitem>
+        <para><filename>docbook.css</filename> est un fichier de 
+	style(CSS) utilis&eacute; par certains browsers WWW pour formatter 
+	la documentation HTML.</para>
+      </listitem>
+      <listitem>
+	<para>Les r&eacute;pertoire <filename>bin</filename>,
+	<filename>catpages</filename>,
+	<filename>crypto</filename>, 
+	<filename>dict</filename>,
+	<filename>doc</filename>,
+	<filename>games</filename>,
+	<filename>info</filename>, 
+	<filename>manpages</filename>,
+	<filename>proflibs</filename>, et 
+	<filename>src</filename> 
+	contiennent les composants de la distribution de base de &os; et 
+	sont coup&eacute;s en fichiers de petites taille permettant de 
+	les mettre sur des disquettes (si n&eacute;cessaire).</para>
+      </listitem>
+      <listitem>
+	<para>Les r&eacute;pertoires <filename>compat1x</filename>,
+	<filename>compat20</filename>,
+	<filename>compat21</filename>,
+	<filename>compat22</filename>,
+	<filename>compat3x</filename>, et
+	<filename>compat4x</filename>
+	contiennent les distributions n&eacute;cessaires pour la
+        compatibilit&eacute; avec les versions
+        pr&eacute;c&eacute;dentes et sont distribu&eacute;es dans un
+        unique fichier archive compress&eacute; - Elles peuvent etre
+        install&eacute;es automatiquement par votre version ou a tout
+        moment 	pas le script <filename>install.sh</filename> du
+        r&eacute;pertoire.</para>
+      </listitem>
+      <listitem>
+	<para>Le sous-r&eacute;pertoire <filename>floppies/</filename>
+        contient les images de la disquette d'installation. Plus
+        d'informations sur son utilisation dans <xref
+        linkend="floppies"/>.</para>
+      </listitem>
+      <listitem>
+
+	<para>Les r&eacute;pertoires <filename>packages</filename> 
+	et <filename>ports</filename> contiennent les packetages et 
+	la collection des ports de &os; Les packetages peuvent
+	etre install&eacute;s depuis leur r&eacute;pertoire via la
+        commande</para>
+
+	<screen>&prompt.root;<userinput>/stand/sysinstall configPackages</userinput></screen>
+
+	<para>Les packetages peuvent aussi etre install&eacute;s
+        individuellement depuis le r&eacute;pertoire
+        <filename>packages</filename>/ via la commande &man.pkg.add.1;
+        .</para>
+
+	<para>La collection des ports peut s'installer comme toute 
+	partie de la distribution et n&eacute;cessite a peu pr&egrave;s 100Mb. 
+	Plus d'informations sur la collection des ports peut etre obtenu 
+	a <ulink
+        url="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</ulink> ou localement depuis <filename>/usr/share/doc/handbook</filename> 	
+        si vous avez install&eacute; la distribution
+        <filename>doc</filename>.</para>
+
+      </listitem>
+      <listitem>
+	<para>Pour finir le r&eacute;pertoire <filename>tools</filename> 
+	contient diff&eacute;rents utilitaires DOS permettant de lire la 
+	g&eacute;om&eacute;trie des disques, installer des gestionnaires
+	de d&eacute;marrage. Ce r&eacute;pertoire  est totalement optionnel 
+	et est fourni juste au cas ou..</para>
+      </listitem>
+    </orderedlist>
+  </para>
+
+  <para>Un r&eacute;pertoire typique  (par exemple, le r&eacute;pertoire 
+  <filename>info</filename> ) ressemble &agrave; ceci:</para>
+
+<screen>CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
+info.aa         info.ac         info.ae         info.mtree</screen>
+
+  <para>Le fichier  <filename>CHECKSUM.MD5</filename> contient les 
+  signatures MD5 de chaque fichier, au cas ou vous suspectez une 
+  corruption des donn&eacute;es, et est juste la en
+  r&eacute;f&eacute;rence. Il n'est pas actuellement utilis&eacute;
+  par le programme d'installation et n'a pas besoin d'etre
+  pr&eacute;sent avec les autres fichiers de la distribution. Les
+  fichiers<filename>info.a*</filename> sont le contenu du fichier
+  archive compress&eacute; de la distribution; ils sont coup&eacute;s
+  en fichiers de petites tailles. Le contenu peut etre lu de la
+  façon suivante:</para>
+
+  <screen>&prompt.root; <userinput>cat info.a* | tar tvzf -</userinput></screen>
+
+  <para>Lors de l'installation ils sont automatiquement
+  concat&eacute;n&eacute;s  et extraits par la proc&eacute;dure
+  d'installation.</para>
+
+  <para>Le fichier <filename>info.inf</filename> est n&eacute;cessaire car 
+  il est lu par le programme d'installation pour savoir combien de
+  pi&egrave;ces r&eacute;cuperer et concat&eacute;ner pour
+  recr&eacute;er la distribution. Lorsque vous mettez toute la
+  distribution sur des disquette, le fichier <filename>.inf</filename>
+  <emphasis>doit</emphasis> se trouver sur la premi&egrave;re
+  disquette de chaque jeu !</para>
+
+
+  <para>Le fichier <filename>info.mtree</filename> est un autre
+  fichier optionel fourni pour r&eacute;f&eacute;rence. Il contient les 
+  signatures MD5 de toute les fichiers de la distribution 
+  <emphasis>d&eacute;compress&eacute;e</emphasis> et peut etre utilis&eacute; 
+  par la suite avec le programme &man.mtree.8; pour v&eacute;rifier les 
+  permissions et les sommes de controle par rapport a des modifications. 
+  Utilis&eacute; avec la distribution <filename>bin</filename> , c'est
+  un excellent moyen de d&eacute;tecter les chevaux de troie de votre 
+  syst&egrave;me.</para>
+
+
+  <para>Pour finir, le fichier <filename>install.sh</filename> est
+  la pour les personnes voulant installer la distribution apr&egrave;s une 
+  installation d&eacute;j&agrave; effectu&eacute;e. Pour installer la
+  distribution <quote>info</quote> depuis un CDROM apr&egrave;s
+  l'installation de votre syst&egrave;me, il faut faire, par exemple
+  :</para>
+
+  <screen>&prompt.root; <userinput>cd /cdrom/info</userinput>
+&prompt.root; <userinput>sh install.sh</userinput></screen>
+</sect1>

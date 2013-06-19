@@ -145,7 +145,7 @@ static	device_method_t ce_methods[] = {
 	DEVMETHOD(device_attach,	ce_attach),
 	DEVMETHOD(device_detach,	ce_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 typedef struct _ce_dma_mem_t {
@@ -319,10 +319,10 @@ static struct mbuf *makembuf (void *buf, unsigned len)
 {
 	struct mbuf *m;
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_DONTWAIT);
+	MCLGET (m, M_NOWAIT);
 	if (! (m->m_flags & M_EXT)) {
 		m_freem (m);
 		return 0;

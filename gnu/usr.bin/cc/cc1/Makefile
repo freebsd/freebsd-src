@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-.include "../Makefile.inc"
 NO_MAN=
 .include <bsd.own.mk>
+
+.include "../Makefile.inc"
 
 .PATH: ${GCCDIR}
 

@@ -96,7 +96,6 @@ ASSYM(PAGE_SHIFT,	PAGE_SHIFT);
 ASSYM(PAGE_SIZE,	PAGE_SIZE);
 
 ASSYM(PC_CURRENT_PMAP,	offsetof(struct pcpu, pc_md.current_pmap));
-ASSYM(PC_CURTHREAD,	offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));
 
 ASSYM(PCB_CURRENT_PMAP,	offsetof(struct pcb, pcb_current_pmap));

@@ -1,11 +1,18 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=lli
 
 SRCDIR=	tools/lli
-SRCS=	lli.cpp
+SRCS=	lli.cpp \
+	RecordingMemoryManager.cpp \
+	RemoteTarget.cpp
 
-LIBDEPS=llvmasmparser \
+LIBDEPS=llvmx86disassembler \
+	llvmx86asmparser \
+	llvmirreader \
+	llvmasmparser \
 	llvmbitreader \
 	llvmx86codegen \
 	llvmx86desc \
@@ -16,14 +23,15 @@ LIBDEPS=llvmasmparser \
 	llvmasmprinter \
 	llvmmcparser \
 	llvminterpreter \
+	llvmmcjit \
 	llvmjit \
 	llvmcodegen \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmmcjit \
 	llvmruntimedyld \
 	llvmexecutionengine \
 	llvmtarget \

@@ -18,10 +18,17 @@
 
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Support/CallSite.h"
+
 using namespace llvm;
 
 CaptureTracker::~CaptureTracker() {}
+
+bool CaptureTracker::shouldExplore(Use *U) { return true; }
 
 namespace {
   struct SimpleCaptureTracker : public CaptureTracker {
@@ -29,8 +36,6 @@ namespace {
       : ReturnCaptures(ReturnCaptures), Captured(false) {}
 
     void tooManyUses() { Captured = true; }
-
-    bool shouldExplore(Use *U) { return true; }
 
     bool captured(Use *U) {
       if (isa<ReturnInst>(U->getUser()) && !ReturnCaptures)

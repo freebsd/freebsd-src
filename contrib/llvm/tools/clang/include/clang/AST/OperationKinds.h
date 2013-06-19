@@ -288,7 +288,14 @@ enum CastKind {
   ///
   /// This particular cast kind is used for the conversion from a C++11
   /// lambda expression to a block pointer.
-  CK_CopyAndAutoreleaseBlockObject
+  CK_CopyAndAutoreleaseBlockObject,
+
+  // Convert a builtin function to a function pointer; only allowed in the
+  // callee of a call expression.
+  CK_BuiltinFnToFnPtr,
+
+  // Convert a zero value for OpenCL event_t initialization.
+  CK_ZeroToOCLEvent
 };
 
 static const CastKind CK_Invalid = static_cast<CastKind>(-1);

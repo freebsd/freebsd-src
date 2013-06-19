@@ -11,17 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/Version.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/MacroBuilder.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/FrontendOptions.h"
-#include "clang/Frontend/PreprocessorOptions.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
+#include "clang/Lex/PreprocessorOptions.h"
+#include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -83,6 +84,19 @@ static void AddImplicitIncludePTH(MacroBuilder &Builder, Preprocessor &PP,
   AddImplicitInclude(Builder, OriginalFile, PP.getFileManager());
 }
 
+/// \brief Add an implicit \#include using the original file used to generate
+/// a PCH file.
+static void AddImplicitIncludePCH(MacroBuilder &Builder, Preprocessor &PP,
+                                  StringRef ImplicitIncludePCH) {
+  std::string OriginalFile =
+    ASTReader::getOriginalSourceFile(ImplicitIncludePCH, PP.getFileManager(),
+                                     PP.getDiagnostics());
+  if (OriginalFile.empty())
+    return;
+
+  AddImplicitInclude(Builder, OriginalFile, PP.getFileManager());
+}
+
 /// PickFP - This is used to pick a value based on the FP semantics of the
 /// specified FP model.
 template <typename T>
@@ -102,51 +116,51 @@ static T PickFP(const llvm::fltSemantics *Sem, T IEEESingleVal,
 }
 
 static void DefineFloatMacros(MacroBuilder &Builder, StringRef Prefix,
-                              const llvm::fltSemantics *Sem) {
+                              const llvm::fltSemantics *Sem, StringRef Ext) {
   const char *DenormMin, *Epsilon, *Max, *Min;
-  DenormMin = PickFP(Sem, "1.40129846e-45F", "4.9406564584124654e-324",
-                     "3.64519953188247460253e-4951L",
-                     "4.94065645841246544176568792868221e-324L",
-                     "6.47517511943802511092443895822764655e-4966L");
+  DenormMin = PickFP(Sem, "1.40129846e-45", "4.9406564584124654e-324",
+                     "3.64519953188247460253e-4951",
+                     "4.94065645841246544176568792868221e-324",
+                     "6.47517511943802511092443895822764655e-4966");
   int Digits = PickFP(Sem, 6, 15, 18, 31, 33);
-  Epsilon = PickFP(Sem, "1.19209290e-7F", "2.2204460492503131e-16",
-                   "1.08420217248550443401e-19L",
-                   "4.94065645841246544176568792868221e-324L",
-                   "1.92592994438723585305597794258492732e-34L");
+  Epsilon = PickFP(Sem, "1.19209290e-7", "2.2204460492503131e-16",
+                   "1.08420217248550443401e-19",
+                   "4.94065645841246544176568792868221e-324",
+                   "1.92592994438723585305597794258492732e-34");
   int MantissaDigits = PickFP(Sem, 24, 53, 64, 106, 113);
   int Min10Exp = PickFP(Sem, -37, -307, -4931, -291, -4931);
   int Max10Exp = PickFP(Sem, 38, 308, 4932, 308, 4932);
   int MinExp = PickFP(Sem, -125, -1021, -16381, -968, -16381);
   int MaxExp = PickFP(Sem, 128, 1024, 16384, 1024, 16384);
-  Min = PickFP(Sem, "1.17549435e-38F", "2.2250738585072014e-308",
-               "3.36210314311209350626e-4932L",
-               "2.00416836000897277799610805135016e-292L",
-               "3.36210314311209350626267781732175260e-4932L");
-  Max = PickFP(Sem, "3.40282347e+38F", "1.7976931348623157e+308",
-               "1.18973149535723176502e+4932L",
-               "1.79769313486231580793728971405301e+308L",
-               "1.18973149535723176508575932662800702e+4932L");
+  Min = PickFP(Sem, "1.17549435e-38", "2.2250738585072014e-308",
+               "3.36210314311209350626e-4932",
+               "2.00416836000897277799610805135016e-292",
+               "3.36210314311209350626267781732175260e-4932");
+  Max = PickFP(Sem, "3.40282347e+38", "1.7976931348623157e+308",
+               "1.18973149535723176502e+4932",
+               "1.79769313486231580793728971405301e+308",
+               "1.18973149535723176508575932662800702e+4932");
 
   SmallString<32> DefPrefix;
   DefPrefix = "__";
   DefPrefix += Prefix;
   DefPrefix += "_";
 
-  Builder.defineMacro(DefPrefix + "DENORM_MIN__", DenormMin);
+  Builder.defineMacro(DefPrefix + "DENORM_MIN__", Twine(DenormMin)+Ext);
   Builder.defineMacro(DefPrefix + "HAS_DENORM__");
   Builder.defineMacro(DefPrefix + "DIG__", Twine(Digits));
-  Builder.defineMacro(DefPrefix + "EPSILON__", Twine(Epsilon));
+  Builder.defineMacro(DefPrefix + "EPSILON__", Twine(Epsilon)+Ext);
   Builder.defineMacro(DefPrefix + "HAS_INFINITY__");
   Builder.defineMacro(DefPrefix + "HAS_QUIET_NAN__");
   Builder.defineMacro(DefPrefix + "MANT_DIG__", Twine(MantissaDigits));
 
   Builder.defineMacro(DefPrefix + "MAX_10_EXP__", Twine(Max10Exp));
   Builder.defineMacro(DefPrefix + "MAX_EXP__", Twine(MaxExp));
-  Builder.defineMacro(DefPrefix + "MAX__", Twine(Max));
+  Builder.defineMacro(DefPrefix + "MAX__", Twine(Max)+Ext);
 
   Builder.defineMacro(DefPrefix + "MIN_10_EXP__","("+Twine(Min10Exp)+")");
   Builder.defineMacro(DefPrefix + "MIN_EXP__", "("+Twine(MinExp)+")");
-  Builder.defineMacro(DefPrefix + "MIN__", Twine(Min));
+  Builder.defineMacro(DefPrefix + "MIN__", Twine(Min)+Ext);
 }
 
 
@@ -247,7 +261,7 @@ static void AddObjCXXARCLibstdcxxDefines(const LangOptions &LangOpts,
         << "};\n"
         << "\n";
       
-    if (LangOpts.ObjCRuntimeHasWeak) {
+    if (LangOpts.ObjCARCWeak) {
       Out << "template<typename _Tp>\n"
           << "struct __is_scalar<__attribute__((objc_ownership(weak))) _Tp> {\n"
           << "  enum { __value = 0 };\n"
@@ -288,10 +302,13 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     else if (!LangOpts.GNUMode && LangOpts.Digraphs)
       Builder.defineMacro("__STDC_VERSION__", "199409L");
   } else {
+    // FIXME: Use the right value for __cplusplus for C++1y once one is chosen.
+    if (LangOpts.CPlusPlus1y)
+      Builder.defineMacro("__cplusplus", "201305L");
     // C++11 [cpp.predefined]p1:
     //   The name __cplusplus is defined to the value 201103L when compiling a
     //   C++ translation unit.
-    if (LangOpts.CPlusPlus0x)
+    else if (LangOpts.CPlusPlus11)
       Builder.defineMacro("__cplusplus", "201103L");
     // C++03 [cpp.predefined]p1:
     //   The name __cplusplus is defined to the value 199711L when compiling a
@@ -325,8 +342,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   Builder.defineMacro("__clang_patchlevel__", "0");
 #endif
   Builder.defineMacro("__clang_version__", 
-                      "\"" CLANG_VERSION_STRING " ("
-                      + getClangFullRepositoryVersion() + ")\"");
+                      "\"" CLANG_VERSION_STRING " "
+                      + getClangFullRepositoryVersion() + "\"");
 #undef TOSTR
 #undef TOSTR2
   if (!LangOpts.MicrosoftMode) {
@@ -361,7 +378,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (!LangOpts.GNUMode)
     Builder.defineMacro("__STRICT_ANSI__");
 
-  if (LangOpts.CPlusPlus0x)
+  if (LangOpts.CPlusPlus11)
     Builder.defineMacro("__GXX_EXPERIMENTAL_CXX0X__");
 
   if (LangOpts.ObjC1) {
@@ -420,18 +437,16 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     // Both __PRETTY_FUNCTION__ and __FUNCTION__ are GCC extensions, however
     // VC++ appears to only like __FUNCTION__.
     Builder.defineMacro("__PRETTY_FUNCTION__", "__FUNCTION__");
-    // Work around some issues with Visual C++ headerws.
-    if (LangOpts.CPlusPlus) {
-      // Since we define wchar_t in C++ mode.
+    // Work around some issues with Visual C++ headers.
+    if (LangOpts.WChar) {
+      // wchar_t supported as a keyword.
       Builder.defineMacro("_WCHAR_T_DEFINED");
       Builder.defineMacro("_NATIVE_WCHAR_T_DEFINED");
+    }
+    if (LangOpts.CPlusPlus) {
       // FIXME: Support Microsoft's __identifier extension in the lexer.
       Builder.append("#define __identifier(x) x");
       Builder.append("class type_info;");
-    }
-
-    if (LangOpts.CPlusPlus0x) {
-      Builder.defineMacro("_HAS_CHAR16_T_LANGUAGE_SUPPORT", "1");
     }
   }
 
@@ -476,6 +491,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   DefineTypeSize("__LONG_LONG_MAX__", TargetInfo::SignedLongLong, TI, Builder);
   DefineTypeSize("__WCHAR_MAX__", TI.getWCharType(), TI, Builder);
   DefineTypeSize("__INTMAX_MAX__", TI.getIntMaxType(), TI, Builder);
+  DefineTypeSize("__SIZE_MAX__", TI.getSizeType(), TI, Builder);
 
   DefineTypeSizeof("__SIZEOF_DOUBLE__", TI.getDoubleWidth(), TI, Builder);
   DefineTypeSizeof("__SIZEOF_FLOAT__", TI.getFloatWidth(), TI, Builder);
@@ -493,6 +509,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                    TI.getTypeWidth(TI.getWCharType()), TI, Builder);
   DefineTypeSizeof("__SIZEOF_WINT_T__",
                    TI.getTypeWidth(TI.getWIntType()), TI, Builder);
+  if (TI.hasInt128Type())
+    DefineTypeSizeof("__SIZEOF_INT128__", 128, TI, Builder);
 
   DefineType("__INTMAX_TYPE__", TI.getIntMaxType(), Builder);
   DefineType("__UINTMAX_TYPE__", TI.getUIntMaxType(), Builder);
@@ -511,9 +529,9 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   DefineType("__CHAR16_TYPE__", TI.getChar16Type(), Builder);
   DefineType("__CHAR32_TYPE__", TI.getChar32Type(), Builder);
 
-  DefineFloatMacros(Builder, "FLT", &TI.getFloatFormat());
-  DefineFloatMacros(Builder, "DBL", &TI.getDoubleFormat());
-  DefineFloatMacros(Builder, "LDBL", &TI.getLongDoubleFormat());
+  DefineFloatMacros(Builder, "FLT", &TI.getFloatFormat(), "F");
+  DefineFloatMacros(Builder, "DBL", &TI.getDoubleFormat(), "");
+  DefineFloatMacros(Builder, "LDBL", &TI.getLongDoubleFormat(), "L");
 
   // Define a __POINTER_WIDTH__ macro for stdint.h.
   Builder.defineMacro("__POINTER_WIDTH__",
@@ -623,6 +641,16 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                         "__attribute__((objc_ownership(autoreleasing)))");
     Builder.defineMacro("__unsafe_unretained",
                         "__attribute__((objc_ownership(none)))");
+  }
+
+  // OpenMP definition
+  if (LangOpts.OpenMP) {
+    // OpenMP 2.2: 
+    //   In implementations that support a preprocessor, the _OPENMP
+    //   macro name is defined to have the decimal value yyyymm where
+    //   yyyy and mm are the year and the month designations of the
+    //   version of the OpenMP API that the implementation support.
+    Builder.defineMacro("_OPENMP", "201107");
   }
 
   // Get other target #defines.
@@ -758,13 +786,16 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     AddImplicitIncludeMacros(Builder, InitOpts.MacroIncludes[i],
                              PP.getFileManager());
 
+  // Process -include-pch/-include-pth directives.
+  if (!InitOpts.ImplicitPCHInclude.empty())
+    AddImplicitIncludePCH(Builder, PP, InitOpts.ImplicitPCHInclude);
+  if (!InitOpts.ImplicitPTHInclude.empty())
+    AddImplicitIncludePTH(Builder, PP, InitOpts.ImplicitPTHInclude);
+
   // Process -include directives.
   for (unsigned i = 0, e = InitOpts.Includes.size(); i != e; ++i) {
     const std::string &Path = InitOpts.Includes[i];
-    if (Path == InitOpts.ImplicitPTHInclude)
-      AddImplicitIncludePTH(Builder, PP, Path);
-    else
-      AddImplicitInclude(Builder, Path, PP.getFileManager());
+    AddImplicitInclude(Builder, Path, PP.getFileManager());
   }
 
   // Exit the command line and go back to <built-in> (2 is LC_LEAVE).

@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright 2011 iXsystems, Inc
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -111,6 +111,7 @@
  * location.
  *
  * Byteswap implications:
+ *
  * Since the SA attributes are not entirely self describing we can't do
  * the normal byteswap processing.  The special ZAP layout attribute and
  * attribute registration attributes define the byteswap function and the
@@ -189,7 +190,6 @@ sa_attr_reg_t sa_legacy_attrs[] = {
 };
 
 /*
- * ZPL legacy layout
  * This is only used for objects of type DMU_OT_ZNODE
  */
 sa_attr_type_t sa_legacy_zpl_layout[] = {
@@ -199,7 +199,6 @@ sa_attr_type_t sa_legacy_zpl_layout[] = {
 /*
  * Special dummy layout used for buffers with no attributes.
  */
-
 sa_attr_type_t sa_dummy_zpl_layout[] = { 0 };
 
 static int sa_legacy_attr_count = 16;
@@ -373,7 +372,7 @@ sa_attr_op(sa_handle_t *hdl, sa_bulk_attr_t *bulk, int count,
 		switch (data_op) {
 		case SA_LOOKUP:
 			if (bulk[i].sa_addr == NULL)
-				return (ENOENT);
+				return (SET_ERROR(ENOENT));
 			if (bulk[i].sa_data) {
 				SA_COPY_DATA(bulk[i].sa_data_func,
 				    bulk[i].sa_addr, bulk[i].sa_data,
@@ -503,7 +502,7 @@ sa_resize_spill(sa_handle_t *hdl, uint32_t size, dmu_tx_t *tx)
 		blocksize = SPA_MINBLOCKSIZE;
 	} else if (size > SPA_MAXBLOCKSIZE) {
 		ASSERT(0);
-		return (EFBIG);
+		return (SET_ERROR(EFBIG));
 	} else {
 		blocksize = P2ROUNDUP_TYPED(size, SPA_MINBLOCKSIZE, uint32_t);
 	}
@@ -553,6 +552,7 @@ sa_find_sizes(sa_os_t *sa, sa_bulk_attr_t *attr_desc, int attr_count,
 {
 	int var_size = 0;
 	int i;
+	int j = -1;
 	int full_space;
 	int hdrsize;
 	boolean_t done = B_FALSE;
@@ -574,10 +574,12 @@ sa_find_sizes(sa_os_t *sa, sa_bulk_attr_t *attr_desc, int attr_count,
 	    sizeof (sa_hdr_phys_t);
 
 	full_space = (buftype == SA_BONUS) ? DN_MAX_BONUSLEN : db->db_size;
+	ASSERT(IS_P2ALIGNED(full_space, 8));
 
 	for (i = 0; i != attr_count; i++) {
 		boolean_t is_var_sz;
 
+		*total = P2ROUNDUP(*total, 8);
 		*total += attr_desc[i].sa_length;
 		if (done)
 			goto next;
@@ -590,7 +592,14 @@ sa_find_sizes(sa_os_t *sa, sa_bulk_attr_t *attr_desc, int attr_count,
 		if (is_var_sz && var_size > 1) {
 			if (P2ROUNDUP(hdrsize + sizeof (uint16_t), 8) +
 			    *total < full_space) {
+				/*
+				 * Account for header space used by array of
+				 * optional sizes of variable-length attributes.
+				 * Record the index in case this increase needs
+				 * to be reversed due to spill-over.
+				 */
 				hdrsize += sizeof (uint16_t);
+				j = i;
 			} else {
 				done = B_TRUE;
 				*index = i;
@@ -619,6 +628,14 @@ next:
 			*will_spill = B_TRUE;
 	}
 
+	/*
+	 * j holds the index of the last variable-sized attribute for
+	 * which hdrsize was increased.  Reverse the increase if that
+	 * attribute will be relocated to the spill block.
+	 */
+	if (*will_spill && j == *index)
+		hdrsize -= sizeof (uint16_t);
+
 	hdrsize = P2ROUNDUP(hdrsize, 8);
 	return (hdrsize);
 }
@@ -642,7 +659,8 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	int buf_space;
 	sa_attr_type_t *attrs, *attrs_start;
 	int i, lot_count;
-	int hdrsize, spillhdrsize;
+	int hdrsize;
+	int spillhdrsize = 0;
 	int used;
 	dmu_object_type_t bonustype;
 	sa_lot_t *lot;
@@ -658,7 +676,7 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	    SA_BONUS, &i, &used, &spilling);
 
 	if (used > SPA_MAXBLOCKSIZE)
-		return (EFBIG);
+		return (SET_ERROR(EFBIG));
 
 	VERIFY(0 == dmu_set_bonus(hdl->sa_bonus, spilling ?
 	    MIN(DN_MAX_BONUSLEN - sizeof (blkptr_t), used + hdrsize) :
@@ -682,7 +700,7 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 		    &spill_used, &dummy);
 
 		if (spill_used > SPA_MAXBLOCKSIZE)
-			return (EFBIG);
+			return (SET_ERROR(EFBIG));
 
 		buf_space = hdl->sa_spill->db_size - spillhdrsize;
 		if (BUF_SPACE_NEEDED(spill_used, spillhdrsize) >
@@ -709,12 +727,17 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 	for (i = 0, len_idx = 0, hash = -1ULL; i != attr_count; i++) {
 		uint16_t length;
 
+		ASSERT(IS_P2ALIGNED(data_start, 8));
+		ASSERT(IS_P2ALIGNED(buf_space, 8));
 		attrs[i] = attr_desc[i].sa_attr;
 		length = SA_REGISTERED_LEN(sa, attrs[i]);
 		if (length == 0)
 			length = attr_desc[i].sa_length;
+		else
+			VERIFY(length == attr_desc[i].sa_length);
 
 		if (buf_space < length) {  /* switch to spill buffer */
+			VERIFY(spilling);
 			VERIFY(bonustype == DMU_OT_SA);
 			if (buftype == SA_BONUS && !sa->sa_force_spill) {
 				sa_find_layout(hdl->sa_os, hash, attrs_start,
@@ -742,6 +765,7 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 		if (sa->sa_attr_table[attrs[i]].sa_length == 0) {
 			sahdr->sa_lengths[len_idx++] = length;
 		}
+		VERIFY((uintptr_t)data_start % 8 == 0);
 		data_start = (void *)P2ROUNDUP(((uintptr_t)data_start +
 		    length), 8);
 		buf_space -= P2ROUNDUP(length, 8);
@@ -813,7 +837,7 @@ sa_attr_table_setup(objset_t *os, sa_attr_reg_t *reg_attrs, int count)
 {
 	sa_os_t *sa = os->os_sa;
 	uint64_t sa_attr_count = 0;
-	uint64_t sa_reg_count;
+	uint64_t sa_reg_count = 0;
 	int error = 0;
 	uint64_t attr_value;
 	sa_attr_table_t *tb;
@@ -836,7 +860,7 @@ sa_attr_table_setup(objset_t *os, sa_attr_reg_t *reg_attrs, int count)
 		 */
 		if (error || (error == 0 && sa_attr_count == 0)) {
 			if (error == 0)
-				error = EINVAL;
+				error = SET_ERROR(EINVAL);
 			goto bail;
 		}
 		sa_reg_count = sa_attr_count;
@@ -867,7 +891,7 @@ sa_attr_table_setup(objset_t *os, sa_attr_reg_t *reg_attrs, int count)
 			error = zap_lookup(os, sa->sa_reg_attr_obj,
 			    reg_attrs[i].sa_name, 8, 1, &attr_value);
 		else
-			error = ENOENT;
+			error = SET_ERROR(ENOENT);
 		switch (error) {
 		case ENOENT:
 			sa->sa_user_table[i] = (sa_attr_type_t)sa_attr_count;
@@ -979,10 +1003,10 @@ sa_setup(objset_t *os, uint64_t sa_obj, sa_attr_reg_t *reg_attrs, int count,
 	sa_attr_type_t *tb;
 	int error;
 
-	mutex_enter(&os->os_lock);
+	mutex_enter(&os->os_user_ptr_lock);
 	if (os->os_sa) {
 		mutex_enter(&os->os_sa->sa_lock);
-		mutex_exit(&os->os_lock);
+		mutex_exit(&os->os_user_ptr_lock);
 		tb = os->os_sa->sa_user_table;
 		mutex_exit(&os->os_sa->sa_lock);
 		*user_table = tb;
@@ -995,7 +1019,7 @@ sa_setup(objset_t *os, uint64_t sa_obj, sa_attr_reg_t *reg_attrs, int count,
 
 	os->os_sa = sa;
 	mutex_enter(&sa->sa_lock);
-	mutex_exit(&os->os_lock);
+	mutex_exit(&os->os_user_ptr_lock);
 	avl_create(&sa->sa_layout_num_tree, layout_num_compare,
 	    sizeof (sa_lot_t), offsetof(sa_lot_t, lot_num_node));
 	avl_create(&sa->sa_layout_hash_tree, layout_hash_compare,
@@ -1026,7 +1050,7 @@ sa_setup(objset_t *os, uint64_t sa_obj, sa_attr_reg_t *reg_attrs, int count,
 		 */
 		if (error || (error == 0 && layout_count == 0)) {
 			if (error == 0)
-				error = EINVAL;
+				error = SET_ERROR(EINVAL);
 			goto fail;
 		}
 
@@ -1604,8 +1628,11 @@ sa_replace_all_by_template(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc,
 }
 
 /*
- * add/remove/replace a single attribute and then rewrite the entire set
+ * Add/remove a single attribute or replace a variable-sized attribute value
+ * with a value of a different size, and then rewrite the entire set
  * of attributes.
+ * Same-length attribute value replacement (including fixed-length attributes)
+ * is handled more efficiently by the upper layers.
  */
 static int
 sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
@@ -1618,7 +1645,8 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 	sa_bulk_attr_t *attr_desc;
 	void *old_data[2];
 	int bonus_attr_count = 0;
-	int bonus_data_size, spill_data_size;
+	int bonus_data_size = 0;
+	int spill_data_size = 0;
 	int spill_attr_count = 0;
 	int error;
 	uint16_t length;
@@ -1687,18 +1715,19 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 
 			attr = idx_tab->sa_layout->lot_attrs[i];
 			if (attr == newattr) {
-				if (action == SA_REMOVE) {
-					j++;
-					continue;
+				/* duplicate attributes are not allowed */
+				ASSERT(action == SA_REPLACE ||
+				    action == SA_REMOVE);
+				/* must be variable-sized to be replaced here */
+				if (action == SA_REPLACE) {
+					ASSERT(SA_REGISTERED_LEN(sa, attr) == 0);
+					SA_ADD_BULK_ATTR(attr_desc, j, attr,
+					    locator, datastart, buflen);
 				}
-				ASSERT(SA_REGISTERED_LEN(sa, attr) == 0);
-				ASSERT(action == SA_REPLACE);
-				SA_ADD_BULK_ATTR(attr_desc, j, attr,
-				    locator, datastart, buflen);
 			} else {
 				length = SA_REGISTERED_LEN(sa, attr);
 				if (length == 0) {
-					length = hdr->sa_lengths[length_idx++];
+					length = hdr->sa_lengths[length_idx];
 				}
 
 				SA_ADD_BULK_ATTR(attr_desc, j, attr,
@@ -1706,6 +1735,8 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 				    (TOC_OFF(idx_tab->sa_idx_tab[attr]) +
 				    (uintptr_t)old_data[k]), length);
 			}
+			if (SA_REGISTERED_LEN(sa, attr) == 0)
+				length_idx++;
 		}
 		if (k == 0 && hdl->sa_spill) {
 			hdr = SA_GET_HDR(hdl, SA_SPILL);
@@ -1723,6 +1754,7 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 		SA_ADD_BULK_ATTR(attr_desc, j, newattr, locator,
 		    datastart, buflen);
 	}
+	ASSERT3U(j, ==, attr_count);
 
 	error = sa_build_layouts(hdl, attr_desc, attr_count, tx);
 

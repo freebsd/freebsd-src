@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,15 +28,16 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
 
-APP_DIR="050.diskmgmt"
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="050.diskmgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ CONFIGURATION
@@ -55,7 +56,7 @@ X11TERM_OPTS=
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -65,7 +66,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_mustberoot_init
 
 #
@@ -75,9 +75,9 @@ if [ "$USE_XDIALOG" ]; then
 	f_have "$X11TERM" || f_die 1 \
 		"$msg_no_such_file_or_directory" "$pgm" "$X11TERM"
 
-	exec $X11TERM $X11TERM_OPTS -e /usr/sbin/sade
+	exec $X11TERM $X11TERM_OPTS -e /usr/sbin/bsdinstall partedit
 else
-	exec /usr/sbin/sade
+	exec /usr/sbin/bsdinstall partedit
 fi
 
 ################################################################################

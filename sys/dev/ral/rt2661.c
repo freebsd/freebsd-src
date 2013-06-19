@@ -682,7 +682,7 @@ rt2661_alloc_rx_ring(struct rt2661_softc *sc, struct rt2661_rx_ring *ring,
 			goto fail;
 		}
 
-		data->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		data->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not allocate rx mbuf\n");
@@ -1030,7 +1030,7 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 		 * mbuf. In the unlikely case that the old mbuf can't be
 		 * reloaded either, explicitly panic.
 		 */
-		mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (mnew == NULL) {
 			ifp->if_ierrors++;
 			goto skip;
@@ -1534,7 +1534,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 		return error;
 	}
 	if (error != 0) {
-		mnew = m_defrag(m0, M_DONTWAIT);
+		mnew = m_defrag(m0, M_NOWAIT);
 		if (mnew == NULL) {
 			device_printf(sc->sc_dev,
 			    "could not defragment mbuf\n");

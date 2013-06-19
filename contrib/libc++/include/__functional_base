@@ -23,27 +23,27 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Arg, class _Result>
-struct _LIBCPP_VISIBLE unary_function
+struct _LIBCPP_TYPE_VIS unary_function
 {
     typedef _Arg    argument_type;
     typedef _Result result_type;
 };
 
 template <class _Arg1, class _Arg2, class _Result>
-struct _LIBCPP_VISIBLE binary_function
+struct _LIBCPP_TYPE_VIS binary_function
 {
     typedef _Arg1   first_argument_type;
     typedef _Arg2   second_argument_type;
     typedef _Result result_type;
 };
 
-template <class _Tp> struct _LIBCPP_VISIBLE hash;
+template <class _Tp> struct _LIBCPP_TYPE_VIS hash;
 
 template <class _Tp>
 struct __has_result_type
 {
 private:
-    struct __two {char _; char __;};
+    struct __two {char __lx; char __lxx;};
     template <class _Up> static __two __test(...);
     template <class _Up> static char __test(typename _Up::result_type* = 0);
 public:
@@ -51,7 +51,7 @@ public:
 };
 
 template <class _Tp>
-struct _LIBCPP_VISIBLE less : binary_function<_Tp, _Tp, bool>
+struct _LIBCPP_TYPE_VIS less : binary_function<_Tp, _Tp, bool>
 {
     _LIBCPP_INLINE_VISIBILITY bool operator()(const _Tp& __x, const _Tp& __y) const
         {return __x < __y;}
@@ -69,7 +69,7 @@ template <class _Tp>
 struct __derives_from_unary_function
 {
 private:
-    struct __two {char _; char __;};
+    struct __two {char __lx; char __lxx;};
     static __two __test(...);
     template <class _Ap, class _Rp>
         static unary_function<_Ap, _Rp>
@@ -83,7 +83,7 @@ template <class _Tp>
 struct __derives_from_binary_function
 {
 private:
-    struct __two {char _; char __;};
+    struct __two {char __lx; char __lxx;};
     static __two __test(...);
     template <class _A1, class _A2, class _Rp>
         static binary_function<_A1, _A2, _Rp>
@@ -348,7 +348,7 @@ struct __invoke_return
 };
 
 template <class _Tp>
-class _LIBCPP_VISIBLE reference_wrapper
+class _LIBCPP_TYPE_VIS reference_wrapper
     : public __weak_result_type<_Tp>
 {
 public:

@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Comment.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
@@ -29,19 +30,6 @@ const char *Comment::getCommentKindName() const {
 #undef ABSTRACT_COMMENT
   }
   llvm_unreachable("Unknown comment kind!");
-}
-
-void Comment::dump() const {
-  // It is important that Comment::dump() is defined in a different TU than
-  // Comment::dump(raw_ostream, SourceManager).  If both functions were defined
-  // in CommentDumper.cpp, that object file would be removed by linker because
-  // none of its functions are referenced by other object files, despite the
-  // LLVM_ATTRIBUTE_USED.
-  dump(llvm::errs(), NULL);
-}
-
-void Comment::dump(SourceManager &SM) const {
-  dump(llvm::errs(), &SM);
 }
 
 namespace {
@@ -146,16 +134,17 @@ void DeclInfo::fill() {
   IsObjCMethod = false;
   IsInstanceMethod = false;
   IsClassMethod = false;
-  ParamVars = ArrayRef<const ParmVarDecl *>();
+  ParamVars = None;
   TemplateParameters = NULL;
 
-  if (!ThisDecl) {
+  if (!CommentDecl) {
     // If there is no declaration, the defaults is our only guess.
     IsFilled = true;
     return;
   }
-
-  Decl::Kind K = ThisDecl->getKind();
+  CurrentDecl = CommentDecl;
+  
+  Decl::Kind K = CommentDecl->getKind();
   switch (K) {
   default:
     // Defaults are should be good for declarations we don't handle explicitly.
@@ -165,7 +154,7 @@ void DeclInfo::fill() {
   case Decl::CXXConstructor:
   case Decl::CXXDestructor:
   case Decl::CXXConversion: {
-    const FunctionDecl *FD = cast<FunctionDecl>(ThisDecl);
+    const FunctionDecl *FD = cast<FunctionDecl>(CommentDecl);
     Kind = FunctionKind;
     ParamVars = ArrayRef<const ParmVarDecl *>(FD->param_begin(),
                                               FD->getNumParams());
@@ -179,14 +168,14 @@ void DeclInfo::fill() {
 
     if (K == Decl::CXXMethod || K == Decl::CXXConstructor ||
         K == Decl::CXXDestructor || K == Decl::CXXConversion) {
-      const CXXMethodDecl *MD = cast<CXXMethodDecl>(ThisDecl);
+      const CXXMethodDecl *MD = cast<CXXMethodDecl>(CommentDecl);
       IsInstanceMethod = MD->isInstance();
       IsClassMethod = !IsInstanceMethod;
     }
     break;
   }
   case Decl::ObjCMethod: {
-    const ObjCMethodDecl *MD = cast<ObjCMethodDecl>(ThisDecl);
+    const ObjCMethodDecl *MD = cast<ObjCMethodDecl>(CommentDecl);
     Kind = FunctionKind;
     ParamVars = ArrayRef<const ParmVarDecl *>(MD->param_begin(),
                                               MD->param_size());
@@ -197,7 +186,7 @@ void DeclInfo::fill() {
     break;
   }
   case Decl::FunctionTemplate: {
-    const FunctionTemplateDecl *FTD = cast<FunctionTemplateDecl>(ThisDecl);
+    const FunctionTemplateDecl *FTD = cast<FunctionTemplateDecl>(CommentDecl);
     Kind = FunctionKind;
     TemplateKind = Template;
     const FunctionDecl *FD = FTD->getTemplatedDecl();
@@ -208,7 +197,7 @@ void DeclInfo::fill() {
     break;
   }
   case Decl::ClassTemplate: {
-    const ClassTemplateDecl *CTD = cast<ClassTemplateDecl>(ThisDecl);
+    const ClassTemplateDecl *CTD = cast<ClassTemplateDecl>(CommentDecl);
     Kind = ClassKind;
     TemplateKind = Template;
     TemplateParameters = CTD->getTemplateParameters();
@@ -216,7 +205,7 @@ void DeclInfo::fill() {
   }
   case Decl::ClassTemplatePartialSpecialization: {
     const ClassTemplatePartialSpecializationDecl *CTPSD =
-        cast<ClassTemplatePartialSpecializationDecl>(ThisDecl);
+        cast<ClassTemplatePartialSpecializationDecl>(CommentDecl);
     Kind = ClassKind;
     TemplateKind = TemplatePartialSpecialization;
     TemplateParameters = CTPSD->getTemplateParameters();
@@ -240,12 +229,55 @@ void DeclInfo::fill() {
   case Decl::Namespace:
     Kind = NamespaceKind;
     break;
-  case Decl::Typedef:
+  case Decl::Typedef: {
+    Kind = TypedefKind;
+    // If this is a typedef to something we consider a function, extract
+    // arguments and return type.
+    const TypedefDecl *TD = cast<TypedefDecl>(CommentDecl);
+    const TypeSourceInfo *TSI = TD->getTypeSourceInfo();
+    if (!TSI)
+      break;
+    TypeLoc TL = TSI->getTypeLoc().getUnqualifiedLoc();
+    while (true) {
+      TL = TL.IgnoreParens();
+      // Look through qualified types.
+      if (QualifiedTypeLoc QualifiedTL = TL.getAs<QualifiedTypeLoc>()) {
+        TL = QualifiedTL.getUnqualifiedLoc();
+        continue;
+      }
+      // Look through pointer types.
+      if (PointerTypeLoc PointerTL = TL.getAs<PointerTypeLoc>()) {
+        TL = PointerTL.getPointeeLoc().getUnqualifiedLoc();
+        continue;
+      }
+      if (BlockPointerTypeLoc BlockPointerTL =
+              TL.getAs<BlockPointerTypeLoc>()) {
+        TL = BlockPointerTL.getPointeeLoc().getUnqualifiedLoc();
+        continue;
+      }
+      if (MemberPointerTypeLoc MemberPointerTL =
+              TL.getAs<MemberPointerTypeLoc>()) {
+        TL = MemberPointerTL.getPointeeLoc().getUnqualifiedLoc();
+        continue;
+      }
+      // Is this a typedef for a function type?
+      if (FunctionTypeLoc FTL = TL.getAs<FunctionTypeLoc>()) {
+        Kind = FunctionKind;
+        ArrayRef<ParmVarDecl *> Params = FTL.getParams();
+        ParamVars = ArrayRef<const ParmVarDecl *>(Params.data(),
+                                                  Params.size());
+        ResultType = FTL.getResultLoc().getType();
+        break;
+      }
+      break;
+    }
+    break;
+  }
   case Decl::TypeAlias:
     Kind = TypedefKind;
     break;
   case Decl::TypeAliasTemplate: {
-    const TypeAliasTemplateDecl *TAT = cast<TypeAliasTemplateDecl>(ThisDecl);
+    const TypeAliasTemplateDecl *TAT = cast<TypeAliasTemplateDecl>(CommentDecl);
     Kind = TypedefKind;
     TemplateKind = Template;
     TemplateParameters = TAT->getTemplateParameters();
@@ -257,6 +289,25 @@ void DeclInfo::fill() {
   }
 
   IsFilled = true;
+}
+
+StringRef ParamCommandComment::getParamName(const FullComment *FC) const {
+  assert(isParamIndexValid());
+  return FC->getThisDeclInfo()->ParamVars[getParamIndex()]->getName();
+}
+
+StringRef TParamCommandComment::getParamName(const FullComment *FC) const {
+  assert(isPositionValid());
+  const TemplateParameterList *TPL = FC->getThisDeclInfo()->TemplateParameters;
+  for (unsigned i = 0, e = getDepth(); i != e; ++i) {
+    if (i == e-1)
+      return TPL->getParam(getIndex(i))->getName();
+    const NamedDecl *Param = TPL->getParam(getIndex(i));
+    if (const TemplateTemplateParmDecl *TTP =
+          dyn_cast<TemplateTemplateParmDecl>(Param))
+      TPL = TTP->getTemplateParameters();
+  }
+  return "";
 }
 
 } // end namespace comments

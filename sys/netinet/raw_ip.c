@@ -287,12 +287,10 @@ rip_input(struct mbuf *m, int off)
 
 	ifp = m->m_pkthdr.rcvif;
 	/*
-	 * Add back the IP header length which was
-	 * removed by ip_input().  Raw sockets do
-	 * not modify the packet except for some
-	 * byte order swaps.
+	 * Applications on raw sockets expect host byte order.
 	 */
-	ip->ip_len += off;
+	ip->ip_len = ntohs(ip->ip_len);
+	ip->ip_off = ntohs(ip->ip_off);
 
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
@@ -441,7 +439,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			m_freem(m);
 			return(EMSGSIZE);
 		}
-		M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
 		if (m == NULL)
 			return(ENOBUFS);
 
@@ -449,11 +447,11 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = inp->inp_ip_tos;
 		if (inp->inp_flags & INP_DONTFRAG)
-			ip->ip_off = IP_DF;
+			ip->ip_off = htons(IP_DF);
 		else
-			ip->ip_off = 0;
+			ip->ip_off = htons(0);
 		ip->ip_p = inp->inp_ip_p;
-		ip->ip_len = m->m_pkthdr.len;
+		ip->ip_len = htons(m->m_pkthdr.len);
 		ip->ip_src = inp->inp_laddr;
 		if (jailed(inp->inp_cred)) {
 			/*
@@ -503,6 +501,13 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		}
 		if (ip->ip_id == 0)
 			ip->ip_id = ip_newid();
+
+		/*
+		 * Applications on raw sockets pass us packets
+		 * in host byte order.
+		 */
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 
 		/*
 		 * XXX prevent ip_output from overwriting header fields.

@@ -29,21 +29,19 @@
 #ifndef LLVM_CODEGEN_LIVEVARIABLES_H
 #define LLVM_CODEGEN_LIVEVARIABLES_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SparseBitVector.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
 
+class MachineBasicBlock;
 class MachineRegisterInfo;
-class TargetRegisterInfo;
 
 class LiveVariables : public MachineFunctionPass {
 public:
@@ -125,12 +123,6 @@ private:
   /// may have multiple definitions, and they require special handling when
   /// building live intervals.
   SparseBitVector<> PHIJoins;
-
-  /// ReservedRegisters - This vector keeps track of which registers
-  /// are reserved register which are not allocatable by the target machine.
-  /// We can not track liveness for values that are in this set.
-  ///
-  BitVector ReservedRegisters;
 
 private:   // Intermediate data structures
   MachineFunction *MF;

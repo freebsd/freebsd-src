@@ -72,8 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/vnet.h>
 
-#define	EPAIRNAME	"epair"
-
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW, 0, "epair sysctl");
 
@@ -100,9 +98,11 @@ static int epair_clone_match(struct if_clone *, const char *);
 static int epair_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int epair_clone_destroy(struct if_clone *, struct ifnet *);
 
+static const char epairname[] = "epair";
+
 /* Netisr realted definitions and sysctl. */
 static struct netisr_handler epair_nh = {
-	.nh_name	= EPAIRNAME,
+	.nh_name	= epairname,
 	.nh_proto	= NETISR_EPAIR,
 	.nh_policy	= NETISR_POLICY_CPU,
 	.nh_handler	= epair_nh_sintr,
@@ -168,12 +168,10 @@ STAILQ_HEAD(eid_list, epair_ifp_drain);
 #define	EPAIR_REFCOUNT_ASSERT(a, p)
 #endif
 
-static MALLOC_DEFINE(M_EPAIR, EPAIRNAME,
+static MALLOC_DEFINE(M_EPAIR, epairname,
     "Pair of virtual cross-over connected Ethernet-like interfaces");
 
-static struct if_clone epair_cloner = IFC_CLONE_INITIALIZER(
-    EPAIRNAME, NULL, IF_MAXUNIT,
-    NULL, epair_clone_match, epair_clone_create, epair_clone_destroy);
+static struct if_clone *epair_cloner;
 
 /*
  * DPCPU area and functions.
@@ -692,10 +690,10 @@ epair_clone_match(struct if_clone *ifc, const char *name)
 	 * - epair<n>
 	 * but not the epair<n>[ab] versions.
 	 */
-	if (strncmp(EPAIRNAME, name, sizeof(EPAIRNAME)-1) != 0)
+	if (strncmp(epairname, name, sizeof(epairname)-1) != 0)
 		return (0);
 
-	for (cp = name + sizeof(EPAIRNAME) - 1; *cp != '\0'; cp++) {
+	for (cp = name + sizeof(epairname) - 1; *cp != '\0'; cp++) {
 		if (*cp < '0' || *cp > '9')
 			return (0);
 	}
@@ -714,7 +712,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 
 	/*
 	 * We are abusing params to create our second interface.
-	 * Actually we already created it and called if_clone_createif()
+	 * Actually we already created it and called if_clone_create()
 	 * for it to do the official insertion procedure the moment we knew
 	 * it cannot fail anymore. So just do attach it here.
 	 */
@@ -807,7 +805,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp = sca->ifp;
 	ifp->if_softc = sca;
 	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = ifc->ifc_name;
+	ifp->if_dname = epairname;
 	ifp->if_dunit = unit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
@@ -825,7 +823,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	sca->if_qflush = ifp->if_qflush;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_transmit = epair_transmit;
-	ifp->if_baudrate = IF_Gbps(10UL);	/* arbitrary maximum */
+	if_initbaudrate(ifp, IF_Gbps(10));	/* arbitrary maximum */
 
 	/* Swap the name and finish initialization of interface <n>b. */
 	*dp = 'b';
@@ -833,7 +831,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp = scb->ifp;
 	ifp->if_softc = scb;
 	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = ifc->ifc_name;
+	ifp->if_dname = epairname;
 	ifp->if_dunit = unit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
@@ -843,15 +841,15 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_init  = epair_init;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	/* We need to play some tricks here for the second interface. */
-	strlcpy(name, EPAIRNAME, len);
+	strlcpy(name, epairname, len);
 	error = if_clone_create(name, len, (caddr_t)scb);
 	if (error)
-		panic("%s: if_clone_createif() for our 2nd iface failed: %d",
+		panic("%s: if_clone_create() for our 2nd iface failed: %d",
 		    __func__, error);
 	scb->if_qflush = ifp->if_qflush;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_transmit = epair_transmit;
-	ifp->if_baudrate = IF_Gbps(10UL);	/* arbitrary maximum */
+	if_initbaudrate(ifp, IF_Gbps(10));	/* arbitrary maximum */
 
 	/*
 	 * Restore name to <n>a as the ifp for this will go into the
@@ -958,16 +956,17 @@ epair_modevent(module_t mod, int type, void *data)
 		if (TUNABLE_INT_FETCH("net.link.epair.netisr_maxqlen", &qlimit))
 		    epair_nh.nh_qlimit = qlimit;
 		netisr_register(&epair_nh);
-		if_clone_attach(&epair_cloner);
+		epair_cloner = if_clone_advanced(epairname, 0,
+		    epair_clone_match, epair_clone_create, epair_clone_destroy);
 		if (bootverbose)
-			printf("%s initialized.\n", EPAIRNAME);
+			printf("%s initialized.\n", epairname);
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(&epair_cloner);
+		if_clone_detach(epair_cloner);
 		netisr_unregister(&epair_nh);
 		epair_dpcpu_detach();
 		if (bootverbose)
-			printf("%s unloaded.\n", EPAIRNAME);
+			printf("%s unloaded.\n", epairname);
 		break;
 	default:
 		return (EOPNOTSUPP);

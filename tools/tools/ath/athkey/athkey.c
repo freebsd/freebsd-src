@@ -83,8 +83,8 @@ getdata(const char *arg, u_int8_t *data, size_t maxlen)
 		}
 		if (len > maxlen) {
 			fprintf(stderr,
-				"%s: too much data in %s, max %u bytes\n",
-				progname, arg, maxlen);
+				"%s: too much data in %s, max %llu bytes\n",
+				progname, arg, (unsigned long long) maxlen);
 		}
 		data[len++] = (b0<<4) | b1;
 	}
@@ -178,7 +178,7 @@ main(int argc, char *argv[])
 		atd.ad_in_data = (caddr_t) &keyix;
 		atd.ad_in_size = sizeof(u_int16_t);
 		if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-			err(1, atd.ad_name);
+			err(1, "ioctl: %s", atd.ad_name);
 		return 0;
 	case HAL_DIAG_SETKEY:
 		if (argc != 3 && argc != 4)
@@ -196,7 +196,7 @@ main(int argc, char *argv[])
 		atd.ad_in_data = (caddr_t) &setkey;
 		atd.ad_in_size = sizeof(setkey);
 		if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-			err(1, atd.ad_name);
+			err(1, "ioctl: %s", atd.ad_name);
 		return 0;
 	}
 	return -1;

@@ -15,9 +15,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/Analysis/LoopInfoImpl.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Analysis/LoopInfoImpl.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
 
@@ -74,6 +74,8 @@ MachineBasicBlock *MachineLoop::getBottomBlock() {
   return BotMBB;
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MachineLoop::dump() const {
   print(dbgs());
 }
+#endif

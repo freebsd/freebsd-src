@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,6 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
-#include <contrib/dev/acpica/include/acnamesp.h>
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -122,6 +121,7 @@ AcpiDmPredefinedDescription (
     switch (NameString[1])
     {
     case 'A':
+
         if ((NameString[2] == 'C') && (LastCharIsDigit))
         {
             NameString = "_ACx";
@@ -133,6 +133,7 @@ AcpiDmPredefinedDescription (
         break;
 
     case 'E':
+
         if ((NameString[2] == 'J') && (LastCharIsDigit))
         {
             NameString = "_EJx";
@@ -144,6 +145,7 @@ AcpiDmPredefinedDescription (
         break;
 
     case 'L':
+
         if (LastCharsAreHex)
         {
             NameString = "_Lxx";
@@ -151,6 +153,7 @@ AcpiDmPredefinedDescription (
         break;
 
     case 'Q':
+
         if (LastCharsAreHex)
         {
             NameString = "_Qxx";
@@ -158,6 +161,7 @@ AcpiDmPredefinedDescription (
         break;
 
     case 'T':
+
         if (NameString[2] == '_')
         {
             NameString = "_T_x";
@@ -165,6 +169,7 @@ AcpiDmPredefinedDescription (
         break;
 
     case 'W':
+
         if (LastCharsAreHex)
         {
             NameString = "_Wxx";
@@ -172,6 +177,7 @@ AcpiDmPredefinedDescription (
         break;
 
     default:
+
         break;
     }
 
@@ -254,6 +260,10 @@ AcpiDmFieldPredefinedDescription (
     /* Major cheat: We previously put the Tag ptr in the Node field */
 
     Tag = ACPI_CAST_PTR (char, IndexOp->Common.Node);
+    if (!Tag)
+    {
+        return;
+    }
 
     /* Match the name in the info table */
 
@@ -533,21 +543,26 @@ AcpiDmDisassembleOneOp (
         return;
 
     case ACPI_DASM_LNOT_SUFFIX:
+
         switch (Op->Common.AmlOpcode)
         {
         case AML_LEQUAL_OP:
+
             AcpiOsPrintf ("LNotEqual");
             break;
 
         case AML_LGREATER_OP:
+
             AcpiOsPrintf ("LLessEqual");
             break;
 
         case AML_LLESS_OP:
+
             AcpiOsPrintf ("LGreaterEqual");
             break;
 
         default:
+
             break;
         }
         Op->Common.DisasmOpcode = 0;
@@ -586,7 +601,6 @@ AcpiDmDisassembleOneOp (
         AcpiOsPrintf ("0x%2.2X", (UINT32) Op->Common.Value.Integer);
         break;
 
-
     case AML_WORD_OP:
 
         if (Op->Common.DisasmOpcode == ACPI_DASM_EISAID)
@@ -598,7 +612,6 @@ AcpiDmDisassembleOneOp (
             AcpiOsPrintf ("0x%4.4X", (UINT32) Op->Common.Value.Integer);
         }
         break;
-
 
     case AML_DWORD_OP:
 
@@ -612,24 +625,20 @@ AcpiDmDisassembleOneOp (
         }
         break;
 
-
     case AML_QWORD_OP:
 
         AcpiOsPrintf ("0x%8.8X%8.8X",
             ACPI_FORMAT_UINT64 (Op->Common.Value.Integer));
         break;
 
-
     case AML_STRING_OP:
 
         AcpiUtPrintString (Op->Common.Value.String, ACPI_UINT8_MAX);
         break;
 
-
     case AML_BUFFER_OP:
-
         /*
-         * Determine the type of buffer.  We can have one of the following:
+         * Determine the type of buffer. We can have one of the following:
          *
          * 1) ResourceTemplate containing Resource Descriptors.
          * 2) Unicode String buffer
@@ -642,7 +651,7 @@ AcpiDmDisassembleOneOp (
          */
         if (!AcpiGbl_NoResourceDisassembly)
         {
-            Status = AcpiDmIsResourceTemplate (Op);
+            Status = AcpiDmIsResourceTemplate (WalkState, Op);
             if (ACPI_SUCCESS (Status))
             {
                 Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
@@ -677,7 +686,6 @@ AcpiDmDisassembleOneOp (
         }
         break;
 
-
     case AML_INT_STATICSTRING_OP:
 
         if (Op->Common.Value.String)
@@ -690,12 +698,10 @@ AcpiDmDisassembleOneOp (
         }
         break;
 
-
     case AML_INT_NAMEPATH_OP:
 
         AcpiDmNamestring (Op->Common.Value.Name);
         break;
-
 
     case AML_INT_NAMEDFIELD_OP:
 
@@ -706,7 +712,6 @@ AcpiDmDisassembleOneOp (
 
         Info->BitOffset += (UINT32) Op->Common.Value.Integer;
         break;
-
 
     case AML_INT_RESERVEDFIELD_OP:
 
@@ -727,7 +732,6 @@ AcpiDmDisassembleOneOp (
         AcpiDmCommaIfFieldMember (Op);
         break;
 
-
     case AML_INT_ACCESSFIELD_OP:
     case AML_INT_EXTACCESSFIELD_OP:
 
@@ -745,9 +749,7 @@ AcpiDmDisassembleOneOp (
         AcpiDmCommaIfFieldMember (Op);
         break;
 
-
     case AML_INT_CONNECTION_OP:
-
         /*
          * Two types of Connection() - one with a buffer object, the
          * other with a namestring that points to a buffer object.
@@ -787,7 +789,6 @@ AcpiDmDisassembleOneOp (
         AcpiDmByteList (Info, Op);
         break;
 
-
     case AML_INT_METHODCALL_OP:
 
         Op = AcpiPsGetDepthNext (NULL, Op);
@@ -795,7 +796,6 @@ AcpiDmDisassembleOneOp (
 
         AcpiDmNamestring (Op->Common.Value.Name);
         break;
-
 
     default:
 

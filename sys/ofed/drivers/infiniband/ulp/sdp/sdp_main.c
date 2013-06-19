@@ -928,12 +928,12 @@ sdp_send(struct socket *so, int flags, struct mbuf *m,
 	ssk = sdp_sk(so);
 	KASSERT(m->m_flags & M_PKTHDR,
 	    ("sdp_send: %p no packet header", m));
-	M_PREPEND(m, SDP_HEAD_SIZE, M_WAIT);
+	M_PREPEND(m, SDP_HEAD_SIZE, M_WAITOK);
 	mtod(m, struct sdp_bsdh *)->mid = SDP_MID_DATA; 
 	for (n = m, cnt = 0; n->m_next; n = n->m_next)
 		cnt++;
 	if (cnt > SDP_MAX_SEND_SGES) {
-		n = m_collapse(m, M_WAIT, SDP_MAX_SEND_SGES);
+		n = m_collapse(m, M_WAITOK, SDP_MAX_SEND_SGES);
 		if (n == NULL) {
 			m_freem(m);
 			return (EMSGSIZE);
@@ -1196,7 +1196,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 
 	KASSERT(flags & MSG_OOB, ("soreceive_rcvoob: (flags & MSG_OOB) == 0"));
 
-	m = m_get(M_WAIT, MT_DATA);
+	m = m_get(M_WAITOK, MT_DATA);
 	error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
 	if (error)
 		goto bad;
@@ -1267,7 +1267,7 @@ sdp_sorecv(struct socket *so, struct sockaddr **psa, struct uio *uio,
 
 	/* Socket buffer is empty and we shall not block. */
 	if (sb->sb_cc == 0 &&
-	    ((sb->sb_flags & SS_NBIO) || (flags & (MSG_DONTWAIT|MSG_NBIO)))) {
+	    ((so->so_state & SS_NBIO) || (flags & (MSG_DONTWAIT|MSG_NBIO)))) {
 		error = EAGAIN;
 		goto out;
 	}
@@ -1297,7 +1297,7 @@ restart:
 
 	/* Socket buffer got some data that we shall deliver now. */
 	if (sb->sb_cc > 0 && !(flags & MSG_WAITALL) &&
-	    ((sb->sb_flags & SS_NBIO) ||
+	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
 	     sb->sb_cc >= sb->sb_lowat ||
 	     sb->sb_cc >= uio->uio_resid ||
@@ -1351,7 +1351,7 @@ deliver:
 			KASSERT(sb->sb_mb != NULL,
 			    ("%s: len > 0 && sb->sb_mb empty", __func__));
 
-			m = m_copym(sb->sb_mb, 0, len, M_DONTWAIT);
+			m = m_copym(sb->sb_mb, 0, len, M_NOWAIT);
 			if (m == NULL)
 				len = 0;	/* Don't flush data from sockbuf. */
 			else

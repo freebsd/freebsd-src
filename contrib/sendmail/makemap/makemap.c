@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.180 2010/11/23 02:35:08 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.181 2013/03/12 15:24:51 ca Exp $")
 
 
 #include <sys/types.h>
@@ -242,7 +242,7 @@ main(argc, argv)
 			      cfile, sm_errstring(errno));
 		exit(EX_NOINPUT);
 	}
-	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		register char *b;
 
@@ -392,7 +392,7 @@ main(argc, argv)
 	{
 		lineno = 0;
 		while (sm_io_fgets(smioin, SM_TIME_DEFAULT, ibuf, sizeof ibuf)
-		       != NULL)
+		       >= 0)
 		{
 			register char *p;
 

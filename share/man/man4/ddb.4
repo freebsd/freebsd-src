@@ -1173,9 +1173,15 @@ See the
 .Sx SCRIPTING
 section for more information on the scripting facility.
 .Pp
+.It Ic textdump dump
 .It Ic textdump set
 .It Ic textdump status
 .It Ic textdump unset
+Use the
+.Ic textdump dump
+command to immediately perform a textdump.
+More information may be found in
+.Xr textdump 4 .
 The
 .Ic textdump set
 command may be used to force the next kernel core dump to be a textdump
@@ -1184,8 +1190,6 @@ rather than a traditional memory dump or minidump.
 reports whether a textdump has been scheduled.
 .Ic textdump unset
 cancels a request to perform a textdump as the next kernel core dump.
-More information may be found in
-.Xr textdump 4 .
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as

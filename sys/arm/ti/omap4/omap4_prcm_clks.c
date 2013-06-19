@@ -1003,7 +1003,7 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
 /**
  *	omap4_clk_hsusbhost_activate - activates the USB clocks for the given module
  *	@clkdev: pointer to the clock device structure.
- *	@mem_res: array of memory resouces allocated by the top level PRCM driver.
+ *	@mem_res: array of memory resources allocated by the top level PRCM driver.
  *	
  *	The USB clocking setup seems to be a bit more tricky than the other modules,
  *	to start with the clocking diagram for the HS host module shows 13 different
@@ -1153,7 +1153,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 /**
  *	omap4_clk_generic_deactivate - checks if a module is accessible
  *	@clkdev: pointer to the clock device structure.
- *	@mem_res: array of memory resouces allocated by the top level PRCM driver.
+ *	@mem_res: array of memory resources allocated by the top level PRCM driver.
  *	
  *	
  *
@@ -1242,7 +1242,7 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 /**
  *	omap4_clk_hsusbhost_accessible - checks if a module is accessible
  *	@clkdev: pointer to the clock device structure.
- *	@mem_res: array of memory resouces allocated by the top level PRCM driver.
+ *	@mem_res: array of memory resources allocated by the top level PRCM driver.
  *	
  *	
  *
@@ -1291,7 +1291,7 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
  *	omap4_clk_hsusbhost_set_source - sets the source clocks
  *	@clkdev: pointer to the clock device structure.
  *	@clksrc: the clock source ID for the given clock.
- *	@mem_res: array of memory resouces allocated by the top level PRCM driver.
+ *	@mem_res: array of memory resources allocated by the top level PRCM driver.
  *	
  *	
  *

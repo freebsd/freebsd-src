@@ -723,7 +723,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 void ipoib_mcast_restart(struct ipoib_dev_priv *priv)
 {
 	struct ifnet *dev = priv->dev;
-	struct ifmultiaddr *ifma;;
+	struct ifmultiaddr *ifma;
 	struct ipoib_mcast *mcast, *tmcast;
 	LIST_HEAD(remove_list);
 	struct ib_sa_mcmember_rec rec;

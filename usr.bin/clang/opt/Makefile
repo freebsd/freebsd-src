@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=opt
 
 SRCDIR=	tools/opt
@@ -9,8 +11,36 @@ SRCS=	AnalysisWrappers.cpp \
 	opt.cpp
 
 TGHDRS=	Intrinsics
-LIBDEPS=llvmipo \
+LIBDEPS=llvmarmdisassembler \
+	llvmarmcodegen \
+	llvmarmasmparser \
+	llvmarmdesc \
+	llvmarminfo \
+	llvmarminstprinter \
+	llvmmipsdisassembler \
+	llvmmipscodegen \
+	llvmmipsasmparser \
+	llvmmipsdesc \
+	llvmmipsinfo \
+	llvmmipsinstprinter \
+	llvmpowerpccodegen \
+	llvmpowerpcdesc \
+	llvmpowerpcinfo \
+	llvmpowerpcinstprinter \
+	llvmx86disassembler \
+	llvmx86asmparser \
+	llvmx86codegen \
+	llvmselectiondag \
+	llvmasmprinter \
+	llvmmcparser \
+	llvmcodegen \
+	llvmx86desc \
+	llvmx86info \
+	llvmx86instprinter \
+	llvmx86utils \
+	llvmipo \
 	llvmvectorize \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvminstrumentation \
@@ -20,6 +50,7 @@ LIBDEPS=llvmipo \
 	llvmtarget \
 	llvmmc \
 	llvmobject \
+	llvmirreader \
 	llvmasmparser \
 	llvmbitwriter \
 	llvmbitreader \

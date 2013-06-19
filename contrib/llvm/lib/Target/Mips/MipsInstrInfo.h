@@ -31,6 +31,15 @@ protected:
   unsigned UncondBrOpc;
 
 public:
+  enum BranchType {
+    BT_None,       // Couldn't analyze branch.
+    BT_NoBranch,   // No branches found.
+    BT_Uncond,     // One unconditional branch.
+    BT_Cond,       // One conditional branch.
+    BT_CondUncond, // A conditional branch followed by an unconditional branch.
+    BT_Indirect    // One indirct branch.
+  };
+
   explicit MipsInstrInfo(MipsTargetMachine &TM, unsigned UncondBrOpc);
 
   static const MipsInstrInfo *create(MipsTargetMachine &TM);
@@ -50,6 +59,12 @@ public:
 
   virtual
   bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;
+
+  BranchType AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
+                           MachineBasicBlock *&FBB,
+                           SmallVectorImpl<MachineOperand> &Cond,
+                           bool AllowModify,
+                           SmallVectorImpl<MachineInstr*> &BranchInstrs) const;
 
   virtual MachineInstr* emitFrameIndexDebugValue(MachineFunction &MF,
                                                  int FrameIx, uint64_t Offset,
@@ -71,6 +86,36 @@ public:
   /// Return the number of bytes of code the specified instruction may be.
   unsigned GetInstSizeInBytes(const MachineInstr *MI) const;
 
+  virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
+                                   MachineBasicBlock::iterator MBBI,
+                                   unsigned SrcReg, bool isKill, int FrameIndex,
+                                   const TargetRegisterClass *RC,
+                                   const TargetRegisterInfo *TRI) const {
+    storeRegToStack(MBB, MBBI, SrcReg, isKill, FrameIndex, RC, TRI, 0);
+  }
+
+  virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
+                                    MachineBasicBlock::iterator MBBI,
+                                    unsigned DestReg, int FrameIndex,
+                                    const TargetRegisterClass *RC,
+                                    const TargetRegisterInfo *TRI) const {
+    loadRegFromStack(MBB, MBBI, DestReg, FrameIndex, RC, TRI, 0);
+  }
+
+  virtual void storeRegToStack(MachineBasicBlock &MBB,
+                               MachineBasicBlock::iterator MI,
+                               unsigned SrcReg, bool isKill, int FrameIndex,
+                               const TargetRegisterClass *RC,
+                               const TargetRegisterInfo *TRI,
+                               int64_t Offset) const = 0;
+
+  virtual void loadRegFromStack(MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator MI,
+                                unsigned DestReg, int FrameIndex,
+                                const TargetRegisterClass *RC,
+                                const TargetRegisterInfo *TRI,
+                                int64_t Offset) const = 0;
+
 protected:
   bool isZeroImm(const MachineOperand &op) const;
 
@@ -87,18 +132,6 @@ private:
   void BuildCondBr(MachineBasicBlock &MBB, MachineBasicBlock *TBB, DebugLoc DL,
                    const SmallVectorImpl<MachineOperand>& Cond) const;
 };
-
-namespace Mips {
-  /// Emit a series of instructions to load an immediate. All instructions
-  /// except for the last one are emitted. The function returns the number of
-  /// MachineInstrs generated. The opcode-immediate pair of the last
-  /// instruction is returned in LastInst, if it is not 0.
-  unsigned
-  loadImmediate(int64_t Imm, bool IsN64, const TargetInstrInfo &TII,
-                MachineBasicBlock& MBB, MachineBasicBlock::iterator II,
-                DebugLoc DL, bool LastInstrIsADDiu,
-                MipsAnalyzeImmediate::Inst *LastInst);
-}
 
 /// Create MipsInstrInfo objects.
 const MipsInstrInfo *createMips16InstrInfo(MipsTargetMachine &TM);

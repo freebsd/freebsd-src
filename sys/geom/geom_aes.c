@@ -342,7 +342,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			}
 		}
 		g_topology_lock();
-		pp = g_new_providerf(gp, gp->name);
+		pp = g_new_providerf(gp, "%s", gp->name);
 		pp->mediasize = mediasize - sectorsize;
 		pp->sectorsize = sectorsize;
 		g_error_provider(pp, 0);

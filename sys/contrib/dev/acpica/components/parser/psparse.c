@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,9 @@
 
 /*
  * Parse the AML and build an operation tree as most interpreters,
- * like Perl, do.  Parsing is done by hand rather than with a YACC
+ * like Perl, do. Parsing is done by hand rather than with a YACC
  * generated parser to tightly constrain stack and dynamic memory
- * usage.  At the same time, parsing is kept flexible and the code
+ * usage. At the same time, parsing is kept flexible and the code
  * fairly compact by parsing based on a list of AML opcode
  * templates in AmlOpInfo[]
  */
@@ -191,12 +191,12 @@ AcpiPsCompleteThisOp (
         switch (ParentInfo->Class)
         {
         case AML_CLASS_CONTROL:
+
             break;
 
         case AML_CLASS_CREATE:
-
             /*
-             * These opcodes contain TermArg operands.  The current
+             * These opcodes contain TermArg operands. The current
              * op must be replaced by a placeholder return op
              */
             ReplacementOp = AcpiPsAllocOp (AML_INT_RETURN_VALUE_OP);
@@ -207,9 +207,8 @@ AcpiPsCompleteThisOp (
             break;
 
         case AML_CLASS_NAMED_OBJECT:
-
             /*
-             * These opcodes contain TermArg operands.  The current
+             * These opcodes contain TermArg operands. The current
              * op must be replaced by a placeholder return op
              */
             if ((Op->Common.Parent->Common.AmlOpcode == AML_REGION_OP)       ||
@@ -352,7 +351,6 @@ AcpiPsNextParseState (
         Status = AE_CTRL_TERMINATE;
         break;
 
-
     case AE_CTRL_BREAK:
 
         ParserState->Aml = WalkState->AmlLastWhile;
@@ -360,13 +358,11 @@ AcpiPsNextParseState (
         Status = AE_CTRL_BREAK;
         break;
 
-
     case AE_CTRL_CONTINUE:
 
         ParserState->Aml = WalkState->AmlLastWhile;
         Status = AE_CTRL_CONTINUE;
         break;
-
 
     case AE_CTRL_PENDING:
 
@@ -390,11 +386,10 @@ AcpiPsNextParseState (
         Status = AE_CTRL_PENDING;
         break;
 
-
     case AE_CTRL_FALSE:
         /*
          * Either an IF/WHILE Predicate was false or we encountered a BREAK
-         * opcode.  In both cases, we do not execute the rest of the
+         * opcode. In both cases, we do not execute the rest of the
          * package;  We simply close out the parent (finishing the walk of
          * this branch of the tree) and continue execution at the parent
          * level.
@@ -406,7 +401,6 @@ AcpiPsNextParseState (
         WalkState->ControlState->Common.Value = FALSE;
         Status = AE_CTRL_END;
         break;
-
 
     case AE_CTRL_TRANSFER:
 
@@ -421,7 +415,6 @@ AcpiPsNextParseState (
 
         WalkState->ReturnUsed = AcpiDsIsResultUsed (Op, WalkState);
         break;
-
 
     default:
 
@@ -508,7 +501,7 @@ AcpiPsParseAml (
     AcpiGbl_CurrentWalkList = Thread;
 
     /*
-     * Execute the walk loop as long as there is a valid Walk State.  This
+     * Execute the walk loop as long as there is a valid Walk State. This
      * handles nested control method invocations without recursion.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "State=%p\n", WalkState));
@@ -707,5 +700,3 @@ AcpiPsParseAml (
     AcpiGbl_CurrentWalkList = PrevWalkList;
     return_ACPI_STATUS (Status);
 }
-
-

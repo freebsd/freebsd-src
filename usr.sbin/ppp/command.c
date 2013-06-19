@@ -416,7 +416,7 @@ DialCommand(struct cmdargs const *arg)
 static char *
 strstrword(char *big, const char *little)
 {
-  /* Get the first occurrance of the word ``little'' in ``big'' */
+  /* Get the first occurrence of the word ``little'' in ``big'' */
   char *pos;
   int len;
 

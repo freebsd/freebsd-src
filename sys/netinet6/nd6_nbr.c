@@ -419,17 +419,12 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		return;
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m && max_linkhdr + maxlen >= MHLEN) {
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			m = NULL;
-		}
-	}
+	if (max_linkhdr + maxlen > MHLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	else
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
-	m->m_pkthdr.rcvif = NULL;
 
 	bzero(&ro, sizeof(ro));
 
@@ -762,6 +757,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		 */
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
+		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited) {
 			ln->ln_state = ND6_LLINFO_REACHABLE;
 			ln->ln_byhint = 0;
@@ -837,6 +833,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			if (lladdr != NULL) {
 				bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 				ln->la_flags |= LLE_VALID;
+				EVENTHANDLER_INVOKE(lle_event, ln,
+				    LLENTRY_RESOLVED);
 			}
 
 			/*
@@ -994,17 +992,12 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		return;
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m && max_linkhdr + maxlen >= MHLEN) {
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			m = NULL;
-		}
-	}
+	if (max_linkhdr + maxlen > MHLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	else
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
-	m->m_pkthdr.rcvif = NULL;
 	M_SETFIB(m, fibnum);
 
 	if (IN6_IS_ADDR_MULTICAST(&daddr6)) {
@@ -1331,12 +1324,9 @@ static void
 nd6_dad_timer(struct dadq *dp)
 {
 	CURVNET_SET(dp->dad_vnet);
-	int s;
 	struct ifaddr *ifa = dp->dad_ifa;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	char ip6buf[INET6_ADDRSTRLEN];
-
-	s = splnet();		/* XXX */
 
 	/* Sanity check */
 	if (ia == NULL) {
@@ -1424,7 +1414,6 @@ nd6_dad_timer(struct dadq *dp)
 	}
 
 done:
-	splx(s);
 	CURVNET_RESTORE();
 }
 

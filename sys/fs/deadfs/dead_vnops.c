@@ -41,8 +41,6 @@
 /*
  * Prototypes for dead operations on vnodes.
  */
-static vop_bmap_t	dead_bmap;
-static vop_ioctl_t	dead_ioctl;
 static vop_lookup_t	dead_lookup;
 static vop_open_t	dead_open;
 static vop_poll_t	dead_poll;
@@ -56,12 +54,12 @@ struct vop_vector dead_vnodeops = {
 
 	.vop_access =		VOP_EBADF,
 	.vop_advlock =		VOP_EBADF,
-	.vop_bmap =		dead_bmap,
+	.vop_bmap =		VOP_EBADF,
 	.vop_create =		VOP_PANIC,
 	.vop_getattr =		VOP_EBADF,
 	.vop_getwritemount =	dead_getwritemount,
 	.vop_inactive =		VOP_NULL,
-	.vop_ioctl =		dead_ioctl,
+	.vop_ioctl =		VOP_EBADF,
 	.vop_link =		VOP_PANIC,
 	.vop_lookup =		dead_lookup,
 	.vop_mkdir =		VOP_PANIC,
@@ -163,43 +161,6 @@ dead_write(ap)
 	} */ *ap;
 {
 	return (EIO);
-}
-
-/*
- * Device ioctl operation.
- */
-/* ARGSUSED */
-static int
-dead_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		u_long  a_command;
-		caddr_t  a_data;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	/* XXX: Doesn't this just recurse back here ? */
-	return (VOP_IOCTL_AP(ap));
-}
-
-/*
- * Wait until the vnode has finished changing state.
- */
-static int
-dead_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct bufobj **a_bop;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
-{
-
-	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_bop, ap->a_bnp, ap->a_runp, ap->a_runb));
 }
 
 /*

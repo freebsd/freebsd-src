@@ -132,6 +132,7 @@ static struct g_raid_md_class g_raid_md_jmicron_class = {
 	"JMicron",
 	g_raid_md_jmicron_methods,
 	sizeof(struct g_raid_md_jmicron_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -825,7 +826,7 @@ g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 	struct jmicron_raid_conf *meta;
 	struct g_raid_md_jmicron_perdisk *pd;
 	struct g_geom *geom;
-	int error, disk_pos, result, spare, len;
+	int disk_pos, result, spare, len;
 	char name[16];
 	uint16_t vendor;
 
@@ -944,14 +945,7 @@ search:
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_jmicron_new_disk(disk);
 
@@ -1114,15 +1108,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			pd->pd_disk_size = pp->mediasize;
 			if (size > pp->mediasize)
@@ -1373,15 +1359,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			update += g_raid_md_jmicron_start_disk(disk);
@@ -1581,4 +1559,4 @@ g_raid_md_free_jmicron(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_jmicron);
+G_RAID_MD_DECLARE(jmicron, "JMicron");

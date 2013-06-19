@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -180,7 +180,7 @@ AcpiTbLoadNamespace (
     /* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    for (i = 2; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
+    for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
     {
         if ((!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                     ACPI_SIG_SSDT) &&
@@ -192,12 +192,15 @@ AcpiTbLoadNamespace (
             continue;
         }
 
-        /* Skip SSDT when it is overriden with DSDT */
-        if (ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
-                    ACPI_SIG_SSDT) &&
-            (AcpiGbl_RootTableList.Tables[i].Flags &
-                    ACPI_TABLE_ORIGIN_OVERRIDE))
+        /*
+         * Optionally do not load any SSDTs from the RSDT/XSDT. This can
+         * be useful for debugging ACPI problems on some machines.
+         */
+        if (AcpiGbl_DisableSsdtTableLoad)
         {
+            ACPI_INFO ((AE_INFO, "Ignoring %4.4s at %p",
+                AcpiGbl_RootTableList.Tables[i].Signature.Ascii,
+                ACPI_CAST_PTR (void, AcpiGbl_RootTableList.Tables[i].Address)));
             continue;
         }
 
@@ -208,7 +211,7 @@ AcpiTbLoadNamespace (
         (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
+    ACPI_INFO ((AE_INFO, "All ACPI Tables successfully acquired"));
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
@@ -228,7 +231,7 @@ UnlockAndExit:
  * DESCRIPTION: Dynamically load an ACPI table from the caller's buffer. Must
  *              be a valid ACPI table with a valid ACPI table header.
  *              Note1: Mainly intended to support hotplug addition of SSDTs.
- *              Note2: Does not copy the incoming table. User is reponsible
+ *              Note2: Does not copy the incoming table. User is responsible
  *              to ensure that the table is not deleted or unmapped.
  *
  ******************************************************************************/

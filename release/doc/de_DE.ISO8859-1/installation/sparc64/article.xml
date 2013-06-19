@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % sections SYSTEM "../common/install.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSPARC">
+]>
+
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/article.xml,v 1.3 2002/11/16 12:10:42 ue Exp $
+  basiert auf: 1.4
+-->
+
+<article lang="de">
+  &artheader;
+  &abstract;
+  &sect.install;
+  &sect.layout;
+  &sect.upgrade;
+  &sect.trouble;
+</article>

@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Constants.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -51,32 +51,75 @@ namespace {
       // Visit the GlobalVariables.
       for (Module::global_iterator I = M.global_begin(), E = M.global_end();
            I != E; ++I) {
-        if (deleteStuff == (bool)Named.count(I) && !I->isDeclaration()) {
-          I->setInitializer(0);
-        } else {
+        bool Delete =
+          deleteStuff == (bool)Named.count(I) && !I->isDeclaration();
+        if (!Delete) {
           if (I->hasAvailableExternallyLinkage())
             continue;
           if (I->getName() == "llvm.global_ctors")
             continue;
         }
 
-        if (I->hasLocalLinkage())
+        bool Local = I->isDiscardableIfUnused();
+        if (Local)
           I->setVisibility(GlobalValue::HiddenVisibility);
-        I->setLinkage(GlobalValue::ExternalLinkage);
+
+        if (Local || Delete)
+          I->setLinkage(GlobalValue::ExternalLinkage);
+
+        if (Delete)
+          I->setInitializer(0);
       }
 
       // Visit the Functions.
       for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-        if (deleteStuff == (bool)Named.count(I) && !I->isDeclaration()) {
-          I->deleteBody();
-        } else {
+        bool Delete =
+          deleteStuff == (bool)Named.count(I) && !I->isDeclaration();
+        if (!Delete) {
           if (I->hasAvailableExternallyLinkage())
             continue;
         }
 
-        if (I->hasLocalLinkage())
+        bool Local = I->isDiscardableIfUnused();
+        if (Local)
           I->setVisibility(GlobalValue::HiddenVisibility);
-        I->setLinkage(GlobalValue::ExternalLinkage);
+
+        if (Local || Delete)
+          I->setLinkage(GlobalValue::ExternalLinkage);
+
+        if (Delete)
+          I->deleteBody();
+      }
+
+      // Visit the Aliases.
+      for (Module::alias_iterator I = M.alias_begin(), E = M.alias_end();
+           I != E;) {
+        Module::alias_iterator CurI = I;
+        ++I;
+
+        if (CurI->isDiscardableIfUnused()) {
+          CurI->setVisibility(GlobalValue::HiddenVisibility);
+          CurI->setLinkage(GlobalValue::ExternalLinkage);
+        }
+
+        if (deleteStuff == (bool)Named.count(CurI)) {
+          Type *Ty =  CurI->getType()->getElementType();
+
+          CurI->removeFromParent();
+          llvm::Value *Declaration;
+          if (FunctionType *FTy = dyn_cast<FunctionType>(Ty)) {
+            Declaration = Function::Create(FTy, GlobalValue::ExternalLinkage,
+                                           CurI->getName(), &M);
+
+          } else {
+            Declaration =
+              new GlobalVariable(M, Ty, false, GlobalValue::ExternalLinkage,
+                                 0, CurI->getName());
+
+          }
+          CurI->replaceAllUsesWith(Declaration);
+          delete CurI;
+        }
       }
 
       return true;

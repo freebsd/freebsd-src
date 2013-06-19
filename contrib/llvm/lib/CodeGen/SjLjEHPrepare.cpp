@@ -13,24 +13,24 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "sjljehprepare"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -43,7 +43,7 @@ STATISTIC(NumSpilled, "Number of registers live across unwind edges");
 
 namespace {
   class SjLjEHPrepare : public FunctionPass {
-    const TargetLowering *TLI;
+    const TargetLoweringBase *TLI;
     Type *FunctionContextTy;
     Constant *RegisterFn;
     Constant *UnregisterFn;
@@ -58,7 +58,7 @@ namespace {
     AllocaInst *FuncCtx;
   public:
     static char ID; // Pass identification, replacement for typeid
-    explicit SjLjEHPrepare(const TargetLowering *tli = NULL)
+    explicit SjLjEHPrepare(const TargetLoweringBase *tli = NULL)
       : FunctionPass(ID), TLI(tli) { }
     bool doInitialization(Module &M);
     bool runOnFunction(Function &F);
@@ -82,7 +82,7 @@ namespace {
 char SjLjEHPrepare::ID = 0;
 
 // Public Interface To the SjLjEHPrepare pass.
-FunctionPass *llvm::createSjLjEHPreparePass(const TargetLowering *TLI) {
+FunctionPass *llvm::createSjLjEHPreparePass(const TargetLoweringBase *TLI) {
   return new SjLjEHPrepare(TLI);
 }
 // doInitialization - Set up decalarations and types needed to process
@@ -191,58 +191,43 @@ setupFunctionContext(Function &F, ArrayRef<LandingPadInst*> LPads) {
   // that needs to be restored on all exits from the function. This is an alloca
   // because the value needs to be added to the global context list.
   unsigned Align =
-    TLI->getTargetData()->getPrefTypeAlignment(FunctionContextTy);
+    TLI->getDataLayout()->getPrefTypeAlignment(FunctionContextTy);
   FuncCtx =
     new AllocaInst(FunctionContextTy, 0, Align, "fn_context", EntryBB->begin());
 
   // Fill in the function context structure.
-  Type *Int32Ty = Type::getInt32Ty(F.getContext());
-  Value *Zero = ConstantInt::get(Int32Ty, 0);
-  Value *One = ConstantInt::get(Int32Ty, 1);
-  Value *Two = ConstantInt::get(Int32Ty, 2);
-  Value *Three = ConstantInt::get(Int32Ty, 3);
-  Value *Four = ConstantInt::get(Int32Ty, 4);
-
-  Value *Idxs[2] = { Zero, 0 };
-
   for (unsigned I = 0, E = LPads.size(); I != E; ++I) {
     LandingPadInst *LPI = LPads[I];
     IRBuilder<> Builder(LPI->getParent()->getFirstInsertionPt());
 
     // Reference the __data field.
-    Idxs[1] = Two;
-    Value *FCData = Builder.CreateGEP(FuncCtx, Idxs, "__data");
+    Value *FCData = Builder.CreateConstGEP2_32(FuncCtx, 0, 2, "__data");
 
     // The exception values come back in context->__data[0].
-    Idxs[1] = Zero;
-    Value *ExceptionAddr = Builder.CreateGEP(FCData, Idxs, "exception_gep");
+    Value *ExceptionAddr = Builder.CreateConstGEP2_32(FCData, 0, 0,
+                                                      "exception_gep");
     Value *ExnVal = Builder.CreateLoad(ExceptionAddr, true, "exn_val");
-    ExnVal = Builder.CreateIntToPtr(ExnVal, Type::getInt8PtrTy(F.getContext()));
+    ExnVal = Builder.CreateIntToPtr(ExnVal, Builder.getInt8PtrTy());
 
-    Idxs[1] = One;
-    Value *SelectorAddr = Builder.CreateGEP(FCData, Idxs, "exn_selector_gep");
+    Value *SelectorAddr = Builder.CreateConstGEP2_32(FCData, 0, 1,
+                                                     "exn_selector_gep");
     Value *SelVal = Builder.CreateLoad(SelectorAddr, true, "exn_selector_val");
 
     substituteLPadValues(LPI, ExnVal, SelVal);
   }
 
   // Personality function
-  Idxs[1] = Three;
+  IRBuilder<> Builder(EntryBB->getTerminator());
   if (!PersonalityFn)
     PersonalityFn = LPads[0]->getPersonalityFn();
-  Value *PersonalityFieldPtr =
-    GetElementPtrInst::Create(FuncCtx, Idxs, "pers_fn_gep",
-                              EntryBB->getTerminator());
-  new StoreInst(PersonalityFn, PersonalityFieldPtr, true,
-                EntryBB->getTerminator());
+  Value *PersonalityFieldPtr = Builder.CreateConstGEP2_32(FuncCtx, 0, 3,
+                                                          "pers_fn_gep");
+  Builder.CreateStore(PersonalityFn, PersonalityFieldPtr, /*isVolatile=*/true);
 
   // LSDA address
-  Value *LSDA = CallInst::Create(LSDAAddrFn, "lsda_addr",
-                                 EntryBB->getTerminator());
-  Idxs[1] = Four;
-  Value *LSDAFieldPtr = GetElementPtrInst::Create(FuncCtx, Idxs, "lsda_gep",
-                                                  EntryBB->getTerminator());
-  new StoreInst(LSDA, LSDAFieldPtr, true, EntryBB->getTerminator());
+  Value *LSDA = Builder.CreateCall(LSDAAddrFn, "lsda_addr");
+  Value *LSDAFieldPtr = Builder.CreateConstGEP2_32(FuncCtx, 0, 4, "lsda_gep");
+  Builder.CreateStore(LSDA, LSDAFieldPtr, /*isVolatile=*/true);
 
   return FuncCtx;
 }
@@ -394,13 +379,22 @@ void SjLjEHPrepare::lowerAcrossUnwindEdges(Function &F,
 /// the function context and marking the call sites with the appropriate
 /// values. These values are used by the DWARF EH emitter.
 bool SjLjEHPrepare::setupEntryBlockAndCallSites(Function &F) {
-  SmallVector<ReturnInst*,     16> Returns;
-  SmallVector<InvokeInst*,     16> Invokes;
+  SmallVector<ReturnInst*, 16> Returns;
+  SmallVector<InvokeInst*, 16> Invokes;
   SmallSetVector<LandingPadInst*, 16> LPads;
 
   // Look through the terminators of the basic blocks to find invokes.
   for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
     if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
+      if (Function *Callee = II->getCalledFunction())
+        if (Callee->isIntrinsic() &&
+            Callee->getIntrinsicID() == Intrinsic::donothing) {
+          // Remove the NOP invoke.
+          BranchInst::Create(II->getNormalDest(), II);
+          II->eraseFromParent();
+          continue;
+        }
+
       Invokes.push_back(II);
       LPads.insert(II->getUnwindDest()->getLandingPadInst());
     } else if (ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator())) {
@@ -417,48 +411,31 @@ bool SjLjEHPrepare::setupEntryBlockAndCallSites(Function &F) {
   Value *FuncCtx =
     setupFunctionContext(F, makeArrayRef(LPads.begin(), LPads.end()));
   BasicBlock *EntryBB = F.begin();
-  Type *Int32Ty = Type::getInt32Ty(F.getContext());
-
-  Value *Idxs[2] = {
-    ConstantInt::get(Int32Ty, 0), 0
-  };
+  IRBuilder<> Builder(EntryBB->getTerminator());
 
   // Get a reference to the jump buffer.
-  Idxs[1] = ConstantInt::get(Int32Ty, 5);
-  Value *JBufPtr = GetElementPtrInst::Create(FuncCtx, Idxs, "jbuf_gep",
-                                             EntryBB->getTerminator());
+  Value *JBufPtr = Builder.CreateConstGEP2_32(FuncCtx, 0, 5, "jbuf_gep");
 
   // Save the frame pointer.
-  Idxs[1] = ConstantInt::get(Int32Ty, 0);
-  Value *FramePtr = GetElementPtrInst::Create(JBufPtr, Idxs, "jbuf_fp_gep",
-                                              EntryBB->getTerminator());
+  Value *FramePtr = Builder.CreateConstGEP2_32(JBufPtr, 0, 0, "jbuf_fp_gep");
 
-  Value *Val = CallInst::Create(FrameAddrFn,
-                                ConstantInt::get(Int32Ty, 0),
-                                "fp",
-                                EntryBB->getTerminator());
-  new StoreInst(Val, FramePtr, true, EntryBB->getTerminator());
+  Value *Val = Builder.CreateCall(FrameAddrFn, Builder.getInt32(0), "fp");
+  Builder.CreateStore(Val, FramePtr, /*isVolatile=*/true);
 
   // Save the stack pointer.
-  Idxs[1] = ConstantInt::get(Int32Ty, 2);
-  Value *StackPtr = GetElementPtrInst::Create(JBufPtr, Idxs, "jbuf_sp_gep",
-                                              EntryBB->getTerminator());
+  Value *StackPtr = Builder.CreateConstGEP2_32(JBufPtr, 0, 2, "jbuf_sp_gep");
 
-  Val = CallInst::Create(StackAddrFn, "sp", EntryBB->getTerminator());
-  new StoreInst(Val, StackPtr, true, EntryBB->getTerminator());
+  Val = Builder.CreateCall(StackAddrFn, "sp");
+  Builder.CreateStore(Val, StackPtr, /*isVolatile=*/true);
 
   // Call the setjmp instrinsic. It fills in the rest of the jmpbuf.
-  Value *SetjmpArg = CastInst::Create(Instruction::BitCast, JBufPtr,
-                                      Type::getInt8PtrTy(F.getContext()), "",
-                                      EntryBB->getTerminator());
-  CallInst::Create(BuiltinSetjmpFn, SetjmpArg, "", EntryBB->getTerminator());
+  Value *SetjmpArg = Builder.CreateBitCast(JBufPtr, Builder.getInt8PtrTy());
+  Builder.CreateCall(BuiltinSetjmpFn, SetjmpArg);
 
   // Store a pointer to the function context so that the back-end will know
   // where to look for it.
-  Value *FuncCtxArg = CastInst::Create(Instruction::BitCast, FuncCtx,
-                                       Type::getInt8PtrTy(F.getContext()), "",
-                                       EntryBB->getTerminator());
-  CallInst::Create(FuncCtxFn, FuncCtxArg, "", EntryBB->getTerminator());
+  Value *FuncCtxArg = Builder.CreateBitCast(FuncCtx, Builder.getInt8PtrTy());
+  Builder.CreateCall(FuncCtxFn, FuncCtxArg);
 
   // At this point, we are all set up, update the invoke instructions to mark
   // their call_site values.

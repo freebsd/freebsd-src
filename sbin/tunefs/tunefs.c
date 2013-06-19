@@ -70,27 +70,28 @@ __FBSDID("$FreeBSD$");
 /* the optimization warning string template */
 #define	OPTWARN	"should optimize for %s with minfree %s %d%%"
 
+static int blocks;
+static char clrbuf[MAXBSIZE];
 static struct uufsd disk;
 #define	sblock disk.d_fs
 
-void usage(void);
-void printfs(void);
-int journal_alloc(int64_t size);
-void journal_clear(void);
-void sbdirty(void);
+static void usage(void);
+static void printfs(void);
+static int journal_alloc(int64_t size);
+static void journal_clear(void);
+static void sbdirty(void);
 
 int
 main(int argc, char *argv[])
 {
-	char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
-	char *tvalue;
+	const char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
+	const char *tvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
-	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, Lflag;
-	int lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue, pflag, sflag;
-	int tflag;
-	int svalue, Svalue;
+	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, kflag;
+	int kvalue, Lflag, lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue;
+	int pflag, sflag, svalue, Svalue, tflag;
 	int ch, found_arg, i;
 	const char *chg[2];
 	struct ufs_args args;
@@ -98,13 +99,13 @@ main(int argc, char *argv[])
 
 	if (argc < 3)
 		usage();
-	Aflag = aflag = eflag = fflag = jflag = Jflag = Lflag = lflag = 0;
-	mflag = Nflag = nflag = oflag = pflag = sflag = tflag = 0;
+	Aflag = aflag = eflag = fflag = jflag = Jflag = kflag = Lflag = 0;
+	lflag = mflag = Nflag = nflag = oflag = pflag = sflag = tflag = 0;
 	avalue = jvalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = Svalue = 0;
 	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
-	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:L:l:m:N:n:o:ps:S:t:"))
+	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:k:L:l:m:N:n:o:ps:S:t:"))
 	    != -1)
 		switch (ch) {
 
@@ -169,6 +170,14 @@ main(int argc, char *argv[])
 			Jflag = 1;
 			break;
 
+		case 'k':
+			found_arg = 1;
+			name = "space to hold for metadata blocks";
+			kvalue = atoi(optarg);
+			if (kvalue < 0)
+				errx(10, "bad %s (%s)", name, optarg);
+			kflag = 1;
+			break;
 
 		case 'L':
 			found_arg = 1;
@@ -402,6 +411,22 @@ main(int argc, char *argv[])
 			}
 		}
 	}
+	if (kflag) {
+		name = "space to hold for metadata blocks";
+		if (sblock.fs_metaspace == kvalue)
+			warnx("%s remains unchanged as %d", name, kvalue);
+		else {
+			kvalue = blknum(&sblock, kvalue);
+			if (kvalue > sblock.fs_fpg / 2) {
+				kvalue = blknum(&sblock, sblock.fs_fpg / 2);
+				warnx("%s cannot exceed half the file system "
+				    "space", name);
+			}
+			warnx("%s changes from %jd to %d",
+				    name, sblock.fs_metaspace, kvalue);
+			sblock.fs_metaspace = kvalue;
+		}
+	}
 	if (lflag) {
 		name = "multilabel";
 		if (strcmp(lvalue, "enable") == 0) {
@@ -545,15 +570,12 @@ err:
 		err(12, "%s", special);
 }
 
-void
+static void
 sbdirty(void)
 {
 	disk.d_fs.fs_flags |= FS_UNCLEAN | FS_NEEDSFSCK;
 	disk.d_fs.fs_clean = 0;
 }
-
-static int blocks;
-static char clrbuf[MAXBSIZE];
 
 static ufs2_daddr_t
 journal_balloc(void)
@@ -672,7 +694,7 @@ journal_findfile(void)
 				return (ino);
 		}
 	} else {
-		if ((off_t)dp1->di_size >= lblktosize(&sblock, NDADDR)) {
+		if ((off_t)dp2->di_size >= lblktosize(&sblock, NDADDR)) {
 			warnx("ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
@@ -689,7 +711,7 @@ journal_findfile(void)
 }
 
 static void
-dir_clear_block(char *block, off_t off)
+dir_clear_block(const char *block, off_t off)
 {
 	struct direct *dp;
 
@@ -880,7 +902,7 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 /*
  * Clear the flag bits so the journal can be removed.
  */
-void
+static void
 journal_clear(void)
 {
 	struct ufs1_dinode *dp1;
@@ -894,7 +916,7 @@ journal_clear(void)
 		warnx("Journal file does not exist");
 		return;
 	}
-	printf("Clearing journal flags from inode %d\n", ino);
+	printf("Clearing journal flags from inode %ju\n", (uintmax_t)ino);
 	if (getino(&disk, &ip, ino, &mode) != 0) {
 		warn("Failed to get journal inode");
 		return;
@@ -911,7 +933,7 @@ journal_clear(void)
 	}
 }
 
-int
+static int
 journal_alloc(int64_t size)
 {
 	struct ufs1_dinode *dp1;
@@ -970,8 +992,8 @@ journal_alloc(int64_t size)
 		ino = cgialloc(&disk);
 		if (ino <= 0)
 			break;
-		printf("Using inode %d in cg %d for %jd byte journal\n", 
-		    ino, cgp->cg_cgx, size);
+		printf("Using inode %ju in cg %d for %jd byte journal\n",
+		    (uintmax_t)ino, cgp->cg_cgx, size);
 		if (getino(&disk, &ip, ino, &mode) != 0) {
 			warn("Failed to get allocated inode");
 			sbdirty();
@@ -1060,12 +1082,12 @@ out:
 	return (-1);
 }
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
-"              [-J enable | disable] [-j enable | disable]", 
+"              [-J enable | disable] [-j enable | disable] [-k metaspace]",
 "              [-L volname] [-l enable | disable] [-m minfree]",
 "              [-N enable | disable] [-n enable | disable]",
 "              [-o space | time] [-p] [-s avgfpdir] [-t enable | disable]",
@@ -1073,7 +1095,7 @@ usage(void)
 	exit(2);
 }
 
-void
+static void
 printfs(void)
 {
 	warnx("POSIX.1e ACLs: (-a)                                %s",
@@ -1098,6 +1120,8 @@ printfs(void)
 	      sblock.fs_avgfpdir);
 	warnx("minimum percentage of free space: (-m)             %d%%",
 	      sblock.fs_minfree);
+	warnx("space to hold for metadata blocks: (-k)            %jd",
+	      sblock.fs_metaspace);
 	warnx("optimization preference: (-o)                      %s",
 	      sblock.fs_optim == FS_OPTSPACE ? "space" : "time");
 	if (sblock.fs_minfree >= MINFREE &&

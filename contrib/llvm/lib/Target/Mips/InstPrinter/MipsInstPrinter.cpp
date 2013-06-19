@@ -23,6 +23,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
+#define PRINT_ALIAS_INSTR
 #include "MipsGenAsmWriter.inc"
 
 const char* Mips::MipsFCCToString(Mips::CondCode CC) {
@@ -78,7 +79,9 @@ void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
     O << "\t.set\tmips32r2\n";
   }
 
-  printInstruction(MI, O);
+  // Try to print any aliases first.
+  if (!printAliasInstr(MI, O))
+    printInstruction(MI, O);
   printAnnotation(O, Annot);
 
   switch (MI->getOpcode()) {
@@ -128,6 +131,10 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
   case MCSymbolRefExpr::VK_Mips_GOT_OFST:  OS << "%got_ofst("; break;
   case MCSymbolRefExpr::VK_Mips_HIGHER:    OS << "%higher("; break;
   case MCSymbolRefExpr::VK_Mips_HIGHEST:   OS << "%highest("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_HI16:  OS << "%got_hi("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_LO16:  OS << "%got_lo("; break;
+  case MCSymbolRefExpr::VK_Mips_CALL_HI16: OS << "%call_hi("; break;
+  case MCSymbolRefExpr::VK_Mips_CALL_LO16: OS << "%call_lo("; break;
   }
 
   OS << SRE->getSymbol();
@@ -143,6 +150,11 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
     OS << ")))";
   else if (Kind != MCSymbolRefExpr::VK_None)
     OS << ')';
+}
+
+void MipsInstPrinter::printCPURegs(const MCInst *MI, unsigned OpNo,
+                                   raw_ostream &O) {
+  printRegName(O, MI->getOperand(OpNo).getReg());
 }
 
 void MipsInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,

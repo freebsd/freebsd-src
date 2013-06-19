@@ -303,7 +303,7 @@ static device_method_t acpi_ibm_methods[] = {
 	DEVMETHOD(device_detach, acpi_ibm_detach),
 	DEVMETHOD(device_resume, acpi_ibm_resume),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_ibm_driver = {
@@ -317,7 +317,7 @@ static devclass_t acpi_ibm_devclass;
 DRIVER_MODULE(acpi_ibm, acpi, acpi_ibm_driver, acpi_ibm_devclass,
 	      0, 0);
 MODULE_DEPEND(acpi_ibm, acpi, 1, 1, 1);
-static char    *ibm_ids[] = {"IBM0068", NULL};
+static char    *ibm_ids[] = {"IBM0068", "LEN0068", NULL};
 
 static void
 ibm_led(void *softc, int onoff)

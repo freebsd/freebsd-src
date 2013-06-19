@@ -462,13 +462,13 @@ auditon_command_event(int cmd)
  * leave the filename starting with '/' in the audit log in this case.
  */
 void
-audit_canon_path(struct thread *td, char *path, char *cpath)
+audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 {
 	struct vnode *cvnp, *rvnp;
 	char *rbuf, *fbuf, *copy;
 	struct filedesc *fdp;
 	struct sbuf sbf;
-	int error, cwir;
+	int error, needslash;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
@@ -491,10 +491,25 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	 * path.
 	 */
 	if (*path != '/') {
-		cvnp = fdp->fd_cdir;
-		vhold(cvnp);
+		if (dirfd == AT_FDCWD) {
+			cvnp = fdp->fd_cdir;
+			vhold(cvnp);
+		} else {
+			/* XXX: fgetvp() that vhold()s vnode instead of vref()ing it would be better */
+			error = fgetvp(td, dirfd, 0, &cvnp);
+			if (error) {
+				cpath[0] = '\0';
+				if (rvnp != NULL)
+					vdrop(rvnp);
+				return;
+			}
+			vhold(cvnp);
+			vrele(cvnp);
+		}
+		needslash = (fdp->fd_rdir != cvnp);
+	} else {
+		needslash = 1;
 	}
-	cwir = (fdp->fd_rdir == fdp->fd_cdir);
 	FILEDESC_SUNLOCK(fdp);
 	/*
 	 * NB: We require that the supplied array be at least MAXPATHLEN bytes
@@ -536,7 +551,7 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 		(void) sbuf_cat(&sbf, rbuf);
 		free(fbuf, M_TEMP);
 	}
-	if (cwir == 0 || (cwir != 0 && cvnp == NULL))
+	if (needslash)
 		(void) sbuf_putc(&sbf, '/');
 	/*
 	 * Now that we have processed any alternate root and relative path

@@ -12,22 +12,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
-#include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/TextDiagnostic.h"
 #include "clang/Lex/Lexer.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/ADT/SmallString.h"
 #include <algorithm>
 using namespace clang;
 
 TextDiagnosticPrinter::TextDiagnosticPrinter(raw_ostream &os,
-                                             const DiagnosticOptions &diags,
+                                             DiagnosticOptions *diags,
                                              bool _OwnsOutputStream)
-  : OS(os), DiagOpts(&diags),
+  : OS(os), DiagOpts(diags),
     OwnsOutputStream(_OwnsOutputStream) {
 }
 
@@ -39,7 +39,7 @@ TextDiagnosticPrinter::~TextDiagnosticPrinter() {
 void TextDiagnosticPrinter::BeginSourceFile(const LangOptions &LO,
                                             const Preprocessor *PP) {
   // Build the TextDiagnostic utility.
-  TextDiag.reset(new TextDiagnostic(OS, LO, *DiagOpts));
+  TextDiag.reset(new TextDiagnostic(OS, LO, &*DiagOpts));
 }
 
 void TextDiagnosticPrinter::EndSourceFile() {
@@ -154,9 +154,4 @@ void TextDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
                            &Info.getSourceManager());
 
   OS.flush();
-}
-
-DiagnosticConsumer *
-TextDiagnosticPrinter::clone(DiagnosticsEngine &Diags) const {
-  return new TextDiagnosticPrinter(OS, *DiagOpts, /*OwnsOutputStream=*/false);
 }

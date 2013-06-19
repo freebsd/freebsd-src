@@ -16,6 +16,10 @@
 #include <string>
 #include <vector>
 
+namespace llvm {
+class MemoryBuffer;
+}
+
 namespace clang {
 
 namespace frontend {
@@ -39,6 +43,7 @@ namespace frontend {
     GeneratePCH,            ///< Generate pre-compiled header.
     GeneratePTH,            ///< Generate pre-tokenized header.
     InitOnly,               ///< Only execute frontend initialization.
+    ModuleFileInfo,         ///< Dump information about a module file.
     ParseSyntaxOnly,        ///< Parse and perform semantic analysis.
     PluginAction,           ///< Run a plugin action, \see ActionName.
     PrintDeclContext,       ///< Print DeclContext and their Decls.
@@ -72,19 +77,41 @@ enum InputKind {
 
   
 /// \brief An input file for the front end.
-struct FrontendInputFile {
+class FrontendInputFile {
   /// \brief The file name, or "-" to read from standard input.
   std::string File;
+
+  llvm::MemoryBuffer *Buffer;
 
   /// \brief The kind of input, e.g., C source, AST file, LLVM IR.
   InputKind Kind;
 
   /// \brief Whether we're dealing with a 'system' input (vs. a 'user' input).
   bool IsSystem;
-  
-  FrontendInputFile() : Kind(IK_None) { }
+
+public:
+  FrontendInputFile() : Buffer(0), Kind(IK_None) { }
   FrontendInputFile(StringRef File, InputKind Kind, bool IsSystem = false)
-    : File(File.str()), Kind(Kind), IsSystem(IsSystem) { }
+    : File(File.str()), Buffer(0), Kind(Kind), IsSystem(IsSystem) { }
+  FrontendInputFile(llvm::MemoryBuffer *buffer, InputKind Kind,
+                    bool IsSystem = false)
+    : Buffer(buffer), Kind(Kind), IsSystem(IsSystem) { }
+
+  InputKind getKind() const { return Kind; }
+  bool isSystem() const { return IsSystem; }
+
+  bool isEmpty() const { return File.empty() && Buffer == 0; }
+  bool isFile() const { return !isBuffer(); }
+  bool isBuffer() const { return Buffer != 0; }
+
+  StringRef getFile() const {
+    assert(isFile());
+    return File;
+  }
+  llvm::MemoryBuffer *getBuffer() const {
+    assert(isBuffer());
+    return Buffer;
+  }
 };
 
 /// FrontendOptions - Options for controlling the behavior of the frontend.
@@ -111,6 +138,10 @@ public:
                                            /// speed up parsing in cases you do
                                            /// not need them (e.g. with code
                                            /// completion).
+  unsigned UseGlobalModuleIndex : 1;       ///< Whether we can use the
+                                           ///< global module index if available.
+  unsigned GenerateGlobalModuleIndex : 1;  ///< Whether we can generate the
+                                           ///< global module index if needed.
 
   CodeCompleteOptions CodeCompleteOpts;
 
@@ -178,20 +209,16 @@ public:
   std::string OverrideRecordLayoutsFile;
   
 public:
-  FrontendOptions() {
-    DisableFree = 0;
-    ProgramAction = frontend::ParseSyntaxOnly;
-    ActionName = "";
-    RelocatablePCH = 0;
-    ShowHelp = 0;
-    ShowStats = 0;
-    ShowTimers = 0;
-    ShowVersion = 0;
-    ARCMTAction = ARCMT_None;
-    ARCMTMigrateEmitARCErrors = 0;
-    SkipFunctionBodies = 0;
-    ObjCMTAction = ObjCMT_None;
-  }
+  FrontendOptions() :
+    DisableFree(false), RelocatablePCH(false), ShowHelp(false),
+    ShowStats(false), ShowTimers(false), ShowVersion(false),
+    FixWhatYouCan(false), FixOnlyWarnings(false), FixAndRecompile(false),
+    FixToTemporaries(false), ARCMTMigrateEmitARCErrors(false),
+    SkipFunctionBodies(false), UseGlobalModuleIndex(true),
+    GenerateGlobalModuleIndex(true),
+    ARCMTAction(ARCMT_None), ObjCMTAction(ObjCMT_None),
+    ProgramAction(frontend::ParseSyntaxOnly)
+  {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return IK_C.

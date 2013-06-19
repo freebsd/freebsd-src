@@ -77,10 +77,11 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs/xdr_subs.h>
 #include <nfs/nfsproto.h>
+#include <nfs/nfs_fha.h>
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
-#include <nfsserver/nfs_fha.h>
+#include <nfsserver/nfs_fha_old.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -174,7 +175,8 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 		    sizeof(addsockarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, addsockarg.sock, CAP_SOCK_ALL, &fp)) != 0)
+		error = fget(td, addsockarg.sock, CAP_SOCK_SERVER, &fp);
+		if (error)
 			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
@@ -217,14 +219,14 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	if (err && (nd->nd_flag & ND_NFSV3) == 0)	/* XXX recheck */
 		siz = 0;
 
-	MGET(mreq, M_WAIT, MT_DATA);
+	MGET(mreq, M_WAITOK, MT_DATA);
 
 	/*
 	 * If this is a big reply, use a cluster
 	 */
 	mreq->m_len = 0;
 	if (siz >= MINCLSIZE) {
-		MCLGET(mreq, M_WAIT);
+		MCLGET(mreq, M_WAITOK);
 	}
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
@@ -278,7 +280,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	mreq = mrep = NULL;
 	mreq = rqst->rq_args;
 	rqst->rq_args = NULL;
-	(void)nfs_realign(&mreq, M_WAIT);
+	(void)nfs_realign(&mreq, M_WAITOK);
 
 	/*
 	 * Note: we want rq_addr, not svc_getrpccaller for nd_nam2 -
@@ -531,7 +533,7 @@ nfsrv_init(int terminating)
 
 	nfsrv_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsrv));
 	nfsrv_pool->sp_rcache = replay_newcache(nfsrv_replay_size());
-	nfsrv_pool->sp_assign = fha_assign;
+	nfsrv_pool->sp_assign = fhaold_assign;
 	nfsrv_pool->sp_done = fha_nd_complete;
 	nfsrv_nmbclusters_tag = EVENTHANDLER_REGISTER(nmbclusters_change,
 	    nfsrv_nmbclusters_change, NULL, EVENTHANDLER_PRI_FIRST);

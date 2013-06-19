@@ -202,7 +202,7 @@ ng_atmllc_rcvdata(hook_p hook, item_p item)
 		m_adj(m, sizeof(struct atmllc) + padding);
 	} else if (hook == priv->ether) {
 		/* Add the LLC header */
-		M_PREPEND(m, NG_ATMLLC_HEADER_LEN + 2, M_DONTWAIT);
+		M_PREPEND(m, NG_ATMLLC_HEADER_LEN + 2, M_NOWAIT);
 		if (m == NULL) {
 			printf("ng_atmllc: M_PREPEND failed\n");
 			NG_FREE_ITEM(item);
@@ -219,7 +219,7 @@ ng_atmllc_rcvdata(hook_p hook, item_p item)
 		outhook = priv->atm;
 	} else if (hook == priv->fddi) {
 		/* Add the LLC header */
-		M_PREPEND(m, NG_ATMLLC_HEADER_LEN + 3, M_DONTWAIT);
+		M_PREPEND(m, NG_ATMLLC_HEADER_LEN + 3, M_NOWAIT);
 		if (m == NULL) {
 			printf("ng_atmllc: M_PREPEND failed\n");
 			NG_FREE_ITEM(item);

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,12 +121,12 @@ AcpiNsRootInitialize (
         Status = AcpiNsLookup (NULL, InitVal->Name, InitVal->Type,
                         ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
                         NULL, &NewNode);
-
-        if (ACPI_FAILURE (Status) || (!NewNode)) /* Must be on same line for code converter */
+        if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
                 "Could not create predefined name %s",
                 InitVal->Name));
+            continue;
         }
 
         /*
@@ -167,6 +167,7 @@ AcpiNsRootInitialize (
             switch (InitVal->Type)
             {
             case ACPI_TYPE_METHOD:
+
                 ObjDesc->Method.ParamCount = (UINT8) ACPI_TO_INTEGER (Val);
                 ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
 
@@ -188,7 +189,6 @@ AcpiNsRootInitialize (
                 ObjDesc->Integer.Value = ACPI_TO_INTEGER (Val);
                 break;
 
-
             case ACPI_TYPE_STRING:
 
                 /* Build an object around the static string */
@@ -197,7 +197,6 @@ AcpiNsRootInitialize (
                 ObjDesc->String.Pointer = Val;
                 ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;
                 break;
-
 
             case ACPI_TYPE_MUTEX:
 
@@ -230,7 +229,6 @@ AcpiNsRootInitialize (
                     }
                 }
                 break;
-
 
             default:
 
@@ -697,4 +695,3 @@ AcpiNsLookup (
     *ReturnNode = ThisNode;
     return_ACPI_STATUS (AE_OK);
 }
-

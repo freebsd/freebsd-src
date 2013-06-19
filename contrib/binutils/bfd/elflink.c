@@ -10584,6 +10584,7 @@ elf_gc_sweep (bfd *abfd, struct bfd_link_info *info)
 	{
 	  /* Keep debug and special sections.  */
 	  if ((o->flags & (SEC_DEBUGGING | SEC_LINKER_CREATED)) != 0
+	      || elf_section_data (o)->this_hdr.sh_type == SHT_NOTE
 	      || (o->flags & (SEC_ALLOC | SEC_LOAD | SEC_RELOC)) == 0)
 	    o->gc_mark = 1;
 

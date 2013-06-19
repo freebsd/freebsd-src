@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 20, 2011
+.Dd December 10, 2012
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -113,8 +113,23 @@ that contains a kernel.
 .It Ar kernel_options
 Flags to be passed to the kernel.
 .It Ar password
+Protect boot menu with a password without interrupting
+.Ic autoboot
+process.
+The password should be in clear text format.
+If a password is set, boot menu will not appear until any key is pressed during
+countdown period specified by
+.Va autoboot_delay
+variable or
+.Ic autoboot
+process fails.
+In both cases user should provide specified password to be able to access boot
+menu.
+.It Ar bootlock_password
 Provides a password to be required by check-password before execution is
 allowed to continue.
+The password should be in clear text format.
+If a password is set, the user must provide specified password to boot.
 .It Ar verbose_loading
 If set to
 .Dq YES ,

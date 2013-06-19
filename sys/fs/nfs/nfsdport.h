@@ -94,8 +94,6 @@ struct nfsexstuff {
 #define	NFSFPCRED(f)	((f)->f_cred)
 #define	NFSFPFLAG(f)	((f)->f_flag)
 
-int fp_getfvp(NFSPROC_T *, int, struct file **, struct vnode **);
-
 #define	NFSNAMEICNDSET(n, c, o, f)	do {				\
 	(n)->cn_cred = (c);						\
 	(n)->cn_nameiop = (o);						\

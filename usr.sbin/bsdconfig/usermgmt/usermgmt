@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -29,15 +29,18 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
 
-APP_DIR="070.usermgmt"
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+USERMGMT_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/usermgmt.hlp
+
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ FUNCTIONS
@@ -48,10 +51,8 @@ ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
-	local hline="$hline_arrows_tab_enter"
-
-	menu_list="
+	local prompt=
+	local menu_list="
 		'X' '$msg_exit'
 		'1' '$msg_add_login'
 		'2' '$msg_edit_login'
@@ -61,22 +62,47 @@ dialog_menu_main()
 		'5' '$msg_edit_group'
 		'6' '$msg_delete_group'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\"                   \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+	# When using Xdialog(1) we need to bump the width for the buttons
+	[ "$USE_XDIALOG" ] && width=40
+
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"  \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\" $size $menu_list       \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		--help-button                      \
+		--help-label \"\$msg_help\"        \
+		${USE_XDIALOG:+--help \"\"}        \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+
+	# Only update default-item on success
+	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
+
+	return $retval
 }
 
 ############################################################ MAIN
@@ -87,7 +113,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -97,7 +123,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_login_management"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
@@ -108,42 +133,36 @@ f_mustberoot_init
 while :; do
 	dialog_menu_main
 	retval=$?
-	mtag=$( f_dialog_menutag )
-	f_dprintf "retval=$retval mtag=[$mtag]"
+	f_dialog_menutag_fetch mtag
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
-	[ $retval -eq 0 ] || f_die
+	if [ $retval -eq 2 ]; then
+		# The Help button was pressed
+		f_show_help "$USERMGMT_HELPFILE"
+		continue
+	elif [ $retval -ne $SUCCESS ]; then
+		f_die
+	fi
 
+	command=
 	case "$mtag" in
-	X) # Exit
-	   exit 0
-	   ;;
-
-	1) # Add User
-	   $BSDCFG_LIBE/$APP_DIR/useradd ${USE_XDIALOG:+-X}
-	   ;;
-
-	2) # Edit/View User
-	   $BSDCFG_LIBE/$APP_DIR/useredit ${USE_XDIALOG:+-X}
-	   ;;
-
-	3) # Delete User
-	   $BSDCFG_LIBE/$APP_DIR/userdel ${USE_XDIALOG:+-X}
-	   ;;
-
-	4) # Add Group
-	   $BSDCFG_LIBE/$APP_DIR/groupadd ${USE_XDIALOG:+-X}
-	   ;;
-
-	5) # Edit/View Group
-	   $BSDCFG_LIBE/$APP_DIR/groupedit ${USE_XDIALOG:+-X}
-	   ;;
-
-	6) # Delete Group
-	   $BSDCFG_LIBE/$APP_DIR/groupdel ${USE_XDIALOG:+-X}
-	   ;;
-
+	X) break ;;
+	1) command=useradd   ;; # Add User
+	2) command=useredit  ;; # Edit/View User
+	3) command=userdel   ;; # Delete User
+	4) command=groupadd  ;; # Add Group
+	5) command=groupedit ;; # Edit/View Group
+	6) command=groupdel  ;; # Delete Group
 	esac
+
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
+	else
+		f_die 1 "$msg_unknown_user_management_menu_selection"
+	fi
 done
+
+exit $SUCCESS
 
 ################################################################################
 # END

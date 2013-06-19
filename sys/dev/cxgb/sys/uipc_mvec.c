@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/ktr.h>
-#include <sys/sf_buf.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -43,10 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <cxgb_include.h>
 #include <sys/mvec.h>
-
-#include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/pmap.h>
 
 #ifdef INVARIANTS
 #define M_SANITY m_sanity
@@ -98,7 +93,7 @@ retry:
 			printf("mbuf chain too long: %d max allowed %d\n",
 			    seg_count, TX_MAX_SEGS);
 		if (!defragged) {
-			n = m_defrag(*m, M_DONTWAIT);
+			n = m_defrag(*m, M_NOWAIT);
 			if (n == NULL) {
 				err = ENOBUFS;
 				goto err_out;

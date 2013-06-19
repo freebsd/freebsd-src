@@ -104,6 +104,7 @@ struct vdev_queue {
 	avl_tree_t	vq_read_tree;
 	avl_tree_t	vq_write_tree;
 	avl_tree_t	vq_pending_tree;
+	hrtime_t	vq_io_complete_ts;
 	kmutex_t	vq_lock;
 };
 
@@ -182,6 +183,7 @@ struct vdev {
 	uint64_t	vdev_unspare;	/* unspare when resilvering done */
 	hrtime_t	vdev_last_try;	/* last reopen time		*/
 	boolean_t	vdev_nowritecache; /* true if flushwritecache failed */
+	boolean_t	vdev_notrim;	/* true if trim failed */
 	boolean_t	vdev_checkremove; /* temporary online test	*/
 	boolean_t	vdev_forcefault; /* force online fault		*/
 	boolean_t	vdev_splitting;	/* split or repair in progress  */
@@ -197,6 +199,7 @@ struct vdev {
 	spa_aux_vdev_t	*vdev_aux;	/* for l2cache vdevs		*/
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/
+	struct trim_map	*vdev_trimmap;
 
 	/*
 	 * For DTrace to work in userland (libzpool) context, these fields must
@@ -244,12 +247,13 @@ typedef struct vdev_label {
 #define	VDD_METASLAB	0x01
 #define	VDD_DTL		0x02
 
+/* Offset of embedded boot loader region on each label */
+#define	VDEV_BOOT_OFFSET	(2 * sizeof (vdev_label_t))
 /*
- * Size and offset of embedded boot loader region on each label.
+ * Size of embedded boot loader region on each label.
  * The total size of the first two labels plus the boot area is 4MB.
  */
-#define	VDEV_BOOT_OFFSET	(2 * sizeof (vdev_label_t))
-#define	VDEV_BOOT_SIZE		(7ULL << 19)			/* 3.5M	*/
+#define	VDEV_BOOT_SIZE		(7ULL << 19)			/* 3.5M */
 
 /*
  * Size of label regions at the start and end of each leaf device.
@@ -320,8 +324,9 @@ extern uint64_t vdev_get_min_asize(vdev_t *vd);
 extern void vdev_set_min_asize(vdev_t *vd);
 
 /*
- * zdb uses this tunable, so it must be declared here to make lint happy.
+ * Global variables
  */
+/* zdb uses this tunable, so it must be declared here to make lint happy. */
 extern int zfs_vdev_cache_size;
 
 #ifdef	__cplusplus

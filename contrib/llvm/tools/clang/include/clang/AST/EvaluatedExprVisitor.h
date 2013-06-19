@@ -15,10 +15,10 @@
 #ifndef LLVM_CLANG_AST_EVALUATEDEXPRVISITOR_H
 #define LLVM_CLANG_AST_EVALUATEDEXPRVISITOR_H
 
-#include "clang/AST/StmtVisitor.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/StmtVisitor.h"
 
 namespace clang {
   
@@ -49,26 +49,38 @@ public:
   }
   
   void VisitChooseExpr(ChooseExpr *E) {
+    // Don't visit either child expression if the condition is dependent.
+    if (E->getCond()->isValueDependent())
+      return;
     // Only the selected subexpression matters; the other one is not evaluated.
     return this->Visit(E->getChosenSubExpr(Context));
   }
-                 
+
   void VisitDesignatedInitExpr(DesignatedInitExpr *E) {
     // Only the actual initializer matters; the designators are all constant
     // expressions.
     return this->Visit(E->getInit());
   }
-  
+
   void VisitCXXTypeidExpr(CXXTypeidExpr *E) {
-    // typeid(expression) is potentially evaluated when the argument is
-    // a glvalue of polymorphic type. (C++ 5.2.8p2-3)
-    if (!E->isTypeOperand() && E->Classify(Context).isGLValue())
-      if (const RecordType *Record 
-                 = E->getExprOperand()->getType()->template getAs<RecordType>())
-        if (cast<CXXRecordDecl>(Record->getDecl())->isPolymorphic())
-          return this->Visit(E->getExprOperand());
+    if (E->isPotentiallyEvaluated())
+      return this->Visit(E->getExprOperand());
   }
-  
+
+  void VisitCallExpr(CallExpr *CE) {
+    if (!CE->isUnevaluatedBuiltinCall(Context))
+      return static_cast<ImplClass*>(this)->VisitExpr(CE);
+  }
+
+  void VisitLambdaExpr(LambdaExpr *LE) {
+    // Only visit the capture initializers, and not the body.
+    for (LambdaExpr::capture_init_iterator I = LE->capture_init_begin(),
+                                           E = LE->capture_init_end();
+         I != E; ++I)
+      if (*I)
+        this->Visit(*I);
+  }
+
   /// \brief The basis case walks all of the children of the statement or
   /// expression, assuming they are all potentially evaluated.
   void VisitStmt(Stmt *S) {

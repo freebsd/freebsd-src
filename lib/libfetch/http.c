@@ -76,7 +76,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef WITH_SSL
+#include <openssl/md5.h>
+#define MD5Init(c) MD5_Init(c)
+#define MD5Update(c, data, len) MD5_Update(c, data, len)
+#define MD5Final(md, c) MD5_Final(md, c)
+#else
 #include <md5.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -86,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #include "httperr.h"
 
 /* Maximum number of redirects to follow */
-#define MAX_REDIRECT 5
+#define MAX_REDIRECT 20
 
 /* Symbolic names for reply codes we care about */
 #define HTTP_OK			200
@@ -95,7 +103,9 @@ __FBSDID("$FreeBSD$");
 #define HTTP_MOVED_TEMP		302
 #define HTTP_SEE_OTHER		303
 #define HTTP_NOT_MODIFIED	304
+#define HTTP_USE_PROXY		305
 #define HTTP_TEMP_REDIRECT	307
+#define HTTP_PERM_REDIRECT	308
 #define HTTP_NEED_AUTH		401
 #define HTTP_NEED_PROXY_AUTH	407
 #define HTTP_BAD_RANGE		416
@@ -104,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
 			    || (xyz) == HTTP_MOVED_TEMP \
 			    || (xyz) == HTTP_TEMP_REDIRECT \
+			    || (xyz) == HTTP_USE_PROXY \
 			    || (xyz) == HTTP_SEE_OTHER)
 
 #define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
@@ -1362,6 +1373,7 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 static conn_t *
 http_connect(struct url *URL, struct url *purl, const char *flags)
 {
+	struct url *curl;
 	conn_t *conn;
 	int verbose;
 	int af, val;
@@ -1380,17 +1392,21 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 		af = AF_INET6;
 #endif
 
-	if (purl && strcasecmp(URL->scheme, SCHEME_HTTPS) != 0) {
-		URL = purl;
-	} else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
-		/* can't talk http to an ftp server */
-		/* XXX should set an error code */
-		return (NULL);
-	}
+	curl = (purl != NULL) ? purl : URL;
 
-	if ((conn = fetch_connect(URL->host, URL->port, af, verbose)) == NULL)
+	if ((conn = fetch_connect(curl->host, curl->port, af, verbose)) == NULL)
 		/* fetch_connect() has already set an error code */
 		return (NULL);
+	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 && purl) {
+		http_cmd(conn, "CONNECT %s:%d HTTP/1.1",
+		    URL->host, URL->port);
+		http_cmd(conn, "");
+		if (http_get_reply(conn) != HTTP_OK) {
+			fetch_close(conn);
+			return (NULL);
+		}
+		http_get_reply(conn);
+	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
 	    fetch_ssl(conn, verbose) == -1) {
 		fetch_close(conn);
@@ -1516,8 +1532,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	/* try the provided URL first */
 	url = URL;
 
-	/* if the A flag is set, we only get one try */
-	n = noredirect ? 1 : MAX_REDIRECT;
+	n = MAX_REDIRECT;
 	i = 0;
 
 	e = HTTP_PROTOCOL_ERROR;
@@ -1689,6 +1704,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		case HTTP_MOVED_PERM:
 		case HTTP_MOVED_TEMP:
 		case HTTP_SEE_OTHER:
+		case HTTP_USE_PROXY:
 			/*
 			 * Not so fine, but we still have to read the
 			 * headers to get the new location.
@@ -1741,11 +1757,11 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* get headers. http_next_header expects one line readahead */
 		if (fetch_getln(conn) == -1) {
-		    fetch_syserr();
-		    goto ouch;
+			fetch_syserr();
+			goto ouch;
 		}
 		do {
-		    switch ((h = http_next_header(conn, &headerbuf, &p))) {
+			switch ((h = http_next_header(conn, &headerbuf, &p))) {
 			case hdr_syserror:
 				fetch_syserr();
 				goto ouch;
@@ -1764,6 +1780,17 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			case hdr_location:
 				if (!HTTP_REDIRECT(conn->err))
 					break;
+				/*
+				 * if the A flag is set, we don't follow
+				 * temporary redirects.
+				 */
+				if (noredirect &&
+				    conn->err != HTTP_MOVED_PERM &&
+				    conn->err != HTTP_PERM_REDIRECT &&
+				    conn->err != HTTP_USE_PROXY) {
+					n = 1;
+					break;
+				}
 				if (new)
 					free(new);
 				if (verbose)

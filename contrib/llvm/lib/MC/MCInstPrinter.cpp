@@ -8,10 +8,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCInstPrinter.h"
-#include "llvm/MC/MCInstrInfo.h"
-#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -35,4 +36,26 @@ void MCInstPrinter::printAnnotation(raw_ostream &OS, StringRef Annot) {
     else
       OS << " " << MAI.getCommentString() << " " << Annot;
   }
+}
+
+/// Utility functions to make adding mark ups simpler.
+StringRef MCInstPrinter::markup(StringRef s) const {
+  if (getUseMarkup())
+    return s;
+  else
+    return "";
+}
+StringRef MCInstPrinter::markup(StringRef a, StringRef b) const {
+  if (getUseMarkup())
+    return a;
+  else
+    return b;
+}
+
+/// Utility function to print immediates in decimal or hex.
+format_object1<int64_t> MCInstPrinter::formatImm(const int64_t Value) const {
+  if (getPrintImmHex())
+    return format("0x%" PRIx64, Value);
+  else
+    return format("%" PRId64, Value);
 }

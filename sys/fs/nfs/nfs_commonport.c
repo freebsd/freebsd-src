@@ -60,6 +60,7 @@ struct mount nfsv4root_mnt;
 int newnfs_numnfsd = 0;
 struct nfsstats newnfsstats;
 int nfs_numnfscbd = 0;
+int nfscl_debuglevel = 0;
 char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
 struct callout newnfsd_callout;
 void (*nfsd_call_servertimer)(void) = NULL;
@@ -76,6 +77,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
 SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
     nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
     "NFSv4 callback addr for server to use");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
+    0, "Debug level for new nfs client");
 
 /*
  * Defines for malloc
@@ -103,6 +106,12 @@ MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroffdiroff",
     "New NFS directory offset data");
 MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback",
     "New NFS local lock rollback");
+MALLOC_DEFINE(M_NEWNFSLAYOUT, "NFSCL layout", "NFSv4.1 Layout");
+MALLOC_DEFINE(M_NEWNFSFLAYOUT, "NFSCL flayout", "NFSv4.1 File Layout");
+MALLOC_DEFINE(M_NEWNFSDEVINFO, "NFSCL devinfo", "NFSv4.1 Device Info");
+MALLOC_DEFINE(M_NEWNFSSOCKREQ, "NFSCL sockreq", "NFS Sock Req");
+MALLOC_DEFINE(M_NEWNFSCLDS, "NFSCL session", "NFSv4.1 Session");
+MALLOC_DEFINE(M_NEWNFSLAYRECALL, "NFSCL layrecall", "NFSv4.1 Layout Recall");
 
 /*
  * Definition of mutex locks.
@@ -123,11 +132,11 @@ static int nfssvc_call(struct thread *, struct nfssvc_args *, struct ucred *);
 /*
  * These architectures don't need re-alignment, so just return.
  */
-void
-newnfs_realign(struct mbuf **pm)
+int
+newnfs_realign(struct mbuf **pm, int how)
 {
 
-	return;
+	return (0);
 }
 #else	/* !__NO_STRICT_ALIGNMENT */
 /*
@@ -146,8 +155,8 @@ newnfs_realign(struct mbuf **pm)
  *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
  *
  */
-void
-newnfs_realign(struct mbuf **pm)
+int
+newnfs_realign(struct mbuf **pm, int how)
 {
 	struct mbuf *m, *n;
 	int off, space;
@@ -164,11 +173,11 @@ newnfs_realign(struct mbuf **pm)
 			space = m_length(m, NULL);
 			if (space >= MINCLSIZE) {
 				/* NB: m_copyback handles space > MCLBYTES */
-				n = m_getcl(M_WAITOK, MT_DATA, 0);
+				n = m_getcl(how, MT_DATA, 0);
 			} else
-				n = m_get(M_WAITOK, MT_DATA);
+				n = m_get(how, MT_DATA);
 			if (n == NULL)
-				return;
+				return (ENOMEM);
 			/*
 			 * Align the remainder of the mbuf chain.
 			 */
@@ -186,6 +195,8 @@ newnfs_realign(struct mbuf **pm)
 		}
 		pm = &m->m_next;
 	}
+
+	return (0);
 }
 #endif	/* __NO_STRICT_ALIGNMENT */
 
@@ -208,7 +219,7 @@ nfsrv_lookupfilename(struct nameidata *ndp, char *fname, NFSPROC_T *p)
 {
 	int error;
 
-	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_USERSPACE, fname,
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, fname,
 	    p);
 	error = namei(ndp);
 	if (!error) {

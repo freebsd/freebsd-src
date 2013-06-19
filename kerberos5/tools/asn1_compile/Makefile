@@ -25,7 +25,7 @@ SRCS=	\
 
 CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/asn1 -I.
 
-CLEANFILES= roken.h
+CLEANFILES= roken.h lex.c parse.c
 
 roken.h:
 	 make-roken > ${.TARGET}

@@ -60,20 +60,24 @@
 #include "cvmx-warn.h"
 #endif
 
-#if defined(CVMX_BUILD_FOR_LINUX_USER) || defined(CVMX_BUILD_FOR_STANDALONE)
+#if defined(CVMX_BUILD_FOR_LINUX_USER) || defined(CVMX_BUILD_FOR_STANDALONE) || defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include <octeon-app-init.h>
+#endif
 #include "cvmx-sysinfo.h"
 
 /**
  * This function checks to see if the software is compatible with the
  * chip it is running on.  This is called in the application startup code
  * and does not need to be called directly by the application.
- * Does not return if software is incompatible.
+ * Does not return if software is incompatible, unless compiled for the
+ * FreeBSD kernel, in which case it returns -1.
  *
  * @param chip_id chip id that the software is being run on.
  *
  * @return 0: runtime checking or exact version match
  *         1: chip is newer revision than compiled for, but software will run properly.
+ *        -1: software is incompatible
  */
 int octeon_model_version_check(uint32_t chip_id __attribute__ ((unused)))
 {
@@ -91,7 +95,11 @@ int octeon_model_version_check(uint32_t chip_id __attribute__ ((unused)))
                    "         Expecting ID=0x%08x, Chip is 0x%08x\n", (OCTEON_MODEL & 0xffffff), (unsigned int)chip_id);
             if ((OCTEON_MODEL & 0xffffff) > chip_id)
                 printf("Refusing to run on older revision than program was compiled for.\n");
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 	    exit(-1);
+#else
+	    return(-1);
+#endif
         }
         else
         {

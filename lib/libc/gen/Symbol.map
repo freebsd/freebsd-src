@@ -298,7 +298,6 @@ FBSD_1.0 {
 	ualarm;
 	ulimit;
 	uname;
-	unvis;
 	strunvis;
 	strunvisx;
 	usleep;
@@ -387,6 +386,25 @@ FBSD_1.3 {
 	 fdlopen;
 	__FreeBSD_libc_enter_restricted_mode;
 	getcontextx;
+	gid_from_group;
+	nvis;
+	pwcache_userdb;
+	pwcache_groupdb;
+	snvis;
+	strenvisx;
+	strnunvis;
+	strnunvisx;
+	strnvis;
+	strnvisx;
+	strsenvisx;
+	strsnvis;
+	strsnvisx;
+	strsvis;
+	strsvisx;
+	svis;
+	uid_from_user;
+	unvis;
+	waitid;
 };
 
 FBSDprivate_1.0 {
@@ -511,5 +529,6 @@ FBSDprivate_1.0 {
 	__elf_aux_vector;
 	__pthread_map_stacks_exec;
 	__fillcontextx;
+	__fillcontextx2;
 	__getcontextx_size;
 };

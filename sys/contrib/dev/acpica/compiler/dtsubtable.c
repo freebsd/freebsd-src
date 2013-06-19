@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,6 +112,7 @@ DtInsertSubtable (
 
     Subtable->Peer = NULL;
     Subtable->Parent = ParentTable;
+    Subtable->Depth = ParentTable->Depth + 1;
 
     /* Link the new entry into the child list */
 
@@ -311,14 +312,17 @@ DtGetSubtableLength (
         switch (Info->Opcode)
         {
         case ACPI_DMT_GAS:
+
             Step = 5;
             break;
 
         case ACPI_DMT_HESTNTFY:
+
             Step = 9;
             break;
 
         default:
+
             Step = 1;
             break;
         }

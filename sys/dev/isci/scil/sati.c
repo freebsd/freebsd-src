@@ -1236,7 +1236,7 @@ void sati_sequence_terminate(
 )
 {
    // Decode the sequence type to determine how to handle the termination
-   // of the the translation method.
+   // of the translation method.
    switch (sequence->type)
    {
    case SATI_SEQUENCE_UNMAP:

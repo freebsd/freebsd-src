@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
  * optimisation) right after the _fstat() that finds the buffer size.
  */
 void
-__smakebuf(fp)
-	FILE *fp;
+__smakebuf(FILE *fp)
 {
 	void *p;
 	int flags;
@@ -88,10 +87,7 @@ __smakebuf(fp)
  * Internal routine to determine `proper' buffering for a file.
  */
 int
-__swhatbuf(fp, bufsize, couldbetty)
-	FILE *fp;
-	size_t *bufsize;
-	int *couldbetty;
+__swhatbuf(FILE *fp, size_t *bufsize, int *couldbetty)
 {
 	struct stat st;
 

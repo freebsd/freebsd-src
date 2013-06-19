@@ -11,6 +11,7 @@
 #define LLVM_CLANG_ARCMIGRATE_ARCMT_H
 
 #include "clang/ARCMigrate/FileRemapper.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Frontend/CompilerInvocation.h"
 
 namespace clang {
@@ -51,7 +52,7 @@ bool applyTransformations(CompilerInvocation &origCI,
                           DiagnosticConsumer *DiagClient);
 
 /// \brief Applies automatic modifications and produces temporary files
-/// and metadata into the \arg outputDir path.
+/// and metadata into the \p outputDir path.
 ///
 /// \param emitPremigrationARCErrors if true all ARC errors will get emitted
 /// even if the migrator can fix them, but the function will still return false
@@ -68,7 +69,7 @@ bool migrateWithTemporaryFiles(CompilerInvocation &origCI,
                                bool emitPremigrationARCErrors,
                                StringRef plistOut);
 
-/// \brief Get the set of file remappings from the \arg outputDir path that
+/// \brief Get the set of file remappings from the \p outputDir path that
 /// migrateWithTemporaryFiles produced.
 ///
 /// \returns false if no error is produced, true otherwise.

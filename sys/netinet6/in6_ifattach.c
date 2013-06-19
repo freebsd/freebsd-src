@@ -616,13 +616,16 @@ in6_ifattach_loopback(struct ifnet *ifp)
 
 /*
  * compute NI group address, based on the current hostname setting.
- * see draft-ietf-ipngwg-icmp-name-lookup-* (04 and later).
+ * see RFC 4620.
  *
  * when ifp == NULL, the caller is responsible for filling scopeid.
+ *
+ * If oldmcprefix == 1, FF02:0:0:0:0:2::/96 is used for NI group address
+ * while it is FF02:0:0:0:0:2:FF00::/104 in RFC 4620. 
  */
-int
-in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
-    struct in6_addr *in6)
+static int
+in6_nigroup0(struct ifnet *ifp, const char *name, int namelen,
+    struct in6_addr *in6, int oldmcprefix)
 {
 	struct prison *pr;
 	const char *p;
@@ -667,7 +670,7 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 			*q = *q - 'A' + 'a';
 	}
 
-	/* generate 8 bytes of pseudo-random value. */
+	/* generate 16 bytes of pseudo-random value. */
 	bzero(&ctxt, sizeof(ctxt));
 	MD5Init(&ctxt);
 	MD5Update(&ctxt, &l, sizeof(l));
@@ -677,11 +680,34 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 	bzero(in6, sizeof(*in6));
 	in6->s6_addr16[0] = IPV6_ADDR_INT16_MLL;
 	in6->s6_addr8[11] = 2;
-	bcopy(digest, &in6->s6_addr32[3], sizeof(in6->s6_addr32[3]));
+	if (oldmcprefix == 0) {
+		in6->s6_addr8[12] = 0xff;
+	 	/* Copy the first 24 bits of 128-bit hash into the address. */
+		bcopy(digest, &in6->s6_addr8[13], 3);
+	} else {
+	 	/* Copy the first 32 bits of 128-bit hash into the address. */
+		bcopy(digest, &in6->s6_addr32[3], sizeof(in6->s6_addr32[3]));
+	}
 	if (in6_setscope(in6, ifp, NULL))
 		return (-1); /* XXX: should not fail */
 
 	return 0;
+}
+
+int
+in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
+    struct in6_addr *in6)
+{
+
+	return (in6_nigroup0(ifp, name, namelen, in6, 0));
+}
+
+int
+in6_nigroup_oldmcprefix(struct ifnet *ifp, const char *name, int namelen,
+    struct in6_addr *in6)
+{
+
+	return (in6_nigroup0(ifp, name, namelen, in6, 1));
 }
 
 /*

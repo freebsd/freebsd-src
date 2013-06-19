@@ -12,19 +12,27 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Hexagon.h"
 #include "HexagonTargetMachine.h"
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
-#include "llvm/Pass.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 
 using namespace llvm;
+
+namespace llvm {
+  void initializeHexagonRemoveExtendArgsPass(PassRegistry&);
+}
+
 namespace {
   struct HexagonRemoveExtendArgs : public FunctionPass {
   public:
     static char ID;
-    HexagonRemoveExtendArgs() : FunctionPass(ID) {}
+    HexagonRemoveExtendArgs() : FunctionPass(ID) {
+      initializeHexagonRemoveExtendArgsPass(*PassRegistry::getPassRegistry());
+    }
     virtual bool runOnFunction(Function &F);
 
     const char *getPassName() const {
@@ -40,17 +48,15 @@ namespace {
 }
 
 char HexagonRemoveExtendArgs::ID = 0;
-RegisterPass<HexagonRemoveExtendArgs> X("reargs",
-                                        "Remove Sign and Zero Extends for Args"
-                                        );
 
-
+INITIALIZE_PASS(HexagonRemoveExtendArgs, "reargs",
+                "Remove Sign and Zero Extends for Args", false, false)
 
 bool HexagonRemoveExtendArgs::runOnFunction(Function &F) {
   unsigned Idx = 1;
   for (Function::arg_iterator AI = F.arg_begin(), AE = F.arg_end(); AI != AE;
        ++AI, ++Idx) {
-    if (F.paramHasAttr(Idx, Attribute::SExt)) {
+    if (F.getAttributes().hasAttribute(Idx, Attribute::SExt)) {
       Argument* Arg = AI;
       if (!isa<PointerType>(Arg->getType())) {
         for (Instruction::use_iterator UI = Arg->use_begin();
@@ -77,6 +83,7 @@ bool HexagonRemoveExtendArgs::runOnFunction(Function &F) {
 
 
 
-FunctionPass *llvm::createHexagonRemoveExtendOps(HexagonTargetMachine &TM) {
+FunctionPass*
+llvm::createHexagonRemoveExtendArgs(const HexagonTargetMachine &TM) {
   return new HexagonRemoveExtendArgs();
 }

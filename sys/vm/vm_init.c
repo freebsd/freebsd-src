@@ -68,8 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/selinfo.h>
@@ -157,8 +157,6 @@ vm_ksubmap_init(struct kva_md_info *kmi)
 again:
 	v = (caddr_t)firstaddr;
 
-	v = kern_timeout_callwheel_alloc(v);
-
 	/*
 	 * Discount the physical memory larger than the size of kernel_map
 	 * to avoid eating up all of KVA space.
@@ -186,10 +184,17 @@ again:
 		panic("startup: table size inconsistency");
 
 	clean_map = kmem_suballoc(kernel_map, &kmi->clean_sva, &kmi->clean_eva,
-	    (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS, TRUE);
+	    (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS +
+	    (long)bio_transient_maxcnt * MAXPHYS, TRUE);
 	buffer_map = kmem_suballoc(clean_map, &kmi->buffer_sva,
 	    &kmi->buffer_eva, (long)nbuf * BKVASIZE, FALSE);
 	buffer_map->system_map = 1;
+	if (bio_transient_maxcnt != 0) {
+		bio_transient_map = kmem_suballoc(clean_map,
+		    &kmi->bio_transient_sva, &kmi->bio_transient_eva,
+		    (long)bio_transient_maxcnt * MAXPHYS, FALSE);
+		bio_transient_map->system_map = 1;
+	}
 	pager_map = kmem_suballoc(clean_map, &kmi->pager_sva, &kmi->pager_eva,
 	    (long)nswbuf * MAXPHYS, FALSE);
 	pager_map->system_map = 1;
@@ -202,10 +207,5 @@ again:
 	 * XXX: Mbuf system machine-specific initializations should
 	 *      go here, if anywhere.
 	 */
-
-	/*
-	 * Initialize the callouts we just allocated.
-	 */
-	kern_timeout_callwheel_init();
 }
 

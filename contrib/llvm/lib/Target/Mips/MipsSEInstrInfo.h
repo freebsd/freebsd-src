@@ -15,7 +15,6 @@
 #define MIPSSEINSTRUCTIONINFO_H
 
 #include "MipsInstrInfo.h"
-#include "MipsAnalyzeImmediate.h"
 #include "MipsSERegisterInfo.h"
 
 namespace llvm {
@@ -50,17 +49,19 @@ public:
                            unsigned DestReg, unsigned SrcReg,
                            bool KillSrc) const;
 
-  virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MBBI,
-                                   unsigned SrcReg, bool isKill, int FrameIndex,
-                                   const TargetRegisterClass *RC,
-                                   const TargetRegisterInfo *TRI) const;
+  virtual void storeRegToStack(MachineBasicBlock &MBB,
+                               MachineBasicBlock::iterator MI,
+                               unsigned SrcReg, bool isKill, int FrameIndex,
+                               const TargetRegisterClass *RC,
+                               const TargetRegisterInfo *TRI,
+                               int64_t Offset) const;
 
-  virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                    MachineBasicBlock::iterator MBBI,
-                                    unsigned DestReg, int FrameIndex,
-                                    const TargetRegisterClass *RC,
-                                    const TargetRegisterInfo *TRI) const;
+  virtual void loadRegFromStack(MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator MI,
+                                unsigned DestReg, int FrameIndex,
+                                const TargetRegisterClass *RC,
+                                const TargetRegisterInfo *TRI,
+                                int64_t Offset) const;
 
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
 
@@ -69,6 +70,13 @@ public:
   /// Adjust SP by Amount bytes.
   void adjustStackPtr(unsigned SP, int64_t Amount, MachineBasicBlock &MBB,
                       MachineBasicBlock::iterator I) const;
+
+  /// Emit a series of instructions to load an immediate. If NewImm is a
+  /// non-NULL parameter, the last instruction is not emitted, but instead
+  /// its immediate operand is returned in NewImm.
+  unsigned loadImmediate(int64_t Imm, MachineBasicBlock &MBB,
+                         MachineBasicBlock::iterator II, DebugLoc DL,
+                         unsigned *NewImm) const;
 
 private:
   virtual unsigned GetAnalyzableBrOpc(unsigned Opc) const;
@@ -79,6 +87,8 @@ private:
                                MachineBasicBlock::iterator I) const;
   void ExpandBuildPairF64(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator I) const;
+  void ExpandEhReturn(MachineBasicBlock &MBB,
+                      MachineBasicBlock::iterator I) const;
 };
 
 }

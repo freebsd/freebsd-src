@@ -219,7 +219,7 @@ struct onfi_params {
 	uint16_t	vendor_rev;
 	uint8_t		vendor_spec[8];
 	uint16_t	crc;
-};
+}__attribute__((packed));
 
 struct nand_ecc_data {
 	int	eccsize;		/* Number of data bytes per ECC step */

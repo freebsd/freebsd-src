@@ -50,7 +50,11 @@ class TemplateParameterList {
 
   /// The number of template parameters in this template
   /// parameter list.
-  unsigned NumParams;
+  unsigned NumParams : 31;
+
+  /// Whether this template parameter list contains an unexpanded parameter
+  /// pack.
+  unsigned ContainsUnexpandedParameterPack : 1;
 
 protected:
   TemplateParameterList(SourceLocation TemplateLoc, SourceLocation LAngleLoc,
@@ -80,6 +84,13 @@ public:
 
   unsigned size() const { return NumParams; }
 
+  llvm::ArrayRef<NamedDecl*> asArray() {
+    return llvm::ArrayRef<NamedDecl*>(begin(), size());
+  }
+  llvm::ArrayRef<const NamedDecl*> asArray() const {
+    return llvm::ArrayRef<const NamedDecl*>(begin(), size());
+  }
+
   NamedDecl* getParam(unsigned Idx) {
     assert(Idx < size() && "Template parameter index out-of-range");
     return begin()[Idx];
@@ -103,6 +114,12 @@ public:
   /// The first template parameter list in a declaration will have depth 0,
   /// the second template parameter list will have depth 1, etc.
   unsigned getDepth() const;
+
+  /// \brief Determine whether this template parameter list contains an
+  /// unexpanded parameter pack.
+  bool containsUnexpandedParameterPack() const {
+    return ContainsUnexpandedParameterPack;
+  }
 
   SourceLocation getTemplateLoc() const { return TemplateLoc; }
   SourceLocation getLAngleLoc() const { return LAngleLoc; }
@@ -139,8 +156,8 @@ class TemplateArgumentList {
   /// argument list.
   unsigned NumArguments;
 
-  TemplateArgumentList(const TemplateArgumentList &Other); // DO NOT IMPL
-  void operator=(const TemplateArgumentList &Other); // DO NOT IMPL
+  TemplateArgumentList(const TemplateArgumentList &Other) LLVM_DELETED_FUNCTION;
+  void operator=(const TemplateArgumentList &Other) LLVM_DELETED_FUNCTION;
 
   TemplateArgumentList(const TemplateArgument *Args, unsigned NumArgs,
                        bool Owned)
@@ -182,6 +199,11 @@ public:
 
   /// \brief Retrieve the template argument at a given index.
   const TemplateArgument &operator[](unsigned Idx) const { return get(Idx); }
+
+  /// \brief Produce this as an array ref.
+  llvm::ArrayRef<TemplateArgument> asArray() const {
+    return llvm::ArrayRef<TemplateArgument>(data(), size());
+  }
 
   /// \brief Retrieve the number of template arguments in this
   /// template argument list.
@@ -233,12 +255,6 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const TemplateDecl *D) { return true; }
-  static bool classof(const RedeclarableTemplateDecl *D) { return true; }
-  static bool classof(const FunctionTemplateDecl *D) { return true; }
-  static bool classof(const ClassTemplateDecl *D) { return true; }
-  static bool classof(const TemplateTemplateParmDecl *D) { return true; }
-  static bool classof(const TypeAliasTemplateDecl *D) { return true; }
   static bool classofKind(Kind K) {
     return K >= firstTemplate && K <= lastTemplate;
   }
@@ -320,6 +336,23 @@ public:
     return getTemplateSpecializationKind() == TSK_ExplicitSpecialization;
   }
 
+  /// \brief True if this declaration is an explicit specialization,
+  /// explicit instantiation declaration, or explicit instantiation
+  /// definition.
+  bool isExplicitInstantiationOrSpecialization() const {
+    switch (getTemplateSpecializationKind()) {
+    case TSK_ExplicitSpecialization:
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      return true;
+
+    case TSK_Undeclared:
+    case TSK_ImplicitInstantiation:
+      return false;
+    }
+    llvm_unreachable("bad template specialization kind");
+  }
+
   /// \brief Set the template specialization kind.
   void setTemplateSpecializationKind(TemplateSpecializationKind TSK) {
     assert(TSK != TSK_Undeclared &&
@@ -386,6 +419,10 @@ public:
     return (TemplateSpecializationKind)(MemberAndTSK.getInt() + 1);
   }
 
+  bool isExplicitSpecialization() const {
+    return getTemplateSpecializationKind() == TSK_ExplicitSpecialization;
+  }
+
   /// \brief Set the template specialization kind.
   void setTemplateSpecializationKind(TemplateSpecializationKind TSK) {
     assert(TSK != TSK_Undeclared &&
@@ -421,18 +458,19 @@ public:
 ///   };
 /// \endcode
 class DependentFunctionTemplateSpecializationInfo {
+  struct CA {
+    /// The number of potential template candidates.
+    unsigned NumTemplates;
+
+    /// The number of template arguments.
+    unsigned NumArgs;
+  };
+
   union {
     // Force sizeof to be a multiple of sizeof(void*) so that the
     // trailing data is aligned.
     void *Aligner;
-
-    struct {
-      /// The number of potential template candidates.
-      unsigned NumTemplates;
-
-      /// The number of template arguments.
-      unsigned NumArgs;
-    } d;
+    struct CA d;
   };
 
   /// The locations of the left and right angle brackets.
@@ -548,7 +586,7 @@ protected:
   };
 
   template <typename EntryType>
-  SpecIterator<EntryType>
+  static SpecIterator<EntryType>
   makeSpecIterator(llvm::FoldingSetVector<EntryType> &Specs, bool isEnd) {
     return SpecIterator<EntryType>(isEnd ? Specs.end() : Specs.begin());
   }
@@ -572,14 +610,14 @@ protected:
 
   /// \brief Pointer to the common data shared by all declarations of this
   /// template.
-  CommonBase *Common;
+  mutable CommonBase *Common;
   
   /// \brief Retrieves the "common" pointer shared by all (re-)declarations of
   /// the same template. Calling this routine may implicitly allocate memory
   /// for the common pointer.
-  CommonBase *getCommonPtr();
+  CommonBase *getCommonPtr() const;
 
-  virtual CommonBase *newCommon(ASTContext &C) = 0;
+  virtual CommonBase *newCommon(ASTContext &C) const = 0;
 
   // Construct a template decl with name, parameters, and templated element.
   RedeclarableTemplateDecl(Kind DK, DeclContext *DC, SourceLocation L,
@@ -614,7 +652,7 @@ public:
   /// template<> template<typename T>
   /// struct X<int>::Inner { /* ... */ };
   /// \endcode
-  bool isMemberSpecialization() {
+  bool isMemberSpecialization() const {
     return getCommonPtr()->InstantiatedFromMember.getInt();
   }
 
@@ -661,7 +699,7 @@ public:
   /// template<typename U>
   /// void X<T>::f(T, U);
   /// \endcode
-  RedeclarableTemplateDecl *getInstantiatedFromMemberTemplate() {
+  RedeclarableTemplateDecl *getInstantiatedFromMemberTemplate() const {
     return getCommonPtr()->InstantiatedFromMember.getPointer();
   }
 
@@ -678,10 +716,6 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const RedeclarableTemplateDecl *D) { return true; }
-  static bool classof(const FunctionTemplateDecl *D) { return true; }
-  static bool classof(const ClassTemplateDecl *D) { return true; }
-  static bool classof(const TypeAliasTemplateDecl *D) { return true; }
   static bool classofKind(Kind K) {
     return K >= firstRedeclarableTemplate && K <= lastRedeclarableTemplate;
   }
@@ -729,9 +763,9 @@ protected:
                        TemplateParameterList *Params, NamedDecl *Decl)
     : RedeclarableTemplateDecl(FunctionTemplate, DC, L, Name, Params, Decl) { }
 
-  CommonBase *newCommon(ASTContext &C);
+  CommonBase *newCommon(ASTContext &C) const;
 
-  Common *getCommonPtr() {
+  Common *getCommonPtr() const {
     return static_cast<Common *>(RedeclarableTemplateDecl::getCommonPtr());
   }
 
@@ -740,7 +774,7 @@ protected:
   /// \brief Retrieve the set of function template specializations of this
   /// function template.
   llvm::FoldingSetVector<FunctionTemplateSpecializationInfo> &
-  getSpecializations() {
+  getSpecializations() const {
     return getCommonPtr()->Specializations;
   }
 
@@ -798,11 +832,11 @@ public:
 
   typedef SpecIterator<FunctionTemplateSpecializationInfo> spec_iterator;
 
-  spec_iterator spec_begin() {
+  spec_iterator spec_begin() const {
     return makeSpecIterator(getSpecializations(), false);
   }
 
-  spec_iterator spec_end() {
+  spec_iterator spec_end() const {
     return makeSpecIterator(getSpecializations(), true);
   }
 
@@ -827,7 +861,6 @@ public:
 
   // Implement isa/cast/dyncast support
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const FunctionTemplateDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == FunctionTemplate; }
 
   friend class ASTDeclReader;
@@ -969,7 +1002,6 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const TemplateTypeParmDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == TemplateTypeParm; }
 };
 
@@ -1090,8 +1122,17 @@ public:
   /// \endcode
   bool isParameterPack() const { return ParameterPack; }
 
+  /// \brief Whether this parameter pack is a pack expansion.
+  ///
+  /// A non-type template parameter pack is a pack expansion if its type
+  /// contains an unexpanded parameter pack. In this case, we will have
+  /// built a PackExpansionType wrapping the type.
+  bool isPackExpansion() const {
+    return ParameterPack && getType()->getAs<PackExpansionType>();
+  }
+
   /// \brief Whether this parameter is a non-type template parameter pack
-  /// that has different types at different positions.
+  /// that has a known list of different types at different positions.
   ///
   /// A parameter pack is an expanded parameter pack when the original
   /// parameter pack's type was itself a pack expansion, and that expansion
@@ -1141,7 +1182,6 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const NonTypeTemplateParmDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == NonTypeTemplateParm; }
 };
 
@@ -1165,13 +1205,28 @@ class TemplateTemplateParmDecl : public TemplateDecl,
   /// \brief Whether this parameter is a parameter pack.
   bool ParameterPack;
 
+  /// \brief Whether this template template parameter is an "expanded"
+  /// parameter pack, meaning that it is a pack expansion and we
+  /// already know the set of template parameters that expansion expands to.
+  bool ExpandedParameterPack;
+
+  /// \brief The number of parameters in an expanded parameter pack.
+  unsigned NumExpandedParams;
+
   TemplateTemplateParmDecl(DeclContext *DC, SourceLocation L,
                            unsigned D, unsigned P, bool ParameterPack,
                            IdentifierInfo *Id, TemplateParameterList *Params)
     : TemplateDecl(TemplateTemplateParm, DC, L, Id, Params),
       TemplateParmPosition(D, P), DefaultArgument(),
-      DefaultArgumentWasInherited(false), ParameterPack(ParameterPack)
+      DefaultArgumentWasInherited(false), ParameterPack(ParameterPack),
+      ExpandedParameterPack(false), NumExpandedParams(0)
     { }
+
+  TemplateTemplateParmDecl(DeclContext *DC, SourceLocation L,
+                           unsigned D, unsigned P,
+                           IdentifierInfo *Id, TemplateParameterList *Params,
+                           unsigned NumExpansions,
+                           TemplateParameterList * const *Expansions);
 
 public:
   static TemplateTemplateParmDecl *Create(const ASTContext &C, DeclContext *DC,
@@ -1179,9 +1234,18 @@ public:
                                           unsigned P, bool ParameterPack,
                                           IdentifierInfo *Id,
                                           TemplateParameterList *Params);
+  static TemplateTemplateParmDecl *Create(const ASTContext &C, DeclContext *DC,
+                                          SourceLocation L, unsigned D,
+                                          unsigned P,
+                                          IdentifierInfo *Id,
+                                          TemplateParameterList *Params,
+                                 ArrayRef<TemplateParameterList *> Expansions);
 
-  static TemplateTemplateParmDecl *CreateDeserialized(ASTContext &C, 
+  static TemplateTemplateParmDecl *CreateDeserialized(ASTContext &C,
                                                       unsigned ID);
+  static TemplateTemplateParmDecl *CreateDeserialized(ASTContext &C,
+                                                      unsigned ID,
+                                                      unsigned NumExpansions);
   
   using TemplateParmPosition::getDepth;
   using TemplateParmPosition::getPosition;
@@ -1194,6 +1258,49 @@ public:
   /// template<template <class T> ...MetaFunctions> struct Apply;
   /// \endcode
   bool isParameterPack() const { return ParameterPack; }
+
+  /// \brief Whether this parameter pack is a pack expansion.
+  ///
+  /// A template template parameter pack is a pack expansion if its template
+  /// parameter list contains an unexpanded parameter pack.
+  bool isPackExpansion() const {
+    return ParameterPack &&
+           getTemplateParameters()->containsUnexpandedParameterPack();
+  }
+
+  /// \brief Whether this parameter is a template template parameter pack that
+  /// has a known list of different template parameter lists at different
+  /// positions.
+  ///
+  /// A parameter pack is an expanded parameter pack when the original parameter
+  /// pack's template parameter list was itself a pack expansion, and that
+  /// expansion has already been expanded. For exampe, given:
+  ///
+  /// \code
+  /// template<typename...Types> struct Outer {
+  ///   template<template<Types> class...Templates> struct Inner;
+  /// };
+  /// \endcode
+  ///
+  /// The parameter pack \c Templates is a pack expansion, which expands the
+  /// pack \c Types. When \c Types is supplied with template arguments by
+  /// instantiating \c Outer, the instantiation of \c Templates is an expanded
+  /// parameter pack.
+  bool isExpandedParameterPack() const { return ExpandedParameterPack; }
+
+  /// \brief Retrieves the number of expansion template parameters in
+  /// an expanded parameter pack.
+  unsigned getNumExpansionTemplateParameters() const {
+    assert(ExpandedParameterPack && "Not an expansion parameter pack");
+    return NumExpandedParams;
+  }
+
+  /// \brief Retrieve a particular expansion type within an expanded parameter
+  /// pack.
+  TemplateParameterList *getExpansionTemplateParameters(unsigned I) const {
+    assert(I < NumExpandedParams && "Out-of-range expansion type index");
+    return reinterpret_cast<TemplateParameterList *const *>(this + 1)[I];
+  }
 
   /// \brief Determine whether this template parameter has a default
   /// argument.
@@ -1238,7 +1345,6 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const TemplateTemplateParmDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == TemplateTemplateParm; }
 
   friend class ASTDeclReader;
@@ -1327,7 +1433,7 @@ public:
   static ClassTemplateSpecializationDecl *
   CreateDeserialized(ASTContext &C, unsigned ID);
 
-  virtual void getNameForDiagnostic(std::string &S,
+  virtual void getNameForDiagnostic(raw_ostream &OS,
                                     const PrintingPolicy &Policy,
                                     bool Qualified) const;
 
@@ -1361,6 +1467,23 @@ public:
     return getSpecializationKind() == TSK_ExplicitSpecialization;
   }
 
+  /// \brief True if this declaration is an explicit specialization,
+  /// explicit instantiation declaration, or explicit instantiation
+  /// definition.
+  bool isExplicitInstantiationOrSpecialization() const {
+    switch (getTemplateSpecializationKind()) {
+    case TSK_ExplicitSpecialization:
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      return true;
+
+    case TSK_Undeclared:
+    case TSK_ImplicitInstantiation:
+      return false;
+    }
+    llvm_unreachable("bad template specialization kind");
+  }
+
   void setSpecializationKind(TemplateSpecializationKind TSK) {
     SpecializationKind = TSK;
   }
@@ -1392,8 +1515,7 @@ public:
           = SpecializedTemplate.dyn_cast<SpecializedPartialSpecialization*>())
       return PartialSpec->PartialSpecialization;
 
-    return const_cast<ClassTemplateDecl*>(
-                             SpecializedTemplate.get<ClassTemplateDecl*>());
+    return SpecializedTemplate.get<ClassTemplateDecl*>();
   }
 
   /// \brief Retrieve the class template or class template partial
@@ -1405,8 +1527,7 @@ public:
           = SpecializedTemplate.dyn_cast<SpecializedPartialSpecialization*>())
       return PartialSpec->PartialSpecialization;
 
-    return const_cast<ClassTemplateDecl*>(
-                             SpecializedTemplate.get<ClassTemplateDecl*>());
+    return SpecializedTemplate.get<ClassTemplateDecl*>();
   }
 
   /// \brief Retrieve the set of template arguments that should be used
@@ -1503,14 +1624,6 @@ public:
   static bool classofKind(Kind K) {
     return K >= firstClassTemplateSpecialization &&
            K <= lastClassTemplateSpecialization;
-  }
-
-  static bool classof(const ClassTemplateSpecializationDecl *) {
-    return true;
-  }
-
-  static bool classof(const ClassTemplatePartialSpecializationDecl *) {
-    return true;
   }
 
   friend class ASTDeclReader;
@@ -1681,10 +1794,6 @@ public:
     return K == ClassTemplatePartialSpecialization;
   }
 
-  static bool classof(const ClassTemplatePartialSpecializationDecl *) {
-    return true;
-  }
-
   friend class ASTDeclReader;
   friend class ASTDeclWriter;
 };
@@ -1720,10 +1829,11 @@ protected:
   };
 
   /// \brief Load any lazily-loaded specializations from the external source.
-  void LoadLazySpecializations();
+  void LoadLazySpecializations() const;
 
   /// \brief Retrieve the set of specializations of this class template.
-  llvm::FoldingSetVector<ClassTemplateSpecializationDecl> &getSpecializations();
+  llvm::FoldingSetVector<ClassTemplateSpecializationDecl> &
+  getSpecializations() const;
 
   /// \brief Retrieve the set of partial specializations of this class
   /// template.
@@ -1738,9 +1848,9 @@ protected:
     : RedeclarableTemplateDecl(ClassTemplate, 0, SourceLocation(),
                                DeclarationName(), 0, 0) { }
 
-  CommonBase *newCommon(ASTContext &C);
+  CommonBase *newCommon(ASTContext &C) const;
 
-  Common *getCommonPtr() {
+  Common *getCommonPtr() const {
     return static_cast<Common *>(RedeclarableTemplateDecl::getCommonPtr());
   }
 
@@ -1865,11 +1975,11 @@ public:
 
   typedef SpecIterator<ClassTemplateSpecializationDecl> spec_iterator;
 
-  spec_iterator spec_begin() {
+  spec_iterator spec_begin() const {
     return makeSpecIterator(getSpecializations(), false);
   }
 
-  spec_iterator spec_end() {
+  spec_iterator spec_end() const {
     return makeSpecIterator(getSpecializations(), true);
   }
 
@@ -1886,7 +1996,6 @@ public:
 
   // Implement isa/cast/dyncast support
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const ClassTemplateDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == ClassTemplate; }
 
   friend class ASTDeclReader;
@@ -1984,7 +2093,6 @@ public:
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == Decl::FriendTemplate; }
-  static bool classof(const FriendTemplateDecl *D) { return true; }
 
   friend class ASTDeclReader;
 };
@@ -2005,7 +2113,7 @@ protected:
                         TemplateParameterList *Params, NamedDecl *Decl)
     : RedeclarableTemplateDecl(TypeAliasTemplate, DC, L, Name, Params, Decl) { }
 
-  CommonBase *newCommon(ASTContext &C);
+  CommonBase *newCommon(ASTContext &C) const;
 
   Common *getCommonPtr() {
     return static_cast<Common *>(RedeclarableTemplateDecl::getCommonPtr());
@@ -2059,7 +2167,6 @@ public:
 
   // Implement isa/cast/dyncast support
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const TypeAliasTemplateDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == TypeAliasTemplate; }
 
   friend class ASTDeclReader;
@@ -2122,9 +2229,6 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) {
     return K == Decl::ClassScopeFunctionSpecialization;
-  }
-  static bool classof(const ClassScopeFunctionSpecializationDecl *D) {
-    return true;
   }
 
   friend class ASTDeclReader;

@@ -158,7 +158,7 @@ void StmtProfiler::VisitReturnStmt(const ReturnStmt *S) {
   VisitStmt(S);
 }
 
-void StmtProfiler::VisitAsmStmt(const AsmStmt *S) {
+void StmtProfiler::VisitGCCAsmStmt(const GCCAsmStmt *S) {
   VisitStmt(S);
   ID.AddBoolean(S->isVolatile());
   ID.AddBoolean(S->isSimple());
@@ -175,7 +175,7 @@ void StmtProfiler::VisitAsmStmt(const AsmStmt *S) {
   }
   ID.AddInteger(S->getNumClobbers());
   for (unsigned I = 0, N = S->getNumClobbers(); I != N; ++I)
-    VisitStringLiteral(S->getClobber(I));
+    VisitStringLiteral(S->getClobberStringLiteral(I));
 }
 
 void StmtProfiler::VisitMSAsmStmt(const MSAsmStmt *S) {
@@ -212,6 +212,10 @@ void StmtProfiler::VisitSEHFinallyStmt(const SEHFinallyStmt *S) {
 }
 
 void StmtProfiler::VisitSEHExceptStmt(const SEHExceptStmt *S) {
+  VisitStmt(S);
+}
+
+void StmtProfiler::VisitCapturedStmt(const CapturedStmt *S) {
   VisitStmt(S);
 }
 
@@ -766,6 +770,11 @@ void StmtProfiler::VisitCXXUuidofExpr(const CXXUuidofExpr *S) {
     VisitType(S->getTypeOperand());
 }
 
+void StmtProfiler::VisitMSPropertyRefExpr(const MSPropertyRefExpr *S) {
+  VisitExpr(S);
+  VisitDecl(S->getPropertyDecl());
+}
+
 void StmtProfiler::VisitCXXThisExpr(const CXXThisExpr *S) {
   VisitExpr(S);
   ID.AddBoolean(S->isImplicit());
@@ -778,6 +787,11 @@ void StmtProfiler::VisitCXXThrowExpr(const CXXThrowExpr *S) {
 void StmtProfiler::VisitCXXDefaultArgExpr(const CXXDefaultArgExpr *S) {
   VisitExpr(S);
   VisitDecl(S->getParam());
+}
+
+void StmtProfiler::VisitCXXDefaultInitExpr(const CXXDefaultInitExpr *S) {
+  VisitExpr(S);
+  VisitDecl(S->getField());
 }
 
 void StmtProfiler::VisitCXXBindTemporaryExpr(const CXXBindTemporaryExpr *S) {
@@ -973,6 +987,14 @@ void StmtProfiler::VisitSubstNonTypeTemplateParmExpr(
   Visit(E->getReplacement());
 }
 
+void StmtProfiler::VisitFunctionParmPackExpr(const FunctionParmPackExpr *S) {
+  VisitExpr(S);
+  VisitDecl(S->getParameterPack());
+  ID.AddInteger(S->getNumExpansions());
+  for (FunctionParmPackExpr::iterator I = S->begin(), E = S->end(); I != E; ++I)
+    VisitDecl(*I);
+}
+
 void StmtProfiler::VisitMaterializeTemporaryExpr(
                                            const MaterializeTemporaryExpr *S) {
   VisitExpr(S);
@@ -1163,6 +1185,10 @@ void StmtProfiler::VisitTemplateArgument(const TemplateArgument &Arg) {
       
   case TemplateArgument::Declaration:
     VisitDecl(Arg.getAsDecl());
+    break;
+
+  case TemplateArgument::NullPtr:
+    VisitType(Arg.getNullPtrType());
     break;
 
   case TemplateArgument::Integral:

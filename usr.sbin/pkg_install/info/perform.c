@@ -221,7 +221,7 @@ pkg_do(char *pkg)
 	if ((Flags & SHOW_SIZE) && installed)
 	    show_size("Package Size:\n", &plist);
 	if ((Flags & SHOW_CKSUM) && installed)
-	    show_cksum("Mismatched Checksums:\n", &plist);
+	    code += show_cksum("Mismatched Checksums:\n", &plist);
 	if (Flags & SHOW_ORIGIN)
 	    show_origin("Origin:\n", &plist);
 	if (Flags & SHOW_FMTREV)
@@ -234,7 +234,7 @@ pkg_do(char *pkg)
     leave_playpen();
     if (isTMP)
 	unlink(fname);
-    return code;
+    return (code ? 1 : 0);
 }
 
 void

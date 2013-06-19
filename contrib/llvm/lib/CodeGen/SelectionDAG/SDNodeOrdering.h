@@ -28,13 +28,15 @@ class SDNode;
 class SDNodeOrdering {
   DenseMap<const SDNode*, unsigned> OrderMap;
 
-  void operator=(const SDNodeOrdering&);   // Do not implement.
-  SDNodeOrdering(const SDNodeOrdering&);   // Do not implement.
+  void operator=(const SDNodeOrdering&) LLVM_DELETED_FUNCTION;
+  SDNodeOrdering(const SDNodeOrdering&) LLVM_DELETED_FUNCTION;
 public:
   SDNodeOrdering() {}
 
-  void add(const SDNode *Node, unsigned O) {
-    OrderMap[Node] = O;
+  void add(const SDNode *Node, unsigned NewOrder) {
+    unsigned &OldOrder = OrderMap[Node];
+    if (OldOrder == 0 || (OldOrder > 0 && NewOrder < OldOrder))
+      OldOrder = NewOrder;
   }
   void remove(const SDNode *Node) {
     DenseMap<const SDNode*, unsigned>::iterator Itr = OrderMap.find(Node);

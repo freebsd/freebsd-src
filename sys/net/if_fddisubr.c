@@ -96,7 +96,7 @@ static const u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 
 static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
-static int fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int fddi_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 		       struct route *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
@@ -110,11 +110,8 @@ static void fddi_input(struct ifnet *ifp, struct mbuf *m);
  * Assumes that ifp is actually pointer to arpcom structure.
  */
 static int
-fddi_output(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
@@ -189,19 +186,19 @@ fddi_output(ifp, m, dst, ro)
 #ifdef IPX
 	case AF_IPX:
 		type = htons(ETHERTYPE_IPX);
- 		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
-		    (caddr_t)edst, FDDI_ADDR_LEN);
+ 		bcopy(&((const struct sockaddr_ipx *)dst)->sipx_addr.x_host,
+		    edst, FDDI_ADDR_LEN);
 		break;
 #endif /* IPX */
 #ifdef NETATALK
 	case AF_APPLETALK: {
 	    struct at_ifaddr *aa;
-            if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst))
+            if (!aarpresolve(ifp, m, (const struct sockaddr_at *)dst, edst))
                 return (0);
 	    /*
 	     * ifaddr is the first thing in at_ifaddr
 	     */
-	    if ((aa = at_ifawithnet( (struct sockaddr_at *)dst)) == 0)
+	    if ((aa = at_ifawithnet((const struct sockaddr_at *)dst)) == 0)
 		goto bad;
 	    
 	    /*
@@ -212,7 +209,7 @@ fddi_output(ifp, m, dst, ro)
 	    if (aa->aa_flags & AFA_PHASE2) {
 		struct llc llc;
 
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_WAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_WAITOK);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap.org_code, sizeof(at_org_code));
@@ -229,19 +226,21 @@ fddi_output(ifp, m, dst, ro)
 
 	case pseudo_AF_HDRCMPLT:
 	{
-		struct ether_header *eh;
+		const struct ether_header *eh;
+
 		hdrcmplt = 1;
-		eh = (struct ether_header *)dst->sa_data;
-		bcopy((caddr_t)eh->ether_shost, (caddr_t)esrc, FDDI_ADDR_LEN);
+		eh = (const struct ether_header *)dst->sa_data;
+		bcopy(eh->ether_shost, esrc, FDDI_ADDR_LEN);
 		/* FALLTHROUGH */
 	}
 
 	case AF_UNSPEC:
 	{
-		struct ether_header *eh;
+		const struct ether_header *eh;
+
 		loop_copy = -1;
-		eh = (struct ether_header *)dst->sa_data;
-		bcopy((caddr_t)eh->ether_dhost, (caddr_t)edst, FDDI_ADDR_LEN);
+		eh = (const struct ether_header *)dst->sa_data;
+		bcopy(eh->ether_dhost, edst, FDDI_ADDR_LEN);
 		if (*edst & 1)
 			m->m_flags |= (M_BCAST|M_MCAST);
 		type = eh->ether_type;
@@ -291,7 +290,7 @@ fddi_output(ifp, m, dst, ro)
 	 */
 	if (type != 0) {
 		struct llc *l;
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_NOWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
@@ -307,7 +306,7 @@ fddi_output(ifp, m, dst, ro)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, FDDI_HDR_LEN, M_DONTWAIT);
+	M_PREPEND(m, FDDI_HDR_LEN, M_NOWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	fh = mtod(m, struct fddi_header *);

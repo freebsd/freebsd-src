@@ -336,7 +336,7 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 			if (ie->ie_cpu == NOCPU)
 				CPU_COPY(cpuset_root, &mask);
 			else
-				CPU_SET(cpu, &mask);
+				CPU_SET(ie->ie_cpu, &mask);
 			id = ie->ie_thread->it_thread->td_tid;
 			mtx_unlock(&ie->ie_lock);
 			(void)cpuset_setthread(id, &mask);
@@ -1103,7 +1103,6 @@ int
 swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
-	struct thread *td;
 	struct intr_event *ie;
 	int error;
 
@@ -1125,15 +1124,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	}
 	error = intr_event_add_handler(ie, name, NULL, handler, arg,
 	    PI_SWI(pri), flags, cookiep);
-	if (error)
-		return (error);
-	if (pri == SWI_CLOCK) {
-		td = ie->ie_thread->it_thread;
-		thread_lock(td);
-		td->td_flags |= TDF_NOLOAD;
-		thread_unlock(td);
-	}
-	return (0);
+	return (error);
 }
 
 /*
@@ -1144,10 +1135,20 @@ swi_sched(void *cookie, int flags)
 {
 	struct intr_handler *ih = (struct intr_handler *)cookie;
 	struct intr_event *ie = ih->ih_event;
+	struct intr_entropy entropy;
 	int error;
 
 	CTR3(KTR_INTR, "swi_sched: %s %s need=%d", ie->ie_name, ih->ih_name,
 	    ih->ih_need);
+
+	if (harvest.swi) {
+		CTR2(KTR_INTR, "swi_sched: pid %d (%s) gathering entropy",
+		    curproc->p_pid, curthread->td_name);
+		entropy.event = (uintptr_t)ih;
+		entropy.td = curthread;
+		random_harvest(&entropy, sizeof(entropy), 1, 0,
+		    RANDOM_INTERRUPT);
+	}
 
 	/*
 	 * Set ih_need for this handler so that if the ithread is already
@@ -1738,7 +1739,16 @@ db_dump_intrhand(struct intr_handler *ih)
 		break;
 	}
 	db_printf(" ");
-	db_printsym((uintptr_t)ih->ih_handler, DB_STGY_PROC);
+	if (ih->ih_filter != NULL) {
+		db_printf("[F]");
+		db_printsym((uintptr_t)ih->ih_filter, DB_STGY_PROC);
+	}
+	if (ih->ih_handler != NULL) {
+		if (ih->ih_filter != NULL)
+			db_printf(",");
+		db_printf("[H]");
+		db_printsym((uintptr_t)ih->ih_handler, DB_STGY_PROC);
+	}
 	db_printf("(%p)", ih->ih_argument);
 	if (ih->ih_need ||
 	    (ih->ih_flags & (IH_EXCLUSIVE | IH_ENTROPY | IH_DEAD |

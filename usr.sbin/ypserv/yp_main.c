@@ -292,7 +292,7 @@ create_service(const int sock, const struct netconfig *nconf,
 
 				s = __rpc_nconf2fd(nconf);
 				if (s < 0) {
-					if (errno == EPROTONOSUPPORT)
+					if (errno == EAFNOSUPPORT)
 						_msgout("unsupported"
 						    " transport: %s",
 						    nconf->nc_netid);

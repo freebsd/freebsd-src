@@ -18,18 +18,18 @@
 
 #define DEBUG_TYPE "machine-sink"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineLoopInfo.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 static cl::opt<bool>
@@ -49,7 +49,6 @@ namespace {
     MachineDominatorTree *DT;   // Machine dominator tree
     MachineLoopInfo *LI;
     AliasAnalysis *AA;
-    BitVector AllocatableSet;   // Which physregs are allocatable?
 
     // Remember which edges have been considered for breaking.
     SmallSet<std::pair<MachineBasicBlock*,MachineBasicBlock*>, 8>
@@ -229,7 +228,6 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
   DT = &getAnalysis<MachineDominatorTree>();
   LI = &getAnalysis<MachineLoopInfo>();
   AA = &getAnalysis<AliasAnalysis>();
-  AllocatableSet = TRI->getAllocatableSet(MF);
 
   bool EverMadeChange = false;
 

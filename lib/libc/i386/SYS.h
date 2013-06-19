@@ -36,21 +36,21 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror));	\
-			ENTRY(__CONCAT(__sys_,x));			\
+#define	SYSCALL(x)	ENTRY(__CONCAT(__sys_,x));			\
 			.weak CNAME(x);					\
 			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%eax; KERNCALL; jb 2b
+			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
+ 			jb HIDENAME(cerror)
 
 #define	RSYSCALL(x)	SYSCALL(x); ret; END(__CONCAT(__sys_,x))
 
-#define	PSEUDO(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
-			ENTRY(__CONCAT(__sys_,x));			\
+#define	PSEUDO(x)	ENTRY(__CONCAT(__sys_,x));			\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%eax; KERNCALL; jb 2b; ret; \
+			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
+ 			jb HIDENAME(cerror); ret; \
 			END(__CONCAT(__sys_,x))
 
 /* gas messes up offset -- although we don't currently need it, do for BCS */

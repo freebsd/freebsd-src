@@ -18,8 +18,12 @@
 #include "ARMBaseRegisterInfo.h"
 #include "ARMMachineFunctionInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
@@ -27,19 +31,15 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 STATISTIC(NumLDMGened , "Number of ldm instructions generated");
@@ -865,7 +865,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineBasicBlock &MBB,
   bool isLd = isi32Load(Opcode) || Opcode == ARM::VLDRS || Opcode == ARM::VLDRD;
   // Can't do the merge if the destination register is the same as the would-be
   // writeback register.
-  if (isLd && MI->getOperand(0).getReg() == Base)
+  if (MI->getOperand(0).getReg() == Base)
     return false;
 
   unsigned PredReg = 0;
@@ -1188,7 +1188,6 @@ bool ARMLoadStoreOpt::FixInvalidRegPairOp(MachineBasicBlock &MBB,
           OddDeadKill = true;
         }
         // Never kill the base register in the first instruction.
-        // <rdar://problem/11101911>
         if (EvenReg == BaseReg)
           EvenDeadKill = false;
         InsertLDR_STR(MBB, MBBI, OffImm, isLd, dl, NewOpc,
@@ -1259,6 +1258,22 @@ bool ARMLoadStoreOpt::LoadStoreMultipleOpti(MachineBasicBlock &MBB) {
       // merge the ldr's so far, including this one. But don't try to
       // combine the following ldr(s).
       Clobber = (isi32Load(Opcode) && Base == MBBI->getOperand(0).getReg());
+
+      // Watch out for:
+      // r4 := ldr [r0, #8]
+      // r4 := ldr [r0, #4]
+      //
+      // The optimization may reorder the second ldr in front of the first
+      // ldr, which violates write after write(WAW) dependence. The same as
+      // str. Try to merge inst(s) already in MemOps.
+      bool Overlap = false;
+      for (MemOpQueueIter I = MemOps.begin(), E = MemOps.end(); I != E; ++I) {
+        if (TRI->regsOverlap(Reg, I->MBBI->getOperand(0).getReg())) {
+          Overlap = true;
+          break;
+        }
+      }
+
       if (CurrBase == 0 && !Clobber) {
         // Start of a new chain.
         CurrBase = Base;
@@ -1269,7 +1284,7 @@ bool ARMLoadStoreOpt::LoadStoreMultipleOpti(MachineBasicBlock &MBB) {
         MemOps.push_back(MemOpQueueEntry(Offset, Reg, isKill, Position, MBBI));
         ++NumMemOps;
         Advance = true;
-      } else {
+      } else if (!Overlap) {
         if (Clobber) {
           TryMerge = true;
           Advance = true;
@@ -1408,7 +1423,7 @@ bool ARMLoadStoreOpt::MergeReturnIntoLDM(MachineBasicBlock &MBB) {
               Opcode == ARM::LDMIA_UPD) && "Unsupported multiple load-return!");
       PrevMI->setDesc(TII->get(NewOpc));
       MO.setReg(ARM::PC);
-      PrevMI->copyImplicitOps(&*MBBI);
+      PrevMI->copyImplicitOps(*MBB.getParent(), &*MBBI);
       MBB.erase(MBBI);
       return true;
     }
@@ -1448,7 +1463,7 @@ namespace {
     static char ID;
     ARMPreAllocLoadStoreOpt() : MachineFunctionPass(ID) {}
 
-    const TargetData *TD;
+    const DataLayout *TD;
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
     const ARMSubtarget *STI;
@@ -1478,7 +1493,7 @@ namespace {
 }
 
 bool ARMPreAllocLoadStoreOpt::runOnMachineFunction(MachineFunction &Fn) {
-  TD  = Fn.getTarget().getTargetData();
+  TD  = Fn.getTarget().getDataLayout();
   TII = Fn.getTarget().getInstrInfo();
   TRI = Fn.getTarget().getRegisterInfo();
   STI = &Fn.getTarget().getSubtarget<ARMSubtarget>();

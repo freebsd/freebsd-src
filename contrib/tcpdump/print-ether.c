@@ -39,7 +39,6 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 #include "addrtoname.h"
 #include "ethertype.h"
-
 #include "ether.h"
 
 const struct tok ethertype_values[] = { 
@@ -79,6 +78,7 @@ const struct tok ethertype_values[] = {
     { ETHERTYPE_PPPOES,         "PPPoE S" },
     { ETHERTYPE_EAPOL,          "EAPOL" },
     { ETHERTYPE_RRCP,           "RRCP" },
+    { ETHERTYPE_MS_NLB_HB,      "MS NLB heartbeat" },
     { ETHERTYPE_JUMBO,          "Jumbo" },
     { ETHERTYPE_LOOPBACK,       "Loopback" },
     { ETHERTYPE_ISO,            "OSI" },
@@ -86,6 +86,7 @@ const struct tok ethertype_values[] = {
     { ETHERTYPE_CFM_OLD,        "CFM (old)" },
     { ETHERTYPE_CFM,            "CFM" },
     { ETHERTYPE_LLDP,           "LLDP" },
+    { ETHERTYPE_TIPC,           "TIPC"},    	
     { 0, NULL}
 };
 
@@ -408,6 +409,14 @@ ethertype_print(netdissect_options *ndo,
 	case ETHERTYPE_MPLS:
 	case ETHERTYPE_MPLS_MULTI:
 		mpls_print(/*ndo,*/p, length);
+		return (1);
+
+	case ETHERTYPE_TIPC:
+		tipc_print(ndo, p, length, caplen);
+		return (1);
+
+	case ETHERTYPE_MS_NLB_HB:
+		msnlb_print(ndo, p, length);
 		return (1);
 
 	case ETHERTYPE_LAT:

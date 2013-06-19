@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sysproto.h>
 
 #include <machine/xen/xen-os.h>
@@ -202,11 +203,11 @@ struct mmu_log {
 #ifdef SMP
 /* per-cpu queues and indices */
 #ifdef INVARIANTS
-static struct mmu_log xpq_queue_log[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+static struct mmu_log xpq_queue_log[XEN_LEGACY_MAX_VCPUS][XPQUEUE_SIZE];
 #endif
 
-static int xpq_idx[MAX_VIRT_CPUS];  
-static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+static int xpq_idx[XEN_LEGACY_MAX_VCPUS];
+static mmu_update_t xpq_queue[XEN_LEGACY_MAX_VCPUS][XPQUEUE_SIZE];
 
 #define	XPQ_QUEUE_LOG xpq_queue_log[vcpu]
 #define	XPQ_QUEUE xpq_queue[vcpu]
@@ -215,7 +216,9 @@ static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
 #else
 	
 static mmu_update_t xpq_queue[XPQUEUE_SIZE];
+#ifdef INVARIANTS
 static struct mmu_log xpq_queue_log[XPQUEUE_SIZE];
+#endif
 static int xpq_idx = 0;
 
 #define	XPQ_QUEUE_LOG xpq_queue_log
@@ -428,13 +431,15 @@ _xen_machphys_update(vm_paddr_t mfn, vm_paddr_t pfn, char *file, int line)
 		critical_exit();
 }
 
+extern struct rwlock pvh_global_lock;
+
 void
 _xen_queue_pt_update(vm_paddr_t ptr, vm_paddr_t val, char *file, int line)
 {
 	SET_VCPU();
 
 	if (__predict_true(gdtset))	
-		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		rw_assert(&pvh_global_lock, RA_WLOCKED);
 
 	KASSERT((ptr & 7) == 0, ("misaligned update"));
 	

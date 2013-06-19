@@ -52,6 +52,8 @@
 #define	CR0_NW  0x20000000	/* Not Write-through */
 #define	CR0_CD  0x40000000	/* Cache Disable */
 
+#define	CR3_PCID_SAVE 0x8000000000000000
+
 /*
  * Bits in PPro special registers
  */
@@ -66,7 +68,11 @@
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
 #define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_VMXE 0x00002000	/* enable VMX operation (Intel-specific) */
+#define	CR4_FSGSBASE 0x00010000	/* Enable FS/GS BASE accessing instructions */
+#define	CR4_PCIDE 0x00020000	/* Enable Context ID */
 #define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
+#define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
@@ -273,6 +279,23 @@
 #define	AMDID_COREID_SIZE_SHIFT	12
 
 /*
+ * Structured Extended Features
+ */
+#define	CPUID_STDEXT_FSGSBASE	0x00000001
+#define	CPUID_STDEXT_TSC_ADJUST	0x00000002
+#define	CPUID_STDEXT_BMI1	0x00000008
+#define	CPUID_STDEXT_HLE	0x00000010
+#define	CPUID_STDEXT_AVX2	0x00000020
+#define	CPUID_STDEXT_SMEP	0x00000080
+#define	CPUID_STDEXT_BMI2	0x00000100
+#define	CPUID_STDEXT_ENH_MOVSB	0x00000200
+#define	CPUID_STDEXT_RTM	0x00000800
+#define	CPUID_STDEXT_INVPCID	0x00000400
+#define	CPUID_STDEXT_RDSEED	0x00040000
+#define	CPUID_STDEXT_ADX	0x00080000
+#define	CPUID_STDEXT_SMAP	0x00100000
+
+/*
  * CPUID manufacturers identifiers
  */
 #define	AMD_VENDOR_ID		"AuthenticAMD"
@@ -299,6 +322,7 @@
 #define	MSR_APICBASE		0x01b
 #define	MSR_EBL_CR_POWERON	0x02a
 #define	MSR_TEST_CTL		0x033
+#define	MSR_IA32_FEATURE_CONTROL 0x03a
 #define	MSR_BIOS_UPDT_TRIG	0x079
 #define	MSR_BBL_CR_D0		0x088
 #define	MSR_BBL_CR_D1		0x089
@@ -404,6 +428,11 @@
 #define	APICBASE_X2APIC		0x00000400
 #define	APICBASE_ENABLED	0x00000800
 #define	APICBASE_ADDRESS	0xfffff000
+
+/* MSR_IA32_FEATURE_CONTROL related */
+#define	IA32_FEATURE_CONTROL_LOCK	0x01	/* lock bit */
+#define	IA32_FEATURE_CONTROL_SMX_EN	0x02	/* enable VMX inside SMX */
+#define	IA32_FEATURE_CONTROL_VMX_EN	0x04	/* enable VMX outside SMX */
 
 /*
  * PAT modes.

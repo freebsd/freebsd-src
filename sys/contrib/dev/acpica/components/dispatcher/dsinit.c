@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ AcpiDsInitOneObject (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Callback from AcpiWalkNamespace.  Invoked for every object
+ * DESCRIPTION: Callback from AcpiWalkNamespace. Invoked for every object
  *              within the namespace.
  *
  *              Currently, the only objects that require initialization are:
@@ -128,20 +128,18 @@ AcpiDsInitOneObject (
         Info->OpRegionCount++;
         break;
 
-
     case ACPI_TYPE_METHOD:
 
         Info->MethodCount++;
         break;
-
 
     case ACPI_TYPE_DEVICE:
 
         Info->DeviceCount++;
         break;
 
-
     default:
+
         break;
     }
 
@@ -234,5 +232,3 @@ AcpiDsInitializeObjects (
 
     return_ACPI_STATUS (AE_OK);
 }
-
-

@@ -248,7 +248,8 @@ static device_method_t udbp_methods[] = {
 	DEVMETHOD(device_probe, udbp_probe),
 	DEVMETHOD(device_attach, udbp_attach),
 	DEVMETHOD(device_detach, udbp_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t udbp_driver = {
@@ -290,6 +291,7 @@ udbp_modload(module_t mod, int event, void *data)
 
 static const STRUCT_USB_HOST_ID udbp_devs[] = {
 	{USB_VPI(USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_TURBOCONNECT, 0)},
+	{USB_VPI(USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_GADGETZERO, 0)},
 	{USB_VPI(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2301, 0)},
 	{USB_VPI(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2302, 0)},
 	{USB_VPI(USB_VENDOR_ANCHOR, USB_PRODUCT_ANCHOR_EZLINK, 0)},
@@ -410,12 +412,12 @@ udbp_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* allocate new mbuf */
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 
 		if (m == NULL) {
 			goto tr_setup;
 		}
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		if (!(m->m_flags & M_EXT)) {
 			m_freem(m);

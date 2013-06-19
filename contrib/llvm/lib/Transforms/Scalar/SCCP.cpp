@@ -19,26 +19,26 @@
 
 #define DEBUG_TYPE "sccp"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/IPO.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/Pass.h"
-#include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Support/CallSite.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/InstVisitor.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/InstVisitor.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/CallSite.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -153,7 +153,7 @@ namespace {
 /// Constant Propagation.
 ///
 class SCCPSolver : public InstVisitor<SCCPSolver> {
-  const TargetData *TD;
+  const DataLayout *TD;
   const TargetLibraryInfo *TLI;
   SmallPtrSet<BasicBlock*, 8> BBExecutable; // The BBs that are executable.
   DenseMap<Value*, LatticeVal> ValueState;  // The state each value is in.
@@ -205,7 +205,7 @@ class SCCPSolver : public InstVisitor<SCCPSolver> {
   typedef std::pair<BasicBlock*, BasicBlock*> Edge;
   DenseSet<Edge> KnownFeasibleEdges;
 public:
-  SCCPSolver(const TargetData *td, const TargetLibraryInfo *tli)
+  SCCPSolver(const DataLayout *td, const TargetLibraryInfo *tli)
     : TD(td), TLI(tli) {}
 
   /// MarkBlockExecutable - This method can be used by clients to mark all of
@@ -270,13 +270,6 @@ public:
     assert(I != ValueState.end() && "V is not in valuemap!");
     return I->second;
   }
-
-  /*LatticeVal getStructLatticeValueFor(Value *V, unsigned i) const {
-    DenseMap<std::pair<Value*, unsigned>, LatticeVal>::const_iterator I =
-      StructValueState.find(std::make_pair(V, i));
-    assert(I != StructValueState.end() && "V is not in valuemap!");
-    return I->second;
-  }*/
 
   /// getTrackedRetVals - Get the inferred return value map.
   ///
@@ -709,9 +702,6 @@ void SCCPSolver::visitPHINode(PHINode &PN) {
   if (OperandVal)
     markConstant(&PN, OperandVal);      // Acquire operand value
 }
-
-
-
 
 void SCCPSolver::visitReturnInst(ReturnInst &I) {
   if (I.getNumOperands() == 0) return;  // ret void
@@ -1185,7 +1175,7 @@ void SCCPSolver::Solve() {
       DEBUG(dbgs() << "\nPopped off OI-WL: " << *I << '\n');
 
       // "I" got into the work list because it either made the transition from
-      // bottom to constant
+      // bottom to constant, or to overdefined.
       //
       // Anything on this worklist that is overdefined need not be visited
       // since all of its users will have already been marked as overdefined
@@ -1564,7 +1554,7 @@ static void DeleteInstructionInBlock(BasicBlock *BB) {
 //
 bool SCCP::runOnFunction(Function &F) {
   DEBUG(dbgs() << "SCCP on function '" << F.getName() << "'\n");
-  const TargetData *TD = getAnalysisIfAvailable<TargetData>();
+  const DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
   const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
   SCCPSolver Solver(TD, TLI);
 
@@ -1693,7 +1683,7 @@ static bool AddressIsTaken(const GlobalValue *GV) {
 }
 
 bool IPSCCP::runOnModule(Module &M) {
-  const TargetData *TD = getAnalysisIfAvailable<TargetData>();
+  const DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
   const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
   SCCPSolver Solver(TD, TLI);
 

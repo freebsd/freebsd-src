@@ -42,9 +42,9 @@
  */
 extern int plinno;
 extern int parsenleft;		/* number of characters left in input buffer */
-extern char *parsenextc;	/* next character in input buffer */
-extern int init_editline;	/* 0 == not setup, 1 == OK, -1 == failed */
+extern const char *parsenextc;	/* next character in input buffer */
 
+struct alias;
 struct parsefile;
 
 char *pfgets(char *, int);
@@ -52,10 +52,10 @@ int pgetc(void);
 int preadbuffer(void);
 int preadateof(void);
 void pungetc(void);
-void pushstring(char *, int, void *);
+void pushstring(char *, int, struct alias *);
 void setinputfile(const char *, int);
 void setinputfd(int, int);
-void setinputstring(char *, int);
+void setinputstring(const char *, int);
 void popfile(void);
 struct parsefile *getcurrentfile(void);
 void popfilesupto(struct parsefile *);

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +75,14 @@ AcpiHwSetMode (
 
     ACPI_FUNCTION_TRACE (HwSetMode);
 
+
+    /* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     /*
      * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
      * system does not support mode transition.
@@ -113,7 +120,6 @@ AcpiHwSetMode (
         break;
 
     case ACPI_SYS_MODE_LEGACY:
-
         /*
          * BIOS should clear all fixed status bits and restore fixed event
          * enable bits to default
@@ -125,6 +131,7 @@ AcpiHwSetMode (
         break;
 
     default:
+
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -142,13 +149,13 @@ AcpiHwSetMode (
     Retry = 3000;
     while (Retry)
     {
-        if (AcpiHwGetMode() == Mode)
+        if (AcpiHwGetMode () == Mode)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n",
                 Mode));
             return_ACPI_STATUS (AE_OK);
         }
-        AcpiOsStall(1000);
+        AcpiOsStall (ACPI_USEC_PER_MSEC);
         Retry--;
     }
 
@@ -165,7 +172,7 @@ AcpiHwSetMode (
  *
  * RETURN:      SYS_MODE_ACPI or SYS_MODE_LEGACY
  *
- * DESCRIPTION: Return current operating state of system.  Determined by
+ * DESCRIPTION: Return current operating state of system. Determined by
  *              querying the SCI_EN bit.
  *
  ******************************************************************************/
@@ -180,6 +187,13 @@ AcpiHwGetMode (
 
     ACPI_FUNCTION_TRACE (HwGetMode);
 
+
+    /* If the Hardware Reduced flag is set, machine is always in acpi mode */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return_UINT32 (ACPI_SYS_MODE_ACPI);
+    }
 
     /*
      * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,

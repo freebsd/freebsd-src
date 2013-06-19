@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -230,6 +230,13 @@ AcpiRsGetAmlLength (
             return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
         }
 
+        /* Sanity check the length. It must not be zero, or we loop forever */
+
+        if (!Resource->Length)
+        {
+            return_ACPI_STATUS (AE_AML_BAD_RESOURCE_LENGTH);
+        }
+
         /* Get the base size of the (external stream) resource descriptor */
 
         TotalSize = AcpiGbl_AmlResourceSizes [Resource->Type];
@@ -364,8 +371,8 @@ AcpiRsGetAmlLength (
 
             break;
 
-
         default:
+
             break;
         }
 
@@ -430,7 +437,7 @@ AcpiRsGetListLength (
     {
         /* Validate the Resource Type and Resource Length */
 
-        Status = AcpiUtValidateResource (AmlBuffer, &ResourceIndex);
+        Status = AcpiUtValidateResource (NULL, AmlBuffer, &ResourceIndex);
         if (ACPI_FAILURE (Status))
         {
             /*
@@ -482,6 +489,16 @@ AcpiRsGetListLength (
              * Get the number of vendor data bytes
              */
             ExtraStructBytes = ResourceLength;
+
+            /*
+             * There is already one byte included in the minimum
+             * descriptor size. If there are extra struct bytes,
+             * subtract one from the count.
+             */
+            if (ExtraStructBytes)
+            {
+                ExtraStructBytes--;
+            }
             break;
 
 
@@ -545,6 +562,7 @@ AcpiRsGetListLength (
             break;
 
         default:
+
             break;
         }
 
@@ -626,7 +644,7 @@ AcpiRsGetPciRoutingTableLength (
     /*
      * Calculate the size of the return buffer.
      * The base size is the number of elements * the sizes of the
-     * structures.  Additional space for the strings is added below.
+     * structures. Additional space for the strings is added below.
      * The minus one is to subtract the size of the UINT8 Source[1]
      * member because it is added below.
      *
@@ -659,7 +677,9 @@ AcpiRsGetPciRoutingTableLength (
 
         NameFound = FALSE;
 
-        for (TableIndex = 0; TableIndex < 4 && !NameFound; TableIndex++)
+        for (TableIndex = 0;
+             TableIndex < PackageElement->Package.Count && !NameFound;
+             TableIndex++)
         {
             if (*SubObjectList && /* Null object allowed */
 

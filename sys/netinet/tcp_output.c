@@ -127,7 +127,7 @@ static void inline	hhook_run_tcp_est_out(struct tcpcb *tp,
 static void inline	cc_after_idle(struct tcpcb *tp);
 
 /*
- * Wrapper for the TCP established ouput helper hook.
+ * Wrapper for the TCP established output helper hook.
  */
 static void inline
 hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
@@ -545,19 +545,39 @@ after_sack_rexmit:
 	}
 
 	/*
-	 * Compare available window to amount of window
-	 * known to peer (as advertised window less
-	 * next expected input).  If the difference is at least two
-	 * max size segments, or at least 50% of the maximum possible
-	 * window, then want to send a window update to peer.
-	 * Skip this if the connection is in T/TCP half-open state.
-	 * Don't send pure window updates when the peer has closed
-	 * the connection and won't ever send more data.
+	 * Sending of standalone window updates.
+	 *
+	 * Window updates are important when we close our window due to a
+	 * full socket buffer and are opening it again after the application
+	 * reads data from it.  Once the window has opened again and the
+	 * remote end starts to send again the ACK clock takes over and
+	 * provides the most current window information.
+	 *
+	 * We must avoid the silly window syndrome whereas every read
+	 * from the receive buffer, no matter how small, causes a window
+	 * update to be sent.  We also should avoid sending a flurry of
+	 * window updates when the socket buffer had queued a lot of data
+	 * and the application is doing small reads.
+	 *
+	 * Prevent a flurry of pointless window updates by only sending
+	 * an update when we can increase the advertized window by more
+	 * than 1/4th of the socket buffer capacity.  When the buffer is
+	 * getting full or is very small be more aggressive and send an
+	 * update whenever we can increase by two mss sized segments.
+	 * In all other situations the ACK's to new incoming data will
+	 * carry further window increases.
+	 *
+	 * Don't send an independent window update if a delayed
+	 * ACK is pending (it will get piggy-backed on it) or the
+	 * remote side already has done a half-close and won't send
+	 * more data.  Skip this if the connection is in T/TCP
+	 * half-open state.
 	 */
 	if (recwin > 0 && !(tp->t_flags & TF_NEEDSYN) &&
+	    !(tp->t_flags & TF_DELACK) &&
 	    !TCPS_HAVERCVDFIN(tp->t_state)) {
 		/*
-		 * "adv" is the amount we can increase the window,
+		 * "adv" is the amount we could increase the window,
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
@@ -577,9 +597,11 @@ after_sack_rexmit:
 		 */
 		if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
 			goto dontupdate;
-		if (adv >= (long) (2 * tp->t_maxseg))
-			goto send;
-		if (2 * adv >= (long) so->so_rcv.sb_hiwat)
+
+		if (adv >= (long)(2 * tp->t_maxseg) &&
+		    (adv >= (long)(so->so_rcv.sb_hiwat / 4) ||
+		     recwin <= (long)(so->so_rcv.sb_hiwat / 8) ||
+		     so->so_rcv.sb_hiwat <= 8 * tp->t_maxseg))
 			goto send;
 	}
 dontupdate:
@@ -747,12 +769,13 @@ send:
 			    ("%s: TSO can't do IP options", __func__));
 
 			/*
-			 * Limit a burst to IP_MAXPACKET minus IP,
+			 * Limit a burst to t_tsomax minus IP,
 			 * TCP and options length to keep ip->ip_len
-			 * from overflowing.
+			 * from overflowing or exceeding the maximum
+			 * length allowed by the network interface.
 			 */
-			if (len > IP_MAXPACKET - hdrlen) {
-				len = IP_MAXPACKET - hdrlen;
+			if (len > tp->t_tsomax - hdrlen) {
+				len = tp->t_tsomax - hdrlen;
 				sendalot = 1;
 			}
 
@@ -820,23 +843,20 @@ send:
 			TCPSTAT_INC(tcps_sndpack);
 			TCPSTAT_ADD(tcps_sndbyte, len);
 		}
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+#ifdef INET6
+		if (MHLEN < hdrlen + max_linkhdr)
+			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		else
+#endif
+			m = m_gethdr(M_NOWAIT, MT_DATA);
+
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = ENOBUFS;
+			sack_rxmit = 0;
 			goto out;
 		}
-#ifdef INET6
-		if (MHLEN < hdrlen + max_linkhdr) {
-			MCLGET(m, M_DONTWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
-				SOCKBUF_UNLOCK(&so->so_snd);
-				m_freem(m);
-				error = ENOBUFS;
-				goto out;
-			}
-		}
-#endif
+
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 
@@ -856,6 +876,7 @@ send:
 				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);
 				error = ENOBUFS;
+				sack_rxmit = 0;
 				goto out;
 			}
 		}
@@ -880,9 +901,10 @@ send:
 		else
 			TCPSTAT_INC(tcps_sndwinup);
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
+			sack_rxmit = 0;
 			goto out;
 		}
 #ifdef INET6
@@ -1105,6 +1127,98 @@ send:
 	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
 #endif
 
+	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
+	hhook_run_tcp_est_out(tp, th, &to, len, tso);
+
+#ifdef TCPDEBUG
+	/*
+	 * Trace.
+	 */
+	if (so->so_options & SO_DEBUG) {
+		u_short save = 0;
+#ifdef INET6
+		if (!isipv6)
+#endif
+		{
+			save = ipov->ih_len;
+			ipov->ih_len = htons(m->m_pkthdr.len /* - hdrlen + (th->th_off << 2) */);
+		}
+		tcp_trace(TA_OUTPUT, tp->t_state, tp, mtod(m, void *), th, 0);
+#ifdef INET6
+		if (!isipv6)
+#endif
+		ipov->ih_len = save;
+	}
+#endif /* TCPDEBUG */
+
+	/*
+	 * Fill in IP length and desired time to live and
+	 * send to IP level.  There should be a better way
+	 * to handle ttl and tos; we could keep them in
+	 * the template, but need a way to checksum without them.
+	 */
+	/*
+	 * m->m_pkthdr.len should have been set before cksum calcuration,
+	 * because in6_cksum() need it.
+	 */
+#ifdef INET6
+	if (isipv6) {
+		struct route_in6 ro;
+
+		bzero(&ro, sizeof(ro));
+		/*
+		 * we separately set hoplimit for every segment, since the
+		 * user might want to change the value via setsockopt.
+		 * Also, desired default hop limit might be changed via
+		 * Neighbor Discovery.
+		 */
+		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
+
+		/* TODO: IPv6 IP6TOS_ECT bit on */
+		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
+		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
+		    NULL, NULL, tp->t_inpcb);
+
+		if (error == EMSGSIZE && ro.ro_rt != NULL)
+			mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+		RO_RTFREE(&ro);
+	}
+#endif /* INET6 */
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
+    {
+	struct route ro;
+
+	bzero(&ro, sizeof(ro));
+	ip->ip_len = htons(m->m_pkthdr.len);
+#ifdef INET6
+	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
+		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
+#endif /* INET6 */
+	/*
+	 * If we do path MTU discovery, then we set DF on every packet.
+	 * This might not be the best thing to do according to RFC3390
+	 * Section 2. However the tcp hostcache migitates the problem
+	 * so it affects only the first tcp connection with a host.
+	 *
+	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
+	 */
+	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+		ip->ip_off |= htons(IP_DF);
+
+	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
+	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
+	    tp->t_inpcb);
+
+	if (error == EMSGSIZE && ro.ro_rt != NULL)
+		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+	RO_RTFREE(&ro);
+    }
+#endif /* INET */
+
+out:
 	/*
 	 * In transmit state, time the transmission and arrange for
 	 * the retransmit.  In persist state, just set snd_max.
@@ -1174,96 +1288,6 @@ timer:
 			tp->snd_max = tp->snd_nxt + len;
 	}
 
-	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
-	hhook_run_tcp_est_out(tp, th, &to, len, tso);
-
-#ifdef TCPDEBUG
-	/*
-	 * Trace.
-	 */
-	if (so->so_options & SO_DEBUG) {
-		u_short save = 0;
-#ifdef INET6
-		if (!isipv6)
-#endif
-		{
-			save = ipov->ih_len;
-			ipov->ih_len = htons(m->m_pkthdr.len /* - hdrlen + (th->th_off << 2) */);
-		}
-		tcp_trace(TA_OUTPUT, tp->t_state, tp, mtod(m, void *), th, 0);
-#ifdef INET6
-		if (!isipv6)
-#endif
-		ipov->ih_len = save;
-	}
-#endif /* TCPDEBUG */
-
-	/*
-	 * Fill in IP length and desired time to live and
-	 * send to IP level.  There should be a better way
-	 * to handle ttl and tos; we could keep them in
-	 * the template, but need a way to checksum without them.
-	 */
-	/*
-	 * m->m_pkthdr.len should have been set before cksum calcuration,
-	 * because in6_cksum() need it.
-	 */
-#ifdef INET6
-	if (isipv6) {
-		struct route_in6 ro;
-
-		bzero(&ro, sizeof(ro));
-		/*
-		 * we separately set hoplimit for every segment, since the
-		 * user might want to change the value via setsockopt.
-		 * Also, desired default hop limit might be changed via
-		 * Neighbor Discovery.
-		 */
-		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
-
-		/* TODO: IPv6 IP6TOS_ECT bit on */
-		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
-		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
-		    NULL, NULL, tp->t_inpcb);
-
-		if (error == EMSGSIZE && ro.ro_rt != NULL)
-			mtu = ro.ro_rt->rt_rmx.rmx_mtu;
-		RO_RTFREE(&ro);
-	}
-#endif /* INET6 */
-#if defined(INET) && defined(INET6)
-	else
-#endif
-#ifdef INET
-    {
-	struct route ro;
-
-	bzero(&ro, sizeof(ro));
-	ip->ip_len = m->m_pkthdr.len;
-#ifdef INET6
-	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
-		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
-#endif /* INET6 */
-	/*
-	 * If we do path MTU discovery, then we set DF on every packet.
-	 * This might not be the best thing to do according to RFC3390
-	 * Section 2. However the tcp hostcache migitates the problem
-	 * so it affects only the first tcp connection with a host.
-	 *
-	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
-	 */
-	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
-		ip->ip_off |= IP_DF;
-
-	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
-	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
-	    tp->t_inpcb);
-
-	if (error == EMSGSIZE && ro.ro_rt != NULL)
-		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
-	RO_RTFREE(&ro);
-    }
-#endif /* INET */
 	if (error) {
 
 		/*
@@ -1291,7 +1315,6 @@ timer:
 			} else
 				tp->snd_nxt -= len;
 		}
-out:
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		switch (error) {
 		case EPERM:

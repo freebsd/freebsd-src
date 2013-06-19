@@ -8,9 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/CommentParser.h"
-#include "clang/AST/CommentSema.h"
-#include "clang/AST/CommentDiagnostic.h"
 #include "clang/AST/CommentCommandTraits.h"
+#include "clang/AST/CommentDiagnostic.h"
+#include "clang/AST/CommentSema.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -109,11 +110,6 @@ class TextTokenRetokenizer {
     return true;
   }
 
-  static bool isWhitespace(char C) {
-    return C == ' ' || C == '\n' || C == '\r' ||
-           C == '\t' || C == '\f' || C == '\v';
-  }
-
   void consumeWhitespace() {
     while (!isEnd()) {
       if (isWhitespace(peek()))
@@ -132,8 +128,8 @@ class TextTokenRetokenizer {
     Result.setKind(tok::text);
     Result.setLength(TokLength);
 #ifndef NDEBUG
-    Result.TextPtr1 = "<UNSET>";
-    Result.TextLen1 = 7;
+    Result.TextPtr = "<UNSET>";
+    Result.IntVal = 7;
 #endif
     Result.setText(Text);
   }
@@ -175,8 +171,7 @@ public:
     memcpy(TextPtr, WordText.c_str(), Length + 1);
     StringRef Text = StringRef(TextPtr, Length);
 
-    formTokenWithChars(Tok, Loc, WordBegin,
-                       Pos.BufferPtr - WordBegin, Text);
+    formTokenWithChars(Tok, Loc, WordBegin, Length, Text);
     return true;
   }
 
@@ -305,41 +300,40 @@ void Parser::parseBlockCommandArgs(BlockCommandComment *BC,
 }
 
 BlockCommandComment *Parser::parseBlockCommand() {
-  assert(Tok.is(tok::command));
+  assert(Tok.is(tok::backslash_command) || Tok.is(tok::at_command));
 
-  ParamCommandComment *PC;
-  TParamCommandComment *TPC;
-  BlockCommandComment *BC;
-  bool IsParam = false;
-  bool IsTParam = false;
-  unsigned NumArgs = 0;
-  if (Traits.isParamCommand(Tok.getCommandName())) {
-    IsParam = true;
+  ParamCommandComment *PC = 0;
+  TParamCommandComment *TPC = 0;
+  BlockCommandComment *BC = 0;
+  const CommandInfo *Info = Traits.getCommandInfo(Tok.getCommandID());
+  CommandMarkerKind CommandMarker =
+      Tok.is(tok::backslash_command) ? CMK_Backslash : CMK_At;
+  if (Info->IsParamCommand) {
     PC = S.actOnParamCommandStart(Tok.getLocation(),
                                   Tok.getEndLocation(),
-                                  Tok.getCommandName());
-  } if (Traits.isTParamCommand(Tok.getCommandName())) {
-    IsTParam = true;
+                                  Tok.getCommandID(),
+                                  CommandMarker);
+  } else if (Info->IsTParamCommand) {
     TPC = S.actOnTParamCommandStart(Tok.getLocation(),
                                     Tok.getEndLocation(),
-                                    Tok.getCommandName());
+                                    Tok.getCommandID(),
+                                    CommandMarker);
   } else {
-    NumArgs = Traits.getBlockCommandNumArgs(Tok.getCommandName());
     BC = S.actOnBlockCommandStart(Tok.getLocation(),
                                   Tok.getEndLocation(),
-                                  Tok.getCommandName());
+                                  Tok.getCommandID(),
+                                  CommandMarker);
   }
   consumeToken();
 
-  if (Tok.is(tok::command) && Traits.isBlockCommand(Tok.getCommandName())) {
+  if (isTokBlockCommand()) {
     // Block command ahead.  We can't nest block commands, so pretend that this
     // command has an empty argument.
-    ParagraphComment *Paragraph = S.actOnParagraphComment(
-                                ArrayRef<InlineContentComment *>());
-    if (IsParam) {
+    ParagraphComment *Paragraph = S.actOnParagraphComment(None);
+    if (PC) {
       S.actOnParamCommandFinish(PC, Paragraph);
       return PC;
-    } else if (IsTParam) {
+    } else if (TPC) {
       S.actOnTParamCommandFinish(TPC, Paragraph);
       return TPC;
     } else {
@@ -348,29 +342,47 @@ BlockCommandComment *Parser::parseBlockCommand() {
     }
   }
 
-  if (IsParam || IsTParam || NumArgs > 0) {
+  if (PC || TPC || Info->NumArgs > 0) {
     // In order to parse command arguments we need to retokenize a few
     // following text tokens.
     TextTokenRetokenizer Retokenizer(Allocator, *this);
 
-    if (IsParam)
+    if (PC)
       parseParamCommandArgs(PC, Retokenizer);
-    else if (IsTParam)
+    else if (TPC)
       parseTParamCommandArgs(TPC, Retokenizer);
     else
-      parseBlockCommandArgs(BC, Retokenizer, NumArgs);
+      parseBlockCommandArgs(BC, Retokenizer, Info->NumArgs);
 
     Retokenizer.putBackLeftoverTokens();
   }
 
-  BlockContentComment *Block = parseParagraphOrBlockCommand();
-  // Since we have checked for a block command, we should have parsed a
-  // paragraph.
-  ParagraphComment *Paragraph = cast<ParagraphComment>(Block);
-  if (IsParam) {
+  // If there's a block command ahead, we will attach an empty paragraph to
+  // this command.
+  bool EmptyParagraph = false;
+  if (isTokBlockCommand())
+    EmptyParagraph = true;
+  else if (Tok.is(tok::newline)) {
+    Token PrevTok = Tok;
+    consumeToken();
+    EmptyParagraph = isTokBlockCommand();
+    putBack(PrevTok);
+  }
+
+  ParagraphComment *Paragraph;
+  if (EmptyParagraph)
+    Paragraph = S.actOnParagraphComment(None);
+  else {
+    BlockContentComment *Block = parseParagraphOrBlockCommand();
+    // Since we have checked for a block command, we should have parsed a
+    // paragraph.
+    Paragraph = cast<ParagraphComment>(Block);
+  }
+
+  if (PC) {
     S.actOnParamCommandFinish(PC, Paragraph);
     return PC;
-  } else if (IsTParam) {
+  } else if (TPC) {
     S.actOnTParamCommandFinish(TPC, Paragraph);
     return TPC;
   } else {
@@ -380,7 +392,7 @@ BlockCommandComment *Parser::parseBlockCommand() {
 }
 
 InlineCommandComment *Parser::parseInlineCommand() {
-  assert(Tok.is(tok::command));
+  assert(Tok.is(tok::backslash_command) || Tok.is(tok::at_command));
 
   const Token CommandTok = Tok;
   consumeToken();
@@ -394,14 +406,14 @@ InlineCommandComment *Parser::parseInlineCommand() {
   if (ArgTokValid) {
     IC = S.actOnInlineCommand(CommandTok.getLocation(),
                               CommandTok.getEndLocation(),
-                              CommandTok.getCommandName(),
+                              CommandTok.getCommandID(),
                               ArgTok.getLocation(),
                               ArgTok.getEndLocation(),
                               ArgTok.getText());
   } else {
     IC = S.actOnInlineCommand(CommandTok.getLocation(),
                               CommandTok.getEndLocation(),
-                              CommandTok.getCommandName());
+                              CommandTok.getCommandID());
   }
 
   Retokenizer.putBackLeftoverTokens();
@@ -540,23 +552,41 @@ BlockContentComment *Parser::parseParagraphOrBlockCommand() {
       assert(Content.size() != 0);
       break; // Block content or EOF ahead, finish this parapgaph.
 
-    case tok::command:
-      if (Traits.isBlockCommand(Tok.getCommandName())) {
+    case tok::unknown_command:
+      Content.push_back(S.actOnUnknownCommand(Tok.getLocation(),
+                                              Tok.getEndLocation(),
+                                              Tok.getUnknownCommandName()));
+      consumeToken();
+      continue;
+
+    case tok::backslash_command:
+    case tok::at_command: {
+      const CommandInfo *Info = Traits.getCommandInfo(Tok.getCommandID());
+      if (Info->IsBlockCommand) {
         if (Content.size() == 0)
           return parseBlockCommand();
         break; // Block command ahead, finish this parapgaph.
       }
-      if (Traits.isInlineCommand(Tok.getCommandName())) {
-        Content.push_back(parseInlineCommand());
+      if (Info->IsVerbatimBlockEndCommand) {
+        Diag(Tok.getLocation(),
+             diag::warn_verbatim_block_end_without_start)
+          << Tok.is(tok::at_command)
+          << Info->Name
+          << SourceRange(Tok.getLocation(), Tok.getEndLocation());
+        consumeToken();
         continue;
       }
-
-      // Not a block command, not an inline command ==> an unknown command.
-      Content.push_back(S.actOnUnknownCommand(Tok.getLocation(),
-                                              Tok.getEndLocation(),
-                                              Tok.getCommandName()));
-      consumeToken();
+      if (Info->IsUnknownCommand) {
+        Content.push_back(S.actOnUnknownCommand(Tok.getLocation(),
+                                                Tok.getEndLocation(),
+                                                Info->getID()));
+        consumeToken();
+        continue;
+      }
+      assert(Info->IsInlineCommand);
+      Content.push_back(parseInlineCommand());
       continue;
+    }
 
     case tok::newline: {
       consumeToken();
@@ -606,7 +636,7 @@ VerbatimBlockComment *Parser::parseVerbatimBlock() {
 
   VerbatimBlockComment *VB =
       S.actOnVerbatimBlockStart(Tok.getLocation(),
-                                Tok.getVerbatimBlockName());
+                                Tok.getVerbatimBlockID());
   consumeToken();
 
   // Don't create an empty line if verbatim opening command is followed
@@ -634,8 +664,9 @@ VerbatimBlockComment *Parser::parseVerbatimBlock() {
   }
 
   if (Tok.is(tok::verbatim_block_end)) {
+    const CommandInfo *Info = Traits.getCommandInfo(Tok.getVerbatimBlockID());
     S.actOnVerbatimBlockFinish(VB, Tok.getLocation(),
-                               Tok.getVerbatimBlockName(),
+                               Info->Name,
                                S.copyArray(llvm::makeArrayRef(Lines)));
     consumeToken();
   } else {
@@ -666,7 +697,7 @@ VerbatimLineComment *Parser::parseVerbatimLine() {
   }
 
   VerbatimLineComment *VL = S.actOnVerbatimLine(NameTok.getLocation(),
-                                                NameTok.getVerbatimLineName(),
+                                                NameTok.getVerbatimLineID(),
                                                 TextBegin,
                                                 Text);
   consumeToken();
@@ -676,7 +707,9 @@ VerbatimLineComment *Parser::parseVerbatimLine() {
 BlockContentComment *Parser::parseBlockContent() {
   switch (Tok.getKind()) {
   case tok::text:
-  case tok::command:
+  case tok::unknown_command:
+  case tok::backslash_command:
+  case tok::at_command:
   case tok::html_start_tag:
   case tok::html_end_tag:
     return parseParagraphOrBlockCommand();

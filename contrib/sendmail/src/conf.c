@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2013 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1168 2011/01/25 18:31:30 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1182 2013/04/05 17:39:09 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -53,7 +53,7 @@ static int	add_hostnames __P((SOCKADDR *));
 static struct hostent *sm_getipnodebyname __P((const char *, int, int, int *));
 static struct hostent *sm_getipnodebyaddr __P((const void *, size_t, int, int *));
 #else /* NETINET6 && NEEDSGETIPNODE */
-#define sm_getipnodebyname getipnodebyname 
+#define sm_getipnodebyname getipnodebyname
 #define sm_getipnodebyaddr getipnodebyaddr
 #endif /* NETINET6 && NEEDSGETIPNODE */
 
@@ -967,7 +967,7 @@ switch_map_find(service, maptype, mapreturn)
 			char buf[MAXLINE];
 
 			while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf,
-					   sizeof(buf)) != NULL)
+					   sizeof(buf)) >= 0)
 			{
 				register char *p;
 
@@ -2848,7 +2848,7 @@ uname(name)
 		char buf[MAXLINE];
 
 		while (sm_io_fgets(file, SM_TIME_DEFAULT,
-				   buf, sizeof(buf)) != NULL)
+				   buf, sizeof(buf)) >= 0)
 		{
 			if (sm_io_sscanf(buf, "#define sysname \"%*[^\"]\"",
 					NODE_LENGTH, name->nodename) > 0)
@@ -3222,7 +3222,7 @@ usershellok(user, shell)
 		return false;
 	}
 
-	while (sm_io_fgets(shellf, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(shellf, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		register char *p, *q;
 
@@ -4294,7 +4294,12 @@ sm_gethostbyname(name, family)
 #else /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
 	int nmaps;
 # if NETINET6
-	int flags = AI_DEFAULT|AI_ALL;
+#  ifndef SM_IPNODEBYNAME_FLAGS
+    /* For IPv4-mapped addresses, use: AI_DEFAULT|AI_ALL */
+#   define SM_IPNODEBYNAME_FLAGS	AI_ADDRCONFIG
+#  endif /* SM_IPNODEBYNAME_FLAGS */
+
+	int flags = SM_IPNODEBYNAME_FLAGS;
 	int err;
 # endif /* NETINET6 */
 	char *maptype[MAXMAPSTACK];
@@ -4602,6 +4607,10 @@ add_hostnames(sa)
 		int save_errno = errno;
 
 		if (LogLevel > 3 &&
+#if NETINET && defined(IN_LINKLOCAL)
+		    !(sa->sa.sa_family == AF_INET &&
+		      IN_LINKLOCAL(ntohl(sa->sin.sin_addr.s_addr))) &&
+#endif /* NETINET && defined(IN_LINKLOCAL) */
 #if NETINET6
 		    !(sa->sa.sa_family == AF_INET6 &&
 		      IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr)) &&
@@ -5374,14 +5383,30 @@ sm_syslog(level, id, fmt, va_alist)
 #if LOG
 		if (*id == '\0')
 		{
-			if (tTd(89, 8))
+			if (tTd(89, 10))
+			{
+				struct timeval tv;
+
+				gettimeofday(&tv, NULL);
+				sm_dprintf("%ld.%06ld %s\n", (long) tv.tv_sec,
+					(long) tv.tv_usec, newstring);
+			}
+			else if (tTd(89, 8))
 				sm_dprintf("%s\n", newstring);
 			else
 				syslog(level, "%s", newstring);
 		}
 		else
 		{
-			if (tTd(89, 8))
+			if (tTd(89, 10))
+			{
+				struct timeval tv;
+
+				gettimeofday(&tv, NULL);
+				sm_dprintf("%ld.%06ld %s: %s\n", (long) tv.tv_sec,
+					(long) tv.tv_usec, id, newstring);
+			}
+			else if (tTd(89, 8))
 				sm_dprintf("%s: %s\n", id, newstring);
 			else
 				syslog(level, "%s: %s", id, newstring);
@@ -5984,6 +6009,23 @@ char	*OsCompileOptions[] =
 #if SECUREWARE
 	"SECUREWARE",
 #endif /* SECUREWARE */
+#if SFS_TYPE == SFS_4ARGS
+	"SFS_4ARGS",
+#elif SFS_TYPE == SFS_MOUNT
+	"SFS_MOUNT",
+#elif SFS_TYPE == SFS_NONE
+	"SFS_NONE",
+#elif SFS_TYPE == SFS_NT
+	"SFS_NT",
+#elif SFS_TYPE == SFS_STATFS
+	"SFS_STATFS",
+#elif SFS_TYPE == SFS_STATVFS
+	"SFS_STATVFS",
+#elif SFS_TYPE == SFS_USTAT
+	"SFS_USTAT",
+#elif SFS_TYPE == SFS_VFS
+	"SFS_VFS",
+#endif
 #if SHARE_V1
 	"SHARE_V1",
 #endif /* SHARE_V1 */
@@ -6164,6 +6206,10 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_GETHBN_ExFILE",
 #endif /* _FFR_GETHBN_ExFILE */
+#if _FFR_FIPSMODE
+	/* FIPSMode (if supported by OpenSSL library) */
+	"_FFR_FIPSMODE",
+#endif /* _FFR_FIPSMODE */
 #if _FFR_FIX_DASHT
 	/*
 	**  If using -t, force not sending to argv recipients, even
@@ -6343,6 +6389,10 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_REDIRECTEMPTY",
 #endif /* _FFR_REDIRECTEMPTY */
+#if _FFR_REJECT_NUL_BYTE
+	/* reject NUL bytes in body */
+	"_FFR_REJECT_NUL_BYTE",
+#endif /* _FFR_REJECT_NUL_BYTE */
 #if _FFR_RESET_MACRO_GLOBALS
 	/* Allow macro 'j' to be set dynamically via rulesets. */
 	"_FFR_RESET_MACRO_GLOBALS",

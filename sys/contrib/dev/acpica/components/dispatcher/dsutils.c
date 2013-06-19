@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,7 @@
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Clear and remove a reference on an implicit return value.  Used
+ * DESCRIPTION: Clear and remove a reference on an implicit return value. Used
  *              to delete "stale" return values (if enabled, the return value
  *              from every operator is saved at least momentarily, in case the
  *              parent method exits.)
@@ -117,7 +117,7 @@ AcpiDsClearImplicitReturn (
  *
  * DESCRIPTION: Implements the optional "implicit return".  We save the result
  *              of every ASL operator and control method invocation in case the
- *              parent method exit.  Before storing a new return value, we
+ *              parent method exit. Before storing a new return value, we
  *              delete the previous return value.
  *
  ******************************************************************************/
@@ -220,7 +220,7 @@ AcpiDsIsResultUsed (
      *
      * If there is no parent, or the parent is a ScopeOp, we are executing
      * at the method level. An executing method typically has no parent,
-     * since each method is parsed separately.  A method invoked externally
+     * since each method is parsed separately. A method invoked externally
      * via ExecuteControlMethod has a ScopeOp as the parent.
      */
     if ((!Op->Common.Parent) ||
@@ -245,7 +245,7 @@ AcpiDsIsResultUsed (
     }
 
     /*
-     * Decide what to do with the result based on the parent.  If
+     * Decide what to do with the result based on the parent. If
      * the parent opcode will not use the result, delete the object.
      * Otherwise leave it as is, it will be deleted when it is used
      * as an operand later.
@@ -264,7 +264,6 @@ AcpiDsIsResultUsed (
 
         case AML_IF_OP:
         case AML_WHILE_OP:
-
             /*
              * If we are executing the predicate AND this is the predicate op,
              * we will use the return value
@@ -277,7 +276,9 @@ AcpiDsIsResultUsed (
             break;
 
         default:
+
             /* Ignore other control opcodes */
+
             break;
         }
 
@@ -285,15 +286,12 @@ AcpiDsIsResultUsed (
 
         goto ResultNotUsed;
 
-
     case AML_CLASS_CREATE:
-
         /*
          * These opcodes allow TermArg(s) as operands and therefore
-         * the operands can be method calls.  The result is used.
+         * the operands can be method calls. The result is used.
          */
         goto ResultUsed;
-
 
     case AML_CLASS_NAMED_OBJECT:
 
@@ -307,16 +305,14 @@ AcpiDsIsResultUsed (
         {
             /*
              * These opcodes allow TermArg(s) as operands and therefore
-             * the operands can be method calls.  The result is used.
+             * the operands can be method calls. The result is used.
              */
             goto ResultUsed;
         }
 
         goto ResultNotUsed;
 
-
     default:
-
         /*
          * In all other cases. the parent will actually use the return
          * object, so keep it.
@@ -354,9 +350,9 @@ ResultNotUsed:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Used after interpretation of an opcode.  If there is an internal
+ * DESCRIPTION: Used after interpretation of an opcode. If there is an internal
  *              result descriptor, check if the parent opcode will actually use
- *              this result.  If not, delete the result now so that it will
+ *              this result. If not, delete the result now so that it will
  *              not become orphaned.
  *
  ******************************************************************************/
@@ -408,7 +404,7 @@ AcpiDsDeleteResultIfNotUsed (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Resolve all operands to their values.  Used to prepare
+ * DESCRIPTION: Resolve all operands to their values. Used to prepare
  *              arguments to a control method invocation (a call from one
  *              method to another.)
  *
@@ -427,7 +423,7 @@ AcpiDsResolveOperands (
 
     /*
      * Attempt to resolve each of the valid operands
-     * Method arguments are passed by reference, not by value.  This means
+     * Method arguments are passed by reference, not by value. This means
      * that the actual objects are passed, not copies of the objects.
      */
     for (i = 0; i < WalkState->NumOperands; i++)
@@ -494,7 +490,7 @@ AcpiDsClearOperands (
  * RETURN:      Status
  *
  * DESCRIPTION: Translate a parse tree object that is an argument to an AML
- *              opcode to the equivalent interpreter object.  This may include
+ *              opcode to the equivalent interpreter object. This may include
  *              looking up a name or entering a new name into the internal
  *              namespace.
  *
@@ -540,11 +536,11 @@ AcpiDsCreateOperand (
         /* All prefixes have been handled, and the name is in NameString */
 
         /*
-         * Special handling for BufferField declarations.  This is a deferred
+         * Special handling for BufferField declarations. This is a deferred
          * opcode that unfortunately defines the field name as the last
-         * parameter instead of the first.  We get here when we are performing
+         * parameter instead of the first. We get here when we are performing
          * the deferred execution, so the actual name of the field is already
-         * in the namespace.  We don't want to attempt to look it up again
+         * in the namespace. We don't want to attempt to look it up again
          * because we may be executing in a different scope than where the
          * actual opcode exists.
          */
@@ -651,8 +647,8 @@ AcpiDsCreateOperand (
             /*
              * If the name is null, this means that this is an
              * optional result parameter that was not specified
-             * in the original ASL.  Create a Zero Constant for a
-             * placeholder.  (Store to a constant is a Noop.)
+             * in the original ASL. Create a Zero Constant for a
+             * placeholder. (Store to a constant is a Noop.)
              */
             Opcode = AML_ZERO_OP;       /* Has no arguments! */
 

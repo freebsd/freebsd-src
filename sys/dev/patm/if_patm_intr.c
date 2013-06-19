@@ -324,7 +324,7 @@ patm_lmbuf_alloc(struct patm_softc *sc)
 	struct mbuf *m;
 	struct lmbuf *b;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (NULL);
 	m->m_data += LMBUF_OFFSET;

@@ -78,18 +78,18 @@
 #define MLX_V3_FWERROR_PARAM1	0x00
 #define MLX_V3_FWERROR_PARAM2	0x01
 
-#define MLX_V3_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_MAILBOX + idx, val)
-#define MLX_V3_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_STATUS_IDENT)
-#define MLX_V3_GET_STATUS(sc)		 bus_space_read_2 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_STATUS)
-#define MLX_V3_GET_IDBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IDBR)
-#define MLX_V3_PUT_IDBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IDBR, val)
-#define MLX_V3_GET_ODBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR)
-#define MLX_V3_PUT_ODBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_ODBR, val)
-#define MLX_V3_PUT_IER(sc, val)		 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_IER, val)
-#define MLX_V3_GET_FWERROR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR)
-#define MLX_V3_PUT_FWERROR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR, val)
-#define MLX_V3_GET_FWERROR_PARAM1(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR_PARAM1)
-#define MLX_V3_GET_FWERROR_PARAM2(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V3_FWERROR_PARAM2)
+#define MLX_V3_PUT_MAILBOX(sc, idx, val) bus_write_1(sc->mlx_mem, MLX_V3_MAILBOX + idx, val)
+#define MLX_V3_GET_STATUS_IDENT(sc)	 bus_read_1 (sc->mlx_mem, MLX_V3_STATUS_IDENT)
+#define MLX_V3_GET_STATUS(sc)		 bus_read_2 (sc->mlx_mem, MLX_V3_STATUS)
+#define MLX_V3_GET_IDBR(sc)		 bus_read_1 (sc->mlx_mem, MLX_V3_IDBR)
+#define MLX_V3_PUT_IDBR(sc, val)	 bus_write_1(sc->mlx_mem, MLX_V3_IDBR, val)
+#define MLX_V3_GET_ODBR(sc)		 bus_read_1 (sc->mlx_mem, MLX_V3_ODBR)
+#define MLX_V3_PUT_ODBR(sc, val)	 bus_write_1(sc->mlx_mem, MLX_V3_ODBR, val)
+#define MLX_V3_PUT_IER(sc, val)		 bus_write_1(sc->mlx_mem, MLX_V3_IER, val)
+#define MLX_V3_GET_FWERROR(sc)		 bus_read_1 (sc->mlx_mem, MLX_V3_FWERROR)
+#define MLX_V3_PUT_FWERROR(sc, val)	 bus_write_1(sc->mlx_mem, MLX_V3_FWERROR, val)
+#define MLX_V3_GET_FWERROR_PARAM1(sc)	 bus_read_1 (sc->mlx_mem, MLX_V3_FWERROR_PARAM1)
+#define MLX_V3_GET_FWERROR_PARAM2(sc)	 bus_read_1 (sc->mlx_mem, MLX_V3_FWERROR_PARAM2)
 
 #define MLX_V3_IDB_FULL		(1<<0)		/* mailbox is full */
 #define MLX_V3_IDB_INIT_BUSY	(1<<1)		/* initialisation in progress */
@@ -115,18 +115,18 @@
 #define MLX_V4_FWERROR_PARAM2	0x1001
 
 /* use longword access? */
-#define MLX_V4_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_MAILBOX + idx, val)
-#define MLX_V4_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_STATUS_IDENT)
-#define MLX_V4_GET_STATUS(sc)		 bus_space_read_2 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_STATUS)
-#define MLX_V4_GET_IDBR(sc)		 bus_space_read_4 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_IDBR)
-#define MLX_V4_PUT_IDBR(sc, val)	 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_IDBR, val)
-#define MLX_V4_GET_ODBR(sc)		 bus_space_read_4 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_ODBR)
-#define MLX_V4_PUT_ODBR(sc, val)	 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_ODBR, val)
-#define MLX_V4_PUT_IER(sc, val)		 bus_space_write_4(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_IER, val)
-#define MLX_V4_GET_FWERROR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR)
-#define MLX_V4_PUT_FWERROR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR, val)
-#define MLX_V4_GET_FWERROR_PARAM1(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR_PARAM1)
-#define MLX_V4_GET_FWERROR_PARAM2(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V4_FWERROR_PARAM2)
+#define MLX_V4_PUT_MAILBOX(sc, idx, val) bus_write_1(sc->mlx_mem, MLX_V4_MAILBOX + idx, val)
+#define MLX_V4_GET_STATUS_IDENT(sc)	 bus_read_1 (sc->mlx_mem, MLX_V4_STATUS_IDENT)
+#define MLX_V4_GET_STATUS(sc)		 bus_read_2 (sc->mlx_mem, MLX_V4_STATUS)
+#define MLX_V4_GET_IDBR(sc)		 bus_read_4 (sc->mlx_mem, MLX_V4_IDBR)
+#define MLX_V4_PUT_IDBR(sc, val)	 bus_write_4(sc->mlx_mem, MLX_V4_IDBR, val)
+#define MLX_V4_GET_ODBR(sc)		 bus_read_4 (sc->mlx_mem, MLX_V4_ODBR)
+#define MLX_V4_PUT_ODBR(sc, val)	 bus_write_4(sc->mlx_mem, MLX_V4_ODBR, val)
+#define MLX_V4_PUT_IER(sc, val)		 bus_write_4(sc->mlx_mem, MLX_V4_IER, val)
+#define MLX_V4_GET_FWERROR(sc)		 bus_read_1 (sc->mlx_mem, MLX_V4_FWERROR)
+#define MLX_V4_PUT_FWERROR(sc, val)	 bus_write_1(sc->mlx_mem, MLX_V4_FWERROR, val)
+#define MLX_V4_GET_FWERROR_PARAM1(sc)	 bus_read_1 (sc->mlx_mem, MLX_V4_FWERROR_PARAM1)
+#define MLX_V4_GET_FWERROR_PARAM2(sc)	 bus_read_1 (sc->mlx_mem, MLX_V4_FWERROR_PARAM2)
 
 #define MLX_V4_IDB_FULL		(1<<0)		/* mailbox is full */
 #define MLX_V4_IDB_INIT_BUSY	(1<<1)		/* initialisation in progress */
@@ -160,18 +160,18 @@
 #define MLX_V5_FWERROR_PARAM1	0x50
 #define MLX_V5_FWERROR_PARAM2	0x51
 
-#define MLX_V5_PUT_MAILBOX(sc, idx, val) bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_MAILBOX + idx, val)
-#define MLX_V5_GET_STATUS_IDENT(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_STATUS_IDENT)
-#define MLX_V5_GET_STATUS(sc)		 bus_space_read_2 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_STATUS)
-#define MLX_V5_GET_IDBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_IDBR)
-#define MLX_V5_PUT_IDBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_IDBR, val)
-#define MLX_V5_GET_ODBR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_ODBR)
-#define MLX_V5_PUT_ODBR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_ODBR, val)
-#define MLX_V5_PUT_IER(sc, val)		 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_IER, val)
-#define MLX_V5_GET_FWERROR(sc)		 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR)
-#define MLX_V5_PUT_FWERROR(sc, val)	 bus_space_write_1(sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR, val)
-#define MLX_V5_GET_FWERROR_PARAM1(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR_PARAM1)
-#define MLX_V5_GET_FWERROR_PARAM2(sc)	 bus_space_read_1 (sc->mlx_btag, sc->mlx_bhandle, MLX_V5_FWERROR_PARAM2)
+#define MLX_V5_PUT_MAILBOX(sc, idx, val) bus_write_1(sc->mlx_mem, MLX_V5_MAILBOX + idx, val)
+#define MLX_V5_GET_STATUS_IDENT(sc)	 bus_read_1 (sc->mlx_mem, MLX_V5_STATUS_IDENT)
+#define MLX_V5_GET_STATUS(sc)		 bus_read_2 (sc->mlx_mem, MLX_V5_STATUS)
+#define MLX_V5_GET_IDBR(sc)		 bus_read_1 (sc->mlx_mem, MLX_V5_IDBR)
+#define MLX_V5_PUT_IDBR(sc, val)	 bus_write_1(sc->mlx_mem, MLX_V5_IDBR, val)
+#define MLX_V5_GET_ODBR(sc)		 bus_read_1 (sc->mlx_mem, MLX_V5_ODBR)
+#define MLX_V5_PUT_ODBR(sc, val)	 bus_write_1(sc->mlx_mem, MLX_V5_ODBR, val)
+#define MLX_V5_PUT_IER(sc, val)		 bus_write_1(sc->mlx_mem, MLX_V5_IER, val)
+#define MLX_V5_GET_FWERROR(sc)		 bus_read_1 (sc->mlx_mem, MLX_V5_FWERROR)
+#define MLX_V5_PUT_FWERROR(sc, val)	 bus_write_1(sc->mlx_mem, MLX_V5_FWERROR, val)
+#define MLX_V5_GET_FWERROR_PARAM1(sc)	 bus_read_1 (sc->mlx_mem, MLX_V5_FWERROR_PARAM1)
+#define MLX_V5_GET_FWERROR_PARAM2(sc)	 bus_read_1 (sc->mlx_mem, MLX_V5_FWERROR_PARAM2)
 
 #define MLX_V5_IDB_EMPTY	(1<<0)		/* mailbox is empty */
 #define MLX_V5_IDB_INIT_DONE	(1<<1)		/* initialisation has completed */

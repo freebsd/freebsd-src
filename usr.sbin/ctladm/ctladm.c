@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/linker.h>
 #include <sys/queue.h>
 #include <sys/callout.h>
 #include <sys/sbuf.h>
@@ -164,7 +165,7 @@ typedef enum {
 static const char rw_opts[] = "Nb:c:d:f:l:";
 static const char startstop_opts[] = "io";
 
-struct ctladm_opts option_table[] = {
+static struct ctladm_opts option_table[] = {
 	{"adddev", CTLADM_CMD_ADDDEV, CTLADM_ARG_NONE, NULL},
 	{"bbrread", CTLADM_CMD_BBRREAD, CTLADM_ARG_NEED_TL, "d:l:"},
 	{"create", CTLADM_CMD_CREATE, CTLADM_ARG_NONE, "b:B:d:l:o:s:S:t:"},
@@ -545,7 +546,8 @@ retry:
 	}
 	if (xml != 0) {
 		sbuf_printf(sb, "</ctlfelist>\n");
-		sbuf_finish(sb);
+		if (sbuf_finish(sb) != 0)
+			err(1, "%s: sbuf_finish", __func__);
 		printf("%s", sbuf_data(sb));
 		sbuf_delete(sb);
 	}
@@ -572,7 +574,7 @@ typedef enum {
 	CCTL_PORT_MODE_OFF
 } cctl_port_mode;
 
-struct ctladm_opts cctl_fe_table[] = {
+static struct ctladm_opts cctl_fe_table[] = {
 	{"fc", CTL_PORT_FC, CTLADM_ARG_NONE, NULL},
 	{"scsi", CTL_PORT_SCSI, CTLADM_ARG_NONE, NULL},
 	{"internal", CTL_PORT_INTERNAL, CTLADM_ARG_NONE, NULL},
@@ -999,7 +1001,7 @@ bailout:
 	return (retval);
 }
 
-struct ctladm_opts cctl_err_types[] = {
+static struct ctladm_opts cctl_err_types[] = {
 	{"aborted", CTL_LUN_INJ_ABORTED, CTLADM_ARG_NONE, NULL},
 	{"mediumerr", CTL_LUN_INJ_MEDIUM_ERR, CTLADM_ARG_NONE, NULL},
 	{"ua", CTL_LUN_INJ_UA, CTLADM_ARG_NONE, NULL},
@@ -1008,7 +1010,7 @@ struct ctladm_opts cctl_err_types[] = {
 
 };
 
-struct ctladm_opts cctl_err_patterns[] = {
+static struct ctladm_opts cctl_err_patterns[] = {
 	{"read", CTL_LUN_PAT_READ, CTLADM_ARG_NONE, NULL},
 	{"write", CTL_LUN_PAT_WRITE, CTLADM_ARG_NONE, NULL},
 	{"rw", CTL_LUN_PAT_READWRITE, CTLADM_ARG_NONE, NULL},
@@ -3492,7 +3494,8 @@ cctl_end_element(void *user_data, const char *name)
 		errx(1, "%s: no valid sbuf at level %d (name %s)", __func__,
 		     devlist->level, name);
 
-	sbuf_finish(devlist->cur_sb[devlist->level]);
+	if (sbuf_finish(devlist->cur_sb[devlist->level]) != 0)
+		err(1, "%s: sbuf_finish", __func__);
 	str = strdup(sbuf_data(devlist->cur_sb[devlist->level]));
 	if (str == NULL)
 		err(1, "%s can't allocate %zd bytes for string", __func__,
@@ -3814,6 +3817,7 @@ main(int argc, char **argv)
 	int retval, fd;
 	int retries;
 	int initid;
+	int saved_errno;
 
 	retval = 0;
 	cmdargs = CTLADM_ARG_NONE;
@@ -3963,6 +3967,14 @@ main(int argc, char **argv)
 	if ((cmdargs & CTLADM_ARG_DEVICE)
 	 && (command != CTLADM_CMD_HELP)) {
 		fd = open(device, O_RDWR);
+		if (fd == -1 && errno == ENOENT) {
+			saved_errno = errno;
+			retval = kldload("ctl");
+			if (retval != -1)
+				fd = open(device, O_RDWR);
+			else
+				errno = saved_errno;
+		}
 		if (fd == -1) {
 			fprintf(stderr, "%s: error opening %s: %s\n",
 				argv[0], device, strerror(errno));

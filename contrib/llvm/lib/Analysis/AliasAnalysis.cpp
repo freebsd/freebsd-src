@@ -28,14 +28,15 @@
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/BasicBlock.h"
-#include "llvm/Function.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Type.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 using namespace llvm;
 
 // Register the AliasAnalysis interface, providing a nice name to refer to.
@@ -360,8 +361,28 @@ AliasAnalysis::getModRefInfo(const AtomicRMWInst *RMW, const Location &Loc) {
 }
 
 namespace {
+  // Conservatively return true. Return false, if there is a single path
+  // starting from "From" and the path does not reach "To".
+  static bool hasPath(const BasicBlock *From, const BasicBlock *To) {
+    const unsigned MaxCheck = 5;
+    const BasicBlock *Current = From;
+    for (unsigned I = 0; I < MaxCheck; I++) {
+      unsigned NumSuccs = Current->getTerminator()->getNumSuccessors();
+      if (NumSuccs > 1)
+        return true;
+      if (NumSuccs == 0)
+        return false;
+      Current = Current->getTerminator()->getSuccessor(0);
+      if (Current == To)
+        return true;
+    }
+    return true;
+  }
+
   /// Only find pointer captures which happen before the given instruction. Uses
   /// the dominator tree to determine whether one instruction is before another.
+  /// Only support the case where the Value is defined in the same basic block
+  /// as the given instruction and the use.
   struct CapturesBefore : public CaptureTracker {
     CapturesBefore(const Instruction *I, DominatorTree *DT)
       : BeforeHere(I), DT(DT), Captured(false) {}
@@ -371,8 +392,15 @@ namespace {
     bool shouldExplore(Use *U) {
       Instruction *I = cast<Instruction>(U->getUser());
       BasicBlock *BB = I->getParent();
-      if (BeforeHere != I &&
-          (!DT->isReachableFromEntry(BB) || DT->dominates(BeforeHere, I)))
+      // We explore this usage only if the usage can reach "BeforeHere".
+      // If use is not reachable from entry, there is no need to explore.
+      if (BeforeHere != I && !DT->isReachableFromEntry(BB))
+        return false;
+      // If the value is defined in the same basic block as use and BeforeHere,
+      // there is no need to explore the use if BeforeHere dominates use.
+      // Check whether there is a path from I to BeforeHere.
+      if (BeforeHere != I && DT->dominates(BeforeHere, I) &&
+          !hasPath(BB, BeforeHere->getParent()))
         return false;
       return true;
     }
@@ -380,8 +408,11 @@ namespace {
     bool captured(Use *U) {
       Instruction *I = cast<Instruction>(U->getUser());
       BasicBlock *BB = I->getParent();
-      if (BeforeHere != I &&
-          (!DT->isReachableFromEntry(BB) || DT->dominates(BeforeHere, I)))
+      // Same logic as in shouldExplore.
+      if (BeforeHere != I && !DT->isReachableFromEntry(BB))
+        return false;
+      if (BeforeHere != I && DT->dominates(BeforeHere, I) &&
+          !hasPath(BB, BeforeHere->getParent()))
         return false;
       Captured = true;
       return true;
@@ -451,7 +482,8 @@ AliasAnalysis::~AliasAnalysis() {}
 /// AliasAnalysis interface before any other methods are called.
 ///
 void AliasAnalysis::InitializeAliasAnalysis(Pass *P) {
-  TD = P->getAnalysisIfAvailable<TargetData>();
+  TD = P->getAnalysisIfAvailable<DataLayout>();
+  TLI = P->getAnalysisIfAvailable<TargetLibraryInfo>();
   AA = &P->getAnalysis<AliasAnalysis>();
 }
 
@@ -461,7 +493,7 @@ void AliasAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<AliasAnalysis>();         // All AA's chain
 }
 
-/// getTypeStoreSize - Return the TargetData store size for the given type,
+/// getTypeStoreSize - Return the DataLayout store size for the given type,
 /// if known, or a conservative value otherwise.
 ///
 uint64_t AliasAnalysis::getTypeStoreSize(Type *Ty) {
@@ -521,21 +553,5 @@ bool llvm::isIdentifiedObject(const Value *V) {
     return true;
   if (const Argument *A = dyn_cast<Argument>(V))
     return A->hasNoAliasAttr() || A->hasByValAttr();
-  return false;
-}
-
-/// isKnownNonNull - Return true if we know that the specified value is never
-/// null.
-bool llvm::isKnownNonNull(const Value *V) {
-  // Alloca never returns null, malloc might.
-  if (isa<AllocaInst>(V)) return true;
-
-  // A byval argument is never null.
-  if (const Argument *A = dyn_cast<Argument>(V))
-    return A->hasByValAttr();
-
-  // Global values are not null unless extern weak.
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
-    return !GV->hasExternalWeakLinkage();
   return false;
 }

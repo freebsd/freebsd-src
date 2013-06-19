@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -223,7 +223,7 @@ AcpiNsGetPathnameLength (
             ACPI_ERROR ((AE_INFO,
                 "Invalid Namespace Node (%p) while traversing namespace",
                 NextNode));
-            return 0;
+            return (0);
         }
         Size += ACPI_PATH_SEGMENT_LENGTH;
         NextNode = NextNode->Parent;
@@ -299,5 +299,3 @@ AcpiNsHandleToPathname (
         (char *) Buffer->Pointer, (UINT32) RequiredSize));
     return_ACPI_STATUS (AE_OK);
 }
-
-

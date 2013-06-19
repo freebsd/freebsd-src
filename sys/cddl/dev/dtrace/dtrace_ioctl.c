@@ -215,7 +215,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		    "DTRACEIOC_AGGSNAP":"DTRACEIOC_BUFSNAP",
 		    curcpu, desc.dtbd_cpu);
 
-		if (desc.dtbd_cpu < 0 || desc.dtbd_cpu >= NCPU)
+		if (desc.dtbd_cpu >= NCPU)
 			return (ENOENT);
 		if (pcpu_find(desc.dtbd_cpu) == NULL)
 			return (ENOENT);
@@ -274,6 +274,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			desc.dtbd_drops = buf->dtb_drops;
 			desc.dtbd_errors = buf->dtb_errors;
 			desc.dtbd_oldest = buf->dtb_xamot_offset;
+			desc.dtbd_timestamp = dtrace_gethrtime();
 
 			mutex_exit(&dtrace_lock);
 
@@ -328,6 +329,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		desc.dtbd_drops = buf->dtb_xamot_drops;
 		desc.dtbd_errors = buf->dtb_xamot_errors;
 		desc.dtbd_oldest = 0;
+		desc.dtbd_timestamp = buf->dtb_switched;
 
 		mutex_exit(&dtrace_lock);
 

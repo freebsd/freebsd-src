@@ -11,11 +11,52 @@
 INTERFACE etherswitch;
 
 #
+# Default implementation
+#
+CODE {
+	static void
+	null_etherswitch_lock(device_t dev)
+	{
+	}
+
+	static void
+	null_etherswitch_unlock(device_t dev)
+	{
+	}
+
+	static int
+	null_etherswitch_getconf(device_t dev, etherswitch_conf_t *conf)
+	{
+		return (0);
+	}
+
+	static int
+	null_etherswitch_setconf(device_t dev, etherswitch_conf_t *conf)
+	{
+		return (0);
+	}
+};
+
+#
 # Return device info
 #
 METHOD etherswitch_info_t* getinfo {
 	device_t	dev;
 }
+
+#
+# Lock access to switch registers
+#
+METHOD void lock {
+	device_t	dev;
+} DEFAULT null_etherswitch_lock;
+
+#
+# Unlock access to switch registers
+#
+METHOD void unlock {
+	device_t	dev;
+} DEFAULT null_etherswitch_unlock;
 
 #
 # Read switch register
@@ -84,3 +125,19 @@ METHOD int setvgroup {
 	device_t	dev;
 	etherswitch_vlangroup_t *vg;
 }
+
+#
+# Get the Switch configuration
+#
+METHOD int getconf {
+	device_t	dev;
+	etherswitch_conf_t	*conf;
+} DEFAULT null_etherswitch_getconf;
+
+#
+# Set the Switch configuration
+#
+METHOD int setconf {
+	device_t	dev;
+	etherswitch_conf_t	*conf;
+} DEFAULT null_etherswitch_setconf;

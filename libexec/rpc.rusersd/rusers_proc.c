@@ -53,6 +53,8 @@ static const char rcsid[] =
 #endif
 #include <rpcsvc/rnusers.h>
 
+#include "extern.h"
+
 #ifndef _PATH_DEV
 #define _PATH_DEV "/dev"
 #endif
@@ -60,10 +62,6 @@ static const char rcsid[] =
 static utmpidle utmp_idle[MAXUSERS];
 static utmp old_utmp[MAXUSERS];
 static struct utmpx utmp_list[MAXUSERS];
-
-extern int from_inetd;
-
-void rusers_service(struct svc_req *, SVCXPRT *);
 
 #ifdef XIDLE
 static Display *dpy;

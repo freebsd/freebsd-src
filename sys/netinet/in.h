@@ -123,6 +123,7 @@ __END_DECLS
 #endif /* !_KERNEL && __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200112
+#define	IPPROTO_IPV6		41		/* IP6 header */
 #define	IPPROTO_RAW		255		/* raw IP packet */
 #define	INET_ADDRSTRLEN		16
 #endif
@@ -174,7 +175,6 @@ __END_DECLS
 #define	IPPROTO_CMTP		38		/* Control Message Transport */
 #define	IPPROTO_TPXX		39		/* TP++ Transport */
 #define	IPPROTO_IL		40		/* IL transport protocol */
-#define	IPPROTO_IPV6		41		/* IP6 header */
 #define	IPPROTO_SDRP		42		/* Source Demand Routing */
 #define	IPPROTO_ROUTING		43		/* IP6 routing header */
 #define	IPPROTO_FRAGMENT	44		/* IP6 fragmentation header */
@@ -741,33 +741,6 @@ void	 in_ifdetach(struct ifnet *);
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 #define	sintosa(sin)	((struct sockaddr *)(sin))
 #define	ifatoia(ifa)	((struct in_ifaddr *)(ifa))
-
-/*
- * Historically, BSD keeps ip_len and ip_off in host format
- * when doing layer 3 processing, and this often requires
- * to translate the format back and forth.
- * To make the process explicit, we define a couple of macros
- * that also take into account the fact that at some point
- * we may want to keep those fields always in net format.
- */
-
-#if (BYTE_ORDER == BIG_ENDIAN) || defined(HAVE_NET_IPLEN)
-#define SET_NET_IPLEN(p)	do {} while (0)
-#define SET_HOST_IPLEN(p)	do {} while (0)
-#else
-#define SET_NET_IPLEN(p)	do {		\
-	struct ip *h_ip = (p);			\
-	h_ip->ip_len = htons(h_ip->ip_len);	\
-	h_ip->ip_off = htons(h_ip->ip_off);	\
-	} while (0)
-
-#define SET_HOST_IPLEN(p)	do {		\
-	struct ip *h_ip = (p);			\
-	h_ip->ip_len = ntohs(h_ip->ip_len);	\
-	h_ip->ip_off = ntohs(h_ip->ip_off);	\
-	} while (0)
-#endif /* !HAVE_NET_IPLEN */
-
 #endif /* _KERNEL */
 
 /* INET6 stuff */

@@ -148,7 +148,9 @@ Flags indicating what action is to be taken.
 .Bl -tag -width ".Dv LK_CANRECURSE"
 .It Dv LK_SHARED
 Acquire a shared lock.
-If an exclusive lock is currently held, it will be downgraded.
+If an exclusive lock is currently held,
+.Dv EDEADLK
+will be returned.
 .It Dv LK_EXCLUSIVE
 Acquire an exclusive lock.
 If an exclusive lock is already held, and
@@ -158,7 +160,8 @@ is not set, the system will
 .It Dv LK_DOWNGRADE
 Downgrade exclusive lock to a shared lock.
 Downgrading a shared lock is not permitted.
-If an exclusive lock has been recursed, all references will be downgraded.
+If an exclusive lock has been recursed, the system will
+.Xr panic 9 .
 .It Dv LK_UPGRADE
 Upgrade a shared lock to an exclusive lock.
 If this call fails, the shared lock is lost.

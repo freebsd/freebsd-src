@@ -1,8 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmcore
 
-SRCDIR=	lib/VMCore
+SRCDIR=	lib/IR
 SRCS=	AsmWriter.cpp \
 	Attributes.cpp \
 	AutoUpgrade.cpp \
@@ -11,10 +13,12 @@ SRCS=	AsmWriter.cpp \
 	Constants.cpp \
 	Core.cpp \
 	DIBuilder.cpp \
+	DataLayout.cpp \
 	DebugInfo.cpp \
 	DebugLoc.cpp \
 	Dominators.cpp \
 	Function.cpp \
+	GCOV.cpp \
 	GVMaterializer.cpp \
 	Globals.cpp \
 	IRBuilder.cpp \
@@ -39,7 +43,6 @@ SRCS=	AsmWriter.cpp \
 	ValueSymbolTable.cpp \
 	ValueTypes.cpp \
 	Verifier.cpp
-LLVM_REQUIRES_RTTI=
 
 TGHDRS=	Intrinsics
 

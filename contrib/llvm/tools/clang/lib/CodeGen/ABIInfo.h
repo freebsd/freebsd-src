@@ -11,16 +11,18 @@
 #define CLANG_CODEGEN_ABIINFO_H
 
 #include "clang/AST/Type.h"
-#include "llvm/Type.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/CallingConv.h"
 
 namespace llvm {
   class Value;
   class LLVMContext;
-  class TargetData;
+  class DataLayout;
 }
 
 namespace clang {
   class ASTContext;
+  class TargetInfo;
 
   namespace CodeGen {
     class CGFunctionInfo;
@@ -70,46 +72,54 @@ namespace clang {
   private:
     Kind TheKind;
     llvm::Type *TypeData;
-    llvm::Type *PaddingType; // Currently allowed only for Direct.
+    llvm::Type *PaddingType;
     unsigned UIntData;
     bool BoolData0;
     bool BoolData1;
     bool InReg;
+    bool PaddingInReg;
 
     ABIArgInfo(Kind K, llvm::Type *TD, unsigned UI, bool B0, bool B1, bool IR,
-               llvm::Type* P)
+               bool PIR, llvm::Type* P)
       : TheKind(K), TypeData(TD), PaddingType(P), UIntData(UI), BoolData0(B0),
-        BoolData1(B1), InReg(IR) {}
+        BoolData1(B1), InReg(IR), PaddingInReg(PIR) {}
 
   public:
     ABIArgInfo() : TheKind(Direct), TypeData(0), UIntData(0) {}
 
     static ABIArgInfo getDirect(llvm::Type *T = 0, unsigned Offset = 0,
                                 llvm::Type *Padding = 0) {
-      return ABIArgInfo(Direct, T, Offset, false, false, false, Padding);
+      return ABIArgInfo(Direct, T, Offset, false, false, false, false, Padding);
     }
-    static ABIArgInfo getDirectInReg(llvm::Type *T) {
-      return ABIArgInfo(Direct, T, 0, false, false, true, 0);
+    static ABIArgInfo getDirectInReg(llvm::Type *T = 0) {
+      return ABIArgInfo(Direct, T, 0, false, false, true, false, 0);
     }
     static ABIArgInfo getExtend(llvm::Type *T = 0) {
-      return ABIArgInfo(Extend, T, 0, false, false, false, 0);
+      return ABIArgInfo(Extend, T, 0, false, false, false, false, 0);
     }
     static ABIArgInfo getExtendInReg(llvm::Type *T = 0) {
-      return ABIArgInfo(Extend, T, 0, false, false, true, 0);
+      return ABIArgInfo(Extend, T, 0, false, false, true, false, 0);
     }
     static ABIArgInfo getIgnore() {
-      return ABIArgInfo(Ignore, 0, 0, false, false, false, 0);
+      return ABIArgInfo(Ignore, 0, 0, false, false, false, false, 0);
     }
     static ABIArgInfo getIndirect(unsigned Alignment, bool ByVal = true
-                                  , bool Realign = false) {
-      return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, false, 0);
+                                  , bool Realign = false
+                                  , llvm::Type *Padding = 0) {
+      return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, false, false, 
+                        Padding);
     }
     static ABIArgInfo getIndirectInReg(unsigned Alignment, bool ByVal = true
                                   , bool Realign = false) {
-      return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, true, 0);
+      return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, true, false, 0);
     }
     static ABIArgInfo getExpand() {
-      return ABIArgInfo(Expand, 0, 0, false, false, false, 0);
+      return ABIArgInfo(Expand, 0, 0, false, false, false, false, 0);
+    }
+    static ABIArgInfo getExpandWithPadding(bool PaddingInReg,
+                                           llvm::Type *Padding) {
+     return ABIArgInfo(Expand, 0, 0, false, false, false, PaddingInReg,
+                       Padding);
     }
 
     Kind getKind() const { return TheKind; }
@@ -131,6 +141,10 @@ namespace clang {
 
     llvm::Type *getPaddingType() const {
       return PaddingType;
+    }
+
+    bool getPaddingInReg() const {
+      return PaddingInReg;
     }
 
     llvm::Type *getCoerceToType() const {
@@ -172,13 +186,24 @@ namespace clang {
   class ABIInfo {
   public:
     CodeGen::CodeGenTypes &CGT;
+  protected:
+    llvm::CallingConv::ID RuntimeCC;
+  public:
+    ABIInfo(CodeGen::CodeGenTypes &cgt)
+      : CGT(cgt), RuntimeCC(llvm::CallingConv::C) {}
 
-    ABIInfo(CodeGen::CodeGenTypes &cgt) : CGT(cgt) {}
     virtual ~ABIInfo();
 
     ASTContext &getContext() const;
     llvm::LLVMContext &getVMContext() const;
-    const llvm::TargetData &getTargetData() const;
+    const llvm::DataLayout &getDataLayout() const;
+    const TargetInfo &getTarget() const;
+
+    /// Return the calling convention to use for system runtime
+    /// functions.
+    llvm::CallingConv::ID getRuntimeCC() const {
+      return RuntimeCC;
+    }
 
     virtual void computeInfo(CodeGen::CGFunctionInfo &FI) const = 0;
 

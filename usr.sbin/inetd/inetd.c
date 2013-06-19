@@ -1387,7 +1387,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
                 }
         }
 	if (sep->se_socktype == SOCK_STREAM)
-		listen(sep->se_fd, 64);
+		listen(sep->se_fd, -1);
 	enable(sep);
 	if (debug) {
 		warnx("registered %s on %d",

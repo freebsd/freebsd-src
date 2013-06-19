@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,22 +99,27 @@ AcpiExSystemMemorySpaceHandler (
     switch (BitWidth)
     {
     case 8:
+
         Length = 1;
         break;
 
     case 16:
+
         Length = 2;
         break;
 
     case 32:
+
         Length = 4;
         break;
 
     case 64:
+
         Length = 8;
         break;
 
     default:
+
         ACPI_ERROR ((AE_INFO, "Invalid SystemMemory width %u",
             BitWidth));
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
@@ -220,7 +224,7 @@ AcpiExSystemMemorySpaceHandler (
      * Perform the memory read or write
      *
      * Note: For machines that do not support non-aligned transfers, the target
-     * address was checked for alignment above.  We do not attempt to break the
+     * address was checked for alignment above. We do not attempt to break the
      * transfer up into smaller (byte-size) chunks because the AML specifically
      * asked for a transfer width that the hardware may require.
      */
@@ -232,23 +236,29 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
+
             *Value = (UINT64) ACPI_GET8 (LogicalAddrPtr);
             break;
 
         case 16:
+
             *Value = (UINT64) ACPI_GET16 (LogicalAddrPtr);
             break;
 
         case 32:
+
             *Value = (UINT64) ACPI_GET32 (LogicalAddrPtr);
             break;
 
         case 64:
+
             *Value = (UINT64) ACPI_GET64 (LogicalAddrPtr);
             break;
 
         default:
+
             /* BitWidth was already validated */
+
             break;
         }
         break;
@@ -258,28 +268,35 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
-            ACPI_SET8 (LogicalAddrPtr) = (UINT8) *Value;
+
+            ACPI_SET8 (LogicalAddrPtr, *Value);
             break;
 
         case 16:
-            ACPI_SET16 (LogicalAddrPtr) = (UINT16) *Value;
+
+            ACPI_SET16 (LogicalAddrPtr, *Value);
             break;
 
         case 32:
-            ACPI_SET32 ( LogicalAddrPtr) = (UINT32) *Value;
+
+            ACPI_SET32 (LogicalAddrPtr, *Value);
             break;
 
         case 64:
-            ACPI_SET64 (LogicalAddrPtr) = (UINT64) *Value;
+
+            ACPI_SET64 (LogicalAddrPtr, *Value);
             break;
 
         default:
+
             /* BitWidth was already validated */
+
             break;
         }
         break;
 
     default:
+
         Status = AE_BAD_PARAMETER;
         break;
     }
@@ -344,6 +361,7 @@ AcpiExSystemIoSpaceHandler (
         break;
 
     default:
+
         Status = AE_BAD_PARAMETER;
         break;
     }
@@ -561,5 +579,3 @@ AcpiExDataTableSpaceHandler (
 
     return_ACPI_STATUS (AE_OK);
 }
-
-

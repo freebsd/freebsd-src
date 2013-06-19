@@ -14,13 +14,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetLowering.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/Support/Debug.h"
 
 using namespace llvm;
 
@@ -212,7 +212,7 @@ static bool FactorOutConstant(const SCEV *&S,
                               const SCEV *&Remainder,
                               const SCEV *Factor,
                               ScalarEvolution &SE,
-                              const TargetData *TD) {
+                              const DataLayout *TD) {
   // Everything is divisible by one.
   if (Factor->isOne())
     return true;
@@ -253,7 +253,7 @@ static bool FactorOutConstant(const SCEV *&S,
   // of the given factor.
   if (const SCEVMulExpr *M = dyn_cast<SCEVMulExpr>(S)) {
     if (TD) {
-      // With TargetData, the size is known. Check if there is a constant
+      // With DataLayout, the size is known. Check if there is a constant
       // operand which is a multiple of the given factor. If so, we can
       // factor it.
       const SCEVConstant *FC = cast<SCEVConstant>(Factor);
@@ -267,7 +267,7 @@ static bool FactorOutConstant(const SCEV *&S,
           return true;
         }
     } else {
-      // Without TargetData, check if Factor can be factored out of any of the
+      // Without DataLayout, check if Factor can be factored out of any of the
       // Mul's operands. If so, we can just remove it.
       for (unsigned i = 0, e = M->getNumOperands(); i != e; ++i) {
         const SCEV *SOp = M->getOperand(i);
@@ -458,7 +458,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
       // An empty struct has no fields.
       if (STy->getNumElements() == 0) break;
       if (SE.TD) {
-        // With TargetData, field offsets are known. See if a constant offset
+        // With DataLayout, field offsets are known. See if a constant offset
         // falls within any of the struct fields.
         if (Ops.empty()) break;
         if (const SCEVConstant *C = dyn_cast<SCEVConstant>(Ops[0]))
@@ -477,7 +477,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
             }
           }
       } else {
-        // Without TargetData, just check for an offsetof expression of the
+        // Without DataLayout, just check for an offsetof expression of the
         // appropriate struct type.
         for (unsigned i = 0, e = Ops.size(); i != e; ++i)
           if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(Ops[i])) {
@@ -1523,9 +1523,8 @@ Value *SCEVExpander::expand(const SCEV *S) {
     }
 
   // Check to see if we already expanded this here.
-  std::map<std::pair<const SCEV *, Instruction *>,
-           AssertingVH<Value> >::iterator I =
-    InsertedExpressions.find(std::make_pair(S, InsertPt));
+  std::map<std::pair<const SCEV *, Instruction *>, TrackingVH<Value> >::iterator
+    I = InsertedExpressions.find(std::make_pair(S, InsertPt));
   if (I != InsertedExpressions.end())
     return I->second;
 
@@ -1600,14 +1599,14 @@ static bool width_descending(Value *lhs, Value *rhs) {
 /// the same context that SCEVExpander is used.
 unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
                                            SmallVectorImpl<WeakVH> &DeadInsts,
-                                           const TargetLowering *TLI) {
+                                           const TargetTransformInfo *TTI) {
   // Find integer phis in order of increasing width.
   SmallVector<PHINode*, 8> Phis;
   for (BasicBlock::iterator I = L->getHeader()->begin();
        PHINode *Phi = dyn_cast<PHINode>(I); ++I) {
     Phis.push_back(Phi);
   }
-  if (TLI)
+  if (TTI)
     std::sort(Phis.begin(), Phis.end(), width_descending);
 
   unsigned NumElim = 0;
@@ -1618,14 +1617,25 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
          PEnd = Phis.end(); PIter != PEnd; ++PIter) {
     PHINode *Phi = *PIter;
 
+    // Fold constant phis. They may be congruent to other constant phis and
+    // would confuse the logic below that expects proper IVs.
+    if (Value *V = Phi->hasConstantValue()) {
+      Phi->replaceAllUsesWith(V);
+      DeadInsts.push_back(Phi);
+      ++NumElim;
+      DEBUG_WITH_TYPE(DebugType, dbgs()
+                      << "INDVARS: Eliminated constant iv: " << *Phi << '\n');
+      continue;
+    }
+
     if (!SE.isSCEVable(Phi->getType()))
       continue;
 
     PHINode *&OrigPhiRef = ExprToIVMap[SE.getSCEV(Phi)];
     if (!OrigPhiRef) {
       OrigPhiRef = Phi;
-      if (Phi->getType()->isIntegerTy() && TLI
-          && TLI->isTruncateFree(Phi->getType(), Phis.back()->getType())) {
+      if (Phi->getType()->isIntegerTy() && TTI
+          && TTI->isTruncateFree(Phi->getType(), Phis.back()->getType())) {
         // This phi can be freely truncated to the narrowest phi type. Map the
         // truncated expression to it so it will be reused for narrow types.
         const SCEV *TruncExpr =

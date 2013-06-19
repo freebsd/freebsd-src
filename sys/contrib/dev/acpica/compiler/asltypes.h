@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asltypes.h - compiler data types and struct definitions
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,16 +81,17 @@
 
 typedef struct asl_method_info
 {
-    UINT8                   NumArguments;
-    UINT8                   LocalInitialized[ACPI_METHOD_NUM_LOCALS];
-    UINT8                   ArgInitialized[ACPI_METHOD_NUM_ARGS];
+    ACPI_PARSE_OBJECT       *Op;
+    struct asl_method_info  *Next;
     UINT32                  ValidArgTypes[ACPI_METHOD_NUM_ARGS];
     UINT32                  ValidReturnTypes;
     UINT32                  NumReturnNoValue;
     UINT32                  NumReturnWithValue;
-    ACPI_PARSE_OBJECT       *Op;
-    struct asl_method_info  *Next;
+    UINT8                   NumArguments;
+    UINT8                   LocalInitialized[ACPI_METHOD_NUM_LOCALS];
+    UINT8                   ArgInitialized[ACPI_METHOD_NUM_ARGS];
     UINT8                   HasBeenTyped;
+    UINT8                   ShouldBeSerialized;
 
 } ASL_METHOD_INFO;
 
@@ -133,6 +133,8 @@ typedef struct asl_file_info
 {
     FILE                        *Handle;
     char                        *Filename;
+    const char                  *ShortDescription;
+    const char                  *Description;
 
 } ASL_FILE_INFO;
 
@@ -146,14 +148,14 @@ typedef struct asl_file_status
 
 /*
  * File types. Note: Any changes to this table must also be reflected
- * in the AslFileTypeNames array.
+ * in the Gbl_Files array.
  */
 typedef enum
 {
     ASL_FILE_STDOUT             = 0,
     ASL_FILE_STDERR,
-    ASL_FILE_INPUT,             /* Don't move these first 3 file types */
-    ASL_FILE_AML_OUTPUT,
+    ASL_FILE_INPUT,
+    ASL_FILE_AML_OUTPUT,        /* Don't move these first 4 file types */
     ASL_FILE_SOURCE_OUTPUT,
     ASL_FILE_PREPROCESSOR,
     ASL_FILE_LISTING_OUTPUT,
@@ -163,12 +165,13 @@ typedef enum
     ASL_FILE_ASM_SOURCE_OUTPUT,
     ASL_FILE_C_SOURCE_OUTPUT,
     ASL_FILE_ASM_INCLUDE_OUTPUT,
-    ASL_FILE_C_INCLUDE_OUTPUT
+    ASL_FILE_C_INCLUDE_OUTPUT,
+    ASL_FILE_C_OFFSET_OUTPUT
 
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       13
+#define ASL_MAX_FILE_TYPE       14
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 

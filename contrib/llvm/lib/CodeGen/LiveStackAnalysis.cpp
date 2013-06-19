@@ -15,17 +15,20 @@
 
 #define DEBUG_TYPE "livestacks"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <limits>
 using namespace llvm;
 
 char LiveStacks::ID = 0;
-INITIALIZE_PASS(LiveStacks, "livestacks",
+INITIALIZE_PASS_BEGIN(LiveStacks, "livestacks",
+                "Live Stack Slot Analysis", false, false)
+INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
+INITIALIZE_PASS_END(LiveStacks, "livestacks",
                 "Live Stack Slot Analysis", false, false)
 
 char &llvm::LiveStacksID = LiveStacks::ID;

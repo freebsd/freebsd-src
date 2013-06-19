@@ -7,7 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements a POSIX regular expression matcher.
+// This file implements a POSIX regular expression matcher.  Both Basic and
+// Extended POSIX regular expressions (ERE) are supported.  EREs were extended
+// to support backreferences in matches.
+// This implementation also supports matching strings with embedded NUL chars.
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,12 +36,14 @@ namespace llvm {
       /// null string after any newline in the string in addition to its normal
       /// function, and the $ anchor matches the null string before any
       /// newline in the string in addition to its normal function.
-      Newline=2
+      Newline=2,
+      /// By default, the POSIX extended regular expression (ERE) syntax is
+      /// assumed. Pass this flag to turn on basic regular expressions (BRE)
+      /// instead.
+      BasicRegex=4
     };
 
-    /// Compiles the given POSIX Extended Regular Expression \arg Regex.
-    /// This implementation supports regexes and matching strings with embedded
-    /// NUL characters.
+    /// Compiles the given regular expression \p Regex.
     Regex(StringRef Regex, unsigned Flags = NoFlags);
     ~Regex();
 
@@ -51,17 +56,17 @@ namespace llvm {
     /// many entries plus one for the whole regex (as element 0).
     unsigned getNumMatches() const;
 
-    /// matches - Match the regex against a given \arg String.
+    /// matches - Match the regex against a given \p String.
     ///
     /// \param Matches - If given, on a successful match this will be filled in
-    /// with references to the matched group expressions (inside \arg String),
+    /// with references to the matched group expressions (inside \p String),
     /// the first group is always the entire pattern.
     ///
     /// This returns true on a successful match.
     bool match(StringRef String, SmallVectorImpl<StringRef> *Matches = 0);
 
     /// sub - Return the result of replacing the first match of the regex in
-    /// \arg String with the \arg Repl string. Backreferences like "\0" in the
+    /// \p String with the \p Repl string. Backreferences like "\0" in the
     /// replacement string are replaced with the appropriate match substring.
     ///
     /// Note that the replacement string has backslash escaping performed on

@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pptpgre.8,v 1.2 1999/12/08 00:20:53 archie Exp $
 .\"
-.Dd March 29, 2008
+.Dd November 13, 2012
 .Dt NG_PPTPGRE 4
 .Os
 .Sh NAME
@@ -72,19 +72,18 @@ hook of a
 node.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -compact -width ".Li session_hhhh"
-.It Li session_hhhh
+.Bl -tag -width ".Va session_hhhh"
+.It Va session_hhhh
 Session 0xhhhh data packets to the upper protocol layers
-.It Li upper
+.It Va upper
 Same as session_hhhh, but for single session with configurable cid (legacy)
-.It Li lower
+.It Va lower
 Connection to the lower protocol layers
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_PPTPGRE_SET_CONFIG
+.Bl -tag -width foo
+.It Dv NGM_PPTPGRE_SET_CONFIG Pq Ic setconfig
 This command resets and configures hook for a session. If corresponding
 session_hhhh hook is not connected, upper hook will be configured.
 This command takes a
@@ -95,7 +94,7 @@ as an argument:
 struct ng_pptpgre_conf {
     u_char      enabled;          /* enables traffic flow */
     u_char      enableDelayedAck; /* enables delayed acks */
-    u_char      enableAlwaysAck;  /* always send ack with data */
+    u_char      enableAlwaysAck;  /* always include ack with data */
     u_char      enableWindowing;  /* enable windowing algorithm */
     uint16_t    cid;              /* my call id */
     uint16_t    peerCid;          /* peer call id */
@@ -124,16 +123,16 @@ The windowing mechanism is a design error in the PPTP protocol;
 L2TP, the successor to PPTP, removes it.
 .Pp
 The remaining fields are as supplied by the PPTP virtual call setup process.
-.It Dv NGM_PPTPGRE_GET_CONFIG
+.It Dv NGM_PPTPGRE_GET_CONFIG Pq Ic getconfig
 Takes two byte argument as cid and returns the current configuration as a
 .Vt "struct ng_pptpgre_conf" .
-.It Dv NGM_PPTPGRE_GET_STATS
+.It Dv NGM_PPTPGRE_GET_STATS Pq Ic getstats
 This command returns a
 .Vt "struct ng_pptpgre_stats"
 containing various node statistics.
-.It Dv NGM_PPTPGRE_CLR_STATS
+.It Dv NGM_PPTPGRE_CLR_STATS Pq Ic clrstats
 This command resets the node statistics.
-.It Dv NGM_PPTPGRE_GETCLR_STATS
+.It Dv NGM_PPTPGRE_GETCLR_STATS Pq Ic getclrstats
 This command atomically gets and resets the node statistics, returning a
 .Vt "struct ng_pptpgre_stats" .
 .El

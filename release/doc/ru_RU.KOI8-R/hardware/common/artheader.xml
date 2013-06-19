@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/artheader.xml,v 1.2 2005/04/25 12:23:24 den Exp $
+
+     Original revision: 1.7
+-->
+
+<articleinfo>
+  <title>Информация о оборудовании &os;/&arch; &release.current;</title>
+
+  <corpauthor>Проект документирования &os;</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <holder role="mailto:doc@FreeBSD.org">Проект документирования &os;</holder>
+  </copyright>
+</articleinfo>

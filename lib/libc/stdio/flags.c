@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -49,9 +49,7 @@ __FBSDID("$FreeBSD$");
  * Return 0 on error.
  */
 int
-__sflags(mode, optr)
-	const char *mode;
-	int *optr;
+__sflags(const char *mode, int *optr)
 {
 	int ret, m, o;
 
@@ -97,12 +95,17 @@ __sflags(mode, optr)
 
 	/* 'x' means exclusive (fail if the file exists) */
 	if (*mode == 'x') {
+		mode++;
 		if (m == O_RDONLY) {
 			errno = EINVAL;
 			return (0);
 		}
 		o |= O_EXCL;
 	}
+
+	/* set close-on-exec */
+	if (*mode == 'e')
+		o |= O_CLOEXEC;
 
 	*optr = m | o;
 	return (ret);

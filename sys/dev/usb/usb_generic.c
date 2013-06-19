@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -67,6 +70,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_UGEN
 
@@ -127,9 +131,8 @@ struct usb_fifo_methods usb_ugen_methods = {
 static int ugen_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
-SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW, &ugen_debug,
+SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &ugen_debug,
     0, "Debug level");
-
 TUNABLE_INT("hw.usb.ugen.debug", &ugen_debug);
 #endif
 
@@ -685,18 +688,21 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	if ((ugd->ugd_config_index == USB_UNCONFIG_INDEX) ||
 	    (ugd->ugd_config_index == udev->curr_config_index)) {
 		cdesc = usbd_get_config_descriptor(udev);
-		if (cdesc == NULL) {
+		if (cdesc == NULL)
 			return (ENXIO);
-		}
 		free_data = 0;
 
 	} else {
+#if (USB_HAVE_FIXED_CONFIG == 0)
 		if (usbd_req_get_config_desc_full(udev,
-		    NULL, &cdesc, M_USBDEV,
-		    ugd->ugd_config_index)) {
+		    NULL, &cdesc, ugd->ugd_config_index)) {
 			return (ENXIO);
 		}
 		free_data = 1;
+#else
+		/* configuration descriptor data is shared */
+		return (EINVAL);
+#endif
 	}
 
 	len = UGETW(cdesc->wTotalLength);
@@ -710,18 +716,25 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 
 	error = copyout(cdesc, ugd->ugd_data, len);
 
-	if (free_data) {
-		free(cdesc, M_USBDEV);
-	}
+	if (free_data)
+		usbd_free_config_desc(udev, cdesc);
+
 	return (error);
 }
 
+/*
+ * This function is called having the enumeration SX locked which
+ * protects the scratch area used.
+ */
 static int
 ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 {
-	void *ptr = f->udev->bus->scratch[0].data;
-	uint16_t size = sizeof(f->udev->bus->scratch[0].data);
+	void *ptr;
+	uint16_t size;
 	int error;
+
+	ptr = f->udev->scratch.data;
+	size = sizeof(f->udev->scratch.data);
 
 	if (usbd_req_get_string_desc(f->udev, NULL, ptr,
 	    size, ugd->ugd_lang_id, ugd->ugd_string_index)) {
@@ -1831,6 +1844,57 @@ ugen_get_power_mode(struct usb_fifo *f)
 }
 
 static int
+ugen_get_port_path(struct usb_fifo *f, struct usb_device_port_path *dpp)
+{
+	struct usb_device *udev = f->udev;
+	struct usb_device *next;
+	unsigned int nlevel = 0;
+
+	if (udev == NULL)
+		goto error;
+
+	dpp->udp_bus = device_get_unit(udev->bus->bdev);
+	dpp->udp_index = udev->device_index;
+
+	/* count port levels */
+	next = udev;
+	while (next->parent_hub != NULL) {
+		nlevel++;
+		next = next->parent_hub;
+	}
+
+	/* check if too many levels */
+	if (nlevel > USB_DEVICE_PORT_PATH_MAX)
+		goto error;
+
+	/* store port index array */
+	next = udev;
+	while (next->parent_hub != NULL) {
+		nlevel--;
+
+		dpp->udp_port_no[nlevel] = next->port_no;
+		dpp->udp_port_level = nlevel;
+
+		next = next->parent_hub;
+	}
+	return (0);	/* success */
+
+error:
+	return (EINVAL);	/* failure */
+}
+
+static int
+ugen_get_power_usage(struct usb_fifo *f)
+{
+	struct usb_device *udev = f->udev;
+
+	if (udev == NULL)
+		return (0);
+
+	return (udev->power);
+}
+
+static int
 ugen_do_port_feature(struct usb_fifo *f, uint8_t port_no,
     uint8_t set, uint16_t feature)
 {
@@ -2020,6 +2084,7 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_device_stats *stat;
 		struct usb_fs_init *pinit;
 		struct usb_fs_uninit *puninit;
+		struct usb_device_port_path *dpp;
 		uint32_t *ptime;
 		void   *addr;
 		int    *pint;
@@ -2190,6 +2255,14 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_GET_POWER_MODE:
 		*u.pint = ugen_get_power_mode(f);
+		break;
+
+	case USB_GET_DEV_PORT_PATH:
+		error = ugen_get_port_path(f, u.dpp);
+		break;
+
+	case USB_GET_POWER_USAGE:
+		*u.pint = ugen_get_power_usage(f);
 		break;
 
 	case USB_SET_PORT_ENABLE:

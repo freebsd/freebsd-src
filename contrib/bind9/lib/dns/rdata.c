@@ -429,12 +429,15 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	isc_buffer_t st;
 	isc_boolean_t use_default = ISC_FALSE;
 	isc_uint32_t activelength;
+	size_t length;
 
 	REQUIRE(dctx != NULL);
 	if (rdata != NULL) {
 		REQUIRE(DNS_RDATA_INITIALIZED(rdata));
 		REQUIRE(DNS_RDATA_VALIDFLAGS(rdata));
 	}
+	REQUIRE(source != NULL);
+	REQUIRE(target != NULL);
 
 	if (type == 0)
 		return (DNS_R_FORMERR);
@@ -459,6 +462,14 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	}
 
 	/*
+	 * Reject any rdata that expands out to more than DNS_RDATA_MAXLENGTH
+	 * as we cannot transmit it.
+	 */
+	length = isc_buffer_usedlength(target) - isc_buffer_usedlength(&st);
+	if (result == ISC_R_SUCCESS && length > DNS_RDATA_MAXLENGTH)
+		result = DNS_R_FORMERR;
+
+	/*
 	 * We should have consumed all of our buffer.
 	 */
 	if (result == ISC_R_SUCCESS && !buffer_empty(source))
@@ -466,8 +477,7 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 
 	if (rdata != NULL && result == ISC_R_SUCCESS) {
 		region.base = isc_buffer_used(&st);
-		region.length = isc_buffer_usedlength(target) -
-				isc_buffer_usedlength(&st);
+		region.length = length;
 		dns_rdata_fromregion(rdata, rdclass, type, &region);
 	}
 
@@ -528,13 +538,11 @@ rdata_validate(isc_buffer_t *src, isc_buffer_t *dest, dns_rdataclass_t rdclass,
 	    dns_rdatatype_t type)
 {
 	dns_decompress_t dctx;
-	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_result_t result;
 
 	dns_decompress_init(&dctx, -1, DNS_DECOMPRESS_NONE);
 	isc_buffer_setactive(src, isc_buffer_usedlength(src));
-	result = dns_rdata_fromwire(&rdata, rdclass, type, src,
-				    &dctx, 0, dest);
+	result = dns_rdata_fromwire(NULL, rdclass, type, src, &dctx, 0, dest);
 	dns_decompress_invalidate(&dctx);
 
 	return (result);
@@ -602,6 +610,7 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	unsigned long line;
 	void (*callback)(dns_rdatacallbacks_t *, const char *, ...);
 	isc_result_t tresult;
+	size_t length;
 
 	REQUIRE(origin == NULL || dns_name_isabsolute(origin) == ISC_TRUE);
 	if (rdata != NULL) {
@@ -673,10 +682,13 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		}
 	} while (1);
 
+	length = isc_buffer_usedlength(target) - isc_buffer_usedlength(&st);
+	if (result == ISC_R_SUCCESS && length > DNS_RDATA_MAXLENGTH)
+		result = ISC_R_NOSPACE;
+
 	if (rdata != NULL && result == ISC_R_SUCCESS) {
 		region.base = isc_buffer_used(&st);
-		region.length = isc_buffer_usedlength(target) -
-				isc_buffer_usedlength(&st);
+		region.length = length;
 		dns_rdata_fromregion(rdata, rdclass, type, &region);
 	}
 	if (result != ISC_R_SUCCESS) {
@@ -804,6 +816,7 @@ dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	isc_buffer_t st;
 	isc_region_t region;
 	isc_boolean_t use_default = ISC_FALSE;
+	size_t length;
 
 	REQUIRE(source != NULL);
 	if (rdata != NULL) {
@@ -818,10 +831,13 @@ dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	if (use_default)
 		(void)NULL;
 
+	length = isc_buffer_usedlength(target) - isc_buffer_usedlength(&st);
+	if (result == ISC_R_SUCCESS && length > DNS_RDATA_MAXLENGTH)
+		result = ISC_R_NOSPACE;
+
 	if (rdata != NULL && result == ISC_R_SUCCESS) {
 		region.base = isc_buffer_used(&st);
-		region.length = isc_buffer_usedlength(target) -
-				isc_buffer_usedlength(&st);
+		region.length = length;
 		dns_rdata_fromregion(rdata, rdclass, type, &region);
 	}
 	if (result != ISC_R_SUCCESS)
@@ -1151,7 +1167,8 @@ txt_fromwire(isc_buffer_t *source, isc_buffer_t *target) {
 	if (n > tregion.length)
 		return (ISC_R_NOSPACE);
 
-	memcpy(tregion.base, sregion.base, n);
+	if (tregion.base != sregion.base)
+		memcpy(tregion.base, sregion.base, n);
 	isc_buffer_forward(source, n);
 	isc_buffer_add(target, n);
 	return (ISC_R_SUCCESS);
@@ -1325,7 +1342,8 @@ mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 	isc_buffer_availableregion(target, &tr);
 	if (length > tr.length)
 		return (ISC_R_NOSPACE);
-	memcpy(tr.base, base, length);
+	if (tr.base != base)
+		memcpy(tr.base, base, length);
 	isc_buffer_add(target, length);
 	return (ISC_R_SUCCESS);
 }

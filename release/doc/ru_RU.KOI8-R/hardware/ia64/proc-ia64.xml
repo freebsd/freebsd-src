@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/ia64/proc-ia64.xml,v 1.2 2004/08/03 12:53:39 den Exp $
+
+     Original revision: 1.9
+-->
+
+<sect1 id="proc-ia64">
+  <title>Поддерживаемые процессоры и материнские платы</title>
+
+  <para>В настоящее время поддерживаются процессоры 
+    <ulink url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
+    и <ulink url="http://www.intel.com/design/itanium2/index.htm">Itanium 2</ulink>.</para>
+
+  <para>Поддерживаемые чипсеты включают:</para>
+   <itemizedlist>
+     <listitem>
+       <para>HP zx1 (только в ветви разработки, смотрите 
+         <ulink url="http://perforce.FreeBSD.org/">Perforce repository</ulink>)</para>
+     </listitem>
+     <listitem>
+       <para>HP i2000</para>
+     </listitem>
+     <listitem>
+       <para>Intel 460GX</para>
+     </listitem>
+     <listitem>
+       <para>Intel E8870</para>
+     </listitem>
+   </itemizedlist>
+
+  <para>Обе конфигурации, Uniprocessor (UP) и Symmetric Multi-processor (SMP)
+    находятся в активной разработке.  На данный момент SMP системы
+    считаются менее стабильными.  Приоритетом является работа над
+    UP для увеличения стабильности.</para>
+
+  <sect2>
+    <title>Обзор поддерживаемых устройств</title>
+
+    <para>В этом разделе находится дополнительная информация о устройствах,
+      которые могут поддерживаться или не поддерживаться &os;/&arch;.</para>
+
+    <para>За исключением встроенных в PC чипсет &man.ata.4; контроллеров,
+      большинство должны работать сразу.  Со временем ожидается
+      поддержка всех &arch;-совместимых ATA контроллеров.  Обратитесь к
+      следующим разделам за информацией по различным дисковым контроллерам
+      и их текущему статусу.</para>
+    
+    <para>В общем случае, <quote>PC standard</quote> последовательные порты,
+      поддерживаемые драйвером &man.sio.4;, должны работать на
+      Intel legacy компьютерах, но не на PA компьютерах.  Причина в
+      том, что все устройства на компьютерах HP отображаются в память и
+      и ISA устройства не поддерживаются, за исключением PCI
+      dictated VGA legacy.</para>
+
+    <para>В дополнению к устройствам &man.sio.4;, следующие устройства не
+      работают на не Intel legacy компьютерах (но должны работать
+      на компьютерах Intel legacy), поскольку их драйвера делают
+      ISA-специфичные предположения, которые не работают:</para>
+
+    <informaltable frame="none">
+      <tgroup cols="2">
+	<tbody>
+	  <row>
+            <entry>&man.sio.4;</entry>
+            <entry>Нет поддержки ввода-вывода с отображением в память</entry>
+	  </row>
+
+	  <row>
+            <entry>&man.syscons.4;</entry>
+            <entry>Тестирование BIOS, VGA, и т.д.</entry>
+	  </row>
+
+	  <row>
+            <entry>&man.pcm.4;</entry>
+            <entry>Тестирование MSS ISA портов <emphasis>ad nauseum</emphasis></entry>
+	  </row>
+
+	  <row>
+            <entry>&man.atkbd.4;, &man.psm.4;</entry>
+            <entry>Жестко заданная адресация ISA портов</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+  </sect2>
+</sect1>

@@ -271,7 +271,7 @@ mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 		return;
 	}
 
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, pathid,
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid,
 		            targetid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		mps_dprint(sc, MPS_FAULT, "unable to create path for rescan\n");
 		xpt_free_ccb(ccb);
@@ -360,7 +360,7 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 
 	mps_printf(sc, "Reset aborted %u commands\n", reply->TerminationCount);
 	mps_free_reply(sc, tm->cm_reply_data);
-	tm->cm_reply = NULL;	/* Ensures the the reply won't get re-freed */
+	tm->cm_reply = NULL;	/* Ensures the reply won't get re-freed */
 
 	mps_printf(sc, "clearing target %u handle 0x%04x\n", targ->tid, handle);
 	
@@ -550,7 +550,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 	mps_dprint(sc, MPS_INFO, "Reset aborted %u commands\n",
 	    le32toh(reply->TerminationCount));
 	mps_free_reply(sc, tm->cm_reply_data);
-	tm->cm_reply = NULL;	/* Ensures the the reply won't get re-freed */
+	tm->cm_reply = NULL;	/* Ensures the reply won't get re-freed */
 
 	/* Reuse the existing command */
 	req = (MPI2_SAS_IOUNIT_CONTROL_REQUEST *)tm->cm_req;
@@ -914,11 +914,11 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET;
+		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
 		cpi->max_lun = 255;
-		cpi->initiator_id = 255;
+		cpi->initiator_id = sassc->sc->facts->MaxTargets - 1;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSILogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -1755,8 +1755,13 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		}
 	}
 
-	cm->cm_data = csio->data_ptr;
 	cm->cm_length = csio->dxfer_len;
+	if (cm->cm_length != 0) {
+		cm->cm_data = ccb;
+		cm->cm_flags |= MPS_CM_FLAGS_USE_CCB;
+	} else {
+		cm->cm_data = NULL;
+	}
 	cm->cm_sge = &req->SGL;
 	cm->cm_sglsize = (32 - 24) * 4;
 	cm->cm_desc.SCSIIO.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO;
@@ -2020,7 +2025,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		if (cm->cm_flags & MPS_CM_FLAGS_DATAIN)
 			dir = BUS_DMASYNC_POSTREAD;
 		else if (cm->cm_flags & MPS_CM_FLAGS_DATAOUT)
-			dir = BUS_DMASYNC_POSTWRITE;;
+			dir = BUS_DMASYNC_POSTWRITE;
 		bus_dmamap_sync(sc->buffer_dmat, cm->cm_dmamap, dir);
 		bus_dmamap_unload(sc->buffer_dmat, cm->cm_dmamap);
 	}
@@ -2233,6 +2238,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		if ((csio->cdb_io.cdb_bytes[0] == INQUIRY) &&
 		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
 		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
+		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
 		    (csio->data_ptr != NULL) && (((uint8_t *)cm->cm_data)[0] ==
 		    T_SEQUENTIAL) && (sc->control_TLR) &&
 		    (sc->mapping_table[csio->ccb_h.target_id].device_info &
@@ -2691,19 +2697,15 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	/*
 	 * XXX We don't yet support physical addresses here.
 	 */
-	if (ccb->ccb_h.flags & (CAM_DATA_PHYS|CAM_SG_LIST_PHYS)) {
+	switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
+	case CAM_DATA_PADDR:
+	case CAM_DATA_SG_PADDR:
 		mps_printf(sc, "%s: physical addresses not supported\n",
 			   __func__);
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		return;
-	}
-
-	/*
-	 * If the user wants to send an S/G list, check to make sure they
-	 * have single buffers.
-	 */
-	if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
+	case CAM_DATA_SG:
 		/*
 		 * The chip does not support more than one buffer for the
 		 * request or response.
@@ -2730,7 +2732,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 			bus_dma_segment_t *req_sg;
 
 			req_sg = (bus_dma_segment_t *)ccb->smpio.smp_request;
-			request = (uint8_t *)req_sg[0].ds_addr;
+			request = (uint8_t *)(uintptr_t)req_sg[0].ds_addr;
 		} else
 			request = ccb->smpio.smp_request;
 
@@ -2738,12 +2740,18 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 			bus_dma_segment_t *rsp_sg;
 
 			rsp_sg = (bus_dma_segment_t *)ccb->smpio.smp_response;
-			response = (uint8_t *)rsp_sg[0].ds_addr;
+			response = (uint8_t *)(uintptr_t)rsp_sg[0].ds_addr;
 		} else
 			response = ccb->smpio.smp_response;
-	} else {
+		break;
+	case CAM_DATA_VADDR:
 		request = ccb->smpio.smp_request;
 		response = ccb->smpio.smp_response;
+		break;
+	default:
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		return;
 	}
 
 	cm = mps_alloc_command(sc);
@@ -3310,7 +3318,7 @@ mpssas_check_eedp(struct mpssas_softc *sassc)
 				return;
 			}
 
-			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			if (xpt_create_path(&ccb->ccb_h.path, NULL,
 			    pathid, targetid, lunid) != CAM_REQ_CMP) {
 				mps_dprint(sc, MPS_FAULT, "Unable to create "
 				    "path for EEDP support\n");

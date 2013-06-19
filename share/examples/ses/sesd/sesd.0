@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2000
+.Dd November 5, 2012
 .Dt SESD 8
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd monitor SCSI Environmental Services Devices
 .Sh SYNOPSIS
 .Nm
+.Op Fl c
 .Op Fl d
 .Op Fl t Ar poll-interval
 .Ar device
@@ -57,7 +58,9 @@ poll each device for a change in state.
 .Pp
 The following options may be used:
 .Bl -tag -width Ds
-.It Fl p Ar poll-interval
+.It Fl c
+Try to clear enclosure status after read.
+.It Fl t Ar poll-interval
 Change the interval of polling from the default 30 seconds to the number
 of seconds specified.
 .It Fl d

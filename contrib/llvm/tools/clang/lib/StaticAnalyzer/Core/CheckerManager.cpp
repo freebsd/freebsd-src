@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
-#include "clang/Analysis/ProgramPoint.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/Analysis/ProgramPoint.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 
 using namespace clang;
 using namespace ento;
@@ -30,14 +30,13 @@ bool CheckerManager::hasPathSensitiveCheckers() const {
          !LocationCheckers.empty()          ||
          !BindCheckers.empty()              ||
          !EndAnalysisCheckers.empty()       ||
-         !EndPathCheckers.empty()           ||
+         !EndFunctionCheckers.empty()           ||
          !BranchConditionCheckers.empty()   ||
          !LiveSymbolsCheckers.empty()       ||
          !DeadSymbolsCheckers.empty()       ||
          !RegionChangesCheckers.empty()     ||
          !EvalAssumeCheckers.empty()        ||
-         !EvalCallCheckers.empty()          ||
-         !InlineCallCheckers.empty();
+         !EvalCallCheckers.empty();
 }
 
 void CheckerManager::finishedCheckerRegistration() {
@@ -314,20 +313,19 @@ namespace {
     SVal Val;
     const Stmt *S;
     ExprEngine &Eng;
-    ProgramPoint::Kind PointKind;
+    const ProgramPoint &PP;
 
     CheckersTy::const_iterator checkers_begin() { return Checkers.begin(); }
     CheckersTy::const_iterator checkers_end() { return Checkers.end(); }
 
     CheckBindContext(const CheckersTy &checkers,
                      SVal loc, SVal val, const Stmt *s, ExprEngine &eng,
-                     ProgramPoint::Kind PK)
-      : Checkers(checkers), Loc(loc), Val(val), S(s), Eng(eng), PointKind(PK) {}
+                     const ProgramPoint &pp)
+      : Checkers(checkers), Loc(loc), Val(val), S(s), Eng(eng), PP(pp) {}
 
     void runChecker(CheckerManager::CheckBindFunc checkFn,
                     NodeBuilder &Bldr, ExplodedNode *Pred) {
-      const ProgramPoint &L = ProgramPoint::getProgramPoint(S, PointKind,
-                                Pred->getLocationContext(), checkFn.Checker);
+      const ProgramPoint &L = PP.withTag(checkFn.Checker);
       CheckerContext C(Bldr, Eng, Pred, L);
 
       checkFn(Loc, Val, S, C);
@@ -340,8 +338,8 @@ void CheckerManager::runCheckersForBind(ExplodedNodeSet &Dst,
                                         const ExplodedNodeSet &Src,
                                         SVal location, SVal val,
                                         const Stmt *S, ExprEngine &Eng,
-                                        ProgramPoint::Kind PointKind) {
-  CheckBindContext C(BindCheckers, location, val, S, Eng, PointKind);
+                                        const ProgramPoint &PP) {
+  CheckBindContext C(BindCheckers, location, val, S, Eng, PP);
   expandGraphWithCheckers(C, Dst, Src);
 }
 
@@ -355,17 +353,17 @@ void CheckerManager::runCheckersForEndAnalysis(ExplodedGraph &G,
 /// \brief Run checkers for end of path.
 // Note, We do not chain the checker output (like in expandGraphWithCheckers)
 // for this callback since end of path nodes are expected to be final.
-void CheckerManager::runCheckersForEndPath(NodeBuilderContext &BC,
-                                           ExplodedNodeSet &Dst,
-                                           ExprEngine &Eng) {
-  ExplodedNode *Pred = BC.Pred;
+void CheckerManager::runCheckersForEndFunction(NodeBuilderContext &BC,
+                                               ExplodedNodeSet &Dst,
+                                               ExplodedNode *Pred,
+                                               ExprEngine &Eng) {
   
   // We define the builder outside of the loop bacause if at least one checkers
   // creates a sucsessor for Pred, we do not need to generate an 
   // autotransition for it.
   NodeBuilder Bldr(Pred, Dst, BC);
-  for (unsigned i = 0, e = EndPathCheckers.size(); i != e; ++i) {
-    CheckEndPathFunc checkFn = EndPathCheckers[i];
+  for (unsigned i = 0, e = EndFunctionCheckers.size(); i != e; ++i) {
+    CheckEndFunctionFunc checkFn = EndFunctionCheckers[i];
 
     const ProgramPoint &L = BlockEntrance(BC.Block,
                                           Pred->getLocationContext(),
@@ -471,10 +469,10 @@ bool CheckerManager::wantsRegionChangeUpdate(ProgramStateRef state) {
 /// \brief Run checkers for region changes.
 ProgramStateRef 
 CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
-                            const StoreManager::InvalidatedSymbols *invalidated,
+                                    const InvalidatedSymbols *invalidated,
                                     ArrayRef<const MemRegion *> ExplicitRegions,
-                                          ArrayRef<const MemRegion *> Regions,
-                                          const CallEvent *Call) {
+                                    ArrayRef<const MemRegion *> Regions,
+                                    const CallEvent *Call) {
   for (unsigned i = 0, e = RegionChangesCheckers.size(); i != e; ++i) {
     // If any checker declares the state infeasible (or if it starts that way),
     // bail out.
@@ -484,6 +482,27 @@ CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
                                              ExplicitRegions, Regions, Call);
   }
   return state;
+}
+
+/// \brief Run checkers to process symbol escape event.
+ProgramStateRef
+CheckerManager::runCheckersForPointerEscape(ProgramStateRef State,
+                                           const InvalidatedSymbols &Escaped,
+                                           const CallEvent *Call,
+                                           PointerEscapeKind Kind,
+                                           bool IsConst) {
+  assert((Call != NULL ||
+          (Kind != PSK_DirectEscapeOnCall &&
+           Kind != PSK_IndirectEscapeOnCall)) &&
+         "Call must not be NULL when escaping on call");
+    for (unsigned i = 0, e = PointerEscapeCheckers.size(); i != e; ++i) {
+      // If any checker declares the state infeasible (or if it starts that
+      //  way), bail out.
+      if (!State)
+        return NULL;
+      State = PointerEscapeCheckers[i](State, Escaped, Call, Kind, IsConst);
+    }
+  return State;
 }
 
 /// \brief Run checkers for handling assumptions on symbolic values.
@@ -509,41 +528,13 @@ void CheckerManager::runCheckersForEvalCall(ExplodedNodeSet &Dst,
   const CallExpr *CE = cast<CallExpr>(Call.getOriginExpr());
   for (ExplodedNodeSet::iterator
          NI = Src.begin(), NE = Src.end(); NI != NE; ++NI) {
-
     ExplodedNode *Pred = *NI;
     bool anyEvaluated = false;
 
-    // First, check if any of the InlineCall callbacks can evaluate the call.
-    assert(InlineCallCheckers.size() <= 1 &&
-           "InlineCall is a special hacky callback to allow intrusive"
-           "evaluation of the call (which simulates inlining). It is "
-           "currently only used by OSAtomicChecker and should go away "
-           "at some point.");
-    for (std::vector<InlineCallFunc>::iterator
-           EI = InlineCallCheckers.begin(), EE = InlineCallCheckers.end();
-         EI != EE; ++EI) {
-      ExplodedNodeSet checkDst;
-      bool evaluated = (*EI)(CE, Eng, Pred, checkDst);
-      assert(!(evaluated && anyEvaluated)
-             && "There are more than one checkers evaluating the call");
-      if (evaluated) {
-        anyEvaluated = true;
-        Dst.insert(checkDst);
-#ifdef NDEBUG
-        break; // on release don't check that no other checker also evals.
-#endif
-      }
-    }
-
-#ifdef NDEBUG // on release don't check that no other checker also evals.
-    if (anyEvaluated) {
-      break;
-    }
-#endif
-
     ExplodedNodeSet checkDst;
     NodeBuilder B(Pred, checkDst, Eng.getBuilderContext());
-    // Next, check if any of the EvalCall callbacks can evaluate the call.
+
+    // Check if any of the EvalCall callbacks can evaluate the call.
     for (std::vector<EvalCallFunc>::iterator
            EI = EvalCallCheckers.begin(), EE = EvalCallCheckers.end();
          EI != EE; ++EI) {
@@ -648,8 +639,8 @@ void CheckerManager::_registerForEndAnalysis(CheckEndAnalysisFunc checkfn) {
   EndAnalysisCheckers.push_back(checkfn);
 }
 
-void CheckerManager::_registerForEndPath(CheckEndPathFunc checkfn) {
-  EndPathCheckers.push_back(checkfn);
+void CheckerManager::_registerForEndFunction(CheckEndFunctionFunc checkfn) {
+  EndFunctionCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForBranchCondition(
@@ -671,16 +662,21 @@ void CheckerManager::_registerForRegionChanges(CheckRegionChangesFunc checkfn,
   RegionChangesCheckers.push_back(info);
 }
 
+void CheckerManager::_registerForPointerEscape(CheckPointerEscapeFunc checkfn){
+  PointerEscapeCheckers.push_back(checkfn);
+}
+
+void CheckerManager::_registerForConstPointerEscape(
+                                          CheckPointerEscapeFunc checkfn) {
+  PointerEscapeCheckers.push_back(checkfn);
+}
+
 void CheckerManager::_registerForEvalAssume(EvalAssumeFunc checkfn) {
   EvalAssumeCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForEvalCall(EvalCallFunc checkfn) {
   EvalCallCheckers.push_back(checkfn);
-}
-
-void CheckerManager::_registerForInlineCall(InlineCallFunc checkfn) {
-  InlineCallCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForEndOfTranslationUnit(

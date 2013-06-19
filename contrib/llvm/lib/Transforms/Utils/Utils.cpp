@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/InitializePasses.h"
+#include "llvm/PassRegistry.h"
 #include "llvm-c/Initialization.h"
 
 using namespace llvm;
@@ -29,6 +30,7 @@ void llvm::initializeTransformUtils(PassRegistry &Registry) {
   initializePromotePassPass(Registry);
   initializeUnifyFunctionExitNodesPass(Registry);
   initializeInstSimplifierPass(Registry);
+  initializeMetaRenamerPass(Registry);
 }
 
 /// LLVMInitializeTransformUtils - C binding for initializeTransformUtilsPasses.

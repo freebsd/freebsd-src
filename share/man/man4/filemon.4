@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2012
+.Dd June 14, 2013
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -126,6 +126,7 @@ is set to indicate the error.
 #include <dev/filemon/filemon.h>
 #include <fcntl.h>
 #include <err.h>
+#include <unistd.h>
 
 static void
 open_filemon(void)
@@ -133,29 +134,24 @@ open_filemon(void)
 	pid_t child;
 	int fm_fd, fm_log;
 
-	if ((fm_fd = open("/dev/filemon", O_RDWR)) == -1)
+	if ((fm_fd = open("/dev/filemon", O_RDWR | O_CLOEXEC)) == -1)
 		err(1, "open(\e"/dev/filemon\e", O_RDWR)");
 	if ((fm_log = open("filemon.out",
-	    O_CREAT | O_WRONLY | O_TRUNC, DEFFILEMODE)) == -1)
+	    O_CREAT | O_WRONLY | O_TRUNC | O_CLOEXEC, DEFFILEMODE)) == -1)
 		err(1, "open(filemon.out)");
 
 	if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) == -1)
 		err(1, "Cannot set filemon log file descriptor");
-	/* Set up these two fd's to close on exec. */
-	(void)fcntl(fm_fd, F_SETFD, FD_CLOEXEC);
-	(void)fcntl(fm_log, F_SETFD, FD_CLOEXEC);
 
 	if ((child = fork()) == 0) {
 		child = getpid();
 		if (ioctl(fm_fd, FILEMON_SET_PID, &child) == -1)
 			err(1, "Cannot set filemon PID");
 		/* Do something here. */
-		return 0;
 	} else {
 		wait(&child);
 		close(fm_fd);
 	}
-	return 0;
 }
 .Ed
 .Pp

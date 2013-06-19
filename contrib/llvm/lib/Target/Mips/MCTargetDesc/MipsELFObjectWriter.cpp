@@ -34,14 +34,14 @@ namespace {
 
   class MipsELFObjectWriter : public MCELFObjectTargetWriter {
   public:
-    MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI, bool _isN64);
+    MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI,
+                        bool _isN64, bool IsLittleEndian);
 
     virtual ~MipsELFObjectWriter();
 
     virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
                                   bool IsPCRel, bool IsRelocWithSymbol,
                                   int64_t Addend) const;
-    virtual unsigned getEFlags() const;
     virtual const MCSymbol *ExplicitRelSym(const MCAssembler &Asm,
                                            const MCValue &Target,
                                            const MCFragment &F,
@@ -53,25 +53,12 @@ namespace {
 }
 
 MipsELFObjectWriter::MipsELFObjectWriter(bool _is64Bit, uint8_t OSABI,
-                                         bool _isN64)
+                                         bool _isN64, bool IsLittleEndian)
   : MCELFObjectTargetWriter(_is64Bit, OSABI, ELF::EM_MIPS,
-                            /*HasRelocationAddend*/ false,
+                            /*HasRelocationAddend*/ (_isN64) ? true : false,
                             /*IsN64*/ _isN64) {}
 
 MipsELFObjectWriter::~MipsELFObjectWriter() {}
-
-// FIXME: get the real EABI Version from the Subtarget class.
-unsigned MipsELFObjectWriter::getEFlags() const {
-
-  // FIXME: We can't tell if we are PIC (dynamic) or CPIC (static)
-  unsigned Flag = ELF::EF_MIPS_NOREORDER;
-
-  if (is64Bit())
-    Flag |= ELF::EF_MIPS_ARCH_64R2;
-  else
-    Flag |= ELF::EF_MIPS_ARCH_32R2;
-  return Flag;
-}
 
 const MCSymbol *MipsELFObjectWriter::ExplicitRelSym(const MCAssembler &Asm,
                                                     const MCValue &Target,
@@ -107,7 +94,13 @@ unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
     Type = ELF::R_MIPS_64;
     break;
   case FK_GPRel_4:
-    Type = ELF::R_MIPS_GPREL32;
+    if (isN64()) {
+      Type = setRType((unsigned)ELF::R_MIPS_GPREL32, Type);
+      Type = setRType2((unsigned)ELF::R_MIPS_64, Type);
+      Type = setRType3((unsigned)ELF::R_MIPS_NONE, Type);
+    }
+    else
+      Type = ELF::R_MIPS_GPREL32;
     break;
   case Mips::fixup_Mips_GPREL16:
     Type = ELF::R_MIPS_GPREL16;
@@ -177,6 +170,18 @@ unsigned MipsELFObjectWriter::GetRelocType(const MCValue &Target,
     break;
   case Mips::fixup_Mips_HIGHEST:
     Type = ELF::R_MIPS_HIGHEST;
+    break;
+  case Mips::fixup_Mips_GOT_HI16:
+    Type = ELF::R_MIPS_GOT_HI16;
+    break;
+  case Mips::fixup_Mips_GOT_LO16:
+    Type = ELF::R_MIPS_GOT_LO16;
+    break;
+  case Mips::fixup_Mips_CALL_HI16:
+    Type = ELF::R_MIPS_CALL_HI16;
+    break;
+  case Mips::fixup_Mips_CALL_LO16:
+    Type = ELF::R_MIPS_CALL_LO16;
     break;
   }
   return Type;
@@ -274,6 +279,7 @@ MCObjectWriter *llvm::createMipsELFObjectWriter(raw_ostream &OS,
                                                 bool IsLittleEndian,
                                                 bool Is64Bit) {
   MCELFObjectTargetWriter *MOTW = new MipsELFObjectWriter(Is64Bit, OSABI,
-                                                (Is64Bit) ? true : false);
+                                                (Is64Bit) ? true : false,
+                                                IsLittleEndian);
   return createELFObjectWriter(MOTW, OS, IsLittleEndian);
 }

@@ -111,7 +111,7 @@ static int tx_threshold = 64;
  *
  * See struct fxp_cb_config for the bit definitions.
  */
-static const u_char const fxp_cb_config_template[] = {
+static const u_char fxp_cb_config_template[] = {
 	0x0, 0x0,		/* cb_status */
 	0x0, 0x0,		/* cb_command */
 	0x0, 0x0, 0x0, 0x0,	/* link_addr */
@@ -155,7 +155,7 @@ static const u_char const fxp_cb_config_template[] = {
  * particular variants, but we don't currently differentiate between
  * them.
  */
-static const struct fxp_ident const fxp_ident_table[] = {
+static const struct fxp_ident fxp_ident_table[] = {
     { 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
     { 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
     { 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
@@ -1075,7 +1075,8 @@ fxp_suspend(device_t dev)
 			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 			sc->flags |= FXP_FLAG_WOL;
 			/* Reconfigure hardware to accept magic frames. */
-			fxp_init_body(sc, 1);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			fxp_init_body(sc, 0);
 		}
 		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 	}
@@ -1447,7 +1448,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 
 		if (M_WRITABLE(*m_head) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1563,7 +1564,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->fxp_txmtag, txp->tx_map, *m_head,
 	    segs, &nseg, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, sc->maxtxseg);
+		m = m_collapse(*m_head, M_NOWAIT, sc->maxtxseg);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -2141,8 +2142,10 @@ fxp_tick(void *xsc)
 	 */
 	if (sc->rx_idle_secs > FXP_MAX_RX_IDLE) {
 		sc->rx_idle_secs = 0;
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			fxp_init_body(sc, 1);
+		}
 		return;
 	}
 	/*
@@ -2240,6 +2243,7 @@ fxp_watchdog(struct fxp_softc *sc)
 	device_printf(sc->dev, "device timeout\n");
 	sc->ifp->if_oerrors++;
 
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	fxp_init_body(sc, 1);
 }
 
@@ -2274,6 +2278,10 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	int i, prm;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/*
 	 * Cancel any pending I/O
 	 */
@@ -2628,7 +2636,7 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	bus_dmamap_t tmp_map;
 	int error;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 
@@ -2813,6 +2821,7 @@ fxp_miibus_statchg(device_t dev)
 	 */
 	if (sc->revision == FXP_REV_82557)
 		return;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	fxp_init_body(sc, 0);
 }
 
@@ -2836,9 +2845,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) &&
 			    ((ifp->if_flags ^ sc->if_flags) &
-			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0)
+			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				fxp_init_body(sc, 0);
-			else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				fxp_init_body(sc, 1);
 		} else {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
@@ -2851,8 +2861,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		FXP_LOCK(sc);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			fxp_init_body(sc, 0);
+		}
 		FXP_UNLOCK(sc);
 		break;
 
@@ -2942,8 +2954,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 			reinit++;
 		}
-		if (reinit > 0 && ifp->if_flags & IFF_UP)
+		if (reinit > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			fxp_init_body(sc, 0);
+		}
 		FXP_UNLOCK(sc);
 		VLAN_CAPABILITIES(ifp);
 		break;
@@ -3053,7 +3067,7 @@ static const struct ucode {
 	int		length;
 	u_short		int_delay_offset;
 	u_short		bundle_max_offset;
-} const ucode_table[] = {
+} ucode_table[] = {
 	{ FXP_REV_82558_A4, UCODE(fxp_ucode_d101a), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82558_B0, UCODE(fxp_ucode_d101b0), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82559_A0, UCODE(fxp_ucode_d101ma),

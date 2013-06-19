@@ -92,35 +92,35 @@ __FBSDID("$FreeBSD$");
 #define	SIGUSR1	30
 #endif
 
-int eight, rem;
-struct termios deftty;
+static int eight, rem;
+static struct termios deftty;
 
-int family = PF_UNSPEC;
+static int family = PF_UNSPEC;
 
-int noescape;
-u_char escapechar = '~';
+static int noescape;
+static u_char escapechar = '~';
 
 #define	get_window_size(fd, wp)	ioctl(fd, TIOCGWINSZ, wp)
-struct	winsize winsize;
+static struct winsize winsize;
 
-void		catch_child(int);
-void		copytochild(int);
-void		doit(long) __dead2;
-void		done(int) __dead2;
-void		echo(char);
-u_int		getescape(const char *);
-void		lostpeer(int);
-void		mode(int);
-void		msg(const char *);
-void		oob(int);
-int		reader(int);
-void		sendwindow(void);
-void		setsignal(int);
-void		sigwinch(int);
-void		stop(char);
-void		usage(void) __dead2;
-void		writer(void);
-void		writeroob(int);
+static void		catch_child(int);
+static void		copytochild(int);
+static _Noreturn void	doit(long);
+static _Noreturn void	done(int);
+static void		echo(char);
+static u_int		getescape(const char *);
+static void		lostpeer(int);
+static void		mode(int);
+static void		msg(const char *);
+static void		oob(int);
+static int		reader(int);
+static void		sendwindow(void);
+static void		setsignal(int);
+static void		sigwinch(int);
+static void		stop(char);
+static _Noreturn void	usage(void);
+static void		writer(void);
+static void		writeroob(int);
 
 int
 main(int argc, char *argv[])
@@ -269,9 +269,9 @@ main(int argc, char *argv[])
 	/*NOTREACHED*/
 }
 
-int child;
+static int child;
 
-void
+static void
 doit(long omask)
 {
 
@@ -309,7 +309,7 @@ doit(long omask)
 }
 
 /* trap a signal, unless it is being ignored. */
-void
+static void
 setsignal(int sig)
 {
 	int omask = sigblock(sigmask(sig));
@@ -319,7 +319,7 @@ setsignal(int sig)
 	(void)sigsetmask(omask);
 }
 
-void
+static void
 done(int status)
 {
 	int w, wstatus;
@@ -334,14 +334,14 @@ done(int status)
 	exit(status);
 }
 
-int dosigwinch;
+static int dosigwinch;
 
 /*
  * This is called when the reader process gets the out-of-band (urgent)
  * request to turn on the window-changing protocol.
  */
 /* ARGSUSED */
-void
+static void
 writeroob(int signo __unused)
 {
 	if (dosigwinch == 0) {
@@ -352,7 +352,7 @@ writeroob(int signo __unused)
 }
 
 /* ARGSUSED */
-void
+static void
 catch_child(int signo __unused)
 {
 	pid_t pid;
@@ -375,7 +375,7 @@ catch_child(int signo __unused)
  * ~^Z				suspend rlogin process.
  * ~<delayed-suspend char>	suspend rlogin process, but leave reader alone.
  */
-void
+static void
 writer(void)
 {
 	int bol, local, n;
@@ -432,7 +432,7 @@ writer(void)
 	}
 }
 
-void
+static void
 echo(char c)
 {
 	char *p;
@@ -454,7 +454,7 @@ echo(char c)
 	(void)write(STDOUT_FILENO, buf, p - buf);
 }
 
-void
+static void
 stop(char cmdc)
 {
 	mode(0);
@@ -466,7 +466,7 @@ stop(char cmdc)
 }
 
 /* ARGSUSED */
-void
+static void
 sigwinch(int signo __unused)
 {
 	struct winsize ws;
@@ -481,7 +481,7 @@ sigwinch(int signo __unused)
 /*
  * Send the window size to the server via the magic escape
  */
-void
+static void
 sendwindow(void)
 {
 	struct winsize ws;
@@ -506,13 +506,13 @@ sendwindow(void)
 #define	READING	1
 #define	WRITING	2
 
-jmp_buf rcvtop;
-int rcvcnt, rcvstate;
-pid_t ppid;
-char rcvbuf[8 * 1024];
+static jmp_buf rcvtop;
+static int rcvcnt, rcvstate;
+static pid_t ppid;
+static char rcvbuf[8 * 1024];
 
 /* ARGSUSED */
-void
+static void
 oob(int signo __unused)
 {
 	struct termios tty;
@@ -593,7 +593,7 @@ oob(int signo __unused)
 }
 
 /* reader: read from remote: line -> 1 */
-int
+static int
 reader(int omask)
 {
 	int n, remaining;
@@ -636,7 +636,7 @@ reader(int omask)
 	}
 }
 
-void
+static void
 mode(int f)
 {
 	struct termios tty;
@@ -667,7 +667,7 @@ mode(int f)
 }
 
 /* ARGSUSED */
-void
+static void
 lostpeer(int signo __unused)
 {
 	(void)signal(SIGPIPE, SIG_IGN);
@@ -677,19 +677,19 @@ lostpeer(int signo __unused)
 
 /* copy SIGURGs to the child process via SIGUSR1. */
 /* ARGSUSED */
-void
+static void
 copytochild(int signo __unused)
 {
 	(void)kill(child, SIGUSR1);
 }
 
-void
+static void
 msg(const char *str)
 {
 	(void)fprintf(stderr, "rlogin: %s\r\n", str);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
@@ -698,7 +698,7 @@ usage(void)
 	exit(1);
 }
 
-u_int
+static u_int
 getescape(const char *p)
 {
 	long val;

@@ -14,6 +14,9 @@
 #ifndef PPCMCTARGETDESC_H
 #define PPCMCTARGETDESC_H
 
+// GCC #defines PPC on Linux but we use it as our namespace name
+#undef PPC
+
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
@@ -36,13 +39,17 @@ MCCodeEmitter *createPPCMCCodeEmitter(const MCInstrInfo &MCII,
                                       const MCSubtargetInfo &STI,
                                       MCContext &Ctx);
 
-MCAsmBackend *createPPCAsmBackend(const Target &T, StringRef TT);
+MCAsmBackend *createPPCAsmBackend(const Target &T, StringRef TT, StringRef CPU);
 
 /// createPPCELFObjectWriter - Construct an PPC ELF object writer.
 MCObjectWriter *createPPCELFObjectWriter(raw_ostream &OS,
                                          bool Is64Bit,
                                          uint8_t OSABI);
 } // End llvm namespace
+
+// Generated files will use "namespace PPC". To avoid symbol clash,
+// undefine PPC here. PPC may be predefined on some hosts.
+#undef PPC
 
 // Defines symbolic names for PowerPC registers.  This defines a mapping from
 // register name to register number.

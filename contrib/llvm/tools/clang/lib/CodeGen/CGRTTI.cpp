@@ -13,10 +13,10 @@
 
 #include "CodeGenModule.h"
 #include "CGCXXABI.h"
+#include "CGObjCRuntime.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Type.h"
 #include "clang/Frontend/CodeGenOptions.h"
-#include "CGObjCRuntime.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -105,7 +105,6 @@ public:
   /// BuildTypeInfo - Build the RTTI type info struct for the given type.
   ///
   /// \param Force - true to force the creation of this RTTI value
-  /// \param ForEH - true if this is for exception handling
   llvm::Constant *BuildTypeInfo(QualType Ty, bool Force = false);
 };
 }
@@ -192,6 +191,14 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::Char32:
     case BuiltinType::Int128:
     case BuiltinType::UInt128:
+    case BuiltinType::OCLImage1d:
+    case BuiltinType::OCLImage1dArray:
+    case BuiltinType::OCLImage1dBuffer:
+    case BuiltinType::OCLImage2d:
+    case BuiltinType::OCLImage2dArray:
+    case BuiltinType::OCLImage3d:
+    case BuiltinType::OCLSampler:
+    case BuiltinType::OCLEvent:
       return true;
       
     case BuiltinType::Dependent:
@@ -245,10 +252,12 @@ static bool IsStandardLibraryRTTIDescriptor(QualType Ty) {
 /// the given type exists somewhere else, and that we should not emit the type
 /// information in this translation unit.  Assumes that it is not a
 /// standard-library type.
-static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM, QualType Ty) {
+static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM,
+                                            QualType Ty) {
   ASTContext &Context = CGM.getContext();
 
-  // If RTTI is disabled, don't consider key functions.
+  // If RTTI is disabled, assume it might be disabled in the
+  // translation unit that defines any potential key function, too.
   if (!Context.getLangOpts().RTTI) return false;
 
   if (const RecordType *RecordTy = dyn_cast<RecordType>(Ty)) {
@@ -259,7 +268,9 @@ static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM, QualType Ty) {
     if (!RD->isDynamicClass())
       return false;
 
-    return !CGM.getVTables().ShouldEmitVTableInThisTU(RD);
+    // FIXME: this may need to be reconsidered if the key function
+    // changes.
+    return CGM.getVTables().isVTableExternal(RD);
   }
   
   return false;
@@ -400,6 +411,9 @@ void RTTIBuilder::BuildVTablePointer(const Type *Ty) {
   case Type::LValueReference:
   case Type::RValueReference:
     llvm_unreachable("References shouldn't get here");
+
+  case Type::Auto:
+    llvm_unreachable("Undeduced auto type shouldn't get here");
 
   case Type::Builtin:
   // GCC treats vector and complex types as fundamental types.
@@ -608,6 +622,9 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
   case Type::RValueReference:
     llvm_unreachable("References shouldn't get here");
 
+  case Type::Auto:
+    llvm_unreachable("Undeduced auto type shouldn't get here");
+
   case Type::ConstantArray:
   case Type::IncompleteArray:
   case Type::VariableArray:
@@ -779,28 +796,24 @@ static unsigned ComputeVMIClassTypeInfoFlags(const CXXBaseSpecifier *Base,
     cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
   
   if (Base->isVirtual()) {
-    if (Bases.VirtualBases.count(BaseDecl)) {
+    // Mark the virtual base as seen.
+    if (!Bases.VirtualBases.insert(BaseDecl)) {
       // If this virtual base has been seen before, then the class is diamond
       // shaped.
       Flags |= RTTIBuilder::VMI_DiamondShaped;
     } else {
       if (Bases.NonVirtualBases.count(BaseDecl))
         Flags |= RTTIBuilder::VMI_NonDiamondRepeat;
-
-      // Mark the virtual base as seen.
-      Bases.VirtualBases.insert(BaseDecl);
     }
   } else {
-    if (Bases.NonVirtualBases.count(BaseDecl)) {
+    // Mark the non-virtual base as seen.
+    if (!Bases.NonVirtualBases.insert(BaseDecl)) {
       // If this non-virtual base has been seen before, then the class has non-
       // diamond shaped repeated inheritance.
       Flags |= RTTIBuilder::VMI_NonDiamondRepeat;
     } else {
       if (Bases.VirtualBases.count(BaseDecl))
         Flags |= RTTIBuilder::VMI_NonDiamondRepeat;
-        
-      // Mark the non-virtual base as seen.
-      Bases.NonVirtualBases.insert(BaseDecl);
     }
   }
 
@@ -891,7 +904,7 @@ void RTTIBuilder::BuildVMIClassTypeInfo(const CXXRecordDecl *RD) {
       Offset = Layout.getBaseClassOffset(BaseDecl);
     };
     
-    OffsetFlags = Offset.getQuantity() << 8;
+    OffsetFlags = uint64_t(Offset.getQuantity()) << 8;
     
     // The low-order byte of __offset_flags contains flags, as given by the 
     // masks from the enumeration __offset_flags_masks.
@@ -982,7 +995,7 @@ llvm::Constant *CodeGenModule::GetAddrOfRTTIDescriptor(QualType Ty,
   // Return a bogus pointer if RTTI is disabled, unless it's for EH.
   // FIXME: should we even be calling this method if RTTI is disabled
   // and it's not for EH?
-  if (!ForEH && !getContext().getLangOpts().RTTI)
+  if (!ForEH && !getLangOpts().RTTI)
     return llvm::Constant::getNullValue(Int8PtrTy);
   
   if (ForEH && Ty->isObjCObjectPointerType() &&

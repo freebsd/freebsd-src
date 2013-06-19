@@ -132,40 +132,35 @@ SRCF+=	adddf3 \
 	addsf3 \
 	divdf3 \
 	divsf3 \
-	divsi3 \
 	extendsfdf2 \
 	fixdfsi \
 	fixsfsi \
 	floatsidf \
 	floatsisf \
-	modsi3 \
 	muldf3 \
 	mulsf3 \
 	subdf3 \
 	subsf3 \
-	truncdfsf2 \
+	truncdfsf2
+.endif
+
+.if ${MACHINE_CPUARCH} != "mips" && \
+    (${MACHINE_CPUARCH} != "arm" || ${MK_ARM_EABI} != "no")
+SRCF+=	divsi3 \
+	modsi3 \
 	udivsi3 \
 	umodsi3
 .endif
 
 # FreeBSD-specific atomic intrinsics.
-.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
-SRCF+=	__sync_fetch_and_add_4 \
-	__sync_fetch_and_and_4 \
-	__sync_fetch_and_or_4 \
-	__sync_fetch_and_sub_4 \
-	__sync_fetch_and_xor_4 \
-	__sync_lock_test_and_set_4 \
-	__sync_val_compare_and_swap_4
-.endif
-.if ${MACHINE_ARCH:Mmips64*} != ""
-SRCF+=	__sync_fetch_and_add_8 \
-	__sync_fetch_and_and_8 \
-	__sync_fetch_and_or_8 \
-	__sync_fetch_and_sub_8 \
-	__sync_fetch_and_xor_8 \
-	__sync_lock_test_and_set_8 \
-	__sync_val_compare_and_swap_8
+.if ${MACHINE_CPUARCH} == "arm"
+.PATH: ${.CURDIR}/../../sys/arm/arm
+
+SRCF+=	stdatomic
+.elif ${MACHINE_CPUARCH} == "mips"
+.PATH: ${.CURDIR}/../../sys/mips/mips
+
+SRCF+=	stdatomic
 .endif
 
 .for file in ${SRCF}
@@ -176,13 +171,22 @@ SRCS+=	${file}.c
 . endif
 .endfor
 
-.if ${MACHINE_CPUARCH} != "mips"
-. if ${MK_INSTALLLIB} != "no"
+.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+SRCS+=	aeabi_idivmod.S \
+	aeabi_ldivmod.S \
+	aeabi_memcmp.S \
+	aeabi_memcpy.S \
+	aeabi_memmove.S \
+	aeabi_memset.S \
+	aeabi_uidivmod.S \
+	aeabi_uldivmod.S
+.endif
+
+.if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=libcompiler_rt.a ${LIBDIR}/libgcc.a
-. endif
-. if ${MK_PROFILE} != "no"
+.endif
+.if ${MK_PROFILE} != "no"
 SYMLINKS+=libcompiler_rt_p.a ${LIBDIR}/libgcc_p.a
-. endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \

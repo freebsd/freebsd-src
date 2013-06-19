@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -250,14 +250,17 @@ AcpiSetGpe (
     switch (Action)
     {
     case ACPI_GPE_ENABLE:
+
         Status = AcpiEvEnableGpe (GpeEventInfo);
         break;
 
     case ACPI_GPE_DISABLE:
+
         Status = AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_DISABLE);
         break;
 
     default:
+
         Status = AE_BAD_PARAMETER;
         break;
     }
@@ -487,14 +490,17 @@ AcpiSetGpeWakeMask (
     switch (Action)
     {
     case ACPI_GPE_ENABLE:
+
         ACPI_SET_BIT (GpeRegisterInfo->EnableForWake, (UINT8) RegisterBit);
         break;
 
     case ACPI_GPE_DISABLE:
+
         ACPI_CLEAR_BIT (GpeRegisterInfo->EnableForWake, (UINT8) RegisterBit);
         break;
 
     default:
+
         ACPI_ERROR ((AE_INFO, "%u, Invalid action", Action));
         Status = AE_BAD_PARAMETER;
         break;
@@ -774,7 +780,7 @@ AcpiInstallGpeBlock (
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     Node = AcpiNsValidateHandle (GpeDevice);
@@ -867,7 +873,7 @@ AcpiRemoveGpeBlock (
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     Node = AcpiNsValidateHandle (GpeDevice);

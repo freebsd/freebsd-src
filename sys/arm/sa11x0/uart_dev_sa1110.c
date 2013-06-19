@@ -156,6 +156,8 @@ static kobj_method_t sa1110_methods[] = {
 int
 sa1110_bus_probe(struct uart_softc *sc)
 {
+	sc->sc_txfifosz = 3;
+	sc->sc_rxfifosz = 1;
 	return (0);
 }
 
@@ -164,8 +166,6 @@ sa1110_bus_attach(struct uart_softc *sc)
 {
 	 bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 
-	 sc->sc_txfifosz = 3;
-	 sc->sc_rxfifosz = 1;
 	 sc->sc_hwiflow = 0;
 	 uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_RXE | CR3_TXE | CR3_RIE | CR3_TIE);
 	return (0);

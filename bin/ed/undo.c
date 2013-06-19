@@ -32,9 +32,9 @@ __FBSDID("$FreeBSD$");
 
 
 #define USIZE 100				/* undo stack size */
-undo_t *ustack = NULL;				/* undo stack */
-long usize = 0;					/* stack size variable */
-long u_p = 0;					/* undo stack pointer */
+static undo_t *ustack = NULL;			/* undo stack */
+static long usize = 0;				/* stack size variable */
+static long u_p = 0;				/* undo stack pointer */
 
 /* push_undo_stack: return pointer to initialized undo node */
 undo_t *

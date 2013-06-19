@@ -50,6 +50,7 @@ static device_method_t uart_isa_methods[] = {
 	DEVMETHOD(device_probe,		uart_isa_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
+	DEVMETHOD(device_resume,	uart_bus_resume),
 	{ 0, 0 }
 };
 
@@ -79,6 +80,7 @@ static struct isa_pnp_id isa_ns8250_ids[] = {
 	{0x0034490a, NULL},	/* BRI3400 - Internal ACF Modem */
 	{0x0094490a, NULL},	/* BRI9400 - Boca K56Flex PnP */
 	{0x00b4490a, NULL},	/* BRIB400 - Boca 56k PnP */
+	{0x0010320d, NULL},     /* CIR1000 - Cirrus Logic V34 */
 	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
 	{0x0100440e, NULL},	/* CRD0001 - Cardinal MVP288IV ? */
 	{0x01308c0e, NULL},	/* CTL3001 - Creative Labs Phoneblaster */

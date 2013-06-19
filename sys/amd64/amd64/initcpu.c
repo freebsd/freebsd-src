@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/pcpu.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -72,6 +73,7 @@ u_int	cpu_vendor_id;		/* CPU vendor ID */
 u_int	cpu_fxsr;		/* SSE enabled */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
 u_int	cpu_clflush_line_size = 32;
+u_int	cpu_stdext_feature;
 u_int	cpu_max_ext_state_size;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
@@ -152,11 +154,25 @@ void
 initializecpu(void)
 {
 	uint64_t msr;
+	uint32_t cr4;
 
+	cr4 = rcr4();
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
-		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
+		cr4 |= CR4_FXSR | CR4_XMM;
 		cpu_fxsr = hw_instruction_sse = 1;
 	}
+	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE)
+		cr4 |= CR4_FSGSBASE;
+
+	/*
+	 * Postpone enabling the SMEP on the boot CPU until the page
+	 * tables are switched from the boot loader identity mapping
+	 * to the kernel tables.  The boot loader enables the U bit in
+	 * its tables.
+	 */
+	if (!IS_BSP() && (cpu_stdext_feature & CPUID_STDEXT_SMEP))
+		cr4 |= CR4_SMEP;
+	load_cr4(cr4);
 	if ((amd_feature & AMDID_NX) != 0) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
 		wrmsr(MSR_EFER, msr);

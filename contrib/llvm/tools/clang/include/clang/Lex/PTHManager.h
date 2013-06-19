@@ -14,10 +14,10 @@
 #ifndef LLVM_CLANG_PTHMANAGER_H
 #define LLVM_CLANG_PTHMANAGER_H
 
-#include "clang/Lex/PTHLexer.h"
-#include "clang/Basic/LangOptions.h"
-#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Lex/PTHLexer.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Allocator.h"
 #include <string>
@@ -81,9 +81,8 @@ class PTHManager : public IdentifierInfoLookup {
              void* stringIdLookup, unsigned numIds,
              const unsigned char* spellingBase, const char *originalSourceFile);
 
-  // Do not implement.
-  PTHManager();
-  void operator=(const PTHManager&);
+  PTHManager(const PTHManager &) LLVM_DELETED_FUNCTION;
+  void operator=(const PTHManager &) LLVM_DELETED_FUNCTION;
 
   /// getSpellingAtPTHOffset - Used by PTHLexer classes to get the cached
   ///  spelling for a token.

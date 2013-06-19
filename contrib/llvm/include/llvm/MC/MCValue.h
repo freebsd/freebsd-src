@@ -14,8 +14,8 @@
 #ifndef LLVM_MC_MCVALUE_H
 #define LLVM_MC_MCVALUE_H
 
-#include "llvm/Support/DataTypes.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/DataTypes.h"
 #include <cassert>
 
 namespace llvm {
@@ -46,7 +46,7 @@ public:
   /// isAbsolute - Is this an absolute (as opposed to relocatable) value.
   bool isAbsolute() const { return !SymA && !SymB; }
 
-  /// print - Print the value to the stream \arg OS.
+  /// print - Print the value to the stream \p OS.
   void print(raw_ostream &OS, const MCAsmInfo *MAI) const;
 
   /// dump - Print the value to stderr.

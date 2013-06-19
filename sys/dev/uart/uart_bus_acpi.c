@@ -47,6 +47,7 @@ static device_method_t uart_acpi_methods[] = {
 	DEVMETHOD(device_probe,		uart_acpi_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
+	DEVMETHOD(device_resume,	uart_bus_resume),
 	{ 0, 0 }
 };
 
@@ -59,7 +60,11 @@ static driver_t uart_acpi_driver = {
 static struct isa_pnp_id acpi_ns8250_ids[] = {
 	{0x0005d041, "Standard PC COM port"},		/* PNP0500 */
 	{0x0105d041, "16550A-compatible COM port"},	/* PNP0501 */
+	{0x0205d041, "Multiport serial device (non-intelligent 16550)"}, /* PNP0502 */
+	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
+	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
 	{0x04f0235c, "Wacom Tablet PC Screen"},		/* WACF004 */
+	{0xe502aa1a, "Wacom Tablet at FuS Lifebook T"},	/* FUJ02E5 */
 	{0}
 };
 

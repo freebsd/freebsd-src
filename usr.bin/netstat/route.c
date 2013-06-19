@@ -637,6 +637,12 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	    {
 		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)sa;
 
+		/*
+		 * The sa6->sin6_scope_id must be filled here because
+		 * this sockaddr is extracted from kmem(4) directly
+		 * and has KAME-specific embedded scope id in
+		 * sa6->sin6_addr.s6_addr[2].
+		 */
 		in6_fillscopeid(sa6);
 
 		if (flags & RTF_HOST)
@@ -1104,10 +1110,8 @@ ipx_phost(struct sockaddr *sa)
 	struct sockaddr_ipx work;
 	static union ipx_net ipx_zeronet;
 	char *p;
-	struct ipx_addr in;
 
 	work = *sipx;
-	in = work.sipx_addr;
 
 	work.sipx_addr.x_port = 0;
 	work.sipx_addr.x_net = ipx_zeronet;

@@ -243,7 +243,7 @@ null_transmit(struct ifnet *ifp, struct mbuf *m)
 
 static int
 null_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	if_printf(ifp, "discard raw packet\n");
 	return null_transmit(ifp, m);
@@ -278,6 +278,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	KASSERT(ifp->if_type == IFT_IEEE80211, ("if_type %d", ifp->if_type));
 
 	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
+	IEEE80211_TX_LOCK_INIT(ic, ifp->if_xname);
 	TAILQ_INIT(&ic->ic_vaps);
 
 	/* Create a taskqueue for all state changes */
@@ -317,7 +318,11 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	ifp->if_addrlen = IEEE80211_ADDR_LEN;
 	ifp->if_hdrlen = 0;
+
+	CURVNET_SET(vnet0);
+
 	if_attach(ifp);
+
 	ifp->if_mtu = IEEE80211_MTU_MAX;
 	ifp->if_broadcastaddr = ieee80211broadcastaddr;
 	ifp->if_output = null_output;
@@ -331,6 +336,8 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	sdl->sdl_alen = IEEE80211_ADDR_LEN;
 	IEEE80211_ADDR_COPY(LLADDR(sdl), macaddr);
 	ifa_free(ifa);
+
+	CURVNET_RESTORE();
 }
 
 /*
@@ -345,8 +352,18 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211vap *vap;
 
+	/*
+	 * This detaches the main interface, but not the vaps.
+	 * Each VAP may be in a separate VIMAGE.
+	 */
+	CURVNET_SET(ifp->if_vnet);
 	if_detach(ifp);
+	CURVNET_RESTORE();
 
+	/*
+	 * The VAP is responsible for setting and clearing
+	 * the VIMAGE context.
+	 */
 	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL)
 		ieee80211_vap_destroy(vap);
 	ieee80211_waitfor_parent(ic);
@@ -365,8 +382,11 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_power_detach(ic);
 	ieee80211_node_detach(ic);
 
+	/* XXX VNET needed? */
 	ifmedia_removeall(&ic->ic_media);
+
 	taskqueue_free(ic->ic_tq);
+	IEEE80211_TX_LOCK_DESTROY(ic);
 	IEEE80211_LOCK_DESTROY(ic);
 }
 
@@ -586,6 +606,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
 
+	CURVNET_SET(ifp->if_vnet);
+
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s parent %s\n",
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
 	    ic->ic_ifp->if_xname);
@@ -638,6 +660,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_sysctl_vdetach(vap);
 
 	if_free(ifp);
+
+	CURVNET_RESTORE();
 }
 
 /*

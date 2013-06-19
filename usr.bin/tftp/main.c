@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 typedef struct	sockaddr_storage peeraddr;
 static int	connected;
 static char	mode[32];
-jmp_buf		toplevel;
+static jmp_buf	toplevel;
 volatile int	txrx_error;
 static int	peer;
 
@@ -89,7 +89,7 @@ static int	margc;
 static char	*margv[MAX_MARGV];
 
 int		verbose;
-char		*port = NULL;
+static char	*port = NULL;
 
 static void	get(int, char **);
 static void	help(int, char **);

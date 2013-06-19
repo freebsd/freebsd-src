@@ -16,6 +16,7 @@
 #define CLANG_DRIVER_ARG_H_
 
 #include "Util.h"
+#include "clang/Driver/Option.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include <string>
@@ -23,7 +24,6 @@
 namespace clang {
 namespace driver {
   class ArgList;
-  class Option;
 
   /// \brief A concrete instance of a particular driver option.
   ///
@@ -33,22 +33,25 @@ namespace driver {
   /// ArgList to provide efficient iteration over all instances of a
   /// particular option.
   class Arg {
-    Arg(const Arg &); // DO NOT IMPLEMENT
-    void operator=(const Arg &); // DO NOT IMPLEMENT
+    Arg(const Arg &) LLVM_DELETED_FUNCTION;
+    void operator=(const Arg &) LLVM_DELETED_FUNCTION;
 
   private:
     /// \brief The option this argument is an instance of.
-    const Option *Opt;
+    const Option Opt;
 
     /// \brief The argument this argument was derived from (during tool chain
     /// argument translation), if any.
     const Arg *BaseArg;
 
+    /// \brief How this instance of the option was spelled.
+    StringRef Spelling;
+
     /// \brief The index at which this argument appears in the containing
     /// ArgList.
     unsigned Index;
 
-    /// \brief Was this argument used to effect compilation?
+    /// \brief Was this argument used to affect compilation?
     ///
     /// This is used for generating "argument unused" diagnostics.
     mutable unsigned Claimed : 1;
@@ -60,14 +63,16 @@ namespace driver {
     SmallVector<const char *, 2> Values;
 
   public:
-    Arg(const Option *Opt, unsigned Index, const Arg *BaseArg = 0);
-    Arg(const Option *Opt, unsigned Index,
+    Arg(const Option Opt, StringRef Spelling, unsigned Index,
+        const Arg *BaseArg = 0);
+    Arg(const Option Opt, StringRef Spelling, unsigned Index,
         const char *Value0, const Arg *BaseArg = 0);
-    Arg(const Option *Opt, unsigned Index,
+    Arg(const Option Opt, StringRef Spelling, unsigned Index,
         const char *Value0, const char *Value1, const Arg *BaseArg = 0);
     ~Arg();
 
-    const Option &getOption() const { return *Opt; }
+    Option getOption() const { return Opt; }
+    StringRef getSpelling() const { return Spelling; }
     unsigned getIndex() const { return Index; }
 
     /// \brief Return the base argument which generated this arg.
@@ -90,7 +95,7 @@ namespace driver {
     void claim() const { getBaseArg().Claimed = true; }
 
     unsigned getNumValues() const { return Values.size(); }
-    const char *getValue(const ArgList &Args, unsigned N=0) const {
+    const char *getValue(unsigned N = 0) const {
       return Values[N];
     }
 
@@ -114,8 +119,6 @@ namespace driver {
     /// The distinction is that some options only render their values
     /// when rendered as a input (e.g., Xlinker).
     void renderAsInput(const ArgList &Args, ArgStringList &Output) const;
-
-    static bool classof(const Arg *) { return true; }
 
     void dump() const;
 

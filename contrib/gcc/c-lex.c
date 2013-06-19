@@ -640,6 +640,13 @@ interpret_float (const cpp_token *token, unsigned int flags)
   char *copy;
   size_t copylen;
 
+  /* Default (no suffix) is double.  */
+  if (flags & CPP_N_DEFAULT)
+    {
+      flags ^= CPP_N_DEFAULT;
+      flags |= CPP_N_MEDIUM;
+    }
+
   /* Decode type based on width and properties. */
   if (flags & CPP_N_DFLOAT)
     if ((flags & CPP_N_WIDTH) == CPP_N_LARGE)

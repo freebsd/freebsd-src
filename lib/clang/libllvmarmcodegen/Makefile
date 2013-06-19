@@ -1,15 +1,17 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM
-SRCS=	ARMAsmPrinter.cpp \
+SRCS=	A15SDOptimizer.cpp \
+	ARMAsmPrinter.cpp \
 	ARMBaseInstrInfo.cpp \
 	ARMBaseRegisterInfo.cpp \
 	ARMCodeEmitter.cpp \
 	ARMConstantIslandPass.cpp \
 	ARMConstantPoolValue.cpp \
-	ARMELFWriterInfo.cpp \
 	ARMExpandPseudoInsts.cpp \
 	ARMFastISel.cpp \
 	ARMFrameLowering.cpp \
@@ -26,6 +28,7 @@ SRCS=	ARMAsmPrinter.cpp \
 	ARMSubtarget.cpp \
 	ARMTargetMachine.cpp \
 	ARMTargetObjectFile.cpp \
+	ARMTargetTransformInfo.cpp \
 	MLxExpansionPass.cpp \
 	Thumb1FrameLowering.cpp \
 	Thumb1InstrInfo.cpp \

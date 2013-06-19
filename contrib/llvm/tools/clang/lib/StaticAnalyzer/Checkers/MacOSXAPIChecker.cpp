@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This defines MacOSXAPIChecker, which is an assortment of checks on calls
-// to various, widely used Mac OS X functions.
+// to various, widely used Apple APIs.
 //
 // FIXME: What's currently in BasicObjCFoundationChecks.cpp should be migrated
 // to here, using the new Checker interface.
@@ -16,12 +16,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
@@ -68,8 +68,18 @@ void MacOSXAPIChecker::CheckDispatchOnce(CheckerContext &C, const CallExpr *CE,
 
   if (!BT_dispatchOnce)
     BT_dispatchOnce.reset(new BugType("Improper use of 'dispatch_once'",
-                                      "Mac OS X API"));
+                                      "API Misuse (Apple)"));
 
+  // Handle _dispatch_once.  In some versions of the OS X SDK we have the case
+  // that dispatch_once is a macro that wraps a call to _dispatch_once.
+  // _dispatch_once is then a function which then calls the real dispatch_once.
+  // Users do not care; they just want the warning at the top-level call.
+  if (CE->getLocStart().isMacroID()) {
+    StringRef TrimmedFName = FName.ltrim("_");
+    if (TrimmedFName != FName)
+      FName = TrimmedFName;
+  }
+  
   SmallString<256> S;
   llvm::raw_svector_ostream os(S);
   os << "Call to '" << FName << "' uses";
@@ -84,7 +94,7 @@ void MacOSXAPIChecker::CheckDispatchOnce(CheckerContext &C, const CallExpr *CE,
 
   BugReport *report = new BugReport(*BT_dispatchOnce, os.str(), N);
   report->addRange(CE->getArg(0)->getSourceRange());
-  C.EmitReport(report);
+  C.emitReport(report);
 }
 
 //===----------------------------------------------------------------------===//
@@ -99,7 +109,9 @@ void MacOSXAPIChecker::checkPreStmt(const CallExpr *CE,
 
   SubChecker SC =
     llvm::StringSwitch<SubChecker>(Name)
-      .Cases("dispatch_once", "dispatch_once_f",
+      .Cases("dispatch_once",
+             "_dispatch_once",
+             "dispatch_once_f",
              &MacOSXAPIChecker::CheckDispatchOnce)
       .Default(NULL);
 

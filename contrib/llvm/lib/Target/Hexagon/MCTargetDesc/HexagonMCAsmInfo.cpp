@@ -24,13 +24,14 @@ HexagonMCAsmInfo::HexagonMCAsmInfo(const Target &T, StringRef TT) {
   HasLEB128 = true;
 
   PrivateGlobalPrefix = ".L";
-  LCOMMDirectiveType = LCOMM::ByteAlignment;
+  LCOMMDirectiveAlignmentType = LCOMM::ByteAlignment;
   InlineAsmStart = "# InlineAsm Start";
   InlineAsmEnd = "# InlineAsm End";
   ZeroDirective = "\t.space\t";
   AscizDirective = "\t.string\t";
   WeakRefDirective = "\t.weak\t";
 
+  SupportsDebugInformation = true;
   UsesELFSectionDirectiveForBSS  = true;
   ExceptionsType = ExceptionHandling::DwarfCFI;
 }

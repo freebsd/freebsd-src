@@ -54,7 +54,7 @@ static char RESULT[] = "result";
 static char ROUTINE[] = "local";
 static char RETVAL[] = "retval";
 
-char _errbuf[256];	/* For all messages */
+static char _errbuf[256];	/* For all messages */
 
 void internal_proctype( proc_list * );
 static void write_real_program( definition * );

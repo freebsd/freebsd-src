@@ -387,11 +387,11 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
      if(sp->soc != NULL)
 	  isc_stop_receiver(sp);
 
-     error = fget(td, fd, CAP_SOCK_ALL, &sp->fp);
+     error = fget(td, fd, CAP_SOCK_CLIENT, &sp->fp);
      if(error)
 	  return error;
 
-     if((error = fgetsock(td, fd, CAP_SOCK_ALL, &sp->soc, 0)) == 0) {
+     if((error = fgetsock(td, fd, CAP_SOCK_CLIENT, &sp->soc, 0)) == 0) {
 	  sp->td = td;
 	  isc_start_receiver(sp);
      }

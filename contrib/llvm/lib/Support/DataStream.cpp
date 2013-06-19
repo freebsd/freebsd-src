@@ -15,13 +15,13 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "Data-stream"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/DataStream.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/system_error.h"
-#include <string>
 #include <cerrno>
 #include <cstdio>
+#include <string>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
 #else
@@ -58,7 +58,7 @@ public:
   virtual ~DataFileStreamer() {
     close(Fd);
   }
-  virtual size_t GetBytes(unsigned char *buf, size_t len) {
+  virtual size_t GetBytes(unsigned char *buf, size_t len) LLVM_OVERRIDE {
     NumStreamFetches++;
     return read(Fd, buf, len);
   }

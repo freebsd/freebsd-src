@@ -207,6 +207,7 @@ int	wcwidth(wchar_t);
 #if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
 size_t	mbsnrtowcs(wchar_t * __restrict, const char ** __restrict, size_t,
 	    size_t, mbstate_t * __restrict);
+FILE	*open_wmemstream(wchar_t **, size_t *);
 wchar_t	*wcpcpy(wchar_t * __restrict, const wchar_t * __restrict);
 wchar_t	*wcpncpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
 wchar_t	*wcsdup(const wchar_t *) __malloc_like;

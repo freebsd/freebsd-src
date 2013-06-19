@@ -244,6 +244,9 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 			 * for future use.
 			 */
 			le = insert_entry(res, *e);
+			if (le == NULL)
+				/* XXX We should return an error code XXX */
+				return;
 			le->entry = *e;
 			*e = NULL;
 		}

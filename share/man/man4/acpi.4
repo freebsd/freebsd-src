@@ -80,8 +80,12 @@ A scheduling algorithm will select states between
 and this setting
 as system load dictates.
 To enable ACPI CPU idling control,
-.Va machdep.cpu_idle_hlt
-must be set to 1.
+.Va machdep.idle
+should be set to
+.Li acpi
+if it is listed in
+.Va machdep.idle_available
+.
 .It Va hw.acpi.cpu.cx_supported
 List of supported CPU idle states and their transition latency
 in microseconds.

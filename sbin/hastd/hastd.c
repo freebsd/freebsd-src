@@ -68,7 +68,7 @@ static struct hastd_config *cfg;
 bool sigexit_received = false;
 /* Path to pidfile. */
 static const char *pidfile;
-/* PID file handle. */
+/* Pidfile handle. */
 struct pidfh *pfh;
 /* Do we run in foreground? */
 static bool foreground;
@@ -748,6 +748,7 @@ listen_accept(struct hastd_listen *lst)
 	const char *resname;
 	const unsigned char *token;
 	char laddr[256], raddr[256];
+	uint8_t version;
 	size_t size;
 	pid_t pid;
 	int status;
@@ -797,6 +798,20 @@ listen_accept(struct hastd_listen *lst)
 		goto close;
 	}
 	pjdlog_debug(2, "%s: resource=%s", raddr, resname);
+	version = nv_get_uint8(nvin, "version");
+	pjdlog_debug(2, "%s: version=%hhu", raddr, version);
+	if (version == 0) {
+		/*
+		 * If no version is sent, it means this is protocol version 1.
+		 */
+		version = 1;
+	}
+	if (version > HAST_PROTO_VERSION) {
+		pjdlog_info("Remote protocol version %hhu is not supported, falling back to version %hhu.",
+		    version, (unsigned char)HAST_PROTO_VERSION);
+		version = HAST_PROTO_VERSION;
+	}
+	pjdlog_debug(1, "Negotiated protocol version %hhu.", version);
 	token = nv_get_uint8_array(nvin, &size, "token");
 	/*
 	 * NULL token means that this is first connection.
@@ -910,8 +925,10 @@ listen_accept(struct hastd_listen *lst)
 	 */
 
 	if (token == NULL) {
+		res->hr_version = version;
 		arc4random_buf(res->hr_token, sizeof(res->hr_token));
 		nvout = nv_alloc();
+		nv_add_uint8(nvout, version, "version");
 		nv_add_uint8_array(nvout, res->hr_token,
 		    sizeof(res->hr_token), "token");
 		if (nv_error(nvout) != 0) {
@@ -922,7 +939,7 @@ listen_accept(struct hastd_listen *lst)
 			    strerror(nv_error(nvout)));
 			goto fail;
 		}
-		if (hast_proto_send(NULL, conn, nvout, NULL, 0) == -1) {
+		if (hast_proto_send(res, conn, nvout, NULL, 0) == -1) {
 			int error = errno;
 
 			pjdlog_errno(LOG_ERR, "Unable to send response to %s",

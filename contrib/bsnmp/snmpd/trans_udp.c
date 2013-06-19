@@ -103,6 +103,7 @@ udp_init_port(struct tport *tp)
 	struct udp_port *p = (struct udp_port *)tp;
 	struct sockaddr_in addr;
 	u_int32_t ip;
+	const int on = 1;
 
 	if ((p->input.fd = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
 		syslog(LOG_ERR, "creating UDP socket: %m");
@@ -115,6 +116,14 @@ udp_init_port(struct tport *tp)
 	addr.sin_port = htons(p->port);
 	addr.sin_family = AF_INET;
 	addr.sin_len = sizeof(addr);
+	if (addr.sin_addr.s_addr == INADDR_ANY &&
+	    setsockopt(p->input.fd, IPPROTO_IP, IP_RECVDSTADDR, &on,
+	    sizeof(on)) == -1) {
+		syslog(LOG_ERR, "setsockopt(IP_RECVDSTADDR): %m");
+		close(p->input.fd);
+		p->input.fd = -1;
+		return (SNMP_ERR_GENERR);
+	}
 	if (bind(p->input.fd, (struct sockaddr *)&addr, sizeof(addr))) {
 		if (errno == EADDRNOTAVAIL) {
 			close(p->input.fd);

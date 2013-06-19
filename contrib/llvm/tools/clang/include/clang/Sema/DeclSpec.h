@@ -23,14 +23,14 @@
 #ifndef LLVM_CLANG_SEMA_DECLSPEC_H
 #define LLVM_CLANG_SEMA_DECLSPEC_H
 
-#include "clang/Sema/AttributeList.h"
-#include "clang/Sema/Ownership.h"
 #include "clang/AST/NestedNameSpecifier.h"
-#include "clang/Lex/Token.h"
 #include "clang/Basic/ExceptionSpecificationType.h"
 #include "clang/Basic/Lambda.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/Specifiers.h"
+#include "clang/Lex/Token.h"
+#include "clang/Sema/AttributeList.h"
+#include "clang/Sema/Ownership.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -227,6 +227,14 @@ public:
     SCS_mutable
   };
 
+  // Import thread storage class specifier enumeration and constants.
+  // These can be combined with SCS_extern and SCS_static.
+  typedef ThreadStorageClassSpecifier TSCS;
+  static const TSCS TSCS_unspecified = clang::TSCS_unspecified;
+  static const TSCS TSCS___thread = clang::TSCS___thread;
+  static const TSCS TSCS_thread_local = clang::TSCS_thread_local;
+  static const TSCS TSCS__Thread_local = clang::TSCS__Thread_local;
+
   // Import type specifier width enumeration and constants.
   typedef TypeSpecifierWidth TSW;
   static const TSW TSW_unspecified = clang::TSW_unspecified;
@@ -266,15 +274,25 @@ public:
   static const TST TST_enum = clang::TST_enum;
   static const TST TST_union = clang::TST_union;
   static const TST TST_struct = clang::TST_struct;
+  static const TST TST_interface = clang::TST_interface;
   static const TST TST_class = clang::TST_class;
   static const TST TST_typename = clang::TST_typename;
   static const TST TST_typeofType = clang::TST_typeofType;
   static const TST TST_typeofExpr = clang::TST_typeofExpr;
   static const TST TST_decltype = clang::TST_decltype;
+  static const TST TST_decltype_auto = clang::TST_decltype_auto;
   static const TST TST_underlyingType = clang::TST_underlyingType;
   static const TST TST_auto = clang::TST_auto;
   static const TST TST_unknown_anytype = clang::TST_unknown_anytype;
   static const TST TST_atomic = clang::TST_atomic;
+  static const TST TST_image1d_t = clang::TST_image1d_t;
+  static const TST TST_image1d_array_t = clang::TST_image1d_array_t;
+  static const TST TST_image1d_buffer_t = clang::TST_image1d_buffer_t;
+  static const TST TST_image2d_t = clang::TST_image2d_t;
+  static const TST TST_image2d_array_t = clang::TST_image2d_array_t;
+  static const TST TST_image3d_t = clang::TST_image3d_t;
+  static const TST TST_sampler_t = clang::TST_sampler_t;
+  static const TST TST_event_t = clang::TST_event_t;
   static const TST TST_error = clang::TST_error;
 
   // type-qualifiers
@@ -282,7 +300,10 @@ public:
     TQ_unspecified = 0,
     TQ_const       = 1,
     TQ_restrict    = 2,
-    TQ_volatile    = 4
+    TQ_volatile    = 4,
+    // This has no corresponding Qualifiers::TQ value, because it's not treated
+    // as a qualifier in our type system.
+    TQ_atomic      = 8
   };
 
   /// ParsedSpecifiers - Flags to query which specifiers were applied.  This is
@@ -298,34 +319,33 @@ public:
 private:
   // storage-class-specifier
   /*SCS*/unsigned StorageClassSpec : 3;
-  unsigned SCS_thread_specified : 1;
+  /*TSCS*/unsigned ThreadStorageClassSpec : 2;
   unsigned SCS_extern_in_linkage_spec : 1;
 
   // type-specifier
   /*TSW*/unsigned TypeSpecWidth : 2;
   /*TSC*/unsigned TypeSpecComplex : 2;
   /*TSS*/unsigned TypeSpecSign : 2;
-  /*TST*/unsigned TypeSpecType : 5;
+  /*TST*/unsigned TypeSpecType : 6;
   unsigned TypeAltiVecVector : 1;
   unsigned TypeAltiVecPixel : 1;
   unsigned TypeAltiVecBool : 1;
   unsigned TypeSpecOwned : 1;
 
   // type-qualifiers
-  unsigned TypeQualifiers : 3;  // Bitwise OR of TQ.
+  unsigned TypeQualifiers : 4;  // Bitwise OR of TQ.
 
   // function-specifier
   unsigned FS_inline_specified : 1;
   unsigned FS_virtual_specified : 1;
   unsigned FS_explicit_specified : 1;
+  unsigned FS_noreturn_specified : 1;
 
   // friend-specifier
   unsigned Friend_specified : 1;
 
   // constexpr-specifier
   unsigned Constexpr_specified : 1;
-
-  /*SCS*/unsigned StorageClassSpecAsWritten : 3;
 
   union {
     UnionParsedType TypeRep;
@@ -351,7 +371,7 @@ private:
   // the setting was synthesized.
   SourceRange Range;
 
-  SourceLocation StorageClassSpecLoc, SCS_threadLoc;
+  SourceLocation StorageClassSpecLoc, ThreadStorageClassSpecLoc;
   SourceLocation TSWLoc, TSCLoc, TSSLoc, TSTLoc, AltiVecLoc;
   /// TSTNameLoc - If TypeSpecType is any of class, enum, struct, union,
   /// typename, then this is the location of the named type (if present);
@@ -359,13 +379,12 @@ private:
   /// TSTNameLoc provides source range info for tag types.
   SourceLocation TSTNameLoc;
   SourceRange TypeofParensRange;
-  SourceLocation TQ_constLoc, TQ_restrictLoc, TQ_volatileLoc;
-  SourceLocation FS_inlineLoc, FS_virtualLoc, FS_explicitLoc;
+  SourceLocation TQ_constLoc, TQ_restrictLoc, TQ_volatileLoc, TQ_atomicLoc;
+  SourceLocation FS_inlineLoc, FS_virtualLoc, FS_explicitLoc, FS_noreturnLoc;
   SourceLocation FriendLoc, ModulePrivateLoc, ConstexprLoc;
 
   WrittenBuiltinSpecs writtenBS;
   void SaveWrittenBuiltinSpecs();
-  void SaveStorageSpecifierAsWritten();
 
   ObjCDeclSpec *ObjCQualifiers;
 
@@ -376,18 +395,19 @@ private:
   static bool isExprRep(TST T) {
     return (T == TST_typeofExpr || T == TST_decltype);
   }
+
+  DeclSpec(const DeclSpec &) LLVM_DELETED_FUNCTION;
+  void operator=(const DeclSpec &) LLVM_DELETED_FUNCTION;
+public:
   static bool isDeclRep(TST T) {
     return (T == TST_enum || T == TST_struct ||
-            T == TST_union || T == TST_class);
+            T == TST_interface || T == TST_union ||
+            T == TST_class);
   }
-
-  DeclSpec(const DeclSpec&);       // DO NOT IMPLEMENT
-  void operator=(const DeclSpec&); // DO NOT IMPLEMENT
-public:
 
   DeclSpec(AttributeFactory &attrFactory)
     : StorageClassSpec(SCS_unspecified),
-      SCS_thread_specified(false),
+      ThreadStorageClassSpec(TSCS_unspecified),
       SCS_extern_in_linkage_spec(false),
       TypeSpecWidth(TSW_unspecified),
       TypeSpecComplex(TSC_unspecified),
@@ -401,9 +421,9 @@ public:
       FS_inline_specified(false),
       FS_virtual_specified(false),
       FS_explicit_specified(false),
+      FS_noreturn_specified(false),
       Friend_specified(false),
       Constexpr_specified(false),
-      StorageClassSpecAsWritten(SCS_unspecified),
       Attrs(attrFactory),
       ProtocolQualifiers(0),
       NumProtocolQualifiers(0),
@@ -417,21 +437,25 @@ public:
   }
   // storage-class-specifier
   SCS getStorageClassSpec() const { return (SCS)StorageClassSpec; }
-  bool isThreadSpecified() const { return SCS_thread_specified; }
+  TSCS getThreadStorageClassSpec() const {
+    return (TSCS)ThreadStorageClassSpec;
+  }
   bool isExternInLinkageSpec() const { return SCS_extern_in_linkage_spec; }
   void setExternInLinkageSpec(bool Value) {
     SCS_extern_in_linkage_spec = Value;
   }
 
   SourceLocation getStorageClassSpecLoc() const { return StorageClassSpecLoc; }
-  SourceLocation getThreadSpecLoc() const { return SCS_threadLoc; }
+  SourceLocation getThreadStorageClassSpecLoc() const {
+    return ThreadStorageClassSpecLoc;
+  }
 
   void ClearStorageClassSpecs() {
-    StorageClassSpec     = DeclSpec::SCS_unspecified;
-    SCS_thread_specified = false;
+    StorageClassSpec           = DeclSpec::SCS_unspecified;
+    ThreadStorageClassSpec     = DeclSpec::TSCS_unspecified;
     SCS_extern_in_linkage_spec = false;
-    StorageClassSpecLoc  = SourceLocation();
-    SCS_threadLoc        = SourceLocation();
+    StorageClassSpecLoc        = SourceLocation();
+    ThreadStorageClassSpecLoc  = SourceLocation();
   }
 
   // type-specifier
@@ -476,6 +500,10 @@ public:
   SourceRange getTypeofParensRange() const { return TypeofParensRange; }
   void setTypeofParensRange(SourceRange range) { TypeofParensRange = range; }
 
+  bool containsPlaceholderType() const {
+    return TypeSpecType == TST_auto || TypeSpecType == TST_decltype_auto;
+  }
+
   /// \brief Turn a type-specifier-type into a string like "_Bool" or "union".
   static const char *getSpecifierName(DeclSpec::TST T);
   static const char *getSpecifierName(DeclSpec::TQ Q);
@@ -483,6 +511,7 @@ public:
   static const char *getSpecifierName(DeclSpec::TSC C);
   static const char *getSpecifierName(DeclSpec::TSW W);
   static const char *getSpecifierName(DeclSpec::SCS S);
+  static const char *getSpecifierName(DeclSpec::TSCS S);
 
   // type-qualifiers
 
@@ -491,6 +520,7 @@ public:
   SourceLocation getConstSpecLoc() const { return TQ_constLoc; }
   SourceLocation getRestrictSpecLoc() const { return TQ_restrictLoc; }
   SourceLocation getVolatileSpecLoc() const { return TQ_volatileLoc; }
+  SourceLocation getAtomicSpecLoc() const { return TQ_atomicLoc; }
 
   /// \brief Clear out all of the type qualifiers.
   void ClearTypeQualifiers() {
@@ -498,6 +528,7 @@ public:
     TQ_constLoc = SourceLocation();
     TQ_restrictLoc = SourceLocation();
     TQ_volatileLoc = SourceLocation();
+    TQ_atomicLoc = SourceLocation();
   }
 
   // function-specifier
@@ -510,6 +541,9 @@ public:
   bool isExplicitSpecified() const { return FS_explicit_specified; }
   SourceLocation getExplicitSpecLoc() const { return FS_explicitLoc; }
 
+  bool isNoreturnSpecified() const { return FS_noreturn_specified; }
+  SourceLocation getNoreturnSpecLoc() const { return FS_noreturnLoc; }
+
   void ClearFunctionSpecs() {
     FS_inline_specified = false;
     FS_inlineLoc = SourceLocation();
@@ -517,6 +551,8 @@ public:
     FS_virtualLoc = SourceLocation();
     FS_explicit_specified = false;
     FS_explicitLoc = SourceLocation();
+    FS_noreturn_specified = false;
+    FS_noreturnLoc = SourceLocation();
   }
 
   /// \brief Return true if any type-specifier has been found.
@@ -530,10 +566,6 @@ public:
   /// \brief Return a bitmask of which flavors of specifiers this
   /// DeclSpec includes.
   unsigned getParsedSpecifiers() const;
-
-  SCS getStorageClassSpecAsWritten() const {
-    return (SCS)StorageClassSpecAsWritten;
-  }
 
   /// isEmpty - Return true if this declaration specifier is completely empty:
   /// no tokens were parsed in the production of it.
@@ -556,8 +588,8 @@ public:
   /// diagnostics to be ignored when desired.
   bool SetStorageClassSpec(Sema &S, SCS SC, SourceLocation Loc,
                            const char *&PrevSpec, unsigned &DiagID);
-  bool SetStorageClassSpecThread(SourceLocation Loc, const char *&PrevSpec,
-                                 unsigned &DiagID);
+  bool SetStorageClassSpecThread(TSCS TSC, SourceLocation Loc,
+                                 const char *&PrevSpec, unsigned &DiagID);
   bool SetTypeSpecWidth(TSW W, SourceLocation Loc, const char *&PrevSpec,
                         unsigned &DiagID);
   bool SetTypeSpecComplex(TSC C, SourceLocation Loc, const char *&PrevSpec,
@@ -598,15 +630,12 @@ public:
   }
 
   bool SetTypeQual(TQ T, SourceLocation Loc, const char *&PrevSpec,
-                   unsigned &DiagID, const LangOptions &Lang,
-                   bool IsTypeSpec);
+                   unsigned &DiagID, const LangOptions &Lang);
 
-  bool SetFunctionSpecInline(SourceLocation Loc, const char *&PrevSpec,
-                             unsigned &DiagID);
-  bool SetFunctionSpecVirtual(SourceLocation Loc, const char *&PrevSpec,
-                              unsigned &DiagID);
-  bool SetFunctionSpecExplicit(SourceLocation Loc, const char *&PrevSpec,
-                               unsigned &DiagID);
+  bool setFunctionSpecInline(SourceLocation Loc);
+  bool setFunctionSpecVirtual(SourceLocation Loc);
+  bool setFunctionSpecExplicit(SourceLocation Loc);
+  bool setFunctionSpecNoreturn(SourceLocation Loc);
 
   bool SetFriendSpec(SourceLocation Loc, const char *&PrevSpec,
                      unsigned &DiagID);
@@ -781,8 +810,9 @@ private:
 /// \brief Represents a C++ unqualified-id that has been parsed. 
 class UnqualifiedId {
 private:
-  const UnqualifiedId &operator=(const UnqualifiedId &); // DO NOT IMPLEMENT
-  
+  UnqualifiedId(const UnqualifiedId &Other) LLVM_DELETED_FUNCTION;
+  const UnqualifiedId &operator=(const UnqualifiedId &) LLVM_DELETED_FUNCTION;
+
 public:
   /// \brief Describes the kind of unqualified-id parsed.
   enum IdKind {
@@ -806,6 +836,20 @@ public:
     IK_ImplicitSelfParam
   } Kind;
 
+  struct OFI {
+    /// \brief The kind of overloaded operator.
+    OverloadedOperatorKind Operator;
+
+    /// \brief The source locations of the individual tokens that name
+    /// the operator, e.g., the "new", "[", and "]" tokens in 
+    /// operator new []. 
+    ///
+    /// Different operators have different numbers of tokens in their name,
+    /// up to three. Any remaining source locations in this array will be
+    /// set to an invalid value for operators with fewer than three tokens.
+    unsigned SymbolLocations[3];
+  };
+
   /// \brief Anonymous union that holds extra data associated with the
   /// parsed unqualified-id.
   union {
@@ -815,19 +859,7 @@ public:
     
     /// \brief When Kind == IK_OperatorFunctionId, the overloaded operator
     /// that we parsed.
-    struct {
-      /// \brief The kind of overloaded operator.
-      OverloadedOperatorKind Operator;
-      
-      /// \brief The source locations of the individual tokens that name
-      /// the operator, e.g., the "new", "[", and "]" tokens in 
-      /// operator new []. 
-      ///
-      /// Different operators have different numbers of tokens in their name,
-      /// up to three. Any remaining source locations in this array will be
-      /// set to an invalid value for operators with fewer than three tokens.
-      unsigned SymbolLocations[3];
-    } OperatorFunctionId;
+    struct OFI OperatorFunctionId;
     
     /// \brief When Kind == IK_ConversionFunctionId, the type that the 
     /// conversion function names.
@@ -856,17 +888,6 @@ public:
   SourceLocation EndLocation;
   
   UnqualifiedId() : Kind(IK_Identifier), Identifier(0) { }
-
-  /// \brief Do not use this copy constructor. It is temporary, and only
-  /// exists because we are holding FieldDeclarators in a SmallVector when we
-  /// don't actually need them.
-  ///
-  /// FIXME: Kill this copy constructor.
-  UnqualifiedId(const UnqualifiedId &Other) 
-    : Kind(IK_Identifier), Identifier(Other.Identifier), 
-      StartLocation(Other.StartLocation), EndLocation(Other.EndLocation) {
-    assert(Other.Kind == IK_Identifier && "Cannot copy non-identifiers");
-  }
 
   /// \brief Clear out this unqualified-id, setting it to default (invalid) 
   /// state.
@@ -1019,8 +1040,8 @@ struct DeclaratorChunk {
   };
 
   struct PointerTypeInfo : TypeInfoCommon {
-    /// The type qualifiers: const/volatile/restrict.
-    unsigned TypeQuals : 3;
+    /// The type qualifiers: const/volatile/restrict/atomic.
+    unsigned TypeQuals : 4;
 
     /// The location of the const-qualifier, if any.
     unsigned ConstQualLoc;
@@ -1030,6 +1051,9 @@ struct DeclaratorChunk {
 
     /// The location of the restrict-qualifier, if any.
     unsigned RestrictQualLoc;
+
+    /// The location of the _Atomic-qualifier, if any.
+    unsigned AtomicQualLoc;
 
     void destroy() {
     }
@@ -1045,8 +1069,8 @@ struct DeclaratorChunk {
   };
 
   struct ArrayTypeInfo : TypeInfoCommon {
-    /// The type qualifiers for the array: const/volatile/restrict.
-    unsigned TypeQuals : 3;
+    /// The type qualifiers for the array: const/volatile/restrict/_Atomic.
+    unsigned TypeQuals : 4;
 
     /// True if this dimension included the 'static' keyword.
     bool hasStatic : 1;
@@ -1110,7 +1134,7 @@ struct DeclaratorChunk {
     /// \brief Whether the ref-qualifier (if any) is an lvalue reference.
     /// Otherwise, it's an rvalue reference.
     unsigned RefQualifierIsLValueRef : 1;
-    
+
     /// The type qualifiers: const/volatile/restrict.
     /// The qualifier bitmask values are the same as in QualType.
     unsigned TypeQuals : 3;
@@ -1125,8 +1149,14 @@ struct DeclaratorChunk {
     /// specified.
     unsigned HasTrailingReturnType : 1;
 
+    /// The location of the left parenthesis in the source.
+    unsigned LParenLoc;
+
     /// When isVariadic is true, the location of the ellipsis in the source.
     unsigned EllipsisLoc;
+
+    /// The location of the right parenthesis in the source.
+    unsigned RParenLoc;
 
     /// NumArgs - This is the number of formal arguments provided for the
     /// declarator.
@@ -1202,10 +1232,19 @@ struct DeclaratorChunk {
     bool isKNRPrototype() const {
       return !hasPrototype && NumArgs != 0;
     }
-    
+
+    SourceLocation getLParenLoc() const {
+      return SourceLocation::getFromRawEncoding(LParenLoc);
+    }
+
     SourceLocation getEllipsisLoc() const {
       return SourceLocation::getFromRawEncoding(EllipsisLoc);
     }
+
+    SourceLocation getRParenLoc() const {
+      return SourceLocation::getFromRawEncoding(RParenLoc);
+    }
+
     SourceLocation getExceptionSpecLoc() const {
       return SourceLocation::getFromRawEncoding(ExceptionSpecLoc);
     }
@@ -1253,16 +1292,16 @@ struct DeclaratorChunk {
 
   struct BlockPointerTypeInfo : TypeInfoCommon {
     /// For now, sema will catch these as invalid.
-    /// The type qualifiers: const/volatile/restrict.
-    unsigned TypeQuals : 3;
+    /// The type qualifiers: const/volatile/restrict/_Atomic.
+    unsigned TypeQuals : 4;
 
     void destroy() {
     }
   };
 
   struct MemberPointerTypeInfo : TypeInfoCommon {
-    /// The type qualifiers: const/volatile/restrict.
-    unsigned TypeQuals : 3;
+    /// The type qualifiers: const/volatile/restrict/_Atomic.
+    unsigned TypeQuals : 4;
     // CXXScopeSpec has a constructor, so it can't be a direct member.
     // So we need some pointer-aligned storage and a bit of trickery.
     union {
@@ -1358,11 +1397,13 @@ struct DeclaratorChunk {
 
   /// DeclaratorChunk::getFunction - Return a DeclaratorChunk for a function.
   /// "TheDeclarator" is the declarator that this will be added to.
-  static DeclaratorChunk getFunction(bool hasProto, bool isVariadic,
+  static DeclaratorChunk getFunction(bool hasProto,
                                      bool isAmbiguous,
-                                     SourceLocation EllipsisLoc,
+                                     SourceLocation LParenLoc,
                                      ParamInfo *ArgInfo, unsigned NumArgs,
-                                     unsigned TypeQuals, 
+                                     SourceLocation EllipsisLoc,
+                                     SourceLocation RParenLoc,
+                                     unsigned TypeQuals,
                                      bool RefQualifierIsLvalueRef,
                                      SourceLocation RefQualifierLoc,
                                      SourceLocation ConstQualifierLoc,
@@ -1414,6 +1455,9 @@ struct DeclaratorChunk {
     return I;
   }
 
+  bool isParen() const {
+    return Kind == Paren;
+  }
 };
 
 /// \brief Described the kind of function definition (if any) provided for
@@ -1454,8 +1498,9 @@ public:
     CXXNewContext,       // C++ new-expression.
     CXXCatchContext,     // C++ catch exception-declaration
     ObjCCatchContext,    // Objective-C catch exception-declaration
-    BlockLiteralContext,  // Block literal declarator.
+    BlockLiteralContext, // Block literal declarator.
     LambdaExprContext,   // Lambda-expression declarator.
+    ConversionIdContext, // C++ conversion-type-id.
     TrailingReturnContext, // C++11 trailing-type-specifier.
     TemplateTypeArgContext, // Template type argument.
     AliasDeclContext,    // C++11 alias-declaration.
@@ -1631,6 +1676,7 @@ public:
     case ObjCCatchContext:
     case BlockLiteralContext:
     case LambdaExprContext:
+    case ConversionIdContext:
     case TemplateTypeArgContext:
     case TrailingReturnContext:
       return true;
@@ -1663,6 +1709,7 @@ public:
     case ObjCResultContext:
     case BlockLiteralContext:
     case LambdaExprContext:
+    case ConversionIdContext:
     case TemplateTypeArgContext:
     case TrailingReturnContext:
       return false;
@@ -1712,6 +1759,7 @@ public:
     case AliasTemplateContext:
     case BlockLiteralContext:
     case LambdaExprContext:
+    case ConversionIdContext:
     case TemplateTypeArgContext:
     case TrailingReturnContext:
       return false;
@@ -1775,33 +1823,41 @@ public:
     return DeclTypeInfo[i];
   }
 
-  void DropFirstTypeObject()
-  {
+  void DropFirstTypeObject() {
     assert(!DeclTypeInfo.empty() && "No type chunks to drop.");
     DeclTypeInfo.front().destroy();
     DeclTypeInfo.erase(DeclTypeInfo.begin());
+  }
+
+  /// Return the innermost (closest to the declarator) chunk of this
+  /// declarator that is not a parens chunk, or null if there are no
+  /// non-parens chunks.
+  const DeclaratorChunk *getInnermostNonParenChunk() const {
+    for (unsigned i = 0, i_end = DeclTypeInfo.size(); i < i_end; ++i) {
+      if (!DeclTypeInfo[i].isParen())
+        return &DeclTypeInfo[i];
+    }
+    return 0;
+  }
+
+  /// Return the outermost (furthest from the declarator) chunk of
+  /// this declarator that is not a parens chunk, or null if there are
+  /// no non-parens chunks.
+  const DeclaratorChunk *getOutermostNonParenChunk() const {
+    for (unsigned i = DeclTypeInfo.size(), i_end = 0; i != i_end; --i) {
+      if (!DeclTypeInfo[i-1].isParen())
+        return &DeclTypeInfo[i-1];
+    }
+    return 0;
   }
 
   /// isArrayOfUnknownBound - This method returns true if the declarator
   /// is a declarator for an array of unknown bound (looking through
   /// parentheses).
   bool isArrayOfUnknownBound() const {
-    for (unsigned i = 0, i_end = DeclTypeInfo.size(); i < i_end; ++i) {
-      switch (DeclTypeInfo[i].Kind) {
-      case DeclaratorChunk::Paren:
-        continue;
-      case DeclaratorChunk::Function:
-      case DeclaratorChunk::Pointer:
-      case DeclaratorChunk::Reference:
-      case DeclaratorChunk::BlockPointer:
-      case DeclaratorChunk::MemberPointer:
-        return false;
-      case DeclaratorChunk::Array:
-        return !DeclTypeInfo[i].Arr.NumElts;
-      }
-      llvm_unreachable("Invalid type chunk");
-    }
-    return false;
+    const DeclaratorChunk *chunk = getInnermostNonParenChunk();
+    return (chunk && chunk->Kind == DeclaratorChunk::Array &&
+            !chunk->Arr.NumElts);
   }
 
   /// isFunctionDeclarator - This method returns true if the declarator
@@ -1858,7 +1914,55 @@ public:
   /// isn't a function declarator, if the type specifier refers to a function
   /// type. This routine checks for both cases.
   bool isDeclarationOfFunction() const;
+
+  /// \brief Return true if this declaration appears in a context where a
+  /// function declarator would be a function declaration.
+  bool isFunctionDeclarationContext() const {
+    if (getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef)
+      return false;
+
+    switch (Context) {
+    case FileContext:
+    case MemberContext:
+    case BlockContext:
+      return true;
+
+    case ForContext:
+    case ConditionContext:
+    case KNRTypeListContext:
+    case TypeNameContext:
+    case AliasDeclContext:
+    case AliasTemplateContext:
+    case PrototypeContext:
+    case ObjCParameterContext:
+    case ObjCResultContext:
+    case TemplateParamContext:
+    case CXXNewContext:
+    case CXXCatchContext:
+    case ObjCCatchContext:
+    case BlockLiteralContext:
+    case LambdaExprContext:
+    case ConversionIdContext:
+    case TemplateTypeArgContext:
+    case TrailingReturnContext:
+      return false;
+    }
+    llvm_unreachable("unknown context kind!");
+  }
   
+  /// \brief Return true if a function declarator at this position would be a
+  /// function declaration.
+  bool isFunctionDeclaratorAFunctionDeclaration() const {
+    if (!isFunctionDeclarationContext())
+      return false;
+
+    for (unsigned I = 0, N = getNumTypeObjects(); I != N; ++I)
+      if (getTypeObject(I).Kind != DeclaratorChunk::Paren)
+        return false;
+
+    return true;
+  }
+
   /// takeAttributes - Takes attributes from the given parsed-attributes
   /// set and add them to this declarator.
   ///
@@ -1887,6 +1991,17 @@ public:
       if (getTypeObject(i).getAttrs())
         return true;
     return false;
+  }
+
+  /// \brief Return a source range list of C++11 attributes associated
+  /// with the declarator.
+  void getCXX11AttributeRanges(SmallVector<SourceRange, 4> &Ranges) {
+    AttributeList *AttrList = Attrs.getList();
+    while (AttrList) {
+      if (AttrList->isCXX11Attribute())
+        Ranges.push_back(AttrList->getRange());
+      AttrList = AttrList->getNext();
+    }
   }
 
   void setAsmLabel(Expr *E) { AsmLabel = E; }
@@ -1988,7 +2103,7 @@ struct LambdaIntroducer {
   SourceRange Range;
   SourceLocation DefaultLoc;
   LambdaCaptureDefault Default;
-  llvm::SmallVector<LambdaCapture, 4> Captures;
+  SmallVector<LambdaCapture, 4> Captures;
 
   LambdaIntroducer()
     : Default(LCD_None) {}

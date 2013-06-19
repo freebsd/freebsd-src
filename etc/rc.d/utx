@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: utx
-# REQUIRE: DAEMON cleanvar
+# REQUIRE: DAEMON FILESYSTEMS
 # KEYWORD: shutdown
 
 . /etc/rc.subr
