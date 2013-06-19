@@ -152,7 +152,7 @@ ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
 	pref = 0;
 	if ((error = ext2_getlbns(vp, lbn, indirs, &num)) != 0)
 		return (error);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (num < 1)
 		panic ("ext2_balloc: ext2_getlbns returned indirect block");
 #endif
