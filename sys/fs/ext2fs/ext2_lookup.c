@@ -62,7 +62,7 @@
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_extern.h>
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 static int dirchk = 1;
 #else
 static int dirchk = 0;
@@ -790,7 +790,7 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	int     DIRBLKSIZ = ip->i_e2fs->e2fs_bsize;
 
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((cnp->cn_flags & SAVENAME) == 0)
 		panic("ext2_direnter: missing name");
 #endif
