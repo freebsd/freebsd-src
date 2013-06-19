@@ -80,18 +80,22 @@ dtrace_invop_calltrap_addr:
  * This is equivalent to the i386 port's use of SDT_SYS386TGT.
  *
  * The cpu will push a certain amount of state onto the kernel stack for
- * the current process.  See amd64/include/frame.h.  
- * This includes the current RFLAGS (status register, which includes 
+ * the current process.  See amd64/include/frame.h.
+ * This includes the current RFLAGS (status register, which includes
  * the interrupt disable state prior to the trap), the code segment register,
- * and the return instruction pointer are pushed by the cpu.  The cpu 
- * will also push an 'error' code for certain traps.  We push a dummy 
- * error code for those traps where the cpu doesn't in order to maintain 
+ * and the return instruction pointer are pushed by the cpu.  The cpu
+ * will also push an 'error' code for certain traps.  We push a dummy
+ * error code for those traps where the cpu doesn't in order to maintain
  * a consistent frame.  We also push a contrived 'trap number'.
  *
- * The cpu does not push the general registers, we must do that, and we 
- * must restore them prior to calling 'iret'.  The cpu adjusts the %cs and
- * %ss segment registers, but does not mess with %ds, %es, or %fs.  Thus we
- * must load them with appropriate values for supervisor mode operation.
+ * The CPU does not push the general registers, so we must do that, and we
+ * must restore them prior to calling 'iret'.  The CPU adjusts %cs and %ss
+ * but does not mess with %ds, %es, %gs or %fs.  We swap the %gs base for
+ * for the kernel mode operation shortly, without changes to the selector
+ * loaded.  Since superuser long mode works with any selectors loaded into
+ * segment registers other then %cs, which makes them mostly unused in long
+ * mode, and kernel does not reference %fs, leave them alone.  The segment
+ * registers are reloaded on return to the usermode.
  */
 
 MCOUNT_LABEL(user)
@@ -503,7 +507,7 @@ nmi_calltrap:
 #ifdef HWPMC_HOOKS
 	/*
 	 * Capture a userspace callchain if needed.
-	 * 
+	 *
 	 * - Check if the current trap was from user mode.
 	 * - Check if the current thread is valid.
 	 * - Check if the thread requires a user call chain to be
@@ -549,7 +553,7 @@ outofnmi:
 	 * At this point the processor has exited NMI mode and is running
 	 * with interrupts turned off on the normal kernel stack.
 	 *
-	 * If a pending NMI gets recognized at or after this point, it 
+	 * If a pending NMI gets recognized at or after this point, it
 	 * will cause a kernel callchain to be traced.
 	 *
 	 * We turn interrupts back on, and call the user callchain capture hook.
@@ -567,7 +571,7 @@ nocallchain:
 #endif
 	testl	%ebx,%ebx
 	jnz	doreti_exit
-nmi_kernelexit:	
+nmi_kernelexit:
 	/*
 	 * Put back the preserved MSR_GSBASE value.
 	 */
