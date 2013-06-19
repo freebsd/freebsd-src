@@ -79,12 +79,10 @@ while :; do
 
 	case "$mtag" in
 	"X $msg_exit") break ;;
-
 	*) # anything else is a group name
 	   $BSDCFG_LIBE/$APP_DIR/groupinput \
 	   	${USE_XDIALOG:+-X} mode="Delete" group="$mtag"
 	   ;;
-
 	esac
 done
 
