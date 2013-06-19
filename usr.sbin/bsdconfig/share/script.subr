@@ -159,10 +159,6 @@ f_resword_new loadConfig	f_script_load
 # device.subr
 f_resword_new deviceRescan	f_device_rescan
 
-# variable.subr
-f_resword_new installVarDefaults	f_variable_set_defaults
-f_resword_new dumpVariables		f_dump_variables
-
 # media/common.subr
 f_resword_new mediaOpen		f_media_open
 f_resword_new mediaClose	f_media_close
@@ -191,6 +187,10 @@ f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
 
 # packages/packages.subr
 f_resword_new configPackages	f_package_config
+
+# variable.subr
+f_resword_new installVarDefaults	f_variable_set_defaults
+f_resword_new dumpVariables		f_dump_variables
 
 f_dprintf "%s: Successfully loaded." script.subr
 
